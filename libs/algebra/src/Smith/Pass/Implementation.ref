@@ -1,0 +1,27 @@
+\definition T: \VType := \U(Reducer -> N.Nat -> N.Nat -> Runtime -> History -> Attempt);
+\definition program: T := \thunk (\cfun (reduce: Reducer) => \return(\thunk (\cfun (count: N.Nat) => \return(\thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (history: History) => \program {
+  \bind stepBuilder: \U(N.Nat -> Cursor -> Cursor) <- (\force Step.program) reduce \then
+  \bind transition: \U(Cursor -> Cursor) <- (\force stepBuilder) k \then
+  \bind start: \U(Cursor -> N.Nat -> Cursor) <- (\force NativeIteration.Iterate.program) transition \then
+  \bind iterate: \U(N.Nat -> Cursor) <- (\force start) (Cursor::cursor N.Nat::zero (Attempt::attempt a history B.Bool::false)) \then
+  \bind cursor: Cursor <- (\force iterate) count \then
+  \bind attempt: Attempt <- (\force Reader.program) cursor \then
+  \return attempt
+})))))))));
+\definition read(reduce: Reducer^)(count, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := cursorAttempt (NativeIteration.Iterate.program^ (Step.program^ reduce k) (initial a history) count);
+\definition iterated(reduce: Reducer^)(count, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := cursorAttempt (Iteration.apply (Step.program^ reduce k) (initial a history) count);
+\definition mathematical(reduce: Reducer^)(count, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := cursorAttempt (Iteration.apply (step reduce k) (initial a history) count);
+\definition matches: \forall (reduce: Reducer^)(count, k: N.Nat^)(a: Runtime^)(history: History^) -> program^ reduce count k a history = passWith reduce count k a history :=
+  \fun (reduce: Reducer^)(count, k: N.Nat^)(a: Runtime^)(history: History^) => trans!{Attempt^}
+    (program^ reduce count k a history) (read reduce count k a history) (passWith reduce count k a history)
+    (congr!{Reader.T^ Attempt^} (\fun (f: Reader.T^) => f (NativeIteration.Iterate.program^ (Step.program^ reduce k) (initial a history) count)) Reader.program^ Reader.specification Reader.coherence)
+    (trans!{Attempt^} (read reduce count k a history) (iterated reduce count k a history) (passWith reduce count k a history)
+      (congr!{NativeIteration.Iterate.T^ Attempt^} (\fun (f: NativeIteration.Iterate.T^) => cursorAttempt (f (Step.program^ reduce k) (initial a history) count)) NativeIteration.Iterate.program^ NativeIteration.Iterate.specification NativeIteration.Iterate.coherence)
+      (trans!{Attempt^} (iterated reduce count k a history) (mathematical reduce count k a history) (passWith reduce count k a history)
+        (congr!{Step.T^ Attempt^} (\fun (f: Step.T^) => cursorAttempt (Iteration.apply (f reduce k) (initial a history) count)) Step.program^ Step.specification Step.coherence)
+        (congr!{Cursor^ Attempt^} cursorAttempt (Iteration.apply (step reduce k) (initial a history) count) (Cursor^::cursor count (passWith reduce count k a history)) (iterationState count reduce k a history))));
+\definition coherence: program^ = passWith := \axiom:funext(program^, passWith,
+  \fun (reduce: Reducer^) => \axiom:funext(program^ reduce, passWith reduce,
+    \fun (count: N.Nat^) => \axiom:funext(program^ reduce count, passWith reduce count,
+      \fun (k: N.Nat^) => \axiom:funext(program^ reduce count k, passWith reduce count k,
+        \fun (a: Runtime^) => \axiom:funext(program^ reduce count k a, passWith reduce count k a, matches reduce count k a)))));

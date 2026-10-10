@@ -1,0 +1,22 @@
+\module At(x, y: Index) {
+  \import Chains.Map[C := complexes x, D := complexes y] \as Maps;
+  \definition Hom: \Set := Maps.Map;
+  \definition sourceCarrier(k: Chain.Degree): \Set := Maps.sourceCarrier k;
+  \definition ext: \forall (f, g: Hom) -> (\forall (k: Chain.Degree)(u: Maps.sourceCarrier k) -> #apply{f} k u = #apply{g} k u) -> f = g := Maps.ext;
+}
+\definition Hom(x, y: Index): \Set := At[x := x, y := y].Hom;
+\definition identity(x: Index): Hom x x := Chains.End[C := complexes x].identity;
+\definition compose(x, y, z: Index)(g: Hom y z)(f: Hom x y): Hom x z :=
+  Chains.Map[C := complexes y, D := complexes z].Composition[B := complexes x].compose g f;
+\definition data: Cat.CategoryData[Index, Hom] := Cat.CategoryData[Index, Hom] { identity := identity, compose := compose };
+\definition laws: Cat.CategoryLaws[Index, Hom, data] := Cat.CategoryLaws[Index, Hom, data] {
+  leftIdentity := \fun (x, y: Index)(f: Hom x y) => At[x := x, y := y].ext (compose x y y (identity y) f) f
+    (\fun (k: Chain.Degree)(u: At[x := x, y := y].sourceCarrier k) => \refl(#apply{f} k u)),
+  rightIdentity := \fun (x, y: Index)(f: Hom x y) => At[x := x, y := y].ext (compose x x y f (identity x)) f
+    (\fun (k: Chain.Degree)(u: At[x := x, y := y].sourceCarrier k) => \refl(#apply{f} k u)),
+  associative := \fun (w, x, y, z: Index)(h: Hom y z)(g: Hom x y)(f: Hom w x) =>
+    At[x := w, y := z].ext (compose w y z h (compose w x y g f)) (compose w x z (compose x y z h g) f)
+      (\fun (k: Chain.Degree)(u: At[x := w, y := z].sourceCarrier k) => \refl(#apply{h} k (#apply{g} k (#apply{f} k u)))),
+};
+\definition category: Cat.Category := Cat.Category { Object := Index, Hom := Hom, structure := data, laws := laws };
+\module Degree(k: Chain.Degree);

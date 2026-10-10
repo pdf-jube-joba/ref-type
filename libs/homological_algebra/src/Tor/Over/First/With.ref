@@ -1,0 +1,44 @@
+\definition sourceBundle(n: Nat.Nat^): Modules.Bundle := Modules.Bundle { Carrier := Source.At[n := n].Carrier, space := Source.At[n := n].space };
+\definition targetBundle(n: Nat.Nat^): Modules.Bundle := Modules.Bundle { Carrier := Target.At[n := n].Carrier, space := Target.At[n := n].space };
+\definition map: \forall (n: Nat.Nat^) -> Modules.MapBetween (sourceBundle n) (targetBundle n) :=
+  \induction (n: Nat.Nat^) \return Modules.MapBetween (sourceBundle n) (targetBundle n) \with {
+    | zero: \parent.DegreeZero[].With[p := p, q := q, f := f].map
+    | succ: \fun (n: Nat.Nat^)(previous: Modules.MapBetween (sourceBundle n) (targetBundle n)) =>
+      \parent.Positive[n := n].With[p := p, q := q, f := f].map
+  };
+\import Resolutions.Comparison[M := M, N := L, P := P, Q := Q, f := f] \as Comparison;
+\module Compared(g: ChainMaps.Map) {
+  \import TensorMaps.HomologyNaturality[f := chainMap g] \as Naturality;
+  \module Zero {
+    \import TensorMaps.DegreeZero[] \as Ordinary;
+    \import TensorMaps.HomologyAt[n := Nat.Nat^::zero] \as Uniform;
+    \import Modules.Hom[V := Source.At[n := Nat.Nat^::zero].Carrier, W := Target.At[n := Nat.Nat^::zero].Carrier,
+      source := Source.At[n := Nat.Nat^::zero].space, target := Target.At[n := Nat.Nat^::zero].space] \as Maps;
+    \definition equality: Ordinary.induced (chainMap g) = Uniform.induced (chainMap g) :=
+      Maps.ext (Ordinary.induced (chainMap g)) (Uniform.induced (chainMap g))
+        (\fun (x: Source.At[n := Nat.Nat^::zero].Carrier) => sym!{{Target.At[n := Nat.Nat^::zero].Carrier}} _ _ (Naturality.DegreeZero[].agrees x));
+  }
+  \module Positive(n: Nat.Nat^) {
+    \import TensorMaps.Positive[n := n] \as Ordinary;
+    \import TensorMaps.HomologyAt[n := Nat.Nat^::succ n] \as Uniform;
+    \import Modules.Hom[V := Source.At[n := Nat.Nat^::succ n].Carrier, W := Target.At[n := Nat.Nat^::succ n].Carrier,
+      source := Source.At[n := Nat.Nat^::succ n].space, target := Target.At[n := Nat.Nat^::succ n].space] \as Maps;
+    \definition equality: Ordinary.induced (chainMap g) = Uniform.induced (chainMap g) :=
+      Maps.ext (Ordinary.induced (chainMap g)) (Uniform.induced (chainMap g))
+        (\fun (x: Source.At[n := Nat.Nat^::succ n].Carrier) => sym!{{Target.At[n := Nat.Nat^::succ n].Carrier}} _ _ (Naturality.Positive[n := n].agrees x));
+  }
+}
+\definition onComparison: \forall (n: Nat.Nat^)(g: ChainMaps.Map) -> Comparison.Augmented p q g ->
+  map n = TensorMaps.HomologyAt[n := n].induced (chainMap g) :=
+  \induction (n: Nat.Nat^) \return \forall (g: ChainMaps.Map) -> Comparison.Augmented p q g ->
+    map n = TensorMaps.HomologyAt[n := n].induced (chainMap g) \with {
+    | zero: \fun (g: ChainMaps.Map)(augmented: Comparison.Augmented p q g) =>
+      trans!{{Modules.MapBetween (sourceBundle Nat.Nat^::zero) (targetBundle Nat.Nat^::zero)}}
+        (map Nat.Nat^::zero) (TensorMaps.DegreeZero[].induced (chainMap g)) (TensorMaps.HomologyAt[n := Nat.Nat^::zero].induced (chainMap g))
+        (\parent.DegreeZero[].With[p := p, q := q, f := f].onComparison g augmented) Compared[g := g].Zero[].equality
+    | succ: \fun (n: Nat.Nat^)(previous: \forall (g: ChainMaps.Map) -> Comparison.Augmented p q g ->
+        map n = TensorMaps.HomologyAt[n := n].induced (chainMap g))(g: ChainMaps.Map)(augmented: Comparison.Augmented p q g) =>
+      trans!{{Modules.MapBetween (sourceBundle (Nat.Nat^::succ n)) (targetBundle (Nat.Nat^::succ n))}}
+        (map (Nat.Nat^::succ n)) (TensorMaps.Positive[n := n].induced (chainMap g)) (TensorMaps.HomologyAt[n := Nat.Nat^::succ n].induced (chainMap g))
+        (\parent.Positive[n := n].With[p := p, q := q, f := f].onComparison g augmented) Compared[g := g].Positive[n := n].equality
+  };

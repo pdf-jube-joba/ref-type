@@ -1,0 +1,206 @@
+\import \parent.\parent.\parent.Of[V := A.Carrier, space := A.space].Submodule[] \as LeftSub;
+\import LeftSub.Kernel[W := A1.Carrier, target := A1.space] \as LeftKernel;
+\definition leftKernel: LeftSub.Submodule := LeftKernel.kernel f;
+\import LeftSub.Of[S := leftKernel] \as KL;
+\import \parent.\parent.\parent.Of[V := B.Carrier, space := B.space].Submodule[] \as MiddleSub;
+\import MiddleSub.Kernel[W := B1.Carrier, target := B1.space] \as MiddleKernel;
+\definition middleKernel: MiddleSub.Submodule := MiddleKernel.kernel g;
+\import MiddleSub.Of[S := middleKernel] \as KM;
+\import \parent.\parent.\parent.Of[V := B1.Carrier, space := B1.space].Submodule[] \as MiddleTargetSub;
+\import MiddleTargetSub.Image[U := B.Carrier, source := B.space] \as MiddleImage;
+\definition middleImage: MiddleTargetSub.Submodule := MiddleImage.image g;
+\import MiddleTargetSub.Quotient[S := middleImage] \as CM;
+\import \parent.\parent.\parent.Of[V := C1.Carrier, space := C1.space].Submodule[] \as RightTargetSub;
+\import RightTargetSub.Image[U := C.Carrier, source := C.space] \as RightImage;
+\definition rightImage: RightTargetSub.Submodule := RightImage.image h;
+\import RightTargetSub.Quotient[S := rightImage] \as CR;
+\import \parent.\parent.\parent.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as SourceInclusion;
+\import \parent.\parent.\parent.Hom[V := A1.Carrier, W := B1.Carrier, source := A1.space, target := B1.space] \as TargetInclusion;
+\import \parent.\parent.\parent.Hom[V := B1.Carrier, W := C1.Carrier, source := B1.space, target := C1.space] \as TargetProjection;
+\import \parent.\parent.\parent.Hom[V := C.Carrier, W := C1.Carrier, source := C.space, target := C1.space] \as RightMaps;
+\import \parent.\parent.\parent.Laws[V := C1.Carrier, space := C1.space] \as Right1;
+\import algebra.Group[].Of[Carrier := C1.Carrier, group := Right1.additive] \as RightGroup1;
+\import \parent.\parent.\parent.Hom[V := KL.Carrier, W := KM.Carrier, source := KL.moduleSpace, target := KM.moduleSpace] \as KernelInclusion;
+\definition inclusionClosed: Commutative -> \forall (x: KL.Carrier) -> #apply{g} (#apply{s.inclusion} x) = Middle1.zero :=
+  \fun (diagram: Commutative)(x: KL.Carrier) => trans!{B1.Carrier} _ _ _ (#left{diagram} x)
+    (trans!{B1.Carrier} _ _ _ (congr!{A1.Carrier B1.Carrier} (#apply{t.inclusion}) _ _ (\bysub(A.Carrier, #carrier{leftKernel}, x)))
+      (TargetInclusion.zeroPreserved t.inclusion));
+\definition kernelInclusion(diagram: Commutative): KernelInclusion.Map := KernelInclusion.Map {
+  apply := \fun (x: KL.Carrier) => \into[B.Carrier](#apply{s.inclusion} x, #carrier{middleKernel}) \by { inclusionClosed diagram x },
+  addition := \fun (x, y: KL.Carrier) => #addition{s.inclusion} x y,
+  scalar := \fun (a: R)(x: KL.Carrier) => #scalar{s.inclusion} a x,
+};
+\import \parent.\parent.\parent.Hom[V := KM.Carrier, W := KernelCarrier, source := KM.moduleSpace, target := kernelSpace] \as KernelProjection;
+\definition projectionClosed: Commutative -> \forall (x: KM.Carrier) -> #apply{h} (#apply{s.projection} x) = Right1.zero :=
+  \fun (diagram: Commutative)(x: KM.Carrier) => trans!{C1.Carrier} _ _ _ (sym!{C1.Carrier} _ _ (#right{diagram} x))
+    (trans!{C1.Carrier} _ _ _ (congr!{B1.Carrier C1.Carrier} (#apply{t.projection}) _ _ (\bysub(B.Carrier, #carrier{middleKernel}, x)))
+      (TargetProjection.zeroPreserved t.projection));
+\definition kernelProjection(diagram: Commutative): KernelProjection.Map := KernelProjection.Map {
+  apply := \fun (x: KM.Carrier) => \into[C.Carrier](#apply{s.projection} x, #carrier{kernel}) \by { projectionClosed diagram x },
+  addition := \fun (x, y: KM.Carrier) => #addition{s.projection} x y,
+  scalar := \fun (a: R)(x: KM.Carrier) => #scalar{s.projection} a x,
+};
+\import \parent.\parent.\parent.Hom[V := B1.Carrier, W := CM.Carrier, source := B1.space, target := CM.moduleSpace].Composition[U := A1.Carrier, domain := A1.space] \as IncludeClass;
+\definition inclusionClass: MapBetween A1 (Bundle { Carrier := CM.Carrier, space := CM.moduleSpace }) := IncludeClass.compose CM.projection t.inclusion;
+\import Cokernel.To[W := CM.Carrier, target := CM.moduleSpace] \as IncludeDescent;
+\definition inclusionVanishes: Commutative -> IncludeDescent.Vanishes inclusionClass := \block {
+  \fun (diagram: Commutative)(x: A1.Carrier)(member: _) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{f} a = x }) \by member \then
+  \let equal: #apply{t.inclusion} x = #apply{g} (#apply{s.inclusion} a) := trans!{B1.Carrier} _ _ _
+    (congr!{A1.Carrier B1.Carrier} (#apply{t.inclusion}) _ _ (sym!{A1.Carrier} _ _ (\bysub(A.Carrier, { a: A.Carrier \where #apply{f} a = x }, a))))
+    (sym!{B1.Carrier} _ _ (#left{diagram} a)) \then
+  \return CM.classZero (#apply{t.inclusion} x)
+    (\exact(\into[B.Carrier](#apply{s.inclusion} a, { b: B.Carrier \where #apply{g} b = #apply{t.inclusion} x }) \by { sym!{B1.Carrier} _ _ equal },
+      \Cast[B.Carrier] ({ b: B.Carrier \where #apply{g} b = #apply{t.inclusion} x })))
+};
+\import \parent.\parent.\parent.Hom[V := CokernelCarrier, W := CM.Carrier, source := cokernelSpace, target := CM.moduleSpace] \as CokernelInclusion;
+\definition cokernelInclusion(diagram: Commutative): CokernelInclusion.Map := IncludeDescent.descend inclusionClass (inclusionVanishes diagram);
+\import \parent.\parent.\parent.Hom[V := C1.Carrier, W := CR.Carrier, source := C1.space, target := CR.moduleSpace].Composition[U := B1.Carrier, domain := B1.space] \as ProjectClass;
+\definition projectionClass: MapBetween B1 (Bundle { Carrier := CR.Carrier, space := CR.moduleSpace }) := ProjectClass.compose CR.projection t.projection;
+\import CM.To[W := CR.Carrier, target := CR.moduleSpace] \as ProjectDescent;
+\definition projectionVanishes: Commutative -> ProjectDescent.Vanishes projectionClass := \block {
+  \fun (diagram: Commutative)(x: B1.Carrier)(member: _) \then
+  \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{g} b = x }) \by member \then
+  \let equal: #apply{h} (#apply{s.projection} b) = #apply{t.projection} x := trans!{C1.Carrier} _ _ _
+    (sym!{C1.Carrier} _ _ (#right{diagram} b))
+    (congr!{B1.Carrier C1.Carrier} (#apply{t.projection}) _ _ (\bysub(B.Carrier, { b: B.Carrier \where #apply{g} b = x }, b))) \then
+  \return CR.classZero (#apply{t.projection} x)
+    (\exact(\into[C.Carrier](#apply{s.projection} b, { c: C.Carrier \where #apply{h} c = #apply{t.projection} x }) \by { equal },
+      \Cast[C.Carrier] ({ c: C.Carrier \where #apply{h} c = #apply{t.projection} x })))
+};
+\import \parent.\parent.\parent.Hom[V := CM.Carrier, W := CR.Carrier, source := CM.moduleSpace, target := CR.moduleSpace] \as CokernelProjection;
+\definition cokernelProjection(diagram: Commutative): CokernelProjection.Map := ProjectDescent.descend projectionClass (projectionVanishes diagram);
+\definition leftInjective: \forall (diagram: Commutative)(x, y: KL.Carrier) ->
+  #apply{(kernelInclusion diagram)} x = #apply{(kernelInclusion diagram)} y -> x = y :=
+  \fun (diagram: Commutative)(x, y: KL.Carrier)(equal: _) => #injective{s} x y equal;
+\definition exactKernelMiddle: \forall (diagram: Commutative)(x: KM.Carrier) ->
+  #apply{(kernelProjection diagram)} x = #zero{kernelSpace} -> \exists { a: KL.Carrier \where #apply{(kernelInclusion diagram)} a = x } := \block {
+  \fun (diagram: Commutative)(x: KM.Carrier)(closed: _) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{s.inclusion} a = x }) \by #kernelImage{s} x closed \then
+  \let represented: #apply{s.inclusion} a = x := \bysub(A.Carrier, { a: A.Carrier \where #apply{s.inclusion} a = x }, a) \then
+  \let killed: #apply{f} a = Left1.zero := #injective{t} _ _
+    (trans!{B1.Carrier} _ _ _ (sym!{B1.Carrier} _ _ (#left{diagram} a))
+      (trans!{B1.Carrier} _ _ _ (congr!{B.Carrier B1.Carrier} (#apply{g}) _ _ represented)
+        (trans!{B1.Carrier} _ _ _ (\bysub(B.Carrier, #carrier{middleKernel}, x)) (sym!{B1.Carrier} _ _ (TargetInclusion.zeroPreserved t.inclusion))))) \then
+  \let preimage: KL.Carrier := \into[A.Carrier](a, #carrier{leftKernel}) \by { killed } \then
+  \return \exact(\into[KL.Carrier](preimage, { a: KL.Carrier \where #apply{(kernelInclusion diagram)} a = x }) \by { represented },
+    \Cast[KL.Carrier] ({ a: KL.Carrier \where #apply{(kernelInclusion diagram)} a = x }))
+};
+\definition kernelCompositeZero: \forall (diagram: Commutative)(a: KL.Carrier) ->
+  #apply{(kernelProjection diagram)} (#apply{(kernelInclusion diagram)} a) = #zero{kernelSpace} :=
+  \fun (diagram: Commutative)(a: KL.Carrier) => #zero{s} a;
+\definition connectingCompositeZero: \forall (diagram: Commutative)(b: KM.Carrier) ->
+  delta diagram (#apply{(kernelProjection diagram)} b) = #zero{cokernelSpace} :=
+  \fun (diagram: Commutative)(b: KM.Carrier) => onLift diagram (#apply{(kernelProjection diagram)} b) b Left1.zero
+    (\refl(#apply{s.projection} b))
+    (trans!{B1.Carrier} _ _ _ (TargetInclusion.zeroPreserved t.inclusion) (sym!{B1.Carrier} _ _ (\bysub(B.Carrier, #carrier{middleKernel}, b))));
+\definition exactKernelRight: \forall (diagram: Commutative)(x: KernelCarrier) -> delta diagram x = #zero{cokernelSpace} ->
+  \exists { b: KM.Carrier \where #apply{(kernelProjection diagram)} b = x } := \block {
+  \fun (diagram: Commutative)(x: KernelCarrier)(closed: _) \then
+  \takefrom w: \Cast[Witness] ({ w: Witness \where WitnessLaws[x, delta diagram x, w] }) \by \bysub(CokernelCarrier, Values x, delta diagram x) \then
+  \let laws: WitnessLaws[x, delta diagram x, w] := \bysub(Witness, { w: Witness \where WitnessLaws[x, delta diagram x, w] }, w) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{f} a = #lower{w} })
+    \by Cokernel.zeroClassMember (#lower{w}) (trans!{CokernelCarrier} _ _ _ (#classValue{laws}) closed) \then
+  \let represented: #apply{f} a = #lower{w} := \bysub(A.Carrier, { a: A.Carrier \where #apply{f} a = #lower{w} }, a) \then
+  \let killed: #apply{g} (MiddleGroup.difference (#lift{w}) (#apply{s.inclusion} a)) = Middle1.zero := trans!{B1.Carrier} _ _ _
+    (MiddleMaps.differencePreserved g (#lift{w}) (#apply{s.inclusion} a))
+    (trans!{B1.Carrier} _ _ _ (congr2!{B1.Carrier B1.Carrier B1.Carrier} MiddleGroup1.difference _ _ _ _
+      (sym!{B1.Carrier} _ _ (#differential{laws}))
+      (trans!{B1.Carrier} _ _ _ (#left{diagram} a) (congr!{A1.Carrier B1.Carrier} (#apply{t.inclusion}) _ _ represented)))
+      (MiddleGroup1.inverseRight (#apply{t.inclusion} (#lower{w})))) \then
+  \let b: KM.Carrier := \into[B.Carrier](MiddleGroup.difference (#lift{w}) (#apply{s.inclusion} a), #carrier{middleKernel}) \by { killed } \then
+  \return \exact(\into[KM.Carrier](b, { b: KM.Carrier \where #apply{(kernelProjection diagram)} b = x }) \by {
+    trans!{C.Carrier} _ _ _ (Projection.differencePreserved s.projection (#lift{w}) (#apply{s.inclusion} a))
+      (trans!{C.Carrier} _ _ _ (congr2!{C.Carrier C.Carrier C.Carrier} RightGroup.difference _ _ _ _ (#lifted{laws}) (#zero{s} a))
+        (trans!{C.Carrier} _ _ _ (congr!{C.Carrier C.Carrier} (Right.add x) _ _ RightGroup.negZero) (RightGroup.zeroRight x)))
+  }, \Cast[KM.Carrier] ({ b: KM.Carrier \where #apply{(kernelProjection diagram)} b = x }))
+};
+\definition exactCokernelLeft: \forall (diagram: Commutative)(q: CokernelCarrier) ->
+  #apply{(cokernelInclusion diagram)} q = #zero{CM.moduleSpace} -> \exists { x: KernelCarrier \where delta diagram x = q } :=
+  \fun (diagram: Commutative) => Cokernel.induction
+    (\fun (q: CokernelCarrier) => #apply{(cokernelInclusion diagram)} q = #zero{CM.moduleSpace} -> \exists { x: KernelCarrier \where delta diagram x = q })
+    (\block {
+      \fun (a: A1.Carrier)(closed: _) \then
+      \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{g} b = #apply{t.inclusion} a })
+        \by CM.zeroClassMember (#apply{t.inclusion} a)
+          (trans!{CM.Carrier} _ _ _ (sym!{CM.Carrier} _ _ (IncludeDescent.onClass inclusionClass (inclusionVanishes diagram) a)) closed) \then
+      \let differential: #apply{t.inclusion} a = #apply{g} b := sym!{B1.Carrier} _ _
+        (\bysub(B.Carrier, { b: B.Carrier \where #apply{g} b = #apply{t.inclusion} a }, b)) \then
+      \let killed: #apply{h} (#apply{s.projection} b) = Right1.zero := trans!{C1.Carrier} _ _ _ (sym!{C1.Carrier} _ _ (#right{diagram} b))
+        (trans!{C1.Carrier} _ _ _ (congr!{B1.Carrier C1.Carrier} (#apply{t.projection}) _ _ (sym!{B1.Carrier} _ _ differential)) (#zero{t} a)) \then
+      \let x: KernelCarrier := \into[C.Carrier](#apply{s.projection} b, #carrier{kernel}) \by { killed } \then
+      \return \exact(\into[KernelCarrier](x, { x: KernelCarrier \where delta diagram x = Cokernel.class a }) \by {
+        onLift diagram x b a (\refl(#apply{s.projection} b)) differential
+      }, \Cast[KernelCarrier] ({ x: KernelCarrier \where delta diagram x = Cokernel.class a }))
+    });
+\definition cokernelConnectingZero: \forall (diagram: Commutative)(x: KernelCarrier) ->
+  #apply{(cokernelInclusion diagram)} (delta diagram x) = #zero{CM.moduleSpace} := \block {
+  \fun (diagram: Commutative)(x: KernelCarrier) \then
+  \takefrom w: \Cast[Witness] ({ w: Witness \where WitnessLaws[x, delta diagram x, w] }) \by \bysub(CokernelCarrier, Values x, delta diagram x) \then
+  \let laws: WitnessLaws[x, delta diagram x, w] := \bysub(Witness, { w: Witness \where WitnessLaws[x, delta diagram x, w] }, w) \then
+  \return trans!{CM.Carrier} _ _ _
+    (congr!{CokernelCarrier CM.Carrier} (#apply{(cokernelInclusion diagram)}) _ _ (sym!{CokernelCarrier} _ _ (#classValue{laws})))
+    (trans!{CM.Carrier} _ _ _ (IncludeDescent.onClass inclusionClass (inclusionVanishes diagram) (#lower{w}))
+      (CM.classZero (#apply{t.inclusion} (#lower{w}))
+        (\exact(\into[B.Carrier](#lift{w}, { b: B.Carrier \where #apply{g} b = #apply{t.inclusion} (#lower{w}) }) \by { sym!{B1.Carrier} _ _ (#differential{laws}) },
+          \Cast[B.Carrier] ({ b: B.Carrier \where #apply{g} b = #apply{t.inclusion} (#lower{w}) })))))
+};
+\definition cokernelCompositeZero: \forall (diagram: Commutative)(q: CokernelCarrier) ->
+  #apply{(cokernelProjection diagram)} (#apply{(cokernelInclusion diagram)} q) = #zero{CR.moduleSpace} :=
+  \fun (diagram: Commutative) => Cokernel.induction (\fun (q: CokernelCarrier) =>
+    #apply{(cokernelProjection diagram)} (#apply{(cokernelInclusion diagram)} q) = #zero{CR.moduleSpace})
+    (\fun (a: A1.Carrier) => trans!{CR.Carrier} _ _ _
+      (congr!{CM.Carrier CR.Carrier} (#apply{(cokernelProjection diagram)}) _ _ (IncludeDescent.onClass inclusionClass (inclusionVanishes diagram) a))
+      (trans!{CR.Carrier} _ _ _ (ProjectDescent.onClass projectionClass (projectionVanishes diagram) (#apply{t.inclusion} a))
+        (congr!{C1.Carrier CR.Carrier} CR.class _ _ (#zero{t} a))));
+\definition exactCokernelMiddle: \forall (diagram: Commutative)(q: CM.Carrier) ->
+  #apply{(cokernelProjection diagram)} q = #zero{CR.moduleSpace} -> \exists { a: CokernelCarrier \where #apply{(cokernelInclusion diagram)} a = q } :=
+  \fun (diagram: Commutative) => CM.induction (\fun (q: CM.Carrier) =>
+    #apply{(cokernelProjection diagram)} q = #zero{CR.moduleSpace} -> \exists { a: CokernelCarrier \where #apply{(cokernelInclusion diagram)} a = q })
+    (\block {
+      \fun (b: B1.Carrier)(closed: _) \then
+      \takefrom c: \Cast[C.Carrier] ({ c: C.Carrier \where #apply{h} c = #apply{t.projection} b }) \by
+        CR.zeroClassMember (#apply{t.projection} b)
+          (trans!{CR.Carrier} _ _ _ (sym!{CR.Carrier} _ _ (ProjectDescent.onClass projectionClass (projectionVanishes diagram) b)) closed) \then
+      \takefrom u: \Cast[B.Carrier] ({ u: B.Carrier \where #apply{s.projection} u = c }) \by #onto{s} c \then
+      \let equal: #apply{t.projection} (#apply{g} u) = #apply{t.projection} b := trans!{C1.Carrier} _ _ _ (#right{diagram} u)
+        (trans!{C1.Carrier} _ _ _ (congr!{C.Carrier C1.Carrier} (#apply{h}) _ _ (\bysub(B.Carrier, { u: B.Carrier \where #apply{s.projection} u = c }, u)))
+          (\bysub(C.Carrier, { c: C.Carrier \where #apply{h} c = #apply{t.projection} b }, c))) \then
+      \let killed: #apply{t.projection} (MiddleGroup1.difference b (#apply{g} u)) = Right1.zero := trans!{C1.Carrier} _ _ _
+        (TargetProjection.differencePreserved t.projection b (#apply{g} u))
+        (trans!{C1.Carrier} _ _ _ (congr!{C1.Carrier C1.Carrier} (RightGroup1.difference (#apply{t.projection} b)) _ _ equal)
+          (RightGroup1.inverseRight (#apply{t.projection} b))) \then
+      \takefrom a: \Cast[A1.Carrier] ({ a: A1.Carrier \where #apply{t.inclusion} a = MiddleGroup1.difference b (#apply{g} u) })
+        \by #kernelImage{t} (MiddleGroup1.difference b (#apply{g} u)) killed \then
+      \let represented: #apply{t.inclusion} a = MiddleGroup1.difference b (#apply{g} u) :=
+        \bysub(A1.Carrier, { a: A1.Carrier \where #apply{t.inclusion} a = MiddleGroup1.difference b (#apply{g} u) }, a) \then
+      \let difference: MiddleGroup1.difference (#apply{t.inclusion} a) b = Middle1.neg (#apply{g} u) := eq_reason!{
+        {MiddleGroup1.difference (#apply{t.inclusion} a) b}
+        "=" {Middle1.add (MiddleGroup1.difference b (#apply{g} u)) (Middle1.neg b)} "by" {
+          congr!{B1.Carrier B1.Carrier} (\fun (x: B1.Carrier) => MiddleGroup1.difference x b) _ _ represented
+        }
+        "=" {Middle1.add (Middle1.add (Middle1.neg (#apply{g} u)) b) (Middle1.neg b)} "by" {
+          congr!{B1.Carrier B1.Carrier} (\fun (x: B1.Carrier) => Middle1.add x (Middle1.neg b)) _ _ (MiddleGroup1.comm b (Middle1.neg (#apply{g} u)))
+        }
+        "=" {Middle1.add (Middle1.neg (#apply{g} u)) (Middle1.add b (Middle1.neg b))} "by" {MiddleGroup1.assoc (Middle1.neg (#apply{g} u)) b (Middle1.neg b)}
+        "=" {Middle1.add (Middle1.neg (#apply{g} u)) Middle1.zero} "by" {congr!{B1.Carrier B1.Carrier} (Middle1.add (Middle1.neg (#apply{g} u))) _ _ (MiddleGroup1.inverseRight b)}
+        "=" {Middle1.neg (#apply{g} u)} "by" {MiddleGroup1.zeroRight (Middle1.neg (#apply{g} u))}
+      } \then
+      \return \exact(\into[CokernelCarrier](Cokernel.class a, { a: CokernelCarrier \where #apply{(cokernelInclusion diagram)} a = CM.class b }) \by {
+        trans!{CM.Carrier} _ _ _ (IncludeDescent.onClass inclusionClass (inclusionVanishes diagram) a)
+          (CM.classRelated (#apply{t.inclusion} a) b
+            (\exact(\into[B.Carrier](Middle.neg u, { v: B.Carrier \where #apply{g} v = MiddleGroup1.difference (#apply{t.inclusion} a) b }) \by {
+              trans!{B1.Carrier} _ _ _ (MiddleMaps.negativePreserved g u) (sym!{B1.Carrier} _ _ difference)
+            }, \Cast[B.Carrier] ({ v: B.Carrier \where #apply{g} v = MiddleGroup1.difference (#apply{t.inclusion} a) b }))))
+      }, \Cast[CokernelCarrier] ({ a: CokernelCarrier \where #apply{(cokernelInclusion diagram)} a = CM.class b }))
+    });
+\definition rightOnto: \forall (diagram: Commutative)(q: CR.Carrier) -> \exists { b: CM.Carrier \where #apply{(cokernelProjection diagram)} b = q } :=
+  \fun (diagram: Commutative) => CR.induction (\fun (q: CR.Carrier) => \exists { b: CM.Carrier \where #apply{(cokernelProjection diagram)} b = q })
+    (\block {
+      \fun (c: C1.Carrier) \then
+      \takefrom b: \Cast[B1.Carrier] ({ b: B1.Carrier \where #apply{t.projection} b = c }) \by #onto{t} c \then
+      \return \exact(\into[CM.Carrier](CM.class b, { b: CM.Carrier \where #apply{(cokernelProjection diagram)} b = CR.class c }) \by {
+        trans!{CR.Carrier} _ _ _ (ProjectDescent.onClass projectionClass (projectionVanishes diagram) b)
+          (congr!{C1.Carrier CR.Carrier} CR.class _ _ (\bysub(B1.Carrier, { b: B1.Carrier \where #apply{t.projection} b = c }, b)))
+      }, \Cast[CM.Carrier] ({ b: CM.Carrier \where #apply{(cokernelProjection diagram)} b = CR.class c }))
+    });

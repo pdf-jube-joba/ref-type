@@ -1,0 +1,87 @@
+\import \root.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Cyclic.bundle, N := A, P := complex] \as Derived;
+\import \root.HomComplex[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].On[P := complex, N := A] \as Hom;
+\import \root.Cochain[].Over[R := Int.Int^, ring := Rings.commutativeRingAsRing Int.Int^ IntegerRing.commutativeRing] \as Cochains;
+\definition one: Nat.Nat^ := Nat.Nat^::succ Nat.Nat^::zero;
+\definition two: Nat.Nat^ := Nat.Nat^::succ one;
+\import Derived.At[n := one] \as H;
+\import Modules.Hom[V := family.Carrier one, W := A.Carrier, source := family.space one, target := A.space] \as OneHom;
+\import Modules.Hom[V := family.Carrier Nat.Nat^::zero, W := A.Carrier, source := family.space Nat.Nat^::zero, target := A.space] \as ZeroHom;
+\import Modules.Hom[V := family.Carrier two, W := A.Carrier, source := family.space two, target := A.space] \as TwoHom;
+\import Modules.Laws[V := A.Carrier, space := A.space] \as Coefficient;
+\import Int.Math[].Specification[].Prop[].Multiplication[] \as Multiplication;
+\definition value(a: A.Carrier): OneHom.Map := OneHom.Map {
+  apply := \fun (r: family.Carrier one) => #smul{A.space} r a,
+  addition := \fun (r, s: family.Carrier one) => #scalarAdd{A.space} r s a,
+  scalar := \fun (r: Int.Int^)(s: family.Carrier one) => #scalarAssoc{A.space} r s a,
+};
+\definition zeroValue(a: A.Carrier): ZeroHom.Map := ZeroHom.Map {
+  apply := \fun (r: family.Carrier Nat.Nat^::zero) => #smul{A.space} r a,
+  addition := \fun (r, s: family.Carrier Nat.Nat^::zero) => #scalarAdd{A.space} r s a,
+  scalar := \fun (r: Int.Int^)(s: family.Carrier Nat.Nat^::zero) => #scalarAssoc{A.space} r s a,
+};
+\definition closed: \forall (f: OneHom.Map) -> Hom.apply one f = #zero{(Hom.space two)} :=
+  \fun (f: OneHom.Map) => TwoHom.ext (Hom.apply one f) (#zero{(Hom.space two)})
+    (\fun (x: family.Carrier two) => OneHom.zeroPreserved f);
+\definition cycle(a: A.Carrier): H.CycleCarrier := \into[Hom.Carrier one](value a, H.cyclePredicate) \by { closed (value a) };
+\import Modules.Hom[V := H.CycleCarrier, W := A.Carrier, source := H.cycleSpace, target := A.space] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (f: H.CycleCarrier) => #apply{f} (oneIntro Arithmetic.one),
+  addition := \fun (f, g: H.CycleCarrier) => \refl(#add{A.space} (#apply{f} (oneIntro Arithmetic.one)) (#apply{g} (oneIntro Arithmetic.one))),
+  scalar := \fun (a: Int.Int^)(f: H.CycleCarrier) => \refl(#smul{A.space} a (#apply{f} (oneIntro Arithmetic.one))),
+};
+\import Modules.Hom[V := A.Carrier, W := H.CycleCarrier, source := A.space, target := H.cycleSpace] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := cycle,
+  addition := \fun (a, b: A.Carrier) => OneHom.ext (value (#add{A.space} a b)) (#add{(Hom.space one)} (value a) (value b)) (\fun (r: family.Carrier one) => #vectorAdd{A.space} r a b),
+  scalar := \fun (a: Int.Int^)(b: A.Carrier) => OneHom.ext (value (#smul{A.space} a b)) (#smul{(Hom.space one)} a (value b))
+    (\fun (r: family.Carrier one) => trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (#scalarAssoc{A.space} r a b))
+      (trans!{A.Carrier} _ _ _ (congr!{Int.Int^ A.Carrier} (\fun (s: Int.Int^) => #smul{A.space} s b) _ _ (#mulCommutative{IntegerRing.commutativeRing} r a)) (#scalarAssoc{A.space} a r b))),
+};
+\definition leftInverse: \forall (f: H.CycleCarrier) -> #apply{backward} (#apply{forward} f) = f :=
+  \fun (f: H.CycleCarrier) => OneHom.ext (value (#apply{f} (oneIntro Arithmetic.one))) f (\fun (r: family.Carrier one) =>
+    trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (#scalar{f} r (oneIntro Arithmetic.one)))
+      (congr!{Int.Int^ A.Carrier} (\fun (s: Int.Int^) => #apply{f} (oneIntro s)) (Arithmetic.mul r Arithmetic.one) r (Multiplication.mulOneRight r)));
+\definition rightInverse: \forall (a: A.Carrier) -> #apply{forward} (#apply{backward} a) = a := #scalarOne{A.space};
+\import Modules.Isomorphism[V := H.CycleCarrier, W := A.Carrier, source := H.cycleSpace, target := A.space] \as CycleIso;
+\definition cycleIsomorphism: CycleIso.Isomorphism := CycleIso.Isomorphism { forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };
+\import Modules.Hom[V := A.Carrier, W := A.Carrier, source := A.space, target := A.space] \as CoefficientMaps;
+\definition multiplication: CoefficientMaps.Map := CoefficientMaps.Map {
+  apply := #smul{A.space} multiplier,
+  addition := #vectorAdd{A.space} multiplier,
+  scalar := \fun (a: Int.Int^)(x: A.Carrier) => trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (#scalarAssoc{A.space} multiplier a x))
+    (trans!{A.Carrier} _ _ _ (congr!{Int.Int^ A.Carrier} (\fun (r: Int.Int^) => #smul{A.space} r x) _ _ (#mulCommutative{IntegerRing.commutativeRing} multiplier a)) (#scalarAssoc{A.space} a multiplier x)),
+};
+\import Modules.Of[V := A.Carrier, space := A.space].Submodule[] \as CoefficientSub;
+\import CoefficientSub.Image[U := A.Carrier, source := A.space] \as CoefficientImage;
+\definition multiples: CoefficientSub.Submodule := CoefficientImage.image multiplication;
+\import CoefficientSub.Quotient[S := multiples] \as Quotient;
+\definition cycleBundle: Modules.Bundle := Modules.Bundle { Carrier := H.CycleCarrier, space := H.cycleSpace };
+\import Modules.QuotientMapping[A := cycleBundle, B := A].On[S := H.boundariesInside, T := multiples, f := forward] \as Descent;
+\import Descent.Inverse[g := backward] \as Inverse;
+\definition evaluateDifferential: \forall (f: ZeroHom.Map) -> #apply{(Hom.apply Nat.Nat^::zero f)} (oneIntro Arithmetic.one) = #smul{A.space} multiplier (#apply{f} (zeroIntro Arithmetic.one)) :=
+  \fun (f: ZeroHom.Map) => #scalar{f} multiplier (zeroIntro Arithmetic.one);
+\definition compatible: Descent.Compatible := \block {
+  \fun (f: H.CycleCarrier)(member: _) \then
+  \takefrom g: \Cast[Hom.Carrier Nat.Nat^::zero] ({ g: Hom.Carrier Nat.Nat^::zero \where Hom.apply Nat.Nat^::zero g = f }) \by member \then
+  \return CoefficientImage.introduce multiplication (#apply{forward} f) (#apply{g} (zeroIntro Arithmetic.one))
+    (trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (evaluateDifferential g))
+      (congr!{{Hom.Carrier one} A.Carrier} (\fun (h: Hom.Carrier one) => #apply{h} (oneIntro Arithmetic.one)) _ _
+        (\bysub(Hom.Carrier Nat.Nat^::zero, { g: Hom.Carrier Nat.Nat^::zero \where Hom.apply Nat.Nat^::zero g = f }, g))))
+};
+\definition boundaryValue: \forall (a: A.Carrier) -> Hom.apply Nat.Nat^::zero (zeroValue a) = value (#smul{A.space} multiplier a) :=
+  \fun (a: A.Carrier) => OneHom.ext (Hom.apply Nat.Nat^::zero (zeroValue a)) (value (#smul{A.space} multiplier a))
+    (\fun (r: family.Carrier one) => trans!{A.Carrier} _ _ _
+      (congr!{Int.Int^ A.Carrier} (\fun (s: Int.Int^) => #smul{A.space} s a) _ _ (#mulCommutative{IntegerRing.commutativeRing} multiplier r)) (#scalarAssoc{A.space} r multiplier a));
+\definition compatibleBack: Inverse.CompatibleBack := \block {
+  \fun (a: A.Carrier)(member: _) \then
+  \takefrom b: \Cast[A.Carrier] ({ b: A.Carrier \where #apply{multiplication} b = a }) \by member \then
+  \return \exact(\into[Hom.Carrier Nat.Nat^::zero](zeroValue b, { g: Hom.Carrier Nat.Nat^::zero \where Hom.apply Nat.Nat^::zero g = cycle a }) \by {
+    trans!{{Hom.Carrier one}} _ _ _ (boundaryValue b)
+      (congr!{A.Carrier {Hom.Carrier one}} value _ _ (\bysub(A.Carrier, { b: A.Carrier \where #apply{multiplication} b = a }, b)))
+  }, \Cast[Hom.Carrier Nat.Nat^::zero] ({ g: Hom.Carrier Nat.Nat^::zero \where Hom.apply Nat.Nat^::zero g = cycle a }))
+};
+\definition isomorphism: Modules.Isomorphism[V := H.Carrier, W := Quotient.Carrier, source := H.space, target := Quotient.moduleSpace].Isomorphism :=
+  Inverse.isomorphism compatible compatibleBack leftInverse rightInverse;
+\definition onClass: \forall (f: H.CycleCarrier) -> #apply{#forward{isomorphism}} (H.classOf f) = Quotient.class (#apply{forward} f) := Descent.onClass compatible;
+\module Higher(n: Nat.Nat^);
+\module Mapping(B: Modules.Bundle, u: Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map);

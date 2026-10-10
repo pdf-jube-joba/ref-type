@@ -1,0 +1,24 @@
+\definition T: \VType := \U(I.Int -> I.Int -> Certificate);
+\definition program: T := \thunk (\cfun (a: I.Int) => \return(\thunk (\cfun (b: I.Int) => \program {
+  \bind na: N.Nat <- ((\force Absolute.program) a) \then
+  \bind nb: N.Nat <- ((\force Absolute.program) b) \then
+  \bind euclid: \U(N.Nat -> State) <- ((\force NaturalEuclid.program) na) \then
+  \bind s: State <- (\force euclid) nb \then
+  \bind sa: I.Int <- ((\force Sign.program) a) \then
+  \bind sb: I.Int <- ((\force Sign.program) b) \then
+  \bind adjustment: \U(I.Int -> I.Int -> Certificate) <- ((\force Adjust.program) s) \then
+  \bind withSign: \U(I.Int -> Certificate) <- ((\force adjustment) sa) \then
+  \bind output: Certificate <- (\force withSign) sb \then
+  \return output
+})));
+\definition signMatches: \forall (a: I.Int^) -> Sign.program^ a = sign a :=
+  \fun (a: I.Int^) => congr!{Sign.T^ I.Int^} (\fun (f: Sign.T^) => f a) Sign.program^ Sign.specification Sign.coherence;
+\definition absoluteMatches: \forall (a: I.Int^) -> Absolute.program^ a = absolute a :=
+  \fun (a: I.Int^) => congr!{Absolute.T^ N.Nat^} (\fun (f: Absolute.T^) => f a) Absolute.program^ Absolute.specification Absolute.coherence;
+\definition matches: \forall (a, b: I.Int^) -> program^ a b = certificate a b :=
+  \fun (a, b: I.Int^) => trans!{Certificate^} (program^ a b) (adjust (NaturalEuclid.program^ (Absolute.program^ a) (Absolute.program^ b)) (Sign.program^ a) (Sign.program^ b)) (certificate a b)
+    (congr!{Adjust.T^ Certificate^} (\fun (f: Adjust.T^) => f (NaturalEuclid.program^ (Absolute.program^ a) (Absolute.program^ b)) (Sign.program^ a) (Sign.program^ b)) Adjust.program^ Adjust.specification Adjust.coherence)
+    (trans!{Certificate^} (adjust (NaturalEuclid.program^ (Absolute.program^ a) (Absolute.program^ b)) (Sign.program^ a) (Sign.program^ b)) (adjust (NaturalEuclid.program^ (Absolute.program^ a) (Absolute.program^ b)) (sign a) (sign b)) (certificate a b) (congr2!{I.Int^ I.Int^ Certificate^} (adjust (NaturalEuclid.program^ (Absolute.program^ a) (Absolute.program^ b))) (Sign.program^ a) (sign a) (Sign.program^ b) (sign b) (signMatches a) (signMatches b))
+      (trans!{Certificate^} (adjust (NaturalEuclid.program^ (Absolute.program^ a) (Absolute.program^ b)) (sign a) (sign b)) (adjust (result (Absolute.program^ a) (Absolute.program^ b)) (sign a) (sign b)) (certificate a b) (congr!{NaturalEuclid.T^ Certificate^} (\fun (f: NaturalEuclid.T^) => adjust (f (Absolute.program^ a) (Absolute.program^ b)) (sign a) (sign b)) NaturalEuclid.program^ NaturalEuclid.specification NaturalEuclid.coherence) (congr2!{N.Nat^ N.Nat^ Certificate^} (\fun (na, nb: N.Nat^) => adjust (result na nb) (sign a) (sign b)) (Absolute.program^ a) (absolute a) (Absolute.program^ b) (absolute b) (absoluteMatches a) (absoluteMatches b))));
+\definition coherence: program^ = certificate := \axiom:funext(program^, certificate,
+  \fun (a: I.Int^) => \axiom:funext(program^ a, certificate a, \fun (b: I.Int^) => matches a b));

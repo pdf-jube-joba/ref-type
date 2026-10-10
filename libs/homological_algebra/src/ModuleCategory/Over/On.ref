@@ -1,0 +1,38 @@
+\module At(x, y: Index) {
+  \import Modules.Hom[V := family.Carrier x, W := family.Carrier y, source := family.space x, target := family.space y] \as Maps;
+  \definition Hom: \Set := Maps.Map;
+  \definition additive: Alg.CommutativeGroup[Hom] := Maps.additive;
+  \definition ext: \forall (f, g: Hom) -> (\forall (u: family.Carrier x) -> #apply{f} u = #apply{g} u) -> f = g := Maps.ext;
+  \definition plus: Hom -> Hom -> Hom := Maps.plus;
+}
+\definition Hom(x, y: Index): \Set := At[x := x, y := y].Hom;
+\definition identity(x: Index): Hom x x := Modules.End[V := family.Carrier x, space := family.space x].identity;
+\definition compose(x, y, z: Index)(g: Hom y z)(f: Hom x y): Hom x z :=
+  Modules.Hom[V := family.Carrier y, W := family.Carrier z, source := family.space y, target := family.space z].Composition[U := family.Carrier x, domain := family.space x].compose g f;
+\definition data: Cat.CategoryData[Index, Hom] := Cat.CategoryData[Index, Hom] { identity := identity, compose := compose };
+\definition laws: Cat.CategoryLaws[Index, Hom, data] := Cat.CategoryLaws[Index, Hom, data] {
+  leftIdentity := \fun (x, y: Index)(f: Hom x y) => At[x := x, y := y].ext (compose x y y (identity y) f) f
+    (\fun (u: family.Carrier x) => \refl(#apply{f} u)),
+  rightIdentity := \fun (x, y: Index)(f: Hom x y) => At[x := x, y := y].ext (compose x x y f (identity x)) f
+    (\fun (u: family.Carrier x) => \refl(#apply{f} u)),
+  associative := \fun (w, x, y, z: Index)(h: Hom y z)(g: Hom x y)(f: Hom w x) =>
+    At[x := w, y := z].ext (compose w y z h (compose w x y g f)) (compose w x z (compose x y z h g) f)
+      (\fun (u: family.Carrier w) => \refl(#apply{h} (#apply{g} (#apply{f} u)))),
+};
+\definition category: Cat.Category := Cat.Category { Object := Index, Hom := Hom, structure := data, laws := laws };
+\definition addition: \forall (x, y: Index) -> Alg.CommutativeGroup[Hom x y] := \fun (x, y: Index) => At[x := x, y := y].additive;
+\definition composeLeft: \forall (x, y, z: Index)(f, g: Hom y z)(h: Hom x y) ->
+  compose x y z (At[x := y, y := z].plus f g) h = At[x := x, y := z].plus (compose x y z f h) (compose x y z g h) :=
+  \fun (x, y, z: Index)(f, g: Hom y z)(h: Hom x y) => At[x := x, y := z].ext
+    (compose x y z (At[x := y, y := z].plus f g) h) (At[x := x, y := z].plus (compose x y z f h) (compose x y z g h))
+    (\fun (u: family.Carrier x) => \refl(#add{(family.space z)} (#apply{f} (#apply{h} u)) (#apply{g} (#apply{h} u))));
+\definition composeRight: \forall (x, y, z: Index)(h: Hom y z)(f, g: Hom x y) ->
+  compose x y z h (At[x := x, y := y].plus f g) = At[x := x, y := z].plus (compose x y z h f) (compose x y z h g) :=
+  \fun (x, y, z: Index)(h: Hom y z)(f, g: Hom x y) => At[x := x, y := z].ext
+    (compose x y z h (At[x := x, y := y].plus f g)) (At[x := x, y := z].plus (compose x y z h f) (compose x y z h g))
+    (\fun (u: family.Carrier x) => #addition{h} (#apply{f} u) (#apply{g} u));
+\definition preadditive: Pre.Preadditive := Pre.Preadditive {
+  category := category, addition := addition, composeLeft := composeLeft, composeRight := composeRight,
+};
+
+\module Closure;

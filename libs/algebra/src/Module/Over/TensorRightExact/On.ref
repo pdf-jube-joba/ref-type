@@ -1,0 +1,47 @@
+\import \parent.\parent.Hom[V := Left.Carrier, W := Middle.Carrier, source := Left.space, target := Middle.space] \as InclusionMaps;
+\import \parent.\parent.Hom[V := Middle.Carrier, W := Right.Carrier, source := Middle.space, target := Right.space] \as ProjectionMaps;
+\definition inclusion: InclusionMaps.Map := Inclusion.map sequence.inclusion Coefficients.identity;
+\definition projection: ProjectionMaps.Map := Projection.map sequence.projection Coefficients.identity;
+\definition compositeZero: Composition.compose projection inclusion = Composite.zeroMap :=
+  Equality.ext (Composition.compose projection inclusion) Composite.zeroMap
+    (\fun (a: A.Carrier)(y: N.Carrier) => trans!{Right.Carrier} _ _ _
+      (congr!{Middle.Carrier Right.Carrier} (#apply{projection}) _ _ (Inclusion.onTensor sequence.inclusion Coefficients.identity a y))
+      (trans!{Right.Carrier} _ _ _ (Projection.onTensor sequence.projection Coefficients.identity (#apply{sequence.inclusion} a) y)
+        (trans!{Right.Carrier} _ _ _ (congr!{C.Carrier Right.Carrier} (\fun (c: C.Carrier) => Right.tensor c y) _ _ (#zero{sequence} a))
+          (Right.tensorZeroLeft y))));
+\definition zero: \forall (x: Left.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{Right.space} :=
+  \fun (x: Left.Carrier) => congr!{Composite.Map Right.Carrier} (\fun (f: Composite.Map) => #apply{f} x) _ _ compositeZero;
+\definition coefficientOnto: \forall (y: N.Carrier) -> \exists { x: N.Carrier \where #apply{Coefficients.identity} x = y } :=
+  \fun (y: N.Carrier) => \exact(\into[N.Carrier](y, { x: N.Carrier \where #apply{Coefficients.identity} x = y }) \by { \refl(y) },
+    \Cast[N.Carrier] ({ x: N.Carrier \where #apply{Coefficients.identity} x = y }));
+\definition onto: \forall (z: Right.Carrier) -> \exists { y: Middle.Carrier \where #apply{projection} y = z } :=
+  Surjectivity.onto sequence.projection Coefficients.identity (#onto{sequence}) coefficientOnto;
+\import \parent.\parent.Of[V := Middle.Carrier, space := Middle.space].Submodule[] \as Submodules;
+\import Submodules.Image[U := Left.Carrier, source := Left.space] \as Images;
+\definition image: Submodules.Submodule := Images.image inclusion;
+\import Submodules.Quotient[S := image] \as Quotient;
+\definition quotientBundle: Bundle := Bundle { Carrier := Quotient.Carrier, space := Quotient.moduleSpace };
+\import \parent.\parent.TensorDescent[B := B, C := C, N := N, U := quotientBundle] \as Descent;
+\import Descent.On[q := sequence.projection, f := Quotient.projection] \as DescentOn;
+\definition kills: DescentOn.Kills := \block {
+  \fun (b: B.Carrier)(closed: #apply{sequence.projection} b = #zero{C.space})(y: N.Carrier) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{sequence.inclusion} a = b }) \by #kernelImage{sequence} b closed \then
+  \let equal: #apply{sequence.inclusion} a = b := \bysub(A.Carrier, { a: A.Carrier \where #apply{sequence.inclusion} a = b }, a) \then
+  \return Quotient.classZero (Middle.tensor b y)
+    (Images.introduce inclusion (Middle.tensor b y) (Left.tensor a y)
+      (trans!{Middle.Carrier} _ _ _ (Inclusion.onTensor sequence.inclusion Coefficients.identity a y)
+        (congr!{B.Carrier Middle.Carrier} (\fun (b: B.Carrier) => Middle.tensor b y) _ _ equal)))
+};
+
+\import \parent.\parent.Hom[V := Right.Carrier, W := Quotient.Carrier, source := Right.space, target := Quotient.moduleSpace] \as FactorMaps;
+\import \parent.\parent.Hom[V := Middle.Carrier, W := Quotient.Carrier, source := Middle.space, target := Quotient.moduleSpace] \as QuotientMaps;
+\definition kernelImage: \forall (z: Middle.Carrier) -> #apply{projection} z = #zero{Right.space} ->
+  \exists { x: Left.Carrier \where #apply{inclusion} x = z } :=
+  \fun (z: Middle.Carrier)(closed: #apply{projection} z = #zero{Right.space}) => Quotient.zeroClassMember z
+    (trans!{Quotient.Carrier} _ _ _
+      (sym!{Quotient.Carrier} _ _ (congr!{QuotientMaps.Map Quotient.Carrier} (\fun (f: QuotientMaps.Map) => #apply{f} z) _ _ (DescentOn.factor #onto{sequence} kills)))
+      (trans!{Quotient.Carrier} _ _ _ (congr!{Right.Carrier Quotient.Carrier} (#apply{(DescentOn.map #onto{sequence} kills)}) _ _ closed)
+        (FactorMaps.zeroPreserved (DescentOn.map #onto{sequence} kills))));
+\definition sequence: Result.Sequence := Result.Sequence {
+  inclusion := inclusion, projection := projection, onto := onto, zero := zero, kernelImage := kernelImage,
+};

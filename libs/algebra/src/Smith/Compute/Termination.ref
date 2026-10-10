@@ -1,0 +1,19 @@
+\definition selections: \forall (selection: Pivot.Selection^)(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k rows -> Pivot.Laws rows cols k a history selection ->
+  \forall (target: State^) -> selected rows cols k a history selection = \continue[State^, Output^](target) -> MeasureTermination.Less target (State^::active rows cols k a history) :=
+  \induction (selection: Pivot.Selection^) \return \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k rows -> Pivot.Laws rows cols k a history selection ->
+    \forall (target: State^) -> selected rows cols k a history selection = \continue[State^, Output^](target) -> MeasureTermination.Less target (State^::active rows cols k a history) \with {
+    | missing: \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(bound: _)(laws: _)(target: State^)(edge: _) => CoreTermination.finishNeContinue (Output^::result k a history) target edge (MeasureTermination.Less target (State^::active rows cols k a history))
+    | ready: \fun (current: Attempt^)(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(bound: _)(laws: _) =>
+        \parent.Continuation[rows := rows, cols := cols, k := k, a := a, history := history, current := current].law laws bound
+  };
+\definition descending: MeasureTermination.Descending := \induction (state: State^) \return \forall (target: State^) -> step state = \continue[State^, Output^](target) -> MeasureTermination.Less target state \with {
+  | active: \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(target: State^) => B.cases
+      (\fun (test: B.Bool^) => within rows cols k = test ->
+        B.ite (\RunStep[State^, Output^]) test (selected rows cols k a history (Pivot.prepare rows cols k a history)) (\finish[State^, Output^](Output^::result k a history)) = \continue[State^, Output^](target) -> MeasureTermination.Less target (State^::active rows cols k a history))
+      (\fun (outside: _)(edge: _) => CoreTermination.finishNeContinue (Output^::result k a history) target edge (MeasureTermination.Less target (State^::active rows cols k a history)))
+      (\fun (inside: _) => selections (Pivot.prepare rows cols k a history) rows cols k a history
+        (BoolLaws.andTrueLeft (Nat.ltb k rows) (Nat.ltb k cols) inside)
+        (Pivot.prepared rows cols k a history (BoolLaws.andTrueLeft (Nat.ltb k rows) (Nat.ltb k cols) inside) (BoolLaws.andTrueRight (Nat.ltb k rows) (Nat.ltb k cols) inside)) target)
+      (within rows cols k) (\refl(within rows cols k))
+};
+\definition terminates: \forall (state: State^) -> CoreTermination.Holds state := MeasureTermination.terminates descending;

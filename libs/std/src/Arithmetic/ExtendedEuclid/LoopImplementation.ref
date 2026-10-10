@@ -1,0 +1,22 @@
+\definition State: \VType := IterState;
+\definition Output: \VType := EuclidState;
+\definition step: \U(State ~> \F(\RunStep[State, Output])) := \thunk (\cfun (s: IterState) => \match s \in IterState \with {
+  | running f value count: \match count \in N.Nat \with {
+      | zero: \return(\finish[State, Output](value))
+      | succ k: \program {
+          \bind next: Output <- (\force f) value \then
+          \return(\continue[State, Output](IterState::running f next k))
+        }
+    }
+});
+\import std.Logic[].Termination[State := State^, Output := Output^, step := step^] \as Termination;
+\definition terminates: \forall (count: N.Nat^)(f: Output^ -> Output^)(value: Output^) -> Termination.Holds (IterState^::running f value count) :=
+  \induction (count: N.Nat^) \return \forall (f: Output^ -> Output^)(value: Output^) -> Termination.Holds (IterState^::running f value count) \with {
+    | zero: \fun (f: Output^ -> Output^)(value: Output^) => Termination.intro (IterState^::running f value N.Nat^::zero) Termination.trivial
+    | succ: \fun (count: N.Nat^)(before: \forall (f: Output^ -> Output^)(value: Output^) -> Termination.Holds (IterState^::running f value count))
+        (f: Output^ -> Output^)(value: Output^) => Termination.intro (IterState^::running f value (N.Nat^::succ count)) (before f (f value))
+  };
+\definition certificate: \forall (s: State^) -> ProgramBundles.Terminates State^ Output^ step^ s :=
+  \induction (s: State^) \return Termination.Holds s \with {
+    | running: \fun (f: Output^ -> Output^)(value: Output^)(count: N.Nat^) => terminates count f value
+  };

@@ -1,0 +1,24 @@
+\import \parent.Map[C := C, D := D] \as Forward;
+\import \parent.Map[C := D, D := C] \as Backward;
+\import Backward.Composition[B := C] \as LeftComposition;
+\import Forward.Composition[B := D] \as RightComposition;
+\import \parent.End[C := C] \as SourceEnd;
+\import \parent.End[C := D] \as TargetEnd;
+\import \parent.Homotopy[C := C, D := C] \as SourceHomotopy;
+\import \parent.Homotopy[C := D, D := D] \as TargetHomotopy;
+\structure Data: \Set {
+  forward: Forward.Map,
+  backward: Backward.Map,
+  left: SourceHomotopy.Data,
+  right: TargetHomotopy.Data,
+}
+\structure Laws[data: Data]: \Prop {
+  left: SourceHomotopy.Laws[LeftComposition.compose data.backward data.forward, SourceEnd.identity, data.left],
+  right: TargetHomotopy.Laws[RightComposition.compose data.forward data.backward, TargetEnd.identity, data.right],
+}
+\definition Equivalence: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition leftHomotopy(e: Equivalence): SourceHomotopy.Homotopy (LeftComposition.compose e.backward e.forward) SourceEnd.identity :=
+  \into[SourceHomotopy.Data](e.left, SourceHomotopy.Homotopy (LeftComposition.compose e.backward e.forward) SourceEnd.identity) \by { #left{(\bysub(Data, { data: Data \where Laws[data] }, e))} };
+\definition rightHomotopy(e: Equivalence): TargetHomotopy.Homotopy (RightComposition.compose e.forward e.backward) TargetEnd.identity :=
+  \into[TargetHomotopy.Data](e.right, TargetHomotopy.Homotopy (RightComposition.compose e.forward e.backward) TargetEnd.identity) \by { #right{(\bysub(Data, { data: Data \where Laws[data] }, e))} };
+\module At(k: Degree);

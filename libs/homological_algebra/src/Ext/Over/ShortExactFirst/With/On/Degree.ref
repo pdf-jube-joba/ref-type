@@ -1,0 +1,25 @@
+\import Modules.Biproduct[V := P.family.Carrier n, W := Q.family.Carrier n, left := P.family.space n, right := Q.family.space n] \as Sum;
+\definition leftTerm: Modules.Bundle := Modules.Bundle { Carrier := P.family.Carrier n, space := P.family.space n };
+\definition middleTerm: Modules.Bundle := Modules.Bundle { Carrier := std.Data[].Pair[].Times^[P.family.Carrier n, Q.family.Carrier n], space := Sum.space };
+\definition rightTerm: Modules.Bundle := Modules.Bundle { Carrier := Q.family.Carrier n, space := Q.family.space n };
+\import Modules.ShortExact[A := leftTerm, B := middleTerm, C := rightTerm] \as Split;
+\import std.Data[].Pair[].Prop[A := P.family.Carrier n, B := Q.family.Carrier n] \as Pairs;
+\definition splitData: Split.Data := Split.Data { inclusion := Sum.firstInjection, projection := Sum.secondProjection };
+\definition splitLaws: Split.Laws[splitData] := Split.Laws[splitData] {
+  injective := \fun (x, y: P.family.Carrier n)(e: #apply{Sum.firstInjection} x = #apply{Sum.firstInjection} y) => congr!{Sum.Carrier {P.family.Carrier n}} Sum.first _ _ e,
+  onto := \fun (x: Q.family.Carrier n) => \exact(\into[Sum.Carrier](#apply{Sum.secondInjection} x, { y: Sum.Carrier \where #apply{Sum.secondProjection} y = x }) \by { \refl(x) }, \Cast[Sum.Carrier] ({ y: Sum.Carrier \where #apply{Sum.secondProjection} y = x })),
+  zero := \fun (x: P.family.Carrier n) => \refl(#zero{(Q.family.space n)}),
+  kernelImage := \fun (x: Sum.Carrier)(e: #apply{Sum.secondProjection} x = #zero{(Q.family.space n)}) => \exact(\into[P.family.Carrier n](Sum.first x, { y: P.family.Carrier n \where #apply{Sum.firstInjection} y = x }) \by {
+    Pairs.ext (#apply{Sum.firstInjection} (Sum.first x)) x (\refl(Sum.first x)) (sym!{{Q.family.Carrier n}} _ _ e)
+  }, \Cast[P.family.Carrier n] ({ y: P.family.Carrier n \where #apply{Sum.firstInjection} y = x })),
+};
+\definition split: Split.Sequence := \into[Split.Data](splitData, { data: Split.Data \where Split.Laws[data] }) \by { splitLaws };
+\import Algebra.ShortExactDual[A := leftTerm, B := middleTerm, C := rightTerm, N := N].On[sequence := split, s := Sum.secondInjection] \as Duality;
+\definition sequence: Modules.ShortExact[A := Modules.Bundle { Carrier := RightHom.Carrier n, space := RightHom.space n },
+  B := Modules.Bundle { Carrier := MiddleHom.Carrier n, space := MiddleHom.space n }, C := Modules.Bundle { Carrier := LeftHom.Carrier n, space := LeftHom.space n }].Sequence :=
+  Duality.shortExact Sum.secondRoundtrip;
+\definition injective: \forall (f, g: RightHom.Carrier n) -> #apply{data.inclusion} n f = #apply{data.inclusion} n g -> f = g := #injective{sequence};
+\definition onto: \forall (f: LeftHom.Carrier n) -> \exists { g: MiddleHom.Carrier n \where #apply{data.projection} n g = f } := #onto{sequence};
+\definition zero: \forall (f: RightHom.Carrier n) -> #apply{data.projection} n (#apply{data.inclusion} n f) = #zero{(LeftHom.space n)} := #zero{sequence};
+\definition kernelImage: \forall (f: MiddleHom.Carrier n) -> #apply{data.projection} n f = #zero{(LeftHom.space n)} ->
+  \exists { g: RightHom.Carrier n \where #apply{data.inclusion} n g = f } := #kernelImage{sequence};

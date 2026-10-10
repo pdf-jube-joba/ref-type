@@ -1,0 +1,42 @@
+\import \parent.\parent.At[C := complex, z := k] \as Homology;
+\import \parent.\parent.Prior[C := complex] \as Prior;
+\import std.Set[].Transport[I := Degree] \as Transport;
+\definition priorZero: \forall (x: family.Carrier (next k)) -> #apply{Homology.prior} x = #zero{(family.space k)} :=
+  \fun (x: family.Carrier (next k)) => Transport.pointNatural family.Carrier (\fun (z: Degree) => #zero{(family.space z)})
+    (previous (next k)) k (previousNext k);
+\import Modules.Of[V := family.Carrier k, space := family.space k].Submodule[] \as Submodules;
+\import Submodules.Image[U := family.Carrier (next k), source := family.space (next k)] \as Images;
+\definition boundaryZero: \forall (x: family.Carrier k) -> Submodules.Member Homology.boundaries x -> x = #zero{(family.space k)} :=
+  \fun (x: family.Carrier k)(boundary: Submodules.Member Homology.boundaries x) => Images.eliminate Homology.prior x (x = #zero{(family.space k)})
+    (\fun (y: family.Carrier (next k))(same: #apply{Homology.prior} y = x) => trans!{{family.Carrier k}} _ _ _
+      (sym!{{family.Carrier k}} _ _ same) (priorZero y)) boundary;
+\import Modules.Hom[V := family.Carrier k, W := Homology.Cycle, source := family.space k, target := Homology.cycleSpace] \as IntoCycles;
+\definition cycles: IntoCycles.Map := IntoCycles.Map {
+  apply := \fun (x: family.Carrier k) => Homology.cycle x (\refl(#zero{(family.space (previous k))})),
+  addition := \fun (x, y: family.Carrier k) => \refl(#add{(family.space k)} x y),
+  scalar := \fun (a: R)(x: family.Carrier k) => \refl(#smul{(family.space k)} a x),
+};
+\import Modules.Hom[V := Homology.Cycle, W := Homology.Homology, source := Homology.cycleSpace, target := Homology.homologySpace] \as Classes;
+\import Classes.Composition[U := family.Carrier k, domain := family.space k] \as Composition;
+\import Modules.Hom[V := family.Carrier k, W := Homology.Homology, source := family.space k, target := Homology.homologySpace] \as Forward;
+\definition forward: Forward.Map := Composition.compose Homology.classLinear cycles;
+\import Modules.Hom[V := Homology.Cycle, W := family.Carrier k, source := Homology.cycleSpace, target := family.space k] \as Forget;
+\definition forget: Forget.Map := Forget.Map {
+  apply := \fun (x: Homology.Cycle) => x,
+  addition := \fun (x, y: Homology.Cycle) => \refl(#add{(family.space k)} x y),
+  scalar := \fun (a: R)(x: Homology.Cycle) => \refl(#smul{(family.space k)} a x),
+};
+\import Modules.Of[V := Homology.Cycle, space := Homology.cycleSpace].Submodule[].Quotient[S := Homology.boundariesInside] \as Quotient;
+\import Quotient.To[W := family.Carrier k, target := family.space k] \as Descent;
+\definition vanishes: Descent.Vanishes forget := \fun (x: Homology.Cycle)(boundary: _) => boundaryZero x boundary;
+\import Modules.Hom[V := Homology.Homology, W := family.Carrier k, source := Homology.homologySpace, target := family.space k] \as Backward;
+\definition backward: Backward.Map := Descent.descend forget vanishes;
+\definition leftInverse: \forall (x: family.Carrier k) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: family.Carrier k) => Descent.onClass forget vanishes (#apply{cycles} x);
+\definition rightInverse: \forall (q: Homology.Homology) -> #apply{forward} (#apply{backward} q) = q :=
+  Homology.classInduction (\fun (q: Homology.Homology) => #apply{forward} (#apply{backward} q) = q)
+    (\fun (x: Homology.Cycle) => congr!{{family.Carrier k} Homology.Homology} (#apply{forward}) _ _ (Descent.onClass forget vanishes x));
+\import Modules.Isomorphism[V := family.Carrier k, W := Homology.Homology, source := family.space k, target := Homology.homologySpace] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

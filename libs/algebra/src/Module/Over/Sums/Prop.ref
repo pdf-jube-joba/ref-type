@@ -1,0 +1,98 @@
+\definition congruent: \forall (indices: Lists.List[I]) -> \forall (f, g: I -> R) ->
+  (\forall (i: I) -> f i = g i) -> sum indices f = sum indices g :=
+  \induction (indices: Lists.List[I]) \return \forall (f, g: I -> R) ->
+    (\forall (i: I) -> f i = g i) -> sum indices f = sum indices g \with {
+  | nil : \fun (f, g: _) (equal: _) => \refl(zero)
+  | cons : \fun (i: _) (tail: _) (ih: _) (f, g: _) (equal: \forall (i: I) -> f i = g i) =>
+      congr2!{R R R} add _ _ _ _ (equal i) (ih f g equal)
+  };
+
+\definition zeroSum: \forall (indices: Lists.List[I]) -> sum indices (\fun (i: _) => zero) = zero :=
+  \induction (indices: Lists.List[I]) \return sum indices (\fun (i: _) => zero) = zero \with {
+  | nil : \refl(zero)
+  | cons : \fun (i: _) (tail: _) (ih: _) => trans!{R} _ _ _ (addZeroLeft _) ih
+  };
+
+\definition shuffle: \forall (a, b, c, d: R) ->
+  add (add a b) (add c d) = add (add a c) (add b d) :=
+  \fun (a, b, c, d: _) => eq_reason!{
+    {add (add a b) (add c d)}
+    "=" {add a (add b (add c d))} "by" {addAssoc a b (add c d)}
+    "=" {add a (add (add b c) d)} "by" {congr!{R R} (add a) _ _ (sym!{R} _ _ (addAssoc b c d))}
+    "=" {add a (add (add c b) d)} "by" {congr!{R R} (\fun (x: _) => add a (add x d)) _ _ (addComm b c)}
+    "=" {add a (add c (add b d))} "by" {congr!{R R} (add a) _ _ (addAssoc c b d)}
+    "=" {add (add a c) (add b d)} "by" {sym!{R} _ _ (addAssoc a c (add b d))}
+  };
+
+\definition additive: \forall (indices: Lists.List[I]) -> \forall (f, g: I -> R) ->
+  sum indices (\fun (i: _) => add (f i) (g i)) = add (sum indices f) (sum indices g) :=
+  \induction (indices: Lists.List[I]) \return \forall (f, g: I -> R) ->
+    sum indices (\fun (i: _) => add (f i) (g i)) = add (sum indices f) (sum indices g) \with {
+  | nil : \fun (f, g: _) => sym!{R} _ _ (addZeroLeft zero)
+  | cons : \fun (i: _) (tail: _) (ih: _) (f, g: _) => trans!{R} _ _ _
+      (congr!{R R} (add (add (f i) (g i))) _ _ (ih f g))
+      (shuffle (f i) (g i) (sum tail f) (sum tail g))
+  };
+
+\definition multiplyLeft: \forall (indices: Lists.List[I]) -> \forall (a: R) -> \forall (f: I -> R) ->
+  sum indices (\fun (i: _) => mul a (f i)) = mul a (sum indices f) :=
+  \induction (indices: Lists.List[I]) \return \forall (a: R) -> \forall (f: I -> R) ->
+    sum indices (\fun (i: _) => mul a (f i)) = mul a (sum indices f) \with {
+  | nil : \fun (a: _) (f: _) => sym!{R} _ _ (mulZeroRight a)
+  | cons : \fun (i: _) (tail: _) (ih: _) (a: _) (f: _) => trans!{R} _ _ _
+      (congr!{R R} (add (mul a (f i))) _ _ (ih a f)) (sym!{R} _ _ (mulAdd a (f i) (sum tail f)))
+  };
+
+\definition multiplyRight: \forall (indices: Lists.List[I]) -> \forall (a: R) -> \forall (f: I -> R) ->
+  sum indices (\fun (i: _) => mul (f i) a) = mul (sum indices f) a :=
+  \induction (indices: Lists.List[I]) \return \forall (a: R) -> \forall (f: I -> R) ->
+    sum indices (\fun (i: _) => mul (f i) a) = mul (sum indices f) a \with {
+  | nil : \fun (a: _) (f: _) => sym!{R} _ _ (mulZeroLeft a)
+  | cons : \fun (i: _) (tail: _) (ih: _) (a: _) (f: _) => trans!{R} _ _ _
+      (congr!{R R} (add (mul (f i) a)) _ _ (ih a f)) (sym!{R} _ _ (addMul (f i) (sum tail f) a))
+  };
+
+\module Exchange(J: \Set) {
+  \import \parent.\parent.\parent.Sums[I := J] \as Other;
+  \import Other.Prop[] \as OtherLaws;
+  \definition exchange: \forall (xs: Lists.List[I]) -> \forall (ys: Lists.List[J]) -> \forall (f: I -> J -> R) ->
+    sum xs (\fun (i: _) => Other.sum ys (f i)) = Other.sum ys (\fun (j: _) => sum xs (\fun (i: _) => f i j)) :=
+    \induction (xs: Lists.List[I]) \return \forall (ys: Lists.List[J]) -> \forall (f: I -> J -> R) ->
+      sum xs (\fun (i: _) => Other.sum ys (f i)) = Other.sum ys (\fun (j: _) => sum xs (\fun (i: _) => f i j)) \with {
+    | nil : \fun (ys: Lists.List[J]) (f: I -> J -> R) => sym!{R} _ _ (OtherLaws.zeroSum ys)
+    | cons : \fun (i: I) (tail: Lists.List[I])
+        (ih: \forall (ys: Lists.List[J]) -> \forall (f: I -> J -> R) ->
+          sum tail (\fun (i: _) => Other.sum ys (f i)) = Other.sum ys (\fun (j: _) => sum tail (\fun (i: _) => f i j)))
+        (ys: Lists.List[J]) (f: I -> J -> R) => trans!{R} _ _ _
+        (congr!{R R} (add (Other.sum ys (f i))) _ _ (ih ys f))
+        (sym!{R} _ _ (OtherLaws.additive ys (f i) (\fun (j: _) => sum tail (\fun (i: _) => f i j))))
+    };
+}
+\definition congruentOnKeys: \forall (indices: Lists.List[I]) (f, g: I -> R) ->
+  (\forall (i: I) -> \In[I] (keys indices) i -> f i = g i) -> sum indices f = sum indices g :=
+  \induction (indices: Lists.List[I]) \return \forall (f, g: I -> R) ->
+    (\forall (i: I) -> \In[I] (keys indices) i -> f i = g i) -> sum indices f = sum indices g \with {
+      | nil: \fun (f, g: _) (equal: _) => \refl(zero)
+      | cons: \fun (i: I) (tail: Lists.List[I]) (ih: _) (f, g: _) (equal: _) =>
+        congr2!{R R R} add _ _ _ _ (equal i (Logic.Or[_, _]::left (\refl(i))))
+          (ih f g (\fun (j: I) (member: _) => equal j (Logic.Or[_, _]::right member)))
+    };
+\module Mapping(J: \Set);
+\import Lists.All[A := I] \as All;
+\definition allCongruent: \forall (xs: Lists.List[I])(f, g: I -> R) -> All.Holds (\fun (i: I) => f i = g i) xs -> sum xs f = sum xs g :=
+  \induction (xs: Lists.List[I]) \return \forall (f, g: I -> R) -> All.Holds (\fun (i: I) => f i = g i) xs -> sum xs f = sum xs g \with {
+    | nil: \fun (f, g: I -> R)(proof: All.Holds (\fun (i: I) => f i = g i) Lists.List[I]::nil) => \refl(zero)
+    | cons: \fun (head: I)(tail: Lists.List[I])
+      (previous: \forall (f, g: I -> R) -> All.Holds (\fun (i: I) => f i = g i) tail -> sum tail f = sum tail g)
+      (f, g: I -> R)(proof: All.Holds (\fun (i: I) => f i = g i) (Lists.List[I]::cons head tail)) =>
+        congr2!{R R R} add (f head) (g head) (sum tail f) (sum tail g) #left{proof} (previous f g #right{proof})
+  };
+\definition append: \forall (xs, ys: Lists.List[I])(f: I -> R) -> sum (Lists.append I xs ys) f = add (sum xs f) (sum ys f) :=
+  \induction (xs: Lists.List[I]) \return \forall (ys: Lists.List[I])(f: I -> R) -> sum (Lists.append I xs ys) f = add (sum xs f) (sum ys f) \with {
+    | nil: \fun (ys: Lists.List[I])(f: I -> R) => sym!{R} (add zero (sum ys f)) (sum ys f) (addZeroLeft (sum ys f))
+    | cons: \fun (head: I)(tail: Lists.List[I])
+      (previous: \forall (ys: Lists.List[I])(f: I -> R) -> sum (Lists.append I tail ys) f = add (sum tail f) (sum ys f))
+      (ys: Lists.List[I])(f: I -> R) => trans!{R} (add (f head) (sum (Lists.append I tail ys) f)) (add (f head) (add (sum tail f) (sum ys f))) (add (add (f head) (sum tail f)) (sum ys f))
+        (congr!{R R} (add (f head)) (sum (Lists.append I tail ys) f) (add (sum tail f) (sum ys f)) (previous ys f))
+        (sym!{R} (add (add (f head) (sum tail f)) (sum ys f)) (add (f head) (add (sum tail f) (sum ys f))) (addAssoc (f head) (sum tail f) (sum ys f)))
+  };

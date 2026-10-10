@@ -1,0 +1,63 @@
+\import Modules.Biproduct[V := C.family.Carrier k, W := C.family.Carrier (previous k), left := C.family.space k, right := C.family.space (previous k)] \as Source;
+\import Modules.Biproduct[V := D.family.Carrier k, W := C.family.Carrier (previous k), left := D.family.space k, right := C.family.space (previous k)] \as Target;
+\import Modules.Biproduct[V := C.family.Carrier (previous k), W := C.family.Carrier (previous (previous k)), left := C.family.space (previous k), right := C.family.space (previous (previous k))] \as SourceAfter;
+\import Modules.Biproduct[V := D.family.Carrier (previous k), W := C.family.Carrier (previous (previous k)), left := D.family.space (previous k), right := C.family.space (previous (previous k))] \as TargetAfter;
+\import std.Data[].Pair[].Prop[A := D.family.Carrier k, B := C.family.Carrier (previous k)] \as TargetPairs;
+\import std.Data[].Pair[].Prop[A := D.family.Carrier (previous k), B := C.family.Carrier (previous (previous k))] \as AfterPairs;
+\import std.Data[].Pair[].Prop[A := C.family.Carrier k, B := C.family.Carrier (previous k)] \as SourcePairs;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Injections;
+\definition injection: Injections.Map := Injections.Map {
+  apply := \fun (x: Source.Carrier) => Target.make (#apply{f} k (Source.first x)) (Source.second x),
+  addition := \fun (x, y: Source.Carrier) => TargetPairs.ext _ _ (#addition{f} k (Source.first x) (Source.first y)) (\refl(#add{(C.family.space (previous k))} (Source.second x) (Source.second y))),
+  scalar := \fun (a: R)(x: Source.Carrier) => TargetPairs.ext _ _ (#scalar{f} k a (Source.first x)) (\refl(#smul{(C.family.space (previous k))} a (Source.second x))),
+};
+\definition injectionCommutes: \forall (x: Source.Carrier) ->
+  #apply{Cone.complex.differential} k (#apply{injection} x) =
+    TargetAfter.make (#apply{f} (previous k) (SourceAfter.first (#apply{IdentityCone.complex.differential} k x)))
+      (SourceAfter.second (#apply{IdentityCone.complex.differential} k x)) :=
+  \fun (x: Source.Carrier) => AfterPairs.ext _ _
+    (trans!{{D.family.Carrier (previous k)}} _ _ _
+      (congr!{{D.family.Carrier (previous k)} {D.family.Carrier (previous k)}}
+        (\fun (y: D.family.Carrier (previous k)) => #add{(D.family.space (previous k))} y (#apply{f} (previous k) (Source.second x))) _ _ (#commutes{f} k (Source.first x)))
+      (sym!{{D.family.Carrier (previous k)}} _ _ (#addition{f} (previous k) (#apply{C.differential} k (Source.first x)) (Source.second x))))
+    (\refl(#neg{(C.family.space (previous (previous k)))} (#apply{C.differential} (previous k) (Source.second x))));
+\import \parent.\parent.At[k := k] \as Quotient;
+\import \parent.\parent.At[k := previous k] \as QuotientAfter;
+\import Modules.Hom[V := D.family.Carrier k, W := Quotient.Carrier, source := D.family.space k, target := Quotient.space].Composition[U := Target.Carrier, domain := Target.space] \as ComposeProjection;
+\definition projection: Modules.Hom[V := Target.Carrier, W := Quotient.Carrier, source := Target.space, target := Quotient.space].Map :=
+  ComposeProjection.compose Quotient.projection Target.firstProjection;
+\import Modules.Laws[V := QuotientAfter.Carrier, space := QuotientAfter.space] \as QuotientLaws;
+\import algebra.Group[].Of[Carrier := QuotientAfter.Carrier, group := QuotientLaws.additive] \as QuotientGroup;
+\definition projectionCommutes: \forall (x: Target.Carrier) ->
+  #apply{complex.differential} k (#apply{projection} x) = QuotientAfter.class (TargetAfter.first (#apply{Cone.complex.differential} k x)) :=
+  \fun (x: Target.Carrier) => trans!{QuotientAfter.Carrier} _ _ _ (Quotient.onClass (Target.first x))
+    (sym!{QuotientAfter.Carrier} _ _ (trans!{QuotientAfter.Carrier} _ _ _
+      (#addition{QuotientAfter.projection} (#apply{D.differential} k (Target.first x)) (#apply{f} (previous k) (Target.second x)))
+      (trans!{QuotientAfter.Carrier} _ _ _
+        (congr!{QuotientAfter.Carrier QuotientAfter.Carrier} (#add{QuotientAfter.space} (QuotientAfter.class (#apply{D.differential} k (Target.first x)))) _ _
+          (QuotientAfter.onImage (Target.second x)))
+        (QuotientGroup.zeroRight (QuotientAfter.class (#apply{D.differential} k (Target.first x)))))));
+\definition injective:
+  (\forall (x, y: C.family.Carrier k) -> #apply{f} k x = #apply{f} k y -> x = y) ->
+  \forall (x, y: Source.Carrier) -> #apply{injection} x = #apply{injection} y -> x = y :=
+  \fun (injective: _)(x, y: Source.Carrier)(equal: _) => SourcePairs.ext x y
+    (injective _ _ (congr!{Target.Carrier {D.family.Carrier k}} Target.first _ _ equal))
+    (congr!{Target.Carrier {C.family.Carrier (previous k)}} Target.second _ _ equal);
+\definition onto: \forall (q: Quotient.Carrier) -> \exists { x: Target.Carrier \where #apply{projection} x = q } := \block {
+  \fun (q: Quotient.Carrier) \then
+  \takefrom y: \Cast[D.family.Carrier k] ({ y: D.family.Carrier k \where Quotient.class y = q }) \by Quotient.onto q \then
+  \return \exact(\into[Target.Carrier](#apply{Target.firstInjection} y,
+    { x: Target.Carrier \where #apply{projection} x = q }) \by {
+      \bysub(D.family.Carrier k, { y: D.family.Carrier k \where Quotient.class y = q }, y)
+    }, \Cast[Target.Carrier] ({ x: Target.Carrier \where #apply{projection} x = q }))
+};
+\definition zero: \forall (x: Source.Carrier) -> #apply{projection} (#apply{injection} x) = #zero{Quotient.space} :=
+  \fun (x: Source.Carrier) => Quotient.onImage (Source.first x);
+\definition kernelImage: \forall (x: Target.Carrier) -> #apply{projection} x = #zero{Quotient.space} ->
+  \exists { y: Source.Carrier \where #apply{injection} y = x } := \block {
+  \fun (x: Target.Carrier)(killed: #apply{projection} x = #zero{Quotient.space}) \then
+  \takefrom y: \Cast[C.family.Carrier k] ({ y: C.family.Carrier k \where #apply{f} k y = Target.first x }) \by Quotient.zeroClassImage (Target.first x) killed \then
+  \return \exact(\into[Source.Carrier](Source.make y (Target.second x), { y: Source.Carrier \where #apply{injection} y = x }) \by {
+    TargetPairs.ext (#apply{injection} (Source.make y (Target.second x))) x (\bysub(C.family.Carrier k, { y: C.family.Carrier k \where #apply{f} k y = Target.first x }, y)) (\refl(Target.second x))
+  }, \Cast[Source.Carrier] ({ y: Source.Carrier \where #apply{injection} y = x }))
+};

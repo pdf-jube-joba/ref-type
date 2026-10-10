@@ -93,3 +93,14 @@ Program 側の型関連操作は計算を返すので、結果を `\bind` で受
 `Alg.Monoid`、`Alg.Alg`、`Alg.Ring`、`Alg.Field` が Monoid・Group・Semiring・Ring・Field と可換版を提供する。
 `RingModule` / `RingAlgebra` はスカラー環と carrier を指定する。
 利用例では自然数の加法モノイド・半環と整数の加法可換群を検査する。
+
+## 証明付き整数計算と有限探索
+
+`Arithmetic.ExtendedEuclid` は自然数と符号付き整数の Bézout 係数を計算し、最大公約数と整除の証明を返す数学的仕様との対応を公開する。
+`Signed.Division` は符号付きの商と余りを計算し、非零の除数について余りの絶対値の減少を証明する。
+`Arithmetic.IntegerSum` と `Arithmetic.NaturalSum` は有限和を実行する停止機械と、その仕様との対応を提供する。
+自然数の有限和は各成分の上界になり、整数行列の pivot 探索の減少量にも使える。
+`Data.Nat.Induction.Termination` は二つの自然数による辞書式の減少から停止性を証明する。
+`Logic.Termination.Results` は、各遷移で保つ状態の性質から反復の返却値の性質を証明する。
+`Data.Nat.Iteration.Program[A := T]` は実行用の型上の反復を、`Data.Nat.Find` と `Find.Grid` は一次元・二次元の有限探索を提供する。
+探索結果の範囲と条件、および探索が空の場合の全称的な条件不成立を証明している。

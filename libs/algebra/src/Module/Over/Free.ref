@@ -1,0 +1,27 @@
+\import \parent.Presentation[Generators := Generators] \as Expressions;
+\definition noRelations(x, y: Expressions.Expression): \Prop := Logic.False;
+\import Expressions.Of[relations := noRelations] \as Presented;
+\definition Carrier: \Set := Presented.Carrier;
+\definition space: Space Carrier := Presented.space;
+\definition generator: Generators -> Carrier := Presented.generator;
+\definition bundle: Bundle := Bundle { Carrier := Carrier, space := space };
+\module To(W: \Set, target: Space W) {
+  \import Presented.To[W := W, target := target] \as Universal;
+  \import \parent.\parent.Hom[V := Carrier, W := W, source := space, target := target] \as Maps;
+  \definition accepts(values: Generators -> W): Universal.RespectsRelations values :=
+    \fun (x, y: Expressions.Expression)(impossible: Logic.False) => Logic.falseElim (Universal.EvaluationRelation values x y) impossible;
+  \definition extension(values: Generators -> W): Maps.Map := Universal.extension values (accepts values);
+  \definition onGenerator: \forall (values: Generators -> W)(s: Generators) -> #apply{(extension values)} (generator s) = values s :=
+    \fun (values: _) => Universal.onGenerator values (accepts values);
+  \definition unique: \forall (values: Generators -> W)(h: Maps.Map) ->
+    (\forall (s: Generators) -> #apply{h} (generator s) = values s) -> #apply{h} = #apply{(extension values)} :=
+    \fun (values: _) => Universal.unique values (accepts values);
+}
+\module Lifting(A, B: Bundle, q: MapBetween A B, f: MapBetween bundle B);
+\definition projective: Projective bundle :=
+  \fun (A, B: Bundle)(q: MapBetween A B)(onto: Surjective A B q)(f: MapBetween bundle B) =>
+    Lifting[A := A, B := B, q := q, f := f].existence onto;
+\module Reindex(TargetGenerators: \Set);
+\module End;
+\module Coefficients;
+\module Finite;

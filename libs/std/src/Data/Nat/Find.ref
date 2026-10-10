@@ -1,0 +1,90 @@
+\import std.Data[].Bool[] \as B;
+\import \parent.Basic[].Prop[] \as Bounds;
+\import \parent.Order[].Prop[] \as Order;
+\import \parent.Induction[] \as Induction;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Program[] \as Programs;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Logic.either;
+\inductive Result: \VType := | missing: Result | found: Nat -> Result;
+\inductive State: \VType := | scanning: Nat -> Result -> State;
+\definition answer: State^ -> Result^ := \induction (s: State^) \return Result^ \with {
+  | scanning: \fun (index: Nat^)(result: Result^) => result
+};
+\definition find: Nat^ -> (Nat^ -> B.Bool^) -> Result^ :=
+  \induction (count: Nat^) \return (Nat^ -> B.Bool^) -> Result^ \with {
+    | zero: \fun (p: Nat^ -> B.Bool^) => Result^::missing
+    | succ: \fun (count: Nat^)(previous: (Nat^ -> B.Bool^) -> Result^)(p: Nat^ -> B.Bool^) => B.ite Result^ (p count) (Result^::found count) (previous p)
+  };
+\structure FoundLaws[p: Nat^ -> B.Bool^, count, index: Nat^]: \Prop {
+  bound: Bounds.Lt index count,
+  hit: p index = B.Bool^::true,
+}
+\definition Laws(p: Nat^ -> B.Bool^)(count: Nat^): Result^ -> \Prop :=
+  \induction (result: Result^) \return \Prop \with {
+    | missing: \forall (i: Nat^) -> Bounds.Lt i count -> p i = B.Bool^::false
+    | found: \fun (i: Nat^) => FoundLaws[p, count, i]
+  };
+\definition extendFalse: \forall (p: Nat^ -> B.Bool^)(count: Nat^)(result: Result^) -> Laws p count result -> p count = B.Bool^::false -> Laws p (Nat^::succ count) result :=
+  \fun (p: Nat^ -> B.Bool^)(count: Nat^) => \induction (result: Result^) \return Laws p count result -> p count = B.Bool^::false -> Laws p (Nat^::succ count) result \with {
+    | missing: \fun (previous: Laws p count Result^::missing)(test: p count = B.Bool^::false)(i: Nat^)(bound: Bounds.Lt i (Nat^::succ count)) =>
+      either!{{Bounds.Lt i count} "or" {i = count} "either" {p i = B.Bool^::false}
+        "lt:" {\fun (less: Bounds.Lt i count) => previous i less}
+        "rt:" {\fun (equal: i = count) => trans!{B.Bool^} (p i) (p count) B.Bool^::false (congr!{Nat^ B.Bool^} p i count equal) test}}
+        (Induction.leCases i count (Induction.belowSuccessor i count bound))
+    | found: \fun (i: Nat^)(previous: FoundLaws[p, count, i])(test: p count = B.Bool^::false) => FoundLaws[p, Nat^::succ count, i] {
+        bound := Order.ltTrans i count (Nat^::succ count) #bound{previous} (Order.ltSelfSucc count), hit := #hit{previous},
+      }
+  };
+\definition correctness: \forall (count: Nat^)(p: Nat^ -> B.Bool^) -> Laws p count (find count p) :=
+  \induction (count: Nat^) \return \forall (p: Nat^ -> B.Bool^) -> Laws p count (find count p) \with {
+    | zero: \fun (p: Nat^ -> B.Bool^)(i: Nat^)(bound: Bounds.Lt i Nat^::zero) => Logic.falseElim (p i = B.Bool^::false) (Order.ltZero i bound)
+    | succ: \fun (count: Nat^)(previous: \forall (p: Nat^ -> B.Bool^) -> Laws p count (find count p))(p: Nat^ -> B.Bool^) => B.cases
+        (\fun (test: B.Bool^) => p count = test -> Laws p (Nat^::succ count) (B.ite Result^ test (Result^::found count) (find count p)))
+        (\fun (test: p count = B.Bool^::false) => extendFalse p count (find count p) (previous p) test)
+        (\fun (test: p count = B.Bool^::true) => FoundLaws[p, Nat^::succ count, count] { bound := Order.ltSelfSucc count, hit := test })
+        (p count) (\refl(p count))
+  };
+\definition step(p: Nat^ -> B.Bool^): State^ -> State^ := \induction (s: State^) \return State^ \with {
+  | scanning: \fun (index: Nat^)(result: Result^) => State^::scanning (Nat^::succ index) (B.ite Result^ (p index) (Result^::found index) result)
+};
+\import \parent.Iteration[].Def[A := State^] \as Iteration;
+\import \parent.Iteration[].Program[A := State] \as NativeIteration;
+\definition initial: State^ := State^::scanning Nat^::zero Result^::missing;
+\definition iterationState: \forall (count: Nat^)(p: Nat^ -> B.Bool^) -> Iteration.apply (step p) initial count = State^::scanning count (find count p) :=
+  \induction (count: Nat^) \return \forall (p: Nat^ -> B.Bool^) -> Iteration.apply (step p) initial count = State^::scanning count (find count p) \with {
+    | zero: \fun (p: Nat^ -> B.Bool^) => \refl(initial)
+    | succ: \fun (count: Nat^)(previous: _)(p: Nat^ -> B.Bool^) => congr!{State^ State^} (step p)
+        (Iteration.apply (step p) initial count) (State^::scanning count (find count p)) (previous p)
+  };
+\module StepImplementation;
+\correspondence Step: Programs.Correspondence := Programs.Correspondence {
+  T := StepImplementation[].T, program := StepImplementation[].program, specification := step, coherence := StepImplementation[].coherence,
+};
+\module ReaderImplementation;
+\correspondence Reader: Programs.Correspondence := Programs.Correspondence {
+  T := ReaderImplementation[].T, program := ReaderImplementation[].program, specification := answer, coherence := ReaderImplementation[].coherence,
+};
+\module Implementation;
+\correspondence Find: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := find, coherence := Implementation[].coherence,
+};
+
+\definition isFound: Result^ -> B.Bool^ := \induction (result: Result^) \return B.Bool^ \with {
+  | missing: B.Bool^::false
+  | found: \fun (index: Nat^) => B.Bool^::true
+};
+\module FlagImplementation;
+\correspondence Flag: Programs.Correspondence := Programs.Correspondence {
+  T := FlagImplementation[].T, program := FlagImplementation[].program, specification := isFound, coherence := FlagImplementation[].coherence,
+};
+\import B.Prop[] \as BoolLaws;
+\definition missingOfFlag: \forall (result: Result^) -> isFound result = B.Bool^::false -> result = Result^::missing :=
+  \induction (result: Result^) \return isFound result = B.Bool^::false -> result = Result^::missing \with {
+    | missing: \fun (test: B.Bool^::false = B.Bool^::false) => \refl(Result^::missing)
+    | found: \fun (index: Nat^)(test: B.Bool^::true = B.Bool^::false) => Logic.falseElim (Result^::found index = Result^::missing) (BoolLaws.trueNeFalse test)
+  };
+\module Grid;

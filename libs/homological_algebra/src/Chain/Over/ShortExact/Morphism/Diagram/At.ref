@@ -1,0 +1,48 @@
+\import \parent.\parent.\parent.At[s := s, k := k] \as Source;
+\import \parent.\parent.\parent.\parent.ShortExact[A := A1, B := B1, C := C1].At[s := t, k := k] \as TargetConnecting;
+\import \parent.\parent.\parent.\parent.At[C := C, z := k] \as HC;
+\import \parent.\parent.\parent.\parent.At[C := C1, z := k] \as HC1;
+\import \parent.\parent.\parent.\parent.At[C := A, z := previous k] \as HA;
+\import \parent.\parent.\parent.\parent.At[C := A1, z := previous k] \as HA1;
+\import \parent.\parent.\parent.\parent.Map[C := A, D := A1].At[k := previous k] \as Left;
+\import \parent.\parent.\parent.\parent.Map[C := C, D := C1].At[k := k] \as Right;
+\definition onCycles: Commutative -> \forall (x: HC.Cycle) ->
+  TargetConnecting.delta (#apply{(Right.cyclesMap c)} x) = #apply{(Left.induced a)} (Source.delta x) := \block {
+  \fun (diagram: Commutative)(x: HC.Cycle) \then
+  \takefrom w: \Cast[Source.Witness] ({ w: Source.Witness \where Source.WitnessLaws[x, Source.delta x, w] })
+    \by \bysub(HA.Homology, Source.Values x, Source.delta x) \then
+  \let laws: Source.WitnessLaws[x, Source.delta x, w] := \bysub(Source.Witness, { w: Source.Witness \where Source.WitnessLaws[x, Source.delta x, w] }, w) \then
+  \let lift: B1.family.Carrier k := #apply{b} k (#lift{w}) \then
+  \let lower: HA1.Cycle := #apply{(Left.cyclesMap a)} (#lower{w}) \then
+  \let lifted: #apply{t.projection} k lift = #apply{c} k x := trans!{{C1.family.Carrier k}} _ _ _ (#right{diagram} k (#lift{w}))
+    (congr!{{C.family.Carrier k} {C1.family.Carrier k}} (#apply{c} k) _ _ (#lifted{laws})) \then
+  \let differential: #apply{t.inclusion} (previous k) lower = #apply{B1.differential} k lift := trans!{{B1.family.Carrier (previous k)}} _ _ _
+    (sym!{{B1.family.Carrier (previous k)}} _ _ (#left{diagram} (previous k) (#lower{w})))
+    (trans!{{B1.family.Carrier (previous k)}} _ _ _ (congr!{{B.family.Carrier (previous k)} {B1.family.Carrier (previous k)}} (#apply{b} (previous k)) _ _ (#differential{laws}))
+      (sym!{{B1.family.Carrier (previous k)}} _ _ (#commutes{b} k (#lift{w})))) \then
+  \return trans!{HA1.Homology} _ _ _ (TargetConnecting.onLift (#apply{(Right.cyclesMap c)} x) lift lower lifted differential
+    (\bysub(A1.family.Carrier (previous k), #carrier{HA1.cycles}, lower)))
+    (trans!{HA1.Homology} _ _ _ (sym!{HA1.Homology} _ _ (Left.onClass a (#lower{w})))
+      (congr!{HA.Homology HA1.Homology} (#apply{(Left.induced a)}) _ _ (#classValue{laws})))
+};
+\definition onClasses: Commutative -> \forall (x: HC.Cycle) ->
+  #apply{TargetConnecting.connecting} (#apply{(Right.induced c)} (HC.classOf x)) = #apply{(Left.induced a)} (#apply{Source.connecting} (HC.classOf x)) := \block {
+  \fun (diagram: Commutative)(x: HC.Cycle) \then
+  \let rightClass: #apply{TargetConnecting.connecting} (#apply{(Right.induced c)} (HC.classOf x)) =
+    #apply{TargetConnecting.connecting} (HC1.classOf (#apply{(Right.cyclesMap c)} x)) :=
+    congr!{HC1.Homology HA1.Homology} (#apply{TargetConnecting.connecting})
+      (#apply{(Right.induced c)} (HC.classOf x)) (HC1.classOf (#apply{(Right.cyclesMap c)} x)) (Right.onClass c x) \then
+  \let targetClass: #apply{TargetConnecting.connecting} (HC1.classOf (#apply{(Right.cyclesMap c)} x)) =
+    #apply{(Left.induced a)} (Source.delta x) := trans!{HA1.Homology}
+      (#apply{TargetConnecting.connecting} (HC1.classOf (#apply{(Right.cyclesMap c)} x)))
+      (TargetConnecting.delta (#apply{(Right.cyclesMap c)} x)) (#apply{(Left.induced a)} (Source.delta x))
+      (TargetConnecting.onClass (#apply{(Right.cyclesMap c)} x)) (onCycles diagram x) \then
+  \let sourceClass: #apply{(Left.induced a)} (Source.delta x) = #apply{(Left.induced a)} (#apply{Source.connecting} (HC.classOf x)) :=
+    congr!{HA.Homology HA1.Homology} (#apply{(Left.induced a)}) (Source.delta x) (#apply{Source.connecting} (HC.classOf x))
+      (sym!{HA.Homology} _ _ (Source.onClass x)) \then
+  \return trans!{HA1.Homology} _ _ _ rightClass (trans!{HA1.Homology} _ _ _ targetClass sourceClass)
+};
+\definition naturality: Commutative -> \forall (q: HC.Homology) ->
+  #apply{TargetConnecting.connecting} (#apply{(Right.induced c)} q) = #apply{(Left.induced a)} (#apply{Source.connecting} q) :=
+  \fun (diagram: Commutative) => HC.classInduction (\fun (q: HC.Homology) =>
+    #apply{TargetConnecting.connecting} (#apply{(Right.induced c)} q) = #apply{(Left.induced a)} (#apply{Source.connecting} q)) (onClasses diagram);

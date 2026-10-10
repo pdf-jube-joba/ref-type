@@ -1,0 +1,110 @@
+\import Modules.Biproduct[V := C.family.Carrier k, W := C.family.Carrier (previous k), left := C.family.space k, right := C.family.space (previous k)] \as Sum;
+\import Modules.Biproduct[V := C.family.Carrier (next k), W := C.family.Carrier (previous (next k)), left := C.family.space (next k), right := C.family.space (previous (next k))] \as Above;
+\import std.Data[].Pair[].Prop[A := C.family.Carrier k, B := C.family.Carrier (previous k)] \as Pairs;
+\import std.Data[].Pair[].Prop[A := C.family.Carrier (next k), B := C.family.Carrier (previous (next k))] \as AbovePairs;
+\import Modules.Laws[V := C.family.Carrier (next k), space := C.family.space (next k)] \as AboveLaws;
+\import algebra.Group[].Of[Carrier := C.family.Carrier (next k), group := AboveLaws.additive] \as AboveGroup;
+\definition addition: \forall (x, y: Cone.Carrier k) ->
+  contraction k (#add{(Cone.space k)} x y) = #add{(Cone.space (next k))} (contraction k x) (contraction k y) :=
+  \fun (x, y: Cone.Carrier k) => AbovePairs.ext _ _
+    (sym!{{C.family.Carrier (next k)}} _ _ (AboveGroup.zeroLeft #zero{(C.family.space (next k))}))
+    (Transport.binaryNatural C.family.Carrier C.family.Carrier C.family.Carrier (\fun (z: Degree) => #add{(C.family.space z)})
+      k (previous (next k)) (sym!{Degree} _ _ (previousNext k)) (Sum.first x) (Sum.first y));
+\definition scalar: \forall (a: R)(x: Cone.Carrier k) ->
+  contraction k (#smul{(Cone.space k)} a x) = #smul{(Cone.space (next k))} a (contraction k x) :=
+  \fun (a: R)(x: Cone.Carrier k) => AbovePairs.ext _ _
+    (sym!{{C.family.Carrier (next k)}} _ _ (AboveLaws.scaleZero a))
+    (Transport.natural C.family.Carrier C.family.Carrier (\fun (z: Degree) => #smul{(C.family.space z)} a)
+      k (previous (next k)) (sym!{Degree} _ _ (previousNext k)) (Sum.first x));
+\definition middle: Degree := previous (next k);
+\definition upper: Degree := next (previous k);
+\import \parent.\parent.Prior[C := Cone.complex] \as Prior;
+\import \parent.\parent.At[C := C, z := next k] \as AboveDifferential;
+\import Modules.Hom[V := C.family.Carrier (next k), W := C.family.Carrier middle, source := C.family.space (next k), target := C.family.space middle] \as AboveMaps;
+\import Modules.Laws[V := C.family.Carrier middle, space := C.family.space middle] \as MiddleLaws;
+\import algebra.Group[].Of[Carrier := C.family.Carrier middle, group := MiddleLaws.additive] \as MiddleGroup;
+\definition rawFirst: \forall (x: Cone.Carrier k) ->
+  Cone.At[k := middle].first (#apply{Cone.differential} (next k) (contraction k x)) =
+    Transport.cast C.family.Carrier k middle (sym!{Degree} _ _ (previousNext k)) (Sum.first x) :=
+  \fun (x: Cone.Carrier k) => trans!{{C.family.Carrier middle}} _ _ _
+    (congr!{{C.family.Carrier middle} {C.family.Carrier middle}}
+      (\fun (v: C.family.Carrier middle) => #add{(C.family.space middle)} v
+        (Transport.cast C.family.Carrier k middle (sym!{Degree} _ _ (previousNext k)) (Sum.first x))) _ _
+      (AboveMaps.zeroPreserved AboveDifferential.differential))
+    (MiddleGroup.zeroLeft (Transport.cast C.family.Carrier k middle (sym!{Degree} _ _ (previousNext k)) (Sum.first x)));
+\definition priorFirst: \forall (x: Cone.Carrier k) -> Sum.first (Prior.value k (contraction k x)) = Sum.first x :=
+  \fun (x: Cone.Carrier k) => trans!{{C.family.Carrier k}} _ _ _
+    (sym!{{C.family.Carrier k}} _ _
+      (Transport.natural Cone.Carrier C.family.Carrier (\fun (z: Degree) => Cone.At[k := z].first)
+        middle k (previousNext k) (#apply{Cone.differential} (next k) (contraction k x))))
+    (trans!{{C.family.Carrier k}} _ _ _
+      (congr!{{C.family.Carrier middle} {C.family.Carrier k}} (Transport.cast C.family.Carrier middle k (previousNext k)) _ _ (rawFirst x))
+      (Transport.castInverse C.family.Carrier k middle (sym!{Degree} _ _ (previousNext k)) (Sum.first x)));
+\definition priorSecond: \forall (x: Cone.Carrier k) -> Sum.second (Prior.value k (contraction k x)) =
+  #neg{(C.family.space (previous k))} (#apply{C.differential} k (Sum.first x)) :=
+  \fun (x: Cone.Carrier k) => trans!{{C.family.Carrier (previous k)}} _ _ _
+    (sym!{{C.family.Carrier (previous k)}} _ _
+      (Transport.natural Cone.Carrier (\fun (z: Degree) => C.family.Carrier (previous z))
+        (\fun (z: Degree) => Cone.At[k := z].second) middle k (previousNext k)
+        (#apply{Cone.differential} (next k) (contraction k x))))
+    (trans!{{C.family.Carrier (previous k)}} _ _ _
+      (Transport.natural (\fun (z: Degree) => C.family.Carrier (previous z)) (\fun (z: Degree) => C.family.Carrier (previous z))
+        (\fun (z: Degree) => #neg{(C.family.space (previous z))}) middle k (previousNext k)
+        (#apply{C.differential} middle (Transport.cast C.family.Carrier k middle (sym!{Degree} _ _ (previousNext k)) (Sum.first x))))
+      (congr!{{C.family.Carrier (previous k)} {C.family.Carrier (previous k)}} (#neg{(C.family.space (previous k))}) _ _
+        (trans!{{C.family.Carrier (previous k)}} _ _ _
+          (Transport.natural C.family.Carrier (\fun (z: Degree) => C.family.Carrier (previous z)) (#apply{C.differential})
+            middle k (previousNext k) (Transport.cast C.family.Carrier k middle (sym!{Degree} _ _ (previousNext k)) (Sum.first x)))
+          (congr!{{C.family.Carrier k} {C.family.Carrier (previous k)}} (#apply{C.differential} k) _ _
+            (Transport.castInverse C.family.Carrier k middle (sym!{Degree} _ _ (previousNext k)) (Sum.first x))))));
+\definition shiftedFirst: \forall (x: Cone.Carrier k) -> Sum.first (Homotopies.shifted data k (#apply{Cone.differential} k x)) =
+  #zero{(C.family.space k)} :=
+  \fun (x: Cone.Carrier k) => trans!{{C.family.Carrier k}} _ _ _
+    (sym!{{C.family.Carrier k}} _ _
+      (Transport.natural Cone.Carrier C.family.Carrier (\fun (z: Degree) => Cone.At[k := z].first)
+        upper k (nextPrevious k) (contraction (previous k) (#apply{Cone.differential} k x))))
+    (Transport.pointNatural C.family.Carrier (\fun (z: Degree) => #zero{(C.family.space z)}) upper k (nextPrevious k));
+\definition shiftedSecond: \forall (x: Cone.Carrier k) -> Sum.second (Homotopies.shifted data k (#apply{Cone.differential} k x)) =
+  #add{(C.family.space (previous k))} (#apply{C.differential} k (Sum.first x)) (Sum.second x) :=
+  \fun (x: Cone.Carrier k) => trans!{{C.family.Carrier (previous k)}} _ _ _
+    (sym!{{C.family.Carrier (previous k)}} _ _
+      (Transport.natural Cone.Carrier (\fun (z: Degree) => C.family.Carrier (previous z))
+        (\fun (z: Degree) => Cone.At[k := z].second) upper k (nextPrevious k)
+        (contraction (previous k) (#apply{Cone.differential} k x))))
+    (trans!{{C.family.Carrier (previous k)}} _ _ _
+      (Transport.reindex C.family.Carrier previous upper k (nextPrevious k)
+        (Transport.cast C.family.Carrier (previous k) (previous upper) (sym!{Degree} _ _ (previousNext (previous k)))
+          (Cone.At[k := previous k].first (#apply{Cone.differential} k x))))
+      (Transport.castInverse C.family.Carrier (previous k) (previous upper) (sym!{Degree} _ _ (previousNext (previous k)))
+        (Cone.At[k := previous k].first (#apply{Cone.differential} k x))));
+\import Modules.Laws[V := C.family.Carrier k, space := C.family.space k] \as LeftLaws;
+\import algebra.Group[].Of[Carrier := C.family.Carrier k, group := LeftLaws.additive] \as LeftGroup;
+\import Modules.Laws[V := C.family.Carrier (previous k), space := C.family.space (previous k)] \as RightLaws;
+\import algebra.Group[].Of[Carrier := C.family.Carrier (previous k), group := RightLaws.additive] \as RightGroup;
+\definition reconstruction: \forall (x: Cone.Carrier k) ->
+  #add{(Cone.space k)} (Prior.value k (contraction k x)) (Homotopies.shifted data k (#apply{Cone.differential} k x)) = x :=
+  \fun (x: Cone.Carrier k) => Pairs.ext _ _
+    (trans!{{C.family.Carrier k}} _ _ _
+      (congr2!{{C.family.Carrier k} {C.family.Carrier k} {C.family.Carrier k}} (#add{(C.family.space k)}) _ _ _ _ (priorFirst x) (shiftedFirst x))
+      (LeftGroup.zeroRight (Sum.first x)))
+    (trans!{{C.family.Carrier (previous k)}} _ _ _
+      (congr2!{{C.family.Carrier (previous k)} {C.family.Carrier (previous k)} {C.family.Carrier (previous k)}} (#add{(C.family.space (previous k))}) _ _ _ _
+        (priorSecond x) (shiftedSecond x))
+      (trans!{{C.family.Carrier (previous k)}} _ _ _
+        (sym!{{C.family.Carrier (previous k)}} _ _
+          (RightGroup.assoc (#neg{(C.family.space (previous k))} (#apply{C.differential} k (Sum.first x)))
+            (#apply{C.differential} k (Sum.first x)) (Sum.second x)))
+        (trans!{{C.family.Carrier (previous k)}} _ _ _
+          (congr!{{C.family.Carrier (previous k)} {C.family.Carrier (previous k)}} (\fun (a: C.family.Carrier (previous k)) => #add{(C.family.space (previous k))} a (Sum.second x)) _ _
+            (RightGroup.inverseLeft (#apply{C.differential} k (Sum.first x))))
+          (RightGroup.zeroLeft (Sum.second x)))));
+\import Modules.Laws[V := Cone.Carrier k, space := Cone.space k] \as ConeLaws;
+\import algebra.Group[].Of[Carrier := Cone.Carrier k, group := ConeLaws.additive] \as ConeGroup;
+\definition equation: \forall (x: Cone.Carrier k) ->
+  #add{(Cone.space k)} (#apply{End.identity} k x) (#neg{(Cone.space k)} (#apply{End.zeroMap} k x)) =
+  #add{(Cone.space k)} (Prior.value k (contraction k x)) (Homotopies.shifted data k (#apply{Cone.differential} k x)) :=
+  \fun (x: Cone.Carrier k) => trans!{{Cone.Carrier k}} _ _ _
+    (trans!{{Cone.Carrier k}} _ _ _
+      (congr!{{Cone.Carrier k} {Cone.Carrier k}} (#add{(Cone.space k)} x) _ _ ConeGroup.negZero)
+      (ConeGroup.zeroRight x))
+    (sym!{{Cone.Carrier k}} _ _ (reconstruction x));

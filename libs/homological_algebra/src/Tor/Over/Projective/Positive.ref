@@ -1,0 +1,27 @@
+\import Modules.Tensor[V := Chosen.Carrier (Nat.Nat^::succ n), W := N.Carrier, left := Chosen.space (Nat.Nat^::succ n), right := N.space] \as Term;
+\import Term.Universal[U := Term.Carrier, target := Term.space] \as Universal;
+\import Modules.End[V := Term.Carrier, space := Term.space] \as End;
+\import Modules.Hom[V := Term.Carrier, W := Term.Carrier, source := Term.space, target := Term.space] \as EndMaps;
+\definition identityZero: End.identity = EndMaps.zeroMap := Universal.ext End.identity EndMaps.zeroMap
+  (\fun (x: Chosen.Carrier (Nat.Nat^::succ n))(y: N.Carrier) => trans!{Term.Carrier} _ _ _
+    (congr!{{Chosen.Carrier (Nat.Nat^::succ n)} Term.Carrier} (\fun (v: Chosen.Carrier (Nat.Nat^::succ n)) => Term.tensor v y) x #zero{(Chosen.space (Nat.Nat^::succ n))} (Chosen.Positive[n := n].trivial x))
+    (Term.tensorZeroLeft y));
+\definition trivial: \forall (x: Term.Carrier) -> x = #zero{Term.space} :=
+  \fun (x: Term.Carrier) => congr!{EndMaps.Map Term.Carrier} (\fun (f: EndMaps.Map) => #apply{f} x) _ _ identityZero;
+\import Chains.Positive[C := Source.tensorComplex, n := n] \as Homology;
+\definition chosenVanishing: \forall (x: Source.At[n := Nat.Nat^::succ n].Carrier) -> x = #zero{(Source.At[n := Nat.Nat^::succ n].space)} :=
+  Homology.Vanishing[].zero trivial;
+\import \parent.\parent.Independence[M := M, N := N, P := Chosen.complex, Q := P].Positive[n := n] \as Comparison;
+\import Source.At[n := Nat.Nat^::succ n] \as SourceTerm;
+\import Target.At[n := Nat.Nat^::succ n] \as TargetTerm;
+\import Modules.Isomorphism[V := SourceTerm.Carrier, W := TargetTerm.Carrier, source := SourceTerm.space, target := TargetTerm.space] \as Iso;
+\import Modules.Hom[V := SourceTerm.Carrier, W := TargetTerm.Carrier, source := SourceTerm.space, target := TargetTerm.space] \as Forward;
+\definition vanishing: Modules.Projective M -> \forall (resolution: Target.Resolution)(x: TargetTerm.Carrier) -> x = #zero{TargetTerm.space} := \block {
+  \fun (projective: Modules.Projective M)(resolution: Target.Resolution)(x: TargetTerm.Carrier) \then
+  \takefrom iso: Iso.Isomorphism \by Comparison.existence (Resolution.resolution projective) resolution \then
+  \return trans!{TargetTerm.Carrier} x (#apply{#forward{iso}} (#apply{#backward{iso}} x)) #zero{TargetTerm.space}
+    (sym!{TargetTerm.Carrier} _ _ (#rightInverse{iso} x))
+    (trans!{TargetTerm.Carrier} _ _ _
+      (congr!{SourceTerm.Carrier TargetTerm.Carrier} (#apply{#forward{iso}}) _ _ (chosenVanishing (#apply{#backward{iso}} x)))
+      (Forward.zeroPreserved #forward{iso}))
+};

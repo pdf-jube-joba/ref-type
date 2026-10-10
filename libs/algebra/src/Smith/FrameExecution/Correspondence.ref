@@ -1,0 +1,16 @@
+\definition matchesLoop: \forall (history: History^)(handler: Handler^)(compose: Composer^)(after: Transformer^)(initial: BasisChange^) ->
+  Evaluate.run^ (State^::pending history handler compose after initial) = after (foldWith compose handler history initial) :=
+  \induction (history: History^) \return \forall (handler: Handler^)(compose: Composer^)(after: Transformer^)(initial: BasisChange^) ->
+    Evaluate.run^ (State^::pending history handler compose after initial) = after (foldWith compose handler history initial) \with {
+    | empty: \fun (handler: Handler^)(compose: Composer^)(after: Transformer^)(initial: BasisChange^) => \refl(after initial)
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: _)(handler: Handler^)(compose: Composer^)(after: Transformer^)(initial: BasisChange^) =>
+        previous handler compose (\fun (a: BasisChange^) => after (compose (handler operation) a)) initial
+  };
+\definition matches: \forall (compose: Composer^)(handler: Handler^)(history: History^)(initial: BasisChange^) ->
+  program^ compose handler history initial = foldWith compose handler history initial :=
+  \fun (compose: Composer^)(handler: Handler^)(history: History^)(initial: BasisChange^) =>
+    matchesLoop history handler compose (\fun (a: BasisChange^) => a) initial;
+\definition coherence: program^ = foldWith := \axiom:funext(program^, foldWith,
+  \fun (compose: Composer^) => \axiom:funext(program^ compose, foldWith compose,
+    \fun (handler: Handler^) => \axiom:funext(program^ compose handler, foldWith compose handler,
+      \fun (history: History^) => \axiom:funext(program^ compose handler history, foldWith compose handler history, matches compose handler history))));

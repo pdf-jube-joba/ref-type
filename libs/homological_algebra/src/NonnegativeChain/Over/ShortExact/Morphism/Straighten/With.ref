@@ -1,0 +1,65 @@
+\definition Splits: \Prop := \forall (n: N.Nat^)(x: C1.family.Carrier n) -> #apply{t.projection} n (#apply{(sections n)} x) = x;
+\import Chains.Homotopy[C := B, D := B1] \as MiddleHomotopies;
+\definition lifted: MiddleHomotopies.LinearData := MiddleHomotopies.LinearData {
+  apply := \fun (n: N.Nat^)(x: B.family.Carrier n) => #apply{(sections (N.Nat^::succ n))} (#apply{h} n x),
+  addition := \fun (n: N.Nat^)(x, y: B.family.Carrier n) => trans!{{B1.family.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{C1.family.Carrier (N.Nat^::succ n)} {B1.family.Carrier (N.Nat^::succ n)}} (#apply{(sections (N.Nat^::succ n))}) _ _ (#addition{h} n x y))
+    (#addition{(sections (N.Nat^::succ n))} (#apply{h} n x) (#apply{h} n y)),
+  scalar := \fun (n: N.Nat^)(a: R)(x: B.family.Carrier n) => trans!{{B1.family.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{C1.family.Carrier (N.Nat^::succ n)} {B1.family.Carrier (N.Nat^::succ n)}} (#apply{(sections (N.Nat^::succ n))}) _ _ (#scalar{h} n a x))
+    (#scalar{(sections (N.Nat^::succ n))} a (#apply{h} n x)),
+};
+\import MiddleHomotopies.Boundary[h := lifted] \as LiftedBoundary;
+\import LiftedBoundary.Correct[f := b] \as Corrected;
+\import RightHomotopies.Boundary[h := RightHomotopies.linear first last h] \as RightBoundary;
+\definition middle: MiddleMap.Map := Corrected.map;
+\definition homotopy: MiddleHomotopies.Homotopy b middle := Corrected.homotopy;
+\definition horizontal: Splits -> \forall (n: N.Nat^)(x: B.family.Carrier n) ->
+  #apply{t.projection} n (#apply{B1.differential} n (#apply{lifted} n x)) = #apply{C1.differential} n (#apply{h} n x) :=
+  \fun (splits: Splits)(n: N.Nat^)(x: B.family.Carrier n) => trans!{{C1.family.Carrier n}} _ _ _
+    (sym!{{C1.family.Carrier n}} _ _ (#commutes{t.projection} n (#apply{lifted} n x)))
+    (congr!{{C1.family.Carrier (N.Nat^::succ n)} {C1.family.Carrier n}} (#apply{C1.differential} n) _ _ (splits (N.Nat^::succ n) (#apply{h} n x)));
+\definition projectedBoundary: Splits -> \forall (n: N.Nat^)(x: B.family.Carrier n) ->
+  #apply{t.projection} n (#apply{LiftedBoundary.map} n x) = #apply{RightBoundary.map} n x :=
+  \fun (splits: Splits) => \induction (n: N.Nat^) \return \forall (x: B.family.Carrier n) ->
+    #apply{t.projection} n (#apply{LiftedBoundary.map} n x) = #apply{RightBoundary.map} n x \with {
+      | zero: horizontal splits N.Nat^::zero
+      | succ: \fun (n: N.Nat^)(unused: _)(x: B.family.Carrier (N.Nat^::succ n)) => trans!{{C1.family.Carrier (N.Nat^::succ n)}} _ _ _
+        (#addition{t.projection} (N.Nat^::succ n) (#apply{B1.differential} (N.Nat^::succ n) (#apply{lifted} (N.Nat^::succ n) x)) (#apply{lifted} n (#apply{B.differential} n x)))
+        (congr2!{{C1.family.Carrier (N.Nat^::succ n)} {C1.family.Carrier (N.Nat^::succ n)} {C1.family.Carrier (N.Nat^::succ n)}} (#add{(C1.family.space (N.Nat^::succ n))}) _ _ _ _
+          (horizontal splits (N.Nat^::succ n) x) (splits (N.Nat^::succ n) (#apply{h} n (#apply{B.differential} n x))))
+    };
+\definition boundaryEquation: \forall (n: N.Nat^)(x: B.family.Carrier n) ->
+  #add{(C1.family.space n)} (#apply{first} n x) (#neg{(C1.family.space n)} (#apply{last} n x)) = #apply{RightBoundary.map} n x :=
+  \induction (n: N.Nat^) \return \forall (x: B.family.Carrier n) ->
+    #add{(C1.family.space n)} (#apply{first} n x) (#neg{(C1.family.space n)} (#apply{last} n x)) = #apply{RightBoundary.map} n x \with {
+      | zero: #zeroEquation{h}
+      | succ: \fun (n: N.Nat^)(unused: _) => #successorEquation{h} n
+    };
+\module Degree(n: N.Nat^) {
+  \import Modules.Hom[V := B1.family.Carrier n, W := C1.family.Carrier n, source := B1.family.space n, target := C1.family.space n] \as Projection;
+  \definition differencePreserved: \forall (x, y: B1.family.Carrier n) ->
+    #apply{t.projection} n (#add{(B1.family.space n)} x (#neg{(B1.family.space n)} y)) =
+      #add{(C1.family.space n)} (#apply{t.projection} n x) (#neg{(C1.family.space n)} (#apply{t.projection} n y)) :=
+    Projection.differencePreserved (TargetProjection.At[n := n].linear t.projection);
+}
+\definition commutes: Splits -> \forall (n: N.Nat^)(x: B.family.Carrier n) ->
+  #apply{t.projection} n (#apply{middle} n x) = #apply{c} n (#apply{s.projection} n x) := \block {
+  \fun (splits: Splits)(n: N.Nat^)(x: B.family.Carrier n) \then
+  \let firstStep: #apply{t.projection} n (#apply{middle} n x) =
+    #add{(C1.family.space n)} (#apply{first} n x) (#neg{(C1.family.space n)} (#apply{t.projection} n (#apply{LiftedBoundary.map} n x))) :=
+    Degree[n := n].differencePreserved (#apply{b} n x) (#apply{LiftedBoundary.map} n x) \then
+  \let secondStep: #add{(C1.family.space n)} (#apply{first} n x) (#neg{(C1.family.space n)} (#apply{t.projection} n (#apply{LiftedBoundary.map} n x))) =
+    #add{(C1.family.space n)} (#apply{first} n x) (#neg{(C1.family.space n)} (#add{(C1.family.space n)} (#apply{first} n x) (#neg{(C1.family.space n)} (#apply{last} n x)))) :=
+    congr!{{C1.family.Carrier n} {C1.family.Carrier n}}
+      (\fun (v: C1.family.Carrier n) => #add{(C1.family.space n)} (#apply{first} n x) (#neg{(C1.family.space n)} v)) _ _
+      (trans!{{C1.family.Carrier n}} _ _ _ (projectedBoundary splits n x) (sym!{{C1.family.Carrier n}} _ _ (boundaryEquation n x))) \then
+  \return trans!{{C1.family.Carrier n}} _ _ _ firstStep
+    (trans!{{C1.family.Carrier n}} _ _ _ secondStep (RightBoundary.Degree[n := n].subtractDifference (#apply{first} n x) (#apply{last} n x)))
+};
+\import \root.NonnegativeChain[].Over[R := R, ring := ring].ShortExact[A := A, B := B, C := C].Morphism[A1 := A1, B1 := B1, C1 := C1] \as Morphism;
+\import Morphism.Factor[s := s, t := t, b := middle, c := c] \as Factor;
+\definition left(splits: Splits): LeftMap.Map := Factor.map (commutes splits);
+\definition diagram: \forall (splits: Splits) -> Morphism.Diagram[s := s, t := t, a := left splits, b := middle, c := c].Commutative :=
+  \fun (splits: Splits) => Factor.diagram (commutes splits);
+\module Augmentation(M: Modules.Bundle, augmentation: Modules.Hom[V := B1.family.Carrier N.Nat^::zero, W := M.Carrier, source := B1.family.space N.Nat^::zero, target := M.space].Map);

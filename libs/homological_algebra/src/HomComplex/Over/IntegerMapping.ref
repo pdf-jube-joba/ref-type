@@ -1,0 +1,67 @@
+\import \parent.Integer[P := Q, N := N] \as Source;
+\import \parent.Integer[P := P, N := L] \as Target;
+\import \root.Chain[] \as Degrees;
+\import \root.Integer[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as IntegerCochains;
+\import IntegerChains.Map[C := P, D := Q] \as ChainMaps;
+\import Modules.Hom[V := N.Carrier, W := L.Carrier, source := N.space, target := L.space] \as Coefficients;
+\definition sourceFamily: IntegerCochains.Family := IntegerCochains.Family {
+  Carrier := \fun (z: Degrees.Degree) => Source.Carrier z,
+  space := \fun (z: Degrees.Degree) => Source.space z,
+};
+\definition sourceDifferential: IntegerCochains.DifferentialData[sourceFamily] := IntegerCochains.DifferentialData[sourceFamily] { apply := \fun (z: Degrees.Degree)(h: sourceFamily.Carrier z) => Source.apply z h };
+\definition sourceComplex: IntegerCochains.Complex := IntegerCochains.Complex {
+  family := sourceFamily, differential := sourceDifferential,
+  laws := IntegerCochains.DifferentialLaws[sourceFamily, sourceDifferential] {
+    addition := Source.addition, scalar := Source.scalar, squareZero := Source.squareZero,
+  },
+};
+\definition targetFamily: IntegerCochains.Family := IntegerCochains.Family {
+  Carrier := \fun (z: Degrees.Degree) => Target.Carrier z,
+  space := \fun (z: Degrees.Degree) => Target.space z,
+};
+\definition targetDifferential: IntegerCochains.DifferentialData[targetFamily] := IntegerCochains.DifferentialData[targetFamily] { apply := \fun (z: Degrees.Degree)(h: targetFamily.Carrier z) => Target.apply z h };
+\definition targetComplex: IntegerCochains.Complex := IntegerCochains.Complex {
+  family := targetFamily, differential := targetDifferential,
+  laws := IntegerCochains.DifferentialLaws[targetFamily, targetDifferential] {
+    addition := Target.addition, scalar := Target.scalar, squareZero := Target.squareZero,
+  },
+};
+\import IntegerCochains.Map[C := sourceComplex, D := targetComplex] \as Maps;
+\module On(f: ChainMaps.Map, u: Coefficients.Map) {
+  \definition apply(z: Degrees.Degree)(h: Source.Carrier z): Target.Carrier z := Target.At[z := z].Carrier {
+    apply := \fun (x: P.family.Carrier z) => #apply{u} (#apply{h} (#apply{f} z x)),
+    addition := \fun (x, y: P.family.Carrier z) => trans!{L.Carrier} _ _ _
+      (congr!{N.Carrier L.Carrier} (#apply{u}) _ _
+        (trans!{N.Carrier} _ _ _ (congr!{{Q.family.Carrier z} N.Carrier} (#apply{h}) _ _ (#addition{f} z x y))
+          (#addition{h} (#apply{f} z x) (#apply{f} z y))))
+      (#addition{u} (#apply{h} (#apply{f} z x)) (#apply{h} (#apply{f} z y))),
+    scalar := \fun (a: R)(x: P.family.Carrier z) => trans!{L.Carrier} _ _ _
+      (congr!{N.Carrier L.Carrier} (#apply{u}) _ _
+        (trans!{N.Carrier} _ _ _ (congr!{{Q.family.Carrier z} N.Carrier} (#apply{h}) _ _ (#scalar{f} z a x)) (#scalar{h} a (#apply{f} z x))))
+      (#scalar{u} a (#apply{h} (#apply{f} z x))),
+  };
+  \definition map: Maps.Map := Maps.Map {
+    apply := apply,
+    addition := \fun (z: Degrees.Degree)(h, j: Source.Carrier z) => Target.At[z := z].ext
+      (apply z (#add{(Source.space z)} h j)) (#add{(Target.space z)} (apply z h) (apply z j))
+      (\fun (x: P.family.Carrier z) => #addition{u} (#apply{h} (#apply{f} z x)) (#apply{j} (#apply{f} z x))),
+    scalar := \fun (z: Degrees.Degree)(a: R)(h: Source.Carrier z) => Target.At[z := z].ext
+      (apply z (#smul{(Source.space z)} a h)) (#smul{(Target.space z)} a (apply z h))
+      (\fun (x: P.family.Carrier z) => #scalar{u} a (#apply{h} (#apply{f} z x))),
+    commutes := \fun (z: Degrees.Degree)(h: Source.Carrier z) => Target.At[z := Degrees.next z].ext
+      (Target.apply z (apply z h)) (apply (Degrees.next z) (Source.apply z h))
+      (\fun (x: P.family.Carrier (Degrees.next z)) =>
+        congr!{{Q.family.Carrier z} L.Carrier} (\fun (y: Q.family.Carrier z) => #apply{u} (#apply{h} y)) _ _
+          (sym!{{Q.family.Carrier z}} _ _ (ChainMaps.priorCommutes z f x))),
+  };
+  \definition cochainMap: Maps.Map := map;
+  \module At(z: Degrees.Degree) {
+    \import IntegerCochains.Map[C := sourceComplex, D := targetComplex].At[k := z] \as Native;
+    \definition map: Modules.Hom[V := Source.Cohomology[z := z].Cohomology, W := Target.Cohomology[z := z].Cohomology,
+      source := Source.Cohomology[z := z].cohomologySpace, target := Target.Cohomology[z := z].cohomologySpace].Map := Native.induced cochainMap;
+    \definition cycles: Modules.Hom[V := Source.Cohomology[z := z].Closed, W := Target.Cohomology[z := z].Closed,
+      source := Source.Cohomology[z := z].cycleSpace, target := Target.Cohomology[z := z].cycleSpace].Map := Native.cyclesMap cochainMap;
+    \definition onClass: \forall (h: Source.Cohomology[z := z].Closed) ->
+      #apply{map} (Source.Cohomology[z := z].classOf h) = Target.Cohomology[z := z].classOf (#apply{cycles} h) := Native.onClass cochainMap;
+  }
+}

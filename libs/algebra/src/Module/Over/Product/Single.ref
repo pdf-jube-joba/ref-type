@@ -1,0 +1,24 @@
+\import std.Set[].Transport[I := Index] \as Transport;
+\definition Singleton: \Prop := \forall (i: Index) -> i = point;
+\definition value(singleton: Singleton)(x: family.Carrier point): Carrier :=
+  \fun (i: Index) => Transport.cast family.Carrier point i (sym!{Index} i point (singleton i)) x;
+\import \parent.\parent.Hom[V := family.Carrier point, W := Carrier, source := family.space point, target := space] \as Back;
+\definition backward(singleton: Singleton): Back.Map := Back.Map {
+  apply := value singleton,
+  addition := \fun (x, y: family.Carrier point) => ext (value singleton (#add{(family.space point)} x y)) (add (value singleton x) (value singleton y))
+    (\fun (i: Index) => Transport.binaryNatural family.Carrier family.Carrier family.Carrier (\fun (j: Index) => #add{(family.space j)})
+      point i (sym!{Index} i point (singleton i)) x y),
+  scalar := \fun (a: R)(x: family.Carrier point) => ext (value singleton (#smul{(family.space point)} a x)) (scale a (value singleton x))
+    (\fun (i: Index) => Transport.natural family.Carrier family.Carrier (\fun (j: Index) => #smul{(family.space j)} a)
+      point i (sym!{Index} i point (singleton i)) x),
+};
+\import \parent.Projection[i := point] \as Projection;
+\import \parent.\parent.Isomorphism[V := Carrier, W := family.Carrier point, source := space, target := family.space point] \as Iso;
+\definition leftInverse: \forall (singleton: Singleton)(f: Carrier) -> #apply{(backward singleton)} (#apply{Projection.map} f) = f :=
+  \fun (singleton: Singleton)(f: Carrier) => ext (value singleton (f point)) f
+    (\fun (i: Index) => Transport.pointNatural family.Carrier f point i (sym!{Index} i point (singleton i)));
+\definition rightInverse: \forall (singleton: Singleton)(x: family.Carrier point) -> #apply{Projection.map} (#apply{(backward singleton)} x) = x :=
+  \fun (singleton: Singleton)(x: family.Carrier point) => Transport.castRefl family.Carrier point x;
+\definition isomorphism(singleton: Singleton): Iso.Isomorphism := Iso.Isomorphism {
+  forward := Projection.map, backward := backward singleton, leftInverse := leftInverse singleton, rightInverse := rightInverse singleton,
+};

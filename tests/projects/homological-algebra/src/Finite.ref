@@ -1,0 +1,118 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Arithmetic[].Int[] \as I;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero] \as Matrices;
+\import homological_algebra.Finite[] \as Finite;
+\import Finite.Compute[] \as Compute;
+\import \parent.IntegerMatrices[] \as Examples;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\definition boundary: Matrices.Runtime := \thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) =>
+  \match i \in N.Nat \with {
+    | zero: \return(I.Int::negSucc (N.Nat::succ (N.Nat::succ (N.Nat::succ N.Nat::zero))))
+    | succ r: \return(I.Int::ofNat (N.Nat::succ (N.Nat::succ N.Nat::zero)))
+  })));
+\definition input: Finite.Input^ := Finite.Input^::pair one two one Examples.a^ boundary^;
+\definition calculated: Finite.Calculation^ := Compute.Run.program^ input;
+\definition freeRank: Compute.freeRank calculated = zero := \refl(zero);
+\definition cyclicRank: Compute.cyclicRank calculated = one := \refl(one);
+\definition cyclicFactor: Compute.diagonalFactor calculated zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+\definition generatorFirst: Compute.generators calculated zero zero = I.Int^::negSucc one := \refl(I.Int^::negSucc one);
+\definition generatorSecond: Compute.generators calculated one zero = I.Int^::ofNat one := \refl(I.Int^::ofNat one);
+\definition inverseFirst: Compute.inverseCoordinates calculated zero zero = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition inverseSecond: Compute.inverseCoordinates calculated zero one = I.Int^::ofNat one := \refl(I.Int^::ofNat one);
+\import std.Data[].FinSet[] \as Indices;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Alg[].Ring[] \as Ring;
+\import algebra.Module[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Modules;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing] \as Commutative;
+\import Commutative.Matrix[m := one, n := two] \as Outgoing;
+\import Commutative.Matrix[m := two, n := one] \as Incoming;
+\import Commutative.Matrix[m := one, n := one] \as ProductMatrix;
+\import Outgoing.Composition[k := one] \as Composition;
+\import algebra.IntegerMatrix[m := one, n := two].Product[k := one] \as Product;
+\definition nativeProductZero: \forall (i, j: Indices.Fin one) -> Product.reflected Examples.a^ boundary^ i j = I.Int^::ofNat zero :=
+  \fun (i, j: Indices.Fin one) => trans!{I.Int^} (Product.reflected Examples.a^ boundary^ i j)
+    (Product.reflected Examples.a^ boundary^ (Indices.zero zero) (Indices.zero zero)) (I.Int^::ofNat zero)
+    (congr2!{{Indices.Fin one} {Indices.Fin one} I.Int^} (Product.reflected Examples.a^ boundary^) i (Indices.zero zero) j (Indices.zero zero)
+      (Indices.singletonValue i) (Indices.singletonValue j)) (\refl(I.Int^::ofNat zero));
+\definition productZero: Composition.product (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j)
+  (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) = ProductMatrix.zero := \block {
+  \return trans!{ProductMatrix.Matrix}
+    (Composition.product (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j))
+    (Product.reflected Examples.a^ boundary^) ProductMatrix.zero
+    (sym!{ProductMatrix.Matrix} (Product.reflected Examples.a^ boundary^)
+      (Composition.product (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j))
+      (Product.correspondence Examples.a^ boundary^))
+    (\axiom:funext(Product.reflected Examples.a^ boundary^, ProductMatrix.zero,
+      \fun (i: Indices.Fin one) => \axiom:funext(Product.reflected Examples.a^ boundary^ i, ProductMatrix.zero i, nativeProductZero i)))
+};
+\import Finite.Pair[m := one, n := two, p := one] \as Pair;
+\definition pairData: Pair.Data := Pair.Data { outgoing := Examples.a^, incoming := boundary^ };
+\definition pairLaws: Pair.Laws[pairData] := Pair.Laws[pairData] {
+  squareZero := \fun (v: Modules.FiniteCoordinates[n := one].Carrier) =>
+    trans!{Modules.FiniteCoordinates[n := one].Carrier}
+      (Outgoing.apply (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (Incoming.apply (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) v))
+      (ProductMatrix.apply (Composition.product (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j)) v)
+      #zero{(Modules.FiniteCoordinates[n := one].space)}
+      (sym!{Modules.FiniteCoordinates[n := one].Carrier} _ _ (Composition.point (\fun (i: Indices.Fin one)(j: Indices.Fin two) => Examples.a^ i j) (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) v))
+      (trans!{Modules.FiniteCoordinates[n := one].Carrier} _ _ _
+        (congr!{ProductMatrix.Matrix {Modules.FiniteCoordinates[n := one].Carrier}} (\fun (a: ProductMatrix.Matrix) => ProductMatrix.apply a v) _ _ productZero)
+        (ProductMatrix.zeroAction v)),
+};
+\definition complex: Pair.Complex := \into[Pair.Data](pairData, { data: Pair.Data \where Pair.Laws[data] }) \by { pairLaws };
+\import Pair.Of[C := complex] \as Homology;
+\definition homologyIsomorphism: Modules.Isomorphism[V := Homology.Homology, W := Homology.NormalHomology, source := Homology.homologySpace, target := Homology.normalSpace].Isomorphism :=
+  Homology.normalIsomorphism;
+\definition zeroInput: Finite.Input^ := Finite.Input^::pair one two one Examples.zeroMatrix^ boundary^;
+\definition zeroCalculated: Finite.Calculation^ := Compute.Run.program^ zeroInput;
+\definition remainingFreeRank: Compute.freeRank zeroCalculated = one := \refl(one);
+\definition remainingCyclicRank: Compute.cyclicRank zeroCalculated = one := \refl(one);
+\definition remainingCyclicFactor: Compute.diagonalFactor zeroCalculated zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+
+\definition certified: Homology.Result := Homology.result;
+\definition certifiedFreeRank: Compute.freeRank Homology.computed = Homology.freeRank := Homology.computedFreeRank;
+\definition certifiedCyclicRank: Compute.cyclicRank Homology.computed = Homology.cyclicRank := Homology.computedCyclicRank;
+\import algebra.IntegerCyclic[d := I.Int^::ofNat two] \as CyclicTwo;
+\import Modules.Product[Index := Indices.Fin one, family := Homology.factorFamily].Single[point := Indices.zero zero] \as Singleton;
+\import Modules.Isomorphism[V := Homology.Homology, W := Homology.FactorHomology, source := Homology.homologySpace, target := Homology.factorSpace].Composition[U := CyclicTwo.Carrier, final := CyclicTwo.space] \as CyclicComposition;
+\definition cyclicIsomorphism: Modules.Isomorphism[V := Homology.Homology, W := CyclicTwo.Carrier, source := Homology.homologySpace, target := CyclicTwo.space].Isomorphism :=
+  CyclicComposition.compose (Singleton.isomorphism Indices.singletonValue) Homology.factorIsomorphism;
+\import algebra.IntegerMatrix[m := zero, n := zero].Identity[] \as NativeIdentity;
+\import NativeIdentity.Typed[k := one] \as IdentityOne;
+\import NativeIdentity.Typed[k := two] \as IdentityTwo;
+\import Finite.Mapping[m := one, n := two, p := one, r := one, s := two, t := one, C := complex, D := complex] \as Mapping;
+\definition mapData: Mapping.Data := Mapping.Data { lower := NativeIdentity.Identity.program^, middle := NativeIdentity.Identity.program^, upper := NativeIdentity.Identity.program^ };
+\definition mapLaws: Mapping.Laws[mapData] := Mapping.Laws[mapData] {
+  outgoing := \fun (v: Modules.FiniteCoordinates[n := two].Carrier) => trans!{{Modules.FiniteCoordinates[n := one].Carrier}} _ _ _
+    (congr!{{Modules.FiniteCoordinates[n := two].Carrier} {Modules.FiniteCoordinates[n := one].Carrier}}
+      (#apply{Mapping.sourceOutgoing}) _ _ (IdentityTwo.action v))
+    (sym!{{Modules.FiniteCoordinates[n := one].Carrier}} _ _ (IdentityOne.action (#apply{Mapping.sourceOutgoing} v))),
+  incoming := \fun (v: Modules.FiniteCoordinates[n := one].Carrier) => trans!{{Modules.FiniteCoordinates[n := two].Carrier}} _ _ _
+    (IdentityTwo.action (Incoming.apply (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j) v))
+    (sym!{{Modules.FiniteCoordinates[n := two].Carrier}} _ _
+      (congr!{{Modules.FiniteCoordinates[n := one].Carrier} {Modules.FiniteCoordinates[n := two].Carrier}}
+        (Incoming.apply (\fun (i: Indices.Fin two)(j: Indices.Fin one) => boundary^ i j)) _ _ (IdentityOne.action v))),
+};
+\definition map: Mapping.Map := \into[Mapping.Data](mapData, { data: Mapping.Data \where Mapping.Laws[data] }) \by { mapLaws };
+\import Mapping.With[f := map] \as Induced;
+\definition inducedCoefficient: Induced.coordinateRuntime zero zero = I.Int^::ofNat one := \refl(I.Int^::ofNat one);
+\definition inducedOnGenerators: \forall (v: Modules.FiniteCoordinates[n := one].Carrier) ->
+  #apply{Induced.factors} (Homology.factorClasses v) = Homology.factorClasses
+    (Commutative.Matrix[m := one, n := one].apply Induced.coordinateMatrix v) := Induced.onFactorClasses;
+
+\definition inheritedCyclicIsomorphism: Modules.Isomorphism[V := Homology.Homology, W := CyclicTwo.Carrier, source := Homology.homologySpace, target := CyclicTwo.space].Isomorphism := cyclicIsomorphism;
+\module Bounded;
+
+\definition nontrivialFactors: Compute.Factors.program^ calculated = Finite.CyclicFactors^::factor (I.Int^::ofNat two) Finite.CyclicFactors^::empty :=
+  \refl(Finite.CyclicFactors^::factor (I.Int^::ofNat two) Finite.CyclicFactors^::empty);
+\import Finite.FactorListing[] \as FactorListing;
+\definition unitFactorOmitted: FactorListing.List.program^ one (\fun (i, j: N.Nat^) => I.Int^::ofNat one) = Finite.CyclicFactors^::empty :=
+  \refl(Finite.CyclicFactors^::empty);
+\definition certifiedNontrivialFactors: FactorListing.Proper (Compute.cyclicFactors Homology.computed) := Compute.factorsProper Homology.computed;

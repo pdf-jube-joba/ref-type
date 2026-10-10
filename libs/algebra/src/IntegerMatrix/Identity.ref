@@ -1,0 +1,26 @@
+\import std.Data[].Bool[] \as B;
+\import B.Choose[A := I.Int] \as Choice;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Program[] \as NatPrograms;
+\import N.Basic[].ProgramProp[] \as NatCorrespondence;
+\definition identity: Runtime^ := \fun (i, j: N.Nat^) => B.ite I.Int^ (Nat.eqb i j) Arithmetic.one Arithmetic.zero;
+\definition program: Runtime := \thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \program {
+  \bind compare: \U(N.Nat -> B.Bool) <- (\force NatPrograms.eqb) i \then
+  \bind equal: B.Bool <- (\force compare) j \then
+  \bind yes: \U(I.Int -> I.Int -> I.Int) <- (\force Choice.program) equal \then
+  \bind no: \U(I.Int -> I.Int) <- (\force yes) (I.Int::ofNat (N.Nat::succ N.Nat::zero)) \then
+  \bind value: I.Int <- (\force no) (I.Int::ofNat N.Nat::zero) \then
+  \return value
+})));
+\definition chosen(i, j: N.Nat^): I.Int^ := B.ite I.Int^ (NatPrograms.eqb^ i j) Arithmetic.one Arithmetic.zero;
+\definition matches: \forall (i, j: N.Nat^) -> program^ i j = identity i j :=
+  \fun (i, j: N.Nat^) => trans!{I.Int^} (program^ i j) (chosen i j) (identity i j)
+    (Choice.matches (NatPrograms.eqb^ i j) Arithmetic.one Arithmetic.zero)
+    (congr!{NatCorrespondence.Eqb.T^ I.Int^} (\fun (f: NatCorrespondence.Eqb.T^) => B.ite I.Int^ (f i j) Arithmetic.one Arithmetic.zero)
+      NatPrograms.eqb^ Nat.eqb NatCorrespondence.Eqb.coherence);
+\definition coherence: program^ = identity := \axiom:funext(program^, identity,
+  \fun (i: N.Nat^) => \axiom:funext(program^ i, identity i, matches i));
+\correspondence Identity: Programs.Correspondence := Programs.Correspondence {
+  T := Runtime, program := program, specification := identity, coherence := coherence,
+};
+\module Typed(k: N.Nat^);

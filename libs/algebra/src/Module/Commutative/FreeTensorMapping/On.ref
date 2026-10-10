@@ -1,0 +1,47 @@
+\import SumMapping.On[f := \fun (s: Generators) => f] \as SumAction;
+\definition map: Modules.Hom[V := SourceTensor.Carrier, W := TargetTensor.Carrier, source := SourceTensor.space, target := TargetTensor.space].Map := TensorMapping.map FreeEnd.identity f;
+\import Modules.Hom[V := TargetTensor.Carrier, W := TargetSum.Carrier, source := TargetTensor.space, target := TargetSum.space].Composition[U := SourceTensor.Carrier, domain := SourceTensor.space] \as TargetComposition;
+\import Modules.Hom[V := SourceSum.Carrier, W := TargetSum.Carrier, source := SourceSum.space, target := TargetSum.space].Composition[U := SourceTensor.Carrier, domain := SourceTensor.space] \as SumComposition;
+\definition first: Modules.Hom[V := SourceTensor.Carrier, W := TargetSum.Carrier, source := SourceTensor.space, target := TargetSum.space].Map := TargetComposition.compose Target.forward map;
+\definition last: Modules.Hom[V := SourceTensor.Carrier, W := TargetSum.Carrier, source := SourceTensor.space, target := TargetSum.space].Map := SumComposition.compose SumAction.map Source.forward;
+\module At(y: A.Carrier) {
+  \import Modules.Hom[V := Free.Carrier, W := SourceTensor.Carrier, source := Free.space, target := SourceTensor.space] \as Pure;
+  \definition pure: Pure.Map := Pure.Map {
+    apply := \fun (x: Free.Carrier) => SourceTensor.tensor x y,
+    addition := \fun (x, z: Free.Carrier) => #addLeft{SourceTensor.bilinear} x z y,
+    scalar := \fun (a: R)(x: Free.Carrier) => #scaleLeft{SourceTensor.bilinear} a x y,
+  };
+  \import Modules.Hom[V := SourceTensor.Carrier, W := TargetSum.Carrier, source := SourceTensor.space, target := TargetSum.space].Composition[U := Free.Carrier, domain := Free.space] \as Compose;
+  \definition left: Modules.Hom[V := Free.Carrier, W := TargetSum.Carrier, source := Free.space, target := TargetSum.space].Map := Compose.compose first pure;
+  \definition right: Modules.Hom[V := Free.Carrier, W := TargetSum.Carrier, source := Free.space, target := TargetSum.space].Map := Compose.compose last pure;
+  \definition value(s: Generators): TargetSum.Carrier := #apply{(TargetSum.Injection[i := s].map)} (#apply{f} y);
+  \definition leftBasis: \forall (s: Generators) -> #apply{left} (Free.generator s) = value s :=
+    \fun (s: Generators) => trans!{TargetSum.Carrier} _ _ _
+      (congr!{TargetTensor.Carrier TargetSum.Carrier} (#apply{Target.forward}) _ _ (TensorMapping.onTensor FreeEnd.identity f (Free.generator s) y))
+      (Target.forwardOnBasis s (#apply{f} y));
+  \definition rightBasis: \forall (s: Generators) -> #apply{right} (Free.generator s) = value s :=
+    \fun (s: Generators) => trans!{TargetSum.Carrier} _ _ _
+      (congr!{SourceSum.Carrier TargetSum.Carrier} (#apply{SumAction.map}) _ _ (Source.forwardOnBasis s y))
+      (SumAction.onInjection s y);
+  \import Free.To[W := TargetSum.Carrier, target := TargetSum.space] \as Universal;
+  \definition equality: #apply{left} = #apply{right} := trans!{{Free.Carrier -> TargetSum.Carrier}} _ _ _
+    (Universal.unique value left leftBasis)
+    (sym!{{Free.Carrier -> TargetSum.Carrier}} _ _ (Universal.unique value right rightBasis));
+  \definition onTensor: \forall (x: Free.Carrier) -> #apply{first} (SourceTensor.tensor x y) = #apply{last} (SourceTensor.tensor x y) :=
+    \fun (x: Free.Carrier) => congr!{{Free.Carrier -> TargetSum.Carrier} TargetSum.Carrier} (\fun (g: Free.Carrier -> TargetSum.Carrier) => g x) (#apply{left}) (#apply{right}) equality;
+}
+\import SourceTensor.Universal[U := TargetSum.Carrier, target := TargetSum.space] \as Universal;
+\definition equality: first = last := Universal.ext first last (\fun (x: Free.Carrier)(y: A.Carrier) => At[y := y].onTensor x);
+\definition commutes: \forall (x: SourceTensor.Carrier) -> #apply{Target.forward} (#apply{map} x) = #apply{SumAction.map} (#apply{Source.forward} x) :=
+  \fun (x: SourceTensor.Carrier) => congr!{{Modules.Hom[V := SourceTensor.Carrier, W := TargetSum.Carrier, source := SourceTensor.space, target := TargetSum.space].Map} TargetSum.Carrier}
+    (\fun (g: Modules.Hom[V := SourceTensor.Carrier, W := TargetSum.Carrier, source := SourceTensor.space, target := TargetSum.space].Map) => #apply{g} x) first last equality;
+\definition injective: Modules.Injective A B f -> \forall (x, y: SourceTensor.Carrier) -> #apply{map} x = #apply{map} y -> x = y :=
+  \fun (injection: Modules.Injective A B f)(x, y: SourceTensor.Carrier)(equal: #apply{map} x = #apply{map} y) =>
+    trans!{SourceTensor.Carrier} x (#apply{Source.backward} (#apply{Source.forward} x)) y
+      (sym!{SourceTensor.Carrier} _ _ (Source.leftInverse x))
+      (trans!{SourceTensor.Carrier} _ _ _
+        (congr!{SourceSum.Carrier SourceTensor.Carrier} (#apply{Source.backward}) _ _
+          (SumAction.injective (\fun (s: Generators) => injection) (#apply{Source.forward} x) (#apply{Source.forward} y)
+            (trans!{TargetSum.Carrier} _ _ _ (sym!{TargetSum.Carrier} _ _ (commutes x))
+              (trans!{TargetSum.Carrier} _ _ _ (congr!{TargetTensor.Carrier TargetSum.Carrier} (#apply{Target.forward}) _ _ equal) (commutes y)))))
+        (Source.leftInverse y));

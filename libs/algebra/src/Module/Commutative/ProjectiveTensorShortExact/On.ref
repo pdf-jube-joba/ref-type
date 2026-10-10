@@ -1,0 +1,37 @@
+\definition rightSequence: RightExact.Sequence := RightExact.Sequence {
+  inclusion := sequence.inclusion, projection := sequence.projection,
+  onto := #onto{sequence}, zero := #zero{sequence}, kernelImage := #kernelImage{sequence},
+};
+\import Reverse.On[sequence := rightSequence] \as Original;
+\definition originalPair: OriginalPair.Sequence := OriginalPair.Sequence {
+  first := Original.inclusion, last := Original.projection, zero := Original.zero, kernelImage := Original.kernelImage,
+};
+\definition inclusion: Modules.MapBetween leftBundle middleBundle := Inclusion.map Identity.identity sequence.inclusion;
+\definition projection: Modules.MapBetween middleBundle rightBundle := Projection.map Identity.identity sequence.projection;
+\import OriginalPair.Transport[A1 := leftBundle, B1 := middleBundle, C1 := rightBundle, sequence := originalPair,
+  f := inclusion, g := projection, a := LeftSwap.isomorphism, b := MiddleSwap.isomorphism, c := RightSwap.isomorphism] \as Transport;
+\definition firstCommutes: Transport.FirstCommutes := InclusionSwap.commutes sequence.inclusion Identity.identity;
+\definition lastCommutes: Transport.LastCommutes := ProjectionSwap.commutes sequence.projection Identity.identity;
+\definition zero: \forall (x: Left.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{Right.space} := Transport.zero firstCommutes lastCommutes;
+\definition kernelImage: \forall (x: Middle.Carrier) -> #apply{projection} x = #zero{Right.space} ->
+  \exists { y: Left.Carrier \where #apply{inclusion} y = x } := Transport.kernelImage firstCommutes lastCommutes;
+\definition onto: \forall (q: Right.Carrier) -> \exists { y: Middle.Carrier \where #apply{projection} y = q } := \block {
+  \fun (q: Right.Carrier) \then
+  \takefrom y: \Cast[ReverseMiddle.Carrier] ({ y: ReverseMiddle.Carrier \where #apply{Original.projection} y = #apply{RightSwap.backward} q })
+    \by Original.onto (#apply{RightSwap.backward} q) \then
+  \return \exact(\into[Middle.Carrier](#apply{MiddleSwap.forward} y, { y: Middle.Carrier \where #apply{projection} y = q }) \by {
+    trans!{Right.Carrier} _ _ _ (sym!{Right.Carrier} _ _ (lastCommutes y))
+      (trans!{Right.Carrier} _ _ _
+        (congr!{ReverseRight.Carrier Right.Carrier} (#apply{RightSwap.forward}) _ _
+          (\bysub(ReverseMiddle.Carrier, { y: ReverseMiddle.Carrier \where #apply{Original.projection} y = #apply{RightSwap.backward} q }, y)))
+        (RightSwap.rightInverse q))
+  }, \Cast[Middle.Carrier] ({ y: Middle.Carrier \where #apply{projection} y = q }))
+};
+\import \parent.\parent.ProjectiveTensor[P := P, A := A, B := B].On[f := sequence.inclusion] \as Injectivity;
+\definition injective: Modules.Projective P -> \forall (x, y: Left.Carrier) -> #apply{inclusion} x = #apply{inclusion} y -> x = y :=
+  \fun (projective: Modules.Projective P) => Injectivity.injective projective (#injective{sequence});
+\definition data: Result.Data := Result.Data { inclusion := inclusion, projection := projection };
+\definition laws: Modules.Projective P -> Result.Laws[data] := \fun (projective: Modules.Projective P) => Result.Laws[data] {
+  injective := injective projective, onto := onto, zero := zero, kernelImage := kernelImage,
+};
+\definition sequence(projective: Modules.Projective P): Result.Sequence := \into[Result.Data](data, { data: Result.Data \where Result.Laws[data] }) \by { laws projective };

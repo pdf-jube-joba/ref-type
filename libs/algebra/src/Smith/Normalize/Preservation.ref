@@ -1,0 +1,19 @@
+\definition NegationLaw: \Prop := \forall (a: Runtime^)(k: N.Nat^) -> P a -> P (Rows.negate a k);
+\definition selected: \forall (pivot: I.Int^)(k: N.Nat^)(a: Runtime^)(history: History^) ->
+  NegationLaw -> P a -> P (attemptMatrix (select k a history pivot)) :=
+  \induction (pivot: I.Int^) \return \forall (k: N.Nat^)(a: Runtime^)(history: History^) ->
+    NegationLaw -> P a -> P (attemptMatrix (select k a history pivot)) \with {
+    | ofNat: \fun (n: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^)(law: _)(previous: _) => previous
+    | negSucc: \fun (n: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^)(law: _)(previous: _) => law a k previous
+  };
+\definition preservesAt: \forall (k: N.Nat^)(a: Runtime^)(history: History^) ->
+  NegationLaw -> P a -> P (attemptMatrix (at k a history)) :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^) => selected (a k k) k a history;
+\definition preserves: \forall (count: N.Nat^)(a: Runtime^)(history: History^) ->
+  NegationLaw -> P a -> P (attemptMatrix (fold count a history)) :=
+  \induction (count: N.Nat^) \return \forall (a: Runtime^)(history: History^) ->
+    NegationLaw -> P a -> P (attemptMatrix (fold count a history)) \with {
+    | zero: \fun (a: Runtime^)(history: History^)(law: _)(previous: _) => previous
+    | succ: \fun (count: N.Nat^)(induction: _)(a: Runtime^)(history: History^)(law: _)(previous: _) =>
+        preservesAt count (attemptMatrix (fold count a history)) (attemptHistory (fold count a history)) law (induction a history law previous)
+  };

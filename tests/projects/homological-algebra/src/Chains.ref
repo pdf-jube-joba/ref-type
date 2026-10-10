@@ -1,0 +1,48 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Data[].Nat[] \as N;
+\import algebra.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import homological_algebra.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition zeroDegree: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+\definition Carrier(k: I.Int^): \Set := I.Int^;
+\definition space(k: I.Int^): Modules.Space (Carrier k) := Modules.scalarModule;
+\definition family: Chains.Family := Chains.Family { Carrier := Carrier, space := space };
+\import Chains.ZeroDifferential[family := family] \as Zero;
+\import Chains.At[C := Zero.complex, z := zeroDegree] \as Homology;
+\import Zero.At[k := zeroDegree] \as ZeroHomology;
+\import Modules.Isomorphism[V := Homology.Homology, W := I.Int^, source := Homology.homologySpace, target := Modules.scalarModule] \as Iso;
+\import Modules.Isomorphism[V := I.Int^, W := Homology.Homology, source := Modules.scalarModule, target := Homology.homologySpace].Inverse[] \as Inverse;
+\definition zeroDifferentialHomology: Iso.Isomorphism := Inverse.inverse ZeroHomology.isomorphism;
+\import Chains.Shift[C := Zero.complex] \as Shift;
+\definition shiftedElement(k: I.Int^)(x: I.Int^): Shift.complex.family.Carrier k := x;
+\definition shiftSign: \forall (k: I.Int^)(x: I.Int^) -> #apply{Shift.complex.differential} k x = I.Neg.specification I.Zero.specification :=
+  \fun (k: I.Int^)(x: I.Int^) => \refl(I.Neg.specification I.Zero.specification);
+\import Chains.End[C := Zero.complex] \as Identity;
+\import Chains.Cone[C := Zero.complex, D := Zero.complex].On[f := Identity.identity] \as Cone;
+\import Cone.At[k := zeroDegree] \as ConeAt;
+\import Modules.Biproduct[V := I.Int^, W := I.Int^, left := Modules.scalarModule, right := Modules.scalarModule] \as Pair;
+\import std.Data[].Pair[].Prop[A := I.Int^, B := I.Int^] \as Pairs;
+\import Modules.Laws[V := I.Int^, space := Modules.scalarModule] \as Laws;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Laws.additive] \as Group;
+\definition identityConeDifferential: \forall (a, b: I.Int^) -> ConeAt.apply (Pair.make a b) = Pair.make b I.Zero.specification :=
+  \fun (a, b: I.Int^) => Pairs.ext _ _ (Group.zeroLeft b) Group.negZero;
+\import Modules.End[V := I.Int^, space := Modules.scalarModule] \as IntegerIdentity;
+\import Modules.End[V := Pair.Carrier, space := Pair.space] \as PairIdentity;
+\definition integerBundle: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\definition pairBundle: Modules.Bundle := Modules.Bundle { Carrier := Pair.Carrier, space := Pair.space };
+\import Modules.ShortExactComparison[A := integerBundle, B := pairBundle, C := integerBundle, A1 := integerBundle, B1 := pairBundle, C1 := integerBundle] \as Comparison;
+\import Comparison.Diagram[s := ConeAt.shortExact, t := ConeAt.shortExact, a := IntegerIdentity.identity, b := PairIdentity.identity, c := IntegerIdentity.identity] \as Diagram;
+\definition commutative: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (x: I.Int^) => \refl(#apply{Pair.firstInjection} x),
+  right := \fun (x: Pair.Carrier) => \refl(Pair.second x),
+};
+\definition integerInjective: Modules.Injective integerBundle integerBundle IntegerIdentity.identity :=
+  \fun (x, y: I.Int^)(same: x = y) => same;
+\definition integerOnto: Modules.Surjective integerBundle integerBundle IntegerIdentity.identity :=
+  \fun (y: I.Int^) => \exact(\into[I.Int^](y, { x: I.Int^ \where x = y }) \by { \refl(y) }, \Cast[I.Int^] ({ x: I.Int^ \where x = y }));
+\definition comparisonIsomorphism: Modules.Isomorphism[V := Pair.Carrier, W := Pair.Carrier, source := Pair.space, target := Pair.space].Isomorphism :=
+  Diagram.isomorphism commutative integerInjective integerOnto integerInjective integerOnto;

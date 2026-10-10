@@ -1,0 +1,29 @@
+\import Finite.Of[C := C] \as Left;
+\import Finite.Of[C := D] \as Right;
+\import Cochains.ZeroDifferential[family := Left.homologyFamily] \as LeftHomology;
+\import Cochains.ZeroDifferential[family := Right.homologyFamily] \as RightHomology;
+\import Tensors.Tensor[C := Left.complex, D := Right.complex] \as Product;
+\import Tensors.Total[C := Product.complex] \as Total;
+\import Tensors.TensorZero[left := Left.homologyFamily, right := Right.homologyFamily] \as HomologyTensor;
+\import Tensors.Tensor[C := LeftHomology.complex, D := RightHomology.complex] \as HomologyProduct;
+\import Tensors.Total[C := HomologyProduct.complex] \as HomologyTotal;
+\structure Splittings: \Set { left: Left.Splittings, right: Right.Splittings }
+\definition splittingExistence: \exists Splittings := \block {
+  \takefrom left: Left.Splittings \by Left.splittingExistence \then
+  \takefrom right: Right.Splittings \by Right.splittingExistence \then
+  \return \exact(Splittings { left := left, right := right }, Splittings)
+};
+\module With(s: Splittings);
+\module At(n: N.Nat^) {
+  \module Chosen(s: Splittings) {
+    \import \parent.\parent.With[s := s].At[n := n] \as Result;
+    \definition isomorphism: _ := Result.isomorphism;
+  }
+  \import Cochains.At[C := Total.complex, k := n] \as H;
+  \import Modules.Isomorphism[V := H.Cohomology, W := HomologyTotal.family.Carrier n,
+    source := H.cohomologySpace, target := HomologyTotal.family.space n] \as Iso;
+  \definition existence: \exists Iso.Isomorphism := \block {
+    \takefrom s: Splittings \by splittingExistence \then
+    \return \exact(Chosen[s := s].isomorphism, Iso.Isomorphism)
+  };
+}

@@ -1,0 +1,158 @@
+\import \parent.Degree[n := n] \as Current;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Middle;
+\import \parent.Degree[n := Nat.Nat^::succ (Nat.Nat^::succ n)] \as Earlier;
+\import \parent.Step[n := n] \as NextStep;
+\import \parent.Step[n := Nat.Nat^::succ n] \as PriorStep;
+\import Modules.Hom[V := Middle.Carrier, W := Current.Carrier, source := Middle.space, target := Current.space] \as FirstMaps;
+\definition horizontalZeroColumn: \forall (q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) Nat.Nat^::zero)(x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{NextStep.horizontalTotal} (#apply{PriorStep.horizontalTotal} (#apply{(Earlier.Component[i := index (Nat.Nat^::succ (Nat.Nat^::succ n)) Nat.Nat^::zero q].injection)} x)) = #zero{Current.space} :=
+  \fun (q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) Nat.Nat^::zero)(x: C.family.Carrier Nat.Nat^::zero q) => trans!{Current.Carrier} _ _ _
+    (congr!{Middle.Carrier Current.Carrier} (#apply{NextStep.horizontalTotal}) _ _ (PriorStep.horizontalOnInjection (index (Nat.Nat^::succ (Nat.Nat^::succ n)) Nat.Nat^::zero q) x))
+    (FirstMaps.zeroPreserved NextStep.horizontalTotal);
+\definition horizontalOneColumn: \forall (q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ Nat.Nat^::zero))(x: C.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) q) ->
+  #apply{NextStep.horizontalTotal} (#apply{PriorStep.horizontalTotal} (#apply{(Earlier.Component[i := index (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ Nat.Nat^::zero) q].injection)} x)) = #zero{Current.space} :=
+  \fun (q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ Nat.Nat^::zero))(x: C.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) q) => trans!{Current.Carrier} _ _ _
+    (congr!{Middle.Carrier Current.Carrier} (#apply{NextStep.horizontalTotal}) _ _ (PriorStep.horizontalOnInjection (index (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ Nat.Nat^::zero) q) x))
+    (NextStep.horizontalOnInjection (index (Nat.Nat^::succ n) Nat.Nat^::zero (PriorStep.lowerSecond Nat.Nat^::zero q)) (#apply{(C.differential.horizontal Nat.Nat^::zero q)} x));
+\module Horizontal(p: Nat.Nat^, q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ (Nat.Nat^::succ p)));
+\definition horizontalOnBasis: \forall (p: Nat.Nat^)(q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) p)(x: C.family.Carrier p q) ->
+  #apply{NextStep.horizontalTotal} (#apply{PriorStep.horizontalTotal} (#apply{(Earlier.Component[i := index (Nat.Nat^::succ (Nat.Nat^::succ n)) p q].injection)} x)) = #zero{Current.space} :=
+  \induction (p: Nat.Nat^) \return \forall (q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) p)(x: C.family.Carrier p q) ->
+    #apply{NextStep.horizontalTotal} (#apply{PriorStep.horizontalTotal} (#apply{(Earlier.Component[i := index (Nat.Nat^::succ (Nat.Nat^::succ n)) p q].injection)} x)) = #zero{Current.space} \with {
+      | zero: horizontalZeroColumn
+      | succ: \fun (p: Nat.Nat^)(unused: _) => (\induction (p: Nat.Nat^) \return \forall (q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ p))(x: C.family.Carrier (Nat.Nat^::succ p) q) ->
+          #apply{NextStep.horizontalTotal} (#apply{PriorStep.horizontalTotal} (#apply{(Earlier.Component[i := index (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ p) q].injection)} x)) = #zero{Current.space} \with {
+            | zero: horizontalOneColumn
+            | succ: \fun (p: Nat.Nat^)(unused: _)(q: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ (Nat.Nat^::succ p))) => Horizontal[p := p, q := q].zero
+          }) p
+    };
+
+\definition horizontalOnPair: \forall (i: Pair)(closed: Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{NextStep.horizontalTotal} (#apply{PriorStep.horizontalTotal}
+    (#apply{(Earlier.Component[i := \into[Pair](i, { i: Pair \where Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by { closed }].injection)} x)) = #zero{Current.space} :=
+  \induction (i: Pair) \return \forall (closed: Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{NextStep.horizontalTotal} (#apply{PriorStep.horizontalTotal}
+      (#apply{(Earlier.Component[i := \into[Pair](i, { i: Pair \where Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by { closed }].injection)} x)) = #zero{Current.space} \with {
+      | # : \fun (p, q: Nat.Nat^)(closed: Arithmetic.add p q = Nat.Nat^::succ (Nat.Nat^::succ n)) =>
+        horizontalOnBasis p (\into[Nat.Nat^](q, { q: Nat.Nat^ \where Arithmetic.add p q = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by { closed })
+    };
+\import Modules.Hom[V := Middle.Carrier, W := Current.Carrier, source := Middle.space, target := Current.space].Composition[U := Earlier.Carrier, domain := Earlier.space] \as Composition;
+\import Modules.Hom[V := Earlier.Carrier, W := Current.Carrier, source := Earlier.space, target := Current.space] \as Maps;
+\import Modules.DirectSum[Index := Index (Nat.Nat^::succ (Nat.Nat^::succ n)), family := Earlier.family].To[W := Current.Carrier, target := Current.space] \as Universal;
+\definition horizontalSquareMapZero: Composition.compose NextStep.horizontalTotal PriorStep.horizontalTotal = Maps.zeroMap :=
+  Universal.ext (Composition.compose NextStep.horizontalTotal PriorStep.horizontalTotal) Maps.zeroMap
+    (\fun (i: Index (Nat.Nat^::succ (Nat.Nat^::succ n))) => horizontalOnPair i (degree (Nat.Nat^::succ (Nat.Nat^::succ n)) i));
+\definition horizontalSquareZero: \forall (x: Earlier.Carrier) -> #apply{NextStep.horizontalTotal} (#apply{PriorStep.horizontalTotal} x) = #zero{Current.space} :=
+  \fun (x: Earlier.Carrier) => congr!{Maps.Map Current.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ horizontalSquareMapZero;
+
+\definition verticalZeroRow: \forall (p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) Nat.Nat^::zero)(x: C.family.Carrier p Nat.Nat^::zero) ->
+  #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal} (#apply{(Earlier.Component[i := reverseIndex (Nat.Nat^::succ (Nat.Nat^::succ n)) Nat.Nat^::zero p].injection)} x)) = #zero{Current.space} :=
+  \fun (p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) Nat.Nat^::zero)(x: C.family.Carrier p Nat.Nat^::zero) => trans!{Current.Carrier} _ _ _
+    (congr!{Middle.Carrier Current.Carrier} (#apply{NextStep.verticalTotal}) _ _ (PriorStep.verticalOnInjection (reverseIndex (Nat.Nat^::succ (Nat.Nat^::succ n)) Nat.Nat^::zero p) x))
+    (FirstMaps.zeroPreserved NextStep.verticalTotal);
+\module VerticalOne(p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ Nat.Nat^::zero)) {
+  \import \parent.\parent.\parent.Sign[V := C.family.Carrier p Nat.Nat^::zero, space := C.family.space p Nat.Nat^::zero] \as Sign;
+  \definition zero: \forall (x: C.family.Carrier p (Nat.Nat^::succ Nat.Nat^::zero)) ->
+    #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal} (#apply{(Earlier.Component[i := reverseIndex (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ Nat.Nat^::zero) p].injection)} x)) = #zero{Current.space} :=
+    \fun (x: C.family.Carrier p (Nat.Nat^::succ Nat.Nat^::zero)) => trans!{Current.Carrier} _ _ _
+      (congr!{Middle.Carrier Current.Carrier} (#apply{NextStep.verticalTotal}) _ _ (PriorStep.verticalOnInjection (reverseIndex (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ Nat.Nat^::zero) p) x))
+      (NextStep.verticalOnInjection (reverseIndex (Nat.Nat^::succ n) Nat.Nat^::zero (PriorStep.lowerFirst Nat.Nat^::zero p)) (#apply{(Sign.map p)} (#apply{(C.differential.vertical p Nat.Nat^::zero)} x)));
+}
+\module Vertical(q: Nat.Nat^, p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ (Nat.Nat^::succ q)));
+\definition verticalOnBasis: \forall (q: Nat.Nat^)(p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) q)(x: C.family.Carrier p q) ->
+  #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal} (#apply{(Earlier.Component[i := reverseIndex (Nat.Nat^::succ (Nat.Nat^::succ n)) q p].injection)} x)) = #zero{Current.space} :=
+  \induction (q: Nat.Nat^) \return \forall (p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) q)(x: C.family.Carrier p q) ->
+    #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal} (#apply{(Earlier.Component[i := reverseIndex (Nat.Nat^::succ (Nat.Nat^::succ n)) q p].injection)} x)) = #zero{Current.space} \with {
+      | zero: verticalZeroRow
+      | succ: \fun (q: Nat.Nat^)(unused: _) => (\induction (q: Nat.Nat^) \return \forall (p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ q))(x: C.family.Carrier p (Nat.Nat^::succ q)) ->
+          #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal} (#apply{(Earlier.Component[i := reverseIndex (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ q) p].injection)} x)) = #zero{Current.space} \with {
+            | zero: \fun (p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ Nat.Nat^::zero)) => VerticalOne[p := p].zero
+            | succ: \fun (q: Nat.Nat^)(unused: _)(p: First (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ (Nat.Nat^::succ q))) => Vertical[q := q, p := p].zero
+          }) q
+    };
+\definition verticalOnPair: \forall (i: Pair)(closed: Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal}
+    (#apply{(Earlier.Component[i := \into[Pair](i, { i: Pair \where Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by { closed }].injection)} x)) = #zero{Current.space} :=
+  \induction (i: Pair) \return \forall (closed: Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal}
+      (#apply{(Earlier.Component[i := \into[Pair](i, { i: Pair \where Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by { closed }].injection)} x)) = #zero{Current.space} \with {
+      | # : \fun (p, q: Nat.Nat^)(closed: Arithmetic.add p q = Nat.Nat^::succ (Nat.Nat^::succ n)) =>
+        verticalOnBasis q (\into[Nat.Nat^](p, { p: Nat.Nat^ \where Arithmetic.add p q = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by { closed })
+    };
+\definition verticalSquareMapZero: Composition.compose NextStep.verticalTotal PriorStep.verticalTotal = Maps.zeroMap :=
+  Universal.ext (Composition.compose NextStep.verticalTotal PriorStep.verticalTotal) Maps.zeroMap
+    (\fun (i: Index (Nat.Nat^::succ (Nat.Nat^::succ n))) => verticalOnPair i (degree (Nat.Nat^::succ (Nat.Nat^::succ n)) i));
+\definition verticalSquareZero: \forall (x: Earlier.Carrier) -> #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal} x) = #zero{Current.space} :=
+  \fun (x: Earlier.Carrier) => congr!{Maps.Map Current.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ verticalSquareMapZero;
+\module Cross(p: Nat.Nat^, q: Second n p);
+
+\import Modules.Laws[V := Current.Carrier, space := Current.space] \as Vector;
+\import algebra.Group[].Of[Carrier := Current.Carrier, group := Vector.additive] \as Additive;
+\definition negativeZeros: \forall (x, y: Current.Carrier) -> x = #zero{Current.space} -> y = #zero{Current.space} -> x = #neg{Current.space} y :=
+  \fun (x, y: Current.Carrier)(left: x = #zero{Current.space})(right: y = #zero{Current.space}) => trans!{Current.Carrier} x (#zero{Current.space}) (#neg{Current.space} y) left
+    (trans!{Current.Carrier} (#zero{Current.space}) (#neg{Current.space} #zero{Current.space}) (#neg{Current.space} y)
+      (sym!{Current.Carrier} _ _ Additive.negZero) (congr!{Current.Carrier Current.Carrier} (#neg{Current.space}) _ _ (sym!{Current.Carrier} _ _ right)));
+\module CrossZeroColumn(q: Nat.Nat^);
+\module CrossZeroRow(p: Nat.Nat^);
+
+\definition topIndex(i: Pair)(closed: Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n)): Index (Nat.Nat^::succ (Nat.Nat^::succ n)) :=
+  \into[Pair](i, { i: Pair \where Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by { closed };
+\definition horizontalVertical: Maps.Map := Composition.compose NextStep.horizontalTotal PriorStep.verticalTotal;
+\definition verticalHorizontal: Maps.Map := Composition.compose NextStep.verticalTotal PriorStep.horizontalTotal;
+\definition CrossLaw(i: Pair): \Prop := \forall (closed: Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{horizontalVertical} (#apply{(Earlier.Component[i := topIndex i closed].injection)} x) =
+  #neg{Current.space} (#apply{verticalHorizontal} (#apply{(Earlier.Component[i := topIndex i closed].injection)} x));
+\definition zeroZeroCross: CrossLaw (Pair { first := Nat.Nat^::zero, second := Nat.Nat^::zero }) :=
+  \fun (closed: Arithmetic.add Nat.Nat^::zero Nat.Nat^::zero = Nat.Nat^::succ (Nat.Nat^::succ n))(x: C.family.Carrier Nat.Nat^::zero Nat.Nat^::zero) => Logic.falseElim _ (Natural.zeroNeSucc (Nat.Nat^::succ n) closed);
+\definition lowerDiagonal(p, q: Nat.Nat^)(closed: Arithmetic.add (Nat.Nat^::succ p) (Nat.Nat^::succ q) = Nat.Nat^::succ (Nat.Nat^::succ n)): Second n p :=
+  \into[Nat.Nat^](q, { q: Nat.Nat^ \where Arithmetic.add p q = n }) \by {
+    Natural.succInjective (Arithmetic.add p q) n
+      (Natural.succInjective (Nat.Nat^::succ (Arithmetic.add p q)) (Nat.Nat^::succ n)
+        (trans!{Nat.Nat^} (Nat.Nat^::succ (Nat.Nat^::succ (Arithmetic.add p q))) (Arithmetic.add (Nat.Nat^::succ p) (Nat.Nat^::succ q)) (Nat.Nat^::succ (Nat.Nat^::succ n))
+          (sym!{Nat.Nat^} _ _ (Natural.addSuccLeft p (Nat.Nat^::succ q))) closed))
+  };
+\definition crossOnCoordinates: \forall (p, q: Nat.Nat^) -> CrossLaw (Pair { first := p, second := q }) :=
+  \induction (p: Nat.Nat^) \return \forall (q: Nat.Nat^) -> CrossLaw (Pair { first := p, second := q }) \with {
+    | zero: \induction (q: Nat.Nat^) \return CrossLaw (Pair { first := Nat.Nat^::zero, second := q }) \with {
+        | zero: zeroZeroCross
+        | succ: \fun (q: Nat.Nat^)(unused: _) => CrossZeroColumn[q := q].antiCommutes
+      }
+    | succ: \fun (p: Nat.Nat^)(unused: _) => \induction (q: Nat.Nat^) \return CrossLaw (Pair { first := Nat.Nat^::succ p, second := q }) \with {
+        | zero: CrossZeroRow[p := p].antiCommutes
+        | succ: \fun (q: Nat.Nat^)(unused: _)(closed: Arithmetic.add (Nat.Nat^::succ p) (Nat.Nat^::succ q) = Nat.Nat^::succ (Nat.Nat^::succ n)) => Cross[p := p, q := lowerDiagonal p q closed].antiCommutes
+      }
+  };
+\definition crossOnPair: \forall (i: Pair) -> CrossLaw i :=
+  \induction (i: Pair) \return CrossLaw i \with {
+    | # : \fun (p, q: Nat.Nat^) => crossOnCoordinates p q
+  };
+\definition crossMapAntiCommutes: horizontalVertical = Maps.negative verticalHorizontal :=
+  Universal.ext horizontalVertical (Maps.negative verticalHorizontal)
+    (\fun (i: Index (Nat.Nat^::succ (Nat.Nat^::succ n))) => crossOnPair i (degree (Nat.Nat^::succ (Nat.Nat^::succ n)) i));
+\definition crossAntiCommutes: \forall (x: Earlier.Carrier) -> #apply{NextStep.horizontalTotal} (#apply{PriorStep.verticalTotal} x) = #neg{Current.space} (#apply{NextStep.verticalTotal} (#apply{PriorStep.horizontalTotal} x)) :=
+  \fun (x: Earlier.Carrier) => congr!{Maps.Map Current.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ crossMapAntiCommutes;
+
+\definition nextApply: \forall (x: Middle.Carrier) -> #apply{NextStep.differential} x = #add{Current.space} (#apply{NextStep.horizontalTotal} x) (#apply{NextStep.verticalTotal} x) :=
+  \fun (x: Middle.Carrier) => congr!{FirstMaps.Map Current.Carrier} (\fun (f: FirstMaps.Map) => #apply{f} x) _ _ NextStep.asSum;
+\import Modules.Hom[V := Earlier.Carrier, W := Middle.Carrier, source := Earlier.space, target := Middle.space] \as PriorMaps;
+\definition priorApply: \forall (x: Earlier.Carrier) -> #apply{PriorStep.differential} x = #add{Middle.space} (#apply{PriorStep.horizontalTotal} x) (#apply{PriorStep.verticalTotal} x) :=
+  \fun (x: Earlier.Carrier) => congr!{PriorMaps.Map Middle.Carrier} (\fun (f: PriorMaps.Map) => #apply{f} x) _ _ PriorStep.asSum;
+\definition zero: \forall (x: Earlier.Carrier) -> #apply{NextStep.differential} (#apply{PriorStep.differential} x) = #zero{Current.space} :=
+  \fun (x: Earlier.Carrier) => trans!{Current.Carrier} _ _ _
+    (congr!{Middle.Carrier Current.Carrier} (#apply{NextStep.differential}) _ _ (priorApply x))
+    (trans!{Current.Carrier} _ _ _
+      (#addition{NextStep.differential} (#apply{PriorStep.horizontalTotal} x) (#apply{PriorStep.verticalTotal} x))
+      (trans!{Current.Carrier} _ _ _
+        (congr2!{Current.Carrier Current.Carrier Current.Carrier} (#add{Current.space}) _ _ _ _
+          (nextApply (#apply{PriorStep.horizontalTotal} x)) (nextApply (#apply{PriorStep.verticalTotal} x)))
+        (trans!{Current.Carrier} _ _ _
+          (congr2!{Current.Carrier Current.Carrier Current.Carrier} (#add{Current.space}) _ _ _ _
+            (congr!{Current.Carrier Current.Carrier} (\fun (y: Current.Carrier) => #add{Current.space} y (#apply{NextStep.verticalTotal} (#apply{PriorStep.horizontalTotal} x))) _ _ (horizontalSquareZero x))
+            (congr!{Current.Carrier Current.Carrier} (#add{Current.space} (#apply{NextStep.horizontalTotal} (#apply{PriorStep.verticalTotal} x))) _ _ (verticalSquareZero x)))
+          (trans!{Current.Carrier} _ _ _
+            (congr2!{Current.Carrier Current.Carrier Current.Carrier} (#add{Current.space}) _ _ _ _
+              (Additive.zeroLeft (#apply{NextStep.verticalTotal} (#apply{PriorStep.horizontalTotal} x)))
+              (Additive.zeroRight (#apply{NextStep.horizontalTotal} (#apply{PriorStep.verticalTotal} x))))
+            (trans!{Current.Carrier} _ _ _
+              (congr!{Current.Carrier Current.Carrier} (#add{Current.space} (#apply{NextStep.verticalTotal} (#apply{PriorStep.horizontalTotal} x))) _ _ (crossAntiCommutes x))
+              (Additive.inverseRight (#apply{NextStep.verticalTotal} (#apply{PriorStep.horizontalTotal} x))))))));

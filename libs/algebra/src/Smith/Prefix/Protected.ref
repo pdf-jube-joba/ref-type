@@ -1,0 +1,151 @@
+\import std.Arithmetic[].ExtendedEuclid[].Signed[].Division[] \as Division;
+\import \parent.\parent.Cleared[m := m, n := n, index := index] \as Cleared;
+\import \parent.\parent.Trailing[m := m, n := n, divisor := divisor, lower := index] \as Trailing;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].RowOperations[].Laws[] \as RowLaws;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Transpose[] \as Transpose;
+\definition rowSwap: \forall (a: Runtime^)(r, s: N.Nat^) -> Bounds.Lt r m -> Bounds.Lt s m ->
+  Bounds.Lt index r -> Bounds.Lt index s -> Stage[index, divisor, a] -> Stage[index, divisor, Rows.swap a r s] :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(firstBound: _)(secondBound: _)(firstLower: _)(secondLower: _)(law: Stage[index, divisor, a]) => Stage[index, divisor, Rows.swap a r s] {
+    diagonal := trans!{I.Int^} (Rows.swap a r s index index) (a index index) divisor
+      (RowLaws.swapOther a r s index index (Bounds.ltNe index r firstLower) (Bounds.ltNe index s secondLower)) #diagonal{law},
+    nonzero := #nonzero{law},
+    cleared := Cleared.rowSwap a r s firstBound secondBound (Bounds.ltNe index r firstLower) (Bounds.ltNe index s secondLower) #cleared{law},
+    divides := Trailing.rowSwap a r s firstBound secondBound
+      (Bounds.leTrans index (N.Nat^::succ index) r (Bounds.leSelfSucc index) (Bounds.succLeOfLt r index firstLower))
+      (Bounds.leTrans index (N.Nat^::succ index) s (Bounds.leSelfSucc index) (Bounds.succLeOfLt s index secondLower)) #divides{law},
+  };
+\definition rowAdd: \forall (a: Runtime^)(r, s: N.Nat^)(c: I.Int^) -> Bounds.Lt s m ->
+  Bounds.Lt index r -> Bounds.Lt index s -> Stage[index, divisor, a] -> Stage[index, divisor, Rows.add a r s c] :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(sourceBound: _)(targetLower: _)(sourceLower: _)(law: Stage[index, divisor, a]) => Stage[index, divisor, Rows.add a r s c] {
+    diagonal := trans!{I.Int^} (Rows.add a r s c index index) (a index index) divisor
+      (RowLaws.addOther a r s c index index (Bounds.ltNe index r targetLower)) #diagonal{law},
+    nonzero := #nonzero{law},
+    cleared := Cleared.rowAdd a r s c sourceBound (Bounds.ltNe index r targetLower) (Bounds.ltNe index s sourceLower) #cleared{law},
+    divides := Trailing.rowAdd a r s c sourceBound
+      (Bounds.leTrans index (N.Nat^::succ index) s (Bounds.leSelfSucc index) (Bounds.succLeOfLt s index sourceLower)) #divides{law},
+  };
+\definition columnSwap: \forall (a: Runtime^)(r, s: N.Nat^) -> Bounds.Lt r n -> Bounds.Lt s n ->
+  Bounds.Lt index r -> Bounds.Lt index s -> Stage[index, divisor, a] -> Stage[index, divisor, Columns.swap a r s] :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(firstBound: _)(secondBound: _)(firstLower: _)(secondLower: _)(law: Stage[index, divisor, a]) => Stage[index, divisor, Columns.swap a r s] {
+    diagonal := trans!{I.Int^} (Columns.swap a r s index index) (a index index) divisor
+      (RowLaws.swapOther (Transpose.transpose a) r s index index (Bounds.ltNe index r firstLower) (Bounds.ltNe index s secondLower)) #diagonal{law},
+    nonzero := #nonzero{law},
+    cleared := Cleared.columnSwap a r s firstBound secondBound (Bounds.ltNe index r firstLower) (Bounds.ltNe index s secondLower) #cleared{law},
+    divides := Trailing.columnSwap a r s firstBound secondBound
+      (Bounds.leTrans index (N.Nat^::succ index) r (Bounds.leSelfSucc index) (Bounds.succLeOfLt r index firstLower))
+      (Bounds.leTrans index (N.Nat^::succ index) s (Bounds.leSelfSucc index) (Bounds.succLeOfLt s index secondLower)) #divides{law},
+  };
+\definition columnAdd: \forall (a: Runtime^)(r, s: N.Nat^)(c: I.Int^) -> Bounds.Lt s n ->
+  Bounds.Lt index r -> Bounds.Lt index s -> Stage[index, divisor, a] -> Stage[index, divisor, Columns.add a r s c] :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(sourceBound: _)(targetLower: _)(sourceLower: _)(law: Stage[index, divisor, a]) => Stage[index, divisor, Columns.add a r s c] {
+    diagonal := trans!{I.Int^} (Columns.add a r s c index index) (a index index) divisor
+      (RowLaws.addOther (Transpose.transpose a) r s c index index (Bounds.ltNe index r targetLower)) #diagonal{law},
+    nonzero := #nonzero{law},
+    cleared := Cleared.columnAdd a r s c sourceBound (Bounds.ltNe index r targetLower) (Bounds.ltNe index s sourceLower) #cleared{law},
+    divides := Trailing.columnAdd a r s c sourceBound
+      (Bounds.leTrans index (N.Nat^::succ index) s (Bounds.leSelfSucc index) (Bounds.succLeOfLt s index sourceLower)) #divides{law},
+  };
+\import \parent.\parent.Reduction[] \as Reduction;
+\import \parent.\parent.Pass[] \as Pass;
+\import Pass.Preservation[P := \fun (a: Runtime^) => Stage[index, divisor, a]] \as Preservation;
+\import N.Order[].Prop[] \as Order;
+\definition reduceRow: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k m -> Bounds.Lt i m -> Bounds.Lt index k -> Bounds.Lt k i -> Stage[index, divisor, a] ->
+  Stage[index, divisor, attemptMatrix (Reduction.row k i a history)] :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(history: History^)(pivotBound: _)(rowBound: _)(before: _)(after: _)(law: _) => B.cases
+    (\fun (test: B.Bool^) => Stage[index, divisor, attemptMatrix (B.ite Attempt^ test
+      (Attempt^::attempt (Reduction.rowMatrix k i a) (Reduction.rowHistory k i a history) B.Bool^::false)
+      (Attempt^::attempt (Reduction.rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (Reduction.rowHistory k i a history)) B.Bool^::true))])
+    (rowSwap (Reduction.rowMatrix k i a) k i pivotBound rowBound before (Order.ltTrans index k i before after)
+      (rowAdd a i k (Reduction.rowCoefficient k i a) pivotBound (Order.ltTrans index k i before after) before law))
+    (rowAdd a i k (Reduction.rowCoefficient k i a) pivotBound (Order.ltTrans index k i before after) before law)
+    (I.IsZero.specification (Division.remainder (a i k) (a k k)));
+\definition reduceColumn: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k n -> Bounds.Lt j n -> Bounds.Lt index k -> Bounds.Lt k j -> Stage[index, divisor, a] ->
+  Stage[index, divisor, attemptMatrix (Reduction.column k j a history)] :=
+  \fun (k, j: N.Nat^)(a: Runtime^)(history: History^)(pivotBound: _)(columnBound: _)(before: _)(after: _)(law: _) => B.cases
+    (\fun (test: B.Bool^) => Stage[index, divisor, attemptMatrix (B.ite Attempt^ test
+      (Attempt^::attempt (Reduction.columnMatrix k j a) (Reduction.columnHistory k j a history) B.Bool^::false)
+      (Attempt^::attempt (Reduction.columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (Reduction.columnHistory k j a history)) B.Bool^::true))])
+    (columnSwap (Reduction.columnMatrix k j a) k j pivotBound columnBound before (Order.ltTrans index k j before after)
+      (columnAdd a j k (Reduction.columnCoefficient k j a) pivotBound (Order.ltTrans index k j before after) before law))
+    (columnAdd a j k (Reduction.columnCoefficient k j a) pivotBound (Order.ltTrans index k j before after) before law)
+    (I.IsZero.specification (Division.remainder (a k j) (a k k)));
+\definition rowPass: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k m -> Bounds.Lt index k -> Stage[index, divisor, a] ->
+  Stage[index, divisor, attemptMatrix (Pass.row m k a history)] :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^)(pivotBound: _)(before: _)(law: _) =>
+    Preservation.preserves m Reduction.row m k a history
+      (\fun (i: N.Nat^)(b: Runtime^)(older: History^)(rowBound: _)(after: _)(stage: _) => reduceRow k i b older pivotBound rowBound before after stage)
+      (Bounds.leRefl m) law;
+\definition columnPass: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k n -> Bounds.Lt index k -> Stage[index, divisor, a] ->
+  Stage[index, divisor, attemptMatrix (Pass.column n k a history)] :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^)(pivotBound: _)(before: _)(law: _) =>
+    Preservation.preserves n Reduction.column n k a history
+      (\fun (j: N.Nat^)(b: Runtime^)(older: History^)(columnBound: _)(after: _)(stage: _) => reduceColumn k j b older pivotBound columnBound before after stage)
+      (Bounds.leRefl n) law;
+\import Pass.Clearing[] \as Clearing;
+\definition clear: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k m -> Bounds.Lt k n -> Bounds.Lt index k -> Stage[index, divisor, a] ->
+  Stage[index, divisor, attemptMatrix (Clearing.clear m n k a history)] :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(before: _)(law: _) => B.cases
+    (\fun (test: B.Bool^) => Stage[index, divisor, attemptMatrix (B.ite Attempt^ test (Clearing.first m k a history) (Clearing.second m n k a history))])
+    (columnPass k (attemptMatrix (Clearing.first m k a history)) (attemptHistory (Clearing.first m k a history)) columnBound before (rowPass k a history rowBound before law))
+    (rowPass k a history rowBound before law) (attemptReduced (Clearing.first m k a history));
+\import \parent.\parent.Pivot[] \as Pivot;
+\definition move: \forall (k, i, j: N.Nat^)(a: Runtime^) -> Bounds.Lt k m -> Bounds.Lt k n -> Bounds.Lt i m -> Bounds.Lt j n ->
+  Bounds.Le k i -> Bounds.Le k j -> Bounds.Lt index k -> Stage[index, divisor, a] -> Stage[index, divisor, Pivot.move k i j a] :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(rowBound: _)(columnBound: _)(iBound: _)(jBound: _)(iLower: _)(jLower: _)(before: _)(law: _) =>
+    columnSwap (Rows.swap a k i) k j columnBound jBound before (Bounds.ltLeTrans index k j before jLower)
+      (rowSwap a k i rowBound iBound before (Bounds.ltLeTrans index k i before iLower) law);
+\import \parent.\parent.Correction[] \as Correction;
+\definition correct: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k n -> Bounds.Lt i m -> Bounds.Lt j n -> Bounds.Lt k i -> Bounds.Lt k j -> Bounds.Lt index k ->
+  Stage[index, divisor, a] -> Stage[index, divisor, attemptMatrix (Correction.correct k i j a history)] :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(pivotBound: _)(iBound: _)(jBound: _)(iLower: _)(jLower: _)(before: _)(law: _) =>
+    reduceColumn k j (Correction.inject k i a) (Correction.injectHistory k i history) pivotBound jBound before jLower
+      (rowAdd a k i Arithmetic.one iBound before (Order.ltTrans index k i before iLower) law);
+\import N.Find[].Grid[] \as Grid;
+\import \parent.\parent.Round[] \as Round;
+\import \parent.\parent.Offender[] \as Offender;
+\definition resolved: \forall (position: Grid.Position^)(k: N.Nat^)(current: Attempt^) ->
+  Bounds.Lt k n -> Bounds.Lt index k -> Grid.PositionLaws (Offender.probe k (attemptMatrix current)) m n position ->
+  Stage[index, divisor, attemptMatrix current] -> Stage[index, divisor, attemptMatrix (Round.resolve k current position)] :=
+  \induction (position: Grid.Position^) \return \forall (k: N.Nat^)(current: Attempt^) ->
+    Bounds.Lt k n -> Bounds.Lt index k -> Grid.PositionLaws (Offender.probe k (attemptMatrix current)) m n position ->
+    Stage[index, divisor, attemptMatrix current] -> Stage[index, divisor, attemptMatrix (Round.resolve k current position)] \with {
+    | empty: \fun (k: N.Nat^)(current: Attempt^)(columnBound: _)(before: _)(found: _)(law: _) => law
+    | position: \fun (i, j: N.Nat^)(k: N.Nat^)(current: Attempt^)(columnBound: _)(before: _)
+        (found: Grid.Found[Offender.probe k (attemptMatrix current), m, n, i, j])(law: _) =>
+        correct k i j (attemptMatrix current) (attemptHistory current) columnBound #rowBound{found} #columnBound{found}
+          #rowLower{(Offender.hit k (attemptMatrix current) i j #hit{found})} #columnLower{(Offender.hit k (attemptMatrix current) i j #hit{found})} before law
+  };
+\definition round: \forall (k: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k m -> Bounds.Lt k n -> Bounds.Lt index k -> Stage[index, divisor, a] ->
+  Stage[index, divisor, attemptMatrix (Round.round m n k a history)] :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(before: _)(law: _) => B.cases
+    (\fun (test: B.Bool^) => Stage[index, divisor, attemptMatrix (B.ite Attempt^ test (Round.cleared m n k a history)
+      (Round.resolve k (Round.cleared m n k a history) (Offender.seek m n k (attemptMatrix (Round.cleared m n k a history)))))])
+    (resolved (Offender.seek m n k (attemptMatrix (Round.cleared m n k a history))) k (Round.cleared m n k a history) columnBound before
+      (Offender.bounded m n k (attemptMatrix (Round.cleared m n k a history))) (clear k a history rowBound columnBound before law))
+    (clear k a history rowBound columnBound before law) (attemptReduced (Round.cleared m n k a history));
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Search[] \as Search;
+\definition SelectionProperty: Pivot.Selection^ -> \Prop := \induction (selection: Pivot.Selection^) \return \Prop \with {
+  | missing: Logic.True
+  | ready: \fun (current: Attempt^) => Stage[index, divisor, attemptMatrix current]
+};
+\definition movedPosition: \forall (position: Grid.Position^)(k: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k m -> Bounds.Lt k n -> Bounds.Lt index k -> Grid.PositionLaws (Search.probe k a) m n position ->
+  Stage[index, divisor, a] -> SelectionProperty (Pivot.fromPosition k a history position) :=
+  \induction (position: Grid.Position^) \return \forall (k: N.Nat^)(a: Runtime^)(history: History^) ->
+    Bounds.Lt k m -> Bounds.Lt k n -> Bounds.Lt index k -> Grid.PositionLaws (Search.probe k a) m n position ->
+    Stage[index, divisor, a] -> SelectionProperty (Pivot.fromPosition k a history position) \with {
+    | empty: \fun (k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(before: _)(found: _)(law: _) => Logic.True::intro
+    | position: \fun (i, j: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(before: _)
+        (found: Grid.Found[Search.probe k a, m, n, i, j])(law: _) => move k i j a rowBound columnBound #rowBound{found} #columnBound{found}
+          #rowLower{(Search.hit k a i j #hit{found})} #columnLower{(Search.hit k a i j #hit{found})} before law
+  };
+\definition prepared: \forall (k: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k m -> Bounds.Lt k n -> Bounds.Lt index k -> Stage[index, divisor, a] -> SelectionProperty (Pivot.prepare m n k a history) :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(before: _)(law: _) => B.cases
+    (\fun (test: B.Bool^) => SelectionProperty (B.ite Pivot.Selection^ test (Pivot.fromPosition k a history (Search.search m n k a)) (Pivot.Selection^::ready (Attempt^::attempt a history B.Bool^::false))))
+    law
+    (movedPosition (Search.search m n k a) k a history rowBound columnBound before (Search.bounded m n k a) law) (I.IsZero.specification (a k k));

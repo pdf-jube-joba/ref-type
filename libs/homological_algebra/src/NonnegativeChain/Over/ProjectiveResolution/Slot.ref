@@ -1,0 +1,29 @@
+\import Modules.Of[V := M.Carrier, space := M.space] \as Base;
+\import Base.Submodule[] \as Submodules;
+\import algebra.Group[].Of[Carrier := M.Carrier, group := Base.additive] \as Group;
+\import Modules.Laws[V := M.Carrier, space := M.space] \as ModuleLaws;
+\definition zero: \forall (k: N.Nat^) -> Eligible k #zero{M.space} :=
+  \induction (k: N.Nat^) \return Eligible k #zero{M.space} \with {
+    | zero: Logic.True::intro
+    | succ: \fun (k: N.Nat^)(before: Eligible k #zero{M.space}) => \refl(#zero{M.space})
+  };
+\definition addition: \forall (k: N.Nat^)(x, y: M.Carrier) -> Eligible k x -> Eligible k y -> Eligible k (#add{M.space} x y) :=
+  \induction (k: N.Nat^) \return \forall (x, y: M.Carrier) -> Eligible k x -> Eligible k y -> Eligible k (#add{M.space} x y) \with {
+    | zero: \fun (x, y: M.Carrier)(left, right: Logic.True) => Logic.True::intro
+    | succ: \fun (k: N.Nat^)(before: \forall (x, y: M.Carrier) -> Eligible k x -> Eligible k y -> Eligible k (#add{M.space} x y))
+        (x, y: M.Carrier)(left: x = #zero{M.space})(right: y = #zero{M.space}) =>
+      trans!{M.Carrier} _ _ _ (congr2!{M.Carrier M.Carrier M.Carrier} (#add{M.space}) _ _ _ _ left right) (Group.zeroLeft #zero{M.space})
+  };
+\definition scalar: \forall (k: N.Nat^)(a: R)(x: M.Carrier) -> Eligible k x -> Eligible k (#smul{M.space} a x) :=
+  \induction (k: N.Nat^) \return \forall (a: R)(x: M.Carrier) -> Eligible k x -> Eligible k (#smul{M.space} a x) \with {
+    | zero: \fun (a: R)(x: M.Carrier)(member: Logic.True) => Logic.True::intro
+    | succ: \fun (k: N.Nat^)(before: \forall (a: R)(x: M.Carrier) -> Eligible k x -> Eligible k (#smul{M.space} a x))
+        (a: R)(x: M.Carrier)(member: x = #zero{M.space}) =>
+      trans!{M.Carrier} _ _ _ (congr!{M.Carrier M.Carrier} (#smul{M.space} a) _ _ member) (ModuleLaws.scaleZero a)
+  };
+\definition submodule: Submodules.Submodule := Submodules.Submodule {
+  carrier := { x: M.Carrier \where Eligible n x }, zero := zero n, addition := addition n, scalar := scalar n,
+};
+\import Submodules.Of[S := submodule] \as Induced;
+\definition Carrier: \Set := Induced.Carrier;
+\definition space: Modules.Space Carrier := Induced.moduleSpace;

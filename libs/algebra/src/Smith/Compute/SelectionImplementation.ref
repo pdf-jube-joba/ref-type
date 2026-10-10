@@ -1,0 +1,36 @@
+\definition T: \VType := \U(SelectionState ~> \F(\RunStep[State, Output]));
+\definition program: T := \thunk (\cfun (state: SelectionState) => \match state \in SelectionState \with {
+  | selected rows cols k original history prepared: \match prepared \in Pivot.Selection \with {
+      | missing: \return(\finish[State, Output](Output::result k original history))
+      | ready current: \match current \in Attempt \with {
+          | attempt a trace changed: \program {
+              \bind columns: \U(N.Nat -> N.Nat -> Runtime -> History -> Attempt) <- (\force roundProgram) rows \then
+              \bind pivots: \U(N.Nat -> Runtime -> History -> Attempt) <- (\force columns) cols \then
+              \bind matrices: \U(Runtime -> History -> Attempt) <- (\force pivots) k \then
+              \bind histories: \U(History -> Attempt) <- (\force matrices) a \then
+              \bind reduced: Attempt <- (\force histories) trace \then
+              \bind result: \RunStep[State, Output] <- (\force afterProgram) (AfterState::after rows cols k reduced) \then
+              \return result
+            }
+        }
+    }
+});
+\definition onAttempt: \forall (rows, cols, k: N.Nat^)(original: Runtime^)(history: History^)(current: Attempt^) ->
+  program^ (SelectionState^::selected rows cols k original history (Pivot.Selection^::ready current)) = selected rows cols k original history (Pivot.Selection^::ready current) :=
+  \fun (rows, cols, k: N.Nat^)(original: Runtime^)(history: History^) => \induction (current: Attempt^) \return
+    program^ (SelectionState^::selected rows cols k original history (Pivot.Selection^::ready current)) = selected rows cols k original history (Pivot.Selection^::ready current) \with {
+    | attempt: \fun (a: Runtime^)(trace: History^)(changed: B.Bool^) =>
+      trans!{{\RunStep[State^, Output^]}} (program^ (SelectionState^::selected rows cols k original history (Pivot.Selection^::ready (Attempt^::attempt a trace changed))))
+        (afterAttempt rows cols k (roundProgram^ rows cols k a trace)) (selected rows cols k original history (Pivot.Selection^::ready (Attempt^::attempt a trace changed)))
+        (congr!{After.T^ {\RunStep[State^, Output^]}} (\fun (f: After.T^) => f (AfterState^::after rows cols k (roundProgram^ rows cols k a trace))) afterProgram^ after After.coherence)
+        (congr!{Round.Perform.T^ {\RunStep[State^, Output^]}} (\fun (f: Round.Perform.T^) => afterAttempt rows cols k (f rows cols k a trace)) roundProgram^ Round.round Round.Perform.coherence)
+  };
+\definition onSelection: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(prepared: Pivot.Selection^) -> program^ (SelectionState^::selected rows cols k a history prepared) = selected rows cols k a history prepared :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => \induction (prepared: Pivot.Selection^) \return program^ (SelectionState^::selected rows cols k a history prepared) = selected rows cols k a history prepared \with {
+    | missing: \refl(\finish[State^, Output^](Output^::result k a history))
+    | ready: onAttempt rows cols k a history
+  };
+\definition matches: \forall (state: SelectionState^) -> program^ state = selection state := \induction (state: SelectionState^) \return program^ state = selection state \with {
+  | selected: onSelection
+};
+\definition coherence: program^ = selection := \axiom:funext(program^, selection, matches);

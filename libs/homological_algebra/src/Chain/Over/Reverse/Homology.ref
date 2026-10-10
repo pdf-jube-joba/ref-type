@@ -1,0 +1,75 @@
+\definition index: Degree := Integers.reverse k;
+\definition after: Degree := previous index;
+\definition targetAfter: Degree := Integers.reverse (next k);
+\import \parent.\parent.At[C := C, z := index] \as Source;
+\import Cochains.At[C := complex, z := k] \as Target;
+\import \parent.\parent.FamilyTransport[F := C.family] \as Casts;
+\import Modules.End[V := C.family.Carrier index, space := C.family.space index] \as End;
+\definition domainIsomorphism: Modules.Isomorphism[V := C.family.Carrier index, W := Carrier k, source := C.family.space index, target := space k].Isomorphism :=
+  Modules.Isomorphism[V := C.family.Carrier index, W := Carrier k, source := C.family.space index, target := space k].Isomorphism {
+    forward := End.identity, backward := End.identity,
+    leftInverse := \fun (x: C.family.Carrier index) => \refl(x), rightInverse := \fun (x: Carrier k) => \refl(x),
+  };
+\definition codomainIsomorphism: Modules.Isomorphism[V := C.family.Carrier after, W := Carrier (next k), source := C.family.space after, target := space (next k)].Isomorphism :=
+  Casts.isomorphism after targetAfter (target k);
+\import Modules.KernelTransport[V := C.family.Carrier index, W := C.family.Carrier after, X := Carrier k, Y := Carrier (next k),
+  vSpace := C.family.space index, wSpace := C.family.space after, xSpace := space k, ySpace := space (next k),
+  f := Source.differential, g := Target.differential, domainIso := domainIsomorphism, codomainIso := codomainIsomorphism] \as Kernels;
+\definition commutes: Kernels.Commutes := \fun (x: C.family.Carrier index) => \refl(apply k x);
+\definition cycleIsomorphism: Modules.Isomorphism[V := Source.Cycle, W := Target.Closed, source := Source.cycleSpace, target := Target.cycleSpace].Isomorphism :=
+  Kernels.isomorphism commutes;
+\definition upper: Degree := next index;
+\definition incomingIndex: Degree := Integers.reverse (Integers.previous k);
+\definition incomingEquality: incomingIndex = upper := Integers.reversePrevious k;
+\definition toOriginal(y: Carrier (Integers.previous k)): C.family.Carrier upper := Transport.cast C.family.Carrier incomingIndex upper incomingEquality y;
+\definition toReversed(y: C.family.Carrier upper): Carrier (Integers.previous k) := Transport.cast C.family.Carrier upper incomingIndex (sym!{Degree} _ _ incomingEquality) y;
+\import \parent.\parent.Prior[C := C] \as SourcePrior;
+\import Cochains.Prior[C := complex] \as TargetPrior;
+\definition sourceFormula: \forall (y: Carrier (Integers.previous k)) -> #apply{Source.prior} (toOriginal y) =
+  Transport.cast C.family.Carrier (previous incomingIndex) index
+    (trans!{Degree} _ _ _ (congr!{Degree Degree} previous incomingIndex upper incomingEquality) (previousNext index))
+    (#apply{C.differential} incomingIndex y) :=
+  \fun (y: Carrier (Integers.previous k)) => trans!{{C.family.Carrier index}} _ _ _
+    (congr!{{C.family.Carrier (previous upper)} {C.family.Carrier index}}
+      (Transport.cast C.family.Carrier (previous upper) index (previousNext index)) _ _
+      (sym!{{C.family.Carrier (previous upper)}} _ _
+        (Transport.natural C.family.Carrier (\fun (z: Degree) => C.family.Carrier (previous z)) (#apply{C.differential}) incomingIndex upper incomingEquality y)))
+    (trans!{{C.family.Carrier index}} _ _ _
+      (congr!{{C.family.Carrier (previous upper)} {C.family.Carrier index}}
+        (Transport.cast C.family.Carrier (previous upper) index (previousNext index)) _ _
+        (Transport.reindex C.family.Carrier previous incomingIndex upper incomingEquality (#apply{C.differential} incomingIndex y)))
+      (Transport.castComposition C.family.Carrier (previous incomingIndex) (previous upper) index
+        (congr!{Degree Degree} previous incomingIndex upper incomingEquality) (previousNext index) (#apply{C.differential} incomingIndex y)));
+\definition targetFormula: \forall (y: Carrier (Integers.previous k)) -> #apply{Target.prior} y =
+  Transport.cast C.family.Carrier (previous incomingIndex) index
+    (trans!{Degree} _ _ _ (target (Integers.previous k)) (congr!{Degree Degree} Integers.reverse (next (Integers.previous k)) k (Integers.nextPrevious k)))
+    (#apply{C.differential} incomingIndex y) :=
+  \fun (y: Carrier (Integers.previous k)) => trans!{{C.family.Carrier index}} _ _ _ (TargetPrior.formula k y)
+    (trans!{{C.family.Carrier index}} _ _ _
+      (Transport.reindex C.family.Carrier Integers.reverse (next (Integers.previous k)) k (Integers.nextPrevious k) (apply (Integers.previous k) y))
+      (Transport.castComposition C.family.Carrier (previous incomingIndex) (Integers.reverse (next (Integers.previous k))) index
+        (target (Integers.previous k)) (congr!{Degree Degree} Integers.reverse (next (Integers.previous k)) k (Integers.nextPrevious k)) (#apply{C.differential} incomingIndex y)));
+\definition backwardPrior: \forall (y: Carrier (Integers.previous k)) -> #apply{Source.prior} (toOriginal y) = #apply{Target.prior} y :=
+  \fun (y: Carrier (Integers.previous k)) => trans!{{C.family.Carrier index}} _ _ _ (sourceFormula y) (sym!{{C.family.Carrier index}} _ _ (targetFormula y));
+\definition forwardPrior: \forall (y: C.family.Carrier upper) -> #apply{Target.prior} (toReversed y) = #apply{Source.prior} y :=
+  \fun (y: C.family.Carrier upper) => trans!{{C.family.Carrier index}} _ _ _ (sym!{{C.family.Carrier index}} _ _ (backwardPrior (toReversed y)))
+    (congr!{{C.family.Carrier upper} {C.family.Carrier index}} (#apply{Source.prior}) _ _ (Transport.castInverse C.family.Carrier upper incomingIndex (sym!{Degree} _ _ incomingEquality) y));
+
+\definition sourceBundle: Modules.Bundle := Modules.Bundle { Carrier := Source.Cycle, space := Source.cycleSpace };
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := Target.Closed, space := Target.cycleSpace };
+\import Modules.QuotientMapping[A := sourceBundle, B := targetBundle].On[S := Source.boundariesInside, T := Target.boundariesInside, f := #forward{cycleIsomorphism}] \as Descent;
+\import Descent.Inverse[g := #backward{cycleIsomorphism}] \as Back;
+\import Modules.Of[V := C.family.Carrier index, space := C.family.space index].Submodule[] \as Sub;
+\import Sub.Image[U := C.family.Carrier upper, source := C.family.space upper] \as SourceImage;
+\import Sub.Image[U := Carrier (Integers.previous k), source := space (Integers.previous k)] \as TargetImage;
+\definition compatible: Descent.Compatible := \fun (x: Source.Cycle)(member: _) =>
+  SourceImage.eliminate Source.prior x (Sub.Member Target.boundaries x)
+    (\fun (y: C.family.Carrier upper)(equal: #apply{Source.prior} y = x) =>
+      TargetImage.introduce Target.prior x (toReversed y) (trans!{{C.family.Carrier index}} _ _ _ (forwardPrior y) equal)) member;
+\definition compatibleBack: Back.CompatibleBack := \fun (x: Target.Closed)(member: _) =>
+  TargetImage.eliminate Target.prior x (Sub.Member Source.boundaries x)
+    (\fun (y: Carrier (Integers.previous k))(equal: #apply{Target.prior} y = x) =>
+      SourceImage.introduce Source.prior x (toOriginal y) (trans!{{C.family.Carrier index}} _ _ _ (backwardPrior y) equal)) member;
+\definition isomorphism: Modules.Isomorphism[V := Source.Homology, W := Target.Cohomology, source := Source.homologySpace, target := Target.cohomologySpace].Isomorphism :=
+  Back.isomorphism compatible compatibleBack (#leftInverse{cycleIsomorphism}) (#rightInverse{cycleIsomorphism});
+\definition onClass: \forall (x: Source.Cycle) -> #apply{#forward{isomorphism}} (Source.classOf x) = Target.classOf (#apply{#forward{cycleIsomorphism}} x) := Descent.onClass compatible;

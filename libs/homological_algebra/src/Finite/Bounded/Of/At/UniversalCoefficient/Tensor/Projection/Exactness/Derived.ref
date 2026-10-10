@@ -1,0 +1,49 @@
+\import \root.Finite[].Bounded[].Of[C := C].At[z := z].UniversalCoefficient[A := A].Tensor[].Projection[] \as KernelProjection;
+\import \root.Finite[].Bounded[].Of[C := C].At[z := z].UniversalCoefficient[A := A].Tensor[].Projection[].Exactness[] \as Exact;
+\import Modules.Hom[V := Tor.Kernel, W := Tor.Carrier, source := Tor.kernelSpace, target := Tor.space].Composition[U := TensorHomology.Homology, domain := TensorHomology.homologySpace] \as Composition;
+\definition projection: Modules.Hom[V := TensorHomology.Homology, W := Tor.Carrier, source := TensorHomology.homologySpace, target := Tor.space].Map :=
+  Composition.compose #backward{Tor.isomorphism} KernelProjection.map;
+\import Modules.Hom[V := Tor.Kernel, W := Tor.Carrier, source := Tor.kernelSpace, target := Tor.space] \as Backward;
+\import Modules.Hom[V := Tor.Carrier, W := Tor.Kernel, source := Tor.space, target := Tor.kernelSpace] \as Forward;
+\definition onto: \forall (b: Tor.Carrier) -> \exists { q: TensorHomology.Homology \where #apply{projection} q = b } := \block {
+  \fun (b: Tor.Carrier) \then
+  \takefrom q: \Cast[TensorHomology.Homology] ({ q: TensorHomology.Homology \where #apply{KernelProjection.map} q = #apply{#forward{Tor.isomorphism}} b })
+    \by Exact.onto (#apply{#forward{Tor.isomorphism}} b) \then
+  \return \exact(\into[TensorHomology.Homology](q, { q: TensorHomology.Homology \where #apply{projection} q = b }) \by {
+    trans!{Tor.Carrier} _ _ _
+      (congr!{Tor.Kernel Tor.Carrier} (#apply{#backward{Tor.isomorphism}}) _ _
+        (\bysub(TensorHomology.Homology, { q: TensorHomology.Homology \where #apply{KernelProjection.map} q = #apply{#forward{Tor.isomorphism}} b }, q)))
+      (#leftInverse{Tor.isomorphism} b)
+  }, \Cast[TensorHomology.Homology] ({ q: TensorHomology.Homology \where #apply{projection} q = b }))
+};
+\definition zero: \forall (q: HomologyTensor.Carrier) -> #apply{projection} (#apply{Boundaries.map} q) = #zero{Tor.space} :=
+  \fun (q: HomologyTensor.Carrier) => trans!{Tor.Carrier} _ _ _
+    (congr!{Tor.Kernel Tor.Carrier} (#apply{#backward{Tor.isomorphism}}) _ _ (Exact.zero q))
+    (Backward.zeroPreserved #backward{Tor.isomorphism});
+\definition kernelImage: \forall (q: TensorHomology.Homology) -> #apply{projection} q = #zero{Tor.space} ->
+  \exists { h: HomologyTensor.Carrier \where #apply{Boundaries.map} h = q } :=
+  \fun (q: TensorHomology.Homology)(closed: _) => Exact.kernelImage q
+    (trans!{Tor.Kernel} _ _ _ (sym!{Tor.Kernel} _ _ (#rightInverse{Tor.isomorphism} (#apply{KernelProjection.map} q)))
+      (trans!{Tor.Kernel} _ _ _ (congr!{Tor.Carrier Tor.Kernel} (#apply{#forward{Tor.isomorphism}}) _ _ closed)
+        (Forward.zeroPreserved #forward{Tor.isomorphism})));
+\definition torBundle: Modules.Bundle := Modules.Bundle { Carrier := Tor.Carrier, space := Tor.space };
+\import Modules.ShortExact[A := homologyTensorBundle, B := homologyBundle, C := torBundle] \as DerivedSequences;
+\definition sequence: DerivedSequences.Sequence := DerivedSequences.Sequence {
+  inclusion := Boundaries.map, projection := projection, injective := Injection.injective,
+  onto := onto, zero := zero, kernelImage := kernelImage,
+};
+\import Modules.Hom[V := Boundary.Carrier, W := Carrier C z, source := Boundary.space, target := space C z] \as Sections;
+\module Selected(s: Sections.Map);
+\import Modules.Biproduct[V := HomologyTensor.Carrier, W := Tor.Carrier, left := HomologyTensor.space, right := Tor.space] \as Sum;
+\import Modules.Isomorphism[V := Sum.Carrier, W := TensorHomology.Homology, source := Sum.space, target := TensorHomology.homologySpace] \as SplitIsomorphisms;
+\definition splitExistence: \exists SplitIsomorphisms.Isomorphism := \block {
+  \takefrom s: \Cast[Sections.Map] ({ s: Sections.Map \where \forall (b: Boundary.Carrier) -> #apply{Boundary.map} (#apply{s} b) = b })
+    \by Boundary.sectionExistence \then
+  \return \exact(Selected[s := s].isomorphism
+    (\bysub(Sections.Map, { s: Sections.Map \where \forall (b: Boundary.Carrier) -> #apply{Boundary.map} (#apply{s} b) = b }, s)),
+    SplitIsomorphisms.Isomorphism)
+};
+\import Modules.ShortExact[A := Boundary.cyclesBundle, B := Boundary.chainsBundle, C := Boundary.boundaryBundle].Splitting[sequence := Boundary.sequence].FromRetraction[r := retraction] \as SmithSection;
+\definition smithSection: Sections.Map := SmithSection.section retractCycle;
+\definition smithSplits: \forall (b: Boundary.Carrier) -> #apply{Boundary.map} (#apply{smithSection} b) = b := SmithSection.rightInverse retractCycle;
+\definition isomorphism: SplitIsomorphisms.Isomorphism := Selected[s := smithSection].isomorphism smithSplits;

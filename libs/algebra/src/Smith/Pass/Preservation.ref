@@ -1,0 +1,19 @@
+\definition StepLaw(reduce: Reducer^)(limit, k: N.Nat^): \Prop :=
+  \forall (i: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt i limit -> Bounds.Lt k i -> P a -> P (attemptMatrix (reduce k i a history));
+\definition nextPreserves: \forall (reduce: Reducer^)(limit, k, i: N.Nat^)(current: Attempt^) ->
+  StepLaw reduce limit k -> Bounds.Lt i limit -> P (attemptMatrix current) -> P (attemptMatrix (next reduce k i current)) :=
+  \fun (reduce: Reducer^)(limit, k, i: N.Nat^)(current: Attempt^)(law: StepLaw reduce limit k)(bound: _)(previous: _) => B.cases
+    (\fun (test: B.Bool^) => eligible k i current = test ->
+      P (attemptMatrix (B.ite Attempt^ test (reduce k i (attemptMatrix current) (attemptHistory current)) current)))
+    (\fun (inactive: _) => previous)
+    (\fun (active: _) => law i (attemptMatrix current) (attemptHistory current) bound (eligibleLess k i current active) previous)
+    (eligible k i current) (\refl(eligible k i current));
+\definition preserves: \forall (count: N.Nat^)(reduce: Reducer^)(limit, k: N.Nat^)(a: Runtime^)(history: History^) ->
+  StepLaw reduce limit k -> Bounds.Le count limit -> P a -> P (attemptMatrix (passWith reduce count k a history)) :=
+  \induction (count: N.Nat^) \return \forall (reduce: Reducer^)(limit, k: N.Nat^)(a: Runtime^)(history: History^) ->
+    StepLaw reduce limit k -> Bounds.Le count limit -> P a -> P (attemptMatrix (passWith reduce count k a history)) \with {
+    | zero: \fun (reduce: Reducer^)(limit, k: N.Nat^)(a: Runtime^)(history: History^)(law: _)(bound: _)(previous: _) => previous
+    | succ: \fun (count: N.Nat^)(induction: _)(reduce: Reducer^)(limit, k: N.Nat^)(a: Runtime^)(history: History^)(law: _)(bound: _)(previous: _) =>
+        nextPreserves reduce limit k count (passWith reduce count k a history) law (Bounds.ltOfSuccLe limit count bound)
+          (induction reduce limit k a history law (Bounds.leTrans count (N.Nat^::succ count) limit (Bounds.leSelfSucc count) bound) previous)
+  };

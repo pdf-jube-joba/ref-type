@@ -1,0 +1,33 @@
+\import \parent.Of[M := M, N := N, P := P] \as Tor;
+\import \root.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Of[M := M, P := P] \as Resolutions;
+\definition source: Modules.Bundle := Modules.Bundle { Carrier := P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), space := P.family.space (Nat.Nat^::succ Nat.Nat^::zero) };
+\definition middle: Modules.Bundle := Modules.Bundle { Carrier := P.family.Carrier Nat.Nat^::zero, space := P.family.space Nat.Nat^::zero };
+\import Modules.Hom[V := source.Carrier, W := middle.Carrier, source := source.space, target := middle.space] \as Differential;
+\definition differential: Differential.Map := Differential.Map {
+  apply := #apply{P.differential} Nat.Nat^::zero,
+  addition := #addition{P.laws} Nat.Nat^::zero, scalar := #scalar{P.laws} Nat.Nat^::zero,
+};
+\import Modules.RightExact[A := source, B := middle, C := M] \as Augmented;
+\import Modules.TensorRightExact[A := source, B := middle, C := M, N := N] \as Tensor;
+\import Modules.Tensor[V := source.Carrier, W := N.Carrier, left := source.space, right := N.space] \as LeftTensor;
+\import Modules.Tensor[V := middle.Carrier, W := N.Carrier, left := middle.space, right := N.space] \as MiddleTensor;
+\import Modules.Tensor[V := M.Carrier, W := N.Carrier, left := M.space, right := N.space] \as Target;
+\definition leftBundle: Modules.Bundle := Modules.Bundle { Carrier := LeftTensor.Carrier, space := LeftTensor.space };
+\definition middleBundle: Modules.Bundle := Modules.Bundle { Carrier := MiddleTensor.Carrier, space := MiddleTensor.space };
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := Target.Carrier, space := Target.space };
+\import Modules.RightExact[A := leftBundle, B := middleBundle, C := targetBundle] \as Result;
+\module With(resolution: Tor.Resolution) {
+  \definition augmented: Augmented.Sequence := Augmented.Sequence {
+    inclusion := differential, projection := #augmentation{resolution},
+    onto := #onto{resolution}, zero := #killed{resolution}, kernelImage := #augmentationExact{resolution},
+  };
+  \import Tensor.On[sequence := augmented] \as RightExact;
+  \import Result.Cokernel[sequence := RightExact.sequence] \as Cokernel;
+  \definition isomorphism: Modules.Isomorphism[V := Tor.At[n := Nat.Nat^::zero].Carrier, W := Target.Carrier,
+    source := Tor.At[n := Nat.Nat^::zero].space, target := Target.space].Isomorphism := Cokernel.isomorphism;
+}
+\definition existence: \forall (resolution: Tor.Resolution) -> \exists Modules.Isomorphism[V := Tor.At[n := Nat.Nat^::zero].Carrier, W := Target.Carrier,
+  source := Tor.At[n := Nat.Nat^::zero].space, target := Target.space].Isomorphism :=
+  \fun (resolution: Tor.Resolution) => \exact(With[resolution := resolution].isomorphism,
+    Modules.Isomorphism[V := Tor.At[n := Nat.Nat^::zero].Carrier, W := Target.Carrier,
+      source := Tor.At[n := Nat.Nat^::zero].space, target := Target.space].Isomorphism);

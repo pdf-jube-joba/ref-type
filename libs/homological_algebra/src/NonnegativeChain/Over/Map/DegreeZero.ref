@@ -1,0 +1,22 @@
+\import \parent.\parent.DegreeZero[C := C] \as Source;
+\import \parent.\parent.DegreeZero[C := D] \as Target;
+\import Modules.Of[V := C.family.Carrier N.Nat^::zero, space := C.family.space N.Nat^::zero].Submodule[] \as SourceSub;
+\import SourceSub.Image[U := C.family.Carrier (N.Nat^::succ N.Nat^::zero), source := C.family.space (N.Nat^::succ N.Nat^::zero)] \as SourceImages;
+\import Modules.Of[V := D.family.Carrier N.Nat^::zero, space := D.family.space N.Nat^::zero].Submodule[] \as TargetSub;
+\import TargetSub.Image[U := D.family.Carrier (N.Nat^::succ N.Nat^::zero), source := D.family.space (N.Nat^::succ N.Nat^::zero)] \as TargetImages;
+\definition sourceBundle: Modules.Bundle := Modules.Bundle { Carrier := C.family.Carrier N.Nat^::zero, space := C.family.space N.Nat^::zero };
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := D.family.Carrier N.Nat^::zero, space := D.family.space N.Nat^::zero };
+\module On(f: Map) {
+  \import Modules.QuotientMapping[A := sourceBundle, B := targetBundle].On[S := Source.boundaries, T := Target.boundaries, f := \parent.\parent.At[n := N.Nat^::zero].linear f] \as Descent;
+  \definition compatible: Descent.Compatible := \fun (x: C.family.Carrier N.Nat^::zero)(member: SourceSub.Member Source.boundaries x) =>
+    SourceImages.eliminate Source.prior x (TargetSub.Member Target.boundaries (#apply{f} N.Nat^::zero x))
+      (\fun (y: C.family.Carrier (N.Nat^::succ N.Nat^::zero))(equal: #apply{Source.prior} y = x) =>
+        TargetImages.introduce Target.prior (#apply{f} N.Nat^::zero x) (#apply{f} (N.Nat^::succ N.Nat^::zero) y)
+          (trans!{{D.family.Carrier N.Nat^::zero}} _ _ _ (#commutes{f} N.Nat^::zero y)
+            (congr!{{C.family.Carrier N.Nat^::zero} {D.family.Carrier N.Nat^::zero}} (#apply{f} N.Nat^::zero) _ _ equal))) member;
+  \definition map: Modules.MapBetween (Modules.Bundle { Carrier := Source.Homology, space := Source.homologySpace }) (Modules.Bundle { Carrier := Target.Homology, space := Target.homologySpace }) := Descent.map compatible;
+  \definition onClass: \forall (x: C.family.Carrier N.Nat^::zero) -> #apply{map} (Source.classOf x) = Target.classOf (#apply{f} N.Nat^::zero x) := Descent.onClass compatible;
+}
+\definition induced(f: Map): Modules.MapBetween (Modules.Bundle { Carrier := Source.Homology, space := Source.homologySpace }) (Modules.Bundle { Carrier := Target.Homology, space := Target.homologySpace }) := On[f := f].map;
+\definition onClass: \forall (f: Map)(x: C.family.Carrier N.Nat^::zero) -> #apply{(induced f)} (Source.classOf x) = Target.classOf (#apply{f} N.Nat^::zero x) :=
+  \fun (f: Map) => On[f := f].onClass;

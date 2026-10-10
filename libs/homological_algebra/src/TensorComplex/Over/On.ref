@@ -1,0 +1,22 @@
+\module At(n: Nat.Nat^);
+\definition Carrier(n: Nat.Nat^): \Set := At[n := n].Carrier;
+\definition space(n: Nat.Nat^): Modules.Space (Carrier n) := At[n := n].space;
+\definition family: Chains.Family := Chains.Family {
+  Carrier := Carrier,
+  space := space,
+};
+\definition apply(n: Nat.Nat^)(x: Carrier (Nat.Nat^::succ n)): Carrier n := #apply{(At[n := n].differential)} x;
+\definition addition: \forall (n: Nat.Nat^)(x, y: Carrier (Nat.Nat^::succ n)) ->
+  apply n (#add{(space (Nat.Nat^::succ n))} x y) = #add{(space n)} (apply n x) (apply n y) :=
+  \fun (n: Nat.Nat^)(x, y: Carrier (Nat.Nat^::succ n)) => #addition{(At[n := n].differential)} x y;
+\definition scalar: \forall (n: Nat.Nat^)(a: R)(x: Carrier (Nat.Nat^::succ n)) ->
+  apply n (#smul{(space (Nat.Nat^::succ n))} a x) = #smul{(space n)} a (apply n x) :=
+  \fun (n: Nat.Nat^)(a: R)(x: Carrier (Nat.Nat^::succ n)) => #scalar{(At[n := n].differential)} a x;
+\definition squareZero: \forall (n: Nat.Nat^)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
+  apply n (apply (Nat.Nat^::succ n) x) = #zero{(space n)} :=
+  \fun (n: Nat.Nat^)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => At[n := n].squareZero x;
+\definition differential: Chains.DifferentialData[family] := Chains.DifferentialData[family] { apply := apply };
+\definition complex: Chains.Complex := Chains.Complex {
+  family := family, differential := differential,
+  laws := Chains.DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero },
+};

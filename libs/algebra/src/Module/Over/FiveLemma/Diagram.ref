@@ -1,0 +1,88 @@
+\structure Commutative: \Prop {
+  first: \forall (x: A.Carrier) -> #apply{b} (#apply{s.first} x) = #apply{t.first} (#apply{a} x),
+  second: \forall (x: B.Carrier) -> #apply{c} (#apply{s.second} x) = #apply{t.second} (#apply{b} x),
+  third: \forall (x: C.Carrier) -> #apply{d} (#apply{s.third} x) = #apply{t.third} (#apply{c} x),
+  last: \forall (x: D.Carrier) -> #apply{e} (#apply{s.last} x) = #apply{t.last} (#apply{d} x),
+}
+\import \parent.\parent.Hom[V := C.Carrier, W := C1.Carrier, source := C.space, target := C1.space] \as MiddleMaps;
+\import \parent.\parent.Hom[V := D.Carrier, W := D1.Carrier, source := D.space, target := D1.space] \as NextMaps;
+\import \parent.\parent.Hom[V := E.Carrier, W := E1.Carrier, source := E.space, target := E1.space] \as LastMaps;
+\import \parent.\parent.Hom[V := C1.Carrier, W := D1.Carrier, source := C1.space, target := D1.space] \as TargetThird;
+\import \parent.\parent.Hom[V := B1.Carrier, W := C1.Carrier, source := B1.space, target := C1.space] \as TargetSecond;
+\import \parent.\parent.Laws[V := C.Carrier, space := C.space] \as Middle;
+\import \parent.\parent.Laws[V := C1.Carrier, space := C1.space] \as Middle1;
+\import \parent.\parent.Laws[V := D1.Carrier, space := D1.space] \as Next1;
+\import algebra.Group[].Of[Carrier := C.Carrier, group := Middle.additive] \as Group;
+\import algebra.Group[].Of[Carrier := C1.Carrier, group := Middle1.additive] \as Group1;
+\import algebra.Group[].Of[Carrier := D1.Carrier, group := Next1.additive] \as NextGroup1;
+\definition kernelZero: Commutative -> Surjective A A1 a -> Injective B B1 b -> Injective D D1 d ->
+  \forall (x: C.Carrier) -> #apply{c} x = Middle1.zero -> x = Middle.zero := \block {
+  \fun (diagram: Commutative)(leftOnto: Surjective A A1 a)(beforeInjective: Injective B B1 b)(afterInjective: Injective D D1 d)(x: C.Carrier)(killed: _) \then
+  \let closed: #apply{s.third} x = #zero{D.space} := afterInjective _ _
+    (trans!{D1.Carrier} _ _ _ (#third{diagram} x)
+      (trans!{D1.Carrier} _ _ _ (congr!{C1.Carrier D1.Carrier} (#apply{t.third}) _ _ killed)
+        (trans!{D1.Carrier} _ _ _ (TargetThird.zeroPreserved t.third) (sym!{D1.Carrier} _ _ (NextMaps.zeroPreserved d))))) \then
+  \takefrom u: \Cast[B.Carrier] ({ u: B.Carrier \where #apply{s.second} u = x }) \by #kernelC{s} x closed \then
+  \let representation: #apply{s.second} u = x := \bysub(B.Carrier, { u: B.Carrier \where #apply{s.second} u = x }, u) \then
+  \let beforeClosed: #apply{t.second} (#apply{b} u) = Middle1.zero := trans!{C1.Carrier} _ _ _ (sym!{C1.Carrier} _ _ (#second{diagram} u))
+    (trans!{C1.Carrier} _ _ _ (congr!{C.Carrier C1.Carrier} (#apply{c}) _ _ representation) killed) \then
+  \takefrom v1: \Cast[A1.Carrier] ({ v: A1.Carrier \where #apply{t.first} v = #apply{b} u }) \by #kernelB{t} (#apply{b} u) beforeClosed \then
+  \takefrom v: \Cast[A.Carrier] ({ v: A.Carrier \where #apply{a} v = v1 }) \by leftOnto v1 \then
+  \let firstEquals: #apply{s.first} v = u := beforeInjective _ _
+    (trans!{B1.Carrier} _ _ _ (#first{diagram} v)
+      (trans!{B1.Carrier} _ _ _ (congr!{A1.Carrier B1.Carrier} (#apply{t.first}) _ _ (\bysub(A.Carrier, { v: A.Carrier \where #apply{a} v = v1 }, v)))
+        (\bysub(A1.Carrier, { v: A1.Carrier \where #apply{t.first} v = #apply{b} u }, v1)))) \then
+  \return trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ representation)
+    (trans!{C.Carrier} _ _ _ (congr!{B.Carrier C.Carrier} (#apply{s.second}) _ _ (sym!{B.Carrier} _ _ firstEquals)) (#zeroB{s} v))
+};
+\definition injective: Commutative -> Surjective A A1 a -> Injective B B1 b -> Injective D D1 d -> Injective C C1 c := \block {
+  \fun (diagram: Commutative)(leftOnto: Surjective A A1 a)(beforeInjective: Injective B B1 b)(afterInjective: Injective D D1 d)(x, y: C.Carrier)(same: _) \then
+  \let differenceZero: Group.difference x y = Middle.zero := kernelZero diagram leftOnto beforeInjective afterInjective (Group.difference x y)
+    (trans!{C1.Carrier} _ _ _ (MiddleMaps.differencePreserved c x y)
+      (trans!{C1.Carrier} _ _ _ (congr!{C1.Carrier C1.Carrier} (\fun (z: C1.Carrier) => Group1.difference z (#apply{c} y)) _ _ same) (Group1.inverseRight (#apply{c} y)))) \then
+  \return Group.cancelRight (Middle.neg y) x y (trans!{C.Carrier} _ _ _ differenceZero (sym!{C.Carrier} _ _ (Group.inverseRight y)))
+};
+\definition remainder(y: C1.Carrier)(x: C.Carrier): C1.Carrier := Group1.difference y (#apply{c} x);
+\definition remainderClosed: \forall (diagram: Commutative)(y: C1.Carrier)(x: C.Carrier) -> #apply{d} (#apply{s.third} x) = #apply{t.third} y ->
+  #apply{t.third} (remainder y x) = Next1.zero :=
+  \fun (diagram: Commutative)(y: C1.Carrier)(x: C.Carrier)(same: _) => trans!{D1.Carrier} _ _ _
+    (TargetThird.differencePreserved t.third y (#apply{c} x))
+    (trans!{D1.Carrier} _ _ _
+      (congr!{D1.Carrier D1.Carrier} (\fun (z: D1.Carrier) => NextGroup1.difference (#apply{t.third} y) z) _ _
+        (trans!{D1.Carrier} _ _ _ (sym!{D1.Carrier} _ _ (#third{diagram} x)) same))
+      (NextGroup1.inverseRight (#apply{t.third} y)));
+\definition surjective: Commutative -> Surjective B B1 b -> Surjective D D1 d -> Injective E E1 e -> Surjective C C1 c := \block {
+  \fun (diagram: Commutative)(beforeOnto: Surjective B B1 b)(afterOnto: Surjective D D1 d)(lastInjective: Injective E E1 e)(y: C1.Carrier) \then
+  \takefrom v: \Cast[D.Carrier] ({ v: D.Carrier \where #apply{d} v = #apply{t.third} y }) \by afterOnto (#apply{t.third} y) \then
+  \let projection: #apply{d} v = #apply{t.third} y := \bysub(D.Carrier, { v: D.Carrier \where #apply{d} v = #apply{t.third} y }, v) \then
+  \let closed: #apply{s.last} v = #zero{E.space} := lastInjective _ _
+    (trans!{E1.Carrier} _ _ _ (#last{diagram} v)
+      (trans!{E1.Carrier} _ _ _ (congr!{D1.Carrier E1.Carrier} (#apply{t.last}) _ _ projection)
+        (trans!{E1.Carrier} _ _ _ (#zeroD{t} y) (sym!{E1.Carrier} _ _ (LastMaps.zeroPreserved e))))) \then
+  \takefrom x: \Cast[C.Carrier] ({ x: C.Carrier \where #apply{s.third} x = v }) \by #kernelD{s} v closed \then
+  \let reaches: #apply{d} (#apply{s.third} x) = #apply{t.third} y := trans!{D1.Carrier} _ _ _
+    (congr!{D.Carrier D1.Carrier} (#apply{d}) _ _ (\bysub(C.Carrier, { x: C.Carrier \where #apply{s.third} x = v }, x))) projection \then
+  \takefrom u1: \Cast[B1.Carrier] ({ u: B1.Carrier \where #apply{t.second} u = remainder y x })
+    \by #kernelC{t} (remainder y x) (remainderClosed diagram y x reaches) \then
+  \takefrom u: \Cast[B.Carrier] ({ u: B.Carrier \where #apply{b} u = u1 }) \by beforeOnto u1 \then
+  \let correction: #apply{c} (#apply{s.second} u) = remainder y x := trans!{C1.Carrier} _ _ _ (#second{diagram} u)
+    (trans!{C1.Carrier} _ _ _ (congr!{B1.Carrier C1.Carrier} (#apply{t.second}) _ _ (\bysub(B.Carrier, { u: B.Carrier \where #apply{b} u = u1 }, u)))
+      (\bysub(B1.Carrier, { u: B1.Carrier \where #apply{t.second} u = remainder y x }, u1))) \then
+  \return \exact(\into[C.Carrier](Middle.add x (#apply{s.second} u), { x: C.Carrier \where #apply{c} x = y }) \by {
+    trans!{C1.Carrier} _ _ _ (#addition{c} x (#apply{s.second} u))
+      (trans!{C1.Carrier} _ _ _ (congr!{C1.Carrier C1.Carrier} (Middle1.add (#apply{c} x)) _ _ correction)
+        (trans!{C1.Carrier} _ _ _ (Group1.comm (#apply{c} x) (remainder y x))
+          (trans!{C1.Carrier} _ _ _ (Group1.assoc y (Middle1.neg (#apply{c} x)) (#apply{c} x))
+            (trans!{C1.Carrier} _ _ _ (congr!{C1.Carrier C1.Carrier} (Middle1.add y) _ _ (Group1.inverseLeft (#apply{c} x))) (Group1.zeroRight y)))))
+  }, \Cast[C.Carrier] ({ x: C.Carrier \where #apply{c} x = y }))
+};
+\import \parent.\parent.Isomorphism[V := C.Carrier, W := C1.Carrier, source := C.space, target := C1.space] \as Isomorphisms;
+\import Isomorphisms.OfBijective[f := c] \as Iso;
+\definition isomorphism(diagram: Commutative)(leftOnto: Surjective A A1 a)(beforeInjective: Injective B B1 b)(beforeOnto: Surjective B B1 b)
+  (afterInjective: Injective D D1 d)(afterOnto: Surjective D D1 d)(lastInjective: Injective E E1 e): Isomorphisms.Isomorphism :=
+  Iso.isomorphism (injective diagram leftOnto beforeInjective afterInjective) (surjective diagram beforeOnto afterOnto lastInjective);
+\definition existence: Commutative -> Surjective A A1 a -> Injective B B1 b -> Surjective B B1 b ->
+  Injective D D1 d -> Surjective D D1 d -> Injective E E1 e -> \exists Isomorphisms.Isomorphism :=
+  \fun (diagram: Commutative)(leftOnto: Surjective A A1 a)(beforeInjective: Injective B B1 b)(beforeOnto: Surjective B B1 b)
+    (afterInjective: Injective D D1 d)(afterOnto: Surjective D D1 d)(lastInjective: Injective E E1 e) =>
+    \exact(isomorphism diagram leftOnto beforeInjective beforeOnto afterInjective afterOnto lastInjective, Isomorphisms.Isomorphism);

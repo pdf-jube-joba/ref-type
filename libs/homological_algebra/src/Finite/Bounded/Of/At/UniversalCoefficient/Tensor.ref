@@ -1,0 +1,60 @@
+\import \parent.Boundary[] \as Boundary;
+\import \parent.Incoming[] \as Incoming;
+\import Modules.Tensor[V := Homology.Cycle, W := A.Carrier, left := Homology.cycleSpace, right := A.space] \as CycleTensor;
+\import Modules.Tensor[V := Carrier C z, W := A.Carrier, left := space C z, right := A.space] \as CurrentTensor;
+\import Modules.Tensor[V := Carrier C (previous z), W := A.Carrier, left := space C (previous z), right := A.space] \as LowerTensor;
+\import Modules.Tensor[V := Boundary.Carrier, W := A.Carrier, left := Boundary.space, right := A.space] \as BoundaryTensor;
+\import Modules.TensorSplitShortExact[A := Boundary.cyclesBundle, B := Boundary.chainsBundle, C := Boundary.boundaryBundle, N := A].On[sequence := Boundary.sequence, r := retraction] \as Splitting;
+\definition sequence: Modules.ShortExact[
+  A := Modules.Bundle { Carrier := CycleTensor.Carrier, space := CycleTensor.space },
+  B := Modules.Bundle { Carrier := CurrentTensor.Carrier, space := CurrentTensor.space },
+  C := Modules.Bundle { Carrier := BoundaryTensor.Carrier, space := BoundaryTensor.space }].Sequence := Splitting.shortExact retractCycle;
+\definition inclusion: Modules.Hom[V := CycleTensor.Carrier, W := CurrentTensor.Carrier, source := CycleTensor.space, target := CurrentTensor.space].Map := sequence.inclusion;
+\definition projection: Modules.Hom[V := CurrentTensor.Carrier, W := BoundaryTensor.Carrier, source := CurrentTensor.space, target := BoundaryTensor.space].Map := sequence.projection;
+\import \root.TensorComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].Integer[P := chain, N := A] \as NativeTensor;
+\definition tensorCarrier(k: Degree): \Set := NativeTensor.Carrier k;
+\definition tensorSpace(k: Degree): Modules.Space (tensorCarrier k) := NativeTensor.space k;
+\definition tensorFamily: Chains.Family := Chains.Family { Carrier := tensorCarrier, space := tensorSpace };
+\definition tensorDifferential: Chains.DifferentialData[tensorFamily] := Chains.DifferentialData[tensorFamily] {
+  apply := \fun (k: Degree)(x: tensorCarrier k) => NativeTensor.apply k x,
+};
+\definition tensorComplex: Chains.Complex := Chains.Complex {
+  family := tensorFamily, differential := tensorDifferential,
+  laws := Chains.DifferentialLaws[tensorFamily, tensorDifferential] {
+    addition := \fun (k: Degree)(x, y: tensorCarrier k) => #addition{NativeTensor.Step[z := k].differential} x y,
+    scalar := \fun (k: Degree)(a: I.Int^)(x: tensorCarrier k) => #scalar{NativeTensor.Step[z := k].differential} a x,
+    squareZero := \fun (k: Degree)(x: tensorCarrier k) => NativeTensor.Step[z := k].squareZero x,
+  },
+};
+\import NativeTensor.Step[z := z] \as Differential;
+\import Chains.At[C := tensorComplex, z := z] \as TensorHomology;
+\import Modules.End[V := A.Carrier, space := A.space] \as Coefficient;
+\import CycleTensor.Mapping[U := Carrier C z, Z := A.Carrier, targetLeft := space C z, targetRight := A.space] \as Inclusion;
+\import Modules.Hom[V := CurrentTensor.Carrier, W := LowerTensor.Carrier, source := CurrentTensor.space, target := LowerTensor.space].Composition[U := CycleTensor.Carrier, domain := CycleTensor.space] \as Composition;
+\import Modules.Hom[V := CycleTensor.Carrier, W := LowerTensor.Carrier, source := CycleTensor.space, target := LowerTensor.space] \as Zero;
+\import CycleTensor.Universal[U := LowerTensor.Carrier, target := LowerTensor.space] \as Universal;
+\import Modules.Of[V := Carrier C z, space := space C z].Submodule[].Of[S := Homology.cycles] \as Cycles;
+\definition differentialZero: Composition.compose Differential.differential inclusion = Zero.zeroMap :=
+  Universal.ext (Composition.compose Differential.differential inclusion) Zero.zeroMap
+    (\fun (x: Homology.Cycle)(a: A.Carrier) => trans!{LowerTensor.Carrier} _ _ _
+      (congr!{CurrentTensor.Carrier LowerTensor.Carrier} (#apply{Differential.differential}) _ _
+        (Inclusion.onTensor Cycles.inclusion Coefficient.identity x a))
+      (trans!{LowerTensor.Carrier} _ _ _ (Differential.onTensor x a)
+        (trans!{LowerTensor.Carrier} _ _ _
+          (congr!{{Carrier C (previous z)} LowerTensor.Carrier} (\fun (v: Carrier C (previous z)) => LowerTensor.tensor v a)
+            (#apply{chain.differential} z x) #zero{(space C (previous z))} (\bysub(Carrier C z, #carrier{Homology.cycles}, x)))
+          (LowerTensor.tensorZeroLeft a))));
+\definition closed: \forall (x: CycleTensor.Carrier) -> NativeTensor.apply z (#apply{inclusion} x) = #zero{LowerTensor.space} :=
+  \fun (x: CycleTensor.Carrier) => congr!{Zero.Map LowerTensor.Carrier} (\fun (f: Zero.Map) => #apply{f} x) _ _ differentialZero;
+\definition cycle(x: CycleTensor.Carrier): TensorHomology.Cycle := TensorHomology.cycle (#apply{inclusion} x) (closed x);
+\import Modules.Hom[V := CycleTensor.Carrier, W := TensorHomology.Cycle, source := CycleTensor.space, target := TensorHomology.cycleSpace] \as CycleMaps;
+\definition cycles: CycleMaps.Map := CycleMaps.Map {
+  apply := cycle,
+  addition := \fun (x, y: CycleTensor.Carrier) => #addition{inclusion} x y,
+  scalar := \fun (a: I.Int^)(x: CycleTensor.Carrier) => #scalar{inclusion} a x,
+};
+\import Modules.Hom[V := TensorHomology.Cycle, W := TensorHomology.Homology, source := TensorHomology.cycleSpace, target := TensorHomology.homologySpace].Composition[U := CycleTensor.Carrier, domain := CycleTensor.space] \as Classes;
+\definition classMap: Modules.Hom[V := CycleTensor.Carrier, W := TensorHomology.Homology, source := CycleTensor.space, target := TensorHomology.homologySpace].Map :=
+  Classes.compose TensorHomology.classLinear cycles;
+\module Boundaries;
+\module Projection;

@@ -1,0 +1,61 @@
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Logic.either;
+\structure Laws[original, selected: List[A]]: \Prop {
+  distinct: Distinct selected,
+  toSelected: \forall (x: A) -> \In[A] (keys original) x -> \In[A] (keys selected) x,
+  toOriginal: \forall (x: A) -> \In[A] (keys selected) x -> \In[A] (keys original) x,
+}
+\definition Choice(original: List[A]): \Set := \Cast[List[A]] ({ selected: List[A] \where Laws[original, selected] });
+\definition empty: Choice List[A]::nil := \into[List[A]](List[A]::nil, Choice List[A]::nil) \by {
+  Laws[List[A]::nil, List[A]::nil] {
+    distinct := nil,
+    toSelected := \fun (x: A)(member: Logic.False) => member,
+    toOriginal := \fun (x: A)(member: Logic.False) => member,
+  }
+};
+\module Step(head: A, tail: List[A], selected: Choice tail) {
+  \definition law: Laws[tail, selected] := \bysub(List[A], { xs: List[A] \where Laws[tail, xs] }, selected);
+  \definition containsHead(x: A)(same: x = head)(member: \In[A] (keys selected) head): \In[A] (keys selected) x :=
+    \idelim head = x \with y: A => \In[A] (keys selected) y \by { base: member, equality: sym!{A} x head same };
+  \definition present(member: \In[A] (keys selected) head): Choice (List[A]::cons head tail) :=
+    \into[List[A]](selected, Choice (List[A]::cons head tail)) \by {
+      Laws[List[A]::cons head tail, selected] {
+        distinct := #distinct{law},
+        toSelected := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys tail) x]) =>
+          either!{{x = head} "or" {\In[A] (keys tail) x} "either" {\In[A] (keys selected) x}
+            "lt:" {\fun (same: x = head) => containsHead x same member}
+            "rt:" {\fun (inTail: \In[A] (keys tail) x) => #toSelected{law} x inTail}} old,
+        toOriginal := \fun (x: A)(old: \In[A] (keys selected) x) => Logic.Or[_, _]::right (#toOriginal{law} x old),
+      }
+    };
+  \definition absent(outside: Logic.Not (\In[A] (keys selected) head)): Choice (List[A]::cons head tail) :=
+    \into[List[A]](List[A]::cons head selected, Choice (List[A]::cons head tail)) \by {
+      Laws[List[A]::cons head tail, List[A]::cons head selected] {
+        distinct := cons head selected outside (#distinct{law}),
+        toSelected := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys tail) x]) =>
+          either!{{x = head} "or" {\In[A] (keys tail) x} "either" {Logic.Or[x = head, \In[A] (keys selected) x]}
+            "lt:" {\fun (same: x = head) => Logic.Or[_, _]::left same}
+            "rt:" {\fun (inTail: \In[A] (keys tail) x) => Logic.Or[_, _]::right (#toSelected{law} x inTail)}} old,
+        toOriginal := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys selected) x]) =>
+          either!{{x = head} "or" {\In[A] (keys selected) x} "either" {Logic.Or[x = head, \In[A] (keys tail) x]}
+            "lt:" {\fun (same: x = head) => Logic.Or[_, _]::left same}
+            "rt:" {\fun (inSelected: \In[A] (keys selected) x) => Logic.Or[_, _]::right (#toOriginal{law} x inSelected)}} old,
+      }
+    };
+  \definition existence: \exists Choice (List[A]::cons head tail) :=
+    either!{{\In[A] (keys selected) head} "or" {Logic.Not (\In[A] (keys selected) head)} "either" {\exists Choice (List[A]::cons head tail)}
+      "lt:" {\fun (member: _) => \exact(present member, Choice (List[A]::cons head tail))}
+      "rt:" {\fun (outside: _) => \exact(absent outside, Choice (List[A]::cons head tail))}}
+      (Classical.excludedMiddle (\In[A] (keys selected) head));
+}
+\definition existence: \forall (original: List[A]) -> \exists Choice original :=
+  \induction (original: List[A]) \return \exists Choice original \with {
+    | nil: \exact(empty, Choice List[A]::nil)
+    | cons: \block {
+      \fun (head: A)(tail: List[A])(previous: \exists Choice tail) \then
+      \takefrom selected: Choice tail \by previous \then
+      \return Step[head := head, tail := tail, selected := selected].existence
+    }
+  };

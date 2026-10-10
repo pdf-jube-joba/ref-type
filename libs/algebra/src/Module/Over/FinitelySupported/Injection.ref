@@ -1,0 +1,24 @@
+\import \parent.\parent.FamilyInjection[Index := Index, family := family] \as Functions;
+\import Functions.At[i := i] \as Singleton;
+\definition supports: \forall (x: family.Carrier i) ->
+  Supports (Lists.List[Index]::cons i Lists.List[Index]::nil) (#apply{Singleton.map} x) :=
+  \fun (x: family.Carrier i)(j: Index)(outside: Logic.Not (\In[Index] (Enumeration.keys (Lists.List[Index]::cons i Lists.List[Index]::nil)) j)) =>
+    Functions.onDifferent i j x (\fun (same: i = j) =>
+      outside (Logic.Or[_, _]::left (sym!{Index} i j same)));
+\definition finite: \forall (x: family.Carrier i) -> Finite (#apply{Singleton.map} x) :=
+  \fun (x: family.Carrier i) => \exact(
+    \into[Lists.List[Index]](Lists.List[Index]::cons i Lists.List[Index]::nil,
+      { xs: Lists.List[Index] \where Supports xs (#apply{Singleton.map} x) }) \by { supports x },
+    \Cast[Lists.List[Index]] ({ xs: Lists.List[Index] \where Supports xs (#apply{Singleton.map} x) }));
+\import \parent.\parent.Hom[V := family.Carrier i, W := Carrier, source := family.space i, target := space] \as Maps;
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (x: family.Carrier i) =>
+    \into[Product.Carrier](#apply{Singleton.map} x, #carrier{submodule}) \by { finite x },
+  addition := \fun (x, y: family.Carrier i) => #addition{Singleton.map} x y,
+  scalar := \fun (a: R)(x: family.Carrier i) => #scalar{Singleton.map} a x,
+};
+\definition onSame: \forall (x: family.Carrier i) -> (#apply{map} x) i = x := Functions.onSame i;
+\definition onDifferent: \forall (x: family.Carrier i)(j: Index) -> Logic.Not (i = j) -> (#apply{map} x) j = #zero{(family.space j)} :=
+  \fun (x: family.Carrier i)(j: Index) => Functions.onDifferent i j x;
+\definition injective: \forall (x, y: family.Carrier i) -> #apply{map} x = #apply{map} y -> x = y :=
+  \fun (x, y: family.Carrier i)(same: #apply{map} x = #apply{map} y) => Singleton.injective x y same;

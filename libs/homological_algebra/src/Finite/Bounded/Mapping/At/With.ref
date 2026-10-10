@@ -1,0 +1,39 @@
+\import \root.Finite[].Pair[m := C.ranks (previous z), n := C.ranks z, p := C.ranks (next z)].Of[C := SourceResult.complex] \as SourcePair;
+\import \root.Finite[].Pair[m := D.ranks (previous z), n := D.ranks z, p := D.ranks (next z)].Of[C := TargetResult.complex] \as TargetPair;
+\import Local.With[f := local f] \as Computed;
+\import Maps.At[k := z] \as Induced;
+\import Chains.At[C := Source.chain, z := z] \as SourceHomology;
+\import Chains.At[C := Target.chain, z := z] \as TargetHomology;
+\definition coordinateRuntime: Runtime^ := Computed.coordinateRuntime;
+\definition coordinateMatrix: Commutative.Matrix[m := TargetPair.nullity, n := SourcePair.nullity].Matrix := Computed.coordinateMatrix;
+\definition induced: Modules.Hom[V := SourceHomology.Homology, W := TargetHomology.Homology,
+  source := SourceHomology.homologySpace, target := TargetHomology.homologySpace].Map := Induced.induced (chainMap f);
+\definition factors: Modules.Hom[V := SourcePair.FactorHomology, W := TargetPair.FactorHomology,
+  source := SourcePair.factorSpace, target := TargetPair.factorSpace].Map := Computed.factors;
+\definition pairNaturality: \forall (q: SourceHomology.Homology) ->
+  #apply{#forward{TargetResult.pairIsomorphism}} (#apply{induced} q) =
+  #apply{Computed.induced} (#apply{#forward{SourceResult.pairIsomorphism}} q) :=
+  SourceHomology.classInduction (\fun (q: SourceHomology.Homology) =>
+    #apply{#forward{TargetResult.pairIsomorphism}} (#apply{induced} q) =
+      #apply{Computed.induced} (#apply{#forward{SourceResult.pairIsomorphism}} q))
+    (\fun (x: SourceHomology.Cycle) => trans!{TargetPair.Homology} _ _ _
+      (congr!{TargetHomology.Homology TargetPair.Homology} (#apply{#forward{TargetResult.pairIsomorphism}}) _ _
+        (Induced.onClass (chainMap f) x))
+      (trans!{TargetPair.Homology} _ _ _
+        (TargetResult.pairOnClass (#apply{(Induced.cyclesMap (chainMap f))} x))
+        (sym!{TargetPair.Homology} _ _
+          (trans!{TargetPair.Homology} _ _ _
+            (congr!{SourcePair.Homology TargetPair.Homology} (#apply{Computed.induced}) _ _
+              (SourceResult.pairOnClass x))
+            (Computed.onClass x)))));
+\definition intertwines: \forall (q: SourceHomology.Homology) ->
+  #apply{factors} (#apply{#forward{SourceResult.factorIsomorphism}} q) =
+  #apply{#forward{TargetResult.factorIsomorphism}} (#apply{induced} q) :=
+  \fun (q: SourceHomology.Homology) => trans!{TargetPair.FactorHomology} _ _ _
+    (Computed.intertwines (#apply{#forward{SourceResult.pairIsomorphism}} q))
+    (congr!{TargetPair.Homology TargetPair.FactorHomology} (#apply{#forward{TargetPair.factorIsomorphism}}) _ _
+      (sym!{TargetPair.Homology} _ _ (pairNaturality q)));
+\definition onFactorClasses: \forall (v: Modules.FiniteCoordinates[n := SourcePair.nullity].Carrier) ->
+  #apply{factors} (SourcePair.factorClasses v) =
+    TargetPair.factorClasses (Commutative.Matrix[m := TargetPair.nullity, n := SourcePair.nullity].apply coordinateMatrix v) :=
+  Computed.onFactorClasses;

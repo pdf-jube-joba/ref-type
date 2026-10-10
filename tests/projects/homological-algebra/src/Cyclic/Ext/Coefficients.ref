@@ -1,0 +1,49 @@
+\import Presentation.Cohomology[A := Z2.bundle] \as Source;
+\import Presentation.Cohomology[A := Z4.bundle] \as Target;
+\import Source.Mapping[B := Z4.bundle, u := inclusion] \as InclusionComparison;
+\import Target.Mapping[B := Z2.bundle, u := projection] \as ProjectionComparison;
+\import Modules.Of[V := Z2.Carrier, space := Z2.space].Submodule[].Quotient[S := Source.multiples] \as SQ;
+\import Modules.Of[V := Z4.Carrier, space := Z4.space].Submodule[] \as TargetSub;
+\import TargetSub.Quotient[S := Target.multiples] \as TQ;
+\import TargetSub.Image[U := Z4.Carrier, source := Z4.space] \as TargetImage;
+\import homological_algebra.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Z2.bundle, N := Z2.bundle, P := Presentation.complex].At[n := one] \as SH;
+\import homological_algebra.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Second[M := Z2.bundle, N := Z2.bundle, L := Z4.bundle, P := Presentation.complex].At[k := one] \as InclusionMap;
+\import homological_algebra.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Second[M := Z2.bundle, N := Z4.bundle, L := Z2.bundle, P := Presentation.complex].At[k := one] \as ProjectionMap;
+\definition inclusionQuotientZero: \forall (q: SQ.Carrier) -> #apply{InclusionComparison.map} q = #zero{TQ.moduleSpace} := SQ.induction
+  (\fun (q: SQ.Carrier) => #apply{InclusionComparison.map} q = #zero{TQ.moduleSpace})
+  (Z2.induction (\fun (x: Z2.Carrier) => #apply{InclusionComparison.map} (SQ.class x) = #zero{TQ.moduleSpace})
+    (\fun (r: Int.Int^) => trans!{TQ.Carrier} _ _ _
+      (InclusionComparison.onCoefficientClass (Z2.class r))
+      (trans!{TQ.Carrier} _ _ _
+        (congr!{Z4.Carrier TQ.Carrier} TQ.class _ _ (inclusionOnClass r))
+        (trans!{TQ.Carrier} _ _ _
+          (congr!{Z4.Carrier TQ.Carrier} TQ.class _ _ (sym!{Z4.Carrier} _ _ (Z4.onScalar two r)))
+          (TQ.classZero (#smul{Z4.space} two (Z4.class r)) (TargetImage.member Target.multiplication (Z4.class r)))))));
+\import Modules.Hom[V := TQ.Carrier, W := H.Carrier, source := TQ.moduleSpace, target := H.space] \as BackwardMaps;
+\definition inclusionZero: \forall (q: SH.Carrier) -> #apply{(InclusionMap.map inclusion)} q = #zero{H.space} :=
+  \fun (q: SH.Carrier) => trans!{H.Carrier} _ _ _
+    (sym!{H.Carrier} _ _ (#leftInverse{Target.isomorphism} (#apply{(InclusionMap.map inclusion)} q)))
+    (trans!{H.Carrier} _ _ _
+      (congr!{TQ.Carrier H.Carrier} (#apply{#backward{Target.isomorphism}}) _ _
+        (trans!{TQ.Carrier} _ _ _ (InclusionComparison.naturality q) (inclusionQuotientZero (#apply{#forward{Source.isomorphism}} q))))
+      (BackwardMaps.zeroPreserved #backward{Target.isomorphism}));
+\import Z2.Reduction[k := Arithmetic.one] \as SelfReduction;
+\import SelfReduction.Modulo[] \as SelfModulo;
+\import Projection.Modulo[] \as TargetModulo;
+\import Presentation.Coefficients[k := Nat.Nat^::zero].Ext[] \as SourceComputation;
+\definition quotientProjection: \forall (q: TQ.Carrier) ->
+  #apply{SelfModulo.forward} (#apply{ProjectionComparison.map} q) = #apply{TargetModulo.forward} q := TQ.induction
+    (\fun (q: TQ.Carrier) => #apply{SelfModulo.forward} (#apply{ProjectionComparison.map} q) = #apply{TargetModulo.forward} q)
+    (Z4.induction (\fun (x: Z4.Carrier) => #apply{SelfModulo.forward} (#apply{ProjectionComparison.map} (TQ.class x)) = #apply{TargetModulo.forward} (TQ.class x))
+      (\fun (r: Int.Int^) => trans!{Z2.Carrier} _ _ _
+        (congr!{SQ.Carrier Z2.Carrier} (#apply{SelfModulo.forward}) _ _ (ProjectionComparison.onCoefficientClass (Z4.class r)))
+        (trans!{Z2.Carrier} _ _ _ (SelfModulo.forwardOnClass (#apply{projection} (Z4.class r)))
+          (trans!{Z2.Carrier} _ _ _
+            (congr!{Z2.Carrier Z2.Carrier} (#apply{SelfReduction.map}) _ _ (projectionOnClass r))
+            (trans!{Z2.Carrier} _ _ _ (SelfReduction.onClass r)
+              (sym!{Z2.Carrier} _ _ (trans!{Z2.Carrier} _ _ _ (TargetModulo.forwardOnClass (Z4.class r)) (projectionOnClass r))))))));
+\definition projectionIdentity: \forall (q: H.Carrier) ->
+  #apply{#forward{SourceComputation.isomorphism}} (#apply{(ProjectionMap.map projection)} q) = #apply{#forward{isomorphism}} q :=
+    \fun (q: H.Carrier) => trans!{Z2.Carrier} _ _ _
+      (congr!{SQ.Carrier Z2.Carrier} (#apply{SelfModulo.forward}) _ _ (ProjectionComparison.naturality q))
+      (quotientProjection (#apply{#forward{Target.isomorphism}} q));

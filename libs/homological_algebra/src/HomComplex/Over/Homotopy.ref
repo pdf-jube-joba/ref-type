@@ -1,0 +1,20 @@
+\import \parent.On[P := Q, N := N] \as Source;
+\import \parent.On[P := P, N := N] \as Target;
+\import Chains.Map[C := P, D := Q] \as ChainMaps;
+\import Chains.Homotopy[C := P, D := Q] \as Homotopies;
+\import \parent.Mapping[P := P, Q := Q, N := N, L := N] \as Actions;
+\import Modules.End[V := N.Carrier, space := N.space] \as Coefficients;
+\import Cochains.Map[C := Source.complex, D := Target.complex] \as Maps;
+\definition map(f: ChainMaps.Map): Maps.Map := Actions.On[f := f, u := Coefficients.identity].map;
+\module At(k: Nat.Nat^);
+\module Zero;
+\module Positive(n: Nat.Nat^);
+\definition onCohomology: \forall (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(k: Nat.Nat^)(q: Cochains.At[C := Source.complex, k := k].Cohomology) ->
+  #apply{(Maps.At[k := k].induced (map f))} q = #apply{(Maps.At[k := k].induced (map g))} q :=
+  \fun (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g) =>
+    \induction (k: Nat.Nat^) \return \forall (q: Cochains.At[C := Source.complex, k := k].Cohomology) ->
+      #apply{(Maps.At[k := k].induced (map f))} q = #apply{(Maps.At[k := k].induced (map g))} q \with {
+        | zero: Zero[].onCohomology f g h
+        | succ: \fun (n: Nat.Nat^)(before: \forall (q: Cochains.At[C := Source.complex, k := n].Cohomology) ->
+            #apply{(Maps.At[k := n].induced (map f))} q = #apply{(Maps.At[k := n].induced (map g))} q) => Positive[n := n].onCohomology f g h
+      };

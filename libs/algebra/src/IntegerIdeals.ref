@@ -1,0 +1,48 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Bounds;
+\import N.Induction[] \as Induction;
+\import N.Division[].Def[] \as Division;
+\import N.Division[].Prop[] \as DivisionLaws;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Arithmetic[].ExtendedEuclid[] \as Euclid;
+\import Euclid.Signed[] \as Signed;
+\import std.Alg[].Ring[] \as Ring;
+\import algebra.Module[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Modules;
+\import Modules.Submodule[V := I.Int^, space := Modules.scalarModule] \as Submodules;
+\import I.Math[].Specification[].Prop[] \as IntegerLaws;
+\import IntegerLaws.Multiplication[] \as Product;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Logic.either;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition natural: N.Nat^ -> I.Int^ := I.Int^::ofNat;
+\definition zeroAbsolute: \forall (x: I.Int^) -> Signed.absolute x = N.Nat^::zero -> x = Arithmetic.zero :=
+  \induction (x: I.Int^) \return Signed.absolute x = N.Nat^::zero -> x = Arithmetic.zero \with {
+    | ofNat: \fun (n: N.Nat^)(equal: _) => congr!{N.Nat^ I.Int^} natural n N.Nat^::zero equal
+    | negSucc: \fun (n: N.Nat^)(bad: _) => Logic.falseElim _ (Bounds.succNeZero n bad)
+  };
+\definition positiveOfNonzero: \forall (n: N.Nat^) -> Logic.Not (n = N.Nat^::zero) -> Bounds.Lt N.Nat^::zero n :=
+  \induction (n: N.Nat^) \return Logic.Not (n = N.Nat^::zero) -> Bounds.Lt N.Nat^::zero n \with {
+    | zero: \fun (bad: Logic.Not (N.Nat^::zero = N.Nat^::zero)) => Logic.falseElim (Bounds.Lt N.Nat^::zero N.Nat^::zero) (bad (\refl(N.Nat^::zero)))
+    | succ: \fun (n: N.Nat^)(unused: Logic.Not (n = N.Nat^::zero) -> Bounds.Lt N.Nat^::zero n)(nonzero: Logic.Not (N.Nat^::succ n = N.Nat^::zero)) => \refl(std.Data[].Bool[].Bool^::true)
+  };
+\definition remainderLess: \forall (a, d: N.Nat^) -> Bounds.Lt N.Nat^::zero d -> Bounds.Lt (Division.mod a d) d :=
+  \fun (a: N.Nat^) => \induction (d: N.Nat^) \return Bounds.Lt N.Nat^::zero d -> Bounds.Lt (Division.mod a d) d \with {
+    | zero: \fun (bad: Bounds.Lt N.Nat^::zero N.Nat^::zero) => Logic.falseElim (Bounds.Lt (Division.mod a N.Nat^::zero) N.Nat^::zero) (Bounds.ltIrrefl N.Nat^::zero bad)
+    | succ: \fun (d: N.Nat^)(unused: Bounds.Lt N.Nat^::zero d -> Bounds.Lt (Division.mod a d) d)(positive: Bounds.Lt N.Nat^::zero (N.Nat^::succ d)) => DivisionLaws.modLt a d
+  };
+\definition Submodule: \Set := Submodules.Submodule;
+\structure PrincipalLaws[S: Submodules.Submodule, d: N.Nat^]: \Prop {
+  generator: Submodules.Member S (natural d),
+  contains: \forall (x: I.Int^) -> Submodules.Member S x -> Signed.Divides (natural d) x,
+  multiples: \forall (q: I.Int^) -> Submodules.Member S (Arithmetic.mul (natural d) q),
+}
+\definition Principal(S: Submodules.Submodule): \Set := \Cast[N.Nat^] ({ d: N.Nat^ \where PrincipalLaws[S, d] });
+\module On(S: Submodules.Submodule);
+\definition principal: \forall (S: Submodules.Submodule) -> \exists Principal S := \fun (S: Submodules.Submodule) => On[S := S].existence;

@@ -1,0 +1,23 @@
+\import Commutative.Matrix[m := C.ranks (previous z), n := C.ranks z] \as Matrix;
+\import Commutative.Matrix[m := C.ranks (previous z), n := C.ranks (previous z)] \as PreviousMatrix;
+\import Commutative.Matrix[m := C.ranks z, n := C.ranks z] \as CurrentMatrix;
+\import PreviousMatrix.Composition[k := C.ranks z] \as First;
+\import Matrix.Composition[k := C.ranks z] \as Second;
+\import algebra.IntegerMatrix[m := C.ranks (previous z), n := C.ranks (previous z)].Product[k := C.ranks z] \as FirstNative;
+\import algebra.IntegerMatrix[m := C.ranks (previous z), n := C.ranks z].Product[k := C.ranks z] \as SecondNative;
+\definition previousMatrix: PreviousMatrix.Matrix := \fun (i, j: Indices.Fin (C.ranks (previous z))) => change.forward (previous z) i j;
+\definition oldBoundary: Matrix.Matrix := \fun (i: Indices.Fin (C.ranks (previous z)))(j: Indices.Fin (C.ranks z)) => C.boundary z i j;
+\definition inverseMatrix: CurrentMatrix.Matrix := \fun (i, j: Indices.Fin (C.ranks z)) => change.backward z i j;
+\definition firstMatrix: Matrix.Matrix := \fun (i: Indices.Fin (C.ranks (previous z)))(j: Indices.Fin (C.ranks z)) => firstBoundary z i j;
+\definition newBoundary: Matrix.Matrix := \fun (i: Indices.Fin (C.ranks (previous z)))(j: Indices.Fin (C.ranks z)) => boundary z i j;
+\definition firstCorrespondence: firstMatrix = First.product previousMatrix oldBoundary := FirstNative.correspondence (change.forward (previous z)) (C.boundary z);
+\definition correspondence: newBoundary = Second.product (First.product previousMatrix oldBoundary) inverseMatrix :=
+  trans!{Matrix.Matrix} newBoundary (Second.product firstMatrix inverseMatrix) (Second.product (First.product previousMatrix oldBoundary) inverseMatrix)
+    (SecondNative.correspondence (firstBoundary z) (change.backward z))
+    (congr!{Matrix.Matrix Matrix.Matrix} (\fun (a: Matrix.Matrix) => Second.product a inverseMatrix) firstMatrix (First.product previousMatrix oldBoundary) firstCorrespondence);
+\definition action: \forall (v: Carrier C z) -> Matrix.apply newBoundary v = Mathematical.apply z v :=
+  \fun (v: Carrier C z) => trans!{{Carrier C (previous z)}} _ _ _
+    (congr!{Matrix.Matrix {Carrier C (previous z)}} (\fun (a: Matrix.Matrix) => Matrix.apply a v) newBoundary (Second.product (First.product previousMatrix oldBoundary) inverseMatrix) correspondence)
+    (trans!{{Carrier C (previous z)}} _ _ _
+      (Second.point (First.product previousMatrix oldBoundary) inverseMatrix v)
+      (First.point previousMatrix oldBoundary (CurrentMatrix.apply inverseMatrix v)));

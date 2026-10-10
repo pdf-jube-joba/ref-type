@@ -1,0 +1,25 @@
+\import \parent.\parent.Matrix[m := n, n := k] \as Before;
+\import \parent.\parent.Matrix[m := m, n := k] \as Result;
+\import Before.Representation[] \as BeforeRepresentation;
+\import Result.Representation[] \as ResultRepresentation;
+\import Modules.FiniteCoordinates[n := k] \as Input;
+\import Maps.Composition[U := Input.Carrier, domain := Input.space] \as MapsComposition;
+\import Modules.Hom[V := Input.Carrier, W := Codomain.Carrier, source := Input.space, target := Codomain.space] \as ResultMaps;
+\definition product(a: Matrix)(b: Before.Matrix): Result.Matrix := \fun (i: Finite.Fin m)(l: Finite.Fin k) =>
+  Sums.sum (Finite.elements n) (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (b j l));
+\definition entriesCompose: \forall (a: Matrix)(b: Before.Matrix) -> Result.entries (MapsComposition.compose (linear a) (Before.linear b)) = product a b :=
+  \fun (a: Matrix)(b: Before.Matrix) => \axiom:funext(Result.entries (MapsComposition.compose (linear a) (Before.linear b)), product a b,
+    \fun (i: Finite.Fin m) => \axiom:funext(Result.entries (MapsComposition.compose (linear a) (Before.linear b)) i, product a b i,
+      \fun (l: Finite.Fin k) => SumLaws.congruent (Finite.elements n)
+        (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (Before.apply b (Input.basis l) j))
+        (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (b j l))
+        (\fun (j: Finite.Fin n) => congr!{R R} (#mul{ordinaryRing} (a i j)) _ _ (BeforeRepresentation.onBasis b j l))));
+\definition law: \forall (a: Matrix)(b: Before.Matrix) -> Result.linear (product a b) = MapsComposition.compose (linear a) (Before.linear b) :=
+  \fun (a: Matrix)(b: Before.Matrix) => trans!{ResultMaps.Map} _ _ _
+    (congr!{Result.Matrix ResultMaps.Map} Result.linear _ _ (sym!{Result.Matrix} _ _ (entriesCompose a b)))
+    (ResultRepresentation.mapRoundtrip (MapsComposition.compose (linear a) (Before.linear b)));
+
+\definition point: \forall (a: Matrix)(b: Before.Matrix)(v: Input.Carrier) -> Result.apply (product a b) v = apply a (Before.apply b v) :=
+  \fun (a: Matrix)(b: Before.Matrix)(v: Input.Carrier) => congr!{ResultMaps.Map Codomain.Carrier}
+    (\fun (f: ResultMaps.Map) => #apply{f} v) _ _ (law a b);
+\module Associativity(l: N.Nat^);

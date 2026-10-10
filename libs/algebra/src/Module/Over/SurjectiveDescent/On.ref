@@ -1,0 +1,86 @@
+\definition Onto: \Prop := \forall (y: B.Carrier) -> \exists { x: A.Carrier \where #apply{q} x = y };
+\definition KillsKernel: \Prop := \forall (x: A.Carrier) -> #apply{q} x = Middle.zero -> #apply{f} x = Target.zero;
+\definition sameFiber: KillsKernel -> \forall (x, z: A.Carrier) -> #apply{q} x = #apply{q} z -> #apply{f} x = #apply{f} z :=
+  \fun (kills: KillsKernel)(x, z: A.Carrier)(equal: #apply{q} x = #apply{q} z) =>
+    Group.cancelRight (Target.neg (#apply{f} z)) (#apply{f} x) (#apply{f} z)
+      (trans!{U.Carrier} _ _ _
+        (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (Input.differencePreserved f x z))
+          (kills (Source.add x (Source.neg z))
+            (trans!{B.Carrier} _ _ _ (Maps.differencePreserved q x z)
+              (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} (\fun (b: B.Carrier) => MiddleGroup.difference b (#apply{q} z)) _ _ equal)
+                (MiddleGroup.inverseRight (#apply{q} z))))))
+        (sym!{U.Carrier} _ _ (Group.inverseRight (#apply{f} z))));
+\definition Values(y: B.Carrier): \Pow U.Carrier :=
+  { u: U.Carrier \where \exists { x: A.Carrier \where Logic.And[#apply{q} x = y, #apply{f} x = u] } };
+\definition Value(y: B.Carrier): \Set := \Cast[U.Carrier] (Values y);
+\definition witness(x: A.Carrier): Value (#apply{q} x) :=
+  \into[U.Carrier](#apply{f} x, Values (#apply{q} x)) \by {
+    \exact(\into[A.Carrier](x, { z: A.Carrier \where Logic.And[#apply{q} z = #apply{q} x, #apply{f} z = #apply{f} x] }) \by {
+      Logic.And[_, _]::# (\refl(#apply{q} x)) (\refl(#apply{f} x))
+    }, \Cast[A.Carrier] ({ z: A.Carrier \where Logic.And[#apply{q} z = #apply{q} x, #apply{f} z = #apply{f} x] }))
+  };
+\definition existence: Onto -> \forall (y: B.Carrier) -> \exists Value y := \block {
+  \fun (onto: Onto)(y: B.Carrier) \then
+  \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where #apply{q} x = y }) \by onto y \then
+  \return \idelim #apply{q} x = y \with b: B.Carrier => \exists Value b \by {
+    base: \exact(witness x, Value (#apply{q} x)), equality: \bysub(A.Carrier, { x: A.Carrier \where #apply{q} x = y }, x)
+  }
+};
+\definition uniqueness: KillsKernel -> \forall (y: B.Carrier)(u, v: Value y) -> u = v := \block {
+  \fun (kills: KillsKernel)(y: B.Carrier)(u, v: Value y) \then
+  \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where Logic.And[#apply{q} x = y, #apply{f} x = u] }) \by \bysub(U.Carrier, Values y, u) \then
+  \takefrom z: \Cast[A.Carrier] ({ z: A.Carrier \where Logic.And[#apply{q} z = y, #apply{f} z = v] }) \by \bysub(U.Carrier, Values y, v) \then
+  \let first: Logic.And[#apply{q} x = y, #apply{f} x = u] := \bysub(A.Carrier, { x: A.Carrier \where Logic.And[#apply{q} x = y, #apply{f} x = u] }, x) \then
+  \let second: Logic.And[#apply{q} z = y, #apply{f} z = v] := \bysub(A.Carrier, { z: A.Carrier \where Logic.And[#apply{q} z = y, #apply{f} z = v] }, z) \then
+  \return trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (#right{first}))
+    (trans!{U.Carrier} _ _ _ (sameFiber kills x z (trans!{B.Carrier} _ _ _ (#left{first}) (sym!{B.Carrier} _ _ (#left{second})))) (#right{second}))
+};
+\definition value(onto: Onto)(kills: KillsKernel)(y: B.Carrier): U.Carrier :=
+  \choice Value y \by { existence: existence onto y, uniqueness: uniqueness kills y };
+\definition onImage: \forall (onto: Onto)(kills: KillsKernel)(x: A.Carrier) -> value onto kills (#apply{q} x) = #apply{f} x :=
+  \fun (onto: Onto)(kills: KillsKernel)(x: A.Carrier) => sym!{U.Carrier} _ _
+    (\choiceeq witness x \of Value (#apply{q} x) \by { existence: existence onto (#apply{q} x), uniqueness: uniqueness kills (#apply{q} x) });
+\definition addition: \forall (onto: Onto)(kills: KillsKernel)(y, z: B.Carrier) ->
+  value onto kills (Middle.add y z) = Target.add (value onto kills y) (value onto kills z) := \block {
+  \fun (onto: Onto)(kills: KillsKernel)(y, z: B.Carrier) \then
+  \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where #apply{q} x = y }) \by onto y \then
+  \takefrom w: \Cast[A.Carrier] ({ w: A.Carrier \where #apply{q} w = z }) \by onto z \then
+  \let ex: #apply{q} x = y := \bysub(A.Carrier, { x: A.Carrier \where #apply{q} x = y }, x) \then
+  \let ew: #apply{q} w = z := \bysub(A.Carrier, { w: A.Carrier \where #apply{q} w = z }, w) \then
+  \return eq_reason!{{value onto kills (Middle.add y z)}
+    "=" {value onto kills (#apply{q} (Source.add x w))}
+    "by" {congr!{B.Carrier U.Carrier} (value onto kills) _ _ (sym!{B.Carrier} _ _ (trans!{B.Carrier} _ _ _ (#addition{q} x w) (congr2!{B.Carrier B.Carrier B.Carrier} Middle.add _ _ _ _ ex ew)))}
+    "=" {#apply{f} (Source.add x w)} "by" {onImage onto kills (Source.add x w)}
+    "=" {Target.add (#apply{f} x) (#apply{f} w)} "by" {#addition{f} x w}
+    "=" {Target.add (value onto kills y) (value onto kills z)}
+    "by" {congr2!{U.Carrier U.Carrier U.Carrier} Target.add _ _ _ _
+      (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (onImage onto kills x)) (congr!{B.Carrier U.Carrier} (value onto kills) _ _ ex))
+      (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (onImage onto kills w)) (congr!{B.Carrier U.Carrier} (value onto kills) _ _ ew))}}
+};
+\definition scalar: \forall (onto: Onto)(kills: KillsKernel)(a: R)(y: B.Carrier) ->
+  value onto kills (Middle.scale a y) = Target.scale a (value onto kills y) := \block {
+  \fun (onto: Onto)(kills: KillsKernel)(a: R)(y: B.Carrier) \then
+  \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where #apply{q} x = y }) \by onto y \then
+  \let ex: #apply{q} x = y := \bysub(A.Carrier, { x: A.Carrier \where #apply{q} x = y }, x) \then
+  \return eq_reason!{{value onto kills (Middle.scale a y)}
+    "=" {value onto kills (#apply{q} (Source.scale a x))}
+    "by" {congr!{B.Carrier U.Carrier} (value onto kills) _ _ (sym!{B.Carrier} _ _ (trans!{B.Carrier} _ _ _ (#scalar{q} a x) (congr!{B.Carrier B.Carrier} (Middle.scale a) _ _ ex)))}
+    "=" {#apply{f} (Source.scale a x)} "by" {onImage onto kills (Source.scale a x)}
+    "=" {Target.scale a (#apply{f} x)} "by" {#scalar{f} a x}
+    "=" {Target.scale a (value onto kills y)} "by" {congr!{U.Carrier U.Carrier} (Target.scale a) _ _
+      (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (onImage onto kills x)) (congr!{B.Carrier U.Carrier} (value onto kills) _ _ ex))}}
+};
+\definition map(onto: Onto)(kills: KillsKernel): Output.Map := Output.Map {
+  apply := \fun (y: B.Carrier) => value onto kills y, addition := addition onto kills, scalar := scalar onto kills,
+};
+\definition unique: \forall (onto: Onto)(kills: KillsKernel)(h: Output.Map) ->
+  (\forall (x: A.Carrier) -> #apply{h} (#apply{q} x) = #apply{f} x) -> h = map onto kills :=
+  \fun (onto: Onto)(kills: KillsKernel)(h: Output.Map)(agrees: \forall (x: A.Carrier) -> #apply{h} (#apply{q} x) = #apply{f} x) =>
+    Output.ext h (map onto kills) (\block {
+      \fun (y: B.Carrier) \then
+      \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where #apply{q} x = y }) \by onto y \then
+      \let ex: #apply{q} x = y := \bysub(A.Carrier, { x: A.Carrier \where #apply{q} x = y }, x) \then
+      \return trans!{U.Carrier} _ _ _ (congr!{B.Carrier U.Carrier} (#apply{h}) _ _ (sym!{B.Carrier} _ _ ex))
+        (trans!{U.Carrier} _ _ _ (agrees x)
+          (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (onImage onto kills x)) (congr!{B.Carrier U.Carrier} (value onto kills) _ _ ex)))
+    });

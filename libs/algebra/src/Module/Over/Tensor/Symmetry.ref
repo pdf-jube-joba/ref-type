@@ -1,0 +1,46 @@
+\import \parent.\parent.Tensor[V := W, W := V, left := right, right := left] \as Target;
+\definition values(x: V)(y: W): Target.Carrier := Target.tensor y x;
+\definition laws: BilinearLaws[Target.Carrier, Target.space, values] := BilinearLaws[Target.Carrier, Target.space, values] {
+  addLeft := \fun (x, z: V)(y: W) => #addRight{Target.bilinear} y x z,
+  addRight := \fun (x: V)(y, z: W) => #addLeft{Target.bilinear} y z x,
+  scaleLeft := \fun (a: R)(x: V)(y: W) => #scaleRight{Target.bilinear} a y x,
+  scaleRight := \fun (a: R)(x: V)(y: W) => #scaleLeft{Target.bilinear} a y x,
+};
+\import \parent.Universal[U := Target.Carrier, target := Target.space] \as Universal;
+\definition forward: \parent.\parent.Hom[V := Carrier, W := Target.Carrier, source := space, target := Target.space].Map := Universal.map values laws;
+\definition onTensor: \forall (x: V)(y: W) -> #apply{forward} (tensor x y) = Target.tensor y x := Universal.onTensor values laws;
+\definition backwardValues(y: W)(x: V): Carrier := tensor x y;
+\definition backwardLaws: Target.BilinearLaws[Carrier, space, backwardValues] := Target.BilinearLaws[Carrier, space, backwardValues] {
+  addLeft := \fun (y, z: W)(x: V) => #addRight{bilinear} x y z,
+  addRight := \fun (y: W)(x, z: V) => #addLeft{bilinear} x z y,
+  scaleLeft := \fun (a: R)(y: W)(x: V) => #scaleRight{bilinear} a x y,
+  scaleRight := \fun (a: R)(y: W)(x: V) => #scaleLeft{bilinear} a x y,
+};
+\import Target.Universal[U := Carrier, target := space] \as BackwardUniversal;
+\definition backward: \parent.\parent.Hom[V := Target.Carrier, W := Carrier, source := Target.space, target := space].Map := BackwardUniversal.map backwardValues backwardLaws;
+\definition backwardOnTensor: \forall (y: W)(x: V) -> #apply{backward} (Target.tensor y x) = tensor x y := BackwardUniversal.onTensor backwardValues backwardLaws;
+\import \parent.\parent.Hom[V := Target.Carrier, W := Carrier, source := Target.space, target := space].Composition[U := Carrier, domain := space] \as LeftCompose;
+\import \parent.\parent.End[V := Carrier, space := space] \as SourceEnd;
+\import \parent.Universal[U := Carrier, target := space] \as LeftUniversal;
+\definition leftEquality: LeftCompose.compose backward forward = SourceEnd.identity :=
+  LeftUniversal.ext (LeftCompose.compose backward forward) SourceEnd.identity
+    (\fun (x: V)(y: W) => trans!{Carrier} _ _ _
+      (congr!{Target.Carrier Carrier} (#apply{backward}) _ _ (onTensor x y)) (backwardOnTensor y x));
+\import \parent.\parent.Hom[V := Carrier, W := Carrier, source := space, target := space] \as SourceMaps;
+\definition leftInverse: \forall (x: Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: Carrier) => congr!{SourceMaps.Map Carrier} (\fun (g: SourceMaps.Map) => #apply{g} x) _ _ leftEquality;
+\import \parent.\parent.Hom[V := Carrier, W := Target.Carrier, source := space, target := Target.space].Composition[U := Target.Carrier, domain := Target.space] \as RightCompose;
+\import \parent.\parent.End[V := Target.Carrier, space := Target.space] \as TargetEnd;
+\import Target.Universal[U := Target.Carrier, target := Target.space] \as RightUniversal;
+\definition rightEquality: RightCompose.compose forward backward = TargetEnd.identity :=
+  RightUniversal.ext (RightCompose.compose forward backward) TargetEnd.identity
+    (\fun (y: W)(x: V) => trans!{Target.Carrier} _ _ _
+      (congr!{Carrier Target.Carrier} (#apply{forward}) _ _ (backwardOnTensor y x)) (onTensor x y));
+\import \parent.\parent.Hom[V := Target.Carrier, W := Target.Carrier, source := Target.space, target := Target.space] \as TargetMaps;
+\definition rightInverse: \forall (y: Target.Carrier) -> #apply{forward} (#apply{backward} y) = y :=
+  \fun (y: Target.Carrier) => congr!{TargetMaps.Map Target.Carrier} (\fun (g: TargetMaps.Map) => #apply{g} y) _ _ rightEquality;
+\definition isomorphism: \parent.\parent.Isomorphism[V := Carrier, W := Target.Carrier, source := space, target := Target.space].Isomorphism :=
+  \parent.\parent.Isomorphism[V := Carrier, W := Target.Carrier, source := space, target := Target.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };
+\module Mapping(U, Z: \Set, targetLeft: Space U, targetRight: Space Z);

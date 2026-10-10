@@ -1,0 +1,47 @@
+\import Modules.ProjectiveLaws[].Scalar[] \as Scalar;
+\module Zero {
+  \import Modules.Hom[V := family.Carrier Nat.Nat^::zero, W := Int.Int^, source := family.space Nat.Nat^::zero, target := Modules.scalarModule] \as Inclusion;
+  \import Modules.Hom[V := Int.Int^, W := family.Carrier Nat.Nat^::zero, source := Modules.scalarModule, target := family.space Nat.Nat^::zero] \as Section;
+  \definition inclusion: Inclusion.Map := Inclusion.Map {
+    apply := \fun (x: family.Carrier Nat.Nat^::zero) => x, addition := \fun (x, y: family.Carrier Nat.Nat^::zero) => \refl(Arithmetic.add x y), scalar := \fun (a: Int.Int^)(x: family.Carrier Nat.Nat^::zero) => \refl(Arithmetic.mul a x),
+  };
+  \definition section: Section.Map := Section.Map {
+    apply := zeroIntro, addition := \fun (x, y: Int.Int^) => \refl(Arithmetic.add x y), scalar := \fun (a, x: Int.Int^) => \refl(Arithmetic.mul a x),
+  };
+  \import Modules.ProjectiveLaws[].Retract[P := term Nat.Nat^::zero, Q := Scalar.bundle, inclusion := inclusion, retraction := section] \as Retract;
+  \definition projective: Modules.Projective (term Nat.Nat^::zero) := Retract.projective (\fun (x: family.Carrier Nat.Nat^::zero) => \refl(x)) Scalar.projective;
+  \definition isomorphism: Modules.Isomorphism[V := family.Carrier Nat.Nat^::zero, W := Int.Int^, source := family.space Nat.Nat^::zero, target := Modules.scalarModule].Isomorphism := Modules.Isomorphism[V := family.Carrier Nat.Nat^::zero, W := Int.Int^, source := family.space Nat.Nat^::zero, target := Modules.scalarModule].Isomorphism {
+    forward := inclusion, backward := section,
+    leftInverse := \fun (x: family.Carrier Nat.Nat^::zero) => \refl(x), rightInverse := \fun (x: Int.Int^) => \refl(x),
+  };
+}
+\module One {
+  \import Modules.Hom[V := family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), W := Int.Int^, source := family.space (Nat.Nat^::succ Nat.Nat^::zero), target := Modules.scalarModule] \as Inclusion;
+  \import Modules.Hom[V := Int.Int^, W := family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), source := Modules.scalarModule, target := family.space (Nat.Nat^::succ Nat.Nat^::zero)] \as Section;
+  \definition inclusion: Inclusion.Map := Inclusion.Map {
+    apply := \fun (x: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => x, addition := \fun (x, y: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => \refl(Arithmetic.add x y), scalar := \fun (a: Int.Int^)(x: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => \refl(Arithmetic.mul a x),
+  };
+  \definition section: Section.Map := Section.Map {
+    apply := oneIntro, addition := \fun (x, y: Int.Int^) => \refl(Arithmetic.add x y), scalar := \fun (a, x: Int.Int^) => \refl(Arithmetic.mul a x),
+  };
+  \import Modules.ProjectiveLaws[].Retract[P := term (Nat.Nat^::succ Nat.Nat^::zero), Q := Scalar.bundle, inclusion := inclusion, retraction := section] \as Retract;
+  \definition projective: Modules.Projective (term (Nat.Nat^::succ Nat.Nat^::zero)) := Retract.projective (\fun (x: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => \refl(x)) Scalar.projective;
+  \definition isomorphism: Modules.Isomorphism[V := family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), W := Int.Int^, source := family.space (Nat.Nat^::succ Nat.Nat^::zero), target := Modules.scalarModule].Isomorphism := Modules.Isomorphism[V := family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), W := Int.Int^, source := family.space (Nat.Nat^::succ Nat.Nat^::zero), target := Modules.scalarModule].Isomorphism {
+    forward := inclusion, backward := section,
+    leftInverse := \fun (x: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => \refl(x), rightInverse := \fun (x: Int.Int^) => \refl(x),
+  };
+}
+\module High(n: Nat.Nat^) {
+  \import Modules.ProjectiveLaws[].Trivial[P := term (Nat.Nat^::succ (Nat.Nat^::succ n))] \as Trivial;
+  \definition projective: Modules.Projective (term (Nat.Nat^::succ (Nat.Nat^::succ n))) := Trivial.projective (highZero n);
+}
+\definition upper: \forall (n: Nat.Nat^) -> Modules.Projective (term (Nat.Nat^::succ n)) :=
+  \induction (n: Nat.Nat^) \return Modules.Projective (term (Nat.Nat^::succ n)) \with {
+    | zero: One[].projective
+    | succ: \fun (n: Nat.Nat^)(before: _) => High[n := n].projective
+  };
+\definition projective: \forall (n: Nat.Nat^) -> Modules.Projective (term n) :=
+  \induction (n: Nat.Nat^) \return Modules.Projective (term n) \with {
+    | zero: Zero[].projective
+    | succ: \fun (n: Nat.Nat^)(before: _) => upper n
+  };

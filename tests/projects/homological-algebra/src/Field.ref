@@ -1,0 +1,61 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\import homological_algebra.FieldFinite[].Over[K := K, field := field] \as Finite;
+\import std.Alg[].Field[] \as Fields;
+\import std.Alg[].Ring[] \as Rings;
+\definition ring: Rings.Ring[K] := Rings.commutativeRingAsRing K (Fields.fieldAsCommutativeRing K field);
+\import algebra.Module[].Over[R := K, ring := ring] \as Modules;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition ranks: N.Nat^ -> N.Nat^ := \induction (n: N.Nat^) \return N.Nat^ \with {
+  | zero: one
+  | succ: \fun (n: N.Nat^)(previous: N.Nat^) => N.Nat^::zero
+};
+\module Differential(n: N.Nat^) {
+  \import Modules.Hom[V := Finite.Carrier (ranks n), W := Finite.Carrier (ranks (N.Nat^::succ n)),
+    source := Finite.space (ranks n), target := Finite.space (ranks (N.Nat^::succ n))] \as Maps;
+  \definition map: Maps.Map := Maps.zeroMap;
+}
+\definition data: Finite.Data := Finite.Data {
+  ranks := ranks, differential := \fun (n: N.Nat^) => Differential[n := n].map, bound := N.Nat^::zero,
+};
+\definition bounded: \forall (n: N.Nat^) -> Bounds.Lt N.Nat^::zero n -> ranks n = N.Nat^::zero :=
+  \induction (n: N.Nat^) \return Bounds.Lt N.Nat^::zero n -> ranks n = N.Nat^::zero \with {
+    | zero: \fun (less: Bounds.Lt N.Nat^::zero N.Nat^::zero) => Logic.falseElim (one = N.Nat^::zero) (Bounds.ltIrrefl N.Nat^::zero less)
+    | succ: \fun (n: N.Nat^)(previous: Bounds.Lt N.Nat^::zero n -> ranks n = N.Nat^::zero)(less: Bounds.Lt N.Nat^::zero (N.Nat^::succ n)) => \refl(N.Nat^::zero)
+  };
+\definition complex: Finite.Complex := \into[Finite.Data](data, { data: Finite.Data \where Finite.Laws[data] }) \by {
+  Finite.Laws[data] {
+    squareZero := \fun (n: N.Nat^)(x: Finite.Carrier (ranks n)) => \refl(#zero{(Finite.space (ranks (N.Nat^::succ (N.Nat^::succ n))))}),
+    bounded := bounded,
+  }
+};
+\import Finite.Of[C := complex] \as Model;
+\import homological_algebra.Cochain[].Over[R := K, ring := Finite.ring] \as Cochains;
+\definition nativeFamily: Cochains.Family := Cochains.Family {
+  Carrier := \fun (n: N.Nat^) => Finite.Carrier (ranks n),
+  space := \fun (n: N.Nat^) => Finite.space (ranks n),
+};
+\definition nativeDifferential: Cochains.DifferentialData[nativeFamily] := Cochains.DifferentialData[nativeFamily] {
+  apply := \fun (n: N.Nat^) => #apply{(Differential[n := n].map)},
+};
+\definition nativeComplex: Cochains.Complex := Cochains.Complex {
+  family := nativeFamily, differential := nativeDifferential,
+  laws := Cochains.DifferentialLaws[nativeFamily, nativeDifferential] {
+    addition := \fun (n: N.Nat^) => #addition{(Differential[n := n].map)},
+    scalar := \fun (n: N.Nat^) => #scalar{(Differential[n := n].map)},
+    squareZero := \fun (n: N.Nat^)(x: Finite.Carrier (ranks n)) => \refl(#zero{(Finite.space (ranks (N.Nat^::succ (N.Nat^::succ n))))}),
+  },
+};
+\import Cochains.At[C := nativeComplex, k := N.Nat^::zero] \as H;
+\definition projective: Modules.Projective (Modules.Bundle { Carrier := H.Cohomology, space := H.cohomologySpace }) := Model.At[n := N.Nat^::zero].cohomologyProjective;
+\import linear_algebra.Field[].Space[K := K, field := field] \as Linear;
+\import Linear.Subspace[V := H.CycleCarrier, space := H.cycleSpace] \as Subspaces;
+\definition boundaries: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := #carrier{H.boundariesInside}, containsZero := #zero{H.boundariesInside},
+  closedAdd := #addition{H.boundariesInside}, closedScale := #scalar{H.boundariesInside},
+};
+\import Linear.Quotient[V := H.CycleCarrier, space := H.cycleSpace].Of[S := boundaries] \as Quotient;
+\definition sharedQuotient: Modules.Isomorphism[V := Quotient.Carrier, W := H.Cohomology, source := Quotient.vectorSpace, target := H.cohomologySpace].Isomorphism := Quotient.moduleIsomorphism;
+\definition sharedClass: \forall (x: H.CycleCarrier) -> Quotient.class x = H.classOf x := \fun (x: H.CycleCarrier) => \refl(H.classOf x);
+\module Tensor;

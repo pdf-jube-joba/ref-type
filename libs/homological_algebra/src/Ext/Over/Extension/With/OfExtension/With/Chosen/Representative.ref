@@ -1,0 +1,35 @@
+\import \root.Ext[].Over[R := R, ring := ring].Extension[M := M, N := N, P := P].With[resolution := resolution].Represent[f := relation] \as Represented;
+\import Modules.Pushout[A := KBundle, B := N, C := L].On[f := relation, g := Kernel.inclusion] \as Pushout;
+\import Pushout.Universal[U := E, b := s.inclusion, c := lift] \as Universal;
+\definition map: Modules.MapBetween Represented.bundle E := Universal.map onKernel;
+\definition onLeft: \forall (n: N.Carrier) -> #apply{map} (#apply{Represented.sequence.inclusion} n) = #apply{s.inclusion} n := Universal.onLeft onKernel;
+\definition onRight: \forall (x: L.Carrier) -> #apply{map} (#apply{Pushout.right} x) = #apply{lift} x := Universal.onRight onKernel;
+\import Modules.Hom[V := N.Carrier, W := M.Carrier, source := N.space, target := M.space] \as Zero;
+\import Pushout.Universal[U := M, b := Zero.zeroMap, c := #augmentation{resolution}] \as Projection;
+\definition compatible: Projection.Compatible := \fun (x: K.Carrier) => sym!{M.Carrier} _ _ (#zero{presentation} x);
+\import Modules.Hom[V := E.Carrier, W := M.Carrier, source := E.space, target := M.space].Composition[U := Represented.Carrier, domain := Represented.space] \as Composition;
+\definition composed: Modules.MapBetween Represented.bundle M := Composition.compose s.projection map;
+\definition projectionEquality: composed = Represented.sequence.projection := Projection.unique compatible composed
+  (\fun (n: N.Carrier) => trans!{M.Carrier} (#apply{s.projection} (#apply{map} (#apply{Pushout.left} n)))
+    (#apply{s.projection} (#apply{s.inclusion} n)) #zero{M.space}
+    (congr!{E.Carrier M.Carrier} (#apply{s.projection}) (#apply{map} (#apply{Pushout.left} n)) (#apply{s.inclusion} n) (onLeft n)) (#zero{s} n))
+  (\fun (x: L.Carrier) => trans!{M.Carrier} (#apply{s.projection} (#apply{map} (#apply{Pushout.right} x)))
+    (#apply{s.projection} (#apply{lift} x)) (#apply{#augmentation{resolution}} x)
+    (congr!{E.Carrier M.Carrier} (#apply{s.projection}) (#apply{map} (#apply{Pushout.right} x)) (#apply{lift} x) (onRight x))
+    ((\bysub(Modules.MapBetween L E, { f: Modules.MapBetween L E \where \forall (x: L.Carrier) ->
+      #apply{s.projection} (#apply{f} x) = #apply{#augmentation{resolution}} x }, lift)) x));
+\definition onProjection: \forall (x: Represented.Carrier) -> #apply{s.projection} (#apply{map} x) = #apply{Represented.sequence.projection} x :=
+  \fun (x: Represented.Carrier) => congr!{{Modules.MapBetween Represented.bundle M} M.Carrier}
+    (\fun (f: Modules.MapBetween Represented.bundle M) => #apply{f} x) composed Represented.sequence.projection projectionEquality;
+\import Modules.End[V := N.Carrier, space := N.space] \as Left;
+\import Modules.End[V := M.Carrier, space := M.space] \as Right;
+\import Modules.ShortExactComparison[A := N, B := Represented.bundle, C := M, A1 := N, B1 := E, C1 := M].Diagram[
+  s := Represented.sequence, t := s, a := Left.identity, b := map, c := Right.identity] \as Comparison;
+\definition diagram: Comparison.Commutative := Comparison.Commutative { left := onLeft, right := onProjection };
+\definition leftOnto: Modules.Surjective N N Left.identity := \fun (x: N.Carrier) =>
+  \exact(\into[N.Carrier](x, { y: N.Carrier \where y = x }) \by { \refl(x) }, \Cast[N.Carrier] ({ y: N.Carrier \where y = x }));
+\definition rightOnto: Modules.Surjective M M Right.identity := \fun (x: M.Carrier) =>
+  \exact(\into[M.Carrier](x, { y: M.Carrier \where y = x }) \by { \refl(x) }, \Cast[M.Carrier] ({ y: M.Carrier \where y = x }));
+\definition isomorphism: Modules.Isomorphism[V := Represented.Carrier, W := E.Carrier, source := Represented.space, target := E.space].Isomorphism :=
+  Comparison.isomorphism diagram (\fun (x, y: N.Carrier)(equal: x = y) => equal) leftOnto
+    (\fun (x, y: M.Carrier)(equal: x = y) => equal) rightOnto;

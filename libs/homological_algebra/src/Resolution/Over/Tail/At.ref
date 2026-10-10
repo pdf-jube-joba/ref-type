@@ -1,0 +1,33 @@
+\import Modules.Hom[V := P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), W := P.family.Carrier (Nat.Nat^::succ n),
+  source := P.family.space (Nat.Nat^::succ (Nat.Nat^::succ n)), target := P.family.space (Nat.Nat^::succ n)] \as Maps;
+\definition original: Maps.Map := Maps.Map {
+  apply := #apply{P.differential} (Nat.Nat^::succ n), addition := #addition{P.laws} (Nat.Nat^::succ n), scalar := #scalar{P.laws} (Nat.Nat^::succ n),
+};
+\definition negative: Maps.Map := Maps.negative original;
+\definition addition: \forall (x, y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
+  #apply{negative} (#add{(P.family.space (Nat.Nat^::succ (Nat.Nat^::succ n)))} x y) =
+  #add{(P.family.space (Nat.Nat^::succ n))} (#apply{negative} x) (#apply{negative} y) := #addition{negative};
+\definition scalar: \forall (a: R)(x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
+  #apply{negative} (#smul{(P.family.space (Nat.Nat^::succ (Nat.Nat^::succ n)))} a x) =
+  #smul{(P.family.space (Nat.Nat^::succ n))} a (#apply{negative} x) := #scalar{negative};
+\import Modules.Laws[V := P.family.Carrier (Nat.Nat^::succ n), space := P.family.space (Nat.Nat^::succ n)] \as Laws;
+\import algebra.Group[].Of[Carrier := P.family.Carrier (Nat.Nat^::succ n), group := Laws.additive] \as Group;
+\definition squareZero: \forall (x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n)))) ->
+  #apply{negative} (#neg{(P.family.space (Nat.Nat^::succ (Nat.Nat^::succ n)))} (#apply{P.differential} (Nat.Nat^::succ (Nat.Nat^::succ n)) x)) = #zero{(P.family.space (Nat.Nat^::succ n))} :=
+  \fun (x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n)))) => trans!{{P.family.Carrier (Nat.Nat^::succ n)}} _ _ _
+    (congr!{{P.family.Carrier (Nat.Nat^::succ n)} {P.family.Carrier (Nat.Nat^::succ n)}} (#neg{(P.family.space (Nat.Nat^::succ n))}) _ _
+      (Maps.negativePreserved original (#apply{P.differential} (Nat.Nat^::succ (Nat.Nat^::succ n)) x)))
+    (trans!{{P.family.Carrier (Nat.Nat^::succ n)}} _ _ _
+      (Group.negNeg (#apply{P.differential} (Nat.Nat^::succ n) (#apply{P.differential} (Nat.Nat^::succ (Nat.Nat^::succ n)) x)))
+      (#squareZero{P.laws} (Nat.Nat^::succ n) x));
+\definition liftNegative: \forall (y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
+  #apply{negative} (#neg{(P.family.space (Nat.Nat^::succ (Nat.Nat^::succ n)))} y) = #apply{original} y :=
+  \fun (y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => trans!{{P.family.Carrier (Nat.Nat^::succ n)}} _ _ _
+    (congr!{{P.family.Carrier (Nat.Nat^::succ n)} {P.family.Carrier (Nat.Nat^::succ n)}} (#neg{(P.family.space (Nat.Nat^::succ n))}) _ _ (Maps.negativePreserved original y))
+    (Group.negNeg (#apply{original} y));
+\definition originalClosed: \forall (x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> #apply{negative} x = #zero{(P.family.space (Nat.Nat^::succ n))} ->
+  #apply{original} x = #zero{(P.family.space (Nat.Nat^::succ n))} :=
+  \fun (x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)))(closed: _) =>
+    trans!{{P.family.Carrier (Nat.Nat^::succ n)}} _ _ _ (sym!{{P.family.Carrier (Nat.Nat^::succ n)}} _ _ (Group.negNeg (#apply{original} x)))
+      (trans!{{P.family.Carrier (Nat.Nat^::succ n)}} _ _ _
+        (congr!{{P.family.Carrier (Nat.Nat^::succ n)} {P.family.Carrier (Nat.Nat^::succ n)}} (#neg{(P.family.space (Nat.Nat^::succ n))}) _ _ closed) Group.negZero);

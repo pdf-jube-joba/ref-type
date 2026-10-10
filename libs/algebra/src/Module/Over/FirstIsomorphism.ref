@@ -1,0 +1,86 @@
+\import \parent.Hom[V := V, W := W, source := source, target := target] \as Maps;
+\import \parent.Laws[V := V, space := source] \as Source;
+\import \parent.Laws[V := W, space := target] \as Target;
+\import algebra.Group[].Of[Carrier := W, group := Target.additive] \as TargetGroup;
+\import \parent.Of[V := V, space := source].Submodule[] \as SourceSubmodules;
+\import SourceSubmodules.Kernel[W := W, target := target] \as Kernels;
+\definition kernel: SourceSubmodules.Submodule := Kernels.kernel f;
+\import SourceSubmodules.Quotient[S := kernel] \as Quotient;
+\import \parent.Of[V := W, space := target].Submodule[] \as TargetSubmodules;
+\import TargetSubmodules.Image[U := V, source := source] \as Images;
+\definition image: TargetSubmodules.Submodule := Images.image f;
+\import TargetSubmodules.Of[S := image] \as Image;
+\definition QuotientCarrier: \Set := Quotient.Carrier;
+\definition ImageCarrier: \Set := Image.Carrier;
+\import \parent.Hom[V := V, W := ImageCarrier, source := source, target := Image.moduleSpace] \as Restriction;
+\definition restriction: Restriction.Map := Restriction.Map {
+  apply := \fun (x: V) => \into[W](#apply{f} x, #carrier{image}) \by { Images.member f x },
+  addition := \fun (x, y: V) => #addition{f} x y,
+  scalar := \fun (a: R)(x: V) => #scalar{f} a x,
+};
+\import Quotient.To[W := ImageCarrier, target := Image.moduleSpace] \as Descent;
+\definition vanishes: Descent.Vanishes restriction := \fun (x: V)(member: SourceSubmodules.Member kernel x) => member;
+\import \parent.Hom[V := QuotientCarrier, W := ImageCarrier, source := Quotient.moduleSpace, target := Image.moduleSpace] \as Forward;
+\definition forward: Forward.Map := Descent.descend restriction vanishes;
+\definition onClass: \forall (x: V) -> #apply{forward} (Quotient.class x) = #apply{restriction} x := Descent.onClass restriction vanishes;
+\definition Values(y: ImageCarrier): \Pow QuotientCarrier :=
+  { q: QuotientCarrier \where \exists { x: V \where Logic.And[#apply{f} x = y, Quotient.class x = q] } };
+\definition Value(y: ImageCarrier): \Set := \Cast[QuotientCarrier] (Values y);
+\definition witness(y: ImageCarrier)(x: V)(equal: #apply{f} x = y): Value y :=
+  \into[QuotientCarrier](Quotient.class x, Values y) \by {
+    \exact(\into[V](x, { z: V \where Logic.And[#apply{f} z = y, Quotient.class z = Quotient.class x] }) \by {
+      Logic.And[_, _]::# equal (\refl(Quotient.class x))
+    }, \Cast[V] ({ z: V \where Logic.And[#apply{f} z = y, Quotient.class z = Quotient.class x] }))
+  };
+\definition existence: \forall (y: ImageCarrier) -> \exists Value y := \block {
+  \fun (y: ImageCarrier) \then
+  \takefrom x: \Cast[V] ({ x: V \where #apply{f} x = y }) \by \bysub(W, #carrier{image}, y) \then
+  \return \exact(witness y x (\bysub(V, { x: V \where #apply{f} x = y }, x)), Value y)
+};
+\definition sameClass: \forall (x, y: V) -> #apply{f} x = #apply{f} y -> Quotient.class x = Quotient.class y :=
+  \fun (x, y: V)(equal: #apply{f} x = #apply{f} y) => Quotient.classRelated x y
+    (trans!{W} _ _ _ (Maps.differencePreserved f x y)
+      (trans!{W} _ _ _ (congr!{W W} (\fun (a: W) => TargetGroup.difference a (#apply{f} y)) _ _ equal) (TargetGroup.inverseRight (#apply{f} y))));
+\definition uniqueness: \forall (y: ImageCarrier)(u, v: Value y) -> u = v := \block {
+  \fun (y: ImageCarrier)(u, v: Value y) \then
+  \takefrom x: \Cast[V] ({ x: V \where Logic.And[#apply{f} x = y, Quotient.class x = u] }) \by \bysub(QuotientCarrier, Values y, u) \then
+  \takefrom z: \Cast[V] ({ z: V \where Logic.And[#apply{f} z = y, Quotient.class z = v] }) \by \bysub(QuotientCarrier, Values y, v) \then
+  \let xlaw: Logic.And[#apply{f} x = y, Quotient.class x = u] := \bysub(V, { x: V \where Logic.And[#apply{f} x = y, Quotient.class x = u] }, x) \then
+  \let zlaw: Logic.And[#apply{f} z = y, Quotient.class z = v] := \bysub(V, { z: V \where Logic.And[#apply{f} z = y, Quotient.class z = v] }, z) \then
+  \return trans!{QuotientCarrier} _ _ _ (sym!{QuotientCarrier} _ _ (#right{xlaw}))
+    (trans!{QuotientCarrier} _ _ _ (sameClass x z (trans!{W} _ _ _ (#left{xlaw}) (sym!{W} _ _ (#left{zlaw})))) (#right{zlaw}))
+};
+\definition inverse(y: ImageCarrier): QuotientCarrier := \choice Value y \by { existence: existence y, uniqueness: uniqueness y };
+\definition inverseValue: \forall (y: ImageCarrier)(x: V) -> #apply{f} x = y -> inverse y = Quotient.class x :=
+  \fun (y: ImageCarrier)(x: V)(equal: #apply{f} x = y) => sym!{QuotientCarrier} _ _
+    (\choiceeq witness y x equal \of Value y \by { existence: existence y, uniqueness: uniqueness y });
+\definition leftInverse: \forall (q: QuotientCarrier) -> inverse (#apply{forward} q) = q :=
+  Quotient.induction (\fun (q: QuotientCarrier) => inverse (#apply{forward} q) = q)
+    (\fun (x: V) => inverseValue (#apply{forward} (Quotient.class x)) x (sym!{W} _ _ (onClass x)));
+\definition rightInverse: \forall (y: ImageCarrier) -> #apply{forward} (inverse y) = y := \block {
+  \fun (y: ImageCarrier) \then
+  \takefrom x: \Cast[V] ({ x: V \where #apply{f} x = y }) \by \bysub(W, #carrier{image}, y) \then
+  \let equal: #apply{f} x = y := \bysub(V, { x: V \where #apply{f} x = y }, x) \then
+  \return trans!{ImageCarrier} _ _ _
+    (congr!{QuotientCarrier ImageCarrier} (#apply{forward}) _ _ (inverseValue y x equal))
+    (trans!{W} _ _ _ (onClass x) equal)
+};
+\definition forwardInjective: \forall (q, r: QuotientCarrier) -> #apply{forward} q = #apply{forward} r -> q = r :=
+  \fun (q, r: QuotientCarrier)(equal: _) => trans!{QuotientCarrier} _ _ _ (sym!{QuotientCarrier} _ _ (leftInverse q))
+    (trans!{QuotientCarrier} _ _ _ (congr!{ImageCarrier QuotientCarrier} inverse _ _ equal) (leftInverse r));
+\import \parent.Hom[V := ImageCarrier, W := QuotientCarrier, source := Image.moduleSpace, target := Quotient.moduleSpace] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := inverse,
+  addition := \fun (y, z: ImageCarrier) => forwardInjective _ _
+    (trans!{ImageCarrier} _ _ _ (rightInverse (#add{Image.moduleSpace} y z))
+      (sym!{ImageCarrier} _ _ (trans!{ImageCarrier} _ _ _ (#addition{forward} (inverse y) (inverse z))
+        (congr2!{ImageCarrier ImageCarrier ImageCarrier} (#add{Image.moduleSpace}) _ _ _ _ (rightInverse y) (rightInverse z))))),
+  scalar := \fun (a: R)(y: ImageCarrier) => forwardInjective _ _
+    (trans!{ImageCarrier} _ _ _ (rightInverse (#smul{Image.moduleSpace} a y))
+      (sym!{ImageCarrier} _ _ (trans!{ImageCarrier} _ _ _ (#scalar{forward} a (inverse y))
+        (congr!{ImageCarrier ImageCarrier} (#smul{Image.moduleSpace} a) _ _ (rightInverse y))))),
+};
+\import \parent.Isomorphism[V := QuotientCarrier, W := ImageCarrier, source := Quotient.moduleSpace, target := Image.moduleSpace] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

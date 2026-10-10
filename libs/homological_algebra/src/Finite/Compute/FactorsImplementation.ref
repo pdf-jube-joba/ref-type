@@ -1,0 +1,23 @@
+\definition T: \VType := \U(Calculation -> CyclicFactors);
+\definition listProgram: FactorListing.List.T := FactorListing.List.program;
+\definition program: T := \thunk (\cfun (value: Calculation) => \match value \in Calculation \with {
+  | result ambient dimension first second generators inverse: \match second \in Smith.SmithResult \with {
+      | result rank a history frame: \program {
+          \bind listing: \U(Runtime -> CyclicFactors) <- (\force listProgram) rank \then
+          \bind factors: CyclicFactors <- (\force listing) a \then
+          \return factors
+        }
+    }
+});
+\definition matches: \forall (value: Calculation^) -> program^ value = cyclicFactors value :=
+  \induction (value: Calculation^) \return program^ value = cyclicFactors value \with {
+    | result: \fun (ambient, dimension: N.Nat^)(first: Smith.SmithResult^) =>
+      \induction (second: Smith.SmithResult^) \return \forall (generators, inverse: Runtime^) ->
+        program^ (Calculation^::result ambient dimension first second generators inverse) =
+          cyclicFactors (Calculation^::result ambient dimension first second generators inverse) \with {
+        | result: \fun (rank: N.Nat^)(a: Runtime^)(history: Smith.History^)(frame: Smith.BasisChange^)(generators, inverse: Runtime^) =>
+            congr!{FactorListing.List.T^ CyclicFactors^} (\fun (f: FactorListing.List.T^) => f rank a)
+              FactorListing.List.program^ FactorListing.factors FactorListing.List.coherence
+      }
+  };
+\definition coherence: program^ = cyclicFactors := \axiom:funext(program^, cyclicFactors, matches);

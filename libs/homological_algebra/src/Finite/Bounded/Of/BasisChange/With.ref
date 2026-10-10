@@ -1,0 +1,57 @@
+\import Chains.ChangeBasis[C := chain].With[change := isomorphisms change] \as Mathematical;
+\import RuntimeMatrices.Product[k := N.Nat^::zero] \as Products;
+\definition firstBoundary(z: Degree): Runtime^ := Products.Multiply.program^ (C.ranks (previous z)) (change.forward (previous z)) (C.boundary z);
+\definition boundary(z: Degree): Runtime^ := Products.Multiply.program^ (C.ranks z) (firstBoundary z) (change.backward z);
+\module At(z: Degree);
+\definition data: ComplexData := ComplexData { ranks := C.ranks, boundary := boundary, bound := C.bound };
+\definition squareZero: \forall (z: Degree)(v: Carrier C z) ->
+  apply data (previous z) (apply data z v) = #zero{(space C (previous (previous z)))} :=
+  \fun (z: Degree)(v: Carrier C z) => trans!{{Carrier C (previous (previous z))}} _ _ _
+    (At[z := previous z].action (apply data z v))
+    (trans!{{Carrier C (previous (previous z))}} _ _ _
+      (congr!{{Carrier C (previous z)} {Carrier C (previous (previous z))}} (Mathematical.apply (previous z))
+        (apply data z v) (Mathematical.apply z v) (At[z := z].action v))
+      (Mathematical.squareZero z v));
+\import \root.Finite[].Bounded[] \as Bounded;
+\definition laws: ComplexLaws data := Bounded.Laws[data] {
+  squareZero := squareZero,
+  bounded := #bounded{(\bysub(ComplexData, { data: ComplexData \where ComplexLaws data }, C))},
+};
+\definition complex: Complex := \into[ComplexData](data, { data: ComplexData \where ComplexLaws data }) \by { laws };
+\definition newLinear(z: Degree): Modules.Hom[V := Carrier C z, W := Carrier C (previous z), source := space C z, target := space C (previous z)].Map :=
+  Commutative.Matrix[m := C.ranks (previous z), n := C.ranks z].linear
+    (\fun (i: Indices.Fin (C.ranks (previous z)))(j: Indices.Fin (C.ranks z)) => boundary z i j);
+\definition differential: Chains.DifferentialData[family] := Chains.DifferentialData[family] { apply := apply data };
+\definition newChain: Chains.Complex := Chains.Complex {
+  family := family, differential := differential,
+  laws := Chains.DifferentialLaws[family, differential] {
+    addition := \fun (z: Degree) => #addition{(newLinear z)},
+    scalar := \fun (z: Degree) => #scalar{(newLinear z)}, squareZero := squareZero,
+  },
+};
+\import Chains.Map[C := chain, D := newChain] \as Forward;
+\import Chains.Map[C := newChain, D := chain] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := #apply{Mathematical.forward}, addition := #addition{Mathematical.forward}, scalar := #scalar{Mathematical.forward},
+  commutes := \fun (z: Degree)(v: Carrier C z) => trans!{{Carrier C (previous z)}} _ _ _
+    (At[z := z].action (#apply{Mathematical.forward} z v)) (#commutes{Mathematical.forward} z v),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := #apply{Mathematical.backward}, addition := #addition{Mathematical.backward}, scalar := #scalar{Mathematical.backward},
+  commutes := \fun (z: Degree)(v: Carrier C z) => trans!{{Carrier C (previous z)}} _ _ _
+    (#commutes{Mathematical.backward} z v)
+    (congr!{{Carrier C (previous z)} {Carrier C (previous z)}} (#apply{Mathematical.backward} (previous z))
+      (Mathematical.apply z v) (apply data z v) (sym!{{Carrier C (previous z)}} (apply data z v) (Mathematical.apply z v) (At[z := z].action v))),
+};
+\import Chains.Isomorphism[C := chain, D := newChain] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := Mathematical.leftInverse, rightInverse := Mathematical.rightInverse,
+};
+\definition chainIsomorphism: Iso.Isomorphism := isomorphism;
+\module Homology(z: Degree) {
+  \import Chains.At[C := chain, z := z] \as Source;
+  \import Chains.At[C := newChain, z := z] \as Target;
+  \import Iso.At[z := z] \as Induced;
+  \definition isomorphism: Modules.Isomorphism[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace].Isomorphism :=
+    Induced.isomorphism chainIsomorphism;
+}

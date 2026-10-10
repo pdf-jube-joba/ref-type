@@ -1,0 +1,33 @@
+\import RightElementary.Swap[i := r, j := s] \as Exchange;
+\import RightElementary.Shear[i := r, j := s] \as Shear;
+\import RightElementary.Negate[i := r] \as Negative;
+\import Matrices.ColumnOperations[].Typed[r := r, s := s] \as Typed;
+\import Matrices.ColumnOperations[] \as Operations;
+\import Right.Transpose[] \as SquareTranspose;
+\definition exchange: Frame := Frame {
+  right := SquareTranspose.transpose (Exchange.matrix), left := LeftEnd.identity, rightInverse := RightInverse.transpose (Exchange.matrix) (Exchange.certificate), leftInverse := leftIdentityInverse,
+};
+\definition exchangeLaw: Action (Operation^::columnSwap r s) (exchange) :=
+  \fun (a: Runtime^) => trans!{Base.Matrix} (change (exchange) (Matrices.reflect a)) (Typed.swapped a) (Matrices.reflect (apply (Operation^::columnSwap r s) a))
+    (congr!{Base.Matrix Base.Matrix} (\fun (matrix: Base.Matrix) => ActRight.product matrix (SquareTranspose.transpose (Exchange.matrix))) (ActLeft.product LeftEnd.identity (Matrices.reflect a)) (Matrices.reflect a) (Base.End[].leftIdentity (Matrices.reflect a)))
+    (trans!{Base.Matrix} (Typed.swapped a) (Matrices.reflect (Operations.Swap.program^ a r s)) (Matrices.reflect (apply (Operation^::columnSwap r s) a))
+      (Typed.swapLaw a)
+      (congr!{Operations.Swap.T^ Base.Matrix} (\fun (f: Operations.Swap.T^) => Matrices.reflect (f a r s)) Operations.Swap.program^ Operations.swap Operations.Swap.coherence));
+\definition addition(c: I.Int^)(distinct: Logic.Not (r = s)): Frame := Frame {
+  right := SquareTranspose.transpose (Shear.matrix c), left := LeftEnd.identity, rightInverse := RightInverse.transpose (Shear.matrix c) (Shear.certificate c distinct), leftInverse := leftIdentityInverse,
+};
+\definition additionLaw: \forall (c: I.Int^)(distinct: Logic.Not (r = s)) -> Action (Operation^::columnAdd r s c) (addition c distinct) :=
+  \fun (c: I.Int^)(distinct: Logic.Not (r = s)) => \fun (a: Runtime^) => trans!{Base.Matrix} (change (addition c distinct) (Matrices.reflect a)) (Typed.added a c) (Matrices.reflect (apply (Operation^::columnAdd r s c) a))
+    (congr!{Base.Matrix Base.Matrix} (\fun (matrix: Base.Matrix) => ActRight.product matrix (SquareTranspose.transpose (Shear.matrix c))) (ActLeft.product LeftEnd.identity (Matrices.reflect a)) (Matrices.reflect a) (Base.End[].leftIdentity (Matrices.reflect a)))
+    (trans!{Base.Matrix} (Typed.added a c) (Matrices.reflect (Operations.Add.program^ a r s c)) (Matrices.reflect (apply (Operation^::columnAdd r s c) a))
+      (Typed.addLaw a c)
+      (congr!{Operations.Add.T^ Base.Matrix} (\fun (f: Operations.Add.T^) => Matrices.reflect (f a r s c)) Operations.Add.program^ Operations.add Operations.Add.coherence));
+\definition negative: Frame := Frame {
+  right := SquareTranspose.transpose (Negative.matrix), left := LeftEnd.identity, rightInverse := RightInverse.transpose (Negative.matrix) (Negative.certificate), leftInverse := leftIdentityInverse,
+};
+\definition negativeLaw: Action (Operation^::columnNegate r) (negative) :=
+  \fun (a: Runtime^) => trans!{Base.Matrix} (change (negative) (Matrices.reflect a)) (Typed.negated a) (Matrices.reflect (apply (Operation^::columnNegate r) a))
+    (congr!{Base.Matrix Base.Matrix} (\fun (matrix: Base.Matrix) => ActRight.product matrix (SquareTranspose.transpose (Negative.matrix))) (ActLeft.product LeftEnd.identity (Matrices.reflect a)) (Matrices.reflect a) (Base.End[].leftIdentity (Matrices.reflect a)))
+    (trans!{Base.Matrix} (Typed.negated a) (Matrices.reflect (Operations.Negate.program^ a r)) (Matrices.reflect (apply (Operation^::columnNegate r) a))
+      (Typed.negateLaw a)
+      (congr!{Operations.Negate.T^ Base.Matrix} (\fun (f: Operations.Negate.T^) => Matrices.reflect (f a r)) Operations.Negate.program^ Operations.negate Operations.Negate.coherence));

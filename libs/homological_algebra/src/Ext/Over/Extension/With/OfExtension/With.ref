@@ -1,0 +1,55 @@
+\import Extensions.Kernel[sequence := s] \as EKernel;
+\definition Lift: \Set := \Cast[Modules.MapBetween L E] ({ f: Modules.MapBetween L E \where
+  \forall (x: L.Carrier) -> #apply{s.projection} (#apply{f} x) = #apply{#augmentation{resolution}} x });
+\definition liftExistence: \exists Lift := #projective{resolution} Nat.Nat^::zero E.Carrier E.space M.Carrier M.space
+  s.projection (#onto{s}) (#augmentation{resolution});
+\module Chosen(lift: Lift) {
+  \import Modules.Hom[V := K.Carrier, W := EKernel.Carrier, source := K.space, target := EKernel.space] \as KernelMaps;
+  \definition mapIntoKernel: KernelMaps.Map := KernelMaps.Map {
+    apply := \fun (x: K.Carrier) => \into[E.Carrier](#apply{lift} x, #carrier{EKernel.kernel}) \by {
+      trans!{M.Carrier} (#apply{s.projection} (#apply{lift} x)) (#apply{#augmentation{resolution}} x) #zero{M.space}
+        ((\bysub(Modules.MapBetween L E, { f: Modules.MapBetween L E \where \forall (x: L.Carrier) ->
+          #apply{s.projection} (#apply{f} x) = #apply{#augmentation{resolution}} x }, lift)) x)
+        (#zero{presentation} x)
+    },
+    addition := \fun (x, y: K.Carrier) => #addition{lift} x y,
+    scalar := \fun (a: R)(x: K.Carrier) => #scalar{lift} a x,
+  };
+  \import Modules.Hom[V := EKernel.Carrier, W := N.Carrier, source := EKernel.space, target := N.space].Composition[U := K.Carrier, domain := K.space] \as Composition;
+  \definition relation: Relations.Carrier := Composition.compose EKernel.backward mapIntoKernel;
+  \definition onKernel: \forall (x: K.Carrier) -> #apply{s.inclusion} (#apply{relation} x) = #apply{lift} x :=
+    \fun (x: K.Carrier) => EKernel.onKernel (#apply{mapIntoKernel} x);
+  \definition class: Quotient.Carrier := Quotient.class relation;
+  \module Representative;
+}
+\module ChangeLift(first, second: Lift);
+\definition Values(q: Quotient.Carrier): \Pow Lift := { f: Lift \where q = Chosen[lift := f].class };
+\definition Candidate: \Set := \Cast[Quotient.Carrier] ({ q: Quotient.Carrier \where \exists \Cast[Lift] (Values q) });
+\definition candidate(f: Lift): Candidate := \into[Quotient.Carrier](Chosen[lift := f].class,
+  { q: Quotient.Carrier \where \exists \Cast[Lift] (Values q) }) \by {
+    \exact(\into[Lift](f, Values Chosen[lift := f].class) \by { \refl(Chosen[lift := f].class) },
+      \Cast[Lift] (Values Chosen[lift := f].class))
+  };
+\definition classExistence: \exists Candidate := \block {
+  \takefrom f: Lift \by liftExistence \then
+  \return \exact(candidate f, Candidate)
+};
+\definition classUnique: \forall (a, b: Candidate) -> a = b := \block {
+  \fun (a, b: Candidate) \then
+  \takefrom f: \Cast[Lift] (Values a) \by \bysub(Quotient.Carrier, { q: Quotient.Carrier \where \exists \Cast[Lift] (Values q) }, a) \then
+  \takefrom g: \Cast[Lift] (Values b) \by \bysub(Quotient.Carrier, { q: Quotient.Carrier \where \exists \Cast[Lift] (Values q) }, b) \then
+  \return trans!{Quotient.Carrier} a Chosen[lift := f].class b (\bysub(Lift, Values a, f))
+    (trans!{Quotient.Carrier} Chosen[lift := f].class Chosen[lift := g].class b
+      ChangeLift[first := f, second := g].classEquality
+      (sym!{Quotient.Carrier} b Chosen[lift := g].class (\bysub(Lift, Values b, g))))
+};
+\definition class: Quotient.Carrier := \choice Candidate \by { existence: classExistence, uniqueness: classUnique };
+\definition onLift: \forall (f: Lift) -> class = Chosen[lift := f].class :=
+  \fun (f: Lift) => sym!{Quotient.Carrier} Chosen[lift := f].class class
+    (\choiceeq candidate f \of Candidate \by { existence: classExistence, uniqueness: classUnique });
+\definition extClass: H.Carrier := #apply{#backward{isomorphism}} class;
+\definition classFromExt: #apply{#forward{isomorphism}} extClass = class := #rightInverse{isomorphism} class;
+\module Split(section: Modules.MapBetween M E);
+\definition splitZero: \forall (section: Modules.MapBetween M E) ->
+  (\forall (x: M.Carrier) -> #apply{s.projection} (#apply{section} x) = x) -> extClass = #zero{H.space} :=
+  \fun (section: Modules.MapBetween M E) => Split[section := section].extZero;

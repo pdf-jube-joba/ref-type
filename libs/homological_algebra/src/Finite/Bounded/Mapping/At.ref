@@ -1,0 +1,33 @@
+\import Source.At[z := z] \as SourceResult;
+\import Target.At[z := z] \as TargetResult;
+\import \parent.\parent.\parent.Mapping[m := C.ranks (previous z), n := C.ranks z, p := C.ranks (next z),
+  r := D.ranks (previous z), s := D.ranks z, t := D.ranks (next z),
+  C := SourceResult.complex, D := TargetResult.complex] \as Local;
+\definition data(f: Map): Local.Data := Local.Data {
+  lower := f.entries (previous z), middle := f.entries z, upper := f.entries (next z),
+};
+\definition incoming: \forall (f: Map)(v: Carrier C (next z)) ->
+  #apply{(linear f z)} (Commutative.Matrix[m := C.ranks z, n := C.ranks (next z)].apply
+    (\fun (i: Indices.Fin (C.ranks z))(j: Indices.Fin (C.ranks (next z))) => C.boundary (next z) i j) v) =
+  Commutative.Matrix[m := D.ranks z, n := D.ranks (next z)].apply
+    (\fun (i: Indices.Fin (D.ranks z))(j: Indices.Fin (D.ranks (next z))) => D.boundary (next z) i j)
+    (#apply{(linear f (next z))} v) :=
+  \fun (f: Map)(v: Carrier C (next z)) =>
+    \idelim previous (next z) = z \with u: Degree =>
+      #apply{(linear f u)}
+        (Commutative.Matrix[m := C.ranks u, n := C.ranks (next z)].apply
+          (\fun (i: Indices.Fin (C.ranks u))(j: Indices.Fin (C.ranks (next z))) => C.boundary (next z) i j) v) =
+      Commutative.Matrix[m := D.ranks u, n := D.ranks (next z)].apply
+        (\fun (i: Indices.Fin (D.ranks u))(j: Indices.Fin (D.ranks (next z))) => D.boundary (next z) i j)
+        (#apply{(linear f (next z))} v)
+    \by {
+      base: sym!{{Carrier D (previous (next z))}} _ _
+        (#commutes{(\bysub(Data, { data: Data \where Laws[data] }, f))} (next z) v),
+      equality: Degrees.previousNext z
+    };
+\definition laws: \forall (f: Map) -> Local.Laws[data f] := \fun (f: Map) => Local.Laws[data f] {
+  outgoing := #commutes{(\bysub(Data, { data: Data \where Laws[data] }, f))} z,
+  incoming := incoming f,
+};
+\definition local(f: Map): Local.Map := \into[Local.Data](data f, { d: Local.Data \where Local.Laws[d] }) \by { laws f };
+\module With(f: Map);

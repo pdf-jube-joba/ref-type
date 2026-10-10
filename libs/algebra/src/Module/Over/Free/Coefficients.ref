@@ -1,0 +1,25 @@
+\import \parent.\parent.Coordinates[I := Generators] \as Coordinates;
+\import Coordinates.Kronecker[] \as Kronecker;
+\import \parent.To[W := Coordinates.Vector, target := Coordinates.space] \as Universal;
+\import \parent.\parent.Hom[V := Carrier, W := Coordinates.Vector, source := space, target := Coordinates.space] \as Maps;
+\definition basis(s: Generators): Coordinates.Vector := \fun (t: Generators) => Kronecker.delta t s;
+\definition map: Maps.Map := Universal.extension basis;
+\definition coefficient(x: Carrier)(s: Generators): R := #apply{map} x s;
+\definition onGenerator: \forall (s, t: Generators) -> coefficient (generator s) t = Kronecker.delta t s :=
+  \fun (s, t: Generators) => congr!{{Coordinates.Vector} R} (\fun (v: Coordinates.Vector) => v t) _ _ (Universal.onGenerator basis s);
+\definition zero: \forall (s: Generators) -> coefficient #zero{space} s = #zero{ring} :=
+  \fun (s: Generators) => congr!{Coordinates.Vector R} (\fun (v: Coordinates.Vector) => v s) _ _ (Maps.zeroPreserved map);
+\definition addition: \forall (x, y: Carrier)(s: Generators) ->
+  coefficient (#add{space} x y) s = #add{ring} (coefficient x s) (coefficient y s) :=
+  \fun (x, y: Carrier)(s: Generators) => congr!{Coordinates.Vector R} (\fun (v: Coordinates.Vector) => v s) _ _ (#addition{map} x y);
+\definition negative: \forall (x: Carrier)(s: Generators) -> coefficient (#neg{space} x) s = #neg{ring} (coefficient x s) :=
+  \fun (x: Carrier)(s: Generators) => congr!{Coordinates.Vector R} (\fun (v: Coordinates.Vector) => v s) _ _ (Maps.negativePreserved map x);
+\definition scalar: \forall (a: R)(x: Carrier)(s: Generators) ->
+  coefficient (#smul{space} a x) s = #mul{ring} a (coefficient x s) :=
+  \fun (a: R)(x: Carrier)(s: Generators) => congr!{Coordinates.Vector R} (\fun (v: Coordinates.Vector) => v s) _ _ (#scalar{map} a x);
+\import std.Data[].List[] \as Lists;
+\import \parent.\parent.Sums[I := Generators] \as Sums;
+\import Sums.Vector[V := Carrier, space := space] \as VectorSums;
+\definition combination(xs: Lists.List[Generators])(values: Coordinates.Vector): Carrier :=
+  VectorSums.sum xs (\fun (s: Generators) => #smul{space} (values s) (generator s));
+\module NormalForm;

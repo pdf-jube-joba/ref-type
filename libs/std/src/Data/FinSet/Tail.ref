@@ -1,0 +1,26 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Order[].Prop[] \as Order;
+\definition Index: \Set := \Cast[Fin n] ({ i: Fin n \where NL.Le start i });
+\definition Small: \Set := Fin (Nat.sub n start);
+\definition lower(i: Index): NL.Le start i := \bysub(Fin n, { i: Fin n \where NL.Le start i }, i);
+\definition upper(i: Index): NL.Lt i n := bound n i;
+\definition shiftedBound: NL.Le start n -> \forall (i: Small) -> NL.Lt (Nat.add start i) n :=
+  \fun (within: _)(i: Small) => \idelim Nat.add start (Nat.sub n start) = n \with limit: N.Nat^ => NL.Lt (Nat.add start i) limit \by {
+    base: \idelim Nat.add i start = Nat.add start i \with value: N.Nat^ => NL.Lt value (Nat.add start (Nat.sub n start)) \by {
+      base: \idelim Nat.add (Nat.sub n start) start = Nat.add start (Nat.sub n start) \with limit: N.Nat^ =>
+        NL.Lt (Nat.add i start) limit \by { base: Order.ltAddRight i (Nat.sub n start) start (bound (Nat.sub n start) i), equality: NL.addComm (Nat.sub n start) start },
+      equality: NL.addComm i start
+    }, equality: NL.addSubOfLe start n within
+  };
+\definition include(within: NL.Le start n)(i: Small): Index :=
+  \into[Fin n](\into[N.Nat^](Nat.add start i, { i: N.Nat^ \where NL.Lt i n }) \by { shiftedBound within i },
+    { i: Fin n \where NL.Le start i }) \by { NL.leAddRight start i };
+\definition restrict(i: Index): Small := \into[N.Nat^](Nat.sub i start, { j: N.Nat^ \where NL.Lt j (Nat.sub n start) }) \by {
+  NL.subLtOfLe start i n (lower i) (upper i)
+};
+\definition includeRestrict: \forall (within: NL.Le start n)(i: Index) -> include within (restrict i) = i :=
+  \fun (within: NL.Le start n)(i: Index) => NL.addSubOfLe start i (lower i);
+\definition restrictInclude: \forall (within: NL.Le start n)(i: Small) -> restrict (include within i) = i :=
+  \fun (within: NL.Le start n)(i: Small) => trans!{N.Nat^} (Nat.sub (Nat.add start i) start) (Nat.sub (Nat.add i start) start) i
+    (congr!{N.Nat^ N.Nat^} (\fun (value: N.Nat^) => Nat.sub value start) (Nat.add start i) (Nat.add i start) (NL.addComm start i))
+    (NL.subAddCancel start i);

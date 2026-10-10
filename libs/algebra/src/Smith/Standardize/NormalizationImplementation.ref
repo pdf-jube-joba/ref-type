@@ -1,0 +1,21 @@
+\definition T: \VType := \U(Compute.Output -> Compute.Output);
+\definition program: T := \thunk (\cfun (output: Compute.Output) => \match output \in Compute.Output \with {
+  | result rank a history: \program {
+      \bind matrix: \U(Runtime -> History -> Attempt) <- (\force normalizeProgram) rank \then
+      \bind histories: \U(History -> Attempt) <- (\force matrix) a \then
+      \bind normalized: Attempt <- (\force histories) history \then
+      \bind assemble: \U(Attempt -> Compute.Output) <- (\force assembleProgram) rank \then
+      \bind result: Compute.Output <- (\force assemble) normalized \then
+      \return result
+    }
+});
+\definition intermediate(rank: N.Nat^)(a: Runtime^)(history: History^): Compute.Output^ := assemble rank (normalizeProgram^ rank a history);
+\definition matches: \forall (output: Compute.Output^) -> program^ output = normalizeOutput output :=
+  \induction (output: Compute.Output^) \return program^ output = normalizeOutput output \with {
+    | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) =>
+        trans!{Compute.Output^} (program^ (Compute.Output^::result rank a history)) (intermediate rank a history) (normalizeOutput (Compute.Output^::result rank a history))
+          (congr!{Assemble.T^ Compute.Output^} (\fun (f: Assemble.T^) => f rank (normalizeProgram^ rank a history)) assembleProgram^ assemble Assemble.coherence)
+          (congr!{Normalize.Normalize.T^ Compute.Output^} (\fun (f: Normalize.Normalize.T^) => assemble rank (f rank a history))
+            normalizeProgram^ Normalize.fold Normalize.Normalize.coherence)
+  };
+\definition coherence: program^ = normalizeOutput := \axiom:funext(program^, normalizeOutput, matches);

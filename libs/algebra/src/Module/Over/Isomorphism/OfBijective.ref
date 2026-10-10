@@ -1,0 +1,28 @@
+\definition Injective: \Prop := \forall (x, y: V) -> #apply{f} x = #apply{f} y -> x = y;
+\definition Onto: \Prop := \forall (y: W) -> \exists { x: V \where #apply{f} x = y };
+\definition Values(y: W): \Pow V := { x: V \where #apply{f} x = y };
+\definition Value(y: W): \Set := \Cast[V] (Values y);
+\definition unique: Injective -> \forall (y: W)(x, z: Value y) -> x = z :=
+  \fun (injective: Injective)(y: W)(x, z: Value y) => injective x z
+    (trans!{W} _ _ _ (\bysub(V, Values y, x)) (sym!{W} _ _ (\bysub(V, Values y, z))));
+\definition inverse(injective: Injective)(onto: Onto)(y: W): Value y :=
+  \choice Value y \by { existence: onto y, uniqueness: unique injective y };
+\definition rightInverse: \forall (injective: Injective)(onto: Onto)(y: W) -> #apply{f} (inverse injective onto y) = y :=
+  \fun (injective: Injective)(onto: Onto)(y: W) => \bysub(V, Values y, inverse injective onto y);
+\definition leftInverse: \forall (injective: Injective)(onto: Onto)(x: V) -> inverse injective onto (#apply{f} x) = x :=
+  \fun (injective: Injective)(onto: Onto)(x: V) => injective _ x (rightInverse injective onto (#apply{f} x));
+\definition backward(injective: Injective)(onto: Onto): Backward.Map := Backward.Map {
+  apply := \fun (y: W) => inverse injective onto y,
+  addition := \fun (y, z: W) => injective _ _ (trans!{W} _ _ _ (rightInverse injective onto (#add{target} y z))
+    (sym!{W} _ _ (trans!{W} _ _ _ (#addition{f} (inverse injective onto y) (inverse injective onto z))
+      (congr2!{W W W} (#add{target}) _ _ _ _ (rightInverse injective onto y) (rightInverse injective onto z))))),
+  scalar := \fun (a: R)(y: W) => injective _ _ (trans!{W} _ _ _ (rightInverse injective onto (#smul{target} a y))
+    (sym!{W} _ _ (trans!{W} _ _ _ (#scalar{f} a (inverse injective onto y))
+      (congr!{W W} (#smul{target} a) _ _ (rightInverse injective onto y))))),
+};
+\definition isomorphism(injective: Injective)(onto: Onto): Isomorphism := Isomorphism {
+    forward := f, backward := backward injective onto,
+    leftInverse := leftInverse injective onto, rightInverse := rightInverse injective onto,
+  };
+\definition existence: Injective -> Onto -> \exists Isomorphism :=
+  \fun (injective: Injective)(onto: Onto) => \exact(isomorphism injective onto, Isomorphism);

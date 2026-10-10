@@ -1,0 +1,21 @@
+\definition zeroAbsent: \forall (n: N.Nat^)(xs: Lists.List[Fin n]) -> Logic.Not (Occurs (N.Nat^::succ n) (zero n) (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) xs)) :=
+  \fun (n: N.Nat^) => \induction (xs: Lists.List[Fin n]) \return Logic.Not (Occurs (N.Nat^::succ n) (zero n) (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) xs)) \with {
+    | nil: \fun (empty: Logic.False) => empty
+    | cons: \fun (head: Fin n)(tail: Lists.List[Fin n])(previous: _)(member: _) =>
+      either!{{zero n = succ n head} "or" {Occurs (N.Nat^::succ n) (zero n) (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) tail)} "either" {Logic.False}
+        "lt:" {\fun (equal: _) => NL.zeroNeSucc head equal}
+        "rt:" {\fun (old: _) => previous old}} member
+  };
+\module At(n: N.Nat^) {
+  \import Lists.Distinct[A := Fin n] \as Distinct;
+  \import Lists.Distinct[A := Fin (N.Nat^::succ n)] \as Larger;
+  \import Lists.Distinct[A := Fin n].Mapping[B := Fin (N.Nat^::succ n)] \as Mapping;
+  \definition step: Distinct.Distinct (elements n) -> Larger.Distinct (elements (N.Nat^::succ n)) :=
+    \fun (previous: _) => Larger.cons (zero n) (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) (elements n))
+      (zeroAbsent n (elements n)) (Mapping.preserves (succ n) (\fun (i, j: Fin n)(equal: _) => NL.succInjective i j equal) (elements n) previous);
+}
+\definition distinct: \forall (n: N.Nat^) -> Lists.Distinct[A := Fin n].Distinct (elements n) :=
+  \induction (n: N.Nat^) \return Lists.Distinct[A := Fin n].Distinct (elements n) \with {
+    | zero: Lists.Distinct[A := Fin N.Nat^::zero].nil
+    | succ: \fun (n: N.Nat^)(previous: _) => At[n := n].step previous
+  };

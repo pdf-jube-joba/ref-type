@@ -1,0 +1,16 @@
+\import LeftProduct.Associativity[l := n] \as LeftAssociativity;
+\import ActRight.Associativity[l := n] \as RightAssociativity;
+\import ActLeft.Associativity[l := n] \as MixedAssociativity;
+\definition first: Matrices.Matrix := ActLeft.product (LeftProduct.product later.left earlier.left) a;
+\definition middle: Matrices.Matrix := ActLeft.product later.left (ActLeft.product earlier.left a);
+\definition tail: Right.Matrix := RightProduct.product earlier.right later.right;
+\definition expanded: Matrices.Matrix := ActRight.product (ActRight.product middle earlier.right) later.right;
+\definition final: Matrices.Matrix := ActRight.product (ActLeft.product later.left (ActRight.product (ActLeft.product earlier.left a) earlier.right)) later.right;
+\definition law: change (compose later earlier) a = change later (change earlier a) :=
+  trans!{Matrices.Matrix} (change (compose later earlier) a) (ActRight.product middle tail) (change later (change earlier a))
+    (congr!{Matrices.Matrix Matrices.Matrix} (\fun (b: Matrices.Matrix) => ActRight.product b tail) first middle (LeftAssociativity.associative later.left earlier.left a))
+    (trans!{Matrices.Matrix} (ActRight.product middle tail) expanded (change later (change earlier a))
+      (sym!{Matrices.Matrix} expanded (ActRight.product middle tail) (RightAssociativity.associative middle earlier.right later.right))
+      (congr!{Matrices.Matrix Matrices.Matrix} (\fun (b: Matrices.Matrix) => ActRight.product b later.right)
+        (ActRight.product middle earlier.right) (ActLeft.product later.left (ActRight.product (ActLeft.product earlier.left a) earlier.right))
+        (MixedAssociativity.associative later.left (ActLeft.product earlier.left a) earlier.right)));

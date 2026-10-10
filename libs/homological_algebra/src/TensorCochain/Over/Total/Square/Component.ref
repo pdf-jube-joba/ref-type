@@ -1,0 +1,66 @@
+\definition p: Nat.Nat^ := #first{i};
+\definition q: Nat.Nat^ := #second{i};
+\definition hi: Index (Nat.Nat^::succ n) := upHorizontal n i;
+\definition vi: Index (Nat.Nat^::succ n) := upVertical n i;
+\import Target.Component[i := upHorizontal (Nat.Nat^::succ n) hi] \as HH;
+\import Target.Component[i := upVertical (Nat.Nat^::succ n) vi] \as VV;
+\import Target.Component[i := upHorizontal (Nat.Nat^::succ n) vi] \as HV;
+\import Modules.Hom[V := C.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ p)) q, W := Target.Carrier,
+  source := C.family.space (Nat.Nat^::succ (Nat.Nat^::succ p)) q, target := Target.space] \as HHMaps;
+\import Modules.Hom[V := C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q)), W := Target.Carrier,
+  source := C.family.space p (Nat.Nat^::succ (Nat.Nat^::succ q)), target := Target.space] \as VVMaps;
+\import Modules.Hom[V := C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q), W := Target.Carrier,
+  source := C.family.space (Nat.Nat^::succ p) (Nat.Nat^::succ q), target := Target.space] \as HVMaps;
+\definition horizontalZero: \forall (x: C.family.Carrier p q) ->
+  #apply{Second.horizontal} (#apply{First.horizontal} (#apply{(Source.Component[i := i].injection)} x)) = #zero{Target.space} :=
+  \fun (x: C.family.Carrier p q) => trans!{Target.Carrier} _ _ _
+    (congr!{Middle.Carrier Target.Carrier} (#apply{Second.horizontal}) _ _ (First.horizontalOnInjection i x))
+    (trans!{Target.Carrier} _ _ _ (Second.horizontalOnInjection hi (#apply{(C.differential.horizontal p q)} x))
+      (trans!{Target.Carrier} _ _ _
+        (congr!{{C.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ p)) q} Target.Carrier} (#apply{HH.injection}) _ _ (C.laws.horizontalZero p q x))
+        (HHMaps.zeroPreserved HH.injection)));
+\import Degrees.Sign[V := C.family.Carrier p (Nat.Nat^::succ q), space := C.family.space p (Nat.Nat^::succ q)] \as VSign;
+\import Degrees.Sign[V := C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q)), space := C.family.space p (Nat.Nat^::succ (Nat.Nat^::succ q))] \as VVSign;
+\import VSign.Mapping[W := C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q)), target := C.family.space p (Nat.Nat^::succ (Nat.Nat^::succ q))] \as VSignMap;
+\definition verticalZero: \forall (x: C.family.Carrier p q) ->
+  #apply{Second.vertical} (#apply{First.vertical} (#apply{(Source.Component[i := i].injection)} x)) = #zero{Target.space} :=
+  \fun (x: C.family.Carrier p q) => trans!{Target.Carrier} _ _ _
+    (congr!{Middle.Carrier Target.Carrier} (#apply{Second.vertical}) _ _ (First.verticalOnInjection i x))
+    (trans!{Target.Carrier} _ _ _ (Second.verticalOnInjection vi (#apply{(VSign.map p)} (#apply{(C.differential.vertical p q)} x)))
+      (trans!{Target.Carrier} _ _ _
+        (congr!{{C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q))} Target.Carrier}
+          (\fun (z: C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q))) => #apply{VV.injection} (#apply{(VVSign.map p)} z)) _ _
+          (VSignMap.naturality (C.differential.vertical p (Nat.Nat^::succ q)) p (#apply{(C.differential.vertical p q)} x)))
+        (trans!{Target.Carrier} _ _ _
+          (congr!{{C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q))} Target.Carrier} (#apply{VV.injection}) _ _
+            (VVSign.involutive p (#apply{(C.differential.vertical p (Nat.Nat^::succ q))} (#apply{(C.differential.vertical p q)} x))))
+          (trans!{Target.Carrier} _ _ _
+            (congr!{{C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q))} Target.Carrier} (#apply{VV.injection}) _ _ (C.laws.verticalZero p q x))
+            (VVMaps.zeroPreserved VV.injection)))));
+\import Degrees.Sign[V := C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q), space := C.family.space (Nat.Nat^::succ p) (Nat.Nat^::succ q)] \as HVSign;
+\import VSign.Mapping[W := C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q), target := C.family.space (Nat.Nat^::succ p) (Nat.Nat^::succ q)] \as HSignMap;
+\definition mixed(x: C.family.Carrier p q): Target.Carrier :=
+  #apply{HV.injection} (#apply{(HVSign.map p)} (#apply{(C.differential.vertical (Nat.Nat^::succ p) q)} (#apply{(C.differential.horizontal p q)} x)));
+\definition horizontalVertical: \forall (x: C.family.Carrier p q) ->
+  #apply{Second.horizontal} (#apply{First.vertical} (#apply{(Source.Component[i := i].injection)} x)) = mixed x :=
+  \fun (x: C.family.Carrier p q) => trans!{Target.Carrier} _ _ _
+    (congr!{Middle.Carrier Target.Carrier} (#apply{Second.horizontal}) _ _ (First.verticalOnInjection i x))
+    (trans!{Target.Carrier} _ _ _ (Second.horizontalOnInjection vi (#apply{(VSign.map p)} (#apply{(C.differential.vertical p q)} x)))
+      (trans!{Target.Carrier} _ _ _
+        (congr!{{C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)} Target.Carrier} (#apply{HV.injection}) _ _
+          (HSignMap.naturality (C.differential.horizontal p (Nat.Nat^::succ q)) p (#apply{(C.differential.vertical p q)} x)))
+        (congr!{{C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)} Target.Carrier}
+          (\fun (z: C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)) => #apply{HV.injection} (#apply{(HVSign.map p)} z)) _ _ (C.laws.commute p q x))));
+\definition verticalHorizontal: \forall (x: C.family.Carrier p q) ->
+  #apply{Second.vertical} (#apply{First.horizontal} (#apply{(Source.Component[i := i].injection)} x)) = #neg{Target.space} (mixed x) :=
+  \fun (x: C.family.Carrier p q) => trans!{Target.Carrier} _ _ _
+    (congr!{Middle.Carrier Target.Carrier} (#apply{Second.vertical}) _ _ (First.horizontalOnInjection i x))
+    (trans!{Target.Carrier} _ _ _ (Second.verticalOnInjection hi (#apply{(C.differential.horizontal p q)} x))
+      (HVMaps.negativePreserved HV.injection
+        (#apply{(HVSign.map p)} (#apply{(C.differential.vertical (Nat.Nat^::succ p) q)} (#apply{(C.differential.horizontal p q)} x)))));
+\definition antiCommutes: \forall (x: C.family.Carrier p q) ->
+  #apply{Second.horizontal} (#apply{First.vertical} (#apply{(Source.Component[i := i].injection)} x)) =
+  #neg{Target.space} (#apply{Second.vertical} (#apply{First.horizontal} (#apply{(Source.Component[i := i].injection)} x))) :=
+  \fun (x: C.family.Carrier p q) => trans!{Target.Carrier} _ _ _ (horizontalVertical x)
+    (trans!{Target.Carrier} _ _ _ (sym!{Target.Carrier} _ _ (Additive.negNeg (mixed x)))
+      (congr!{Target.Carrier Target.Carrier} (#neg{Target.space}) _ _ (sym!{Target.Carrier} _ _ (verticalHorizontal x))));

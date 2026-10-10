@@ -1,0 +1,31 @@
+\definition moved: \forall (i, j: N.Nat^) -> Bounds.Lt k rows -> Bounds.Lt k cols -> I.IsZero.specification (a k k) = B.Bool^::true -> Grid.Found[Search.probe k a, rows, cols, i, j] -> Ready[rows, cols, k, a, history, Attempt^::attempt (move k i j a) (moveHistory k i j history) B.Bool^::false] := \block {
+  \fun (i, j: N.Nat^)(pivotRow: _)(pivotCol: _)(zero: _)(found: _) \then
+  \let hit: Search.Hit[k, a, i, j] := Search.hit k a i j #hit{found} \then
+  \return Ready[rows, cols, k, a, history, Attempt^::attempt (move k i j a) (moveHistory k i j history) B.Bool^::false] {
+    nonzero := nonzero k i j a #nonzero{hit}, reduced := \refl(B.Bool^::false),
+    located := \fun (unused: _) => located rows cols k i j a zero #rowBound{found} #columnBound{found},
+    retained := \fun (bad: _) => Logic.falseElim _ (BoolLaws.trueNeFalse (trans!{B.Bool^} B.Bool^::true (I.IsZero.specification (a k k)) B.Bool^::false (sym!{B.Bool^} (I.IsZero.specification (a k k)) B.Bool^::true zero) bad)),
+    bounded := \fun (historyLaws: _) => bounded rows cols k i j history pivotRow pivotCol #rowBound{found} #columnBound{found} historyLaws,
+    traced := \fun (original: Runtime^)(historyLaw: _) => trace k i j original a history historyLaw,
+  }
+};
+\definition positions: Bounds.Lt k rows -> Bounds.Lt k cols -> I.IsZero.specification (a k k) = B.Bool^::true -> \forall (position: Grid.Position^) -> Grid.PositionLaws (Search.probe k a) rows cols position -> Laws rows cols k a history (fromPosition k a history position) :=
+  \fun (pivotRow: _)(pivotCol: _)(zero: _) => \induction (position: Grid.Position^) \return Grid.PositionLaws (Search.probe k a) rows cols position -> Laws rows cols k a history (fromPosition k a history position) \with {
+    | empty: Search.noneZero rows cols k a
+    | position: \fun (i, j: N.Nat^)(found: _) => moved i j pivotRow pivotCol zero found
+  };
+\definition retained: I.IsZero.specification (a k k) = B.Bool^::false -> Ready[rows, cols, k, a, history, Attempt^::attempt a history B.Bool^::false] :=
+  \fun (notZero: _) => Ready[rows, cols, k, a, history, Attempt^::attempt a history B.Bool^::false] {
+    nonzero := Search.nonzeroOfFalse (a k k) notZero, reduced := \refl(B.Bool^::false),
+    located := \fun (bad: _) => Logic.falseElim _ (BoolLaws.falseNeTrue (trans!{B.Bool^} B.Bool^::false (I.IsZero.specification (a k k)) B.Bool^::true (sym!{B.Bool^} (I.IsZero.specification (a k k)) B.Bool^::false notZero) bad)),
+    retained := \fun (unused: _) => \refl(Attempt^::attempt a history B.Bool^::false),
+    bounded := \fun (historyLaws: _) => historyLaws,
+    traced := \fun (original: Runtime^)(historyLaw: _) => historyLaw,
+  };
+\definition law: Bounds.Lt k rows -> Bounds.Lt k cols -> Laws rows cols k a history (prepare rows cols k a history) :=
+  \fun (pivotRow: _)(pivotCol: _) => B.cases
+    (\fun (test: B.Bool^) => I.IsZero.specification (a k k) = test -> Laws rows cols k a history
+      (B.ite Selection^ test (fromPosition k a history (Search.search rows cols k a)) (Selection^::ready (Attempt^::attempt a history B.Bool^::false))))
+    retained
+    (\fun (zero: _) => positions pivotRow pivotCol zero (Search.search rows cols k a) (Search.bounded rows cols k a))
+    (I.IsZero.specification (a k k)) (\refl(I.IsZero.specification (a k k)));

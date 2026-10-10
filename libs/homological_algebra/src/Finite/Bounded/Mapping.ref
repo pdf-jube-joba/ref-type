@@ -1,0 +1,19 @@
+\import \parent.Of[C := C] \as Source;
+\import \parent.Of[C := D] \as Target;
+\structure Data: \Set { entries: Degree -> Runtime^ }
+\definition linear(data: Data)(z: Degree): Modules.Hom[V := Carrier C z, W := Carrier D z, source := space C z, target := space D z].Map :=
+  Commutative.Matrix[m := D.ranks z, n := C.ranks z].linear
+    (\fun (i: Indices.Fin (D.ranks z))(j: Indices.Fin (C.ranks z)) => data.entries z i j);
+\structure Laws[data: Data]: \Prop {
+  commutes: \forall (z: Degree)(v: Carrier C z) ->
+    apply D z (#apply{(linear data z)} v) = #apply{(linear data (previous z))} (apply C z v),
+}
+\definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\import Chains.Map[C := Source.chain, D := Target.chain] \as Maps;
+\definition chainMap(f: Map): Maps.Map := Maps.Map {
+  apply := \fun (z: Degree) => #apply{(linear f z)},
+  addition := \fun (z: Degree) => #addition{(linear f z)},
+  scalar := \fun (z: Degree) => #scalar{(linear f z)},
+  commutes := #commutes{(\bysub(Data, { data: Data \where Laws[data] }, f))},
+};
+\module At(z: Degree);

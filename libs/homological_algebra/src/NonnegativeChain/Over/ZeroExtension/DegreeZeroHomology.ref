@@ -1,0 +1,51 @@
+\import \parent.\parent.DegreeZero[C := C] \as Source;
+\definition index: Signed.Int^ := Signed.Int^::ofNat N.Nat^::zero;
+\import Internal.At[C := complex, z := index] \as Target;
+\import \parent.Positive[n := N.Nat^::zero] \as Current;
+\import \parent.Positive[n := N.Nat^::succ N.Nat^::zero] \as Before;
+\import Modules.Hom[V := C.family.Carrier N.Nat^::zero, W := Target.Cycle,
+  source := C.family.space N.Nat^::zero, target := Target.cycleSpace] \as Forward;
+\import Modules.Hom[V := Target.Cycle, W := C.family.Carrier N.Nat^::zero,
+  source := Target.cycleSpace, target := C.family.space N.Nat^::zero] \as Backward;
+\definition into(x: C.family.Carrier N.Nat^::zero): Target.Cycle :=
+  Target.cycle (Current.intro x) (\refl(#zero{(space (Integers.previous index))}));
+\definition forward: Forward.Map := Forward.Map {
+  apply := into,
+  addition := \fun (x, y: C.family.Carrier N.Nat^::zero) => \refl(#add{(C.family.space N.Nat^::zero)} x y),
+  scalar := \fun (a: R)(x: C.family.Carrier N.Nat^::zero) => \refl(#smul{(C.family.space N.Nat^::zero)} a x),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (x: Target.Cycle) => x,
+  addition := \fun (x, y: Target.Cycle) => \refl(#add{(C.family.space N.Nat^::zero)} x y),
+  scalar := \fun (a: R)(x: Target.Cycle) => \refl(#smul{(C.family.space N.Nat^::zero)} a x),
+};
+\import std.Set[].Transport[I := Signed.Int^] \as Transport;
+\definition prior: \forall (x: Carrier (Integers.next index)) ->
+  #apply{Target.prior} x = Current.intro (#apply{C.differential} N.Nat^::zero x) :=
+  \fun (x: Carrier (Integers.next index)) =>
+    Transport.castRefl Carrier index (Current.intro (#apply{C.differential} N.Nat^::zero x));
+\definition sourceBundle: Modules.Bundle := Modules.Bundle { Carrier := C.family.Carrier N.Nat^::zero, space := C.family.space N.Nat^::zero };
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := Target.Cycle, space := Target.cycleSpace };
+\import Modules.QuotientMapping[A := sourceBundle, B := targetBundle].On[S := Source.boundaries, T := Target.boundariesInside, f := forward] \as Descent;
+\import Descent.Inverse[g := backward] \as Back;
+\import Modules.Of[V := C.family.Carrier N.Nat^::zero, space := C.family.space N.Nat^::zero].Submodule[] \as OriginalSub;
+\import OriginalSub.Image[U := C.family.Carrier (N.Nat^::succ N.Nat^::zero), source := C.family.space (N.Nat^::succ N.Nat^::zero)] \as OriginalImage;
+\import Modules.Of[V := Carrier index, space := space index].Submodule[] \as ExtendedSub;
+\import ExtendedSub.Image[U := Carrier (Integers.next index), source := space (Integers.next index)] \as ExtendedImage;
+\definition compatible: Descent.Compatible := \fun (x: C.family.Carrier N.Nat^::zero)(member: _) =>
+  OriginalImage.eliminate Source.prior x (ExtendedSub.Member Target.boundaries (into x))
+    (\fun (y: C.family.Carrier (N.Nat^::succ N.Nat^::zero))(equal: #apply{Source.prior} y = x) =>
+      ExtendedImage.introduce Target.prior (into x) (Before.intro y)
+        (trans!{{Carrier index}} _ _ _ (prior (Before.intro y))
+          (congr!{{C.family.Carrier N.Nat^::zero} {Carrier index}} Current.intro _ _ equal))) member;
+\definition compatibleBack: Back.CompatibleBack := \fun (x: Target.Cycle)(member: _) =>
+  ExtendedImage.eliminate Target.prior x (OriginalSub.Member Source.boundaries x)
+    (\fun (y: Carrier (Integers.next index))(equal: #apply{Target.prior} y = x) =>
+      OriginalImage.introduce Source.prior x y
+        (sym!{{C.family.Carrier N.Nat^::zero}} _ _
+          (trans!{{C.family.Carrier N.Nat^::zero}} _ _ _ (sym!{{C.family.Carrier N.Nat^::zero}} _ _ equal) (prior y)))) member;
+\definition isomorphism: Modules.Isomorphism[V := Source.Homology, W := Target.Homology,
+  source := Source.homologySpace, target := Target.homologySpace].Isomorphism :=
+  Back.isomorphism compatible compatibleBack
+    (\fun (x: C.family.Carrier N.Nat^::zero) => \refl(x)) (\fun (x: Target.Cycle) => \refl(x));
+\definition onClass: \forall (x: C.family.Carrier N.Nat^::zero) -> #apply{#forward{isomorphism}} (Source.classOf x) = Target.classOf (into x) := Descent.onClass compatible;

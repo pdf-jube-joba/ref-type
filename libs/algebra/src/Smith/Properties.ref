@@ -1,0 +1,60 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import \parent.Divisibility[] \as Divisibility;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Module[].Over[R := I.Int^, ring := Rings.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Modules;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Modules.scalarGroup] \as Integers;
+\definition Diagonal(a: Runtime^): \Prop :=
+  \forall (i, j: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt j n -> Logic.Not (i = j) -> a i j = Arithmetic.zero;
+\definition TrailingZero(a: Runtime^): \Prop :=
+  \forall (i, j: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt j n -> Bounds.Le rank i -> Bounds.Le rank j -> a i j = Arithmetic.zero;
+\definition Nonzero(a: Runtime^): \Prop :=
+  \forall (i: N.Nat^) -> Bounds.Lt i rank -> Logic.Not (a i i = Arithmetic.zero);
+\definition Divides(a: Runtime^): \Prop :=
+  \forall (i, j: N.Nat^) -> Bounds.Lt i rank -> Bounds.Lt j m -> Bounds.Lt j n -> Bounds.Le i j -> Signed.Divides (a i i) (a j j);
+\definition diagonalNegation: \forall (a: Runtime^)(k: N.Nat^) -> Diagonal a -> Diagonal (Rows.negate a k) :=
+  \fun (a: Runtime^)(k: N.Nat^)(law: Diagonal a)(i, j: N.Nat^)(rowBound: _)(columnBound: _)(different: _) => B.cases
+    (\fun (test: B.Bool^) => B.ite I.Int^ test (Arithmetic.neg (a i j)) (a i j) = Arithmetic.zero)
+    (law i j rowBound columnBound different)
+    (congr!{I.Int^ I.Int^} Arithmetic.neg (a i j) Arithmetic.zero (law i j rowBound columnBound different)) (Nat.eqb i k);
+\definition trailingNegation: \forall (a: Runtime^)(k: N.Nat^) -> TrailingZero a -> TrailingZero (Rows.negate a k) :=
+  \fun (a: Runtime^)(k: N.Nat^)(law: TrailingZero a)(i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) => B.cases
+    (\fun (test: B.Bool^) => B.ite I.Int^ test (Arithmetic.neg (a i j)) (a i j) = Arithmetic.zero)
+    (law i j rowBound columnBound rowLower columnLower)
+    (congr!{I.Int^ I.Int^} Arithmetic.neg (a i j) Arithmetic.zero (law i j rowBound columnBound rowLower columnLower)) (Nat.eqb i k);
+\definition nonzeroNegation: \forall (a: Runtime^)(k: N.Nat^) -> Nonzero a -> Nonzero (Rows.negate a k) :=
+  \fun (a: Runtime^)(k: N.Nat^)(law: Nonzero a)(i: N.Nat^)(bound: _) => B.cases
+    (\fun (test: B.Bool^) => Logic.Not (B.ite I.Int^ test (Arithmetic.neg (a i i)) (a i i) = Arithmetic.zero))
+    (law i bound)
+    (\fun (zero: _) => law i bound (trans!{I.Int^} (a i i) (Arithmetic.neg (Arithmetic.neg (a i i))) Arithmetic.zero
+      (sym!{I.Int^} (Arithmetic.neg (Arithmetic.neg (a i i))) (a i i) (Integers.negNeg (a i i)))
+      (congr!{I.Int^ I.Int^} Arithmetic.neg (Arithmetic.neg (a i i)) Arithmetic.zero zero))) (Nat.eqb i k);
+\definition dividesNegation: \forall (a: Runtime^)(k: N.Nat^) -> Divides a -> Divides (Rows.negate a k) :=
+  \fun (a: Runtime^)(k: N.Nat^)(law: Divides a)(i, j: N.Nat^)(pivotBound: _)(rowBound: _)(columnBound: _)(later: _) => B.cases2
+    (\fun (first, second: B.Bool^) => Signed.Divides
+      (B.ite I.Int^ first (Arithmetic.neg (a i i)) (a i i))
+      (B.ite I.Int^ second (Arithmetic.neg (a j j)) (a j j)))
+    (law i j pivotBound rowBound columnBound later)
+    (Divisibility.negation (a i i) (a j j) (law i j pivotBound rowBound columnBound later))
+    (Divisibility.negativeDivisor (a i i) (a j j) (law i j pivotBound rowBound columnBound later))
+    (Divisibility.negativeDivisor (a i i) (Arithmetic.neg (a j j))
+      (Divisibility.negation (a i i) (a j j) (law i j pivotBound rowBound columnBound later))) (Nat.eqb i k) (Nat.eqb j k);
+\import \parent.Normalize[].Preservation[P := Diagonal] \as DiagonalPreservation;
+\import \parent.Normalize[].Preservation[P := TrailingZero] \as ZeroPreservation;
+\import \parent.Normalize[].Preservation[P := Nonzero] \as NonzeroPreservation;
+\import \parent.Normalize[].Preservation[P := Divides] \as DividesPreservation;
+\definition normalizedDiagonal: \forall (count: N.Nat^)(a: Runtime^)(history: History^) -> Diagonal a ->
+  Diagonal (attemptMatrix (\parent.Normalize[].fold count a history)) :=
+  \fun (count: N.Nat^)(a: Runtime^)(history: History^) => DiagonalPreservation.preserves count a history diagonalNegation;
+\definition normalizedTrailing: \forall (count: N.Nat^)(a: Runtime^)(history: History^) -> TrailingZero a ->
+  TrailingZero (attemptMatrix (\parent.Normalize[].fold count a history)) :=
+  \fun (count: N.Nat^)(a: Runtime^)(history: History^) => ZeroPreservation.preserves count a history trailingNegation;
+\definition normalizedNonzero: \forall (count: N.Nat^)(a: Runtime^)(history: History^) -> Nonzero a ->
+  Nonzero (attemptMatrix (\parent.Normalize[].fold count a history)) :=
+  \fun (count: N.Nat^)(a: Runtime^)(history: History^) => NonzeroPreservation.preserves count a history nonzeroNegation;
+\definition normalizedDivides: \forall (count: N.Nat^)(a: Runtime^)(history: History^) -> Divides a ->
+  Divides (attemptMatrix (\parent.Normalize[].fold count a history)) :=
+  \fun (count: N.Nat^)(a: Runtime^)(history: History^) => DividesPreservation.preserves count a history dividesNegation;

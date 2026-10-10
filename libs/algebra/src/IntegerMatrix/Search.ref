@@ -1,0 +1,67 @@
+\import N.Find[] \as Search;
+\import Search.Grid[] \as Grid;
+\import std.Data[].Bool[] \as B;
+\import B.Prop[] \as BoolLaws;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\definition probe(k: N.Nat^)(a: Runtime^)(i, j: N.Nat^): B.Bool^ :=
+  B.And.specification (Nat.leb k i) (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j))));
+\definition zeroOfTrue: \forall (a: I.Int^) -> I.IsZero.specification a = B.Bool^::true -> a = Arithmetic.zero :=
+  \induction (a: I.Int^) \return I.IsZero.specification a = B.Bool^::true -> a = Arithmetic.zero \with {
+    | ofNat: \induction (n: N.Nat^) \return I.IsZero.specification (I.Int^::ofNat n) = B.Bool^::true -> I.Int^::ofNat n = Arithmetic.zero \with {
+        | zero: \fun (equal: B.Bool^::true = B.Bool^::true) => \refl(Arithmetic.zero)
+        | succ: \fun (n: N.Nat^)(previous: _)(bad: B.Bool^::false = B.Bool^::true) => BoolLaws.absurd (I.Int^::ofNat (N.Nat^::succ n) = Arithmetic.zero) bad
+      }
+    | negSucc: \fun (n: N.Nat^)(bad: B.Bool^::false = B.Bool^::true) => BoolLaws.absurd (I.Int^::negSucc n = Arithmetic.zero) bad
+  };
+\definition nonzeroOfFalse: \forall (a: I.Int^) -> I.IsZero.specification a = B.Bool^::false -> Logic.Not (a = Arithmetic.zero) :=
+  \fun (a: I.Int^)(test: I.IsZero.specification a = B.Bool^::false)(zero: a = Arithmetic.zero) => BoolLaws.falseNeTrue
+    (trans!{B.Bool^} B.Bool^::false (I.IsZero.specification a) B.Bool^::true (sym!{B.Bool^} (I.IsZero.specification a) B.Bool^::false test)
+      (congr!{I.Int^ B.Bool^} I.IsZero.specification a Arithmetic.zero zero));
+
+\definition falseOfNonzero: \forall (a: I.Int^) -> Logic.Not (a = Arithmetic.zero) -> I.IsZero.specification a = B.Bool^::false :=
+  \fun (a: I.Int^)(nonzero: _) => B.cases
+    (\fun (test: B.Bool^) => I.IsZero.specification a = test -> test = B.Bool^::false)
+    (\fun (equal: I.IsZero.specification a = B.Bool^::false) => \refl(B.Bool^::false))
+    (\fun (equal: I.IsZero.specification a = B.Bool^::true) => Logic.falseElim _ (nonzero (zeroOfTrue a equal)))
+    (I.IsZero.specification a) (\refl(I.IsZero.specification a));
+\structure Hit[k: N.Nat^, a: Runtime^, i, j: N.Nat^]: \Prop {
+  rowLower: Bounds.Le k i,
+  columnLower: Bounds.Le k j,
+  nonzero: Logic.Not (a i j = Arithmetic.zero),
+}
+\definition hit: \forall (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> probe k a i j = B.Bool^::true -> Hit[k, a, i, j] :=
+  \fun (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^)(test: probe k a i j = B.Bool^::true) => Hit[k, a, i, j] {
+    rowLower := BoolLaws.andTrueLeft (Nat.leb k i) (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))) test,
+    columnLower := BoolLaws.andTrueLeft (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))
+      (BoolLaws.andTrueRight (Nat.leb k i) (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))) test),
+    nonzero := nonzeroOfFalse (a i j) (BoolLaws.negTrue (I.IsZero.specification (a i j))
+      (BoolLaws.andTrueRight (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))
+        (BoolLaws.andTrueRight (Nat.leb k i) (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))) test))),
+  };
+\definition search(rows, cols, k: N.Nat^)(a: Runtime^): Grid.Position^ := Grid.grid rows cols (probe k a);
+\definition bounded: \forall (rows, cols, k: N.Nat^)(a: Runtime^) -> Grid.PositionLaws (probe k a) rows cols (search rows cols k a) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^) => Grid.correctness rows cols (probe k a);
+
+
+\definition within: \forall (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> Bounds.Le k i -> Bounds.Le k j ->
+  probe k a i j = B.Neg.specification (I.IsZero.specification (a i j)) :=
+  \fun (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^)(rowLower: _)(colLower: _) =>
+    trans!{B.Bool^} (probe k a i j) (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))) (B.Neg.specification (I.IsZero.specification (a i j)))
+      (congr!{B.Bool^ B.Bool^} (\fun (test: B.Bool^) => B.And.specification test (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j))))) (Nat.leb k i) B.Bool^::true rowLower)
+      (congr!{B.Bool^ B.Bool^} (\fun (test: B.Bool^) => B.And.specification test (B.Neg.specification (I.IsZero.specification (a i j)))) (Nat.leb k j) B.Bool^::true colLower);
+\definition noneZero: \forall (rows, cols, k: N.Nat^)(a: Runtime^) -> Grid.PositionLaws (probe k a) rows cols Grid.Position^::empty ->
+  \forall (i, j: N.Nat^) -> Bounds.Lt i rows -> Bounds.Lt j cols -> Bounds.Le k i -> Bounds.Le k j -> a i j = Arithmetic.zero :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(empty: _)(i, j: N.Nat^)(rowBound: _)(colBound: _)(rowLower: _)(colLower: _) => zeroOfTrue (a i j)
+    (BoolLaws.negFalse (I.IsZero.specification (a i j)) (trans!{B.Bool^} (B.Neg.specification (I.IsZero.specification (a i j))) (probe k a i j) B.Bool^::false
+      (sym!{B.Bool^} (probe k a i j) (B.Neg.specification (I.IsZero.specification (a i j))) (within k a i j rowLower colLower))
+      (empty i j rowBound colBound)));
+\module ProbeImplementation;
+\correspondence Probe: Programs.Correspondence := Programs.Correspondence {
+  T := ProbeImplementation[].T, program := ProbeImplementation[].program, specification := probe, coherence := ProbeImplementation[].coherence,
+};
+\module Implementation;
+\correspondence Search: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := search, coherence := Implementation[].coherence,
+};

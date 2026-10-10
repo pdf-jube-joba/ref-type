@@ -1,0 +1,10 @@
+\definition run: State^ -> Runtime^ := Evaluate.run^;
+\definition matchesLoop: \forall (history: History^)(handler: Handler^)(current: Runtime^) -> run (State^::pending history handler current) = undoHistoryWith handler history current :=
+  \induction (history: History^) \return \forall (handler: Handler^)(current: Runtime^) -> run (State^::pending history handler current) = undoHistoryWith handler history current \with {
+    | empty: \fun (handler: Handler^)(current: Runtime^) => \refl(current)
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: _)(handler: Handler^)(current: Runtime^) => previous handler (handler operation current)
+  };
+\definition coherence: program^ = undoHistoryWith := \axiom:funext(program^, undoHistoryWith,
+  \fun (handler: Handler^) => \axiom:funext(program^ handler, undoHistoryWith handler,
+    \fun (history: History^) => \axiom:funext(program^ handler history, undoHistoryWith handler history,
+      \fun (a: Runtime^) => matchesLoop history handler a)));

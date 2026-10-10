@@ -1,0 +1,34 @@
+\definition point: Index := closure.objects.pair x y;
+\import Modules.Biproduct[V := family.Carrier x, W := family.Carrier y, left := family.space x, right := family.space y] \as Sum;
+\definition isomorphism: Modules.Isomorphism[V := Sum.Carrier, W := family.Carrier point, source := Sum.space, target := family.space point].Isomorphism := closure.representations.pair x y;
+\import Modules.Hom[V := Sum.Carrier, W := family.Carrier point, source := Sum.space, target := family.space point].Composition[U := family.Carrier x, domain := family.space x] \as LeftInjection;
+\import Modules.Hom[V := Sum.Carrier, W := family.Carrier point, source := Sum.space, target := family.space point].Composition[U := family.Carrier y, domain := family.space y] \as RightInjection;
+\import Modules.Hom[V := Sum.Carrier, W := family.Carrier x, source := Sum.space, target := family.space x].Composition[U := family.Carrier point, domain := family.space point] \as LeftProjection;
+\import Modules.Hom[V := Sum.Carrier, W := family.Carrier y, source := Sum.space, target := family.space y].Composition[U := family.Carrier point, domain := family.space point] \as RightProjection;
+\definition firstInjection: Hom x point := LeftInjection.compose (#forward{isomorphism}) Sum.firstInjection;
+\definition secondInjection: Hom y point := RightInjection.compose (#forward{isomorphism}) Sum.secondInjection;
+\definition firstProjection: Hom point x := LeftProjection.compose Sum.firstProjection (#backward{isomorphism});
+\definition secondProjection: Hom point y := RightProjection.compose Sum.secondProjection (#backward{isomorphism});
+\definition data: Additive.BiproductData[Index, Hom, x, y] := Additive.BiproductData[Index, Hom, x, y] {
+  object := point, firstInjection := firstInjection, secondInjection := secondInjection,
+  firstProjection := firstProjection, secondProjection := secondProjection,
+};
+\definition firstFirst: compose x point x firstProjection firstInjection = identity x :=
+  \parent.\parent.\parent.At[x := x, y := x].ext _ _ (\fun (u: family.Carrier x) => congr!{Sum.Carrier {family.Carrier x}} Sum.first _ _ (#leftInverse{isomorphism} (#apply{Sum.firstInjection} u)));
+\definition secondSecond: compose y point y secondProjection secondInjection = identity y :=
+  \parent.\parent.\parent.At[x := y, y := y].ext _ _ (\fun (u: family.Carrier y) => congr!{Sum.Carrier {family.Carrier y}} Sum.second _ _ (#leftInverse{isomorphism} (#apply{Sum.secondInjection} u)));
+\definition firstSecond: compose y point x firstProjection secondInjection = zero y x :=
+  \parent.\parent.\parent.At[x := y, y := x].ext _ _ (\fun (u: family.Carrier y) => congr!{Sum.Carrier {family.Carrier x}} Sum.first _ _ (#leftInverse{isomorphism} (#apply{Sum.secondInjection} u)));
+\definition secondFirst: compose x point y secondProjection firstInjection = zero x y :=
+  \parent.\parent.\parent.At[x := x, y := y].ext _ _ (\fun (u: family.Carrier x) => congr!{Sum.Carrier {family.Carrier y}} Sum.second _ _ (#leftInverse{isomorphism} (#apply{Sum.firstInjection} u)));
+\definition reconstruction: \parent.\parent.\parent.At[x := point, y := point].plus (compose point x point firstInjection firstProjection) (compose point y point secondInjection secondProjection) = identity point :=
+  \parent.\parent.\parent.At[x := point, y := point].ext _ _ (\fun (u: family.Carrier point) => trans!{{family.Carrier point}} _ _ _
+    (sym!{{family.Carrier point}} _ _ (#addition{#forward{isomorphism}} (#apply{Sum.firstInjection} (Sum.first (#apply{#backward{isomorphism}} u))) (#apply{Sum.secondInjection} (Sum.second (#apply{#backward{isomorphism}} u)))))
+    (trans!{{family.Carrier point}} _ _ _
+      (congr!{Sum.Carrier {family.Carrier point}} (#apply{#forward{isomorphism}}) _ _ (Sum.reconstruction (#apply{#backward{isomorphism}} u))) (#rightInverse{isomorphism} u)));
+\definition laws: Additive.BiproductLaws[Index, Hom, categoryData, addition, x, y, data] :=
+  Additive.BiproductLaws[Index, Hom, categoryData, addition, x, y, data] {
+    firstFirst := firstFirst, secondSecond := secondSecond, firstSecond := firstSecond, secondFirst := secondFirst, reconstruction := reconstruction,
+  };
+\definition object: Additive.Biproduct[Index, Hom, categoryData, addition, x, y] :=
+  \into[Additive.BiproductData[Index, Hom, x, y]](data, { data: Additive.BiproductData[Index, Hom, x, y] \where Additive.BiproductLaws[Index, Hom, categoryData, addition, x, y, data] }) \by { laws };

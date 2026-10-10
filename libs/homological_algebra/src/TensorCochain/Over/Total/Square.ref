@@ -1,0 +1,36 @@
+\import \parent.Degree[n := n] \as Source;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Middle;
+\import \parent.Degree[n := Nat.Nat^::succ (Nat.Nat^::succ n)] \as Target;
+\import \parent.Step[n := n] \as First;
+\import \parent.Step[n := Nat.Nat^::succ n] \as Second;
+\import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as Compose;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space] \as MiddleMaps;
+\import Modules.DirectSum[Index := Index n, family := Source.family].To[W := Target.Carrier, target := Target.space] \as Universal;
+\import Modules.Laws[V := Target.Carrier, space := Target.space] \as Vector;
+\import algebra.Group[].Of[Carrier := Target.Carrier, group := Vector.additive] \as Additive;
+\module Component(i: Index n);
+\definition horizontalSquare: Compose.compose Second.horizontal First.horizontal = Maps.zeroMap :=
+  Universal.ext (Compose.compose Second.horizontal First.horizontal) Maps.zeroMap
+    (\fun (i: Index n) => Component[i := i].horizontalZero);
+\definition verticalSquare: Compose.compose Second.vertical First.vertical = Maps.zeroMap :=
+  Universal.ext (Compose.compose Second.vertical First.vertical) Maps.zeroMap
+    (\fun (i: Index n) => Component[i := i].verticalZero);
+\definition cross: Compose.compose Second.horizontal First.vertical = Maps.negative (Compose.compose Second.vertical First.horizontal) :=
+  Universal.ext (Compose.compose Second.horizontal First.vertical) (Maps.negative (Compose.compose Second.vertical First.horizontal))
+    (\fun (i: Index n) => Component[i := i].antiCommutes);
+\definition zero: \forall (x: Source.Carrier) -> #apply{Second.differential} (#apply{First.differential} x) = #zero{Target.space} :=
+  \fun (x: Source.Carrier) => trans!{Target.Carrier} _ _ _
+    (#addition{Second.differential} (#apply{First.horizontal} x) (#apply{First.vertical} x))
+    (trans!{Target.Carrier} _ _ _
+      (congr2!{Target.Carrier Target.Carrier Target.Carrier} (#add{Target.space}) _ _ _ _
+        (congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #add{Target.space} (#apply{f} x) (#apply{Second.vertical} (#apply{First.horizontal} x))) _ _ horizontalSquare)
+        (congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #add{Target.space} (#apply{Second.horizontal} (#apply{First.vertical} x)) (#apply{f} x)) _ _ verticalSquare))
+      (trans!{Target.Carrier} _ _ _
+        (congr2!{Target.Carrier Target.Carrier Target.Carrier} (#add{Target.space}) _ _ _ _
+          (Additive.zeroLeft (#apply{Second.vertical} (#apply{First.horizontal} x)))
+          (Additive.zeroRight (#apply{Second.horizontal} (#apply{First.vertical} x))))
+        (trans!{Target.Carrier} _ _ _
+          (congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #add{Target.space} (#apply{Second.vertical} (#apply{First.horizontal} x)) (#apply{f} x)) _ _ cross)
+          (Additive.inverseRight (#apply{Second.vertical} (#apply{First.horizontal} x))))));

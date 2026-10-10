@@ -1,0 +1,82 @@
+\import \parent.\parent.\parent.ShortExactSecond[M := M, A := A1, B := B1, C := C1, P := P].With[sequence := t, resolution := resolution] \as Target;
+\import \parent.\parent.\parent.Of[M := M, N := A1, P := P] \as TargetLeft;
+\import \parent.\parent.\parent.Of[M := M, N := B1, P := P] \as TargetMiddle;
+\import \parent.\parent.\parent.Of[M := M, N := C1, P := P] \as TargetRight;
+\import \parent.\parent.\parent.Second[M := M, N := A, L := A1, P := P] \as LeftMap;
+\import \parent.\parent.\parent.Second[M := M, N := B, L := B1, P := P] \as MiddleMap;
+\import \parent.\parent.\parent.Second[M := M, N := C, L := C1, P := P] \as RightMap;
+\import Sequence.Morphism[A1 := TargetLeft.tensorComplex, B1 := TargetMiddle.tensorComplex, C1 := TargetRight.tensorComplex].Diagram[s := tensorSequence, t := Target.tensorSequence,
+  a := LeftMap.chainMap a, b := MiddleMap.chainMap b, c := RightMap.chainMap c] \as Diagram;
+\structure Commutative: \Prop {
+  left: \forall (x: A.Carrier) -> #apply{b} (#apply{sequence.inclusion} x) = #apply{t.inclusion} (#apply{a} x),
+  right: \forall (x: B.Carrier) -> #apply{t.projection} (#apply{b} x) = #apply{c} (#apply{sequence.projection} x),
+}
+\import Chains.End[C := P] \as Identity;
+\import \root.TensorComplex[].Over[R := R, ring := ring] \as TensorBase;
+\import \parent.\parent.\parent.Second[M := M, N := A1, L := B1, P := P] \as TargetInclusion;
+\import \parent.\parent.\parent.Second[M := M, N := B1, L := C1, P := P] \as TargetProjection;
+\module Degree(n: Nat.Nat^) {
+  \import Modules.Tensor[V := P.family.Carrier n, W := A.Carrier, left := P.family.space n, right := A.space] \as leftSource;
+  \import Modules.Tensor[V := P.family.Carrier n, W := B1.Carrier, left := P.family.space n, right := B1.space] \as leftTarget;
+  \import Modules.Hom[V := leftSource.Carrier, W := leftTarget.Carrier, source := leftSource.space, target := leftTarget.space] \as leftMaps;
+  \import leftSource.Universal[U := leftTarget.Carrier, target := leftTarget.space] \as leftEquality;
+  \import TensorBase.Mapping[P := P, Q := P, N := A, L := B].On[f := Identity.identity, u := sequence.inclusion].At[n := n] \as leftFirst;
+  \import TensorBase.Mapping[P := P, Q := P, N := B, L := B1].On[f := Identity.identity, u := b].At[n := n] \as leftLast;
+  \import TensorBase.Mapping[P := P, Q := P, N := A, L := A1].On[f := Identity.identity, u := a].At[n := n] \as leftOtherFirst;
+  \import TensorBase.Mapping[P := P, Q := P, N := A1, L := B1].On[f := Identity.identity, u := t.inclusion].At[n := n] \as leftOtherLast;
+  \import Modules.Tensor[V := P.family.Carrier n, W := B.Carrier, left := P.family.space n, right := B.space] \as leftMiddle;
+  \import Modules.Tensor[V := P.family.Carrier n, W := A1.Carrier, left := P.family.space n, right := A1.space] \as leftOtherMiddle;
+  \import Modules.Hom[V := leftMiddle.Carrier, W := leftTarget.Carrier, source := leftMiddle.space, target := leftTarget.space].Composition[U := leftSource.Carrier, domain := leftSource.space] \as leftComposition;
+  \import Modules.Hom[V := leftOtherMiddle.Carrier, W := leftTarget.Carrier, source := leftOtherMiddle.space, target := leftTarget.space].Composition[U := leftSource.Carrier, domain := leftSource.space] \as leftOtherComposition;
+  \definition leftcomposed: leftMaps.Map := leftComposition.compose leftLast.map leftFirst.map;
+  \definition leftother: leftMaps.Map := leftOtherComposition.compose leftOtherLast.map leftOtherFirst.map;
+  \definition left: Commutative -> \forall (z: leftSource.Carrier) -> #apply{leftcomposed} z = #apply{leftother} z :=
+    \fun (diagram: Commutative)(z: leftSource.Carrier) => congr!{leftMaps.Map leftTarget.Carrier} (\fun (f: leftMaps.Map) => #apply{f} z) _ _
+      (leftEquality.ext leftcomposed leftother
+        (\fun (x: P.family.Carrier n)(y: A.Carrier) => trans!{leftTarget.Carrier} _ _ _
+          (congr!{{leftMiddle.Carrier} leftTarget.Carrier} (\fun (v: leftMiddle.Carrier) => #apply{(MiddleMap.chainMap b)} n v) _ _ (leftFirst.onTensor x y))
+          (trans!{leftTarget.Carrier} _ _ _ (leftLast.onTensor x (#apply{sequence.inclusion} y))
+            (trans!{leftTarget.Carrier} _ _ _
+              (congr!{B1.Carrier leftTarget.Carrier} (leftTarget.tensor x) _ _ (#left{diagram} y))
+              (sym!{leftTarget.Carrier} _ _ (trans!{leftTarget.Carrier} _ _ _
+                (congr!{{leftOtherMiddle.Carrier} leftTarget.Carrier} (\fun (v: leftOtherMiddle.Carrier) => #apply{(TargetInclusion.chainMap t.inclusion)} n v) _ _ (leftOtherFirst.onTensor x y))
+                (leftOtherLast.onTensor x (#apply{a} y))))))));
+  \import Modules.Tensor[V := P.family.Carrier n, W := B.Carrier, left := P.family.space n, right := B.space] \as rightSource;
+  \import Modules.Tensor[V := P.family.Carrier n, W := C1.Carrier, left := P.family.space n, right := C1.space] \as rightTarget;
+  \import Modules.Hom[V := rightSource.Carrier, W := rightTarget.Carrier, source := rightSource.space, target := rightTarget.space] \as rightMaps;
+  \import rightSource.Universal[U := rightTarget.Carrier, target := rightTarget.space] \as rightEquality;
+  \import TensorBase.Mapping[P := P, Q := P, N := B, L := B1].On[f := Identity.identity, u := b].At[n := n] \as rightFirst;
+  \import TensorBase.Mapping[P := P, Q := P, N := B1, L := C1].On[f := Identity.identity, u := t.projection].At[n := n] \as rightLast;
+  \import TensorBase.Mapping[P := P, Q := P, N := B, L := C].On[f := Identity.identity, u := sequence.projection].At[n := n] \as rightOtherFirst;
+  \import TensorBase.Mapping[P := P, Q := P, N := C, L := C1].On[f := Identity.identity, u := c].At[n := n] \as rightOtherLast;
+  \import Modules.Tensor[V := P.family.Carrier n, W := B1.Carrier, left := P.family.space n, right := B1.space] \as rightMiddle;
+  \import Modules.Tensor[V := P.family.Carrier n, W := C.Carrier, left := P.family.space n, right := C.space] \as rightOtherMiddle;
+  \import Modules.Hom[V := rightMiddle.Carrier, W := rightTarget.Carrier, source := rightMiddle.space, target := rightTarget.space].Composition[U := rightSource.Carrier, domain := rightSource.space] \as rightComposition;
+  \import Modules.Hom[V := rightOtherMiddle.Carrier, W := rightTarget.Carrier, source := rightOtherMiddle.space, target := rightTarget.space].Composition[U := rightSource.Carrier, domain := rightSource.space] \as rightOtherComposition;
+  \definition rightcomposed: rightMaps.Map := rightComposition.compose rightLast.map rightFirst.map;
+  \definition rightother: rightMaps.Map := rightOtherComposition.compose rightOtherLast.map rightOtherFirst.map;
+  \definition right: Commutative -> \forall (z: rightSource.Carrier) -> #apply{rightcomposed} z = #apply{rightother} z :=
+    \fun (diagram: Commutative)(z: rightSource.Carrier) => congr!{rightMaps.Map rightTarget.Carrier} (\fun (f: rightMaps.Map) => #apply{f} z) _ _
+      (rightEquality.ext rightcomposed rightother
+        (\fun (x: P.family.Carrier n)(y: B.Carrier) => trans!{rightTarget.Carrier} _ _ _
+          (congr!{{rightMiddle.Carrier} rightTarget.Carrier} (\fun (v: rightMiddle.Carrier) => #apply{(TargetProjection.chainMap t.projection)} n v) _ _ (rightFirst.onTensor x y))
+          (trans!{rightTarget.Carrier} _ _ _ (rightLast.onTensor x (#apply{b} y))
+            (trans!{rightTarget.Carrier} _ _ _
+              (congr!{C1.Carrier rightTarget.Carrier} (rightTarget.tensor x) _ _ (#right{diagram} y))
+              (sym!{rightTarget.Carrier} _ _ (trans!{rightTarget.Carrier} _ _ _
+                (congr!{{rightOtherMiddle.Carrier} rightTarget.Carrier} (\fun (v: rightOtherMiddle.Carrier) => #apply{(RightMap.chainMap c)} n v) _ _ (rightOtherFirst.onTensor x y))
+                (rightOtherLast.onTensor x (#apply{sequence.projection} y))))))));
+}
+\definition tensorCommutative: Commutative -> Diagram.Commutative := \fun (diagram: Commutative) => Diagram.Commutative {
+  left := \fun (n: Nat.Nat^) => Degree[n := n].left diagram,
+  right := \fun (n: Nat.Nat^) => Degree[n := n].right diagram,
+};
+\module At(n: Nat.Nat^) {
+  \import \parent.\parent.At[n := n] \as SourceAt;
+  \import Target.At[n := n] \as TargetAt;
+  \import \parent.\parent.\parent.\parent.Of[M := M, N := C, P := P].At[n := Nat.Nat^::succ n] \as Source;
+  \definition naturality: Commutative -> \forall (q: Source.Carrier) ->
+    #apply{TargetAt.connecting} (#apply{(RightMap.At[k := Nat.Nat^::succ n].map c)} q) =
+    #apply{(LeftMap.At[k := n].map a)} (#apply{SourceAt.connecting} q) :=
+    \fun (diagram: Commutative) => Diagram.At[n := n].naturality (tensorCommutative diagram);
+}

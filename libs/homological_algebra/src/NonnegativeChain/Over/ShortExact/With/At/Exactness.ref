@@ -1,0 +1,36 @@
+\import Modules.ExactPair[A := ia, B := ib, C := ic] \as MiddlePair;
+\import Modules.ExactPair[A := ib, B := ic, C := id] \as RightPair;
+\import Modules.ExactPair[A := ic, B := id, C := ie] \as NextPair;
+\definition middleSource: MiddlePair.Sequence := MiddlePair.Sequence {
+  first := InclusionInteger.induced ExtendedInclusion.map, last := ProjectionInteger.induced ExtendedProjection.map,
+  zero := Exact.Exactness[].inclusionProjectionZero, kernelImage := Exact.Exactness[].exactAtB,
+};
+\definition rightSource: RightPair.Sequence := RightPair.Sequence {
+  first := ProjectionInteger.induced ExtendedProjection.map, last := Exact.connecting,
+  zero := Exact.Exactness[].projectionConnectingZero, kernelImage := Exact.Exactness[].exactAtC,
+};
+\definition nextSource: NextPair.Sequence := NextPair.Sequence {
+  first := Exact.connecting, last := InclusionLowerInteger.induced ExtendedInclusion.map,
+  zero := Exact.Exactness[].connectingInclusionZero, kernelImage := Exact.Exactness[].exactAtALower,
+};
+\import MiddlePair.Transport[A1 := a, B1 := b, C1 := c, sequence := middleSource,
+  f := InclusionNatural.induced s.inclusion, g := ProjectionNatural.induced s.projection,
+  a := aIsomorphism, b := bIsomorphism, c := cIsomorphism] \as MiddleTransport;
+\import RightPair.Transport[A1 := b, B1 := c, C1 := d, sequence := rightSource,
+  f := ProjectionNatural.induced s.projection, g := connecting,
+  a := bIsomorphism, b := cIsomorphism, c := dIsomorphism] \as RightTransport;
+\import NextPair.Transport[A1 := c, B1 := d, C1 := e, sequence := nextSource,
+  f := connecting, g := InclusionLowerNatural.induced s.inclusion,
+  a := cIsomorphism, b := dIsomorphism, c := eIsomorphism] \as NextTransport;
+\import Inclusion.HomologyNaturality[f := s.inclusion].At[n := higher] \as InclusionNaturality;
+\import Projection.HomologyNaturality[f := s.projection].At[n := higher] \as ProjectionNaturality;
+\import Inclusion.HomologyNaturality[f := s.inclusion].At[n := n] \as LowerNaturality;
+\definition middleLaws: Modules.ExactPair[A := a, B := b, C := c].Laws[MiddleTransport.data] := MiddleTransport.laws InclusionNaturality.inverseCommutes ProjectionNaturality.inverseCommutes;
+\definition rightLaws: Modules.ExactPair[A := b, B := c, C := d].Laws[RightTransport.data] := RightTransport.laws ProjectionNaturality.inverseCommutes connectingCommutes;
+\definition nextLaws: Modules.ExactPair[A := c, B := d, C := e].Laws[NextTransport.data] := NextTransport.laws connectingCommutes LowerNaturality.inverseCommutes;
+\definition inclusionProjectionZero: \forall (h: a.Carrier) -> #apply{(ProjectionNatural.induced s.projection)} (#apply{(InclusionNatural.induced s.inclusion)} h) = #zero{c.space} := #zero{middleLaws};
+\definition projectionConnectingZero: \forall (h: b.Carrier) -> #apply{connecting} (#apply{(ProjectionNatural.induced s.projection)} h) = #zero{d.space} := #zero{rightLaws};
+\definition connectingInclusionZero: \forall (h: c.Carrier) -> #apply{(InclusionLowerNatural.induced s.inclusion)} (#apply{connecting} h) = #zero{e.space} := #zero{nextLaws};
+\definition exactAtB: \forall (h: b.Carrier) -> #apply{(ProjectionNatural.induced s.projection)} h = #zero{c.space} -> \exists { x: a.Carrier \where #apply{(InclusionNatural.induced s.inclusion)} x = h } := #kernelImage{middleLaws};
+\definition exactAtC: \forall (h: c.Carrier) -> #apply{connecting} h = #zero{d.space} -> \exists { x: b.Carrier \where #apply{(ProjectionNatural.induced s.projection)} x = h } := #kernelImage{rightLaws};
+\definition exactAtALower: \forall (h: d.Carrier) -> #apply{(InclusionLowerNatural.induced s.inclusion)} h = #zero{e.space} -> \exists { x: c.Carrier \where #apply{connecting} x = h } := #kernelImage{nextLaws};

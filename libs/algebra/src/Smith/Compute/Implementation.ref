@@ -1,0 +1,28 @@
+\import N.Basic[].Program[] \as Native;
+\import N.Basic[].ProgramProp[] \as NatCorrespondence;
+\definition T: \VType := \U(State ~> \F(\RunStep[State, Output]));
+\definition program: T := \thunk (\cfun (state: State) => \match state \in State \with {
+  | active rows cols k a history: \program {
+      \bind lower: \U(N.Nat -> B.Bool) <- (\force Native.ltb) k \then
+      \bind rowBound: B.Bool <- (\force lower) rows \then
+      \bind columnBound: B.Bool <- (\force lower) cols \then
+      \bind and: \U(B.Bool -> B.Bool) <- (\force B.And.program) rowBound \then
+      \bind inside: B.Bool <- (\force and) columnBound \then
+      \bind result: \RunStep[State, Output] <- (\force gateProgram) (GateState::gate inside state) \then
+      \return result
+    }
+});
+\definition withOperations(gate: Gate.T^)(and: B.And.T^)(less: NatCorrespondence.Ltb.T^)(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): \RunStep[State^, Output^] :=
+  gate (GateState^::gate (and (less k rows) (less k cols)) (State^::active rows cols k a history));
+\definition stage1(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): \RunStep[State^, Output^] := withOperations gate B.And.program^ Native.ltb^ rows cols k a history;
+\definition stage2(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): \RunStep[State^, Output^] := withOperations gate B.And.specification Native.ltb^ rows cols k a history;
+\definition onState: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> program^ (State^::active rows cols k a history) = step (State^::active rows cols k a history) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => trans!{{\RunStep[State^, Output^]}} (program^ (State^::active rows cols k a history)) (stage1 rows cols k a history) (step (State^::active rows cols k a history))
+    (congr!{Gate.T^ {\RunStep[State^, Output^]}} (\fun (f: Gate.T^) => withOperations f B.And.program^ Native.ltb^ rows cols k a history) gateProgram^ gate Gate.coherence)
+    (trans!{{\RunStep[State^, Output^]}} (stage1 rows cols k a history) (stage2 rows cols k a history) (step (State^::active rows cols k a history))
+      (congr!{B.And.T^ {\RunStep[State^, Output^]}} (\fun (f: B.And.T^) => withOperations gate f Native.ltb^ rows cols k a history) B.And.program^ B.And.specification B.And.coherence)
+      (congr!{NatCorrespondence.Ltb.T^ {\RunStep[State^, Output^]}} (\fun (f: NatCorrespondence.Ltb.T^) => withOperations gate B.And.specification f rows cols k a history) Native.ltb^ Nat.ltb NatCorrespondence.Ltb.coherence));
+\definition matches: \forall (state: State^) -> program^ state = step state := \induction (state: State^) \return program^ state = step state \with {
+  | active: onState
+};
+\definition coherence: program^ = step := \axiom:funext(program^, step, matches);

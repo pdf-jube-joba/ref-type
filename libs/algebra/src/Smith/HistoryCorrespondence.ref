@@ -1,0 +1,16 @@
+\definition run: HistoryState^ -> Runtime^ := EvaluateHistory.run^;
+\definition matchesLoop: \forall (history: History^)(handler: Handler^)(after: Transformer^)(original: Runtime^) ->
+  run (HistoryState^::pending history handler after original) = after (applyHistoryWith handler history original) :=
+  \induction (history: History^) \return \forall (handler: Handler^)(after: Transformer^)(original: Runtime^) ->
+    run (HistoryState^::pending history handler after original) = after (applyHistoryWith handler history original) \with {
+    | empty: \fun (handler: Handler^)(after: Transformer^)(original: Runtime^) => \refl(after original)
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: _)(handler: Handler^)(after: Transformer^)(original: Runtime^) =>
+        previous handler (\fun (a: Runtime^) => after (handler operation a)) original
+  };
+\definition matches: \forall (history: History^)(a: Runtime^) -> historyProgram^ history a = applyHistory history a :=
+  \fun (history: History^)(a: Runtime^) => trans!{Runtime^} (historyProgram^ history a)
+    (applyHistoryWith Apply.program^ history a) (applyHistory history a)
+    (matchesLoop history Apply.program^ (\fun (a: Runtime^) => a) a)
+    (congr!{Handler^ Runtime^} (\fun (handler: Handler^) => applyHistoryWith handler history a) Apply.program^ Apply.specification Apply.coherence);
+\definition coherence: historyProgram^ = applyHistory := \axiom:funext(historyProgram^, applyHistory,
+  \fun (history: History^) => \axiom:funext(historyProgram^ history, applyHistory history, matches history));

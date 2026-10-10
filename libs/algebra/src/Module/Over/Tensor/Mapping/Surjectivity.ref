@@ -1,0 +1,18 @@
+\import \parent.\parent.\parent.Of[V := Target.Carrier, space := Target.space].Submodule[].Image[U := Carrier, source := space] \as Images;
+\import Target.Spanning[] \as Spanning;
+\definition LeftOnto(f: LeftMaps.Map): \Prop := \forall (u: U) -> \exists { x: V \where #apply{f} x = u };
+\definition RightOnto(g: RightMaps.Map): \Prop := \forall (z: Z) -> \exists { y: W \where #apply{g} y = z };
+\definition pure: \forall (f: LeftMaps.Map)(g: RightMaps.Map) -> LeftOnto f -> RightOnto g ->
+  \forall (u: U)(z: Z) -> \In[Target.Carrier] (Images.Points (map f g)) (Target.tensor u z) := \block {
+  \fun (f: LeftMaps.Map)(g: RightMaps.Map)(leftOnto: LeftOnto f)(rightOnto: RightOnto g)(u: U)(z: Z) \then
+  \takefrom x: \Cast[V] ({ x: V \where #apply{f} x = u }) \by leftOnto u \then
+  \takefrom y: \Cast[W] ({ y: W \where #apply{g} y = z }) \by rightOnto z \then
+  \return Images.introduce (map f g) (Target.tensor u z) (tensor x y)
+    (trans!{Target.Carrier} _ _ _ (onTensor f g x y)
+      (congr2!{U Z Target.Carrier} Target.tensor _ _ _ _
+        (\bysub(V, { x: V \where #apply{f} x = u }, x)) (\bysub(W, { y: W \where #apply{g} y = z }, y))))
+};
+\definition onto: \forall (f: LeftMaps.Map)(g: RightMaps.Map) -> LeftOnto f -> RightOnto g ->
+  \forall (q: Target.Carrier) -> \exists { x: Carrier \where #apply{(map f g)} x = q } :=
+  \fun (f: LeftMaps.Map)(g: RightMaps.Map)(leftOnto: LeftOnto f)(rightOnto: RightOnto g) =>
+    Spanning.generates (Images.image (map f g)) (pure f g leftOnto rightOnto);

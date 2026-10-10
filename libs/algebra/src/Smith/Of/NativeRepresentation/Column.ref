@@ -1,0 +1,45 @@
+\import \parent.\parent.ColumnFrames[r := r, s := s] \as Frames;
+\import RightMatrices.ColumnOperations[].Typed[r := r, s := s] \as Typed;
+\import RightElementary.Swap[i := r, j := s] \as Exchange;
+\import RightElementary.Shear[i := r, j := s] \as Shear;
+\import RightElementary.Negate[i := r] \as Negative;
+\import Right.Transpose[] \as SquareTranspose;
+\definition swapMatrix: RightMatrices.reflect (Columns.swap Identity.identity r s) = SquareTranspose.transpose (Exchange.matrix) :=
+  trans!{Right.Matrix} (RightMatrices.reflect (Columns.swap Identity.identity r s)) (RightMatrices.reflect (Columns.Swap.program^ Identity.identity r s)) (SquareTranspose.transpose (Exchange.matrix))
+    (congr!{Columns.Swap.T^ Right.Matrix} (\fun (f: Columns.Swap.T^) => RightMatrices.reflect (f Identity.identity r s)) Columns.Swap.specification Columns.Swap.program^ (sym!{Columns.Swap.T^} Columns.Swap.program^ Columns.Swap.specification Columns.Swap.coherence))
+    (trans!{Right.Matrix} (RightMatrices.reflect (Columns.Swap.program^ Identity.identity r s)) (Typed.swapped Identity.identity) (SquareTranspose.transpose (Exchange.matrix))
+      (sym!{Right.Matrix} (Typed.swapped Identity.identity) (RightMatrices.reflect (Columns.Swap.program^ Identity.identity r s)) (Typed.swapLaw Identity.identity))
+      (trans!{Right.Matrix} (Typed.swapped Identity.identity) (RightProduct.product RightEnd.identity (SquareTranspose.transpose (Exchange.matrix))) (SquareTranspose.transpose (Exchange.matrix))
+        (congr!{Right.Matrix Right.Matrix} (\fun (matrix: Right.Matrix) => RightProduct.product matrix (SquareTranspose.transpose (Exchange.matrix))) (RightMatrices.reflect Identity.identity) RightEnd.identity rightIdentity)
+        (RightEnd.leftIdentity (SquareTranspose.transpose (Exchange.matrix)))));
+\definition addMatrix(c: I.Int^): RightMatrices.reflect (Columns.add Identity.identity r s c) = SquareTranspose.transpose (Shear.matrix c) :=
+  trans!{Right.Matrix} (RightMatrices.reflect (Columns.add Identity.identity r s c)) (RightMatrices.reflect (Columns.Add.program^ Identity.identity r s c)) (SquareTranspose.transpose (Shear.matrix c))
+    (congr!{Columns.Add.T^ Right.Matrix} (\fun (f: Columns.Add.T^) => RightMatrices.reflect (f Identity.identity r s c)) Columns.Add.specification Columns.Add.program^ (sym!{Columns.Add.T^} Columns.Add.program^ Columns.Add.specification Columns.Add.coherence))
+    (trans!{Right.Matrix} (RightMatrices.reflect (Columns.Add.program^ Identity.identity r s c)) (Typed.added Identity.identity c) (SquareTranspose.transpose (Shear.matrix c))
+      (sym!{Right.Matrix} (Typed.added Identity.identity c) (RightMatrices.reflect (Columns.Add.program^ Identity.identity r s c)) (Typed.addLaw Identity.identity c))
+      (trans!{Right.Matrix} (Typed.added Identity.identity c) (RightProduct.product RightEnd.identity (SquareTranspose.transpose (Shear.matrix c))) (SquareTranspose.transpose (Shear.matrix c))
+        (congr!{Right.Matrix Right.Matrix} (\fun (matrix: Right.Matrix) => RightProduct.product matrix (SquareTranspose.transpose (Shear.matrix c))) (RightMatrices.reflect Identity.identity) RightEnd.identity rightIdentity)
+        (RightEnd.leftIdentity (SquareTranspose.transpose (Shear.matrix c)))));
+\definition negateMatrix: RightMatrices.reflect (Columns.negate Identity.identity r) = SquareTranspose.transpose (Negative.matrix) :=
+  trans!{Right.Matrix} (RightMatrices.reflect (Columns.negate Identity.identity r)) (RightMatrices.reflect (Columns.Negate.program^ Identity.identity r)) (SquareTranspose.transpose (Negative.matrix))
+    (congr!{Columns.Negate.T^ Right.Matrix} (\fun (f: Columns.Negate.T^) => RightMatrices.reflect (f Identity.identity r)) Columns.Negate.specification Columns.Negate.program^ (sym!{Columns.Negate.T^} Columns.Negate.program^ Columns.Negate.specification Columns.Negate.coherence))
+    (trans!{Right.Matrix} (RightMatrices.reflect (Columns.Negate.program^ Identity.identity r)) (Typed.negated Identity.identity) (SquareTranspose.transpose (Negative.matrix))
+      (sym!{Right.Matrix} (Typed.negated Identity.identity) (RightMatrices.reflect (Columns.Negate.program^ Identity.identity r)) (Typed.negateLaw Identity.identity))
+      (trans!{Right.Matrix} (Typed.negated Identity.identity) (RightProduct.product RightEnd.identity (SquareTranspose.transpose (Negative.matrix))) (SquareTranspose.transpose (Negative.matrix))
+        (congr!{Right.Matrix Right.Matrix} (\fun (matrix: Right.Matrix) => RightProduct.product matrix (SquareTranspose.transpose (Negative.matrix))) (RightMatrices.reflect Identity.identity) RightEnd.identity rightIdentity)
+        (RightEnd.leftIdentity (SquareTranspose.transpose (Negative.matrix)))));
+\definition swapMatches: Matches[(Frames.exchange), NativeFrames.operation (Operation^::columnSwap r s)] := Matches[(Frames.exchange), NativeFrames.operation (Operation^::columnSwap r s)] {
+  right := swapMatrix,
+  rightInverse := swapMatrix,
+  left := leftIdentity, leftInverse := leftIdentity,
+};
+\definition addMatches: \forall (c: I.Int^)(distinct: Logic.Not (r = s)) -> Matches[(Frames.addition c distinct), NativeFrames.operation (Operation^::columnAdd r s c)] := \fun (c: I.Int^)(distinct: Logic.Not (r = s)) => Matches[(Frames.addition c distinct), NativeFrames.operation (Operation^::columnAdd r s c)] {
+  right := addMatrix c,
+  rightInverse := addMatrix (Arithmetic.neg c),
+  left := leftIdentity, leftInverse := leftIdentity,
+};
+\definition negateMatches: Matches[(Frames.negative), NativeFrames.operation (Operation^::columnNegate r)] := Matches[(Frames.negative), NativeFrames.operation (Operation^::columnNegate r)] {
+  right := negateMatrix,
+  rightInverse := negateMatrix,
+  left := leftIdentity, leftInverse := leftIdentity,
+};

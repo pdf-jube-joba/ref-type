@@ -1,0 +1,40 @@
+\import N.Basic[].Prop[] \as Bounds;
+\import B.Prop[] \as BoolLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\definition exchangeBounded: \forall (limit, r, s, i: N.Nat^) -> Bounds.Lt r limit -> Bounds.Lt s limit -> Bounds.Lt i limit -> Bounds.Lt (transposition r s i) limit :=
+  \fun (limit, r, s, i: N.Nat^)(first: _)(second: _)(original: _) => B.cases2
+    (\fun (left, right: B.Bool^) => Bounds.Lt (B.ite N.Nat^ left s (B.ite N.Nat^ right r i)) limit)
+    original first second second (Nat.eqb i r) (Nat.eqb i s);
+\definition exchangeLower: \forall (lower, r, s, i: N.Nat^) -> Bounds.Le lower r -> Bounds.Le lower s -> Bounds.Le lower i -> Bounds.Le lower (transposition r s i) :=
+  \fun (lower, r, s, i: N.Nat^)(first: _)(second: _)(original: _) => B.cases2
+    (\fun (left, right: B.Bool^) => Bounds.Le lower (B.ite N.Nat^ left s (B.ite N.Nat^ right r i)))
+    original first second second (Nat.eqb i r) (Nat.eqb i s);
+\definition exchangeFixed: \forall (r, s, i: N.Nat^) -> Logic.Not (i = r) -> Logic.Not (i = s) -> transposition r s i = i :=
+  \fun (r, s, i: N.Nat^)(first: _)(second: _) =>
+    trans!{N.Nat^} (transposition r s i) (B.ite N.Nat^ (Nat.eqb i s) r i) i
+      (\idelim B.Bool^::false = Nat.eqb i r \with test: B.Bool^ => B.ite N.Nat^ test s (B.ite N.Nat^ (Nat.eqb i s) r i) = B.ite N.Nat^ (Nat.eqb i s) r i \by {
+        base: \refl(B.ite N.Nat^ (Nat.eqb i s) r i), equality: sym!{B.Bool^} (Nat.eqb i r) B.Bool^::false (Bounds.eqbFalseOfNe i r first)
+      })
+      (\idelim B.Bool^::false = Nat.eqb i s \with test: B.Bool^ => B.ite N.Nat^ test r i = i \by {
+        base: \refl(i), equality: sym!{B.Bool^} (Nat.eqb i s) B.Bool^::false (Bounds.eqbFalseOfNe i s second)
+      });
+\definition swapOther: \forall (a: Runtime^)(r, s, i, j: N.Nat^) -> Logic.Not (i = r) -> Logic.Not (i = s) -> swap a r s i j = a i j :=
+  \fun (a: Runtime^)(r, s, i, j: N.Nat^)(first: _)(second: _) => congr!{N.Nat^ I.Int^} (\fun (row: N.Nat^) => a row j) (transposition r s i) i (exchangeFixed r s i first second);
+\definition swapBefore: \forall (a: Runtime^)(k, r, s, i, j: N.Nat^) -> Bounds.Le k r -> Bounds.Le k s -> Bounds.Lt i k -> swap a r s i j = a i j :=
+  \fun (a: Runtime^)(k, r, s, i, j: N.Nat^)(first: _)(second: _)(before: _) =>
+    swapOther a r s i j (Bounds.ltNe i r (Bounds.ltLeTrans i k r before first)) (Bounds.ltNe i s (Bounds.ltLeTrans i k s before second));
+\definition addOther: \forall (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(i, j: N.Nat^) -> Logic.Not (i = r) -> add a r s c i j = a i j :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(i, j: N.Nat^)(different: _) => \idelim B.Bool^::false = Nat.eqb i r \with test: B.Bool^ =>
+    B.ite I.Int^ test (Arithmetic.add (a i j) (Arithmetic.mul c (a s j))) (a i j) = a i j \by {
+      base: \refl(a i j), equality: sym!{B.Bool^} (Nat.eqb i r) B.Bool^::false (Bounds.eqbFalseOfNe i r different)
+    };
+\definition negateOther: \forall (a: Runtime^)(r, i, j: N.Nat^) -> Logic.Not (i = r) -> negate a r i j = a i j :=
+  \fun (a: Runtime^)(r, i, j: N.Nat^)(different: _) => \idelim B.Bool^::false = Nat.eqb i r \with test: B.Bool^ =>
+    B.ite I.Int^ test (Arithmetic.neg (a i j)) (a i j) = a i j \by {
+      base: \refl(a i j), equality: sym!{B.Bool^} (Nat.eqb i r) B.Bool^::false (Bounds.eqbFalseOfNe i r different)
+    };
+\definition exchangeDifferent: \forall (r, s, i, protected: N.Nat^) -> Logic.Not (r = protected) -> Logic.Not (s = protected) -> Logic.Not (i = protected) ->
+  Logic.Not (transposition r s i = protected) :=
+  \fun (r, s, i, protected: N.Nat^)(first: _)(second: _)(original: _) => B.cases2
+    (\fun (left, right: B.Bool^) => Logic.Not (B.ite N.Nat^ left s (B.ite N.Nat^ right r i) = protected))
+    original first second second (Nat.eqb i r) (Nat.eqb i s);

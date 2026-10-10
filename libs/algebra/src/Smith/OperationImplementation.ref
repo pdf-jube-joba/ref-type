@@ -1,0 +1,52 @@
+\definition T: \VType := \U(Operation -> Runtime -> Runtime);
+\definition program: T := \thunk (\cfun (operation: Operation) => \return(\thunk (\cfun (a: Runtime) => \match operation \in Operation \with {
+  | identity: \return a
+  | rowSwap r s: \program {
+    \bind builder0: \U(N.Nat -> N.Nat -> Runtime) <- (\force rowSwapProgram) a \then
+    \bind builder1: \U(N.Nat -> Runtime) <- (\force builder0) r \then
+    \bind builder2: Runtime <- (\force builder1) s \then
+    \return builder2
+  }
+  | rowAdd r s c: \program {
+    \bind builder0: \U(N.Nat -> N.Nat -> I.Int -> Runtime) <- (\force rowAddProgram) a \then
+    \bind builder1: \U(N.Nat -> I.Int -> Runtime) <- (\force builder0) r \then
+    \bind builder2: \U(I.Int -> Runtime) <- (\force builder1) s \then
+    \bind builder3: Runtime <- (\force builder2) c \then
+    \return builder3
+  }
+  | rowNegate r: \program {
+    \bind builder0: \U(N.Nat -> Runtime) <- (\force rowNegateProgram) a \then
+    \bind builder1: Runtime <- (\force builder0) r \then
+    \return builder1
+  }
+  | columnSwap r s: \program {
+    \bind builder0: \U(N.Nat -> N.Nat -> Runtime) <- (\force columnSwapProgram) a \then
+    \bind builder1: \U(N.Nat -> Runtime) <- (\force builder0) r \then
+    \bind builder2: Runtime <- (\force builder1) s \then
+    \return builder2
+  }
+  | columnAdd r s c: \program {
+    \bind builder0: \U(N.Nat -> N.Nat -> I.Int -> Runtime) <- (\force columnAddProgram) a \then
+    \bind builder1: \U(N.Nat -> I.Int -> Runtime) <- (\force builder0) r \then
+    \bind builder2: \U(I.Int -> Runtime) <- (\force builder1) s \then
+    \bind builder3: Runtime <- (\force builder2) c \then
+    \return builder3
+  }
+  | columnNegate r: \program {
+    \bind builder0: \U(N.Nat -> Runtime) <- (\force columnNegateProgram) a \then
+    \bind builder1: Runtime <- (\force builder0) r \then
+    \return builder1
+  }
+})));
+\definition matches: \forall (operation: Operation^)(a: Runtime^) -> program^ operation a = apply operation a :=
+  \induction (operation: Operation^) \return \forall (a: Runtime^) -> program^ operation a = apply operation a \with {
+    | identity: \fun (a: Runtime^) => \refl(a)
+    | rowSwap: \fun (r: N.Nat^)(s: N.Nat^)(a: Runtime^) => congr!{Rows.Swap.T^ Runtime^} (\fun (f: Rows.Swap.T^) => f a r s) Rows.Swap.program^ Rows.Swap.specification Rows.Swap.coherence
+    | rowAdd: \fun (r: N.Nat^)(s: N.Nat^)(c: I.Int^)(a: Runtime^) => congr!{Rows.Add.T^ Runtime^} (\fun (f: Rows.Add.T^) => f a r s c) Rows.Add.program^ Rows.Add.specification Rows.Add.coherence
+    | rowNegate: \fun (r: N.Nat^)(a: Runtime^) => congr!{Rows.Negate.T^ Runtime^} (\fun (f: Rows.Negate.T^) => f a r) Rows.Negate.program^ Rows.Negate.specification Rows.Negate.coherence
+    | columnSwap: \fun (r: N.Nat^)(s: N.Nat^)(a: Runtime^) => congr!{Columns.Swap.T^ Runtime^} (\fun (f: Columns.Swap.T^) => f a r s) Columns.Swap.program^ Columns.Swap.specification Columns.Swap.coherence
+    | columnAdd: \fun (r: N.Nat^)(s: N.Nat^)(c: I.Int^)(a: Runtime^) => congr!{Columns.Add.T^ Runtime^} (\fun (f: Columns.Add.T^) => f a r s c) Columns.Add.program^ Columns.Add.specification Columns.Add.coherence
+    | columnNegate: \fun (r: N.Nat^)(a: Runtime^) => congr!{Columns.Negate.T^ Runtime^} (\fun (f: Columns.Negate.T^) => f a r) Columns.Negate.program^ Columns.Negate.specification Columns.Negate.coherence
+  };
+\definition coherence: program^ = apply := \axiom:funext(program^, apply,
+  \fun (operation: Operation^) => \axiom:funext(program^ operation, apply operation, matches operation));

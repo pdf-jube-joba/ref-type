@@ -1,0 +1,30 @@
+\import \parent.Epimorphism[x := x, y := y, f := f] \as Epi;
+\import \parent.Kernel[x := x, y := y, f := f] \as Kernel;
+\import \parent.\parent.Kernel[x := x, y := y, f := f] \as Actual;
+\definition source: Modules.Bundle := Modules.Bundle { Carrier := family.Carrier x, space := family.space x };
+\definition target: Modules.Bundle := Modules.Bundle { Carrier := family.Carrier y, space := family.space y };
+\module Descend(z: Index, g: Hom x z) {
+  \definition final: Modules.Bundle := Modules.Bundle { Carrier := family.Carrier z, space := family.space z };
+  \import Modules.SurjectiveDescent[A := source, B := target, U := final].On[q := f, f := g] \as Descent;
+  \definition Killed: \Prop := compose Kernel.point x z g Kernel.inclusion = zero Kernel.point z;
+  \definition killsKernel: Killed -> Descent.KillsKernel := \block {
+    \fun (killed: Killed)(u: family.Carrier x)(inKernel: #apply{f} u = #zero{(family.space y)}) \then
+    \let v: Actual.Carrier := \into[family.Carrier x](u, #carrier{Actual.submodule}) \by { inKernel } \then
+    \let represented: family.Carrier Kernel.point := #apply{#forward{Kernel.isomorphism}} v \then
+    \return trans!{{family.Carrier z}} (#apply{g} u) (#apply{g} (#apply{Kernel.inclusion} represented)) #zero{(family.space z)}
+      (congr!{{family.Carrier x} {family.Carrier z}} (#apply{g}) _ _
+        (sym!{{family.Carrier x}} _ _ (congr!{Actual.Carrier {family.Carrier x}} (#apply{Actual.inclusion}) _ _ (#leftInverse{Kernel.isomorphism} v))))
+      (congr!{{Hom Kernel.point z} {family.Carrier z}} (\fun (h: Hom Kernel.point z) => #apply{h} represented) (compose Kernel.point x z g Kernel.inclusion) (zero Kernel.point z) killed)
+  };
+  \definition existence: Epi.Epi -> Killed -> \exists { h: Hom y z \where compose x y z h f = g } :=
+    \fun (epi: Epi.Epi)(killed: Killed) => \exact(\into[Hom y z](Descent.map (Epi.onto epi) (killsKernel killed), { h: Hom y z \where compose x y z h f = g }) \by {
+      \parent.\parent.\parent.\parent.At[x := x, y := z].ext (compose x y z (Descent.map (Epi.onto epi) (killsKernel killed)) f) g
+        (\fun (u: family.Carrier x) => Descent.onImage (Epi.onto epi) (killsKernel killed) u)
+    }, \Cast[Hom y z] ({ h: Hom y z \where compose x y z h f = g }));
+}
+\definition normal: Epi.Epi -> Abelian.IsCokernel[Index, Hom, categoryData, zero, Kernel.point, x, y, Kernel.inclusion, f] :=
+  \fun (epi: Epi.Epi) => Abelian.IsCokernel[Index, Hom, categoryData, zero, Kernel.point, x, y, Kernel.inclusion, f] {
+    zero := Kernel.zeroLaw,
+    factorization := \fun (z: Index)(g: Hom x z)(killed: compose Kernel.point x z g Kernel.inclusion = zero Kernel.point z) => Descend[z := z, g := g].existence epi killed,
+    unique := epi,
+  };

@@ -1,0 +1,43 @@
+\definition coefficient: Maps.Map := Maps.Map {
+  apply := \fun (v: Vector) => #smul{space} (v j) (Coordinates.basis i),
+  addition := \fun (v, w: Vector) => #scalarAdd{space} (v j) (w j) (Coordinates.basis i),
+  scalar := \fun (a: R)(v: Vector) => #scalarAssoc{space} a (v j) (Coordinates.basis i),
+};
+\import \parent.\parent.HomSpace[V := Vector, W := Vector, source := space, target := space] \as HomSpace;
+\definition map(a: R): Maps.Map := Maps.plus End.identity (HomSpace.scale a coefficient);
+\definition Distinct: \Prop := Logic.Not (i = j);
+\definition slot: \forall (a: R) -> Distinct -> \forall (v: Vector) -> #apply{(map a)} v j = v j :=
+  \fun (a: R)(distinct: Distinct)(v: Vector) => trans!{R} _ _ _
+    (congr!{R R} (#add{ordinaryRing} (v j)) _ _
+      (trans!{R} _ _ _
+        (congr!{R R} (#mul{ordinaryRing} a) _ _
+          (trans!{R} _ _ _
+            (congr!{R R} (#mul{ordinaryRing} (v j)) _ _ (Kronecker.different j i (\fun (equal: j = i) => distinct (sym!{Index} j i equal))))
+            (#zeroAbsorbsRight{(#semiring{ordinaryRing})} (v j))))
+        (#zeroAbsorbsRight{(#semiring{ordinaryRing})} a)))
+    (Scalars.zeroRight (v j));
+\definition inverse: \forall (a: R) -> Distinct -> \forall (v: Vector) -> #apply{(map (#neg{ordinaryRing} a))} (#apply{(map a)} v) = v :=
+  \fun (a: R)(distinct: Distinct)(v: Vector) => eq_reason!{{#apply{(map (#neg{ordinaryRing} a))} (#apply{(map a)} v)}
+    "=" {Values.add (#apply{(map a)} v) (Values.scale (#neg{ordinaryRing} a) (Values.scale (v j) (Coordinates.basis i)))} "by" {
+      congr!{R Vector} (\fun (b: R) => Values.add (#apply{(map a)} v) (Values.scale (#neg{ordinaryRing} a) (Values.scale b (Coordinates.basis i)))) _ _ (slot a distinct v)}
+    "=" {Values.add (Values.add v (Values.scale a (Values.scale (v j) (Coordinates.basis i))))
+      (Values.neg (Values.scale a (Values.scale (v j) (Coordinates.basis i))))} "by" {
+        congr!{Vector Vector} (Values.add (#apply{(map a)} v)) _ _ (Values.negScalar a (Values.scale (v j) (Coordinates.basis i)))}
+    "=" {Values.add v (Values.add (Values.scale a (Values.scale (v j) (Coordinates.basis i)))
+      (Values.neg (Values.scale a (Values.scale (v j) (Coordinates.basis i)))))} "by" {
+        Group.assoc v (Values.scale a (Values.scale (v j) (Coordinates.basis i))) (Values.neg (Values.scale a (Values.scale (v j) (Coordinates.basis i))))}
+    "=" {Values.add v Values.zero} "by" {
+      congr!{Vector Vector} (Values.add v) _ _ (Group.inverseRight (Values.scale a (Values.scale (v j) (Coordinates.basis i))))}
+    "=" {v} "by" {Group.zeroRight v}};
+\definition reverse: \forall (a: R) -> Distinct -> \forall (v: Vector) -> #apply{(map a)} (#apply{(map (#neg{ordinaryRing} a))} v) = v :=
+  \fun (a: R)(distinct: Distinct)(v: Vector) => trans!{Vector} _ _ _
+    (congr!{R Vector} (\fun (b: R) => #apply{(map b)} (#apply{(map (#neg{ordinaryRing} a))} v)) _ _ (sym!{R} _ _ (Scalars.negNeg a)))
+    (inverse (#neg{ordinaryRing} a) distinct v);
+\definition isomorphism(a: R)(distinct: Distinct): Iso.Isomorphism := Iso.Isomorphism {
+  forward := map a, backward := map (#neg{ordinaryRing} a),
+  leftInverse := inverse a distinct, rightInverse := reverse a distinct,
+};
+\definition matrix(a: R): Square.Matrix := Square.entries (map a);
+\definition certificate(a: R)(distinct: Distinct): Invertible.Inverse (matrix a) := Invertible.fromIsomorphism (isomorphism a distinct);
+\definition existence: \forall (a: R) -> Distinct -> \exists Invertible.Inverse (matrix a) :=
+  \fun (a: R)(distinct: Distinct) => \exact(certificate a distinct, Invertible.Inverse (matrix a));

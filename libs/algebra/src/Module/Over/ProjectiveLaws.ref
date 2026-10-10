@@ -1,0 +1,107 @@
+\module Scalar {
+  \definition bundle: Bundle := Bundle { Carrier := R, space := scalarModule };
+  \module Lift(A, B: Bundle, q: MapBetween A B, f: MapBetween bundle B) {
+    \import \parent.\parent.\parent.Hom[V := R, W := A.Carrier, source := scalarModule, target := A.space] \as Lifted;
+    \definition map(a: A.Carrier): Lifted.Map := Lifted.Map {
+      apply := \fun (r: R) => #smul{A.space} r a,
+      addition := \fun (r, s: R) => #scalarAdd{A.space} r s a,
+      scalar := \fun (r, s: R) => #scalarAssoc{A.space} r s a,
+    };
+    \definition valueAtOne: \forall (r: R) -> #apply{f} r = #smul{B.space} r (#apply{f} (#one{ring})) :=
+      \fun (r: R) => trans!{B.Carrier} (#apply{f} r) (#apply{f} (#mul{ring} r (#one{ring}))) (#smul{B.space} r (#apply{f} (#one{ring})))
+        (congr!{R B.Carrier} (#apply{f}) r (#mul{ring} r (#one{ring}))
+          (sym!{R} _ _ (#rightIdentity{(#multiplicative{(#semiring{ring})})} r)))
+        (#scalar{f} r (#one{ring}));
+    \definition existence: Surjective A B q -> \exists { g: MapBetween bundle A \where \forall (r: R) -> #apply{q} (#apply{g} r) = #apply{f} r } := \block {
+      \fun (onto: Surjective A B q) \then
+      \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{q} a = #apply{f} (#one{ring}) }) \by onto (#apply{f} (#one{ring})) \then
+      \return \exact(\into[MapBetween bundle A](map a, { g: MapBetween bundle A \where \forall (r: R) -> #apply{q} (#apply{g} r) = #apply{f} r }) \by {
+        \fun (r: R) => trans!{B.Carrier} _ _ _ (#scalar{q} r a)
+          (trans!{B.Carrier} _ _ _
+            (congr!{B.Carrier B.Carrier} (#smul{B.space} r) _ _ (\bysub(A.Carrier, { a: A.Carrier \where #apply{q} a = #apply{f} (#one{ring}) }, a)))
+            (sym!{B.Carrier} _ _ (valueAtOne r)))
+      }, \Cast[MapBetween bundle A] ({ g: MapBetween bundle A \where \forall (r: R) -> #apply{q} (#apply{g} r) = #apply{f} r }))
+    };
+  }
+  \definition projective: Projective bundle := \fun (A, B: Bundle)(q: MapBetween A B)(onto: Surjective A B q)(f: MapBetween bundle B) => Lift[A := A, B := B, q := q, f := f].existence onto;
+}
+\module Retract(P, Q: Bundle, inclusion: MapBetween P Q, retraction: MapBetween Q P) {
+  \import \parent.\parent.Hom[V := P.Carrier, W := Q.Carrier, source := P.space, target := Q.space] \as Inclusions;
+  \module Lift(A, B: Bundle, q: MapBetween A B, f: MapBetween P B) {
+    \import \parent.\parent.\parent.Hom[V := P.Carrier, W := B.Carrier, source := P.space, target := B.space] \as Given;
+    \import Given.Composition[U := Q.Carrier, domain := Q.space] \as ComposeGiven;
+    \import \parent.\parent.\parent.Hom[V := Q.Carrier, W := A.Carrier, source := Q.space, target := A.space] \as Lifted;
+    \import Lifted.Composition[U := P.Carrier, domain := P.space] \as ComposeLifted;
+    \definition existence:
+      (\forall (x: P.Carrier) -> #apply{retraction} (#apply{inclusion} x) = x) -> Projective Q -> Surjective A B q ->
+      \exists { g: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x } := \block {
+      \fun (inverse: \forall (x: P.Carrier) -> #apply{retraction} (#apply{inclusion} x) = x)(projective: Projective Q)(onto: Surjective A B q) \then
+      \takefrom lifted: \Cast[MapBetween Q A] ({ g: MapBetween Q A \where \forall (x: Q.Carrier) -> #apply{q} (#apply{g} x) = #apply{(ComposeGiven.compose f retraction)} x })
+        \by projective A.Carrier A.space B.Carrier B.space q onto (ComposeGiven.compose f retraction) \then
+      \let law: \forall (x: Q.Carrier) -> #apply{q} (#apply{lifted} x) = #apply{f} (#apply{retraction} x) :=
+        \bysub(MapBetween Q A, { g: MapBetween Q A \where \forall (x: Q.Carrier) -> #apply{q} (#apply{g} x) = #apply{(ComposeGiven.compose f retraction)} x }, lifted) \then
+      \return \exact(\into[MapBetween P A](ComposeLifted.compose lifted inclusion,
+        { g: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x }) \by {
+        \fun (x: P.Carrier) => trans!{B.Carrier} _ _ _ (law (#apply{inclusion} x)) (congr!{P.Carrier B.Carrier} (#apply{f}) _ _ (inverse x))
+      }, \Cast[MapBetween P A] ({ g: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x }))
+    };
+  }
+  \definition projective: (\forall (x: P.Carrier) -> #apply{retraction} (#apply{inclusion} x) = x) -> Projective Q -> Projective P :=
+    \fun (inverse: _)(projective: Projective Q)(A, B: Bundle)(q: MapBetween A B)(onto: Surjective A B q)(f: MapBetween P B) =>
+      Lift[A := A, B := B, q := q, f := f].existence inverse projective onto;
+}
+
+\module Biproduct(P, Q: Bundle) {
+  \import \parent.\parent.Biproduct[V := P.Carrier, W := Q.Carrier, left := P.space, right := Q.space] \as Sum;
+  \definition bundle: Bundle := Bundle { Carrier := Sum.Carrier, space := Sum.space };
+  \module Lift(A, B: Bundle, q: MapBetween A B, f: MapBetween bundle B) {
+    \import \parent.\parent.\parent.Hom[V := Sum.Carrier, W := B.Carrier, source := Sum.space, target := B.space] \as Given;
+    \import Given.Composition[U := P.Carrier, domain := P.space] \as LeftGiven;
+    \import Given.Composition[U := Q.Carrier, domain := Q.space] \as RightGiven;
+    \import Sum.Copair[U := A.Carrier, target := A.space] \as Copair;
+    \import \parent.\parent.\parent.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as Projection;
+    \definition existence: Projective P -> Projective Q -> Surjective A B q ->
+      \exists { g: MapBetween bundle A \where \forall (x: Sum.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x } := \block {
+      \fun (left: Projective P)(right: Projective Q)(onto: Surjective A B q) \then
+      \takefrom l: \Cast[MapBetween P A] ({ l: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{l} x) = #apply{f} (#apply{Sum.firstInjection} x) })
+        \by left A.Carrier A.space B.Carrier B.space q onto (LeftGiven.compose f Sum.firstInjection) \then
+      \takefrom r: \Cast[MapBetween Q A] ({ r: MapBetween Q A \where \forall (x: Q.Carrier) -> #apply{q} (#apply{r} x) = #apply{f} (#apply{Sum.secondInjection} x) })
+        \by right A.Carrier A.space B.Carrier B.space q onto (RightGiven.compose f Sum.secondInjection) \then
+      \let law: \forall (x: Sum.Carrier) -> #apply{q} (#apply{(Copair.copair l r)} x) = #apply{f} x :=
+        \fun (x: Sum.Carrier) => trans!{B.Carrier} _ _ _
+          (#addition{q} (#apply{l} (Sum.first x)) (#apply{r} (Sum.second x)))
+          (trans!{B.Carrier} _ _ _
+            (congr2!{B.Carrier B.Carrier B.Carrier} (#add{B.space}) _ _ _ _
+              ((\bysub(MapBetween P A, { l: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{l} x) = #apply{f} (#apply{Sum.firstInjection} x) }, l)) (Sum.first x))
+              ((\bysub(MapBetween Q A, { r: MapBetween Q A \where \forall (x: Q.Carrier) -> #apply{q} (#apply{r} x) = #apply{f} (#apply{Sum.secondInjection} x) }, r)) (Sum.second x)))
+            (trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ (#addition{f} (#apply{Sum.firstInjection} (Sum.first x)) (#apply{Sum.secondInjection} (Sum.second x))))
+              (congr!{Sum.Carrier B.Carrier} (#apply{f}) _ _ (Sum.reconstruction x)))) \then
+      \return \exact(\into[MapBetween bundle A](Copair.copair l r,
+        { g: MapBetween bundle A \where \forall (x: Sum.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x }) \by { law },
+        \Cast[MapBetween bundle A] ({ g: MapBetween bundle A \where \forall (x: Sum.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x }))
+    };
+  }
+  \definition projective: Projective P -> Projective Q -> Projective bundle :=
+    \fun (left: Projective P)(right: Projective Q)(A, B: Bundle)(q: MapBetween A B)(onto: Surjective A B q)(f: MapBetween bundle B) =>
+      Lift[A := A, B := B, q := q, f := f].existence left right onto;
+}
+
+\module Trivial(P: Bundle) {
+  \definition Trivial: \Prop := \forall (x: P.Carrier) -> x = #zero{P.space};
+  \module Lift(A, B: Bundle, q: MapBetween A B, f: MapBetween P B) {
+    \import \parent.\parent.\parent.Hom[V := P.Carrier, W := A.Carrier, source := P.space, target := A.space] \as Lifted;
+    \import \parent.\parent.\parent.Hom[V := P.Carrier, W := B.Carrier, source := P.space, target := B.space] \as Given;
+    \import \parent.\parent.\parent.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as Projection;
+    \definition law: Trivial -> \forall (x: P.Carrier) -> #apply{q} (#apply{Lifted.zeroMap} x) = #apply{f} x :=
+      \fun (trivial: Trivial)(x: P.Carrier) => trans!{B.Carrier} _ _ _ (Projection.zeroPreserved q)
+        (sym!{B.Carrier} _ _
+          (trans!{B.Carrier} _ _ _ (congr!{P.Carrier B.Carrier} (#apply{f}) _ _ (trivial x)) (Given.zeroPreserved f)));
+    \definition existence: Trivial -> \exists { g: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x } :=
+      \fun (trivial: Trivial) => \exact(\into[MapBetween P A](Lifted.zeroMap,
+        { g: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x }) \by { law trivial },
+        \Cast[MapBetween P A] ({ g: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x }));
+  }
+  \definition projective: Trivial -> Projective P :=
+    \fun (trivial: Trivial)(A, B: Bundle)(q: MapBetween A B)(onto: Surjective A B q)(f: MapBetween P B) =>
+      Lift[A := A, B := B, q := q, f := f].existence trivial;
+}

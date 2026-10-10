@@ -1,0 +1,44 @@
+\import \parent.Invariants[] \as Laws;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import \parent.\parent.Bounds[] \as Indices;
+\definition first(rows, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := row rows k a history;
+\definition second(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := column cols k (attemptMatrix (first rows k a history)) (attemptHistory (first rows k a history));
+\definition clear(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+  B.ite Attempt^ (attemptReduced (first rows k a history)) (first rows k a history) (second rows cols k a history);
+\structure Settled[rows, cols, k: N.Nat^, a: Runtime^, current: Attempt^]: \Prop {
+  pivot: attemptMatrix current k k = a k k,
+  column: \forall (i: N.Nat^) -> Bounds.Lt i rows -> Bounds.Lt k i -> attemptMatrix current i k = Arithmetic.zero,
+  row: \forall (j: N.Nat^) -> Bounds.Lt j cols -> Bounds.Lt k j -> attemptMatrix current k j = Arithmetic.zero,
+}
+\module On(rows, cols, k: N.Nat^, a: Runtime^, history: History^);
+\definition settled: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (clear rows cols k a history) = B.Bool^::false -> Settled[rows, cols, k, a, clear rows cols k a history] :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => On[rows := rows, cols := cols, k := k, a := a, history := history].settled;
+\definition smaller: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Reduction.Smaller k a (clear rows cols k a history) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => On[rows := rows, cols := cols, k := k, a := a, history := history].smaller;
+\definition traced: \forall (rows, cols, k: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original -> Laws.Traced original (clear rows cols k a history) :=
+  \fun (rows, cols, k: N.Nat^)(original, a: Runtime^)(history: History^)(trace: _) => B.cases
+    (\fun (test: B.Bool^) => Laws.Traced original (B.ite Attempt^ test (first rows k a history) (second rows cols k a history)))
+    (Laws.columnTrace cols k original (attemptMatrix (first rows k a history)) (attemptHistory (first rows k a history)) (Laws.rowTrace rows k original a history trace))
+    (Laws.rowTrace rows k original a history trace) (attemptReduced (first rows k a history));
+
+\definition bounded: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k rows -> Bounds.Lt k cols -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (clear rows cols k a history)) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(colBound: _)(historyLaws: _) => B.cases
+    (\fun (test: B.Bool^) => Indices.HistoryLaws rows cols (attemptHistory (B.ite Attempt^ test (first rows k a history) (second rows cols k a history))))
+    (Laws.columnBounded rows cols k (attemptMatrix (first rows k a history)) (attemptHistory (first rows k a history)) colBound (Laws.rowBounded rows cols k a history rowBound historyLaws))
+    (Laws.rowBounded rows cols k a history rowBound historyLaws) (attemptReduced (first rows k a history));
+\import \parent.\parent.AttemptReaders[] \as Readers;
+\import B.Choose[A := Attempt] \as Choice;
+\definition chooseProgram: Choice.T := Choice.program;
+\definition matrixProgram: Readers.ReadMatrix.T := Readers.ReadMatrix.program;
+\definition historyProgram: Readers.ReadHistory.T := Readers.ReadHistory.program;
+\definition changedProgram: Readers.ReadChanged.T := Readers.ReadChanged.program;
+\module Implementation;
+\correspondence Clear: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := clear, coherence := Implementation[].coherence,
+};
+
+\definition nonzero: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Laws.Nonzero k (clear rows cols k a history) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(nonzero: _) => B.cases
+    (\fun (test: B.Bool^) => Laws.Nonzero k (B.ite Attempt^ test (first rows k a history) (second rows cols k a history)))
+    (Laws.columnNonzero cols k (attemptMatrix (first rows k a history)) (attemptHistory (first rows k a history)) (Laws.rowNonzero rows k a history nonzero))
+    (Laws.rowNonzero rows k a history nonzero) (attemptReduced (first rows k a history));

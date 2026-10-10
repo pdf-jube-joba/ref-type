@@ -1,0 +1,36 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import \parent.\parent.FiniteCoordinates[n := rank] \as Smaller;
+\definition include(within: Bounds.Le rank n)(i: Smaller.Index): Index :=
+  \into[N.Nat^](i, { j: N.Nat^ \where Bounds.Lt j n }) \by { Bounds.ltLeTrans i rank n (Finite.bound rank i) within };
+\definition restriction(within: Bounds.Le rank n)(v: Carrier): Smaller.Carrier :=
+  \fun (i: Smaller.Index) => v (include within i);
+\import \parent.\parent.Sums[I := Smaller.Index] \as SmallSums;
+\import SmallSums.Prop[] \as SumLaws;
+\import SmallSums.Single[] \as Single;
+\import \parent.\parent.Coordinates[I := N.Nat^].Kronecker[] \as NaturalDelta;
+\import \parent.\parent.Coordinates[I := Smaller.Index].Kronecker[] \as SmallDelta;
+\import std.Logic[].Classical[] \as Classical;
+\definition extension(v: Smaller.Carrier): Carrier := \fun (i: Index) =>
+  SmallSums.sum (Finite.elements rank) (\fun (j: Smaller.Index) => #mul{ring} (NaturalDelta.delta i j) (v j));
+\definition restrictedDelta: \forall (i, j: Smaller.Index) -> NaturalDelta.delta i j = SmallDelta.delta i j :=
+  \fun (i, j: Smaller.Index) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {NaturalDelta.delta i j = SmallDelta.delta i j}
+    "lt:" {\fun (equal: _) => trans!{R} (NaturalDelta.delta i j) #one{ring} (SmallDelta.delta i j)
+      (NaturalDelta.equal i j equal) (sym!{R} (SmallDelta.delta i j) #one{ring} (SmallDelta.equal i j equal))}
+    "rt:" {\fun (ne: _) => trans!{R} (NaturalDelta.delta i j) #zero{ring} (SmallDelta.delta i j)
+      (NaturalDelta.different i j ne) (sym!{R} (SmallDelta.delta i j) #zero{ring} (SmallDelta.different i j ne))}
+  } (Classical.excludedMiddle (i = j));
+\definition atIncluded: \forall (within: Bounds.Le rank n)(v: Smaller.Carrier)(i: Smaller.Index) ->
+  extension v (include within i) = v i :=
+  \fun (within: Bounds.Le rank n)(v: Smaller.Carrier)(i: Smaller.Index) => trans!{R} (extension v (include within i))
+    (SmallSums.sum (Finite.elements rank) (\fun (j: Smaller.Index) => #mul{ring} (SmallDelta.delta i j) (v j))) (v i)
+    (SumLaws.congruent (Finite.elements rank)
+      (\fun (j: Smaller.Index) => #mul{ring} (NaturalDelta.delta i j) (v j))
+      (\fun (j: Smaller.Index) => #mul{ring} (SmallDelta.delta i j) (v j))
+      (\fun (j: Smaller.Index) => congr!{R R} (\fun (x: R) => #mul{ring} x (v j))
+        (NaturalDelta.delta i j) (SmallDelta.delta i j) (restrictedDelta i j)))
+    (Single.extract (Finite.elements rank) Smaller.distinct i (Smaller.covers i) v);
+\definition restrictionExtension: \forall (within: Bounds.Le rank n)(v: Smaller.Carrier) -> restriction within (extension v) = v :=
+  \fun (within: Bounds.Le rank n)(v: Smaller.Carrier) =>
+    \axiom:funext(restriction within (extension v), v, atIncluded within v);
+\module Laws;

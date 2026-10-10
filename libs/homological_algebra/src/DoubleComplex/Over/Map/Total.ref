@@ -1,0 +1,27 @@
+\import \parent.\parent.Total[C := C] \as Source;
+\import \parent.\parent.Total[C := D] \as Target;
+\module Degree(n: Nat.Nat^) {
+  \import Source.Degree[n := n] \as SD;
+  \import Target.Degree[n := n] \as TD;
+  \import Modules.DirectSum[Index := Index n, family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+  \module Component(i: Index n) {
+    \import Modules.Hom[V := D.family.Carrier #first{i} #second{i}, W := TD.Carrier, source := D.family.space #first{i} #second{i}, target := TD.space].Composition[U := C.family.Carrier #first{i} #second{i}, domain := C.family.space #first{i} #second{i}] \as Compose;
+    \definition map: Universal.At[i := i].Map := Compose.compose (TD.Component[i := i].injection) (f #first{i} #second{i});
+  }
+  \definition components: Universal.Components := \fun (i: Index n) => Component[i := i].map;
+  \definition map: Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Map := Universal.extension components;
+  \definition onInjection: \forall (i: Index n)(x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{map} (#apply{(SD.Component[i := i].injection)} x) = #apply{(TD.Component[i := i].injection)} (#apply{(f #first{i} #second{i})} x) := Universal.onInjection components;
+}
+\module Step(n: Nat.Nat^);
+\definition data: Chains.Map[C := Source.complex, D := Target.complex].Data := Chains.Map[C := Source.complex, D := Target.complex].Data {
+  apply := \fun (n: Nat.Nat^) => #apply{(Degree[n := n].map)},
+};
+\definition map: Chains.Map[C := Source.complex, D := Target.complex].Map :=
+  \into[Chains.Map[C := Source.complex, D := Target.complex].Data](data, { data: Chains.Map[C := Source.complex, D := Target.complex].Data \where Chains.Map[C := Source.complex, D := Target.complex].Laws[data] }) \by {
+    Chains.Map[C := Source.complex, D := Target.complex].Laws[data] {
+      addition := \fun (n: Nat.Nat^) => #addition{(Degree[n := n].map)},
+      scalar := \fun (n: Nat.Nat^) => #scalar{(Degree[n := n].map)},
+      commutes := \fun (n: Nat.Nat^) => Step[n := n].commutes,
+    }
+  };

@@ -1,0 +1,46 @@
+\import \parent.At[q := Nat.Nat^::succ q] \as Case;
+\import Cochains.At[C := D, k := Nat.Nat^::succ q] \as Right;
+\import \parent.\parent.Tensor[C := C, D := D] \as Product;
+\import \parent.\parent.Total[C := Product.complex] \as Total;
+\definition n: Nat.Nat^ := Arithmetic.add p q;
+\definition index: Total.Index n := \into[Degrees.Pair](Degrees.Pair { first := p, second := q },
+  { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { \refl(n) };
+\import \parent.\parent.CycleProduct[C := C, D := D, p := p, q := Nat.Nat^::succ q] \as Exterior;
+\import Total.Degree[n := n] \as Before;
+\import Total.Degree[n := Nat.Nat^::succ n] \as Current;
+\import Total.Step[n := n] \as Step;
+\import Before.Component[i := index] \as Inclusion;
+\import Current.Component[i := Total.upHorizontal n index] \as HInclusion;
+\import Current.Component[i := Total.upVertical n index] \as VInclusion;
+\import Product.Term[p := p, q := q] \as Term;
+\import Product.Term[p := Nat.Nat^::succ p, q := q] \as HTerm;
+\import Product.Term[p := p, q := Nat.Nat^::succ q] \as VTerm;
+\import Product.At[p := p, q := q] \as Differential;
+\import Degrees.Sign[V := Term.Carrier, space := Term.space] \as Sign;
+\import Sign.Mapping[W := HTerm.Carrier, target := HTerm.space] \as HorizontalSign;
+\import Sign.Mapping[W := VTerm.Carrier, target := VTerm.space] \as VerticalSign;
+\import Degrees.Sign[V := HTerm.Carrier, space := HTerm.space] \as HSign;
+\import Degrees.Sign[V := VTerm.Carrier, space := VTerm.space] \as VSign;
+\import Modules.Hom[V := HTerm.Carrier, W := Current.Carrier, source := HTerm.space, target := Current.space] \as HMaps;
+\import Modules.Hom[V := HTerm.Carrier, W := HTerm.Carrier, source := HTerm.space, target := HTerm.space] \as HSigns;
+\import Modules.Laws[V := Current.Carrier, space := Current.space] \as Laws;
+\import algebra.Group[].Of[Carrier := Current.Carrier, group := Laws.additive] \as Group;
+\import Cochains.At[C := Total.complex, k := Nat.Nat^::succ n] \as H;
+\definition lift(x: Left.CycleCarrier)(a: D.family.Carrier q): Before.Carrier :=
+  #apply{Inclusion.injection} (#apply{(Sign.map p)} (Term.tensor x a));
+\module Differential;
+\definition vanishes: Case.Vanishes := \block {
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier)
+    (boundary: \exists { a: D.family.Carrier q \where #apply{D.differential} q a = y }) \then
+  \takefrom a: \Cast[D.family.Carrier q] ({ a: D.family.Carrier q \where #apply{D.differential} q a = y }) \by boundary \then
+  \let equal: #apply{D.differential} q a = y := \bysub(D.family.Carrier q,
+    { a: D.family.Carrier q \where #apply{D.differential} q a = y }, a) \then
+  \let differential: #apply{Total.differential} n (lift x a) = Exterior.value x y :=
+    trans!{Current.Carrier} _ _ _ (Differential[].value x a)
+      (congr!{{D.family.Carrier (Nat.Nat^::succ q)} Current.Carrier}
+        (\fun (b: D.family.Carrier (Nat.Nat^::succ q)) => #apply{VInclusion.injection} (VTerm.tensor x b)) _ _ equal) \then
+  \return H.boundaryClassZero (Exterior.cycle x y)
+    (\exact(\into[Before.Carrier](lift x a,
+      { b: Before.Carrier \where #apply{Total.differential} n b = Exterior.value x y }) \by { differential },
+      \Cast[Before.Carrier] ({ b: Before.Carrier \where #apply{Total.differential} n b = Exterior.value x y })))
+};

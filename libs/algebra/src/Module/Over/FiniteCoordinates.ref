@@ -1,0 +1,44 @@
+\import std.Data[].FinSet[] \as Finite;
+\import Finite.Enumeration[] \as Enumeration;
+\import std.Data[].Nat[] \as N;
+\definition Index: \Set := Finite.Fin n;
+\import \parent.Coordinates[I := Index] \as Coordinates;
+\import Coordinates.Kronecker[] \as Kronecker;
+\import \parent.Sums[I := Index] \as Sums;
+\import Sums.Single[] \as Single;
+\definition Carrier: \Set := Coordinates.Vector;
+\definition space: Space Carrier := Coordinates.space;
+\definition basis(i: Index): Carrier := \fun (j: Index) => Kronecker.delta j i;
+\import std.Data[].List[] \as Lists;
+\definition indices: Lists.List[Index] := Finite.elements n;
+\definition distinct: Sums.Distinct indices := Enumeration.distinct n;
+\definition covers: \forall (i: Index) -> \In[Index] (Sums.keys indices) i := Finite.exhaustive n;
+\import Sums.Vector[V := Carrier, space := space] \as VectorSum;
+\import \parent.Hom[V := Carrier, W := R, source := space, target := scalarModule] \as Evaluation;
+\definition evaluation(i: Index): Evaluation.Map := Evaluation.Map {
+  apply := \fun (v: Carrier) => v i,
+  addition := \fun (v, w: Carrier) => \refl(#add{ring} (v i) (w i)),
+  scalar := \fun (a: R)(v: Carrier) => \refl(#mul{ring} a (v i)),
+};
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition central: \forall (i, j: Index)(a: R) -> #mul{ring} a (Kronecker.delta i j) = #mul{ring} (Kronecker.delta i j) a := Kronecker.central;
+\module At(i: Index) {
+  \import VectorSum.Mapping[W := R, target := scalarModule] \as Mapping;
+  \import Sums.Prop[] \as SumLaws;
+  \definition law: \forall (v: Carrier) -> VectorSum.sum indices (\fun (j: Index) => #smul{space} (v j) (basis j)) i = v i :=
+    \fun (v: Carrier) => trans!{R} _ _ _
+      (Mapping.law (evaluation i) indices (\fun (j: Index) => #smul{space} (v j) (basis j)))
+      (trans!{R} _ _ _
+        (SumLaws.congruent indices (\fun (j: Index) => #mul{ring} (v j) (Kronecker.delta i j))
+          (\fun (j: Index) => #mul{ring} (Kronecker.delta i j) (v j)) (\fun (j: Index) => central i j (v j)))
+        (Single.extract indices distinct i (covers i) v));
+}
+\definition decomposition: \forall (v: Carrier) -> VectorSum.sum indices (\fun (j: Index) => #smul{space} (v j) (basis j)) = v :=
+  \fun (v: Carrier) => \axiom:funext(VectorSum.sum indices (\fun (j: Index) => #smul{space} (v j) (basis j)), v,
+    \fun (i: Index) => At[i := i].law v);
+\module Free;
+\module Split;
+\module Tail(start: N.Nat^);
+
+\module Head(rank: N.Nat^);

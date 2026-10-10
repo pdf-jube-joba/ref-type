@@ -1,0 +1,87 @@
+\definition multiplier: Int.Int^ := Int.Int^::ofNat (Nat.Nat^::succ m);
+\import algebra.IntegerCyclic[d := multiplier] \as Cyclic;
+\import Modules.Of[V := Int.Int^, space := Modules.scalarModule].Submodule[] \as Sub;
+\definition upper(n: Nat.Nat^): Sub.Submodule := (\induction (n: Nat.Nat^) \return Sub.Submodule \with {
+  | zero: Sub.whole
+  | succ: \fun (n: Nat.Nat^)(before: Sub.Submodule) => Sub.zeroSubmodule
+}) n;
+\definition submodule: Nat.Nat^ -> Sub.Submodule := \induction (n: Nat.Nat^) \return Sub.Submodule \with {
+  | zero: Sub.whole
+  | succ: \fun (n: Nat.Nat^)(before: Sub.Submodule) => upper n
+};
+\module Term(n: Nat.Nat^) {
+  \import Sub.Of[S := submodule n] \as Included;
+  \definition Carrier: \Set := Included.Carrier;
+  \definition space: Modules.Space Carrier := Included.moduleSpace;
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+}
+\definition family: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Nat.Nat^) => \Cast[Int.Int^] (#carrier{(submodule n)}),
+  space := \fun (n: Nat.Nat^) => Term[n := n].space,
+};
+\definition term(n: Nat.Nat^): Modules.Bundle := Modules.Bundle { Carrier := \Cast[Int.Int^] (#carrier{(submodule n)}), space := Term[n := n].space };
+\definition zero(n: Nat.Nat^): family.Carrier n := \into[Int.Int^](Arithmetic.zero, #carrier{(submodule n)}) \by { #zero{(submodule n)} };
+\definition scalarZero: \forall (n: Nat.Nat^) -> #zero{(family.space n)} = zero n := \fun (n: Nat.Nat^) => \refl(Arithmetic.zero);
+\definition highZero: \forall (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> x = zero (Nat.Nat^::succ (Nat.Nat^::succ n)) :=
+  \fun (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => \bysub(Int.Int^, #carrier{(submodule (Nat.Nat^::succ (Nat.Nat^::succ n)))}, x);
+\definition zeroIntro(x: Int.Int^): family.Carrier Nat.Nat^::zero := \into[Int.Int^](x, #carrier{Sub.whole}) \by { \refl(x) };
+\definition oneIntro(x: Int.Int^): family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) := \into[Int.Int^](x, #carrier{Sub.whole}) \by { \refl(x) };
+\definition apply: \forall (n: Nat.Nat^) -> family.Carrier (Nat.Nat^::succ n) -> family.Carrier n :=
+  \induction (n: Nat.Nat^) \return family.Carrier (Nat.Nat^::succ n) -> family.Carrier n \with {
+    | zero: \fun (x: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => zeroIntro (Arithmetic.mul multiplier x)
+    | succ: \fun (n: Nat.Nat^)(before: _)(x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => zero (Nat.Nat^::succ n)
+  };
+\definition addition: \forall (n: Nat.Nat^)(x, y: family.Carrier (Nat.Nat^::succ n)) -> apply n (#add{(family.space (Nat.Nat^::succ n))} x y) = #add{(family.space n)} (apply n x) (apply n y) :=
+  \induction (n: Nat.Nat^) \return \forall (x, y: family.Carrier (Nat.Nat^::succ n)) -> apply n (#add{(family.space (Nat.Nat^::succ n))} x y) = #add{(family.space n)} (apply n x) (apply n y) \with {
+    | zero: \fun (x, y: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => #addition{Cyclic.multiplication} x y
+    | succ: \fun (n: Nat.Nat^)(before: _)(x, y: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => sym!{Int.Int^} _ _ (ScalarGroup.zeroLeft Arithmetic.zero)
+  };
+\definition scalar: \forall (n: Nat.Nat^)(a: Int.Int^)(x: family.Carrier (Nat.Nat^::succ n)) -> apply n (#smul{(family.space (Nat.Nat^::succ n))} a x) = #smul{(family.space n)} a (apply n x) :=
+  \induction (n: Nat.Nat^) \return \forall (a: Int.Int^)(x: family.Carrier (Nat.Nat^::succ n)) -> apply n (#smul{(family.space (Nat.Nat^::succ n))} a x) = #smul{(family.space n)} a (apply n x) \with {
+    | zero: \fun (a: Int.Int^)(x: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => #scalar{Cyclic.multiplication} a x
+    | succ: \fun (n: Nat.Nat^)(before: _)(a: Int.Int^)(x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => sym!{Int.Int^} _ _ (Int.Math[].Specification[].Prop[].Multiplication[].mulZeroRight a)
+  };
+\definition squareZero: \forall (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> apply n (apply (Nat.Nat^::succ n) x) = #zero{(family.space n)} :=
+  \induction (n: Nat.Nat^) \return \forall (x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> apply n (apply (Nat.Nat^::succ n) x) = #zero{(family.space n)} \with {
+    | zero: \fun (x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))) => Int.Math[].Specification[].Prop[].Multiplication[].mulZeroRight multiplier
+    | succ: \fun (n: Nat.Nat^)(before: _)(x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n)))) => \refl(Arithmetic.zero)
+  };
+\definition differential: Chains.DifferentialData[family] := Chains.DifferentialData[family] { apply := apply };
+\definition complex: Chains.Complex := Chains.Complex {
+  family := family, differential := differential,
+  laws := Chains.DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero },
+};
+\import Modules.Hom[V := family.Carrier Nat.Nat^::zero, W := Cyclic.Carrier, source := family.space Nat.Nat^::zero, target := Cyclic.space] \as Augmentation;
+\definition augmentation: Augmentation.Map := Augmentation.Map {
+  apply := \fun (x: family.Carrier Nat.Nat^::zero) => Cyclic.class x,
+  addition := \fun (x, y: family.Carrier Nat.Nat^::zero) => #addition{Cyclic.projection} x y, scalar := \fun (a: Int.Int^)(x: family.Carrier Nat.Nat^::zero) => #scalar{Cyclic.projection} a x,
+};
+\definition augmentationOnto: \forall (x: Cyclic.Carrier) -> \exists { y: family.Carrier Nat.Nat^::zero \where #apply{augmentation} y = x } := \block {
+  \fun (x: Cyclic.Carrier) \then
+  \takefrom y: \Cast[Int.Int^] ({ y: Int.Int^ \where Cyclic.class y = x }) \by Cyclic.onto x \then
+  \return \exact(\into[family.Carrier Nat.Nat^::zero](zeroIntro y, { y: family.Carrier Nat.Nat^::zero \where #apply{augmentation} y = x }) \by {
+    \bysub(Int.Int^, { y: Int.Int^ \where Cyclic.class y = x }, y)
+  }, \Cast[family.Carrier Nat.Nat^::zero] ({ y: family.Carrier Nat.Nat^::zero \where #apply{augmentation} y = x }))
+};
+\definition killed: \forall (x: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) -> #apply{augmentation} (apply Nat.Nat^::zero x) = #zero{Cyclic.space} := \fun (x: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => Cyclic.classMultiple x;
+\definition augmentationExact: \forall (x: family.Carrier Nat.Nat^::zero) -> #apply{augmentation} x = #zero{Cyclic.space} -> \exists { y: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where apply Nat.Nat^::zero y = x } := \block {
+  \fun (x: family.Carrier Nat.Nat^::zero)(killed: #apply{augmentation} x = #zero{Cyclic.space}) \then
+  \takefrom y: \Cast[Int.Int^] ({ y: Int.Int^ \where Arithmetic.mul multiplier y = x }) \by Cyclic.classZeroMember x killed \then
+  \return \exact(\into[family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)](oneIntro y, { y: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where apply Nat.Nat^::zero y = x }) \by {
+    \bysub(Int.Int^, { y: Int.Int^ \where Arithmetic.mul multiplier y = x }, y)
+  }, \Cast[family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)] ({ y: family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where apply Nat.Nat^::zero y = x }))
+};
+\module Projectivity;
+\module Exactness;
+\module Cohomology(A: Modules.Bundle);
+\module TensorHomology(A: Modules.Bundle);
+\module Ext(A: Modules.Bundle);
+\module Tor(A: Modules.Bundle);
+\module Coefficients(k: Nat.Nat^);
+\import Resolutions.Of[M := Cyclic.bundle, P := complex] \as Of;
+\definition resolution: Of.Resolution := \into[Of.Data](Of.Data { augmentation := augmentation }, { d: Of.Data \where Of.Laws[d] }) \by {
+  Of.Laws[Of.Data { augmentation := augmentation }] {
+    projective := \fun (n: Nat.Nat^) => Projectivity[].projective n,
+    onto := augmentationOnto, killed := killed, augmentationExact := augmentationExact, exact := Exactness[].exact,
+  }
+};

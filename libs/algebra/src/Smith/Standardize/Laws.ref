@@ -1,0 +1,64 @@
+\import algebra.IntegerMatrix[m := m, n := n] \as Matrices;
+\import \parent.\parent.Compute[].Invariants[m := m, n := n, original := original] \as Computation;
+\import \parent.\parent.Normalize[].Laws[] \as Signs;
+\import \parent.\parent.Of[m := m, n := n] \as Frames;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.\parent.Bounds[] \as Indices;
+\structure Certificate[output: Compute.Output^]: \Prop {
+  rowRank: Bounds.Le (Compute.outputRank output) m,
+  columnRank: Bounds.Le (Compute.outputRank output) n,
+  bounded: Indices.HistoryLaws m n (Compute.outputHistory output),
+  traced: Compute.outputMatrix output = applyHistory (Compute.outputHistory output) original,
+  nonnegative: Signs.Prefix (Compute.outputRank output) (Compute.outputMatrix output),
+}
+\definition assembly: \forall (rank: N.Nat^)(current: Attempt^) ->
+  Bounds.Le rank m -> Bounds.Le rank n -> Indices.HistoryLaws m n (attemptHistory current) ->
+  attemptMatrix current = applyHistory (attemptHistory current) original -> Signs.Prefix rank (attemptMatrix current) -> Certificate[assemble rank current] :=
+  \fun (rank: N.Nat^) => \induction (current: Attempt^) \return
+    Bounds.Le rank m -> Bounds.Le rank n -> Indices.HistoryLaws m n (attemptHistory current) ->
+    attemptMatrix current = applyHistory (attemptHistory current) original -> Signs.Prefix rank (attemptMatrix current) -> Certificate[assemble rank current] \with {
+    | attempt: \fun (a: Runtime^)(history: History^)(changed: B.Bool^)(rowBound: _)(columnBound: _)(historyLaws: _)(trace: _)(signs: _) =>
+        Certificate[Compute.Output^::result rank a history] { rowRank := rowBound, columnRank := columnBound, bounded := historyLaws, traced := trace, nonnegative := signs }
+  };
+\definition normalization: \forall (output: Compute.Output^) -> Computation.result output -> Certificate[normalizeOutput output] :=
+  \induction (output: Compute.Output^) \return Computation.result output -> Certificate[normalizeOutput output] \with {
+    | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^)(law: Computation.Laws[rank, a, history]) =>
+        assembly rank (Normalize.fold rank a history) #rowRank{law} #columnRank{law}
+          (Signs.boundedHistory rank m n a history #rowRank{law} #bounded{law})
+          (Signs.traced rank a original history #traced{law})
+          (Signs.positive rank a history)
+  };
+\definition correctness: Certificate[standardize m n original] := normalization (Compute.executeInitial m n original) Computation.correctness;
+\definition FrameFor(output: Compute.Output^): \Set := \Cast[Frames.Frame] ({ frame: Frames.Frame \where
+  Frames.change frame (Matrices.reflect original) = Matrices.reflect (Compute.outputMatrix output) });
+\definition equivalence: \forall (output: Compute.Output^) -> Certificate[output] -> \exists FrameFor output := \block {
+  \fun (output: Compute.Output^)(law: Certificate[output]) \then
+  \takefrom frame: Frames.HistoryFrame (Compute.outputHistory output) \by Frames.Histories[].existence (Compute.outputHistory output) #bounded{law} \then
+  \let action: Frames.HistoryAction (Compute.outputHistory output) frame :=
+    \bysub(Frames.Frame, { frame: Frames.Frame \where Frames.HistoryAction (Compute.outputHistory output) frame }, frame) \then
+  \return \exact(\into[Frames.Frame](frame, { frame: Frames.Frame \where
+    Frames.change frame (Matrices.reflect original) = Matrices.reflect (Compute.outputMatrix output) }) \by {
+      trans!{Matrices.Matrix} (Frames.change frame (Matrices.reflect original))
+        (Matrices.reflect (applyHistory (Compute.outputHistory output) original)) (Matrices.reflect (Compute.outputMatrix output))
+        (action original)
+        (congr!{Runtime^ Matrices.Matrix} Matrices.reflect (applyHistory (Compute.outputHistory output) original) (Compute.outputMatrix output)
+          (sym!{Runtime^} (Compute.outputMatrix output) (applyHistory (Compute.outputHistory output) original) #traced{law}))
+    }, FrameFor output)
+};
+\definition computedEquivalence: \exists FrameFor (standardize m n original) := equivalence (standardize m n original) correctness;
+\structure FullCertificate[output: Compute.Output^]: \Prop {
+  computation: Certificate[output],
+  diagonal: \parent.\parent.Properties[m := m, n := n, rank := Compute.outputRank output].Diagonal (Compute.outputMatrix output),
+  trailing: \parent.\parent.Properties[m := m, n := n, rank := Compute.outputRank output].TrailingZero (Compute.outputMatrix output),
+  nonzero: \parent.\parent.Properties[m := m, n := n, rank := Compute.outputRank output].Nonzero (Compute.outputMatrix output),
+  divides: \parent.\parent.Properties[m := m, n := n, rank := Compute.outputRank output].Divides (Compute.outputMatrix output),
+}
+\module Full;
+\definition fullCorrectness: FullCertificate[standardize m n original] := Full[].correctness;
+\definition nativeCorrectness: FullCertificate[Standardize.program^ m n original] :=
+  \idelim standardize m n original = Standardize.program^ m n original \with output: Compute.Output^ => FullCertificate[output] \by {
+    base: fullCorrectness,
+    equality: sym!{Compute.Output^} (Standardize.program^ m n original) (standardize m n original)
+      (\parent.Implementation[].matches m n original)
+  };

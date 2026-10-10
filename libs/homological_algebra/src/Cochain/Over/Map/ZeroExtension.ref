@@ -1,0 +1,41 @@
+\import std.Arithmetic[].Int[] \as Signed;
+\import \root.Integer[] \as Integers;
+\import Integers.Over[R := R, ring := ring] \as Internal;
+\import \parent.\parent.ZeroExtension[C := C] \as Source;
+\import \parent.\parent.ZeroExtension[C := D] \as Target;
+\module Positive(n: N.Nat^);
+\module Negative(n: N.Nat^);
+\definition apply: \forall (z: Signed.Int^) -> Source.Carrier z -> Target.Carrier z :=
+  \induction (z: Signed.Int^) \return Source.Carrier z -> Target.Carrier z \with {
+    | ofNat: \fun (n: N.Nat^)(x: Source.Carrier (Signed.Int^::ofNat n)) => Target.Positive[n := n].intro (#apply{f} n x)
+    | negSucc: \fun (n: N.Nat^)(x: Source.Carrier (Signed.Int^::negSucc n)) => #zero{(Target.space (Signed.Int^::negSucc n))}
+  };
+\definition addition: \forall (z: Signed.Int^)(x, y: Source.Carrier z) ->
+  apply z (#add{(Source.space z)} x y) = #add{(Target.space z)} (apply z x) (apply z y) :=
+  \induction (z: Signed.Int^) \return \forall (x, y: Source.Carrier z) ->
+    apply z (#add{(Source.space z)} x y) = #add{(Target.space z)} (apply z x) (apply z y) \with {
+      | ofNat: \fun (n: N.Nat^) => Positive[n := n].addition
+      | negSucc: \fun (n: N.Nat^) => Negative[n := n].addition
+    };
+\definition scalar: \forall (z: Signed.Int^)(a: R)(x: Source.Carrier z) ->
+  apply z (#smul{(Source.space z)} a x) = #smul{(Target.space z)} a (apply z x) :=
+  \induction (z: Signed.Int^) \return \forall (a: R)(x: Source.Carrier z) ->
+    apply z (#smul{(Source.space z)} a x) = #smul{(Target.space z)} a (apply z x) \with {
+      | ofNat: \fun (n: N.Nat^) => Positive[n := n].scalar
+      | negSucc: \fun (n: N.Nat^) => Negative[n := n].scalar
+    };
+\definition commutes: \forall (z: Signed.Int^)(x: Source.Carrier z) ->
+  Target.apply z (apply z x) = apply (Integers.next z) (Source.apply z x) :=
+  \induction (z: Signed.Int^) \return \forall (x: Source.Carrier z) ->
+    Target.apply z (apply z x) = apply (Integers.next z) (Source.apply z x) \with {
+      | ofNat: \fun (n: N.Nat^)(x: Source.Carrier (Signed.Int^::ofNat n)) => #commutes{f} n x
+      | negSucc: \induction (n: N.Nat^) \return \forall (x: Source.Carrier (Signed.Int^::negSucc n)) ->
+          Target.apply (Signed.Int^::negSucc n) (apply (Signed.Int^::negSucc n) x) = apply (Integers.next (Signed.Int^::negSucc n)) (Source.apply (Signed.Int^::negSucc n) x) \with {
+            | zero: \fun (x: Source.Carrier (Signed.Int^::negSucc N.Nat^::zero)) => sym!{{D.family.Carrier N.Nat^::zero}} _ _ (\parent.At[k := N.Nat^::zero].zeroPreserved f)
+            | succ: \fun (n: N.Nat^)(unused: _)(x: Source.Carrier (Signed.Int^::negSucc (N.Nat^::succ n))) => \refl(#zero{(Target.space (Signed.Int^::negSucc n))})
+          }
+    };
+\definition map: Internal.Map[C := Source.complex, D := Target.complex].Map := Internal.Map[C := Source.complex, D := Target.complex].Map {
+  apply := apply, addition := addition, scalar := scalar, commutes := commutes,
+};
+\module Naturality(n: N.Nat^);

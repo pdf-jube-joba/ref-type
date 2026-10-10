@@ -1,0 +1,68 @@
+\definition i: Source.Index current := Degrees.index current (Nat.Nat^::succ p) q;
+\definition low: Source.Index n := Degrees.index n p (PreviousH.lower p q);
+\definition hi: Source.Index next := Source.upHorizontal current i;
+\definition vi: Source.Index next := Source.upVertical current i;
+\definition mixed: Source.Index current := Target.upVertical n low;
+\import TD.Component[i := i] \as Injection;
+\import TD.Component[i := mixed] \as MixedInjection;
+\import Modules.Hom[V := D.family.Carrier (Nat.Nat^::succ p) q, W := TD.Carrier,
+  source := D.family.space (Nat.Nat^::succ p) q, target := TD.space] \as Injections;
+\import Modules.Hom[V := D.family.Carrier p (Nat.Nat^::succ q), W := TD.Carrier,
+  source := D.family.space p (Nat.Nat^::succ q), target := TD.space] \as MixedInjections;
+\definition horizontalAfterValue: \forall (x: C.family.Carrier (Nat.Nat^::succ p) q) ->
+  #apply{horizontalAfter} (#apply{(SD.Component[i := i].injection)} x) =
+    #apply{Injection.injection} (#apply{(D.differential.horizontal p q)} (#apply{(h p q)} x)) :=
+  \fun (x: C.family.Carrier (Nat.Nat^::succ p) q) => trans!{TD.Carrier} _ _ _
+    (congr!{TP.Carrier TD.Carrier} (#apply{TS.horizontal}) _ _ (PreviousH.onInjection i x))
+    (TS.horizontalOnInjection low (#apply{(h p q)} x));
+\definition horizontalBeforeValue: \forall (x: C.family.Carrier (Nat.Nat^::succ p) q) ->
+  #apply{horizontalBefore} (#apply{(SD.Component[i := i].injection)} x) =
+    #apply{Injection.injection} (#apply{(h (Nat.Nat^::succ p) q)} (#apply{(C.differential.horizontal (Nat.Nat^::succ p) q)} x)) :=
+  \fun (x: C.family.Carrier (Nat.Nat^::succ p) q) => trans!{TD.Carrier} _ _ _
+    (congr!{SN.Carrier TD.Carrier} (#apply{NextH.map}) _ _ (SS.horizontalOnInjection i x))
+    (NextH.onInjection hi (#apply{(C.differential.horizontal (Nat.Nat^::succ p) q)} x));
+\definition horizontal: \forall (x: C.family.Carrier (Nat.Nat^::succ p) q) ->
+  #apply{difference} (#apply{(SD.Component[i := i].injection)} x) =
+    Group.add (#apply{horizontalAfter} (#apply{(SD.Component[i := i].injection)} x))
+      (#apply{horizontalBefore} (#apply{(SD.Component[i := i].injection)} x)) :=
+  \fun (x: C.family.Carrier (Nat.Nat^::succ p) q) => trans!{TD.Carrier} _ _ _
+    (congr2!{TD.Carrier TD.Carrier TD.Carrier} Group.difference _ _ _ _ (F.onInjection i x) (G.onInjection i x))
+    (trans!{TD.Carrier} _ _ _
+      (sym!{TD.Carrier} _ _ (Injections.differencePreserved Injection.injection (#apply{(f (Nat.Nat^::succ p) q)} x) (#apply{(g (Nat.Nat^::succ p) q)} x)))
+      (trans!{TD.Carrier} _ _ _
+        (congr!{{D.family.Carrier (Nat.Nat^::succ p) q} TD.Carrier} (#apply{Injection.injection}) _ _ (#positive{laws} p q x))
+        (trans!{TD.Carrier} _ _ _
+          (#addition{Injection.injection} (#apply{(D.differential.horizontal p q)} (#apply{(h p q)} x))
+            (#apply{(h (Nat.Nat^::succ p) q)} (#apply{(C.differential.horizontal (Nat.Nat^::succ p) q)} x)))
+          (congr2!{TD.Carrier TD.Carrier TD.Carrier} Group.add _ _ _ _
+            (sym!{TD.Carrier} _ _ (horizontalAfterValue x)) (sym!{TD.Carrier} _ _ (horizontalBeforeValue x))))));
+\import Degrees.Sign[V := C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q), space := C.family.space (Nat.Nat^::succ p) (Nat.Nat^::succ q)] \as SourceSign;
+\import Degrees.Sign[V := D.family.Carrier p (Nat.Nat^::succ q), space := D.family.space p (Nat.Nat^::succ q)] \as TargetSign;
+\import SourceSign.Mapping[W := D.family.Carrier p (Nat.Nat^::succ q), target := D.family.space p (Nat.Nat^::succ q)] \as SignMapping;
+\definition verticalValue(x: C.family.Carrier (Nat.Nat^::succ p) q): TD.Carrier :=
+  #apply{MixedInjection.injection} (#apply{(TargetSign.map p)} (#apply{(D.differential.vertical p q)} (#apply{(h p q)} x)));
+\definition verticalAfterValue: \forall (x: C.family.Carrier (Nat.Nat^::succ p) q) ->
+  #apply{verticalAfter} (#apply{(SD.Component[i := i].injection)} x) = verticalValue x :=
+  \fun (x: C.family.Carrier (Nat.Nat^::succ p) q) => trans!{TD.Carrier} _ _ _
+    (congr!{TP.Carrier TD.Carrier} (#apply{TS.vertical}) _ _ (PreviousH.onInjection i x))
+    (TS.verticalOnInjection low (#apply{(h p q)} x));
+\definition vertical: \forall (x: C.family.Carrier (Nat.Nat^::succ p) q) ->
+  #apply{verticalBefore} (#apply{(SD.Component[i := i].injection)} x) =
+    #neg{TD.space} (#apply{verticalAfter} (#apply{(SD.Component[i := i].injection)} x)) :=
+  \fun (x: C.family.Carrier (Nat.Nat^::succ p) q) => trans!{TD.Carrier} _ _ _
+    (congr!{SN.Carrier TD.Carrier} (#apply{NextH.map}) _ _ (SS.verticalOnInjection i x))
+    (trans!{TD.Carrier} _ _ _
+      (NextH.onInjection vi (#apply{(SourceSign.map (Nat.Nat^::succ p))} (#apply{(C.differential.vertical (Nat.Nat^::succ p) q)} x)))
+      (trans!{TD.Carrier} _ _ _
+        (congr!{{D.family.Carrier p (Nat.Nat^::succ q)} TD.Carrier} (#apply{MixedInjection.injection}) _ _
+          (SignMapping.naturality (h p (Nat.Nat^::succ q)) (Nat.Nat^::succ p) (#apply{(C.differential.vertical (Nat.Nat^::succ p) q)} x)))
+        (trans!{TD.Carrier} _ _ _
+          (congr!{{D.family.Carrier p (Nat.Nat^::succ q)} TD.Carrier} (#apply{MixedInjection.injection}) _ _
+            (TargetSign.successor p (#apply{(h p (Nat.Nat^::succ q))} (#apply{(C.differential.vertical (Nat.Nat^::succ p) q)} x))))
+          (trans!{TD.Carrier} _ _ _
+            (congr!{{D.family.Carrier p (Nat.Nat^::succ q)} TD.Carrier}
+              (\fun (z: D.family.Carrier p (Nat.Nat^::succ q)) => #apply{MixedInjection.injection} (#neg{(D.family.space p (Nat.Nat^::succ q))} (#apply{(TargetSign.map p)} z))) _ _
+              (sym!{{D.family.Carrier p (Nat.Nat^::succ q)}} _ _ (#vertical{laws} p q x)))
+            (trans!{TD.Carrier} _ _ _
+              (MixedInjections.negativePreserved MixedInjection.injection (#apply{(TargetSign.map p)} (#apply{(D.differential.vertical p q)} (#apply{(h p q)} x))))
+              (congr!{TD.Carrier TD.Carrier} (#neg{TD.space}) _ _ (sym!{TD.Carrier} _ _ (verticalAfterValue x))))))));

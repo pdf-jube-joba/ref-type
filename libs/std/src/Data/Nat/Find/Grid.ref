@@ -1,0 +1,63 @@
+\definition RowPredicate: \Set := Nat^ -> Nat^ -> B.Bool^;
+\inductive Position: \VType := | empty: Position | position: Nat -> Nat -> Position;
+\definition rowHas(cols: Nat^)(p: RowPredicate)(i: Nat^): B.Bool^ := isFound (find cols (p i));
+\definition chooseRow(i: Nat^): Result^ -> Position^ := \induction (result: Result^) \return Position^ \with {
+  | missing: Position^::empty
+  | found: \fun (j: Nat^) => Position^::position i j
+};
+\definition choose(cols: Nat^)(p: RowPredicate): Result^ -> Position^ := \induction (result: Result^) \return Position^ \with {
+  | missing: Position^::empty
+  | found: \fun (i: Nat^) => chooseRow i (find cols (p i))
+};
+\definition grid(rows, cols: Nat^)(p: RowPredicate): Position^ := choose cols p (find rows (rowHas cols p));
+\structure Found[p: RowPredicate, rows, cols, i, j: Nat^]: \Prop {
+  rowBound: Bounds.Lt i rows,
+  columnBound: Bounds.Lt j cols,
+  hit: p i j = B.Bool^::true,
+}
+\definition PositionLaws(p: RowPredicate)(rows, cols: Nat^): Position^ -> \Prop :=
+  \induction (position: Position^) \return \Prop \with {
+    | empty: \forall (i, j: Nat^) -> Bounds.Lt i rows -> Bounds.Lt j cols -> p i j = B.Bool^::false
+    | position: \fun (i, j: Nat^) => Found[p, rows, cols, i, j]
+  };
+\definition rowCorrect: \forall (p: RowPredicate)(rows, cols, i: Nat^) -> Bounds.Lt i rows -> \forall (result: Result^) ->
+  isFound result = B.Bool^::true -> Laws (p i) cols result -> PositionLaws p rows cols (chooseRow i result) :=
+  \fun (p: RowPredicate)(rows, cols, i: Nat^)(rowBound: Bounds.Lt i rows) =>
+    \induction (result: Result^) \return isFound result = B.Bool^::true -> Laws (p i) cols result -> PositionLaws p rows cols (chooseRow i result) \with {
+      | missing: \fun (test: B.Bool^::false = B.Bool^::true)(laws: Laws (p i) cols Result^::missing) =>
+          Logic.falseElim (PositionLaws p rows cols Position^::empty) (BoolLaws.falseNeTrue test)
+      | found: \fun (j: Nat^)(test: B.Bool^::true = B.Bool^::true)(laws: FoundLaws[p i, cols, j]) => Found[p, rows, cols, i, j] {
+          rowBound := rowBound, columnBound := #bound{laws}, hit := #hit{laws},
+        }
+    };
+\definition noneInRow: \forall (cols: Nat^)(p: RowPredicate)(i: Nat^) -> rowHas cols p i = B.Bool^::false -> \forall (j: Nat^) -> Bounds.Lt j cols -> p i j = B.Bool^::false :=
+  \fun (cols: Nat^)(p: RowPredicate)(i: Nat^)(empty: rowHas cols p i = B.Bool^::false) =>
+    \idelim find cols (p i) = Result^::missing \with r: Result^ => Laws (p i) cols r \by {
+      base: correctness cols (p i), equality: missingOfFlag (find cols (p i)) empty
+    };
+\definition chooseCorrect: \forall (p: RowPredicate)(rows, cols: Nat^)(result: Result^) -> Laws (rowHas cols p) rows result -> PositionLaws p rows cols (choose cols p result) :=
+  \fun (p: RowPredicate)(rows, cols: Nat^) => \induction (result: Result^) \return Laws (rowHas cols p) rows result -> PositionLaws p rows cols (choose cols p result) \with {
+    | missing: \fun (empty: Laws (rowHas cols p) rows Result^::missing)(i, j: Nat^)(rowBound: Bounds.Lt i rows)(colBound: Bounds.Lt j cols) => noneInRow cols p i (empty i rowBound) j colBound
+    | found: \fun (i: Nat^)(laws: FoundLaws[rowHas cols p, rows, i]) => rowCorrect p rows cols i #bound{laws} (find cols (p i)) #hit{laws} (correctness cols (p i))
+  };
+\definition linearCorrectness: \forall (count: Nat^)(p: Nat^ -> B.Bool^) -> Laws p count (find count p) := correctness;
+\definition correctness: \forall (rows, cols: Nat^)(p: RowPredicate) -> PositionLaws p rows cols (grid rows cols p) :=
+  \fun (rows, cols: Nat^)(p: RowPredicate) => chooseCorrect p rows cols (find rows (rowHas cols p)) (linearCorrectness rows (rowHas cols p));
+
+\definition Predicate: \VType := \U(Nat -> Nat -> B.Bool);
+\module RowImplementation;
+\correspondence Row: Programs.Correspondence := Programs.Correspondence {
+  T := RowImplementation[].T, program := RowImplementation[].program, specification := rowHas, coherence := RowImplementation[].coherence,
+};
+\module ChoiceImplementation;
+\correspondence Choice: Programs.Correspondence := Programs.Correspondence {
+  T := ChoiceImplementation[].T, program := ChoiceImplementation[].program, specification := chooseRow, coherence := ChoiceImplementation[].coherence,
+};
+\module SelectImplementation;
+\correspondence Select: Programs.Correspondence := Programs.Correspondence {
+  T := SelectImplementation[].T, program := SelectImplementation[].program, specification := choose, coherence := SelectImplementation[].coherence,
+};
+\module Implementation;
+\correspondence Grid: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := grid, coherence := Implementation[].coherence,
+};

@@ -1,0 +1,141 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Data[].FinSet[] \as Finite;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Alg[].Ring[] \as Ring;
+\import algebra.Module[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Modules;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing] \as Commutative;
+\import algebra.IntegerMatrix[m := m, n := n] \as Matrices;
+\import Commutative.Matrix[m := m, n := n] \as Base;
+\import Commutative.Matrix[m := m, n := m] \as Left;
+\import Commutative.Matrix[m := n, n := n] \as Right;
+\import Left.Invertible[] \as LeftInverse;
+\import Right.Invertible[] \as RightInverse;
+\import Left.Composition[k := n] \as ActLeft;
+\import Base.Composition[k := n] \as ActRight;
+\import algebra.Smith[] \as Smith;
+\import Smith.Diagonalize[] \as Diagonalize;
+\import Diagonalize.Specification[m := m, n := n, original := original] \as Specification;
+\import Smith.Of[m := m, n := n] \as Frames;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition result: Smith.SmithResult^ := Diagonalize.Diagonalize.program^ m n original;
+\definition certificate: Specification.Certificate[result] := Specification.nativeCorrectness;
+\definition rank: N.Nat^ := Diagonalize.rank result;
+\definition dimension: N.Nat^ := Nat.sub n rank;
+\definition frame: Frames.Frame := Specification.typedFrame result certificate;
+\definition diagonal: Matrices.Matrix := Matrices.reflect (Diagonalize.diagonal result);
+\definition right: Right.Matrix := frame.right;
+\definition left: Left.Matrix := frame.left;
+\definition rightIso: Modules.Isomorphism[V := Matrices.Vector, W := Matrices.Vector, source := Matrices.domain, target := Matrices.domain].Isomorphism :=
+  RightInverse.isomorphism right frame.rightInverse;
+\definition leftIso: Modules.Isomorphism[V := Matrices.Output, W := Matrices.Output, source := Matrices.codomain, target := Matrices.codomain].Isomorphism :=
+  LeftInverse.isomorphism left frame.leftInverse;
+\import Modules.Isomorphism[V := Matrices.Output, W := Matrices.Output, source := Matrices.codomain, target := Matrices.codomain].Inverse[] \as LeftReverse;
+\definition leftReverse: Modules.Isomorphism[V := Matrices.Output, W := Matrices.Output, source := Matrices.codomain, target := Matrices.codomain].Isomorphism := LeftReverse.inverse leftIso;
+\definition equation: Frames.change frame (Matrices.reflect original) = diagonal := Specification.equation result certificate;
+\definition action: \forall (v: Matrices.Vector) -> Base.apply diagonal v = Left.apply left (Base.apply (Matrices.reflect original) (Right.apply right v)) :=
+  \fun (v: Matrices.Vector) => trans!{Matrices.Output} (Base.apply diagonal v)
+    (Base.apply (Frames.change frame (Matrices.reflect original)) v)
+    (Left.apply left (Base.apply (Matrices.reflect original) (Right.apply right v)))
+    (congr!{Matrices.Matrix Matrices.Output} (\fun (a: Matrices.Matrix) => Base.apply a v) diagonal (Frames.change frame (Matrices.reflect original))
+      (sym!{Matrices.Matrix} (Frames.change frame (Matrices.reflect original)) diagonal equation))
+    (trans!{Matrices.Output} (Base.apply (Frames.change frame (Matrices.reflect original)) v)
+      (Base.apply (ActLeft.product left (Matrices.reflect original)) (Right.apply right v))
+      (Left.apply left (Base.apply (Matrices.reflect original) (Right.apply right v)))
+      (ActRight.point (ActLeft.product left (Matrices.reflect original)) right v)
+      (ActLeft.point left (Matrices.reflect original) (Right.apply right v)));
+\import Modules.KernelTransport[
+  V := Matrices.Vector, W := Matrices.Output, X := Matrices.Vector, Y := Matrices.Output,
+  vSpace := Matrices.domain, wSpace := Matrices.codomain, xSpace := Matrices.domain, ySpace := Matrices.codomain,
+  f := Base.linear diagonal, g := Base.linear (Matrices.reflect original), domainIso := rightIso, codomainIso := leftReverse
+] \as Transport;
+\definition commutes: Transport.Commutes := \fun (v: Matrices.Vector) =>
+  trans!{Matrices.Output} (Base.apply (Matrices.reflect original) (Right.apply right v))
+    (#apply{#backward{leftIso}} (Left.apply left (Base.apply (Matrices.reflect original) (Right.apply right v))))
+    (#apply{#backward{leftIso}} (Base.apply diagonal v))
+    (sym!{Matrices.Output} _ _ (#leftInverse{leftIso} (Base.apply (Matrices.reflect original) (Right.apply right v))))
+    (congr!{Matrices.Output Matrices.Output} (#apply{#backward{leftIso}})
+      (Left.apply left (Base.apply (Matrices.reflect original) (Right.apply right v))) (Base.apply diagonal v)
+      (sym!{Matrices.Output} (Base.apply diagonal v) (Left.apply left (Base.apply (Matrices.reflect original) (Right.apply right v))) (action v)));
+\import algebra.IntegerDiagonal[m := m, n := n, rank := rank] \as Diagonal;
+\definition diagonalLaws: Diagonal.Laws[Diagonalize.diagonal result] := Diagonal.Laws[Diagonalize.diagonal result] {
+  rowRank := #rowRank{(#computation{(#normal{certificate})})},
+  columnRank := #columnRank{(#computation{(#normal{certificate})})},
+  diagonal := #diagonal{(#normal{certificate})},
+  trailing := #trailing{(#normal{certificate})},
+  nonzero := #nonzero{(#normal{certificate})},
+};
+\import Diagonal.Kernel[a := Diagonalize.diagonal result] \as DiagonalKernel;
+\import Modules.FiniteCoordinates[n := dimension] \as Coordinates;
+\definition Carrier: \Set := Transport.TargetCarrier;
+\import Modules.Of[V := Matrices.Vector, space := Matrices.domain].Submodule[] \as Submodules;
+\import Submodules.Of[S := Transport.targetKernel] \as Included;
+\definition kernelSpace: Modules.Space Carrier := Included.moduleSpace;
+\import Modules.Isomorphism[V := Coordinates.Carrier, W := DiagonalKernel.Carrier, source := Coordinates.space, target := DiagonalKernel.space].Composition[U := Carrier, final := kernelSpace] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := Coordinates.Carrier, W := Carrier, source := Coordinates.space, target := kernelSpace].Isomorphism :=
+  Composition.compose (Transport.isomorphism commutes) (DiagonalKernel.isomorphism diagonalLaws);
+\definition generator(i: Coordinates.Index): Carrier := #apply{#forward{isomorphism}} (Coordinates.basis i);
+\definition coordinates(x: Carrier): Coordinates.Carrier := #apply{#backward{isomorphism}} x;
+\definition reconstruction: \forall (x: Carrier) -> #apply{#forward{isomorphism}} (coordinates x) = x := #rightInverse{isomorphism};
+\definition coordinatesUnique: \forall (v: Coordinates.Carrier) -> coordinates (#apply{#forward{isomorphism}} v) = v := #leftInverse{isomorphism};
+\import Modules.FiniteCoordinates[n := n] \as OriginalCoordinates;
+\import OriginalCoordinates.Tail[start := rank] \as Tail;
+\import Finite.Tail[n := n, start := rank] \as Indices;
+\import Right.Representation[] \as RightRepresentation;
+\definition columnRank: Bounds.Le rank n := #columnRank{diagonalLaws};
+\definition basisMatrix: Commutative.Matrix[m := n, n := dimension].Matrix :=
+  \fun (i: Finite.Fin n)(j: Finite.Fin dimension) => right i (Indices.include columnRank j);
+\definition generatorEntry: \forall (j: Coordinates.Index)(i: Finite.Fin n) -> generator j i = basisMatrix i j :=
+  \fun (j: Coordinates.Index)(i: Finite.Fin n) =>
+    trans!{I.Int^} (generator j i) (Right.apply right (OriginalCoordinates.basis (Indices.include columnRank j)) i) (basisMatrix i j)
+      (congr!{Matrices.Vector I.Int^} (\fun (v: Matrices.Vector) => Right.apply right v i)
+        (Tail.extension (Coordinates.basis j)) (OriginalCoordinates.basis (Indices.include columnRank j)) (Tail.extensionBasis columnRank j))
+      (RightRepresentation.onBasis right i (Indices.include columnRank j));
+\import algebra.IntegerBasis[] \as NativeBasis;
+\definition basisRuntime: Matrices.Runtime^ := NativeBasis.Basis.program^ result;
+\definition coordinatesRuntime: Matrices.Runtime^ := NativeBasis.Coordinates.program^ result;
+\definition nativeGenerator: \forall (i: Finite.Fin n)(j: Coordinates.Index) -> basisRuntime i j = generator j i :=
+  \fun (i: Finite.Fin n)(j: Coordinates.Index) =>
+    trans!{I.Int^} (basisRuntime i j) (basisMatrix i j) (generator j i)
+      (congr!{Matrices.Runtime^ I.Int^} (\fun (a: Matrices.Runtime^) => a i j)
+        (NativeBasis.Basis.program^ result) (NativeBasis.basis result)
+        (NativeBasis.BasisImplementation[].matches result))
+      (sym!{I.Int^} (generator j i) (basisMatrix i j) (generatorEntry j i));
+\definition coordinateEntry: \forall (x: Carrier)(i: Coordinates.Index) ->
+  coordinates x i = Right.apply #inverse{frame.rightInverse} x (Indices.include columnRank i) :=
+  \fun (x: Carrier)(i: Coordinates.Index) => \refl(coordinates x i);
+\module Cokernel;
+\import Modules.Hom[V := Coordinates.Carrier, W := Matrices.Vector, source := Coordinates.space, target := Matrices.domain] \as OutputForward;
+\definition outputForward: OutputForward.Map := OutputForward.Map {
+  apply := \fun (v: Coordinates.Carrier) => #apply{#forward{isomorphism}} v,
+  addition := \fun (v, w: Coordinates.Carrier) => #addition{#forward{isomorphism}} v w,
+  scalar := \fun (a: I.Int^)(v: Coordinates.Carrier) => #scalar{#forward{isomorphism}} a v,
+};
+\import Commutative.Matrix[m := n, n := dimension] \as Basis;
+\definition basisEntries: Basis.entries outputForward = basisMatrix := \axiom:funext(Basis.entries outputForward, basisMatrix,
+  \fun (i: Finite.Fin n) => \axiom:funext(Basis.entries outputForward i, basisMatrix i,
+    \fun (j: Coordinates.Index) => generatorEntry j i));
+\definition basisRepresentation: Basis.linear basisMatrix = outputForward := trans!{OutputForward.Map}
+  (Basis.linear basisMatrix) (Basis.linear (Basis.entries outputForward)) outputForward
+  (congr!{Basis.Matrix OutputForward.Map} Basis.linear basisMatrix (Basis.entries outputForward)
+    (sym!{Basis.Matrix} (Basis.entries outputForward) basisMatrix basisEntries))
+  (Basis.Representation[].mapRoundtrip outputForward);
+\definition basisAction: \forall (v: Coordinates.Carrier) -> Basis.apply basisMatrix v = #apply{outputForward} v :=
+  \fun (v: Coordinates.Carrier) => congr!{OutputForward.Map Matrices.Vector}
+    (\fun (f: OutputForward.Map) => #apply{f} v) (Basis.linear basisMatrix) outputForward basisRepresentation;
+
+\module Image;
+
+\module Projectivity {
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := kernelSpace };
+  \definition coordinateBundle: Modules.Bundle := Modules.Bundle { Carrier := Coordinates.Carrier, space := Coordinates.space };
+  \import Modules.ProjectiveLaws[].Retract[P := bundle, Q := coordinateBundle, inclusion := #backward{isomorphism}, retraction := #forward{isomorphism}] \as Retraction;
+  \definition projective: Modules.Projective bundle := Retraction.projective #rightInverse{isomorphism} Coordinates.Free[].projective;
+}
+\module Splitting;

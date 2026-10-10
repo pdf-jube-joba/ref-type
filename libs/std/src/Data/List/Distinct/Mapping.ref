@@ -1,0 +1,19 @@
+\import \parent.\parent.Distinct[A := B] \as Target;
+\import \parent.\parent.Membership[A := B] \as Members;
+\import std.Logic[].Equality[] \as Equality;
+\use Logic.either;
+\definition Injective(f: A -> B): \Prop := \forall (x, y: A) -> f x = f y -> x = y;
+\definition fresh: \forall (f: A -> B) -> Injective f -> \forall (xs: List[A])(x: A) ->
+  Logic.Not (Membership.Occurs x xs) -> Logic.Not (Members.Occurs (f x) (map A B f xs)) :=
+  \fun (f: A -> B)(injective: Injective f) => \induction (xs: List[A]) \return \forall (x: A) ->
+    Logic.Not (Membership.Occurs x xs) -> Logic.Not (Members.Occurs (f x) (map A B f xs)) \with {
+    | nil: \fun (x: A)(outside: Logic.Not Logic.False)(member: Logic.False) => member
+    | cons: \fun (head: A)(tail: List[A])(previous: _)(x: A)(outside: _)(member: _) =>
+      either!{{f x = f head} "or" {Members.Occurs (f x) (map A B f tail)} "either" {Logic.False}
+        "lt:" {\fun (equal: f x = f head) => outside (Logic.Or[_, _]::left (injective x head equal))}
+        "rt:" {\fun (old: _) => previous x (\fun (inTail: _) => outside (Logic.Or[_, _]::right inTail)) old}} member
+  };
+\definition preserves: \forall (f: A -> B) -> Injective f -> \forall (xs: List[A]) -> Distinct xs -> Target.Distinct (map A B f xs) :=
+  \fun (f: A -> B)(injective: Injective f)(xs: List[A])(distinct: Distinct xs) =>
+    distinct (\fun (xs: List[A]) => Target.Distinct (map A B f xs)) Target.nil
+      (\fun (head: A)(tail: List[A])(outside: _)(previous: _) => Target.cons (f head) (map A B f tail) (fresh f injective tail head outside) previous);

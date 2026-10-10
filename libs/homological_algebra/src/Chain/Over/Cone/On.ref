@@ -1,0 +1,47 @@
+\module At(k: Degree);
+\definition Carrier(k: Degree): \Set := At[k := k].Carrier;
+\definition space(k: Degree): Modules.Space (Carrier k) := At[k := k].space;
+\definition family: Family := Family {
+  Carrier := \fun (k: Degree) => std.Data[].Pair[].Times^[D.family.Carrier k, C.family.Carrier (previous k)],
+  space := space,
+};
+\definition differential: DifferentialData[family] := DifferentialData[family] {
+  apply := \fun (k: Degree) => #apply{(At[k := k].differential)},
+};
+\definition complex: Complex := Complex {
+  family := family, differential := differential,
+  laws := DifferentialLaws[family, differential] {
+    addition := \fun (k: Degree) => #addition{(At[k := k].differential)},
+    scalar := \fun (k: Degree) => #scalar{(At[k := k].differential)},
+    squareZero := \fun (k: Degree) => At[k := k].squareZero,
+  },
+};
+\import \parent.\parent.Shift[C := C] \as Shifted;
+\import \parent.\parent.Map[C := D, D := complex] \as Inclusion;
+\definition inclusion: Inclusion.Map := Inclusion.Map {
+  apply := \fun (k: Degree) => #apply{(At[k := k].injection)},
+  addition := \fun (k: Degree) => #addition{(At[k := k].injection)},
+  scalar := \fun (k: Degree) => #scalar{(At[k := k].injection)},
+  commutes := \fun (k: Degree) => At[k := k].inclusionCommutes,
+};
+\import \parent.\parent.Map[C := complex, D := Shifted.complex] \as Projection;
+\definition projection: Projection.Map := Projection.Map {
+  apply := \fun (k: Degree) => #apply{(At[k := k].projection)},
+  addition := \fun (k: Degree) => #addition{(At[k := k].projection)},
+  scalar := \fun (k: Degree) => #scalar{(At[k := k].projection)},
+  commutes := \fun (k: Degree)(x: Carrier k) => \refl(#neg{(C.family.space (previous (previous k)))} (#apply{C.differential} (previous k) (At[k := k].second x))),
+};
+
+\import \parent.\parent.ShortExact[A := D, B := complex, C := Shifted.complex] \as Exact;
+\definition sequence: Exact.Sequence := Exact.Sequence {
+  inclusion := inclusion, projection := projection,
+  injective := \fun (k: Degree) => #injective{At[k := k].shortExact},
+  onto := \fun (k: Degree) => #onto{At[k := k].shortExact},
+  zero := \fun (k: Degree) => #zero{At[k := k].shortExact},
+  kernelImage := \fun (k: Degree) => #kernelImage{At[k := k].shortExact},
+};
+\module Connecting(k: Degree);
+
+\definition Acyclic: \Prop := \forall (k: Degree)(q: \parent.\parent.At[C := complex, z := k].Homology) ->
+  q = \parent.\parent.At[C := complex, z := k].zeroClass;
+\module Criterion;

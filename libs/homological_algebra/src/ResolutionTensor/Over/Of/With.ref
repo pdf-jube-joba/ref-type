@@ -1,0 +1,76 @@
+\import \parent.Term[n := Nat.Nat^::zero] \as First;
+\import \parent.Term[n := Nat.Nat^::succ Nat.Nat^::zero] \as Second;
+\module Kernel(n: Nat.Nat^) {
+  \import \parent.\parent.Term[n := n] \as Current;
+  \import Original.Syzygy[n := n, resolution := q] \as Syzygy;
+  \import Modules.Of[V := Q.family.Carrier n, space := Q.family.space n].Submodule[].Of[S := Original.kernel q n] \as Inclusion;
+  \import Modules.Tensor[V := P.Carrier, W := Syzygy.Carrier, left := P.space, right := Syzygy.space] \as Tensor;
+  \definition Carrier: \Set := Tensor.Carrier;
+  \definition space: Modules.Space Carrier := Tensor.space;
+  \definition tensor: P.Carrier -> Syzygy.Carrier -> Carrier := Tensor.tensor;
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+  \import Tensor.Mapping[U := P.Carrier, Z := Q.family.Carrier n, targetLeft := P.space, targetRight := Q.family.space n] \as InclusionMap;
+  \definition inclusion: Modules.MapBetween bundle Current.bundle := InclusionMap.map Identity.identity Inclusion.inclusion;
+  \import Algebra.ProjectiveTensor[P := P, A := Syzygy.bundle, B := Original.term n].On[f := Inclusion.inclusion] \as Injection;
+  \definition injective: Modules.Projective P -> \forall (x, y: Carrier) -> #apply{inclusion} x = #apply{inclusion} y -> x = y :=
+    \fun (projective: Modules.Projective P) => Injection.injective projective (\fun (x, y: Syzygy.Carrier)(equal: _) => equal);
+  \import Modules.Hom[V := Carrier, W := Current.Carrier, source := space, target := Current.space] \as Maps;
+  \definition zero: #apply{inclusion} #zero{space} = #zero{Current.space} := Maps.zeroPreserved inclusion;
+}
+\module Degree(n: Nat.Nat^);
+\module Surjection(n: Nat.Nat^);
+\module Factor(n: Nat.Nat^);
+\import Original.AugmentationShortExact[resolution := q] \as Augmentation;
+\import Original.Syzygy[n := Nat.Nat^::zero, resolution := q] \as KernelZero;
+\import Algebra.ProjectiveTensorShortExact[P := P, A := KernelZero.bundle, B := Original.term Nat.Nat^::zero, C := N].On[
+  sequence := Augmentation.sequence] \as Augmented;
+\definition augmentation: Modules.MapBetween (First.bundle) target := Augmented.projection;
+\definition onto: Modules.Surjective (First.bundle) target augmentation := Augmented.onto;
+\module Killed;
+\definition augmentationExact: Modules.Projective P -> \forall (x: First.Carrier) ->
+  #apply{augmentation} x = #zero{Target.space} ->
+  \exists { y: Second.Carrier \where #apply{complex.differential} Nat.Nat^::zero y = x } := \block {
+  \fun (projective: Modules.Projective P)(x: First.Carrier)(closed: _) \then
+  \takefrom a: \Cast[Kernel[n := Nat.Nat^::zero].Carrier] ({ a: Kernel[n := Nat.Nat^::zero].Carrier \where #apply{Augmented.inclusion} a = x })
+    \by Augmented.kernelImage x closed \then
+  \takefrom y: \Cast[Second.Carrier] ({ y: Second.Carrier \where #apply{(Degree[n := Nat.Nat^::zero].projection)} y = a })
+    \by Degree[n := Nat.Nat^::zero].onto a \then
+  \return \exact(\into[Second.Carrier](y,
+    { y: Second.Carrier \where #apply{complex.differential} Nat.Nat^::zero y = x }) \by {
+      trans!{{First.Carrier}}
+        (#apply{complex.differential} Nat.Nat^::zero y)
+        (#apply{(Kernel[n := Nat.Nat^::zero].inclusion)} (#apply{(Degree[n := Nat.Nat^::zero].projection)} y)) x
+        (sym!{{First.Carrier}}
+          (#apply{(Kernel[n := Nat.Nat^::zero].inclusion)} (#apply{(Degree[n := Nat.Nat^::zero].projection)} y))
+          (#apply{complex.differential} Nat.Nat^::zero y) (Degree[n := Nat.Nat^::zero].factorPoint y))
+        (trans!{{First.Carrier}}
+          (#apply{(Kernel[n := Nat.Nat^::zero].inclusion)} (#apply{(Degree[n := Nat.Nat^::zero].projection)} y))
+          (#apply{(Kernel[n := Nat.Nat^::zero].inclusion)} a) x
+          (congr!{{Kernel[n := Nat.Nat^::zero].Carrier} {First.Carrier}} (#apply{(Kernel[n := Nat.Nat^::zero].inclusion)})
+            (#apply{(Degree[n := Nat.Nat^::zero].projection)} y) a
+            (\bysub(Second.Carrier,
+              { y: Second.Carrier \where #apply{(Degree[n := Nat.Nat^::zero].projection)} y = a }, y)))
+          (\bysub(Kernel[n := Nat.Nat^::zero].Carrier, { a: Kernel[n := Nat.Nat^::zero].Carrier \where #apply{Augmented.inclusion} a = x }, a)))
+    }, \Cast[Second.Carrier] ({ y: Second.Carrier \where #apply{complex.differential} Nat.Nat^::zero y = x }))
+};
+\definition exact: Modules.Projective P -> \forall (n: Nat.Nat^)(x: complex.family.Carrier (Nat.Nat^::succ n)) ->
+  #apply{complex.differential} n x = #zero{(complex.family.space n)} ->
+  \exists { y: complex.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{complex.differential} (Nat.Nat^::succ n) y = x } :=
+  \fun (projective: Modules.Projective P)(n: Nat.Nat^) => Degree[n := n].exact projective;
+\module Projectivity(n: Nat.Nat^) {
+  \import \parent.\parent.Term[n := n] \as Current;
+  \import Algebra.TensorProjective[P := P, Q := Original.term n] \as Tensor;
+  \definition projective: Modules.Projective P -> Modules.Projective Current.bundle :=
+    \fun (projective: Modules.Projective P) => Tensor.projective projective (#projective{q} n);
+}
+\definition data: Result.Data := Result.Data { augmentation := augmentation };
+\definition resolution(projective: Modules.Projective P): Result.Resolution := \into[Result.Data](data,
+  { data: Result.Data \where Result.Laws[data] }) \by {
+    Result.Laws[data] {
+      projective := \fun (n: Nat.Nat^) => Projectivity[n := n].projective projective,
+      onto := onto, killed := Killed[].zero, augmentationExact := augmentationExact projective,
+      exact := exact projective,
+    }
+  };
+\definition existence: Modules.Projective P -> \exists Result.Resolution :=
+  \fun (projective: Modules.Projective P) => \exact(resolution projective, Result.Resolution);

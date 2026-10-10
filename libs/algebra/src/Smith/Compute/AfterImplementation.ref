@@ -1,0 +1,20 @@
+\definition T: \VType := \U(AfterState ~> \F(\RunStep[State, Output]));
+\definition program: T := \thunk (\cfun (state: AfterState) => \match state \in AfterState \with {
+  | after rows cols k current: \match current \in Attempt \with {
+      | attempt a history changed: \match changed \in B.Bool \with {
+          | false: \return(\continue[State, Output](State::active rows cols (N.Nat::succ k) a history))
+          | true: \return(\continue[State, Output](State::active rows cols k a history))
+        }
+    }
+});
+\definition onAttempt: \forall (rows, cols, k: N.Nat^)(current: Attempt^) -> program^ (AfterState^::after rows cols k current) = afterAttempt rows cols k current :=
+  \fun (rows, cols, k: N.Nat^) => \induction (current: Attempt^) \return program^ (AfterState^::after rows cols k current) = afterAttempt rows cols k current \with {
+    | attempt: \fun (a: Runtime^)(history: History^) => B.cases
+        (\fun (changed: B.Bool^) => program^ (AfterState^::after rows cols k (Attempt^::attempt a history changed)) = afterAttempt rows cols k (Attempt^::attempt a history changed))
+        (\refl(\continue[State^, Output^](State^::active rows cols (N.Nat^::succ k) a history)))
+        (\refl(\continue[State^, Output^](State^::active rows cols k a history)))
+  };
+\definition matches: \forall (state: AfterState^) -> program^ state = after state := \induction (state: AfterState^) \return program^ state = after state \with {
+  | after: onAttempt
+};
+\definition coherence: program^ = after := \axiom:funext(program^, after, matches);

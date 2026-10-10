@@ -1,0 +1,53 @@
+\definition i: Source.Index current := Degrees.index current Nat.Nat^::zero q;
+\definition hi: Source.Index next := Source.upHorizontal current i;
+\definition vi: Source.Index next := Source.upVertical current i;
+\import Modules.Hom[V := C.family.Carrier Nat.Nat^::zero q, W := D.family.Carrier Nat.Nat^::zero q,
+  source := C.family.space Nat.Nat^::zero q, target := D.family.space Nat.Nat^::zero q] \as Values;
+\import TD.Component[i := i] \as Injection;
+\import Modules.Hom[V := D.family.Carrier Nat.Nat^::zero q, W := TD.Carrier,
+  source := D.family.space Nat.Nat^::zero q, target := TD.space] \as Injections;
+\definition core(x: C.family.Carrier Nat.Nat^::zero q): TD.Carrier :=
+  #apply{Injection.injection} (#apply{(h Nat.Nat^::zero q)} (#apply{(C.differential.horizontal Nat.Nat^::zero q)} x));
+\definition previousZero: \forall (x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{PreviousH.map} (#apply{(SD.Component[i := i].injection)} x) = #zero{TP.space} := PreviousH.onInjection i;
+\definition horizontalAfterZero: \forall (x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{horizontalAfter} (#apply{(SD.Component[i := i].injection)} x) = #zero{TD.space} :=
+  \fun (x: C.family.Carrier Nat.Nat^::zero q) => trans!{TD.Carrier} _ _ _
+    (congr!{TP.Carrier TD.Carrier} (#apply{TS.horizontal}) _ _ (previousZero x)) (TargetMaps.zeroPreserved TS.horizontal);
+\definition horizontalBeforeValue: \forall (x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{horizontalBefore} (#apply{(SD.Component[i := i].injection)} x) = core x :=
+  \fun (x: C.family.Carrier Nat.Nat^::zero q) => trans!{TD.Carrier} _ _ _
+    (congr!{SN.Carrier TD.Carrier} (#apply{NextH.map}) _ _ (SS.horizontalOnInjection i x))
+    (NextH.onInjection hi (#apply{(C.differential.horizontal Nat.Nat^::zero q)} x));
+\definition differenceValue: \forall (x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{difference} (#apply{(SD.Component[i := i].injection)} x) = core x :=
+  \fun (x: C.family.Carrier Nat.Nat^::zero q) => trans!{TD.Carrier} _ _ _
+    (congr2!{TD.Carrier TD.Carrier TD.Carrier} (\fun (a, b: TD.Carrier) => Group.difference a b) _ _ _ _
+      (F.onInjection i x) (G.onInjection i x))
+    (trans!{TD.Carrier} _ _ _
+      (sym!{TD.Carrier} _ _ (Injections.differencePreserved Injection.injection (#apply{(f Nat.Nat^::zero q)} x) (#apply{(g Nat.Nat^::zero q)} x)))
+      (congr!{{D.family.Carrier Nat.Nat^::zero q} TD.Carrier} (#apply{Injection.injection}) _ _ (#degreeZero{laws} q x)));
+\definition horizontal: \forall (x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{difference} (#apply{(SD.Component[i := i].injection)} x) =
+    Group.add (#apply{horizontalAfter} (#apply{(SD.Component[i := i].injection)} x))
+      (#apply{horizontalBefore} (#apply{(SD.Component[i := i].injection)} x)) :=
+  \fun (x: C.family.Carrier Nat.Nat^::zero q) => trans!{TD.Carrier} _ _ _ (differenceValue x)
+    (sym!{TD.Carrier} _ _ (trans!{TD.Carrier} _ _ _
+      (congr2!{TD.Carrier TD.Carrier TD.Carrier} (#add{TD.space}) _ _ _ _ (horizontalAfterZero x) (horizontalBeforeValue x))
+      (Group.zeroLeft (core x))));
+\definition verticalAfterZero: \forall (x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{verticalAfter} (#apply{(SD.Component[i := i].injection)} x) = #zero{TD.space} :=
+  \fun (x: C.family.Carrier Nat.Nat^::zero q) => trans!{TD.Carrier} _ _ _
+    (congr!{TP.Carrier TD.Carrier} (#apply{TS.vertical}) _ _ (previousZero x)) (TargetMaps.zeroPreserved TS.vertical);
+\import Degrees.Sign[V := C.family.Carrier Nat.Nat^::zero (Nat.Nat^::succ q), space := C.family.space Nat.Nat^::zero (Nat.Nat^::succ q)] \as Sign;
+\definition verticalBeforeZero: \forall (x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{verticalBefore} (#apply{(SD.Component[i := i].injection)} x) = #zero{TD.space} :=
+  \fun (x: C.family.Carrier Nat.Nat^::zero q) => trans!{TD.Carrier} _ _ _
+    (congr!{SN.Carrier TD.Carrier} (#apply{NextH.map}) _ _ (SS.verticalOnInjection i x))
+    (NextH.onInjection vi (#apply{(Sign.map Nat.Nat^::zero)} (#apply{(C.differential.vertical Nat.Nat^::zero q)} x)));
+\definition vertical: \forall (x: C.family.Carrier Nat.Nat^::zero q) ->
+  #apply{verticalBefore} (#apply{(SD.Component[i := i].injection)} x) =
+    #neg{TD.space} (#apply{verticalAfter} (#apply{(SD.Component[i := i].injection)} x)) :=
+  \fun (x: C.family.Carrier Nat.Nat^::zero q) => trans!{TD.Carrier} _ _ _ (verticalBeforeZero x)
+    (trans!{TD.Carrier} _ _ _ (sym!{TD.Carrier} _ _ Group.negZero)
+      (congr!{TD.Carrier TD.Carrier} (#neg{TD.space}) _ _ (sym!{TD.Carrier} _ _ (verticalAfterZero x))));

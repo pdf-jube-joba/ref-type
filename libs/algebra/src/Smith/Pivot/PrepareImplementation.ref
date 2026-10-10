@@ -1,0 +1,36 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> N.Nat -> Runtime -> History -> Selection);
+\definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (history: History) => \program {
+  \bind columns: \U(N.Nat -> N.Nat -> Runtime -> Grid.Position) <- (\force searchProgram) rows \then
+  \bind pivots: \U(N.Nat -> Runtime -> Grid.Position) <- (\force columns) cols \then
+  \bind matrices: \U(Runtime -> Grid.Position) <- (\force pivots) k \then
+  \bind found: Grid.Position <- (\force matrices) a \then
+  \bind arrays: \U(Runtime -> History -> Grid.Position -> Selection) <- (\force Position.program) k \then
+  \bind traces: \U(History -> Grid.Position -> Selection) <- (\force arrays) a \then
+  \bind positions: \U(Grid.Position -> Selection) <- (\force traces) history \then
+  \bind located: Selection <- (\force positions) found \then
+  \bind pivotRow: \U(N.Nat -> I.Int) <- (\force a) k \then
+  \bind pivot: I.Int <- (\force pivotRow) k \then
+  \bind zero: B.Bool <- (\force I.IsZero.program) pivot \then
+  \bind yes: \U(Selection -> Selection -> Selection) <- (\force chooseProgram) zero \then
+  \bind no: \U(Selection -> Selection) <- (\force yes) located \then
+  \bind result: Selection <- (\force no) (Selection::ready (Attempt::attempt a history B.Bool::false)) \then
+  \return result
+})))))))));
+\definition withOperations(position: Position.T^)(search: Search.Search.T^)(isZero: I.IsZero.T^)(choose: Choice.T^)(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Selection^ :=
+  choose (isZero (a k k)) (position k a history (search rows cols k a)) (Selection^::ready (Attempt^::attempt a history B.Bool^::false));
+\definition stage1(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Selection^ := withOperations (fromPosition) (searchProgram^) (I.IsZero.program^) (chooseProgram^) rows cols k a history;
+\definition stage2(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Selection^ := withOperations (fromPosition) (Search.search) (I.IsZero.program^) (chooseProgram^) rows cols k a history;
+\definition stage3(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Selection^ := withOperations (fromPosition) (Search.search) (I.IsZero.specification) (chooseProgram^) rows cols k a history;
+\definition matches: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> program^ rows cols k a history = prepare rows cols k a history :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => trans!{Selection^} (program^ rows cols k a history) (stage1 rows cols k a history) (prepare rows cols k a history)
+    (congr!{Position.T^ Selection^} (\fun (f: Position.T^) => withOperations (f) (searchProgram^) (I.IsZero.program^) (chooseProgram^) rows cols k a history) Position.program^ (fromPosition) Position.coherence)
+    (trans!{Selection^} (stage1 rows cols k a history) (stage2 rows cols k a history) (prepare rows cols k a history)
+    (congr!{Search.Search.T^ Selection^} (\fun (f: Search.Search.T^) => withOperations (fromPosition) (f) (I.IsZero.program^) (chooseProgram^) rows cols k a history) searchProgram^ (Search.search) Search.Search.coherence)
+    (trans!{Selection^} (stage2 rows cols k a history) (stage3 rows cols k a history) (prepare rows cols k a history)
+    (congr!{I.IsZero.T^ Selection^} (\fun (f: I.IsZero.T^) => withOperations (fromPosition) (Search.search) (f) (chooseProgram^) rows cols k a history) I.IsZero.program^ (I.IsZero.specification) I.IsZero.coherence)
+    ((congr!{Choice.T^ Selection^} (\fun (f: Choice.T^) => withOperations (fromPosition) (Search.search) (I.IsZero.specification) (f) rows cols k a history) chooseProgram^ (B.ite Selection^) Choice.coherence))));
+\definition coherence: program^ = prepare := \axiom:funext(program^, prepare,
+  \fun (rows: N.Nat^) => \axiom:funext(program^ rows, prepare rows,
+    \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, prepare rows cols,
+      \fun (k: N.Nat^) => \axiom:funext(program^ rows cols k, prepare rows cols k,
+        \fun (a: Runtime^) => \axiom:funext(program^ rows cols k a, prepare rows cols k a, \fun (history: History^) => matches rows cols k a history)))));

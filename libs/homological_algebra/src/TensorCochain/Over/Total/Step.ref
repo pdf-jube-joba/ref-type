@@ -1,0 +1,35 @@
+\import \parent.Degree[n := n] \as Source;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Target;
+\module Component(i: Index n) {
+  \definition p: Nat.Nat^ := #first{i};
+  \definition q: Nat.Nat^ := #second{i};
+  \import Modules.Hom[V := C.family.Carrier (Nat.Nat^::succ p) q, W := Target.Carrier,
+    source := C.family.space (Nat.Nat^::succ p) q, target := Target.space].Composition[
+    U := C.family.Carrier p q, domain := C.family.space p q] \as Horizontal;
+  \definition horizontal: Modules.Hom[V := C.family.Carrier p q, W := Target.Carrier,
+    source := C.family.space p q, target := Target.space].Map :=
+    Horizontal.compose (Target.Component[i := upHorizontal n i].injection) (C.differential.horizontal p q);
+  \import Degrees.Sign[V := C.family.Carrier p (Nat.Nat^::succ q), space := C.family.space p (Nat.Nat^::succ q)] \as Sign;
+  \import Modules.Hom[V := C.family.Carrier p (Nat.Nat^::succ q), W := C.family.Carrier p (Nat.Nat^::succ q),
+    source := C.family.space p (Nat.Nat^::succ q), target := C.family.space p (Nat.Nat^::succ q)].Composition[
+    U := C.family.Carrier p q, domain := C.family.space p q] \as Signed;
+  \import Modules.Hom[V := C.family.Carrier p (Nat.Nat^::succ q), W := Target.Carrier,
+    source := C.family.space p (Nat.Nat^::succ q), target := Target.space].Composition[
+    U := C.family.Carrier p q, domain := C.family.space p q] \as Vertical;
+  \definition vertical: Modules.Hom[V := C.family.Carrier p q, W := Target.Carrier,
+    source := C.family.space p q, target := Target.space].Map :=
+    Vertical.compose (Target.Component[i := upVertical n i].injection) (Signed.compose (Sign.map p) (C.differential.vertical p q));
+}
+\import Modules.DirectSum[Index := Index n, family := Source.family].To[W := Target.Carrier, target := Target.space] \as Universal;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\definition horizontalComponents: Universal.Components := \fun (i: Index n) => Component[i := i].horizontal;
+\definition verticalComponents: Universal.Components := \fun (i: Index n) => Component[i := i].vertical;
+\definition horizontal: Maps.Map := Universal.extension horizontalComponents;
+\definition vertical: Maps.Map := Universal.extension verticalComponents;
+\definition differential: Maps.Map := Maps.plus horizontal vertical;
+\definition horizontalOnInjection: \forall (i: Index n)(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{horizontal} (#apply{(Source.Component[i := i].injection)} x) = #apply{(Component[i := i].horizontal)} x :=
+  Universal.onInjection horizontalComponents;
+\definition verticalOnInjection: \forall (i: Index n)(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{vertical} (#apply{(Source.Component[i := i].injection)} x) = #apply{(Component[i := i].vertical)} x :=
+  Universal.onInjection verticalComponents;

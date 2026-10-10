@@ -1,0 +1,82 @@
+\structure Data: \Set { apply: \forall (n: N.Nat^) -> C.family.Carrier n -> D.family.Carrier n }
+\structure Laws[data: Data]: \Prop {
+  addition: \forall (n: N.Nat^)(x, y: C.family.Carrier n) ->
+    data.apply n (#add{(C.family.space n)} x y) = #add{(D.family.space n)} (data.apply n x) (data.apply n y),
+  scalar: \forall (n: N.Nat^)(a: R)(x: C.family.Carrier n) ->
+    data.apply n (#smul{(C.family.space n)} a x) = #smul{(D.family.space n)} a (data.apply n x),
+  commutes: \forall (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) ->
+    #apply{D.differential} n (data.apply (N.Nat^::succ n) x) = data.apply n (#apply{C.differential} n x),
+}
+\definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition dataExt: \forall (f, g: Data) -> #apply{f} = #apply{g} -> f = g :=
+  \induction (f: Data) \return \forall (g: Data) -> #apply{f} = #apply{g} -> f = g \with {
+    | # : \fun (f: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k) =>
+      \induction (g: Data) \return f = #apply{g} -> Data::# f = g \with {
+        | # : \fun (g: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k)(equal: f = g) =>
+          congr!{{\forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k} Data} (\fun (h: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k) => Data::# h) f g equal
+      }
+  };
+\definition ext: \forall (f, g: Map) -> (\forall (k: N.Nat^)(x: C.family.Carrier k) -> #apply{f} k x = #apply{g} k x) -> f = g :=
+  \fun (f, g: Map)(same: \forall (k: N.Nat^)(x: C.family.Carrier k) -> #apply{f} k x = #apply{g} k x) =>
+    dataExt f g (\axiom:funext(#apply{f}, #apply{g}, \fun (k: N.Nat^) => \axiom:funext(#apply{f} k, #apply{g} k, same k)));
+\module At(n: N.Nat^) {
+  \import Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier n, source := C.family.space n, target := D.family.space n] \as Maps;
+  \definition linear(f: Map): Maps.Map := Maps.Map { apply := #apply{f} n, addition := #addition{f} n, scalar := #scalar{f} n };
+  \definition zeroPreserved: \forall (f: Map) -> #apply{f} n #zero{(C.family.space n)} = #zero{(D.family.space n)} :=
+    \fun (f: Map) => Maps.zeroPreserved (linear f);
+}
+\module Composition(B: Complex) {
+  \import \parent.\parent.Map[C := B, D := C] \as Before;
+  \import \parent.\parent.Map[C := B, D := D] \as Result;
+  \definition compose(f: Map)(g: Before.Map): Result.Map := Result.Map {
+    apply := \fun (n: N.Nat^)(x: B.family.Carrier n) => #apply{f} n (#apply{g} n x),
+    addition := \fun (n: N.Nat^)(x, y: B.family.Carrier n) => trans!{{D.family.Carrier n}} _ _ _
+      (congr!{{C.family.Carrier n} {D.family.Carrier n}} (#apply{f} n) _ _ (#addition{g} n x y))
+      (#addition{f} n (#apply{g} n x) (#apply{g} n y)),
+    scalar := \fun (n: N.Nat^)(a: R)(x: B.family.Carrier n) => trans!{{D.family.Carrier n}} _ _ _
+      (congr!{{C.family.Carrier n} {D.family.Carrier n}} (#apply{f} n) _ _ (#scalar{g} n a x)) (#scalar{f} n a (#apply{g} n x)),
+    commutes := \fun (n: N.Nat^)(x: B.family.Carrier (N.Nat^::succ n)) => trans!{{D.family.Carrier n}} _ _ _
+      (#commutes{f} n (#apply{g} (N.Nat^::succ n) x))
+      (congr!{{C.family.Carrier n} {D.family.Carrier n}} (#apply{f} n) _ _ (#commutes{g} n x)),
+  };
+
+  \module Positive(n: N.Nat^) {
+    \import \parent.\parent.\parent.Positive[C := B, n := n] \as Source;
+    \import \parent.\parent.\parent.Positive[C := C, n := n] \as Middle;
+    \import \parent.\parent.\parent.Positive[C := D, n := n] \as Target;
+    \import \parent.\parent.Positive[n := n] \as After;
+    \import Before.Positive[n := n] \as BeforeMap;
+    \import Result.Positive[n := n] \as ResultMap;
+    \definition compositionOnHomology: \forall (f: Map)(g: Before.Map)(q: Source.Homology) ->
+      #apply{(ResultMap.induced (compose f g))} q = #apply{(After.induced f)} (#apply{(BeforeMap.induced g)} q) :=
+      \fun (f: Map)(g: Before.Map) => Source.classInduction
+        (\fun (q: Source.Homology) => #apply{(ResultMap.induced (compose f g))} q = #apply{(After.induced f)} (#apply{(BeforeMap.induced g)} q))
+        (\fun (x: Source.Cycle) => trans!{Target.Homology} _ _ _ (ResultMap.onClass (compose f g) x)
+          (trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (After.onClass f (#apply{(BeforeMap.cyclesMap g)} x)))
+            (congr!{Middle.Homology Target.Homology} (#apply{(After.induced f)}) _ _ (sym!{Middle.Homology} _ _ (BeforeMap.onClass g x)))));
+  }
+  \module DegreeZero {
+    \import \parent.\parent.\parent.DegreeZero[C := B] \as Source;
+    \import \parent.\parent.\parent.DegreeZero[C := C] \as Middle;
+    \import \parent.\parent.\parent.DegreeZero[C := D] \as Target;
+    \import \parent.\parent.DegreeZero[] \as After;
+    \import Before.DegreeZero[] \as BeforeMap;
+    \import Result.DegreeZero[] \as ResultMap;
+    \definition compositionOnHomology: \forall (f: Map)(g: Before.Map)(q: Source.Homology) ->
+      #apply{(ResultMap.induced (compose f g))} q = #apply{(After.induced f)} (#apply{(BeforeMap.induced g)} q) :=
+      \fun (f: Map)(g: Before.Map) => Source.classInduction
+        (\fun (q: Source.Homology) => #apply{(ResultMap.induced (compose f g))} q = #apply{(After.induced f)} (#apply{(BeforeMap.induced g)} q))
+        (\fun (x: B.family.Carrier N.Nat^::zero) => trans!{Target.Homology} _ _ _ (ResultMap.onClass (compose f g) x)
+          (trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (After.onClass f (#apply{g} N.Nat^::zero x)))
+            (congr!{Middle.Homology Target.Homology} (#apply{(After.induced f)}) _ _ (sym!{Middle.Homology} _ _ (BeforeMap.onClass g x)))));
+  }
+
+}
+
+\module Positive(n: N.Nat^);
+\module DegreeZero;
+
+\module ZeroExtension(f: Map);
+\module HomologyAt(n: N.Nat^);
+\module HomologyNaturality(f: Map);
+\module Additive;

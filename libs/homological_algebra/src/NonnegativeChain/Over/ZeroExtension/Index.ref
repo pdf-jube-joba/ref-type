@@ -1,0 +1,29 @@
+\definition Base: \Set := C.family.Carrier (degree z);
+\definition baseSpace: Modules.Space Base := C.family.space (degree z);
+\import Modules.Of[V := Base, space := baseSpace] \as BaseModule;
+\import BaseModule.Submodule[] \as Submodules;
+\import algebra.Group[].Of[Carrier := Base, group := BaseModule.additive] \as Group;
+\import Modules.Laws[V := Base, space := baseSpace] \as Laws;
+\definition Eligible(x: Base): \Prop := Logic.Or[Nonnegative z, x = #zero{baseSpace}];
+\definition addition: \forall (x, y: Base) -> Eligible x -> Eligible y -> Eligible (#add{baseSpace} x y) :=
+  \fun (x, y: Base)(left: Eligible x)(right: Eligible y) =>
+    either!{{Nonnegative z} "or" {x = #zero{baseSpace}} "either" {Eligible (#add{baseSpace} x y)}
+      "lt:" {\fun (nonnegative: Nonnegative z) => Logic.Or[_, _]::left nonnegative}
+      "rt:" {\fun (equalX: x = #zero{baseSpace}) => either!{{Nonnegative z} "or" {y = #zero{baseSpace}} "either" {Eligible (#add{baseSpace} x y)}
+        "lt:" {\fun (nonnegative: Nonnegative z) => Logic.Or[_, _]::left nonnegative}
+        "rt:" {\fun (equalY: y = #zero{baseSpace}) => Logic.Or[_, _]::right (trans!{Base} (#add{baseSpace} x y) (#add{baseSpace} #zero{baseSpace} #zero{baseSpace}) #zero{baseSpace}
+          (congr2!{Base Base Base} (#add{baseSpace}) x #zero{baseSpace} y #zero{baseSpace} equalX equalY) (Group.zeroLeft #zero{baseSpace}))}
+      } right}
+    } left;
+\definition scalar: \forall (a: R)(x: Base) -> Eligible x -> Eligible (#smul{baseSpace} a x) :=
+  \fun (a: R)(x: Base)(member: Eligible x) => either!{{Nonnegative z} "or" {x = #zero{baseSpace}} "either" {Eligible (#smul{baseSpace} a x)}
+    "lt:" {\fun (nonnegative: Nonnegative z) => Logic.Or[_, _]::left nonnegative}
+    "rt:" {\fun (equal: x = #zero{baseSpace}) => Logic.Or[_, _]::right (trans!{Base} (#smul{baseSpace} a x) (#smul{baseSpace} a #zero{baseSpace}) #zero{baseSpace}
+      (congr!{Base Base} (#smul{baseSpace} a) x #zero{baseSpace} equal) (Laws.scaleZero a))}
+  } member;
+\definition submodule: Submodules.Submodule := Submodules.Submodule {
+  carrier := { x: Base \where Eligible x }, zero := Logic.Or[_, _]::right (\refl(#zero{baseSpace})), addition := addition, scalar := scalar,
+};
+\import Submodules.Of[S := submodule] \as Induced;
+\definition Carrier: \Set := Induced.Carrier;
+\definition space: Modules.Space Carrier := Induced.moduleSpace;

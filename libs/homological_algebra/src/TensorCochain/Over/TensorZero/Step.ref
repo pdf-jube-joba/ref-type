@@ -1,0 +1,18 @@
+\import Total.Degree[n := n] \as Source;
+\import Total.Degree[n := Nat.Nat^::succ n] \as Target;
+\import Total.Step[n := n] \as Step;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\import Modules.DirectSum[Index := Total.Index n, family := Source.family].To[W := Target.Carrier, target := Target.space] \as Universal;
+\module Component(i: Total.Index n);
+\definition horizontal: Step.horizontal = Maps.zeroMap :=
+  Universal.ext Step.horizontal Maps.zeroMap (\fun (i: Total.Index n) => Component[i := i].horizontal);
+\definition vertical: Step.vertical = Maps.zeroMap :=
+  Universal.ext Step.vertical Maps.zeroMap (\fun (i: Total.Index n) => Component[i := i].vertical);
+\import Modules.Laws[V := Target.Carrier, space := Target.space] \as Vector;
+\import algebra.Group[].Of[Carrier := Target.Carrier, group := Vector.additive] \as Group;
+\definition zero: \forall (x: Source.Carrier) -> #apply{Step.differential} x = #zero{Target.space} :=
+  \fun (x: Source.Carrier) => trans!{Target.Carrier} _ _ _
+    (congr2!{Target.Carrier Target.Carrier Target.Carrier} (#add{Target.space}) _ _ _ _
+      (congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ horizontal)
+      (congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ vertical))
+    (Group.zeroLeft #zero{Target.space});

@@ -1,0 +1,48 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Module[].Over[R := I.Int^, ring := Rings.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Modules;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := std.Data[].Nat[].Nat^::zero, n := std.Data[].Nat[].Nat^::zero] \as ScalarCalculation;
+\import Modules.Hom[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Modules.scalarModule] \as Maps;
+\definition multiplication: Maps.Map := Maps.Map {
+  apply := Arithmetic.mul d,
+  addition := \fun (x, y: I.Int^) => #leftDistributive{(#semiring{Rings.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})} d x y,
+  scalar := \fun (a, x: I.Int^) => ScalarCalculation.scalarComm d a x,
+};
+\import Modules.Of[V := I.Int^, space := Modules.scalarModule].Submodule[] \as Submodules;
+\import Submodules.Image[U := I.Int^, source := Modules.scalarModule] \as Images;
+\definition multiples: Submodules.Submodule := Images.image multiplication;
+\import Submodules.Quotient[S := multiples] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition space: Modules.Space Carrier := Quotient.moduleSpace;
+\definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+\definition class: I.Int^ -> Carrier := Quotient.class;
+\definition projection: Modules.Hom[V := I.Int^, W := Carrier, source := Modules.scalarModule, target := space].Map := Quotient.projection;
+\definition member(q: I.Int^): Submodules.Member multiples (Arithmetic.mul d q) := Images.member multiplication q;
+\definition classMultiple: \forall (q: I.Int^) -> class (Arithmetic.mul d q) = #zero{space} :=
+  \fun (q: I.Int^) => Quotient.classZero (Arithmetic.mul d q) (member q);
+\definition onAdd: \forall (x, y: I.Int^) -> #add{space} (class x) (class y) = class (Arithmetic.add x y) := Quotient.addOnClass;
+\definition onScalar: \forall (a, x: I.Int^) -> #smul{space} a (class x) = class (Arithmetic.mul a x) := Quotient.scaleOnClass;
+\definition induction(P: Carrier -> \Prop): (\forall (x: I.Int^) -> P (class x)) -> \forall (q: Carrier) -> P q := Quotient.induction P;
+\definition onto: \forall (q: Carrier) -> \exists { x: I.Int^ \where class x = q } := Quotient.onto;
+\definition classZeroMember: \forall (x: I.Int^) -> class x = #zero{space} -> Submodules.Member multiples x := Quotient.zeroClassMember;
+\definition zeroClass: class Arithmetic.zero = #zero{space} := \refl(#zero{space});
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\module Zero;
+\definition unitClassZero: \forall (unit: d = Arithmetic.one)(x: I.Int^) -> class x = #zero{space} :=
+  \fun (unit: d = Arithmetic.one)(x: I.Int^) => trans!{Carrier} (class x) (class (Arithmetic.mul d x)) #zero{space}
+    (congr!{I.Int^ Carrier} class x (Arithmetic.mul d x)
+      (sym!{I.Int^} (Arithmetic.mul d x) x
+        (trans!{I.Int^} (Arithmetic.mul d x) (Arithmetic.mul Arithmetic.one x) x
+          (congr!{I.Int^ I.Int^} (\fun (value: I.Int^) => Arithmetic.mul value x) d Arithmetic.one unit)
+          (#leftIdentity{(#multiplicative{(#semiring{Rings.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})})} x))))
+    (classMultiple x);
+\definition unitIsZero: \forall (unit: d = Arithmetic.one)(q: Carrier) -> q = #zero{space} :=
+  \fun (unit: d = Arithmetic.one) => induction (\fun (q: Carrier) => q = #zero{space}) (unitClassZero unit);
+\module Reduction(k: I.Int^);
+\module Inclusion(k: I.Int^);

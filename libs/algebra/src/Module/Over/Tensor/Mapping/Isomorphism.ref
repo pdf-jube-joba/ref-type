@@ -1,0 +1,28 @@
+\import Target.Mapping[U := V, Z := W, targetLeft := left, targetRight := right] \as Reverse;
+\definition forward: Maps.Map := map (#forward{leftIso}) (#forward{rightIso});
+\import \parent.\parent.\parent.Hom[V := Target.Carrier, W := Carrier, source := Target.space, target := space] \as BackwardMaps;
+\definition backward: BackwardMaps.Map := Reverse.map (#backward{leftIso}) (#backward{rightIso});
+\import \parent.\parent.\parent.Hom[V := Target.Carrier, W := Carrier, source := Target.space, target := space].Composition[U := Carrier, domain := space] \as LeftCompose;
+\import \parent.\parent.\parent.Hom[V := Carrier, W := Target.Carrier, source := space, target := Target.space].Composition[U := Target.Carrier, domain := Target.space] \as RightCompose;
+\import \parent.\parent.\parent.End[V := Carrier, space := space] \as SourceIdentity;
+\import \parent.\parent.\parent.End[V := Target.Carrier, space := Target.space] \as TargetIdentity;
+\import \parent.\parent.Universal[U := Carrier, target := space] \as LeftEquality;
+\import Target.Universal[U := Target.Carrier, target := Target.space] \as RightEquality;
+\definition leftLaw: LeftCompose.compose backward forward = SourceIdentity.identity :=
+  LeftEquality.ext (LeftCompose.compose backward forward) SourceIdentity.identity (\fun (x: V)(y: W) => trans!{Carrier} _ _ _
+    (congr!{Target.Carrier Carrier} (#apply{backward}) _ _ (onTensor (#forward{leftIso}) (#forward{rightIso}) x y))
+    (trans!{Carrier} _ _ _ (Reverse.onTensor (#backward{leftIso}) (#backward{rightIso}) (#apply{#forward{leftIso}} x) (#apply{#forward{rightIso}} y))
+      (congr2!{V W Carrier} tensor _ _ _ _ (#leftInverse{leftIso} x) (#leftInverse{rightIso} y))));
+\definition rightLaw: RightCompose.compose forward backward = TargetIdentity.identity :=
+  RightEquality.ext (RightCompose.compose forward backward) TargetIdentity.identity (\fun (x: U)(y: Z) => trans!{Target.Carrier} _ _ _
+    (congr!{Carrier Target.Carrier} (#apply{forward}) _ _ (Reverse.onTensor (#backward{leftIso}) (#backward{rightIso}) x y))
+    (trans!{Target.Carrier} _ _ _ (onTensor (#forward{leftIso}) (#forward{rightIso}) (#apply{#backward{leftIso}} x) (#apply{#backward{rightIso}} y))
+      (congr2!{U Z Target.Carrier} Target.tensor _ _ _ _ (#rightInverse{leftIso} x) (#rightInverse{rightIso} y))));
+\import \parent.\parent.\parent.Hom[V := Carrier, W := Carrier, source := space, target := space] \as SourceEnd;
+\import \parent.\parent.\parent.Hom[V := Target.Carrier, W := Target.Carrier, source := Target.space, target := Target.space] \as TargetEnd;
+\definition leftInverse: \forall (x: Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: Carrier) => congr!{SourceEnd.Map Carrier} (\fun (f: SourceEnd.Map) => #apply{f} x) _ _ leftLaw;
+\definition rightInverse: \forall (x: Target.Carrier) -> #apply{forward} (#apply{backward} x) = x :=
+  \fun (x: Target.Carrier) => congr!{TargetEnd.Map Target.Carrier} (\fun (f: TargetEnd.Map) => #apply{f} x) _ _ rightLaw;
+\import \parent.\parent.\parent.Isomorphism[V := Carrier, W := Target.Carrier, source := space, target := Target.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism { forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };

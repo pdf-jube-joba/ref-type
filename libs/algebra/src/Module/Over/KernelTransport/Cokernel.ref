@@ -1,0 +1,40 @@
+\import \parent.\parent.Of[V := W, space := wSpace].Submodule[] \as SourceImagesSub;
+\import \parent.\parent.Of[V := Y, space := ySpace].Submodule[] \as TargetImagesSub;
+\import SourceImagesSub.Image[U := V, source := vSpace] \as SourceImages;
+\import TargetImagesSub.Image[U := X, source := xSpace] \as TargetImages;
+\definition sourceImage: SourceImagesSub.Submodule := SourceImages.image f;
+\definition targetImage: TargetImagesSub.Submodule := TargetImages.image g;
+\definition SourceBundle: Bundle := Bundle { Carrier := W, space := wSpace };
+\definition TargetBundle: Bundle := Bundle { Carrier := Y, space := ySpace };
+\import \parent.\parent.QuotientMapping[A := SourceBundle, B := TargetBundle].On[S := sourceImage, T := targetImage, f := #forward{codomainIso}] \as Induced;
+\definition compatible: Commutes -> Induced.Compatible :=
+  \fun (commutes: Commutes)(w: W)(member: _) =>
+    SourceImages.eliminate f w (TargetImagesSub.Member targetImage (#apply{#forward{codomainIso}} w))
+      (\fun (v: V)(equal: #apply{f} v = w) =>
+        TargetImages.introduce g (#apply{#forward{codomainIso}} w) (#apply{#forward{domainIso}} v)
+          (trans!{Y} (#apply{g} (#apply{#forward{domainIso}} v)) (#apply{#forward{codomainIso}} (#apply{f} v)) (#apply{#forward{codomainIso}} w)
+            (commutes v) (congr!{W Y} (#apply{#forward{codomainIso}}) (#apply{f} v) w equal))) member;
+\import Induced.Inverse[g := #backward{codomainIso}] \as Reverse;
+\definition compatibleBack: Commutes -> Reverse.CompatibleBack :=
+  \fun (commutes: Commutes)(y: Y)(member: _) =>
+    TargetImages.eliminate g y (SourceImagesSub.Member sourceImage (#apply{#backward{codomainIso}} y))
+      (\fun (x: X)(equal: #apply{g} x = y) =>
+        SourceImages.introduce f (#apply{#backward{codomainIso}} y) (#apply{#backward{domainIso}} x)
+          (trans!{W} (#apply{f} (#apply{#backward{domainIso}} x)) (#apply{#backward{codomainIso}} (#apply{g} x)) (#apply{#backward{codomainIso}} y)
+            (reverseCommutes commutes x) (congr!{Y W} (#apply{#backward{codomainIso}}) (#apply{g} x) y equal))) member;
+\import SourceImagesSub.Quotient[S := sourceImage] \as SourceQuotient;
+\import TargetImagesSub.Quotient[S := targetImage] \as TargetQuotient;
+\definition SourceCarrier: \Set := SourceQuotient.Carrier;
+\definition TargetCarrier: \Set := TargetQuotient.Carrier;
+\definition sourceSpace: Space SourceCarrier := SourceQuotient.moduleSpace;
+\definition targetSpace: Space TargetCarrier := TargetQuotient.moduleSpace;
+\import \parent.\parent.Isomorphism[V := SourceCarrier, W := TargetCarrier, source := sourceSpace, target := targetSpace] \as QuotientIso;
+\definition isomorphism(commutes: Commutes): QuotientIso.Isomorphism :=
+  Reverse.isomorphism (compatible commutes) (compatibleBack commutes) #leftInverse{codomainIso} #rightInverse{codomainIso};
+\definition onClass: \forall (commutes: Commutes)(w: W) ->
+  #apply{#forward{(isomorphism commutes)}} (SourceQuotient.class w) = TargetQuotient.class (#apply{#forward{codomainIso}} w) :=
+  \fun (commutes: Commutes) => Induced.onClass (compatible commutes);
+
+\definition backOnClass: \forall (commutes: Commutes)(y: Y) ->
+  #apply{#backward{(isomorphism commutes)}} (TargetQuotient.class y) = SourceQuotient.class (#apply{#backward{codomainIso}} y) :=
+  \fun (commutes: Commutes) => Reverse.backOnClass (compatibleBack commutes);

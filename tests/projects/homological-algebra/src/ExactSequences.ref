@@ -1,0 +1,103 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Ring;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := I.Int^, B := I.Int^] \as Pairs;
+\import algebra.Module[].Over[R := I.Int^, ring := Ring.ring] \as Modules;
+\import homological_algebra.Chain[] \as Chain;
+\import Chain.Over[R := I.Int^, ring := Ring.ring] \as Chains;
+\definition integers: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import Modules.Biproduct[V := I.Int^, W := I.Int^, left := Modules.scalarModule, right := Modules.scalarModule] \as Sum;
+\definition pair: Modules.Bundle := Modules.Bundle { Carrier := Sum.Carrier, space := Sum.space };
+\import Modules.ShortExact[A := integers, B := pair, C := integers] \as Sequences;
+\definition sequence: Sequences.Sequence := Sequences.Sequence {
+  inclusion := Sum.firstInjection, projection := Sum.secondProjection,
+  injective := \fun (x, y: I.Int^)(equal: _) => congr!{Sum.Carrier I.Int^} Sum.first _ _ equal,
+  onto := \fun (x: I.Int^) => \exact(\into[Sum.Carrier](Sum.make I.Zero.specification x,
+    { y: Sum.Carrier \where #apply{Sum.secondProjection} y = x }) \by { \refl(x) },
+    \Cast[Sum.Carrier] ({ y: Sum.Carrier \where #apply{Sum.secondProjection} y = x })),
+  zero := \fun (x: I.Int^) => \refl(I.Zero.specification),
+  kernelImage := \fun (x: Sum.Carrier)(closed: Sum.second x = I.Zero.specification) =>
+    \exact(\into[I.Int^](Sum.first x, { a: I.Int^ \where #apply{Sum.firstInjection} a = x }) \by {
+      Pairs.ext (Sum.make (Sum.first x) I.Zero.specification) x (\refl(Sum.first x))
+        (sym!{I.Int^} (Sum.second x) I.Zero.specification closed)
+    }, \Cast[I.Int^] ({ a: I.Int^ \where #apply{Sum.firstInjection} a = x })),
+};
+\definition integerFamily: Chains.Family := Chains.Family {
+  Carrier := \fun (k: Chain.Degree) => I.Int^,
+  space := \fun (k: Chain.Degree) => Modules.scalarModule,
+};
+\definition pairFamily: Chains.Family := Chains.Family {
+  Carrier := \fun (k: Chain.Degree) => Sum.Carrier,
+  space := \fun (k: Chain.Degree) => Sum.space,
+};
+\import Chains.ZeroDifferential[family := integerFamily] \as Integers;
+\import Chains.ZeroDifferential[family := pairFamily] \as PairsComplex;
+\import Chains.Map[C := Integers.complex, D := PairsComplex.complex] \as Inclusions;
+\import Modules.Hom[V := I.Int^, W := Sum.Carrier, source := Modules.scalarModule, target := Sum.space] \as LinearInclusion;
+\definition inclusion: Inclusions.Map := Inclusions.Map {
+  apply := \fun (k: Chain.Degree) => #apply{Sum.firstInjection},
+  addition := \fun (k: Chain.Degree) => #addition{Sum.firstInjection},
+  scalar := \fun (k: Chain.Degree) => #scalar{Sum.firstInjection},
+  commutes := \fun (k: Chain.Degree)(x: I.Int^) => sym!{Sum.Carrier} _ _ (LinearInclusion.zeroPreserved Sum.firstInjection),
+};
+\import Chains.Map[C := PairsComplex.complex, D := Integers.complex] \as Projections;
+\import Modules.Hom[V := Sum.Carrier, W := I.Int^, source := Sum.space, target := Modules.scalarModule] \as LinearProjection;
+\definition projection: Projections.Map := Projections.Map {
+  apply := \fun (k: Chain.Degree) => #apply{Sum.secondProjection},
+  addition := \fun (k: Chain.Degree) => #addition{Sum.secondProjection},
+  scalar := \fun (k: Chain.Degree) => #scalar{Sum.secondProjection},
+  commutes := \fun (k: Chain.Degree)(x: Sum.Carrier) => sym!{I.Int^} _ _ (LinearProjection.zeroPreserved Sum.secondProjection),
+};
+\import Chains.ShortExact[A := Integers.complex, B := PairsComplex.complex, C := Integers.complex] \as ChainSequences;
+\definition chainSequence: ChainSequences.Sequence := ChainSequences.Sequence {
+  inclusion := inclusion, projection := projection,
+  injective := \fun (k: Chain.Degree) => #injective{sequence},
+  onto := \fun (k: Chain.Degree) => #onto{sequence},
+  zero := \fun (k: Chain.Degree) => #zero{sequence},
+  kernelImage := \fun (k: Chain.Degree) => #kernelImage{sequence},
+};
+\import Modules.End[V := I.Int^, space := Modules.scalarModule] \as Identity;
+\import Modules.End[V := Sum.Carrier, space := Sum.space] \as SumIdentity;
+\import Modules.Hom[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Modules.scalarModule] \as IntegerMaps;
+\import Modules.Hom[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as PairMaps;
+\definition twice: IntegerMaps.Map := IntegerMaps.plus Identity.identity Identity.identity;
+\definition twicePair: PairMaps.Map := PairMaps.plus SumIdentity.identity SumIdentity.identity;
+\import Chains.Map[C := Integers.complex, D := Integers.complex] \as IntegerChains;
+\import Chains.Map[C := PairsComplex.complex, D := PairsComplex.complex] \as PairChains;
+\definition twiceChain: IntegerChains.Map := IntegerChains.Map {
+  apply := \fun (k: Chain.Degree) => #apply{twice},
+  addition := \fun (k: Chain.Degree) => #addition{twice}, scalar := \fun (k: Chain.Degree) => #scalar{twice},
+  commutes := \fun (k: Chain.Degree)(x: I.Int^) => sym!{I.Int^} _ _ (IntegerMaps.zeroPreserved twice),
+};
+\definition twicePairChain: PairChains.Map := PairChains.Map {
+  apply := \fun (k: Chain.Degree) => #apply{twicePair},
+  addition := \fun (k: Chain.Degree) => #addition{twicePair}, scalar := \fun (k: Chain.Degree) => #scalar{twicePair},
+  commutes := \fun (k: Chain.Degree)(x: Sum.Carrier) => sym!{Sum.Carrier} _ _ (PairMaps.zeroPreserved twicePair),
+};
+\import ChainSequences.Morphism[A1 := Integers.complex, B1 := PairsComplex.complex, C1 := Integers.complex].Diagram[s := chainSequence, t := chainSequence, a := twiceChain, b := twicePairChain, c := twiceChain] \as Diagram;
+\definition commutative: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (k: Chain.Degree)(x: I.Int^) => #addition{Sum.firstInjection} x x,
+  right := \fun (k: Chain.Degree)(x: Sum.Carrier) => #addition{Sum.secondProjection} x x,
+};
+\definition connectingNaturality: _ := Diagram.At[k := I.Zero.specification].naturality commutative;
+\inductive Unit: \Set := | unit: Unit;
+\definition integerComplex(x: Unit): Chains.Complex := Integers.complex;
+\definition pairComplex(x: Unit): Chains.Complex := PairsComplex.complex;
+\import homological_algebra.ShortExactCategory[].Over[R := I.Int^, ring := Ring.ring].On[Index := Unit,
+  A := integerComplex, B := pairComplex,
+  C := integerComplex, sequences := \fun (x: Unit) => chainSequence] \as Category;
+\definition connectingTransformation: _ := Category.Degree[k := I.Zero.specification].transformation;
+\import Modules.ShortExactComparison[A := integers, B := pair, C := integers, A1 := integers, B1 := pair, C1 := integers].Diagram[
+  s := sequence, t := sequence, a := Identity.identity, b := SumIdentity.identity, c := Identity.identity] \as Comparison;
+\definition comparisonDiagram: Comparison.Commutative := Comparison.Commutative {
+  left := \fun (x: I.Int^) => \refl(Sum.make x I.Zero.specification),
+  right := \fun (x: Sum.Carrier) => \refl(Sum.second x),
+};
+\definition identityOnto: Modules.Surjective integers integers Identity.identity := \fun (x: I.Int^) =>
+  \exact(\into[I.Int^](x, { y: I.Int^ \where y = x }) \by { \refl(x) }, \Cast[I.Int^] ({ y: I.Int^ \where y = x }));
+\definition comparisonIsomorphism: Modules.Isomorphism[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space].Isomorphism :=
+  Comparison.isomorphism comparisonDiagram (\fun (x, y: I.Int^)(e: x = y) => e) identityOnto
+    (\fun (x, y: I.Int^)(e: x = y) => e) identityOnto;

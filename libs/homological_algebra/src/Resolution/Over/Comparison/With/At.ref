@@ -1,0 +1,28 @@
+\import Modules.Hom[V := P.family.Carrier n, W := Q.family.Carrier n, source := P.family.space n, target := Q.family.space n] \as Linear;
+\import Modules.Hom[V := P.family.Carrier (Nat.Nat^::succ n), W := Q.family.Carrier (Nat.Nat^::succ n), source := P.family.space (Nat.Nat^::succ n), target := Q.family.space (Nat.Nat^::succ n)] \as Next;
+\definition Map: \Set := Linear.Map;
+\definition Respects(g: Map): \Prop := \forall (x: P.family.Carrier n) ->
+  Source.Slot[n := n].Member (Source.kernel p n) x -> Target.Slot[n := n].Member (Target.kernel q n) (#apply{g} x);
+\definition Commutes(g: Map)(h: Next.Map): \Prop := \forall (x: P.family.Carrier (Nat.Nat^::succ n)) ->
+  #apply{Q.differential} n (#apply{h} x) = #apply{g} (#apply{P.differential} n x);
+\import Target.Syzygy[n := n, resolution := q] \as Cycles;
+\import Modules.Hom[V := P.family.Carrier (Nat.Nat^::succ n), W := Cycles.Carrier, source := P.family.space (Nat.Nat^::succ n), target := Cycles.space] \as Restricted;
+\definition factor(g: Map)(respect: Respects g): Restricted.Map := Restricted.Map {
+  apply := \fun (x: P.family.Carrier (Nat.Nat^::succ n)) => \into[Q.family.Carrier n](#apply{g} (#apply{P.differential} n x), #carrier{(Target.kernel q n)}) \by {
+    respect (#apply{P.differential} n x) (Source.kernelKilled p n x)
+  },
+  addition := \fun (x, y: P.family.Carrier (Nat.Nat^::succ n)) => trans!{{Q.family.Carrier n}} _ _ _
+    (congr!{{P.family.Carrier n} {Q.family.Carrier n}} (#apply{g}) _ _ (#addition{P.laws} n x y))
+    (#addition{g} (#apply{P.differential} n x) (#apply{P.differential} n y)),
+  scalar := \fun (a: R)(x: P.family.Carrier (Nat.Nat^::succ n)) => trans!{{Q.family.Carrier n}} _ _ _
+    (congr!{{P.family.Carrier n} {Q.family.Carrier n}} (#apply{g}) _ _ (#scalar{P.laws} n a x)) (#scalar{g} a (#apply{P.differential} n x)),
+};
+\definition existence: \forall (g: Map) -> Respects g -> \exists { h: Next.Map \where Commutes g h } :=
+  \fun (g: Map)(respect: Respects g) => #projective{p} (Nat.Nat^::succ n)
+    (Q.family.Carrier (Nat.Nat^::succ n)) (Q.family.space (Nat.Nat^::succ n)) Cycles.Carrier Cycles.space
+    Cycles.projection Cycles.onto (factor g respect);
+\definition successorRespects: \forall (g: Map)(h: Next.Map) -> Commutes g h -> \parent.At[n := Nat.Nat^::succ n].Respects h :=
+  \fun (g: Map)(h: Next.Map)(commutes: Commutes g h)(x: P.family.Carrier (Nat.Nat^::succ n))
+    (closed: Source.Slot[n := Nat.Nat^::succ n].Member (Source.kernel p (Nat.Nat^::succ n)) x) =>
+      trans!{{Q.family.Carrier n}} _ _ _ (commutes x)
+        (trans!{{Q.family.Carrier n}} _ _ _ (congr!{{P.family.Carrier n} {Q.family.Carrier n}} (#apply{g}) _ _ closed) (Linear.zeroPreserved g));

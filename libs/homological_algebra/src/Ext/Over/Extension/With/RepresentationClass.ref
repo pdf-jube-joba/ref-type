@@ -1,0 +1,18 @@
+\import \parent.Represent[f := f] \as Represented;
+\import \parent.OfExtension[E := Represented.bundle].With[s := Represented.sequence] \as Classification;
+\import Modules.Pushout[A := KBundle, B := N, C := L].On[f := f, g := Kernel.inclusion] \as Pushout;
+\import Pushout.Universal[U := M, b := Modules.Hom[V := N.Carrier, W := M.Carrier, source := N.space, target := M.space].zeroMap, c := #augmentation{resolution}] \as Projection;
+\definition compatible: Projection.Compatible := \fun (x: K.Carrier) => sym!{M.Carrier} _ _ (#zero{presentation} x);
+\definition lift: Classification.Lift := \into[Modules.MapBetween L Represented.bundle](Pushout.right,
+  { h: Modules.MapBetween L Represented.bundle \where \forall (x: L.Carrier) -> #apply{Represented.sequence.projection} (#apply{h} x) = #apply{#augmentation{resolution}} x }) \by {
+    Projection.onRight compatible
+  };
+\import Classification.Chosen[lift := lift] \as Chosen;
+\definition relationEquality: Chosen.relation = f := RelationMaps.ext Chosen.relation f
+  (\fun (x: K.Carrier) => #injective{Represented.sequence} (#apply{Chosen.relation} x) (#apply{f} x)
+    (trans!{Represented.Carrier} _ _ _ (Chosen.onKernel x) (sym!{Represented.Carrier} _ _ (Pushout.square x))));
+\definition onClass: Classification.class = Quotient.class f := trans!{Quotient.Carrier} _ _ _ (Classification.onLift lift)
+  (congr!{Relations.Carrier Quotient.Carrier} Quotient.class _ _ relationEquality);
+\definition extClass: H.Carrier := Classification.extClass;
+\definition onExt: extClass = #apply{#backward{isomorphism}} (Quotient.class f) :=
+  congr!{Quotient.Carrier H.Carrier} (#apply{#backward{isomorphism}}) Classification.class (Quotient.class f) onClass;

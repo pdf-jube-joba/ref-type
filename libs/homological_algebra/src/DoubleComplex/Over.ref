@@ -1,0 +1,138 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\structure Family {
+  Carrier: Nat.Nat^ -> Nat.Nat^ -> \Set,
+  space: \forall (p, q: Nat.Nat^) -> Modules.Space (Carrier p q),
+}
+\structure DifferentialData[F: Family]: \Set {
+  horizontal: \forall (p, q: Nat.Nat^) -> Modules.Hom[V := F.Carrier (Nat.Nat^::succ p) q, W := F.Carrier p q, source := F.space (Nat.Nat^::succ p) q, target := F.space p q].Map,
+  vertical: \forall (p, q: Nat.Nat^) -> Modules.Hom[V := F.Carrier p (Nat.Nat^::succ q), W := F.Carrier p q, source := F.space p (Nat.Nat^::succ q), target := F.space p q].Map,
+}
+\structure DifferentialLaws[F: Family, d: DifferentialData[F]]: \Prop {
+  horizontalZero: \forall (p, q: Nat.Nat^)(x: F.Carrier (Nat.Nat^::succ (Nat.Nat^::succ p)) q) -> #apply{(d.horizontal p q)} (#apply{(d.horizontal (Nat.Nat^::succ p) q)} x) = #zero{(F.space p q)},
+  verticalZero: \forall (p, q: Nat.Nat^)(x: F.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q))) -> #apply{(d.vertical p q)} (#apply{(d.vertical p (Nat.Nat^::succ q))} x) = #zero{(F.space p q)},
+  commute: \forall (p, q: Nat.Nat^)(x: F.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)) ->
+    #apply{(d.horizontal p q)} (#apply{(d.vertical (Nat.Nat^::succ p) q)} x) = #apply{(d.vertical p q)} (#apply{(d.horizontal p (Nat.Nat^::succ q))} x),
+}
+\structure Complex {
+  family: Family,
+  differential: DifferentialData[family],
+  laws: DifferentialLaws[family, differential],
+}
+\module Sign(V: \Set, space: Modules.Space V) {
+  \import Modules.End[V := V, space := space] \as Identity;
+  \import Modules.Hom[V := V, W := V, source := space, target := space] \as Maps;
+  \definition map: Nat.Nat^ -> Maps.Map := \induction (n: Nat.Nat^) \return Maps.Map \with {
+    | zero: Identity.identity
+    | succ: \fun (n: Nat.Nat^)(previous: Maps.Map) => Maps.negative previous
+  };
+  \definition successor: \forall (n: Nat.Nat^)(x: V) -> #apply{(map (Nat.Nat^::succ n))} x = #neg{space} (#apply{(map n)} x) := \fun (n: Nat.Nat^)(x: V) => \refl(#neg{space} (#apply{(map n)} x));
+  \import Modules.Laws[V := V, space := space] \as Vector;
+  \import algebra.Group[].Of[Carrier := V, group := Vector.additive] \as Group;
+  \definition addition: \forall (a, b: Nat.Nat^)(x: V) ->
+    #apply{(map (Arithmetic.add a b))} x = #apply{(map a)} (#apply{(map b)} x) :=
+    \fun (a: Nat.Nat^) => \induction (b: Nat.Nat^) \return \forall (x: V) ->
+      #apply{(map (Arithmetic.add a b))} x = #apply{(map a)} (#apply{(map b)} x) \with {
+      | zero: \fun (x: V) => \refl(#apply{(map a)} x)
+      | succ: \fun (b: Nat.Nat^)(previous: _)(x: V) => trans!{V} _ _ _
+        (congr!{V V} (#neg{space}) _ _ (previous x))
+        (sym!{V} _ _ (Maps.negativePreserved (map a) (#apply{(map b)} x)))
+    };
+  \definition involutive: \forall (n: Nat.Nat^)(x: V) -> #apply{(map n)} (#apply{(map n)} x) = x :=
+    \induction (n: Nat.Nat^) \return \forall (x: V) -> #apply{(map n)} (#apply{(map n)} x) = x \with {
+      | zero: \fun (x: V) => \refl(x)
+      | succ: \fun (n: Nat.Nat^)(previous: _)(x: V) => trans!{V} _ _ _
+        (congr!{V V} (#neg{space}) _ _ (Maps.negativePreserved (map n) (#apply{(map n)} x)))
+        (trans!{V} _ _ _ (Group.negNeg (#apply{(map n)} (#apply{(map n)} x))) (previous x))
+    };
+  \definition cancelAddition: \forall (a, b: Nat.Nat^)(x: V) ->
+    #apply{(map (Arithmetic.add a b))} (#apply{(map a)} x) = #apply{(map b)} x :=
+    \fun (a, b: Nat.Nat^)(x: V) => trans!{V} _ _ _
+      (congr!{Nat.Nat^ V} (\fun (n: Nat.Nat^) => #apply{(map n)} (#apply{(map a)} x)) _ _ (Natural.addComm a b))
+      (trans!{V} _ _ _ (addition b a (#apply{(map a)} x))
+        (congr!{V V} (#apply{(map b)}) _ _ (involutive a x)));
+  \module Mapping(W: \Set, target: Modules.Space W) {
+    \import \parent.\parent.Sign[V := W, space := target] \as Target;
+    \import Modules.Hom[V := V, W := W, source := space, target := target] \as Hom;
+    \definition naturality: \forall (f: Hom.Map)(n: Nat.Nat^)(x: V) -> #apply{f} (#apply{(map n)} x) = #apply{(Target.map n)} (#apply{f} x) :=
+      \fun (f: Hom.Map) => \induction (n: Nat.Nat^) \return \forall (x: V) -> #apply{f} (#apply{(map n)} x) = #apply{(Target.map n)} (#apply{f} x) \with {
+        | zero: \fun (x: V) => \refl(#apply{f} x)
+        | succ: \fun (n: Nat.Nat^)(previous: _)(x: V) => trans!{W} _ _ _
+          (Hom.negativePreserved f (#apply{(map n)} x))
+          (congr!{W W} (#neg{target}) _ _ (previous x))
+      };
+  }
+
+}
+\structure Pair: \Set { first: Nat.Nat^, second: Nat.Nat^ }
+\definition Index(n: Nat.Nat^): \Set := \Cast[Pair] ({ i: Pair \where Arithmetic.add #first{i} #second{i} = n });
+\definition degree: \forall (n: Nat.Nat^)(i: Index n) -> Arithmetic.add #first{i} #second{i} = n :=
+  \fun (n: Nat.Nat^)(i: Index n) => \bysub(Pair, { i: Pair \where Arithmetic.add #first{i} #second{i} = n }, i);
+\definition firstBound: \forall (n: Nat.Nat^)(i: Index n) -> Natural.Le #first{i} n :=
+  \fun (n: Nat.Nat^)(i: Index n) => \idelim Arithmetic.add #first{i} #second{i} = n \with d: Nat.Nat^ => Natural.Le #first{i} d \by { base: Natural.leAddRight #first{i} #second{i}, equality: degree n i };
+\definition secondBound: \forall (n: Nat.Nat^)(i: Index n) -> Natural.Le #second{i} n :=
+  \fun (n: Nat.Nat^)(i: Index n) => \idelim Arithmetic.add #first{i} #second{i} = n \with d: Nat.Nat^ => Natural.Le #second{i} d \by { base: Natural.leAddLeft #first{i} #second{i}, equality: degree n i };
+\definition finiteIndex(n: Nat.Nat^)(i: Index n): Finite.Fin (Nat.Nat^::succ n) :=
+  \into[Nat.Nat^](#first{i}, { p: Nat.Nat^ \where Natural.Lt p (Nat.Nat^::succ n) }) \by { Natural.ltOfSuccLe (Nat.Nat^::succ n) #first{i} (Natural.leSuccSucc #first{i} n (firstBound n i)) };
+\definition fromFinite(n: Nat.Nat^)(i: Finite.Fin (Nat.Nat^::succ n)): Index n :=
+  \into[Pair](Pair { first := i, second := Arithmetic.sub n i }, { j: Pair \where Arithmetic.add #first{j} #second{j} = n }) \by {
+    Natural.addSubOfLe i n (Natural.leOfSuccSucc i n (Natural.succLeOfLt (Nat.Nat^::succ n) i (Finite.bound (Nat.Nat^::succ n) i)))
+  };
+\definition secondDetermined: \forall (n: Nat.Nat^)(i: Index n) -> Arithmetic.sub n #first{i} = #second{i} :=
+  \fun (n: Nat.Nat^)(i: Index n) => trans!{Nat.Nat^} (Arithmetic.sub n #first{i}) (Arithmetic.sub (Arithmetic.add #second{i} #first{i}) #first{i}) #second{i}
+    (congr!{Nat.Nat^ Nat.Nat^} (\fun (d: Nat.Nat^) => Arithmetic.sub d #first{i}) n (Arithmetic.add #second{i} #first{i})
+      (trans!{Nat.Nat^} n (Arithmetic.add #first{i} #second{i}) (Arithmetic.add #second{i} #first{i}) (sym!{Nat.Nat^} _ _ (degree n i)) (Natural.addComm #first{i} #second{i})))
+    (Natural.subAddCancel #first{i} #second{i});
+\definition pairRebuild: \forall (i: Pair) -> Pair { first := #first{i}, second := #second{i} } = i :=
+  \induction (i: Pair) \return Pair { first := #first{i}, second := #second{i} } = i \with {
+    | # : \fun (p, q: Nat.Nat^) => \refl(Pair::# p q)
+  };
+\definition finiteIndexLeftInverse: \forall (n: Nat.Nat^)(i: Index n) -> fromFinite n (finiteIndex n i) = i :=
+  \fun (n: Nat.Nat^)(i: Index n) => trans!{Pair} _ _ _
+    (congr!{Nat.Nat^ Pair} (\fun (q: Nat.Nat^) => Pair { first := #first{i}, second := q }) _ _ (secondDetermined n i))
+    (pairRebuild i);
+\definition finiteIndexRightInverse: \forall (n: Nat.Nat^)(i: Finite.Fin (Nat.Nat^::succ n)) -> finiteIndex n (fromFinite n i) = i :=
+  \fun (n: Nat.Nat^)(i: Finite.Fin (Nat.Nat^::succ n)) => \refl(i);
+\definition Second(n, p: Nat.Nat^): \Set := \Cast[Nat.Nat^] ({ q: Nat.Nat^ \where Arithmetic.add p q = n });
+\definition secondDegree: \forall (n, p: Nat.Nat^)(q: Second n p) -> Arithmetic.add p q = n :=
+  \fun (n, p: Nat.Nat^)(q: Second n p) => \bysub(Nat.Nat^, { q: Nat.Nat^ \where Arithmetic.add p q = n }, q);
+\definition index(n, p: Nat.Nat^)(q: Second n p): Index n :=
+  \into[Pair](Pair { first := p, second := q }, { i: Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { secondDegree n p q };
+\definition First(n, q: Nat.Nat^): \Set := \Cast[Nat.Nat^] ({ p: Nat.Nat^ \where Arithmetic.add p q = n });
+\definition firstDegree: \forall (n, q: Nat.Nat^)(p: First n q) -> Arithmetic.add p q = n :=
+  \fun (n, q: Nat.Nat^)(p: First n q) => \bysub(Nat.Nat^, { p: Nat.Nat^ \where Arithmetic.add p q = n }, p);
+\definition reverseIndex(n, q: Nat.Nat^)(p: First n q): Index n :=
+  \into[Pair](Pair { first := p, second := q }, { i: Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { firstDegree n q p };
+\import \root.NonnegativeChain[].Over[R := R, ring := ring] \as Chains;
+\module Row(C: Complex, p: Nat.Nat^);
+\module Column(C: Complex, q: Nat.Nat^);
+\module Total(C: Complex);
+\module Map(C, D: Complex);
+\module End(C: Complex) {
+  \import \parent.Map[C := C, D := C] \as Maps;
+  \definition identity: Maps.Map := \into[Maps.Data](
+    (\fun (p, q: Nat.Nat^) => Modules.End[V := C.family.Carrier p q, space := C.family.space p q].identity),
+    { data: Maps.Data \where Maps.Laws[data] }) \by {
+      Maps.Laws[\fun (p, q: Nat.Nat^) => Modules.End[V := C.family.Carrier p q, space := C.family.space p q].identity] {
+        horizontal := \fun (p, q: Nat.Nat^)(x: C.family.Carrier (Nat.Nat^::succ p) q) => \refl(#apply{(C.differential.horizontal p q)} x),
+        vertical := \fun (p, q: Nat.Nat^)(x: C.family.Carrier p (Nat.Nat^::succ q)) => \refl(#apply{(C.differential.vertical p q)} x),
+      }
+    };
+  \module Total {
+    \import \parent.\parent.Total[C := C] \as TotalComplex;
+    \import Maps.Total[f := identity] \as Induced;
+    \module Degree(n: Nat.Nat^) {
+      \import TotalComplex.Degree[n := n] \as Term;
+      \import Induced.Degree[n := n] \as InducedTerm;
+      \import Modules.End[V := Term.Carrier, space := Term.space] \as End;
+      \import Modules.DirectSum[Index := Index n, family := Term.family].To[W := Term.Carrier, target := Term.space] \as Universal;
+      \definition equality: InducedTerm.map = End.identity := Universal.ext InducedTerm.map End.identity InducedTerm.onInjection;
+      \definition point: \forall (x: Term.Carrier) -> #apply{InducedTerm.map} x = x :=
+        \fun (x: Term.Carrier) => congr!{{Modules.Hom[V := Term.Carrier, W := Term.Carrier, source := Term.space, target := Term.space].Map} Term.Carrier}
+          (\fun (g: Modules.Hom[V := Term.Carrier, W := Term.Carrier, source := Term.space, target := Term.space].Map) => #apply{g} x) InducedTerm.map End.identity equality;
+    }
+    \import Chains.Map[C := TotalComplex.complex, D := TotalComplex.complex] \as Native;
+    \definition equality: Induced.map = Chains.End[C := TotalComplex.complex].identity := Native.ext Induced.map (Chains.End[C := TotalComplex.complex].identity)
+      (\fun (n: Nat.Nat^) => Degree[n := n].point);
+  }
+}
+\module Tensor(C, D: Chains.Complex);

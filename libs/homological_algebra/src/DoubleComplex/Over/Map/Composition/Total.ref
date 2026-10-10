@@ -1,0 +1,31 @@
+\import \parent.\parent.\parent.Total[C := B] \as Source;
+\import \parent.\parent.\parent.Total[C := C] \as Middle;
+\import \parent.\parent.\parent.Total[C := D] \as Target;
+\import Before.Total[f := g] \as BeforeTotal;
+\import \parent.\parent.Total[f := f] \as AfterTotal;
+\import Result.Total[f := compose f g] \as CompositeTotal;
+\module Degree(n: Nat.Nat^) {
+  \import Source.Degree[n := n] \as SD;
+  \import Middle.Degree[n := n] \as MD;
+  \import Target.Degree[n := n] \as TD;
+  \import BeforeTotal.Degree[n := n] \as FirstMap;
+  \import AfterTotal.Degree[n := n] \as SecondMap;
+  \import CompositeTotal.Degree[n := n] \as CompositeMap;
+  \import Modules.Hom[V := MD.Carrier, W := TD.Carrier, source := MD.space, target := TD.space].Composition[U := SD.Carrier, domain := SD.space] \as Composition;
+  \import Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space] \as Maps;
+  \definition composedMap: Maps.Map := Composition.compose SecondMap.map FirstMap.map;
+  \definition onInjection: \forall (i: Index n)(x: B.family.Carrier #first{i} #second{i}) ->
+    #apply{CompositeMap.map} (#apply{(SD.Component[i := i].injection)} x) = #apply{composedMap} (#apply{(SD.Component[i := i].injection)} x) :=
+    \fun (i: Index n)(x: B.family.Carrier #first{i} #second{i}) => trans!{TD.Carrier} _ _ _
+      (CompositeMap.onInjection i x)
+      (trans!{TD.Carrier} _ _ _ (sym!{TD.Carrier} _ _ (SecondMap.onInjection i (#apply{(g #first{i} #second{i})} x)))
+        (congr!{MD.Carrier TD.Carrier} (#apply{SecondMap.map}) _ _ (sym!{MD.Carrier} _ _ (FirstMap.onInjection i x))));
+  \import Modules.DirectSum[Index := Index n, family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+  \definition equality: CompositeMap.map = composedMap := Universal.ext CompositeMap.map composedMap onInjection;
+  \definition point: \forall (x: SD.Carrier) -> #apply{CompositeMap.map} x = #apply{SecondMap.map} (#apply{FirstMap.map} x) :=
+    \fun (x: SD.Carrier) => congr!{Maps.Map TD.Carrier} (\fun (h: Maps.Map) => #apply{h} x) CompositeMap.map composedMap equality;
+}
+\import Chains.Map[C := Source.complex, D := Target.complex] \as Maps;
+\import Chains.Map[C := Middle.complex, D := Target.complex].Composition[B := Source.complex] \as Composition;
+\definition equality: CompositeTotal.map = Composition.compose AfterTotal.map BeforeTotal.map := Maps.ext CompositeTotal.map (Composition.compose AfterTotal.map BeforeTotal.map)
+  (\fun (n: Nat.Nat^) => Degree[n := n].point);

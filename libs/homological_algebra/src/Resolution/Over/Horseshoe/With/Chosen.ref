@@ -1,0 +1,59 @@
+\import \parent.Lifted[s := construction.lift].Selected[t := construction.twist] \as Selected;
+\module Term(n: Nat.Nat^) {
+  \import Modules.Biproduct[V := P.family.Carrier n, W := Q.family.Carrier n, left := P.family.space n, right := Q.family.space n] \as Sum;
+  \definition space: Modules.Space (std.Data[].Pair[].Times^[P.family.Carrier n, Q.family.Carrier n]) := Sum.space;
+}
+\definition chosenFamily: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Nat.Nat^) => std.Data[].Pair[].Times^[P.family.Carrier n, Q.family.Carrier n],
+  space := \fun (n: Nat.Nat^) => Term[n := n].space,
+};
+\definition chosenDifferential: Chains.DifferentialData[chosenFamily] := Chains.DifferentialData[chosenFamily] {
+  apply := \fun (n: Nat.Nat^)(x: chosenFamily.Carrier (Nat.Nat^::succ n)) => #apply{Selected.complex.differential} n x,
+};
+\definition complex: Chains.Complex := Chains.Complex {
+  family := chosenFamily, differential := chosenDifferential,
+  laws := Chains.DifferentialLaws[chosenFamily, chosenDifferential] {
+    addition := \fun (n: Nat.Nat^)(x, y: chosenFamily.Carrier (Nat.Nat^::succ n)) => #addition{Selected.complex.laws} n x y,
+    scalar := \fun (n: Nat.Nat^)(a: R)(x: chosenFamily.Carrier (Nat.Nat^::succ n)) => #scalar{Selected.complex.laws} n a x,
+    squareZero := \fun (n: Nat.Nat^)(x: chosenFamily.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => #squareZero{Selected.complex.laws} n x,
+  },
+};
+\import \parent.\parent.\parent.Of[M := B, P := complex] \as MiddleResolution;
+\definition resolution: MiddleResolution.Resolution := Selected.resolution;
+\definition inclusion: Chains.Map[C := P, D := complex].Map := Selected.inclusion;
+\definition projection: Chains.Map[C := complex, D := Q].Map := Selected.projection;
+\definition degreeSequence(n: Nat.Nat^): Modules.ShortExact[A := LeftResolution.term n, B := MiddleResolution.term n, C := RightResolution.term n].Sequence := Selected.degreeSequence n;
+\definition section: \forall (n: Nat.Nat^) -> Modules.MapBetween (RightResolution.term n) (MiddleResolution.term n) := Selected.section;
+\definition splits: \forall (n: Nat.Nat^)(x: Q.family.Carrier n) -> #apply{projection} n (#apply{(section n)} x) = x := Selected.splits;
+\definition inclusionAugmented: \forall (x: P.family.Carrier Nat.Nat^::zero) ->
+  #apply{#augmentation{resolution}} (#apply{inclusion} Nat.Nat^::zero x) = #apply{sequence.inclusion} (#apply{#augmentation{p}} x) := Selected.inclusionAugmented;
+\definition projectionAugmented: \forall (x: family.Carrier Nat.Nat^::zero) ->
+  #apply{#augmentation{q}} (#apply{projection} Nat.Nat^::zero x) = #apply{sequence.projection} (#apply{#augmentation{resolution}} x) := Selected.projectionAugmented;
+
+\definition apply: \forall (n: Nat.Nat^) -> std.Data[].Pair[].Times^[P.family.Carrier (Nat.Nat^::succ n), Q.family.Carrier (Nat.Nat^::succ n)] -> std.Data[].Pair[].Times^[P.family.Carrier n, Q.family.Carrier n] :=
+  \fun (n: Nat.Nat^)(x: std.Data[].Pair[].Times^[P.family.Carrier (Nat.Nat^::succ n), Q.family.Carrier (Nat.Nat^::succ n)]) => #apply{Selected.complex.differential} n x;
+\definition addition: \forall (n: Nat.Nat^)(x, y: std.Data[].Pair[].Times^[P.family.Carrier (Nat.Nat^::succ n), Q.family.Carrier (Nat.Nat^::succ n)]) ->
+  apply n (#add{(Term[n := Nat.Nat^::succ n].space)} x y) = #add{(Term[n := n].space)} (apply n x) (apply n y) :=
+  \fun (n: Nat.Nat^)(x, y: std.Data[].Pair[].Times^[P.family.Carrier (Nat.Nat^::succ n), Q.family.Carrier (Nat.Nat^::succ n)]) => #addition{Selected.complex.laws} n x y;
+\definition scalar: \forall (n: Nat.Nat^)(a: R)(x: std.Data[].Pair[].Times^[P.family.Carrier (Nat.Nat^::succ n), Q.family.Carrier (Nat.Nat^::succ n)]) ->
+  apply n (#smul{(Term[n := Nat.Nat^::succ n].space)} a x) = #smul{(Term[n := n].space)} a (apply n x) :=
+  \fun (n: Nat.Nat^)(a: R)(x: std.Data[].Pair[].Times^[P.family.Carrier (Nat.Nat^::succ n), Q.family.Carrier (Nat.Nat^::succ n)]) => #scalar{Selected.complex.laws} n a x;
+\import Chains.ShortExact[A := P, B := complex, C := Q] \as ChainSequences;
+\definition chainSequence: ChainSequences.Sequence := ChainSequences.Sequence {
+  inclusion := inclusion, projection := projection,
+  injective := \fun (n: Nat.Nat^) => #injective{(degreeSequence n)},
+  onto := \fun (n: Nat.Nat^) => #onto{(degreeSequence n)},
+  zero := \fun (n: Nat.Nat^) => #zero{(degreeSequence n)},
+  kernelImage := \fun (n: Nat.Nat^) => #kernelImage{(degreeSequence n)},
+};
+\import \root.Resolution[].Over[R := R, ring := ring].ShortExact[] \as Resolved;
+\definition resolvedSequence: Resolved.Sequence := Resolved.Sequence {
+  left := A, middle := B, right := C,
+  leftComplex := P, middleComplex := complex, rightComplex := Q,
+  leftResolution := p, middleResolution := resolution, rightResolution := q,
+  sequence := sequence, chainSequence := chainSequence,
+  leftAugmented := inclusionAugmented, rightAugmented := projectionAugmented,
+};
+\definition squareZero: \forall (n: Nat.Nat^)(x: std.Data[].Pair[].Times^[P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))]) ->
+  apply n (apply (Nat.Nat^::succ n) x) = #zero{(Term[n := n].space)} :=
+  \fun (n: Nat.Nat^)(x: std.Data[].Pair[].Times^[P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))]) => #squareZero{Selected.complex.laws} n x;

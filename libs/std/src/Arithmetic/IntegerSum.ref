@@ -1,0 +1,34 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import I.Math[].Specification[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Program[] \as Programs;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition sum: N.Nat^ -> (N.Nat^ -> I.Int^) -> I.Int^ :=
+  \induction (count: N.Nat^) \return (N.Nat^ -> I.Int^) -> I.Int^ \with {
+    | zero: \fun (f: N.Nat^ -> I.Int^) => Arithmetic.zero
+    | succ: \fun (count: N.Nat^)(previous: (N.Nat^ -> I.Int^) -> I.Int^)(f: N.Nat^ -> I.Int^) => Arithmetic.add (previous f) (f count)
+  };
+\definition shift: \forall (count: N.Nat^)(f: N.Nat^ -> I.Int^) -> sum (N.Nat^::succ count) f = Arithmetic.add (f N.Nat^::zero) (sum count (\fun (k: N.Nat^) => f (N.Nat^::succ k))) :=
+  \induction (count: N.Nat^) \return \forall (f: N.Nat^ -> I.Int^) -> sum (N.Nat^::succ count) f = Arithmetic.add (f N.Nat^::zero) (sum count (\fun (k: N.Nat^) => f (N.Nat^::succ k))) \with {
+    | zero: \fun (f: N.Nat^ -> I.Int^) => trans!{I.Int^} _ _ _ (Laws.addZeroLeft (f N.Nat^::zero)) (sym!{I.Int^} _ _ (Laws.addZeroRight (f N.Nat^::zero)))
+    | succ: \fun (count: N.Nat^)(previous: _)(f: N.Nat^ -> I.Int^) => trans!{I.Int^} _ _ _
+      (congr!{I.Int^ I.Int^} (\fun (a: I.Int^) => Arithmetic.add a (f (N.Nat^::succ count))) _ _ (previous f))
+      (Laws.addAssoc (f N.Nat^::zero) (sum count (\fun (k: N.Nat^) => f (N.Nat^::succ k))) (f (N.Nat^::succ count)))
+  };
+\inductive State: \VType := | running: \U(N.Nat -> I.Int) -> N.Nat -> I.Int -> State;
+\module LoopImplementation;
+\machine Loop: Programs.Machine := Programs.Machine {
+  State := State, Output := I.Int,
+  step := LoopImplementation[].step, terminates := LoopImplementation[].certificate,
+};
+\module Implementation;
+\correspondence Sum: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program,
+  specification := sum, coherence := Implementation[].coherence,
+};

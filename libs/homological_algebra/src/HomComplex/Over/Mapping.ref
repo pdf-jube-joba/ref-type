@@ -1,0 +1,32 @@
+\import \parent.On[P := Q, N := N] \as Source;
+\import \parent.On[P := P, N := L] \as Target;
+\import Chains.Map[C := P, D := Q] \as ChainMaps;
+\import Modules.Hom[V := N.Carrier, W := L.Carrier, source := N.space, target := L.space] \as Coefficients;
+\import Cochains.Map[C := Source.complex, D := Target.complex] \as Maps;
+\module On(f: ChainMaps.Map, u: Coefficients.Map) {
+  \definition apply(n: Nat.Nat^)(h: Source.Carrier n): Target.Carrier n := Target.At[n := n].Carrier {
+    apply := \fun (x: P.family.Carrier n) => #apply{u} (#apply{h} (#apply{f} n x)),
+    addition := \fun (x, y: P.family.Carrier n) => trans!{L.Carrier} _ _ _
+      (congr!{N.Carrier L.Carrier} (#apply{u}) _ _
+        (trans!{N.Carrier} _ _ _ (congr!{{Q.family.Carrier n} N.Carrier} (#apply{h}) _ _ (#addition{f} n x y))
+          (#addition{h} (#apply{f} n x) (#apply{f} n y))))
+      (#addition{u} (#apply{h} (#apply{f} n x)) (#apply{h} (#apply{f} n y))),
+    scalar := \fun (a: R)(x: P.family.Carrier n) => trans!{L.Carrier} _ _ _
+      (congr!{N.Carrier L.Carrier} (#apply{u}) _ _
+        (trans!{N.Carrier} _ _ _ (congr!{{Q.family.Carrier n} N.Carrier} (#apply{h}) _ _ (#scalar{f} n a x)) (#scalar{h} a (#apply{f} n x))))
+      (#scalar{u} a (#apply{h} (#apply{f} n x))),
+  };
+  \definition map: Maps.Map := Maps.Map {
+    apply := apply,
+    addition := \fun (n: Nat.Nat^)(h, j: Source.Carrier n) => Target.At[n := n].ext
+      (apply n (#add{(Source.space n)} h j)) (#add{(Target.space n)} (apply n h) (apply n j))
+      (\fun (x: P.family.Carrier n) => #addition{u} (#apply{h} (#apply{f} n x)) (#apply{j} (#apply{f} n x))),
+    scalar := \fun (n: Nat.Nat^)(a: R)(h: Source.Carrier n) => Target.At[n := n].ext
+      (apply n (#smul{(Source.space n)} a h)) (#smul{(Target.space n)} a (apply n h))
+      (\fun (x: P.family.Carrier n) => #scalar{u} a (#apply{h} (#apply{f} n x))),
+    commutes := \fun (n: Nat.Nat^)(h: Source.Carrier n) => Target.At[n := Nat.Nat^::succ n].ext
+      (Target.apply n (apply n h)) (apply (Nat.Nat^::succ n) (Source.apply n h))
+      (\fun (x: P.family.Carrier (Nat.Nat^::succ n)) =>
+        congr!{{Q.family.Carrier n} L.Carrier} (\fun (y: Q.family.Carrier n) => #apply{u} (#apply{h} y)) _ _ (sym!{{Q.family.Carrier n}} _ _ (#commutes{f} n x))),
+  };
+}

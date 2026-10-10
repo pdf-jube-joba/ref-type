@@ -1,0 +1,21 @@
+\definition T: \VType := \U(N.Nat -> Runtime -> History -> Grid.Position -> Selection);
+\definition program: T := \thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (history: History) => \return(\thunk (\cfun (position: Grid.Position) => \match position \in Grid.Position \with {
+  | empty: \return Selection::missing
+  | position i j: \program {
+      \bind rows: \U(N.Nat -> N.Nat -> Runtime -> Runtime) <- (\force moveProgram) k \then
+      \bind columns: \U(N.Nat -> Runtime -> Runtime) <- (\force rows) i \then
+      \bind matrices: \U(Runtime -> Runtime) <- (\force columns) j \then
+      \bind moved: Runtime <- (\force matrices) a \then
+      \return(Selection::ready (Attempt::attempt moved (History::prepend (Operation::columnSwap k j) (History::prepend (Operation::rowSwap k i) history)) B.Bool::false))
+    }
+})))))));
+\definition matches: \forall (k: N.Nat^)(a: Runtime^)(history: History^)(position: Grid.Position^) -> program^ k a history position = fromPosition k a history position :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^) => \induction (position: Grid.Position^) \return program^ k a history position = fromPosition k a history position \with {
+    | empty: \refl(Selection^::missing)
+    | position: \fun (i, j: N.Nat^) => congr!{Move.T^ Selection^}
+        (\fun (f: Move.T^) => Selection^::ready (Attempt^::attempt (f k i j a) (moveHistory k i j history) B.Bool^::false)) moveProgram^ move Move.coherence
+  };
+\definition coherence: program^ = fromPosition := \axiom:funext(program^, fromPosition,
+  \fun (k: N.Nat^) => \axiom:funext(program^ k, fromPosition k,
+    \fun (a: Runtime^) => \axiom:funext(program^ k a, fromPosition k a,
+      \fun (history: History^) => \axiom:funext(program^ k a history, fromPosition k a history, matches k a history))));

@@ -1,0 +1,18 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> N.Nat -> Runtime -> Grid.Position);
+\definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \program {
+  \bind predicateBuilder: \U(Runtime -> N.Nat -> N.Nat -> B.Bool) <- (\force Probe.program) k \then
+  \bind predicate: Grid.Predicate <- (\force predicateBuilder) a \then
+  \bind columnBuilder: \U(N.Nat -> Grid.Predicate -> Grid.Position) <- (\force Grid.Grid.program) rows \then
+  \bind grid: \U(Grid.Predicate -> Grid.Position) <- (\force columnBuilder) cols \then
+  \bind result: Grid.Position <- (\force grid) predicate \then
+  \return result
+})))))));
+\definition located(rows, cols, k: N.Nat^)(a: Runtime^): Grid.Position^ := Grid.grid rows cols (Probe.program^ k a);
+\definition matches: \forall (rows, cols, k: N.Nat^)(a: Runtime^) -> program^ rows cols k a = search rows cols k a :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^) => trans!{Grid.Position^} (program^ rows cols k a) (located rows cols k a) (search rows cols k a)
+    (congr!{Grid.Grid.T^ Grid.Position^} (\fun (f: Grid.Grid.T^) => f rows cols (Probe.program^ k a)) Grid.Grid.program^ Grid.Grid.specification Grid.Grid.coherence)
+    (congr!{Probe.T^ Grid.Position^} (\fun (f: Probe.T^) => Grid.grid rows cols (f k a)) Probe.program^ Probe.specification Probe.coherence);
+\definition coherence: program^ = search := \axiom:funext(program^, search,
+  \fun (rows: N.Nat^) => \axiom:funext(program^ rows, search rows,
+    \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, search rows cols,
+      \fun (k: N.Nat^) => \axiom:funext(program^ rows cols k, search rows cols k, matches rows cols k))));

@@ -1,0 +1,34 @@
+\import Modules.Free[Generators := Generators] \as Free;
+\import Free.To[W := W, target := target] \as Universal;
+\import \parent.HomSpace[V := Free.Carrier, W := W, source := Free.space, target := target] \as Hom;
+\import Modules.Hom[V := Free.Carrier, W := W, source := Free.space, target := target] \as Maps;
+\import Modules.Functions[X := Generators, V := W, target := target] \as Values;
+\import Modules.Hom[V := Hom.Carrier, W := Values.Carrier, source := Hom.space, target := Values.space] \as Restrict;
+\definition restriction: Restrict.Map := Restrict.Map {
+  apply := \fun (f: Hom.Carrier)(s: Generators) => #apply{f} (Free.generator s),
+  addition := \fun (f, g: Hom.Carrier) => \refl(\fun (s: Generators) => #add{target} (#apply{f} (Free.generator s)) (#apply{g} (Free.generator s))),
+  scalar := \fun (a: R)(f: Hom.Carrier) => \refl(\fun (s: Generators) => #smul{target} a (#apply{f} (Free.generator s))),
+};
+\definition extensionAddition: \forall (f, g: Values.Carrier) ->
+  Universal.extension (Values.add f g) = Hom.add (Universal.extension f) (Universal.extension g) :=
+  \fun (f, g: Values.Carrier) => Maps.dataExt _ _
+    (sym!{{Free.Carrier -> W}} _ _ (Universal.unique (Values.add f g) (Hom.add (Universal.extension f) (Universal.extension g))
+      (\fun (s: Generators) => congr2!{W W W} (#add{target}) _ _ _ _ (Universal.onGenerator f s) (Universal.onGenerator g s))));
+\definition extensionScalar: \forall (a: R)(f: Values.Carrier) ->
+  Universal.extension (Values.scale a f) = Hom.scale a (Universal.extension f) :=
+  \fun (a: R)(f: Values.Carrier) => Maps.dataExt _ _
+    (sym!{{Free.Carrier -> W}} _ _ (Universal.unique (Values.scale a f) (Hom.scale a (Universal.extension f))
+      (\fun (s: Generators) => congr!{W W} (#smul{target} a) _ _ (Universal.onGenerator f s))));
+\import Modules.Hom[V := Values.Carrier, W := Hom.Carrier, source := Values.space, target := Hom.space] \as Extend;
+\definition extension: Extend.Map := Extend.Map {
+  apply := Universal.extension, addition := extensionAddition, scalar := extensionScalar,
+};
+\definition restrictExtend: \forall (f: Values.Carrier) -> #apply{restriction} (#apply{extension} f) = f :=
+  \fun (f: Values.Carrier) => Values.ext _ _ (Universal.onGenerator f);
+\definition extendRestrict: \forall (f: Hom.Carrier) -> #apply{extension} (#apply{restriction} f) = f :=
+  \fun (f: Hom.Carrier) => Maps.dataExt _ _
+    (sym!{{Free.Carrier -> W}} _ _ (Universal.unique (#apply{restriction} f) f (\fun (s: Generators) => \refl(#apply{f} (Free.generator s)))));
+\import Modules.Isomorphism[V := Hom.Carrier, W := Values.Carrier, source := Hom.space, target := Values.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := restriction, backward := extension, leftInverse := extendRestrict, rightInverse := restrictExtend,
+};

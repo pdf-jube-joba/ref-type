@@ -1,0 +1,24 @@
+\import \parent.\parent.\parent.To[W := R, target := scalarModule] \as Universal;
+\import \parent.\parent.\parent.\parent.Coordinates[I := Generators] \as SourceCoordinates;
+\import \parent.\parent.\parent.\parent.Coordinates[I := TargetGenerators] \as TargetCoordinates;
+\import \parent.\parent.\parent.\parent.Functions[X := Generators, V := R, target := scalarModule] \as SourceFunctions;
+\import \parent.\parent.\parent.\parent.Functions[X := TargetGenerators, V := R, target := scalarModule] \as TargetFunctions;
+\import \parent.\parent.\parent.\parent.Hom[V := Destination.Carrier, W := TargetCoordinates.Vector, source := Destination.space, target := TargetCoordinates.space].Composition[U := Carrier, domain := space] \as PushCoordinates;
+\import \parent.\parent.\parent.\parent.Hom[V := TargetCoordinates.Vector, W := R, source := TargetCoordinates.space, target := scalarModule].Composition[U := Carrier, domain := space] \as TargetEvaluation;
+\import \parent.\parent.\parent.\parent.Hom[V := SourceCoordinates.Vector, W := R, source := SourceCoordinates.space, target := scalarModule].Composition[U := Carrier, domain := space] \as SourceEvaluation;
+\import \parent.\parent.\parent.\parent.Hom[V := Carrier, W := R, source := space, target := scalarModule] \as Functionals;
+\definition source: Functionals.Map := SourceEvaluation.compose (SourceFunctions.evaluation s) SourceCoefficients.map;
+\definition target: Functionals.Map := TargetEvaluation.compose (TargetFunctions.evaluation (f s)) (PushCoordinates.compose TargetCoefficients.map (push f));
+\definition sourceGenerator: \forall (t: Generators) -> #apply{source} (generator t) = SourceDelta.delta s t :=
+  \fun (t: Generators) => SourceCoefficients.onGenerator t s;
+\definition targetGenerator: Injective -> \forall (t: Generators) -> #apply{target} (generator t) = SourceDelta.delta s t :=
+  \fun (injective: Injective)(t: Generators) => trans!{R} _ _ _
+    (congr!{Destination.Carrier R} (\fun (x: Destination.Carrier) => TargetCoefficients.coefficient x (f s)) _ _ (onGenerator f t))
+    (trans!{R} _ _ _ (TargetCoefficients.onGenerator (f t) (f s)) (delta injective s t));
+\definition equality: Injective -> #apply{target} = #apply{source} :=
+  \fun (injective: Injective) => trans!{{Carrier -> R}} _ _ _
+    (Universal.unique (SourceDelta.delta s) target (targetGenerator injective))
+    (sym!{{Carrier -> R}} _ _ (Universal.unique (SourceDelta.delta s) source sourceGenerator));
+\definition coefficient: \forall (injective: Injective)(x: Carrier) ->
+  TargetCoefficients.coefficient (#apply{(push f)} x) (f s) = SourceCoefficients.coefficient x s :=
+  \fun (injective: Injective)(x: Carrier) => congr!{{Carrier -> R} R} (\fun (h: Carrier -> R) => h x) _ _ (equality injective);

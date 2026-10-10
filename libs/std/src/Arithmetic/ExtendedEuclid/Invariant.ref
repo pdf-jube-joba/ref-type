@@ -1,0 +1,31 @@
+\definition evaluate(u, v: I.Int^): I.Int^ := Arithmetic.add (Arithmetic.mul u (natural a)) (Arithmetic.mul v (natural b));
+\structure Laws[s: State^]: \Prop {
+  left: evaluate (first s) (second s) = natural (left s),
+  right: evaluate (third s) (fourth s) = natural (right s),
+}
+\definition advanceInvariant: \forall (c, d: N.Nat^)(u, v, x, y: I.Int^) -> Laws[State^::state c d u v x y] -> Laws[advance c d u v x y] :=
+  \fun (c, d: N.Nat^)(u, v, x, y: I.Int^)(laws: Laws[State^::state c d u v x y]) => Laws[advance c d u v x y] {
+    left := #right{laws},
+    right := trans!{I.Int^} _ _ _ (Arithmetic.linearDifference (natural a) (natural b) u v x y (natural (Division.div c d)))
+      (trans!{I.Int^} _ _ _
+        (congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.difference _ _ _ _ (#left{laws})
+          (congr!{I.Int^ I.Int^} (Arithmetic.mul (natural (Division.div c d))) _ _ (#right{laws}))) (remainder c d)),
+  };
+\definition stepInvariant: \forall (s: State^) -> Laws[s] -> Laws[step s] :=
+  \induction (s: State^) \return Laws[s] -> Laws[step s] \with {
+    | state: \fun (c, d: N.Nat^)(u, v, x, y: I.Int^) =>
+        (\induction (d: N.Nat^) \return Laws[State^::state c d u v x y] -> Laws[step (State^::state c d u v x y)] \with {
+          | zero: \fun (laws: Laws[State^::state c N.Nat^::zero u v x y]) => laws
+          | succ: \fun (d: N.Nat^)(before: _) => advanceInvariant c (N.Nat^::succ d) u v x y
+        }) d
+  };
+\definition initialLaws: Laws[initial a b] := Laws[initial a b] {
+  left := trans!{I.Int^} _ _ _ (congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.add _ _ _ _
+    (Product.mulOneLeft (natural a)) (Product.mulZeroLeft (natural b))) (IntegerLaws.addZeroRight (natural a)),
+  right := trans!{I.Int^} _ _ _ (congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.add _ _ _ _
+    (Product.mulZeroLeft (natural a)) (Product.mulOneLeft (natural b))) (IntegerLaws.addZeroLeft (natural b)),
+};
+\import N.Iteration[].Prop[A := State^] \as IterationLaws;
+\definition resultLaws: Laws[result a b] := IterationLaws.preserves step (\fun (s: State^) => Laws[s]) stepInvariant b (initial a b) initialLaws;
+\definition bezout: evaluate (first (result a b)) (second (result a b)) = natural (Gcd.gcd a b) :=
+  trans!{I.Int^} _ _ _ (#left{resultLaws}) (congr!{N.Nat^ I.Int^} natural _ _ (\parent.Projection[].gcd a b));

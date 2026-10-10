@@ -1,0 +1,42 @@
+\import Modules.Coordinates[I := Finite.Fin n].Kronecker[] \as Kronecker;
+\import Sums.Single[] \as Single;
+\definition onBasis: \forall (a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) -> apply a (Domain.basis j) i = a i j :=
+  \fun (a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) => trans!{R} _ _ _
+    (SumLaws.congruent (Finite.elements n) (\fun (k: Finite.Fin n) => #mul{ordinaryRing} (a i k) (Kronecker.delta k j))
+      (\fun (k: Finite.Fin n) => #mul{ordinaryRing} (Kronecker.delta j k) (a i k))
+      (\fun (k: Finite.Fin n) => trans!{R} _ _ _ (#mulCommutative{ring} (a i k) (Kronecker.delta k j))
+        (congr!{R R} (\fun (r: R) => #mul{ordinaryRing} r (a i k)) _ _ (Kronecker.symmetric k j))))
+    (Single.extract (Finite.elements n) Domain.distinct j (Domain.covers j) (a i));
+\definition matrixRoundtrip: \forall (a: Matrix) -> entries (linear a) = a :=
+  \fun (a: Matrix) => \axiom:funext(entries (linear a), a,
+    \fun (i: Finite.Fin m) => \axiom:funext(entries (linear a) i, a i, \fun (j: Finite.Fin n) => onBasis a i j));
+\import Sums.Vector[V := Domain.Carrier, space := Domain.space] \as SourceSum;
+\import Sums.Vector[V := Codomain.Carrier, space := Codomain.space] \as TargetSum;
+\import SourceSum.Mapping[W := Codomain.Carrier, target := Codomain.space] \as Mapping;
+\import TargetSum.Mapping[W := R, target := Modules.scalarModule] \as Evaluation;
+\definition mapRoundtrip: \forall (f: Maps.Map) -> linear (entries f) = f :=
+  \fun (f: Maps.Map) => Maps.ext (linear (entries f)) f (\fun (v: Domain.Carrier) =>
+    \axiom:funext(apply (entries f) v, #apply{f} v, \fun (i: Finite.Fin m) =>
+      sym!{R} _ _ (trans!{R} _ _ _
+        (congr!{Codomain.Carrier R} (\fun (w: Codomain.Carrier) => w i) _ _
+          (trans!{Codomain.Carrier} _ _ _
+            (congr!{Domain.Carrier Codomain.Carrier} (#apply{f}) _ _ (sym!{Domain.Carrier} _ _ (Domain.decomposition v)))
+            (Mapping.law f (Finite.elements n) (\fun (j: Finite.Fin n) => #smul{Domain.space} (v j) (Domain.basis j)))))
+        (trans!{R} _ _ _
+          (Evaluation.law (Codomain.evaluation i) (Finite.elements n) (\fun (j: Finite.Fin n) => #apply{f} (#smul{Domain.space} (v j) (Domain.basis j))))
+          (SumLaws.congruent (Finite.elements n)
+            (\fun (j: Finite.Fin n) => #apply{f} (#smul{Domain.space} (v j) (Domain.basis j)) i)
+            (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (#apply{f} (Domain.basis j) i) (v j))
+            (\fun (j: Finite.Fin n) => trans!{R} _ _ _
+              (congr!{Codomain.Carrier R} (\fun (w: Codomain.Carrier) => w i) _ _ (#scalar{f} (v j) (Domain.basis j)))
+              (#mulCommutative{ring} (v j) (#apply{f} (Domain.basis j) i))))))));
+\definition injective: \forall (a, b: Matrix) -> linear a = linear b -> a = b :=
+  \fun (a, b: Matrix)(same: _) => trans!{Matrix} _ _ _ (sym!{Matrix} _ _ (matrixRoundtrip a))
+    (trans!{Matrix} _ _ _ (congr!{Maps.Map Matrix} entries _ _ same) (matrixRoundtrip b));
+\structure Correspondence: \Prop {
+  matrixToMap: \forall (a: Matrix) -> entries (linear a) = a,
+  mapToMatrix: \forall (f: Maps.Map) -> linear (entries f) = f,
+}
+\definition correspondence: Correspondence := Correspondence {
+  matrixToMap := matrixRoundtrip, mapToMatrix := mapRoundtrip,
+};

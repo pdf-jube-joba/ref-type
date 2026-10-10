@@ -1,0 +1,52 @@
+\import HomComplex.On[P := P1, N := N] \as TargetLeft;
+\import HomComplex.On[P := Target.middleComplex, N := N] \as TargetMiddle;
+\import HomComplex.On[P := Q1, N := N] \as TargetRight;
+\import HomComplex.Homotopy[P := P, Q := P1, N := N] \as LeftAction;
+\import HomComplex.Homotopy[P := middleComplex, Q := Target.middleComplex, N := N] \as MiddleAction;
+\import HomComplex.Homotopy[P := Q, Q := Q1, N := N] \as RightAction;
+\definition leftMap: Cochains.Map[C := TargetRight.complex, D := RightHom.complex].Map := RightAction.map #right{lift};
+\definition middleMap: Cochains.Map[C := TargetMiddle.complex, D := MiddleHom.complex].Map := MiddleAction.map #middle{lift};
+\definition rightMap: Cochains.Map[C := TargetLeft.complex, D := LeftHom.complex].Map := LeftAction.map #left{lift};
+\import Cochains.ShortExact[A := TargetRight.complex, B := TargetMiddle.complex, C := TargetLeft.complex].Morphism[
+  A1 := RightHom.complex, B1 := MiddleHom.complex, C1 := LeftHom.complex].Diagram[
+    s := Target.cochainSequence, t := cochainSequence, a := leftMap, b := middleMap, c := rightMap] \as Diagram;
+\definition commutative: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (n: Nat.Nat^)(phi: TargetRight.Carrier n) => MiddleHom.At[n := n].ext
+    (#apply{middleMap} n (#apply{Target.cochainSequence.inclusion} n phi))
+    (#apply{cochainSequence.inclusion} n (#apply{leftMap} n phi))
+    (\fun (x: middleComplex.family.Carrier n) => congr!{{Q1.family.Carrier n} N.Carrier} (#apply{phi})
+      (#apply{Target.resolvedSequence.chainSequence.projection} n (#apply{#middle{lift}} n x))
+      (#apply{#right{lift}} n (#apply{resolvedSequence.chainSequence.projection} n x)) (#right{#diagram{lift}} n x)),
+  right := \fun (n: Nat.Nat^)(phi: TargetMiddle.Carrier n) => LeftHom.At[n := n].ext
+    (#apply{cochainSequence.projection} n (#apply{middleMap} n phi))
+    (#apply{rightMap} n (#apply{Target.cochainSequence.projection} n phi))
+    (\fun (x: P.family.Carrier n) => congr!{{Target.middleComplex.family.Carrier n} N.Carrier} (#apply{phi})
+      (#apply{#middle{lift}} n (#apply{resolvedSequence.chainSequence.inclusion} n x))
+      (#apply{Target.resolvedSequence.chainSequence.inclusion} n (#apply{#left{lift}} n x)) (#left{#diagram{lift}} n x)),
+};
+\module At(n: Nat.Nat^) {
+  \import \root.Ext[].Over[R := R, ring := ring] \as Ext;
+  \import Ext.Of[M := A1, N := N, P := P1].At[n := n] \as Domain;
+  \import Ext.Of[M := A, N := N, P := P].At[n := n] \as SourceA;
+  \import Ext.Of[M := C1, N := N, P := Q1].At[n := Nat.Nat^::succ n] \as TargetC;
+  \import Ext.Of[M := C, N := N, P := Q].At[n := Nat.Nat^::succ n] \as SourceC;
+  \import Ext.First[M := A, L := A1, N := N, P := P, Q := P1].At[k := n].With[p := p, q := p1, f := #left{f}] \as LeftFunctor;
+  \import Ext.First[M := C, L := C1, N := N, P := Q, Q := Q1].At[k := Nat.Nat^::succ n].With[p := q, q := q1, f := #right{f}] \as RightFunctor;
+  \import \root.Ext[].Over[R := R, ring := ring].ShortExactFirst[A := A, B := B, C := C, N := N, P := P, Q := Q].With[
+    sequence := sequence, p := p, q := q].On[construction := construction].At[n := n] \as Source;
+  \import Target.At[n := n] \as TargetConnecting;
+  \import Cochains.Map[C := TargetLeft.complex, D := LeftHom.complex].At[k := n] \as LeftInduced;
+  \import Cochains.Map[C := TargetRight.complex, D := RightHom.complex].At[k := Nat.Nat^::succ n] \as RightInduced;
+  \definition leftCanonical: LeftFunctor.map = LeftInduced.induced rightMap := LeftFunctor.onComparison #left{lift} #leftAugmented{lift};
+  \definition rightCanonical: RightFunctor.map = RightInduced.induced leftMap := RightFunctor.onComparison #right{lift} #rightAugmented{lift};
+  \definition naturality: \forall (x: Domain.Carrier) ->
+    #apply{Source.connecting} (#apply{LeftFunctor.map} x) = #apply{RightFunctor.map} (#apply{TargetConnecting.connecting} x) :=
+    \fun (x: Domain.Carrier) => trans!{SourceC.Carrier} _ _ _
+      (congr!{SourceA.Carrier SourceC.Carrier} (#apply{Source.connecting}) _ _
+        (congr!{{Modules.MapBetween Domain.bundle SourceA.bundle} SourceA.Carrier}
+          (\fun (g: Modules.MapBetween Domain.bundle SourceA.bundle) => #apply{g} x) _ _ leftCanonical))
+      (trans!{SourceC.Carrier} _ _ _ (Diagram.At[n := n].naturality commutative x)
+        (congr!{{Modules.MapBetween TargetC.bundle SourceC.bundle} SourceC.Carrier}
+          (\fun (g: Modules.MapBetween TargetC.bundle SourceC.bundle) => #apply{g} (#apply{TargetConnecting.connecting} x)) _ _
+          (sym!{{Modules.MapBetween TargetC.bundle SourceC.bundle}} _ _ rightCanonical)));
+}

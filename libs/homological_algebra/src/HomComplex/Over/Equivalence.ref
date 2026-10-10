@@ -1,0 +1,42 @@
+\import \parent.On[P := P, N := N] \as Source;
+\import \parent.On[P := Q, N := N] \as Target;
+\import Chains.Equivalence[C := P, D := Q] \as Equivalences;
+\import \parent.Homotopy[P := Q, Q := P, N := N] \as Forward;
+\import \parent.Homotopy[P := P, Q := Q, N := N] \as Backward;
+\import Cochains.Map[C := Source.complex, D := Target.complex] \as ForwardMaps;
+\import Cochains.Map[C := Target.complex, D := Source.complex] \as BackwardMaps;
+\import \parent.Composition[P := P, Q := Q, T := P, N := N] \as Left;
+\import \parent.Composition[P := Q, Q := P, T := Q, N := N] \as Right;
+\import \parent.Homotopy[P := P, Q := P, N := N] \as LeftHomotopy;
+\import \parent.Homotopy[P := Q, Q := Q, N := N] \as RightHomotopy;
+\import \parent.End[P := P, N := N] \as SourceEnd;
+\import \parent.End[P := Q, N := N] \as TargetEnd;
+\import Chains.Map[C := P, D := Q].Composition[B := Q] \as RightChains;
+\import Chains.Map[C := Q, D := P].Composition[B := P] \as LeftChains;
+\import Chains.End[C := P] \as SourceIdentity;
+\import Chains.End[C := Q] \as TargetIdentity;
+\module At(k: Nat.Nat^) {
+  \import Cochains.At[C := Source.complex, k := k] \as SourceH;
+  \import Cochains.At[C := Target.complex, k := k] \as TargetH;
+  \import ForwardMaps.At[k := k] \as ForwardH;
+  \import BackwardMaps.At[k := k] \as BackwardH;
+  \definition left: \forall (e: Equivalences.Equivalence)(q: SourceH.Cohomology) ->
+    #apply{(BackwardH.induced (Backward.map e.forward))} (#apply{(ForwardH.induced (Forward.map e.backward))} q) = q :=
+    \fun (e: Equivalences.Equivalence)(q: SourceH.Cohomology) => trans!{SourceH.Cohomology} _ _ _
+      (sym!{SourceH.Cohomology} _ _ (Left.At[k := k].onCohomology e.forward e.backward q))
+      (trans!{SourceH.Cohomology} _ _ _
+        (LeftHomotopy.onCohomology (LeftChains.compose e.backward e.forward) SourceIdentity.identity (Equivalences.leftHomotopy e) k q)
+        (SourceEnd.At[k := k].onCohomology q));
+  \definition right: \forall (e: Equivalences.Equivalence)(q: TargetH.Cohomology) ->
+    #apply{(ForwardH.induced (Forward.map e.backward))} (#apply{(BackwardH.induced (Backward.map e.forward))} q) = q :=
+    \fun (e: Equivalences.Equivalence)(q: TargetH.Cohomology) => trans!{TargetH.Cohomology} _ _ _
+      (sym!{TargetH.Cohomology} _ _ (Right.At[k := k].onCohomology e.backward e.forward q))
+      (trans!{TargetH.Cohomology} _ _ _
+        (RightHomotopy.onCohomology (RightChains.compose e.forward e.backward) TargetIdentity.identity (Equivalences.rightHomotopy e) k q)
+        (TargetEnd.At[k := k].onCohomology q));
+  \import Modules.Isomorphism[V := SourceH.Cohomology, W := TargetH.Cohomology, source := SourceH.cohomologySpace, target := TargetH.cohomologySpace] \as Iso;
+  \definition isomorphism(e: Equivalences.Equivalence): Iso.Isomorphism := Iso.Isomorphism {
+    forward := ForwardH.induced (Forward.map e.backward), backward := BackwardH.induced (Backward.map e.forward),
+    leftInverse := left e, rightInverse := right e,
+  };
+}

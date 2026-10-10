@@ -1,0 +1,39 @@
+\import \parent.\parent.\parent.End[V := B.Carrier, space := B.space] \as End;
+\import \parent.\parent.\parent.Hom[V := B.Carrier, W := B.Carrier, source := B.space, target := B.space] \as EndMaps;
+\import \parent.\parent.\parent.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := B.Carrier, domain := B.space] \as Inclusion;
+\definition Retracts: \Prop := \forall (a: A.Carrier) -> #apply{r} (#apply{sequence.inclusion} a) = a;
+\definition remainderMap: EndMaps.Map := EndMaps.plus End.identity (EndMaps.negative (Inclusion.compose sequence.inclusion r));
+\import \parent.\parent.\parent.SurjectiveDescent[A := B, B := C, U := B].On[q := sequence.projection, f := remainderMap] \as Descent;
+\definition onInclusion: Retracts -> \forall (a: A.Carrier) -> #apply{remainderMap} (#apply{sequence.inclusion} a) = #zero{B.space} :=
+  \fun (retracts: Retracts)(a: A.Carrier) => trans!{B.Carrier} _ _ _
+    (congr!{A.Carrier B.Carrier} (\fun (v: A.Carrier) => MiddleGroup.difference (#apply{sequence.inclusion} a) (#apply{sequence.inclusion} v)) _ _ (retracts a))
+    (MiddleGroup.inverseRight (#apply{sequence.inclusion} a));
+\definition kills: Retracts -> Descent.KillsKernel := \block {
+  \fun (retracts: Retracts)(b: B.Carrier)(closed: #apply{sequence.projection} b = #zero{C.space}) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{sequence.inclusion} a = b }) \by #kernelImage{sequence} b closed \then
+  \return trans!{B.Carrier} _ _ _
+    (congr!{B.Carrier B.Carrier} (#apply{remainderMap}) b (#apply{sequence.inclusion} a)
+      (sym!{B.Carrier} _ _ (\bysub(A.Carrier, { a: A.Carrier \where #apply{sequence.inclusion} a = b }, a))))
+    (onInclusion retracts a)
+};
+\definition section(retracts: Retracts): Sections.Map := Descent.map (#onto{sequence}) (kills retracts);
+\definition onImage: \forall (retracts: Retracts)(b: B.Carrier) -> #apply{(section retracts)} (#apply{sequence.projection} b) = #apply{remainderMap} b :=
+  \fun (retracts: Retracts) => Descent.onImage (#onto{sequence}) (kills retracts);
+\definition projectionRemainder: \forall (b: B.Carrier) -> #apply{sequence.projection} (#apply{remainderMap} b) = #apply{sequence.projection} b :=
+  \fun (b: B.Carrier) => trans!{C.Carrier} _ _ _
+    (Projection.differencePreserved sequence.projection b (#apply{sequence.inclusion} (#apply{r} b)))
+    (trans!{C.Carrier} _ _ _
+      (congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => RightGroup.difference (#apply{sequence.projection} b) c) _ _ (#zero{sequence} (#apply{r} b)))
+      (trans!{C.Carrier} _ _ _ (congr!{C.Carrier C.Carrier} (Right.add (#apply{sequence.projection} b)) _ _ RightGroup.negZero)
+        (RightGroup.zeroRight (#apply{sequence.projection} b))));
+\definition rightInverse: \forall (retracts: Retracts)(c: C.Carrier) -> #apply{sequence.projection} (#apply{(section retracts)} c) = c := \block {
+  \fun (retracts: Retracts)(c: C.Carrier) \then
+  \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{sequence.projection} b = c }) \by #onto{sequence} c \then
+  \let equal: #apply{sequence.projection} b = c := \bysub(B.Carrier, { b: B.Carrier \where #apply{sequence.projection} b = c }, b) \then
+  \return trans!{C.Carrier} _ _ _
+    (congr!{C.Carrier C.Carrier} (\fun (v: C.Carrier) => #apply{sequence.projection} (#apply{(section retracts)} v)) c (#apply{sequence.projection} b) (sym!{C.Carrier} _ _ equal))
+    (trans!{C.Carrier} _ _ _ (congr!{B.Carrier C.Carrier} (#apply{sequence.projection}) _ _ (onImage retracts b))
+      (trans!{C.Carrier} _ _ _ (projectionRemainder b) equal))
+};
+\definition isomorphism(retracts: Retracts): \parent.\parent.\parent.Isomorphism[V := Sum.Carrier, W := B.Carrier, source := Sum.space, target := B.space].Isomorphism :=
+  \parent.With[s := section retracts].isomorphism (rightInverse retracts);

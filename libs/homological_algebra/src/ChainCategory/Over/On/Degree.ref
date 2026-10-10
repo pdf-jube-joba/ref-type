@@ -1,0 +1,32 @@
+\module At(x: Index) {
+  \import Chains.At[C := complexes x, z := k] \as H;
+  \definition Carrier: \Set := H.Homology;
+  \definition space: Modules.Space Carrier := H.homologySpace;
+}
+\definition Carrier(x: Index): \Set := At[x := x].Carrier;
+\definition space(x: Index): Modules.Space (Carrier x) := At[x := x].space;
+\definition family: Modules.Family[Index] := Modules.Family[Index] { Carrier := Carrier, space := space };
+\import \root.ModuleCategory[].Over[R := R, ring := ring].On[Index := Index, family := family] \as Target;
+\module Mapping(x, y: Index) {
+  \import Chains.Map[C := complexes x, D := complexes y].At[k := k] \as H;
+  \definition map(f: Hom x y): Target.Hom x y := H.induced f;
+}
+\module Identity(x: Index) {
+  \import Chains.End[C := complexes x].At[k := k] \as H;
+  \definition law: \parent.Mapping[x := x, y := x].map (identity x) = Target.identity x :=
+    Target.At[x := x, y := x].ext (\parent.Mapping[x := x, y := x].map (identity x)) (Target.identity x) H.identityOnHomology;
+}
+\module Composition(x, y, z: Index) {
+  \import Chains.Map[C := complexes y, D := complexes z].Composition[B := complexes x].At[k := k] \as H;
+  \definition law: \forall (g: Hom y z)(f: Hom x y) -> \parent.Mapping[x := x, y := z].map (compose x y z g f) =
+    Target.compose x y z (\parent.Mapping[x := y, y := z].map g) (\parent.Mapping[x := x, y := y].map f) :=
+    \fun (g: Hom y z)(f: Hom x y) => Target.At[x := x, y := z].ext
+      (\parent.Mapping[x := x, y := z].map (compose x y z g f)) (Target.compose x y z (\parent.Mapping[x := y, y := z].map g) (\parent.Mapping[x := x, y := y].map f))
+      (H.compositionOnHomology g f);
+}
+\definition functor: Functors.FunctorData[Index, Index, Hom, Target.Hom, data, Target.data] := Functors.FunctorData[Index, Index, Hom, Target.Hom, data, Target.data] {
+  object := \fun (x: Index) => x,
+  map := \fun (x, y: Index)(f: Hom x y) => Mapping[x := x, y := y].map f,
+  mapIdentity := \fun (x: Index) => Identity[x := x].law,
+  mapCompose := \fun (x, y, z: Index)(g: Hom y z)(f: Hom x y) => Composition[x := x, y := y, z := z].law g f,
+};

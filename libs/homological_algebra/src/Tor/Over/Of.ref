@@ -1,0 +1,44 @@
+\import \root.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Of[M := M, P := P] \as Resolutions;
+\definition Resolution: \Set := Resolutions.Resolution;
+\import \root.TensorComplex[].Over[R := R, ring := ring] \as TensorBase;
+\import TensorBase.On[P := P, N := N] \as Tensor;
+\import \root.NonnegativeChain[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Nonnegative;
+\module TensorTerm(n: Nat.Nat^);
+\definition tensorCarrier(n: Nat.Nat^): \Set := TensorTerm[n := n].Carrier;
+\definition tensorSpace(n: Nat.Nat^): Modules.Space (tensorCarrier n) := TensorTerm[n := n].space;
+\definition tensorFamily: Nonnegative.Family := Nonnegative.Family {
+  Carrier := tensorCarrier,
+  space := tensorSpace,
+};
+\definition tensorDifferential: Nonnegative.DifferentialData[tensorFamily] := Nonnegative.DifferentialData[tensorFamily] {
+  apply := \fun (n: Nat.Nat^)(x: tensorCarrier (Nat.Nat^::succ n)) => #apply{(TensorTerm[n := n].differential)} x,
+};
+\definition tensorComplex: Nonnegative.Complex := Nonnegative.Complex {
+  family := tensorFamily, differential := tensorDifferential,
+  laws := Nonnegative.DifferentialLaws[tensorFamily, tensorDifferential] {
+    addition := \fun (n: Nat.Nat^)(x, y: tensorCarrier (Nat.Nat^::succ n)) => #addition{(TensorTerm[n := n].differential)} x y,
+    scalar := \fun (n: Nat.Nat^)(a: R)(x: tensorCarrier (Nat.Nat^::succ n)) => #scalar{(TensorTerm[n := n].differential)} a x,
+    squareZero := \fun (n: Nat.Nat^)(x: tensorCarrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => TensorTerm[n := n].squareZero x,
+  },
+};
+\import Nonnegative.DegreeZero[C := tensorComplex] \as Zero;
+\module Positive(n: Nat.Nat^) {
+  \import Nonnegative.Positive[C := tensorComplex, n := n] \as H;
+  \definition Carrier: \Set := H.Homology;
+  \definition space: Modules.Space Carrier := H.homologySpace;
+  \definition Cycle: \Set := H.Cycle;
+  \definition cycleSpace: Modules.Space Cycle := H.cycleSpace;
+  \definition boundariesInside: Modules.Of[V := Cycle, space := cycleSpace].Submodule[].Submodule := H.boundariesInside;
+  \definition classOf: Cycle -> Carrier := H.classOf;
+  \definition classInduction(P: Carrier -> \Prop): (\forall (x: Cycle) -> P (classOf x)) -> \forall (q: Carrier) -> P q := H.classInduction P;
+  \definition classLinear: Modules.Hom[V := Cycle, W := Carrier, source := cycleSpace, target := space].Map := H.classLinear;
+  \definition zeroClass: Carrier := H.zeroClass;
+  \definition vanishing: (\forall (x: tensorCarrier (Nat.Nat^::succ n)) -> x = #zero{(tensorSpace (Nat.Nat^::succ n))}) -> \forall (q: Carrier) -> q = zeroClass := H.Vanishing[].zero;
+}
+\import Nonnegative.Homology[C := tensorComplex] \as UniformHomology;
+\module At(n: Nat.Nat^) {
+  \definition Carrier: \Set := UniformHomology.At[n := n].Carrier;
+  \definition space: Modules.Space Carrier := UniformHomology.At[n := n].space;
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+}
+\definition Tor(n: Nat.Nat^): \Set := At[n := n].Carrier;

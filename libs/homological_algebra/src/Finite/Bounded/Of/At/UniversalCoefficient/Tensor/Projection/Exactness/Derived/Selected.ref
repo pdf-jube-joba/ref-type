@@ -1,0 +1,46 @@
+\definition Section: \Prop := \forall (b: Boundary.Carrier) -> #apply{Boundary.map} (#apply{s} b) = b;
+\import BoundaryTensor.Mapping[U := Carrier C z, Z := A.Carrier, targetLeft := space C z, targetRight := A.space] \as TensorSection;
+\definition tensorSection: Modules.Hom[V := BoundaryTensor.Carrier, W := CurrentTensor.Carrier, source := BoundaryTensor.space, target := CurrentTensor.space].Map := TensorSection.map s Coefficient.identity;
+\import Modules.Hom[V := CurrentTensor.Carrier, W := BoundaryTensor.Carrier, source := CurrentTensor.space, target := BoundaryTensor.space].Composition[U := BoundaryTensor.Carrier, domain := BoundaryTensor.space] \as Roundtrip;
+\import Modules.End[V := BoundaryTensor.Carrier, space := BoundaryTensor.space] \as Identity;
+\import BoundaryTensor.Universal[U := BoundaryTensor.Carrier, target := BoundaryTensor.space] \as Universal;
+\definition tensorRoundtrip: Section -> Roundtrip.compose Source.projection tensorSection = Identity.identity :=
+  \fun (section: Section) => Universal.ext (Roundtrip.compose Source.projection tensorSection) Identity.identity
+    (\fun (b: Boundary.Carrier)(a: A.Carrier) => trans!{BoundaryTensor.Carrier} _ _ _
+      (congr!{CurrentTensor.Carrier BoundaryTensor.Carrier} (#apply{Source.projection}) _ _ (TensorSection.onTensor s Coefficient.identity b a))
+      (trans!{BoundaryTensor.Carrier} _ _ _ (QuotientMapping.onTensor Boundary.map Coefficient.identity (#apply{s} b) a)
+        (congr!{Boundary.Carrier BoundaryTensor.Carrier} (\fun (v: Boundary.Carrier) => BoundaryTensor.tensor v a) _ _ (section b))));
+\definition tensorRoundtripPoint: Section -> \forall (b: BoundaryTensor.Carrier) -> #apply{Source.projection} (#apply{tensorSection} b) = b :=
+  \fun (section: Section)(b: BoundaryTensor.Carrier) =>
+    congr!{Modules.Hom[V := BoundaryTensor.Carrier, W := BoundaryTensor.Carrier, source := BoundaryTensor.space, target := BoundaryTensor.space].Map BoundaryTensor.Carrier}
+      (\fun (f: Modules.Hom[V := BoundaryTensor.Carrier, W := BoundaryTensor.Carrier, source := BoundaryTensor.space, target := BoundaryTensor.space].Map) => #apply{f} b) _ _ (tensorRoundtrip section);
+\definition closed: Section -> \forall (b: Tor.Kernel) -> NativeTensor.apply z (#apply{tensorSection} b) = #zero{LowerTensor.space} :=
+  \fun (section: Section)(b: Tor.Kernel) => trans!{LowerTensor.Carrier} _ _ _
+    (sym!{LowerTensor.Carrier} _ _ (differentialFactorPoint (#apply{tensorSection} b)))
+    (trans!{LowerTensor.Carrier} _ _ _
+      (congr!{BoundaryTensor.Carrier LowerTensor.Carrier} (\fun (v: BoundaryTensor.Carrier) => #apply{lowerInclusion} (#apply{Tor.kernelDifferential} v)) _ _ (tensorRoundtripPoint section b))
+      (trans!{LowerTensor.Carrier} _ _ _ (congr!{LowerCycles.Carrier LowerTensor.Carrier} (#apply{lowerInclusion}) _ _ (Tor.kernelClosed b))
+        (LowerMaps.zeroPreserved lowerInclusion)));
+\definition cycle(section: Section)(b: Tor.Kernel): TensorHomology.Cycle := TensorHomology.cycle (#apply{tensorSection} b) (closed section b);
+\import Modules.Hom[V := Tor.Kernel, W := TensorHomology.Cycle, source := Tor.kernelSpace, target := TensorHomology.cycleSpace] \as Cycles;
+\definition cycles(section: Section): Cycles.Map := Cycles.Map {
+  apply := cycle section,
+  addition := \fun (b, c: Tor.Kernel) => #addition{tensorSection} b c,
+  scalar := \fun (a: I.Int^)(b: Tor.Kernel) => #scalar{tensorSection} a b,
+};
+\import Modules.Hom[V := TensorHomology.Cycle, W := TensorHomology.Homology, source := TensorHomology.cycleSpace, target := TensorHomology.homologySpace].Composition[U := Tor.Kernel, domain := Tor.kernelSpace] \as Classes;
+\definition kernelSection(section: Section): Modules.Hom[V := Tor.Kernel, W := TensorHomology.Homology, source := Tor.kernelSpace, target := TensorHomology.homologySpace].Map := Classes.compose TensorHomology.classLinear (cycles section);
+\import Modules.Hom[V := Tor.Kernel, W := TensorHomology.Homology, source := Tor.kernelSpace, target := TensorHomology.homologySpace].Composition[U := Tor.Carrier, domain := Tor.space] \as Composition;
+\definition map(section: Section): Modules.Hom[V := Tor.Carrier, W := TensorHomology.Homology, source := Tor.space, target := TensorHomology.homologySpace].Map := Composition.compose (kernelSection section) #forward{Tor.isomorphism};
+\definition rightInverse: \forall (section: Section)(b: Tor.Carrier) -> #apply{projection} (#apply{(map section)} b) = b :=
+  \fun (section: Section)(b: Tor.Carrier) => trans!{Tor.Carrier} _ _ _
+    (congr!{Tor.Kernel Tor.Carrier} (#apply{#backward{Tor.isomorphism}}) _ _ (KernelProjection.onClass (cycle section (#apply{#forward{Tor.isomorphism}} b))))
+    (trans!{Tor.Carrier} _ _ _
+      (congr!{Tor.Kernel Tor.Carrier} (#apply{#backward{Tor.isomorphism}})
+        (KernelProjection.kernel (cycle section (#apply{#forward{Tor.isomorphism}} b))) (#apply{#forward{Tor.isomorphism}} b)
+        (tensorRoundtripPoint section (#apply{#forward{Tor.isomorphism}} b)))
+      (#leftInverse{Tor.isomorphism} b));
+\import DerivedSequences.Splitting[sequence := sequence] \as Splitting;
+\import Modules.Biproduct[V := HomologyTensor.Carrier, W := Tor.Carrier, left := HomologyTensor.space, right := Tor.space] \as Sum;
+\definition isomorphism(section: Section): Modules.Isomorphism[V := Sum.Carrier, W := TensorHomology.Homology, source := Sum.space, target := TensorHomology.homologySpace].Isomorphism :=
+  Splitting.With[s := map section].isomorphism (rightInverse section);

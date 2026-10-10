@@ -1,0 +1,21 @@
+\import \parent.\parent.\parent.At[C := A, k := N.Nat^::zero] \as HA;
+\import \parent.\parent.\parent.At[C := B, k := N.Nat^::zero] \as HB;
+\import \parent.\parent.\parent.DegreeZero[C := B] \as ZeroB;
+\import Inclusion.At[k := N.Nat^::zero] \as Map;
+\definition cycleEqual: \forall (a, b: HA.CycleCarrier) -> #apply{(Map.induced s.inclusion)} (HA.classOf a) = #apply{(Map.induced s.inclusion)} (HA.classOf b) -> #apply{(Map.cyclesMap s.inclusion)} a = #apply{(Map.cyclesMap s.inclusion)} b :=
+  \fun (a, b: HA.CycleCarrier)(equal: _) => trans!{HB.CycleCarrier} _ _ _
+    (sym!{HB.CycleCarrier} _ _ (#leftInverse{ZeroB.kernelIso} (#apply{(Map.cyclesMap s.inclusion)} a)))
+    (trans!{HB.CycleCarrier} _ _ _
+      (congr!{HB.Cohomology HB.CycleCarrier} (#apply{#backward{ZeroB.kernelIso}}) _ _
+        (trans!{HB.Cohomology} _ _ _ (sym!{HB.Cohomology} _ _ (Map.onClass s.inclusion a))
+          (trans!{HB.Cohomology} _ _ _ equal (Map.onClass s.inclusion b))))
+      (#leftInverse{ZeroB.kernelIso} (#apply{(Map.cyclesMap s.inclusion)} b)));
+\definition onCycles: \forall (a, b: HA.CycleCarrier) -> #apply{(Map.induced s.inclusion)} (HA.classOf a) = #apply{(Map.induced s.inclusion)} (HA.classOf b) -> HA.classOf a = HA.classOf b :=
+  \fun (a, b: HA.CycleCarrier)(equal: _) => congr!{HA.CycleCarrier HA.Cohomology} HA.classOf a b
+    (#injective{s} N.Nat^::zero a b (cycleEqual a b equal));
+\definition injective: \forall (a, b: HA.Cohomology) -> #apply{(Map.induced s.inclusion)} a = #apply{(Map.induced s.inclusion)} b -> a = b :=
+  HA.classInduction
+    (\fun (a: HA.Cohomology) => \forall (b: HA.Cohomology) -> #apply{(Map.induced s.inclusion)} a = #apply{(Map.induced s.inclusion)} b -> a = b)
+    (\fun (a: HA.CycleCarrier) => HA.classInduction
+      (\fun (b: HA.Cohomology) => #apply{(Map.induced s.inclusion)} (HA.classOf a) = #apply{(Map.induced s.inclusion)} b -> HA.classOf a = b)
+      (\fun (b: HA.CycleCarrier) => onCycles a b));

@@ -1,0 +1,45 @@
+\import N.Basic[].Def[] \as Nat;
+\import \parent.Divisibility[] \as Divisibility;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import N.Basic[].Prop[] \as Bounds;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].RowOperations[].Laws[] \as RowLaws;
+\definition Holds(a: Runtime^): \Prop :=
+  \forall (i, j: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt j n -> Bounds.Le lower i -> Bounds.Le lower j -> Signed.Divides divisor (a i j);
+\definition rowSwap: \forall (a: Runtime^)(r, s: N.Nat^) -> Bounds.Lt r m -> Bounds.Lt s m ->
+  Bounds.Le lower r -> Bounds.Le lower s -> Holds a -> Holds (Rows.swap a r s) :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(first: _)(second: _)(firstLower: _)(secondLower: _)(law: Holds a)
+    (i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) =>
+    law (Rows.transposition r s i) j (RowLaws.exchangeBounded m r s i first second rowBound) columnBound
+      (RowLaws.exchangeLower lower r s i firstLower secondLower rowLower) columnLower;
+\definition rowAdd: \forall (a: Runtime^)(r, s: N.Nat^)(c: I.Int^) -> Bounds.Lt s m -> Bounds.Le lower s -> Holds a -> Holds (Rows.add a r s c) :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(sourceBound: _)(sourceLower: _)(law: Holds a)
+    (i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) => B.cases
+      (\fun (test: B.Bool^) => Signed.Divides divisor (B.ite I.Int^ test (Arithmetic.add (a i j) (Arithmetic.mul c (a s j))) (a i j)))
+      (law i j rowBound columnBound rowLower columnLower)
+      (Divisibility.addition divisor (a i j) (Arithmetic.mul c (a s j))
+        (law i j rowBound columnBound rowLower columnLower)
+        (Divisibility.scaling divisor (a s j) c (law s j sourceBound columnBound sourceLower columnLower))) (Nat.eqb i r);
+\definition rowNegate: \forall (a: Runtime^)(r: N.Nat^) -> Holds a -> Holds (Rows.negate a r) :=
+  \fun (a: Runtime^)(r: N.Nat^)(law: Holds a)(i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) => B.cases
+    (\fun (test: B.Bool^) => Signed.Divides divisor (B.ite I.Int^ test (Arithmetic.neg (a i j)) (a i j)))
+    (law i j rowBound columnBound rowLower columnLower)
+    (Divisibility.negation divisor (a i j) (law i j rowBound columnBound rowLower columnLower)) (Nat.eqb i r);
+\definition columnSwap: \forall (a: Runtime^)(r, s: N.Nat^) -> Bounds.Lt r n -> Bounds.Lt s n ->
+  Bounds.Le lower r -> Bounds.Le lower s -> Holds a -> Holds (Columns.swap a r s) :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(first: _)(second: _)(firstLower: _)(secondLower: _)(law: Holds a)
+    (i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) =>
+    law i (Rows.transposition r s j) rowBound (RowLaws.exchangeBounded n r s j first second columnBound)
+      rowLower (RowLaws.exchangeLower lower r s j firstLower secondLower columnLower);
+\definition columnAdd: \forall (a: Runtime^)(r, s: N.Nat^)(c: I.Int^) -> Bounds.Lt s n -> Bounds.Le lower s -> Holds a -> Holds (Columns.add a r s c) :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(sourceBound: _)(sourceLower: _)(law: Holds a)
+    (i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) => B.cases
+      (\fun (test: B.Bool^) => Signed.Divides divisor (B.ite I.Int^ test (Arithmetic.add (a i j) (Arithmetic.mul c (a i s))) (a i j)))
+      (law i j rowBound columnBound rowLower columnLower)
+      (Divisibility.addition divisor (a i j) (Arithmetic.mul c (a i s))
+        (law i j rowBound columnBound rowLower columnLower)
+        (Divisibility.scaling divisor (a i s) c (law i s rowBound sourceBound rowLower sourceLower))) (Nat.eqb j r);
+\definition columnNegate: \forall (a: Runtime^)(r: N.Nat^) -> Holds a -> Holds (Columns.negate a r) :=
+  \fun (a: Runtime^)(r: N.Nat^)(law: Holds a)(i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) => B.cases
+    (\fun (test: B.Bool^) => Signed.Divides divisor (B.ite I.Int^ test (Arithmetic.neg (a i j)) (a i j)))
+    (law i j rowBound columnBound rowLower columnLower)
+    (Divisibility.negation divisor (a i j) (law i j rowBound columnBound rowLower columnLower)) (Nat.eqb j r);

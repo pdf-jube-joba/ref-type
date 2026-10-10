@@ -1,0 +1,33 @@
+\import \root.Resolution[].Over[R := R, ring := ring] \as Resolutions;
+\definition Resolution(M: Modules.Bundle, P: Chains.Complex): \Set := Resolutions.Of[M := M, P := P].Resolution;
+\definition BaseSequence(A, B, C: Modules.Bundle): \Set := Modules.ShortExact[A := A, B := B, C := C].Sequence;
+\definition ChainSequence(P, Q, S: Chains.Complex): \Set := \root.NonnegativeChain[].Over[R := R, ring := ring].ShortExact[A := P, B := Q, C := S].Sequence;
+\structure Sequence {
+  left: Modules.Bundle,
+  middle: Modules.Bundle,
+  right: Modules.Bundle,
+  leftComplex: Chains.Complex,
+  middleComplex: Chains.Complex,
+  rightComplex: Chains.Complex,
+  leftResolution: Resolution left leftComplex,
+  middleResolution: Resolution middle middleComplex,
+  rightResolution: Resolution right rightComplex,
+  sequence: BaseSequence left middle right,
+  chainSequence: ChainSequence leftComplex middleComplex rightComplex,
+  leftAugmented: \forall (x: leftComplex.family.Carrier Nat.Nat^::zero) ->
+    #apply{#augmentation{middleResolution}} (#apply{chainSequence.inclusion} Nat.Nat^::zero x) = #apply{sequence.inclusion} (#apply{#augmentation{leftResolution}} x),
+  rightAugmented: \forall (x: middleComplex.family.Carrier Nat.Nat^::zero) ->
+    #apply{#augmentation{rightResolution}} (#apply{chainSequence.projection} Nat.Nat^::zero x) = #apply{sequence.projection} (#apply{#augmentation{middleResolution}} x),
+}
+\definition make(A, B, C: Modules.Bundle)(P, M, Q: Chains.Complex)
+  (p: Resolution A P)(m: Resolution B M)(q: Resolution C Q)
+  (s: BaseSequence A B C)(t: ChainSequence P M Q)
+  (leftAugmented: \forall (x: P.family.Carrier Nat.Nat^::zero) ->
+    #apply{#augmentation{m}} (#apply{t.inclusion} Nat.Nat^::zero x) = #apply{s.inclusion} (#apply{#augmentation{p}} x))
+  (rightAugmented: \forall (x: M.family.Carrier Nat.Nat^::zero) ->
+    #apply{#augmentation{q}} (#apply{t.projection} Nat.Nat^::zero x) = #apply{s.projection} (#apply{#augmentation{m}} x)): Sequence := Sequence {
+    left := A, middle := B, right := C, leftComplex := P, middleComplex := M, rightComplex := Q,
+    leftResolution := p, middleResolution := m, rightResolution := q, sequence := s, chainSequence := t,
+    leftAugmented := leftAugmented, rightAugmented := rightAugmented,
+  };
+\module Morphism(source, target: Sequence);

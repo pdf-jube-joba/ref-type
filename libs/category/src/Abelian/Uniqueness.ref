@@ -1,0 +1,61 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import Cat.Isomorphism[C := A.preadditive.category] \as Iso;
+\definition localZero(u, v: A.preadditive.category.Object): A.preadditive.category.Hom u v := #unit{(#base{(A.preadditive.addition u v)})};
+\definition Kernels: \Set := \Cast[KernelData[A.preadditive.category.Object, A.preadditive.category.Hom, A.preadditive.category.structure, localZero, x, y, f]] ({ data: KernelData[A.preadditive.category.Object, A.preadditive.category.Hom, A.preadditive.category.structure, localZero, x, y, f] \where KernelLaws[A.preadditive.category.Object, A.preadditive.category.Hom, A.preadditive.category.structure, localZero, x, y, f, data] });
+\definition Cokernels: \Set := \Cast[CokernelData[A.preadditive.category.Object, A.preadditive.category.Hom, A.preadditive.category.structure, localZero, x, y, f]] ({ data: CokernelData[A.preadditive.category.Object, A.preadditive.category.Hom, A.preadditive.category.structure, localZero, x, y, f] \where CokernelLaws[A.preadditive.category.Object, A.preadditive.category.Hom, A.preadditive.category.structure, localZero, x, y, f, data] });
+\definition kernelElement(K: Kernels): \Cast[A.preadditive.category.Hom K.object x] ({ g: A.preadditive.category.Hom K.object x \where
+  A.preadditive.category.structure.compose K.object x y f g = localZero K.object y }) :=
+  \into[A.preadditive.category.Hom K.object x](K.inclusion, { g: A.preadditive.category.Hom K.object x \where
+    A.preadditive.category.structure.compose K.object x y f g = localZero K.object y }) \by { #zero{K} };
+\definition kernelComparison(K, L: Kernels): A.preadditive.category.Hom K.object L.object := L.lift K.object (kernelElement K);
+\definition kernelFactorization: \forall (K, L: Kernels) ->
+  A.preadditive.category.structure.compose K.object L.object x L.inclusion (kernelComparison K L) = K.inclusion :=
+  \fun (K, L: Kernels) => #factorization{L} K.object (kernelElement K);
+\definition kernelInverse: \forall (K, L: Kernels) ->
+  A.preadditive.category.structure.compose K.object L.object K.object (kernelComparison L K) (kernelComparison K L) = A.preadditive.category.structure.identity K.object :=
+  \fun (K, L: Kernels) => trans!{{A.preadditive.category.Hom K.object K.object}} _ _ _
+    (#unique{K} K.object (kernelElement K)
+      (A.preadditive.category.structure.compose K.object L.object K.object (kernelComparison L K) (kernelComparison K L))
+      (trans!{{A.preadditive.category.Hom K.object x}} _ _ _
+        (A.preadditive.category.laws.associative K.object L.object K.object x K.inclusion (kernelComparison L K) (kernelComparison K L))
+        (trans!{{A.preadditive.category.Hom K.object x}} _ _ _
+          (congr!{{A.preadditive.category.Hom L.object x} {A.preadditive.category.Hom K.object x}}
+            (\fun (g: A.preadditive.category.Hom L.object x) => A.preadditive.category.structure.compose K.object L.object x g (kernelComparison K L)) _ _ (kernelFactorization L K))
+          (kernelFactorization K L))))
+    (sym!{{A.preadditive.category.Hom K.object K.object}} _ _ (#unique{K} K.object (kernelElement K)
+      (A.preadditive.category.structure.identity K.object) (A.preadditive.category.laws.rightIdentity K.object x K.inclusion)));
+\definition kernelIsomorphism: \forall (K, L: Kernels) -> Iso.Isomorphism[K.object, L.object] :=
+  \fun (K, L: Kernels) => Iso.Isomorphism[K.object, L.object] {
+    forward := kernelComparison K L, backward := kernelComparison L K,
+    leftInverse := kernelInverse K L, rightInverse := kernelInverse L K,
+  };
+\definition cokernelElement(K: Cokernels): \Cast[A.preadditive.category.Hom y K.object] ({ g: A.preadditive.category.Hom y K.object \where
+  A.preadditive.category.structure.compose x y K.object g f = localZero x K.object }) :=
+  \into[A.preadditive.category.Hom y K.object](K.projection, { g: A.preadditive.category.Hom y K.object \where
+    A.preadditive.category.structure.compose x y K.object g f = localZero x K.object }) \by { #zero{K} };
+\definition cokernelComparison(K, L: Cokernels): A.preadditive.category.Hom K.object L.object := K.descend L.object (cokernelElement L);
+\definition cokernelFactorization: \forall (K, L: Cokernels) ->
+  A.preadditive.category.structure.compose y K.object L.object (cokernelComparison K L) K.projection = L.projection :=
+  \fun (K, L: Cokernels) => #factorization{K} L.object (cokernelElement L);
+\definition cokernelInverse: \forall (K, L: Cokernels) ->
+  A.preadditive.category.structure.compose K.object L.object K.object (cokernelComparison L K) (cokernelComparison K L) = A.preadditive.category.structure.identity K.object :=
+  \fun (K, L: Cokernels) => trans!{{A.preadditive.category.Hom K.object K.object}} _ _ _
+    (#unique{K} K.object (cokernelElement K)
+      (A.preadditive.category.structure.compose K.object L.object K.object (cokernelComparison L K) (cokernelComparison K L))
+      (trans!{{A.preadditive.category.Hom y K.object}} _ _ _
+        (sym!{{A.preadditive.category.Hom y K.object}} _ _
+          (A.preadditive.category.laws.associative y K.object L.object K.object (cokernelComparison L K) (cokernelComparison K L) K.projection))
+        (trans!{{A.preadditive.category.Hom y K.object}} _ _ _
+          (congr!{{A.preadditive.category.Hom y L.object} {A.preadditive.category.Hom y K.object}}
+            (A.preadditive.category.structure.compose y L.object K.object (cokernelComparison L K)) _ _ (cokernelFactorization K L))
+          (cokernelFactorization L K))))
+    (sym!{{A.preadditive.category.Hom K.object K.object}} _ _ (#unique{K} K.object (cokernelElement K)
+      (A.preadditive.category.structure.identity K.object) (A.preadditive.category.laws.leftIdentity y K.object K.projection)));
+\definition cokernelIsomorphism: \forall (K, L: Cokernels) -> Iso.Isomorphism[K.object, L.object] :=
+  \fun (K, L: Cokernels) => Iso.Isomorphism[K.object, L.object] {
+    forward := cokernelComparison K L, backward := cokernelComparison L K,
+    leftInverse := cokernelInverse K L, rightInverse := cokernelInverse L K,
+  };

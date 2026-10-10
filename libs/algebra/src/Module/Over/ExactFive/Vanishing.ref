@@ -1,0 +1,30 @@
+\definition Trivial: \Prop := \forall (x: C.Carrier) -> x = #zero{C.space};
+\import \parent.\parent.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as Second;
+\import \parent.\parent.Hom[V := C.Carrier, W := D.Carrier, source := C.space, target := D.space] \as Third;
+\import \parent.\parent.Hom[V := D.Carrier, W := E.Carrier, source := D.space, target := E.space] \as Last;
+\definition firstOnto: Trivial -> Surjective A B sequence.first := \block {
+  \fun (trivial: Trivial)(x: B.Carrier) \then
+  \return #kernelB{sequence} x (trivial (#apply{sequence.second} x))
+};
+\definition lastKernel: Trivial -> \forall (x: D.Carrier) -> #apply{sequence.last} x = #zero{E.space} -> x = #zero{D.space} := \block {
+  \fun (trivial: Trivial)(x: D.Carrier)(killed: #apply{sequence.last} x = #zero{E.space}) \then
+  \takefrom y: \Cast[C.Carrier] ({ y: C.Carrier \where #apply{sequence.third} y = x }) \by #kernelD{sequence} x killed \then
+  \return trans!{D.Carrier} x (#apply{sequence.third} y) #zero{D.space}
+    (sym!{D.Carrier} _ _ (\bysub(C.Carrier, { y: C.Carrier \where #apply{sequence.third} y = x }, y)))
+    (trans!{D.Carrier} _ _ _ (congr!{C.Carrier D.Carrier} (#apply{sequence.third}) _ _ (trivial y)) (Third.zeroPreserved sequence.third))
+};
+\definition lastInjective: Trivial -> Injective D E sequence.last :=
+  \fun (trivial: Trivial) => Last.injectiveOfZeroKernel sequence.last (lastKernel trivial);
+\definition vanishes: Surjective A B sequence.first -> Injective D E sequence.last -> Trivial := \block {
+  \fun (onto: Surjective A B sequence.first)(injective: Injective D E sequence.last)(x: C.Carrier) \then
+  \let killed: #apply{sequence.third} x = #zero{D.space} := injective _ _
+    (trans!{E.Carrier} _ _ _ (#zeroD{sequence} x) (sym!{E.Carrier} _ _ (Last.zeroPreserved sequence.last))) \then
+  \takefrom y: \Cast[B.Carrier] ({ y: B.Carrier \where #apply{sequence.second} y = x }) \by #kernelC{sequence} x killed \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{sequence.first} a = y }) \by onto y \then
+  \return trans!{C.Carrier} x (#apply{sequence.second} y) #zero{C.space}
+    (sym!{C.Carrier} _ _ (\bysub(B.Carrier, { y: B.Carrier \where #apply{sequence.second} y = x }, y)))
+    (trans!{C.Carrier} _ _ _
+      (congr!{B.Carrier C.Carrier} (#apply{sequence.second}) y (#apply{sequence.first} a)
+        (sym!{B.Carrier} _ _ (\bysub(A.Carrier, { a: A.Carrier \where #apply{sequence.first} a = y }, a))))
+      (#zeroB{sequence} a))
+};

@@ -1,0 +1,52 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import B.Prop[] \as BoolLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import Signed.Division[] \as Division;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Search[] \as Search;
+\import N.Find[].Grid[] \as Grid;
+\definition remainders(k: N.Nat^)(a: Runtime^): Runtime^ := \fun (i, j: N.Nat^) => Division.remainder (a i j) (a k k);
+\definition probe(k: N.Nat^)(a: Runtime^): Grid.RowPredicate := Search.probe (N.Nat^::succ k) (remainders k a);
+\definition seek(rows, cols, k: N.Nat^)(a: Runtime^): Grid.Position^ := Search.search rows cols (N.Nat^::succ k) (remainders k a);
+\definition bounded: \forall (rows, cols, k: N.Nat^)(a: Runtime^) -> Grid.PositionLaws (probe k a) rows cols (seek rows cols k a) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^) => Search.bounded rows cols (N.Nat^::succ k) (remainders k a);
+\structure Hit[k: N.Nat^, a: Runtime^, i, j: N.Nat^]: \Prop {
+  rowLower: Bounds.Lt k i,
+  columnLower: Bounds.Lt k j,
+  nonzero: Logic.Not (Division.remainder (a i j) (a k k) = Arithmetic.zero),
+}
+\definition hit: \forall (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> probe k a i j = B.Bool^::true -> Hit[k, a, i, j] := \block {
+  \fun (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^)(test: _) \then
+  \let found: Search.Hit[N.Nat^::succ k, remainders k a, i, j] := Search.hit (N.Nat^::succ k) (remainders k a) i j test \then
+  \return Hit[k, a, i, j] {
+    rowLower := Bounds.ltOfSuccLe i k #rowLower{found}, columnLower := Bounds.ltOfSuccLe j k #columnLower{found}, nonzero := #nonzero{found},
+  }
+};
+\definition probeWithin: \forall (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> Bounds.Lt k i -> Bounds.Lt k j ->
+  probe k a i j = B.Neg.specification (I.IsZero.specification (Division.remainder (a i j) (a k k))) :=
+  \fun (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^)(rowLower: _)(colLower: _) =>
+    trans!{B.Bool^} (probe k a i j)
+      (B.And.specification B.Bool^::true (B.And.specification (Nat.leb (N.Nat^::succ k) j) (B.Neg.specification (I.IsZero.specification (Division.remainder (a i j) (a k k))))))
+      (B.Neg.specification (I.IsZero.specification (Division.remainder (a i j) (a k k))))
+      (congr!{B.Bool^ B.Bool^} (\fun (test: B.Bool^) => B.And.specification test (B.And.specification (Nat.leb (N.Nat^::succ k) j) (B.Neg.specification (I.IsZero.specification (Division.remainder (a i j) (a k k))))))
+        (Nat.leb (N.Nat^::succ k) i) B.Bool^::true (Bounds.succLeOfLt i k rowLower))
+      (congr!{B.Bool^ B.Bool^} (\fun (test: B.Bool^) => B.And.specification test (B.Neg.specification (I.IsZero.specification (Division.remainder (a i j) (a k k)))))
+        (Nat.leb (N.Nat^::succ k) j) B.Bool^::true (Bounds.succLeOfLt j k colLower));
+\definition noneDivides: \forall (rows, cols, k: N.Nat^)(a: Runtime^) -> Grid.PositionLaws (probe k a) rows cols Grid.Position^::empty ->
+  \forall (i, j: N.Nat^) -> Bounds.Lt i rows -> Bounds.Lt j cols -> Bounds.Lt k i -> Bounds.Lt k j -> Signed.Divides (a k k) (a i j) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(empty: _)(i, j: N.Nat^)(rowBound: _)(colBound: _)(rowLower: _)(colLower: _) =>
+    Division.dividesOfZero (a i j) (a k k) (Search.zeroOfTrue (Division.remainder (a i j) (a k k))
+      (BoolLaws.negFalse (I.IsZero.specification (Division.remainder (a i j) (a k k)))
+        (trans!{B.Bool^} (B.Neg.specification (I.IsZero.specification (Division.remainder (a i j) (a k k)))) (probe k a i j) B.Bool^::false
+          (sym!{B.Bool^} (probe k a i j) (B.Neg.specification (I.IsZero.specification (Division.remainder (a i j) (a k k)))) (probeWithin k a i j rowLower colLower))
+          (empty i j rowBound colBound))));
+\module RemainderImplementation;
+\correspondence Remainders: Programs.Correspondence := Programs.Correspondence {
+  T := RemainderImplementation[].T, program := RemainderImplementation[].program, specification := remainders, coherence := RemainderImplementation[].coherence,
+};
+\definition searchProgram: Search.Search.T := Search.Search.program;
+\module Implementation;
+\correspondence Seek: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := seek, coherence := Implementation[].coherence,
+};

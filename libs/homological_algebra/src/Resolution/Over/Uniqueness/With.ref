@@ -1,0 +1,35 @@
+\module At(n: Nat.Nat^);
+\import Target.Syzygy[n := Nat.Nat^::zero, resolution := q] \as InitialCycles;
+\import Modules.Hom[V := P.family.Carrier Nat.Nat^::zero, W := InitialCycles.Carrier, source := P.family.space Nat.Nat^::zero, target := InitialCycles.space] \as InitialRestricted;
+\import Modules.Hom[V := Q.family.Carrier Nat.Nat^::zero, W := N.Carrier, source := Q.family.space Nat.Nat^::zero, target := N.space] \as Augmentation;
+\import algebra.Group[].Of[Carrier := N.Carrier, group := Modules.Laws[V := N.Carrier, space := N.space].additive] \as CoefficientGroup;
+\definition initialFactor(agree: agreement p q f g): InitialRestricted.Map := InitialRestricted.Map {
+  apply := \fun (x: P.family.Carrier Nat.Nat^::zero) => \into[Q.family.Carrier Nat.Nat^::zero]
+    (#apply{(At[n := Nat.Nat^::zero].delta)} x, #carrier{(Target.kernel q Nat.Nat^::zero)}) \by {
+      trans!{N.Carrier} _ _ _
+        (Augmentation.differencePreserved (#augmentation{q}) (#apply{f} Nat.Nat^::zero x) (#apply{g} Nat.Nat^::zero x))
+        (trans!{N.Carrier} _ _ _
+          (congr!{N.Carrier N.Carrier} (\fun (y: N.Carrier) => CoefficientGroup.difference y (#apply{#augmentation{q}} (#apply{g} Nat.Nat^::zero x))) _ _ (agree x))
+          (CoefficientGroup.inverseRight (#apply{#augmentation{q}} (#apply{g} Nat.Nat^::zero x))))
+    },
+  addition := #addition{(At[n := Nat.Nat^::zero].delta)}, scalar := #scalar{(At[n := Nat.Nat^::zero].delta)},
+};
+\definition Initial(h: At[n := Nat.Nat^::zero].Map): \Prop := \forall (x: P.family.Carrier Nat.Nat^::zero) ->
+  #apply{Q.differential} Nat.Nat^::zero (#apply{h} x) = #apply{(At[n := Nat.Nat^::zero].delta)} x;
+\definition initialExistence: agreement p q f g -> \exists { h: At[n := Nat.Nat^::zero].Map \where Initial h } :=
+  \fun (agree: agreement p q f g) => #projective{p} Nat.Nat^::zero
+    (Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) (Q.family.space (Nat.Nat^::succ Nat.Nat^::zero))
+    InitialCycles.Carrier InitialCycles.space InitialCycles.projection InitialCycles.onto (initialFactor agree);
+\definition Stage(n: Nat.Nat^): \Set := \Cast[At[n := n].Map] ({ h: At[n := n].Map \where At[n := n].Invariant h });
+\structure Index: \Set { degree: Nat.Nat^, stage: Stage degree }
+\definition NextValue(i: Index): \Set := \Cast[At[n := Nat.Nat^::succ i.degree].Map]
+  ({ h: At[n := Nat.Nat^::succ i.degree].Map \where At[n := i.degree].Lift i.stage h });
+\definition nextExists: \forall (i: Index) -> \exists NextValue i := \fun (i: Index) =>
+  At[n := i.degree].existence i.stage (\bysub(At[n := i.degree].Map, { h: At[n := i.degree].Map \where At[n := i.degree].Invariant h }, i.stage));
+\module Selected(initial: \Cast[\parent.At[n := Nat.Nat^::zero].Map] ({ h: \parent.At[n := Nat.Nat^::zero].Map \where Initial h }), selected: \forall (i: Index) -> NextValue i);
+\definition existence: agreement p q f g -> \exists Homotopies.Homotopy f g := \block {
+  \fun (agree: agreement p q f g) \then
+  \takefrom initial: \Cast[At[n := Nat.Nat^::zero].Map] ({ h: At[n := Nat.Nat^::zero].Map \where Initial h }) \by initialExistence agree \then
+  \takefrom selected: \forall (i: Index) -> NextValue i \by \axiom:classicalIndefiniteChoice(Index, NextValue, nextExists) \then
+  \return \exact(Selected[initial := initial, selected := selected].homotopy, Homotopies.Homotopy f g)
+};

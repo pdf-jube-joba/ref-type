@@ -1,0 +1,31 @@
+\import Comparison.Selected[t := correction] \as ComparisonIso;
+\import \root.Ext[].Over[R := R, ring := ring].Extension[M := M, N := N, P := P].With[resolution := resolution].Represent[f := First.relation] \as FirstMiddle;
+\import \root.Ext[].Over[R := R, ring := ring].Extension[M := M, N := N, P := P].With[resolution := resolution].Represent[f := Second.relation] \as SecondMiddle;
+\import Modules.Isomorphism[V := FirstMiddle.Carrier, W := E.Carrier, source := FirstMiddle.space, target := E.space].Inverse[] \as InverseFirst;
+\definition firstInverse: Modules.Isomorphism[V := E.Carrier, W := FirstMiddle.Carrier, source := E.space, target := FirstMiddle.space].Isomorphism :=
+  InverseFirst.inverse FirstRepresentative.isomorphism;
+\import Modules.Isomorphism[V := E.Carrier, W := FirstMiddle.Carrier, source := E.space, target := FirstMiddle.space].Composition[U := SecondMiddle.Carrier, final := SecondMiddle.space] \as ComposeFirst;
+\definition intermediate: Modules.Isomorphism[V := E.Carrier, W := SecondMiddle.Carrier, source := E.space, target := SecondMiddle.space].Isomorphism :=
+  ComposeFirst.compose ComparisonIso.isomorphism firstInverse;
+\import Modules.Isomorphism[V := E.Carrier, W := SecondMiddle.Carrier, source := E.space, target := SecondMiddle.space].Composition[U := F.Carrier, final := F.space] \as ComposeSecond;
+\definition isomorphism: Iso.Isomorphism := ComposeSecond.compose SecondRepresentative.isomorphism intermediate;
+\definition inverseOnLeft: \forall (n: N.Carrier) -> #apply{#backward{FirstRepresentative.isomorphism}} (#apply{s.inclusion} n) = #apply{FirstMiddle.sequence.inclusion} n :=
+  \fun (n: N.Carrier) => trans!{FirstMiddle.Carrier} _ _ _
+    (congr!{E.Carrier FirstMiddle.Carrier} (#apply{#backward{FirstRepresentative.isomorphism}}) _ _ (sym!{E.Carrier} _ _ (FirstRepresentative.onLeft n)))
+    (#leftInverse{FirstRepresentative.isomorphism} (#apply{FirstMiddle.sequence.inclusion} n));
+\definition onLeft: \forall (n: N.Carrier) -> #apply{#forward{isomorphism}} (#apply{s.inclusion} n) = #apply{t.inclusion} n :=
+  \fun (n: N.Carrier) => trans!{F.Carrier} _ _ _
+    (congr!{FirstMiddle.Carrier F.Carrier} (\fun (x: FirstMiddle.Carrier) => #apply{SecondRepresentative.map} (#apply{ComparisonIso.map} x)) _ _ (inverseOnLeft n))
+    (trans!{F.Carrier} _ _ _
+      (congr!{SecondMiddle.Carrier F.Carrier} (#apply{SecondRepresentative.map}) _ _ (ComparisonIso.onLeft n)) (SecondRepresentative.onLeft n));
+\definition inverseOnProjection: \forall (x: E.Carrier) -> #apply{FirstMiddle.sequence.projection} (#apply{#backward{FirstRepresentative.isomorphism}} x) = #apply{s.projection} x :=
+  \fun (x: E.Carrier) => trans!{M.Carrier} _ _ _
+    (sym!{M.Carrier} _ _ (FirstRepresentative.onProjection (#apply{#backward{FirstRepresentative.isomorphism}} x)))
+    (congr!{E.Carrier M.Carrier} (#apply{s.projection}) _ _ (#rightInverse{FirstRepresentative.isomorphism} x));
+\definition onProjection: \forall (x: E.Carrier) -> #apply{t.projection} (#apply{#forward{isomorphism}} x) = #apply{s.projection} x :=
+  \fun (x: E.Carrier) => trans!{M.Carrier} _ _ _
+    (SecondRepresentative.onProjection (#apply{ComparisonIso.map} (#apply{#backward{FirstRepresentative.isomorphism}} x)))
+    (trans!{M.Carrier} _ _ _ (ComparisonIso.onProjection (#apply{#backward{FirstRepresentative.isomorphism}} x)) (inverseOnProjection x));
+\definition equivalence: Equivalence := \into[Iso.Isomorphism](isomorphism, { e: Iso.Isomorphism \where Laws[e] }) \by {
+  Laws[isomorphism] { left := onLeft, right := onProjection }
+};

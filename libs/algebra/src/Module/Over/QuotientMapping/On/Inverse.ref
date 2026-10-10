@@ -1,0 +1,32 @@
+\definition CompatibleBack: \Prop := \forall (x: B.Carrier) -> TargetSub.Member T x -> SourceSub.Member S (#apply{g} x);
+\definition LeftInverse: \Prop := \forall (x: A.Carrier) -> #apply{g} (#apply{f} x) = x;
+\definition RightInverse: \Prop := \forall (x: B.Carrier) -> #apply{f} (#apply{g} x) = x;
+\import \parent.\parent.\parent.Hom[V := A.Carrier, W := Source.Carrier, source := A.space, target := Source.moduleSpace].Composition[U := B.Carrier, domain := B.space] \as BackComposition;
+\import \parent.\parent.\parent.Hom[V := B.Carrier, W := Source.Carrier, source := B.space, target := Source.moduleSpace] \as BackRaw;
+\definition backRaw: BackRaw.Map := BackComposition.compose Source.projection g;
+\import Target.To[W := Source.Carrier, target := Source.moduleSpace] \as BackDescent;
+\definition backVanishes: CompatibleBack -> BackDescent.Vanishes backRaw :=
+  \fun (compatible: CompatibleBack)(x: B.Carrier)(member: TargetSub.Member T x) => Source.classZero (#apply{g} x) (compatible x member);
+\import \parent.\parent.\parent.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.moduleSpace, target := Source.moduleSpace] \as BackMaps;
+\definition backward(compatible: CompatibleBack): BackMaps.Map := BackDescent.descend backRaw (backVanishes compatible);
+\definition backOnClass: \forall (compatible: CompatibleBack)(x: B.Carrier) -> #apply{(backward compatible)} (Target.class x) = Source.class (#apply{g} x) :=
+  \fun (compatible: CompatibleBack) => BackDescent.onClass backRaw (backVanishes compatible);
+\definition left: \forall (compatible: Compatible)(back: CompatibleBack) -> LeftInverse -> \forall (q: Source.Carrier) ->
+  #apply{(backward back)} (#apply{(map compatible)} q) = q :=
+  \fun (compatible: Compatible)(back: CompatibleBack)(inverse: LeftInverse) => Source.induction (\fun (q: Source.Carrier) =>
+    #apply{(backward back)} (#apply{(map compatible)} q) = q)
+    (\fun (x: A.Carrier) => trans!{Source.Carrier} _ _ _ (congr!{Target.Carrier Source.Carrier} (#apply{(backward back)}) _ _ (onClass compatible x))
+      (trans!{Source.Carrier} _ _ _ (backOnClass back (#apply{f} x)) (congr!{A.Carrier Source.Carrier} Source.class _ _ (inverse x))));
+\definition right: \forall (compatible: Compatible)(back: CompatibleBack) -> RightInverse -> \forall (q: Target.Carrier) ->
+  #apply{(map compatible)} (#apply{(backward back)} q) = q :=
+  \fun (compatible: Compatible)(back: CompatibleBack)(inverse: RightInverse) => Target.induction (\fun (q: Target.Carrier) =>
+    #apply{(map compatible)} (#apply{(backward back)} q) = q)
+    (\fun (x: B.Carrier) => trans!{Target.Carrier} _ _ _ (congr!{Source.Carrier Target.Carrier} (#apply{(map compatible)}) _ _ (backOnClass back x))
+      (trans!{Target.Carrier} _ _ _ (onClass compatible (#apply{g} x)) (congr!{B.Carrier Target.Carrier} Target.class _ _ (inverse x))));
+\import \parent.\parent.\parent.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.moduleSpace, target := Target.moduleSpace] \as Iso;
+\definition isomorphism(compatible: Compatible)(back: CompatibleBack)(leftInverse: LeftInverse)(rightInverse: RightInverse): Iso.Isomorphism := Iso.Isomorphism {
+  forward := map compatible, backward := backward back, leftInverse := left compatible back leftInverse, rightInverse := right compatible back rightInverse,
+};
+\definition existence: Compatible -> CompatibleBack -> LeftInverse -> RightInverse -> \exists Iso.Isomorphism :=
+  \fun (compatible: Compatible)(back: CompatibleBack)(leftInverse: LeftInverse)(rightInverse: RightInverse) =>
+    \exact(isomorphism compatible back leftInverse rightInverse, Iso.Isomorphism);

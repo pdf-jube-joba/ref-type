@@ -1,0 +1,40 @@
+\import \parent.\parent.Kernel[x := x, y := y, f := f] \as Actual;
+\definition point: Index := closure.objects.kernel x y f;
+\definition isomorphism: Modules.Isomorphism[V := Actual.Carrier, W := family.Carrier point, source := Actual.space, target := family.space point].Isomorphism := closure.representations.kernel x y f;
+\import Modules.Hom[V := Actual.Carrier, W := family.Carrier x, source := Actual.space, target := family.space x].Composition[U := family.Carrier point, domain := family.space point] \as Inclusion;
+\definition inclusion: Hom point x := Inclusion.compose Actual.inclusion (#backward{isomorphism});
+\definition zeroLaw: compose point x y f inclusion = zero point y :=
+  \parent.\parent.\parent.At[x := point, y := y].ext (compose point x y f inclusion) (zero point y)
+    (\fun (u: family.Carrier point) => \bysub(family.Carrier x, #carrier{Actual.submodule}, #apply{#backward{isomorphism}} u));
+\module Lift(z: Index) {
+  \definition Killed: \Set := \Cast[Hom z x] ({ g: Hom z x \where compose z x y f g = zero z y });
+  \definition killed: \forall (g: Killed)(u: family.Carrier z) -> #apply{f} (#apply{g} u) = #zero{(family.space y)} :=
+    \fun (g: Killed)(u: family.Carrier z) => congr!{{Hom z y} {family.Carrier y}} (\fun (h: Hom z y) => #apply{h} u)
+      (compose z x y f g) (zero z y) (\bysub(Hom z x, { g: Hom z x \where compose z x y f g = zero z y }, g));
+  \import Modules.Hom[V := family.Carrier z, W := Actual.Carrier, source := family.space z, target := Actual.space] \as Refined;
+  \definition refined(g: Killed): Refined.Map := Refined.Map {
+    apply := \fun (u: family.Carrier z) => \into[family.Carrier x](#apply{g} u, #carrier{Actual.submodule}) \by { killed g u },
+    addition := \fun (u, v: family.Carrier z) => #addition{g} u v,
+    scalar := \fun (a: R)(u: family.Carrier z) => #scalar{g} a u,
+  };
+  \import Modules.Hom[V := Actual.Carrier, W := family.Carrier point, source := Actual.space, target := family.space point].Composition[U := family.Carrier z, domain := family.space z] \as Compose;
+  \definition lift(g: Killed): Hom z point := Compose.compose (#forward{isomorphism}) (refined g);
+  \definition factorization: \forall (g: Killed) -> compose z point x inclusion (lift g) = g :=
+    \fun (g: Killed) => \parent.\parent.\parent.\parent.At[x := z, y := x].ext (compose z point x inclusion (lift g)) g
+      (\fun (u: family.Carrier z) => congr!{Actual.Carrier {family.Carrier x}} (#apply{Actual.inclusion}) _ _ (#leftInverse{isomorphism} (#apply{(refined g)} u)));
+  \definition unique: \forall (g: Killed)(h: Hom z point) -> compose z point x inclusion h = g -> h = lift g :=
+    \fun (g: Killed)(h: Hom z point)(equal: compose z point x inclusion h = g) =>
+      \parent.\parent.\parent.\parent.At[x := z, y := point].ext h (lift g) (\fun (u: family.Carrier z) =>
+        trans!{{family.Carrier point}} (#apply{h} u) (#apply{#forward{isomorphism}} (#apply{#backward{isomorphism}} (#apply{h} u))) (#apply{(lift g)} u)
+          (sym!{{family.Carrier point}} _ _ (#rightInverse{isomorphism} (#apply{h} u)))
+          (congr!{Actual.Carrier {family.Carrier point}} (#apply{#forward{isomorphism}}) (#apply{#backward{isomorphism}} (#apply{h} u)) (#apply{(refined g)} u)
+            (congr!{{Hom z x} {family.Carrier x}} (\fun (v: Hom z x) => #apply{v} u) (compose z point x inclusion h) g equal)));
+}
+\definition kernelData: Abelian.KernelData[Index, Hom, categoryData, zero, x, y, f] := Abelian.KernelData[Index, Hom, categoryData, zero, x, y, f] {
+  object := point, inclusion := inclusion, lift := \fun (z: Index)(g: \Cast[Hom z x] ({ g: Hom z x \where compose z x y f g = zero z y })) => Lift[z := z].lift g,
+};
+\definition laws: Abelian.KernelLaws[Index, Hom, categoryData, zero, x, y, f, kernelData] := Abelian.KernelLaws[Index, Hom, categoryData, zero, x, y, f, kernelData] {
+  zero := zeroLaw, factorization := \fun (z: Index)(g: \Cast[Hom z x] ({ g: Hom z x \where compose z x y f g = zero z y })) => Lift[z := z].factorization g, unique := \fun (z: Index)(g: \Cast[Hom z x] ({ g: Hom z x \where compose z x y f g = zero z y }))(h: Hom z point)(e: compose z point x inclusion h = g) => Lift[z := z].unique g h e,
+};
+\definition object: Abelian.Kernel[Index, Hom, categoryData, zero, x, y, f] :=
+  \into[Abelian.KernelData[Index, Hom, categoryData, zero, x, y, f]](kernelData, { k: Abelian.KernelData[Index, Hom, categoryData, zero, x, y, f] \where Abelian.KernelLaws[Index, Hom, categoryData, zero, x, y, f, k] }) \by { laws };

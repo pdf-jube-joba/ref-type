@@ -15,6 +15,18 @@
   scalar: \forall (a: R)(x: V) -> \In[V] data.carrier x -> \In[V] data.carrier (scale a x),
 }
 \definition Submodule: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition dataExt: \forall (S, T: Data) -> #carrier{S} = #carrier{T} -> S = T :=
+  \induction (S: Data) \return \forall (T: Data) -> #carrier{S} = #carrier{T} -> S = T \with {
+    | # : \fun (S: \Pow V) => \induction (T: Data) \return S = #carrier{T} -> Data::# S = T \with {
+      | # : \fun (T: \Pow V)(equal: S = T) => congr!{{\Pow V} Data} (\fun (U: \Pow V) => Data::# U) S T equal
+    }
+  };
+\definition ext: \forall (S, T: Submodule) ->
+  (\forall (x: V) -> \In[V] (#carrier{S}) x -> \In[V] (#carrier{T}) x) ->
+  (\forall (x: V) -> \In[V] (#carrier{T}) x -> \In[V] (#carrier{S}) x) -> S = T :=
+  \fun (S, T: Submodule)(forward: \forall (x: V) -> \In[V] (#carrier{S}) x -> \In[V] (#carrier{T}) x)
+    (backward: \forall (x: V) -> \In[V] (#carrier{T}) x -> \In[V] (#carrier{S}) x) =>
+      dataExt S T (\axiom:setext(#carrier{S}, #carrier{T}, forward, backward));
 \definition Member(S: Submodule)(x: V): \Prop := \In[V] (#carrier{S}) x;
 \definition negativeClosed: \forall (S: Submodule)(x: V) -> Member S x -> Member S (neg x) :=
   \fun (S: _)(x: _)(member: _) => \idelim scale (#neg{ring} (#one{ring})) x = neg x \with y: V => Member S y \by {

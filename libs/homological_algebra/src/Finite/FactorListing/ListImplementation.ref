@@ -1,0 +1,40 @@
+\definition T: \VType := \U(N.Nat -> Runtime -> CyclicFactors);
+\definition stepProgram: Step.T := Step.program;
+\definition iterationProgram: NativeIteration.Iterate.T := NativeIteration.Iterate.program;
+\definition program: T := \thunk (\cfun (count: N.Nat) => \return (\thunk (\cfun (a: Runtime) => \program {
+  \bind advance: \U(FactorState -> FactorState) <- (\force stepProgram) a \then
+  \bind withStep: \U(FactorState -> N.Nat -> FactorState) <- (\force iterationProgram) advance \then
+  \bind withInitial: \U(N.Nat -> FactorState) <- (\force withStep) (FactorState::state count CyclicFactors::empty) \then
+  \bind state: FactorState <- (\force withInitial) count \then
+  \bind result: CyclicFactors <- \match state \in FactorState \with {
+    | state remaining factors : \return factors
+  } \then
+  \return result
+})));
+\definition initial(count: N.Nat^): FactorState^ := FactorState^::state count CyclicFactors^::empty;
+\definition nativeState(count: N.Nat^)(a: Runtime^): FactorState^ := NativeIteration.Iterate.program^ (Step.program^ a) (initial count) count;
+\definition mathematicalState(count: N.Nat^)(a: Runtime^): FactorState^ := Iteration.apply (step a) (initial count) count;
+\definition stateEquality: \forall (count: N.Nat^)(a: Runtime^) -> nativeState count a = mathematicalState count a :=
+  \fun (count: N.Nat^)(a: Runtime^) => trans!{FactorState^}
+    (nativeState count a) (NativeIteration.Iterate.program^ (step a) (initial count) count) (mathematicalState count a)
+    (congr!{{FactorState^ -> FactorState^} FactorState^}
+      (\fun (f: FactorState^ -> FactorState^) => NativeIteration.Iterate.program^ f (initial count) count)
+      (Step.program^ a) (step a)
+      (congr!{Step.T^ {FactorState^ -> FactorState^}} (\fun (f: Step.T^) => f a) Step.program^ step Step.coherence))
+    (congr!{NativeIteration.Iterate.T^ FactorState^}
+      (\fun (f: NativeIteration.Iterate.T^) => f (step a) (initial count) count)
+      NativeIteration.Iterate.program^ Iteration.apply NativeIteration.Iterate.coherence);
+\definition readProgram: \U(FactorState -> CyclicFactors) := \thunk (\cfun (s: FactorState) => \match s \in FactorState \with {
+  | state count xs: \return xs
+});
+\definition readEquality: \forall (s: FactorState^) -> readProgram^ s = values s :=
+  \induction (s: FactorState^) \return readProgram^ s = values s \with {
+    | state: \fun (count: N.Nat^)(xs: CyclicFactors^) => \refl(xs)
+  };
+\definition pointwise: \forall (count: N.Nat^)(a: Runtime^) -> program^ count a = factors count a :=
+  \fun (count: N.Nat^)(a: Runtime^) => trans!{CyclicFactors^}
+    (program^ count a) (values (nativeState count a)) (factors count a)
+    (readEquality (nativeState count a))
+    (congr!{FactorState^ CyclicFactors^} values (nativeState count a) (mathematicalState count a) (stateEquality count a));
+\definition coherence: program^ = factors := \axiom:funext(program^, factors,
+  \fun (count: N.Nat^) => \axiom:funext(program^ count, factors count, pointwise count));

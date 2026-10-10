@@ -1,0 +1,29 @@
+\definition splits: TailSpace.Splits r := \bysub(TailSpace.Map, { r: TailSpace.Map \where TailSpace.Splits r }, r);
+\import Modules.Hom[V := TailSpace.Carrier, W := Included.Carrier, source := TailSpace.space, target := Included.space] \as Embeddings;
+\definition embedding: Embeddings.Map := Embeddings.Map {
+  apply := \fun (x: TailSpace.Carrier) => \into[Large.Carrier](Split.zeroExtend x, #carrier{S}) \by {
+    \bysub(Small.Carrier, #carrier{Tail}, x)
+  },
+  addition := \fun (x, y: TailSpace.Carrier) => Split.zeroAddition x y,
+  scalar := \fun (a: K)(x: TailSpace.Carrier) => Split.zeroScalar a x,
+};
+\definition recoverZero: \forall (x: Large.Carrier) -> Split.head x = #zero{ring} -> Split.zeroExtend (Split.tail x) = x :=
+  \fun (x: Large.Carrier)(zero: Split.head x = #zero{ring}) => trans!{Large.Carrier} _ _ _
+    (congr!{K Large.Carrier} (\fun (a: K) => Split.cons a (Split.tail x)) #zero{ring} (Split.head x) (sym!{K} _ _ zero)) (Split.recover x);
+\definition tail(x: Included.Carrier)(zero: Split.head x = #zero{ring}): TailSpace.Carrier :=
+  \into[Small.Carrier](Split.tail x, #carrier{Tail}) \by {
+    \idelim x = Split.zeroExtend (Split.tail x) \with y: Large.Carrier => LargeSubmodules.Member S y \by {
+      base: \bysub(Large.Carrier, #carrier{S}, x), equality: sym!{Large.Carrier} _ _ (recoverZero x zero)
+    }
+  };
+\module Zero;
+\module Nonzero(pivot: Pivot);
+\definition existence: \exists Included.Retraction :=
+  either!{{\exists Pivot} "or" {Logic.Not (\exists Pivot)} "either" {\exists Included.Retraction}
+    "lt:" {\block {
+      \fun (exists: \exists Pivot) \then
+      \takefrom pivot: Pivot \by exists \then
+      \return \exact(Nonzero[pivot := pivot].retraction, Included.Retraction)
+    }}
+    "rt:" {\fun (none: Logic.Not (\exists Pivot)) => \exact(Zero[].retraction (headZeroOfNoPivot none), Included.Retraction)}}
+    (Classical.excludedMiddle (\exists Pivot));

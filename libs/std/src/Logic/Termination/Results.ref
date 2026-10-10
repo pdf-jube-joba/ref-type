@@ -1,0 +1,20 @@
+\definition Post: \RunStep[State, Output] -> \Prop := \step-match t: \RunStep[State, Output] \return \Prop \with {
+  | \continue next: invariant next
+  | \finish output: result output
+};
+\definition StepLaw: \Prop := \forall (current: State) -> invariant current -> Post (step current);
+\definition InductionProperty(current: State): \Prop := invariant current -> \forall (proof: Holds current) -> result (\run[State, Output](step, current) \by { proof });
+\definition after: \forall (current: State)(transition: \RunStep[State, Output])(edge: step current = transition) ->
+  ready InductionProperty transition -> Post transition -> \forall (proof: Holds current) -> result (\runCase[State, Output](step, current, transition) \by { accessibility: proof, equality: edge }) :=
+  \fun (current: State) => \step-match transition: \RunStep[State, Output] \return \forall (edge: step current = transition) ->
+    ready InductionProperty transition -> Post transition -> \forall (proof: Holds current) -> result (\runCase[State, Output](step, current, transition) \by { accessibility: proof, equality: edge }) \with {
+    | \continue next: \fun (edge: _)(previous: InductionProperty next)(nextInvariant: invariant next)(proof: Holds current) =>
+        previous nextInvariant (descent current next proof edge)
+    | \finish output: \fun (edge: _)(previous: True)(outputLaw: result output)(proof: Holds current) => outputLaw
+  };
+\definition inductionStep: StepLaw -> \forall (current: State) -> ready InductionProperty (step current) -> InductionProperty current :=
+  \fun (stepLaw: StepLaw)(current: State)(previous: ready InductionProperty (step current))(inputLaw: invariant current)(proof: Holds current) =>
+    after current (step current) (\refl(step current)) previous (stepLaw current inputLaw) proof;
+\definition correctness: StepLaw -> \forall (current: State) -> invariant current -> \forall (proof: Holds current) -> result (\run[State, Output](step, current) \by { proof }) :=
+  \fun (stepLaw: StepLaw)(current: State)(inputLaw: invariant current)(proof: Holds current) =>
+    proof InductionProperty (inductionStep stepLaw) inputLaw proof;

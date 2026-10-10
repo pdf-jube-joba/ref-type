@@ -1,0 +1,133 @@
+\import Modules.FiniteCoordinates[n := rank] \as Coefficients;
+\import OriginalCoordinates.Head[rank := rank] \as Head;
+\import Head.Laws[] \as HeadLaws;
+\import Modules.Of[V := Matrices.Output, space := Matrices.codomain].Submodule[] \as OutputSubmodules;
+\import OutputSubmodules.Image[U := Matrices.Vector, source := Matrices.domain] \as Images;
+\definition submodule: OutputSubmodules.Submodule := Images.image (Base.linear (Matrices.reflect original));
+\import OutputSubmodules.Of[S := submodule] \as Included;
+\definition Carrier: \Set := Included.Carrier;
+\definition space: Modules.Space Carrier := Included.moduleSpace;
+\definition value(v: Coefficients.Carrier): Matrices.Output :=
+  Base.apply (Matrices.reflect original) (Right.apply right (Head.extension v));
+\definition point(v: Coefficients.Carrier): Carrier :=
+  \into[Matrices.Output](value v, #carrier{submodule}) \by {
+    Images.member (Base.linear (Matrices.reflect original)) (Right.apply right (Head.extension v))
+  };
+\import Modules.Hom[V := Coefficients.Carrier, W := Carrier, source := Coefficients.space, target := space] \as Maps;
+\definition forward: Maps.Map := Maps.Map {
+  apply := point,
+  addition := \fun (v, w: Coefficients.Carrier) =>
+    trans!{Matrices.Output} (value (#add{Coefficients.space} v w))
+      (Base.apply (Matrices.reflect original) (Right.apply right (#add{Matrices.domain} (Head.extension v) (Head.extension w))))
+      (#add{Matrices.codomain} (value v) (value w))
+      (congr!{Matrices.Vector Matrices.Output} (\fun (x: Matrices.Vector) => Base.apply (Matrices.reflect original) (Right.apply right x))
+        (Head.extension (#add{Coefficients.space} v w)) (#add{Matrices.domain} (Head.extension v) (Head.extension w)) (HeadLaws.extensionAddition v w))
+      (trans!{Matrices.Output} _ _ _
+        (congr!{Matrices.Vector Matrices.Output} (Base.apply (Matrices.reflect original)) _ _
+          (#addition{#forward{rightIso}} (Head.extension v) (Head.extension w)))
+        (#addition{(Base.linear (Matrices.reflect original))} (Right.apply right (Head.extension v)) (Right.apply right (Head.extension w)))),
+  scalar := \fun (a: I.Int^)(v: Coefficients.Carrier) =>
+    trans!{Matrices.Output} (value (#smul{Coefficients.space} a v))
+      (Base.apply (Matrices.reflect original) (Right.apply right (#smul{Matrices.domain} a (Head.extension v))))
+      (#smul{Matrices.codomain} a (value v))
+      (congr!{Matrices.Vector Matrices.Output} (\fun (x: Matrices.Vector) => Base.apply (Matrices.reflect original) (Right.apply right x))
+        (Head.extension (#smul{Coefficients.space} a v)) (#smul{Matrices.domain} a (Head.extension v)) (HeadLaws.extensionScalar a v))
+      (trans!{Matrices.Output} _ _ _
+        (congr!{Matrices.Vector Matrices.Output} (Base.apply (Matrices.reflect original)) _ _
+          (#scalar{#forward{rightIso}} a (Head.extension v)))
+        (#scalar{(Base.linear (Matrices.reflect original))} a (Right.apply right (Head.extension v)))),
+};
+\definition rowRank: Bounds.Le rank m := #rowRank{diagonalLaws};
+\definition inputIndex(j: Coefficients.Index): Finite.Fin n := Head.include columnRank j;
+\definition outputIndex(j: Coefficients.Index): Finite.Fin m :=
+  \into[N.Nat^](j, { i: N.Nat^ \where Bounds.Lt i m }) \by { Bounds.ltLeTrans j rank m (Finite.bound rank j) rowRank };
+\definition diagonalAt: \forall (v: Coefficients.Carrier)(j: Coefficients.Index) ->
+  Base.apply diagonal (Head.extension v) (outputIndex j) = Arithmetic.mul (Diagonalize.diagonal result j j) (v j) :=
+  \fun (v: Coefficients.Carrier)(j: Coefficients.Index) =>
+    trans!{I.Int^} (Base.apply diagonal (Head.extension v) (outputIndex j))
+      (Arithmetic.mul (Diagonalize.diagonal result j j) (Head.extension v (inputIndex j)))
+      (Arithmetic.mul (Diagonalize.diagonal result j j) (v j))
+      (Diagonal.row (Diagonalize.diagonal result) (Head.extension v) (outputIndex j) (Finite.bound n (inputIndex j)) #diagonal{diagonalLaws})
+      (congr!{I.Int^ I.Int^} (Arithmetic.mul (Diagonalize.diagonal result j j))
+        (Head.extension v (inputIndex j)) (v j) (Head.atIncluded columnRank v j));
+\import Modules.Isomorphism[V := Coefficients.Carrier, W := Carrier, source := Coefficients.space, target := space].OfBijective[f := forward] \as Bijective;
+\import std.Arithmetic[].IntAlgebra[].IntegralDomain[] \as Domain;
+\definition injective: Bijective.Injective := \fun (v, w: Coefficients.Carrier)(equal: point v = point w) =>
+  \axiom:funext(v, w, \fun (j: Coefficients.Index) =>
+    Domain.cancellation (Diagonalize.diagonal result j j) (v j) (w j)
+      (#nonzero{diagonalLaws} j (Finite.bound rank j))
+      (trans!{I.Int^} (Arithmetic.mul (Diagonalize.diagonal result j j) (v j))
+        (Base.apply diagonal (Head.extension v) (outputIndex j))
+        (Arithmetic.mul (Diagonalize.diagonal result j j) (w j))
+        (sym!{I.Int^} _ _ (diagonalAt v j))
+        (trans!{I.Int^} _ _ _
+          (congr!{Matrices.Output I.Int^} (\fun (x: Matrices.Output) => x (outputIndex j))
+            (Base.apply diagonal (Head.extension v)) (Base.apply diagonal (Head.extension w))
+            (trans!{Matrices.Output} _ _ _ (action (Head.extension v))
+              (trans!{Matrices.Output} _ _ _
+                (congr!{Matrices.Output Matrices.Output} (Left.apply left) (value v) (value w) equal)
+                (sym!{Matrices.Output} _ _ (action (Head.extension w))))))
+          (diagonalAt w j))));
+\import std.Data[].Bool[] \as Bool;
+\definition diagonalRecovery: \forall (v: Matrices.Vector) ->
+  Base.apply diagonal (Head.extension (Head.restriction columnRank v)) = Base.apply diagonal v :=
+  \fun (v: Matrices.Vector) => \axiom:funext(
+    Base.apply diagonal (Head.extension (Head.restriction columnRank v)), Base.apply diagonal v,
+    \fun (i: Finite.Fin m) =>
+      (\induction (test: Bool.Bool^) \return Nat.ltb i rank = test ->
+        Base.apply diagonal (Head.extension (Head.restriction columnRank v)) i = Base.apply diagonal v i \with {
+        | false: \fun (late: _) => trans!{I.Int^} _ Arithmetic.zero _
+          (Diagonal.lateRow (Diagonalize.diagonal result) (Head.extension (Head.restriction columnRank v)) i
+            #diagonal{diagonalLaws} #trailing{diagonalLaws} (Bounds.leOfLtbFalse i rank late))
+          (sym!{I.Int^} _ Arithmetic.zero
+            (Diagonal.lateRow (Diagonalize.diagonal result) v i #diagonal{diagonalLaws} #trailing{diagonalLaws}
+              (Bounds.leOfLtbFalse i rank late)))
+        | true: \fun (early: _) => \block {
+          \let j: Coefficients.Index := \into[N.Nat^](i, { j: N.Nat^ \where Bounds.Lt j rank }) \by { early } \then
+          \return trans!{I.Int^} _ (Arithmetic.mul (Diagonalize.diagonal result i i) (v (inputIndex j))) _
+            (diagonalAt (Head.restriction columnRank v) j)
+            (sym!{I.Int^} _ _ (Diagonal.row (Diagonalize.diagonal result) v i (Finite.bound n (inputIndex j)) #diagonal{diagonalLaws}))
+        }
+      }) (Nat.ltb i rank) (\refl(Nat.ltb i rank)));
+\definition recovery: \forall (v: Matrices.Vector) ->
+  value (Head.restriction columnRank (#apply{#backward{rightIso}} v)) = Base.apply (Matrices.reflect original) v :=
+  \fun (v: Matrices.Vector) => \block {
+    \let x: Matrices.Vector := #apply{#backward{rightIso}} v \then
+    \let equal: Left.apply left (value (Head.restriction columnRank x)) = Left.apply left (Base.apply (Matrices.reflect original) v) :=
+      trans!{Matrices.Output} _ (Base.apply diagonal (Head.extension (Head.restriction columnRank x))) _
+        (sym!{Matrices.Output} _ _ (action (Head.extension (Head.restriction columnRank x))))
+        (trans!{Matrices.Output} _ (Base.apply diagonal x) _ (diagonalRecovery x)
+          (trans!{Matrices.Output} _ _ _ (action x)
+            (congr!{Matrices.Vector Matrices.Output}
+              (\fun (u: Matrices.Vector) => Left.apply left (Base.apply (Matrices.reflect original) u))
+              (Right.apply right x) v (#rightInverse{rightIso} v)))) \then
+    \return trans!{Matrices.Output} _ _ _
+      (sym!{Matrices.Output} _ _ (#leftInverse{leftIso} (value (Head.restriction columnRank x))))
+      (trans!{Matrices.Output} _ _ _
+        (congr!{Matrices.Output Matrices.Output} (#apply{#backward{leftIso}}) _ _ equal)
+        (#leftInverse{leftIso} (Base.apply (Matrices.reflect original) v)))
+  };
+\definition onto: Bijective.Onto := \block {
+  \fun (y: Carrier) \then
+  \takefrom v: \Cast[Matrices.Vector] ({ v: Matrices.Vector \where Base.apply (Matrices.reflect original) v = y })
+    \by \bysub(Matrices.Output, #carrier{submodule}, y) \then
+  \let w: Coefficients.Carrier := Head.restriction columnRank (#apply{#backward{rightIso}} v) \then
+  \return \exact(
+    \into[Coefficients.Carrier](w, { x: Coefficients.Carrier \where point x = y }) \by {
+      trans!{Matrices.Output} (value w) (Base.apply (Matrices.reflect original) v) y (recovery v)
+        (\bysub(Matrices.Vector, { x: Matrices.Vector \where Base.apply (Matrices.reflect original) x = y }, v))
+    }, \Cast[Coefficients.Carrier] ({ x: Coefficients.Carrier \where point x = y }))
+};
+\definition isomorphism: Modules.Isomorphism[V := Coefficients.Carrier, W := Carrier, source := Coefficients.space, target := space].Isomorphism :=
+  Bijective.isomorphism injective onto;
+\definition generator(j: Coefficients.Index): Carrier := point (Coefficients.basis j);
+\definition coordinates(v: Carrier): Coefficients.Carrier := #apply{#backward{isomorphism}} v;
+\definition reconstruction: \forall (v: Carrier) -> point (coordinates v) = v := #rightInverse{isomorphism};
+\definition unique: \forall (v: Coefficients.Carrier) -> coordinates (point v) = v := #leftInverse{isomorphism};
+
+\module Projectivity {
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+  \definition coordinateBundle: Modules.Bundle := Modules.Bundle { Carrier := Coefficients.Carrier, space := Coefficients.space };
+  \import Modules.ProjectiveLaws[].Retract[P := bundle, Q := coordinateBundle, inclusion := #backward{isomorphism}, retraction := forward] \as Retraction;
+  \definition projective: Modules.Projective bundle := Retraction.projective #rightInverse{isomorphism} Coefficients.Free[].projective;
+}

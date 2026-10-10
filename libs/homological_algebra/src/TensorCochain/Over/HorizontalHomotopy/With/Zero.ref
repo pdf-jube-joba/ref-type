@@ -1,0 +1,42 @@
+\definition zero: Nat.Nat^ := Nat.Nat^::zero;
+\definition one: Nat.Nat^ := Nat.Nat^::succ zero;
+\import Source.Degree[n := zero] \as SD;
+\import Source.Degree[n := one] \as SN;
+\import Target.Degree[n := zero] \as TD;
+\import Source.Step[n := zero] \as SS;
+\import \parent.Degree[n := zero] \as H;
+\import Forward.Degree[n := zero] \as F;
+\import Backward.Degree[n := zero] \as G;
+\import Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space] \as Maps;
+\import Modules.Hom[V := SN.Carrier, W := TD.Carrier, source := SN.space, target := TD.space].Composition[
+  U := SD.Carrier, domain := SD.space] \as Compose;
+\definition difference: Maps.Map := Maps.plus F.map (Maps.negative G.map);
+\definition after: Maps.Map := Compose.compose H.map SS.differential;
+\import Modules.Laws[V := TD.Carrier, space := TD.space] \as Vector;
+\import algebra.Group[].Of[Carrier := TD.Carrier, group := Vector.additive] \as Group;
+\module Axis(q: Degrees.Second zero zero);
+\definition index(p: Nat.Nat^)(q: Degrees.Second zero p): Source.Index zero := Degrees.index zero p q;
+\definition Law(p: Nat.Nat^): \Prop := \forall (q: Degrees.Second zero p)(x: C.family.Carrier p q) ->
+  #apply{difference} (#apply{(SD.Component[i := index p q].injection)} x) = #apply{after} (#apply{(SD.Component[i := index p q].injection)} x);
+\import std.Logic[].Proposition[] \as Logic;
+\definition coordinates: \forall (p: Nat.Nat^) -> Law p :=
+  \induction (p: Nat.Nat^) \return Law p \with {
+    | zero: \fun (q: Degrees.Second zero zero) => Axis[q := q].equality
+    | succ: \fun (p: Nat.Nat^)(previous: _)(q: Degrees.Second zero (Nat.Nat^::succ p))(x: C.family.Carrier (Nat.Nat^::succ p) q) => Logic.falseElim _
+      (Natural.zeroNeSucc (Arithmetic.add p q)
+        (sym!{Nat.Nat^} _ _ (trans!{Nat.Nat^} _ _ _ (sym!{Nat.Nat^} _ _ (Natural.addSuccLeft p q))
+          (Degrees.secondDegree zero (Nat.Nat^::succ p) q))))
+  };
+\definition topIndex(i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = zero): Source.Index zero :=
+  \into[Degrees.Pair](i, { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = zero }) \by { closed };
+\definition onPair: \forall (i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = zero)(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{difference} (#apply{(SD.Component[i := topIndex i closed].injection)} x) = #apply{after} (#apply{(SD.Component[i := topIndex i closed].injection)} x) :=
+  \induction (i: Degrees.Pair) \return \forall (closed: Arithmetic.add #first{i} #second{i} = zero)(x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{difference} (#apply{(SD.Component[i := topIndex i closed].injection)} x) = #apply{after} (#apply{(SD.Component[i := topIndex i closed].injection)} x) \with {
+      | # : \fun (p, q: Nat.Nat^)(closed: Arithmetic.add p q = zero) => coordinates p
+        (\into[Nat.Nat^](q, { q: Nat.Nat^ \where Arithmetic.add p q = zero }) \by { closed })
+    };
+\import Modules.DirectSum[Index := Source.Index zero, family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+\definition mapEquality: difference = after := Universal.ext difference after (\fun (i: Source.Index zero) => onPair i (Degrees.degree zero i));
+\definition equality: \forall (x: SD.Carrier) -> #apply{difference} x = #apply{H.map} (#apply{SS.differential} x) :=
+  \fun (x: SD.Carrier) => congr!{Maps.Map TD.Carrier} (\fun (m: Maps.Map) => #apply{m} x) _ _ mapEquality;

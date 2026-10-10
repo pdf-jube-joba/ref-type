@@ -1,0 +1,35 @@
+\import \parent.Map[C := C, D := D] \as Maps;
+\structure Data: \Set { apply: \forall (n: N.Nat^) -> C.family.Carrier n -> D.family.Carrier (N.Nat^::succ n) }
+\structure Laws[f, g: Maps.Map, data: Data]: \Prop {
+  addition: \forall (n: N.Nat^)(x, y: C.family.Carrier n) ->
+    data.apply n (#add{(C.family.space n)} x y) = #add{(D.family.space (N.Nat^::succ n))} (data.apply n x) (data.apply n y),
+  scalar: \forall (n: N.Nat^)(a: R)(x: C.family.Carrier n) ->
+    data.apply n (#smul{(C.family.space n)} a x) = #smul{(D.family.space (N.Nat^::succ n))} a (data.apply n x),
+  zeroEquation: \forall (x: C.family.Carrier N.Nat^::zero) ->
+    #add{(D.family.space N.Nat^::zero)} (#apply{f} N.Nat^::zero x) (#neg{(D.family.space N.Nat^::zero)} (#apply{g} N.Nat^::zero x)) =
+      #apply{D.differential} N.Nat^::zero (data.apply N.Nat^::zero x),
+  successorEquation: \forall (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) ->
+    #add{(D.family.space (N.Nat^::succ n))} (#apply{f} (N.Nat^::succ n) x) (#neg{(D.family.space (N.Nat^::succ n))} (#apply{g} (N.Nat^::succ n) x)) =
+      #add{(D.family.space (N.Nat^::succ n))} (#apply{D.differential} (N.Nat^::succ n) (data.apply (N.Nat^::succ n) x))
+        (data.apply n (#apply{C.differential} n x)),
+}
+\definition Homotopy(f, g: Maps.Map): \Set := \Cast[Data] ({ data: Data \where Laws[f, g, data] });
+\use Equality.transport;
+\definition replacementLaws: \forall (f, g, f1, g1: Maps.Map)(data: Data) ->
+  f = f1 -> g = g1 -> Laws[f, g, data] -> Laws[f1, g1, data] :=
+  \fun (f, g, f1, g1: Maps.Map)(data: Data)(first: f = f1)(second: g = g1)(laws: Laws[f, g, data]) =>
+    transport!{Maps.Map} (\fun (u: Maps.Map) => Laws[u, g1, data]) f f1 first
+      (transport!{Maps.Map} (\fun (v: Maps.Map) => Laws[f, v, data]) g g1 second laws);
+\module Positive(n: N.Nat^);
+\module DegreeZero;
+\structure LinearLaws[data: Data]: \Prop {
+  addition: \forall (n: N.Nat^)(x, y: C.family.Carrier n) ->
+    data.apply n (#add{(C.family.space n)} x y) = #add{(D.family.space (N.Nat^::succ n))} (data.apply n x) (data.apply n y),
+  scalar: \forall (n: N.Nat^)(a: R)(x: C.family.Carrier n) ->
+    data.apply n (#smul{(C.family.space n)} a x) = #smul{(D.family.space (N.Nat^::succ n))} a (data.apply n x),
+}
+\definition LinearData: \Set := \Cast[Data] ({ data: Data \where LinearLaws[data] });
+\definition linear(f, g: Maps.Map)(h: Homotopy f g): LinearData := \into[Data](h, { data: Data \where LinearLaws[data] }) \by {
+  LinearLaws[h] { addition := #addition{h}, scalar := #scalar{h} }
+};
+\module Boundary(h: LinearData);

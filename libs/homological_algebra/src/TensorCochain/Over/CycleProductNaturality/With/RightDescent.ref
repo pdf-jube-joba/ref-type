@@ -1,0 +1,54 @@
+\import Cochains.At[C := D, k := p] \as TC;
+\import Cochains.At[C := F, k := q] \as TF;
+\import Cochains.At[C := SourceTotal.complex, k := n] \as HS;
+\import \parent.\parent.\parent.CycleProductRightDescent[C := C, D := E, p := p, q := q] \as SourceDescent;
+\import \parent.\parent.\parent.CycleProductRightDescent[C := D, D := F, p := p, q := q] \as TargetDescent;
+\import Modules.Tensor[V := SC.CycleCarrier, W := SE.Cohomology,
+  left := SC.cycleSpace, right := SE.cohomologySpace] \as S;
+\import Modules.Tensor[V := TC.CycleCarrier, W := TF.Cohomology,
+  left := TC.cycleSpace, right := TF.cohomologySpace] \as T;
+\import S.Mapping[U := TC.CycleCarrier, Z := TF.Cohomology,
+  targetLeft := TC.cycleSpace, targetRight := TF.cohomologySpace] \as Components;
+\definition map: Modules.Hom[V := S.Carrier, W := T.Carrier, source := S.space, target := T.space].Map :=
+  Components.map (Left.cyclesMap f) (Right.induced g);
+\import Modules.Hom[V := HS.Cohomology, W := H.Cohomology,
+  source := HS.cohomologySpace, target := H.cohomologySpace].Composition[
+  U := S.Carrier, domain := S.space] \as After;
+\import Modules.Hom[V := T.Carrier, W := H.Cohomology,
+  source := T.space, target := H.cohomologySpace].Composition[
+  U := S.Carrier, domain := S.space] \as Before;
+\import Modules.Hom[V := S.Carrier, W := H.Cohomology,
+  source := S.space, target := H.cohomologySpace] \as Maps;
+\definition after: Maps.Map := After.compose (Induced.induced TensorMap.total) SourceDescent.map;
+\definition before: Maps.Map := Before.compose TargetDescent.map map;
+\definition afterOnClass: \forall (x: SC.CycleCarrier)(y: SE.CycleCarrier) ->
+  #apply{after} (S.tensor x (SE.classOf y)) =
+  Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y) :=
+  \fun (x: SC.CycleCarrier)(y: SE.CycleCarrier) => trans!{H.Cohomology}
+    (#apply{after} (S.tensor x (SE.classOf y)))
+    (#apply{(Induced.induced TensorMap.total)} (Source.classOf x y))
+    (Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y))
+    (congr!{HS.Cohomology H.Cohomology} (#apply{(Induced.induced TensorMap.total)}) _ _ (SourceDescent.onTensor x y))
+    (onClass x y);
+\definition beforeOnClass: \forall (x: SC.CycleCarrier)(y: SE.CycleCarrier) ->
+  #apply{before} (S.tensor x (SE.classOf y)) =
+  Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y) :=
+  \fun (x: SC.CycleCarrier)(y: SE.CycleCarrier) => trans!{H.Cohomology}
+    (#apply{before} (S.tensor x (SE.classOf y)))
+    (#apply{TargetDescent.map} (T.tensor (#apply{(Left.cyclesMap f)} x) (#apply{(Right.induced g)} (SE.classOf y))))
+    (Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y))
+    (congr!{T.Carrier H.Cohomology} (#apply{TargetDescent.map}) _ _
+      (Components.onTensor (Left.cyclesMap f) (Right.induced g) x (SE.classOf y)))
+    (trans!{H.Cohomology} _ _ _
+      (congr!{TF.Cohomology H.Cohomology}
+        (\fun (h: TF.Cohomology) => #apply{TargetDescent.map} (T.tensor (#apply{(Left.cyclesMap f)} x) h)) _ _ (Right.onClass g y))
+      (TargetDescent.onTensor (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y)));
+\import S.Universal[U := H.Cohomology, target := H.cohomologySpace] \as Universal;
+\definition naturality: after = before := Universal.ext after before
+  (\fun (x: SC.CycleCarrier) => SE.classInduction
+    (\fun (h: SE.Cohomology) => #apply{after} (S.tensor x h) = #apply{before} (S.tensor x h))
+    (\fun (y: SE.CycleCarrier) => trans!{H.Cohomology}
+      (#apply{after} (S.tensor x (SE.classOf y)))
+      (Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y))
+      (#apply{before} (S.tensor x (SE.classOf y)))
+      (afterOnClass x y) (sym!{H.Cohomology} _ _ (beforeOnClass x y))));

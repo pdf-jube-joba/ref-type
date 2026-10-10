@@ -1,0 +1,20 @@
+\definition step: \U(State ~> \F(\RunStep[State, A])) := \thunk (\cfun (s: State) => \match s \in IterationState \with {
+  | running f value count: \match count \in Nat \with {
+      | zero: \return(\finish[State, A](value))
+      | succ k: \program {
+          \bind next: A <- (\force f) value \then
+          \return(\continue[State, A](IterationState[A]::running f next k))
+        }
+    }
+});
+\import std.Logic[].Termination[State := State^, Output := A^, step := step^] \as Termination;
+\definition terminates: \forall (count: Nat^)(f: A^ -> A^)(value: A^) -> Termination.Holds (IterationState^[A^]::running f value count) :=
+  \induction (count: Nat^) \return \forall (f: A^ -> A^)(value: A^) -> Termination.Holds (IterationState^[A^]::running f value count) \with {
+    | zero: \fun (f: A^ -> A^)(value: A^) => Termination.intro (IterationState^[A^]::running f value Nat^::zero) Termination.trivial
+    | succ: \fun (count: Nat^)(before: \forall (f: A^ -> A^)(value: A^) -> Termination.Holds (IterationState^[A^]::running f value count))
+        (f: A^ -> A^)(value: A^) => Termination.intro (IterationState^[A^]::running f value (Nat^::succ count)) (before f (f value))
+  };
+\definition certificate: \forall (s: State^) -> Programs.Terminates State^ A^ step^ s :=
+  \induction (s: State^) \return Termination.Holds s \with {
+    | running: \fun (f: A^ -> A^)(value: A^)(count: Nat^) => terminates count f value
+  };

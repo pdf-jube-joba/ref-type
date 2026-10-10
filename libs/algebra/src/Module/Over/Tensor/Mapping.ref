@@ -1,0 +1,28 @@
+\import \parent.\parent.Tensor[V := U, W := Z, left := targetLeft, right := targetRight] \as Target;
+\import \parent.\parent.Hom[V := V, W := U, source := left, target := targetLeft] \as LeftMaps;
+\import \parent.\parent.Hom[V := W, W := Z, source := right, target := targetRight] \as RightMaps;
+\import \parent.Universal[U := Target.Carrier, target := Target.space] \as Universal;
+\import \parent.\parent.Hom[V := Carrier, W := Target.Carrier, source := space, target := Target.space] \as Maps;
+\definition bilinear(f: LeftMaps.Map)(g: RightMaps.Map): BilinearLaws[Target.Carrier, Target.space, \fun (x: V)(y: W) => Target.tensor (#apply{f} x) (#apply{g} y)] :=
+  BilinearLaws[Target.Carrier, Target.space, \fun (x: V)(y: W) => Target.tensor (#apply{f} x) (#apply{g} y)] {
+    addLeft := \fun (x, y: V)(z: W) => trans!{Target.Carrier} _ _ _
+      (congr!{U Target.Carrier} (\fun (u: U) => Target.tensor u (#apply{g} z)) _ _ (#addition{f} x y))
+      (#addLeft{Target.bilinear} (#apply{f} x) (#apply{f} y) (#apply{g} z)),
+    addRight := \fun (x: V)(y, z: W) => trans!{Target.Carrier} _ _ _
+      (congr!{Z Target.Carrier} (Target.tensor (#apply{f} x)) _ _ (#addition{g} y z))
+      (#addRight{Target.bilinear} (#apply{f} x) (#apply{g} y) (#apply{g} z)),
+    scaleLeft := \fun (a: R)(x: V)(y: W) => trans!{Target.Carrier} _ _ _
+      (congr!{U Target.Carrier} (\fun (u: U) => Target.tensor u (#apply{g} y)) _ _ (#scalar{f} a x))
+      (#scaleLeft{Target.bilinear} a (#apply{f} x) (#apply{g} y)),
+    scaleRight := \fun (a: R)(x: V)(y: W) => trans!{Target.Carrier} _ _ _
+      (congr!{Z Target.Carrier} (Target.tensor (#apply{f} x)) _ _ (#scalar{g} a y))
+      (#scaleRight{Target.bilinear} a (#apply{f} x) (#apply{g} y)),
+  };
+\definition map(f: LeftMaps.Map)(g: RightMaps.Map): Maps.Map :=
+  Universal.map (\fun (x: V)(y: W) => Target.tensor (#apply{f} x) (#apply{g} y)) (bilinear f g);
+\definition onTensor: \forall (f: LeftMaps.Map)(g: RightMaps.Map)(x: V)(y: W) ->
+  #apply{(map f g)} (tensor x y) = Target.tensor (#apply{f} x) (#apply{g} y) :=
+  \fun (f: LeftMaps.Map)(g: RightMaps.Map) => Universal.onTensor (\fun (x: V)(y: W) => Target.tensor (#apply{f} x) (#apply{g} y)) (bilinear f g);
+\module Composition(P, Q: \Set, finalLeft: Space P, finalRight: Space Q);
+\module Surjectivity;
+\module Isomorphism(leftIso: \parent.\parent.\parent.Isomorphism[V := V, W := U, source := left, target := targetLeft].Isomorphism, rightIso: \parent.\parent.\parent.Isomorphism[V := W, W := Z, source := right, target := targetRight].Isomorphism);

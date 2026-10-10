@@ -1,0 +1,60 @@
+\import Cochains.At[C := D, k := p] \as TC;
+\import Cochains.At[C := F, k := q] \as TF;
+\import Cochains.At[C := SourceTotal.complex, k := n] \as HS;
+\import \parent.\parent.\parent.Exterior[C := C, D := E, p := p, q := q] \as SourceExterior;
+\import \parent.\parent.\parent.Exterior[C := D, D := F, p := p, q := q] \as TargetExterior;
+\import Modules.Tensor[V := SC.Cohomology, W := SE.Cohomology,
+  left := SC.cohomologySpace, right := SE.cohomologySpace] \as S;
+\import Modules.Tensor[V := TC.Cohomology, W := TF.Cohomology,
+  left := TC.cohomologySpace, right := TF.cohomologySpace] \as T;
+\import S.Mapping[U := TC.Cohomology, Z := TF.Cohomology,
+  targetLeft := TC.cohomologySpace, targetRight := TF.cohomologySpace] \as Components;
+\definition map: Modules.Hom[V := S.Carrier, W := T.Carrier, source := S.space, target := T.space].Map :=
+  Components.map (Left.induced f) (Right.induced g);
+\import Modules.Hom[V := HS.Cohomology, W := H.Cohomology,
+  source := HS.cohomologySpace, target := H.cohomologySpace].Composition[
+  U := S.Carrier, domain := S.space] \as After;
+\import Modules.Hom[V := T.Carrier, W := H.Cohomology,
+  source := T.space, target := H.cohomologySpace].Composition[
+  U := S.Carrier, domain := S.space] \as Before;
+\import Modules.Hom[V := S.Carrier, W := H.Cohomology,
+  source := S.space, target := H.cohomologySpace] \as Maps;
+\definition after: Maps.Map := After.compose (Induced.induced TensorMap.total) SourceExterior.map;
+\definition before: Maps.Map := Before.compose TargetExterior.map map;
+\definition afterOnClass: \forall (x: SC.CycleCarrier)(y: SE.CycleCarrier) ->
+  #apply{after} (S.tensor (SC.classOf x) (SE.classOf y)) =
+  Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y) :=
+  \fun (x: SC.CycleCarrier)(y: SE.CycleCarrier) => trans!{H.Cohomology}
+    (#apply{after} (S.tensor (SC.classOf x) (SE.classOf y)))
+    (#apply{(Induced.induced TensorMap.total)} (Source.classOf x y))
+    (Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y))
+    (congr!{HS.Cohomology H.Cohomology} (#apply{(Induced.induced TensorMap.total)}) _ _ (SourceExterior.onClass x y))
+    (onClass x y);
+\definition beforeOnClass: \forall (x: SC.CycleCarrier)(y: SE.CycleCarrier) ->
+  #apply{before} (S.tensor (SC.classOf x) (SE.classOf y)) =
+  Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y) :=
+  \fun (x: SC.CycleCarrier)(y: SE.CycleCarrier) => trans!{H.Cohomology}
+    (#apply{before} (S.tensor (SC.classOf x) (SE.classOf y)))
+    (#apply{TargetExterior.map} (T.tensor (#apply{(Left.induced f)} (SC.classOf x)) (#apply{(Right.induced g)} (SE.classOf y))))
+    (Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y))
+    (congr!{T.Carrier H.Cohomology} (#apply{TargetExterior.map}) _ _
+      (Components.onTensor (Left.induced f) (Right.induced g) (SC.classOf x) (SE.classOf y)))
+    (trans!{H.Cohomology} _ _ _
+      (congr2!{TC.Cohomology TF.Cohomology H.Cohomology}
+        (\fun (h: TC.Cohomology)(k: TF.Cohomology) => #apply{TargetExterior.map} (T.tensor h k))
+        (#apply{(Left.induced f)} (SC.classOf x)) (TC.classOf (#apply{(Left.cyclesMap f)} x))
+        (#apply{(Right.induced g)} (SE.classOf y)) (TF.classOf (#apply{(Right.cyclesMap g)} y))
+        (Left.onClass f x) (Right.onClass g y))
+      (TargetExterior.onClass (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y)));
+\import S.Universal[U := H.Cohomology, target := H.cohomologySpace] \as Universal;
+\definition naturality: after = before := Universal.ext after before
+  (SC.classInduction
+    (\fun (h: SC.Cohomology) => \forall (k: SE.Cohomology) ->
+      #apply{after} (S.tensor h k) = #apply{before} (S.tensor h k))
+    (\fun (x: SC.CycleCarrier) => SE.classInduction
+      (\fun (h: SE.Cohomology) => #apply{after} (S.tensor (SC.classOf x) h) = #apply{before} (S.tensor (SC.classOf x) h))
+      (\fun (y: SE.CycleCarrier) => trans!{H.Cohomology}
+        (#apply{after} (S.tensor (SC.classOf x) (SE.classOf y)))
+        (Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y))
+        (#apply{before} (S.tensor (SC.classOf x) (SE.classOf y)))
+        (afterOnClass x y) (sym!{H.Cohomology} _ _ (beforeOnClass x y)))));

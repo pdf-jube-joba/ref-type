@@ -1,0 +1,92 @@
+\import Resolutions.With[sequence := sequence] \as Resolution;
+\definition family: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Nat.Nat^) => Resolution.Carrier n,
+  space := \fun (n: Nat.Nat^) => Resolution.space n,
+};
+\definition chainDifferential: Chains.DifferentialData[family] := Chains.DifferentialData[family] { apply := \fun (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ n)) => Resolution.apply n x };
+\definition complex: Chains.Complex := Chains.Complex {
+  family := family, differential := chainDifferential,
+  laws := Chains.DifferentialLaws[family, chainDifferential] {
+    addition := \fun (n: Nat.Nat^)(x, y: family.Carrier (Nat.Nat^::succ n)) => Resolution.addition n x y,
+    scalar := \fun (n: Nat.Nat^)(a: R)(x: family.Carrier (Nat.Nat^::succ n)) => Resolution.scalar n a x,
+    squareZero := \fun (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => Resolution.squareZero n x,
+  },
+};
+\import \parent.\parent.Of[M := M, N := N, P := complex] \as Derived;
+\import \root.HomComplex[].Over[R := R, ring := ring].On[P := complex, N := N] \as Hom;
+\definition one: Nat.Nat^ := Nat.Nat^::succ Nat.Nat^::zero;
+\definition two: Nat.Nat^ := Nat.Nat^::succ one;
+\import Derived.At[n := one] \as H;
+\import Algebra.HomSpace[V := K.Carrier, W := N.Carrier, source := K.space, target := N.space] \as Relations;
+\import Algebra.HomSpace[V := L.Carrier, W := N.Carrier, source := L.space, target := N.space] \as Generators;
+\import Modules.Hom[V := K.Carrier, W := N.Carrier, source := K.space, target := N.space] \as RelationMaps;
+\import Modules.Hom[V := L.Carrier, W := N.Carrier, source := L.space, target := N.space] \as GeneratorMaps;
+\import GeneratorMaps.Composition[U := K.Carrier, domain := K.space] \as Composition;
+\definition precompose(g: GeneratorMaps.Map): RelationMaps.Map := Composition.compose g sequence.inclusion;
+\import Modules.Hom[V := Generators.Carrier, W := Relations.Carrier, source := Generators.space, target := Relations.space] \as RestrictionMaps;
+\definition restriction: RestrictionMaps.Map := RestrictionMaps.Map {
+  apply := precompose,
+  addition := \fun (f, g: Generators.Carrier) => RelationMaps.ext (precompose (#add{Generators.space} f g)) (#add{Relations.space} (precompose f) (precompose g))
+    (\fun (x: K.Carrier) => \refl(#add{N.space} (#apply{f} (#apply{sequence.inclusion} x)) (#apply{g} (#apply{sequence.inclusion} x)))),
+  scalar := \fun (a: R)(f: Generators.Carrier) => RelationMaps.ext (precompose (#smul{Generators.space} a f)) (#smul{Relations.space} a (precompose f))
+    (\fun (x: K.Carrier) => \refl(#smul{N.space} a (#apply{f} (#apply{sequence.inclusion} x)))),
+};
+\import Modules.Of[V := Relations.Carrier, space := Relations.space].Submodule[] \as RelationSubmodules;
+\import RelationSubmodules.Image[U := Generators.Carrier, source := Generators.space] \as Images;
+\definition extensions: RelationSubmodules.Submodule := Images.image restriction;
+\import RelationSubmodules.Quotient[S := extensions] \as Quotient;
+\import Modules.Hom[V := Resolution.Carrier two, W := N.Carrier, source := Resolution.space two, target := N.space] \as TwoMaps;
+\definition closed: \forall (f: Relations.Carrier) -> Hom.apply one f = #zero{(Hom.space two)} :=
+  \fun (f: Relations.Carrier) => TwoMaps.ext (Hom.apply one f) (#zero{(Hom.space two)})
+    (\fun (x: Resolution.Carrier two) => RelationMaps.zeroPreserved f);
+\definition cycle(f: Relations.Carrier): H.CycleCarrier := \into[Hom.Carrier one](f, H.cyclePredicate) \by { closed f };
+\import Modules.Hom[V := H.CycleCarrier, W := Relations.Carrier, source := H.cycleSpace, target := Relations.space] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (f: H.CycleCarrier) => f,
+  addition := \fun (f, g: H.CycleCarrier) => \refl(#add{Relations.space} f g),
+  scalar := \fun (a: R)(f: H.CycleCarrier) => \refl(#smul{Relations.space} a f),
+};
+\import Modules.Hom[V := Relations.Carrier, W := H.CycleCarrier, source := Relations.space, target := H.cycleSpace] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := cycle,
+  addition := \fun (f, g: Relations.Carrier) => \refl(#add{Relations.space} f g),
+  scalar := \fun (a: R)(f: Relations.Carrier) => \refl(#smul{Relations.space} a f),
+};
+\definition cycleBundle: Modules.Bundle := Modules.Bundle { Carrier := H.CycleCarrier, space := H.cycleSpace };
+\definition relationBundle: Modules.Bundle := Modules.Bundle { Carrier := Relations.Carrier, space := Relations.space };
+\import Modules.QuotientMapping[A := cycleBundle, B := relationBundle].On[S := H.boundariesInside, T := extensions, f := forward] \as Descent;
+\import Descent.Inverse[g := backward] \as Inverse;
+\definition differential: \forall (g: Generators.Carrier) -> Hom.apply Nat.Nat^::zero g = precompose g :=
+  \fun (g: Generators.Carrier) => RelationMaps.ext (Hom.apply Nat.Nat^::zero g) (precompose g) (\fun (x: K.Carrier) => \refl(#apply{g} (#apply{sequence.inclusion} x)));
+\definition compatible: Descent.Compatible := \block {
+  \fun (f: H.CycleCarrier)(member: _) \then
+  \takefrom g: \Cast[Hom.Carrier Nat.Nat^::zero] ({ g: Hom.Carrier Nat.Nat^::zero \where Hom.apply Nat.Nat^::zero g = f }) \by member \then
+  \return Images.introduce restriction f g
+    (trans!{Relations.Carrier} _ _ _ (sym!{Relations.Carrier} _ _ (differential g))
+      (\bysub(Hom.Carrier Nat.Nat^::zero, { g: Hom.Carrier Nat.Nat^::zero \where Hom.apply Nat.Nat^::zero g = f }, g)))
+};
+\definition compatibleBack: Inverse.CompatibleBack := \block {
+  \fun (f: Relations.Carrier)(member: _) \then
+  \takefrom g: \Cast[Generators.Carrier] ({ g: Generators.Carrier \where precompose g = f }) \by member \then
+  \return \exact(\into[Hom.Carrier Nat.Nat^::zero](g, { g: Hom.Carrier Nat.Nat^::zero \where Hom.apply Nat.Nat^::zero g = cycle f }) \by {
+    trans!{Relations.Carrier} _ _ _ (differential g) (\bysub(Generators.Carrier, { g: Generators.Carrier \where precompose g = f }, g))
+  }, \Cast[Hom.Carrier Nat.Nat^::zero] ({ g: Hom.Carrier Nat.Nat^::zero \where Hom.apply Nat.Nat^::zero g = cycle f }))
+};
+\definition isomorphism: Modules.Isomorphism[V := H.Carrier, W := Quotient.Carrier, source := H.space, target := Quotient.moduleSpace].Isomorphism :=
+  Inverse.isomorphism compatible compatibleBack (\fun (f: H.CycleCarrier) => \refl(f)) (\fun (f: Relations.Carrier) => \refl(f));
+\definition onClass: \forall (f: H.CycleCarrier) -> #apply{#forward{isomorphism}} (H.classOf f) = Quotient.class f := Descent.onClass compatible;
+\definition Carrier: \Set := H.Carrier;
+\definition space: Modules.Space Carrier := H.space;
+\definition QuotientCarrier: \Set := Quotient.Carrier;
+\definition quotientSpace: Modules.Space QuotientCarrier := Quotient.moduleSpace;
+\definition classOf: Relations.Carrier -> QuotientCarrier := Quotient.class;
+
+\import \root.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Of[M := M, P := complex] \as NativeResolution;
+\definition resolution(projectiveK: Modules.Projective K, projectiveL: Modules.Projective L): Derived.Resolution :=
+  \into[NativeResolution.Data](NativeResolution.Data { augmentation := sequence.projection },
+    { data: NativeResolution.Data \where NativeResolution.Laws[data] }) \by {
+    NativeResolution.Laws[NativeResolution.Data { augmentation := sequence.projection }] {
+      projective := Resolution.projective projectiveK projectiveL,
+      onto := #onto{sequence}, killed := #zero{sequence}, augmentationExact := #kernelImage{sequence}, exact := Resolution.exact,
+    }
+  };

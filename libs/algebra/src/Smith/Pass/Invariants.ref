@@ -1,0 +1,155 @@
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\structure StepLaws[reduce: Reducer^, k: N.Nat^]: \Prop {
+  pivot: \forall (i: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k i -> attemptReduced (reduce k i a history) = B.Bool^::false -> attemptMatrix (reduce k i a history) k k = a k k,
+  decrease: \forall (i: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Reduction.Smaller k a (reduce k i a history),
+}
+\structure PivotLaws[k: N.Nat^, original: Runtime^, current: Attempt^]: \Prop {
+  preserved: attemptReduced current = B.Bool^::false -> attemptMatrix current k k = original k k,
+  smaller: attemptReduced current = B.Bool^::true -> Bounds.Lt (Signed.absolute (attemptMatrix current k k)) (Signed.absolute (original k k)),
+}
+\definition rowStep: \forall (k: N.Nat^) -> StepLaws[Reduction.row, k] :=
+  \fun (k: N.Nat^) => StepLaws[Reduction.row, k] {
+    pivot := \fun (i: N.Nat^)(a: Runtime^)(history: History^)(less: _)(noSwap: _) => Reduction.rowPreserved k i a history k k (Bounds.ltNe k i less) noSwap,
+    decrease := \fun (i: N.Nat^)(a: Runtime^)(history: History^) => Reduction.rowChanged k i a history,
+  };
+\definition columnStep: \forall (k: N.Nat^) -> StepLaws[Reduction.column, k] :=
+  \fun (k: N.Nat^) => StepLaws[Reduction.column, k] {
+    pivot := \fun (i: N.Nat^)(a: Runtime^)(history: History^)(less: _)(noSwap: _) => Reduction.columnPreserved k i a history k k (Bounds.ltNe k i less) noSwap,
+    decrease := \fun (i: N.Nat^)(a: Runtime^)(history: History^) => Reduction.columnChanged k i a history,
+  };
+\module Transition(reduce: Reducer^, k, i: N.Nat^, original: Runtime^, current: Attempt^);
+\definition nextPivot: \forall (reduce: Reducer^)(k, i: N.Nat^)(original: Runtime^)(current: Attempt^) ->
+  Logic.Not (original k k = Arithmetic.zero) -> StepLaws[reduce, k] -> PivotLaws[k, original, current] -> PivotLaws[k, original, next reduce k i current] :=
+  \fun (reduce: Reducer^)(k, i: N.Nat^)(original: Runtime^)(current: Attempt^) => Transition[reduce := reduce, k := k, i := i, original := original, current := current].law;
+\definition pivot: \forall (count: N.Nat^)(reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^) ->
+  Logic.Not (a k k = Arithmetic.zero) -> StepLaws[reduce, k] -> PivotLaws[k, a, passWith reduce count k a history] :=
+  \induction (count: N.Nat^) \return \forall (reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^) ->
+    Logic.Not (a k k = Arithmetic.zero) -> StepLaws[reduce, k] -> PivotLaws[k, a, passWith reduce count k a history] \with {
+    | zero: \fun (reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^)(nonzero: _)(laws: _) => PivotLaws[k, a, Attempt^::attempt a history B.Bool^::false] {
+        preserved := \fun (equal: B.Bool^::false = B.Bool^::false) => \refl(a k k),
+        smaller := \fun (bad: B.Bool^::false = B.Bool^::true) => Logic.falseElim _ (BoolLaws.falseNeTrue bad),
+      }
+    | succ: \fun (count: N.Nat^)(previous: _)(reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^)(nonzero: _)(laws: _) =>
+        nextPivot reduce k count a (passWith reduce count k a history) nonzero laws (previous reduce k a history nonzero laws)
+  };
+\definition rowPivot: \forall (count, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> PivotLaws[k, a, row count k a history] :=
+  \fun (count, k: N.Nat^)(a: Runtime^)(history: History^)(nonzero: _) => pivot count Reduction.row k a history nonzero (rowStep k);
+\definition columnPivot: \forall (count, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> PivotLaws[k, a, column count k a history] :=
+  \fun (count, k: N.Nat^)(a: Runtime^)(history: History^)(nonzero: _) => pivot count Reduction.column k a history nonzero (columnStep k);
+
+\import N.Induction[] \as Induction;
+\import N.Order[].Prop[] \as Order;
+\use Logic.either;
+\definition Entry: \Set := Runtime^ -> N.Nat^ -> I.Int^;
+\definition rowEntry(k: N.Nat^): Entry := \fun (a: Runtime^)(i: N.Nat^) => a i k;
+\definition columnEntry(k: N.Nat^): Entry := \fun (a: Runtime^)(j: N.Nat^) => a k j;
+\structure ClearStep[reduce: Reducer^, entry: Entry, k: N.Nat^]: \Prop {
+  target: \forall (i: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k i -> attemptReduced (reduce k i a history) = B.Bool^::false -> entry (attemptMatrix (reduce k i a history)) i = Arithmetic.zero,
+  previous: \forall (i: N.Nat^)(a: Runtime^)(history: History^)(r: N.Nat^) -> Bounds.Lt r i -> attemptReduced (reduce k i a history) = B.Bool^::false -> entry (attemptMatrix (reduce k i a history)) r = entry a r,
+}
+\structure Cleared[k, count: N.Nat^, entry: Entry, current: Attempt^]: \Prop {
+  zero: attemptReduced current = B.Bool^::false -> \forall (r: N.Nat^) -> Bounds.Lt r count -> Bounds.Lt k r -> entry (attemptMatrix current) r = Arithmetic.zero,
+}
+\definition rowClearStep: \forall (k: N.Nat^) -> ClearStep[Reduction.row, rowEntry k, k] :=
+  \fun (k: N.Nat^) => ClearStep[Reduction.row, rowEntry k, k] {
+    target := \fun (i: N.Nat^)(a: Runtime^)(history: History^)(less: _) => Reduction.rowCleared k i a history,
+    previous := \fun (i: N.Nat^)(a: Runtime^)(history: History^)(r: N.Nat^)(less: _)(noSwap: _) => Reduction.rowPreserved k i a history r k (Bounds.ltNe r i less) noSwap,
+  };
+\definition columnClearStep: \forall (k: N.Nat^) -> ClearStep[Reduction.column, columnEntry k, k] :=
+  \fun (k: N.Nat^) => ClearStep[Reduction.column, columnEntry k, k] {
+    target := \fun (i: N.Nat^)(a: Runtime^)(history: History^)(less: _) => Reduction.columnCleared k i a history,
+    previous := \fun (i: N.Nat^)(a: Runtime^)(history: History^)(r: N.Nat^)(less: _)(noSwap: _) => Reduction.columnPreserved k i a history k r (Bounds.ltNe r i less) noSwap,
+  };
+\module ClearTransition(reduce: Reducer^, entry: Entry, k, i: N.Nat^, current: Attempt^);
+\definition nextCleared: \forall (reduce: Reducer^)(entry: Entry)(k, i: N.Nat^)(current: Attempt^) -> ClearStep[reduce, entry, k] -> Cleared[k, i, entry, current] -> Cleared[k, N.Nat^::succ i, entry, next reduce k i current] :=
+  \fun (reduce: Reducer^)(entry: Entry)(k, i: N.Nat^)(current: Attempt^) => ClearTransition[reduce := reduce, entry := entry, k := k, i := i, current := current].law;
+\definition cleared: \forall (count: N.Nat^)(reduce: Reducer^)(entry: Entry)(k: N.Nat^)(a: Runtime^)(history: History^) -> ClearStep[reduce, entry, k] -> Cleared[k, count, entry, passWith reduce count k a history] :=
+  \induction (count: N.Nat^) \return \forall (reduce: Reducer^)(entry: Entry)(k: N.Nat^)(a: Runtime^)(history: History^) -> ClearStep[reduce, entry, k] -> Cleared[k, count, entry, passWith reduce count k a history] \with {
+    | zero: \fun (reduce: Reducer^)(entry: Entry)(k: N.Nat^)(a: Runtime^)(history: History^)(laws: _) => Cleared[k, N.Nat^::zero, entry, Attempt^::attempt a history B.Bool^::false] {
+        zero := \fun (noSwap: _)(r: N.Nat^)(less: Bounds.Lt r N.Nat^::zero)(lower: _) => Logic.falseElim _ (Order.ltZero r less),
+      }
+    | succ: \fun (count: N.Nat^)(previous: _)(reduce: Reducer^)(entry: Entry)(k: N.Nat^)(a: Runtime^)(history: History^)(laws: _) =>
+        nextCleared reduce entry k count (passWith reduce count k a history) laws (previous reduce entry k a history laws)
+  };
+\definition rowCleared: \forall (count, k: N.Nat^)(a: Runtime^)(history: History^) -> Cleared[k, count, rowEntry k, row count k a history] :=
+  \fun (count, k: N.Nat^)(a: Runtime^)(history: History^) => cleared count Reduction.row (rowEntry k) k a history (rowClearStep k);
+\definition columnCleared: \forall (count, k: N.Nat^)(a: Runtime^)(history: History^) -> Cleared[k, count, columnEntry k, column count k a history] :=
+  \fun (count, k: N.Nat^)(a: Runtime^)(history: History^) => cleared count Reduction.column (columnEntry k) k a history (columnClearStep k);
+
+\definition TraceStep(reduce: Reducer^): \Prop := \forall (k, i: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original -> attemptMatrix (reduce k i a history) = applyHistory (attemptHistory (reduce k i a history)) original;
+\definition Traced(original: Runtime^)(current: Attempt^): \Prop := attemptMatrix current = applyHistory (attemptHistory current) original;
+\definition nextTrace: \forall (reduce: Reducer^)(k, i: N.Nat^)(original: Runtime^)(current: Attempt^) -> TraceStep reduce -> Traced original current -> Traced original (next reduce k i current) :=
+  \fun (reduce: Reducer^)(k, i: N.Nat^)(original: Runtime^)(current: Attempt^)(step: TraceStep reduce)(trace: Traced original current) => B.cases
+    (\fun (test: B.Bool^) => Traced original (B.ite Attempt^ test (reduce k i (attemptMatrix current) (attemptHistory current)) current))
+    trace (step k i original (attemptMatrix current) (attemptHistory current) trace) (eligible k i current);
+\definition traced: \forall (count: N.Nat^)(reduce: Reducer^)(k: N.Nat^)(original, a: Runtime^)(history: History^) -> TraceStep reduce -> a = applyHistory history original -> Traced original (passWith reduce count k a history) :=
+  \induction (count: N.Nat^) \return \forall (reduce: Reducer^)(k: N.Nat^)(original, a: Runtime^)(history: History^) -> TraceStep reduce -> a = applyHistory history original -> Traced original (passWith reduce count k a history) \with {
+    | zero: \fun (reduce: Reducer^)(k: N.Nat^)(original, a: Runtime^)(history: History^)(step: _)(trace: _) => trace
+    | succ: \fun (count: N.Nat^)(previous: _)(reduce: Reducer^)(k: N.Nat^)(original, a: Runtime^)(history: History^)(step: _)(trace: _) =>
+        nextTrace reduce k count original (passWith reduce count k a history) step (previous reduce k original a history step trace)
+  };
+\definition rowTrace: \forall (count, k: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original -> Traced original (row count k a history) :=
+  \fun (count, k: N.Nat^)(original, a: Runtime^)(history: History^)(trace: _) => traced count Reduction.row k original a history Reduction.rowTrace trace;
+\definition columnTrace: \forall (count, k: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original -> Traced original (column count k a history) :=
+  \fun (count, k: N.Nat^)(original, a: Runtime^)(history: History^)(trace: _) => traced count Reduction.column k original a history Reduction.columnTrace trace;
+\import \parent.\parent.Bounds[] \as Indices;
+\definition BoundedStep(reduce: Reducer^)(rows, cols, limit: N.Nat^): \Prop :=
+  \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k i -> Bounds.Lt k limit -> Bounds.Lt i limit -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (reduce k i a history));
+\definition nextBounded: \forall (reduce: Reducer^)(rows, cols, limit, k, i: N.Nat^)(current: Attempt^) -> BoundedStep reduce rows cols limit -> Bounds.Lt k limit -> Bounds.Lt i limit -> Indices.HistoryLaws rows cols (attemptHistory current) -> Indices.HistoryLaws rows cols (attemptHistory (next reduce k i current)) :=
+  \fun (reduce: Reducer^)(rows, cols, limit, k, i: N.Nat^)(current: Attempt^)(step: _)(pivotBound: _)(indexBound: _)(historyLaws: _) => B.cases
+    (\fun (test: B.Bool^) => eligible k i current = test -> Indices.HistoryLaws rows cols (attemptHistory (B.ite Attempt^ test (reduce k i (attemptMatrix current) (attemptHistory current)) current)))
+    (\fun (equal: eligible k i current = B.Bool^::false) => historyLaws)
+    (\fun (equal: eligible k i current = B.Bool^::true) => step k i (attemptMatrix current) (attemptHistory current) (eligibleLess k i current equal) pivotBound indexBound historyLaws)
+    (eligible k i current) (\refl(eligible k i current));
+\definition bounded: \forall (count: N.Nat^)(reduce: Reducer^)(rows, cols, limit, k: N.Nat^)(a: Runtime^)(history: History^) ->
+  BoundedStep reduce rows cols limit -> Bounds.Le count limit -> Bounds.Lt k limit -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (passWith reduce count k a history)) :=
+  \induction (count: N.Nat^) \return \forall (reduce: Reducer^)(rows, cols, limit, k: N.Nat^)(a: Runtime^)(history: History^) ->
+    BoundedStep reduce rows cols limit -> Bounds.Le count limit -> Bounds.Lt k limit -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (passWith reduce count k a history)) \with {
+    | zero: \fun (reduce: Reducer^)(rows, cols, limit, k: N.Nat^)(a: Runtime^)(history: History^)(step: _)(bound: _)(pivotBound: _)(historyLaws: _) => historyLaws
+    | succ: \fun (count: N.Nat^)(previous: _)(reduce: Reducer^)(rows, cols, limit, k: N.Nat^)(a: Runtime^)(history: History^)(step: _)(bound: _)(pivotBound: _)(historyLaws: _) =>
+        nextBounded reduce rows cols limit k count (passWith reduce count k a history) step pivotBound (Bounds.ltOfSuccLe limit count bound)
+          (previous reduce rows cols limit k a history step (Bounds.leTrans count (N.Nat^::succ count) limit (Bounds.leSelfSucc count) bound) pivotBound historyLaws)
+  };
+\definition rowBounded: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k rows -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (row rows k a history)) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(pivotBound: _)(historyLaws: _) =>
+    bounded rows Reduction.row rows cols rows k a history (\fun (pivot, index: N.Nat^)(a: Runtime^)(history: History^) => Reduction.Bounded[].row rows cols pivot index a history) (Bounds.leRefl rows) pivotBound historyLaws;
+\definition columnBounded: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k cols -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (column cols k a history)) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(pivotBound: _)(historyLaws: _) =>
+    bounded cols Reduction.column rows cols cols k a history (\fun (pivot, index: N.Nat^)(a: Runtime^)(history: History^) => Reduction.Bounded[].column rows cols pivot index a history) (Bounds.leRefl cols) pivotBound historyLaws;
+\definition Value: \Set := Runtime^ -> I.Int^;
+\definition PreserveStep(reduce: Reducer^)(value: Value)(k: N.Nat^): \Prop := \forall (i: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k i -> attemptReduced (reduce k i a history) = B.Bool^::false -> value (attemptMatrix (reduce k i a history)) = value a;
+\definition Keeps(value: Value)(a: Runtime^)(current: Attempt^): \Prop := attemptReduced current = B.Bool^::false -> value (attemptMatrix current) = value a;
+\module KeepTransition(reduce: Reducer^, value: Value, k, i: N.Nat^, a: Runtime^, current: Attempt^);
+\definition nextKeeps: \forall (reduce: Reducer^)(value: Value)(k, i: N.Nat^)(a: Runtime^)(current: Attempt^) -> PreserveStep reduce value k -> Keeps value a current -> Keeps value a (next reduce k i current) :=
+  \fun (reduce: Reducer^)(value: Value)(k, i: N.Nat^)(a: Runtime^)(current: Attempt^) => KeepTransition[reduce := reduce, value := value, k := k, i := i, a := a, current := current].law;
+\definition keeps: \forall (count: N.Nat^)(reduce: Reducer^)(value: Value)(k: N.Nat^)(a: Runtime^)(history: History^) -> PreserveStep reduce value k -> Keeps value a (passWith reduce count k a history) :=
+  \induction (count: N.Nat^) \return \forall (reduce: Reducer^)(value: Value)(k: N.Nat^)(a: Runtime^)(history: History^) -> PreserveStep reduce value k -> Keeps value a (passWith reduce count k a history) \with {
+    | zero: \fun (reduce: Reducer^)(value: Value)(k: N.Nat^)(a: Runtime^)(history: History^)(step: _)(equal: B.Bool^::false = B.Bool^::false) => \refl(value a)
+    | succ: \fun (count: N.Nat^)(previous: _)(reduce: Reducer^)(value: Value)(k: N.Nat^)(a: Runtime^)(history: History^)(step: _) =>
+        nextKeeps reduce value k count a (passWith reduce count k a history) step (previous reduce value k a history step)
+  };
+\definition rowKeepsPivotRow: \forall (count, k, j: N.Nat^)(a: Runtime^)(history: History^) -> Keeps (\fun (matrix: Runtime^) => matrix k j) a (row count k a history) :=
+  \fun (count, k, j: N.Nat^)(a: Runtime^)(history: History^) => keeps count Reduction.row (\fun (matrix: Runtime^) => matrix k j) k a history
+    (\fun (i: N.Nat^)(a: Runtime^)(history: History^)(less: _) => Reduction.rowPreserved k i a history k j (Bounds.ltNe k i less));
+\definition columnKeepsPivotColumn: \forall (count, k, i: N.Nat^)(a: Runtime^)(history: History^) -> Keeps (\fun (matrix: Runtime^) => matrix i k) a (column count k a history) :=
+  \fun (count, k, i: N.Nat^)(a: Runtime^)(history: History^) => keeps count Reduction.column (\fun (matrix: Runtime^) => matrix i k) k a history
+    (\fun (j: N.Nat^)(a: Runtime^)(history: History^)(less: _) => Reduction.columnPreserved k j a history i k (Bounds.ltNe k j less));
+
+\definition Nonzero(k: N.Nat^)(current: Attempt^): \Prop := Logic.Not (attemptMatrix current k k = Arithmetic.zero);
+\definition NonzeroStep(reduce: Reducer^)(k: N.Nat^): \Prop := \forall (i: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k i -> Logic.Not (a k k = Arithmetic.zero) -> Nonzero k (reduce k i a history);
+\definition nextNonzero: \forall (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^) -> NonzeroStep reduce k -> Nonzero k current -> Nonzero k (next reduce k i current) :=
+  \fun (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^)(step: _)(nonzero: _) => B.cases
+    (\fun (test: B.Bool^) => eligible k i current = test -> Nonzero k (B.ite Attempt^ test (reduce k i (attemptMatrix current) (attemptHistory current)) current))
+    (\fun (equal: eligible k i current = B.Bool^::false) => nonzero)
+    (\fun (equal: eligible k i current = B.Bool^::true) => step i (attemptMatrix current) (attemptHistory current) (eligibleLess k i current equal) nonzero)
+    (eligible k i current) (\refl(eligible k i current));
+\definition nonzero: \forall (count: N.Nat^)(reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^) -> NonzeroStep reduce k -> Logic.Not (a k k = Arithmetic.zero) -> Nonzero k (passWith reduce count k a history) :=
+  \induction (count: N.Nat^) \return \forall (reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^) -> NonzeroStep reduce k -> Logic.Not (a k k = Arithmetic.zero) -> Nonzero k (passWith reduce count k a history) \with {
+    | zero: \fun (reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^)(step: _)(nonzero: _) => nonzero
+    | succ: \fun (count: N.Nat^)(previous: _)(reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^)(step: _)(nonzero: _) =>
+        nextNonzero reduce k count (passWith reduce count k a history) step (previous reduce k a history step nonzero)
+  };
+\definition rowNonzero: \forall (count, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Nonzero k (row count k a history) :=
+  \fun (count, k: N.Nat^)(a: Runtime^)(history: History^) => nonzero count Reduction.row k a history (Reduction.rowNonzero k);
+\definition columnNonzero: \forall (count, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Nonzero k (column count k a history) :=
+  \fun (count, k: N.Nat^)(a: Runtime^)(history: History^) => nonzero count Reduction.column k a history (Reduction.columnNonzero k);

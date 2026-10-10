@@ -1,0 +1,19 @@
+\import B.Choose[A := Result] \as Choice;
+\definition T: \VType := \U(\U(Nat -> B.Bool) -> State -> State);
+\definition program: T := \thunk (\cfun (p: \U(Nat -> B.Bool)) => \return(\thunk (\cfun (state: State) => \match state \in State \with {
+  | scanning index result: \program {
+      \bind test: B.Bool <- (\force p) index \then
+      \bind chooseYes: \U(Result -> Result -> Result) <- (\force Choice.program) test \then
+      \bind chooseNo: \U(Result -> Result) <- (\force chooseYes) (Result::found index) \then
+      \bind chosen: Result <- (\force chooseNo) result \then
+      \return(State::scanning (Nat::succ index) chosen)
+    }
+})));
+\definition matches: \forall (p: Nat^ -> B.Bool^)(state: State^) -> program^ p state = step p state :=
+  \fun (p: Nat^ -> B.Bool^) => \induction (state: State^) \return program^ p state = step p state \with {
+    | scanning: \fun (index: Nat^)(result: Result^) => congr!{Result^ State^} (State^::scanning (Nat^::succ index))
+        (Choice.program^ (p index) (Result^::found index) result) (B.ite Result^ (p index) (Result^::found index) result)
+        (Choice.matches (p index) (Result^::found index) result)
+  };
+\definition coherence: program^ = step := \axiom:funext(program^, step,
+  \fun (p: Nat^ -> B.Bool^) => \axiom:funext(program^ p, step p, matches p));

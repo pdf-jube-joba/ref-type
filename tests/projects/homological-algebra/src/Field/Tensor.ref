@@ -1,0 +1,31 @@
+\import homological_algebra.TensorCochain[].Over[R := K, ring := Fields.fieldAsCommutativeRing K field] \as Tensors;
+\import Tensors.Tensor[C := nativeComplex, D := nativeComplex] \as Product;
+\import Tensors.Total[C := Product.complex] \as Total;
+\import Tensors.TensorZero[left := Model.homologyFamily, right := Model.homologyFamily] \as HomologyProduct;
+\import homological_algebra.Kunneth[].Field[K := K, field := field].Of[C := complex, D := complex] \as Kunneth;
+\module At(n: N.Nat^) {
+  \import Cochains.At[C := Total.complex, k := n] \as ProductCohomology;
+  \import Cochains.ZeroDifferential[family := Model.homologyFamily] \as Homology;
+  \import Tensors.Tensor[C := Homology.complex, D := Homology.complex] \as HomologyTensor;
+  \import Tensors.Total[C := HomologyTensor.complex] \as HomologyTotal;
+  \import Modules.Isomorphism[V := ProductCohomology.Cohomology, W := HomologyTotal.family.Carrier n,
+    source := ProductCohomology.cohomologySpace, target := HomologyTotal.family.space n] \as Isomorphisms;
+  \definition finiteTensorKunneth: \exists Isomorphisms.Isomorphism := Kunneth.At[n := n].existence;
+}
+\import Tensors.CycleProduct[C := nativeComplex, D := nativeComplex, p := N.Nat^::zero, q := N.Nat^::zero] \as Exterior;
+\import Modules.Tensor[V := H.CycleCarrier, W := H.CycleCarrier,
+  left := H.cycleSpace, right := H.cycleSpace] \as Cycles;
+\import Cochains.At[C := Total.complex, k := N.Nat^::zero] \as ProductH;
+\definition exteriorOnRepresentatives: \forall (x, y: H.CycleCarrier) ->
+  #apply{Exterior.map} (Cycles.tensor x y) = ProductH.classOf (Exterior.cycle x y) := Exterior.onTensor;
+\definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := H.Cohomology, space := H.cohomologySpace };
+\import homological_algebra.NonnegativeChain[].Over[R := K, ring := ring].ProjectiveResolution[M := homologyBundle] \as ProjectiveComplex;
+\import homological_algebra.Resolution[].Over[R := K, ring := ring].Projective[M := homologyBundle] \as Resolution;
+\import homological_algebra.Tor[].Over[R := K, ring := Fields.fieldAsCommutativeRing K field] \as Tor;
+\import Tor.Of[M := homologyBundle, N := homologyBundle, P := ProjectiveComplex.complex] \as Derived;
+\module Positive(n: N.Nat^) {
+  \import Derived.At[n := N.Nat^::succ n] \as Term;
+  \import Tor.Projective[M := homologyBundle, N := homologyBundle, P := ProjectiveComplex.complex].Positive[n := n] \as Vanishing;
+  \definition fieldTorVanishes: \forall (x: Term.Carrier) -> x = #zero{Term.space} :=
+    Vanishing.vanishing projective (Resolution.resolution projective);
+}

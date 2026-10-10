@@ -1,0 +1,29 @@
+\definition step: \U(State ~> \F(\RunStep[State, BasisChange])) := \thunk (\cfun (state: State) => \match state \in State \with {
+  | pending history handler compose after initial: \match history \in History \with {
+      | empty: \program {
+          \bind output: BasisChange <- (\force after) initial \then
+          \return(\finish[State, BasisChange](output))
+        }
+      | prepend operation older: \return(\continue[State, BasisChange](State::pending older handler compose
+          (\thunk (\cfun (a: BasisChange) => \program {
+            \bind later: BasisChange <- (\force handler) operation \then
+            \bind combine: Transformer <- (\force compose) later \then
+            \bind combined: BasisChange <- (\force combine) a \then
+            \bind output: BasisChange <- (\force after) combined \then
+            \return output
+          })) initial))
+    }
+});
+\import std.Logic[].Termination[State := State^, Output := BasisChange^, step := step^] \as Termination;
+\definition terminates: \forall (history: History^)(handler: Handler^)(compose: Composer^)(after: Transformer^)(initial: BasisChange^) ->
+  Termination.Holds (State^::pending history handler compose after initial) :=
+  \induction (history: History^) \return \forall (handler: Handler^)(compose: Composer^)(after: Transformer^)(initial: BasisChange^) ->
+    Termination.Holds (State^::pending history handler compose after initial) \with {
+    | empty: \fun (handler: Handler^)(compose: Composer^)(after: Transformer^)(initial: BasisChange^) =>
+        Termination.intro (State^::pending History^::empty handler compose after initial) Termination.trivial
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: _)(handler: Handler^)(compose: Composer^)(after: Transformer^)(initial: BasisChange^) =>
+        Termination.intro (State^::pending (History^::prepend operation history) handler compose after initial)
+          (previous handler compose (\fun (a: BasisChange^) => after (compose (handler operation) a)) initial)
+  };
+\definition certificate: \forall (state: State^) -> Programs.Terminates State^ BasisChange^ step^ state :=
+  \induction (state: State^) \return Termination.Holds state \with { | pending: terminates };

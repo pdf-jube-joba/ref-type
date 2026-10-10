@@ -1,0 +1,18 @@
+\definition T: \VType := \U(N.Nat -> Runtime -> Runtime);
+\definition program: T := \thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \program {
+  \bind pivotRow: \U(N.Nat -> I.Int) <- (\force a) k \then
+  \bind pivot: I.Int <- (\force pivotRow) k \then
+  \return(\thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \program {
+    \bind row: \U(N.Nat -> I.Int) <- (\force a) i \then
+    \bind entry: I.Int <- (\force row) j \then
+    \bind divide: \U(I.Int -> I.Int) <- (\force Division.Remainder.program) entry \then
+    \bind remainder: I.Int <- (\force divide) pivot \then
+    \return remainder
+  }))))
+})));
+\definition matches: \forall (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> program^ k a i j = remainders k a i j :=
+  \fun (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) => congr!{Division.Remainder.T^ I.Int^} (\fun (f: Division.Remainder.T^) => f (a i j) (a k k)) Division.Remainder.program^ Division.remainder Division.Remainder.coherence;
+\definition coherence: program^ = remainders := \axiom:funext(program^, remainders,
+  \fun (k: N.Nat^) => \axiom:funext(program^ k, remainders k,
+    \fun (a: Runtime^) => \axiom:funext(program^ k a, remainders k a,
+      \fun (i: N.Nat^) => \axiom:funext(program^ k a i, remainders k a i, \fun (j: N.Nat^) => matches k a i j))));
