@@ -67,8 +67,8 @@
 実数上の具体化と、次数ごとに台集合が変わる利用例は [Cohomology.ref](../../tests/projects/manifolds-de-rham/src/Cohomology.ref) にある。
 
 ```sh
-target/debug/cli libs/homological_algebra --no-cache --diagnostics compact
-target/debug/cli tests/projects/homological-algebra --no-cache --diagnostics compact
+target/debug/cli libs/homological_algebra --module homological_algebra --full-check-local --diagnostics compact
+target/debug/cli tests/projects/homological-algebra --module homological_algebra_tests --full-check-local --diagnostics compact
 ```
 
 `Finite.Bounded.Mapping` は全次数の整数行列から鎖写像を構成する。

@@ -32,6 +32,8 @@ eq_reason!{{ f a } "=" { f b } "by" { congr!{A B} f a b ab }}
 ```
 
 固定した carrier の名前付き API は `E.Prop[A := X]` にある。
+集合値の族 `F: A -> \Set` の移送は `E.Transport[A := A, F := F]` にある。
+`cast` は集合値の `\idelim` による移送、`identity`・`composition`・`roundTrip`・`Constant.law`・`Natural.law` は恒等・合成・往復・定数族・自然性の法則を公開する。
 選言の消去には `Logic.Proposition.either` を使える。
 
 ## Program と算術

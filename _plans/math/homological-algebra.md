@@ -7,13 +7,13 @@
 一般の理論と有限行列による計算を接続し、計算結果は元の核を像で割った加群との同型として返す。
 
 [特異コホモロジー計画](singular-cohomology.md) はこの基盤を使って位相空間のコホモロジーを計算する。
-[De Rham コホモロジー](../libs/differential_forms/README.md) の余鎖複体と商ベクトル空間は、実装済みの加群上の構成を利用している。
+[De Rham コホモロジー](../../libs/differential_forms/README.md) の余鎖複体と商ベクトル空間は、実装済みの加群上の構成を利用している。
 この文書全体を一つの実装単位とし、各節は中間検査点とする。
 一般のアーベル圏上の導来関手、導来圏、スペクトル系列は、この実装を用いて拡張する後続の単位とする。
 
 ## 現状
 
-加群・複体の実装済み API は [algebra](../libs/algebra/README.md) と [homological_algebra](../libs/homological_algebra/README.md) にまとめる。
+加群・複体の実装済み API は [algebra](../../libs/algebra/README.md) と [homological_algebra](../../libs/homological_algebra/README.md) にまとめる。
 
 | 既存の実装 | 再利用する内容 | 本計画で追加する内容 |
 | --- | --- | --- |
@@ -189,16 +189,16 @@ De Rham 側は第1・2節の API から利用できるが、本計画の完了�
 ```sh
 cargo build -p cli
 for package in std algebra category linear_algebra homological_algebra; do
-  target/debug/cli "libs/$package" --no-cache --diagnostics compact || exit 1
+  target/debug/cli "libs/$package" --module "$package" --no-cache --diagnostics compact || exit 1
 done
-target/debug/cli tests/projects/homological-algebra --no-cache --diagnostics compact
-target/debug/cli tests/projects/library --no-cache --diagnostics compact
-target/debug/cli tests/projects/category --no-cache --diagnostics compact
-target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics compact
+target/debug/cli tests/projects/homological-algebra --module homological_algebra_tests --no-cache --diagnostics compact
+target/debug/cli tests/projects/library --module library_tests --no-cache --diagnostics compact
+target/debug/cli tests/projects/category --module category_tests --no-cache --diagnostics compact
+target/debug/cli tests/projects/topological-k-theory --module topological_k_theory_foundations_tests --no-cache --diagnostics compact
 cargo test -p cli --test ref_files --locked
 ```
 
 新しい project を `src/cli/tests/ref_files.rs` に登録し、公開 module、各 README、`libs/README.md` の依存と検査手順を更新する。
 前提は定理の命題全体に量化し、具体的な複体や分解を構成した後で一般定理へ渡す。
 集合族、商、型値の帰納的構成は小さな別 module から先に利用して型の受け渡しを検査する。
-言語・体系の制限で構成できないと判明した場合は、書きたい形・最小例・診断・影響範囲を [gaps.md](gaps.md) に記録して停止する。
+言語・体系の制限で構成できないと判明した場合は、書きたい形・最小例・診断・影響範囲を [gaps.md](../gaps.md) に記録して停止する。

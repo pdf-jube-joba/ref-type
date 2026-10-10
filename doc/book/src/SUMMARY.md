@@ -37,7 +37,7 @@
   - [read](./survey/reading/reading.md)
     - [strong normalization for the CoC](./survey/reading/strong_normalization_for_the_CoC.md)
     - [simple model construction for the CoC](./survey/reading/simple_model_construction_for_the_CoC.md)
-- [対話](./対話/AGENTS.md)
+- [対話]()
   - [再帰関数](./対話/再帰関数/_目標.md)
     - [1](./対話/再帰関数/再帰1.md)
     - [2](./対話/再帰関数/再帰2.md)

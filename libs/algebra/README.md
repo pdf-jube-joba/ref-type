@@ -61,7 +61,7 @@
 リポジトリのルートで実行する。
 
 ```sh
-target/debug/cli libs/algebra --no-cache --diagnostics compact
+target/debug/cli libs/algebra --module algebra --full-check-local --diagnostics compact
 ```
 
 群完成の具体化には `GroupCompletion.Of[M := ..., monoid := ...]` を使う。

@@ -31,7 +31,9 @@
 
 `Euclidean.Restriction[U, V]` は \(U\subseteq V\) に沿う形式の制限を構成する。
 `At[k].partial`、`Product[p, q].law`、`Differential[k].law` は制限と偏微分・外積・外微分との可換性を表す。
-等しい次数間の移送には、リスト上の表示を保存して形式を復元する `Regrade[k, l]` を用いる。
+等しい次数間の移送には、集合値の `\idelim` による `Regrade[k, l].cast` を用いる。
+`RegradeIdentity[k].law` は `\transporteq` による自己移送の恒等則、`Regrade[k, l].composition` は移送の合成則を返す。
+リスト上の成分表示からの復元は `RegradeDisplay[k, l].convert` に置き、`Regrade[k, l].bridge` は次数の等式の下で `cast` との一致を証明する。
 
 `Euclidean.On.CoordinateBasis` は座標一形式の外積を任意次数で構成する。
 `CoordinateBasis.At[k].Enumeration` は増加添字列の重複のない有限列挙であり、`reconstruction` は滑らかな基底係数からの復元、`Differential.formula` は外微分の係数公式を返す。
@@ -40,6 +42,7 @@
 `At[k].space`、`Wedge`、`ExteriorDerivative`、`Square`、`Leibniz` は大域形式のベクトル空間と外代数・外微分の法則を公開する。
 `Pointwise[k]` は接空間上の滑らかな交代形式の族との双方向の対応であり、`leftInverse` と `rightInverse` は往復の一致を示す。
 `DegreeZero` は大域零次形式を滑らかな関数と結ぶ。
+大域形式の `Regrade[k, l].cast` も集合値の移送を使い、`chart` は各チャートでの局所形式の移送との一致を示す。
 
 `Pullback[n, m].Between[M, N].Of[f]` は一般の滑らかな写像による引き戻しを構成する。
 `At[k].map`、`Product[p, q].law`、`Differential[k].law` は線形性・外積・外微分との整合性を返す。
@@ -56,5 +59,5 @@
 具体例は [manifolds-de-rham project](../../tests/projects/manifolds-de-rham/src/root.ref) にある。
 
 ```sh
-target/debug/cli libs/differential_forms --no-cache --diagnostics compact
+target/debug/cli libs/differential_forms --module differential_forms --full-check-local --diagnostics compact
 ```

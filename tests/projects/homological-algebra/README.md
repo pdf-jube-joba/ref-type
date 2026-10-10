@@ -8,5 +8,5 @@
 `Field` は体上の有界有限自由余鎖複体を構成し、一般加群のコホモロジーと `linear_algebra` の商との同型を検査する。
 
 ```sh
-target/debug/cli tests/projects/homological-algebra --no-cache --diagnostics compact
+target/debug/cli tests/projects/homological-algebra --module homological_algebra_tests --full-check-local --diagnostics compact
 ```

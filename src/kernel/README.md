@@ -52,6 +52,10 @@ module 名や source location は elaboration が保持する。
 `IndElim` は motive の telescope と本体を別に保持し、添字・要素・再帰仮定を代入して各枝を検査する。
 消去先の制限と singleton elimination は [check.rs](src/check.rs) を参照。
 
+`IdElim` は命題値の等式除去と集合値の移送を表し、`family` の sort に応じて結果を検査する。
+集合値の移送は neutral な head を保ち、`TransportEq` が自己移送と元との命題上の等式を証明する。
+等式の certificate は型検査と通常の構造走査に含め、conversion と unification の比較対象からは消去する。
+
 ## Refinement とメタ変数
 
 `SubsetIntro` は要素と所属証拠を検査し、refinement 型 `TypeLift` を返す。

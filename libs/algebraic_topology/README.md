@@ -39,6 +39,6 @@ reduced suspension と smash は入力の基点を受け取る。
 [利用例](../../tests/projects/topological-k-theory/src/root.ref) は区間のホモトピーの連結と端点、区間反転のホモトピー同値とその合成、円板・球面の閉性、商の等式、一次元円板の境界を一点へ付着する構成、空の有限 CW 対を検査する。
 
 ```sh
-target/debug/cli libs/algebraic_topology --no-cache --diagnostics compact
-target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics compact
+target/debug/cli libs/algebraic_topology --module algebraic_topology --full-check-local --diagnostics compact
+target/debug/cli tests/projects/topological-k-theory --module topological_k_theory_foundations_tests --full-check-local --diagnostics compact
 ```

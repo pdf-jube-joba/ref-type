@@ -32,6 +32,6 @@
 [有限次元空間の利用例](../../tests/projects/topological-k-theory/src/Finite.ref) は実数上の線形写像・座標同相・基底変更を検査する。
 
 ```sh
-target/debug/cli libs/topological_algebra --no-cache --diagnostics compact
-target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics compact
+target/debug/cli libs/topological_algebra --module topological_algebra --full-check-local --diagnostics compact
+target/debug/cli tests/projects/topological-k-theory --module topological_k_theory_foundations_tests --full-check-local --diagnostics compact
 ```

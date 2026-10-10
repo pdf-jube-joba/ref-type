@@ -20,6 +20,8 @@ elaboration は HIR の ID を自身の workspace 内の ID に対応付ける�
 実行順は名前解決時に記録し、import 先の宣言の検査を利用箇所より先に置く。
 ローカル変数の shadowing と macro の衛生性も束縛 ID に反映する。
 macro の定義環境を保持して展開し、module parameter の捕捉は HIR の式として具体化する。
+macro の名前は module 本体全体で収集し、子の同名 binding は親を隠す。
+template 内の macro 参照は定義元の完成したスコープ、通常の項名は定義位置の項環境に結び付ける。
 展開済みの module には検査対象の宣言と query を残し、macro template の参照情報は定義元の source location に保持する。
 
 `#field{x}` は `x` の束縛を解決し、field 名を持つ射影式として保持する。

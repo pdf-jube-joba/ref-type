@@ -23,5 +23,5 @@
 利用例は [Geometry.ref](../../tests/projects/manifolds-de-rham/src/Geometry.ref) にある。
 
 ```sh
-target/debug/cli libs/manifolds --no-cache --diagnostics compact
+target/debug/cli libs/manifolds --module manifolds --full-check-local --diagnostics compact
 ```

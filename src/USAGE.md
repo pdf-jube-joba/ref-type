@@ -29,9 +29,9 @@ std = { path = "../std" }
 | --- | --- |
 | `--module NAME` | 指定した module・子 module と、その参照先の宣言を検証 |
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
-| `--no-cache` | 永続キャッシュを読み書きせず全体を検証 |
-| `--full-check` | 全体を再検証し、検証済みの結果でキャッシュを更新 |
-| `--full-check-local` | 指定ライブラリを再検証し、依存先は自身のソースと manifest が一致するキャッシュを再利用 |
+| `--no-cache` | 選択した範囲を永続キャッシュの読み書きなしで検証 |
+| `--full-check` | 選択した範囲を再検証し、検証済みの結果でキャッシュを更新 |
+| `--full-check-local` | 入口パッケージの選択した範囲を再検証し、依存先は自身のソースと manifest が一致するキャッシュを再利用 |
 | `--no-progress` | module ごとの進捗表示を抑制 |
 | `--cache-dir PATH` | キャッシュ保存先を変更 |
 | `--clear-cache` | 保存先の中身を削除してから処理 |
@@ -40,12 +40,14 @@ std = { path = "../std" }
 | `--trace` | 実際の検証を行い、型検査・登録・簡約のログを表示 |
 | `--diagnostics compact` / `detailed` | 診断の詳しさを指定 |
 
-証明の編集時は、パッケージを入口にして module を指定できる。
-依存する宣言も検証し、同じパッケージの別の構成は検査範囲から外す。
-パッケージ全体の検査には module の指定を外す。
+`--module` を省略すると、入口と読み込んだ全依存パッケージの全 module を検査対象にする。
+パッケージ全体とその参照先を検査する場合は、`ref.toml` の package 名を module に指定する。
+個別の証明を編集する場合は、その module を指定すると、子 module と依存する宣言を含めて検査できる。
+`--full-check-local` は再検査とキャッシュ再利用の方針を指定するもので、検査対象の選択には `--module` を使う。
 
 ```sh
 cargo run -p cli -- libs/std --module std.Data.Nat --diagnostics compact
+cargo run -p cli -- libs/differential_forms --module differential_forms --full-check-local --diagnostics compact
 ```
 
 キャッシュの仕組みと API は [sema](sema/README.md) を参照。
@@ -113,7 +115,8 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 先頭の三つは `1` で全件、名前の一部で対象を絞る。
 `REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先される。
 簡潔な診断では最初のエラーで検査を停止する。
-ライブラリの計測は [測定記録](../doc/performance-library-checks.md) を参照。
+時間とメモリの上限を付けた計測には [check.py](../benchmarks/check.py) を使える。
+既存の測定条件と結果は [results.json](../benchmarks/results.json) にある。
 
 ## 処理系のテスト
 

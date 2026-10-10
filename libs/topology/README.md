@@ -55,7 +55,7 @@
 リポジトリのルートで実行する。
 
 ```sh
-target/debug/cli libs/topology --no-cache --diagnostics compact
+target/debug/cli libs/topology --module topology --full-check-local --diagnostics compact
 ```
 
 局所コンパクト空間の一点コンパクト化、compact-open 位相の評価写像の連続性は後続の実装単位となる。

@@ -12,8 +12,8 @@
 >  現在は引数の State と Output が未確定なため、Box の閉性検査でこの定義を検査できない。
 >  `std.Program.runBox` はマクロとして提供し、呼出側で具体化した Machine の実行を検査している。
 
-G11 は [`gaps.md`](gaps.md) から分割した項目である。
-最小例・対照例と検査結果は [比較サンプル G11](fix-md/README.md#g11) を参照。
+G11 は [`gaps.md`](../gaps.md#g11) から分割した項目である。
+最小例・対照例と検査結果は [比較サンプル G11](../gaps.md#g11) を参照。
 
 # Box の parameter と評価開始条件
 
@@ -27,13 +27,13 @@ parameter の具体化、Box 内の簡約、`\Force` による reflection の関
 [Machine の実行を Box にする定義](#g11)では、引数に依存する Program の型と項を Box に入れたい。
 必要になるのは structure の中の Program 部分であり、Set の一般の項を Program の value として受け入れることとは別の問題である。
 
-[現在の体系](../doc/book/src/system.md)では、Box の computation type と payload を空文脈で型検査する。
-[kernel の型検査](../src/kernel/src/check.rs)でも、payload の自由変数と module parameter を閉性検査で制限している。
+[現在の体系](../../doc/book/src/system.md)では、Box の computation type と payload を空文脈で型検査する。
+[kernel の型検査](../../src/kernel/src/check.rs)でも、payload の自由変数と module parameter を閉性検査で制限している。
 box intro では payload の reflection についても型検査するため、開いた Box の検討には反映先の文脈も関わる。
 
 現在の box step は payload の Program 簡約を Box の内側で進める。
 `\Force` は閉じた payload がこれ以上簡約できなくなったところで reflection に移す。
-[kernel の簡約](../src/kernel/src/reduction.rs)にも `BoxProgram` 自体を一段進める処理がある。
+[kernel の簡約](../../src/kernel/src/reduction.rs)にも `BoxProgram` 自体を一段進める処理がある。
 したがって、現状の規則では `\Force` だけを Program の実行開始点とみなす説明には調整が必要になる。
 
 ## parameter を実行前の環境とみなす考え方

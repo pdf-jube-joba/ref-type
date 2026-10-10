@@ -1,6 +1,6 @@
 # マクロ
 
-同じ module と親 module の可視なマクロは直接使い、import したものは `\use` で導入する。
+同じ module と親 module の可視なマクロは直接使い、別の module のマクロは `\use` で導入する。
 定義と使用宣言は module の本体全体と子 module に有効であり、子の同名 binding は親を隠す。
 同じ module 内の導入名の重複は、定義と使用宣言のどちらでもエラーとなる。
 
@@ -8,11 +8,26 @@
 \math-macro add($left, \+, $right) := operation $left $right;
 \macro tagged($term, "keep") := $term;
 \use ImportAlias::macroName;
+\use ImportAlias::Child[A := A]::macroName \as child_macro;
 \use \root.Templates[A := A, refl := leftRefl]::reflexive \as refl_left;
 \use \root.Templates[A := A, refl := rightRefl]::reflexive \as refl_right;
 
 \(x + y \)
 tagged!{value "keep"}
+```
+
+`\use` では import alias からの選択と module の直接具体化を使える。
+同じ定義元を異なる引数で具体化した場合も、異なる導入名で併用できる。
+
+```text
+\module Example(A: \Set, a, b: A) {
+  \definition before: a = a := \refl(value!{});
+  \macro value() := a;
+  \module Child {
+    \definition law: b = b := \refl(value!{});
+    \macro value() := b;
+  }
+}
 ```
 
 ## Pattern と呼び出し
@@ -58,7 +73,7 @@ template の自由な名前は定義側、capture した式は呼出側の scope
 > [!warning]
 > 括弧列を自動的に平坦化することはない。
 
-template 内の macro は定義元の完成したスコープに結び付き、後方参照と相互再帰を利用できる。
+template 内の macro は定義元の完成したスコープに結び付き、後に宣言された macro への参照と相互再帰を利用できる。
 別名で導入しても内部参照と自己参照には定義元の具体化を使う。
 通常の項名は定義位置、使用宣言の module 引数はその宣言位置の項環境で解決する。
 module のヘッダーと parameter の型は親の macro スコープを使う。

@@ -100,7 +100,8 @@ Set/Prop の式には `\assign` で番号付き推論変数との等式を登録
 
 ## 2. module
 
-ルートファイルには module を一つ以上置く。module は入れ子にでき、item は宣言順に処理する。
+ルートファイルには module を一つ以上置く。module は入れ子にできる。
+通常の項名は宣言位置の文脈で解決し、macro の定義と使用宣言は本体全体と子 module に有効である。
 
 ```text
 \module Name(parameters) {
@@ -364,9 +365,27 @@ left = right
 \refl element-atom
 \exact(element, set)
 \bysub(superset, subset, element)
-\idelim left = right \with x: A => predicate \by { base: base-proof, equality: equality-proof }
+\idelim left = right \with x: A => family \by { base: base-term, equality: equality-proof }
+\transporteq index \with x: A => family \by { base: base-term }
 \choiceeq element \of X
   \by { existence: existence-proof, uniqueness: uniqueness-proof }
+```
+
+`\idelim` の族 `family` は `\Prop` または `\Set(i)` を値に取る。
+`base-term` は始点での族の項であり、`equality-proof` によって終点での族へ移送する。
+集合値の移送の head は neutral であり、自己移送の恒等性は `\transporteq` で命題上の等式として証明する。
+`\transporteq` は集合値の族に対して、`index` から同じ `index` への移送と `base-term` の等式を証明する。
+添字の型 `A` は `_` で推論でき、移送の等式証明は型検査後の定義的等価性の比較では消去される。
+
+```text
+\module Transport(A: \Set, F: A -> \Set, a, b: A) {
+  \definition cast(value: F a)(same: a = b): F b :=
+    \idelim a = b \with x: _ => F x \by { base: value, equality: same };
+  \definition identity: \forall (value: F a)(same: a = a) ->
+    (\idelim a = a \with x: _ => F x \by { base: value, equality: same }) = value :=
+    \fun (value: F a)(same: a = a) =>
+      \transporteq a \with x: _ => F x \by { base: value };
+}
 ```
 
 `\choiceeq` は `element = \choice X \by { existence: existence-proof, uniqueness: uniqueness-proof }` を証明する。

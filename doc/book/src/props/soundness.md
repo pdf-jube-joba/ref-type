@@ -101,6 +101,11 @@ id elim では premise から \(a_\rho=b_\rho\)。
 \(\llbracket P\rrbracket_{\rho[x:=b_\rho]}\) に等しい。
 valuation が等しいので真理値が一致する。
 
+集合値の transport では、等式 premise の帰納法から \(a_\rho=b_\rho\) を得る。
+Semantic-substitution により \(\llbracket B_a\rrbracket_\rho=\llbracket B_b\rrbracket_\rho\) であり、\(u:B_a\) の帰納法は \(u\) の値が終点の族にも属することを与える。
+transport の解釈は \(u\) の値なので typing の結論が成り立つ。
+自己移送の恒等則は同じ集合値の反射的等号として真になる。
+
 exists form は非空性の真理値なので \(\mathbb B\) の要素。
 exists intro は表示された要素による非空性。
 choice では、存在と二重の Prop-product の premise から

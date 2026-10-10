@@ -4,5 +4,5 @@
 CLI の `product_compactness_specialization_succeeds` で検査する。
 
 ```sh
-target/debug/cli tests/projects/product-compactness --no-cache --diagnostics compact
+target/debug/cli tests/projects/product-compactness --module product_compactness_examples --full-check-local --diagnostics compact
 ```

@@ -1,9 +1,14 @@
 # 言語で書きたい構成と比較例
 
-最小例と対照例は [比較サンプル一覧](fix-md/README.md#対象文書の対応) にまとめる。
-G01〜G04 と G11 の `.ref` は、全文を playground.md に貼り付けて単独で検査できる。
-比較する条件と現在の結果は各項目のリンク先に記載する。
-Box の検討は [Box の parameter](box-parameters.md#g11) に分けている。
+G01〜G03 と G11 の比較サンプルは、全文を playground.md に貼り付けて単独で検査できる。
+個別に CLI で確認する場合は、リポジトリのルートで実行する。
+
+```sh
+cargo build --locked --offline -p cli
+target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnostics compact
+```
+
+Box の検討は [Box の parameter](features/box-parameters.md#g11) に分けている。
 
 <a id="g01"></a>
 
@@ -11,8 +16,14 @@ Box の検討は [Box の parameter](box-parameters.md#g11) に分けている�
 
 record の変数 `s` と、各フィールドを射影して再構成した record を、定義的に等しいものとして扱いたい。
 
-[最小比較: G01](fix-md/README.md#g01) は、変数と具体的な record に対して同じ等式を `refl` で検査する。
-変数では `types are not convertible` で失敗し、具体値では成功する。
+| サンプル | 条件 | 結果 |
+| --- | --- | --- |
+| [01-01-record-eta.ref](fix-md/cases/01-01-record-eta.ref) | `s` は定義の引数。 | 失敗：`types are not convertible`。 |
+| [01-02-record-eta-concrete.ref](fix-md/cases/01-02-record-eta-concrete.ref) | `s` は既に定義した具体的な record。 | 成功。 |
+
+差分は `eta` の `(s: Record)` の有無だけである。
+両側とも `s = Record { field := s.field }` を `refl(s)` で検査する。
+`refl` による定義的な eta の比較である。
 
 法則を含む `\Set` の structure はデータ・法則・部分集合型へ展開されるため、公開された型に直接 `\induction` を適用してデータの constructor を指定することはできない。
 [実数値線形写像](../libs/calculus/src/Real/Multivariable/Differential/Def.ref)は `LinearData` と `LinearLaws` を明示的に分け、通常のデータ record の帰納法から再構成の等式を示す。
@@ -28,8 +39,12 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 命題の証明を引数に取り、集合値を返す関数を書きたい。
 位相空間の正規性から得られる開集合や Urysohn 関数を、正規性の証明と閉集合の証明を引数とする集合値の関数として構成できると、存在証明を何度も展開せずに利用できる。
 
-[最小比較: G02](fix-md/README.md#g02) は、同じ証明引数と集合値について、通常の関数と contextual な定義を比較する。
-通常の関数型 `P -> A` は sort の積規則で失敗し、contextual な `choose(h: P): A` は成功する。
+| サンプル | 条件 | 結果 |
+| --- | --- | --- |
+| [02-01-proof-function.ref](fix-md/cases/02-01-proof-function.ref) | `choose: P -> A := \fun (h: P) => a`。 | 失敗：`no product rule for these sorts`。 |
+| [02-02-proof-contextual.ref](fix-md/cases/02-02-proof-contextual.ref) | `choose(h: P): A := a`。 | 成功。 |
+
+命題 `P`、集合 `A`、返す値 `a` は共通で、証明引数を通常の関数にするか contextual な定義にするかだけを変える。
 
 滑らかな遷移写像の互換性から写像の値を作る構成を、`Compatible -> Maps.Map U V` の型と lambda で書きたい。
 この型は `Prop` から `Set` への積になるため、現在の積規則では `no product rule` になる。
@@ -48,7 +63,13 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 関係 `relation: A -> A -> \Prop` を Box parameter に持つ集合値の record に、データとその関係に関する法則をまとめたい。
 有限選択の結果では、選択した有限集合と、元の集合との対応を表す法則を一つの record として扱いたい。
 
-[最小比較: G03](fix-md/README.md#g03) の `Selection[relation]: \Set` は、集合値の field `value: A` の射影を生成する際に `no product rule for these sorts` で失敗する。
+| サンプル | 条件 | 結果 |
+| --- | --- | --- |
+| [03-01-relation-record.ref](fix-md/cases/03-01-relation-record.ref) | `Selection[relation]: \Set` に値と法則を保持する。 | 失敗：`Generated projection value does not typecheck: no product rule for these sorts`。 |
+| [03-02-relation-record-split.ref](fix-md/cases/03-02-relation-record-split.ref) | データと法則を分け、部分集合型で結ぶ。 | 成功。 |
+
+保持する値と条件は共通で、record に関係 parameter を渡すか、法則を満たすデータの部分集合型を使うかを比較する。
+
 現在は関係を parameter に持たない `Data: \Set` と、`Laws[relation, data]: \Prop` に分け、法則を満たすデータの部分集合型として `Selection` を定義することで型検査が通る。
 `std.Set.FiniteSubset.Selection` ではこの構成を使っている。
 
@@ -56,66 +77,27 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 > 保留します。
 > 内容を見る限り G02 と同じ、 Prop をとって Set を返しているため。
 
-<a id="g04"></a>
-
-## G04: 子 module の macro 可視性と重複読み込み
-
-実装方針は [macro のスコープと使用宣言](features/macro-scopes.md) にまとめる。
-
-親 module で読み込んだ macro を子 module から利用するとき、読み込み位置と継承範囲を容易に把握したい。
-同じ macro の再読み込みを許容できると、親と子のどちらから利用する場合にも import と `\use` を局所的に記述できる。
-
-[最小比較: G04](fix-md/README.md#g04) の親の後続の使用宣言と子の同名使用宣言は成功する。
-macro は module 全体で可視となり、子の導入名は親を隠す。
-同じ module 内の導入名の重複は両方の宣言位置を含むエラーとなる。
-[二つの Equality の具体化](fix-md/cases/04-05-macro-aliases.ref) は、直接の module 選択と異なる導入名で同時に利用できる。
-
-> [!note]
-> 対応したい。
-> - マクロの利用範囲と宣言順...マクロを宣言順によらない依存を許す。
-> - マクロの読み込みの挙動とオーバーライド...重複上書きあり、
-> - ついでにマクロも `\import` にしたい。
-> - `\import A[].{B[X := Y].b, c \as d}` みたいな書き方も。
-> - マクロも使い分けのために `\as` が欲しいと思う。
-> プランを決めたいが、いったん重複読み込みを許す。
-
 <a id="g11"></a>
 
 ## G11: Machine の実行を Box にする定義
 
 Machine を引数に取り、その実行を Box にする共通の定義を書きたい。
-[最小比較: G11](fix-md/README.md#g11) は、Machine の引数で `Box requires a closed computation type` になり、具体値では成功する。
-parameter と評価開始条件の検討は [Box の parameter](box-parameters.md#g11) にまとめる。
+
+| サンプル | 条件 | 結果 |
+| --- | --- | --- |
+| [11-01-box-machine.ref](fix-md/cases/11-01-box-machine.ref) | `machine` は定義の引数。 | 失敗：`Box requires a closed computation type`。 |
+| [11-02-box-concrete.ref](fix-md/cases/11-02-box-concrete.ref) | `machine` は既に定義した具体値。 | 成功。 |
+
+差分は `runBox` の `(machine: Machine)` の有無だけである。
+Machine の型、実行、Box の型と本体は共通で、Box の型は両側とも明示する。
+入力と出力の型は1つの `State` にそろえている。
+開いた computation type と、具体化して閉じた computation type の比較になる。
+parameter と評価開始条件の検討は [Box の parameter](features/box-parameters.md#g11) にまとめる。
 
 > [!note]
 > 既知の問題のため、今は対処せず。
 
-<a id="g12"></a>
-
-## G12: 等しい次数間の集合値の移送
-
-集合値の族を持つ `\idelim` と自己移送の等式を証明する `\transporteq` を実装した。
-[集合値の移送](fix-md/cases/12-01-equality-transport.ref) と [表示による変換](fix-md/cases/12-02-display-conversion.ref) は、単独ファイルとして検査できる。
-`std.Logic.Equality.Transport` は恒等、合成、往復、定数族、依存する写像の自然性を証明する。
-微分形式の `Regrade.cast` は集合値の移送を使い、`convert` の成分表示との一致を等式として利用する。
-移送の head は neutral であり、恒等則は命題上の等式となる。
-
 <a id="g14"></a>
-
-> [!note]
-> 対応したい。
-> `n + m = m + n` から `Form (n + m) -> Form (m + n)` が書けないとつらい。
-> ただし、 reduction は行わない。
-> agda のような、 `M1` と `M2` が definitional equivalence のときに `\idelim` が identity になることなど？
-> 今は proof irr. なので問題ないようにも思えるが、まあ必要になったらでいいと思う。
-> 本当か？ `f: (n, m: Nat) -> Form (n + m) -> Form (m + n)` に対して `f n (m + l) (f m l V) W = f ...` みたいな（順番は適当）をやりたいのでは？ 
-> まあその場合は、 `\idelim n = m \with x: A => P \by { base: h, equality: p }` が n equiv m かつ h が refl の普通のやつでやればいいという説。
-> でも今扱っている `=` は普通の equality じゃないからどうなのか...
-> AI の助言: reduction じゃなくて普通に equality を提供する。
-> 体系に refl がないのを忘れてたので、どうやっても refl かどうかを見ない（端点だけ見てる）形になりそう。
-> \(\vdash \op{transport}(a, b, F, u): F b\) if \(\vDash a = b, \vdash u: F a\)
-> \(\vdash \op{transport}(a, a, F, u) = u\) if \(\vDash u: F a\)
-> 思い出したが、最初は全部 subset で書けると思っていたんだった。必要だわ。
 
 ## G14: signature の族に対する台集合の束ね直し
 

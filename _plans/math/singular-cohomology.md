@@ -27,7 +27,7 @@ De Rham 同型、Poincaré 双対性、一般の無限 CW 複体、局所係数�
 `singular_cohomology` は `std`・`algebra`・`real`・`topology`・`topological_algebra`・`algebraic_topology`・`homological_algebra` を直接の利用に応じて依存に持つ。
 幾何的な実現と空間の構成は `algebraic_topology`、そのコホモロジーの計算と比較定理は `singular_cohomology` が担当する。
 `algebraic_topology` から `singular_cohomology` への依存は生じない構成とする。
-実数係数の群は [De Rham コホモロジー](../libs/differential_forms/README.md) と同じ Dedekind 実数・加群構造を使う。
+実数係数の群は [De Rham コホモロジー](../../libs/differential_forms/README.md) と同じ Dedekind 実数・加群構造を使う。
 
 ## 1. 標準単体と位相的な前提
 
@@ -188,12 +188,12 @@ C_*^{\{U,V\}}(X)\to0
 ```sh
 cargo build -p cli
 for package in std algebra topology topological_algebra algebraic_topology homological_algebra singular_cohomology; do
-  target/debug/cli "libs/$package" --no-cache --diagnostics compact || exit 1
+  target/debug/cli "libs/$package" --module "$package" --no-cache --diagnostics compact || exit 1
 done
-target/debug/cli tests/projects/homological-algebra --no-cache --diagnostics compact
-target/debug/cli tests/projects/singular-cohomology --no-cache --diagnostics compact
-target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics compact
-target/debug/cli tests/projects/library --no-cache --diagnostics compact
+target/debug/cli tests/projects/homological-algebra --module homological_algebra_tests --no-cache --diagnostics compact
+target/debug/cli tests/projects/singular-cohomology --module singular_cohomology_tests --no-cache --diagnostics compact
+target/debug/cli tests/projects/topological-k-theory --module topological_k_theory_foundations_tests --no-cache --diagnostics compact
+target/debug/cli tests/projects/library --module library_tests --no-cache --diagnostics compact
 cargo test -p cli --test ref_files --locked
 ```
 
@@ -201,4 +201,4 @@ project を `src/cli/tests/ref_files.rs` に登録し、各 README と `libs/REA
 最終的な完了判定は、特異理論の構成、第7節の全計算、有限モデルとの比較、カップ積と写像の証明が揃うことで行う。
 定理は位相空間・係数群・写像・必要な前提を命題内に量化して証明する。
 次数や点に依存する台集合は通常の型値定義で公開し、別 module からの具体化を初期段階で検査する。
-言語・体系の制限が判明した場合は、書きたい構成・最小例・診断・影響する段階を [gaps.md](gaps.md) に記録し、その理由を明記して停止する。
+言語・体系の制限が判明した場合は、書きたい構成・最小例・診断・影響する段階を [gaps.md](../gaps.md) に記録し、その理由を明記して停止する。

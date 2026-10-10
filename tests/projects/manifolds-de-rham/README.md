@@ -17,5 +17,5 @@
 | `Pointwise` / `Cohomology` | 点や次数に依存する商の台集合、外延性、商の API |
 
 ```sh
-target/debug/cli tests/projects/manifolds-de-rham --no-cache --diagnostics compact
+target/debug/cli tests/projects/manifolds-de-rham --module manifolds_de_rham_tests --full-check-local --diagnostics compact
 ```

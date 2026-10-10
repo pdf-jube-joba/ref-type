@@ -45,6 +45,7 @@ parse cache はファイル identity・内容・解析方式、semantic cache �
 
 永続キャッシュは検証済みの semantic result を JSON、raw / kernel の共有 arena と環境を圧縮した checkpoint を `.env` に保存する。
 キーには source・依存関係・manifest・検査設定・checker の実装と toolchain の fingerprint を含める。
+checker の fingerprint は関連 crate の Rust ソースとテストも含むため、それらを変更した後は以前の永続キャッシュを再利用できない。
 破損・形式違い・読み込み失敗は再計算し、保存失敗は検証結果を変えず統計に記録する。
 サイズ上限や保存候補の選択は [environment.rs](src/environment.rs)、実装 fingerprint は [build.rs](build.rs) を参照。
 
