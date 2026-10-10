@@ -543,10 +543,34 @@ impl Node {
 }
 
 #[derive(Debug, Default)]
+struct Properties {
+    // Separate presence/meta bits avoid the padding of (Option<usize>, bool)
+    // for every arena slot, including retired scratch expressions.
+    bounds: Vec<usize>,
+    flags: Vec<u8>,
+}
+
+impl Properties {
+    fn push(&mut self, (bound, meta): (Option<usize>, bool)) {
+        self.bounds.push(bound.unwrap_or(0));
+        self.flags
+            .push(u8::from(bound.is_some()) | (u8::from(meta) << 1));
+    }
+
+    fn get(&self, index: usize) -> (Option<usize>, bool) {
+        let flags = self.flags[index];
+        (
+            (flags & 1 != 0).then_some(self.bounds[index]),
+            flags & 2 != 0,
+        )
+    }
+}
+
+#[derive(Debug, Default)]
 struct Storage {
     nodes: Vec<Option<Rc<Node>>>,
     interned: FxHashMap<Rc<Node>, Expression>,
-    properties: Vec<(Option<usize>, bool)>,
+    properties: Properties,
 }
 
 impl Storage {
@@ -560,7 +584,7 @@ impl Storage {
             matches!(node, Node::Meta { .. }),
         );
         let _: Result<(), std::convert::Infallible> = node.try_for_each_child(|child, depth| {
-            let (bound, meta) = self.properties[child.index()];
+            let (bound, meta) = self.properties.get(child.index());
             if let Some(i) = bound.and_then(|i| i.checked_sub(depth)) {
                 properties.0 = Some(properties.0.map_or(i, |old| old.max(i)));
             }
@@ -664,7 +688,7 @@ impl Arena {
         self.properties(e).0
     }
     fn properties(&self, e: Expression) -> (Option<usize>, bool) {
-        self.0.borrow().properties[e.index()]
+        self.0.borrow().properties.get(e.index())
     }
     pub fn node_counts(&self) -> Vec<(&'static str, usize)> {
         vec![("Expression", self.len())]

@@ -499,9 +499,16 @@ impl ModuleManager {
                 }
                 match (parameter.kind, argument) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(argument)) => {
+                        // Make implicit captures explicit before either remapping
+                        // or substitution. Materializing an already specialized
+                        // alias would substitute its argument telescope twice.
+                        let expected =
+                            crate::kernel_bridge::logical(env, context, &[ty], |_, _, terms| {
+                                Ok(Exp(terms[0]))
+                            })?;
                         let expected = remap_all_global_ids(
                             env.arena(),
-                            ty,
+                            expected,
                             &remapping.definition_ids,
                             &remapping.inductive_ids,
                             &remapping.program_inductive_ids,
@@ -2118,8 +2125,11 @@ mod tests {
         let replacements = [(outer_id, argument)];
         let mut stability = crate::raw::namespaces::NamespaceStability::new(&env, &replacements);
         assert!(!stability.arguments(&[(source_id, ModuleArgument::Pts(imported_value))]));
-        let specialized_dependency =
-            env.remapping(env.binding(binding).remapping).module_ids[&dependency];
+        let specialized_dependency = *env
+            .remapping(env.binding(binding).remapping)
+            .module_ids
+            .get(&dependency)
+            .unwrap();
         let ExpNode::ModuleParam(source_parameter) = env.arena().get(parameter_exp) else {
             unreachable!()
         };
@@ -2274,7 +2284,10 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            env.remapping(env.binding(binding).remapping).module_ids[&closed],
+            *env.remapping(env.binding(binding).remapping)
+                .module_ids
+                .get(&closed)
+                .unwrap(),
             closed
         );
         let ModuleItem::Definition { definition, .. } = env.module(binding).item("result").unwrap()
@@ -2380,7 +2393,10 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            env.remapping(env.binding(binding).remapping).module_ids[&dependency],
+            *env.remapping(env.binding(binding).remapping)
+                .module_ids
+                .get(&dependency)
+                .unwrap(),
             dependency
         );
         let ModuleItem::Definition { definition, .. } = env.module(binding).item("result").unwrap()

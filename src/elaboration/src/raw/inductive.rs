@@ -1,4 +1,5 @@
 use super::exp::*;
+use super::shared_map::IdLookup;
 use crate::{
     kernel_bridge::{instantiate_outer_telescope, remap_ambient_indices, shift_bound_indices},
     raw::{
@@ -9,7 +10,6 @@ use crate::{
         utils,
     },
 };
-use std::collections::HashMap;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct InductiveTypeSpecs {
@@ -23,8 +23,8 @@ impl InductiveTypeSpecs {
     pub fn remap_global_ids(
         &self,
         arena: &Arena,
-        definitions: &HashMap<DefId, DefId>,
-        inductives: &HashMap<InductiveId, InductiveId>,
+        definitions: &dyn IdLookup<DefId>,
+        inductives: &dyn IdLookup<InductiveId>,
     ) -> Self {
         let remap =
             |exp| crate::raw::remapping::remap_global_ids(arena, exp, definitions, inductives);
@@ -149,8 +149,8 @@ impl CtorType {
     fn remap_global_ids(
         &self,
         arena: &Arena,
-        definitions: &HashMap<DefId, DefId>,
-        inductives: &HashMap<InductiveId, InductiveId>,
+        definitions: &dyn IdLookup<DefId>,
+        inductives: &dyn IdLookup<InductiveId>,
     ) -> Self {
         let remap =
             |exp| crate::raw::remapping::remap_global_ids(arena, exp, definitions, inductives);

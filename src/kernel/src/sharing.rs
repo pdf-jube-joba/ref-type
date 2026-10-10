@@ -26,6 +26,13 @@ impl<K: Copy + Eq + Hash, V> Cache<K, V> {
     }
 
     pub fn insert(&mut self, key: K, value: V) {
+        // These tables memoize immutable judgements; entries can be recomputed.
+        // Bound long-lived conversions and bound summaries as well as ordinary
+        // inference, without evicting the arena's canonical syntax identities.
+        if self.entries.len() >= 1 << 20 {
+            self.clear();
+            timing::costs::count("kernel.cache-recycles", || 1);
+        }
         if self.tracking {
             self.writes.push(key);
         }

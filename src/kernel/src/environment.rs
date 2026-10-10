@@ -123,7 +123,7 @@ impl Environment {
     pub fn datatype(&self, id: ProgramInductiveId) -> Option<&Datatype> {
         self.datatypes.get(&id)
     }
-    pub fn cache_counts(&self) -> [(&'static str, usize); 6] {
+    pub fn cache_counts(&self) -> [(&'static str, usize); 9] {
         [
             ("heads", self.heads.borrow().len()),
             ("inferred", self.inferred.borrow().len()),
@@ -131,6 +131,9 @@ impl Environment {
             ("context bindings", self.contexts.borrow().len()),
             ("shifted types", self.shifted.borrow().len()),
             ("instantiations", self.instantiations.borrow().len()),
+            ("checked", self.checked.borrow().len()),
+            ("validated contexts", self.validated_contexts.borrow().len()),
+            ("minimum bounds", self.minimum_bounds.borrow().len()),
         ]
     }
     pub fn declaration_node_count(&self) -> usize {

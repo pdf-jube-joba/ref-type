@@ -472,6 +472,11 @@ impl Lowerer<'_> {
         let mut arguments = self.capture_arguments(&captures, depth, program)?;
         let ambient = self.definition_ambient(id)?;
         if ambient > depth {
+            if std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some() {
+                eprintln!(
+                    "definition scope mismatch: {id:?} ambient={ambient} depth={depth} program={program} captures={captures:?}"
+                );
+            }
             return Err(crate::error::Error::Invalid(
                 crate::error::Invalid::DefinitionLocalContextIsOutsideReferenceScope,
             ));

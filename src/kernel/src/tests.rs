@@ -159,6 +159,38 @@ fn indirect_occurs_check_and_orphan_obligations() {
 }
 
 #[test]
+fn contextual_flex_flex_waits_for_argument_and_classifier() {
+    let env = Environment::new();
+    let mut metas = MetaContext::new();
+    let a = &env.arena;
+    let mut ctx = context(&env);
+    ctx.push(binding(a.bound(0)));
+    let domain = metas.fresh(a, ctx.clone(), None);
+    let argument = metas.fresh(a, ctx.clone(), None);
+    let mut local = ctx.clone();
+    local.push(binding(domain));
+    let family = metas.fresh(a, local.clone(), None);
+    let Node::Meta { id, .. } = a.get(family) else {
+        panic!()
+    };
+    let application = a.alloc(Node::Meta {
+        id,
+        arguments: vec![a.bound(1), a.bound(0), argument],
+    });
+    // The family cannot yet be abstracted over a non-pattern argument. Its
+    // context mentions domain, so assigning in the reverse direction cycles.
+    assert_eq!(
+        metas.unify(&env, &ctx, domain, application).unwrap(),
+        Outcome::Blocked
+    );
+    metas.unify(&env, &ctx, domain, a.bound(1)).unwrap();
+    metas.unify(&env, &ctx, argument, a.bound(0)).unwrap();
+    metas.unify(&env, &local, family, a.bound(2)).unwrap();
+    metas.finish(&env).unwrap();
+    assert_eq!(metas.zonk(a, application).unwrap(), a.bound(1));
+}
+
+#[test]
 fn inferred_function_type_uses_its_own_context_and_dependent_codomain() {
     let env = Environment::new();
     let a = &env.arena;

@@ -367,6 +367,19 @@ impl MetaStore {
             },
         )
         .map(|o| o == Outcome::Solved);
+        if result.is_err() && std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some() {
+            if let Some(Constraint::Equal { left, right, .. }) = &self.constraints[index].core {
+                if let Ok(Some((path, left, right))) =
+                    kernel::reduction::first_difference(&env.kernel.borrow(), *left, *right)
+                {
+                    eprintln!(
+                        "failed equality {path:?}: {} != {}",
+                        crate::raw::printing::format_exp(env, Exp(left)),
+                        crate::raw::printing::format_exp(env, Exp(right))
+                    );
+                }
+            }
+        }
         self.constraints[index].status = match result {
             Ok(true) => ConstraintStatus::Discharged,
             Ok(false) => ConstraintStatus::Blocked,
@@ -408,6 +421,22 @@ impl MetaStore {
     pub(crate) fn contains_unsolved(&self, env: &CrateEnv, term: Exp) -> bool {
         !metas_in_exp(env, self.zonk(env, term)).is_empty()
     }
+    /// Solve the terms needed by an inner check without finalizing unrelated
+    /// holes in the surrounding, still incomplete logical expression.
+    pub(crate) fn solve_for(
+        &mut self,
+        env: &CrateEnv,
+        terms: &[Exp],
+    ) -> Result<(), ElaborationError> {
+        let result = self.core.solve_pending(&env.kernel.borrow());
+        self.sync(env);
+        result.map_err(|error| self.constraint_error(env, crate::error::Error::Kernel(error)))?;
+        if terms.iter().any(|&term| self.contains_unsolved(env, term)) {
+            return Err(self.goal_error(env));
+        }
+        Ok(())
+    }
+
     pub(crate) fn finish(&mut self, env: &CrateEnv) -> Result<(), ElaborationError> {
         let result = self.core.finish(&env.kernel.borrow());
         self.sync(env);

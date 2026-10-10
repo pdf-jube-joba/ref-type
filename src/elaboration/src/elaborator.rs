@@ -479,24 +479,29 @@ impl term_elaborator::Handler for GlobalEnvironment {
         term: Exp,
     ) -> Result<Exp, ElaborationError> {
         use crate::raw::traversal::{Memoized, Rewrite, Term};
-        struct Reify;
-        impl Rewrite for Reify {
+        struct Names;
+        impl Rewrite for Names {
             fn rewrite(&mut self, _: Term, _: usize) -> Option<Term> {
                 None
             }
             fn finish(&mut self, arena: &Arena, _: Term, _: usize, result: Term) -> Term {
-                match result {
-                    Term::Logical(e) => Term::Logical(arena.alloc(arena.get(e))),
-                    _ => result,
+                if let Term::Logical(e) = result
+                    && let kernel::syntax::Node::Definition { id, arguments } = arena.core.get(e.0)
+                    && let Some(reference) = arena.nominal_reference(id, &arguments, false)
+                {
+                    return Term::Logical(Exp(reference));
                 }
+                result
             }
         }
         let term =
             crate::kernel_bridge::logical(&self.crate_env, context, &[term], |_, _, terms| {
                 Ok(Exp(terms[0]))
             })?;
+        // Preserve names for subsequent namespace remapping, but never unfold
+        // specialized bodies while converting back from the kernel DAG.
         let Term::Logical(term) =
-            Term::Logical(term).walk(self.crate_env.arena(), 0, &mut Memoized::new(Reify))
+            Term::Logical(term).walk(self.crate_env.arena(), 0, &mut Memoized::new(Names))
         else {
             unreachable!()
         };

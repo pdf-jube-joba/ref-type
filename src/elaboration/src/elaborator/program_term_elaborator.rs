@@ -1280,7 +1280,9 @@ impl ProgramScope {
                 let mut proof_scope = LocalScope::from_typing_context(reflected_context);
                 let accessibility = proof_scope.elab_exp(accessibility, environment)?;
                 proof_scope.infer_elaborated(accessibility, environment)?;
-                environment.finish_metavariables()?;
+                environment
+                    .metavariables
+                    .solve_for(&environment.crate_env, &[accessibility])?;
                 let accessibility = environment
                     .metavariables
                     .zonk(&environment.crate_env, accessibility);

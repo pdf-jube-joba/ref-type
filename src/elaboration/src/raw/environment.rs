@@ -1,4 +1,5 @@
 //! Crate/module declarations and materialized-binding provenance.
+use super::shared_map::SharedMap;
 use crate::raw::{
     exp::{Arena, Exp},
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId, SymbolId},
@@ -129,41 +130,27 @@ pub struct NamespaceBinding {
     pub(crate) remapping: RemappingId,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct RemappingId(usize);
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub(crate) struct DeclarationRemapping {
-    pub module_ids: HashMap<ModuleId, ModuleId>,
-    pub definition_ids: HashMap<DefId, DefId>,
-    pub inductive_ids: HashMap<InductiveId, InductiveId>,
-    pub program_inductive_ids: HashMap<ProgramInductiveId, ProgramInductiveId>,
+    pub module_ids: SharedMap<ModuleId>,
+    pub definition_ids: SharedMap<DefId>,
+    pub inductive_ids: SharedMap<InductiveId>,
+    pub program_inductive_ids: SharedMap<ProgramInductiveId>,
 }
 
 impl DeclarationRemapping {
     /// Retain source identities across another specialization of an import.
     pub(crate) fn after(&self, previous: &Self) -> Self {
-        fn compose<K: Copy + Eq + std::hash::Hash>(
-            next: &HashMap<K, K>,
-            previous: &HashMap<K, K>,
-        ) -> HashMap<K, K> {
-            let mut result = next.clone();
-            for (&source, &intermediate) in previous {
-                result.insert(
-                    source,
-                    next.get(&intermediate).copied().unwrap_or(intermediate),
-                );
-            }
-            result
-        }
         Self {
-            module_ids: compose(&self.module_ids, &previous.module_ids),
-            definition_ids: compose(&self.definition_ids, &previous.definition_ids),
-            inductive_ids: compose(&self.inductive_ids, &previous.inductive_ids),
-            program_inductive_ids: compose(
-                &self.program_inductive_ids,
-                &previous.program_inductive_ids,
-            ),
+            module_ids: self.module_ids.after(&previous.module_ids),
+            definition_ids: self.definition_ids.after(&previous.definition_ids),
+            inductive_ids: self.inductive_ids.after(&previous.inductive_ids),
+            program_inductive_ids: self
+                .program_inductive_ids
+                .after(&previous.program_inductive_ids),
         }
     }
 }
@@ -282,7 +269,8 @@ impl ModuleEnv {
 }
 
 type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
-type ExactSpecializations<I> = HashMap<(I, Vec<(ModuleParamId, ModuleArgument)>), I>;
+// ArgumentCache owns each telescope once, across all declaration kinds.
+type ExactSpecializations<I> = HashMap<(I, usize), I>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ClosedNamespaceKey {
@@ -1003,7 +991,12 @@ impl CrateEnv {
             remapping,
         );
         let shareable = self.namespace_arguments_shareable(&arguments);
-        let exact_key = (origin.source, arguments.clone());
+        let exact_key = (
+            origin.source,
+            self.namespace_argument_cache
+                .borrow_mut()
+                .intern(&arguments),
+        );
         if shareable && let Some(&canonical) = self.exact_definition_specializations.get(&exact_key)
         {
             return (source, canonical, false);
@@ -1259,7 +1252,12 @@ impl CrateEnv {
             },
         );
         let shareable = self.namespace_arguments_shareable(&arguments);
-        let exact_key = (origin.source, arguments.clone());
+        let exact_key = (
+            origin.source,
+            self.namespace_argument_cache
+                .borrow_mut()
+                .intern(&arguments),
+        );
         if shareable && let Some(&canonical) = self.exact_inductive_specializations.get(&exact_key)
         {
             return (source, canonical, false);
@@ -1408,7 +1406,12 @@ impl CrateEnv {
             remapping,
         );
         let shareable = self.namespace_arguments_shareable(&arguments);
-        let exact_key = (origin.source, arguments.clone());
+        let exact_key = (
+            origin.source,
+            self.namespace_argument_cache
+                .borrow_mut()
+                .intern(&arguments),
+        );
         if shareable && let Some(&canonical) = self.exact_datatype_specializations.get(&exact_key) {
             return (source, canonical, false);
         }
@@ -1807,8 +1810,39 @@ impl CrateEnv {
 
 impl CrateEnv {
     pub(crate) fn store_remapping(&mut self, remapping: DeclarationRemapping) -> RemappingId {
+        timing::costs::count("namespace.remapping-owned-capacity", || {
+            (remapping.module_ids.capacity()
+                + remapping.definition_ids.capacity()
+                + remapping.inductive_ids.capacity()
+                + remapping.program_inductive_ids.capacity()) as u64
+        });
         let id = RemappingId(self.remappings.len());
         self.remappings.push(remapping);
+        if self.remappings.len() % 1024 == 0
+            && std::env::var_os("REF_TYPE_PROFILE_REMAPPINGS").is_some()
+        {
+            let mut capacities = [0usize; 4];
+            for map in &self.remappings {
+                for (total, capacity) in capacities.iter_mut().zip([
+                    map.module_ids.capacity(),
+                    map.definition_ids.capacity(),
+                    map.inductive_ids.capacity(),
+                    map.program_inductive_ids.capacity(),
+                ]) {
+                    *total += capacity;
+                }
+            }
+            eprintln!(
+                "remappings={} capacities={capacities:?} arena_nodes={}",
+                self.remappings.len(),
+                self.arena.core.len()
+            );
+            eprintln!(
+                "raw_caches={:?} kernel_caches={:?}",
+                self.cache_counts(),
+                self.kernel.try_borrow().map(|env| env.cache_counts())
+            );
+        }
         id
     }
 
@@ -1817,19 +1851,18 @@ impl CrateEnv {
         next: RemappingId,
         bindings: &[(ModuleId, RemappingId)],
     ) {
+        let _cost = timing::costs::Scope::enter("namespace.inherit-remappings");
         // Re-exported children use identities from their original namespace.
         // Compose only after all reused namespace redirects have been finalized,
         // and share the result among imports with the same previous context.
-        let mut inherited = Vec::new();
+        let mut inherited = HashMap::new();
         for &(binding, previous) in bindings {
-            let remapping = if let Some((_, id)) = inherited.iter().find(|(id, _)| *id == previous)
-            {
+            let remapping = if let Some(id) = inherited.get(&previous) {
                 *id
             } else {
                 let composed = self.remapping(next).after(self.remapping(previous));
                 let id = self.store_remapping(composed);
-                self.compact_remapping(id);
-                inherited.push((previous, id));
+                inherited.insert(previous, id);
                 id
             };
             self.namespace_bindings.get_mut(&binding).unwrap().remapping = remapping;

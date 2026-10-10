@@ -1,6 +1,27 @@
 use super::*;
 
 impl Resolver {
+    fn compiled_reference(&self, module: &Module, name: Identifier) -> SExp {
+        SExp::AccessPath {
+            access: LocalAccess::Instantiated {
+                span: module.span,
+                path: Box::new(ModuleInstantiatePath::FromModule {
+                    module: self.scopes[module.id.0 as usize].parent.unwrap(),
+                    calls: vec![(
+                        module.name.clone(),
+                        self.output[&module.id]
+                            .parameters
+                            .iter()
+                            .flat_map(|bind| &bind.vars)
+                            .map(|name| (name.clone(), variable(name.clone())))
+                            .collect(),
+                    )],
+                }),
+                child: name,
+            },
+            parameters: Vec::new(),
+        }
+    }
     pub(in crate::resolver) fn needs_front_definition(
         &self,
         binders: &[RightBind],
@@ -105,6 +126,12 @@ impl Resolver {
             checked.declaration_spans = vec![span; items.len()];
             checked.body = ModuleBody::Inline(items);
             let parameters = checked.parameters.clone();
+            if !matches!(ty, SExp::ValueType) {
+                // The generated module already checks and owns this body.
+                // Retain a reference to it instead of copying the implementation
+                // into every use of a declaration with structure arguments.
+                body = self.compiled_reference(&module, Identifier("<body>".into()));
+            }
             let bindings = parameters
                 .iter()
                 .flat_map(|bind| &bind.vars)
@@ -122,6 +149,7 @@ impl Resolver {
             self.location = location;
             self.publish(&mut name);
             self.front_definitions.insert(name.1.unwrap(), definition);
+            self.scopes[module.id.0 as usize].compiled = true;
             output.push(ModuleItem::ChildModule {
                 module: Box::new(module),
             });
@@ -201,17 +229,39 @@ impl Resolver {
                 self.bind_structure_field(field.1.unwrap(), expression, &mut substitutions)?;
                 continue;
             }
+            let compiled = !matches!(expected, SExp::ValueType) && !computation_type(&expected);
+            let field_name = Identifier(format!("<field:{}>", field.0));
             let item = if matches!(expected, SExp::ValueType) {
                 ModuleItem::ValueTypeCheck {
                     ty: expression.clone().try_into().map_err(|e| self.error(e))?,
                 }
-            } else {
+            } else if !compiled {
                 ModuleItem::MemberCheck {
                     value: expression.clone(),
                     ty: expected,
                 }
+            } else {
+                ModuleItem::Definition {
+                    owner: None,
+                    name: field_name.clone(),
+                    binders: Vec::new(),
+                    body: expression.clone(),
+                    ty: expected,
+                }
             };
             self.scoped_item(item, &mut checked_items)?;
+            let expression = if compiled {
+                let reference = self.compiled_reference(&module, field_name);
+                value
+                    .fields
+                    .iter_mut()
+                    .find(|(name, _)| name == &field.0)
+                    .unwrap()
+                    .1 = reference.clone();
+                reference
+            } else {
+                expression
+            };
             self.bind_structure_field(field.1.unwrap(), expression, &mut substitutions)?;
         }
         // Field classifiers may contain checks retained from their original
@@ -242,6 +292,7 @@ impl Resolver {
         self.location = location;
         self.publish(&mut name);
         self.structure_values.insert(name.1.unwrap(), value);
+        self.scopes[module.id.0 as usize].compiled = true;
         output.push(ModuleItem::ChildModule {
             module: Box::new(module),
         });

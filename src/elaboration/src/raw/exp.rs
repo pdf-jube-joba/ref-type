@@ -396,18 +396,16 @@ impl Arena {
             .expect("source definition")
             .body
     }
-    pub(crate) fn reference_view(
+    /// Recover a frontend name only when its implicit captures are unchanged.
+    /// Specialized references must keep their explicit arguments and shared body.
+    pub(crate) fn nominal_reference(
         &self,
         id: kernel::ids::DefinitionId,
-        arguments: Vec<kernel::syntax::Expression>,
+        arguments: &[kernel::syntax::Expression],
         program: bool,
-    ) -> kernel::syntax::Expression {
-        let view = self
-            .definitions
-            .borrow()
-            .get(&id)
-            .expect("definition has frontend provenance")
-            .clone();
+    ) -> Option<kernel::syntax::Expression> {
+        let definitions = self.definitions.borrow();
+        let view = definitions.get(&id)?;
         let nominal = arguments.len() >= view.captures.len()
             && arguments
                 .iter()
@@ -422,7 +420,7 @@ impl Arena {
         if nominal && let Some(source) = view.source {
             let parameters = arguments[view.captures.len()..].to_vec();
             if view.contextual || program && !parameters.is_empty() {
-                return self.atom(Atom::Instance(source), parameters);
+                return Some(self.atom(Atom::Instance(source), parameters));
             }
             let mut result = self.atom(Atom::Definition(source), vec![]);
             for argument in parameters {
@@ -432,9 +430,26 @@ impl Arena {
                     argument,
                 });
             }
-            return result;
+            return Some(result);
         }
-        kernel::calculus::instantiate(&self.core, view.body, &arguments)
+        None
+    }
+    pub(crate) fn reference_view(
+        &self,
+        id: kernel::ids::DefinitionId,
+        arguments: Vec<kernel::syntax::Expression>,
+        program: bool,
+    ) -> kernel::syntax::Expression {
+        if let Some(reference) = self.nominal_reference(id, &arguments, program) {
+            return reference;
+        }
+        let body = self
+            .definitions
+            .borrow()
+            .get(&id)
+            .expect("definition has frontend provenance")
+            .body;
+        kernel::calculus::instantiate(&self.core, body, &arguments)
             .expect("validated definition arguments")
     }
     fn atom(

@@ -149,7 +149,7 @@ impl GlobalEnvironment {
             args.push((child_name.clone(), elaborated));
             source = child;
         }
-        program_scope.finish_metas(self)?;
+        program_scope.solve_pending_metas(self)?;
         for (_, arguments) in &mut args {
             for (_, argument) in arguments {
                 match argument {
@@ -174,17 +174,30 @@ impl GlobalEnvironment {
             }
         }
 
+        let closed_namespace = self
+            .crate_env
+            .namespace_arguments_shareable(&program_substitutions);
+        if closed_namespace {
+            // A closed namespace does not capture surrounding local binders,
+            // including annotations that the outer expression is still inferring.
+            ctx.clear();
+        }
         self.solve_module_arguments(&mut ctx, initial_source, base, &mut args)?;
         for entry in &mut ctx {
             entry.ty = self.metavariables.zonk(&self.crate_env, entry.ty);
         }
+        let program_context = if closed_namespace {
+            Vec::new()
+        } else {
+            program_scope.context().clone()
+        };
 
         let access_result = self
             .module_manager
             .bind_namespace_in_context(
                 &mut self.crate_env,
                 &mut ctx,
-                program_scope.context(),
+                &program_context,
                 initial_source,
                 base,
                 args,
@@ -201,7 +214,22 @@ impl GlobalEnvironment {
         base: Option<ModuleId>,
         calls: &mut [(Identifier, Vec<(Identifier, ModuleArgument)>)],
     ) -> Result<(), ElaborationError> {
-        if self.metavariables.is_empty() {
+        if self.metavariables.is_empty()
+            || (context
+                .iter()
+                .all(|entry| !self.crate_env.arena().core.contains_meta(entry.ty.0))
+                && calls
+                    .iter()
+                    .flat_map(|(_, arguments)| arguments)
+                    .all(|(_, argument)| match argument {
+                        ModuleArgument::Pts(term) => {
+                            !self.crate_env.arena().core.contains_meta(term.0)
+                        }
+                        _ => true,
+                    }))
+        {
+            // Ordinary namespace binding still checks all argument types.
+            // Only run the solver when this instantiation contains holes.
             return Ok(());
         }
         let inherited_arguments = base
@@ -264,7 +292,12 @@ impl GlobalEnvironment {
                 }
                 match (parameter.kind, *argument) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(exp)) => {
-                        let mut expected = ty;
+                        let mut expected = crate::kernel_bridge::logical(
+                            &self.crate_env,
+                            context,
+                            &[ty],
+                            |_, _, terms| Ok(Exp(terms[0])),
+                        )?;
                         if let Some(remapping) = base_remapping {
                             let remapping = self.crate_env.remapping(remapping);
                             expected = remap_all_global_ids(
@@ -339,7 +372,20 @@ impl GlobalEnvironment {
             }
             source = child;
         }
-        self.finish_metavariables()?;
+        let mut required = context.iter().map(|entry| entry.ty).collect::<Vec<_>>();
+        required.extend(
+            calls
+                .iter()
+                .flat_map(|(_, arguments)| arguments)
+                .filter_map(|(_, argument)| {
+                    if let ModuleArgument::Pts(term) = argument {
+                        Some(*term)
+                    } else {
+                        None
+                    }
+                }),
+        );
+        self.metavariables.solve_for(&self.crate_env, &required)?;
         for (_, arguments) in calls {
             for (_, argument) in arguments {
                 if let ModuleArgument::Pts(exp) = argument {

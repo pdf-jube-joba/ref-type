@@ -1,4 +1,5 @@
 //! CBPV value datatypes and their generated Set reflections.
+use super::shared_map::IdLookup;
 use crate::{
     kernel_bridge::instantiate_type_telescope,
     raw::{
@@ -11,7 +12,6 @@ use crate::{
         remapping::{remap_value_type_global_ids, subst_value_type_module_params},
     },
 };
-use std::collections::HashMap;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ProgramConstructorSpec {
@@ -138,9 +138,9 @@ impl ProgramInductiveTypeSpecs {
     pub fn remap_global_ids(
         &self,
         arena: &Arena,
-        definitions: &HashMap<DefId, DefId>,
-        inductives: &HashMap<InductiveId, InductiveId>,
-        program_inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+        definitions: &dyn IdLookup<DefId>,
+        inductives: &dyn IdLookup<InductiveId>,
+        program_inductives: &dyn IdLookup<ProgramInductiveId>,
     ) -> Self {
         Self {
             parameters: self.parameters.clone(),

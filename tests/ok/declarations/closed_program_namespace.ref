@@ -1,0 +1,20 @@
+\module Generic(A: \VType) {
+  \structure Correspondence { T: \VType, program: T, specification: T^, coherence: program^ = specification }
+
+  \module Identity {
+    \definition T: \VType := \U(A ~> \F(A));
+    \definition program: T := \thunk(\cfun(x: A) => \return x);
+  }
+  \definition boxed: Correspondence := Correspondence {
+    T := \U(A ~> \F(A)), program := Identity[].program,
+    specification := \fun(x: A^) => x, coherence := \refl(Identity[].program^),
+  };
+}
+\module Use {
+  \inductive Unit: \VType := | unit: Unit;
+  \import \root.Generic[A := Unit] \as G;
+  \definition program: \U(Unit ~> Unit ~> Unit ~> \F(Unit)) :=
+    \thunk(\cfun(x: Unit)(y: Unit)(z: Unit) => (\force G.boxed.program) x);
+  \definition read(x: Unit^): Unit^ := G.boxed.program^ x;
+  \definition identity: read Unit^::unit = Unit^::unit := \refl(Unit^::unit);
+}

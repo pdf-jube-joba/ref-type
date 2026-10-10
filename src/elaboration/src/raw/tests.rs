@@ -924,7 +924,12 @@ fn unchanged_program_transforms_reuse_arena_handles() {
     assert_eq!(shift_value_type_indices(arena, thunk, 1, 0), thunk);
     assert_eq!(instantiate_value_type(arena, thunk, parameter, 0), thunk);
     assert_eq!(
-        remap_value_type_global_ids(arena, thunk, &Default::default(), &inductive_remapping),
+        remap_value_type_global_ids(
+            arena,
+            thunk,
+            &std::collections::HashMap::new(),
+            &inductive_remapping
+        ),
         thunk
     );
     assert_eq!(
@@ -955,7 +960,7 @@ fn unchanged_program_transforms_reuse_arena_handles() {
             computation,
             &definition_remapping,
             &inductive_remapping,
-            &Default::default()
+            &std::collections::HashMap::new()
         ),
         computation
     );
@@ -986,7 +991,7 @@ fn remapping_program_type_meta_arguments_updates_value_definitions() {
         arena,
         ty,
         &std::collections::HashMap::from([(old, new)]),
-        &Default::default(),
+        &std::collections::HashMap::new(),
     );
     let ValueTypeNode::Meta {
         metavariable,
@@ -1191,9 +1196,9 @@ fn value_let_annotations_follow_module_instantiation() {
     let remapped = remap_computation_global_ids(
         arena,
         instantiated,
-        &Default::default(),
+        &std::collections::HashMap::new(),
         &std::collections::HashMap::from([(old, new)]),
-        &Default::default(),
+        &std::collections::HashMap::new(),
     );
     let ComputationTermNode::ValueLet { value_ty, .. } = arena.get(remapped) else {
         panic!()

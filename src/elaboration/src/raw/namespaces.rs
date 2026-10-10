@@ -36,7 +36,7 @@ pub(crate) struct ArgumentCache {
 }
 
 impl ArgumentCache {
-    fn intern(&mut self, arguments: &[(ModuleParamId, ModuleArgument)]) -> usize {
+    pub(crate) fn intern(&mut self, arguments: &[(ModuleParamId, ModuleArgument)]) -> usize {
         if let Some(&id) = self.sets.get(arguments) {
             return id;
         }

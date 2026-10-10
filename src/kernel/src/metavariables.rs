@@ -483,6 +483,9 @@ impl MetaContext {
         value: Expression,
     ) -> Result<Outcome, Error> {
         if self.occurs(&env.arena, id, value)? {
+            if std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some() {
+                eprintln!("occurs check: {id:?} := {:?}", env.arena.get(value));
+            }
             return Err(crate::error::Error::OccursCheck);
         }
         let entry = self.entry(id)?;
@@ -525,7 +528,7 @@ impl MetaContext {
             return if crate::reduction::erased_convertible(env, left, right)? {
                 Ok(Outcome::Solved)
             } else {
-                Err(crate::error::Error::RigidMismatch)
+                Err(rigid_mismatch(env, left, right))
             };
         }
         self.record(Constraint::Equal {
@@ -576,7 +579,7 @@ impl MetaContext {
             return if crate::reduction::erased_convertible(env, left, right)? {
                 Ok(Outcome::Solved)
             } else {
-                Err(crate::error::Error::RigidMismatch)
+                Err(rigid_mismatch(env, left, right))
             };
         }
         if alpha_equal(&env.arena, left, right) {
@@ -602,7 +605,14 @@ impl MetaContext {
                     match self.assign(env, id, arguments, value) {
                         Ok(Outcome::Solved) => return Ok(Outcome::Solved),
                         Ok(Outcome::Blocked) => self.rollback(snapshot)?,
-                        Err(error) if matches!(error.root(), Error::EscapingVariable) => {
+                        Err(error)
+                            if matches!(
+                                error.root(),
+                                Error::EscapingVariable | Error::OccursCheck
+                            ) =>
+                        {
+                            // Either orientation can be blocked by the other
+                            // hole's context; later constraints may resolve it.
                             self.rollback(snapshot)?
                         }
                         Err(error) => {
@@ -661,7 +671,7 @@ impl MetaContext {
                     if !self.unresolved(&env.arena, [left, right])?.is_empty() {
                         Ok(Outcome::Blocked)
                     } else {
-                        Err(crate::error::Error::RigidMismatch)
+                        Err(rigid_mismatch(env, left, right))
                     }
                 } else {
                     let mut solved = true;
@@ -803,6 +813,11 @@ impl MetaContext {
                 }
             }
         };
+        if std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some()
+            && let Err(error) = &result
+        {
+            eprintln!("type judgement result: {error}");
+        }
         match result {
             Ok(()) => Ok(Outcome::Solved),
             Err(error) if matches!(error.root(), Error::Unresolved { .. }) => Ok(Outcome::Blocked),
@@ -994,4 +1009,15 @@ impl MetaContext {
         }
         Ok(())
     }
+}
+
+fn rigid_mismatch(env: &Environment, left: Expression, right: Expression) -> Error {
+    if std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some() {
+        eprintln!(
+            "rigid mismatch: {:?} != {:?}",
+            env.arena.get(left),
+            env.arena.get(right)
+        );
+    }
+    Error::RigidMismatch
 }

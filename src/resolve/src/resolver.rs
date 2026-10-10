@@ -1,5 +1,6 @@
 #[path = "scoped.rs"]
 mod scoped;
+use crate::ModuleMap;
 use crate::{
     bindings::{self, LocalScope},
     hir::*,
@@ -62,7 +63,7 @@ pub struct Import {
     pub owner: ModuleId,
     pub name: String,
     pub target: ModuleId,
-    pub remapping: Arc<HashMap<ModuleId, ModuleId>>,
+    pub remapping: ModuleMap,
 }
 
 /// Type-checking steps in lexical and import dependency order.
@@ -84,6 +85,8 @@ pub struct Project {
 
 #[derive(Clone, Default)]
 struct Scope {
+    compiled: bool,
+    closed: bool,
     parent: Option<ModuleId>,
     children: FxHashMap<String, ModuleId>,
     names: Arc<FxHashMap<String, BindingId>>,
@@ -91,8 +94,26 @@ struct Scope {
     import_ids: FxHashMap<String, BindingId>,
     macros: Vec<MacroDefinition>,
     used: Vec<MacroDefinition>,
-    remapping: Arc<HashMap<ModuleId, ModuleId>>,
-    substitutions: Arc<HashMap<BindingId, SExp>>,
+    remapping: ModuleMap,
+    substitutions: Arc<HashMap<BindingId, Arc<SExp>>>,
+}
+
+impl Scope {
+    fn specialization(&self) -> Self {
+        if !self.compiled {
+            return self.clone();
+        }
+        Self {
+            compiled: true,
+            closed: self.closed,
+            parent: self.parent,
+            children: self.children.clone(),
+            names: self.names.clone(),
+            remapping: self.remapping.clone(),
+            substitutions: self.substitutions.clone(),
+            ..Self::default()
+        }
+    }
 }
 
 #[path = "structures.rs"]
@@ -1069,8 +1090,12 @@ impl Resolver {
             }
         };
         let selection_source = target;
-        let mut remapping = (*self.scopes[target.0 as usize].remapping).clone();
-        let mut substitutions = (*self.scopes[target.0 as usize].substitutions).clone();
+        let mut remapping = self.scopes[target.0 as usize].remapping.fork();
+        let mut substitutions: HashMap<_, _> = self.scopes[target.0 as usize]
+            .substitutions
+            .iter()
+            .map(|(&id, value)| (id, (**value).clone()))
+            .collect();
         let mut route = Vec::new();
         for (child, arguments) in calls.iter_mut() {
             for (_, argument) in arguments.iter_mut() {
@@ -1191,7 +1216,17 @@ impl Resolver {
                 }
             }
         }
+        let destination = route.last().copied();
         for source in route {
+            // Parameterless ancestors contribute no argument environment.
+            if Some(source) != destination
+                && self
+                    .module_parameters
+                    .get(&source)
+                    .is_none_or(Vec::is_empty)
+            {
+                continue;
+            }
             target = self.instantiate(source, &mut remapping, &substitutions);
         }
         let mut selection = self
@@ -1238,7 +1273,7 @@ impl Resolver {
                 owner: self.current,
                 name: name.0.clone(),
                 target,
-                remapping: Arc::new(remapping),
+                remapping,
             },
         );
         Ok(())
@@ -1246,14 +1281,44 @@ impl Resolver {
     fn instantiate(
         &mut self,
         source: ModuleId,
-        remapping: &mut HashMap<ModuleId, ModuleId>,
+        remapping: &mut ModuleMap,
         substitutions: &HashMap<BindingId, SExp>,
     ) -> ModuleId {
         let _cost = timing::costs::Scope::enter("resolve.instantiate");
+        if substitutions.is_empty() && remapping.is_empty() && self.states.get(&source) == Some(&2)
+        {
+            // A completed, unchanged namespace needs only a fresh alias.
+            // Its descendants retain their original lexical environments.
+            let id = ModuleId(self.scopes.len() as u32);
+            let mut scope = self.scopes[source.0 as usize].specialization();
+            let mut ancestor = Some(source);
+            scope.closed = true;
+            while let Some(module) = ancestor {
+                let origin = self.origins.get(&module).copied().unwrap_or(module);
+                if self
+                    .module_parameters
+                    .get(&origin)
+                    .is_some_and(|p| !p.is_empty())
+                {
+                    scope.closed = false;
+                    break;
+                }
+                ancestor = self.scopes[origin.0 as usize].parent;
+            }
+            remapping.insert(source, id);
+            scope.remapping = remapping.clone();
+            self.scopes.push(scope);
+            self.origins
+                .insert(id, self.origins.get(&source).copied().unwrap_or(source));
+            if let Some(path) = self.module_selections.get(&source).cloned() {
+                self.module_selections.insert(id, path);
+            }
+            return id;
+        }
         fn allocate(
             resolver: &mut Resolver,
             source: ModuleId,
-            map: &mut HashMap<ModuleId, ModuleId>,
+            map: &mut ModuleMap,
             pairs: &mut Vec<(ModuleId, ModuleId)>,
             allocated: &mut FxHashMap<ModuleId, ModuleId>,
         ) -> ModuleId {
@@ -1279,25 +1344,47 @@ impl Resolver {
             }
             id
         }
+        *remapping = remapping.fork();
         let mut pairs = Vec::new();
         let mut allocated = FxHashMap::default();
-        let mut imports: Vec<_> = self.scopes[source.0 as usize]
-            .imports
-            .values()
-            .copied()
-            .collect();
+        // Compiled definitions expose references, not their internal imports.
+        // Typed namespace instantiation specializes their checked bodies.
+        let scope = &self.scopes[source.0 as usize];
+        let mut imports: Vec<_> = if scope.compiled {
+            Vec::new()
+        } else {
+            scope.imports.values().copied().collect()
+        };
         imports.sort_by_key(|id| id.0);
         for import in imports {
+            // A namespace with no enclosing parameters cannot depend on this
+            // specialization. Keep its imports and descendants shared too.
+            if self.scopes[import.0 as usize].closed {
+                continue;
+            }
             allocate(self, import, remapping, &mut pairs, &mut allocated);
         }
         let result = allocate(self, source, remapping, &mut pairs, &mut allocated);
+        if std::env::var_os("REF_TYPE_PROFILE_RESOLVE").is_some() {
+            eprintln!(
+                "resolve instantiate={} scopes={} total={} remapping={}",
+                self.path(source).join("."),
+                pairs.len(),
+                self.scopes.len(),
+                remapping.owned_len()
+            );
+        }
         // Every scope in this graph has the same completed correspondence.
         // Sharing immutable maps avoids copying the whole graph per scope.
-        let shared_remapping = Arc::new(remapping.clone());
-        let mut merged_substitutions: HashMap<usize, Arc<HashMap<BindingId, SExp>>> =
+        let shared_remapping = remapping.clone();
+        let shared_arguments: HashMap<_, _> = substitutions
+            .iter()
+            .map(|(&id, value)| (id, Arc::new(value.clone())))
+            .collect();
+        let mut merged_substitutions: HashMap<usize, Arc<HashMap<BindingId, Arc<SExp>>>> =
             HashMap::new();
         for (source, id) in pairs {
-            let mut scope = self.scopes[source.0 as usize].clone();
+            let mut scope = self.scopes[source.0 as usize].specialization();
             scope.parent = scope
                 .parent
                 .map(|id| remapping.get(&id).copied().unwrap_or(id));
@@ -1340,7 +1427,7 @@ impl Resolver {
                                 .get(&import.target)
                                 .copied()
                                 .unwrap_or(import.target);
-                            for target in Arc::make_mut(&mut import.remapping).values_mut() {
+                            for target in import.remapping.values_mut() {
                                 *target = remapping.get(target).copied().unwrap_or(*target);
                             }
                             import_name.1 = None;
@@ -1390,10 +1477,13 @@ impl Resolver {
                     .substitutions
                     .iter()
                     .map(|(id, expression)| {
-                        (*id, structures::substitute(expression, substitutions))
+                        (
+                            *id,
+                            structures::substitute_shared(expression, substitutions),
+                        )
                     })
                     .collect();
-                merged.extend(substitutions.clone());
+                merged.extend(shared_arguments.clone());
                 Arc::new(merged)
             });
             scope.substitutions = merged.clone();

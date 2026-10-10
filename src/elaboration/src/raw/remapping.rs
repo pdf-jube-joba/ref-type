@@ -1,5 +1,6 @@
 //! Global name remapping over the shared logical and Program traversal.
 use super::environment::ModuleArgument;
+use super::shared_map::IdLookup;
 use super::{
     exp::{Arena, Exp, ExpNode},
     ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId},
@@ -9,9 +10,9 @@ use super::{
 use std::collections::HashMap;
 
 struct Remapping<'a> {
-    definitions: &'a HashMap<DefId, DefId>,
-    inductives: &'a HashMap<InductiveId, InductiveId>,
-    program_inductives: &'a HashMap<ProgramInductiveId, ProgramInductiveId>,
+    definitions: &'a dyn IdLookup<DefId>,
+    inductives: &'a dyn IdLookup<InductiveId>,
+    program_inductives: &'a dyn IdLookup<ProgramInductiveId>,
 }
 
 impl Rewrite for Remapping<'_> {
@@ -114,9 +115,9 @@ impl Rewrite for Remapping<'_> {
 pub(crate) fn remap(
     arena: &Arena,
     term: Term,
-    definitions: &HashMap<DefId, DefId>,
-    inductives: &HashMap<InductiveId, InductiveId>,
-    program_inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    definitions: &dyn IdLookup<DefId>,
+    inductives: &dyn IdLookup<InductiveId>,
+    program_inductives: &dyn IdLookup<ProgramInductiveId>,
 ) -> Term {
     if definitions.is_empty() && inductives.is_empty() && program_inductives.is_empty() {
         return term;
@@ -142,8 +143,8 @@ pub fn exp_subst_map(arena: &Arena, exp: Exp, substitutions: &[(ModuleParamId, E
 pub fn remap_global_ids(
     arena: &Arena,
     exp: Exp,
-    definitions: &HashMap<DefId, DefId>,
-    inductives: &HashMap<InductiveId, InductiveId>,
+    definitions: &dyn IdLookup<DefId>,
+    inductives: &dyn IdLookup<InductiveId>,
 ) -> Exp {
     remap_all_global_ids(arena, exp, definitions, inductives, &HashMap::new())
 }
@@ -151,9 +152,9 @@ pub fn remap_global_ids(
 pub fn remap_all_global_ids(
     arena: &Arena,
     exp: Exp,
-    definitions: &HashMap<DefId, DefId>,
-    inductives: &HashMap<InductiveId, InductiveId>,
-    program_inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    definitions: &dyn IdLookup<DefId>,
+    inductives: &dyn IdLookup<InductiveId>,
+    program_inductives: &dyn IdLookup<ProgramInductiveId>,
 ) -> Exp {
     let Term::Logical(result) = remap(
         arena,
@@ -170,8 +171,8 @@ pub fn remap_all_global_ids(
 pub fn remap_value_type_global_ids(
     arena: &Arena,
     term: ValueType,
-    definitions: &HashMap<DefId, DefId>,
-    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    definitions: &dyn IdLookup<DefId>,
+    inductives: &dyn IdLookup<ProgramInductiveId>,
 ) -> ValueType {
     let Term::ValueType(result) = remap(
         arena,
@@ -188,8 +189,8 @@ pub fn remap_value_type_global_ids(
 pub fn remap_computation_type_global_ids(
     arena: &Arena,
     term: ComputationType,
-    definitions: &HashMap<DefId, DefId>,
-    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    definitions: &dyn IdLookup<DefId>,
+    inductives: &dyn IdLookup<ProgramInductiveId>,
 ) -> ComputationType {
     let Term::ComputationType(result) = remap(
         arena,
@@ -206,9 +207,9 @@ pub fn remap_computation_type_global_ids(
 pub fn remap_value_global_ids(
     arena: &Arena,
     term: ValueTerm,
-    definitions: &HashMap<DefId, DefId>,
-    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
-    logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
+    definitions: &dyn IdLookup<DefId>,
+    inductives: &dyn IdLookup<ProgramInductiveId>,
+    logical_inductives: &dyn IdLookup<crate::raw::ids::InductiveId>,
 ) -> ValueTerm {
     let Term::Value(result) = remap(
         arena,
@@ -225,9 +226,9 @@ pub fn remap_value_global_ids(
 pub fn remap_computation_global_ids(
     arena: &Arena,
     term: ComputationTerm,
-    definitions: &HashMap<DefId, DefId>,
-    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
-    logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
+    definitions: &dyn IdLookup<DefId>,
+    inductives: &dyn IdLookup<ProgramInductiveId>,
+    logical_inductives: &dyn IdLookup<crate::raw::ids::InductiveId>,
 ) -> ComputationTerm {
     let Term::Computation(result) = remap(
         arena,

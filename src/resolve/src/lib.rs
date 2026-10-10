@@ -4,6 +4,8 @@ pub mod error;
 pub mod hir;
 mod lower;
 mod macros;
+mod module_map;
+pub use module_map::ModuleMap;
 
 mod program;
 mod resolver;

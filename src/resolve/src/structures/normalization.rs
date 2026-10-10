@@ -147,6 +147,26 @@ impl Resolver {
             if error.is_some() {
                 return false;
             }
+            if let SExp::SubSet {
+                var,
+                set,
+                predicate,
+            } = node
+            {
+                if let Err(e) = self.normalize_in_scope(set, locals) {
+                    error = Some(e);
+                    return false;
+                }
+                if var.1.is_none() {
+                    self.binding(var);
+                }
+                locals.push(LocalScope::from_iter([(var.0.clone(), var.clone())]));
+                if let Err(e) = self.normalize_in_scope(predicate, locals) {
+                    error = Some(e);
+                }
+                locals.pop();
+                return false;
+            }
             if let SExp::Induction {
                 binders,
                 return_type,

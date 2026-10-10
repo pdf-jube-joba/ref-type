@@ -7,6 +7,21 @@ impl Resolver {
         mut item: ModuleItem,
         output: &mut Vec<ModuleItem>,
     ) -> Result<(), Diagnostic> {
+        if std::env::var_os("REF_TYPE_PROFILE_RESOLVE").is_some() {
+            let name = match &item {
+                ModuleItem::Definition { name, .. } | ModuleItem::Structure { name, .. } => {
+                    Some(name.as_str())
+                }
+                _ => None,
+            };
+            if let Some(name) = name {
+                eprintln!(
+                    "resolve declaration={}.{}",
+                    self.path(self.current).join("."),
+                    name
+                );
+            }
+        }
         if let Some(location) = self.location.clone() {
             let source = location
                 .source

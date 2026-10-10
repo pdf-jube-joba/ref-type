@@ -1,6 +1,7 @@
 //! Structure signatures share the module telescope checker, while their
 //! public bindings denote frontend declarations rather than kernel terms.
 use super::*;
+use std::borrow::Borrow;
 
 #[path = "structures/declarations.rs"]
 mod declarations;
@@ -94,15 +95,39 @@ fn ordered_arguments(values: &HashMap<BindingId, SExp>) -> Vec<(BindingId, SExp)
     values
 }
 
-pub(in crate::resolver) fn substitute(
+pub(in crate::resolver) fn substitute<T: Borrow<SExp>>(
     expression: &SExp,
-    values: &HashMap<BindingId, SExp>,
+    values: &HashMap<BindingId, T>,
 ) -> SExp {
     let mut expression = expression.clone();
+    substitute_in_place(&mut expression, values);
+    expression
+}
+
+pub(in crate::resolver) fn substitute_shared(
+    expression: &Arc<SExp>,
+    values: &HashMap<BindingId, SExp>,
+) -> Arc<SExp> {
     if values.is_empty() {
-        return expression;
+        return expression.clone();
     }
-    macros::walk_sexp_control(&mut expression, &mut |node| {
+    let mut result = (**expression).clone();
+    if substitute_in_place(&mut result, values) {
+        Arc::new(result)
+    } else {
+        expression.clone()
+    }
+}
+
+fn substitute_in_place<T: Borrow<SExp>>(
+    expression: &mut SExp,
+    values: &HashMap<BindingId, T>,
+) -> bool {
+    if values.is_empty() {
+        return false;
+    }
+    let mut changed = false;
+    macros::walk_sexp_control(expression, &mut |node| {
         if let SExp::AccessPath {
             access:
                 LocalAccess::Named {
@@ -112,7 +137,7 @@ pub(in crate::resolver) fn substitute(
                 },
             parameters,
         } = node
-            && let Some(value) = access.1.and_then(|id| values.get(&id))
+            && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
         {
             *node = SExp::MemberAccess {
                 base: Box::new(value.clone()),
@@ -120,14 +145,16 @@ pub(in crate::resolver) fn substitute(
                 parameters: parameters.clone(),
                 span: *span,
             };
+            changed = true;
             return false;
         }
         if let SExp::ProgramValueReference {
             access: LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
         } = node
-            && let Some(value) = access.1.and_then(|id| values.get(&id))
+            && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
         {
             *node = value.clone();
+            changed = true;
             return false;
         }
         if let SExp::AccessPath {
@@ -135,7 +162,7 @@ pub(in crate::resolver) fn substitute(
             parameters,
         } = node
             && parameters.is_empty()
-            && let Some(value) = access.1.and_then(|id| values.get(&id))
+            && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
         {
             *node = if access.as_str().ends_with('^') {
                 SExp::ReflectTerm {
@@ -144,17 +171,15 @@ pub(in crate::resolver) fn substitute(
             } else {
                 value.clone()
             };
+            changed = true;
             return false;
         }
         true
     });
-    expression
+    changed
 }
 
-pub(in crate::resolver) fn remap_modules(
-    expression: &mut SExp,
-    remapping: &HashMap<ModuleId, ModuleId>,
-) {
+pub(in crate::resolver) fn remap_modules(expression: &mut SExp, remapping: &ModuleMap) {
     macros::walk_sexp_mut(expression, &mut |node| {
         let path = match node {
             SExp::ModuleInstance { path, .. } => Some(path),
@@ -266,10 +291,10 @@ fn force_reference(name: Identifier) -> SExp {
 }
 
 impl Resolver {
-    fn respecialize_front_access(
+    fn respecialize_front_access<T: Borrow<SExp>>(
         &self,
         access: &LocalAccess,
-        substitutions: &HashMap<BindingId, SExp>,
+        substitutions: &HashMap<BindingId, T>,
     ) -> Option<LocalAccess> {
         let LocalAccess::Resolved {
             module,
@@ -288,7 +313,7 @@ impl Resolver {
         let scope = &self.scopes[module.0 as usize];
         let mut changed = false;
         for argument in scope.substitutions.values() {
-            let mut argument = argument.clone();
+            let mut argument = (**argument).clone();
             macros::walk_sexp_mut(&mut argument, &mut |node| {
                 if let SExp::AccessPath {
                     access:
@@ -299,7 +324,7 @@ impl Resolver {
                     && let Some(id) = access.1
                     && let Some(value) = substitutions.get(&id)
                 {
-                    let identity = matches!(value,
+                    let identity = matches!(value.borrow(),
                         SExp::AccessPath {
                             access: LocalAccess::Current { access, .. }
                                 | LocalAccess::Resolved { access, .. },
@@ -326,7 +351,13 @@ impl Resolver {
             let mut arguments = Vec::new();
             for parameter in parameters {
                 for name in &parameter.vars {
-                    let argument = scope.substitutions.get(&name.1?)?;
+                    // Imported aliases may record only their own arguments.
+                    // Recover omitted parent arguments from the new environment.
+                    let argument = scope
+                        .substitutions
+                        .get(&name.1?)
+                        .map(AsRef::as_ref)
+                        .or_else(|| substitutions.get(&name.1?).map(Borrow::borrow))?;
                     arguments.push((name.clone(), substitute(argument, substitutions)));
                 }
             }
@@ -445,20 +476,45 @@ impl Resolver {
     }
 
     fn expose_namespace_arguments(&self, expression: &mut SExp, bindings: &HashSet<BindingId>) {
+        self.expose_unguarded_namespace_arguments(expression, bindings, &HashSet::new());
+    }
+
+    fn expose_unguarded_namespace_arguments(
+        &self,
+        expression: &mut SExp,
+        bindings: &HashSet<BindingId>,
+        guarded: &HashSet<ModuleId>,
+    ) {
         if bindings.is_empty() {
             return;
         }
         // A selected namespace hides its arguments in the resolver's scope.
         // Templates must expose those arguments again so applying a structure
         // family substitutes into the selection as well as its visible fields.
-        macros::walk_sexp_mut(expression, &mut |node| {
+        macros::walk_sexp_control(expression, &mut |node| {
+            if let SExp::Checked { checks, body } = node {
+                let mut guarded = guarded.clone();
+                for (value, ty) in checks {
+                    self.expose_unguarded_namespace_arguments(value, bindings, &guarded);
+                    self.expose_unguarded_namespace_arguments(ty, bindings, &guarded);
+                    if let SExp::ModuleInstance { import_name, .. } = value
+                        && let Some(import) = import_name.1.and_then(|id| self.imports.get(&id))
+                    {
+                        guarded.insert(import.target);
+                    }
+                }
+                // The explicit guard already carries the specialized arguments.
+                // Re-exposing its body would resurrect the original selection.
+                self.expose_unguarded_namespace_arguments(body, bindings, &guarded);
+                return false;
+            }
             let access = match node {
                 SExp::AccessPath { access, .. }
                 | SExp::ProgramValueReference { access }
                 | SExp::RecordTypeCtor { access, .. }
                 | SExp::IndCase { path: access, .. }
                 | SExp::ProgramCase { path: access, .. } => access,
-                _ => return,
+                _ => return true,
             };
             if let LocalAccess::Resolved {
                 module,
@@ -466,6 +522,7 @@ impl Resolver {
                 span,
                 ..
             } = access
+                && !guarded.contains(module)
                 && let Some(path) = self.module_selections.get(module)
             {
                 let mut selection = SExp::ModuleInstance {
@@ -484,7 +541,7 @@ impl Resolver {
                     }
                 });
                 if !depends {
-                    return;
+                    return true;
                 }
                 *access = LocalAccess::Instantiated {
                     span: *span,
@@ -492,6 +549,7 @@ impl Resolver {
                     child: name.clone(),
                 };
             }
+            true
         });
     }
 

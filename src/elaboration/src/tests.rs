@@ -12,6 +12,97 @@ use ::syntax::{
 };
 
 #[test]
+fn child_type_aliases_substitute_overlapping_parent_arguments_once() {
+    let modules = parse::str_parse_modules(
+        r"
+        \module Maps(A, B: \Set) {
+            \definition Source: \Set := \Pow A;
+            \definition Target: \Set := \Pow B;
+            \module At(U: Source, V: Target) {}
+            \module After(C: \Set) {
+                \import \root.Maps[A := B, B := C] \as Next;
+                \module On(V: Target, W: \Pow C) {
+                    \import Next.At[U := V, V := W] \as Applied;
+                }
+            }
+        }
+    ",
+    )
+    .unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
+fn nested_structure_calls_keep_shared_bodies() {
+    let modules =
+        parse::str_parse_modules(include_str!("../../../benchmarks/shared-bodies.ref")).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
+fn shared_definitions_preserve_subset_and_local_scopes() {
+    let source = r"
+        \module Sharing {
+            \structure Bundle { Carrier: \Set, seed: Carrier }
+            \definition identity(B: Bundle)(x: B.Carrier): B.Carrier := x;
+            \definition Fixed(B: Bundle): \Pow B.Carrier :=
+                { b: B.Carrier \where identity B b = b };
+            \inductive Unit: \Set := | unit: Unit;
+            \definition bundle: Bundle := Bundle { Carrier := Unit, seed := Unit::unit };
+            \definition delayed: Unit -> Unit := \fun (_: _) => bundle.seed;
+            \definition delayedLaw: delayed Unit::unit = Unit::unit := \refl(Unit::unit);
+            \definition local(B: Bundle)(x: B.Carrier)(unused: x = x): B.Carrier := identity B x;
+            \definition localLaw(B: Bundle)(x: B.Carrier): local B x (\refl(x)) = x := \refl(x);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
+fn explicit_guards_preserve_parent_arguments_in_dependent_signatures() {
+    let source = r"
+        \module Base(R: \Set) {
+            \structure Law[V: \Set]: \Set { apply: R -> V }
+            \definition Space(V: \Set): \Set := Law[V];
+            \structure Bundle { Carrier: \Set, space: Space Carrier }
+            \module Take(B: Bundle) {}
+            \definition MapBetween(A, B: Bundle): \Set := A.Carrier -> B.Carrier;
+            \definition Property(A, B: Bundle)(f: MapBetween A B): \Prop := \forall (x: B.Carrier) -> x = x;
+        }
+        \module Wrapper(R: \Set) {
+            \import \root.Base[R := R] \as B;
+            \inductive Unit: \Set := | unit: Unit;
+            \module At(M: B.Bundle) {
+                \module Slot(n: Unit) {
+                    \definition Carrier: \Set := M.Carrier;
+                    \definition space: B.Space Carrier := M.space;
+                }
+                \definition Carrier(n: Unit): \Set := Slot[n := n].Carrier;
+                \definition space(n: Unit): B.Space (Carrier n) := Slot[n := n].space;
+                \definition bundle(n: Unit): B.Bundle := B.Bundle { Carrier := Carrier n, space := space n };
+                \definition proof: B.Property (bundle Unit::unit) M (\fun (x: M.Carrier) => x) := \fun (y: Carrier Unit::unit) => \refl(y);
+            }
+        }
+        \module Consumer(S: \Set) {
+            \import \root.Base[R := S] \as B;
+            \import \root.Wrapper[R := S] \as W;
+            \module At(M: B.Bundle) {
+                \import W.At[M := M] \as A;
+                \import B.Take[B := A.bundle W.Unit::unit] \as Taken;
+                \definition proof: _ := A.proof;
+            }
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
 fn parsed_modules_can_be_reused_in_workspaces_with_different_module_ids() {
     let modules = parse::str_parse_modules(
         r"
@@ -654,11 +745,12 @@ fn namespace_remappings_are_shared_and_extensions_preserve_parent_maps() {
     assert_eq!(env.remapping(wrapper.remapping).module_ids.len(), 2);
     assert_eq!(env.remapping(child.remapping).module_ids.len(), 3);
     assert!(
-        !env.remapping(wrapper.remapping)
+        env.remapping(wrapper.remapping)
             .module_ids
-            .contains_key(&child.source)
+            .get(&child.source)
+            .is_none()
     );
-    for (source, target) in &env.remapping(wrapper.remapping).module_ids {
+    for (source, target) in env.remapping(wrapper.remapping).module_ids.iter() {
         assert_eq!(
             env.remapping(child.remapping).module_ids.get(source),
             Some(target)

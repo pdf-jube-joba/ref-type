@@ -416,6 +416,19 @@ impl ProgramScope {
         self.infer(environment, context, Term::Computation(term))
             .map(ComputationType)
     }
+    pub(crate) fn solve_pending_metas(
+        &mut self,
+        environment: &GlobalEnvironment,
+    ) -> Result<(), ElaborationError> {
+        let result = self
+            .core
+            .solve_pending(&environment.crate_env.kernel.borrow());
+        self.sync(environment);
+        result
+            .map(|_| ())
+            .map_err(|error| self.solver_error(environment, crate::error::Error::Kernel(error)))
+    }
+
     pub(super) fn finish_program_metas(
         &mut self,
         environment: &GlobalEnvironment,
