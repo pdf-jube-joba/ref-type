@@ -24,15 +24,6 @@ impl Instantiations {
         if arguments.is_empty() || arena.max_loose_bound(term).is_none() {
             return Ok(term);
         }
-        // Results are disposable; keeping every (term, argument telescope)
-        // pair makes long checks retain millions of one-off substitutions.
-        // Recycle at an application boundary so a recursive substitution can
-        // still share all of its intermediate results.
-        const MAX_CACHED_SUBSTITUTIONS: usize = 1 << 20;
-        if self.results.len() >= MAX_CACHED_SUBSTITUTIONS {
-            self.results.clear();
-            timing::costs::count("kernel.instantiation-cache-recycles", || 1);
-        }
         let id = self.arguments.intern(arguments.iter().copied());
         substitute(arena, term, arguments, 0, id, &mut self.results)
     }

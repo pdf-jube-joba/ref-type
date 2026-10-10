@@ -7,7 +7,7 @@ pub(super) struct MacroWork {
     spans: Vec<SourceSpan>,
     source: Option<Arc<SourceFile>>,
     states: Vec<u8>,
-    deltas: Vec<Option<Scope>>,
+    deltas: Vec<Option<TermScope>>,
     pub output: Vec<ModuleItem>,
     pub output_spans: Vec<SourceSpan>,
 }
@@ -114,7 +114,7 @@ impl Resolver {
         Ok(())
     }
 
-    fn apply_term_delta(&mut self, module: ModuleId, delta: &Scope) {
+    fn apply_term_delta(&mut self, module: ModuleId, delta: &TermScope) {
         let scope = &mut self.scopes[module.0 as usize];
         Arc::make_mut(&mut scope.names).extend(delta.names.iter().map(|(n, &id)| (n.clone(), id)));
         scope.imports.extend(delta.imports.clone());
@@ -179,7 +179,7 @@ impl Resolver {
             }
             self.resolve_macro_item(module, previous)?;
         }
-        let before = self.scopes[module.0 as usize].clone();
+        let before = self.scopes[module.0 as usize].terms();
         let work = &self.work[&module];
         let span = work.spans.get(index).copied().unwrap_or_default();
         self.location = work.source.as_ref().map(|source| SourceLocation {
@@ -189,7 +189,7 @@ impl Resolver {
         let mut output = Vec::new();
         self.scoped_item(item, &mut output)?;
         let scope = &self.scopes[module.0 as usize];
-        let delta = Scope {
+        let delta = TermScope {
             names: Arc::new(
                 scope
                     .names
@@ -210,7 +210,6 @@ impl Resolver {
                 .filter(|(n, id)| before.import_ids.get(*n) != Some(*id))
                 .map(|(n, &id)| (n.clone(), id))
                 .collect(),
-            ..Scope::default()
         };
         let work = self.work.get_mut(&module).unwrap();
         work.output_spans

@@ -21,15 +21,17 @@ impl EnvironmentPlan {
         settings: &Fingerprint,
     ) -> Self {
         let _phase = elaboration::profiling::Phase::start("query.environment-plan");
+        let _cost = timing::costs::Scope::enter("query.environment-plan");
         fn collect<'a>(
             module: &'a Module,
             parent: &[String],
             modules: &mut Vec<(&'a Module, Vec<String>)>,
+            paths: &mut std::collections::HashSet<Vec<String>>,
         ) {
             let mut path = parent.to_vec();
             path.push(module.name.0.clone());
             let mut occurrence = 1;
-            while modules.iter().any(|(_, existing)| *existing == path) {
+            while !paths.insert(path.clone()) {
                 occurrence += 1;
                 *path.last_mut().unwrap() = format!("{}#{occurrence}", module.name.0);
             }
@@ -37,14 +39,29 @@ impl EnvironmentPlan {
             if let ModuleBody::Inline(items) = &module.body {
                 for item in items {
                     if let ModuleItem::ChildModule { module } = item {
-                        collect(module, &path, modules);
+                        collect(module, &path, modules, paths);
                     }
                 }
             }
         }
         let mut modules = Vec::new();
+        let mut paths = std::collections::HashSet::new();
         for module in &project.modules {
-            collect(module, &[], &mut modules);
+            collect(module, &[], &mut modules, &mut paths);
+        }
+        let mut bindings_by_module: HashMap<_, Vec<_>> = HashMap::new();
+        for (id, binding) in &project.bindings {
+            bindings_by_module
+                .entry(binding.module)
+                .or_default()
+                .push((id, binding));
+        }
+        let mut imports_by_module: HashMap<_, Vec<_>> = HashMap::new();
+        for (id, import) in &project.imports {
+            imports_by_module
+                .entry(import.owner)
+                .or_default()
+                .push((id, import));
         }
         let mut units = HashMap::new();
         let mut module_keys = HashMap::new();
@@ -77,11 +94,7 @@ impl EnvironmentPlan {
                     }
                 }
             }
-            let mut bindings: Vec<_> = project
-                .bindings
-                .iter()
-                .filter(|(_, b)| b.module == module.id)
-                .collect();
+            let mut bindings = bindings_by_module.remove(&module.id).unwrap_or_default();
             bindings.sort_by_key(|(id, _)| id.0);
             let parameters: Vec<_> = bindings
                 .iter()
@@ -103,11 +116,7 @@ impl EnvironmentPlan {
                 ),
             );
             bytes.extend(format!("{bindings:?}").as_bytes());
-            let mut imports: Vec<_> = project
-                .imports
-                .iter()
-                .filter(|(_, i)| i.owner == module.id)
-                .collect();
+            let mut imports = imports_by_module.remove(&module.id).unwrap_or_default();
             imports.sort_by_key(|(id, _)| id.0);
             for (id, import) in imports {
                 let mut remapping: Vec<_> = import.remapping.iter().collect();

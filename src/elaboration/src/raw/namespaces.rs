@@ -12,7 +12,7 @@ pub(crate) struct Specialization<I> {
 
 // A namespace import updates declaration remappings as each declaration is
 // canonicalized. Cache only when every global reference in the argument still
-// has the same image, and the complete parameter substitution is unchanged.
+// has the same image, and substitutions of referenced parameters are unchanged.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Reference {
     Definition(DefId),
@@ -23,8 +23,14 @@ enum Reference {
 type SubstitutionResult = (Vec<Reference>, Vec<(ModuleParamId, Exp)>, Exp);
 
 #[derive(Default, Debug)]
+struct ExpressionDependencies {
+    references: Vec<Reference>,
+    parameters: rustc_hash::FxHashSet<ModuleParamId>,
+}
+
+#[derive(Default, Debug)]
 pub(crate) struct SubstitutionCache {
-    references: rustc_hash::FxHashMap<Exp, Vec<Reference>>,
+    dependencies: rustc_hash::FxHashMap<Exp, ExpressionDependencies>,
     results: rustc_hash::FxHashMap<Exp, SubstitutionResult>,
 }
 
@@ -48,7 +54,61 @@ impl ArgumentCache {
     }
 }
 
+/// Failed translations are provisional. Reuse them only during one declaration's
+/// candidate search, and retry after materialization or kernel registration.
+#[derive(Default)]
+pub(crate) struct Comparisons {
+    failed: rustc_hash::FxHashMap<Exp, ComparisonVersion>,
+    unresolved: rustc_hash::FxHashMap<(Exp, Exp), ComparisonVersion>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ComparisonVersion {
+    materialized: MaterializationStats,
+    kernel: (u64, usize, usize, usize, usize),
+    translated: usize,
+}
+
+impl Comparisons {
+    fn version(env: &CrateEnv) -> ComparisonVersion {
+        ComparisonVersion {
+            materialized: env.materialization_stats(),
+            kernel: env.kernel.borrow().diagnostic_version(),
+            translated: env.structural_expressions.borrow().len(),
+        }
+    }
+
+    fn expression(&mut self, env: &CrateEnv, term: Exp) -> Option<kernel::syntax::Expression> {
+        if self
+            .failed
+            .get(&term)
+            .is_some_and(|version| *version == Self::version(env))
+        {
+            timing::costs::count("namespace.translation-retries-avoided", || 1);
+            return None;
+        }
+        match crate::kernel_bridge::expression(
+            env,
+            super::traversal::Term::Logical(term),
+            |_, e| Ok(e),
+        ) {
+            Ok(expression) => Some(expression),
+            Err(_) => {
+                self.failed.insert(term, Self::version(env));
+                None
+            }
+        }
+    }
+}
+
 impl CrateEnv {
+    fn namespace_term_is_rigid(&self, term: Exp) -> bool {
+        matches!(
+            self.arena().core.read(term.0).as_ref(),
+            kernel::syntax::Node::Bound(_) | kernel::syntax::Node::Parameter(_)
+        )
+    }
+
     fn namespace_syntax_equal(&self, left: Exp, right: Exp) -> bool {
         use super::exp::ExpNode;
         fn compare(
@@ -185,25 +245,37 @@ impl CrateEnv {
         head(self, term, &mut 32)
     }
 
+    #[cfg(test)]
     pub(crate) fn namespace_terms_equal(&self, left: Exp, right: Exp) -> bool {
+        self.namespace_terms_equal_with(left, right, &mut Comparisons::default())
+    }
+
+    fn namespace_terms_equal_with(
+        &self,
+        left: Exp,
+        right: Exp,
+        comparisons: &mut Comparisons,
+    ) -> bool {
         let _cost = timing::costs::Scope::enter("namespace.compare-term");
         if left == right {
             return true;
         }
         if let Some(&equal) = self.namespace_conversion_cache.borrow().get(&(left, right)) {
+            timing::costs::count("namespace.term-cache-hits", || 1);
             return equal;
         }
-        use super::exp::ExpNode;
+        if comparisons
+            .unresolved
+            .get(&(left, right))
+            .is_some_and(|version| *version == Comparisons::version(self))
+        {
+            timing::costs::count("namespace.comparison-retries-avoided", || 1);
+            return false;
+        }
         // Distinct variables and opaque parameters cannot become equal as
         // imported definitions are materialized. Check these rigid leaves
         // before recursively comparing syntax or expanding aliases.
-        if matches!(
-            (self.arena().get(left), self.arena().get(right)),
-            (ExpNode::Bound(_), ExpNode::Bound(_))
-                | (ExpNode::Bound(_), ExpNode::ModuleParam(_))
-                | (ExpNode::ModuleParam(_), ExpNode::Bound(_))
-                | (ExpNode::ModuleParam(_), ExpNode::ModuleParam(_))
-        ) {
+        if self.namespace_term_is_rigid(left) && self.namespace_term_is_rigid(right) {
             self.cache_namespace_equality(left, right, false);
             return false;
         }
@@ -227,17 +299,20 @@ impl CrateEnv {
         // These heads are rigid: neither a local variable nor an opaque module
         // parameter reduces to another variable. Avoid registering an entire
         // captured declaration graph merely to reject this comparison.
-        match (self.arena().get(left_alias), self.arena().get(right_alias)) {
-            (ExpNode::Bound(_), ExpNode::Bound(_))
-            | (ExpNode::Bound(_), ExpNode::ModuleParam(_))
-            | (ExpNode::ModuleParam(_), ExpNode::Bound(_))
-            | (ExpNode::ModuleParam(_), ExpNode::ModuleParam(_)) => {
-                self.cache_namespace_equality(left, right, false);
-                return false;
-            }
-            _ => {}
+        if self.namespace_term_is_rigid(left_alias) && self.namespace_term_is_rigid(right_alias) {
+            self.cache_namespace_equality(left, right, false);
+            return false;
         }
-        let Some(equal) = crate::kernel_bridge::resolved_convertible(self, left, right) else {
+        let equal = (|| {
+            let left = comparisons.expression(self, left)?;
+            let right = comparisons.expression(self, right)?;
+            kernel::reduction::convertible(&self.kernel.borrow(), left, right).ok()
+        })();
+        let Some(equal) = equal else {
+            comparisons
+                .unresolved
+                .insert((left, right), Comparisons::version(self));
+            timing::costs::count("namespace.unresolved-comparisons", || 1);
             return false;
         };
         self.cache_namespace_equality(left, right, equal);
@@ -349,14 +424,19 @@ impl CrateEnv {
         use super::exp::ExpNode;
         use super::traversal::{Memoized, Term};
         let mut cache = self.namespace_substitution_cache.borrow_mut();
-        let references = cache.references.entry(expression).or_insert_with(|| {
+        let dependencies = cache.dependencies.entry(expression).or_insert_with(|| {
             let mut references = rustc_hash::FxHashSet::default();
+            let mut parameters = rustc_hash::FxHashSet::default();
             Term::Logical(expression).walk(
                 self.arena(),
                 0,
                 &mut Memoized::new(|term: Term, _: usize| {
                     let reference = match term {
                         Term::Logical(e) => match self.arena().get(e) {
+                            ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => {
+                                parameters.insert(id);
+                                None
+                            }
                             ExpNode::DefinedConstant(id)
                             | ExpNode::DefinitionInstance { definition: id, .. } => {
                                 Some(Reference::Definition(id))
@@ -406,9 +486,18 @@ impl CrateEnv {
                     None
                 }),
             );
-            references.into_iter().collect()
+            ExpressionDependencies {
+                references: references.into_iter().collect(),
+                parameters,
+            }
         });
-        let images: Vec<_> = references
+        let reflected: Vec<_> = reflected
+            .iter()
+            .copied()
+            .filter(|(id, _)| dependencies.parameters.contains(id))
+            .collect();
+        let images: Vec<_> = dependencies
+            .references
             .iter()
             .map(|reference| match *reference {
                 Reference::Definition(id) => {
@@ -428,10 +517,12 @@ impl CrateEnv {
             .collect();
         if let Some((old_images, old_reflected, result)) = cache.results.get(&expression)
             && *old_images == images
-            && old_reflected == reflected
+            && *old_reflected == reflected
         {
+            timing::costs::count("namespace.substitution-cache-hits", || 1);
             return *result;
         }
+        timing::costs::count("namespace.substitution-cache-misses", || 1);
         let result = crate::raw::remapping::exp_subst_map(
             self.arena(),
             crate::raw::remapping::remap_all_global_ids(
@@ -441,11 +532,11 @@ impl CrateEnv {
                 &remapping.inductive_ids,
                 &remapping.program_inductive_ids,
             ),
-            reflected,
+            &reflected,
         );
         cache
             .results
-            .insert(expression, (images, reflected.to_vec(), result));
+            .insert(expression, (images, reflected, result));
         result
     }
 
@@ -521,6 +612,15 @@ impl CrateEnv {
         left: &[(ModuleParamId, ModuleArgument)],
         right: &[(ModuleParamId, ModuleArgument)],
     ) -> bool {
+        self.namespace_arguments_equal_with(left, right, &mut Comparisons::default())
+    }
+
+    pub(crate) fn namespace_arguments_equal_with(
+        &self,
+        left: &[(ModuleParamId, ModuleArgument)],
+        right: &[(ModuleParamId, ModuleArgument)],
+        comparisons: &mut Comparisons,
+    ) -> bool {
         if left == right {
             return true;
         }
@@ -533,12 +633,21 @@ impl CrateEnv {
         if let Some(&equal) = self.namespace_argument_cache.borrow().comparisons.get(&key) {
             return equal;
         }
+        // A later opaque argument can rule out the whole telescope before an
+        // expensive (or still unresolved) comparison of its shared prefix.
+        if self.namespace_arguments_rigidly_differ(left, right) {
+            self.namespace_argument_cache
+                .borrow_mut()
+                .comparisons
+                .insert(key, false);
+            return false;
+        }
         let equal = left.len() == right.len()
             && left.iter().zip(right).all(|((lp, l), (rp, r))| {
                 lp == rp
                     && match (*l, *r) {
                         (ModuleArgument::Pts(l), ModuleArgument::Pts(r)) => {
-                            self.namespace_terms_equal(l, r)
+                            self.namespace_terms_equal_with(l, r, comparisons)
                         }
                         (ModuleArgument::ProgramType(l), ModuleArgument::ProgramType(r)) => {
                             crate::kernel_bridge::value_type_is_alpha_eq(self.arena(), l, r)
@@ -555,7 +664,9 @@ impl CrateEnv {
                                         ProgramTerm::ValueTerm(r),
                                     ),
                                 ) {
-                                    (Ok(l), Ok(r)) => self.namespace_terms_equal(l, r),
+                                    (Ok(l), Ok(r)) => {
+                                        self.namespace_terms_equal_with(l, r, comparisons)
+                                    }
                                     _ => false,
                                 }
                         }
@@ -597,7 +708,6 @@ impl CrateEnv {
         left: &[(ModuleParamId, ModuleArgument)],
         right: &[(ModuleParamId, ModuleArgument)],
     ) -> bool {
-        use super::exp::ExpNode;
         left.len() != right.len()
             || left.iter().zip(right).any(|((lp, l), (rp, r))| {
                 if lp != rp {
@@ -609,13 +719,7 @@ impl CrateEnv {
                 if l == r {
                     return false;
                 }
-                matches!(
-                    (self.arena().get(l), self.arena().get(r)),
-                    (ExpNode::ModuleParam(_), ExpNode::ModuleParam(_))
-                        | (ExpNode::Bound(_), ExpNode::Bound(_))
-                        | (ExpNode::ModuleParam(_), ExpNode::Bound(_))
-                        | (ExpNode::Bound(_), ExpNode::ModuleParam(_))
-                )
+                self.namespace_term_is_rigid(l) && self.namespace_term_is_rigid(r)
             })
     }
 }
@@ -751,6 +855,37 @@ impl<'a> NamespaceStability<'a> {
 mod tests {
     use super::*;
     use crate::raw::exp::ExpNode;
+
+    #[test]
+    fn provisional_translation_failures_follow_environment_progress() {
+        let env = CrateEnv::new();
+        let unsupported = env.arena().exp_bound(100_001);
+        let mut comparisons = Comparisons::default();
+        assert!(comparisons.expression(&env, unsupported).is_none());
+        assert!(comparisons.expression(&env, unsupported).is_none());
+        assert_eq!(comparisons.failed.len(), 1);
+        assert!(env.structural_expressions.borrow().is_empty());
+        let set = env.arena().sort(crate::raw::sort::Sort::Set(0));
+        assert!(!env.namespace_terms_equal_with(unsupported, set, &mut comparisons));
+        assert!(!env.namespace_terms_equal_with(unsupported, set, &mut comparisons));
+        assert_eq!(comparisons.unresolved.len(), 1);
+        let valid = env.arena().exp_bound(0);
+        assert!(comparisons.expression(&env, valid).is_some());
+        assert_ne!(comparisons.failed[&unsupported], Comparisons::version(&env));
+        assert!(comparisons.expression(&env, unsupported).is_none());
+        assert_eq!(comparisons.failed[&unsupported], Comparisons::version(&env));
+        assert_ne!(
+            comparisons.unresolved[&(unsupported, set)],
+            Comparisons::version(&env)
+        );
+        assert!(!env.namespace_terms_equal_with(unsupported, set, &mut comparisons));
+        assert_eq!(
+            comparisons.unresolved[&(unsupported, set)],
+            Comparisons::version(&env)
+        );
+        assert!(Comparisons::default().failed.is_empty());
+        assert!(env.namespace_conversion_cache.borrow().is_empty());
+    }
 
     #[test]
     fn closed_arguments_reject_references_with_hidden_local_contexts() {
@@ -1081,6 +1216,39 @@ mod tests {
     }
 
     #[test]
+    fn rigid_suffix_rejects_arguments_before_lowering_an_unresolved_prefix() {
+        use crate::raw::sort::Sort;
+        let env = CrateEnv::new();
+        let first = ModuleParamId {
+            module: env.root_module(),
+            position: 0,
+        };
+        let second = ModuleParamId {
+            module: env.root_module(),
+            position: 1,
+        };
+        let left = [
+            (first, ModuleArgument::Pts(env.arena().exp_bound(100_001))),
+            (
+                second,
+                ModuleArgument::Pts(env.arena().exp_module_param(first)),
+            ),
+        ];
+        let right = [
+            (first, ModuleArgument::Pts(env.arena().sort(Sort::Set(0)))),
+            (
+                second,
+                ModuleArgument::Pts(env.arena().exp_module_param(second)),
+            ),
+        ];
+        assert!(!env.namespace_arguments_equal(&left, &right));
+        assert!(!env.namespace_arguments_equal(&right, &left));
+        assert_eq!(env.namespace_argument_cache.borrow().comparisons.len(), 1);
+        assert!(env.namespace_conversion_cache.borrow().is_empty());
+        assert!(env.kernel_definitions.borrow().is_empty());
+    }
+
+    #[test]
     fn renamed_binders_do_not_materialize_referenced_declarations() {
         let env = CrateEnv::new();
         // A source declaration can still be lazy when its argument syntax is
@@ -1165,5 +1333,38 @@ mod substitution_tests {
         assert_image(apply(b, &remapping), second, b);
         remapping.definition_ids.clear();
         assert_image(apply(a, &remapping), source, a);
+        let unused = ModuleParamId {
+            position: 1,
+            ..parameter
+        };
+        let result = env.substitute_namespace_expression(
+            expression,
+            &[(unused, b), (parameter, a)],
+            &remapping,
+        );
+        assert_image(result, source, a);
+        assert_eq!(
+            env.namespace_substitution_cache.borrow().results[&expression].1,
+            [(parameter, a)],
+        );
+
+        // Reflected parameters beneath binders also belong to the dependency
+        // key, and caller variables must still be shifted under that binder.
+        let reflected = env.arena().alloc(ExpNode::ReflectedProgramParam(parameter));
+        let lambda = env.arena().alloc(ExpNode::Lam {
+            var: SymbolId::ANONYMOUS,
+            ty: env.arena().sort(crate::raw::sort::Sort::Set(0)),
+            body: reflected,
+        });
+        for argument in [a, b] {
+            assert_eq!(
+                env.substitute_namespace_expression(lambda, &[(parameter, argument)], &remapping),
+                super::super::remapping::exp_subst_map(
+                    env.arena(),
+                    lambda,
+                    &[(parameter, argument)]
+                ),
+            );
+        }
     }
 }

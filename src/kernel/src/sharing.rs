@@ -1,16 +1,22 @@
 //! Small caches shared by immutable syntax arenas.
 use rustc_hash::FxHashMap;
-use std::hash::Hash;
+use std::{cell::Cell, hash::Hash};
+
+#[derive(Debug)]
+struct Entry<V> {
+    value: V,
+    reused: Cell<bool>,
+}
 
 /// Records writes during a scratch operation so cleanup only visits changed entries.
 #[derive(Debug)]
-pub(crate) struct Cache<K, V> {
-    entries: FxHashMap<K, V>,
+pub(crate) struct Cache<K, V, const LIMIT: usize = { 1 << 20 }> {
+    entries: FxHashMap<K, Entry<V>>,
     writes: Vec<K>,
     tracking: bool,
 }
 
-impl<K, V> Default for Cache<K, V> {
+impl<K, V, const LIMIT: usize> Default for Cache<K, V, LIMIT> {
     fn default() -> Self {
         Self {
             entries: FxHashMap::default(),
@@ -20,23 +26,40 @@ impl<K, V> Default for Cache<K, V> {
     }
 }
 
-impl<K: Copy + Eq + Hash, V> Cache<K, V> {
+impl<K: Copy + Eq + Hash, V, const LIMIT: usize> Cache<K, V, LIMIT> {
     pub fn get(&self, key: &K) -> Option<&V> {
-        self.entries.get(key)
+        let entry = self.entries.get(key)?;
+        entry.reused.set(true);
+        Some(&entry.value)
     }
 
     pub fn insert(&mut self, key: K, value: V) {
-        // These tables memoize immutable judgements; entries can be recomputed.
-        // Bound long-lived conversions and bound summaries as well as ordinary
-        // inference, without evicting the arena's canonical syntax identities.
-        if self.entries.len() >= 1 << 20 {
-            self.clear();
+        // Keep judgements that have actually been reused, including shared
+        // dependencies from earlier modules. Leave at least a quarter of the
+        // budget free so a hot working set cannot trigger a sweep per insert.
+        if self.entries.len() >= LIMIT && !self.entries.contains_key(&key) {
+            let budget = LIMIT - LIMIT.div_ceil(4);
+            let mut retained = 0;
+            self.entries.retain(|_, entry| {
+                let keep = entry.reused.replace(false) && retained < budget;
+                retained += usize::from(keep);
+                keep
+            });
             timing::costs::count("kernel.cache-recycles", || 1);
+            timing::costs::count("kernel.cache-retained", || retained as u64);
         }
         if self.tracking {
             self.writes.push(key);
         }
-        self.entries.insert(key, value);
+        match self.entries.entry(key) {
+            std::collections::hash_map::Entry::Occupied(mut entry) => entry.get_mut().value = value,
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(Entry {
+                    value,
+                    reused: Cell::new(false),
+                });
+            }
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -59,7 +82,7 @@ impl<K: Copy + Eq + Hash, V> Cache<K, V> {
             if self
                 .entries
                 .get(&key)
-                .is_some_and(|value| !keep(&key, value))
+                .is_some_and(|entry| !keep(&key, &entry.value))
             {
                 self.entries.remove(&key);
             }
@@ -184,7 +207,7 @@ mod tests {
 
     #[test]
     fn scratch_cleanup_visits_writes_including_replaced_entries() {
-        let mut cache = Cache::default();
+        let mut cache = Cache::<_, _>::default();
         for key in 0..10_000 {
             cache.insert(key, true);
         }
@@ -211,5 +234,40 @@ mod tests {
         cache.finish_scratch(|_, &live| live);
         assert_eq!(cache.len(), 1);
         assert_eq!(cache.get(&10_003), Some(&true));
+    }
+
+    #[test]
+    fn eviction_keeps_reused_dependencies_and_respects_scratch_lifetimes() {
+        let mut cache = Cache::<_, _, 4>::default();
+        for key in 0..4 {
+            cache.insert(key, key);
+        }
+        assert_eq!(cache.get(&0), Some(&0));
+        cache.begin_scratch();
+        cache.insert(4, 4);
+        assert_eq!(cache.len(), 2);
+        assert_eq!(cache.get(&0), Some(&0));
+        assert_eq!(cache.get(&1), None);
+        cache.insert(0, 10);
+        cache.finish_scratch(|_, &value| value < 4);
+        assert_eq!(cache.len(), 0);
+    }
+
+    #[test]
+    fn hot_cache_leaves_room_and_replacement_does_not_evict() {
+        let mut cache = Cache::<_, _, 4>::default();
+        for key in 0..4 {
+            cache.insert(key, key);
+            assert_eq!(cache.get(&key), Some(&key));
+        }
+        cache.insert(0, 10);
+        assert_eq!(cache.len(), 4);
+        assert_eq!(cache.get(&1), Some(&1));
+        cache.insert(4, 4);
+        assert_eq!(cache.len(), 4);
+        assert_eq!(cache.get(&4), Some(&4));
+        cache.insert(5, 5);
+        assert_eq!(cache.len(), 2);
+        assert_eq!(cache.get(&4), Some(&4));
     }
 }

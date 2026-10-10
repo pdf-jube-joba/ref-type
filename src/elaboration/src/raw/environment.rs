@@ -975,6 +975,7 @@ impl CrateEnv {
         remapping: &DeclarationRemapping,
     ) -> (DefId, DefId, bool) {
         let _cost = timing::costs::Scope::enter("namespace.reuse-definition");
+        let mut comparisons = super::namespaces::Comparisons::default();
         let source = self.lazy_definitions[&id].source;
         let origin = self
             .nominal_definitions
@@ -1001,9 +1002,11 @@ impl CrateEnv {
         {
             return (source, canonical, false);
         }
-        if self
-            .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
-        {
+        if self.namespace_arguments_equal_with(
+            &arguments,
+            &self.namespace_arguments(origin.source.module),
+            &mut comparisons,
+        ) {
             if shareable {
                 self.exact_definition_specializations
                     .insert(exact_key, origin.source);
@@ -1024,13 +1027,11 @@ impl CrateEnv {
                 .definition_specializations
                 .as_ref()
                 .unwrap()
-                .get(&origin.source)
-                .cloned()
-                .unwrap_or_default();
-            if let Some(id) = candidates.into_iter().find(|id| {
+                .get(&origin.source);
+            if let Some(id) = candidates.into_iter().flatten().copied().find(|id| {
                 let candidate = &self.nominal_definitions[id].arguments;
                 !self.namespace_arguments_rigidly_differ(&arguments, candidate)
-                    && self.namespace_arguments_equal(&arguments, candidate)
+                    && self.namespace_arguments_equal_with(&arguments, candidate, &mut comparisons)
             }) {
                 self.exact_definition_specializations.insert(exact_key, id);
                 return (source, id, false);
@@ -1229,6 +1230,7 @@ impl CrateEnv {
         remapping: &DeclarationRemapping,
     ) -> (InductiveId, InductiveId, bool) {
         let _cost = timing::costs::Scope::enter("namespace.reuse-inductive");
+        let mut comparisons = super::namespaces::Comparisons::default();
         let source = self.lazy_inductives[&id].source;
         let origin = self
             .nominal_inductives
@@ -1262,9 +1264,11 @@ impl CrateEnv {
         {
             return (source, canonical, false);
         }
-        if self
-            .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
-        {
+        if self.namespace_arguments_equal_with(
+            &arguments,
+            &self.namespace_arguments(origin.source.module),
+            &mut comparisons,
+        ) {
             if shareable {
                 self.exact_inductive_specializations
                     .insert(exact_key, origin.source);
@@ -1272,19 +1276,23 @@ impl CrateEnv {
             return (source, origin.source, false);
         }
         if shareable {
-            let candidates = self.inductive_specializations.get_or_insert_with(|| {
+            self.inductive_specializations.get_or_insert_with(|| {
                 let mut index: HashMap<_, Vec<_>> = HashMap::new();
                 for (&id, specialization) in &self.nominal_inductives {
                     index.entry(specialization.source).or_default().push(id);
                 }
                 index
             });
-            let candidates = candidates.get(&origin.source).cloned().unwrap_or_default();
-            if let Some(id) = candidates.into_iter().find(|id| {
+            let candidates = self
+                .inductive_specializations
+                .as_ref()
+                .unwrap()
+                .get(&origin.source);
+            if let Some(id) = candidates.into_iter().flatten().copied().find(|id| {
                 let candidate = &self.nominal_inductives[id].arguments;
                 !self.namespace_arguments_rigidly_differ(&arguments, candidate)
                     && self.namespace_arguments_shareable(candidate)
-                    && self.namespace_arguments_equal(&arguments, candidate)
+                    && self.namespace_arguments_equal_with(&arguments, candidate, &mut comparisons)
             }) {
                 self.exact_inductive_specializations.insert(exact_key, id);
                 return (source, id, false);
@@ -1390,6 +1398,7 @@ impl CrateEnv {
         remapping: &DeclarationRemapping,
     ) -> (ProgramInductiveId, ProgramInductiveId, bool) {
         let _cost = timing::costs::Scope::enter("namespace.reuse-datatype");
+        let mut comparisons = super::namespaces::Comparisons::default();
         let source = self.lazy_program_inductives[&id].source;
         let origin = self
             .nominal_datatypes
@@ -1415,9 +1424,11 @@ impl CrateEnv {
         if shareable && let Some(&canonical) = self.exact_datatype_specializations.get(&exact_key) {
             return (source, canonical, false);
         }
-        if self
-            .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
-        {
+        if self.namespace_arguments_equal_with(
+            &arguments,
+            &self.namespace_arguments(origin.source.module),
+            &mut comparisons,
+        ) {
             if shareable {
                 self.exact_datatype_specializations
                     .insert(exact_key, origin.source);
@@ -1425,19 +1436,23 @@ impl CrateEnv {
             return (source, origin.source, false);
         }
         if shareable {
-            let candidates = self.datatype_specializations.get_or_insert_with(|| {
+            self.datatype_specializations.get_or_insert_with(|| {
                 let mut index: HashMap<_, Vec<_>> = HashMap::new();
                 for (&id, specialization) in &self.nominal_datatypes {
                     index.entry(specialization.source).or_default().push(id);
                 }
                 index
             });
-            let candidates = candidates.get(&origin.source).cloned().unwrap_or_default();
-            if let Some(id) = candidates.into_iter().find(|id| {
+            let candidates = self
+                .datatype_specializations
+                .as_ref()
+                .unwrap()
+                .get(&origin.source);
+            if let Some(id) = candidates.into_iter().flatten().copied().find(|id| {
                 let candidate = &self.nominal_datatypes[id].arguments;
                 !self.namespace_arguments_rigidly_differ(&arguments, candidate)
                     && self.namespace_arguments_shareable(candidate)
-                    && self.namespace_arguments_equal(&arguments, candidate)
+                    && self.namespace_arguments_equal_with(&arguments, candidate, &mut comparisons)
             }) {
                 self.exact_datatype_specializations.insert(exact_key, id);
                 return (source, id, false);

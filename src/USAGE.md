@@ -116,8 +116,16 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 | `REF_TYPE_PROFILE_NAMESPACES=1` | import の名前空間と ID 対応表の件数 |
 | `REF_TYPE_PROFILE_DIAGNOSTICS=1` | 診断生成・表示の時間と RSS |
 | `REF_TYPE_PROFILE_ENVIRONMENTS=1` | checkpoint のキー・復元位置・保存サイズ |
+| `REF_TYPE_PROFILE_COSTS=1` | 入れ子の処理ごとの inclusive / exclusive 時間とキャッシュ統計 |
+| `REF_TYPE_PROFILE_COSTS_PROGRESS_MS=15000` | cost 計測中の途中経過を出す間隔 |
 
 先頭の三つは `1` で全件、名前の一部で対象を絞る。
+`REF_TYPE_PROFILE_COSTS` は `resolve.,namespace.,kernel.` のような接頭辞のカンマ区切りでも対象を選べる。
+`inclusive_us` は子の処理を含み、`exclusive_us` は計測した子の時間を差し引く。
+再帰呼び出しの inclusive 時間は重複するため、内訳の比較には `cost_group` の exclusive 時間を使う。
+`resolve.total` は macro・structure 展開を含む型推論前の名前解決、`namespace.*` は elaboration 中のインスタンス構築・再利用判定である。
+namespace の inclusive 時間には引数の比較で呼ぶ kernel の変換判定が含まれる。
+`query.environment-plan` は検査順と依存情報から checkpoint のキーを作る時間を表す。
 `REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先される。
 簡潔な診断では最初のエラーで検査を停止する。
 時間とメモリの上限を付けた計測には [check.py](../benchmarks/check.py) を使える。

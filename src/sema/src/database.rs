@@ -436,6 +436,7 @@ impl Database {
             let check_cost = timing::costs::Scope::enter("query.check-batch");
             let checked = match &resolved {
                 Ok(project) => {
+                    progress.phase(ProgressPhase::Planning);
                     let fallback_plan;
                     let plan = if full.is_ok() {
                         full_plan

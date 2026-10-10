@@ -98,6 +98,25 @@ struct Scope {
     substitutions: Arc<HashMap<BindingId, Arc<SExp>>>,
 }
 
+// A child needs the term environment at its declaration position until it is
+// resolved. Macro environments and the namespace graph have their own owners.
+#[derive(Clone, Default)]
+struct TermScope {
+    names: Arc<FxHashMap<String, BindingId>>,
+    imports: FxHashMap<String, ModuleId>,
+    import_ids: FxHashMap<String, BindingId>,
+}
+
+impl Scope {
+    fn terms(&self) -> TermScope {
+        TermScope {
+            names: self.names.clone(),
+            imports: self.imports.clone(),
+            import_ids: self.import_ids.clone(),
+        }
+    }
+}
+
 impl Scope {
     fn specialization(&self) -> Self {
         if !self.compiled {
@@ -164,7 +183,7 @@ struct Resolver {
     dependency_stack: Vec<(ModuleId, usize)>,
     declaration_counts: FxHashMap<ModuleId, usize>,
     pending_macro_import: Option<ModuleItem>,
-    child_term_scopes: FxHashMap<ModuleId, Scope>,
+    child_term_scopes: FxHashMap<ModuleId, TermScope>,
 }
 
 pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic> {
@@ -560,7 +579,7 @@ impl Resolver {
             }
         }
         let parent_terms = parent.and_then(|parent| {
-            self.child_term_scopes.get(&id).cloned().map(|snapshot| {
+            self.child_term_scopes.remove(&id).map(|snapshot| {
                 let scope = &mut self.scopes[parent.0 as usize];
                 let saved = (
                     scope.names.clone(),
@@ -717,7 +736,7 @@ impl Resolver {
             }
             ModuleItem::ChildModule { module } => {
                 self.child_term_scopes
-                    .insert(module.id, self.scopes[self.current.0 as usize].clone());
+                    .insert(module.id, self.scopes[self.current.0 as usize].terms());
             }
             ModuleItem::Import {
                 path,

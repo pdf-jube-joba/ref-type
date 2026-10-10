@@ -18,6 +18,8 @@
 項の子の順序・binder の深さ・自由な束縛変数の情報も kernel の共有 API を使う。
 `raw/traversal.rs` は source 用 view の分類を行い、`raw/remapping.rs` は module parameter の置換と source の宣言 ID の付け替えを行う。
 宣言の確定時に `finish` で全メタ変数と保留制約の解決を確認する。
+namespace 引数の置換は、式が参照する宣言と module parameter を事前に調べ、その対応先が同じ間は結果を再利用する。
+インスタンスの候補探索中に失敗した kernel 項への変換は、その探索の間だけ記録し、宣言の具体化・kernel への登録・変換済み項の追加が進めば再試行する。
 
 ## API と診断
 
