@@ -19,6 +19,10 @@ fn encode(
         .ok();
     let has_environment = environment.is_some();
     let environment = environment.unwrap_or_default();
+    Some((encode_parts(environment, results)?, has_environment))
+}
+
+fn encode_parts(environment: Vec<u8>, results: &BTreeMap<usize, ModuleResult>) -> Option<Vec<u8>> {
     let metadata = serde_json::to_vec(&results.values().collect::<Vec<_>>()).ok()?;
     if 8 + metadata.len() + environment.len() > MAX_RECORD_BYTES {
         return None;
@@ -26,7 +30,7 @@ fn encode(
     let mut bytes = (metadata.len() as u64).to_le_bytes().to_vec();
     bytes.extend(metadata);
     bytes.extend(environment);
-    Some((bytes, has_environment))
+    Some(bytes)
 }
 
 fn decode(bytes: &[u8]) -> Option<(&[u8], Vec<ModuleResult>)> {
@@ -101,64 +105,80 @@ impl Database {
             modules.len()
         };
         progress.phase(ProgressPhase::Restoring);
-        for index in (0..first_forced).rev() {
-            let key = &boundaries[index].0;
-            let mut disk_hit = false;
-            let bytes = self.package_environments.get(key).or_else(|| {
-                let bytes: Arc<[u8]> = self.disk.as_ref()?.read_package(key)?.into();
-                disk_hit = true;
-                self.package_environments.insert(*key, bytes.clone());
-                Some(bytes)
-            });
-            let Some((environment, saved)) = bytes.as_deref().and_then(decode) else {
-                continue;
-            };
-            let expected: BTreeSet<_> = boundaries[..=index]
-                .iter()
-                .flat_map(|(_, indices)| indices.iter().copied())
-                .collect();
-            let mapped: Option<BTreeMap<_, _>> = saved
-                .into_iter()
-                .map(|result| Some((*graph.indices.get(&result.path)?, result)))
-                .collect();
-            let Some(saved) =
-                mapped.filter(|saved| saved.keys().copied().collect::<BTreeSet<_>>() == expected)
-            else {
-                continue;
-            };
-            if index + 1 < modules.len() {
-                let restored =
-                    PackageChecker::restore(environment, |id| snapshot.source(&id.0).cloned());
-                let Some(restored) = restored else {
+        'restore: for index in (0..first_forced).rev() {
+            for partial in [false, true] {
+                let key = &boundaries[index].0;
+                let mut disk_hit = false;
+                let bytes = if partial {
+                    self.disk
+                        .as_ref()
+                        .and_then(|disk| disk.read_partial_package(key))
+                        .map(Arc::<[u8]>::from)
+                } else {
+                    self.package_environments.get(key).or_else(|| {
+                        let bytes: Arc<[u8]> = self.disk.as_ref()?.read_package(key)?.into();
+                        disk_hit = true;
+                        self.package_environments.insert(*key, bytes.clone());
+                        Some(bytes)
+                    })
+                };
+                let Some((environment, saved)) = bytes.as_deref().and_then(decode) else {
                     continue;
                 };
-                checker = restored;
-                self.stats.environment_hits += 1;
-                self.stats.restored_modules += saved.len();
-            }
-            results = saved;
-            for (&index, result) in &mut results {
-                result.dependencies = graph.units[index]
-                    .dependencies
+                let expected: BTreeSet<_> = boundaries[..index + usize::from(!partial)]
                     .iter()
-                    .map(|&dependency| graph.units[dependency].path.clone())
+                    .flat_map(|(_, indices)| indices.iter().copied())
                     .collect();
+                let mapped: Option<BTreeMap<_, _>> = saved
+                    .into_iter()
+                    .map(|result| Some((*graph.indices.get(&result.path)?, result)))
+                    .collect();
+                let Some(saved) = mapped
+                    .filter(|saved| saved.keys().copied().collect::<BTreeSet<_>>() == expected)
+                else {
+                    continue;
+                };
+                if partial || index + 1 < modules.len() {
+                    let restored =
+                        PackageChecker::restore(environment, |id| snapshot.source(&id.0).cloned());
+                    let Some(restored) = restored else {
+                        continue;
+                    };
+                    if restored.is_pending() != partial {
+                        continue;
+                    }
+                    checker = restored;
+                    self.stats.environment_hits += 1;
+                    self.stats.restored_modules += saved.len();
+                }
+                results = saved;
+                for (&index, result) in &mut results {
+                    result.dependencies = graph.units[index]
+                        .dependencies
+                        .iter()
+                        .map(|&dependency| graph.units[dependency].path.clone())
+                        .collect();
+                }
+                start = index + usize::from(!partial);
+                self.stats.package_hits += start;
+                if partial {
+                    self.stats.checkpoint_hits += 1;
+                }
+                if disk_hit {
+                    self.stats.disk_hits += results.len();
+                }
+                self.stats.reused_modules += results.len();
+                for &index in results.keys() {
+                    progress.reused(index, std::time::Duration::ZERO);
+                }
+                progress.skip_cached();
+                break 'restore;
             }
-            start = index + 1;
-            self.stats.package_hits += start;
-            if disk_hit {
-                self.stats.disk_hits += results.len();
-            }
-            self.stats.reused_modules += results.len();
-            for &index in results.keys() {
-                progress.reused(index, std::time::Duration::ZERO);
-            }
-            progress.skip_cached();
-            break;
         }
         // Retain finer module invalidation for edits inside a standalone package.
         if modules.len() == 1
             && start == 0
+            && !checker.is_pending()
             && !options.force
             && requested.iter().any(|&index| {
                 self.checked.contains_key(&module_keys[index])
@@ -171,8 +191,19 @@ impl Database {
             return None;
         }
         for (index, module) in modules.iter().enumerate().skip(start) {
-            progress.phase(ProgressPhase::Resolving);
-            let checked = checker.append(module, |event| match event {
+            let (key, indices) = &boundaries[index];
+            let mut reused = BTreeSet::new();
+            let interval = self.disk.as_ref().map(|_| {
+                options
+                    .checkpoint_interval
+                    .unwrap_or(std::time::Duration::from_secs(30))
+            });
+            progress.phase(if checker.is_pending() {
+                ProgressPhase::Restoring
+            } else {
+                ProgressPhase::Resolving
+            });
+            let checked = checker.append_with_checkpoints(module, interval, |event| match event {
                 PackageProgress::Prepared { paths, start } => {
                     let steps: Vec<_> = paths
                         .iter()
@@ -184,6 +215,14 @@ impl Database {
                                 .expect("package source scope")
                         })
                         .collect();
+                    let remaining: BTreeSet<_> = steps[start..].iter().copied().collect();
+                    reused = steps[..start]
+                        .iter()
+                        .copied()
+                        .filter(|index| indices.contains(index) && !remaining.contains(index))
+                        .collect();
+                    self.stats.reused_modules += reused.len();
+                    self.stats.restored_modules += reused.len();
                     progress.begin_batch(
                         &steps,
                         start,
@@ -200,6 +239,24 @@ impl Database {
                     elapsed,
                     success,
                 }) => progress.step(position, elapsed, success),
+                PackageProgress::Saving => progress.phase(ProgressPhase::Saving),
+                PackageProgress::Checkpoint { steps, bytes } => {
+                    if let Some(bytes) = bytes.ok().and_then(|bytes| encode_parts(bytes, &results))
+                    {
+                        if let Some(disk) = &self.disk {
+                            match disk.write_partial_package(key, &bytes) {
+                                Ok(()) => {
+                                    self.stats.checkpoint_writes += 1;
+                                    progress.checkpoint_saved(steps);
+                                }
+                                Err(_) => self.stats.cache_write_failures += 1,
+                            }
+                        }
+                    } else {
+                        self.stats.checkpoint_skips += 1;
+                    }
+                    progress.phase(ProgressPhase::Checking);
+                }
             });
             progress.finish_batch();
             // The ordinary path retains detailed independent-scope error recovery.
@@ -207,8 +264,7 @@ impl Database {
             if checked.is_err() {
                 return None;
             }
-            let (key, indices) = &boundaries[index];
-            self.stats.checked_modules += indices.len();
+            self.stats.checked_modules += indices.len() - reused.len();
             progress.verified(indices);
             let mut fresh: BTreeMap<_, _> = indices
                 .iter()
@@ -255,7 +311,12 @@ impl Database {
                     }
                     if let Some(disk) = &self.disk {
                         match disk.write_package(key, &bytes) {
-                            Ok(()) => self.stats.package_writes += 1,
+                            Ok(()) => {
+                                self.stats.package_writes += 1;
+                                if has_environment {
+                                    disk.discard_partial_package(key);
+                                }
+                            }
                             Err(_) => self.stats.cache_write_failures += 1,
                         }
                     }

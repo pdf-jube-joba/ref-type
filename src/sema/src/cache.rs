@@ -158,7 +158,19 @@ pub(crate) fn source_key(snapshot: &crate::SourceSnapshot, root: &Path) -> Finge
 
 impl DiskCache {
     pub fn read_package(&self, key: &Fingerprint) -> Option<Vec<u8>> {
-        let path = self.directory.join(format!("{}.pkg", hex(key)));
+        self.read_package_record(key, "pkg")
+    }
+
+    pub fn read_partial_package(&self, key: &Fingerprint) -> Option<Vec<u8>> {
+        self.read_package_record(key, "partial")
+    }
+
+    pub fn discard_partial_package(&self, key: &Fingerprint) {
+        let _ = fs::remove_file(self.directory.join(format!("{}.partial", hex(key))));
+    }
+
+    fn read_package_record(&self, key: &Fingerprint, extension: &str) -> Option<Vec<u8>> {
+        let path = self.directory.join(format!("{}.{extension}", hex(key)));
         if fs::metadata(&path).ok()?.len() > crate::database::packages::MAX_RECORD_BYTES as u64 + 72
         {
             return None;
@@ -175,11 +187,28 @@ impl DiskCache {
     }
 
     pub fn write_package(&self, key: &Fingerprint, payload: &[u8]) -> Result<(), CacheError> {
+        self.write_package_record(key, "pkg", payload)
+    }
+
+    pub fn write_partial_package(
+        &self,
+        key: &Fingerprint,
+        payload: &[u8],
+    ) -> Result<(), CacheError> {
+        self.write_package_record(key, "partial", payload)
+    }
+
+    fn write_package_record(
+        &self,
+        key: &Fingerprint,
+        extension: &str,
+        payload: &[u8],
+    ) -> Result<(), CacheError> {
         let mut bytes = b"REFPKG01".to_vec();
         bytes.extend(key);
         bytes.extend(fingerprint(payload));
         bytes.extend(payload);
-        self.write_bytes(key, "pkg", &bytes)
+        self.write_bytes(key, extension, &bytes)
     }
 
     pub fn read_environment(&self, key: &Fingerprint) -> Option<Vec<u8>> {

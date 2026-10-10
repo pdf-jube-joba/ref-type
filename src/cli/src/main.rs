@@ -49,6 +49,9 @@ struct Args {
     /// parse・チェック・キャッシュ再利用の件数を表示する
     #[arg(long)]
     cache_stats: bool,
+    /// package途中のcheckpoint保存間隔（秒、既定30）。module完了時に保存する
+    #[arg(long)]
+    checkpoint_seconds: Option<u64>,
     /// 簡潔な診断（compact）か制約を含む詳細診断（detailed）を選ぶ
     #[arg(long, value_enum)]
     diagnostics: Option<DiagnosticMode>,
@@ -195,6 +198,7 @@ fn run_path(
             progress: (!args.no_progress).then_some(show_progress),
             progress_events: display.enabled().then_some(progress::receive),
             collect_statistics: args.stats,
+            checkpoint_interval: args.checkpoint_seconds.map(Duration::from_secs),
             diagnostics: match args.diagnostics {
                 Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
                 Some(DiagnosticMode::Detailed) => sema::DiagnosticMode::Detailed,

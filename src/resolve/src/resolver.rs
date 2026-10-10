@@ -277,14 +277,20 @@ impl Session {
         }
         assemble(&mut root, &mut resolver.output);
         self.roots.push(root);
-        Ok(Project {
+        Ok(self.project())
+    }
+
+    /// Rebuild the resolved project when resuming a partially checked package.
+    pub fn project(&self) -> Project {
+        let resolver = &self.resolver;
+        Project {
             declarations: resolver.declarations.clone(),
             modules: self.roots.clone(),
             references: resolver.references.borrow().clone(),
             bindings: resolver.global_bindings.clone(),
             order: resolver.order.clone(),
             imports: resolver.imports.clone(),
-        })
+        }
     }
 
     /// Source text is omitted from checkpoints and reattached from the current snapshot.

@@ -55,6 +55,167 @@ fn clean(snapshot: &SourceSnapshot) -> std::sync::Arc<sema::SemanticResult> {
     )
 }
 
+thread_local! {
+    static INTERRUPT_MODULE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+    static READY_TO_INTERRUPT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn interrupt_checkpoint(event: &sema::ProgressEvent) {
+    match event {
+        sema::ProgressEvent::ModuleFinished { path, .. } => {
+            if INTERRUPT_MODULE.with_borrow(|target| target.as_deref() == Some(&path.join("."))) {
+                READY_TO_INTERRUPT.set(true);
+            }
+        }
+        sema::ProgressEvent::CheckpointSaved { .. } if READY_TO_INTERRUPT.replace(false) => {
+            panic!("simulate termination after a durable checkpoint");
+        }
+        _ => {}
+    }
+}
+
+fn interrupted(cache: &Cache, snapshot: &SourceSnapshot, module: &str) {
+    INTERRUPT_MODULE.with_borrow_mut(|target| *target = Some(module.into()));
+    READY_TO_INTERRUPT.set(false);
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        Database::with_cache(&cache.0).check_with_options(
+            snapshot,
+            &CheckOptions {
+                checkpoint_interval: Some(std::time::Duration::ZERO),
+                progress_events: Some(interrupt_checkpoint),
+                ..Default::default()
+            },
+        )
+    }));
+    INTERRUPT_MODULE.with_borrow_mut(|target| *target = None);
+    assert!(
+        outcome.is_err(),
+        "expected a saved checkpoint after {module}"
+    );
+}
+
+fn resumable_project() -> SourceSnapshot {
+    project("app").with_file(
+        "/virtual/app/src/root.ref",
+        r"
+        \module First {
+            \import base.Core[] \as B;
+            \definition p: \Prop := B.P;
+            \infer p;
+            \module Child(A: \Set) { \definition id(x: A): A := x; }
+            \definition q(x: B.Unit): B.Unit := Child[A := B.Unit].id x;
+            \infer q;
+        }
+        \module Last {
+            \import \root.First[] \as F;
+            \import base.Core[] \as B;
+            \import F.Child[A := B.Unit] \as I;
+            \definition value: B.Unit := I.id B.Unit::unit;
+            \infer value;
+        }",
+    )
+}
+
+#[test]
+fn module_checkpoint_resumes_an_unfinished_package_with_outputs_and_children() {
+    let cache = Cache::new();
+    let snapshot = resumable_project();
+    // A child finishes while its parent still has later checking steps.
+    interrupted(&cache, &snapshot, "app.First.Child");
+    interrupted(&cache, &snapshot, "app.First");
+    let mut resumed = Database::with_cache(&cache.0);
+    let result = resumed.check(&snapshot);
+    assert_eq!(result, clean(&snapshot));
+    assert!(result.is_success());
+    assert_eq!(resumed.stats().checkpoint_hits, 1, "{:?}", resumed.stats());
+    assert_eq!(resumed.stats().package_hits, 1);
+    assert!(resumed.stats().reused_modules > 3);
+    assert!(resumed.stats().checked_modules < 4);
+    assert!(fs::read_dir(&cache.0).unwrap().all(|file| {
+        file.unwrap()
+            .path()
+            .extension()
+            .is_none_or(|ext| ext != "partial")
+    }));
+    let mut warm = Database::with_cache(&cache.0);
+    assert_eq!(warm.check(&snapshot), result);
+    assert_eq!(warm.stats().checked_modules, 0);
+}
+
+#[test]
+fn module_checkpoints_invalidate_on_edits_settings_force_and_damage() {
+    for mode in [
+        "source",
+        "dependency",
+        "settings",
+        "force",
+        "force_local",
+        "corrupt",
+        "partial_query",
+    ] {
+        let cache = Cache::new();
+        let mut snapshot = resumable_project();
+        interrupted(&cache, &snapshot, "app.First.Child");
+        let mut options = CheckOptions::default();
+        match mode {
+            "source" => {
+                snapshot = snapshot.with_file(
+                    "/virtual/app/src/Extra.ref",
+                    r"\definition p: \Prop := \forall (P: \Prop) -> P -> P;",
+                )
+            }
+            "dependency" => {
+                snapshot = snapshot.with_file(
+                    "/virtual/base/src/Extra.ref",
+                    r"\definition p: \Prop := \forall (P: \Prop) -> P -> P;",
+                )
+            }
+            "settings" => options.configuration = "changed".into(),
+            "force" => options.force = true,
+            "force_local" => options.force_local = true,
+            "corrupt" => {
+                for file in fs::read_dir(&cache.0).unwrap() {
+                    let path = file.unwrap().path();
+                    if path.extension().is_some_and(|ext| ext == "partial") {
+                        fs::write(path, b"truncated").unwrap();
+                    }
+                }
+            }
+            _ => {}
+        }
+        let mut resumed = Database::with_cache(&cache.0);
+        let result = if mode == "partial_query" {
+            resumed.module_with_options(&snapshot, &["app".into(), "First".into()], &options)
+        } else {
+            resumed.check_with_options(&snapshot, &options)
+        };
+        assert!(result.is_success(), "{mode}: {result:?}");
+        if mode != "partial_query" {
+            assert_eq!(result, clean(&snapshot), "{mode}");
+        }
+        assert_eq!(resumed.stats().checkpoint_hits, 0, "{mode}");
+    }
+}
+
+#[test]
+fn resumed_package_still_checks_errors_after_the_checkpoint() {
+    let cache = Cache::new();
+    let snapshot = resumable_project();
+    let root = std::path::Path::new("/virtual/app/src/root.ref");
+    let source = snapshot
+        .source(root)
+        .unwrap()
+        .text
+        .replace(r"\infer value;", r"\definition bad: B.Unit := \Set;");
+    let snapshot = snapshot.with_file(root, source);
+    interrupted(&cache, &snapshot, "app.First.Child");
+    let mut resumed = Database::with_cache(&cache.0);
+    let result = resumed.check(&snapshot);
+    assert!(!result.is_success());
+    assert_eq!(result, clean(&snapshot));
+    assert_eq!(resumed.stats().checkpoint_hits, 1);
+}
+
 #[test]
 fn package_environment_survives_a_different_caller_and_added_modules() {
     let cache = Cache::new();

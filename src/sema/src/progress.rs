@@ -56,6 +56,10 @@ pub enum ProgressEvent {
     Finished {
         success: bool,
     },
+    /// A provisional package prefix has been atomically persisted.
+    CheckpointSaved {
+        steps: usize,
+    },
 }
 
 struct State {
@@ -195,6 +199,12 @@ impl Reporter {
         self.active = None;
         if let Some(receive) = self.events {
             receive(&ProgressEvent::Phase(phase));
+        }
+    }
+
+    pub fn checkpoint_saved(&self, steps: usize) {
+        if let Some(receive) = self.events {
+            receive(&ProgressEvent::CheckpointSaved { steps });
         }
     }
 

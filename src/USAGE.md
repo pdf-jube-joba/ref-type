@@ -37,6 +37,7 @@ std = { path = "../std" }
 | `--cache-dir PATH` | キャッシュ保存先を変更 |
 | `--clear-cache` | 保存先の中身を削除してから処理 |
 | `--cache-stats` | 解析・検査・再利用・保存の件数を表示 |
+| `--checkpoint-seconds N` | package途中のcheckpoint保存間隔。既定30秒、0は毎module完了時 |
 | `--stats` | raw / kernel のノード数などを表示 |
 | `--trace` | 実際の検証を行い、型検査・登録・簡約のログを表示 |
 | `--diagnostics compact` / `detailed` | 診断の詳しさを指定 |
@@ -66,6 +67,16 @@ cargo run -p cli --release --locked -- libs/std --full-check-local
 `--cache-stats` の `environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
 `package_hits` は package 境界の復元で省略した package 数、`package_writes` は保存した package 環境数、`package_skips` はサイズ上限などで保存を省略した境界数である。
 package キャッシュには名前解決の状態も含まれ、依存先が一致すれば利用側の module 追加後も依存環境を再利用する。
+検査中の package は、一定時間が経過した後のソース module 完了時に途中環境を `.partial` に保存する。
+同じキャッシュ保存先で再実行すると、名前解決の状態と検査位置を復元し、保存位置以降を検査する。
+未完了の module が入れ子で存在する場合も、保存した検査順の続きから再開する。
+`--checkpoint-seconds` の既定値は30秒で、保存に時間がかかった場合は、その約10倍以上の検査時間を空けて次を保存する。
+一つの module の処理中に中断した場合は、最後に保存できた module 境界に戻る。
+途中環境にも package と依存先のソース・検査範囲・設定・処理系の照合を行い、`--full-check` と入口 package の `--full-check-local` は再開を省略して検査し直す。
+保存は一時ファイルへの書き込み後に置き換えるため、保存途中で停止しても前の checkpoint は残る。
+保存サイズ上限を超えた場合は、その package の以後の途中保存を省略し、最後に成功した checkpoint を残す。
+`--cache-stats` の `checkpoint_hits`・`checkpoint_writes`・`checkpoint_skips` で途中環境の復元・保存・省略件数を確認できる。
+`REF_TYPE_PROFILE_PROGRESS=1` のログでは、保存成功時に `event=checkpoint-saved` を出力する。
 異なる入口パッケージ間で共有する場合は、`--cache-dir` に同じ保存先を指定する。
 
 端末では標準エラーの一行を更新し、進捗バー、完了 module 数／総 module 数、現在の module、パッケージ内の完了数と経過秒数を表示する。

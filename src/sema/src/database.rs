@@ -27,6 +27,8 @@ pub struct CheckOptions {
     pub progress_events: Option<fn(&ProgressEvent)>,
     pub collect_statistics: bool,
     pub diagnostics: elaboration::DiagnosticMode,
+    /// Minimum work time between module-boundary package checkpoints (default 30s).
+    pub checkpoint_interval: Option<std::time::Duration>,
 }
 
 struct LoadedProject {

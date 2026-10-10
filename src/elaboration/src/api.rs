@@ -129,7 +129,7 @@ impl Checker {
         }
     }
 
-    fn diagnostic(&self, error: &ElaborationError) -> Diagnostic {
+    pub(crate) fn diagnostic(&self, error: &ElaborationError) -> Diagnostic {
         let _profile = crate::diagnostics::DiagnosticProfile::start("render");
         let error = error.materialize(&self.workspace);
         let error = &error;

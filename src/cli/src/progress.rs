@@ -50,6 +50,7 @@ impl State {
                 self.completed.insert(path.clone(), *action);
             }
             ProgressEvent::Finished { success } => self.success = Some(*success),
+            ProgressEvent::CheckpointSaved { .. } => {}
         }
     }
 
@@ -133,6 +134,9 @@ impl State {
                 sema::timing::elapsed(path).as_secs_f64(),
             ),
             ProgressEvent::Finished { success } => format!("event=finished success={success}"),
+            ProgressEvent::CheckpointSaved { steps } => {
+                format!("event=checkpoint-saved steps={steps}")
+            }
         };
         format!(
             "progress elapsed_seconds={:.3} completed={}/{} {detail}{package}",
