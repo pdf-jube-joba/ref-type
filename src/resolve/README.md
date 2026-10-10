@@ -26,10 +26,14 @@ template 内の macro 参照は定義元の完成したスコープ、通常の�
 
 `#field{x}` は `x` の束縛を解決し、field 名を持つ射影式として保持する。
 module の引数式も名前解決し、型検査と typed なインスタンスの構築を elaboration に引き継ぐ。
+namespace の構文上のインスタンスは選択された経路にだけ作り、子 module は選択時に親の引数環境を引き継ぐ。
+構造の正規化では、射影の基部・関数適用の関数部分・移動した引数チェックの処理済み部分を再走査せず、新しく組み立てた部分を処理する。
 Program parameter の反映を含む macro は `Reflect` に元の parameter の ID と引数式を保持し、その parameter の型分類を elaboration で参照する。
 
 構文全体の HIR は `hir`、構造走査は `visit` から利用できる。
 名前解決の失敗は module path と source location を持つ `Diagnostic` になる。
+名前解決だけの計測には `cargo run -p resolve --example resolve-bench -- libs/differential_forms` を使う。
+`REF_TYPE_PROFILE_COSTS=1` で処理別の時間と呼び出し回数を出力する。
 
 ```rust
 let ast = syntax::parse::str_parse_modules(

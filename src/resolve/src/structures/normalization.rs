@@ -286,15 +286,19 @@ impl Resolver {
                 )];
                 guards.extend(checks);
                 *access = member;
-                *node = SExp::Checked {
-                    checks: guards,
-                    body: Box::new(node.clone()),
-                };
+                // resolve_import_in_scope already normalized the argument
+                // checks. Only the selected member is new work.
                 if let Err(e) = self.normalize_in_scope(node, locals) {
                     error = Some(e);
+                    return false;
                 }
+                *node = SExp::Checked {
+                    checks: guards,
+                    body: Box::new(std::mem::replace(node, SExp::ValueType)),
+                };
                 return false;
             }
+            let mut children_normalized = false;
             if let SExp::App { func, arg } = node
                 && {
                     let mut head = func.as_ref();
@@ -321,19 +325,30 @@ impl Resolver {
                     error = Some(e);
                     return false;
                 }
-                if let SExp::Checked { checks, body } = func.as_ref() {
-                    *node = SExp::Checked {
-                        checks: checks.clone(),
-                        body: Box::new(SExp::App {
-                            func: body.clone(),
-                            arg: arg.clone(),
-                        }),
+                if matches!(func.as_ref(), SExp::Checked { .. }) {
+                    let SExp::Checked { checks, body } =
+                        std::mem::replace(func.as_mut(), SExp::ValueType)
+                    else {
+                        unreachable!()
                     };
-                    if let Err(e) = self.normalize_in_scope(node, locals) {
+                    let mut application = SExp::App {
+                        func: body,
+                        arg: std::mem::replace(arg, Box::new(SExp::ValueType)),
+                    };
+                    if let Err(e) = self.normalize_in_scope(&mut application, locals) {
                         error = Some(e);
                     }
+                    *node = SExp::Checked {
+                        checks,
+                        body: Box::new(application),
+                    };
                     return false;
                 }
+                if let Err(e) = self.normalize_in_scope(arg, locals) {
+                    error = Some(e);
+                    return false;
+                }
+                children_normalized = true;
             }
             let expansion = match node {
                 SExp::Block(block) => Some(block.as_term().map_err(|e| self.error(e))),
@@ -564,6 +579,8 @@ impl Resolver {
                         body: Box::new(result),
                     }
                 };
+                // The base (including any lifted checks) is already normalized.
+                return false;
             }
             if matches!(
                 node,
@@ -675,7 +692,7 @@ impl Resolver {
                 } => Some(((**base).clone(), field.clone(), parameters.clone(), *span)),
                 _ => None,
             };
-            if let Some((mut base, field, parameters, span)) = projected {
+            if let Some((mut base, field, mut parameters, span)) = projected {
                 if let Err(e) = self.normalize_in_scope(&mut base, locals) {
                     error = Some(e);
                     return false;
@@ -765,7 +782,14 @@ impl Resolver {
                     }
                     Err(e) => error = Some(e),
                     _ => {
+                        for argument in &mut parameters {
+                            if let Err(e) = self.normalize_in_scope(argument, locals) {
+                                error = Some(e);
+                                return false;
+                            }
+                        }
                         if matches!(node, SExp::MemberAccess { .. })
+                            || matches!(node, SExp::InferredProjection { .. })
                             || matches!(&base, SExp::AccessPath { access, .. } if self.front_binding(access, locals).is_some())
                         {
                             let mut result = SExp::InferredProjection {
@@ -780,7 +804,15 @@ impl Resolver {
                                 };
                             }
                             *node = result;
+                        } else if let SExp::AccessPath {
+                            parameters: actual, ..
+                        } = node
+                        {
+                            *actual = parameters;
                         }
+                        // Rewalking a nested projection here visits its base
+                        // twice at each level, causing exponential expansion.
+                        children_normalized = true;
                     }
                 }
             }
@@ -912,7 +944,7 @@ impl Resolver {
                     return true;
                 }
             }
-            true
+            !children_normalized
         });
         error.map_or(Ok(()), Err)
     }

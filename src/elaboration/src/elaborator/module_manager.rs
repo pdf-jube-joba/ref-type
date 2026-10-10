@@ -724,20 +724,27 @@ impl ModuleManager {
             items: Vec<ModuleItem>,
             origins: HashMap<DefId, DefId>,
             arguments: Vec<(ModuleParamId, ModuleArgument)>,
+            unchanged: bool,
         }
         let mut groups = Vec::with_capacity(materialization_sources.len());
         let mut lazy_definitions = Vec::new();
         let mut lazy_inductives = Vec::new();
         let mut lazy_datatypes = Vec::new();
         let mut namespaces = Vec::with_capacity(materialization_sources.len());
-        let unchanged_imports = {
+        // Prove stability before reserving any declaration IDs. Route modules
+        // still need their own namespace metadata, but their unchanged items
+        // can keep canonical IDs without substitution or conversion searches.
+        let unchanged_sources = {
             let mut stability =
                 crate::raw::namespaces::NamespaceStability::new(env, &reflected_substitutions);
             materialization_sources
                 .iter()
-                .map(|(_, item_source, path_component)| {
-                    !path_component
-                        && stability.arguments(&env.binding(*item_source).arguments)
+                .map(|(source_module, item_source, _)| {
+                    let arguments = env.namespace_binding_id(*item_source).map_or_else(
+                        || env.namespace_arguments(*source_module),
+                        |binding| env.binding(binding).arguments.clone(),
+                    );
+                    stability.arguments(&arguments)
                         && env
                             .module(*item_source)
                             .items()
@@ -748,13 +755,13 @@ impl ModuleManager {
         };
         let reusable = materialization_sources
             .iter()
-            .zip(unchanged_imports)
+            .zip(&unchanged_sources)
             .map(
                 |((source_module, item_source, path_component), unchanged)| {
-                    unchanged
-                        || (!path_component
-                            && env.binding(*item_source).arguments.is_empty()
-                            && env.namespace_arguments(*source_module).is_empty())
+                    !path_component
+                        && (*unchanged
+                            || (env.binding(*item_source).arguments.is_empty()
+                                && env.namespace_arguments(*source_module).is_empty()))
                 },
             )
             .collect::<Vec<_>>();
@@ -788,8 +795,11 @@ impl ModuleManager {
         // argument environment; retain it once rather than copying every tuple.
         let shared_substitutions: Arc<[_]> = substitutions.clone().into();
         let shared_reflected_substitutions: Arc<[_]> = reflected_substitutions.clone().into();
-        for ((source_module, item_source, path_component), materialized) in
-            materialization_sources.into_iter().zip(namespaces)
+        for (((source_module, item_source, path_component), materialized), unchanged) in
+            materialization_sources
+                .into_iter()
+                .zip(namespaces)
+                .zip(unchanged_sources)
         {
             if materialized == item_source {
                 continue;
@@ -804,14 +814,19 @@ impl ModuleManager {
             );
             let mut reserve_definition =
                 |env: &mut CrateEnv, remapping: &mut DeclarationRemapping, source_id: DefId| {
-                    let id = env.reserve_lazy_definition(
-                        materialized,
-                        source_id,
-                        shared_substitutions.clone(),
-                        shared_reflected_substitutions.clone(),
-                    );
+                    let id = if unchanged {
+                        source_id
+                    } else {
+                        let id = env.reserve_lazy_definition(
+                            materialized,
+                            source_id,
+                            shared_substitutions.clone(),
+                            shared_reflected_substitutions.clone(),
+                        );
+                        lazy_definitions.push(id);
+                        id
+                    };
                     remapping.definition_ids.insert(source_id, id);
-                    lazy_definitions.push(id);
                     id
                 };
             let mut items = Vec::new();
@@ -827,13 +842,19 @@ impl ModuleManager {
                         associated_definitions,
                         inductive,
                     } => {
-                        let id = env.reserve_lazy_inductive(
-                            materialized,
-                            inductive,
-                            shared_reflected_substitutions.clone(),
-                        );
+                        let id = if unchanged {
+                            inductive
+                        } else {
+                            env.reserve_lazy_inductive(
+                                materialized,
+                                inductive,
+                                shared_reflected_substitutions.clone(),
+                            )
+                        };
                         remapping.inductive_ids.insert(inductive, id);
-                        lazy_inductives.push(id);
+                        if !unchanged {
+                            lazy_inductives.push(id);
+                        }
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
@@ -850,13 +871,19 @@ impl ModuleManager {
                         associated_definitions,
                         inductive,
                     } => {
-                        let id = env.reserve_lazy_inductive(
-                            materialized,
-                            inductive,
-                            shared_reflected_substitutions.clone(),
-                        );
+                        let id = if unchanged {
+                            inductive
+                        } else {
+                            env.reserve_lazy_inductive(
+                                materialized,
+                                inductive,
+                                shared_reflected_substitutions.clone(),
+                            )
+                        };
                         remapping.inductive_ids.insert(inductive, id);
-                        lazy_inductives.push(id);
+                        if !unchanged {
+                            lazy_inductives.push(id);
+                        }
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
@@ -913,6 +940,7 @@ impl ModuleManager {
                 items,
                 origins: HashMap::new(),
                 arguments,
+                unchanged,
             });
         }
 
@@ -942,14 +970,19 @@ impl ModuleManager {
         // Enclosing declarations precede imports; imports retain their dependency order.
         // Replace reserved IDs with canonical IDs as each specialization is resolved.
         macro_rules! reuse {
-            ($id:expr, $method:ident, $table:ident) => {{
+            ($id:expr, $method:ident, $table:ident, $unchanged:expr) => {{
                 let reserved = *$id;
-                let (source, canonical, fresh) = env.$method(
-                    reserved,
-                    &substitutions,
-                    &reflected_substitutions,
-                    &remapping,
-                );
+                let (source, canonical, fresh) = if $unchanged {
+                    timing::costs::count("namespace.early-reused-declarations", || 1);
+                    (reserved, reserved, false)
+                } else {
+                    env.$method(
+                        reserved,
+                        &substitutions,
+                        &reflected_substitutions,
+                        &remapping,
+                    )
+                };
                 if fresh {
                     cache_misses.set(cache_misses.get() + 1);
                 } else {
@@ -969,7 +1002,12 @@ impl ModuleManager {
             for item in &mut group.items {
                 match item {
                     ModuleItem::Definition { definition, .. } => {
-                        let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                        let source = reuse!(
+                            definition,
+                            reuse_lazy_definition,
+                            definition_ids,
+                            group.unchanged
+                        );
                         origins.insert(
                             *definition,
                             env.definition_origin(source)
@@ -986,9 +1024,19 @@ impl ModuleManager {
                         associated_definitions,
                         ..
                     } => {
-                        reuse!(inductive, reuse_lazy_inductive, inductive_ids);
+                        reuse!(
+                            inductive,
+                            reuse_lazy_inductive,
+                            inductive_ids,
+                            group.unchanged
+                        );
                         for (_, definition) in associated_definitions {
-                            let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                            let source = reuse!(
+                                definition,
+                                reuse_lazy_definition,
+                                definition_ids,
+                                group.unchanged
+                            );
                             origins.insert(
                                 *definition,
                                 env.definition_origin(source)
@@ -1002,14 +1050,25 @@ impl ModuleManager {
                         associated_definitions,
                         ..
                     } => {
-                        reuse!(reflected, reuse_lazy_inductive, inductive_ids);
+                        reuse!(
+                            reflected,
+                            reuse_lazy_inductive,
+                            inductive_ids,
+                            group.unchanged
+                        );
                         reuse!(
                             inductive,
                             reuse_lazy_program_inductive,
-                            program_inductive_ids
+                            program_inductive_ids,
+                            group.unchanged
                         );
                         for (_, definition) in associated_definitions {
-                            let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                            let source = reuse!(
+                                definition,
+                                reuse_lazy_definition,
+                                definition_ids,
+                                group.unchanged
+                            );
                             origins.insert(
                                 *definition,
                                 env.definition_origin(source)
@@ -1609,6 +1668,18 @@ mod tests {
         assert_eq!(env.materialization_stats().definitions, 0);
         let _ = env.resolve_definition(used).unwrap();
         assert_eq!(env.materialization_stats().definitions, 0);
+        // Sharing was decided before reservation, so the alias has no unused
+        // definition slots left over from provisional specializations.
+        let added = env
+            .add_definition(
+                namespace,
+                DefinedConstant::Pts {
+                    ty: proposition_kind,
+                    body: proposition,
+                },
+            )
+            .unwrap();
+        assert_eq!(added.index, 0);
     }
 
     #[test]

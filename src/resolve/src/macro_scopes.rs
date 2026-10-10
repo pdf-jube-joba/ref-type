@@ -186,6 +186,14 @@ impl Resolver {
             source: source.clone(),
             span,
         });
+        if std::env::var_os("REF_TYPE_PROFILE_RESOLVE").is_some() {
+            eprintln!(
+                "resolve item={}.{:?} scopes={}",
+                self.path(module).join("."),
+                term_names(&item),
+                self.scopes.len()
+            );
+        }
         let mut output = Vec::new();
         self.scoped_item(item, &mut output)?;
         let scope = &self.scopes[module.0 as usize];

@@ -1,6 +1,118 @@
 use resolve::{hir::*, resolve};
 
 #[test]
+fn child_selection_specializes_only_the_selected_route() {
+    let children: String = (0..64)
+        .map(|i| format!("\\module Child{i} {{ \\definition value: \\Set := A; }}"))
+        .collect();
+    let source = format!(
+        r"
+        \module Generic(A: \Set) {{ {children} }}
+        \module Use {{
+            \import \root.Generic[A := \Set] \as G;
+            \import G.Child42[] \as C;
+            \definition result: \Set := C.value;
+        }}
+    "
+    );
+    let modules = syntax::parse::str_parse_modules(&source).unwrap();
+    let project = resolve(&modules).unwrap();
+    let generic = project
+        .imports
+        .values()
+        .find(|import| import.name == "G")
+        .unwrap();
+    let child = project
+        .imports
+        .values()
+        .find(|import| import.name == "C")
+        .unwrap();
+    assert_eq!(generic.remapping.iter().count(), 1);
+    assert_eq!(child.remapping.iter().count(), 2);
+    let ModuleBody::Inline(items) = &project.modules[1].body else {
+        panic!()
+    };
+    let ModuleItem::Definition { body, .. } = &items[2] else {
+        panic!()
+    };
+    let SExp::AccessPath {
+        access: LocalAccess::Resolved { module, .. },
+        ..
+    } = body
+    else {
+        panic!()
+    };
+    assert_eq!(*module, child.target);
+}
+
+#[test]
+fn deeply_nested_projections_preserve_the_resolved_base() {
+    let depth = 64;
+    let source = format!(
+        "\\module M {{ \\definition f(x: _): _ := x{}; }}",
+        " #field".repeat(depth)
+    );
+    let modules = syntax::parse::str_parse_modules(&source).unwrap();
+    let project = resolve(&modules).unwrap();
+    let ModuleBody::Inline(items) = &project.modules[0].body else {
+        panic!()
+    };
+    let ModuleItem::Definition { binders, body, .. } = &items[0] else {
+        panic!()
+    };
+    let mut base = body;
+    for _ in 0..depth {
+        let SExp::InferredProjection { value, field, .. } = base else {
+            panic!("projection was lost")
+        };
+        assert_eq!(field.as_str(), "field");
+        base = value;
+    }
+    let SExp::AccessPath {
+        access: LocalAccess::Current { access, .. },
+        ..
+    } = base
+    else {
+        panic!("local base was lost")
+    };
+    assert!(access.1.is_some());
+    assert_eq!(access.1, binders[0].vars[0].1);
+}
+
+#[test]
+fn long_lambda_application_spines_preserve_arguments() {
+    let depth = 64;
+    let source = format!(
+        "\\module M {{ \\definition f(x: _): _ := (\\fun (y: _) => y){}; }}",
+        " x".repeat(depth)
+    );
+    let modules = syntax::parse::str_parse_modules(&source).unwrap();
+    let project = resolve(&modules).unwrap();
+    let ModuleBody::Inline(items) = &project.modules[0].body else {
+        panic!()
+    };
+    let ModuleItem::Definition { binders, body, .. } = &items[0] else {
+        panic!()
+    };
+    let mut head = body;
+    for _ in 0..depth {
+        let SExp::App { func, arg } = head else {
+            panic!("application was lost")
+        };
+        let SExp::AccessPath {
+            access: LocalAccess::Current { access, .. },
+            ..
+        } = arg.as_ref()
+        else {
+            panic!("argument was lost")
+        };
+        assert_eq!(access.1, binders[0].vars[0].1);
+        head = func;
+    }
+    assert!(matches!(head, SExp::Lam { .. }));
+}
+
+#[test]
 fn local_definition_shadowing_does_not_escape_its_expression() {
     use syntax::syntax as ast;
     let mut modules =

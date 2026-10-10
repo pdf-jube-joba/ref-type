@@ -1433,15 +1433,9 @@ impl Resolver {
             resolver
                 .origins
                 .insert(id, resolver.origins.get(&source).copied().unwrap_or(source));
-            let mut children: Vec<_> = resolver.scopes[source.0 as usize]
-                .children
-                .values()
-                .copied()
-                .collect();
-            children.sort_by_key(|id| id.0);
-            for child in children {
-                allocate(resolver, child, map, pairs, allocated);
-            }
+            // Child selection starts from the child's original declaration and
+            // applies this namespace's argument environment in resolve_import.
+            // Reserve a specialized child only when that child is selected.
             id
         }
         *remapping = remapping.fork();
@@ -1488,9 +1482,6 @@ impl Resolver {
             scope.parent = scope
                 .parent
                 .map(|id| remapping.get(&id).copied().unwrap_or(id));
-            for child in scope.children.values_mut() {
-                *child = remapping.get(child).copied().unwrap_or(*child);
-            }
             for import in scope.imports.values_mut() {
                 *import = remapping.get(import).copied().unwrap_or(*import);
             }
