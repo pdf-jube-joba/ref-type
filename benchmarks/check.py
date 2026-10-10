@@ -23,6 +23,7 @@ def main():
     parser.add_argument("--log", type=Path, default=Path("benchmarks/check.log"))
     parser.add_argument("--result", type=Path, help="Write the final measurement as JSON")
     parser.add_argument("--cache-dir", help="Enable the persistent cache in this directory")
+    parser.add_argument("--cache-stats", action="store_true", help="Include cache counters in the log")
     parser.add_argument("--progress-seconds", type=float, default=0,
                         help="Print elapsed time and current RSS at this interval")
     args = parser.parse_args()
@@ -32,6 +33,8 @@ def main():
     command = [args.binary, args.path, "--diagnostics", "compact"]
     if args.module:
         command.extend(["--module", args.module])
+    if args.cache_stats:
+        command.append("--cache-stats")
     if args.cache_dir:
         command.extend(["--cache-dir", args.cache_dir])
     else:

@@ -1,7 +1,7 @@
 //! Module-wide macro collection and declaration-position dependency scheduling.
 use super::*;
 
-#[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize, Default)]
 pub(super) struct MacroWork {
     pub(super) items: Vec<ModuleItem>,
     spans: Vec<SourceSpan>,

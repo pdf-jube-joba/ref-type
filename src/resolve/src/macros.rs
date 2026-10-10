@@ -3,13 +3,13 @@ use std::collections::HashMap;
 
 pub const MAX_MACRO_EXPANSION_DEPTH: u16 = 128;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MacroKind {
     Math,
     Named,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct MacroDefinition {
     pub id: MacroDefinitionId,
     pub kind: MacroKind,
@@ -22,10 +22,10 @@ pub struct MacroDefinition {
 }
 
 /// Definition identity is preserved across aliases and specializations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MacroDefinitionId(pub u64);
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct MacroBinding {
     pub name: Identifier,
     pub definition: std::sync::Arc<MacroDefinition>,
@@ -47,7 +47,7 @@ impl std::ops::DerefMut for MacroBinding {
 
 pub(crate) use crate::error::CaptureKind;
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub(crate) enum CaptureValue {
     Expression(SExp),
     Token(MacroExp),

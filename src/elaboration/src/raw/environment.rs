@@ -315,6 +315,7 @@ pub struct CrateEnv {
     namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     #[serde(skip)]
     pub(crate) closed_namespaces: HashMap<ClosedNamespaceKey, (ModuleId, Vec<ModuleId>)>,
+    #[serde(with = "super::remapping_checkpoint")]
     remappings: Vec<DeclarationRemapping>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
     checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
@@ -1000,6 +1001,7 @@ impl CrateEnv {
         );
         if shareable && let Some(&canonical) = self.exact_definition_specializations.get(&exact_key)
         {
+            timing::costs::count("namespace.definition-exact-hit", || 1);
             return (source, canonical, false);
         }
         if self.namespace_arguments_equal_with(
@@ -1011,6 +1013,7 @@ impl CrateEnv {
                 self.exact_definition_specializations
                     .insert(exact_key, origin.source);
             }
+            timing::costs::count("namespace.definition-origin-hit", || 1);
             return (source, origin.source, false);
         }
         if shareable {
@@ -1029,11 +1032,13 @@ impl CrateEnv {
                 .unwrap()
                 .get(&origin.source);
             if let Some(id) = candidates.into_iter().flatten().copied().find(|id| {
+                timing::costs::count("namespace.definition-candidates", || 1);
                 let candidate = &self.nominal_definitions[id].arguments;
                 !self.namespace_arguments_rigidly_differ(&arguments, candidate)
                     && self.namespace_arguments_equal_with(&arguments, candidate, &mut comparisons)
             }) {
                 self.exact_definition_specializations.insert(exact_key, id);
+                timing::costs::count("namespace.definition-candidate-hit", || 1);
                 return (source, id, false);
             }
         }
@@ -1050,6 +1055,7 @@ impl CrateEnv {
                 arguments,
             },
         );
+        timing::costs::count("namespace.definition-fresh", || 1);
         (source, id, true)
     }
 
@@ -1262,6 +1268,7 @@ impl CrateEnv {
         );
         if shareable && let Some(&canonical) = self.exact_inductive_specializations.get(&exact_key)
         {
+            timing::costs::count("namespace.inductive-exact-hit", || 1);
             return (source, canonical, false);
         }
         if self.namespace_arguments_equal_with(
@@ -1273,6 +1280,7 @@ impl CrateEnv {
                 self.exact_inductive_specializations
                     .insert(exact_key, origin.source);
             }
+            timing::costs::count("namespace.inductive-origin-hit", || 1);
             return (source, origin.source, false);
         }
         if shareable {
@@ -1289,12 +1297,14 @@ impl CrateEnv {
                 .unwrap()
                 .get(&origin.source);
             if let Some(id) = candidates.into_iter().flatten().copied().find(|id| {
+                timing::costs::count("namespace.inductive-candidates", || 1);
                 let candidate = &self.nominal_inductives[id].arguments;
                 !self.namespace_arguments_rigidly_differ(&arguments, candidate)
                     && self.namespace_arguments_shareable(candidate)
                     && self.namespace_arguments_equal_with(&arguments, candidate, &mut comparisons)
             }) {
                 self.exact_inductive_specializations.insert(exact_key, id);
+                timing::costs::count("namespace.inductive-candidate-hit", || 1);
                 return (source, id, false);
             }
         }
@@ -1311,6 +1321,7 @@ impl CrateEnv {
                 arguments,
             },
         );
+        timing::costs::count("namespace.inductive-fresh", || 1);
         (source, id, true)
     }
 
@@ -1422,6 +1433,7 @@ impl CrateEnv {
                 .intern(&arguments),
         );
         if shareable && let Some(&canonical) = self.exact_datatype_specializations.get(&exact_key) {
+            timing::costs::count("namespace.datatype-exact-hit", || 1);
             return (source, canonical, false);
         }
         if self.namespace_arguments_equal_with(
@@ -1433,6 +1445,7 @@ impl CrateEnv {
                 self.exact_datatype_specializations
                     .insert(exact_key, origin.source);
             }
+            timing::costs::count("namespace.datatype-origin-hit", || 1);
             return (source, origin.source, false);
         }
         if shareable {
@@ -1449,12 +1462,14 @@ impl CrateEnv {
                 .unwrap()
                 .get(&origin.source);
             if let Some(id) = candidates.into_iter().flatten().copied().find(|id| {
+                timing::costs::count("namespace.datatype-candidates", || 1);
                 let candidate = &self.nominal_datatypes[id].arguments;
                 !self.namespace_arguments_rigidly_differ(&arguments, candidate)
                     && self.namespace_arguments_shareable(candidate)
                     && self.namespace_arguments_equal_with(&arguments, candidate, &mut comparisons)
             }) {
                 self.exact_datatype_specializations.insert(exact_key, id);
+                timing::costs::count("namespace.datatype-candidate-hit", || 1);
                 return (source, id, false);
             }
         }
@@ -1471,6 +1486,7 @@ impl CrateEnv {
                 arguments,
             },
         );
+        timing::costs::count("namespace.datatype-fresh", || 1);
         (source, id, true)
     }
 

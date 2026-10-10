@@ -7,7 +7,7 @@ pub struct SourceSpan {
     pub end: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SurfaceMeta {
     /// `_`: a fresh inference variable, solved by constraints.
     Implicit,
@@ -99,7 +99,9 @@ impl Identifier {
 
 // token for macros
 //   which is (not identifier) /\ (not keyword)
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
 pub struct MacroToken(pub String);
 
 // module definition

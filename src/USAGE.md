@@ -63,6 +63,9 @@ cargo run -p cli --release --locked -- libs/std --full-check-local
 ```
 
 `--cache-stats` の `environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
+`package_hits` は package 境界の復元で省略した package 数、`package_writes` は保存した package 環境数、`package_skips` はサイズ上限などで保存を省略した境界数である。
+package キャッシュには名前解決の状態も含まれ、依存先が一致すれば利用側の module 追加後も依存環境を再利用する。
+異なる入口パッケージ間で共有する場合は、`--cache-dir` に同じ保存先を指定する。
 
 端末では標準エラーの一行を更新し、進捗バー、完了 module 数／総 module 数、現在の module、パッケージ内の完了数と経過秒数を表示する。
 検査前に選択範囲の依存グラフを使って総数を決め、キャッシュで省略した module も完了数に含める。
@@ -124,7 +127,12 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 `inclusive_us` は子の処理を含み、`exclusive_us` は計測した子の時間を差し引く。
 再帰呼び出しの inclusive 時間は重複するため、内訳の比較には `cost_group` の exclusive 時間を使う。
 `resolve.total` は macro・structure 展開を含む型推論前の名前解決、`namespace.*` は elaboration 中のインスタンス構築・再利用判定である。
+package を依存順に追加する経路では、名前解決を `resolve.package` で計測する。
 namespace の inclusive 時間には引数の比較で呼ぶ kernel の変換判定が含まれる。
+`namespace.compare-arguments` は引数列の比較、`namespace.compare-rigid-arguments` は簡約で変わらない引数による候補の除外、`namespace.compare-syntax`・`namespace.compare-alpha`・`namespace.reduce-alias-head` は比較の各段階を測る。
+`namespace.definition-candidates` は走査した候補数、`definition-exact-hit`・`definition-origin-hit`・`definition-candidate-hit`・`definition-fresh` は定義の再利用結果を数える。
+`namespace.translation-failed.*` は再利用判定用の kernel 項への変換に失敗した回数であり、診断として報告された型エラーの件数とは異なる。
+cost 計測中は、その変換で生じた kernel エラーの種類ごとに最初の原因を `namespace.translation-failure sample=...` として出力する。
 `query.environment-plan` は検査順と依存情報から checkpoint のキーを作る時間を表す。
 `REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先される。
 簡潔な診断では最初のエラーで検査を停止する。

@@ -5,8 +5,8 @@ use serde::Serialize;
 pub const MAX_ENVIRONMENT_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Default)]
-struct Buffer(Vec<u8>);
-impl Flavor for Buffer {
+struct Buffer<const LIMIT: usize>(Vec<u8>);
+impl<const LIMIT: usize> Flavor for Buffer<LIMIT> {
     type Output = Vec<u8>;
 
     fn try_push(&mut self, byte: u8) -> Result<()> {
@@ -14,7 +14,7 @@ impl Flavor for Buffer {
     }
 
     fn try_extend(&mut self, bytes: &[u8]) -> Result<()> {
-        if bytes.len() > MAX_ENVIRONMENT_BYTES - self.0.len() {
+        if bytes.len() > LIMIT - self.0.len() {
             return Err(Error::SerializeBufferFull);
         }
         self.0
@@ -30,15 +30,19 @@ impl Flavor for Buffer {
 }
 
 pub(crate) fn serialize(value: &impl Serialize) -> Result<Vec<u8>> {
+    serialize_bounded::<MAX_ENVIRONMENT_BYTES>(value)
+}
+
+pub(crate) fn serialize_bounded<const LIMIT: usize>(value: &impl Serialize) -> Result<Vec<u8>> {
     let bytes: Vec<u8> = {
         let _phase = crate::profiling::Phase::start("environment.serialize");
-        postcard::serialize_with_flavor(value, Buffer::default())?
+        postcard::serialize_with_flavor(value, Buffer::<LIMIT>::default())?
     };
     let compressed = {
         let _phase = crate::profiling::Phase::start("environment.compress");
         miniz_oxide::deflate::compress_to_vec(&bytes, 1)
     };
-    if compressed.len() > MAX_ENVIRONMENT_BYTES {
+    if compressed.len() > LIMIT {
         return Err(Error::SerializeBufferFull);
     }
     Ok(compressed)

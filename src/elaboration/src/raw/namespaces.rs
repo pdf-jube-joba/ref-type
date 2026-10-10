@@ -93,7 +93,46 @@ impl Comparisons {
             |_, e| Ok(e),
         ) {
             Ok(expression) => Some(expression),
-            Err(_) => {
+            Err(error) => {
+                let mut cause = &error;
+                while let crate::error::Error::Context { source, .. } = cause {
+                    cause = source;
+                }
+                use crate::error::{Error, Invalid};
+                let label = match cause {
+                    Error::UncapturedParameter { .. } => {
+                        "namespace.translation-failed.uncaptured-parameter"
+                    }
+                    Error::ReservedDefinitionUsed { .. } => {
+                        "namespace.translation-failed.reserved-definition"
+                    }
+                    Error::CyclicDefinition { .. } => {
+                        "namespace.translation-failed.cyclic-definition"
+                    }
+                    Error::Invalid(Invalid::MissingDefinitionCaptures) => {
+                        "namespace.translation-failed.missing-captures"
+                    }
+                    Error::Invalid(Invalid::DefinitionLocalContextIsOutsideReferenceScope) => {
+                        "namespace.translation-failed.local-context"
+                    }
+                    Error::Invalid(_) => "namespace.translation-failed.invalid",
+                    Error::Kernel(_) => "namespace.translation-failed.kernel",
+                    _ => "namespace.translation-failed.other",
+                };
+                timing::costs::count(label, || {
+                    if let Error::Kernel(error) = cause {
+                        thread_local! {
+                            static REPORTED: std::cell::RefCell<rustc_hash::FxHashSet<std::mem::Discriminant<kernel::error::Error>>> = Default::default();
+                        }
+                        let root = error.root();
+                        if REPORTED
+                            .with_borrow_mut(|seen| seen.insert(std::mem::discriminant(root)))
+                        {
+                            eprintln!("namespace.translation-failure sample={root}");
+                        }
+                    }
+                    1
+                });
                 self.failed.insert(term, Self::version(env));
                 None
             }
@@ -110,6 +149,7 @@ impl CrateEnv {
     }
 
     fn namespace_syntax_equal(&self, left: Exp, right: Exp) -> bool {
+        let _cost = timing::costs::Scope::enter("namespace.compare-syntax");
         use super::exp::ExpNode;
         fn compare(
             env: &CrateEnv,
@@ -193,6 +233,7 @@ impl CrateEnv {
     }
 
     fn namespace_alias_head(&self, term: Exp) -> Exp {
+        let _cost = timing::costs::Scope::enter("namespace.reduce-alias-head");
         use super::exp::ExpNode;
         fn head(env: &CrateEnv, mut term: Exp, fuel: &mut usize) -> Exp {
             // This only visits already materialized, closed definitions. The
@@ -282,9 +323,11 @@ impl CrateEnv {
         // The source and kernel share an expression arena. Binder renaming is
         // already decidable on that syntax; it does not require materializing
         // the declarations mentioned by a namespace argument.
-        if kernel::calculus::alpha_equal(&self.arena().core, left.0, right.0)
-            || self.namespace_syntax_equal(left, right)
-        {
+        let alpha_equal = {
+            let _cost = timing::costs::Scope::enter("namespace.compare-alpha");
+            kernel::calculus::alpha_equal(&self.arena().core, left.0, right.0)
+        };
+        if alpha_equal || self.namespace_syntax_equal(left, right) {
             self.cache_namespace_equality(left, right, true);
             return true;
         }
@@ -621,6 +664,7 @@ impl CrateEnv {
         right: &[(ModuleParamId, ModuleArgument)],
         comparisons: &mut Comparisons,
     ) -> bool {
+        let _cost = timing::costs::Scope::enter("namespace.compare-arguments");
         if left == right {
             return true;
         }
@@ -631,8 +675,10 @@ impl CrateEnv {
             (left.min(right), left.max(right))
         };
         if let Some(&equal) = self.namespace_argument_cache.borrow().comparisons.get(&key) {
+            timing::costs::count("namespace.argument-comparison-cache-hits", || 1);
             return equal;
         }
+        timing::costs::count("namespace.argument-comparison-cache-misses", || 1);
         // A later opaque argument can rule out the whole telescope before an
         // expensive (or still unresolved) comparison of its shared prefix.
         if self.namespace_arguments_rigidly_differ(left, right) {
@@ -708,6 +754,7 @@ impl CrateEnv {
         left: &[(ModuleParamId, ModuleArgument)],
         right: &[(ModuleParamId, ModuleArgument)],
     ) -> bool {
+        let _cost = timing::costs::Scope::enter("namespace.compare-rigid-arguments");
         left.len() != right.len()
             || left.iter().zip(right).any(|((lp, l), (rp, r))| {
                 if lp != rp {

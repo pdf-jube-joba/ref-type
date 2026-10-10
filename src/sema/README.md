@@ -43,6 +43,19 @@ parse cache はファイル identity・内容・解析方式、semantic cache �
 早い位置の変更や module 構成の変更では、未変更の module も再検査する場合がある。
 `clear_memory` は query・parse・環境 checkpoint の保持結果を解放する。
 
+package 入力では、依存順に名前解決と型検査を進め、成功した package 境界の resolver・raw・kernel 環境と semantic result を `.pkg` に保存する。
+キーは処理系・検査設定・package 自身のソースと manifest・検査範囲・先行 package のキーから作る。
+利用側のファイルや module 構成は依存 package のキーに含まれず、別の利用側でも同じキャッシュ保存先から環境を復元できる。
+要求範囲のすべてが package キャッシュに一致する場合は、型検査環境を展開せず保存済みの結果を返す。
+部分検査の範囲も照合するため、未検査の子 module を検査済みとして扱わない。
+現在の保存単位は依存順の累積環境であり、先行 package の構成・順序・検査範囲が変わると、それ以降の境界は再構築する。
+単独 package の部分検査には module 単位の増分検査を使う。
+失敗した境界は保存せず、独立した scope の診断には通常の検査経路を使う。
+package 環境の展開時サイズは 512 MiB、メモリ内の package キャッシュは圧縮済み合計 64 MiB を上限とする。
+環境が保存上限を超えた場合も検査結果は保存し、無変更の問い合わせは結果だけを再利用する。
+別の package の検査を続けるには環境が必要なため、復元可能な先行境界から再開する。
+名前の対応表は共有する表と合成関係をまとめて保存し、復元後も共有を維持する。
+
 永続キャッシュは検証済みの semantic result を JSON、raw / kernel の共有 arena と環境を圧縮した checkpoint を `.env` に保存する。
 キーには source・依存関係・manifest・検査設定・checker の実装と toolchain の fingerprint を含める。
 checker の fingerprint は関連 crate の Rust ソースとテストも含むため、それらを変更した後は以前の永続キャッシュを再利用できない。

@@ -14,7 +14,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Diagnostic {
     pub error: crate::error::Error,
     pub location: Option<SourceLocation>,
@@ -49,7 +49,7 @@ pub struct Reference {
     pub target_name: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Binding {
     pub module: ModuleId,
     pub name: String,
@@ -58,7 +58,7 @@ pub struct Binding {
 
 /// Namespace correspondence for a syntactic module instantiation.
 /// Elaboration fills in the corresponding typed instances after checking arguments.
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Import {
     pub owner: ModuleId,
     pub name: String,
@@ -67,13 +67,13 @@ pub struct Import {
 }
 
 /// Type-checking steps in lexical and import dependency order.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckStep {
     Parameters(ModuleId),
     Declaration { module: ModuleId, index: usize },
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Project {
     pub declarations: Vec<Declaration>,
     pub modules: Vec<Module>,
@@ -83,7 +83,7 @@ pub struct Project {
     pub imports: HashMap<BindingId, Import>,
 }
 
-#[derive(Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
 struct Scope {
     compiled: bool,
     closed: bool,
@@ -100,7 +100,7 @@ struct Scope {
 
 // A child needs the term environment at its declaration position until it is
 // resolved. Macro environments and the namespace graph have their own owners.
-#[derive(Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
 struct TermScope {
     names: Arc<FxHashMap<String, BindingId>>,
     imports: FxHashMap<String, ModuleId>,
@@ -142,7 +142,7 @@ use macro_scopes::{MacroWork, work_macro_names};
 #[path = "structures.rs"]
 mod structures;
 
-#[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize, Default)]
 struct Resolver {
     declarations: Vec<Declaration>,
     structures: FxHashMap<BindingId, structures::Structure>,
@@ -172,6 +172,7 @@ struct Resolver {
     references: RefCell<Vec<Reference>>,
     // Source files stay alive throughout resolution; their Arc addresses identify
     // repeated probes of the same occurrence without copying paths or names.
+    #[serde(skip)]
     reference_occurrences: RefCell<FxHashSet<(usize, ModuleId, usize, usize, BindingId)>>,
     reference_probes: Cell<u64>,
     global_bindings: HashMap<BindingId, Binding>,
@@ -234,6 +235,123 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
         references: resolver.references.into_inner(),
         bindings: resolver.global_bindings,
     })
+}
+
+/// Append dependency-ordered packages without reallocating earlier identities.
+/// A session may only be reused after a successful append.
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+pub struct Session {
+    resolver: Resolver,
+    roots: Vec<Module>,
+}
+
+impl Session {
+    pub fn append(&mut self, module: &syntax::syntax::Module) -> Result<Project, Diagnostic> {
+        let _cost = timing::costs::Scope::enter("resolve.package");
+        let resolver = &mut self.resolver;
+        if resolver.scopes.is_empty() {
+            resolver.scopes.push(Scope::default());
+        }
+        let mut root = lower::module(module.clone());
+        let first = resolver.scopes.len() as u32;
+        resolver.reserve(ModuleId(0), &mut root);
+        let mut ids: Vec<_> = resolver
+            .input
+            .keys()
+            .copied()
+            .filter(|id| id.0 >= first)
+            .collect();
+        ids.sort_by_key(|id| id.0);
+        for id in ids {
+            resolver.module(id)?;
+        }
+        fn assemble(module: &mut Module, outputs: &mut FxHashMap<ModuleId, Module>) {
+            *module = outputs.remove(&module.id).expect("resolved package module");
+            if let ModuleBody::Inline(items) = &mut module.body {
+                for item in items {
+                    if let ModuleItem::ChildModule { module } = item {
+                        assemble(module, outputs);
+                    }
+                }
+            }
+        }
+        assemble(&mut root, &mut resolver.output);
+        self.roots.push(root);
+        Ok(Project {
+            declarations: resolver.declarations.clone(),
+            modules: self.roots.clone(),
+            references: resolver.references.borrow().clone(),
+            bindings: resolver.global_bindings.clone(),
+            order: resolver.order.clone(),
+            imports: resolver.imports.clone(),
+        })
+    }
+
+    /// Source text is omitted from checkpoints and reattached from the current snapshot.
+    pub fn restore_sources(
+        &mut self,
+        source: impl Fn(&SourceId) -> Option<Arc<SourceFile>>,
+    ) -> Option<()> {
+        fn module(
+            value: &mut Module,
+            source: &impl Fn(&SourceId) -> Option<Arc<SourceFile>>,
+        ) -> Option<()> {
+            for file in [&mut value.source, &mut value.header_source]
+                .into_iter()
+                .flatten()
+            {
+                *file = source(&file.id)?;
+            }
+            if let ModuleBody::Inline(items) = &mut value.body {
+                for item in items {
+                    if let ModuleItem::ChildModule { module: child } = item {
+                        module(child, source)?;
+                    }
+                }
+            }
+            Some(())
+        }
+        let location = |value: &mut SourceLocation| -> Option<()> {
+            value.source = source(&value.source.id)?;
+            Some(())
+        };
+        for root in &mut self.roots {
+            module(root, &source)?;
+        }
+        let resolver = &mut self.resolver;
+        for value in resolver
+            .input
+            .values_mut()
+            .chain(resolver.output.values_mut())
+        {
+            module(value, &source)?;
+        }
+        for declaration in &mut resolver.declarations {
+            location(&mut declaration.location)?;
+        }
+        for reference in resolver.references.get_mut() {
+            location(&mut reference.location)?;
+        }
+        if let Some(value) = &mut resolver.location {
+            location(value)?;
+        }
+        for scope in &mut resolver.scopes {
+            for binding in scope.macros.iter_mut().chain(&mut scope.used) {
+                if let Some(value) = &mut binding.introduction_location {
+                    location(value)?;
+                }
+                if let Some(value) = &mut Arc::make_mut(&mut binding.definition).location {
+                    location(value)?;
+                }
+            }
+        }
+        // No declaration is in flight at a successful package boundary.
+        if !resolver.work.is_empty() || !resolver.dependency_stack.is_empty() {
+            return None;
+        }
+        resolver.reference_occurrences.get_mut().clear();
+        Some(())
+    }
 }
 
 impl Resolver {

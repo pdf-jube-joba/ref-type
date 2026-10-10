@@ -11,6 +11,7 @@ pub mod program_derivation;
 pub mod program_inductive;
 pub mod reflection;
 pub(crate) mod remapping;
+mod remapping_checkpoint;
 pub(crate) mod shared_map;
 pub mod sort;
 #[cfg(test)]

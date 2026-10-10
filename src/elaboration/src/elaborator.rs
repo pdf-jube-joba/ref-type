@@ -954,6 +954,12 @@ impl GlobalEnvironment {
                 self.predeclare_module_tree(self.crate_env.root_module(), module)?;
             }
         } else {
+            // Package sessions append roots after restoring the dependency environment.
+            for module in modules {
+                if !self.module_manager.hir_modules.contains_key(&module.id) {
+                    self.predeclare_module_tree(self.crate_env.root_module(), module)?;
+                }
+            }
             self.module_manager.hir_module_bindings.clear();
             for (&id, module) in &scheduled {
                 let typed = self.module_manager.hir_modules[&id];

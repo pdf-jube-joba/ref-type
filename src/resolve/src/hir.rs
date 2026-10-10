@@ -15,7 +15,9 @@ pub struct BindingId(pub u64);
 
 /// Spelling for diagnostics and the resolved binding, where the name denotes one.
 /// Field labels and other type-directed members retain their spelling.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
 pub struct Name(pub String, pub Option<BindingId>);
 pub type Identifier = Name;
 #[allow(non_snake_case)]
@@ -29,7 +31,7 @@ impl Name {
 }
 
 // module definition
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Module {
     pub id: ModuleId,
     pub name: Identifier,
@@ -44,19 +46,19 @@ pub struct Module {
     pub header_source: Option<std::sync::Arc<SourceFile>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ParameterSource {
     pub subject: ParameterSubject,
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ModuleBody {
     Inline(Vec<ModuleItem>), // sensitive to order
     External,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum MacroSeqAtom {
     Capture(Identifier),
     TokenCapture(Identifier),
@@ -66,14 +68,14 @@ pub enum MacroSeqAtom {
     Seq(Vec<MacroSeqAtom>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum TokenMatchPattern {
     Token(MacroSeqAtom),
     Sequence(Vec<MacroSeqAtom>),
     Default,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ModuleItem {
     Scoped {
         exports: Vec<Identifier>,
@@ -157,13 +159,13 @@ pub enum ModuleItem {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct AssociatedOwner {
     pub type_name: Identifier,
     pub parameters: Vec<RightBind>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
 pub enum InductiveKind {
     Pts(Sort),
     Program,
@@ -171,7 +173,7 @@ pub enum InductiveKind {
 
 pub type ModuleCall = (Identifier, Vec<(Identifier, SExp)>);
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ModuleInstantiatePath {
     FromModule {
         module: ModuleId,
@@ -190,7 +192,7 @@ pub enum ModuleInstantiatePath {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum MacroExp {
     RawExp(SExp),
     /// A bare template-sequence name, resolved during template preparation.
@@ -203,7 +205,7 @@ pub enum MacroExp {
     Seq(Vec<MacroExp>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct RightBind {
     pub vars: Vec<Identifier>,
     pub ty: Box<SExp>,
@@ -211,7 +213,7 @@ pub struct RightBind {
 
 /// Program expression views mirror the kernel's four syntactic categories.
 /// Shared queries retain `SExp` until elaboration selects a judgement.
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ValueTypeExp {
     Deferred {
         expression: Box<SExp>,
@@ -235,7 +237,7 @@ pub enum ValueTypeExp {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ComputationTypeExp {
     Deferred {
         expression: Box<SExp>,
@@ -255,7 +257,7 @@ pub enum ComputationTypeExp {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ValueTermExp {
     Reference {
         access: LocalAccess,
@@ -301,7 +303,7 @@ pub enum ValueTermExp {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ComputationTermExp {
     Deferred {
         expression: Box<SExp>,
@@ -387,7 +389,7 @@ pub enum ComputationTermExp {
 /// The head of an ordinary Program application. An access is deliberately
 /// left unclassified until elaboration can inspect the type of the resolved
 /// local value or global value/computation definition.
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ProgramFunctionExp {
     Access(LocalAccess),
     Associated {
@@ -400,7 +402,7 @@ pub enum ProgramFunctionExp {
     Computation(Box<ComputationTermExp>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 // general binding syntax
 // (x: A), (x: A \where P), (x: A \where P \as h).
 pub enum Bind {
@@ -418,7 +420,7 @@ pub enum Bind {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 // some access path to access defined constant or inductive type
 pub enum LocalAccess {
     Instantiated {
@@ -459,7 +461,7 @@ impl std::fmt::Display for LocalAccess {
 }
 
 // this is internal representation
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum SExp {
     ModuleInstance {
         path: Box<ModuleInstantiatePath>,
@@ -1223,7 +1225,7 @@ fn decompose_surface_application(mut expression: SExp) -> (SExp, Vec<SExp>) {
     (expression, arguments)
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Block {
     pub statements: Vec<Statement>, // sensitive to order
     pub result: Box<SExp>,          // returning term of the block
@@ -1294,7 +1296,7 @@ impl Block {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum Statement {
     Fun(Vec<RightBind>), // \fun (x: A) (y: B) \then
     Let {
@@ -1330,7 +1332,7 @@ impl LocalAccess {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ParameterSubject {
     ModuleParameter,
     StructureParameter { structure: String, name: String },

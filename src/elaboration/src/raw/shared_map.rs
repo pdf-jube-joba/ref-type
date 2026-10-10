@@ -151,9 +151,132 @@ impl<'de, K: Copy + Eq + Hash + Deserialize<'de>> Deserialize<'de> for SharedMap
     }
 }
 
+/// A collection checkpoint keeps shared tables and compositions as a DAG.
+/// Flattening each root duplicates large inherited namespaces on disk and on restore.
+pub(crate) struct MapForest<'a, K>(pub Vec<&'a SharedMap<K>>);
+
+type MapNode = (usize, Option<(usize, usize)>);
+type MapForestData<K> = (Vec<Arc<HashMap<K, K>>>, Vec<MapNode>, Vec<usize>);
+
+impl<K: Serialize> Serialize for MapForest<'_, K> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        struct Forest<'a, K> {
+            tables: Vec<&'a HashMap<K, K>>,
+            table_ids: HashMap<*const HashMap<K, K>, usize>,
+            nodes: Vec<MapNode>,
+            node_ids: HashMap<*const SharedMap<K>, usize>,
+        }
+        impl<'a, K> Forest<'a, K> {
+            fn insert(&mut self, map: &'a SharedMap<K>) -> usize {
+                if let Some(&id) = self.node_ids.get(&(map as *const _)) {
+                    return id;
+                }
+                let base = map
+                    .base
+                    .as_ref()
+                    .map(|(next, previous)| (self.insert(next), self.insert(previous)));
+                let table = *self
+                    .table_ids
+                    .entry(Arc::as_ptr(&map.entries))
+                    .or_insert_with(|| {
+                        let id = self.tables.len();
+                        self.tables.push(&map.entries);
+                        id
+                    });
+                let id = self.nodes.len();
+                self.nodes.push((table, base));
+                self.node_ids.insert(map as *const _, id);
+                id
+            }
+        }
+        let mut forest = Forest {
+            tables: Vec::new(),
+            table_ids: HashMap::new(),
+            nodes: Vec::new(),
+            node_ids: HashMap::new(),
+        };
+        let roots: Vec<_> = self.0.iter().map(|map| forest.insert(map)).collect();
+        (forest.tables, forest.nodes, roots).serialize(serializer)
+    }
+}
+
+pub(crate) struct RestoredMaps<K>(pub Vec<SharedMap<K>>);
+
+impl<'de, K: Eq + Hash + Deserialize<'de>> Deserialize<'de> for RestoredMaps<K> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let (tables, nodes, roots): MapForestData<K> = Deserialize::deserialize(deserializer)?;
+        let mut restored: Vec<Arc<SharedMap<K>>> = Vec::with_capacity(nodes.len());
+        for (table, base) in nodes {
+            let entries = tables
+                .get(table)
+                .ok_or_else(|| D::Error::custom("invalid shared map table"))?
+                .clone();
+            let base = base
+                .map(|(next, previous)| {
+                    Ok((
+                        restored
+                            .get(next)
+                            .ok_or_else(|| D::Error::custom("invalid shared map edge"))?
+                            .clone(),
+                        restored
+                            .get(previous)
+                            .ok_or_else(|| D::Error::custom("invalid shared map edge"))?
+                            .clone(),
+                    ))
+                })
+                .transpose()?;
+            restored.push(Arc::new(SharedMap { entries, base }));
+        }
+        let maps = roots
+            .into_iter()
+            .map(|root| {
+                let map = restored
+                    .get(root)
+                    .ok_or_else(|| D::Error::custom("invalid shared map root"))?;
+                Ok(SharedMap {
+                    entries: map.entries.clone(),
+                    base: map.base.clone(),
+                })
+            })
+            .collect::<Result<_, D::Error>>()?;
+        Ok(Self(maps))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn checkpoint_forest_preserves_shared_tables_composition_and_copy_on_write() {
+        let mut original = SharedMap::default();
+        for key in 0_u32..1000 {
+            original.insert(key, key + 1);
+        }
+        let mut change = SharedMap::default();
+        change.insert(2000, 10);
+        let composed = original.after(&change);
+        let roots = [original.clone(), composed.clone(), composed.clone()];
+        let bytes = postcard::to_allocvec(&MapForest(roots.iter().collect())).unwrap();
+        let mut restored: RestoredMaps<u32> = postcard::from_bytes(&bytes).unwrap();
+        assert!(Arc::ptr_eq(
+            &restored.0[1].base.as_ref().unwrap().0,
+            &restored.0[2].base.as_ref().unwrap().0
+        ));
+        assert!(Arc::ptr_eq(
+            &restored.0[0].entries,
+            &restored.0[1].base.as_ref().unwrap().0.entries
+        ));
+        for (before, after) in roots.iter().zip(&restored.0) {
+            for key in 0..2100 {
+                assert_eq!(before.get(&key), after.get(&key));
+            }
+        }
+        restored.0[1].insert(2000, 99);
+        assert_eq!(restored.0[2].get(&2000), Some(&11));
+        assert_eq!(restored.0[1].get(&2000), Some(&99));
+    }
 
     #[test]
     fn nested_compositions_resolve_old_and_new_names() {

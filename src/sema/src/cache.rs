@@ -145,7 +145,7 @@ impl DiskCache {
     }
 }
 
-fn source_key(snapshot: &crate::SourceSnapshot, root: &Path) -> Fingerprint {
+pub(crate) fn source_key(snapshot: &crate::SourceSnapshot, root: &Path) -> Fingerprint {
     let root = snapshot.identity(root);
     let mut bytes = env!("REF_SEMA_REVISION").as_bytes().to_vec();
     bytes.extend(root.to_string_lossy().as_bytes());
@@ -157,6 +157,31 @@ fn source_key(snapshot: &crate::SourceSnapshot, root: &Path) -> Fingerprint {
 }
 
 impl DiskCache {
+    pub fn read_package(&self, key: &Fingerprint) -> Option<Vec<u8>> {
+        let path = self.directory.join(format!("{}.pkg", hex(key)));
+        if fs::metadata(&path).ok()?.len() > crate::database::packages::MAX_RECORD_BYTES as u64 + 72
+        {
+            return None;
+        }
+        let bytes = fs::read(path).ok()?;
+        let payload = bytes.get(72..)?;
+        if &bytes[..8] != b"REFPKG01"
+            || &bytes[8..40] != key
+            || bytes[40..72] != fingerprint(payload)
+        {
+            return None;
+        }
+        Some(payload.to_vec())
+    }
+
+    pub fn write_package(&self, key: &Fingerprint, payload: &[u8]) -> Result<(), CacheError> {
+        let mut bytes = b"REFPKG01".to_vec();
+        bytes.extend(key);
+        bytes.extend(fingerprint(payload));
+        bytes.extend(payload);
+        self.write_bytes(key, "pkg", &bytes)
+    }
+
     pub fn read_environment(&self, key: &Fingerprint) -> Option<Vec<u8>> {
         let path = self.directory.join(format!("{}.env", hex(key)));
         if fs::metadata(&path).ok()?.len() > (elaboration::MAX_ENVIRONMENT_BYTES + 72) as u64 {

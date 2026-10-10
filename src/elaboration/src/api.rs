@@ -93,7 +93,7 @@ impl Statistics {
 /// Owns checking state without exposing inference arenas or metavariables.
 #[derive(Default)]
 pub struct Checker {
-    workspace: GlobalEnvironment,
+    pub(crate) workspace: GlobalEnvironment,
 }
 
 impl Checker {

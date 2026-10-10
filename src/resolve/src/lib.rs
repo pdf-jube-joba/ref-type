@@ -17,3 +17,5 @@ pub use resolver::{
 pub mod visit {
     pub use crate::macros::{walk_sexp_control, walk_sexp_mut};
 }
+
+pub use resolver::Session;

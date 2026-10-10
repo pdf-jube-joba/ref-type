@@ -2,7 +2,7 @@
 use crate::hir::ModuleId;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Debug, Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub struct ModuleMap {
     entries: Arc<HashMap<ModuleId, ModuleId>>,
     parent: Option<Arc<Self>>,

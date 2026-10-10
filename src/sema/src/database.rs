@@ -43,6 +43,7 @@ pub struct Database {
     checked: HashMap<Fingerprint, Arc<ModuleResult>>,
     queries: HashMap<Fingerprint, Arc<SemanticResult>>,
     environments: EnvironmentCache,
+    package_environments: EnvironmentCache,
     disk: Option<DiskCache>,
     stats: QueryStats,
     verification_statistics: Vec<String>,
@@ -79,6 +80,7 @@ impl Database {
         self.checked.clear();
         self.queries.clear();
         self.environments.clear();
+        self.package_environments.clear();
     }
 
     pub fn parse(
@@ -97,7 +99,7 @@ impl Database {
         snapshot: &SourceSnapshot,
     ) -> Result<Vec<syntax::Module>, Vec<Diagnostic>> {
         self.stats = QueryStats {
-            environment_bytes: self.environments.bytes(),
+            environment_bytes: self.environments.bytes() + self.package_environments.bytes(),
             ..QueryStats::default()
         };
         let LoadedProject {
@@ -221,7 +223,7 @@ impl Database {
         let _cost = timing::costs::Scope::enter("query.total");
         let _timing = timing::Session::start(options.progress.is_some());
         self.stats = QueryStats {
-            environment_bytes: self.environments.bytes(),
+            environment_bytes: self.environments.bytes() + self.package_environments.bytes(),
             ..QueryStats::default()
         };
         let _phase = elaboration::profiling::Phase::start("query.total");
@@ -354,7 +356,8 @@ impl Database {
             && let Some(result) = self.queries.get(&query_key)
         {
             self.stats.reused_modules = result.modules.len();
-            self.stats.environment_bytes = self.environments.bytes();
+            self.stats.environment_bytes =
+                self.environments.bytes() + self.package_environments.bytes();
             if result.is_success() {
                 progress.skip_all();
             } else {
@@ -367,6 +370,30 @@ impl Database {
             }
             progress.finish(result.is_success());
             return result.clone();
+        }
+        if package_input
+            && (packages.len() > 1 || requested.len() == graph.units.len())
+            && diagnostics.is_empty()
+            && !options.collect_statistics
+            && let Some(result) = self.check_packages(
+                snapshot,
+                options,
+                &graph,
+                &requested,
+                &packages,
+                &keys,
+                &mut progress,
+            )
+        {
+            if requested.len() == graph.units.len()
+                && let Some(disk) = &self.disk
+                && disk.write_sources(snapshot, &packages).is_err()
+            {
+                self.stats.cache_write_failures += 1;
+            }
+            self.queries.insert(query_key, result.clone());
+            progress.finish(result.is_success());
+            return result;
         }
         let mut results = BTreeMap::new();
         let mut misses = BTreeSet::new();
@@ -624,7 +651,7 @@ impl Database {
             {
                 let _phase = elaboration::profiling::Phase::start("query.collect-analysis");
                 let _cost = timing::costs::Scope::enter("query.collect-analysis");
-                collect_analysis(&workspace, &graph, &mut fresh);
+                collect_analysis(workspace.analysis(), &graph, &mut fresh);
             }
             if let Err(error) = &checked {
                 diagnostics.push(diagnostic(error));
@@ -673,7 +700,8 @@ impl Database {
                 .collect(),
             diagnostics,
         });
-        self.stats.environment_bytes = self.environments.bytes();
+        self.stats.environment_bytes =
+            self.environments.bytes() + self.package_environments.bytes();
         progress.skip_cached();
         progress.phase(ProgressPhase::Saving);
         if result.is_success()
@@ -690,11 +718,11 @@ impl Database {
 }
 
 fn collect_analysis(
-    workspace: &Checker,
+    analysis: &elaboration::analysis::Analysis,
     graph: &ModuleGraph<'_>,
     results: &mut BTreeMap<usize, ModuleResult>,
 ) {
-    for declaration in &workspace.analysis().declarations {
+    for declaration in &analysis.declarations {
         let _time = timing::Scope::module(|| declaration.module.clone());
         if let Some(result) = graph
             .indices
@@ -712,7 +740,7 @@ fn collect_analysis(
             });
         }
     }
-    for reference in &workspace.analysis().references {
+    for reference in &analysis.references {
         let _time = timing::Scope::module(|| reference.module.clone());
         if let Some(result) = graph
             .indices
@@ -736,7 +764,7 @@ fn collect_analysis(
             .references
             .retain(|reference| seen.insert(reference.clone()));
     }
-    for output in &workspace.analysis().outputs {
+    for output in &analysis.outputs {
         let _time = timing::Scope::module(|| output.module.clone());
         if let Some(result) = graph
             .indices
@@ -774,3 +802,6 @@ fn diagnostic(error: &elaboration::Diagnostic) -> Diagnostic {
             .collect(),
     }
 }
+
+#[path = "packages.rs"]
+pub(crate) mod packages;

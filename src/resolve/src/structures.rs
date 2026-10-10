@@ -12,7 +12,7 @@ mod normalization;
 #[path = "structures/parameters.rs"]
 mod parameters;
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(super) struct Structure {
     pub ambient: HashMap<BindingId, SExp>,
     pub parameters: Vec<RightBind>,
@@ -21,14 +21,14 @@ pub(super) struct Structure {
     pub fields: Vec<(Identifier, SExp, Option<SExp>)>,
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(super) struct ParameterSignature {
     pub parameters: Vec<RightBind>,
     pub inputs: Vec<Input>,
     pub checks: Vec<(SExp, SExp)>,
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(super) struct Value {
     pub arguments: HashMap<BindingId, SExp>,
     pub signature: BindingId,
@@ -38,7 +38,7 @@ pub(super) struct Value {
     pub checks: Vec<(SExp, SExp)>,
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(super) struct Definition {
     pub parameters: Vec<RightBind>,
     pub inputs: Vec<Input>,
@@ -46,7 +46,7 @@ pub(super) struct Definition {
     pub body: SExp,
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(super) struct Input {
     pub binding: BindingId,
     pub callback_parameters: Vec<RightBind>,

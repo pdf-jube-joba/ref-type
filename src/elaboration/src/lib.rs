@@ -40,3 +40,6 @@ pub mod diagnostics;
 pub use diagnostics::DiagnosticMode;
 
 pub mod profiling;
+
+mod package;
+pub use package::{MAX_PACKAGE_BYTES, PackageChecker, PackageProgress};
