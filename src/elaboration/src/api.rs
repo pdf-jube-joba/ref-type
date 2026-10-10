@@ -5,6 +5,16 @@ use crate::{
 };
 use syntax::syntax::SourceLocation;
 
+#[derive(Clone, Copy, Debug)]
+pub enum CheckStepProgress {
+    Started(usize),
+    Finished {
+        position: usize,
+        elapsed: std::time::Duration,
+        success: bool,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct Goal {
     pub name: String,
@@ -203,7 +213,7 @@ impl Checker {
         checkpoints: &std::collections::BTreeSet<usize>,
         save: impl FnMut(usize, postcard::Result<Vec<u8>>),
     ) -> Result<(), Diagnostic> {
-        self.check_range_with_progress(project, start, end, selected, checkpoints, save, |_, _| {})
+        self.check_range_with_progress(project, start, end, selected, checkpoints, save, |_| {})
     }
 
     pub fn check_range_with_progress(
@@ -214,7 +224,7 @@ impl Checker {
         selected: &std::collections::BTreeSet<usize>,
         checkpoints: &std::collections::BTreeSet<usize>,
         mut save: impl FnMut(usize, postcard::Result<Vec<u8>>),
-        mut progress: impl FnMut(usize, std::time::Duration),
+        mut progress: impl FnMut(CheckStepProgress),
     ) -> Result<(), Diagnostic> {
         // Prefix keys are valid only up to the first omitted checking step.
         let first_gap = (start..end)

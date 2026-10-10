@@ -52,7 +52,10 @@ checker の fingerprint は関連 crate の Rust ソースとテストも含む�
 package 全体の検証に成功すると、package ごとに依存先のソースとファイル identity を含む snapshot を `.sources.json` に保存する。
 `Database::read_snapshot(path, true)` は依存 package 自身のソース・manifest・checker の fingerprint を照合し、一致する snapshot の推移的な依存を取り込む。
 `CheckOptions::force_local` は入口 package を再検査し、依存 package の結果と入口より前の環境 checkpoint を再利用する。
-`CheckOptions::progress` は子 module を含むソース module ごとの検査・省略と所要時間を通知する。
+`CheckOptions::progress` は処理終了時に、子 module を含むソース module ごとの検査・省略と所要時間を通知する。
+`CheckOptions::progress_events` は選択したソース module とその依存先のグラフ、処理段階、module の検査開始・完了、クエリの成功・失敗を順次通知する。
+グラフにはパッケージのルート module も含め、生成した内部スコープは元のソース module にまとめる。
+キャッシュで省略した module の完了も通知し、検査後の解析情報の収集・キャッシュ保存は別の処理段階で示す。
 
 ## 検証
 

@@ -1,3 +1,5 @@
+mod progress;
+
 use clap::Parser;
 use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
 
@@ -31,7 +33,7 @@ struct Args {
     /// 指定ライブラリだけを再検証し、依存先は自身の変更だけを確認してキャッシュを再利用する
     #[arg(long, conflicts_with_all = ["parse_only", "full_check", "no_cache", "trace", "stats"])]
     full_check_local: bool,
-    /// module ごとの check / skip と所要秒数を表示しない
+    /// 進捗バーと module ごとの所要時間を表示しない
     #[arg(long)]
     no_progress: bool,
     /// キャッシュ保存先の中身を削除してから処理する
@@ -65,7 +67,20 @@ fn main() -> anyhow::Result<()> {
     };
     let cost_session = sema::timing::costs::Session::start();
     init_tracing(args.trace)?;
-    let result = run_path(&args);
+    let live = !args.no_progress
+        && !args.parse_only
+        && !args.trace
+        && std::io::stderr().is_terminal()
+        && std::env::var_os("RUST_LOG").is_none()
+        && !std::env::vars_os()
+            .any(|(name, _)| name.to_string_lossy().starts_with("REF_TYPE_PROFILE_"));
+    let mut display = progress::Display::new(live);
+    let result = run_path(&args, &mut display);
+    display.finish(
+        result
+            .as_ref()
+            .is_ok_and(|status| *status == std::process::ExitCode::SUCCESS),
+    );
     if let Some(measurements) = timing.measurements() {
         let mut modules = Duration::ZERO;
         PROGRESS.with_borrow_mut(|events| {
@@ -80,11 +95,13 @@ fn main() -> anyhow::Result<()> {
                     sema::ProgressAction::Check => "check",
                     sema::ProgressAction::Skip => "skip",
                 };
-                eprintln!(
-                    "{action} {} ({:.9}s)",
-                    progress.path.join("."),
-                    elapsed.as_secs_f64()
-                );
+                if !live {
+                    eprintln!(
+                        "{action} {} ({:.9}s)",
+                        progress.path.join("."),
+                        elapsed.as_secs_f64()
+                    );
+                }
             }
         });
         let measurements = timing.finish().expect("CLI owns the timing session");
@@ -123,7 +140,10 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_path(args: &Args) -> anyhow::Result<std::process::ExitCode> {
+fn run_path(
+    args: &Args,
+    display: &mut progress::Display,
+) -> anyhow::Result<std::process::ExitCode> {
     let cache_directory = args
         .cache_dir
         .clone()
@@ -139,6 +159,7 @@ fn run_path(args: &Args) -> anyhow::Result<std::process::ExitCode> {
     let snapshot = match database.read_snapshot(&args.path, args.full_check_local) {
         Ok(snapshot) => snapshot,
         Err(error) => {
+            display.finish(false);
             let message = format!("Module Load Error: {error}");
             eprintln!("{message}");
             return Ok(std::process::ExitCode::FAILURE);
@@ -157,6 +178,7 @@ fn run_path(args: &Args) -> anyhow::Result<std::process::ExitCode> {
             force: args.trace || args.no_cache || args.full_check,
             force_local: args.full_check_local,
             progress: (!args.no_progress).then_some(show_progress),
+            progress_events: display.enabled().then_some(progress::receive),
             collect_statistics: args.stats,
             diagnostics: match args.diagnostics {
                 Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
@@ -170,6 +192,7 @@ fn run_path(args: &Args) -> anyhow::Result<std::process::ExitCode> {
                 let path = name.split('.').map(str::to_owned).collect::<Vec<_>>();
                 let result = database.module_with_options(&snapshot, &path, &options);
                 if result.is_success() && !result.modules.iter().any(|module| module.path == path) {
+                    display.finish(false);
                     let message = format!("Module Selection Error: module '{name}' was not found");
                     eprintln!("{message}");
                     return Ok(std::process::ExitCode::FAILURE);
@@ -178,6 +201,7 @@ fn run_path(args: &Args) -> anyhow::Result<std::process::ExitCode> {
             }
             None => database.check_with_options(&snapshot, &options),
         };
+        display.finish(result.is_success());
         for output in result.outputs() {
             println!("{}", output.text);
         }

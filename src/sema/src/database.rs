@@ -23,6 +23,8 @@ pub struct CheckOptions {
     pub force_local: bool,
     /// Receive source module timings after analysis and result storage finish.
     pub progress: Option<fn(&ModuleProgress)>,
+    /// Receive the selected dependency graph and live verification progress.
+    pub progress_events: Option<fn(&ProgressEvent)>,
     pub collect_statistics: bool,
     pub diagnostics: elaboration::DiagnosticMode,
 }
@@ -224,6 +226,12 @@ impl Database {
         };
         let _phase = elaboration::profiling::Phase::start("query.total");
         self.verification_statistics.clear();
+        let notify = |event| {
+            if let Some(receive) = options.progress_events {
+                receive(&event);
+            }
+        };
+        notify(ProgressEvent::Phase(ProgressPhase::Loading));
         let compact = options.diagnostics == elaboration::DiagnosticMode::Compact;
         let LoadedProject {
             modules,
@@ -235,12 +243,14 @@ impl Database {
                 if compact {
                     diagnostics.truncate(1);
                 }
+                notify(ProgressEvent::Finished { success: false });
                 return Arc::new(SemanticResult {
                     modules: vec![],
                     diagnostics,
                 });
             }
         };
+        notify(ProgressEvent::Phase(ProgressPhase::Planning));
         let graph = {
             let _phase = elaboration::profiling::Phase::start("query.graph");
             let _cost = timing::costs::Scope::enter("query.graph");
@@ -298,6 +308,13 @@ impl Database {
                 })
             })
             .collect();
+        let mut progress = crate::progress::Reporter::new(
+            &graph,
+            &requested,
+            package_input,
+            options.progress,
+            options.progress_events,
+        );
         if compact && !diagnostics.is_empty() {
             diagnostics.truncate(1);
             return Arc::new(SemanticResult {
@@ -320,8 +337,7 @@ impl Database {
             settings.extend(fingerprint(source.text.as_bytes()));
         }
         let settings = fingerprint(&settings);
-        let mut progress =
-            crate::progress::Reporter::new(&graph, &requested, package_input, options.progress);
+        progress.phase(ProgressPhase::Cache);
         let keys: Vec<_> = (0..graph.units.len())
             .map(|index| graph.key(index, &settings))
             .collect();
@@ -339,7 +355,17 @@ impl Database {
         {
             self.stats.reused_modules = result.modules.len();
             self.stats.environment_bytes = self.environments.bytes();
-            progress.skip_all();
+            if result.is_success() {
+                progress.skip_all();
+            } else {
+                for module in &result.modules {
+                    if module.status == ModuleStatus::Verified {
+                        progress.reused(graph.indices[&module.path], std::time::Duration::ZERO);
+                    }
+                }
+                progress.skip_cached();
+            }
+            progress.finish(result.is_success());
             return result.clone();
         }
         let mut results = BTreeMap::new();
@@ -389,6 +415,7 @@ impl Database {
                     "modules phase=check retry={recovering} selected={selected:?} environment={settings:?}"
                 );
             }
+            progress.phase(ProgressPhase::Resolving);
             let full = full_resolution.get_or_insert_with(|| {
                 let _phase = elaboration::profiling::Phase::start("query.resolve");
                 let _cost = timing::costs::Scope::enter("query.resolve");
@@ -423,6 +450,7 @@ impl Database {
                         .iter()
                         .position(|&index| forced(index))
                         .unwrap_or(end);
+                    progress.phase(ProgressPhase::Restoring);
                     let mut start = 0;
                     if recovering || (!options.force && !options.collect_statistics) {
                         for &(position, key) in plan
@@ -502,6 +530,7 @@ impl Database {
                         plan.save_points()
                     };
                     progress.begin_batch(&plan.steps, start, end, &selected_steps);
+                    progress.phase(ProgressPhase::Checking);
                     let checked = workspace.check_range_with_progress(
                         project,
                         start,
@@ -526,7 +555,16 @@ impl Database {
                             }
                             Err(_) => self.stats.environment_skips += 1,
                         },
-                        |position, elapsed| progress.step(position, elapsed),
+                        |event| match event {
+                            elaboration::CheckStepProgress::Started(position) => {
+                                progress.start_step(position)
+                            }
+                            elaboration::CheckStepProgress::Finished {
+                                position,
+                                elapsed,
+                                success,
+                            } => progress.step(position, elapsed, success),
+                        },
                     );
                     progress.finish_batch();
                     checked
@@ -538,6 +576,10 @@ impl Database {
             };
             drop(check_cost);
             drop(check_phase);
+            if checked.is_ok() {
+                progress.verified(&selected);
+            }
+            progress.phase(ProgressPhase::Saving);
             recovering = true;
             for (key, bytes) in saved.into_entries() {
                 recovery_environments.insert(key, bytes.clone());
@@ -632,6 +674,7 @@ impl Database {
         });
         self.stats.environment_bytes = self.environments.bytes();
         progress.skip_cached();
+        progress.phase(ProgressPhase::Saving);
         if result.is_success()
             && requested.len() == graph.units.len()
             && let Some(disk) = &self.disk
@@ -640,6 +683,7 @@ impl Database {
             self.stats.cache_write_failures += 1;
         }
         self.queries.insert(query_key, result.clone());
+        progress.finish(result.is_success());
         result
     }
 }

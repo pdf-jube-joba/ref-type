@@ -865,7 +865,7 @@ impl GlobalEnvironment {
             project.order.len(),
             &(0..project.order.len()).collect(),
             &mut |_, _| {},
-            &mut |_, _| {},
+            &mut |_| {},
         )
     }
 
@@ -876,7 +876,7 @@ impl GlobalEnvironment {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoint: &mut impl FnMut(usize, &Self),
-        progress: &mut impl FnMut(usize, std::time::Duration),
+        progress: &mut impl FnMut(crate::CheckStepProgress),
     ) -> Result<(), ElaborationError> {
         self.analysis.references = project.references.clone();
         let checked = self
@@ -898,7 +898,7 @@ impl GlobalEnvironment {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoint: &mut impl FnMut(usize, &Self),
-        progress: &mut impl FnMut(usize, std::time::Duration),
+        progress: &mut impl FnMut(crate::CheckStepProgress),
     ) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
         let modules = &project.modules;
@@ -988,6 +988,7 @@ impl GlobalEnvironment {
                 let _time =
                     timing::Scope::module(|| analysis::module_path(&self.crate_env, module_id));
                 self.module_manager.moveto(module_id);
+                progress(crate::CheckStepProgress::Started(position));
                 let started = std::time::Instant::now();
                 let result = match *step {
                     resolve::CheckStep::Parameters(_) => self.elaborate_module_parameters(module),
@@ -995,7 +996,11 @@ impl GlobalEnvironment {
                         self.elaborate_module_declaration(module, index)
                     }
                 };
-                progress(position, started.elapsed());
+                progress(crate::CheckStepProgress::Finished {
+                    position,
+                    elapsed: started.elapsed(),
+                    success: result.is_ok(),
+                });
                 result?;
                 checkpoint(position + 1, self);
             }

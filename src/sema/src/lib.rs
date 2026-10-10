@@ -12,7 +12,9 @@ mod parsing;
 mod progress;
 pub use database::{CheckOptions, Database};
 pub use parsing::{ParseKind, ParseResult, ParsedSyntax};
-pub use progress::{ModuleProgress, ProgressAction};
+pub use progress::{
+    ModuleProgress, ProgressAction, ProgressEvent, ProgressModule, ProgressPhase, ProgressPlan,
+};
 
 mod environment;
 

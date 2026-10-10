@@ -988,9 +988,13 @@ fn module_timings_include_preparation_and_keep_generated_scopes_with_the_source(
     use std::{cell::RefCell, time::Duration};
     thread_local! {
         static EVENTS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
+        static LIVE: RefCell<Vec<sema::ProgressEvent>> = const { RefCell::new(Vec::new()) };
     }
     fn receive(event: &sema::ModuleProgress) {
         EVENTS.with_borrow_mut(|events| events.push(event.clone()));
+    }
+    fn receive_live(event: &sema::ProgressEvent) {
+        LIVE.with_borrow_mut(|events| events.push(event.clone()));
     }
     let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
     snapshot.insert(
@@ -1009,6 +1013,7 @@ fn module_timings_include_preparation_and_keep_generated_scopes_with_the_source(
         &sema::CheckOptions {
             force: true,
             progress: Some(receive),
+            progress_events: Some(receive_live),
             ..Default::default()
         },
     );
@@ -1023,6 +1028,223 @@ fn module_timings_include_preparation_and_keep_generated_scopes_with_the_source(
         }
     });
     assert!(measurements.modules.values().sum::<Duration>() <= measurements.total);
+    LIVE.with_borrow_mut(|events| {
+        let plan = events
+            .iter()
+            .find_map(|event| match event {
+                sema::ProgressEvent::Planned(plan) => Some(plan),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(plan.modules.len(), 2);
+        assert!(plan.modules.iter().all(|module| module.path[0] == "Parent"));
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| matches!(event, sema::ProgressEvent::ModuleFinished { .. }))
+                .count(),
+            2
+        );
+        events.clear();
+    });
+}
+
+thread_local! {
+    static LIVE_PROGRESS: std::cell::RefCell<Vec<sema::ProgressEvent>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+fn collect_live_progress(event: &sema::ProgressEvent) {
+    LIVE_PROGRESS.with_borrow_mut(|events| events.push(event.clone()));
+}
+
+fn take_live_progress() -> Vec<sema::ProgressEvent> {
+    LIVE_PROGRESS.with_borrow_mut(std::mem::take)
+}
+
+#[test]
+fn live_progress_plans_selected_dependencies_and_reports_warm_cache_hits() {
+    use sema::{ProgressAction, ProgressEvent, ProgressPhase};
+    let snapshot = project();
+    let mut database = Database::new();
+    let options = sema::CheckOptions {
+        progress_events: Some(collect_live_progress),
+        ..Default::default()
+    };
+    assert!(
+        database
+            .module_with_options(&snapshot, &["Left".into()], &options)
+            .is_success()
+    );
+    let events = take_live_progress();
+    let plan = events
+        .iter()
+        .find_map(|event| match event {
+            ProgressEvent::Planned(plan) => Some(plan),
+            _ => None,
+        })
+        .unwrap();
+    assert!(plan.packages.is_empty());
+    assert_eq!(
+        plan.modules
+            .iter()
+            .map(|module| module.path.join("."))
+            .collect::<Vec<_>>(),
+        ["Base", "Left"]
+    );
+    assert_eq!(plan.modules[1].dependencies, [vec!["Base".to_owned()]]);
+    let planned = events
+        .iter()
+        .position(|e| matches!(e, ProgressEvent::Planned(_)))
+        .unwrap();
+    for module in &plan.modules {
+        let start = events
+            .iter()
+            .position(
+                |event| matches!(event, ProgressEvent::ModuleStarted(path) if path == &module.path),
+            )
+            .unwrap();
+        let end = events.iter().position(|event| matches!(event, ProgressEvent::ModuleFinished {path, action: ProgressAction::Check} if path == &module.path)).unwrap();
+        assert!(planned < start && start < end);
+    }
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, ProgressEvent::Phase(ProgressPhase::Saving)))
+    );
+    assert!(matches!(
+        events.last(),
+        Some(ProgressEvent::Finished { success: true })
+    ));
+
+    assert!(
+        database
+            .module_with_options(&snapshot, &["Left".into()], &options)
+            .is_success()
+    );
+    let cached = take_live_progress();
+    assert!(
+        !cached
+            .iter()
+            .any(|event| matches!(event, ProgressEvent::ModuleStarted(_)))
+    );
+    assert_eq!(
+        cached
+            .iter()
+            .filter(|event| matches!(
+                event,
+                ProgressEvent::ModuleFinished {
+                    action: ProgressAction::Skip,
+                    ..
+                }
+            ))
+            .count(),
+        2
+    );
+    assert!(matches!(
+        cached.last(),
+        Some(ProgressEvent::Finished { success: true })
+    ));
+}
+
+#[test]
+fn live_progress_keeps_failed_modules_incomplete_including_cached_diagnostics() {
+    use sema::ProgressEvent;
+    let snapshot = project().with_file("/virtual/Right.ref", r"\definition Q: \Set := \Prop;");
+    let options = sema::CheckOptions {
+        progress_events: Some(collect_live_progress),
+        diagnostics: sema::DiagnosticMode::Compact,
+        ..Default::default()
+    };
+    let mut database = Database::new();
+    for _ in 0..2 {
+        assert!(
+            !database
+                .module_with_options(&snapshot, &["Right".into()], &options)
+                .is_success()
+        );
+        let events = take_live_progress();
+        assert!(!events.iter().any(|event| matches!(event, ProgressEvent::ModuleFinished { path, .. } if path == &["Right"])));
+        assert!(matches!(
+            events.last(),
+            Some(ProgressEvent::Finished { success: false })
+        ));
+    }
+    let malformed =
+        SourceSnapshot::new("/virtual/root.ref").with_file("/virtual/root.ref", r"\module {");
+    assert!(
+        !database
+            .check_with_options(&malformed, &options)
+            .is_success()
+    );
+    assert!(matches!(
+        take_live_progress().last(),
+        Some(ProgressEvent::Finished { success: false })
+    ));
+}
+
+#[test]
+fn live_progress_includes_package_roots_without_changing_module_timings() {
+    use sema::{ProgressAction, ProgressEvent};
+    let mut snapshot = SourceSnapshot::new("/virtual/app");
+    snapshot.insert(
+        "/virtual/app/ref.toml",
+        "[package]\nname = 'app'\n[dependencies]\nbase = {path = '../base'}\n",
+    );
+    snapshot.insert(
+        "/virtual/app/src/root.ref",
+        r"\module Main { \import base.A[] \as A; \definition P: \Prop := A.P; }",
+    );
+    snapshot.insert("/virtual/base/ref.toml", "[package]\nname = 'base'\n");
+    snapshot.insert(
+        "/virtual/base/src/root.ref",
+        r"\module A { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
+    );
+    fn receive_timing(event: &sema::ModuleProgress) {
+        assert!(
+            event.path.len() > 1,
+            "package roots belong to shared timings"
+        );
+    }
+    let cache = Cache::new();
+    let options = sema::CheckOptions {
+        progress: Some(receive_timing),
+        progress_events: Some(collect_live_progress),
+        ..Default::default()
+    };
+    for attempt in 0..2 {
+        assert!(
+            Database::with_cache(&cache.0)
+                .check_with_options(&snapshot, &options)
+                .is_success()
+        );
+        let events = take_live_progress();
+        let plan = events
+            .iter()
+            .find_map(|event| match event {
+                ProgressEvent::Planned(plan) => Some(plan),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(plan.packages, ["app", "base"]);
+        assert_eq!(plan.modules.len(), 4);
+        let completed = events
+            .iter()
+            .filter_map(|event| match event {
+                ProgressEvent::ModuleFinished { path, action } => {
+                    if attempt == 1 {
+                        assert_eq!(*action, ProgressAction::Skip);
+                    }
+                    Some(path)
+                }
+                _ => None,
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(completed.len(), plan.modules.len());
+        assert!(matches!(
+            events.last(),
+            Some(ProgressEvent::Finished { success: true })
+        ));
+    }
 }
 
 #[test]

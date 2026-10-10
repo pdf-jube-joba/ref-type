@@ -28,7 +28,7 @@ mod tests;
 pub use elaborator::analysis;
 
 mod api;
-pub use api::{Checker, Diagnostic, Goal, Statistics};
+pub use api::{CheckStepProgress, Checker, Diagnostic, Goal, Statistics};
 pub use metavariables::ElaborationError;
 
 mod kernel_bridge;

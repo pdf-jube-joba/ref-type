@@ -32,7 +32,7 @@ std = { path = "../std" }
 | `--no-cache` | 選択した範囲を永続キャッシュの読み書きなしで検証 |
 | `--full-check` | 選択した範囲を再検証し、検証済みの結果でキャッシュを更新 |
 | `--full-check-local` | 入口パッケージの選択した範囲を再検証し、依存先は自身のソースと manifest が一致するキャッシュを再利用 |
-| `--no-progress` | module ごとの進捗表示を抑制 |
+| `--no-progress` | 進捗バーと所要時間の表示を抑制 |
 | `--cache-dir PATH` | キャッシュ保存先を変更 |
 | `--clear-cache` | 保存先の中身を削除してから処理 |
 | `--cache-stats` | 解析・検査・再利用・保存の件数を表示 |
@@ -64,8 +64,13 @@ cargo run -p cli --release --locked -- libs/std --full-check-local
 
 `--cache-stats` の `environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
 
-通常の検査、`--full-check`、`--full-check-local`、`--no-cache` は、子 module を含む各 module の `check` / `skip` と所要秒数を標準エラーに表示する。
-秒数は module ごとの読み込み・構文解析・名前解決と展開・検査・解析情報の収集・検査結果のキャッシュ処理を合計した実測の経過時間であり、処理の終了時に表示する。
+端末では標準エラーの一行を更新し、進捗バー、完了 module 数／総 module 数、現在の module、パッケージ内の完了数と経過秒数を表示する。
+検査前に選択範囲の依存グラフを使って総数を決め、キャッシュで省略した module も完了数に含める。
+総数にはパッケージ直下の宣言を持つルート module と子 module を含める。
+読み込み・依存解析・キャッシュ照合・名前解決・環境復元・検査・保存の段階も表示する。
+進捗は module 数を表し、残り時間の推定ではない。
+標準エラーをファイルへ出力する場合や、`--trace`・`RUST_LOG`・`REF_TYPE_PROFILE_*` によるログを有効にした場合は、module ごとの `check` / `skip` と所要秒数を表示する。
+module ごとの秒数は読み込み・構文解析・名前解決と展開・検査・解析情報の収集・検査結果のキャッシュ処理を合計した実測の経過時間であり、処理の終了時に表示する。
 子 module や依存 module の時間は、その module 自身に計上する。
 生成された内部 module の時間は、元のソース module に計上する。
 再利用した module にも、今回実際に行った解析やキャッシュ処理の時間を表示する。
