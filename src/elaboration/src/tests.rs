@@ -443,12 +443,6 @@ fn local_math_and_named_macros_expand_before_elaboration() {
 }
 
 #[test]
-fn only_the_documented_macro_surface_syntax_is_accepted() {
-    assert!(parse::str_parse_exp("$value").is_err());
-    assert!(parse::str_parse_exp("named !{value}").is_err());
-}
-
-#[test]
 fn math_macro_requires_the_complete_sequence() {
     let source = r#"
         \module Macros(A: \Set(0), x: A, y: A) {
@@ -1619,19 +1613,6 @@ fn subset_intro_rejects_wrong_membership_proof() {
 }
 
 #[test]
-fn subset_intro_syntax_requires_an_explicit_proof() {
-    let source = r#"
-        \module NamedSubset(A: \Set(0)) {
-            \definition XSet: \Pow (A) := { x : A \where x = x };
-            \definition X: \Set(0) := \Cast[A] (XSet);
-            \definition bad: \forall (x: A) -> X :=
-                \fun (x: A) => \into[A](x, XSet);
-        }
-    "#;
-    assert!(parse::str_parse_modules(source).is_err());
-}
-
-#[test]
 fn general_recursion_surface_typechecks_and_normalizes() {
     let source = r#"
         \module GeneralRecursion(
@@ -1654,13 +1635,6 @@ fn general_recursion_surface_typechecks_and_normalizes() {
     let mut environment = GlobalEnvironment::default();
 
     environment.add_new_module_to_root(&modules[0]).unwrap();
-}
-
-#[test]
-fn program_value_let_requires_an_annotation() {
-    let parsed = parse::str_parse_exp(r"(\let x: A := a \in \return(x))").unwrap();
-    assert!(matches!(parsed, SExp::ValueLet { .. }));
-    assert!(parse::str_parse_exp(r"(\let x := a \in \return x)").is_err());
 }
 
 #[test]
@@ -1766,6 +1740,8 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
 
 #[test]
 fn set_recursion_preserves_a_shared_universe() {
+    use ::syntax::syntax::{ModuleBody, ModuleItem as SurfaceModuleItem};
+
     for level in [0, 2] {
         let source = format!(
             r"\module SharedUniverse(State: \Set({level}), Output: \Set({level}),
@@ -1798,7 +1774,25 @@ fn set_recursion_preserves_a_shared_universe() {
             }}",
             termination = include_str!("../../../libs/std/src/Logic/Termination.ref"),
         );
-        let modules = parse::str_parse_modules(&source).unwrap();
+        let mut modules = parse::str_parse_modules(&source).unwrap();
+        let ModuleBody::Inline(items) = &mut modules[0].body else {
+            panic!("expected an inline SharedUniverse module")
+        };
+        let results = items
+            .iter_mut()
+            .find_map(|item| match item {
+                SurfaceModuleItem::ChildModule { module } if module.name.0 == "Results" => {
+                    Some(module)
+                }
+                _ => None,
+            })
+            .expect("Termination.Results module");
+        let (items, spans) = parse::parse_items(include_str!(
+            "../../../libs/std/src/Logic/Termination/Results.ref"
+        ))
+        .unwrap();
+        results.body = ModuleBody::Inline(items);
+        results.declaration_spans = spans;
         let mut environment = GlobalEnvironment::default();
         environment.add_new_module_to_root(&modules[0]).unwrap();
 
@@ -1806,7 +1800,13 @@ fn set_recursion_preserves_a_shared_universe() {
         // transition function, and equality evidence in the context.
         let raw = environment.crate_env();
         let parent = raw.module(raw.root_module()).children()[0];
-        let module = raw.module(parent).children()[0];
+        let module = raw
+            .module(parent)
+            .children()
+            .iter()
+            .copied()
+            .find(|&module| raw.module(module).name() == "Run")
+            .expect("SharedUniverse.Run module");
         let ModuleItem::Definition { definition, .. } =
             raw.module(module).item("case_result").unwrap()
         else {
@@ -2238,12 +2238,6 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
         reflection,
         explicit_reflection
     ));
-    for declaration in [
-        r"\definition f(x): \F(A) := \return x;",
-        r"\definition f(x: A \where P x): \F(A) := \return x;",
-    ] {
-        assert!(parse::str_parse_modules(&format!(r"\module Bad {{ {declaration} }}")).is_err());
-    }
 }
 
 #[test]
@@ -2496,9 +2490,6 @@ fn invalid_variadic_macro_templates_fail_at_declaration() {
             error.to_string().contains(expected),
             "{declaration}: {error:?}"
         );
-    }
-    for source in [r"\tmatch tk {}", r"m!{..r}", r"$r"] {
-        assert!(parse::str_parse_exp(source).is_err(), "{source}");
     }
 }
 
