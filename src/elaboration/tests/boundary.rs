@@ -6,6 +6,100 @@ fn resolve(source: &str) -> Project {
 }
 
 #[test]
+fn structure_signature_term_diagnostics_identify_the_reference_and_suggest_a_sort() {
+    use diagnostics::DiagnosticError;
+    use std::sync::Arc;
+
+    for (text, reference) in [
+        (
+            r"\module Playground {
+                \structure A[Carrier: \Set] { op1: Carrier }
+                \definition F: \forall (Carrier: \Set) -> \Set :=
+                    \fun (Carrier: \Set) => A[Carrier];
+            }",
+            "A",
+        ),
+        (
+            r"\module Library { \structure A[Carrier: \Set] { op1: Carrier } }
+            \module Playground {
+                \import \root.Library[] \as L;
+                \definition F: \forall (Carrier: \Set) -> \Set :=
+                    \fun (Carrier: \Set) => L.A[Carrier];
+            }",
+            "L.A",
+        ),
+        (
+            r"\module Library { \structure A[Carrier: \Set] { op1: Carrier } }
+            \module Playground {
+                \definition F: \forall (Carrier: \Set) -> \Set :=
+                    \fun (Carrier: \Set) => \root.Library[].A[Carrier];
+            }",
+            "Library.A",
+        ),
+    ] {
+        let source = Arc::new(SourceFile {
+            id: SourceId("/virtual/structure-error.ref".into()),
+            text: text.into(),
+        });
+        let mut modules = syntax::parse::parse_modules_from_source(&source).unwrap();
+        for module in &mut modules {
+            module.source = Some(source.clone());
+            module.header_source = Some(source.clone());
+        }
+        let project = resolve::resolve(&modules).unwrap();
+        let diagnostic = Checker::default().check(&project).unwrap_err();
+        let message = diagnostic.message.clone();
+        assert!(
+            message.contains(&format!("Structure '{reference}' is a signature")),
+            "{message}"
+        );
+        assert!(message.contains("add ': \\Set'"), "{message}");
+        let data = diagnostic.diagnostic_data();
+        assert_eq!(data.code, "elaboration.StructureSignatureUsedAsTerm");
+        assert_eq!(data.arguments["access_path"], reference.into());
+        let location = diagnostic.location.unwrap();
+        let snippet = &source.text[location.span.start..location.span.end];
+        assert_eq!(
+            snippet,
+            if reference == "Library.A" {
+                "\\root.Library[].A"
+            } else {
+                reference
+            }
+        );
+    }
+}
+
+#[test]
+fn structure_with_an_explicit_sort_can_be_returned_as_a_set() {
+    let project = resolve(
+        r"\module Playground {
+            \structure A[Carrier: \Set]: \Set { op1: Carrier }
+            \definition F: \forall (Carrier: \Set) -> \Set :=
+                \fun (Carrier: \Set) => A[Carrier];
+        }",
+    );
+    Checker::default().check(&project).unwrap();
+}
+
+#[test]
+fn missing_items_use_the_display_path_in_text_and_diagnostic_data() {
+    use diagnostics::DiagnosticError;
+    let error = elaboration::error::Error::UnknownAccess {
+        access_path: LocalAccess::Resolved {
+            module: ModuleId(1),
+            span: SourceSpan { start: 12, end: 15 },
+            access: Name("internal_name".into(), Some(BindingId(6))),
+            display: "Library.A".into(),
+        },
+    };
+    assert_eq!(error.to_string(), "Item 'Library.A' was not found");
+    let data = error.diagnostic_data();
+    assert_eq!(data.code, "elaboration.UnknownAccess");
+    assert_eq!(data.arguments["access_path"], "Library.A".into());
+}
+
+#[test]
 fn checking_uses_binding_ids_and_keeps_a_reusable_hir() {
     let mut project = resolve(
         r"\module M {

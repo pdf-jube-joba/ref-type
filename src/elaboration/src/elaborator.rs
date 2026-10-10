@@ -512,12 +512,27 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &mut self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ElaborationError> {
-        Ok(self
-            .module_manager
-            .get_item(&self.crate_env, access_path)
-            .ok_or_else(|| crate::error::Error::UnknownAccess {
-                access_path: (access_path).clone(),
-            })?)
+        if let Some(item) = self.module_manager.get_item(&self.crate_env, access_path) {
+            return Ok(item);
+        }
+        let name = match access_path {
+            LocalAccess::Resolved { access, .. } | LocalAccess::Current { access, .. } => access,
+            LocalAccess::Named { child, .. } | LocalAccess::Instantiated { child, .. } => child,
+        };
+        let signature = name
+            .1
+            .and_then(|id| self.module_manager.hir_bindings.get(&id))
+            .is_some_and(|binding| binding.is_structure_signature);
+        Err(if signature {
+            crate::error::Error::StructureSignatureUsedAsTerm {
+                access_path: access_path.clone(),
+            }
+        } else {
+            crate::error::Error::UnknownAccess {
+                access_path: access_path.clone(),
+            }
+        }
+        .into())
     }
 
     fn associated_reference(&mut self, access: &LocalAccess, field: &Identifier, span: SourceSpan) {
@@ -1018,10 +1033,19 @@ impl GlobalEnvironment {
         self.collect_references();
         self.metavariables.clear();
         match (result, self.diagnostic_location.take()) {
-            (Err(error), Some(location)) => Err(ElaborationError::Located {
-                location,
-                error: Box::new(error),
-            }),
+            (Err(error), Some(mut location)) => {
+                if let Some(span) = error.source_span()
+                    && location.span.start <= span.start
+                    && span.start < span.end
+                    && span.end <= location.span.end
+                {
+                    location.span = span;
+                }
+                Err(ElaborationError::Located {
+                    location,
+                    error: Box::new(error),
+                })
+            }
             (result, _) => result,
         }
     }

@@ -156,6 +156,18 @@ enum DeferredState {
 }
 
 impl ElaborationError {
+    pub(crate) fn source_span(&self) -> Option<SourceSpan> {
+        match self {
+            Self::Failure(error) => error.source_span(),
+            Self::ConstraintFailure { cause, .. } => cause.source_span(),
+            Self::Located { error, .. } | Self::Deferred { summary: error, .. } => {
+                error.source_span()
+            }
+            Self::Alternatives(errors) => errors.iter().find_map(Self::source_span),
+            Self::Metavariables(_) => None,
+        }
+    }
+
     pub(crate) fn materialize(&self, env: &crate::elaborator::GlobalEnvironment) -> Self {
         let _profile = crate::diagnostics::DiagnosticProfile::start("details");
         match self {

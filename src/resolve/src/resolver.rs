@@ -54,6 +54,8 @@ pub struct Binding {
     pub module: ModuleId,
     pub name: String,
     pub parameter: Option<usize>,
+    /// An unsorted structure is expanded by the frontend and has no kernel term.
+    pub is_structure_signature: bool,
 }
 
 /// Namespace correspondence for a syntactic module instantiation.
@@ -659,6 +661,7 @@ impl Resolver {
                 module: self.current,
                 name: name.0.clone(),
                 parameter: None,
+                is_structure_signature: false,
             },
         );
     }

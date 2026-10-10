@@ -277,6 +277,12 @@ impl Resolver {
                     error = Some(e);
                     return false;
                 }
+                if let LocalAccess::Resolved {
+                    module, display, ..
+                } = &mut member
+                {
+                    *display = format!("{}.{}", self.path(*module).join("."), child.as_str());
+                }
                 let mut guards = vec![(
                     SExp::ModuleInstance {
                         path: path.clone(),

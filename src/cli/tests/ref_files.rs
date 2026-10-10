@@ -1301,6 +1301,39 @@ fn structure_result_arrows_check_lambdas_and_their_applications() {
 }
 
 #[test]
+fn structure_signature_diagnostics_explain_the_sort_and_point_to_the_access() {
+    let fixture = FixtureDirectory::new();
+    let source = r"\module Playground {
+\structure A[Carrier: \Set] {
+  op1: Carrier,
+}
+
+\definition F: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => A[Carrier];
+}";
+    let root = fixture.write("root.ref", source);
+    for mode in ["compact", "detailed"] {
+        let result =
+            run_ref_file_with_args(&fixture.0, &root, &["--diagnostics", mode, "--no-progress"])
+                .unwrap();
+        assert_eq!(result.status.code(), Some(1), "{}", output_details(&result));
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        for expected in [
+            "Structure 'A' is a signature",
+            "cannot be used as a type or term here",
+            "add ': \\Set'",
+            "root.ref:6:75",
+        ] {
+            assert!(stderr.contains(expected), "missing {expected}: {stderr}");
+        }
+        let marker = stderr.lines().last().unwrap();
+        assert_eq!(marker.chars().filter(|&c| c == '^').count(), 1, "{stderr}");
+    }
+    fixture.write("root.ref", &source.replace("\\Set] {", "\\Set]: \\Set {"));
+    let valid = run_ref_file(&fixture.0, &root).unwrap();
+    assert!(valid.status.success(), "{}", output_details(&valid));
+}
+
+#[test]
 fn structure_type_projection_diagnostics_explain_value_access_and_keep_the_location() {
     let fixture = FixtureDirectory::new();
     let source = r"\module Playground {

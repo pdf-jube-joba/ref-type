@@ -30,6 +30,9 @@ pub enum Error {
     UnknownAccess {
         access_path: resolve::hir::LocalAccess,
     },
+    StructureSignatureUsedAsTerm {
+        access_path: resolve::hir::LocalAccess,
+    },
     ProjectionFromStructureType {
         field: String,
         name: String,
@@ -219,6 +222,22 @@ pub enum Error {
 }
 
 impl Error {
+    pub(crate) fn source_span(&self) -> Option<crate::hir::SourceSpan> {
+        match self {
+            Self::UnknownAccess { access_path }
+            | Self::StructureSignatureUsedAsTerm { access_path } => {
+                let (resolve::hir::LocalAccess::Resolved { span, .. }
+                | resolve::hir::LocalAccess::Current { span, .. }
+                | resolve::hir::LocalAccess::Named { span, .. }
+                | resolve::hir::LocalAccess::Instantiated { span, .. }) = access_path;
+                Some(*span)
+            }
+            Self::Context { source, .. } => source.source_span(),
+            Self::Elaboration(error) => error.source_span(),
+            _ => None,
+        }
+    }
+
     pub fn context(self, context: Context) -> Self {
         Self::Context {
             context,
@@ -275,8 +294,12 @@ impl std::fmt::Display for Error {
             Self::Invalid(error) => error.fmt(f),
             Self::Context { context, source } => write!(f, "{context}: {source}"),
             Self::UnknownAccess { access_path } => {
-                write!(f, "Failed to access item at path {access_path:?}")
+                write!(f, "Item '{access_path}' was not found")
             }
+            Self::StructureSignatureUsedAsTerm { access_path } => write!(
+                f,
+                "Structure '{access_path}' is a signature, so it cannot be used as a type or term here; to define a Set-valued structure, add ': \\Set' to its declaration"
+            ),
             Self::ProjectionFromStructureType { field, name } => write!(
                 f,
                 "Cannot project field '{field}' from structure type '{name}'; use a structure value (e.g. data.{field}) or {name}::{field} for the projection function"

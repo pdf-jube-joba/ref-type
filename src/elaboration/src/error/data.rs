@@ -30,8 +30,13 @@ impl diagnostics::DiagnosticError for Error {
             Self::Context { context, source } => context
                 .diagnostic_data()
                 .caused_by(source.diagnostic_data()),
-            Self::UnknownAccess { access_path } => Data::new("elaboration.UnknownAccess")
-                .with("access_path", format!("{access_path:?}")),
+            Self::UnknownAccess { access_path } => {
+                Data::new("elaboration.UnknownAccess").with("access_path", access_path.to_string())
+            }
+            Self::StructureSignatureUsedAsTerm { access_path } => {
+                Data::new("elaboration.StructureSignatureUsedAsTerm")
+                    .with("access_path", access_path.to_string())
+            }
             Self::ProjectionFromStructureType { field, name } => {
                 Data::new("elaboration.ProjectionFromStructureType")
                     .with("field", field.clone())

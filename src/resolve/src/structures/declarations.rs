@@ -529,6 +529,10 @@ impl Resolver {
                 fields: checked_fields,
             },
         );
+        self.global_bindings
+            .get_mut(&name.1.unwrap())
+            .unwrap()
+            .is_structure_signature = true;
         *self.declaration_counts.entry(self.current).or_default() += 1;
         output.push(ModuleItem::ChildModule {
             module: Box::new(module),
