@@ -454,10 +454,10 @@ impl Resolver {
                 // A declaration's internal import belongs to its original
                 // scope. Select the specialized namespace before checking
                 // arguments of children referenced by the declaration.
-                *path = Box::new(ModuleInstantiatePath::FromModule {
+                **path = ModuleInstantiatePath::FromModule {
                     module,
                     calls: std::mem::take(calls),
-                });
+                };
             }
             if let SExp::AccessPath { access, .. }
             | SExp::RecordTypeCtor { access, .. }

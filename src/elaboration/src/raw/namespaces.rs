@@ -20,10 +20,12 @@ enum Reference {
     ProgramInductive(ProgramInductiveId),
 }
 
+type SubstitutionResult = (Vec<Reference>, Vec<(ModuleParamId, Exp)>, Exp);
+
 #[derive(Default, Debug)]
 pub(crate) struct SubstitutionCache {
     references: rustc_hash::FxHashMap<Exp, Vec<Reference>>,
-    results: rustc_hash::FxHashMap<Exp, (Vec<Reference>, Vec<(ModuleParamId, Exp)>, Exp)>,
+    results: rustc_hash::FxHashMap<Exp, SubstitutionResult>,
 }
 
 // Thousands of declarations in an import share one argument telescope.

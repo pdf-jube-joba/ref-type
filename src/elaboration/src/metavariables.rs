@@ -367,18 +367,17 @@ impl MetaStore {
             },
         )
         .map(|o| o == Outcome::Solved);
-        if result.is_err() && std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some() {
-            if let Some(Constraint::Equal { left, right, .. }) = &self.constraints[index].core {
-                if let Ok(Some((path, left, right))) =
-                    kernel::reduction::first_difference(&env.kernel.borrow(), *left, *right)
-                {
-                    eprintln!(
-                        "failed equality {path:?}: {} != {}",
-                        crate::raw::printing::format_exp(env, Exp(left)),
-                        crate::raw::printing::format_exp(env, Exp(right))
-                    );
-                }
-            }
+        if result.is_err()
+            && std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some()
+            && let Some(Constraint::Equal { left, right, .. }) = &self.constraints[index].core
+            && let Ok(Some((path, left, right))) =
+                kernel::reduction::first_difference(&env.kernel.borrow(), *left, *right)
+        {
+            eprintln!(
+                "failed equality {path:?}: {} != {}",
+                crate::raw::printing::format_exp(env, Exp(left)),
+                crate::raw::printing::format_exp(env, Exp(right))
+            );
         }
         self.constraints[index].status = match result {
             Ok(true) => ConstraintStatus::Discharged,

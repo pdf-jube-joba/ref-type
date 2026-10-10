@@ -25,8 +25,8 @@ fn judgement_context(env: &CrateEnv, context: &ExpContext, roots: &[Exp]) -> Exp
     // A variable's type is scoped over the preceding binders.
     for position in (0..context.len()).rev() {
         if needed[position] {
-            for earlier in 0..position {
-                needed[earlier] |=
+            for (earlier, live) in needed.iter_mut().enumerate().take(position) {
+                *live |=
                     exp_contains_bound(env.arena(), context[position].ty, position - earlier - 1);
             }
         }

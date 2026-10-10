@@ -565,7 +565,7 @@ impl<'a> Checker<'a> {
         };
         let canonical = self.env.trim_unused(term, unused)?;
         if let Some(&ty) = self.env.inferred.borrow().get(&(context, canonical)) {
-            return Ok(self.env.shifted(ty, unused)?);
+            return self.env.shifted(ty, unused);
         }
         let solving = std::mem::replace(&mut self.solving, false);
         let result = self.infer_framed(term);

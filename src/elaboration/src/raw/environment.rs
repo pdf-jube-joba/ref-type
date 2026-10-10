@@ -1818,7 +1818,7 @@ impl CrateEnv {
         });
         let id = RemappingId(self.remappings.len());
         self.remappings.push(remapping);
-        if self.remappings.len() % 1024 == 0
+        if self.remappings.len().is_multiple_of(1024)
             && std::env::var_os("REF_TYPE_PROFILE_REMAPPINGS").is_some()
         {
             let mut capacities = [0usize; 4];
