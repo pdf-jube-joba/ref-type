@@ -1,5 +1,6 @@
 mod progress;
 
+use anyhow::Context;
 use clap::Parser;
 use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
 
@@ -36,6 +37,9 @@ struct Args {
     /// 進捗バーと module ごとの所要時間を表示しない
     #[arg(long)]
     no_progress: bool,
+    /// 詳細ログをリダイレクトしたまま、進捗バーを制御端末 (/dev/tty) に表示する
+    #[arg(long, conflicts_with_all = ["no_progress", "parse_only"])]
+    progress_tty: bool,
     /// キャッシュ保存先の中身を削除してから処理する
     #[arg(long)]
     clear_cache: bool,
@@ -67,14 +71,25 @@ fn main() -> anyhow::Result<()> {
     };
     let cost_session = sema::timing::costs::Session::start();
     init_tracing(args.trace)?;
-    let live = !args.no_progress
+    let automatic_progress = !args.no_progress
         && !args.parse_only
         && !args.trace
         && std::io::stderr().is_terminal()
         && std::env::var_os("RUST_LOG").is_none()
         && !std::env::vars_os()
             .any(|(name, _)| name.to_string_lossy().starts_with("REF_TYPE_PROFILE_"));
-    let mut display = progress::Display::new(live);
+    let live = args.progress_tty || automatic_progress;
+    let progress_output: Box<dyn std::io::Write + Send> = if args.progress_tty {
+        Box::new(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open("/dev/tty")
+                .context("--progress-tty requires a controlling terminal (/dev/tty)")?,
+        )
+    } else {
+        Box::new(std::io::stderr())
+    };
+    let mut display = progress::Display::new(live, progress_output);
     let result = run_path(&args, &mut display);
     display.finish(
         result
@@ -95,7 +110,7 @@ fn main() -> anyhow::Result<()> {
                     sema::ProgressAction::Check => "check",
                     sema::ProgressAction::Skip => "skip",
                 };
-                if !live {
+                if !live || args.progress_tty {
                     eprintln!(
                         "{action} {} ({:.9}s)",
                         progress.path.join("."),

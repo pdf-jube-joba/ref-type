@@ -2,7 +2,7 @@ use sema::{ProgressAction, ProgressEvent, ProgressPhase, ProgressPlan};
 use std::{
     cell::RefCell,
     collections::BTreeMap,
-    io::{self, Write},
+    io::Write,
     sync::{Arc, Mutex, mpsc},
     thread::{self, JoinHandle},
     time::{Duration, Instant},
@@ -12,14 +12,9 @@ thread_local! {
     static ACTIVE: RefCell<Option<Active>> = const { RefCell::new(None) };
 }
 
-enum Update {
-    Refresh,
-    Stop,
-}
-
 struct Active {
     state: Arc<Mutex<State>>,
-    wake: mpsc::SyncSender<Update>,
+    profile: bool,
 }
 
 struct State {
@@ -105,6 +100,47 @@ impl State {
         let prefix = format!("{spinner} {phase} [{bar}] {complete}/{total} ({elapsed:.1}s)");
         truncate(&format!("{prefix} {target}"), width)
     }
+
+    fn profile(&self, event: &ProgressEvent) -> String {
+        let package = match event {
+            ProgressEvent::ModuleStarted(path) | ProgressEvent::ModuleFinished { path, .. } => self
+                .plan
+                .as_ref()
+                .zip(path.first())
+                .map(|(plan, package)| {
+                    let total = plan
+                        .modules
+                        .iter()
+                        .filter(|m| m.path.first() == Some(package))
+                        .count();
+                    let done = self
+                        .completed
+                        .keys()
+                        .filter(|p| p.first() == Some(package))
+                        .count();
+                    format!(" package_completed={done}/{total}")
+                })
+                .unwrap_or_default(),
+            _ => String::new(),
+        };
+        let detail = match event {
+            ProgressEvent::Phase(phase) => format!("phase={phase:?}"),
+            ProgressEvent::Planned(_) => "event=planned".into(),
+            ProgressEvent::ModuleStarted(path) => format!("event=start module={}", path.join(".")),
+            ProgressEvent::ModuleFinished { path, action } => format!(
+                "event=complete action={action:?} module={} module_seconds={:.6}",
+                path.join("."),
+                sema::timing::elapsed(path).as_secs_f64(),
+            ),
+            ProgressEvent::Finished { success } => format!("event=finished success={success}"),
+        };
+        format!(
+            "progress elapsed_seconds={:.3} completed={}/{} {detail}{package}",
+            self.started.elapsed().as_secs_f64(),
+            self.completed.len(),
+            self.plan.as_ref().map_or(0, |plan| plan.modules.len()),
+        )
+    }
 }
 
 fn truncate(line: &str, width: usize) -> String {
@@ -121,32 +157,42 @@ fn truncate(line: &str, width: usize) -> String {
 pub fn receive(event: &ProgressEvent) {
     ACTIVE.with_borrow(|active| {
         if let Some(active) = active {
-            active.state.lock().unwrap().update(event);
-            let _ = active.wake.try_send(Update::Refresh);
+            let mut state = active.state.lock().unwrap();
+            state.update(event);
+            if active.profile {
+                eprintln!("{}", state.profile(event));
+            }
         }
     });
 }
 
-/// Own the transient stderr line and stop its worker before diagnostics are printed.
+/// Own the transient terminal line and stop its worker before diagnostics are printed.
 pub struct Display {
     enabled: bool,
+    profile: bool,
     state: Arc<Mutex<State>>,
-    wake: mpsc::SyncSender<Update>,
+    wake: mpsc::SyncSender<()>,
     worker: Option<JoinHandle<()>>,
+    output: Arc<Mutex<Box<dyn Write + Send>>>,
 }
 
 impl Display {
-    pub fn new(enabled: bool) -> Self {
+    pub fn new(enabled: bool, output: Box<dyn Write + Send>) -> Self {
         let state = Arc::new(Mutex::new(State::new()));
+        let output = Arc::new(Mutex::new(output));
         let (wake, updates) = mpsc::sync_channel(1);
-        let worker = enabled.then(|| {
+        let profile = std::env::var_os("REF_TYPE_PROFILE_PROGRESS").is_some();
+        if enabled || profile {
             ACTIVE.with_borrow_mut(|active| {
                 *active = Some(Active {
                     state: state.clone(),
-                    wake: wake.clone(),
+                    profile,
                 });
             });
+        }
+        let worker = enabled.then(|| {
             let state = state.clone();
+            let output = output.clone();
             let width = std::env::var("COLUMNS")
                 .ok()
                 .and_then(|value| value.parse::<usize>().ok())
@@ -157,38 +203,42 @@ impl Display {
                 let mut tick = 0;
                 loop {
                     let line = state.lock().unwrap().render(tick, width);
-                    let mut stderr = io::stderr().lock();
-                    let _ = write!(stderr, "\r\x1b[2K{line}");
-                    let _ = stderr.flush();
-                    drop(stderr);
+                    let mut writer = output.lock().unwrap();
+                    let _ = write!(writer, "\r\x1b[2K{line}");
+                    let _ = writer.flush();
+                    drop(writer);
                     tick += 1;
                     match updates.recv_timeout(Duration::from_millis(100)) {
-                        Ok(Update::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
-                        Ok(Update::Refresh) | Err(mpsc::RecvTimeoutError::Timeout) => {}
+                        Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                        Err(mpsc::RecvTimeoutError::Timeout) => {}
                     }
                 }
             })
         });
         Self {
             enabled,
+            profile,
             state,
             wake,
             worker,
+            output,
         }
     }
 
     pub fn enabled(&self) -> bool {
-        self.enabled
+        self.enabled || self.profile
     }
 
     fn stop(&mut self) -> bool {
+        ACTIVE.with_borrow_mut(|active| *active = None);
         let Some(worker) = self.worker.take() else {
             return false;
         };
-        ACTIVE.with_borrow_mut(|active| *active = None);
-        let _ = self.wake.send(Update::Stop);
+        let _ = self.wake.send(());
         let _ = worker.join();
-        let _ = write!(io::stderr().lock(), "\r\x1b[2K");
+        let mut writer = self.output.lock().unwrap();
+        let _ = write!(writer, "\r\x1b[2K");
+        let _ = writer.flush();
         true
     }
 
@@ -210,10 +260,13 @@ impl Display {
                 plan.modules.len()
             )
         });
-        eprintln!(
+        let mut writer = self.output.lock().unwrap();
+        let _ = writeln!(
+            writer,
             "{status}{count} ({:.3}s)",
             state.started.elapsed().as_secs_f64()
         );
+        let _ = writer.flush();
     }
 }
 

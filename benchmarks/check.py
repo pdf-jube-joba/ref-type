@@ -68,8 +68,11 @@ def main():
                         status_text = Path(f"/proc/{process.pid}/status").read_text()
                         rss = next(int(line.split()[1]) for line in status_text.splitlines()
                                    if line.startswith("VmRSS:"))
+                        stat = Path(f"/proc/{process.pid}/stat").read_text().rsplit(")", 1)[1].split()
+                        cpu_seconds = (int(stat[11]) + int(stat[12])) / os.sysconf("SC_CLK_TCK")
                         print(json.dumps({"elapsed_seconds": round(now - started, 1),
-                                          "current_rss_kib": rss}), flush=True)
+                                          "current_rss_kib": rss,
+                                          "cpu_seconds": round(cpu_seconds, 2)}), flush=True)
                     except (FileNotFoundError, StopIteration):
                         pass
                     last_progress = now
@@ -83,6 +86,8 @@ def main():
         "command": command,
         "seconds": round(time.monotonic() - started, 3),
         "peak_rss_kib": usage.ru_maxrss,
+        "user_seconds": round(usage.ru_utime, 3),
+        "system_seconds": round(usage.ru_stime, 3),
         "address_space_mib": args.memory_mib,
         "status": process.returncode,
         "timeout": timed_out,

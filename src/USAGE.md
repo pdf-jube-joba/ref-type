@@ -33,6 +33,7 @@ std = { path = "../std" }
 | `--full-check` | 選択した範囲を再検証し、検証済みの結果でキャッシュを更新 |
 | `--full-check-local` | 入口パッケージの選択した範囲を再検証し、依存先は自身のソースと manifest が一致するキャッシュを再利用 |
 | `--no-progress` | 進捗バーと所要時間の表示を抑制 |
+| `--progress-tty` | ログ出力先と別に、制御端末 (`/dev/tty`) に進捗バーを表示 |
 | `--cache-dir PATH` | キャッシュ保存先を変更 |
 | `--clear-cache` | 保存先の中身を削除してから処理 |
 | `--cache-stats` | 解析・検査・再利用・保存の件数を表示 |
@@ -72,7 +73,9 @@ package キャッシュには名前解決の状態も含まれ、依存先が一
 総数にはパッケージ直下の宣言を持つルート module と子 module を含める。
 読み込み・依存解析・キャッシュ照合・名前解決・環境復元・検査・保存の段階も表示する。
 進捗は module 数を表し、残り時間の推定ではない。
+端末の描画は毎秒最大10回に制限する。
 標準エラーをファイルへ出力する場合や、`--trace`・`RUST_LOG`・`REF_TYPE_PROFILE_*` によるログを有効にした場合は、module ごとの `check` / `skip` と所要秒数を表示する。
+`--progress-tty` を指定すると、これらのログを残しながら制御端末に進捗バーを表示する。
 module ごとの秒数は読み込み・構文解析・名前解決と展開・検査・解析情報の収集・検査結果のキャッシュ処理を合計した実測の経過時間であり、処理の終了時に表示する。
 子 module や依存 module の時間は、その module 自身に計上する。
 生成された内部 module の時間は、元のソース module に計上する。
@@ -116,6 +119,7 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 | `REF_TYPE_PROFILE_LOWERING` | kernel 定義への変換・登録時間 |
 | `REF_TYPE_PROFILE_PHASES=1` | 各処理段階の時間と RSS |
 | `REF_TYPE_PROFILE_MODULES=1` | module の読み込み・具体化・復旧 |
+| `REF_TYPE_PROFILE_PROGRESS=1` | 処理段階、module の開始・完了、完了数と経過秒数を随時出力 |
 | `REF_TYPE_PROFILE_NAMESPACES=1` | import の名前空間と ID 対応表の件数 |
 | `REF_TYPE_PROFILE_DIAGNOSTICS=1` | 診断生成・表示の時間と RSS |
 | `REF_TYPE_PROFILE_ENVIRONMENTS=1` | checkpoint のキー・復元位置・保存サイズ |
@@ -137,6 +141,44 @@ cost 計測中は、その変換で生じた kernel エラーの種類ごとに�
 `REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先される。
 簡潔な診断では最初のエラーで検査を停止する。
 時間とメモリの上限を付けた計測には [check.py](../benchmarks/check.py) を使える。
+次の実行は空の専用キャッシュを作り、キャッシュ保存を含む初回検査を計測する。
+
+```sh
+cargo build -p cli --locked
+REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
+  python3 benchmarks/check.py libs/homological_algebra \
+  --cache-dir "$(mktemp -d /tmp/ref-type-profile.XXXXXX)" \
+  --seconds 180 --memory-mib 3072 --progress-seconds 15 \
+  --log benchmarks/check.log --result benchmarks/check.json
+```
+
+`progress` 行と宣言の `checking` 行は処理の途中にも書き出すため、中断後も最後に開始した処理を追える。
+`completed` は完了数であり、`event=start` の module の通し番号ではない。
+`package_completed` は同じパッケージ内の完了数を表す。
+`event=complete` の `module_seconds` はその時点までの累積値で、後続の解析情報収集やキャッシュ保存を含む最終集計とは異なる。
+`REF_TYPE_PROFILE_DECLARATIONS` には名前の一部を指定して出力対象を絞れる。
+詳細ログをファイルに保存しながら進捗バーを表示する場合は、制御端末のあるシェルから次のように実行する。
+
+```sh
+REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
+  /usr/bin/time -v -o benchmarks/homological-memory.log \
+  target/debug/cli libs/homological_algebra --progress-tty \
+  --cache-dir "$(mktemp -d /tmp/ref-type-profile.XXXXXX)" \
+  > benchmarks/homological.log 2>&1
+```
+
+module・宣言の途中ログと完了した宣言の所要時間は `homological.log` に、実行全体の最大 RSS などは `homological-memory.log` に残る。
+Ctrl+C で検査を中断でき、中断前に出力された途中ログはファイルに残る。
+計測スクリプトは途中の RSS と CPU 時間、終了時の最大 RSS・ユーザー／システム CPU 時間を記録する。
+型検査前に package ごとの検査完了順を調べる場合は、resolver の計測用プログラムを使える。
+
+```sh
+cargo run -p resolve --example resolve-bench -- libs/homological_algebra --package-order \
+  > benchmarks/module-order.log
+```
+
+`package_complete` 番目の module と、その完了直後に検査する `next_module` を表示する。
+この順序はキャッシュ省略と型エラーからの復旧がない場合の予定であり、実測時間は通常の検査ログで確認する。
 既存の測定条件と結果は [results.json](../benchmarks/results.json) にある。
 
 ## 処理系のテスト

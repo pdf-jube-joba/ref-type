@@ -922,6 +922,54 @@ fn progress_lines(output: &Output) -> Vec<String> {
 }
 
 #[test]
+fn progress_profiles_report_modules_in_piped_output_and_cached_runs() {
+    let fixture = FixtureDirectory::new();
+    let root = dependency_chain(&fixture);
+    for cached in [false, true] {
+        let output = run_ref_file_with_environment(
+            &fixture.0,
+            &root,
+            &[],
+            PROCESS_TIMEOUT,
+            &[("REF_TYPE_PROFILE_PROGRESS", "1")],
+        )
+        .unwrap();
+        assert!(output.status.success(), "{}", output_details(&output));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("event=planned"), "{stderr}");
+        assert!(stderr.contains("event=finished success=true"), "{stderr}");
+        let action = if cached { "Skip" } else { "Check" };
+        for module in ["a.Base", "b.Bridge", "c.Client", "c.Independent.Child"] {
+            assert!(
+                stderr.contains(&format!(
+                    "event=complete action={action} module={module} module_seconds="
+                )),
+                "{stderr}"
+            );
+            if !cached {
+                let start = stderr
+                    .find(&format!("event=start module={module} package_completed="))
+                    .unwrap();
+                let end = stderr
+                    .find(&format!("event=complete action=Check module={module} "))
+                    .unwrap();
+                assert!(start < end, "{stderr}");
+            }
+        }
+        let finished = stderr.find("event=finished").unwrap();
+        let summary = stderr
+            .find(if cached {
+                "skip a.Base ("
+            } else {
+                "check a.Base ("
+            })
+            .unwrap();
+        assert!(finished < summary, "{stderr}");
+        assert!(!stderr.contains('\r'), "{stderr}");
+    }
+}
+
+#[test]
 fn module_progress_reports_checks_skips_children_and_seconds_in_every_mode() {
     let fixture = FixtureDirectory::new();
     let root = dependency_chain(&fixture);
