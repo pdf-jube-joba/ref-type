@@ -146,7 +146,7 @@ extend_enum!(ModuleItem {
     ChildModule { module },
     MathMacro { name, before, after },
     UserMacro { name, before, after },
-    UseMacro { import_name, macro_name },
+    UseMacro { path, macro_name, name },
     Eval { exp },
     Normalize { exp },
     ValueTypeCheck { ty },
@@ -298,7 +298,8 @@ extend_enum!(SExp {
     ExistsIntro { element, set },
     SubsetElim { element, subset, superset },
     IdRefl { element },
-    IdElim { left, right, var, ty, predicate, base, equality },
+    IdElim { left, right, var, ty, family, base, equality },
+    TransportEq { var, ty, index, family, base },
     AxiomSetExt { left, right, left_to_right, right_to_left },
     AxiomFunExt { left, right, pointwise },
     AxiomClassicalIndefiniteChoice { domain, family, inhabited },
@@ -306,8 +307,8 @@ extend_enum!(SExp {
     Block(value0),
     Program(value0),
 } special {
-    Self::MathMacro { tokens } => hir::SExp::MathMacro { tokens: extend(tokens), scope: None, max_order: None, depth: 0 },
-    Self::NamedMacro { name, tokens } => hir::SExp::NamedMacro { name: extend(name), tokens: extend(tokens), scope: None, max_order: None, depth: 0 }
+    Self::MathMacro { tokens } => hir::SExp::MathMacro { tokens: extend(tokens), scope: None, depth: 0 },
+    Self::NamedMacro { name, tokens } => hir::SExp::NamedMacro { name: extend(name), tokens: extend(tokens), scope: None, depth: 0 }
 });
 
 extend_struct!(Block { statements, result });

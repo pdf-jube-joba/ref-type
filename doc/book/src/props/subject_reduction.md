@@ -268,3 +268,14 @@ core の無矛盾性は、別の[型コードモデル](coded_model.md)と
 通常の PTS については [Siles–Herbelin, Pure Type System conversion is always typable](https://doi.org/10.1017/S0956796812000044)
 がこの対応を証明している。しかし本体系の subset・Take・Acc・run は PTS の規則ではないため、
 その定理を直接適用して Semantic-step-plus を証明済みとはできない。
+
+## Transport の compatible reduction
+
+transport の head を保つ各 step について、generation で回収した premise に導出帰納法を使う。
+\(A\) の step は context-conversion により族の局所文脈へ移す。
+\(a\) の step では \(u\) の型を \(B_a\) から \(B_{a'}\) へ conversion し、等式 premise を命題の conversion で移す。
+\(b\) の step では等式 premise を移し、結果型 \(B_{b'}\) から \(B_b\) へ conversion する。
+\(B\) の step は \(x\) の下での帰納法と代入で保存される reduction により、始点の型と終点の型の双方へ移す。
+\(u\) の step はその typing premise に帰納法を適用する。
+新しい形成条件のもとで transport の型規則を再適用し、必要な結果型の conversion を行う。
+恒等則の左辺の compatible step も同じ typing と、簡約された \(u\) に対する恒等則および命題の conversion で扱う。

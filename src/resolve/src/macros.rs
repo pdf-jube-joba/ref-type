@@ -11,11 +11,38 @@ pub enum MacroKind {
 
 #[derive(Debug, Clone)]
 pub struct MacroDefinition {
-    pub name: Identifier,
+    pub id: MacroDefinitionId,
     pub kind: MacroKind,
     pub pattern: Vec<MacroSeqAtom>,
     pub template: SExp,
-    pub declaration_order: u64,
+    pub definition_scope: ModuleId,
+    pub definition_name: String,
+    pub prepared: bool,
+    pub location: Option<SourceLocation>,
+}
+
+/// Definition identity is preserved across aliases and specializations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MacroDefinitionId(pub u64);
+
+#[derive(Debug, Clone)]
+pub struct MacroBinding {
+    pub name: Identifier,
+    pub definition: std::sync::Arc<MacroDefinition>,
+    pub instance: ModuleId,
+    pub declaration_order: (usize, usize),
+    pub introduction_location: Option<SourceLocation>,
+}
+impl std::ops::Deref for MacroBinding {
+    type Target = MacroDefinition;
+    fn deref(&self) -> &MacroDefinition {
+        &self.definition
+    }
+}
+impl std::ops::DerefMut for MacroBinding {
+    fn deref_mut(&mut self) -> &mut MacroDefinition {
+        std::sync::Arc::make_mut(&mut self.definition)
+    }
 }
 
 pub(crate) use crate::error::CaptureKind;
@@ -728,15 +755,22 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             existence,
             uniqueness,
         } => walk_many_mut([set, existence, uniqueness], action),
+        SExp::TransportEq {
+            ty,
+            index,
+            family,
+            base,
+            ..
+        } => walk_many_mut([ty, index, family, base], action),
         SExp::IdElim {
             left,
             right,
             ty,
-            predicate,
+            family,
             base,
             equality,
             ..
-        } => walk_many_mut([left, right, ty, predicate, base, equality], action),
+        } => walk_many_mut([left, right, ty, family, base, equality], action),
         SExp::AxiomSetExt {
             left,
             right,

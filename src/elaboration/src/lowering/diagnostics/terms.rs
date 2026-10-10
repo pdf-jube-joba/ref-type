@@ -221,15 +221,32 @@ impl Renderer<'_> {
                 subset,
                 superset,
             } => self.call("subset_elim", &[(*element), (*subset), (*superset)]),
+            TransportEq {
+                var,
+                ty,
+                index,
+                family,
+                base,
+            } => {
+                let index = self.expression(*index, 0);
+                let ty = self.expression(*ty, 0);
+                let name = self.bind(*var);
+                let family = self.expression(*family, 0);
+                self.locals.pop();
+                let base = self.expression(*base, 0);
+                Term::atom(format!(
+                    "\\transporteq {index} \\with {name}: {ty} => {family} \\by {{ base: {base} }}"
+                ))
+            }
             IdElim {
                 var,
                 left,
                 right,
                 ty,
-                predicate,
+                family,
                 base,
                 equality,
-            } => self.id_elim(*var, *left, *right, *ty, *predicate, *base, *equality),
+            } => self.id_elim(*var, *left, *right, *ty, *family, *base, *equality),
             TakeProp {
                 domain,
                 proposition,

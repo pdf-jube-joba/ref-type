@@ -5,7 +5,7 @@ use crate::{
     bindings::{self, LocalScope},
     hir::*,
     lower,
-    macros::{self, MacroDefinition, MacroKind},
+    macros::{self, MacroBinding, MacroDefinition, MacroDefinitionId, MacroKind},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
@@ -92,8 +92,8 @@ struct Scope {
     names: Arc<FxHashMap<String, BindingId>>,
     imports: FxHashMap<String, ModuleId>,
     import_ids: FxHashMap<String, BindingId>,
-    macros: Vec<MacroDefinition>,
-    used: Vec<MacroDefinition>,
+    macros: Vec<MacroBinding>,
+    used: Vec<MacroBinding>,
     remapping: ModuleMap,
     substitutions: Arc<HashMap<BindingId, Arc<SExp>>>,
 }
@@ -115,6 +115,10 @@ impl Scope {
         }
     }
 }
+
+#[path = "macro_scopes.rs"]
+mod macro_scopes;
+use macro_scopes::{MacroWork, work_macro_names};
 
 #[path = "structures.rs"]
 mod structures;
@@ -156,6 +160,11 @@ struct Resolver {
     declaration_scope: Option<u64>,
     public_declarations: HashSet<String>,
     next_declaration_scope: u64,
+    work: FxHashMap<ModuleId, MacroWork>,
+    dependency_stack: Vec<(ModuleId, usize)>,
+    declaration_counts: FxHashMap<ModuleId, usize>,
+    pending_macro_import: Option<ModuleItem>,
+    child_term_scopes: FxHashMap<ModuleId, Scope>,
 }
 
 pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic> {
@@ -525,9 +534,19 @@ impl Resolver {
         match self.states.get(&id) {
             Some(2) => return Ok(()),
             Some(1) => {
-                return Err(self.error(crate::error::Error::Invalid(
-                    crate::error::Invalid::CyclicModuleImportDependency,
-                )));
+                if !self.dependency_stack.iter().any(|&(module, index)| {
+                    self.work
+                        .get(&module)
+                        .and_then(|work| work.items.get(index))
+                        .is_some_and(|item| matches!(item, ModuleItem::UseMacro { .. }))
+                }) {
+                    return Err(self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::CyclicModuleImportDependency,
+                    )));
+                }
+                let mut path = self.macro_dependency_path();
+                path.push(format!("{}:module", self.path(id).join(".")));
+                return Err(self.error(crate::error::Error::MacroDependencyCycle { path }));
             }
             _ => {}
         }
@@ -540,6 +559,20 @@ impl Resolver {
                 return Ok(());
             }
         }
+        let parent_terms = parent.and_then(|parent| {
+            self.child_term_scopes.get(&id).cloned().map(|snapshot| {
+                let scope = &mut self.scopes[parent.0 as usize];
+                let saved = (
+                    scope.names.clone(),
+                    scope.imports.clone(),
+                    scope.import_ids.clone(),
+                );
+                scope.names = snapshot.names;
+                scope.imports = snapshot.imports;
+                scope.import_ids = snapshot.import_ids;
+                (parent, saved)
+            })
+        });
         self.states.insert(id, 1);
         let previous = self.current;
         let declaration_scope = self.declaration_scope.take();
@@ -570,56 +603,26 @@ impl Resolver {
                 crate::error::Invalid::ExternalModuleWasNotLoaded,
             )));
         };
-        let namespace = items.iter().all(|item| {
-            matches!(
-                item,
-                ModuleItem::ChildModule { .. }
-                    | ModuleItem::MathMacro { .. }
-                    | ModuleItem::UserMacro { .. }
-                    | ModuleItem::UseMacro { .. }
-            )
-        });
-        let mut expanded = Vec::new();
-        let mut expanded_spans = Vec::new();
-        for (index, item) in std::mem::take(items).into_iter().enumerate() {
-            if namespace && matches!(item, ModuleItem::ChildModule { .. }) {
-                expanded.push(item);
-                expanded_spans.push(
-                    module
-                        .declaration_spans
-                        .get(index)
-                        .copied()
-                        .unwrap_or(module.span),
-                );
-                continue;
-            }
-            self.location = module.source.as_ref().map(|source| SourceLocation {
-                source: source.clone(),
-                span: module
-                    .declaration_spans
-                    .get(index)
-                    .copied()
-                    .unwrap_or(module.span),
-            });
-            let start = expanded.len();
-            self.scoped_item(item, &mut expanded)?;
-            expanded_spans.extend(std::iter::repeat_n(
-                module
-                    .declaration_spans
-                    .get(index)
-                    .copied()
-                    .unwrap_or(module.span),
-                expanded.len() - start,
-            ));
+        self.collect_macro_scope(id, items, &module.declaration_spans, module.source.clone())?;
+        for index in 0..items.len() {
+            self.resolve_macro_item(id, index)?;
         }
-        *items = expanded;
-        module.declaration_spans = expanded_spans;
+        self.record_macro_template_references(id);
+        let work = self.work.remove(&id).expect("module work");
+        *items = work.output;
+        module.declaration_spans = work.output_spans;
         self.output.insert(id, module);
         self.states.insert(id, 2);
         self.current = previous;
         self.declaration_scope = declaration_scope;
         self.public_declarations = public_declarations;
         self.location = location;
+        if let Some((parent, (names, imports, import_ids))) = parent_terms {
+            let scope = &mut self.scopes[parent.0 as usize];
+            scope.names = names;
+            scope.imports = imports;
+            scope.import_ids = import_ids;
+        }
         Ok(())
     }
     fn item(&mut self, item: &mut ModuleItem) -> Result<(), Diagnostic> {
@@ -712,7 +715,10 @@ impl Resolver {
                     locals.push(LocalScope::from_iter([(name.0.clone(), name.clone())]));
                 }
             }
-            ModuleItem::ChildModule { module } => self.module(module.id)?,
+            ModuleItem::ChildModule { module } => {
+                self.child_term_scopes
+                    .insert(module.id, self.scopes[self.current.0 as usize].clone());
+            }
             ModuleItem::Import {
                 path,
                 import_name,
@@ -729,37 +735,57 @@ impl Resolver {
                 after,
             } => self.register_macro(name, MacroKind::Named, before, after)?,
             ModuleItem::UseMacro {
-                import_name,
+                path,
                 macro_name,
+                name,
             } => {
-                let target = self
-                    .import(self.current, import_name.as_str())
-                    .ok_or_else(|| {
-                        self.error(crate::error::Error::UnknownImport {
-                            name: (import_name.as_str()).to_owned(),
-                        })
-                    })?;
-                let definition = self.scopes[target.0 as usize]
+                let mut internal = Identifier(format!("<macro-use:{}>", self.next_binding));
+                let mut checks = Vec::new();
+                let alias = if let ModuleInstantiatePath::FromImport { import_name, calls } = path {
+                    if calls.is_empty() {
+                        self.import(self.current, import_name.as_str())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let target = if let Some(target) = alias {
+                    target
+                } else {
+                    self.resolve_import(path, &mut internal, &mut checks)?;
+                    self.imports[&internal.1.unwrap()].target
+                };
+                let mut definition = self.scopes[target.0 as usize]
                     .macros
                     .iter()
-                    .find(|definition| definition.name.as_str() == macro_name.as_str())
+                    .chain(&self.scopes[target.0 as usize].used)
+                    .find(|d| d.name.as_str() == macro_name.as_str())
                     .cloned()
                     .ok_or_else(|| {
                         self.error(crate::error::Error::UnknownImportedMacro {
-                            module: (import_name.as_str()).to_owned(),
-                            name: (macro_name.as_str()).to_owned(),
+                            module: internal.0.clone(),
+                            name: macro_name.0.clone(),
                         })
                     })?;
-                if self
-                    .visible(self.current)
-                    .iter()
-                    .any(|d| d.name.as_str() == macro_name.as_str())
-                {
-                    return Err(self.error(crate::error::Error::DuplicateMacro {
-                        name: (macro_name.as_str()).to_owned(),
-                    }));
-                }
+                definition.name = name.clone();
+                definition.instance = target;
+                definition.introduction_location = self.location.clone();
+                definition.declaration_order = (
+                    self.location.as_ref().map_or(0, |l| l.span.start),
+                    self.dependency_stack
+                        .iter()
+                        .rev()
+                        .find_map(|&(module, index)| (module == self.current).then_some(index))
+                        .unwrap_or(0),
+                );
                 self.scopes[self.current.0 as usize].used.push(definition);
+                // Elaboration checks and instantiates this private import normally.
+                self.pending_macro_import = alias.is_none().then(|| ModuleItem::Import {
+                    path: path.clone(),
+                    import_name: internal,
+                    checks,
+                });
             }
             ModuleItem::Eval { exp }
             | ModuleItem::Normalize { exp }
@@ -776,12 +802,18 @@ impl Resolver {
         }
         Ok(())
     }
-    fn visible(&self, mut module: ModuleId) -> Vec<&MacroDefinition> {
+    fn visible(&self, mut module: ModuleId) -> Vec<&MacroBinding> {
         let mut result = Vec::new();
+        let mut seen = HashSet::new();
         loop {
             let scope = &self.scopes[module.0 as usize];
-            result.extend(&scope.macros);
-            result.extend(&scope.used);
+            result.extend(
+                scope
+                    .macros
+                    .iter()
+                    .chain(&scope.used)
+                    .filter(|d| seen.insert(d.name.0.clone())),
+            );
             let Some(parent) = scope.parent else { break };
             module = parent;
         }
@@ -813,9 +845,15 @@ impl Resolver {
             true
         });
         expansion?;
-        if self
-            .visible(self.current)
+        if self.scopes[self.current.0 as usize]
+            .used
             .iter()
+            .chain(
+                self.scopes[self.current.0 as usize]
+                    .macros
+                    .iter()
+                    .filter(|d| d.prepared),
+            )
             .any(|d| d.name.as_str() == name.as_str())
         {
             return Err(self.error(crate::error::Error::DuplicateMacro {
@@ -842,7 +880,15 @@ impl Resolver {
         }
         macros::validate_template(template, &captures).map_err(|e| self.error(e))?;
         macros::rename_template_binders(template, self.fresh_hygiene());
-        let order = self.next_macro;
+        let order = self.scopes[self.current.0 as usize]
+            .macros
+            .iter()
+            .find(|d| d.name.as_str() == name.as_str())
+            .map(|d| d.declaration_order)
+            .unwrap_or((
+                self.location.as_ref().map_or(0, |l| l.span.start),
+                self.next_macro as usize,
+            ));
         self.next_macro += 1;
         self.prepare_module_argument_bindings(template, &mut Vec::new());
         self.normalize_structures(template, &[])?;
@@ -852,14 +898,8 @@ impl Resolver {
                 return;
             }
             match node {
-                SExp::MathMacro {
-                    scope, max_order, ..
-                }
-                | SExp::NamedMacro {
-                    scope, max_order, ..
-                } => {
+                SExp::MathMacro { scope, .. } | SExp::NamedMacro { scope, .. } => {
                     *scope = Some(self.current);
-                    *max_order = Some(order);
                 }
                 SExp::ProgramValueReference { access }
                 | SExp::AccessPath { access, .. }
@@ -875,13 +915,25 @@ impl Resolver {
         });
         result?;
         let mut result = Ok(());
-        let visible: HashSet<_> = self
+        let mut visible: HashSet<_> = self
             .visible(self.current)
             .iter()
             .filter(|d| d.kind == MacroKind::Named)
             .map(|d| d.name.0.clone())
             .collect();
+        if let Some(work) = self.work.get(&self.current) {
+            visible.extend(work_macro_names(work));
+        }
+        let definitions: HashMap<_, _> = self
+            .visible(self.current)
+            .into_iter()
+            .filter(|d| d.kind == MacroKind::Named)
+            .map(|d| (d.name.0.clone(), d.id))
+            .collect();
         macros::walk_sexp_mut(template, &mut |node| {
+            if let SExp::NamedMacro { name: nested, .. } = node {
+                nested.1 = definitions.get(nested.as_str()).map(|id| BindingId(id.0));
+            }
             if let SExp::NamedMacro { name: nested, .. } = node
                 && !visible.contains(nested.as_str())
                 && !(kind == MacroKind::Named && nested.as_str() == name.as_str())
@@ -892,18 +944,35 @@ impl Resolver {
             }
         });
         result?;
+        let definition_id = self.scopes[self.current.0 as usize]
+            .macros
+            .iter()
+            .find(|d| d.name.as_str() == name.as_str())
+            .map_or(MacroDefinitionId(self.next_macro), |d| d.id);
         self.scopes[self.current.0 as usize]
             .macros
-            .push(MacroDefinition {
+            .retain(|d| d.name.as_str() != name.as_str());
+        self.scopes[self.current.0 as usize]
+            .macros
+            .push(MacroBinding {
                 name: name.clone(),
-                kind,
-                pattern: pattern.to_vec(),
-                template: template.clone(),
+                instance: self.current,
                 declaration_order: order,
+                introduction_location: self.location.clone(),
+                definition: Arc::new(MacroDefinition {
+                    id: definition_id,
+                    kind,
+                    pattern: pattern.to_vec(),
+                    template: template.clone(),
+                    definition_scope: self.current,
+                    definition_name: name.0.clone(),
+                    prepared: true,
+                    location: self.location.clone(),
+                }),
             });
         Ok(())
     }
-    fn expand(&self, exp: &mut SExp) -> Result<(), Diagnostic> {
+    fn expand(&mut self, exp: &mut SExp) -> Result<(), Diagnostic> {
         let _cost = timing::costs::Scope::enter("resolve.macro-expansion");
         let mut result = Ok(());
         macros::walk_sexp_control(exp, &mut |node| {
@@ -923,26 +992,12 @@ impl Resolver {
                         tokens,
                         scope,
                         depth,
-                        max_order,
-                    } => self.expand_one(
-                        scope.unwrap_or(self.current),
-                        Some(name),
-                        tokens,
-                        *depth,
-                        *max_order,
-                    ),
+                    } => self.expand_one(scope.unwrap_or(self.current), Some(name), tokens, *depth),
                     SExp::MathMacro {
                         tokens,
                         scope,
                         depth,
-                        max_order,
-                    } => self.expand_one(
-                        scope.unwrap_or(self.current),
-                        None,
-                        tokens,
-                        *depth,
-                        *max_order,
-                    ),
+                    } => self.expand_one(scope.unwrap_or(self.current), None, tokens, *depth),
                     _ => return true,
                 };
                 match next {
@@ -957,16 +1012,32 @@ impl Resolver {
         result
     }
     fn expand_one(
-        &self,
+        &mut self,
         scope: ModuleId,
         name: Option<&Identifier>,
         tokens: &[MacroExp],
         depth: u16,
-        order: Option<u64>,
     ) -> Result<SExp, Diagnostic> {
         if depth >= macros::MAX_MACRO_EXPANSION_DEPTH {
-            return Err(self.error(crate::error::Error::MacroDepthExceeded {
-                limit: macros::MAX_MACRO_EXPANSION_DEPTH as usize,
+            let definition = self.visible(scope).into_iter().find(|d| {
+                name.map_or(d.kind == MacroKind::Math, |name| {
+                    d.name.as_str() == name.as_str()
+                })
+            });
+            return Err(self.error(if let Some(definition) = definition {
+                crate::error::Error::MacroExpansionLimit {
+                    limit: macros::MAX_MACRO_EXPANSION_DEPTH as usize,
+                    name: definition.definition_name.clone(),
+                    module: self.path(definition.definition_scope).join("."),
+                    definition: definition
+                        .location
+                        .as_ref()
+                        .map_or(SourceSpan::default(), |l| l.span),
+                }
+            } else {
+                crate::error::Error::MacroDepthExceeded {
+                    limit: macros::MAX_MACRO_EXPANSION_DEPTH as usize,
+                }
             }));
         }
         let tokens = if name.is_none() {
@@ -974,7 +1045,7 @@ impl Resolver {
                 .iter()
                 .map(|token| match token {
                     MacroExp::Seq(tokens) => self
-                        .expand_one(scope, None, tokens, depth + 1, order)
+                        .expand_one(scope, None, tokens, depth + 1)
                         .map(MacroExp::RawExp),
                     token => Ok(token.clone()),
                 })
@@ -987,6 +1058,7 @@ impl Resolver {
         {
             return Ok(exp.clone());
         }
+        self.ensure_macro_bindings(scope, name)?;
         let mut candidates = self
             .visible(scope)
             .into_iter()
@@ -994,25 +1066,29 @@ impl Resolver {
                 if let Some(name) = name {
                     d.kind == MacroKind::Named
                         && d.name.as_str() == name.as_str()
-                        && order.is_none_or(|max| d.declaration_order <= max)
+                        && name.1.is_none_or(|id| d.id.0 == id.0)
                 } else {
-                    d.kind == MacroKind::Math && order.is_none_or(|max| d.declaration_order < max)
+                    d.kind == MacroKind::Math
                 }
             })
+            .cloned()
             .collect::<Vec<_>>();
         if name.is_none() {
             candidates.sort_by_key(|d| {
                 (
                     macros::first_fixed_position(&d.pattern),
+                    self.macro_distance(scope, d),
                     d.declaration_order,
                 )
             });
         }
-        for definition in candidates {
+        for mut definition in candidates {
+            self.record_macro_reference(&definition, name);
+            self.prepare_macro_definition(scope, &mut definition)?;
             let mut captures = HashMap::new();
             if macros::match_pattern(&definition.pattern, &tokens, &mut captures) {
                 return macros::instantiate_template(
-                    definition,
+                    &definition,
                     &captures,
                     depth,
                     self.fresh_hygiene(),
@@ -1024,6 +1100,11 @@ impl Resolver {
                     name: (definition.name.as_str()).to_owned(),
                 }));
             }
+        }
+        if name.is_none()
+            && let Some((module, index)) = self.active_macro_use(scope)
+        {
+            return Err(self.macro_cycle(module, index));
         }
         Err(self.error(name.map_or_else(
             || crate::error::Error::Invalid(crate::error::Invalid::NoVisibleMathMacro),
@@ -1395,9 +1476,27 @@ impl Resolver {
                 *import = remapping.get(import).copied().unwrap_or(*import);
             }
             for definition in scope.macros.iter_mut().chain(&mut scope.used) {
+                definition.instance = remapping
+                    .get(&definition.instance)
+                    .copied()
+                    .unwrap_or(definition.instance);
+                definition.definition_scope = remapping
+                    .get(&definition.definition_scope)
+                    .copied()
+                    .unwrap_or(definition.definition_scope);
                 macros::walk_sexp_control(&mut definition.template, &mut |node| {
+                    if let SExp::ProgramValueReference {
+                        access:
+                            LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
+                    } = node
+                        && let Some(argument) = access.1.and_then(|id| substitutions.get(&id))
+                    {
+                        *node = argument.clone();
+                        return false;
+                    }
                     if let SExp::AccessPath {
-                        access: LocalAccess::Resolved { access, .. },
+                        access:
+                            LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
                         parameters,
                     } = node
                         && parameters.is_empty()
@@ -1442,6 +1541,9 @@ impl Resolver {
                     | SExp::RecordTypeCtor {
                         access: LocalAccess::Resolved { module, .. },
                         ..
+                    }
+                    | SExp::ProgramValueReference {
+                        access: LocalAccess::Resolved { module, .. },
                     }
                     | SExp::IndCase {
                         path: LocalAccess::Resolved { module, .. },

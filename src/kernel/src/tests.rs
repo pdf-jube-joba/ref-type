@@ -2003,3 +2003,88 @@ fn checked_cache_distinguishes_expected_types_and_contexts() {
             .is_err()
     );
 }
+
+#[test]
+fn transport_is_neutral_and_erases_only_comparison_certificates() {
+    use crate::ids::ParameterId;
+    let mut env = Environment::new();
+    let a = env.arena();
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let carrier = a.alloc(Node::Parameter(ParameterId(100)));
+    env.register_parameter(ParameterId(100), set).unwrap();
+    let index = env.arena.alloc(Node::Parameter(ParameterId(101)));
+    env.register_parameter(ParameterId(101), carrier).unwrap();
+    let family = env.arena.alloc(Node::Product {
+        var: SymbolId::ANONYMOUS,
+        domain: carrier,
+        body: env.arena.sort(Sort::Base(BaseSort::Set(1))),
+    });
+    let f = env.arena.alloc(Node::Parameter(ParameterId(102)));
+    env.register_parameter(ParameterId(102), family).unwrap();
+    let at = env.arena.alloc(Node::App {
+        mode: Mode::Pure,
+        function: f,
+        argument: index,
+    });
+    let value = env.arena.alloc(Node::Parameter(ParameterId(103)));
+    env.register_parameter(ParameterId(103), at).unwrap();
+    let body = env.arena.alloc(Node::App {
+        mode: Mode::Pure,
+        function: f,
+        argument: env.arena.bound(0),
+    });
+    let refl = env.arena.alloc(Node::IdRefl { element: index });
+    let eq = env.arena.alloc(Node::Equal {
+        left: index,
+        right: index,
+    });
+    let other = env.arena.alloc(Node::Parameter(ParameterId(104)));
+    env.register_parameter(ParameterId(104), eq).unwrap();
+    let make = |certificate| {
+        env.arena.alloc(Node::IdElim {
+            var: SymbolId::ANONYMOUS,
+            ty: carrier,
+            left: index,
+            right: index,
+            family: body,
+            base: value,
+            equality: certificate,
+        })
+    };
+    let transport = make(refl);
+    let mut metas = MetaContext::new();
+    assert_eq!(
+        Checker::new(&env, &mut metas, vec![])
+            .infer(transport)
+            .unwrap(),
+        at
+    );
+    assert_eq!(env.erased_head(transport).unwrap(), transport);
+    assert!(!crate::reduction::convertible(&env, transport, value).unwrap());
+    assert!(crate::reduction::convertible(&env, transport, make(other)).unwrap());
+    assert_eq!(
+        metas.unify(&env, &vec![], transport, make(other)).unwrap(),
+        Outcome::Solved
+    );
+    let law = env.arena.alloc(Node::TransportEq {
+        var: SymbolId::ANONYMOUS,
+        ty: carrier,
+        index,
+        family: body,
+        base: value,
+    });
+    assert_eq!(
+        Checker::new(&env, &mut metas, vec![]).infer(law).unwrap(),
+        env.arena.alloc(Node::Equal {
+            left: transport,
+            right: value
+        })
+    );
+    let hole = metas.fresh(&env.arena, vec![], Some(eq));
+    assert!(matches!(
+        Checker::new(&env, &mut metas, vec![]).infer(make(hole)),
+        Err(Error::Unresolved { .. })
+    ));
+    // Traversal retains certificates even though conversion omits them.
+    assert!(env.arena.contains_meta(make(hole)));
+}

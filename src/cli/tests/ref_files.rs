@@ -11,10 +11,10 @@ const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
 // This project elaborates and checks the entire library. Allow enough time for
 // the debug-build process when it runs concurrently with the other test cases.
 const LIBRARY_TIMEOUT: Duration = Duration::from_secs(180);
-// The uncached topology project also checks finite-dimensional algebra and
-// quotient homotopies; its expanded dependency graph exceeds three minutes.
+// The topology project also checks finite-dimensional algebra and quotient
+// homotopies; a cold dependency cache can exceed three minutes.
 const TOPOLOGICAL_K_THEORY_TIMEOUT: Duration = Duration::from_secs(600);
-// Smooth atlas saturation checks the uncached analysis and chart libraries too.
+// Smooth atlas saturation can also check cold analysis and chart dependencies.
 const MANIFOLDS_DE_RHAM_TIMEOUT: Duration = Duration::from_secs(3600);
 static LIBRARY_CHECK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -240,7 +240,7 @@ fn topological_k_theory_foundations_examples_succeed() {
     let output = run_ref_file_with_timeout(
         &workspace,
         &path,
-        &["--no-cache"],
+        &["--full-check-local"],
         TOPOLOGICAL_K_THEORY_TIMEOUT,
     )
     .unwrap_or_else(|error| panic!("{error}"));
@@ -255,7 +255,7 @@ fn manifolds_de_rham_examples_succeed() {
     let output = run_ref_file_with_timeout(
         &workspace,
         &path,
-        &["--no-cache"],
+        &["--module", "manifolds_de_rham_tests", "--full-check-local"],
         MANIFOLDS_DE_RHAM_TIMEOUT,
     )
     .unwrap_or_else(|error| panic!("{error}"));
@@ -1359,4 +1359,38 @@ fn cost_profiles_finish_on_success_and_type_errors_without_progress_logs() {
         assert!(!stderr.contains("cost=resolve.front-binding"), "{stderr}");
         assert!(!String::from_utf8_lossy(&output.stdout).contains("cost="));
     }
+}
+
+#[test]
+fn separate_processes_restore_set_transport_with_aliased_macros() {
+    let fixture = FixtureDirectory::new();
+    let source = r"\module T(A: \Set, F: A -> \Set) {
+      \macro identity($a, $u) := \transporteq $a \with x: _ => F x \by { base: $u };
+    }
+    \module M(A: \Set, F: A -> \Set, a: A, u: F a) {
+      \definition cast: F a := \idelim a = a \with x: _ => F x \by { base: u, equality: \refl(a) };
+      \definition identity: cast = u := self!{a u};
+      \use \root.T[A := A, F := F]::identity \as self;
+    }
+    \module N(A: \Set, F: A -> \Set, a: A, u: F a) {
+      \import \root.M[A := A, F := F, a := a, u := u] \as M;
+      \definition law: M.cast = u := M.identity;
+    }";
+    let root = fixture.write("root.ref", source);
+    let cache = fixture.0.join("cache");
+    let args = ["--cache-dir", cache.to_str().unwrap(), "--cache-stats"];
+    let first = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+    assert!(first.status.success(), "{}", output_details(&first));
+    let warm = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+    assert!(warm.status.success(), "{}", output_details(&warm));
+    assert!(String::from_utf8_lossy(&warm.stderr).contains("checked_modules: 0"));
+    fixture.write(
+        "root.ref",
+        &source.replace("\\definition law:", "\\definition law2:"),
+    );
+    let restored = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+    assert!(restored.status.success(), "{}", output_details(&restored));
+    let clean = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert!(clean.status.success(), "{}", output_details(&clean));
+    assert_eq!(restored.stdout, clean.stdout);
 }

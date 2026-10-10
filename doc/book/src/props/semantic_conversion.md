@@ -331,3 +331,13 @@ H-conversion-completeness は H-step と raw な合流性を有限列に適用�
 最後の Coded-embedding だけが元の導出について帰納し、その conversion case に
 既に証明済みの H-conversion-completeness を使う。
 元の体系の健全性や TC から先行する補題へ戻る依存関係はない。
+
+## Transport の意味保存
+
+集合モデルと型コードモデルの双方で transport は入力 \(u\) と同じ値を持つ。
+型規則の等式 premise の健全性から両端点の解釈が一致し、意味的代入補題により始点の族と終点の族の解釈が一致する。
+\(u\) の typing の帰納法の結果は従って終点の族への所属も与える。
+型コードモデルではこの議論をその族のコードの decoding に適用する。
+恒等則の解釈は同じ集合値の反射的等号である。
+compatible reduction の \(A\)、\(a\)、\(b\)、\(B\) の場合は \(u\) の解釈を変えず、\(u\) の場合はその意味保存への帰納法を使う。
+検査用の等式証明を消去して比較する共通項の conversion も、両側の typing premise を保持したまま同じ解釈を与える。

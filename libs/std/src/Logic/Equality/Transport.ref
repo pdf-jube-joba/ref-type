@@ -1,0 +1,36 @@
+\definition cast(a, b: A)(value: F a)(same: a = b): F b :=
+  \idelim a = b \with x: _ => F x \by { base: value, equality: same };
+\definition identity: \forall (a: A)(value: F a)(same: a = a) -> cast a a value same = value :=
+  \fun (a: A)(value: F a)(same: a = a) =>
+    \transporteq a \with x: _ => F x \by { base: value };
+\definition composition: \forall (a, b, c: A)(value: F a)(ab: a = b)(bc: b = c) ->
+  cast b c (cast a b value ab) bc = cast a c value (trans!{{A}} a b c ab bc) :=
+  \fun (a, b, c: A)(value: F a)(ab: a = b)(bc: b = c) =>
+    (\idelim b = c \with x: _ => \forall (bx: b = x) ->
+      cast b x (cast a b value ab) bx = cast a x value (trans!{{A}} a b x ab bx)
+    \by { base: \fun (bb: b = b) => identity b (cast a b value ab) bb, equality: bc }) bc;
+\definition roundTrip: \forall (a, b: A)(value: F a)(ab: a = b) ->
+  cast b a (cast a b value ab) (sym!{{A}} a b ab) = value :=
+  \fun (a, b: A)(value: F a)(ab: a = b) => trans!{{F a}} _ _ _
+    (composition a b a value ab (sym!{{A}} a b ab))
+    (identity a value (trans!{{A}} a b a ab (sym!{{A}} a b ab)));
+\module Constant(C: \Set) {
+  \definition cast(a, b: A)(value: C)(same: a = b): C :=
+    \idelim a = b \with x: _ => C \by { base: value, equality: same };
+  \definition law: \forall (a, b: A)(value: C)(same: a = b) -> cast a b value same = value :=
+    \fun (a, b: A)(value: C)(same: a = b) =>
+      (\idelim a = b \with x: _ => \forall (ax: a = x) -> cast a x value ax = value
+      \by { base: \fun (aa: a = a) => \transporteq a \with x: _ => C \by { base: value }, equality: same }) same;
+}
+\module Natural(G: A -> \Set, f: \forall (x: A) -> F x -> G x) {
+  \definition target(a, b: A)(value: G a)(same: a = b): G b :=
+    \idelim a = b \with x: _ => G x \by { base: value, equality: same };
+  \definition law: \forall (a, b: A)(value: F a)(same: a = b) ->
+    target a b (f a value) same = f b (cast a b value same) :=
+    \fun (a, b: A)(value: F a)(same: a = b) =>
+      (\idelim a = b \with x: _ => \forall (ax: a = x) ->
+        target a x (f a value) ax = f x (cast a x value ax)
+      \by { base: \fun (aa: a = a) => trans!{{G a}} _ _ _
+        (\transporteq a \with x: _ => G x \by { base: f a value })
+        (sym!{{G a}} _ _ (congr!{{F a} {G a}} (f a) _ _ (identity a value aa))), equality: same }) same;
+}

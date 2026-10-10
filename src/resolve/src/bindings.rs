@@ -404,12 +404,27 @@ pub(crate) fn alpha_rename(
             scopes.pop();
             alpha_rename(existence, order, counter, scopes);
         }
+        SExp::TransportEq {
+            var,
+            ty,
+            index,
+            family,
+            base,
+        } => {
+            alpha_rename(ty, order, counter, scopes);
+            alpha_rename(index, order, counter, scopes);
+            let local = LocalScope::from_iter([fresh_binder(var, order, counter)]);
+            scopes.push(local);
+            alpha_rename(family, order, counter, scopes);
+            scopes.pop();
+            alpha_rename(base, order, counter, scopes);
+        }
         SExp::IdElim {
             left,
             right,
             var,
             ty,
-            predicate,
+            family,
             base,
             equality,
         } => {
@@ -418,7 +433,7 @@ pub(crate) fn alpha_rename(
             alpha_rename(ty, order, counter, scopes);
             let local = LocalScope::from_iter([fresh_binder(var, order, counter)]);
             scopes.push(local);
-            alpha_rename(predicate, order, counter, scopes);
+            alpha_rename(family, order, counter, scopes);
             scopes.pop();
             alpha_rename(base, order, counter, scopes);
             alpha_rename(equality, order, counter, scopes);

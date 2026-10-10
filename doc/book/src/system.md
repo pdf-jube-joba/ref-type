@@ -89,6 +89,7 @@ Set/Prop と Program で同じ記号を使う固有演算は、演算の tag で
 | equality | \(a=b\) |
 | existence | \(\exists A\) |
 | proof mark | \(\Proof P\) |
+| transport | \(\operatorname{transport}_{A}(a,b,x.B,u)\) |
 | choice | \(\operatorname{choice}_i(X)\) |
 | take prop | \(\Take^p_i(X,P,g)\) |
 | run step | \(\operatorname{RunStep}(A,B)\) |
@@ -298,6 +299,45 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 | id form | \(\Gamma\vdash a=b:*^p\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash a:A\)<br>\(\Gamma\vdash b:A\) | |
 | id intro | \(\Gamma\vDash a=a\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash a:A\) | |
 | id elim | \(\Gamma\vDash(\lambda_{p_i}x:A.P)@_{p_i}b\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash a:A\)<br>\(\Gamma\vdash b:A\)<br>\(\Gamma\vDash a=b\)<br>\(\Gamma,x:A\vdash P:*^p\)<br>\(\Gamma\vDash(\lambda_{p_i}x:A.P)@_{p_i}a\) | \(x\notin\operatorname{dom}(\Gamma)\) |
+
+
+#### 集合値の等式移送
+
+\(\operatorname{transport}_{A}(a,b,x.B,u)\) は \(B\) の中だけで \(x\) を束縛する。
+\(B_a:=B[x:=a]\)、\(B_b:=B[x:=b]\) とする。
+
+\[
+\frac{
+\Gamma\vdash A:*^s_i\quad\Gamma\vdash a:A\quad\Gamma\vdash b:A\quad
+\Gamma,x:A\vdash B:*^s_j\quad\Gamma\vdash u:B_a\quad\Gamma\vDash a=b
+}{\Gamma\vdash\operatorname{transport}_{A}(a,b,x.B,u):B_b}.
+\]
+
+\(i,j\) は独立である。
+同じ形成条件のもとで、自己移送の恒等則を provability として与える。
+
+\[
+\Gamma\vDash\operatorname{transport}_{A}(a,a,x.B,u)=u.
+\]
+
+両辺は共通の集合 \(B_a\) の元であり、自己移送の型付けには id intro を使う。
+等式の導出は型規則の前提であり、体系の transport 項の引数には含めない。
+移送の各引数と束縛 body は compatible reduction で簡約し、head は neutral のまま残る。
+閉じた移送も constructor へ評価されるとは限らず、恒等則は元との命題上の等式を与える。
+
+表面構文では `\idelim` の族が `\Prop` なら命題値の除去、`\Set(j)` なら集合値の移送となる。
+`\transporteq` は自己移送の恒等則を証明する。
+
+```text
+\module Transport(A: \Set, F: A -> \Set, a, b: A) {
+  \definition cast(value: F a)(same: a = b): F b :=
+    \idelim a = b \with x: _ => F x \by { base: value, equality: same };
+  \definition identity: \forall (value: F a)(same: a = a) ->
+    (\idelim a = a \with x: _ => F x \by { base: value, equality: same }) = value :=
+    \fun (value: F a)(same: a = a) =>
+      \transporteq a \with x: _ => F x \by { base: value };
+}
+```
 
 #### choice
 

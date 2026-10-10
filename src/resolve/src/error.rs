@@ -19,6 +19,14 @@ pub enum Error {
         module: String,
         name: String,
     },
+    DuplicateMacroDeclarations {
+        name: String,
+        first: syntax::syntax::SourceSpan,
+        second: syntax::syntax::SourceSpan,
+    },
+    MacroDependencyCycle {
+        path: Vec<String>,
+    },
     DuplicateMacro {
         name: String,
     },
@@ -27,6 +35,12 @@ pub enum Error {
     },
     MacroUnavailableInTemplate {
         name: String,
+    },
+    MacroExpansionLimit {
+        limit: usize,
+        name: String,
+        module: String,
+        definition: syntax::syntax::SourceSpan,
     },
     MacroDepthExceeded {
         limit: usize,
@@ -203,6 +217,20 @@ impl std::fmt::Display for Error {
             Self::UnknownImportedMacro { module, name } => {
                 write!(f, "Macro '{}.{}' was not found", module, name)
             }
+            Self::DuplicateMacroDeclarations {
+                name,
+                first,
+                second,
+            } => write!(
+                f,
+                "Duplicate macro '{name}' at {}..{} and {}..{}",
+                first.start, first.end, second.start, second.end
+            ),
+            Self::MacroDependencyCycle { path } => write!(
+                f,
+                "Cyclic macro/module instantiation dependency: {}",
+                path.join(" -> ")
+            ),
             Self::DuplicateMacro { name } => write!(f, "Macro '{}' is already visible", name),
             Self::MathMacroWithoutFixedToken { name } => write!(
                 f,
@@ -213,6 +241,16 @@ impl std::fmt::Display for Error {
                 f,
                 "Named macro '{}' is not visible at template declaration",
                 name
+            ),
+            Self::MacroExpansionLimit {
+                limit,
+                name,
+                module,
+                definition,
+            } => write!(
+                f,
+                "Macro expansion exceeded depth {limit}: {module}::{name} defined at {}..{}",
+                definition.start, definition.end
             ),
             Self::MacroDepthExceeded { limit } => {
                 write!(f, "Macro expansion exceeded depth {}", limit)
@@ -320,6 +358,17 @@ impl diagnostics::DiagnosticError for Error {
                     .with("module", module.clone())
                     .with("name", name.clone())
             }
+            Self::DuplicateMacroDeclarations {
+                name,
+                first,
+                second,
+            } => Data::new("resolve.DuplicateMacroDeclarations")
+                .with("name", name.clone())
+                .with("first_start", first.start)
+                .with("second_start", second.start),
+            Self::MacroDependencyCycle { path } => {
+                Data::new("resolve.MacroDependencyCycle").with("path", path.join(" -> "))
+            }
             Self::DuplicateMacro { name } => {
                 Data::new("resolve.DuplicateMacro").with("name", name.clone())
             }
@@ -329,6 +378,16 @@ impl diagnostics::DiagnosticError for Error {
             Self::MacroUnavailableInTemplate { name } => {
                 Data::new("resolve.MacroUnavailableInTemplate").with("name", name.clone())
             }
+            Self::MacroExpansionLimit {
+                limit,
+                name,
+                module,
+                definition,
+            } => Data::new("resolve.MacroExpansionLimit")
+                .with("limit", *limit)
+                .with("name", name.clone())
+                .with("module", module.clone())
+                .with("definition_start", definition.start),
             Self::MacroDepthExceeded { limit } => {
                 Data::new("resolve.MacroDepthExceeded").with("limit", *limit)
             }

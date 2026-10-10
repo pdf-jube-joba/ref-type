@@ -60,16 +60,15 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 ## G04: 子 module の macro 可視性と重複読み込み
 
-実装方針は [macro のスコープと使用宣言](macro-scopes.md) にまとめる。
+実装方針は [macro のスコープと使用宣言](features/macro-scopes.md) にまとめる。
 
 親 module で読み込んだ macro を子 module から利用するとき、読み込み位置と継承範囲を容易に把握したい。
 同じ macro の再読み込みを許容できると、親と子のどちらから利用する場合にも import と `\use` を局所的に記述できる。
 
-[最小比較: G04](fix-md/README.md#g04) では、親の `\use` が子の宣言より後にあると、子の展開時に `Named macro 'reflexive' is not visible` で失敗する。
-子の宣言より前に移すと成功する。
-一方、親で既に読み込んだ同じ macro を子で再び `\use` すると、`Macro 'reflexive' is already visible` で失敗する。
-現在は子の宣言より前に親で読み込み、子では継承された macro を利用することで回避している。
-`algebra.LaurentPolynomial` の `eq_reason` と `topology.Topology.Subspace` の `sym` で、それぞれこの問題を確認した。
+[最小比較: G04](fix-md/README.md#g04) の親の後続の使用宣言と子の同名使用宣言は成功する。
+macro は module 全体で可視となり、子の導入名は親を隠す。
+同じ module 内の導入名の重複は両方の宣言位置を含むエラーとなる。
+[二つの Equality の具体化](fix-md/cases/04-05-macro-aliases.ref) は、直接の module 選択と異なる導入名で同時に利用できる。
 
 > [!note]
 > 対応したい。
@@ -95,13 +94,11 @@ parameter と評価開始条件の検討は [Box の parameter](box-parameters.m
 
 ## G12: 等しい次数間の集合値の移送
 
-体系と処理系への追加は [等式による集合値の移送の実装プラン](equality-transport.md) にまとめる。
-
-自然数の等式 \(k=l\) を用いて、`\idelim k = l \with m: Nat^ => Form m` と書いて形式を移送したい。
-現在の等式除去は命題値の述語を要求するため、集合値の `Form m` をこの述語に置くことはできない。
-外代数と局所形式は有限引数列のリスト表示に埋め込み、目的の次数で復元することで受け渡す。
-[`Regrade`](../libs/differential_forms/src/Euclidean/On/Regrade.ref) は等式を明示的な構成引数として受け取り、埋め込んだ表示が保存されることと線形性を証明する。
-次数の異なる表現を比較する結合則・次数付き可換則にも同じ表示を用いる。
+集合値の族を持つ `\idelim` と自己移送の等式を証明する `\transporteq` を実装した。
+[集合値の移送](fix-md/cases/12-01-equality-transport.ref) と [表示による変換](fix-md/cases/12-02-display-conversion.ref) は、単独ファイルとして検査できる。
+`std.Logic.Equality.Transport` は恒等、合成、往復、定数族、依存する写像の自然性を証明する。
+微分形式の `Regrade.cast` は集合値の移送を使い、`convert` の成分表示との一致を等式として利用する。
+移送の head は neutral であり、恒等則は命題上の等式となる。
 
 <a id="g14"></a>
 

@@ -181,6 +181,15 @@ sort、変数、Power、Ty、product、RunStep は、
 補助 step の original conversion への可換性は別途必要である。
 この区別は subject reduction の証明における循環を避けるために重要である。
 
+
+## Transport の parallel reduction
+
+transport の parallel reduction は \(A\)、\(a\)、\(b\)、\(B\)、\(u\) を同時に簡約する congruence であり、\(B\) は \(x\) の下で扱う。
+complete development も同じ constructor を保って五引数に再帰する。
+parallel-subst では \(x\) を新鮮にして \(B\) へ帰納法を適用し、他の引数へ通常の帰納法を適用する。
+complete development の補題は五引数の帰納法の結果に congruence を適用することで得る。
+transport に root reduction はないので既存の root と重なる場合は増えず、補助関係の diamond と aux-join は保存される。
+
 ## 旧記法による検討メモ
 
 以下は、RunStep などを含める前の規則・記法による合流性の検討メモである。

@@ -2,14 +2,14 @@
 
 ## 到達点
 
-[G12](gaps.md#g12) の集合値の移送を、等式の成立を前提とする原始項として追加する。
+[G12](../gaps.md#g12) の集合値の移送を、等式の成立を前提とする原始項として追加する。
 既存の `\idelim` で集合値の族を指定でき、自己移送の恒等性は命題上の等式として証明できるようにする。
 恒等則から合成則と自然性をライブラリで証明し、微分形式の `Regrade.cast` をこの移送へ置き換える。
 体系の記述、kernel、表面構文、標準ライブラリ、微分形式の利用側、キャッシュと検証までを一つの実装単位とする。
 
 ## 体系の規則
 
-[system.md](../doc/book/src/system.md) の原始構文に、族の body を束縛する次の項を追加する。
+[system.md](../../doc/book/src/system.md) の原始構文に、族の body を束縛する次の項を追加する。
 
 \[
 \operatorname{transport}_{A}(a,b,x.B,u).
@@ -197,8 +197,8 @@ G12 の最小例と現在の表示による対照例を、それぞれ 100 行�
 cargo test --workspace --locked --offline
 cargo clippy --workspace --all-targets --locked --offline -- -D warnings
 cargo run -p cli --release --locked --offline -- libs/std --full-check-local
-cargo run -p cli --release --locked --offline -- libs/differential_forms --full-check-local
-cargo run -p cli --release --locked --offline -- tests/projects/manifolds-de-rham --cache-stats
+cargo run -p cli --release --locked --offline -- libs/differential_forms --module differential_forms --full-check-local
+cargo run -p cli --release --locked --offline -- tests/projects/manifolds-de-rham --module manifolds_de_rham_tests --cache-stats
 ```
 
 ライブラリの検査は既存の依存キャッシュを再利用し、変更した package を `--full-check-local` で検証する。

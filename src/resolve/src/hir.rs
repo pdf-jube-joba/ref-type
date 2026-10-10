@@ -131,8 +131,9 @@ pub enum ModuleItem {
         after: SExp,
     },
     UseMacro {
-        import_name: Identifier,
+        path: ModuleInstantiatePath,
         macro_name: Identifier,
+        name: Identifier,
     },
     Eval {
         exp: SExp,
@@ -532,9 +533,6 @@ pub enum SExp {
         /// `None` for source calls; templates pin nested calls to their
         /// definition environment before they are registered.
         scope: Option<ModuleId>,
-        /// For calls originating in a template, only declarations older than
-        /// this order are visible.
-        max_order: Option<u64>,
         depth: u16,
     },
     // macro specified by name
@@ -542,9 +540,6 @@ pub enum SExp {
         name: Identifier,
         tokens: Vec<MacroExp>,
         scope: Option<ModuleId>,
-        /// Template calls can see declarations up to and including their own
-        /// definition, allowing self recursion without forward references.
-        max_order: Option<u64>,
         depth: u16,
     },
     /// A reference to a pattern capture. Only valid in macro templates.
@@ -774,12 +769,19 @@ pub enum SExp {
     IdRefl {
         element: Box<SExp>,
     },
+    TransportEq {
+        var: Identifier,
+        ty: Box<SExp>,
+        index: Box<SExp>,
+        family: Box<SExp>,
+        base: Box<SExp>,
+    },
     IdElim {
         left: Box<SExp>,
         right: Box<SExp>,
         var: Identifier,
         ty: Box<SExp>,
-        predicate: Box<SExp>,
+        family: Box<SExp>,
         base: Box<SExp>,
         equality: Box<SExp>,
     },

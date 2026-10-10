@@ -264,6 +264,7 @@ pub fn skeleton(arena: &Arena, expression: Expression) -> Node {
         | Node::Lambda { var, .. }
         | Node::Subset { var, .. }
         | Node::IdElim { var, .. }
+        | Node::TransportEq { var, .. }
         | Node::Sequence { var, .. }
         | Node::ValueLet { var, .. } => *var = SymbolId::ANONYMOUS,
         Node::IndElim {
@@ -307,10 +308,11 @@ pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
     compare(arena, left, right, &mut FxHashSet::default())
 }
 
-/// Choice and run certificates are checked but erased by definitional equality.
+/// Equality, choice and run certificates are checked but erased by definitional equality.
 pub fn comparison_children(arena: &Arena, e: Expression) -> Vec<(Expression, usize)> {
     let mut children = arena.children(e);
     match arena.get(e) {
+        Node::IdElim { .. } => children.truncate(5),
         Node::Choice { .. } => children.truncate(1),
         Node::ChoiceEq { .. } => children.truncate(2),
         Node::SetRun { .. } | Node::Run { .. } => children.truncate(4),

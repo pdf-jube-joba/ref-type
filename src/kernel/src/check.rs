@@ -199,6 +199,39 @@ impl<'a> Checker<'a> {
             Err(crate::error::Error::ExpectedProposition)
         }
     }
+    fn equality_family(
+        &mut self,
+        binding: Binding,
+        endpoints: (Expression, Expression),
+        family: Expression,
+        base: Expression,
+        set_only: bool,
+    ) -> Result<(Expression, Expression), Error> {
+        let Binding { var, ty } = binding;
+        let (left, right) = endpoints;
+        if !self.solving {
+            self.set_type(ty)?;
+        }
+        self.check_at("check starting index", left, ty)?;
+        self.check_at("check ending index", right, ty)?;
+        self.under(var, ty, |c| {
+            let sort = c.type_sort(family)?;
+            if matches!(sort, BaseSort::Set(_)) || (!set_only && sort == BaseSort::Prop) {
+                Ok(())
+            } else {
+                Err(if set_only {
+                    crate::error::Error::ExpectedSetI
+                } else {
+                    crate::error::Error::ExpectedSetOrProp
+                })
+            }
+        })
+        .map_err(|e| e.at(crate::error::Frame::Check("check equality family sort")))?;
+        let source = self.env.instantiate(family, &[left])?;
+        let target = self.env.instantiate(family, &[right])?;
+        self.check_at("check base", base, source)?;
+        Ok((source, target))
+    }
     fn program_type(&mut self, e: Expression, computation: bool) -> Result<usize, Error> {
         let sort = self.type_sort(e)?;
         match (sort, computation) {
@@ -884,27 +917,38 @@ impl<'a> Checker<'a> {
                 left,
                 right,
                 ty,
-                predicate,
+                family,
                 base,
                 equality,
             } => {
-                if !self.solving {
-                    self.set_type(ty)?;
-                }
-                self.check_open(left, ty)?;
-                self.check_open(right, ty)?;
-                self.under(var, ty, |c| c.proposition(predicate))?;
-                self.check_at(
-                    "check base",
-                    base,
-                    self.env.instantiate(predicate, &[left])?,
-                )?;
+                let (_, target) =
+                    self.equality_family(Binding { var, ty }, (left, right), family, base, false)?;
                 self.check_at(
                     "check equality proof",
                     equality,
                     self.alloc(Node::Equal { left, right }),
                 )?;
-                self.env.instantiate(predicate, &[right])?
+                target
+            }
+            Node::TransportEq {
+                var,
+                ty,
+                index,
+                family,
+                base,
+            } => {
+                self.equality_family(Binding { var, ty }, (index, index), family, base, true)?;
+                let equality = self.alloc(Node::IdRefl { element: index });
+                let left = self.alloc(Node::IdElim {
+                    var,
+                    ty,
+                    left: index,
+                    right: index,
+                    family,
+                    base,
+                    equality,
+                });
+                self.alloc(Node::Equal { left, right: base })
             }
             Node::RunStep {
                 state_ty,
@@ -1610,7 +1654,7 @@ impl<'a> Checker<'a> {
                 Binding { var, ty: domain }
             }
             Node::Subset { var, set, .. } => Binding { var, ty: set },
-            Node::IdElim { var, ty, .. } => Binding { var, ty },
+            Node::IdElim { var, ty, .. } | Node::TransportEq { var, ty, .. } => Binding { var, ty },
             Node::Sequence { var, value_ty, .. } | Node::ValueLet { var, value_ty, .. } => {
                 Binding { var, ty: value_ty }
             }

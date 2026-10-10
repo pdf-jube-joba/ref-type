@@ -1,12 +1,15 @@
 # マクロ
 
 同じ module と親 module の可視なマクロは直接使い、import したものは `\use` で導入する。
-同名のマクロを同時に可視にはできない。
+定義と使用宣言は module の本体全体と子 module に有効であり、子の同名 binding は親を隠す。
+同じ module 内の導入名の重複は、定義と使用宣言のどちらでもエラーとなる。
 
 ```text
 \math-macro add($left, \+, $right) := operation $left $right;
 \macro tagged($term, "keep") := $term;
-\use ImportAlias.macroName;
+\use ImportAlias::macroName;
+\use \root.Templates[A := A, refl := leftRefl]::reflexive \as refl_left;
+\use \root.Templates[A := A, refl := rightRefl]::reflexive \as refl_right;
 
 \(x + y \)
 tagged!{value "keep"}
@@ -32,7 +35,7 @@ tagged!{value "keep"}
 
 template の自由な名前は定義側、capture した式は呼出側の scope で解決する。
 マクロが導入する binder は呼出側の名前を捕捉しない。
-数式マクロは各括弧階層の列全体を照合し、候補が複数なら固定トークンが最も左にあるもの、次に宣言順で選ぶ。
+数式マクロは各括弧階層の列全体を照合し、候補が複数なら固定トークンが最も左にあるもの、次に呼び出しスコープからの距離、最後に各 module の導入位置の順で選ぶ。
 
 ## Token match と再帰
 
@@ -55,5 +58,9 @@ template の自由な名前は定義側、capture した式は呼出側の scope
 > [!warning]
 > 括弧列を自動的に平坦化することはない。
 
-自身と宣言時点で可視なマクロを呼べる。
+template 内の macro は定義元の完成したスコープに結び付き、後方参照と相互再帰を利用できる。
+別名で導入しても内部参照と自己参照には定義元の具体化を使う。
+通常の項名は定義位置、使用宣言の module 引数はその宣言位置の項環境で解決する。
+module のヘッダーと parameter の型は親の macro スコープを使う。
+具体化の依存が循環した場合は、依存経路と宣言位置を報告する。
 展開深さの上限は 128 である。

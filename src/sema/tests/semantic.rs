@@ -316,7 +316,7 @@ fn imported_macro_changes_invalidate_expansions_and_references() {
     let mut snapshot = project();
     snapshot.insert("/virtual/Base.ref", r"\macro identity($P):= $P;");
     snapshot.insert("/virtual/Left.ref", r"\import \root.Base[] \as B;
-        \use B.identity;
+        \use B::identity;
         \definition identityProof: \forall (P: \Prop) -> P -> P := identity!{\fun (P: \Prop) => \fun (p: P) => p};");
     let mut database = Database::new();
     let original = database.check(&snapshot);
@@ -413,7 +413,7 @@ fn macro_template_references_keep_the_definition_file() {
     );
     snapshot.insert(
         "/virtual/Left.ref",
-        r"\import \root.Base[] \as B; \use B.proposition;
+        r"\import \root.Base[] \as B; \use B::proposition;
         \definition result: \Prop := proposition!{};",
     );
     let result = Database::new().check(&snapshot);
@@ -1159,4 +1159,43 @@ fn structured_causes_survive_semantic_queries_and_serialization() {
         let decoded: sema::SemanticResult = serde_json::from_slice(&encoded).unwrap();
         assert_eq!(decoded, *result);
     }
+}
+
+#[test]
+fn aliased_macro_calls_navigate_to_the_original_definition_and_invalidate() {
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert("/virtual/root.ref", r"\module T; \module M;");
+    snapshot.insert(
+        "/virtual/T.ref",
+        r"\module Values(A: \Set, a, b: A) { \macro macro() := inner!{}; \macro inner() := a; }",
+    );
+    let consumer = r"\module Consumer(A: \Set, a, b: A) {
+      \definition law: a = a := \refl(chosen!{});
+      \definition two: a = a := (\fun (value: A) => \refl(chosen!{})) chosen!{};
+      \use \root.T[].Values[A := A, a := a, b := b]::macro \as chosen;
+    }";
+    snapshot.insert("/virtual/M.ref", consumer);
+    let mut database = Database::new();
+    let result = database.check(&snapshot);
+    assert!(result.is_success(), "{result:?}");
+    let definition = result
+        .definition_at("/virtual/M.ref", consumer.find("chosen!").unwrap())
+        .unwrap();
+    assert_eq!(definition.id.name, "macro");
+    assert_eq!(definition.location.file, PathBuf::from("/virtual/T.ref"));
+    assert_eq!(result.references_to(&definition.id).count(), 3);
+    let template = &snapshot.source("/virtual/T.ref").unwrap().text;
+    let start = template.find("macro()").unwrap();
+    assert_eq!(definition.location.range, start..start + "macro".len());
+    let nested = result
+        .definition_at("/virtual/T.ref", template.find("inner!").unwrap())
+        .unwrap();
+    assert_eq!(nested.id.name, "inner");
+    let edited = snapshot.with_file(
+        "/virtual/T.ref",
+        r"\module Values(A: \Set, a, b: A) { \macro macro() := inner!{}; \macro inner() := b; }",
+    );
+    let changed = database.check(&edited);
+    assert!(!changed.is_success(), "{changed:?}");
+    assert_eq!(changed, Database::new().check(&edited));
 }

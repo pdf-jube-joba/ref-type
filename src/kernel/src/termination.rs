@@ -188,7 +188,7 @@ pub fn descent(
                 left: b.at(b.app(f, from)?)?,
                 right: b.at(right)?,
                 ty: b.at(b.step_ty(a, r)?)?,
-                predicate,
+                family: predicate,
                 base: b.at(base)?,
                 equality: b.at(edge)?,
             }))

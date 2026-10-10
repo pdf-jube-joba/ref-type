@@ -170,18 +170,23 @@ impl Resolver {
             self.item(&mut item)?;
             if matches!(
                 item,
-                ModuleItem::MathMacro { .. }
-                    | ModuleItem::UserMacro { .. }
-                    | ModuleItem::UseMacro { .. }
+                ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. }
             ) {
                 return Ok(());
+            }
+            if matches!(item, ModuleItem::UseMacro { .. }) {
+                let Some(import) = self.pending_macro_import.take() else {
+                    return Ok(());
+                };
+                item = import;
             }
             if !matches!(item, ModuleItem::ChildModule { .. }) {
                 self.order.push(CheckStep::Declaration {
                     module: self.current,
-                    index: output.len(),
+                    index: *self.declaration_counts.entry(self.current).or_default(),
                 });
             }
+            *self.declaration_counts.entry(self.current).or_default() += 1;
             output.push(item);
             return Ok(());
         };
@@ -195,10 +200,8 @@ impl Resolver {
         let scope = self.next_declaration_scope;
         self.next_declaration_scope += 1;
         self.declaration_scope = Some(scope);
-        for item in items {
-            self.scoped_item(item, output)?;
-        }
-        let local = std::mem::replace(&mut self.scopes[self.current.0 as usize], saved);
+        let local = self.resolve_macro_block(items, output)?;
+        self.scopes[self.current.0 as usize] = saved;
         let scope = &mut self.scopes[self.current.0 as usize];
         for name in exports {
             if let Some(id) = local.names.get(name.as_str()) {
@@ -213,6 +216,7 @@ impl Resolver {
             } else if let Some(template) = local
                 .macros
                 .iter()
+                .chain(&local.used)
                 .find(|d| d.name.as_str() == name.as_str())
             {
                 if scope
@@ -237,7 +241,7 @@ impl Resolver {
     }
 
     pub(super) fn expand_type_member(
-        &self,
+        &mut self,
         access: &LocalAccess,
         parameters: &[SExp],
     ) -> Option<Result<SExp, Diagnostic>> {
@@ -263,7 +267,7 @@ impl Resolver {
             ))));
         }
         Some(
-            self.expand_one(scope, Some(&Identifier(spelling.into())), &[], 0, None)
+            self.expand_one(scope, Some(&Identifier(spelling.into())), &[], 0)
                 .and_then(|mut ty| {
                     self.expand(&mut ty)?;
                     if name.as_str().ends_with('^') {

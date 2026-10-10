@@ -189,8 +189,9 @@ pub enum ModuleItem {
         after: SExp,
     },
     UseMacro {
-        import_name: Identifier,
+        path: ModuleInstantiatePath,
         macro_name: Identifier,
+        name: Identifier,
     },
     Eval {
         exp: SExp,
@@ -754,12 +755,19 @@ pub enum SExp {
     IdRefl {
         element: Box<SExp>,
     },
+    TransportEq {
+        var: Identifier,
+        ty: Box<SExp>,
+        index: Box<SExp>,
+        family: Box<SExp>,
+        base: Box<SExp>,
+    },
     IdElim {
         left: Box<SExp>,
         right: Box<SExp>,
         var: Identifier,
         ty: Box<SExp>,
-        predicate: Box<SExp>,
+        family: Box<SExp>,
         base: Box<SExp>,
         equality: Box<SExp>,
     },

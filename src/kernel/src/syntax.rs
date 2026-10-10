@@ -193,9 +193,16 @@ pub enum Node {
         left: Expression,
         right: Expression,
         ty: Expression,
-        predicate: Expression,
+        family: Expression,
         base: Expression,
         equality: Expression,
+    },
+    TransportEq {
+        var: SymbolId,
+        ty: Expression,
+        index: Expression,
+        family: Expression,
+        base: Expression,
     },
     TakeProp {
         domain: Expression,
@@ -481,8 +488,11 @@ macro_rules! node_children {
             Node::SubsetElim { element, subset, superset, .. } => {
                 visit_slots!($visit; element, subset, superset,);
             }
-            Node::IdElim { left, right, ty, predicate, base, equality, .. } => {
-                visit_slots!($visit; left, right, ty, predicate @ 1, base, equality,);
+            Node::TransportEq { ty, index, family, base, .. } => {
+                visit_slots!($visit; ty, index, family @ 1, base,);
+            }
+            Node::IdElim { left, right, ty, family, base, equality, .. } => {
+                visit_slots!($visit; left, right, ty, family @ 1, base, equality,);
             }
             Node::TakeProp { domain, proposition, map, existence, .. } => {
                 visit_slots!($visit; domain, proposition, map, existence,);
@@ -832,6 +842,7 @@ impl Node {
             Self::ExistsIntro { .. } => "ExistsIntro",
             Self::SubsetElim { .. } => "SubsetElim",
             Self::IdElim { .. } => "IdElim",
+            Self::TransportEq { .. } => "TransportEq",
             Self::TakeProp { .. } => "TakeProp",
             Self::ChoiceEq { .. } => "ChoiceEq",
             Self::SetExt { .. } => "SetExt",

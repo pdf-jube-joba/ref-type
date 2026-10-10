@@ -135,3 +135,8 @@ Set case だけを除けば十分、とはしていない。
 また、well-termination の定義に Set typing が含まれることと、
 Program の operational な停止性を示すことは別である。
 後者の定理はここでは主張しない。
+
+集合値の transport は分類付き補助体系の \(\mathsf{Tm}_{*^s_j}\) に属し、命題値の id elim は provability の規則に属する。
+共通項の IdElim からの移送では族の形成の sort によりこの分類を選び、局所 binder と始点・終点の代入を保存する。
+検査用 certificate の比較時の消去は、その certificate の typing と未解決 metavariable の検査を保持して行う。
+TransportEq の導出は補助体系の恒等則へ移し、等式の形成と意味保存を対応させる。

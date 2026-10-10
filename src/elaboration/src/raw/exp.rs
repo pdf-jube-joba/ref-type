@@ -86,14 +86,12 @@ pub enum Prove {
     IdRefl {
         element: Exp,
     },
-    IdElim {
-        left: Exp,
-        right: Exp,
-        ty: Exp,
+    TransportEq {
         var: SymbolId,
-        predicate: Exp,
+        ty: Exp,
+        index: Exp,
+        family: Exp,
         base: Exp,
-        equality: Exp,
     },
     Axiom(Axiom),
     ChoiceEq {
@@ -217,6 +215,15 @@ pub enum ExpNode {
     BoxApp {
         function: Exp,
         argument: Exp,
+    },
+    IdElim {
+        left: Exp,
+        right: Exp,
+        ty: Exp,
+        var: SymbolId,
+        family: Exp,
+        base: Exp,
+        equality: Exp,
     },
     Prove(Prove),
     PowerSet {
@@ -714,6 +721,23 @@ impl ArenaNode for ExpNode {
                 function: function.0,
                 argument: argument.0,
             },
+            ExpNode::IdElim {
+                left,
+                right,
+                ty,
+                var,
+                family,
+                base,
+                equality,
+            } => N::IdElim {
+                left: left.0,
+                right: right.0,
+                ty: ty.0,
+                var,
+                family: family.0,
+                base: base.0,
+                equality: equality.0,
+            },
             ExpNode::PowerSet { set } => N::PowerSet { set: set.0 },
             ExpNode::SubSet {
                 var,
@@ -998,6 +1022,23 @@ impl ArenaHandle for Exp {
             } => ExpNode::BoxApp {
                 function: Exp(function),
                 argument: Exp(argument),
+            },
+            N::IdElim {
+                left,
+                right,
+                ty,
+                var,
+                family,
+                base,
+                equality,
+            } => ExpNode::IdElim {
+                left: Exp(left),
+                right: Exp(right),
+                ty: Exp(ty),
+                var,
+                family: Exp(family),
+                base: Exp(base),
+                equality: Exp(equality),
             },
             N::PowerSet { set, .. } => ExpNode::PowerSet { set: Exp(set) },
             N::Subset {
@@ -1646,22 +1687,18 @@ fn lower_proof(proof: Prove) -> N {
             superset: superset.0,
         },
         Prove::IdRefl { element } => N::IdRefl { element: element.0 },
-        Prove::IdElim {
-            left,
-            right,
+        Prove::TransportEq {
+            var,
             ty,
-            var,
-            predicate,
+            index,
+            family,
             base,
-            equality,
-        } => N::IdElim {
-            left: left.0,
-            right: right.0,
-            ty: ty.0,
+        } => N::TransportEq {
             var,
-            predicate: predicate.0,
+            ty: ty.0,
+            index: index.0,
+            family: family.0,
             base: base.0,
-            equality: equality.0,
         },
         Prove::ChoiceEq {
             set,
@@ -1723,22 +1760,18 @@ fn raise_proof(node: N) -> Prove {
         N::IdRefl { element } => Prove::IdRefl {
             element: Exp(element),
         },
-        N::IdElim {
-            left,
-            right,
+        N::TransportEq {
+            var,
             ty,
-            var,
-            predicate,
+            index,
+            family,
             base,
-            equality,
-        } => Prove::IdElim {
-            left: Exp(left),
-            right: Exp(right),
-            ty: Exp(ty),
+        } => Prove::TransportEq {
             var,
-            predicate: Exp(predicate),
+            ty: Exp(ty),
+            index: Exp(index),
+            family: Exp(family),
             base: Exp(base),
-            equality: Exp(equality),
         },
         N::ChoiceEq {
             set,

@@ -219,7 +219,7 @@ constructor は `Type[parameters]::constructor arguments` で参照する。
 具体化された Machine の実行は `runBox` マクロで Box にする。
 
 ```text
-\use P.runBox;
+\use P::runBox;
 runBox!{machine}
 ```
 

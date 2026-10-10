@@ -18,6 +18,7 @@ core を扱う。集合モデル、無矛盾性、subject reduction は仮定し
 lambda、product、subset は表示された変数を body で束縛する。
 `stepMatch` の \(x^s.P\) は \(P\) の中だけで \(x^s\) を束縛する。
 従って motive への代入はこの局所変数を避ける。
+transport の `x.B` も同じ束縛であり、外側の代入は \(A\)、\(a\)、\(b\)、\(u\) に作用し、\(B\) では \(x\) を避ける。
 Program の binder は Set の binder と別の名前空間に置く。
 
 以下の式は、\(x\ne y\)、\(y\notin\mathrm{FV}(u)\) のもとで成り立つ。

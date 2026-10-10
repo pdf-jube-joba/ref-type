@@ -115,6 +115,7 @@ static PROOF_TERM_KEYWORDS: &[&str] = &[
     "\\bysub",
     "\\refl",
     "\\idelim",
+    "\\transporteq",
     "\\axiom",
     "\\choiceeq",
 ];
@@ -513,7 +514,7 @@ impl<'a> Parser<'a> {
     }
 
     // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
-    fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
+    fn parse_module_selection(&mut self) -> Result<ModuleInstantiatePath, ParseError> {
         let rooted = if self.bump_if_token(Token::Period) {
             Some(Some(0))
         } else if self.bump_if_keyword("\\root") {
@@ -536,11 +537,19 @@ impl<'a> Parser<'a> {
             )
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                Some(Token::Period)
+                Some(Token::Period | Token::DoubleColon)
             );
         let imported_parent = if starts_from_import {
             let candidate = self.expect_ident()?;
-            self.expect_token(Token::Period)?;
+            if !self.bump_if_token(Token::Period)
+                && self.peek() == Some(&Token::DoubleColon)
+                && matches!(
+                    self.tokens.get(self.pos + 2).map(|token| &token.kind),
+                    Some(Token::LBracket)
+                )
+            {
+                self.expect_token(Token::DoubleColon)?;
+            }
             Some(candidate)
         } else {
             None
@@ -555,11 +564,6 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // 3. "\as" <import_name: Ident> ";"
-        self.expect_keyword("\\as")?;
-        let import_name = self.expect_ident()?;
-        self.expect_token(Token::Semicolon)?;
-
         let path = if let Some(import_name) = imported_parent {
             ModuleInstantiatePath::FromImport { import_name, calls }
         } else {
@@ -572,6 +576,14 @@ impl<'a> Parser<'a> {
             }
         };
 
+        Ok(path)
+    }
+
+    fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
+        let path = self.parse_module_selection()?;
+        self.expect_keyword("\\as")?;
+        let import_name = self.expect_ident()?;
+        self.expect_token(Token::Semicolon)?;
         Ok(ModuleItem::Import { path, import_name })
     }
 
@@ -746,13 +758,19 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_use_macro(&mut self) -> Result<ModuleItem, ParseError> {
-        let import_name = self.expect_ident()?;
-        self.expect_token(Token::Period)?;
+        let path = self.parse_module_selection()?;
+        self.expect_token(Token::DoubleColon)?;
         let macro_name = self.expect_ident()?;
+        let name = if self.bump_if_keyword("\\as") {
+            self.expect_ident()?
+        } else {
+            macro_name.clone()
+        };
         self.expect_token(Token::Semicolon)?;
         Ok(ModuleItem::UseMacro {
-            import_name,
+            path,
             macro_name,
+            name,
         })
     }
 
@@ -889,6 +907,38 @@ impl<'a> TokenCursor<'a> for Parser<'a> {
         );
         self.pos = position;
     }
+}
+
+/// The identifier of a macro declaration, excluding its keyword and comments.
+pub fn macro_declaration_name_span(input: &str, name: &str) -> Option<SourceSpan> {
+    let tokens = lex_all(input).ok()?;
+    tokens.windows(2).find_map(|tokens| {
+        (matches!(tokens[0].kind, Token::KeyWord("\\macro" | "\\math-macro"))
+            && matches!(tokens[1].kind, Token::Ident(actual) if actual == name))
+        .then_some(SourceSpan {
+            start: tokens[1].start,
+            end: tokens[1].end,
+        })
+    })
+}
+
+/// Source occurrences of named macro calls, excluding comments and quoted tokens.
+pub fn named_macro_call_spans(input: &str, name: &str) -> Vec<SourceSpan> {
+    let Ok(tokens) = lex_all(input) else {
+        return Vec::new();
+    };
+    tokens
+        .windows(2)
+        .filter_map(|tokens| {
+            (matches!(tokens[0].kind, Token::Ident(actual) if actual == name)
+                && tokens[1].kind == Token::Exclamation
+                && tokens[0].end == tokens[1].start)
+                .then_some(SourceSpan {
+                    start: tokens[0].start,
+                    end: tokens[0].end,
+                })
+        })
+        .collect()
 }
 
 pub fn str_parse_exp(input: &str) -> Result<SExp, ParseError> {

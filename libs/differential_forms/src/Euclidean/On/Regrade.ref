@@ -1,58 +1,58 @@
-\import Exterior.Restriction[k := l] \as Target;
-\import Multilinear.ListSeries[k := k] \as SourceSeries;
-\import Multilinear.ListSeries[k := l] \as TargetSeries;
-\import \parent.Series[k := k] \as SmoothSeries;
 \import Fin.FromList[A := Vectors.Vector] \as Arguments;
-\definition value(omega: Form k)(x: Open.Carrier U): Alternating.Form l := Target.form (Exterior.component k (omega x))
-  (SourceSeries.linear (Alternating.asMultilinear k (omega x))) (Exterior.componentAlternating k (omega x));
-\definition convert(omega: Form k): Form l :=
-  \into[Family l](value omega, { omega: Family l \where SmoothFamily l omega }) \by {
-    \fun (arguments: Multilinear.Arguments l) => SmoothSeries.smooth omega (Arguments.list l arguments)
-  };
-\definition cast(omega: Form k)(same: k = l): Form l := convert omega;
+\import \parent.RegradeDisplay[k := k, l := l] \as Display;
+\import \parent.RegradeDisplay[k := k, l := k] \as SelfDisplay;
+\definition cast(omega: Form k)(same: k = l): Form l :=
+  \idelim k = l \with j: _ => Form j \by { base: omega, equality: same };
+\definition value(omega: Form k)(x: Open.Carrier U): Alternating.Form l := Display.value omega x;
+\definition convert(omega: Form k): Form l := Display.convert omega;
+\import Exterior.Components[k := k] \as Components;
+\definition conversionIdentity: \forall (omega: Form k) -> SelfDisplay.convert omega = omega :=
+  \fun (omega: Form k) => \axiom:funext(SelfDisplay.convert omega, omega,
+    \fun (x: Open.Carrier U) => Components.ext (SelfDisplay.convert omega x) (omega x) (SelfDisplay.series omega (\refl k) x));
+\definition bridge: \forall (omega: Form k)(same: k = l) -> cast omega same = convert omega :=
+  \fun (omega: Form k)(same: k = l) =>
+    (\idelim k = l \with j: _ => \forall (kj: k = j) ->
+      (\idelim k = j \with i: _ => Form i \by { base: omega, equality: kj }) = \parent.RegradeDisplay[k := k, l := j].convert omega
+    \by { base: \fun (kk: k = k) => trans!{{Form k}} _ _ _
+      (\transporteq k \with j: _ => Form j \by { base: omega })
+      (sym!{{Form k}} _ _ (conversionIdentity omega)), equality: same }) same;
+\import \parent.Series[k := k] \as SmoothSeries;
 \definition series: \forall (omega: Form k)(same: k = l)(x: Open.Carrier U) ->
   Exterior.component l (cast omega same x) = Exterior.component k (omega x) :=
-  \fun (omega: Form k)(same: k = l)(x: Open.Carrier U) => TargetSeries.supportedRecover (Exterior.component k (omega x))
-    (\fun (xs: Lists.List[Vectors.Vector])(wrong: Logic.Not (Lists.length Vectors.Vector xs = l)) => SourceSeries.outside (omega x) xs
-      (\fun (equal: Lists.length Vectors.Vector xs = k) => wrong (trans!{{N.Nat^}} (Lists.length Vectors.Vector xs) k l equal same)));
+  \fun (omega: Form k)(same: k = l)(x: Open.Carrier U) =>
+    \idelim convert omega = cast omega same \with eta: Form l => Exterior.component l (eta x) = Exterior.component k (omega x)
+    \by { base: Display.series omega same x, equality: sym!{{Form l}} _ _ (bridge omega same) };
 \import \parent.At[k := k] \as SourceForms;
 \import \parent.At[k := l] \as TargetForms;
-\import Exterior.Components[k := k] \as Components;
 \definition addition: \forall (omega, eta: Form k)(same: k = l) ->
   cast (SourceForms.plus omega eta) same = TargetForms.plus (cast omega same) (cast eta same) :=
-  \fun (omega, eta: Form k)(same: k = l) => ext l (cast (SourceForms.plus omega eta) same) (TargetForms.plus (cast omega same) (cast eta same))
-    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments l) => Components.addition (omega x) (eta x) (Arguments.list l arguments));
+  \fun (omega, eta: Form k)(same: k = l) => trans!{{Form l}} _ _ _
+    (bridge (SourceForms.plus omega eta) same)
+    (trans!{{Form l}} _ _ _ (Display.addition omega eta same)
+      (congr2!{{Form l} {Form l} {Form l}} TargetForms.plus _ _ _ _
+        (sym!{{Form l}} _ _ (bridge omega same)) (sym!{{Form l}} _ _ (bridge eta same))));
 \definition scalar: \forall (a: Reals.Real)(omega: Form k)(same: k = l) ->
   cast (SourceForms.scale a omega) same = TargetForms.scale a (cast omega same) :=
-  \fun (a: Reals.Real)(omega: Form k)(same: k = l) => ext l (cast (SourceForms.scale a omega) same) (TargetForms.scale a (cast omega same))
-    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments l) => Components.scalar a (omega x) (Arguments.list l arguments));
-\import Smooth.Algebra[U := U] \as Functions;
-\import Smooth.Derivative[] \as Derivatives;
-\import \parent.Partial[k := k] \as SourcePartial;
-\import \parent.Partial[k := l] \as TargetPartial;
+  \fun (a: Reals.Real)(omega: Form k)(same: k = l) => trans!{{Form l}} _ _ _
+    (bridge (SourceForms.scale a omega) same)
+    (trans!{{Form l}} _ _ _ (Display.scalar a omega same)
+      (congr!{{Form l} {Form l}} (TargetForms.scale a) _ _ (sym!{{Form l}} _ _ (bridge omega same))));
 \definition evaluation: \forall (omega: Form k)(same: k = l)(arguments: Multilinear.Arguments l) ->
   evaluate l (cast omega same) arguments = SmoothSeries.function omega (Arguments.list l arguments) :=
   \fun (omega: Form k)(same: k = l)(arguments: Multilinear.Arguments l) =>
-    Functions.ext (evaluate l (cast omega same) arguments) (SmoothSeries.function omega (Arguments.list l arguments))
-      (\fun (x: Open.Carrier U) => \refl(Exterior.component k (omega x) (Arguments.list l arguments)));
-\definition partial: \forall (i: Fin.Fin n)(omega: Form k)(same: k = l) -> TargetPartial.apply i (cast omega same) = cast (SourcePartial.apply i omega) same :=
-  \fun (i: Fin.Fin n)(omega: Form k)(same: k = l) => ext l (TargetPartial.apply i (cast omega same)) (cast (SourcePartial.apply i omega) same)
-    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments l) => trans!{{Reals.Real}} _ _ _
-      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _ (evaluation omega same arguments))
-      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _
-        (sym!{{Functions.Function}} _ _ (SmoothSeries.derivative i omega (Arguments.list l arguments)))));
+    \idelim convert omega = cast omega same \with eta: Form l => evaluate l eta arguments = SmoothSeries.function omega (Arguments.list l arguments)
+    \by { base: Display.evaluation omega same arguments, equality: sym!{{Form l}} _ _ (bridge omega same) };
+\import \parent.Partial[k := k] \as SourcePartial;
+\import \parent.Partial[k := l] \as TargetPartial;
+\definition partial: \forall (i: Fin.Fin n)(omega: Form k)(same: k = l) ->
+  TargetPartial.apply i (cast omega same) = cast (SourcePartial.apply i omega) same :=
+  \fun (i: Fin.Fin n)(omega: Form k)(same: k = l) => trans!{{Form l}} _ _ _
+    (congr!{{Form l} {Form l}} (TargetPartial.apply i) _ _ (bridge omega same))
+    (trans!{{Form l}} _ _ _ (Display.partial i omega same)
+      (sym!{{Form l}} _ _ (bridge (SourcePartial.apply i omega) same)));
 \definition conversionEvaluation: \forall (omega: Form k)(arguments: Multilinear.Arguments l) ->
-  evaluate l (convert omega) arguments = SmoothSeries.function omega (Arguments.list l arguments) :=
-  \fun (omega: Form k)(arguments: Multilinear.Arguments l) =>
-    Functions.ext (evaluate l (convert omega) arguments) (SmoothSeries.function omega (Arguments.list l arguments))
-      (\fun (x: Open.Carrier U) => \refl(Exterior.component k (omega x) (Arguments.list l arguments)));
-\definition conversionPartial: \forall (i: Fin.Fin n)(omega: Form k) -> TargetPartial.apply i (convert omega) = convert (SourcePartial.apply i omega) :=
-  \fun (i: Fin.Fin n)(omega: Form k) => ext l (TargetPartial.apply i (convert omega)) (convert (SourcePartial.apply i omega))
-    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments l) => trans!{{Reals.Real}} _ _ _
-      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _ (conversionEvaluation omega arguments))
-      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _
-        (sym!{{Functions.Function}} _ _ (SmoothSeries.derivative i omega (Arguments.list l arguments)))));
-
+  evaluate l (convert omega) arguments = SmoothSeries.function omega (Arguments.list l arguments) := Display.conversionEvaluation;
+\definition conversionPartial: \forall (i: Fin.Fin n)(omega: Form k) -> TargetPartial.apply i (convert omega) = convert (SourcePartial.apply i omega) := Display.conversionPartial;
 \import Spaces.Linear[V := Form k, W := Form l, source := SourceForms.space, target := TargetForms.space] \as Maps;
 \definition map(same: k = l): Maps.Map := Maps.Map {
   apply := \fun (omega: Form k) => cast omega same,
@@ -61,3 +61,8 @@
 };
 \definition zero: \forall (same: k = l) -> cast SourceForms.zero same = TargetForms.zero :=
   \fun (same: k = l) => #preservesZero{(map same)};
+\import Equality.Transport[A := N.Nat^, F := Form] \as Transport;
+\definition composition: \forall (m: N.Nat^)(omega: Form k)(kl: k = l)(lm: l = m) ->
+  \parent.Regrade[k := l, l := m].cast (cast omega kl) lm =
+    \parent.Regrade[k := k, l := m].cast omega (trans!{{N.Nat^}} k l m kl lm) :=
+  \fun (m: N.Nat^)(omega: Form k)(kl: k = l)(lm: l = m) => Transport.composition k l m omega kl lm;

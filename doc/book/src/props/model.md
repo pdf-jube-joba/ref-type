@@ -184,6 +184,7 @@ binder を持つ場合は valuation の拡張を明示する。
 \llbracket\Pred(A,S,a)\rrbracket_\rho&=\mathbf t(a\in S),&
 \llbracket a=b\rrbracket_\rho&=\mathbf t(a=b),\\
 \llbracket\exists A\rrbracket_\rho&=\mathbf t(A\ne\varnothing),&
+\llbracket\operatorname{transport}_{A}(a,b,x.B,u)\rrbracket_\rho&=\llbracket u\rrbracket_\rho,\\
 \llbracket\operatorname{choice}_i(X)\rrbracket_\rho&=\bigcup X,\\
 \llbracket\Take^p_i(X,P,g)\rrbracket_\rho
  &=\bigcup\{\operatorname{app}(g,x)\mid x\in X\},\\

@@ -143,7 +143,7 @@ fn temporary_module_macros_retain_their_definition_scope() {
     }
     \module Consumer {
         \import \root.Library[] \as L;
-        \use L.identity;
+        \use L::identity;
         \definition use(A: \Set)(x: A): A := identity!{A x};
         \definition beta(A: \Set)(x: A): use A x = x := \refl(x);
     }",

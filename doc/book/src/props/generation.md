@@ -144,3 +144,10 @@ Aux-injectivity を適用する。formation と body/argument typing は回収�
 ここで得た conversion と Context-conversion、Substitution により、
 必要な表示型で argument/body を扱える。
 この使い方を[補助体系の subject reduction](subject_reduction.md)で示す。
+
+## Transport の generation
+
+subject が literal transport の typing では、weak、conversion、subset intro、subset weak の subject を保つ premise を遡ると transport の型規則に達する。
+有限導出に関する帰納法により、\(A\)、\(a\)、\(b\)、\(B\)、\(u\) の全 typing premise と \(a=b\) の provability premise を元の文脈で回収できる。
+その結論の型は \(B_b\) であり、結果型の refinement root は \([B_b]\) と同じである。
+transport は lambda、subset、continue、finish のいずれとも head が異なるので、既存の Introduction-root の追跡に新しい場合を生じない。

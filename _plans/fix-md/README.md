@@ -1,7 +1,7 @@
 # gaps の最小比較サンプル
 
-G01〜G04 と G11 の `.ref` は、全文を playground.md に貼り付けて、1ファイルずつ検査する。
-G01〜G04 と G11 では、必要な宣言は各ファイルに含まれ、標準ライブラリや外部ファイルの import は不要である。
+G01〜G04、G11 と G12 の `.ref` は、全文を playground.md に貼り付けて、1ファイルずつ検査する。
+G01〜G04、G11 と G12 では、必要な宣言は各ファイルに含まれ、標準ライブラリや外部ファイルの import は不要である。
 `\root.Repro[]` への参照は、同じファイル内のモジュールを具体化する。
 比較する組では、下記の条件だけを変え、それ以外の宣言・入力・検査対象をそろえている。
 
@@ -21,7 +21,8 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 | [G01](#g01) | record の変数と具体値 | 変数で失敗、具体値で成功。 |
 | [G02](#g02) | 通常の関数と contextual な定義 | 通常の関数で失敗、contextual な定義で成功。 |
 | [G03](#g03) | 関係を持つ record とデータ・法則の分離 | record の射影生成で失敗、分離すると成功。 |
-| [G04](#g04) | 親の macro 読み込み位置と子の再読み込み | 宣言後の読み込みと再読み込みで失敗、宣言前の読み込みを継承すると成功。 |
+| [G04](#g04) | 親の macro 読み込み位置と子の再読み込み | 宣言前後の読み込み、子の同名読み込みと継承が成功。 |
+| [G12](#g12) | 集合値の移送と表示による変換 | 両方成功。 |
 | [G11](#g11) | Machine の引数と具体値 | 引数で失敗、具体値で成功。 |
 
 <a id="g01"></a>
@@ -65,9 +66,10 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
-| [04-01-macro-late.ref](cases/04-01-macro-late.ref) | 親の `\use` は子の宣言より後。 | 失敗：`Named macro 'reflexive' is not visible`。 |
+| [04-01-macro-late.ref](cases/04-01-macro-late.ref) | 親の `\use` は子の宣言より後。 | 成功。 |
 | [04-02-macro-early.ref](cases/04-02-macro-early.ref) | 親の `\use` は子の宣言より前。 | 成功。 |
-| [04-03-macro-duplicate.ref](cases/04-03-macro-duplicate.ref) | 子で同じ macro を再び `\use` する。 | 失敗：`Macro 'reflexive' is already visible`。 |
+| [04-03-macro-duplicate.ref](cases/04-03-macro-duplicate.ref) | 子で同じ macro を再び `\use` する。 | 成功。 |
+| [04-05-macro-aliases.ref](cases/04-05-macro-aliases.ref) | 二つの Equality を別名で直接具体化。 | 成功。 |
 | [04-04-macro-inherited.ref](cases/04-04-macro-inherited.ref) | 子で継承された macro を利用する。 | 成功。 |
 
 最初の組は親の `\use` の位置だけを変え、次の組は子の `\use` の有無だけを変えている。
@@ -87,3 +89,15 @@ Machine の型、実行、Box の型と本体は共通で、Box の型は両側�
 入力と出力の型は1つの `State` にそろえている。
 開いた computation type と、具体化して閉じた computation type の比較になる。
 [Box の parameter の検討](../box-parameters.md#g11)に対応する。
+
+<a id="g12"></a>
+
+## G12: 集合値の移送と表示による変換
+
+| サンプル | 構成 | 結果 |
+| --- | --- | --- |
+| [12-01-equality-transport.ref](cases/12-01-equality-transport.ref) | 任意の集合値の族に対する `\idelim` と `\transporteq`。 | 成功。 |
+| [12-02-display-conversion.ref](cases/12-02-display-conversion.ref) | 表示への埋め込みと復元による `convert`。 | 成功。 |
+
+前者は任意の族を parameter とし、後者は表示が用意された具体的な族を使う。
+両ファイルは import のない単独ファイルである。

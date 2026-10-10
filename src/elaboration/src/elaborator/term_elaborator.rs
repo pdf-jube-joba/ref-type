@@ -2039,12 +2039,34 @@ impl LocalScope {
                     .arena()
                     .alloc(ExpNode::Prove(Prove::IdRefl { element })))
             }
+            SExp::TransportEq {
+                var,
+                ty,
+                index,
+                family,
+                base,
+            } => {
+                let ty = self.elab_exp_rec(ty, handler)?;
+                let index = self.elab_exp_rec(index, handler)?;
+                let var = handler.intern_name(var);
+                self.push_binded_var(var, ty);
+                let family = self.elab_exp_rec(family, handler)?;
+                self.pop_binded_var();
+                let base = self.elab_exp_rec(base, handler)?;
+                Ok(handler.arena().alloc(ExpNode::Prove(Prove::TransportEq {
+                    var,
+                    ty,
+                    index,
+                    family,
+                    base,
+                })))
+            }
             SExp::IdElim {
                 left,
                 right,
                 var,
                 ty,
-                predicate,
+                family,
                 base,
                 equality,
             } => {
@@ -2053,19 +2075,19 @@ impl LocalScope {
                 let ty = self.elab_exp_rec(ty, handler)?;
                 let var = handler.intern_name(var);
                 self.push_binded_var(var, ty);
-                let predicate = self.elab_exp_rec(predicate, handler)?;
+                let family = self.elab_exp_rec(family, handler)?;
                 self.pop_binded_var();
                 let base = self.elab_exp_rec(base, handler)?;
                 let equality = self.elab_exp_rec(equality, handler)?;
-                Ok(handler.arena().alloc(ExpNode::Prove(Prove::IdElim {
+                Ok(handler.arena().alloc(ExpNode::IdElim {
                     left,
                     right,
                     var,
                     ty,
-                    predicate,
+                    family,
                     base,
                     equality,
-                })))
+                }))
             }
             SExp::AxiomSetExt {
                 left,

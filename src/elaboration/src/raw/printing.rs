@@ -431,21 +431,35 @@ impl<'a> Printer<'a> {
                 child(element)
             ),
             ExpNode::Prove(Prove::IdRefl { element }) => format!("refl({})", child(element)),
-            ExpNode::Prove(Prove::IdElim {
+            ExpNode::Prove(Prove::TransportEq {
+                var,
+                ty,
+                index,
+                family,
+                base,
+            }) => format!(
+                "\\transporteq {} \\with {}: {} => {} \\by {{ base: {} }}",
+                child(index),
+                self.format_named_var(var),
+                child(ty),
+                child(family),
+                child(base)
+            ),
+            ExpNode::IdElim {
                 left,
                 right,
                 ty,
                 var,
-                predicate,
+                family,
                 base,
                 equality,
-            }) => format!(
+            } => format!(
                 "\\idelim {} = {} \\with {}: {} => {} \\by {{ base: {}, equality: {} }}",
                 child(left),
                 child(right),
                 self.format_named_var(var),
                 child(ty),
-                child(predicate),
+                child(family),
                 child(base),
                 child(equality)
             ),

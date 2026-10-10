@@ -69,6 +69,7 @@ pub enum Error {
     EliminatorScrutineeDatatypeMismatch,
     EmptyCaseNeedsAnExpectedType,
     ExpectedSetI,
+    ExpectedSetOrProp,
     ExpectedADefinitionHead,
     ExpectedADefinitionRedex,
     ExpectedAProduct,
@@ -280,6 +281,7 @@ impl std::fmt::Display for Error {
                 f.write_str("eliminator scrutinee datatype mismatch")
             }
             Self::EmptyCaseNeedsAnExpectedType => f.write_str("empty case needs an expected type"),
+            Self::ExpectedSetOrProp => f.write_str("expected a Set(i) or Prop equality family"),
             Self::ExpectedSetI => f.write_str("expected Set(i)"),
             Self::ExpectedADefinitionHead => f.write_str("expected a definition head"),
             Self::ExpectedADefinitionRedex => f.write_str("expected a definition redex"),

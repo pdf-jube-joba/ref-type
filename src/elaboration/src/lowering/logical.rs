@@ -586,6 +586,32 @@ impl Lowerer<'_> {
                 }
             }
             ExpNode::App { .. } => unreachable!("applications use the small-frame path"),
+            ExpNode::IdElim {
+                var,
+                left,
+                right,
+                ty,
+                family,
+                base,
+                equality,
+            } => {
+                let left = self.set(left, ctx, m)?;
+                let right = self.set(right, ctx, m)?;
+                let raw_ty = ty;
+                let ty = self.set(ty, ctx, m)?;
+                let family = self.under(ctx, var, raw_ty, |this, ctx| this.set(family, ctx, m))?;
+                let base = self.set(base, ctx, m)?;
+                let equality = self.set(equality, ctx, m)?;
+                self.kernel.arena().alloc(s::Node::IdElim {
+                    var,
+                    left,
+                    right,
+                    ty,
+                    family,
+                    base,
+                    equality,
+                })
+            }
             ExpNode::Prove(prove) => match prove {
                 Prove::IdRefl { element } => {
                     let element = self.set(element, ctx, m)?;
@@ -612,31 +638,25 @@ impl Lowerer<'_> {
                         superset,
                     })
                 }
-                Prove::IdElim {
+                Prove::TransportEq {
                     var,
-                    left,
-                    right,
                     ty,
-                    predicate,
+                    index,
+                    family,
                     base,
-                    equality,
                 } => {
-                    let left = self.set(left, ctx, m)?;
-                    let right = self.set(right, ctx, m)?;
                     let raw_ty = ty;
                     let ty = self.set(ty, ctx, m)?;
-                    let predicate =
-                        self.under(ctx, var, raw_ty, |this, ctx| this.set(predicate, ctx, m))?;
+                    let index = self.set(index, ctx, m)?;
+                    let family =
+                        self.under(ctx, var, raw_ty, |this, ctx| this.set(family, ctx, m))?;
                     let base = self.set(base, ctx, m)?;
-                    let equality = self.set(equality, ctx, m)?;
-                    self.kernel.arena().alloc(s::Node::IdElim {
+                    self.kernel.arena().alloc(s::Node::TransportEq {
                         var,
-                        left,
-                        right,
                         ty,
-                        predicate,
+                        index,
+                        family,
                         base,
-                        equality,
                     })
                 }
                 Prove::ChoiceEq {

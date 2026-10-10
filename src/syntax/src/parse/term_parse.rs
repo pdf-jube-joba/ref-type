@@ -735,7 +735,25 @@ impl<'a> TermParser<'a> {
             });
         }
 
-        // \\idelim <left: SExp> "=" <right: SExp> r"\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp>
+        if self.bump_if_keyword("\\transporteq") {
+            let index = self.parse_sexp()?;
+            self.expect_keyword("\\with")?;
+            let var = self.expect_ident()?;
+            self.expect_token(Token::Colon)?;
+            let ty = self.parse_equality()?;
+            self.expect_token(Token::DoubleArrow)?;
+            let family = self.parse_sexp()?;
+            let base = self.parse_by(|parser| parser.parse_named_by_term("base"))?;
+            return Ok(SExp::TransportEq {
+                var,
+                ty: Box::new(ty),
+                index: Box::new(index),
+                family: Box::new(family),
+                base: Box::new(base),
+            });
+        }
+
+        // \\idelim <left: SExp> "=" <right: SExp> r"\with" <var: Ident> ":" <ty: SExp> "=>" <family: SExp>
         if self.bump_if_keyword("\\idelim") {
             let left = self.parse_application()?;
             self.expect_token(Token::Equal)?; // expect '='
@@ -745,7 +763,7 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::Colon)?; // expect ':'
             let ty = self.parse_equality()?;
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
-            let predicate = self.parse_sexp()?;
+            let family = self.parse_sexp()?;
             let (base, equality) = self.parse_by(|parser| {
                 let base = parser.parse_named_by_term("base")?;
                 parser.expect_token(Token::Comma)?;
@@ -757,7 +775,7 @@ impl<'a> TermParser<'a> {
                 right: Box::new(right),
                 var,
                 ty: Box::new(ty),
-                predicate: Box::new(predicate),
+                family: Box::new(family),
                 base: Box::new(base),
                 equality: Box::new(equality),
             });

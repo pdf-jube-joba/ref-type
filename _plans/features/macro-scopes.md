@@ -2,7 +2,7 @@
 
 ## 目的
 
-[G04](gaps.md#g04) の可視性を、module 全体で確定する lexical scope として整理する。
+[G04](../gaps.md#g04) の可視性を、module 全体で確定する lexical scope として整理する。
 macro の定義と使用宣言を宣言位置より前でも利用でき、親から継承する名前を子で上書きできるようにする。
 使用宣言で定義元の module を具体化し、読み込み先の名前を指定できるようにする。
 この文書は実装プランであり、以下の構文と検査結果は実装後の仕様を示す。
@@ -18,12 +18,12 @@ module の具体化には `\import` と同じパスと名前付き引数を使�
 \use \root.Equality[A := A, eq := rightEq, refl := rightRefl]::reflexive \as refl_right;
 \use \root.Templates[]::reflexive;
 \use Eq::reflexive \as refl_eq;
-\use Eq.Child[A := A]::reflexive \as refl_child;
+\use Eq::Child[A := A]::reflexive \as refl_child;
 ```
 
 `Eq` は `\import` で具体化した module の alias である。
 直接具体化した module は使用宣言の内部に保持し、通常の module alias は `\import` で導入する。
-現在の `\use Eq.reflexive;` は `\use Eq::reflexive;` に統一し、ライブラリ、サンプル、文書を移行する。
+ライブラリ、サンプル、文書の使用宣言もこの構文へ移行する。
 parameter の省略、型検査、structure 引数、親 module からの代入は `\import` の規則に従う。
 
 ## 可視性と名前の衝突
@@ -127,12 +127,12 @@ macro の使用宣言と定義元の module は、呼び出しより後に置い
 ) {
   \module Left {
     \import \root.Equality[A := A, eq := leftEq, refl := leftRefl] \as Eq;
-    \use Eq.reflexive;
+    \use Eq::reflexive;
     \definition proof: leftEq a a := reflexive!{a};
   }
   \module Right {
     \import \root.Equality[A := A, eq := rightEq, refl := rightRefl] \as Eq;
-    \use Eq.reflexive;
+    \use Eq::reflexive;
     \definition proof: rightEq a a := reflexive!{a};
   }
 }

@@ -289,3 +289,13 @@ context \(\Gamma'\) についての命題が「 \(\Gamma::x: T::\Gamma'\) につ
 
 #### sort には prop goal が発生しない？
 > \(\Gamma \vdash t: s\) の導出木には \(\Gamma \vDash P\) の形が発生しない。
+
+## Transport の導出補題
+
+weakening と substitution の transport の場合は、A、両端点、u の導出と、局所変数 x の下での B の導出へ同時帰納法を適用する。
+x を代入項の自由変数から離すと、代入合成則から \(B_a\) と \(B_b\) の代入がそれぞれ新しい始点・終点での族の代入に一致する。
+等式の provability premise も同じ帰納法で移り、transport 規則を再適用できる。
+恒等則では同じ帰納法の結果に恒等則を再適用する。
+Regularity では B の形成と b の typing に substitution を使って \(B_b:*^s_j\) を得る。
+恒等則の等式は transport の typing と u の typing から id form で形成する。
+Context-conversion は局所文脈 \(\Gamma,x:A\) の形成にも適用する。

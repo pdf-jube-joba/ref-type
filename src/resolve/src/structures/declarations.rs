@@ -150,6 +150,7 @@ impl Resolver {
             self.publish(&mut name);
             self.front_definitions.insert(name.1.unwrap(), definition);
             self.scopes[module.id.0 as usize].compiled = true;
+            *self.declaration_counts.entry(self.current).or_default() += 1;
             output.push(ModuleItem::ChildModule {
                 module: Box::new(module),
             });
@@ -293,6 +294,7 @@ impl Resolver {
         self.publish(&mut name);
         self.structure_values.insert(name.1.unwrap(), value);
         self.scopes[module.id.0 as usize].compiled = true;
+        *self.declaration_counts.entry(self.current).or_default() += 1;
         output.push(ModuleItem::ChildModule {
             module: Box::new(module),
         });
@@ -473,6 +475,7 @@ impl Resolver {
                     source: source.clone(),
                     span,
                 });
+                *self.declaration_counts.entry(self.current).or_default() += 1;
                 output.push(ModuleItem::ChildModule {
                     module: Box::new(checker),
                 });
@@ -526,6 +529,7 @@ impl Resolver {
                 fields: checked_fields,
             },
         );
+        *self.declaration_counts.entry(self.current).or_default() += 1;
         output.push(ModuleItem::ChildModule {
             module: Box::new(module),
         });

@@ -113,7 +113,7 @@ fn parsed_modules_can_be_reused_in_workspaces_with_different_module_ids() {
         \module Use {
             \inductive Unit: \Set := | unit: Unit;
             \import \root.Template[A := Unit, x := Unit::unit] \as T;
-            \use T.element;
+            \use T::element;
             \definition value: Unit := element!{};
         }
     ",
@@ -473,7 +473,7 @@ fn earlier_math_macro_wins_when_patterns_are_equally_applicable() {
 }
 
 #[test]
-fn macro_templates_cannot_see_later_macro_declarations() {
+fn macro_templates_see_the_completed_macro_scope() {
     let source = r#"
         \module Ordered(A: \Set(0), x: A, y: A) {
             \definition first: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
@@ -484,7 +484,7 @@ fn macro_templates_cannot_see_later_macro_declarations() {
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
-    assert!(environment.add_new_module_to_root(&modules[0]).is_err());
+    environment.add_new_module_to_root(&modules[0]).unwrap();
 }
 
 #[test]
@@ -497,8 +497,8 @@ fn imported_macro_uses_the_materialized_module_arguments() {
         }
         \module Consumer(A: \Set(0), value: A) {
             \import \root.Provider[A := A, value := value] \as provider;
-            \use provider.supplied;
-            \use provider.imported_plus;
+            \use provider::supplied;
+            \use provider::imported_plus;
             \definition result: A := supplied!{};
             \definition math_result: A := \(value + value \);
         }
@@ -598,7 +598,7 @@ fn child_modules_inherit_parent_import_aliases() {
             \module Child {
                 \definition direct: A := Shared.get;
                 \import Shared.Nested[] \as Nested;
-                \use Shared.get_macro;
+                \use Shared::get_macro;
                 \definition nested: A := Nested.get;
                 \definition from_macro: A := get_macro!{};
             }
@@ -896,12 +896,12 @@ fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
         }
         \module Wrapper(A: \Set(0), value: A) {
             \import \root.Base[A := A, value := value] \as base;
-            \use base.base_value;
+            \use base::base_value;
             \macro wrapped() := base_value!{};
         }
         \module Consumer(A: \Set(0), value: A) {
             \import \root.Wrapper[A := A, value := value] \as wrapper;
-            \use wrapper.wrapped;
+            \use wrapper::wrapped;
             \definition result: A := wrapped!{};
         }
     "#;
@@ -1124,7 +1124,7 @@ fn imported_macro_resolves_free_names_at_its_definition_site() {
         }
         \module Consumer(A: \Set(0), B: \Set(0), a: A, provided: B) {
             \import \root.Provider[A := A, provided := a] \as provider;
-            \use provider.supplied;
+            \use provider::supplied;
             \definition result: A := supplied!{};
         }
     "#;
@@ -2475,10 +2475,6 @@ fn invalid_variadic_macro_templates_fail_at_declaration() {
         (
             r"\math-macro bad(\+) := \tmatch missing {};",
             "only valid in named macros",
-        ),
-        (
-            r"\macro bad() := later!{}; \macro later() := value;",
-            "not visible at template declaration",
         ),
     ];
     for (declaration, expected) in cases {

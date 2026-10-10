@@ -129,6 +129,7 @@ domain の sort を保持するため、次の略記を使う。
 | \(\Pred(A,S,a)\) | \(\mathbf t(a\in S)\) |
 | \(a=b\) | \(\mathbf t(a=b)\) |
 | \(\exists A\) | \(\mathbf t(\operatorname{El}(c)\ne\varnothing)\) |
+| \(\operatorname{transport}_{A}(a,b,x.B,u)\) | \(\langle u\rangle_\rho\) |
 | \(\operatorname{choice}_i(X)\) | \(\bigcup\operatorname{El}(\langle X\rangle_\rho)\) |
 | \(\operatorname{RunStep}(A,B)\) | \(\mathsf{sum}(c,d)\) |
 | \(\operatorname{continue}_{A,B}(a)\), \(\operatorname{finish}_{A,B}(b)\) | \((0,a)\), \((1,b)\) |
@@ -195,3 +196,11 @@ dep form の閉性は次の表で尽くされる。
 一方、\(\operatorname{El}(\mathsf{pi}_r(c,\varnothing))=1\) だけから c を回収することはできない。
 また、\(\mathsf{ref}(c,S)\) と c は別のコードであり、refinement の導入・除去は
 それぞれの typing 規則で扱う。コードの等号を subset の包含で置き換えてはいけない。
+
+## Transport と raw 解釈
+
+transport の解釈は raw 項に対する構造再帰として u の解釈を返す。
+A、両端点、族の typing 導出や等式の導出への依存はなく、不適切に型付けされた raw 項にも同じ定義を使う。
+raw substitution の意味的代入補題のこの場合は u に対する帰納法そのものである。
+集合値 family に属する transport は証明消去後も残り、その検査用 certificate だけが比較と解釈から消える。
+入力 u の family が proof でないため、その解釈は \(\bullet\) への置換ではなく u の集合値である。
