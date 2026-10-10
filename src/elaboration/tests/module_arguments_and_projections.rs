@@ -13,27 +13,31 @@ macro_rules! case {
     ($name:ident, $file:literal) => {
         #[test]
         fn $name() {
-            check(include_str!(concat!("fixtures/gaps_g05_g09/", $file))).unwrap();
+            check(include_str!(concat!(
+                "fixtures/module_arguments_and_projections/",
+                $file
+            )))
+            .unwrap();
         }
     };
 }
 
-case!(dependent_type, "05-01-dependent-type-minimal.ref");
-case!(independent_type, "05-02-independent-type.ref");
-case!(dependent_quotient, "05-03-dependent-quotient.ref");
-case!(independent_quotient, "05-04-independent-quotient.ref");
-case!(forward_value_context, "05-05-forward-context.ref");
-case!(inner_inductive, "06-01-inner-inductive-minimal.ref");
-case!(outer_inductive, "06-02-outer-inductive.ref");
-case!(direct_identity, "06-03-direct-identity.ref");
-case!(forward_type_context, "06-04-forward-context.ref");
-case!(signature_index, "07-01-signature-index-minimal.ref");
-case!(flattened_index, "07-02-flattened-argument.ref");
-case!(block_lambda_projection, "09-01-block-minimal.ref");
-case!(block_hash_projection, "09-02-block-hash-projection.ref");
-case!(lambda_outside_block, "09-03-lambda-outside.ref");
-case!(block_let_projection, "09-04-block-let.ref");
-case!(block_let_hash_projection, "09-05-block-let-hash.ref");
+case!(dependent_type, "dependent-type-minimal.ref");
+case!(independent_type, "independent-type.ref");
+case!(dependent_quotient, "dependent-quotient.ref");
+case!(independent_quotient, "independent-quotient.ref");
+case!(forward_value_context, "forward-value-context.ref");
+case!(inner_inductive, "inner-inductive-minimal.ref");
+case!(outer_inductive, "outer-inductive.ref");
+case!(direct_identity, "direct-identity.ref");
+case!(forward_type_context, "forward-type-context.ref");
+case!(signature_index, "signature-index-minimal.ref");
+case!(flattened_index, "flattened-argument.ref");
+case!(block_lambda_projection, "block-minimal.ref");
+case!(block_hash_projection, "block-hash-projection.ref");
+case!(lambda_outside_block, "lambda-outside.ref");
+case!(block_let_projection, "block-let.ref");
+case!(block_let_hash_projection, "block-let-hash.ref");
 
 #[test]
 fn dependent_structure_indices_expand_whole_arguments() {

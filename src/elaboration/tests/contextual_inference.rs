@@ -12,9 +12,9 @@ fn check(source: &str) -> Result<(), String> {
 #[test]
 fn imported_front_definitions_infer_internal_annotations() {
     for source in [
-        include_str!("fixtures/gaps_g08_g14/08-01-contextual-argument.ref"),
-        include_str!("fixtures/gaps_g08_g14/08-02-explicit-argument.ref"),
-        include_str!("fixtures/gaps_g08_g14/08-03-bound-argument.ref"),
+        include_str!("fixtures/contextual_inference/contextual-argument.ref"),
+        include_str!("fixtures/contextual_inference/explicit-argument.ref"),
+        include_str!("fixtures/contextual_inference/bound-argument.ref"),
     ] {
         check(source).unwrap();
     }
@@ -23,9 +23,9 @@ fn imported_front_definitions_infer_internal_annotations() {
 #[test]
 fn contextual_applications_infer_function_arguments_in_their_declared_scope() {
     for source in [
-        include_str!("fixtures/gaps_g08_g14/14-01-contextual-inference.ref"),
-        include_str!("fixtures/gaps_g08_g14/14-02-lambda-inference.ref"),
-        include_str!("fixtures/gaps_g08_g14/14-03-explicit-inference.ref"),
+        include_str!("fixtures/contextual_inference/contextual-inference.ref"),
+        include_str!("fixtures/contextual_inference/lambda-inference.ref"),
+        include_str!("fixtures/contextual_inference/explicit-inference.ref"),
     ] {
         check(source).unwrap();
     }

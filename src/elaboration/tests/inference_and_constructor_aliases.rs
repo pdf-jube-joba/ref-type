@@ -10,18 +10,18 @@ fn check(source: &str) -> Result<(), String> {
 }
 
 #[test]
-fn current_g03_and_g04_minimal_examples() {
+fn inference_and_constructor_alias_examples() {
     for source in [
-        include_str!("fixtures/gaps_g03_g04/03-01-infer-projection.ref"),
-        include_str!("fixtures/gaps_g03_g04/03-02-explicit-projection.ref"),
-        include_str!("fixtures/gaps_g03_g04/03-03-infer-take-continuation.ref"),
-        include_str!("fixtures/gaps_g03_g04/03-04-explicit-take-continuation.ref"),
-        include_str!("fixtures/gaps_g03_g04/03-05-infer-take.ref"),
-        include_str!("fixtures/gaps_g03_g04/03-06-infer-subset.ref"),
-        include_str!("fixtures/gaps_g03_g04/04-01-alias-constructor.ref"),
-        include_str!("fixtures/gaps_g03_g04/04-02-direct-constructor.ref"),
-        include_str!("fixtures/gaps_g03_g04/04-03-alias-induction.ref"),
-        include_str!("fixtures/gaps_g03_g04/04-04-direct-induction.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/infer-projection.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/explicit-projection.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/infer-take-continuation.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/explicit-take-continuation.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/infer-take.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/infer-subset.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/alias-constructor.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/direct-constructor.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/alias-induction.ref"),
+        include_str!("fixtures/inference_and_constructor_aliases/direct-induction.ref"),
     ] {
         check(source).unwrap();
     }

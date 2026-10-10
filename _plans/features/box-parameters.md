@@ -1,6 +1,6 @@
-<a id="g11"></a>
+<a id="g04"></a>
 
->  ## G11: Machine の実行を Box にする定義
+>  ## G04: Machine の実行を Box にする定義
 >
 >  Machine を引数に取り、その実行を Box にする共通の定義を書きたい。
 >
@@ -12,8 +12,8 @@
 >  現在は引数の State と Output が未確定なため、Box の閉性検査でこの定義を検査できない。
 >  `std.Program.runBox` はマクロとして提供し、呼出側で具体化した Machine の実行を検査している。
 
-G11 は [`gaps.md`](../gaps.md#g11) から分割した項目である。
-最小例・対照例と検査結果は [比較サンプル G11](../gaps.md#g11) を参照。
+G04 は [`gaps.md`](../gaps.md#g04) から分割した項目である。
+最小例・対照例と検査結果は [比較サンプル G04](../gaps.md#g04) を参照。
 
 # Box の parameter と評価開始条件
 
@@ -24,7 +24,7 @@ parameter の具体化、Box 内の簡約、`\Force` による reflection の関
 
 ## 動機と現状
 
-[Machine の実行を Box にする定義](#g11)では、引数に依存する Program の型と項を Box に入れたい。
+[Machine の実行を Box にする定義](#g04)では、引数に依存する Program の型と項を Box に入れたい。
 必要になるのは structure の中の Program 部分であり、Set の一般の項を Program の value として受け入れることとは別の問題である。
 
 [現在の体系](../../doc/book/src/system.md)では、Box の computation type と payload を空文脈で型検査する。
