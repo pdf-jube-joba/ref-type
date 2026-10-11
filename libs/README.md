@@ -6,7 +6,7 @@
 
 | パッケージ | 内容 | 行数 | 直接依存 |
 | --- | --- | ---: | --- |
-| [std](std/README.md) | 論理、データ、整数・有理数、商、代数構造 | 18,627 | なし |
+| [std](std/README.md) | 論理、データ、整数・有理数、商、代数構造 | 18,612 | なし |
 | [algebra](algebra/README.md) | 準同型、群完成、商、多項式環 | 1,545 | std |
 | [module_theory](module_theory/README.md) | 環上の加群、自由加群、直和、テンソル積、完全列 | 5,322 | algebra, std |
 | [commutative_algebra](commutative_algebra/README.md) | Hom とテンソル積、射影性、有限自由加群の行列 | 1,295 | algebra, module_theory, std |
@@ -16,7 +16,7 @@
 | [dedekind_reals](dedekind_reals/README.md) | 有理数の切断による実数、演算・順序・完備性 | 4,593 | ordered_fields, std |
 | [cauchy_reals](cauchy_reals/README.md) | 有理数 Cauchy 列の商による実数、演算・順序・完備性 | 3,886 | ordered_fields, std |
 | [real](real/README.md) | 構成済みの実数の演算、距離評価、数列、平方根、有限和 | 1,785 | dedekind_reals, std |
-| [chain_complexes](chain_complexes/README.md) | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 | 5,020 | algebra, category, module_theory, std |
+| [chain_complexes](chain_complexes/README.md) | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 | 4,966 | algebra, category, module_theory, std |
 | [resolutions](resolutions/README.md) | 非負鎖複体、射影分解、比較定理、Hom・テンソル複体、二重複体 | 4,769 | algebra, chain_complexes, commutative_algebra, module_theory, std |
 | [derived_functors](derived_functors/README.md) | Ext・Tor、分解からの独立性と自然性、巡回加群の分解、普遍係数 | 3,352 | algebra, chain_complexes, commutative_algebra, finitely_generated_modules, module_theory, resolutions, std |
 | [homological_algebra](homological_algebra/README.md) | 有限複体のホモロジー計算、テンソル余鎖複体、Künneth 同型 | 5,363 | algebra, chain_complexes, commutative_algebra, derived_functors, finitely_generated_modules, integer_matrices, module_theory, resolutions, std |

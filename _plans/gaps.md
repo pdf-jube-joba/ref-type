@@ -1,11 +1,11 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05 の比較サンプルは、全文を playground.md に貼り付けて単独で検査できる。
+G02〜G05 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
 cargo build --locked --offline -p cli
-target/debug/cli _plans/fix-md/cases/05-01-record-eta.ref --no-cache --diagnostics compact
+target/debug/cli _plans/gaps/05-01-record-eta.ref --no-cache --diagnostics compact
 ```
 
 Box の検討は [Box の parameter](features/box-parameters.md#g04) に分けている。
@@ -46,8 +46,8 @@ Box の検討は [Box の parameter](features/box-parameters.md#g04) に分け�
 
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
-| [02-01-proof-function.ref](fix-md/cases/02-01-proof-function.ref) | `choose: P -> A := \fun (h: P) => a`。 | 失敗：`no product rule for these sorts`。 |
-| [02-02-proof-contextual.ref](fix-md/cases/02-02-proof-contextual.ref) | `choose(h: P): A := a`。 | 成功。 |
+| [02-01-proof-function.ref](gaps/02-01-proof-function.ref) | `choose: P -> A := \fun (h: P) => a`。 | 失敗：`no product rule for domain \Prop and body \Set(0)`。 |
+| [02-02-proof-contextual.ref](gaps/02-02-proof-contextual.ref) | `choose(h: P): A := a`。 | 成功。 |
 
 命題 `P`、集合 `A`、返す値 `a` は共通で、証明引数を通常の関数にするか contextual な定義にするかだけを変える。
 
@@ -70,8 +70,8 @@ Box の検討は [Box の parameter](features/box-parameters.md#g04) に分け�
 
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
-| [03-01-relation-record.ref](fix-md/cases/03-01-relation-record.ref) | `Selection[relation]: \Set` に値と法則を保持する。 | 失敗：`Generated projection value does not typecheck: no product rule for these sorts`。 |
-| [03-02-relation-record-split.ref](fix-md/cases/03-02-relation-record-split.ref) | データと法則を分け、部分集合型で結ぶ。 | 成功。 |
+| [03-01-relation-record.ref](gaps/03-01-relation-record.ref) | `Selection[relation]: \Set` に値と法則を保持する。 | 失敗：`Generated projection value does not typecheck: no product rule for domain \PropKind and body \Set(0)`。 |
+| [03-02-relation-record-split.ref](gaps/03-02-relation-record-split.ref) | データと法則を分け、部分集合型で結ぶ。 | 成功。 |
 
 保持する値と条件は共通で、record に関係 parameter を渡すか、法則を満たすデータの部分集合型を使うかを比較する。
 
@@ -90,8 +90,8 @@ Machine を引数に取り、その実行を Box にする共通の定義を書�
 
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
-| [04-01-box-machine.ref](fix-md/cases/04-01-box-machine.ref) | `machine` は定義の引数。 | 失敗：`Box requires a closed computation type`。 |
-| [04-02-box-concrete.ref](fix-md/cases/04-02-box-concrete.ref) | `machine` は既に定義した具体値。 | 成功。 |
+| [04-01-box-machine.ref](gaps/04-01-box-machine.ref) | `machine` は定義の引数。 | 失敗：`Box requires a closed computation type`。 |
+| [04-02-box-concrete.ref](gaps/04-02-box-concrete.ref) | `machine` は既に定義した具体値。 | 成功。 |
 
 差分は `runBox` の `(machine: Machine)` の有無だけである。
 Machine の型、実行、Box の型と本体は共通で、Box の型は両側とも明示する。
@@ -110,8 +110,8 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
-| [05-01-record-eta.ref](fix-md/cases/05-01-record-eta.ref) | `s` は定義の引数。 | 失敗：`types are not convertible`。 |
-| [05-02-record-eta-concrete.ref](fix-md/cases/05-02-record-eta-concrete.ref) | `s` は既に定義した具体的な record。 | 成功。 |
+| [05-01-record-eta.ref](gaps/05-01-record-eta.ref) | `s` は定義の引数。 | 失敗：`types are not convertible`。 |
+| [05-02-record-eta-concrete.ref](gaps/05-02-record-eta-concrete.ref) | `s` は既に定義した具体的な record。 | 成功。 |
 
 差分は `eta` の `(s: Record)` の有無だけである。
 両側とも `s = Record { field := s.field }` を `refl(s)` で検査する。
