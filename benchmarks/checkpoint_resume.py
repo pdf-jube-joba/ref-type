@@ -23,7 +23,7 @@ def limits():
 
 def run(cache, name, interrupt=False):
     log = ROOT / "benchmarks" / f"checkpoint-{name}.log"
-    command = [str(ROOT / "target/debug/cli"), "libs/homological_algebra", "--module", MODULE,
+    command = [str(ROOT / "target/debug/cli"), "libs/algebra/homological/computations", "--module", MODULE,
                "--cache-dir", str(cache), "--checkpoint-seconds", "1", "--cache-stats",
                "--diagnostics", "compact"]
     environment = {k: v for k, v in os.environ.items() if not k.startswith("REF_TYPE_PROFILE_")}

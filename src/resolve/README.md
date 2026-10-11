@@ -33,7 +33,7 @@ Program parameter の反映を含む macro は `Reflect` に元の parameter の
 
 構文全体の HIR は `hir`、構造走査は `visit` から利用できる。
 名前解決の失敗は module path と source location を持つ `Diagnostic` になる。
-名前解決だけの計測には `cargo run -p resolve --example resolve-bench -- libs/differential_forms` を使う。
+名前解決だけの計測には `cargo run -p resolve --example resolve-bench -- libs/geometry/differential_forms` を使う。
 `REF_TYPE_PROFILE_COSTS=1` で処理別の時間と呼び出し回数を出力する。
 
 ```rust

@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn package_manifest_takes_priority_over_source_root() {
         let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let file = repository.join("libs/real/src/CauchyReal.ref");
-        assert_eq!(Server::entry(&file), repository.join("libs/real"));
+        let file = repository.join("libs/real/cauchy/src/CauchyReal.ref");
+        assert_eq!(Server::entry(&file), repository.join("libs/real/cauchy"));
     }
 }

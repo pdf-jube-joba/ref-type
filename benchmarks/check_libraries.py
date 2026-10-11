@@ -44,7 +44,9 @@ def packages():
             visit(path / dependency['path'])
         ordered.append(path)
 
-    for manifest in sorted((ROOT / 'libs').glob('*/ref.toml')):
+    for manifest in sorted((ROOT / 'libs').rglob('ref.toml')):
+        if manifest.parent == ROOT / 'libs':
+            continue
         visit(manifest.parent)
     for name in PROJECTS:
         visit(ROOT / 'tests/projects' / name)

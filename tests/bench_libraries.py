@@ -11,6 +11,7 @@ import re
 import statistics
 import subprocess
 import time
+import tomllib
 
 LIBRARIES = (
     "std", "algebra", "real", "complex", "linear_algebra", "topology", "calculus",
@@ -57,6 +58,7 @@ def main():
         parser.error("Linux and a positive --runs value are required")
     root = args.root.resolve()
     binary = args.binary.resolve()
+    library_paths = tomllib.loads((root / "libs/ref.toml").read_text())["dependencies"]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     logs = args.output.parent / (args.output.stem + "-logs")
     logs.mkdir(exist_ok=True)
@@ -86,7 +88,7 @@ def main():
     for run in range(1, args.runs + 1):
         for library in args.libraries:
             log = logs / f"{run}-{library}.log"
-            command = [str(binary), f"libs/{library}", *result["flags"]]
+            command = [str(binary), str(Path("libs") / library_paths[library]["path"]), *result["flags"]]
             start = time.perf_counter()
             with log.open("w") as output:
                 child = subprocess.Popen(command, cwd=root, env=environment,

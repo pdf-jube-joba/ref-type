@@ -8,7 +8,7 @@
 基礎構成と有限行列計算は既に複数のパッケージへ実装されている。
 この計画は、それらを再利用して残る比較定理・完全列・自然性を仕上げる一つの実装単位である。
 各節は中間検査点とし、一般のアーベル圏上の導来関手、導来圏、スペクトル系列は後続の実装単位とする。
-[De Rham コホモロジー](../../libs/differential_forms/README.md) は `module_theory` と `chain_complexes` の共通構成を利用している。
+[De Rham コホモロジー](../../libs/geometry/differential_forms/README.md) は `module_theory` と `chain_complexes` の共通構成を利用している。
 
 ## 実装済みの基盤と所有するパッケージ
 
@@ -17,17 +17,17 @@
 | パッケージ | 再利用する公開 API と証明 |
 | --- | --- |
 | [std](../../libs/std/README.md) | 整数・自然数、除法、拡張 Euclid、有限添字、証明付き Program。 |
-| [algebra](../../libs/algebra/README.md) | 準同型、群完成、群・環の商、多項式、`Exact` の完全性。 |
-| [module_theory](../../libs/module_theory/README.md) | `Module.Over` の加群、核・像・商、第一同型定理、自由加群と有限支持表示、任意直和・積、テンソル積、射影性、短完全列、Snake・Five lemma、自由分解の各項。 |
-| [commutative_algebra](../../libs/commutative_algebra/README.md) | `Modules` の Hom 加群、自由加群からの Hom、Hom–tensor 対応、射影加群とのテンソルによる短完全列の保存、行列と準同型の往復。 |
-| [integer_matrices](../../libs/integer_matrices/README.md) | 整数行列の実行可能な演算、Smith 標準形、変換行列と逆、停止性、\(UAV=D\)、非負対角成分と整除列。 |
-| [finitely_generated_modules](../../libs/finitely_generated_modules/README.md) | 整数行列の核・像の自由基底、有限自由整数加群の部分加群の有限生成性と自由基底、体上の部分空間の射影性。 |
-| [chain_complexes](../../libs/chain_complexes/README.md) | 自然数・整数次数の余鎖複体、整数次数の鎖複体、零拡張、次数反転、誘導写像、ホモトピー、シフト、cone と非輪状性の判定、長完全列と接続写像の自然性。 |
-| [resolutions](../../libs/resolutions/README.md) | 非負鎖複体、射影分解、比較定理とホモトピーによる一意性、horseshoe、Hom・テンソル複体、二重複体と有限対角和の total。 |
-| [derived_functors](../../libs/derived_functors/README.md) | Ext・Tor、分解の変更、零次の Hom・tensor 同型、射影加群の高次消滅、両変数の短完全列、巡回加群の計算、Ext¹ と短完全拡大の対応、普遍係数の評価写像。 |
-| [homological_algebra](../../libs/homological_algebra/README.md) | `Finite` の二段階 Smith 計算、有界整数複体と転置した余鎖複体、基底変更と誘導写像、`FieldFinite` の分裂、`TensorCochain` の total・交換・外積と自然性、`Kunneth.Field` の同型。 |
+| [algebra](../../libs/algebra/basic/README.md) | 準同型、群完成、群・環の商、多項式、`Exact` の完全性。 |
+| [module_theory](../../libs/algebra/module_theory/README.md) | `Module.Over` の加群、核・像・商、第一同型定理、自由加群と有限支持表示、任意直和・積、テンソル積、射影性、短完全列、Snake・Five lemma、自由分解の各項。 |
+| [commutative_algebra](../../libs/algebra/commutative_algebra/README.md) | `Modules` の Hom 加群、自由加群からの Hom、Hom–tensor 対応、射影加群とのテンソルによる短完全列の保存、行列と準同型の往復。 |
+| [integer_matrices](../../libs/algebra/integer_matrices/README.md) | 整数行列の実行可能な演算、Smith 標準形、変換行列と逆、停止性、\(UAV=D\)、非負対角成分と整除列。 |
+| [finitely_generated_modules](../../libs/algebra/finitely_generated_modules/README.md) | 整数行列の核・像の自由基底、有限自由整数加群の部分加群の有限生成性と自由基底、体上の部分空間の射影性。 |
+| [chain_complexes](../../libs/algebra/homological/chain_complexes/README.md) | 自然数・整数次数の余鎖複体、整数次数の鎖複体、零拡張、次数反転、誘導写像、ホモトピー、シフト、cone と非輪状性の判定、長完全列と接続写像の自然性。 |
+| [resolutions](../../libs/algebra/homological/resolutions/README.md) | 非負鎖複体、射影分解、比較定理とホモトピーによる一意性、horseshoe、Hom・テンソル複体、二重複体と有限対角和の total。 |
+| [derived_functors](../../libs/algebra/homological/derived_functors/README.md) | Ext・Tor、分解の変更、零次の Hom・tensor 同型、射影加群の高次消滅、両変数の短完全列、巡回加群の計算、Ext¹ と短完全拡大の対応、普遍係数の評価写像。 |
+| [homological_algebra](../../libs/algebra/homological/computations/README.md) | `Finite` の二段階 Smith 計算、有界整数複体と転置した余鎖複体、基底変更と誘導写像、`FieldFinite` の分裂、`TensorCochain` の total・交換・外積と自然性、`Kunneth.Field` の同型。 |
 | [category](../../libs/category/README.md) | 前加法圏、双積、核・余核とアーベル圏の構造。 |
-| [linear_algebra](../../libs/linear_algebra/README.md) | 体上への具体化、一般加群のテンソル積との比較。 |
+| [linear_algebra](../../libs/algebra/linear_algebra/README.md) | 体上への具体化、一般加群のテンソル積との比較。 |
 
 `homological_algebra` の現在の直接依存は `algebra`、`chain_complexes`、`commutative_algebra`、`derived_functors`、`finitely_generated_modules`、`integer_matrices`、`module_theory`、`resolutions`、`std` である。
 一般の複体は `chain_complexes`、分解は `resolutions`、Ext・Tor は `derived_functors` が所有し、有限計算と積の比較を `homological_algebra` に置く。

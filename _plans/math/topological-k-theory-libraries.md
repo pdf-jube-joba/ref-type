@@ -44,8 +44,8 @@ K 理論に向けた主要パッケージの担当は次のとおりである。
 `algebra` は、構造を入力として新しい代数的対象を作る一般構成を担当する。
 この分割なら、実数・複素数の構成に必要な小さな代数的基礎を `std` に保ちながら、K 理論向けの抽象代数を独立に増やせる。
 
-実装済みの準同型・商・群完成・多項式・完全性の API は [algebra](../../libs/algebra/README.md) にまとめる。
-一般加群・自由加群・射影性・直和・テンソル積は [module_theory](../../libs/module_theory/README.md)、可換環上の Hom・テンソルと有限自由行列は [commutative_algebra](../../libs/commutative_algebra/README.md) にある。
+実装済みの準同型・商・群完成・多項式・完全性の API は [algebra](../../libs/algebra/basic/README.md) にまとめる。
+一般加群・自由加群・射影性・直和・テンソル積は [module_theory](../../libs/algebra/module_theory/README.md)、可換環上の Hom・テンソルと有限自由行列は [commutative_algebra](../../libs/algebra/commutative_algebra/README.md) にある。
 有限生成射影加群の追加定理はこの分担に沿って置く。
 ベクトル空間のテンソル積は `linear_algebra` にあり、`Field.Space.Tensor.ModuleComparison` が一般加群の構成へ接続する。
 一般加群の外積代数と Clifford 代数は、それぞれの発展段階で共通の加群基盤を使って追加する。
@@ -54,9 +54,9 @@ K 理論に向けた主要パッケージの担当は次のとおりである。
 
 ### `topology`、`metric_spaces`、`topological_constructions`
 
-[topology](../../libs/topology/README.md) は部分空間、連続写像、コンパクト性、分離性、局所コンパクト性を担当する。
-[metric_spaces](../../libs/metric_spaces/README.md) は距離位相、実数値関数の連続性、コンパクト Hausdorff 空間の有限従属分割を提供する。
-[topological_constructions](../../libs/topological_constructions/README.md) は積のコンパクト性、商、直和、pushout、貼り合わせ、compact-open 位相を提供する。
+[topology](../../libs/topology/basic/README.md) は部分空間、連続写像、コンパクト性、分離性、局所コンパクト性を担当する。
+[metric_spaces](../../libs/topology/metric_spaces/README.md) は距離位相、実数値関数の連続性、コンパクト Hausdorff 空間の有限従属分割を提供する。
+[topological_constructions](../../libs/topology/topological_constructions/README.md) は積のコンパクト性、商、直和、pushout、貼り合わせ、compact-open 位相を提供する。
 有限積の既存定理から有限座標空間・円板・球面のコンパクト性を導く。
 
 部分空間は `topology`、商と有限貼り合わせは `topological_constructions`、区間は `algebraic_topology.Interval` の既存構成を使う。

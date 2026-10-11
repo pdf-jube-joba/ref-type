@@ -34,7 +34,7 @@ De Rham 同型、Poincaré 双対性、一般の無限 CW 複体、局所係数�
 新規パッケージは `std` 以外の約5,000行という目安に従い、細分・比較・積・計算を共有基盤から応用への依存で分け、`singular_cohomology` から公開する。
 幾何的な実現と空間の構成は `algebraic_topology`、そのコホモロジーの計算と比較定理は `singular_cohomology` が担当する。
 `algebraic_topology` から `singular_cohomology` への依存は生じない構成とする。
-実数係数の群は [De Rham コホモロジー](../../libs/differential_forms/README.md) と同じ Dedekind 実数・加群構造を使う。
+実数係数の群は [De Rham コホモロジー](../../libs/geometry/differential_forms/README.md) と同じ Dedekind 実数・加群構造を使う。
 
 ## 1. 標準単体と位相的な前提
 

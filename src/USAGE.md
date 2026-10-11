@@ -53,7 +53,7 @@ std = { path = "../std" }
 
 ```sh
 cargo run -p cli -- libs/std --module std.Data.Nat --diagnostics compact
-cargo run -p cli -- libs/differential_forms --module differential_forms --full-check-local --diagnostics compact
+cargo run -p cli -- libs/geometry/differential_forms --module differential_forms --full-check-local --diagnostics compact
 ```
 
 Linux では CLI 本体がパッケージの検査範囲を自動分割し、進捗表示を担当する親プロセスから検査プロセスを一つずつ起動する。
@@ -113,8 +113,8 @@ module ごとの秒数は読み込み・構文解析・名前解決と展開・�
 `total` は CLI 内の引数処理から module の計測結果の表示と環境の解放までの時間であり、Cargo のビルド・プロセス起動時間と最後の `shared` / `total` の表示時間は別である。
 
 ```sh
-cargo run -p cli -- libs/topology --full-check-local
-cargo run -p cli -- libs/topology --full-check-local --no-progress
+cargo run -p cli -- libs/topology/basic --full-check-local
+cargo run -p cli -- libs/topology/basic --full-check-local --no-progress
 ```
 
 `--full-check-local` では、C が B に、B が A に依存するとき、B 自身のソースと manifest をキャッシュに照合する。
@@ -173,7 +173,7 @@ cost 計測中は、その変換で生じた kernel エラーの種類ごとに�
 ```sh
 cargo build -p cli --locked
 REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
-  python3 benchmarks/check.py libs/homological_algebra \
+  python3 benchmarks/check.py libs/algebra/homological/computations \
   --cache-dir "$(mktemp -d /tmp/ref-type-profile.XXXXXX)" \
   --seconds 180 --memory-mib 3072 --progress-seconds 15 \
   --log benchmarks/check.log --result benchmarks/check.json
@@ -189,7 +189,7 @@ REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
 ```sh
 REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
   /usr/bin/time -v -o benchmarks/homological-memory.log \
-  target/debug/cli libs/homological_algebra --progress-tty \
+  target/debug/cli libs/algebra/homological/computations --progress-tty \
   --cache-dir "$(mktemp -d /tmp/ref-type-profile.XXXXXX)" \
   > benchmarks/homological.log 2>&1
 ```
@@ -200,7 +200,7 @@ Ctrl+C で検査を中断でき、中断前に出力された途中ログはフ�
 型検査前に package ごとの検査完了順を調べる場合は、resolver の計測用プログラムを使える。
 
 ```sh
-cargo run -p resolve --example resolve-bench -- libs/homological_algebra --package-order \
+cargo run -p resolve --example resolve-bench -- libs/algebra/homological/computations --package-order \
   > benchmarks/module-order.log
 ```
 
