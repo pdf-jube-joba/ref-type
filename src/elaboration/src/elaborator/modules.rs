@@ -407,7 +407,7 @@ impl GlobalEnvironment {
         self.module_manager.reference_location = self.diagnostic_location.clone();
         self.metavariables.clear();
         let reserved_module = self.module_manager.current();
-        let mut ctx = self.module_manager.current_context(&self.crate_env);
+        let mut ctx = Vec::new();
 
         let mut parameter_position = 0_u32;
 
@@ -516,11 +516,9 @@ impl GlobalEnvironment {
                 );
                 parameter_position += 1;
                 match parameter_kind {
-                    ModuleParameterKind::Pts { ty } => {
-                        ctx.push(ExpContextEntry { var: symbol, ty });
-                        local_scope.push_typed_decl_var_exp(
+                    ModuleParameterKind::Pts { .. } => {
+                        local_scope.push_decl_var_exp(
                             symbol,
-                            ty,
                             self.crate_env.arena().exp_module_param(parameter_id),
                         );
                     }
@@ -576,7 +574,7 @@ impl GlobalEnvironment {
         decl: &ModuleItem,
         location: Option<SourceLocation>,
     ) -> Result<(), ElaborationError> {
-        let mut ctx = self.module_manager.current_context(&self.crate_env);
+        let mut ctx = Vec::new();
         let mut profile_timer =
             profiling::ProfileTimer::start("REF_TYPE_PROFILE_DECLARATIONS", || {
                 format!(

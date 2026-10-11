@@ -282,11 +282,12 @@ impl<'a> Checker<'a> {
         let mut used = std::collections::HashSet::new();
         indices(self.arena(), e, 0, &mut used);
         for index in used {
-            let position = self
-                .context
-                .len()
-                .checked_sub(index + 1)
-                .ok_or(crate::error::Error::BoundVariableOutsideContext)?;
+            let position = self.context.len().checked_sub(index + 1).ok_or(
+                crate::error::Error::BoundVariableOutsideContext {
+                    index,
+                    context_len: self.context.len(),
+                },
+            )?;
             let binding = self.context[position].clone();
             let mut prefix = Checker::new(self.env, self.metas, self.context[..position].to_vec());
             if !matches!(
@@ -613,8 +614,16 @@ impl<'a> Checker<'a> {
         result
     }
     fn infer_framed(&mut self, term: Expression) -> Result<Expression, Error> {
-        self.infer_rule(term)
-            .map_err(|error| error.at(crate::error::Frame::Rule(self.arena().get(term).kind())))
+        self.infer_rule(term).map_err(|error| {
+            if std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some() {
+                eprintln!(
+                    "kernel inference failed: term={:?}, context={:?}",
+                    self.arena().get(term),
+                    self.context
+                );
+            }
+            error.at(crate::error::Frame::Rule(self.arena().get(term).kind()))
+        })
     }
     fn check_at(
         &mut self,
@@ -640,14 +649,18 @@ impl<'a> Checker<'a> {
                 return Err(crate::error::Error::UpperSortHasNoClassifier);
             }
             Node::Bound(index) => {
-                let offset = index
-                    .checked_add(1)
-                    .ok_or(crate::error::Error::BoundVariableOutsideContext)?;
-                let position = self
-                    .context
-                    .len()
-                    .checked_sub(offset)
-                    .ok_or(crate::error::Error::BoundVariableOutsideContext)?;
+                let offset = index.checked_add(1).ok_or(
+                    crate::error::Error::BoundVariableOutsideContext {
+                        index,
+                        context_len: self.context.len(),
+                    },
+                )?;
+                let position = self.context.len().checked_sub(offset).ok_or(
+                    crate::error::Error::BoundVariableOutsideContext {
+                        index,
+                        context_len: self.context.len(),
+                    },
+                )?;
                 self.env.shifted(self.context[position].ty, offset)?
             }
             Node::Definition { id, arguments } => {

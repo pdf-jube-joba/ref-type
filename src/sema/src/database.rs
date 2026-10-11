@@ -21,6 +21,8 @@ pub struct CheckOptions {
     pub force: bool,
     /// Recheck the entry package while reusing dependency results and environments.
     pub force_local: bool,
+    /// Select only the named module and its dependencies, excluding unrelated children.
+    pub module_only: bool,
     /// Receive source module timings after analysis and result storage finish.
     pub progress: Option<fn(&ModuleProgress)>,
     /// Receive the selected dependency graph and live verification progress.
@@ -116,6 +118,19 @@ impl Database {
         }
     }
 
+    /// Source module identities, including repeated names, for bounded checking batches.
+    pub fn module_paths(
+        &mut self,
+        snapshot: &SourceSnapshot,
+    ) -> Result<Vec<Vec<String>>, Vec<Diagnostic>> {
+        let modules = self.parse_project(snapshot)?;
+        Ok(ModuleGraph::new(&modules)
+            .units
+            .into_iter()
+            .map(|unit| unit.path)
+            .collect())
+    }
+
     fn load(&mut self, snapshot: &SourceSnapshot) -> Result<LoadedProject, Vec<Diagnostic>> {
         let _cost = timing::costs::Scope::enter("source.load");
         let started = std::time::Instant::now();
@@ -190,7 +205,9 @@ impl Database {
         options: &CheckOptions,
     ) -> Arc<SemanticResult> {
         elaboration::diagnostics::with_diagnostic_mode(options.diagnostics, || {
-            self.query(snapshot, options, |unit| unit.path.starts_with(path))
+            self.query(snapshot, options, |unit| {
+                unit.path == path || (!options.module_only && unit.path.starts_with(path))
+            })
         })
     }
     /// All modules with declarations in the requested file and their dependencies.

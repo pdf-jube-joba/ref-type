@@ -38,7 +38,10 @@ pub enum Error {
     ApplicationEvaluationModeMismatch,
     BinderDepthOverflow,
     BoundIndexOverflow,
-    BoundVariableOutsideContext,
+    BoundVariableOutsideContext {
+        index: usize,
+        context_len: usize,
+    },
     BoxedApplicationRequiresBoxAB,
     BoxedFunctionTypeMustBeProduct,
     BoxedTypeApplicationRequiresABoxedTypeAbstraction,
@@ -221,7 +224,10 @@ impl std::fmt::Display for Error {
             }
             Self::BinderDepthOverflow => f.write_str("binder depth overflow"),
             Self::BoundIndexOverflow => f.write_str("bound index overflow"),
-            Self::BoundVariableOutsideContext => f.write_str("bound variable outside context"),
+            Self::BoundVariableOutsideContext { index, context_len } => write!(
+                f,
+                "bound variable {index} outside context of length {context_len}"
+            ),
             Self::BoxedApplicationRequiresBoxAB => {
                 f.write_str("boxed application requires Box(A -> B)")
             }

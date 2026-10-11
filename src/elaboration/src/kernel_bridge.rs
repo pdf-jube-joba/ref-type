@@ -160,7 +160,7 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), crate::error::E
                         indspec: origin.source,
                         parameters: vec![],
                     })));
-                    origin.arguments.clone()
+                    origin.arguments.to_vec()
                 } else {
                     env.namespace_arguments(id.module)
                 };

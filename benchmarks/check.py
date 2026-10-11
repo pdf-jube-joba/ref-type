@@ -30,7 +30,8 @@ def main():
     if args.seconds <= 0 or args.memory_mib <= 0:
         parser.error("limits must be positive")
 
-    command = [args.binary, args.path, "--diagnostics", "compact"]
+    command = [args.binary, args.path, "--diagnostics", "compact",
+               "--memory-mib", str(args.memory_mib)]
     if args.module:
         command.extend(["--module", args.module])
     if args.cache_stats:

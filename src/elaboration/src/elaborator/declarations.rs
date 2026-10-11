@@ -14,7 +14,7 @@ impl GlobalEnvironment {
         let parameters = scope.elab_telescope_bind_in_decl(parameters, self)?;
         let ty = scope.elab_exp(ty, self)?;
         let body = scope.elab_with_expected(body, ty, self)?;
-        let mut context = self.module_manager.current_context(&self.crate_env);
+        let mut context = Vec::new();
         context.extend(
             parameters
                 .iter()
@@ -518,7 +518,7 @@ impl GlobalEnvironment {
                 (name, ty, body)
             };
 
-            let mut context = self.module_manager.current_context(&self.crate_env);
+            let mut context = Vec::new();
             CheckSession::new(&self.crate_env, &mut context)
                 .check_pts(body, ty)
                 .map_err(|error| {

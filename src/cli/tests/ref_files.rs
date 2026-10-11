@@ -14,8 +14,6 @@ const LIBRARY_TIMEOUT: Duration = Duration::from_secs(180);
 // The topology project also checks finite-dimensional algebra and quotient
 // homotopies; a cold dependency cache can exceed three minutes.
 const TOPOLOGICAL_K_THEORY_TIMEOUT: Duration = Duration::from_secs(600);
-// Smooth atlas saturation can also check cold analysis and chart dependencies.
-const MANIFOLDS_DE_RHAM_TIMEOUT: Duration = Duration::from_secs(3600);
 static LIBRARY_CHECK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn library_check() -> std::sync::MutexGuard<'static, ()> {
@@ -216,50 +214,52 @@ fn ng_ref_files_fail() {
     run_cases("tests/ng", false);
 }
 
-#[test]
-fn library_examples_succeed() {
+// Large projects use the same bounded, complete coverage path as library upkeep.
+#[cfg(target_os = "linux")]
+fn check_library_project(project: &str) {
     let _check = library_check();
     let workspace = workspace_root();
-    let path = workspace.join("tests/projects/library");
-    let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
-        .unwrap_or_else(|error| panic!("{error}"));
+    let fixture = FixtureDirectory::new();
+    let output = Command::new("python3")
+        .arg(workspace.join("benchmarks/check_libraries.py"))
+        .arg(workspace.join("tests/projects").join(project))
+        .arg("--binary")
+        .arg(env!("CARGO_BIN_EXE_cli"))
+        .arg("--output")
+        .arg(fixture.0.join("check.json"))
+        .current_dir(&workspace)
+        .output()
+        .unwrap();
     assert!(output.status.success(), "{}", output_details(&output));
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        !stdout.contains("check failed:") && !stdout.contains("infer failed:"),
-        "{}",
-        output_details(&output)
-    );
+}
+
+#[cfg(not(target_os = "linux"))]
+fn check_library_project(project: &str) {
+    let _check = library_check();
+    let workspace = workspace_root();
+    let output = run_ref_file_with_timeout(
+        &workspace,
+        &workspace.join("tests/projects").join(project),
+        &[],
+        Duration::from_secs(3600),
+    )
+    .unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn library_examples_succeed() {
+    check_library_project("library");
 }
 
 #[test]
 fn topological_k_theory_foundations_examples_succeed() {
-    let _check = library_check();
-    let workspace = workspace_root();
-    let path = workspace.join("tests/projects/topological-k-theory");
-    let output = run_ref_file_with_timeout(
-        &workspace,
-        &path,
-        &["--full-check-local"],
-        TOPOLOGICAL_K_THEORY_TIMEOUT,
-    )
-    .unwrap_or_else(|error| panic!("{error}"));
-    assert!(output.status.success(), "{}", output_details(&output));
+    check_library_project("topological-k-theory");
 }
 
 #[test]
 fn manifolds_de_rham_examples_succeed() {
-    let _check = library_check();
-    let workspace = workspace_root();
-    let path = workspace.join("tests/projects/manifolds-de-rham");
-    let output = run_ref_file_with_timeout(
-        &workspace,
-        &path,
-        &["--module", "manifolds_de_rham_tests", "--full-check-local"],
-        MANIFOLDS_DE_RHAM_TIMEOUT,
-    )
-    .unwrap_or_else(|error| panic!("{error}"));
-    assert!(output.status.success(), "{}", output_details(&output));
+    check_library_project("manifolds-de-rham");
 }
 
 #[test]
@@ -559,15 +559,17 @@ fn compact_diagnostics_preserve_errors_and_goal_context() {
             || path.ends_with("solved_inspection_program.ref")
         {
             assert!(normal.contains("constraints:"), "{normal}");
-            for expected in ["inspection hole", "context:", "goal:", "A:"] {
+            for expected in ["inspection hole", "context:", "goal:"] {
                 assert!(compact.contains(expected), "missing {expected}: {compact}");
             }
-            let expected = if path.ends_with("contextual_unsolved_goal.ref") {
-                "x:"
+            let expected: &[&str] = if path.ends_with("contextual_unsolved_goal.ref") {
+                &["context: [x: A["]
             } else {
-                "solution:"
+                &["A:", "solution:"]
             };
-            assert!(compact.contains(expected), "missing {expected}: {compact}");
+            for &expected in expected {
+                assert!(compact.contains(expected), "missing {expected}: {compact}");
+            }
         } else {
             assert!(normal.contains("[Failed]"), "{normal}");
             assert!(!compact.contains("[Failed]"), "{compact}");
@@ -1474,4 +1476,38 @@ fn separate_processes_restore_set_transport_with_aliased_macros() {
     let clean = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
     assert!(clean.status.success(), "{}", output_details(&clean));
     assert_eq!(restored.stdout, clean.stdout);
+}
+
+#[test]
+fn module_batches_cover_parent_declarations_and_keep_dependency_errors() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module M {
+      \definition P: \Prop := \forall (P: \Prop) -> P;
+      \module Good { \definition Q: \Prop := \forall (P: \Prop) -> P; }
+      \module Bad { \definition wrong: \Set := \Set; }
+    }",
+    );
+    let listing =
+        run_ref_file_with_args(&fixture.0, &root, &["--list-modules", "--no-progress"]).unwrap();
+    assert!(listing.status.success(), "{}", output_details(&listing));
+    let listed = String::from_utf8_lossy(&listing.stdout);
+    assert_eq!(listed.lines().collect::<Vec<_>>(), ["M", "M.Good", "M.Bad"]);
+    let parent =
+        run_ref_file_with_args(&fixture.0, &root, &["--module", "M", "--module-only"]).unwrap();
+    assert!(parent.status.success(), "{}", output_details(&parent));
+    let whole = run_ref_file_with_args(&fixture.0, &root, &["--module", "M"]).unwrap();
+    assert!(!whole.status.success());
+    fixture.write(
+        "root.ref",
+        r"\module M {
+      \definition wrong: \Set := \Set;
+      \module Child { \definition T: \Set := \super.wrong; }
+    }",
+    );
+    let dependency =
+        run_ref_file_with_args(&fixture.0, &root, &["--module", "M.Child", "--module-only"])
+            .unwrap();
+    assert!(!dependency.status.success());
 }

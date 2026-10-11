@@ -4,8 +4,66 @@ use serde::Serialize;
 
 pub const MAX_ENVIRONMENT_BYTES: usize = 16 * 1024 * 1024;
 
-#[derive(Default)]
-struct Buffer<const LIMIT: usize>(Vec<u8>);
+const CHUNK_BYTES: usize = 32 * 1024;
+
+struct Buffer<const LIMIT: usize> {
+    compressor: miniz_oxide::deflate::core::CompressorOxide,
+    input: Vec<u8>,
+    compressed: Vec<u8>,
+    uncompressed: usize,
+}
+
+impl<const LIMIT: usize> Buffer<LIMIT> {
+    fn new() -> Result<Self> {
+        let mut input = Vec::new();
+        input
+            .try_reserve_exact(CHUNK_BYTES)
+            .map_err(|_| Error::SerializeBufferFull)?;
+        Ok(Self {
+            compressor: miniz_oxide::deflate::core::CompressorOxide::new(
+                miniz_oxide::deflate::core::create_comp_flags_from_zip_params(1, 0, 0),
+            ),
+            input,
+            compressed: Vec::new(),
+            uncompressed: 0,
+        })
+    }
+
+    fn flush(&mut self, finish: bool) -> Result<()> {
+        use miniz_oxide::deflate::core::{TDEFLFlush, TDEFLStatus, compress};
+        let mut output = [0; CHUNK_BYTES];
+        let mut position = 0;
+        loop {
+            let (status, consumed, produced) = compress(
+                &mut self.compressor,
+                &self.input[position..],
+                &mut output,
+                if finish {
+                    TDEFLFlush::Finish
+                } else {
+                    TDEFLFlush::None
+                },
+            );
+            position += consumed;
+            if produced > LIMIT - self.compressed.len() {
+                return Err(Error::SerializeBufferFull);
+            }
+            self.compressed
+                .try_reserve(produced)
+                .map_err(|_| Error::SerializeBufferFull)?;
+            self.compressed.extend_from_slice(&output[..produced]);
+            match status {
+                TDEFLStatus::Done if finish => break,
+                TDEFLStatus::Okay if !finish && position == self.input.len() => break,
+                TDEFLStatus::Okay if consumed != 0 || produced != 0 => {}
+                _ => return Err(Error::SerializeBufferFull),
+            }
+        }
+        self.input.clear();
+        Ok(())
+    }
+}
+
 impl<const LIMIT: usize> Flavor for Buffer<LIMIT> {
     type Output = Vec<u8>;
 
@@ -13,19 +71,25 @@ impl<const LIMIT: usize> Flavor for Buffer<LIMIT> {
         self.try_extend(&[byte])
     }
 
-    fn try_extend(&mut self, bytes: &[u8]) -> Result<()> {
-        if bytes.len() > LIMIT - self.0.len() {
+    fn try_extend(&mut self, mut bytes: &[u8]) -> Result<()> {
+        if bytes.len() > LIMIT - self.uncompressed {
             return Err(Error::SerializeBufferFull);
         }
-        self.0
-            .try_reserve(bytes.len())
-            .map_err(|_| Error::SerializeBufferFull)?;
-        self.0.extend_from_slice(bytes);
+        self.uncompressed += bytes.len();
+        while !bytes.is_empty() {
+            let count = bytes.len().min(CHUNK_BYTES - self.input.len());
+            self.input.extend_from_slice(&bytes[..count]);
+            bytes = &bytes[count..];
+            if self.input.len() == CHUNK_BYTES {
+                self.flush(false)?;
+            }
+        }
         Ok(())
     }
 
-    fn finalize(self) -> Result<Self::Output> {
-        Ok(self.0)
+    fn finalize(mut self) -> Result<Self::Output> {
+        self.flush(true)?;
+        Ok(self.compressed)
     }
 }
 
@@ -34,23 +98,37 @@ pub(crate) fn serialize(value: &impl Serialize) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn serialize_bounded<const LIMIT: usize>(value: &impl Serialize) -> Result<Vec<u8>> {
-    let bytes: Vec<u8> = {
-        let _phase = crate::profiling::Phase::start("environment.serialize");
-        postcard::serialize_with_flavor(value, Buffer::<LIMIT>::default())?
-    };
-    let compressed = {
-        let _phase = crate::profiling::Phase::start("environment.compress");
-        miniz_oxide::deflate::compress_to_vec(&bytes, 1)
-    };
-    if compressed.len() > LIMIT {
-        return Err(Error::SerializeBufferFull);
-    }
-    Ok(compressed)
+    // Feed serialization straight into the compressor. The live environment
+    // coexists only with a fixed input chunk and the compressed checkpoint.
+    let _phase = crate::profiling::Phase::start("environment.serialize-compress");
+    postcard::serialize_with_flavor(value, Buffer::<LIMIT>::new()?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn streaming_checkpoints_cross_input_and_output_chunk_boundaries() {
+        let mut state = 42_u32;
+        let random: Vec<u8> = (0..CHUNK_BYTES * 5)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                state as u8
+            })
+            .collect();
+        for bytes in [vec![], vec![0; CHUNK_BYTES * 5], random] {
+            let compressed = serialize(&bytes).unwrap();
+            let restored = miniz_oxide::inflate::decompress_to_vec_with_limit(
+                &compressed,
+                MAX_ENVIRONMENT_BYTES,
+            )
+            .unwrap();
+            assert_eq!(postcard::from_bytes::<Vec<u8>>(&restored).unwrap(), bytes);
+        }
+    }
 
     #[test]
     fn arena_properties_are_rebuilt_when_restoring_a_checkpoint() {

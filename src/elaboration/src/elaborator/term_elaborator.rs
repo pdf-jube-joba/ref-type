@@ -490,11 +490,6 @@ impl LocalScope {
         self.push_binded_var(var, ty);
     }
 
-    pub(crate) fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
-        self.push_decl_var_exp(var, exp);
-        self.typing_binds.push(ExpContextEntry { var, ty });
-    }
-
     // Keeps the telescope in the local scope.
     pub(crate) fn elab_telescope_bind_in_decl(
         &mut self,
@@ -767,13 +762,23 @@ impl LocalScope {
             .into());
         };
         let codomain = whnf(handler.env(), handler.zonk(codomain));
-        if exp_contains_bound(handler.arena(), codomain, 0) {
-            return Err(crate::error::Error::Invalid(
-                crate::error::Invalid::TakeMapMustHaveANonDependentCodomain,
+        let codomain = if exp_contains_bound(handler.arena(), codomain, 0) {
+            Exp(crate::kernel_bridge::expression(
+                handler.env(),
+                crate::raw::traversal::Term::Logical(codomain),
+                |env, e| kernel::reduction::strengthen(env, e, 0),
             )
-            .into());
-        }
-        let codomain = instantiate(handler.arena(), codomain, domain);
+            .map_err(|error| match error {
+                crate::error::Error::Kernel(
+                    kernel::error::Error::ExpressionDependsOnRemovedBinder,
+                ) => crate::error::Error::Invalid(
+                    crate::error::Invalid::TakeMapMustHaveANonDependentCodomain,
+                ),
+                error => error,
+            })?)
+        } else {
+            instantiate(handler.arena(), codomain, domain)
+        };
         Ok((domain, map, codomain))
     }
 

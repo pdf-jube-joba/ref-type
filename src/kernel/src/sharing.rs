@@ -10,7 +10,7 @@ struct Entry<V> {
 
 /// Records writes during a scratch operation so cleanup only visits changed entries.
 #[derive(Debug)]
-pub(crate) struct Cache<K, V, const LIMIT: usize = { 1 << 20 }> {
+pub struct Cache<K, V, const LIMIT: usize = { 1 << 20 }> {
     entries: FxHashMap<K, Entry<V>>,
     writes: Vec<K>,
     tracking: bool,
@@ -64,6 +64,10 @@ impl<K: Copy + Eq + Hash, V, const LIMIT: usize> Cache<K, V, LIMIT> {
 
     pub fn len(&self) -> usize {
         self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
     pub fn clear(&mut self) {

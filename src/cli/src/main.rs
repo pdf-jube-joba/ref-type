@@ -1,4 +1,5 @@
 mod progress;
+mod resources;
 
 use anyhow::Context;
 use clap::Parser;
@@ -13,9 +14,18 @@ thread_local! {
 struct Args {
     /// パッケージのディレクトリ、または .ref ファイル
     path: PathBuf,
+    /// 検査プロセスの仮想メモリ上限 MiB（Linux の既定3072、0は既存の上限を維持）
+    #[arg(long)]
+    memory_mib: Option<u64>,
     /// 指定した module・子 module と、その参照先だけを検証する（例: std.Data.Nat）
     #[arg(long, conflicts_with = "parse_only")]
     module: Option<String>,
+    /// 指定 module 自身と参照先を検証し、無関係な子 module を対象に含めない
+    #[arg(long, requires = "module")]
+    module_only: bool,
+    /// ソースにある module の検査用パスを一行ずつ表示する
+    #[arg(long, conflicts_with_all = ["module", "parse_only"])]
+    list_modules: bool,
     /// kernel の型検査・定義登録・評価ログを標準エラーへ木構造で表示する
     #[arg(long)]
     trace: bool,
@@ -66,6 +76,7 @@ enum DiagnosticMode {
 fn main() -> anyhow::Result<()> {
     let timing = sema::timing::Session::start(true);
     let args = Args::parse();
+    resources::limit_memory(args.memory_mib)?;
     let timing = if args.no_progress || args.parse_only {
         drop(timing);
         sema::timing::Session::start(false)
@@ -183,6 +194,22 @@ fn run_path(
             return Ok(std::process::ExitCode::FAILURE);
         }
     };
+    if args.list_modules {
+        return match database.module_paths(&snapshot) {
+            Ok(paths) => {
+                for path in paths {
+                    println!("{}", path.join("."));
+                }
+                Ok(std::process::ExitCode::SUCCESS)
+            }
+            Err(diagnostics) => {
+                for diagnostic in diagnostics {
+                    eprintln!("{}", diagnostic.render(&snapshot));
+                }
+                Ok(std::process::ExitCode::FAILURE)
+            }
+        };
+    }
     let messages = if args.parse_only {
         database
             .parse_project(&snapshot)
@@ -198,6 +225,7 @@ fn run_path(
             progress: (!args.no_progress).then_some(show_progress),
             progress_events: display.enabled().then_some(progress::receive),
             collect_statistics: args.stats,
+            module_only: args.module_only,
             checkpoint_interval: args.checkpoint_seconds.map(Duration::from_secs),
             diagnostics: match args.diagnostics {
                 Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,

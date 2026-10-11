@@ -478,15 +478,11 @@ impl Resolver {
                         .map(|(bind, value)| (bind.vars[0].1.unwrap(), value.clone()))
                         .collect();
                     checks.extend(signature.checks.iter().map(|(value, ty)| {
+                        let value = self.instantiate_front_expression(value, access);
+                        let ty = self.instantiate_front_expression(ty, access);
                         (
-                            self.substitute_front_expression(
-                                &self.instantiate_front_expression(value, access),
-                                &substitutions,
-                            ),
-                            self.substitute_front_expression(
-                                &self.instantiate_front_expression(ty, access),
-                                &substitutions,
-                            ),
+                            self.substitute_front_expression(&value, &substitutions),
+                            self.substitute_front_expression(&ty, &substitutions),
                         )
                     }));
                     // Expanding a declaration argument can introduce captures

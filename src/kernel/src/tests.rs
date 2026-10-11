@@ -2088,3 +2088,40 @@ fn transport_is_neutral_and_erases_only_comparison_certificates() {
     // Traversal retains certificates even though conversion omits them.
     assert!(env.arena.contains_meta(make(hole)));
 }
+
+#[test]
+fn strengthening_reduces_only_dependencies_on_the_removed_binder() {
+    let env = Environment::new();
+    let arena = &env.arena;
+    let set = arena.sort(Sort::Base(BaseSort::Set(0)));
+    // In context A, x, the lambda ignores x and returns A.
+    let ignored = arena.alloc(Node::App {
+        mode: Mode::Pure,
+        function: arena.alloc(Node::Lambda {
+            mode: Mode::Pure,
+            var: SymbolId::ANONYMOUS,
+            domain: arena.bound(1),
+            body: arena.bound(2),
+        }),
+        argument: arena.bound(0),
+    });
+    let ty = arena.alloc(Node::Product {
+        var: SymbolId::ANONYMOUS,
+        domain: set,
+        body: crate::calculus::shift(arena, ignored, 1, 0).unwrap(),
+    });
+    let result = crate::reduction::strengthen(&env, ty, 0).unwrap();
+    assert_eq!(
+        result,
+        arena.alloc(Node::Product {
+            var: SymbolId::ANONYMOUS,
+            domain: set,
+            body: arena.bound(1),
+        })
+    );
+    assert!(matches!(
+        crate::reduction::strengthen(&env, arena.bound(0), 0),
+        Err(crate::error::Error::ExpressionDependsOnRemovedBinder)
+    ));
+    assert_eq!(crate::reduction::strengthen(&env, set, 0).unwrap(), set);
+}

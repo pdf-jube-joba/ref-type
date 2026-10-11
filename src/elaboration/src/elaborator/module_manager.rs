@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::raw::exp::ExpContextEntry;
 use crate::raw::program::{ProgramContext, ProgramContextEntry};
 #[cfg(test)]
 use crate::raw::{environment::ModuleParameter, inductive::InductiveTypeSpecs};
@@ -6,7 +8,7 @@ use crate::raw::{
         ClosedNamespaceKey, CrateEnv, DeclarationRemapping, DefinedConstant, ModuleArgument,
         ModuleItem, ModuleParameterKind,
     },
-    exp::{Exp, ExpContext, ExpContextEntry},
+    exp::{Exp, ExpContext},
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
 };
 use crate::{
@@ -104,35 +106,6 @@ impl ModuleManager {
     #[cfg(test)]
     pub(crate) fn moveto_root(&mut self) {
         self.current = ModuleId(0);
-    }
-
-    pub(crate) fn current_context(&self, env: &CrateEnv) -> ExpContext {
-        let mut context = Vec::new();
-        let mut current = self.current;
-        loop {
-            let module = env.module(current);
-            context.push(
-                module
-                    .parameters()
-                    .iter()
-                    .filter_map(|parameter| match parameter.kind {
-                        ModuleParameterKind::Pts { ty } => Some(ExpContextEntry {
-                            var: parameter.name,
-                            ty,
-                        }),
-                        ModuleParameterKind::ProgramType
-                        | ModuleParameterKind::ProgramValue { .. } => None,
-                    })
-                    .collect::<ExpContext>(),
-            );
-            if let Some(parent) = module.parent() {
-                current = parent;
-            } else {
-                break;
-            }
-        }
-        context.reverse();
-        context.into_iter().flatten().collect()
     }
 
     pub(crate) fn current_program_context(&self, env: &CrateEnv) -> ProgramContext {

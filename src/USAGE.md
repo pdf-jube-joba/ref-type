@@ -28,6 +28,9 @@ std = { path = "../std" }
 | オプション | 動作 |
 | --- | --- |
 | `--module NAME` | 指定した module・子 module と、その参照先の宣言を検証 |
+| `--module-only` | `--module` で指定した module 自身と参照先を検証 |
+| `--list-modules` | ソース module の検査用パスを一行ずつ表示 |
+| `--memory-mib N` | Linux で仮想メモリを制限。既定3072 MiB、0は起動時の上限を維持 |
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
 | `--no-cache` | 選択した範囲を永続キャッシュの読み書きなしで検証 |
 | `--full-check` | 選択した範囲を再検証し、検証済みの結果でキャッシュを更新 |
@@ -52,6 +55,12 @@ cargo run -p cli -- libs/std --module std.Data.Nat --diagnostics compact
 cargo run -p cli -- libs/differential_forms --module differential_forms --full-check-local --diagnostics compact
 ```
 
+全ライブラリの検査には、資源上限に応じて検査範囲を分割する [check_libraries.py](../benchmarks/check_libraries.py) を使える。
+実行手順と検査結果の読み方は [ライブラリの型検査](../libs/README.md#型検査) を参照。
+通常の CLI も Linux では既定で仮想メモリを3072 MiBに制限し、起動元にさらに小さい制限がある場合はそちらを維持する。
+`--module-only` は、親の宣言を検査してから子の各範囲を独立に検査する場合に使う。
+名前が繰り返される module は、`--list-modules` が返す `Name#2` などのパスで指定できる。
+
 キャッシュの仕組みと API は [sema](sema/README.md) を参照。
 
 同じコマンドを二度実行すると、別プロセスでのキャッシュ再利用を確認できる。
@@ -66,6 +75,7 @@ cargo run -p cli --release --locked -- libs/std --full-check-local
 
 `--cache-stats` の `environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
 `package_hits` は package 境界の復元で省略した package 数、`package_writes` は保存した package 環境数、`package_skips` はサイズ上限などで保存を省略した境界数である。
+具体化した宣言の引数列と置換は、共有する配列を一度だけ保存し、復元後も共有する。
 package キャッシュには名前解決の状態も含まれ、依存先が一致すれば利用側の module 追加後も依存環境を再利用する。
 検査中の package は、一定時間が経過した後のソース module 完了時に途中環境を `.partial` に保存する。
 同じキャッシュ保存先で再実行すると、名前解決の状態と検査位置を復元し、保存位置以降を検査する。
@@ -145,7 +155,7 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 package を依存順に追加する経路では、名前解決を `resolve.package` で計測する。
 namespace の inclusive 時間には引数の比較で呼ぶ kernel の変換判定が含まれる。
 `namespace.compare-arguments` は引数列の比較、`namespace.compare-rigid-arguments` は簡約で変わらない引数による候補の除外、`namespace.compare-syntax`・`namespace.compare-alpha`・`namespace.reduce-alias-head` は比較の各段階を測る。
-`namespace.definition-candidates` は走査した候補数、`definition-exact-hit`・`definition-origin-hit`・`definition-candidate-hit`・`definition-fresh` は定義の再利用結果を数える。
+`namespace.telescope-candidates` は引数列単位で走査した候補数、`definition-exact-hit`・`definition-equivalent-hit`・`definition-origin-hit`・`definition-candidate-hit`・`definition-fresh` は定義の再利用結果を数える。
 `namespace.translation-failed.*` は再利用判定用の kernel 項への変換に失敗した回数であり、診断として報告された型エラーの件数とは異なる。
 cost 計測中は、その変換で生じた kernel エラーの種類ごとに最初の原因を `namespace.translation-failure sample=...` として出力する。
 `query.environment-plan` は検査順と依存情報から checkpoint のキーを作る時間を表す。

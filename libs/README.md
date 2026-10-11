@@ -26,18 +26,25 @@
 ## 型検査
 
 リポジトリのルートで実行する。
-各パッケージ全体とその参照先を対象にし、依存先の検証済みキャッシュを再利用する。
 
 ```sh
-cargo build -p cli
-for package in std algebra real complex linear_algebra topology topological_algebra algebraic_topology calculus integration category homological_algebra manifolds differential_forms; do
-  target/debug/cli "libs/$package" --module "$package" --full-check-local || exit 1
-done
-target/debug/cli tests/projects/library --module library_tests --full-check-local
-target/debug/cli tests/projects/category --module category_tests --full-check-local
-target/debug/cli tests/projects/homological-algebra --module homological_algebra_tests --full-check-local
-target/debug/cli tests/projects/topological-k-theory --module topological_k_theory_foundations_tests --full-check-local
-target/debug/cli tests/projects/manifolds-de-rham --module manifolds_de_rham_tests --full-check-local
+cargo build -p cli --locked
+python3 benchmarks/check_libraries.py
+```
+
+全ライブラリを依存順に検査し、続いてライブラリを利用するテスト project を検査する。
+一つの検査プロセスの仮想メモリを3072 MiB、実行時間を180秒に制限する。
+上限に達した範囲は、親 module 自身の宣言と各子 module に分割し、それぞれの参照先を含めて別プロセスで検査する。
+同時に動かす検査プロセスは一つで、プロセス終了時に環境全体のメモリを解放する。
+
+成功した検査は `refcache/library-check/` に保存し、再実行ではソースと処理系が一致する結果を再利用する。
+前回分割した範囲もキャッシュに記録するため、再実行すると分割した検査から始める。
+`benchmarks/library-check.json` の `complete` が `true` なら、列挙された全パッケージの全ソース module が検証済みである。
+型エラーと資源上限による未完了は `failed` に記録し、診断ファイルの場所を表示する。
+
+```sh
+python3 benchmarks/check_libraries.py libs/homological_algebra \
+  --memory-mib 2048 --seconds 300 --output benchmarks/homological-check.json
 ```
 
 [library project](../tests/projects/library/src/root.ref) は分野間の接続と具体例、[category project](../tests/projects/category/src/root.ref) は圏論の利用例を検査する。

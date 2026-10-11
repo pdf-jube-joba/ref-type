@@ -27,6 +27,7 @@ template 内の macro 参照は定義元の完成したスコープ、通常の�
 `#field{x}` は `x` の束縛を解決し、field 名を持つ射影式として保持する。
 module の引数式も名前解決し、型検査と typed なインスタンスの構築を elaboration に引き継ぐ。
 namespace の構文上のインスタンスは選択された経路にだけ作り、子 module は選択時に親の引数環境を引き継ぐ。
+構造値を具体化するときは、フィールド参照と、その namespace を準備する import の対応表を同じ module ID に更新する。
 構造の正規化では、射影の基部・関数適用の関数部分・移動した引数チェックの処理済み部分を再走査せず、新しく組み立てた部分を処理する。
 Program parameter の反映を含む macro は `Reflect` に元の parameter の ID と引数式を保持し、その parameter の型分類を elaboration で参照する。
 

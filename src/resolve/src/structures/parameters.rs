@@ -23,7 +23,7 @@ impl Resolver {
     }
 
     pub(in crate::resolver) fn expand_type_arguments(
-        &self,
+        &mut self,
         parameters: &[RightBind],
         inputs: &[Input],
         supplied: &[SExp],
@@ -109,7 +109,7 @@ impl Resolver {
     }
 
     pub(in crate::resolver) fn callback_arguments(
-        &self,
+        &mut self,
         input: &Input,
         argument: &SExp,
         locals: &[LocalScope],

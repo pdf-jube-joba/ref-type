@@ -154,3 +154,19 @@ fn degree_indexed_structure_results_preserve_declaration_arguments() {
     )
     .unwrap();
 }
+
+#[test]
+fn module_parameter_classifiers_keep_only_their_local_binders() {
+    check(include_str!(
+        "fixtures/module_specialization/parameter-classifier-local-namespace.ref"
+    ))
+    .unwrap();
+}
+
+#[test]
+fn nested_structure_alias_fields_survive_namespace_specialization() {
+    check(include_str!(
+        "fixtures/module_specialization/nested-structure-alias.ref"
+    ))
+    .unwrap();
+}

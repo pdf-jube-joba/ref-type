@@ -431,7 +431,7 @@ impl Resolver {
         Some(id)
     }
 
-    fn instantiate_front_expression(&self, expression: &SExp, access: &LocalAccess) -> SExp {
+    fn instantiate_front_expression(&mut self, expression: &SExp, access: &LocalAccess) -> SExp {
         let mut resolved = access.clone();
         let module = if self.access(self.current, &mut resolved).is_ok()
             && let LocalAccess::Resolved { module, .. } = resolved
@@ -441,15 +441,17 @@ impl Resolver {
             self.current
         };
         let scope = &self.scopes[module.0 as usize];
-        let mut expression = substitute(expression, &scope.substitutions);
-        if scope.remapping.is_empty() {
+        let substitutions = scope.substitutions.clone();
+        let remapping = scope.remapping.clone();
+        let mut expression = substitute(expression, &substitutions);
+        if remapping.is_empty() {
             return expression;
         }
         macros::walk_sexp_mut(&mut expression, &mut |node| {
             if let SExp::ModuleInstance { path, .. } = node
                 && let ModuleInstantiatePath::FromImport { import_name, calls } = path.as_mut()
                 && let Some(import) = import_name.1.and_then(|id| self.imports.get(&id))
-                && let Some(&module) = scope.remapping.get(&import.target)
+                && let Some(&module) = remapping.get(&import.target)
             {
                 // A declaration's internal import belongs to its original
                 // scope. Select the specialized namespace before checking
@@ -465,13 +467,36 @@ impl Resolver {
             | SExp::IndCase { path: access, .. }
             | SExp::ProgramCase { path: access, .. } = node
                 && let LocalAccess::Resolved { .. } = access
-                && let Some(specialized) =
-                    self.respecialize_front_access(access, &scope.substitutions)
+                && let Some(specialized) = self.respecialize_front_access(access, &substitutions)
             {
                 *access = specialized;
             }
         });
-        remap_modules(&mut expression, &scope.remapping);
+        remap_modules(&mut expression, &remapping);
+        // The guard and its selected references must use the same namespace IDs.
+        macros::walk_sexp_mut(&mut expression, &mut |node| {
+            if let SExp::ModuleInstance { import_name, .. } = node
+                && let Some(mut import) =
+                    import_name.1.and_then(|id| self.imports.get(&id)).cloned()
+            {
+                if !std::iter::once(&import.target)
+                    .chain(import.remapping.iter().map(|(_, target)| target))
+                    .any(|id| remapping.get(id).is_some_and(|target| target != id))
+                {
+                    return;
+                }
+                import.target = remapping
+                    .get(&import.target)
+                    .copied()
+                    .unwrap_or(import.target);
+                for target in import.remapping.values_mut() {
+                    *target = remapping.get(target).copied().unwrap_or(*target);
+                }
+                import_name.1 = None;
+                let binding = self.binding(import_name);
+                self.imports.insert(binding, import);
+            }
+        });
         expression
     }
 
@@ -553,7 +578,7 @@ impl Resolver {
         });
     }
 
-    fn instantiate_input(&self, input: &mut Input, access: &LocalAccess) {
+    fn instantiate_input(&mut self, input: &mut Input, access: &LocalAccess) {
         for argument in input.arguments.values_mut() {
             *argument = self.instantiate_front_expression(argument, access);
         }
@@ -563,7 +588,7 @@ impl Resolver {
     }
 
     fn structure_type(
-        &self,
+        &mut self,
         expression: &SExp,
         locals: &[LocalScope],
     ) -> Result<Option<(BindingId, Structure, HashMap<BindingId, SExp>)>, Diagnostic> {
@@ -639,15 +664,15 @@ impl Resolver {
     }
 
     fn bind_structure_field(
-        &self,
+        &mut self,
         field: BindingId,
         value: SExp,
         substitutions: &mut HashMap<BindingId, SExp>,
     ) -> Result<(), Diagnostic> {
-        if let Some(abstract_value) = self.structure_values.get(&field)
+        if self.structure_values.contains_key(&field)
             && let Some(actual) = self.structure_value(&value, &[])?
         {
-            for (name, expression) in &abstract_value.fields {
+            for (name, expression) in &self.structure_values[&field].fields {
                 if let SExp::AccessPath {
                     access: LocalAccess::Current { access, .. },
                     ..
@@ -707,7 +732,7 @@ impl Resolver {
     }
 
     fn structure_value(
-        &self,
+        &mut self,
         expression: &SExp,
         locals: &[LocalScope],
     ) -> Result<Option<Value>, Diagnostic> {

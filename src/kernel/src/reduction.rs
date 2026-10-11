@@ -596,6 +596,43 @@ pub fn normalize(env: &Environment, e: Expression) -> Result<Expression, crate::
         Evaluation::OutOfFuel(_) => Err(crate::error::Error::NormalizationFuelExhausted),
     }
 }
+
+/// Remove a binder, unfolding only subterms whose syntax still depends on it.
+/// Closed shared definitions retain their heads instead of being normalized.
+pub fn strengthen(
+    env: &Environment,
+    e: Expression,
+    target: usize,
+) -> Result<Expression, crate::error::Error> {
+    fn go(
+        env: &Environment,
+        e: Expression,
+        target: usize,
+        memo: &mut rustc_hash::FxHashMap<(Expression, usize), Expression>,
+    ) -> Result<Expression, crate::error::Error> {
+        if let Some(&result) = memo.get(&(e, target)) {
+            return Ok(result);
+        }
+        let result = match crate::calculus::strengthen(&env.arena, e, target) {
+            Ok(result) => result,
+            Err(crate::error::Error::ExpressionDependsOnRemovedBinder) => {
+                let head = env.whnf(e)?;
+                if head != e {
+                    go(env, head, target, memo)?
+                } else if matches!(env.arena.get(e), Node::Bound(_)) {
+                    return Err(crate::error::Error::ExpressionDependsOnRemovedBinder);
+                } else {
+                    env.arena
+                        .map_children(e, |child, depth| go(env, child, target + depth, memo))?
+                }
+            }
+            Err(error) => return Err(error),
+        };
+        memo.insert((e, target), result);
+        Ok(result)
+    }
+    go(env, e, target, &mut rustc_hash::FxHashMap::default())
+}
 /// Expose explicit beta redexes while retaining opaque definition heads.
 fn beta_head(
     env: &Environment,

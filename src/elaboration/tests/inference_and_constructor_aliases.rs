@@ -195,3 +195,17 @@ fn aliases_do_not_bypass_constructor_or_eliminator_checks() {
     .unwrap_err();
     assert!(error.contains("forbidden large elimination"), "{error}");
 }
+
+#[test]
+fn take_accepts_a_codomain_independent_after_reduction() {
+    check(
+        r"\module Example(A: \Set, y: A) {
+        \definition proof: (\exists A) -> y = y :=
+            \fun (exists: \exists A) => \block {
+                \takefrom x: A \by exists \then
+                \return \refl((\fun (z: A) => y) x)
+            };
+    }",
+    )
+    .unwrap();
+}

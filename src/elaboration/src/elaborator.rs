@@ -164,10 +164,14 @@ impl term_elaborator::Handler for GlobalEnvironment {
         span: SourceSpan,
         local_context: &ExpContext,
     ) -> Result<Exp, ElaborationError> {
-        let mut context = self.module_manager.current_context(&self.crate_env);
-        context.extend(local_context.iter().cloned());
         self.metavariables
-            .fresh(&self.crate_env, kind, span, &context, local_context.len())
+            .fresh(
+                &self.crate_env,
+                kind,
+                span,
+                local_context,
+                local_context.len(),
+            )
             .map_err(Into::into)
     }
 
@@ -629,10 +633,8 @@ impl term_elaborator::Handler for GlobalEnvironment {
         left: Exp,
         right: Exp,
     ) -> Result<(), ElaborationError> {
-        let mut context = self.module_manager.current_context(&self.crate_env);
-        context.extend(local_ctx.iter().cloned());
         self.metavariables
-            .unify_in_context(&self.crate_env, &context, left, right)
+            .unify_in_context(&self.crate_env, local_ctx, left, right)
             .map(|_| ())
             .map_err(|message| {
                 self.metavariables
@@ -645,30 +647,23 @@ impl term_elaborator::Handler for GlobalEnvironment {
     }
 
     fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, ElaborationError> {
-        let mut ctx = self.module_manager.current_context(&self.crate_env);
-        let module_context_len = ctx.len();
-        ctx.append(local_ctx);
+        let ctx = local_ctx;
         let result = if !self.metavariables.is_empty() {
             // Earlier local definitions may already have solved their holes,
             // but their shared syntax still contains the metavariable nodes.
-            for entry in &mut ctx {
+            for entry in &mut *ctx {
                 entry.ty = self.metavariables.zonk(&self.crate_env, entry.ty);
             }
-            self.metavariables.infer_pts(
-                &self.crate_env,
-                self.module_manager.current(),
-                &mut ctx,
-                e,
-            )
+            self.metavariables
+                .infer_pts(&self.crate_env, self.module_manager.current(), ctx, e)
         } else {
-            CheckSession::new(&self.crate_env, &mut ctx)
+            CheckSession::new(&self.crate_env, ctx)
                 .infer_pts(e)
                 .map_err(|error| {
                     crate::error::Error::from(error)
                         .context(crate::error::Context::FailedToInferElaboratedSetPropExpression)
                 })
         };
-        *local_ctx = ctx.split_off(module_context_len);
         Ok(result?)
     }
 
@@ -678,8 +673,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         e: Exp,
         ty: Exp,
     ) -> Result<(), ElaborationError> {
-        let mut ctx = self.module_manager.current_context(&self.crate_env);
-        ctx.extend(local_ctx.iter().cloned());
+        let mut ctx = local_ctx.clone();
         self.check_term_with_metavariables(&mut ctx, e, ty)
             .map_err(|message| {
                 self.metavariables

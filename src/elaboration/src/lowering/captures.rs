@@ -76,7 +76,7 @@ impl Lowerer<'_> {
             let arguments = self
                 .raw
                 .inductive_specialization(id)
-                .map(|origin| origin.arguments.clone())
+                .map(|origin| origin.arguments.to_vec())
                 .unwrap_or_else(|| self.raw.namespace_arguments(id.module));
             roots.extend(arguments.into_iter().map(|(_, argument)| match argument {
                 raw::environment::ModuleArgument::Pts(e) => Term::Logical(e),
