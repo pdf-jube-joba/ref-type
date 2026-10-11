@@ -1,35 +1,40 @@
 # 位相的 K 理論までのライブラリ構成
 
-## 目標と規模
+## 目標と現在の位置
 
 複素ベクトル束による \(K^0\) の構成から始め、有限 CW 対上の複素位相的 K 理論、Bott の 2 周期性、球面の K 群の計算までを中心目標とする。
 \(K^0\) と基本積定理はコンパクト Hausdorff 空間上で整備し、相対群と完全列は有限 CW 対から始める。
 実 K 理論 \(KO\)、特性類、Chern 指標、一般の CW 空間への拡張は、その先の到達点として担当を定める。
+
+現在の `libs` は加群・実数・位相の共通基盤を独立したパッケージへ分割している。
+`vector_bundles` と `topological_k_theory` は新設するパッケージで、既存の `tests/projects/topological-k-theory` は基盤の利用例である。
+本計画はその基盤から複素 K 理論へ進む工程を示す。
 
 K 理論に向けた主要パッケージの担当は次のとおりである。
 
 | パッケージ | 担当 |
 | --- | --- |
 | `algebra` | 準同型、商代数、群完成、多項式、完全性の代数的な部分 |
+| `module_theory`・`commutative_algebra` | 加群、射影性、Hom・テンソル積、有限自由加群の行列 |
+| `topology`・`metric_spaces`・`topological_constructions` | 位相・分離性・コンパクト性、距離・有限従属分割、積・商・貼り合わせ |
 | `topological_algebra` | 位相と代数の接続、有限次元空間・行列の連続性、近似とスペクトル分離 |
 | `algebraic_topology` | ホモトピー、基点付き空間、cone・suspension・cofiber、CW 対 |
 | `vector_bundles` | ベクトル束、引き戻し、束演算、局所自明化、貼り合わせ、安定化 |
 | `topological_k_theory` | \(K^0\)、相対 K 群、積、完全列、Bott 周期性、具体的計算 |
 
-パッケージ数は数学的な仕事量の尺度としては粗い。
-以下の範囲は、証明する主題を module 群に分けた設計上の概算であり、実装済みの定理数からの外挿ではない。
+到達点ごとに必要な追加基盤を整理する。
 
 | 到達点 | 必要な厚み | パッケージ構成 |
 | --- | --- | --- |
 | A: コンパクト Hausdorff 空間の \(K^0\) 環と反変性 | 商・群完成、有限次元線形代数、コンパクト性、束の構成と演算 | `vector_bundles` と `topological_k_theory` を追加する。 |
 | B: ホモトピー不変性、相対群、負次数の完全列 | 区間上の束、cofiber、有限 CW 対、相対化と貼り合わせ | `algebraic_topology` の CW 対・cofiber と接続する。 |
 | C: Bott 周期性と球面の計算 | 円周上の近似、連続な行列族の分解、基本積定理、次数の周期化 | B と同じ分割を保ち、各ライブラリの証明を大幅に拡充する。 |
-| D: Chern 指標と通常のコホモロジーによる計算 | 鎖複体、特異・胞体コホモロジー、特性類、有理化 | `homological_algebra` を拡充し、`singular_cohomology` と `characteristic_classes` を追加する。 |
+| D: Chern 指標と通常のコホモロジーによる計算 | 鎖複体、特異・胞体コホモロジー、特性類、有理化 | 既存の `chain_complexes`・`resolutions`・`derived_functors`・`homological_algebra` を使い、`singular_cohomology` と `characteristic_classes` を追加する。 |
 | E: 実 K 理論、同変理論、指数定理 | Clifford 代数、表現論、解析など、選ぶ方向に対応する追加理論 | 下記の拡張表に従って個別に分割する。 |
 
-A から C までで、既存パッケージへの追加を含めて 65〜110 程度の主題別 module 群を見込む。
-`Def` / `Prop` の分離や補題の分割によって、実際の `.ref` ファイル数はこれより増える。
-日数・行数の見積もりは、束の表現と最初の非自明な構成を型検査した後に更新する。
+残る工程は、有限次元線形代数の補強、束の構成、相対理論、Bott の証明に必要な近似・スペクトル分離である。
+各パッケージは `std` 以外で約5,000行を目安にし、共通構成から応用への依存に従って分割する。
+作業量は束の射影表示・補束・近似を具体化した段階で、追加する主題と型検査時間から更新する。
 
 ## 各ライブラリの担当範囲
 
@@ -40,18 +45,21 @@ A から C までで、既存パッケージへの追加を含めて 65〜110 �
 この分割なら、実数・複素数の構成に必要な小さな代数的基礎を `std` に保ちながら、K 理論向けの抽象代数を独立に増やせる。
 
 実装済みの準同型・商・群完成・多項式・完全性の API は [algebra](../../libs/algebra/README.md) にまとめる。
-有限生成射影加群、一般加群の外積代数、Clifford 代数を同じパッケージ内に追加する。
-ベクトル空間のテンソル積は `linear_algebra`、一般の環上の加群のテンソル積は `algebra` が担当し、前者は後者の具体化と接続する。
+一般加群・自由加群・射影性・直和・テンソル積は [module_theory](../../libs/module_theory/README.md)、可換環上の Hom・テンソルと有限自由行列は [commutative_algebra](../../libs/commutative_algebra/README.md) にある。
+有限生成射影加群の追加定理はこの分担に沿って置く。
+ベクトル空間のテンソル積は `linear_algebra` にあり、`Field.Space.Tensor.ModuleComparison` が一般加群の構成へ接続する。
+一般加群の外積代数と Clifford 代数は、それぞれの発展段階で共通の加群基盤を使って追加する。
 
 核・像・完全性は `algebra.Exact` にまとめ、K 理論の完全列もこの語彙を使う。
 
-### `topology`
+### `topology`、`metric_spaces`、`topological_constructions`
 
-点集合位相として表現できる構成と定理を担当する。
-実装済みのコンパクト性・商・貼り合わせ・同相・有限従属分割・関数空間・局所コンパクト性の API は [topology](../../libs/topology/README.md) にまとめる。
-有限座標空間のコンパクト性を構成し、球面・円板へ接続する。
+[topology](../../libs/topology/README.md) は部分空間、連続写像、コンパクト性、分離性、局所コンパクト性を担当する。
+[metric_spaces](../../libs/metric_spaces/README.md) は距離位相、実数値関数の連続性、コンパクト Hausdorff 空間の有限従属分割を提供する。
+[topological_constructions](../../libs/topological_constructions/README.md) は積のコンパクト性、商、直和、pushout、貼り合わせ、compact-open 位相を提供する。
+有限積の既存定理から有限座標空間・円板・球面のコンパクト性を導く。
 
-区間、部分空間、商位相、有限貼り合わせはこの層から公開する。
+部分空間は `topology`、商と有限貼り合わせは `topological_constructions`、区間は `algebraic_topology.Interval` の既存構成を使う。
 球面の座標モデルに必要な有限積の位相も、この層の構成を使う。
 球面のホモトピー的な使い方と CW 構造は `algebraic_topology` に置く。
 局所有限被覆とパラコンパクト性は、一般の CW 空間や非コンパクトな底空間上の束へ広げる段階で整備する。
@@ -140,18 +148,31 @@ K^{-n}(X,A)=\widetilde K^0\bigl(\Sigma^n(X/A)\bigr)
 
 ```mermaid
 flowchart TD
-    std --> real
+    std --> ordered_fields
+    ordered_fields --> dedekind_reals
+    ordered_fields --> cauchy_reals
+    dedekind_reals --> real
     real --> complex
     std --> algebra
     complex --> linear_algebra
-    algebra --> linear_algebra
-    real --> topology
+    algebra --> module_theory
+    module_theory --> commutative_algebra
+    module_theory --> linear_algebra
+    dedekind_reals --> topology
+    topology --> metric_spaces
+    real --> metric_spaces
+    topology --> topological_constructions
+    metric_spaces --> topological_algebra
+    topological_constructions --> topological_algebra
     topology --> topological_algebra
     linear_algebra --> topological_algebra
-    algebra --> topological_algebra
     topology --> algebraic_topology
     topological_algebra --> algebraic_topology
     topological_algebra --> vector_bundles
+    module_theory --> vector_bundles
+    commutative_algebra --> vector_bundles
+    metric_spaces --> vector_bundles
+    topological_constructions --> vector_bundles
     algebraic_topology --> vector_bundles
     vector_bundles --> topological_k_theory
     algebra --> topological_k_theory
@@ -167,7 +188,7 @@ flowchart TD
 まず固定した対象集合を持つ空間の族について関手を構成し、一般の空間に対しては引き戻しの恒等則・合成則を直接量化して証明する。
 
 `calculus` と `integration` の利用範囲は証明経路に応じて決まる。
-下記の近似経路を採用する場合、中心目標の直接の土台は `std`、`real`、`complex`、`linear_algebra`、`topology`、`algebra`、`topological_algebra`、`algebraic_topology`、`vector_bundles`、`topological_k_theory` であり、圏としての公開 API に `category` が加わる。
+下記の近似経路を採用する場合、中心目標の土台は標準実数の `ordered_fields`・`dedekind_reals`・`real`、スカラーと線形代数の `complex`・`linear_algebra`、代数の `std`・`algebra`・`module_theory`・`commutative_algebra`、位相の `topology`・`metric_spaces`・`topological_constructions`・`topological_algebra`・`algebraic_topology`、新設する `vector_bundles`・`topological_k_theory` であり、圏としての公開 API に `category` が加わる。
 
 ## Bott 周期性の証明経路と追加コスト
 
@@ -242,13 +263,13 @@ K^0(X)[u]/(u^2)\cong K^0(X\times S^2).
 | 段階 | 作業 | 完了条件 |
 | --- | --- | --- |
 | 0 | 束の signature、射影表示、商への受け渡しを具体化する。 | 異なる ambient 次元の表示を比較でき、引き戻しと同型類を接続する最小例が型検査を通る。 |
-| 2 | コンパクト性、有限従属分割、有限次元代数、位相との接続を整える。 | コンパクト Hausdorff 空間上の有限被覆に対する分割、連続な行列演算と局所的な部分空間表示を利用できる。 |
-| 3 | 束、束演算、補束、集合に収まる同型類を作る。 | 任意の対象範囲内の束の射影表示、表示の独立性、束演算と引き戻しの整合性を証明する。 |
-| 4 | \(K^0\) 環と反変性を作る。 | \(K^0(\mathrm{pt})\cong\mathbb Z\)、有限離散空間の計算、直和・テンソル積・引き戻しの法則を証明する。 |
-| 5 | ホモトピー、有限 CW 対、相対群、負次数を整える。 | 束のホモトピー不変性、商表示と相対束表示の比較、境界写像と負次数の長完全列を証明する。 |
-| 6 | 近似、根群の連続性、スペクトル分離を証明する。 | コンパクトなパラメータを持つ clutching を近似・分解でき、ホモトピーとの両立を証明する。 |
-| 7 | 基本積定理から Bott 周期性を証明する。 | 自然な Bott 同型、相対化との整合性、全次数の理論と 6 項完全列を得る。 |
-| 8 | 基本例と分野間 API を仕上げる。 | 球面の K 群を計算し、有限 CW 空間を完全列で扱う例、圏・関手としての利用例を通す。 |
+| 1 | 既存の有限従属分割・行列演算・基底変更を利用し、行列式、逆行列、直交化、局所的な部分空間表示を追加する。 | 円板・球面のコンパクト性、連続な逆行列・直交化と射影の局所自明化を利用できる。 |
+| 2 | 束、束演算、補束、集合に収まる同型類を作る。 | 任意の対象範囲内の束の射影表示、表示の独立性、束演算と引き戻しの整合性を証明する。 |
+| 3 | \(K^0\) 環と反変性を作る。 | \(K^0(\mathrm{pt})\cong\mathbb Z\)、有限離散空間の計算、直和・テンソル積・引き戻しの法則を証明する。 |
+| 4 | ホモトピー、有限 CW 対、相対群、負次数を整える。 | 束のホモトピー不変性、商表示と相対束表示の比較、境界写像と負次数の長完全列を証明する。 |
+| 5 | 近似、根群の連続性、スペクトル分離を証明する。 | コンパクトなパラメータを持つ clutching を近似・分解でき、ホモトピーとの両立を証明する。 |
+| 6 | 基本積定理から Bott 周期性を証明する。 | 自然な Bott 同型、相対化との整合性、全次数の理論と 6 項完全列を得る。 |
+| 7 | 基本例と分野間 API を仕上げる。 | 球面の K 群を計算し、有限 CW 空間を完全列で扱う例、圏・関手としての利用例を通す。 |
 
 球面についての最終的な確認例は、\(m\geq0\) に対する次の群同型である。
 
@@ -264,26 +285,12 @@ K^{-1}(\mathrm{pt})=0.
 Hopf 線束の構成と \(S^2\) の環構造は、基本積定理を具体例に接続する確認になる。
 空空間・零ランク・非連結空間も、構成の適用範囲を確認する例に含める。
 
-## 作業量の内訳
+## 残作業と見積もりの更新
 
-下表は A から C の範囲で追加・大幅拡充する主題別 module 群の目安である。
-既存のファイルへの補題追加も一つの主題として数え、`Def` / `Prop` による物理的な分割は数に含めない。
-
-| 分野 | 主題別 module 群の目安 | 見積もりを左右する部分 |
-| --- | --- | --- |
-| `std`・実数・複素数の補強 | 3〜6 | 有限添字、平方根、近似の実数評価 |
-| 抽象代数 | 6〜10 | 一般の群完成、多項式と商の API |
-| 一般位相 | 10〜16 | コンパクト性、商、有限従属分割 |
-| 有限次元線形代数 | 6〜10 | 基底に依存しない構成、テンソル積、次元定理 |
-| 位相と代数の接続 | 10〜18 | 一様近似、代数学の基本定理、根群と部分空間の連続性 |
-| ホモトピーと CW 対 | 8〜14 | 商空間とホモトピー拡張性 |
-| ベクトル束 | 12〜20 | 表示の比較、貼り合わせ、補束、ホモトピー不変性 |
-| K 理論 | 10〜16 | 相対化、完全性、基本積定理、自然性 |
-| 合計 | 65〜110 | 処理系の表現能力と共通補題の再利用性 |
-
-特に重いのは、束の局所データの貼り合わせ、コンパクト性を使う大域化、Bott の証明に必要な解析的補題である。
-群完成と \(K^0\) の定義は、この全体の中では比較的小さい部分になる。
-段階 0、3、6 の完了時に、表示方法・補題の粒度・型検査時間を測って見積もりを更新する。
+既存の群完成・有限従属分割・線形写像と行列の連続性・ホモトピーの構成を基盤として使う。
+追加する主題は、行列式・逆行列・直交化、部分空間の局所表示、束と補束、相対群と完全列、近似・根群・スペクトル分離、基本積定理である。
+特に重い工程は束の局所データの貼り合わせ、コンパクト性による大域化、Bott の解析的補題となる。
+段階0・2・5の完了時に表示方法・補題の粒度・型検査時間を測り、残る主題の見積もりとパッケージ分割を更新する。
 
 ## その先のライブラリ分け
 
@@ -299,11 +306,23 @@ Hopf 線束の構成と \(S^2\) の環構造は、基本積定理を具体例に
 | 指数定理 | 新規 `differential_geometry` と `index_theory` | 多様体、滑らかな束、微分形式、楕円型作用素、積分と関数解析 |
 | スペクトラムによる表現 | 新規 `stable_homotopy` と K 理論スペクトラムの module | 安定ホモトピー圏、スペクトラム、表現可能性 |
 
-通常のホモロジー・コホモロジーは D の段階から独立したパッケージとして育てる。
+通常のホモロジー・コホモロジーの代数的基盤は既存の分割を使い、[ホモロジー代数計画](homological-algebra.md) の残る完全列と [特異コホモロジー計画](singular-cohomology.md) を独立に進める。
+D の段階は特異コホモロジーの完成と特性類を前提にする。
 `category` の抽象的な普遍性、`algebraic_topology` の空間の構成、`singular_cohomology` の鎖複体による不変量、`topological_k_theory` の束による不変量、という分担にする。
 実 K 理論の追加は、複素理論のスカラーを置き換える作業に加え、8 周期性のための独立した証明群を含む。
 
 ## 検査と公開単位
+
+既存の [libs の型検査](../../libs/README.md#型検査) に合わせ、パッケージと利用 project を検査する。
+
+```sh
+cargo build -p cli
+cargo run -p cli -- --full-check libs
+cargo run -p cli -- --full-check tests/projects/topological-k-theory
+cargo run -p cli -- tests/projects/library
+cargo run -p cli -- tests/projects/category
+cargo test -p cli --test ref_files --locked
+```
 
 新規パッケージは既存と同様に `ref.toml`、`src/root.ref`、README を持ち、依存方向を manifest と公開 module の両方で確認する。
 主題別の定理が完成した段階で、対応するパッケージとその利用側を型検査する。
@@ -313,7 +332,7 @@ Hopf 線束の構成と \(S^2\) の環構造は、基本積定理を具体例に
 
 ## 実装状況
 
-`algebra` の群完成・商・完全性と、`topology` のコンパクト性・有限従属分割に接続する `topological_algebra` と `algebraic_topology` を追加した。
+`algebra` の群完成・商・完全性と、`topology` のコンパクト性、`metric_spaces` の有限従属分割、`topological_constructions` の積・商・貼り合わせに接続する `topological_algebra` と `algebraic_topology` を追加した。
 実数の平方根と逆数の評価、複素絶対値の積・三角不等式、直和・双対・テンソル積の普遍性、実数・複素数上の次元の不変性を証明した。
 スカラー環の連続性、有限次元空間の基底による位相と基底変更の同相、線形写像・汎関数の連続性、有限和による行列積の連続性を提供する。
 
