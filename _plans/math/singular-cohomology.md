@@ -7,8 +7,10 @@
 到達例は一点・空間の空集合・球面・有限グラフ・トーラス・実射影平面とする。
 実射影平面では整数係数のねじれと \(\mathbb F_2\) 係数のカップ平方まで求める。
 
-代数的な核・像・商・長完全列・Ext・Tor・有限行列計算は [ホモロジー代数計画](homological-algebra.md) に置く。
-本計画はその完成を前提とする一つの実装単位で、以下の節は中間検査点とする。
+代数的な核・像・商は `module_theory`、一般複体と長完全列は `chain_complexes`、Hom 複体は `resolutions`、Ext・Tor は `derived_functors`、有限行列計算は `integer_matrices`・`finitely_generated_modules`・`homological_algebra` の既存 API を使う。
+[ホモロジー代数計画](homological-algebra.md) に残る普遍係数短完全列・整数 Künneth・体係数の標準外積同型は、第6・7節で必要になる。
+第1〜5節は既存の基盤から進められる。
+本計画全体を一つの実装単位とし、以下の節は中間検査点とする。
 De Rham 同型、Poincaré 双対性、一般の無限 CW 複体、局所係数、スペクトル系列による計算は、今回の構成から進む後続の単位とする。
 
 ## 現状とパッケージ分割
@@ -19,12 +21,17 @@ De Rham 同型、Poincaré 双対性、一般の無限 CW 複体、局所係数�
 
 | パッケージ | 追加する module 群と役割 |
 | --- | --- |
-| `topology` | コンパクト距離空間の Lebesgue 数、有限被覆と一様連続性、部分空間・貼り合わせの補題 |
+| `metric_spaces` | コンパクト距離空間の Lebesgue 数、一様連続性、細分の距離評価 |
+| `topological_constructions` | 既存の積のコンパクト性、商、貼り合わせを再利用し、幾何的実現への補題を追加 |
 | `algebraic_topology` | `Simplex`、`PathComponent`、`SimplicialComplex`、`Realization`、球面・有限グラフ・トーラス・実射影平面の空間と有限 CW 構造 |
 | `singular_cohomology`（新設） | `Chains`、`Cochains`、`Relative`、`Homotopy`、`Subdivision`、`Excision`、`MayerVietoris`、`Simplicial`、`Cellular`、`Product`、`Cup`、`Coefficients`、`Calculations` |
-| `homological_algebra` | 一般複体、商、誘導写像、長完全列、有限モデルの代数的計算を再利用 |
+| `module_theory`・`commutative_algebra` | 自由整数加群、生成元からの延長、積・直和、Hom・テンソルの既存構成を再利用 |
+| `chain_complexes`・`resolutions` | 複体、誘導写像、ホモトピー、長完全列、Hom・テンソル複体を再利用 |
+| `derived_functors`・`homological_algebra` | 普遍係数、Künneth、有限モデルの証明付き計算を接続 |
 
-`singular_cohomology` は `std`・`algebra`・`real`・`topology`・`topological_algebra`・`algebraic_topology`・`homological_algebra` を直接の利用に応じて依存に持つ。
+`singular_cohomology` は `std`、`module_theory`、`commutative_algebra`、`chain_complexes`、`resolutions` と幾何側の `real`、`topology`、`metric_spaces`、`topological_constructions`、`topological_algebra`、`algebraic_topology` を直接 import する範囲に応じて依存に持つ。
+第6・7節で導来関手と有限計算を利用する際は `derived_functors`・`homological_algebra` を加える。
+新規パッケージは `std` 以外の約5,000行という目安に従い、細分・比較・積・計算を共有基盤から応用への依存で分け、`singular_cohomology` から公開する。
 幾何的な実現と空間の構成は `algebraic_topology`、そのコホモロジーの計算と比較定理は `singular_cohomology` が担当する。
 `algebraic_topology` から `singular_cohomology` への依存は生じない構成とする。
 実数係数の群は [De Rham コホモロジー](../../libs/differential_forms/README.md) と同じ Dedekind 実数・加群構造を使う。
@@ -65,7 +72,7 @@ C^n(X;A)=\operatorname{Hom}_{\mathbb Z}(C_n(X;\mathbb Z),A),
 \qquad \delta\varphi=\varphi\circ\partial_{n+1}
 \]
 
-と定め、ホモロジー代数の `Cohomology` で \(H^n(X;A)\) を構成する。
+と定め、`chain_complexes` の `Cohomology` で \(H^n(X;A)\) を構成する。
 余鎖はすべての特異単体への任意の値の割り当てであり、自由加群の普遍性から得る積加群の表示を利用する。
 空間についての反変性と係数群についての共変性を証明する。
 係数が可換環の場合は、その環上の加群構造まで公開する。
@@ -181,19 +188,18 @@ C_*^{\{U,V\}}(X)\to0
 
 ## 検査と完了条件
 
-`tests/projects/singular-cohomology` に `Basic`、`Relative`、`Excision`、`Spheres`、`Graphs`、`Torus`、`ProjectivePlane`、`Maps` の利用例を設ける。
+新設する `tests/projects/singular-cohomology` に `Basic`、`Relative`、`Excision`、`Spheres`、`Graphs`、`Torus`、`ProjectivePlane`、`Maps` の利用例を設ける。
 群だけでなく、代表余鎖・積・誘導写像・相対群の接続写像を別パッケージから検査する。
 空空間、非連結空間、零次、ねじれを含む整数係数と標数2の係数を含める。
 
 ```sh
 cargo build -p cli
-for package in std algebra topology topological_algebra algebraic_topology homological_algebra singular_cohomology; do
-  target/debug/cli "libs/$package" --module "$package" --no-cache --diagnostics compact || exit 1
-done
-target/debug/cli tests/projects/homological-algebra --module homological_algebra_tests --no-cache --diagnostics compact
-target/debug/cli tests/projects/singular-cohomology --module singular_cohomology_tests --no-cache --diagnostics compact
-target/debug/cli tests/projects/topological-k-theory --module topological_k_theory_foundations_tests --no-cache --diagnostics compact
-target/debug/cli tests/projects/library --module library_tests --no-cache --diagnostics compact
+cargo run -p cli -- --full-check libs
+cargo run -p cli -- --full-check tests/projects/singular-cohomology
+cargo run -p cli -- tests/projects/homological-algebra
+cargo run -p cli -- tests/projects/topological-k-theory
+cargo run -p cli -- tests/projects/manifolds-de-rham
+cargo run -p cli -- tests/projects/library
 cargo test -p cli --test ref_files --locked
 ```
 
