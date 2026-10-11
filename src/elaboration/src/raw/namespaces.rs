@@ -34,6 +34,14 @@ pub(crate) struct SubstitutionCache {
     results: rustc_hash::FxHashMap<Exp, SubstitutionResult>,
 }
 
+#[derive(Debug)]
+pub(crate) struct AliasHead {
+    term: Exp,
+    pending: Vec<DefId>,
+}
+
+pub(crate) type AliasCache = kernel::sharing::Cache<Exp, AliasHead, { 1 << 16 }>;
+
 // Thousands of declarations in an import share one argument telescope.
 // Intern it once so conversion results can be reused across declarations.
 #[derive(Default, Debug)]
@@ -243,7 +251,14 @@ impl CrateEnv {
         )
     }
 
+    #[cfg(test)]
     fn namespace_syntax_equal(&self, left: Exp, right: Exp) -> bool {
+        self.namespace_syntax_comparison(left, right).0
+    }
+
+    /// Also report whether the root aliases were compared, so conversion does
+    /// not repeat a failed traversal of those same heads.
+    fn namespace_syntax_comparison(&self, left: Exp, right: Exp) -> (bool, bool) {
         let _cost = timing::costs::Scope::enter("namespace.compare-syntax");
         use super::exp::ExpNode;
         fn compare(
@@ -251,6 +266,7 @@ impl CrateEnv {
             left: Exp,
             right: Exp,
             seen: &mut rustc_hash::FxHashSet<(Exp, Exp)>,
+            compared_heads: Option<&mut bool>,
         ) -> bool {
             if left == right || !seen.insert((left, right)) {
                 return true;
@@ -273,23 +289,22 @@ impl CrateEnv {
                         == env.definition_specialization_source(r)
             });
             if !matching_source {
+                if let Some(compared) = compared_heads {
+                    *compared = true;
+                }
                 let left_head = env.namespace_alias_head(left);
                 let right_head = env.namespace_alias_head(right);
                 if left_head != left || right_head != right {
-                    return compare(env, left_head, right_head, seen);
+                    return compare(env, left_head, right_head, seen, None);
+                }
+                if declarations.is_some() {
+                    return false;
                 }
             }
             if let Some((l, r)) = declarations {
                 // A closed declaration's identity is its source plus its
                 // specialization arguments. Ambient local contexts require the
                 // ordinary conversion path, which explicitly applies captures.
-                if env.namespace_has_local_context(l.module)
-                    || env.namespace_has_local_context(r.module)
-                    || env.definition_specialization_source(l)
-                        != env.definition_specialization_source(r)
-                {
-                    return false;
-                }
                 let left_args = env.definition_specialization_arguments(l);
                 let right_args = env.definition_specialization_arguments(r);
                 let source = env.definition_specialization_source(l);
@@ -299,15 +314,18 @@ impl CrateEnv {
                     return false;
                 }
                 if left_args.len() != right_args.len()
-                    || !left_args.iter().zip(&right_args).all(|((lp, l), (rp, r))| {
-                        lp == rp
-                            && match (*l, *r) {
-                                (ModuleArgument::Pts(l), ModuleArgument::Pts(r)) => {
-                                    compare(env, l, r, seen)
+                    || !left_args
+                        .iter()
+                        .zip(right_args.iter())
+                        .all(|((lp, l), (rp, r))| {
+                            lp == rp
+                                && match (*l, *r) {
+                                    (ModuleArgument::Pts(l), ModuleArgument::Pts(r)) => {
+                                        compare(env, l, r, seen, None)
+                                    }
+                                    _ => l == r,
                                 }
-                                _ => l == r,
-                            }
-                    })
+                        })
                 {
                     return false;
                 }
@@ -322,15 +340,33 @@ impl CrateEnv {
                 && left
                     .into_iter()
                     .zip(right)
-                    .all(|((l, ld), (r, rd))| ld == rd && compare(env, Exp(l), Exp(r), seen))
+                    .all(|((l, ld), (r, rd))| ld == rd && compare(env, Exp(l), Exp(r), seen, None))
         }
-        compare(self, left, right, &mut rustc_hash::FxHashSet::default())
+        let mut compared_heads = false;
+        let equal = compare(
+            self,
+            left,
+            right,
+            &mut rustc_hash::FxHashSet::default(),
+            Some(&mut compared_heads),
+        );
+        (equal, compared_heads)
     }
 
     fn namespace_alias_head(&self, term: Exp) -> Exp {
         let _cost = timing::costs::Scope::enter("namespace.reduce-alias-head");
+        if let Some(head) = self.namespace_alias_cache.borrow().get(&term)
+            && head
+                .pending
+                .iter()
+                .all(|&id| self.materialized_definition(id).is_none())
+        {
+            timing::costs::count("namespace.alias-head-cache-hits", || 1);
+            return head.term;
+        }
+        timing::costs::count("namespace.alias-head-cache-misses", || 1);
         use super::exp::ExpNode;
-        fn head(env: &CrateEnv, mut term: Exp, fuel: &mut usize) -> Exp {
+        fn head(env: &CrateEnv, mut term: Exp, fuel: &mut usize, pending: &mut Vec<DefId>) -> Exp {
             // This only visits already materialized, closed definitions. The
             // shared budget also bounds beta reduction in application spines.
             while *fuel > 0 {
@@ -338,7 +374,7 @@ impl CrateEnv {
                 match env.arena().get(term) {
                     ExpNode::Ascribe { term: value, .. } => term = value,
                     ExpNode::App { func, arg } => {
-                        let function = head(env, func, fuel);
+                        let function = head(env, func, fuel, pending);
                         if let ExpNode::Lam { body, .. } = env.arena().get(function)
                             && let Ok(body) =
                                 kernel::calculus::instantiate(&env.arena().core, body.0, &[arg.0])
@@ -362,9 +398,11 @@ impl CrateEnv {
                         {
                             break;
                         }
-                        let Some(DefinedConstant::Pts { body, .. }) =
-                            env.materialized_definition(id)
-                        else {
+                        let definition = env.materialized_definition(id);
+                        if definition.is_none() {
+                            pending.push(id);
+                        }
+                        let Some(DefinedConstant::Pts { body, .. }) = definition else {
                             break;
                         };
                         let body = *body;
@@ -378,7 +416,18 @@ impl CrateEnv {
             }
             term
         }
-        head(self, term, &mut 32)
+        // Completed definitions are immutable. Only an unavailable definition
+        // visited by this bounded reduction can change its result later.
+        let mut pending = Vec::new();
+        let result = head(self, term, &mut 32, &mut pending);
+        self.namespace_alias_cache.borrow_mut().insert(
+            term,
+            AliasHead {
+                term: result,
+                pending,
+            },
+        );
+        result
     }
 
     #[cfg(test)]
@@ -408,9 +457,8 @@ impl CrateEnv {
             timing::costs::count("namespace.comparison-retries-avoided", || 1);
             return false;
         }
-        // Distinct variables and opaque parameters cannot become equal as
-        // imported definitions are materialized. Check these rigid leaves
-        // before recursively comparing syntax or expanding aliases.
+        // Distinct normal heads cannot become equal as imported definitions
+        // are materialized. Check before recursively comparing their children.
         if self.namespace_term_is_rigid(left) && self.namespace_term_is_rigid(right) {
             self.cache_namespace_equality(left, right, false);
             return false;
@@ -422,21 +470,26 @@ impl CrateEnv {
             let _cost = timing::costs::Scope::enter("namespace.compare-alpha");
             kernel::calculus::alpha_equal(&self.arena().core, left.0, right.0)
         };
-        if alpha_equal || self.namespace_syntax_equal(left, right) {
+        if alpha_equal {
+            self.cache_namespace_equality(left, right, true);
+            return true;
+        }
+        let (syntax_equal, compared_heads) = self.namespace_syntax_comparison(left, right);
+        if syntax_equal {
             self.cache_namespace_equality(left, right, true);
             return true;
         }
         let left_alias = self.namespace_alias_head(left);
         let right_alias = self.namespace_alias_head(right);
-        if (left_alias != left || right_alias != right)
-            && self.namespace_syntax_equal(left_alias, right_alias)
+        if !compared_heads
+            && (left_alias != left || right_alias != right)
+            && self.namespace_syntax_comparison(left_alias, right_alias).0
         {
             self.cache_namespace_equality(left, right, true);
             return true;
         }
-        // These heads are rigid: neither a local variable nor an opaque module
-        // parameter reduces to another variable. Avoid registering an entire
-        // captured declaration graph merely to reject this comparison.
+        // Avoid registering an entire captured declaration graph merely to
+        // reject normal heads exposed by alias reduction.
         if self.namespace_term_is_rigid(left_alias) && self.namespace_term_is_rigid(right_alias) {
             self.cache_namespace_equality(left, right, false);
             return false;
@@ -1185,6 +1238,55 @@ mod tests {
             index: source.index + 1,
         }));
         assert!(!env.namespace_syntax_equal(copies[0], unrelated));
+    }
+
+    #[test]
+    fn alias_heads_retry_when_a_dependency_is_materialized() {
+        use crate::raw::sort::Sort;
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let set = env.arena().sort(Sort::Set(0));
+        let source = env
+            .add_definition(
+                root,
+                DefinedConstant::Pts {
+                    ty: env.arena().sort(Sort::SetKind(0)),
+                    body: set,
+                },
+            )
+            .unwrap();
+        let copy = env.reserve_lazy_definition(root, source, vec![], vec![]);
+        let reference = env.arena().alloc(ExpNode::DefinedConstant(copy));
+        let function = env.arena().alloc(ExpNode::Lam {
+            var: SymbolId::ANONYMOUS,
+            ty: set,
+            body: reference,
+        });
+        let applied = env.arena().alloc(ExpNode::App {
+            func: function,
+            arg: env.arena().alloc(ExpNode::Bound(0)),
+        });
+        assert_eq!(env.namespace_alias_head(applied), reference);
+        assert_eq!(env.namespace_alias_head(applied), reference);
+        env.resolve_definition(copy).unwrap();
+        assert_eq!(env.namespace_alias_head(applied), set);
+        assert_eq!(env.namespace_alias_head(applied), set);
+    }
+
+    #[test]
+    fn alias_heads_keep_the_reduction_budget_on_cache_hits() {
+        use crate::raw::sort::Sort;
+        let env = CrateEnv::new();
+        let set = env.arena().sort(Sort::Set(0));
+        let mut term = set;
+        for _ in 0..40 {
+            term = env.arena().alloc(ExpNode::Ascribe { term, ty: set });
+        }
+        let reduced = env.namespace_alias_head(term);
+        assert_ne!(reduced, set);
+        assert_eq!(env.namespace_alias_head(term), reduced);
+        assert_eq!(env.namespace_alias_head(reduced), set);
+        assert_eq!(env.namespace_alias_head(term), reduced);
     }
 
     #[test]

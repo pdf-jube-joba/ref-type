@@ -741,6 +741,7 @@ fn collect_analysis(
     graph: &ModuleGraph<'_>,
     results: &mut BTreeMap<usize, ModuleResult>,
 ) {
+    let _cost = timing::costs::Scope::enter("query.collect-analysis");
     for declaration in &analysis.declarations {
         let _time = timing::Scope::module(|| declaration.module.clone());
         if let Some(result) = graph

@@ -10,6 +10,7 @@ pub fn serialize<S: Serializer>(
     maps: &[DeclarationRemapping],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
+    let _cost = timing::costs::Scope::enter("query.serialize-remappings");
     (
         MapForest(maps.iter().map(|map| &map.module_ids).collect()),
         MapForest(maps.iter().map(|map| &map.definition_ids).collect()),

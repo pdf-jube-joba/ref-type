@@ -214,8 +214,7 @@ impl PackageChecker {
         if bytes.len() > MAX_PACKAGE_BYTES {
             return None;
         }
-        let decoded =
-            miniz_oxide::inflate::decompress_to_vec_with_limit(bytes, MAX_PACKAGE_BYTES).ok()?;
+        let decoded = crate::checkpoint::decompress::<MAX_PACKAGE_BYTES>(bytes)?;
         let mut saved: Self = postcard::from_bytes(&decoded).ok()?;
         saved.resolution.restore_sources(sources)?;
         saved.workspace.crate_env.restore_shared_arena();

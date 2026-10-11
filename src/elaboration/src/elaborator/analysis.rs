@@ -102,6 +102,7 @@ impl GlobalEnvironment {
     }
 
     pub(crate) fn record_declaration(&mut self, item: &ModuleItem, output_start: usize) {
+        let _cost = timing::costs::Scope::enter("query.record-analysis");
         let Some(location) = self.diagnostic_location.clone() else {
             return;
         };

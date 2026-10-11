@@ -312,6 +312,8 @@ pub struct CrateEnv {
     pub(crate) namespace_substitution_cache: RefCell<super::namespaces::SubstitutionCache>,
     #[serde(skip)]
     pub(crate) namespace_argument_cache: RefCell<super::namespaces::ArgumentCache>,
+    #[serde(skip)]
+    pub(crate) namespace_alias_cache: RefCell<super::namespaces::AliasCache>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
@@ -411,6 +413,7 @@ impl CrateEnv {
             namespace_conversion_cache: Default::default(),
             namespace_substitution_cache: Default::default(),
             namespace_argument_cache: Default::default(),
+            namespace_alias_cache: Default::default(),
             symbols: vec![anonymous, root],
             symbol_ids,
             modules: vec![ModuleEnv::new("root".into(), None, vec![])],
@@ -1187,10 +1190,10 @@ impl CrateEnv {
     pub(crate) fn definition_specialization_arguments(
         &self,
         id: DefId,
-    ) -> Vec<(ModuleParamId, ModuleArgument)> {
+    ) -> std::borrow::Cow<'_, [(ModuleParamId, ModuleArgument)]> {
         self.nominal_definitions.get(&id).map_or_else(
-            || self.namespace_arguments(id.module),
-            |origin| origin.arguments.to_vec(),
+            || self.namespace_arguments(id.module).into(),
+            |origin| std::borrow::Cow::Borrowed(origin.arguments.as_ref()),
         )
     }
 

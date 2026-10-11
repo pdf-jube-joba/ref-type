@@ -111,6 +111,8 @@ def main():
     report = {
         "date": datetime.now().astimezone().isoformat(timespec="seconds"),
         "revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        "source_tree_dirty": bool(subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=normal"], text=True)),
         "profile": "dev, opt-level=2, debug assertions enabled",
         "rustc": subprocess.check_output(["rustc", "--version"], text=True).strip(),
         "kernel": subprocess.check_output(["uname", "-sr"], text=True).strip(),
@@ -127,10 +129,9 @@ def main():
             "peak_rss_kib is wait4 ru_maxrss: maximum individual-process RSS including waited descendants, not simultaneous process-tree RSS.",
             "Detailed profiling adds overhead; exclusive groups avoid nested timing double counting.",
             "Phase RSS is process-wide, not heap allocation ownership by subsystem.",
-            "query.packages exclusive time also contains uninstrumented checking, analysis, checkpoint and teardown work; it is not solely disk I/O.",
+            "query includes package orchestration, otherwise uninstrumented checking, analysis, serialization, checkpoint I/O and teardown; it is not solely disk I/O.",
             "Profiling overhead and time-based checkpoint scheduling can change the work done; group shares are not uninstrumented runtime fractions.",
             "The forms resolver run covers the whole package dependency graph, not the Tensor selection; it is not a subtraction baseline.",
-            "Library partitioning, sources and CLI checkpoint behavior differ from the October 10 reports; these are not controlled before/after measurements.",
         ],
         "summary": {
             "tensor_plain_median_seconds": statistics.median(run["seconds"] for run in plain),

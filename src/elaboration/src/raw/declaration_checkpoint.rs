@@ -36,6 +36,7 @@ pub(super) mod definitions {
         entries: &HashMap<DefId, LazyDefinition>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
+        let _cost = timing::costs::Scope::enter("query.serialize-lazy-definitions");
         let mut arguments = Slices::default();
         let mut reflected = Slices::default();
         let entries: Vec<_> = entries
@@ -86,6 +87,7 @@ macro_rules! substitution_map {
                 entries: &HashMap<$id, $value>,
                 serializer: S,
             ) -> Result<S::Ok, S::Error> {
+                let _cost = timing::costs::Scope::enter("query.serialize-lazy-types");
                 let mut arguments = Slices::default();
                 let entries: Vec<_> = entries
                     .iter()
@@ -140,6 +142,7 @@ pub(super) mod specializations {
         entries: &HashMap<I, Specialization<I>>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
+        let _cost = timing::costs::Scope::enter("query.serialize-specializations");
         let mut arguments = Slices::default();
         let entries: Vec<_> = entries
             .iter()

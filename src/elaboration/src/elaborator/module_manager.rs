@@ -961,11 +961,16 @@ impl ModuleManager {
                 } else {
                     cache_hits.set(cache_hits.get() + 1);
                 }
-                remapping.$table.insert(source, canonical);
-                remapping.$table.insert(reserved, canonical);
-                let shared = env.reserved_remapping_mut(shared_remapping);
-                shared.$table.insert(source, canonical);
-                shared.$table.insert(reserved, canonical);
+                // Reservations already map fresh declarations to themselves.
+                // Avoid detaching both shared tables merely to repeat that map.
+                for key in [source, reserved] {
+                    if remapping.$table.get(&key).copied().unwrap_or(key) != canonical {
+                        remapping.$table.insert(key, canonical);
+                        env.reserved_remapping_mut(shared_remapping)
+                            .$table
+                            .insert(key, canonical);
+                    }
+                }
                 *$id = canonical;
                 source
             }};

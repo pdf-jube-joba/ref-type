@@ -1,4 +1,5 @@
 //! Shared namespace maps retain composition without copying either operand.
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeMap};
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
@@ -18,14 +19,14 @@ impl<K: Eq + Hash> IdLookup<K> for HashMap<K, K> {
 
 #[derive(Debug, Clone)]
 pub(crate) struct SharedMap<K> {
-    entries: Arc<HashMap<K, K>>,
+    entries: Arc<FxHashMap<K, K>>,
     base: Option<(Arc<Self>, Arc<Self>)>,
 }
 
 impl<K> Default for SharedMap<K> {
     fn default() -> Self {
         Self {
-            entries: Arc::new(HashMap::new()),
+            entries: Arc::new(FxHashMap::default()),
             base: None,
         }
     }
@@ -93,7 +94,7 @@ impl<K: Copy + Eq + Hash> SharedMap<K> {
     pub(crate) fn capacity(&self) -> usize {
         self.entries.capacity()
     }
-    fn make_mut(&mut self) -> &mut HashMap<K, K> {
+    fn make_mut(&mut self) -> &mut FxHashMap<K, K> {
         if self.base.is_some() {
             self.entries = Arc::new(self.iter().map(|(&k, &v)| (k, v)).collect());
             self.base = None;
@@ -125,7 +126,7 @@ impl<K: Copy + Eq + Hash> SharedMap<K> {
             return previous.clone();
         }
         Self {
-            entries: Arc::new(HashMap::new()),
+            entries: Arc::new(FxHashMap::default()),
             base: Some((Arc::new(self.clone()), Arc::new(previous.clone()))),
         }
     }
@@ -145,7 +146,7 @@ impl<K: Copy + Eq + Hash + Serialize> Serialize for SharedMap<K> {
 impl<'de, K: Copy + Eq + Hash + Deserialize<'de>> Deserialize<'de> for SharedMap<K> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         Ok(Self {
-            entries: Arc::new(HashMap::deserialize(deserializer)?),
+            entries: Arc::new(FxHashMap::deserialize(deserializer)?),
             base: None,
         })
     }
@@ -156,15 +157,15 @@ impl<'de, K: Copy + Eq + Hash + Deserialize<'de>> Deserialize<'de> for SharedMap
 pub(crate) struct MapForest<'a, K>(pub Vec<&'a SharedMap<K>>);
 
 type MapNode = (usize, Option<(usize, usize)>);
-type MapForestData<K> = (Vec<Arc<HashMap<K, K>>>, Vec<MapNode>, Vec<usize>);
+type MapForestData<K> = (Vec<Arc<FxHashMap<K, K>>>, Vec<MapNode>, Vec<usize>);
 
 impl<K: Serialize> Serialize for MapForest<'_, K> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         struct Forest<'a, K> {
-            tables: Vec<&'a HashMap<K, K>>,
-            table_ids: HashMap<*const HashMap<K, K>, usize>,
+            tables: Vec<&'a FxHashMap<K, K>>,
+            table_ids: FxHashMap<*const FxHashMap<K, K>, usize>,
             nodes: Vec<MapNode>,
-            node_ids: HashMap<*const SharedMap<K>, usize>,
+            node_ids: FxHashMap<*const SharedMap<K>, usize>,
         }
         impl<'a, K> Forest<'a, K> {
             fn insert(&mut self, map: &'a SharedMap<K>) -> usize {
@@ -191,9 +192,9 @@ impl<K: Serialize> Serialize for MapForest<'_, K> {
         }
         let mut forest = Forest {
             tables: Vec::new(),
-            table_ids: HashMap::new(),
+            table_ids: FxHashMap::default(),
             nodes: Vec::new(),
-            node_ids: HashMap::new(),
+            node_ids: FxHashMap::default(),
         };
         let roots: Vec<_> = self.0.iter().map(|map| forest.insert(map)).collect();
         (forest.tables, forest.nodes, roots).serialize(serializer)

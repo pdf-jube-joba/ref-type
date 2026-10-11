@@ -190,9 +190,7 @@ impl Checker {
             return None;
         }
         let inflate = crate::profiling::Phase::start("environment.inflate");
-        let bytes =
-            miniz_oxide::inflate::decompress_to_vec_with_limit(bytes, crate::MAX_ENVIRONMENT_BYTES)
-                .ok()?;
+        let bytes = crate::checkpoint::decompress::<{ crate::MAX_ENVIRONMENT_BYTES }>(bytes)?;
         drop(inflate);
         let decode = crate::profiling::Phase::start("environment.deserialize");
         let mut workspace: GlobalEnvironment = postcard::from_bytes(&bytes).ok()?;

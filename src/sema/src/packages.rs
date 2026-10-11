@@ -203,6 +203,7 @@ impl Database {
             } else {
                 ProgressPhase::Resolving
             });
+            let check_cost = timing::costs::Scope::enter("query.package-check");
             let checked = checker.append_with_checkpoints(module, interval, |event| match event {
                 PackageProgress::Prepared { paths, start } => {
                     let steps: Vec<_> = paths
@@ -258,6 +259,7 @@ impl Database {
                     progress.phase(ProgressPhase::Checking);
                 }
             });
+            drop(check_cost);
             progress.finish_batch();
             // The ordinary path retains detailed independent-scope error recovery.
             // Successfully checked dependency artifacts remain valid on failure.
@@ -285,6 +287,7 @@ impl Database {
                 })
                 .collect();
             collect_analysis(checker.analysis(), graph, &mut fresh);
+            let save_cost = timing::costs::Scope::enter("query.save-results");
             for (&index, result) in &fresh {
                 self.checked
                     .insert(module_keys[index], Arc::new(result.clone()));
@@ -295,6 +298,7 @@ impl Database {
                     }
                 }
             }
+            drop(save_cost);
             results.extend(fresh);
             progress.phase(ProgressPhase::Saving);
             if !(options.force && self.disk.is_none()) {
@@ -325,6 +329,10 @@ impl Database {
                     self.stats.package_skips += 1;
                 }
             }
+        }
+        {
+            let _cost = timing::costs::Scope::enter("query.drop-package-checker");
+            drop(checker);
         }
         self.stats.environment_bytes =
             self.environments.bytes() + self.package_environments.bytes();
