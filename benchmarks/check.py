@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--binary", default="target/debug/cli")
     parser.add_argument("--module")
     parser.add_argument("--seconds", type=int, default=300)
+    parser.add_argument("--batch-seconds", type=int, help="CLI limit before splitting a worker batch")
     parser.add_argument("--memory-mib", type=int, default=2560)
     parser.add_argument("--log", type=Path, default=Path("benchmarks/check.log"))
     parser.add_argument("--result", type=Path, help="Write the final measurement as JSON")
@@ -29,11 +30,15 @@ def main():
     args = parser.parse_args()
     if args.seconds <= 0 or args.memory_mib <= 0:
         parser.error("limits must be positive")
+    if args.batch_seconds is not None and args.batch_seconds <= 0:
+        parser.error("--batch-seconds must be positive")
 
     command = [args.binary, args.path, "--diagnostics", "compact",
                "--memory-mib", str(args.memory_mib)]
     if args.module:
         command.extend(["--module", args.module])
+    if args.batch_seconds is not None:
+        command.extend(["--batch-seconds", str(args.batch_seconds)])
     if args.cache_stats:
         command.append("--cache-stats")
     if args.cache_dir:

@@ -206,7 +206,11 @@ cargo run -p resolve --example resolve-bench -- libs/algebra/homological/computa
 
 `package_complete` 番目の module と、その完了直後に検査する `next_module` を表示する。
 この順序はキャッシュ省略と型エラーからの復旧がない場合の予定であり、実測時間は通常の検査ログで確認する。
-既存の測定条件と結果は [results.json](../benchmarks/results.json) にある。
+namespace と名前解決の測定条件・結果は [namespace-results.json](../benchmarks/namespace-results.json) にある。
+`python3 benchmarks/namespace.py` は CLI の通常実行3回、詳細計測1回、resolver 単独の詳細計測1回を順番に実行する。
+事前に `cargo build -p cli --locked` と `cargo build -p resolve --example resolve-bench --locked` で計測用バイナリを更新する。
+各 CLI 実行は空の専用キャッシュを使い、保存処理も測定に含まれる。
+最大 RSS は子プロセスを含む個々のプロセスの最大値であり、同時点の合計や namespace 固有の使用量ではない。
 
 ## 処理系のテスト
 
