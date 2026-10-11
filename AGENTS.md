@@ -1,3 +1,5 @@
+クラウド環境の場合、 main を pull してブランチを切って、 PR にしてください。
+
 ## 計測や分析
 perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 （多分）
@@ -44,7 +46,8 @@ perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 - 再現例として 100行以内で playground で実行できる具体例を構成すること。
 - 「こう書きたい」バージョンと「こう書いているバージョン」の2つ。
 
-キャッシュは最大限に生かして、検査の時間が少なくなるようにする。
+普通にやるとライブラリの検査に時間がかかるので、いい感じにキャッシュを使うこと。
+`--full-check` じゃない方法の方が望ましい。
 
 ### 基本方針
 - `\structure` を使う。
@@ -52,6 +55,8 @@ perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 - あまりに重複する別 module の参照は definition で名前を付ける。
 - ちゃんとライブラリを分ける。
 - "定理"と呼ばれるものは仮定なしで示す。 定義の引数や module parameter で仮定を渡さない。
+- 読みやすくする。
+  - application の入れ子を大量に書かないで、 `\block` や equational reasoning を使うようにする。
 
 ### 細かい方針
 
@@ -71,7 +76,9 @@ perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 ```
 とるべき引数は `Topology::[Set]`
 
-#### タスクは最後までやってから停止する
+## 
+
+## タスクは最後までやってから停止する
 以下の場合を除き最後までやる。
 - 体系の制限により書くことができない場合
 - 言語処理系の制限により書くことができない場合
