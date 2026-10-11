@@ -48,9 +48,8 @@
     Logic.Or[k = N.Nat^::zero, \exists { i: Fin n \where k = N.Nat^::succ (value n i) }] \with {
       | zero: \fun (bound: _) => Logic.Or[_, _]::left (\refl(N.Nat^::zero))
       | succ: \fun (k: N.Nat^) (ih: _) (bound: _) => Logic.Or[_, _]::right
-        (\exact(\into[Fin n](\into[N.Nat^](k, { k: N.Nat^ \where NL.Lt k n }) \by { bound },
-          { i: Fin n \where N.Nat^::succ k = N.Nat^::succ (value n i) }) \by { \refl(N.Nat^::succ k) },
-          \Cast[Fin n] ({ i: Fin n \where N.Nat^::succ k = N.Nat^::succ (value n i) })))
+        (Logic.existsIntro[Fin n, { i: Fin n \where N.Nat^::succ k = N.Nat^::succ (value n i) }] (\into[N.Nat^](k, { k: N.Nat^ \where NL.Lt k n }) \by { bound })
+          (\refl(N.Nat^::succ k)))
     };
 \definition occursSucc: \forall (n: N.Nat^) (i: Fin n) (xs: Lists.List[Fin n]) -> Occurs n i xs ->
   Occurs (N.Nat^::succ n) (succ n i) (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) xs) :=
@@ -58,19 +57,18 @@
     Occurs (N.Nat^::succ n) (succ n i) (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) xs) \with {
       | nil: \fun (empty: Logic.False) => empty
       | cons: \fun (j: Fin n) (tail: Lists.List[Fin n]) (ih: _) (member: _) =>
-        either!{{i = j} "or" {Occurs n i tail}
-          "either" {Occurs (N.Nat^::succ n) (succ n i) (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) (Lists.List[Fin n]::cons j tail))}
-          "lt:" {\fun (equal: _) => Logic.Or[_, _]::left (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) _ _ equal)}
-          "rt:" {\fun (old: _) => Logic.Or[_, _]::right (ih old)}} member
+        either!{member {Occurs (N.Nat^::succ n) (succ n i) (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) (Lists.List[Fin n]::cons j tail))}
+          {\fun (equal: _) => Logic.Or[_, _]::left (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) _ _ equal)}
+          {\fun (old: _) => Logic.Or[_, _]::right (ih old)}
+        }
     };
 \definition exhaustiveStep: \forall (n: N.Nat^) -> (\forall (i: Fin n) -> Occurs n i (elements n)) ->
   \forall (i: Fin (N.Nat^::succ n)) -> Occurs (N.Nat^::succ n) i (elements (N.Nat^::succ n)) :=
   \fun (n: N.Nat^) (ih: \forall (i: Fin n) -> Occurs n i (elements n)) (i: Fin (N.Nat^::succ n)) =>
-  either!{{i = N.Nat^::zero} "or" {\exists { j: Fin n \where i = N.Nat^::succ (value n j) }}
-    "either" {Occurs (N.Nat^::succ n) i (elements (N.Nat^::succ n))}
-    "lt:" {\fun (equal: i = N.Nat^::zero) =>
+  either!{{(successorCases n i (bound (N.Nat^::succ n) i))} {Occurs (N.Nat^::succ n) i (elements (N.Nat^::succ n))}
+    {\fun (equal: i = N.Nat^::zero) =>
       Logic.Or[i = zero n, Occurs (N.Nat^::succ n) i (Lists.map (Fin n) (Fin (N.Nat^::succ n)) (succ n) (elements n))]::left equal}
-    "rt:" {\block {
+    {\block {
       \fun (exists: \exists { j: Fin n \where i = N.Nat^::succ (value n j) }) \then
       \takefrom j: \Cast[Fin n] ({ j: Fin n \where i = N.Nat^::succ (value n j) }) \by exists \then
       \let equal: i = succ n j := \bysub(Fin n, { j: Fin n \where i = N.Nat^::succ (value n j) }, j) \then
@@ -80,7 +78,8 @@
           (occursSucc n j (elements n) (ih j)) \then
       \return \idelim succ n j = i \with k: Fin (N.Nat^::succ n) => Occurs (N.Nat^::succ n) k (elements (N.Nat^::succ n))
         \by { base: member, equality: sym!{{Fin (N.Nat^::succ n)}} (i) (succ n j) equal }
-    }}} (successorCases n i (bound (N.Nat^::succ n) i));
+    }}
+  };
 \definition exhaustive: \forall (n: N.Nat^) (i: Fin n) -> Occurs n i (elements n) :=
   \induction (n: N.Nat^) \return \forall (i: Fin n) -> Occurs n i (elements n) \with {
     | zero: \fun (i: Fin N.Nat^::zero) => zeroImpossible i (bound N.Nat^::zero i)
@@ -96,16 +95,17 @@
   \Cast[Option.Option[Fin n]] ({ option: Option.Option[Fin n] \where inflate n option = i });
 \definition splitExists: \forall (n: N.Nat^) (i: Fin (N.Nat^::succ n)) -> \exists SplitValue n i :=
   \fun (n: N.Nat^) (i: Fin (N.Nat^::succ n)) =>
-  either!{{i = N.Nat^::zero} "or" {\exists { j: Fin n \where i = N.Nat^::succ (value n j) }} "either" {\exists SplitValue n i}
-    "lt:" {\fun (equal: i = N.Nat^::zero) => \exact(\into[Option.Option[Fin n]](Option.Option[Fin n]::none, SplitValue n i)
+  either!{{(successorCases n i (bound (N.Nat^::succ n) i))} {\exists SplitValue n i}
+    {\fun (equal: i = N.Nat^::zero) => \exact(\into[Option.Option[Fin n]](Option.Option[Fin n]::none, SplitValue n i)
       \by { sym!{N.Nat^} _ _ equal }, SplitValue n i)}
-    "rt:" {\block {
+    {\block {
       \fun (exists: \exists { j: Fin n \where i = N.Nat^::succ (value n j) }) \then
       \takefrom j: \Cast[Fin n] ({ j: Fin n \where i = N.Nat^::succ (value n j) }) \by exists \then
       \return \exact(\into[Option.Option[Fin n]](Option.Option[Fin n]::some j, SplitValue n i) \by {
         sym!{N.Nat^} _ _ (\bysub(Fin n, { j: Fin n \where i = N.Nat^::succ (value n j) }, j))
       }, SplitValue n i)
-    }}} (successorCases n i (bound (N.Nat^::succ n) i));
+    }}
+  };
 \definition inflateInjective: \forall (n: N.Nat^) (u, v: Option.Option[Fin n]) -> inflate n u = inflate n v -> u = v :=
   \fun (n: N.Nat^) => \induction (u: Option.Option[Fin n]) \return \forall (v: Option.Option[Fin n]) -> inflate n u = inflate n v -> u = v \with {
     | none: \induction (v: Option.Option[Fin n]) \return inflate n Option.Option[Fin n]::none = inflate n v -> Option.Option[Fin n]::none = v \with {
@@ -138,16 +138,17 @@
 \definition Predecessor(n: N.Nat^)(i: Nonzero n): \Set := \Cast[Fin n]
   ({ j: Fin n \where succ n j = i });
 \definition predecessorExists: \forall (n: N.Nat^)(i: Nonzero n) -> \exists Predecessor n i :=
-  \fun (n: N.Nat^)(i: Nonzero n) => either!{{i = N.Nat^::zero} "or" {\exists { j: Fin n \where i = N.Nat^::succ (value n j) }} "either" {\exists Predecessor n i}
-    "lt:" {\fun (same: i = N.Nat^::zero) => Logic.falseElim (\exists Predecessor n i)
+  \fun (n: N.Nat^)(i: Nonzero n) => either!{{(successorCases n i (bound (N.Nat^::succ n) i))} {\exists Predecessor n i}
+    {\fun (same: i = N.Nat^::zero) => Logic.falseElim (\exists Predecessor n i)
       ((\bysub(Fin (N.Nat^::succ n), Nonzero n, i)) same)}
-    "rt:" {\block {
+    {\block {
       \fun (exists: \exists { j: Fin n \where i = N.Nat^::succ (value n j) }) \then
       \takefrom j: \Cast[Fin n] ({ j: Fin n \where i = N.Nat^::succ (value n j) }) \by exists \then
       \return \exact(\into[Fin n](j, Predecessor n i) \by {
         sym!{{Fin (N.Nat^::succ n)}} i (succ n j) (\bysub(Fin n, { j: Fin n \where i = N.Nat^::succ (value n j) }, j))
       }, Predecessor n i)
-    }}} (successorCases n i (bound (N.Nat^::succ n) i));
+    }}
+  };
 \definition predecessorUnique: \forall (n: N.Nat^)(i: Nonzero n)(j, k: Predecessor n i) -> j = k :=
   \fun (n: N.Nat^)(i: Nonzero n)(j, k: Predecessor n i) => NL.succInjective j k
     (trans!{{Fin (N.Nat^::succ n)}} (succ n j) i (succ n k)

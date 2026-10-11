@@ -3,11 +3,7 @@
   R.Lt Real.zero radius -> T.Subset (Ball metric x radius) U ->
   \exists \Cast[R.Real] (NeighborhoodRadius metric U x) :=
   \fun (positive: R.Lt Real.zero radius) (contained: T.Subset (Ball metric x radius) U) =>
-    \exact(
-      \into[R.Real](radius, NeighborhoodRadius metric U x) \by {
-        Logic.And[_, _]::# positive contained
-      },
-      \Cast[R.Real] (NeighborhoodRadius metric U x));
+    Logic.existsIntro[R.Real, NeighborhoodRadius metric U x] radius (Logic.And[_, _]::# positive contained);
 
 \definition emptyOpen(metric: Metric): IsOpen metric T.Empty :=
   \fun (x: Carrier) (inside: T.Member T.Empty x) =>
@@ -63,17 +59,15 @@
         \bysub(R.Real, NeighborhoodRadius metric U x, r) \then
       \let hs: \In[R.Real] (NeighborhoodRadius metric V x) s :=
         \bysub(R.Real, NeighborhoodRadius metric V x, s) \then
-      \return either!{
-        {R.Le r s} "or" {R.Le s r} "either" {\exists \Cast[R.Real] (NeighborhoodRadius metric (T.Intersection U V) x)}
-        "lt:" {intersectionRadius metric U V x r s hr hs}
-        "rt:" {\fun (sr: R.Le s r) =>
+      \return either!{{(Order.leTotal r s)} {\exists \Cast[R.Real] (NeighborhoodRadius metric (T.Intersection U V) x)}
+        {intersectionRadius metric U V x r s hr hs}
+        {\fun (sr: R.Le s r) =>
           openOfRadius metric (T.Intersection U V) x s (#left{hs})
             (\fun (y: Carrier) => \fun (inBall: T.Member (Ball metric x s) y) =>
               T.intersectionMember U V y
                 (#right{hr} y (ballMonotone metric x s r sr y inBall))
                 (#right{hs} y inBall))}
       }
-        (Order.leTotal r s)
     };
 
 \definition raw(metric: Metric): T.TopologyData :=
@@ -107,12 +101,7 @@
   \exists { metric : Metric \where Compatible metric space };
 
 \definition inducedMetrizable(metric: Metric): Metrizable (topology metric) :=
-  \exact(
-    \into[Metric](metric,
-      { m : Metric \where Compatible m (topology metric) })
-      \by { openIff metric },
-    \Cast[Metric]
-      ({ m : Metric \where Compatible m (topology metric) }));
+  Logic.existsIntro[Metric, { m : Metric \where Compatible m (topology metric) }] metric (openIff metric);
 
 /* At y in B(x, r), the radius r - d(x, y) stays inside B(x, r). */
 \definition ballOpen(metric: Metric) (x: Carrier) (radius: R.Real):

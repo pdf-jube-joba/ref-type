@@ -9,9 +9,8 @@
   \let laws: IsCountableBasis[ambient, basis] := \bysub(N.Nat^ -> \Pow Carrier,
     { basis: N.Nat^ -> \Pow Carrier \where IsCountableBasis[ambient, basis] }, basis) \then
   \let traces: N.Nat^ -> \Pow CarrierSet := \fun (n: N.Nat^) => Trace (basis n) \then
-  \return \exact(\into[N.Nat^ -> \Pow CarrierSet](traces,
-    { basis: N.Nat^ -> \Pow CarrierSet \where Sub.IsCountableBasis[topology ambient, basis] }) \by {
-      Sub.IsCountableBasis[topology ambient, traces] {
+  \return Logic.existsIntro[N.Nat^ -> \Pow CarrierSet, { basis: N.Nat^ -> \Pow CarrierSet \where Sub.IsCountableBasis[topology ambient, basis] }] traces
+    (Sub.IsCountableBasis[topology ambient, traces] {
         open := \fun (n: N.Nat^) => traceOpen ambient (basis n) (#open{laws} n),
         refines := \fun (W: \Pow CarrierSet)(open: Sub.IsOpenIn (topology ambient) W)(x: CarrierSet)(inside: Sub.Member W x) =>
           openTraceElim ambient W
@@ -23,17 +22,14 @@
                 \by #refines{laws} U open x inU \then
               \let refinement: Logic.And[Member (basis n) x, Subset (basis n) U] := \bysub(N.Nat^,
                 { n: N.Nat^ \where Logic.And[Member (basis n) x, Subset (basis n) U] }, n) \then
-              \return \exact(\into[N.Nat^](n,
-                { n: N.Nat^ \where Logic.And[Sub.Member (traces n) x, Sub.Subset (traces n) W] }) \by {
-                  Logic.And[_, _]::# (#left{refinement})
+              \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Logic.And[Sub.Member (traces n) x, Sub.Subset (traces n) W] }] n
+                (Logic.And[_, _]::# (#left{refinement})
                     (\fun (y: CarrierSet)(member: Sub.Member (traces n) y) => \idelim Trace U = W
                       \with V: \Pow CarrierSet => Sub.Member V y \by {
                         base: #right{refinement} y member, equality: sym!{\Pow CarrierSet} _ _ same
-                      })
-                }, \Cast[N.Nat^] ({ n: N.Nat^ \where Logic.And[Sub.Member (traces n) x, Sub.Subset (traces n) W] }))
+                      }))
             }) (openRepresentation ambient W open),
-      }
-    }, \Cast[N.Nat^ -> \Pow CarrierSet] ({ basis: N.Nat^ -> \Pow CarrierSet \where Sub.IsCountableBasis[topology ambient, basis] }))
+      })
 };
 \definition hausdorff: \forall (ambient: Topology) -> IsT2 ambient -> Sub.IsT2 (topology ambient) := \block {
   \fun (ambient: _) (separated: _) (x, y: CarrierSet) (different: _) \then
@@ -41,18 +37,16 @@
   \let data: RegularChoice[ambient, Singleton y, x, U] := \bysub(\Pow Carrier, { U: \Pow Carrier \where RegularChoice[ambient, Singleton y, x, U] }, U) \then
   \takefrom V: \Cast[\Pow Carrier] ({ V: \Pow Carrier \where NormalPartner[ambient, Singleton y, U, V] }) \by #partner{data} \then
   \let partner: NormalPartner[ambient, Singleton y, U, V] := \bysub(\Pow Carrier, { V: \Pow Carrier \where NormalPartner[ambient, Singleton y, U, V] }, V) \then
-  \return \exact(\into[\Pow CarrierSet](Trace U, { W: \Pow CarrierSet \where Sub.RegularChoice[topology ambient, Sub.Singleton y, x, W] }) \by {
-    Sub.RegularChoice[topology ambient, Sub.Singleton y, x, Trace U] {
+  \return Logic.existsIntro[\Pow CarrierSet, { W: \Pow CarrierSet \where Sub.RegularChoice[topology ambient, Sub.Singleton y, x, W] }] (Trace U)
+    (Sub.RegularChoice[topology ambient, Sub.Singleton y, x, Trace U] {
       open := traceOpen ambient U #open{data}, contains := #contains{data},
-      partner := \exact(\into[\Pow CarrierSet](Trace V, { W: \Pow CarrierSet \where Sub.NormalPartner[topology ambient, Sub.Singleton y, Trace U, W] }) \by {
-        Sub.NormalPartner[topology ambient, Sub.Singleton y, Trace U, Trace V] {
+      partner := Logic.existsIntro[\Pow CarrierSet, { W: \Pow CarrierSet \where Sub.NormalPartner[topology ambient, Sub.Singleton y, Trace U, W] }] (Trace V)
+        (Sub.NormalPartner[topology ambient, Sub.Singleton y, Trace U, Trace V] {
           open := traceOpen ambient V #open{partner},
           covers := \fun (z: CarrierSet) (equal: z = y) => #covers{partner} z equal,
           disjoint := \fun (z: CarrierSet) (inU: _) (inV: _) => #disjoint{partner} z inU inV,
-        }
-      }, \Cast[\Pow CarrierSet] ({ W: \Pow CarrierSet \where Sub.NormalPartner[topology ambient, Sub.Singleton y, Trace U, W] })),
-    }
-  }, \Cast[\Pow CarrierSet] ({ W: \Pow CarrierSet \where Sub.RegularChoice[topology ambient, Sub.Singleton y, x, W] }))
+        }),
+    })
 };
 \definition TraceRelation(family: \Pow (\Pow CarrierSet)) (U: \Pow Carrier) (W: \Pow CarrierSet): \Prop :=
   Logic.And[Sub.FamilyMember family W, W = Trace U];
@@ -79,9 +73,8 @@
   \takefrom selected: Selection.Selection[TraceRelation family, finite] \by
     Selection.existsSelection (TraceRelation family) finite (\fun (U: \Pow Carrier) (member: AmbientFinite.Member finite U) =>
       liftedElim ambient family U (\exists { W: \Pow CarrierSet \where TraceRelation family U W })
-        (\fun (W: _) (inFamily: _) (same: _) => \exact(\into[\Pow CarrierSet](W,
-          { W: \Pow CarrierSet \where TraceRelation family U W }) \by { Logic.And[_, _]::# inFamily same },
-          \Cast[\Pow CarrierSet] ({ W: \Pow CarrierSet \where TraceRelation family U W }))) (#included{data} U member)) \then
+        (\fun (W: _) (inFamily: _) (same: _) => Logic.existsIntro[\Pow CarrierSet, { W: \Pow CarrierSet \where TraceRelation family U W }] W
+          (Logic.And[_, _]::# inFamily same)) (#included{data} U member)) \then
   \let result: SubFinite.FiniteSubset := #finite{selected} \then
   \return SubCompact.subcoverExists family Sub.Whole result (Sub.FiniteSubcover[family, Sub.Whole, result] {
     included := \block {

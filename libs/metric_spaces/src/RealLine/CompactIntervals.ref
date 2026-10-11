@@ -16,10 +16,11 @@
         Compactness.subcoverExists family (ClosedInterval a a) (Finite.singleton U)
           (Space.FiniteSubcover[family, ClosedInterval a a, Finite.singleton U] {
             included := \fun (V: _) (member: Finite.Member (Finite.singleton U) V) =>
-              either!{{V = U} "or" {Logic.False} "either" {Space.FamilyMember family V}
-                "lt:" {\fun (equal: _) => \idelim U = V
+              either!{member {Space.FamilyMember family V}
+                {\fun (equal: _) => \idelim U = V
                   \with W: \Pow Real.Real => Space.FamilyMember family W \by { base: inFamily, equality: sym!{\Pow Real.Real} _ _ equal }}
-                "rt:" {Logic.falseElim (Space.FamilyMember family V)}} member,
+                {Logic.falseElim (Space.FamilyMember family V)}
+              },
             covers := \fun (x: _) (member: Logic.And[R.Le a x, R.Le x a]) =>
               Space.unionMemberOf (Finite.singleton U) U x (Finite.inSingleton U)
                 (\idelim a = x \with y: Real.Real => Space.Member U y
@@ -34,9 +35,8 @@
     (\fun (none: Logic.Not (\exists { x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] })) =>
       R.ltNotLeReverse lower (Complete.supremum S) below (Complete.supremumLeast S lower
         (\fun (x: Real.Real) (member: Complete.Member S x) => Order.leOfNotLtReverse x lower
-          (\fun (lt: R.Lt lower x) => none (\exact(\into[Real.Real](x,
-            { x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] }) \by { Logic.And[_, _]::# member lt },
-            \Cast[Real.Real] ({ x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] })))))));
+          (\fun (lt: R.Lt lower x) => none (Logic.existsIntro[Real.Real, { x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] }] x
+            (Logic.And[_, _]::# member lt))))));
 \definition addPositive(x, h: Real.Real): R.Lt Real.zero h -> R.Lt x (Real.add x h) :=
   \fun (positive: _) => R.ltReplaceLeft (Real.add x Real.zero) x (Real.add x h)
     (Laws.addZeroRight x) (Laws.ltAddLeft x Real.zero h positive);
@@ -62,38 +62,39 @@
   \return Compactness.subcoverExists family (ClosedInterval a w) (Finite.insert U F)
     (Space.FiniteSubcover[family, ClosedInterval a w, Finite.insert U F] {
       included := \fun (V: _) (member: Finite.Member (Finite.insert U F) V) =>
-        either!{{V = U} "or" {Finite.Member F V} "either" {Space.FamilyMember family V}
-          "lt:" {\fun (equal: _) => \idelim U = V \with W: \Pow Real.Real => Space.FamilyMember family W
+        either!{member {Space.FamilyMember family V}
+          {\fun (equal: _) => \idelim U = V \with W: \Pow Real.Real => Space.FamilyMember family W
             \by { base: inFamily, equality: sym!{\Pow Real.Real} _ _ equal }}
-          "rt:" {#included{data} V}} member,
+          {#included{data} V}
+        },
       covers := \fun (x: Real.Real) (member: Space.Member (ClosedInterval a w) x) =>
-        either!{{R.Le x t} "or" {R.Le t x} "either" {Space.Member (Space.Union (Finite.insert U F)) x}
-          "lt:" {\fun (xt: _) => Space.unionMemberElim F x (Space.Member (Space.Union (Finite.insert U F)) x)
+        either!{{(Order.leTotal x t)} {Space.Member (Space.Union (Finite.insert U F)) x}
+          {\fun (xt: _) => Space.unionMemberElim F x (Space.Member (Space.Union (Finite.insert U F)) x)
             (\fun (V: _) (inF: _) (inV: _) => Space.unionMemberOf (Finite.insert U F) V x (Finite.inInsertOld U F V inF) inV)
             (#covers{data} x (Logic.And[_, _]::# (#left{member}) xt))}
-          "rt:" {\fun (tx: _) => Space.unionMemberOf (Finite.insert U F) U x (Finite.inInsertNew U F)
+          {\fun (tx: _) => Space.unionMemberOf (Finite.insert U F) U x (Finite.inInsertNew U F)
             (within x (R.leLtTrans (Real.distance c x) (Real.mul Real.half r) r
               (Estimates.distanceLeOfInterval c x (Real.mul Real.half r)
                 (R.leTrans _ _ _ (Order.leOfLt _ _ near) tx)
                 (R.leTrans _ _ _ (#right{member}) (Distance.minRight b (Real.add c (Real.mul Real.half r)))))
-              (Estimates.halfStrict r positive)))} } (Order.leTotal x t),
+              (Estimates.halfStrict r positive)))}
+        },
     })
 };
 \definition minStrict(c, b, u: Real.Real): R.Lt c b -> R.Lt c u -> R.Lt c (Distance.min b u) :=
-  \fun (cb: _) (cu: _) => either!{{R.Le b u} "or" {R.Le u b} "either" {R.Lt c (Distance.min b u)}
-    "lt:" {\fun (bu: _) => R.ltReplaceRight c b (Distance.min b u) (sym!{Real.Real} _ _ (Distance.minOfLe b u bu)) cb}
-    "rt:" {\fun (ub: _) => R.ltReplaceRight c u (Distance.min b u) (sym!{Real.Real} _ _ (Distance.minOfGe b u ub)) cu}}
-    (Order.leTotal b u);
+  \fun (cb: _) (cu: _) => either!{{(Order.leTotal b u)} {R.Lt c (Distance.min b u)}
+    {\fun (bu: _) => R.ltReplaceRight c b (Distance.min b u) (sym!{Real.Real} _ _ (Distance.minOfLe b u bu)) cb}
+    {\fun (ub: _) => R.ltReplaceRight c u (Distance.min b u) (sym!{Real.Real} _ _ (Distance.minOfGe b u ub)) cu}
+  };
 \definition intervalCompactOrdered: \forall (a, b: Real.Real) -> R.Le a b -> Space.IsCompactIn topology (ClosedInterval a b) := \block {
   \fun (a, b: Real.Real) (ab: R.Le a b) (family: \Pow (\Pow Real.Real))
     (cover: Space.IsOpenCover[topology, family, ClosedInterval a b]) \then
   \let first: Prefix[family, a, b, a] := firstPrefix family a b ab cover \then
   \let S: Complete.Family := \into[\Pow Real.Real](Prefixes family a b, Complete.FamilySet) \by {
     Logic.And[_, _]::#
-      (\exact(\into[Real.Real](a, Prefixes family a b) \by { first }, \Cast[Real.Real] (Prefixes family a b)))
-      (\exact(\into[Real.Real](b, { u: Real.Real \where Complete.UpperBound (Prefixes family a b) u }) \by {
-        \fun (x: Real.Real) (prefix: Prefix[family, a, b, x]) => #upper{prefix}
-      }, \Cast[Real.Real] ({ u: Real.Real \where Complete.UpperBound (Prefixes family a b) u })))
+      (Logic.existsIntro[Real.Real, Prefixes family a b] a first)
+      (Logic.existsIntro[Real.Real, { u: Real.Real \where Complete.UpperBound (Prefixes family a b) u }] b
+        (\fun (x: Real.Real) (prefix: Prefix[family, a, b, x]) => #upper{prefix}))
   } \then
   \let c: Real.Real := Complete.supremum S \then
   \let ac: R.Le a c := Complete.supremumUpper S a first \then
@@ -128,19 +129,20 @@
     }) (#covers{cover} c (Logic.And[_, _]::# ac cb))
 };
 \definition intervalCompact: \forall (a, b: Real.Real) -> Space.IsCompactIn topology (ClosedInterval a b) :=
-  \fun (a, b: Real.Real) => either!{{R.Le a b} "or" {R.Le b a} "either" {Space.IsCompactIn topology (ClosedInterval a b)}
-    "lt:" {intervalCompactOrdered a b}
-    "rt:" {\fun (ba: R.Le b a) => Order.byContradiction (Space.IsCompactIn topology (ClosedInterval a b))
+  \fun (a, b: Real.Real) => either!{{(Order.leTotal a b)} {Space.IsCompactIn topology (ClosedInterval a b)}
+    {intervalCompactOrdered a b}
+    {\fun (ba: R.Le b a) => Order.byContradiction (Space.IsCompactIn topology (ClosedInterval a b))
       (\fun (none: Logic.Not (Space.IsCompactIn topology (ClosedInterval a b))) =>
         none (\fun (family: \Pow (\Pow Real.Real)) (cover: Space.IsOpenCover[topology, family, ClosedInterval a b]) =>
-          either!{{a = b} "or" {Logic.Not (a = b)} "either" {Covered family a b}
-            "lt:" {\fun (equal: _) => intervalCompactOrdered a b
+          either!{{(Classical.excludedMiddle (a = b))} {Covered family a b}
+            {\fun (equal: _) => intervalCompactOrdered a b
               (R.leReplaceRight a a b equal (R.leRefl a)) family cover}
-            "rt:" {\fun (different: _) => Compactness.subcoverExists family (ClosedInterval a b) Finite.empty
+            {\fun (different: _) => Compactness.subcoverExists family (ClosedInterval a b) Finite.empty
               (Space.FiniteSubcover[family, ClosedInterval a b, Finite.empty] {
                 included := \fun (U: _) (empty: Logic.False) => Logic.falseElim (Space.FamilyMember family U) empty,
                 covers := \fun (x: _) (member: Logic.And[R.Le a x, R.Le x b]) =>
                   Logic.falseElim (Space.Member (Space.Union Finite.empty) x)
                     (different (R.leAntisym a b (R.leTrans a x b (#left{member}) (#right{member})) ba)),
-              })}} (Classical.excludedMiddle (a = b))))}}
-    (Order.leTotal a b);
+              })}
+          }))}
+  };

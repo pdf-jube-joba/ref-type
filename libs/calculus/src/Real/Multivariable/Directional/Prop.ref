@@ -15,17 +15,15 @@
       \by limit epsilon positive \then
     \let control: Limit.Control[extension, zero, value, epsilon, delta] :=
       \bysub(Real, { d: Real \where Limit.Control[extension, zero, value, epsilon, d] }, delta) \then
-    \return \exact(
-      \into[Real](delta, { d: Real \where Def.Control[f, curve, value, epsilon, d] })
-        \by { Def.Control[f, curve, value, epsilon, delta] {
+    \return Logic.existsIntro[Real, { d: Real \where Def.Control[f, curve, value, epsilon, d] }] delta
+      (Def.Control[f, curve, value, epsilon, delta] {
           positive := #positive{control},
           estimate := \fun (t: Def.Parameter (#interval{curve})) (different: Logic.Not (t = zero))
             (near: R.Lt (distance t zero) delta) =>
             R.ltReplaceLeft (distance (extension t) value) (distance (Def.slope f curve t) value) epsilon
               (congr!{Real Real} (\fun (y: _) => distance y value) _ _ (same t different))
               (#estimate{control} t different near),
-        } },
-      \Cast[Real] ({ d: Real \where Def.Control[f, curve, value, epsilon, d] }))
+        })
   };
 
 \definition constantSlope: \forall (c: Real) -> \forall (curve: Def.Curve) ->
@@ -92,13 +90,11 @@
 \definition constantDerivativesAgree: \forall (c: Real) -> \forall (first, second: Def.Curve) ->
   Def.DirectionalDerivativesAgree (Space.constantFunction c) first second :=
   \fun (c: _) (first: _) (second: _) =>
-    \exact(
-      \into[Real](zero, { value: Real \where Def.Agreement[Space.constantFunction c, first, second, value] })
-        \by { Def.Agreement[Space.constantFunction c, first, second, zero] {
+    Logic.existsIntro[Real, { value: Real \where Def.Agreement[Space.constantFunction c, first, second, value] }] zero
+    (Def.Agreement[Space.constantFunction c, first, second, zero] {
           firstDerivative := constantDirectionalDerivative c first,
           secondDerivative := constantDirectionalDerivative c second,
-        } },
-      \Cast[Real] ({ value: Real \where Def.Agreement[Space.constantFunction c, first, second, value] }));
+        });
 
 \definition projectionDirectionalDerivative: \forall (curve: Def.Curve) -> \forall (velocity: Point) ->
   Def.HasTangent curve velocity -> \forall (i: Coordinate) ->
@@ -109,21 +105,17 @@
   Def.SameDirection[first, second, velocity] -> \forall (i: Coordinate) ->
   Def.DirectionalDerivativesAgree (Space.projection i) first second :=
   \fun (first, second: _) (velocity: _) (direction: _) (i: _) =>
-    \exact(
-      \into[Real](velocity i, { value: Real \where Def.Agreement[Space.projection i, first, second, value] })
-        \by { Def.Agreement[Space.projection i, first, second, velocity i] {
+    Logic.existsIntro[Real, { value: Real \where Def.Agreement[Space.projection i, first, second, value] }] (velocity i)
+    (Def.Agreement[Space.projection i, first, second, velocity i] {
           firstDerivative := #firstTangent{direction} i,
           secondDerivative := #secondTangent{direction} i,
-        } },
-      \Cast[Real] ({ value: Real \where Def.Agreement[Space.projection i, first, second, value] }));
+        });
 
 \definition directionallyDifferentiableOfDerivative: \forall (f: Function) -> \forall (curve: Def.Curve) ->
   \forall (value: Real) -> Def.HasDirectionalDerivativeAlong f curve value ->
   Def.DirectionallyDifferentiableAlong f curve :=
   \fun (f: _) (curve: _) (value: _) (derivative: _) =>
-    \exact(
-      \into[Real](value, { m: Real \where Def.HasDirectionalDerivativeAlong f curve m }) \by { derivative },
-      \Cast[Real] ({ m: Real \where Def.HasDirectionalDerivativeAlong f curve m }));
+    Logic.existsIntro[Real, { m: Real \where Def.HasDirectionalDerivativeAlong f curve m }] value derivative;
 
 \definition differentialAgreementOfSameDirection: \forall (f: Function) -> \forall (first, second: Def.Curve) ->
   \forall (velocity: Point) -> \forall (differential: Differential.LinearMap) ->

@@ -24,19 +24,19 @@
 \import \root.Data[].FinSet[].Pigeonhole[] \as Pigeonhole;
 \definition collision: \forall (k, n: N.Nat^)(f: Fin k -> Fin n) -> Logic.Not (Injective k n f) -> \exists Pigeonhole.Collision[k, n, f] :=
   \fun (k, n: N.Nat^)(f: Fin k -> Fin n)(notInjective: Logic.Not (Injective k n f)) =>
-    either!{{\exists Pigeonhole.Collision[k, n, f]} "or" {Logic.Not (\exists Pigeonhole.Collision[k, n, f])}
-      "either" {\exists Pigeonhole.Collision[k, n, f]}
-      "lt:" {\fun (found: \exists Pigeonhole.Collision[k, n, f]) => found}
-      "rt:" {\block {
+    either!{{(Classical.excludedMiddle (\exists Pigeonhole.Collision[k, n, f]))} {\exists Pigeonhole.Collision[k, n, f]}
+      {\fun (found: \exists Pigeonhole.Collision[k, n, f]) => found}
+      {\block {
         \fun (none: Logic.Not (\exists Pigeonhole.Collision[k, n, f])) \then
         \let injection: Injective k n f := \fun (i, j: Fin k)(same: f i = f j) =>
-          either!{{i = j} "or" {Logic.Not (i = j)} "either" {i = j}
-            "lt:" {\fun (equal: i = j) => equal}
-            "rt:" {\fun (different: Logic.Not (i = j)) => Logic.falseElim (i = j)
+          either!{{(Classical.excludedMiddle (i = j))} {i = j}
+            {\fun (equal: i = j) => equal}
+            {\fun (different: Logic.Not (i = j)) => Logic.falseElim (i = j)
               (none (\exact(Pigeonhole.Collision[k, n, f] {
                 first := i, second := j, different := different, same := same,
-              }, Pigeonhole.Collision[k, n, f])))}}
-              (Classical.excludedMiddle (i = j)) \then
+              }, Pigeonhole.Collision[k, n, f])))}
+          } \then
         \return Logic.falseElim (\exists Pigeonhole.Collision[k, n, f]) (notInjective injection)
-      }}} (Classical.excludedMiddle (\exists Pigeonhole.Collision[k, n, f]));
+      }}
+    };
 \module Bounds(k, n: N.Nat^);

@@ -18,14 +18,12 @@
 \definition coordinateContinuous: \forall (i: Coordinate) -> Functions.Continuous topology (\fun (x: Point) => x i) :=
   \fun (i: Coordinate) => Functions.continuousOfLocal topology (\fun (x: Point) => x i)
     (\fun (x: Point)(r: Real)(positive: R.Lt zero r) =>
-      \exact(\into[\Pow Point](Metrics.Ball Norm.metric x r,
-        { U: \Pow Point \where Space.OpenNeighborhood[topology, x, Functions.Small (\fun (y: Point) => y i) x r, U] }) \by {
-          Space.OpenNeighborhood[topology, x, Functions.Small (\fun (y: Point) => y i) x r, Metrics.Ball Norm.metric x r] {
+      Logic.existsIntro[\Pow Point, { U: \Pow Point \where Space.OpenNeighborhood[topology, x, Functions.Small (\fun (y: Point) => y i) x r, U] }] (Metrics.Ball Norm.metric x r)
+      (Space.OpenNeighborhood[topology, x, Functions.Small (\fun (y: Point) => y i) x r, Metrics.Ball Norm.metric x r] {
             open := MetricTopology.ballOpenIn Norm.metric x r,
             contains := Metrics.ballCenter Norm.metric x r positive,
             within := \fun (y: Point)(near: _) => R.leLtTrans _ _ _ (Norm.coordinateDistance x y i) near,
-          }
-        }, \Cast[\Pow Point] ({ U: \Pow Point \where Space.OpenNeighborhood[topology, x, Functions.Small (\fun (y: Point) => y i) x r, U] })));
+          }));
 \definition coordinateOpen: \forall (U: \Pow Point) -> Space.IsOpenIn coordinateTopology U -> Space.IsOpenIn topology U :=
   Universal.continuous topology Line.topology (\fun (x: Point) => x) coordinateContinuous;
 \definition finiteMaxContinuous: \forall (m: N.Nat^)(f: Point -> (Fin.Fin m -> Real)) ->
@@ -59,12 +57,10 @@
     \takefrom r: \Cast[Real] (Metrics.NeighborhoodRadius Norm.metric U x) \by open x member \then
     \let radius: Logic.And[R.Lt zero r, Space.Subset (Metrics.Ball Norm.metric x r) U] :=
       \bysub(Real, Metrics.NeighborhoodRadius Norm.metric U x, r) \then
-    \return \exact(\into[\Pow Point](Metrics.Ball Norm.metric x r,
-      { V: \Pow Point \where Space.OpenNeighborhood[coordinateTopology, x, U, V] }) \by {
-        Space.OpenNeighborhood[coordinateTopology, x, U, Metrics.Ball Norm.metric x r] {
+    \return Logic.existsIntro[\Pow Point, { V: \Pow Point \where Space.OpenNeighborhood[coordinateTopology, x, U, V] }] (Metrics.Ball Norm.metric x r)
+      (Space.OpenNeighborhood[coordinateTopology, x, U, Metrics.Ball Norm.metric x r] {
           open := ballCoordinateOpen x r, contains := Metrics.ballCenter Norm.metric x r (#left{radius}), within := #right{radius},
-        }
-      }, \Cast[\Pow Point] ({ V: \Pow Point \where Space.OpenNeighborhood[coordinateTopology, x, U, V] }))
+        })
   });
 \definition coordinateMetricAgreement: \forall (U: \Pow Point) ->
   Logic.PropEquiv[Space.IsOpenIn coordinateTopology U, Space.IsOpenIn topology U] :=

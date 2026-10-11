@@ -15,23 +15,28 @@
   \let family: Finite.FiniteSubset := Finite.unorderedPair F G \then
   \return finiteClosedCover source target f family
     (\fun (x: A) (_: Source.Member Source.Whole x) =>
-      either!{{Source.Member F x} "or" {Source.Member G x} "either" {Source.Member (Source.Union family) x}
-        "lt:" {\fun (inF: _) => Source.unionMemberOf family F x (Finite.inUnorderedPairLeft F G) inF}
-        "rt:" {\fun (inG: _) => Source.unionMemberOf family G x (Finite.inUnorderedPairRight F G) inG}} (covers x))
+      either!{{(covers x)} {Source.Member (Source.Union family) x}
+        {\fun (inF: _) => Source.unionMemberOf family F x (Finite.inUnorderedPairLeft F G) inF}
+        {\fun (inG: _) => Source.unionMemberOf family G x (Finite.inUnorderedPairRight F G) inG}
+      })
     (\fun (U: \Pow A) (member: Finite.Member family U) =>
-      either!{{U = F} "or" {Logic.Or[U = G, Logic.False]} "either" {Source.IsClosedIn source U}
-        "lt:" {\fun (equal: _) => \idelim F = U \with W: \Pow A => Source.IsClosedIn source W
+      either!{member {Source.IsClosedIn source U}
+        {\fun (equal: _) => \idelim F = U \with W: \Pow A => Source.IsClosedIn source W
           \by { base: fc, equality: sym!{\Pow A} _ _ equal }}
-        "rt:" {\fun (old: _) => either!{{U = G} "or" {Logic.False} "either" {Source.IsClosedIn source U}
-          "lt:" {\fun (equal: _) => \idelim G = U \with W: \Pow A => Source.IsClosedIn source W
+        {\fun (old: _) => either!{old {Source.IsClosedIn source U}
+          {\fun (equal: _) => \idelim G = U \with W: \Pow A => Source.IsClosedIn source W
             \by { base: gc, equality: sym!{\Pow A} _ _ equal }}
-          "rt:" {Logic.falseElim (Source.IsClosedIn source U)}} old}} member)
+          {Logic.falseElim (Source.IsClosedIn source U)}
+        }}
+      })
     (\fun (U: \Pow A) (member: Finite.Member family U) =>
-      either!{{U = F} "or" {Logic.Or[U = G, Logic.False]} "either" {ClosedOn source target f U}
-        "lt:" {\fun (equal: _) => \idelim F = U \with W: \Pow A => ClosedOn source target f W
+      either!{member {ClosedOn source target f U}
+        {\fun (equal: _) => \idelim F = U \with W: \Pow A => ClosedOn source target f W
           \by { base: Left.closedFromRestriction source target f fc left, equality: sym!{\Pow A} _ _ equal }}
-        "rt:" {\fun (old: _) => either!{{U = G} "or" {Logic.False} "either" {ClosedOn source target f U}
-          "lt:" {\fun (equal: _) => \idelim G = U \with W: \Pow A => ClosedOn source target f W
+        {\fun (old: _) => either!{old {ClosedOn source target f U}
+          {\fun (equal: _) => \idelim G = U \with W: \Pow A => ClosedOn source target f W
             \by { base: Right.closedFromRestriction source target f gc right, equality: sym!{\Pow A} _ _ equal }}
-          "rt:" {Logic.falseElim (ClosedOn source target f U)}} old}} member)
+          {Logic.falseElim (ClosedOn source target f U)}
+        }}
+      })
 };

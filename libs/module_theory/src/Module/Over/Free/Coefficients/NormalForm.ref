@@ -141,10 +141,8 @@
   };
 \definition finite: \forall (x: Carrier) -> \exists { xs: Lists.List[Generators] \where Supports xs x } :=
   RawQuotient.induction (\fun (x: Carrier) => \exists { xs: Lists.List[Generators] \where Supports xs x })
-    (\fun (e: Expressions.Expression) => \exact(
-      \into[Lists.List[Generators]](expressionKeys e, { xs: Lists.List[Generators] \where Supports xs (Presented.class e) }) \by {
-        expressionSupport e (expressionKeys e) (\fun (s: Generators)(member: _) => member)
-      }, \Cast[Lists.List[Generators]] ({ xs: Lists.List[Generators] \where Supports xs (Presented.class e) })));
+    (\fun (e: Expressions.Expression) => Logic.existsIntro[Lists.List[Generators], { xs: Lists.List[Generators] \where Supports xs (Presented.class e) }] (expressionKeys e)
+      (expressionSupport e (expressionKeys e) (\fun (s: Generators)(member: _) => member)));
 \definition coefficientCombination: \forall (xs: Lists.List[Generators])(values: Coordinates.Vector)(t: Generators) ->
   coefficient (combination xs values) t = Sums.sum xs (\fun (s: Generators) => #mul{ring} (values s) (Kronecker.delta t s)) :=
   \induction (xs: Lists.List[Generators]) \return \forall (values: Coordinates.Vector)(t: Generators) ->
@@ -162,20 +160,20 @@
 \import std.Logic[].Classical[] \as Classical;
 \use Logic::either;
 \definition deltaCentral: \forall (i, j: Generators)(a: R) -> #mul{ring} a (Kronecker.delta i j) = #mul{ring} (Kronecker.delta i j) a :=
-  \fun (i, j: Generators)(a: R) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {#mul{ring} a (Kronecker.delta i j) = #mul{ring} (Kronecker.delta i j) a}
-    "lt:" {\fun (same: i = j) => trans!{R} _ _ _
+  \fun (i, j: Generators)(a: R) => either!{{(Classical.excludedMiddle (i = j))} {#mul{ring} a (Kronecker.delta i j) = #mul{ring} (Kronecker.delta i j) a}
+    {\fun (same: i = j) => trans!{R} _ _ _
       (congr!{R R} (#mul{ring} a) _ _ (Kronecker.equal i j same))
       (trans!{R} _ _ _ (#rightIdentity{(#multiplicative{(#semiring{ring})})} a)
         (sym!{R} _ _ (trans!{R} _ _ _
           (congr!{R R} (\fun (b: R) => #mul{ring} b a) _ _ (Kronecker.equal i j same))
           (#leftIdentity{(#multiplicative{(#semiring{ring})})} a))))}
-    "rt:" {\fun (different: Logic.Not (i = j)) => trans!{R} _ _ _
+    {\fun (different: Logic.Not (i = j)) => trans!{R} _ _ _
       (congr!{R R} (#mul{ring} a) _ _ (Kronecker.different i j different))
       (trans!{R} _ _ _ (#zeroAbsorbsRight{(#semiring{ring})} a)
         (sym!{R} _ _ (trans!{R} _ _ _
           (congr!{R R} (\fun (b: R) => #mul{ring} b a) _ _ (Kronecker.different i j different))
-          (#zeroAbsorbsLeft{(#semiring{ring})} a))))}}
-    (Classical.excludedMiddle (i = j));
+          (#zeroAbsorbsLeft{(#semiring{ring})} a))))}
+  };
 \import Sums.Prop[] \as SumLaws;
 \import Sums.Single[] \as ScalarSingle;
 \definition coefficientCombinationDelta: \forall (xs: Lists.List[Generators])(values: Coordinates.Vector)(t: Generators) ->

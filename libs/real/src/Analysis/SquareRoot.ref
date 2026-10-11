@@ -10,16 +10,17 @@
     (R.leReplaceLeft zero (mul zero zero) (radicand x) (sym!{Real} _ _ (Laws.fieldMulZeroLeft zero)) (radicandNonnegative x));
 \definition candidateBound: \forall (x: Real) -> Complete.UpperBound (Candidates x) (Metric.max one (radicand x)) :=
   \fun (x: _) (y: _) (member: Logic.And[R.Le zero y, R.Le (mul y y) (radicand x)]) =>
-    either!{{R.Le y one} "or" {R.Le one y} "either" {R.Le y (Metric.max one (radicand x))}
-      "lt:" {\fun (le: _) => R.leTrans _ _ _ le (Metric.maxLeft one (radicand x))}
-      "rt:" {\fun (le: _) => R.leTrans y (mul y y) _
+    either!{{(Order.leTotal y one)} {R.Le y (Metric.max one (radicand x))}
+      {\fun (le: _) => R.leTrans _ _ _ le (Metric.maxLeft one (radicand x))}
+      {\fun (le: _) => R.leTrans y (mul y y) _
         (R.leReplaceLeft (mul y one) y (mul y y) (Algebra.mulOneRight y) (Estimates.mulMonotone y one y (#left{member}) le))
-        (R.leTrans _ _ _ (#right{member}) (Metric.maxRight one (radicand x)))}} (Order.leTotal y one);
+        (R.leTrans _ _ _ (#right{member}) (Metric.maxRight one (radicand x)))}
+    };
 \definition family(x: Real): Complete.Family := \into[\Pow Real](Candidates x, Complete.FamilySet) \by {
   Logic.And[_, _]::#
-    (\exact(\into[Real](zero, Candidates x) \by { first x }, \Cast[Real] (Candidates x)))
-    (\exact(\into[Real](Metric.max one (radicand x), { u: Real \where Complete.UpperBound (Candidates x) u }) \by { candidateBound x },
-      \Cast[Real] ({ u: Real \where Complete.UpperBound (Candidates x) u })))
+    (Logic.existsIntro[Real, Candidates x] zero (first x))
+    (Logic.existsIntro[Real, { u: Real \where Complete.UpperBound (Candidates x) u }] (Metric.max one (radicand x))
+      (candidateBound x))
 };
 \definition sqrt(x: Real): Real := Complete.supremum (family x);
 \definition nonnegative: \forall (x: Real) -> R.Le zero (sqrt x) := \fun (x: _) => Complete.supremumUpper (family x) zero (first x);
@@ -36,8 +37,8 @@
     (\exists { y: Real \where Logic.And[Complete.Member S y, R.Lt lower y] })
     (\fun (none: _) => R.ltNotLeReverse lower (Complete.supremum S) less (Complete.supremumLeast S lower
       (\fun (y: _) (member: _) => Order.leOfNotLtReverse y lower (\fun (ly: R.Lt lower y) =>
-        none (\exact(\into[Real](y, { y: Real \where Logic.And[Complete.Member S y, R.Lt lower y] }) \by { Logic.And[_, _]::# member ly },
-          \Cast[Real] ({ y: Real \where Logic.And[Complete.Member S y, R.Lt lower y] })))))));
+        none (Logic.existsIntro[Real, { y: Real \where Logic.And[Complete.Member S y, R.Lt lower y] }] y
+          (Logic.And[_, _]::# member ly))))));
 \definition squareBelow: \forall (x: Real) -> R.Le (mul (sqrt x) (sqrt x)) (radicand x) := \block {
   \fun (x: Real) \then
   \let s: Real := sqrt x \then
@@ -154,13 +155,13 @@
 };
 \definition squareDistance: \forall (a, b: Real) -> R.Le zero a -> R.Le zero b ->
   R.Le (mul (distance a b) (distance a b)) (distance (mul a a) (mul b b)) :=
-  \fun (a, b: _) (ap: _) (bp: _) => either!{{R.Le a b} "or" {R.Le b a}
-    "either" {R.Le (mul (distance a b) (distance a b)) (distance (mul a a) (mul b b))}
-    "lt:" {squareDistanceOrdered a b ap bp}
-    "rt:" {\fun (ba: _) => R.leReplace (mul (distance b a) (distance b a)) (mul (distance a b) (distance a b))
+  \fun (a, b: _) (ap: _) (bp: _) => either!{{(Order.leTotal a b)} {R.Le (mul (distance a b) (distance a b)) (distance (mul a a) (mul b b))}
+    {squareDistanceOrdered a b ap bp}
+    {\fun (ba: _) => R.leReplace (mul (distance b a) (distance b a)) (mul (distance a b) (distance a b))
       (distance (mul b b) (mul a a)) (distance (mul a a) (mul b b))
       (congr2!{Real Real Real} mul _ _ _ _ (Metric.distanceSymmetric b a) (Metric.distanceSymmetric b a))
-      (Metric.distanceSymmetric (mul b b) (mul a a)) (squareDistanceOrdered b a bp ap ba)}} (Order.leTotal a b);
+      (Metric.distanceSymmetric (mul b b) (mul a a)) (squareDistanceOrdered b a bp ap ba)}
+  };
 \definition distanceOfRoots: \forall (x, y: Real) ->
   R.Le (mul (distance (sqrt x) (sqrt y)) (distance (sqrt x) (sqrt y))) (distance x y) :=
   \fun (x, y: _) => R.leTrans _ (distance (radicand x) (radicand y)) _

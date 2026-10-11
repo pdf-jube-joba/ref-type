@@ -17,30 +17,27 @@
 \definition extension(v: Smaller.Carrier): Carrier := \fun (i: Index) =>
   SmallSums.sum (Finite.elements (Nat.sub n start)) (\fun (j: Smaller.Index) => #mul{ring} (NaturalDelta.delta i (Nat.add start j)) (v j));
 \definition atEarly: \forall (v: Smaller.Carrier)(i: Index) -> Bounds.Lt i start -> extension v i = #zero{ring} :=
-  \fun (v: Smaller.Carrier)(i: Index)(early: _) => trans!{R} (extension v i)
-    (SmallSums.sum (Finite.elements (Nat.sub n start)) (\fun (j: Smaller.Index) => #zero{ring})) #zero{ring}
+  \fun (v: Smaller.Carrier)(i: Index)(early: _) => trans!{R} _ _ _
     (SumLaws.congruent (Finite.elements (Nat.sub n start))
       (\fun (j: Smaller.Index) => #mul{ring} (NaturalDelta.delta i (Nat.add start j)) (v j))
       (\fun (j: Smaller.Index) => #zero{ring})
-      (\fun (j: Smaller.Index) => trans!{R} (#mul{ring} (NaturalDelta.delta i (Nat.add start j)) (v j))
-        (#mul{ring} #zero{ring} (v j)) #zero{ring}
+      (\fun (j: Smaller.Index) => trans!{R} _ _ _
         (congr!{R R} (\fun (x: R) => #mul{ring} x (v j)) (NaturalDelta.delta i (Nat.add start j)) #zero{ring}
           (NaturalDelta.different i (Nat.add start j) (Bounds.ltNe i (Nat.add start j) (Bounds.ltLeTrans i start (Nat.add start j) early (Bounds.leAddRight start j)))))
         (#zeroAbsorbsLeft{(#semiring{ring})} (v j))))
     (SumLaws.zeroSum (Finite.elements (Nat.sub n start)));
 \definition shiftedDelta: \forall (i, j: Smaller.Index) -> NaturalDelta.delta (Nat.add start i) (Nat.add start j) = SmallDelta.delta i j :=
-  \fun (i, j: Smaller.Index) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {NaturalDelta.delta (Nat.add start i) (Nat.add start j) = SmallDelta.delta i j}
-    "lt:" {\fun (equal: _) => trans!{R} (NaturalDelta.delta (Nat.add start i) (Nat.add start j)) #one{ring} (SmallDelta.delta i j)
+  \fun (i, j: Smaller.Index) => either!{{(Classical.excludedMiddle (i = j))} {NaturalDelta.delta (Nat.add start i) (Nat.add start j) = SmallDelta.delta i j}
+    {\fun (equal: _) => trans!{R} (NaturalDelta.delta (Nat.add start i) (Nat.add start j)) #one{ring} (SmallDelta.delta i j)
       (NaturalDelta.equal (Nat.add start i) (Nat.add start j) (congr!{N.Nat^ N.Nat^} (Nat.add start) i j equal))
       (sym!{R} (SmallDelta.delta i j) #one{ring} (SmallDelta.equal i j equal))}
-    "rt:" {\fun (ne: _) => trans!{R} (NaturalDelta.delta (Nat.add start i) (Nat.add start j)) #zero{ring} (SmallDelta.delta i j)
+    {\fun (ne: _) => trans!{R} (NaturalDelta.delta (Nat.add start i) (Nat.add start j)) #zero{ring} (SmallDelta.delta i j)
       (NaturalDelta.different (Nat.add start i) (Nat.add start j) (\fun (equal: _) => ne (Bounds.addCancelLeft start i j equal)))
       (sym!{R} (SmallDelta.delta i j) #zero{ring} (SmallDelta.different i j ne))}
-  } (Classical.excludedMiddle (i = j));
+  };
 \definition atIncluded: \forall (within: Bounds.Le start n)(v: Smaller.Carrier)(i: Smaller.Index) ->
   extension v (Indices.include within i) = v i :=
-  \fun (within: Bounds.Le start n)(v: Smaller.Carrier)(i: Smaller.Index) => trans!{R} (extension v (Indices.include within i))
-    (SmallSums.sum (Finite.elements (Nat.sub n start)) (\fun (j: Smaller.Index) => #mul{ring} (SmallDelta.delta i j) (v j))) (v i)
+  \fun (within: Bounds.Le start n)(v: Smaller.Carrier)(i: Smaller.Index) => trans!{R} _ _ _
     (SumLaws.congruent (Finite.elements (Nat.sub n start))
       (\fun (j: Smaller.Index) => #mul{ring} (NaturalDelta.delta (Nat.add start i) (Nat.add start j)) (v j))
       (\fun (j: Smaller.Index) => #mul{ring} (SmallDelta.delta i j) (v j))
@@ -71,16 +68,12 @@
       }) (Nat.ltb i start) (\refl(Nat.ltb i start)));
 \definition basisEntry: \forall (j: Smaller.Index)(i: Index) -> extension (Smaller.basis j) i = NaturalDelta.delta i (Nat.add start j) :=
   \fun (j: Smaller.Index)(i: Index) =>
-    trans!{R} (extension (Smaller.basis j) i)
-      (SmallSums.sum (Finite.elements (Nat.sub n start)) (\fun (x: Smaller.Index) => #mul{ring} (SmallDelta.delta j x) (NaturalDelta.delta i (Nat.add start x))))
-      (NaturalDelta.delta i (Nat.add start j))
+    trans!{R} _ _ _
       (SumLaws.congruent (Finite.elements (Nat.sub n start))
         (\fun (x: Smaller.Index) => #mul{ring} (NaturalDelta.delta i (Nat.add start x)) (SmallDelta.delta x j))
         (\fun (x: Smaller.Index) => #mul{ring} (SmallDelta.delta j x) (NaturalDelta.delta i (Nat.add start x)))
         (\fun (x: Smaller.Index) => trans!{R}
-          (#mul{ring} (NaturalDelta.delta i (Nat.add start x)) (SmallDelta.delta x j))
-          (#mul{ring} (NaturalDelta.delta i (Nat.add start x)) (SmallDelta.delta j x))
-          (#mul{ring} (SmallDelta.delta j x) (NaturalDelta.delta i (Nat.add start x)))
+          _ _ _
           (congr!{R R} (#mul{ring} (NaturalDelta.delta i (Nat.add start x))) (SmallDelta.delta x j) (SmallDelta.delta j x) (SmallDelta.symmetric x j))
           (SmallDelta.central j x (NaturalDelta.delta i (Nat.add start x)))))
       (Single.extract (Finite.elements (Nat.sub n start)) Smaller.distinct j (Smaller.covers j)
@@ -88,14 +81,14 @@
 \definition deltaIncluded: \forall (within: Bounds.Le start n)(j: Smaller.Index)(i: Index) ->
   NaturalDelta.delta i (Nat.add start j) = Kronecker.delta i (Indices.include within j) :=
   \fun (within: Bounds.Le start n)(j: Smaller.Index)(i: Index) =>
-    either!{{i = Nat.add start j} "or" {Logic.Not (i = Nat.add start j)} "either" {NaturalDelta.delta i (Nat.add start j) = Kronecker.delta i (Indices.include within j)}
-      "lt:" {\fun (same: _) => trans!{R} (NaturalDelta.delta i (Nat.add start j)) #one{ring} (Kronecker.delta i (Indices.include within j))
+    either!{{(Classical.excludedMiddle (i = Nat.add start j))} {NaturalDelta.delta i (Nat.add start j) = Kronecker.delta i (Indices.include within j)}
+      {\fun (same: _) => trans!{R} (NaturalDelta.delta i (Nat.add start j)) #one{ring} (Kronecker.delta i (Indices.include within j))
         (NaturalDelta.equal i (Nat.add start j) same)
         (sym!{R} (Kronecker.delta i (Indices.include within j)) #one{ring} (Kronecker.equal i (Indices.include within j) same))}
-      "rt:" {\fun (different: _) => trans!{R} (NaturalDelta.delta i (Nat.add start j)) #zero{ring} (Kronecker.delta i (Indices.include within j))
+      {\fun (different: _) => trans!{R} (NaturalDelta.delta i (Nat.add start j)) #zero{ring} (Kronecker.delta i (Indices.include within j))
         (NaturalDelta.different i (Nat.add start j) different)
         (sym!{R} (Kronecker.delta i (Indices.include within j)) #zero{ring} (Kronecker.different i (Indices.include within j) different))}
-    } (Classical.excludedMiddle (i = Nat.add start j));
+    };
 \definition extensionBasis: \forall (within: Bounds.Le start n)(j: Smaller.Index) -> extension (Smaller.basis j) = basis (Indices.include within j) :=
   \fun (within: Bounds.Le start n)(j: Smaller.Index) => \axiom:funext(extension (Smaller.basis j), basis (Indices.include within j),
     \fun (i: Index) => trans!{R} (extension (Smaller.basis j) i) (NaturalDelta.delta i (Nat.add start j)) (basis (Indices.include within j) i)

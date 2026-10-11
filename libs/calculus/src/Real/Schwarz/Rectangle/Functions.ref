@@ -17,11 +17,10 @@
     \fun (y: Y) => DerivativeLaws.subDerivative (f right) (f left) y (g right y) (g left y) (firstPartials b y) (firstPartials a y) \then
   \let continuous: VerticalContinuity.ContinuousOn first := \fun (y: Y) => VerticalEstimates.continuousAt first firstDerivative y (derivatives y) \then
   \let differentiable: Vertical.DifferentiableOn first := \fun (y: Real)(inside: Vertical.Interior y) =>
-    \exact(\into[Real](firstDerivative y, { d: Real \where Derivatives.HasDerivativeAt first y d }) \by {
-      derivatives (\into[Real](y, Line.ClosedInterval bottom top) \by {
+    Logic.existsIntro[Real, { d: Real \where Derivatives.HasDerivativeAt first y d }] (firstDerivative y)
+    (derivatives (\into[Real](y, Line.ClosedInterval bottom top) \by {
         Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y (#left{inside})) (Order.leOfLt y top (#right{inside}))
-      })
-    }, \Cast[Real] ({ d: Real \where Derivatives.HasDerivativeAt first y d })) \then
+      })) \then
   \takefrom y: \Cast[Real] ({ y: Real \where Vertical.MeanValueResult[first, y] }) \by Vertical.meanValue first verticalOrder continuous differentiable \then
   \let verticalWitness: Vertical.MeanValueResult[first, y] := \bysub(Real, { y: Real \where Vertical.MeanValueResult[first, y] }, y) \then
   \let closedY: Y := \into[Real](y, Line.ClosedInterval bottom top) \by {
@@ -32,26 +31,23 @@
   \let secondDerivative: Real -> Real := \fun (x: Real) => h x y \then
   \let continuousSecond: HorizontalContinuity.ContinuousOn second := \fun (x: X) => HorizontalEstimates.continuousAt second secondDerivative x (mixedPartials x closedY) \then
   \let differentiableSecond: Horizontal.DifferentiableOn second := \fun (x: Real)(inside: Horizontal.Interior x) =>
-    \exact(\into[Real](h x y, { d: Real \where Derivatives.HasDerivativeAt second x d }) \by {
-      mixedPartials (\into[Real](x, Line.ClosedInterval left right) \by {
+    Logic.existsIntro[Real, { d: Real \where Derivatives.HasDerivativeAt second x d }] (h x y)
+    (mixedPartials (\into[Real](x, Line.ClosedInterval left right) \by {
         Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (#left{inside})) (Order.leOfLt x right (#right{inside}))
-      }) closedY
-    }, \Cast[Real] ({ d: Real \where Derivatives.HasDerivativeAt second x d })) \then
+      }) closedY) \then
   \takefrom x: \Cast[Real] ({ x: Real \where Horizontal.MeanValueResult[second, x] }) \by Horizontal.meanValue second horizontalOrder continuousSecond differentiableSecond \then
   \let horizontalWitness: Horizontal.MeanValueResult[second, x] := \bysub(Real, { x: Real \where Horizontal.MeanValueResult[second, x] }, x) \then
   \let closedX: X := \into[Real](x, Line.ClosedInterval left right) \by {
     Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (#left{(#interior{horizontalWitness})})) (Order.leOfLt x right (#right{(#interior{horizontalWitness})}))
   } \then
   \let secondValue: Horizontal.secant second = h x y := DerivativeLaws.unique second x (Horizontal.secant second) (h x y) (#derivative{horizontalWitness}) (mixedPartials closedX closedY) \then
-  \return \exact(\into[Real](x, { x: Real \where \exists { y: Real \where Result[f, h, x, y] } }) \by {
-    \exact(\into[Real](y, { y: Real \where Result[f, h, x, y] }) \by {
-      Result[f, h, x, y] {
+  \return Logic.existsIntro[Real, { x: Real \where \exists { y: Real \where Result[f, h, x, y] } }] x
+    (Logic.existsIntro[Real, { y: Real \where Result[f, h, x, y] }] y
+    (Result[f, h, x, y] {
         horizontal := #interior{horizontalWitness}, vertical := #interior{verticalWitness},
         value := trans!{Real} (quotient f) (Horizontal.secant second) (h x y)
           (congr!{Real Real} (\fun (r: Real) => mul r (inv (sub right left))) _ _ firstValue) secondValue,
-      }
-    }, \Cast[Real] ({ y: Real \where Result[f, h, x, y] }))
-  }, \Cast[Real] ({ x: Real \where \exists { y: Real \where Result[f, h, x, y] } }))
+      }))
 };
 \definition estimate: \forall (c, theta: Real) -> R.Lt left right -> R.Lt bottom top ->
   (\forall (x: X)(y: Y) -> Derivatives.HasDerivativeAt (f x) y (g x y)) ->

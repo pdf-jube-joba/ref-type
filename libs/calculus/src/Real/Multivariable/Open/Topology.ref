@@ -6,10 +6,9 @@
   \fun (U: OpenSet)(a: Point)(member: _) \then
   \takefrom radius: \Cast[Real] ({ r: Real \where BallInside[#points{U}, a, r] }) \by #open{U} a member \then
   \let ball: BallInside[#points{U}, a, radius] := \bysub(Real, { r: Real \where BallInside[#points{U}, a, r] }, radius) \then
-  \return \exact(\into[Real](radius, MetricSpace.NeighborhoodRadius MetricLaws.metric (#points{U}) a) \by {
-    Logic.And[_, _]::# (#positive{ball}) (\fun (x: Point)(near: _) => #included{ball} x
-      (R.ltReplaceLeft (Coordinates.pointDistance a x) (Coordinates.pointDistance x a) radius (MetricLaws.distanceSymmetric a x) near))
-  }, \Cast[Real] (MetricSpace.NeighborhoodRadius MetricLaws.metric (#points{U}) a))
+  \return Logic.existsIntro[Real, MetricSpace.NeighborhoodRadius MetricLaws.metric (#points{U}) a] radius
+    (Logic.And[_, _]::# (#positive{ball}) (\fun (x: Point)(near: _) => #included{ball} x
+      (R.ltReplaceLeft (Coordinates.pointDistance a x) (Coordinates.pointDistance x a) radius (MetricLaws.distanceSymmetric a x) near)))
 };
 \definition ofOpen(points: \Pow Point)(proof: Space.IsOpenIn Euclidean.topology points): OpenSet := OpenSet {
   points := points,
@@ -18,13 +17,12 @@
     \takefrom radius: \Cast[Real] (MetricSpace.NeighborhoodRadius MetricLaws.metric points a) \by proof a member \then
     \let ball: Logic.And[R.Lt zero radius, Space.Subset (MetricSpace.Ball MetricLaws.metric a radius) points] :=
       \bysub(Real, MetricSpace.NeighborhoodRadius MetricLaws.metric points a, radius) \then
-    \return \exact(\into[Real](radius, { r: Real \where BallInside[points, a, r] }) \by {
-      BallInside[points, a, radius] {
+    \return Logic.existsIntro[Real, { r: Real \where BallInside[points, a, r] }] radius
+      (BallInside[points, a, radius] {
         positive := #left{ball},
         included := \fun (x: Point)(near: _) => #right{ball} x
           (R.ltReplaceLeft (Coordinates.pointDistance x a) (Coordinates.pointDistance a x) radius (MetricLaws.distanceSymmetric x a) near),
-      }
-    }, \Cast[Real] ({ r: Real \where BallInside[points, a, r] }))
+      })
   },
 };
 \module Of(U: OpenSet) {

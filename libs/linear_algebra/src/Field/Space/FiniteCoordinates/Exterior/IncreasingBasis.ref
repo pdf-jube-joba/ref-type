@@ -20,15 +20,15 @@
 \definition pair: \forall (left, right: Tuple) -> Ordering.Increasing k n left -> Ordering.Increasing k n right ->
   coefficient (word k left) right = Delta.delta right left :=
   \fun (left, right: Tuple)(leftIncreasing: Ordering.Increasing k n left)(rightIncreasing: Ordering.Increasing k n right) =>
-    either!{{left = right} "or" {Logic.Not (left = right)} "either" {coefficient (word k left) right = Delta.delta right left}
-      "lt:" {\fun (equal: left = right) => trans!{K} (coefficient (word k left) right) one (Delta.delta right left)
+    either!{{(Classical.excludedMiddle (left = right))} {coefficient (word k left) right = Delta.delta right left}
+      {\fun (equal: left = right) => trans!{K} (coefficient (word k left) right) one (Delta.delta right left)
         (\idelim right = left \with indices: Tuple => coefficient (word k indices) right = one \by {
           base: diagonal k right rightIncreasing, equality: sym!{Tuple} left right equal })
         (sym!{K} (Delta.delta right left) one (Delta.equal right left (sym!{Tuple} left right equal)))}
-      "rt:" {\fun (different: Logic.Not (left = right)) => trans!{K} (coefficient (word k left) right) zero (Delta.delta right left)
+      {\fun (different: Logic.Not (left = right)) => trans!{K} (coefficient (word k left) right) zero (Delta.delta right left)
         (offDiagonal k left right leftIncreasing rightIncreasing different)
-        (sym!{K} (Delta.delta right left) zero (Delta.different right left (\fun (same: right = left) => different (sym!{Tuple} right left same))))}}
-      (Classical.excludedMiddle (left = right));
+        (sym!{K} (Delta.delta right left) zero (Delta.different right left (\fun (same: right = left) => different (sym!{Tuple} right left same))))}
+    };
 \definition assemble(indices: Lists.List[Tuple])(coefficients: Tuple -> K): Form k :=
   VectorSums.sum indices (\fun (i: Tuple) => Forms.scale (coefficients i) (word k i));
 \definition coefficientAssemble: \forall (enumeration: Increasing.Enumeration)(coefficients: Tuple -> K)(right: Increasing.Index) ->
@@ -44,8 +44,7 @@
         (\fun (left: Tuple) => mul (coefficients left) (coefficient (word k left) right))
         (\fun (left: Tuple) => mul (Delta.delta right left) (coefficients left))
         (\fun (left: Tuple)(member: \In[Tuple] (Scalars.keys enumeration) left) =>
-          trans!{K} (mul (coefficients left) (coefficient (word k left) right)) (mul (coefficients left) (Delta.delta right left))
-            (mul (Delta.delta right left) (coefficients left))
+          trans!{K} _ _ _
             (congr!{K K} (mul (coefficients left)) _ _ (pair left right (Increasing.included enumeration left member) rightIncreasing))
             (mulComm (coefficients left) (Delta.delta right left)))}
     "=" {coefficients right} "by" {Single.extract enumeration (Increasing.distinct enumeration) right (Increasing.exhaustive enumeration right) coefficients}

@@ -140,3 +140,29 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 > 対応したい。
 > すごいわかるため。
 > A と ASet と ALaw と...を、一気に定義する方法があるべき。
+
+<a id="g07"></a>
+
+## G07: 存在導入の証人型の推論
+
+宣言された存在命題と証人から、`\exact` の型引数を推論したい。
+次の例は `constraint is not supported by the solver` で失敗する。
+
+```text
+\module Example(A: \Set, a: A) {
+  \definition singleton: \exists { x: A \where x = a } :=
+    \exact(\into[A](a, { x: A \where x = a }) \by { \refl(a) }, _);
+}
+```
+
+型を明示すると同じ証明が通る。
+
+```text
+\module Example(A: \Set, a: A) {
+  \definition singleton: \exists { x: A \where x = a } :=
+    \exact(\into[A](a, { x: A \where x = a }) \by { \refl(a) },
+      \Cast[A] ({ x: A \where x = a }));
+}
+```
+
+ライブラリでは [Proposition.existsIntro](../libs/std/src/Logic/Proposition.ref) に部分集合への埋め込みと存在導入をまとめ、部分集合の条件を一度だけ指定している。

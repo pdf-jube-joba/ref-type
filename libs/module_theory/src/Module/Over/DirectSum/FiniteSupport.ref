@@ -87,21 +87,21 @@
     (#apply{forward} (combination xs v)) i = v i :=
     \fun (xs: Lists.List[Index])(distinct: Sums.Distinct xs)(v: Product.Carrier)(support: Supported.Supports xs v) =>
       trans!{{family.Carrier i}} _ _ _ (forwardCombination xs v)
-        (either!{{\In[Index] (Sums.keys xs) i} "or" {Logic.Not (\In[Index] (Sums.keys xs) i)} "either" {
+        (either!{{(Classical.excludedMiddle (\In[Index] (Sums.keys xs) i))} {
           ScalarSum.sum xs (\fun (j: Index) => (#apply{(Supported.Injection[i := j].map)} (v j)) i) = v i}
-          "lt:" {\fun (member: _) => trans!{{family.Carrier i}} _ _ _
+          {\fun (member: _) => trans!{{family.Carrier i}} _ _ _
             (Single.select xs distinct i member
               (\fun (j: Index) => (#apply{(Supported.Injection[i := j].map)} (v j)) i)
               (\fun (j: Index)(ne: Logic.Not (i = j)) => Supported.Injection[i := j].onDifferent (v j) i
                 (\fun (same: j = i) => ne (sym!{Index} j i same))))
             (Supported.Injection[i := i].onSame (v i))}
-          "rt:" {\fun (missing: _) => trans!{{family.Carrier i}} _ #zero{(family.space i)} _
+          {\fun (missing: _) => trans!{{family.Carrier i}} _ #zero{(family.space i)} _
             (Single.selectAbsent xs i missing
               (\fun (j: Index) => (#apply{(Supported.Injection[i := j].map)} (v j)) i)
               (\fun (j: Index)(ne: Logic.Not (i = j)) => Supported.Injection[i := j].onDifferent (v j) i
                 (\fun (same: j = i) => ne (sym!{Index} j i same))))
             (sym!{{family.Carrier i}} (v i) #zero{(family.space i)} (support i missing))}
-        } (Classical.excludedMiddle (\In[Index] (Sums.keys xs) i)));
+        });
 }
 \definition coordinates(x: Carrier): Product.Carrier := #apply{forward} x;
 \definition recover: \forall (xs: Lists.List[Index]) -> Sums.Distinct xs ->
@@ -116,9 +116,8 @@
   \let supportLaw: Supported.Supports xs v := \fun (i: Index)(missing: Logic.Not (\In[Index] (Sums.keys xs) i)) =>
     (\bysub(Lists.List[Index], { ys: Lists.List[Index] \where Supported.Supports ys v }, support)) i
       (\fun (member: _) => missing (#toSelected{laws} i member)) \then
-  \return \exact(\into[Carrier](combination xs v, { x: Carrier \where #apply{forward} x = v }) \by {
-    recover xs #distinct{laws} v supportLaw
-  }, \Cast[Carrier] ({ x: Carrier \where #apply{forward} x = v }))
+  \return Logic.existsIntro[Carrier, { x: Carrier \where #apply{forward} x = v }] (combination xs v)
+    (recover xs #distinct{laws} v supportLaw)
 };
 
 \definition coordinatesZero: coordinates #zero{space} = Product.zero := Maps.zeroPreserved forward;
@@ -166,9 +165,7 @@
 \definition normalAddition: \forall (e, f: Expressions.Expression) -> Normal e -> Normal f -> Normal (Expressions.Expression::sum e f) :=
   \fun (e, f: Expressions.Expression)(left: Normal e)(right: Normal f)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
     trans!{Carrier}
-      (combination xs (coordinates (Presented.class (Expressions.Expression::sum e f))))
-      (combination xs (Product.add (coordinates (Presented.class e)) (coordinates (Presented.class f))))
-      (Presented.class (Expressions.Expression::sum e f))
+      _ _ _
       (congr!{Product.Carrier Carrier} (combination xs) _ _
         (trans!{Product.Carrier} _ _ _
           (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.addClass e f)))
@@ -182,9 +179,7 @@
 \definition normalNegative: \forall (e: Expressions.Expression) -> Normal e -> Normal (Expressions.Expression::negative e) :=
   \fun (e: Expressions.Expression)(before: Normal e)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
     trans!{Carrier}
-      (combination xs (coordinates (Presented.class (Expressions.Expression::negative e))))
-      (combination xs (Product.neg (coordinates (Presented.class e))))
-      (Presented.class (Expressions.Expression::negative e))
+      _ _ _
       (congr!{Product.Carrier Carrier} (combination xs) _ _
         (trans!{Product.Carrier} _ _ _
           (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.negClass e)))
@@ -195,9 +190,7 @@
 \definition normalScalar: \forall (a: R)(e: Expressions.Expression) -> Normal e -> Normal (Expressions.Expression::scale a e) :=
   \fun (a: R)(e: Expressions.Expression)(before: Normal e)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
     trans!{Carrier}
-      (combination xs (coordinates (Presented.class (Expressions.Expression::scale a e))))
-      (combination xs (Product.scale a (coordinates (Presented.class e))))
-      (Presented.class (Expressions.Expression::scale a e))
+      _ _ _
       (congr!{Product.Carrier Carrier} (combination xs) _ _
         (trans!{Product.Carrier} _ _ _
           (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.scaleClass a e)))

@@ -32,20 +32,18 @@
   \exists \Cast[B.Bool^] S :=
     \fun (leftExists: \exists \Cast[B.Bool^] Left) (rightExists: \exists \Cast[B.Bool^] Right)
       (S: Candidate Left Right) =>
-    either!{
-        {S = Left} "or" {S = Right} "either" {\exists \Cast[B.Bool^] S}
-        "lt:" {\fun (e: S = Left) =>
+    either!{{(\bysub(\Pow B.Bool^, Candidates Left Right, S))} {\exists \Cast[B.Bool^] S}
+        {\fun (e: S = Left) =>
           \idelim Left = S
             \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T
             \by { base: leftExists, equality:
               sym!{\Pow B.Bool^} S Left e }}
-        "rt:" {\fun (e: S = Right) =>
+        {\fun (e: S = Right) =>
           \idelim Right = S
             \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T
             \by { base: rightExists, equality:
               sym!{\Pow B.Bool^} S Right e }}
-      }
-        (\bysub(\Pow B.Bool^, Candidates Left Right, S));
+    };
 
 \definition Selection(Left, Right: \Pow B.Bool^): \Set :=
   \forall (S: Candidate Left Right) ->
@@ -87,12 +85,10 @@
   P :=
   \fun (uMember: Logic.Or[u = B.Bool^::false, P]) (vMember: Logic.Or[v = B.Bool^::true, P])
     (uv: u = v) =>
-    either!{
-    {u = B.Bool^::false} "or" P "either" P
-    "lt:" {\fun (uf: u = B.Bool^::false) =>
-      either!{
-        {v = B.Bool^::true} "or" P "either" P
-        "lt:" {\fun (vt: v = B.Bool^::true) =>
+    either!{uMember P
+      {\fun (uf: u = B.Bool^::false) =>
+      either!{vMember P
+        {\fun (vt: v = B.Bool^::true) =>
           BoolLaws.absurd P
             (trans!{B.Bool^}
               B.Bool^::false v B.Bool^::true
@@ -101,10 +97,10 @@
                 (sym!{B.Bool^} u B.Bool^::false uf)
                 uv)
               vt)}
-        "rt:" {\fun (p: P) => p}
-      } vMember}
-    "rt:" {\fun (p: P) => p}
-  } uMember;
+        {\fun (p: P) => p}
+      }}
+      {\fun (p: P) => p}
+    };
 
 \definition selectedEqual(Left, Right: \Pow B.Bool^) (select: Selection Left Right):
   Left = Right ->
@@ -125,22 +121,19 @@
   \fun (leftMember: Logic.Or[chooseLeft Left Right select = B.Bool^::false, P])
     (rightMember: Logic.Or[chooseRight Left Right select = B.Bool^::true, P])
     (collapse: P -> Left = Right) =>
-    either!{
-    {chooseLeft Left Right select = chooseRight Left Right select} "or" {Logic.Not (
-      chooseLeft Left Right select = chooseRight Left Right select)} "either" {Logic.Or[P, Logic.Not P]}
-    "lt:" {\fun (equal:
+    either!{{(BoolLaws.eqDecidable
+      (chooseLeft Left Right select) (chooseRight Left Right select))} {Logic.Or[P, Logic.Not P]}
+      {\fun (equal:
         chooseLeft Left Right select = chooseRight Left Right select) =>
       Logic.Or[P, Logic.Not P]::left
         (equalChoicesGiveP P
           (chooseLeft Left Right select) (chooseRight Left Right select)
           leftMember rightMember equal)}
-    "rt:" {\fun (unequal: Logic.Not (
+      {\fun (unequal: Logic.Not (
         chooseLeft Left Right select = chooseRight Left Right select)) =>
       Logic.Or[P, Logic.Not P]::right
         (\fun (p: P) => unequal (selectedEqual Left Right select (collapse p)))}
-  }
-    (BoolLaws.eqDecidable
-      (chooseLeft Left Right select) (chooseRight Left Right select));
+    };
 
 \definition excludedMiddle:
   \forall (P: \Prop) ->
@@ -152,15 +145,13 @@
     \let Right: \Pow B.Bool^ :=
       { b : B.Bool^ \where Logic.Or[b = B.Bool^::true, P] } \then
     \let leftExists: \exists \Cast[B.Bool^] Left :=
-      \exact(
-        \into[B.Bool^](B.Bool^::false, Left) \by { Logic.Or[B.Bool^::false = B.Bool^::false, P]::left
-            (\refl(B.Bool^::false)) },
-        \Cast[B.Bool^] Left) \then
+      Logic.existsIntro[B.Bool^, Left] (B.Bool^::false)
+      (Logic.Or[B.Bool^::false = B.Bool^::false, P]::left
+            (\refl(B.Bool^::false))) \then
     \let rightExists: \exists \Cast[B.Bool^] Right :=
-      \exact(
-        \into[B.Bool^](B.Bool^::true, Right) \by { Logic.Or[B.Bool^::true = B.Bool^::true, P]::left
-            (\refl(B.Bool^::true)) },
-        \Cast[B.Bool^] Right) \then
+      Logic.existsIntro[B.Bool^, Right] (B.Bool^::true)
+      (Logic.Or[B.Bool^::true = B.Bool^::true, P]::left
+            (\refl(B.Bool^::true))) \then
     \takefrom select: Selection Left Right
       \by selectionExists Left Right leftExists rightExists \then
     \return excludedMiddleFromSelection P Left Right select

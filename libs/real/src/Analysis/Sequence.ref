@@ -20,9 +20,8 @@
 \definition tailLower: \forall (s: N.Nat^ -> Real) -> \forall (epsilon: Real) -> \forall (threshold, n: N.Nat^) ->
   Control s epsilon threshold -> Nat.Le threshold n -> EventuallyLower s (sub (s n) epsilon) :=
   \fun (s: _) (epsilon: _) (threshold, n: _) (control: Control s epsilon threshold) (later: _) =>
-    \exact(\into[N.Nat^](threshold, { k: N.Nat^ \where \forall (m: N.Nat^) -> Nat.Le k m -> R.Le (sub (s n) epsilon) (s m) }) \by {
-      \fun (m: _) (laterM: _) => Order.leOfLt _ _ (Metric.distanceLtLower (s n) (s m) epsilon (control n m later laterM)) },
-      \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (m: N.Nat^) -> Nat.Le k m -> R.Le (sub (s n) epsilon) (s m) }));
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (m: N.Nat^) -> Nat.Le k m -> R.Le (sub (s n) epsilon) (s m) }] threshold
+    (\fun (m: _) (laterM: _) => Order.leOfLt _ _ (Metric.distanceLtLower (s n) (s m) epsilon (control n m later laterM)));
 
 \definition lowerUpper: \forall (s: N.Nat^ -> Real) -> \forall (epsilon: Real) -> \forall (threshold, n: N.Nat^) ->
   Control s epsilon threshold -> Nat.Le threshold n -> Complete.UpperBound (LowerValues s) (add (s n) epsilon) :=
@@ -43,17 +42,15 @@
 \definition lowerNonempty: \forall (s: CauchySequence) -> Complete.Nonempty (LowerValues s) :=
   \fun (s: CauchySequence) => \block {
     \takefrom k: \Cast[N.Nat^] ({ n: N.Nat^ \where Control s Op.one n }) \by cauchyLaw s Op.one onePositive \then
-    \return \exact(\into[Real](sub (s k) Op.one, LowerValues s) \by {
-      tailLower s Op.one k k (\bysub(N.Nat^, { n: N.Nat^ \where Control s Op.one n }, k)) (Nat.leRefl k) },
-      \Cast[Real] (LowerValues s))
+    \return Logic.existsIntro[Real, LowerValues s] (sub (s k) Op.one)
+      (tailLower s Op.one k k (\bysub(N.Nat^, { n: N.Nat^ \where Control s Op.one n }, k)) (Nat.leRefl k))
   };
 
 \definition lowerBounded: \forall (s: CauchySequence) -> Complete.Bounded (LowerValues s) :=
   \fun (s: CauchySequence) => \block {
     \takefrom k: \Cast[N.Nat^] ({ n: N.Nat^ \where Control s Op.one n }) \by cauchyLaw s Op.one onePositive \then
-    \return \exact(\into[Real](add (s k) Op.one, { upper: Real \where Complete.UpperBound (LowerValues s) upper }) \by {
-      lowerUpper s Op.one k k (\bysub(N.Nat^, { n: N.Nat^ \where Control s Op.one n }, k)) (Nat.leRefl k) },
-      \Cast[Real] ({ upper: Real \where Complete.UpperBound (LowerValues s) upper }))
+    \return Logic.existsIntro[Real, { upper: Real \where Complete.UpperBound (LowerValues s) upper }] (add (s k) Op.one)
+      (lowerUpper s Op.one k k (\bysub(N.Nat^, { n: N.Nat^ \where Control s Op.one n }, k)) (Nat.leRefl k))
   };
 
 \definition lowerFamily(s: CauchySequence): Complete.Family :=
@@ -76,16 +73,15 @@
     \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Control s (mul half epsilon) k })
       \by cauchyLaw s (mul half epsilon) (E.halfOfPositive epsilon positive) \then
     \let control: Control s (mul half epsilon) k := \bysub(N.Nat^, { k: N.Nat^ \where Control s (mul half epsilon) k }, k) \then
-    \return \exact(\into[N.Nat^](k, { k: N.Nat^ \where LimitControl s (limit s) epsilon k }) \by {
-      \fun (n: _) (later: _) => R.leLtTrans _ _ _
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where LimitControl s (limit s) epsilon k }] k
+      (\fun (n: _) (later: _) => R.leLtTrans _ _ _
         (E.distanceLeOfInterval (s n) (limit s) (mul half epsilon)
           (Complete.supremumUpper (lowerFamily s) (sub (s n) (mul half epsilon))
             (lowerMember s _ (tailLower s (mul half epsilon) k n control later)))
           (Complete.supremumLeast (lowerFamily s) (add (s n) (mul half epsilon))
             (\fun (lower: Real) (law: Complete.Member (lowerFamily s) lower) =>
               lowerUpper s (mul half epsilon) k n control later lower (lowerMemberLaw s lower law))))
-        (E.halfStrict epsilon positive) },
-      \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s (limit s) epsilon k }))
+        (E.halfStrict epsilon positive))
   };
 
 \definition constantControl: \forall (value, epsilon: Real) -> R.Lt zero epsilon -> \forall (threshold: N.Nat^) ->
@@ -95,9 +91,8 @@
 
 \definition constantConverges: \forall (value: Real) -> Converges (\fun (n: N.Nat^) => value) value :=
   \fun (value: _) (epsilon: _) (positive: _) =>
-    \exact(\into[N.Nat^](N.Nat^::zero, { k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => value) value epsilon k }) \by {
-      constantControl value epsilon positive N.Nat^::zero },
-      \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => value) value epsilon k }));
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => value) value epsilon k }] (N.Nat^::zero)
+    (constantControl value epsilon positive N.Nat^::zero);
 
 \definition limitUnique: \forall (s: N.Nat^ -> Real) -> \forall (u, v: Real) -> Converges s u -> Converges s v -> u = v := \block {
   \fun (s: _) (u, v: _) (hu: Converges s u) (hv: Converges s v) \then

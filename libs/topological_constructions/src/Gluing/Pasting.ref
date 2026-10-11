@@ -34,19 +34,21 @@
 \definition existsValue: \forall (f: Left -> B) (g: Right -> B) -> Covered -> Compatible f g ->
   \forall (x: A) -> \exists Value f g x :=
   \fun (f: _) (g: _) (covered: _) (compatible: _) (x: A) =>
-    either!{{Source.Member F x} "or" {Source.Member G x} "either" {\exists Value f g x}
-      "lt:" {\fun (member: _) => \exact(leftValue f g compatible (\into[A](x, F) \by { member }), Value f g x)}
-      "rt:" {\fun (member: _) => \exact(rightValue f g compatible (\into[A](x, G) \by { member }), Value f g x)}} (covered x);
+    either!{{(covered x)} {\exists Value f g x}
+      {\fun (member: _) => \exact(leftValue f g compatible (\into[A](x, F) \by { member }), Value f g x)}
+      {\fun (member: _) => \exact(rightValue f g compatible (\into[A](x, G) \by { member }), Value f g x)}
+    };
 \definition uniqueValue: \forall (f: Left -> B) (g: Right -> B) -> Covered ->
   \forall (x: A) (u, v: Value f g x) -> u = v :=
   \fun (f: _) (g: _) (covered: _) (x: A) (u, v: _) =>
-    either!{{Source.Member F x} "or" {Source.Member G x} "either" {u = v}
-      "lt:" {\fun (member: _) => trans!{B} _ _ _
+    either!{{(covered x)} {u = v}
+      {\fun (member: _) => trans!{B} _ _ _
         (#left{(\bysub(B, Value f g x, u))} (\into[A](x, F) \by { member }) (\refl(x)))
         (sym!{B} _ _ (#left{(\bysub(B, Value f g x, v))} (\into[A](x, F) \by { member }) (\refl(x))))}
-      "rt:" {\fun (member: _) => trans!{B} _ _ _
+      {\fun (member: _) => trans!{B} _ _ _
         (#right{(\bysub(B, Value f g x, u))} (\into[A](x, G) \by { member }) (\refl(x)))
-        (sym!{B} _ _ (#right{(\bysub(B, Value f g x, v))} (\into[A](x, G) \by { member }) (\refl(x))))}} (covered x);
+        (sym!{B} _ _ (#right{(\bysub(B, Value f g x, v))} (\into[A](x, G) \by { member }) (\refl(x))))}
+    };
 \definition apply(f: Left -> B) (g: Right -> B) (covered: Covered) (compatible: Compatible f g) (x: A): B :=
   \choice Value f g x \by { existence: existsValue f g covered compatible x, uniqueness: uniqueValue f g covered x };
 \definition onLeft: \forall (f: Left -> B) (g: Right -> B) (covered: Covered) (compatible: Compatible f g) (a: Left) ->

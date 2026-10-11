@@ -1,3 +1,4 @@
+\import std.Logic[].Proposition[] \as Existential;
 \definition one: Nat.Nat^ := Nat.Nat^::succ Nat.Nat^::zero;
 \definition two: Nat.Nat^ := Nat.Nat^::succ one;
 \import Resolutions.Syzygy[n := Nat.Nat^::zero, resolution := resolution] \as K;
@@ -11,9 +12,8 @@
   onto := #onto{resolution},
   zero := \fun (x: K.Carrier) => \bysub(L.Carrier, #carrier{(Resolutions.augmentationKernel resolution)}, x),
   kernelImage := \fun (x: L.Carrier)(closed: #apply{#augmentation{resolution}} x = #zero{M.space}) =>
-    \exact(\into[K.Carrier](\into[L.Carrier](x, #carrier{(Resolutions.augmentationKernel resolution)}) \by { closed },
-      { k: K.Carrier \where #apply{Kernel.inclusion} k = x }) \by { \refl(x) },
-      \Cast[K.Carrier] ({ k: K.Carrier \where #apply{Kernel.inclusion} k = x })),
+    Existential.existsIntro[K.Carrier, { k: K.Carrier \where #apply{Kernel.inclusion} k = x }] (\into[L.Carrier](x, #carrier{(Resolutions.augmentationKernel resolution)}) \by { closed })
+    (\refl(x)),
 };
 \import resolutions.HomComplex[].Over[R := R, ring := ring].On[P := P, N := N] \as Hom;
 \import \parent.\parent.Of[M := M, N := N, P := P].At[n := one] \as H;
@@ -123,10 +123,9 @@
 \definition compatibleBack: Inverse.CompatibleBack := \block {
   \fun (f: Relations.Carrier)(member: _) \then
   \takefrom g: \Cast[Generators.Carrier] ({ g: Generators.Carrier \where precompose g = f }) \by member \then
-  \return \exact(\into[Generators.Carrier](g, { g: Generators.Carrier \where Hom.apply Nat.Nat^::zero g = cycle f }) \by {
-    trans!{{Hom.Carrier one}} _ _ _ (differential g)
-      (congr!{Relations.Carrier {Hom.Carrier one}} cocycle (precompose g) f (\bysub(Generators.Carrier, { g: Generators.Carrier \where precompose g = f }, g)))
-  }, \Cast[Generators.Carrier] ({ g: Generators.Carrier \where Hom.apply Nat.Nat^::zero g = cycle f }))
+  \return Existential.existsIntro[Generators.Carrier, { g: Generators.Carrier \where Hom.apply Nat.Nat^::zero g = cycle f }] g
+    (trans!{{Hom.Carrier one}} _ _ _ (differential g)
+      (congr!{Relations.Carrier {Hom.Carrier one}} cocycle (precompose g) f (\bysub(Generators.Carrier, { g: Generators.Carrier \where precompose g = f }, g))))
 };
 \definition isomorphism: Modules.Isomorphism[V := H.Carrier, W := Quotient.Carrier, source := H.space, target := Quotient.moduleSpace].Isomorphism :=
   Inverse.isomorphism compatible compatibleBack cycleInverse valueInverse;
@@ -139,13 +138,12 @@
   \fun (x: H.Carrier) \then
   \takefrom f: \Cast[Relations.Carrier] ({ f: Relations.Carrier \where Quotient.class f = #apply{#forward{isomorphism}} x })
     \by Quotient.onto (#apply{#forward{isomorphism}} x) \then
-  \return \exact(\into[Relations.Carrier](f, { f: Relations.Carrier \where RepresentationClass[f := f].extClass = x }) \by {
-    trans!{H.Carrier} _ _ _ RepresentationClass[f := f].onExt
+  \return Existential.existsIntro[Relations.Carrier, { f: Relations.Carrier \where RepresentationClass[f := f].extClass = x }] f
+    (trans!{H.Carrier} _ _ _ RepresentationClass[f := f].onExt
       (trans!{H.Carrier} _ _ _
         (congr!{Quotient.Carrier H.Carrier} (#apply{#backward{isomorphism}}) (Quotient.class f) (#apply{#forward{isomorphism}} x)
           (\bysub(Relations.Carrier, { f: Relations.Carrier \where Quotient.class f = #apply{#forward{isomorphism}} x }, f)))
-        (#leftInverse{isomorphism} x))
-  }, \Cast[Relations.Carrier] ({ f: Relations.Carrier \where RepresentationClass[f := f].extClass = x }))
+        (#leftInverse{isomorphism} x)))
 };
 \definition ClassCarrier: \Set := Quotient.Carrier;
 \definition classSpace: Modules.Space ClassCarrier := Quotient.moduleSpace;

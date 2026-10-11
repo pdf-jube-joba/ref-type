@@ -24,10 +24,8 @@
 };
 
 \definition constantBounded(c: Real): Def.Bounded (\fun (x: Real) => c) :=
-  \exact(\into[Real](distance c zero,
-    { bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance c zero) bound })
-    \by { \fun (x: Real) (ax: R.Le a x) (xb: R.Le x b) => R.leRefl (distance c zero) },
-    \Cast[Real] ({ bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance c zero) bound }));
+  Logic.existsIntro[Real, { bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance c zero) bound }] (distance c zero)
+  (\fun (x: Real) (ax: R.Le a x) (xb: R.Le x b) => R.leRefl (distance c zero));
 
 \definition constantControl: \forall (c, epsilon: Real) -> R.Lt zero epsilon -> \forall (threshold: N.Nat^) ->
   Def.Control (\fun (x: Real) => c) (mul (sub b a) c) epsilon threshold :=
@@ -40,9 +38,8 @@
 
 \definition constantApproximates: \forall (c: Real) -> Def.Approximates (\fun (x: Real) => c) (mul (sub b a) c) :=
   \fun (c, epsilon: Real) (positive: R.Lt zero epsilon) =>
-    \exact(\into[N.Nat^](N.Nat^::zero, { threshold: N.Nat^ \where Def.Control (\fun (x: Real) => c) (mul (sub b a) c) epsilon threshold })
-      \by { constantControl c epsilon positive N.Nat^::zero },
-      \Cast[N.Nat^] ({ threshold: N.Nat^ \where Def.Control (\fun (x: Real) => c) (mul (sub b a) c) epsilon threshold }));
+    Logic.existsIntro[N.Nat^, { threshold: N.Nat^ \where Def.Control (\fun (x: Real) => c) (mul (sub b a) c) epsilon threshold }] (N.Nat^::zero)
+    (constantControl c epsilon positive N.Nat^::zero);
 
 \definition constant(c: Real): Def.Function := Def.Function {
   function := \fun (x: Real) => c,
@@ -55,20 +52,18 @@
 
 \definition smallSelf: \forall (f: Real -> Real) -> \forall (epsilon: Real) -> R.Lt zero epsilon -> Def.SmallL1 f f epsilon :=
   \fun (f: _) (epsilon: _) (positive: _) =>
-    \exact(\into[N.Nat^](N.Nat^::zero, { n: N.Nat^ \where Def.NormControl f f epsilon n }) \by {
-      \fun (n: _) (later: _) (tags: _) (level: _) (valid: _) =>
-        R.ltReplaceLeft zero (D.normSum f f tags a b) epsilon (sym!{Real} _ _ (D.normSelf f tags a b)) positive },
-      \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl f f epsilon n }));
+    Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Def.NormControl f f epsilon n }] (N.Nat^::zero)
+    (\fun (n: _) (later: _) (tags: _) (level: _) (valid: _) =>
+        R.ltReplaceLeft zero (D.normSum f f tags a b) epsilon (sym!{Real} _ _ (D.normSelf f tags a b)) positive);
 
 \definition smallSymmetric: \forall (f, g: Real -> Real) -> \forall (epsilon: Real) ->
   Def.SmallL1 f g epsilon -> Def.SmallL1 g f epsilon :=
   \fun (f, g: _) (epsilon: _) (small: Def.SmallL1 f g epsilon) => \block {
     \takefrom N0: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl f g epsilon n }) \by small \then
-    \return \exact(\into[N.Nat^](N0, { n: N.Nat^ \where Def.NormControl g f epsilon n }) \by {
-      \fun (n: _) (later: _) (tags: _) (level: _) (valid: _) =>
+    \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Def.NormControl g f epsilon n }] N0
+      (\fun (n: _) (later: _) (tags: _) (level: _) (valid: _) =>
         R.ltReplaceLeft _ _ _ (D.normSymmetric f g tags a b)
-          ((\bysub(N.Nat^, { k: N.Nat^ \where Def.NormControl f g epsilon k }, N0)) n later tags level valid) },
-      \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl g f epsilon n }))
+          ((\bysub(N.Nat^, { k: N.Nat^ \where Def.NormControl f g epsilon k }, N0)) n later tags level valid))
   };
 
 \definition smallTriangle: \forall (f, g, h: Real -> Real) -> \forall (epsilon: Real) ->
@@ -76,15 +71,14 @@
   \fun (f, g, h: _) (epsilon: _) (fg: Def.SmallL1 f g (mul half epsilon)) (gh: Def.SmallL1 g h (mul half epsilon)) => \block {
     \takefrom Nfg: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl f g (mul half epsilon) n }) \by fg \then
     \takefrom Ngh: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl g h (mul half epsilon) n }) \by gh \then
-    \return \exact(\into[N.Nat^](NatOrder.commonBound Nfg Ngh, { k: N.Nat^ \where Def.NormControl f h epsilon k }) \by {
-      \fun (n: _) (later: _) (tags: _) (level: _) (valid: _) => R.ltReplaceRight _ _ _ (E.halfTwice epsilon)
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Def.NormControl f h epsilon k }] (NatOrder.commonBound Nfg Ngh)
+      (\fun (n: _) (later: _) (tags: _) (level: _) (valid: _) => R.ltReplaceRight _ _ _ (E.halfTwice epsilon)
         (R.leLtTrans _ _ _ (D.normTriangle f g h tags a b interval.ordered valid)
           (E.addLt _ _ _ _
             ((\bysub(N.Nat^, { k: N.Nat^ \where Def.NormControl f g (mul half epsilon) k }, Nfg))
               n (Nat.leTrans _ _ _ (NatOrder.leftLeCommonBound Nfg Ngh) later) tags level valid)
             ((\bysub(N.Nat^, { k: N.Nat^ \where Def.NormControl g h (mul half epsilon) k }, Ngh))
-              n (Nat.leTrans _ _ _ (NatOrder.rightLeCommonBound Nfg Ngh) later) tags level valid))) },
-      \Cast[N.Nat^] ({ k: N.Nat^ \where Def.NormControl f h epsilon k }))
+              n (Nat.leTrans _ _ _ (NatOrder.rightLeCommonBound Nfg Ngh) later) tags level valid))))
   };
 
 \definition integralClose: \forall (f, g: Def.Function) -> \forall (radius: Real) ->

@@ -14,10 +14,8 @@
   Finite.induction ({ F: \Pow (\Pow Real.Real) \where
     (\forall (U: \Pow Real.Real) -> Space.FamilyMember F U -> \exists { b: Real.Real \where RayBound U b }) ->
     \exists { b: Real.Real \where FamilyBound F b } })
-    (\fun (bounds: _) => \exact(\into[Real.Real](Real.zero,
-      { b: Real.Real \where FamilyBound Finite.Empty b }) \by {
-        \fun (U: _)(empty: Logic.False)(x: _)(member: _) => Logic.falseElim (R.Lt x Real.zero) empty
-      }, \Cast[Real.Real] ({ b: Real.Real \where FamilyBound Finite.Empty b })))
+    (\fun (bounds: _) => Logic.existsIntro[Real.Real, { b: Real.Real \where FamilyBound Finite.Empty b }] Real.zero
+      (\fun (U: _)(empty: Logic.False)(x: _)(member: _) => Logic.falseElim (R.Lt x Real.zero) empty))
     (\block {
       \fun (F: \Pow (\Pow Real.Real))
         (previous: (\forall (V: \Pow Real.Real) -> Space.FamilyMember F V -> \exists { b: Real.Real \where RayBound V b }) -> \exists { b: Real.Real \where FamilyBound F b })
@@ -29,15 +27,15 @@
         \by previous (\fun (V: _)(member: _) => bounds V (Finite.inInsertOld U F V member)) \then
       \let fb: FamilyBound F b := \bysub(Real.Real, { b: Real.Real \where FamilyBound F b }, b) \then
       \let c: Real.Real := Distance.max a b \then
-      \return \exact(\into[Real.Real](c, { c: Real.Real \where FamilyBound (Finite.Insert U F) c }) \by {
-        \fun (V: \Pow Real.Real)(member: Space.FamilyMember (Finite.Insert U F) V) =>
-          either!{{V = U} "or" {Space.FamilyMember F V} "either" {RayBound V c}
-            "lt:" {\fun (equal: V = U) => \idelim U = V \with W: \Pow Real.Real => RayBound W c \by {
+      \return Logic.existsIntro[Real.Real, { c: Real.Real \where FamilyBound (Finite.Insert U F) c }] c
+        (\fun (V: \Pow Real.Real)(member: Space.FamilyMember (Finite.Insert U F) V) =>
+          either!{member {RayBound V c}
+            {\fun (equal: V = U) => \idelim U = V \with W: \Pow Real.Real => RayBound W c \by {
               base: \fun (x: Real.Real)(inside: Space.Member U x) => rayMonotone a c (Distance.maxLeft a b) x (ua x inside),
               equality: sym!{\Pow Real.Real} _ _ equal
             }}
-            "rt:" {\fun (old: _) (x: _) (inside: _) => rayMonotone b c (Distance.maxRight a b) x (fb V old x inside)}} member
-      }, \Cast[Real.Real] ({ c: Real.Real \where FamilyBound (Finite.Insert U F) c }))
+            {\fun (old: _) (x: _) (inside: _) => rayMonotone b c (Distance.maxRight a b) x (fb V old x inside)}
+          })
     });
 \definition compactBounded: \forall (S: \Pow Real.Real) -> Space.IsCompactIn topology S -> Complete.Bounded S := \block {
   \fun (S: _)(compact: _) \then
@@ -51,9 +49,8 @@
         }
       },
       covers := \fun (x: Real.Real)(member: Space.Member S x) => Space.unionMemberOf RayFamily (Rays.Below (Real.add x Real.one)) x
-        (\exact(\into[Real.Real](Real.add x Real.one, { b: Real.Real \where Rays.Below (Real.add x Real.one) = Rays.Below b }) \by {
-          \refl(Rays.Below (Real.add x Real.one))
-        }, \Cast[Real.Real] ({ b: Real.Real \where Rays.Below (Real.add x Real.one) = Rays.Below b })))
+        (Logic.existsIntro[Real.Real, { b: Real.Real \where Rays.Below (Real.add x Real.one) = Rays.Below b }] (Real.add x Real.one)
+          (\refl(Rays.Below (Real.add x Real.one))))
         (Intervals.addPositive x Real.one (Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne)),
     }) \then
   \let cover: Space.FiniteSubcover[RayFamily, S, F] := \bysub(Finite.FiniteSubset,
@@ -62,16 +59,14 @@
     \fun (U: _)(inF: _) \then
     \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where U = Rays.Below a }) \by #included{cover} U inF \then
     \let equal: U = Rays.Below a := \bysub(Real.Real, { a: Real.Real \where U = Rays.Below a }, a) \then
-    \return \exact(\into[Real.Real](a, { a: Real.Real \where RayBound U a }) \by {
-      \fun (x: Real.Real)(member: Space.Member U x) => \idelim U = Rays.Below a
-        \with V: \Pow Real.Real => Space.Member V x \by { base: member, equality: equal }
-    }, \Cast[Real.Real] ({ a: Real.Real \where RayBound U a }))
+    \return Logic.existsIntro[Real.Real, { a: Real.Real \where RayBound U a }] a
+      (\fun (x: Real.Real)(member: Space.Member U x) => \idelim U = Rays.Below a
+        \with V: \Pow Real.Real => Space.Member V x \by { base: member, equality: equal })
   }) \then
   \let bound: FamilyBound F b := \bysub(Real.Real, { b: Real.Real \where FamilyBound F b }, b) \then
-  \return \exact(\into[Real.Real](b, { b: Real.Real \where Complete.UpperBound S b }) \by {
-    \fun (x: Real.Real)(member: Space.Member S x) => Space.unionMemberElim F x (R.Le x b)
-      (\fun (U: _)(inF: _)(inside: _) => Order.leOfLt x b (bound U inF x inside)) (#covers{cover} x member)
-  }, \Cast[Real.Real] ({ b: Real.Real \where Complete.UpperBound S b }))
+  \return Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound S b }] b
+    (\fun (x: Real.Real)(member: Space.Member S x) => Space.unionMemberElim F x (R.Le x b)
+      (\fun (U: _)(inF: _)(inside: _) => Order.leOfLt x b (bound U inF x inside)) (#covers{cover} x member))
 };
 \definition supremumMember: \forall (S: Complete.Family) -> Space.IsClosedIn topology S -> Space.Member S (Complete.supremum S) :=
   \fun (S: _)(closed: _) => Order.byContradiction (Space.Member S (Complete.supremum S)) (\block {
@@ -104,7 +99,6 @@
     Logic.And[_, _]::# nonempty (compactBounded S compact)
   } \then
   \let closed: Space.IsClosedIn topology S := Compactness.compactClosed topology (Hausdorff.topologyT2 Metric.metric) S compact \then
-  \return \exact(\into[Real.Real](Complete.supremum family, { a: Real.Real \where Maximum[S, a] }) \by {
-    Maximum[S, Complete.supremum family] { member := supremumMember family closed, upper := Complete.supremumUpper family }
-  }, \Cast[Real.Real] ({ a: Real.Real \where Maximum[S, a] }))
+  \return Logic.existsIntro[Real.Real, { a: Real.Real \where Maximum[S, a] }] (Complete.supremum family)
+    (Maximum[S, Complete.supremum family] { member := supremumMember family closed, upper := Complete.supremumUpper family })
 };

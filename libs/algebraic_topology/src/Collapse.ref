@@ -13,17 +13,20 @@
 \definition equivalence: Quotient.Laws := Quotient.Laws {
   refl := \fun (x: A) => Logic.Or[_, _]::left (\refl(x)),
   sym := \fun (x, y: A) (r: Related x y) =>
-    either!{{x = y} "or" {Logic.And[\In[A] subset x, \In[A] subset y]} "either" {Related y x}
-      "lt:" {\fun (e: x = y) => Logic.Or[_, _]::left (sym!{A} _ _ e)}
-      "rt:" {\fun (h: Logic.And[\In[A] subset x, \In[A] subset y]) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#right{h}) (#left{h}))}} r,
+    either!{r {Related y x}
+      {\fun (e: x = y) => Logic.Or[_, _]::left (sym!{A} _ _ e)}
+      {\fun (h: Logic.And[\In[A] subset x, \In[A] subset y]) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#right{h}) (#left{h}))}
+    },
   trans := \fun (x, y, z: A) (xy: Related x y) (yz: Related y z) =>
-    either!{{x = y} "or" {Logic.And[\In[A] subset x, \In[A] subset y]} "either" {Related x z}
-      "lt:" {\fun (e: x = y) => \idelim y = x \with w: A => Related w z \by { base: yz, equality: sym!{A} _ _ e }}
-      "rt:" {\fun (h: Logic.And[\In[A] subset x, \In[A] subset y]) =>
-        either!{{y = z} "or" {Logic.And[\In[A] subset y, \In[A] subset z]} "either" {Related x z}
-          "lt:" {\fun (e: y = z) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#left{h})
+    either!{xy {Related x z}
+      {\fun (e: x = y) => \idelim y = x \with w: A => Related w z \by { base: yz, equality: sym!{A} _ _ e }}
+      {\fun (h: Logic.And[\In[A] subset x, \In[A] subset y]) =>
+        either!{yz {Related x z}
+          {\fun (e: y = z) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#left{h})
             (\idelim y = z \with w: A => \In[A] subset w \by { base: #right{h}, equality: e }))}
-          "rt:" {\fun (k: Logic.And[\In[A] subset y, \In[A] subset z]) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#left{h}) (#right{k}))}} yz}} xy,
+          {\fun (k: Logic.And[\In[A] subset y, \In[A] subset z]) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#left{h}) (#right{k}))}
+        }}
+    },
 };
 \definition collapsed: \forall (x, y: A) -> \In[A] subset x -> \In[A] subset y -> class x = class y :=
   \fun (x, y: A) (hx: _) (hy: _) => Quotient.relatedEqual equivalence x y (Logic.Or[_, _]::right (Logic.And[_, _]::# hx hy));

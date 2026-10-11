@@ -8,12 +8,11 @@
   \let continuous: Limits.ContinuousAt f x := Derivatives.continuousOfDerivative f x (d x) derivative \then
   \takefrom delta: \Cast[Real] ({ r: Real \where Limits.Control[f, x, f x, epsilon, r] }) \by continuous epsilon positive \then
   \let control: Limits.Control[f, x, f x, epsilon, delta] := \bysub(Real, { r: Real \where Limits.Control[f, x, f x, epsilon, r] }, delta) \then
-  \return \exact(\into[Real](delta, { r: Real \where Local.Control[f, x, epsilon, r] }) \by {
-    Local.Control[f, x, epsilon, delta] {
+  \return Logic.existsIntro[Real, { r: Real \where Local.Control[f, x, epsilon, r] }] delta
+    (Local.Control[f, x, epsilon, delta] {
       positive := #positive{control},
       estimate := \fun (y: Local.Carrier)(near: _) => LimitLaws.continuityEstimate f x epsilon delta positive control y near,
-    }
-  }, \Cast[Real] ({ r: Real \where Local.Control[f, x, epsilon, r] }))
+    })
 };
 \definition increment: \forall (f, d: Real -> Real)(c, theta: Real) -> R.Lt a b ->
   (\forall (x: Local.Carrier) -> Derivative.HasDerivativeAt f x (d x)) ->
@@ -21,10 +20,8 @@
   R.Le (distance (sub (sub (f b) (f a)) (mul c (sub b a))) zero) (mul theta (distance b a)) := \block {
   \fun (f, d: Real -> Real)(c, theta: Real)(ab: _)(derivatives: _)(bounded: _) \then
   \let continuous: Local.ContinuousOn f := \fun (x: Local.Carrier) => continuousAt f d x (derivatives x) \then
-  \let differentiable: DifferentiableOn f := \fun (x: Real)(inside: Interior x) => \exact(\into[Real](d x,
-    { e: Real \where Derivative.HasDerivativeAt f x e }) \by {
-      derivatives (\into[Real](x, Line.ClosedInterval a b) \by { Logic.And[_, _]::# (Order.leOfLt a x (#left{inside})) (Order.leOfLt x b (#right{inside})) })
-    }, \Cast[Real] ({ e: Real \where Derivative.HasDerivativeAt f x e })) \then
+  \let differentiable: DifferentiableOn f := \fun (x: Real)(inside: Interior x) => Logic.existsIntro[Real, { e: Real \where Derivative.HasDerivativeAt f x e }] (d x)
+    (derivatives (\into[Real](x, Line.ClosedInterval a b) \by { Logic.And[_, _]::# (Order.leOfLt a x (#left{inside})) (Order.leOfLt x b (#right{inside})) })) \then
   \takefrom x: \Cast[Real] ({ x: Real \where MeanValueResult[f, x] }) \by meanValue f ab continuous differentiable \then
   \let witness: MeanValueResult[f, x] := \bysub(Real, { x: Real \where MeanValueResult[f, x] }, x) \then
   \let closed: Local.Carrier := \into[Real](x, Line.ClosedInterval a b) \by {

@@ -415,12 +415,10 @@
   (Logic.Not P -> Logic.False) ->
   P :=
   \fun (h: Logic.Not P -> Logic.False) =>
-    either!{
-      P "or" {Logic.Not P} "either" P
-      "lt:" {\fun (p: P) => p}
-      "rt:" {\fun (notP: Logic.Not P) => Logic.falseElim P (h notP)}
-    }
-      (Classical.excludedMiddle P);
+    either!{{(Classical.excludedMiddle P)} P
+      {\fun (p: P) => p}
+      {\fun (notP: Logic.Not P) => Logic.falseElim P (h notP)}
+    };
 
 \definition Sequence: \Set := Nat -> Rat;
 
@@ -458,10 +456,9 @@
   \block {
     \fun (positive: Positive eps) \then
     \takefrom k: \Cast[Nat] ({ k : Nat \where CauchyAt (#sequence{x}) eps k }) \by #cauchy{x} eps positive \then
-    \return \exact(
-        \into[Nat](k, { j : Nat \where EquivalentAt x x eps j }) \by { \fun (n: Nat) => \fun (kn: NatLe k n) =>
-            (\bysub(Nat, { j : Nat \where CauchyAt (#sequence{x}) eps j }, k)) n n kn kn },
-        \Cast[Nat] ({ j : Nat \where EquivalentAt x x eps j }))
+    \return Logic.existsIntro[Nat, { j : Nat \where EquivalentAt x x eps j }] k
+      (\fun (n: Nat) => \fun (kn: NatLe k n) =>
+            (\bysub(Nat, { j : Nat \where CauchyAt (#sequence{x}) eps j }, k)) n n kn kn)
   };
 
 \definition closeSym(x, y, eps: Rat):
@@ -474,13 +471,12 @@
   \fun (xy: Equivalent x y) (eps: Rat) (positive: Positive eps) =>
       \block {
         \takefrom N: \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k }) \by xy eps positive \then
-        \return \exact(
-            \into[Nat](N, { k : Nat \where EquivalentAt y x eps k }) \by { (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
+        \return Logic.existsIntro[Nat, { k : Nat \where EquivalentAt y x eps k }] N
+          (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
                 closeSym (at x n) (at y n) eps
                   ((\bysub(
                     Nat, { k : Nat \where EquivalentAt x y eps k }, N))
-                    n Nn)) },
-            \Cast[Nat] ({ k : Nat \where EquivalentAt y x eps k }))
+                    n Nn))
       };
 
 \definition commonBound(m, n: Nat): Nat := NatOrder.commonBound m n;
@@ -496,18 +492,15 @@
       \block {
         \takefrom M: \Cast[Nat] ({ k : Nat \where EquivalentAt x y (half eps) k }) \by xy (half eps) (halfPositiveOf eps positive) \then
         \takefrom N: \Cast[Nat] ({ k : Nat \where EquivalentAt y z (half eps) k }) \by yz (half eps) (halfPositiveOf eps positive) \then
-        \return \exact(
-            \into[Nat](commonBound M N,
-              { k : Nat \where EquivalentAt x z eps k }) \by {
-                \fun (n: Nat) => \fun (bound: NatLe (commonBound M N) n) =>
+        \return Logic.existsIntro[Nat, { k : Nat \where EquivalentAt x z eps k }] (commonBound M N)
+          (\fun (n: Nat) => \fun (bound: NatLe (commonBound M N) n) =>
                   closeTransHalf (at x n) (at y n) (at z n) eps
                     ((\bysub(Nat,
                       { k : Nat \where EquivalentAt x y (half eps) k }, M))
                       n (NL.leTrans M (commonBound M N) n (leftLeCommonBound M N) bound))
                     ((\bysub(Nat,
                       { k : Nat \where EquivalentAt y z (half eps) k }, N))
-                      n (NL.leTrans N (commonBound M N) n (rightLeCommonBound M N) bound)) },
-            \Cast[Nat] ({ k : Nat \where EquivalentAt x z eps k }))
+                      n (NL.leTrans N (commonBound M N) n (rightLeCommonBound M N) bound)))
       };
 
 \module Sequences;

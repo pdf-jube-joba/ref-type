@@ -42,13 +42,14 @@
   \fun (bounded: _) \then
   \takefrom u: \Cast[Real] ({ u: Real \where UpperBound S u }) \by bounded \then
   \takefrom q: \Cast[Rat] ({ q: Rat \where Logic.Not (mem u q) }) \by #proper{u} \then
-  \return \exact(\into[Rat](q, { q: Rat \where Logic.Not (In (Union S) q) }) \by { \block {
+  \return Logic.existsIntro[Rat, { q: Rat \where Logic.Not (In (Union S) q) }] q
+    (\block {
     \fun (member: UnionMember S q) \then
     \takefrom x: UnionWitnesses S q \by member \then
     \let evidence: Logic.And[Member S x, mem x q] := \bysub(Real, UnionWitnesses S q, x) \then
     \return (\bysub(Rat, { q: Rat \where Logic.Not (mem u q) }, q))
       ((\bysub(Real, { u: Real \where UpperBound S u }, u)) x #left{evidence} q #right{evidence})
-  } }, \Cast[Rat] ({ q: Rat \where Logic.Not (In (Union S) q) }))
+  })
 };
 
 \definition unionLower(S: \Pow Real)(p, q: Rat):
@@ -67,23 +68,20 @@
     \takefrom q: \Cast[Rat] ({ q: Rat \where Logic.And[mem x q, lt p q] }) \by #rounded{x} p #right{evidence} \then
     \let rounded: Logic.And[mem x q, lt p q] :=
       \bysub(Rat, { q: Rat \where Logic.And[mem x q, lt p q] }, q) \then
-    \return \exact(\into[Rat](q, { q: Rat \where Logic.And[In (Union S) q, lt p q] }) \by {
-      Logic.And[_, _] { left := unionIntro S x #left{evidence} q #left{rounded}, right := #right{rounded} }
-    }, \Cast[Rat] ({ q: Rat \where Logic.And[In (Union S) q, lt p q] }))
+    \return Logic.existsIntro[Rat, { q: Rat \where Logic.And[In (Union S) q, lt p q] }] q
+      (Logic.And[_, _] { left := unionIntro S x #left{evidence} q #left{rounded}, right := #right{rounded} })
   };
 
 \definition unionLocated(S: \Pow Real) (p, q: Rat):
   lt p q ->
   Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)] :=
   \fun (pq: lt p q) =>
-    either!{
-      {UnionMember S q} "or" {Logic.Not (UnionMember S q)} "either" {Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]}
-      "lt:" {\fun (sq: UnionMember S q) =>
+    either!{{(Classical.excludedMiddle (UnionMember S q))} {Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]}
+      {\fun (sq: UnionMember S q) =>
         Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::left (unionLower S p q pq sq)}
-      "rt:" {\fun (nq: Logic.Not (UnionMember S q)) =>
+      {\fun (nq: Logic.Not (UnionMember S q)) =>
         Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::right nq}
-    }
-      (Classical.excludedMiddle (UnionMember S q));
+    };
 
 \definition unionRespects(S: \Pow Real)(p, q: Rat):
   RationalFractions.FractionEq p q -> UnionMember S p -> UnionMember S q := \block {
@@ -134,8 +132,7 @@
   \block {
     \fun (ne: Nonempty S) (bd: Bounded S) \then
     \let family: Family := \into[\Pow Real](S, FamilySet) \by { Logic.And[Nonempty S, Bounded S]::# ne bd } \then
-    \return \exact(\into[Real](supremum family, { u : Real \where LeastUpperBound[S, u] }) \by { supremumLaw family },
-      \Cast[Real] ({ u : Real \where LeastUpperBound[S, u] }))
+    \return Logic.existsIntro[Real, { u : Real \where LeastUpperBound[S, u] }] (supremum family) (supremumLaw family)
   };
 \definition leastUpperBoundUnique(S: \Pow Real) (u, v: Real):
   LeastUpperBound[S, u] -> LeastUpperBound[S, v] ->
@@ -169,10 +166,9 @@
   \block {
     \fun (nonempty: Nonempty S) \then
     \takefrom x: \Cast[Real] S \by nonempty \then
-    \return \exact(
-        \into[Real](x, { u : Real \where UpperBound (LowerBounds S) u }) \by { \fun (l: Real) => \fun (lower: Member (LowerBounds S) l) =>
-            lower x (\bysub(Real, S, x)) },
-        \Cast[Real] ({ u : Real \where UpperBound (LowerBounds S) u }))
+    \return Logic.existsIntro[Real, { u : Real \where UpperBound (LowerBounds S) u }] x
+      (\fun (l: Real) => \fun (lower: Member (LowerBounds S) l) =>
+            lower x (\bysub(Real, S, x)))
   };
 
 \definition InfimumDomainSet: \Pow (\Pow Real) :=
@@ -223,9 +219,7 @@
     \fun (nonempty: Nonempty S) (bounded: BoundedBelow S) \then
     \let domain: InfimumDomain :=
       \into[\Pow Real](S, InfimumDomainSet) \by { Logic.And[Nonempty S, BoundedBelow S]::# nonempty bounded } \then
-    \return \exact(
-      \into[Real](infimum domain, { l : Real \where GreatestLowerBound S l }) \by { infimumLaw domain },
-      \Cast[Real] ({ l : Real \where GreatestLowerBound S l }))
+    \return Logic.existsIntro[Real, { l : Real \where GreatestLowerBound S l }] (infimum domain) (infimumLaw domain)
   };
 
 \definition greatestLowerBoundUnique(S: \Pow Real) (l, m: Real):

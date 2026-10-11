@@ -19,14 +19,13 @@
 \definition termZero: \forall (f, g: Function) -> Homogeneous p f -> Homogeneous q g ->
   \forall (k: N.Nat^)(split: Split) -> Partitions.Length k split -> Logic.Not (k = Nat.add p q) -> term f g split = zero :=
   \fun (f, g: Function)(hf: Homogeneous p f)(hg: Homogeneous q g)(k: N.Nat^)(split: Split)(length: Partitions.Length k split)(wrong: Logic.Not (k = Nat.add p q)) =>
-    either!{{Lists.length I #left{split} = p} "or" {Logic.Not (Lists.length I #left{split} = p)} "either" {term f g split = zero}
-      "lt:" {\fun (left: Lists.length I #left{split} = p) => rightZero f g split (hg #right{split}
-        (\fun (right: Lists.length I #right{split} = q) => wrong (trans!{{N.Nat^}} k
-          (Nat.add (Lists.length I #left{split}) (Lists.length I #right{split})) (Nat.add p q)
+    either!{{(Classical.excludedMiddle (Lists.length I #left{split} = p))} {term f g split = zero}
+      {\fun (left: Lists.length I #left{split} = p) => rightZero f g split (hg #right{split}
+        (\fun (right: Lists.length I #right{split} = q) => wrong (trans!{{N.Nat^}} _ _ _
           (sym!{{N.Nat^}} _ _ length)
           (congr2!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.add (Lists.length I #left{split}) p (Lists.length I #right{split}) q left right))))}
-      "rt:" {\fun (left: Logic.Not (Lists.length I #left{split} = p)) => leftZero f g split (hf #left{split} left)}
-    } (Classical.excludedMiddle (Lists.length I #left{split} = p));
+      {\fun (left: Logic.Not (Lists.length I #left{split} = p)) => leftZero f g split (hf #left{split} left)}
+    };
 \definition homogeneous: \forall (f, g: Function) -> Homogeneous p f -> Homogeneous q g -> Homogeneous (Nat.add p q) (product f g) :=
   \fun (f, g: Function)(hf: Homogeneous p f)(hg: Homogeneous q g)(xs: Lists.List[I])(wrong: Logic.Not (Lists.length I xs = Nat.add p q)) =>
     trans!{K} (product f g xs) (Sums.sum (partitions xs) (\fun (split: Split) => zero)) zero
@@ -58,17 +57,17 @@
   \let a: K := Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split})) \then
   \let b: K := Sign.value (Nat.mul p q) \then
   \let t: K := term f g split \then
-  \return either!{{Lists.length I #left{split} = p} "or" {Logic.Not (Lists.length I #left{split} = p)} "either" {mul a t = mul b t}
-    "lt:" {\fun (left: Lists.length I #left{split} = p) =>
-      either!{{Lists.length I #right{split} = q} "or" {Logic.Not (Lists.length I #right{split} = q)} "either" {mul a t = mul b t}
-        "lt:" {\fun (right: Lists.length I #right{split} = q) =>
+  \return either!{{(Classical.excludedMiddle (Lists.length I #left{split} = p))} {mul a t = mul b t}
+    {\fun (left: Lists.length I #left{split} = p) =>
+      either!{{(Classical.excludedMiddle (Lists.length I #right{split} = q))} {mul a t = mul b t}
+        {\fun (right: Lists.length I #right{split} = q) =>
           congr!{K K} (\fun (s: K) => mul s t) a b
             (congr!{{N.Nat^} K} Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split})) (Nat.mul p q)
               (congr2!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.mul (Lists.length I #left{split}) p (Lists.length I #right{split}) q left right))}
-        "rt:" {\fun (right: Logic.Not (Lists.length I #right{split} = q)) => zeroCoefficient a b t (rightZero f g split (hg #right{split} right))}
-      } (Classical.excludedMiddle (Lists.length I #right{split} = q))}
-    "rt:" {\fun (left: Logic.Not (Lists.length I #left{split} = p)) => zeroCoefficient a b t (leftZero f g split (hf #left{split} left))}
-  } (Classical.excludedMiddle (Lists.length I #left{split} = p))
+        {\fun (right: Logic.Not (Lists.length I #right{split} = q)) => zeroCoefficient a b t (rightZero f g split (hg #right{split} right))}
+      }}
+    {\fun (left: Logic.Not (Lists.length I #left{split} = p)) => zeroCoefficient a b t (leftZero f g split (hf #left{split} left))}
+  }
 };
 \definition commutative: \forall (f, g: Function) -> Homogeneous p f -> Homogeneous q g ->
   \forall (xs: Lists.List[I]) -> product g f xs = mul (Sign.value (Nat.mul p q)) (product f g xs) := \block {
@@ -78,8 +77,7 @@
   \return trans!{K} (product g f xs) (Sums.sum (partitions xs) a) (mul (Sign.value (Nat.mul p q)) (product f g xs))
     (sym!{K} (Sums.sum (partitions xs) a) (product g f xs) (Partitions.swapping xs (term g f)))
     (trans!{K} (Sums.sum (partitions xs) a) (Sums.sum (partitions xs) b) (mul (Sign.value (Nat.mul p q)) (product f g xs))
-      (SumLaws.congruent (partitions xs) a b (\fun (split: Split) => trans!{K} (a split)
-        (mul (Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split}))) (term f g split)) (b split)
+      (SumLaws.congruent (partitions xs) a b (\fun (split: Split) => trans!{K} _ _ _
           (swappedTerm f g split) (termCoefficient f g hf hg split)))
       (SumLaws.multiplyLeft (partitions xs) (Sign.value (Nat.mul p q)) (term f g)))
 };

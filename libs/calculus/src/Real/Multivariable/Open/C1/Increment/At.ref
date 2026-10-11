@@ -100,14 +100,15 @@
   R.Le zero theta -> Analysis.HasPartialDerivative U f i g -> Bounded c theta -> R.Le (distance (Error c) zero) (mul theta radius) := \block {
   \fun (rho, c, theta: Real)(anchor: _)(ball: _)(near: _)(positive: _)(partials: _)(bounded: _) \then
   \let component: R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i))) :=
-    either!{{R.Lt (a i) (x i)} "or" {Logic.Or[a i = x i, R.Lt (x i) (a i)]} "either" {R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i)))}
-      "lt:" {forwardEstimate rho c theta anchor ball near partials bounded}
-      "rt:" {\fun (other: _) => either!{{a i = x i} "or" {R.Lt (x i) (a i)} "either" {R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i)))}
-        "lt:" {\fun (same: _) => R.leReplaceLeft zero (distance (Error c) zero) (mul theta (distance (x i) (a i)))
+    either!{{(Order.ltTrichotomy (a i) (x i))} {R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i)))}
+      {forwardEstimate rho c theta anchor ball near partials bounded}
+      {\fun (other: _) => either!{other {R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i)))}
+        {\fun (same: _) => R.leReplaceLeft zero (distance (Error c) zero) (mul theta (distance (x i) (a i)))
           (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (r: Real) => distance r zero) _ _ (zeroError rho c anchor ball near same)) (Metric.distanceSelf zero)))
           (Laws.fieldMulNonnegative theta (distance (x i) (a i)) positive (Metric.distanceNonnegative (x i) (a i)))}
-        "rt:" {backwardEstimate rho c theta anchor ball near partials bounded}} other}}
-      (Order.ltTrichotomy (a i) (x i)) \then
+        {backwardEstimate rho c theta anchor ball near partials bounded}
+      }}
+    } \then
   \return R.leTrans (distance (Error c) zero) (mul theta (distance (x i) (a i))) (mul theta radius) component
     (Bounds.mulMonotone theta (distance (x i) (a i)) radius positive (Norm.coordinateDistance x a i))
 };

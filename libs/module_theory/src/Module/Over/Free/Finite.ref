@@ -33,11 +33,10 @@
   Supported.Supports xs v -> \forall (s: Generators) -> Coefficients.coefficient (Coefficients.combination xs v) s = v s :=
   \fun (xs: Lists.List[Generators])(distinct: Sums.Distinct xs)(v: Coordinates.Vector)(support: Supported.Supports xs v)(s: Generators) =>
     trans!{R} _ _ _ (Normal.coefficientCombinationDelta xs v s)
-      (either!{{\In[Generators] (Sums.keys xs) s} "or" {Logic.Not (\In[Generators] (Sums.keys xs) s)}
-        "either" {Sums.sum xs (\fun (t: Generators) => #mul{ring} (Kronecker.delta s t) (v t)) = v s}
-        "lt:" {\fun (member: _) => Single.extract xs distinct s member v}
-        "rt:" {\fun (outside: _) => trans!{R} _ _ _ (Single.absent xs s outside v) (sym!{R} _ _ (support s outside))}}
-        (Classical.excludedMiddle (\In[Generators] (Sums.keys xs) s)));
+      (either!{{(Classical.excludedMiddle (\In[Generators] (Sums.keys xs) s))} {Sums.sum xs (\fun (t: Generators) => #mul{ring} (Kronecker.delta s t) (v t)) = v s}
+        {\fun (member: _) => Single.extract xs distinct s member v}
+        {\fun (outside: _) => trans!{R} _ _ _ (Single.absent xs s outside v) (sym!{R} _ _ (support s outside))}
+      });
 \definition onto: \forall (v: CoordinateCarrier) -> \exists { x: Carrier \where #apply{forward} x = v } := \block {
   \fun (v: CoordinateCarrier) \then
   \takefrom support: \Cast[Lists.List[Generators]] ({ xs: Lists.List[Generators] \where Supported.Supports xs v }) \by Supported.finite v \then
@@ -47,9 +46,8 @@
   \let chosenSupport: Supported.Supports xs v := \fun (s: Generators)(outside: Logic.Not (\In[Generators] (Sums.keys xs) s)) =>
     supportLaw s (\fun (member: _) => outside (#toSelected{cover} s member)) \then
   \let result: Carrier := Coefficients.combination xs v \then
-  \return \exact(\into[Carrier](result, { x: Carrier \where #apply{forward} x = v }) \by {
-    \axiom:funext(Coefficients.coefficient result, v, sameCoefficients xs (#distinct{cover}) v chosenSupport)
-  }, \Cast[Carrier] ({ x: Carrier \where #apply{forward} x = v }))
+  \return Logic.existsIntro[Carrier, { x: Carrier \where #apply{forward} x = v }] result
+    (\axiom:funext(Coefficients.coefficient result, v, sameCoefficients xs (#distinct{cover}) v chosenSupport))
 };
 \import \parent.\parent.Isomorphism[V := Carrier, W := CoordinateCarrier, source := space, target := coordinateSpace] \as Iso;
 \import Iso.OfBijective[f := forward] \as Inverse;

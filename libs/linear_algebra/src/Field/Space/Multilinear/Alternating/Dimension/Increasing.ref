@@ -18,17 +18,15 @@
   Permutations.Represents p word ->
   Coefficients.coefficients k f (\fun (i: Fin.Fin k) => indices (#forward{p} i)) = Signed.signed word (Coefficients.coefficients k f indices) :=
   \fun (p: Permutations.Permutation)(word: Permutations.Word)(f: Form k)(indices: Fin.Fin k -> Fin.Fin n)(represents: Permutations.Represents p word) =>
-    trans!{K} (Coefficients.coefficients k f (\fun (i: Fin.Fin k) => indices (#forward{p} i)))
-      (mul (Signed.sign word) (Coefficients.coefficients k f indices)) (Signed.signed word (Coefficients.coefficients k f indices))
+    trans!{K} _ _ _
       (Signed.transformation p word f (\fun (i: Fin.Fin k) => #vectors{b} (indices i)) represents)
       (sym!{K} (Signed.signed word (Coefficients.coefficients k f indices)) (mul (Signed.sign word) (Coefficients.coefficients k f indices))
         (Signed.signValue word (Coefficients.coefficients k f indices)));
 \definition coefficientExt: \forall (f, g: Form k) -> (\forall (indices: Index) -> coefficient f indices = coefficient g indices) ->
   \forall (indices: Fin.Fin k -> Fin.Fin n) -> Coefficients.coefficients k f indices = Coefficients.coefficients k g indices :=
   \fun (f, g: Form k)(same: \forall (indices: Index) -> coefficient f indices = coefficient g indices)(indices: Fin.Fin k -> Fin.Fin n) =>
-    either!{{Ordering.Injective k n indices} "or" {Logic.Not (Ordering.Injective k n indices)}
-      "either" {Coefficients.coefficients k f indices = Coefficients.coefficients k g indices}
-      "lt:" {\block {
+    either!{{(Classical.excludedMiddle (Ordering.Injective k n indices))} {Coefficients.coefficients k f indices = Coefficients.coefficients k g indices}
+      {\block {
         \fun (injection: Ordering.Injective k n indices) \then
         \takefrom p: Ordering.Ordered k n indices \by Ordering.ordering n k indices injection \then
         \takefrom word: \Cast[Permutations.Word] ({ word: Permutations.Word \where Permutations.Represents p word }) \by Signed.decomposition p \then
@@ -37,16 +35,15 @@
           \bysub(Ordering.PermutationType k, Ordering.Ordered k n indices, p)
         } \then
         \return Signed.signedInjective word (Coefficients.coefficients k f indices) (Coefficients.coefficients k g indices)
-          (trans!{K} (Signed.signed word (Coefficients.coefficients k f indices)) (coefficient f ordered)
-            (Signed.signed word (Coefficients.coefficients k g indices))
+          (trans!{K} _ _ _
             (sym!{K} (coefficient f ordered) (Signed.signed word (Coefficients.coefficients k f indices)) (onPermutation p word f indices represents))
             (trans!{K} (coefficient f ordered) (coefficient g ordered) (Signed.signed word (Coefficients.coefficients k g indices))
               (same ordered) (onPermutation p word g indices represents)))
       }}
-      "rt:" {\fun (notInjective: Logic.Not (Ordering.Injective k n indices)) => trans!{K}
+      {\fun (notInjective: Logic.Not (Ordering.Injective k n indices)) => trans!{K}
         (Coefficients.coefficients k f indices) zero (Coefficients.coefficients k g indices)
-        (collisionZero f indices notInjective) (sym!{K} (Coefficients.coefficients k g indices) zero (collisionZero g indices notInjective))}}
-      (Classical.excludedMiddle (Ordering.Injective k n indices));
+        (collisionZero f indices notInjective) (sym!{K} (Coefficients.coefficients k g indices) zero (collisionZero g indices notInjective))}
+    };
 \definition ext: \forall (f, g: Form k) -> (\forall (indices: Index) -> coefficient f indices = coefficient g indices) -> f = g :=
   \fun (f, g: Form k)(same: \forall (indices: Index) -> coefficient f indices = coefficient g indices) => Coefficients.basisExt k f g (coefficientExt f g same);
 \import Fin.Functions[n := n] \as Functions;

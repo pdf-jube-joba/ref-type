@@ -17,11 +17,9 @@
   \exists { k: N.Nat^ \where sequence scalar n k = f };
 \definition exhaustive: \forall (scalar: Enumerator)(n: N.Nat^)(f: Fin.Fin n -> A) -> Occurs scalar n f :=
   \fun (scalar: Enumerator) => \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> A) -> Occurs scalar n f \with {
-    | zero: \fun (f: _) => \exact(\into[N.Nat^](N.Nat^::zero,
-      { k: N.Nat^ \where sequence scalar N.Nat^::zero k = f }) \by {
-        \axiom:funext(sequence scalar N.Nat^::zero N.Nat^::zero, f, \fun (i: Fin.Fin N.Nat^::zero) =>
-          Logic.falseElim (#sequence{scalar} N.Nat^::zero = f i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
-      }, \Cast[N.Nat^] ({ k: N.Nat^ \where sequence scalar N.Nat^::zero k = f }))
+    | zero: \fun (f: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where sequence scalar N.Nat^::zero k = f }] (N.Nat^::zero)
+      (\axiom:funext(sequence scalar N.Nat^::zero N.Nat^::zero, f, \fun (i: Fin.Fin N.Nat^::zero) =>
+          Logic.falseElim (#sequence{scalar} N.Nat^::zero = f i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))))
     | succ: \block {
       \fun (n: N.Nat^)(previous: \forall (f: Fin.Fin n -> A) -> Occurs scalar n f)(f: Fin.Fin (N.Nat^::succ n) -> A) \then
       \takefrom head: \Cast[N.Nat^] ({ k: N.Nat^ \where #sequence{scalar} k = f (Fin.zero n) }) \by #exhaustive{scalar} (f (Fin.zero n)) \then
@@ -32,15 +30,14 @@
       \takefrom code: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair head rest }) \by Pairs.exhaustive head rest \then
       \let codeLaw: Pairs.enumerate code = Pair.natPair head rest := \bysub(N.Nat^,
         { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair head rest }, code) \then
-      \return \exact(\into[N.Nat^](code, { k: N.Nat^ \where sequence scalar (N.Nat^::succ n) k = f }) \by {
-        trans!{{Fin.Fin (N.Nat^::succ n) -> A}} _ _ _
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where sequence scalar (N.Nat^::succ n) k = f }] code
+        (trans!{{Fin.Fin (N.Nat^::succ n) -> A}} _ _ _
           (congr!{Pair.NatPair {Fin.Fin (N.Nat^::succ n) -> A}}
             (\fun (p: Pair.NatPair) => Tuples.extend n (#sequence{scalar} (Pair.natPairFirst p)) (sequence scalar n (Pair.natPairSecond p)))
             (Pairs.enumerate code) (Pair.natPair head rest) codeLaw)
           (trans!{{Fin.Fin (N.Nat^::succ n) -> A}} _ _ _
             (congr2!{A {Fin.Fin n -> A} {Fin.Fin (N.Nat^::succ n) -> A}} (Tuples.extend n)
               (#sequence{scalar} head) (f (Fin.zero n)) (sequence scalar n rest) tail headLaw tailLaw)
-            (Tuples.recover n f))
-      }, \Cast[N.Nat^] ({ k: N.Nat^ \where sequence scalar (N.Nat^::succ n) k = f }))
+            (Tuples.recover n f)))
     }
   };

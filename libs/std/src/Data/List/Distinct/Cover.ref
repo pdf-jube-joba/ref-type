@@ -24,9 +24,10 @@
       Laws[List[A]::cons head tail, selected] {
         distinct := #distinct{law},
         toSelected := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys tail) x]) =>
-          either!{{x = head} "or" {\In[A] (keys tail) x} "either" {\In[A] (keys selected) x}
-            "lt:" {\fun (same: x = head) => containsHead x same member}
-            "rt:" {\fun (inTail: \In[A] (keys tail) x) => #toSelected{law} x inTail}} old,
+          either!{old {\In[A] (keys selected) x}
+            {\fun (same: x = head) => containsHead x same member}
+            {\fun (inTail: \In[A] (keys tail) x) => #toSelected{law} x inTail}
+          },
         toOriginal := \fun (x: A)(old: \In[A] (keys selected) x) => Logic.Or[_, _]::right (#toOriginal{law} x old),
       }
     };
@@ -35,20 +36,22 @@
       Laws[List[A]::cons head tail, List[A]::cons head selected] {
         distinct := cons head selected outside (#distinct{law}),
         toSelected := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys tail) x]) =>
-          either!{{x = head} "or" {\In[A] (keys tail) x} "either" {Logic.Or[x = head, \In[A] (keys selected) x]}
-            "lt:" {\fun (same: x = head) => Logic.Or[_, _]::left same}
-            "rt:" {\fun (inTail: \In[A] (keys tail) x) => Logic.Or[_, _]::right (#toSelected{law} x inTail)}} old,
+          either!{old {Logic.Or[x = head, \In[A] (keys selected) x]}
+            {\fun (same: x = head) => Logic.Or[_, _]::left same}
+            {\fun (inTail: \In[A] (keys tail) x) => Logic.Or[_, _]::right (#toSelected{law} x inTail)}
+          },
         toOriginal := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys selected) x]) =>
-          either!{{x = head} "or" {\In[A] (keys selected) x} "either" {Logic.Or[x = head, \In[A] (keys tail) x]}
-            "lt:" {\fun (same: x = head) => Logic.Or[_, _]::left same}
-            "rt:" {\fun (inSelected: \In[A] (keys selected) x) => Logic.Or[_, _]::right (#toOriginal{law} x inSelected)}} old,
+          either!{old {Logic.Or[x = head, \In[A] (keys tail) x]}
+            {\fun (same: x = head) => Logic.Or[_, _]::left same}
+            {\fun (inSelected: \In[A] (keys selected) x) => Logic.Or[_, _]::right (#toOriginal{law} x inSelected)}
+          },
       }
     };
   \definition existence: \exists Choice (List[A]::cons head tail) :=
-    either!{{\In[A] (keys selected) head} "or" {Logic.Not (\In[A] (keys selected) head)} "either" {\exists Choice (List[A]::cons head tail)}
-      "lt:" {\fun (member: _) => \exact(present member, Choice (List[A]::cons head tail))}
-      "rt:" {\fun (outside: _) => \exact(absent outside, Choice (List[A]::cons head tail))}}
-      (Classical.excludedMiddle (\In[A] (keys selected) head));
+    either!{{(Classical.excludedMiddle (\In[A] (keys selected) head))} {\exists Choice (List[A]::cons head tail)}
+      {\fun (member: _) => \exact(present member, Choice (List[A]::cons head tail))}
+      {\fun (outside: _) => \exact(absent outside, Choice (List[A]::cons head tail))}
+    };
 }
 \definition existence: \forall (original: List[A]) -> \exists Choice original :=
   \induction (original: List[A]) \return \exists Choice original \with {
