@@ -1,16 +1,17 @@
 use crate::graph::ModuleGraph;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     time::Duration,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProgressAction {
     Check,
     Skip,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModuleProgress {
     pub path: Vec<String>,
     pub action: ProgressAction,
@@ -18,7 +19,7 @@ pub struct ModuleProgress {
     pub elapsed: Duration,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProgressPhase {
     Loading,
     Planning,
@@ -30,20 +31,20 @@ pub enum ProgressPhase {
 }
 
 /// Source modules in the selected dependency closure, before elaboration.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProgressModule {
     pub path: Vec<String>,
     pub dependencies: Vec<Vec<String>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProgressPlan {
     /// Empty for standalone files, which may contain several root modules.
     pub packages: Vec<String>,
     pub modules: Vec<ProgressModule>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ProgressEvent {
     Phase(ProgressPhase),
     Planned(ProgressPlan),

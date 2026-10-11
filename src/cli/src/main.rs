@@ -1,5 +1,7 @@
 mod progress;
 mod resources;
+#[cfg(target_os = "linux")]
+mod supervisor;
 
 use anyhow::Context;
 use clap::Parser;
@@ -9,7 +11,7 @@ thread_local! {
     static PROGRESS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[command(author, version, about)]
 struct Args {
     /// パッケージのディレクトリ、または .ref ファイル
@@ -17,6 +19,11 @@ struct Args {
     /// 検査プロセスの仮想メモリ上限 MiB（Linux の既定3072、0は既存の上限を維持）
     #[arg(long)]
     memory_mib: Option<u64>,
+    /// 大きな検査範囲を分割するまでの秒数（末端の検査には適用しない）
+    #[arg(long, default_value_t = 180, value_parser = clap::value_parser!(u64).range(1..))]
+    batch_seconds: u64,
+    #[arg(long, hide = true)]
+    worker: Option<PathBuf>,
     /// 指定した module・子 module と、その参照先だけを検証する（例: std.Data.Nat）
     #[arg(long, conflicts_with = "parse_only")]
     module: Option<String>,
@@ -67,7 +74,7 @@ struct Args {
     diagnostics: Option<DiagnosticMode>,
 }
 
-#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+#[derive(clap::ValueEnum, Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
 enum DiagnosticMode {
     Compact,
     Detailed,
@@ -76,6 +83,8 @@ enum DiagnosticMode {
 fn main() -> anyhow::Result<()> {
     let timing = sema::timing::Session::start(true);
     let args = Args::parse();
+    #[cfg(target_os = "linux")]
+    let args = supervisor::worker_arguments(args)?;
     resources::limit_memory(args.memory_mib)?;
     let timing = if args.no_progress || args.parse_only {
         drop(timing);
@@ -92,7 +101,7 @@ fn main() -> anyhow::Result<()> {
         && std::env::var_os("RUST_LOG").is_none()
         && !std::env::vars_os()
             .any(|(name, _)| name.to_string_lossy().starts_with("REF_TYPE_PROFILE_"));
-    let live = args.progress_tty || automatic_progress;
+    let live = args.worker.is_none() && (args.progress_tty || automatic_progress);
     let progress_output: Box<dyn std::io::Write + Send> = if args.progress_tty {
         Box::new(
             std::fs::OpenOptions::new()
@@ -104,6 +113,18 @@ fn main() -> anyhow::Result<()> {
         Box::new(std::io::stderr())
     };
     let mut display = progress::Display::new(live, progress_output);
+    #[cfg(target_os = "linux")]
+    let supervised = args.worker.is_none()
+        && !args.parse_only
+        && !args.list_modules
+        && !args.path.extension().is_some_and(|ext| ext == "ref");
+    #[cfg(target_os = "linux")]
+    let result = if supervised {
+        supervisor::run(&args, &mut display)
+    } else {
+        run_path(&args, &mut display)
+    };
+    #[cfg(not(target_os = "linux"))]
     let result = run_path(&args, &mut display);
     display.finish(
         result
@@ -124,6 +145,14 @@ fn main() -> anyhow::Result<()> {
                     sema::ProgressAction::Check => "check",
                     sema::ProgressAction::Skip => "skip",
                 };
+                #[cfg(target_os = "linux")]
+                if args.worker.is_some() {
+                    supervisor::send_timing(sema::ModuleProgress {
+                        elapsed,
+                        ..progress
+                    });
+                    continue;
+                }
                 if !live || args.progress_tty {
                     eprintln!(
                         "{action} {} ({:.9}s)",
@@ -134,13 +163,19 @@ fn main() -> anyhow::Result<()> {
             }
         });
         let measurements = timing.finish().expect("CLI owns the timing session");
-        eprintln!(
-            "shared ({:.9}s)",
-            (measurements.total - modules).as_secs_f64()
-        );
-        eprintln!("total ({:.9}s)", measurements.total.as_secs_f64());
+        if args.worker.is_none() {
+            eprintln!(
+                "shared ({:.9}s)",
+                measurements.total.saturating_sub(modules).as_secs_f64()
+            );
+            eprintln!("total ({:.9}s)", measurements.total.as_secs_f64());
+        }
     }
     drop(cost_session);
+    #[cfg(target_os = "linux")]
+    if supervised && supervisor::interrupted() {
+        std::process::exit(130);
+    }
     let status = result?;
     if status != std::process::ExitCode::SUCCESS {
         std::process::exit(1);
@@ -185,7 +220,18 @@ fn run_path(
     } else {
         sema::Database::with_cache(cache_directory)
     };
-    let snapshot = match database.read_snapshot(&args.path, args.full_check_local) {
+    #[cfg(target_os = "linux")]
+    let snapshot = if let Some(directory) = &args.worker {
+        Some(supervisor::read_snapshot(directory)?)
+    } else {
+        None
+    };
+    #[cfg(not(target_os = "linux"))]
+    let snapshot = None;
+    let snapshot = match snapshot
+        .map(Ok)
+        .unwrap_or_else(|| database.read_snapshot(&args.path, args.full_check_local))
+    {
         Ok(snapshot) => snapshot,
         Err(error) => {
             display.finish(false);
@@ -234,6 +280,15 @@ fn run_path(
             },
             ..sema::CheckOptions::default()
         };
+        #[cfg(target_os = "linux")]
+        let options = if args.worker.is_some() {
+            sema::CheckOptions {
+                progress_events: Some(supervisor::send_event),
+                ..options
+            }
+        } else {
+            options
+        };
         let result = match &args.module {
             Some(name) => {
                 let path = name.split('.').map(str::to_owned).collect::<Vec<_>>();
@@ -250,6 +305,11 @@ fn run_path(
         };
         display.finish(result.is_success());
         for output in result.outputs() {
+            #[cfg(target_os = "linux")]
+            if args.worker.is_some() {
+                supervisor::send_output(output.clone());
+                continue;
+            }
             println!("{}", output.text);
         }
         for statistic in database.verification_statistics() {

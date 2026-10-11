@@ -214,26 +214,6 @@ fn ng_ref_files_fail() {
     run_cases("tests/ng", false);
 }
 
-// Large projects use the same bounded, complete coverage path as library upkeep.
-#[cfg(target_os = "linux")]
-fn check_library_project(project: &str) {
-    let _check = library_check();
-    let workspace = workspace_root();
-    let fixture = FixtureDirectory::new();
-    let output = Command::new("python3")
-        .arg(workspace.join("benchmarks/check_libraries.py"))
-        .arg(workspace.join("tests/projects").join(project))
-        .arg("--binary")
-        .arg(env!("CARGO_BIN_EXE_cli"))
-        .arg("--output")
-        .arg(fixture.0.join("check.json"))
-        .current_dir(&workspace)
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "{}", output_details(&output));
-}
-
-#[cfg(not(target_os = "linux"))]
 fn check_library_project(project: &str) {
     let _check = library_check();
     let workspace = workspace_root();
@@ -1510,4 +1490,181 @@ fn module_batches_cover_parent_declarations_and_keep_dependency_errors() {
         run_ref_file_with_args(&fixture.0, &root, &["--module", "M.Child", "--module-only"])
             .unwrap();
     assert!(!dependency.status.success());
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn native_batches_recheck_with_a_fresh_cache_and_preserve_parent_errors() {
+    use sha2::{Digest, Sha256};
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = \"batch\"\n");
+    let source = "\\module Root { \\definition root: \\Prop := \\forall (P: \\Prop) -> P -> P;\n\\module A { \\definition a: \\Prop := \\forall (P: \\Prop) -> P -> P; }\n\\module B { \\definition b: \\Prop := \\forall (P: \\Prop) -> P -> P; } }\n";
+    let root = fixture.write("src/root.ref", source);
+    let cache = fixture.0.join("refcache");
+    fs::create_dir_all(&cache).unwrap();
+    let key: String = Sha256::digest(
+        fixture
+            .0
+            .canonicalize()
+            .unwrap()
+            .as_os_str()
+            .as_encoded_bytes(),
+    )
+    .iter()
+    .map(|byte| format!("{byte:02x}"))
+    .collect();
+    fs::write(
+        cache.join(format!("{key}.batches.json")),
+        r#"{"memory_mib":3072,"batch_seconds":180,"splits":["","batch","batch.Root"]}"#,
+    )
+    .unwrap();
+    for (args, action) in [
+        (vec![], "check"),
+        (vec![], "skip"),
+        (vec!["--full-check"], "check"),
+    ] {
+        let output = run_ref_file_with_args(&fixture.0, &fixture.0, &args).unwrap();
+        assert!(output.status.success(), "{}", output_details(&output));
+        let lines = progress_lines(&output);
+        for module in ["batch.Root.A", "batch.Root.B"] {
+            assert!(
+                lines
+                    .iter()
+                    .any(|line| line.starts_with(&format!("{action} {module} ("))),
+                "{lines:?}"
+            );
+        }
+        assert!(fs::read_dir(&cache).unwrap().all(|entry| {
+            !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".check-")
+        }));
+    }
+    let retuned =
+        run_ref_file_with_args(&fixture.0, &fixture.0, &["--batch-seconds", "1"]).unwrap();
+    assert!(retuned.status.success(), "{}", output_details(&retuned));
+    assert!(String::from_utf8_lossy(&retuned.stderr).contains("checking project\n"));
+    fs::write(
+        root,
+        source.replace(
+            "root: \\Prop := \\forall (P: \\Prop) -> P -> P",
+            "root: \\Prop := \\Set",
+        ),
+    )
+    .unwrap();
+    let output = run_ref_file(&fixture.0, &fixture.0).unwrap();
+    assert!(!output.status.success(), "{}", output_details(&output));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("root.ref:1:"),
+        "{}",
+        output_details(&output)
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn native_check_detects_source_changes_after_starting_its_snapshot() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = \"editing\"\n");
+    let declarations: String = (0..2000)
+        .map(|n| format!("\\definition value{n}: \\Prop := \\forall (P: \\Prop) -> P -> P;\n"))
+        .collect();
+    let root = fixture.write(
+        "src/root.ref",
+        &format!("\\module Work {{\n{declarations}}}\n"),
+    );
+    let mut parent = Command::new(env!("CARGO_BIN_EXE_cli"))
+        .arg(&fixture.0)
+        .args(["--full-check", "--no-progress"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let children = format!("/proc/{0}/task/{0}/children", parent.id());
+    let started = Instant::now();
+    loop {
+        if fs::read_to_string(&children).is_ok_and(|text| !text.trim().is_empty()) {
+            break;
+        }
+        if started.elapsed() > Duration::from_secs(10) || parent.try_wait().unwrap().is_some() {
+            let _ = parent.kill();
+            let _ = parent.wait();
+            panic!("native checker did not capture the snapshot");
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    fs::write(root, "\\module Changed {}\n").unwrap();
+    let output = parent.wait_with_output().unwrap();
+    assert!(!output.status.success(), "{}", output_details(&output));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("検査中にソースが変更されました"),
+        "{}",
+        output_details(&output)
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn cancelling_native_check_reaps_the_worker_and_removes_its_workspace() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = \"cancel\"\n");
+    let declarations: String = (0..20_000)
+        .map(|n| format!("\\definition value{n}: \\Prop := \\forall (P: \\Prop) -> P -> P;\n"))
+        .collect();
+    fixture.write(
+        "src/root.ref",
+        &format!("\\module Slow {{\n{declarations}}}\n"),
+    );
+    let mut parent = Command::new(env!("CARGO_BIN_EXE_cli"))
+        .arg(&fixture.0)
+        .args(["--full-check", "--no-progress"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let started = Instant::now();
+    let children = format!("/proc/{0}/task/{0}/children", parent.id());
+    let worker = loop {
+        if let Ok(text) = fs::read_to_string(&children)
+            && let Some(pid) = text.split_whitespace().next()
+        {
+            break pid.to_owned();
+        }
+        if started.elapsed() > Duration::from_secs(10) || parent.try_wait().unwrap().is_some() {
+            let _ = parent.kill();
+            let _ = parent.wait();
+            panic!("native check did not start its worker");
+        }
+        thread::sleep(Duration::from_millis(5));
+    };
+    // SAFETY: send SIGINT to the subprocess owned by this test.
+    assert_eq!(unsafe { libc::kill(parent.id() as i32, libc::SIGINT) }, 0);
+    let interrupted = Instant::now();
+    loop {
+        if let Some(status) = parent.try_wait().unwrap() {
+            assert_eq!(status.code(), Some(130));
+            break;
+        }
+        if interrupted.elapsed() > Duration::from_secs(2) {
+            let _ = parent.kill();
+            let _ = parent.wait();
+            panic!("Ctrl+C did not stop the checker within two seconds");
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert!(
+        !Path::new(&format!("/proc/{worker}")).exists(),
+        "worker was not reaped"
+    );
+    assert!(
+        fs::read_dir(fixture.0.join("refcache"))
+            .unwrap()
+            .all(|entry| !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".check-"))
+    );
 }

@@ -47,7 +47,10 @@ impl State {
             ProgressEvent::Planned(plan) => self.plan = Some(plan.clone()),
             ProgressEvent::ModuleStarted(path) => self.current = Some(path.clone()),
             ProgressEvent::ModuleFinished { path, action } => {
-                self.completed.insert(path.clone(), *action);
+                let previous = self.completed.entry(path.clone()).or_insert(*action);
+                if *action == ProgressAction::Check {
+                    *previous = *action;
+                }
             }
             ProgressEvent::Finished { success } => self.success = Some(*success),
             ProgressEvent::CheckpointSaved { .. } => {}
@@ -102,7 +105,7 @@ impl State {
         truncate(&format!("{prefix} {target}"), width)
     }
 
-    fn profile(&self, event: &ProgressEvent) -> String {
+    fn profile(&self, event: &ProgressEvent, elapsed: Duration) -> String {
         let package = match event {
             ProgressEvent::ModuleStarted(path) | ProgressEvent::ModuleFinished { path, .. } => self
                 .plan
@@ -131,7 +134,7 @@ impl State {
             ProgressEvent::ModuleFinished { path, action } => format!(
                 "event=complete action={action:?} module={} module_seconds={:.6}",
                 path.join("."),
-                sema::timing::elapsed(path).as_secs_f64(),
+                elapsed.as_secs_f64(),
             ),
             ProgressEvent::Finished { success } => format!("event=finished success={success}"),
             ProgressEvent::CheckpointSaved { steps } => {
@@ -159,12 +162,20 @@ fn truncate(line: &str, width: usize) -> String {
 }
 
 pub fn receive(event: &ProgressEvent) {
+    let elapsed = match event {
+        ProgressEvent::ModuleFinished { path, .. } => sema::timing::elapsed(path),
+        _ => Duration::ZERO,
+    };
+    receive_timed(event, elapsed);
+}
+
+pub fn receive_timed(event: &ProgressEvent, elapsed: Duration) {
     ACTIVE.with_borrow(|active| {
         if let Some(active) = active {
             let mut state = active.state.lock().unwrap();
             state.update(event);
             if active.profile {
-                eprintln!("{}", state.profile(event));
+                eprintln!("{}", state.profile(event, elapsed));
             }
         }
     });
@@ -181,6 +192,16 @@ pub struct Display {
 }
 
 impl Display {
+    #[cfg(target_os = "linux")]
+    pub fn message(&self, message: &str) {
+        let mut writer = self.output.lock().unwrap();
+        if self.enabled {
+            let _ = write!(writer, "\r\x1b[2K");
+        }
+        let _ = writeln!(writer, "{message}");
+        let _ = writer.flush();
+    }
+
     pub fn new(enabled: bool, output: Box<dyn Write + Send>) -> Self {
         let state = Arc::new(Mutex::new(State::new()));
         let output = Arc::new(Mutex::new(output));

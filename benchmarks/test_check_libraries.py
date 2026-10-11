@@ -1,4 +1,4 @@
-"""Exercise coverage and resource-failure recovery without a large library."""
+"""Exercise native checker reporting without a large library."""
 import contextlib
 import io
 import json
@@ -12,7 +12,7 @@ import check_libraries
 
 
 class BoundedCheckingTests(unittest.TestCase):
-    def test_split_checks_parent_and_children_and_reuses_only_the_layout(self):
+    def test_reports_native_completion_failures_and_distinct_package_logs(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             project = root / 'libs/example'
@@ -20,16 +20,13 @@ class BoundedCheckingTests(unittest.TestCase):
             (project / 'ref.toml').write_text('[package]\nname = "example"\n')
             binary = root / 'checker'
             binary.write_text('''#!/usr/bin/env python3
-import os, signal, sys
+import sys
 from pathlib import Path
 args = sys.argv[1:]
 if '--list-modules' in args:
     print('example\\nexample.A\\nexample.B')
     raise SystemExit(0)
-module = args[args.index('--module') + 1]
-if module == 'example' and '--module-only' not in args:
-    os.kill(os.getpid(), signal.SIGXCPU)
-if module == 'example' and (Path(args[0]) / 'fail-parent').exists():
+if (Path(args[0]) / 'fail-parent').exists():
     print('parent declaration is ill typed')
     raise SystemExit(1)
 ''')
@@ -44,18 +41,15 @@ if module == 'example' and (Path(args[0]) / 'fail-parent').exists():
                 package = report['packages'][0]
                 self.assertTrue(report['complete'])
                 self.assertEqual(package['verified'], ['example', 'example.A', 'example.B'])
-                self.assertEqual(package['splits'], ['example'])
-                self.assertTrue(package['batches'][0]['resource_limit'])
-                # A new report still reuses the plan stored beside checker results.
+                self.assertEqual(len(package['batches']), 1)
                 report_path.unlink()
                 (project / 'fail-parent').touch()
                 self.assertEqual(check_libraries.main(), 1)
                 report = json.loads(report_path.read_text())
                 package = report['packages'][0]
                 self.assertFalse(report['complete'])
-                self.assertEqual(package['verified'], ['example.A', 'example.B'])
+                self.assertEqual(package['verified'], [])
                 self.assertEqual(package['failed'][0]['module'], 'example')
-                self.assertTrue(package['failed'][0]['exact'])
                 self.assertFalse(any(b['resource_limit'] for b in package['batches']))
                 # Different test projects may deliberately use the same package name.
                 variant = root / 'libs/variant'

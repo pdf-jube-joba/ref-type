@@ -28,23 +28,25 @@
 リポジトリのルートで実行する。
 
 ```sh
-cargo build -p cli --locked
-python3 benchmarks/check_libraries.py
+cargo run -p cli -- --full-check libs
 ```
 
-全ライブラリを依存順に検査し、続いてライブラリを利用するテスト project を検査する。
-一つの検査プロセスの仮想メモリを3072 MiB、実行時間を180秒に制限する。
-上限に達した範囲は、親 module 自身の宣言と各子 module に分割し、それぞれの参照先を含めて別プロセスで検査する。
+`libs/ref.toml` は全ライブラリを依存先に持つ検査用パッケージである。
+Linux の CLI は、一つの検査プロセスの仮想メモリを3072 MiBに制限する。
+メモリ上限に達した範囲や180秒を超えた大きな範囲は、親 module 自身の宣言と各子 module に分割し、それぞれの参照先を含めて別プロセスで検査する。
+これ以上分割できない範囲は時間で打ち切らず、メモリ上限内で検査を続ける。
 同時に動かす検査プロセスは一つで、プロセス終了時に環境全体のメモリを解放する。
+進捗表示と中断は親プロセスが管理し、Ctrl+Cで実行中の子プロセスも停止する。
 
-成功した検査は `refcache/library-check/` に保存し、再実行ではソースと処理系が一致する結果を再利用する。
+通常の実行では入力先の `refcache/` にある検査結果を再利用する。
+`--full-check` は実行ごとに空の検査キャッシュから始め、同じ実行中に確認できた結果を共有し、完了後に通常のキャッシュへ保存する。
 前回分割した範囲もキャッシュに記録するため、再実行すると分割した検査から始める。
-`benchmarks/library-check.json` の `complete` が `true` なら、列挙された全パッケージの全ソース module が検証済みである。
-型エラーと資源上限による未完了は `failed` に記録し、診断ファイルの場所を表示する。
+型エラー、分割できない範囲での資源不足、検査中のソース変更がある場合は失敗終了する。
 
 ```sh
-python3 benchmarks/check_libraries.py libs/homological_algebra \
-  --memory-mib 2048 --seconds 300 --output benchmarks/homological-check.json
+cargo run -p cli -- --full-check libs/homological_algebra
+cargo run -p cli -- libs
+cargo run -p cli -- tests/projects/manifolds-de-rham
 ```
 
 [library project](../tests/projects/library/src/root.ref) は分野間の接続と具体例、[category project](../tests/projects/category/src/root.ref) は圏論の利用例を検査する。

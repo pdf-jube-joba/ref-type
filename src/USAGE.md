@@ -31,6 +31,7 @@ std = { path = "../std" }
 | `--module-only` | `--module` で指定した module 自身と参照先を検証 |
 | `--list-modules` | ソース module の検査用パスを一行ずつ表示 |
 | `--memory-mib N` | Linux で仮想メモリを制限。既定3072 MiB、0は起動時の上限を維持 |
+| `--batch-seconds N` | Linux のパッケージ検査で大きな範囲を分割するまでの秒数。既定180、末端の検査には適用しない |
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
 | `--no-cache` | 選択した範囲を永続キャッシュの読み書きなしで検証 |
 | `--full-check` | 選択した範囲を再検証し、検証済みの結果でキャッシュを更新 |
@@ -55,9 +56,14 @@ cargo run -p cli -- libs/std --module std.Data.Nat --diagnostics compact
 cargo run -p cli -- libs/differential_forms --module differential_forms --full-check-local --diagnostics compact
 ```
 
-全ライブラリの検査には、資源上限に応じて検査範囲を分割する [check_libraries.py](../benchmarks/check_libraries.py) を使える。
-実行手順と検査結果の読み方は [ライブラリの型検査](../libs/README.md#型検査) を参照。
-通常の CLI も Linux では既定で仮想メモリを3072 MiBに制限し、起動元にさらに小さい制限がある場合はそちらを維持する。
+Linux では CLI 本体がパッケージの検査範囲を自動分割し、進捗表示を担当する親プロセスから検査プロセスを一つずつ起動する。
+検査プロセスの仮想メモリは既定3072 MiBで、起動元にさらに小さい制限がある場合はそちらを維持する。
+大きな範囲がメモリや時間の制限に達すると、親自身の宣言と子 module に分けて検査を続ける。
+分割できない末端では時間制限を適用せず、Ctrl+Cによる中断とメモリ制限を維持する。
+`--full-check` は実行前の検査結果を使わず、同じ実行中に検査済みとなった結果を共有する。
+各プロセスは共通のソーススナップショットを検査し、終了時にソースの変更が見つかった場合は再実行を求める。
+全ライブラリを検査する入口は `cargo run -p cli -- --full-check libs` である。
+実行手順は [ライブラリの型検査](../libs/README.md#型検査) を参照。
 `--module-only` は、親の宣言を検査してから子の各範囲を独立に検査する場合に使う。
 名前が繰り返される module は、`--list-modules` が返す `Name#2` などのパスで指定できる。
 

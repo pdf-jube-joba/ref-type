@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check every library in bounded processes, splitting oversized module trees.
+"""Measure the native CLI across libraries and example projects.
 
 The JSON report records complete coverage, errors and resource failures separately.
 Successful checker results are reused through the ordinary source-keyed disk cache.
@@ -98,7 +98,7 @@ def main():
     parser.add_argument('paths', nargs='*', type=Path)
     parser.add_argument('--binary', type=Path, default=ROOT / 'target/debug/cli')
     parser.add_argument('--memory-mib', type=int, default=3072)
-    parser.add_argument('--seconds', type=int, default=180)
+    parser.add_argument('--seconds', type=int, default=3600)
     parser.add_argument('--cache-dir', type=Path, default=ROOT / 'refcache/library-check')
     parser.add_argument('--output', type=Path, default=ROOT / 'benchmarks/library-check.json')
     args = parser.parse_args()
@@ -109,8 +109,6 @@ def main():
     logs = args.output.with_suffix('')
     logs.mkdir(exist_ok=True)
     binary = args.binary.resolve()
-    previous = json.loads(args.output.read_text()) if args.output.exists() else {}
-    old_packages = {p['path']: p for p in previous.get('packages', [])}
     binary_stat = binary.stat()
     report = dict(binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
                   sources_sha256=inputs_digest(), memory_mib=args.memory_mib,
@@ -127,32 +125,10 @@ def main():
         name = tomllib.loads((path / 'ref.toml').read_text())['package']['name']
         package = dict(path=str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path),
                        name=name, batches=[], verified=[], failed=[], complete=False)
-        old = old_packages.get(package['path'], {})
-        splits = set(old.get('splits', [])) | {b['module'] for b in old.get('batches', [])
-                    if b['resource_limit'] and not b['exact']}
-        layout_key = hashlib.sha256(str(path).encode()).hexdigest()
-        layout_path = args.cache_dir.resolve() / (layout_key + '.batches.json')
+        log_key = hashlib.sha256(str(path).encode()).hexdigest()
         package_logs = logs / (path.relative_to(ROOT) if path.is_relative_to(ROOT)
-                               else f'{name}-{layout_key[:12]}')
+                               else f'{name}-{log_key[:12]}')
         package_logs.mkdir(parents=True, exist_ok=True)
-        try:
-            cached_layout = json.loads(layout_path.read_text())
-            if isinstance(cached_layout, list) and all(isinstance(p, str) for p in cached_layout):
-                splits.update(cached_layout)
-        except (OSError, ValueError):
-            pass
-
-        def save_layout():
-            package['splits'] = sorted(splits)
-            try:
-                layout_path.parent.mkdir(parents=True, exist_ok=True)
-                temporary = layout_path.with_suffix(f'.{os.getpid()}.tmp')
-                temporary.write_text(json.dumps(package['splits']) + '\n')
-                temporary.replace(layout_path)
-            except OSError:
-                pass  # The report still retains the layout; checking is unaffected.
-
-        save_layout()
         report['packages'].append(package)
         command = [str(binary), str(path), '--diagnostics', 'compact',
                    '--cache-dir', str(args.cache_dir.resolve()), '--no-progress',
@@ -168,47 +144,21 @@ def main():
         if name not in paths:
             raise RuntimeError(f'checker did not list the root module {name}')
         package['source_modules'] = len(paths)
-        pending = [(name, False)]
-        while pending:
-            module, exact = pending.pop()
-            if binary.stat().st_mtime_ns != binary_stat.st_mtime_ns:
-                report['interrupted'] = 'checker binary changed during the run'
-                save()
-                return 1
-            children = [p for p in paths if p.rpartition('.')[0] == module]
-            if module in splits and not exact and children:
-                pending.extend((child, False) for child in reversed(children))
-                pending.append((module, True))
-                continue
-            label = module + ('-only' if exact else '')
-            log = package_logs / f'{label}.log'
-            print(f'check {label}', flush=True)
-            result = run(command + ['--module', module] + (['--module-only'] if exact else []),
-                         log, args.memory_mib, args.seconds)
-            package['batches'].append(dict(module=module, exact=exact, **result))
-            covered = [module] if exact else [p for p in paths if p == module or p.startswith(module + '.')]
-            if result['exit'] == 0:
-                package['verified'].extend(covered)
-                print(f'  ok {result["seconds"]}s, {result["peak_rss_kib"] / 1024:.0f} MiB', flush=True)
-            elif result['resource_limit'] and not exact and len(covered) > 1:
-                splits.add(module)
-                # Unary wrappers preserve almost the entire failed workload.
-                nested = children
-                while len(nested) == 1:
-                    child = nested[0]
-                    nested = [p for p in paths if p.rpartition('.')[0] == child]
-                    if nested:
-                        splits.add(child)
-                save_layout()
-                pending.extend((child, False) for child in reversed(children))
-                pending.append((module, True))
-                print(f'  split into {len(children)} children and parent declarations', flush=True)
-            else:
-                package['failed'].append(dict(module=module, exact=exact, **result))
-                print(f'  FAILED: {result["log"]}', flush=True)
+        if binary.stat().st_mtime_ns != binary_stat.st_mtime_ns:
+            report['interrupted'] = 'checker binary changed during the run'
             save()
-        package['verified'] = sorted(set(package['verified']))
-        package['complete'] = not package['failed'] and set(package['verified']) == set(paths)
+            return 1
+        print(f'check {name}', flush=True)
+        result = run(command, package_logs / 'check.log', args.memory_mib, args.seconds)
+        batch = dict(module=name, exact=False, **result)
+        package['batches'].append(batch)
+        if result['exit'] == 0:
+            package['verified'] = sorted(set(paths))
+            package['complete'] = True
+            print(f'  ok {result["seconds"]}s, {result["peak_rss_kib"] / 1024:.0f} MiB', flush=True)
+        else:
+            package['failed'].append(batch)
+            print(f'  FAILED: {result["log"]}', flush=True)
         save()
     report['binary_unchanged'] = hashlib.sha256(binary.read_bytes()).hexdigest() == report['binary_sha256']
     report['sources_unchanged'] = inputs_digest() == report['sources_sha256']
