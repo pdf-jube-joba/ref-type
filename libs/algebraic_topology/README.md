@@ -1,7 +1,7 @@
 # 代数的位相の空間構成
 
 実数の閉区間、積・部分空間・商位相を使い、ホモトピー、基点付き空間、セル付着、有限 CW 対のデータを構成する。
-直接依存は `std`、`real`、`topology`、`topological_algebra` である。
+直接依存は [ref.toml](ref.toml) にある。
 公開 module は [root.ref](src/root.ref) にある。
 
 | module | 構成と証明 |

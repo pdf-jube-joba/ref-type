@@ -1,11 +1,10 @@
-# 実数
+# 実解析の基礎
 
-`std` に依存し、Dedekind 切断と有理数 Cauchy 列の商による二つの実数構成を提供する。
+構成済みの実数の演算、距離評価、数列、平方根、有限和を扱う。
+公開 module は [root.ref](src/root.ref)、直接依存は [ref.toml](ref.toml) にある。
 
 | module | 内容 |
 | --- | --- |
-| [DedekindReal](src/DedekindReal.ref) | 切断、算術、順序、完備性、体の構造 |
-| [CauchyReal](src/CauchyReal.ref) | 有理数列、商、算術・逆数、順序、完備性 |
 | [Analysis](src/Analysis.ref) | 構成済みの Dedekind 実数の型と演算 |
 | `Analysis.Algebra` | 算術の恒等式、平方の非負性、`Field` 構造 |
 | `Analysis.Distance` | 有理数の埋め込み、最大・最小、距離の法則 |
@@ -14,7 +13,7 @@
 | `Analysis.SquareRoot` | 上限からの平方根の構成、非負性・平方・一意性、平方根の距離評価 |
 | `Analysis.Estimates.Product` / `Analysis.Inverse` | 積と逆数の距離評価、正負の領域での逆数の制御 |
 
-`topology.RealMetric` が距離空間、`linear_algebra.Real` がベクトル空間への接続を提供する。
+`metric_spaces.RealMetric` が距離空間、`linear_algebra.Real` がベクトル空間への接続を提供する。
 
 ```text
 \import real.Analysis[] \as R;
@@ -24,4 +23,4 @@
 ```
 
 [利用例](../../tests/projects/library/src/AnalysisExamples.ref) は定数列の極限と他分野との演算の共有を検査する。
-検査方法は [ライブラリ一覧](../README.md#型検査) を参照。
+検査方法と関連パッケージは [ライブラリ一覧](../README.md) を参照。

@@ -1,7 +1,7 @@
 # 位相と代数の接続
 
 スカラー・座標空間・行列空間に位相を与え、連続性を成分ごとの条件に帰着する。
-直接依存は `std`、`real`、`complex`、`algebra`、`linear_algebra`、`topology` である。
+直接依存は [ref.toml](ref.toml) にある。
 公開 module は [root.ref](src/root.ref) にある。
 
 | module | 構成と証明 |

@@ -12,7 +12,7 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE = "homological_algebra.NonnegativeChain.Over.ShortExact.Morphism.Straighten.With"
+MODULE = "resolutions.NonnegativeChain.Over.ShortExact.Morphism.Straighten.With"
 
 
 def limits():

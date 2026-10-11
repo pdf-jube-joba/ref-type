@@ -1,7 +1,7 @@
 # 複素数
 
 Dedekind 実数の対として \(\mathbb{C}=\mathbb{R}\times\mathbb{R}\) を構成する。
-実数の乗法と逆数には `real.DedekindReal.Arithmetic.Prop` の符号付き演算を使う。
+実数の乗法と逆数には `dedekind_reals.DedekindReal.Arithmetic.Prop` の符号付き演算を使う。
 
 | モジュール | 内容 |
 | --- | --- |

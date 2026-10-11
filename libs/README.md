@@ -1,23 +1,42 @@
 # ライブラリ
 
-各パッケージの [ref.toml](std/ref.toml) が依存先、`src/root.ref` が公開 module を定める。
+各パッケージの `ref.toml` が依存先、`src/root.ref` が公開 module を定める。
+`std` 以外は約5,000行を目安に、共有する基礎から応用へ依存する単位に分ける。
+行数は `src/**/*.ref` の合計である。
 
-| パッケージ | 内容 | 直接依存 |
-| --- | --- | --- |
-| [std](std/README.md) | 論理、データ、整数・有理数、商、代数構造 | なし |
-| [algebra](algebra/README.md) | 準同型、商、自由加群、直和・積、テンソル積、射影性、完全性 | std |
-| [real](real/README.md) | 実数の構成・完備性、演算・距離・数列 | std |
-| [complex](complex/README.md) | 実数対による複素数と体の構造 | std, real |
-| [linear_algebra](linear_algebra/README.md) | 体上の線形代数、実数・複素数への具体化 | std, real, complex, algebra |
-| [topology](topology/README.md) | 位相空間、コンパクト性、商・貼り合わせ、有限従属分割、距離化 | std, real |
-| [topological_algebra](topological_algebra/README.md) | 位相的代数、座標空間・行列位相、成分による連続性判定 | std, real, complex, algebra, linear_algebra, topology |
-| [algebraic_topology](algebraic_topology/README.md) | ホモトピー、基点付き商構成、mapping cone、ホモトピー拡張性、有限 CW 対 | std, real, topology, topological_algebra |
-| [calculus](calculus/README.md) | 極限、平均値定理、開集合上の微分、滑らかな写像とヤコビアン | std, real, linear_algebra, topology, topological_algebra |
-| [homological_algebra](homological_algebra/README.md) | 加群の鎖・余鎖複体、ホモロジー、ホモトピー、シフトと cone | std, algebra, category |
-| [manifolds](manifolds/README.md) | 有限次元多様体、アトラス、滑らかな写像、接空間と微分 | std, real, linear_algebra, topology, topological_algebra, calculus |
-| [differential_forms](differential_forms/README.md) | 局所・大域微分形式、外微分、引き戻し、De Rham コホモロジー | std, algebra, real, topology, linear_algebra, calculus, homological_algebra, manifolds |
-| [integration](integration/README.md) | リーマン積分、\(L^1\) 完備化によるルベーグ積分 | std, real |
-| [category](category/README.md) | 圏、関手、自然変換、普遍性、随伴、加法圏・アーベル圏 | std |
+| パッケージ | 内容 | 行数 | 直接依存 |
+| --- | --- | ---: | --- |
+| [std](std/README.md) | 論理、データ、整数・有理数、商、代数構造 | 18,832 | なし |
+| [algebra](algebra/README.md) | 準同型、群完成、商、多項式環 | 1,546 | std |
+| [module_theory](module_theory/README.md) | 環上の加群、自由加群、直和、テンソル積、完全列 | 5,400 | algebra, std |
+| [commutative_algebra](commutative_algebra/README.md) | Hom とテンソル積、射影性、有限自由加群の行列 | 1,308 | algebra, module_theory, std |
+| [integer_matrices](integer_matrices/README.md) | 整数行列の演算、Smith 標準形と変換行列 | 5,005 | algebra, commutative_algebra, module_theory, std |
+| [finitely_generated_modules](finitely_generated_modules/README.md) | 整数の核・像・部分加群の基底、巡回加群、体上の有限次元部分空間 | 1,697 | algebra, commutative_algebra, integer_matrices, module_theory, std |
+| [ordered_fields](ordered_fields/README.md) | 順序体と上限完備性の共通構造 | 131 | std |
+| [dedekind_reals](dedekind_reals/README.md) | 有理数の切断による実数、演算・順序・完備性 | 4,899 | ordered_fields, std |
+| [cauchy_reals](cauchy_reals/README.md) | 有理数 Cauchy 列の商による実数、演算・順序・完備性 | 4,125 | ordered_fields, std |
+| [real](real/README.md) | 構成済みの実数の演算、距離評価、数列、平方根、有限和 | 1,848 | dedekind_reals, std |
+| [chain_complexes](chain_complexes/README.md) | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 | 5,101 | algebra, category, module_theory, std |
+| [resolutions](resolutions/README.md) | 非負鎖複体、射影分解、比較定理、Hom・テンソル複体、二重複体 | 4,826 | algebra, chain_complexes, commutative_algebra, module_theory, std |
+| [derived_functors](derived_functors/README.md) | Ext・Tor、分解からの独立性と自然性、巡回加群の分解、普遍係数 | 3,367 | algebra, chain_complexes, commutative_algebra, finitely_generated_modules, module_theory, resolutions, std |
+| [homological_algebra](homological_algebra/README.md) | 有限複体のホモロジー計算、テンソル余鎖複体、Künneth 同型 | 5,462 | algebra, chain_complexes, commutative_algebra, derived_functors, finitely_generated_modules, integer_matrices, module_theory, resolutions, std |
+| [linear_algebra](linear_algebra/README.md) | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 | 5,239 | algebra, complex, dedekind_reals, module_theory, real, std |
+| [complex](complex/README.md) | 実数対による複素数と体の構造 | 432 | dedekind_reals, real, std |
+| [category](category/README.md) | 圏、関手、自然変換、普遍性、随伴、加法圏・アーベル圏 | 1,773 | std |
+| [calculus](calculus/README.md) | 極限、平均値定理、多変数微分、滑らかな写像 | 5,356 | dedekind_reals, linear_algebra, metric_spaces, real, std, topological_algebra, topology |
+| [integration](integration/README.md) | リーマン積分、L¹ 完備化によるルベーグ積分 | 571 | dedekind_reals, real, std |
+| [manifolds](manifolds/README.md) | アトラス、滑らかな写像、接空間と微分 | 2,502 | calculus, linear_algebra, real, std, topological_algebra, topology |
+| [algebraic_topology](algebraic_topology/README.md) | ホモトピー、基点付き商、mapping cone、有限 CW 対 | 1,380 | dedekind_reals, metric_spaces, real, std, topological_algebra, topological_constructions, topology |
+| [topological_algebra](topological_algebra/README.md) | 位相的代数、座標空間・行列位相、連続性判定 | 1,020 | complex, dedekind_reals, linear_algebra, metric_spaces, real, std, topological_constructions, topology |
+| [topology](topology/README.md) | 位相・部分空間、連続写像、コンパクト性、分離性 | 4,888 | dedekind_reals, std |
+| [metric_spaces](metric_spaces/README.md) | 距離位相、距離化、実数直線、実数値関数、有限従属分割 | 2,495 | dedekind_reals, real, std, topology |
+| [topological_constructions](topological_constructions/README.md) | 積、商、直和、貼り合わせ、compact-open 位相 | 1,461 | std, topology |
+| [euclidean_forms](euclidean_forms/README.md) | 局所微分形式、外積・外微分、座標表示、引き戻し | 2,720 | calculus, chain_complexes, linear_algebra, module_theory, real, std |
+| [differential_forms](differential_forms/README.md) | 大域微分形式、貼り合わせ、引き戻し、De Rham コホモロジー | 3,042 | calculus, chain_complexes, euclidean_forms, linear_algebra, manifolds, module_theory, real, std, topology |
+
+加群の共通構造は `module_theory`、可換環上の Hom・テンソルと行列は `commutative_algebra` に置く。
+`chain_complexes` は De Rham 複体とホモロジー代数の両方が利用し、`euclidean_forms` は多様体上の形式から独立して局所計算を提供する。
+`ordered_fields` の共通構造を二つの実数構成が実装し、解析で使う標準の実数は `dedekind_reals` から `real` に渡す。
 
 共通の数値的な補題は `real.Analysis` に置き、微分・積分・位相・線形代数が利用する。
 `Def` / `Prop` は演算と法則を分けた module、単独の関心ごとは `Distance` / `Sequence` などの名前で公開する。
