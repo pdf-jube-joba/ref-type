@@ -48,6 +48,23 @@ fn editing_std_nat_basic_program_preserves_termination_imports() {
     assert_eq!(changed, Database::new().file(&edited, &file));
 }
 
+fn cache_objects(directory: &std::path::Path, kind: Option<u8>) -> Vec<PathBuf> {
+    let mut pending = vec![directory.join("v2/objects")];
+    let mut objects = Vec::new();
+    while let Some(path) = pending.pop() {
+        for entry in fs::read_dir(path).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if kind.is_none_or(|kind| fs::read(&path).unwrap().get(8) == Some(&kind)) {
+                objects.push(path);
+            }
+        }
+    }
+    assert!(!objects.is_empty());
+    objects
+}
+
 struct Cache(PathBuf);
 impl Cache {
     fn new() -> Self {
@@ -196,8 +213,8 @@ fn persistent_results_survive_database_recreation_and_corruption_is_a_miss() {
     assert_eq!(first, fresh.check(&snapshot));
     assert_eq!(fresh.stats().checked_modules, 0);
     assert_eq!(fresh.stats().disk_hits, 3);
-    for entry in fs::read_dir(&cache.0).unwrap() {
-        fs::write(entry.unwrap().path(), "truncated").unwrap();
+    for path in cache_objects(&cache.0, None) {
+        fs::write(path, "truncated").unwrap();
     }
     let mut corrupted = Database::with_cache(&cache.0);
     assert_eq!(first, corrupted.check(&snapshot));
@@ -816,11 +833,11 @@ fn damaged_environment_falls_back_and_restored_errors_match_full_checks() {
     assert!(!failed.is_success());
     assert_eq!(database.stats().environment_hits, 1);
     assert_eq!(failed, Database::new().check(&edited));
-    for entry in fs::read_dir(&cache.0).unwrap() {
-        let path = entry.unwrap().path();
-        if path.extension().is_some_and(|ext| ext == "env") {
-            fs::write(path, b"damaged environment").unwrap();
-        }
+    for path in cache_objects(
+        &cache.0,
+        Some(sema::artifact_store::ObjectKind::Environment as u8),
+    ) {
+        fs::write(path, b"damaged environment").unwrap();
     }
     let mut database = Database::with_cache(&cache.0);
     assert_eq!(database.check(&edited), failed);
@@ -844,11 +861,11 @@ fn checking_disjoint_steps_does_not_publish_a_complete_prefix() {
     );
     let cache = Cache::new();
     assert!(Database::with_cache(&cache.0).check(&snapshot).is_success());
-    for entry in fs::read_dir(&cache.0).unwrap() {
-        let path = entry.unwrap().path();
-        if path.extension().is_some_and(|ext| ext == "env") {
-            fs::write(path, "damaged").unwrap();
-        }
+    for path in cache_objects(
+        &cache.0,
+        Some(sema::artifact_store::ObjectKind::Environment as u8),
+    ) {
+        fs::write(path, "damaged").unwrap();
     }
     let edited = snapshot.with_file(
         "/virtual/Left.ref",

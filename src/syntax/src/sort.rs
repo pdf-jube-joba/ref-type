@@ -1,7 +1,17 @@
 //! Sort names accepted by the surface parser.
 
 #[derive(
-    serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash,
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
 pub enum Sort {
     Set(usize),     // predicative SET(i):

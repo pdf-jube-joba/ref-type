@@ -779,13 +779,8 @@ fn default_cache_is_local_to_the_input_and_reused_from_another_directory() {
         let cache = directory.join("refcache");
         let first = run_ref_file_with_args(&fixture.0, &path, &["--cache-stats"]).unwrap();
         assert!(first.status.success(), "{}", output_details(&first));
-        assert!(fs::read_dir(&cache).unwrap().any(|entry| {
-            entry
-                .unwrap()
-                .path()
-                .extension()
-                .is_some_and(|ext| ext == "json")
-        }));
+        assert!(cache.join("v2/artifacts").is_dir());
+        assert!(cache.join("v2/objects").is_dir());
         fs::write(cache.join("ignored.ref"), "invalid source").unwrap();
         let warm = run_ref_file_with_args(directory, &path, &["--cache-stats"]).unwrap();
         assert!(warm.status.success(), "{}", output_details(&warm));
@@ -841,6 +836,43 @@ fn separate_processes_reuse_checked_results_and_detect_source_changes() {
     let clean = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
     assert_eq!(changed.status, clean.status);
     assert_eq!(changed.stdout, clean.stdout);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn no_cache_with_zero_budget_leaves_persistent_artifacts_unchanged() {
+    fn contents(directory: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+        let mut result = std::collections::BTreeMap::new();
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                result.extend(contents(&path));
+            } else {
+                result.insert(path.clone(), fs::read(path).unwrap());
+            }
+        }
+        result
+    }
+
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = \"example\"\n");
+    fixture.write(
+        "src/root.ref",
+        r"\module M { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
+    );
+    let cached = run_ref_file(&fixture.0, &fixture.0).unwrap();
+    assert!(cached.status.success(), "{}", output_details(&cached));
+    let cache = fixture.0.join("refcache");
+    let before = contents(&cache);
+    assert!(!before.is_empty());
+    let uncached = run_ref_file_with_args(
+        &fixture.0,
+        &fixture.0,
+        &["--no-cache", "--cache-budget-mib", "0", "--no-progress"],
+    )
+    .unwrap();
+    assert!(uncached.status.success(), "{}", output_details(&uncached));
+    assert_eq!(contents(&cache), before);
 }
 
 #[test]
@@ -1061,7 +1093,7 @@ fn module_progress_reports_checks_skips_children_and_seconds_in_every_mode() {
 }
 
 #[test]
-fn full_check_local_stops_at_a_cached_dependency_and_detects_its_own_edits() {
+fn full_check_local_reuses_dependencies_and_detects_transitive_edits() {
     let fixture = FixtureDirectory::new();
     let root = dependency_chain(&fixture);
     let first = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
@@ -1071,8 +1103,6 @@ fn full_check_local_stops_at_a_cached_dependency_and_detects_its_own_edits() {
             .iter()
             .any(|line| line.starts_with("check a.Base "))
     );
-    // Invalid UTF-8 proves that the transitive source is not read at all.
-    fs::write(fixture.0.join("a/src/Base.ref"), [0xff]).unwrap();
     let cached =
         run_ref_file_with_args(&fixture.0, &root, &["--full-check-local", "--cache-stats"])
             .unwrap();
@@ -1091,12 +1121,13 @@ fn full_check_local_stops_at_a_cached_dependency_and_detects_its_own_edits() {
         lines.iter().any(|line| line.starts_with("check c.Client ")),
         "{lines:?}"
     );
-    assert!(
-        String::from_utf8_lossy(&cached.stderr).contains("environment_hits: 1"),
-        "{}",
-        output_details(&cached)
-    );
-    for args in [vec![], vec!["--full-check"], vec!["--no-cache"]] {
+    fs::write(fixture.0.join("a/src/Base.ref"), [0xff]).unwrap();
+    for args in [
+        vec![],
+        vec!["--full-check-local"],
+        vec!["--full-check"],
+        vec!["--no-cache"],
+    ] {
         let output = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
         assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
         assert!(String::from_utf8_lossy(&output.stderr).contains("Base.ref"));
@@ -1151,22 +1182,27 @@ fn full_check_local_stops_at_a_cached_dependency_and_detects_its_own_edits() {
 }
 
 #[test]
-fn damaged_dependency_source_cache_falls_back_to_current_sources() {
+fn transitive_sources_are_checked_after_artifact_corruption() {
     let fixture = FixtureDirectory::new();
     let root = dependency_chain(&fixture);
     fixture.write("c/unloaded/ref.toml", "[package]\nname = \"unloaded\"\n");
     fixture.write("c/unloaded/src/root.ref", "invalid syntax");
     let first = run_ref_file(&fixture.0, &root).unwrap();
     assert!(first.status.success(), "{}", output_details(&first));
-    let mut source_records = 0;
-    for entry in fs::read_dir(root.join("refcache")).unwrap() {
-        let path = entry.unwrap().path();
-        if path.to_string_lossy().ends_with(".sources.json") {
-            source_records += 1;
-            fs::write(path, "truncated").unwrap();
+    let mut pending = vec![root.join("refcache/v2/objects")];
+    let mut damaged = 0;
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else {
+                fs::write(path, "truncated").unwrap();
+                damaged += 1;
+            }
         }
     }
-    assert_eq!(source_records, 3);
+    assert!(damaged > 0);
     fixture.write("a/src/Base.ref", r"\definition P: \Prop := \Set;");
     let output = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
     assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));

@@ -37,42 +37,57 @@ let parsed = db.parse(&edited, path, ParseKind::Module);
 
 ## 再利用
 
-parse cache はファイル identity・内容・解析方式、semantic cache は module とその依存関係をキーにする。
+`read_snapshot` は現在のファイル内容を確認し、一致する immutable なテキストと digest を source cache から再利用する。
+source cache は64 MiB・16,384件を上限に直近2回の取得世代を保持し、snapshot の未保存編集では変更したテキストだけが新しい digest を持つ。
+parse cache はファイル identity・内容・解析方式、module の結果は source と依存関係をキーにする。
 未変更の問い合わせは同じ `Arc<SemanticResult>` を返し、失敗結果も実行中に再利用する。
-変更時には該当 module と利用者を無効化し、検査順の一致する prefix checkpoint から再開する。
-早い位置の変更や module 構成の変更では、未変更の module も再検査する場合がある。
-`clear_memory` は query・parse・環境 checkpoint の保持結果を解放する。
+parse・module result・query result は現在と直前の問い合わせで利用した世代を保持する。
+`memory_cache_stats` は保持する件数・ソース byte 数・圧縮環境 byte 数を返し、呼出側が持つ `Arc` と検査中の arena はこの集計から独立する。
+`clear_memory` は database の保持結果を解放し、既に返した `Arc` は引き続き利用できる。
 
-package 入力では、依存順に名前解決と型検査を進め、成功した package 境界の resolver・raw・kernel 環境と semantic result を `.pkg` に保存する。
-キーは処理系・検査設定・package 自身のソースと manifest・検査範囲・先行 package のキーから作る。
-利用側のファイルや module 構成は依存 package のキーに含まれず、別の利用側でも同じキャッシュ保存先から環境を復元できる。
-要求範囲のすべてが package キャッシュに一致する場合は、型検査環境を展開せず保存済みの結果を返す。
-部分検査の範囲も照合するため、未検査の子 module を検査済みとして扱わない。
-永続キャッシュを使う検査では、ソース module の完了境界で、検査途中の resolver・raw・kernel 環境と次の検査位置を `.partial` に保存する。
-途中環境には完了済みの先行 package の結果を含め、検査中 package の結果は全体の成功後に確定する。
-`CheckOptions::checkpoint_interval` は保存間隔の下限で、既定30秒、ゼロは全境界を対象とする。
-保存コストの約10倍以上の時間を空けるように間隔を調整し、保存サイズ上限に達した場合はその package 内の追加保存を省略する。
-途中環境を復元した際には解決済みの検査順を再構成し、既に終えた検査ステップを省略する。
-同じ package の完成した環境が保存できた時点で、対応する途中環境を削除する。
-現在の保存単位は依存順の累積環境であり、先行 package の構成・順序・検査範囲が変わると、それ以降の境界は再構築する。
-単独 package の部分検査には module 単位の増分検査を使う。
-失敗した境界は保存せず、独立した scope の診断には通常の検査経路を使う。
-package 環境の展開時サイズは 512 MiB、メモリ内の package キャッシュは圧縮済み合計 64 MiB を上限とする。
-環境が保存上限を超えた場合も検査結果は保存し、無変更の問い合わせは結果だけを再利用する。
-別の package の検査を続けるには環境が必要なため、復元可能な先行境界から再開する。
-名前の対応表は共有する表と合成関係をまとめて保存し、復元後も共有を維持する。
-具体化した宣言の引数列と置換も、配列の表を共有する形で保存・復元する。
-直列化と圧縮を小さなバッファで連続して行い、環境の未圧縮データ全体をメモリに保持する費用を省く。
+package の入力キーは、処理系・設定・package identity・自身のソース集合と manifest・名前付き直接依存の入力キーから作る。
+成果物のキーには検査範囲も含め、同じ入力と必要範囲を覆う成果物を再利用する。
+依存の訪問順や別の利用側のパスは依存 package の入力キーに含まれない。
+保存用 ID と読み込み先の ID の対応は resolver・raw・kernel の import API で確定し、共通依存は一度登録する。
 
-永続キャッシュは検証済みの semantic result を JSON、raw / kernel の共有 arena と環境を圧縮した checkpoint を `.env` に保存する。
-キーには source・依存関係・manifest・検査設定・checker の実装と toolchain の fingerprint を含める。
-checker の fingerprint は関連 crate の Rust ソースとテストも含むため、それらを変更した後は以前の永続キャッシュを再利用できない。
-破損・形式違い・読み込み失敗は再計算し、保存失敗は検証結果を変えず統計に記録する。
-サイズ上限や保存候補の選択は [environment.rs](src/environment.rs)、実装 fingerprint は [build.rs](build.rs) を参照。
+保存先の `v2/artifacts/` に成果物 manifest、`v2/objects/` に内容 digest で識別する immutable object を置く。
+結果は module ごと、resolver と raw/kernel の export はそれぞれ独立した object とする。
+object は種類・codec・格納長・展開長・checksum を持ち、postcard の構造化データを native では zstd、WebAssembly では deflate で圧縮する。
+要求範囲が検証済みなら manifest と結果 object だけを読み、環境 object の読み込み・展開を省く。
+package の manifest で足りない範囲は、現在の module key に一致する検証済みの個別結果で補完する。
+後続 package の検査では依存閉包だけを import し、破損した環境は現在の入力から再構築する。
+展開上限を超える環境を保存できない場合も、結果 object は独立に保存できる。
+単独ファイルと module 増分検査の結果・環境も同じ object store を使う。
 
-package 全体の検証に成功すると、package ごとに依存先のソースとファイル identity を含む snapshot を `.sources.json` に保存する。
-`Database::read_snapshot(path, true)` は依存 package 自身のソース・manifest・checker の fingerprint を照合し、一致する snapshot の推移的な依存を取り込む。
-`CheckOptions::force_local` は入口 package を再検査し、依存 package の結果と入口より前の環境 checkpoint を再利用する。
+`v2/checkpoints/` の途中再開記録は、依存成果物への参照と現在の package の作業状態・解決済みの検査順・次の位置を持つ。
+`CheckOptions::checkpoint_interval` はソース module 完了時の保存間隔の下限で、既定30秒、ゼロは全境界を対象とする。
+保存コストの約10倍以上の検査時間を空けるように間隔を調整する。
+環境を含む成果物の公開に成功すると、対応する途中再開記録を回収する。
+結果だけを保存した場合は、最後に成功した途中再開記録を保持する。
+単独ファイルの途中環境は検査順と依存関係を照合し、module 単位の増分検査に利用する。
+
+writer は同期済み object を公開してから manifest を原子的に公開する。
+manifest の取得と pin、公開、回収は store lock で調停し、lease は読み込み中の成果物・依存閉包・object を保護する。
+CLI supervisor は分割 worker 間で同じ lease を保持し、worker 強制終了後も公開済み checkpoint を保護する。
+終了したプロセスの lease は OS の advisory lock で判定して回収する。
+ディスク budget の既定は8 GiBで、`Database::set_cache_budget` または `--cache-budget-mib` で変更する。
+古い未使用 manifest・checkpoint を回収し、最後の参照がなくなった共有 object を削除する。
+利用中の成果物により budget を超える場合は `budget_excess_bytes` に記録し、session 終了後に回収する。
+既知の旧形式のキャッシュも回収対象になる。
+
+`cache_store_stats` は結果と環境の読込・書込 byte 数、hit・import・再開、欠損・形式違い・破損・サイズ上限・保存失敗、圧縮・展開時間、共有 object と回収量を返す。
+`retained_bytes` は保存先の保持量で、`retained_bytes_is_upper_bound` が真の間は、置換前の記録などを保守的に含む累積会計値を示す。
+GC はファイルのサイズを集計し直して、この値を更新する。
+保存失敗の理由は `last_save_error` に残し、検証結果は変更しない。
+成果物の直列化では、失敗した層とbyte・要素数・深さの上限、メモリ確保失敗を区別して報告する。
+処理系 fingerprint は関連 crate・build script・依存解決・toolchain・target・feature・cfg を追跡する。
+テスト専用ファイルと examples は分離し、実装内の `cfg(test)` item は Rust AST から除いて計算する。
+実装は [artifact_store.rs](src/artifact_store.rs)、[memory.rs](src/memory.rs)、[build.rs](build.rs) を参照。
+
+通常検査と `Database::read_snapshot` は、到達する path dependency の現在のソース内容を確認する。
+`CheckOptions::force_local` は入口 package を再検査し、現在の依存入力と一致する成果物を再利用する。
+LSP の未保存 buffer も immutable snapshot の入力として同じ再利用判定を通る。
+
 `CheckOptions::progress` は処理終了時に、子 module を含むソース module ごとの検査・省略と所要時間を通知する。
 `CheckOptions::progress_events` は選択したソース module とその依存先のグラフ、処理段階、module の検査開始・完了、クエリの成功・失敗を順次通知する。
 グラフにはパッケージのルート module も含め、生成した内部スコープは元のソース module にまとめる。

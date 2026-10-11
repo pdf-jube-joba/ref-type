@@ -1,4 +1,6 @@
 //! Shared namespace maps retain composition without copying either operand.
+#[path = "map_exports.rs"]
+pub(crate) mod exports;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeMap};
 use std::{collections::HashMap, hash::Hash, sync::Arc};
@@ -21,6 +23,39 @@ impl<K: Eq + Hash> IdLookup<K> for HashMap<K, K> {
 pub(crate) struct SharedMap<K> {
     entries: Arc<FxHashMap<K, K>>,
     base: Option<(Arc<Self>, Arc<Self>)>,
+}
+
+impl<K: artifact::Relocate + Copy + Eq + Hash + 'static> artifact::Relocate for SharedMap<K> {
+    fn relocate(&mut self, r: &mut artifact::Relocation) -> artifact::Result<()> {
+        self.entries.relocate(r)?;
+        self.base.relocate(r)
+    }
+}
+
+impl<K: artifact::Relocate + Copy + Eq + Hash + 'static> SharedMap<K> {
+    /// Visit shared physical tables once without flattening composition layers.
+    pub(crate) fn collect_references(
+        &self,
+        collector: &mut artifact::Relocation,
+        visited: &mut std::collections::HashSet<(std::any::TypeId, usize, u8)>,
+    ) -> artifact::Result<()> {
+        let kind = std::any::TypeId::of::<K>();
+        let mut pending = vec![self];
+        while let Some(map) = pending.pop() {
+            if !visited.insert((kind, map as *const Self as usize, 0)) {
+                continue;
+            }
+            if visited.insert((kind, Arc::as_ptr(&map.entries) as usize, 1)) {
+                for (&source, &target) in map.entries.iter() {
+                    artifact::Relocate::relocate(&mut (source, target), collector)?;
+                }
+            }
+            if let Some((next, previous)) = &map.base {
+                pending.extend([next.as_ref(), previous.as_ref()]);
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<K> Default for SharedMap<K> {
@@ -54,6 +89,30 @@ impl<K: Copy + Eq + Hash> IdLookup<K> for SharedMap<K> {
 }
 
 impl<K: Copy + Eq + Hash> SharedMap<K> {
+    /// Merge another verified range without flattening inherited map tables.
+    pub(crate) fn merge_compatible(&mut self, incoming: &Self) -> artifact::Result<()> {
+        let mut additions = FxHashMap::default();
+        for (&key, &value) in incoming.iter() {
+            match self.get(&key) {
+                Some(previous) if *previous != value => {
+                    return Err(artifact::Error(
+                        "overlapping shared map entries disagree".into(),
+                    ));
+                }
+                Some(_) => {}
+                None => {
+                    additions.insert(key, value);
+                }
+            }
+        }
+        if !additions.is_empty() {
+            // Published snapshots retain the previous Arc. Copy only this
+            // local table so union order does not add composition edges.
+            Arc::make_mut(&mut self.entries).extend(additions);
+        }
+        Ok(())
+    }
+
     pub(crate) fn get(&self, key: &K) -> Option<&K> {
         IdLookup::get(self, key)
     }
@@ -102,7 +161,9 @@ impl<K: Copy + Eq + Hash> SharedMap<K> {
         Arc::make_mut(&mut self.entries)
     }
     pub(crate) fn insert(&mut self, key: K, value: K) -> Option<K> {
-        self.make_mut().insert(key, value)
+        let previous = self.get(&key).copied();
+        Arc::make_mut(&mut self.entries).insert(key, value);
+        previous
     }
     #[cfg(test)]
     pub(crate) fn clear(&mut self) {

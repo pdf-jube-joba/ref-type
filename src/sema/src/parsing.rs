@@ -1,7 +1,4 @@
-use crate::{
-    Diagnostic, Location, QueryStats, SourceSnapshot,
-    cache::{Fingerprint, fingerprint},
-};
+use crate::{Diagnostic, Location, QueryStats, SourceSnapshot, cache::Fingerprint};
 use ::project::module_loader::SourceProvider;
 use ::syntax::{
     parse,
@@ -9,7 +6,6 @@ use ::syntax::{
 };
 use diagnostics::DiagnosticError;
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -40,9 +36,21 @@ pub struct ParseResult {
 type ParseKey = (PathBuf, Fingerprint, ParseKind);
 #[derive(Default)]
 pub(crate) struct ParseCache {
-    entries: HashMap<ParseKey, Arc<ParseResult>>,
+    entries: crate::memory::GenerationCache<ParseKey, Arc<ParseResult>>,
 }
 impl ParseCache {
+    pub fn next_generation(&mut self) {
+        self.entries.next_generation();
+    }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    pub fn source_bytes(&self) -> usize {
+        self.entries
+            .values()
+            .map(|entry| entry.source.text.len())
+            .sum()
+    }
     pub fn parse(
         &mut self,
         snapshot: &SourceSnapshot,
@@ -70,7 +78,11 @@ impl ParseCache {
                 }],
             });
         };
-        let key = (path.clone(), fingerprint(source.text.as_bytes()), kind);
+        let key = (
+            path.clone(),
+            snapshot.content_digest(&path).expect("captured source"),
+            kind,
+        );
         if let Some(cached) = self.entries.get(&key) {
             stats.reused_parses += 1;
             return cached.clone();

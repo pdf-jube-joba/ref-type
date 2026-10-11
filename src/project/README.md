@@ -10,7 +10,14 @@
 メモリ上だけの source は `SourceSnapshot::new` と `insert` で構築できる。
 `source` はファイルの内容、`identity` は別名を解決したファイル identity を返す。
 
-`read_with_dependency_cache` は依存 package 自身の source tree を読み、callback が返す snapshot から推移的な依存を取り込む。
+`SourceCache` は source の割り当てと SHA-256 digest を保持し、`read_with_source_cache` が取得を集約する。
+取得時は毎回ディスクの内容を確認し、一致したファイルの text と digest を共有する。
+保持量は既定64 MiB・16,384ファイルまでで、直近2回の取得で参照したファイルを残す。
+`content_digest` は snapshot の内容に対応する digest を一度だけ計算し、編集したファイルだけ別の digest を持つ。
+呼出側が保持する snapshot の寿命は source cache の回収と独立している。
+
+`read_with_dependency_cache` はすべての到達可能な依存 package の source tree を読み、内容が一致する保存済み source の割り当てを共有する。
+推移的な依存の内容も現在のディスクから確認する。
 `package_snapshot` は指定 package とその path dependencies に snapshot を絞る。
 キャッシュの照合・保存と semantic query は [sema](../sema/README.md) が担当する。
 
@@ -22,3 +29,5 @@ package loader と snapshot は同じ manifest 解釈を使う。
 package loader は依存先を訪問し、package 名による import を root からの module path に結合する。
 
 `PackageGraph` は package の依存関係と読み込み済みの AST を保持する。
+`PackageInfo` は正規化した root による `PackageInstanceId`、名前付き直接依存、manifest と source identity の一覧を保持する。
+同じ root を指す diamond dependency は一つの instance にまとめ、異なる root の package は別の instance として扱う。

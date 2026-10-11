@@ -4,6 +4,8 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub enum CacheError {
     Serialization(serde_json::Error),
+    Codec(String),
+    Invalid(crate::artifact_store::MissReason),
     Io {
         operation: CacheOperation,
         path: PathBuf,
@@ -14,6 +16,9 @@ pub enum CacheError {
 pub enum CacheOperation {
     CreateDirectory,
     WriteRecord,
+    ReadRecord,
+    Lock,
+    Collect,
 }
 impl From<serde_json::Error> for CacheError {
     fn from(error: serde_json::Error) -> Self {
@@ -24,6 +29,8 @@ impl std::fmt::Display for CacheError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Serialization(error) => error.fmt(f),
+            Self::Codec(error) => f.write_str(error),
+            Self::Invalid(reason) => write!(f, "cache {reason:?}"),
             Self::Io {
                 operation,
                 path,
@@ -36,6 +43,7 @@ impl std::error::Error for CacheError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Serialization(error) => Some(error),
+            Self::Codec(_) | Self::Invalid(_) => None,
             Self::Io { source, .. } => Some(source),
         }
     }

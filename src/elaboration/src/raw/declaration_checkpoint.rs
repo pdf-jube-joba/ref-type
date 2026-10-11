@@ -2,24 +2,47 @@
 use super::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
 
+// Shared telescope ordinals follow declaration identity, never hash iteration.
+fn ordered<K: Serialize, V, E: serde::ser::Error>(
+    entries: &HashMap<K, V>,
+) -> Result<Vec<(&K, &V)>, E> {
+    let mut ordered = entries
+        .iter()
+        .map(|(key, value)| {
+            artifact::canonical::to_vec(key, 1024 * 1024)
+                .map(|bytes| (bytes, key, value))
+                .map_err(E::custom)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    ordered.sort_unstable_by(|left, right| left.0.cmp(&right.0));
+    Ok(ordered
+        .into_iter()
+        .map(|(_, key, value)| (key, value))
+        .collect())
+}
+
 struct Slices<'a, T> {
     ids: FxHashMap<*const T, usize>,
+    contents: FxHashMap<&'a [T], usize>,
     values: Vec<&'a [T]>,
 }
 impl<T> Default for Slices<'_, T> {
     fn default() -> Self {
         Self {
             ids: Default::default(),
+            contents: Default::default(),
             values: Vec::new(),
         }
     }
 }
-impl<'a, T> Slices<'a, T> {
+impl<'a, T: Eq + std::hash::Hash> Slices<'a, T> {
     fn insert(&mut self, value: &'a Arc<[T]>) -> usize {
         *self.ids.entry(value.as_ptr()).or_insert_with(|| {
-            let id = self.values.len();
-            self.values.push(value);
-            id
+            *self.contents.entry(value.as_ref()).or_insert_with(|| {
+                let id = self.values.len();
+                self.values.push(value);
+                id
+            })
         })
     }
 }
@@ -39,8 +62,8 @@ pub(super) mod definitions {
         let _cost = timing::costs::Scope::enter("query.serialize-lazy-definitions");
         let mut arguments = Slices::default();
         let mut reflected = Slices::default();
-        let entries: Vec<_> = entries
-            .iter()
+        let entries: Vec<_> = ordered::<_, _, S::Error>(entries)?
+            .into_iter()
             .map(|(&id, value)| {
                 (
                     id,
@@ -89,8 +112,8 @@ macro_rules! substitution_map {
             ) -> Result<S::Ok, S::Error> {
                 let _cost = timing::costs::Scope::enter("query.serialize-lazy-types");
                 let mut arguments = Slices::default();
-                let entries: Vec<_> = entries
-                    .iter()
+                let entries: Vec<_> = ordered::<_, _, S::Error>(entries)?
+                    .into_iter()
                     .map(|(&id, value)| {
                         (
                             id,
@@ -144,8 +167,8 @@ pub(super) mod specializations {
     ) -> Result<S::Ok, S::Error> {
         let _cost = timing::costs::Scope::enter("query.serialize-specializations");
         let mut arguments = Slices::default();
-        let entries: Vec<_> = entries
-            .iter()
+        let entries: Vec<_> = ordered::<_, _, S::Error>(entries)?
+            .into_iter()
             .map(|(&id, value)| (id, value.source, arguments.insert(&value.arguments)))
             .collect();
         (arguments.values, entries).serialize(serializer)
@@ -181,7 +204,7 @@ pub(super) mod specializations {
 mod tests {
     use super::*;
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(artifact::Relocate, Serialize, Deserialize)]
     struct Saved {
         #[serde(with = "definitions")]
         entries: HashMap<DefId, LazyDefinition>,
@@ -237,5 +260,48 @@ mod tests {
                 &value.reflected_substitutions
             ));
         }
+    }
+    #[test]
+    fn shared_telescope_bytes_ignore_hash_order_and_allocation_aliasing() {
+        let env = CrateEnv::new();
+        let module = env.root_module();
+        let arguments: Arc<[_]> = vec![(
+            ModuleParamId {
+                module,
+                position: 0,
+            },
+            ModuleArgument::Pts(env.arena().exp_bound(0)),
+        )]
+        .into();
+        let build = |reverse: bool, share: bool| {
+            let ids: Vec<_> = if reverse {
+                (0..10).rev().collect()
+            } else {
+                (0..10).collect()
+            };
+            Saved {
+                entries: ids
+                    .into_iter()
+                    .map(|index| {
+                        let id = DefId { module, index };
+                        (
+                            id,
+                            LazyDefinition {
+                                source: id,
+                                substitutions: if share {
+                                    arguments.clone()
+                                } else {
+                                    arguments.to_vec().into()
+                                },
+                                reflected_substitutions: Arc::from([]),
+                                remapping: RemappingId(0),
+                            },
+                        )
+                    })
+                    .collect(),
+            }
+        };
+        let encode = |value: &Saved| artifact::canonical::to_vec(value, 10000).unwrap();
+        assert_eq!(encode(&build(false, true)), encode(&build(true, false)));
     }
 }

@@ -36,7 +36,7 @@ impl<'a> Lowerer<'a> {
         kernel: &'a mut ke::Environment,
     ) -> Self {
         if kernel.arena().is_empty() {
-            *kernel = ke::Environment::with_arena(raw.arena().core.clone());
+            kernel.arena = raw.arena().core.clone();
         }
         Self {
             raw,
@@ -210,6 +210,49 @@ pub(crate) fn format_kernel_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn first_lowerer_preserves_the_empty_environment_ownership_boundary() {
+        let raw = raw::environment::CrateEnv::new();
+        let mut kernel = ke::Environment::new();
+        let boundary = kernel.boundary();
+        assert!(kernel.arena().is_empty());
+        {
+            let lower = Lowerer::new(&raw, &mut kernel);
+            assert!(
+                lower
+                    .kernel
+                    .export_since(&boundary)
+                    .unwrap()
+                    .definitions
+                    .is_empty()
+            );
+            let ty = raw.arena().core.sort(k::Sort::Base(k::BaseSort::Set(0)));
+            lower
+                .kernel
+                .register_parameter(kernel::ids::ParameterId(7), ty)
+                .unwrap();
+        }
+        assert_eq!(kernel.export_since(&boundary).unwrap().parameters.len(), 1);
+        assert!(ke::Environment::new().export_since(&boundary).is_err());
+    }
+
+    #[test]
+    fn reattaching_checkpoint_arena_preserves_registered_metadata() {
+        let raw = raw::environment::CrateEnv::new();
+        let mut kernel = ke::Environment::with_arena(raw.arena().core.clone());
+        let parameter = kernel::ids::ParameterId(7);
+        let ty = kernel.arena().sort(k::Sort::Base(k::BaseSort::Set(0)));
+        kernel.register_parameter(parameter, ty).unwrap();
+        let version = kernel.diagnostic_version();
+        let bytes = postcard::to_allocvec(&kernel).unwrap();
+        let mut restored: ke::Environment = postcard::from_bytes(&bytes).unwrap();
+        assert!(restored.arena().is_empty());
+        let lower = Lowerer::new(&raw, &mut restored);
+        assert_eq!(lower.kernel.diagnostic_version(), version);
+        assert_eq!(lower.kernel.parameter(parameter), Some(ty));
+        assert_eq!(lower.kernel.arena().get(ty), raw.arena().core.get(ty));
+    }
 
     #[test]
     fn captured_classifier_indices_follow_the_complete_telescope() {

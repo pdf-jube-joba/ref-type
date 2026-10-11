@@ -2,12 +2,16 @@
 pub use ::project::{SourceSnapshot, module_loader, package_loader};
 pub use ::syntax::{parse, syntax};
 
+mod memory;
+pub use memory::MemoryCacheStats;
 mod model;
 pub use model::*;
 
+pub mod artifact_store;
 mod cache;
 mod database;
 mod graph;
+mod package_inputs;
 mod parsing;
 mod progress;
 pub use database::{CheckOptions, Database};

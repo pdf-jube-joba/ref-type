@@ -7,6 +7,7 @@ use std::{
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Location {
+    #[serde(with = "::syntax::source_reference")]
     pub file: PathBuf,
     pub range: Range<usize>,
 }

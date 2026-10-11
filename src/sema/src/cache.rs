@@ -1,237 +1,67 @@
-use crate::ModuleResult;
-use crate::error::{CacheError, CacheOperation};
-use serde::{Deserialize, Serialize};
+use crate::{ModuleResult, error::CacheError};
 use sha2::{Digest, Sha256};
-use std::{
-    fs::{self, OpenOptions},
-    io::Write,
-    path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
-};
+use std::path::PathBuf;
 
 pub(crate) type Fingerprint = [u8; 32];
 pub(crate) fn fingerprint(bytes: &[u8]) -> Fingerprint {
     Sha256::digest(bytes).into()
 }
-fn hex(key: &Fingerprint) -> String {
-    key.iter().map(|byte| format!("{byte:02x}")).collect()
-}
 
-const SCHEMA: u32 = 10;
-
-#[derive(Serialize, Deserialize)]
-struct Record {
-    schema: u32,
-    key: Fingerprint,
-    checksum: Fingerprint,
-    payload: String,
-}
-
-/// Locally trusted semantic results and checking environments.
-/// Obsolete records and damaged files are recoverable misses.
+/// Locally trusted semantic artifacts. Obsolete formats and damaged objects miss.
 pub(crate) struct DiskCache {
-    directory: PathBuf,
+    v2: crate::artifact_store::ArtifactStore,
 }
 impl DiskCache {
     pub fn new(directory: PathBuf) -> Self {
-        Self { directory }
+        Self {
+            v2: crate::artifact_store::ArtifactStore::new(directory),
+        }
+    }
+    pub fn store(&self) -> &crate::artifact_store::ArtifactStore {
+        &self.v2
+    }
+    pub fn set_budget(&self, bytes: u64) {
+        self.v2.set_budget(bytes);
     }
     pub fn read(&self, key: &Fingerprint) -> Option<ModuleResult> {
-        let payload = self.read_payload(key, "json")?;
-        let result: ModuleResult = serde_json::from_str(&payload).ok()?;
+        let manifest = self.v2.read_manifest(key).ok()?;
+        let (_, object) = manifest.results.first()?;
+        let result: ModuleResult =
+            crate::artifact_store::deserialize(&self.v2.read_object(object).ok()?).ok()?;
         (result.status == crate::ModuleStatus::Verified).then_some(result)
     }
 
-    fn read_payload(&self, key: &Fingerprint, extension: &str) -> Option<String> {
-        let path = self.directory.join(format!("{}.{extension}", hex(key)));
-        if fs::metadata(&path).ok()?.len() > 64 * 1024 * 1024 {
-            return None;
-        }
-        let record: Record = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
-        if record.schema != SCHEMA
-            || record.key != *key
-            || record.checksum != fingerprint(record.payload.as_bytes())
-        {
-            return None;
-        }
-        Some(record.payload)
-    }
     pub fn write(&self, key: &Fingerprint, result: &ModuleResult) -> Result<(), CacheError> {
         if result.status != crate::ModuleStatus::Verified {
             return Ok(());
         }
-        let payload = serde_json::to_string(result)?;
-        self.write_payload(key, "json", payload)
-    }
-
-    fn write_payload(
-        &self,
-        key: &Fingerprint,
-        extension: &str,
-        payload: String,
-    ) -> Result<(), CacheError> {
-        let bytes = serde_json::to_vec(&Record {
-            schema: SCHEMA,
+        let object = self.v2.write_object(
+            crate::artifact_store::ObjectKind::Result,
+            &crate::artifact_store::serialize(result)?,
+        )?;
+        self.v2.publish(&crate::artifact_store::StoreManifest {
             key: *key,
-            checksum: fingerprint(payload.as_bytes()),
-            payload,
-        })?;
-        self.write_bytes(key, extension, &bytes)
-    }
-
-    pub fn read_sources(
-        &self,
-        own: &crate::SourceSnapshot,
-        root: &Path,
-    ) -> Option<crate::SourceSnapshot> {
-        let key = source_key(own, root);
-        let saved: crate::SourceSnapshot =
-            serde_json::from_str(&self.read_payload(&key, "sources.json")?).ok()?;
-        (saved.identity(saved.entry()) == own.identity(root) && source_key(&saved, root) == key)
-            .then_some(saved)
-    }
-
-    pub fn write_sources(
-        &self,
-        snapshot: &crate::SourceSnapshot,
-        packages: &[PathBuf],
-    ) -> Result<(), CacheError> {
-        for root in packages {
-            let saved = snapshot.package_snapshot(root);
-            self.write_payload(
-                &source_key(&saved, root),
-                "sources.json",
-                serde_json::to_string(&saved)?,
-            )?;
-        }
-        Ok(())
-    }
-
-    fn write_bytes(
-        &self,
-        key: &Fingerprint,
-        extension: &str,
-        bytes: &[u8],
-    ) -> Result<(), CacheError> {
-        fs::create_dir_all(&self.directory).map_err(|source| CacheError::Io {
-            operation: CacheOperation::CreateDirectory,
-            path: self.directory.clone(),
-            source,
-        })?;
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let temporary = self.directory.join(format!(
-            ".{}-{}.tmp",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        let destination = self.directory.join(format!("{}.{extension}", hex(key)));
-        let result = (|| -> std::io::Result<()> {
-            let mut file = OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(&temporary)?;
-            file.write_all(bytes)?;
-            file.sync_all()?;
-            fs::rename(&temporary, &destination)
-        })();
-        if result.is_err() {
-            let _ = fs::remove_file(temporary);
-        }
-        result.map_err(|source| CacheError::Io {
-            operation: CacheOperation::WriteRecord,
-            path: destination,
-            source,
+            input: *key,
+            coverage: vec![result.path.clone()],
+            results: vec![(result.path.clone(), object)],
+            ..Default::default()
         })
-    }
-}
-
-pub(crate) fn source_key(snapshot: &crate::SourceSnapshot, root: &Path) -> Fingerprint {
-    let root = snapshot.identity(root);
-    let mut bytes = env!("REF_SEMA_REVISION").as_bytes().to_vec();
-    bytes.extend(root.to_string_lossy().as_bytes());
-    for (path, source) in snapshot.files().filter(|(path, _)| path.starts_with(&root)) {
-        bytes.extend(path.to_string_lossy().as_bytes());
-        bytes.extend(fingerprint(source.text.as_bytes()));
-    }
-    fingerprint(&bytes)
-}
-
-impl DiskCache {
-    pub fn read_package(&self, key: &Fingerprint) -> Option<Vec<u8>> {
-        self.read_package_record(key, "pkg")
-    }
-
-    pub fn read_partial_package(&self, key: &Fingerprint) -> Option<Vec<u8>> {
-        self.read_package_record(key, "partial")
-    }
-
-    pub fn discard_partial_package(&self, key: &Fingerprint) {
-        let _ = fs::remove_file(self.directory.join(format!("{}.partial", hex(key))));
-    }
-
-    fn read_package_record(&self, key: &Fingerprint, extension: &str) -> Option<Vec<u8>> {
-        let path = self.directory.join(format!("{}.{extension}", hex(key)));
-        if fs::metadata(&path).ok()?.len() > crate::database::packages::MAX_RECORD_BYTES as u64 + 72
-        {
-            return None;
-        }
-        let bytes = fs::read(path).ok()?;
-        let payload = bytes.get(72..)?;
-        if &bytes[..8] != b"REFPKG01"
-            || &bytes[8..40] != key
-            || bytes[40..72] != fingerprint(payload)
-        {
-            return None;
-        }
-        Some(payload.to_vec())
-    }
-
-    pub fn write_package(&self, key: &Fingerprint, payload: &[u8]) -> Result<(), CacheError> {
-        self.write_package_record(key, "pkg", payload)
-    }
-
-    pub fn write_partial_package(
-        &self,
-        key: &Fingerprint,
-        payload: &[u8],
-    ) -> Result<(), CacheError> {
-        self.write_package_record(key, "partial", payload)
-    }
-
-    fn write_package_record(
-        &self,
-        key: &Fingerprint,
-        extension: &str,
-        payload: &[u8],
-    ) -> Result<(), CacheError> {
-        let mut bytes = b"REFPKG01".to_vec();
-        bytes.extend(key);
-        bytes.extend(fingerprint(payload));
-        bytes.extend(payload);
-        self.write_bytes(key, extension, &bytes)
     }
 
     pub fn read_environment(&self, key: &Fingerprint) -> Option<Vec<u8>> {
-        let path = self.directory.join(format!("{}.env", hex(key)));
-        if fs::metadata(&path).ok()?.len() > (elaboration::MAX_ENVIRONMENT_BYTES + 72) as u64 {
-            return None;
-        }
-        let bytes = fs::read(path).ok()?;
-        let payload = bytes.get(72..)?;
-        if &bytes[..8] != b"REFENV01"
-            || &bytes[8..40] != key
-            || bytes[40..72] != fingerprint(payload)
-        {
-            return None;
-        }
-        Some(payload.to_vec())
+        let manifest = self.v2.read_manifest(key).ok()?;
+        self.v2.read_object(manifest.environment.as_ref()?).ok()
     }
 
     pub fn write_environment(&self, key: &Fingerprint, payload: &[u8]) -> Result<(), CacheError> {
-        let mut bytes = b"REFENV01".to_vec();
-        bytes.extend(key);
-        bytes.extend(fingerprint(payload));
-        bytes.extend(payload);
-        self.write_bytes(key, "env", &bytes)
+        let object = self
+            .v2
+            .write_object(crate::artifact_store::ObjectKind::Environment, payload)?;
+        self.v2.publish(&crate::artifact_store::StoreManifest {
+            key: *key,
+            input: *key,
+            environment: Some(object),
+            ..Default::default()
+        })
     }
 }

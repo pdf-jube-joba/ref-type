@@ -35,10 +35,11 @@ std = { path = "../std" }
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
 | `--no-cache` | 選択した範囲を永続キャッシュの読み書きなしで検証 |
 | `--full-check` | 選択した範囲を再検証し、検証済みの結果でキャッシュを更新 |
-| `--full-check-local` | 入口パッケージの選択した範囲を再検証し、依存先は自身のソースと manifest が一致するキャッシュを再利用 |
+| `--full-check-local` | 入口パッケージの選択した範囲を再検証し、推移的な依存を含む現在の入力と一致する成果物を再利用 |
 | `--no-progress` | 進捗バーと所要時間の表示を抑制 |
 | `--progress-tty` | ログ出力先と別に、制御端末 (`/dev/tty`) に進捗バーを表示 |
 | `--cache-dir PATH` | キャッシュ保存先を変更 |
+| `--cache-budget-mib N` | ディスクの保持上限 MiB。既定8192、利用中の成果物は保護 |
 | `--clear-cache` | 保存先の中身を削除してから処理 |
 | `--cache-stats` | 解析・検査・再利用・保存の件数を表示 |
 | `--checkpoint-seconds N` | package途中のcheckpoint保存間隔。既定30秒、0は毎module完了時 |
@@ -79,11 +80,12 @@ cargo run -p cli --release --locked -- libs/std --full-check
 cargo run -p cli --release --locked -- libs/std --full-check-local
 ```
 
-`--cache-stats` の `environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
-`package_hits` は package 境界の復元で省略した package 数、`package_writes` は保存した package 環境数、`package_skips` はサイズ上限などで保存を省略した境界数である。
+`--cache-stats` は query 件数、object store の結果・環境別 I/O、圧縮・展開時間、破損や保存失敗の理由、回収量、メモリの保持件数を表示する。
+`environment_hits` は環境の import・復元数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` はメモリに保持する圧縮データの合計サイズである。
+`package_hits` は成果物の再利用で省略した package 数、`package_writes` は結果だけの保存も含む package manifest の公開数、`package_skips` は package export を作れなかった回数である。
 具体化した宣言の引数列と置換は、共有する配列を一度だけ保存し、復元後も共有する。
 package キャッシュには名前解決の状態も含まれ、依存先が一致すれば利用側の module 追加後も依存環境を再利用する。
-検査中の package は、一定時間が経過した後のソース module 完了時に途中環境を `.partial` に保存する。
+検査中の package は、一定時間が経過した後のソース module 完了時に、依存成果物への参照と自身の途中状態を `v2/checkpoints/` に保存する。
 同じキャッシュ保存先で再実行すると、名前解決の状態と検査位置を復元し、保存位置以降を検査する。
 未完了の module が入れ子で存在する場合も、保存した検査順の続きから再開する。
 `--checkpoint-seconds` の既定値は30秒で、保存に時間がかかった場合は、その約10倍以上の検査時間を空けて次を保存する。
@@ -94,6 +96,9 @@ package キャッシュには名前解決の状態も含まれ、依存先が一
 `--cache-stats` の `checkpoint_hits`・`checkpoint_writes`・`checkpoint_skips` で途中環境の復元・保存・省略件数を確認できる。
 `REF_TYPE_PROFILE_PROGRESS=1` のログでは、保存成功時に `event=checkpoint-saved` を出力する。
 異なる入口パッケージ間で共有する場合は、`--cache-dir` に同じ保存先を指定する。
+保存量が budget を超えると、使用中の成果物と依存を保護して古い manifest・checkpoint・参照のなくなった object を回収する。
+使用中のデータによる一時的な超過は `budget_excess_bytes` に表示する。
+`retained_bytes_is_upper_bound` が真の場合、`retained_bytes` は置換前の記録などを保守的に含む累積会計値であり、GC で実際のファイルサイズを集計し直す。
 
 端末では標準エラーの一行を更新し、進捗バー、完了 module 数／総 module 数、現在の module、パッケージ内の完了数と経過秒数を表示する。
 検査前に選択範囲の依存グラフを使って総数を決め、キャッシュで省略した module も完了数に含める。
@@ -117,9 +122,9 @@ cargo run -p cli -- libs/topology/basic --full-check-local
 cargo run -p cli -- libs/topology/basic --full-check-local --no-progress
 ```
 
-`--full-check-local` では、C が B に、B が A に依存するとき、B 自身のソースと manifest をキャッシュに照合する。
-一致すれば、A には B の検証時に保存したソースを使い、チェック済みの依存環境を復元する。
-B の変更、キャッシュの欠損・破損がある場合は、現在の依存ソースを読み込んで再検証する。
+`--full-check-local` では、C が B に、B が A に依存するとき、A・B の現在のソースと manifest を照合して C を再検証する。
+A の変更は B と C の入力キーへ伝播し、変更に対応する成果物を再構築する。
+一致する依存は保存済みの検証結果と独立した環境 object を再利用する。
 キャッシュは通常の検査と共有し、再検証に成功した結果で更新する。
 単独ファイルに指定すると、そのファイルから読み込む module 全体を再検証する。
 
@@ -172,9 +177,10 @@ cost 計測中は、その変換で生じた kernel エラーの種類ごとに�
 
 ```sh
 cargo build -p cli --locked
+mkdir -p refcache
 REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
   python3 benchmarks/check.py libs/algebra/homological/computations \
-  --cache-dir "$(mktemp -d /tmp/ref-type-profile.XXXXXX)" \
+  --cache-dir "$(mktemp -d refcache/profile.XXXXXX)" \
   --seconds 180 --memory-mib 3072 --progress-seconds 15 \
   --log benchmarks/check.log --result benchmarks/check.json
 ```
@@ -187,10 +193,11 @@ REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
 詳細ログをファイルに保存しながら進捗バーを表示する場合は、制御端末のあるシェルから次のように実行する。
 
 ```sh
+mkdir -p refcache
 REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
   /usr/bin/time -v -o benchmarks/homological-memory.log \
   target/debug/cli libs/algebra/homological/computations --progress-tty \
-  --cache-dir "$(mktemp -d /tmp/ref-type-profile.XXXXXX)" \
+  --cache-dir "$(mktemp -d refcache/profile.XXXXXX)" \
   > benchmarks/homological.log 2>&1
 ```
 

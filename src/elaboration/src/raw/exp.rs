@@ -40,7 +40,17 @@ fn join_program_spine(
         .collect()
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub struct Exp(pub(crate) kernel::syntax::Expression);
 
 impl Exp {}
@@ -269,7 +279,7 @@ pub enum ExpNode {
     },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ExpContextEntry {
     pub var: SymbolId,
     pub ty: Exp,
@@ -288,25 +298,30 @@ pub trait ArenaNode: Sized {
     fn allocate(self, arena: &Arena) -> Self::Handle;
 }
 
+#[path = "arena_exports.rs"]
+pub(crate) mod exports;
+
 pub trait ArenaHandle: Copy {
     type Node: Clone;
     fn get(self, arena: &Arena) -> Self::Node;
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
+)]
 pub(crate) enum Atom {
     Definition(DefId),
     Instance(DefId),
     Meta(u8, MetaVarId, Vec<bool>),
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Default)]
 struct Atoms {
     ids: FxHashMap<Atom, kernel::syntax::MetaId>,
     keys: FxHashMap<kernel::syntax::MetaId, Atom>,
     #[serde(skip)]
     allocator: kernel::metavariables::MetaContext,
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct DefinitionView {
     source: Option<DefId>,
     contextual: bool,
@@ -314,8 +329,9 @@ struct DefinitionView {
     body: kernel::syntax::Expression,
 }
 /// The frontend uses the kernel DAG. Names awaiting resolution are frontend-owned atoms.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Default)]
 pub struct Arena {
+    #[relocate(skip)]
     pub(crate) core: kernel::syntax::Arena,
     atoms: RefCell<Atoms>,
     #[serde(skip)]

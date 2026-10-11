@@ -3,24 +3,38 @@ use crate::module_loader::{DiskSource, SourceProvider, load_modules_in_scope};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use syntax::syntax::{
-    Identifier, Module, ModuleBody, ModuleInstantiatePath, ModuleItem, SourceSpan,
+    Identifier, Module, ModuleBody, ModuleInstantiatePath, ModuleItem, SourceFile, SourceId,
+    SourceSpan,
 };
 
+#[derive(Clone)]
 pub struct PackageGraph {
     pub packages: Vec<PackageInfo>,
     pub modules: Vec<Module>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct PackageId(pub usize);
 
+/// Language-level identity of a package instance, independent of graph visit order.
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
+pub struct PackageInstanceId(pub PathBuf);
+
+#[derive(Clone)]
 pub struct PackageInfo {
     pub id: PackageId,
     pub name: String,
     pub directory: PathBuf,
     pub dependencies: Vec<PackageId>,
+    pub instance: PackageInstanceId,
+    pub named_dependencies: Vec<(String, PackageId)>,
+    pub manifest: Arc<SourceFile>,
+    pub sources: Vec<SourceId>,
 }
 
 #[derive(Clone)]
@@ -81,7 +95,8 @@ impl Loader {
         directory: &Path,
         provider: &mut dyn SourceProvider,
     ) -> Result<PackageId, crate::error::Error> {
-        let package = read_manifest(directory, provider)?;
+        let manifest = provider.read(&directory.join("ref.toml"))?;
+        let package = parse_manifest(directory, &manifest.text)?;
         if let Some(previous) = self.names.get(&package.name)
             && previous != directory
         {
@@ -95,6 +110,7 @@ impl Loader {
             .insert(package.name.clone(), directory.to_path_buf());
         let mut available = HashSet::from([package.name.clone()]);
         let mut dependencies = Vec::new();
+        let mut named_dependencies = Vec::new();
         for (dependency, path) in &package.dependencies {
             let id = self.visit(path, provider)?;
             let actual = &self.packages[id.0].name;
@@ -107,12 +123,32 @@ impl Loader {
             }
             available.insert(actual.clone());
             dependencies.push(id);
+            named_dependencies.push((dependency.clone(), id));
         }
         let source = package.directory.join("src/root.ref");
         let mut children =
             load_modules_in_scope(&source, provider, std::slice::from_ref(&package.name))?;
         for child in &mut children {
             qualify_imports(child, &package.name, &available);
+        }
+        fn source_ids(module: &Module, sources: &mut std::collections::BTreeSet<PathBuf>) {
+            for source in [&module.source, &module.header_source]
+                .into_iter()
+                .flatten()
+            {
+                sources.insert(source.id.0.clone());
+            }
+            if let ModuleBody::Inline(items) = &module.body {
+                for item in items {
+                    if let ModuleItem::ChildModule { module } = item {
+                        source_ids(module, sources);
+                    }
+                }
+            }
+        }
+        let mut sources = std::collections::BTreeSet::new();
+        for child in &children {
+            source_ids(child, &mut sources);
         }
         let items = children
             .into_iter()
@@ -135,18 +171,14 @@ impl Loader {
             name: package.name,
             directory: directory.to_path_buf(),
             dependencies,
+            instance: PackageInstanceId(directory.to_path_buf()),
+            named_dependencies,
+            manifest,
+            sources: sources.into_iter().map(SourceId).collect(),
         });
         self.loaded.insert(directory.to_path_buf(), id);
         Ok(id)
     }
-}
-
-fn read_manifest(
-    directory: &Path,
-    provider: &mut dyn SourceProvider,
-) -> Result<Package, crate::error::Error> {
-    let source = provider.read(&directory.join("ref.toml"))?;
-    parse_manifest(directory, &source.text)
 }
 
 pub(crate) fn parse_manifest(directory: &Path, text: &str) -> Result<Package, crate::error::Error> {

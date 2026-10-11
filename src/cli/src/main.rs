@@ -48,7 +48,7 @@ struct Args {
     /// キャッシュを再利用せず全体を検証し、検証済みの結果を保存する
     #[arg(long, conflicts_with = "parse_only")]
     full_check: bool,
-    /// 指定ライブラリだけを再検証し、依存先は自身の変更だけを確認してキャッシュを再利用する
+    /// 指定ライブラリを再検証し、すべての依存先の現在の内容を確認してキャッシュを再利用する
     #[arg(long, conflicts_with_all = ["parse_only", "full_check", "no_cache", "trace", "stats"])]
     full_check_local: bool,
     /// 進捗バーと module ごとの所要時間を表示しない
@@ -63,6 +63,9 @@ struct Args {
     /// チェック済み semantic result の保存先（既定: 入力ディレクトリの refcache/）
     #[arg(long)]
     cache_dir: Option<PathBuf>,
+    /// ディスクキャッシュの容量上限 MiB（利用中の成果物は保護する）
+    #[arg(long, default_value_t = 8192)]
+    cache_budget_mib: u64,
     /// parse・チェック・キャッシュ再利用の件数を表示する
     #[arg(long)]
     cache_stats: bool,
@@ -220,6 +223,7 @@ fn run_path(
     } else {
         sema::Database::with_cache(cache_directory)
     };
+    database.set_cache_budget(args.cache_budget_mib.saturating_mul(1024 * 1024));
     #[cfg(target_os = "linux")]
     let snapshot = if let Some(directory) = &args.worker {
         Some(supervisor::read_snapshot(directory)?)
@@ -322,6 +326,8 @@ fn run_path(
     };
     if args.cache_stats {
         eprintln!("queries: {:?}", database.stats());
+        eprintln!("cache: {:?}", database.cache_store_stats());
+        eprintln!("memory cache: {:?}", database.memory_cache_stats());
     }
     let error = (!messages.is_empty()).then(|| messages.join("\n"));
     if let Some(message) = &error {

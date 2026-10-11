@@ -10,36 +10,36 @@ use crate::{
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Definition {
     pub context: Context,
     pub ty: Expression,
     pub body: Expression,
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct InductiveSpec {
     pub parameters: Context,
     pub arity: Expression,
     pub constructors: Vec<Expression>,
     pub sort: Sort,
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Datatype {
     pub parameters: Context,
     pub level: usize,
     pub constructors: Vec<Context>,
     pub reflected: InductiveId,
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug)]
 pub struct Environment {
     #[serde(skip)]
     pub arena: Arena,
     #[serde(deserialize_with = "crate::ids::deserialize_identity")]
     pub(crate) identity: u64,
     pub(crate) definitions: Vec<Definition>,
-    parameters: FxHashMap<ParameterId, Expression>,
+    pub(crate) parameters: FxHashMap<ParameterId, Expression>,
     pub(crate) reflected: FxHashMap<DefinitionId, DefinitionId>,
-    program_parameters: FxHashMap<DefinitionId, Vec<bool>>,
+    pub(crate) program_parameters: FxHashMap<DefinitionId, Vec<bool>>,
     pub(crate) inductives: FxHashMap<InductiveId, InductiveSpec>,
     pub(crate) datatypes: FxHashMap<ProgramInductiveId, Datatype>,
     #[serde(skip)]

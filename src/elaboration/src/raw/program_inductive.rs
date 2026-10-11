@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ProgramConstructorSpec {
     fields: Vec<(SymbolId, ValueType)>,
 }
@@ -39,7 +39,7 @@ impl ProgramConstructorSpec {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ProgramInductiveTypeSpecs {
     parameters: Vec<SymbolId>,
     constructors: Vec<ProgramConstructorSpec>,

@@ -1,17 +1,47 @@
 //! The non-cumulative product signature of stratification4 §2.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum BaseSort {
     Set(usize),
     Prop,
     Value(usize),
     Computation(usize),
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum Sort {
     Base(BaseSort),
     Upper(BaseSort),
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub struct ProductRule {
     pub domain: Sort,
     pub body: Sort,

@@ -4,7 +4,17 @@ use crate::raw::ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, Symbo
 
 macro_rules! handle {
     ($name:ident) => {
-        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(
+            artifact::Relocate,
+            serde::Serialize,
+            serde::Deserialize,
+            Debug,
+            Clone,
+            Copy,
+            PartialEq,
+            Eq,
+            Hash,
+        )]
         pub struct $name(pub(crate) kernel::syntax::Expression);
     };
 }
@@ -185,7 +195,7 @@ pub enum ComputationTermNode {
     },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ProgramContextEntry {
     ValueType { var: SymbolId },
     ValueTerm { var: SymbolId, ty: ValueType },
