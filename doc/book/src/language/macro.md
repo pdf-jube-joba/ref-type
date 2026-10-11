@@ -7,10 +7,10 @@
 ```text
 \math-macro add($left, \+, $right) := operation $left $right;
 \macro tagged($term, "keep") := $term;
-\use ImportAlias::macroName;
-\use ImportAlias::Child[A := A]::macroName \as child_macro;
-\use \root.Templates[A := A, refl := leftRefl]::reflexive \as refl_left;
-\use \root.Templates[A := A, refl := rightRefl]::reflexive \as refl_right;
+\use ImportAlias.macroName;
+\use ImportAlias.Child[A := A].macroName \as child_macro;
+\use \root.Templates[A := A, refl := leftRefl].reflexive \as refl_left;
+\use \root.Templates[A := A, refl := rightRefl].reflexive \as refl_right;
 
 \(x + y \)
 tagged!{value "keep"}

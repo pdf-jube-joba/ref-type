@@ -513,7 +513,6 @@ impl<'a> Parser<'a> {
         Ok(fields)
     }
 
-    // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
     fn parse_module_selection(&mut self) -> Result<ModuleInstantiatePath, ParseError> {
         let rooted = if self.bump_if_token(Token::Period) {
             Some(Some(0))
@@ -540,28 +539,29 @@ impl<'a> Parser<'a> {
                 Some(Token::Period | Token::DoubleColon)
             );
         let imported_parent = if starts_from_import {
-            let candidate = self.expect_ident()?;
-            if !self.bump_if_token(Token::Period)
-                && self.peek() == Some(&Token::DoubleColon)
-                && matches!(
-                    self.tokens.get(self.pos + 2).map(|token| &token.kind),
-                    Some(Token::LBracket)
-                )
-            {
-                self.expect_token(Token::DoubleColon)?;
-            }
-            Some(candidate)
+            Some(self.expect_ident()?)
         } else {
             None
         };
 
-        if matches!(self.peek(), Some(Token::Ident(_))) {
-            loop {
-                calls.push(self.parse_module_access_path()?);
-                if !self.bump_if_token(Token::Period) {
-                    break;
-                }
-            }
+        if imported_parent.is_none() && matches!(self.peek(), Some(Token::Ident(_))) {
+            calls.push(self.parse_module_access_path()?);
+        }
+        while (self.peek() == Some(&Token::Period)
+            || (imported_parent.is_some()
+                && calls.is_empty()
+                && self.peek() == Some(&Token::DoubleColon)))
+            && matches!(
+                self.tokens.get(self.pos + 1).map(|token| &token.kind),
+                Some(Token::Ident(_))
+            )
+            && matches!(
+                self.tokens.get(self.pos + 2).map(|token| &token.kind),
+                Some(Token::LBracket)
+            )
+        {
+            self.pos += 1;
+            calls.push(self.parse_module_access_path()?);
         }
 
         let path = if let Some(import_name) = imported_parent {
@@ -759,7 +759,7 @@ impl<'a> Parser<'a> {
 
     fn parse_use_macro(&mut self) -> Result<ModuleItem, ParseError> {
         let path = self.parse_module_selection()?;
-        self.expect_token(Token::DoubleColon)?;
+        self.expect_token(Token::Period)?;
         let macro_name = self.expect_ident()?;
         let name = if self.bump_if_keyword("\\as") {
             self.expect_ident()?

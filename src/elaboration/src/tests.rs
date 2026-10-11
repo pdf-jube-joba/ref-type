@@ -113,7 +113,7 @@ fn parsed_modules_can_be_reused_in_workspaces_with_different_module_ids() {
         \module Use {
             \inductive Unit: \Set := | unit: Unit;
             \import \root.Template[A := Unit, x := Unit::unit] \as T;
-            \use T::element;
+            \use T.element;
             \definition value: Unit := element!{};
         }
     ",
@@ -497,8 +497,8 @@ fn imported_macro_uses_the_materialized_module_arguments() {
         }
         \module Consumer(A: \Set(0), value: A) {
             \import \root.Provider[A := A, value := value] \as provider;
-            \use provider::supplied;
-            \use provider::imported_plus;
+            \use provider.supplied;
+            \use provider.imported_plus;
             \definition result: A := supplied!{};
             \definition math_result: A := \(value + value \);
         }
@@ -598,7 +598,7 @@ fn child_modules_inherit_parent_import_aliases() {
             \module Child {
                 \definition direct: A := Shared.get;
                 \import Shared.Nested[] \as Nested;
-                \use Shared::get_macro;
+                \use Shared.get_macro;
                 \definition nested: A := Nested.get;
                 \definition from_macro: A := get_macro!{};
             }
@@ -896,12 +896,12 @@ fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
         }
         \module Wrapper(A: \Set(0), value: A) {
             \import \root.Base[A := A, value := value] \as base;
-            \use base::base_value;
+            \use base.base_value;
             \macro wrapped() := base_value!{};
         }
         \module Consumer(A: \Set(0), value: A) {
             \import \root.Wrapper[A := A, value := value] \as wrapper;
-            \use wrapper::wrapped;
+            \use wrapper.wrapped;
             \definition result: A := wrapped!{};
         }
     "#;
@@ -1124,7 +1124,7 @@ fn imported_macro_resolves_free_names_at_its_definition_site() {
         }
         \module Consumer(A: \Set(0), B: \Set(0), a: A, provided: B) {
             \import \root.Provider[A := A, provided := a] \as provider;
-            \use provider::supplied;
+            \use provider.supplied;
             \definition result: A := supplied!{};
         }
     "#;

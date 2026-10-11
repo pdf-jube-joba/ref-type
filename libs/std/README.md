@@ -18,10 +18,10 @@ carrier をマクロ引数に指定して使う。
 
 ```text
 \import std.Logic[].Equality[] \as E;
-\use E::trans;
-\use E::congr;
-\use E::congr2;
-\use E::eq_reason;
+\use E.trans;
+\use E.congr;
+\use E.congr2;
+\use E.eq_reason;
 
 trans!{A} a b c ab bc
 congr!{A B} f a b ab
@@ -49,7 +49,7 @@ Laws.congr3[B, C, D] f a b c d e g ab cd eg
 
 ```text
 \import std.Logic[].Proposition[] \as Logic;
-\use Logic::either;
+\use Logic.either;
 
 \definition fold(P, Q, R: \Prop):
   (P -> R) -> (Q -> R) -> Logic.Or[P, Q] -> R :=

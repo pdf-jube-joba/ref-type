@@ -20,8 +20,8 @@ fn forward_uses_specialize_two_equalities_with_aliases() {
         \definition leftProof: leftEq a a := refl_left!{a};
         \definition rightProof: rightEq a a := refl_right!{a};
       }
-      \use \root.Equality[A := A, eq := leftEq, refl := leftRefl]::reflexive \as refl_left;
-      \use \root.Equality[A := A, eq := rightEq, refl := rightRefl]::reflexive \as refl_right;
+      \use \root.Equality[A := A, eq := leftEq, refl := leftRefl].reflexive \as refl_left;
+      \use \root.Equality[A := A, eq := rightEq, refl := rightRefl].reflexive \as refl_right;
     }
     \module Equality(A: \Set, eq: A -> A -> \Prop, refl: \forall (x: A) -> eq x x) {
       \macro reflexive($x) := refl $x;
@@ -58,7 +58,7 @@ fn forward_mutual_recursion_and_aliased_self_recursion() {
     }
     \module Consumer(A: \Set, a: A) {
       \definition law: a = a := \refl(start!{"next" "next" "next"});
-      \use \root.Templates[A := A, a := a]::first \as start;
+      \use \root.Templates[A := A, a := a].first \as start;
     }"#,
     )
     .unwrap();
@@ -71,7 +71,7 @@ fn late_use_arguments_keep_their_declaration_position() {
     \module Consumer(A: \Set, a: A) {
       \module Child { \definition proof: a = a := \refl(value!{}); }
       \definition later: A := a;
-      \use \root.Templates[A := A, a := later]::value;
+      \use \root.Templates[A := A, a := later].value;
     }"#,
     )
     .unwrap();
@@ -90,8 +90,8 @@ fn late_use_arguments_keep_their_declaration_position() {
 fn duplicate_names_and_instantiation_cycles_have_diagnostics() {
     for body in [
         r"\macro value() := a; \macro value() := a;",
-        r"\macro value() := a; \use \root.T[A := A, a := a]::value;",
-        r"\use \root.T[A := A, a := a]::value; \use \root.T[A := A, a := a]::value;",
+        r"\macro value() := a; \use \root.T[A := A, a := a].value;",
+        r"\use \root.T[A := A, a := a].value; \use \root.T[A := A, a := a].value;",
     ] {
         let source = format!(
             r"\module T(A: \Set, a: A) {{ \macro value() := a; }} \module M(A: \Set, a: A) {{ {body} }}"
@@ -101,7 +101,7 @@ fn duplicate_names_and_instantiation_cycles_have_diagnostics() {
     }
     let error = check(
         r#"\module T(A: \Set, a: A) { \macro value() := a; }
-      \module M(A: \Set, a: A) { \use \root.T[A := A, a := value!{}]::value; }"#,
+      \module M(A: \Set, a: A) { \use \root.T[A := A, a := value!{}].value; }"#,
     )
     .unwrap_err();
     assert!(
@@ -121,9 +121,30 @@ fn import_alias_and_parameterized_child_use() {
       \definition law: a = a := \refl(parent!{});
       \definition childLaw: a = a := \refl(child!{});
       \import \root.T[A := A, a := a] \as T;
-      \use T::value \as parent;
-      \use T::Child[b := a]::value \as child;
+      \use T.value \as parent;
+      \use T.Child[b := a].value \as child;
     }"#,
+    )
+    .unwrap();
+}
+
+#[test]
+fn relative_module_uses_separate_the_final_macro_name() {
+    check(
+        r"\module M(A: \Set, a: A) {
+      \module Templates {
+        \macro value() := a;
+        \module Child { \macro value() := a; }
+      }
+      \use Templates[].value \as implicit_current;
+      \use .Templates[].Child[].value \as explicit_current;
+      \definition first: a = a := \refl(implicit_current!{});
+      \definition second: a = a := \refl(explicit_current!{});
+      \module Consumer {
+        \use \parent.Templates[].Child[].value;
+        \definition law: a = a := \refl(value!{});
+      }
+    }",
     )
     .unwrap();
 }
@@ -158,7 +179,7 @@ fn direct_use_flattens_structure_arguments() {
       \module T(A: \Set, point: Point[A]) { \macro value() := point.value; }
       \module M(A: \Set, a: A) {
         \definition law: a = a := \refl(value!{});
-        \use \root.Playground[].T[A := A, point := Point[A] { value := a }]::value;
+        \use \root.Playground[].T[A := A, point := Point[A] { value := a }].value;
       }}",
     )
     .unwrap();
@@ -205,7 +226,7 @@ fn math_in_use_arguments_can_use_independent_local_templates() {
         r"\module T(A: \Set, a: A) { \macro value() := a; }
       \module M(A: \Set, a: A) {
         \definition law: a = a := \refl(value!{});
-        \use \root.T[A := A, a := \(a + a\)]::value;
+        \use \root.T[A := A, a := \(a + a\)].value;
         \math-macro plus($x, \+, $y) := $x;
       }",
     )
@@ -216,7 +237,7 @@ fn math_in_use_arguments_can_use_independent_local_templates() {
 fn math_use_arguments_report_their_own_instantiation_cycle() {
     let error = check(
         r"\module T(A: \Set, a: A) { \math-macro plus($x, \+, $y) := a; }
-      \module M(A: \Set, a: A) { \use \root.T[A := A, a := \(a + a\)]::plus; }",
+      \module M(A: \Set, a: A) { \use \root.T[A := A, a := \(a + a\)].plus; }",
     )
     .unwrap_err();
     assert!(
@@ -234,7 +255,7 @@ fn several_forward_calls_do_not_create_spurious_declaration_dependencies() {
         \definition second: a = a := \refl(local!{});
         \macro local() := value!{};
         \definition argument: A := a;
-        \use \root.T[A := A, a := argument]::value;
+        \use \root.T[A := A, a := argument].value;
       }",
     )
     .unwrap();
@@ -242,7 +263,7 @@ fn several_forward_calls_do_not_create_spurious_declaration_dependencies() {
         r"\module T(A: \Set, a: A) { \macro value() := a; }
       \module M(A: \Set, a: A) {
         \definition argument: A := value!{};
-        \use \root.T[A := A, a := argument]::value;
+        \use \root.T[A := A, a := argument].value;
       }",
     )
     .unwrap_err();

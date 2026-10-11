@@ -1433,7 +1433,7 @@ fn separate_processes_restore_set_transport_with_aliased_macros() {
     \module M(A: \Set, F: A -> \Set, a: A, u: F a) {
       \definition cast: F a := \idelim a = a \with x: _ => F x \by { base: u, equality: \refl(a) };
       \definition identity: cast = u := self!{a u};
-      \use \root.T[A := A, F := F]::identity \as self;
+      \use \root.T[A := A, F := F].identity \as self;
     }
     \module N(A: \Set, F: A -> \Set, a: A, u: F a) {
       \import \root.M[A := A, F := F, a := a, u := u] \as M;

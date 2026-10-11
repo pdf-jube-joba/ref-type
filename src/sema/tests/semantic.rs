@@ -316,7 +316,7 @@ fn imported_macro_changes_invalidate_expansions_and_references() {
     let mut snapshot = project();
     snapshot.insert("/virtual/Base.ref", r"\macro identity($P):= $P;");
     snapshot.insert("/virtual/Left.ref", r"\import \root.Base[] \as B;
-        \use B::identity;
+        \use B.identity;
         \definition identityProof: \forall (P: \Prop) -> P -> P := identity!{\fun (P: \Prop) => \fun (p: P) => p};");
     let mut database = Database::new();
     let original = database.check(&snapshot);
@@ -413,7 +413,7 @@ fn macro_template_references_keep_the_definition_file() {
     );
     snapshot.insert(
         "/virtual/Left.ref",
-        r"\import \root.Base[] \as B; \use B::proposition;
+        r"\import \root.Base[] \as B; \use B.proposition;
         \definition result: \Prop := proposition!{};",
     );
     let result = Database::new().check(&snapshot);
@@ -1394,7 +1394,7 @@ fn aliased_macro_calls_navigate_to_the_original_definition_and_invalidate() {
     let consumer = r"\module Consumer(A: \Set, a, b: A) {
       \definition law: a = a := \refl(chosen!{});
       \definition two: a = a := (\fun (value: A) => \refl(chosen!{})) chosen!{};
-      \use \root.T[].Values[A := A, a := a, b := b]::macro \as chosen;
+      \use \root.T[].Values[A := A, a := a, b := b].macro \as chosen;
     }";
     snapshot.insert("/virtual/M.ref", consumer);
     let mut database = Database::new();

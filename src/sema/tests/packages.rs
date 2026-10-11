@@ -353,7 +353,7 @@ fn restored_package_keeps_macros_structures_reflection_and_source_locations() {
     let source = r"\module Main {
         \import base.Core[] \as B;
         \import base.Core[].Values[A := B.Unit^, a := B.Unit^::unit] \as V;
-        \use V::chosen;
+        \use V.chosen;
         \check V.Box::value V.boxed: B.Unit^;
         \definition law: chosen!{} = B.Unit^::unit := \refl(B.Unit^::unit);
         \normalize \squash[_](B.computation);
