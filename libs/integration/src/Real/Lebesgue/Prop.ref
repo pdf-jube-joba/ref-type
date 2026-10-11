@@ -2,17 +2,15 @@
 
 \definition equivalentReflexive: \forall (s: Def.Representation) -> Def.Equivalent s s :=
   \fun (s: Def.Representation) (epsilon: _) (positive: _) =>
-    \exact(\into[N.Nat^](N.Nat^::zero, { k: N.Nat^ \where Def.EquivalenceControl s s epsilon k }) \by {
-      \fun (n: _) (later: _) => RP.smallSelf (s n).function epsilon positive },
-      \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl s s epsilon k }));
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl s s epsilon k }] (N.Nat^::zero)
+    (\fun (n: _) (later: _) => RP.smallSelf (s n).function epsilon positive);
 
 \definition equivalentSymmetric: \forall (s, t: Def.Representation) -> Def.Equivalent s t -> Def.Equivalent t s :=
   \fun (s, t: Def.Representation) (same: Def.Equivalent s t) (epsilon: _) (positive: _) => \block {
     \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl s t epsilon k }) \by same epsilon positive \then
-    \return \exact(\into[N.Nat^](k, { k: N.Nat^ \where Def.EquivalenceControl t s epsilon k }) \by {
-      \fun (n: _) (later: _) => RP.smallSymmetric _ _ epsilon
-        ((\bysub(N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl s t epsilon k }, k)) n later) },
-      \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl t s epsilon k }))
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl t s epsilon k }] k
+      (\fun (n: _) (later: _) => RP.smallSymmetric _ _ epsilon
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl s t epsilon k }, k)) n later))
   };
 
 \definition equivalentTransitive: \forall (s, t, u: Def.Representation) -> Def.Equivalent s t -> Def.Equivalent t u -> Def.Equivalent s u :=
@@ -21,13 +19,12 @@
       \by st (mul half epsilon) (E.halfOfPositive epsilon positive) \then
     \takefrom l: \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl t u (mul half epsilon) k })
       \by tu (mul half epsilon) (E.halfOfPositive epsilon positive) \then
-    \return \exact(\into[N.Nat^](NatOrder.commonBound k l, { k: N.Nat^ \where Def.EquivalenceControl s u epsilon k }) \by {
-      \fun (n: _) (later: _) => RP.smallTriangle (s n).function (t n).function (u n).function epsilon
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl s u epsilon k }] (NatOrder.commonBound k l)
+      (\fun (n: _) (later: _) => RP.smallTriangle (s n).function (t n).function (u n).function epsilon
         ((\bysub(N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl s t (mul half epsilon) k }, k))
           n (Nat.leTrans _ _ _ (NatOrder.leftLeCommonBound k l) later))
         ((\bysub(N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl t u (mul half epsilon) k }, l))
-          n (Nat.leTrans _ _ _ (NatOrder.rightLeCommonBound k l) later)) },
-      \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl s u epsilon k }))
+          n (Nat.leTrans _ _ _ (NatOrder.rightLeCommonBound k l) later)))
   };
 
 \definition equivalenceLaws: Def.EquivalenceLaws := Def.EquivalenceLaws {
@@ -40,12 +37,11 @@
   \fun (s: Def.Representation) (epsilon: _) (positive: _) => \block {
     \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Def.Control s (mul half epsilon) k })
       \by Def.cauchyLaw s (mul half epsilon) (E.halfOfPositive epsilon positive) \then
-    \return \exact(\into[N.Nat^](k, { k: N.Nat^ \where S.Control (Def.integralSequence s) epsilon k }) \by {
-      \fun (m, n: _) (laterM: _) (laterN: _) => R.leLtTrans _ _ _
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where S.Control (Def.integralSequence s) epsilon k }] k
+      (\fun (m, n: _) (laterM: _) (laterN: _) => R.leLtTrans _ _ _
         (RP.integralClose (s m) (s n) (mul half epsilon)
           ((\bysub(N.Nat^, { k: N.Nat^ \where Def.Control s (mul half epsilon) k }, k)) m n laterM laterN))
-        (E.halfStrict epsilon positive) },
-      \Cast[N.Nat^] ({ k: N.Nat^ \where S.Control (Def.integralSequence s) epsilon k }))
+        (E.halfStrict epsilon positive))
   };
 
 \definition numericSequence(s: Def.Representation): S.CauchySequence :=
@@ -126,9 +122,8 @@
 \definition constantRepresentation(f: RI.Function): Def.Representation :=
   \into[N.Nat^ -> RI.Function](\fun (n: N.Nat^) => f, { sequence: N.Nat^ -> RI.Function \where Def.Cauchy sequence }) \by {
     \fun (epsilon: _) (positive: _) =>
-      \exact(\into[N.Nat^](N.Nat^::zero, { k: N.Nat^ \where Def.Control (\fun (n: N.Nat^) => f) epsilon k }) \by {
-        \fun (m, n: _) (laterM: _) (laterN: _) => RP.smallSelf f.function epsilon positive },
-        \Cast[N.Nat^] ({ k: N.Nat^ \where Def.Control (\fun (n: N.Nat^) => f) epsilon k })) };
+      Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Def.Control (\fun (n: N.Nat^) => f) epsilon k }] (N.Nat^::zero)
+      (\fun (m, n: _) (laterM: _) (laterN: _) => RP.smallSelf f.function epsilon positive) };
 
 \definition ofRiemann(f: RI.Function): Def.Function := Def.class (constantRepresentation f);
 
@@ -147,12 +142,10 @@
   RI.HasIntegral[f, value] -> \exists { lebesgue: Def.Function \where Agreement[f, value, lebesgue] } :=
   \fun (f: _) (value: _) (riemannLaw: RI.HasIntegral[f, value]) => \block {
     \let riemann: RI.Function := RI.Function { function := f, integral := value, hasIntegral := riemannLaw } \then
-    \return \exact(\into[Def.Function](ofRiemann riemann, { lebesgue: Def.Function \where Agreement[f, value, lebesgue] }) \by {
-      Agreement[_, _, _] {
-        represents := \exact(\into[RI.Function](riemann,
-          { candidate: RI.Function \where Logic.And[#function{candidate} = f, ofRiemann candidate = ofRiemann riemann] }) \by {
-            Logic.And[_, _]::# (\refl(f)) (\refl(ofRiemann riemann)) },
-          \Cast[RI.Function] ({ candidate: RI.Function \where Logic.And[#function{candidate} = f, ofRiemann candidate = ofRiemann riemann] })),
+    \return Logic.existsIntro[Def.Function, { lebesgue: Def.Function \where Agreement[f, value, lebesgue] }] (ofRiemann riemann)
+      (Agreement[_, _, _] {
+        represents := Logic.existsIntro[RI.Function, { candidate: RI.Function \where Logic.And[#function{candidate} = f, ofRiemann candidate = ofRiemann riemann] }] riemann
+          (Logic.And[_, _]::# (\refl(f)) (\refl(ofRiemann riemann))),
         integral := riemannAgreement riemann,
-      } }, \Cast[Def.Function] ({ lebesgue: Def.Function \where Agreement[f, value, lebesgue] }))
+      })
   };

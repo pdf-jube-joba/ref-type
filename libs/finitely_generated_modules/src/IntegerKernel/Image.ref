@@ -1,3 +1,4 @@
+\import std.Logic[].Proposition[] \as Existential;
 \import Modules.FiniteCoordinates[n := rank] \as Coefficients;
 \import OriginalCoordinates.Head[rank := rank] \as Head;
 \import Head.Laws[] \as HeadLaws;
@@ -17,9 +18,7 @@
 \definition forward: Maps.Map := Maps.Map {
   apply := point,
   addition := \fun (v, w: Coefficients.Carrier) =>
-    trans!{Matrices.Output} (value (#add{Coefficients.space} v w))
-      (Base.apply (Matrices.reflect original) (Right.apply right (#add{Matrices.domain} (Head.extension v) (Head.extension w))))
-      (#add{Matrices.codomain} (value v) (value w))
+    trans!{Matrices.Output} _ _ _
       (congr!{Matrices.Vector Matrices.Output} (\fun (x: Matrices.Vector) => Base.apply (Matrices.reflect original) (Right.apply right x))
         (Head.extension (#add{Coefficients.space} v w)) (#add{Matrices.domain} (Head.extension v) (Head.extension w)) (HeadLaws.extensionAddition v w))
       (trans!{Matrices.Output} _ _ _
@@ -27,9 +26,7 @@
           (#addition{#forward{rightIso}} (Head.extension v) (Head.extension w)))
         (#addition{(Base.linear (Matrices.reflect original))} (Right.apply right (Head.extension v)) (Right.apply right (Head.extension w)))),
   scalar := \fun (a: I.Int^)(v: Coefficients.Carrier) =>
-    trans!{Matrices.Output} (value (#smul{Coefficients.space} a v))
-      (Base.apply (Matrices.reflect original) (Right.apply right (#smul{Matrices.domain} a (Head.extension v))))
-      (#smul{Matrices.codomain} a (value v))
+    trans!{Matrices.Output} _ _ _
       (congr!{Matrices.Vector Matrices.Output} (\fun (x: Matrices.Vector) => Base.apply (Matrices.reflect original) (Right.apply right x))
         (Head.extension (#smul{Coefficients.space} a v)) (#smul{Matrices.domain} a (Head.extension v)) (HeadLaws.extensionScalar a v))
       (trans!{Matrices.Output} _ _ _
@@ -44,9 +41,7 @@
 \definition diagonalAt: \forall (v: Coefficients.Carrier)(j: Coefficients.Index) ->
   Base.apply diagonal (Head.extension v) (outputIndex j) = Arithmetic.mul (Diagonalize.diagonal result j j) (v j) :=
   \fun (v: Coefficients.Carrier)(j: Coefficients.Index) =>
-    trans!{I.Int^} (Base.apply diagonal (Head.extension v) (outputIndex j))
-      (Arithmetic.mul (Diagonalize.diagonal result j j) (Head.extension v (inputIndex j)))
-      (Arithmetic.mul (Diagonalize.diagonal result j j) (v j))
+    trans!{I.Int^} _ _ _
       (Diagonal.row (Diagonalize.diagonal result) (Head.extension v) (outputIndex j) (Finite.bound n (inputIndex j)) #diagonal{diagonalLaws})
       (congr!{I.Int^ I.Int^} (Arithmetic.mul (Diagonalize.diagonal result j j))
         (Head.extension v (inputIndex j)) (v j) (Head.atIncluded columnRank v j));
@@ -56,9 +51,7 @@
   \axiom:funext(v, w, \fun (j: Coefficients.Index) =>
     Domain.cancellation (Diagonalize.diagonal result j j) (v j) (w j)
       (#nonzero{diagonalLaws} j (Finite.bound rank j))
-      (trans!{I.Int^} (Arithmetic.mul (Diagonalize.diagonal result j j) (v j))
-        (Base.apply diagonal (Head.extension v) (outputIndex j))
-        (Arithmetic.mul (Diagonalize.diagonal result j j) (w j))
+      (trans!{I.Int^} _ _ _
         (sym!{I.Int^} _ _ (diagonalAt v j))
         (trans!{I.Int^} _ _ _
           (congr!{Matrices.Output I.Int^} (\fun (x: Matrices.Output) => x (outputIndex j))
@@ -112,11 +105,9 @@
   \takefrom v: \Cast[Matrices.Vector] ({ v: Matrices.Vector \where Base.apply (Matrices.reflect original) v = y })
     \by \bysub(Matrices.Output, #carrier{submodule}, y) \then
   \let w: Coefficients.Carrier := Head.restriction columnRank (#apply{#backward{rightIso}} v) \then
-  \return \exact(
-    \into[Coefficients.Carrier](w, { x: Coefficients.Carrier \where point x = y }) \by {
-      trans!{Matrices.Output} (value w) (Base.apply (Matrices.reflect original) v) y (recovery v)
-        (\bysub(Matrices.Vector, { x: Matrices.Vector \where Base.apply (Matrices.reflect original) x = y }, v))
-    }, \Cast[Coefficients.Carrier] ({ x: Coefficients.Carrier \where point x = y }))
+  \return Existential.existsIntro[Coefficients.Carrier, { x: Coefficients.Carrier \where point x = y }] w
+    (trans!{Matrices.Output} (value w) (Base.apply (Matrices.reflect original) v) y (recovery v)
+        (\bysub(Matrices.Vector, { x: Matrices.Vector \where Base.apply (Matrices.reflect original) x = y }, v)))
 };
 \definition isomorphism: Modules.Isomorphism[V := Coefficients.Carrier, W := Carrier, source := Coefficients.space, target := space].Isomorphism :=
   Bijective.isomorphism injective onto;

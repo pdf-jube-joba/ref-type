@@ -9,8 +9,8 @@
   \Cast[family.Carrier j] ({ y: family.Carrier j \where ValueLaws[i, j, x, y] });
 \definition existsValue: \forall (i, j: Index)(x: family.Carrier i) -> \exists Value i j x :=
   \fun (i, j: Index)(x: family.Carrier i) =>
-    either!{{i = j} "or" {Logic.Not (i = j)} "either" {\exists Value i j x}
-      "lt:" {\block {
+    either!{{(Classical.excludedMiddle (i = j))} {\exists Value i j x}
+      {\block {
         \fun (same: i = j) \then
         \let value: family.Carrier j := Transport.cast family.Carrier i j same x \then
         \return \exact(\into[family.Carrier j](value, { y: family.Carrier j \where ValueLaws[i, j, x, y] }) \by {
@@ -20,7 +20,7 @@
           }
         }, Value i j x)
       }}
-      "rt:" {\fun (ne: Logic.Not (i = j)) =>
+      {\fun (ne: Logic.Not (i = j)) =>
         \exact(\into[family.Carrier j](#zero{(family.space j)}, { y: family.Carrier j \where ValueLaws[i, j, x, y] }) \by {
           ValueLaws[i, j, x, #zero{(family.space j)}] {
             equal := \fun (same: i = j) =>
@@ -28,20 +28,19 @@
             different := \fun (unused: Logic.Not (i = j)) => \refl(#zero{(family.space j)}),
           }
         }, Value i j x)}
-    } (Classical.excludedMiddle (i = j));
+    };
 \definition laws(i, j: Index)(x: family.Carrier i)(y: Value i j x): ValueLaws[i, j, x, y] :=
   \bysub(family.Carrier j, { y: family.Carrier j \where ValueLaws[i, j, x, y] }, y);
 \definition uniqueValue: \forall (i, j: Index)(x: family.Carrier i)(a, b: Value i j x) -> a = b :=
   \fun (i, j: Index)(x: family.Carrier i)(a, b: Value i j x) =>
-    either!{{i = j} "or" {Logic.Not (i = j)} "either" {a = b}
-      "lt:" {\fun (same: i = j) => trans!{{family.Carrier j}} a
-        (Transport.cast family.Carrier i j same x) b
+    either!{{(Classical.excludedMiddle (i = j))} {a = b}
+      {\fun (same: i = j) => trans!{{family.Carrier j}} _ _ _
         (#equal{(laws i j x a)} same)
         (sym!{{family.Carrier j}} b (Transport.cast family.Carrier i j same x) (#equal{(laws i j x b)} same))}
-      "rt:" {\fun (ne: Logic.Not (i = j)) => trans!{{family.Carrier j}} a #zero{(family.space j)} b
+      {\fun (ne: Logic.Not (i = j)) => trans!{{family.Carrier j}} a #zero{(family.space j)} b
         (#different{(laws i j x a)} ne)
         (sym!{{family.Carrier j}} b #zero{(family.space j)} (#different{(laws i j x b)} ne))}
-    } (Classical.excludedMiddle (i = j));
+    };
 \definition selected(i: Index)(x: family.Carrier i)(j: Index): Value i j x :=
   \choice Value i j x \by { existence: existsValue i j x, uniqueness: uniqueValue i j x };
 \definition point(i: Index)(x: family.Carrier i)(j: Index): family.Carrier j := selected i x j;

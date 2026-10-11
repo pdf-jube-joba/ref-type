@@ -1,3 +1,4 @@
+\import std.Logic[].Proposition[] \as Existential;
 \definition absolute: I.Int^ -> N.Nat^ := \induction (a: I.Int^) \return N.Nat^ \with {
   | ofNat: \fun (n: N.Nat^) => n
   | negSucc: \fun (n: N.Nat^) => N.Nat^::succ n
@@ -37,15 +38,14 @@
 \definition naturalDivisor: \forall (d: N.Nat^)(a: I.Int^) -> DivisionLaws.Divides d (absolute a) -> Divides (natural d) a := \block {
   \fun (d: N.Nat^)(a: I.Int^)(divides: DivisionLaws.Divides d (absolute a)) \then
   \takefrom q: DivisionLaws.Factors d (absolute a) \by divides \then
-  \return \exact(\into[I.Int^](Arithmetic.mul (sign a) (natural q), { q: I.Int^ \where a = Arithmetic.mul (natural d) q }) \by {
-    eq_reason!{{a}
+  \return Existential.existsIntro[I.Int^, { q: I.Int^ \where a = Arithmetic.mul (natural d) q }] (Arithmetic.mul (sign a) (natural q))
+    (eq_reason!{{a}
       "=" {Arithmetic.mul (sign a) (natural (absolute a))} "by" {sym!{I.Int^} _ _ (signTimesAbsolute a)}
       "=" {Arithmetic.mul (sign a) (natural (Nat.mul d q))} "by" {congr!{N.Nat^ I.Int^} (\fun (n: N.Nat^) => Arithmetic.mul (sign a) (natural n)) _ _ (DivisionLaws.factorEquation d (absolute a) q)}
       "=" {Arithmetic.mul (sign a) (Arithmetic.mul (natural d) (natural q))} "by" {congr!{I.Int^ I.Int^} (Arithmetic.mul (sign a)) _ _ (sym!{I.Int^} _ _ (naturalMul d q))}
       "=" {Arithmetic.mul (Arithmetic.mul (sign a) (natural d)) (natural q)} "by" {sym!{I.Int^} _ _ (Product.mulAssoc (sign a) (natural d) (natural q))}
       "=" {Arithmetic.mul (Arithmetic.mul (natural d) (sign a)) (natural q)} "by" {congr!{I.Int^ I.Int^} (\fun (n: I.Int^) => Arithmetic.mul n (natural q)) _ _ (IntegerLaws.mulComm (sign a) (natural d))}
-      "=" {Arithmetic.mul (natural d) (Arithmetic.mul (sign a) (natural q))} "by" {Product.mulAssoc (natural d) (sign a) (natural q)}}
-  }, \Cast[I.Int^] ({ q: I.Int^ \where a = Arithmetic.mul (natural d) q }))
+      "=" {Arithmetic.mul (natural d) (Arithmetic.mul (sign a) (natural q))} "by" {Product.mulAssoc (natural d) (sign a) (natural q)}})
 };
 \structure Laws[a, b: I.Int^, c: Certificate^]: \Prop {
   gcd: divisor c = Gcd.gcd (absolute a) (absolute b),

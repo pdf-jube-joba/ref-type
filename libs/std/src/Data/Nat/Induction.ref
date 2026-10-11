@@ -15,9 +15,10 @@
       }
     | succ: \fun (a: Nat^)(previous: _) => \induction (b: Nat^) \return Bounds.Le (Nat^::succ a) b -> Logic.Or[Bounds.Lt (Nat^::succ a) b, Nat^::succ a = b] \with {
         | zero: \fun (bad: _) => Logic.falseElim _ (Order.ltZero a (Bounds.ltOfSuccLe Nat^::zero a bad))
-        | succ: \fun (b: Nat^)(unused: _)(bound: _) => either!{{Bounds.Lt a b} "or" {a = b} "either" {Logic.Or[Bounds.Lt (Nat^::succ a) (Nat^::succ b), Nat^::succ a = Nat^::succ b]}
-            "lt:" {\fun (less: _) => Logic.Or[_, _]::left (Bounds.ltSuccSucc a b less)}
-            "rt:" {\fun (equal: _) => Logic.Or[_, _]::right (congr!{Nat^ Nat^} Nat^::succ a b equal)}} (previous b bound)
+        | succ: \fun (b: Nat^)(unused: _)(bound: _) => either!{{(previous b bound)} {Logic.Or[Bounds.Lt (Nat^::succ a) (Nat^::succ b), Nat^::succ a = Nat^::succ b]}
+            {\fun (less: _) => Logic.Or[_, _]::left (Bounds.ltSuccSucc a b less)}
+            {\fun (equal: _) => Logic.Or[_, _]::right (congr!{Nat^ Nat^} Nat^::succ a b equal)}
+        }
       }
   };
 \definition belowSuccessor: \forall (a, b: Nat^) -> Bounds.Lt a (Nat^::succ b) -> Bounds.Le a b :=
@@ -31,12 +32,13 @@
           equality: sym!{Nat^} m Nat^::zero (Bounds.leZeroEq m bound)
         }
       | succ: \fun (n: Nat^)(previous: _)(m: Nat^)(bound: _) =>
-          either!{{Bounds.Lt m (Nat^::succ n)} "or" {m = Nat^::succ n} "either" {P m}
-            "lt:" {\fun (less: _) => previous m (belowSuccessor m n less)}
-            "rt:" {\fun (equal: _) => \idelim Nat^::succ n = m \with k: Nat^ => P k \by {
+          either!{{(leCases m (Nat^::succ n) bound)} {P m}
+            {\fun (less: _) => previous m (belowSuccessor m n less)}
+            {\fun (equal: _) => \idelim Nat^::succ n = m \with k: Nat^ => P k \by {
               base: step (Nat^::succ n) (\fun (k: Nat^)(less: _) => previous k (belowSuccessor k n less)),
               equality: sym!{Nat^} m (Nat^::succ n) equal
-            }}} (leCases m (Nat^::succ n) bound)
+            }}
+          }
     };
 }
 \definition strong: \forall (P: Nat^ -> \Prop) -> (\forall (n: Nat^) -> (\forall (m: Nat^) -> Bounds.Lt m n -> P m) -> P n) -> \forall (n: Nat^) -> P n :=

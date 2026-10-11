@@ -40,20 +40,17 @@
 \definition Occurs(p: Pair.NatPair): \Prop := \exists { k: Nat^ \where enumerate k = p };
 \definition diagonal: \forall (b: Nat^) -> Occurs (Pair.natPair Nat^::zero b) :=
   \induction (b: Nat^) \return Occurs (Pair.natPair Nat^::zero b) \with {
-    | zero: \exact(\into[Nat^](Nat^::zero, { k: Nat^ \where enumerate k = Pair.natPair Nat^::zero Nat^::zero }) \by {
-      \refl(Pair.natPair Nat^::zero Nat^::zero)
-    }, \Cast[Nat^] ({ k: Nat^ \where enumerate k = Pair.natPair Nat^::zero Nat^::zero }))
+    | zero: Logic.existsIntro[Nat^, { k: Nat^ \where enumerate k = Pair.natPair Nat^::zero Nat^::zero }] (Nat^::zero)
+      (\refl(Pair.natPair Nat^::zero Nat^::zero))
     | succ: \block {
       \fun (b: Nat^)(previous: Occurs (Pair.natPair Nat^::zero b)) \then
       \takefrom k: \Cast[Nat^] ({ k: Nat^ \where enumerate k = Pair.natPair Nat^::zero b }) \by previous \then
       \let found: enumerate k = Pair.natPair Nat^::zero b := \bysub(Nat^, { k: Nat^ \where enumerate k = Pair.natPair Nat^::zero b }, k) \then
-      \return \exact(\into[Nat^](Operations.add k (Nat^::succ b),
-        { l: Nat^ \where enumerate l = Pair.natPair Nat^::zero (Nat^::succ b) }) \by {
-          trans!{Pair.NatPair} _ _ _ (iterateAdd (Pair.natPair Nat^::zero Nat^::zero) k (Nat^::succ b))
+      \return Logic.existsIntro[Nat^, { l: Nat^ \where enumerate l = Pair.natPair Nat^::zero (Nat^::succ b) }] (Operations.add k (Nat^::succ b))
+        (trans!{Pair.NatPair} _ _ _ (iterateAdd (Pair.natPair Nat^::zero Nat^::zero) k (Nat^::succ b))
             (trans!{Pair.NatPair} _ _ _
               (congr!{Pair.NatPair Pair.NatPair} (\fun (p: Pair.NatPair) => Iterate.apply step p (Nat^::succ b)) _ _ found)
-              (nextDiagonal b))
-        }, \Cast[Nat^] ({ l: Nat^ \where enumerate l = Pair.natPair Nat^::zero (Nat^::succ b) }))
+              (nextDiagonal b)))
     }
   };
 \definition exhaustive: \forall (a, b: Nat^) -> Occurs (Pair.natPair a b) :=
@@ -63,8 +60,7 @@
       \fun (a: Nat^)(previous: \forall (b: Nat^) -> Occurs (Pair.natPair a b))(b: Nat^) \then
       \takefrom k: \Cast[Nat^] ({ k: Nat^ \where enumerate k = Pair.natPair a (Nat^::succ b) }) \by previous (Nat^::succ b) \then
       \let found: enumerate k = Pair.natPair a (Nat^::succ b) := \bysub(Nat^, { k: Nat^ \where enumerate k = Pair.natPair a (Nat^::succ b) }, k) \then
-      \return \exact(\into[Nat^](Nat^::succ k, { l: Nat^ \where enumerate l = Pair.natPair (Nat^::succ a) b }) \by {
-        congr!{Pair.NatPair Pair.NatPair} step _ _ found
-      }, \Cast[Nat^] ({ l: Nat^ \where enumerate l = Pair.natPair (Nat^::succ a) b }))
+      \return Logic.existsIntro[Nat^, { l: Nat^ \where enumerate l = Pair.natPair (Nat^::succ a) b }] (Nat^::succ k)
+        (congr!{Pair.NatPair Pair.NatPair} step _ _ found)
     }
   };

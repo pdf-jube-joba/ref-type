@@ -39,19 +39,17 @@
   Properties.Diagonal a -> \forall (j: Finite.Fin n) ->
   Arithmetic.mul (a i j) (v j) = Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j)) :=
   \fun (a: Runtime^)(v: Vector)(i: Finite.Fin m)(bound: Bounds.Lt i n)(diagonal: Properties.Diagonal a)(j: Finite.Fin n) =>
-    either!{{i = j} "or" {Logic.Not (i = j)} "either" {Arithmetic.mul (a i j) (v j) = Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j))}
-      "lt:" {\fun (same: _) =>
-        trans!{I.Int^} (Arithmetic.mul (a i j) (v j)) (Arithmetic.mul (a i i) (v j))
-          (Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j)))
+    either!{{(Classical.excludedMiddle (i = j))} {Arithmetic.mul (a i j) (v j) = Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j))}
+      {\fun (same: _) =>
+        trans!{I.Int^} _ _ _
           (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (v j)) (a i j) (a i i)
             (congr!{N.Nat^ I.Int^} (a i) j i (sym!{N.Nat^} i j same)))
           (sym!{I.Int^} (Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j))) (Arithmetic.mul (a i i) (v j))
             (trans!{I.Int^} _ _ _
               (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (Arithmetic.mul (a i i) (v j))) _ _ (Delta.equal (column i bound) j same))
               (#leftIdentity{(#multiplicative{(#semiring{Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})})} (Arithmetic.mul (a i i) (v j)))))}
-      "rt:" {\fun (different: _) =>
-        trans!{I.Int^} (Arithmetic.mul (a i j) (v j)) Arithmetic.zero
-          (Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j)))
+      {\fun (different: _) =>
+        trans!{I.Int^} _ _ _
           (trans!{I.Int^} _ _ _
             (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (v j)) _ _
               (diagonal i j (Finite.bound m i) (Finite.bound n j) different))
@@ -59,24 +57,22 @@
           (sym!{I.Int^} _ _ (trans!{I.Int^} _ _ _
             (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (Arithmetic.mul (a i i) (v j))) _ _ (Delta.different (column i bound) j different))
             (#zeroAbsorbsLeft{(#semiring{Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})} (Arithmetic.mul (a i i) (v j)))))}
-    } (Classical.excludedMiddle (i = j));
+    };
 \definition row: \forall (a: Runtime^)(v: Vector)(i: Finite.Fin m)(bound: Bounds.Lt i n) ->
   Properties.Diagonal a -> apply (reflect a) v i = Arithmetic.mul (a i i) (v (column i bound)) :=
   \fun (a: Runtime^)(v: Vector)(i: Finite.Fin m)(bound: Bounds.Lt i n)(diagonal: Properties.Diagonal a) =>
-    trans!{I.Int^} (apply (reflect a) v i)
-      (Sums.sum (Finite.elements n) (\fun (j: Finite.Fin n) => Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j))))
-      (Arithmetic.mul (a i i) (v (column i bound)))
+    trans!{I.Int^} _ _ _
       (SumLaws.congruent (Finite.elements n) (\fun (j: Finite.Fin n) => Arithmetic.mul (a i j) (v j))
         (\fun (j: Finite.Fin n) => Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j))) (term a v i bound diagonal))
       (Single.extract (Finite.elements n) Coordinates.distinct (column i bound) (Coordinates.covers (column i bound)) (\fun (j: Finite.Fin n) => Arithmetic.mul (a i i) (v j)));
 \definition zeroEntry: \forall (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n) ->
   Properties.Diagonal a -> Properties.TrailingZero a -> Bounds.Le rank i -> a i j = Arithmetic.zero :=
   \fun (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n)(diagonal: Properties.Diagonal a)(trailing: Properties.TrailingZero a)(lower: _) =>
-    either!{{i = j} "or" {Logic.Not (i = j)} "either" {a i j = Arithmetic.zero}
-      "lt:" {\fun (same: _) => trailing i j (Finite.bound m i) (Finite.bound n j) lower
+    either!{{(Classical.excludedMiddle (i = j))} {a i j = Arithmetic.zero}
+      {\fun (same: _) => trailing i j (Finite.bound m i) (Finite.bound n j) lower
         (\idelim i = j \with k: N.Nat^ => Bounds.Le rank k \by { base: lower, equality: same })}
-      "rt:" {\fun (different: _) => diagonal i j (Finite.bound m i) (Finite.bound n j) different}
-    } (Classical.excludedMiddle (i = j));
+      {\fun (different: _) => diagonal i j (Finite.bound m i) (Finite.bound n j) different}
+    };
 \definition lateRow: \forall (a: Runtime^)(v: Vector)(i: Finite.Fin m) ->
   Properties.Diagonal a -> Properties.TrailingZero a -> Bounds.Le rank i -> apply (reflect a) v i = Arithmetic.zero :=
   \fun (a: Runtime^)(v: Vector)(i: Finite.Fin m)(diagonal: Properties.Diagonal a)(trailing: Properties.TrailingZero a)(lower: _) =>

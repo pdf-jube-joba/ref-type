@@ -40,22 +40,20 @@
         \by local x r (#left{radius}) \then
       \let data: Source.OpenNeighborhood[source, x, Small f x r, U] :=
         \bysub(\Pow A, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x r, U] }, U) \then
-      \return \exact(\into[\Pow A](U, { U: \Pow A \where Source.OpenNeighborhood[source, x, Maps.Preimage f V, U] }) \by {
-        Source.OpenNeighborhood[source, x, Maps.Preimage f V, U] {
+      \return Logic.existsIntro[\Pow A, { U: \Pow A \where Source.OpenNeighborhood[source, x, Maps.Preimage f V, U] }] U
+        (Source.OpenNeighborhood[source, x, Maps.Preimage f V, U] {
           open := #open{data}, contains := #contains{data},
           within := \fun (y: A) (inU: Source.Member U y) => #right{radius} (f y) (#within{data} y inU),
-        }
-      }, \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Maps.Preimage f V, U] }))
+        })
     });
 \definition localOfContinuous: \forall (source: Source.Topology) (f: A -> Real.Real) -> Continuous source f -> Local source f :=
   \fun (source: _) (f: _) (continuous: _) (x: _) (r: _) (positive: _) =>
-    \exact(\into[\Pow A](Small f x r, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x r, U] }) \by {
-      Source.OpenNeighborhood[source, x, Small f x r, Small f x r] {
+    Logic.existsIntro[\Pow A, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x r, U] }] (Small f x r)
+    (Source.OpenNeighborhood[source, x, Small f x r, Small f x r] {
         open := continuous (Metric.Ball RealMetric.metric (f x) r) (MetricTopology.ballOpenIn RealMetric.metric (f x) r),
         contains := Metric.ballCenter RealMetric.metric (f x) r positive,
         within := \fun (y: A) (member: Source.Member (Small f x r) y) => member,
-      }
-    }, \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x r, U] }));
+      });
 \definition constantContinuous: \forall (source: Source.Topology) (value: Real.Real) -> Continuous source (\fun (_: A) => value) :=
   \fun (source: _) (value: _) => GeneralMaps.constantContinuous source Line.topology value;
 \definition sumContinuous: \forall (source: Source.Topology) (f, g: A -> Real.Real) ->
@@ -72,8 +70,8 @@
     \let vd: Source.OpenNeighborhood[source, x, Small g x h, V] := \bysub(\Pow A,
       { V: \Pow A \where Source.OpenNeighborhood[source, x, Small g x h, V] }, V) \then
     \let W: \Pow A := Source.Intersection U V \then
-    \return \exact(\into[\Pow A](W, { W: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.add (f x) (g x)) x r, W] }) \by {
-      Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.add (f x) (g x)) x r, W] {
+    \return Logic.existsIntro[\Pow A, { W: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.add (f x) (g x)) x r, W] }] W
+      (Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.add (f x) (g x)) x r, W] {
         open := #intersectionOpen{(Source.topologyLaws source)} U V (#open{ud}) (#open{vd}),
         contains := Logic.And[_, _]::# (#contains{ud}) (#contains{vd}),
         within := \fun (y: A) (member: Source.Member W y) => R.leLtTrans _ _ r
@@ -81,8 +79,7 @@
           (R.ltReplaceRight _ (Real.add h h) r (Estimates.halfTwice r)
             (Estimates.addLt (Real.distance (f x) (f y)) (Real.distance (g x) (g y)) h h
               (#within{ud} y (#left{member})) (#within{vd} y (#right{member})))),
-      }
-    }, \Cast[\Pow A] ({ W: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.add (f x) (g x)) x r, W] }))
+      })
   });
 \definition subNegBoth(x, y: Real.Real): Real.sub (Real.neg x) (Real.neg y) = Real.sub y x :=
   trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (Real.neg x)) _ _ (Laws.negInvolutive y))
@@ -99,13 +96,12 @@
       \by localOfContinuous source f fc x r positive \then
     \let ud: Source.OpenNeighborhood[source, x, Small f x r, U] :=
       \bysub(\Pow A, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x r, U] }, U) \then
-    \return \exact(\into[\Pow A](U, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.neg (f x)) x r, U] }) \by {
-      Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.neg (f x)) x r, U] {
+    \return Logic.existsIntro[\Pow A, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.neg (f x)) x r, U] }] U
+      (Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.neg (f x)) x r, U] {
         open := #open{ud}, contains := #contains{ud},
         within := \fun (y: A) (member: Source.Member U y) => R.ltReplaceLeft (Real.distance (f x) (f y))
           (Real.distance (Real.neg (f x)) (Real.neg (f y))) r (sym!{Real.Real} _ _ (distanceNeg (f x) (f y))) (#within{ud} y member),
-      }
-    }, \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.neg (f x)) x r, U] }))
+      })
   });
 \definition subContinuous: \forall (source: Source.Topology) (f, g: A -> Real.Real) ->
   Continuous source f -> Continuous source g -> Continuous source (\fun (x: A) => Real.sub (f x) (g x)) :=

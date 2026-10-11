@@ -29,12 +29,24 @@
 | right: Q -> Or
 ;
 
-\macro either($P, "or", $Q, "either", $R, "lt:", $onLeft, "rt:", $onRight) :=
-  (\fun (onLeft: $P -> $R) (onRight: $Q -> $R) (value: Or[$P, $Q]) =>
-    \match value \in Or \return (\fun (_: Or[$P, $Q]) => $R) \with {
+\definition orElim(P, Q, R: \Prop):
+  Or[P, Q] -> (P -> R) -> (Q -> R) -> R :=
+  \fun (value: _) (onLeft: _) (onRight: _) =>
+    \match value \in Or \return (\fun (_: Or[P, Q]) => R) \with {
     | left p : onLeft p
     | right q : onRight q
-    }) $onLeft $onRight;
+    };
+
+\macro either(..arguments) := \tmatch arguments {
+  | ($value, $R, $onLeft, $onRight) => orElim _ _ $R $value $onLeft $onRight
+  | ($P, "or", $Q, "either", $R, "lt:", $onLeft, "rt:", $onRight) =>
+      \fun (value: Or[$P, $Q]) => orElim $P $Q $R value $onLeft $onRight
+};
+
+\definition existsIntro[A: \Set, S: \Pow A]:
+  \forall (x: A) -> \In[A] S x -> \exists \Cast[A] S :=
+  \fun (x: _) (member: _) =>
+    \exact(\into[A](x, S) \by { member }, \Cast[A] S);
 
 /* Reusable surface notation for the propositional vocabulary above. */
 \macro not($proposition) := Not $proposition;
@@ -92,8 +104,8 @@
     },
   rtl := \fun (h: _2) =>
     \match h \in Or \return (\fun (_: Or[P, Or[Q, R]]) => Or[Or[P, Q], R]) \with {
-    | left p : Or[_, _]::left (Or[_, _]::left p) 
-    | right inner : 
+    | left p : Or[_, _]::left (Or[_, _]::left p)
+    | right inner :
         \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
         | left q : Or[_, _]::left (Or[_, _]::right q)
         | right r : Or[_, _]::right r

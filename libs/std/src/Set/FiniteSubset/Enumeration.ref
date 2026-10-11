@@ -25,12 +25,14 @@
       \let result: L.List[A] := L.List[A]::cons a xs \then
       \return \exact(\into[L.List[A]](result, Enumeration[Insert a X]) \by {
         Enumerates[Insert a X, result] {
-          included := \fun (b: A) (member: Occurs b result) => either!{{b = a} "or" {Occurs b xs} "either" {\In[A] (Insert a X) b}
-            "lt:" {Logic.Or[_, _]::left}
-            "rt:" {\fun (old: _) => inInsertOld a X b (#included{data} b old)}} member,
-          exhaustive := \fun (b: A) (member: \In[A] (Insert a X) b) => either!{{b = a} "or" {\In[A] X b} "either" {Occurs b result}
-            "lt:" {Logic.Or[_, _]::left}
-            "rt:" {\fun (old: _) => Logic.Or[_, _]::right (#exhaustive{data} b old)}} member,
+          included := \fun (b: A) (member: Occurs b result) => either!{member {\In[A] (Insert a X) b}
+            {Logic.Or[_, _]::left}
+            {\fun (old: _) => inInsertOld a X b (#included{data} b old)}
+          },
+          exhaustive := \fun (b: A) (member: \In[A] (Insert a X) b) => either!{member {Occurs b result}
+            {Logic.Or[_, _]::left}
+            {\fun (old: _) => Logic.Or[_, _]::right (#exhaustive{data} b old)}
+          },
         }
       }, Enumeration[Insert a X])
     });
@@ -68,34 +70,37 @@
       \takefrom xs: DistinctEnumeration[X] \by previous \then
       \let laws: DistinctEnumerationLaws[X, xs] := \bysub(L.List[A], DistinctEnumeration[X], xs) \then
       \let enumeration: Enumerates[X, xs] := #enumerates{laws} \then
-      \return either!{{\In[A] X a} "or" {Logic.Not (\In[A] X a)} "either" {\exists DistinctEnumeration[Insert a X]}
-        "lt:" {\fun (old: \In[A] X a) => \exact(\into[L.List[A]](xs, DistinctEnumeration[Insert a X]) \by {
+      \return either!{{(Classical.excludedMiddle (\In[A] X a))} {\exists DistinctEnumeration[Insert a X]}
+        {\fun (old: \In[A] X a) => \exact(\into[L.List[A]](xs, DistinctEnumeration[Insert a X]) \by {
           DistinctEnumerationLaws[Insert a X, xs] {
             enumerates := Enumerates[Insert a X, xs] {
               included := \fun (b: A)(occurs: Occurs b xs) => inInsertOld a X b (#included{enumeration} b occurs),
               exhaustive := \fun (b: A)(included: \In[A] (Insert a X) b) =>
-                either!{{b = a} "or" {\In[A] X b} "either" {Occurs b xs}
-                  "lt:" {\fun (equal: b = a) => #exhaustive{enumeration} b
+                either!{included {Occurs b xs}
+                  {\fun (equal: b = a) => #exhaustive{enumeration} b
                     (\idelim a = b \with c: A => \In[A] X c \by { base: old, equality: sym!{A} b a equal })}
-                  "rt:" {\fun (member: \In[A] X b) => #exhaustive{enumeration} b member}} included,
+                  {\fun (member: \In[A] X b) => #exhaustive{enumeration} b member}
+                },
             },
             distinct := #distinct{laws},
           }
         }, DistinctEnumeration[Insert a X])}
-        "rt:" {\fun (fresh: Logic.Not (\In[A] X a)) => \exact(\into[L.List[A]](L.List[A]::cons a xs, DistinctEnumeration[Insert a X]) \by {
+        {\fun (fresh: Logic.Not (\In[A] X a)) => \exact(\into[L.List[A]](L.List[A]::cons a xs, DistinctEnumeration[Insert a X]) \by {
           DistinctEnumerationLaws[Insert a X, L.List[A]::cons a xs] {
             enumerates := Enumerates[Insert a X, L.List[A]::cons a xs] {
               included := \fun (b: A)(occurs: Occurs b (L.List[A]::cons a xs)) =>
-                either!{{b = a} "or" {Occurs b xs} "either" {\In[A] (Insert a X) b}
-                  "lt:" {Logic.Or[b = a, \In[A] X b]::left}
-                  "rt:" {\fun (member: Occurs b xs) => inInsertOld a X b (#included{enumeration} b member)}} occurs,
+                either!{occurs {\In[A] (Insert a X) b}
+                  {Logic.Or[b = a, \In[A] X b]::left}
+                  {\fun (member: Occurs b xs) => inInsertOld a X b (#included{enumeration} b member)}
+                },
               exhaustive := \fun (b: A)(included: \In[A] (Insert a X) b) =>
-                either!{{b = a} "or" {\In[A] X b} "either" {Occurs b (L.List[A]::cons a xs)}
-                  "lt:" {Logic.Or[b = a, Occurs b xs]::left}
-                  "rt:" {\fun (member: \In[A] X b) => Logic.Or[b = a, Occurs b xs]::right (#exhaustive{enumeration} b member)}} included,
+                either!{included {Occurs b (L.List[A]::cons a xs)}
+                  {Logic.Or[b = a, Occurs b xs]::left}
+                  {\fun (member: \In[A] X b) => Logic.Or[b = a, Occurs b xs]::right (#exhaustive{enumeration} b member)}
+                },
             },
             distinct := Distinct.cons a xs (\fun (occurs: Occurs a xs) => fresh (#included{enumeration} a occurs)) (#distinct{laws}),
           }
-        }, DistinctEnumeration[Insert a X])}}
-        (Classical.excludedMiddle (\In[A] X a))
+        }, DistinctEnumeration[Insert a X])}
+      }
     });

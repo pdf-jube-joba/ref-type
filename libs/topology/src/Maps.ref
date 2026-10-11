@@ -56,15 +56,10 @@
   Target.FamilyMember family W ->
   Source.FamilyMember (PullbackFamily h family) (Preimage h W) :=
   \fun (member: Target.FamilyMember family W) =>
-    \exact(
-      \into[\Pow B](W,
-        { V : \Pow B \where
+    Logic.existsIntro[\Pow B, { V : \Pow B \where
           Logic.And[Target.FamilyMember family V,
-            Preimage h W = Preimage h V] })
-        \by { Logic.And[_, _]::# member (\refl(Preimage h W)) },
-      \Cast[\Pow B] ({ V : \Pow B \where
-        Logic.And[Target.FamilyMember family V,
-          Preimage h W = Preimage h V] }));
+            Preimage h W = Preimage h V] }] W
+    (Logic.And[_, _]::# member (\refl(Preimage h W)));
 
 \definition pullbackElim(h: A -> B) (family: \Pow (\Pow B)) (U: \Pow A) (P: \Prop):
   (\forall (W: \Pow B) ->
@@ -153,8 +148,7 @@
           (Source.Union (PullbackFamily h family))
           (Preimage h (Target.Union family))
           (sym!{\Pow A}
-            (Preimage h (Target.Union family))
-            (Source.Union (PullbackFamily h family))
+            _ _
             (preimageUnionEq h family))
           (#unionOpen{(Source.topologyLaws source)} (PullbackFamily h family)
             (\fun (U: \Pow A) =>
@@ -174,8 +168,7 @@
           (Source.Intersection (Preimage h U) (Preimage h V))
           (Preimage h (Target.Intersection U V))
           (sym!{\Pow A}
-            (Preimage h (Target.Intersection U V))
-            (Source.Intersection (Preimage h U) (Preimage h V))
+            _ _
             (preimageIntersectionEq h U V))
           (#intersectionOpen{(Source.topologyLaws source)}
             (Preimage h U) (Preimage h V) uOpen vOpen),
@@ -202,9 +195,8 @@
 \definition Image(f: A -> B) (S: \Pow A): \Pow B :=
   { y: B \where \exists { x: A \where Logic.And[Source.Member S x, f x = y] } };
 \definition imageMember(f: A -> B) (S: \Pow A) (x: A): Source.Member S x -> Target.Member (Image f S) (f x) :=
-  \fun (member: _) => \exact(\into[A](x,
-    { z: A \where Logic.And[Source.Member S z, f z = f x] }) \by { Logic.And[_, _]::# member (\refl(f x)) },
-    \Cast[A] ({ z: A \where Logic.And[Source.Member S z, f z = f x] }));
+  \fun (member: _) => Logic.existsIntro[A, { z: A \where Logic.And[Source.Member S z, f z = f x] }] x
+    (Logic.And[_, _]::# member (\refl(f x)));
 \definition imageElim(f: A -> B) (S: \Pow A) (y: B) (P: \Prop):
   (\forall (x: A) -> Source.Member S x -> f x = y -> P) -> Target.Member (Image f S) y -> P := \block {
   \fun (step: \forall (x: A) -> Source.Member S x -> f x = y -> P)
@@ -220,17 +212,16 @@
 \definition constantContinuous: \forall (source: Source.Topology) (target: Target.Topology) (value: B) ->
   \forall (V: \Pow B) -> Target.IsOpenIn target V -> Source.IsOpenIn source (Preimage (\fun (_: A) => value) V) :=
   \fun (source: _) (target: _) (value: _) (V: _) (_: _) =>
-    either!{{Target.Member V value} "or" {Logic.Not (Target.Member V value)}
-      "either" {Source.IsOpenIn source (Preimage (\fun (_: A) => value) V)}
-      "lt:" {\fun (member: _) => \idelim Source.Whole = Preimage (\fun (_: A) => value) V
+    either!{{(Classical.excludedMiddle (Target.Member V value))} {Source.IsOpenIn source (Preimage (\fun (_: A) => value) V)}
+      {\fun (member: _) => \idelim Source.Whole = Preimage (\fun (_: A) => value) V
         \with W: \Pow A => Source.IsOpenIn source W
         \by { base: #wholeOpen{(Source.topologyLaws source)},
           equality: \axiom:setext(Source.Whole, Preimage (\fun (_: A) => value) V,
             \fun (x: A) (_: _) => member, \fun (x: A) (_: _) => \refl(x)) }}
-      "rt:" {\fun (outside: _) => \idelim Source.Empty = Preimage (\fun (_: A) => value) V
+      {\fun (outside: _) => \idelim Source.Empty = Preimage (\fun (_: A) => value) V
         \with W: \Pow A => Source.IsOpenIn source W
         \by { base: #emptyOpen{(Source.topologyLaws source)},
           equality: \axiom:setext(Source.Empty, Preimage (\fun (_: A) => value) V,
             \fun (x: A) (empty: Logic.False) => Logic.falseElim (Target.Member V value) empty,
-            \fun (x: A) (member: Target.Member V value) => outside member) }}}
-      (Classical.excludedMiddle (Target.Member V value));
+            \fun (x: A) (member: Target.Member V value) => outside member) }}
+    };

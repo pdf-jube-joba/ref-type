@@ -27,15 +27,16 @@
 \import std.Logic[].Classical[] \as Classical;
 \definition collisionExists: \forall (k, n: N.Nat^)(f: Fin k -> Fin n) -> NL.Lt n k -> \exists Collision[k, n, f] :=
   \fun (k, n: N.Nat^)(f: Fin k -> Fin n)(large: NL.Lt n k) =>
-    either!{{\exists Collision[k, n, f]} "or" {Logic.Not (\exists Collision[k, n, f])} "either" {\exists Collision[k, n, f]}
-      "lt:" {\fun (collision: \exists Collision[k, n, f]) => collision}
-      "rt:" {\block {
+    either!{{(Classical.excludedMiddle (\exists Collision[k, n, f]))} {\exists Collision[k, n, f]}
+      {\fun (collision: \exists Collision[k, n, f]) => collision}
+      {\block {
         \fun (none: Logic.Not (\exists Collision[k, n, f])) \then
         \let injective: Injective k n f := \fun (i, j: Fin k)(same: f i = f j) =>
-          either!{{i = j} "or" {Logic.Not (i = j)} "either" {i = j}
-            "lt:" {\fun (equal: i = j) => equal}
-            "rt:" {\fun (different: Logic.Not (i = j)) => Logic.falseElim (i = j)
-              (none (\exact(Collision[k, n, f] { first := i, second := j, different := different, same := same }, Collision[k, n, f])))}}
-            (Classical.excludedMiddle (i = j)) \then
+          either!{{(Classical.excludedMiddle (i = j))} {i = j}
+            {\fun (equal: i = j) => equal}
+            {\fun (different: Logic.Not (i = j)) => Logic.falseElim (i = j)
+              (none (\exact(Collision[k, n, f] { first := i, second := j, different := different, same := same }, Collision[k, n, f])))}
+          } \then
         \return Logic.falseElim (\exists Collision[k, n, f]) (noInjection n k large f injective)
-      }}} (Classical.excludedMiddle (\exists Collision[k, n, f]));
+      }}
+    };

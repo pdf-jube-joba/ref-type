@@ -79,9 +79,8 @@
     \bysub(Real, { d: Real \where Def.Control[f, a, l, mul Analysis.half epsilon, d] }, dl) \then
   \let cr: Def.Control[g, a, m, mul Analysis.half epsilon, dr] :=
     \bysub(Real, { d: Real \where Def.Control[g, a, m, mul Analysis.half epsilon, d] }, dr) \then
-  \return \exact(\into[Real](Metric.min dl dr,
-    { d: Real \where Def.Control[\fun (x: Real) => add (f x) (g x), a, add l m, epsilon, d] }) \by {
-      Def.Control[\fun (x: Real) => add (f x) (g x), a, add l m, epsilon, Metric.min dl dr] {
+  \return Logic.existsIntro[Real, { d: Real \where Def.Control[\fun (x: Real) => add (f x) (g x), a, add l m, epsilon, d] }] (Metric.min dl dr)
+    (Def.Control[\fun (x: Real) => add (f x) (g x), a, add l m, epsilon, Metric.min dl dr] {
         positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
         estimate := \fun (x: Real)(different: Logic.Not (x = a))(near: _) =>
           R.ltReplaceRight _ _ _ (Estimates.halfTwice epsilon)
@@ -89,8 +88,7 @@
               (Estimates.addLt _ _ _ _
                 (#estimate{cl} x different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
                 (#estimate{cr} x different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr))))),
-      }
-    }, \Cast[Real] ({ d: Real \where Def.Control[\fun (x: Real) => add (f x) (g x), a, add l m, epsilon, d] }))
+      })
 };
 
 \definition mulLimit: \forall (f, g: Real -> Real)(a, l, m: Real) ->
@@ -107,9 +105,8 @@
     \bysub(Real, { d: Real \where Def.Control[f, a, l, radius, d] }, dl) \then
   \let cr: Def.Control[g, a, m, radius, dr] :=
     \bysub(Real, { d: Real \where Def.Control[g, a, m, radius, d] }, dr) \then
-  \return \exact(\into[Real](Metric.min dl dr,
-    { d: Real \where Def.Control[\fun (x: Real) => mul (f x) (g x), a, mul l m, epsilon, d] }) \by {
-      Def.Control[\fun (x: Real) => mul (f x) (g x), a, mul l m, epsilon, Metric.min dl dr] {
+  \return Logic.existsIntro[Real, { d: Real \where Def.Control[\fun (x: Real) => mul (f x) (g x), a, mul l m, epsilon, d] }] (Metric.min dl dr)
+    (Def.Control[\fun (x: Real) => mul (f x) (g x), a, mul l m, epsilon, Metric.min dl dr] {
         positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
         estimate := \fun (x: Real)(different: Logic.Not (x = a))(near: _) =>
           R.ltReplaceLeft (distance (mul l m) (mul (f x) (g x))) (distance (mul (f x) (g x)) (mul l m)) epsilon
@@ -122,8 +119,7 @@
                 (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric (g x) m)
                   (#estimate{cr} x different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))
               (Product.radiusSmall coefficient epsilon cp positive)),
-      }
-    }, \Cast[Real] ({ d: Real \where Def.Control[\fun (x: Real) => mul (f x) (g x), a, mul l m, epsilon, d] }))
+      })
 };
 
 \import std.Logic[].Classical[] \as Classical;
@@ -133,15 +129,15 @@
   R.Lt zero epsilon -> Def.Control[f, a, f a, epsilon, delta] ->
   \forall (x: Real) -> R.Lt (distance x a) delta -> R.Lt (distance (f x) (f a)) epsilon :=
   \fun (f: _)(a, epsilon, delta: _)(positive: _)(control: _)(x: _)(near: _) =>
-    either!{{x = a} "or" {Logic.Not (x = a)} "either" {R.Lt (distance (f x) (f a)) epsilon}
-      "lt:" {\fun (same: x = a) => \idelim a = x \with y: Real =>
+    either!{{(Classical.excludedMiddle (x = a))} {R.Lt (distance (f x) (f a)) epsilon}
+      {\fun (same: x = a) => \idelim a = x \with y: Real =>
         R.Lt (distance (f y) (f a)) epsilon \by {
           base: R.ltReplaceLeft zero (distance (f a) (f a)) epsilon
             (sym!{Real} _ _ (Metric.distanceSelf (f a))) positive,
           equality: sym!{Real} _ _ same
         }}
-      "rt:" {\fun (different: _) => #estimate{control} x different near}}
-      (Classical.excludedMiddle (x = a));
+      {\fun (different: _) => #estimate{control} x different near}
+    };
 
 \definition composeLimit: \forall (f, g: Real -> Real)(a, l: Real) ->
   Def.HasLimitAt f a l -> Def.ContinuousAt g l ->
@@ -155,14 +151,12 @@
     \by inner dg (#positive{cg}) \then
   \let cf: Def.Control[f, a, l, dg, df] :=
     \bysub(Real, { d: Real \where Def.Control[f, a, l, dg, d] }, df) \then
-  \return \exact(\into[Real](df,
-    { d: Real \where Def.Control[\fun (x: Real) => g (f x), a, g l, epsilon, d] }) \by {
-      Def.Control[\fun (x: Real) => g (f x), a, g l, epsilon, df] {
+  \return Logic.existsIntro[Real, { d: Real \where Def.Control[\fun (x: Real) => g (f x), a, g l, epsilon, d] }] df
+    (Def.Control[\fun (x: Real) => g (f x), a, g l, epsilon, df] {
         positive := #positive{cf},
         estimate := \fun (x: _)(different: _)(near: _) =>
           continuityEstimate g l epsilon dg positive cg (f x) (#estimate{cf} x different near),
-      }
-    }, \Cast[Real] ({ d: Real \where Def.Control[\fun (x: Real) => g (f x), a, g l, epsilon, d] }))
+      })
 };
 
 \definition subIdentityLimit: \forall (a: Real) ->

@@ -19,12 +19,10 @@
   Logic.Not (Logic.Not P) ->
   P :=
   \fun (notNot: Logic.Not (Logic.Not P)) =>
-    either!{
-      P "or" {Logic.Not P} "either" P
-      "lt:" {\fun (p: P) => p}
-      "rt:" {\fun (notP: Logic.Not P) => Logic.falseElim P (notNot notP)}
-    }
-      (Classical.excludedMiddle P);
+    either!{{(Classical.excludedMiddle P)} P
+      {\fun (p: P) => p}
+      {\fun (notP: Logic.Not P) => Logic.falseElim P (notNot notP)}
+    };
 
 \definition doubleComplement(S: \Pow Carrier): S = Complement (Complement S) :=
   \axiom:setext(S, Complement (Complement S),
@@ -454,45 +452,31 @@
   \exists { bit : B.Bool^ \where
     PointInInterval (numericChild interval bit) point } :=
   \fun (inside: PointInInterval interval point) =>
-    either!{
-      {Q.lt point (midpoint interval)} "or" {Logic.Or[Q.FractionEq point (midpoint interval),
-        Q.lt (midpoint interval) point]} "either" {\exists { bit : B.Bool^ \where
+    either!{{(QOrder.trichotomy point (midpoint interval))} {\exists { bit : B.Bool^ \where
         PointInInterval (numericChild interval bit) point }}
-      "lt:" {\fun (below: Q.lt point (midpoint interval)) =>
-        \exact(\into[B.Bool^](B.Bool^::false,
-          { bit : B.Bool^ \where
-            PointInInterval (numericChild interval bit) point }) \by {
-            Logic.And[_, _]::# (#left{inside})
-              (QLaw.leOfLt point (midpoint interval) below) },
-          \Cast[B.Bool^] ({ bit : B.Bool^ \where
-            PointInInterval (numericChild interval bit) point }))}
-      "rt:" {\fun (other: Logic.Or[
+      {\fun (below: Q.lt point (midpoint interval)) =>
+        Logic.existsIntro[B.Bool^, { bit : B.Bool^ \where
+            PointInInterval (numericChild interval bit) point }] (B.Bool^::false)
+        (Logic.And[_, _]::# (#left{inside})
+              (QLaw.leOfLt point (midpoint interval) below))}
+      {\fun (other: Logic.Or[
           Q.FractionEq point (midpoint interval),
           Q.lt (midpoint interval) point]) =>
-        either!{
-          {Q.FractionEq point (midpoint interval)} "or" {Q.lt (midpoint interval) point} "either" {\exists { bit : B.Bool^ \where
+        either!{other {\exists { bit : B.Bool^ \where
             PointInInterval (numericChild interval bit) point }}
-          "lt:" {\fun (same: Q.FractionEq point (midpoint interval)) =>
-            \exact(\into[B.Bool^](B.Bool^::false,
-              { bit : B.Bool^ \where
-                PointInInterval (numericChild interval bit) point }) \by {
-                Logic.And[_, _]::# (#left{inside})
-                  (QLaw.leOfEq point (midpoint interval) same) },
-              \Cast[B.Bool^] ({ bit : B.Bool^ \where
-                PointInInterval (numericChild interval bit) point }))}
-          "rt:" {\fun (above: Q.lt (midpoint interval) point) =>
-            \exact(\into[B.Bool^](B.Bool^::true,
-              { bit : B.Bool^ \where
-                PointInInterval (numericChild interval bit) point }) \by {
-                Logic.And[_, _]::#
+          {\fun (same: Q.FractionEq point (midpoint interval)) =>
+            Logic.existsIntro[B.Bool^, { bit : B.Bool^ \where
+                PointInInterval (numericChild interval bit) point }] (B.Bool^::false)
+            (Logic.And[_, _]::# (#left{inside})
+                  (QLaw.leOfEq point (midpoint interval) same))}
+          {\fun (above: Q.lt (midpoint interval) point) =>
+            Logic.existsIntro[B.Bool^, { bit : B.Bool^ \where
+                PointInInterval (numericChild interval bit) point }] (B.Bool^::true)
+            (Logic.And[_, _]::#
                   (QLaw.leOfLt (midpoint interval) point above)
-                  (#right{inside}) },
-              \Cast[B.Bool^] ({ bit : B.Bool^ \where
-                PointInInterval (numericChild interval bit) point }))}
-        }
-          other}
-    }
-      (QOrder.trichotomy point (midpoint interval));
+                  (#right{inside}))}
+        }}
+    };
 
 \definition numericLabel(word: L.List[B.Bool^]): Q.Fraction :=
   midpoint (numericAt word);
@@ -620,15 +604,10 @@
           PointInInterval (numericAt word) point] } \with {
     | zero: \fun (point: Q.Fraction)
         (inside: PointInInterval rationalRoot point) =>
-        \exact(\into[L.List[B.Bool^]](L.List[B.Bool^]::nil,
-          { word : L.List[B.Bool^] \where
+        Logic.existsIntro[L.List[B.Bool^], { word : L.List[B.Bool^] \where
             Logic.And[L.length B.Bool^ word = N.Nat^::zero,
-              PointInInterval (numericAt word) point] }) \by {
-            Logic.And[_, _]::# (\refl(N.Nat^::zero)) inside },
-          \Cast[L.List[B.Bool^]]
-            ({ word : L.List[B.Bool^] \where
-              Logic.And[L.length B.Bool^ word = N.Nat^::zero,
-                PointInInterval (numericAt word) point] }))
+              PointInInterval (numericAt word) point] }] (L.List[B.Bool^]::nil)
+        (Logic.And[_, _]::# (\refl(N.Nat^::zero)) inside)
     | succ: \fun (n: N.Nat^)
         (ih: \forall (point: Q.Fraction) ->
           PointInInterval rationalRoot point ->
@@ -658,12 +637,10 @@
               { bit : B.Bool^ \where
                 PointInInterval (numericChild (numericAt word) bit) point },
               bit) \then
-          \return \exact(
-            \into[L.List[B.Bool^]](appendBit word bit,
-              { next : L.List[B.Bool^] \where
+          \return Logic.existsIntro[L.List[B.Bool^], { next : L.List[B.Bool^] \where
                 Logic.And[L.length B.Bool^ next = N.Nat^::succ n,
-                  PointInInterval (numericAt next) point] }) \by {
-                Logic.And[_, _]::#
+                  PointInInterval (numericAt next) point] }] (appendBit word bit)
+            (Logic.And[_, _]::#
                   (trans!{N.Nat^} _ _ _
                     (appendBitLength word bit)
                     (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _
@@ -674,11 +651,7 @@
                       PointInInterval current point
                     \by { base: childInside,
                       equality: sym!{RationalInterval} _ _
-                        (numericAtAppendBit word bit) }) },
-              \Cast[L.List[B.Bool^]]
-                ({ next : L.List[B.Bool^] \where
-                  Logic.And[L.length B.Bool^ next = N.Nat^::succ n,
-                    PointInInterval (numericAt next) point] }))
+                        (numericAtAppendBit word bit) }))
         }
   };
 
@@ -716,21 +689,15 @@
         \with n: N.Nat^ => QEst.NatLe k n
         \by { base: NatOrder.leRefl k,
           equality: sym!{N.Nat^} _ _ (#left{data}) } \then
-    \return \exact(
-      \into[L.List[B.Bool^]](word,
-        { word : L.List[B.Bool^] \where
+    \return Logic.existsIntro[L.List[B.Bool^], { word : L.List[B.Bool^] \where
           Logic.And[PointInInterval (numericAt word) point,
-            Q.lt (intervalWidth (numericAt word)) eps] }) \by {
-          Logic.And[_, _]::# (#right{data})
+            Q.lt (intervalWidth (numericAt word)) eps] }] word
+      (Logic.And[_, _]::# (#right{data})
             (QLaw.leLtTrans
               (intervalWidth (numericAt word))
               (QEst.error (L.length B.Bool^ word)) eps
               (numericWidthLeError word)
-              (small (L.length B.Bool^ word) kLeLength)) },
-        \Cast[L.List[B.Bool^]]
-          ({ word : L.List[B.Bool^] \where
-            Logic.And[PointInInterval (numericAt word) point,
-              Q.lt (intervalWidth (numericAt word)) eps] }))
+              (small (L.length B.Bool^ word) kLeLength)))
   };
 
 \definition bracketInteriorLabel(interval: RationalInterval) (p, point, q: Q.Fraction):
@@ -1029,63 +996,49 @@
       QOrder.ltReplaceRight
         (intervalWidth (numericAt word)) gap (QOp.sub q point)
         (QLaw.midpointGapsEqual p q) (#right{data}) \then
-    \return \exact(
-      \into[L.List[B.Bool^]](word,
-        { word : L.List[B.Bool^] \where
+    \return Logic.existsIntro[L.List[B.Bool^], { word : L.List[B.Bool^] \where
           Logic.And[Q.lt p (numericLabel word),
-            Q.lt (numericLabel word) q] }) \by {
-          bracketInteriorLabel (numericAt word) p point q
-            (#left{data}) (#right{data}) rightGap },
-        \Cast[L.List[B.Bool^]]
-          ({ word : L.List[B.Bool^] \where
-            Logic.And[Q.lt p (numericLabel word),
-              Q.lt (numericLabel word) q] }))
+            Q.lt (numericLabel word) q] }] word
+      (bracketInteriorLabel (numericAt word) p point q
+            (#left{data}) (#right{data}) rightGap)
   };
 
 \definition leOrReverseLt(x, y: Q.Fraction): Logic.Or[QOp.Le x y, Q.lt y x] :=
-  either!{
-    {Q.lt x y} "or" {Logic.Or[Q.FractionEq x y, Q.lt y x]} "either" {Logic.Or[QOp.Le x y, Q.lt y x]}
-    "lt:" {\fun (less: Q.lt x y) =>
+  either!{{(QOrder.trichotomy x y)} {Logic.Or[QOp.Le x y, Q.lt y x]}
+    {\fun (less: Q.lt x y) =>
       Logic.Or[_, _]::left (QLaw.leOfLt x y less)}
-    "rt:" {\fun (other: Logic.Or[Q.FractionEq x y, Q.lt y x]) =>
-      either!{
-        {Q.FractionEq x y} "or" {Q.lt y x} "either" {Logic.Or[QOp.Le x y, Q.lt y x]}
-        "lt:" {\fun (same: Q.FractionEq x y) =>
+    {\fun (other: Logic.Or[Q.FractionEq x y, Q.lt y x]) =>
+      either!{other {Logic.Or[QOp.Le x y, Q.lt y x]}
+        {\fun (same: Q.FractionEq x y) =>
           Logic.Or[_, _]::left (QLaw.leOfEq x y same)}
-        "rt:" {\fun (reverse: Q.lt y x) => Logic.Or[_, _]::right reverse}
-      }
-        other}
-  }
-    (QOrder.trichotomy x y);
+        {\fun (reverse: Q.lt y x) => Logic.Or[_, _]::right reverse}
+      }}
+  };
 
 \definition dyadicDensity: DyadicDensity :=
   \fun (p, q: Q.Fraction) (pq: Q.lt p q) =>
-    either!{
-      {QOp.Le Q.zero p} "or" {Q.lt p Q.zero} "either" {Logic.Or[Q.lt p Q.zero,
+    either!{{(leOrReverseLt Q.zero p)} {Logic.Or[Q.lt p Q.zero,
         Logic.Or[Q.lt Q.one q,
           \exists { word : L.List[B.Bool^] \where
             Logic.And[Q.lt p (numericLabel word),
               Q.lt (numericLabel word) q] }]]}
-      "lt:" {\fun (zeroLeP: QOp.Le Q.zero p) =>
-        either!{
-          {QOp.Le q Q.one} "or" {Q.lt Q.one q} "either" {Logic.Or[Q.lt p Q.zero,
+      {\fun (zeroLeP: QOp.Le Q.zero p) =>
+        either!{{(leOrReverseLt q Q.one)} {Logic.Or[Q.lt p Q.zero,
             Logic.Or[Q.lt Q.one q,
               \exists { word : L.List[B.Bool^] \where
                 Logic.And[Q.lt p (numericLabel word),
                   Q.lt (numericLabel word) q] }]]}
-          "lt:" {\fun (qLeOne: QOp.Le q Q.one) =>
+          {\fun (qLeOne: QOp.Le q Q.one) =>
             Logic.Or[_, _]::right
               (Logic.Or[_, _]::right
                 (dyadicInterior p q pq zeroLeP qLeOne))}
-          "rt:" {\fun (oneLtQ: Q.lt Q.one q) =>
+          {\fun (oneLtQ: Q.lt Q.one q) =>
             Logic.Or[_, _]::right
               (Logic.Or[_, _]::left oneLtQ)}
-        }
-          (leOrReverseLt q Q.one)}
-      "rt:" {\fun (pLtZero: Q.lt p Q.zero) =>
+        }}
+      {\fun (pLtZero: Q.lt p Q.zero) =>
         Logic.Or[_, _]::left pLtZero}
-    }
-      (leOrReverseLt Q.zero p);
+    };
 
 \definition ScaleCut(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier): \Pow Q.Fraction :=
@@ -1108,30 +1061,21 @@
   \In[Q.Fraction] (ScaleCut Index topology scale x) q :=
   \fun (below: Q.lt q (#label{scale} i)) (outside: Logic.Not (Member (#envelope{scale} i) x)) =>
     Logic.Or[_, _]::right
-      (\exact(
-        \into[Index](i,
-          { j : Index \where
+      (Logic.existsIntro[Index, { j : Index \where
             Logic.And[Q.lt q (#label{scale} j),
-              Logic.Not (Member (#envelope{scale} j) x)] })
-          \by { Logic.And[_, _]::# below outside },
-        \Cast[Index]
-          ({ j : Index \where
-            Logic.And[Q.lt q (#label{scale} j),
-              Logic.Not (Member (#envelope{scale} j) x)] })));
+              Logic.Not (Member (#envelope{scale} j) x)] }] i
+        (Logic.And[_, _]::# below outside));
 
 \definition scaleCutLower(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier) (p, q: Q.Fraction):
   Q.lt p q -> \In[Q.Fraction] (ScaleCut Index topology scale x) q ->
   \In[Q.Fraction] (ScaleCut Index topology scale x) p :=
   \fun (pq: Q.lt p q) (member: \In[Q.Fraction] (ScaleCut Index topology scale x) q) =>
-    either!{
-      {Q.lt q Q.zero} "or" {\exists { i : Index \where
-        Logic.And[Q.lt q (#label{scale} i),
-          Logic.Not (Member (#envelope{scale} i) x)] }} "either" {\In[Q.Fraction] (ScaleCut Index topology scale x) p}
-      "lt:" {\fun (negative: Q.lt q Q.zero) =>
+    either!{member {\In[Q.Fraction] (ScaleCut Index topology scale x) p}
+      {\fun (negative: Q.lt q Q.zero) =>
         scaleCutBelowZero Index topology scale x p
           (QOrder.ltTrans p q Q.zero pq negative)}
-      "rt:" {\fun (witness: \exists { i : Index \where
+      {\fun (witness: \exists { i : Index \where
         Logic.And[Q.lt q (#label{scale} i),
           Logic.Not (Member (#envelope{scale} i) x)] }) => \block {
         \takefrom i: \Cast[Index]
@@ -1149,35 +1093,27 @@
           (QOrder.ltTrans p q (#label{scale} i) pq (#left{data}))
           (#right{data})
       }}
-    } member;
+    };
 
 \definition scaleCutInhabited(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier):
   R.Inhabited (ScaleCut Index topology scale x) :=
-  \exact(
-    \into[Q.Fraction](QOp.below Q.zero,
-      { q : Q.Fraction \where
-        \In[Q.Fraction] (ScaleCut Index topology scale x) q })
-      \by { scaleCutBelowZero Index topology scale x
-        (QOp.below Q.zero) (QLaw.belowLt Q.zero) },
-    \Cast[Q.Fraction]
-      ({ q : Q.Fraction \where
-        \In[Q.Fraction] (ScaleCut Index topology scale x) q }));
+  Logic.existsIntro[Q.Fraction, { q : Q.Fraction \where
+        \In[Q.Fraction] (ScaleCut Index topology scale x) q }] (QOp.below Q.zero)
+  (scaleCutBelowZero Index topology scale x
+        (QOp.below Q.zero) (QLaw.belowLt Q.zero));
 
 \definition scaleCutOneNotMember(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier):
   Logic.Not (\In[Q.Fraction] (ScaleCut Index topology scale x) Q.one) :=
   \fun (member: \In[Q.Fraction]
     (ScaleCut Index topology scale x) Q.one) =>
-        either!{
-          {Q.lt Q.one Q.zero} "or" {\exists { i : Index \where
-            Logic.And[Q.lt Q.one (#label{scale} i),
-              Logic.Not (Member (#envelope{scale} i) x)] }} "either" Logic.False
-          "lt:" {\fun (bad: Q.lt Q.one Q.zero) =>
+        either!{member Logic.False
+          {\fun (bad: Q.lt Q.one Q.zero) =>
             QOrder.ltIrrefl Q.zero
               (QOrder.ltTrans Q.zero Q.one Q.zero
                 QOrder.zeroLtOne bad)}
-          "rt:" {\fun (witness: \exists { i : Index \where
+          {\fun (witness: \exists { i : Index \where
             Logic.And[Q.lt Q.one (#label{scale} i),
               Logic.Not (Member (#envelope{scale} i) x)] }) => \block {
             \takefrom i: \Cast[Index]
@@ -1195,48 +1131,33 @@
               (QOrder.ltTrans Q.one (#label{scale} i) Q.one
                 (#left{data}) (#labelBelowOne{scale} i))
           }}
-        } member;
+        };
 
 \definition scaleCutProper(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier):
   R.Proper (ScaleCut Index topology scale x) :=
-  \exact(
-    \into[Q.Fraction](Q.one,
-      { q : Q.Fraction \where
-        Logic.Not (\In[Q.Fraction] (ScaleCut Index topology scale x) q) })
-      \by { scaleCutOneNotMember Index topology scale x },
-    \Cast[Q.Fraction]
-      ({ q : Q.Fraction \where
-        Logic.Not (\In[Q.Fraction] (ScaleCut Index topology scale x) q) }));
+  Logic.existsIntro[Q.Fraction, { q : Q.Fraction \where
+        Logic.Not (\In[Q.Fraction] (ScaleCut Index topology scale x) q) }] Q.one
+  (scaleCutOneNotMember Index topology scale x);
 
 \definition scaleCutRounded(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier):
   R.Rounded (ScaleCut Index topology scale x) :=
   \fun (p: Q.Fraction) (member: \In[Q.Fraction] (ScaleCut Index topology scale x) p) =>
-    either!{
-      {Q.lt p Q.zero} "or" {\exists { i : Index \where
-        Logic.And[Q.lt p (#label{scale} i),
-          Logic.Not (Member (#envelope{scale} i) x)] }} "either" {\exists { q : Q.Fraction \where
+    either!{member {\exists { q : Q.Fraction \where
         Logic.And[\In[Q.Fraction] (ScaleCut Index topology scale x) q,
           Q.lt p q] }}
-      "lt:" {\fun (negative: Q.lt p Q.zero) =>
-        \exact(
-          \into[Q.Fraction](QOp.midpoint p Q.zero,
-            { q : Q.Fraction \where
+      {\fun (negative: Q.lt p Q.zero) =>
+        Logic.existsIntro[Q.Fraction, { q : Q.Fraction \where
               Logic.And[
                 \In[Q.Fraction] (ScaleCut Index topology scale x) q,
-                Q.lt p q] })
-            \by { Logic.And[_, _]::#
+                Q.lt p q] }] (QOp.midpoint p Q.zero)
+        (Logic.And[_, _]::#
               (scaleCutBelowZero Index topology scale x
                 (QOp.midpoint p Q.zero)
                 (QLaw.midpointLt p Q.zero negative))
-              (QLaw.ltMidpoint p Q.zero negative) },
-          \Cast[Q.Fraction]
-            ({ q : Q.Fraction \where
-              Logic.And[
-                \In[Q.Fraction] (ScaleCut Index topology scale x) q,
-                Q.lt p q] }))}
-      "rt:" {\fun (witness: \exists { i : Index \where
+              (QLaw.ltMidpoint p Q.zero negative))}
+      {\fun (witness: \exists { i : Index \where
         Logic.And[Q.lt p (#label{scale} i),
           Logic.Not (Member (#envelope{scale} i) x)] }) => \block {
         \takefrom i: \Cast[Index]
@@ -1250,25 +1171,18 @@
             { j : Index \where
               Logic.And[Q.lt p (#label{scale} j),
                 Logic.Not (Member (#envelope{scale} j) x)] }, i) \then
-        \return \exact(
-          \into[Q.Fraction](QOp.midpoint p (#label{scale} i),
-            { q : Q.Fraction \where
+        \return Logic.existsIntro[Q.Fraction, { q : Q.Fraction \where
               Logic.And[
                 \In[Q.Fraction] (ScaleCut Index topology scale x) q,
-                Q.lt p q] })
-            \by { Logic.And[_, _]::#
+                Q.lt p q] }] (QOp.midpoint p (#label{scale} i))
+          (Logic.And[_, _]::#
               (scaleCutBelowLabel Index topology scale x
                 (QOp.midpoint p (#label{scale} i)) i
                 (QLaw.midpointLt p (#label{scale} i) (#left{data}))
                 (#right{data}))
-              (QLaw.ltMidpoint p (#label{scale} i) (#left{data})) },
-          \Cast[Q.Fraction]
-            ({ q : Q.Fraction \where
-              Logic.And[
-                \In[Q.Fraction] (ScaleCut Index topology scale x) q,
-                Q.lt p q] }))
+              (QLaw.ltMidpoint p (#label{scale} i) (#left{data})))
       }}
-    } member;
+    };
 
 \definition scaleCutNotAboveLabel(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier) (i: Index) (q: Q.Fraction):
@@ -1277,17 +1191,14 @@
   \fun (below: Q.lt (#label{scale} i) q) (inEnvelope: Member (#envelope{scale} i) x)
     (member: \In[Q.Fraction]
       (ScaleCut Index topology scale x) q) =>
-      either!{
-        {Q.lt q Q.zero} "or" {\exists { j : Index \where
-          Logic.And[Q.lt q (#label{scale} j),
-            Logic.Not (Member (#envelope{scale} j) x)] }} "either" Logic.False
-        "lt:" {\fun (negative: Q.lt q Q.zero) =>
+      either!{member Logic.False
+        {\fun (negative: Q.lt q Q.zero) =>
           QOrder.ltIrrefl Q.zero
             (QOrder.ltTrans Q.zero q Q.zero
               (QOrder.ltTrans Q.zero (#label{scale} i) q
                 (#labelPositive{scale} i) below)
               negative)}
-        "rt:" {\fun (witness: \exists { j : Index \where
+        {\fun (witness: \exists { j : Index \where
           Logic.And[Q.lt q (#label{scale} j),
             Logic.Not (Member (#envelope{scale} j) x)] }) => \block {
           \takefrom j: \Cast[Index]
@@ -1307,40 +1218,33 @@
                 (QOrder.ltTrans (#label{scale} i) q (#label{scale} j)
                   below (#left{data})) x inEnvelope))
         }}
-      } member;
+      };
 
 \definition scaleCutLocated(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier):
   R.Located (ScaleCut Index topology scale x) :=
   \fun (p, q: Q.Fraction) (pq: Q.lt p q) =>
-    either!{
-      {Q.lt p Q.zero} "or" {Logic.Or[Q.lt Q.one q,
-        \exists { i : Index \where
-          Logic.And[Q.lt p (#label{scale} i),
-            Q.lt (#label{scale} i) q] }]} "either" {Logic.Or[
+    either!{{(#dense{scale} p q pq)} {Logic.Or[
         \In[Q.Fraction] (ScaleCut Index topology scale x) p,
         Logic.Not (\In[Q.Fraction] (ScaleCut Index topology scale x) q)]}
-      "lt:" {\fun (negative: Q.lt p Q.zero) =>
+      {\fun (negative: Q.lt p Q.zero) =>
         Logic.Or[_, _]::left
           (scaleCutBelowZero Index topology scale x p negative)}
-      "rt:" {\fun (rest: Logic.Or[Q.lt Q.one q,
+      {\fun (rest: Logic.Or[Q.lt Q.one q,
         \exists { i : Index \where
           Logic.And[Q.lt p (#label{scale} i),
             Q.lt (#label{scale} i) q] }]) =>
-        either!{
-          {Q.lt Q.one q} "or" {\exists { i : Index \where
-            Logic.And[Q.lt p (#label{scale} i),
-              Q.lt (#label{scale} i) q] }} "either" {Logic.Or[
+        either!{rest {Logic.Or[
             \In[Q.Fraction] (ScaleCut Index topology scale x) p,
             Logic.Not (\In[Q.Fraction] (ScaleCut Index topology scale x) q)]}
-          "lt:" {\fun (aboveOne: Q.lt Q.one q) =>
+          {\fun (aboveOne: Q.lt Q.one q) =>
             Logic.Or[_, _]::right
               (\fun (member: \In[Q.Fraction]
                 (ScaleCut Index topology scale x) q) =>
                 scaleCutOneNotMember Index topology scale x
                   (scaleCutLower Index topology scale x Q.one q
                     aboveOne member))}
-          "rt:" {\fun (witness: \exists { i : Index \where
+          {\fun (witness: \exists { i : Index \where
             Logic.And[Q.lt p (#label{scale} i),
               Q.lt (#label{scale} i) q] }) => \block {
             \takefrom i: \Cast[Index]
@@ -1354,25 +1258,22 @@
                 { j : Index \where
                   Logic.And[Q.lt p (#label{scale} j),
                     Q.lt (#label{scale} j) q] }, i) \then
-            \return either!{
-              {Member (#envelope{scale} i) x} "or" {Logic.Not (Member (#envelope{scale} i) x)} "either" {Logic.Or[
+            \return either!{{(Classical.excludedMiddle
+                (Member (#envelope{scale} i) x))} {Logic.Or[
                 \In[Q.Fraction] (ScaleCut Index topology scale x) p,
                 Logic.Not (\In[Q.Fraction] (ScaleCut Index topology scale x) q)]}
-              "lt:" {\fun (inside: Member (#envelope{scale} i) x) =>
+              {\fun (inside: Member (#envelope{scale} i) x) =>
                 Logic.Or[_, _]::right
                   (scaleCutNotAboveLabel Index topology scale x i q
                     (#right{bounds}) inside)}
-              "rt:" {\fun (outside: Logic.Not (Member (#envelope{scale} i) x)) =>
+              {\fun (outside: Logic.Not (Member (#envelope{scale} i) x)) =>
                 Logic.Or[_, _]::left
                   (scaleCutBelowLabel Index topology scale x p i
                     (#left{bounds}) outside)}
             }
-              (Classical.excludedMiddle
-                (Member (#envelope{scale} i) x))
           }}
-        } rest}
-    }
-      (#dense{scale} p q pq);
+        }}
+    };
 
 \definition scaleCutRespects(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier):
@@ -1380,14 +1281,11 @@
     (ScaleCut Index topology scale x) :=
   \fun (p, q: Q.Fraction) (equivalent: Q.FractionEq p q)
     (member: \In[Q.Fraction] (ScaleCut Index topology scale x) p) =>
-    either!{
-      {Q.lt p Q.zero} "or" {\exists { i : Index \where
-        Logic.And[Q.lt p (#label{scale} i),
-          Logic.Not (Member (#envelope{scale} i) x)] }} "either" {\In[Q.Fraction] (ScaleCut Index topology scale x) q}
-      "lt:" {\fun (negative: Q.lt p Q.zero) =>
+    either!{member {\In[Q.Fraction] (ScaleCut Index topology scale x) q}
+      {\fun (negative: Q.lt p Q.zero) =>
         scaleCutBelowZero Index topology scale x q
           (QOrder.ltReplaceLeft p q Q.zero equivalent negative)}
-      "rt:" {\fun (witness: \exists { i : Index \where
+      {\fun (witness: \exists { i : Index \where
         Logic.And[Q.lt p (#label{scale} i),
           Logic.Not (Member (#envelope{scale} i) x)] }) => \block {
         \takefrom i: \Cast[Index]
@@ -1406,7 +1304,7 @@
             equivalent (#left{data}))
           (#right{data})
       }}
-    } member;
+    };
 
 \definition scaleCutLaw(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier): R.IsCut[ScaleCut Index topology scale x] :=
@@ -1440,8 +1338,7 @@
       \with S: \Pow Q.Fraction => \In[Q.Fraction] S q
       \by { base: member,
         equality: sym!{\Pow Q.Fraction}
-          (ScaleCut Index topology scale x)
-          (R.underlying (scaleValue Index topology scale x))
+          _ _
           (scaleValueCut Index topology scale x) };
 
 \definition valueBelowZero(Index: \Set) (topology: Topology)
@@ -1489,27 +1386,19 @@
   openOfNeighborhoods topology (LowerRay Index topology scale q)
     (\fun (x: Carrier) =>
       \fun (member: Member (LowerRay Index topology scale q) x) =>
-        either!{
-          {Q.lt q Q.zero} "or" {\exists { i : Index \where
-            Logic.And[Q.lt q (#label{scale} i),
-              Logic.Not (Member (#envelope{scale} i) x)] }} "either" {\exists { U : \Pow Carrier \where
+        either!{{(valueCutMember Index topology scale x q member)} {\exists { U : \Pow Carrier \where
             OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] }}
-          "lt:" {\fun (negative: Q.lt q Q.zero) =>
-            \exact(
-              \into[\Pow Carrier](Whole,
-                { U : \Pow Carrier \where
-                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] })
-                \by { OpenNeighborhood[topology, x,
+          {\fun (negative: Q.lt q Q.zero) =>
+            Logic.existsIntro[\Pow Carrier, { U : \Pow Carrier \where
+                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] }] Whole
+            (OpenNeighborhood[topology, x,
                   (LowerRay Index topology scale q), Whole]::#
                   (#wholeOpen{(topologyLaws topology)})
                   (\refl(x))
                   (\fun (y: Carrier) =>
                     \fun (_: Member Whole y) =>
-                      valueBelowZero Index topology scale y q negative) },
-              \Cast[\Pow Carrier]
-                ({ U : \Pow Carrier \where
-                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] }))}
-          "rt:" {\fun (witness: \exists { i : Index \where
+                      valueBelowZero Index topology scale y q negative))}
+          {\fun (witness: \exists { i : Index \where
             Logic.And[Q.lt q (#label{scale} i),
               Logic.Not (Member (#envelope{scale} i) x)] }) => \block {
             \takefrom i: \Cast[Index]
@@ -1523,11 +1412,9 @@
                 { j : Index \where
                   Logic.And[Q.lt q (#label{scale} j),
                     Logic.Not (Member (#envelope{scale} j) x)] }, i) \then
-            \return \exact(
-              \into[\Pow Carrier](Complement (#envelope{scale} i),
-                { U : \Pow Carrier \where
-                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] })
-                \by { OpenNeighborhood[topology, x,
+            \return Logic.existsIntro[\Pow Carrier, { U : \Pow Carrier \where
+                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] }] (Complement (#envelope{scale} i))
+              (OpenNeighborhood[topology, x,
                   (LowerRay Index topology scale q),
                   Complement (#envelope{scale} i)]::#
                   (#envelopeClosed{scale} i)
@@ -1536,12 +1423,9 @@
                     \fun (outside: Logic.Not
                       (Member (#envelope{scale} i) y)) =>
                       valueAboveLabel Index topology scale y i q
-                        (#left{data}) outside) },
-              \Cast[\Pow Carrier]
-                ({ U : \Pow Carrier \where
-                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] }))
+                        (#left{data}) outside))
           }}
-        } (valueCutMember Index topology scale x q member));
+        });
 
 \definition UpperCut(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (q: Q.Fraction): \Pow Carrier :=
@@ -1558,16 +1442,10 @@
   Member (UpperCut Index topology scale q) x :=
   \fun (below: Q.lt r q) (notMember: Logic.Not
     (R.mem (scaleValue Index topology scale x) r)) =>
-    \exact(
-      \into[Q.Fraction](r,
-        { s : Q.Fraction \where
+    Logic.existsIntro[Q.Fraction, { s : Q.Fraction \where
           Logic.And[Q.lt s q,
-            Logic.Not (R.mem (scaleValue Index topology scale x) s)] })
-        \by { Logic.And[_, _]::# below notMember },
-      \Cast[Q.Fraction]
-        ({ s : Q.Fraction \where
-          Logic.And[Q.lt s q,
-            Logic.Not (R.mem (scaleValue Index topology scale x) s)] }));
+            Logic.Not (R.mem (scaleValue Index topology scale x) s)] }] r
+    (Logic.And[_, _]::# below notMember);
 
 \definition notMemberAboveOne(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (x: Carrier) (r: Q.Fraction):
@@ -1598,11 +1476,9 @@
     OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] } :=
   \fun (ij: Q.lt (#label{scale} i) (#label{scale} j)) (jq: Q.lt (#label{scale} j) q)
     (inside: Member (#envelope{scale} i) x) =>
-    \exact(
-      \into[\Pow Carrier](#open{scale} j,
-        { U : \Pow Carrier \where
-          OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] })
-        \by { OpenNeighborhood[topology, x,
+    Logic.existsIntro[\Pow Carrier, { U : \Pow Carrier \where
+          OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }] (#open{scale} j)
+    (OpenNeighborhood[topology, x,
           (UpperCut Index topology scale q), #open{scale} j]::#
           (#openLaw{scale} j)
           (#nested{scale} i j ij x inside)
@@ -1614,10 +1490,7 @@
                 (valueBelowLabel Index topology scale y j
                   (QOp.midpoint (#label{scale} j) q)
                   (QLaw.ltMidpoint (#label{scale} j) q jq)
-                  inOpen)) },
-      \Cast[\Pow Carrier]
-        ({ U : \Pow Carrier \where
-          OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }));
+                  inOpen)));
 
 \definition upperCutWholeNeighborhood(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (q: Q.Fraction) (x: Carrier):
@@ -1625,18 +1498,13 @@
   \exists { U : \Pow Carrier \where
     OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] } :=
   \fun (above: Q.lt Q.one q) =>
-    \exact(
-      \into[\Pow Carrier](Whole,
-        { U : \Pow Carrier \where
-          OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] })
-        \by { OpenNeighborhood[topology, x,
+    Logic.existsIntro[\Pow Carrier, { U : \Pow Carrier \where
+          OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }] Whole
+    (OpenNeighborhood[topology, x,
           (UpperCut Index topology scale q), Whole]::#
           (#wholeOpen{(topologyLaws topology)})
           (\refl(x))
-          (upperCutAboveOne Index topology scale q above) },
-      \Cast[\Pow Carrier]
-        ({ U : \Pow Carrier \where
-          OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }));
+          (upperCutAboveOne Index topology scale q above));
 
 \definition upperCutLocalFromLabel(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (q, r: Q.Fraction) (x: Carrier):
@@ -1651,29 +1519,22 @@
       doubleNegElim (Member (#envelope{scale} i) x)
         (\fun (outside: Logic.Not (Member (#envelope{scale} i) x)) =>
           notMember (valueAboveLabel Index topology scale x i r ri outside)) \then
-    \return either!{
-      {Q.lt (#label{scale} i) Q.zero} "or" {Logic.Or[Q.lt Q.one q,
-        \exists { j : Index \where
-          Logic.And[Q.lt (#label{scale} i) (#label{scale} j),
-            Q.lt (#label{scale} j) q] }]} "either" {\exists { U : \Pow Carrier \where
+    \return either!{{(#dense{scale} (#label{scale} i) q iq)} {\exists { U : \Pow Carrier \where
         OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }}
-      "lt:" {\fun (negative: Q.lt (#label{scale} i) Q.zero) =>
+      {\fun (negative: Q.lt (#label{scale} i) Q.zero) =>
         Logic.falseElim _
           (QOrder.ltIrrefl Q.zero
             (QOrder.ltTrans Q.zero (#label{scale} i) Q.zero
               (#labelPositive{scale} i) negative))}
-      "rt:" {\fun (rest: Logic.Or[Q.lt Q.one q,
+      {\fun (rest: Logic.Or[Q.lt Q.one q,
         \exists { j : Index \where
           Logic.And[Q.lt (#label{scale} i) (#label{scale} j),
             Q.lt (#label{scale} j) q] }]) =>
-        either!{
-          {Q.lt Q.one q} "or" {\exists { j : Index \where
-            Logic.And[Q.lt (#label{scale} i) (#label{scale} j),
-              Q.lt (#label{scale} j) q] }} "either" {\exists { U : \Pow Carrier \where
+        either!{rest {\exists { U : \Pow Carrier \where
             OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }}
-          "lt:" {\fun (above: Q.lt Q.one q) =>
+          {\fun (above: Q.lt Q.one q) =>
             upperCutWholeNeighborhood Index topology scale q x above}
-          "rt:" {\fun (witness: \exists { j : Index \where
+          {\fun (witness: \exists { j : Index \where
             Logic.And[Q.lt (#label{scale} i) (#label{scale} j),
               Q.lt (#label{scale} j) q] }) => \block {
             \takefrom j: \Cast[Index]
@@ -1691,9 +1552,8 @@
             \return upperCutNeighborhood Index topology scale q x i j
               (#left{bounds}) (#right{bounds}) inside
           }}
-        } rest}
+        }}
     }
-      (#dense{scale} (#label{scale} i) q iq)
   };
 
 \definition upperCutOpen(Index: \Set) (topology: Topology)
@@ -1713,28 +1573,21 @@
             { s : Q.Fraction \where
               Logic.And[Q.lt s q,
                 Logic.Not (R.mem (scaleValue Index topology scale x) s)] }, r) \then
-        \return either!{
-          {Q.lt r Q.zero} "or" {Logic.Or[Q.lt Q.one q,
-            \exists { i : Index \where
-              Logic.And[Q.lt r (#label{scale} i),
-                Q.lt (#label{scale} i) q] }]} "either" {\exists { U : \Pow Carrier \where
+        \return either!{{(#dense{scale} r q (#left{data}))} {\exists { U : \Pow Carrier \where
             OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }}
-          "lt:" {\fun (negative: Q.lt r Q.zero) =>
+          {\fun (negative: Q.lt r Q.zero) =>
             Logic.falseElim _
               (#right{data}
                 (valueBelowZero Index topology scale x r negative))}
-          "rt:" {\fun (rest: Logic.Or[Q.lt Q.one q,
+          {\fun (rest: Logic.Or[Q.lt Q.one q,
             \exists { i : Index \where
               Logic.And[Q.lt r (#label{scale} i),
                 Q.lt (#label{scale} i) q] }]) =>
-            either!{
-              {Q.lt Q.one q} "or" {\exists { i : Index \where
-                Logic.And[Q.lt r (#label{scale} i),
-                  Q.lt (#label{scale} i) q] }} "either" {\exists { U : \Pow Carrier \where
+            either!{rest {\exists { U : \Pow Carrier \where
                 OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }}
-              "lt:" {\fun (above: Q.lt Q.one q) =>
+              {\fun (above: Q.lt Q.one q) =>
                 upperCutWholeNeighborhood Index topology scale q x above}
-              "rt:" {\fun (witness: \exists { i : Index \where
+              {\fun (witness: \exists { i : Index \where
                 Logic.And[Q.lt r (#label{scale} i),
                   Q.lt (#label{scale} i) q] }) => \block {
                 \takefrom i: \Cast[Index]
@@ -1753,9 +1606,8 @@
                   q r x (#right{data}) i
                   (#left{bounds}) (#right{bounds})
               }}
-            } rest}
+            }}
         }
-          (#dense{scale} r q (#left{data}))
       });
 
 \definition scaleValueZero(Index: \Set) (topology: Topology)
@@ -1767,13 +1619,10 @@
     R.leAntisym (scaleValue Index topology scale x) Real.zero
       (\fun (q: Q.Fraction) =>
         \fun (member: R.mem (scaleValue Index topology scale x) q) =>
-          either!{
-            {Q.lt q Q.zero} "or" {\exists { i : Index \where
-              Logic.And[Q.lt q (#label{scale} i),
-                Logic.Not (Member (#envelope{scale} i) x)] }} "either" {R.mem Real.zero q}
-            "lt:" {\fun (negative: Q.lt q Q.zero) =>
+          either!{{(valueCutMember Index topology scale x q member)} {R.mem Real.zero q}
+            {\fun (negative: Q.lt q Q.zero) =>
               RealLaws.ofRatMem Q.zero q negative}
-            "rt:" {\fun (witness: \exists { i : Index \where
+            {\fun (witness: \exists { i : Index \where
               Logic.And[Q.lt q (#label{scale} i),
                 Logic.Not (Member (#envelope{scale} i) x)] }) => \block {
               \takefrom i: \Cast[Index]
@@ -1791,7 +1640,7 @@
                 (#right{data}
                   (#enclosed{scale} i x (contained i x inF)))
             }}
-          } (valueCutMember Index topology scale x q member))
+          })
       (\fun (q: Q.Fraction) =>
         \fun (member: R.mem Real.zero q) =>
           valueBelowZero Index topology scale x q
@@ -1804,24 +1653,17 @@
   R.mem (scaleValue Index topology scale x) q :=
   \fun (avoids: \forall (i: Index) -> Disjoint (#envelope{scale} i) G) (x: Carrier) (inG: Member G x)
     (q: Q.Fraction) (below: Q.lt q Q.one) =>
-    either!{
-      {Q.lt q Q.zero} "or" {Logic.Or[Q.lt Q.one Q.one,
-        \exists { i : Index \where
-          Logic.And[Q.lt q (#label{scale} i),
-            Q.lt (#label{scale} i) Q.one] }]} "either" {R.mem (scaleValue Index topology scale x) q}
-      "lt:" {\fun (negative: Q.lt q Q.zero) =>
+    either!{{(#dense{scale} q Q.one below)} {R.mem (scaleValue Index topology scale x) q}
+      {\fun (negative: Q.lt q Q.zero) =>
         valueBelowZero Index topology scale x q negative}
-      "rt:" {\fun (rest: Logic.Or[Q.lt Q.one Q.one,
+      {\fun (rest: Logic.Or[Q.lt Q.one Q.one,
         \exists { i : Index \where
           Logic.And[Q.lt q (#label{scale} i),
             Q.lt (#label{scale} i) Q.one] }]) =>
-        either!{
-          {Q.lt Q.one Q.one} "or" {\exists { i : Index \where
-            Logic.And[Q.lt q (#label{scale} i),
-              Q.lt (#label{scale} i) Q.one] }} "either" {R.mem (scaleValue Index topology scale x) q}
-          "lt:" {\fun (impossible: Q.lt Q.one Q.one) =>
+        either!{rest {R.mem (scaleValue Index topology scale x) q}
+          {\fun (impossible: Q.lt Q.one Q.one) =>
             Logic.falseElim _ (QOrder.ltIrrefl Q.one impossible)}
-          "rt:" {\fun (witness: \exists { i : Index \where
+          {\fun (witness: \exists { i : Index \where
             Logic.And[Q.lt q (#label{scale} i),
               Q.lt (#label{scale} i) Q.one] }) => \block {
             \takefrom i: \Cast[Index]
@@ -1840,9 +1682,8 @@
               (\fun (inEnvelope: Member (#envelope{scale} i) x) =>
                 avoids i x inEnvelope inG)
           }}
-        } rest}
-    }
-      (#dense{scale} q Q.one below);
+        }}
+    };
 
 \definition scaleValueOne(Index: \Set) (topology: Topology)
   (scale: OrderedScale[Index, topology]) (G: \Pow Carrier):
@@ -1853,15 +1694,12 @@
     R.leAntisym (scaleValue Index topology scale x) Real.one
       (\fun (q: Q.Fraction) =>
         \fun (member: R.mem (scaleValue Index topology scale x) q) =>
-          either!{
-            {Q.lt q Q.zero} "or" {\exists { i : Index \where
-              Logic.And[Q.lt q (#label{scale} i),
-                Logic.Not (Member (#envelope{scale} i) x)] }} "either" {R.mem Real.one q}
-            "lt:" {\fun (negative: Q.lt q Q.zero) =>
+          either!{{(valueCutMember Index topology scale x q member)} {R.mem Real.one q}
+            {\fun (negative: Q.lt q Q.zero) =>
               RealLaws.ofRatMem Q.one q
                 (QOrder.ltTrans q Q.zero Q.one
                   negative QOrder.zeroLtOne)}
-            "rt:" {\fun (witness: \exists { i : Index \where
+            {\fun (witness: \exists { i : Index \where
               Logic.And[Q.lt q (#label{scale} i),
                 Logic.Not (Member (#envelope{scale} i) x)] }) => \block {
               \takefrom i: \Cast[Index]
@@ -1879,7 +1717,7 @@
                 (QOrder.ltTrans q (#label{scale} i) Q.one
                   (#left{data}) (#labelBelowOne{scale} i))
             }}
-          } (valueCutMember Index topology scale x q member))
+          })
       (\fun (q: Q.Fraction) =>
         \fun (member: R.mem Real.one q) =>
           scaleCutBelowOne Index topology scale G avoids x inG q
@@ -1900,16 +1738,16 @@
 \definition scaleBounded(Index: \Set) (topology: Topology) (scale: OrderedScale[Index, topology]) (x: Carrier):
   R.Le (scaleValue Index topology scale x) Real.one :=
   \fun (q: Q.Fraction) (member: R.mem (scaleValue Index topology scale x) q) =>
-    either!{{Q.lt q Q.zero} "or" {\exists { i: Index \where
-      Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] }} "either" {R.mem Real.one q}
-      "lt:" {\fun (negative: _) => RealLaws.ofRatMem Q.one q (QOrder.ltTrans q Q.zero Q.one negative QOrder.zeroLtOne)}
-      "rt:" {\block {
+    either!{{(valueCutMember Index topology scale x q member)} {R.mem Real.one q}
+      {\fun (negative: _) => RealLaws.ofRatMem Q.one q (QOrder.ltTrans q Q.zero Q.one negative QOrder.zeroLtOne)}
+      {\block {
         \fun (witness: \exists { i: Index \where Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] }) \then
         \takefrom i: \Cast[Index] ({ i: Index \where Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] }) \by witness \then
         \let data: Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] :=
           \bysub(Index, { i: Index \where Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] }, i) \then
         \return RealLaws.ofRatMem Q.one q (QOrder.ltTrans q (#label{scale} i) Q.one (#left{data}) (#labelBelowOne{scale} i))
-      }}} (valueCutMember Index topology scale x q member);
+      }}
+    };
 \structure UrysohnFunction[topology: Topology, F, G: \Pow Carrier]: \Set {
   value: Carrier -> R.Real,
   lowerOpen: \forall (q: Q.Fraction) ->

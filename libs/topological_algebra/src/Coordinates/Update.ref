@@ -12,26 +12,28 @@
   \Cast[K] ({ candidate: K \where ValueLaws[i, j, value, vector, candidate] });
 \definition existence: \forall (i, j: I) (value: K) (vector: Carrier) -> \exists Value i j value vector :=
   \fun (i, j: I) (value: K) (vector: Carrier) =>
-  either!{{i = j} "or" {Logic.Not (i = j)} "either" {\exists Value i j value vector}
-    "lt:" {\fun (equal: _) => \exact(\into[K](value, Value i j value vector) \by {
+  either!{{(Classical.excludedMiddle (i = j))} {\exists Value i j value vector}
+    {\fun (equal: _) => \exact(\into[K](value, Value i j value vector) \by {
       ValueLaws[i, j, value, vector, value] {
         equal := \fun (same: _) => \refl(value),
         different := \fun (different: _) => Logic.falseElim (value = vector j) (different equal),
       }
     }, Value i j value vector)}
-    "rt:" {\fun (different: _) => \exact(\into[K](vector j, Value i j value vector) \by {
+    {\fun (different: _) => \exact(\into[K](vector j, Value i j value vector) \by {
       ValueLaws[i, j, value, vector, vector j] {
         equal := \fun (equal: _) => Logic.falseElim (vector j = value) (different equal),
         different := \fun (other: _) => \refl(vector j),
       }
-    }, Value i j value vector)}} (Classical.excludedMiddle (i = j));
+    }, Value i j value vector)}
+  };
 \definition uniqueness: \forall (i, j: I) (value: K) (vector: Carrier) (u, v: Value i j value vector) -> u = v :=
   \fun (i, j: I) (value: K) (vector: Carrier) (u, v: Value i j value vector) =>
-  either!{{i = j} "or" {Logic.Not (i = j)} "either" {u = v}
-    "lt:" {\fun (same: _) => trans!{K} _ _ _ (#equal{(\bysub(K, Value i j value vector, u))} same)
+  either!{{(Classical.excludedMiddle (i = j))} {u = v}
+    {\fun (same: _) => trans!{K} _ _ _ (#equal{(\bysub(K, Value i j value vector, u))} same)
       (sym!{K} _ _ (#equal{(\bysub(K, Value i j value vector, v))} same))}
-    "rt:" {\fun (different: _) => trans!{K} _ _ _ (#different{(\bysub(K, Value i j value vector, u))} different)
-      (sym!{K} _ _ (#different{(\bysub(K, Value i j value vector, v))} different))}} (Classical.excludedMiddle (i = j));
+    {\fun (different: _) => trans!{K} _ _ _ (#different{(\bysub(K, Value i j value vector, u))} different)
+      (sym!{K} _ _ (#different{(\bysub(K, Value i j value vector, v))} different))}
+  };
 \definition component(i, j: I) (value: K) (vector: Carrier): Value i j value vector :=
   \choice Value i j value vector \by { existence: existence i j value vector, uniqueness: uniqueness i j value vector };
 \definition replace(i: I) (value: K) (vector: Carrier): Carrier := \fun (j: I) => component i j value vector;
@@ -52,22 +54,22 @@
 \definition map(i: I) (p: Product.CarrierSet): Carrier := replace i (Pair.second Carrier K p) (Pair.first Carrier K p);
 \definition continuous: \forall (scalar: Scalars.Topology) (i: I) -> Maps.Continuous (Product.topology (topology scalar) scalar) (topology scalar) (map i) :=
   \fun (scalar: _) (i: I) => Into.continuous (Product.topology (topology scalar) scalar) scalar (map i) (\fun (j: I) =>
-    either!{{i = j} "or" {Logic.Not (i = j)} "either" {ScalarMaps.Continuous (Product.topology (topology scalar) scalar) scalar (\fun (p: Product.CarrierSet) => map i p j)}
-      "lt:" {\fun (same: _) => \idelim (Pair.second Carrier K) = (\fun (p: Product.CarrierSet) => map i p j)
+    either!{{(Classical.excludedMiddle (i = j))} {ScalarMaps.Continuous (Product.topology (topology scalar) scalar) scalar (\fun (p: Product.CarrierSet) => map i p j)}
+      {\fun (same: _) => \idelim (Pair.second Carrier K) = (\fun (p: Product.CarrierSet) => map i p j)
         \with f: (Product.CarrierSet -> K) => ScalarMaps.Continuous (Product.topology (topology scalar) scalar) scalar f
         \by { base: Projections.secondContinuous (topology scalar) scalar,
           equality: \axiom:funext((Pair.second Carrier K), (\fun (p: Product.CarrierSet) => map i p j),
             (\fun (p: Product.CarrierSet) => sym!{K} _ _ (equal i j (Pair.second Carrier K p) (Pair.first Carrier K p) same))) }}
-      "rt:" {\fun (distinct: _) => \idelim (\fun (p: Product.CarrierSet) => Pair.first Carrier K p j) = (\fun (p: Product.CarrierSet) => map i p j)
+      {\fun (distinct: _) => \idelim (\fun (p: Product.CarrierSet) => Pair.first Carrier K p j) = (\fun (p: Product.CarrierSet) => map i p j)
         \with f: (Product.CarrierSet -> K) => ScalarMaps.Continuous (Product.topology (topology scalar) scalar) scalar f
         \by { base: Evaluate.composeContinuous (Product.topology (topology scalar) scalar) (topology scalar) scalar
           (Pair.first Carrier K) (evaluate j) (Projections.firstContinuous (topology scalar) scalar) (evaluationContinuous scalar j),
           equality: \axiom:funext((\fun (p: Product.CarrierSet) => Pair.first Carrier K p j), (\fun (p: Product.CarrierSet) => map i p j),
-            (\fun (p: Product.CarrierSet) => sym!{K} _ _ (different i j (Pair.second Carrier K p) (Pair.first Carrier K p) distinct))) }}}
-      (Classical.excludedMiddle (i = j)));
+            (\fun (p: Product.CarrierSet) => sym!{K} _ _ (different i j (Pair.second Carrier K p) (Pair.first Carrier K p) distinct))) }}
+    });
 \definition restores: \forall (i: I) (point: K) (vector: Carrier) -> replace i (vector i) (replace i point vector) = vector :=
   \fun (i: I) (point: K) (vector: Carrier) => \axiom:funext(replace i (vector i) (replace i point vector), vector,
-    (\fun (j: I) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {replace i (vector i) (replace i point vector) j = vector j}
-      "lt:" {\fun (same: _) => trans!{K} _ _ _ (equal i j (vector i) (replace i point vector) same) (congr!{I K} vector _ _ same)}
-      "rt:" {\fun (distinct: _) => trans!{K} _ _ _ (different i j (vector i) (replace i point vector) distinct) (different i j point vector distinct)}}
-      (Classical.excludedMiddle (i = j))));
+    (\fun (j: I) => either!{{(Classical.excludedMiddle (i = j))} {replace i (vector i) (replace i point vector) j = vector j}
+      {\fun (same: _) => trans!{K} _ _ _ (equal i j (vector i) (replace i point vector) same) (congr!{I K} vector _ _ same)}
+      {\fun (distinct: _) => trans!{K} _ _ _ (different i j (vector i) (replace i point vector) distinct) (different i j point vector distinct)}
+    }));

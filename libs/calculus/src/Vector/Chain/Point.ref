@@ -35,8 +35,8 @@
   \fun (epsilon, delta: Reals.Real)(positive: _)(nonzero: _)(control: Outer.DifferentialControl[V, g, f a, e, outerTolerance epsilon, delta])(near: _)(bounded: _) \then
   \let halfPositive: R.Lt Reals.zero (half epsilon) := Bounds.halfOfPositive epsilon positive \then
   \let coefficientPositive: R.Lt Reals.zero innerCoefficient := localCoefficientPositive d \then
-  \return either!{{R.Lt Reals.zero targetRadius} "or" {Logic.Not (R.Lt Reals.zero targetRadius)} "either" {R.Lt (Reals.distance outerRemainder Reals.zero) (Reals.mul (half epsilon) sourceRadius)}
-    "lt:" {\block {
+  \return either!{{(Classical.excludedMiddle (R.Lt Reals.zero targetRadius))} {R.Lt (Reals.distance outerRemainder Reals.zero) (Reals.mul (half epsilon) sourceRadius)}
+    {\block {
       \fun (targetNonzero: R.Lt Reals.zero targetRadius) \then
       \let error: R.Lt (Reals.distance outerRemainder Reals.zero) (Reals.mul (outerTolerance epsilon) targetRadius) := #estimate{control} (f x) targetNonzero near \then
       \let compared: R.Le (Reals.mul (outerTolerance epsilon) targetRadius) (Reals.mul (outerTolerance epsilon) (Reals.mul innerCoefficient sourceRadius)) :=
@@ -49,14 +49,15 @@
           (R.leLtTrans (Reals.mul (outerTolerance epsilon) targetRadius) (Reals.mul (outerTolerance epsilon) (Reals.mul innerCoefficient sourceRadius)) (Reals.mul (half epsilon) sourceRadius) compared
             (Product.scaledSmall (outerTolerance epsilon) innerCoefficient (half epsilon) sourceRadius budget nonzero)))
     }}
-    "rt:" {\block {
+    {\block {
       \fun (targetZero: Logic.Not (R.Lt Reals.zero targetRadius)) \then
       \let zeroRadius: targetRadius = Reals.zero := R.leAntisym targetRadius Reals.zero (R.Order[].leOfNotLtReverse targetRadius Reals.zero targetZero)
         (CodomainNorm.nonnegative (CodomainCoordinates.subPoint (f x) (f a))) \then
       \return R.ltReplaceLeft Reals.zero (Reals.distance outerRemainder Reals.zero) (Reals.mul (half epsilon) sourceRadius)
         (sym!{Reals.Real} _ _ (trans!{Reals.Real} _ _ _ (congr!{Reals.Real Reals.Real} (\fun (r: Reals.Real) => Reals.distance r Reals.zero) _ _ (outerAtZero zeroRadius)) (Metric.distanceSelf Reals.zero)))
         (Product.mulPositive (half epsilon) sourceRadius halfPositive nonzero)
-    }}} (Classical.excludedMiddle (R.Lt Reals.zero targetRadius))
+    }}
+  }
 };
 \definition sumEstimate: \forall (epsilon: Reals.Real) ->
   R.Lt (Reals.distance outerRemainder Reals.zero) (Reals.mul (half epsilon) sourceRadius) ->

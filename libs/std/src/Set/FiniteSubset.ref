@@ -97,21 +97,27 @@
   { x: A \where Logic.Or[\In[A] X x, \In[A] Y x] };
 \definition unionEmpty(Y: \Pow A): Union Empty Y = Y :=
   \axiom:setext(Union Empty Y, Y,
-    \fun (x: _) (member: _) => either!{{Logic.False} "or" {\In[A] Y x} "either" {\In[A] Y x}
-      "lt:" {Logic.falseElim (\In[A] Y x)} "rt:" {\fun (h: _) => h}} member,
+    \fun (x: _) (member: _) => either!{member {\In[A] Y x}
+      {Logic.falseElim (\In[A] Y x)}
+      {\fun (h: _) => h}
+    },
     \fun (x: _) (member: _) => Logic.Or[_, _]::right member);
 \definition unionInsert(a: A) (X, Y: \Pow A): Union (Insert a X) Y = Insert a (Union X Y) :=
   \axiom:setext(Union (Insert a X) Y, Insert a (Union X Y),
-    \fun (x: _) (member: _) => either!{{\In[A] (Insert a X) x} "or" {\In[A] Y x} "either" {\In[A] (Insert a (Union X Y)) x}
-      "lt:" {\fun (h: _) => either!{{x = a} "or" {\In[A] X x} "either" {\In[A] (Insert a (Union X Y)) x}
-        "lt:" {Logic.Or[_, _]::left}
-        "rt:" {\fun (old: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left old)}} h}
-      "rt:" {\fun (h: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right h)}} member,
-    \fun (x: _) (member: _) => either!{{x = a} "or" {\In[A] (Union X Y) x} "either" {\In[A] (Union (Insert a X) Y) x}
-      "lt:" {\fun (equal: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::left equal)}
-      "rt:" {\fun (h: _) => either!{{\In[A] X x} "or" {\In[A] Y x} "either" {\In[A] (Union (Insert a X) Y) x}
-        "lt:" {\fun (old: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::right old)}
-        "rt:" {Logic.Or[_, _]::right}} h}} member);
+    \fun (x: _) (member: _) => either!{member {\In[A] (Insert a (Union X Y)) x}
+      {\fun (h: _) => either!{h {\In[A] (Insert a (Union X Y)) x}
+        {Logic.Or[_, _]::left}
+        {\fun (old: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left old)}
+      }}
+      {\fun (h: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right h)}
+    },
+    \fun (x: _) (member: _) => either!{member {\In[A] (Union (Insert a X) Y) x}
+      {\fun (equal: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::left equal)}
+      {\fun (h: _) => either!{h {\In[A] (Union (Insert a X) Y) x}
+        {\fun (old: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::right old)}
+        {Logic.Or[_, _]::right}
+      }}
+    });
 \definition finiteUnion: \forall (X, Y: \Pow A) -> Finite X -> Finite Y -> Finite (Union X Y) :=
   \fun (X, Y: _) (finiteX: _) (finiteY: _) => finiteX
     ({ X: \Pow A \where Finite (Union X Y) })
@@ -133,22 +139,25 @@
   Filter (Insert a X) Y = Insert a (Filter X Y) :=
   \fun (inY: _) => \axiom:setext(Filter (Insert a X) Y, Insert a (Filter X Y),
     \fun (x: A) (h: \In[A] (Filter (Insert a X) Y) x) =>
-      either!{{x = a} "or" {\In[A] X x} "either" {\In[A] (Insert a (Filter X Y)) x}
-        "lt:" {Logic.Or[_, _]::left}
-        "rt:" {\fun (old: _) => Logic.Or[_, _]::right (Logic.And[_, _]::# old (#right{h}))}} (#left{h}),
+      either!{{(#left{h})} {\In[A] (Insert a (Filter X Y)) x}
+        {Logic.Or[_, _]::left}
+        {\fun (old: _) => Logic.Or[_, _]::right (Logic.And[_, _]::# old (#right{h}))}
+      },
     \fun (x: A) (h: \In[A] (Insert a (Filter X Y)) x) =>
-      either!{{x = a} "or" {\In[A] (Filter X Y) x} "either" {\In[A] (Filter (Insert a X) Y) x}
-        "lt:" {\fun (equal: _) => Logic.And[_, _]::# (Logic.Or[_, _]::left equal)
+      either!{h {\In[A] (Filter (Insert a X) Y) x}
+        {\fun (equal: _) => Logic.And[_, _]::# (Logic.Or[_, _]::left equal)
           (\idelim a = x \with b: A => \In[A] Y b \by { base: inY, equality: sym!{A} _ _ equal })}
-        "rt:" {\fun (old: \In[A] (Filter X Y) x) => Logic.And[_, _]::# (Logic.Or[_, _]::right (#left{old})) (#right{old})}} h);
+        {\fun (old: \In[A] (Filter X Y) x) => Logic.And[_, _]::# (Logic.Or[_, _]::right (#left{old})) (#right{old})}
+      });
 \definition filterInsertOutside(a: A) (X, Y: \Pow A): Logic.Not (\In[A] Y a) ->
   Filter (Insert a X) Y = Filter X Y :=
   \fun (outside: _) => \axiom:setext(Filter (Insert a X) Y, Filter X Y,
     \fun (x: A) (h: \In[A] (Filter (Insert a X) Y) x) =>
-      either!{{x = a} "or" {\In[A] X x} "either" {\In[A] (Filter X Y) x}
-        "lt:" {\fun (equal: _) => Logic.falseElim (\In[A] (Filter X Y) x)
+      either!{{(#left{h})} {\In[A] (Filter X Y) x}
+        {\fun (equal: _) => Logic.falseElim (\In[A] (Filter X Y) x)
           (outside (\idelim x = a \with b: A => \In[A] Y b \by { base: #right{h}, equality: equal }))}
-        "rt:" {\fun (old: _) => Logic.And[_, _]::# old (#right{h})}} (#left{h}),
+        {\fun (old: _) => Logic.And[_, _]::# old (#right{h})}
+      },
     \fun (x: A) (h: \In[A] (Filter X Y) x) =>
       Logic.And[_, _]::# (Logic.Or[_, _]::right (#left{h})) (#right{h}));
 \definition finiteFilter: \forall (X, Y: \Pow A) -> Finite X -> Finite (Filter X Y) :=
@@ -156,14 +165,14 @@
     ({ X: \Pow A \where Finite (Filter X Y) })
     (\idelim Empty = Filter Empty Y \with Z: \Pow A => Finite Z
       \by { base: finiteEmpty, equality: sym!{\Pow A} _ _ (filterEmpty Y) })
-    (\fun (Z: _) (ih: _) (a: _) => either!{{\In[A] Y a} "or" {Logic.Not (\In[A] Y a)} "either" {Finite (Filter (Insert a Z) Y)}
-      "lt:" {\fun (member: _) => \idelim Insert a (Filter Z Y) = Filter (Insert a Z) Y
+    (\fun (Z: _) (ih: _) (a: _) => either!{{(Classical.excludedMiddle (\In[A] Y a))} {Finite (Filter (Insert a Z) Y)}
+      {\fun (member: _) => \idelim Insert a (Filter Z Y) = Filter (Insert a Z) Y
         \with W: \Pow A => Finite W
         \by { base: finiteInsert a (Filter Z Y) ih, equality: sym!{\Pow A} _ _ (filterInsertMember a Z Y member) }}
-      "rt:" {\fun (outside: _) => \idelim Filter Z Y = Filter (Insert a Z) Y
+      {\fun (outside: _) => \idelim Filter Z Y = Filter (Insert a Z) Y
         \with W: \Pow A => Finite W
-        \by { base: ih, equality: sym!{\Pow A} _ _ (filterInsertOutside a Z Y outside) }}}
-      (Classical.excludedMiddle (\In[A] Y a)));
+        \by { base: ih, equality: sym!{\Pow A} _ _ (filterInsertOutside a Z Y outside) }}
+    });
 \definition filter(X: FiniteSubset) (Y: \Pow A): FiniteSubset :=
   \into[\Pow A](Filter X Y, FiniteSubsetSet) \by { finiteFilter X Y (finite X) };
 \module Selection(B: \Set);
