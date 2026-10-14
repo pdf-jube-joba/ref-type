@@ -11,7 +11,7 @@ use url::Url;
 type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
 
 struct Server {
-    database: Database,
+    databases: BTreeMap<PathBuf, Database>,
     documents: BTreeMap<PathBuf, String>,
     published: BTreeMap<PathBuf, BTreeSet<PathBuf>>,
 }
@@ -19,53 +19,42 @@ struct Server {
 impl Server {
     fn new() -> Self {
         Self {
-            database: Database::new(),
+            databases: BTreeMap::new(),
             documents: BTreeMap::new(),
             published: BTreeMap::new(),
         }
     }
 
-    fn entry(file: &Path) -> PathBuf {
-        let directories: Vec<_> = file.ancestors().skip(1).collect();
-        if let Some(directory) = directories
-            .iter()
-            .find(|dir| dir.join("ref.toml").is_file())
-        {
-            return directory.to_path_buf();
-        }
-        if let Some(directory) = directories
-            .iter()
-            .find(|dir| dir.join("root.ref").is_file())
-        {
-            return directory.join("root.ref");
-        }
-        file.to_path_buf()
-    }
-
-    fn snapshot(&self, file: &Path) -> Result<SourceSnapshot> {
-        let mut snapshot = SourceSnapshot::read(Self::entry(file))?;
+    fn snapshot(&mut self, file: &Path) -> Result<(&mut Database, SourceSnapshot)> {
+        let entry = sema::source_entry(file)?;
+        let cache = sema::default_cache_directory(&entry)?;
+        let database = self
+            .databases
+            .entry(cache.clone())
+            .or_insert_with(|| Database::with_cache(cache));
+        let mut snapshot = database.read_snapshot(entry, true)?;
         for (path, text) in &self.documents {
             snapshot.insert(path, text.clone());
         }
-        Ok(snapshot)
+        Ok((database, snapshot))
     }
 
     fn analyze(&mut self, connection: &Connection, file: &Path) -> Result<()> {
-        let entry = Self::entry(file);
-        let snapshot = match self.snapshot(file) {
+        let (database, snapshot) = match self.snapshot(file) {
             Ok(snapshot) => snapshot,
             Err(error) => {
                 self.publish(connection, file, vec![json!({
                     "range": zero_range(), "severity": 1, "source": "ref", "message": error.to_string()
                 })])?;
                 self.published
-                    .entry(entry)
+                    .entry(file.to_path_buf())
                     .or_default()
                     .insert(file.to_path_buf());
                 return Ok(());
             }
         };
-        let result = self.database.check(&snapshot);
+        let result = database.check(&snapshot);
+        let entry = snapshot.entry().to_path_buf();
         let mut grouped: BTreeMap<PathBuf, Vec<Value>> = BTreeMap::new();
         for diagnostic in result.all_diagnostics() {
             let mut locations: Vec<_> = diagnostic
@@ -126,7 +115,7 @@ impl Server {
         let Some(position) = request.params.get("position") else {
             return Value::Null;
         };
-        let Ok(snapshot) = self.snapshot(&file) else {
+        let Ok((database, snapshot)) = self.snapshot(&file) else {
             return Value::Null;
         };
         let Some(source) = snapshot.source(&file) else {
@@ -135,7 +124,7 @@ impl Server {
         let Some(offset) = offset(&source.text, position) else {
             return Value::Null;
         };
-        let result = self.database.check(&snapshot);
+        let result = database.check(&snapshot);
         match request.method.as_str() {
             "textDocument/definition" => result
                 .definition_at(&file, offset)
@@ -358,6 +347,9 @@ fn main() -> Result<()> {
 }
 
 #[cfg(test)]
+mod cache_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -528,6 +520,9 @@ mod tests {
     fn package_manifest_takes_priority_over_source_root() {
         let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let file = repository.join("libs/real/cauchy/src/CauchyReal.ref");
-        assert_eq!(Server::entry(&file), repository.join("libs/real/cauchy"));
+        assert_eq!(
+            sema::source_entry(&file).unwrap(),
+            repository.join("libs/real/cauchy").canonicalize().unwrap()
+        );
     }
 }
