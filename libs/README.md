@@ -25,7 +25,7 @@
 | [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 | 5,175 | algebra, complex, dedekind_reals, module_theory, real, std |
 | [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 | 4,966 | algebra, category, module_theory, std |
 | [algebra/homological/resolutions](algebra/homological/resolutions/README.md) | `resolutions` | 非負鎖複体、射影分解、比較定理、Hom・テンソル複体、二重複体 | 4,769 | algebra, chain_complexes, commutative_algebra, module_theory, std |
-| [algebra/homological/derived_functors](algebra/homological/derived_functors/README.md) | `derived_functors` | Ext・Tor、分解からの独立性と自然性、巡回加群の分解、普遍係数 | 3,352 | algebra, chain_complexes, commutative_algebra, finitely_generated_modules, module_theory, resolutions, std |
+| [algebra/homological/derived_functors](algebra/homological/derived_functors/README.md) | `derived_functors` | Ext・Tor、分解からの独立性と自然性、巡回加群の分解、普遍係数 | 3,438 | algebra, chain_complexes, commutative_algebra, finitely_generated_modules, module_theory, resolutions, std |
 | [algebra/homological/computations](algebra/homological/computations/README.md) | `homological_algebra` | 有限複体のホモロジー計算、テンソル余鎖複体、Künneth 同型 | 5,363 | algebra, chain_complexes, commutative_algebra, derived_functors, finitely_generated_modules, integer_matrices, module_theory, resolutions, std |
 | [analysis/calculus](analysis/calculus/README.md) | `calculus` | 極限、平均値定理、多変数微分、滑らかな写像 | 5,210 | dedekind_reals, linear_algebra, metric_spaces, real, std, topological_algebra, topology |
 | [analysis/integration](analysis/integration/README.md) | `integration` | リーマン積分、L¹ 完備化によるルベーグ積分 | 556 | dedekind_reals, real, std |
@@ -36,7 +36,7 @@
 | [topology/metric_spaces](topology/metric_spaces/README.md) | `metric_spaces` | 距離位相、距離化、実数直線、実数値関数、有限従属分割 | 2,401 | dedekind_reals, real, std, topology |
 | [topology/topological_constructions](topology/topological_constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 | 1,450 | std, topology |
 | [topology/topological_algebra](topology/topological_algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 | 1,013 | complex, dedekind_reals, linear_algebra, metric_spaces, real, std, topological_constructions, topology |
-| [topology/algebraic_topology](topology/algebraic_topology/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対 | 1,382 | dedekind_reals, metric_spaces, real, std, topological_algebra, topological_constructions, topology |
+| [topology/algebraic_topology](topology/algebraic_topology/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 | 1,542 | dedekind_reals, metric_spaces, real, std, topological_algebra, topological_constructions, topology |
 
 加群の共通構造は `module_theory`、可換環上の Hom・テンソルと行列は `commutative_algebra` に置く。
 `chain_complexes` は De Rham 複体とホモロジー代数の両方が利用し、`euclidean_forms` は多様体上の形式から独立して局所計算を提供する。

@@ -23,6 +23,12 @@
 `At.With` の `coordinateRuntime` と `onFactorClasses` は計算した生成元の間の行列と元のホモロジー写像との対応を返す。
 `intertwines` は有界複体のホモロジー同型が誘導写像と可換になることを示す。
 
+`Finite.Bounded.Of.At.UniversalCoefficient.CohomologyKernel.sequence` は、有限自由整数複体と任意の整数加群係数について、Ext¹・コホモロジー・Hom の普遍係数短完全列を返す。
+`UniversalCoefficient.Tensor.Projection.Exactness.Derived.sequence` は、ホモロジーのテンソル・係数付きホモロジー・Tor₁ の短完全列を返す。
+前者の `splitting` と後者の `isomorphism` は Smith 計算から選んだ分裂による直和表示である。
+`UniversalCoefficient.rightInverse` は評価写像の全射性を、`Tensor.Boundaries.onCycles` はホモロジー側の包含をサイクルのテンソル上の公式へ結び付ける。
+[利用例](../../../../tests/projects/homological-algebra/src/Finite/Bounded/UniversalCoefficient.ref)は、非対角の三項整数複体、任意次数と係数、零次・負次数・\(\mathbb Z/2\) 係数に対してこれらの短完全列と分裂を検査する。
+
 ## 自然数次数のテンソル余鎖複体
 
 `homological_algebra.TensorCochain.Over` は可換環上の二重余鎖複体と有限対角直和による total を構成する。

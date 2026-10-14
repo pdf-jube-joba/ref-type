@@ -22,6 +22,8 @@
 | `Cofibration` | \(X\cup_A([0,1]\times A)\) への cylinder の retraction による cofibration 条件。 |
 | `Cofibration.ForTarget` | retraction から実際の延長を構成し、連続性・初期値・部分空間上の一致を証明する。 |
 | `Euclidean.Dimension` / `Geometry` | 有限座標、閉円板・境界球面・内部、ノルムの連続性、円板・球面の閉性、座標の二乗評価と単位区間への評価。 |
+| `Simplex` / `Simplex.At` | 有限実座標による標準単体、次数に依存する台集合と部分空間位相、座標評価の連続性、零次元の一点性。 |
+| `Simplex.Insertion` | 零座標の挿入による面の座標写像、非負性と座標和の保存、先頭の面の座標公式と最後の頂点。 |
 | `CW` | 特性写像、内部の同相条件、有限なセル族、Hausdorff 条件、低次元セルへの境界の付着、弱位相を持つ有限 CW 複体。 |
 | `CW.Attach` | 境界球面に沿うセル付着を pushout として構成する。 |
 | `CW.Pair` | 境界で閉じた部分複体、全体・空の部分複体、部分空間と商空間。 |
@@ -37,6 +39,7 @@ CW 対の商と、cofibration の延長定理はそれぞれ独立に利用で�
 reduced suspension と smash は入力の基点を受け取る。
 
 [利用例](../../../tests/projects/topological-k-theory/src/root.ref) は区間のホモトピーの連結と端点、区間反転のホモトピー同値とその合成、円板・球面の閉性、商の等式、一次元円板の境界を一点へ付着する構成、空の有限 CW 対を検査する。
+`Simplices` は通常の型値定義 `Simplex.Carrier n` を別パッケージの次数付きの族として使い、面の座標公式と座標評価の連続性を検査する。
 
 ```sh
 target/debug/cli libs/topology/algebraic_topology --module algebraic_topology --full-check-local --diagnostics compact

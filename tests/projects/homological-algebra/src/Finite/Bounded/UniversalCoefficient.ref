@@ -1,0 +1,41 @@
+\import std.Logic[].Proposition[] \as Logic;
+\module At(z: I.Int^, A: Modules.Bundle) {
+  \import Calculated.At[z := z].UniversalCoefficient[A := A] \as UCT;
+  \import chain_complexes.Chain[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing].At[C := Calculated.chain, z := z] \as Original;
+  \import derived_functors.UniversalCoefficient[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[C := Calculated.chain, A := A].At[z := z] \as Evaluation;
+  \import Modules.Tensor[V := Original.Cycle, W := A.Carrier, left := Original.cycleSpace, right := A.space] \as CycleTensor;
+  \import UCT.CohomologyKernel[] \as Cohomology;
+  \import UCT.Tensor[].Projection[].Exactness[] \as Tensor;
+  \import Tensor.Derived[] \as Derived;
+  \definition cohomologySequence: Modules.ShortExact[
+    A := Cohomology.extBundle, B := Cohomology.cohomologyBundle, C := Cohomology.homBundle].Sequence := Cohomology.sequence;
+  \definition homologySequence: Modules.ShortExact[
+    A := Tensor.homologyTensorBundle, B := Tensor.homologyBundle, C := Derived.torBundle].Sequence := Derived.sequence;
+  \definition evaluationOnCycle: \forall (f: Evaluation.Closed)(x: Original.Cycle) ->
+    #apply{(Evaluation.evaluate f)} (Original.classOf x) = #apply{f} x := Evaluation.onClass;
+  \definition evaluationLift: \forall (f: Evaluation.ValueCarrier) -> #apply{cohomologySequence.projection} (UCT.lift f) = f := UCT.rightInverse;
+  \import Modules.Biproduct[V := Cohomology.extBundle.Carrier, W := Cohomology.homBundle.Carrier,
+    left := Cohomology.extBundle.space, right := Cohomology.homBundle.space] \as CohomologySum;
+  \import Modules.Biproduct[V := Tensor.homologyTensorBundle.Carrier, W := Derived.torBundle.Carrier,
+    left := Tensor.homologyTensorBundle.space, right := Derived.torBundle.space] \as HomologySum;
+  \definition cohomologySplitting: Modules.Isomorphism[V := CohomologySum.Carrier, W := Cohomology.cohomologyBundle.Carrier,
+    source := CohomologySum.space, target := Cohomology.cohomologyBundle.space].Isomorphism := Cohomology.splitting;
+  \definition homologySplitting: Modules.Isomorphism[V := HomologySum.Carrier, W := Tensor.homologyBundle.Carrier,
+    source := HomologySum.space, target := Tensor.homologyBundle.space].Isomorphism := Derived.isomorphism;
+  \definition tensorCycleFormula: \forall (x: CycleTensor.Carrier) ->
+    #apply{homologySequence.inclusion} (#apply{(UCT.Tensor[].Boundaries[].projection)} x) =
+      #apply{(UCT.Tensor[].classMap)} x := UCT.Tensor[].Boundaries[].onCycles;
+  \definition extKernel: \forall (q: Cohomology.cohomologyBundle.Carrier) ->
+    #apply{cohomologySequence.projection} q = #zero{Cohomology.homBundle.space} ->
+    \exists { e: Cohomology.extBundle.Carrier \where #apply{cohomologySequence.inclusion} e = q } := #kernelImage{cohomologySequence};
+  \definition torSurjective: \forall (t: Derived.torBundle.Carrier) ->
+    \exists { q: Tensor.homologyBundle.Carrier \where #apply{homologySequence.projection} q = t } := #onto{homologySequence};
+}
+\definition integerBundle: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import At[z := I.Int^::ofNat zero, A := integerBundle] \as Zero;
+\import At[z := I.Int^::negSucc zero, A := integerBundle] \as Negative;
+\import At[z := I.Int^::ofNat two, A := CyclicTwo.bundle] \as Torsion;
+\definition degreeZeroSequence: _ := Zero.cohomologySequence;
+\definition negativeSequence: _ := Negative.homologySequence;
+\definition torsionSequence: _ := Torsion.cohomologySequence;
+\definition torsionHomologySequence: _ := Torsion.homologySequence;
