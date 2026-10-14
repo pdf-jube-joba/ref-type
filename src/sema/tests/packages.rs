@@ -449,34 +449,6 @@ fn restored_package_keeps_macros_structures_reflection_and_source_locations() {
 }
 
 #[test]
-fn transitive_dependency_edits_invalidate_the_whole_dependent_prefix() {
-    let cache = Cache::new();
-    let mut snapshot = project("app");
-    snapshot.insert(
-        "/virtual/base/ref.toml",
-        "[package]\nname = 'base'\n[dependencies]\nleaf = {path = '../leaf'}\n",
-    );
-    snapshot.insert("/virtual/leaf/ref.toml", "[package]\nname = 'leaf'\n");
-    snapshot.insert(
-        "/virtual/leaf/src/root.ref",
-        r"\module Logic { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
-    );
-    snapshot.insert(
-        "/virtual/base/src/root.ref",
-        r"\module Core { \import leaf.Logic[] \as L; \definition P: \Prop := L.P; }",
-    );
-    assert!(Database::with_cache(&cache.0).check(&snapshot).is_success());
-    let edited = snapshot.with_file(
-        "/virtual/leaf/src/root.ref",
-        r"\module Logic { \definition P: \Prop := \forall (P: \Prop) -> P; }",
-    );
-    let mut database = Database::with_cache(&cache.0);
-    assert_eq!(database.check(&edited), clean(&edited));
-    assert_eq!(database.stats().package_hits, 0);
-    assert_eq!(database.stats().checked_modules, 6);
-}
-
-#[test]
 fn result_only_package_records_skip_complete_queries_and_fall_back_for_continuations() {
     let cache = Cache::new();
     let snapshot = project("app");

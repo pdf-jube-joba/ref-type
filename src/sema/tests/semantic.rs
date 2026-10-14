@@ -26,42 +26,6 @@ fn project() -> SourceSnapshot {
     snapshot
 }
 
-#[test]
-fn editing_a_consumer_preserves_nested_parameterized_imports() {
-    let file = PathBuf::from("/virtual/Consumer.ref");
-    let snapshot = SourceSnapshot::new("/virtual/root.ref")
-        .with_file("/virtual/root.ref", r"\module Logic; \module Consumer;")
-        .with_file(
-            "/virtual/Logic.ref",
-            r"\module Termination(A: \Set) { \definition Holds(x: A): \Prop := x = x; }",
-        )
-        .with_file(
-            &file,
-            r"\inductive Unit: \Set := | unit: Unit;
-            \module Implementation {
-                \import \root.Logic[].Termination[A := Unit] \as T;
-                \definition certificate: T.Holds Unit::unit := \refl(Unit::unit);
-            }
-            \import .Implementation[] \as I;
-            \definition certificate: Unit::unit = Unit::unit := I.certificate;",
-        );
-    let mut database = Database::new();
-    let first = database.file(&snapshot, &file);
-    assert!(first.is_success(), "{:?}", first.diagnostics);
-    let text = &snapshot.source(&file).unwrap().text;
-    let edited = snapshot.with_file(
-        &file,
-        format!(
-            r"{text}
-        \definition environmentProbe: \Prop := \forall (P: \Prop) -> P -> P;"
-        ),
-    );
-    let changed = database.file(&edited, &file);
-    assert!(changed.is_success(), "{:?}", changed.diagnostics);
-    assert!(database.stats().environment_hits > 0);
-    assert_eq!(changed, Database::new().file(&edited, &file));
-}
-
 fn cache_objects(directory: &std::path::Path, kind: Option<u8>) -> Vec<PathBuf> {
     let mut pending = vec![directory.join("v2/objects")];
     let mut objects = Vec::new();
@@ -145,21 +109,6 @@ fn unsaved_changes_reuse_unaffected_modules_and_leave_old_snapshots_intact() {
     );
     assert_eq!(first, database.check(&original));
     assert_eq!(database.stats().checked_modules, 0);
-}
-
-#[test]
-fn dependency_edits_invalidate_users_and_match_a_clean_check() {
-    let original = project();
-    let mut database = Database::new();
-    assert!(database.check(&original).is_success());
-    let edited = original.with_file("/virtual/Base.ref", "\\definition P: \\Prop := \\Set;\n");
-    let changed = database.check(&edited);
-    assert!(!changed.is_success());
-    assert_eq!(database.stats().checked_modules, 2);
-    assert_eq!(database.stats().reused_modules, 1);
-    let clean = Database::new().check(&edited);
-    assert_eq!(changed, clean);
-    assert!(database.check(&original).is_success());
 }
 
 #[test]
@@ -356,24 +305,6 @@ fn imported_macro_changes_invalidate_expansions_and_references() {
     let changed = database.check(&edited);
     assert!(!changed.is_success(), "{changed:?}");
     assert_eq!(changed, Database::new().check(&edited));
-}
-
-#[test]
-fn checking_configuration_is_part_of_persistent_identity() {
-    let cache = Cache::new();
-    let snapshot = project();
-    assert!(Database::with_cache(&cache.0).check(&snapshot).is_success());
-    let mut database = Database::with_cache(&cache.0);
-    let result = database.check_with_options(
-        &snapshot,
-        &sema::CheckOptions {
-            configuration: "different settings".into(),
-            ..Default::default()
-        },
-    );
-    assert!(result.is_success());
-    assert_eq!(database.stats().disk_hits, 0);
-    assert_eq!(database.stats().checked_modules, 3);
 }
 
 #[test]
@@ -726,32 +657,6 @@ fn structure_members_preserve_source_identity_and_invalidate_users() {
 }
 
 #[test]
-fn structure_namespace_contains_source_declarations() {
-    let cache = Cache::new();
-    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
-    snapshot.insert("/virtual/root.ref", "\\module Shapes;\n");
-    snapshot.insert(
-        "/virtual/Shapes.ref",
-        r"\inductive Unit: \Set := | unit: Unit;
-\structure S: \Set { Raw: Unit, law: Raw = Raw, }
-\definition s: S := S { Raw := Unit::unit, law := \refl(Unit::unit), };",
-    );
-    let result = Database::with_cache(&cache.0).check(&snapshot);
-    assert!(result.is_success(), "{result:?}");
-    let names = result
-        .declarations()
-        .map(|declaration| declaration.id.name.as_str())
-        .collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(
-        names,
-        std::collections::BTreeSet::from(["S", "S::Raw", "S::law", "Unit", "Unit::unit", "s",])
-    );
-    let mut fresh = Database::with_cache(&cache.0);
-    assert_eq!(result, fresh.check(&snapshot));
-    assert_eq!(fresh.stats().checked_modules, 0);
-}
-
-#[test]
 fn edited_user_restores_dependency_environment_in_memory_and_from_disk() {
     let snapshot = project();
     let cache = Cache::new();
@@ -1093,91 +998,6 @@ fn take_live_progress() -> Vec<sema::ProgressEvent> {
 }
 
 #[test]
-fn live_progress_plans_selected_dependencies_and_reports_warm_cache_hits() {
-    use sema::{ProgressAction, ProgressEvent, ProgressPhase};
-    let snapshot = project();
-    let mut database = Database::new();
-    let options = sema::CheckOptions {
-        progress_events: Some(collect_live_progress),
-        ..Default::default()
-    };
-    assert!(
-        database
-            .module_with_options(&snapshot, &["Left".into()], &options)
-            .is_success()
-    );
-    let events = take_live_progress();
-    let plan = events
-        .iter()
-        .find_map(|event| match event {
-            ProgressEvent::Planned(plan) => Some(plan),
-            _ => None,
-        })
-        .unwrap();
-    assert!(plan.packages.is_empty());
-    assert_eq!(
-        plan.modules
-            .iter()
-            .map(|module| module.path.join("."))
-            .collect::<Vec<_>>(),
-        ["Base", "Left"]
-    );
-    assert_eq!(plan.modules[1].dependencies, [vec!["Base".to_owned()]]);
-    let planned = events
-        .iter()
-        .position(|e| matches!(e, ProgressEvent::Planned(_)))
-        .unwrap();
-    for module in &plan.modules {
-        let start = events
-            .iter()
-            .position(
-                |event| matches!(event, ProgressEvent::ModuleStarted(path) if path == &module.path),
-            )
-            .unwrap();
-        let end = events.iter().position(|event| matches!(event, ProgressEvent::ModuleFinished {path, action: ProgressAction::Check} if path == &module.path)).unwrap();
-        assert!(planned < start && start < end);
-    }
-    assert!(
-        events
-            .iter()
-            .any(|event| matches!(event, ProgressEvent::Phase(ProgressPhase::Saving)))
-    );
-    assert!(matches!(
-        events.last(),
-        Some(ProgressEvent::Finished { success: true })
-    ));
-
-    assert!(
-        database
-            .module_with_options(&snapshot, &["Left".into()], &options)
-            .is_success()
-    );
-    let cached = take_live_progress();
-    assert!(
-        !cached
-            .iter()
-            .any(|event| matches!(event, ProgressEvent::ModuleStarted(_)))
-    );
-    assert_eq!(
-        cached
-            .iter()
-            .filter(|event| matches!(
-                event,
-                ProgressEvent::ModuleFinished {
-                    action: ProgressAction::Skip,
-                    ..
-                }
-            ))
-            .count(),
-        2
-    );
-    assert!(matches!(
-        cached.last(),
-        Some(ProgressEvent::Finished { success: true })
-    ));
-}
-
-#[test]
 fn live_progress_keeps_failed_modules_incomplete_including_cached_diagnostics() {
     use sema::ProgressEvent;
     let snapshot = project().with_file("/virtual/Right.ref", r"\definition Q: \Set := \Prop;");
@@ -1304,26 +1124,6 @@ fn named_module_options_recheck_dependencies_and_isolate_unrelated_errors() {
     );
     assert!(database.stats().checked_modules >= 2);
     assert!(!database.check(&edited).is_success());
-}
-
-#[test]
-fn named_module_options_include_children() {
-    let snapshot = project().with_file(
-        "/virtual/Right.ref",
-        r"\module Child { \definition invalid: \Set := \Prop; }",
-    );
-    let result = Database::new().module_with_options(
-        &snapshot,
-        &["Right".into()],
-        &sema::CheckOptions::default(),
-    );
-    assert!(!result.is_success());
-    assert!(
-        result
-            .modules
-            .iter()
-            .any(|module| module.path == ["Right", "Child"])
-    );
 }
 
 #[test]

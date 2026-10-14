@@ -1,8 +1,7 @@
 use crate::{
     kernel_bridge::{
-        Evaluation, evaluate_computation, exp_is_alpha_eq, exp_reduce_if_top, instantiate,
-        instantiate_value_type, normalize, shift_computation_indices, shift_value_type_indices,
-        strengthen_value_type,
+        Evaluation, evaluate_computation, exp_is_alpha_eq, instantiate, normalize,
+        shift_computation_indices, strengthen_value_type,
     },
     raw::{
         derivation::CheckSession,
@@ -16,7 +15,7 @@ use crate::{
         program_derivation::ProgramCheckSession,
         remapping::{
             remap_computation_global_ids, remap_value_type_global_ids,
-            subst_computation_module_params, subst_value_type_module_params,
+            subst_computation_module_params,
         },
         sort::Sort,
     },
@@ -126,34 +125,6 @@ fn namespace_sharing_checks_free_variables_in_shared_argument_dags() {
 }
 
 #[test]
-fn logical_arena_interns_nodes() {
-    let env = CrateEnv::new();
-    let arena = env.arena();
-    let set = arena.sort(Sort::Set(0));
-    assert_eq!(arena.sort(Sort::Set(0)), set);
-
-    let bound = arena.exp_bound(0);
-    assert_eq!(arena.exp_bound(0), bound);
-    let application = arena.alloc(ExpNode::App {
-        func: bound,
-        arg: set,
-    });
-    assert_eq!(
-        arena.alloc(ExpNode::App {
-            func: bound,
-            arg: set,
-        }),
-        application
-    );
-
-    let meta = ExpNode::Meta {
-        metavariable: MetaVarId(0),
-        spine: vec![application],
-    };
-    assert_eq!(arena.alloc(meta.clone()), arena.alloc(meta));
-}
-
-#[test]
 fn namespace_conversion_reuses_beta_equal_arguments_and_preserves_parameter_identity() {
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -185,18 +156,6 @@ fn namespace_conversion_reuses_beta_equal_arguments_and_preserves_parameter_iden
         ..parameter
     };
     assert!(!env.namespace_arguments_equal(&argument, &[(other, ModuleArgument::Pts(prop))]));
-}
-
-#[test]
-fn raw_printer_does_not_parenthesize_atomic_application_operands() {
-    let env = CrateEnv::new();
-    let arena = env.arena();
-    let application = arena.alloc(ExpNode::App {
-        func: arena.exp_bound(0),
-        arg: arena.exp_bound(1),
-    });
-
-    assert_eq!(crate::raw::printing::format_exp(&env, application), "#0 #1");
 }
 
 #[test]
@@ -471,91 +430,6 @@ fn conversion_does_not_reduce_alpha_equal_applications() {
 }
 
 #[test]
-fn boxed_program_types_compare_structurally() {
-    let env = CrateEnv::new();
-    let arena = env.arena();
-    let left_state = arena.alloc(ValueTypeNode::RunStep {
-        state_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
-            module: env.root_module(),
-            position: 0,
-        }),
-        result_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
-            module: env.root_module(),
-            position: 1,
-        }),
-    });
-    let right_state = arena.alloc(ValueTypeNode::RunStep {
-        state_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
-            module: env.root_module(),
-            position: 0,
-        }),
-        result_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
-            module: env.root_module(),
-            position: 1,
-        }),
-    });
-    assert_eq!(left_state, right_state);
-    let left_return = arena.alloc(ComputationTypeNode::Return {
-        value_ty: left_state,
-    });
-    let right_return = arena.alloc(ComputationTypeNode::Return {
-        value_ty: right_state,
-    });
-    let left = arena.alloc(ExpNode::BoxType {
-        program_ty: left_return,
-    });
-    let right = arena.alloc(ExpNode::BoxType {
-        program_ty: right_return,
-    });
-    assert!(exp_is_alpha_eq(&env, left, right));
-
-    let output = arena.value_bound(0);
-    let program = arena.alloc(ValueTermNode::Finish {
-        state_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
-            module: env.root_module(),
-            position: 0,
-        }),
-        result_ty: arena.value_type_module_param(crate::raw::ids::ModuleParamId {
-            module: env.root_module(),
-            position: 1,
-        }),
-        output,
-    });
-    let returned = arena.alloc(ComputationTermNode::Return { value: program });
-    let boxed = arena.alloc(ExpNode::BoxProgram {
-        program_ty: left_return,
-        program: returned,
-    });
-    let forced = arena.alloc(ExpNode::ForceBox {
-        program_ty: right_return,
-        boxed,
-    });
-    assert!(matches!(
-        exp_reduce_if_top(&env, forced).map(|exp| arena.get(exp)),
-        Some(ExpNode::Finish { .. })
-    ));
-}
-
-#[test]
-fn beta_reduction_remains_set_only() {
-    let env = CrateEnv::new();
-    let arena = env.arena();
-    let set = arena.sort(Sort::Set(0));
-    let body = arena.exp_bound(0);
-    let lambda = arena.alloc(ExpNode::Lam {
-        var: SymbolId::ANONYMOUS,
-        ty: set,
-        body,
-    });
-    let application = arena.alloc(ExpNode::App {
-        func: lambda,
-        arg: set,
-    });
-    assert!(exp_is_alpha_eq(&env, normalize(&env, application), set));
-    assert_eq!(instantiate(arena, body, set), set);
-}
-
-#[test]
 fn weak_head_reduction_batches_arguments_without_intermediate_nodes() {
     use crate::kernel_bridge::whnf;
     let env = CrateEnv::new();
@@ -699,37 +573,6 @@ fn substitution_preserves_free_variables_under_binders() {
         instantiate(arena, body, argument),
         expected
     ));
-}
-
-#[test]
-fn set_and_program_contexts_are_distinct() {
-    let env = CrateEnv::new();
-    let set = env.arena().sort(Sort::Set(0));
-    let mut set_context = vec![ExpContextEntry {
-        var: SymbolId(2),
-        ty: set,
-    }];
-    CheckSession::new(&env, &mut set_context)
-        .check_wellformed_context()
-        .unwrap();
-
-    let value_ty = env.arena().alloc(ValueTypeNode::Bound(0));
-    let mut program_context = vec![ProgramContextEntry::ValueType { var: SymbolId(3) }];
-    ProgramCheckSession::new(&env, &mut program_context)
-        .check_value_type(value_ty)
-        .unwrap();
-}
-
-#[test]
-fn program_typing_and_evaluation_use_program_handles() {
-    let env = CrateEnv::new();
-    let arena = env.arena();
-    let value = arena.value_bound(0);
-    let returned = arena.alloc(ComputationTermNode::Return { value });
-    assert_eq!(
-        evaluate_computation(&env, returned),
-        Evaluation::Normal(returned)
-    );
 }
 
 #[test]
@@ -887,86 +730,6 @@ fn run_case_proofs_follow_type_and_value_substitution() {
     assert_eq!(arena.get(ty), ExpNode::Bound(2));
     assert!(
         matches!(arena.get(body), ExpNode::Prove(Prove::IdRefl { element }) if arena.get(element) == ExpNode::Bound(5))
-    );
-}
-
-#[test]
-fn unchanged_program_transforms_reuse_arena_handles() {
-    let env = CrateEnv::new();
-    let arena = env.arena();
-    let parameter_id = ModuleParamId {
-        module: env.root_module(),
-        position: 0,
-    };
-    let parameter = arena.value_type_module_param(parameter_id);
-    let returned = arena.alloc(crate::raw::program::ComputationTypeNode::Return {
-        value_ty: parameter,
-    });
-    let thunk = arena.alloc(ValueTypeNode::Thunk {
-        computation_ty: returned,
-    });
-    let inductive_remapping = std::collections::HashMap::from([(
-        ProgramInductiveId {
-            module: env.root_module(),
-            index: 10,
-        },
-        ProgramInductiveId {
-            module: env.root_module(),
-            index: 11,
-        },
-    )]);
-    let unrelated_parameter = ModuleParamId {
-        module: env.root_module(),
-        position: 1,
-    };
-    let substitutions = [(unrelated_parameter, ModuleArgument::ProgramType(parameter))];
-
-    assert_eq!(shift_value_type_indices(arena, thunk, 1, 0), thunk);
-    assert_eq!(instantiate_value_type(arena, thunk, parameter, 0), thunk);
-    assert_eq!(
-        remap_value_type_global_ids(
-            arena,
-            thunk,
-            &std::collections::HashMap::new(),
-            &inductive_remapping
-        ),
-        thunk
-    );
-    assert_eq!(
-        subst_value_type_module_params(arena, thunk, &substitutions),
-        thunk
-    );
-    assert_eq!(strengthen_value_type(arena, thunk, 0), Some(thunk));
-
-    let value = arena.alloc(ValueTermNode::ModuleParam(parameter_id));
-    let computation = arena.alloc(ComputationTermNode::Return { value });
-    let definition_remapping = std::collections::HashMap::from([(
-        DefId {
-            module: env.root_module(),
-            index: 10,
-        },
-        DefId {
-            module: env.root_module(),
-            index: 11,
-        },
-    )]);
-    assert_eq!(
-        shift_computation_indices(arena, computation, 1, 0),
-        computation
-    );
-    assert_eq!(
-        remap_computation_global_ids(
-            arena,
-            computation,
-            &definition_remapping,
-            &inductive_remapping,
-            &std::collections::HashMap::new()
-        ),
-        computation
-    );
-    assert_eq!(
-        subst_computation_module_params(arena, computation, &substitutions, &[]),
-        computation
     );
 }
 

@@ -105,21 +105,6 @@ fn workspace_cache_is_shared_by_members_and_their_source_files() {
     );
 }
 
-#[test]
-fn workspace_can_include_its_root_package() {
-    let fixture = Fixture::new();
-    fixture.write("ref.toml", "[package]\nname = 'app'\n[workspace]\npackages = ['member', '.']\n[dependencies]\nmember = {path = 'member'}\n");
-    fixture.write("src/root.ref", r"\module Main {}");
-    fixture.package("member", "member", "");
-    let graph = package_loader::load_package(&fixture.0).unwrap();
-    assert_eq!(graph.packages.len(), 2);
-    assert_eq!(graph.entry_packages.len(), 2);
-    assert_eq!(
-        default_cache_directory(fixture.0.join("member")).unwrap(),
-        fixture.0.join("refcache")
-    );
-}
-
 #[cfg(unix)]
 #[test]
 fn workspace_membership_uses_canonical_package_paths() {

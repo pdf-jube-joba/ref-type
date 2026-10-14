@@ -591,3 +591,22 @@ parameters = '''A: \VType,
 \normalize \force(suspended);
 ```
 
+
+## branch と結果の異なる universe
+
+高い universe の RunStep を消去し、低い universe の固定した値を返せる。
+
+```toml case
+id = "step_match_distinguishes_branch_and_result_sorts"
+scope = "module"
+expect = "accept"
+name = "InvalidMotive"
+parameters = '''A: \Set(2), a: A, B: \Set(0), b: B'''
+```
+
+```ref
+\definition bad: B := (\step-match r: \RunStep[A, A] \return B \with {
+  | \continue x: b
+  | \finish x: b
+}) \finish[A, A](a);
+```

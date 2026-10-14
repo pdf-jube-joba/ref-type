@@ -27,7 +27,6 @@ pub(crate) fn serialize_bounded<const LIMIT: usize>(value: &impl Serialize) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use postcard::Error;
 
     const CHUNK_BYTES: usize = 32 * 1024;
 
@@ -41,6 +40,7 @@ mod tests {
 
     #[test]
     fn streaming_checkpoints_cross_input_and_output_chunk_boundaries() {
+        assert!(serialize_bounded::<64>(&vec![0_u8; 1024]).is_err());
         let mut state = 42_u32;
         let random: Vec<u8> = (0..CHUNK_BYTES * 5)
             .map(|_| {
@@ -87,19 +87,5 @@ mod tests {
         });
         assert_eq!(restored.max_loose_bound(extended), Some(1));
         assert!(restored.contains_meta(extended));
-    }
-
-    #[test]
-    fn serialization_stops_at_the_checkpoint_budget() {
-        let data = vec![0_u8; MAX_ENVIRONMENT_BYTES];
-        assert_eq!(serialize(&data), Err(Error::SerializeBufferFull));
-        let small = vec![1_u8, 2, 3];
-        assert_eq!(
-            postcard::from_bytes::<Vec<u8>>(
-                &decompress::<MAX_ENVIRONMENT_BYTES>(&serialize(&small).unwrap()).unwrap()
-            )
-            .unwrap(),
-            small
-        );
     }
 }

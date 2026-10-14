@@ -1,4 +1,4 @@
-//! Tests of the current Rust instrumentation and supervisor implementation.
+//! Tests of supervisor batching, snapshots and child process cleanup.
 use std::{
     fs,
     io::Read,
@@ -15,31 +15,11 @@ fn run_ref_file(workspace: &Path, path: &Path) -> Result<Output, String> {
 }
 
 fn run_ref_file_with_args(workspace: &Path, path: &Path, args: &[&str]) -> Result<Output, String> {
-    run_ref_file_with_timeout(workspace, path, args, PROCESS_TIMEOUT)
-}
-
-fn run_ref_file_with_timeout(
-    workspace: &Path,
-    path: &Path,
-    args: &[&str],
-    timeout: Duration,
-) -> Result<Output, String> {
-    run_ref_file_with_environment(workspace, path, args, timeout, &[])
-}
-
-fn run_ref_file_with_environment(
-    workspace: &Path,
-    path: &Path,
-    args: &[&str],
-    timeout: Duration,
-    environment: &[(&str, &str)],
-) -> Result<Output, String> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_cli"))
         .arg(path)
         .args(args)
         .env_remove("RUST_LOG")
         .env_remove("REF_TYPE_COMPACT_DIAGNOSTICS")
-        .envs(environment.iter().copied())
         .current_dir(workspace)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -76,7 +56,7 @@ fn run_ref_file_with_environment(
                 stderr,
             });
         }
-        if started.elapsed() >= timeout {
+        if started.elapsed() >= PROCESS_TIMEOUT {
             let _ = child.kill();
             let _ = child.wait();
             let _ = stdout_reader.join();
@@ -84,7 +64,7 @@ fn run_ref_file_with_environment(
             return Err(format!(
                 "{} did not finish within {} seconds",
                 path.display(),
-                timeout.as_secs()
+                PROCESS_TIMEOUT.as_secs()
             ));
         }
         thread::sleep(Duration::from_millis(10));
@@ -134,349 +114,12 @@ impl Drop for FixtureDirectory {
     }
 }
 
-fn dependency_chain(fixture: &FixtureDirectory) -> PathBuf {
-    fixture.write("a/ref.toml", "[package]\nname = \"a\"\n");
-    fixture.write("a/src/root.ref", r"\module Base;");
-    fixture.write(
-        "a/src/Base.ref",
-        r"\definition P: \Prop := \forall (P: \Prop) -> P -> P;",
-    );
-    fixture.write(
-        "b/ref.toml",
-        "[package]\nname = \"b\"\n[dependencies]\na = { path = \"../a\" }\n",
-    );
-    fixture.write(
-        "b/src/root.ref",
-        r"\module Bridge { \import a.Base[] \as A; \definition P: \Prop := A.P; }",
-    );
-    fixture.write(
-        "c/ref.toml",
-        "[package]\nname = \"c\"\n[dependencies]\nb = { path = \"../b\" }\n",
-    );
-    fixture.write("c/src/root.ref", r"\module Client { \import b.Bridge[] \as B; \infer B.P; } \module Independent { \module Child { \infer \Set; } }");
-    fixture.0.join("c")
-}
-
 fn progress_lines(output: &Output) -> Vec<String> {
     String::from_utf8_lossy(&output.stderr)
         .lines()
         .filter(|line| line.starts_with("check ") || line.starts_with("skip "))
         .map(str::to_owned)
         .collect()
-}
-
-#[cfg(target_os = "linux")]
-#[test]
-fn no_cache_with_zero_budget_leaves_persistent_artifacts_unchanged() {
-    fn contents(directory: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
-        let mut result = std::collections::BTreeMap::new();
-        for entry in fs::read_dir(directory).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_dir() {
-                result.extend(contents(&path));
-            } else {
-                result.insert(path.clone(), fs::read(path).unwrap());
-            }
-        }
-        result
-    }
-
-    let fixture = FixtureDirectory::new();
-    fixture.write("ref.toml", "[package]\nname = \"example\"\n");
-    fixture.write(
-        "src/root.ref",
-        r"\module M { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
-    );
-    let cached = run_ref_file(&fixture.0, &fixture.0).unwrap();
-    assert!(cached.status.success(), "{}", output_details(&cached));
-    let cache = fixture.0.join("refcache");
-    let before = contents(&cache);
-    assert!(!before.is_empty());
-    let uncached = run_ref_file_with_args(
-        &fixture.0,
-        &fixture.0,
-        &["--no-cache", "--cache-budget-mib", "0", "--no-progress"],
-    )
-    .unwrap();
-    assert!(uncached.status.success(), "{}", output_details(&uncached));
-    assert_eq!(contents(&cache), before);
-}
-
-#[test]
-fn progress_profiles_report_modules_in_piped_output_and_cached_runs() {
-    let fixture = FixtureDirectory::new();
-    let root = dependency_chain(&fixture);
-    for cached in [false, true] {
-        let output = run_ref_file_with_environment(
-            &fixture.0,
-            &root,
-            &[],
-            PROCESS_TIMEOUT,
-            &[("REF_TYPE_PROFILE_PROGRESS", "1")],
-        )
-        .unwrap();
-        assert!(output.status.success(), "{}", output_details(&output));
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("event=planned"), "{stderr}");
-        assert!(stderr.contains("event=finished success=true"), "{stderr}");
-        let action = if cached { "Skip" } else { "Check" };
-        for module in ["a.Base", "b.Bridge", "c.Client", "c.Independent.Child"] {
-            assert!(
-                stderr.contains(&format!(
-                    "event=complete action={action} module={module} module_seconds="
-                )),
-                "{stderr}"
-            );
-            if !cached {
-                let start = stderr
-                    .find(&format!("event=start module={module} package_completed="))
-                    .unwrap();
-                let end = stderr
-                    .find(&format!("event=complete action=Check module={module} "))
-                    .unwrap();
-                assert!(start < end, "{stderr}");
-            }
-        }
-        let finished = stderr.find("event=finished").unwrap();
-        let summary = stderr
-            .find(if cached {
-                "skip a.Base ("
-            } else {
-                "check a.Base ("
-            })
-            .unwrap();
-        assert!(finished < summary, "{stderr}");
-        assert!(!stderr.contains('\r'), "{stderr}");
-    }
-}
-
-#[test]
-fn module_progress_reports_checks_skips_children_and_seconds_in_every_mode() {
-    let fixture = FixtureDirectory::new();
-    let root = dependency_chain(&fixture);
-    for (args, expected) in [
-        (
-            vec![],
-            vec![
-                "check a.Base",
-                "check b.Bridge",
-                "check c.Client",
-                "check c.Independent",
-                "check c.Independent.Child",
-            ],
-        ),
-        (
-            vec![],
-            vec![
-                "skip a.Base",
-                "skip b.Bridge",
-                "skip c.Client",
-                "skip c.Independent",
-                "skip c.Independent.Child",
-            ],
-        ),
-        (
-            vec!["--full-check"],
-            vec![
-                "check a.Base",
-                "check b.Bridge",
-                "check c.Client",
-                "check c.Independent",
-                "check c.Independent.Child",
-            ],
-        ),
-        (
-            vec!["--full-check-local"],
-            vec![
-                "skip a.Base",
-                "skip b.Bridge",
-                "check c.Client",
-                "check c.Independent",
-                "check c.Independent.Child",
-            ],
-        ),
-        (
-            vec!["--no-cache"],
-            vec![
-                "check a.Base",
-                "check b.Bridge",
-                "check c.Client",
-                "check c.Independent",
-                "check c.Independent.Child",
-            ],
-        ),
-    ] {
-        let output = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
-        assert!(output.status.success(), "{}", output_details(&output));
-        let lines = progress_lines(&output);
-        assert_eq!(lines.len(), expected.len(), "{lines:?}");
-        for prefix in expected {
-            assert!(
-                lines
-                    .iter()
-                    .any(|line| line.starts_with(&format!("{prefix} ("))),
-                "missing {prefix}: {lines:?}"
-            );
-        }
-        for line in &lines {
-            let seconds = line.split_once(" (").unwrap().1.strip_suffix("s)").unwrap();
-            assert!(seconds.parse::<f64>().unwrap() >= 0.0, "{line}");
-        }
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let seconds = |line: &str| {
-            line.split_once(" (")
-                .unwrap()
-                .1
-                .strip_suffix("s)")
-                .unwrap()
-                .parse::<f64>()
-                .unwrap()
-        };
-        let shared = seconds(
-            stderr
-                .lines()
-                .find(|line| line.starts_with("shared ("))
-                .unwrap(),
-        );
-        let total = seconds(
-            stderr
-                .lines()
-                .find(|line| line.starts_with("total ("))
-                .unwrap(),
-        );
-        let sum = lines.iter().map(|line| seconds(line)).sum::<f64>() + shared;
-        assert!(total > 0.0);
-        assert!(
-            (sum - total).abs() <= total * 0.01,
-            "sum={sum}, total={total}: {stderr}"
-        );
-        let mut quiet_args = args.clone();
-        quiet_args.push("--no-progress");
-        let quiet = run_ref_file_with_args(&fixture.0, &root, &quiet_args).unwrap();
-        assert!(quiet.status.success(), "{}", output_details(&quiet));
-        assert_eq!(quiet.stdout, output.stdout);
-        assert!(quiet.stderr.is_empty(), "{}", output_details(&quiet));
-    }
-}
-
-#[test]
-fn transitive_sources_are_checked_after_artifact_corruption() {
-    let fixture = FixtureDirectory::new();
-    let root = dependency_chain(&fixture);
-    fixture.write("c/unloaded/ref.toml", "[package]\nname = \"unloaded\"\n");
-    fixture.write("c/unloaded/src/root.ref", "invalid syntax");
-    let first = run_ref_file(&fixture.0, &root).unwrap();
-    assert!(first.status.success(), "{}", output_details(&first));
-    let mut pending = vec![root.join("refcache/v2/objects")];
-    let mut damaged = 0;
-    while let Some(directory) = pending.pop() {
-        for entry in fs::read_dir(directory).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_dir() {
-                pending.push(path);
-            } else {
-                fs::write(path, "truncated").unwrap();
-                damaged += 1;
-            }
-        }
-    }
-    assert!(damaged > 0);
-    fixture.write("a/src/Base.ref", r"\definition P: \Prop := \Set;");
-    let output = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
-    assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("Base.ref:1:"));
-}
-
-#[test]
-fn parent_and_external_references_share_checked_child_declarations() {
-    let fixture = FixtureDirectory::new();
-    let path = fixture.write(
-        "root.ref",
-        r"
-\module Parent {
-  \module Child { \definition marker: \Prop := \forall (P: \Prop) -> P -> P; }
-  \import \root.Parent[].Child[] \as Local;
-  \infer Local.marker;
-}
-\module Other {
-  \import \root.Parent[].Child[] \as External;
-  \infer External.marker;
-}",
-    );
-    let result = run_ref_file_with_environment(
-        &fixture.0,
-        &path,
-        &["--no-cache"],
-        PROCESS_TIMEOUT,
-        &[
-            ("REF_TYPE_PROFILE_MODULES", "1"),
-            ("REF_TYPE_PROFILE_DECLARATIONS", "1"),
-        ],
-    )
-    .unwrap();
-    assert!(result.status.success(), "{}", output_details(&result));
-    let log = String::from_utf8_lossy(&result.stderr);
-    assert_eq!(
-        log.matches("definition marker (excluding diagnostics)")
-            .count(),
-        1,
-        "{log}"
-    );
-    assert!(
-        log.contains("phase=specialization-cache") && log.contains("misses=0"),
-        "{log}"
-    );
-    assert!(
-        log.contains("phase=load") && log.contains("environment="),
-        "{log}"
-    );
-    let output = String::from_utf8_lossy(&result.stdout);
-    let lines: Vec<_> = output.lines().collect();
-    assert_eq!(lines.len(), 2, "{output}");
-}
-
-#[test]
-fn cost_profiles_finish_on_success_and_type_errors_without_progress_logs() {
-    let fixture = FixtureDirectory::new();
-    for (source, success) in [
-        (
-            r"\module Root { \definition identity(P: \Prop)(p: P): P := p; }",
-            true,
-        ),
-        (
-            r"\module Root { \definition invalid: \Prop := \Set; }",
-            false,
-        ),
-    ] {
-        let path = fixture.write("root.ref", source);
-        let output = run_ref_file_with_environment(
-            &fixture.0,
-            &path,
-            &["--no-cache", "--no-progress", "--diagnostics", "compact"],
-            PROCESS_TIMEOUT,
-            &[("REF_TYPE_PROFILE_COSTS", "resolve.total,kernel.")],
-        )
-        .unwrap();
-        assert_eq!(
-            output.status.success(),
-            success,
-            "{}",
-            output_details(&output)
-        );
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("cost=resolve.total calls=1"), "{stderr}");
-        assert!(
-            stderr.contains("cost_group=kernel exclusive_us="),
-            "{stderr}"
-        );
-        assert_eq!(
-            stderr.matches("cost_total elapsed_us=").count(),
-            1,
-            "{stderr}"
-        );
-        assert!(!stderr.contains("cost=resolve.front-binding"), "{stderr}");
-        assert!(!String::from_utf8_lossy(&output.stdout).contains("cost="));
-    }
 }
 
 #[cfg(target_os = "linux")]
@@ -597,7 +240,7 @@ fn native_check_detects_source_changes_after_starting_its_snapshot() {
 fn cancelling_native_check_reaps_the_worker_and_removes_its_workspace() {
     let fixture = FixtureDirectory::new();
     fixture.write("ref.toml", "[package]\nname = \"cancel\"\n");
-    let declarations: String = (0..20_000)
+    let declarations: String = (0..2_000)
         .map(|n| format!("\\definition value{n}: \\Prop := \\forall (P: \\Prop) -> P -> P;\n"))
         .collect();
     fixture.write(

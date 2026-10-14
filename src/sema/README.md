@@ -97,9 +97,7 @@ LSP の未保存 buffer も immutable snapshot の入力として同じ再利用
 ## 検証
 
 [semantic API のテスト](tests/semantic.rs) は編集、依存変更、位置情報、永続化と破損時の再構築を確認する。
-[incremental example](examples/incremental.rs) は buffer 編集後の結果と全再構築の一致も検査する。
 
 ```sh
 cargo test -p sema --locked
-cargo run -p sema --release --locked --example incremental -- libs/std libs/std/src/Alg/Alg.ref
 ```

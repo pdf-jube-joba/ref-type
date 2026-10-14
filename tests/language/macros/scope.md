@@ -253,3 +253,149 @@ expect = "accept"
 }
 ```
 
+
+## import した macro の入れ子
+
+Wrapper の macro を別 module で使っても、定義元が import した macro とその引数を参照できる。
+
+```toml case
+id = "instantiated_macro_keeps_macros_used_by_its_definition_module"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Base(A: \Set(0), value: A) {
+  \macro base_value() := value;
+}
+\module Wrapper(A: \Set(0), value: A) {
+  \import \root.Base[A := A, value := value] \as base;
+  \use base.base_value;
+  \macro wrapped() := base_value!{};
+}
+\module Consumer(A: \Set(0), value: A) {
+  \import \root.Wrapper[A := A, value := value] \as wrapper;
+  \use wrapper.wrapped;
+  \definition result: A := wrapped!{};
+}
+```
+
+## 使用位置の同名変数
+
+使用位置に別の型の provided があっても、macro は定義位置で渡された provided を参照する。
+
+```toml case
+id = "imported_macro_resolves_free_names_at_its_definition_site"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Provider(A: \Set(0), provided: A) {
+  \macro supplied() := provided;
+}
+\module Consumer(A: \Set(0), B: \Set(0), a: A, provided: B) {
+  \import \root.Provider[A := A, provided := a] \as provider;
+  \use provider.supplied;
+  \definition result: A := supplied!{};
+}
+```
+
+## lexical shadowing and definition site internal references
+
+子の macro は同名の親の macro を隠すが、親で定義した template 内の参照は親の macro を指す。
+
+```toml case
+id = "lexical_shadowing_and_definition_site_internal_references"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module M(A: \Set, a, b: A) {
+  \definition before: a = a := \refl(value!{});
+  \macro wrapped() := value!{};
+  \macro value() := a;
+  \module Child {
+    \definition local: b = b := \refl(value!{});
+    \definition captured: a = a := \refl(wrapped!{});
+    \macro value() := b;
+    \module Grandchild { \definition local: b = b := \refl(value!{}); }
+  }
+  \module Sibling { \definition local: a = a := \refl(value!{}); }
+}
+```
+
+## forward mutual recursion and aliased self recursion
+
+互いに呼ぶ macro でも入力 sequence が短くなるため停止し、alias を経て呼び出せる。
+
+```toml case
+id = "forward_mutual_recursion_and_aliased_self_recursion"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Templates(A: \Set, a: A) {
+  \macro first(..xs) := \tmatch xs { | () => a | ("next", ..rest) => second!{..rest} };
+  \macro second(..xs) := \tmatch xs { | () => a | ("next", ..rest) => first!{..rest} };
+}
+\module Consumer(A: \Set, a: A) {
+  \definition law: a = a := \refl(start!{"next" "next" "next"});
+  \use \root.Templates[A := A, a := a].first \as start;
+}
+```
+
+## direct use flattens structure arguments
+
+structure の値を module の引数に渡し、直接 use した macro からその field を利用できる。
+
+```toml case
+id = "direct_use_flattens_structure_arguments"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Playground { \structure Point[Carrier: \Set] { value: Carrier }
+  \module T(A: \Set, point: Point[A]) { \macro value() := point.value; }
+  \module M(A: \Set, a: A) {
+    \definition law: a = a := \refl(value!{});
+    \use \root.Playground[].T[A := A, point := Point[A] { value := a }].value;
+}}
+```
+
+## math in use arguments can use independent local templates
+
+use の引数の math template は独立した局所定義から展開できる。
+
+```toml case
+id = "math_in_use_arguments_can_use_independent_local_templates"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module T(A: \Set, a: A) { \macro value() := a; }
+\module M(A: \Set, a: A) {
+  \definition law: a = a := \refl(value!{});
+  \use \root.T[A := A, a := \(a + a\)].value;
+  \math-macro plus($x, \+, $y) := $x;
+}
+```
+
+## math use arguments report their own instantiation cycle
+
+use しようとする math macro 自身が use の引数の計算に必要なので、循環する依存として拒否される。
+
+```toml case
+id = "math_use_arguments_report_their_own_instantiation_cycle"
+scope = "package"
+expect = "reject"
+```
+
+```ref file=src/root.ref
+\module T(A: \Set, a: A) { \math-macro plus($x, \+, $y) := a; }
+\module M(A: \Set, a: A) { \use \root.T[A := A, a := \(a + a\)].plus; }
+```

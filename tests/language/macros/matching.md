@@ -279,3 +279,264 @@ parameters = '''A: \Set(0), x: A, y: A'''
 \definition token_recursion: again!{"start" x y} = y := \refl(y);
 ```
 
+
+## math macro の優先順位
+
+同じ pattern に合う macro が二つあるとき、先に定義された A を返す macro が選ばれる。
+
+```toml case
+id = "earlier_math_macro_wins_when_patterns_are_equally_applicable"
+scope = "module"
+expect = "accept"
+name = "Priority"
+parameters = '''A: \Set(0), B: \Set(0), a: A, b: B'''
+```
+
+```ref
+\definition keep_a: A -> A -> A := \fun (left: A) => \fun (right: A) => left;
+\definition keep_b: A -> A -> B := \fun (left: A) => \fun (right: A) => b;
+\math-macro earlier($left, \+, $right) := keep_a $left $right;
+\math-macro later($left, \+, $right) := keep_b $left $right;
+\definition selected: A := \(a + a \);
+```
+
+## macro の裸の推論穴
+
+macro の式引数として裸の穴を渡し、後続の引数から型を推論できる。
+
+```toml case
+id = "bare_underscore_is_a_macro_expression_argument"
+scope = "module"
+expect = "accept"
+name = "Underscore"
+parameters = '''A: \Set(0), f: A, y: A'''
+```
+
+```ref
+\definition first: \forall (T: \Set(0)) -> T -> T -> T :=
+  \fun (T: \Set(0)) => \fun (a: T) => \fun (b: T) => a;
+\macro two($type, $value) := first $type $value y;
+\definition bare_hole_with_next_argument: A := two!{_ f};
+```
+
+## capture の分類 / 5
+
+宣言していない sequence capture を展開しているため拒否される。
+
+```toml case
+id = "capture-judgement-4"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro bad(..r) := last!{..missing};
+```
+
+## capture の分類 / 6
+
+expression capture を sequence として展開しているため拒否される。
+
+```toml case
+id = "capture-judgement-5"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro bad($x) := last!{..x};
+```
+
+## capture の分類 / 7
+
+token capture を expression として参照しているため拒否される。
+
+```toml case
+id = "capture-judgement-6"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro bad(tk) := $tk;
+```
+
+## capture の分類 / 8
+
+sequence capture を expression として参照しているため拒否される。
+
+```toml case
+id = "capture-judgement-7"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro bad(..r) := $r;
+```
+
+## capture の分類 / 9
+
+expression capture を token match の対象にしているため拒否される。
+
+```toml case
+id = "capture-judgement-8"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro bad($x) := \tmatch x {};
+```
+
+## capture の分類 / 11
+
+token capture に sequence の match pattern を書いているため拒否される。
+
+```toml case
+id = "capture-judgement-10"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro bad(tk) := \tmatch tk { | () => value };
+```
+
+## capture の分類 / 12
+
+sequence capture に token の match pattern を書いているため拒否される。
+
+```toml case
+id = "capture-judgement-11"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro bad(..r) := \tmatch r { | \+ => value };
+```
+
+## capture の分類 / 16
+
+token match の分岐の外で分岐内の capture を参照しているため拒否される。
+
+```toml case
+id = "capture-judgement-15"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro bad(..r) := \tmatch r { | ($x) => $x } $x;
+```
+
+## capture の分類 / 18
+
+math macro の pattern に named macro 用の token capture を書いているため拒否される。
+
+```toml case
+id = "capture-judgement-17"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\math-macro bad(tk, \+) := value;
+```
+
+## operator のない math macro
+
+math macro の pattern に operator token がないため拒否される。
+
+```toml case
+id = "macro-template-4"
+scope = "module"
+expect = "reject"
+name = "NoToken"
+```
+
+```ref
+\math-macro bad($value) := $value;
+```
+
+## 未宣言の expression capture
+
+template が宣言されていない capture を使っているため拒否される。
+
+```toml case
+id = "macro-template-5"
+scope = "module"
+expect = "reject"
+name = "UnknownCapture"
+```
+
+```ref
+\macro bad($value) := $other;
+```
+
+## token match / string-for-symbol
+
+文字列 token は記号 token の pattern に一致しないため拒否される。
+
+```toml case
+id = "token-match-string-for-symbol"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro m(tk) := \tmatch tk { | \+ => value }; \definition result: A := m!{"+"};
+```
+
+## token match / symbol-for-string
+
+記号 token は文字列 token の pattern に一致しないため拒否される。
+
+```toml case
+id = "token-match-symbol-for-string"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro m(tk) := \tmatch tk { | "+" => value }; \definition result: A := m!{+};
+```
+
+## token match / group-for-token
+
+括弧で囲った sequence を単独の token capture に渡しているため拒否される。
+
+```toml case
+id = "token-match-group-for-token"
+scope = "module"
+expect = "reject"
+name = "Invalid"
+parameters = '''A: \Set(0), value: A'''
+```
+
+```ref
+\macro m(tk) := value; \definition result: A := m!{(+)};
+```

@@ -371,3 +371,114 @@ name = "Structures"
 };
 ```
 
+
+## 型から決まる record の射影
+
+generic constructor、入れ子や alias の射影、Program の associated definition と reflection を同じ record の型で使える。
+
+```toml case
+id = "records_have_type_directed_projection_and_generic_construction_syntax"
+scope = "module"
+expect = "accept"
+name = "Records"
+```
+
+```ref
+\inductive Bit: \Set :=
+  | zero: Bit
+| one: Bit
+;
+\structure Pair[A: \Set, B: \Set]: \Set := {
+  first: A,
+  second: B,
+};
+\definition pair: Pair[Bit, Bit] := Pair::# Bit::zero Bit::one;
+\definition first: Bit := #first{pair};
+\definition swap: \forall (A, B: \Set) -> Pair[A, B] -> Pair[B, A] :=
+  \fun (A, B: \Set) => \fun (pair: Pair[A, B]) =>
+Pair::# #second{pair} #first{pair};
+\definition nestedFirst:
+  \forall (A, B, C: \Set) -> Pair[Pair[A, B], C] -> A :=
+  \fun (A, B, C: \Set) => \fun (pair: Pair[Pair[A, B], C]) =>
+#first{#first{pair}};
+\definition BitPair: \Set := Pair[Bit, Bit];
+\definition aliasedFirst(pair: BitPair): Bit := #first{pair};
+
+\inductive VBit: \VType :=
+  | zero: VBit
+| one: VBit
+;
+\definition VBit::default: VBit := VBit::zero;
+\structure VPair[A: \VType]: \VType := {
+  first: A,
+  second: A,
+};
+\definition VPair(A: \VType)::getFirst(pair: VPair[A]): \F(A) :=
+  #first{pair};
+\definition vpair: VPair[VBit] :=
+  VPair::# VBit::zero VBit::one;
+\definition vfirst: \F(VBit) := #first{vpair};
+\definition reflectedPair: VPair^[VBit^] :=
+  VPair[VBit]::#^ VBit^::zero VBit^::one;
+\definition reflectedFirst: VBit^ :=
+  VPair[VBit]::first^ reflectedPair;
+\definition reflectedGetFirst: VBit^ :=
+  VPair[VBit]::getFirst^ reflectedPair;
+\definition reflectedDefault: VBit^ := VBit::default^;
+```
+
+## proposition structure defaults follow parameters and supplied fields
+
+命題の structure の既定の field は、特殊化した引数と先に指定した field を参照できる。
+
+```toml case
+id = "proposition_structure_defaults_follow_parameters_and_supplied_fields"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Defaults {
+  \module Definitions(A: \Set) {
+    \structure Data: \Set { value: A }
+    \structure Laws[data: Data]: \Prop {
+      required: data.value = data.value,
+      copy: data.value = data.value := required,
+      final: data.value = data.value := copy,
+    }
+    \definition Bundle: \Set :=
+      \Cast[Data] ({ data: Data \where Laws[data] });
+  }
+  \module Use(A: \Set, a: A) {
+    \import \parent.Definitions[A := A] \as D;
+    \definition inferred: D.Bundle := D.Bundle {
+      value := a,
+      required := \refl(a),
+    };
+    \definition overridden: D.Bundle := D.Bundle {
+      value := a,
+      required := \refl(a),
+      copy := \refl(a),
+    };
+    \definition result: a = a := #final{overridden};
+  }
+}
+```
+
+## proposition structure default is checked when declared
+
+使用時まで待たずに、宣言した既定の field の項と型の不一致を検出して拒否する。
+
+```toml case
+id = "proposition_structure_default_is_checked_when_declared"
+scope = "module"
+expect = "reject"
+name = "InvalidDefault"
+parameters = '''A: \Set, a: A'''
+```
+
+```ref
+\structure Laws: \Prop {
+  invalid: a = a := a,
+}
+```

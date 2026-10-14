@@ -213,3 +213,71 @@ parameters = '''A: \VType, a: A'''
 \definition bad: \U((A ~> \F(A))) := \thunk(\return(a));
 ```
 
+
+## 局所 binder と特殊化を経た停止証明
+
+runCase の witness は let の局所変数と同じ状態を証明し、別 module の特殊化後にも利用できる。
+
+```toml case
+id = "program_proofs_follow_local_binders_and_module_instantiation"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Generic(A: \VType, step: \U((A ~> \F(\RunStep[A, A]))),
+total: \forall (s: A^) -> (\forall (P: A^ -> \Prop) ->
+  (\forall (s: A^) ->
+  (\step-match t: \RunStep[A^, A^] \return \Prop \with {
+  | \continue next: P next
+  | \finish output: \forall (Q: \Prop) -> Q -> Q
+}) (step^ s) -> P s) -> P s)) {
+  \definition run(x: A): \F(A) := \run[A, A](step, x) \by { total x };
+  \definition runCase(x: A): \F(A) :=
+    (\let y: A := x \in
+  \runCase[A, A](step, y, (\force(step)) y) \by { accessibility: total y, equality: \refl(step^ y) });
+}
+\module Consumer(A: \VType, f: \U((A ~> \F(\RunStep[A, A]))),
+p: \forall (s: A^) -> (\forall (P: A^ -> \Prop) ->
+  (\forall (s: A^) ->
+  (\step-match t: \RunStep[A^, A^] \return \Prop \with {
+  | \continue next: P next
+  | \finish output: \forall (Q: \Prop) -> Q -> Q
+}) (f^ s) -> P s) -> P s), a: A) {
+  \import \root.Generic[A := A, step := f, total := p] \as G;
+  \definition result: \F(A) := G.runCase a;
+  \normalize result;
+}
+```
+
+## RunStep の universe 推論 / 1
+
+State と Output が異なる universe に属するため、型引数を推論しても拒否される。
+
+```toml case
+id = "mixed-inferred-step-0"
+scope = "module"
+expect = "reject"
+name = "Mixed"
+parameters = '''A: \Set(0), B: \Set(2), a: A, b: B'''
+```
+
+```ref
+\definition bad: _ := \continue[_, B](a);
+```
+
+## RunStep の universe 推論 / 2
+
+State と Output が異なる universe に属するため、型引数を推論しても拒否される。
+
+```toml case
+id = "mixed-inferred-step-1"
+scope = "module"
+expect = "reject"
+name = "Mixed"
+parameters = '''A: \Set(0), B: \Set(2), a: A, b: B'''
+```
+
+```ref
+\definition bad: _ := \finish[A, _](b);
+```

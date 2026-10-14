@@ -393,3 +393,201 @@ parameters = '''A: \VType, a: A'''
 \check \return(a): _;
 ```
 
+
+## 代入した record の型と射影
+
+assign で共有した record の型を binder と射影の期待型として利用できる。
+
+```toml case
+id = "explicit_meta_assignment_shares_record_types_before_projection"
+scope = "module"
+expect = "accept"
+name = "Assignment"
+```
+
+```ref
+\structure And[P, Q: \Prop]: \Prop := { left: P, right: Q, };
+\structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
+\definition andAssoc (P, Q, R: \Prop): PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
+  lt := \block {
+    \fun (h: _1) \then
+    \let p: P := h #left #left \then
+    \let q: Q := h #left #right \then
+    \let r: R := h #right \then
+    \return And[_, _]::# p (And[_, _]::# q r)
+  },
+  rt := \block {
+    \fun (h: _2) \then
+    \let p: P := h #left \then
+    \let q: Q := h #right #left \then
+    \let r: R := h #right #right \then
+    \return And[_, _]::# (And[_, _]::# p q) r
+  },
+};
+```
+
+## Program の let 注釈 / 1
+
+let の型注釈と値の型が異なるため拒否される。
+
+```toml case
+id = "wrong-program-let-0"
+scope = "module"
+expect = "reject"
+name = "Wrong"
+parameters = '''A: \VType, B: \VType, a: A'''
+```
+
+```ref
+\definition result: \F(A) := (\let x: B := a \in \return(a));
+```
+
+## Program の let 注釈 / 2
+
+let の型注釈に value を書いているため拒否される。
+
+```toml case
+id = "wrong-program-let-1"
+scope = "module"
+expect = "reject"
+name = "Wrong"
+parameters = '''A: \VType, B: \VType, a: A'''
+```
+
+```ref
+\definition result: \F(A) := (\let x: a := a \in \return(a));
+```
+
+## Program の let 注釈 / 3
+
+let の値とその型を決定する制約がないため拒否される。
+
+```toml case
+id = "wrong-program-let-2"
+scope = "module"
+expect = "reject"
+name = "Wrong"
+parameters = '''A: \VType, B: \VType, a: A'''
+```
+
+```ref
+\definition result: \F(A) := (\let x: _ := ? \in \return(a));
+```
+
+## 推論変数への再代入 / A
+
+同じ型を再代入するため受理される。
+
+```toml case
+id = "reassign-meta-A"
+scope = "module"
+expect = "accept"
+name = "Assignment"
+parameters = '''A: \Set, B: \Set, a: A'''
+```
+
+```ref
+\definition value: A \assign _1 := a; \definition repeated: (A \assign _1) -> (A \assign _1) := \fun (x: A) => x;
+```
+
+## 推論変数への再代入 / B
+
+既に A と決まった推論変数に異なる型 B を代入するため拒否される。
+
+```toml case
+id = "reassign-meta-B"
+scope = "module"
+expect = "reject"
+name = "Assignment"
+parameters = '''A: \Set, B: \Set, a: A'''
+```
+
+```ref
+\definition value: A \assign _1 := a; \definition repeated: (A \assign _1) -> (B \assign _1) := \fun (x: A) => x;
+```
+
+## match の制約 / 1
+
+motive の型が scrutinee の型と異なるため拒否される。
+
+```toml case
+id = "match-constraint-mismatch-0"
+scope = "module"
+expect = "reject"
+name = "MatchConstraints"
+```
+
+```ref
+\inductive Or[P, Q: \Prop]: \Prop :=
+  | left: P -> Or
+| right: Q -> Or
+;
+
+\structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
+
+\definition orAssoc (P, Q, R: \Prop):
+  PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] :=
+  PropEquiv[_1, _2] {
+  lt := \fun (h: _) =>
+  \match h \in Or \return (\fun (_: Or[Or[P, Q], R]) => Or[P, Or[Q, R]]) \with {
+    | left inner :
+      \match inner \in Or \return (\fun (_: Or[P, Q]) => Or[P, Or[Q, R]]) \with {
+      | left p : Or[P, Or[Q, R]]::left p
+      | right q : Or[P, Or[Q, R]]::right (Or[Q, R]::left q)
+    }
+    | right r : Or[P, Or[Q, R]]::right (Or[Q, R]::right r)
+  },
+  rt := \fun (h: _) =>
+  \match h \in Or \return (\fun (_: Or[P, Q]) => Or[Or[P, Q], R]) \with {
+    | left p : Or[_, _]::left (Or[_, _]::left p)
+    | right inner :
+      \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
+      | left q : Or[_, _]::left (Or[_, _]::right q)
+      | right r : Or[_, _]::right r
+    }
+  }
+};
+```
+
+## match の制約 / 2
+
+branch の値が対応する constructor の引数の型と異なるため拒否される。
+
+```toml case
+id = "match-constraint-mismatch-1"
+scope = "module"
+expect = "reject"
+name = "MatchConstraints"
+```
+
+```ref
+\inductive Or[P, Q: \Prop]: \Prop :=
+  | left: P -> Or
+| right: Q -> Or
+;
+
+\structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
+
+\definition orAssoc (P, Q, R: \Prop):
+  PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] :=
+  PropEquiv[_1, _2] {
+  lt := \fun (h: _) =>
+  \match h \in Or \return (\fun (_: Or[Or[P, Q], R]) => Or[P, Or[Q, R]]) \with {
+    | left inner :
+      \match inner \in Or \return (\fun (_: Or[P, Q]) => Or[P, Or[Q, R]]) \with {
+      | left p : Or[P, Or[Q, R]]::left p
+      | right q : Or[P, Or[Q, R]]::right (Or[Q, R]::left q)
+    }
+    | right r : Or[P, Or[Q, R]]::right (Or[Q, R]::right r)
+  },
+  rt := \fun (h: _) =>
+  \match h \in Or \return (\fun (_: Or[P, Or[Q, R]]) => Or[Or[P, Q], R]) \with {
+    | left p : Or[_, _]::left (Or[_, _]::left p)
+    | right inner :
+      \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
+      | left q : Or[_, _]::left (Or[_, _]::right q)
+      | right r : Or[_, _]::left r
+    }
+  }
+};
+```

@@ -238,14 +238,6 @@ fn resolves_macro_capture_without_type_inference() {
 }
 
 #[test]
-fn parameterized_imports_resolve_without_type_inference() {
-    let modules = syntax::parse::str_parse_modules(r"\module Source(A: \Set) { \definition Carrier: \Set := A; }
-        \module Client { \inductive Unit: \Set := | unit: Unit; \import \root.Source[A := Unit] \as S; \definition value: \Set := S.Carrier; }").unwrap();
-    let resolved = resolve(&modules).unwrap();
-    assert_eq!(resolved.modules.len(), 2);
-}
-
-#[test]
 fn macro_value_let_uses_callers_type_and_its_own_binder() {
     let modules = syntax::parse::str_parse_modules(
         r"\module M(A: \Set, a: A) {

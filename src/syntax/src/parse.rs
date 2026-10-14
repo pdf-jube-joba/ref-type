@@ -1006,44 +1006,6 @@ pub fn parse_items(input: &str) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), Pa
 mod tests {
     use super::*;
     #[test]
-    fn logos_test() {
-        fn tok_all_ok(input: &'static str) {
-            let mut toks = Token::lexer(input);
-            loop {
-                match toks.next() {
-                    Some(Ok(ok)) => {
-                        println!("span[{:?}] slice[{}]", toks.span(), toks.slice());
-                        println!("  {:?}", ok);
-                    }
-                    Some(Err(_)) => panic!("lex error in input: {}", input),
-                    None => break,
-                }
-            }
-        }
-        tok_all_ok(r"\forall (x: X) -> Y => z");
-        tok_all_ok(r"(x @ z # a");
-        tok_all_ok(r"x \( y += z \)");
-    }
-    #[test]
-    fn lexer_test() {
-        fn print_and_unwrap(input: &'static str) {
-            println!("Input: {:?}", input);
-            let spantoks = &lex_all(input).unwrap();
-            for tok in spantoks {
-                println!("{:?}", tok);
-            }
-        }
-        print_and_unwrap(r"\forall (x: X) -> Y => z");
-        print_and_unwrap(r"x \( y + z \) l");
-        print_and_unwrap(r"x mymacro!{ a + b c } l");
-        print_and_unwrap(r"x /* this is a comment */ (y z)");
-        print_and_unwrap(r"x :: y ++ := z");
-        print_and_unwrap(r"\Prop \Set (0)");
-        print_and_unwrap(r"(( \( \) ))");
-        print_and_unwrap(r"x.y # name { hello: ");
-    }
-
-    #[test]
     fn machine_and_correspondence_preserve_typed_definition_items() {
         for keyword in ["machine", "correspondence"] {
             let source = format!("\\{keyword} implementation: Program := witness;");
@@ -1098,60 +1060,5 @@ mod tests {
         let tokens = lex_all(input).unwrap();
         let error = Parser::new(&tokens).try_parse_module_item().unwrap_err();
         assert_eq!((error.start, error.end), (input.len(), input.len()));
-    }
-
-    #[test]
-    fn parse_rightbinds_test() {
-        fn print_and_unwrap(input: &'static str) {
-            let lex = &lex_all(input).unwrap();
-            let mut parser = Parser::new(lex);
-            let binds = parser.parse_rightbinds().unwrap();
-            println!("Parsed RightBinds: {:?} => {:?}", input, binds);
-        }
-        print_and_unwrap(r"(x: X)");
-        print_and_unwrap(r"(x: X, y: Y, z: Z)");
-        print_and_unwrap(r"(P1: \Prop,  p1: P1, )");
-    }
-    #[test]
-    fn pares_ctor_decl_test() {
-        fn print_and_unwrap(input: &'static str) {
-            let lex = &lex_all(input).unwrap();
-            let mut parser = Parser::new(lex);
-            let ctor = parser.parse_ctor_decl().unwrap();
-            println!("Parsed CtorDecl: {:?} => {:?}", input, ctor);
-        }
-        print_and_unwrap(r"| true : Bool");
-        print_and_unwrap(r"| succ : Nat -> Nat");
-        print_and_unwrap(r"| u: A -> B -> U");
-        print_and_unwrap(r"| cons : \forall (X : \Set) -> X -> List X -> List X");
-    }
-    #[test]
-    fn parse_module_item() {
-        fn print_and_unwrap(input: &'static str) {
-            let lex = &lex_all(input).unwrap();
-            let mut parser = Parser::new(lex);
-            let item = parser.try_parse_module_item();
-            match item {
-                Ok(Some(mi)) => {
-                    println!("Parsed ModuleItem: {:?} => {:?}", input, mi);
-                }
-                Ok(None) => {
-                    panic!("Failed to parse ModuleItem: {}", input);
-                }
-                Err(err) => {
-                    panic!("Error: {:?}", err);
-                }
-            }
-        }
-        print_and_unwrap(r"\definition id : \forall (X : \Set) -> X -> X := \fun (x : X) => x ;");
-        print_and_unwrap(r"\definition l : \forall (X : \Set) -> X -> X := \fun (x : X) => x ;");
-        print_and_unwrap(
-            r"\definition l: \forall (X, Y: \Set) -> \SetKind := \fun (_: \Set) => a;",
-        );
-        print_and_unwrap(r"\definition one: Nat := Nat::succ Nat::zero;");
-        print_and_unwrap(r"\import MyModule [] \as ImportedModule ;");
-        print_and_unwrap(r"\import MyModule [ A := B, C := \fun (x: X) => y] \as T;");
-        print_and_unwrap(r"\inductive Bool : \Set := | true : Bool | false : Bool;");
-        print_and_unwrap(r"\inductive Nat : \Set := | zero : Nat | succ : Nat -> Nat;");
     }
 }

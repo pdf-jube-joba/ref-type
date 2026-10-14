@@ -45,14 +45,6 @@ pub fn remap_ambient_indices(arena: &Arena, exp: Exp, mapping: &[usize]) -> Exp 
 pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     kernel::calculus::alpha_equal(&env.arena().core, left.0, right.0)
 }
-#[cfg(test)]
-pub fn exp_reduce_if_top(env: &CrateEnv, exp: Exp) -> Option<Exp> {
-    crate::kernel_bridge::expression(env, Term::Logical(exp), |env, e| {
-        kernel::reduction::root(env, e)
-    })
-    .expect("resolved reduction")
-    .map(Exp)
-}
 pub fn whnf(env: &CrateEnv, exp: Exp) -> Exp {
     if let Some(&result) = env.whnf_cache.borrow().get(&exp) {
         return result;
@@ -134,14 +126,6 @@ pub fn shift_value_type_indices(
     ValueType(kernel::calculus::shift(&arena.core, term.0, amount, cutoff).expect("valid shift"))
 }
 #[cfg(test)]
-pub fn computation_type_is_alpha_eq(
-    arena: &Arena,
-    left: ComputationType,
-    right: ComputationType,
-) -> bool {
-    kernel::calculus::alpha_equal(&arena.core, left.0, right.0)
-}
-#[cfg(test)]
 pub fn value_is_alpha_eq(arena: &Arena, left: ValueTerm, right: ValueTerm) -> bool {
     kernel::calculus::alpha_equal(&arena.core, left.0, right.0)
 }
@@ -171,18 +155,6 @@ pub fn strengthen_value_type(arena: &Arena, ty: ValueType, target: usize) -> Opt
         .map(ValueType)
 }
 
-#[cfg(test)]
-pub fn instantiate_value_type(
-    arena: &Arena,
-    body: ValueType,
-    argument: ValueType,
-    target: usize,
-) -> ValueType {
-    ValueType(
-        kernel::calculus::instantiate_at(&arena.core, body.0, &[argument.0], target)
-            .expect("valid substitution"),
-    )
-}
 pub fn instantiate_type_telescope(
     arena: &Arena,
     ty: ValueType,

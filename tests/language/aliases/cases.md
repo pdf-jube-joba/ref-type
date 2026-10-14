@@ -122,3 +122,265 @@ expect = "accept"
 }
 ```
 
+
+## expected types reach grouped dependent local and record bodies
+
+外側の期待型を、まとめた binder、依存する結果型、let、record の body に伝えられる。
+
+```toml case
+id = "expected_types_reach_grouped_dependent_local_and_record_bodies"
+scope = "module"
+expect = "accept"
+name = "Expected"
+parameters = '''A: \Set, P: A -> \Prop'''
+```
+
+```ref
+\structure Pair: \Set { first: A, second: A }
+\definition first: Pair -> A := \block {
+  \fun (pair: _) \then
+  \let project: Pair -> A := \fun (p: _) => p #first \then
+  \return project pair
+};
+\definition grouped: Pair -> Pair -> A :=
+  \fun (left, right: _) => left #first;
+\definition dependent: \forall (p: Pair) -> p #first = p #first :=
+  \fun (p: _) => \refl(p #first);
+\definition nested: \forall (X: \Set) -> X -> X -> X :=
+  \fun (X: _) (x, y: _) => x;
+\definition ascribed: Pair -> A :=
+  (\fun (p: _) => p #first) \of Pair -> A;
+\structure Maps: \Set { get: Pair -> A }
+\definition maps: Maps := Maps { get := \block {
+    \fun (p: _) \then \return p #second
+  } };
+\definition Sub: \Set := \Cast[A] ({ x: A \where P x });
+\definition property: \forall (x: Sub) -> P x :=
+  \fun (x: _) => \bysub(A, Sub, x);
+```
+
+## chained and instantiated aliases keep parameters and reduce
+
+帰納型の alias を重ねて特殊化しても、constructor と induction の引数が対応して簡約できる。
+
+```toml case
+id = "chained_and_instantiated_aliases_keep_parameters_and_reduce"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Lists(A: \Set) {
+  \inductive List[B: \Set]: \Set := | nil: List | cons: B -> List -> List;
+  \definition Values: \Set := List[A];
+  \definition Alias: \Set := Values;
+  \definition Generic(B: \Set): \Set := List[B];
+  \definition empty: Values := Alias::nil;
+  \definition generic: Values := Generic[A]::nil;
+  \definition copy: Alias -> Alias :=
+    \induction (xs: Alias) \return Alias \with {
+    | cons: \fun (x: A) (xs, previous: Alias) => Alias::cons x previous
+    | nil: Alias::nil
+  };
+  \definition onNil: copy empty = empty := \refl(empty);
+}
+\module Use {
+  \inductive Unit: \Set := | unit: Unit;
+  \import \root.Lists[A := Unit] \as L;
+  \definition Values: \Set := L.Alias;
+  \definition singleton: Values := Values::cons Unit::unit Values::nil;
+  \definition onCons: L.copy singleton = singleton := \refl(singleton);
+}
+```
+
+## indexed alias induction preserves its motive telescope
+
+index を取る帰納型の alias に対して、同じ index を返す induction を定義できる。
+
+```toml case
+id = "indexed_alias_induction_preserves_its_motive_telescope"
+scope = "module"
+expect = "accept"
+name = "Indexed"
+parameters = '''A: \Set'''
+```
+
+```ref
+\inductive Family[B: \Set]: \forall (x: B) -> \Set := | intro: \forall (x: B) -> Family x;
+\definition Alias(x: A): \Set := Family[A] x;
+\definition copy: \forall (x: A) -> Alias x -> Alias x :=
+  \induction (x: A) (value: Alias x) \return Alias x \with {
+  | intro: \fun (x: A) => Family[A]::intro x
+};
+\definition law(x: A): copy x (Family[A]::intro x) = Family[A]::intro x :=
+  \refl(Family[A]::intro x);
+```
+
+## take accepts a codomain independent after reduction
+
+結果型は簡約後には witness に依存しないため、exists の除去後にも証明を返せる。
+
+```toml case
+id = "take_accepts_a_codomain_independent_after_reduction"
+scope = "module"
+expect = "accept"
+name = "Example"
+parameters = '''A: \Set, y: A'''
+```
+
+```ref
+\definition proof: (\exists A) -> y = y :=
+  \fun (exists: \exists A) => \block {
+  \takefrom x: A \by exists \then
+  \return \refl((\fun (z: A) => y) x)
+};
+```
+
+## alias の型検査 / 1
+
+constructor の field に違う型の値を渡している。alias を経ても拒否される。
+
+```toml case
+id = "alias-check-0"
+scope = "module"
+expect = "reject"
+name = "Negative"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias := Alias::cons Unit::unit Alias::nil;
+```
+
+## alias の型検査 / 2
+
+指定した associated item が存在しない。alias を経ても拒否される。
+
+```toml case
+id = "alias-check-1"
+scope = "module"
+expect = "reject"
+name = "Negative"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias := Alias::missing;
+```
+
+## alias の型検査 / 3
+
+induction の branch が不足している。alias を経ても拒否される。
+
+```toml case
+id = "alias-check-2"
+scope = "module"
+expect = "reject"
+name = "Negative"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias -> Alias :=
+  \induction (xs: Alias) \return Alias \with { | nil: Alias::nil };
+```
+
+## alias の型検査 / 4
+
+同じ constructor の branch を重複している。alias を経ても拒否される。
+
+```toml case
+id = "alias-check-3"
+scope = "module"
+expect = "reject"
+name = "Negative"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias -> Alias :=
+  \induction (xs: Alias) \return Alias \with {
+  | nil: Alias::nil | nil: Alias::nil
+};
+```
+
+## alias の型検査 / 5
+
+induction の結果の型と branch の項の型が異なる。alias を経ても拒否される。
+
+```toml case
+id = "alias-check-4"
+scope = "module"
+expect = "reject"
+name = "Negative"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition bad: Alias -> Unit :=
+  \induction (xs: Alias) \return Unit \with {
+  | nil: Alias::nil
+  | cons: \fun (x: Bit) (xs: Alias) (ih: Unit) => ih
+};
+```
+
+## alias の型検査 / 6
+
+subset は帰納型そのものではない。alias を経ても拒否される。
+
+```toml case
+id = "alias-check-5"
+scope = "module"
+expect = "reject"
+name = "Negative"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition Refined: \Set := \Cast[Alias] ({ xs: Alias \where xs = xs });
+\definition bad: Refined := Refined::nil;
+```
+
+## alias の型検査 / 7
+
+関数型は帰納型ではない。alias を経ても拒否される。
+
+```toml case
+id = "alias-check-6"
+scope = "module"
+expect = "reject"
+name = "Negative"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition Function: \Set := Unit -> Unit;
+\definition bad: Function := Function::unit;
+```
+
+## alias の型検査 / 8
+
+alias の型引数に違う帰納型の値を渡している。alias を経ても拒否される。
+
+```toml case
+id = "alias-check-7"
+scope = "module"
+expect = "reject"
+name = "Negative"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition Discard(x: Unit): \Set := List[Bit];
+\definition bad: Alias := Discard[Bit::zero]::nil;
+```
+
+## 命題の alias からの大きな除去
+
+複数の constructor を持つ命題を消去して sort を返しているため拒否される。
+
+```toml case
+id = "alias-large-elimination"
+scope = "module"
+expect = "reject"
+name = "LargeElimination"
+```
+
+```ref
+\inductive Either: \Prop := | left: Either | right: Either;
+\definition Alias: \Prop := Either;
+\definition bad: Alias -> \Prop :=
+  \induction (p: Alias) \return \Prop \with { | left: Either | right: Either };
+```

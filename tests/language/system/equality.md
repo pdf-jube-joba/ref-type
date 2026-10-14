@@ -117,3 +117,127 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A'''
     \transporteq a \with x: _ => F x \by { base: value };
 ```
 
+
+## transport specialization and macro binders
+
+Set(1) の family に対する transport の等式を、macro と module の特殊化を経ても利用できる。
+
+```toml case
+id = "transport_specialization_and_macro_binders"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module T(A: \Set, a: A, F: A -> \Set(1)) {
+  \macro move($v) := \idelim a = a \with x: _ => F x \by { base: $v, equality: \refl a };
+  \definition law: \forall (value: F a) -> move!{value} = value :=
+    \fun (value: _) => \transporteq a \with x: _ => F x \by { base: value };
+}
+\module U(A: \Set, a: A, F: A -> \Set(1)) {
+  \import \root.T[A := A, a := a, F := F] \as T;
+  \definition law: \forall (value: F a) ->
+    (\idelim a = a \with x: _ => F x \by { base: value, equality: \refl a }) = value := T.law;
+}
+```
+
+## neutral transport supports subsets functions projections and induction
+
+仮定した等式による transport の結果を、関数適用、field の射影、induction と subset の値として利用できる。
+
+```toml case
+id = "neutral_transport_supports_subsets_functions_projections_and_induction"
+scope = "module"
+expect = "accept"
+name = "T"
+parameters = '''A: \Set, a, b: A'''
+```
+
+```ref
+\inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
+\structure Pair: \Set { first: Nat, second: Nat }
+\definition moveNat(value: Nat)(same: a = b): Nat :=
+  \idelim a = b \with x: _ => Nat \by { base: value, equality: same };
+\definition count: Nat -> Nat := \induction (n: Nat) \return Nat \with {
+  | zero: Nat::zero | succ: \fun (n, previous: Nat) => Nat::succ previous
+};
+\definition countMoved(value: Nat)(same: a = b): Nat := count (moveNat value same);
+\definition apply(f: Nat -> Nat)(same: a = b): Nat :=
+  (\idelim a = b \with x: _ => Nat -> Nat \by { base: f, equality: same }) Nat::zero;
+\definition project(p: Pair)(same: a = b): Nat :=
+  (\idelim a = b \with x: _ => Pair \by { base: p, equality: same }) #first;
+\definition Sub: \Set := \Cast[Nat] ({ n: Nat \where n = n });
+\definition subset(value: Sub)(same: a = b): Sub :=
+  \idelim a = b \with x: _ => Sub \by { base: value, equality: same };
+\definition law: \forall (value: Sub) ->
+  (\idelim a = a \with x: _ => Sub \by { base: value, equality: \refl a }) = value :=
+  \fun (value: _) => \transporteq a \with x: _ => Sub \by { base: value };
+```
+
+## transport substitutes through nested family binders
+
+family 内の binder を保ちながら、外側の等式に従って型を移し替えられる。
+
+```toml case
+id = "transport_substitutes_through_nested_family_binders"
+scope = "module"
+expect = "accept"
+name = "T"
+parameters = '''A: \Set(1), F: A -> A -> \Set, a, b: A'''
+```
+
+```ref
+\definition cast(value: \forall (y: A) -> F a y)(same: a = b): \forall (y: A) -> F b y :=
+  \idelim a = b \with x: _ => \forall (y: A) -> F x y \by { base: value, equality: same };
+\definition identity: \forall (value: \forall (y: A) -> F a y) ->
+  (\idelim a = a \with x: _ => \forall (y: A) -> F x y \by { base: value, equality: \refl a }) = value :=
+  \fun (value: _) => \transporteq a \with x: _ => \forall (y: A) -> F x y \by { base: value };
+```
+
+## transport checks base and equality certificates
+
+移し替える前の型に合わない base を渡すため拒否される。
+
+```toml case
+id = "transport_checks_base_and_equality_certificates"
+scope = "module"
+expect = "reject"
+name = "T"
+parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F b, e: a = b'''
+```
+
+```ref
+\definition bad: F b := \idelim a = b \with x: _ => F x \by { base: v, equality: e };
+```
+
+## transport checks base and equality certificates 1
+
+移し替えの向きと等式の証明の向きが逆なので拒否される。
+
+```toml case
+id = "transport_checks_base_and_equality_certificates-1"
+scope = "module"
+expect = "reject"
+name = "T"
+parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F a, e: b = a'''
+```
+
+```ref
+\definition bad: F b := \idelim a = b \with x: _ => F x \by { base: v, equality: e };
+```
+
+## transport substitutes through nested family binders 1
+
+transporteq の family に命題を指定しているため拒否される。
+
+```toml case
+id = "transport_substitutes_through_nested_family_binders-1"
+scope = "module"
+expect = "reject"
+name = "T"
+parameters = '''A: \Set, a: A, P: A -> \Prop, p: P a'''
+```
+
+```ref
+\infer \transporteq a \with x: _ => P x \by { base: p };
+```
