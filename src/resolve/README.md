@@ -42,3 +42,14 @@ let ast = syntax::parse::str_parse_modules(
 ).unwrap();
 let hir = resolve::resolve(&ast).unwrap();
 ```
+
+## Package 成果物
+
+`Session::boundary` で package 開始前の所有境界を取り、`export_package` でその後の scope、束縛、宣言、macro と構造情報を取り出す。
+保存する scope は明示的な ID を持ち、root の子 module は追加分を保存する。
+依存先の macro template は定義 ID で参照し、所有 package の成果物に一度だけ保存する。
+
+読み込み側は依存の対応表を用意し、`reserve_import` で自身の ID を予約してから `import_package` を呼ぶ。
+module、束縛、macro、式ごとのローカル束縛、衛生的な名前、宣言 scope を共通の再配置表で更新する。
+参照先と scope table の検証が成功した時点で session へ公開する。
+source 本文は現在の snapshot から `restore_sources` で接続する。

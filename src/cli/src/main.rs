@@ -14,7 +14,7 @@ thread_local! {
 #[derive(Parser, Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[command(author, version, about)]
 struct Args {
-    /// パッケージのディレクトリ、または .ref ファイル
+    /// パッケージ・workspace のディレクトリ、または .ref ファイル
     path: PathBuf,
     /// 検査プロセスの仮想メモリ上限 MiB（Linux の既定3072、0は既存の上限を維持）
     #[arg(long)]
@@ -48,7 +48,7 @@ struct Args {
     /// キャッシュを再利用せず全体を検証し、検証済みの結果を保存する
     #[arg(long, conflicts_with = "parse_only")]
     full_check: bool,
-    /// 指定ライブラリだけを再検証し、依存先は自身の変更だけを確認してキャッシュを再利用する
+    /// 入力 package・workspace の member を再検証し、外部依存のキャッシュを再利用する
     #[arg(long, conflicts_with_all = ["parse_only", "full_check", "no_cache", "trace", "stats"])]
     full_check_local: bool,
     /// 進捗バーと module ごとの所要時間を表示しない
@@ -60,9 +60,12 @@ struct Args {
     /// キャッシュ保存先の中身を削除してから処理する
     #[arg(long)]
     clear_cache: bool,
-    /// チェック済み semantic result の保存先（既定: 入力ディレクトリの refcache/）
+    /// チェック済み semantic result の保存先（既定: workspace または入力先の refcache/）
     #[arg(long)]
     cache_dir: Option<PathBuf>,
+    /// ディスクキャッシュの容量上限 MiB（利用中の成果物は保護する）
+    #[arg(long, default_value_t = 8192)]
+    cache_budget_mib: u64,
     /// parse・チェック・キャッシュ再利用の件数を表示する
     #[arg(long)]
     cache_stats: bool,
@@ -208,10 +211,10 @@ fn run_path(
     args: &Args,
     display: &mut progress::Display,
 ) -> anyhow::Result<std::process::ExitCode> {
-    let cache_directory = args
-        .cache_dir
-        .clone()
-        .unwrap_or_else(|| sema::SourceSnapshot::new(&args.path).default_cache_directory());
+    let cache_directory = match &args.cache_dir {
+        Some(path) => path.clone(),
+        None => sema::default_cache_directory(&args.path)?,
+    };
     if args.clear_cache {
         clear_cache_directory(&cache_directory)?;
     }
@@ -220,6 +223,7 @@ fn run_path(
     } else {
         sema::Database::with_cache(cache_directory)
     };
+    database.set_cache_budget(args.cache_budget_mib.saturating_mul(1024 * 1024));
     #[cfg(target_os = "linux")]
     let snapshot = if let Some(directory) = &args.worker {
         Some(supervisor::read_snapshot(directory)?)
@@ -322,6 +326,8 @@ fn run_path(
     };
     if args.cache_stats {
         eprintln!("queries: {:?}", database.stats());
+        eprintln!("cache: {:?}", database.cache_store_stats());
+        eprintln!("memory cache: {:?}", database.memory_cache_stats());
     }
     let error = (!messages.is_empty()).then(|| messages.join("\n"));
     if let Some(message) = &error {

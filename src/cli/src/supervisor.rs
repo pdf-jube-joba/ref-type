@@ -140,23 +140,14 @@ impl Workspace {
     fn path(&self, name: &str) -> PathBuf {
         self.directory.join(name)
     }
-    fn publish(&self, destination: &Path) -> anyhow::Result<()> {
+    fn publish(&self, destination: &Path, budget: u64) -> anyhow::Result<()> {
         let directory = self.path("cache");
         if !directory.exists() {
             return Ok(());
         }
-        for entry in fs::read_dir(directory)? {
-            let entry = entry?;
-            if !entry.file_type()?.is_file() || entry.file_name().to_string_lossy().starts_with('.')
-            {
-                continue;
-            }
-            let temporary = self.path("publish.tmp");
-            if fs::hard_link(entry.path(), &temporary).is_err() {
-                fs::copy(entry.path(), &temporary)?;
-            }
-            fs::rename(temporary, destination.join(entry.file_name()))?;
-        }
+        let store = sema::artifact_store::ArtifactStore::new(destination);
+        store.set_budget(budget);
+        store.publish_from(directory)?;
         Ok(())
     }
 }
@@ -385,10 +376,22 @@ fn execute(
 
 fn snapshot_key(snapshot: &SourceSnapshot) -> Vec<u8> {
     let mut digest = Sha256::new();
-    for (path, source) in snapshot.files() {
-        digest.update(path.as_os_str().as_encoded_bytes());
+    // Include alias identities: retargeting two symlinks can preserve the exact
+    // file set while changing which nominal package each import resolves to.
+    for (path, identity) in snapshot.source_identities() {
         digest.update([0]);
-        digest.update(source.text.len().to_le_bytes());
+        for path in [path, identity] {
+            let bytes = path.as_os_str().as_encoded_bytes();
+            digest.update((bytes.len() as u64).to_le_bytes());
+            digest.update(bytes);
+        }
+    }
+    for (path, source) in snapshot.files() {
+        digest.update([1]);
+        let bytes = path.as_os_str().as_encoded_bytes();
+        digest.update((bytes.len() as u64).to_le_bytes());
+        digest.update(bytes);
+        digest.update((source.text.len() as u64).to_le_bytes());
         digest.update(source.text.as_bytes());
     }
     digest.finalize().to_vec()
@@ -396,14 +399,14 @@ fn snapshot_key(snapshot: &SourceSnapshot) -> Vec<u8> {
 
 pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitCode> {
     let _signals = Signals::install()?;
-    let cache = args
-        .cache_dir
-        .clone()
-        .unwrap_or_else(|| SourceSnapshot::new(&args.path).default_cache_directory());
+    let cache = match &args.cache_dir {
+        Some(path) => path.clone(),
+        None => sema::default_cache_directory(&args.path)?,
+    };
     if args.clear_cache {
         crate::clear_cache_directory(&cache)?;
     }
-    let mut database = sema::Database::with_cache(&cache);
+    let mut database = sema::Database::new();
     let snapshot = database.read_snapshot(&args.path, args.full_check_local)?;
     let paths = match database.module_paths(&snapshot) {
         Ok(paths) => paths,
@@ -459,7 +462,11 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             .iter()
             .map(|byte| format!("{byte:02x}"))
             .collect();
-    let layout = cache.join(format!("{layout_key}.batches.json"));
+    let layout = if args.no_cache {
+        workspace.path("batches.json")
+    } else {
+        cache.join(format!("{layout_key}.batches.json"))
+    };
     let memory_mib = args.memory_mib.unwrap_or(3072);
     let mut splits = fs::read(&layout)
         .ok()
@@ -473,6 +480,9 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
     } else {
         cache.clone()
     };
+    let session_store = sema::artifact_store::ArtifactStore::new(&worker_cache);
+    session_store.set_budget(args.cache_budget_mib.saturating_mul(1024 * 1024));
+    let session_token = session_store.session_token()?;
     let mut pending = vec![Batch {
         module,
         exact: args.module_only,
@@ -504,7 +514,8 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             .arg(&args.path)
             .arg("--worker")
             .arg(workspace.path("request.json"))
-            .env_remove("REF_TYPE_PROFILE_PROGRESS");
+            .env_remove("REF_TYPE_PROFILE_PROGRESS")
+            .env("REF_TYPE_CACHE_SESSION", &session_token);
         if !args.no_progress {
             display.message(&format!("checking {}", batch.label()));
         }
@@ -584,15 +595,18 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             }
         }
     }
-    let current =
-        sema::Database::with_cache(&cache).read_snapshot(&args.path, args.full_check_local)?;
+    let current = SourceSnapshot::read(&args.path)?;
     if snapshot_key(&current) != initial_key {
         success = false;
         display
             .message("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
     }
-    if fresh && !args.no_cache {
-        workspace.publish(&cache)?;
+    if fresh
+        && !args.no_cache
+        && let Err(error) =
+            workspace.publish(&cache, args.cache_budget_mib.saturating_mul(1024 * 1024))
+    {
+        eprintln!("キャッシュの公開を省略しました: {error:#}");
     }
     progress::receive(&ProgressEvent::Finished { success });
     crate::PROGRESS.with_borrow_mut(|events| events.extend(timings.into_values()));
@@ -613,6 +627,34 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn snapshot_identity_changes_when_import_aliases_are_retargeted() {
+        let snapshot = SourceSnapshot::new("/project")
+            .with_file("/packages/one/src/root.ref", "\\module Value {}")
+            .with_file("/packages/two/src/root.ref", "\\module Value {}");
+        let mut value = serde_json::to_value(snapshot).unwrap();
+        value["aliases"] = serde_json::json!({
+            "/project/left": "/packages/one",
+            "/project/right": "/packages/two",
+        });
+        let before: SourceSnapshot = serde_json::from_value(value.clone()).unwrap();
+        value["aliases"] = serde_json::json!({
+            "/project/left": "/packages/two",
+            "/project/right": "/packages/one",
+        });
+        let after: SourceSnapshot = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            before.files().map(|(path, _)| path).collect::<Vec<_>>(),
+            after.files().map(|(path, _)| path).collect::<Vec<_>>()
+        );
+        assert_ne!(snapshot_key(&before), snapshot_key(&after));
+        let mut value = serde_json::to_value(&after).unwrap();
+        value["aliases"]["/project/cache/v2/objects"] =
+            serde_json::json!("/project/cache/v2/objects");
+        let with_cache_directory: SourceSnapshot = serde_json::from_value(value).unwrap();
+        assert_eq!(snapshot_key(&after), snapshot_key(&with_cache_directory));
+    }
 
     #[test]
     fn splitting_covers_parent_declarations_and_each_descendant_once() {

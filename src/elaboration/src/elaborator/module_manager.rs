@@ -34,7 +34,7 @@ pub(crate) enum ItemAccessResult {
     ProgramValueParameter(ModuleParamId),
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug)]
 pub(crate) struct ModuleManager {
     current: ModuleId,
     #[serde(skip)]
@@ -918,7 +918,13 @@ impl ModuleManager {
         }
 
         // Every declaration is resolvable before conversion in the reuse cache.
-        let shared_remapping = env.store_remapping(remapping.clone());
+        let shared_remapping = env.store_namespace_remapping(
+            remapping.clone(),
+            groups
+                .first()
+                .expect("instantiation has a path namespace")
+                .namespace,
+        );
         for &id in &lazy_definitions {
             env.set_lazy_definition_remapping(id, shared_remapping);
         }

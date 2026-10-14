@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct InductiveTypeSpecs {
     parameters: Vec<(SymbolId, Exp)>,
     indices: Vec<(SymbolId, Exp)>,
@@ -130,13 +130,13 @@ impl InductiveTypeSpecs {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct CtorType {
     pub telescope: Vec<CtorBinder>,
     pub indices: Vec<Exp>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum CtorBinder {
     StrictPositive {
         binders: Vec<(SymbolId, Exp)>,

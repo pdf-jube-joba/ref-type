@@ -42,4 +42,7 @@ pub use diagnostics::DiagnosticMode;
 pub mod profiling;
 
 mod package;
-pub use package::{MAX_PACKAGE_BYTES, PackageChecker, PackageProgress};
+pub use package::{
+    ArtifactBoundary, ArtifactCatalog, ArtifactOwner, MAX_PACKAGE_BYTES, PackageArtifact,
+    PackageChecker, PackageProgress,
+};

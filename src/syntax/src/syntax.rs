@@ -1,13 +1,25 @@
 //! Parsed surface syntax, independent of resolution and type inference.
 use crate::sort::Sort;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+)]
 pub struct SourceSpan {
     pub start: usize,
     pub end: usize,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq,
+)]
 pub enum SurfaceMeta {
     /// `_`: a fresh inference variable, solved by constraints.
     Implicit,
@@ -19,10 +31,12 @@ pub enum SurfaceMeta {
 }
 
 /// A source file identity, retained together with the original text.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SourceId(pub std::path::PathBuf);
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
+)]
+pub struct SourceId(#[serde(with = "crate::source_reference")] pub std::path::PathBuf);
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct SourceFile {
     pub id: SourceId,
     // Checking snapshots save source identities; the current project reattaches text.
@@ -30,7 +44,7 @@ pub struct SourceFile {
     pub text: String,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct SourceLocation {
     pub source: std::sync::Arc<SourceFile>,
     pub span: SourceSpan,
@@ -100,7 +114,16 @@ impl Identifier {
 // token for macros
 //   which is (not identifier) /\ (not keyword)
 #[derive(
-    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
 pub struct MacroToken(pub String);
 

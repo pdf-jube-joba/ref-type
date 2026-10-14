@@ -11,6 +11,7 @@ pub enum PackageProgress {
     Prepared {
         paths: Vec<Vec<String>>,
         start: usize,
+        selected: BTreeSet<usize>,
     },
     Step(CheckStepProgress),
     Saving,
@@ -18,11 +19,15 @@ pub enum PackageProgress {
         steps: usize,
         bytes: postcard::Result<Vec<u8>>,
     },
+    ArtifactCheckpoint {
+        steps: usize,
+        artifact: artifact::Result<PackageArtifact>,
+    },
 }
 
 pub const MAX_PACKAGE_BYTES: usize = 512 * 1024 * 1024;
 
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(artifact::Relocate, Default, serde::Serialize, serde::Deserialize)]
 pub struct PackageChecker {
     #[serde(serialize_with = "serialize_resolution")]
     resolution: resolve::Session,
@@ -30,6 +35,7 @@ pub struct PackageChecker {
     workspace: GlobalEnvironment,
     steps: usize,
     pending: bool,
+    completed: BTreeSet<usize>,
 }
 
 // The field order is the same as PackageChecker; borrow the live workspace
@@ -40,6 +46,14 @@ struct Checkpoint<'a> {
     workspace: &'a GlobalEnvironment,
     steps: usize,
     pending: bool,
+    completed: &'a BTreeSet<usize>,
+}
+
+struct ArtifactCheckpoint<'a> {
+    owner: ArtifactOwner,
+    input: ArtifactOwner,
+    boundary: &'a ArtifactBoundary,
+    catalog: &'a mut ArtifactCatalog,
 }
 
 fn serialize_resolution<S: serde::Serializer>(
@@ -76,11 +90,64 @@ impl PackageChecker {
     pub fn append_with_checkpoints(
         &mut self,
         module: &Module,
+        interval: Option<Duration>,
+        progress: impl FnMut(PackageProgress),
+    ) -> Result<(), crate::Diagnostic> {
+        self.append_selection(module, None, interval, None, progress)
+    }
+
+    pub fn append_selected_with_checkpoints(
+        &mut self,
+        module: &Module,
+        selected_paths: &BTreeSet<Vec<String>>,
+        interval: Option<Duration>,
+        progress: impl FnMut(PackageProgress),
+    ) -> Result<(), crate::Diagnostic> {
+        self.append_selection(module, Some(selected_paths), interval, None, progress)
+    }
+
+    /// Emit owned package checkpoints directly from the live checking boundary.
+    pub fn append_selected_with_artifact_checkpoints(
+        &mut self,
+        module: &Module,
+        selected_paths: &BTreeSet<Vec<String>>,
+        interval: Option<Duration>,
+        owner: ArtifactOwner,
+        input: ArtifactOwner,
+        boundary: &ArtifactBoundary,
+        catalog: &mut ArtifactCatalog,
+        progress: impl FnMut(PackageProgress),
+    ) -> Result<(), crate::Diagnostic> {
+        self.append_selection(
+            module,
+            Some(selected_paths),
+            interval,
+            Some(ArtifactCheckpoint {
+                owner,
+                input,
+                boundary,
+                catalog,
+            }),
+            progress,
+        )
+    }
+
+    fn append_selection(
+        &mut self,
+        module: &Module,
+        selected_paths: Option<&BTreeSet<Vec<String>>>,
         mut interval: Option<Duration>,
+        mut artifact_checkpoint: Option<ArtifactCheckpoint<'_>>,
         mut progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
-        let project = if self.pending {
-            self.resolution.project()
+        let existing = self.resolution.project();
+        let project = if self.pending
+            || existing
+                .modules
+                .iter()
+                .any(|root| root.name.as_str() == module.name.as_str())
+        {
+            existing
         } else {
             self.resolution
                 .append(module)
@@ -135,10 +202,34 @@ impl PackageChecker {
             last.insert(&path[..end], position + 1);
         }
         let boundaries: BTreeSet<_> = last.into_values().collect();
+        let selected: BTreeSet<_> = paths
+            .iter()
+            .enumerate()
+            .filter_map(|(position, path)| {
+                let source_end = path
+                    .iter()
+                    .position(|part| part.starts_with('<'))
+                    .unwrap_or(path.len());
+                let source_path = &path[..source_end];
+                let requested = selected_paths.map_or(
+                    path.first()
+                        .is_some_and(|name| name == module.name.as_str()),
+                    |selected| {
+                        selected.iter().any(|request| {
+                            request == source_path || request.starts_with(source_path)
+                        })
+                    },
+                );
+                (requested && !self.completed.contains(&position)).then_some(position)
+            })
+            .collect();
+        let start = selected.first().copied().unwrap_or(end);
         progress(PackageProgress::Prepared {
             paths,
-            start: self.steps,
+            start,
+            selected: selected.clone(),
         });
+        let mut completed = self.completed.clone();
         let mut checker = Checker {
             workspace: std::mem::take(&mut self.workspace),
         };
@@ -148,10 +239,11 @@ impl PackageChecker {
             .workspace
             .add_project_range(
                 &project,
-                self.steps,
+                start,
                 end,
-                &(self.steps..end).collect(),
+                &selected,
                 &mut |steps, workspace| {
+                    completed.insert(steps - 1);
                     if steps == end
                         || !boundaries.contains(&steps)
                         || !interval.is_some_and(|period| saved_at.elapsed() >= period)
@@ -161,15 +253,40 @@ impl PackageChecker {
                     let _time = timing::Scope::shared();
                     progress.borrow_mut()(PackageProgress::Saving);
                     let started = Instant::now();
-                    let bytes =
-                        crate::checkpoint::serialize_bounded::<MAX_PACKAGE_BYTES>(&Checkpoint {
+                    let failed = if let Some(checkpoint) = artifact_checkpoint.as_mut() {
+                        let artifact = artifacts::State {
                             resolution: &self.resolution,
                             workspace,
                             steps,
                             pending: true,
+                            completed: &completed,
+                        }
+                        .export_package_state(
+                            checkpoint.owner,
+                            checkpoint.input,
+                            checkpoint.boundary,
+                            checkpoint.catalog,
+                        );
+                        let failed = artifact.is_err();
+                        progress.borrow_mut()(PackageProgress::ArtifactCheckpoint {
+                            steps,
+                            artifact,
                         });
-                    let failed = bytes.is_err();
-                    progress.borrow_mut()(PackageProgress::Checkpoint { steps, bytes });
+                        failed
+                    } else {
+                        let bytes = crate::checkpoint::serialize_bounded::<MAX_PACKAGE_BYTES>(
+                            &Checkpoint {
+                                resolution: &self.resolution,
+                                workspace,
+                                steps,
+                                pending: true,
+                                completed: &completed,
+                            },
+                        );
+                        let failed = bytes.is_err();
+                        progress.borrow_mut()(PackageProgress::Checkpoint { steps, bytes });
+                        failed
+                    };
                     let cost = started.elapsed();
                     // A growing environment will not fit again after hitting the budget.
                     // Successful writes adapt the cadence to keep checkpoint I/O bounded.
@@ -190,6 +307,7 @@ impl PackageChecker {
             )
             .map_err(|error| checker.diagnostic(&error));
         self.workspace = checker.workspace;
+        self.completed = completed;
         if result.is_ok() {
             self.steps = end;
             self.pending = false;
@@ -221,3 +339,7 @@ impl PackageChecker {
         Some(saved)
     }
 }
+
+#[path = "package_artifacts.rs"]
+mod artifacts;
+pub use artifacts::{ArtifactBoundary, ArtifactCatalog, ArtifactOwner, PackageArtifact};

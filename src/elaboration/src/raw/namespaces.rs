@@ -4,7 +4,7 @@
 //! its arguments do; conversion in the kernel still compares ordinary type IDs.
 use super::{environment::*, exp::Exp, ids::*, program::*};
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub(crate) struct Specialization<I> {
     pub source: I,
     pub arguments: std::sync::Arc<[(ModuleParamId, ModuleArgument)]>,

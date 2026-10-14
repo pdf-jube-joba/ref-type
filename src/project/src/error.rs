@@ -40,6 +40,10 @@ pub enum Error {
     MissingPackageName {
         path: PathBuf,
     },
+    InvalidWorkspace {
+        path: PathBuf,
+        message: String,
+    },
     InvalidPackageName {
         name: String,
         path: PathBuf,
@@ -144,6 +148,9 @@ impl std::fmt::Display for Error {
             Self::MissingPackageName { path } => {
                 write!(f, "{} requires [package].name", path.display())
             }
+            Self::InvalidWorkspace { path, message } => {
+                write!(f, "invalid workspace in {}: {message}", path.display())
+            }
             Self::InvalidPackageName { name, path } => {
                 write!(f, "invalid package name '{name}' in {}", path.display())
             }
@@ -228,6 +235,9 @@ impl diagnostics::DiagnosticError for Error {
                 .with("path", path.to_string_lossy().into_owned()),
             Self::MissingPackageName { path } => Data::new("project.MissingPackageName")
                 .with("path", path.to_string_lossy().into_owned()),
+            Self::InvalidWorkspace { path, message } => Data::new("project.InvalidWorkspace")
+                .with("path", path.to_string_lossy().into_owned())
+                .with("message", message.clone()),
             Self::InvalidPackageName { name, path } => Data::new("project.InvalidPackageName")
                 .with("name", name.clone())
                 .with("path", path.to_string_lossy().into_owned()),

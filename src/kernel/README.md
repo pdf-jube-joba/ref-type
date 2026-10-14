@@ -12,6 +12,7 @@ sort・型・項・証明を共通の `kernel::syntax` の `Expression` と `Nod
 | [reflection](src/reflection.rs) | Program の反映 |
 | [metavariables](src/metavariables.rs) | 単一化と保留制約 |
 | [environment](src/environment.rs) | 宣言登録と検証済み環境 |
+| [exports](src/exports.rs) | package が所有する宣言と共有式の再配置 |
 
 `Context` は `Binding { var, ty }` を外側から並べた telescope で、各型は先行する文脈で解釈する。
 `Bound(0)` は最も内側の変数、`SymbolId` は表示名であり、alpha 等価性は名前に依存しない。
@@ -77,6 +78,18 @@ occurs check は候補・期待型・宣言文脈を通じた循環も検出す�
 `_` や `?` の表面上の区別と位置情報は elaboration が管理する。
 
 ## 共有と調査
+
+`Environment::boundary` は package の検査開始時の宣言集合を記録し、`export_since` は追加された宣言を明示的な ID 付きの `EnvironmentExport` にする。
+定義本体、parameter、帰納型、Program datatype、反映先を保持し、依存 package の宣言は参照として扱う。
+読み込みでは `reserve_definitions` と `reserve_nominals` で対応先を予約し、raw と共有する `ExpressionGraph` を `Arena::import_graph` で復元してから宣言を再配置する。
+`Environment::import_export` は参照先と反映表を検証して宣言を公開する。
+部分成果物が重なる場合は、予約済み ID の宣言と式が一致することを確認して共有し、新しい宣言だけを追加する。
+
+式の export は根から到達するノードを一度ずつ、子が先になる順序で保存する。
+依存 package が所有するノードは外部参照を通じて共有し、import は現在の arena の interning を利用する。
+式の読み込み失敗時は追加ノードと ID 対応表を戻し、宣言の読み込み失敗時は既存の宣言表を保持する。
+kernel 宣言に到達する未解決メタ変数は export 境界で検出する。
+raw の宣言参照にも用いる `Meta` ノードの identity は、frontend の対応表と `reserve_metas` によって別途再配置する。
 
 束縛を含む構造走査は `Arena::map_children` に集約する。
 環境は推論・弱頭簡約・conversion・文脈・型の shift・同時代入を共有し、`cache_counts` で件数を取得できる。

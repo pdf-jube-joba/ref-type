@@ -13,14 +13,14 @@ pub use resolve::Declaration;
 
 pub use resolve::Reference;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Output {
     pub module: Vec<String>,
     pub location: SourceLocation,
     pub text: String,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Default, Debug)]
 pub struct Analysis {
     pub declarations: Vec<Declaration>,
     #[serde(skip)]
@@ -285,9 +285,13 @@ impl GlobalEnvironment {
     }
 
     pub(crate) fn collect_references(&mut self) {
+        // Resolver references are refreshed on each append. Keep the checked
+        // references separately so reused declarations and exported artifacts
+        // retain accesses discovered during elaboration (such as constructors).
         self.analysis
             .references
-            .extend(self.module_manager.references.borrow_mut().drain(..));
+            .extend(self.module_manager.references.borrow().iter().cloned());
+        self.order_analysis();
     }
 }
 

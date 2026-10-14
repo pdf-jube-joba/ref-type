@@ -6,7 +6,12 @@ use std::{cell::RefCell, rc::Rc};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Expression(u32);
+artifact::identity!(Expression, "expression");
 impl Expression {
+    /// Reconstruct an opaque handle for a validated import table.
+    pub fn from_index(index: u32) -> Self {
+        Self(index)
+    }
     pub fn index(self) -> usize {
         self.0 as usize
     }
@@ -19,13 +24,32 @@ pub struct MetaId {
     pub(crate) index: u32,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+impl artifact::Relocate for MetaId {
+    fn relocate(&mut self, r: &mut artifact::Relocation) -> artifact::Result<()> {
+        (self.session, self.index) = r.pair("meta", (self.session, self.index))?;
+        Ok(())
+    }
+}
+
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum Mode {
     Pure,
     Computation,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
+)]
 pub enum Node {
     Ascribe {
         term: Expression,
@@ -542,7 +566,8 @@ macro_rules! node_children {
 }
 
 impl Node {
-    fn try_for_each_child<E>(
+    /// Visit immediate child expressions with their additional binder depth.
+    pub fn try_for_each_child<E>(
         &self,
         mut visit: impl FnMut(Expression, usize) -> Result<(), E>,
     ) -> Result<(), E> {
@@ -644,6 +669,17 @@ impl Arena {
     }
     pub(crate) fn scratch_mark(&self) -> usize {
         self.0.borrow().nodes.len()
+    }
+    /// Undo allocations made by an unpublished graph import.
+    pub(crate) fn rollback_import(&self, mark: usize) {
+        let mut storage = self.0.borrow_mut();
+        while storage.nodes.len() > mark {
+            if let Some(node) = storage.nodes.pop().unwrap() {
+                storage.interned.remove(&node);
+            }
+        }
+        storage.properties.bounds.truncate(mark);
+        storage.properties.flags.truncate(mark);
     }
     pub(crate) fn is_live(&self, e: Expression) -> bool {
         self.0
@@ -757,7 +793,9 @@ impl Arena {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
+)]
 pub struct Binding {
     pub var: SymbolId,
     pub ty: Expression,
