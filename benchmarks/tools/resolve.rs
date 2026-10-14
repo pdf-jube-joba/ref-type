@@ -1,4 +1,4 @@
-//! Resolver-only measurement: cargo run -p resolve --example resolve-bench -- libs/std
+//! Resolver-only measurement: cargo run --manifest-path benchmarks/Cargo.toml --bin resolve-bench -- PATH
 use std::{path::Path, time::Instant};
 
 /// Predict source-module completion order without running the type checker.

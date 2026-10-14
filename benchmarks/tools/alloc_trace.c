@@ -1,6 +1,6 @@
 /* Linux/glibc: trace large allocations without changing the checker.
- * cc -shared -fPIC -O2 benchmarks/alloc_trace.c -o /tmp/ref-type-alloc-trace.so
- * LD_PRELOAD=/tmp/ref-type-alloc-trace.so python3 benchmarks/check.py PATH
+ * cc -shared -fPIC -O2 benchmarks/tools/alloc_trace.c -o /tmp/ref-type-alloc-trace.so
+ * LD_PRELOAD=/tmp/ref-type-alloc-trace.so python3 benchmarks/bench.py run PATH
  * Resolve executable offsets with: addr2line -Cf -e target/debug/cli OFFSET
  */
 #define _GNU_SOURCE

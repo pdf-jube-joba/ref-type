@@ -197,7 +197,7 @@ REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
   python3 benchmarks/bench.py run libs/algebra/homological/computations \
   --cache-mode cold \
   --seconds 180 --memory-mib 3072 --progress-seconds 15 \
-  --output benchmarks/check.json
+  --output benchmarks/runs/check/report.json
 ```
 
 `progress` 行と宣言の `checking` 行は処理の途中にも書き出すため、中断後も最後に開始した処理を追える。
@@ -208,12 +208,12 @@ REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
 詳細ログをファイルに保存しながら進捗バーを表示する場合は、制御端末のあるシェルから次のように実行する。
 
 ```sh
-mkdir -p refcache
+mkdir -p benchmarks/runs/scratch
 REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
-  /usr/bin/time -v -o benchmarks/homological-memory.log \
+  /usr/bin/time -v -o benchmarks/runs/homological-memory.log \
   target/debug/cli libs/algebra/homological/computations --progress-tty \
-  --cache-dir "$(mktemp -d refcache/profile.XXXXXX)" \
-  > benchmarks/homological.log 2>&1
+  --cache-dir "$(mktemp -d benchmarks/runs/scratch/profile.XXXXXX)" \
+  > benchmarks/runs/homological.log 2>&1
 ```
 
 module・宣言の途中ログと完了した宣言の所要時間は `homological.log` に、実行全体の最大 RSS などは `homological-memory.log` に残る。
@@ -222,16 +222,17 @@ Ctrl+C で検査を中断でき、中断前に出力された途中ログはフ�
 型検査前に package ごとの検査完了順を調べる場合は、resolver の計測用プログラムを使える。
 
 ```sh
+mkdir -p benchmarks/runs
 cargo run --manifest-path benchmarks/Cargo.toml --bin resolve-bench -- libs/algebra/homological/computations --package-order \
-  > benchmarks/module-order.log
+  > benchmarks/runs/module-order.log
 ```
 
 `package_complete` 番目の module と、その完了直後に検査する `next_module` を表示する。
 この順序はキャッシュ省略と型エラーからの復旧がない場合の予定であり、実測時間は通常の検査ログで確認する。
-namespace と名前解決の測定条件・結果は [namespace-results.json](../benchmarks/namespace-results.json) にある。
+namespace と名前解決の計測方法は [benchmarks](../benchmarks/README.md) にまとめている。
 現在の計測には `python3 benchmarks/bench.py run` を使い、`--runs 3` で通常実行、`--profile-costs --profile-phases` で詳細計測、`--command benchmarks/target/debug/resolve-bench` で resolver 単独の計測を行う。
 事前に `cargo build -p cli --locked` と `cargo build --manifest-path benchmarks/Cargo.toml --bin resolve-bench --locked` で計測用バイナリを更新する。
-各 CLI 実行は空の専用キャッシュを使い、保存処理も測定に含まれる。
+`--cache-mode cold` は各 CLI 実行に空の専用キャッシュを用意し、保存処理も計測に含める。
 最大 RSS は子プロセスを含む個々のプロセスの最大値であり、同時点の合計や namespace 固有の使用量ではない。
 
 ## 処理系のテスト

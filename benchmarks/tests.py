@@ -7,11 +7,61 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import bench
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_named_cases_select_the_target_limits_and_output_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "input.ref").write_text(r"\module Main {}")
+            (root / "cases.toml").write_text('''[checker]
+input = "input.ref"
+target = "checker"
+description = "small checker workload"
+seconds = 5
+memory_mib = 128
+[resolver]
+input = "input.ref"
+target = "resolver"
+description = "small resolver workload"
+seconds = 5
+memory_mib = 128
+''')
+            checker = root / "target/debug/resolve-bench"
+            checker.parent.mkdir(parents=True)
+            checker.write_text('''#!/usr/bin/env python3
+import json, sys
+from pathlib import Path
+if '--report-json' in sys.argv:
+    Path(sys.argv[sys.argv.index('--report-json') + 1]).write_text(json.dumps({
+        'version': 1, 'outcome': 'accepted', 'cache': {'verification_reused': False}}))
+else:
+    assert len(sys.argv) == 2
+print('done')
+''')
+            checker.chmod(0o755)
+            with patch.object(bench, "BENCHMARKS", root), contextlib.redirect_stdout(io.StringIO()):
+                for name in ["checker", "resolver"]:
+                    args = ["case", name]
+                    if name == "checker":
+                        args += ["--binary", str(checker), "--cache-mode", "shared", "--seconds", "4"]
+                    self.assertEqual(bench.main(args), 0)
+                    report = json.loads((root / "runs" / name / "report.json").read_text())
+                    self.assertTrue(report["complete"])
+                    self.assertEqual(report["memory_mib"], 128)
+                    self.assertEqual(report["seconds_per_run"], 4 if name == "checker" else 5)
+                    self.assertEqual(report["case_definition"]["target"], name)
+                    row = report["measurements"][0]
+                    self.assertEqual(row["case"], name)
+                    if name == "checker":
+                        self.assertEqual(row["command"][row["command"].index("--cache-dir") + 1],
+                                         str(root / "runs/checker/cache"))
+                    else:
+                        self.assertEqual(row["command"], [str(checker), str(root / "input.ref")])
+
     def test_package_order_and_cycles(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
