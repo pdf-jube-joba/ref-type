@@ -123,6 +123,25 @@ fn progress_lines(output: &Output) -> Vec<String> {
 }
 
 #[cfg(target_os = "linux")]
+fn child_process(parent: u32) -> Option<u32> {
+    // The per-task `children` file requires an optional kernel configuration.
+    fs::read_dir("/proc")
+        .unwrap()
+        .filter_map(Result::ok)
+        .find_map(|entry| {
+            let pid = entry.file_name().to_str()?.parse().ok()?;
+            let status = fs::read_to_string(entry.path().join("status")).ok()?;
+            let ppid = status
+                .lines()
+                .find_map(|line| line.strip_prefix("PPid:"))?
+                .trim()
+                .parse::<u32>()
+                .ok()?;
+            (ppid == parent).then_some(pid)
+        })
+}
+
+#[cfg(target_os = "linux")]
 #[test]
 fn native_batches_recheck_with_a_fresh_cache_and_preserve_parent_errors() {
     use sha2::{Digest, Sha256};
@@ -212,10 +231,9 @@ fn native_check_detects_source_changes_after_starting_its_snapshot() {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .unwrap();
-    let children = format!("/proc/{0}/task/{0}/children", parent.id());
     let started = Instant::now();
     loop {
-        if fs::read_to_string(&children).is_ok_and(|text| !text.trim().is_empty()) {
+        if child_process(parent.id()).is_some() {
             break;
         }
         if started.elapsed() > Duration::from_secs(10) || parent.try_wait().unwrap().is_some() {
@@ -255,12 +273,9 @@ fn cancelling_native_check_reaps_the_worker_and_removes_its_workspace() {
         .spawn()
         .unwrap();
     let started = Instant::now();
-    let children = format!("/proc/{0}/task/{0}/children", parent.id());
     let worker = loop {
-        if let Ok(text) = fs::read_to_string(&children)
-            && let Some(pid) = text.split_whitespace().next()
-        {
-            break pid.to_owned();
+        if let Some(pid) = child_process(parent.id()) {
+            break pid;
         }
         if started.elapsed() > Duration::from_secs(10) || parent.try_wait().unwrap().is_some() {
             let _ = parent.kill();

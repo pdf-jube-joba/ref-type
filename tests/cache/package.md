@@ -93,6 +93,138 @@ expect = "reject"
 remove = ["src/Base.ref"]
 ```
 
+## 別の利用側と独立した依存
+
+共通の依存先を持つ二つの package を経由した型は、別の利用側で成果物を復元しても同じ型として扱える。
+利用側に独立した依存を追加しても、既存の依存先の検証結果を再利用する。
+
+```toml scenario
+id = "different-consumers"
+scope = "package"
+entry = "app"
+```
+
+```toml file=base/ref.toml
+[package]
+name = "base"
+```
+
+```ref file=base/src/root.ref
+\module Core { \inductive Unit: \Set := | unit: Unit; }
+```
+
+```toml file=left/ref.toml
+[package]
+name = "left"
+[dependencies]
+base = { path = "../base" }
+```
+
+```ref file=left/src/root.ref
+\module Core { \import base.Core[] \as B; \definition value: B.Unit := B.Unit::unit; }
+```
+
+```toml file=right/ref.toml
+[package]
+name = "right"
+[dependencies]
+base = { path = "../base" }
+```
+
+```ref file=right/src/root.ref
+\module Core { \import base.Core[] \as B; \definition id(x: B.Unit): B.Unit := x; }
+```
+
+```toml file=app/ref.toml
+[package]
+name = "app"
+[dependencies]
+left = { path = "../left" }
+right = { path = "../right" }
+```
+
+```ref file=app/src/root.ref
+\module Main { \import left.Core[] \as L; \import right.Core[] \as R; \normalize R.id L.value; }
+```
+
+```toml file=extra/ref.toml
+[package]
+name = "extra"
+```
+
+```ref file=extra/src/root.ref
+\module Core { \inductive Unit: \Set := | unit: Unit; }
+```
+
+```toml file=other/ref.toml
+[package]
+name = "other"
+[dependencies]
+extra = { path = "../extra" }
+right = { path = "../right" }
+left = { path = "../left" }
+```
+
+```ref file=other/src/root.ref
+\module Main { \import left.Core[] \as L; \import right.Core[] \as R; \normalize R.id L.value; }
+```
+
+### 最初の利用側
+
+共通の型を使う関数と値を検査して保存する。
+
+```toml step
+id = "cold"
+expect = "accept"
+cache = "unused"
+```
+
+### 別の利用側
+
+独立した依存を先に読む利用側でも、保存された型と値を再利用して同じ簡約結果になる。
+
+```toml step
+id = "other"
+entry = "other"
+expect = "accept"
+cache = "reused"
+stdout_same_as = "cold"
+```
+
+### 依存順の変更
+
+manifest の依存の記述順を変えても同じ結果を再利用できる。
+
+```toml step
+id = "reordered"
+entry = "other"
+expect = "accept"
+cache = "reused"
+stdout_same_as = "cold"
+```
+
+```toml file=other/ref.toml
+[package]
+name = "other"
+[dependencies]
+left = { path = "../left" }
+right = { path = "../right" }
+extra = { path = "../extra" }
+```
+
+### キャッシュ無効
+
+再利用せずに検査しても同じ簡約結果になる。
+
+```toml step
+id = "clean"
+entry = "other"
+expect = "accept"
+cache = "unused"
+args = ["--no-cache"]
+stdout_same_as = "cold"
+```
+
 ## macro alias と等号移送
 
 macro alias を通した等号移送の証明は、検証結果を復元した後も利用できる。
