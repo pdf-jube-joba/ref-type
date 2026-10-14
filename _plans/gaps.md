@@ -1,6 +1,6 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+G02〜G05・G08 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -166,3 +166,23 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 ```
 
 ライブラリでは [Proposition.existsIntro](../libs/std/src/Logic/Proposition.ref) に部分集合への埋め込みと存在導入をまとめ、部分集合の条件を一度だけ指定している。
+
+<a id="g08"></a>
+
+## G08: signature parameter の型に使う構造の別名
+
+構造の変換結果を通常の定義に名前付けし、その定義で具体化した signature を子 module の parameter 型に使いたい。
+外部 module から、同じ変換式で具体化した signature の値を渡すときも、別名を展開して照合したい。
+
+| サンプル | signature の具体化 | 結果 |
+| --- | --- | --- |
+| [08-01-signature-alias.ref](gaps/08-01-signature-alias.ref) | `Wrapper.ordinary := copied R p` を `Modules` の parameter に渡す。 | 失敗：`incompatible rigid expressions in metavariable constraint`。 |
+| [08-02-signature-expanded.ref](gaps/08-02-signature-expanded.ref) | 同じ位置に `copied R p` を直接渡す。 | 成功。 |
+
+各サンプルは23行であり、signature の構造、引数、変換式、利用側の import は同じである。
+差分は `Wrapper` 内で `Modules` に渡す構造の別名を展開するかどうかである。
+単なる record parameter の別名では同じ診断は再現せず、`Bundle` のように台集合とその台集合上の構造を持つ signature を渡す例で再現する。
+
+`Tor.Over.ProjectiveSecond` から `resolutions.ResolutionTensor.Over.Of` を具体化した際、一般の可換環上の加群に対して、`Ring.commutativeRingAsRing R ring` と `ResolutionTensor.Over.ordinaryRing` の照合が同じ診断で停止した。
+[ResolutionTensor.ref](../libs/algebra/homological/resolutions/src/ResolutionTensor.ref) では、依存 module の具体化へ変換式を直接渡すことで回避している。
+この回避で射影係数による Tor の消滅を構成でき、一般の環への適用と巡回加群への具体化は型検査が通る。

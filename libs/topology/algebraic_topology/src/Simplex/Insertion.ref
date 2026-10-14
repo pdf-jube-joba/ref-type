@@ -1,0 +1,28 @@
+\definition sum: (\forall (i: Fin.Fin (N.Nat^::succ n))(x: Coordinate n) ->
+  Sums.sum (N.Nat^::succ n) (insertZero n i x) = Sums.sum n x) ->
+  \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(x: Coordinate (N.Nat^::succ n)) ->
+  Sums.sum (N.Nat^::succ (N.Nat^::succ n)) (insertZero (N.Nat^::succ n) i x) = Sums.sum (N.Nat^::succ n) x :=
+  \fun (previous: _)(i: _)(x: _) =>
+    (\induction (o: Option.Option[Fin.Fin (N.Nat^::succ n)]) \return
+      Sums.sum (N.Nat^::succ (N.Nat^::succ n))
+        (insertStep n (insertZero n) x o) = Sums.sum (N.Nat^::succ n) x \with {
+      | none: trans!{Real.Real} _ _ _ (extendSum (N.Nat^::succ n) Real.zero x) (Laws.addZeroLeft (Sums.sum (N.Nat^::succ n) x))
+      | some: \fun (j: Fin.Fin (N.Nat^::succ n)) => trans!{Real.Real} _ _ _
+        (extendSum (N.Nat^::succ n) (x (Fin.zero n)) (insertZero n j (\fun (k: Fin.Fin n) => x (Fin.succ n k))))
+        (congr!{Real.Real Real.Real} (Real.add (x (Fin.zero n))) _ _ (previous j (\fun (k: Fin.Fin n) => x (Fin.succ n k))))
+    }) (Fin.split (N.Nat^::succ n) i);
+\definition nonnegative: (\forall (i: Fin.Fin (N.Nat^::succ n))(x: Coordinate n) ->
+  (\forall (j: Fin.Fin n) -> R.Le Real.zero (x j)) ->
+  \forall (j: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (insertZero n i x j)) ->
+  \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(x: Coordinate (N.Nat^::succ n)) ->
+  (\forall (j: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (x j)) ->
+  \forall (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) -> R.Le Real.zero (insertZero (N.Nat^::succ n) i x j) :=
+  \fun (previous: _)(i: _)(x: _)(positive: _) =>
+    (\induction (o: Option.Option[Fin.Fin (N.Nat^::succ n)]) \return
+      \forall (k: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) -> R.Le Real.zero
+        (insertStep n (insertZero n) x o k) \with {
+      | none: extendNonnegative (N.Nat^::succ n) Real.zero x (R.leRefl Real.zero) positive
+      | some: \fun (j: Fin.Fin (N.Nat^::succ n)) => extendNonnegative (N.Nat^::succ n) (x (Fin.zero n))
+        (insertZero n j (\fun (k: Fin.Fin n) => x (Fin.succ n k))) (positive (Fin.zero n))
+        (previous j (\fun (k: Fin.Fin n) => x (Fin.succ n k)) (\fun (k: Fin.Fin n) => positive (Fin.succ n k)))
+    }) (Fin.split (N.Nat^::succ n) i);

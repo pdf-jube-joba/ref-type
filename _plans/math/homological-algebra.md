@@ -35,6 +35,9 @@
 
 ## 1. 分解と Tor の比較
 
+`derived_functors.Tor.Over.ProjectiveSecond` は、片方を次数零の係数としたテンソル複体の因子交換と、その第二変数が射影的な場合の高次消滅を実装している。
+`tests/projects/homological-algebra/src/Cyclic/ProjectiveCoefficient.ref` が巡回加群と整数係数への適用を検査する。
+
 既存の比較定理・horseshoe・分解変更の同型を用いて、両変数の射影分解から作る二重複体の total と、一方だけを分解したテンソル複体との比較を構成する。
 増大写像から得る比較写像がホモロジー同型を誘導することを証明し、Tor の両変数での計算の一致、分解変更・係数写像・変数交換との整合性を公開する。
 二重複体と比較写像は `resolutions`、Tor としての同型と自然性は `derived_functors` に置く。
@@ -54,7 +57,9 @@ d(x\otimes y)=dx\otimes y+(-1)^{\deg x}x\otimes dy
 `derived_functors.UniversalCoefficient.Over.On.At.map` は
 \(H^n(\operatorname{Hom}_R(C,A))\to\operatorname{Hom}_R(H_n(C),A)\)
 を構成し、`Morphism` はその自然性を扱う。
-ここから、有界で各項が有限自由な整数鎖複体に対して、核の同定・全射性・接続写像を追加する。
+`homological_algebra.Finite.Bounded.Of.At.UniversalCoefficient.CohomologyKernel.sequence` と `Tensor.Projection.Exactness.Derived.sequence` は、有界で各項が有限自由な整数鎖複体について、核の同定と全射性を持つ以下の短完全列を実装している。
+`CohomologyKernel.splitting` と `Tensor.Projection.Exactness.Derived.isomorphism` は、Smith 計算から選んだ分裂の直和表示である。
+`tests/projects/homological-algebra/src/Finite/Bounded/UniversalCoefficient.ref` が、任意次数と係数、非対角の境界行列、零次・負次数・ねじれ係数への具体化を検査する。
 
 \[
 0\longrightarrow\operatorname{Ext}^1_{\mathbb Z}(H_{n-1}(C),A)
