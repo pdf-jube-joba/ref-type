@@ -71,6 +71,33 @@ pub(crate) fn discover(directory: &Path) -> Result<Option<Workspace>, Error> {
     Ok(None)
 }
 
+/// Find the package or source root containing an editor document.
+/// A workspace-only manifest is a boundary, not the document's package.
+pub fn source_entry(file: impl AsRef<Path>) -> Result<PathBuf, Error> {
+    let file = absolute(file.as_ref());
+    let mut source_root = None;
+    for directory in file.ancestors().skip(1) {
+        let path = directory.join("ref.toml");
+        match fs::read_to_string(&path) {
+            Ok(text) => {
+                let manifest = parse_manifest(directory, &text)?;
+                if manifest.package.is_some() {
+                    return Ok(directory.to_path_buf());
+                }
+                if manifest.workspace.is_some() {
+                    break;
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(Error::io(IoOperation::ReadSource, &path, error)),
+        }
+        if source_root.is_none() && directory.join("root.ref").is_file() {
+            source_root = Some(directory.join("root.ref"));
+        }
+    }
+    Ok(source_root.unwrap_or(file))
+}
+
 /// Resolve the default cache before loading sources; an explicit CLI path takes precedence.
 pub fn default_cache_directory(entry: impl AsRef<Path>) -> Result<PathBuf, Error> {
     let entry = absolute(entry.as_ref());

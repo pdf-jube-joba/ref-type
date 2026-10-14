@@ -1,4 +1,7 @@
-use project::{SourceSnapshot, package_loader, workspace::default_cache_directory};
+use project::{
+    SourceSnapshot, package_loader,
+    workspace::{default_cache_directory, source_entry},
+};
 use std::{
     fs,
     path::PathBuf,
@@ -103,6 +106,34 @@ fn workspace_cache_is_shared_by_members_and_their_source_files() {
         default_cache_directory(fixture.0.join("unlisted")).unwrap(),
         fixture.0.join("unlisted/refcache")
     );
+}
+
+#[test]
+fn editor_entries_distinguish_packages_from_workspace_only_manifests() {
+    let fixture = Fixture::new();
+    fixture.write("ref.toml", "[workspace]\npackages = ['member']\n");
+    fixture.package("member", "member", "");
+    fixture.package("unlisted", "unlisted", "");
+    fixture.write("standalone/root.ref", r"\module Main {}");
+    fixture.write("standalone/Child.ref", "");
+    fixture.write("loose/Main.ref", r"\module Main {}");
+    for (file, entry, cache) in [
+        ("member/src/root.ref", "member", "refcache"),
+        ("unlisted/src/root.ref", "unlisted", "unlisted/refcache"),
+        (
+            "standalone/Child.ref",
+            "standalone/root.ref",
+            "standalone/refcache",
+        ),
+        ("loose/Main.ref", "loose/Main.ref", "loose/refcache"),
+    ] {
+        let actual = source_entry(fixture.0.join(file)).unwrap();
+        assert_eq!(actual, fixture.0.join(entry));
+        assert_eq!(
+            default_cache_directory(actual).unwrap(),
+            fixture.0.join(cache)
+        );
+    }
 }
 
 #[cfg(unix)]

@@ -1,5 +1,5 @@
 //! Snapshot based semantic queries and incremental checking.
-pub use ::project::workspace::default_cache_directory;
+pub use ::project::workspace::{default_cache_directory, source_entry};
 pub use ::project::{SourceSnapshot, module_loader, package_loader};
 pub use ::syntax::{parse, syntax};
 
