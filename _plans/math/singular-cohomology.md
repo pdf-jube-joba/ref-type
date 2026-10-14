@@ -8,49 +8,38 @@
 実射影平面では整数係数のねじれと \(\mathbb F_2\) 係数のカップ平方まで求める。
 
 代数的な核・像・商は `module_theory`、一般複体と長完全列は `chain_complexes`、Hom 複体は `resolutions`、Ext・Tor は `derived_functors`、有限行列計算は `integer_matrices`・`finitely_generated_modules`・`homological_algebra` の既存 API を使う。
-[ホモロジー代数計画](homological-algebra.md) に残る普遍係数短完全列・整数 Künneth・体係数の標準外積同型は、第6・7節で必要になる。
+[ホモロジー代数計画](homological-algebra.md) の普遍係数短完全列全体の自然性・整数 Künneth・体係数の標準外積同型は、第6・7節で必要になる。
+有限モデルの係数付き群の計算には、`homological_algebra.Finite.Bounded` の普遍係数短完全列と分裂を使う。
 第1〜5節は既存の基盤から進められる。
 本計画全体を一つの実装単位とし、以下の節は中間検査点とする。
 De Rham 同型、Poincaré 双対性、一般の無限 CW 複体、局所係数、スペクトル系列による計算は、今回の構成から進む後続の単位とする。
 
-## 現状とパッケージ分割
+## 追加する構成の配置
 
-`algebraic_topology` には区間・ホモトピー・ホモトピー同値・cone・suspension・cofiber・有限 CW 対がある。
-`Simplex.Carrier n` は有限実座標で定義された標準単体の台集合を返し、`Simplex.At` は部分空間位相と座標評価の連続性を公開する。
-零座標の挿入による面の座標写像、単体条件の保存、零次元の一点性、先頭の面の座標公式と最後の頂点を実装している。
-`tests/projects/topological-k-theory/src/Simplices.ref` が、次数に依存する台集合の族とこれらの公式を別パッケージから検査する。
-有限 CW 複体は特性写像・内部の同相条件・弱位相などを入力データとして保持する。
-特異鎖、単体複体、ホモロジー、カップ積、セル境界の次数計算は追加が必要である。
+既存の公開 API は [ライブラリ一覧](../../libs/README.md) と各 README を参照する。
+空間の幾何的な構成と、鎖複体による不変量を次のように分ける。
 
-| パッケージ | 追加する module 群と役割 |
+| 配置・パッケージ | 追加する module 群と役割 |
 | --- | --- |
-| `metric_spaces` | コンパクト距離空間の Lebesgue 数、一様連続性、細分の距離評価 |
-| `topological_constructions` | 既存の積のコンパクト性、商、貼り合わせを再利用し、幾何的実現への補題を追加 |
-| `algebraic_topology` | `Simplex`、`PathComponent`、`SimplicialComplex`、`Realization`、球面・有限グラフ・トーラス・実射影平面の空間と有限 CW 構造 |
-| `singular_cohomology`（新設） | `Chains`、`Cochains`、`Relative`、`Homotopy`、`Subdivision`、`Excision`、`MayerVietoris`、`Simplicial`、`Cellular`、`Product`、`Cup`、`Coefficients`、`Calculations` |
-| `module_theory`・`commutative_algebra` | 自由整数加群、生成元からの延長、積・直和、Hom・テンソルの既存構成を再利用 |
-| `chain_complexes`・`resolutions` | 複体、誘導写像、ホモトピー、長完全列、Hom・テンソル複体を再利用 |
-| `derived_functors`・`homological_algebra` | 普遍係数、Künneth、有限モデルの証明付き計算を接続 |
+| [topology/metric_spaces](../../libs/topology/metric_spaces/README.md)・`metric_spaces` | Lebesgue 数、一様連続性、細分の距離評価 |
+| [topology/topological_constructions](../../libs/topology/topological_constructions/README.md)・`topological_constructions` | 幾何的実現に必要な積・商・貼り合わせの補題 |
+| [topology/algebraic_topology](../../libs/topology/algebraic_topology/README.md)・`algebraic_topology` | `Simplex` の連続写像と合成則、`PathComponent`、`SimplicialComplex`、`Realization`、具体的な空間と有限 CW 構造 |
+| `libs/topology/singular_cohomology`・`singular_cohomology`（新設） | `Chains`、`Cochains`、`Relative`、`Homotopy`、`Subdivision`、`Excision`、`MayerVietoris`、`Simplicial`、`Cellular`、`Product`、`Cup`、`Coefficients`、`Calculations` |
+| `algebra/homological/derived_functors`・`derived_functors`、`algebra/homological/computations`・`homological_algebra` | 普遍係数・Künneth と、位相的に比較した有限モデルとの接続 |
 
 `singular_cohomology` は `std`、`module_theory`、`commutative_algebra`、`chain_complexes`、`resolutions` と幾何側の `real`、`topology`、`metric_spaces`、`topological_constructions`、`topological_algebra`、`algebraic_topology` を直接 import する範囲に応じて依存に持つ。
 第6・7節で導来関手と有限計算を利用する際は `derived_functors`・`homological_algebra` を加える。
 新規パッケージは `std` 以外の約5,000行という目安に従い、細分・比較・積・計算を共有基盤から応用への依存で分け、`singular_cohomology` から公開する。
 幾何的な実現と空間の構成は `algebraic_topology`、そのコホモロジーの計算と比較定理は `singular_cohomology` が担当する。
 `algebraic_topology` から `singular_cohomology` への依存は生じない構成とする。
-実数係数の群は [De Rham コホモロジー](../../libs/geometry/differential_forms/README.md) と同じ Dedekind 実数・加群構造を使う。
+実数係数には `real/basic` の `real` を使い、後続の De Rham 同型は `geometry/differential_forms` の `differential_forms` に接続する。
+多様体と局所形式は、それぞれ `geometry/manifolds` の `manifolds` と `geometry/euclidean_forms` の `euclidean_forms` を使う。
 
 ## 1. 標準単体と位相的な前提
 
-標準単体を有限実座標の部分空間として構成する。
-
-\[
-\Delta^n=\{(t_0,\ldots,t_n)\in\mathbb R^{n+1}\mid
-t_i\ge0,\ \sum_i t_i=1\}.
-\]
-
-頂点、アフィン写像、面写像、退化写像とその合成恒等式、境界、重心を定義する。
+`algebraic_topology.Simplex.Carrier`・`At.topology`・`face` を使い、全頂点、アフィン写像、面写像の連続性、退化写像と合成恒等式、境界、重心を追加する。
 面写像の添字は \(0,\ldots,n\)、境界の符号は \((-1)^i\) とする。
-台集合を返す通常の定義を公開し、次数が引数として変化する場合に利用できるようにする。
+別パッケージでの次数付きの族と面の公式の確認は、[Simplices.ref](../../tests/projects/topological-k-theory/src/Simplices.ref) に追加する。
 
 単位区間の有限積のコンパクト性、単体の閉性、コンパクト距離空間の Lebesgue 数と連続写像の一様連続性を証明する。
 重心細分の直径評価と、有限鎖の各特異単体を十分細分すれば被覆の一つに入ることを示す基盤にする。
@@ -120,7 +109,7 @@ C_*^{\{U,V\}}(X)\to0
 
 ## 5. 球面と有限モデルへの比較
 
-\(S^0\) は二点空間、\(S^n\) は \((n+1)\)-次元円板の境界として構成する。
+`algebraic_topology.Euclidean.Dimension` の \((n+1)\)-次元円板と境界球面を使い、\(S^0\) と二点空間の同相を証明する。
 二つの可縮な開集合による被覆と、共通部分の \(S^{n-1}\) への変形収縮を与え、Mayer–Vietoris で球面の被約群を帰納的に計算する。
 円板と境界の相対群、球面の向きに対応する整数生成元、写像の次数と合成則を定義する。
 零次元のセルと一次元セルの端点の符号は個別に接続する。
@@ -197,17 +186,19 @@ C_*^{\{U,V\}}(X)\to0
 
 ```sh
 cargo build -p cli
-cargo run -p cli -- --full-check libs
-cargo run -p cli -- --full-check tests/projects/singular-cohomology
-cargo run -p cli -- tests/projects/homological-algebra
-cargo run -p cli -- tests/projects/topological-k-theory
+cargo run -p cli -- libs/topology/singular_cohomology --module singular_cohomology
+cargo run -p cli -- tests/projects/singular-cohomology --module singular_cohomology_tests
+cargo run -p cli -- tests/projects/homological-algebra --module homological_algebra_tests
+cargo run -p cli -- tests/projects/topological-k-theory --module topological_k_theory_foundations_tests
 cargo run -p cli -- tests/projects/manifolds-de-rham
 cargo run -p cli -- tests/projects/library
-cargo test -p cli --test ref_files --locked
 ```
 
-project を `src/cli/tests/ref_files.rs` に登録し、各 README と `libs/README.md` に依存・公開 API・計算例・検査手順を反映する。
+検査は [CLI のキャッシュと範囲選択](../../src/USAGE.md) に従い、新設後のパッケージと利用 project を指定する。
+ライブラリの検査は workspace の `libs/refcache/` を共有する。
+新規パッケージを `libs/ref.toml` の `[workspace].packages` に、project を `src/cli/tests/ref_files.rs` に登録する。
+各 README と `libs/README.md` に依存・公開 API・計算例・検査手順を反映する。
 最終的な完了判定は、特異理論の構成、第7節の全計算、有限モデルとの比較、カップ積と写像の証明が揃うことで行う。
 定理は位相空間・係数群・写像・必要な前提を命題内に量化して証明する。
-次数や点に依存する台集合は通常の型値定義で公開し、別 module からの具体化を初期段階で検査する。
-言語・体系の制限が判明した場合は、書きたい構成・最小例・診断・影響する段階を [gaps.md](../gaps.md) に記録し、その理由を明記して停止する。
+言語・体系の制限に直面した場合は、書きたい形と現在の書き方を100行以内の playground 用の再現例として [gaps.md](../gaps.md) に記録する。
+回避する構成も成立しない致命的な制限と判明した場合は、診断と影響範囲を明記して停止する。
