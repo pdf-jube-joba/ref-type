@@ -1,7 +1,7 @@
 # 標準ライブラリ
 
 `std` は他のパッケージに依存せず、論理・データ・集合・算術・代数構造を提供する。
-公開 module は [root.ref](src/root.ref)、利用例は [library project](../../tests/projects/library/src/root.ref) を参照。
+公開 module は [root.ref](src/root.ref) を参照。
 
 | module | 内容 |
 | --- | --- |

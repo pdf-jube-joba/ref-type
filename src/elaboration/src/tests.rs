@@ -35,8 +35,22 @@ fn child_type_aliases_substitute_overlapping_parent_arguments_once() {
 
 #[test]
 fn nested_structure_calls_keep_shared_bodies() {
-    let modules =
-        parse::str_parse_modules(include_str!("../../../benchmarks/shared-bodies.ref")).unwrap();
+    let mut source = String::from(
+        r"\module SharedBodies {
+      \structure Bundle { Carrier: \Set, seed: Carrier }
+      \definition f0(B: Bundle)(x: B.Carrier): B.Carrier := x;",
+    );
+    for index in 1..=12 {
+        let previous = index - 1;
+        source.push_str(&format!(r"\definition f{index}(B: Bundle)(x: B.Carrier): B.Carrier := f{previous} B (f{previous} B x);"));
+    }
+    source.push_str(
+        r"\inductive Unit: \Set := | unit: Unit;
+      \definition bundle: Bundle := Bundle { Carrier := Unit, seed := Unit::unit };
+      \definition proof: f12 bundle Unit::unit = Unit::unit := \refl(Unit::unit);
+    }",
+    );
+    let modules = parse::str_parse_modules(&source).unwrap();
     let mut environment = GlobalEnvironment::default();
     environment.add_modules_to_root(&modules).unwrap();
 }
@@ -1740,8 +1754,6 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
 
 #[test]
 fn set_recursion_preserves_a_shared_universe() {
-    use ::syntax::syntax::{ModuleBody, ModuleItem as SurfaceModuleItem};
-
     for level in [0, 2] {
         let source = format!(
             r"\module SharedUniverse(State: \Set({level}), Output: \Set({level}),
@@ -1772,27 +1784,9 @@ fn set_recursion_preserves_a_shared_universe() {
                     }}) continued;
                 }}
             }}",
-            termination = include_str!("../../../libs/std/src/Logic/Termination.ref"),
+            termination = include_str!("../tests/fixtures/termination.ref"),
         );
-        let mut modules = parse::str_parse_modules(&source).unwrap();
-        let ModuleBody::Inline(items) = &mut modules[0].body else {
-            panic!("expected an inline SharedUniverse module")
-        };
-        let results = items
-            .iter_mut()
-            .find_map(|item| match item {
-                SurfaceModuleItem::ChildModule { module } if module.name.0 == "Results" => {
-                    Some(module)
-                }
-                _ => None,
-            })
-            .expect("Termination.Results module");
-        let (items, spans) = parse::parse_items(include_str!(
-            "../../../libs/std/src/Logic/Termination/Results.ref"
-        ))
-        .unwrap();
-        results.body = ModuleBody::Inline(items);
-        results.declaration_spans = spans;
+        let modules = parse::str_parse_modules(&source).unwrap();
         let mut environment = GlobalEnvironment::default();
         environment.add_new_module_to_root(&modules[0]).unwrap();
 
@@ -1972,9 +1966,9 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
         },
     };
     for source in [
-        include_str!("../../../tests/ok/general-recursion/finish.ref"),
-        include_str!("../../../tests/ok/general-recursion/continue.ref"),
-        include_str!("../../../tests/ok/general-recursion/run-case.ref"),
+        include_str!("../tests/fixtures/ok-general-recursion-finish.ref"),
+        include_str!("../tests/fixtures/ok-general-recursion-continue.ref"),
+        include_str!("../tests/fixtures/ok-general-recursion-run-case.ref"),
     ] {
         let modules = parse::str_parse_modules(source).unwrap();
         let mut global = GlobalEnvironment::default();
@@ -2061,7 +2055,7 @@ fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
         raw::program::{ComputationTermNode, ValueTermNode},
     };
     let modules = parse::str_parse_modules(include_str!(
-        "../../../tests/ok/general-recursion/block-syntax.ref"
+        "../tests/fixtures/ok-general-recursion-block-syntax.ref"
     ))
     .unwrap();
     let mut environment = GlobalEnvironment::default();
@@ -2145,7 +2139,7 @@ fn program_cbv_arrows_and_lambdas_elaborate_to_alpha_equivalent_cbpv() {
     };
 
     let modules = parse::str_parse_modules(include_str!(
-        "../../../tests/ok/program-cbv-syntax-sugar.ref"
+        "../tests/fixtures/ok-program-cbv-syntax-sugar.ref"
     ))
     .unwrap();
     let mut environment = GlobalEnvironment::default();
@@ -2246,9 +2240,10 @@ fn program_records_generate_checked_projections_and_swap_fields() {
         kernel_bridge::{Evaluation, evaluate_computation},
         raw::program::{ComputationTermNode as C, ValueTermNode as V},
     };
-    let modules =
-        parse::str_parse_modules(include_str!("../../../tests/ok/program-items/records.ref"))
-            .unwrap();
+    let modules = parse::str_parse_modules(include_str!(
+        "../tests/fixtures/ok-program-items-records.ref"
+    ))
+    .unwrap();
     let mut global = GlobalEnvironment::default();
     global.add_new_module_to_root(&modules[0]).unwrap();
     let env = global.crate_env();
@@ -2308,7 +2303,7 @@ fn program_records_generate_checked_projections_and_swap_fields() {
 fn program_associated_imports_remap_later_declarations() {
     use crate::raw::program::{ValueTermNode, ValueTypeNode};
     let modules = parse::str_parse_modules(include_str!(
-        "../../../tests/ok/program-items/associated-order.ref"
+        "../tests/fixtures/ok-program-items-associated-order.ref"
     ))
     .unwrap();
     let mut global = GlobalEnvironment::default();
@@ -2389,8 +2384,8 @@ fn program_definition_parameters_are_substituted_simultaneously_under_binders() 
 #[test]
 fn variadic_macros_match_tokens_and_sequences() {
     for source in [
-        include_str!("../../../tests/ok/macros/variadic_token_match.ref"),
-        include_str!("../../../tests/ok/macros/recursive_hygiene.ref"),
+        include_str!("../tests/fixtures/ok-macros-variadic_token_match.ref"),
+        include_str!("../tests/fixtures/ok-macros-recursive_hygiene.ref"),
     ] {
         let modules = parse::str_parse_modules(source).unwrap();
         let mut environment = GlobalEnvironment::default();
@@ -2528,8 +2523,8 @@ fn non_exhaustive_macro_matches_fail_only_when_selected() {
 #[test]
 fn self_recursive_macro_expansion_respects_depth_limit() {
     for source in [
-        include_str!("../../../tests/ng/macros/self_recursion_depth.ref"),
-        include_str!("../../../tests/ng/macros/non_tail_recursion_depth.ref"),
+        include_str!("../tests/fixtures/ng-macros-self_recursion_depth.ref"),
+        include_str!("../tests/fixtures/ng-macros-non_tail_recursion_depth.ref"),
     ] {
         let modules = parse::str_parse_modules(source).unwrap();
         let mut environment = GlobalEnvironment::default();
@@ -2654,8 +2649,8 @@ fn explicit_meta_assignment_shares_record_types_before_projection() {
 #[test]
 fn match_constraints_infer_scrutinee_and_nested_constructor_parameters() {
     for source in [
-        include_str!("../../../tests/ok/metavariables/match_constraints.ref"),
-        include_str!("../../../tests/ok/metavariables/indexed_match_constraints.ref"),
+        include_str!("../tests/fixtures/ok-metavariables-match_constraints.ref"),
+        include_str!("../tests/fixtures/ok-metavariables-indexed_match_constraints.ref"),
     ] {
         let modules = parse::str_parse_modules(source).unwrap();
         GlobalEnvironment::default()
@@ -2666,7 +2661,7 @@ fn match_constraints_infer_scrutinee_and_nested_constructor_parameters() {
 
 #[test]
 fn match_constraints_reject_incompatible_motives_and_branches() {
-    let source = include_str!("../../../tests/ok/metavariables/match_constraints.ref");
+    let source = include_str!("../tests/fixtures/ok-metavariables-match_constraints.ref");
     for (before, after) in [
         ("(_: Or[P, Or[Q, R]])", "(_: Or[P, Q])"),
         ("Or[_, _]::right r", "Or[_, _]::left r"),

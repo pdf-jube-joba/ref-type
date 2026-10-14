@@ -11,6 +11,6 @@
 `resolutions.ResolutionTensor.Over.Of.With` は射影加群と指定した射影分解のテンソルから分解を構成し、増大写像の全射性、完全性と各項の射影性を証明する。
 `resolutions.TensorComplex.Over.Square.With.naturality` はテンソル積が鎖写像の可換図式を保つことを示す。
 
-実数上の具体化と、次数ごとに台集合が変わる利用例は [Cohomology.ref](../../../../tests/projects/manifolds-de-rham/src/Cohomology.ref) にある。
+実数上の具体化と、次数ごとに台集合が変わる利用例は [Cohomology.ref](../../../../libs/geometry/coordinate_calculus/src/Cohomology.ref) にある。
 
 検査方法と関連パッケージは [ライブラリ一覧](../../../README.md) を参照。

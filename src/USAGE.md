@@ -4,7 +4,7 @@
 
 ```sh
 cargo run -p cli -- libs/std
-cargo run -p cli -- tests/ok/eval_id.ref
+cargo run -p cli -- libs/category
 ```
 
 入力は `ref.toml` のあるパッケージ・workspace ディレクトリ、またはルート module を含む `.ref` ファイルである。
@@ -57,6 +57,7 @@ workspace の外では入力ディレクトリの `refcache/` を利用する。
 | `--cache-budget-mib N` | ディスクの保持上限 MiB。既定8192、利用中の成果物は保護 |
 | `--clear-cache` | 保存先の中身を削除してから処理 |
 | `--cache-stats` | 解析・検査・再利用・保存の件数を表示 |
+| `--report-json PATH` | 合否と永続的な検証結果の再利用を JSON で保存 |
 | `--checkpoint-seconds N` | package途中のcheckpoint保存間隔。既定30秒、0は毎module完了時 |
 | `--stats` | raw / kernel のノード数などを表示 |
 | `--trace` | 実際の検証を行い、型検査・登録・簡約のログを表示 |
@@ -187,17 +188,16 @@ cost 計測中は、その変換で生じた kernel エラーの種類ごとに�
 `query.environment-plan` は検査順と依存情報から checkpoint のキーを作る時間を表す。
 `REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先される。
 簡潔な診断では最初のエラーで検査を停止する。
-時間とメモリの上限を付けた計測には [check.py](../benchmarks/check.py) を使える。
+時間とメモリの上限を付けた計測には [bench.py](../benchmarks/README.md) を使える。
 次の実行は空の専用キャッシュを作り、キャッシュ保存を含む初回検査を計測する。
 
 ```sh
 cargo build -p cli --locked
-mkdir -p refcache
 REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
-  python3 benchmarks/check.py libs/algebra/homological/computations \
-  --cache-dir "$(mktemp -d refcache/profile.XXXXXX)" \
+  python3 benchmarks/bench.py run libs/algebra/homological/computations \
+  --cache-mode cold \
   --seconds 180 --memory-mib 3072 --progress-seconds 15 \
-  --log benchmarks/check.log --result benchmarks/check.json
+  --output benchmarks/check.json
 ```
 
 `progress` 行と宣言の `checking` 行は処理の途中にも書き出すため、中断後も最後に開始した処理を追える。
@@ -218,29 +218,35 @@ REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
 
 module・宣言の途中ログと完了した宣言の所要時間は `homological.log` に、実行全体の最大 RSS などは `homological-memory.log` に残る。
 Ctrl+C で検査を中断でき、中断前に出力された途中ログはファイルに残る。
-計測スクリプトは途中の RSS と CPU 時間、終了時の最大 RSS・ユーザー／システム CPU 時間を記録する。
+計測スクリプトは経過時間を表示し、終了時の最大 RSS・ユーザー／システム CPU 時間を記録する。
 型検査前に package ごとの検査完了順を調べる場合は、resolver の計測用プログラムを使える。
 
 ```sh
-cargo run -p resolve --example resolve-bench -- libs/algebra/homological/computations --package-order \
+cargo run --manifest-path benchmarks/Cargo.toml --bin resolve-bench -- libs/algebra/homological/computations --package-order \
   > benchmarks/module-order.log
 ```
 
 `package_complete` 番目の module と、その完了直後に検査する `next_module` を表示する。
 この順序はキャッシュ省略と型エラーからの復旧がない場合の予定であり、実測時間は通常の検査ログで確認する。
 namespace と名前解決の測定条件・結果は [namespace-results.json](../benchmarks/namespace-results.json) にある。
-`python3 benchmarks/namespace.py` は CLI の通常実行3回、詳細計測1回、resolver 単独の詳細計測1回を順番に実行する。
-事前に `cargo build -p cli --locked` と `cargo build -p resolve --example resolve-bench --locked` で計測用バイナリを更新する。
+現在の計測には `python3 benchmarks/bench.py run` を使い、`--runs 3` で通常実行、`--profile-costs --profile-phases` で詳細計測、`--command benchmarks/target/debug/resolve-bench` で resolver 単独の計測を行う。
+事前に `cargo build -p cli --locked` と `cargo build --manifest-path benchmarks/Cargo.toml --bin resolve-bench --locked` で計測用バイナリを更新する。
 各 CLI 実行は空の専用キャッシュを使い、保存処理も測定に含まれる。
 最大 RSS は子プロセスを含む個々のプロセスの最大値であり、同時点の合計や namespace 固有の使用量ではない。
 
 ## 処理系のテスト
 
 ```sh
+cargo build -p cli --locked
+python3 tests/tests.py
 cargo test --workspace --locked
+python3 -m unittest discover -s tests -p 'test_*.py'
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
-`src/cli/tests/ref_files.rs` が `tests/ok`、`tests/ng` と library project を検査する。
-失敗 fixture は `/* expect-error: 診断に含まれる文字列 */` で期待する診断を指定する。
+`tests/tests.py` が `tests/` の Markdown を実行し、CLI の公開仕様に基づいて合否とキャッシュの再利用を検査する。
+形式と実行方法は [acceptance test](../tests/README.md) を参照。
+`--report-json` の `outcome` は `accepted`、`rejected`、`internal-error` で、正常な受理と入力の拒否と処理系の異常を区別する。
+受理の終了コードは0、拒否は1、内部異常は2である。
+`cache.verification_reused` は構文解析だけの再利用を含まず、永続的な検証結果によって検証を省略したことを表す。
 依存クレートを取得済みの場合は Cargo のコマンドに `--offline` を追加できる。

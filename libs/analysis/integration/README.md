@@ -29,5 +29,5 @@ S_n(f;\xi)=\sum_{k=0}^{2^n-1}(x_{n,k+1}-x_{n,k})f(\xi_k)
 
 `ofRiemann` はリーマン可積分関数を定数列の同値類に送り、`riemannAgreement` が積分値の一致を証明する。
 `riemannLebesgueAgreement` は関数と積分値を直接量化した一致定理である。
-[利用例](../../../tests/projects/library/src/root.ref) は定数・長さ零の区間・代表列の同値性・一致定理を検査する。
+[積分の性質](src/Real/Riemann/Prop.ref) に定数と区間についての法則をまとめる。
 検査方法は [ライブラリ一覧](../../README.md#型検査) を参照。

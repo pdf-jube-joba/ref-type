@@ -1,24 +1,24 @@
 # package artifact の計測
 
-`cache_artifacts.py` は固定サイズの package からなる chain と diamond を生成し、cold、warm、利用側変更、入口編集、推移依存編集、訪問順変更、途中再開を順番に計測する。
-`--project` で実ライブラリの cold と warm を追加する。
-各ケースの wall time、peak RSS、終了状態、保存量、CLI の cache 統計を JSON に記録する。
-新形式では object の種類別に格納量と展開量も記録し、依存本体の増加を圧縮率から独立して比較する。
+`bench.py cache` は固定サイズの package からなる chain と diamond を生成し、cold、warm、利用側変更、入口編集、推移依存編集、訪問順変更を順番に計測する。
+`--checkpoint` で中断と途中再開を追加する。
+各ケースの wall time、peak RSS、終了状態、保存量、CLI の公開レポートを JSON に記録する。
+この文書にある保存形式別の格納量と展開量は、各時点の専用計測で取得した記録である。
 
 ```sh
-python3 benchmarks/cache_artifacts.py target/release/cli \
-  --output benchmarks/cache-artifacts-after.json \
-  --project libs/std
+python3 benchmarks/bench.py cache --binary target/release/cli --checkpoint \
+  --output benchmarks/cache-measurement.json
+python3 benchmarks/bench.py run libs/std --binary target/release/cli --runs 2 \
+  --cache-dir refcache/std-measurement --output benchmarks/std-measurement.json
 ```
 
-一時データは既定で `refcache/artifact-benchmark-scratch/` のディスク領域を使う。
+一時データは既定で `refcache/benchmark-scratch/` のディスク領域を使う。
 `--work-dir` で保存先を指定する。
-各検査プロセスの仮想メモリ上限は既定1536 MiB、ケースごとの時間上限は120秒、cache の上限は2048 MiBとし、`--memory-mib`、`--timeout`、`--cache-mib` で調整する。
-実行優先度を下げ、終了時と中断時は同じ process group の子プロセスを回収する。
+現在のツールの仮想メモリ上限は既定3072 MiB、ケースごとの時間上限は300秒、cache の容量設定は8192 MiBとし、`--memory-mib`、`--seconds`、`--cache-mib` で調整する。
+終了時と中断時は supervisor を通して子プロセスを回収する。
 ビルド・検証・計測は直列で実行する。
-大きい実例では `--retain-project-caches refcache/cache-measurement` で新しい保存先を指定し、完了済みの成果物を検証後も保持できる。
-`--resume-project-cache` と一つの `--project` を指定すると、その保存先からの再開と無変更検査を計測する。
-再開は JSON の `resume` として記録する。
+実ライブラリは `run` または `libraries` で計測し、`--cache-dir` に指定した保存先を実行後も保持できる。
+同じ保存先で繰り返すと、保存済みの検証結果を使った計測になる。
 
 旧実装の初回記録は [cache-artifacts-before.json](cache-artifacts-before.json) にある。
 この記録の実行中には Rust のビルドが並行し、`/tmp` の tmpfs によるメモリ消費も発生した。

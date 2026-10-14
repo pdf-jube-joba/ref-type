@@ -38,10 +38,10 @@ CW 対の商と、cofibration の延長定理はそれぞれ独立に利用で�
 `Cone` と unreduced suspension の台集合は cylinder の商なので、入力空間が空なら空になる。
 reduced suspension と smash は入力の基点を受け取る。
 
-[利用例](../../../tests/projects/topological-k-theory/src/root.ref) は区間のホモトピーの連結と端点、区間反転のホモトピー同値とその合成、円板・球面の閉性、商の等式、一次元円板の境界を一点へ付着する構成、空の有限 CW 対を検査する。
+[利用例](../../../libs/topology/cell_spaces/src/root.ref) は区間のホモトピーの連結と端点、区間反転のホモトピー同値とその合成、円板・球面の閉性、商の等式、一次元円板の境界を一点へ付着する構成、空の有限 CW 対を検査する。
 `Simplices` は通常の型値定義 `Simplex.Carrier n` を別パッケージの次数付きの族として使い、面の座標公式と座標評価の連続性を検査する。
 
 ```sh
 target/debug/cli libs/topology/algebraic_topology --module algebraic_topology --full-check-local --diagnostics compact
-target/debug/cli tests/projects/topological-k-theory --module topological_k_theory_foundations_tests --full-check-local --diagnostics compact
+target/debug/cli libs/topology/cell_spaces --module cell_spaces --full-check-local --diagnostics compact
 ```

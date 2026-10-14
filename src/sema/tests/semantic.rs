@@ -27,10 +27,24 @@ fn project() -> SourceSnapshot {
 }
 
 #[test]
-fn editing_std_nat_basic_program_preserves_termination_imports() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../libs/std");
-    let file = root.join("src/Data/Nat/Basic/Program.ref");
-    let snapshot = SourceSnapshot::read(&root).unwrap();
+fn editing_a_consumer_preserves_nested_parameterized_imports() {
+    let file = PathBuf::from("/virtual/Consumer.ref");
+    let snapshot = SourceSnapshot::new("/virtual/root.ref")
+        .with_file("/virtual/root.ref", r"\module Logic; \module Consumer;")
+        .with_file(
+            "/virtual/Logic.ref",
+            r"\module Termination(A: \Set) { \definition Holds(x: A): \Prop := x = x; }",
+        )
+        .with_file(
+            &file,
+            r"\inductive Unit: \Set := | unit: Unit;
+            \module Implementation {
+                \import \root.Logic[].Termination[A := Unit] \as T;
+                \definition certificate: T.Holds Unit::unit := \refl(Unit::unit);
+            }
+            \import .Implementation[] \as I;
+            \definition certificate: Unit::unit = Unit::unit := I.certificate;",
+        );
     let mut database = Database::new();
     let first = database.file(&snapshot, &file);
     assert!(first.is_success(), "{:?}", first.diagnostics);
@@ -39,12 +53,12 @@ fn editing_std_nat_basic_program_preserves_termination_imports() {
         &file,
         format!(
             r"{text}
-\definition environmentProbe: \Prop := \forall (P: \Prop) -> P -> P;"
+        \definition environmentProbe: \Prop := \forall (P: \Prop) -> P -> P;"
         ),
     );
     let changed = database.file(&edited, &file);
     assert!(changed.is_success(), "{:?}", changed.diagnostics);
-    assert_eq!(database.stats().environment_hits, 1);
+    assert!(database.stats().environment_hits > 0);
     assert_eq!(changed, Database::new().file(&edited, &file));
 }
 

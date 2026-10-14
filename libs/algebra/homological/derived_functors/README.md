@@ -12,7 +12,7 @@ Ext・Tor、分解からの独立性と自然性、巡回加群の分解、普�
 `Tor.Over.ProjectiveSecond` は、指定した分解のテンソル複体と、係数加群を左因子に置いた複体の間に因子交換の鎖写像を構成する。
 `Degree.forward`・`backward` は各項の交換とその逆であり、`Step` は両方向で微分との可換性を証明する。
 `Positive.vanishing` は第二変数の射影性と第一変数の射影分解を命題内の前提として受け取り、すべての正次数の Tor の消滅を証明する。
-[利用例](../../../../tests/projects/homological-algebra/src/Cyclic/ProjectiveCoefficient.ref)は、第一変数を \(\mathbb Z/2\)、第二変数を \(\mathbb Z\) としてこの定理を適用する。
+[利用例](../../../../libs/algebra/homological/concrete_complexes/src/Cyclic/ProjectiveCoefficient.ref)は、第一変数を \(\mathbb Z/2\)、第二変数を \(\mathbb Z\) としてこの定理を適用する。
 
 `derived_functors.Ext.Over.Extension.With` は指定した射影分解の Ext¹ を、第1シジジーからの準同型の商と同型にする。
 `OfExtension.With.extClass` は短完全拡大に対応する Ext¹ の類を返す。

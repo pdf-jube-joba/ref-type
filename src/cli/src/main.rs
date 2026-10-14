@@ -1,4 +1,5 @@
 mod progress;
+mod report;
 mod resources;
 #[cfg(target_os = "linux")]
 mod supervisor;
@@ -69,6 +70,9 @@ struct Args {
     /// parse・チェック・キャッシュ再利用の件数を表示する
     #[arg(long)]
     cache_stats: bool,
+    /// 合否と永続的な検証結果の再利用を JSON で保存する
+    #[arg(long)]
+    report_json: Option<PathBuf>,
     /// package途中のcheckpoint保存間隔（秒、既定30）。module完了時に保存する
     #[arg(long)]
     checkpoint_seconds: Option<u64>,
@@ -132,7 +136,7 @@ fn main() -> anyhow::Result<()> {
     display.finish(
         result
             .as_ref()
-            .is_ok_and(|status| *status == std::process::ExitCode::SUCCESS),
+            .is_ok_and(|report| report.outcome == report::Outcome::Accepted),
     );
     if let Some(measurements) = timing.measurements() {
         let mut modules = Duration::ZERO;
@@ -179,9 +183,24 @@ fn main() -> anyhow::Result<()> {
     if supervised && supervisor::interrupted() {
         std::process::exit(130);
     }
-    let status = result?;
-    if status != std::process::ExitCode::SUCCESS {
-        std::process::exit(1);
+    let summary = result
+        .as_ref()
+        .cloned()
+        .unwrap_or_else(|_| report::Report::internal_error());
+    if let Some(path) = &args.report_json {
+        summary.write(path)?;
+    }
+    match result {
+        Ok(report) if report.outcome == report::Outcome::Accepted => {}
+        Ok(report) => std::process::exit(match report.outcome {
+            report::Outcome::Rejected => 1,
+            report::Outcome::InternalError => 2,
+            report::Outcome::Accepted => unreachable!(),
+        }),
+        Err(error) => {
+            eprintln!("Error: {error:#}");
+            std::process::exit(2);
+        }
     }
     Ok(())
 }
@@ -207,10 +226,7 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_path(
-    args: &Args,
-    display: &mut progress::Display,
-) -> anyhow::Result<std::process::ExitCode> {
+fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<report::Report> {
     let cache_directory = match &args.cache_dir {
         Some(path) => path.clone(),
         None => sema::default_cache_directory(&args.path)?,
@@ -241,7 +257,7 @@ fn run_path(
             display.finish(false);
             let message = format!("Module Load Error: {error}");
             eprintln!("{message}");
-            return Ok(std::process::ExitCode::FAILURE);
+            return Ok(report::Report::checked(false, false));
         }
     };
     if args.list_modules {
@@ -250,13 +266,13 @@ fn run_path(
                 for path in paths {
                     println!("{}", path.join("."));
                 }
-                Ok(std::process::ExitCode::SUCCESS)
+                Ok(report::Report::checked(true, false))
             }
             Err(diagnostics) => {
                 for diagnostic in diagnostics {
                     eprintln!("{}", diagnostic.render(&snapshot));
                 }
-                Ok(std::process::ExitCode::FAILURE)
+                Ok(report::Report::checked(false, false))
             }
         };
     }
@@ -301,13 +317,16 @@ fn run_path(
                     display.finish(false);
                     let message = format!("Module Selection Error: module '{name}' was not found");
                     eprintln!("{message}");
-                    return Ok(std::process::ExitCode::FAILURE);
+                    return Ok(report::Report::checked(false, false));
                 }
                 result
             }
             None => database.check_with_options(&snapshot, &options),
         };
         display.finish(result.is_success());
+        if !result.is_success() && result.diagnostics.is_empty() {
+            anyhow::bail!("verification did not complete");
+        }
         for output in result.outputs() {
             #[cfg(target_os = "linux")]
             if args.worker.is_some() {
@@ -337,11 +356,13 @@ fn run_path(
             eprintln!("{message}");
         }
     }
-    Ok(if error.is_some() {
-        std::process::ExitCode::FAILURE
-    } else {
-        std::process::ExitCode::SUCCESS
-    })
+    let stats = database.stats();
+    let reused = !args.no_cache
+        && !args.full_check
+        && !args.trace
+        && (stats.disk_hits > 0 || stats.restored_modules > 0)
+        && (stats.reused_modules > 0 || stats.restored_modules > 0);
+    Ok(report::Report::checked(error.is_none(), reused))
 }
 
 fn show_progress(progress: &sema::ModuleProgress) {

@@ -20,7 +20,7 @@
 
 `Dimension.Examples.Euclidean` は任意次元の座標空間とその標準アトラスを構成する。
 `Euclidean.Subspace` は任意の開部分集合へ制限し、`Examples.Point` は零次元の一点多様体を、`Dimension.Examples.Empty` は任意次元の空多様体を構成する。
-利用例は [Geometry.ref](../../../tests/projects/manifolds-de-rham/src/Geometry.ref) にある。
+利用例は [Geometry.ref](../../../libs/geometry/coordinate_calculus/src/Geometry.ref) にある。
 
 ```sh
 target/debug/cli libs/geometry/manifolds --module manifolds --full-check-local --diagnostics compact

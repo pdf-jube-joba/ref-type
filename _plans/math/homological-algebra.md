@@ -75,7 +75,7 @@ Smith 計算で得る生成元上の写像と、抽象的な外積・Tor 項の�
 
 ## 利用例・検査・完了条件
 
-[tests/projects/homological-algebra](../../tests/projects/homological-algebra/README.md) に、追加した写像とその可換図式を利用する例を置く。
+[libs/algebra/homological/concrete_complexes](../../libs/algebra/homological/concrete_complexes/README.md) に、追加した写像とその可換図式を利用する例を置く。
 
 | 利用例 | 追加する確認 |
 | --- | --- |
@@ -93,13 +93,13 @@ cargo build -p cli
 cargo run -p cli -- libs/algebra/homological/resolutions --module resolutions
 cargo run -p cli -- libs/algebra/homological/derived_functors --module derived_functors
 cargo run -p cli -- libs/algebra/homological/computations --module homological_algebra
-cargo run -p cli -- tests/projects/homological-algebra --module homological_algebra_tests
-cargo run -p cli -- tests/projects/library
-cargo run -p cli -- tests/projects/manifolds-de-rham
+cargo run -p cli -- libs/algebra/homological/concrete_complexes --module concrete_complexes
+cargo run -p cli -- libs/std
+cargo run -p cli -- libs/geometry/coordinate_calculus
 ```
 
 完了条件は Tor の両側の比較、普遍係数短完全列全体の自然性、整数 Künneth、体係数の標準外積同型とその自然性・符号・単位、計算例がそろうことである。
 公開 module、各 README、`libs/README.md` を更新し、分割で新規パッケージを設けた場合は `libs/ref.toml` の `[workspace].packages` に追加する。
-新規利用 project を設けた場合は `src/cli/tests/ref_files.rs` に登録する。
+具体的な複体の構成と証明は `libs/algebra/homological/concrete_complexes/` に置き、`libs/ref.toml` の workspace から検査する。
 言語・体系の制限に直面した場合は、書きたい形と現在の書き方を100行以内の playground 用の再現例として [gaps.md](../gaps.md) に記録する。
 回避する構成も成立しない致命的な制限と判明した場合は、診断と影響範囲を明記して停止する。

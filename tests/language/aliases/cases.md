@@ -1,0 +1,124 @@
+# aliases / cases
+
+## body type
+
+alias の本体が宣言された型を持たないため、拒否される。
+
+```toml case
+id = "reject-aliases.body_type"
+scope = "module"
+expect = "reject"
+name = "Bad"
+```
+
+```ref
+\definition Wrong[A: \Set]: \Set := A -> \Prop;
+```
+
+## dependent argument type
+
+後続の alias 引数が先行する引数から決まる型を持たないため、拒否される。
+
+```toml case
+id = "reject-aliases.dependent_argument_type"
+scope = "module"
+expect = "reject"
+name = "Bad"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit;
+\inductive Other: \Set := | other: Other;
+\definition Identity[A: \Set, x: A]: A := x;
+\definition bad: Unit := Identity[Unit, Other::other];
+```
+
+## parameter count
+
+alias の引数が不足しており、残った上位 sort を項の型として使えないため、拒否される。
+
+```toml case
+id = "reject-aliases.parameter_count"
+scope = "module"
+expect = "reject"
+name = "Bad"
+```
+
+```ref
+\definition Relation[A: \Set]: \PropKind := A -> A -> \Prop;
+\definition bad: \PropKind := Relation;
+```
+
+## unused argument type
+
+本体で使わない alias 引数にも型の不一致があるため、拒否される。
+
+```toml case
+id = "reject-aliases.unused_argument_type"
+scope = "module"
+expect = "reject"
+name = "Bad"
+```
+
+```ref
+\inductive Unit: \Set := | unit: Unit;
+\definition Ignore[A: \Set]: \Prop := \forall (P: \Prop) -> P -> P;
+\definition bad: \Prop := Ignore[Unit::unit];
+```
+
+## aliases
+
+alias の本体を引数で置換すると宣言された型を持つため、受理される。
+
+```toml case
+id = "accept-aliases"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Aliases {
+  \inductive Unit: \Set := | unit: Unit;
+  \definition Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
+  \definition Predicate[A: \Set]: _ := A -> \Prop;
+  \definition At[A: \Set, x: A, P: Predicate[A]]: \Prop := P x;
+  \definition Identity[A: \Set, x: A]: A := x;
+  \definition Truth: \Prop := \forall (P: \Prop) -> P -> P;
+  \definition Constant[A: \Set, x, y: A]: _ := \fun (z: A) => x;
+
+  \definition reflexive(A: \Set)(r: Relation[A]): \Prop :=
+    \forall (x: A) -> r x x;
+  \definition atSelf(A: \Set)(x: A): At[_, x, \fun (y: A) => x = y] :=
+    \refl(x);
+  \definition identity(A: \Set)(x: A): Identity[A, x] = x := \refl(x);
+  \definition capture(A: \Set)(x, y: A): Constant[A, x, y] y = x := \refl(x);
+  \definition truth: Truth[] := \fun (P: \Prop) => \fun (p: P) => p;
+  \check Relation[Unit]: \PropKind;
+}
+
+\module AliasLibrary(A: \Set, x: A) {
+  \definition Equal[y: A]: \Prop := x = y;
+  \definition Relation[B: \Set]: \PropKind := A -> B -> \Prop;
+  \definition Applied[B: \Set, y: B, r: Relation[B]]: \Prop := r x y;
+  \inductive Unit: \Set := | unit: Unit;
+  \definition Element: \Set := Unit;
+  \definition Value: Element := Unit::unit;
+}
+
+\module AliasClient(A: \Set, x: A) {
+  \import \root.AliasLibrary[A := A, x := x] \as L;
+  \definition Equal[y: A]: _ := L.Equal[y];
+  \definition self: Equal[x] := \refl(x);
+  \definition applied: L.Applied[A, x, \fun (a, b: A) => a = b] := \refl(x);
+  \definition value: L.Element := L.Value;
+  \definition nominal: value = L.Unit::unit := \refl(value);
+  \definition relation(B: \Set)(r: L.Relation[B])(y: B): \Prop := r x y;
+}
+
+\module AliasUse {
+  \inductive Unit: \Set := | unit: Unit;
+  \import \root.AliasClient[A := Unit, x := Unit::unit] \as C;
+  \definition self: C.Equal[Unit::unit] := C.self;
+}
+```
+

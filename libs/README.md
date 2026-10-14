@@ -70,10 +70,12 @@ Linux の CLI は、一つの検査プロセスの仮想メモリを3072 MiBに�
 ```sh
 cargo run -p cli -- --full-check libs/algebra/homological/computations
 cargo run -p cli -- libs
-cargo run -p cli -- tests/projects/manifolds-de-rham
+cargo run -p cli -- libs/geometry/coordinate_calculus
 ```
 
-[library project](../tests/projects/library/src/root.ref) は分野間の接続と具体例、[category project](../tests/projects/category/src/root.ref) は圏論の利用例を検査する。
-処理系のテストとキャッシュの指定は [利用方法](../src/USAGE.md) を参照。
-
-[位相的 K 理論の基礎 project](../tests/projects/topological-k-theory/src/root.ref) は群完成、直和、行列位相、ホモトピー、商、セル付着を接続する。
+[具体的な複体](algebra/homological/concrete_complexes/README.md) は整数行列と巡回加群、有限複体のホモロジーを構成する。
+[座標計算](geometry/coordinate_calculus/README.md) は具体的な多様体と微分形式、引き戻しとコホモロジーを接続する。
+[cell_spaces](topology/cell_spaces/src/root.ref) は群完成、行列位相、ホモトピー、商、セル付着を接続する。
+[スカラーの互換性](analysis/scalar_compatibility/README.md) は実解析・距離空間・線形代数で共有する実数の構造を示す。
+[小さい圏](category/src/SmallCategories.ref) と [終対象の圏の極限](category/src/TerminalLimits.ref) は具体的な圏の構成を扱う。
+処理系の使い方とキャッシュの指定は [利用方法](../src/USAGE.md) を参照。

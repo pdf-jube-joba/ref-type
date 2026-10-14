@@ -1,5 +1,5 @@
 //! Keep the terminal and cancellation alive while bounded workers check a snapshot.
-use crate::{Args, progress};
+use crate::{Args, progress, report};
 use anyhow::{Context, bail};
 use sema::{ModuleProgress, ProgressEvent, ProgressPlan, SourceSnapshot};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use std::{
     io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     os::unix::process::{CommandExt, ExitStatusExt},
     path::{Path, PathBuf},
-    process::{Child, Command, ExitCode, ExitStatus, Stdio},
+    process::{Child, Command, ExitStatus, Stdio},
     sync::atomic::{AtomicI32, AtomicU64, Ordering},
     thread,
     time::{Duration, Instant},
@@ -397,7 +397,7 @@ fn snapshot_key(snapshot: &SourceSnapshot) -> Vec<u8> {
     digest.finalize().to_vec()
 }
 
-pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitCode> {
+pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<report::Report> {
     let _signals = Signals::install()?;
     let cache = match &args.cache_dir {
         Some(path) => path.clone(),
@@ -407,7 +407,13 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
         crate::clear_cache_directory(&cache)?;
     }
     let mut database = sema::Database::new();
-    let snapshot = database.read_snapshot(&args.path, args.full_check_local)?;
+    let snapshot = match database.read_snapshot(&args.path, args.full_check_local) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("Module Load Error: {error}");
+            return Ok(report::Report::checked(false, false));
+        }
+    };
     let paths = match database.module_paths(&snapshot) {
         Ok(paths) => paths,
         Err(diagnostics) => {
@@ -415,7 +421,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             for diagnostic in diagnostics {
                 eprintln!("{}", diagnostic.render(&snapshot));
             }
-            return Ok(ExitCode::FAILURE);
+            return Ok(report::Report::checked(false, false));
         }
     };
     let module = args
@@ -423,10 +429,11 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
         .as_ref()
         .map(|name| name.split('.').map(str::to_owned).collect::<Vec<_>>());
     if module.as_ref().is_some_and(|p| !paths.contains(p)) {
-        bail!(
+        eprintln!(
             "Module Selection Error: module '{}' was not found",
             args.module.as_ref().unwrap()
         );
+        return Ok(report::Report::checked(false, false));
     }
     let mut plan = ProgressPlan {
         packages: paths
@@ -490,6 +497,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
     let mut timings: BTreeMap<Vec<String>, ModuleProgress> = BTreeMap::new();
     let mut outputs = BTreeSet::new();
     let mut success = true;
+    let mut verification_reused = false;
     while let Some(batch) = pending.pop() {
         if interrupted() {
             bail!("検査を中断しました");
@@ -508,6 +516,10 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
         request.clear_cache = false;
         request.progress_tty = false;
         request.cache_dir = Some(worker_cache.clone());
+        request.report_json = Some(workspace.path("report.json"));
+        if workspace.path("report.json").exists() {
+            fs::remove_file(workspace.path("report.json"))?;
+        }
         serde_json::to_writer(File::create(workspace.path("request.json"))?, &request)?;
         let mut command = Command::new(std::env::current_exe()?);
         command
@@ -572,6 +584,17 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             &mut File::open(workspace.path("stdout"))?,
             &mut std::io::stdout(),
         )?;
+        let summary: report::Report = serde_json::from_reader(
+            File::open(workspace.path("report.json"))
+                .context("worker did not finish its report")?,
+        )?;
+        if summary.outcome == report::Outcome::InternalError {
+            bail!("verification worker failed internally");
+        }
+        if outcome.status.success() != (summary.outcome == report::Outcome::Accepted) {
+            bail!("verification worker status disagrees with its report");
+        }
+        verification_reused |= !fresh && summary.cache.verification_reused;
         for output in outcome.events.outputs {
             if outputs.insert((
                 output.location.file,
@@ -597,9 +620,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
     }
     let current = SourceSnapshot::read(&args.path)?;
     if snapshot_key(&current) != initial_key {
-        success = false;
-        display
-            .message("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
+        bail!("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
     }
     if fresh
         && !args.no_cache
@@ -617,11 +638,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             "検査が完了していない範囲があります。"
         });
     }
-    Ok(if success {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    })
+    Ok(report::Report::checked(success, verification_reused))
 }
 
 #[cfg(test)]

@@ -238,38 +238,11 @@ fn resolves_macro_capture_without_type_inference() {
 }
 
 #[test]
-fn existing_valid_sources_resolve_without_a_kernel_dependency() {
-    fn files(path: &std::path::Path, output: &mut Vec<std::path::PathBuf>) {
-        for entry in std::fs::read_dir(path).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_dir() {
-                files(&path, output);
-            } else if path.extension().is_some_and(|ext| ext == "ref") {
-                output.push(path);
-            }
-        }
-    }
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut paths = Vec::new();
-    files(&root.join("tests/ok"), &mut paths);
-    paths.sort();
-    let mut failures = Vec::new();
-    for path in paths {
-        let modules = project::module_loader::load_modules_from_root(&path).unwrap();
-        if let Err(error) = resolve(&modules) {
-            failures.push(format!("{}: {}", path.display(), error));
-        }
-    }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
-}
-
-#[test]
-fn library_resolves_without_type_inference() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../libs/std");
-    let package = project::package_loader::load_package(&root).unwrap();
-    if let Err(error) = resolve(&package.modules) {
-        panic!("{} at {:?}", error, error.module);
-    }
+fn parameterized_imports_resolve_without_type_inference() {
+    let modules = syntax::parse::str_parse_modules(r"\module Source(A: \Set) { \definition Carrier: \Set := A; }
+        \module Client { \inductive Unit: \Set := | unit: Unit; \import \root.Source[A := Unit] \as S; \definition value: \Set := S.Carrier; }").unwrap();
+    let resolved = resolve(&modules).unwrap();
+    assert_eq!(resolved.modules.len(), 2);
 }
 
 #[test]

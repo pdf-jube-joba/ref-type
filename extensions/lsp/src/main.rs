@@ -363,7 +363,7 @@ mod tests {
 
     fn open_document(text: &str) -> (Server, Connection, Connection, String) {
         let file = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/ng/metavariables/unsolved_goal.ref")
+            .join("tests/fixtures/document.ref")
             .canonicalize()
             .unwrap();
         let uri = Url::from_file_path(file).unwrap().to_string();

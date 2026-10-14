@@ -29,6 +29,6 @@
 自然性と因子化の等式は、各対象と各射について量化している。
 `Kan.Along.Prop` の `leftUnique` と `rightUnique` は、同じ \(K,F\) に対する二つの拡張の間の自然同型を構成する。
 
-[利用例](../../tests/projects/category/src/root.ref) は圏・関手・自然変換と普遍性を検査する。
+[利用例](../../libs/category/src/root.ref) は圏・関手・自然変換と普遍性を検査する。
 
 検査方法は [ライブラリ一覧](../README.md#型検査) を参照。

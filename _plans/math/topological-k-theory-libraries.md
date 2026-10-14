@@ -183,7 +183,7 @@ Chern 指標は [特異コホモロジー計画](singular-cohomology.md) と特�
 
 束の表現、補束、近似の完成時に型検査時間と証明の粒度を確認し、パッケージ分割を更新する。
 新規パッケージに `ref.toml`・`src/root.ref`・README を用意し、`libs/ref.toml` の `[workspace].packages` と `libs/README.md` に追加する。
-[tests/projects/topological-k-theory](../../tests/projects/topological-k-theory/src/root.ref) に、束の引き戻し、補束、Hopf 線束、相対群、球面の計算を追加する。
+[libs/topology/cell_spaces](../../libs/topology/cell_spaces/src/root.ref) に、束の引き戻し、補束、Hopf 線束、相対群、球面の計算を追加する。
 
 検査は [CLI のキャッシュと範囲選択](../../src/USAGE.md) に従い、変更したパッケージと利用 project を指定する。
 ライブラリの検査は workspace の `libs/refcache/` を共有する。
@@ -193,9 +193,9 @@ Chern 指標は [特異コホモロジー計画](singular-cohomology.md) と特�
 cargo build -p cli
 cargo run -p cli -- libs/topology/vector_bundles --module vector_bundles
 cargo run -p cli -- libs/topology/topological_k_theory --module topological_k_theory
-cargo run -p cli -- tests/projects/topological-k-theory --module topological_k_theory_foundations_tests
-cargo run -p cli -- tests/projects/library
-cargo run -p cli -- tests/projects/category
+cargo run -p cli -- libs/topology/cell_spaces --module cell_spaces
+cargo run -p cli -- libs/std
+cargo run -p cli -- libs/category
 ```
 
 言語・体系の制限に直面した場合は、書きたい形と現在の書き方を100行以内の playground 用の再現例として [gaps.md](../gaps.md) に記録する。

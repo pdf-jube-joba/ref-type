@@ -39,7 +39,7 @@ De Rham 同型、Poincaré 双対性、一般の無限 CW 複体、局所係数�
 
 `algebraic_topology.Simplex.Carrier`・`At.topology`・`face` を使い、全頂点、アフィン写像、面写像の連続性、退化写像と合成恒等式、境界、重心を追加する。
 面写像の添字は \(0,\ldots,n\)、境界の符号は \((-1)^i\) とする。
-別パッケージでの次数付きの族と面の公式の確認は、[Simplices.ref](../../tests/projects/topological-k-theory/src/Simplices.ref) に追加する。
+別パッケージでの次数付きの族と面の公式の確認は、[Simplices.ref](../../libs/topology/cell_spaces/src/Simplices.ref) に追加する。
 
 単位区間の有限積のコンパクト性、単体の閉性、コンパクト距離空間の Lebesgue 数と連続写像の一様連続性を証明する。
 重心細分の直径評価と、有限鎖の各特異単体を十分細分すれば被覆の一つに入ることを示す基盤にする。
@@ -180,23 +180,23 @@ C_*^{\{U,V\}}(X)\to0
 
 ## 検査と完了条件
 
-新設する `tests/projects/singular-cohomology` に `Basic`、`Relative`、`Excision`、`Spheres`、`Graphs`、`Torus`、`ProjectivePlane`、`Maps` の利用例を設ける。
+新設する `libs/topology/cohomology_models` に `Basic`、`Relative`、`Excision`、`Spheres`、`Graphs`、`Torus`、`ProjectivePlane`、`Maps` の利用例を設ける。
 群だけでなく、代表余鎖・積・誘導写像・相対群の接続写像を別パッケージから検査する。
 空空間、非連結空間、零次、ねじれを含む整数係数と標数2の係数を含める。
 
 ```sh
 cargo build -p cli
 cargo run -p cli -- libs/topology/singular_cohomology --module singular_cohomology
-cargo run -p cli -- tests/projects/singular-cohomology --module singular_cohomology_tests
-cargo run -p cli -- tests/projects/homological-algebra --module homological_algebra_tests
-cargo run -p cli -- tests/projects/topological-k-theory --module topological_k_theory_foundations_tests
-cargo run -p cli -- tests/projects/manifolds-de-rham
-cargo run -p cli -- tests/projects/library
+cargo run -p cli -- libs/topology/cohomology_models --module cohomology_models
+cargo run -p cli -- libs/algebra/homological/concrete_complexes --module concrete_complexes
+cargo run -p cli -- libs/topology/cell_spaces --module cell_spaces
+cargo run -p cli -- libs/geometry/coordinate_calculus
+cargo run -p cli -- libs/std
 ```
 
 検査は [CLI のキャッシュと範囲選択](../../src/USAGE.md) に従い、新設後のパッケージと利用 project を指定する。
 ライブラリの検査は workspace の `libs/refcache/` を共有する。
-新規パッケージを `libs/ref.toml` の `[workspace].packages` に、project を `src/cli/tests/ref_files.rs` に登録する。
+新規パッケージと具体的な空間の構成を `libs/ref.toml` の `[workspace].packages` に登録する。
 各 README と `libs/README.md` に依存・公開 API・計算例・検査手順を反映する。
 最終的な完了判定は、特異理論の構成、第7節の全計算、有限モデルとの比較、カップ積と写像の証明が揃うことで行う。
 定理は位相空間・係数群・写像・必要な前提を命題内に量化して証明する。
