@@ -1,0 +1,34 @@
+\definition q: Degree := complement n p;
+\import Result.Component[p := p] \as ResultComponent;
+\import ResultComponent.Exterior[] \as Exterior;
+\import Chains.At[C := Left.chain, z := p] \as LeftHomology;
+\import Chains.At[C := Right.chain, z := q] \as RightHomology;
+\import Evaluation.Canonical[p := p] \as TermEvaluation;
+\import Tensors.ExteriorTransport[C := Left.chain, D := Right.chain, p := p, q := q] \as GradeTransport;
+\import Tensors.IndexedCycleProduct[C := Left.chain, D := Right.chain, n := n].At[i := TermEvaluation.index] \as Indexed;
+\definition onCycles: \forall (x: LeftHomology.Cycle)(y: RightHomology.Cycle) ->
+  #apply{retraction} (#apply{Exterior.map} (ResultComponent.tensor (LeftHomology.classOf x) (RightHomology.classOf y))) =
+    #apply{TensorSum.Injection[i := p].map} (ResultComponent.tensor (LeftHomology.classOf x) (RightHomology.classOf y)) :=
+  \fun (x: LeftHomology.Cycle)(y: RightHomology.Cycle) => trans!{TensorSum.Carrier} _ _ _
+    (congr!{Homology.Homology TensorSum.Carrier} (#apply{retraction}) _ _ (Exterior.onClass x y))
+    (trans!{TensorSum.Carrier} _ _ _
+      (congr!{Homology.Homology TensorSum.Carrier} (#apply{retraction}) _ _
+        (GradeTransport.onClass n (Grading.complementSum n p) x y))
+      (trans!{TensorSum.Carrier} _ _ _ (onClass (Indexed.cycle x y)) (TermEvaluation.onCycles x y)));
+\definition onTensor: \forall (x: LeftHomology.Homology)(y: RightHomology.Homology) ->
+  #apply{retraction} (#apply{Exterior.map} (ResultComponent.tensor x y)) = #apply{TensorSum.Injection[i := p].map} (ResultComponent.tensor x y) :=
+  LeftHomology.classInduction (\fun (x: LeftHomology.Homology) => \forall (y: RightHomology.Homology) ->
+    #apply{retraction} (#apply{Exterior.map} (ResultComponent.tensor x y)) = #apply{TensorSum.Injection[i := p].map} (ResultComponent.tensor x y))
+    (\fun (x: LeftHomology.Cycle) => RightHomology.classInduction
+      (\fun (y: RightHomology.Homology) => #apply{retraction} (#apply{Exterior.map} (ResultComponent.tensor (LeftHomology.classOf x) y)) =
+        #apply{TensorSum.Injection[i := p].map} (ResultComponent.tensor (LeftHomology.classOf x) y)) (onCycles x));
+\import Modules.Hom[V := Homology.Homology, W := TensorSum.Carrier, source := Homology.homologySpace, target := TensorSum.space].Composition[
+  U := ResultComponent.tensorCarrier, domain := ResultComponent.tensorSpace] \as Compose;
+\definition composite: Modules.Hom[V := ResultComponent.tensorCarrier, W := TensorSum.Carrier, source := ResultComponent.tensorSpace, target := TensorSum.space].Map :=
+  Compose.compose retraction Exterior.map;
+\import Modules.Tensor[V := LeftHomology.Homology, W := RightHomology.Homology, left := LeftHomology.homologySpace, right := RightHomology.homologySpace].Universal[
+  U := TensorSum.Carrier, target := TensorSum.space] \as Universal;
+\definition equality: composite = TensorSum.Injection[i := p].map := Universal.ext composite TensorSum.Injection[i := p].map onTensor;
+\definition point: \forall (x: ResultComponent.tensorCarrier) -> #apply{retraction} (#apply{Exterior.map} x) = #apply{TensorSum.Injection[i := p].map} x :=
+  \fun (x: ResultComponent.tensorCarrier) => congr!{{Modules.Hom[V := ResultComponent.tensorCarrier, W := TensorSum.Carrier, source := ResultComponent.tensorSpace, target := TensorSum.space].Map} TensorSum.Carrier}
+    (\fun (f: Modules.Hom[V := ResultComponent.tensorCarrier, W := TensorSum.Carrier, source := ResultComponent.tensorSpace, target := TensorSum.space].Map) => #apply{f} x) _ _ equality;

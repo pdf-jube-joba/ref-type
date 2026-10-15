@@ -1,0 +1,32 @@
+\import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier q, left := C.family.space p, right := D.family.space q] \as Tensor;
+\import Tensor.Symmetry[] \as Symmetry;
+\import \parent.\parent.Sign[V := Original.Carrier p q, space := Original.space p q] \as SourceSign;
+\import \parent.\parent.Sign[V := Opposite.Carrier q p, space := Opposite.space q p] \as TargetSign;
+\import SourceSign.Mapping[W := Opposite.Carrier q p, target := Opposite.space q p] \as SignNaturality;
+\import TargetSign.Mapping[W := Original.Carrier p q, target := Original.space p q] \as InverseSignNaturality;
+\import Modules.Hom[V := Opposite.Carrier q p, W := Opposite.Carrier q p, source := Opposite.space q p, target := Opposite.space q p].Composition[
+  U := Original.Carrier p q, domain := Original.space p q] \as Compose;
+\definition map: Modules.Hom[V := Original.Carrier p q, W := Opposite.Carrier q p,
+  source := Original.space p q, target := Opposite.space q p].Map := Compose.compose (TargetSign.map (Arithmetic.mul p q)) Symmetry.forward;
+\definition naturality: \forall (x: Original.Carrier p q) ->
+  #apply{Symmetry.forward} (#apply{(SourceSign.map (Arithmetic.mul p q))} x) = #apply{map} x :=
+  SignNaturality.naturality Symmetry.forward (Arithmetic.mul p q);
+\definition onTensor: \forall (x: C.family.Carrier p)(y: D.family.Carrier q) ->
+  #apply{map} (Original.Term[p := p, q := q].tensor x y) =
+    #apply{(TargetSign.map (Arithmetic.mul p q))} (Opposite.Term[p := q, q := p].tensor y x) :=
+  \fun (x: C.family.Carrier p)(y: D.family.Carrier q) =>
+    congr!{{Opposite.Carrier q p} {Opposite.Carrier q p}} (#apply{(TargetSign.map (Arithmetic.mul p q))}) _ _ (Symmetry.onTensor x y);
+\import Modules.Tensor[V := D.family.Carrier q, W := C.family.Carrier p, left := D.family.space q, right := C.family.space p].Symmetry[] \as ReverseSymmetry;
+\definition twice: \forall (x: Original.Carrier p q) ->
+  #apply{(SourceSign.map (Arithmetic.mul q p))}
+    (#apply{ReverseSymmetry.forward} (#apply{map} x)) = x :=
+  \fun (x: Original.Carrier p q) => trans!{{Original.Carrier p q}} _ _ _
+    (congr!{{Original.Carrier p q} {Original.Carrier p q}} (#apply{(SourceSign.map (Arithmetic.mul q p))}) _ _
+      (InverseSignNaturality.naturality ReverseSymmetry.forward (Arithmetic.mul p q) (#apply{Symmetry.forward} x)))
+    (trans!{{Original.Carrier p q}} _ _ _
+      (congr!{Nat.Nat^ {Original.Carrier p q}}
+        (\fun (k: Nat.Nat^) => #apply{(SourceSign.map k)} (#apply{(SourceSign.map (Arithmetic.mul p q))}
+          (#apply{ReverseSymmetry.forward} (#apply{Symmetry.forward} x)))) _ _ (Natural.mulComm q p))
+      (trans!{{Original.Carrier p q}} _ _ _
+        (SourceSign.involutive (Arithmetic.mul p q) (#apply{ReverseSymmetry.forward} (#apply{Symmetry.forward} x)))
+        (Symmetry.leftInverse x)));

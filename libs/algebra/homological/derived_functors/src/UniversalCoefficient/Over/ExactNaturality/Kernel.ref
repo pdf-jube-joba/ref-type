@@ -1,0 +1,34 @@
+\definition Commutes: \Prop := \forall (x: M.Carrier) ->
+  #apply{t.projection} (#apply{b} x) = #apply{c} (#apply{s.projection} x);
+\import Target.Kernel[sequence := t] \as K;
+\import Modules.Hom[V := L.Carrier, W := K.Carrier, source := L.space, target := K.space] \as ToKernel;
+\definition closed: \forall (h: Commutes)(x: L.Carrier) ->
+  #apply{t.projection} (#apply{b} (#apply{s.inclusion} x)) = #zero{N1.space} :=
+  \fun (h: Commutes)(x: L.Carrier) => trans!{N1.Carrier} _ _ _ (h (#apply{s.inclusion} x))
+    (trans!{N1.Carrier} _ _ _ (congr!{N.Carrier N1.Carrier} (#apply{c}) _ _ (#zero{s} x)) (Right.zeroPreserved c));
+\definition toKernel(h: Commutes): ToKernel.Map := ToKernel.Map {
+  apply := \fun (x: L.Carrier) => \into[M1.Carrier](#apply{b} (#apply{s.inclusion} x), #carrier{K.kernel}) \by { closed h x },
+  addition := \fun (x, y: L.Carrier) => trans!{M1.Carrier} _ _ _
+    (congr!{M.Carrier M1.Carrier} (#apply{b}) _ _ (#addition{s.inclusion} x y))
+    (#addition{b} (#apply{s.inclusion} x) (#apply{s.inclusion} y)),
+  scalar := \fun (r: R)(x: L.Carrier) => trans!{M1.Carrier} _ _ _
+    (congr!{M.Carrier M1.Carrier} (#apply{b}) _ _ (#scalar{s.inclusion} r x))
+    (#scalar{b} r (#apply{s.inclusion} x)),
+};
+\import Modules.Hom[V := K.Carrier, W := L1.Carrier, source := K.space, target := L1.space].Composition[U := L.Carrier, domain := L.space] \as Composition;
+\definition map(h: Commutes): Left.Map := Composition.compose K.backward (toKernel h);
+\definition naturality: \forall (h: Commutes)(x: L.Carrier) ->
+  #apply{t.inclusion} (#apply{(map h)} x) = #apply{b} (#apply{s.inclusion} x) :=
+  \fun (h: Commutes)(x: L.Carrier) => K.onKernel (#apply{(toKernel h)} x);
+\definition unique: \forall (h: Commutes)(a: Left.Map) ->
+  (\forall (x: L.Carrier) -> #apply{t.inclusion} (#apply{a} x) = #apply{b} (#apply{s.inclusion} x)) -> a = map h :=
+  \fun (h: Commutes)(a: Left.Map)(agrees: _ ) => Left.ext a (map h)
+    (\fun (x: L.Carrier) => #injective{t} _ _
+      (trans!{M1.Carrier} _ _ _ (agrees x) (sym!{M1.Carrier} _ _ (naturality h x))));
+\import Modules.ShortExactComparison[A := L, B := M, C := N, A1 := L1, B1 := M1, C1 := N1] \as Comparison;
+\definition diagram(h: Commutes): Comparison.Diagram[s := s, t := t, a := map h, b := b, c := c].Commutative :=
+  Comparison.Diagram[s := s, t := t, a := map h, b := b, c := c].Commutative {
+    left := \fun (x: L.Carrier) => sym!{M1.Carrier} _ _ (naturality h x), right := h,
+  };
+\definition independent: \forall (h, k: Commutes) -> map h = map k :=
+  \fun (h, k: Commutes) => unique k (map h) (naturality h);

@@ -1,0 +1,246 @@
+\import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
+\import std.Logic[].Proposition[] \as Existential;
+\import std.Arithmetic[].Int[] \as Integers;
+\import \parent.Tensor[C := C, D := D] \as Product;
+\import \parent.Total[C := Product.complex] \as Total;
+\import Chains.At[C := D, z := q] \as Right;
+\definition index(n, p: Degree)(closed: Grading.add p q = n): Grading.Index n :=
+  \into[Grading.Pair](Grading.Pair { first := p, second := q },
+    { i: Grading.Pair \where Grading.add #first{i} #second{i} = n }) \by { closed };
+\definition sourceIndex(n, p: Degree)(closed: Grading.add p q = n): Grading.Index (next n) :=
+  \into[Grading.Pair](Grading.Pair { first := next p, second := q },
+    { i: Grading.Pair \where Grading.add #first{i} #second{i} = next n }) \by {
+      trans!{Degree} _ _ _ (Grading.nextLeft p q) (congr!{Degree Degree} next _ _ closed)
+    };
+\module At(n, p: Degree, closed: Grading.add p q = n) {
+  \import Chains.At[C := C, z := p] \as Left;
+  \import Chains.At[C := Total.complex, z := n] \as H;
+  \import \parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+  \import \parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+  \definition Vanishes: \Prop := \forall (x: Right.Cycle)(y: Left.Cycle) ->
+    \In[C.family.Carrier p] (#carrier{Left.boundaries}) y -> Exterior.classOf y x = H.zeroClass;
+}
+\module PositivePositive(nn: Nat.Nat^, qq: Nat.Nat^) {
+  \definition n: Degree := Integers.Int^::ofNat nn;
+  \definition p: Degree := Integers.Int^::ofNat qq;
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\module PositiveMinusOne(nn: Nat.Nat^) {
+  \definition n: Degree := Integers.Int^::ofNat nn;
+  \definition p: Degree := Integers.Int^::negSucc Nat.Nat^::zero;
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\module PositiveNegative(nn: Nat.Nat^, qq: Nat.Nat^) {
+  \definition n: Degree := Integers.Int^::ofNat nn;
+  \definition p: Degree := Integers.Int^::negSucc (Nat.Nat^::succ qq);
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\module MinusOnePositive(qq: Nat.Nat^) {
+  \definition n: Degree := Integers.Int^::negSucc Nat.Nat^::zero;
+  \definition p: Degree := Integers.Int^::ofNat qq;
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\module MinusOneMinusOne {
+  \definition n: Degree := Integers.Int^::negSucc Nat.Nat^::zero;
+  \definition p: Degree := Integers.Int^::negSucc Nat.Nat^::zero;
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\module MinusOneNegative(qq: Nat.Nat^) {
+  \definition n: Degree := Integers.Int^::negSucc Nat.Nat^::zero;
+  \definition p: Degree := Integers.Int^::negSucc (Nat.Nat^::succ qq);
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\module NegativePositive(nn: Nat.Nat^, qq: Nat.Nat^) {
+  \definition n: Degree := Integers.Int^::negSucc (Nat.Nat^::succ nn);
+  \definition p: Degree := Integers.Int^::ofNat qq;
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\module NegativeMinusOne(nn: Nat.Nat^) {
+  \definition n: Degree := Integers.Int^::negSucc (Nat.Nat^::succ nn);
+  \definition p: Degree := Integers.Int^::negSucc Nat.Nat^::zero;
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\module NegativeNegative(nn: Nat.Nat^, qq: Nat.Nat^) {
+  \definition n: Degree := Integers.Int^::negSucc (Nat.Nat^::succ nn);
+  \definition p: Degree := Integers.Int^::negSucc (Nat.Nat^::succ qq);
+  \module With(closed: Grading.add p q = n) {
+    \import \parent.\parent.At[n := n, p := p, closed := closed] \as Case;
+    \import Chains.At[C := C, z := p] \as Left;
+    \import Chains.At[C := Total.complex, z := n] \as H;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := index n p closed] \as Exterior;
+    \import \parent.\parent.\parent.LeftBoundary[C := C, D := D, n := next n, i := sourceIndex n p closed] \as Boundary;
+    \definition priorValue(a: C.family.Carrier (next p)): #apply{Left.prior} a = #apply{C.differential} (next p) a :=
+      Transport.castRefl C.family.Carrier p (#apply{C.differential} (next p) a);
+    \definition vanishes: Case.Vanishes := \block {
+      \fun (x: Right.Cycle)(y: Left.Cycle)(boundary: \In[C.family.Carrier p] (#carrier{Left.boundaries}) y) \then
+      \takefrom a: \Cast[C.family.Carrier (next p)] ({ a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }) \by boundary \then
+      \let equal: #apply{Left.prior} a = y := \bysub(C.family.Carrier (next p),
+        { a: C.family.Carrier (next p) \where #apply{Left.prior} a = y }, a) \then
+      \return trans!{H.Homology} _ _ _
+        (Exterior.leftEqual y (Boundary.cycle a) x (trans!{{C.family.Carrier p}} y (#apply{Left.prior} a) (#apply{C.differential} (next p) a) (sym!{{C.family.Carrier p}} (#apply{Left.prior} a) y equal) (priorValue a)))
+        (Boundary.vanishes a x)
+    };
+  }
+}
+\definition vanishes: \forall (n, p: Degree)(closed: Grading.add p q = n) -> At[n := n, p := p, closed := closed].Vanishes :=
+  \induction (n: Degree) \return \forall (p: Degree)(closed: Grading.add p q = n) -> At[n := n, p := p, closed := closed].Vanishes \with {
+    | ofNat: \fun (nn: Nat.Nat^) =>     \induction (p: Degree) \return \forall (closed: Grading.add p q = Integers.Int^::ofNat nn) -> At[n := Integers.Int^::ofNat nn, p := p, closed := closed].Vanishes \with {
+      | ofNat: \fun (qq: Nat.Nat^)(closed: _) => PositivePositive[nn := nn, qq := qq].With[closed := closed].vanishes
+      | negSucc: \induction (qq: Nat.Nat^) \return \forall (closed: Grading.add (Integers.Int^::negSucc qq) q = Integers.Int^::ofNat nn) -> At[n := Integers.Int^::ofNat nn, p := Integers.Int^::negSucc qq, closed := closed].Vanishes \with {
+        | zero: \fun (closed: _) => PositiveMinusOne[nn := nn].With[closed := closed].vanishes
+        | succ: \fun (qq: Nat.Nat^)(unused: _)(closed: _) => PositiveNegative[nn := nn, qq := qq].With[closed := closed].vanishes
+      }
+    }
+    | negSucc: \induction (nn: Nat.Nat^) \return \forall (p: Degree)(closed: Grading.add p q = Integers.Int^::negSucc nn) -> At[n := Integers.Int^::negSucc nn, p := p, closed := closed].Vanishes \with {
+      | zero:     \induction (p: Degree) \return \forall (closed: Grading.add p q = Integers.Int^::negSucc Nat.Nat^::zero) -> At[n := Integers.Int^::negSucc Nat.Nat^::zero, p := p, closed := closed].Vanishes \with {
+      | ofNat: \fun (qq: Nat.Nat^)(closed: _) => MinusOnePositive[qq := qq].With[closed := closed].vanishes
+      | negSucc: \induction (qq: Nat.Nat^) \return \forall (closed: Grading.add (Integers.Int^::negSucc qq) q = Integers.Int^::negSucc Nat.Nat^::zero) -> At[n := Integers.Int^::negSucc Nat.Nat^::zero, p := Integers.Int^::negSucc qq, closed := closed].Vanishes \with {
+        | zero: \fun (closed: _) => MinusOneMinusOne[].With[closed := closed].vanishes
+        | succ: \fun (qq: Nat.Nat^)(unused: _)(closed: _) => MinusOneNegative[qq := qq].With[closed := closed].vanishes
+      }
+    }
+      | succ: \fun (nn: Nat.Nat^)(unused: _) =>     \induction (p: Degree) \return \forall (closed: Grading.add p q = Integers.Int^::negSucc (Nat.Nat^::succ nn)) -> At[n := Integers.Int^::negSucc (Nat.Nat^::succ nn), p := p, closed := closed].Vanishes \with {
+      | ofNat: \fun (qq: Nat.Nat^)(closed: _) => NegativePositive[nn := nn, qq := qq].With[closed := closed].vanishes
+      | negSucc: \induction (qq: Nat.Nat^) \return \forall (closed: Grading.add (Integers.Int^::negSucc qq) q = Integers.Int^::negSucc (Nat.Nat^::succ nn)) -> At[n := Integers.Int^::negSucc (Nat.Nat^::succ nn), p := Integers.Int^::negSucc qq, closed := closed].Vanishes \with {
+        | zero: \fun (closed: _) => NegativeMinusOne[nn := nn].With[closed := closed].vanishes
+        | succ: \fun (qq: Nat.Nat^)(unused: _)(closed: _) => NegativeNegative[nn := nn, qq := qq].With[closed := closed].vanishes
+      }
+    }
+    }
+  };

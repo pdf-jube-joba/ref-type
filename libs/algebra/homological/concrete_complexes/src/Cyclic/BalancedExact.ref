@@ -1,0 +1,26 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import Modules.ShortExact[A := Z2.bundle, B := Z4.bundle, C := Z2.bundle] \as Sequences;
+\import Modules.Of[V := Int.Int^, space := Modules.scalarModule].Submodule[].Image[U := Int.Int^, source := Modules.scalarModule] \as Images;
+\definition kernelImage: \forall (x: Z4.Carrier) -> #apply{projection} x = #zero{Z2.space} ->
+  \exists { y: Z2.Carrier \where #apply{inclusion} y = x } :=
+  Z4.induction (\fun (x: Z4.Carrier) => #apply{projection} x = #zero{Z2.space} ->
+    \exists { y: Z2.Carrier \where #apply{inclusion} y = x })
+    (\fun (x: Int.Int^)(closed: #apply{projection} (Z4.class x) = #zero{Z2.space}) =>
+      Images.eliminate Z2.multiplication x
+        (\exists { y: Z2.Carrier \where #apply{inclusion} y = Z4.class x })
+        (\fun (q: Int.Int^)(equal: Arithmetic.mul two q = x) =>
+          Logic.existsIntro[Z2.Carrier, { y: Z2.Carrier \where #apply{inclusion} y = Z4.class x }] (Z2.class q)
+            (trans!{Z4.Carrier} _ _ _ (inclusionOnClass q) (congr!{Int.Int^ Z4.Carrier} Z4.class _ _ equal)))
+        (Z2.classZeroMember x (trans!{Z2.Carrier} _ _ _ (sym!{Z2.Carrier} _ _ (projectionOnClass x)) closed)));
+\definition sequence: Sequences.Sequence := Sequences.Sequence {
+  inclusion := inclusion, projection := projection, injective := inclusionInjective,
+  onto := projectionOnto, zero := compositionZero, kernelImage := kernelImage,
+};
+\import derived_functors.Tor[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing] \as Derived;
+\import Derived.ShortExactFirst[A := Z2.bundle, B := Z4.bundle, C := Z2.bundle, N := Z2.bundle,
+  P := Presentation.complex, Q := Presentation.complex].With[sequence := sequence, p := Presentation.resolution, q := Presentation.resolution] \as First;
+\import resolutions.Resolution[].Over[R := Int.Int^, ring := Ring.commutativeRingAsRing Int.Int^ IntegerRing.commutativeRing].Horseshoe[
+  A := Z2.bundle, B := Z4.bundle, C := Z2.bundle, P := Presentation.complex, Q := Presentation.complex].With[
+  sequence := sequence, p := Presentation.resolution, q := Presentation.resolution] \as Horse;
+\definition constructionExists: \exists Horse.Construction := First.existence;
+\module With(construction: Horse.Construction);

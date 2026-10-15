@@ -1,0 +1,38 @@
+\definition degree: Degree := Bounded.previous k;
+\import Chains.At[C := right, z := k] \as HA;
+\import Chains.At[C := left, z := degree] \as HB;
+\import Chains.At[C := middle, z := degree] \as HC;
+\import Chains.At[C := right, z := degree] \as HD;
+\import Chains.At[C := left, z := Bounded.previous degree] \as HE;
+\definition a: Modules.Bundle := Modules.Bundle { Carrier := HA.Homology, space := HA.homologySpace };
+\definition b: Modules.Bundle := Modules.Bundle { Carrier := HB.Homology, space := HB.homologySpace };
+\definition c: Modules.Bundle := Modules.Bundle { Carrier := HC.Homology, space := HC.homologySpace };
+\definition d: Modules.Bundle := Modules.Bundle { Carrier := HD.Homology, space := HD.homologySpace };
+\definition e: Modules.Bundle := Modules.Bundle { Carrier := HE.Homology, space := HE.homologySpace };
+\import Sequences.At[s := sequence, k := k] \as Upper;
+\import Sequences.At[s := sequence, k := degree] \as Lower;
+\import Upper.Exactness[] \as UpperExact;
+\import Lower.Exactness[] \as LowerExact;
+\import Chains.Map[C := left, D := middle].At[k := degree] \as InclusionHomology;
+\import Chains.Map[C := middle, D := right].At[k := degree] \as ProjectionHomology;
+\import Modules.ExactFive[A := a, B := b, C := c, D := d, E := e] \as Five;
+\definition data: Five.Data := Five.Data {
+  first := Upper.connecting, second := InclusionHomology.induced Inclusion.total,
+  third := ProjectionHomology.induced Projection.total, last := Lower.connecting,
+};
+\definition laws: Five.Laws[data] := Five.Laws[data] {
+  zeroB := UpperExact.connectingInclusionZero,
+  zeroC := LowerExact.inclusionProjectionZero,
+  zeroD := LowerExact.projectionConnectingZero,
+  kernelB := UpperExact.exactAtALower,
+  kernelC := LowerExact.exactAtB,
+  kernelD := LowerExact.exactAtC,
+};
+\definition exactFive: Five.Sequence := \into[Five.Data](data, { data: Five.Data \where Five.Laws[data] }) \by { laws };
+\import \parent.\parent.ExactFiveFactor[A := a, B := b, C := c, D := d, E := e].With[s := exactFive] \as Factor;
+\definition leftBundle: Modules.Bundle := Factor.leftBundle;
+\definition homologyBundle: Modules.Bundle := c;
+\definition rightBundle: Modules.Bundle := Factor.rightBundle;
+\definition inclusion: Modules.MapBetween leftBundle homologyBundle := Factor.inclusion;
+\definition projection: Modules.MapBetween homologyBundle rightBundle := Factor.projection;
+\definition shortExact: Modules.ShortExact[A := leftBundle, B := homologyBundle, C := rightBundle].Sequence := Factor.sequence;

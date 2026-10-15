@@ -1,0 +1,42 @@
+\import \parent.Cohomology[n := n] \as Left;
+\import \parent.At[n := n] \as Term;
+\import \parent.\parent.\parent.TensorSymmetry[C := complex, D := C].At[n := n] \as Symmetry;
+\import Symmetry.Component[i := Term.point] \as Swap;
+\import \parent.\parent.\parent.Tensor[C := C, D := complex] \as Product;
+\import \parent.\parent.\parent.Total[C := Product.complex] \as RightTotal;
+\import Cochains.At[C := C, k := n] \as H;
+\import Cochains.At[C := Total.complex, k := n] \as LH;
+\import Cochains.At[C := RightTotal.complex, k := n] \as RH;
+\import Modules.Isomorphism[V := LH.Cohomology, W := RH.Cohomology,
+  source := LH.cohomologySpace, target := RH.cohomologySpace].Inverse[] \as Reverse;
+\import Modules.Isomorphism[V := RH.Cohomology, W := LH.Cohomology,
+  source := RH.cohomologySpace, target := LH.cohomologySpace].Composition[
+  U := H.Cohomology, final := H.cohomologySpace] \as Compose;
+\definition isomorphism: Modules.Isomorphism[V := RH.Cohomology, W := H.Cohomology,
+  source := RH.cohomologySpace, target := H.cohomologySpace].Isomorphism :=
+  Compose.compose Left.isomorphism (Reverse.inverse Symmetry.isomorphism);
+\import Cochains.At[C := complex, k := Nat.Nat^::zero] \as UH;
+\definition point: RightTotal.Index n :=
+  \into[Degrees.Pair](Degrees.Pair { first := n, second := Nat.Nat^::zero },
+    { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { \refl(n) };
+\import \parent.\parent.\parent.IndexedExterior[C := C, D := complex, n := n].At[i := point] \as Exterior;
+\import Modules.Tensor[V := H.Cohomology, W := UH.Cohomology,
+  left := H.cohomologySpace, right := UH.cohomologySpace] \as Tensor;
+\import \parent.\parent.\parent.IndexedCycleProduct[C := complex, D := C, n := n].At[i := Term.point] \as LeftProduct;
+\import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := complex, n := n].At[i := point] \as RightProduct;
+\import Degrees.Sign[V := LH.Cohomology, space := LH.cohomologySpace] \as Sign;
+\definition swapUnit: \forall (x: H.CycleCarrier) ->
+  #apply{#backward{Symmetry.isomorphism}} (RightProduct.classOf x Left.unitCycle) = LeftProduct.classOf Left.unitCycle x :=
+  \fun (x: H.CycleCarrier) => trans!{LH.Cohomology} _ _ _ (Swap.inverseOnClass Left.unitCycle x)
+    (congr!{Nat.Nat^ LH.Cohomology}
+      (\fun (k: Nat.Nat^) => #apply{(Sign.map k)} (LeftProduct.classOf Left.unitCycle x))
+      _ _ (Natural.mulZeroLeft n));
+\definition exteriorUnit: \forall (h: H.Cohomology) ->
+  #apply{#forward{isomorphism}} (#apply{Exterior.map} (Tensor.tensor h Left.unitClass)) = h :=
+  H.classInduction
+    (\fun (h: H.Cohomology) => #apply{#forward{isomorphism}} (#apply{Exterior.map} (Tensor.tensor h Left.unitClass)) = h)
+    (\fun (x: H.CycleCarrier) => trans!{H.Cohomology} _ _ _
+      (congr!{RH.Cohomology H.Cohomology} (#apply{#forward{isomorphism}}) _ _ (Exterior.onClass x Left.unitCycle))
+      (trans!{H.Cohomology} _ _ _
+        (congr!{LH.Cohomology H.Cohomology} (#apply{#forward{Left.isomorphism}}) _ _ (swapUnit x))
+        (Left.onUnitClass x)));

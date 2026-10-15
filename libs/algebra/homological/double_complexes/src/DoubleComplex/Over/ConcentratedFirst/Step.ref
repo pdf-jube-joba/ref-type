@@ -1,0 +1,23 @@
+\import Total.Degree[n := n] \as Current;
+\import Total.Degree[n := Nat.Nat^::succ n] \as Next;
+\import Total.Step[n := n] \as TotalStep;
+\import \parent.Degree[n := n] \as Lower;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Upper;
+\import Modules.Laws[V := Current.Carrier, space := Current.space] \as Laws;
+\import algebra.Group[].Of[Carrier := Current.Carrier, group := Laws.additive] \as Group;
+\definition backward: \forall (x: C.family.Carrier Nat.Nat^::zero (Nat.Nat^::succ n)) ->
+  #apply{Total.differential} n (#apply{Upper.backward} x) =
+  #apply{Lower.backward} (#apply{(C.differential.vertical Nat.Nat^::zero n)} x) :=
+  \fun (x: C.family.Carrier Nat.Nat^::zero (Nat.Nat^::succ n)) => trans!{Current.Carrier} _ _ _
+    (TotalStep.onComponent (point (Nat.Nat^::succ n)) x)
+    (Group.zeroLeft (#apply{Lower.backward} (#apply{(C.differential.vertical Nat.Nat^::zero n)} x)));
+\definition forward: Vanishes -> \forall (x: Next.Carrier) ->
+  #apply{(C.differential.vertical Nat.Nat^::zero n)} (#apply{Upper.forward} x) =
+  #apply{Lower.forward} (#apply{Total.differential} n x) :=
+  \fun (vanishes: Vanishes)(x: Next.Carrier) => trans!{{C.family.Carrier Nat.Nat^::zero n}} _ _ _
+    (sym!{{C.family.Carrier Nat.Nat^::zero n}} _ _
+      (trans!{{C.family.Carrier Nat.Nat^::zero n}} _ _ _
+        (congr!{Current.Carrier {C.family.Carrier Nat.Nat^::zero n}} (#apply{Lower.forward}) _ _ (backward (#apply{Upper.forward} x)))
+        (Lower.rightInverse (#apply{(C.differential.vertical Nat.Nat^::zero n)} (#apply{Upper.forward} x)))))
+    (congr!{Next.Carrier {C.family.Carrier Nat.Nat^::zero n}}
+      (\fun (y: Next.Carrier) => #apply{Lower.forward} (#apply{Total.differential} n y)) _ _ (Upper.leftInverse vanishes x));

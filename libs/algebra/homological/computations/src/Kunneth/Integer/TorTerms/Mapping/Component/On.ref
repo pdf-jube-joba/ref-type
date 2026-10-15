@@ -1,0 +1,20 @@
+\import Bounded.Mapping[C := C, D := E].At[z := p].With[f := f].TensorUniversalCoefficient[
+  A := SourceComponent.coefficient, B := TargetComponent.coefficient].On[u := RightAt.With[f := g].induced] \as Uct;
+\import Uct.Derived[] \as Native;
+\import Modules.Hom[V := SourceComponent.torCarrier, W := TargetComponent.torCarrier,
+  source := SourceComponent.torSpace, target := TargetComponent.torSpace] \as Maps;
+\definition map: Maps.Map := Native.functorMap;
+\definition agreement: map = Uct.tor := Native.functorAgreement;
+\definition kernelMap: Modules.Hom[V := SourceComponent.torKernelCarrier, W := TargetComponent.torKernelCarrier,
+  source := SourceComponent.torKernelSpace, target := TargetComponent.torKernelSpace].Map := Native.kernelMap;
+\definition onKernel: \forall (x: SourceComponent.torCarrier) ->
+  #apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{map} x) =
+    #apply{kernelMap} (#apply{#forward{SourceComponent.torKernelIsomorphism}} x) :=
+  \fun (x: SourceComponent.torCarrier) => trans!{TargetComponent.torKernelCarrier} _ _ _
+    (congr!{Maps.Map TargetComponent.torKernelCarrier}
+      (\fun (h: Maps.Map) => #apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{h} x)) _ _ agreement)
+    (trans!{TargetComponent.torKernelCarrier} _ _ _
+      (congr!{SourceComponent.torCarrier TargetComponent.torKernelCarrier}
+        (\fun (y: SourceComponent.torCarrier) => #apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{Uct.tor} y)) _ _
+        (sym!{SourceComponent.torCarrier} _ _ (#leftInverse{SourceComponent.torKernelIsomorphism} x)))
+      (Native.kernelNaturality (#apply{#forward{SourceComponent.torKernelIsomorphism}} x)));

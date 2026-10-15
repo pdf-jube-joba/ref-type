@@ -1,0 +1,41 @@
+\import SourceProjection.Zero[n := n] \as Projection;
+\import TargetProjection.Zero[n := n] \as TargetZero;
+\import Modules.Tensor[V := P.family.Carrier n, W := Q.family.Carrier Nat.Nat^::zero, left := P.family.space n, right := Q.family.space Nat.Nat^::zero] \as Original;
+\import Modules.Tensor[V := S.family.Carrier n, W := K.Carrier, left := S.family.space n, right := K.space] \as Final;
+\definition afterOnTensor: RightAugmented -> \forall (x: P.family.Carrier n)(y: Q.family.Carrier Nat.Nat^::zero) ->
+  #apply{after} n (#apply{Projection.injection} (Original.tensor x y)) = Final.tensor (#apply{f} n x) (#apply{v} (#apply{#augmentation{q}} y)) :=
+  \fun (augmented: RightAugmented)(x: P.family.Carrier n)(y: Q.family.Carrier Nat.Nat^::zero) => trans!{Final.Carrier} _ _ _
+    (congr!{{TargetTotal.Carrier n} Final.Carrier} (#apply{Target.standardLeft} n) _ _ (TotalMap.Degree[n := n].onInjection Projection.point (Original.tensor x y)))
+    (trans!{Final.Carrier} _ _ _
+      (congr!{{TargetTensor.Carrier n Nat.Nat^::zero} Final.Carrier}
+        (\fun (z: TargetTensor.Carrier n Nat.Nat^::zero) => #apply{Target.standardLeft} n (#apply{TargetZero.injection} z)) _ _
+        (Mapping.Degree[p := n, q := Nat.Nat^::zero].onTensor x y))
+      (trans!{Final.Carrier} _ _ _ (TargetZero.onTensor (#apply{f} n x) (#apply{g} Nat.Nat^::zero y))
+        (congr!{K.Carrier Final.Carrier} (Final.tensor (#apply{f} n x)) _ _ (augmented y))));
+\definition beforeOnTensor: \forall (x: P.family.Carrier n)(y: Q.family.Carrier Nat.Nat^::zero) ->
+  #apply{before} n (#apply{Projection.injection} (Original.tensor x y)) = Final.tensor (#apply{f} n x) (#apply{v} (#apply{#augmentation{q}} y)) :=
+  \fun (x: P.family.Carrier n)(y: Q.family.Carrier Nat.Nat^::zero) => trans!{Final.Carrier} _ _ _
+    (congr!{{SourceLeft.Carrier n} Final.Carrier} (#apply{LeftAction.map} n) _ _ (Projection.onTensor x y))
+    (LeftAction.At[n := n].onTensor x (#apply{#augmentation{q}} y));
+\import Modules.Hom[V := Total.Carrier n, W := TargetLeft.Carrier n, source := Total.space n, target := TargetLeft.space n].Composition[
+  U := Original.Carrier, domain := Original.space] \as Compose;
+\import Chains.Map[C := complex, D := TargetLeft.complex].At[n := n] \as Linear;
+\definition afterComponent: Modules.Hom[V := Original.Carrier, W := TargetLeft.Carrier n, source := Original.space, target := TargetLeft.space n].Map := Compose.compose (Linear.linear after) Projection.injection;
+\definition beforeComponent: Modules.Hom[V := Original.Carrier, W := TargetLeft.Carrier n, source := Original.space, target := TargetLeft.space n].Map := Compose.compose (Linear.linear before) Projection.injection;
+\import Original.Universal[U := TargetLeft.Carrier n, target := TargetLeft.space n] \as Universal;
+\definition equality: RightAugmented -> afterComponent = beforeComponent :=
+  \fun (augmented: RightAugmented) => Universal.ext afterComponent beforeComponent
+    (\fun (x: P.family.Carrier n)(y: Q.family.Carrier Nat.Nat^::zero) => trans!{Final.Carrier} _ _ _ (afterOnTensor augmented x y) (sym!{Final.Carrier} _ _ (beforeOnTensor x y)));
+\definition point: RightAugmented -> \forall (x: Original.Carrier) -> #apply{after} n (#apply{Projection.injection} x) = #apply{before} n (#apply{Projection.injection} x) :=
+  \fun (augmented: RightAugmented)(x: Original.Carrier) => congr!{{Modules.Hom[V := Original.Carrier, W := TargetLeft.Carrier n, source := Original.space, target := TargetLeft.space n].Map} {TargetLeft.Carrier n}}
+    (\fun (h: Modules.Hom[V := Original.Carrier, W := TargetLeft.Carrier n, source := Original.space, target := TargetLeft.space n].Map) => #apply{h} x) _ _ (equality augmented);
+\definition transported: RightAugmented -> \forall (m: Nat.Nat^)(same: n = m)(x: Original.Carrier) ->
+  #apply{after} m (#apply{(Total.Degree[n := m].Component[i := diagonal m n Nat.Nat^::zero same].injection)} x) =
+  #apply{before} m (#apply{(Total.Degree[n := m].Component[i := diagonal m n Nat.Nat^::zero same].injection)} x) :=
+  \fun (augmented: RightAugmented)(m: Nat.Nat^)(same: n = m) =>
+    (\idelim n = m \with k: Nat.Nat^ => \forall (equal: n = k)(x: Original.Carrier) ->
+      #apply{after} k (#apply{(Total.Degree[n := k].Component[i := diagonal k n Nat.Nat^::zero equal].injection)} x) =
+      #apply{before} k (#apply{(Total.Degree[n := k].Component[i := diagonal k n Nat.Nat^::zero equal].injection)} x) \by {
+        base: \fun (equal: n = n) => point augmented,
+        equality: same
+      }) same;

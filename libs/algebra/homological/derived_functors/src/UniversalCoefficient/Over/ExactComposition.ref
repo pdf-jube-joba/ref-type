@@ -1,0 +1,41 @@
+\import Modules.ShortExact[A := L, B := M, C := N] \as S;
+\import Modules.ShortExact[A := L1, B := M1, C := N1] \as T;
+\import Modules.ShortExact[A := L2, B := M2, C := N2] \as U;
+\import \parent.ExactNaturality[L := L, M := M, N := N, L1 := L1, M1 := M1, N1 := N1] \as First;
+\import \parent.ExactNaturality[L := L1, M := M1, N := N1, L1 := L2, M1 := M2, N1 := N2] \as Second;
+\import \parent.ExactNaturality[L := L, M := M, N := N, L1 := L2, M1 := M2, N1 := N2] \as Composite;
+\import Modules.Hom[V := L.Carrier, W := L1.Carrier, source := L.space, target := L1.space] \as Left0;
+\import Modules.Hom[V := M.Carrier, W := M1.Carrier, source := M.space, target := M1.space] \as Middle0;
+\import Modules.Hom[V := N.Carrier, W := N1.Carrier, source := N.space, target := N1.space] \as Right0;
+\import Modules.Hom[V := L1.Carrier, W := L2.Carrier, source := L1.space, target := L2.space] \as Left1;
+\import Modules.Hom[V := M1.Carrier, W := M2.Carrier, source := M1.space, target := M2.space] \as Middle1;
+\import Modules.Hom[V := N1.Carrier, W := N2.Carrier, source := N1.space, target := N2.space] \as Right1;
+\import Left1.Composition[U := L.Carrier, domain := L.space] \as Left;
+\import Middle1.Composition[U := M.Carrier, domain := M.space] \as Middle;
+\import Right1.Composition[U := N.Carrier, domain := N.space] \as Right;
+\module Kernel(s: S.Sequence, t: T.Sequence, v: U.Sequence, b: Middle0.Map, c: Right0.Map, b1: Middle1.Map, c1: Right1.Map) {
+  \import First.Kernel[s := s, t := t, b := b, c := c] \as F;
+  \import Second.Kernel[s := t, t := v, b := b1, c := c1] \as G;
+  \import Composite.Kernel[s := s, t := v, b := Middle.compose b1 b, c := Right.compose c1 c] \as H;
+  \definition commutes: F.Commutes -> G.Commutes -> H.Commutes :=
+    \fun (h: F.Commutes)(k: G.Commutes)(x: M.Carrier) => trans!{N2.Carrier} _ _ _ (k (#apply{b} x))
+      (congr!{N1.Carrier N2.Carrier} (#apply{c1}) _ _ (h x));
+  \definition composition: \forall (h: F.Commutes)(k: G.Commutes) ->
+    Left.compose (G.map k) (F.map h) = H.map (commutes h k) :=
+    \fun (h: F.Commutes)(k: G.Commutes) => H.unique (commutes h k) (Left.compose (G.map k) (F.map h))
+      (\fun (x: L.Carrier) => trans!{M2.Carrier} _ _ _ (G.naturality k (#apply{(F.map h)} x))
+        (congr!{M1.Carrier M2.Carrier} (#apply{b1}) _ _ (F.naturality h x)));
+}
+\module Cokernel(s: S.Sequence, t: T.Sequence, v: U.Sequence, a: Left0.Map, b: Middle0.Map, a1: Left1.Map, b1: Middle1.Map) {
+  \import First.Cokernel[s := s, t := t, a := a, b := b] \as F;
+  \import Second.Cokernel[s := t, t := v, a := a1, b := b1] \as G;
+  \import Composite.Cokernel[s := s, t := v, a := Left.compose a1 a, b := Middle.compose b1 b] \as H;
+  \definition commutes: F.Commutes -> G.Commutes -> H.Commutes :=
+    \fun (h: F.Commutes)(k: G.Commutes)(x: L.Carrier) => trans!{M2.Carrier} _ _ _
+      (congr!{M1.Carrier M2.Carrier} (#apply{b1}) _ _ (h x)) (k (#apply{a} x));
+  \definition composition: \forall (h: F.Commutes)(k: G.Commutes) ->
+    Right.compose (G.map k) (F.map h) = H.map (commutes h k) :=
+    \fun (h: F.Commutes)(k: G.Commutes) => H.unique (commutes h k) (Right.compose (G.map k) (F.map h))
+      (\fun (x: M.Carrier) => trans!{N2.Carrier} _ _ _
+        (congr!{N1.Carrier N2.Carrier} (#apply{(G.map k)}) _ _ (F.naturality h x)) (G.naturality k (#apply{b} x)));
+}

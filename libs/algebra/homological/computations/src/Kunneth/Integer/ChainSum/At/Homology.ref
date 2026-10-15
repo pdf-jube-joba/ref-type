@@ -1,0 +1,108 @@
+\import \parent.Cycles[] \as CycleComparison;
+\module Component(i: Index) {
+  \import Chains.At[C := terms i, z := z] \as H;
+  \import \parent.\parent.\parent.Injection[i := i] \as Injection;
+  \import \parent.\parent.\parent.Projection[i := i] \as Projection;
+  \import Chains.Map[C := terms i, D := complex].At[k := z] \as Induced;
+  \import Chains.Map[C := complex, D := terms i].At[k := z] \as Projected;
+  \definition map: Modules.Hom[V := H.Homology, W := TotalHomology.Homology,
+    source := H.homologySpace, target := TotalHomology.homologySpace].Map := Induced.induced Injection.map;
+  \definition classLinear: Modules.Hom[V := H.Cycle, W := H.Homology, source := H.cycleSpace, target := H.homologySpace].Map := H.classLinear;
+}
+\import HomologySum.To[W := TotalHomology.Homology, target := TotalHomology.homologySpace] \as Universal;
+\definition components: Universal.Components := \fun (i: Index) => Component[i := i].map;
+\definition forward: Modules.Hom[V := HomologySum.Carrier, W := TotalHomology.Homology,
+  source := HomologySum.space, target := TotalHomology.homologySpace].Map := Universal.extension components;
+\import Modules.DirectSumMapping[Index := Index, sourceFamily := cyclesFamily, targetFamily := homologyFamily] \as ClassMaps;
+\definition classes: ClassMaps.Components := \fun (i: Index) => Component[i := i].classLinear;
+\import ClassMaps.On[f := classes] \as Classes;
+\import Modules.Hom[V := CyclesSum.Carrier, W := HomologySum.Carrier, source := CyclesSum.space, target := HomologySum.space].Composition[
+  U := TotalHomology.Cycle, domain := TotalHomology.cycleSpace] \as OnCycles;
+\definition onCycles: Modules.Hom[V := TotalHomology.Cycle, W := HomologySum.Carrier,
+  source := TotalHomology.cycleSpace, target := HomologySum.space].Map := OnCycles.compose Classes.map CycleComparison.backward;
+\import HomologySum.FiniteSupport[] \as HomologyCoordinates;
+\import CyclesSum.FiniteSupport[] \as CycleCoordinates;
+\import Modules.Product[Index := Index, family := cyclesFamily] \as CycleProduct;
+\import Modules.Product[Index := Index, family := homologyFamily] \as HomologyProduct;
+\import Modules.Of[V := TotalHomology.Cycle, space := TotalHomology.cycleSpace].Submodule[].Quotient[S := TotalHomology.boundariesInside].To[
+  W := HomologySum.Carrier, target := HomologySum.space] \as Descent;
+\module Vanishing(i: Index) {
+  \import Chains.At[C := terms i, z := z] \as H;
+  \import \parent.\parent.\parent.Projection[i := i] \as Projection;
+  \import Chains.Map[C := complex, D := terms i].At[k := z] \as Projected;
+  \definition coordinate: \forall (x: TotalHomology.Cycle) ->
+    HomologyCoordinates.coordinates (#apply{onCycles} x) i = #apply{(Projected.onCycles Projection.map)} x :=
+    \fun (x: TotalHomology.Cycle) => trans!{H.Homology} _ _ _
+      (Classes.coordinatesNatural (#apply{CycleComparison.backward} x) i)
+      (congr!{H.Cycle H.Homology} H.classOf _ _
+        (congr!{CycleProduct.Carrier H.Cycle} (\fun (v: CycleProduct.Carrier) => v i) _ _ (CycleComparison.backwardCoordinates x)));
+  \definition zero: \forall (x: TotalHomology.Cycle) -> \In[TotalHomology.Cycle] (#carrier{TotalHomology.boundariesInside}) x ->
+    HomologyCoordinates.coordinates (#apply{onCycles} x) i = HomologyCoordinates.coordinates #zero{HomologySum.space} i :=
+    \fun (x: TotalHomology.Cycle)(boundary: _) => trans!{H.Homology} _ _ _ (coordinate x)
+      (trans!{H.Homology} _ _ _ (Projected.vanishes Projection.map x boundary)
+        (sym!{H.Homology} _ _ (congr!{HomologyProduct.Carrier H.Homology} (\fun (v: HomologyProduct.Carrier) => v i) _ _ HomologyCoordinates.coordinatesZero)));
+}
+\definition vanishes: Descent.Vanishes onCycles := \fun (x: TotalHomology.Cycle)(boundary: _) =>
+  HomologyCoordinates.injective (#apply{onCycles} x) #zero{HomologySum.space}
+    (\axiom:funext(HomologyCoordinates.coordinates (#apply{onCycles} x), HomologyCoordinates.coordinates #zero{HomologySum.space},
+      \fun (i: Index) => Vanishing[i := i].zero x boundary));
+\definition backward: Modules.Hom[V := TotalHomology.Homology, W := HomologySum.Carrier,
+  source := TotalHomology.homologySpace, target := HomologySum.space].Map := Descent.descend onCycles vanishes;
+\definition onTotalClass: \forall (x: TotalHomology.Cycle) -> #apply{backward} (TotalHomology.classOf x) = #apply{onCycles} x := Descent.onClass onCycles vanishes;
+\module Point(i: Index) {
+  \import Chains.At[C := terms i, z := z] \as H;
+  \import \parent.\parent.\parent.Injection[i := i] \as Injection;
+  \import Chains.Map[C := terms i, D := complex].At[k := z] \as Induced;
+  \definition onClass: \forall (x: H.Cycle) ->
+    #apply{forward} (#apply{HomologySum.Injection[i := i].map} (H.classOf x)) =
+    TotalHomology.classOf (#apply{CycleComparison.forward} (#apply{CyclesSum.Injection[i := i].map} x)) :=
+    \fun (x: H.Cycle) => trans!{TotalHomology.Homology} _ _ _ (Universal.onInjection components i (H.classOf x))
+      (trans!{TotalHomology.Homology} _ _ _ (Induced.onClass Injection.map x)
+        (congr!{TotalHomology.Cycle TotalHomology.Homology} TotalHomology.classOf _ _
+          (sym!{TotalHomology.Cycle} _ _ (CycleComparison.onInjection i x))));
+  \definition left: \forall (h: H.Homology) ->
+    #apply{backward} (#apply{forward} (#apply{HomologySum.Injection[i := i].map} h)) = #apply{HomologySum.Injection[i := i].map} h :=
+    H.classInduction (\fun (h: H.Homology) =>
+      #apply{backward} (#apply{forward} (#apply{HomologySum.Injection[i := i].map} h)) = #apply{HomologySum.Injection[i := i].map} h)
+      (\fun (x: H.Cycle) => trans!{HomologySum.Carrier} _ _ _
+        (congr!{TotalHomology.Homology HomologySum.Carrier} (#apply{backward}) _ _ (onClass x))
+        (trans!{HomologySum.Carrier} _ _ _ (onTotalClass (#apply{CycleComparison.forward} (#apply{CyclesSum.Injection[i := i].map} x)))
+          (trans!{HomologySum.Carrier} _ _ _
+            (congr!{CyclesSum.Carrier HomologySum.Carrier} (#apply{Classes.map}) _ _
+              (CycleComparison.leftInverse (#apply{CyclesSum.Injection[i := i].map} x)))
+            (Classes.onInjection i x))));
+}
+\import Modules.Hom[V := TotalHomology.Homology, W := HomologySum.Carrier,
+  source := TotalHomology.homologySpace, target := HomologySum.space].Composition[U := HomologySum.Carrier, domain := HomologySum.space] \as LeftCompose;
+\import Modules.End[V := HomologySum.Carrier, space := HomologySum.space] \as HomologyIdentity;
+\import HomologySum.To[W := HomologySum.Carrier, target := HomologySum.space] \as LeftUniversal;
+\definition leftLaw: LeftCompose.compose backward forward = HomologyIdentity.identity :=
+  LeftUniversal.ext _ _ (\fun (i: Index) => Point[i := i].left);
+\import Modules.Hom[V := HomologySum.Carrier, W := HomologySum.Carrier, source := HomologySum.space, target := HomologySum.space] \as LeftMaps;
+\definition leftInverse: \forall (h: HomologySum.Carrier) -> #apply{backward} (#apply{forward} h) = h :=
+  \fun (h: HomologySum.Carrier) => congr!{LeftMaps.Map HomologySum.Carrier} (\fun (f: LeftMaps.Map) => #apply{f} h) _ _ leftLaw;
+\import Modules.Hom[V := HomologySum.Carrier, W := TotalHomology.Homology,
+  source := HomologySum.space, target := TotalHomology.homologySpace].Composition[U := CyclesSum.Carrier, domain := CyclesSum.space] \as ThroughClasses;
+\import Modules.Hom[V := TotalHomology.Cycle, W := TotalHomology.Homology,
+  source := TotalHomology.cycleSpace, target := TotalHomology.homologySpace].Composition[U := CyclesSum.Carrier, domain := CyclesSum.space] \as ThroughCycles;
+\import CyclesSum.To[W := TotalHomology.Homology, target := TotalHomology.homologySpace] \as CycleUniversal;
+\definition rightOnCycles: ThroughClasses.compose forward Classes.map = ThroughCycles.compose TotalHomology.classLinear CycleComparison.forward :=
+  CycleUniversal.ext _ _ (\fun (i: Index)(x: \parent.Component[i := i].Cycle) =>
+    trans!{TotalHomology.Homology} _ _ _
+      (congr!{HomologySum.Carrier TotalHomology.Homology} (#apply{forward}) _ _ (Classes.onInjection i x))
+      (Point[i := i].onClass x));
+\import Modules.Hom[V := CyclesSum.Carrier, W := TotalHomology.Homology,
+  source := CyclesSum.space, target := TotalHomology.homologySpace] \as CycleResults;
+\definition rightCycle: \forall (x: TotalHomology.Cycle) -> #apply{forward} (#apply{onCycles} x) = TotalHomology.classOf x :=
+  \fun (x: TotalHomology.Cycle) => trans!{TotalHomology.Homology} _ _ _
+    (congr!{CycleResults.Map TotalHomology.Homology} (\fun (f: CycleResults.Map) => #apply{f} (#apply{CycleComparison.backward} x)) _ _ rightOnCycles)
+    (congr!{TotalHomology.Cycle TotalHomology.Homology} TotalHomology.classOf _ _ (CycleComparison.rightInverse x));
+\definition rightInverse: \forall (h: TotalHomology.Homology) -> #apply{forward} (#apply{backward} h) = h :=
+  TotalHomology.classInduction (\fun (h: TotalHomology.Homology) => #apply{forward} (#apply{backward} h) = h)
+    (\fun (x: TotalHomology.Cycle) => trans!{TotalHomology.Homology} _ _ _
+      (congr!{HomologySum.Carrier TotalHomology.Homology} (#apply{forward}) _ _ (onTotalClass x)) (rightCycle x));
+\definition isomorphism: Modules.Isomorphism[V := HomologySum.Carrier, W := TotalHomology.Homology,
+  source := HomologySum.space, target := TotalHomology.homologySpace].Isomorphism :=
+  Modules.Isomorphism[V := HomologySum.Carrier, W := TotalHomology.Homology, source := HomologySum.space, target := TotalHomology.homologySpace].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

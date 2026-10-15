@@ -1,0 +1,44 @@
+\import double_complexes.NonnegativeChain[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Nonnegative;
+\import resolutions.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Resolutions;
+\import Resolutions.LengthOne[K := K, L := L, M := M].With[sequence := s] \as S;
+\import Resolutions.LengthOne[K := K1, L := L1, M := M1].With[sequence := t] \as T;
+\module Degreewise(n: Nat.Nat^) {
+  \import Modules.Hom[V := S.Carrier n, W := T.Carrier n, source := S.space n, target := T.space n] \as Maps;
+  \definition Map: \Set := Maps.Map;
+  \definition zeroMap: Map := Maps.zeroMap;
+  \definition zeroPreserved: \forall (f: Map) -> #apply{f} #zero{(S.space n)} = #zero{(T.space n)} := Maps.zeroPreserved;
+}
+\definition upper: \forall (n: Nat.Nat^) -> Degreewise[n := Nat.Nat^::succ n].Map :=
+  \induction (n: Nat.Nat^) \return Degreewise[n := Nat.Nat^::succ n].Map \with {
+    | zero: a
+    | succ: \fun (n: Nat.Nat^)(unused: _) => Degreewise[n := Nat.Nat^::succ (Nat.Nat^::succ n)].zeroMap
+  };
+\definition linear: \forall (n: Nat.Nat^) -> Degreewise[n := n].Map :=
+  \induction (n: Nat.Nat^) \return Degreewise[n := n].Map \with {
+    | zero: b
+    | succ: \fun (n: Nat.Nat^)(unused: _) => upper n
+  };
+\definition Commutes: \Prop := \forall (x: K.Carrier) -> #apply{t.inclusion} (#apply{a} x) = #apply{b} (#apply{s.inclusion} x);
+\definition high: \forall (n: Nat.Nat^)(x: S.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
+  T.apply (Nat.Nat^::succ n) (#apply{(linear (Nat.Nat^::succ (Nat.Nat^::succ n)))} x) =
+  #apply{(linear (Nat.Nat^::succ n))} (S.apply (Nat.Nat^::succ n) x) :=
+  \fun (n: Nat.Nat^)(x: S.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => sym!{{T.Carrier (Nat.Nat^::succ n)}} _ _
+    (Degreewise[n := Nat.Nat^::succ n].zeroPreserved (linear (Nat.Nat^::succ n)));
+\definition commutes: Commutes -> \forall (n: Nat.Nat^)(x: S.Carrier (Nat.Nat^::succ n)) ->
+  T.apply n (#apply{(linear (Nat.Nat^::succ n))} x) = #apply{(linear n)} (S.apply n x) :=
+  \fun (h: Commutes) => \induction (n: Nat.Nat^) \return \forall (x: S.Carrier (Nat.Nat^::succ n)) ->
+    T.apply n (#apply{(linear (Nat.Nat^::succ n))} x) = #apply{(linear n)} (S.apply n x) \with {
+      | zero: h
+      | succ: \fun (n: Nat.Nat^)(unused: _) => high n
+    };
+\import Nonnegative.Map[C := S.complex, D := T.complex] \as Maps;
+\definition map(h: Commutes): Maps.Map := Maps.Map {
+  apply := \fun (n: Nat.Nat^) => #apply{(linear n)},
+  addition := \fun (n: Nat.Nat^) => #addition{(linear n)},
+  scalar := \fun (n: Nat.Nat^) => #scalar{(linear n)},
+  commutes := commutes h,
+};
+\definition Augmented: \Prop := \forall (x: L.Carrier) -> #apply{t.projection} (#apply{b} x) = #apply{c} (#apply{s.projection} x);
+\definition augmentation: \forall (h: Commutes) -> Augmented -> \forall (x: L.Carrier) ->
+  #apply{t.projection} (#apply{(map h)} Nat.Nat^::zero x) = #apply{c} (#apply{s.projection} x) :=
+  \fun (h: Commutes)(augmented: Augmented) => augmented;

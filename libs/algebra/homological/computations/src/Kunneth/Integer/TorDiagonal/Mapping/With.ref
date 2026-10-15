@@ -1,0 +1,53 @@
+\import \parent.\parent.\parent.TorDiagonal[C := E, D := F, n := n] \as Target;
+\import \parent.\parent.Endpoint[] \as SourceEndpoint;
+\import Target.Endpoint[] \as TargetEndpoint;
+\import SourceSequence.Mapping[E := E, F := F].With[f := f, g := g] \as SequenceMap;
+\import Chains.Map[C := SourceSequence.right, D := TargetSequence.right].At[k := n] \as RightHomology;
+\import Chains.Map[C := SourceSequence.left, D := TargetSequence.left].At[k := Bounded.previous n] \as LeftHomology;
+\import Chains.ShortExact[A := SourceSequence.left, B := SourceSequence.middle, C := SourceSequence.right].Morphism[
+  A1 := TargetSequence.left, B1 := TargetSequence.middle, C1 := TargetSequence.right].Diagram[
+  s := SourceSequence.sequence, t := TargetSequence.sequence, a := SequenceMap.left, b := SequenceMap.middle, c := SequenceMap.right].At[k := n] \as DeltaNaturality;
+\import Modules.Of[V := SourceRight.Homology, space := SourceRight.homologySpace].Submodule[].Kernel[W := SourceLeft.Homology, target := SourceLeft.homologySpace] \as SourceKernels;
+\import Modules.Of[V := TargetRight.Homology, space := TargetRight.homologySpace].Submodule[].Kernel[W := TargetLeft.Homology, target := TargetLeft.homologySpace] \as TargetKernels;
+\import Modules.Hom[V := SourceLeft.Homology, W := TargetLeft.Homology, source := SourceLeft.homologySpace, target := TargetLeft.homologySpace] \as LeftLinear;
+\import Modules.Hom[V := SourceBridge.nativeKernelBundle.Carrier, W := TargetBridge.nativeKernelBundle.Carrier,
+  source := SourceBridge.nativeKernelBundle.space, target := TargetBridge.nativeKernelBundle.space] \as KernelMaps;
+\definition nativeMap: KernelMaps.Map := KernelMaps.Map {
+  apply := \fun (x: SourceBridge.nativeKernelBundle.Carrier) =>
+    \into[TargetRight.Homology](#apply{(RightHomology.induced SequenceMap.right)} x, #carrier{(TargetKernels.kernel TargetDelta.connecting)}) \by {
+      trans!{TargetLeft.Homology} _ _ _ (DeltaNaturality.naturality SequenceMap.diagram x)
+        (trans!{TargetLeft.Homology} _ _ _
+          (congr!{SourceLeft.Homology TargetLeft.Homology} (#apply{(LeftHomology.induced SequenceMap.left)}) _ _
+            (\bysub(SourceRight.Homology, #carrier{(SourceKernels.kernel SourceDelta.connecting)}, x)))
+          (LeftLinear.zeroPreserved (LeftHomology.induced SequenceMap.left)))
+    },
+  addition := \fun (x, y: SourceBridge.nativeKernelBundle.Carrier) => #addition{(RightHomology.induced SequenceMap.right)} x y,
+  scalar := \fun (a: Integers.Int^)(x: SourceBridge.nativeKernelBundle.Carrier) => #scalar{(RightHomology.induced SequenceMap.right)} a x,
+};
+\import Modules.Hom[V := SourceBridge.nativeKernelBundle.Carrier, W := TargetBridge.nativeKernelBundle.Carrier,
+  source := SourceBridge.nativeKernelBundle.space, target := TargetBridge.nativeKernelBundle.space].Composition[
+  U := SourceTorSum.Carrier, domain := SourceTorSum.space] \as After;
+\definition after: _ := After.compose nativeMap #forward{SourceEndpoint.forwardIsomorphism};
+\import Modules.Hom[V := TargetTorSum.Carrier, W := TargetBridge.nativeKernelBundle.Carrier,
+  source := TargetTorSum.space, target := TargetBridge.nativeKernelBundle.space].Composition[
+  U := SourceTorSum.Carrier, domain := SourceTorSum.space] \as Before;
+\definition before: _ := Before.compose #forward{TargetEndpoint.forwardIsomorphism} (Maps.torMap f g);
+\module Point(p: Degree);
+\import SourceTorSum.To[W := TargetBridge.nativeKernelBundle.Carrier, target := TargetBridge.nativeKernelBundle.space] \as Universal;
+\definition forwardSquare: after = before := Universal.ext after before (\fun (p: Degree) => Point[p := p].equality);
+\definition forwardNaturality: \forall (x: SourceTorSum.Carrier) ->
+  #apply{nativeMap} (#apply{#forward{SourceEndpoint.forwardIsomorphism}} x) =
+    #apply{#forward{TargetEndpoint.forwardIsomorphism}} (#apply{(Maps.torMap f g)} x) :=
+  \fun (x: SourceTorSum.Carrier) => congr!{{Modules.Hom[V := SourceTorSum.Carrier, W := TargetBridge.nativeKernelBundle.Carrier, source := SourceTorSum.space, target := TargetBridge.nativeKernelBundle.space].Map} TargetBridge.nativeKernelBundle.Carrier}
+    (\fun (h: Modules.Hom[V := SourceTorSum.Carrier, W := TargetBridge.nativeKernelBundle.Carrier, source := SourceTorSum.space, target := TargetBridge.nativeKernelBundle.space].Map) => #apply{h} x) _ _ forwardSquare;
+\definition naturality: \forall (x: SourceBridge.nativeKernelBundle.Carrier) ->
+  #apply{#forward{TargetEndpoint.isomorphism}} (#apply{nativeMap} x) =
+    #apply{(Maps.torMap f g)} (#apply{#forward{SourceEndpoint.isomorphism}} x) :=
+  \fun (x: SourceBridge.nativeKernelBundle.Carrier) => trans!{TargetTerms.torBundle.Carrier} _ _ _
+    (congr!{SourceBridge.nativeKernelBundle.Carrier TargetTerms.torBundle.Carrier}
+      (\fun (y: SourceBridge.nativeKernelBundle.Carrier) => #apply{#forward{TargetEndpoint.isomorphism}} (#apply{nativeMap} y)) _ _
+      (sym!{SourceBridge.nativeKernelBundle.Carrier} _ _ (#rightInverse{SourceEndpoint.forwardIsomorphism} x)))
+    (trans!{TargetTerms.torBundle.Carrier} _ _ _
+      (congr!{TargetBridge.nativeKernelBundle.Carrier TargetTerms.torBundle.Carrier} (#apply{#forward{TargetEndpoint.isomorphism}}) _ _
+        (forwardNaturality (#apply{#forward{SourceEndpoint.isomorphism}} x)))
+      (#leftInverse{TargetEndpoint.forwardIsomorphism} (#apply{(Maps.torMap f g)} (#apply{#forward{SourceEndpoint.isomorphism}} x))));

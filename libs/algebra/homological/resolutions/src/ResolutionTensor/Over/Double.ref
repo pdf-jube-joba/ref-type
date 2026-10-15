@@ -1,0 +1,43 @@
+\import Resolutions.Of[M := M, P := P] \as LeftResolution;
+\import Resolutions.Of[M := N, P := Q] \as RightResolution;
+\import Doubles.Tensor[C := P, D := Q] \as Tensor;
+\import Doubles.Total[C := Tensor.complex] \as Total;
+\definition complex: Chains.Complex := Total.complex;
+\import Chains.ZeroExtension[C := complex] \as Integer;
+\import chain_complexes.Chain[].Over[R := R, ring := ordinaryRing] \as IntegerChains;
+\definition integerComplex: IntegerChains.Complex := Integer.complex;
+\import Chains.ProjectiveResolution[M := M] \as LeftModule;
+\import Chains.ProjectiveResolution[M := N] \as RightModule;
+\import Doubles.Tensor[C := P, D := RightModule.complex] \as LeftTensor;
+\import Doubles.Tensor[C := LeftModule.complex, D := Q] \as RightTensor;
+\import Doubles.Total[C := LeftTensor.complex] \as LeftTotal;
+\import Doubles.Total[C := RightTensor.complex] \as RightTotal;
+\definition leftComplex: Chains.Complex := LeftTotal.complex;
+\definition rightComplex: Chains.Complex := RightTotal.complex;
+\import Chains.ZeroExtension[C := LeftTotal.complex] \as LeftExtension;
+\import Chains.ZeroExtension[C := RightTotal.complex] \as RightExtension;
+\module With(p: LeftResolution.Resolution, q: RightResolution.Resolution);
+
+\module Degree(n: Nat.Nat^) {
+  \import Total.Degree[n := n] \as Term;
+  \import Modules.DirectSum[Index := Doubles.Index n, family := Term.family] \as Sum;
+  \module Component(i: Doubles.Index n) {
+    \import Algebra.TensorProjective[P := LeftResolution.term #first{i}, Q := RightResolution.term #second{i}] \as Projectivity;
+    \definition projective: LeftResolution.Resolution -> RightResolution.Resolution ->
+      Modules.Projective (Modules.Bundle { Carrier := Tensor.Carrier #first{i} #second{i}, space := Tensor.space #first{i} #second{i} }) :=
+      \fun (p: LeftResolution.Resolution)(q: RightResolution.Resolution) =>
+        Projectivity.projective (#projective{p} #first{i}) (#projective{q} #second{i});
+  }
+  \definition projective: LeftResolution.Resolution -> RightResolution.Resolution -> Modules.Projective Term.bundle :=
+    \fun (p: LeftResolution.Resolution)(q: RightResolution.Resolution) => Sum.projective
+      (\fun (i: Doubles.Index n) => Component[i := i].projective p q);
+}
+\definition projective: LeftResolution.Resolution -> RightResolution.Resolution ->
+  \forall (n: Nat.Nat^) -> Modules.Projective (Modules.Bundle { Carrier := complex.family.Carrier n, space := complex.family.space n }) :=
+  \fun (p: LeftResolution.Resolution)(q: RightResolution.Resolution)(n: Nat.Nat^) => Degree[n := n].projective p q;
+
+\module Left;
+
+\module Right;
+
+\module Naturality(L, K: Modules.Bundle, S, T: Chains.Complex);

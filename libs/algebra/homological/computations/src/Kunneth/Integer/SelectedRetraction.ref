@@ -1,0 +1,29 @@
+\import \parent.CoreTerms[C := C, D := D] \as Original;
+\import Bounded.Of[C := C] \as Left;
+\import Bounded.Of[C := D] \as Right;
+\import \parent.HomologyProjection[C := C] \as LeftProjection;
+\import \parent.HomologyProjection[C := D] \as RightProjection;
+\import tensor_chains.TensorChain[].Over[R := Integers.Int^, ring := IntegerRing.commutativeRing] \as Tensors;
+\import tensor_chains.TensorChain[].Grading[] \as Grading;
+\import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
+\import Tensors.Tensor[C := Left.chain, D := Right.chain] \as Product;
+\import Tensors.Tensor[C := LeftProjection.complex, D := RightProjection.complex] \as Projected;
+\import Tensors.TensorMapping[C := Left.chain, D := LeftProjection.complex, E := Right.chain, F := RightProjection.complex].With[
+  f := LeftProjection.map, g := RightProjection.map] \as Projection;
+\import Tensors.Total[C := Product.complex] \as Total;
+\definition family: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Degree) => Original.At[n := n].tensorBundle.Carrier,
+  space := \fun (n: Degree) => Original.At[n := n].tensorBundle.space,
+};
+\import Chains.ZeroDifferential[family := family] \as Zero;
+\module Term(n: Degree);
+\module Step(n: Degree);
+\definition map: Chains.Map[C := Original.tensorComplex, D := Zero.complex].Map :=
+  Chains.Map[C := Original.tensorComplex, D := Zero.complex].Map {
+    apply := \fun (n: Degree) => #apply{Term[n := n].map},
+    addition := \fun (n: Degree) => #addition{Term[n := n].map},
+    scalar := \fun (n: Degree) => #scalar{Term[n := n].map},
+    commutes := \fun (n: Degree)(x: Total.Term[n := n].Carrier) =>
+      sym!{{family.Carrier (Bounded.previous n)}} _ _ (Step[n := n].killed x),
+  };
+\module At(n: Degree);

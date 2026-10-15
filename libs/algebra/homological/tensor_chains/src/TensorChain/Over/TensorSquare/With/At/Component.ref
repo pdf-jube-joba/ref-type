@@ -1,0 +1,24 @@
+\import Modules.Tensor[V := A.family.Carrier p, W := D.family.Carrier q, left := A.family.space p, right := D.family.space q] \as ST;
+\import Modules.Tensor[V := B.family.Carrier p, W := D.family.Carrier q, left := B.family.space p, right := D.family.space q] \as UT;
+\import Modules.Tensor[V := C.family.Carrier p, W := F.family.Carrier q, left := C.family.space p, right := F.family.space q] \as LT;
+\import Modules.Tensor[V := E.family.Carrier p, W := F.family.Carrier q, left := E.family.space p, right := F.family.space q] \as TT;
+\import UpperFirst.Term[p := p, q := q] \as First;
+\import UpperLast.Term[p := p, q := q] \as Last;
+\import LowerFirst.Term[p := p, q := q] \as OtherFirst;
+\import LowerLast.Term[p := p, q := q] \as OtherLast;
+\import Modules.Hom[V := UT.Carrier, W := TT.Carrier, source := UT.space, target := TT.space].Composition[U := ST.Carrier, domain := ST.space] \as UpperCompose;
+\import Modules.Hom[V := LT.Carrier, W := TT.Carrier, source := LT.space, target := TT.space].Composition[U := ST.Carrier, domain := ST.space] \as LowerCompose;
+\import ST.Universal[U := TT.Carrier, target := TT.space] \as Universal;
+\definition equality: Commutes -> UpperCompose.compose Last.map First.map = LowerCompose.compose OtherLast.map OtherFirst.map :=
+  \fun (commutes: Commutes) => Universal.ext (UpperCompose.compose Last.map First.map) (LowerCompose.compose OtherLast.map OtherFirst.map)
+    (\fun (x: A.family.Carrier p)(y: D.family.Carrier q) => trans!{TT.Carrier} _ _ _
+      (congr!{UT.Carrier TT.Carrier} (#apply{Last.map}) _ _ (First.onTensor x y))
+      (trans!{TT.Carrier} _ _ _ (Last.onTensor (#apply{a0} p x) y)
+        (trans!{TT.Carrier} _ _ _
+          (congr!{{E.family.Carrier p} TT.Carrier} (\fun (v: E.family.Carrier p) => TT.tensor v (#apply{g} q y)) _ _ (commutes p x))
+          (sym!{TT.Carrier} _ _ (trans!{TT.Carrier} _ _ _
+            (congr!{LT.Carrier TT.Carrier} (#apply{OtherLast.map}) _ _ (OtherFirst.onTensor x y))
+            (OtherLast.onTensor (#apply{b0} p x) (#apply{g} q y)))))));
+\definition point: Commutes -> \forall (x: ST.Carrier) -> #apply{Last.map} (#apply{First.map} x) = #apply{OtherLast.map} (#apply{OtherFirst.map} x) :=
+  \fun (commutes: Commutes)(x: ST.Carrier) => congr!{{Modules.Hom[V := ST.Carrier, W := TT.Carrier, source := ST.space, target := TT.space].Map} TT.Carrier}
+    (\fun (h: Modules.Hom[V := ST.Carrier, W := TT.Carrier, source := ST.space, target := TT.space].Map) => #apply{h} x) _ _ (equality commutes);

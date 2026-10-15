@@ -1,0 +1,40 @@
+\import tensor_chains.TensorChain[] \as TensorDegrees;
+\import TensorDegrees.Grading[] \as Grading;
+\import TensorDegrees.Over[R := Integers.Int^, ring := IntegerRing.commutativeRing] \as Tensors;
+\import Bounded.Of[C := D] \as Original;
+\definition q: Degree := Grading.complement n p;
+\import resolutions.TensorComplex[].Over[R := Integers.Int^, ring := IntegerRing.commutativeRing].Integer[P := Original.chain, N := A] \as Tensor;
+\import Tensors.Row[E := Tensor.complex, p := p] \as Row;
+\import Row.Homology[n := n] \as Shift;
+\import Chains.At[C := Original.chain, z := q] \as H;
+\import Chains.At[C := Tensor.complex, z := q] \as HT;
+\import Chains.At[C := Row.complex, z := n] \as HR;
+\import Modules.Tensor[V := A.Carrier, W := H.Homology, left := A.space, right := H.homologySpace] \as Input;
+\import Input.Symmetry[] \as Swap;
+\import Modules.Tensor[V := H.Homology, W := A.Carrier, left := H.homologySpace, right := A.space] \as Reversed;
+\definition Carrier: \Set := Input.Carrier;
+\definition space: Modules.Space Carrier := Input.space;
+\definition tensor: A.Carrier -> H.Homology -> Carrier := Input.tensor;
+\import \root.Finite[].Bounded[].Of[C := D].At[z := q].UniversalCoefficient[A := A].Tensor[].Projection[].Exactness[].Derived[].Projective[] \as Projective;
+\import Modules.Isomorphism[V := Carrier, W := Reversed.Carrier, source := space, target := Reversed.space].Composition[
+  U := HT.Homology, final := HT.homologySpace] \as UCTComposition;
+\definition uct(projective: Modules.Projective A): Modules.Isomorphism[V := Carrier, W := HT.Homology,
+  source := space, target := HT.homologySpace].Isomorphism := UCTComposition.compose (Projective.isomorphism projective) Swap.isomorphism;
+\import Modules.Isomorphism[V := Carrier, W := HT.Homology, source := space, target := HT.homologySpace].Composition[
+  U := HR.Homology, final := HR.homologySpace] \as RowComposition;
+\definition isomorphism(projective: Modules.Projective A): Modules.Isomorphism[V := Carrier, W := HR.Homology,
+  source := space, target := HR.homologySpace].Isomorphism := RowComposition.compose Shift.isomorphism (uct projective);
+\import \root.Finite[].Bounded[].Of[C := D].At[z := q].UniversalCoefficient[A := A].Tensor[] \as UCT;
+\import Modules.Tensor[V := H.Cycle, W := A.Carrier, left := H.cycleSpace, right := A.space] \as Cycles;
+\definition pure(x: H.Cycle)(z: A.Carrier): HT.Cycle := UCT.cycle (Cycles.tensor x z);
+\definition rowCycle(x: H.Cycle)(z: A.Carrier): HR.Cycle := #apply{#forward{Shift.cycleIsomorphism}} (pure x z);
+\definition onClass: \forall (projective: Modules.Projective A)(z: A.Carrier)(x: H.Cycle) ->
+  #apply{#forward{isomorphism projective}} (tensor z (H.classOf x)) = HR.classOf (rowCycle x z) :=
+  \fun (projective: Modules.Projective A)(z: A.Carrier)(x: H.Cycle) => trans!{HR.Homology} _ _ _
+    (congr!{Reversed.Carrier HR.Homology}
+      (\fun (v: Reversed.Carrier) => #apply{#forward{Shift.isomorphism}} (#apply{#forward{Projective.isomorphism projective}} v)) _ _ (Swap.onTensor z (H.classOf x)))
+    (trans!{HR.Homology} _ _ _
+      (congr!{HT.Homology HR.Homology} (#apply{#forward{Shift.isomorphism}}) _ _ (Projective.onPure projective x z))
+      (Shift.onClass (pure x z)));
+\definition pureValue: \forall (x: H.Cycle)(z: A.Carrier) ->
+  #apply{UCT.inclusion} (Cycles.tensor x z) = Tensor.At[z := q].tensor x z := UCT.pureValue;

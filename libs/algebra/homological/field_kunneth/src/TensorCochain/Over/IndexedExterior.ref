@@ -1,0 +1,53 @@
+\import \parent.Tensor[C := C, D := D] \as Product;
+\import \parent.Total[C := Product.complex] \as Total;
+\import Cochains.At[C := Total.complex, k := n] \as H;
+\module Pair(p, q: Nat.Nat^) {
+  \import Cochains.At[C := C, k := p] \as Left;
+  \import Cochains.At[C := D, k := q] \as Right;
+  \import Modules.Tensor[V := Left.Cohomology, W := Right.Cohomology,
+    left := Left.cohomologySpace, right := Right.cohomologySpace] \as Tensor;
+  \import \parent.\parent.Exterior[C := C, D := D, p := p, q := q] \as Exterior;
+  \module Target(m: Nat.Nat^) {
+    \import Cochains.At[C := Total.complex, k := m] \as HM;
+    \definition Maps: \Set := Modules.Hom[V := Tensor.Carrier, W := HM.Cohomology,
+      source := Tensor.space, target := HM.cohomologySpace].Map;
+  }
+  \definition mapAt(m: Nat.Nat^)(closed: Arithmetic.add p q = m): Target[m := m].Maps :=
+    \idelim Arithmetic.add p q = m \with k: Nat.Nat^ => Target[m := k].Maps \by {
+      base: Exterior.map, equality: closed
+    };
+  \definition mapRefl: \forall (closed: Arithmetic.add p q = Arithmetic.add p q) ->
+    mapAt (Arithmetic.add p q) closed = Exterior.map :=
+    \fun (closed: Arithmetic.add p q = Arithmetic.add p q) =>
+      \transporteq Arithmetic.add p q \with m: Nat.Nat^ => Target[m := m].Maps \by { base: Exterior.map };
+  \definition map(closed: Arithmetic.add p q = n): Target[m := n].Maps := mapAt n closed;
+  \module Formula(m: Nat.Nat^) {
+    \import Cochains.At[C := Total.complex, k := m] \as HM;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := m] \as Cycles;
+    \definition index(closed: Arithmetic.add p q = m): Total.Index m :=
+      \into[Degrees.Pair](Degrees.Pair { first := p, second := q },
+        { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = m }) \by { closed };
+    \definition OnClass: \Prop := \forall (closed: Arithmetic.add p q = m)
+      (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+      #apply{(mapAt m closed)} (Tensor.tensor (Left.classOf x) (Right.classOf y)) =
+      Cycles.At[i := index closed].classOf x y;
+  }
+  \definition atSum: Formula[m := Arithmetic.add p q].OnClass :=
+    \fun (closed: Arithmetic.add p q = Arithmetic.add p q)(x: Left.CycleCarrier)(y: Right.CycleCarrier) =>
+      trans!{{Cochains.At[C := Total.complex, k := Arithmetic.add p q].Cohomology}} _ _ _
+        (congr!{{Target[m := Arithmetic.add p q].Maps} {Cochains.At[C := Total.complex, k := Arithmetic.add p q].Cohomology}}
+          (\fun (f: Target[m := Arithmetic.add p q].Maps) => #apply{f} (Tensor.tensor (Left.classOf x) (Right.classOf y)))
+          _ _ (mapRefl closed))
+        (Exterior.onClass x y);
+  \definition onClass: Formula[m := n].OnClass :=
+    \fun (closed: Arithmetic.add p q = n)(x: Left.CycleCarrier)(y: Right.CycleCarrier) =>
+      (\idelim Arithmetic.add p q = n \with m: Nat.Nat^ => Formula[m := m].OnClass \by {
+        base: atSum, equality: closed
+      }) closed x y;
+
+}
+\module At(i: Total.Index n) {
+  \import \parent.Pair[p := #first{i}, q := #second{i}] \as P;
+  \definition map: P.Target[m := n].Maps := P.map (Degrees.degree n i);
+  \definition onClass: _ := P.onClass (Degrees.degree n i);
+}

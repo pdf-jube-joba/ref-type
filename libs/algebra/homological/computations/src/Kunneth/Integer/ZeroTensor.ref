@@ -1,0 +1,71 @@
+\import tensor_chains.TensorChain[] \as TensorDegrees;
+\import TensorDegrees.Grading[] \as Grading;
+\import TensorDegrees.Over[R := Integers.Int^, ring := IntegerRing.commutativeRing] \as Tensors;
+\import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
+\import Chains.ZeroDifferential[family := Z] \as Zero;
+\import Bounded.Of[C := D] \as Original;
+\import Tensors.Tensor[C := Zero.complex, D := Original.chain] \as Product;
+\import Tensors.Total[C := Product.complex] \as Total;
+\definition tensorCarrier(p, q: Degree): \Set := Product.Term[p := p, q := q].Carrier;
+\definition tensorSpace(p, q: Degree): Modules.Space (tensorCarrier p q) := Product.Term[p := p, q := q].space;
+\module Coefficient(p: Degree) {
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Z.Carrier p, space := Z.space p };
+  \import resolutions.TensorComplex[].Over[R := Integers.Int^, ring := IntegerRing.commutativeRing].Integer[P := Original.chain, N := bundle] \as Tensor;
+  \import Tensors.Row[E := Tensor.complex, p := p] \as Row;
+  \definition Carrier(n: Degree): \Set := Row.family.Carrier n;
+  \definition space(n: Degree): Modules.Space (Carrier n) := Row.family.space n;
+  \definition apply(n: Degree): Carrier n -> Carrier (Bounded.previous n) := #apply{Row.differential} n;
+  \definition addition: \forall (n: Degree)(x, y: Carrier n) -> apply n (#add{(space n)} x y) = #add{(space (Bounded.previous n))} (apply n x) (apply n y) :=
+    \fun (n: Degree) => #addition{Row.At[n := n].differential};
+  \definition scalar: \forall (n: Degree)(a: Integers.Int^)(x: Carrier n) -> apply n (#smul{(space n)} a x) = #smul{(space (Bounded.previous n))} a (apply n x) :=
+    \fun (n: Degree) => #scalar{Row.At[n := n].differential};
+  \definition squareZero: \forall (n: Degree)(x: Carrier n) -> apply (Bounded.previous n) (apply n x) = #zero{(space (Bounded.previous (Bounded.previous n)))} :=
+    \fun (n: Degree) => Row.Square[n := n].zero;
+}
+\definition rowCarrier(p, n: Degree): \Set := Coefficient[p := p].Carrier n;
+\definition rowSpace(p, n: Degree): Modules.Space (rowCarrier p n) := Coefficient[p := p].space n;
+\definition rowApply(p, n: Degree): rowCarrier p n -> rowCarrier p (Bounded.previous n) := Coefficient[p := p].apply n;
+\definition rowAddition: \forall (p, n: Degree)(x, y: rowCarrier p n) -> rowApply p n (#add{(rowSpace p n)} x y) = #add{(rowSpace p (Bounded.previous n))} (rowApply p n x) (rowApply p n y) :=
+  \fun (p, n: Degree) => Coefficient[p := p].addition n;
+\definition rowScalar: \forall (p, n: Degree)(a: Integers.Int^)(x: rowCarrier p n) -> rowApply p n (#smul{(rowSpace p n)} a x) = #smul{(rowSpace p (Bounded.previous n))} a (rowApply p n x) :=
+  \fun (p, n: Degree) => Coefficient[p := p].scalar n;
+\definition rowSquareZero: \forall (p, n: Degree)(x: rowCarrier p n) -> rowApply p (Bounded.previous n) (rowApply p n x) = #zero{(rowSpace p (Bounded.previous (Bounded.previous n)))} :=
+  \fun (p, n: Degree) => Coefficient[p := p].squareZero n;
+\definition rowComplex(p: Degree): Chains.Complex := Chains.Complex {
+  family := Chains.Family { Carrier := \fun (n: Degree) => rowCarrier p n, space := \fun (n: Degree) => rowSpace p n },
+  differential := Chains.DifferentialData[Chains.Family { Carrier := \fun (n: Degree) => rowCarrier p n, space := \fun (n: Degree) => rowSpace p n }] { apply := \fun (n: Degree)(x: rowCarrier p n) => rowApply p n x },
+  laws := Chains.DifferentialLaws[Chains.Family { Carrier := \fun (n: Degree) => rowCarrier p n, space := \fun (n: Degree) => rowSpace p n }, Chains.DifferentialData[Chains.Family { Carrier := \fun (n: Degree) => rowCarrier p n, space := \fun (n: Degree) => rowSpace p n }] { apply := \fun (n: Degree)(x: rowCarrier p n) => rowApply p n x }] {
+    addition := \fun (n: Degree) => rowAddition p n, scalar := \fun (n: Degree) => rowScalar p n, squareZero := \fun (n: Degree) => rowSquareZero p n,
+  },
+};
+\import \parent.ChainSum[Index := Degree, terms := rowComplex] \as Sum;
+\definition zeroComplex: Chains.Complex := Zero.complex;
+\definition tensorComplex: Chains.Complex := Total.complex;
+\definition sumComplex: Chains.Complex := Sum.complex;
+\module Term(n: Degree);
+\module Step(n: Degree);
+\import Chains.Map[C := Sum.complex, D := Total.complex] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (n: Degree) => #apply{Term[n := n].forward},
+  addition := \fun (n: Degree) => #addition{Term[n := n].forward},
+  scalar := \fun (n: Degree) => #scalar{Term[n := n].forward},
+  commutes := \fun (n: Degree) => Step[n := n].forward,
+};
+\import Chains.Map[C := Total.complex, D := Sum.complex] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (n: Degree) => #apply{Term[n := n].backward},
+  addition := \fun (n: Degree) => #addition{Term[n := n].backward},
+  scalar := \fun (n: Degree) => #scalar{Term[n := n].backward},
+  commutes := \fun (n: Degree) => Step[n := n].backward,
+};
+\import Chains.Isomorphism[C := Sum.complex, D := Total.complex] \as Native;
+\definition isomorphism: Native.Isomorphism := Native.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (n: Degree) => Term[n := n].leftInverse,
+  rightInverse := \fun (n: Degree) => Term[n := n].rightInverse,
+};
+
+\definition chainIsomorphism: Native.Isomorphism := isomorphism;
+\module At(n: Degree);
+
+\module Mapping(W: Chains.Family, E: Bounded.Complex);

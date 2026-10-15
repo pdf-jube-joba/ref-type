@@ -1,0 +1,32 @@
+\import Decomposition.Term[p := #first{j}] \as Original;
+\definition coefficient: Modules.Bundle := Modules.Bundle {
+  Carrier := Right.chain.family.Carrier #second{j}, space := Right.chain.family.space #second{j},
+};
+\import Modules.TensorSplitShortExact[A := Original.cycleBundle, B := Original.chainBundle, C := Original.boundaryBundle, N := coefficient].On[
+  sequence := Original.shortExact, r := Original.retraction] \as Tensor;
+\import LeftProduct.Term[p := #first{j}, q := #second{j}] \as LeftTerm;
+\import MiddleProduct.Term[p := #first{j}, q := #second{j}] \as MiddleTerm;
+\import RightProduct.Term[p := #first{j}, q := #second{j}] \as RightTerm;
+\definition leftBundle: Modules.Bundle := Modules.Bundle { Carrier := LeftTerm.Carrier, space := LeftTerm.space };
+\definition middleBundle: Modules.Bundle := Modules.Bundle { Carrier := MiddleTerm.Carrier, space := MiddleTerm.space };
+\definition rightBundle: Modules.Bundle := Modules.Bundle { Carrier := RightTerm.Carrier, space := RightTerm.space };
+\import Modules.ShortExact[A := leftBundle, B := middleBundle, C := rightBundle] \as Short;
+\definition sequence: Short.Sequence := Tensor.shortExact Original.retracts;
+\definition inclusion: Modules.MapBetween leftBundle middleBundle := #inclusion{sequence};
+\definition projection: Modules.MapBetween middleBundle rightBundle := #projection{sequence};
+\definition retraction: Modules.MapBetween middleBundle leftBundle := Tensor.retraction;
+\definition retracts: \forall (x: LeftTerm.Carrier) -> #apply{retraction} (#apply{inclusion} x) = x := Tensor.roundtripPoint Original.retracts;
+\import Short.Splitting[sequence := sequence].FromRetraction[r := retraction] \as Smith;
+\definition section: Modules.MapBetween rightBundle middleBundle := Smith.section retracts;
+\definition sectionLaw: \forall (x: RightTerm.Carrier) -> #apply{projection} (#apply{section} x) = x := Smith.rightInverse retracts;
+\definition zero: \forall (x: LeftTerm.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{RightTerm.space} := #zero{sequence};
+\import Modules.Laws[V := MiddleTerm.Carrier, space := MiddleTerm.space] \as Laws;
+\import algebra.Group[].Of[Carrier := MiddleTerm.Carrier, group := Laws.additive] \as Group;
+\definition decomposition: \forall (x: MiddleTerm.Carrier) ->
+  #add{MiddleTerm.space} (#apply{inclusion} (#apply{retraction} x)) (#apply{section} (#apply{projection} x)) = x :=
+  \fun (x: MiddleTerm.Carrier) => trans!{MiddleTerm.Carrier} _ _ _
+    (congr!{MiddleTerm.Carrier MiddleTerm.Carrier} (#add{MiddleTerm.space} (#apply{inclusion} (#apply{retraction} x))) _ _
+      (Smith.onImage retracts x))
+    (trans!{MiddleTerm.Carrier} _ _ _
+      (Group.comm (#apply{inclusion} (#apply{retraction} x)) (Group.difference x (#apply{inclusion} (#apply{retraction} x))))
+      (Group.addDifference x (#apply{inclusion} (#apply{retraction} x))));

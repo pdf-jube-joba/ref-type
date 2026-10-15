@@ -1,0 +1,42 @@
+\import std.Logic[].Proposition[] \as Existential;
+\import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
+\import Chains.At[C := C, z := #first{i}] \as Left;
+\definition p: Degree := #first{i};
+\definition q: Degree := #second{i};
+\definition index: Grading.Index n := i;
+\import \parent.Tensor[C := C, D := D] \as Product;
+\import \parent.Total[C := Product.complex] \as Total;
+\import Total.Term[n := n] \as Before;
+\import Total.Term[n := previous n] \as Current;
+\import Total.Step[n := n] \as Step;
+\import Before.Component[i := index] \as Inclusion;
+\import Current.Component[i := Total.upHorizontal n index] \as HInclusion;
+\import Current.Component[i := Total.upVertical n index] \as VInclusion;
+\import Product.Term[p := p, q := q] \as Term;
+\import Product.Term[p := previous p, q := q] \as HTerm;
+\import Product.Term[p := p, q := previous q] \as VTerm;
+\import Product.At[p := p, q := q] \as Differential;
+\import \root.TensorChain[].Over[R := R, ring := ring].Sign[V := Term.Carrier, space := Term.space] \as Sign;
+\import Sign.Mapping[W := HTerm.Carrier, target := HTerm.space] \as HorizontalSign;
+\import Sign.Mapping[W := VTerm.Carrier, target := VTerm.space] \as VerticalSign;
+\import \root.TensorChain[].Over[R := R, ring := ring].Sign[V := HTerm.Carrier, space := HTerm.space] \as HSign;
+\import \root.TensorChain[].Over[R := R, ring := ring].Sign[V := VTerm.Carrier, space := VTerm.space] \as VSign;
+\import Modules.Hom[V := HTerm.Carrier, W := Current.Carrier, source := HTerm.space, target := Current.space] \as HMaps;
+\import Modules.Hom[V := HTerm.Carrier, W := HTerm.Carrier, source := HTerm.space, target := HTerm.space] \as HSigns;
+\import Modules.Laws[V := Current.Carrier, space := Current.space] \as Laws;
+\import algebra.Group[].Of[Carrier := Current.Carrier, group := Laws.additive] \as Group;
+\import Chains.At[C := Total.complex, z := previous n] \as H;
+\import Chains.At[C := D, z := previous q] \as Right;
+\import \parent.IndexedCycleProduct[C := C, D := D, n := previous n].At[i := Total.upVertical n index] \as Exterior;
+\definition lift(x: Left.Cycle)(a: D.family.Carrier q): Before.Carrier :=
+  #apply{Inclusion.injection} (#apply{(Sign.map p)} (Term.tensor x a));
+\module Differential;
+\definition cycle(a: D.family.Carrier q): Right.Cycle := Right.cycle (#apply{D.differential} q a) (#squareZero{D.laws} q a);
+\import Chains.Prior[C := Total.complex] \as Prior;
+\definition vanishes: \forall (x: Left.Cycle)(a: D.family.Carrier q) ->
+  Exterior.classOf x (cycle a) = H.zeroClass :=
+  \fun (x: Left.Cycle)(a: D.family.Carrier q) => H.boundaryClassZero (Exterior.cycle x (cycle a))
+    (Existential.existsIntro[Total.complex.family.Carrier (next (previous n)),
+      { b: Total.complex.family.Carrier (next (previous n)) \where Prior.value (previous n) b = Exterior.value x (cycle a) }]
+      (Transport.cast Total.complex.family.Carrier n (next (previous n)) (sym!{Degree} _ _ (Degrees.nextPrevious n)) (lift x a))
+      (trans!{Current.Carrier} _ _ _ (Prior.previousValue n (lift x a)) (Differential[].value x a)));

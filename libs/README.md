@@ -18,15 +18,18 @@
 | [real/basic](real/basic/README.md) | `real` | 構成済みの実数の演算、距離評価、数列、平方根、有限和 | 1,785 | dedekind_reals, std |
 | [complex](complex/README.md) | `complex` | 実数対による複素数と体の構造 | 432 | dedekind_reals, real, std |
 | [algebra/basic](algebra/basic/README.md) | `algebra` | 準同型、群完成、商、多項式環 | 1,545 | std |
-| [algebra/module_theory](algebra/module_theory/README.md) | `module_theory` | 環上の加群、自由加群、直和、テンソル積、完全列 | 5,322 | algebra, std |
+| [algebra/module_theory](algebra/module_theory/README.md) | `module_theory` | 環上の加群、自由加群、直和、テンソル積、完全列 | 5,379 | algebra, std |
 | [algebra/commutative_algebra](algebra/commutative_algebra/README.md) | `commutative_algebra` | Hom とテンソル積、射影性、有限自由加群の行列 | 1,295 | algebra, module_theory, std |
 | [algebra/integer_matrices](algebra/integer_matrices/README.md) | `integer_matrices` | 整数行列の演算、Smith 標準形と変換行列 | 4,976 | algebra, commutative_algebra, module_theory, std |
 | [algebra/finitely_generated_modules](algebra/finitely_generated_modules/README.md) | `finitely_generated_modules` | 整数の核・像・部分加群の基底、巡回加群、体上の有限次元部分空間 | 1,664 | algebra, commutative_algebra, integer_matrices, module_theory, std |
 | [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 | 5,175 | algebra, complex, dedekind_reals, module_theory, real, std |
-| [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 | 4,966 | algebra, category, module_theory, std |
-| [algebra/homological/resolutions](algebra/homological/resolutions/README.md) | `resolutions` | 非負鎖複体、射影分解、比較定理、Hom・テンソル複体、二重複体 | 4,769 | algebra, chain_complexes, commutative_algebra, module_theory, std |
-| [algebra/homological/derived_functors](algebra/homological/derived_functors/README.md) | `derived_functors` | Ext・Tor、分解からの独立性と自然性、巡回加群の分解、普遍係数 | 3,438 | algebra, chain_complexes, commutative_algebra, finitely_generated_modules, module_theory, resolutions, std |
-| [algebra/homological/computations](algebra/homological/computations/README.md) | `homological_algebra` | 有限複体のホモロジー計算、テンソル余鎖複体、Künneth 同型 | 5,363 | algebra, chain_complexes, commutative_algebra, derived_functors, finitely_generated_modules, integer_matrices, module_theory, resolutions, std |
+| [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 | 5,108 | algebra, category, module_theory, std |
+| [algebra/homological/double_complexes](algebra/homological/double_complexes/README.md) | `double_complexes` | 非負鎖複体、二重複体、total、比較の完全性と符号付き交換 | 4,878 | algebra, chain_complexes, commutative_algebra, module_theory, std |
+| [algebra/homological/resolutions](algebra/homological/resolutions/README.md) | `resolutions` | 射影分解、比較定理、Hom・テンソル複体、二重 total による分解比較 | 3,275 | algebra, chain_complexes, commutative_algebra, double_complexes, module_theory, std |
+| [algebra/homological/tensor_chains](algebra/homological/tensor_chains/README.md) | `tensor_chains` | 整数次数のテンソル total、外積と自然性、符号付き次数移動、可換四角形 | 2,407 | algebra, chain_complexes, double_complexes, module_theory, std |
+| [algebra/homological/derived_functors](algebra/homological/derived_functors/README.md) | `derived_functors` | Ext・Tor、分解からの独立性と自然性、巡回加群の分解、普遍係数 | 4,901 | algebra, chain_complexes, commutative_algebra, double_complexes, finitely_generated_modules, module_theory, resolutions, std |
+| [algebra/homological/field_kunneth](algebra/homological/field_kunneth/README.md) | `field_kunneth` | 有限自由体係数余鎖複体、標準外積同型、自然性・交換符号・単位 | 4,056 | algebra, chain_complexes, commutative_algebra, double_complexes, finitely_generated_modules, module_theory, std |
+| [algebra/homological/computations](algebra/homological/computations/README.md) | `homological_algebra` | 有限整数複体のホモロジー計算、普遍係数・整数 Künneth の自然な短完全列 | 6,639 | algebra, chain_complexes, commutative_algebra, derived_functors, double_complexes, finitely_generated_modules, integer_matrices, module_theory, resolutions, std, tensor_chains |
 | [analysis/calculus](analysis/calculus/README.md) | `calculus` | 極限、平均値定理、多変数微分、滑らかな写像 | 5,210 | dedekind_reals, linear_algebra, metric_spaces, real, std, topological_algebra, topology |
 | [analysis/integration](analysis/integration/README.md) | `integration` | リーマン積分、L¹ 完備化によるルベーグ積分 | 556 | dedekind_reals, real, std |
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 | 2,452 | calculus, linear_algebra, real, std, topological_algebra, topology |

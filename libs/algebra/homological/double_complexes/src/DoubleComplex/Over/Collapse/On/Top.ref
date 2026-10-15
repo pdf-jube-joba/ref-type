@@ -1,0 +1,99 @@
+\definition n: Nat.Nat^ := Arithmetic.add p q;
+\definition index: Index n := \into[Pair](Pair { first := p, second := q },
+  { i: Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { \refl(n) };
+\import Coordinates.Degree[n := n] \as Current;
+\definition rowCycle: \forall (p, q: Nat.Nat^)(x: Total.Carrier (Arithmetic.add p q)) ->
+  Closed (Arithmetic.add p q) x -> Above (Arithmetic.add p q) (Nat.Nat^::succ p) x -> Killed (Arithmetic.add p q) x ->
+  RowClosed p q (Coordinates.Degree[n := Arithmetic.add p q].coordinate
+    (\into[Pair](Pair { first := p, second := q }, { i: Pair \where Arithmetic.add #first{i} #second{i} = Arithmetic.add p q }) \by { \refl(Arithmetic.add p q) }) x) :=
+  \fun (p: Nat.Nat^) => \induction (q: Nat.Nat^) \return
+    \forall (x: Total.Carrier (Arithmetic.add p q)) ->
+      Closed (Arithmetic.add p q) x -> Above (Arithmetic.add p q) (Nat.Nat^::succ p) x -> Killed (Arithmetic.add p q) x ->
+      RowClosed p q (Coordinates.Degree[n := Arithmetic.add p q].coordinate
+        (\into[Pair](Pair { first := p, second := q }, { i: Pair \where Arithmetic.add #first{i} #second{i} = Arithmetic.add p q }) \by { \refl(Arithmetic.add p q) }) x) \with {
+    | zero: \fun (x: Total.Carrier p)(closed: Closed p x)(above: Above p (Nat.Nat^::succ p) x)(killed: Killed p x) =>
+      \parent.Degree[n := p].At[i := \into[Pair](Pair { first := p, second := Nat.Nat^::zero },
+        { i: Pair \where Arithmetic.add #first{i} #second{i} = p }) \by { \refl(p) }].kernel x killed
+    | succ: \fun (q: Nat.Nat^)(previous: _)(x: Total.Carrier (Arithmetic.add p (Nat.Nat^::succ q)))
+      (closed: Closed (Arithmetic.add p (Nat.Nat^::succ q)) x)(above: Above (Arithmetic.add p (Nat.Nat^::succ q)) (Nat.Nat^::succ p) x)
+      (killed: Killed (Arithmetic.add p (Nat.Nat^::succ q)) x) => \parent.PositiveTop[p := p, q := q].closed x closed above
+  };
+\definition lift: \forall (rows: RowsExact[f])(x: Total.Carrier n) -> Closed n x -> Above n (Nat.Nat^::succ p) x -> Killed n x ->
+  \exists { y: C.family.Carrier p (Nat.Nat^::succ q) \where #apply{(C.differential.vertical p q)} y = Current.coordinate index x } :=
+  \fun (rows: RowsExact[f])(x: Total.Carrier n)(closed: Closed n x)(above: Above n (Nat.Nat^::succ p) x)(killed: Killed n x) =>
+    exact rows p q (Current.coordinate index x) (rowCycle p q x closed above killed);
+
+\import \parent.\parent.Injection[p := p, q := q] \as Lift;
+\definition remainder(x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q)): Total.Carrier n :=
+  #add{(Total.space n)} x (#neg{(Total.space n)} (Lift.boundary y));
+\module At(i: Index n) {
+  \import Current.At[i := i] \as Evaluation;
+  \import Modules.Hom[V := Total.Carrier n, W := C.family.Carrier #first{i} #second{i},
+    source := Total.space n, target := C.family.space #first{i} #second{i}] \as Linear;
+  \import Modules.Laws[V := C.family.Carrier #first{i} #second{i}, space := C.family.space #first{i} #second{i}] \as Vectors;
+  \import algebra.Group[].Of[Carrier := C.family.Carrier #first{i} #second{i}, group := Vectors.additive] \as Group;
+  \definition coordinate: \forall (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
+    Current.coordinate i (remainder x y) = Group.difference (Current.coordinate i x) (Current.coordinate i (Lift.boundary y)) :=
+    \fun (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q)) =>
+      trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+        (#addition{Evaluation.map} x (#neg{(Total.space n)} (Lift.boundary y)))
+        (congr!{{C.family.Carrier #first{i} #second{i}} {C.family.Carrier #first{i} #second{i}}}
+          (#add{(C.family.space #first{i} #second{i})} (Current.coordinate i x)) _ _
+          (Linear.negativePreserved Evaluation.map (Lift.boundary y)));
+  \definition above: \forall (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
+    Above n (Nat.Nat^::succ p) x -> Natural.Le (Nat.Nat^::succ p) #first{i} ->
+    Current.coordinate i (remainder x y) = #zero{(C.family.space #first{i} #second{i})} :=
+    \fun (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q))(above: Above n (Nat.Nat^::succ p) x)
+      (bound: Natural.Le (Nat.Nat^::succ p) #first{i}) =>
+      trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _ (coordinate x y)
+        (trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+          (congr2!{{C.family.Carrier #first{i} #second{i}} {C.family.Carrier #first{i} #second{i}} {C.family.Carrier #first{i} #second{i}}}
+            Group.difference _ _ _ _ (above i bound) (Lift.At[i := i].zero y bound))
+          (trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+            (congr!{{C.family.Carrier #first{i} #second{i}} {C.family.Carrier #first{i} #second{i}}}
+              (#add{(C.family.space #first{i} #second{i})} #zero{(C.family.space #first{i} #second{i})}) _ _ Group.negZero)
+            (Group.zeroLeft #zero{(C.family.space #first{i} #second{i})})));
+}
+\import Modules.Laws[V := C.family.Carrier p q, space := C.family.space p q] \as Vectors;
+\import algebra.Group[].Of[Carrier := C.family.Carrier p q, group := Vectors.additive] \as Group;
+\definition atTop: \forall (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
+  #apply{(C.differential.vertical p q)} y = Current.coordinate index x ->
+  Current.coordinate index (remainder x y) = #zero{(C.family.space p q)} :=
+  \fun (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q))(preimage: _) =>
+    trans!{{C.family.Carrier p q}} _ _ _ (At[i := index].coordinate x y)
+      (trans!{{C.family.Carrier p q}} _ _ _
+        (congr!{{C.family.Carrier p q} {C.family.Carrier p q}}
+          (Group.difference (Current.coordinate index x)) _ _
+          (Lift.atTop (Current.coordinate index x) y preimage))
+        (Group.inverseRight (Current.coordinate index x)));
+\definition decrease: \forall (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
+  Above n (Nat.Nat^::succ p) x -> #apply{(C.differential.vertical p q)} y = Current.coordinate index x ->
+  Above n p (remainder x y) :=
+  \fun (x: Total.Carrier n)(y: C.family.Carrier p (Nat.Nat^::succ q))(above: Above n (Nat.Nat^::succ p) x)(preimage: _)
+    (i: Index n)(bound: Natural.Le p #first{i}) =>
+      either!{{(Classical.excludedMiddle (#first{i} = p))} {
+        Current.coordinate i (remainder x y) = #zero{(C.family.space #first{i} #second{i})}}
+        {\fun (equal: #first{i} = p) => \idelim index = i \with j: Index n =>
+          Current.coordinate j (remainder x y) = #zero{(C.family.space #first{j} #second{j})} \by {
+            base: atTop x y preimage,
+            equality: sym!{Pair} _ _ (indexOfFirst n i index equal)
+          }}
+        {\fun (different: Logic.Not (#first{i} = p)) => At[i := i].above x y above
+          (Natural.succLeOfLt #first{i} p
+            (Natural.ltOfLeDifferent p #first{i} bound
+              (\fun (equal: p = #first{i}) => different (sym!{Nat.Nat^} _ _ equal))))}};
+\import Coordinates.Step[p := p, q := q] \as Step;
+\import \parent.\parent.\parent.Sign[V := C.family.Carrier p (Nat.Nat^::succ q), space := C.family.space p (Nat.Nat^::succ q)] \as SourceSign;
+\import Target.Degree[n := Nat.Nat^::succ n] \as TargetTerm;
+\import Modules.Hom[V := D.family.Carrier p (Nat.Nat^::succ q), W := TargetTerm.Carrier,
+  source := D.family.space p (Nat.Nat^::succ q), target := TargetTerm.space] \as TargetInjection;
+\definition liftKilled: Concentrated.Vanishes -> \forall (y: C.family.Carrier p (Nat.Nat^::succ q)) ->
+  Killed (Nat.Nat^::succ n) (Lift.element y) :=
+  \fun (vanishes: Concentrated.Vanishes)(y: C.family.Carrier p (Nat.Nat^::succ q)) =>
+    trans!{TargetTerm.Carrier} _ _ _
+      (Induced.Degree[n := Nat.Nat^::succ n].onInjection Step.verticalIndex (#apply{(SourceSign.map p)} y))
+      (trans!{TargetTerm.Carrier} _ _ _
+        (congr!{{D.family.Carrier p (Nat.Nat^::succ q)} TargetTerm.Carrier}
+          (#apply{(TargetTerm.Component[i := Step.verticalIndex].injection)}) _ _
+          (vanishes p q (#apply{(f p (Nat.Nat^::succ q))} (#apply{(SourceSign.map p)} y))))
+        (TargetInjection.zeroPreserved TargetTerm.Component[i := Step.verticalIndex].injection));

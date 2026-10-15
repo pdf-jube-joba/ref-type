@@ -1,0 +1,54 @@
+\definition inverseLaws: Laws[g] := \bysub(Data, { data: Data \where Laws[data] }, g);
+\import \parent.\parent.\parent.Map[C := D, D := C] \as Reverse;
+\import \root.TensorChain[].Over[R := R, ring := ring].Map[C := C, D := D] \as Original;
+\definition forwardLaws: Original.Laws[f] := Original.laws f;
+\module Component(p, q: Degree) {
+  \definition horizontal: \forall (y: D.family.Carrier p q) ->
+    #apply{(C.differential.horizontal p q)} (#apply{(g p q)} y) =
+      #apply{(g (previous p) q)} (#apply{(D.differential.horizontal p q)} y) :=
+    \block {
+      \fun (y: D.family.Carrier p q) \then
+      \let x: C.family.Carrier p q := #apply{(g p q)} y \then
+      \let z: C.family.Carrier (previous p) q := #apply{(C.differential.horizontal p q)} x \then
+      \return trans!{{C.family.Carrier (previous p) q}} _ _ _
+        (sym!{{C.family.Carrier (previous p) q}} (#apply{(g (previous p) q)} (#apply{(f (previous p) q)} z)) z (#left{inverseLaws} (previous p) q z))
+        (trans!{{C.family.Carrier (previous p) q}}
+          _ _ _
+          (congr!{{D.family.Carrier (previous p) q} {C.family.Carrier (previous p) q}}
+            (#apply{(g (previous p) q)}) (#apply{(f (previous p) q)} z) (#apply{(D.differential.horizontal p q)} (#apply{(f p q)} x))
+            (sym!{{D.family.Carrier (previous p) q}} (#apply{(D.differential.horizontal p q)} (#apply{(f p q)} x)) (#apply{(f (previous p) q)} z) (#horizontal{forwardLaws} p q x)))
+          (congr!{{D.family.Carrier p q} {C.family.Carrier (previous p) q}}
+            (\fun (u: D.family.Carrier p q) => #apply{(g (previous p) q)} (#apply{(D.differential.horizontal p q)} u))
+            (#apply{(f p q)} x) y (#right{inverseLaws} p q y)))
+    };
+  \definition vertical: \forall (y: D.family.Carrier p q) ->
+    #apply{(C.differential.vertical p q)} (#apply{(g p q)} y) =
+      #apply{(g p (previous q))} (#apply{(D.differential.vertical p q)} y) :=
+    \block {
+      \fun (y: D.family.Carrier p q) \then
+      \let x: C.family.Carrier p q := #apply{(g p q)} y \then
+      \let z: C.family.Carrier p (previous q) := #apply{(C.differential.vertical p q)} x \then
+      \return trans!{{C.family.Carrier p (previous q)}} _ _ _
+        (sym!{{C.family.Carrier p (previous q)}} (#apply{(g p (previous q))} (#apply{(f p (previous q))} z)) z (#left{inverseLaws} p (previous q) z))
+        (trans!{{C.family.Carrier p (previous q)}}
+          _ _ _
+          (congr!{{D.family.Carrier p (previous q)} {C.family.Carrier p (previous q)}}
+            (#apply{(g p (previous q))}) (#apply{(f p (previous q))} z) (#apply{(D.differential.vertical p q)} (#apply{(f p q)} x))
+            (sym!{{D.family.Carrier p (previous q)}} (#apply{(D.differential.vertical p q)} (#apply{(f p q)} x)) (#apply{(f p (previous q))} z) (#vertical{forwardLaws} p q x)))
+          (congr!{{D.family.Carrier p q} {C.family.Carrier p (previous q)}}
+            (\fun (u: D.family.Carrier p q) => #apply{(g p (previous q))} (#apply{(D.differential.vertical p q)} u))
+            (#apply{(f p q)} x) y (#right{inverseLaws} p q y)))
+    };
+}
+\definition backward: Reverse.Map := \into[Reverse.Data](g, { data: Reverse.Data \where Reverse.Laws[data] }) \by {
+  Reverse.Laws[g] {
+    horizontal := \fun (p, q: Degree) => Component[p := p, q := q].horizontal,
+    vertical := \fun (p, q: Degree) => Component[p := p, q := q].vertical,
+  }
+};
+\import \parent.\parent.Total[f := f] \as F;
+\import Reverse.Total[f := backward] \as G;
+\import \parent.\parent.\parent.Total[C := C] \as Source;
+\import \parent.\parent.\parent.Total[C := D] \as Target;
+\module Term(n: Degree);
+\module At(n: Degree);

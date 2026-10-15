@@ -1,6 +1,6 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05・G08 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+G02〜G05・G08・G09・G11〜G14 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -186,3 +186,74 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 `Tor.Over.ProjectiveSecond` から `resolutions.ResolutionTensor.Over.Of` を具体化した際、一般の可換環上の加群に対して、`Ring.commutativeRingAsRing R ring` と `ResolutionTensor.Over.ordinaryRing` の照合が同じ診断で停止した。
 [ResolutionTensor.ref](../libs/algebra/homological/resolutions/src/ResolutionTensor.ref) では、依存 module の具体化へ変換式を直接渡すことで回避している。
 この回避で射影係数による Tor の消滅を構成でき、一般の環への適用と巡回加群への具体化は型検査が通る。
+
+<a id="g09"></a>
+
+## G09: 構造を返す関数の結果からの入れ子の射影
+
+構造の族 `terms: Index -> Complex` に対して `(terms i).family.Carrier` と書きたい。
+[`09-01-structure-family-result.ref`](gaps/09-01-structure-family-result.ref) は、依存パッケージなしの7行の再現例で、`Item '<result>.family.Carrier' was not found` になる。
+`#Carrier{#family{(terms i)}}` で明示的に射影しても同じ診断になる。
+
+現在は対象の構造を parameter とする `View` module に射影を定義し、`View[C := terms i]` を import している。
+[`09-02-structure-family-view.ref`](gaps/09-02-structure-family-view.ref) は、この書き方を14行で再現し、型検査を通る。
+整数複体の直和では [`Chains.View`](../libs/algebra/homological/chain_complexes/src/Chain/Over/View.ref) を介して各複体の台集合・加群・微分を取り出す。
+
+<a id="g10"></a>
+
+## G10: total 複体の構造の別名の再公開
+
+射影分解のテンソル total を `ResolutionTensor.Double.complex` から再公開したい。
+[10-01-total-alias.ref](gaps/10-01-total-alias.ref) は `expected nested structure` で停止する。
+[10-02-total-direct.ref](gaps/10-02-total-direct.ref) のように `DoubleComplex.Tensor` と `DoubleComplex.Total` を直接具体化すると、同じ複体を再公開できる。
+`derived_functors.Tor.Balance` は後者を使う。
+`Kunneth.Integer.Of.At.Component.torComplex` も、有限分解の Tor wrapper を経由せず `Tor.LengthOne.With` を直接具体化して再公開する。
+各再現例は11行以内であり、一般の可換環、二つの加群、二つの非負鎖複体をすべて module parameter で束縛している。
+
+<a id="g11"></a>
+
+## G11: 子 module から親の値定義を直接参照する
+
+親に定義した値を子から `\parent.value` と明示的に参照したい。
+[11-01-parent-value.ref](gaps/11-01-parent-value.ref) は依存パッケージなしの6行の再現例で、`Module instantiation path must contain at least one module` になる。
+[11-02-lexical-value.ref](gaps/11-02-lexical-value.ref) は同じ親の値を lexical scope の `value` として参照し、型検査が通る。
+Tor の比較同型では、親の比較写像と同型に区別できる別名を付け、子のホモロジー module でこの別名を使っている。
+
+<a id="g12"></a>
+
+## G12: 台集合が変わる加群の族を自然数の帰納法で返す
+
+零次に係数環、それ以外に零加群を置く族を、`Nat -> Modules.Bundle` の帰納法で定義したい。
+[12-01-bundle-induction.ref](gaps/12-01-bundle-induction.ref) は11行の例で、`definition does not satisfy structure result signature` になる。
+台集合を先に `Nat -> Set` の帰納法で定義する方法も、`forbidden large elimination` により使えない。
+
+現在は階数だけを自然数の帰納法で定義し、各次数の加群を `FiniteCoordinates` の同じ構成で得る。
+[12-02-coordinate-family.ref](gaps/12-02-coordinate-family.ref) は14行の例で、この形の族を公開する。
+[`TensorCochain.Over.Unit`](../libs/algebra/homological/field_kunneth/src/TensorCochain/Over/Unit.ref) は階数を零次で一、そのほかで零とし、零次の唯一の座標での評価と定数一のベクトルを用いて左右の単位同型を証明する。
+
+<a id="g13"></a>
+
+## G13: module の引数に別の module の値を渡す
+
+同じ header の先行 parameter を使って module の値を作り、その値を別の module の構造 parameter に渡して型を得たい。
+[13-01-header-module-value.ref](gaps/13-01-header-module-value.ref) は依存パッケージなしの8行の例で、`unknown module expression scope` になる。
+`Make[A, a].object` の台集合を `Use` を通して取り出すため、`Want` の最後の parameter は数学的には `A` の元である。
+
+[13-02-header-reader.ref](gaps/13-02-header-reader.ref) は13行の例で、値を渡す処理を `Read` の本文へ移し、header からは公開した `Value: Set` を参照すると型検査が通る。
+[`Kunneth.Field.Assertions.Maps`](../libs/algebra/homological/field_kunneth/src/Kunneth/Field/Assertions/Maps.ref) は有限複体の余鎖写像の型をこの形で公開し、自然性の定理の parameter に使う。
+
+同じ制約は、関数の引数から作った値を別の module に渡す場合にも現れる。
+[13-03-function-module-value.ref](gaps/13-03-function-module-value.ref) は引数から作った `Make[A,a].object` を `Use` に直接渡す8行の例で、同じ `unknown module expression scope` を再現する。
+[13-04-function-reader.ref](gaps/13-04-function-reader.ref) は処理を `Read` の本文へ移す13行の回避例である。
+整数 Künneth の `Theorem.SequenceAt` は次数ごとの短完全列の型を本文で組み立て、`Sequences(n)` はその公開型だけを読む。
+
+<a id="g14"></a>
+
+## G14: 部分集合の束縛変数から dot 記法で構造の field を読む
+
+存在命題の部分集合 `{ s: Objects A \where s.value = a }` で、束縛変数 `s` の構造 field を dot 記法で参照したい。
+[14-01-function-field.ref](gaps/14-01-function-field.ref) は5行の例で、`Module import 's' was not found` になる。
+これは関数が返す型だけの問題ではなく、同じ部分集合の台を直接 `Object[A]` にした例でも再現する。
+
+[14-02-explicit-projection.ref](gaps/14-02-explicit-projection.ref) は5行の回避例で、明示的な field projection `#value{s}` を使うと型検査が通る。
+整数 Künneth の `Assertions.Exact` は `#inclusion{s}` を使って、外積が左端の写像である短完全列の存在を公開する。

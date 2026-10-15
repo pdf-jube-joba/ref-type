@@ -1,5 +1,7 @@
 # ホモロジー代数の比較・自然性・Künneth
 
+第1節から第4節と利用例を実装し、下記の全パッケージ検査を完了した。
+
 ## 到達点と配置
 
 有限自由整数複体の普遍係数定理を自然な短完全列として公開し、整数係数の Künneth 短完全列と体係数の標準外積同型を整える。
@@ -11,9 +13,24 @@
 
 | 配置・パッケージ | 追加する内容 |
 | --- | --- |
+| [algebra/homological/double_complexes](../../libs/algebra/homological/double_complexes/README.md)・`double_complexes` | 非負鎖複体、二重 total、比較写像の核の完全性、符号付き交換 |
 | [algebra/homological/resolutions](../../libs/algebra/homological/resolutions/README.md)・`resolutions` | 二つの射影分解のテンソル total と片側の分解との比較写像、ホモロジー同型の証明 |
 | [algebra/homological/derived_functors](../../libs/algebra/homological/derived_functors/README.md)・`derived_functors` | Tor の両変数での計算の一致、普遍係数短完全列の抽象化と自然性 |
-| [algebra/homological/computations](../../libs/algebra/homological/computations/README.md)・`homological_algebra` | 有限モデルとの接続、整数 Künneth、体係数の外積と同型の比較 |
+| [algebra/homological/tensor_chains](../../libs/algebra/homological/tensor_chains/README.md)・`tensor_chains` | 整数次数のテンソル total、外積、有限対角、鎖写像の四角形と自然性 |
+| [algebra/homological/field_kunneth](../../libs/algebra/homological/field_kunneth/README.md)・`field_kunneth` | 体係数の標準外積同型、分裂比較、自然性・交換符号・単位 |
+| [algebra/homological/computations](../../libs/algebra/homological/computations/README.md)・`homological_algebra` | 有限モデルとの接続、普遍係数の自然性、整数 Künneth |
+
+公開 API の参照先は次のとおりである。
+
+| 構成 | API |
+| --- | --- |
+| Tor の両側の比較 | `derived_functors.Tor.Over.Balance`、`ShortExactFirst.With.On.Balance` |
+| 普遍係数短完全列の自然性 | `Finite.Bounded.Mapping.At.With.UniversalCoefficient.On`、`TensorUniversalCoefficient.On` |
+| 整数 Künneth 短完全列 | `Kunneth.Integer.Theorem.At.sequence`、`inclusionEq`、`projectionEq` |
+| 整数 Künneth の自然性 | `Kunneth.Integer.TensorSequence.Mapping.With.diagram`、`Theorem.Mapping.With.At.diagram` |
+| 選んだ整数 Künneth 分裂 | `Kunneth.Integer.Theorem.At.selectedSplitting`、`smithSplitting` |
+| 全称量化した整数定理 | `Kunneth.Integer.Assertions` の `ExactTheorem`・`Naturality`・`Splitting`・`SmithSplitting` が持つ `theorem` |
+| 標準の体係数 Künneth 同型 | `field_kunneth.Kunneth.Field.Of.Canonical`、`Mapping.With.At`、`Symmetry`、`Unit` |
 
 加群の構成は `module_theory`・`commutative_algebra`、一般複体は `chain_complexes`、Smith 計算と部分加群の基底は `integer_matrices`・`finitely_generated_modules` を使う。
 配置名 `computations` と import 名 `homological_algebra` を区別し、各 `ref.toml` には直接 import する依存を宣言する。
@@ -21,7 +38,7 @@
 
 ## 1. 両側の分解による Tor の比較
 
-`resolutions.DoubleComplex` と `ResolutionTensor` を使い、両変数の射影分解から作るテンソル二重複体の total を構成する。
+`double_complexes.DoubleComplex` と `ResolutionTensor` を使い、両変数の射影分解から作るテンソル二重複体の total を構成する。
 各増大写像から、一方だけを分解したテンソル複体への比較写像を作り、ホモロジー同型を誘導することを証明する。
 `derived_functors.Tor` に、両変数のどちらを分解しても得られる計算が一致する同型を公開する。
 分解変更、係数写像、変数交換、長完全列の接続写像との整合性を示す。
@@ -65,7 +82,7 @@ Smith 計算で得る生成元上の写像と、抽象的な外積・Tor 項の�
 
 ## 4. 体係数の標準外積同型
 
-`Kunneth.Field.Of.With.At.isomorphism` の逆が `TensorCochain.Exterior.map` から得る外積と一致することを証明する。
+`field_kunneth.Kunneth.Field.Of.With.At.isomorphism` の逆が `TensorCochain.Exterior.map` から得る外積と一致することを証明する。
 各 \(p+q=n\) の外積を有限対角直和の普遍性でまとめ、分裂の選択によらない標準の Künneth 同型を公開する。
 `TensorCochain.CycleProductNaturality` と `Swap` を使い、両因子の写像についての自然性、交換の \((-1)^{pq}\) の符号、単位との整合性を示す。
 
@@ -87,13 +104,18 @@ Smith 計算で得る生成元上の写像と、抽象的な外積・Tor 項の�
 第1節から第4節まで順に進め、定理は対象と仮定を命題内で量化して公開する。
 検査は [CLI のキャッシュと範囲選択](../../src/USAGE.md) に従い、変更した module と利用 project を指定する。
 ライブラリの検査は workspace の `libs/refcache/` を共有する。
+大きな比較写像と自然性の検査には `--memory-mib 7168` を使う。
+整数 Künneth の両側の比較をまとめる範囲は `--memory-mib 15360`、その利用例は `--memory-mib 15872` で単独実行する。
 
 ```sh
 cargo build -p cli
-cargo run -p cli -- libs/algebra/homological/resolutions --module resolutions
-cargo run -p cli -- libs/algebra/homological/derived_functors --module derived_functors
-cargo run -p cli -- libs/algebra/homological/computations --module homological_algebra
-cargo run -p cli -- libs/algebra/homological/concrete_complexes --module concrete_complexes
+cargo run -p cli -- libs/algebra/homological/double_complexes --module double_complexes --cache-dir libs/refcache --memory-mib 7168 --batch-seconds 60
+cargo run -p cli -- libs/algebra/homological/resolutions --module resolutions --cache-dir libs/refcache --memory-mib 7168 --batch-seconds 60
+cargo run -p cli -- libs/algebra/homological/derived_functors --module derived_functors --cache-dir libs/refcache --memory-mib 7168 --batch-seconds 60
+cargo run -p cli -- libs/algebra/homological/tensor_chains --module tensor_chains --cache-dir libs/refcache --memory-mib 7168 --batch-seconds 60
+cargo run -p cli -- libs/algebra/homological/field_kunneth --module field_kunneth --cache-dir libs/refcache --memory-mib 7168 --batch-seconds 60
+cargo run -p cli -- libs/algebra/homological/computations --module homological_algebra --cache-dir libs/refcache --memory-mib 15360 --batch-seconds 60
+cargo run -p cli -- libs/algebra/homological/concrete_complexes --module concrete_complexes --cache-dir libs/refcache --memory-mib 15872 --batch-seconds 60
 cargo run -p cli -- libs/std
 cargo run -p cli -- libs/geometry/coordinate_calculus
 ```

@@ -1,0 +1,28 @@
+\import std.Data[].FinSet[] \as Finite;
+\import std.Logic[].Proposition[] \as Logic;
+\definition ranks: Nat.Nat^ -> Nat.Nat^ := \induction (n: Nat.Nat^) \return Nat.Nat^ \with {
+  | zero: Nat.Nat^::succ Nat.Nat^::zero
+  | succ: \fun (n: Nat.Nat^)(previous: Nat.Nat^) => Nat.Nat^::zero
+};
+\module Term(n: Nat.Nat^) {
+  \import Modules.FiniteCoordinates[n := ranks n] \as Coordinates;
+  \definition Carrier: \Set := Coordinates.Carrier;
+  \definition space: Modules.Space Carrier := Coordinates.space;
+}
+\definition family: Cochains.Family := Cochains.Family {
+  Carrier := \fun (n: Nat.Nat^) => Term[n := n].Carrier,
+  space := \fun (n: Nat.Nat^) => Term[n := n].space,
+};
+\import Cochains.ZeroDifferential[family := family] \as Z;
+\definition complex: Cochains.Complex := Z.complex;
+\import Modules.FiniteCoordinates[n := Nat.Nat^::succ Nat.Nat^::zero] \as Line;
+\definition scalarOne: R := #one{(Ring.commutativeRingAsRing R ring)};
+\definition one: Line.Carrier := \fun (i: Line.Index) => scalarOne;
+\definition coefficient(v: Line.Carrier): R := v (Finite.zero Nat.Nat^::zero);
+\definition decomposition: \forall (v: Line.Carrier) -> #smul{Line.space} (coefficient v) one = v :=
+  \fun (v: Line.Carrier) => \axiom:funext((#smul{Line.space} (coefficient v) one), v,
+    \fun (i: Line.Index) => trans!{R} _ _ _
+      (#rightIdentity{(#multiplicative{(#semiring{(Ring.commutativeRingAsRing R ring)})})} (coefficient v))
+      (congr!{Line.Index R} v _ _ (sym!{Line.Index} _ _ (Finite.singletonValue i))));
+\module ScalarTensor(N: Modules.Bundle);
+\module With(C: Cochains.Complex);

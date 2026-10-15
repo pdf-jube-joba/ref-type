@@ -1,0 +1,41 @@
+\definition originalLeft: Modules.Bundle := Modules.Bundle { Carrier := C.family.Carrier #first{j}, space := C.family.space #first{j} };
+\definition originalMiddle: Modules.Bundle := Modules.Bundle { Carrier := E.family.Carrier #first{j}, space := E.family.space #first{j} };
+\definition originalRight: Modules.Bundle := Modules.Bundle { Carrier := F.family.Carrier #first{j}, space := F.family.space #first{j} };
+\definition coefficient: Modules.Bundle := Modules.Bundle { Carrier := D.family.Carrier #second{j}, space := D.family.space #second{j} };
+\import Modules.ShortExact[A := originalLeft, B := originalMiddle, C := originalRight] \as Original;
+\definition originalSequence: Original.Sequence := Original.Sequence {
+  inclusion := Modules.Hom[V := C.family.Carrier #first{j}, W := E.family.Carrier #first{j}, source := C.family.space #first{j}, target := E.family.space #first{j}].Map {
+    apply := #apply{input.inclusion} #first{j}, addition := #addition{input.inclusion} #first{j}, scalar := #scalar{input.inclusion} #first{j} },
+  projection := Modules.Hom[V := E.family.Carrier #first{j}, W := F.family.Carrier #first{j}, source := E.family.space #first{j}, target := F.family.space #first{j}].Map {
+    apply := #apply{input.projection} #first{j}, addition := #addition{input.projection} #first{j}, scalar := #scalar{input.projection} #first{j} },
+  injective := #injective{input} #first{j}, onto := #onto{input} #first{j},
+  zero := #zero{input} #first{j}, kernelImage := #kernelImage{input} #first{j},
+};
+\import Modules.TensorSplitShortExact[A := originalLeft, B := originalMiddle, C := originalRight, N := coefficient].On[
+  sequence := originalSequence, r := (#apply{r} #first{j})] \as Tensor;
+\import LeftProduct.Term[p := #first{j}, q := #second{j}] \as LeftTerm;
+\import MiddleProduct.Term[p := #first{j}, q := #second{j}] \as MiddleTerm;
+\import RightProduct.Term[p := #first{j}, q := #second{j}] \as RightTerm;
+\definition leftBundle: Modules.Bundle := Modules.Bundle { Carrier := LeftTerm.Carrier, space := LeftTerm.space };
+\definition middleBundle: Modules.Bundle := Modules.Bundle { Carrier := MiddleTerm.Carrier, space := MiddleTerm.space };
+\definition rightBundle: Modules.Bundle := Modules.Bundle { Carrier := RightTerm.Carrier, space := RightTerm.space };
+\import Modules.ShortExact[A := leftBundle, B := middleBundle, C := rightBundle] \as Short;
+\definition termSequence: Short.Sequence := Tensor.shortExact (#retracts{r} #first{j});
+\definition inclusion: Modules.MapBetween leftBundle middleBundle := #inclusion{termSequence};
+\definition projection: Modules.MapBetween middleBundle rightBundle := #projection{termSequence};
+\definition retraction: Modules.MapBetween middleBundle leftBundle := Tensor.retraction;
+\definition retracts: \forall (x: LeftTerm.Carrier) -> #apply{retraction} (#apply{inclusion} x) = x := Tensor.roundtripPoint (#retracts{r} #first{j});
+\import Short.Splitting[sequence := termSequence].FromRetraction[r := retraction] \as Smith;
+\definition section: Modules.MapBetween rightBundle middleBundle := Smith.section retracts;
+\definition sectionLaw: \forall (x: RightTerm.Carrier) -> #apply{projection} (#apply{section} x) = x := Smith.rightInverse retracts;
+\definition zero: \forall (x: LeftTerm.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{RightTerm.space} := #zero{termSequence};
+\import Modules.Laws[V := MiddleTerm.Carrier, space := MiddleTerm.space] \as Laws;
+\import algebra.Group[].Of[Carrier := MiddleTerm.Carrier, group := Laws.additive] \as Group;
+\definition decomposition: \forall (x: MiddleTerm.Carrier) ->
+  #add{MiddleTerm.space} (#apply{inclusion} (#apply{retraction} x)) (#apply{section} (#apply{projection} x)) = x :=
+  \fun (x: MiddleTerm.Carrier) => trans!{MiddleTerm.Carrier} _ _ _
+    (congr!{MiddleTerm.Carrier MiddleTerm.Carrier} (#add{MiddleTerm.space} (#apply{inclusion} (#apply{retraction} x))) _ _
+      (Smith.onImage retracts x))
+    (trans!{MiddleTerm.Carrier} _ _ _
+      (Group.comm (#apply{inclusion} (#apply{retraction} x)) (Group.difference x (#apply{inclusion} (#apply{retraction} x))))
+      (Group.addDifference x (#apply{inclusion} (#apply{retraction} x))));

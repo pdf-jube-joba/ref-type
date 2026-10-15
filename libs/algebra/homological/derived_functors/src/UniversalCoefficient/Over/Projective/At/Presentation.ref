@@ -1,0 +1,19 @@
+\import std.Logic[].Proposition[] \as Existential;
+\import Modules.Of[V := Homology.Cycle, space := Homology.cycleSpace].Submodule[].Of[S := Homology.boundariesInside] \as Boundary;
+\definition boundaryBundle: Modules.Bundle := Modules.Bundle { Carrier := Boundary.Carrier, space := Boundary.moduleSpace };
+\definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := Homology.Homology, space := Homology.homologySpace };
+\definition cyclesBundle: Modules.Bundle := Modules.Bundle { Carrier := Homology.Cycle, space := Homology.cycleSpace };
+\import Modules.ShortExact[A := boundaryBundle, B := cyclesBundle, C := homologyBundle] \as Sequences;
+\import Modules.Of[V := Homology.Cycle, space := Homology.cycleSpace].Submodule[].Quotient[S := Homology.boundariesInside] \as Quotient;
+\definition kernelImage: \forall (x: Homology.Cycle) -> Homology.classOf x = #zero{Homology.homologySpace} ->
+  \exists { y: Boundary.Carrier \where #apply{Boundary.inclusion} y = x } :=
+  \fun (x: Homology.Cycle)(closed: _) => Existential.existsIntro[Boundary.Carrier, { y: Boundary.Carrier \where #apply{Boundary.inclusion} y = x }] (\into[Homology.Cycle](x, #carrier{Homology.boundariesInside}) \by { Homology.zeroClassBoundary x closed })
+    (\refl(x));
+\definition data: Sequences.Data := Sequences.Data { inclusion := Boundary.inclusion, projection := Homology.classLinear };
+\definition laws: Sequences.Laws[data] := Sequences.Laws[data] {
+  injective := \fun (x, y: Boundary.Carrier)(equal: _) => equal,
+  onto := Quotient.onto,
+  zero := \fun (x: Boundary.Carrier) => Homology.boundaryClassZero x (\bysub(Homology.Cycle, #carrier{Homology.boundariesInside}, x)),
+  kernelImage := kernelImage,
+};
+\definition sequence: Sequences.Sequence := \into[Sequences.Data](data, { data: Sequences.Data \where Sequences.Laws[data] }) \by { laws };

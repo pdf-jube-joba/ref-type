@@ -1,0 +1,39 @@
+\definition higher: Nat.Nat^ := Nat.Nat^::succ n;
+\import \parent.\parent.\parent.At[n := n] \as FirstConnecting;
+\import SecondSequence.At[n := n] \as SecondConnecting;
+\import TotalLongExact.At[n := n] \as TotalConnecting;
+\import RightModel.At[n := higher] \as UpperTotal;
+\import RightBalance.At[n := higher] \as Upper;
+\import LeftBalance.At[n := n] \as Lower;
+\import RightBalance.LeftComparison[].At[n := higher] \as UpperComparison;
+\import LeftDiagram.At[n := n] \as FirstNaturality;
+\import RightDiagram.At[n := n] \as SecondNaturality;
+\import LeftModel.At[n := n] \as LowerTotal;
+\import \root.Tor[].Over[R := R, ring := ring].ConnectingComparison[
+  V := UpperTotal.bundle, W := LowerTotal.bundle, A := Right.At[n := higher].bundle,
+  B := Left.At[n := n].bundle, C := SwappedRight.At[n := higher].bundle, D := SwappedLeft.At[n := n].bundle] \as Chase;
+\definition chaseData: Chase.Data := Chase.Data {
+  cover := Upper.leftIsomorphism,
+  total := TotalConnecting.connecting,
+  first := FirstConnecting.connecting,
+  second := SecondConnecting.connecting,
+  leftLower := Lower.left,
+  rightUpper := Upper.right,
+  rightLower := Lower.right,
+  upper := Upper.isomorphism,
+  lower := Lower.isomorphism,
+};
+\import Chase.On[data := chaseData] \as Proof;
+\definition chaseLaws: Proof.Laws := Proof.Laws {
+  first := \fun (x: UpperTotal.Carrier) => trans!{{Left.At[n := n].Carrier}} _ _ _
+    (congr!{{Right.At[n := higher].Carrier} {Left.At[n := n].Carrier}} (#apply{FirstConnecting.connecting}) _ _ (UpperComparison.forward x))
+    (FirstNaturality.naturality leftDiagram x),
+  second := \fun (x: UpperTotal.Carrier) => SecondNaturality.naturality rightDiagram x,
+  upper := \fun (x: UpperTotal.Carrier) => trans!{{SwappedRight.At[n := higher].Carrier}} _ _ _
+    (congr!{{Right.At[n := higher].Carrier} {SwappedRight.At[n := higher].Carrier}} (#apply{#forward{Upper.isomorphism}}) _ _ (UpperComparison.forward x))
+    (Upper.onComparison x),
+  lower := \fun (x: LowerTotal.Carrier) => Lower.onComparison x,
+};
+\definition connectingNaturality: \forall (q: Right.At[n := higher].Carrier) ->
+  #apply{#forward{Lower.isomorphism}} (#apply{FirstConnecting.connecting} q) =
+    #apply{SecondConnecting.connecting} (#apply{#forward{Upper.isomorphism}} q) := \fun (q: Right.At[n := higher].Carrier) => Proof.naturality chaseLaws q;
