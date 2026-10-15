@@ -46,8 +46,9 @@ impl Report {
 
     pub fn write(&self, path: &Path) -> anyhow::Result<()> {
         let mut file = File::create(path)?;
-        serde_json::to_writer_pretty(&mut file, self)?;
-        file.write_all(b"\n")?;
+        let mut bytes = serde_json::to_vec_pretty(self)?;
+        bytes.push(b'\n');
+        file.write_all(&bytes)?;
         Ok(())
     }
 }

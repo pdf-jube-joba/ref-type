@@ -143,6 +143,44 @@ fn child_process(parent: u32) -> Option<u32> {
 
 #[cfg(target_os = "linux")]
 #[test]
+fn uncached_native_batch_skips_portable_artifact_generation() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = 'uncached'\n");
+    fixture.write(
+        "src/root.ref",
+        r"\module M { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
+    );
+    let output = run_ref_file_with_args(
+        &fixture.0,
+        &fixture.0,
+        &["--no-cache", "--cache-stats", "--no-progress"],
+    )
+    .unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+    let log = String::from_utf8_lossy(&output.stderr);
+    assert!(log.contains("package_writes: 0"), "{log}");
+    assert!(log.contains("compressed_environment_bytes: 0"), "{log}");
+    assert!(log.contains("environment_write_bytes: 0"), "{log}");
+}
+
+#[cfg(unix)]
+#[test]
+fn uncached_check_preserves_non_utf8_source_identities() {
+    use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+    let fixture = FixtureDirectory::new();
+    let path = fixture.0.join(OsStr::from_bytes(b"source_\xff.ref"));
+    fs::write(
+        &path,
+        r"\module M { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
+    )
+    .unwrap();
+    let output =
+        run_ref_file_with_args(&fixture.0, &path, &["--no-cache", "--no-progress"]).unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
 fn native_batches_recheck_with_a_fresh_cache_and_preserve_parent_errors() {
     use sha2::{Digest, Sha256};
     let fixture = FixtureDirectory::new();

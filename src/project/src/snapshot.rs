@@ -395,7 +395,12 @@ impl SourceSnapshot {
     pub fn source_identities(&self) -> impl Iterator<Item = (&Path, &Path)> {
         self.aliases
             .iter()
-            .filter(|(_, identity)| self.files.keys().any(|path| path.starts_with(identity)))
+            .filter(|(_, identity)| {
+                self.files
+                    .range((*identity).clone()..)
+                    .next()
+                    .is_some_and(|(path, _)| path.starts_with(identity))
+            })
             .map(|(path, identity)| (path.as_path(), identity.as_path()))
     }
     pub fn source(&self, path: impl AsRef<Path>) -> Option<&Arc<SourceFile>> {

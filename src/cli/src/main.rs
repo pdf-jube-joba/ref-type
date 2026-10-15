@@ -287,6 +287,7 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
     } else {
         let options = sema::CheckOptions {
             force: args.trace || args.no_cache || args.full_check,
+            skip_environment_cache: args.no_cache,
             force_local: args.full_check_local,
             progress: (!args.no_progress).then_some(show_progress),
             progress_events: display.enabled().then_some(progress::receive),
@@ -303,7 +304,7 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
         #[cfg(target_os = "linux")]
         let options = if args.worker.is_some() {
             sema::CheckOptions {
-                progress_events: Some(supervisor::send_event),
+                progress_events: (!args.no_progress).then_some(supervisor::send_event),
                 ..options
             }
         } else {
