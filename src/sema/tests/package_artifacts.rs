@@ -215,6 +215,33 @@ fn individual_and_partial_results_complete_warm_queries_without_environment_impo
 }
 
 #[test]
+fn different_consumers_and_unrelated_dependencies_preserve_artifact_keys() {
+    let fixture = Fixture::new();
+    let entry = fixture.diamond();
+    let cache = fixture.0.join("cache");
+    let snapshot = SourceSnapshot::read(&entry).unwrap();
+    assert!(Database::with_cache(&cache).check(&snapshot).is_success());
+    let original = records(&cache);
+    fixture.package(
+        "extra",
+        &[],
+        r"\module Core { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
+    );
+    let other = fixture.package("other", &["extra", "right", "left"], APP);
+    let changed = SourceSnapshot::read(other).unwrap();
+    let mut database = Database::with_cache(&cache);
+    let result = database.check(&changed);
+    assert!(result.is_success(), "{result:?}");
+    assert_eq!(result, independent_result(&changed));
+    let after = records(&cache);
+    for name in ["base", "left", "right"] {
+        assert_eq!(original[name], after[name], "changed {name}");
+    }
+    assert!(database.stats().package_hits >= 3, "{:?}", database.stats());
+    assert!(database.cache_store_stats().environment_read_bytes > 0);
+}
+
+#[test]
 fn transitive_dependency_changes_invalidate_its_consumers() {
     let fixture = Fixture::new();
     let entry = fixture.diamond();
