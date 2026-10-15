@@ -12,15 +12,27 @@ thread_local! {
     static ACTIVE: RefCell<Option<Active>> = const { RefCell::new(None) };
 }
 
+type SharedOutput = Arc<Mutex<Box<dyn Write + Send>>>;
+
 struct Active {
     state: Arc<Mutex<State>>,
     profile: bool,
+    output: Option<SharedOutput>,
+}
+
+#[derive(Default)]
+struct Package {
+    total: usize,
+    checked: usize,
+    skipped: usize,
+    reported: bool,
 }
 
 struct State {
     phase: ProgressPhase,
     plan: Option<ProgressPlan>,
     completed: BTreeMap<Vec<String>, ProgressAction>,
+    packages: BTreeMap<String, Package>,
     current: Option<Vec<String>>,
     started: Instant,
     success: Option<bool>,
@@ -32,29 +44,78 @@ impl State {
             phase: ProgressPhase::Loading,
             plan: None,
             completed: BTreeMap::new(),
+            packages: BTreeMap::new(),
             current: None,
             started: Instant::now(),
             success: None,
         }
     }
 
-    fn update(&mut self, event: &ProgressEvent) {
+    fn update(&mut self, event: &ProgressEvent) -> Option<String> {
         match event {
             ProgressEvent::Phase(phase) => {
                 self.phase = *phase;
                 self.current = None;
             }
-            ProgressEvent::Planned(plan) => self.plan = Some(plan.clone()),
+            ProgressEvent::Planned(plan) => {
+                let mut packages: BTreeMap<_, _> = plan
+                    .packages
+                    .iter()
+                    .map(|name| {
+                        let reported = self.packages.get(name).is_some_and(|p| p.reported);
+                        (
+                            name.clone(),
+                            Package {
+                                reported,
+                                ..Package::default()
+                            },
+                        )
+                    })
+                    .collect();
+                for module in &plan.modules {
+                    if let Some(package) = module.path.first().and_then(|p| packages.get_mut(p)) {
+                        package.total += 1;
+                        match self.completed.get(&module.path) {
+                            Some(ProgressAction::Check) => package.checked += 1,
+                            Some(ProgressAction::Skip) => package.skipped += 1,
+                            None => {}
+                        }
+                    }
+                }
+                self.packages = packages;
+                self.plan = Some(plan.clone());
+            }
             ProgressEvent::ModuleStarted(path) => self.current = Some(path.clone()),
             ProgressEvent::ModuleFinished { path, action } => {
-                let previous = self.completed.entry(path.clone()).or_insert(*action);
-                if *action == ProgressAction::Check {
-                    *previous = *action;
+                let previous = self.completed.get(path).copied();
+                if previous == Some(ProgressAction::Check) || previous == Some(*action) {
+                    return None;
+                }
+                self.completed.insert(path.clone(), *action);
+                if let Some((name, package)) = path
+                    .first()
+                    .and_then(|name| self.packages.get_mut(name).map(|p| (name, p)))
+                {
+                    if previous == Some(ProgressAction::Skip) {
+                        package.skipped -= 1;
+                    }
+                    match action {
+                        ProgressAction::Check => package.checked += 1,
+                        ProgressAction::Skip => package.skipped += 1,
+                    }
+                    if !package.reported && package.checked + package.skipped == package.total {
+                        package.reported = true;
+                        return Some(format!(
+                            "Finished {name}: {} check, {} skip",
+                            package.checked, package.skipped
+                        ));
+                    }
                 }
             }
             ProgressEvent::Finished { success } => self.success = Some(*success),
             ProgressEvent::CheckpointSaved { .. } => {}
         }
+        None
     }
 
     fn render(&self, tick: usize, width: usize) -> String {
@@ -87,14 +148,9 @@ impl State {
             },
             |path| {
                 let package = &path[0];
-                if plan.packages.contains(package) {
-                    let total = plan
-                        .modules
-                        .iter()
-                        .filter(|m| m.path[0] == *package)
-                        .count();
-                    let done = self.completed.keys().filter(|p| p[0] == *package).count();
-                    format!("({package} {done}/{total}) {}", path.join("."))
+                if let Some(progress) = self.packages.get(package) {
+                    let done = progress.checked + progress.skipped;
+                    format!("({package} {done}/{}) {}", progress.total, path.join("."))
                 } else {
                     path.join(".")
                 }
@@ -173,7 +229,11 @@ pub fn receive_timed(event: &ProgressEvent, elapsed: Duration) {
     ACTIVE.with_borrow(|active| {
         if let Some(active) = active {
             let mut state = active.state.lock().unwrap();
-            state.update(event);
+            if let Some(message) = state.update(event)
+                && let Some(output) = &active.output
+            {
+                write_message(output, true, &message);
+            }
             if active.profile {
                 eprintln!("{}", state.profile(event, elapsed));
             }
@@ -188,23 +248,27 @@ pub struct Display {
     state: Arc<Mutex<State>>,
     wake: mpsc::SyncSender<()>,
     worker: Option<JoinHandle<()>>,
-    output: Arc<Mutex<Box<dyn Write + Send>>>,
+    output: SharedOutput,
+}
+
+fn write_message(output: &SharedOutput, enabled: bool, message: &str) {
+    let mut writer = output.lock().unwrap();
+    if enabled {
+        let _ = write!(writer, "\r\x1b[2K");
+    }
+    let _ = writeln!(writer, "{message}");
+    let _ = writer.flush();
 }
 
 impl Display {
     #[cfg(target_os = "linux")]
     pub fn message(&self, message: &str) {
-        let mut writer = self.output.lock().unwrap();
-        if self.enabled {
-            let _ = write!(writer, "\r\x1b[2K");
-        }
-        let _ = writeln!(writer, "{message}");
-        let _ = writer.flush();
+        write_message(&self.output, self.enabled, message);
     }
 
     pub fn new(enabled: bool, output: Box<dyn Write + Send>) -> Self {
         let state = Arc::new(Mutex::new(State::new()));
-        let output = Arc::new(Mutex::new(output));
+        let output: SharedOutput = Arc::new(Mutex::new(output));
         let (wake, updates) = mpsc::sync_channel(1);
         let profile = std::env::var_os("REF_TYPE_PROFILE_PROGRESS").is_some();
         if enabled || profile {
@@ -212,6 +276,7 @@ impl Display {
                 *active = Some(Active {
                     state: state.clone(),
                     profile,
+                    output: enabled.then(|| output.clone()),
                 });
             });
         }
@@ -304,6 +369,48 @@ impl Drop for Display {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn packages_report_once_when_all_selected_modules_finish() {
+        let mut state = State::new();
+        let plan = ProgressEvent::Planned(ProgressPlan {
+            packages: vec!["app".into(), "base".into()],
+            modules: ["app", "app.Main", "base", "base.A"]
+                .map(|path| sema::ProgressModule {
+                    path: path.split('.').map(str::to_owned).collect(),
+                    dependencies: vec![],
+                })
+                .into(),
+        });
+        let complete = |path: &str, action| ProgressEvent::ModuleFinished {
+            path: path.split('.').map(str::to_owned).collect(),
+            action,
+        };
+        assert_eq!(state.update(&plan), None);
+        assert_eq!(state.update(&complete("base", ProgressAction::Skip)), None);
+        assert_eq!(state.update(&complete("base", ProgressAction::Skip)), None);
+        assert_eq!(state.update(&complete("app", ProgressAction::Skip)), None);
+        assert_eq!(state.update(&complete("app", ProgressAction::Check)), None);
+        // Workers may repeat plans and completed dependencies across batches.
+        assert_eq!(state.update(&plan), None);
+        assert_eq!(
+            state.update(&complete("base.A", ProgressAction::Skip)),
+            Some("Finished base: 0 check, 2 skip".into())
+        );
+        assert_eq!(state.update(&plan), None);
+        assert_eq!(
+            state.update(&complete("base.A", ProgressAction::Check)),
+            None
+        );
+        assert_eq!(
+            state.update(&complete("app.Main", ProgressAction::Skip)),
+            Some("Finished app: 1 check, 1 skip".into())
+        );
+        assert_eq!(
+            state.update(&complete("app.Main", ProgressAction::Skip)),
+            None
+        );
+    }
 
     #[test]
     fn retries_change_cached_action_without_counting_a_module_twice() {

@@ -119,7 +119,7 @@ class CliOutputTests(unittest.TestCase):
             self.assertEqual(output.stderr.count("definition marker (excluding diagnostics)"), 1)
 
 
-def run_terminal(path, log, interrupt=False):
+def run_terminal(path, log, interrupt=False, args=("--no-cache",)):
     child, terminal = pty.fork()
     if child == 0:
         try:
@@ -130,7 +130,7 @@ def run_terminal(path, log, interrupt=False):
                 os.dup2(output.fileno(), 2)
             environment = clean_environment(REF_TYPE_PROFILE_PROGRESS="1", REF_TYPE_PROFILE_DECLARATIONS="1")
             os.execve(BINARY,
-                      ["cli", str(path), "--no-cache", "--progress-tty"], environment)
+                      ["cli", str(path), *args, "--progress-tty"], environment)
         finally:
             os._exit(127)
     captured = bytearray()
@@ -176,6 +176,37 @@ def run_terminal(path, log, interrupt=False):
 
 
 class ProgressTerminalTests(unittest.TestCase):
+    def test_package_summaries_cover_checks_and_cache_hits_on_the_terminal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ["app", "base"]:
+                package = root / name
+                (package / "src").mkdir(parents=True)
+                (package / "ref.toml").write_text(f'[package]\nname = "{name}"\n')
+            with (root / "app/ref.toml").open("a") as manifest:
+                manifest.write('[dependencies]\nbase = { path = "../base" }\n')
+            source = root / "app/src/root.ref"
+            source.write_text(
+                r"\module Main { \import base.A[] \as A; \definition P: \Prop := A.P; }")
+            (root / "base/src/root.ref").write_text(
+                r"\module A { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }")
+            for cached in [False, True]:
+                with self.subTest(cached=cached):
+                    log = root / "details.log"
+                    status, terminal, _ = run_terminal(root / "app", log, args=())
+                    details = log.read_text()
+                    self.assertEqual(status, 0, details)
+                    counts = "0 check, 2 skip" if cached else "2 check, 0 skip"
+                    for name in ["app", "base"]:
+                        summary = f"Finished {name}: {counts}"
+                        self.assertEqual(terminal.count(summary.encode()), 1, terminal)
+                        self.assertNotIn(summary, details)
+                        self.assertLess(terminal.index(summary.encode()),
+                                        terminal.index(b"Finished 4/4 modules"))
+            quiet = run_check(root / "app", "--no-progress")
+            self.assertEqual(quiet.returncode, 0, quiet.stderr)
+            self.assertEqual(quiet.stderr, "")
+
     def test_bar_and_summary_go_to_terminal_while_profiles_and_timings_go_to_log(self):
         with tempfile.TemporaryDirectory() as directory:
             log = Path(directory) / "details.log"

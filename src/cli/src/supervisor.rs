@@ -280,6 +280,12 @@ impl Events {
             self.pending.clear();
             match message {
                 Message::Event(ProgressEvent::Planned(next), _) => {
+                    let mut packages: BTreeSet<_> = plan.packages.iter().cloned().collect();
+                    plan.packages.extend(
+                        next.packages
+                            .into_iter()
+                            .filter(|p| packages.insert(p.clone())),
+                    );
                     let mut known: BTreeSet<_> =
                         plan.modules.iter().map(|m| m.path.clone()).collect();
                     plan.modules.extend(
