@@ -113,7 +113,6 @@ visit_enum!(ModuleBody {
 });
 
 visit_enum!(ModuleItem {
-    Scoped { exports, items },
     Definition { owner, name, binders, ty, body },
     Inductive { type_name, parameters, indices, kind, constructors },
     Structure { name, kind, parameters, fields, field_spans },

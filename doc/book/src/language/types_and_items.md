@@ -64,4 +64,4 @@ Program の型引数は、文脈から決まれば省略または `_` で指定�
 `p #first` と `#first{p}` は p の型から projection を解決する。
 Set の法則付き record では data と law の両方を参照でき、Program record では計算を返す。
 名前付きの field 参照 `p.first` も使える。
-block 内の `\fix`・`\let` で導入した変数にも使える。
+block 内の `\fun`・`\let` で導入した変数にも使える。

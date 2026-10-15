@@ -57,6 +57,15 @@ Program の値型・値・計算は各カテゴリの規則で検査する。
 計算 field の受け渡しには内部で thunk を使い、アクセスは元の計算を返す。
 `std.Program.Correspondence` と `Machine` もこの signature を使う。
 
+sort を持つ record の既定値は `\Prop` の証明 field に指定できる。
+
+```text
+\structure Reflexive[A: \Set, a: A]: \Prop {
+  same: a = a := \refl(a),
+}
+\definition reflexive(A: \Set)(a: A): Reflexive[A, a] := Reflexive[A, a] {};
+```
+
 ## sort を持つ record
 
 束全体を等式や帰納法の対象にする場合は sort を指定する。

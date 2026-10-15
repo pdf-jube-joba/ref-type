@@ -89,9 +89,6 @@ pub enum Error {
     DuplicateDeclaration {
         name: String,
     },
-    MissingExport {
-        name: String,
-    },
     StructureArgumentCountMismatch {
         expected_count: usize,
         actual_count: usize,
@@ -111,7 +108,6 @@ pub enum Invalid {
     AlreadyAtRootModule,
     ArgumentDoesNotSatisfyDeclarationSignature,
     BundleProgramTypesRequireAnExplicitType,
-    BundleTypeMembersDoNotTakeParameters,
     CyclicModuleImportDependency,
     DeclarationParameterCountMismatch,
     DefaultFieldsInASortedStructureRequireProp,
@@ -155,9 +151,6 @@ impl std::fmt::Display for Invalid {
             }
             Self::BundleProgramTypesRequireAnExplicitType => {
                 f.write_str("bundle Program types require an explicit type")
-            }
-            Self::BundleTypeMembersDoNotTakeParameters => {
-                f.write_str("bundle type members do not take parameters")
             }
             Self::CyclicModuleImportDependency => f.write_str("cyclic module import dependency"),
             Self::DeclarationParameterCountMismatch => {
@@ -301,7 +294,6 @@ impl std::fmt::Display for Error {
                 write!(f, "No token match branch matches capture '{}'", name)
             }
             Self::DuplicateDeclaration { name } => write!(f, "duplicate declaration: {}", name),
-            Self::MissingExport { name } => write!(f, "missing exported member: {}", name),
             Self::StructureArgumentCountMismatch {
                 expected_count,
                 actual_count,
@@ -437,9 +429,6 @@ impl diagnostics::DiagnosticError for Error {
             }
             Self::DuplicateDeclaration { name } => {
                 Data::new("resolve.DuplicateDeclaration").with("name", name.clone())
-            }
-            Self::MissingExport { name } => {
-                Data::new("resolve.MissingExport").with("name", name.clone())
             }
             Self::StructureArgumentCountMismatch {
                 expected_count,

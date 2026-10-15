@@ -20,7 +20,7 @@ G04 は [`gaps.md`](../gaps.md#g04) から分割した項目である。
 ## 検討状況
 
 `\Box` に Program の型 parameter・value parameter を許すための論点整理。
-parameter の具体化、Box 内の簡約、`\Force` による reflection の関係が未決定であり、実装方針は検討中である。
+parameter の具体化、Box 内の簡約、`\squash` による reflection の関係が未決定であり、実装方針は検討中である。
 
 ## 動機と現状
 
@@ -32,9 +32,9 @@ parameter の具体化、Box 内の簡約、`\Force` による reflection の関
 box intro では payload の reflection についても型検査するため、開いた Box の検討には反映先の文脈も関わる。
 
 現在の box step は payload の Program 簡約を Box の内側で進める。
-`\Force` は閉じた payload がこれ以上簡約できなくなったところで reflection に移す。
+`\squash` は閉じた payload がこれ以上簡約できなくなったところで reflection に移す。
 [kernel の簡約](../../src/kernel/src/reduction.rs)にも `BoxProgram` 自体を一段進める処理がある。
-したがって、現状の規則では `\Force` だけを Program の実行開始点とみなす説明には調整が必要になる。
+したがって、現状の規則では `\squash` だけを Program の実行開始点とみなす説明には調整が必要になる。
 
 ## parameter を実行前の環境とみなす考え方
 
@@ -82,11 +82,11 @@ N to y in return 0
 この例は結果の不一致や体系の矛盾を示すものではなく、Program の評価順序をどこまで保証したいかを問うものである。
 
 また、開いた項の簡約不能性は代入によって失われうる。
-未具体化の項を扱う `\Force` の条件には、入力待ちと実行結果の区別が必要になる。
+未具体化の項を扱う `\squash` の条件には、入力待ちと実行結果の区別が必要になる。
 
 ## 具体化を待つ案と残る疑問
 
-Box の形成には parameter を許し、`\Force` による取り出しを環境の具体化まで保留する案が出た。
+Box の形成には parameter を許し、`\squash` による取り出しを環境の具体化まで保留する案が出た。
 ただし、「環境が具体化した時点」をどう定義するかは未解決である。
 
 議論中の次の式は、外側の beta 簡約と Box の取り出しの順序を表す模式例である。
@@ -120,8 +120,8 @@ return (thunk (force x))
 
 - 制御したい順序の範囲：Program 内の実行順序と、外側の代入・定義展開・Set の簡約との関係。
 - module parameter の具体化と、binder による自由変数への代入の共通点・相違点。
-- Box 内の簡約を進める条件と、`\Force` で reflection に移る条件。
-- 未具体化の `\Force` を含む定義の型検査と等価性判定。
+- Box 内の簡約を進める条件と、`\squash` で reflection に移る条件。
+- 未具体化の `\squash` を含む定義の型検査と等価性判定。
 - Program の文脈・代入と、それらの reflection の対応。
 - parameter を持つ payload の reflection の型検査と、既存の停止性に関わる条件の扱い。
 

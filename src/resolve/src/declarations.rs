@@ -1,8 +1,8 @@
-//! Declaration scopes and reflected views of Program type templates.
+//! Declaration expansion and reflected views of Program type templates.
 use super::*;
 
 impl Resolver {
-    pub(super) fn scoped_item(
+    pub(super) fn process_declaration(
         &mut self,
         mut item: ModuleItem,
         output: &mut Vec<ModuleItem>,
@@ -105,7 +105,7 @@ impl Resolver {
                             crate::error::Invalid::DefaultFieldsInASortedStructureRequireProp,
                         )));
                     }
-                    self.scoped_item(
+                    self.process_declaration(
                         ModuleItem::Record {
                             type_name: name.clone(),
                             parameters: parameters.clone(),
@@ -120,7 +120,7 @@ impl Resolver {
                     let mut preceding = Vec::new();
                     for (field, ty, default) in fields {
                         if let Some(body) = default {
-                            self.scoped_item(
+                            self.process_declaration(
                                 ModuleItem::Definition {
                                     owner: Some(AssociatedOwner {
                                         type_name: name.clone(),
@@ -143,7 +143,7 @@ impl Resolver {
                 }
                 if let InductiveKind::Pts(sort @ syntax::sort::Sort::Set(_)) = kind {
                     let fields = fields.into_iter().map(|(name, ty, _)| (name, ty)).collect();
-                    return self.scoped_item(
+                    return self.process_declaration(
                         ModuleItem::SetStructure {
                             name,
                             parameters,
@@ -154,7 +154,7 @@ impl Resolver {
                     );
                 }
                 let fields = fields.into_iter().map(|(name, ty, _)| (name, ty)).collect();
-                return self.scoped_item(
+                return self.process_declaration(
                     ModuleItem::Record {
                         type_name: name,
                         parameters,
@@ -166,117 +166,28 @@ impl Resolver {
             }
             return self.compile_structure(name, parameters, fields, field_spans, output);
         }
-        let ModuleItem::Scoped { exports, items } = item else {
-            self.item(&mut item)?;
-            if matches!(
-                item,
-                ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. }
-            ) {
-                return Ok(());
-            }
-            if matches!(item, ModuleItem::UseMacro { .. }) {
-                let Some(import) = self.pending_macro_import.take() else {
-                    return Ok(());
-                };
-                item = import;
-            }
-            if !matches!(item, ModuleItem::ChildModule { .. }) {
-                self.order.push(CheckStep::Declaration {
-                    module: self.current,
-                    index: *self.declaration_counts.entry(self.current).or_default(),
-                });
-            }
-            *self.declaration_counts.entry(self.current).or_default() += 1;
-            output.push(item);
+        self.item(&mut item)?;
+        if matches!(
+            item,
+            ModuleItem::MathMacro { .. } | ModuleItem::UserMacro { .. }
+        ) {
             return Ok(());
-        };
-        let saved = self.scopes[self.current.0 as usize].clone();
-        let previous = self.declaration_scope;
-        let public = std::mem::take(&mut self.public_declarations);
-        if previous.is_none() {
-            self.public_declarations
-                .extend(exports.iter().map(|name| name.0.clone()));
         }
-        let scope = self.next_declaration_scope;
-        self.next_declaration_scope += 1;
-        self.declaration_scope = Some(scope);
-        let local = self.resolve_macro_block(items, output)?;
-        self.scopes[self.current.0 as usize] = saved;
-        let scope = &mut self.scopes[self.current.0 as usize];
-        for name in exports {
-            if let Some(id) = local.names.get(name.as_str()) {
-                if Arc::make_mut(&mut scope.names)
-                    .insert(name.0.clone(), *id)
-                    .is_some()
-                {
-                    return Err(self.error(crate::error::Error::DuplicateDeclaration {
-                        name: (name.0).to_owned(),
-                    }));
-                }
-            } else if let Some(template) = local
-                .macros
-                .iter()
-                .chain(&local.used)
-                .find(|d| d.name.as_str() == name.as_str())
-            {
-                if scope
-                    .macros
-                    .iter()
-                    .any(|d| d.name.as_str() == name.as_str())
-                {
-                    return Err(self.error(crate::error::Error::DuplicateDeclaration {
-                        name: (name.0).to_owned(),
-                    }));
-                }
-                scope.macros.push(template.clone());
-            } else {
-                return Err(self.error(crate::error::Error::MissingExport {
-                    name: (name.0).to_owned(),
-                }));
-            }
+        if matches!(item, ModuleItem::UseMacro { .. }) {
+            let Some(import) = self.pending_macro_import.take() else {
+                return Ok(());
+            };
+            item = import;
         }
-        self.declaration_scope = previous;
-        self.public_declarations = public;
+        if !matches!(item, ModuleItem::ChildModule { .. }) {
+            self.order.push(CheckStep::Declaration {
+                module: self.current,
+                index: *self.declaration_counts.entry(self.current).or_default(),
+            });
+        }
+        *self.declaration_counts.entry(self.current).or_default() += 1;
+        output.push(item);
         Ok(())
-    }
-
-    pub(super) fn expand_type_member(
-        &mut self,
-        access: &LocalAccess,
-        parameters: &[SExp],
-    ) -> Option<Result<SExp, Diagnostic>> {
-        let (scope, name) = match access {
-            LocalAccess::Current { access, .. } => (self.current, access),
-            LocalAccess::Named { access, child, .. } => {
-                (self.import(self.current, access.as_str())?, child)
-            }
-            LocalAccess::Resolved { .. } | LocalAccess::Instantiated { .. } => return None,
-        };
-        let spelling = name.as_str().trim_end_matches('^');
-        if !spelling.contains("::[")
-            || !self
-                .visible(scope)
-                .iter()
-                .any(|d| d.name.as_str() == spelling)
-        {
-            return None;
-        }
-        if !parameters.is_empty() {
-            return Some(Err(self.error(crate::error::Error::Invalid(
-                crate::error::Invalid::BundleTypeMembersDoNotTakeParameters,
-            ))));
-        }
-        Some(
-            self.expand_one(scope, Some(&Identifier(spelling.into())), &[], 0)
-                .and_then(|mut ty| {
-                    self.expand(&mut ty)?;
-                    if name.as_str().ends_with('^') {
-                        self.reflect_type(ty)
-                    } else {
-                        Ok(ty)
-                    }
-                }),
-        )
     }
 
     pub(super) fn reflect_type(&self, ty: SExp) -> Result<SExp, Diagnostic> {

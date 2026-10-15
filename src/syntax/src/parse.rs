@@ -536,7 +536,7 @@ impl<'a> Parser<'a> {
             )
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                Some(Token::Period | Token::DoubleColon)
+                Some(Token::Period)
             );
         let imported_parent = if starts_from_import {
             Some(self.expect_ident()?)
@@ -547,10 +547,7 @@ impl<'a> Parser<'a> {
         if imported_parent.is_none() && matches!(self.peek(), Some(Token::Ident(_))) {
             calls.push(self.parse_module_access_path()?);
         }
-        while (self.peek() == Some(&Token::Period)
-            || (imported_parent.is_some()
-                && calls.is_empty()
-                && self.peek() == Some(&Token::DoubleColon)))
+        while self.peek() == Some(&Token::Period)
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
                 Some(Token::Ident(_))
@@ -778,10 +775,7 @@ impl<'a> Parser<'a> {
         if self.bump_if_keyword("\\structure") {
             return self.parse_structure().map(Some);
         }
-        if self.bump_if_keyword("\\definition")
-            || self.bump_if_keyword("\\machine")
-            || self.bump_if_keyword("\\correspondence")
-        {
+        if self.bump_if_keyword("\\definition") {
             let def = self.parse_definition()?;
             return Ok(Some(def));
         }
@@ -1041,43 +1035,6 @@ mod tests {
         print_and_unwrap(r"\Prop \Set (0)");
         print_and_unwrap(r"(( \( \) ))");
         print_and_unwrap(r"x.y # name { hello: ");
-    }
-
-    #[test]
-    fn machine_and_correspondence_preserve_typed_definition_items() {
-        for keyword in ["machine", "correspondence"] {
-            let source = format!("\\{keyword} implementation: Program := witness;");
-            let (actual, spans) = parse_items(&source).unwrap();
-            let [
-                ModuleItem::Definition {
-                    owner,
-                    name,
-                    binders,
-                    ty,
-                    body,
-                },
-            ] = actual.as_slice()
-            else {
-                panic!("expected a typed definition: {actual:?}");
-            };
-            assert!(owner.is_none());
-            assert_eq!(name.0, "implementation");
-            assert!(binders.is_empty());
-            for (term, expected) in [(ty, "Program"), (body, "witness")] {
-                let SExp::AccessPath {
-                    access: LocalAccess::Current { access: name, .. },
-                    parameters,
-                } = term
-                else {
-                    panic!("expected an unqualified name: {term:?}");
-                };
-                assert_eq!(name.0, expected);
-                assert!(parameters.is_empty());
-            }
-            assert_eq!(spans.len(), 1);
-            assert_eq!(spans[0].start, 0);
-            assert_eq!(spans[0].end, source.len());
-        }
     }
 
     #[test]

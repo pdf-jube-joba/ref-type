@@ -22,19 +22,6 @@ impl Resolver {
     ) -> Result<(), Diagnostic> {
         let mut names = HashMap::new();
         for (index, item) in items.iter().enumerate() {
-            if matches!(item, ModuleItem::Scoped { .. }) {
-                let span = spans.get(index).copied().unwrap_or_default();
-                for name in macro_exports(item) {
-                    if let Some(first) = names.insert(name.0.clone(), span) {
-                        return Err(self.error(crate::error::Error::DuplicateMacroDeclarations {
-                            name: name.0.clone(),
-                            first,
-                            second: span,
-                        }));
-                    }
-                }
-                continue;
-            }
             let (name, definition) = match item {
                 ModuleItem::MathMacro {
                     name,
@@ -195,7 +182,7 @@ impl Resolver {
             );
         }
         let mut output = Vec::new();
-        self.scoped_item(item, &mut output)?;
+        self.process_declaration(item, &mut output)?;
         let scope = &self.scopes[module.0 as usize];
         let delta = TermScope {
             names: Arc::new(
@@ -284,13 +271,6 @@ impl Resolver {
                             ModuleItem::UseMacro {
                                 name: introduced, ..
                             } if name.is_none_or(|name| name.as_str() == introduced.as_str()) => {
-                                Some(i)
-                            }
-                            item @ ModuleItem::Scoped { .. }
-                                if macro_exports(item).iter().any(|introduced| {
-                                    name.is_none_or(|name| name.as_str() == introduced.as_str())
-                                }) =>
-                            {
                                 Some(i)
                             }
                             _ => None,
@@ -397,29 +377,13 @@ impl Resolver {
     }
 }
 
-fn macro_exports(item: &ModuleItem) -> Vec<&Identifier> {
-    match item {
+pub(super) fn work_macro_names(work: &MacroWork) -> impl Iterator<Item = String> + '_ {
+    work.items.iter().filter_map(|item| match item {
         ModuleItem::UseMacro { name, .. }
         | ModuleItem::UserMacro { name, .. }
-        | ModuleItem::MathMacro { name, .. } => vec![name],
-        ModuleItem::Scoped { exports, items } => items
-            .iter()
-            .flat_map(macro_exports)
-            .filter(|name| {
-                exports
-                    .iter()
-                    .any(|export| export.as_str() == name.as_str())
-            })
-            .collect(),
-        _ => Vec::new(),
-    }
-}
-
-pub(super) fn work_macro_names(work: &MacroWork) -> impl Iterator<Item = String> + '_ {
-    work.items
-        .iter()
-        .flat_map(macro_exports)
-        .map(|name| name.0.clone())
+        | ModuleItem::MathMacro { name, .. } => Some(name.0.clone()),
+        _ => None,
+    })
 }
 impl Resolver {
     pub(super) fn record_macro_template_references(&mut self, module: ModuleId) {
@@ -490,60 +454,6 @@ impl Resolver {
     }
 }
 
-impl Resolver {
-    pub(super) fn resolve_macro_block(
-        &mut self,
-        items: Vec<ModuleItem>,
-        output: &mut Vec<ModuleItem>,
-    ) -> Result<Scope, Diagnostic> {
-        let module = self.current;
-        let saved_work = self.work.remove(&module);
-        // Retain the enclosing macro environment as an independent lexical parent.
-        let parent = ModuleId(self.scopes.len() as u32);
-        self.scopes.push(self.scopes[module.0 as usize].clone());
-        let scope = &mut self.scopes[module.0 as usize];
-        scope.parent = Some(parent);
-        scope.macros.clear();
-        scope.used.clear();
-        let span = self
-            .location
-            .as_ref()
-            .map_or(SourceSpan::default(), |l| l.span);
-        let source = self.location.as_ref().map(|l| l.source.clone());
-        self.collect_macro_scope(module, &items, &vec![span; items.len()], source)?;
-        for index in 0..items.len() {
-            self.resolve_macro_item(module, index)?;
-        }
-        let work = self.work.remove(&module).unwrap();
-        output.extend(work.output);
-        if let Some(saved) = saved_work {
-            self.work.insert(module, saved);
-        }
-        let pinned = ModuleId(self.scopes.len() as u32);
-        let mut local = self.scopes[module.0 as usize].clone();
-        for definition in local.macros.iter_mut().chain(&mut local.used) {
-            if definition.definition_scope == module {
-                definition.definition_scope = pinned;
-                macros::walk_sexp_mut(&mut definition.template, &mut |node| {
-                    if let SExp::NamedMacro {
-                        scope: Some(scope), ..
-                    }
-                    | SExp::MathMacro {
-                        scope: Some(scope), ..
-                    } = node
-                        && *scope == module
-                    {
-                        *scope = pinned;
-                    }
-                });
-            }
-        }
-        self.origins.insert(pinned, module);
-        self.scopes.push(local.clone());
-        Ok(local)
-    }
-}
-
 fn term_names(item: &ModuleItem) -> Vec<&Identifier> {
     match item {
         ModuleItem::Definition {
@@ -560,7 +470,6 @@ fn term_names(item: &ModuleItem) -> Vec<&Identifier> {
             .chain(constructors.iter().map(|(name, _, _)| name))
             .collect(),
         ModuleItem::Import { import_name, .. } => vec![import_name],
-        ModuleItem::Scoped { exports, .. } => exports.iter().collect(),
         _ => Vec::new(),
     }
 }
@@ -710,11 +619,6 @@ fn term_dependencies(item: &ModuleItem) -> HashSet<String> {
             expression(ty, &[], &mut names);
         }
         ModuleItem::ValueTypeCheck { ty } => expression(&ty.clone().into(), &[], &mut names),
-        ModuleItem::Scoped { items, .. } => {
-            for item in items {
-                names.extend(term_dependencies(item));
-            }
-        }
         ModuleItem::ChildModule { .. } => {}
     }
     names

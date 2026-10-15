@@ -597,7 +597,7 @@ impl GlobalEnvironment {
             } => {
                 self.elaborate_set_structure(name, parameters, *sort, fields)?;
             }
-            ModuleItem::Structure { .. } | ModuleItem::Scoped { .. } => {
+            ModuleItem::Structure { .. } => {
                 return Err(crate::error::Error::Invalid(
                     crate::error::Invalid::UnresolvedFrontendDeclaration,
                 )
