@@ -1,5 +1,59 @@
 # structure の family と特殊化
 
+## 点に依存する商と関数の外延性
+
+点ごとに特殊化した商を引数型に持つ関数について、型を直接書く場合、関数型の別名を使う場合、局所 module を介す場合に同じ外延性の証明が成立する。
+
+```toml case
+id = "pointwise-quotient-function-extensionality"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Quotient(A: \Set, Equivalent: A -> A -> \Prop) {
+  \definition ClassOf(x: A): \Pow A := { y: A \where Equivalent x y };
+  \definition Representative(C: \Pow A): \Set := \Cast[A] ({ x: A \where C = ClassOf x });
+  \definition IsClass(C: \Pow A): \Prop := \exists Representative C;
+  \definition Carrier: \Set := \Cast[\Pow A] ({ C: \Pow A \where IsClass C });
+}
+\module Forms(I: \Set) {
+  \structure Space { Point: \Set, Vector: \Set, }
+  \structure Representative[M: Space, x: M.Point]: \Set {
+    point: \Cast[M.Point] ({ y: M.Point \where y = x }),
+    vector: M.Vector,
+  }
+  \module Fiber(M: Space, x: M.Point) {
+    \definition Equivalent(a, b: Representative[M, x]): \Prop := #vector{a} = #vector{b};
+    \import \root.Quotient[A := Representative[M, x], Equivalent := Equivalent] \as Q;
+    \definition Carrier: \Set := Q.Carrier;
+  }
+  \definition fiber(M: Space)(x: M.Point): \Set := Fiber[M := M, x := x].Carrier;
+  \definition sections(M: Space): \Set := \forall (x: M.Point) -> (I -> fiber M x) -> M.Vector;
+  \definition equal(M: Space)(f, g: sections M): \Prop :=
+    \forall (x: M.Point)(v: I -> fiber M x) -> f x v = g x v;
+  \definition ext: \forall (M: Space)(f, g: sections M) -> equal M f g -> f = g :=
+    \fun (M: Space)(f, g: sections M)(same: equal M f g) =>
+      \axiom:funext(f, g, \fun (x: M.Point) => \axiom:funext(f x, g x, same x));
+
+  \definition Function(A, B: \Set): \Set := A -> B;
+  \definition aliased(M: Space): \Set :=
+    \forall (x: M.Point) -> Function (Function I (fiber M x)) M.Vector;
+  \definition aliasExt: \forall (M: Space)(f, g: aliased M) -> equal M f g -> f = g := ext;
+
+  \module At(M: Space, x: M.Point) {
+    \definition Arguments: \Set := I -> fiber M x;
+    \definition Form: \Set := Arguments -> M.Vector;
+  }
+  \definition scoped(M: Space): \Set := \forall (x: M.Point) -> At[M := M, x := x].Form;
+  \definition copy(M: Space)(f: scoped M): scoped M :=
+    \fun (x: M.Point)(v: _) => f x v;
+  \definition copyAt(M: Space)(f: scoped M): scoped M :=
+    \fun (x: M.Point)(v: At[M := M, x := x].Arguments) => f x v;
+  \definition scopedExt: \forall (M: Space)(f, g: scoped M) -> equal M f g -> f = g := ext;
+}
+```
+
 ## temporary field
 
 inline module の引数を特殊化した後、その structure の field を型として使える。
