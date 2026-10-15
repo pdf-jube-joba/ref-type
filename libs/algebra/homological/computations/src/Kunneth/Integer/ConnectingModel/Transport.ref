@@ -1,0 +1,37 @@
+\import Modules.Isomorphism[V := Source.Carrier, W := ModelSource.Carrier, source := Source.space, target := ModelSource.space].Inverse[] \as Reversed;
+\import Modules.Isomorphism[V := ModelSource.Carrier, W := Source.Carrier, source := ModelSource.space, target := Source.space].Composition[
+  U := RH.Homology, final := RH.homologySpace] \as Domain;
+\definition domainIsomorphism: Modules.Isomorphism[V := ModelSource.Carrier, W := RH.Homology,
+  source := ModelSource.space, target := RH.homologySpace].Isomorphism := Domain.compose rightIsomorphism (Reversed.inverse sourceReindex);
+\import Modules.KernelTransport[V := ModelSource.Carrier, W := ModelTarget.Carrier, X := RH.Homology, Y := LH.Homology,
+  vSpace := ModelSource.space, wSpace := ModelTarget.space, xSpace := RH.homologySpace, ySpace := LH.homologySpace,
+  f := Model.map, g := Delta.connecting, domainIso := domainIsomorphism, codomainIso := leftIsomorphism] \as Native;
+\import Modules.Hom[V := Source.Carrier, W := LH.Homology, source := Source.space, target := LH.homologySpace] \as SquareMaps;
+\definition commutes: Native.Commutes := \fun (x: ModelSource.Carrier) => trans!{LH.Homology} _ _ _
+  (congr!{SquareMaps.Map LH.Homology} (\fun (f: SquareMaps.Map) => #apply{f} (#apply{#backward{sourceReindex}} x)) _ _ square)
+  (congr!{ModelSource.Carrier LH.Homology} (\fun (y: ModelSource.Carrier) => #apply{#forward{leftIsomorphism}} (#apply{Model.map} y)) _ _
+    (#rightInverse{sourceReindex} x));
+\definition kernelIsomorphism: Modules.Isomorphism[V := Native.SourceCarrier, W := Native.TargetCarrier,
+  source := Modules.Of[V := ModelSource.Carrier, space := ModelSource.space].Submodule[].Of[S := Native.sourceKernel].moduleSpace,
+  target := Modules.Of[V := RH.Homology, space := RH.homologySpace].Submodule[].Of[S := Native.targetKernel].moduleSpace].Isomorphism := Native.isomorphism commutes;
+\import Native.Cokernel[] \as Cokernels;
+\definition cokernelIsomorphism: Modules.Isomorphism[V := Cokernels.SourceCarrier, W := Cokernels.TargetCarrier,
+  source := Cokernels.sourceSpace, target := Cokernels.targetSpace].Isomorphism := Cokernels.isomorphism commutes;
+\definition modelKernelBundle: Modules.Bundle := Modules.Bundle {
+  Carrier := Native.SourceCarrier,
+  space := Modules.Of[V := ModelSource.Carrier, space := ModelSource.space].Submodule[].Of[S := Native.sourceKernel].moduleSpace,
+};
+\definition nativeKernelBundle: Modules.Bundle := Modules.Bundle {
+  Carrier := Native.TargetCarrier,
+  space := Modules.Of[V := RH.Homology, space := RH.homologySpace].Submodule[].Of[S := Native.targetKernel].moduleSpace,
+};
+\definition modelCokernelBundle: Modules.Bundle := Modules.Bundle { Carrier := Cokernels.SourceCarrier, space := Cokernels.sourceSpace };
+\definition nativeCokernelBundle: Modules.Bundle := Modules.Bundle { Carrier := Cokernels.TargetCarrier, space := Cokernels.targetSpace };
+\import Modules.Isomorphism[V := Cokernels.SourceCarrier, W := Cokernels.TargetCarrier,
+  source := Cokernels.sourceSpace, target := Cokernels.targetSpace].Inverse[] \as ReverseCokernel;
+\import Modules.Isomorphism[V := Cokernels.TargetCarrier, W := Cokernels.SourceCarrier,
+  source := Cokernels.targetSpace, target := Cokernels.sourceSpace].Composition[
+  U := Model.tensorBundle.Carrier, final := Model.tensorBundle.space] \as TensorComposition;
+\definition tensorIsomorphism: Modules.Isomorphism[V := nativeCokernelBundle.Carrier, W := Model.tensorBundle.Carrier,
+  source := nativeCokernelBundle.space, target := Model.tensorBundle.space].Isomorphism :=
+  TensorComposition.compose Model.isomorphism (ReverseCokernel.inverse cokernelIsomorphism);

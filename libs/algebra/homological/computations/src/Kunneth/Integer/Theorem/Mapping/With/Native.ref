@@ -1,0 +1,32 @@
+\import \root.Kunneth[].Integer[].KernelModel[C := C, D := D, n := n] \as SourceProjection;
+\import \root.Kunneth[].Integer[].KernelModel[C := E, D := F, n := n] \as TargetProjection;
+\import Chains.At[C := TensorSequence.middle, z := n] \as SM;
+\import Chains.At[C := TargetSequence.middle, z := n] \as TM;
+\import Chains.Map[C := TensorSequence.middle, D := TargetSequence.middle].At[k := n] \as Middle;
+\definition middleMap: Modules.Hom[V := SM.Homology, W := TM.Homology, source := SM.homologySpace, target := TM.homologySpace].Map := Middle.induced ChainMaps.middle;
+\import ChainDiagram.At[k := n] \as Connecting;
+\import Modules.Hom[V := SourceProjection.nativeKernelBundle.Carrier, W := TargetProjection.nativeKernelBundle.Carrier,
+  source := SourceProjection.nativeKernelBundle.space, target := TargetProjection.nativeKernelBundle.space] \as KernelMaps;
+\import Chains.At[C := TensorSequence.right, z := n] \as SR;
+\import Chains.At[C := TargetSequence.right, z := n] \as TR;
+\import Chains.At[C := TensorSequence.left, z := Bounded.previous n] \as SL;
+\import Chains.At[C := TargetSequence.left, z := Bounded.previous n] \as TL;
+\import Chains.Map[C := TensorSequence.right, D := TargetSequence.right].At[k := n] \as Right;
+\import Chains.Map[C := TensorSequence.left, D := TargetSequence.left].At[k := Bounded.previous n] \as Left;
+\import Modules.Hom[V := SL.Homology, W := TL.Homology, source := SL.homologySpace, target := TL.homologySpace] \as LeftLinear;
+\definition kernelMap: KernelMaps.Map := KernelMaps.Map {
+  apply := \fun (x: SourceProjection.nativeKernelBundle.Carrier) =>
+    \into[TR.Homology](#apply{Right.induced ChainMaps.right} x, #carrier{TargetProjection.kernel}) \by {
+      trans!{TL.Homology} _ _ _ (Connecting.naturality commutes x)
+        (trans!{TL.Homology} _ _ _
+          (congr!{SL.Homology TL.Homology} (#apply{Left.induced ChainMaps.left}) _ _
+            (\bysub(SR.Homology, #carrier{SourceProjection.kernel}, x)))
+          (LeftLinear.zeroPreserved (Left.induced ChainMaps.left)))
+    },
+  addition := \fun (x, y: SourceProjection.nativeKernelBundle.Carrier) => #addition{Right.induced ChainMaps.right} x y,
+  scalar := \fun (a: Integers.Int^)(x: SourceProjection.nativeKernelBundle.Carrier) => #scalar{Right.induced ChainMaps.right} a x,
+};
+\module Projection;
+\import Projection[] \as ProjectionSquare;
+\definition projectionSquare: \forall (x: SM.Homology) ->
+  #apply{TargetProjection.nativeMap} (#apply{middleMap} x) = #apply{kernelMap} (#apply{SourceProjection.nativeMap} x) := ProjectionSquare.square;

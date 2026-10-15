@@ -2,6 +2,7 @@
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SymbolId(pub u32);
+artifact::identity!(SymbolId, "symbol");
 
 impl SymbolId {
     pub const ANONYMOUS: Self = Self(0);
@@ -19,17 +20,27 @@ pub struct DefinitionId {
     pub(crate) index: u32,
 }
 
+impl artifact::Relocate for DefinitionId {
+    fn relocate(&mut self, r: &mut artifact::Relocation) -> artifact::Result<()> {
+        (self.arena, self.index) = r.pair("definition", (self.arena, self.index))?;
+        Ok(())
+    }
+}
+
 /// Opaque nominal identity of a logical inductive type.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct InductiveId(pub u64);
+artifact::identity!(InductiveId, "inductive");
 
 /// Opaque nominal identity of a Program datatype.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProgramInductiveId(pub u64);
+artifact::identity!(ProgramInductiveId, "datatype");
 
 /// Rigid parameter identity used while closing a module declaration.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ParameterId(pub u64);
+artifact::identity!(ParameterId, "parameter");
 
 static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 

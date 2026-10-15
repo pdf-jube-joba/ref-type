@@ -1,0 +1,65 @@
+\import \parent.\parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as Sign;
+\import Modules.Hom[V := C.family.Carrier p q, W := C.family.Carrier p q, source := C.family.space p q, target := C.family.space p q].Composition[
+  U := C.family.Carrier p (Nat.Nat^::succ q), domain := C.family.space p (Nat.Nat^::succ q)] \as Signed;
+\definition original: Modules.Hom[V := C.family.Carrier p (Nat.Nat^::succ q), W := C.family.Carrier p q,
+  source := C.family.space p (Nat.Nat^::succ q), target := C.family.space p q].Map := Signed.compose (Sign.map p) (C.differential.vertical p q);
+\import Modules.Hom[V := C.family.Carrier p (Nat.Nat^::succ q), W := C.family.Carrier p q, source := C.family.space p (Nat.Nat^::succ q), target := C.family.space p q] \as OriginalMaps;
+\import Modules.Hom[V := Target.Carrier, W := C.family.Carrier p q, source := Target.space, target := C.family.space p q].Composition[U := Source.Carrier, domain := Source.space] \as After;
+\import OriginalMaps.Composition[U := Source.Carrier, domain := Source.space] \as Before;
+\definition after: Maps.Map := After.compose Evaluation.map Differential.verticalTotal;
+\definition before: Maps.Map := Before.compose original VerticalEvaluation.map;
+\definition own: \forall (x: C.family.Carrier p (Nat.Nat^::succ q)) ->
+  #apply{after} (#apply{(Source.Component[i := verticalIndex].injection)} x) = #apply{before} (#apply{(Source.Component[i := verticalIndex].injection)} x) :=
+  \fun (x: C.family.Carrier p (Nat.Nat^::succ q)) => trans!{{C.family.Carrier p q}} _ _ _
+    (congr!{Target.Carrier {C.family.Carrier p q}} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection verticalIndex x))
+    (trans!{{C.family.Carrier p q}} _ _ _ (TC.own targetIndex (#apply{original} x))
+      (sym!{{C.family.Carrier p q}} _ _ (congr!{{C.family.Carrier p (Nat.Nat^::succ q)} {C.family.Carrier p q}} (#apply{original}) _ _ (SC.own verticalIndex x))));
+\definition Off(b: Nat.Nat^): \Prop := \forall (a: First (Nat.Nat^::succ n) b) ->
+  Logic.Not (reverseIndex (Nat.Nat^::succ n) b a = verticalIndex) ->
+  \forall (x: C.family.Carrier a b) -> TC.coordinate targetIndex (#apply{(Differential.vertical b a)} x) = #zero{(C.family.space p q)};
+\module Positive(b: Nat.Nat^, a: First (Nat.Nat^::succ n) (Nat.Nat^::succ b)) {
+  \definition lowerIndex: Index n := reverseIndex n b (Differential.lowerFirst b a);
+  \definition sourceIndex: Index (Nat.Nat^::succ n) := reverseIndex (Nat.Nat^::succ n) (Nat.Nat^::succ b) a;
+  \definition different: Logic.Not (sourceIndex = verticalIndex) -> Logic.Not (lowerIndex = targetIndex) :=
+    \fun (ne: Logic.Not (sourceIndex = verticalIndex))(equal: lowerIndex = targetIndex) =>
+      ne (congr!{Pair Pair} raiseVertical lowerIndex targetIndex equal);
+  \definition zero: Logic.Not (sourceIndex = verticalIndex) ->
+    \forall (x: C.family.Carrier a (Nat.Nat^::succ b)) ->
+      TC.coordinate targetIndex (#apply{(Differential.vertical (Nat.Nat^::succ b) a)} x) = #zero{(C.family.space p q)} :=
+    \fun (ne: Logic.Not (sourceIndex = verticalIndex))(x: C.family.Carrier a (Nat.Nat^::succ b)) =>
+      TC.other lowerIndex targetIndex (#apply{(\parent.\parent.\parent.\parent.Sign[V := C.family.Carrier a b, space := C.family.space a b].map a)} (#apply{(C.differential.vertical a b)} x)) (different ne);
+}
+\definition off: \forall (b: Nat.Nat^) -> Off b :=
+  \induction (b: Nat.Nat^) \return Off b \with {
+    | zero: \fun (a: First (Nat.Nat^::succ n) Nat.Nat^::zero)(ne: Logic.Not (reverseIndex (Nat.Nat^::succ n) Nat.Nat^::zero a = verticalIndex))
+        (x: C.family.Carrier a Nat.Nat^::zero) => Modules.Hom[V := Target.Carrier, W := C.family.Carrier p q, source := Target.space, target := C.family.space p q].zeroPreserved Evaluation.map
+    | succ: \fun (b: Nat.Nat^)(previous: Off b)(a: First (Nat.Nat^::succ n) (Nat.Nat^::succ b)) => Positive[b := b, a := a].zero
+  };
+\definition different: \forall (i: Index (Nat.Nat^::succ n)) -> Logic.Not (i = verticalIndex) ->
+  \forall (x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{after} (#apply{(Source.Component[i := i].injection)} x) = #apply{before} (#apply{(Source.Component[i := i].injection)} x) :=
+  \fun (i: Index (Nat.Nat^::succ n))(ne: Logic.Not (i = verticalIndex))(x: C.family.Carrier #first{i} #second{i}) =>
+    trans!{{C.family.Carrier p q}} _ _ _
+      (trans!{{C.family.Carrier p q}} _ _ _
+        (congr!{Target.Carrier {C.family.Carrier p q}} (TC.coordinate targetIndex) _ _ (Differential.verticalOnInjection i x))
+        (off #second{i} (Differential.Component[i := i].p)
+          (\fun (equal: reverseIndex (Nat.Nat^::succ n) #second{i} (Differential.Component[i := i].p) = verticalIndex) =>
+            ne (trans!{Pair} _ _ _ (sym!{Pair} _ _ (pairRebuild i)) equal)) x))
+      (sym!{{C.family.Carrier p q}} _ _ (trans!{{C.family.Carrier p q}} _ _ _
+        (congr!{{C.family.Carrier p (Nat.Nat^::succ q)} {C.family.Carrier p q}} (#apply{original}) _ _ (SC.other i verticalIndex x ne))
+        (OriginalMaps.zeroPreserved original)));
+\definition onInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{after} (#apply{(Source.Component[i := i].injection)} x) = #apply{before} (#apply{(Source.Component[i := i].injection)} x) :=
+  \fun (i: Index (Nat.Nat^::succ n)) => either!{{(Classical.excludedMiddle (i = verticalIndex))} {
+    \forall (x: C.family.Carrier #first{i} #second{i}) -> #apply{after} (#apply{(Source.Component[i := i].injection)} x) = #apply{before} (#apply{(Source.Component[i := i].injection)} x)
+  }
+    {\fun (equal: i = verticalIndex) => \idelim verticalIndex = i \with j: Index (Nat.Nat^::succ n) =>
+      \forall (x: C.family.Carrier #first{j} #second{j}) -> #apply{after} (#apply{(Source.Component[i := j].injection)} x) = #apply{before} (#apply{(Source.Component[i := j].injection)} x) \by {
+        base: own, equality: sym!{Pair} _ _ equal
+      }}
+    {different i}
+  };
+\import Modules.DirectSum[Index := Index (Nat.Nat^::succ n), family := Source.family].To[W := C.family.Carrier p q, target := C.family.space p q] \as Universal;
+\definition equality: after = before := Universal.ext after before onInjection;
+\definition point: \forall (x: Source.Carrier) -> #apply{after} x = #apply{before} x :=
+  \fun (x: Source.Carrier) => congr!{Maps.Map {C.family.Carrier p q}} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality;

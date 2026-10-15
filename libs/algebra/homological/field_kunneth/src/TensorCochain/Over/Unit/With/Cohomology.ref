@@ -1,0 +1,51 @@
+\import \parent.At[n := n] \as Term;
+\import Cochains.At[C := Total.complex, k := n] \as TH;
+\import Cochains.At[C := C, k := n] \as H;
+\import Contractions.At[k := n] \as F;
+\import Injections.At[k := n] \as G;
+\definition leftInverse: \forall (h: TH.Cohomology) ->
+  #apply{(G.induced injection)} (#apply{(F.induced contraction)} h) = h :=
+  TH.classInduction
+    (\fun (h: TH.Cohomology) => #apply{(G.induced injection)} (#apply{(F.induced contraction)} h) = h)
+    (\fun (x: TH.CycleCarrier) => trans!{TH.Cohomology} _ _ _
+      (congr!{H.Cohomology TH.Cohomology} (#apply{(G.induced injection)}) _ _ (F.onClass contraction x))
+      (trans!{TH.Cohomology} _ _ _ (G.onClass injection (#apply{(F.cyclesMap contraction)} x))
+        (TH.equalClass (#apply{(G.cyclesMap injection)} (#apply{(F.cyclesMap contraction)} x)) x
+          (#leftInverse{Term.isomorphism} x))));
+\definition rightInverse: \forall (h: H.Cohomology) ->
+  #apply{(F.induced contraction)} (#apply{(G.induced injection)} h) = h :=
+  H.classInduction
+    (\fun (h: H.Cohomology) => #apply{(F.induced contraction)} (#apply{(G.induced injection)} h) = h)
+    (\fun (x: H.CycleCarrier) => trans!{H.Cohomology} _ _ _
+      (congr!{TH.Cohomology H.Cohomology} (#apply{(F.induced contraction)}) _ _ (G.onClass injection x))
+      (trans!{H.Cohomology} _ _ _ (F.onClass contraction (#apply{(G.cyclesMap injection)} x))
+        (H.equalClass (#apply{(F.cyclesMap contraction)} (#apply{(G.cyclesMap injection)} x)) x
+          (#rightInverse{Term.isomorphism} x))));
+\import Modules.Isomorphism[V := TH.Cohomology, W := H.Cohomology,
+  source := TH.cohomologySpace, target := H.cohomologySpace] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := F.induced contraction, backward := G.induced injection,
+  leftInverse := leftInverse, rightInverse := rightInverse,
+};
+\import Cochains.At[C := complex, k := Nat.Nat^::zero] \as UH;
+\definition unitCycle: UH.CycleCarrier := UH.cycle one (\refl(#zero{(family.space (Nat.Nat^::succ Nat.Nat^::zero))}));
+\definition unitClass: UH.Cohomology := UH.classOf unitCycle;
+\import \parent.\parent.\parent.IndexedExterior[C := complex, D := C, n := n].At[i := Term.point] \as Exterior;
+\import Modules.Tensor[V := UH.Cohomology, W := H.Cohomology,
+  left := UH.cohomologySpace, right := H.cohomologySpace] \as Tensor;
+\import \parent.\parent.\parent.IndexedCycleProduct[C := complex, D := C, n := n].At[i := Term.point] \as Cycles;
+\definition exteriorUnit: \forall (h: H.Cohomology) ->
+  #apply{#forward{isomorphism}} (#apply{Exterior.map} (Tensor.tensor unitClass h)) = h :=
+  H.classInduction
+    (\fun (h: H.Cohomology) => #apply{#forward{isomorphism}} (#apply{Exterior.map} (Tensor.tensor unitClass h)) = h)
+    (\fun (x: H.CycleCarrier) => trans!{H.Cohomology} _ _ _
+      (congr!{TH.Cohomology H.Cohomology} (#apply{#forward{isomorphism}}) _ _ (Exterior.onClass unitCycle x))
+      (trans!{H.Cohomology} _ _ _ (F.onClass contraction (Cycles.cycle unitCycle x))
+        (H.equalClass (#apply{(F.cyclesMap contraction)} (Cycles.cycle unitCycle x)) x
+          (#rightInverse{Term.isomorphism} x))));
+\definition onUnitClass: \forall (x: H.CycleCarrier) ->
+  #apply{#forward{isomorphism}} (Cycles.classOf unitCycle x) = H.classOf x :=
+  \fun (x: H.CycleCarrier) => trans!{H.Cohomology} _ _ _
+    (F.onClass contraction (Cycles.cycle unitCycle x))
+    (H.equalClass (#apply{(F.cyclesMap contraction)} (Cycles.cycle unitCycle x)) x
+      (#rightInverse{Term.isomorphism} x));

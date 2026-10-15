@@ -1,0 +1,36 @@
+\import \parent.\parent.Total[C := C] \as Source;
+\import \parent.\parent.Total[C := complex] \as Target;
+\import \parent.\parent.Coordinates[C := C] \as SourceCoordinates;
+\import \parent.\parent.Coordinates[C := complex] \as TargetCoordinates;
+\definition swapPair(i: Pair): Pair := Pair { first := #second{i}, second := #first{i} };
+\definition index(n: Nat.Nat^)(i: Index n): Index n := \into[Pair](swapPair i,
+  { j: Pair \where Arithmetic.add #first{j} #second{j} = n }) \by {
+    trans!{Nat.Nat^} _ _ _ (Natural.addComm #second{i} #first{i}) (degree n i)
+  };
+\definition twice: \forall (n: Nat.Nat^)(i: Index n) -> index n (index n i) = i :=
+  \fun (n: Nat.Nat^)(i: Index n) => pairRebuild i;
+\definition indexInjective: \forall (n: Nat.Nat^)(i, j: Index n) -> index n i = index n j -> i = j :=
+  \fun (n: Nat.Nat^)(i, j: Index n)(same: index n i = index n j) => trans!{Pair} _ _ _
+    (sym!{Pair} _ _ (twice n i)) (trans!{Pair} _ _ _ (congr!{Pair Pair} swapPair _ _ same) (twice n j));
+\module Degree(n: Nat.Nat^);
+\module Step(n: Nat.Nat^);
+\import Chains.Map[C := Source.complex, D := Target.complex] \as Forward;
+\import Chains.Map[C := Target.complex, D := Source.complex] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (n: Nat.Nat^) => #apply{(Degree[n := n].forward)},
+  addition := \fun (n: Nat.Nat^) => #addition{(Degree[n := n].forward)},
+  scalar := \fun (n: Nat.Nat^) => #scalar{(Degree[n := n].forward)},
+  commutes := \fun (n: Nat.Nat^) => Step[n := n].commutes,
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (n: Nat.Nat^) => #apply{(Degree[n := n].backward)},
+  addition := \fun (n: Nat.Nat^) => #addition{(Degree[n := n].backward)},
+  scalar := \fun (n: Nat.Nat^) => #scalar{(Degree[n := n].backward)},
+  commutes := \fun (n: Nat.Nat^) => Step[n := n].backwardCommutes,
+};
+\import Chains.Isomorphism[C := Source.complex, D := Target.complex] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (n: Nat.Nat^) => Degree[n := n].leftInverse,
+  rightInverse := \fun (n: Nat.Nat^) => Degree[n := n].rightInverse,
+};

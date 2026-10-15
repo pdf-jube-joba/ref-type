@@ -1,0 +1,65 @@
+\import Left.At[z := p] \as LeftResult;
+\import Right.At[z := complement n p] \as RightResult;
+\import Chains.At[C := Left.chain, z := p] \as LeftHomology;
+\import Chains.At[C := Right.chain, z := complement n p] \as RightHomology;
+\definition leftBundle: Modules.Bundle := Modules.Bundle {
+  Carrier := LeftHomology.Homology, space := LeftHomology.homologySpace,
+};
+\definition rightBundle: Modules.Bundle := Modules.Bundle {
+  Carrier := RightHomology.Homology, space := RightHomology.homologySpace,
+};
+\import Modules.Tensor[V := LeftHomology.Homology, W := RightHomology.Homology,
+  left := LeftHomology.homologySpace, right := RightHomology.homologySpace] \as Tensor;
+\import Chains.At[C := Left.chain, z := Bounded.previous p] \as TorLeftHomology;
+\definition torLeftBundle: Modules.Bundle := Modules.Bundle { Carrier := TorLeftHomology.Homology, space := TorLeftHomology.homologySpace };
+\definition torRightBundle: Modules.Bundle := rightBundle;
+\import Left.At[z := Bounded.previous p].Presentation[] \as TorPresentation;
+\import TorPresentation.Tor[A := torRightBundle] \as Tor;
+\import double_complexes.NonnegativeChain[].Over[R := Integers.Int^, ring := IntegerRing.ring] \as Nonnegative;
+\import derived_functors.Tor[].Over[R := Integers.Int^, ring := IntegerRing.commutativeRing].LengthOne[
+  K := TorPresentation.boundaryBundle, L := TorPresentation.cyclesBundle, M := TorPresentation.homologyBundle, N := torRightBundle].With[sequence := TorPresentation.sequence] \as NativeTor;
+\definition torComplex: Nonnegative.Complex := NativeTor.complex;
+\definition torResolution: _ := Tor.resolution;
+\import \root.Finite[].Pair[m := C.ranks (Bounded.previous p), n := C.ranks p, p := C.ranks (Bounded.next p)].Of[C := LeftResult.complex] \as LeftSmith;
+\import \root.Finite[].Pair[m := D.ranks (Bounded.previous (complement n p)), n := D.ranks (complement n p), p := D.ranks (Bounded.next (complement n p))].Of[C := RightResult.complex] \as RightSmith;
+\import Modules.Tensor[V := LeftSmith.FactorHomology, W := RightSmith.FactorHomology,
+  left := LeftSmith.factorSpace, right := RightSmith.factorSpace] \as Smith;
+\import Tensor.Mapping[U := LeftSmith.FactorHomology, Z := RightSmith.FactorHomology,
+  targetLeft := LeftSmith.factorSpace, targetRight := RightSmith.factorSpace] \as ToSmith;
+\import ToSmith.Isomorphism[leftIso := LeftResult.factorIsomorphism, rightIso := RightResult.factorIsomorphism] \as SmithComparison;
+\definition smithIsomorphism: Modules.Isomorphism[V := Tensor.Carrier, W := Smith.Carrier,
+  source := Tensor.space, target := Smith.space].Isomorphism := SmithComparison.isomorphism;
+\definition onTensor: \forall (x: LeftHomology.Homology)(y: RightHomology.Homology) ->
+  #apply{#forward{smithIsomorphism}} (Tensor.tensor x y) =
+  Smith.tensor (#apply{#forward{LeftResult.factorIsomorphism}} x) (#apply{#forward{RightResult.factorIsomorphism}} y) :=
+  ToSmith.onTensor #forward{LeftResult.factorIsomorphism} #forward{RightResult.factorIsomorphism};
+
+\definition leftCarrier: \Set := LeftHomology.Homology;
+\definition leftSpace: Modules.Space leftCarrier := LeftHomology.homologySpace;
+\definition rightCarrier: \Set := RightHomology.Homology;
+\definition rightSpace: Modules.Space rightCarrier := RightHomology.homologySpace;
+\definition leftFactorCarrier: \Set := LeftSmith.FactorHomology;
+\definition leftFactorSpace: Modules.Space leftFactorCarrier := LeftSmith.factorSpace;
+\definition rightFactorCarrier: \Set := RightSmith.FactorHomology;
+\definition rightFactorSpace: Modules.Space rightFactorCarrier := RightSmith.factorSpace;
+\definition leftFactorIsomorphism: Modules.Isomorphism[V := leftCarrier, W := leftFactorCarrier, source := leftSpace, target := leftFactorSpace].Isomorphism := LeftResult.factorIsomorphism;
+\definition rightFactorIsomorphism: Modules.Isomorphism[V := rightCarrier, W := rightFactorCarrier, source := rightSpace, target := rightFactorSpace].Isomorphism := RightResult.factorIsomorphism;
+\definition tensorCarrier: \Set := Tensor.Carrier;
+\definition tensorSpace: Modules.Space tensorCarrier := Tensor.space;
+\definition tensor: leftCarrier -> rightCarrier -> tensorCarrier := Tensor.tensor;
+\definition smithCarrier: \Set := Smith.Carrier;
+\definition smithSpace: Modules.Space smithCarrier := Smith.space;
+\definition smithTensor: leftFactorCarrier -> rightFactorCarrier -> smithCarrier := Smith.tensor;
+\definition torCarrier: \Set := Tor.Carrier;
+\definition torSpace: Modules.Space torCarrier := Tor.space;
+\definition leftNullity: Nat.Nat^ := LeftSmith.nullity;
+\definition rightNullity: Nat.Nat^ := RightSmith.nullity;
+\definition leftFactorClasses: Modules.FiniteCoordinates[n := leftNullity].Carrier -> leftFactorCarrier := LeftSmith.factorClasses;
+\definition rightFactorClasses: Modules.FiniteCoordinates[n := rightNullity].Carrier -> rightFactorCarrier := RightSmith.factorClasses;
+
+\module Exterior;
+\definition torKernelCarrier: \Set := Tor.Kernel;
+\definition torKernelSpace: Modules.Space torKernelCarrier := Tor.kernelSpace;
+\definition torKernelIsomorphism: Modules.Isomorphism[V := torCarrier, W := torKernelCarrier, source := torSpace, target := torKernelSpace].Isomorphism := Tor.isomorphism;
+
+\definition tensorBundle: Modules.Bundle := Modules.Bundle { Carrier := tensorCarrier, space := tensorSpace };

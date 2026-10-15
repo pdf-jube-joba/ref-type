@@ -1,0 +1,74 @@
+\module Component(p: Degree);
+\definition tensorFamily: Modules.Family[Degree] := Modules.Family[Degree] {
+  Carrier := \fun (p: Degree) => Component[p := p].tensorCarrier,
+  space := \fun (p: Degree) => Component[p := p].tensorSpace,
+};
+\import Modules.DirectSum[Index := Degree, family := tensorFamily] \as TensorSum;
+\definition tensorBundle: Modules.Bundle := TensorSum.bundle;
+\definition torFamily: Modules.Family[Degree] := Modules.Family[Degree] {
+  Carrier := \fun (p: Degree) => Component[p := p].torCarrier,
+  space := \fun (p: Degree) => Component[p := p].torSpace,
+};
+\import Modules.DirectSum[Index := Degree, family := torFamily] \as TorSum;
+\definition torBundle: Modules.Bundle := TorSum.bundle;
+\definition smithFamily: Modules.Family[Degree] := Modules.Family[Degree] {
+  Carrier := \fun (p: Degree) => Component[p := p].smithCarrier,
+  space := \fun (p: Degree) => Component[p := p].smithSpace,
+};
+\import Modules.DirectSum[Index := Degree, family := smithFamily] \as SmithSum;
+\definition smithBundle: Modules.Bundle := SmithSum.bundle;
+\import Modules.DirectSumMapping[Index := Degree, sourceFamily := tensorFamily, targetFamily := smithFamily] \as ToSmith;
+\definition smithComponents: ToSmith.Components := \fun (p: Degree) => #forward{Component[p := p].smithIsomorphism};
+\import ToSmith.On[f := smithComponents] \as SmithForward;
+\import Modules.DirectSumMapping[Index := Degree, sourceFamily := smithFamily, targetFamily := tensorFamily] \as FromSmith;
+\definition homologyComponents: FromSmith.Components := \fun (p: Degree) => #backward{Component[p := p].smithIsomorphism};
+\import FromSmith.On[f := homologyComponents] \as SmithBackward;
+\import Modules.Hom[V := SmithSum.Carrier, W := TensorSum.Carrier, source := SmithSum.space, target := TensorSum.space].Composition[
+  U := TensorSum.Carrier, domain := TensorSum.space] \as LeftComposition;
+\import Modules.Hom[V := TensorSum.Carrier, W := SmithSum.Carrier, source := TensorSum.space, target := SmithSum.space].Composition[
+  U := SmithSum.Carrier, domain := SmithSum.space] \as RightComposition;
+\import Modules.End[V := TensorSum.Carrier, space := TensorSum.space] \as TensorEnd;
+\import Modules.End[V := SmithSum.Carrier, space := SmithSum.space] \as SmithEnd;
+\import TensorSum.To[W := TensorSum.Carrier, target := TensorSum.space] \as TensorUniversal;
+\import SmithSum.To[W := SmithSum.Carrier, target := SmithSum.space] \as SmithUniversal;
+\definition smithLeft: LeftComposition.compose SmithBackward.map SmithForward.map = TensorEnd.identity :=
+  TensorUniversal.ext _ _ (\fun (p: Degree)(x: Component[p := p].tensorCarrier) =>
+    trans!{TensorSum.Carrier} _ _ _
+      (congr!{SmithSum.Carrier TensorSum.Carrier} (#apply{SmithBackward.map}) _ _ (SmithForward.onInjection p x))
+      (trans!{TensorSum.Carrier} _ _ _
+        (SmithBackward.onInjection p (#apply{#forward{Component[p := p].smithIsomorphism}} x))
+        (congr!{{Component[p := p].tensorCarrier} TensorSum.Carrier} (#apply{TensorSum.Injection[i := p].map}) _ _
+          (#leftInverse{Component[p := p].smithIsomorphism} x))));
+\definition smithRight: RightComposition.compose SmithForward.map SmithBackward.map = SmithEnd.identity :=
+  SmithUniversal.ext _ _ (\fun (p: Degree)(x: Component[p := p].smithCarrier) =>
+    trans!{SmithSum.Carrier} _ _ _
+      (congr!{TensorSum.Carrier SmithSum.Carrier} (#apply{SmithForward.map}) _ _ (SmithBackward.onInjection p x))
+      (trans!{SmithSum.Carrier} _ _ _
+        (SmithForward.onInjection p (#apply{#backward{Component[p := p].smithIsomorphism}} x))
+        (congr!{{Component[p := p].smithCarrier} SmithSum.Carrier} (#apply{SmithSum.Injection[i := p].map}) _ _
+          (#rightInverse{Component[p := p].smithIsomorphism} x))));
+\import Modules.Hom[V := TensorSum.Carrier, W := TensorSum.Carrier, source := TensorSum.space, target := TensorSum.space] \as TensorEndMaps;
+\import Modules.Hom[V := SmithSum.Carrier, W := SmithSum.Carrier, source := SmithSum.space, target := SmithSum.space] \as SmithEndMaps;
+\definition smithIsomorphism: Modules.Isomorphism[V := TensorSum.Carrier, W := SmithSum.Carrier,
+  source := TensorSum.space, target := SmithSum.space].Isomorphism :=
+  Modules.Isomorphism[V := TensorSum.Carrier, W := SmithSum.Carrier, source := TensorSum.space, target := SmithSum.space].Isomorphism {
+    forward := SmithForward.map, backward := SmithBackward.map,
+    leftInverse := \fun (x: TensorSum.Carrier) => congr!{TensorEndMaps.Map TensorSum.Carrier} (\fun (f: TensorEndMaps.Map) => #apply{f} x) _ _ smithLeft,
+    rightInverse := \fun (x: SmithSum.Carrier) => congr!{SmithEndMaps.Map SmithSum.Carrier} (\fun (f: SmithEndMaps.Map) => #apply{f} x) _ _ smithRight,
+  };
+\definition smithOnInjection: \forall (p: Degree)(x: Component[p := p].tensorCarrier) ->
+  #apply{#forward{smithIsomorphism}} (#apply{TensorSum.Injection[i := p].map} x) =
+  #apply{SmithSum.Injection[i := p].map} (#apply{#forward{Component[p := p].smithIsomorphism}} x) := SmithForward.onInjection;
+\import Chains.At[C := tensorComplex, z := n] \as TotalHomology;
+\definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := TotalHomology.Homology, space := TotalHomology.homologySpace };
+\import tensor_chains.TensorChain[].Grading[] \as Grading;
+\definition tensorDiagonal: \forall (p: Degree) -> Grading.add p (complement n p) = n := Grading.complementSum n;
+\definition torDiagonal: \forall (p: Degree) -> Grading.add (Bounded.previous p) (complement n p) = Bounded.previous n :=
+  \fun (p: Degree) => trans!{Degree} _ _ _ (Grading.previousLeft p (complement n p))
+    (congr!{Degree Degree} Bounded.previous _ _ (Grading.complementSum n p));
+\import TensorSum.To[W := TotalHomology.Homology, target := TotalHomology.homologySpace] \as ExteriorUniversal;
+\definition exteriorComponents: ExteriorUniversal.Components := \fun (p: Degree) => Component[p := p].Exterior[].map;
+\definition exterior: Modules.MapBetween tensorBundle homologyBundle := ExteriorUniversal.extension exteriorComponents;
+\definition exteriorOnInjection: \forall (p: Degree)(x: Component[p := p].tensorCarrier) ->
+  #apply{exterior} (#apply{TensorSum.Injection[i := p].map} x) = #apply{Component[p := p].Exterior[].map} x :=
+  ExteriorUniversal.onInjection exteriorComponents;

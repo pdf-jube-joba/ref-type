@@ -62,7 +62,7 @@ fn projected_record_field_type(
 }
 
 // Workspace state for surface elaboration and kernel checking.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize)]
 pub struct GlobalEnvironment {
     #[cfg(test)]
     #[serde(skip)]
@@ -80,6 +80,9 @@ pub struct GlobalEnvironment {
     predeclared_modules: HashMap<*const Module, ModuleId>,
     resolved_declarations: usize,
 }
+
+#[path = "elaborator/exports.rs"]
+pub(crate) mod exports;
 
 impl Default for GlobalEnvironment {
     fn default() -> Self {

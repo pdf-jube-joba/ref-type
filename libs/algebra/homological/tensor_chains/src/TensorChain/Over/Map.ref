@@ -1,0 +1,38 @@
+\definition Data: \Set := \forall (p, q: Degree) ->
+  Modules.Hom[V := C.family.Carrier p q, W := D.family.Carrier p q, source := C.family.space p q, target := D.family.space p q].Map;
+\structure Laws[data: Data]: \Prop {
+  horizontal: \forall (p, q: Degree)(x: C.family.Carrier p q) ->
+    #apply{(D.differential.horizontal p q)} (#apply{(data p q)} x) =
+      #apply{(data (previous p) q)} (#apply{(C.differential.horizontal p q)} x),
+  vertical: \forall (p, q: Degree)(x: C.family.Carrier p q) ->
+    #apply{(D.differential.vertical p q)} (#apply{(data p q)} x) =
+      #apply{(data p (previous q))} (#apply{(C.differential.vertical p q)} x),
+}
+\definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition laws(f: Map): Laws[f] := \bysub(Data, { data: Data \where Laws[data] }, f);
+\module Total(f: Map);
+\module Composition(B: Complex) {
+  \import \parent.\parent.Map[C := B, D := C] \as Before;
+  \import \parent.\parent.Map[C := B, D := D] \as Result;
+  \module Term(p, q: Degree) {
+    \import Modules.Hom[V := C.family.Carrier p q, W := D.family.Carrier p q, source := C.family.space p q, target := D.family.space p q].Composition[
+      U := B.family.Carrier p q, domain := B.family.space p q] \as Compose;
+    \definition map(f: Map)(g: Before.Map): Modules.Hom[V := B.family.Carrier p q, W := D.family.Carrier p q, source := B.family.space p q, target := D.family.space p q].Map :=
+      Compose.compose (f p q) (g p q);
+  }
+  \definition composed(f: Map)(g: Before.Map): Result.Data := \fun (p, q: Degree) => Term[p := p, q := q].map f g;
+  \definition compose(f: Map)(g: Before.Map): Result.Map := \into[Result.Data](composed f g, { data: Result.Data \where Result.Laws[data] }) \by {
+    Result.Laws[composed f g] {
+      horizontal := \fun (p, q: Degree)(x: B.family.Carrier p q) => trans!{{D.family.Carrier (previous p) q}} _ _ _
+        (#horizontal{(laws f)} p q (#apply{(g p q)} x))
+        (congr!{{C.family.Carrier (previous p) q} {D.family.Carrier (previous p) q}}
+          (#apply{(f (previous p) q)}) _ _ (#horizontal{(Before.laws g)} p q x)),
+      vertical := \fun (p, q: Degree)(x: B.family.Carrier p q) => trans!{{D.family.Carrier p (previous q)}} _ _ _
+        (#vertical{(laws f)} p q (#apply{(g p q)} x))
+        (congr!{{C.family.Carrier p (previous q)} {D.family.Carrier p (previous q)}}
+          (#apply{(f p (previous q))}) _ _ (#vertical{(Before.laws g)} p q x)),
+    }
+  };
+  \module Total(f: Map, g: Before.Map);
+}
+\module Inverse(f: Map);

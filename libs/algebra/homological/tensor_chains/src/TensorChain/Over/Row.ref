@@ -1,0 +1,37 @@
+\import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
+\definition degree(n: Degree): Degree := Grading.complement n p;
+\definition family: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Degree) => E.family.Carrier (degree n),
+  space := \fun (n: Degree) => E.family.space (degree n),
+};
+\import Chains.FamilyTransport[F := E.family] \as Reindex;
+\module At(n: Degree) {
+  \import Chains.At[C := E, z := degree n] \as Original;
+  \definition equality: previous (degree n) = degree (previous n) := sym!{Degree} _ _ (Grading.previousComplement n p);
+  \definition transport: Modules.Hom[V := E.family.Carrier (previous (degree n)), W := family.Carrier (previous n),
+    source := E.family.space (previous (degree n)), target := family.space (previous n)].Map := Reindex.forward _ _ equality;
+  \import Modules.Hom[V := E.family.Carrier (previous (degree n)), W := family.Carrier (previous n),
+    source := E.family.space (previous (degree n)), target := family.space (previous n)].Composition[
+    U := family.Carrier n, domain := family.space n] \as Compose;
+  \definition unsigned: Modules.Hom[V := family.Carrier n, W := family.Carrier (previous n),
+    source := family.space n, target := family.space (previous n)].Map := Compose.compose transport Original.differential;
+  \import \parent.\parent.Sign[V := family.Carrier (previous n), space := family.space (previous n)] \as Sign;
+  \import Modules.Hom[V := family.Carrier (previous n), W := family.Carrier (previous n),
+    source := family.space (previous n), target := family.space (previous n)].Composition[
+    U := family.Carrier n, domain := family.space n] \as Signed;
+  \definition differential: Modules.Hom[V := family.Carrier n, W := family.Carrier (previous n),
+    source := family.space n, target := family.space (previous n)].Map := Signed.compose (Sign.map p) unsigned;
+}
+\module Square(n: Degree);
+\definition differential: Chains.DifferentialData[family] := Chains.DifferentialData[family] {
+  apply := \fun (n: Degree) => #apply{(At[n := n].differential)},
+};
+\definition complex: Chains.Complex := Chains.Complex {
+  family := family, differential := differential,
+  laws := Chains.DifferentialLaws[family, differential] {
+    addition := \fun (n: Degree) => #addition{(At[n := n].differential)},
+    scalar := \fun (n: Degree) => #scalar{(At[n := n].differential)},
+    squareZero := \fun (n: Degree) => Square[n := n].zero,
+  },
+};
+\module Homology(n: Degree);

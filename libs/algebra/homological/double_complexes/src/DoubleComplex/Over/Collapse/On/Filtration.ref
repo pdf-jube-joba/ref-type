@@ -1,0 +1,44 @@
+\import \parent.Properties[] \as Properties;
+\import \parent.Boundary[n := n] \as Boundary;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Next;
+\import \parent.\parent.\parent.Descent[V := Next.KernelCarrier, W := Total.Carrier n,
+  source := Next.kernelSpace, target := Total.space n] \as Descending;
+\definition decrease: \forall (rows: RowsExact[f])(vanishes: Concentrated.Vanishes)(k: Nat.Nat^)(x: Total.Carrier n) ->
+  Stage[n, Nat.Nat^::succ k, x] ->
+  \exists { y: Next.KernelCarrier \where Stage[n, k, Descending.remainder Boundary.map x y] } :=
+  \fun (rows: RowsExact[f])(vanishes: Concentrated.Vanishes)(k: Nat.Nat^)(x: Total.Carrier n)(stage: Stage[n, Nat.Nat^::succ k, x]) =>
+    either!{{(Classical.excludedMiddle (Natural.Le k n))} {
+      \exists { y: Next.KernelCarrier \where Stage[n, k, Descending.remainder Boundary.map x y] }}
+      {\fun (bound: Natural.Le k n) =>
+        \parent.Reduction[p := k, q := Arithmetic.sub n k].transported n (Natural.addSubOfLe k n bound) rows vanishes x stage}
+      {\fun (outside: Logic.Not (Natural.Le k n)) =>
+        Logic.existsIntro[Next.KernelCarrier, { y: Next.KernelCarrier \where Stage[n, k, Descending.remainder Boundary.map x y] }]
+          #zero{Next.kernelSpace}
+          (\idelim x = Descending.remainder Boundary.map x #zero{Next.kernelSpace} \with y: Total.Carrier n => Stage[n, k, y] \by {
+            base: Stage[n, k, x] {
+              cycle := #cycle{stage}, kernel := #kernel{stage},
+              support := \fun (i: Index n)(bound: Natural.Le k #first{i}) =>
+                Logic.falseElim (Coordinates.Degree[n := n].coordinate i x = #zero{(C.family.space #first{i} #second{i})})
+                  (outside (Natural.leTrans k #first{i} n bound (firstBound n i))),
+            },
+            equality: sym!{{Total.Carrier n}} _ _ (Boundary.remainderZero x)
+          })}};
+\definition bottom: \forall (x: Total.Carrier n) -> Stage[n, Nat.Nat^::zero, x] -> x = #zero{(Total.space n)} :=
+  \fun (x: Total.Carrier n)(stage: Stage[n, Nat.Nat^::zero, x]) => Coordinates.Degree[n := n].zero x
+    (\fun (i: Index n) => #support{stage} i (Natural.zeroLe #first{i}));
+\definition initial: \forall (x: Total.Carrier n) -> Closed n x -> Killed n x -> Stage[n, Nat.Nat^::succ n, x] :=
+  \fun (x: Total.Carrier n)(closed: Closed n x)(killed: Killed n x) => Stage[n, Nat.Nat^::succ n, x] {
+    cycle := closed, kernel := killed,
+    support := \fun (i: Index n)(bound: Natural.Le (Nat.Nat^::succ n) #first{i}) =>
+      Logic.falseElim (Coordinates.Degree[n := n].coordinate i x = #zero{(C.family.space #first{i} #second{i})})
+        (Natural.ltIrrefl n (Natural.ltOfSuccLe n n
+          (Natural.leTrans (Nat.Nat^::succ n) #first{i} n bound (firstBound n i)))),
+  };
+\definition exact: \forall (rows: RowsExact[f])(vanishes: Concentrated.Vanishes)(x: Total.Carrier n) ->
+  Closed n x -> Killed n x -> Descending.Boundary Boundary.map x :=
+  \fun (rows: RowsExact[f])(vanishes: Concentrated.Vanishes)(x: Total.Carrier n)(closed: Closed n x)(killed: Killed n x) =>
+    Descending.finiteDescent Boundary.map (\fun (k: Nat.Nat^)(x: Total.Carrier n) => Stage[n, k, x])
+      (Descending.Filtration[Boundary.map, \fun (k: Nat.Nat^)(x: Total.Carrier n) => Stage[n, k, x]] {
+      bottom := bottom,
+      decrease := decrease rows vanishes,
+    }) (Nat.Nat^::succ n) x (initial x closed killed);

@@ -1,0 +1,20 @@
+\definition p: Degree := #first{i};
+\definition q: Degree := #second{i};
+\import Product.Term[p := p, q := q] \as Tensor;
+\import Projected.Term[p := p, q := q] \as HomologyTensor;
+\import Projection.Term[p := p, q := q] \as Project;
+\import \parent.Factor[p := p] \as Reindex;
+\import Modules.Hom[V := Result.Component[p := p].tensorCarrier, W := TargetSum.Carrier,
+  source := Result.Component[p := p].tensorSpace, target := TargetSum.space].Composition[
+  U := HomologyTensor.Carrier, domain := HomologyTensor.space] \as Tail;
+\definition tail: Modules.Hom[V := HomologyTensor.Carrier, W := TargetSum.Carrier, source := HomologyTensor.space, target := TargetSum.space].Map :=
+  Tail.compose TargetSum.Injection[i := p].map (Reindex.reindex q (Grading.complementUnique n p q (Grading.degree n i)));
+\import Modules.Hom[V := HomologyTensor.Carrier, W := TargetSum.Carrier, source := HomologyTensor.space, target := TargetSum.space].Composition[
+  U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\definition map: Modules.Hom[V := Tensor.Carrier, W := TargetSum.Carrier, source := Tensor.space, target := TargetSum.space].Map := Compose.compose tail Project.map;
+\definition onTensor: \forall (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) ->
+  #apply{map} (Tensor.tensor x y) = #apply{tail} (HomologyTensor.tensor (#apply{LeftProjection.map} p x) (#apply{RightProjection.map} q y)) :=
+  \fun (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) =>
+    congr!{HomologyTensor.Carrier TargetSum.Carrier} (#apply{tail}) _ _ (Project.onTensor x y);
+\import Modules.Hom[V := HomologyTensor.Carrier, W := TargetSum.Carrier, source := HomologyTensor.space, target := TargetSum.space] \as TailMaps;
+\definition tailZero: #apply{tail} #zero{HomologyTensor.space} = #zero{TargetSum.space} := TailMaps.zeroPreserved tail;

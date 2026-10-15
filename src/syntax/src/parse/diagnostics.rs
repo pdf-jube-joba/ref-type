@@ -36,7 +36,7 @@ impl ParseError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(artifact::Relocate, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum OwnedToken {
     KeyWord(String),
     MacroVar(String),
@@ -115,7 +115,7 @@ impl Token<'_> {
         }
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(artifact::Relocate, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Expected {
     Keyword(String),
     Token(OwnedToken),
@@ -144,7 +144,7 @@ impl std::fmt::Display for Expected {
         }
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(artifact::Relocate, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ParseErrorKind {
     Expected {
         expected: Expected,

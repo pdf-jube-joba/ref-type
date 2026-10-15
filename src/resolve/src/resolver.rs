@@ -14,7 +14,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Diagnostic {
     pub error: crate::error::Error,
     pub location: Option<SourceLocation>,
@@ -30,7 +30,7 @@ impl std::error::Error for Diagnostic {}
 type DeclarationKind = &'static str;
 
 /// A frontend declaration whose signature need not denote a kernel type.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Declaration {
     pub module: Vec<String>,
     pub name: String,
@@ -41,7 +41,7 @@ pub struct Declaration {
 }
 
 /// A source occurrence whose lexical target is known before type inference.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Reference {
     pub module: Vec<String>,
     pub location: SourceLocation,
@@ -49,7 +49,7 @@ pub struct Reference {
     pub target_name: String,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Binding {
     pub module: ModuleId,
     pub name: String,
@@ -60,7 +60,7 @@ pub struct Binding {
 
 /// Namespace correspondence for a syntactic module instantiation.
 /// Elaboration fills in the corresponding typed instances after checking arguments.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Import {
     pub owner: ModuleId,
     pub name: String,
@@ -69,13 +69,15 @@ pub struct Import {
 }
 
 /// Type-checking steps in lexical and import dependency order.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq,
+)]
 pub enum CheckStep {
     Parameters(ModuleId),
     Declaration { module: ModuleId, index: usize },
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Project {
     pub declarations: Vec<Declaration>,
     pub modules: Vec<Module>,
@@ -85,7 +87,7 @@ pub struct Project {
     pub imports: HashMap<BindingId, Import>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Clone, Default)]
 struct Scope {
     compiled: bool,
     closed: bool,
@@ -102,7 +104,7 @@ struct Scope {
 
 // A child needs the term environment at its declaration position until it is
 // resolved. Macro environments and the namespace graph have their own owners.
-#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Clone, Default)]
 struct TermScope {
     names: Arc<FxHashMap<String, BindingId>>,
     imports: FxHashMap<String, ModuleId>,
@@ -144,11 +146,12 @@ use macro_scopes::{MacroWork, work_macro_names};
 #[path = "structures.rs"]
 mod structures;
 
-#[derive(serde::Serialize, serde::Deserialize, Default)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Default)]
 struct Resolver {
     declarations: Vec<Declaration>,
     structures: FxHashMap<BindingId, structures::Structure>,
     parameter_signatures: FxHashMap<BindingId, structures::ParameterSignature>,
+    #[serde(serialize_with = "artifact::canonical::serialize_set")]
     computation_bindings: HashSet<BindingId>,
     front_definitions: FxHashMap<BindingId, structures::Definition>,
     structure_values: FxHashMap<BindingId, structures::Value>,
@@ -238,7 +241,7 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
 
 /// Append dependency-ordered packages without reallocating earlier identities.
 /// A session may only be reused after a successful append.
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(artifact::Relocate, Default, serde::Serialize, serde::Deserialize)]
 pub struct Session {
     resolver: Resolver,
     roots: Vec<Module>,
@@ -1746,3 +1749,7 @@ impl diagnostics::DiagnosticError for Diagnostic {
         data
     }
 }
+
+#[path = "package.rs"]
+mod package;
+pub use package::{PackageBoundary, PackageExport};

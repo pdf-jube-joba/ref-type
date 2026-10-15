@@ -19,7 +19,10 @@ pub struct CheckOptions {
     pub configuration: String,
     /// Run verification even when a checked result exists (e.g. tracing).
     pub force: bool,
-    /// Recheck the entry package while reusing dependency results and environments.
+    /// One-shot checking can rebuild independent prefixes after errors instead
+    /// of serializing recovery environments during every successful check.
+    pub skip_environment_cache: bool,
+    /// Recheck entry packages (including workspace members), reusing dependency checkpoints.
     pub force_local: bool,
     /// Select only the named module and its dependencies, excluding unrelated children.
     pub module_only: bool,
@@ -36,18 +39,21 @@ pub struct CheckOptions {
 struct LoadedProject {
     modules: Vec<syntax::Module>,
     diagnostics: Vec<Diagnostic>,
-    packages: Vec<PathBuf>,
+    package_info: Vec<project::package_loader::PackageInfo>,
+    local_packages: BTreeSet<String>,
 }
 
 /// Mutable query storage. Results and snapshots can outlive the database.
 /// Checked environments are retained as detached, serializable checkpoints.
 #[derive(Default)]
 pub struct Database {
+    sources: std::cell::RefCell<project::SourceCache>,
     parses: ParseCache,
-    checked: HashMap<Fingerprint, Arc<ModuleResult>>,
-    queries: HashMap<Fingerprint, Arc<SemanticResult>>,
+    checked: crate::memory::GenerationCache<Fingerprint, Arc<ModuleResult>>,
+    queries: crate::memory::GenerationCache<Fingerprint, Arc<SemanticResult>>,
     environments: EnvironmentCache,
     package_environments: EnvironmentCache,
+    package_results: crate::memory::GenerationCache<Fingerprint, packages::MemoryPackage>,
     disk: Option<DiskCache>,
     stats: QueryStats,
     verification_statistics: Vec<String>,
@@ -66,25 +72,49 @@ impl Database {
     pub fn read_snapshot(
         &self,
         entry: impl AsRef<Path>,
-        reuse_dependency_sources: bool,
+        _reuse_dependency_sources: bool,
     ) -> Result<SourceSnapshot, project::Error> {
         let _cost = timing::costs::Scope::enter("source.snapshot");
-        SourceSnapshot::read_with_dependency_cache(entry, |own, root| {
-            reuse_dependency_sources.then(|| self.disk.as_ref()?.read_sources(own, root))?
-        })
+        SourceSnapshot::read_with_source_cache(entry, &mut self.sources.borrow_mut())
     }
     pub fn stats(&self) -> &QueryStats {
         &self.stats
     }
+    pub fn set_cache_budget(&mut self, bytes: u64) {
+        if let Some(disk) = &self.disk {
+            disk.set_budget(bytes);
+        }
+    }
+    pub fn cache_store_stats(&self) -> crate::artifact_store::CacheStoreStats {
+        self.disk
+            .as_ref()
+            .map(|disk| disk.store().stats())
+            .unwrap_or_default()
+    }
     pub fn verification_statistics(&self) -> &[String] {
         &self.verification_statistics
     }
+    pub fn memory_cache_stats(&self) -> crate::MemoryCacheStats {
+        crate::MemoryCacheStats {
+            source_entries: self.sources.borrow().len(),
+            source_bytes: self.sources.borrow().bytes(),
+            parse_entries: self.parses.len(),
+            parse_source_bytes: self.parses.source_bytes(),
+            module_results: self.checked.len(),
+            query_results: self.queries.len(),
+            package_results: self.package_results.len(),
+            compressed_environment_bytes: self.environments.bytes()
+                + self.package_environments.bytes(),
+        }
+    }
     pub fn clear_memory(&mut self) {
+        self.sources.get_mut().clear();
         self.parses.clear();
         self.checked.clear();
         self.queries.clear();
         self.environments.clear();
         self.package_environments.clear();
+        self.package_results.clear();
     }
 
     pub fn parse(
@@ -93,6 +123,7 @@ impl Database {
         file: impl AsRef<Path>,
         kind: ParseKind,
     ) -> Arc<ParseResult> {
+        self.parses.next_generation();
         self.parses
             .parse(snapshot, file.as_ref(), kind, &mut self.stats)
     }
@@ -102,6 +133,7 @@ impl Database {
         &mut self,
         snapshot: &SourceSnapshot,
     ) -> Result<Vec<syntax::Module>, Vec<Diagnostic>> {
+        self.parses.next_generation();
         self.stats = QueryStats {
             environment_bytes: self.environments.bytes() + self.package_environments.bytes(),
             ..QueryStats::default()
@@ -124,7 +156,7 @@ impl Database {
         snapshot: &SourceSnapshot,
     ) -> Result<Vec<Vec<String>>, Vec<Diagnostic>> {
         let modules = self.parse_project(snapshot)?;
-        Ok(ModuleGraph::new(&modules)
+        Ok(ModuleGraph::structure(&modules)
             .units
             .into_iter()
             .map(|unit| unit.path)
@@ -142,17 +174,18 @@ impl Database {
         };
         let result = if snapshot.entry().extension().is_some_and(|ext| ext == "ref") {
             ::project::module_loader::load_modules(snapshot.entry(), &mut loader)
-                .map(|modules| (modules, Vec::new()))
+                .map(|modules| (modules, BTreeSet::new(), Vec::new()))
         } else {
             ::project::package_loader::load_package_with(snapshot.entry(), &mut loader).map(
                 |graph| {
                     (
                         graph.modules,
                         graph
-                            .packages
-                            .into_iter()
-                            .map(|package| package.directory)
+                            .entry_packages
+                            .iter()
+                            .map(|id| graph.packages[id.0].name.clone())
                             .collect(),
+                        graph.packages,
                     )
                 },
             )
@@ -166,10 +199,11 @@ impl Database {
             );
         }
         match result {
-            Ok((modules, packages)) => Ok(LoadedProject {
+            Ok((modules, local_packages, package_info)) => Ok(LoadedProject {
                 modules,
                 diagnostics: loader.diagnostics,
-                packages,
+                package_info,
+                local_packages,
             }),
             Err(message) if loader.diagnostics.is_empty() => Err(vec![Diagnostic {
                 cause: message.diagnostic_data(),
@@ -238,6 +272,10 @@ impl Database {
         options: &CheckOptions,
         select: impl Fn(&crate::graph::Unit<'_>) -> bool,
     ) -> Arc<SemanticResult> {
+        self.parses.next_generation();
+        self.checked.next_generation();
+        self.queries.next_generation();
+        self.package_results.next_generation();
         let _cost_session = timing::costs::Session::start();
         let _cost = timing::costs::Scope::enter("query.total");
         let _timing = timing::Session::start(options.progress.is_some());
@@ -245,6 +283,11 @@ impl Database {
             environment_bytes: self.environments.bytes() + self.package_environments.bytes(),
             ..QueryStats::default()
         };
+        if let Some(disk) = &self.disk
+            && disk.store().release_pins().is_err()
+        {
+            self.stats.cache_write_failures += 1;
+        }
         let _phase = elaboration::profiling::Phase::start("query.total");
         self.verification_statistics.clear();
         let notify = |event| {
@@ -257,7 +300,8 @@ impl Database {
         let LoadedProject {
             modules,
             diagnostics: parse_diagnostics,
-            packages,
+            package_info,
+            local_packages,
         } = match self.load(snapshot) {
             Ok(modules) => modules,
             Err(mut diagnostics) => {
@@ -271,6 +315,11 @@ impl Database {
                 });
             }
         };
+        let source_roots: Vec<_> = package_info
+            .iter()
+            .map(|package| package.directory.clone())
+            .collect();
+        let _source_roots = ::syntax::source_reference::package_roots_guard(&source_roots);
         notify(ProgressEvent::Phase(ProgressPhase::Planning));
         let graph = {
             let _phase = elaboration::profiling::Phase::start("query.graph");
@@ -278,12 +327,11 @@ impl Database {
             ModuleGraph::new(&modules)
         };
         let package_input = !snapshot.entry().extension().is_some_and(|ext| ext == "ref");
-        let local_package = package_input.then(|| &modules.last().expect("entry package").name.0);
         let forced = |index: usize| {
             options.force
                 || options.collect_statistics
                 || (options.force_local
-                    && local_package.is_none_or(|name| &graph.units[index].path[0] == name))
+                    && (!package_input || local_packages.contains(&graph.units[index].path[0])))
         };
         let requested = graph.closure(
             graph
@@ -313,7 +361,7 @@ impl Database {
         let blocked: BTreeSet<_> = requested
             .iter()
             .copied()
-            .filter(|&index| !graph.closure([index]).is_disjoint(&invalid))
+            .filter(|&index| !invalid.is_empty() && !graph.closure([index]).is_disjoint(&invalid))
             .collect();
         let mut diagnostics: Vec<_> = parse_diagnostics
             .into_iter()
@@ -350,12 +398,12 @@ impl Database {
             options.configuration
         )
         .into_bytes();
-        for (path, source) in snapshot
+        for (path, _) in snapshot
             .files()
             .filter(|(path, _)| path.file_name().is_some_and(|name| name == "ref.toml"))
         {
             settings.extend(path.to_string_lossy().as_bytes());
-            settings.extend(fingerprint(source.text.as_bytes()));
+            settings.extend(snapshot.content_digest(path).expect("captured manifest"));
         }
         let settings = fingerprint(&settings);
         progress.phase(ProgressPhase::Cache);
@@ -374,6 +422,10 @@ impl Database {
             && !options.collect_statistics
             && let Some(result) = self.queries.get(&query_key)
         {
+            // Keep this query's module entries hot across repeated query-level hits.
+            for index in &requested {
+                let _ = self.checked.get(&keys[*index]);
+            }
             self.stats.reused_modules = result.modules.len();
             self.stats.environment_bytes =
                 self.environments.bytes() + self.package_environments.bytes();
@@ -391,7 +443,8 @@ impl Database {
             return result.clone();
         }
         if package_input
-            && (packages.len() > 1 || requested.len() == graph.units.len())
+            && !(options.force && self.disk.is_none())
+            && (package_info.len() > 1 || requested.len() == graph.units.len())
             && diagnostics.is_empty()
             && !options.collect_statistics
             && let Some(result) = self.check_packages(
@@ -399,17 +452,12 @@ impl Database {
                 options,
                 &graph,
                 &requested,
-                &packages,
+                &package_info,
+                &local_packages,
                 &keys,
                 &mut progress,
             )
         {
-            if requested.len() == graph.units.len()
-                && let Some(disk) = &self.disk
-                && disk.write_sources(snapshot, &packages).is_err()
-            {
-                self.stats.cache_write_failures += 1;
-            }
             self.queries.insert(query_key, result.clone());
             progress.finish(result.is_success());
             return result;
@@ -568,7 +616,7 @@ impl Database {
                         .collect::<BTreeSet<_>>()
                         .difference(&checked)
                         .count();
-                    let checkpoints = if compact
+                    let checkpoints = if (compact || options.skip_environment_cache)
                         && (options.force || options.collect_statistics)
                         && self.disk.is_none()
                     {
@@ -723,13 +771,6 @@ impl Database {
             self.environments.bytes() + self.package_environments.bytes();
         progress.skip_cached();
         progress.phase(ProgressPhase::Saving);
-        if result.is_success()
-            && requested.len() == graph.units.len()
-            && let Some(disk) = &self.disk
-            && disk.write_sources(snapshot, &packages).is_err()
-        {
-            self.stats.cache_write_failures += 1;
-        }
         self.queries.insert(query_key, result.clone());
         progress.finish(result.is_success());
         result

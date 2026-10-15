@@ -1,0 +1,30 @@
+\definition degree: Nat.Nat^ := Arithmetic.add (Nat.Nat^::succ a) b;
+\definition reverseDegree: Nat.Nat^ := Arithmetic.add b (Nat.Nat^::succ a);
+\definition rightZero: \forall (n: Nat.Nat^)(same: degree = n)(x: Tensor.Carrier (Nat.Nat^::succ a) b) ->
+  #apply{standardRight} n (#apply{(Total.Degree[n := n].Component[i := diagonal n (Nat.Nat^::succ a) b same].injection)} x) = #zero{(StandardRight.space n)} :=
+  \fun (n: Nat.Nat^)(same: degree = n) =>
+    (\idelim degree = n \with k: Nat.Nat^ => \forall (equal: degree = k)(x: Tensor.Carrier (Nat.Nat^::succ a) b) ->
+      #apply{standardRight} k (#apply{(Total.Degree[n := k].Component[i := diagonal k (Nat.Nat^::succ a) b equal].injection)} x) = #zero{(StandardRight.space k)} \by {
+        base: \fun (equal: degree = degree) => OriginalRight.Positive[p := a, q := b].zero,
+        equality: same
+      }) same;
+\definition leftZero: \forall (n: Nat.Nat^)(same: reverseDegree = n)(x: SwappedTensor.Carrier b (Nat.Nat^::succ a)) ->
+  #apply{Swapped.standardLeft} n (#apply{(SwappedTotal.Degree[n := n].Component[i := diagonal n b (Nat.Nat^::succ a) same].injection)} x) = #zero{(StandardRight.space n)} :=
+  \fun (n: Nat.Nat^)(same: reverseDegree = n) =>
+    (\idelim reverseDegree = n \with k: Nat.Nat^ => \forall (equal: reverseDegree = k)(x: SwappedTensor.Carrier b (Nat.Nat^::succ a)) ->
+      #apply{Swapped.standardLeft} k (#apply{(SwappedTotal.Degree[n := k].Component[i := diagonal k b (Nat.Nat^::succ a) equal].injection)} x) = #zero{(StandardRight.space k)} \by {
+        base: \fun (equal: reverseDegree = reverseDegree) => SwappedLeft.Positive[p := b, q := a].zero,
+        equality: same
+      }) same;
+\definition afterZero: \forall (n: Nat.Nat^)(same: degree = n)(x: Tensor.Carrier (Nat.Nat^::succ a) b) ->
+  #apply{after} n (#apply{(Total.Degree[n := n].Component[i := diagonal n (Nat.Nat^::succ a) b same].injection)} x) = #zero{(StandardRight.space n)} :=
+  \fun (n: Nat.Nat^)(same: degree = n)(x: Tensor.Carrier (Nat.Nat^::succ a) b) => trans!{{StandardRight.Carrier n}} _ _ _
+    (congr!{{SwappedTotal.Carrier n} {StandardRight.Carrier n}} (#apply{Swapped.standardLeft} n) _ _
+      (Exchange.Degree[n := n].At[i := diagonal n (Nat.Nat^::succ a) b same].onInjection x))
+    (leftZero n (trans!{Nat.Nat^} _ _ _ (Natural.addComm b (Nat.Nat^::succ a)) same)
+      (#apply{(Exchange.Term[p := Nat.Nat^::succ a, q := b].map)} x));
+\definition point: \forall (n: Nat.Nat^)(same: degree = n)(x: Tensor.Carrier (Nat.Nat^::succ a) b) ->
+  #apply{after} n (#apply{(Total.Degree[n := n].Component[i := diagonal n (Nat.Nat^::succ a) b same].injection)} x) =
+  #apply{standardRight} n (#apply{(Total.Degree[n := n].Component[i := diagonal n (Nat.Nat^::succ a) b same].injection)} x) :=
+  \fun (n: Nat.Nat^)(same: degree = n)(x: Tensor.Carrier (Nat.Nat^::succ a) b) => trans!{{StandardRight.Carrier n}} _ _ _
+    (afterZero n same x) (sym!{{StandardRight.Carrier n}} _ _ (rightZero n same x));

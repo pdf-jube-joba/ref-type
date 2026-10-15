@@ -1,5 +1,7 @@
 //! Failures to interpret surface expressions as Program syntax.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    artifact::Relocate, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
 pub enum ConversionError {
     ProgramBlocksOnlySupportLetAndBindStatements,
     ProgramLambdaRequiresAPlainValueBinder,

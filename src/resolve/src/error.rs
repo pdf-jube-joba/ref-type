@@ -1,5 +1,5 @@
 //! Resolution and macro expansion failures.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(artifact::Relocate, Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Error {
     Conversion(syntax::error::ConversionError),
     Invalid(Invalid),
@@ -97,7 +97,9 @@ pub enum Error {
         name: String,
     },
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    artifact::Relocate, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
 pub enum Invalid {
     NoVisibleMathMacro,
     ExternalModuleWasNotLoaded,
@@ -320,7 +322,9 @@ impl From<syntax::error::ConversionError> for Error {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    artifact::Relocate, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
 pub enum CaptureKind {
     Expression,
     Token,

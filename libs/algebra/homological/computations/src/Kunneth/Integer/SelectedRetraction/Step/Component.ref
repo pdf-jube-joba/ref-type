@@ -1,0 +1,84 @@
+\definition p: Degree := #first{i};
+\definition q: Degree := #second{i};
+\import Product.Term[p := p, q := q] \as Tensor;
+\import Product.Term[p := Bounded.previous p, q := q] \as HTensor;
+\import Product.Term[p := p, q := Bounded.previous q] \as VTensor;
+\import Projected.Term[p := Bounded.previous p, q := q] \as HProjected;
+\import Projected.Term[p := p, q := Bounded.previous q] \as VProjected;
+\import Product.At[p := p, q := q] \as ProductDifferential;
+\import Lower.At[i := Total.upHorizontal n i] \as HProjection;
+\import Lower.At[i := Total.upVertical n i] \as VProjection;
+\definition horizontalBoundary: \forall (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) ->
+  #apply{HProjection.map} (HTensor.tensor (#apply{Left.chain.differential} p x) y) = #zero{(family.space (Bounded.previous n))} :=
+  \fun (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) => trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+    (HProjection.onTensor (#apply{Left.chain.differential} p x) y)
+    (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+      (congr!{HProjected.Carrier {family.Carrier (Bounded.previous n)}} (#apply{HProjection.tail}) _ _
+        (trans!{HProjected.Carrier} _ _ _
+          (congr!{{LeftProjection.Term[z := Bounded.previous p].Carrier} HProjected.Carrier}
+            (\fun (a: LeftProjection.Term[z := Bounded.previous p].Carrier) => HProjected.tensor a (#apply{RightProjection.map} q y)) _ _
+            (LeftProjection.Term[z := p].killsBoundary x))
+          (HProjected.zeroLeft (#apply{RightProjection.map} q y))))
+      HProjection.tailZero);
+\definition verticalBoundary: \forall (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) ->
+  #apply{VProjection.map} (VTensor.tensor x (#apply{Right.chain.differential} q y)) = #zero{(family.space (Bounded.previous n))} :=
+  \fun (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) => trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+    (VProjection.onTensor x (#apply{Right.chain.differential} q y))
+    (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+      (congr!{VProjected.Carrier {family.Carrier (Bounded.previous n)}} (#apply{VProjection.tail}) _ _
+        (trans!{VProjected.Carrier} _ _ _
+          (congr!{{RightProjection.Term[z := Bounded.previous q].Carrier} VProjected.Carrier}
+            (VProjected.tensor (#apply{LeftProjection.map} p x)) _ _ (RightProjection.Term[z := q].killsBoundary y))
+          (VProjected.zeroRight (#apply{LeftProjection.map} p x))))
+      VProjection.tailZero);
+\definition horizontal: \forall (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) ->
+  #apply{Lower.map} (#apply{Differential.horizontal} (#apply{(Source.Component[i := i].injection)} (Tensor.tensor x y))) = #zero{(family.space (Bounded.previous n))} :=
+  \fun (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) => trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+    (congr!{Target.Carrier {family.Carrier (Bounded.previous n)}} (#apply{Lower.map}) _ _ (Differential.horizontalOnInjection i (Tensor.tensor x y)))
+    (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+      (congr!{HTensor.Carrier {family.Carrier (Bounded.previous n)}}
+        (\fun (a: HTensor.Carrier) => #apply{Lower.map} (#apply{(Target.Component[i := Total.upHorizontal n i].injection)} a)) _ _
+        (ProductDifferential.horizontalOnTensor x y))
+      (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+        (Lower.onInjection (Total.upHorizontal n i) (HTensor.tensor (#apply{Left.chain.differential} p x) y))
+        (horizontalBoundary x y)));
+\import Tensors.Sign[V := VTensor.Carrier, space := VTensor.space] \as Sign;
+\import Sign.Mapping[W := family.Carrier (Bounded.previous n), target := family.space (Bounded.previous n)] \as NaturalSign;
+\import Tensors.Sign[V := family.Carrier (Bounded.previous n), space := family.space (Bounded.previous n)] \as TargetSign;
+\import Modules.Hom[V := family.Carrier (Bounded.previous n), W := family.Carrier (Bounded.previous n), source := family.space (Bounded.previous n), target := family.space (Bounded.previous n)] \as Signs;
+\definition vertical: \forall (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) ->
+  #apply{Lower.map} (#apply{Differential.vertical} (#apply{(Source.Component[i := i].injection)} (Tensor.tensor x y))) = #zero{(family.space (Bounded.previous n))} :=
+  \fun (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) => trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+    (congr!{Target.Carrier {family.Carrier (Bounded.previous n)}} (#apply{Lower.map}) _ _ (Differential.verticalOnInjection i (Tensor.tensor x y)))
+    (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+      (congr!{VTensor.Carrier {family.Carrier (Bounded.previous n)}}
+        (\fun (a: VTensor.Carrier) => #apply{Lower.map} (#apply{(Target.Component[i := Total.upVertical n i].injection)} (#apply{(Sign.map p)} a))) _ _
+        (ProductDifferential.verticalOnTensor x y))
+      (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+        (Lower.onInjection (Total.upVertical n i) (#apply{(Sign.map p)} (VTensor.tensor x (#apply{Right.chain.differential} q y))))
+        (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+          (NaturalSign.naturality VProjection.map p (VTensor.tensor x (#apply{Right.chain.differential} q y)))
+          (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+            (congr!{{family.Carrier (Bounded.previous n)} {family.Carrier (Bounded.previous n)}} (#apply{(TargetSign.map p)}) _ _ (verticalBoundary x y))
+            (Signs.zeroPreserved (TargetSign.map p))))));
+\import Modules.Laws[V := family.Carrier (Bounded.previous n), space := family.space (Bounded.previous n)] \as Vectors;
+\import algebra.Group[].Of[Carrier := family.Carrier (Bounded.previous n), group := Vectors.additive] \as Group;
+\definition onTensor: \forall (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) ->
+  #apply{composite} (#apply{(Source.Component[i := i].injection)} (Tensor.tensor x y)) = #zero{(family.space (Bounded.previous n))} :=
+  \fun (x: Left.chain.family.Carrier p)(y: Right.chain.family.Carrier q) => trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+    (#addition{Lower.map} (#apply{Differential.horizontal} (#apply{(Source.Component[i := i].injection)} (Tensor.tensor x y)))
+      (#apply{Differential.vertical} (#apply{(Source.Component[i := i].injection)} (Tensor.tensor x y))))
+    (trans!{{family.Carrier (Bounded.previous n)}} _ _ _
+      (congr2!{{family.Carrier (Bounded.previous n)} {family.Carrier (Bounded.previous n)} {family.Carrier (Bounded.previous n)}}
+        (#add{(family.space (Bounded.previous n))}) _ _ _ _ (horizontal x y) (vertical x y))
+      (Group.zeroLeft #zero{(family.space (Bounded.previous n))}));
+\import Modules.Hom[V := Source.Carrier, W := family.Carrier (Bounded.previous n), source := Source.space, target := family.space (Bounded.previous n)].Composition[
+  U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\definition component: Modules.Hom[V := Tensor.Carrier, W := family.Carrier (Bounded.previous n), source := Tensor.space, target := family.space (Bounded.previous n)].Map :=
+  Compose.compose composite Source.Component[i := i].injection;
+\import Modules.Hom[V := Tensor.Carrier, W := family.Carrier (Bounded.previous n), source := Tensor.space, target := family.space (Bounded.previous n)] \as Maps;
+\import Modules.Tensor[V := Left.chain.family.Carrier p, W := Right.chain.family.Carrier q, left := Left.chain.family.space p, right := Right.chain.family.space q].Universal[
+  U := family.Carrier (Bounded.previous n), target := family.space (Bounded.previous n)] \as Universal;
+\definition equality: component = Maps.zeroMap := Universal.ext component Maps.zeroMap onTensor;
+\definition point: \forall (x: Tensor.Carrier) -> #apply{composite} (#apply{(Source.Component[i := i].injection)} x) = #zero{(family.space (Bounded.previous n))} :=
+  \fun (x: Tensor.Carrier) => congr!{Maps.Map {family.Carrier (Bounded.previous n)}} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality;

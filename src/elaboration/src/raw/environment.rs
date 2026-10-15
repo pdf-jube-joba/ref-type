@@ -1,6 +1,8 @@
 //! Crate/module declarations and materialized-binding provenance.
 #[path = "declaration_checkpoint.rs"]
 mod declaration_checkpoint;
+#[path = "exports.rs"]
+pub(crate) mod exports;
 use super::shared_map::SharedMap;
 use crate::raw::{
     exp::{Arena, Exp},
@@ -17,7 +19,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum DefinedConstant {
     Contextual {
         parameters: Vec<(SymbolId, Exp)>,
@@ -49,13 +51,13 @@ impl DefinedConstant {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ModuleParameter {
     pub name: SymbolId,
     pub kind: ModuleParameterKind,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
 pub enum ModuleParameterKind {
     Pts { ty: Exp },
     ProgramType,
@@ -71,7 +73,17 @@ impl ModuleParameter {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum ModuleArgument {
     Pts(Exp),
     ProgramType(ValueType),
@@ -84,7 +96,9 @@ impl From<Exp> for ModuleArgument {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
+)]
 pub enum ModuleItem {
     Definition {
         name: String,
@@ -122,7 +136,7 @@ impl ModuleItem {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct NamespaceBinding {
     pub source: ModuleId,
     pub materialized: ModuleId,
@@ -133,9 +147,23 @@ pub struct NamespaceBinding {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct RemappingId(usize);
+pub(crate) struct RemappingId(pub(crate) usize);
+artifact::identity!(RemappingId, "raw.remapping");
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct RemappingSnapshotId(pub(crate) usize);
+artifact::identity!(RemappingSnapshotId, "raw.remapping.snapshot");
+
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub(crate) enum RemappingOrigin {
+    Namespace(ModuleId),
+    Composition {
+        next: RemappingId,
+        previous: RemappingId,
+    },
+}
+
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub(crate) struct DeclarationRemapping {
     pub module_ids: SharedMap<ModuleId>,
     pub definition_ids: SharedMap<DefId>,
@@ -157,7 +185,7 @@ impl DeclarationRemapping {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyDefinition {
     source: DefId,
     substitutions: Arc<[(ModuleParamId, ModuleArgument)]>,
@@ -165,14 +193,14 @@ struct LazyDefinition {
     remapping: RemappingId,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyInductive {
     source: InductiveId,
     substitutions: Arc<[(ModuleParamId, Exp)]>,
     remapping: RemappingId,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyProgramInductive {
     source: ProgramInductiveId,
     substitutions: Arc<[(ModuleParamId, ModuleArgument)]>,
@@ -192,7 +220,7 @@ pub struct MaterializationStats {
     pub datatypes: usize,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ModuleEnv {
     name: String,
     parent: Option<ModuleId>,
@@ -281,7 +309,7 @@ pub(crate) struct ClosedNamespaceKey {
     pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug)]
 pub struct CrateEnv {
     pub(crate) kernel: RefCell<kernel::environment::Environment>,
     pub(crate) kernel_definitions: RefCell<HashMap<DefId, kernel::ids::DefinitionId>>,
@@ -320,8 +348,8 @@ pub struct CrateEnv {
     namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     #[serde(skip)]
     pub(crate) closed_namespaces: HashMap<ClosedNamespaceKey, (ModuleId, Vec<ModuleId>)>,
-    #[serde(with = "super::remapping_checkpoint")]
-    remappings: Vec<DeclarationRemapping>,
+    remappings: super::remapping_checkpoint::Tables,
+    remapping_origins: HashMap<RemappingId, RemappingOrigin>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
     checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
     checking_program_contexts: HashMap<ModuleId, crate::raw::program::ProgramContext>,
@@ -419,7 +447,8 @@ impl CrateEnv {
             modules: vec![ModuleEnv::new("root".into(), None, vec![])],
             namespace_bindings: HashMap::new(),
             closed_namespaces: HashMap::new(),
-            remappings: vec![DeclarationRemapping::default()],
+            remappings: super::remapping_checkpoint::Tables::default(),
+            remapping_origins: HashMap::new(),
             checking_scopes: HashMap::new(),
             checking_contexts: HashMap::new(),
             checking_program_contexts: HashMap::new(),
@@ -1902,6 +1931,17 @@ impl CrateEnv {
 }
 
 impl CrateEnv {
+    pub(crate) fn store_namespace_remapping(
+        &mut self,
+        remapping: DeclarationRemapping,
+        namespace: ModuleId,
+    ) -> RemappingId {
+        let id = self.store_remapping(remapping);
+        self.remapping_origins
+            .insert(id, RemappingOrigin::Namespace(namespace));
+        id
+    }
+
     pub(crate) fn store_remapping(&mut self, remapping: DeclarationRemapping) -> RemappingId {
         timing::costs::count("namespace.remapping-owned-capacity", || {
             (remapping.module_ids.capacity()
@@ -1915,7 +1955,7 @@ impl CrateEnv {
             && std::env::var_os("REF_TYPE_PROFILE_REMAPPINGS").is_some()
         {
             let mut capacities = [0usize; 4];
-            for map in &self.remappings {
+            for map in self.remappings.iter() {
                 for (total, capacity) in capacities.iter_mut().zip([
                     map.module_ids.capacity(),
                     map.definition_ids.capacity(),
@@ -1955,6 +1995,8 @@ impl CrateEnv {
             } else {
                 let composed = self.remapping(next).after(self.remapping(previous));
                 let id = self.store_remapping(composed);
+                self.remapping_origins
+                    .insert(id, RemappingOrigin::Composition { next, previous });
                 inherited.insert(previous, id);
                 id
             };

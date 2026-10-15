@@ -1,0 +1,53 @@
+\import \parent.\parent.\parent.ConnectingModel[C := C, D := D, k := k] \as Connecting;
+\import \parent.\parent.\parent.HomologyDiagonal[C := C, D := D, n := n] \as Model;
+\import Modules.DirectSum[Index := Degree, family := Model.target] \as Input;
+\import Modules.DirectSum[Index := Degree, family := Model.source] \as Source;
+\import Modules.Of[V := Input.Carrier, space := Input.space].Submodule[] \as Submodules;
+\import Submodules.Image[U := Source.Carrier, source := Source.space] \as Images;
+\import Submodules.Quotient[S := Images.image Model.map] \as Quotient;
+\import Chains.At[C := TensorSequence.left, z := n] \as LeftH;
+\import Chains.At[C := TensorSequence.middle, z := n] \as MiddleH;
+\import Chains.Map[C := TensorSequence.left, D := TensorSequence.middle].At[k := n] \as Induced;
+\import \parent.\parent.\parent.CycleBoundary[C := C] \as Decomposition;
+\import \parent.\parent.\parent.ZeroTensor[Z := Decomposition.cyclesFamily, D := D] \as ZeroTensor;
+\import ZeroTensor.At[n := n] \as Cycles;
+\definition projective: Cycles.Projective := \fun (p: Degree) => Decomposition.Term[p := p].cyclesProjective;
+\import Cycles.With[projective := projective] \as CycleIso;
+\import Modules.Hom[V := LeftH.Homology, W := MiddleH.Homology, source := LeftH.homologySpace, target := MiddleH.homologySpace].Composition[U := Input.Carrier, domain := Input.space] \as AfterComposition;
+\import Bounded.Of[C := C] \as Original;
+\import Bounded.Of[C := D] \as Other;
+\import tensor_chains.TensorChain[].Over[R := Integers.Int^, ring := IntegerRing.commutativeRing] \as Tensors;
+\import Chains.End[C := Other.chain] \as Identity;
+\import Tensors.TensorMapping[C := Decomposition.cyclesComplex, D := Original.chain, E := Other.chain, F := Other.chain].With[f := Decomposition.inclusion, g := Identity.identity] \as Included;
+\definition after: Modules.MapBetween Input.bundle Terms.homologyBundle := AfterComposition.compose (Induced.induced Included.total) #forward{(Cycles.isomorphism projective)};
+\import Modules.Hom[V := Model.cokernelBundle.Carrier, W := Terms.tensorBundle.Carrier, source := Model.cokernelBundle.space, target := Terms.tensorBundle.space].Composition[U := Input.Carrier, domain := Input.space] \as TensorComposition;
+\definition tensorMap: Modules.MapBetween Input.bundle Terms.tensorBundle := TensorComposition.compose #forward{Model.isomorphism} Quotient.projection;
+\import Modules.Hom[V := Terms.tensorBundle.Carrier, W := Terms.homologyBundle.Carrier, source := Terms.tensorBundle.space, target := Terms.homologyBundle.space].Composition[U := Input.Carrier, domain := Input.space] \as BeforeComposition;
+\definition before: Modules.MapBetween Input.bundle Terms.homologyBundle := BeforeComposition.compose Terms.exterior tensorMap;
+\import \parent.\parent.\parent.ExteriorModel[C := C, D := D, n := n] \as ExteriorProof;
+\definition diagram: after = before := ExteriorProof.diagram;
+\import Chains.At[C := TensorSequence.right, z := k] \as RightH;
+\import Chains.ShortExact[A := TensorSequence.left, B := TensorSequence.middle, C := TensorSequence.right].At[s := TensorSequence.sequence, k := k] \as Delta;
+\import Modules.KernelTransport[V := Source.Carrier, W := Input.Carrier, X := RightH.Homology, Y := LeftH.Homology,
+  vSpace := Source.space, wSpace := Input.space, xSpace := RightH.homologySpace, ySpace := LeftH.homologySpace,
+  f := Model.map, g := Delta.connecting, domainIso := Left.domainIsomorphism, codomainIso := Connecting.leftIsomorphism].Cokernel[] \as Cokernel;
+\import \parent.\parent.\parent.ExactFiveFactor[A := Native.a, B := Native.b, C := Native.c, D := Native.d, E := Native.e].With[s := Native.exactFive] \as Factor;
+\definition onModelClass: \forall (x: Input.Carrier) ->
+  #apply{Native.inclusion} (#apply{#forward{Left.cokernelIsomorphism}} (Model.classOf x)) =
+    #apply{Terms.exterior} (#apply{#forward{Model.isomorphism}} (Model.classOf x)) :=
+  \fun (x: Input.Carrier) => trans!{{Terms.homologyBundle.Carrier}} _ _ _
+    (congr!{{Native.leftBundle.Carrier} {Terms.homologyBundle.Carrier}} (#apply{Native.inclusion}) _ _ (Cokernel.onClass Left.commutes x))
+    (trans!{{Terms.homologyBundle.Carrier}} _ _ _ (Factor.onClass (#apply{#forward{Connecting.leftIsomorphism}} x))
+      (congr!{{Modules.MapBetween Input.bundle Terms.homologyBundle} {Terms.homologyBundle.Carrier}}
+        (\fun (f: Modules.MapBetween Input.bundle Terms.homologyBundle) => #apply{f} x) _ _ diagram));
+\definition onModel: \forall (x: Model.cokernelBundle.Carrier) ->
+  #apply{Native.inclusion} (#apply{#forward{Left.cokernelIsomorphism}} x) =
+    #apply{Terms.exterior} (#apply{#forward{Model.isomorphism}} x) :=
+  Quotient.induction (\fun (x: Model.cokernelBundle.Carrier) =>
+    #apply{Native.inclusion} (#apply{#forward{Left.cokernelIsomorphism}} x) =
+    #apply{Terms.exterior} (#apply{#forward{Model.isomorphism}} x)) onModelClass;
+\definition point: \forall (x: Terms.tensorBundle.Carrier) -> #apply{sequence.inclusion} x = #apply{Terms.exterior} x :=
+  \fun (x: Terms.tensorBundle.Carrier) => trans!{{Terms.homologyBundle.Carrier}} _ _ _
+    (onModel (#apply{#backward{Model.isomorphism}} x))
+    (congr!{{Terms.tensorBundle.Carrier} {Terms.homologyBundle.Carrier}} (#apply{Terms.exterior}) _ _ (#rightInverse{Model.isomorphism} x));
+\definition equality: sequence.inclusion = Terms.exterior := Modules.Hom[V := Terms.tensorBundle.Carrier, W := Terms.homologyBundle.Carrier, source := Terms.tensorBundle.space, target := Terms.homologyBundle.space].ext sequence.inclusion Terms.exterior point;

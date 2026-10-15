@@ -1,0 +1,27 @@
+\import Bounded.Mapping[C := C, D := E].At[z := p].With[f := f].TensorUniversalCoefficient[
+  A := SourceComponent.torRightBundle, B := TargetComponent.torRightBundle].On[u := RightAt.With[f := g].induced] \as Uct;
+\import Uct.Derived[] \as Native;
+\import Modules.Hom[V := SourceComponent.torCarrier, W := TargetComponent.torCarrier,
+  source := SourceComponent.torSpace, target := TargetComponent.torSpace] \as Maps;
+\definition nativeAgreement: torMap f g = Native.functorMap := \refl(torMap f g);
+\definition agreement: torMap f g = Uct.tor := trans!{Maps.Map} _ _ _ nativeAgreement Native.functorAgreement;
+\definition kernelMap: Modules.Hom[V := SourceComponent.torKernelCarrier, W := TargetComponent.torKernelCarrier,
+  source := SourceComponent.torKernelSpace, target := TargetComponent.torKernelSpace].Map := Native.kernelMap;
+\definition onKernel: \forall (x: SourceComponent.torCarrier) ->
+  #apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{(torMap f g)} x) =
+    #apply{kernelMap} (#apply{#forward{SourceComponent.torKernelIsomorphism}} x) :=
+  \fun (x: SourceComponent.torCarrier) => trans!{TargetComponent.torKernelCarrier} _ _ _
+    (congr!{Maps.Map TargetComponent.torKernelCarrier}
+      (\fun (h: Maps.Map) => #apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{h} x)) _ _ agreement)
+    (trans!{TargetComponent.torKernelCarrier} _ _ _
+      (congr!{SourceComponent.torCarrier TargetComponent.torKernelCarrier}
+        (\fun (y: SourceComponent.torCarrier) => #apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{Uct.tor} y)) _ _
+        (sym!{SourceComponent.torCarrier} _ _ (#leftInverse{SourceComponent.torKernelIsomorphism} x)))
+      (Native.kernelNaturality (#apply{#forward{SourceComponent.torKernelIsomorphism}} x)));
+
+\import Tors.Second[M := TargetComponent.torLeftBundle, N := SourceComponent.torRightBundle,
+  L := TargetComponent.torRightBundle, P := TargetComponent.torComplex] \as NativeSecond;
+\definition uniformSecondAgreement: \forall (x: MiddleTor.Carrier) ->
+  #apply{(NativeSecond.At[k := Nat.Nat^::succ Nat.Nat^::zero].map (RightAt.With[f := g].induced))} x =
+  #apply{(SecondTor.map (RightAt.With[f := g].induced))} x :=
+  NativeSecond.PositiveAgreement[n := Nat.Nat^::zero].agrees (RightAt.With[f := g].induced);

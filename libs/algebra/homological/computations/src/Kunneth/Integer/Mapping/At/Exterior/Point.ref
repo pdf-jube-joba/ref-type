@@ -1,0 +1,31 @@
+\import SourceTerms.Component[p := p] \as SourceComponent;
+\import TargetTerms.Component[p := p] \as TargetComponent;
+\import SourceComponent.Exterior[] \as SourceExterior;
+\import TargetComponent.Exterior[] \as TargetExterior;
+\import \parent.\parent.Component[p := p] \as Local;
+\import Tensors.CycleProductNaturality[C := LeftSource.chain, D := LeftTarget.chain, E := RightSource.chain, F := RightTarget.chain,
+  p := p, q := complement n p].With[f := LeftMaps.chainMap f, g := RightMaps.chainMap g].Exterior[] \as Native;
+\import tensor_chains.TensorChain[].Grading[] \as Grading;
+\definition originalDegree: Degree := Grading.add p (complement n p);
+\import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
+\import Chains.At[C := Target.tensorComplex, z := originalDegree] \as OriginalTarget;
+\import Modules.Hom[V := SourceComponent.tensorCarrier, W := OriginalTarget.Homology,
+  source := SourceComponent.tensorSpace, target := OriginalTarget.homologySpace] \as NativeMaps;
+\import Tensors.Exterior[C := LeftSource.chain, D := RightSource.chain, p := p, q := complement n p] \as OriginalExterior;
+\definition component: \forall (x: SourceComponent.tensorCarrier) ->
+  #apply{homologyMap} (#apply{SourceExterior.map} x) = #apply{TargetExterior.map} (#apply{(Local.tensorMap f g)} x) :=
+  \fun (x: SourceComponent.tensorCarrier) => trans!{TH.Homology} _ _ _
+    (sym!{TH.Homology} _ _
+      (Transport.natural Source.homologyFamily.Carrier Target.homologyFamily.Carrier
+        (\fun (k: Degree) => #apply{\parent.DegreeAt[k := k].map}) originalDegree n (Grading.complementSum n p) (#apply{OriginalExterior.map} x)))
+    (congr!{OriginalTarget.Homology TH.Homology} (#apply{TargetExterior.transport}) _ _
+      (congr!{NativeMaps.Map OriginalTarget.Homology} (\fun (h: NativeMaps.Map) => #apply{h} x) _ _ Native.naturality));
+\definition equality: \forall (x: SourceComponent.tensorCarrier) ->
+  #apply{after} (#apply{SourceTensor.Injection[i := p].map} x) = #apply{before} (#apply{SourceTensor.Injection[i := p].map} x) :=
+  \fun (x: SourceComponent.tensorCarrier) => trans!{TH.Homology} _ _ _
+    (congr!{SH.Homology TH.Homology} (#apply{homologyMap}) _ _ (SourceTerms.exteriorOnInjection p x))
+    (trans!{TH.Homology} _ _ _ (component x)
+      (sym!{TH.Homology} _ _
+        (trans!{TH.Homology} _ _ _
+          (congr!{TargetTensor.Carrier TH.Homology} (#apply{TargetTerms.exterior}) _ _ (Components.onInjection p x))
+          (TargetTerms.exteriorOnInjection p (#apply{(Local.tensorMap f g)} x)))));

@@ -39,10 +39,10 @@ Dedekind 実数上の関数の極限と微分を扱う。
 導関数の一意性から証人の選択によらないことを証明する。
 `Maps.Differential[U, V, f, a].value` は共通の `linear_algebra` の線形写像であり、`matrixEntry` は滑らかなスカラー関数である。
 滑らかな合成の証明は各階数について反復偏導関数の族を構成する。
-非線形な微分同相と合成の利用例は [Shear.ref](../../../tests/projects/manifolds-de-rham/src/Shear.ref) にある。
+非線形な微分同相と合成の利用例は [Shear.ref](../../../libs/geometry/coordinate_calculus/src/Shear.ref) にある。
 
 `Directional` の曲線は零を含む開区間を定義域とする。
 `HasDirectionalDerivativeAlong` は曲線に沿う差商の二側極限、`HasDirectionalDerivativeAt` は同じ始点と接ベクトルを持つすべての曲線についての条件である。
 接ベクトルにはパラメータに対する速さを含む。
 
-[利用例](../../../tests/projects/library/src/root.ref) と [検査方法](../../README.md#型検査) を参照。
+[利用例](../../../libs/std/src/root.ref) と [検査方法](../../README.md#型検査) を参照。

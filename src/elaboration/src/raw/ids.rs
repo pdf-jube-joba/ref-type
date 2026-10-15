@@ -3,25 +3,56 @@ pub use kernel::ids::SymbolId;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleId(pub u32);
+artifact::identity!(ModuleId, "raw.module");
 impl ModuleId {
     pub fn index(self) -> usize {
         self.0 as usize
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub struct ModuleParamId {
     pub module: ModuleId,
     pub position: u32,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub struct DefId {
     pub module: ModuleId,
     pub index: u32,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub struct InductiveId {
     pub module: ModuleId,
     pub index: u32,
@@ -29,7 +60,17 @@ pub struct InductiveId {
 
 /// Stable identity of a CBPV value datatype.  Its Set reflection is stored as
 /// a separate [`InductiveId`] in the environment.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub struct ProgramInductiveId {
     pub module: ModuleId,
     pub index: u32,
@@ -41,6 +82,7 @@ pub struct ProgramInductiveId {
 /// contain no metavariable constructor.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetaVarId(pub u32);
+artifact::identity!(MetaVarId, "raw.meta");
 
 impl MetaVarId {
     pub fn index(self) -> usize {

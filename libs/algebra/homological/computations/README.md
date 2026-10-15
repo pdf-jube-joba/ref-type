@@ -1,6 +1,6 @@
 # ホモロジー代数の計算と積
 
-有限複体のホモロジー計算、テンソル余鎖複体、Künneth 同型を扱う。
+有限自由整数複体のホモロジー計算、普遍係数短完全列、整数 Künneth を扱う。
 公開 module は [root.ref](src/root.ref)、直接依存は [ref.toml](ref.toml) にある。
 
 `homological_algebra.Finite.Pair` は隣接する整数境界行列と二乗零の法則を持つ。
@@ -15,28 +15,42 @@
 `Of.Dual` は転置した境界行列から整数次数の余鎖複体を作り、`At.Result` はそのコホモロジーの商との同型を返す。
 `Of.BasisChange.With` は微分を \(T_{n-1}d_nT_n^{-1}\) に変換し、二乗零を保つ有界複体、鎖同型とホモロジー同型を構成する。
 
-`homological_algebra.FieldFinite.Over` は各次数の有限座標空間、微分、有界性を持つ余鎖複体を扱う。
-`Of.At` はサイクル・境界・コホモロジーの射影性と、それらの短完全列を公開する。
-`Of.splittingExistence` は全次数の分裂の存在を示す。
-`Of.Split` は選んだ分裂から、零微分のコホモロジー複体への写像と逆方向の写像を構成する。
 `homological_algebra.Finite.Bounded.Mapping` は全次数の整数行列から鎖写像を構成する。
 `At.With` の `coordinateRuntime` と `onFactorClasses` は計算した生成元の間の行列と元のホモロジー写像との対応を返す。
 `intertwines` は有界複体のホモロジー同型が誘導写像と可換になることを示す。
 
-## 自然数次数のテンソル余鎖複体
+`Finite.Bounded.Of.At.UniversalCoefficient.CohomologyKernel.sequence` は、有限自由整数複体と任意の整数加群係数について、Ext¹・コホモロジー・Hom の普遍係数短完全列を返す。
+`UniversalCoefficient.Tensor.Projection.Exactness.Derived.sequence` は、ホモロジーのテンソル・係数付きホモロジー・Tor₁ の短完全列を返す。
+前者の `splitting` と後者の `isomorphism` は Smith 計算から選んだ分裂による直和表示である。
+`UniversalCoefficient.rightInverse` は評価写像の全射性を、`Tensor.Boundaries.onCycles` はホモロジー側の包含をサイクルのテンソル上の公式へ結び付ける。
+[利用例](../../../../libs/algebra/homological/concrete_complexes/src/Finite/Bounded/UniversalCoefficient.ref)は、非対角の三項整数複体、任意次数と係数、零次・負次数・\(\mathbb Z/2\) 係数に対してこれらの短完全列と分裂を検査する。
 
-`homological_algebra.TensorCochain.Over` は可換環上の二重余鎖複体と有限対角直和による total を構成する。
-`Tensor` は二つの余鎖複体から、水平微分を左因子、垂直微分を右因子に作用させる二重複体を作る。
-`Total` の微分は水平微分と第一次数の符号を掛けた垂直微分の和であり、二乗零を直和の普遍性で証明する。
-`TensorMapping` は両因子の余鎖写像から total 上の余鎖写像を構成する。
-`HorizontalHomotopy.With` は水平ホモトピーから total 上の余鎖ホモトピーを作り、`HomotopyLeft.With` はテンソル積の左因子のホモトピーをこの構成に接続する。
-`Swap` は第一・第二次数を交換した二重複体の total へ、成分 \(p,q\) に \((-1)^{pq}\) を掛ける交換写像を作り、逆写像と各次数のコホモロジー同型を返す。
-`Map.Inverse.With` は項ごとの逆写像から逆向きの二重複体写像を構成し、total とコホモロジー上の逆の法則を証明する。
+`UniversalCoefficient.Abstract` は共通の射影的な構成と有限整数複体の短完全列を同一視する。
+`Finite.Bounded.Mapping.At.With.UniversalCoefficient.On` は複体写像と係数写像について Ext¹ 側の包含まで含めた可換図式を、`TensorUniversalCoefficient.On` は Tor₁ 側の射影まで含めた可換図式を返す。
+それぞれの `Derived.functorAgreement` は端の写像を既存の Ext・Tor の両変数の写像と同一視する。
+`smithNaturality` は Smith 分裂による直和座標と誘導写像の対応を、`valuesOnComputedGenerators` と `leftOnComputedGenerators` は計算した生成元上の自然性を示す。
+`Tensor.Projection.Exactness.Derived.Projective.isomorphism` は射影係数について包含写像を同型にする。
 
-`homological_algebra.TensorCochain.Over.CycleProduct` はサイクル代表元のテンソルから total のコホモロジー類を作り、双線形性を証明する。
-`RightCycleBoundary` は右側のサイクルが境界なら積の類が零になることを示す。
-`LeftCycleBoundary` は左側の境界について同じ消滅を証明する。
-`Exterior.map` は両側の境界による消滅を使い、コホモロジーのテンソル積から total のコホモロジーへの準同型を構成する。
-`CycleProductNaturality.With.Exterior.naturality` はこの外積が両因子の余鎖写像による誘導写像と可換になることを示す。
+`homological_algebra.Kunneth.Integer.Theorem[C, D].At[n].sequence` は、有界有限自由整数鎖複体について次の短完全列を公開する。
+
+\[
+0\longrightarrow\bigoplus_{p+q=n}H_p(C)\otimes H_q(D)
+\longrightarrow H_n(C\otimes D)
+\longrightarrow\bigoplus_{p+q=n-1}\operatorname{Tor}^{\mathbb Z}_1(H_p(C),H_q(D))
+\longrightarrow0.
+\]
+
+`inclusionEq` は左の写像を `CoreTerms.At.exterior` と、`projectionEq` は右の写像を接続写像から得た `Theorem.Projection.map` と同一視する。
+`selectedSplitting` はホモロジーのテンソル項と Tor 項の直和表示を、`smithSplitting` はテンソル項を Smith 座標へ移した直和表示を返す。
+`Integer.Assertions.ExactTheorem.theorem` は、複体と次数を量化した、標準外積を左の写像とする短完全列の存在を公開する。
+`Integer.Assertions` の `Naturality.theorem`、`Splitting.theorem`、`SmithSplitting.theorem` は、両因子の自然性、選んだ分裂、Smith 分裂の存在をそれぞれ全称量化して公開する。
+`Mapping.At.Component.onComputedGenerators` は計算した生成元上のテンソル写像を、両因子の座標行列の作用に結び付ける。
+
+`Integer.TensorSequence[C, D].Mapping[E, F].With[f, g]` はサイクル・境界の写像から三つのテンソル鎖写像 `left`・`middle`・`right` を作る。
+`diagram` は `tensor_chains.TensorChain.Over.TensorSquare` を使って短完全列の左右の四角形を構成する。
+`Integer.Theorem[C, D].Mapping[E, F].With[f, g].At[n]` は、端の `tensorMap`・`torMap` と中央の `homologyMap` を持ち、`leftSquare`・`rightSquare` と `diagram` で最終的な Künneth 短完全列全体の自然性を公開する。
+右の四角形は鎖複体の接続写像の自然性を `TorDiagonal.Mapping.With.naturality` により標準の Tor 項へ移して得る。
+
+体係数の有限余鎖複体と標準外積同型は [field_kunneth](../field_kunneth/README.md)、整数次数のテンソル鎖複体は [tensor_chains](../tensor_chains/README.md) にある。
 
 検査方法と関連パッケージは [ライブラリ一覧](../../../README.md) を参照。

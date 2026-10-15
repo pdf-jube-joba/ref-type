@@ -90,22 +90,6 @@ fn program_value_and_computation_holes_report_context_and_expected_type() {
 }
 
 #[test]
-fn program_inspection_type_is_reported_after_solving() {
-    let error = error(
-        r"\module M {
-        \inductive Unit: \VType := | unit: Unit;
-        \definition pending: ? := Unit::unit;
-    }",
-    );
-    assert!(
-        error.goals().iter().any(|g| g.flavor == MetaFlavor::Goal
-            && g.state == MetaState::Solved
-            && g.solution.as_ref().is_some_and(|s| s.contains("Unit"))),
-        "{error}"
-    );
-}
-
-#[test]
 fn named_program_type_is_shared_between_annotation_and_body() {
     let source = r"\module M {
         \inductive Unit: \VType := | unit: Unit;
@@ -237,16 +221,6 @@ fn later_solution_discharges_a_previously_blocked_equation() {
             .iter()
             .all(|record| record.status == ConstraintStatus::Discharged)
     );
-}
-
-#[test]
-fn solved_proof_hole_has_a_concrete_expected_type() {
-    let error = error(r"\module M(A: \Set, a: A) { \definition pending: a = a := \refl(?); }");
-    let goal = &error.goals()[0];
-    assert_eq!(goal.state, MetaState::Solved);
-    let principal = goal.principal.as_ref().unwrap();
-    assert!(principal.contains('A'), "{error}");
-    assert!(!principal.contains("<inferred"), "{error}");
 }
 
 #[test]

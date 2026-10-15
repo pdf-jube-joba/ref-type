@@ -1,0 +1,42 @@
+\module Degree(n: Nat.Nat^) {
+  \import Modules.Tensor[V := coefficient.Carrier, W := Q.family.Carrier n, left := coefficient.space, right := Q.family.space n].Symmetry[] \as Symmetry;
+  \definition forward: Modules.Hom[V := RightTensor.Carrier Nat.Nat^::zero n, W := Swapped.Carrier n,
+    source := RightTensor.space Nat.Nat^::zero n, target := Swapped.space n].Map := Symmetry.forward;
+  \definition backward: Modules.Hom[V := Swapped.Carrier n, W := RightTensor.Carrier Nat.Nat^::zero n,
+    source := Swapped.space n, target := RightTensor.space Nat.Nat^::zero n].Map := Symmetry.backward;
+  \definition onTensor: \forall (x: coefficient.Carrier)(y: Q.family.Carrier n) -> #apply{forward} (RightTensor.Term[p := Nat.Nat^::zero, q := n].tensor x y) =
+    Modules.Tensor[V := Q.family.Carrier n, W := coefficient.Carrier, left := Q.family.space n, right := coefficient.space].tensor y x := Symmetry.onTensor;
+  \definition leftInverse: \forall (x: RightTensor.Carrier Nat.Nat^::zero n) -> #apply{backward} (#apply{forward} x) = x := Symmetry.leftInverse;
+  \definition rightInverse: \forall (x: Swapped.Carrier n) -> #apply{forward} (#apply{backward} x) = x := Symmetry.rightInverse;
+}
+\module Step(n: Nat.Nat^) {
+  \import Modules.Tensor[V := coefficient.Carrier, W := Q.family.Carrier (Nat.Nat^::succ n), left := coefficient.space, right := Q.family.space (Nat.Nat^::succ n)].Symmetry[].Mapping[
+    U := coefficient.Carrier, Z := Q.family.Carrier n, targetLeft := coefficient.space, targetRight := Q.family.space n] \as Naturality;
+  \import Modules.End[V := coefficient.Carrier, space := coefficient.space] \as Identity;
+  \import Doubles.Tensor[C := LeftModule.complex, D := Q].At[p := Nat.Nat^::zero, q := n] \as Differential;
+  \definition forward: \forall (x: RightTensor.Carrier Nat.Nat^::zero (Nat.Nat^::succ n)) ->
+    #apply{Swapped.differential} n (#apply{(\parent.Degree[n := Nat.Nat^::succ n].forward)} x) =
+    #apply{(\parent.Degree[n := n].forward)} (#apply{Row.differential} n x) :=
+    \fun (x: RightTensor.Carrier Nat.Nat^::zero (Nat.Nat^::succ n)) => sym!{{Swapped.Carrier n}} _ _
+      (Naturality.commutes Identity.identity Differential.dv x);
+  \definition backward: \forall (x: Swapped.Carrier (Nat.Nat^::succ n)) ->
+    #apply{Row.differential} n (#apply{(\parent.Degree[n := Nat.Nat^::succ n].backward)} x) =
+    #apply{(\parent.Degree[n := n].backward)} (#apply{Swapped.differential} n x) :=
+    \fun (x: Swapped.Carrier (Nat.Nat^::succ n)) => trans!{{RightTensor.Carrier Nat.Nat^::zero n}} _ _ _
+      (sym!{{RightTensor.Carrier Nat.Nat^::zero n}} _ _ (\parent.Degree[n := n].leftInverse (#apply{Row.differential} n (#apply{(\parent.Degree[n := Nat.Nat^::succ n].backward)} x))))
+      (congr!{{Swapped.Carrier n} {RightTensor.Carrier Nat.Nat^::zero n}} (#apply{(\parent.Degree[n := n].backward)}) _ _
+        (trans!{{Swapped.Carrier n}} _ _ _ (sym!{{Swapped.Carrier n}} _ _ (forward (#apply{(\parent.Degree[n := Nat.Nat^::succ n].backward)} x)))
+          (congr!{{Swapped.Carrier (Nat.Nat^::succ n)} {Swapped.Carrier n}} (#apply{Swapped.differential} n) _ _ (\parent.Degree[n := Nat.Nat^::succ n].rightInverse x))));
+}
+\definition forward: Chains.Map[C := Row.complex, D := Swapped.complex].Map := Chains.Map[C := Row.complex, D := Swapped.complex].Map {
+  apply := \fun (n: Nat.Nat^) => #apply{(Degree[n := n].forward)},
+  addition := \fun (n: Nat.Nat^) => #addition{(Degree[n := n].forward)},
+  scalar := \fun (n: Nat.Nat^) => #scalar{(Degree[n := n].forward)},
+  commutes := \fun (n: Nat.Nat^) => Step[n := n].forward,
+};
+\definition backward: Chains.Map[C := Swapped.complex, D := Row.complex].Map := Chains.Map[C := Swapped.complex, D := Row.complex].Map {
+  apply := \fun (n: Nat.Nat^) => #apply{(Degree[n := n].backward)},
+  addition := \fun (n: Nat.Nat^) => #addition{(Degree[n := n].backward)},
+  scalar := \fun (n: Nat.Nat^) => #scalar{(Degree[n := n].backward)},
+  commutes := \fun (n: Nat.Nat^) => Step[n := n].backward,
+};

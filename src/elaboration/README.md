@@ -50,3 +50,23 @@ checkpoint は batch の検証成功後に公開し、失敗前の prefix は問
 identity と checksum の確認は呼び出し側の `sema` が行う。
 再開時には binding・import・source text を現在の project に対応付ける。
 永続化と再利用の条件は [sema](../sema/README.md#再利用) を参照。
+
+## package 成果物
+
+`PackageChecker::artifact_boundary` で依存の読み込み後の境界を取り、`export_artifact_for_input` で現在の package の resolver と検査環境を別々の object にする。
+`ArtifactCatalog` は入力キーと package 内の identity を実行時 ID に対応付け、依存の読み込み順や部分検査の範囲をまたいで同じ宣言を共有する。
+式の共有によって一つの実行時 ID に複数の所有元が対応する場合は、現在の依存閉包から参照先を選ぶ。
+raw と kernel の式は一つの DAG として保存し、依存の式・macro 定義・置換 map は所有成果物への参照として保持する。
+置換 map の identity は生成した namespace または合成元から決め、検査範囲に伴う参照元の増加から独立させる。
+依存 map への参照は公開時の immutable snapshot を指し、部分成果物の統合で現在の map が成長しても、保存済みの利用側の参照先を維持する。
+自身の map と symbol は保存対象から到達するものだけを取り出す。
+`import_artifact` は resolver・raw・kernel の ID を予約し、検証と再配置が成功してから環境と catalog をまとめて更新する。
+読み込みに失敗した環境を破棄できる呼び出し側は、checker と catalog を消費する `import_artifact_owned` を使い、依存閉包全体の複製を省く。
+成功時には更新後の checker と catalog を返し、失敗時には両方を破棄する。
+
+`append_selected_with_checkpoints` は package 全体を名前解決し、指定したソース module とその親の未検査ステップを処理する。
+同じ入力から作った部分成果物は任意の順序で読み込め、検査済みステップの集合を統合する。
+統合した成果物は自身の部分成果物を読む前の境界から export する。
+`export_resume_for_input` と `import_resume` は同じ対応表を使い、途中の検査位置と完了したステップを復元する。
+`import_resume_owned` は再開用の消費型 API である。
+`append_selected_with_artifact_checkpoints` は検査中の環境を借用して package の差分を直接保存し、依存閉包全体の直列化と復元を省く。

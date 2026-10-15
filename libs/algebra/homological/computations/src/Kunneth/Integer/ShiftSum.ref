@@ -1,0 +1,73 @@
+\import chain_complexes.Chain[] \as DegreeLaws;
+\import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
+\definition shifted: Modules.Family[Degree] := Modules.Family[Degree] {
+  Carrier := \fun (p: Degree) => family.Carrier (Bounded.previous p),
+  space := \fun (p: Degree) => family.space (Bounded.previous p),
+};
+\import Modules.DirectSum[Index := Degree, family := shifted] \as Source;
+\import Modules.DirectSum[Index := Degree, family := family] \as Target;
+\definition chainFamily: Chains.Family := Chains.Family { Carrier := family.Carrier, space := family.space };
+\import Chains.FamilyTransport[F := chainFamily] \as Reindex;
+\import Source.To[W := Target.Carrier, target := Target.space] \as Forward;
+\definition forwards: Forward.Components := \fun (p: Degree) => Target.Injection[i := Bounded.previous p].map;
+\definition forward: Modules.MapBetween Source.bundle Target.bundle := Forward.extension forwards;
+\module BackwardComponent(p: Degree) {
+  \import Modules.Hom[V := family.Carrier (Bounded.previous (Bounded.next p)), W := Source.Carrier,
+    source := family.space (Bounded.previous (Bounded.next p)), target := Source.space].Composition[
+    U := family.Carrier p, domain := family.space p] \as Compose;
+  \definition map: Modules.Hom[V := family.Carrier p, W := Source.Carrier, source := family.space p, target := Source.space].Map :=
+    Compose.compose Source.Injection[i := Bounded.next p].map
+      (Reindex.forward p (Bounded.previous (Bounded.next p)) (sym!{Degree} _ _ (DegreeLaws.previousNext p)));
+}
+\import Target.To[W := Source.Carrier, target := Source.space] \as Backward;
+\definition backwards: Backward.Components := \fun (p: Degree) => BackwardComponent[p := p].map;
+\definition backward: Modules.MapBetween Target.bundle Source.bundle := Backward.extension backwards;
+\definition injectionTransport: \forall (a, b: Degree)(same: a = b)(x: family.Carrier a) ->
+  #apply{Target.Injection[i := b].map} (Transport.cast family.Carrier a b same x) = #apply{Target.Injection[i := a].map} x :=
+  \fun (a, b: Degree)(same: a = b)(x: family.Carrier a) => trans!{Target.Carrier} _ _ _
+    (sym!{Target.Carrier} _ _ (Transport.natural family.Carrier (\fun (p: Degree) => Target.Carrier)
+      (\fun (p: Degree) => #apply{Target.Injection[i := p].map}) a b same x))
+    (Transport.pointNatural (\fun (p: Degree) => Target.Carrier)
+      (\fun (p: Degree) => #apply{Target.Injection[i := a].map} x) a b same);
+\definition shiftedInjectionTransport: \forall (a, b: Degree)(same: a = b)(lower: Bounded.previous a = Bounded.previous b)(x: shifted.Carrier a) ->
+  #apply{Source.Injection[i := b].map} (Transport.cast family.Carrier (Bounded.previous a) (Bounded.previous b) lower x) = #apply{Source.Injection[i := a].map} x :=
+  \fun (a, b: Degree)(same: a = b) =>
+    \idelim a = b \with k: Degree => \forall (lower: Bounded.previous a = Bounded.previous k)(x: shifted.Carrier a) ->
+      #apply{Source.Injection[i := k].map} (Transport.cast family.Carrier (Bounded.previous a) (Bounded.previous k) lower x) = #apply{Source.Injection[i := a].map} x
+    \by {
+      base: \fun (lower: Bounded.previous a = Bounded.previous a)(x: shifted.Carrier a) =>
+        congr!{{shifted.Carrier a} Source.Carrier} (#apply{Source.Injection[i := a].map}) _ _
+          (\transporteq Bounded.previous a \with k: Degree => family.Carrier k \by { base: x }),
+      equality: same
+    };
+\import Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as LeftCompose;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Composition[
+  U := Target.Carrier, domain := Target.space] \as RightCompose;
+\import Modules.End[V := Source.Carrier, space := Source.space] \as SourceIdentity;
+\import Modules.End[V := Target.Carrier, space := Target.space] \as TargetIdentity;
+\import Source.To[W := Source.Carrier, target := Source.space] \as SourceUniversal;
+\import Target.To[W := Target.Carrier, target := Target.space] \as TargetUniversal;
+\definition leftLaw: LeftCompose.compose backward forward = SourceIdentity.identity :=
+  SourceUniversal.ext _ _ (\fun (p: Degree)(x: shifted.Carrier p) => trans!{Source.Carrier} _ _ _
+    (congr!{Target.Carrier Source.Carrier} (#apply{backward}) _ _ (Forward.onInjection forwards p x))
+    (trans!{Source.Carrier} _ _ _ (Backward.onInjection backwards (Bounded.previous p) x)
+      (shiftedInjectionTransport p (Bounded.next (Bounded.previous p)) (sym!{Degree} _ _ (DegreeLaws.nextPrevious p))
+        (sym!{Degree} _ _ (DegreeLaws.previousNext (Bounded.previous p))) x)));
+\definition rightLaw: RightCompose.compose forward backward = TargetIdentity.identity :=
+  TargetUniversal.ext _ _ (\fun (p: Degree)(x: family.Carrier p) => trans!{Target.Carrier} _ _ _
+    (congr!{Source.Carrier Target.Carrier} (#apply{forward}) _ _ (Backward.onInjection backwards p x))
+    (trans!{Target.Carrier} _ _ _
+      (Forward.onInjection forwards (Bounded.next p)
+        (Transport.cast family.Carrier p (Bounded.previous (Bounded.next p)) (sym!{Degree} _ _ (DegreeLaws.previousNext p)) x))
+      (injectionTransport p (Bounded.previous (Bounded.next p)) (sym!{Degree} _ _ (DegreeLaws.previousNext p)) x)));
+\import Modules.Hom[V := Source.Carrier, W := Source.Carrier, source := Source.space, target := Source.space] \as SourceMaps;
+\import Modules.Hom[V := Target.Carrier, W := Target.Carrier, source := Target.space, target := Target.space] \as TargetMaps;
+\definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism :=
+  Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: Source.Carrier) => congr!{SourceMaps.Map Source.Carrier} (\fun (f: SourceMaps.Map) => #apply{f} x) _ _ leftLaw,
+    rightInverse := \fun (x: Target.Carrier) => congr!{TargetMaps.Map Target.Carrier} (\fun (f: TargetMaps.Map) => #apply{f} x) _ _ rightLaw,
+  };
+\definition onInjection: \forall (p: Degree)(x: shifted.Carrier p) ->
+  #apply{forward} (#apply{Source.Injection[i := p].map} x) = #apply{Target.Injection[i := Bounded.previous p].map} x := Forward.onInjection forwards;

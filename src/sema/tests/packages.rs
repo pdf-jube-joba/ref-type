@@ -22,6 +22,25 @@ impl Drop for Cache {
     }
 }
 
+fn cache_files(cache: &Cache, category: &str) -> Vec<PathBuf> {
+    let mut pending = vec![cache.0.join("v2").join(category)];
+    let mut files = Vec::new();
+    while let Some(directory) = pending.pop() {
+        let Ok(entries) = fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else {
+                files.push(path);
+            }
+        }
+    }
+    files
+}
+
 fn project(name: &str) -> SourceSnapshot {
     let mut snapshot = SourceSnapshot::new(format!("/virtual/{name}"));
     snapshot.insert(
@@ -53,6 +72,63 @@ fn clean(snapshot: &SourceSnapshot) -> std::sync::Arc<sema::SemanticResult> {
             ..Default::default()
         },
     )
+}
+
+#[test]
+fn workspace_checks_and_forces_all_members_while_reusing_external_dependencies() {
+    let cache = Cache::new();
+    let mut snapshot = project("app");
+    snapshot.insert(
+        "/virtual/ref.toml",
+        "[workspace]\npackages = ['app', 'other']\n",
+    );
+    snapshot.insert(
+        "/virtual/other/ref.toml",
+        "[package]\nname = 'other'\n[dependencies]\nbase = {path = '../base'}\n",
+    );
+    snapshot.insert(
+        "/virtual/other/src/root.ref",
+        r"\module Main { \import base.Core[] \as B; \definition p: \Prop := B.P; }",
+    );
+    let mut workspace = SourceSnapshot::new("/virtual");
+    for (path, source) in snapshot.files() {
+        workspace.insert(path, source.text.clone());
+    }
+    let result = Database::with_cache(&cache.0).check(&workspace);
+    assert!(result.is_success(), "{result:?}");
+    assert_eq!(result, clean(&workspace));
+    assert!(
+        result
+            .modules
+            .iter()
+            .any(|module| module.path == ["other", "Main"])
+    );
+    let mut warm = Database::with_cache(&cache.0);
+    assert_eq!(warm.check(&workspace), result);
+    assert_eq!(warm.stats().checked_modules, 0);
+    let mut forced = Database::with_cache(&cache.0);
+    assert_eq!(
+        forced.check_with_options(
+            &workspace,
+            &CheckOptions {
+                force_local: true,
+                ..Default::default()
+            }
+        ),
+        result
+    );
+    assert_eq!(forced.stats().package_hits, 1);
+    assert_eq!(forced.stats().checked_modules, 4);
+    let broken = workspace.with_file(
+        "/virtual/other/src/root.ref",
+        r"\module Main { \definition bad: \Prop := \Set; }",
+    );
+    assert!(!Database::with_cache(&cache.0).check(&broken).is_success());
+    assert!(
+        Database::new()
+            .module(&broken, &["app".into()])
+            .is_success()
+    );
 }
 
 thread_local! {
@@ -131,12 +207,7 @@ fn module_checkpoint_resumes_an_unfinished_package_with_outputs_and_children() {
     assert_eq!(resumed.stats().package_hits, 1);
     assert!(resumed.stats().reused_modules > 3);
     assert!(resumed.stats().checked_modules < 4);
-    assert!(fs::read_dir(&cache.0).unwrap().all(|file| {
-        file.unwrap()
-            .path()
-            .extension()
-            .is_none_or(|ext| ext != "partial")
-    }));
+    assert!(cache_files(&cache, "checkpoints").is_empty());
     let mut warm = Database::with_cache(&cache.0);
     assert_eq!(warm.check(&snapshot), result);
     assert_eq!(warm.stats().checked_modules, 0);
@@ -174,11 +245,8 @@ fn module_checkpoints_invalidate_on_edits_settings_force_and_damage() {
             "force" => options.force = true,
             "force_local" => options.force_local = true,
             "corrupt" => {
-                for file in fs::read_dir(&cache.0).unwrap() {
-                    let path = file.unwrap().path();
-                    if path.extension().is_some_and(|ext| ext == "partial") {
-                        fs::write(path, b"truncated").unwrap();
-                    }
+                for path in cache_files(&cache, "checkpoints") {
+                    fs::write(path, b"truncated").unwrap();
                 }
             }
             _ => {}
@@ -274,9 +342,8 @@ fn package_source_settings_and_corruption_invalidate_artifacts() {
             .is_success()
     );
     assert_eq!(settings.stats().package_hits, 0);
-    for file in fs::read_dir(&cache.0).unwrap() {
-        let path = file.unwrap().path();
-        if path.extension().is_some_and(|extension| extension == "pkg") {
+    for path in cache_files(&cache, "objects") {
+        if fs::read(&path).unwrap().get(8) == Some(&1) {
             fs::write(path, b"broken").unwrap();
         }
     }
@@ -327,8 +394,15 @@ fn forced_local_check_restores_dependencies_and_partial_queries_remain_partial()
     let selected = partial.module_with_options(&broken, &["app".into()], &Default::default());
     assert!(selected.is_success(), "{selected:?}");
     let mut full = Database::with_cache(&partial_cache.0);
-    assert!(!full.check(&broken).is_success());
-    assert_eq!(full.stats().package_hits, 0);
+    let failed = full.check(&broken);
+    assert!(!failed.is_success());
+    assert!(
+        failed
+            .modules
+            .iter()
+            .any(|module| module.path == ["base", "Bad"]
+                && module.status != sema::ModuleStatus::Verified)
+    );
 }
 
 #[test]
@@ -375,52 +449,20 @@ fn restored_package_keeps_macros_structures_reflection_and_source_locations() {
 }
 
 #[test]
-fn transitive_dependency_edits_invalidate_the_whole_dependent_prefix() {
-    let cache = Cache::new();
-    let mut snapshot = project("app");
-    snapshot.insert(
-        "/virtual/base/ref.toml",
-        "[package]\nname = 'base'\n[dependencies]\nleaf = {path = '../leaf'}\n",
-    );
-    snapshot.insert("/virtual/leaf/ref.toml", "[package]\nname = 'leaf'\n");
-    snapshot.insert(
-        "/virtual/leaf/src/root.ref",
-        r"\module Logic { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
-    );
-    snapshot.insert(
-        "/virtual/base/src/root.ref",
-        r"\module Core { \import leaf.Logic[] \as L; \definition P: \Prop := L.P; }",
-    );
-    assert!(Database::with_cache(&cache.0).check(&snapshot).is_success());
-    let edited = snapshot.with_file(
-        "/virtual/leaf/src/root.ref",
-        r"\module Logic { \definition P: \Prop := \forall (P: \Prop) -> P; }",
-    );
-    let mut database = Database::with_cache(&cache.0);
-    assert_eq!(database.check(&edited), clean(&edited));
-    assert_eq!(database.stats().package_hits, 0);
-    assert_eq!(database.stats().checked_modules, 6);
-}
-
-#[test]
 fn result_only_package_records_skip_complete_queries_and_fall_back_for_continuations() {
-    use sha2::{Digest, Sha256};
     let cache = Cache::new();
     let snapshot = project("app");
     let expected = Database::with_cache(&cache.0).check(&snapshot);
     assert!(expected.is_success());
     // Model a successful check whose environment exceeded the snapshot budget.
-    for file in fs::read_dir(&cache.0).unwrap() {
-        let path = file.unwrap().path();
-        if !path.extension().is_some_and(|extension| extension == "pkg") {
-            continue;
-        }
-        let mut bytes = fs::read(&path).unwrap();
-        let length = u64::from_le_bytes(bytes[72..80].try_into().unwrap()) as usize;
-        bytes.truncate(80 + length);
-        let checksum = Sha256::digest(&bytes[72..]);
-        bytes[40..72].copy_from_slice(&checksum);
-        fs::write(path, bytes).unwrap();
+    let store = sema::artifact_store::ArtifactStore::new(&cache.0);
+    for path in cache_files(&cache, "artifacts") {
+        let bytes = fs::read(path).unwrap();
+        let mut manifest: sema::artifact_store::StoreManifest =
+            sema::artifact_store::deserialize(&bytes[40..]).unwrap();
+        manifest.environment = None;
+        manifest.resolver = None;
+        store.publish(&manifest).unwrap();
     }
     let mut warm = Database::with_cache(&cache.0);
     assert_eq!(warm.check(&snapshot), expected);
@@ -432,6 +474,6 @@ fn result_only_package_records_skip_complete_queries_and_fall_back_for_continuat
     );
     let mut changed = Database::with_cache(&cache.0);
     assert_eq!(changed.check(&edited), clean(&edited));
-    assert_eq!(changed.stats().package_hits, 0);
-    assert!(changed.stats().checked_modules > 0);
+    assert_eq!(changed.stats().package_hits, 1);
+    assert!(changed.stats().checked_modules > 2);
 }

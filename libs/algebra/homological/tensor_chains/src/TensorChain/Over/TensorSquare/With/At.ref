@@ -1,0 +1,26 @@
+\import Source.Term[n := n] \as SD;
+\import Upper.Term[n := n] \as UD;
+\import Lower.Term[n := n] \as LD;
+\import Target.Term[n := n] \as TD;
+\import UF.Term[n := n] \as UFD;
+\import UL.Term[n := n] \as ULD;
+\import LF.Term[n := n] \as LFD;
+\import LL.Term[n := n] \as LLD;
+\module Component(p, q: Degree);
+\import Modules.Hom[V := UD.Carrier, W := TD.Carrier, source := UD.space, target := TD.space].Composition[U := SD.Carrier, domain := SD.space] \as UpperCompose;
+\import Modules.Hom[V := LD.Carrier, W := TD.Carrier, source := LD.space, target := TD.space].Composition[U := SD.Carrier, domain := SD.space] \as LowerCompose;
+\import Modules.DirectSum[Index := Grading.Index n, family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+\definition equality: Commutes -> UpperCompose.compose ULD.map UFD.map = LowerCompose.compose LLD.map LFD.map :=
+  \fun (commutes: Commutes) => Universal.ext (UpperCompose.compose ULD.map UFD.map) (LowerCompose.compose LLD.map LFD.map)
+    (\fun (i: Grading.Index n)(x: SourceTensor.family.Carrier #first{i} #second{i}) => trans!{TD.Carrier} _ _ _
+      (congr!{UD.Carrier TD.Carrier} (#apply{ULD.map}) _ _ (UFD.onInjection i x))
+      (trans!{TD.Carrier} _ _ _ (ULD.onInjection i (#apply{(UpperFirst.data #first{i} #second{i})} x))
+        (trans!{TD.Carrier} _ _ _
+          (congr!{{TargetTensor.family.Carrier #first{i} #second{i}} TD.Carrier} (#apply{(TD.Component[i := i].injection)}) _ _
+            (Component[p := #first{i}, q := #second{i}].point commutes x))
+          (sym!{TD.Carrier} _ _ (trans!{TD.Carrier} _ _ _
+            (congr!{LD.Carrier TD.Carrier} (#apply{LLD.map}) _ _ (LFD.onInjection i x))
+            (LLD.onInjection i (#apply{(LowerFirst.data #first{i} #second{i})} x)))))));
+\definition point: Commutes -> \forall (x: SD.Carrier) -> #apply{ULD.map} (#apply{UFD.map} x) = #apply{LLD.map} (#apply{LFD.map} x) :=
+  \fun (commutes: Commutes)(x: SD.Carrier) => congr!{{Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Map} TD.Carrier}
+    (\fun (h: Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Map) => #apply{h} x) _ _ (equality commutes);

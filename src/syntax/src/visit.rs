@@ -4,12 +4,14 @@ use std::sync::Arc;
 
 pub trait ModulePaths {
     fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath));
+    fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath));
 }
 
 macro_rules! leaf {
     ($($ty:ty),* $(,)?) => {$(
         impl ModulePaths for $ty {
             fn visit_module_paths(&mut self, _: &mut impl FnMut(&mut ModuleInstantiatePath)) {}
+            fn inspect_module_paths(&self, _: &mut impl FnMut(&ModuleInstantiatePath)) {}
         }
     )*};
 }
@@ -33,6 +35,11 @@ impl<T: ModulePaths> ModulePaths for Vec<T> {
             item.visit_module_paths(action);
         }
     }
+    fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
+        for item in self {
+            item.inspect_module_paths(action);
+        }
+    }
 }
 impl<T: ModulePaths> ModulePaths for Option<T> {
     fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath)) {
@@ -40,14 +47,23 @@ impl<T: ModulePaths> ModulePaths for Option<T> {
             item.visit_module_paths(action);
         }
     }
+    fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
+        if let Some(item) = self {
+            item.inspect_module_paths(action);
+        }
+    }
 }
 impl<T: ModulePaths> ModulePaths for Box<T> {
     fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath)) {
         self.as_mut().visit_module_paths(action);
     }
+    fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
+        self.as_ref().inspect_module_paths(action);
+    }
 }
 impl ModulePaths for Arc<SourceFile> {
     fn visit_module_paths(&mut self, _: &mut impl FnMut(&mut ModuleInstantiatePath)) {}
+    fn inspect_module_paths(&self, _: &mut impl FnMut(&ModuleInstantiatePath)) {}
 }
 macro_rules! tuple {
     ($($ty:ident : $value:ident),+) => {
@@ -55,6 +71,10 @@ macro_rules! tuple {
             fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath)) {
                 let ($($value,)+) = self;
                 $($value.visit_module_paths(action);)+
+            }
+            fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
+                let ($($value,)+) = self;
+                $($value.inspect_module_paths(action);)+
             }
         }
     };
@@ -66,6 +86,9 @@ macro_rules! visit_struct {
         impl ModulePaths for $name {
             fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath)) {
                 $(self.$field.visit_module_paths(action);)*
+            }
+            fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
+                $(self.$field.inspect_module_paths(action);)*
             }
         }
     };
@@ -84,6 +107,14 @@ macro_rules! visit_enum {
                     },)*
                 }
             }
+            fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
+                match self {
+                    $(Self::$variant $( ($($argument),*) )? $( { $($field),* } )? => {
+                        $($($argument.inspect_module_paths(action);)*)?
+                        $($($field.inspect_module_paths(action);)*)?
+                    },)*
+                }
+            }
         }
     };
 }
@@ -96,6 +127,15 @@ impl ModulePaths for ModuleInstantiatePath {
             | Self::FromImport { calls, .. } => calls,
         };
         calls.visit_module_paths(action);
+    }
+    fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
+        action(self);
+        let calls = match self {
+            Self::FromCurrent { calls, .. }
+            | Self::FromRoot { calls }
+            | Self::FromImport { calls, .. } => calls,
+        };
+        calls.inspect_module_paths(action);
     }
 }
 visit_struct!(Module {

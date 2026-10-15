@@ -1,0 +1,34 @@
+\import Cochains.Map[C := C, D := D] \as LeftMaps;
+\import Cochains.Map[C := E, D := F] \as RightMaps;
+\import \parent.Tensor[C := C, D := E] \as SourceTensor;
+\import \parent.Tensor[C := D, D := F] \as TargetTensor;
+\import \parent.Total[C := SourceTensor.complex] \as SourceTotal;
+\import \parent.Total[C := TargetTensor.complex] \as TargetTotal;
+\import Cochains.At[C := TargetTotal.complex, k := n] \as H;
+\import Cochains.Map[C := SourceTotal.complex, D := TargetTotal.complex].At[k := n] \as Induced;
+\import TargetTotal.Degree[n := n] \as Current;
+\module With(f: LeftMaps.Map, g: RightMaps.Map) {
+  \import \parent.\parent.TensorMapping[C := C, D := D, E := E, F := F].With[f := f, g := g] \as TensorMap;
+  \import \parent.\parent.Map[C := SourceTensor.complex, D := TargetTensor.complex].Total[f := TensorMap.map].Degree[n := n] \as TotalMap;
+  \module At(i: SourceTotal.Index n) {
+    \import LeftMaps.At[k := #first{i}] \as Left;
+    \import RightMaps.At[k := #second{i}] \as Right;
+    \import Cochains.At[C := C, k := #first{i}] \as SC;
+    \import Cochains.At[C := E, k := #second{i}] \as SE;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := E, n := n].At[i := i] \as Source;
+    \import \parent.\parent.\parent.IndexedCycleProduct[C := D, D := F, n := n].At[i := i] \as Target;
+    \import SourceTensor.Term[p := #first{i}, q := #second{i}] \as STerm;
+    \import TargetTensor.Term[p := #first{i}, q := #second{i}] \as TTerm;
+    \import TensorMap.Degree[p := #first{i}, q := #second{i}] \as TermMap;
+    \definition onClass: \forall (x: SC.CycleCarrier)(y: SE.CycleCarrier) ->
+      #apply{(Induced.induced TensorMap.total)} (Source.classOf x y) =
+      Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y) :=
+      \fun (x: SC.CycleCarrier)(y: SE.CycleCarrier) => trans!{H.Cohomology} _ _ _
+        (Induced.onClass TensorMap.total (Source.cycle x y))
+        (H.equalClass (#apply{(Induced.cyclesMap TensorMap.total)} (Source.cycle x y))
+          (Target.cycle (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y))
+          (trans!{Current.Carrier} _ _ _
+            (TotalMap.onInjection i (STerm.tensor x y))
+            (congr!{TTerm.Carrier Current.Carrier} (#apply{(Current.Component[i := i].injection)}) _ _ (TermMap.onTensor x y))));
+  }
+}

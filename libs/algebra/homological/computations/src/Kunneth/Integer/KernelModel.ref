@@ -1,0 +1,21 @@
+\import \parent.TensorSequence[C := C, D := D] \as TensorSequence;
+\import Chains.At[C := TensorSequence.middle, z := n] \as Middle;
+\import Chains.At[C := TensorSequence.right, z := n] \as Right;
+\import Chains.At[C := TensorSequence.left, z := Bounded.previous n] \as Lower;
+\import Chains.Map[C := TensorSequence.middle, D := TensorSequence.right].At[k := n] \as Induced;
+\import Chains.ShortExact[A := TensorSequence.left, B := TensorSequence.middle, C := TensorSequence.right].At[
+  s := TensorSequence.sequence, k := n] \as Delta;
+\import Delta.Exactness[] \as Exact;
+\import Modules.Of[V := Right.Homology, space := Right.homologySpace].Submodule[] \as Submodules;
+\definition kernel: Submodules.Submodule := Submodules.Kernel[W := Lower.Homology, target := Lower.homologySpace].kernel Delta.connecting;
+\import Submodules.Of[S := kernel] \as Included;
+\definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := Middle.Homology, space := Middle.homologySpace };
+\definition nativeKernelBundle: Modules.Bundle := Modules.Bundle { Carrier := Included.Carrier, space := Included.moduleSpace };
+\import Modules.Hom[V := Middle.Homology, W := Included.Carrier,
+  source := Middle.homologySpace, target := Included.moduleSpace] \as NativeMaps;
+\definition nativeMap: NativeMaps.Map := NativeMaps.Map {
+  apply := \fun (x: Middle.Homology) => \into[Right.Homology](#apply{Induced.induced TensorSequence.projectionMap} x,
+    #carrier{kernel}) \by { Exact.projectionConnectingZero x },
+  addition := #addition{Induced.induced TensorSequence.projectionMap},
+  scalar := #scalar{Induced.induced TensorSequence.projectionMap},
+};

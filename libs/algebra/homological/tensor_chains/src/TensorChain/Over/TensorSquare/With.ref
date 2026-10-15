@@ -1,0 +1,21 @@
+\import \parent.\parent.Tensor[C := A, D := D] \as SourceTensor;
+\import \parent.\parent.Tensor[C := B, D := D] \as UpperTensor;
+\import \parent.\parent.Tensor[C := C, D := F] \as LowerTensor;
+\import \parent.\parent.Tensor[C := E, D := F] \as TargetTensor;
+\import \parent.\parent.Total[C := SourceTensor.complex] \as Source;
+\import \parent.\parent.Total[C := UpperTensor.complex] \as Upper;
+\import \parent.\parent.Total[C := LowerTensor.complex] \as Lower;
+\import \parent.\parent.Total[C := TargetTensor.complex] \as Target;
+\import \parent.\parent.TensorMapping[C := A, D := B, E := D, F := D].With[f := a0, g := Chains.End[C := D].identity] \as UpperFirst;
+\import \parent.\parent.TensorMapping[C := B, D := E, E := D, F := F].With[f := a1, g := g] \as UpperLast;
+\import \parent.\parent.TensorMapping[C := A, D := C, E := D, F := F].With[f := b0, g := g] \as LowerFirst;
+\import \parent.\parent.TensorMapping[C := C, D := E, E := F, F := F].With[f := b1, g := Chains.End[C := F].identity] \as LowerLast;
+\import \parent.\parent.Map[C := SourceTensor.complex, D := UpperTensor.complex].Total[f := UpperFirst.map] \as UF;
+\import \parent.\parent.Map[C := UpperTensor.complex, D := TargetTensor.complex].Total[f := UpperLast.map] \as UL;
+\import \parent.\parent.Map[C := SourceTensor.complex, D := LowerTensor.complex].Total[f := LowerFirst.map] \as LF;
+\import \parent.\parent.Map[C := LowerTensor.complex, D := TargetTensor.complex].Total[f := LowerLast.map] \as LL;
+\definition Commutes: \Prop := \forall (p: Degree)(x: A.family.Carrier p) -> #apply{a1} p (#apply{a0} p x) = #apply{b1} p (#apply{b0} p x);
+\module At(n: Degree);
+\definition square: Commutes -> \forall (n: Degree)(x: Source.Term[n := n].Carrier) ->
+  #apply{UpperLast.total} n (#apply{UpperFirst.total} n x) = #apply{LowerLast.total} n (#apply{LowerFirst.total} n x) :=
+  \fun (commutes: Commutes)(n: Degree) => At[n := n].point commutes;

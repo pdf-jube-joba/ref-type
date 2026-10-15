@@ -61,6 +61,6 @@
 複素内積は第1引数が共役線形、第2引数が線形である。
 `selfAdjointEigenvalueReal` は自己随伴写像の固有値の実数性を示し、有限次元性を要求しない。
 
-[利用例](../../../tests/projects/library/src/LinearAlgebraExamples.ref) は有限基底・行列・固有値と実数・複素数への具体化を検査する。
+[利用例](../../../libs/algebra/linear_algebra/src/SmallSpaces.ref) は有限基底・行列・固有値と実数・複素数への具体化を検査する。
 
 検査方法は [ライブラリ一覧](../../README.md#型検査) を参照。

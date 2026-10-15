@@ -1,0 +1,85 @@
+\definition q: Degree := Grading.complement n p;
+\definition r: Degree := Grading.complement (Bounded.previous n) p;
+\definition e: Bounded.previous q = r := sym!{Degree} _ _ (Grading.previousComplement n p);
+\definition closed: Grading.add p (Bounded.previous q) = Bounded.previous n :=
+  trans!{Degree} _ _ _ (Grading.previousRight p q) (congr!{Degree Degree} Bounded.previous _ _ (Grading.complementSum n p));
+\import \parent.\parent.Coefficient[p := p] \as Coefficient;
+\import resolutions.TensorComplex[].Over[R := Integers.Int^, ring := IntegerRing.commutativeRing].Integer[P := Original.chain, N := Coefficient.bundle] \as Tensor;
+\import Tensors.Row[E := Tensor.complex, p := p] \as Row;
+\import Row.At[n := n] \as RowStep;
+\import Current.Injection[p := p] \as I;
+\import After.Injection[p := p] \as J;
+\definition index: Grading.Index n := I.index q (Grading.complementSum n p);
+\import Modules.Tensor[V := Original.chain.family.Carrier q, W := Z.Carrier p,
+  left := Original.chain.family.space q, right := Z.space p] \as Pure;
+\import Pure.Symmetry[] \as Swap;
+\import Product.At[p := p, q := q] \as Differential;
+\import Product.Term[p := Bounded.previous p, q := q] \as HT;
+\import Product.Term[p := p, q := Bounded.previous q] \as VT;
+\import TargetAfter.Component[i := Total.upHorizontal n index] \as HI;
+\import TargetAfter.Component[i := Total.upVertical n index] \as VI;
+\import Modules.Hom[V := HT.Carrier, W := TargetAfter.Carrier, source := HT.space, target := TargetAfter.space] \as HMaps;
+\import Modules.Hom[V := VT.Carrier, W := TargetAfter.Carrier, source := VT.space, target := TargetAfter.space] \as VMaps;
+\import Tensors.Sign[V := VT.Carrier, space := VT.space] \as VSign;
+\import VSign.Mapping[W := TargetAfter.Carrier, target := TargetAfter.space] \as VSignMapping;
+\import Tensors.Sign[V := Tensor.Carrier r, space := Tensor.space r] \as RSign;
+\import RSign.Mapping[W := TargetAfter.Carrier, target := TargetAfter.space] \as RSignMapping;
+\import Tensors.Sign[V := TargetAfter.Carrier, space := TargetAfter.space] \as TotalSign;
+\definition signed: \forall (v: Tensor.Carrier (Bounded.previous q)) ->
+  #apply{J.map} (#apply{(RSign.map p)} (Transport.cast Tensor.Carrier (Bounded.previous q) r e v)) =
+    #apply{(TotalSign.map p)} (#apply{J.At[q := Bounded.previous q, closed := closed].map} v) :=
+  \fun (v: Tensor.Carrier (Bounded.previous q)) => trans!{TargetAfter.Carrier} _ _ _
+    (RSignMapping.naturality J.map p (Transport.cast Tensor.Carrier (Bounded.previous q) r e v))
+    (congr!{TargetAfter.Carrier TargetAfter.Carrier} (#apply{(TotalSign.map p)}) _ _
+      (J.natural (Bounded.previous q) r closed e v));
+\definition horizontalPure: \forall (x: Original.chain.family.Carrier q)(z: Z.Carrier p) ->
+  #apply{TargetStep.horizontal} (#apply{I.map} (Pure.tensor x z)) = #zero{TargetAfter.space} :=
+  \fun (x: Original.chain.family.Carrier q)(z: Z.Carrier p) => trans!{TargetAfter.Carrier} _ _ _
+    (congr!{Target.Carrier TargetAfter.Carrier} (#apply{TargetStep.horizontal}) _ _ (I.At[q := q, closed := Grading.complementSum n p].onTensor x z))
+    (trans!{TargetAfter.Carrier} _ _ _ (TargetStep.horizontalOnInjection index (Product.Term[p := p, q := q].tensor z x))
+      (trans!{TargetAfter.Carrier} _ _ _
+        (congr!{HT.Carrier TargetAfter.Carrier} (#apply{HI.injection}) _ _
+          (trans!{HT.Carrier} _ _ _ (Differential.horizontalOnTensor z x) (HT.zeroLeft x)))
+        (HMaps.zeroPreserved HI.injection)));
+\definition verticalPure: \forall (x: Original.chain.family.Carrier q)(z: Z.Carrier p) ->
+  #apply{TargetStep.vertical} (#apply{I.map} (Pure.tensor x z)) = #apply{J.map} (#apply{RowStep.differential} (Pure.tensor x z)) :=
+  \fun (x: Original.chain.family.Carrier q)(z: Z.Carrier p) => trans!{TargetAfter.Carrier} _ _ _
+    (congr!{Target.Carrier TargetAfter.Carrier} (#apply{TargetStep.vertical}) _ _ (I.At[q := q, closed := Grading.complementSum n p].onTensor x z))
+    (trans!{TargetAfter.Carrier} _ _ _ (TargetStep.verticalOnInjection index (Product.Term[p := p, q := q].tensor z x))
+      (trans!{TargetAfter.Carrier} _ _ _
+        (congr!{VT.Carrier TargetAfter.Carrier} (\fun (v: VT.Carrier) => #apply{VI.injection} (#apply{(VSign.map p)} v)) _ _ (Differential.verticalOnTensor z x))
+        (trans!{TargetAfter.Carrier} _ _ _ (VSignMapping.naturality VI.injection p (VT.tensor z (#apply{Original.chain.differential} q x)))
+          (sym!{TargetAfter.Carrier} _ _
+            (trans!{TargetAfter.Carrier} _ _ _
+              (congr!{{Tensor.Carrier (Bounded.previous q)} TargetAfter.Carrier}
+                (\fun (v: Tensor.Carrier (Bounded.previous q)) => #apply{J.map} (#apply{(RSign.map p)} (Transport.cast Tensor.Carrier (Bounded.previous q) r e v))) _ _
+                (Tensor.Step[z := q].onTensor x z))
+              (trans!{TargetAfter.Carrier} _ _ _ (signed (Tensor.At[z := Bounded.previous q].tensor (#apply{Original.chain.differential} q x) z))
+                (congr!{TargetAfter.Carrier TargetAfter.Carrier} (#apply{(TotalSign.map p)}) _ _
+                  (J.At[q := Bounded.previous q, closed := closed].onTensor (#apply{Original.chain.differential} q x) z))))))));
+\import Modules.Hom[V := Target.Carrier, W := TargetAfter.Carrier, source := Target.space, target := TargetAfter.space].Composition[
+  U := Pure.Carrier, domain := Pure.space] \as TargetCompose;
+\import Modules.Hom[V := Tensor.Carrier r, W := TargetAfter.Carrier, source := Tensor.space r, target := TargetAfter.space].Composition[
+  U := Pure.Carrier, domain := Pure.space] \as SourceCompose;
+\import Pure.Universal[U := TargetAfter.Carrier, target := TargetAfter.space] \as Universal;
+\import Modules.Hom[V := Pure.Carrier, W := TargetAfter.Carrier, source := Pure.space, target := TargetAfter.space] \as Maps;
+\definition horizontalZero: TargetCompose.compose TargetStep.horizontal I.map = Maps.zeroMap := Universal.ext _ _ horizontalPure;
+\definition verticalEquality: TargetCompose.compose TargetStep.vertical I.map = SourceCompose.compose J.map RowStep.differential := Universal.ext _ _ verticalPure;
+\import Modules.Laws[V := TargetAfter.Carrier, space := TargetAfter.space] \as Vector;
+\import algebra.Group[].Of[Carrier := TargetAfter.Carrier, group := Vector.additive] \as Group;
+\definition onRow: \forall (v: Pure.Carrier) -> #apply{TargetStep.differential} (#apply{I.map} v) = #apply{J.map} (#apply{RowStep.differential} v) :=
+  \fun (v: Pure.Carrier) => trans!{TargetAfter.Carrier} _ _ _
+    (congr2!{TargetAfter.Carrier TargetAfter.Carrier TargetAfter.Carrier} (#add{TargetAfter.space}) _ _ _ _
+      (congr!{Maps.Map TargetAfter.Carrier} (\fun (f: Maps.Map) => #apply{f} v) _ _ horizontalZero)
+      (congr!{Maps.Map TargetAfter.Carrier} (\fun (f: Maps.Map) => #apply{f} v) _ _ verticalEquality))
+    (Group.zeroLeft (#apply{J.map} (#apply{RowStep.differential} v)));
+\definition commutes: \forall (v: Pure.Carrier) ->
+  #apply{TargetStep.differential} (#apply{Current.forward} (#apply{Source.Component[i := p].injection} v)) =
+  #apply{After.forward} (#apply{SourceStep.map} (#apply{Source.Component[i := p].injection} v)) :=
+  \fun (v: Pure.Carrier) => trans!{TargetAfter.Carrier} _ _ _
+    (congr!{Target.Carrier TargetAfter.Carrier} (#apply{TargetStep.differential}) _ _ (Current.forwardOnInjection p v))
+    (trans!{TargetAfter.Carrier} _ _ _ (onRow v)
+      (sym!{TargetAfter.Carrier} _ _
+        (trans!{TargetAfter.Carrier} _ _ _
+          (congr!{SourceAfter.Carrier TargetAfter.Carrier} (#apply{After.forward}) _ _ (SourceStep.onInjection p v))
+          (After.forwardOnInjection p (#apply{RowStep.differential} v)))));

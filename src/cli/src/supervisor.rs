@@ -1,5 +1,5 @@
 //! Keep the terminal and cancellation alive while bounded workers check a snapshot.
-use crate::{Args, progress};
+use crate::{Args, progress, report};
 use anyhow::{Context, bail};
 use sema::{ModuleProgress, ProgressEvent, ProgressPlan, SourceSnapshot};
 use serde::{Deserialize, Serialize};
@@ -9,9 +9,12 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs::{self, File},
     io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
-    os::unix::process::{CommandExt, ExitStatusExt},
+    os::{
+        fd::{AsRawFd, FromRawFd, OwnedFd},
+        unix::process::{CommandExt, ExitStatusExt},
+    },
     path::{Path, PathBuf},
-    process::{Child, Command, ExitCode, ExitStatus, Stdio},
+    process::{Child, Command, ExitStatus, Stdio},
     sync::atomic::{AtomicI32, AtomicU64, Ordering},
     thread,
     time::{Duration, Instant},
@@ -70,8 +73,11 @@ fn send(message: Message) {
     EVENTS.with_borrow_mut(|file| {
         if let Some(file) = file {
             // A broken supervisor channel must not turn a check into apparent success.
-            serde_json::to_writer(&mut *file, &message).expect("write worker event");
-            file.write_all(b"\n").expect("finish worker event");
+            // Publish each complete record in one write. Streaming JSON directly
+            // to File issues a syscall for every token in a dependency plan.
+            let mut record = serde_json::to_vec(&message).expect("serialize worker event");
+            record.push(b'\n');
+            file.write_all(&record).expect("write worker event");
         }
     });
 }
@@ -93,7 +99,7 @@ pub fn worker_arguments(args: Args) -> anyhow::Result<Args> {
     let Some(request) = &args.worker else {
         return Ok(args);
     };
-    let args: Args = serde_json::from_reader(File::open(request)?)?;
+    let args: Args = serde_json::from_slice(&fs::read(request)?)?;
     let directory = args.worker.as_ref().context("missing worker directory")?;
     EVENTS.with_borrow_mut(|events| -> std::io::Result<()> {
         *events = Some(File::create(directory.join("events.jsonl"))?);
@@ -112,9 +118,11 @@ pub fn worker_arguments(args: Args) -> anyhow::Result<Args> {
     Ok(args)
 }
 pub fn read_snapshot(directory: &Path) -> anyhow::Result<SourceSnapshot> {
-    Ok(serde_json::from_reader(BufReader::new(File::open(
+    // Slice decoding can scan source strings directly instead of pulling each
+    // escaped byte through serde_json's generic reader interface.
+    Ok(serde_json::from_slice(&fs::read(
         directory.join("snapshot.json"),
-    )?))?)
+    )?)?)
 }
 
 struct Workspace {
@@ -140,23 +148,14 @@ impl Workspace {
     fn path(&self, name: &str) -> PathBuf {
         self.directory.join(name)
     }
-    fn publish(&self, destination: &Path) -> anyhow::Result<()> {
+    fn publish(&self, destination: &Path, budget: u64) -> anyhow::Result<()> {
         let directory = self.path("cache");
         if !directory.exists() {
             return Ok(());
         }
-        for entry in fs::read_dir(directory)? {
-            let entry = entry?;
-            if !entry.file_type()?.is_file() || entry.file_name().to_string_lossy().starts_with('.')
-            {
-                continue;
-            }
-            let temporary = self.path("publish.tmp");
-            if fs::hard_link(entry.path(), &temporary).is_err() {
-                fs::copy(entry.path(), &temporary)?;
-            }
-            fs::rename(temporary, destination.join(entry.file_name()))?;
-        }
+        let store = sema::artifact_store::ArtifactStore::new(destination);
+        store.set_budget(budget);
+        store.publish_from(directory)?;
         Ok(())
     }
 }
@@ -343,6 +342,14 @@ fn execute(
         child: command.spawn()?,
         reaped: false,
     };
+    // A pidfd wakes poll as soon as the child exits, while the timeout retains
+    // periodic progress/cancellation checks. Older kernels keep timed polling.
+    // SAFETY: pidfd_open takes a live child PID and returns a new owned fd.
+    let exit_fd = unsafe { libc::syscall(libc::SYS_pidfd_open, worker.child.id(), 0) };
+    let exit_fd = (exit_fd >= 0).then(|| {
+        // SAFETY: the successful syscall returned a fresh, uniquely owned fd.
+        unsafe { OwnedFd::from_raw_fd(exit_fd as i32) }
+    });
     let started = Instant::now();
     let mut heartbeat = Instant::now();
     let (status, timeout_hit) = loop {
@@ -365,7 +372,17 @@ fn execute(
             ));
             heartbeat = Instant::now();
         }
-        thread::sleep(Duration::from_millis(50));
+        if let Some(exit_fd) = &exit_fd {
+            let mut descriptor = libc::pollfd {
+                fd: exit_fd.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            // SAFETY: descriptor is valid for one entry; OwnedFd keeps it open.
+            unsafe { libc::poll(&mut descriptor, 1, 50) };
+        } else {
+            thread::sleep(Duration::from_millis(50));
+        }
     };
     events.poll(plan)?;
     let mut stderr = File::open(workspace.path("stderr"))?;
@@ -385,45 +402,88 @@ fn execute(
 
 fn snapshot_key(snapshot: &SourceSnapshot) -> Vec<u8> {
     let mut digest = Sha256::new();
-    for (path, source) in snapshot.files() {
-        digest.update(path.as_os_str().as_encoded_bytes());
+    // Include alias identities: retargeting two symlinks can preserve the exact
+    // file set while changing which nominal package each import resolves to.
+    for (path, identity) in snapshot.source_identities() {
         digest.update([0]);
-        digest.update(source.text.len().to_le_bytes());
+        for path in [path, identity] {
+            let bytes = path.as_os_str().as_encoded_bytes();
+            digest.update((bytes.len() as u64).to_le_bytes());
+            digest.update(bytes);
+        }
+    }
+    for (path, source) in snapshot.files() {
+        digest.update([1]);
+        let bytes = path.as_os_str().as_encoded_bytes();
+        digest.update((bytes.len() as u64).to_le_bytes());
+        digest.update(bytes);
+        digest.update((source.text.len() as u64).to_le_bytes());
         digest.update(source.text.as_bytes());
     }
     digest.finalize().to_vec()
 }
 
-pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitCode> {
+pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<report::Report> {
     let _signals = Signals::install()?;
-    let cache = args
-        .cache_dir
-        .clone()
-        .unwrap_or_else(|| SourceSnapshot::new(&args.path).default_cache_directory());
+    let cache = match &args.cache_dir {
+        Some(path) => path.clone(),
+        None => sema::default_cache_directory(&args.path)?,
+    };
     if args.clear_cache {
         crate::clear_cache_directory(&cache)?;
     }
-    let mut database = sema::Database::with_cache(&cache);
-    let snapshot = database.read_snapshot(&args.path, args.full_check_local)?;
-    let paths = match database.module_paths(&snapshot) {
-        Ok(paths) => paths,
-        Err(diagnostics) => {
-            display.finish(false);
-            for diagnostic in diagnostics {
-                eprintln!("{}", diagnostic.render(&snapshot));
-            }
-            return Ok(ExitCode::FAILURE);
+    let mut database = sema::Database::new();
+    let snapshot = match database.read_snapshot(&args.path, args.full_check_local) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("Module Load Error: {error}");
+            return Ok(report::Report::checked(false, false));
         }
+    };
+    let workspace = Workspace::new(&cache)?;
+    let layout_key: String =
+        Sha256::digest(args.path.canonicalize()?.as_os_str().as_encoded_bytes())
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+    let layout = if args.no_cache {
+        workspace.path("batches.json")
+    } else {
+        cache.join(format!("{layout_key}.batches.json"))
+    };
+    let memory_mib = args.memory_mib.unwrap_or(3072);
+    let mut splits = fs::read(&layout)
+        .ok()
+        .and_then(|s| serde_json::from_slice::<Layout>(&s).ok())
+        .filter(|saved| saved.memory_mib == memory_mib && saved.batch_seconds == args.batch_seconds)
+        .map(|saved| saved.splits)
+        .unwrap_or_default();
+    // The worker already parses the full snapshot. Only enumerate scopes here
+    // when selection or a saved resource-limit split needs them in advance.
+    let mut paths = if args.module.is_some() || !splits.is_empty() {
+        match database.module_paths(&snapshot) {
+            Ok(paths) => paths,
+            Err(diagnostics) => {
+                display.finish(false);
+                for diagnostic in diagnostics {
+                    eprintln!("{}", diagnostic.render(&snapshot));
+                }
+                return Ok(report::Report::checked(false, false));
+            }
+        }
+    } else {
+        Vec::new()
     };
     let module = args
         .module
         .as_ref()
         .map(|name| name.split('.').map(str::to_owned).collect::<Vec<_>>());
     if module.as_ref().is_some_and(|p| !paths.contains(p)) {
-        bail!(
+        eprintln!(
             "Module Selection Error: module '{}' was not found",
             args.module.as_ref().unwrap()
         );
+        return Ok(report::Report::checked(false, false));
     }
     let mut plan = ProgressPlan {
         packages: paths
@@ -446,33 +506,22 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
     };
     progress::receive(&ProgressEvent::Planned(plan.clone()));
     let initial_key = snapshot_key(&snapshot);
-    let workspace = Workspace::new(&cache)?;
     serde_json::to_writer(
         std::io::BufWriter::new(File::create(workspace.path("snapshot.json"))?),
         &snapshot,
     )?;
-    // Drop all parsed syntax before starting a worker. The supervisor retains only paths and hashes.
+    // The snapshot on disk also supports lazy scope enumeration after a limit.
     drop(snapshot);
     drop(database);
-    let layout_key: String =
-        Sha256::digest(args.path.canonicalize()?.as_os_str().as_encoded_bytes())
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
-    let layout = cache.join(format!("{layout_key}.batches.json"));
-    let memory_mib = args.memory_mib.unwrap_or(3072);
-    let mut splits = fs::read(&layout)
-        .ok()
-        .and_then(|s| serde_json::from_slice::<Layout>(&s).ok())
-        .filter(|saved| saved.memory_mib == memory_mib && saved.batch_seconds == args.batch_seconds)
-        .map(|saved| saved.splits)
-        .unwrap_or_default();
     let fresh = args.full_check || args.no_cache || args.trace;
     let worker_cache = if fresh {
         workspace.path("cache")
     } else {
         cache.clone()
     };
+    let session_store = sema::artifact_store::ArtifactStore::new(&worker_cache);
+    session_store.set_budget(args.cache_budget_mib.saturating_mul(1024 * 1024));
+    let session_token = session_store.session_token()?;
     let mut pending = vec![Batch {
         module,
         exact: args.module_only,
@@ -480,11 +529,16 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
     let mut timings: BTreeMap<Vec<String>, ModuleProgress> = BTreeMap::new();
     let mut outputs = BTreeSet::new();
     let mut success = true;
+    let mut verification_reused = false;
+    // A successful uncached batch needs no portable artifacts. If it exceeds
+    // a resource limit, enable the session's temporary cache for the smaller
+    // retries so they can share checked dependency prefixes.
+    let mut cache_batches = !args.no_cache;
     while let Some(batch) = pending.pop() {
         if interrupted() {
             bail!("検査を中断しました");
         }
-        let smaller = batch.split(&paths);
+        let mut smaller = batch.split(&paths);
         if !smaller.is_empty() && splits.contains(&batch.key()) {
             pending.extend(smaller.into_iter().rev());
             continue;
@@ -494,29 +548,53 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
         request.module = batch.module.as_ref().map(|m| m.join("."));
         request.module_only = batch.exact;
         request.full_check = false;
-        request.no_cache = false;
+        request.no_cache = !cache_batches;
         request.clear_cache = false;
         request.progress_tty = false;
         request.cache_dir = Some(worker_cache.clone());
-        serde_json::to_writer(File::create(workspace.path("request.json"))?, &request)?;
+        request.report_json = Some(workspace.path("report.json"));
+        if workspace.path("report.json").exists() {
+            fs::remove_file(workspace.path("report.json"))?;
+        }
+        fs::write(
+            workspace.path("request.json"),
+            serde_json::to_vec(&request)?,
+        )?;
         let mut command = Command::new(std::env::current_exe()?);
         command
             .arg(&args.path)
             .arg("--worker")
             .arg(workspace.path("request.json"))
-            .env_remove("REF_TYPE_PROFILE_PROGRESS");
+            .env_remove("REF_TYPE_PROFILE_PROGRESS")
+            .env("REF_TYPE_CACHE_SESSION", &session_token);
         if !args.no_progress {
             display.message(&format!("checking {}", batch.label()));
         }
         let outcome = execute(
             command,
             &workspace,
-            (!smaller.is_empty()).then(|| Duration::from_secs(args.batch_seconds)),
+            (batch.module.is_none() || !smaller.is_empty())
+                .then(|| Duration::from_secs(args.batch_seconds)),
             &mut plan,
             display,
             args.no_progress,
         )?;
+        if outcome.limited && paths.is_empty() {
+            let snapshot = read_snapshot(&workspace.directory)?;
+            paths = match sema::Database::new().module_paths(&snapshot) {
+                Ok(paths) => paths,
+                Err(diagnostics) => {
+                    display.finish(false);
+                    for diagnostic in diagnostics {
+                        eprintln!("{}", diagnostic.render(&snapshot));
+                    }
+                    return Ok(report::Report::checked(false, false));
+                }
+            };
+            smaller = batch.split(&paths);
+        }
         if outcome.limited && !smaller.is_empty() {
+            cache_batches = true;
             splits.insert(batch.key());
             // Avoid repeating almost the same oversized work through unary wrappers.
             let mut descendants = batch.children(&paths);
@@ -527,13 +605,13 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
                     splits.insert(child.key());
                 }
             }
-            serde_json::to_writer(
-                File::create(workspace.path("layout.json"))?,
-                &Layout {
+            fs::write(
+                workspace.path("layout.json"),
+                serde_json::to_vec(&Layout {
                     memory_mib,
                     batch_seconds: args.batch_seconds,
                     splits: splits.clone(),
-                },
+                })?,
             )?;
             fs::rename(workspace.path("layout.json"), &layout)?;
             if !args.no_progress {
@@ -561,6 +639,16 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             &mut File::open(workspace.path("stdout"))?,
             &mut std::io::stdout(),
         )?;
+        let summary: report::Report = serde_json::from_slice(
+            &fs::read(workspace.path("report.json")).context("worker did not finish its report")?,
+        )?;
+        if summary.outcome == report::Outcome::InternalError {
+            bail!("verification worker failed internally");
+        }
+        if outcome.status.success() != (summary.outcome == report::Outcome::Accepted) {
+            bail!("verification worker status disagrees with its report");
+        }
+        verification_reused |= !fresh && summary.cache.verification_reused;
         for output in outcome.events.outputs {
             if outputs.insert((
                 output.location.file,
@@ -584,15 +672,16 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             }
         }
     }
-    let current =
-        sema::Database::with_cache(&cache).read_snapshot(&args.path, args.full_check_local)?;
+    let current = SourceSnapshot::read(&args.path)?;
     if snapshot_key(&current) != initial_key {
-        success = false;
-        display
-            .message("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
+        bail!("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
     }
-    if fresh && !args.no_cache {
-        workspace.publish(&cache)?;
+    if fresh
+        && !args.no_cache
+        && let Err(error) =
+            workspace.publish(&cache, args.cache_budget_mib.saturating_mul(1024 * 1024))
+    {
+        eprintln!("キャッシュの公開を省略しました: {error:#}");
     }
     progress::receive(&ProgressEvent::Finished { success });
     crate::PROGRESS.with_borrow_mut(|events| events.extend(timings.into_values()));
@@ -603,16 +692,40 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<ExitC
             "検査が完了していない範囲があります。"
         });
     }
-    Ok(if success {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::FAILURE
-    })
+    Ok(report::Report::checked(success, verification_reused))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn snapshot_identity_changes_when_import_aliases_are_retargeted() {
+        let snapshot = SourceSnapshot::new("/project")
+            .with_file("/packages/one/src/root.ref", "\\module Value {}")
+            .with_file("/packages/two/src/root.ref", "\\module Value {}");
+        let mut value = serde_json::to_value(snapshot).unwrap();
+        value["aliases"] = serde_json::json!({
+            "/project/left": "/packages/one",
+            "/project/right": "/packages/two",
+        });
+        let before: SourceSnapshot = serde_json::from_value(value.clone()).unwrap();
+        value["aliases"] = serde_json::json!({
+            "/project/left": "/packages/two",
+            "/project/right": "/packages/one",
+        });
+        let after: SourceSnapshot = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            before.files().map(|(path, _)| path).collect::<Vec<_>>(),
+            after.files().map(|(path, _)| path).collect::<Vec<_>>()
+        );
+        assert_ne!(snapshot_key(&before), snapshot_key(&after));
+        let mut value = serde_json::to_value(&after).unwrap();
+        value["aliases"]["/project/cache/v2/objects"] =
+            serde_json::json!("/project/cache/v2/objects");
+        let with_cache_directory: SourceSnapshot = serde_json::from_value(value).unwrap();
+        assert_eq!(snapshot_key(&after), snapshot_key(&with_cache_directory));
+    }
 
     #[test]
     fn splitting_covers_parent_declarations_and_each_descendant_once() {

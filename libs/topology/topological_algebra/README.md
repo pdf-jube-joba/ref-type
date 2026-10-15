@@ -28,10 +28,10 @@
 `Space` は `FiniteDimensional.Over.Space` の具体化を指す。
 `Over` の parameter は体の構造であり、連続性の仮定は各定理で量化する。
 
-[行列の利用例](../../../tests/projects/topological-k-theory/src/Matrix.ref) は実数・複素数の位相的環と複素行列の積を検査する。
-[有限次元空間の利用例](../../../tests/projects/topological-k-theory/src/Finite.ref) は実数上の線形写像・座標同相・基底変更を検査する。
+[行列の利用例](../../../libs/topology/cell_spaces/src/Matrix.ref) は実数・複素数の位相的環と複素行列の積を検査する。
+[有限次元空間の利用例](../../../libs/topology/cell_spaces/src/Finite.ref) は実数上の線形写像・座標同相・基底変更を検査する。
 
 ```sh
 target/debug/cli libs/topology/topological_algebra --module topological_algebra --full-check-local --diagnostics compact
-target/debug/cli tests/projects/topological-k-theory --module topological_k_theory_foundations_tests --full-check-local --diagnostics compact
+target/debug/cli libs/topology/cell_spaces --module cell_spaces --full-check-local --diagnostics compact
 ```

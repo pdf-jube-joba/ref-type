@@ -4,6 +4,7 @@ pub mod calculus;
 pub mod check;
 pub mod environment;
 pub mod error;
+pub mod exports;
 pub mod ids;
 pub mod metavariables;
 pub mod reduction;

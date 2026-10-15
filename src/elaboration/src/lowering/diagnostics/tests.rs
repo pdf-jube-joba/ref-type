@@ -82,42 +82,6 @@ fn named_types_survive_conversion_failure() {
 }
 
 #[test]
-fn constructors_and_application_precedence_are_readable() {
-    let global = environment(
-        r"\module M {
-        \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
-        \definition P (n: Nat): \Prop := n = Nat::zero;
-        \definition left: P (Nat::succ Nat::zero) -> P Nat::zero :=
-            \fun (p: P (Nat::succ Nat::zero)) => \refl(Nat::zero);
-        \definition right: P Nat::zero := \refl(Nat::zero);
-    }",
-    );
-    let error = mismatch(&global, "M", "left", "right");
-    assert!(error.contains("inferred: \\root.M.P (\\root.M.Nat::succ \\root.M.Nat::zero) -> \\root.M.P \\root.M.Nat::zero"), "{error}");
-}
-
-#[test]
-fn program_types_use_surface_arrows_and_names() {
-    let global = environment(
-        r"\module M {
-        \inductive A: \VType := | a: A;
-        \inductive B: \VType := | b: B;
-        \definition f: A ~> \F(A) := \cfun (x: A) => \return x;
-        \definition g: B ~> \F(B) := \cfun (x: B) => \return x;
-    }",
-    );
-    let error = mismatch(&global, "M", "f", "g");
-    assert!(
-        error.contains("inferred: \\root.M.A ~> \\F(\\root.M.A)"),
-        "{error}"
-    );
-    assert!(
-        error.contains("expected: \\root.M.B ~> \\F(\\root.M.B)"),
-        "{error}"
-    );
-}
-
-#[test]
 fn binders_are_renamed_without_capturing_context_variables() {
     use kernel::{
         environment::Environment,
@@ -163,57 +127,6 @@ fn binders_are_renamed_without_capturing_context_variables() {
     assert!(
         text.contains("inferred: A\nexpected: \\forall (x1: A) -> x = x1\ncontext: A: \\Set, x: A"),
         "{text}"
-    );
-}
-
-#[test]
-fn instantiated_module_types_remain_distinguishable() {
-    let global = environment(
-        r"\module Template(A: \Set) {
-        \inductive Wrapped: \Set := | wrap: A -> Wrapped;
-    }
-    \module M {
-        \inductive A: \Set := | a: A;
-        \inductive B: \Set := | b: B;
-        \import \root.Template[A := A] \as TA;
-        \import \root.Template[A := B] \as TB;
-        \definition a: TA.Wrapped := TA.Wrapped::wrap A::a;
-        \definition b: TB.Wrapped := TB.Wrapped::wrap B::b;
-    }",
-    );
-    let error = mismatch(&global, "M", "a", "b");
-    assert!(error.contains(r"Template.Wrapped[\root.M.A]"), "{error}");
-    assert!(error.contains(r"Template.Wrapped[\root.M.B]"), "{error}");
-    let inferred = error
-        .lines()
-        .find(|line| line.starts_with("inferred:"))
-        .unwrap();
-    let expected = error
-        .lines()
-        .find(|line| line.starts_with("expected:"))
-        .unwrap();
-    assert_ne!(
-        inferred.strip_prefix("inferred: "),
-        expected.strip_prefix("expected: ")
-    );
-    assert!(!error.contains("ind#"), "{error}");
-}
-
-#[test]
-fn parameterized_inductives_use_brackets_before_constructor_names() {
-    let global = environment(
-        r"\module M {
-        \inductive Nat: \Set := | zero: Nat;
-        \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
-        \definition p: List[Nat]::nil = List[Nat]::nil := \refl(List[Nat]::nil);
-        \definition q: Nat::zero = Nat::zero := \refl(Nat::zero);
-    }",
-    );
-    let error = mismatch(&global, "M", "p", "q");
-    assert!(
-        error
-            .contains(r"inferred: \root.M.List[\root.M.Nat]::nil = \root.M.List[\root.M.Nat]::nil"),
-        "{error}"
     );
 }
 

@@ -1,0 +1,31 @@
+\import Modules.Hom[V := SD.Carrier, W := C.family.Carrier #first{i} #second{i}, source := SD.space, target := C.family.space #first{i} #second{i}] \as Maps;
+\import Modules.Hom[V := TD.Carrier, W := C.family.Carrier #first{i} #second{i}, source := TD.space, target := C.family.space #first{i} #second{i}].Composition[U := SD.Carrier, domain := SD.space] \as Compose;
+\definition after: Maps.Map := Compose.compose TC.At[i := index n i].map forward;
+\definition before: Maps.Map := SC.At[i := i].map;
+\definition own: \forall (x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{after} (#apply{(SD.Component[i := i].injection)} x) = #apply{before} (#apply{(SD.Component[i := i].injection)} x) :=
+  \fun (x: C.family.Carrier #first{i} #second{i}) => trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+    (congr!{TD.Carrier {C.family.Carrier #first{i} #second{i}}} (TC.coordinate (index n i)) _ _ (onInjection i x))
+    (trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _ (TC.own (index n i) x)
+      (sym!{{C.family.Carrier #first{i} #second{i}}} _ _ (SC.own i x)));
+\definition other: \forall (j: Index n) -> Logic.Not (j = i) -> \forall (x: C.family.Carrier #first{j} #second{j}) ->
+  #apply{after} (#apply{(SD.Component[i := j].injection)} x) = #apply{before} (#apply{(SD.Component[i := j].injection)} x) :=
+  \fun (j: Index n)(ne: Logic.Not (j = i))(x: C.family.Carrier #first{j} #second{j}) => trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+    (congr!{TD.Carrier {C.family.Carrier #first{i} #second{i}}} (TC.coordinate (index n i)) _ _ (onInjection j x))
+    (trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+      (TC.other (index n j) (index n i) x (\fun (equal: index n j = index n i) => ne (indexInjective n j i equal)))
+      (sym!{{C.family.Carrier #first{i} #second{i}}} _ _ (SC.other j i x ne)));
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition agreement: \forall (j: Index n)(x: C.family.Carrier #first{j} #second{j}) ->
+  #apply{after} (#apply{(SD.Component[i := j].injection)} x) = #apply{before} (#apply{(SD.Component[i := j].injection)} x) :=
+  \fun (j: Index n) => either!{{(Classical.excludedMiddle (j = i))} {
+    \forall (x: C.family.Carrier #first{j} #second{j}) -> #apply{after} (#apply{(SD.Component[i := j].injection)} x) = #apply{before} (#apply{(SD.Component[i := j].injection)} x)}
+    {\fun (equal: j = i) => \idelim i = j \with k: Index n =>
+      \forall (x: C.family.Carrier #first{k} #second{k}) -> #apply{after} (#apply{(SD.Component[i := k].injection)} x) = #apply{before} (#apply{(SD.Component[i := k].injection)} x)
+      \by { base: own, equality: sym!{Pair} _ _ equal }}
+    {other j}};
+\import Modules.DirectSum[Index := Index n, family := SD.family].To[W := C.family.Carrier #first{i} #second{i}, target := C.family.space #first{i} #second{i}] \as Equality;
+\definition equality: after = before := Equality.ext after before agreement;
+\definition formula: \forall (x: SD.Carrier) -> TC.coordinate (index n i) (#apply{forward} x) = SC.coordinate i x :=
+  \fun (x: SD.Carrier) => congr!{Maps.Map {C.family.Carrier #first{i} #second{i}}} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality;

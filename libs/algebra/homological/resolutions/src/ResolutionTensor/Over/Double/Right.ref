@@ -1,0 +1,97 @@
+\import Doubles.ConcentratedFirst[C := RightTensor.complex] \as Concentration;
+\module Term(p, q: Nat.Nat^) {
+  \import Modules.Tensor[V := LeftModule.Carrier (Nat.Nat^::succ p), W := Q.family.Carrier q,
+    left := LeftModule.space (Nat.Nat^::succ p), right := Q.family.space q] \as Tensor;
+  \import Modules.End[V := Tensor.Carrier, space := Tensor.space] \as Identity;
+  \import Modules.Hom[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as Maps;
+  \import Tensor.Universal[U := Tensor.Carrier, target := Tensor.space] \as Universal;
+  \definition identityZero: Identity.identity = Maps.zeroMap := Universal.ext Identity.identity Maps.zeroMap
+    (\fun (x: LeftModule.Carrier (Nat.Nat^::succ p))(y: Q.family.Carrier q) =>
+      trans!{Tensor.Carrier} _ _ _
+        (congr!{{LeftModule.Carrier (Nat.Nat^::succ p)} Tensor.Carrier} (\fun (a: LeftModule.Carrier (Nat.Nat^::succ p)) => Tensor.tensor a y) _ _ (LeftModule.Positive[n := p].trivial x))
+        (Tensor.tensorZeroLeft y));
+  \definition trivial: \forall (x: Tensor.Carrier) -> x = #zero{Tensor.space} :=
+    \fun (x: Tensor.Carrier) => congr!{Maps.Map Tensor.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ identityZero;
+}
+\definition vanishes: Concentration.Vanishes := \fun (p, q: Nat.Nat^) => Term[p := q, q := p].trivial;
+\import Doubles.Row[C := RightTensor.complex, p := Nat.Nat^::zero] \as Row;
+\definition forward: Chains.Map[C := RightTotal.complex, D := Row.complex].Map := Concentration.forward vanishes;
+\definition backward: Chains.Map[C := Row.complex, D := RightTotal.complex].Map := Concentration.backward;
+\definition leftInverse: \forall (n: Nat.Nat^)(x: RightTotal.Carrier n) -> #apply{backward} n (#apply{forward} n x) = x :=
+  Concentration.leftInverse vanishes;
+\definition rightInverse: \forall (n: Nat.Nat^)(x: RightTensor.Carrier Nat.Nat^::zero n) -> #apply{forward} n (#apply{backward} n x) = x :=
+  Concentration.rightInverse vanishes;
+\definition coefficient: Modules.Bundle := LeftModule.term Nat.Nat^::zero;
+\import \root.TensorComplex[].Over[R := R, ring := ring] \as TensorComplex;
+\import TensorComplex.On[P := Q, N := coefficient] \as Swapped;
+\import TensorComplex.On[P := Q, N := M] \as Standard;
+\module Swap;
+\import Chains.End[C := Q] \as Identity;
+\import TensorComplex.Mapping[P := Q, Q := Q, N := coefficient, L := M].On[f := Identity.identity, u := LeftModule.augmentation] \as Projection;
+\import TensorComplex.Mapping[P := Q, Q := Q, N := M, L := coefficient].On[f := Identity.identity, u := LeftModule.section] \as Inclusion;
+\import Swap[] \as Symmetry;
+\definition rowForward: Chains.Map[C := Row.complex, D := Standard.complex].Map :=
+  Chains.Map[C := Swapped.complex, D := Standard.complex].Composition[B := Row.complex].compose Projection.map Symmetry.forward;
+\definition rowBackward: Chains.Map[C := Standard.complex, D := Row.complex].Map :=
+  Chains.Map[C := Swapped.complex, D := Row.complex].Composition[B := Standard.complex].compose Symmetry.backward Inclusion.map;
+\definition standardForward: Chains.Map[C := RightTotal.complex, D := Standard.complex].Map :=
+  Chains.Map[C := Row.complex, D := Standard.complex].Composition[B := RightTotal.complex].compose rowForward forward;
+\definition standardBackward: Chains.Map[C := Standard.complex, D := RightTotal.complex].Map :=
+  Chains.Map[C := Row.complex, D := RightTotal.complex].Composition[B := Standard.complex].compose backward rowBackward;
+\module Degree(n: Nat.Nat^) {
+  \import Modules.Tensor[V := Q.family.Carrier n, W := coefficient.Carrier, left := Q.family.space n, right := coefficient.space] \as Before;
+  \import Modules.Tensor[V := Q.family.Carrier n, W := M.Carrier, left := Q.family.space n, right := M.space] \as After;
+  \import Modules.End[V := Q.family.Carrier n, space := Q.family.space n] \as TermIdentity;
+  \import Modules.Isomorphism[V := Q.family.Carrier n, W := Q.family.Carrier n, source := Q.family.space n, target := Q.family.space n] \as TermIso;
+  \definition termIso: TermIso.Isomorphism := TermIso.Isomorphism {
+    forward := TermIdentity.identity, backward := TermIdentity.identity,
+    leftInverse := \fun (x: Q.family.Carrier n) => \refl(x),
+    rightInverse := \fun (x: Q.family.Carrier n) => \refl(x),
+  };
+  \import Modules.Isomorphism[V := coefficient.Carrier, W := M.Carrier, source := coefficient.space, target := M.space] \as CoefficientIso;
+  \definition coefficientIso: CoefficientIso.Isomorphism := CoefficientIso.Isomorphism {
+    forward := LeftModule.augmentation, backward := LeftModule.section,
+    leftInverse := \fun (x: coefficient.Carrier) => \refl(x),
+    rightInverse := \fun (x: M.Carrier) => \refl(x),
+  };
+  \import Before.Mapping[U := Q.family.Carrier n, Z := M.Carrier, targetLeft := Q.family.space n, targetRight := M.space].Isomorphism[
+    leftIso := termIso, rightIso := coefficientIso] \as TensorIso;
+  \definition forward: Modules.Hom[V := Before.Carrier, W := After.Carrier, source := Before.space, target := After.space].Map := Projection.At[n := n].map;
+  \definition backward: Modules.Hom[V := After.Carrier, W := Before.Carrier, source := After.space, target := Before.space].Map := Inclusion.At[n := n].map;
+  \definition leftInverse: \forall (x: Before.Carrier) -> #apply{Inclusion.map} n (#apply{Projection.map} n x) = x := TensorIso.leftInverse;
+  \definition rightInverse: \forall (x: After.Carrier) -> #apply{Projection.map} n (#apply{Inclusion.map} n x) = x := TensorIso.rightInverse;
+}
+\definition rowLeftInverse: \forall (n: Nat.Nat^)(x: RightTensor.Carrier Nat.Nat^::zero n) -> #apply{rowBackward} n (#apply{rowForward} n x) = x :=
+  \fun (n: Nat.Nat^)(x: RightTensor.Carrier Nat.Nat^::zero n) => trans!{{RightTensor.Carrier Nat.Nat^::zero n}} _ _ _
+    (congr!{{Swapped.Carrier n} {RightTensor.Carrier Nat.Nat^::zero n}} (#apply{Symmetry.backward} n) _ _
+      (Degree[n := n].leftInverse (#apply{Symmetry.forward} n x)))
+    (Symmetry.Degree[n := n].leftInverse x);
+\definition rowRightInverse: \forall (n: Nat.Nat^)(x: Standard.Carrier n) -> #apply{rowForward} n (#apply{rowBackward} n x) = x :=
+  \fun (n: Nat.Nat^)(x: Standard.Carrier n) => trans!{{Standard.Carrier n}} _ _ _
+    (congr!{{Swapped.Carrier n} {Standard.Carrier n}} (#apply{Projection.map} n) _ _
+      (Symmetry.Degree[n := n].rightInverse (#apply{Inclusion.map} n x)))
+    (Degree[n := n].rightInverse x);
+\definition standardLeftInverse: \forall (n: Nat.Nat^)(x: RightTotal.Carrier n) -> #apply{standardBackward} n (#apply{standardForward} n x) = x :=
+  \fun (n: Nat.Nat^)(x: RightTotal.Carrier n) => trans!{{RightTotal.Carrier n}} _ _ _
+    (congr!{{RightTensor.Carrier Nat.Nat^::zero n} {RightTotal.Carrier n}} (#apply{backward} n) _ _ (rowLeftInverse n (#apply{forward} n x)))
+    (leftInverse n x);
+\definition standardRightInverse: \forall (n: Nat.Nat^)(x: Standard.Carrier n) -> #apply{standardForward} n (#apply{standardBackward} n x) = x :=
+  \fun (n: Nat.Nat^)(x: Standard.Carrier n) => trans!{{Standard.Carrier n}} _ _ _
+    (congr!{{RightTensor.Carrier Nat.Nat^::zero n} {Standard.Carrier n}} (#apply{rowForward} n) _ _ (rightInverse n (#apply{rowBackward} n x)))
+    (rowRightInverse n x);
+
+\import Chains.Isomorphism[C := RightTotal.complex, D := Standard.complex] \as StandardIso;
+\definition isomorphism: StandardIso.Isomorphism := StandardIso.Isomorphism {
+  forward := standardForward, backward := standardBackward,
+  leftInverse := standardLeftInverse, rightInverse := standardRightInverse,
+};
+\definition chainIsomorphism: StandardIso.Isomorphism := isomorphism;
+\module Homology(n: Nat.Nat^) {
+  \import StandardIso.With[e := chainIsomorphism].At[n := n] \as Induced;
+  \import Chains.Homology[C := RightTotal.complex].At[n := n] \as Source;
+  \import Chains.Homology[C := Standard.complex].At[n := n] \as Target;
+  \definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism := Induced.isomorphism;
+  \definition forward: \forall (x: Source.Carrier) -> #apply{#forward{isomorphism}} x =
+    #apply{(Chains.Map[C := RightTotal.complex, D := Standard.complex].HomologyAt[n := n].induced standardForward)} x :=
+    \fun (x: Source.Carrier) => \refl(#apply{(Chains.Map[C := RightTotal.complex, D := Standard.complex].HomologyAt[n := n].induced standardForward)} x);
+}

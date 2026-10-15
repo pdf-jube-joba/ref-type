@@ -1,0 +1,33 @@
+\structure Data: \Set {
+  cover: Modules.Isomorphism[V := V.Carrier, W := A.Carrier, source := V.space, target := A.space].Isomorphism,
+  total: Modules.MapBetween V W,
+  first: Modules.MapBetween A B,
+  second: Modules.MapBetween C D,
+  leftLower: Modules.MapBetween W B,
+  rightUpper: Modules.MapBetween V C,
+  rightLower: Modules.MapBetween W D,
+  upper: Modules.Isomorphism[V := A.Carrier, W := C.Carrier, source := A.space, target := C.space].Isomorphism,
+  lower: Modules.Isomorphism[V := B.Carrier, W := D.Carrier, source := B.space, target := D.space].Isomorphism,
+}
+\module On(data: Data) {
+  \structure Laws: \Prop {
+    first: \forall (x: V.Carrier) -> #apply{data.first} (#apply{#forward{data.cover}} x) = #apply{data.leftLower} (#apply{data.total} x),
+    second: \forall (x: V.Carrier) -> #apply{data.second} (#apply{data.rightUpper} x) = #apply{data.rightLower} (#apply{data.total} x),
+    upper: \forall (x: V.Carrier) -> #apply{#forward{data.upper}} (#apply{#forward{data.cover}} x) = #apply{data.rightUpper} x,
+    lower: \forall (x: W.Carrier) -> #apply{#forward{data.lower}} (#apply{data.leftLower} x) = #apply{data.rightLower} x,
+  }
+  \definition lift(x: A.Carrier): V.Carrier := #apply{#backward{data.cover}} x;
+  \definition upper: \forall (laws: Laws)(x: A.Carrier) -> #apply{#forward{data.upper}} x = #apply{data.rightUpper} (lift x) :=
+    \fun (laws: Laws)(x: A.Carrier) => trans!{C.Carrier} _ _ _
+      (congr!{A.Carrier C.Carrier} (#apply{#forward{data.upper}}) _ _ (sym!{A.Carrier} _ _ (#rightInverse{data.cover} x))) (#upper{laws} (lift x));
+  \definition naturality: \forall (laws: Laws)(x: A.Carrier) ->
+    #apply{#forward{data.lower}} (#apply{data.first} x) = #apply{data.second} (#apply{#forward{data.upper}} x) :=
+    \fun (laws: Laws)(x: A.Carrier) => sym!{D.Carrier} _ _
+      (trans!{D.Carrier} _ _ _
+        (congr!{C.Carrier D.Carrier} (#apply{data.second}) _ _ (upper laws x))
+        (trans!{D.Carrier} _ _ _ (#second{laws} (lift x))
+          (trans!{D.Carrier} _ _ _ (sym!{D.Carrier} _ _ (#lower{laws} (#apply{data.total} (lift x))))
+            (trans!{D.Carrier} _ _ _
+              (congr!{B.Carrier D.Carrier} (#apply{#forward{data.lower}}) _ _ (sym!{B.Carrier} _ _ (#first{laws} (lift x))))
+              (congr!{A.Carrier D.Carrier} (\fun (y: A.Carrier) => #apply{#forward{data.lower}} (#apply{data.first} y)) _ _ (#rightInverse{data.cover} x))))));
+}

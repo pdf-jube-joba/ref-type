@@ -1,7 +1,4 @@
 //! Human-readable formatting for kernel expressions.
-#[cfg(test)]
-use crate::raw::program::ProgramTerm;
-
 use crate::raw::{
     environment::CrateEnv,
     exp::{Axiom, Exp, ExpContext, ExpNode, Prove},
@@ -572,14 +569,6 @@ impl<'a> Printer<'a> {
         }
     }
 
-    #[cfg(test)]
-    pub fn format_program(&self, program: ProgramTerm) -> String {
-        match program {
-            ProgramTerm::ValueTerm(value) => self.format_value(value),
-            ProgramTerm::ComputationTerm(term) => self.format_computation(term),
-        }
-    }
-
     pub fn format_value(&self, value: ValueTerm) -> String {
         self.bounded_expression(value.0, || self.format_value_inner(value))
     }
@@ -1002,8 +991,4 @@ pub fn format_computation(env: &CrateEnv, value: ComputationTerm) -> String {
 }
 pub fn format_module(env: &CrateEnv, value: crate::raw::ids::ModuleId) -> String {
     Printer::debug(env).format_module(value)
-}
-#[cfg(test)]
-pub fn format_program(env: &CrateEnv, value: ProgramTerm) -> String {
-    Printer::debug(env).format_program(value)
 }
