@@ -20,6 +20,13 @@ pub(crate) struct ModuleGraph<'a> {
 
 impl<'a> ModuleGraph<'a> {
     pub fn new(roots: &'a [Module]) -> Self {
+        let mut graph = Self::structure(roots);
+        graph.populate();
+        graph
+    }
+
+    /// Enumerate source scopes without inspecting expressions or hashing syntax.
+    pub fn structure(roots: &'a [Module]) -> Self {
         let mut graph = Self {
             roots,
             units: Vec::new(),
@@ -29,6 +36,11 @@ impl<'a> ModuleGraph<'a> {
         for root in roots {
             graph.collect(root, &[]);
         }
+        graph
+    }
+
+    fn populate(&mut self) {
+        let graph = self;
         // Header and scope membership changes can affect negative name lookups.
         graph.topology =
             fingerprint(format!("{:?}", graph.indices.keys().collect::<Vec<_>>()).as_bytes());
@@ -51,40 +63,47 @@ impl<'a> ModuleGraph<'a> {
                     dependencies.insert(earlier);
                 }
             }
-            let mut local = format!(
-                "{:?}\n{:?}",
-                module.parameters,
-                module.header_source.as_ref().map(|s| &s.id)
-            );
-            if !module.parameters.is_empty() {
-                local.push_str(&format!("{:?}", module.span));
-            }
-            module.parameters.clone().visit_module_paths(&mut |import| {
+            let mut local = postcard::to_allocvec(&(
+                &module.parameters,
+                module
+                    .header_source
+                    .as_ref()
+                    .map(|s| s.id.0.as_os_str().as_encoded_bytes()),
+                (!module.parameters.is_empty()).then_some(module.span),
+            ))
+            .expect("surface syntax serializes");
+            module.parameters.inspect_module_paths(&mut |import| {
                 graph.include_module_path(import, &path, &visible, &mut dependencies);
             });
             if let ModuleBody::Inline(items) = &module.body {
                 for (item_index, item) in items.iter().enumerate() {
                     if let ModuleItem::ChildModule { module } = item {
-                        local.push_str(&format!(
-                            "\nchild {} {:?}",
-                            module.name.0, module.parameters
-                        ));
+                        local.push(0);
+                        local = postcard::to_extend(&(&module.name, &module.parameters), local)
+                            .expect("child header serializes");
                         continue;
                     }
-                    local.push_str(&format!(
-                        "\n{item:?}\n{:?}\n{:?}",
-                        module.declaration_spans.get(item_index),
-                        module.source.as_ref().map(|s| &s.id)
-                    ));
+                    local.push(1);
+                    local = postcard::to_extend(
+                        &(
+                            item,
+                            module.declaration_spans.get(item_index),
+                            module
+                                .source
+                                .as_ref()
+                                .map(|s| s.id.0.as_os_str().as_encoded_bytes()),
+                        ),
+                        local,
+                    )
+                    .expect("surface declaration serializes");
                     graph.include_imports(item, &path, &mut visible, &mut dependencies);
                 }
             }
             dependencies.remove(&index);
             graph.units[index].dependencies = dependencies;
-            graph.units[index].local_key = fingerprint(local.as_bytes());
+            graph.units[index].local_key = fingerprint(&local);
             aliases.insert(path, visible);
         }
-        graph
     }
 
     fn include_imports(
@@ -101,7 +120,7 @@ impl<'a> ModuleGraph<'a> {
             }
             return;
         }
-        item.clone().visit_module_paths(&mut |import| {
+        item.inspect_module_paths(&mut |import| {
             self.include_module_path(import, path, visible, dependencies);
         });
         if let ModuleItem::Import {

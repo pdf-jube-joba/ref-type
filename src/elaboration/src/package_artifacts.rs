@@ -5,48 +5,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub type ArtifactOwner = [u8; 32];
 
-/// Fixed SHA-256 storage with the original length-prefixed vector wire format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct Label([u8; 32]);
-
-impl serde::Serialize for Label {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serde::Serialize::serialize(self.0.as_slice(), serializer)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for Label {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Visitor;
-        impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = Label;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a 32-byte semantic label")
-            }
-            fn visit_seq<A: serde::de::SeqAccess<'de>>(
-                self,
-                mut sequence: A,
-            ) -> Result<Label, A::Error> {
-                use serde::de::Error;
-                if let Some(length) = sequence.size_hint()
-                    && length != 32
-                {
-                    return Err(A::Error::invalid_length(length, &self));
-                }
-                let mut bytes = [0; 32];
-                for (index, byte) in bytes.iter_mut().enumerate() {
-                    *byte = sequence
-                        .next_element()?
-                        .ok_or_else(|| A::Error::invalid_length(index, &self))?;
-                }
-                if sequence.next_element::<u8>()?.is_some() {
-                    return Err(A::Error::invalid_length(33, &self));
-                }
-                Ok(Label(bytes))
-            }
-        }
-        deserializer.deserialize_seq(Visitor)
-    }
+/// Source allocation ordinals have exact compact identities; structural values
+/// retain full SHA-256 labels. The variant separates the two identity domains.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
+enum Label {
+    Digest([u8; 32]),
+    Resolver { space: u8, ordinal: u64 },
+    BindingSymbol { space: u8, ordinal: u64, index: u32 },
 }
 
 #[derive(
@@ -121,7 +88,7 @@ impl PackageArtifact {
         }
         let (header, _): (ArtifactHeader, _) =
             postcard::take_from_bytes(&self.resolver).map_err(error)?;
-        if header.version != 2 {
+        if header.version != 3 {
             return Err(Error("unsupported resolver artifact version".into()));
         }
         Ok(header)
@@ -321,8 +288,9 @@ impl PackageChecker {
         {
             return Err(Error("package object size limit exceeded".into()));
         }
-        let resolver: ResolverObject = postcard::from_bytes(&package.resolver).map_err(error)?;
-        if resolver.version != 2 {
+        let mut resolver: ResolverObject =
+            postcard::from_bytes(&package.resolver).map_err(error)?;
+        if resolver.version != 3 {
             return Err(Error("unsupported resolver artifact version".into()));
         }
         if resolver.pending != resume {
@@ -333,6 +301,14 @@ impl PackageChecker {
         }
         let mut workspace: crate::elaborator::exports::Export =
             postcard::from_bytes(&package.environment).map_err(error)?;
+        // Owned expression labels are a pure function of the topological graph
+        // and its external references. Reconstruct them instead of persisting a
+        // random 32-byte digest alongside every already stored expression node.
+        identity::restore_expression_references(
+            &workspace.graph,
+            resolver.input,
+            &mut resolver.references,
+        )?;
         let mut relocation = Relocation::default();
         for (space, value) in [
             ("resolve.module", 0),
@@ -592,6 +568,9 @@ impl State<'_> {
         workspace.canonicalize(&source_modules)?;
         let mut header: Vec<_> = references
             .iter()
+            .filter(|(identity, reference)| {
+                identity.space() != "expression" || reference.owner != input
+            })
             .map(|(identity, reference)| {
                 (
                     relocation
@@ -606,7 +585,7 @@ impl State<'_> {
         header.sort_by(|(a, _), (b, _)| a.cmp(b));
         let resolver_bytes = artifact::canonical::to_vec_detailed(
             &ResolverObject {
-                version: 2,
+                version: 3,
                 owner,
                 input,
                 dependencies: exact_dependencies,
@@ -654,33 +633,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fixed_labels_preserve_vector_wire_bytes_and_validate_length() {
-        let bytes: Vec<u8> = (0..32).collect();
-        let label = Label(bytes.clone().try_into().unwrap());
-        let legacy = artifact::canonical::to_vec(&bytes, 100).unwrap();
-        assert_eq!(artifact::canonical::to_vec(&label, 100).unwrap(), legacy);
-        assert_eq!(postcard::from_bytes::<Label>(&legacy).unwrap(), label);
-        #[derive(serde::Serialize)]
-        struct LegacyReference {
-            owner: ArtifactOwner,
-            local: Vec<u8>,
-        }
-        let reference = Reference {
-            owner: [3; 32],
-            local: label,
-        };
-        let previous = LegacyReference {
-            owner: [3; 32],
-            local: bytes,
-        };
-        assert_eq!(
-            artifact::canonical::to_vec(&reference, 100).unwrap(),
-            artifact::canonical::to_vec(&previous, 100).unwrap(),
+    fn compact_references_reconstruct_the_complete_identity_catalog() {
+        let mut checker = PackageChecker::default();
+        let mut catalog = ArtifactCatalog::default();
+        let artifact = export(&mut checker, &mut catalog, A, 1);
+        let resolver: ResolverObject = postcard::from_bytes(&artifact.resolver).unwrap();
+        let workspace: crate::elaborator::exports::Export =
+            postcard::from_bytes(&artifact.environment).unwrap();
+        assert!(!workspace.graph.nodes.is_empty());
+        assert!(
+            resolver
+                .references
+                .iter()
+                .all(|(id, _)| id.space() != "expression")
         );
-        for length in [0, 31, 33] {
-            let invalid = postcard::to_allocvec(&vec![0u8; length]).unwrap();
-            assert!(postcard::from_bytes::<Label>(&invalid).is_err());
-        }
+        let mut references = resolver.references;
+        identity::restore_expression_references(&workspace.graph, resolver.input, &mut references)
+            .unwrap();
+        assert_eq!(
+            references
+                .iter()
+                .map(|(_, reference)| *reference)
+                .collect::<BTreeSet<_>>(),
+            catalog.portable.keys().copied().collect(),
+        );
+        // A duplicate graph entry must not silently change the catalog.
+        let mut graph = workspace.graph;
+        graph.nodes.push(graph.nodes[0].clone());
+        let mut header = references
+            .into_iter()
+            .filter(|(id, _)| id.space() != "expression")
+            .collect();
+        assert!(
+            identity::restore_expression_references(&graph, resolver.input, &mut header).is_err()
+        );
     }
 
     const A: &str = r"\module A {

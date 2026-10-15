@@ -827,14 +827,13 @@ fn read_results(
     if !coverage.iter().all(|path| manifest.coverage.contains(path)) {
         return None;
     }
-    let results: Option<Vec<ModuleResult>> = manifest
+    let objects: Vec<_> = manifest
         .results
         .iter()
         .filter(|(path, _)| coverage.contains(path))
-        .map(|(_, object)| {
-            artifact_store::deserialize(&disk.store().read_object(object).ok()?).ok()
-        })
+        .map(|(_, object)| object)
         .collect();
+    let results: Option<Vec<ModuleResult>> = disk.store().read_values(&objects).ok();
     results.filter(|results| {
         results.len() == coverage.len()
             && results

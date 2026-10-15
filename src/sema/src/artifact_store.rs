@@ -524,12 +524,41 @@ impl ArtifactStore {
         )
     }
     pub fn read_object(&self, object: &ObjectRef) -> Result<Vec<u8>, CacheError> {
+        self.pin_objects(&[object])?;
+        self.read_pinned_object(object)
+    }
+
+    /// Pin a result batch in one atomic lease update. Decode each object before
+    /// reading the next, so batching does not retain all uncompressed buffers.
+    pub(crate) fn read_values<T: DeserializeOwned>(
+        &self,
+        objects: &[&ObjectRef],
+    ) -> Result<Vec<T>, CacheError> {
+        self.pin_objects(objects)?;
+        objects
+            .iter()
+            .map(|object| deserialize(&self.read_pinned_object(object)?))
+            .collect()
+    }
+
+    fn pin_objects(&self, objects: &[&ObjectRef]) -> Result<(), CacheError> {
         self.failure(
             (|| {
-                {
-                    let _lock = self.lock()?;
-                    self.pin(|pins| pins.read_objects.insert(object.digest))?;
-                }
+                let _lock = self.lock()?;
+                self.pin(|pins| {
+                    let before = pins.read_objects.len();
+                    pins.read_objects
+                        .extend(objects.iter().map(|object| object.digest));
+                    pins.read_objects.len() != before
+                })
+            })(),
+            false,
+        )
+    }
+
+    fn read_pinned_object(&self, object: &ObjectRef) -> Result<Vec<u8>, CacheError> {
+        self.failure(
+            (|| {
                 let bytes = read_bounded(
                     &self.object_path(&object.digest),
                     MAX_OBJECT + HEADER as u64,
@@ -1282,6 +1311,31 @@ mod tests {
         assert_eq!(stats.budget_excess_bytes, 0);
         assert!(stats.collected_bytes >= 1024 * 1024);
         assert_eq!(store.list_matching(&record.input).unwrap(), vec![record]);
+    }
+
+    #[test]
+    fn batched_reads_pin_every_object_before_collection() {
+        let directory = Directory::new();
+        let writer = directory.store();
+        let first = writer
+            .write_object(ObjectKind::Result, &serialize(&vec![1u32, 2]).unwrap())
+            .unwrap();
+        let second = writer
+            .write_object(ObjectKind::Result, &serialize(&vec![3u32]).unwrap())
+            .unwrap();
+        let reader = directory.store();
+        let values: Vec<Vec<u32>> = reader.read_values(&[&first, &second]).unwrap();
+        assert_eq!(values, [vec![1, 2], vec![3]]);
+        drop(writer);
+        reader.set_budget(0);
+        reader.collect().unwrap();
+        assert!(reader.object_path(&first.digest).exists());
+        assert!(reader.object_path(&second.digest).exists());
+        assert_eq!(reader.stats().result_hits, 2);
+        reader.release_pins().unwrap();
+        reader.collect().unwrap();
+        assert!(!reader.object_path(&first.digest).exists());
+        assert!(!reader.object_path(&second.digest).exists());
     }
 
     #[test]

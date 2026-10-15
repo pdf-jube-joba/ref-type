@@ -11,7 +11,7 @@ pub(super) fn identity<T: Relocate + Clone>(value: &T) -> Identity {
         .clone()
 }
 fn hash<T: serde::Serialize>(value: &T) -> artifact::Result<Label> {
-    Ok(Label(
+    Ok(Label::Digest(
         Sha256::digest(
             artifact::canonical::to_vec_detailed(value, MAX_PACKAGE_BYTES)
                 .map_err(|error| Error(format!("artifact identity hash serialization: {error}")))?,
@@ -97,7 +97,25 @@ pub(super) fn labels(
     let mut ordinal: BTreeMap<String, u64> = BTreeMap::new();
     for id in resolver.owned_ids() {
         let next = ordinal.entry(id.space().into()).or_default();
-        put!(id.clone(), hash(&(id.space(), *next))?, &mut labels)?;
+        let space = [
+            "resolve.module",
+            "resolve.binding",
+            "resolve.macro",
+            "resolve.expression",
+            "resolve.hygiene",
+            "resolve.declaration",
+        ]
+        .iter()
+        .position(|space| *space == id.space())
+        .expect("resolver identity space") as u8;
+        put!(
+            id.clone(),
+            Label::Resolver {
+                space,
+                ordinal: *next
+            },
+            &mut labels
+        )?;
         *next += 1;
     }
     let mut sources: Vec<_> = workspace.modules.iter().collect();
@@ -149,6 +167,18 @@ pub(super) fn labels(
             )?;
         }
     }
+    // Index symbol metadata once: looking through both tables for each symbol
+    // made package publication quadratic in the number of binders.
+    let mut symbol_bindings = rustc_hash::FxHashMap::default();
+    for (&binding, &symbol) in &workspace.raw.hir_symbols {
+        symbol_bindings.entry(symbol).or_insert(binding);
+    }
+    let mut exported_symbols: rustc_hash::FxHashSet<_> = workspace
+        .raw
+        .symbols
+        .iter()
+        .map(|(symbol, _, _)| *symbol)
+        .collect();
     for id in identities {
         if references.contains_key(id) || builtin(id) {
             continue;
@@ -158,23 +188,27 @@ pub(super) fn labels(
         {
             let symbol = kernel::ids::SymbolId(*value as u32);
             let (name, interned) = environment.crate_env.exported_symbol(symbol);
-            let binding = workspace
-                .raw
-                .hir_symbols
-                .iter()
-                .find(|(_, candidate)| **candidate == symbol)
-                .map(|(binding, _)| *binding);
+            let binding = symbol_bindings.get(&symbol).copied();
             let label = match binding {
-                Some(binding) => structural(&("binding-symbol".to_string(), binding), &labels)?,
+                Some(binding) => match references.get(&identity(&binding)) {
+                    Some(Reference {
+                        owner,
+                        local: Label::Resolver { space, ordinal },
+                    }) if *owner == input => Label::BindingSymbol {
+                        space: *space,
+                        ordinal: *ordinal,
+                        index: if binding.0 & (1 << 63) != 0 {
+                            binding.0 as u32
+                        } else {
+                            0
+                        },
+                    },
+                    _ => structural(&("binding-symbol".to_string(), binding), &labels)?,
+                },
                 None => structural(&name, &labels)?,
             };
             put!(id.clone(), label, &mut labels)?;
-            if !workspace
-                .raw
-                .symbols
-                .iter()
-                .any(|(candidate, _, _)| *candidate == symbol)
-            {
+            if exported_symbols.insert(symbol) {
                 workspace.raw.symbols.push((symbol, name, interned));
             }
         }
@@ -287,4 +321,43 @@ pub(super) fn labels(
         }
     }
     Ok(references)
+}
+
+/// Restore only labels omitted from the resolver header. References to external
+/// expressions stay explicit, so dependency ownership and overlap checks remain
+/// identical to the export path.
+pub(super) fn restore_expression_references(
+    graph: &kernel::exports::ExpressionGraph,
+    input: ArtifactOwner,
+    references: &mut Vec<(Identity, Reference)>,
+) -> artifact::Result<()> {
+    let mut labels = BTreeMap::new();
+    for (id, reference) in references.iter() {
+        if labels.insert(id.clone(), hash(reference)?).is_some() {
+            return Err(Error("duplicate portable identity".into()));
+        }
+    }
+    for (space, value) in [
+        ("resolve.module", 0),
+        ("raw.module", 0),
+        ("raw.remapping", 0),
+        ("raw.remapping.snapshot", 0),
+        ("symbol", 0),
+        ("symbol", 1),
+    ] {
+        let id = Identity::scalar(space, value);
+        labels.insert(id.clone(), hash(&id)?);
+    }
+    for (expression, node) in &graph.nodes {
+        let id = identity_of_expression(*expression);
+        let reference = Reference {
+            owner: input,
+            local: structural(node, &labels)?,
+        };
+        if labels.insert(id.clone(), hash(&reference)?).is_some() {
+            return Err(Error("duplicate owned expression identity".into()));
+        }
+        references.push((id, reference));
+    }
+    Ok(())
 }

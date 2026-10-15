@@ -19,6 +19,9 @@ pub struct CheckOptions {
     pub configuration: String,
     /// Run verification even when a checked result exists (e.g. tracing).
     pub force: bool,
+    /// One-shot checking can rebuild independent prefixes after errors instead
+    /// of serializing recovery environments during every successful check.
+    pub skip_environment_cache: bool,
     /// Recheck entry packages (including workspace members), reusing dependency checkpoints.
     pub force_local: bool,
     /// Select only the named module and its dependencies, excluding unrelated children.
@@ -153,7 +156,7 @@ impl Database {
         snapshot: &SourceSnapshot,
     ) -> Result<Vec<Vec<String>>, Vec<Diagnostic>> {
         let modules = self.parse_project(snapshot)?;
-        Ok(ModuleGraph::new(&modules)
+        Ok(ModuleGraph::structure(&modules)
             .units
             .into_iter()
             .map(|unit| unit.path)
@@ -358,7 +361,7 @@ impl Database {
         let blocked: BTreeSet<_> = requested
             .iter()
             .copied()
-            .filter(|&index| !graph.closure([index]).is_disjoint(&invalid))
+            .filter(|&index| !invalid.is_empty() && !graph.closure([index]).is_disjoint(&invalid))
             .collect();
         let mut diagnostics: Vec<_> = parse_diagnostics
             .into_iter()
@@ -440,6 +443,7 @@ impl Database {
             return result.clone();
         }
         if package_input
+            && !(options.force && self.disk.is_none())
             && (package_info.len() > 1 || requested.len() == graph.units.len())
             && diagnostics.is_empty()
             && !options.collect_statistics
@@ -612,7 +616,7 @@ impl Database {
                         .collect::<BTreeSet<_>>()
                         .difference(&checked)
                         .count();
-                    let checkpoints = if compact
+                    let checkpoints = if (compact || options.skip_environment_cache)
                         && (options.force || options.collect_statistics)
                         && self.disk.is_none()
                     {
