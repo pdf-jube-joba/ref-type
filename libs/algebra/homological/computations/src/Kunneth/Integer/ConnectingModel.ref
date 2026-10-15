@@ -1,0 +1,52 @@
+\import tensor_chains.TensorChain[].Grading[] \as Grading;
+\import \parent.CycleBoundary[C := C] \as Decomposition;
+\import \parent.TensorSequence[C := C, D := D] \as Sequence;
+\import \parent.HomologyDiagonal[C := C, D := D, n := Bounded.previous k] \as Model;
+\import \parent.ZeroTensor[Z := Decomposition.boundariesFamily, D := D].At[n := k] \as Boundaries;
+\import \parent.ZeroTensor[Z := Decomposition.cyclesFamily, D := D].At[n := Bounded.previous k] \as Cycles;
+\definition boundaryProjective: Boundaries.Projective := \fun (p: Degree) => Decomposition.Term[p := p].projective;
+\definition cycleProjective: Cycles.Projective := \fun (p: Degree) => Decomposition.Term[p := p].cyclesProjective;
+\import \parent.ShiftSum[family := Model.source] \as Shift;
+\import Bounded.Of[C := D] \as Right;
+\definition homologyFamily: Chains.Family := Chains.Family {
+  Carrier := \fun (q: Degree) => Chains.At[C := Right.chain, z := q].Homology,
+  space := \fun (q: Degree) => Chains.At[C := Right.chain, z := q].homologySpace,
+};
+\import Chains.FamilyTransport[F := homologyFamily] \as HTransport;
+\import Modules.DirectSum[Index := Degree, family := Boundaries.inputFamily] \as Source;
+\import Modules.DirectSum[Index := Degree, family := Shift.shifted] \as Middle;
+\import Modules.DirectSum[Index := Degree, family := Model.source] \as ModelSource;
+\import Modules.DirectSum[Index := Degree, family := Model.target] \as ModelTarget;
+\import Boundaries.With[projective := boundaryProjective] \as SourceIso;
+\import Cycles.With[projective := cycleProjective] \as TargetIso;
+\import Chains.ShortExact[A := Sequence.left, B := Sequence.middle, C := Sequence.right].At[s := Sequence.sequence, k := k] \as Delta;
+\import Chains.At[C := Sequence.right, z := k] \as RH;
+\import Chains.At[C := Sequence.left, z := Bounded.previous k] \as LH;
+\module Component(p: Degree);
+\definition reindexComponents: \forall (p: Degree) -> Modules.Isomorphism[V := Boundaries.inputFamily.Carrier p,
+  W := Shift.shifted.Carrier p, source := Boundaries.inputFamily.space p, target := Shift.shifted.space p].Isomorphism :=
+  \fun (p: Degree) => Component[p := p].isomorphism;
+\import \parent.SumIsomorphism[Index := Degree, source := Boundaries.inputFamily, target := Shift.shifted, isos := reindexComponents] \as Reindex;
+\import Modules.Isomorphism[V := Source.Carrier, W := Middle.Carrier, source := Source.space, target := Middle.space].Composition[
+  U := ModelSource.Carrier, final := ModelSource.space] \as SourceComposition;
+\definition sourceReindex: Modules.Isomorphism[V := Source.Carrier, W := ModelSource.Carrier,
+  source := Source.space, target := ModelSource.space].Isomorphism := SourceComposition.compose Shift.isomorphism Reindex.isomorphism;
+\definition leftIsomorphism: Modules.Isomorphism[V := ModelTarget.Carrier, W := Chains.At[C := Sequence.left, z := Bounded.previous k].Homology,
+  source := ModelTarget.space, target := Chains.At[C := Sequence.left, z := Bounded.previous k].homologySpace].Isomorphism := Cycles.isomorphism cycleProjective;
+\definition rightIsomorphism: Modules.Isomorphism[V := Source.Carrier, W := Chains.At[C := Sequence.right, z := k].Homology,
+  source := Source.space, target := Chains.At[C := Sequence.right, z := k].homologySpace].Isomorphism := Boundaries.isomorphism boundaryProjective;
+\import Modules.Hom[V := RH.Homology, W := LH.Homology, source := RH.homologySpace, target := LH.homologySpace].Composition[
+  U := Source.Carrier, domain := Source.space] \as After;
+\definition after: Modules.Hom[V := Source.Carrier, W := LH.Homology, source := Source.space, target := LH.homologySpace].Map :=
+  After.compose Delta.connecting #forward{rightIsomorphism};
+\import Modules.Hom[V := ModelSource.Carrier, W := ModelTarget.Carrier, source := ModelSource.space, target := ModelTarget.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as First;
+\definition first: Modules.MapBetween Source.bundle ModelTarget.bundle := First.compose Model.map #forward{sourceReindex};
+\import Modules.Hom[V := ModelTarget.Carrier, W := LH.Homology, source := ModelTarget.space, target := LH.homologySpace].Composition[
+  U := Source.Carrier, domain := Source.space] \as Before;
+\definition before: Modules.Hom[V := Source.Carrier, W := LH.Homology, source := Source.space, target := LH.homologySpace].Map :=
+  Before.compose #forward{leftIsomorphism} first;
+\module Point(p: Degree);
+\import Source.To[W := LH.Homology, target := LH.homologySpace] \as Universal;
+\definition square: after = before := Universal.ext _ _ (\fun (p: Degree) => Point[p := p].square);
+\module Transport;

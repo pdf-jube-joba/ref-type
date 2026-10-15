@@ -1,0 +1,47 @@
+\import Modules.DirectSum[Index := Index, family := source] \as Source;
+\import Modules.DirectSum[Index := Index, family := target] \as Target;
+\import Modules.DirectSumMapping[Index := Index, sourceFamily := source, targetFamily := target] \as ToSmith;
+\definition smithComponents: ToSmith.Components := \fun (p: Index) => #forward{isos p};
+\import ToSmith.On[f := smithComponents] \as SmithForward;
+\import Modules.DirectSumMapping[Index := Index, sourceFamily := target, targetFamily := source] \as FromSmith;
+\definition homologyComponents: FromSmith.Components := \fun (p: Index) => #backward{isos p};
+\import FromSmith.On[f := homologyComponents] \as SmithBackward;
+\import Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as LeftComposition;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Composition[
+  U := Target.Carrier, domain := Target.space] \as RightComposition;
+\import Modules.End[V := Source.Carrier, space := Source.space] \as TensorEnd;
+\import Modules.End[V := Target.Carrier, space := Target.space] \as SmithEnd;
+\import Source.To[W := Source.Carrier, target := Source.space] \as TensorUniversal;
+\import Target.To[W := Target.Carrier, target := Target.space] \as SmithUniversal;
+\definition smithLeft: LeftComposition.compose SmithBackward.map SmithForward.map = TensorEnd.identity :=
+  TensorUniversal.ext _ _ (\fun (p: Index)(x: source.Carrier p) =>
+    trans!{Source.Carrier} _ _ _
+      (congr!{Target.Carrier Source.Carrier} (#apply{SmithBackward.map}) _ _ (SmithForward.onInjection p x))
+      (trans!{Source.Carrier} _ _ _
+        (SmithBackward.onInjection p (#apply{#forward{isos p}} x))
+        (congr!{{source.Carrier p} Source.Carrier} (#apply{Source.Injection[i := p].map}) _ _
+          (#leftInverse{isos p} x))));
+\definition smithRight: RightComposition.compose SmithForward.map SmithBackward.map = SmithEnd.identity :=
+  SmithUniversal.ext _ _ (\fun (p: Index)(x: target.Carrier p) =>
+    trans!{Target.Carrier} _ _ _
+      (congr!{Source.Carrier Target.Carrier} (#apply{SmithForward.map}) _ _ (SmithBackward.onInjection p x))
+      (trans!{Target.Carrier} _ _ _
+        (SmithForward.onInjection p (#apply{#backward{isos p}} x))
+        (congr!{{target.Carrier p} Target.Carrier} (#apply{Target.Injection[i := p].map}) _ _
+          (#rightInverse{isos p} x))));
+\import Modules.Hom[V := Source.Carrier, W := Source.Carrier, source := Source.space, target := Source.space] \as TensorEndMaps;
+\import Modules.Hom[V := Target.Carrier, W := Target.Carrier, source := Target.space, target := Target.space] \as SmithEndMaps;
+\definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier,
+  source := Source.space, target := Target.space].Isomorphism :=
+  Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism {
+    forward := SmithForward.map, backward := SmithBackward.map,
+    leftInverse := \fun (x: Source.Carrier) => congr!{TensorEndMaps.Map Source.Carrier} (\fun (f: TensorEndMaps.Map) => #apply{f} x) _ _ smithLeft,
+    rightInverse := \fun (x: Target.Carrier) => congr!{SmithEndMaps.Map Target.Carrier} (\fun (f: SmithEndMaps.Map) => #apply{f} x) _ _ smithRight,
+  };
+\definition smithOnInjection: \forall (p: Index)(x: source.Carrier p) ->
+  #apply{#forward{isomorphism}} (#apply{Source.Injection[i := p].map} x) =
+  #apply{Target.Injection[i := p].map} (#apply{#forward{isos p}} x) := SmithForward.onInjection;
+\definition onInjection: \forall (p: Index)(x: source.Carrier p) ->
+  #apply{#forward{isomorphism}} (#apply{Source.Injection[i := p].map} x) =
+  #apply{Target.Injection[i := p].map} (#apply{#forward{isos p}} x) := SmithForward.onInjection;

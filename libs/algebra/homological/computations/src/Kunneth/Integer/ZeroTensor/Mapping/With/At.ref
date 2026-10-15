@@ -1,0 +1,24 @@
+\import \parent.\parent.\parent.At[n := n] \as SourceDegree;
+\import Target.At[n := n] \as TargetDegree;
+\import Modules.DirectSum[Index := Degree, family := SourceDegree.inputFamily] \as SourceSum;
+\import Modules.DirectSum[Index := Degree, family := TargetDegree.inputFamily] \as TargetSum;
+\module Component(p: Degree) {
+  \definition q: Degree := Grading.complement n p;
+  \import Chains.At[C := Original.chain, z := q] \as SH;
+  \import Chains.At[C := TargetOriginal.chain, z := q] \as TH;
+  \import RightMaps.At[k := q] \as HMap;
+  \import SourceDegree.Component[p := p] \as SourceComponent;
+  \import TargetDegree.Component[p := p] \as TargetComponent;
+  \import Modules.Tensor[V := Z.Carrier p, W := SH.Homology, left := Z.space p, right := SH.homologySpace].Mapping[
+    U := W.Carrier p, Z := TH.Homology, targetLeft := W.space p, targetRight := TH.homologySpace] \as Mapping;
+  \definition map: Modules.Hom[V := SourceComponent.Carrier, W := TargetComponent.Carrier, source := SourceComponent.space, target := TargetComponent.space].Map := Mapping.map (f p) (HMap.induced g);
+  \definition onTensor: \forall (z: Z.Carrier p)(h: SH.Homology) ->
+    #apply{map} (SourceComponent.tensor z h) = TargetComponent.tensor (#apply{(f p)} z) (#apply{(HMap.induced g)} h) := Mapping.onTensor (f p) (HMap.induced g);
+}
+\import Modules.DirectSumMapping[Index := Degree, sourceFamily := SourceDegree.inputFamily, targetFamily := TargetDegree.inputFamily] \as SumMaps;
+\definition components: SumMaps.Components := \fun (p: Degree) => Component[p := p].map;
+\import SumMaps.On[f := components] \as SumMap;
+\definition diagonal: Modules.Hom[V := SourceSum.Carrier, W := TargetSum.Carrier, source := SourceSum.space, target := TargetSum.space].Map := SumMap.map;
+\import TotalMaps.At[k := n] \as HomologyMap;
+\definition middle: _ := HomologyMap.induced TensorMap.total;
+\module With(sourceProjective: SourceDegree.Projective, targetProjective: TargetDegree.Projective);

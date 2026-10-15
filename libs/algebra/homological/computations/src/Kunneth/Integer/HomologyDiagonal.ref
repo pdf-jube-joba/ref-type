@@ -1,0 +1,44 @@
+\import Bounded.Of[C := C] \as Original;
+\import Bounded.Of[C := D] \as Other;
+\import \parent.CoreTerms[C := C, D := D].At[n := n] \as Terms;
+\module Component(p: Degree);
+\definition source: Modules.Family[Degree] := Modules.Family[Degree] {
+  Carrier := \fun (p: Degree) => Component[p := p].sourceCarrier,
+  space := \fun (p: Degree) => Component[p := p].sourceSpace,
+};
+\definition target: Modules.Family[Degree] := Modules.Family[Degree] {
+  Carrier := \fun (p: Degree) => Component[p := p].targetCarrier,
+  space := \fun (p: Degree) => Component[p := p].targetSpace,
+};
+\definition maps: Modules.DirectSumMapping[Index := Degree, sourceFamily := source, targetFamily := target].Components :=
+  \fun (p: Degree) => Component[p := p].map;
+\import \parent.DiagonalCokernel[Index := Degree, source := source, target := target, maps := maps] \as Cokernel;
+\definition isos: \forall (p: Degree) -> Modules.Isomorphism[V := Cokernel.family.Carrier p, W := Terms.tensorFamily.Carrier p,
+  source := Cokernel.family.space p, target := Terms.tensorFamily.space p].Isomorphism := \fun (p: Degree) => Component[p := p].isomorphism;
+\import \parent.SumIsomorphism[Index := Degree, source := Cokernel.family, target := Terms.tensorFamily, isos := isos] \as Sum;
+\import Modules.DirectSum[Index := Degree, family := Cokernel.family] \as Intermediate;
+\import Modules.Isomorphism[V := Cokernel.bundle.Carrier, W := Intermediate.Carrier,
+  source := Cokernel.bundle.space, target := Intermediate.space].Composition[U := Terms.tensorBundle.Carrier, final := Terms.tensorBundle.space] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := Cokernel.bundle.Carrier, W := Terms.tensorBundle.Carrier,
+  source := Cokernel.bundle.space, target := Terms.tensorBundle.space].Isomorphism := Composition.compose Sum.isomorphism Cokernel.isomorphism;
+\import Modules.DirectSumMapping[Index := Degree, sourceFamily := source, targetFamily := target].On[f := maps] \as Diagonal;
+\import Modules.DirectSum[Index := Degree, family := source] \as SourceSum;
+\import Modules.DirectSum[Index := Degree, family := target] \as TargetSum;
+\definition map: Modules.MapBetween SourceSum.bundle TargetSum.bundle := Diagonal.map;
+\definition onInjection: \forall (p: Degree)(x: source.Carrier p) ->
+  #apply{map} (#apply{SourceSum.Injection[i := p].map} x) =
+  #apply{TargetSum.Injection[i := p].map} (#apply{(maps p)} x) := Diagonal.onInjection;
+\definition tensorBundle: Modules.Bundle := Terms.tensorBundle;
+\definition cokernelBundle: Modules.Bundle := Cokernel.bundle;
+\definition classOf: TargetSum.Carrier -> cokernelBundle.Carrier := Cokernel.classOf;
+\import Modules.DirectSum[Index := Degree, family := Terms.tensorFamily] \as TensorSum;
+\definition onClass: \forall (p: Degree)(x: target.Carrier p) ->
+  #apply{#forward{isomorphism}} (classOf (#apply{TargetSum.Injection[i := p].map} x)) =
+  #apply{TensorSum.Injection[i := p].map} (#apply{Component[p := p].projection} x) :=
+  \fun (p: Degree)(x: target.Carrier p) => trans!{TensorSum.Carrier} _ _ _
+    (congr!{Intermediate.Carrier TensorSum.Carrier} (#apply{#forward{Sum.isomorphism}}) _ _ (Cokernel.onClass (#apply{TargetSum.Injection[i := p].map} x)))
+    (trans!{TensorSum.Carrier} _ _ _
+      (congr!{Intermediate.Carrier TensorSum.Carrier} (#apply{#forward{Sum.isomorphism}}) _ _
+        (Modules.DirectSumMapping[Index := Degree, sourceFamily := target, targetFamily := Cokernel.family].On[f := \fun (r: Degree) => Cokernel.Component[i := r].classLinear].onInjection p x))
+      (trans!{TensorSum.Carrier} _ _ _ (Sum.smithOnInjection p (Cokernel.Component[i := p].classOf x))
+        (congr!{{Terms.tensorFamily.Carrier p} TensorSum.Carrier} (#apply{TensorSum.Injection[i := p].map}) _ _ (Component[p := p].quotientOnClass x))));

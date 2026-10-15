@@ -1,0 +1,29 @@
+\import Bounded.Of[C := C] \as LeftSource;
+\import Bounded.Of[C := D] \as RightSource;
+\import Bounded.Of[C := E] \as LeftTarget;
+\import Bounded.Of[C := F] \as RightTarget;
+\import Tensors.TensorMapping[C := LeftSource.chain, D := LeftTarget.chain, E := RightSource.chain, F := RightTarget.chain].With[
+  f := LeftMaps.chainMap f, g := RightMaps.chainMap g] \as TensorAction;
+\import Chains.Map[C := Source.tensorComplex, D := Target.tensorComplex] \as TotalMaps;
+\module DegreeAt(k: Degree) {
+  \import TotalMaps.At[k := k] \as Induced;
+  \import Chains.At[C := Source.tensorComplex, z := k] \as SH;
+  \import Chains.At[C := Target.tensorComplex, z := k] \as TH;
+  \definition map: Modules.Hom[V := SH.Homology, W := TH.Homology, source := SH.homologySpace, target := TH.homologySpace].Map := Induced.induced TensorAction.total;
+}
+\import Chains.At[C := Source.tensorComplex, z := n] \as SH;
+\import Chains.At[C := Target.tensorComplex, z := n] \as TH;
+\definition homologyMap: Modules.MapBetween SourceTerms.homologyBundle TargetTerms.homologyBundle := DegreeAt[k := n].map;
+\import Modules.Hom[V := SH.Homology, W := TH.Homology, source := SH.homologySpace, target := TH.homologySpace].Composition[
+  U := SourceTerms.tensorBundle.Carrier, domain := SourceTerms.tensorBundle.space] \as After;
+\import Modules.Hom[V := TargetTerms.tensorBundle.Carrier, W := TH.Homology,
+  source := TargetTerms.tensorBundle.space, target := TH.homologySpace].Composition[
+  U := SourceTerms.tensorBundle.Carrier, domain := SourceTerms.tensorBundle.space] \as Before;
+\definition after: Modules.MapBetween SourceTerms.tensorBundle TargetTerms.homologyBundle := After.compose homologyMap SourceTerms.exterior;
+\definition before: Modules.MapBetween SourceTerms.tensorBundle TargetTerms.homologyBundle := Before.compose TargetTerms.exterior (tensorMap f g);
+\import Modules.DirectSum[Index := Degree, family := SourceTerms.tensorFamily] \as SourceTensor;
+\import Modules.DirectSum[Index := Degree, family := TargetTerms.tensorFamily] \as TargetTensor;
+\import TensorMaps.On[f := tensorComponents f g] \as Components;
+\module Point(p: Degree);
+\import SourceTensor.To[W := TH.Homology, target := TH.homologySpace] \as Universal;
+\definition naturality: after = before := Universal.ext after before (\fun (p: Degree) => Point[p := p].equality);

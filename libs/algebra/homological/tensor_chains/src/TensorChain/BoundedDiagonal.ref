@@ -1,0 +1,66 @@
+\import \parent.Grading[] \as Grading;
+\import std.Arithmetic[].Int[] \as Integers;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Arithmetic[].Int[].Math[].Specification[].Prop[] \as IntegerLaws;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import std.Data[].Nat[].Basic[].Prop[] \as Natural;
+\import std.Data[].FinSet[] \as Finite;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Set[].FiniteSubset[A := Degree] \as Sets;
+\import std.Set[].FiniteSubset[A := Grading.Pair] \as Pairs;
+\import Sets.Image[B := Grading.Pair] \as Images;
+\module Interval(b: Nat.Nat^) {
+  \import Finite.Scope[n := Nat.Nat^::succ b] \as Positive;
+  \import Finite.Scope[n := b] \as Negative;
+  \import std.Set[].FiniteSubset[A := Finite.Fin (Nat.Nat^::succ b)].Image[B := Degree] \as PositiveImage;
+  \import std.Set[].FiniteSubset[A := Finite.Fin b].Image[B := Degree] \as NegativeImage;
+  \definition positive(i: Finite.Fin (Nat.Nat^::succ b)): Degree := Integers.Int^::ofNat i;
+  \definition negative(i: Finite.Fin b): Degree := Integers.Int^::negSucc i;
+  \definition values: \Pow Degree := Sets.Union (PositiveImage.Image positive Positive.Whole) (NegativeImage.Image negative Negative.Whole);
+  \definition finite: Sets.Finite values := Sets.finiteUnion _ _
+    (PositiveImage.imageFinite positive Positive.Whole Positive.finiteWhole)
+    (NegativeImage.imageFinite negative Negative.Whole Negative.finiteWhole);
+  \definition contains: \forall (z: Degree) -> Natural.Le (Signed.absolute z) b -> \In[Degree] values z :=
+    \induction (z: Degree) \return Natural.Le (Signed.absolute z) b -> \In[Degree] values z \with {
+      | ofNat: \fun (n: Nat.Nat^)(bound: Natural.Le n b) => Logic.Or[_, _]::left
+        (PositiveImage.member positive Positive.Whole
+          (\into[Nat.Nat^](n, { n: Nat.Nat^ \where Natural.Lt n (Nat.Nat^::succ b) }) \by {
+            Natural.ltOfSuccLe (Nat.Nat^::succ b) n (Natural.leSuccSucc n b bound)
+          }) (\refl(n)))
+      | negSucc: \fun (n: Nat.Nat^)(bound: Natural.Le (Nat.Nat^::succ n) b) => Logic.Or[_, _]::right
+        (NegativeImage.member negative Negative.Whole
+          (\into[Nat.Nat^](n, { n: Nat.Nat^ \where Natural.Lt n b }) \by { Natural.ltOfSuccLe b n bound }) (\refl(n)))
+    };
+}
+\module At(n: Degree, leftBound, rightBound: Nat.Nat^) {
+  \import \parent.Interval[b := leftBound] \as Left;
+  \import \parent.Interval[b := rightBound] \as Right;
+  \definition complement(p: Degree): Degree := Arithmetic.difference n p;
+  \definition pair(p: Degree): Grading.Pair := Grading.Pair { first := p, second := complement p };
+  \definition condition: \Pow Grading.Pair := { i: Grading.Pair \where Logic.And[
+    Grading.add #first{i} #second{i} = n, \In[Degree] Right.values #second{i}] };
+  \definition values: \Pow Grading.Pair := Pairs.Filter (Images.Image pair Left.values) condition;
+  \definition finite: Pairs.Finite values := Pairs.finiteFilter _ _ (Images.imageFinite pair Left.values Left.finite);
+  \definition Index: \Set := \Cast[Grading.Pair] values;
+  \definition laws(i: Index): Logic.And[\In[Grading.Pair] (Images.Image pair Left.values) i, \In[Grading.Pair] condition i] :=
+    \bysub(Grading.Pair, values, i);
+  \definition degree(i: Index): Grading.add #first{i} #second{i} = n := #left{#right{(laws i)}};
+  \definition inclusion(i: Index): Grading.Index n :=
+    \into[Grading.Pair](i, { i: Grading.Pair \where Grading.add #first{i} #second{i} = n }) \by { degree i };
+  \definition complementEqual: \forall (p, q: Degree) -> Grading.add p q = n -> complement p = q :=
+    \fun (p, q: Degree)(closed: Grading.add p q = n) => Arithmetic.cancelLeft p (complement p) q
+      (trans!{Degree} _ _ _ (IntegerLaws.addComm p (complement p))
+        (trans!{Degree} _ _ _ (Arithmetic.addDifference n p) (sym!{Degree} _ _ closed)));
+  \definition includes: \forall (i: Grading.Index n) -> Natural.Le (Signed.absolute #first{i}) leftBound ->
+    Natural.Le (Signed.absolute #second{i}) rightBound -> \In[Grading.Pair] values i :=
+    \fun (i: Grading.Index n)(left: Natural.Le (Signed.absolute #first{i}) leftBound)(right: Natural.Le (Signed.absolute #second{i}) rightBound) =>
+      Logic.And[_, _]::#
+        (\idelim pair #first{i} = i \with j: Grading.Pair => \In[Grading.Pair] (Images.Image pair Left.values) j \by {
+          base: Images.member pair Left.values #first{i} (Left.contains #first{i} left),
+          equality: trans!{Grading.Pair} _ _ _
+            (congr!{Degree Grading.Pair} (\fun (q: Degree) => Grading.Pair { first := #first{i}, second := q }) _ _
+              (complementEqual #first{i} #second{i} (Grading.degree n i)))
+            (Grading.pairRebuild i)
+        })
+        (Logic.And[_, _]::# (Grading.degree n i) (Right.contains #second{i} right));
+}

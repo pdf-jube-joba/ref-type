@@ -1,0 +1,68 @@
+\definition data: Maps.Data := \fun (p, q: Nat.Nat^) => f q p;
+\module Term(p, q: Nat.Nat^) {
+  \import \parent.\parent.\parent.\parent.Sign[V := C.family.Carrier q p, space := C.family.space q p].Mapping[
+    W := D.family.Carrier q p, target := D.family.space q p] \as Naturality;
+  \import \parent.\parent.\parent.\parent.Sign[V := D.family.Carrier q p, space := D.family.space q p] \as Sign;
+  \definition horizontal: \forall (x: C.family.Carrier q (Nat.Nat^::succ p)) ->
+    #apply{(Target.differential.horizontal p q)} (#apply{(data (Nat.Nat^::succ p) q)} x) = #apply{(data p q)} (#apply{(Source.differential.horizontal p q)} x) :=
+    \fun (x: C.family.Carrier q (Nat.Nat^::succ p)) => trans!{{D.family.Carrier q p}} _ _ _
+      (congr!{{D.family.Carrier q p} {D.family.Carrier q p}} (#apply{(Sign.map q)}) _ _ (#vertical{(Original.laws f)} q p x))
+      (sym!{{D.family.Carrier q p}} _ _ (Naturality.naturality (f q p) q (#apply{(C.differential.vertical q p)} x)));
+  \definition vertical: \forall (x: C.family.Carrier (Nat.Nat^::succ q) p) ->
+    #apply{(Target.differential.vertical p q)} (#apply{(data p (Nat.Nat^::succ q))} x) = #apply{(data p q)} (#apply{(Source.differential.vertical p q)} x) :=
+    \fun (x: C.family.Carrier (Nat.Nat^::succ q) p) => trans!{{D.family.Carrier q p}} _ _ _
+      (congr!{{D.family.Carrier q p} {D.family.Carrier q p}} (#apply{(Sign.map p)}) _ _ (#horizontal{(Original.laws f)} q p x))
+      (sym!{{D.family.Carrier q p}} _ _ (Naturality.naturality (f q p) p (#apply{(C.differential.horizontal q p)} x)));
+}
+\definition map: Maps.Map := \into[Maps.Data](data, { d: Maps.Data \where Maps.Laws[d] }) \by {
+  Maps.Laws[data] {
+    horizontal := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].horizontal,
+    vertical := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].vertical,
+  }
+};
+\import Source.Permutation[] \as SourcePermutation;
+\import Target.Permutation[] \as TargetPermutation;
+\import Original.Total[f := f] \as OriginalTotal;
+\import Maps.Total[f := map] \as TransposedTotal;
+\import \parent.\parent.\parent.Total[C := C] \as CTotal;
+\import \parent.\parent.\parent.Total[C := D] \as DTotal;
+\import \parent.\parent.\parent.Total[C := Source.complex] \as ETotal;
+\import \parent.\parent.\parent.Total[C := Target.complex] \as FTotal;
+\module Degree(n: Nat.Nat^) {
+  \import CTotal.Degree[n := n] \as CT;
+  \import DTotal.Degree[n := n] \as DT;
+  \import ETotal.Degree[n := n] \as ET;
+  \import FTotal.Degree[n := n] \as FT;
+  \import SourcePermutation.Degree[n := n] \as CP;
+  \import TargetPermutation.Degree[n := n] \as DP;
+  \import OriginalTotal.Degree[n := n] \as OT;
+  \import TransposedTotal.Degree[n := n] \as TT;
+  \import Modules.Hom[V := DT.Carrier, W := FT.Carrier, source := DT.space, target := FT.space].Composition[U := CT.Carrier, domain := CT.space] \as After;
+  \import Modules.Hom[V := ET.Carrier, W := FT.Carrier, source := ET.space, target := FT.space].Composition[U := CT.Carrier, domain := CT.space] \as Before;
+  \import Modules.Hom[V := CT.Carrier, W := FT.Carrier, source := CT.space, target := FT.space] \as Hom;
+  \definition after: Hom.Map := After.compose DP.forward OT.map;
+  \definition before: Hom.Map := Before.compose TT.map CP.forward;
+  \definition onInjection: \forall (i: Index n)(x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{after} (#apply{(CT.Component[i := i].injection)} x) = #apply{before} (#apply{(CT.Component[i := i].injection)} x) :=
+    \fun (i: Index n)(x: C.family.Carrier #first{i} #second{i}) => trans!{FT.Carrier} _ _ _
+      (congr!{DT.Carrier FT.Carrier} (#apply{DP.forward}) _ _ (OT.onInjection i x))
+      (trans!{FT.Carrier} _ _ _ (DP.onInjection i (#apply{(f #first{i} #second{i})} x))
+        (sym!{FT.Carrier} _ _ (trans!{FT.Carrier} _ _ _
+          (congr!{ET.Carrier FT.Carrier} (#apply{TT.map}) _ _ (CP.onInjection i x))
+          (TT.onInjection (SourcePermutation.index n i) x))));
+  \import Modules.DirectSum[Index := Index n, family := CT.family].To[W := FT.Carrier, target := FT.space] \as Universal;
+  \definition equality: after = before := Universal.ext after before onInjection;
+  \definition naturality: \forall (x: CT.Carrier) ->
+    #apply{TargetPermutation.forward} n (#apply{OriginalTotal.map} n x) =
+    #apply{TransposedTotal.map} n (#apply{SourcePermutation.forward} n x) :=
+    \fun (x: CT.Carrier) => congr!{Hom.Map FT.Carrier} (\fun (g: Hom.Map) => #apply{g} x) _ _ equality;
+  \definition backwardNaturality: \forall (y: ET.Carrier) ->
+    #apply{OriginalTotal.map} n (#apply{SourcePermutation.backward} n y) =
+    #apply{TargetPermutation.backward} n (#apply{TransposedTotal.map} n y) :=
+    \fun (y: ET.Carrier) => trans!{DT.Carrier} _ _ _
+      (sym!{DT.Carrier} _ _ (DP.leftInverse (#apply{OriginalTotal.map} n (#apply{SourcePermutation.backward} n y))))
+      (trans!{DT.Carrier} _ _ _
+        (congr!{FT.Carrier DT.Carrier} (#apply{DP.backward}) _ _ (naturality (#apply{SourcePermutation.backward} n y)))
+        (congr!{ET.Carrier DT.Carrier} (\fun (z: ET.Carrier) => #apply{DP.backward} (#apply{TransposedTotal.map} n z)) _ _ (CP.rightInverse y)));
+
+}

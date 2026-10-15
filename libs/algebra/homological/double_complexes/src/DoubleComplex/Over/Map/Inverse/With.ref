@@ -1,0 +1,57 @@
+\definition inverseLaws: Laws[g] := \bysub(Data, { data: Data \where Laws[data] }, g);
+\import \parent.\parent.\parent.Map[C := D, D := C] \as Reverse;
+\import \root.DoubleComplex[].Over[R := R, ring := ring].Map[C := C, D := D] \as Original;
+\definition forwardLaws: Original.Laws[f] := Original.laws f;
+\module Component(p, q: Nat.Nat^) {
+  \definition horizontal: \forall (y: D.family.Carrier (Nat.Nat^::succ p) q) ->
+    #apply{(C.differential.horizontal p q)} (#apply{(g (Nat.Nat^::succ p) q)} y) =
+      #apply{(g p q)} (#apply{(D.differential.horizontal p q)} y) := \block {
+      \fun (y: D.family.Carrier (Nat.Nat^::succ p) q) \then
+      \let x: C.family.Carrier (Nat.Nat^::succ p) q := #apply{(g (Nat.Nat^::succ p) q)} y \then
+      \let z: C.family.Carrier p q := #apply{(C.differential.horizontal p q)} x \then
+      \return trans!{{C.family.Carrier p q}} _ _ _
+        (sym!{{C.family.Carrier p q}} _ _ (#left{inverseLaws} p q z))
+        (trans!{{C.family.Carrier p q}} _ _ _
+          (congr!{{D.family.Carrier p q} {C.family.Carrier p q}} (#apply{(g p q)}) _ _
+            (sym!{{D.family.Carrier p q}} _ _ (#horizontal{forwardLaws} p q x)))
+          (congr!{{D.family.Carrier (Nat.Nat^::succ p) q} {C.family.Carrier p q}}
+            (\fun (u: D.family.Carrier (Nat.Nat^::succ p) q) => #apply{(g p q)} (#apply{(D.differential.horizontal p q)} u)) _ _
+            (#right{inverseLaws} (Nat.Nat^::succ p) q y)))
+    };
+  \definition vertical: \forall (y: D.family.Carrier p (Nat.Nat^::succ q)) ->
+    #apply{(C.differential.vertical p q)} (#apply{(g p (Nat.Nat^::succ q))} y) =
+      #apply{(g p q)} (#apply{(D.differential.vertical p q)} y) := \block {
+      \fun (y: D.family.Carrier p (Nat.Nat^::succ q)) \then
+      \let x: C.family.Carrier p (Nat.Nat^::succ q) := #apply{(g p (Nat.Nat^::succ q))} y \then
+      \let z: C.family.Carrier p q := #apply{(C.differential.vertical p q)} x \then
+      \return trans!{{C.family.Carrier p q}} _ _ _
+        (sym!{{C.family.Carrier p q}} _ _ (#left{inverseLaws} p q z))
+        (trans!{{C.family.Carrier p q}} _ _ _
+          (congr!{{D.family.Carrier p q} {C.family.Carrier p q}} (#apply{(g p q)}) _ _
+            (sym!{{D.family.Carrier p q}} _ _ (#vertical{forwardLaws} p q x)))
+          (congr!{{D.family.Carrier p (Nat.Nat^::succ q)} {C.family.Carrier p q}}
+            (\fun (u: D.family.Carrier p (Nat.Nat^::succ q)) => #apply{(g p q)} (#apply{(D.differential.vertical p q)} u)) _ _
+            (#right{inverseLaws} p (Nat.Nat^::succ q) y)))
+    };
+}
+\definition backward: Reverse.Map := \into[Reverse.Data](g, { data: Reverse.Data \where Reverse.Laws[data] }) \by {
+  Reverse.Laws[g] {
+    horizontal := \fun (p, q: Nat.Nat^) => Component[p := p, q := q].horizontal,
+    vertical := \fun (p, q: Nat.Nat^) => Component[p := p, q := q].vertical,
+  }
+};
+\import \parent.\parent.Total[f := f] \as F;
+\import Reverse.Total[f := backward] \as G;
+\import \parent.\parent.\parent.Total[C := C] \as Source;
+\import \parent.\parent.\parent.Total[C := D] \as Target;
+\module Degree(n: Nat.Nat^);
+\definition totalForward: Chains.Map[C := Source.complex, D := Target.complex].Map := F.map;
+\definition totalBackward: Chains.Map[C := Target.complex, D := Source.complex].Map := G.map;
+\definition leftInverse: \forall (n: Nat.Nat^)(x: Source.Carrier n) -> #apply{totalBackward} n (#apply{totalForward} n x) = x :=
+  \fun (n: Nat.Nat^) => Degree[n := n].leftInverse;
+\definition rightInverse: \forall (n: Nat.Nat^)(x: Target.Carrier n) -> #apply{totalForward} n (#apply{totalBackward} n x) = x :=
+  \fun (n: Nat.Nat^) => Degree[n := n].rightInverse;
+\definition isomorphism: Chains.Isomorphism[C := Source.complex, D := Target.complex].Isomorphism :=
+  Chains.Isomorphism[C := Source.complex, D := Target.complex].Isomorphism {
+    forward := totalForward, backward := totalBackward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

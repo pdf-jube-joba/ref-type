@@ -1,0 +1,86 @@
+\import Modules.DirectSum[Index := Index, family := source] \as Source;
+\import Modules.DirectSum[Index := Index, family := target] \as Target;
+\import Modules.DirectSumMapping[Index := Index, sourceFamily := source, targetFamily := target].On[f := maps] \as Action;
+\import Modules.Of[V := Source.Carrier, space := Source.space].Submodule[] \as Ambient;
+\import Ambient.Kernel[W := Target.Carrier, target := Target.space] \as Kernels;
+\definition kernel: Ambient.Submodule := Kernels.kernel Action.map;
+\import Ambient.Of[S := kernel] \as Kernel;
+\definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Kernel.Carrier, space := Kernel.moduleSpace };
+\module Component(i: Index);
+\definition family: Modules.Family[Index] := Modules.Family[Index] {
+  Carrier := \fun (i: Index) => Component[i := i].Carrier,
+  space := \fun (i: Index) => Component[i := i].space,
+};
+\import Modules.DirectSum[Index := Index, family := family] \as Sum;
+\import Modules.DirectSumMapping[Index := Index, sourceFamily := family, targetFamily := source] \as Inclusions;
+\definition inclusions: Inclusions.Components := \fun (i: Index) => Component[i := i].inclusion;
+\import Inclusions.On[f := inclusions] \as Inclusion;
+\import Source.FiniteSupport[] \as SourceCoordinates;
+\import Target.FiniteSupport[] \as TargetCoordinates;
+\import Sum.FiniteSupport[] \as Coordinates;
+\import Modules.Product[Index := Index, family := target] \as TargetProduct;
+\definition closed: \forall (x: Sum.Carrier) -> #apply{Action.map} (#apply{Inclusion.map} x) = #zero{Target.space} :=
+  \fun (x: Sum.Carrier) => TargetCoordinates.injective (#apply{Action.map} (#apply{Inclusion.map} x)) #zero{Target.space}
+    (\axiom:funext(TargetCoordinates.coordinates (#apply{Action.map} (#apply{Inclusion.map} x)), TargetCoordinates.coordinates #zero{Target.space},
+      \fun (i: Index) => trans!{{target.Carrier i}} _ _ _ (Action.coordinatesNatural (#apply{Inclusion.map} x) i)
+        (trans!{{target.Carrier i}} _ _ _
+          (congr!{{source.Carrier i} {target.Carrier i}} (#apply{(maps i)}) _ _ (Inclusion.coordinatesNatural x i))
+          (trans!{{target.Carrier i}} _ _ _ (Component[i := i].closed (Coordinates.coordinates x i))
+            (sym!{{target.Carrier i}} _ _ (congr!{TargetProduct.Carrier {target.Carrier i}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero))))));
+\import Modules.Hom[V := Sum.Carrier, W := Kernel.Carrier, source := Sum.space, target := Kernel.moduleSpace] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (x: Sum.Carrier) => \into[Source.Carrier](#apply{Inclusion.map} x, #carrier{kernel}) \by { closed x },
+  addition := #addition{Inclusion.map}, scalar := #scalar{Inclusion.map},
+};
+\definition coordinateClosed: \forall (x: Kernel.Carrier)(i: Index) ->
+  #apply{(maps i)} (SourceCoordinates.coordinates x i) = #zero{(target.space i)} :=
+  \fun (x: Kernel.Carrier)(i: Index) => trans!{{target.Carrier i}} _ _ _
+    (sym!{{target.Carrier i}} _ _ (Action.coordinatesNatural x i))
+    (trans!{{target.Carrier i}} _ _ _
+      (congr!{Target.Carrier {target.Carrier i}} (\fun (v: Target.Carrier) => TargetCoordinates.coordinates v i) _ _
+        (\bysub(Source.Carrier, #carrier{kernel}, x)))
+      (congr!{TargetProduct.Carrier {target.Carrier i}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero));
+\definition coordinates(x: Kernel.Carrier)(i: Index): Component[i := i].Carrier := Component[i := i].make (SourceCoordinates.coordinates x i) (coordinateClosed x i);
+\import Modules.Product[Index := Index, family := family] \as Product;
+\import Modules.Product[Index := Index, family := source] \as SourceProduct;
+\import Modules.FinitelySupported[Index := Index, family := source] \as SourceSupported;
+\import Modules.FinitelySupported[Index := Index, family := family] \as Supported;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\definition finite: \forall (x: Kernel.Carrier) -> Supported.Finite (coordinates x) := \block {
+  \fun (x: Kernel.Carrier) \then
+  \takefrom xs: \Cast[Lists.List[Index]] ({ xs: Lists.List[Index] \where SourceSupported.Supports xs (SourceCoordinates.coordinates x) })
+    \by SourceSupported.finite (#apply{SourceCoordinates.forward} x) \then
+  \let support: SourceSupported.Supports xs (SourceCoordinates.coordinates x) :=
+    \bysub(Lists.List[Index], { xs: Lists.List[Index] \where SourceSupported.Supports xs (SourceCoordinates.coordinates x) }, xs) \then
+  \return Logic.existsIntro[Lists.List[Index], { xs: Lists.List[Index] \where Supported.Supports xs (coordinates x) }] xs
+    (\fun (i: Index)(outside: _) => support i outside)
+};
+\definition supported(x: Kernel.Carrier): Supported.Carrier := \into[Product.Carrier](coordinates x, #carrier{Supported.submodule}) \by { finite x };
+\import Modules.Hom[V := Kernel.Carrier, W := Supported.Carrier, source := Kernel.moduleSpace, target := Supported.space] \as SupportedMaps;
+\definition toSupported: SupportedMaps.Map := SupportedMaps.Map {
+  apply := supported,
+  addition := \fun (x, y: Kernel.Carrier) => \axiom:funext(coordinates (#add{Kernel.moduleSpace} x y), Product.add (coordinates x) (coordinates y),
+    \fun (i: Index) => congr!{SourceProduct.Carrier {source.Carrier i}} (\fun (v: SourceProduct.Carrier) => v i) _ _ (SourceCoordinates.coordinatesAddition x y)),
+  scalar := \fun (a: Integers.Int^)(x: Kernel.Carrier) => \axiom:funext(coordinates (#smul{Kernel.moduleSpace} a x), Product.scale a (coordinates x),
+    \fun (i: Index) => congr!{SourceProduct.Carrier {source.Carrier i}} (\fun (v: SourceProduct.Carrier) => v i) _ _ (SourceCoordinates.coordinatesScalar a x)),
+};
+\import Modules.Hom[V := Supported.Carrier, W := Sum.Carrier, source := Supported.space, target := Sum.space].Composition[
+  U := Kernel.Carrier, domain := Kernel.moduleSpace] \as Backward;
+\definition backward: Modules.Hom[V := Kernel.Carrier, W := Sum.Carrier, source := Kernel.moduleSpace, target := Sum.space].Map :=
+  Backward.compose #backward{Coordinates.isomorphism} toSupported;
+\definition backwardCoordinates: \forall (x: Kernel.Carrier) -> Coordinates.coordinates (#apply{backward} x) = coordinates x :=
+  \fun (x: Kernel.Carrier) => #rightInverse{Coordinates.isomorphism} (supported x);
+\definition leftInverse: \forall (x: Sum.Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: Sum.Carrier) => Coordinates.injective (#apply{backward} (#apply{forward} x)) x
+    (trans!{Product.Carrier} _ _ _ (backwardCoordinates (#apply{forward} x))
+      (\axiom:funext(coordinates (#apply{forward} x), Coordinates.coordinates x, \fun (i: Index) => Inclusion.coordinatesNatural x i)));
+\definition rightInverse: \forall (x: Kernel.Carrier) -> #apply{forward} (#apply{backward} x) = x :=
+  \fun (x: Kernel.Carrier) => SourceCoordinates.injective (#apply{forward} (#apply{backward} x)) x
+    (\axiom:funext(SourceCoordinates.coordinates (#apply{forward} (#apply{backward} x)), SourceCoordinates.coordinates x,
+      \fun (i: Index) => trans!{{source.Carrier i}} _ _ _ (Inclusion.coordinatesNatural (#apply{backward} x) i)
+        (congr!{Product.Carrier {source.Carrier i}} (\fun (v: Product.Carrier) => v i) _ _ (backwardCoordinates x))));
+\definition isomorphism: Modules.Isomorphism[V := Sum.Carrier, W := Kernel.Carrier, source := Sum.space, target := Kernel.moduleSpace].Isomorphism :=
+  Modules.Isomorphism[V := Sum.Carrier, W := Kernel.Carrier, source := Sum.space, target := Kernel.moduleSpace].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

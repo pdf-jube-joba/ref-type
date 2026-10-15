@@ -1,0 +1,61 @@
+\import std.Arithmetic[].Int[] \as Integers;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Arithmetic[].Int[].Math[].Specification[].Prop[] \as Laws;
+\import std.Data[].Nat[].Basic[].Prop[] \as Natural;
+\definition add: Degree -> Degree -> Degree := Arithmetic.add;
+\definition successor: \forall (z: Degree) -> add z Arithmetic.one = next z :=
+  \induction (z: Degree) \return add z Arithmetic.one = next z \with {
+    | ofNat: \fun (n: Nat.Nat^) => \refl(Integers.Int^::ofNat (Nat.Nat^::succ n))
+    | negSucc: \induction (n: Nat.Nat^) \return add (Integers.Int^::negSucc n) Arithmetic.one = next (Integers.Int^::negSucc n) \with {
+      | zero: \refl(Integers.Int^::ofNat Nat.Nat^::zero)
+      | succ: \fun (n: Nat.Nat^)(unused: _) => \refl(Integers.Int^::negSucc n)
+    }
+  };
+\definition nextRight: \forall (p, q: Degree) -> add p (next q) = next (add p q) :=
+  \fun (p, q: Degree) => trans!{Degree} _ _ _
+    (congr!{Degree Degree} (add p) _ _ (sym!{Degree} _ _ (successor q)))
+    (trans!{Degree} _ _ _ (sym!{Degree} _ _ (Laws.addAssoc p q Arithmetic.one)) (successor (add p q)));
+\definition nextLeft: \forall (p, q: Degree) -> add (next p) q = next (add p q) :=
+  \fun (p, q: Degree) => trans!{Degree} _ _ _ (Laws.addComm (next p) q)
+    (trans!{Degree} _ _ _ (nextRight q p) (congr!{Degree Degree} next _ _ (Laws.addComm q p)));
+\definition previousLeft: \forall (p, q: Degree) -> add (previous p) q = previous (add p q) :=
+  \fun (p, q: Degree) => trans!{Degree} _ _ _
+    (sym!{Degree} _ _ (Degrees.previousNext (add (previous p) q)))
+    (congr!{Degree Degree} previous _ _
+      (trans!{Degree} _ _ _ (sym!{Degree} _ _ (nextLeft (previous p) q))
+        (congr!{Degree Degree} (\fun (k: Degree) => add k q) _ _ (Degrees.nextPrevious p))));
+\definition previousRight: \forall (p, q: Degree) -> add p (previous q) = previous (add p q) :=
+  \fun (p, q: Degree) => trans!{Degree} _ _ _ (Laws.addComm p (previous q))
+    (trans!{Degree} _ _ _ (previousLeft q p) (congr!{Degree Degree} previous _ _ (Laws.addComm q p)));
+\structure Pair: \Set { first: Degree, second: Degree }
+\definition Index(n: Degree): \Set := \Cast[Pair] ({ i: Pair \where add #first{i} #second{i} = n });
+\definition degree(n: Degree)(i: Index n): add #first{i} #second{i} = n :=
+  \bysub(Pair, { i: Pair \where add #first{i} #second{i} = n }, i);
+\definition horizontal(n: Degree)(i: Index n): Index (previous n) :=
+  \into[Pair](Pair { first := previous #first{i}, second := #second{i} },
+    { j: Pair \where add #first{j} #second{j} = previous n }) \by {
+      trans!{Degree} _ _ _ (previousLeft #first{i} #second{i}) (congr!{Degree Degree} previous _ _ (degree n i))
+    };
+\definition vertical(n: Degree)(i: Index n): Index (previous n) :=
+  \into[Pair](Pair { first := #first{i}, second := previous #second{i} },
+    { j: Pair \where add #first{j} #second{j} = previous n }) \by {
+      trans!{Degree} _ _ _ (previousRight #first{i} #second{i}) (congr!{Degree Degree} previous _ _ (degree n i))
+    };
+\definition square(n: Degree)(i: Index n):
+  horizontal (previous n) (vertical n i) = vertical (previous n) (horizontal n i) :=
+  \refl(Pair { first := previous #first{i}, second := previous #second{i} });
+\definition pairRebuild: \forall (i: Pair) -> Pair { first := #first{i}, second := #second{i} } = i :=
+  \induction (i: Pair) \return Pair { first := #first{i}, second := #second{i} } = i \with {
+    | # : \fun (p, q: Degree) => \refl(Pair::# p q)
+  };
+\definition complement(n, p: Degree): Degree := Arithmetic.difference n p;
+\definition complementSum: \forall (n, p: Degree) -> add p (complement n p) = n :=
+  \fun (n, p: Degree) => trans!{Degree} _ _ _ (Laws.addComm p (complement n p)) (Arithmetic.addDifference n p);
+\definition complementUnique: \forall (n, p, q: Degree) -> add p q = n -> complement n p = q :=
+  \fun (n, p, q: Degree)(closed: add p q = n) => Arithmetic.cancelLeft p (complement n p) q
+    (trans!{Degree} _ _ _ (complementSum n p) (sym!{Degree} _ _ closed));
+\definition previousComplement: \forall (n, p: Degree) -> complement (previous n) p = previous (complement n p) :=
+  \fun (n, p: Degree) => previousLeft n (Arithmetic.neg p);
+\definition nextComplement: \forall (n, p: Degree) -> complement (next n) p = next (complement n p) :=
+  \fun (n, p: Degree) => nextLeft n (Arithmetic.neg p);

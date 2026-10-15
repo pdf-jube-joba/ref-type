@@ -1,0 +1,27 @@
+\definition degree: Nat.Nat^ := Arithmetic.add a (Nat.Nat^::succ b);
+\definition sourceZero: \forall (n: Nat.Nat^)(same: degree = n)(x: Tensor.Carrier a (Nat.Nat^::succ b)) ->
+  #apply{Source.standardLeft} n (#apply{(Total.Degree[n := n].Component[i := diagonal n a (Nat.Nat^::succ b) same].injection)} x) = #zero{(SourceLeft.space n)} :=
+  \fun (n: Nat.Nat^)(same: degree = n) =>
+    (\idelim degree = n \with k: Nat.Nat^ => \forall (equal: degree = k)(x: Tensor.Carrier a (Nat.Nat^::succ b)) ->
+      #apply{Source.standardLeft} k (#apply{(Total.Degree[n := k].Component[i := diagonal k a (Nat.Nat^::succ b) equal].injection)} x) = #zero{(SourceLeft.space k)} \by {
+        base: \fun (equal: degree = degree) => SourceProjection.Positive[p := a, q := b].zero,
+        equality: same
+      }) same;
+\definition targetZero: \forall (n: Nat.Nat^)(same: degree = n)(x: TargetTensor.Carrier a (Nat.Nat^::succ b)) ->
+  #apply{Target.standardLeft} n (#apply{(TargetTotal.Degree[n := n].Component[i := diagonal n a (Nat.Nat^::succ b) same].injection)} x) = #zero{(TargetLeft.space n)} :=
+  \fun (n: Nat.Nat^)(same: degree = n) =>
+    (\idelim degree = n \with k: Nat.Nat^ => \forall (equal: degree = k)(x: TargetTensor.Carrier a (Nat.Nat^::succ b)) ->
+      #apply{Target.standardLeft} k (#apply{(TargetTotal.Degree[n := k].Component[i := diagonal k a (Nat.Nat^::succ b) equal].injection)} x) = #zero{(TargetLeft.space k)} \by {
+        base: \fun (equal: degree = degree) => TargetProjection.Positive[p := a, q := b].zero,
+        equality: same
+      }) same;
+\definition point: \forall (n: Nat.Nat^)(same: degree = n)(x: Tensor.Carrier a (Nat.Nat^::succ b)) ->
+  #apply{after} n (#apply{(Total.Degree[n := n].Component[i := diagonal n a (Nat.Nat^::succ b) same].injection)} x) =
+  #apply{before} n (#apply{(Total.Degree[n := n].Component[i := diagonal n a (Nat.Nat^::succ b) same].injection)} x) :=
+  \fun (n: Nat.Nat^)(same: degree = n)(x: Tensor.Carrier a (Nat.Nat^::succ b)) => trans!{{TargetLeft.Carrier n}} _ _ _
+    (trans!{{TargetLeft.Carrier n}} _ _ _
+      (congr!{{TargetTotal.Carrier n} {TargetLeft.Carrier n}} (#apply{Target.standardLeft} n) _ _ (TotalMap.Degree[n := n].onInjection (diagonal n a (Nat.Nat^::succ b) same) x))
+      (targetZero n same (#apply{(Mapping.Degree[p := a, q := Nat.Nat^::succ b].map)} x)))
+    (sym!{{TargetLeft.Carrier n}} _ _ (trans!{{TargetLeft.Carrier n}} _ _ _
+      (congr!{{SourceLeft.Carrier n} {TargetLeft.Carrier n}} (#apply{LeftAction.map} n) _ _ (sourceZero n same x))
+      (Chains.Map[C := SourceLeft.complex, D := TargetLeft.complex].At[n := n].zeroPreserved LeftAction.map)));

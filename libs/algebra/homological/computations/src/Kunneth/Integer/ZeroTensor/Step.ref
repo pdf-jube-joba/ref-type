@@ -1,0 +1,25 @@
+\import Sum.Term[z := n] \as Source;
+\import Sum.Term[z := Bounded.previous n] \as SourceAfter;
+\import Total.Term[n := n] \as Target;
+\import Total.Term[n := Bounded.previous n] \as TargetAfter;
+\import \parent.Term[n := n] \as Current;
+\import \parent.Term[n := Bounded.previous n] \as After;
+\import Sum.Step[z := n] \as SourceStep;
+\import Total.Step[n := n] \as TargetStep;
+\module Component(p: Degree);
+\import Modules.Hom[V := Target.Carrier, W := TargetAfter.Carrier, source := Target.space, target := TargetAfter.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as ForwardAfter;
+\import Modules.Hom[V := SourceAfter.Carrier, W := TargetAfter.Carrier, source := SourceAfter.space, target := TargetAfter.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as ForwardBefore;
+\import Modules.DirectSum[Index := Degree, family := Source.family].To[W := TargetAfter.Carrier, target := TargetAfter.space] \as Universal;
+\definition equality: ForwardAfter.compose TargetStep.differential Current.forward = ForwardBefore.compose After.forward SourceStep.map :=
+  Universal.ext _ _ (\fun (p: Degree) => Component[p := p].commutes);
+\definition forward: \forall (x: Source.Carrier) -> #apply{TargetStep.differential} (#apply{Current.forward} x) = #apply{After.forward} (#apply{SourceStep.map} x) :=
+  \fun (x: Source.Carrier) => congr!{{Modules.Hom[V := Source.Carrier, W := TargetAfter.Carrier, source := Source.space, target := TargetAfter.space].Map} TargetAfter.Carrier}
+    (\fun (f: Modules.Hom[V := Source.Carrier, W := TargetAfter.Carrier, source := Source.space, target := TargetAfter.space].Map) => #apply{f} x) _ _ equality;
+\definition backward: \forall (x: Target.Carrier) -> #apply{SourceStep.map} (#apply{Current.backward} x) = #apply{After.backward} (#apply{TargetStep.differential} x) :=
+  \fun (x: Target.Carrier) => trans!{SourceAfter.Carrier} _ _ _
+    (sym!{SourceAfter.Carrier} _ _ (After.leftInverse (#apply{SourceStep.map} (#apply{Current.backward} x))))
+    (congr!{TargetAfter.Carrier SourceAfter.Carrier} (#apply{After.backward}) _ _
+      (trans!{TargetAfter.Carrier} _ _ _ (sym!{TargetAfter.Carrier} _ _ (forward (#apply{Current.backward} x)))
+        (congr!{Target.Carrier TargetAfter.Carrier} (#apply{TargetStep.differential}) _ _ (Current.rightInverse x))));

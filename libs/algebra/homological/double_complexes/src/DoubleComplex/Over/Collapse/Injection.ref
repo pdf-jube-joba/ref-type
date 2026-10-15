@@ -1,0 +1,82 @@
+\definition n: Nat.Nat^ := Arithmetic.add p q;
+\import Coordinates.Step[p := p, q := q] \as Step;
+\import Coordinates.Degree[n := n] \as Current;
+\import Coordinates.Degree[n := Nat.Nat^::succ n] \as Source;
+\import Total.Degree[n := Nat.Nat^::succ n] \as SourceTerm;
+\import \parent.Vertical[p := p, q := q] \as Vertical;
+\import \parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as TargetSign;
+\import \parent.\parent.Sign[V := C.family.Carrier p (Nat.Nat^::succ q), space := C.family.space p (Nat.Nat^::succ q)] \as Sign;
+\definition element(y: C.family.Carrier p (Nat.Nat^::succ q)): Total.Carrier (Nat.Nat^::succ n) :=
+  #apply{(SourceTerm.Component[i := Step.verticalIndex].injection)} (#apply{(Sign.map p)} y);
+\definition boundary(y: C.family.Carrier p (Nat.Nat^::succ q)): Total.Carrier n :=
+  #apply{Total.differential} n (element y);
+\definition firstDifferent: Logic.Not (Step.verticalIndex = Step.horizontalIndex) :=
+  \fun (equal: Step.verticalIndex = Step.horizontalIndex) =>
+    (Natural.ltNe p (Nat.Nat^::succ p) (Natural.ltOfSuccLe (Nat.Nat^::succ p) p (Natural.leRefl (Nat.Nat^::succ p))))
+      (congr!{Pair Nat.Nat^} (\fun (i: Pair) => #first{i}) _ _ equal);
+\import Modules.Hom[V := C.family.Carrier (Nat.Nat^::succ p) q, W := C.family.Carrier p q, source := C.family.space (Nat.Nat^::succ p) q, target := C.family.space p q] \as Horizontal;
+\import Modules.Laws[V := C.family.Carrier p q, space := C.family.space p q] \as Vectors;
+\import algebra.Group[].Of[Carrier := C.family.Carrier p q, group := Vectors.additive] \as Group;
+\definition atTop: \forall (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
+  #apply{(C.differential.vertical p q)} y = x -> Current.coordinate Step.targetIndex (boundary y) = x :=
+  \fun (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q))(preimage: _) =>
+    trans!{{C.family.Carrier p q}} _ _ _ (Step.differential (element y))
+      (trans!{{C.family.Carrier p q}} _ _ _
+        (congr2!{{C.family.Carrier p q} {C.family.Carrier p q} {C.family.Carrier p q}} (#add{(C.family.space p q)}) _ _ _ _
+          (trans!{{C.family.Carrier p q}} _ _ _
+            (congr!{{C.family.Carrier (Nat.Nat^::succ p) q} {C.family.Carrier p q}} (#apply{(C.differential.horizontal p q)}) _ _
+              (Source.other Step.verticalIndex Step.horizontalIndex (#apply{(Sign.map p)} y) firstDifferent))
+            (Horizontal.zeroPreserved (C.differential.horizontal p q)))
+          (trans!{{C.family.Carrier p q}} _ _ _
+            (congr!{{C.family.Carrier p (Nat.Nat^::succ q)} {C.family.Carrier p q}}
+              (\fun (a: C.family.Carrier p (Nat.Nat^::succ q)) =>
+                #apply{(TargetSign.map p)} (#apply{(C.differential.vertical p q)} a)) _ _
+              (Source.own Step.verticalIndex (#apply{(Sign.map p)} y)))
+            (Vertical.signedPreimage x y preimage)))
+        (Group.zeroLeft x));
+\module At(i: Index n) {
+  \import Coordinates.StepAt[n := n, i := i] \as Differential;
+  \import \parent.\parent.\parent.Sign[V := C.family.Carrier #first{i} #second{i}, space := C.family.space #first{i} #second{i}] \as TargetSign;
+  \import Modules.Hom[V := C.family.Carrier (Nat.Nat^::succ #first{i}) #second{i}, W := C.family.Carrier #first{i} #second{i},
+    source := C.family.space (Nat.Nat^::succ #first{i}) #second{i}, target := C.family.space #first{i} #second{i}] \as Horizontal;
+  \import Modules.Hom[V := C.family.Carrier #first{i} (Nat.Nat^::succ #second{i}), W := C.family.Carrier #first{i} #second{i},
+    source := C.family.space #first{i} (Nat.Nat^::succ #second{i}), target := C.family.space #first{i} #second{i}] \as Vertical;
+  \import Modules.Hom[V := C.family.Carrier #first{i} #second{i}, W := C.family.Carrier #first{i} #second{i},
+    source := C.family.space #first{i} #second{i}, target := C.family.space #first{i} #second{i}] \as Signed;
+  \import Modules.Laws[V := C.family.Carrier #first{i} #second{i}, space := C.family.space #first{i} #second{i}] \as Vectors;
+  \import algebra.Group[].Of[Carrier := C.family.Carrier #first{i} #second{i}, group := Vectors.additive] \as Group;
+  \definition differentVertical: Natural.Le (Nat.Nat^::succ p) #first{i} -> Logic.Not (Step.verticalIndex = Differential.verticalIndex) :=
+    \fun (above: Natural.Le (Nat.Nat^::succ p) #first{i})(equal: Step.verticalIndex = Differential.verticalIndex) =>
+      (Natural.ltNe p #first{i} (Natural.ltOfSuccLe #first{i} p above))
+        (congr!{Pair Nat.Nat^} (\fun (i: Pair) => #first{i}) _ _ equal);
+  \definition differentHorizontal: Natural.Le (Nat.Nat^::succ p) #first{i} -> Logic.Not (Step.verticalIndex = Differential.horizontalIndex) :=
+    \fun (above: Natural.Le (Nat.Nat^::succ p) #first{i})(equal: Step.verticalIndex = Differential.horizontalIndex) =>
+      (Natural.ltNe p (Nat.Nat^::succ #first{i})
+        (Natural.ltLeTrans p #first{i} (Nat.Nat^::succ #first{i})
+          (Natural.ltOfSuccLe #first{i} p above) (Natural.leSelfSucc #first{i})))
+        (congr!{Pair Nat.Nat^} (\fun (i: Pair) => #first{i}) _ _ equal);
+  \definition zero: \forall (y: C.family.Carrier p (Nat.Nat^::succ q)) -> Natural.Le (Nat.Nat^::succ p) #first{i} ->
+    Current.coordinate i (boundary y) = #zero{(C.family.space #first{i} #second{i})} :=
+    \fun (y: C.family.Carrier p (Nat.Nat^::succ q))(above: Natural.Le (Nat.Nat^::succ p) #first{i}) =>
+      trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _ (Differential.differential (element y))
+        (trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+          (congr2!{{C.family.Carrier #first{i} #second{i}} {C.family.Carrier #first{i} #second{i}} {C.family.Carrier #first{i} #second{i}}}
+            (#add{(C.family.space #first{i} #second{i})}) _ _ _ _
+            (trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+              (congr!{{C.family.Carrier (Nat.Nat^::succ #first{i}) #second{i}} {C.family.Carrier #first{i} #second{i}}}
+                (#apply{(C.differential.horizontal #first{i} #second{i})}) _ _
+                (Source.other Step.verticalIndex Differential.horizontalIndex (#apply{(Sign.map p)} y) (differentHorizontal above)))
+              (Horizontal.zeroPreserved (C.differential.horizontal #first{i} #second{i})))
+            (trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+              (congr!{{C.family.Carrier #first{i} (Nat.Nat^::succ #second{i})} {C.family.Carrier #first{i} #second{i}}}
+                (\fun (a: C.family.Carrier #first{i} (Nat.Nat^::succ #second{i})) =>
+                  #apply{(TargetSign.map #first{i})} (#apply{(C.differential.vertical #first{i} #second{i})} a)) _ _
+                (Source.other Step.verticalIndex Differential.verticalIndex (#apply{(Sign.map p)} y) (differentVertical above)))
+              (trans!{{C.family.Carrier #first{i} #second{i}}} _ _ _
+                (congr!{{C.family.Carrier #first{i} #second{i}} {C.family.Carrier #first{i} #second{i}}} (#apply{(TargetSign.map #first{i})}) _ _
+                  (Vertical.zeroPreserved (C.differential.vertical #first{i} #second{i})))
+                (Signed.zeroPreserved (TargetSign.map #first{i})))))
+          (Group.zeroLeft #zero{(C.family.space #first{i} #second{i})}));
+}
+\definition above: \forall (y: C.family.Carrier p (Nat.Nat^::succ q)) -> Above n (Nat.Nat^::succ p) (boundary y) :=
+  \fun (y: C.family.Carrier p (Nat.Nat^::succ q))(i: Index n) => At[i := i].zero y;

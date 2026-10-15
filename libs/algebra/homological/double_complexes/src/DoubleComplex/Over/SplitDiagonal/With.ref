@@ -1,0 +1,79 @@
+\structure Laws: \Prop {
+  retracts: \forall (j: Index)(x: left.Carrier j) -> #apply{(r j)} (#apply{(i j)} x) = x,
+  section: \forall (j: Index)(x: right.Carrier j) -> #apply{(p j)} (#apply{(s j)} x) = x,
+  zero: \forall (j: Index)(x: left.Carrier j) -> #apply{(p j)} (#apply{(i j)} x) = #zero{(right.space j)},
+  decomposition: \forall (j: Index)(x: middle.Carrier j) ->
+    #add{(middle.space j)} (#apply{(i j)} (#apply{(r j)} x)) (#apply{(s j)} (#apply{(p j)} x)) = x,
+}
+\import Inclusions.On[f := i] \as Inclusion;
+\import Projections.On[f := p] \as Projection;
+\import Retractions.On[f := r] \as Retraction;
+\import Sections.On[f := s] \as Section;
+\definition inclusion: Modules.MapBetween Left.bundle Middle.bundle := Inclusion.map;
+\definition projection: Modules.MapBetween Middle.bundle Right.bundle := Projection.map;
+\definition retraction: Modules.MapBetween Middle.bundle Left.bundle := Retraction.map;
+\definition section: Modules.MapBetween Right.bundle Middle.bundle := Section.map;
+\import Left.FiniteSupport[] \as L;
+\import Middle.FiniteSupport[] \as M;
+\import Right.FiniteSupport[] \as Q;
+\definition retracts: Laws -> \forall (x: Left.Carrier) -> #apply{retraction} (#apply{inclusion} x) = x :=
+  \fun (laws: Laws)(x: Left.Carrier) => L.injective (#apply{retraction} (#apply{inclusion} x)) x (\axiom:funext(L.coordinates (#apply{retraction} (#apply{inclusion} x)), L.coordinates x, \fun (j: Index) =>
+    trans!{{left.Carrier j}} _ _ _ (Retraction.coordinatesNatural (#apply{inclusion} x) j)
+      (trans!{{left.Carrier j}} _ _ _
+        (congr!{{middle.Carrier j} {left.Carrier j}} (#apply{(r j)}) _ _ (Inclusion.coordinatesNatural x j))
+        (#retracts{laws} j (L.coordinates x j)))));
+\definition sectionLaw: Laws -> \forall (x: Right.Carrier) -> #apply{projection} (#apply{section} x) = x :=
+  \fun (laws: Laws)(x: Right.Carrier) => Q.injective (#apply{projection} (#apply{section} x)) x (\axiom:funext(Q.coordinates (#apply{projection} (#apply{section} x)), Q.coordinates x, \fun (j: Index) =>
+    trans!{{right.Carrier j}} _ _ _ (Projection.coordinatesNatural (#apply{section} x) j)
+      (trans!{{right.Carrier j}} _ _ _
+        (congr!{{middle.Carrier j} {right.Carrier j}} (#apply{(p j)}) _ _ (Section.coordinatesNatural x j))
+        (#section{laws} j (Q.coordinates x j)))));
+\import Modules.Product[Index := Index, family := right] \as RightProduct;
+\definition zero: Laws -> \forall (x: Left.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{Right.space} :=
+  \fun (laws: Laws)(x: Left.Carrier) => Q.injective (#apply{projection} (#apply{inclusion} x)) #zero{Right.space} (\axiom:funext(Q.coordinates (#apply{projection} (#apply{inclusion} x)), Q.coordinates #zero{Right.space}, \fun (j: Index) =>
+    trans!{{right.Carrier j}} _ _ _ (Projection.coordinatesNatural (#apply{inclusion} x) j)
+      (trans!{{right.Carrier j}} _ _ _
+        (congr!{{middle.Carrier j} {right.Carrier j}} (#apply{(p j)}) _ _ (Inclusion.coordinatesNatural x j))
+        (trans!{{right.Carrier j}} _ _ _ (#zero{laws} j (L.coordinates x j))
+          (sym!{{right.Carrier j}} _ _ (congr!{RightProduct.Carrier {right.Carrier j}} (\fun (v: RightProduct.Carrier) => v j) _ _ Q.coordinatesZero))))));
+\import Modules.Product[Index := Index, family := middle] \as MiddleProduct;
+\definition decomposition: Laws -> \forall (x: Middle.Carrier) ->
+  #add{Middle.space} (#apply{inclusion} (#apply{retraction} x)) (#apply{section} (#apply{projection} x)) = x :=
+  \fun (laws: Laws)(x: Middle.Carrier) => M.injective (#add{Middle.space} (#apply{inclusion} (#apply{retraction} x)) (#apply{section} (#apply{projection} x))) x (\axiom:funext(M.coordinates (#add{Middle.space} (#apply{inclusion} (#apply{retraction} x)) (#apply{section} (#apply{projection} x))), M.coordinates x, \fun (j: Index) =>
+    trans!{{middle.Carrier j}} _ _ _
+      (congr!{MiddleProduct.Carrier {middle.Carrier j}} (\fun (v: MiddleProduct.Carrier) => v j) _ _
+        (M.coordinatesAddition (#apply{inclusion} (#apply{retraction} x)) (#apply{section} (#apply{projection} x))))
+      (trans!{{middle.Carrier j}} _ _ _
+        (congr2!{{middle.Carrier j} {middle.Carrier j} {middle.Carrier j}} (#add{(middle.space j)}) _ _ _ _
+          (trans!{{middle.Carrier j}} _ _ _ (Inclusion.coordinatesNatural (#apply{retraction} x) j)
+            (congr!{{left.Carrier j} {middle.Carrier j}} (#apply{(i j)}) _ _ (Retraction.coordinatesNatural x j)))
+          (trans!{{middle.Carrier j}} _ _ _ (Section.coordinatesNatural (#apply{projection} x) j)
+            (congr!{{right.Carrier j} {middle.Carrier j}} (#apply{(s j)}) _ _ (Projection.coordinatesNatural x j))))
+        (#decomposition{laws} j (M.coordinates x j)))));
+\definition injective: Laws -> Modules.Injective Left.bundle Middle.bundle inclusion :=
+  \fun (laws: Laws)(x, y: Left.Carrier)(equal: #apply{inclusion} x = #apply{inclusion} y) =>
+    trans!{Left.Carrier} _ _ _ (sym!{Left.Carrier} _ _ (retracts laws x))
+      (trans!{Left.Carrier} _ _ _ (congr!{Middle.Carrier Left.Carrier} (#apply{retraction}) _ _ equal) (retracts laws y));
+\import std.Logic[].Proposition[] \as Existential;
+\definition onto: Laws -> Modules.Surjective Middle.bundle Right.bundle projection :=
+  \fun (laws: Laws)(x: Right.Carrier) => Existential.existsIntro[Middle.Carrier,
+    { y: Middle.Carrier \where #apply{projection} y = x }] (#apply{section} x) (sectionLaw laws x);
+\import Modules.Hom[V := Right.Carrier, W := Middle.Carrier, source := Right.space, target := Middle.space] \as SectionMaps;
+\import Modules.Laws[V := Middle.Carrier, space := Middle.space] \as MiddleLaws;
+\import algebra.Group[].Of[Carrier := Middle.Carrier, group := MiddleLaws.additive] \as MiddleGroup;
+\definition kernelImage: Laws -> \forall (x: Middle.Carrier) -> #apply{projection} x = #zero{Right.space} ->
+  \exists { y: Left.Carrier \where #apply{inclusion} y = x } :=
+  \fun (laws: Laws)(x: Middle.Carrier)(closed: #apply{projection} x = #zero{Right.space}) =>
+    Existential.existsIntro[Left.Carrier, { y: Left.Carrier \where #apply{inclusion} y = x }] (#apply{retraction} x)
+      (trans!{Middle.Carrier} _ _ _
+        (sym!{Middle.Carrier} _ _ (MiddleGroup.zeroRight (#apply{inclusion} (#apply{retraction} x))))
+        (trans!{Middle.Carrier} _ _ _
+          (congr!{Middle.Carrier Middle.Carrier} (#add{Middle.space} (#apply{inclusion} (#apply{retraction} x))) _ _
+            (sym!{Middle.Carrier} _ _ (trans!{Middle.Carrier} _ _ _
+              (congr!{Right.Carrier Middle.Carrier} (#apply{section}) _ _ closed) (SectionMaps.zeroPreserved section))))
+          (decomposition laws x)));
+\import Modules.ShortExact[A := Left.bundle, B := Middle.bundle, C := Right.bundle] \as Short;
+\definition sequence(laws: Laws): Short.Sequence := Short.Sequence {
+  inclusion := inclusion, projection := projection, injective := injective laws,
+  onto := onto laws, zero := zero laws, kernelImage := kernelImage laws,
+};

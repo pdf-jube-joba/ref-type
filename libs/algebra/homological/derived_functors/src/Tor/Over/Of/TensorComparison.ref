@@ -1,0 +1,29 @@
+\import Chains.Isomorphism[C := Tensor.complex, D := tensorComplex] \as Isomorphisms;
+\definition forward: Chains.Map[C := Tensor.complex, D := tensorComplex].Map := Chains.Map[C := Tensor.complex, D := tensorComplex].Map {
+  apply := \fun (n: Nat.Nat^)(x: Tensor.Carrier n) => x,
+  addition := \fun (n: Nat.Nat^)(x, y: Tensor.Carrier n) => \refl(#add{(tensorSpace n)} x y),
+  scalar := \fun (n: Nat.Nat^)(a: R)(x: Tensor.Carrier n) => \refl(#smul{(tensorSpace n)} a x),
+  commutes := \fun (n: Nat.Nat^)(x: Tensor.Carrier (Nat.Nat^::succ n)) => \refl(#apply{tensorDifferential} n x),
+};
+\definition backward: Chains.Map[C := tensorComplex, D := Tensor.complex].Map := Chains.Map[C := tensorComplex, D := Tensor.complex].Map {
+  apply := \fun (n: Nat.Nat^)(x: tensorCarrier n) => x,
+  addition := \fun (n: Nat.Nat^)(x, y: tensorCarrier n) => \refl(#add{(tensorSpace n)} x y),
+  scalar := \fun (n: Nat.Nat^)(a: R)(x: tensorCarrier n) => \refl(#smul{(tensorSpace n)} a x),
+  commutes := \fun (n: Nat.Nat^)(x: tensorCarrier (Nat.Nat^::succ n)) => \refl(#apply{tensorDifferential} n x),
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (n: Nat.Nat^)(x: Tensor.Carrier n) => \refl(x),
+  rightInverse := \fun (n: Nat.Nat^)(x: tensorCarrier n) => \refl(x),
+};
+\definition chainIsomorphism: Isomorphisms.Isomorphism := isomorphism;
+\definition chainForward: Chains.Map[C := Tensor.complex, D := tensorComplex].Map := forward;
+\module At(n: Nat.Nat^) {
+  \import Isomorphisms.With[e := chainIsomorphism].At[n := n] \as Induced;
+  \import Chains.Homology[C := Tensor.complex].At[n := n] \as Source;
+  \import \parent.\parent.At[n := n] \as Target;
+  \definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism := Induced.isomorphism;
+  \definition forward: \forall (x: Source.Carrier) -> #apply{#forward{isomorphism}} x =
+    #apply{(Chains.Map[C := Tensor.complex, D := tensorComplex].HomologyAt[n := n].induced chainForward)} x :=
+    \fun (x: Source.Carrier) => \refl(#apply{(Chains.Map[C := Tensor.complex, D := tensorComplex].HomologyAt[n := n].induced chainForward)} x);
+}

@@ -1,0 +1,28 @@
+\import Modules.Tensor[V := Line.Carrier, W := N.Carrier, left := Line.space, right := N.space] \as Tensor;
+\definition value: Line.Carrier -> N.Carrier -> N.Carrier := \fun (v: Line.Carrier)(x: N.Carrier) => #smul{N.space} (coefficient v) x;
+\definition bilinear: Tensor.BilinearLaws[N.Carrier, N.space, value] := Tensor.BilinearLaws[N.Carrier, N.space, value] {
+  addLeft := \fun (v, w: Line.Carrier)(x: N.Carrier) => #scalarAdd{N.space} (coefficient v) (coefficient w) x, addRight := \fun (v: Line.Carrier)(x, y: N.Carrier) => #vectorAdd{N.space} (coefficient v) x y,
+  scaleLeft := \fun (r: R)(v: Line.Carrier)(x: N.Carrier) => #scalarAssoc{N.space} r (coefficient v) x,
+  scaleRight := \fun (a: R)(v: Line.Carrier)(x: N.Carrier) => trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (#scalarAssoc{N.space} (coefficient v) a x))
+    (trans!{N.Carrier} _ _ _ (congr!{R N.Carrier} (\fun (s: R) => #smul{N.space} s x) _ _ (#mulCommutative{ring} (coefficient v) a)) (#scalarAssoc{N.space} a (coefficient v) x)),
+};
+\import Tensor.Universal[U := N.Carrier, target := N.space] \as Universal;
+\definition forward: Modules.Hom[V := Tensor.Carrier, W := N.Carrier, source := Tensor.space, target := N.space].Map := Universal.map value bilinear;
+\definition onTensor: \forall (v: Line.Carrier)(x: N.Carrier) -> #apply{forward} (Tensor.tensor v x) = #smul{N.space} (coefficient v) x := Universal.onTensor value bilinear;
+\definition backward: Modules.Hom[V := N.Carrier, W := Tensor.Carrier, source := N.space, target := Tensor.space].Map := Tensor.rightLinear one;
+\import Modules.Hom[V := N.Carrier, W := Tensor.Carrier, source := N.space, target := Tensor.space].Composition[U := Tensor.Carrier, domain := Tensor.space] \as Composition;
+\import Modules.End[V := Tensor.Carrier, space := Tensor.space] \as Identity;
+\import Tensor.Universal[U := Tensor.Carrier, target := Tensor.space] \as Equality;
+\definition leftLaw: Composition.compose backward forward = Identity.identity :=
+  Equality.ext (Composition.compose backward forward) Identity.identity (\fun (v: Line.Carrier)(x: N.Carrier) => trans!{Tensor.Carrier} _ _ _
+    (congr!{N.Carrier Tensor.Carrier} (Tensor.tensor one) _ _ (onTensor v x))
+    (trans!{Tensor.Carrier} _ _ _ (#scaleRight{Tensor.bilinear} (coefficient v) one x)
+      (trans!{Tensor.Carrier} _ _ _ (sym!{Tensor.Carrier} _ _ (#scaleLeft{Tensor.bilinear} (coefficient v) one x))
+        (congr!{Line.Carrier Tensor.Carrier} (\fun (s: Line.Carrier) => Tensor.tensor s x) _ _ (decomposition v)))));
+\import Modules.Hom[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as EndMaps;
+\definition leftInverse: \forall (x: Tensor.Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: Tensor.Carrier) => congr!{EndMaps.Map Tensor.Carrier} (\fun (f: EndMaps.Map) => #apply{f} x) _ _ leftLaw;
+\definition rightInverse: \forall (x: N.Carrier) -> #apply{forward} (#apply{backward} x) = x :=
+  \fun (x: N.Carrier) => trans!{N.Carrier} _ _ _ (onTensor one x) (#scalarOne{N.space} x);
+\import Modules.Isomorphism[V := Tensor.Carrier, W := N.Carrier, source := Tensor.space, target := N.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism { forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };

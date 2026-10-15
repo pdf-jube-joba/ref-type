@@ -1,0 +1,49 @@
+\import Modules.ShortExact[A := A, B := B, C := C] \as Source;
+\import Modules.ShortExact[A := L, B := B, C := R] \as Target;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := L.Carrier, domain := L.space] \as LeftComposition;
+\import Modules.Hom[V := C.Carrier, W := R.Carrier, source := C.space, target := R.space].Composition[U := B.Carrier, domain := B.space] \as RightComposition;
+\import Modules.Hom[V := C.Carrier, W := R.Carrier, source := C.space, target := R.space] \as RightMaps;
+\import std.Logic[].Proposition[] \as Logic;
+\definition inclusion: Modules.MapBetween L B := LeftComposition.compose s.inclusion #forward{leftIso};
+\definition projection: Modules.MapBetween B R := RightComposition.compose #forward{rightIso} s.projection;
+\definition injective: Modules.Injective L B inclusion :=
+  \fun (x, y: L.Carrier)(equal: #apply{inclusion} x = #apply{inclusion} y) =>
+    trans!{L.Carrier} _ _ _ (sym!{L.Carrier} _ _ (#leftInverse{leftIso} x))
+      (trans!{L.Carrier} _ _ _
+        (congr!{A.Carrier L.Carrier} (#apply{#backward{leftIso}}) _ _ (#injective{s} _ _ equal))
+        (#leftInverse{leftIso} y));
+\definition onto: Modules.Surjective B R projection := \block {
+  \fun (z: R.Carrier) \then
+  \takefrom y: \Cast[B.Carrier] ({ y: B.Carrier \where #apply{s.projection} y = #apply{#backward{rightIso}} z })
+    \by #onto{s} (#apply{#backward{rightIso}} z) \then
+  \return Logic.existsIntro[B.Carrier, { y: B.Carrier \where #apply{projection} y = z }] y
+    (trans!{R.Carrier} _ _ _
+      (congr!{C.Carrier R.Carrier} (#apply{#forward{rightIso}}) _ _
+        (\bysub(B.Carrier, { y: B.Carrier \where #apply{s.projection} y = #apply{#backward{rightIso}} z }, y)))
+      (#rightInverse{rightIso} z))
+};
+\definition zero: \forall (x: L.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{R.space} :=
+  \fun (x: L.Carrier) => trans!{R.Carrier} _ _ _
+    (congr!{C.Carrier R.Carrier} (#apply{#forward{rightIso}}) _ _ (#zero{s} (#apply{#forward{leftIso}} x)))
+    (RightMaps.zeroPreserved #forward{rightIso});
+\definition originalKernel: \forall (y: B.Carrier) -> #apply{projection} y = #zero{R.space} -> #apply{s.projection} y = #zero{C.space} :=
+  \fun (y: B.Carrier)(equal: #apply{projection} y = #zero{R.space}) =>
+    trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (#leftInverse{rightIso} (#apply{s.projection} y)))
+      (trans!{C.Carrier} _ _ _
+        (congr!{R.Carrier C.Carrier} (#apply{#backward{rightIso}}) _ _ equal)
+        (Modules.Hom[V := R.Carrier, W := C.Carrier, source := R.space, target := C.space].zeroPreserved #backward{rightIso}));
+\definition kernelImage: \forall (y: B.Carrier) -> #apply{projection} y = #zero{R.space} ->
+  \exists { x: L.Carrier \where #apply{inclusion} x = y } := \block {
+  \fun (y: B.Carrier)(equal: #apply{projection} y = #zero{R.space}) \then
+  \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where #apply{s.inclusion} x = y })
+    \by #kernelImage{s} y (originalKernel y equal) \then
+  \return Logic.existsIntro[L.Carrier, { x: L.Carrier \where #apply{inclusion} x = y }] (#apply{#backward{leftIso}} x)
+    (trans!{B.Carrier} _ _ _
+      (congr!{A.Carrier B.Carrier} (#apply{s.inclusion}) _ _ (#rightInverse{leftIso} x))
+      (\bysub(A.Carrier, { x: A.Carrier \where #apply{s.inclusion} x = y }, x)))
+};
+\definition data: Target.Data := Target.Data { inclusion := inclusion, projection := projection };
+\definition laws: Target.Laws[data] := Target.Laws[data] {
+  injective := injective, onto := onto, zero := zero, kernelImage := kernelImage,
+};
+\definition sequence: Target.Sequence := \into[Target.Data](data, { value: Target.Data \where Target.Laws[value] }) \by { laws };

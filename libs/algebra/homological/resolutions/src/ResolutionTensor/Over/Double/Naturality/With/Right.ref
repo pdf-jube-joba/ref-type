@@ -1,0 +1,33 @@
+\import Native.On[P := Q, N := M] \as SourceRight;
+\import Native.On[P := T, N := L] \as TargetRight;
+\import Native.Mapping[P := Q, Q := T, N := M, L := L].On[f := g, u := u] \as Action;
+\import Doubles.Tensor[C := Q, D := P] \as SourceReversedTensor;
+\import Doubles.Tensor[C := T, D := S] \as TargetReversedTensor;
+\import Doubles.Total[C := SourceReversedTensor.complex] \as SourceReversed;
+\import Doubles.Total[C := TargetReversedTensor.complex] \as TargetReversed;
+\import Doubles.TensorSwap[C := P, D := Q] \as SourceSwap;
+\import Doubles.TensorSwap[C := S, D := T] \as TargetSwap;
+\import SourceSwap.Mapping[E := S, F := T].On[f := f, g := g] \as SwapNaturality;
+\import \root.ResolutionTensor[].Over[R := R, ring := ring].Double[M := N, N := M, P := Q, Q := P].Naturality[
+  L := K, K := L, S := T, T := S].With[p := q, q := p, s := t, t := s, u := v, v := u, f := g, g := f].Left[] \as ReverseNaturality;
+\import \root.ResolutionTensor[].Over[R := R, ring := ring].Double[M := K, N := L, P := T, Q := S].With[p := t, q := s] \as ReverseTarget;
+\import Source.Swap[].Right[] \as SourceSquare;
+\import Target.Swap[].Right[] \as TargetSquare;
+\import Chains.Map[C := TargetTotal.complex, D := TargetRight.complex].Composition[B := complex] \as After;
+\import Chains.Map[C := SourceRight.complex, D := TargetRight.complex].Composition[B := complex] \as Before;
+\definition after: Chains.Map[C := complex, D := TargetRight.complex].Map := After.compose Target.standardRight Mapping.total;
+\definition before: Chains.Map[C := complex, D := TargetRight.complex].Map := Before.compose Action.map Source.standardRight;
+\import Chains.Map[C := complex, D := TargetReversed.complex] \as SwapMaps;
+\definition swapPoint: \forall (n: Nat.Nat^)(x: Total.Carrier n) ->
+  #apply{SwapNaturality.after} n x = #apply{SwapNaturality.before} n x :=
+  \fun (n: Nat.Nat^)(x: Total.Carrier n) => congr!{SwapMaps.Map {TargetReversed.Carrier n}}
+    (\fun (h: SwapMaps.Map) => #apply{h} n x) _ _ SwapNaturality.square;
+\definition point: LeftAugmented -> \forall (n: Nat.Nat^)(x: Total.Carrier n) -> #apply{after} n x = #apply{before} n x :=
+  \fun (augmented: LeftAugmented)(n: Nat.Nat^)(x: Total.Carrier n) => trans!{{TargetRight.Carrier n}} _ _ _
+    (sym!{{TargetRight.Carrier n}} _ _ (TargetSquare.point n (#apply{Mapping.total} n x)))
+    (trans!{{TargetRight.Carrier n}} _ _ _
+      (congr!{{TargetReversed.Carrier n} {TargetRight.Carrier n}} (#apply{ReverseTarget.standardLeft} n) _ _ (sym!{{TargetReversed.Carrier n}} _ _ (swapPoint n x)))
+      (trans!{{TargetRight.Carrier n}} _ _ _ (ReverseNaturality.point augmented n (#apply{SourceSwap.forward} n x))
+        (congr!{{SourceRight.Carrier n} {TargetRight.Carrier n}} (#apply{Action.map} n) _ _ (SourceSquare.point n x))));
+\definition square: LeftAugmented -> after = before :=
+  \fun (augmented: LeftAugmented) => Chains.Map[C := complex, D := TargetRight.complex].ext after before (point augmented);

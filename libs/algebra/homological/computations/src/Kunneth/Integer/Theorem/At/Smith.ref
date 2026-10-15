@@ -1,0 +1,29 @@
+\import Modules.Biproduct[V := SmithTerms.smithBundle.Carrier, W := Terms.torBundle.Carrier, left := SmithTerms.smithBundle.space, right := Terms.torBundle.space] \as Source;
+\import Modules.Biproduct[V := Terms.tensorBundle.Carrier, W := Terms.torBundle.Carrier, left := Terms.tensorBundle.space, right := Terms.torBundle.space] \as Target;
+\import std.Data[].Pair[].Prop[A := SmithTerms.smithBundle.Carrier, B := Terms.torBundle.Carrier] \as SourcePairs;
+\import std.Data[].Pair[].Prop[A := Terms.tensorBundle.Carrier, B := Terms.torBundle.Carrier] \as TargetPairs;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Forward;
+\import Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (x: Source.Carrier) => Target.make (#apply{#backward{SmithTerms.smithIsomorphism}} (Source.first x)) (Source.second x),
+  addition := \fun (x, y: Source.Carrier) => TargetPairs.ext _ _ (#addition{#backward{SmithTerms.smithIsomorphism}} (Source.first x) (Source.first y)) (\refl(#add{Terms.torBundle.space} (Source.second x) (Source.second y))),
+  scalar := \fun (a: Integers.Int^)(x: Source.Carrier) => TargetPairs.ext _ _ (#scalar{#backward{SmithTerms.smithIsomorphism}} a (Source.first x)) (\refl(#smul{Terms.torBundle.space} a (Source.second x))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (x: Target.Carrier) => Source.make (#apply{#forward{SmithTerms.smithIsomorphism}} (Target.first x)) (Target.second x),
+  addition := \fun (x, y: Target.Carrier) => SourcePairs.ext _ _ (#addition{#forward{SmithTerms.smithIsomorphism}} (Target.first x) (Target.first y)) (\refl(#add{Terms.torBundle.space} (Target.second x) (Target.second y))),
+  scalar := \fun (a: Integers.Int^)(x: Target.Carrier) => SourcePairs.ext _ _ (#scalar{#forward{SmithTerms.smithIsomorphism}} a (Target.first x)) (\refl(#smul{Terms.torBundle.space} a (Target.second x))),
+};
+\import Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Iso;
+\definition leftInverse: \forall (x: Source.Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: Source.Carrier) => SourcePairs.ext (#apply{backward} (#apply{forward} x)) x
+    (#rightInverse{SmithTerms.smithIsomorphism} (Source.first x)) (\refl(Source.second x));
+\definition rightInverse: \forall (x: Target.Carrier) -> #apply{forward} (#apply{backward} x) = x :=
+  \fun (x: Target.Carrier) => TargetPairs.ext (#apply{forward} (#apply{backward} x)) x
+    (#leftInverse{SmithTerms.smithIsomorphism} (Target.first x)) (\refl(Target.second x));
+\definition sumIsomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := leftInverse, rightInverse := rightInverse,
+};
+\import Iso.Composition[U := Terms.homologyBundle.Carrier, final := Terms.homologyBundle.space] \as Compose;
+\definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Terms.homologyBundle.Carrier, source := Source.space, target := Terms.homologyBundle.space].Isomorphism := Compose.compose selectedSplitting sumIsomorphism;

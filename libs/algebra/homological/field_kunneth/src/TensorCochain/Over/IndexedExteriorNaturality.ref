@@ -1,0 +1,58 @@
+\import Cochains.Map[C := C, D := D] \as LeftMaps;
+\import Cochains.Map[C := E, D := F] \as RightMaps;
+\module With(f: LeftMaps.Map, g: RightMaps.Map) {
+  \import \parent.\parent.Tensor[C := C, D := E] \as SourceTensor;
+  \import \parent.\parent.Tensor[C := D, D := F] \as TargetTensor;
+  \import \parent.\parent.Total[C := SourceTensor.complex] \as SourceTotal;
+  \import \parent.\parent.Total[C := TargetTensor.complex] \as TargetTotal;
+  \import \parent.\parent.TensorMapping[C := C, D := D, E := E, F := F].With[f := f, g := g] \as TensorMap;
+  \import \parent.\parent.CycleProductNaturality[C := C, D := D, E := E, F := F, p := p, q := q].With[f := f, g := g].Exterior[] \as Known;
+  \import Cochains.At[C := C, k := p] \as SC;
+  \import Cochains.At[C := E, k := q] \as SE;
+  \import Cochains.At[C := D, k := p] \as TC;
+  \import Cochains.At[C := F, k := q] \as TF;
+  \import Modules.Tensor[V := SC.Cohomology, W := SE.Cohomology,
+    left := SC.cohomologySpace, right := SE.cohomologySpace] \as S;
+  \import Modules.Tensor[V := TC.Cohomology, W := TF.Cohomology,
+    left := TC.cohomologySpace, right := TF.cohomologySpace] \as T;
+  \module At(n: Nat.Nat^) {
+    \import Cochains.At[C := SourceTotal.complex, k := n] \as SH;
+    \import Cochains.At[C := TargetTotal.complex, k := n] \as TH;
+    \import Cochains.Map[C := SourceTotal.complex, D := TargetTotal.complex].At[k := n] \as Induced;
+    \import \parent.\parent.\parent.IndexedExterior[C := C, D := E, n := n].Pair[p := p, q := q] \as Source;
+    \import \parent.\parent.\parent.IndexedExterior[C := D, D := F, n := n].Pair[p := p, q := q] \as Target;
+    \import Modules.Hom[V := SH.Cohomology, W := TH.Cohomology,
+      source := SH.cohomologySpace, target := TH.cohomologySpace].Composition[
+      U := S.Carrier, domain := S.space] \as After;
+    \import Modules.Hom[V := T.Carrier, W := TH.Cohomology,
+      source := T.space, target := TH.cohomologySpace].Composition[
+      U := S.Carrier, domain := S.space] \as Before;
+    \import Modules.Hom[V := S.Carrier, W := TH.Cohomology,
+      source := S.space, target := TH.cohomologySpace] \as Linear;
+    \definition Map: \Set := Linear.Map;
+    \definition post(h: Source.Target[m := n].Maps): Map := After.compose (Induced.induced TensorMap.total) h;
+    \definition pre(h: Target.Target[m := n].Maps): Map := Before.compose h Known.map;
+    \definition after(closed: Arithmetic.add p q = n): Map := post (Source.map closed);
+    \definition before(closed: Arithmetic.add p q = n): Map := pre (Target.map closed);
+    \definition Commutes: \Prop := \forall (closed: Arithmetic.add p q = n) ->
+      after closed = before closed;
+  }
+  \import At[n := Arithmetic.add p q] \as Base;
+  \import \parent.\parent.IndexedExterior[C := C, D := E, n := Arithmetic.add p q].Pair[p := p, q := q] \as BS;
+  \import \parent.\parent.IndexedExterior[C := D, D := F, n := Arithmetic.add p q].Pair[p := p, q := q] \as BT;
+  \definition atSum: Base.Commutes :=
+    \fun (closed: Arithmetic.add p q = Arithmetic.add p q) => trans!{Base.Map} _ _ _
+      (congr!{{BS.Target[m := Arithmetic.add p q].Maps} Base.Map}
+        (\fun (h: BS.Target[m := Arithmetic.add p q].Maps) => Base.post h)
+        _ _ (BS.mapRefl closed))
+      (trans!{Base.Map} _ _ _ Known.naturality
+        (sym!{Base.Map} _ _
+          (congr!{{BT.Target[m := Arithmetic.add p q].Maps} Base.Map}
+            (\fun (h: BT.Target[m := Arithmetic.add p q].Maps) => Base.pre h)
+            _ _ (BT.mapRefl closed))));
+  \definition naturality: \forall (n: Nat.Nat^) -> At[n := n].Commutes :=
+    \fun (n: Nat.Nat^)(closed: Arithmetic.add p q = n) =>
+      (\idelim Arithmetic.add p q = n \with m: Nat.Nat^ => At[n := m].Commutes \by {
+        base: atSum, equality: closed
+      }) closed;
+}

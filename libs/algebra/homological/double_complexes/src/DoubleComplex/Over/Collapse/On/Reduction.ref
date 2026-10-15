@@ -1,0 +1,27 @@
+\definition n: Nat.Nat^ := Arithmetic.add p q;
+\import Coordinates.Degree[n := n] \as Current;
+\import \parent.\parent.Injection[p := p, q := q] \as Lift;
+\import \parent.Top[p := p, q := q] \as Top;
+\import \parent.Boundary[n := n] \as Boundary;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Next;
+\import \parent.Properties[] \as Properties;
+\definition step: ReductionAt n p := \block {
+  \fun (rows: RowsExact[f])(vanishes: Concentrated.Vanishes)(x: Total.Carrier n)(stage: Stage[n, Nat.Nat^::succ p, x]) \then
+  \takefrom y: \Cast[C.family.Carrier p (Nat.Nat^::succ q)] ({ y: C.family.Carrier p (Nat.Nat^::succ q) \where
+    #apply{(C.differential.vertical p q)} y = Current.coordinate Top.index x })
+    \by Top.lift rows x #cycle{stage} #support{stage} #kernel{stage} \then
+  \let preimage: #apply{(C.differential.vertical p q)} y = Current.coordinate Top.index x :=
+    \bysub(C.family.Carrier p (Nat.Nat^::succ q), { y: C.family.Carrier p (Nat.Nat^::succ q) \where
+      #apply{(C.differential.vertical p q)} y = Current.coordinate Top.index x }, y) \then
+  \let killed: Killed (Nat.Nat^::succ n) (Lift.element y) := Top.liftKilled vanishes y \then
+  \let lifted: Next.KernelCarrier := Next.kernelElement (Lift.element y) killed \then
+  \return Logic.existsIntro[Next.KernelCarrier, { z: Next.KernelCarrier \where Stage[n, p, Boundary.remainder x z] }]
+    lifted (Stage[n, p, Boundary.remainder x lifted] {
+      cycle := Properties.remainderClosed n x (Lift.element y) #cycle{stage},
+      kernel := Properties.remainderKilled n x (Lift.element y) #kernel{stage} killed,
+      support := Top.decrease x y #support{stage} preimage,
+    })
+};
+\definition transported: \forall (m: Nat.Nat^) -> Arithmetic.add p q = m -> ReductionAt m p :=
+  \fun (m: Nat.Nat^)(same: Arithmetic.add p q = m) =>
+    \idelim Arithmetic.add p q = m \with k: Nat.Nat^ => ReductionAt k p \by { base: step, equality: same };

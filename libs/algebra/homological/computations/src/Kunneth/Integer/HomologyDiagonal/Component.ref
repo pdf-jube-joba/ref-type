@@ -1,0 +1,34 @@
+\import Original.At[z := p] \as Result;
+\import Result.Presentation[] \as Presentation;
+\import Chains.At[C := Other.chain, z := complement n p] \as H;
+\definition coefficient: Modules.Bundle := Modules.Bundle { Carrier := H.Homology, space := H.homologySpace };
+\import Modules.RightExact[A := Presentation.boundaryBundle, B := Presentation.cyclesBundle, C := Presentation.homologyBundle] \as Exact;
+\import Modules.TensorRightExact[A := Presentation.boundaryBundle, B := Presentation.cyclesBundle,
+  C := Presentation.homologyBundle, N := coefficient].On[sequence := Exact.ofShort Presentation.sequence] \as TensorSequence;
+\import Modules.Tensor[V := Presentation.boundaryBundle.Carrier, W := H.Homology,
+  left := Presentation.boundaryBundle.space, right := H.homologySpace] \as Source;
+\import Modules.Tensor[V := Presentation.cyclesBundle.Carrier, W := H.Homology,
+  left := Presentation.cyclesBundle.space, right := H.homologySpace] \as Target;
+\definition sourceCarrier: \Set := Source.Carrier;
+\definition sourceSpace: Modules.Space sourceCarrier := Source.space;
+\definition targetCarrier: \Set := Target.Carrier;
+\definition targetSpace: Modules.Space targetCarrier := Target.space;
+\definition map: Modules.Hom[V := sourceCarrier, W := targetCarrier, source := sourceSpace, target := targetSpace].Map := TensorSequence.inclusion;
+\import Modules.RightExact[A := Modules.Bundle { Carrier := sourceCarrier, space := sourceSpace },
+  B := Modules.Bundle { Carrier := targetCarrier, space := targetSpace }, C := Terms.Component[p := p].tensorBundle].Cokernel[sequence := TensorSequence.sequence] \as Quotient;
+\definition quotientCarrier: \Set := Quotient.Carrier;
+\definition quotientSpace: Modules.Space quotientCarrier := Quotient.space;
+\definition isomorphism: Modules.Isomorphism[V := quotientCarrier, W := Terms.Component[p := p].tensorCarrier,
+  source := quotientSpace, target := Terms.Component[p := p].tensorSpace].Isomorphism := Quotient.isomorphism;
+\definition sourceTensor: Presentation.boundaryBundle.Carrier -> H.Homology -> sourceCarrier := Source.tensor;
+\definition targetTensor: Presentation.cyclesBundle.Carrier -> H.Homology -> targetCarrier := Target.tensor;
+\import Source.Mapping[U := Presentation.cyclesBundle.Carrier, Z := H.Homology,
+  targetLeft := Presentation.cyclesBundle.space, targetRight := H.homologySpace] \as Inclusion;
+\import Modules.End[V := H.Homology, space := H.homologySpace] \as Identity;
+\definition onTensor: \forall (b: Presentation.boundaryBundle.Carrier)(y: H.Homology) ->
+  #apply{map} (sourceTensor b y) = targetTensor b y := Inclusion.onTensor Presentation.sequence.inclusion Identity.identity;
+\definition quotientClass: targetCarrier -> quotientCarrier := \fun (x: targetCarrier) => Modules.Of[V := targetCarrier, space := targetSpace].Submodule[].Quotient[S := Quotient.image].class x;
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := targetCarrier, space := targetSpace };
+\definition homologyTensorBundle: Modules.Bundle := Terms.Component[p := p].tensorBundle;
+\definition projection: Modules.MapBetween targetBundle homologyTensorBundle := TensorSequence.projection;
+\definition quotientOnClass: \forall (x: targetCarrier) -> #apply{#forward{isomorphism}} (quotientClass x) = #apply{projection} x := Quotient.onClass;

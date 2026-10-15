@@ -1,0 +1,40 @@
+\import \parent.Term[z := z] \as Source;
+\import \parent.Term[z := Bounded.previous z] \as Target;
+\import Modules.DirectSumMapping[Index := Index, sourceFamily := Source.family, targetFamily := Target.family] \as Maps;
+\module Component(i: Index) {
+  \import Chains.At[C := terms i, z := z] \as Native;
+  \definition differential: Maps.Component[i := i].Map := Native.differential;
+}
+\definition components: Maps.Components := \fun (i: Index) => Component[i := i].differential;
+\import Maps.On[f := components] \as Action;
+\definition map: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map := Action.map;
+\definition onInjection: \forall (i: Index)(x: termCarrier i z) ->
+  #apply{map} (#apply{Source.Component[i := i].injection} x) =
+  #apply{Target.Component[i := i].injection} (termApply i z x) := Action.onInjection;
+\import \parent.Term[z := Bounded.previous (Bounded.previous z)] \as Beyond;
+\import Modules.DirectSum[Index := Index, family := Beyond.family].To[W := Beyond.Carrier, target := Beyond.space] \as BeyondUniversal;
+\import Modules.DirectSum[Index := Index, family := Source.family].To[W := Beyond.Carrier, target := Beyond.space] \as Universal;
+\import Modules.Hom[V := Target.Carrier, W := Beyond.Carrier, source := Target.space, target := Beyond.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as Compose;
+\import Modules.Hom[V := Source.Carrier, W := Beyond.Carrier, source := Source.space, target := Beyond.space] \as Results;
+\definition squareMap: Results.Map := Compose.compose (\parent.Step[z := Bounded.previous z].map) map;
+\module Zero(i: Index) {
+  \import Modules.Hom[V := termCarrier i (Bounded.previous (Bounded.previous z)), W := Beyond.Carrier,
+    source := termSpace i (Bounded.previous (Bounded.previous z)), target := Beyond.space] \as Maps;
+  \definition preserved: #apply{Beyond.Component[i := i].injection} #zero{(termSpace i (Bounded.previous (Bounded.previous z)))} = #zero{Beyond.space} :=
+    Maps.zeroPreserved Beyond.Component[i := i].injection;
+}
+\definition squareLaw: squareMap = Results.zeroMap := Universal.ext squareMap Results.zeroMap
+  (\fun (i: Index)(x: termCarrier i z) => trans!{Beyond.Carrier} _ _ _
+    (congr!{Target.Carrier Beyond.Carrier} (#apply{\parent.Step[z := Bounded.previous z].map}) _ _ (onInjection i x))
+    (trans!{Beyond.Carrier} _ _ _
+      (\parent.Step[z := Bounded.previous z].onInjection i (termApply i z x))
+      (trans!{Beyond.Carrier} _ _ _
+        (congr!{{termCarrier i (Bounded.previous (Bounded.previous z))} Beyond.Carrier} (#apply{Beyond.Component[i := i].injection}) _ _ (termSquareZero i z x))
+        Zero[i := i].preserved)));
+\definition squareZero: \forall (x: Source.Carrier) -> #apply{\parent.Step[z := Bounded.previous z].map} (#apply{map} x) = #zero{Beyond.space} :=
+  \fun (x: Source.Carrier) => congr!{Results.Map Beyond.Carrier} (\fun (f: Results.Map) => #apply{f} x) _ _ squareLaw;
+\import Modules.DirectSum[Index := Index, family := Source.family].FiniteSupport[] \as SourceCoordinates;
+\import Modules.DirectSum[Index := Index, family := Target.family].FiniteSupport[] \as TargetCoordinates;
+\definition coordinatesNatural: \forall (x: Source.Carrier)(i: Index) ->
+  TargetCoordinates.coordinates (#apply{map} x) i = termApply i z (SourceCoordinates.coordinates x i) := Action.coordinatesNatural;

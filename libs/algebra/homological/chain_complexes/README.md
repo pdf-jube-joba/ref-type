@@ -34,7 +34,10 @@
 
 `chain_complexes.Cochain.Over.ZeroDifferential.At` は零微分の複体のコホモロジーと各項との同型を返す。
 `chain_complexes.CochainEquivalence.Over.Of.With` は二つの写像と両合成のホモトピーから、全次数のコホモロジー同型を返す。
-体上の有界有限自由余鎖複体では `homological_algebra.FieldFinite.Over.Of.Split.Contraction` が恒等写像から代表元の包含と射影の合成へのホモトピーを構成する。
+体上の有界有限自由余鎖複体では `field_kunneth.FieldFinite.Over.Of.Split.Contraction` が恒等写像から代表元の包含と射影の合成へのホモトピーを構成する。
 `Split.At` は微分が零のコホモロジー族と元の複体のコホモロジーの同型を返す。
 
 検査方法と関連パッケージは [ライブラリ一覧](../../../README.md) を参照。
+
+`Chain.Over.Map.Kernel` は鎖写像の項ごとの核を複体として構成する。
+項ごとの全射性と、核のサイクルが核の中の境界になることから、比較写像がホモロジー同型を誘導することを証明する。

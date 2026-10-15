@@ -1,0 +1,40 @@
+\import Double.With[p := p, q := q] \as Comparisons;
+\definition left: Chains.Map[C := complex, D := Left.tensorComplex].Map := Chains.Map[C := complex, D := Left.tensorComplex].Map {
+  apply := #apply{Comparisons.standardLeft}, addition := #addition{Comparisons.standardLeft},
+  scalar := #scalar{Comparisons.standardLeft}, commutes := #commutes{Comparisons.standardLeft},
+};
+\definition right: Chains.Map[C := complex, D := Right.tensorComplex].Map := Chains.Map[C := complex, D := Right.tensorComplex].Map {
+  apply := #apply{Comparisons.standardRight}, addition := #addition{Comparisons.standardRight},
+  scalar := #scalar{Comparisons.standardRight}, commutes := #commutes{Comparisons.standardRight},
+};
+\definition leftChainMap: Chains.Map[C := complex, D := Left.tensorComplex].Map := left;
+\definition rightChainMap: Chains.Map[C := complex, D := Right.tensorComplex].Map := right;
+\module At(n: Nat.Nat^) {
+  \import \parent.\parent.At[n := n] \as H;
+  \definition left: Modules.Hom[V := H.Carrier, W := Left.At[n := n].Carrier, source := H.space, target := Left.At[n := n].space].Map :=
+    Chains.Map[C := complex, D := Left.tensorComplex].HomologyAt[n := n].induced leftChainMap;
+  \definition right: Modules.Hom[V := H.Carrier, W := Right.At[n := n].Carrier, source := H.space, target := Right.At[n := n].space].Map :=
+    Chains.Map[C := complex, D := Right.tensorComplex].HomologyAt[n := n].induced rightChainMap;
+  \definition leftIsomorphism: Modules.Isomorphism[V := H.Carrier, W := Left.At[n := n].Carrier, source := H.space, target := Left.At[n := n].space].Isomorphism :=
+    \parent.LeftComparison[].At[n := n].isomorphism;
+  \definition rightIsomorphism: Modules.Isomorphism[V := H.Carrier, W := Right.At[n := n].Carrier, source := H.space, target := Right.At[n := n].space].Isomorphism :=
+    \parent.RightComparison[].At[n := n].isomorphism;
+  \import Modules.Isomorphism[V := H.Carrier, W := Left.At[n := n].Carrier, source := H.space, target := Left.At[n := n].space].Inverse[] \as InverseLeft;
+  \import Modules.Isomorphism[V := Left.At[n := n].Carrier, W := H.Carrier, source := Left.At[n := n].space, target := H.space].Composition[
+    U := Right.At[n := n].Carrier, final := Right.At[n := n].space] \as Composition;
+  \definition isomorphism: Modules.Isomorphism[V := Left.At[n := n].Carrier, W := Right.At[n := n].Carrier, source := Left.At[n := n].space, target := Right.At[n := n].space].Isomorphism :=
+    Composition.compose rightIsomorphism (InverseLeft.inverse leftIsomorphism);
+  \definition onTotal: \forall (x: H.Carrier) -> #apply{#forward{isomorphism}} (#apply{#forward{leftIsomorphism}} x) = #apply{#forward{rightIsomorphism}} x :=
+    \fun (x: H.Carrier) => congr!{H.Carrier {Right.At[n := n].Carrier}} (#apply{#forward{rightIsomorphism}}) _ _ (#leftInverse{leftIsomorphism} x);
+  \definition onComparison: \forall (x: H.Carrier) -> #apply{#forward{isomorphism}} (#apply{left} x) = #apply{right} x :=
+    \fun (x: H.Carrier) => trans!{{Right.At[n := n].Carrier}} _ _ _
+      (congr!{{Left.At[n := n].Carrier} {Right.At[n := n].Carrier}} (#apply{#forward{isomorphism}}) _ _
+        (sym!{{Left.At[n := n].Carrier}} _ _ (\parent.LeftComparison[].At[n := n].forward x)))
+      (trans!{{Right.At[n := n].Carrier}} _ _ _ (onTotal x) (\parent.RightComparison[].At[n := n].forward x));
+}
+
+\module LeftComparison;
+
+\module RightComparison;
+
+\module Swap;

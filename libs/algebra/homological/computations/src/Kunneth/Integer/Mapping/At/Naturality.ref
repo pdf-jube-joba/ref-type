@@ -1,0 +1,37 @@
+\import Modules.DirectSum[Index := Degree, family := SourceTerms.tensorFamily] \as SourceTensor;
+\import Modules.DirectSum[Index := Degree, family := SourceTerms.smithFamily] \as SourceSmith;
+\import Modules.DirectSum[Index := Degree, family := TargetTerms.tensorFamily] \as TargetTensor;
+\import Modules.DirectSum[Index := Degree, family := TargetTerms.smithFamily] \as TargetSmith;
+\import TensorMaps.On[f := tensorComponents f g] \as TensorMap;
+\import SmithMaps.On[f := smithComponents f g] \as SmithMap;
+\import Modules.Hom[V := SourceSmith.Carrier, W := TargetSmith.Carrier,
+  source := SourceSmith.space, target := TargetSmith.space].Composition[U := SourceTensor.Carrier, domain := SourceTensor.space] \as ThroughSmith;
+\import Modules.Hom[V := TargetTensor.Carrier, W := TargetSmith.Carrier,
+  source := TargetTensor.space, target := TargetSmith.space].Composition[U := SourceTensor.Carrier, domain := SourceTensor.space] \as ThroughTensor;
+\definition throughSmith: Modules.MapBetween SourceTerms.tensorBundle TargetTerms.smithBundle :=
+  ThroughSmith.compose (smithMap f g) #forward{SourceTerms.smithIsomorphism};
+\definition throughTensor: Modules.MapBetween SourceTerms.tensorBundle TargetTerms.smithBundle :=
+  ThroughTensor.compose #forward{TargetTerms.smithIsomorphism} (tensorMap f g);
+\module Point(p: Degree) {
+  \import SourceTerms.Component[p := p] \as SourceComponent;
+  \import TargetTerms.Component[p := p] \as TargetComponent;
+  \import \parent.\parent.Component[p := p] \as Local;
+  \import Modules.Hom[V := SourceComponent.tensorCarrier, W := TargetComponent.smithCarrier,
+    source := SourceComponent.tensorSpace, target := TargetComponent.smithSpace] \as LocalMaps;
+  \definition equality: \forall (x: SourceComponent.tensorCarrier) ->
+    #apply{throughSmith} (#apply{SourceTensor.Injection[i := p].map} x) =
+    #apply{throughTensor} (#apply{SourceTensor.Injection[i := p].map} x) :=
+    \fun (x: SourceComponent.tensorCarrier) => trans!{TargetSmith.Carrier} _ _ _
+      (congr!{SourceSmith.Carrier TargetSmith.Carrier} (#apply{(smithMap f g)}) _ _ (SourceTerms.smithOnInjection p x))
+      (trans!{TargetSmith.Carrier} _ _ _
+        (SmithMap.onInjection p (#apply{#forward{SourceComponent.smithIsomorphism}} x))
+        (trans!{TargetSmith.Carrier} _ _ _
+          (congr!{TargetComponent.smithCarrier TargetSmith.Carrier} (#apply{TargetSmith.Injection[i := p].map}) _ _
+            (congr!{LocalMaps.Map TargetComponent.smithCarrier} (\fun (h: LocalMaps.Map) => #apply{h} x) _ _ (Local.smithNaturality f g)))
+          (sym!{TargetSmith.Carrier} _ _
+            (trans!{TargetSmith.Carrier} _ _ _
+              (congr!{TargetTensor.Carrier TargetSmith.Carrier} (#apply{#forward{TargetTerms.smithIsomorphism}}) _ _ (TensorMap.onInjection p x))
+              (TargetTerms.smithOnInjection p (#apply{(Local.tensorMap f g)} x))))));
+}
+\import SourceTensor.To[W := TargetSmith.Carrier, target := TargetSmith.space] \as Universal;
+\definition smithNaturality: throughSmith = throughTensor := Universal.ext throughSmith throughTensor (\fun (p: Degree) => Point[p := p].equality);

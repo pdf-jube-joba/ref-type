@@ -1,0 +1,81 @@
+\definition p: Nat.Nat^ := #first{i};
+\definition q: Nat.Nat^ := #second{i};
+\import Cochains.At[C := C, k := p] \as LeftCycles;
+\import Cochains.At[C := D, k := q] \as RightCycles;
+\definition exponent: Nat.Nat^ := Arithmetic.mul p q;
+\import \parent.\parent.\parent.Swap[C := Original.complex] \as Koszul;
+\import Koszul.Degree[n := n] \as K;
+\import Maps.Total[f := map] \as Termwise;
+\import Termwise.Degree[n := n] \as T;
+\import SourceTotal.Degree[n := n] \as SD;
+\import MiddleTotal.Degree[n := n] \as MD;
+\import TargetTotal.Degree[n := n] \as TD;
+\import Original.Term[p := p, q := q] \as ST;
+\import Target.Term[p := q, q := p] \as TT;
+\import \parent.\parent.Term[p := q, q := p] \as SymmetryTerm;
+\import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier q,
+  left := C.family.space p, right := D.family.space q].Symmetry[] \as TensorSwap;
+\import Degrees.Sign[V := ST.Carrier, space := ST.space] \as STSign;
+\import Degrees.Sign[V := TT.Carrier, space := TT.space] \as TTSign;
+\import Degrees.Sign[V := TD.Carrier, space := TD.space] \as TotalSign;
+\import STSign.Mapping[W := TT.Carrier, target := TT.space] \as SwapSign;
+\import TTSign.Mapping[W := TD.Carrier, target := TD.space] \as InjectionSign;
+\import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := n].At[i := i] \as SourceProduct;
+\import \parent.\parent.\parent.IndexedCycleProduct[C := D, D := C, n := n].At[
+  i := Koszul.index n i] \as TargetProduct;
+\definition onValue: \forall (x: LeftCycles.CycleCarrier)(y: RightCycles.CycleCarrier) ->
+  #apply{Termwise.map} n (#apply{Koszul.forward} n (SourceProduct.value x y)) =
+  #apply{(TotalSign.map exponent)} (TargetProduct.value y x) :=
+  \fun (x: LeftCycles.CycleCarrier)(y: RightCycles.CycleCarrier) => trans!{TD.Carrier} _ _ _
+    (congr!{MD.Carrier TD.Carrier} (#apply{Termwise.map} n) _ _ (K.onInjection i (ST.tensor x y)))
+    (trans!{TD.Carrier} _ _ _
+      (T.onInjection (Koszul.index n i) (#apply{(STSign.map exponent)} (ST.tensor x y)))
+      (trans!{TD.Carrier} _ _ _
+        (congr!{TT.Carrier TD.Carrier} (#apply{(TD.Component[i := Koszul.index n i].injection)}) _ _
+          (trans!{TT.Carrier} _ _ _ (SwapSign.naturality SymmetryTerm.forward exponent (ST.tensor x y))
+            (congr!{TT.Carrier TT.Carrier} (#apply{(TTSign.map exponent)}) _ _ (TensorSwap.onTensor x y))))
+        (InjectionSign.naturality (TD.Component[i := Koszul.index n i].injection) exponent (TT.tensor y x))));
+\import Cochains.Map[C := SourceTotal.complex, D := MiddleTotal.complex].At[k := n] \as First;
+\import Cochains.Map[C := MiddleTotal.complex, D := TargetTotal.complex].At[k := n] \as Second;
+\import Degrees.Sign[V := Final.CycleCarrier, space := Final.cycleSpace] \as CycleSign;
+\import Degrees.Sign[V := Final.Cohomology, space := Final.cohomologySpace] \as HomologySign;
+\import Modules.Hom[V := Final.CycleCarrier, W := TD.Carrier,
+  source := Final.cycleSpace, target := TD.space] \as AmbientMaps;
+\definition ambient: AmbientMaps.Map := AmbientMaps.Map {
+  apply := \fun (x: Final.CycleCarrier) => x,
+  addition := \fun (x, y: Final.CycleCarrier) => \refl(#add{TD.space} x y),
+  scalar := \fun (a: R)(x: Final.CycleCarrier) => \refl(#smul{TD.space} a x),
+};
+\import CycleSign.Mapping[W := TD.Carrier, target := TD.space] \as AmbientSign;
+\import CycleSign.Mapping[W := Final.Cohomology, target := Final.cohomologySpace] \as ClassSign;
+\definition onClass: \forall (x: LeftCycles.CycleCarrier)(y: RightCycles.CycleCarrier) ->
+  #apply{#forward{isomorphism}} (SourceProduct.classOf x y) =
+  #apply{(HomologySign.map exponent)} (TargetProduct.classOf y x) :=
+  \fun (x: LeftCycles.CycleCarrier)(y: RightCycles.CycleCarrier) => trans!{Final.Cohomology} _ _ _
+    (congr!{Middle.Cohomology Final.Cohomology} (#apply{(Second.induced Termwise.map)}) _ _
+      (First.onClass Koszul.forward (SourceProduct.cycle x y)))
+    (trans!{Final.Cohomology} _ _ _
+      (Second.onClass Termwise.map (#apply{(First.cyclesMap Koszul.forward)} (SourceProduct.cycle x y)))
+      (trans!{Final.Cohomology} _ _ _
+        (Final.equalClass
+          (#apply{(Second.cyclesMap Termwise.map)} (#apply{(First.cyclesMap Koszul.forward)} (SourceProduct.cycle x y)))
+          (#apply{(CycleSign.map exponent)} (TargetProduct.cycle y x))
+          (trans!{TD.Carrier} _ _ _ (onValue x y)
+            (sym!{TD.Carrier} _ _ (AmbientSign.naturality ambient exponent (TargetProduct.cycle y x)))))
+        (ClassSign.naturality Final.classLinear exponent (TargetProduct.cycle y x))));
+\import Degrees.Sign[V := Source.Cohomology, space := Source.cohomologySpace] \as SourceSign;
+\import HomologySign.Mapping[W := Source.Cohomology, target := Source.cohomologySpace] \as BackwardSign;
+\definition inverseOnClass: \forall (x: LeftCycles.CycleCarrier)(y: RightCycles.CycleCarrier) ->
+  #apply{#backward{isomorphism}} (TargetProduct.classOf y x) =
+  #apply{(SourceSign.map exponent)} (SourceProduct.classOf x y) :=
+  \fun (x: LeftCycles.CycleCarrier)(y: RightCycles.CycleCarrier) => trans!{Source.Cohomology} _ _ _
+    (congr!{Final.Cohomology Source.Cohomology} (#apply{#backward{isomorphism}}) _ _
+      (sym!{Final.Cohomology} _ _ (HomologySign.involutive exponent (TargetProduct.classOf y x))))
+    (trans!{Source.Cohomology} _ _ _
+      (congr!{Final.Cohomology Source.Cohomology}
+        (\fun (h: Final.Cohomology) => #apply{#backward{isomorphism}} (#apply{(HomologySign.map exponent)} h))
+        _ _ (sym!{Final.Cohomology} _ _ (onClass x y)))
+      (trans!{Source.Cohomology} _ _ _
+        (BackwardSign.naturality #backward{isomorphism} exponent (#apply{#forward{isomorphism}} (SourceProduct.classOf x y)))
+        (congr!{Source.Cohomology Source.Cohomology} (#apply{(SourceSign.map exponent)}) _ _
+          (#leftInverse{isomorphism} (SourceProduct.classOf x y)))));

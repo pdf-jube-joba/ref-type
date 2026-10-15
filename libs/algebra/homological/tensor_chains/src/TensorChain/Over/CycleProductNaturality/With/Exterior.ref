@@ -1,0 +1,53 @@
+\import Chains.At[C := D, z := p] \as TC;
+\import Chains.At[C := F, z := q] \as TF;
+\import Chains.At[C := SourceTotal.complex, z := n] \as HS;
+\import \parent.\parent.\parent.Exterior[C := C, D := E, p := p, q := q] \as SourceExterior;
+\import \parent.\parent.\parent.Exterior[C := D, D := F, p := p, q := q] \as TargetExterior;
+\import Modules.Tensor[V := SC.Homology, W := SE.Homology,
+  left := SC.homologySpace, right := SE.homologySpace] \as S;
+\import Modules.Tensor[V := TC.Homology, W := TF.Homology,
+  left := TC.homologySpace, right := TF.homologySpace] \as T;
+\import S.Mapping[U := TC.Homology, Z := TF.Homology,
+  targetLeft := TC.homologySpace, targetRight := TF.homologySpace] \as Components;
+\definition map: Modules.Hom[V := S.Carrier, W := T.Carrier, source := S.space, target := T.space].Map :=
+  Components.map (Left.induced f) (Right.induced g);
+\import Modules.Hom[V := HS.Homology, W := H.Homology,
+  source := HS.homologySpace, target := H.homologySpace].Composition[
+  U := S.Carrier, domain := S.space] \as After;
+\import Modules.Hom[V := T.Carrier, W := H.Homology,
+  source := T.space, target := H.homologySpace].Composition[
+  U := S.Carrier, domain := S.space] \as Before;
+\import Modules.Hom[V := S.Carrier, W := H.Homology,
+  source := S.space, target := H.homologySpace] \as Maps;
+\definition after: Maps.Map := After.compose (Induced.induced TensorMap.total) SourceExterior.map;
+\definition before: Maps.Map := Before.compose TargetExterior.map map;
+\definition afterOnClass: \forall (x: SC.Cycle)(y: SE.Cycle) ->
+  #apply{after} (S.tensor (SC.classOf x) (SE.classOf y)) =
+  Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y) :=
+  \fun (x: SC.Cycle)(y: SE.Cycle) => trans!{H.Homology}
+    _ _ _
+    (congr!{HS.Homology H.Homology} (#apply{(Induced.induced TensorMap.total)}) _ _ (SourceExterior.onClass x y))
+    (onClass x y);
+\definition beforeOnClass: \forall (x: SC.Cycle)(y: SE.Cycle) ->
+  #apply{before} (S.tensor (SC.classOf x) (SE.classOf y)) =
+  Target.classOf (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y) :=
+  \fun (x: SC.Cycle)(y: SE.Cycle) => trans!{H.Homology}
+    _ _ _
+    (congr!{T.Carrier H.Homology} (#apply{TargetExterior.map}) _ _
+      (Components.onTensor (Left.induced f) (Right.induced g) (SC.classOf x) (SE.classOf y)))
+    (trans!{H.Homology} _ _ _
+      (congr2!{TC.Homology TF.Homology H.Homology}
+        (\fun (h: TC.Homology)(k: TF.Homology) => #apply{TargetExterior.map} (T.tensor h k))
+        _ _ _ _
+        (Left.onClass f x) (Right.onClass g y))
+      (TargetExterior.onClass (#apply{(Left.cyclesMap f)} x) (#apply{(Right.cyclesMap g)} y)));
+\import S.Universal[U := H.Homology, target := H.homologySpace] \as Universal;
+\definition naturality: after = before := Universal.ext after before
+  (SC.classInduction
+    (\fun (h: SC.Homology) => \forall (k: SE.Homology) ->
+      #apply{after} (S.tensor h k) = #apply{before} (S.tensor h k))
+    (\fun (x: SC.Cycle) => SE.classInduction
+      (\fun (h: SE.Homology) => #apply{after} (S.tensor (SC.classOf x) h) = #apply{before} (S.tensor (SC.classOf x) h))
+      (\fun (y: SE.Cycle) => trans!{H.Homology}
+        _ _ _
+        (afterOnClass x y) (sym!{H.Homology} _ _ (beforeOnClass x y)))));
