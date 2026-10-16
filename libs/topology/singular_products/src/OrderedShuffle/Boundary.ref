@@ -3,3 +3,36 @@
 \module LeftZero(s: N.Nat^);
 \module RightZero(r: N.Nat^);
 \module Positive(r, s: N.Nat^, a: V, b: W);
+\module PositiveCase(r, s: N.Nat^);
+\import std.Logic[].Proposition[] \as Logic;
+\definition Result: N.Nat^ -> N.Nat^ -> \Prop :=
+  \induction (p: N.Nat^) \return N.Nat^ -> \Prop \with {
+    | zero: \induction (q: N.Nat^) \return \Prop \with {
+        | zero: Logic.True
+        | succ: \fun (q: N.Nat^)(previous: \Prop) => Statement N.Nat^::zero (N.Nat^::succ q)
+      }
+    | succ: \fun (p: N.Nat^)(previous: N.Nat^ -> \Prop)(q: N.Nat^) => Statement (N.Nat^::succ p) q
+  };
+\definition initial: \forall (q: N.Nat^) -> Result N.Nat^::zero q :=
+  \induction (q: N.Nat^) \return Result N.Nat^::zero q \with {
+    | zero: Logic.True::intro
+    | succ: \fun (q: N.Nat^)(previous: Result N.Nat^::zero q) => LeftZero[s := q].equation
+  };
+\definition rightPositive: \forall (p, s: N.Nat^) -> Result p (N.Nat^::succ s) -> Statement p (N.Nat^::succ s) :=
+  \induction (p: N.Nat^) \return \forall (s: N.Nat^) -> Result p (N.Nat^::succ s) -> Statement p (N.Nat^::succ s) \with {
+    | zero: \fun (s: N.Nat^)(equation: Statement N.Nat^::zero (N.Nat^::succ s)) => equation
+    | succ: \fun (p: N.Nat^)(previous: \forall (s: N.Nat^) -> Result p (N.Nat^::succ s) -> Statement p (N.Nat^::succ s))
+        (s: N.Nat^)(equation: Statement (N.Nat^::succ p) (N.Nat^::succ s)) => equation
+  };
+\definition all: \forall (p, q: N.Nat^) -> Result p q :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^) -> Result p q \with {
+    | zero: initial
+    | succ: \fun (p: N.Nat^)(previous: \forall (q: N.Nat^) -> Result p q) =>
+      \induction (q: N.Nat^) \return Statement (N.Nat^::succ p) q \with {
+        | zero: RightZero[r := p].equation
+        | succ: \fun (q: N.Nat^)(lower: Statement (N.Nat^::succ p) q) =>
+          PositiveCase[r := p, s := q].equation (rightPositive p q (previous (N.Nat^::succ q))) lower
+      }
+  };
+\definition equationLeft(p, q: N.Nat^): Statement (N.Nat^::succ p) q := all (N.Nat^::succ p) q;
+\definition equationRight(p, q: N.Nat^): Statement p (N.Nat^::succ q) := rightPositive p q (all p (N.Nat^::succ q));
