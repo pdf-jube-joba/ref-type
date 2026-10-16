@@ -14,11 +14,11 @@ name = "Display"
 ```ref
 \inductive Degree: \Set := | zero: Degree | one: Degree;
 \inductive Scalar: \Set := | value: Scalar;
-\definition Form(k: Degree): \Set := Scalar;
-\definition series(k: Degree)(omega: Form k): Scalar := omega;
-\definition recover(k: Degree)(representation: Scalar): Form k := representation;
-\definition convert(k, l: Degree)(omega: Form k): Form l := recover l (series k omega);
-\definition cast(k, l: Degree)(omega: Form k)(same: k = l): Form l := convert k l omega;
+\definition Form[k: Degree]: \Set := Scalar;
+\definition series[k: Degree][omega: Form k]: Scalar := omega;
+\definition recover[k: Degree][representation: Scalar]: Form k := representation;
+\definition convert[k, l: Degree][omega: Form k]: Form l := recover l (series k omega);
+\definition cast[k, l: Degree][omega: Form k][same: k = l]: Form l := convert k l omega;
 \definition identity: \forall (k: Degree)(omega: Form k)(same: k = k) -> cast k k omega same = omega :=
   \fun (k: Degree)(omega: Form k)(same: k = k) => \refl omega;
 ```
@@ -37,7 +37,7 @@ name = "InductiveReductionLargeParameter"
 ```ref
 \inductive Unit: \Set := | unit: Unit;
 \inductive Pair[A, B: \Set]: \Set := | pair: A -> B -> Pair;
-\definition first (A, B: \Set) (p: Pair[A, B]): A :=
+\definition first [A, B: \Set] [p: Pair[A, B]]: A :=
   \induction (p: Pair[A, B]) \return A \with {
     | pair: \fun (a: A) => \fun (b: B) => a
   } p;
@@ -50,7 +50,7 @@ name = "InductiveReductionLargeParameter"
 \definition T6: \Set := Pair[T5, T5];
 \definition T7: \Set := Pair[T6, T6];
 \definition T8: \Set := Pair[T7, T7];
-\definition project (x: T8): first T8 T8 (Pair[T8, T8]::pair x x) = x := \refl(x);
+\definition project [x: T8]: first T8 T8 (Pair[T8, T8]::pair x x) = x := \refl(x);
 ```
 
 ## refined function application
@@ -70,6 +70,6 @@ name = "RefinedFunctionApplication"
 \definition Functions: \Pow (Unit -> Unit) := { f : Unit -> Unit \where True };
 \definition identity: \Cast[Unit -> Unit] (Functions) :=
   \into[Unit -> Unit](\fun (x: Unit) => x, Functions) \by { True::yes };
-\definition identityBeta (x: Unit): identity x = x := \refl(x);
+\definition identityBeta [x: Unit]: identity x = x := \refl(x);
 ```
 

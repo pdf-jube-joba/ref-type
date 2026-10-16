@@ -30,9 +30,9 @@ shared = { path = "../shared" }
 ```ref file=main/src/root.ref
 \module Local(A: \Set) { \definition Carrier: \Set := A; }
         \module Consumer {
-            \definition dependency(A: \Set): \Set := shared.Family[A := A].Carrier;
-            \definition rooted(A: \Set): \Set := \root.Local[A := A].Carrier;
-            \definition same(A: \Set)(x: dependency A): rooted A := x;
+            \definition dependency[A: \Set]: \Set := shared.Family[A := A].Carrier;
+            \definition rooted[A: \Set]: \Set := \root.Local[A := A].Carrier;
+            \definition same[A: \Set][x: dependency A]: rooted A := x;
         }
 ```
 

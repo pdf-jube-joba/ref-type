@@ -1,21 +1,21 @@
 \import \parent.Invariants[m := m, n := n, original := original] \as Computation;
 \import \parent.\parent.Prefix[m := m, n := n] \as Prefix;
 \import \parent.\parent.Bounds[] \as Indices;
-\structure StateLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop {
+\structure StateLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop := {
   computation: Computation.Laws[k, a, history],
   prefix: Prefix.Holds k a,
-}
-\definition invariant(current: State^): \Prop :=
+};
+\definition invariant[current: State^]: \Prop :=
   \forall (P: State^ -> \Prop) -> (\forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> P (State^::active m n k a history)) -> P current;
 \definition introduce: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> invariant (State^::active m n k a history) :=
   \fun (k: N.Nat^)(a: Runtime^)(history: History^)(law: _)(P: State^ -> \Prop)(into: _) => into k a history law;
-\definition TrailingZero(k: N.Nat^)(a: Runtime^): \Prop :=
+\definition TrailingZero[k: N.Nat^][a: Runtime^]: \Prop :=
   \forall (i, j: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt j n -> Bounds.Le k i -> Bounds.Le k j -> a i j = Arithmetic.zero;
-\structure OutputLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop {
+\structure OutputLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop := {
   computation: Computation.Laws[k, a, history],
   prefix: Prefix.Holds k a,
   trailing: TrailingZero k a,
-}
+};
 \definition result: Output^ -> \Prop := \induction (output: Output^) \return \Prop \with {
   | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) => OutputLaw[rank, a, history]
 };

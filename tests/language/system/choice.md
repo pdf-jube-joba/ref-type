@@ -134,7 +134,7 @@ parameters = '''X: \Set, P: \Prop, predicate: X -> P, x: X,
 \definition other_certificates: x = chosen :=
     \choiceeq x \of X
       \by { existence: anotherExistence, uniqueness: anotherUniqueness };
-\definition recovered (a, b: X): a = b :=
+\definition recovered [a, b: X]: a = b :=
     \idelim chosen = b \with z: X => a = z
       \by { base: \choiceeq a \of X \by { existence: existsX, uniqueness: uniqueX },
         equality: \idelim b = chosen \with z: X => z = b
@@ -169,7 +169,7 @@ expect = "accept"
         \bysub(A, subset, \choice \Cast[A] subset \by { existence: existsA, uniqueness: uniqueA });
     \macro equal($element, $set) :=
         \choiceeq $element \of $set \by { existence: existsA, uniqueness: uniqueA };
-    \definition macro_element (a: \Cast[A] subset): a = chosen := equal!{a {\Cast[A] subset}};
+    \definition macro_element [a: \Cast[A] subset]: a = chosen := equal!{a {\Cast[A] subset}};
     \macro choose($set) :=
         \choice $set \by { existence: existsA, uniqueness: uniqueA };
     \definition macro_choice: a = choose!{{\Cast[A] subset}} :=

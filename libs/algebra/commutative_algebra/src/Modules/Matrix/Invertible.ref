@@ -2,28 +2,28 @@
 \import \parent.Composition[k := m] \as ForwardComposition;
 \import Backward.Composition[k := n] \as BackwardComposition;
 \import \parent.End[] \as Identity;
-\structure Data: \Set { inverse: Backward.Matrix }
-\structure Laws[a: Matrix, data: Data]: \Prop {
+\structure Data: \Set := { inverse: Backward.Matrix };
+\structure Laws[a: Matrix, data: Data]: \Prop := {
   leftInverse: BackwardComposition.product data.inverse a = Identity.identity,
   rightInverse: ForwardComposition.product a data.inverse = Identity.targetIdentity,
-}
-\definition Inverse(a: Matrix): \Set := \Cast[Data] ({ data: Data \where Laws[a, data] });
+};
+\definition Inverse[a: Matrix]: \Set := \Cast[Data] ({ data: Data \where Laws[a, data] });
 \import Modules.Isomorphism[V := Domain.Carrier, W := Codomain.Carrier, source := Domain.space, target := Codomain.space] \as Iso;
 \import Modules.Hom[V := Domain.Carrier, W := Domain.Carrier, source := Domain.space, target := Domain.space] \as DomainMaps;
 \import Modules.Hom[V := Codomain.Carrier, W := Codomain.Carrier, source := Codomain.space, target := Codomain.space] \as CodomainMaps;
 \import \parent.\parent.Matrix[m := n, n := n] \as DomainSquare;
 \import \parent.\parent.Matrix[m := m, n := m] \as CodomainSquare;
 \module On(a: Matrix, inverse: Inverse a);
-\definition isomorphism(a: Matrix)(inverse: Inverse a): Iso.Isomorphism := On[a := a, inverse := inverse].isomorphism;
+\definition isomorphism[a: Matrix][inverse: Inverse a]: Iso.Isomorphism := On[a := a, inverse := inverse].isomorphism;
 \definition existence: \forall (a: Matrix) -> (\exists Inverse a) -> \exists Iso.Isomorphism := \block {
   \fun (a: Matrix)(exists: \exists Inverse a) \then
   \takefrom inverse: Inverse a \by exists \then
   \return \exact(isomorphism a inverse, Iso.Isomorphism)
 };
 \module FromIsomorphism(e: Iso.Isomorphism);
-\definition fromIsomorphism(e: Iso.Isomorphism): Inverse (entries e.forward) := FromIsomorphism[e := e].inverse;
+\definition fromIsomorphism[e: Iso.Isomorphism]: Inverse (entries e.forward) := FromIsomorphism[e := e].inverse;
 
-\definition transport(a, b: Matrix)(equal: a = b)(certificate: Inverse a): Inverse b :=
+\definition transport[a, b: Matrix][equal: a = b][certificate: Inverse a]: Inverse b :=
   \into[Data](certificate, { data: Data \where Laws[b, data] }) \by { Laws[b, certificate] {
     leftInverse := trans!{DomainSquare.Matrix} _ _ _
       (congr!{Matrix DomainSquare.Matrix} (BackwardComposition.product certificate.inverse) b a (sym!{Matrix} a b equal))
@@ -35,5 +35,5 @@
 \module Composition(k: N.Nat^);
 
 \module Transpose(a: Matrix, certificate: Inverse a);
-\definition transpose(a: Matrix)(certificate: Inverse a): \parent.\parent.Matrix[m := n, n := m].Invertible[].Inverse (\parent.Transpose[].transpose a) :=
+\definition transpose[a: Matrix][certificate: Inverse a]: \parent.\parent.Matrix[m := n, n := m].Invertible[].Inverse (\parent.Transpose[].transpose a) :=
   Transpose[a := a, certificate := certificate].inverse;

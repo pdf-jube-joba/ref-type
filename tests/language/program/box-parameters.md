@@ -38,14 +38,14 @@ expect = "accept"
 
 ```ref
 \inductive Bit: \VType := | zero: Bit | one: Bit;
-\definition package(A: \VType)(a: A)(x: \U(\F(A))): \Box[\F(A)] :=
+\definition package[A: \VType][a: A][x: \U(\F(A))]: \Box[\F(A)] :=
   \box[_](\bind y: A <- \force x \in \return a);
-\definition residual(A: \VType)(a: A)(x: \U(\F(A))):
+\definition residual[A: \VType][a: A][x: \U(\F(A))]:
   \squash[_](package A a x) = a^ := \refl(a^);
 \definition concrete:
   \squash[_](package Bit Bit::one (\thunk (\return Bit::zero))) = Bit^::one :=
   residual Bit Bit::one (\thunk (\return Bit::zero));
-\definition reflected(A: \VType)(a: A): A^ :=
+\definition reflected[A: \VType][a: A]: A^ :=
   \squash[_](\box[_](\return a));
 \definition substituted: reflected Bit Bit::one = Bit^::one := \refl(Bit^::one);
 ```
@@ -106,7 +106,7 @@ expect = "accept"
 ```ref
 \definition step: \U(A ~> \F(\RunStep[A, A])) :=
   \thunk (\cfun (s: A) => \return (\finish[A, A](a)));
-\definition Terminates(s: A^): \Prop :=
+\definition Terminates[s: A^]: \Prop :=
   \forall (P: A^ -> \Prop) ->
     (\forall (x: A^) ->
       (\step-match t: \RunStep[A^, A^] \return \Prop \with {

@@ -214,7 +214,7 @@ expect = "accept"
   \definition carrier: \Set := Bool^;
   \definition value: Bool := Bool::true;
   \definition valueSet: Bool^ := value^;
-  \definition identity(b: Bool): \F(Bool) := \return b;
+  \definition identity[b: Bool]: \F(Bool) := \return b;
   \definition identitySet: Bool^ -> Bool^ := identity^;
   \definition identityAgrees: identitySet valueSet = Bool^::true := \refl(Bool^::true);
   \definition boxedAgrees:

@@ -131,7 +131,7 @@ base = { path = "../base" }
 ```
 
 ```ref file=right/src/root.ref
-\module Core { \import base.Core[] \as B; \definition id(x: B.Unit): B.Unit := x; }
+\module Core { \import base.Core[] \as B; \definition id[x: B.Unit]: B.Unit := x; }
 ```
 
 ```toml file=app/ref.toml

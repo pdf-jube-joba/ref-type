@@ -7,9 +7,9 @@
 \import std.Logic[].Proposition[] \as Logic;
 \import \parent.Reduction[] \as Reduction;
 \import \parent.Bounds[] \as Indices;
-\definition inject(k, i: N.Nat^)(a: Runtime^): Runtime^ := Rows.add a k i Arithmetic.one;
-\definition injectHistory(k, i: N.Nat^)(history: History^): History^ := History^::prepend (Operation^::rowAdd k i Arithmetic.one) history;
-\definition correct(k, i, j: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := Reduction.column k j (inject k i a) (injectHistory k i history);
+\definition inject[k, i: N.Nat^][a: Runtime^]: Runtime^ := Rows.add a k i Arithmetic.one;
+\definition injectHistory[k, i: N.Nat^][history: History^]: History^ := History^::prepend (Operation^::rowAdd k i Arithmetic.one) history;
+\definition correct[k, i, j: N.Nat^][a: Runtime^][history: History^]: Attempt^ := Reduction.column k j (inject k i a) (injectHistory k i history);
 \definition injectedValue: \forall (k, i, j: N.Nat^)(a: Runtime^) -> inject k i a k j = Arithmetic.add (a k j) (a i j) :=
   \fun (k, i, j: N.Nat^)(a: Runtime^) => trans!{I.Int^} (inject k i a k j) (Arithmetic.add (a k j) (Arithmetic.mul Arithmetic.one (a i j))) (Arithmetic.add (a k j) (a i j))
     (Reduction.rowAdditionSelf a k i Arithmetic.one j)
@@ -44,7 +44,7 @@
       (Indices.prepend rows cols (Operation^::rowAdd k i Arithmetic.one) history
         (Indices.ShearBounds[rows, k, i] { first := pivotRow, second := rowBound, distinct := NaturalBounds.ltNe k i rowLower }) historyLaws);
 
-\structure Cleared[k, i, j: N.Nat^, a: Runtime^]: \Prop { column: a i k = Arithmetic.zero, row: a k j = Arithmetic.zero }
+\structure Cleared[k, i, j: N.Nat^, a: Runtime^]: \Prop := { column: a i k = Arithmetic.zero, row: a k j = Arithmetic.zero };
 \definition remainderAtInjected: \forall (k, i, j: N.Nat^)(a: Runtime^) -> Cleared[k, i, j, a] -> Division.remainder (inject k i a k j) (inject k i a k k) = Division.remainder (a i j) (a k k) :=
   \fun (k, i, j: N.Nat^)(a: Runtime^)(cleared: _) => congr2!{I.Int^ I.Int^ I.Int^} Division.remainder
     (inject k i a k j) (a i j) (inject k i a k k) (a k k) (injectedEntry k i j a cleared.row) (injectedPivot k i a cleared.column);

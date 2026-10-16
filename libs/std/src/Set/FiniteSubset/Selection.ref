@@ -1,32 +1,32 @@
 \import std.Set[].FiniteSubset[A := B] \as Target;
-\definition RelatedWitness(relation: A -> B -> \Prop) (X: \Pow A) (b: B): \Set :=
+\definition RelatedWitness[relation: A -> B -> \Prop] [X: \Pow A] [b: B]: \Set :=
   \Cast[A] ({ a: A \where Logic.And[\In[A] X a, relation a b] });
-\definition CoveredWitness(relation: A -> B -> \Prop) (Y: \Pow B) (a: A): \Set :=
+\definition CoveredWitness[relation: A -> B -> \Prop] [Y: \Pow B] [a: A]: \Set :=
   \Cast[B] ({ b: B \where Logic.And[\In[B] Y b, relation a b] });
-\structure SelectionData: \Set {
+\structure SelectionData: \Set := {
   finite: Target.FiniteSubset,
-}
-\structure SelectionLaws[relation: A -> B -> \Prop, X: \Pow A, data: SelectionData]: \Prop {
+};
+\structure SelectionLaws[relation: A -> B -> \Prop, X: \Pow A, data: SelectionData]: \Prop := {
   included: \forall (b: B) -> Target.Member data.finite b -> \exists RelatedWitness relation X b,
   covers: \forall (a: A) -> \In[A] X a -> \exists CoveredWitness relation data.finite a,
-}
+};
 \definition Selection[relation: A -> B -> \Prop, X: \Pow A]: \Set :=
   \Cast[SelectionData] ({ data: SelectionData \where SelectionLaws[relation, X, data] });
-\definition related(relation: A -> B -> \Prop) (X: \Pow A) (a: A) (b: B):
+\definition related[relation: A -> B -> \Prop] [X: \Pow A] [a: A] [b: B]:
   \In[A] X a -> relation a b -> \exists RelatedWitness relation X b :=
   \fun (member: _) (h: _) => \exact(\into[A](a,
     { a: A \where Logic.And[\In[A] X a, relation a b] }) \by { Logic.And[_, _]::# member h },
     RelatedWitness relation X b);
-\definition covered(relation: A -> B -> \Prop) (Y: \Pow B) (a: A) (b: B):
+\definition covered[relation: A -> B -> \Prop] [Y: \Pow B] [a: A] [b: B]:
   \In[B] Y b -> relation a b -> \exists CoveredWitness relation Y a :=
   \fun (member: _) (h: _) => \exact(\into[B](b,
     { b: B \where Logic.And[\In[B] Y b, relation a b] }) \by { Logic.And[_, _]::# member h },
     CoveredWitness relation Y a);
 \definition existsSelection: \forall (relation: A -> B -> \Prop) (X: FiniteSubset) ->
-  (\forall (a: A) -> Member X a -> \exists { b: B \where relation a b }) -> \exists Selection[relation, X] :=
+  (\forall (a: A) -> Member X a -> \exists ( b: B \where relation a b )) -> \exists Selection[relation, X] :=
   \fun (relation: A -> B -> \Prop) => induction
     ({ X: \Pow A \where
-      (\forall (a: A) -> \In[A] X a -> \exists { b: B \where relation a b }) -> \exists Selection[relation, X] })
+      (\forall (a: A) -> \In[A] X a -> \exists ( b: B \where relation a b )) -> \exists Selection[relation, X] })
     (\fun (_: _) => \exact(Selection[relation, Empty] {
       finite := Target.empty,
       included := \fun (b: _) (empty: _) => Logic.falseElim (\exists RelatedWitness relation Empty b) empty,
@@ -34,9 +34,9 @@
     }, Selection[relation, Empty]))
     (\block {
       \fun (X: \Pow A)
-        (ih: (\forall (a: A) -> \In[A] X a -> \exists { b: B \where relation a b }) -> \exists Selection[relation, X])
+        (ih: (\forall (a: A) -> \In[A] X a -> \exists ( b: B \where relation a b )) -> \exists Selection[relation, X])
         (a: A)
-        (total: \forall (x: A) -> \In[A] (Insert a X) x -> \exists { b: B \where relation x b }) \then
+        (total: \forall (x: A) -> \In[A] (Insert a X) x -> \exists ( b: B \where relation x b )) \then
       \takefrom previous: Selection[relation, X]
         \by ih (\fun (x: _) (member: _) => total x (inInsertOld a X x member)) \then
       \takefrom b: \Cast[B] ({ b: B \where relation a b }) \by total a (inInsertNew a X) \then
@@ -69,14 +69,14 @@
       }, Selection[relation, Insert a X])
     });
 
-\definition includedElim(relation: A -> B -> \Prop) (X: \Pow A) (selection: Selection[relation, X]) (b: B) (P: \Prop):
+\definition includedElim[relation: A -> B -> \Prop] [X: \Pow A] [selection: Selection[relation, X]] [b: B] [P: \Prop]:
   (\forall (a: A) -> \In[A] X a -> relation a b -> P) -> Target.Member (selection.finite) b -> P := \block {
   \fun (step: \forall (a: A) -> \In[A] X a -> relation a b -> P) (member: Target.Member (selection.finite) b) \then
   \takefrom a: RelatedWitness relation X b \by selection.included b member \then
   \let data: Logic.And[\In[A] X a, relation a b] := \bysub(A, { a: A \where Logic.And[\In[A] X a, relation a b] }, a) \then
   \return step a (data.left) (data.right)
 };
-\definition coversElim(relation: A -> B -> \Prop) (X: \Pow A) (selection: Selection[relation, X]) (a: A) (P: \Prop):
+\definition coversElim[relation: A -> B -> \Prop] [X: \Pow A] [selection: Selection[relation, X]] [a: A] [P: \Prop]:
   (\forall (b: B) -> Target.Member (selection.finite) b -> relation a b -> P) -> \In[A] X a -> P := \block {
   \fun (step: \forall (b: B) -> Target.Member (selection.finite) b -> relation a b -> P) (member: \In[A] X a) \then
   \takefrom b: CoveredWitness relation (selection.finite) a \by selection.covers a member \then

@@ -8,18 +8,18 @@
 \import B.Prop[] \as BoolLaws;
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
-\definition resolve(k: N.Nat^)(current: Attempt^): Grid.Position^ -> Attempt^ := \induction (position: Grid.Position^) \return Attempt^ \with {
+\definition resolve[k: N.Nat^][current: Attempt^]: Grid.Position^ -> Attempt^ := \induction (position: Grid.Position^) \return Attempt^ \with {
   | empty: current
   | position: \fun (i, j: N.Nat^) => Correction.correct k i j (attemptMatrix current) (attemptHistory current)
 };
-\definition cleared(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := Clearing.clear rows cols k a history;
-\definition round(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+\definition cleared[rows, cols, k: N.Nat^][a: Runtime^][history: History^]: Attempt^ := Clearing.clear rows cols k a history;
+\definition round[rows, cols, k: N.Nat^][a: Runtime^][history: History^]: Attempt^ :=
   B.ite Attempt^ (attemptReduced (cleared rows cols k a history)) (cleared rows cols k a history)
     (resolve k (cleared rows cols k a history) (Offender.seek rows cols k (attemptMatrix (cleared rows cols k a history))));
-\structure Complete[rows, cols, k: N.Nat^, a: Runtime^, current: Attempt^]: \Prop {
+\structure Complete[rows, cols, k: N.Nat^, a: Runtime^, current: Attempt^]: \Prop := {
   settled: Clearing.Settled[rows, cols, k, a, current],
   divides: \forall (i, j: N.Nat^) -> Bounds.Lt i rows -> Bounds.Lt j cols -> Bounds.Lt k i -> Bounds.Lt k j -> Signed.Divides (attemptMatrix current k k) (attemptMatrix current i j),
-}
+};
 \module On(rows, cols, k: N.Nat^, a: Runtime^, history: History^);
 \definition smaller: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Reduction.Smaller k a (round rows cols k a history) :=
   \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => On[rows := rows, cols := cols, k := k, a := a, history := history].smaller;

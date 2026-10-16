@@ -6,15 +6,15 @@ field の型は宣言順に先行 field に依存できる。
 ## 宣言の束
 
 ```text
-\structure Relation {
+\structure Relation := {
   A: \Set,
   R: A -> A -> \Prop,
-}
-\definition Equality(A: \Set): Relation := Relation {
+};
+\definition Equality[A: \Set]: Relation := Relation {
   A := A,
   R := \fun(x, y: A) => x = y,
 };
-\definition diagonal(r: Relation)(x: r.A): \Prop := r.R x x;
+\definition diagonal[r: Relation][x: r.A]: \Prop := r.R x x;
 ```
 
 sort を指定しない signature は field の依存文脈に展開する。
@@ -22,11 +22,11 @@ sort を指定しない signature は field の依存文脈に展開する。
 固定した型や値は parameter にできる。
 
 ```text
-\structure BasedRelation[A: \Set] {
+\structure BasedRelation[A: \Set] := {
   relation: Relation,
   base: relation.A,
   map: A -> relation.A,
-}
+};
 ```
 
 module parameter に渡す場合も同じ field の代入を使う。
@@ -38,19 +38,19 @@ field に本体を付けると literal で省略できる。
 上書きした値は、依存する後続 field の型と本体にも代入する。
 
 ```text
-\structure Duplicate[A: \Set] {
+\structure Duplicate[A: \Set] := {
   value: A,
   copy: A := value,
   same: copy = value := \refl(value),
-}
-\definition duplicate(A: \Set)(a: A): Duplicate[A] := Duplicate[A] { value := a };
+};
+\definition duplicate[A: \Set][a: A]: Duplicate[A] := Duplicate[A] { value := a };
 
-\structure ProgramData {
+\structure ProgramData := {
   T: \VType,
   value: T,
   result: \F T := \return value,
-}
-\definition run(d: ProgramData): \F(d.T) := d.result;
+};
+\definition run[d: ProgramData]: \F(d.T) := d.result;
 ```
 
 Program の値型・値・計算は各カテゴリの規則で検査する。
@@ -60,10 +60,10 @@ Program の値型・値・計算は各カテゴリの規則で検査する。
 sort を持つ record の既定値は `\Prop` の証明 field に指定できる。
 
 ```text
-\structure Reflexive[A: \Set, a: A]: \Prop {
+\structure Reflexive[A: \Set, a: A]: \Prop := {
   same: a = a := \refl(a),
-}
-\definition reflexive(A: \Set)(a: A): Reflexive[A, a] := Reflexive[A, a] {};
+};
+\definition reflexive[A: \Set][a: A]: Reflexive[A, a] := Reflexive[A, a] {};
 ```
 
 ## sort を持つ record
@@ -72,12 +72,12 @@ sort を持つ record の既定値は `\Prop` の証明 field に指定できる
 単一 constructor の帰納型と projection に展開し、field と sort の適合を検査する。
 
 ```text
-\structure EqualPair[A: \Set]: \Set {
+\structure EqualPair[A: \Set]: \Set := {
   first: A,
   second: A,
   same: first = second,
-}
-\definition equalPair(A: \Set)(a: A): EqualPair[A] := EqualPair[A] {
+};
+\definition equalPair[A: \Set][a: A]: EqualPair[A] := EqualPair[A] {
   first := a,
   second := a,
   same := \refl(a),
@@ -90,8 +90,8 @@ law があればデータの帰納型・法則の命題・法則を満たす値�
 別々に扱う場合はデータと法則を明示して定義する。
 
 ```text
-\structure PairData[A: \Set]: \Set { first: A, second: A }
-\structure PairLaws[A: \Set, p: PairData[A]]: \Prop { same: p.first = p.second }
+\structure PairData[A: \Set]: \Set := { first: A, second: A };
+\structure PairLaws[A: \Set, p: PairData[A]]: \Prop := { same: p.first = p.second };
 \definition EqualPairs[A: \Set]: \Set :=
   \Cast[PairData[A]] ({ p: PairData[A] \where PairLaws[A, p] });
 ```
@@ -106,8 +106,8 @@ Program record の制限と projection は [型関連 item](types_and_items.md#p
 
 ```text
 \definition existsRelation: \Prop := \exists(r: Relation);
-\definition witness(A: \Set): existsRelation := \exact(Equality A, Relation);
-\definition repack(e: existsRelation): existsRelation := \block {
+\definition witness[A: \Set]: existsRelation := \exact(Equality A, Relation);
+\definition repack[e: existsRelation]: existsRelation := \block {
   \takefrom r: Relation \by e \then
   \return \exact(r, Relation)
 };

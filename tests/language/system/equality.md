@@ -108,9 +108,9 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A'''
 ```
 
 ```ref
-\definition cast(value: F a)(same: a = b): F b :=
+\definition cast[value: F a][same: a = b]: F b :=
   \idelim a = b \with x: _ => F x \by { base: value, equality: same };
-\definition selfCast(value: F a)(same: a = a): F a :=
+\definition selfCast[value: F a][same: a = a]: F a :=
   \idelim a = a \with x: _ => F x \by { base: value, equality: same };
 \definition identity: \forall (value: F a)(same: a = a) -> selfCast value same = value :=
   \fun (value: F a)(same: a = a) =>
@@ -155,19 +155,19 @@ parameters = '''A: \Set, a, b: A'''
 
 ```ref
 \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
-\structure Pair: \Set { first: Nat, second: Nat }
-\definition moveNat(value: Nat)(same: a = b): Nat :=
+\structure Pair: \Set := { first: Nat, second: Nat };
+\definition moveNat[value: Nat][same: a = b]: Nat :=
   \idelim a = b \with x: _ => Nat \by { base: value, equality: same };
 \definition count: Nat -> Nat := \induction (n: Nat) \return Nat \with {
   | zero: Nat::zero | succ: \fun (n, previous: Nat) => Nat::succ previous
 };
-\definition countMoved(value: Nat)(same: a = b): Nat := count (moveNat value same);
-\definition apply(f: Nat -> Nat)(same: a = b): Nat :=
+\definition countMoved[value: Nat][same: a = b]: Nat := count (moveNat value same);
+\definition apply[f: Nat -> Nat][same: a = b]: Nat :=
   (\idelim a = b \with x: _ => Nat -> Nat \by { base: f, equality: same }) Nat::zero;
-\definition project(p: Pair)(same: a = b): Nat :=
+\definition project[p: Pair][same: a = b]: Nat :=
   (\idelim a = b \with x: _ => Pair \by { base: p, equality: same }).first;
 \definition Sub: \Set := \Cast[Nat] ({ n: Nat \where n = n });
-\definition subset(value: Sub)(same: a = b): Sub :=
+\definition subset[value: Sub][same: a = b]: Sub :=
   \idelim a = b \with x: _ => Sub \by { base: value, equality: same };
 \definition law: \forall (value: Sub) ->
   (\idelim a = a \with x: _ => Sub \by { base: value, equality: \refl a }) = value :=
@@ -187,7 +187,7 @@ parameters = '''A: \Set(1), F: A -> A -> \Set, a, b: A'''
 ```
 
 ```ref
-\definition cast(value: \forall (y: A) -> F a y)(same: a = b): \forall (y: A) -> F b y :=
+\definition cast[value: \forall (y: A) -> F a y][same: a = b]: \forall (y: A) -> F b y :=
   \idelim a = b \with x: _ => \forall (y: A) -> F x y \by { base: value, equality: same };
 \definition identity: \forall (value: \forall (y: A) -> F a y) ->
   (\idelim a = a \with x: _ => \forall (y: A) -> F x y \by { base: value, equality: \refl a }) = value :=

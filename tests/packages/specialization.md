@@ -36,12 +36,12 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \structure Law[V: \Set]: \Set { apply: R -> V }
-  \definition Space(V: \Set): \Set := Law[V];
-  \structure Bundle { Carrier: \Set, space: Space Carrier }
+  \structure Law[V: \Set]: \Set := { apply: R -> V };
+  \definition Space[V: \Set]: \Set := Law[V];
+  \structure Bundle := { Carrier: \Set, space: Space Carrier };
   \module Take(B: Bundle) {}
-  \definition MapBetween(A, B: Bundle): \Set := A.Carrier -> B.Carrier;
-  \definition Property(A, B: Bundle)(f: MapBetween A B): \Prop := \forall (x: B.Carrier) -> x = x;
+  \definition MapBetween[A, B: Bundle]: \Set := A.Carrier -> B.Carrier;
+  \definition Property[A, B: Bundle][f: MapBetween A B]: \Prop := \forall (x: B.Carrier) -> x = x;
 }
 \module Wrapper(R: \Set) {
   \import \root.Base[R := R] \as B;
@@ -51,9 +51,9 @@ expect = "accept"
       \definition Carrier: \Set := M.Carrier;
       \definition space: B.Space Carrier := M.space;
     }
-    \definition Carrier(n: Unit): \Set := Slot[n := n].Carrier;
-    \definition space(n: Unit): B.Space (Carrier n) := Slot[n := n].space;
-    \definition bundle(n: Unit): B.Bundle := B.Bundle { Carrier := Carrier n, space := space n };
+    \definition Carrier[n: Unit]: \Set := Slot[n := n].Carrier;
+    \definition space[n: Unit]: B.Space (Carrier n) := Slot[n := n].space;
+    \definition bundle[n: Unit]: B.Bundle := B.Bundle { Carrier := Carrier n, space := space n };
     \definition proof: B.Property (bundle Unit::unit) M (\fun (x: M.Carrier) => x) := \fun (y: Carrier Unit::unit) => \refl(y);
   }
 }
@@ -80,12 +80,12 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space(V: \Set): \Set := R -> V;
-  \structure Bundle { Carrier: \Set, space: Space Carrier }
+  \definition Space[V: \Set]: \Set := R -> V;
+  \structure Bundle := { Carrier: \Set, space: Space Carrier };
   \module Hom(V, W: \Set, source: Space V, target: Space W) {
     \definition Map: \Set := V -> W;
   }
-  \definition Maps(A, B: Bundle): \Set :=
+  \definition Maps[A, B: Bundle]: \Set :=
     Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map;
   \module Free(S: \Set, seed: S) {
     \definition space: Space S := \fun (r: R) => seed;
@@ -116,12 +116,12 @@ expect = "reject"
 
 ```ref file=src/root.ref
 \module Base(R: \Set) {
-  \definition Space(V: \Set): \Set := R -> V;
-  \structure Bundle { Carrier: \Set, space: Space Carrier }
+  \definition Space[V: \Set]: \Set := R -> V;
+  \structure Bundle := { Carrier: \Set, space: Space Carrier };
   \module Hom(V, W: \Set, source: Space V, target: Space W) {
     \definition Map: \Set := V -> W;
   }
-  \definition Maps(A, B: Bundle): \Set :=
+  \definition Maps[A, B: Bundle]: \Set :=
     Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map;
 }
 \module Native {
@@ -184,7 +184,7 @@ expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Top(A: \Set) { \structure T: \Set { x: A } }
+\module Top(A: \Set) { \structure T: \Set := { x: A }; }
 \module Parent(A: \Set) {
   \import \root.Top[A := A] \as Base;
   \module Child(value: Base.T) { \definition get: A := value.x; }
@@ -216,8 +216,8 @@ expect = "accept"
   }
 }
 \module Consumer(A: \Set) {
-  \definition family(x: A): \Set := A;
-  \definition local(x: A): \Set := \root.Template[V := family x].Carrier;
+  \definition family[x: A]: \Set := A;
+  \definition local[x: A]: \Set := \root.Template[V := family x].Carrier;
   \import \root.Template[V := A] \as Closed;
   \import Closed.Universal[U := Closed.Carrier] \as Universal;
   \definition identity: Universal.Map := \fun (x: A) => x;
@@ -235,8 +235,8 @@ expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Types(A: \Set) { \structure T: \Set { x: A } }
-\module Pair(A, B: \Set) { \structure P: \Set { first: A, second: B } }
+\module Types(A: \Set) { \structure T: \Set := { x: A }; }
+\module Pair(A, B: \Set) { \structure P: \Set := { first: A, second: B }; }
 \module Product(A, B: \Set) {
   \import \root.Pair[A := A, B := B] \as P;
   \definition Carrier: \Set := P.P;
@@ -245,7 +245,7 @@ expect = "accept"
     \import \root.Types[A := X] \as Source;
     \definition Source: \Set := Source.T;
     \definition Target: \Set := Top.T;
-    \definition identity(source: Source) (target: Target): X -> Carrier -> \Prop := \fun (x: X) (y: Carrier) => source.x = x;
+    \definition identity[source: Source] [target: Target]: X -> Carrier -> \Prop := \fun (x: X) (y: Carrier) => source.x = x;
   }
 }
 \module Complex {
@@ -256,13 +256,13 @@ expect = "accept"
     \import Product.Universal[X := A] \as Into;
     \definition Source: \Set := Into.Source;
     \definition Target: \Set := Into.Target;
-    \definition apply(source: Source) (target: Target): A -> Carrier -> \Prop := Into.identity source target;
+    \definition apply[source: Source] [target: Target]: A -> Carrier -> \Prop := Into.identity source target;
   }
 }
 \module Consumer {
   \import \root.Complex[] \as Complex;
   \import Complex.Functions[A := Complex.Carrier] \as Functions;
-  \definition same(x: Functions.Source): Functions.Target := x;
+  \definition same[x: Functions.Source]: Functions.Target := x;
 }
 ```
 
@@ -283,7 +283,7 @@ expect = "accept"
 \module Construction {
   \import \root.Natural[] \as Nat;
   \module At(n: Nat.Nat) {
-    \structure Data: \Set { value: Nat.Nat }
+    \structure Data: \Set := { value: Nat.Nat };
     \definition Map: \Set := Data;
   }
   \inductive Stage: \forall (n: Nat.Nat) -> \Set :=
@@ -315,7 +315,7 @@ expect = "accept"
 }
 \module Source(n: \root.Numbers[].N^) {
   \definition Index: \Set := \Cast[\root.Numbers[].N^] ({ i: \root.Numbers[].N^ \where i = n });
-  \structure Family { Carrier: Index -> \Set }
+  \structure Family := { Carrier: Index -> \Set };
   \module Slot(i: Index) { \definition Carrier: \Set := \root.Numbers[].N^; }
   \definition family: Family := Family { Carrier := \fun (i: Index) => Slot[i := i].Carrier };
 }
@@ -347,7 +347,7 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Shapes {
-  \structure Packed { A: \Set, value: A }
+  \structure Packed := { A: \Set, value: A };
 }
 \module Factory(A: \Set, x: A) {
   \import \root.Shapes[] \as Shapes;
@@ -356,7 +356,7 @@ expect = "accept"
 \module Client {
   \import \root.Shapes[] \as Shapes;
   \inductive Unit: \Set := | unit: Unit;
-  \definition make(A: \Set)(x: A): Shapes.Packed :=
+  \definition make[A: \Set][x: A]: Shapes.Packed :=
     \root.Factory[A := A, x := x].packed;
   \definition packed: Shapes.Packed :=
     \root.Factory[A := Unit, x := Unit::unit].packed;
@@ -377,7 +377,7 @@ expect = "reject"
 
 ```ref file=src/root.ref
 \module Shapes {
-  \structure Packed { A: \Set, value: A }
+  \structure Packed := { A: \Set, value: A };
 }
 \module Factory(A: \Set, x: A) {
   \import \root.Shapes[] \as Shapes;
@@ -386,7 +386,7 @@ expect = "reject"
 \module Client {
   \import \root.Shapes[] \as Shapes;
   \inductive Unit: \Set := | unit: Unit;
-  \definition make(A: \Set)(x: A): Shapes.Packed :=
+  \definition make[A: \Set][x: A]: Shapes.Packed :=
     \root.Factory[A := A, x := x].packed;
   \definition packed: Shapes.Packed :=
     \root.Factory[A := Unit, x := \Set].packed;
@@ -408,7 +408,7 @@ expect = "reject"
 ```ref file=src/root.ref
 \module Family(A: \Set, B: \Set) {
   \module At(x: A) { \definition value: A := x; }
-  \definition invalid(y: B): A := At[x := y].value;
+  \definition invalid[y: B]: A := At[x := y].value;
 }
 ```
 
@@ -425,9 +425,9 @@ expect = "reject"
 ```ref file=src/root.ref
 \module Family(A: \Set) {
   \module At(x: A) {
-    \definition value(y: A)(proof: y = x): A := y;
+    \definition value[y: A][proof: y = x]: A := y;
   }
-  \definition invalid(x, y: A): A := At[x := x].value y (\refl(y));
+  \definition invalid[x, y: A]: A := At[x := x].value y (\refl(y));
 }
 ```
 
@@ -445,8 +445,8 @@ expect = "accept"
 \module M {
   \inductive Unit: \VType := | unit: Unit;
   \module Family(A: \VType) { \inductive Box: \VType := | box: A -> Box; }
-  \definition make(x: Unit): \F(Family[A := Unit].Box) := \return Family[A := Unit].Box::box x;
-  \definition reflected(x: Unit^): Family[A := Unit].Box^ := make^ x;
+  \definition make[x: Unit]: \F(Family[A := Unit].Box) := \return Family[A := Unit].Box::box x;
+  \definition reflected[x: Unit^]: Family[A := Unit].Box^ := make^ x;
 }
 ```
 
@@ -465,7 +465,7 @@ expect = "accept"
   \inductive Unit: \VType := | unit: Unit;
   \inductive Box: \VType := | box: Unit -> Box;
   \module Value(x: Unit) { \definition value: Unit := x; }
-  \definition get(x: Box): \F(Unit) := \match x \in Box \with {
+  \definition get[x: Box]: \F(Unit) := \match x \in Box \with {
     | box y : \return Value[x := y].value
   };
 }

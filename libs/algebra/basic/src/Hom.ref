@@ -5,38 +5,38 @@
 \use Equality.trans;
 \use Equality.congr;
 
-\structure MonoidLaws[source: Monoid.Monoid[A], target: Monoid.Monoid[B], f: A -> B]: \Prop {
+\structure MonoidLaws[source: Monoid.Monoid[A], target: Monoid.Monoid[B], f: A -> B]: \Prop := {
   unit: f (source.unit) = target.unit,
   operation: \forall (x, y: A) -> f (source.op x y) = target.op (f x) (f y),
-}
-\definition MonoidMap(source: Monoid.Monoid[A]) (target: Monoid.Monoid[B]): \Set :=
+};
+\definition MonoidMap[source: Monoid.Monoid[A]] [target: Monoid.Monoid[B]]: \Set :=
   \Cast[A -> B] ({ f: A -> B \where MonoidLaws[source, target, f] });
-\definition monoidLaws(source: Monoid.Monoid[A]) (target: Monoid.Monoid[B]) (f: MonoidMap source target):
+\definition monoidLaws[source: Monoid.Monoid[A]] [target: Monoid.Monoid[B]] [f: MonoidMap source target]:
   MonoidLaws[source, target, f] := \bysub(A -> B, MonoidMap source target, f);
 
-\structure SemiringLaws[source: Alg.Semiring[A], target: Alg.Semiring[B], f: A -> B]: \Prop {
+\structure SemiringLaws[source: Alg.Semiring[A], target: Alg.Semiring[B], f: A -> B]: \Prop := {
   zero: f (source.zero) = target.zero,
   one: f (source.one) = target.one,
   add: \forall (x, y: A) -> f (source.add x y) = target.add (f x) (f y),
   mul: \forall (x, y: A) -> f (source.mul x y) = target.mul (f x) (f y),
-}
-\definition SemiringMap(source: Alg.Semiring[A]) (target: Alg.Semiring[B]): \Set :=
+};
+\definition SemiringMap[source: Alg.Semiring[A]] [target: Alg.Semiring[B]]: \Set :=
   \Cast[A -> B] ({ f: A -> B \where SemiringLaws[source, target, f] });
-\definition semiringLaws(source: Alg.Semiring[A]) (target: Alg.Semiring[B]) (f: SemiringMap source target):
+\definition semiringLaws[source: Alg.Semiring[A]] [target: Alg.Semiring[B]] [f: SemiringMap source target]:
   SemiringLaws[source, target, f] := \bysub(A -> B, SemiringMap source target, f);
 
-\definition GroupMap(source: Alg.Group[A]) (target: Alg.Group[B]): \Set :=
+\definition GroupMap[source: Alg.Group[A]] [target: Alg.Group[B]]: \Set :=
   MonoidMap
     (\into[Monoid.MonoidData[A]](Alg.groupMonoid A source, Monoid.Monoid[A]) \by { source.monoid })
     (\into[Monoid.MonoidData[B]](Alg.groupMonoid B target, Monoid.Monoid[B]) \by { target.monoid });
-\definition RingMap(source: Ring.Ring[A]) (target: Ring.Ring[B]): \Set :=
+\definition RingMap[source: Ring.Ring[A]] [target: Ring.Ring[B]]: \Set :=
   SemiringMap (Ring.ringAsSemiring A source) (Ring.ringAsSemiring B target);
 
 \module Composition(C: \Set) {
   \import algebra.Hom[A := B, B := C] \as After;
   \import algebra.Hom[A := A, B := C] \as Result;
-  \definition monoid(source: Monoid.Monoid[A]) (middle: Monoid.Monoid[B]) (target: Monoid.Monoid[C])
-    (f: MonoidMap source middle) (g: After.MonoidMap middle target): Result.MonoidMap source target :=
+  \definition monoid[source: Monoid.Monoid[A]] [middle: Monoid.Monoid[B]] [target: Monoid.Monoid[C]]
+    [f: MonoidMap source middle] [g: After.MonoidMap middle target]: Result.MonoidMap source target :=
     \into[A -> C](\fun (x: _) => g (f x), Result.MonoidMap source target) \by {
       Result.MonoidLaws[source, target, (\fun (x: _) => g (f x))] {
         unit := trans!{C} _ _ _ (congr!{B C} g _ _ ((monoidLaws source middle f).unit)) ((After.monoidLaws middle target g).unit),

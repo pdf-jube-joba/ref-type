@@ -141,7 +141,7 @@ name = "Bad"
 \inductive Unit: \VType := | unit: Unit;
 \inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
-\definition Pair(A: \Set)::value: Unit := Unit::unit;
+\definition Pair[A: \Set]::value: Unit := Unit::unit;
 ```
 
 ## projection as value
@@ -177,7 +177,7 @@ name = "Bad"
 \inductive Unit: \VType := | unit: Unit;
 \inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
-\definition Pair(A: \VType)::first: \F(Unit) := \return Unit::unit;
+\definition Pair[A: \VType]::first: \F(Unit) := \return Unit::unit;
 ```
 
 ## recursive field
@@ -267,7 +267,7 @@ name = "Bad"
 \inductive Unit: \VType := | unit: Unit;
 \inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
-\definition Pair(A: \VType)::bad: Pair[A] ~> \F(Unit) := \cfun (p: Pair[A]) => \return p;
+\definition Pair[A: \VType]::bad: Pair[A] ~> \F(Unit) := \cfun (p: Pair[A]) => \return p;
 ```
 
 ## value as computation
@@ -346,7 +346,7 @@ expect = "accept"
           \definition step: \U((Unit ~> \F(\RunStep[Unit, Unit]))) :=
             \thunk((\cfun (s: Unit) => \return(\finish[Unit, Unit](Unit::unit))));
           
-          \definition Terminates (s: Unit^): \Prop :=
+          \definition Terminates [s: Unit^]: \Prop :=
             \forall (P: Unit^ -> \Prop) ->
               (\forall (x: Unit^) ->
                 (\step-match t: \RunStep[Unit^, Unit^] \return \Prop \with {
@@ -355,9 +355,9 @@ expect = "accept"
                 }) (step^ x) -> P x) -> P s;
           \definition terminates: \forall (s: Unit^) -> Terminates s :=
             \fun (s: Unit^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q);
-          \definition Owner(A: \VType)::result: \F(Unit) :=
+          \definition Owner[A: \VType]::result: \F(Unit) :=
             \run[Unit, Unit](step, Unit::unit) \by { terminates Unit^::unit };
-          \definition Owner(A: \VType)::otherResult: \F(Unit) :=
+          \definition Owner[A: \VType]::otherResult: \F(Unit) :=
             \run[Unit, Unit](step, Unit::other) \by { terminates Unit^::other };
           \definition boxed: \Box[\F(Unit)] := \box[_](Owner[Unit]::result);
         }
@@ -383,21 +383,21 @@ expect = "accept"
 ```ref file=src/root.ref
 \module Source(X: \VType, x: X) {
   \structure Duo[A, B: \VType]: \VType := { left: A, right: B };
-  \definition Duo(A, B: \VType)::make(a: A, b: B): \F(Duo[A, B]) :=
+  \definition Duo[A, B: \VType]::make[a: A, b: B]: \F(Duo[A, B]) :=
     \return Duo[A, B] { left := a, right := b };
-  \definition Duo(A, B: \VType)::left_again: Duo[A, B] ~> \F(A) := Duo[A, B]::left;
-  \definition Duo(A, B: \VType)::get_x: X := x;
+  \definition Duo[A, B: \VType]::left_again: Duo[A, B] ~> \F(A) := Duo[A, B]::left;
+  \definition Duo[A, B: \VType]::get_x: X := x;
   \structure Empty: \VType := {};
   \definition Empty::empty: Empty := Empty {};
   \structure Thunked[A: \VType]: \VType := { thunk: \U(A ~> \F(A)) };
-  \definition Thunked(A: \VType)::identity: Thunked[A] := Thunked[A] {
+  \definition Thunked[A: \VType]::identity: Thunked[A] := Thunked[A] {
     thunk := \thunk (\cfun (a: A) => \return a)
   };
   \inductive List[A: \VType]: \VType := | nil: List | cons: A -> List[A] -> List;
-  \definition List(A: \VType)::empty: List[A] := List[A]::nil;
-  \definition List(A: \VType)::is_empty(xs: List[A]): \F(X) :=
+  \definition List[A: \VType]::empty: List[A] := List[A]::nil;
+  \definition List[A: \VType]::is_empty[xs: List[A]]: \F(X) :=
     \match xs \in List \with { | nil : \return x | cons a rest : \return x };
-  \definition List(A: \VType)::singleton(a: A): \F(List[A]) :=
+  \definition List[A: \VType]::singleton[a: A]: \F(List[A]) :=
     \return List[A]::cons a List[A]::empty;
 }
 \module Consumer {
@@ -419,7 +419,7 @@ expect = "accept"
 \module Reexport(X: \VType, x: X) {
   \import \root.Source[X := X, x := x] \as S;
   \definition empty: S.Empty := S.Empty::empty;
-  \definition identity(a: X): \F(X) := \return a;
+  \definition identity[a: X]: \F(X) := \return a;
 }
 \module Again {
   \inductive Unit: \VType := | unit: Unit;
@@ -488,11 +488,11 @@ name = "Example"
 ```ref
 \inductive Bool: \VType := | no: Bool | yes: Bool;
 \structure Pair[A: \VType]: \VType := { first: A, second: A };
-\definition Pair(A: \VType)::swap: Pair[A] ~> \F(Pair[A]) :=
+\definition Pair[A: \VType]::swap: Pair[A] ~> \F(Pair[A]) :=
   \cfun (p: Pair[A]) => (\bind x: A <- (Pair::first p) \in
     \bind y: A <- ((Pair[_]::second) p) \in
     \return Pair[A] { first := y, second := x });
-\definition Pair(A: \VType)::swap_thunk: \U(Pair[A] ~> \F(Pair[A])) := \thunk (Pair[A]::swap);
+\definition Pair[A: \VType]::swap_thunk: \U(Pair[A] ~> \F(Pair[A])) := \thunk (Pair[A]::swap);
 \definition pair: Pair[Bool] := Pair[Bool] { second := Bool::yes, first := Bool::no };
 \definition first: \F(Bool) := ((Pair[Bool]::first) pair);
 \definition swapped: \F(Pair[Bool]) := ((Pair[Bool]::swap) pair);

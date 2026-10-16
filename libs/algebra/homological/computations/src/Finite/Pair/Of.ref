@@ -6,7 +6,7 @@
 \import Modules.Of[V := Outgoing.Vector, space := Outgoing.domain].Submodule[].Kernel[W := Outgoing.Output, target := Outgoing.codomain] \as OriginalKernels;
 \definition originalKernel: Modules.Of[V := Outgoing.Vector, space := Outgoing.domain].Submodule[].Submodule :=
   OriginalKernels.kernel (Commutative.Matrix[m := m, n := n].linear (Outgoing.reflect C.outgoing));
-\definition boundaryValue(v: Incoming.Vector): Kernel.Carrier :=
+\definition boundaryValue[v: Incoming.Vector]: Kernel.Carrier :=
   \into[Outgoing.Vector](Incoming.apply (Incoming.reflect C.incoming) v, originalKernel.carrier) \by {
     (\bysub(Data, { data: Data \where Laws[data] }, C)).squareZero v
   };
@@ -21,7 +21,7 @@
 \import KernelSub.Quotient[S := image] \as Quotient;
 \definition Homology: \Set := Quotient.Carrier;
 \definition homologySpace: Modules.Space Homology := Quotient.moduleSpace;
-\definition class(v: Kernel.Carrier): Homology := Quotient.class v;
+\definition class[v: Kernel.Carrier]: Homology := Quotient.class v;
 \import Modules.FiniteCoordinates[n := Kernel.dimension] \as Coordinates;
 \definition coordinateBundle: Modules.Bundle := Modules.Bundle { Carrier := Coordinates.Carrier, space := Coordinates.space };
 \import Modules.Hom[V := Kernel.Carrier, W := Coordinates.Carrier, source := Kernel.kernelSpace, target := Coordinates.space].Composition[U := Incoming.Vector, domain := Incoming.domain] \as Composition;
@@ -159,19 +159,19 @@
 \import Modules.Hom[V := FactorHomology, W := Homology, source := factorSpace, target := homologySpace] \as Backward;
 \import \root.Finite[].FactorListing[] \as FactorListing;
 \import \root.Finite[].Compute[] \as FactorComputation;
-\structure ResultData: \Set {
+\structure ResultData: \Set := {
   calculation: Calculation^,
   cyclicFactors: CyclicFactors^,
   forward: Forward.Map,
   backward: Backward.Map,
-}
-\structure ResultLaws[data: ResultData]: \Prop {
+};
+\structure ResultLaws[data: ResultData]: \Prop := {
   factors: data.cyclicFactors = FactorComputation.cyclicFactors data.calculation,
   proper: FactorListing.Proper data.cyclicFactors,
   calculation: data.calculation = expected,
   leftInverse: \forall (q: Homology) -> data.backward.apply (data.forward.apply q) = q,
   rightInverse: \forall (q: FactorHomology) -> data.forward.apply (data.backward.apply q) = q,
-}
+};
 \definition Result: \Set := \Cast[ResultData] ({ data: ResultData \where ResultLaws[data] });
 \definition resultData: ResultData := ResultData {
   calculation := computed, cyclicFactors := FactorComputation.Factors.program^ (computed), forward := factorIsomorphism.forward, backward := factorIsomorphism.backward,
@@ -205,7 +205,7 @@
 \import CoordinateSubmodules.Image[U := Incoming.Vector, source := Incoming.domain] \as CoordinateImages;
 \definition coordinateImage: CoordinateSubmodules.Submodule := CoordinateImages.image coordinateBoundary;
 \import CoordinateSubmodules.Quotient[S := coordinateImage] \as CoordinateQuotient;
-\definition factorClasses(v: Coordinates.Carrier): FactorHomology := Normal.classes v;
+\definition factorClasses[v: Coordinates.Carrier]: FactorHomology := Normal.classes v;
 \import std.Data[].Bool[] \as B;
 \definition factorFamily: Modules.Family[Indices.Fin Kernel.dimension] := Modules.Family[Indices.Fin Kernel.dimension] {
   Carrier := \fun (i: Indices.Fin Kernel.dimension) => finitely_generated_modules.IntegerCyclic[d := B.ite I.Int^ (Nat.ltb i ImageSmith.rank) (Diagonalize.diagonal ImageSmith.result i i) Arithmetic.zero].Carrier,
@@ -234,9 +234,9 @@
         (congr!{Normal.Normal FactorHomology} (Normal.decomposition.forward.apply)
           _ _ step2) step3))
 };
-\definition generatorCycle(v: Coordinates.Carrier): Kernel.Carrier :=
+\definition generatorCycle[v: Coordinates.Carrier]: Kernel.Carrier :=
   Kernel.isomorphism.forward.apply (ImageSmith.leftIso.backward.apply v);
-\definition generatorClass(v: Coordinates.Carrier): Homology := class (generatorCycle v);
+\definition generatorClass[v: Coordinates.Carrier]: Homology := class (generatorCycle v);
 \definition generatorOnFactors: \forall (v: Coordinates.Carrier) ->
   factorIsomorphism.forward.apply (generatorClass v) = factorClasses v :=
   \fun (v: Coordinates.Carrier) => trans!{FactorHomology} _ _ _ (onFactorClass (generatorCycle v))

@@ -123,7 +123,7 @@ with server("--port", "0") as base:
 with tempfile.TemporaryDirectory(prefix="ref-docs-http-") as directory:
     fixture = Path(directory)
     (fixture / "README.md").write_text('# Fixture\n\n<script>alert(1)</script>\n\n[bad](javascript:alert%281%29)\n')
-    (fixture / "root.ref").write_text('/* **Docs** & <img src=x onerror=alert(1)> 日本語 */\n\\definition id (A: \\Set): A -> A := \\fun (x: A) => x;\n')
+    (fixture / "root.ref").write_text('/* **Docs** & <img src=x onerror=alert(1)> 日本語 */\n\\definition id [A: \\Set]: A -> A := \\fun (x: A) => x;\n')
     (fixture / "empty.ref").write_text("")
     (fixture / "bad.ref").write_text("\\definition broken: ;")
     (fixture / "empty").mkdir()

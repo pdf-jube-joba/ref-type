@@ -7,16 +7,16 @@
 
 ## 構造に Carrier を入れるか parameter にするか
 ```
-\structure A[Cr: \Set] {
+\structure A[Cr: \Set] := {
   op: Cr,
-}
+};
 ```
 vs
 ```
-\structure A {
+\structure A := {
   Cr: \Set,
   op: Cr,
-}
+};
 ```
 
 前者は Cr 上の構造っぽくて、後者は普通の数学的構造っぽい。
@@ -24,14 +24,14 @@ vs
 ### これらの間の変換
 ```
 \module Playground {
-  \structure A[Cr: \Set] {
+  \structure A[Cr: \Set] := {
     op: Cr,
-  }
+  };
 
-  \structure ASet {
+  \structure ASet := {
     Cr: \Set,
     op: Cr,
-  }
+  };
 
   \definition toSet[Cr: \Set, data: A[Cr]]: ASet :=
     ASet { Cr := Cr, op := data.op };
@@ -45,26 +45,26 @@ vs
 
 AI によると、 sort が明示されていれば（ `\A[Cr: \Set]: \Set` なら）書けるらしい。
 ```
-\structure Packed[F: \Set -> \Set] {
+\structure Packed[F: \Set -> \Set] := {
   Cr: \Set,
   data: F Cr,
-}
+};
 
-\definition pack(F: \Set -> \Set)(Cr: \Set)(data: F Cr): Packed[F] :=
+\definition pack[F: \Set -> \Set][Cr: \Set][data: F Cr]: Packed[F] :=
   Packed[F] { Cr := Cr, data := data };
 
-\definition unpack(F: \Set -> \Set)(p: Packed[F]): F p.Cr :=
+\definition unpack[F: \Set -> \Set][p: Packed[F]]: F p.Cr :=
   p.data;
 ```
 
 ## law の扱い
 `\strucuture` は全部入れれるので、 sort さえ気にしなければこれが書ける。
 ```
-\structure A {
+\structure A := {
   Cr: \Set,
   op: Cr -> Cr -> Cr,
   law: \forall (a: Cr) -> op a a = a,
-}
+};
 ```
 - `A: \Prop` にすると、対応する inductive type を作ろうとするので、射影 `Cr` や `op` に対応する射影がとれない（ `(A: \Prop) -> some` で `some: \Set` をやろうとするので）。
 
@@ -74,18 +74,18 @@ AI によると、 sort が明示されていれば（ `\A[Cr: \Set]: \Set` な�
 
 ## 内部に他の集合を持つ場合など
 ```
-\structure fn[Cr: \Set]: \SetKind {
+\structure fn[Cr: \Set]: \SetKind := {
   Y: \Set,
   f: Y -> Cr,
-}
+};
 ```
 これは書けなくはない。
 ただこうなると対応する Pack は書けない。
 ```
-\structure Packed[F: \Set -> \SetKind] {
+\structure Packed[F: \Set -> \SetKind] := {
   Cr: \Set,
   data: F Cr,
-}
+};
 ```
 
 そもそも `F: \Set -> \SetKind` が書けないから。

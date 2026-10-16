@@ -1,4 +1,4 @@
-\definition Onto: \Prop := \forall (c: C.Carrier) -> \exists { b: B.Carrier \where q.apply b = c };
+\definition Onto: \Prop := \forall (c: C.Carrier) -> \exists ( b: B.Carrier \where q.apply b = c );
 \definition Kills: \Prop := \forall (b: B.Carrier) -> q.apply b = C.space.zero -> \forall (y: N.Carrier) -> f.apply (Source.tensor b y) = U.space.zero;
 \module At(y: N.Carrier) {
   \import \parent.\parent.\parent.Hom[V := B.Carrier, W := U.Carrier, source := B.space, target := U.space] \as Linear;
@@ -13,10 +13,10 @@
   };
   \import Descent.On[q := q, f := evaluate] \as D;
   \definition vanishes: Kills -> D.KillsKernel := \fun (kills: Kills) => \fun (b: B.Carrier)(zero: q.apply b = C.space.zero) => kills b zero y;
-  \definition map(onto: Onto)(kills: Kills): \parent.\parent.\parent.Hom[V := C.Carrier, W := U.Carrier, source := C.space, target := U.space].Map := D.map onto (vanishes kills);
+  \definition map[onto: Onto][kills: Kills]: \parent.\parent.\parent.Hom[V := C.Carrier, W := U.Carrier, source := C.space, target := U.space].Map := D.map onto (vanishes kills);
   \definition onImage: \forall (onto: Onto)(kills: Kills)(b: B.Carrier) -> (map onto kills).apply (q.apply b) = f.apply (Source.tensor b y) := \fun (onto: Onto)(kills: Kills) => D.onImage onto (vanishes kills);
 }
-\definition bilinear(onto: Onto)(kills: Kills)(c: C.Carrier)(y: N.Carrier): U.Carrier := (At[y := y].map onto kills).apply c;
+\definition bilinear[onto: Onto][kills: Kills][c: C.Carrier][y: N.Carrier]: U.Carrier := (At[y := y].map onto kills).apply c;
 \definition rightAdd: \forall (onto: Onto)(kills: Kills)(c: C.Carrier)(y, z: N.Carrier) -> bilinear onto kills c (N.space.add y z) = U.space.add (bilinear onto kills c y) (bilinear onto kills c z) := \block {
   \fun (onto: Onto)(kills: Kills)(c: C.Carrier)(y, z: N.Carrier) \then
   \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where q.apply b = c }) \by onto c \then
@@ -42,12 +42,12 @@
     "=" {U.space.smul a (bilinear onto kills c y)} "by" {congr!{U.Carrier U.Carrier} (U.space.smul a) _ _
       (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (At[y := y].onImage onto kills b)) (congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c y) _ _ equal))}}
 };
-\definition laws(onto: Onto)(kills: Kills): Target.BilinearLaws[U.Carrier, U.space, (bilinear onto kills)] := Target.BilinearLaws[U.Carrier, U.space, (bilinear onto kills)] {
+\definition laws[onto: Onto][kills: Kills]: Target.BilinearLaws[U.Carrier, U.space, (bilinear onto kills)] := Target.BilinearLaws[U.Carrier, U.space, (bilinear onto kills)] {
   addLeft := \fun (c, d: C.Carrier)(y: N.Carrier) => (At[y := y].map onto kills).addition c d,
   scaleLeft := \fun (a: R)(c: C.Carrier)(y: N.Carrier) => (At[y := y].map onto kills).scalar a c,
   addRight := rightAdd onto kills, scaleRight := rightScalar onto kills,
 };
-\definition map(onto: Onto)(kills: Kills): Output.Map := Universal.map (bilinear onto kills) (laws onto kills);
+\definition map[onto: Onto][kills: Kills]: Output.Map := Universal.map (bilinear onto kills) (laws onto kills);
 \definition onTensor: \forall (onto: Onto)(kills: Kills)(c: C.Carrier)(y: N.Carrier) -> (map onto kills).apply (Target.tensor c y) = bilinear onto kills c y :=
   \fun (onto: Onto)(kills: Kills) => Universal.onTensor (bilinear onto kills) (laws onto kills);
 \definition factor: \forall (onto: Onto)(kills: Kills) -> Composition.compose (map onto kills) (Mapping.map q Coefficients.identity) = f :=
@@ -70,6 +70,6 @@
       "=" {(map onto kills).apply (Target.tensor c y)} "by" {sym!{U.Carrier} _ _ (onTensor onto kills c y)}}
   });
 
-\definition factorExists: Onto -> Kills -> \exists { h: Output.Map \where Composition.compose h (Mapping.map q Coefficients.identity) = f } :=
+\definition factorExists: Onto -> Kills -> \exists ( h: Output.Map \where Composition.compose h (Mapping.map q Coefficients.identity) = f ) :=
   \fun (onto: Onto)(kills: Kills) => Logic.existsIntro[Output.Map, { h: Output.Map \where Composition.compose h (Mapping.map q Coefficients.identity) = f }] (map onto kills)
     (factor onto kills);

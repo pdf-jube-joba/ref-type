@@ -3,12 +3,12 @@
 \definition mul: R -> R -> R := ring.mul;
 \definition add: R -> R -> R := ring.add;
 \import std.Logic[].Relation[] \as Relation;
-\structure BilinearLaws[U: \Set, target: Space U, f: V -> W -> U]: \Prop {
+\structure BilinearLaws[U: \Set, target: Space U, f: V -> W -> U]: \Prop := {
   addLeft: \forall (x, y: V) (z: W) -> f (left.add x y) z = target.add (f x z) (f y z),
   addRight: \forall (x: V) (y, z: W) -> f x (right.add y z) = target.add (f x y) (f x z),
   scaleLeft: \forall (a: R) (x: V) (y: W) -> f (left.smul a x) y = target.smul a (f x y),
   scaleRight: \forall (a: R) (x: V) (y: W) -> f x (right.smul a y) = target.smul a (f x y),
-}
+};
 \inductive Expression: \Set :=
 | zero: Expression
 | tensor: V -> W -> Expression
@@ -16,7 +16,7 @@
 | negative: Expression -> Expression
 | scale: R -> Expression -> Expression
 ;
-\definition evaluate(U: \Set) (target: Space U) (f: V -> W -> U): Expression -> U :=
+\definition evaluate[U: \Set] [target: Space U] [f: V -> W -> U]: Expression -> U :=
   \induction (expression: Expression) \return U \with {
     | zero: target.zero
     | tensor: \fun (x: V) (y: W) => f x y
@@ -24,7 +24,7 @@
     | negative: \fun (x: Expression) (vx: U) => target.neg vx
     | scale: \fun (a: R) (x: Expression) (vx: U) => target.smul a vx
   };
-\definition Related(x, y: Expression): \Prop :=
+\definition Related[x, y: Expression]: \Prop :=
   \forall (U: \Set) (target: Space U) (f: V -> W -> U) -> BilinearLaws[U, target, f] ->
     evaluate U target f x = evaluate U target f y;
 \definition equivalence: Relation.Equivalence[Expression, Related] := Relation.Equivalence[Expression, Related] {
@@ -38,7 +38,7 @@
 \definition negativeRespects: \forall (x, y: Expression) -> Related x y -> Related (Expression::negative x) (Expression::negative y) :=
   \fun (x, y: Expression) (xy: _) (U: \Set) (target: Space U) (f: V -> W -> U) (laws: _) =>
     congr!{U U} (target.neg) _ _ (xy U target f laws);
-\definition scaleRespects(a: R): \forall (x, y: Expression) -> Related x y -> Related (Expression::scale a x) (Expression::scale a y) :=
+\definition scaleRespects[a: R]: \forall (x, y: Expression) -> Related x y -> Related (Expression::scale a x) (Expression::scale a y) :=
   \fun (x, y: Expression) (xy: _) (U: \Set) (target: Space U) (f: V -> W -> U) (laws: _) =>
     congr!{U U} (target.smul a) _ _ (xy U target f laws);
 \definition zeroRule: \forall (x: Expression) -> Related (Expression::sum Expression::zero x) x :=
@@ -69,8 +69,8 @@
 \definition origin: Carrier := class Expression::zero;
 \definition plus: Carrier -> Carrier -> Carrier := Operations.binary equivalence Expression::sum sumRespects;
 \definition negative: Carrier -> Carrier := Operations.unary equivalence Expression::negative negativeRespects;
-\definition scale(a: R): Carrier -> Carrier := Operations.unary equivalence (Expression::scale a) (scaleRespects a);
-\definition tensor(x: V) (y: W): Carrier := class (Expression::tensor x y);
+\definition scale[a: R]: Carrier -> Carrier := Operations.unary equivalence (Expression::scale a) (scaleRespects a);
+\definition tensor[x: V] [y: W]: Carrier := class (Expression::tensor x y);
 \definition plusClass: \forall (x, y: Expression) -> plus (class x) (class y) = class (Expression::sum x y) :=
   Operations.binaryClass equivalence Expression::sum sumRespects;
 \definition negativeClass: \forall (x: Expression) -> negative (class x) = class (Expression::negative x) :=
@@ -145,12 +145,12 @@
       (\fun (U: \Set) (target: Space U) (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) => laws.scaleRight a x y))
     (sym!{Carrier} _ _ (scaleClass a (Expression::tensor x y))),
 };
-\definition classInduction(P: Carrier -> \Prop): (\forall (x: Expression) -> P (class x)) -> \forall (q: Carrier) -> P q := Q.induction P;
+\definition classInduction[P: Carrier -> \Prop]: (\forall (x: Expression) -> P (class x)) -> \forall (q: Carrier) -> P q := Q.induction P;
 \module Spanning;
 \module Universal(U: \Set, target: Space U);
 \module Mapping(U, Z: \Set, targetLeft: Space U, targetRight: Space Z);
 \import \parent.Hom[V := V, W := Carrier, source := left, target := space] \as LeftLinear;
-\definition leftLinear(y: W): LeftLinear.Map := LeftLinear.Map {
+\definition leftLinear[y: W]: LeftLinear.Map := LeftLinear.Map {
   apply := \fun (x: V) => tensor x y,
   addition := \fun (x, z: V) => bilinear.addLeft x z y,
   scalar := \fun (a: R)(x: V) => bilinear.scaleLeft a x y,
@@ -163,7 +163,7 @@
   tensor (left.add x (left.neg z)) y = space.add (tensor x y) (space.neg (tensor z y)) :=
   \fun (x, z: V)(y: W) => LeftLinear.differencePreserved (leftLinear y) x z;
 \import \parent.Hom[V := W, W := Carrier, source := right, target := space] \as RightLinear;
-\definition rightLinear(x: V): RightLinear.Map := RightLinear.Map {
+\definition rightLinear[x: V]: RightLinear.Map := RightLinear.Map {
   apply := tensor x, addition := bilinear.addRight x,
   scalar := \fun (a: R)(y: W) => bilinear.scaleRight a x y,
 };

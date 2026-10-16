@@ -1,15 +1,15 @@
 \import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
 \import N.Basic[].Prop[] \as Bounds;
 \import std.Logic[].Proposition[] \as Logic;
-\structure Stage[index: N.Nat^, divisor: I.Int^, a: Runtime^]: \Prop {
+\structure Stage[index: N.Nat^, divisor: I.Int^, a: Runtime^]: \Prop := {
   diagonal: a index index = divisor,
   nonzero: Logic.Not (divisor = Arithmetic.zero),
   cleared: \parent.Cleared[m := m, n := n, index := index].Holds[a],
   divides: \parent.Trailing[m := m, n := n, divisor := divisor, lower := index].Holds a,
-}
-\definition Witness(index: N.Nat^)(a: Runtime^): \Set := \Cast[I.Int^] ({ d: I.Int^ \where Stage[index, d, a] });
-\definition Holds(k: N.Nat^)(a: Runtime^): \Prop := \forall (index: N.Nat^) -> Bounds.Lt index k -> \exists Witness index a;
-\definition Preserves(k: N.Nat^)(a, b: Runtime^): \Prop :=
+};
+\definition Witness[index: N.Nat^][a: Runtime^]: \Set := \Cast[I.Int^] ({ d: I.Int^ \where Stage[index, d, a] });
+\definition Holds[k: N.Nat^][a: Runtime^]: \Prop := \forall (index: N.Nat^) -> Bounds.Lt index k -> \exists Witness index a;
+\definition Preserves[k: N.Nat^][a, b: Runtime^]: \Prop :=
   \forall (index: N.Nat^)(divisor: I.Int^) -> Bounds.Lt index k -> Stage[index, divisor, a] -> Stage[index, divisor, b];
 \definition preserve: \forall (k: N.Nat^)(a, b: Runtime^) -> Preserves k a b -> Holds k a -> Holds k b := \block {
   \fun (k: N.Nat^)(a, b: Runtime^)(law: Preserves k a b)(previous: Holds k a)(index: N.Nat^)(bound: _) \then
@@ -27,7 +27,7 @@
     preserve k a (attemptMatrix (Round.round m n k a history))
       (\fun (index: N.Nat^)(divisor: I.Int^)(before: _)(stage: _) =>
         \parent.Prefix[m := m, n := n].Protected[index := index, divisor := divisor].round k a history rowBound columnBound before stage) law;
-\definition SelectionProperty(k: N.Nat^): Pivot.Selection^ -> \Prop := \induction (selection: Pivot.Selection^) \return \Prop \with {
+\definition SelectionProperty[k: N.Nat^]: Pivot.Selection^ -> \Prop := \induction (selection: Pivot.Selection^) \return \Prop \with {
   | missing: Logic.True
   | ready: \fun (current: Attempt^) => Holds k (attemptMatrix current)
 };
@@ -36,13 +36,13 @@
   Bounds.Lt k m -> Bounds.Lt k n -> Holds k a -> Pivot.prepare m n k a history = Pivot.Selection^::ready current ->
   Holds k (attemptMatrix current) :=
   \fun (k: N.Nat^)(a: Runtime^)(history: History^)(current: Attempt^) => Selected[k := k, a := a, history := history, current := current].law;
-\structure FinalAt[k: N.Nat^, a: Runtime^]: \Prop {
+\structure FinalAt[k: N.Nat^, a: Runtime^]: \Prop := {
   nonzero: Logic.Not (a k k = Arithmetic.zero),
   row: \forall (j: N.Nat^) -> Bounds.Lt j n -> Bounds.Lt k j -> a k j = Arithmetic.zero,
   column: \forall (i: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt k i -> a i k = Arithmetic.zero,
   divides: \forall (i, j: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt j n -> Bounds.Lt k i -> Bounds.Lt k j ->
     Signed.Divides (a k k) (a i j),
-}
+};
 \module Completion(k: N.Nat^, a: Runtime^);
 \import N.Basic[].Def[] \as Nat;
 \import B.Prop[] \as BoolLaws;

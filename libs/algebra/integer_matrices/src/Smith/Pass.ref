@@ -1,8 +1,8 @@
 \import N.Basic[].Def[] \as Nat;
 \import \parent.Reduction[] \as Reduction;
 \definition Reducer: \VType := \U(N.Nat -> N.Nat -> Runtime -> History -> Attempt);
-\definition eligible(k, i: N.Nat^)(current: Attempt^): B.Bool^ := B.And.specification (Nat.ltb k i) (B.Neg.specification (attemptReduced current));
-\definition next(reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^): Attempt^ :=
+\definition eligible[k, i: N.Nat^][current: Attempt^]: B.Bool^ := B.And.specification (Nat.ltb k i) (B.Neg.specification (attemptReduced current));
+\definition next[reduce: Reducer^][k, i: N.Nat^][current: Attempt^]: Attempt^ :=
   B.ite Attempt^ (eligible k i current) (reduce k i (attemptMatrix current) (attemptHistory current)) current;
 
 \import N.Basic[].Prop[] \as Bounds;
@@ -42,7 +42,7 @@
         (trans!{B.Bool^} (attemptReduced current) (attemptReduced (next reduce k i current)) B.Bool^::false
           (congr!{Attempt^ B.Bool^} attemptReduced current (next reduce k i current) (sym!{Attempt^} (next reduce k i current) current (stopped reduce k i current equal))) noSwap))))
     (attemptReduced current) (\refl(attemptReduced current));
-\definition passWith(reduce: Reducer^): N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ :=
+\definition passWith[reduce: Reducer^]: N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ :=
   \induction (count: N.Nat^) \return N.Nat^ -> Runtime^ -> History^ -> Attempt^ \with {
     | zero: \fun (k: N.Nat^)(a: Runtime^)(history: History^) => Attempt^::attempt a history B.Bool^::false
     | succ: \fun (count: N.Nat^)(previous: N.Nat^ -> Runtime^ -> History^ -> Attempt^)(k: N.Nat^)(a: Runtime^)(history: History^) => next reduce k count (previous k a history)
@@ -51,13 +51,13 @@
 \definition column: N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ := passWith Reduction.column;
 
 \module Invariants;
-\definition step(reduce: Reducer^)(k: N.Nat^): Cursor^ -> Cursor^ :=
+\definition step[reduce: Reducer^][k: N.Nat^]: Cursor^ -> Cursor^ :=
   \induction (cursor: Cursor^) \return Cursor^ \with {
     | cursor: \fun (i: N.Nat^)(current: Attempt^) => Cursor^::cursor (N.Nat^::succ i) (next reduce k i current)
   };
 \import N.Iteration[].Def[A := Cursor^] \as Iteration;
 \import N.Iteration[].Program[A := Cursor] \as NativeIteration;
-\definition initial(a: Runtime^)(history: History^): Cursor^ := Cursor^::cursor N.Nat^::zero (Attempt^::attempt a history B.Bool^::false);
+\definition initial[a: Runtime^][history: History^]: Cursor^ := Cursor^::cursor N.Nat^::zero (Attempt^::attempt a history B.Bool^::false);
 \definition cursorAttempt: Cursor^ -> Attempt^ := \induction (cursor: Cursor^) \return Attempt^ \with {
   | cursor: \fun (i: N.Nat^)(current: Attempt^) => current
 };

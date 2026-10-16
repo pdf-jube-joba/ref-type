@@ -44,11 +44,11 @@
         (E.halfStrict epsilon positive))
   };
 
-\definition numericSequence(s: Def.Representation): S.CauchySequence :=
+\definition numericSequence[s: Def.Representation]: S.CauchySequence :=
   \into[N.Nat^ -> Real](Def.integralSequence s, { sequence: N.Nat^ -> Real \where S.Cauchy sequence })
     \by { integralSequenceCauchy s };
 
-\definition representativeIntegral(s: Def.Representation): Real := S.limit (numericSequence s);
+\definition representativeIntegral[s: Def.Representation]: Real := S.limit (numericSequence s);
 \definition representativeLaw: \forall (s: Def.Representation) -> S.Converges (Def.integralSequence s) (representativeIntegral s) :=
   \fun (s: Def.Representation) => S.limitLaw (numericSequence s);
 
@@ -80,7 +80,7 @@
       (E.threeQuarterLe epsilon (Order.leOfLt zero epsilon positive))
   });
 
-\definition candidateLaw(f: Def.Function) (value: Def.IntegralCandidate f): Def.IntegralLaw f value :=
+\definition candidateLaw[f: Def.Function] [value: Def.IntegralCandidate f]: Def.IntegralLaw f value :=
   \bysub(Real, { value: Real \where Def.IntegralLaw f value }, value);
 
 \definition classIntegralLaw: \forall (s: Def.Representation) -> Def.IntegralLaw (Def.class s) (representativeIntegral s) :=
@@ -102,7 +102,7 @@
         (candidateLaw (Def.class s) u s (Def.classMem s s (equivalentReflexive s)))
         (candidateLaw (Def.class s) v s (Def.classMem s s (equivalentReflexive s))));
 
-\definition integral(f: Def.Function): Real :=
+\definition integral[f: Def.Function]: Real :=
   \choice Def.IntegralCandidate f \by { existence: candidateExists f, uniqueness: candidateUnique f };
 
 \definition integralLaw: \forall (f: Def.Function) -> Def.IntegralLaw f (integral f) :=
@@ -119,13 +119,13 @@
       (\fun (u: Def.Representation) (su: Def.Equivalent s u) => equivalentTransitive t s u (equivalentSymmetric s t same) su),
       (\fun (u: Def.Representation) (tu: Def.Equivalent t u) => equivalentTransitive s t u same tu));
 
-\definition constantRepresentation(f: RI.Function): Def.Representation :=
+\definition constantRepresentation[f: RI.Function]: Def.Representation :=
   \into[N.Nat^ -> RI.Function](\fun (n: N.Nat^) => f, { sequence: N.Nat^ -> RI.Function \where Def.Cauchy sequence }) \by {
     \fun (epsilon: _) (positive: _) =>
       Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Def.Control (\fun (n: N.Nat^) => f) epsilon k }] (N.Nat^::zero)
       (\fun (m, n: _) (laterM: _) (laterN: _) => RP.smallSelf f.function epsilon positive) };
 
-\definition ofRiemann(f: RI.Function): Def.Function := Def.class (constantRepresentation f);
+\definition ofRiemann[f: RI.Function]: Def.Function := Def.class (constantRepresentation f);
 
 \definition riemannAgreement: \forall (f: RI.Function) -> integral (ofRiemann f) = f.integral :=
   \fun (f: RI.Function) => S.limitUnique (Def.integralSequence (constantRepresentation f)) (integral (ofRiemann f)) f.integral
@@ -133,13 +133,13 @@
       (Def.classMem (constantRepresentation f) (constantRepresentation f) (equivalentReflexive (constantRepresentation f))))
     (S.constantConverges f.integral);
 
-\structure Agreement[f: Real -> Real, value: Real, lebesgue: Def.Function]: \Prop {
-  represents: \exists { riemann: RI.Function \where Logic.And[riemann.function = f, ofRiemann riemann = lebesgue] },
+\structure Agreement[f: Real -> Real, value: Real, lebesgue: Def.Function]: \Prop := {
+  represents: \exists ( riemann: RI.Function \where Logic.And[riemann.function = f, ofRiemann riemann = lebesgue] ),
   integral: integral lebesgue = value,
-}
+};
 
 \definition riemannLebesgueAgreement: \forall (f: Real -> Real) -> \forall (value: Real) ->
-  RI.HasIntegral[f, value] -> \exists { lebesgue: Def.Function \where Agreement[f, value, lebesgue] } :=
+  RI.HasIntegral[f, value] -> \exists ( lebesgue: Def.Function \where Agreement[f, value, lebesgue] ) :=
   \fun (f: _) (value: _) (riemannLaw: RI.HasIntegral[f, value]) => \block {
     \let riemann: RI.Function := RI.Function { function := f, integral := value, hasIntegral := riemannLaw } \then
     \return Logic.existsIntro[Def.Function, { lebesgue: Def.Function \where Agreement[f, value, lebesgue] }] (ofRiemann riemann)

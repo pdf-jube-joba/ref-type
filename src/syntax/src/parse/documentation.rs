@@ -142,12 +142,12 @@ mod tests {
         let input = r#"/* Module documentation. */
 \module Demo {
   /* First paragraph. */ /* Second /* nested */ paragraph. */
-  \definition id (A: \Set): \forall (x: A) -> A := \fun (x: A) => x;
+  \definition id [A: \Set]: \forall (x: A) -> A := \fun (x: A) => x;
   \definition T: \Set := A;
   /* A macro with a quoted comment delimiter. */
   \macro quoted ("/*", "*/") := \Prop;
   /* Structure docs. */
-  \structure Pair[A: \Set]: \Set { first: A, second: A }
+  \structure Pair[A: \Set]: \Set := { first: A, second: A };
   \module Child;
 }"#;
         let items = parse_documentation(input).unwrap();
@@ -159,7 +159,7 @@ mod tests {
         );
         assert_eq!(
             children[0].signature,
-            r"\definition id (A: \Set): \forall (x: A) -> A"
+            r"\definition id [A: \Set]: \forall (x: A) -> A"
         );
         assert!(children[1].documentation.is_empty());
         assert_eq!(

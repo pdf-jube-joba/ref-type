@@ -1,7 +1,7 @@
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
-\structure Neighborhood[left: Left.Topology, right: Right.Topology, point: CarrierSet, O: \Pow CarrierSet]: \Set {
+\structure Neighborhood[left: Left.Topology, right: Right.Topology, point: CarrierSet, O: \Pow CarrierSet]: \Set := {
   leftSet: \Pow A,
   rightSet: \Pow B,
   leftOpen: Left.IsOpenIn left leftSet,
@@ -9,13 +9,13 @@
   leftContains: Left.Member leftSet (Pair.first A B point),
   rightContains: Right.Member rightSet (Pair.second A B point),
   within: ProductSpace.Subset (Rectangle leftSet rightSet) O,
-}
-\definition LocallyRectangular(left: Left.Topology) (right: Right.Topology) (O: \Pow CarrierSet): \Prop :=
+};
+\definition LocallyRectangular[left: Left.Topology] [right: Right.Topology] [O: \Pow CarrierSet]: \Prop :=
   \forall (point: CarrierSet) -> ProductSpace.Member O point -> \exists Neighborhood[left, right, point, O];
-\definition LocalRaw(left: Left.Topology) (right: Right.Topology): ProductSpace.TopologyData := ProductSpace.TopologyData {
+\definition LocalRaw[left: Left.Topology] [right: Right.Topology]: ProductSpace.TopologyData := ProductSpace.TopologyData {
   openSets := { O: \Pow CarrierSet \where LocallyRectangular left right O },
 };
-\definition localLaws(left: Left.Topology) (right: Right.Topology): ProductSpace.TopologyLaws[LocalRaw left right] :=
+\definition localLaws[left: Left.Topology] [right: Right.Topology]: ProductSpace.TopologyLaws[LocalRaw left right] :=
   ProductSpace.TopologyLaws[LocalRaw left right] {
     emptyOpen := \fun (point: _) (empty: _) => Logic.falseElim (\exists Neighborhood[left, right, point, ProductSpace.Empty]) empty,
     wholeOpen := \fun (point: _) (_: _) => \exact(Neighborhood[left, right, point, ProductSpace.Whole] {
@@ -81,23 +81,23 @@
 \import std.Set[].FiniteSubset[A := \Pow B] \as RightFinite;
 \import RightFinite.Selection[B := \Pow A] \as Selection;
 \import Left.Finite[] \as LeftSets;
-\structure TubePair[left: Left.Topology, right: Right.Topology, a: A, O: \Pow CarrierSet, V: \Pow B, U: \Pow A]: \Prop {
+\structure TubePair[left: Left.Topology, right: Right.Topology, a: A, O: \Pow CarrierSet, V: \Pow B, U: \Pow A]: \Prop := {
   leftOpen: Left.IsOpenIn left U,
   rightOpen: Right.IsOpenIn right V,
   contains: Left.Member U a,
   within: ProductSpace.Subset (Rectangle U V) O,
-}
-\definition TubeFamily(left: Left.Topology) (right: Right.Topology) (a: A) (O: \Pow CarrierSet): \Pow (\Pow B) :=
-  { V: \Pow B \where \exists { U: \Pow A \where TubePair[left, right, a, O, V, U] } };
-\definition tubePairExists(left: Left.Topology) (right: Right.Topology) (a: A) (O: \Pow CarrierSet) (V: \Pow B) (U: \Pow A):
+};
+\definition TubeFamily[left: Left.Topology] [right: Right.Topology] [a: A] [O: \Pow CarrierSet]: \Pow (\Pow B) :=
+  { V: \Pow B \where \exists ( U: \Pow A \where TubePair[left, right, a, O, V, U] ) };
+\definition tubePairExists[left: Left.Topology] [right: Right.Topology] [a: A] [O: \Pow CarrierSet] [V: \Pow B] [U: \Pow A]:
   TubePair[left, right, a, O, V, U] -> Right.FamilyMember (TubeFamily left right a O) V :=
   \fun (pair: _) => Logic.existsIntro[\Pow A, { U: \Pow A \where TubePair[left, right, a, O, V, U] }] U pair;
-\structure Tube[left: Left.Topology, a: A, O: \Pow CarrierSet, S: \Pow B]: \Set {
+\structure Tube[left: Left.Topology, a: A, O: \Pow CarrierSet, S: \Pow B]: \Set := {
   neighborhood: \Pow A,
   open: Left.IsOpenIn left neighborhood,
   contains: Left.Member neighborhood a,
   within: \forall (x: A) -> Left.Member neighborhood x -> \forall (y: B) -> Right.Member S y -> ProductSpace.Member O (Pair.pair A B x y),
-}
+};
 \definition tubeLemma: \forall (left: Left.Topology) (right: Right.Topology) (S: \Pow B) -> Right.IsCompactIn right S ->
   \forall (a: A) (O: \Pow CarrierSet) -> ProductSpace.IsOpenIn (topology left right) O ->
   (\forall (b: B) -> Right.Member S b -> ProductSpace.Member O (Pair.pair A B a b)) -> \exists Tube[left, a, O, S] := \block {
@@ -160,7 +160,7 @@
 \import topology.Maps[A := B, B := CarrierSet] \as ImageMaps;
 \import topology.Compactness[A := B, B := CarrierSet] \as ImageCompactness;
 \import std.Data[].Pair[].Prop[A := A, B := B] \as PairLaws;
-\definition fiber(a: A): B -> CarrierSet := \fun (b: B) => Pair.pair A B a b;
+\definition fiber[a: A]: B -> CarrierSet := \fun (b: B) => Pair.pair A B a b;
 \definition fiberContinuous: \forall (left: Left.Topology) (right: Right.Topology) (a: A) ->
   FiberMaps.PairContinuous right left right (\fun (_: B) => a) (\fun (b: B) => b) :=
   \fun (left: _) (right: _) (a: _) => FiberMaps.pairContinuous right left right
@@ -170,14 +170,14 @@
         (\axiom:setext(V, FiberMaps.RightPreimage (\fun (b: B) => b) V,
           \fun (b: B) (member: Right.Member V b) => member,
           \fun (b: B) (member: Right.Member V b) => member)) open);
-\structure LocalCover[left: Left.Topology, T: \Pow B, family: \Pow (\Pow CarrierSet), U: \Pow A, finite: ProductFinite.FiniteSubset]: \Prop {
+\structure LocalCover[left: Left.Topology, T: \Pow B, family: \Pow (\Pow CarrierSet), U: \Pow A, finite: ProductFinite.FiniteSubset]: \Prop := {
   open: Left.IsOpenIn left U,
   included: \forall (O: \Pow CarrierSet) -> ProductFinite.Member finite O -> ProductSpace.FamilyMember family O,
   within: \forall (a: A) -> Left.Member U a -> \forall (b: B) -> Right.Member T b ->
     ProductSpace.Member (ProductSpace.Union finite) (Pair.pair A B a b),
-}
-\definition LocalFamily(left: Left.Topology) (T: \Pow B) (family: \Pow (\Pow CarrierSet)): \Pow (\Pow A) :=
-  { U: \Pow A \where \exists { F: ProductFinite.FiniteSubset \where LocalCover[left, T, family, U, F] } };
+};
+\definition LocalFamily[left: Left.Topology] [T: \Pow B] [family: \Pow (\Pow CarrierSet)]: \Pow (\Pow A) :=
+  { U: \Pow A \where \exists ( F: ProductFinite.FiniteSubset \where LocalCover[left, T, family, U, F] ) };
 \definition localCoverExists: \forall (left: Left.Topology) (right: Right.Topology) (S: \Pow A) (T: \Pow B) ->
   Right.IsCompactIn right T -> \forall (family: \Pow (\Pow CarrierSet)) ->
   ProductSpace.IsOpenCover[topology left right, family, Rectangle S T] ->

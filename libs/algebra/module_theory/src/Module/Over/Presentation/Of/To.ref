@@ -1,7 +1,7 @@
 \import \parent.\parent.\parent.Hom[V := Carrier, W := W, source := space, target := target] \as Maps;
 \import \parent.\parent.\parent.Laws[V := W, space := target] \as Target;
 \import algebra.Group[].Of[Carrier := W, group := Target.additive] \as Group;
-\definition evaluate(values: Generators -> W): Expression -> W :=
+\definition evaluate[values: Generators -> W]: Expression -> W :=
   \induction (x: Expression) \return W \with {
     | zero: Target.zero
     | generator: values
@@ -9,8 +9,8 @@
     | negative: \fun (x: Expression)(vx: W) => Target.neg vx
     | scale: \fun (a: R)(x: Expression)(vx: W) => Target.scale a vx
   };
-\definition EvaluationRelation(values: Generators -> W)(x, y: Expression): \Prop := evaluate values x = evaluate values y;
-\definition evaluationRules(values: Generators -> W): Rules[EvaluationRelation values] := Rules[EvaluationRelation values] {
+\definition EvaluationRelation[values: Generators -> W][x, y: Expression]: \Prop := evaluate values x = evaluate values y;
+\definition evaluationRules[values: Generators -> W]: Rules[EvaluationRelation values] := Rules[EvaluationRelation values] {
   equivalence := Relation.Equivalence[Expression, EvaluationRelation values] {
     refl := \fun (x: Expression) => \refl(evaluate values x),
     sym := \fun (x, y: Expression) => sym!{W} _ _,
@@ -28,17 +28,17 @@
   scalarAdd := \fun (a, b: R)(x: Expression) => target.scalarAdd a b (evaluate values x),
   vectorAdd := \fun (a: R)(x, y: Expression) => target.vectorAdd a (evaluate values x) (evaluate values y),
 };
-\definition RespectsRelations(values: Generators -> W): \Prop :=
+\definition RespectsRelations[values: Generators -> W]: \Prop :=
   \forall (x, y: Expression) -> relations x y -> EvaluationRelation values x y;
 \import Quotient.Lift[B := W] \as Lift;
 \definition respects: \forall (values: Generators -> W) -> RespectsRelations values -> Lift.Respects (evaluate values) :=
   \fun (values: _)(accepts: _)(x, y: _)(related: _) => related (EvaluationRelation values) (evaluationRules values) accepts;
-\definition apply(values: Generators -> W)(accepts: RespectsRelations values): Carrier -> W :=
+\definition apply[values: Generators -> W][accepts: RespectsRelations values]: Carrier -> W :=
   Lift.apply equivalence (evaluate values) (respects values accepts);
 \definition onClass: \forall (values: Generators -> W)(accepts: RespectsRelations values)(x: Expression) ->
   apply values accepts (class x) = evaluate values x :=
   \fun (values: _)(accepts: _) => Lift.onClass equivalence (evaluate values) (respects values accepts);
-\definition extension(values: Generators -> W)(accepts: RespectsRelations values): Maps.Map := Maps.Map {
+\definition extension[values: Generators -> W][accepts: RespectsRelations values]: Maps.Map := Maps.Map {
   apply := apply values accepts,
   addition := Lift.preservesBinary equivalence (evaluate values) (respects values accepts) Expression::sum (rules.addCong) Target.add
     (\fun (x, y: Expression) => \refl(Target.add (evaluate values x) (evaluate values y))),

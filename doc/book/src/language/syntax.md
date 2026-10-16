@@ -26,7 +26,7 @@
 
 ### parameter と名前
 
-型、文脈付き定義、constructor、型関連 item、module の引数は角括弧で指定する。空の `[]` も指定できる。
+型、定義、constructor、型関連 item、module の引数は角括弧で指定する。空の `[]` も指定できる。
 
 ```text
 Type[A, B]
@@ -73,7 +73,7 @@ Program の datatype、constructor、record literal、型関連 item の paramet
 複数変数の束縛、ブロック、型注釈付き局所定義でもこの期待型を使い、部分集合型を保持する。
 
 ```text
-\definition andElim(P, Q, R: \Prop): (P -> Q -> R) -> And[P, Q] -> R :=
+\definition andElim[P, Q, R: \Prop]: (P -> Q -> R) -> And[P, Q] -> R :=
   \fun (curried: _) (value: _) => curried (value.left) (value.right);
 ```
 
@@ -87,7 +87,7 @@ Set/Prop の式には `\assign` で番号付き推論変数との等式を登録
 
 ```text
 \definition Relation[A: \Set]: \PropKind := A -> A -> \Prop;
-\definition diagonal(A: \Set)(R: Relation[A] \assign _1): _1 := R;
+\definition diagonal[A: \Set][R: Relation[A] \assign _1]: _1 := R;
 ```
 
 `?` がある module の elaboration は失敗し、その位置の期待型、ローカル変数、関連する制約を報告する。
@@ -133,13 +133,13 @@ module argument では metavariable の推論を行わない。
 ### 式中の具体化
 
 ```text
-\definition carrier(A: \Set): \Set := Family[A := A].Carrier;
-\definition rootCarrier(A: \Set): \Set := \root.Family[A := A].Carrier;
-\definition disk(n: Nat^): \Set := Euclidean.Dimension[n := n].Disk;
-\structure Cell: \Set {
+\definition carrier[A: \Set]: \Set := Family[A := A].Carrier;
+\definition rootCarrier[A: \Set]: \Set := \root.Family[A := A].Carrier;
+\definition disk[n: Nat^]: \Set := Euclidean.Dimension[n := n].Disk;
+\structure Cell: \Set := {
   dimension: Nat^,
   point: Euclidean.Dimension[n := dimension].Disk,
-}
+};
 ```
 
 参照の位置で module 引数を検査し、具体化した module の item を取り出す。
@@ -152,8 +152,8 @@ module argument では metavariable の推論を行わない。
 
 ```text
 \definition name: type := expression;
-\definition name(x, y: A)(z: B): type := expression;
-\definition Type(parameters)::item(arguments): type := expression;
+\definition name[x, y: A][z: B]: type := expression;
+\definition Type[parameters]::item[arguments]: type := expression;
 ```
 
 `:` の左の binder を宣言文脈に追加して、結果の型と本体を検査する。
@@ -209,18 +209,17 @@ parameter は型族全体で固定し、添字は constructor の結果ごとに
 
 関連型・操作・法則をまとめる宣言の束と、sort を指定した record を扱う。
 宣言・literal・既定値・量化は [structure](structure.md)、型関連定義と射影は [型関連 item](types_and_items.md) を参照。
-sort を指定した宣言では、`{` の前に `:=` を置く表記も使える。
 
 sort を持つ法則なしの record は、field の宣言順に引数を取る constructor `#` を持つ。
 帰納法では field を受け取る関数を `#` の枝に指定する。
 
 ```text
-\structure Pair[A, B: \Set]: \Set {
+\structure Pair[A, B: \Set]: \Set := {
   left: A,
   right: B,
-}
-\definition pair(A, B: \Set)(a: A)(b: B): Pair[A, B] := Pair[A, B]::# a b;
-\definition eta(A, B: \Set): \forall (p: Pair[A, B]) -> Pair[A, B]::# p.left p.right = p :=
+};
+\definition pair[A, B: \Set][a: A][b: B]: Pair[A, B] := Pair[A, B]::# a b;
+\definition eta[A, B: \Set]: \forall (p: Pair[A, B]) -> Pair[A, B]::# p.left p.right = p :=
   \induction (p: Pair[A, B]) \return Pair[A, B]::# p.left p.right = p \with {
     | # : \fun (a: A)(b: B) => \refl(Pair[A, B]::# a b)
   };
@@ -351,7 +350,7 @@ A -> B
 \In[A] subset element
 \into[A](element, subset) \by { membership-proof }
 \exists A
-\exists {x: A \where P x}
+\exists (x: A \where P x)
 ```
 
 `\Pow` は powerset、`\Cast` は refinement type、`\In` は membership predicate、`\into` は membership proof 付きの要素を表す。
@@ -396,7 +395,7 @@ left = right
 
 ```text
 \module Transport(A: \Set, F: A -> \Set, a, b: A) {
-  \definition cast(value: F a)(same: a = b): F b :=
+  \definition cast[value: F a][same: a = b]: F b :=
     \idelim a = b \with x: _ => F x \by { base: value, equality: same };
   \definition identity: \forall (value: F a)(same: a = a) ->
     (\idelim a = a \with x: _ => F x \by { base: value, equality: same }) = value :=

@@ -3,7 +3,7 @@
 \definition targetRing: Ring.Ring[K] := Ring.commutativeRingAsRing K target;
 \import algebra.Group[].Of[Carrier := K, group := Ring.additiveGroup K targetRing] \as Group;
 \definition CoefficientMap: \Set := Coefficients.RingMap coefficientRing targetRing;
-\definition evaluate(f: CoefficientMap) (values: Variables -> K): Expression -> K :=
+\definition evaluate[f: CoefficientMap] [values: Variables -> K]: Expression -> K :=
   \induction (x: Expression) \return K \with {
     | constant: \fun (a: R) => f a
     | variable: \fun (a: Variables) => values a
@@ -12,7 +12,7 @@
     | product: \fun (x: Expression) (vx: K) (y: Expression) (vy: K) => targetRing.mul vx vy
   };
 
-\definition coefficientLaws(f: CoefficientMap): Coefficients.SemiringLaws[Ring.ringAsSemiring R coefficientRing, Ring.ringAsSemiring K targetRing, f] :=
+\definition coefficientLaws[f: CoefficientMap]: Coefficients.SemiringLaws[Ring.ringAsSemiring R coefficientRing, Ring.ringAsSemiring K targetRing, f] :=
   Coefficients.semiringLaws (Ring.ringAsSemiring R coefficientRing) (Ring.ringAsSemiring K targetRing) f;
 \definition coefficientNeg: \forall (f: CoefficientMap) (a: R) -> f (coefficientRing.neg a) = targetRing.neg (f a) :=
   \fun (f: _) (a: _) => Group.inverseUnique (f a) (f (coefficientRing.neg a))
@@ -20,9 +20,9 @@
       "=" {f (coefficientRing.add (coefficientRing.neg a) a)} "by" {sym!{K} _ _ ((coefficientLaws f).add (coefficientRing.neg a) a)}
       "=" {f (coefficientRing.zero)} "by" {congr!{R K} f _ _ (coefficientRing.additiveInverse a)}
       "=" {targetRing.zero} "by" {(coefficientLaws f).zero}});
-\definition EvaluationRelation(f: CoefficientMap) (values: Variables -> K) (x, y: Expression): \Prop :=
+\definition EvaluationRelation[f: CoefficientMap] [values: Variables -> K] [x, y: Expression]: \Prop :=
   evaluate f values x = evaluate f values y;
-\definition evaluationRules(f: CoefficientMap) (values: Variables -> K): Rules[EvaluationRelation f values] :=
+\definition evaluationRules[f: CoefficientMap] [values: Variables -> K]: Rules[EvaluationRelation f values] :=
   Rules[EvaluationRelation f values] {
     equivalence := Relation.Equivalence[Expression, EvaluationRelation f values] {
       refl := \fun (x: _) => \refl(evaluate f values x),
@@ -51,17 +51,17 @@
     constantMul := (coefficientLaws f).mul,
     constantNeg := coefficientNeg f,
   };
-\definition RespectsRelations(f: CoefficientMap) (values: Variables -> K): \Prop :=
+\definition RespectsRelations[f: CoefficientMap] [values: Variables -> K]: \Prop :=
   \forall (x, y: Expression) -> relations x y -> EvaluationRelation f values x y;
 \import Quotient.Lift[B := K] \as Lift;
 \definition respects: \forall (f: CoefficientMap) (values: Variables -> K) -> RespectsRelations f values -> Lift.Respects (evaluate f values) :=
   \fun (f: _) (values: _) (accepts: _) (x, y: _) (related: _) => related (EvaluationRelation f values) (evaluationRules f values) accepts;
-\definition apply(f: CoefficientMap) (values: Variables -> K) (accepts: RespectsRelations f values): Carrier -> K :=
+\definition apply[f: CoefficientMap] [values: Variables -> K] [accepts: RespectsRelations f values]: Carrier -> K :=
   Lift.apply equivalence (evaluate f values) (respects f values accepts);
 \definition onClass: \forall (f: CoefficientMap) (values: Variables -> K) (accepts: RespectsRelations f values) (x: Expression) ->
   apply f values accepts (class x) = evaluate f values x :=
   \fun (f: _) (values: _) (accepts: _) => Lift.onClass equivalence (evaluate f values) (respects f values accepts);
-\definition extension(f: CoefficientMap) (values: Variables -> K) (accepts: RespectsRelations f values):
+\definition extension[f: CoefficientMap] [values: Variables -> K] [accepts: RespectsRelations f values]:
   Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing :=
   \into[Carrier -> K](apply f values accepts, Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing) \by {
     Output.SemiringLaws[Ring.ringAsSemiring Carrier (Ring.commutativeRingAsRing Carrier ring), Ring.ringAsSemiring K targetRing, apply f values accepts] {
@@ -73,7 +73,7 @@
         (\fun (x, y: _) => \refl(targetRing.mul (evaluate f values x) (evaluate f values y))),
     }
   };
-\definition homLaws(h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing):
+\definition homLaws[h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing]:
   Output.SemiringLaws[Ring.ringAsSemiring Carrier (Ring.commutativeRingAsRing Carrier ring), Ring.ringAsSemiring K targetRing, h] :=
   Output.semiringLaws (Ring.ringAsSemiring Carrier (Ring.commutativeRingAsRing Carrier ring)) (Ring.ringAsSemiring K targetRing) h;
 \definition homNeg: \forall (h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing) (x: Carrier) -> h (neg x) = targetRing.neg (h x) :=

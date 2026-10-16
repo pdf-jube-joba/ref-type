@@ -13,8 +13,8 @@ parameters = '''Carrier: \Set, x: Carrier'''
 ```
 
 ```ref
-\structure A[Carrier: \Set] { a: Carrier }
-\structure B[Carrier: \Set] { b: Carrier }
+\structure A[Carrier: \Set] := { a: Carrier };
+\structure B[Carrier: \Set] := { b: Carrier };
 \definition AtoB[Carrier: \Set]: A[Carrier] -> B[Carrier] :=
   \fun (data: A[Carrier]) => B[Carrier] { b := data.a };
 \definition choose[Carrier: \Set]: A[Carrier] -> A[Carrier] -> B[Carrier] :=
@@ -51,7 +51,7 @@ parameters = '''A: \Set, B: \Set'''
 ```
 
 ```ref
-\structure Box[Carrier: \Set] { value: Carrier }
+\structure Box[Carrier: \Set] := { value: Carrier };
 \definition bad: A -> Box[B] := \fun (value: B) => Box[B] { value := value };
 ```
 
@@ -66,9 +66,9 @@ name = "Playground"
 ```
 
 ```ref
-\structure A[Carrier: \Set] {
+\structure A[Carrier: \Set] := {
   op1: Carrier,
-}
+};
 
 \definition F: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => A[Carrier];
 ```
@@ -103,9 +103,9 @@ expect = "accept"
 ```
 
 ```ref
-\structure A[Carrier: \Set]: \Set {
+\structure A[Carrier: \Set]: \Set := {
   op1: Carrier,
-}
+};
 
 \definition F: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => A[Carrier];
 ```
@@ -121,15 +121,15 @@ name = "Playground"
 ```
 
 ```ref
-\structure A: \SetKind {
+\structure A: \SetKind := {
   Carrier: \Set,
   a: Carrier,
-}
+};
 
-\structure ALaw {
+\structure ALaw := {
   data: A,
   some: A.a = A.a,
-}
+};
 ```
 
 ### signature
@@ -162,15 +162,15 @@ expect = "accept"
 ```
 
 ```ref
-\structure A: \SetKind {
+\structure A: \SetKind := {
   Carrier: \Set,
   a: Carrier,
-}
+};
 
-\structure ALaw {
+\structure ALaw := {
   data: A,
   some: data.a = data.a,
-}
+};
 ```
 
 ## 生成される projection の sort
@@ -184,7 +184,7 @@ name = "M"
 ```
 
 ```ref
-\structure Bad: \Prop { b: \Prop }
+\structure Bad: \Prop := { b: \Prop };
 ```
 
 ### compact

@@ -1,5 +1,5 @@
 \import std.Data[].Bool[] \as B;
-\definition modulus(i: Finite.Fin m): I.Int^ := B.ite I.Int^ (Nat.ltb i rank) (a i i) Arithmetic.zero;
+\definition modulus[i: Finite.Fin m]: I.Int^ := B.ite I.Int^ (Nat.ltb i rank) (a i i) Arithmetic.zero;
 \module Component(i: Finite.Fin m) {
   \import finitely_generated_modules.IntegerCyclic[d := modulus i] \as Cyclic;
   \definition Carrier: \Set := Cyclic.Carrier;
@@ -9,9 +9,9 @@
   \definition scalarClass: \forall (c, x: I.Int^) -> space.smul c (class x) = class (Arithmetic.mul c x) := Cyclic.onScalar;
   \definition classMultiple: \forall (q: I.Int^) -> class (Arithmetic.mul (modulus i) q) = space.zero := Cyclic.classMultiple;
   \definition classZero: class Arithmetic.zero = space.zero := Cyclic.zeroClass;
-  \definition onto: \forall (q: Carrier) -> \exists { x: I.Int^ \where class x = q } := Cyclic.onto;
+  \definition onto: \forall (q: Carrier) -> \exists ( x: I.Int^ \where class x = q ) := Cyclic.onto;
   \definition classZeroPreimage: \forall (x: I.Int^) -> class x = space.zero ->
-    \exists { q: I.Int^ \where Arithmetic.mul (modulus i) q = x } := Cyclic.classZeroMember;
+    \exists ( q: I.Int^ \where Arithmetic.mul (modulus i) q = x ) := Cyclic.classZeroMember;
   \import Cyclic.Zero[] \as Zero;
   \definition zeroClassIsZero: \forall (zero: modulus i = Arithmetic.zero)(x: I.Int^) ->
     class x = space.zero -> x = Arithmetic.zero := Zero.classZeroIsZero;
@@ -23,7 +23,7 @@
 \import Modules.Product[Index := Finite.Fin m, family := family] \as Factors;
 \definition FactorCarrier: \Set := Factors.Carrier;
 \definition factorSpace: Modules.Space FactorCarrier := Factors.space;
-\definition classes(v: Output): FactorCarrier := \fun (i: Finite.Fin m) => Component[i := i].class (v i);
+\definition classes[v: Output]: FactorCarrier := \fun (i: Finite.Fin m) => Component[i := i].class (v i);
 \import Modules.Hom[V := Output, W := FactorCarrier, source := codomain, target := factorSpace] \as ProjectionMaps;
 \definition projection: ProjectionMaps.Map := ProjectionMaps.Map {
   apply := classes,
@@ -57,9 +57,9 @@
               (Component[i := i].classMultiple (v (column i bound))))
         }
       }) (Nat.ltb i rank) (\refl(Nat.ltb i rank)));
-\definition Selection(q: FactorCarrier): \Set :=
+\definition Selection[q: FactorCarrier]: \Set :=
   \forall (i: Finite.Fin m) -> \Cast[I.Int^] ({ x: I.Int^ \where Component[i := i].class x = q i });
-\definition onto: \forall (q: FactorCarrier) -> \exists { x: Output \where classes x = q } := \block {
+\definition onto: \forall (q: FactorCarrier) -> \exists ( x: Output \where classes x = q ) := \block {
   \fun (q: FactorCarrier) \then
   \takefrom selection: Selection q \by \axiom:classicalIndefiniteChoice(
     Finite.Fin m,
@@ -70,11 +70,11 @@
     (\axiom:funext(classes x, q, \fun (i: Finite.Fin m) =>
       \bysub(I.Int^, { value: I.Int^ \where Component[i := i].class value = q i }, selection i)))
 };
-\definition rowIndex(i: Finite.Fin n)(early: Bounds.Lt i rank)(rowRank: Bounds.Le rank m): Finite.Fin m :=
+\definition rowIndex[i: Finite.Fin n][early: Bounds.Lt i rank][rowRank: Bounds.Le rank m]: Finite.Fin m :=
   \into[N.Nat^](i, { k: N.Nat^ \where Bounds.Lt k m }) \by { Bounds.ltLeTrans i rank m early rowRank };
-\definition Condition(laws: Laws[a])(x: Output)(i: Finite.Fin n)(q: I.Int^): \Prop :=
+\definition Condition[laws: Laws[a]][x: Output][i: Finite.Fin n][q: I.Int^]: \Prop :=
   \forall (early: Bounds.Lt i rank) -> Arithmetic.mul (a i i) q = x (rowIndex i early laws.rowRank);
-\definition Coefficient(laws: Laws[a])(x: Output)(i: Finite.Fin n): \Set :=
+\definition Coefficient[laws: Laws[a]][x: Output][i: Finite.Fin n]: \Set :=
   \Cast[I.Int^] ({ q: I.Int^ \where Condition laws x i q });
 \definition earlyCoefficient: \forall (laws: Laws[a])(x: Output)(i: Finite.Fin n)(early: Bounds.Lt i rank) ->
   classes x = factorSpace.zero -> \exists Coefficient laws x i := \block {
@@ -106,7 +106,7 @@
       | true: \fun (early: _) => earlyCoefficient laws x i early zero
     }) (Nat.ltb i rank) (\refl(Nat.ltb i rank));
 \definition kernelImage: \forall (laws: Laws[a])(x: Output) -> classes x = factorSpace.zero ->
-  \exists { v: Vector \where apply (reflect a) v = x } := \block {
+  \exists ( v: Vector \where apply (reflect a) v = x ) := \block {
   \fun (laws: Laws[a])(x: Output)(zero: _) \then
   \takefrom coefficients: (\forall (i: Finite.Fin n) -> Coefficient laws x i) \by
     \axiom:classicalIndefiniteChoice(Finite.Fin n, Coefficient laws x, coefficientExists laws x zero) \then
@@ -138,14 +138,14 @@
   zero := vanishes laws,
   kernelImage := kernelImage laws,
 };
-\definition sequence(laws: Laws[a]): Exact.Sequence := \into[Exact.Data](sequenceData, { data: Exact.Data \where Exact.Laws[data] }) \by { sequenceLaws laws };
+\definition sequence[laws: Laws[a]]: Exact.Sequence := \into[Exact.Data](sequenceData, { data: Exact.Data \where Exact.Laws[data] }) \by { sequenceLaws laws };
 \import Modules.Of[V := Output, space := codomain].Submodule[] \as Submodules;
 \import Submodules.Image[U := Vector, source := domain] \as Images;
 \definition image: Submodules.Submodule := Images.image (Base.linear (reflect a));
 \import Submodules.Quotient[S := image] \as Quotient;
 \definition Carrier: \Set := Quotient.Carrier;
 \definition space: Modules.Space Carrier := Quotient.moduleSpace;
-\definition decomposition(laws: Laws[a]): Modules.Isomorphism[V := Carrier, W := FactorCarrier, source := space, target := factorSpace].Isomorphism :=
+\definition decomposition[laws: Laws[a]]: Modules.Isomorphism[V := Carrier, W := FactorCarrier, source := space, target := factorSpace].Isomorphism :=
   Exact.Cokernel[sequence := sequence laws].isomorphism;
 
 \definition onClass: \forall (laws: Laws[a])(x: Output) ->

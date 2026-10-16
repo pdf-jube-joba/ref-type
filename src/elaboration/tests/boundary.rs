@@ -13,14 +13,14 @@ fn structure_signature_term_diagnostics_identify_the_reference_and_suggest_a_sor
     for (text, reference) in [
         (
             r"\module Playground {
-                \structure A[Carrier: \Set] { op1: Carrier }
+                \structure A[Carrier: \Set] := { op1: Carrier };
                 \definition F: \forall (Carrier: \Set) -> \Set :=
                     \fun (Carrier: \Set) => A[Carrier];
             }",
             "A",
         ),
         (
-            r"\module Library { \structure A[Carrier: \Set] { op1: Carrier } }
+            r"\module Library { \structure A[Carrier: \Set] := { op1: Carrier }; }
             \module Playground {
                 \import \root.Library[] \as L;
                 \definition F: \forall (Carrier: \Set) -> \Set :=
@@ -29,7 +29,7 @@ fn structure_signature_term_diagnostics_identify_the_reference_and_suggest_a_sor
             "L.A",
         ),
         (
-            r"\module Library { \structure A[Carrier: \Set] { op1: Carrier } }
+            r"\module Library { \structure A[Carrier: \Set] := { op1: Carrier }; }
             \module Playground {
                 \definition F: \forall (Carrier: \Set) -> \Set :=
                     \fun (Carrier: \Set) => \root.Library[].A[Carrier];
@@ -92,7 +92,7 @@ fn checking_uses_binding_ids_and_keeps_a_reusable_hir() {
     let mut project = resolve(
         r"\module M {
         \definition P: \Prop := \forall (A: \Prop) -> A -> A;
-        \definition id (A: \Prop) (x: A): A := x;
+        \definition id [A: \Prop] [x: A]: A := x;
         \definition Q: \Prop := P;
     }",
     );

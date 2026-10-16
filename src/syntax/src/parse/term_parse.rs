@@ -585,14 +585,17 @@ impl<'a> TermParser<'a> {
         }
         // r"\exists" <binding>
         if self.bump_if_keyword("\\exists") {
-            let bind = if self.peek() == Some(&Token::LBrace) {
-                self.parse_binding(Token::LBrace, Token::RBrace)?
-            } else if self.peek() == Some(&Token::LParen)
+            if self.peek() == Some(&Token::LBrace) {
+                return Err(self.error(ParseErrorKind::Expected {
+                    expected: Expected::Token(Token::LParen.owned()),
+                    found: Some(Token::LBrace.owned()),
+                }));
+            }
+            let bind = if self.peek() == Some(&Token::LParen)
                 && matches!(
                     self.tokens.get(self.pos + 2).map(|token| token.kind),
                     Some(Token::Colon | Token::Comma)
-                )
-            {
+                ) {
                 self.parse_binding(Token::LParen, Token::RParen)?
             } else {
                 Bind::Named(RightBind {
@@ -1877,7 +1880,7 @@ mod tests {
         assert_eq!(proof_var.0, "h");
         assert!(matches!(*body, SExp::Lam { .. }));
         assert!(matches!(
-            complete(r"\exists {x: A \where P x}"),
+            complete(r"\exists (x: A \where P x)"),
             SExp::Exists {
                 bind: Bind::Subset { .. }
             }

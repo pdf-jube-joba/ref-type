@@ -67,21 +67,21 @@ fn direct_definition_specialization_preserves_dependent_carriers_and_scopes() {
     let source = r"
         \module Family(A: \Set) {
             \module At(x: A) {
-                \structure Pair: \Set { value: A, equality: value = x }
+                \structure Pair: \Set := { value: A, equality: value = x };
                 \definition Carrier: \Set := Pair;
                 \definition point: Carrier := Pair { value := x, equality := \refl(x) };
                 \definition value: A := x;
-                \definition withValue(y: A)(proof: y = x): Pair := Pair { value := y, equality := proof };
+                \definition withValue[y: A][proof: y = x]: Pair := Pair { value := y, equality := proof };
             }
-            \definition Carrier(x: A): \Set := At[x := x].Carrier;
-            \definition point(x: A): Carrier x := At[x := x].point;
-            \definition first(x, y: A): A := At[x := x].value;
-            \definition second(x, y: A): A := At[x := y].value;
-            \definition firstLaw(x, y: A): first x y = x := \refl(x);
-            \definition secondLaw(x, y: A): second x y = y := \refl(y);
-            \definition projection(x: A): (point x).value = x := \refl(x);
-            \definition explicit(x: A): Carrier x := At[x := x].withValue x (\refl(x));
-            \definition explicitProjection(x: A): (explicit x).value = x := \refl(x);
+            \definition Carrier[x: A]: \Set := At[x := x].Carrier;
+            \definition point[x: A]: Carrier x := At[x := x].point;
+            \definition first[x, y: A]: A := At[x := x].value;
+            \definition second[x, y: A]: A := At[x := y].value;
+            \definition firstLaw[x, y: A]: first x y = x := \refl(x);
+            \definition secondLaw[x, y: A]: second x y = y := \refl(y);
+            \definition projection[x: A]: (point x).value = x := \refl(x);
+            \definition explicit[x: A]: Carrier x := At[x := x].withValue x (\refl(x));
+            \definition explicitProjection[x: A]: (explicit x).value = x := \refl(x);
         }
     ";
     let modules = parse::str_parse_modules(source).unwrap();
@@ -99,15 +99,15 @@ fn structure_parameter_type_errors_preserve_source_context() {
 
     for (declaration, parameter, reason) in [
         (
-            r"\structure Packed[F: \Set -> \SetKind] {
+            r"\structure Packed[F: \Set -> \SetKind] := {
     Cr: \Set,
     data: F Cr,
-  }",
+  };",
             "Packed.F",
             "upper sort has no classifier",
         ),
         (
-            r"\structure Packed[A: \Set, a: A, bad: a] {}",
+            r"\structure Packed[A: \Set, a: A, bad: a] := {};",
             "Packed.bad",
             "expected a sort",
         ),
@@ -401,8 +401,8 @@ fn program_query_parameters_are_scoped_outside_local_variables() {
 fn definition_parameters_form_contexts_and_calls_share_the_checked_body() {
     let modules = parse::str_parse_modules(
         r"\module Contexts(A: \Set, P: \Prop, p: P, Unused: \Set) {
-            \definition choose(h: P)(x: A): A := x;
-            \definition selected(x: A): A := choose p x;
+            \definition choose[h: P][x: A]: A := x;
+            \definition selected[x: A]: A := choose p x;
         }",
     )
     .unwrap();

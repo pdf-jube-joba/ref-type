@@ -42,7 +42,7 @@ impl Fixture {
         self.package(
             "right",
             &["base"],
-            r"\module Core { \import base.Core[] \as B; \definition id(x: B.Unit): B.Unit := x; }",
+            r"\module Core { \import base.Core[] \as B; \definition id[x: B.Unit]: B.Unit := x; }",
         );
         self.package("app", &["left", "right"], APP)
     }

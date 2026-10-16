@@ -35,7 +35,7 @@ impl Fixture {
 \module Outer;
 \module Inline {
   /* Japanese 日本語, \(\forall x_i \in A\), <script>alert(1)</script> & quotes. */
-  \definition identity (A: \Set): A -> A := \fun (x: A) => x;
+  \definition identity [A: \Set]: A -> A := \fun (x: A) => x;
 }
 "#,
         )
@@ -49,7 +49,7 @@ impl Fixture {
         .unwrap();
         fs::write(
             path.join("demo/src/Outer/Child.ref"),
-            r"\structure Pair[A: \Set]: \Set { first: A, second: A }",
+            r"\structure Pair[A: \Set]: \Set := { first: A, second: A };",
         )
         .unwrap();
         fs::write(

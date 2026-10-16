@@ -46,7 +46,7 @@ env = { REF_TYPE_PROFILE_COSTS = "resolve.total,kernel." }
 ```
 
 ```ref
-\definition identity(P: \Prop)(p: P): P := p;
+\definition identity[P: \Prop][p: P]: P := p;
 ```
 
 ```toml step

@@ -193,10 +193,10 @@ parameters = '''A: \Set'''
 ```
 
 ```ref
-\definition transport(Left: \Pow (A)) (Right: \Pow (A))
-    (x: \Cast[\Pow (A)] ({ T : \Pow (A) \where T = Left -> T = Right }))
-    (y: \Cast[\Pow (A)] ({ T : \Pow (A) \where T = Left -> T = Right }))
-    (e: x = y):
+\definition transport[Left: \Pow (A)] [Right: \Pow (A)]
+    [x: \Cast[\Pow (A)] ({ T : \Pow (A) \where T = Left -> T = Right })]
+    [y: \Cast[\Pow (A)] ({ T : \Pow (A) \where T = Left -> T = Right })]
+    [e: x = y]:
     \forall (h: \In[\Pow (A)] ({ T : \Pow (A) \where T = Left -> T = Right }) (y)) ->
         x = \into[\Pow (A)](y, { T : \Pow (A) \where T = Left -> T = Right }) \by { h } :=
     \idelim x = y \with z: \Pow (A) =>
@@ -214,9 +214,9 @@ parameters = '''A: \Set'''
         (\bysub(\Pow (A), $X, y)));
 
 /* The macro repeats a type containing local binders in grouped annotations. */
-\definition reverse(Left, Right: \Pow (A))
-    (x, y: \Cast[\Pow (A)] ({ T : \Pow (A) \where T = Left -> T = Right }))
-    (e: x = y): y = x :=
+\definition reverse[Left, Right: \Pow (A)]
+    [x, y: \Cast[\Pow (A)] ({ T : \Pow (A) \where T = Left -> T = Right })]
+    [e: x = y]: y = x :=
     subsetEquality!{ { { T : \Pow (A) \where T = Left -> T = Right } } } x y e;
 ```
 
@@ -312,8 +312,8 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Refinement {
-  \definition Checked(A: \Set): \Set := \Cast[A] ({ x: A \where x = x });
-  \definition refine(A: \Set)(x: A): Checked A :=
+  \definition Checked[A: \Set]: \Set := \Cast[A] ({ x: A \where x = x });
+  \definition refine[A: \Set][x: A]: Checked A :=
     \into[A](x, { y: A \where y = y }) \by { \refl(x) };
 }
 
@@ -324,16 +324,16 @@ expect = "accept"
   \definition nested: R.Checked (R.Checked (\Pow A)) :=
     R.refine (R.Checked (\Pow A)) refined;
 
-  \definition direct(x: A): P x -> \In[A] nested x := \fun (h: _) => h;
-  \definition reverse(x: A): \In[A] nested x -> P x := \fun (h: _) => h;
-  \definition annotated(x: A): P x -> \In[A] (nested \of \Pow A) x :=
+  \definition direct[x: A]: P x -> \In[A] nested x := \fun (h: _) => h;
+  \definition reverse[x: A]: \In[A] nested x -> P x := \fun (h: _) => h;
+  \definition annotated[x: A]: P x -> \In[A] (nested \of \Pow A) x :=
     \fun (h: _) => h;
-  \definition opaque(x: A): \In[A] S x -> \In[A] (R.refine (\Pow A) S) x :=
+  \definition opaque[x: A]: \In[A] S x -> \In[A] (R.refine (\Pow A) S) x :=
     \fun (h: _) => h;
 
   \definition retain: \forall (x: \Cast[A] bare) -> \In[A] nested x :=
     \fun (x: _) => \bysub(A, bare, x);
-  \definition make(x: A): P x -> \exists \Cast[A] nested := \block {
+  \definition make[x: A]: P x -> \exists \Cast[A] nested := \block {
     \fun (h: P x) \then
     \return \exact(\into[A](x, nested) \by { h }, \Cast[A] nested)
   };
@@ -353,15 +353,15 @@ expect = "accept"
   \definition selectNext: select next = Unit::unit := \refl(Unit::unit);
   \definition selectDone: select done = Unit::unit := \refl(Unit::unit);
 
-  \definition step(s: Unit): Step := done;
-  \definition Terminates(s: Unit): \Prop :=
+  \definition step[s: Unit]: Step := done;
+  \definition Terminates[s: Unit]: \Prop :=
     \forall (P: Unit -> \Prop) ->
       (\forall (x: Unit) ->
         (\step-match t: \RunStep[Unit, Unit] \return \Prop \with {
           | \continue next: P next
           | \finish output: \forall (Q: \Prop) -> Q -> Q
         }) (step x) -> P x) -> P s;
-  \definition terminates(s: Unit): Terminates s :=
+  \definition terminates[s: Unit]: Terminates s :=
     \fun (P: _) (h: _) => h s (\fun (Q: \Prop)(q: Q) => q);
   \definition run: \run[Unit, Unit](step, Unit::unit) \by { terminates Unit::unit } = Unit::unit :=
     \refl(Unit::unit);

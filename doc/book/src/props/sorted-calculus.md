@@ -380,7 +380,7 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 
 ```text
 \module Transport(A: \Set, F: A -> \Set, a, b: A) {
-  \definition cast(value: F a)(same: a = b): F b :=
+  \definition cast[value: F a][same: a = b]: F b :=
     \idelim a = b \with x: _ => F x \by { base: value, equality: same };
   \definition identity: \forall (value: F a)(same: a = a) ->
     (\idelim a = a \with x: _ => F x \by { base: value, equality: same }) = value :=

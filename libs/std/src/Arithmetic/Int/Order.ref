@@ -1,16 +1,16 @@
 \import std.Data[].Nat[].Order[].Prop[] \as NO;
 \import std.Logic[].Order[] \as O;
-\definition crossLeft(x, y: Integer): Nat := NatOp.add (Positive.specification x) (Negative.specification y);
-\definition natLtbAgrees(a, b: Nat): NatLtb.specification a b = NatOp.ltb a b :=
+\definition crossLeft[x, y: Integer]: Nat := NatOp.add (Positive.specification x) (Negative.specification y);
+\definition natLtbAgrees[a, b: Nat]: NatLtb.specification a b = NatOp.ltb a b :=
   \match (NatOp.ltb a b) \in B.Bool^ \return (\fun (flag: B.Bool^) => NatIsZero.specification (NatOp.choose flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)) = flag) \with {
     | false : (\refl(B.Bool^::false))
     | true : (\refl(B.Bool^::true))
     };
-\definition ltbAsCross(x, y: Integer):
+\definition ltbAsCross[x, y: Integer]:
   Ltb.program^ x y = NatOp.ltb (crossLeft x y) (crossLeft y x) :=
   trans!{B.Bool^} _ _ _ (congr!{Ltb.T^ _} (\fun (f: _) => f x y) _ _ Ltb.coherence)
     (natLtbAgrees (crossLeft x y) (crossLeft y x));
-\definition ltOfCross(x, y: Integer):
+\definition ltOfCross[x, y: Integer]:
   NL.Lt (crossLeft x y) (crossLeft y x) ->
   IntegerLt x y :=
   \fun (h: NL.Lt (crossLeft x y) (crossLeft y x)) =>
@@ -19,16 +19,16 @@
         (\fun (flag: B.Bool^) => NatIsZero.specification (NatOp.choose flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
         (NatOp.ltb (crossLeft x y) (crossLeft y x)) B.Bool^::true h, equality:
         sym!{B.Bool^} _ _ (congr!{Ltb.T^ _} (\fun (f: _) => f x y) _ _ Ltb.coherence) };
-\definition crossOfLt(x, y: Integer):
+\definition crossOfLt[x, y: Integer]:
   IntegerLt x y ->
   NL.Lt (crossLeft x y) (crossLeft y x) :=
   \fun (h: IntegerLt x y) =>
     \idelim Ltb.program^ x y = NatOp.ltb (crossLeft x y) (crossLeft y x)
       \with flag: B.Bool^ => flag = B.Bool^::true
       \by { base: h, equality: ltbAsCross x y };
-\definition Trichotomy(x, y: Integer): \Prop :=
+\definition Trichotomy[x, y: Integer]: \Prop :=
   O.Trichotomy[Integer, IntegerLt, x, y];
-\definition trichotomy(x, y: Integer): Trichotomy x y :=
+\definition trichotomy[x, y: Integer]: Trichotomy x y :=
   \match (NO.trichotomy (crossLeft x y) (crossLeft y x)) \in O.Trichotomy
     \return (\fun (_: NO.Trichotomy (crossLeft x y) (crossLeft y x)) => Trichotomy x y) \with {
   | less h : O.Trichotomy[Integer, IntegerLt, x, y]::less (ltOfCross x y h)
@@ -37,30 +37,30 @@
   };
 \definition comparable: O.Comparable Integer IntegerLt :=
   trichotomy;
-\definition ltIrrefl(x: Integer):
+\definition ltIrrefl[x: Integer]:
   IntegerLt x x ->
   L.False :=
   \fun (h: _) =>
     NL.ltIrrefl (crossLeft x x) (crossOfLt x x h);
 
-\definition rawCross(x, y: Difference): Nat :=
+\definition rawCross[x, y: Difference]: Nat :=
   NatOp.add (pos x) (negPart y);
-\definition RawLt(x, y: Difference): \Prop :=
+\definition RawLt[x, y: Difference]: \Prop :=
   NL.Lt (rawCross x y) (rawCross y x);
 
-\definition integerLtAsRaw(x, y: Integer):
+\definition integerLtAsRaw[x, y: Integer]:
   IntegerLt x y -> RawLt (IM.representative x) (IM.representative y) :=
   crossOfLt x y;
-\definition integerLtOfRaw(x, y: Integer):
+\definition integerLtOfRaw[x, y: Integer]:
   RawLt (IM.representative x) (IM.representative y) -> IntegerLt x y :=
   ltOfCross x y;
 
-\definition rawShuffle(x, y, z: Difference):
+\definition rawShuffle[x, y, z: Difference]:
   NatOp.add (rawCross x y) (rawCross y z) =
     NatOp.add (rawCross x z) (NatOp.add (pos y) (negPart y)) :=
   integerAddShuffle (pos x) (negPart y) (pos y) (negPart z);
 
-\definition rawLtTrans(x, y, z: Difference):
+\definition rawLtTrans[x, y, z: Difference]:
   RawLt x y -> RawLt y z ->
   RawLt x z :=
   \block {
@@ -94,11 +94,11 @@
       (NatOp.add (pos y) (negPart y)) aligned
   };
 
-\definition rawEquivalentEquation(x, y: Difference):
+\definition rawEquivalentEquation[x, y: Difference]:
   IM.Equivalent x y ->
   NatOp.add (pos x) (negPart y) = NatOp.add (pos y) (negPart x) := \fun (xy: _) =>
     xy;
-\definition rawEquivalentUnderAdd(x, x2, y: Difference):
+\definition rawEquivalentUnderAdd[x, x2, y: Difference]:
   IM.Equivalent x x2 ->
   NatOp.add (NatOp.add (pos x) (negPart x2)) (negPart y) =
     NatOp.add (NatOp.add (pos x2) (negPart x)) (negPart y) :=
@@ -106,7 +106,7 @@
     congr!{Nat Nat} (\fun (n: Nat) => NatOp.add n (negPart y)) _ _
       (rawEquivalentEquation x x2 xx);
 
-\definition rawReplaceLeftLower(x, x2, y: Difference):
+\definition rawReplaceLeftLower[x, x2, y: Difference]:
   IM.Equivalent x x2 ->
   NatOp.add (rawCross x y) (negPart x2) =
     NatOp.add (rawCross x2 y) (negPart x) :=
@@ -115,12 +115,12 @@
       "by" { NO.addRotate (pos x) (negPart y) (negPart x2) }
       "by" { rawEquivalentUnderAdd x x2 y xx }
       "by" { NO.addRotate (pos x2) (negPart x) (negPart y) }};
-\definition rawReplaceLeftUpper(x, x2, y: Difference):
+\definition rawReplaceLeftUpper[x, x2, y: Difference]:
   NatOp.add (rawCross y x) (negPart x2) =
     NatOp.add (rawCross y x2) (negPart x) :=
   NO.addRotate (pos y) (negPart x) (negPart x2);
 
-\definition rawLtReplaceLeft(x, x2, y: Difference):
+\definition rawLtReplaceLeft[x, x2, y: Difference]:
   IM.Equivalent x x2 -> RawLt x y ->
   RawLt x2 y :=
   \fun (xx: _) (xy: _) =>
@@ -135,11 +135,11 @@
         (NO.ltAddRight (rawCross x y) (rawCross y x)
           (negPart x2) xy));
 
-\definition rawReplaceRightLower(x, y, y2: Difference):
+\definition rawReplaceRightLower[x, y, y2: Difference]:
   NatOp.add (rawCross x y) (negPart y2) =
     NatOp.add (rawCross x y2) (negPart y) :=
   NO.addRotate (pos x) (negPart y) (negPart y2);
-\definition rawReplaceRightUpper(x, y, y2: Difference):
+\definition rawReplaceRightUpper[x, y, y2: Difference]:
   IM.Equivalent y y2 ->
   NatOp.add (rawCross y x) (negPart y2) =
     NatOp.add (rawCross y2 x) (negPart y) :=
@@ -149,7 +149,7 @@
       "by" { rawEquivalentUnderAdd y y2 x yy }
       "by" { NO.addRotate (pos y2) (negPart y) (negPart x) }};
 
-\definition rawLtReplaceRight(x, y, y2: Difference):
+\definition rawLtReplaceRight[x, y, y2: Difference]:
   IM.Equivalent y y2 -> RawLt x y ->
   RawLt x y2 :=
   \fun (yy: _) (xy: _) =>
@@ -164,13 +164,13 @@
         (NO.ltAddRight (rawCross x y) (rawCross y x)
           (negPart y2) xy));
 
-\definition rawLtRespects(x, x2, y, y2: Difference):
+\definition rawLtRespects[x, x2, y, y2: Difference]:
   IM.Equivalent x x2 -> IM.Equivalent y y2 -> RawLt x y ->
   RawLt x2 y2 :=
   \fun (xx: _) (yy: _) (xy: _) =>
     rawLtReplaceRight x2 y y2 yy (rawLtReplaceLeft x x2 y xx xy);
 
-\definition rawAddCross(z, x, y: Difference):
+\definition rawAddCross[z, x, y: Difference]:
   NatOp.add (rawCross x y) (rawCross z z) =
     rawCross (IM.addRep z x) (IM.addRep z y) :=
   trans!{Nat} _ _ _
@@ -179,7 +179,7 @@
       (NL.addInterchange (pos z) (pos x)
         (negPart z) (negPart y)));
 
-\definition rawLtAddLeft(z, x, y: Difference):
+\definition rawLtAddLeft[z, x, y: Difference]:
   RawLt x y ->
   RawLt (IM.addRep z x) (IM.addRep z y) :=
   \fun (xy: _) =>
@@ -192,7 +192,7 @@
       (rawAddCross z y x)
       (NO.ltAddRight (rawCross x y) (rawCross y x) (rawCross z z) xy);
 
-\definition ltTrans(x, y, z: Integer):
+\definition ltTrans[x, y, z: Integer]:
   IntegerLt x y ->
   IntegerLt y z ->
   IntegerLt x z :=
@@ -202,7 +202,7 @@
         (IM.representative z) (integerLtAsRaw x y xy)
         (integerLtAsRaw y z yz));
 
-\definition ltRespects(x, x2, y, y2: Integer):
+\definition ltRespects[x, x2, y, y2: Integer]:
   x = x2 ->
   y = y2 ->
   IntegerLt x y ->
@@ -214,7 +214,7 @@
           \by { base: xy, equality: xx },
         equality: yy };
 
-\definition ltAddLeft(z, x, y: Integer):
+\definition ltAddLeft[z, x, y: Integer]:
   IntegerLt x y ->
   IntegerLt (addInteger z x) (addInteger z y) :=
   \fun (xy: _) =>
@@ -228,7 +228,7 @@
         (IM.equivalentSym _ _ (addIntegerRep z y))
         (rawLtAddLeft (IM.representative z) (IM.representative x)
           (IM.representative y) (integerLtAsRaw x y xy)));
-\definition ltAddRight(x, y, z: Integer):
+\definition ltAddRight[x, y, z: Integer]:
   IntegerLt x y ->
   IntegerLt (addInteger x z) (addInteger y z) :=
   \fun (xy: _) =>
@@ -236,7 +236,7 @@
       (addInteger z y) (addInteger y z)
       (addIntegerComm z x) (addIntegerComm z y)
       (ltAddLeft z x y xy);
-\definition ltAdd(a, b, c, d: Integer):
+\definition ltAdd[a, b, c, d: Integer]:
   IntegerLt a b ->
   IntegerLt c d ->
   IntegerLt (addInteger a c) (addInteger b d) :=
@@ -244,14 +244,14 @@
     ltTrans (addInteger a c) (addInteger b c) (addInteger b d)
       (ltAddRight a b c ab) (ltAddLeft b c d cd);
 
-\definition ltAsym(x, y: Integer):
+\definition ltAsym[x, y: Integer]:
   IntegerLt x y ->
   IntegerLt y x ->
   L.False :=
   \fun (xy: _) (yx: _) =>
     ltIrrefl x (ltTrans x y x xy yx);
 
-\definition ltNotEq(x, y: Integer):
+\definition ltNotEq[x, y: Integer]:
   IntegerLt x y ->
   x = y ->
   L.False :=
@@ -260,7 +260,7 @@
     (ltRespects x x y x (\refl(x))
       (sym!{Integer} x y same) xy);
 
-\definition ltCancelAddRight(x, y, z: Integer):
+\definition ltCancelAddRight[x, y, z: Integer]:
   IntegerLt (addInteger x z) (addInteger y z) ->
   IntegerLt x y :=
   \fun (xy: IntegerLt (addInteger x z) (addInteger y z)) =>
@@ -277,7 +277,7 @@
                 (ltAddRight y x z reverse))
     };
 
-\definition ltCancelAddLeft(z, x, y: Integer):
+\definition ltCancelAddLeft[z, x, y: Integer]:
   IntegerLt (addInteger z x) (addInteger z y) ->
   IntegerLt x y :=
   \fun (xy: _) =>
@@ -286,7 +286,7 @@
         (addInteger z y) (addInteger y z)
         (addIntegerComm z x) (addIntegerComm z y) xy);
 
-\definition rawLtNegReverse(x, y: Difference):
+\definition rawLtNegReverse[x, y: Difference]:
   RawLt x y ->
   RawLt (IM.negRep y) (IM.negRep x) :=
   NO.ltRespects
@@ -296,7 +296,7 @@
     (NL.addComm (pos x) (negPart y))
     (NL.addComm (pos y) (negPart x));
 
-\definition ltNegReverse(x, y: Integer):
+\definition ltNegReverse[x, y: Integer]:
   IntegerLt x y ->
   IntegerLt (negInteger y) (negInteger x) :=
   \fun (xy: _) =>
@@ -325,7 +325,7 @@
     (\refl(_)) negZero
     (ltNegReverse zeroInteger oneInteger zeroLtOne);
 
-\definition ltPredecessor(x: Integer): IntegerLt (addInteger x (negInteger oneInteger)) x :=
+\definition ltPredecessor[x: Integer]: IntegerLt (addInteger x (negInteger oneInteger)) x :=
   ltRespects
     (addInteger x (negInteger oneInteger))
     (addInteger x (negInteger oneInteger))
@@ -333,14 +333,14 @@
     (\refl(_)) (addIntegerZeroRight x)
     (ltAddLeft x (negInteger oneInteger) zeroInteger negOneLtZero);
 
-\definition ltSuccessor(x: Integer): IntegerLt x (addInteger x oneInteger) :=
+\definition ltSuccessor[x: Integer]: IntegerLt x (addInteger x oneInteger) :=
   ltRespects
     (addInteger x zeroInteger) x
     (addInteger x oneInteger) (addInteger x oneInteger)
     (addIntegerZeroRight x) (\refl(_))
     (ltAddLeft x zeroInteger oneInteger zeroLtOne);
 
-\definition rawLtScaleSucc(x, y: Difference) (k: Nat):
+\definition rawLtScaleSucc[x, y: Difference] [k: Nat]:
   RawLt x y ->
   RawLt (IM.scaleRep x (N.Nat^::succ k))
     (IM.scaleRep y (N.Nat^::succ k)) :=
@@ -356,7 +356,7 @@
       (NL.mulDistribRight (pos y) (negPart x) (N.Nat^::succ k))
       (NO.ltMulSuccRight (rawCross x y) (rawCross y x) k xy);
 
-\definition rawLtCancelScaleSucc(x, y: Difference) (k: Nat):
+\definition rawLtCancelScaleSucc[x, y: Difference] [k: Nat]:
   RawLt (IM.scaleRep x (N.Nat^::succ k))
     (IM.scaleRep y (N.Nat^::succ k)) ->
   RawLt x y :=
@@ -374,7 +374,7 @@
         (sym!{Nat} _ _
           (NL.mulDistribRight (pos y) (negPart x) (N.Nat^::succ k))) xy);
 
-\definition ltScaleSucc(x, y: Integer) (k: Nat):
+\definition ltScaleSucc[x, y: Integer] [k: Nat]:
   IntegerLt x y ->
   IntegerLt (scaleInteger x (N.Nat^::succ k))
     (scaleInteger y (N.Nat^::succ k)) :=
@@ -391,7 +391,7 @@
         (rawLtScaleSucc (IM.representative x) (IM.representative y) k
           (integerLtAsRaw x y xy)));
 
-\definition ltCancelScaleSucc(x, y: Integer) (k: Nat):
+\definition ltCancelScaleSucc[x, y: Integer] [k: Nat]:
   IntegerLt (scaleInteger x (N.Nat^::succ k))
     (scaleInteger y (N.Nat^::succ k)) ->
   IntegerLt x y :=
@@ -407,13 +407,13 @@
           (scaleIntegerRep y (N.Nat^::succ k))
           (integerLtAsRaw _ _ xy)));
 
-\definition ltNatural(a, b: Nat):
+\definition ltNatural[a, b: Nat]:
   NL.Lt a b ->
   IntegerLt (integer a zeroNat) (integer b zeroNat) :=
   \fun (ab: _) =>
     ltOfCross (integer a zeroNat) (integer b zeroNat) ab;
 
-\definition negativeLtZero(a: Nat): IntegerLt (Int^::negSucc a) zeroInteger :=
+\definition negativeLtZero[a: Nat]: IntegerLt (Int^::negSucc a) zeroInteger :=
   ltOfCross (Int^::negSucc a) zeroInteger
     (NO.ltRespects zeroNat (N.Nat^::succ a)
       (crossLeft (Int^::negSucc a) zeroInteger)
@@ -422,7 +422,7 @@
       (sym!{Nat} _ _ (NL.addZeroLeft (N.Nat^::succ a)))
       (NO.zeroLtSucc a));
 
-\definition zeroLtNaturalSucc(a: Nat): IntegerLt zeroInteger (integer (N.Nat^::succ a) zeroNat) :=
+\definition zeroLtNaturalSucc[a: Nat]: IntegerLt zeroInteger (integer (N.Nat^::succ a) zeroNat) :=
   ltOfCross zeroInteger (integer (N.Nat^::succ a) zeroNat)
     (NO.ltRespects zeroNat (N.Nat^::succ a)
       (crossLeft zeroInteger (integer (N.Nat^::succ a) zeroNat))
@@ -431,10 +431,10 @@
       (sym!{Nat} _ _ (NL.addZeroRight (N.Nat^::succ a)))
       (NO.zeroLtSucc a));
 
-\definition PositiveMultipleAbove(x, e: Integer): \Prop :=
-  \exists { n : Nat \where IntegerLt x (scaleInteger e n) };
+\definition PositiveMultipleAbove[x, e: Integer]: \Prop :=
+  \exists ( n : Nat \where IntegerLt x (scaleInteger e n) );
 
-\definition positiveNaturalMultipleAboveNatural(k, a: Nat):
+\definition positiveNaturalMultipleAboveNatural[k, a: Nat]:
   PositiveMultipleAbove (Int^::ofNat a)
     (Int^::ofNat (N.Nat^::succ k)) :=
   \block {
@@ -460,7 +460,7 @@
       bound
   };
 
-\definition positiveNaturalMultipleAboveNegative(k, a: Nat):
+\definition positiveNaturalMultipleAboveNegative[k, a: Nat]:
   PositiveMultipleAbove (Int^::negSucc a)
     (Int^::ofNat (N.Nat^::succ k)) :=
   \block {
@@ -490,7 +490,7 @@
       bound
   };
 
-\definition positiveNaturalMultipleAbove(k: Nat):
+\definition positiveNaturalMultipleAbove[k: Nat]:
   \forall (x: Integer) ->
     PositiveMultipleAbove x (Int^::ofNat (N.Nat^::succ k)) :=
   \induction (x: Int^) \return PositiveMultipleAbove x (Int^::ofNat (N.Nat^::succ k)) \with {
@@ -528,7 +528,7 @@
               (negativeLtZero a)))
     };
 
-\definition ltMulPositiveRight(x, y: Integer):
+\definition ltMulPositiveRight[x, y: Integer]:
   \forall (e: Integer) -> IntegerLt zeroInteger e -> IntegerLt x y ->
     IntegerLt (mulInteger x e) (mulInteger y e) :=
 
@@ -568,7 +568,7 @@
             (negativeLtZero a)))
     };
 
-\definition ltMulPositiveLeft(e, x, y: Integer):
+\definition ltMulPositiveLeft[e, x, y: Integer]:
   IntegerLt zeroInteger e ->
   IntegerLt x y ->
   IntegerLt (mulInteger e x) (mulInteger e y) :=
@@ -578,16 +578,16 @@
       (mulIntegerComm x e) (mulIntegerComm y e)
       (ltMulPositiveRight x y e positive xy);
 
-\definition absNat(x: Int^): N.Nat^ :=
+\definition absNat[x: Int^]: N.Nat^ :=
   NatAbs.specification x;
 
-\definition absInteger(x: Int^): Int^ :=
+\definition absInteger[x: Int^]: Int^ :=
   Int^::ofNat (absNat x);
 
-\definition magnitudeInteger(x: Int^): Int^ :=
+\definition magnitudeInteger[x: Int^]: Int^ :=
   Int^::ofNat (N.Nat^::succ (absNat x));
 
-\definition naturalLtConstructors(a, b: N.Nat^):
+\definition naturalLtConstructors[a, b: N.Nat^]:
   NL.Lt a b ->
   IntegerLt (Int^::ofNat a) (Int^::ofNat b) :=
   \fun (ab: _) =>
@@ -598,7 +598,7 @@
       (sym!{Integer} _ _ (ofNatAsInteger b))
       (ltNatural a b ab);
 
-\definition zeroLtConstructorSucc(n: N.Nat^):
+\definition zeroLtConstructorSucc[n: N.Nat^]:
   IntegerLt zeroInteger
       (Int^::ofNat (N.Nat^::succ n)) :=
   ltRespects
@@ -610,7 +610,7 @@
       (ofNatAsInteger (N.Nat^::succ n)))
     (zeroLtNaturalSucc n);
 
-\definition negConstructorEq(n: N.Nat^):
+\definition negConstructorEq[n: N.Nat^]:
   negInteger (Int^::ofNat (N.Nat^::succ n)) =
     Int^::negSucc n :=
   trans!{Integer} _ _ _
@@ -620,14 +620,14 @@
       (ofNatAsInteger (N.Nat^::succ n)))
     (sym!{Integer} _ _ (negSuccAsNegNatural n));
 
-\definition magnitudeOfNat(n: N.Nat^):
+\definition magnitudeOfNat[n: N.Nat^]:
   magnitudeInteger (Int^::ofNat n) =
     Int^::ofNat (N.Nat^::succ n) :=
   congr!{N.Nat^ Int^}
     (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
     (NatOp.add n N.Nat^::zero) n (NL.addZeroRight n);
 
-\definition magnitudeOfNegSucc(n: N.Nat^):
+\definition magnitudeOfNegSucc[n: N.Nat^]:
   magnitudeInteger (Int^::negSucc n) =
     Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)) :=
   congr!{N.Nat^ Int^}

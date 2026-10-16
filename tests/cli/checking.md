@@ -125,7 +125,7 @@ scope = "package"
 ```
 
 ```ref file=src/root.ref
-\module Good { \definition identity(A: \Set)(x: A): A := x; }
+\module Good { \definition identity[A: \Set][x: A]: A := x; }
         \module Bad { \module Child { \definition invalid: \Set := \Prop; } }
 ```
 

@@ -88,9 +88,9 @@ name = "Blocks"
 | zero: Bit
 | one: Bit
 ;
-\definition identity(x: Bit): \F(Bit) := \return x;
-\definition first(x, y: Bit): \F(Bit) := \return x;
-\definition second(x: Bit)(y: Bit): \F(Bit) := \return y;
+\definition identity[x: Bit]: \F(Bit) := \return x;
+\definition first[x, y: Bit]: \F(Bit) := \return x;
+\definition second[x: Bit][y: Bit]: \F(Bit) := \return y;
 \definition suspended: \U(Bit ~> \F(Bit)) := \thunk identity;
 \definition result: \F(Bit) :=
   \program {
@@ -133,7 +133,7 @@ name = "RunContinue"
     }));
 
 
-\definition Terminates (s: State^): \Prop :=
+\definition Terminates [s: State^]: \Prop :=
   \forall (P: State^ -> \Prop) ->
     (\forall (x: State^) ->
       (\step-match t: \RunStep[State^, State^] \return \Prop \with {
@@ -168,7 +168,7 @@ parameters = '''A: \VType,
 ```ref
 \definition step: \U((A ~> \F(\RunStep[A, B]))) :=
   \thunk((\cfun (x: A) => \return(\finish[A, B](b))));
-\definition Terminates (s: A^): \Prop :=
+\definition Terminates [s: A^]: \Prop :=
   \forall (P: A^ -> \Prop) ->
     (\forall (x: A^) ->
       (\step-match t: \RunStep[A^, B^] \return \Prop \with {
@@ -198,8 +198,8 @@ parameters = '''A: \VType,
 ```
 
 ```ref
-\definition identity(x: A): \F(A) := \return x;
-\definition inferred(x: _): \F(A) := \return x;
+\definition identity[x: A]: \F(A) := \return x;
+\definition inferred[x: _]: \F(A) := \return x;
 \definition thunked: \U(A ~> \F(A)) := \thunk identity;
 \definition forced: A ~> \F(A) := \force thunked;
 \definition applied: \F(A) := identity a;

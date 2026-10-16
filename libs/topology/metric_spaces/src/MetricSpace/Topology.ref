@@ -1,23 +1,23 @@
 \use Logic.either;
-\definition openOfRadius(metric: Metric) (U: \Pow Carrier) (x: Carrier) (radius: R.Real):
+\definition openOfRadius[metric: Metric] [U: \Pow Carrier] [x: Carrier] [radius: R.Real]:
   R.Lt Real.zero radius -> T.Subset (Ball metric x radius) U ->
   \exists \Cast[R.Real] (NeighborhoodRadius metric U x) :=
   \fun (positive: R.Lt Real.zero radius) (contained: T.Subset (Ball metric x radius) U) =>
     Logic.existsIntro[R.Real, NeighborhoodRadius metric U x] radius (Logic.And[_, _]::# positive contained);
 
-\definition emptyOpen(metric: Metric): IsOpen metric T.Empty :=
+\definition emptyOpen[metric: Metric]: IsOpen metric T.Empty :=
   \fun (x: Carrier) (inside: T.Member T.Empty x) =>
     Logic.falseElim
       (\exists \Cast[R.Real] (NeighborhoodRadius metric T.Empty x))
       inside;
 
-\definition wholeOpen(metric: Metric): IsOpen metric T.Whole :=
+\definition wholeOpen[metric: Metric]: IsOpen metric T.Whole :=
   \fun (x: Carrier) (_: T.Member T.Whole x) =>
     openOfRadius metric T.Whole x Real.one
       (Order.ltOfLeNotEq Real.zero Real.one RealLaws.oneNonnegative RealLaws.zeroNeOne)
       (\fun (y: Carrier) => \fun (_: T.Member (Ball metric x Real.one) y) => \refl(y));
 
-\definition unionOpen(metric: Metric) (family: \Pow (\Pow Carrier)):
+\definition unionOpen[metric: Metric] [family: \Pow (\Pow Carrier)]:
   (\forall (U: \Pow Carrier) -> T.FamilyMember family U -> IsOpen metric U) ->
   IsOpen metric (T.Union family) :=
   \fun (allOpen: \forall (U: \Pow Carrier) -> T.FamilyMember family U -> IsOpen metric U) =>
@@ -35,7 +35,7 @@
                 T.unionMemberOf family U y inFamily (h.right y inBall))
           }) inside;
 
-\definition intersectionRadius(metric: Metric) (U, V: \Pow Carrier) (x: Carrier) (r, s: R.Real):
+\definition intersectionRadius[metric: Metric] [U, V: \Pow Carrier] [x: Carrier] [r, s: R.Real]:
   \In[R.Real] (NeighborhoodRadius metric U x) r ->
   \In[R.Real] (NeighborhoodRadius metric V x) s -> R.Le r s ->
   \exists \Cast[R.Real] (NeighborhoodRadius metric (T.Intersection U V) x) :=
@@ -46,7 +46,7 @@
         T.intersectionMember U V y (hr.right y inside)
           (hs.right y (ballMonotone metric x r s rs y inside)));
 
-\definition intersectionOpen(metric: Metric) (U, V: \Pow Carrier):
+\definition intersectionOpen[metric: Metric] [U, V: \Pow Carrier]:
   IsOpen metric U -> IsOpen metric V ->
   IsOpen metric (T.Intersection U V) :=
   \fun (uOpen: IsOpen metric U) (vOpen: IsOpen metric V) (x: Carrier)
@@ -70,12 +70,12 @@
       }
     };
 
-\definition raw(metric: Metric): T.TopologyData :=
+\definition raw[metric: Metric]: T.TopologyData :=
   T.TopologyData {
     openSets := { U : \Pow Carrier \where IsOpen metric U },
   };
 
-\definition laws(metric: Metric): T.TopologyLaws[raw metric] :=
+\definition laws[metric: Metric]: T.TopologyLaws[raw metric] :=
   T.TopologyLaws[raw metric] {
     emptyOpen := emptyOpen metric,
     wholeOpen := wholeOpen metric,
@@ -83,28 +83,28 @@
     intersectionOpen := intersectionOpen metric,
   };
 
-\definition topology(metric: Metric): T.Topology :=
+\definition topology[metric: Metric]: T.Topology :=
   \into[T.TopologyData](raw metric, T.Topology) \by { laws metric };
 
-\definition openIff(metric: Metric) (U: \Pow Carrier):
+\definition openIff[metric: Metric] [U: \Pow Carrier]:
   Logic.PropEquiv[T.IsOpenIn (topology metric) U, IsOpen metric U] :=
   Logic.PropEquiv[_, _] {
     ltr := \fun (h: T.IsOpenIn (topology metric) U) => h,
     rtl := \fun (h: IsOpen metric U) => h,
   };
 
-\definition Compatible(metric: Metric) (space: T.Topology): \Prop :=
+\definition Compatible[metric: Metric] [space: T.Topology]: \Prop :=
   \forall (U: \Pow Carrier) ->
     Logic.PropEquiv[T.IsOpenIn space U, IsOpen metric U];
 
-\definition Metrizable(space: T.Topology): \Prop :=
-  \exists { metric : Metric \where Compatible metric space };
+\definition Metrizable[space: T.Topology]: \Prop :=
+  \exists ( metric : Metric \where Compatible metric space );
 
-\definition inducedMetrizable(metric: Metric): Metrizable (topology metric) :=
+\definition inducedMetrizable[metric: Metric]: Metrizable (topology metric) :=
   Logic.existsIntro[Metric, { m : Metric \where Compatible m (topology metric) }] metric (openIff metric);
 
 /* At y in B(x, r), the radius r - d(x, y) stays inside B(x, r). */
-\definition ballOpen(metric: Metric) (x: Carrier) (radius: R.Real):
+\definition ballOpen[metric: Metric] [x: Carrier] [radius: R.Real]:
   IsOpen metric (Ball metric x radius) :=
   \fun (y: Carrier) (inside: T.Member (Ball metric x radius) y) => \block {
     \let d: R.Real := metric.distance x y \then
@@ -124,11 +124,11 @@
             (RealLaws.ltAddLeft d (metric.distance y z) remaining near)))
   };
 
-\definition ballOpenIn(metric: Metric) (x: Carrier) (radius: R.Real):
+\definition ballOpenIn[metric: Metric] [x: Carrier] [radius: R.Real]:
   T.IsOpenIn (topology metric) (Ball metric x radius) :=
   (openIff metric (Ball metric x radius)).rtl (ballOpen metric x radius);
 
-\definition positiveDistance(metric: Metric) (x, y: Carrier):
+\definition positiveDistance[metric: Metric] [x, y: Carrier]:
   Logic.Not (x = y) ->
   R.Lt Real.zero (metric.distance x y) :=
   \fun (different: Logic.Not (x = y)) =>
@@ -138,7 +138,7 @@
         different (metric.separated x y
           (sym!{R.Real} Real.zero (metric.distance x y) zero)));
 
-\definition singletonClosed(metric: Metric) (x: Carrier):
+\definition singletonClosed[metric: Metric] [x: Carrier]:
   T.IsClosedIn (topology metric) (T.Singleton x) :=
   (openIff metric (T.Complement (T.Singleton x))).rtl
     (\fun (y: Carrier) => \fun (outside: Logic.Not (y = x)) =>
@@ -152,10 +152,10 @@
                 \with w: Carrier => R.Lt (metric.distance y w) (metric.distance y x)
                 \by { base: near, equality: equal })));
 
-\definition topologyT1(metric: Metric): T.IsT1 (topology metric) :=
+\definition topologyT1[metric: Metric]: T.IsT1 (topology metric) :=
   singletonClosed metric;
 
-\definition metrizableT1(space: T.Topology):
+\definition metrizableT1[space: T.Topology]:
   Metrizable space ->
   T.IsT1 space :=
   \block {

@@ -1,13 +1,13 @@
-\structure PositiveLaws[d: N.Nat^]: \Prop {
+\structure PositiveLaws[d: N.Nat^]: \Prop := {
   member: Submodules.Member S (natural d),
   positive: Bounds.Lt N.Nat^::zero d,
-}
-\definition Positive(d: N.Nat^): \Prop := PositiveLaws[d];
+};
+\definition Positive[d: N.Nat^]: \Prop := PositiveLaws[d];
 \definition absoluteMember: \forall (x: I.Int^) -> Submodules.Member S x -> Submodules.Member S (natural (Signed.absolute x)) :=
   \fun (x: I.Int^)(member: _) => \idelim Arithmetic.mul (Signed.sign x) x = natural (Signed.absolute x) \with y: I.Int^ => Submodules.Member S y \by {
     base: S.scalar (Signed.sign x) x member, equality: Signed.signTimesValue x
   };
-\definition positiveExists: \forall (x: I.Int^) -> Submodules.Member S x -> Logic.Not (x = Arithmetic.zero) -> \exists { d: N.Nat^ \where Positive d } :=
+\definition positiveExists: \forall (x: I.Int^) -> Submodules.Member S x -> Logic.Not (x = Arithmetic.zero) -> \exists ( d: N.Nat^ \where Positive d ) :=
   \fun (x: I.Int^)(member: _)(nonzero: _) => Logic.existsIntro[N.Nat^, { d: N.Nat^ \where Positive d }] (Signed.absolute x)
     (PositiveLaws[Signed.absolute x] {
       member := absoluteMember x member,
@@ -17,12 +17,12 @@
   \fun (d: N.Nat^)(member: _)(q: I.Int^) => \idelim Arithmetic.mul q (natural d) = Arithmetic.mul (natural d) q \with y: I.Int^ => Submodules.Member S y \by {
     base: S.scalar q (natural d) member, equality: IntegerLaws.mulComm q (natural d)
   };
-\definition zeroContains: Logic.Not (\exists { d: N.Nat^ \where Positive d }) -> \forall (x: I.Int^) -> Submodules.Member S x -> x = Arithmetic.zero :=
+\definition zeroContains: Logic.Not (\exists ( d: N.Nat^ \where Positive d )) -> \forall (x: I.Int^) -> Submodules.Member S x -> x = Arithmetic.zero :=
   \fun (absent: _)(x: I.Int^)(member: _) => either!{{(Classical.excludedMiddle (x = Arithmetic.zero))} {x = Arithmetic.zero}
     {\fun (equal: _) => equal}
     {\fun (nonzero: _) => Logic.falseElim (x = Arithmetic.zero) (absent (positiveExists x member nonzero))}
   };
-\definition zeroPrincipal: Logic.Not (\exists { d: N.Nat^ \where Positive d }) -> \exists Principal S :=
+\definition zeroPrincipal: Logic.Not (\exists ( d: N.Nat^ \where Positive d )) -> \exists Principal S :=
   \fun (absent: _) => \exact(\into[N.Nat^](N.Nat^::zero, { d: N.Nat^ \where PrincipalLaws[S, d] }) \by {
     PrincipalLaws[S, N.Nat^::zero] {
       generator := S.zero,
@@ -33,9 +33,9 @@
   }, Principal S);
 \module WithMinimum(d: Induction.LeastValue Positive);
 \definition existence: \exists Principal S :=
-  either!{{(Classical.excludedMiddle (\exists { d: N.Nat^ \where Positive d }))} {\exists Principal S}
+  either!{{(Classical.excludedMiddle (\exists ( d: N.Nat^ \where Positive d )))} {\exists Principal S}
     {\block {
-      \fun (exists: \exists { d: N.Nat^ \where Positive d }) \then
+      \fun (exists: \exists ( d: N.Nat^ \where Positive d )) \then
       \takefrom d: Induction.LeastValue Positive \by Induction.leastExists Positive exists \then
       \return WithMinimum[d := d].existence
     }}

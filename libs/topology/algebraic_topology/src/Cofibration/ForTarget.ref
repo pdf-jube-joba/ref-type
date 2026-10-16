@@ -5,35 +5,35 @@
 \import algebraic_topology.Homotopy[A := A, B := B] \as Homotopy;
 \import Wedge.Universal[D := B] \as Glued;
 \import topology.Composition[A := Cylinder.Carrier, B := Wedge.Carrier, C := B] \as Compose;
-\structure ProblemData: \Set {
+\structure ProblemData: \Set := {
   initial: A -> B,
   family: SubCylinder.Carrier -> B,
-}
-\structure ProblemLaws[source: Space.Topology, target: Target.Topology, data: ProblemData]: \Prop {
+};
+\structure ProblemLaws[source: Space.Topology, target: Target.Topology, data: ProblemData]: \Prop := {
   initialContinuous: Maps.Continuous source target data.initial,
   familyContinuous: SubMaps.Continuous (SubCylinder.topology (Subspace.topology source)) target data.family,
   agrees: \forall (x: Subspace.CarrierSet) -> data.family (SubCylinder.at Interval.start x) = data.initial x,
-}
+};
 \definition Problem[source: Space.Topology, target: Target.Topology]: \Set :=
   \Cast[ProblemData] ({ data: ProblemData \where ProblemLaws[source, target, data] });
-\structure ExtensionLaws[source: Space.Topology, target: Target.Topology, problem: ProblemData, family: Homotopy.Family]: \Prop {
+\structure ExtensionLaws[source: Space.Topology, target: Target.Topology, problem: ProblemData, family: Homotopy.Family]: \Prop := {
   continuous: CylinderMaps.Continuous (Cylinder.topology source) target family,
   initial: \forall (x: A) -> family (Cylinder.at Interval.start x) = problem.initial x,
   extends: \forall (t: Interval.Carrier) (x: Subspace.CarrierSet) -> family (Cylinder.at t x) = problem.family (SubCylinder.at t x),
-}
+};
 \definition Extension[source: Space.Topology, target: Target.Topology, problem: ProblemData]: \Set :=
   \Cast[Homotopy.Family] ({ family: Homotopy.Family \where ExtensionLaws[source, target, problem, family] });
-\definition HomotopyExtensionProperty(source: Space.Topology) (target: Target.Topology): \Prop :=
+\definition HomotopyExtensionProperty[source: Space.Topology] [target: Target.Topology]: \Prop :=
   \forall (problem: Problem[source, target]) -> \exists Extension[source, target, problem];
-\definition problemLaws(source: Space.Topology) (target: Target.Topology) (problem: Problem[source, target]): ProblemLaws[source, target, problem] :=
+\definition problemLaws[source: Space.Topology] [target: Target.Topology] [problem: Problem[source, target]]: ProblemLaws[source, target, problem] :=
   \bysub(ProblemData, Problem[source, target], problem);
-\definition compatible(source: Space.Topology) (target: Target.Topology) (problem: Problem[source, target]):
+\definition compatible[source: Space.Topology] [target: Target.Topology] [problem: Problem[source, target]]:
   Glued.Compatible (problem.initial) (problem.family) :=
   \fun (x: Subspace.CarrierSet) => sym!{B} _ _ ((problemLaws source target problem).agrees x);
-\definition joined(source: Space.Topology) (target: Target.Topology) (problem: Problem[source, target]): Wedge.Carrier -> B :=
+\definition joined[source: Space.Topology] [target: Target.Topology] [problem: Problem[source, target]]: Wedge.Carrier -> B :=
   Glued.apply (problem.initial) (problem.family) (compatible source target problem);
-\definition retractLaws(source: Space.Topology) (r: Retraction[source]): RetractionLaws[source, r] := \bysub(RetractionData, Retraction[source], r);
-\definition extend(source: Space.Topology) (target: Target.Topology) (r: Retraction[source]) (problem: Problem[source, target]):
+\definition retractLaws[source: Space.Topology] [r: Retraction[source]]: RetractionLaws[source, r] := \bysub(RetractionData, Retraction[source], r);
+\definition extend[source: Space.Topology] [target: Target.Topology] [r: Retraction[source]] [problem: Problem[source, target]]:
   Extension[source, target, problem] := \into[Homotopy.Family](\fun (p: Cylinder.Carrier) => joined source target problem (r.apply p),
     Extension[source, target, problem]) \by {
       ExtensionLaws[source, target, problem, (\fun (p: Cylinder.Carrier) => joined source target problem (r.apply p))] {

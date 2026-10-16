@@ -7,7 +7,7 @@ Box の型・payload は型と value の parameter を持てる。
 形成時には現在の文脈で Program の typing と reflection の typing を検査する。
 
 ```text
-\definition runBox(machine: Machine): \Box[machine.State ~> \F(machine.Output)] :=
+\definition runBox[machine: Machine]: \Box[machine.State ~> \F(machine.Output)] :=
   \box[_](\force machine.run);
 ```
 

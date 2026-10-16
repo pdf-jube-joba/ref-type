@@ -3,25 +3,25 @@
 \import Real.Estimates[] \as Estimates;
 \import std.Set[].FiniteSubset[A := Bump[source, family]] \as FiniteBumps;
 \import FiniteBumps.Enumeration[] \as Enumeration;
-\structure Entry: \Set {
+\structure Entry: \Set := {
   openSet: \Pow A,
   value: Bounded.Function[source],
   inCover: Space.FamilyMember family openSet,
   supportWithin: Space.Subset (support source value) openSet,
-}
-\definition sum(parts: L.List[Entry]) (x: A): Real.Real :=
+};
+\definition sum[parts: L.List[Entry]] [x: A]: Real.Real :=
   L.foldr Entry Real.Real (\fun (part: Entry) (rest: Real.Real) => Real.add (part.value x) rest) Real.zero parts;
-\structure Partition: \Set {
+\structure Partition: \Set := {
   parts: L.List[Entry],
   total: \forall (x: A) -> sum parts x = Real.one,
-}
-\definition residue(bumps: L.List[Bump[source, family]]): Bounded.Function[source] :=
+};
+\definition residue[bumps: L.List[Bump[source, family]]]: Bounded.Function[source] :=
   \induction (bumps: L.List[Bump[source, family]]) \return Bounded.Function[source] \with {
     | nil: Bounded.constant source Real.one Laws.oneNonnegative (R.leRefl Real.one)
     | cons: \fun (head: Bump[source, family]) (tail: L.List[Bump[source, family]]) (rest: Bounded.Function[source]) =>
         Bounded.product source (Bounded.complement source (head.value)) rest
   } bumps;
-\definition multiplyEntry(bump: Bump[source, family]) (rest: Bounded.Function[source]): Entry := \block {
+\definition multiplyEntry[bump: Bump[source, family]] [rest: Bounded.Function[source]]: Entry := \block {
   \let value: Bounded.Function[source] := Bounded.product source (bump.value) rest \then
   \let within: Space.Subset (Nonzero value) (Nonzero (bump.value)) :=
     \fun (x: A) (nonzero: Space.Member (Nonzero value) x) (zero: bump.value x = Real.zero) => nonzero
@@ -33,13 +33,13 @@
       (Closure.monotone source (Nonzero value) (Nonzero (bump.value)) within) (bump.supportWithin),
   }
 };
-\definition normalize(bumps: L.List[Bump[source, family]]): L.List[Entry] :=
+\definition normalize[bumps: L.List[Bump[source, family]]]: L.List[Entry] :=
   \induction (bumps: L.List[Bump[source, family]]) \return L.List[Entry] \with {
     | nil: L.List[Entry]::nil
     | cons: \fun (head: Bump[source, family]) (tail: L.List[Bump[source, family]]) (rest: L.List[Entry]) =>
         L.List[Entry]::cons (multiplyEntry head (residue tail)) rest
   } bumps;
-\definition balance(a, r, s: Real.Real): Real.add s r = Real.one ->
+\definition balance[a, r, s: Real.Real]: Real.add s r = Real.one ->
   Real.add (Real.add (Real.mul a r) s) (Real.mul (Real.sub Real.one a) r) = Real.one :=
   \fun (total: _) => eq_reason!{{Real.add (Real.add (Real.mul a r) s) (Real.mul (Real.sub Real.one a) r)}
     "=" {Real.add (Real.mul a r) (Real.add s (Real.mul (Real.sub Real.one a) r))}

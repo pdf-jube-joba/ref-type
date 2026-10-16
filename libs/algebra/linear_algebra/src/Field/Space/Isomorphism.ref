@@ -1,18 +1,18 @@
 \import \parent.Linear[V := V, W := W, source := source, target := target] \as Forward;
 \import \parent.Linear[V := W, W := V, source := target, target := source] \as Backward;
-\structure Data: \Set {
+\structure Data: \Set := {
   forward: Forward.Map,
   backward: Backward.Map,
-}
-\structure Laws[data: Data]: \Prop {
+};
+\structure Laws[data: Data]: \Prop := {
   leftInverse: \forall (x: V) -> data.backward.apply (data.forward.apply x) = x,
   rightInverse: \forall (y: W) -> data.forward.apply (data.backward.apply y) = y,
-}
+};
 \definition Isomorphism: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
-\definition laws(iso: Isomorphism): Laws[iso] := \bysub(Data, Isomorphism, iso);
+\definition laws[iso: Isomorphism]: Laws[iso] := \bysub(Data, Isomorphism, iso);
 \definition injective: \forall (iso: Isomorphism) (x, y: V) -> iso.forward.apply x = iso.forward.apply y -> x = y :=
   \fun (iso: _) (x, y: _) (same: _) => trans!{V} _ _ _ (sym!{V} _ _ ((laws iso).leftInverse x))
     (trans!{V} _ _ _ (congr!{W V} (iso.backward.apply) _ _ same) ((laws iso).leftInverse y));
-\definition surjective: \forall (iso: Isomorphism) (y: W) -> \exists { x: V \where iso.forward.apply x = y } :=
+\definition surjective: \forall (iso: Isomorphism) (y: W) -> \exists ( x: V \where iso.forward.apply x = y ) :=
   \fun (iso: _) (y: W) => Logic.existsIntro[V, { x: V \where iso.forward.apply x = y }] (iso.backward.apply y)
     ((laws iso).rightInverse y);

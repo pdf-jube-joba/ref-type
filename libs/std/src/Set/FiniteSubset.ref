@@ -4,19 +4,19 @@
 \definition Empty: \Pow A :=
   { x : A \where Logic.False };
 
-\definition Insert(a: A) (X: \Pow A): \Pow A :=
+\definition Insert[a: A] [X: \Pow A]: \Pow A :=
   { x : A \where Logic.Or[x = a, \In[A] X x] };
 
-\definition Singleton(a: A): \Pow A :=
+\definition Singleton[a: A]: \Pow A :=
   Insert a Empty;
 
 /* This is {a, b}; it has at most two elements and collapses when a = b. */
-\definition UnorderedPair(a, b: A): \Pow A :=
+\definition UnorderedPair[a, b: A]: \Pow A :=
   Insert a (Singleton b);
 
 /* Church induction characterizes the least class containing Empty and closed
  * under Insert, without requiring a recursive indexed datatype. */
-\definition Finite(X: \Pow A): \Prop :=
+\definition Finite[X: \Pow A]: \Prop :=
   \forall (P: \Pow (\Pow A)) ->
     \In[\Pow A] P Empty ->
     (\forall (Y: \Pow A) -> \In[\Pow A] P Y ->
@@ -28,7 +28,7 @@
     (insert: \forall (Y: \Pow A) -> \In[\Pow A] P Y ->
     \forall (a: A) -> \In[\Pow A] P (Insert a Y)) => empty;
 
-\definition finiteInsert(a: A) (X: \Pow A):
+\definition finiteInsert[a: A] [X: \Pow A]:
   Finite X ->
   Finite (Insert a X) :=
   \fun (finite: Finite X) (P: \Pow (\Pow A)) (empty: \In[\Pow A] P Empty)
@@ -42,9 +42,9 @@
 \definition FiniteSubset: \Set :=
   \Cast[\Pow A] FiniteSubsetSet;
 
-\definition underlying(X: FiniteSubset): \Pow A := X;
+\definition underlying[X: FiniteSubset]: \Pow A := X;
 
-\definition finite(X: FiniteSubset): Finite (underlying X) :=
+\definition finite[X: FiniteSubset]: Finite (underlying X) :=
   \bysub(\Pow A, FiniteSubsetSet, X);
 
 \definition induction:
@@ -60,49 +60,49 @@
 \definition empty: FiniteSubset :=
   \into[\Pow A](Empty, FiniteSubsetSet) \by { finiteEmpty };
 
-\definition insert(a: A) (X: FiniteSubset): FiniteSubset :=
+\definition insert[a: A] [X: FiniteSubset]: FiniteSubset :=
   \into[\Pow A](Insert a X, FiniteSubsetSet) \by { finiteInsert a X (finite X) };
 
-\definition singleton(a: A): FiniteSubset :=
+\definition singleton[a: A]: FiniteSubset :=
   \into[\Pow A](Singleton a, FiniteSubsetSet) \by { finiteInsert a Empty finiteEmpty };
 
 /* This is {a, b}; it has at most two elements and collapses when a = b. */
-\definition unorderedPair(a, b: A): FiniteSubset :=
+\definition unorderedPair[a, b: A]: FiniteSubset :=
   \into[\Pow A](UnorderedPair a b, FiniteSubsetSet) \by { finiteInsert a (Singleton b) (finiteInsert b Empty finiteEmpty) };
 
-\definition Member(X: FiniteSubset) (x: A): \Prop :=
+\definition Member[X: FiniteSubset] [x: A]: \Prop :=
   \In[A] (underlying X) x;
 
-\definition inInsertNew(a: A) (X: \Pow A): \In[A] (Insert a X) a :=
+\definition inInsertNew[a: A] [X: \Pow A]: \In[A] (Insert a X) a :=
   Logic.Or[a = a, \In[A] X a]::left (\refl(a));
 
-\definition inInsertOld(a: A) (X: \Pow A) (x: A):
+\definition inInsertOld[a: A] [X: \Pow A] [x: A]:
   \In[A] X x ->
   \In[A] (Insert a X) x :=
   Logic.Or[x = a, \In[A] X x]::right;
 
-\definition inSingleton(a: A): \In[A] (Singleton a) a :=
+\definition inSingleton[a: A]: \In[A] (Singleton a) a :=
   inInsertNew a Empty;
 
-\definition inUnorderedPairLeft(a, b: A): \In[A] (UnorderedPair a b) a :=
+\definition inUnorderedPairLeft[a, b: A]: \In[A] (UnorderedPair a b) a :=
   inInsertNew a (Singleton b);
 
-\definition inUnorderedPairRight(a, b: A): \In[A] (UnorderedPair a b) b :=
+\definition inUnorderedPairRight[a, b: A]: \In[A] (UnorderedPair a b) b :=
   inInsertOld a (Singleton b) b (inSingleton b);
 
 \use Logic.either;
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
-\definition Union(X, Y: \Pow A): \Pow A :=
+\definition Union[X, Y: \Pow A]: \Pow A :=
   { x: A \where Logic.Or[\In[A] X x, \In[A] Y x] };
-\definition unionEmpty(Y: \Pow A): Union Empty Y = Y :=
+\definition unionEmpty[Y: \Pow A]: Union Empty Y = Y :=
   \axiom:setext(Union Empty Y, Y,
     \fun (x: _) (member: _) => either!{member {\In[A] Y x}
       {Logic.falseElim (\In[A] Y x)}
       {\fun (h: _) => h}
     },
     \fun (x: _) (member: _) => Logic.Or[_, _]::right member);
-\definition unionInsert(a: A) (X, Y: \Pow A): Union (Insert a X) Y = Insert a (Union X Y) :=
+\definition unionInsert[a: A] [X, Y: \Pow A]: Union (Insert a X) Y = Insert a (Union X Y) :=
   \axiom:setext(Union (Insert a X) Y, Insert a (Union X Y),
     \fun (x: _) (member: _) => either!{member {\In[A] (Insert a (Union X Y)) x}
       {\fun (h: _) => either!{h {\In[A] (Insert a (Union X Y)) x}
@@ -126,16 +126,16 @@
     (\fun (Z: _) (ih: _) (a: _) =>
       \idelim Insert a (Union Z Y) = Union (Insert a Z) Y \with W: \Pow A => Finite W
         \by { base: finiteInsert a (Union Z Y) ih, equality: sym!{\Pow A} _ _ (unionInsert a Z Y) });
-\definition union(X, Y: FiniteSubset): FiniteSubset :=
+\definition union[X, Y: FiniteSubset]: FiniteSubset :=
   \into[\Pow A](Union X Y, FiniteSubsetSet) \by { finiteUnion X Y (finite X) (finite Y) };
 
 \import std.Logic[].Classical[] \as Classical;
-\definition Filter(X, Y: \Pow A): \Pow A := { x: A \where Logic.And[\In[A] X x, \In[A] Y x] };
-\definition filterEmpty(Y: \Pow A): Filter Empty Y = Empty :=
+\definition Filter[X, Y: \Pow A]: \Pow A := { x: A \where Logic.And[\In[A] X x, \In[A] Y x] };
+\definition filterEmpty[Y: \Pow A]: Filter Empty Y = Empty :=
   \axiom:setext(Filter Empty Y, Empty,
     \fun (x: A) (h: \In[A] (Filter Empty Y) x) => h.left,
     \fun (x: A) (h: Logic.False) => Logic.falseElim (\In[A] (Filter Empty Y) x) h);
-\definition filterInsertMember(a: A) (X, Y: \Pow A): \In[A] Y a ->
+\definition filterInsertMember[a: A] [X, Y: \Pow A]: \In[A] Y a ->
   Filter (Insert a X) Y = Insert a (Filter X Y) :=
   \fun (inY: _) => \axiom:setext(Filter (Insert a X) Y, Insert a (Filter X Y),
     \fun (x: A) (h: \In[A] (Filter (Insert a X) Y) x) =>
@@ -149,7 +149,7 @@
           (\idelim a = x \with b: A => \In[A] Y b \by { base: inY, equality: sym!{A} _ _ equal })}
         {\fun (old: \In[A] (Filter X Y) x) => Logic.And[_, _]::# (Logic.Or[_, _]::right (old.left)) (old.right)}
       });
-\definition filterInsertOutside(a: A) (X, Y: \Pow A): Logic.Not (\In[A] Y a) ->
+\definition filterInsertOutside[a: A] [X, Y: \Pow A]: Logic.Not (\In[A] Y a) ->
   Filter (Insert a X) Y = Filter X Y :=
   \fun (outside: _) => \axiom:setext(Filter (Insert a X) Y, Filter X Y,
     \fun (x: A) (h: \In[A] (Filter (Insert a X) Y) x) =>
@@ -173,7 +173,7 @@
         \with W: \Pow A => Finite W
         \by { base: ih, equality: sym!{\Pow A} _ _ (filterInsertOutside a Z Y outside) }}
     });
-\definition filter(X: FiniteSubset) (Y: \Pow A): FiniteSubset :=
+\definition filter[X: FiniteSubset] [Y: \Pow A]: FiniteSubset :=
   \into[\Pow A](Filter X Y, FiniteSubsetSet) \by { finiteFilter X Y (finite X) };
 \module Selection(B: \Set);
 \module Family;

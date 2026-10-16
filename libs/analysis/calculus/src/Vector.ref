@@ -37,15 +37,15 @@
     (sym!{Linear.MapData} _ _ (dataEta d))
     (trans!{Linear.MapData} (Linear.MapData::# (d.apply)) (Linear.MapData::# (e.apply)) e
       (congr!{{Domain.Point -> Codomain.Point} Linear.MapData} Linear.MapData::# (d.apply) (e.apply) equal) (dataEta e));
-\definition Function(U: Source.OpenSet): \Set := Source.Carrier U -> Codomain.Point;
-\definition component(U: Source.OpenSet)(f: Function U)(j: Fin.Fin m): Source.ScalarFunction U := \fun (x: Source.Carrier U) => f x j;
-\definition row(d: LinearMap)(j: Fin.Fin m): ScalarMaps.LinearMap := ScalarMaps.LinearMap {
+\definition Function[U: Source.OpenSet]: \Set := Source.Carrier U -> Codomain.Point;
+\definition component[U: Source.OpenSet][f: Function U][j: Fin.Fin m]: Source.ScalarFunction U := \fun (x: Source.Carrier U) => f x j;
+\definition row[d: LinearMap][j: Fin.Fin m]: ScalarMaps.LinearMap := ScalarMaps.LinearMap {
   apply := \fun (v: Domain.Point) => d.apply v j,
   additive := \fun (v, w: Domain.Point) => congr!{Codomain.Point Reals.Real} (\fun (z: Codomain.Point) => z j) _ _ (d.preservesAdd v w),
   homogeneous := \fun (c: Reals.Real)(v: Domain.Point) => congr!{Codomain.Point Reals.Real} (\fun (z: Codomain.Point) => z j) _ _ (d.preservesScale c v),
 };
-\definition rowCoefficient(d: LinearMap)(j: Fin.Fin m): Reals.Real := SourceLinear.coefficient (SourceLinear.coefficients (row d j));
-\definition coefficient(d: LinearMap): Reals.Real := CodomainCoordinates.finiteMax m (rowCoefficient d);
+\definition rowCoefficient[d: LinearMap][j: Fin.Fin m]: Reals.Real := SourceLinear.coefficient (SourceLinear.coefficients (row d j));
+\definition coefficient[d: LinearMap]: Reals.Real := CodomainCoordinates.finiteMax m (rowCoefficient d);
 \definition coefficientNonnegative: \forall (d: LinearMap) -> R.Le Arithmetic.zero (coefficient d) :=
   \fun (d: LinearMap) => CodomainNorm.finiteNonnegative m (rowCoefficient d);
 \definition rowBound: \forall (d: LinearMap)(j: Fin.Fin m) -> R.Le (rowCoefficient d j) (coefficient d) :=
@@ -59,31 +59,31 @@
     (\fun (j: Fin.Fin m) => R.leTrans _ _ _ (SourceLinear.normBound (row d j) v)
       (R.leReplace _ _ _ _ (Laws.fieldMulComm (DomainCoordinates.norm v) (rowCoefficient d j)) (Laws.fieldMulComm (DomainCoordinates.norm v) (coefficient d))
         (Bounds.mulMonotone (DomainCoordinates.norm v) (rowCoefficient d j) (coefficient d) (DomainNorm.nonnegative v) (rowBound d j))));
-\definition remainder(U: Source.OpenSet)(f: Function U)(a: Source.Carrier U)(d: LinearMap)(x: Source.Carrier U): Codomain.Point :=
+\definition remainder[U: Source.OpenSet][f: Function U][a: Source.Carrier U][d: LinearMap][x: Source.Carrier U]: Codomain.Point :=
   CodomainCoordinates.subPoint (CodomainCoordinates.subPoint (f x) (f a)) (d.apply (DomainCoordinates.subPoint x a));
-\definition HasDifferentialAt(U: Source.OpenSet)(f: Function U)(a: Source.Carrier U)(d: LinearMap): \Prop :=
+\definition HasDifferentialAt[U: Source.OpenSet][f: Function U][a: Source.Carrier U][d: LinearMap]: \Prop :=
   \forall (j: Fin.Fin m) -> Scalars.HasDifferentialAt U (component U f j) a (row d j);
-\structure Control[U: Source.OpenSet, f: Function U, a: Source.Carrier U, d: LinearMap, epsilon, delta: Reals.Real]: \Prop {
+\structure Control[U: Source.OpenSet, f: Function U, a: Source.Carrier U, d: LinearMap, epsilon, delta: Reals.Real]: \Prop := {
   positive: R.Lt Reals.zero delta,
   estimate: \forall (x: Source.Carrier U) -> R.Lt Reals.zero (DomainCoordinates.pointDistance x a) -> R.Lt (DomainCoordinates.pointDistance x a) delta ->
     R.Lt (CodomainCoordinates.norm (remainder U f a d x)) (Reals.mul epsilon (DomainCoordinates.pointDistance x a)),
-}
-\definition localCoefficient(d: LinearMap): Reals.Real := Reals.add (coefficient d) Reals.one;
+};
+\definition localCoefficient[d: LinearMap]: Reals.Real := Reals.add (coefficient d) Reals.one;
 \definition localCoefficientPositive: \forall (d: LinearMap) -> R.Lt Reals.zero (localCoefficient d) :=
   \fun (d: LinearMap) => R.leLtTrans Reals.zero (coefficient d) (localCoefficient d) (coefficientNonnegative d)
     (R.ltReplaceLeft (Reals.add (coefficient d) Reals.zero) (coefficient d) (localCoefficient d) (Laws.addZeroRight (coefficient d))
       (Laws.ltAddLeft (coefficient d) Reals.zero Reals.one Product.onePositive));
-\structure LocalBound[U: Source.OpenSet, f: Function U, a: Source.Carrier U, d: LinearMap, delta: Reals.Real]: \Prop {
+\structure LocalBound[U: Source.OpenSet, f: Function U, a: Source.Carrier U, d: LinearMap, delta: Reals.Real]: \Prop := {
   positive: R.Lt Reals.zero delta,
   estimate: \forall (x: Source.Carrier U) -> R.Lt Reals.zero (DomainCoordinates.pointDistance x a) -> R.Lt (DomainCoordinates.pointDistance x a) delta ->
     R.Le (CodomainCoordinates.pointDistance (f x) (f a)) (Reals.mul (localCoefficient d) (DomainCoordinates.pointDistance x a)),
-}
+};
 \module Differential(U: Source.OpenSet, f: Function U, a: Source.Carrier U, d: LinearMap);
 \import Reals.Multivariable[n := m].Differential[].Def[] \as OuterScalarMaps;
 \definition OuterLinearMap: \Set := OuterScalarMaps.LinearMap;
 \module Chain(U: Source.OpenSet, V: Reals.OpenSpace m,
   f: Source.Carrier U -> Reals.OpenCarrier m V, a: Source.Carrier U, d: LinearMap,
   g: Reals.ScalarFunction m V, e: OuterLinearMap);
-\definition linearFunction(U: Source.OpenSet)(d: LinearMap): Function U := \fun (x: Source.Carrier U) => d.apply x;
+\definition linearFunction[U: Source.OpenSet][d: LinearMap]: Function U := \fun (x: Source.Carrier U) => d.apply x;
 \definition linearDifferential: \forall (U: Source.OpenSet)(d: LinearMap)(a: Source.Carrier U) -> HasDifferentialAt U (linearFunction U d) a d :=
   \fun (U: Source.OpenSet)(d: LinearMap)(a: Source.Carrier U)(j: Fin.Fin m) => Scalars.Linear[U := U, d := row d j].law a;

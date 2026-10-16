@@ -22,7 +22,7 @@ cargo run -p ref-docs -- --libs /path/to/libs --port 8080
 
 引数をそのまま返す。
 */
-\definition identity(A: \Set)(x: A): A := x;
+\definition identity[A: \Set][x: A]: A := x;
 ```
 
 数式の `\(…\)` / `\[…\]` は TeX のコードとして表示する。

@@ -6,27 +6,27 @@
 \use Logic.and;
 \use Logic.or;
 
-\definition RelationLe(relation: Rel.RelPair Carrier) (x, y: Carrier): \Prop :=
+\definition RelationLe[relation: Rel.RelPair Carrier] [x, y: Carrier]: \Prop :=
   Rel.PairToRel Carrier relation x y;
 
-\definition In (A: \Pow Carrier) (x: Carrier): \Prop := \In[Carrier] A x;
+\definition In [A: \Pow Carrier] [x: Carrier]: \Prop := \In[Carrier] A x;
 
-\definition Inhabited (A: \Pow Carrier): \Prop :=
+\definition Inhabited [A: \Pow Carrier]: \Prop :=
     \exists \Cast[Carrier] A;
 
-\definition UpperBound(relation: Rel.RelPair Carrier)
-  (A: \Pow Carrier) (u: Carrier): \Prop :=
+\definition UpperBound[relation: Rel.RelPair Carrier]
+  [A: \Pow Carrier] [u: Carrier]: \Prop :=
   \forall (x: Carrier) -> In A x -> RelationLe relation x u;
 
-\structure LeastUpperBound[relation: Rel.RelPair Carrier, A: \Pow Carrier, u: Carrier]: \Prop {
+\structure LeastUpperBound[relation: Rel.RelPair Carrier, A: \Pow Carrier, u: Carrier]: \Prop := {
   upper: UpperBound relation A u,
   least: \forall (v: Carrier) -> UpperBound relation A v -> RelationLe relation u v,
-}
+};
 
-\definition Complete(relation: Rel.RelPair Carrier): \Prop :=
+\definition Complete[relation: Rel.RelPair Carrier]: \Prop :=
   \forall (A: \Pow Carrier) -> Inhabited A ->
-    (\exists { u: Carrier \where UpperBound relation A u }) ->
-    \exists { u: Carrier \where LeastUpperBound[relation, A, u] };
+    (\exists ( u: Carrier \where UpperBound relation A u )) ->
+    \exists ( u: Carrier \where LeastUpperBound[relation, A, u] );
 
 \structure FieldLaws[zero, one: Carrier, add: Carrier -> Carrier -> Carrier,
   neg: Carrier -> Carrier, mul: Carrier -> Carrier -> Carrier, inv: Carrier -> Carrier]: \Prop := {
@@ -58,7 +58,7 @@
       RelationLe leRelation zero (mul x y),
 };
 
-\structure AxiomaticRealStructureData: \Set {
+\structure AxiomaticRealStructureData: \Set := {
   zero: Carrier,
   one: Carrier,
   add: Carrier -> Carrier -> Carrier,
@@ -66,37 +66,37 @@
   mul: Carrier -> Carrier -> Carrier,
   inv: Carrier -> Carrier,
   leRelation: Rel.RelPair Carrier,
-}
+};
 
-\structure AxiomaticRealStructureLaws[data: AxiomaticRealStructureData]: \Prop {
+\structure AxiomaticRealStructureLaws[data: AxiomaticRealStructureData]: \Prop := {
   field: FieldLaws[data.zero, data.one, data.add, data.neg, data.mul, data.inv],
   order: LinearOrderLaws[data.leRelation],
   orderedField: OrderedFieldLaws[data.zero, data.add, data.mul, data.leRelation],
   completeness: Complete data.leRelation,
-}
+};
 
 \definition AxiomaticRealStructure: \Set :=
   \Cast[AxiomaticRealStructureData] ({ data: AxiomaticRealStructureData \where AxiomaticRealStructureLaws[data] });
 
-\definition Le (s: AxiomaticRealStructureData) (x, y: Carrier): \Prop :=
+\definition Le [s: AxiomaticRealStructureData] [x, y: Carrier]: \Prop :=
   RelationLe (s.leRelation) x y;
 
-\definition NonZero (s: AxiomaticRealStructureData) (x: Carrier): \Prop :=
+\definition NonZero [s: AxiomaticRealStructureData] [x: Carrier]: \Prop :=
     not!{{ x = s.zero }};
 
-\definition IsUpperBound (s: AxiomaticRealStructureData) (A: \Pow Carrier) (u: Carrier): \Prop :=
+\definition IsUpperBound [s: AxiomaticRealStructureData] [A: \Pow Carrier] [u: Carrier]: \Prop :=
     \forall (x: Carrier) -> In A x -> Le s x u;
 
-\definition BoundedAbove (s: AxiomaticRealStructureData) (A: \Pow Carrier): \Prop :=
-    \exists { u : Carrier \where IsUpperBound s A u };
+\definition BoundedAbove [s: AxiomaticRealStructureData] [A: \Pow Carrier]: \Prop :=
+    \exists ( u : Carrier \where IsUpperBound s A u );
 
-\definition IsLeastUpperBound (s: AxiomaticRealStructureData) (A: \Pow Carrier) (u: Carrier): \Prop :=
+\definition IsLeastUpperBound [s: AxiomaticRealStructureData] [A: \Pow Carrier] [u: Carrier]: \Prop :=
     LeastUpperBound[s.leRelation, A, u];
 
-\definition HasLeastUpperBound (s: AxiomaticRealStructureData) (A: \Pow Carrier): \Prop :=
-    \exists { u : Carrier \where IsLeastUpperBound s A u };
+\definition HasLeastUpperBound [s: AxiomaticRealStructureData] [A: \Pow Carrier]: \Prop :=
+    \exists ( u : Carrier \where IsLeastUpperBound s A u );
 
-\definition Completeness (s: AxiomaticRealStructureData): \Prop :=
+\definition Completeness [s: AxiomaticRealStructureData]: \Prop :=
     \forall (A: \Pow Carrier) -> Inhabited A -> BoundedAbove s A ->
       HasLeastUpperBound s A;
 

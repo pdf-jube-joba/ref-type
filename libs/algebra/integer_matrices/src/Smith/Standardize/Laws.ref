@@ -5,13 +5,13 @@
 \import N.Basic[].Prop[] \as Bounds;
 \import std.Logic[].Proposition[] \as Logic;
 \import \parent.\parent.Bounds[] \as Indices;
-\structure Certificate[output: Compute.Output^]: \Prop {
+\structure Certificate[output: Compute.Output^]: \Prop := {
   rowRank: Bounds.Le (Compute.outputRank output) m,
   columnRank: Bounds.Le (Compute.outputRank output) n,
   bounded: Indices.HistoryLaws m n (Compute.outputHistory output),
   traced: Compute.outputMatrix output = applyHistory (Compute.outputHistory output) original,
   nonnegative: Signs.Prefix (Compute.outputRank output) (Compute.outputMatrix output),
-}
+};
 \definition assembly: \forall (rank: N.Nat^)(current: Attempt^) ->
   Bounds.Le rank m -> Bounds.Le rank n -> Indices.HistoryLaws m n (attemptHistory current) ->
   attemptMatrix current = applyHistory (attemptHistory current) original -> Signs.Prefix rank (attemptMatrix current) -> Certificate[assemble rank current] :=
@@ -30,7 +30,7 @@
           (Signs.positive rank a history)
   };
 \definition correctness: Certificate[standardize m n original] := normalization (Compute.executeInitial m n original) Computation.correctness;
-\definition FrameFor(output: Compute.Output^): \Set := \Cast[Frames.Frame] ({ frame: Frames.Frame \where
+\definition FrameFor[output: Compute.Output^]: \Set := \Cast[Frames.Frame] ({ frame: Frames.Frame \where
   Frames.change frame (Matrices.reflect original) = Matrices.reflect (Compute.outputMatrix output) });
 \definition equivalence: \forall (output: Compute.Output^) -> Certificate[output] -> \exists FrameFor output := \block {
   \fun (output: Compute.Output^)(law: Certificate[output]) \then
@@ -46,13 +46,13 @@
     }, FrameFor output)
 };
 \definition computedEquivalence: \exists FrameFor (standardize m n original) := equivalence (standardize m n original) correctness;
-\structure FullCertificate[output: Compute.Output^]: \Prop {
+\structure FullCertificate[output: Compute.Output^]: \Prop := {
   computation: Certificate[output],
   diagonal: \parent.\parent.Properties[m := m, n := n, rank := Compute.outputRank output].Diagonal (Compute.outputMatrix output),
   trailing: \parent.\parent.Properties[m := m, n := n, rank := Compute.outputRank output].TrailingZero (Compute.outputMatrix output),
   nonzero: \parent.\parent.Properties[m := m, n := n, rank := Compute.outputRank output].Nonzero (Compute.outputMatrix output),
   divides: \parent.\parent.Properties[m := m, n := n, rank := Compute.outputRank output].Divides (Compute.outputMatrix output),
-}
+};
 \module Full;
 \definition fullCorrectness: FullCertificate[standardize m n original] := Full[].correctness;
 \definition nativeCorrectness: FullCertificate[Standardize.program^ m n original] :=

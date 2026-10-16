@@ -1,16 +1,16 @@
-\definition leftCarrier(x: Index)(k: Chain.Degree): \Set := Chains.Map[C := A x, D := A x].sourceCarrier k;
-\definition middleCarrier(x: Index)(k: Chain.Degree): \Set := Chains.Map[C := B x, D := B x].sourceCarrier k;
-\definition rightCarrier(x: Index)(k: Chain.Degree): \Set := Chains.Map[C := C x, D := C x].sourceCarrier k;
+\definition leftCarrier[x: Index][k: Chain.Degree]: \Set := Chains.Map[C := A x, D := A x].sourceCarrier k;
+\definition middleCarrier[x: Index][k: Chain.Degree]: \Set := Chains.Map[C := B x, D := B x].sourceCarrier k;
+\definition rightCarrier[x: Index][k: Chain.Degree]: \Set := Chains.Map[C := C x, D := C x].sourceCarrier k;
 \module At(x, y: Index) {
   \import Chains.Map[C := A x, D := A y] \as Left;
   \import Chains.Map[C := B x, D := B y] \as Middle;
   \import Chains.Map[C := C x, D := C y] \as Right;
-  \structure Data: \Set { left: Left.Map, middle: Middle.Map, right: Right.Map }
+  \structure Data: \Set := { left: Left.Map, middle: Middle.Map, right: Right.Map };
   \import Chains.ShortExact[A := A x, B := B x, C := C x].Morphism[A1 := A y, B1 := B y, C1 := C y] \as Morphism;
-  \structure Laws[f: Data]: \Prop {
+  \structure Laws[f: Data]: \Prop := {
     left: \forall (k: Chain.Degree)(u: leftCarrier x k) -> f.middle.apply k (((sequences x).inclusion).apply k u) = ((sequences y).inclusion).apply k (f.left.apply k u),
     right: \forall (k: Chain.Degree)(u: middleCarrier x k) -> ((sequences y).projection).apply k (f.middle.apply k u) = f.right.apply k (((sequences x).projection).apply k u),
-  }
+  };
   \definition Hom: \Set := \Cast[Data] ({ f: Data \where Laws[f] });
   \definition dataExt: \forall (f, g: Data) -> f.left = g.left -> f.middle = g.middle -> f.right = g.right -> f = g :=
     \induction (f: Data) \return \forall (g: Data) -> f.left = g.left -> f.middle = g.middle -> f.right = g.right -> f = g \with {
@@ -30,13 +30,13 @@
     \fun (f, g: Hom) => Middle.ext f.middle g.middle;
   \definition rightExt: \forall (f, g: Hom) -> (\forall (k: Chain.Degree)(u: rightCarrier x k) -> f.right.apply k u = g.right.apply k u) -> f.right = g.right :=
     \fun (f, g: Hom) => Right.ext f.right g.right;
-  \definition commutative(f: Hom): Laws[f] := \bysub(Data, { f: Data \where Laws[f] }, f);
-  \definition diagram(f: Hom): Morphism.Diagram[s := sequences x, t := sequences y, a := f.left, b := f.middle, c := f.right].Commutative :=
+  \definition commutative[f: Hom]: Laws[f] := \bysub(Data, { f: Data \where Laws[f] }, f);
+  \definition diagram[f: Hom]: Morphism.Diagram[s := sequences x, t := sequences y, a := f.left, b := f.middle, c := f.right].Commutative :=
     Morphism.Diagram[s := sequences x, t := sequences y, a := f.left, b := f.middle, c := f.right].Commutative {
       left := (commutative f).left, right := (commutative f).right,
     };
 }
-\definition Hom(x, y: Index): \Set := At[x := x, y := y].Hom;
+\definition Hom[x, y: Index]: \Set := At[x := x, y := y].Hom;
 \module Identity(x: Index) {
   \import \parent.At[x := x, y := x] \as Maps;
   \definition data: Maps.Data := Maps.Data {
@@ -48,12 +48,12 @@
   };
   \definition map: Hom x x := \into[Maps.Data](data, { f: Maps.Data \where Maps.Laws[f] }) \by { laws };
 }
-\definition identity(x: Index): Hom x x := Identity[x := x].map;
+\definition identity[x: Index]: Hom x x := Identity[x := x].map;
 \module Composition(x, y, z: Index) {
   \import \parent.At[x := x, y := z] \as Maps;
   \import \parent.At[x := x, y := y] \as Before;
   \import \parent.At[x := y, y := z] \as After;
-  \definition data(g: Hom y z)(f: Hom x y): Maps.Data := Maps.Data {
+  \definition data[g: Hom y z][f: Hom x y]: Maps.Data := Maps.Data {
     left := Chains.Map[C := A y, D := A z].Composition[B := A x].compose g.left f.left,
     middle := Chains.Map[C := B y, D := B z].Composition[B := B x].compose g.middle f.middle,
     right := Chains.Map[C := C y, D := C z].Composition[B := C x].compose g.right f.right,
@@ -67,9 +67,9 @@
         ((After.diagram g).right k (f.middle.apply k u))
         (congr!{{rightCarrier y k} {rightCarrier z k}} (g.right.apply k) _ _ ((Before.diagram f).right k u)),
     };
-  \definition map(g: Hom y z)(f: Hom x y): Hom x z := \into[Maps.Data](data g f, { f: Maps.Data \where Maps.Laws[f] }) \by { laws g f };
+  \definition map[g: Hom y z][f: Hom x y]: Hom x z := \into[Maps.Data](data g f, { f: Maps.Data \where Maps.Laws[f] }) \by { laws g f };
 }
-\definition compose(x, y, z: Index)(g: Hom y z)(f: Hom x y): Hom x z := Composition[x := x, y := y, z := z].map g f;
+\definition compose[x, y, z: Index][g: Hom y z][f: Hom x y]: Hom x z := Composition[x := x, y := y, z := z].map g f;
 \definition data: Cat.CategoryData[Index, Hom] := Cat.CategoryData[Index, Hom] { identity := identity, compose := compose };
 \definition laws: Cat.CategoryLaws[Index, Hom, data] := Cat.CategoryLaws[Index, Hom, data] {
   leftIdentity := \fun (x, y: Index)(f: Hom x y) => At[x := x, y := y].ext (compose x y y (identity y) f) f

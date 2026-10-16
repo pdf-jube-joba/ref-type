@@ -56,7 +56,7 @@ fn project(name: &str) -> SourceSnapshot {
         "/virtual/base/src/root.ref",
         r"\module Core {
         \definition P: \Prop := \forall (P: \Prop) -> P -> P;
-        \module Identity(A: \Set) { \definition id(x: A): A := x; }
+        \module Identity(A: \Set) { \definition id[x: A]: A := x; }
         \inductive Unit: \Set := | unit: Unit;
     }",
     );
@@ -178,8 +178,8 @@ fn resumable_project() -> SourceSnapshot {
             \import base.Core[] \as B;
             \definition p: \Prop := B.P;
             \infer p;
-            \module Child(A: \Set) { \definition id(x: A): A := x; }
-            \definition q(x: B.Unit): B.Unit := Child[A := B.Unit].id x;
+            \module Child(A: \Set) { \definition id[x: A]: A := x; }
+            \definition q[x: B.Unit]: B.Unit := Child[A := B.Unit].id x;
             \infer q;
         }
         \module Last {

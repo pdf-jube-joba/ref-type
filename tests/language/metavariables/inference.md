@@ -215,7 +215,7 @@ parameters = '''A: \Set(1), a, b, c: A, ab: a = b, bc: b = c'''
 \definition transitive: a = c :=
   \idelim b = c \with x: _ => a = x \by { base: ab, equality: bc };
 
-\definition local(x, y: A, xy: x = y): y = x :=
+\definition local[x, y: A, xy: x = y]: y = x :=
   \idelim x = y \with z: _ => z = x \by { base: \refl(x), equality: xy };
 ```
 
@@ -243,7 +243,7 @@ parameters = '''A: \Set, x: A'''
     | member y : Family::member _
     };
 
-\definition local (y: A): Family y -> Family y :=
+\definition local [y: A]: Family y -> Family y :=
   \fun (h: _) =>
     \match h \in Family
       \return (\fun (z: A) => \fun (_: Family z) => Family z) \with {
@@ -298,7 +298,7 @@ name = "MatchConstraints"
 
 \structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
 
-\definition orAssoc (P, Q, R: \Prop):
+\definition orAssoc [P, Q, R: \Prop]:
   PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] :=
   PropEquiv[_1, _2] {
     lt := \fun (h: _) =>
@@ -408,7 +408,7 @@ name = "Assignment"
 ```ref
 \structure And[P, Q: \Prop]: \Prop := { left: P, right: Q, };
 \structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
-\definition andAssoc (P, Q, R: \Prop): PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
+\definition andAssoc [P, Q, R: \Prop]: PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
   lt := \block {
     \fun (h: _1) \then
     \let p: P := h.left.left \then
@@ -525,7 +525,7 @@ name = "MatchConstraints"
 
 \structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
 
-\definition orAssoc (P, Q, R: \Prop):
+\definition orAssoc [P, Q, R: \Prop]:
   PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] :=
   PropEquiv[_1, _2] {
   lt := \fun (h: _) =>
@@ -568,7 +568,7 @@ name = "MatchConstraints"
 
 \structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
 
-\definition orAssoc (P, Q, R: \Prop):
+\definition orAssoc [P, Q, R: \Prop]:
   PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] :=
   PropEquiv[_1, _2] {
   lt := \fun (h: _) =>

@@ -10,7 +10,7 @@ structure の宣言と法則の扱いは [structure](structure.md) を参照。
 | nil: List
 | cons: A -> List -> List
 ;
-\definition List(A: \Set)::singleton(x: A): List[A] :=
+\definition List[A: \Set]::singleton[x: A]: List[A] :=
   List[A]::cons x List[A]::nil;
 ```
 
@@ -43,11 +43,11 @@ Import.List[A]::singleton x
 `\VType` の record は非依存・非再帰の値 field を持ち、thunk 型 `\U C` も使える。
 
 ```text
-\structure Pair[A: \VType]: \VType {
+\structure Pair[A: \VType]: \VType := {
   first: A,
   second: A,
-}
-\definition Pair(A: \VType)::swap(p: Pair[A]): \F(Pair[A]) :=
+};
+\definition Pair[A: \VType]::swap[p: Pair[A]]: \F(Pair[A]) :=
   \program {
     \bind x: A <- Pair[A]::first p \then
     \bind y: A <- Pair[A]::second p \then

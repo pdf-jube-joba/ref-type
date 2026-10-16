@@ -293,7 +293,7 @@ fn specialized_references_keep_source_holes_in_unused_arguments() {
     let modules = parse::str_parse_modules(
         r"
         \module Shapes { \inductive Unit: \Set := | unit: Unit; }
-        \module Family(A: \Set) { \definition first(x, y: A): A := x; }
+        \module Family(A: \Set) { \definition first[x, y: A]: A := x; }
     ",
     )
     .unwrap();

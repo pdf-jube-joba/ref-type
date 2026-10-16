@@ -134,8 +134,8 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 たとえば、次の二つの構造の対応を、各構造の field を列挙せずに記述したい。
 
 ```text
-\structure A[Carrier: \Set] { op1: Carrier, }
-\structure ASet { Carrier: \Set, op1: Carrier, }
+\structure A[Carrier: \Set] := { op1: Carrier, };
+\structure ASet := { Carrier: \Set, op1: Carrier, };
 ```
 
 現在の signature は宣言された field の依存文脈へ展開され、signature の族そのものを parameter に取る仕組みがない。
@@ -156,7 +156,7 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 
 ```text
 \module Example(A: \Set, a: A) {
-  \definition singleton: \exists { x: A \where x = a } :=
+  \definition singleton: \exists ( x: A \where x = a ) :=
     \exact(\into[A](a, { x: A \where x = a }) \by { \refl(a) }, _);
 }
 ```
@@ -165,7 +165,7 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 
 ```text
 \module Example(A: \Set, a: A) {
-  \definition singleton: \exists { x: A \where x = a } :=
+  \definition singleton: \exists ( x: A \where x = a ) :=
     \exact(\into[A](a, { x: A \where x = a }) \by { \refl(a) },
       \Cast[A] ({ x: A \where x = a }));
 }

@@ -12,16 +12,16 @@ name = "Sharing"
 ```
 
 ```ref
-\structure Bundle { Carrier: \Set, seed: Carrier }
-\definition identity(B: Bundle)(x: B.Carrier): B.Carrier := x;
-\definition Fixed(B: Bundle): \Pow B.Carrier :=
+\structure Bundle := { Carrier: \Set, seed: Carrier };
+\definition identity[B: Bundle][x: B.Carrier]: B.Carrier := x;
+\definition Fixed[B: Bundle]: \Pow B.Carrier :=
   { b: B.Carrier \where identity B b = b };
 \inductive Unit: \Set := | unit: Unit;
 \definition bundle: Bundle := Bundle { Carrier := Unit, seed := Unit::unit };
 \definition delayed: Unit -> Unit := \fun (_: _) => bundle.seed;
 \definition delayedLaw: delayed Unit::unit = Unit::unit := \refl(Unit::unit);
-\definition local(B: Bundle)(x: B.Carrier)(unused: x = x): B.Carrier := identity B x;
-\definition localLaw(B: Bundle)(x: B.Carrier): local B x (\refl(x)) = x := \refl(x);
+\definition local[B: Bundle][x: B.Carrier][unused: x = x]: B.Carrier := identity B x;
+\definition localLaw[B: Bundle][x: B.Carrier]: local B x (\refl(x)) = x := \refl(x);
 ```
 
 ## block 内の関数

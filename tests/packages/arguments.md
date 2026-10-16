@@ -13,14 +13,14 @@ expect = "accept"
 ```ref file=src/root.ref
 \module Repro {
   \inductive Unit: \Set := | unit: Unit;
-  \module Pass(u: Unit, A: \Set) { \definition identity(x: A): A := x; }
+  \module Pass(u: Unit, A: \Set) { \definition identity[x: A]: A := x; }
   \module Outer(u: Unit) {
     \definition Representation: \Set := \Cast[Unit] ({ x: Unit \where x = u });
     \import \root.Repro[].Pass[u := u, A := Representation] \as P;
-    \definition identity(x: Representation): Representation := P.identity x;
+    \definition identity[x: Representation]: Representation := P.identity x;
   }
   \import \root.Repro[].Outer[u := Unit::unit] \as O;
-  \definition identity(x: O.Representation): O.Representation := O.identity x;
+  \definition identity[x: O.Representation]: O.Representation := O.identity x;
 }
 ```
 
@@ -36,15 +36,15 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Repro {
-  \module Pass(K: \Set, A: \Set) { \definition identity(x: A): A := x; }
+  \module Pass(K: \Set, A: \Set) { \definition identity[x: A]: A := x; }
   \module Outer(K: \Set) {
     \inductive Unit: \Set := | unit: Unit;
     \import \root.Repro[].Pass[K := K, A := Unit] \as P;
-    \definition identity(x: Unit): Unit := P.identity x;
+    \definition identity[x: Unit]: Unit := P.identity x;
   }
   \inductive Scalar: \Set := | zero: Scalar;
   \import \root.Repro[].Outer[K := Scalar] \as O;
-  \definition identity(x: O.Unit): O.Unit := O.identity x;
+  \definition identity[x: O.Unit]: O.Unit := O.identity x;
 }
 ```
 
@@ -62,21 +62,21 @@ expect = "accept"
 \module Repro {
   \inductive Unit: \Set := | unit: Unit;
   \module Quotient(A: \Set, Equivalent: A -> A -> \Prop) {
-    \definition ClassOf(x: A): \Pow A := { y: A \where Equivalent x y };
-    \definition Representative(C: \Pow A): \Set := \Cast[A] ({ x: A \where C = ClassOf x });
-    \definition IsClass(C: \Pow A): \Prop := \exists Representative C;
+    \definition ClassOf[x: A]: \Pow A := { y: A \where Equivalent x y };
+    \definition Representative[C: \Pow A]: \Set := \Cast[A] ({ x: A \where C = ClassOf x });
+    \definition IsClass[C: \Pow A]: \Prop := \exists Representative C;
     \definition Carrier: \Set := \Cast[\Pow A] ({ C: \Pow A \where IsClass C });
-    \definition class(x: A): Carrier :=
+    \definition class[x: A]: Carrier :=
       \into[\Pow A](ClassOf x, Carrier) \by {
       \exact(\into[A](x, Representative (ClassOf x)) \by { \refl(ClassOf x) }, Representative (ClassOf x))
     };
   }
   \module Lebesgue(interval: Unit) {
     \definition Representation: \Set := \Cast[Unit] ({ x: Unit \where x = interval });
-    \definition Equivalent(x, y: Representation): \Prop := x = y;
+    \definition Equivalent[x, y: Representation]: \Prop := x = y;
     \import \root.Repro[].Quotient[A := Representation, Equivalent := Equivalent] \as Q;
     \definition Function: \Set := Q.Carrier;
-    \definition class(x: Representation): Function := Q.class x;
+    \definition class[x: Representation]: Function := Q.class x;
   }
   \import \root.Repro[].Lebesgue[interval := Unit::unit] \as L;
   \definition point: L.Representation := \into[Unit](Unit::unit, L.Representation) \by { \refl(Unit::unit) };
@@ -96,9 +96,9 @@ name = "Repro"
 ```
 
 ```ref
-\structure Carrier { A: \Set, }
-\structure Holder[C: Carrier]: \Set { value: C.A, }
-\definition Type(C: Carrier): \Set := Holder[C.A];
+\structure Carrier := { A: \Set, };
+\structure Holder[C: Carrier]: \Set := { value: C.A, };
+\definition Type[C: Carrier]: \Set := Holder[C.A];
 ```
 
 ## block hash projection
@@ -114,7 +114,7 @@ parameters = '''A: \Set'''
 ```
 
 ```ref
-\structure Box: \Set { field: A, }
+\structure Box: \Set := { field: A, };
 \definition get: Box -> A := \block {
   \fun (x: Box) \then
   \return x.field
@@ -134,8 +134,8 @@ parameters = '''A: \Set'''
 ```
 
 ```ref
-\structure Box: \Set { field: A, }
-\definition get(x: Box): A := \block {
+\structure Box: \Set := { field: A, };
+\definition get[x: Box]: A := \block {
   \let y: Box := x \then
   \return y.field
 };
@@ -153,15 +153,15 @@ name = "Algebra"
 ```
 
 ```ref
-\structure A[Carrier: \Set] {
+\structure A[Carrier: \Set] := {
   unit: Carrier, op: Carrier -> Carrier -> Carrier, inv: Carrier -> Carrier,
-}
-\structure ALaw[Carrier: \Set, data: A[Carrier]] {
+};
+\structure ALaw[Carrier: \Set, data: A[Carrier]] := {
   unitLaw: data.op data.unit data.unit = data.unit,
-}
-\structure Algebra[Carrier: \Set] { data: A[Carrier], law: ALaw[Carrier, data], }
-\structure Holder[Carrier: \Set, data: A[Carrier]]: \Set { value: Carrier, }
-\definition Type(Carrier: \Set, data: A[Carrier]): \Set := Holder[Carrier, data];
+};
+\structure Algebra[Carrier: \Set] := { data: A[Carrier], law: ALaw[Carrier, data], };
+\structure Holder[Carrier: \Set, data: A[Carrier]]: \Set := { value: Carrier, };
+\definition Type[Carrier: \Set, data: A[Carrier]]: \Set := Holder[Carrier, data];
 \inductive Unit: \Set := | unit: Unit;
 \definition data: A[Unit] := A[Unit]{
   unit := Unit::unit, op := \fun (x, y: Unit) => x, inv := \fun (x: Unit) => x,
@@ -188,19 +188,19 @@ expect = "accept"
 \module Repro {
   \module Pass(A: \Set) {
     \definition Type: \Set := A;
-    \definition identity(x: A): A := x;
+    \definition identity[x: A]: A := x;
   }
   \module Outer(K: \Set) {
     \inductive Unit: \Set := | unit: Unit;
     \definition Alias: \Set := Unit;
     \import \root.Repro[].Pass[A := Alias] \as P;
     \import \root.Repro[].Pass[A := P.Type] \as Q;
-    \definition identity(x: Unit): Unit := Q.identity (P.identity x);
+    \definition identity[x: Unit]: Unit := Q.identity (P.identity x);
   }
   \inductive Scalar: \Set := | zero: Scalar;
   \import \root.Repro[].Outer[K := Scalar] \as O;
   \import \root.Repro[].Outer[K := Scalar] \as O2;
-  \definition identity(x: O.Unit): O2.Unit := O2.identity (O.identity x);
+  \definition identity[x: O.Unit]: O2.Unit := O2.identity (O.identity x);
 }
 ```
 
@@ -216,16 +216,16 @@ expect = "reject"
 
 ```ref file=src/root.ref
 \module Repro {
-  \module Pass(A: \Set) { \definition identity(x: A): A := x; }
+  \module Pass(A: \Set) { \definition identity[x: A]: A := x; }
   \module Outer(K: \Set) {
     \inductive Unit: \Set := | unit: Unit;
     \import \root.Repro[].Pass[A := Unit] \as P;
-    \definition identity(x: Unit): Unit := P.identity x;
+    \definition identity[x: Unit]: Unit := P.identity x;
   }
   \inductive Scalar: \Set := | zero: Scalar;
   \import \root.Repro[].Outer[K := Scalar] \as O;
   \import \root.Repro[].Outer[K := Scalar -> Scalar] \as Other;
-  \definition bad(x: O.Unit): Other.Unit := O.identity x;
+  \definition bad[x: O.Unit]: Other.Unit := O.identity x;
 }
 ```
 
@@ -243,7 +243,7 @@ expect = "accept"
 \module Repro {
   \inductive Unit: \Set := | unit: Unit;
   \module x { \definition field: \Set := Unit; }
-  \structure Box: \Set { field: Unit, }
+  \structure Box: \Set := { field: Unit, };
   \definition get: Box -> Unit := \block {
     \fun (x: Box) \then
     \let y: Box := x \then
@@ -267,15 +267,15 @@ name = "Repro"
 ```
 
 ```ref
-\structure Carrier { A: \Set, }
-\structure Nested { carrier: Carrier, unit: carrier.A, }
-\structure Witness[C: Carrier]: \Prop { witness: \forall (x: C.A) -> x = x, }
+\structure Carrier := { A: \Set, };
+\structure Nested := { carrier: Carrier, unit: carrier.A, };
+\structure Witness[C: Carrier]: \Prop := { witness: \forall (x: C.A) -> x = x, };
 \inductive Family[C: Carrier]: \Set := | intro: C.A -> Family;
-\structure Holder[N: Nested]: \Set { value: N.carrier.A, }
-\definition Type(N: Nested): \Set := Holder[N];
-\definition proof(C: Carrier)(x: C.A): Witness[C] :=
+\structure Holder[N: Nested]: \Set := { value: N.carrier.A, };
+\definition Type[N: Nested]: \Set := Holder[N];
+\definition proof[C: Carrier][x: C.A]: Witness[C] :=
   Witness[C] { witness := \fun (x: C.A) => \refl(x) };
-\definition element(C: Carrier)(x: C.A): Family[C] := Family[C]::intro x;
+\definition element[C: Carrier][x: C.A]: Family[C] := Family[C]::intro x;
 ```
 
 ## expanded structure arguments preserve index type checks
@@ -292,8 +292,8 @@ name = "Repro"
 ```ref
 \inductive Unit: \Set := | unit: Unit;
 \inductive Bit: \Set := | zero: Bit | one: Bit;
-\structure A[Carrier: \Set] { unit: Carrier, }
-\structure ALaw[Carrier: \Set, data: A[Carrier]] {}
+\structure A[Carrier: \Set] := { unit: Carrier, };
+\structure ALaw[Carrier: \Set, data: A[Carrier]] := {};
 \definition data: A[Bit] := A[Bit] { unit := Bit::zero };
 \definition bad: ALaw[Unit, data] := ALaw[Unit, data] {};
 ```
@@ -317,11 +317,11 @@ expect = "accept"
     \import \root.Repro[].Pass[A := Alias] \as P;
     \import \root.Repro[].Pass[A := Unit] \as Q;
     \definition Token: \Set := P.Token;
-    \definition convert(x: P.Token): Q.Token := x;
+    \definition convert[x: P.Token]: Q.Token := x;
   }
   \inductive Scalar: \Set := | zero: Scalar;
   \import \root.Repro[].Outer[K := Scalar] \as O;
-  \definition identity(x: O.Token): O.Token := O.convert x;
+  \definition identity[x: O.Token]: O.Token := O.convert x;
 }
 ```
 
@@ -337,7 +337,7 @@ name = "Algebra"
 ```
 
 ```ref
-\structure A[Carrier: \Set] { unit: Carrier } \structure ALaw[Carrier: \Set, data: A[Carrier]] {} \structure Bad[Carrier: \Set] { data: A[Carrier], law: ALaw[Carrier] }
+\structure A[Carrier: \Set] := { unit: Carrier }; \structure ALaw[Carrier: \Set, data: A[Carrier]] := {}; \structure Bad[Carrier: \Set] := { data: A[Carrier], law: ALaw[Carrier] };
 ```
 
 ## structure 引数の個数 / many
@@ -352,5 +352,5 @@ name = "Algebra"
 ```
 
 ```ref
-\structure A[Carrier: \Set] { unit: Carrier } \structure ALaw[Carrier: \Set, data: A[Carrier]] {} \structure Bad[Carrier: \Set] { data: A[Carrier], law: ALaw[Carrier, data, data, data] }
+\structure A[Carrier: \Set] := { unit: Carrier }; \structure ALaw[Carrier: \Set, data: A[Carrier]] := {}; \structure Bad[Carrier: \Set] := { data: A[Carrier], law: ALaw[Carrier, data, data, data] };
 ```

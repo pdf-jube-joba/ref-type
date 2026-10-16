@@ -156,7 +156,7 @@ name = 'base'
 ```ref file=base/src/root.ref
 \module Core {
             \inductive Unit: \Set := | unit: Unit;
-            \definition id(x: Unit): Unit := x;
+            \definition id[x: Unit]: Unit := x;
         }
         \module Unused { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }
 ```
