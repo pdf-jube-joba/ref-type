@@ -1,0 +1,26 @@
+\definition projection: Maps.Map := tensor p q;
+\definition leftCap: Maps.Map := tensor p identityRight;
+\definition rightCap: Maps.Map := tensor identityLeft q;
+\definition identityCap: Maps.Map := tensor identityLeft identityRight;
+\import \parent.\parent.TensorIdentity[C := C, D := D] \as Identity;
+\import \parent.\parent.TensorHomotopyLeft[C := C, D := C, E := D].With[f := identityLeft, g := p, h := left] \as Left;
+\import \parent.\parent.TensorHomotopyRight[C := D, D := D, E := C].With[f := identityRight, g := q, h := right] \as Right;
+\definition rightHomotopy: Homotopies.Homotopy End.identity rightCap := \into[Homotopies.Data](Right.homotopy, Homotopies.Homotopy End.identity rightCap) \by {
+  Homotopies.replacementLaws identityCap rightCap End.identity rightCap Right.homotopy Identity.equality (\refl(rightCap))
+    (\bysub(Homotopies.Data, Homotopies.Homotopy identityCap rightCap, Right.homotopy))
+};
+\import Maps.Composition[B := Total.complex] \as Compose;
+\import Homotopies.Precompose[B := Total.complex].With[f := identityCap, g := leftCap, h := Left.homotopy, k := rightCap] \as Before;
+\definition startEquality: Compose.compose identityCap rightCap = rightCap := Maps.ext (Compose.compose identityCap rightCap) rightCap (\fun (n: Nat.Nat^)(x: Total.Carrier n) =>
+  congr!{Maps.Map {Total.Carrier n}} (\fun (f: Maps.Map) => #apply{f} n (#apply{rightCap} n x)) _ _ Identity.equality);
+\import LeftMaps.Composition[B := C] \as LeftCompose;
+\import RightMaps.Composition[B := D] \as RightCompose;
+\definition leftIdentity: LeftCompose.compose p identityLeft = p := LeftMaps.ext (LeftCompose.compose p identityLeft) p (\fun (n: Nat.Nat^)(x: C.family.Carrier n) => \refl(#apply{p} n x));
+\definition rightIdentity: RightCompose.compose identityRight q = q := RightMaps.ext (RightCompose.compose identityRight q) q (\fun (n: Nat.Nat^)(x: D.family.Carrier n) => \refl(#apply{q} n x));
+\import \parent.\parent.TensorComposition[A := C, B := C, C := C, D := D, E := D, F := D].With[f := identityLeft, g := p, u := q, v := identityRight] \as Functor;
+\definition endEquality: Compose.compose leftCap rightCap = projection := trans!{Maps.Map} _ _ _ Functor.equality (congr2!{LeftMaps.Map RightMaps.Map Maps.Map} tensor _ _ _ _ leftIdentity rightIdentity);
+\definition leftHomotopy: Homotopies.Homotopy rightCap projection := \into[Homotopies.Data](Before.homotopy, Homotopies.Homotopy rightCap projection) \by {
+  Homotopies.replacementLaws (Compose.compose identityCap rightCap) (Compose.compose leftCap rightCap) rightCap projection Before.homotopy startEquality endEquality
+    (\bysub(Homotopies.Data, Homotopies.Homotopy (Compose.compose identityCap rightCap) (Compose.compose leftCap rightCap), Before.homotopy))
+};
+\definition homotopy: Homotopies.Homotopy End.identity projection := Homotopies.Transitive[].homotopy End.identity rightCap projection rightHomotopy leftHomotopy;
