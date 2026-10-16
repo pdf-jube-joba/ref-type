@@ -1,0 +1,46 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import \root.Chains[A := A, source := source] \as Chains;
+\import \root.Chains[A := Geometry.Point, source := PointTopology.Discrete] \as PointChains;
+\import PointCalculation.NativeContraction[] \as PointContraction;
+\import \root.Maps[A := A, B := Geometry.Point, source := source, target := PointTopology.Discrete] \as Projection;
+\import \root.Maps[A := Geometry.Point, B := A, source := PointTopology.Discrete, target := source] \as Inclusion;
+\import \root.Maps[A := A, B := A, source := source, target := source] \as SelfMaps;
+\import topology.Maps[A := A, B := Geometry.Point] \as ToPoint;
+\import topology.Maps[A := Geometry.Point, B := A] \as FromPoint;
+\definition pointFunction(x: A): Geometry.Point := Geometry.Point::point;
+\definition centreFunction(x: Geometry.Point): A := contraction.centre;
+\definition pointContinuous: Projection.Continuous pointFunction := ToPoint.constantContinuous source PointTopology.Discrete Geometry.Point::point;
+\definition centreContinuous: Inclusion.Continuous centreFunction := FromPoint.constantContinuous PointTopology.Discrete source contraction.centre;
+\import Complexes.Map[C := Chains.complex, D := PointChains.complex] \as Forward;
+\import Complexes.Map[C := PointChains.complex, D := Chains.complex] \as Backward;
+\import Complexes.Map[C := PointChains.complex, D := PointChains.complex] \as PointMaps;
+\definition forward: Forward.Map := Projection.push pointFunction pointContinuous;
+\definition backward: Backward.Map := Inclusion.push centreFunction centreContinuous;
+\import Backward.Composition[B := Chains.complex] \as Back;
+\import PointMaps.Composition[B := Chains.complex] \as PointCompose;
+\definition constantMap: Complexes.Map[C := Chains.complex, D := Chains.complex].Map := Back.compose backward forward;
+\definition projection: Complexes.Map[C := Chains.complex, D := Chains.complex].Map := Back.compose backward (PointCompose.compose PointContraction.projection forward);
+\import Complexes.End[C := PointChains.complex] \as PointEnd;
+\import Complexes.End[C := Chains.complex] \as End;
+\import Complexes.Homotopy[C := PointChains.complex, D := PointChains.complex].Precompose[B := Chains.complex].With[f := PointEnd.identity, g := PointContraction.projection, h := PointContraction.homotopy, k := forward] \as Pre;
+\import Complexes.Homotopy[C := Chains.complex, D := PointChains.complex].Postcompose[E := Chains.complex].With[f := forward, g := PointCompose.compose PointContraction.projection forward, h := Pre.homotopy, k := backward] \as Post;
+\import Complexes.Homotopy[C := Chains.complex, D := Chains.complex] \as Homotopies;
+\import \root.Identity[A := A, source := source] \as Identity;
+\import \root.Homotopy[A := A, B := A, source := source, target := source] \as Topological;
+\definition constant(x: A): A := contraction.centre;
+\definition rawPrism: Homotopies.Homotopy (SelfMaps.push constant (Topological.endContinuous Identity.function constant contraction.homotopy)) (SelfMaps.push Identity.function (Topological.startContinuous Identity.function constant contraction.homotopy)) := Topological.homotopy Identity.function constant contraction.homotopy;
+\import Projection.Composition[C := A, final := source] \as Functor;
+\definition prismData: Homotopies.Data := Topological.data Identity.function constant contraction.homotopy;
+\definition prism: Homotopies.Homotopy constantMap End.identity := \into[Homotopies.Data](prismData, Homotopies.Homotopy constantMap End.identity) \by {
+  Homotopies.replacementLaws (SelfMaps.push constant (Topological.endContinuous Identity.function constant contraction.homotopy)) (SelfMaps.push Identity.function (Topological.startContinuous Identity.function constant contraction.homotopy)) constantMap End.identity prismData
+    (sym!{{Complexes.Map[C := Chains.complex, D := Chains.complex].Map}} _ _ (Functor.functoriality pointFunction pointContinuous centreFunction centreContinuous))
+    Identity.chainIdentity
+    (\bysub(Homotopies.Data, Homotopies.Homotopy (SelfMaps.push constant (Topological.endContinuous Identity.function constant contraction.homotopy)) (SelfMaps.push Identity.function (Topological.startContinuous Identity.function constant contraction.homotopy)), rawPrism))
+};
+\import Homotopies.CommonLeft[].With[f := constantMap, g := projection, u := End.identity, first := Post.homotopy, second := prism] \as Difference;
+\definition homotopy: Homotopies.Homotopy End.identity projection := Difference.homotopy;
+\module Positive(n: N.Nat^);
