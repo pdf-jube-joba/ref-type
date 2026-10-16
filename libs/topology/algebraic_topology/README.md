@@ -13,6 +13,14 @@
 | `Cofiber` / `Cofibration` / `Cofibration.ForTarget` | mapping cone、cylinder の retraction による cofibration 条件とホモトピー拡張性 |
 | `Euclidean.Dimension` / `Geometry` | 有限座標、閉円板・境界球面・内部、ノルムと閉性 |
 | `Simplex` / `At` / `Insertion` | 標準単体、次数付きの台集合、面の座標写像 |
+| `Simplex.Faces` / `Identities` | 面の連続性と合成恒等式 |
+| `Simplex.Vertices` / `Affine` / `AffineIdentity` / `AffineFaces` | 全頂点、アフィン写像の連続性・合成則、面との整合性 |
+| `Simplex.Interval` | 一次元単体と単位区間の連続な相互逆、端点と面 |
+| `Simplex.Compactness` / `Barycentre` / `Metric` | 閉性・コンパクト性、等重みの重心、最大座標距離と Lebesgue 数 |
+| `Simplex.Convex` / `Contraction` | 凸結合の連続性と指定点への収縮 |
+| `Simplex.Cylinder` / `CylinderAffine` | cylinder 内のアフィン評価、面・頂点・後合成との公式 |
+| `Contraction` / `Interval.Contraction` | 一点とのホモトピー同値、区間の具体的な収縮 |
+| `PathComponent` / `IntervalPaths` / `Functions` | 道成分の商、区間上の道との対応、成分上一定な関数の降下 |
 | `CW` / `Attach` / `Pair` | 有限 CW 複体、セル付着、部分複体と商 |
 
 `FiniteComplex` は特性写像・境界の付着・Hausdorff 条件・弱位相を保持する部分集合型である。

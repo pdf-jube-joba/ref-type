@@ -1,0 +1,33 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition Carrier(n: N.Nat^): \Set := Fin.Fin n -> K;
+\import topology.Topology[Carrier := K] \as Scalars;
+\module At(n: N.Nat^) {
+  \import \root.Coordinates[K := K, I := Fin.Fin n] \as Coordinates;
+  \import topology.Topology[Carrier := Carrier n] \as Space;
+  \definition topology(scalar: Scalars.Topology): Space.Topology := Coordinates.topology scalar;
+}
+\module Step(n: N.Nat^);
+\import Fin.Empty[A := K] \as Empty;
+\import topology.Topology[Carrier := Carrier N.Nat^::zero] \as EmptySpace;
+\import EmptySpace.Compactness[] \as EmptyCompact;
+\definition emptyWhole: EmptySpace.Singleton Empty.function = EmptySpace.Whole :=
+  \axiom:setext(EmptySpace.Singleton Empty.function, EmptySpace.Whole,
+    (\fun (x: Carrier N.Nat^::zero)(_ : x = Empty.function) => \refl(x)),
+    (\fun (x: Carrier N.Nat^::zero)(_ : x = x) => Empty.unique x Empty.function));
+\definition emptyCompact: \forall (scalar: Scalars.Topology) -> EmptySpace.IsCompact (At[n := N.Nat^::zero].topology scalar) :=
+  \fun (scalar: Scalars.Topology) => \idelim EmptySpace.Singleton Empty.function = EmptySpace.Whole
+    \with S: \Pow (Carrier N.Nat^::zero) => EmptySpace.IsCompactIn (At[n := N.Nat^::zero].topology scalar) S
+    \by { base: EmptyCompact.singletonCompact (At[n := N.Nat^::zero].topology scalar) Empty.function, equality: emptyWhole };
+\definition compact: \forall (scalar: Scalars.Topology) -> Scalars.IsCompact scalar -> \forall (n: N.Nat^) ->
+  topology.Topology[Carrier := Carrier n].IsCompact (At[n := n].topology scalar) :=
+  \fun (scalar: Scalars.Topology)(compact: Scalars.IsCompact scalar) =>
+    \induction (n: N.Nat^) \return topology.Topology[Carrier := Carrier n].IsCompact (At[n := n].topology scalar) \with {
+      | zero: emptyCompact scalar
+      | succ: \fun (n: N.Nat^)(previous: _) => Step[n := n].compact scalar compact previous
+    };

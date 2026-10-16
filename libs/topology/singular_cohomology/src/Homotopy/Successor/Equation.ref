@@ -1,0 +1,39 @@
+\import Modules.Laws[V := Codomain.Carrier (N.Nat^::succ n), space := Codomain.space (N.Nat^::succ n)] \as Values;
+\import algebra.Group[].Of[Carrier := Codomain.Carrier (N.Nat^::succ n), group := Values.additive] \as Group;
+\import Modules.Hom[V := Domain.Carrier (N.Nat^::succ n), W := Codomain.Carrier (N.Nat^::succ n), source := Domain.space (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as Linear;
+\import Modules.Hom[V := Codomain.Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Codomain.Carrier (N.Nat^::succ n), source := Codomain.space (N.Nat^::succ (N.Nat^::succ n)), target := Codomain.space (N.Nat^::succ n)]
+  .Composition[U := Domain.Carrier (N.Nat^::succ n), domain := Domain.space (N.Nat^::succ n)] \as First;
+\import Modules.Hom[V := Domain.Carrier n, W := Codomain.Carrier (N.Nat^::succ n), source := Domain.space n, target := Codomain.space (N.Nat^::succ n)]
+  .Composition[U := Domain.Carrier (N.Nat^::succ n), domain := Domain.space (N.Nat^::succ n)] \as Second;
+\import Modules.Free[Generators := Source.Carrier (N.Nat^::succ n)].To[W := Codomain.Carrier (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as Free;
+\definition boundaryMap(f, g: A -> B)(h: Family f g): Linear.Map :=
+  Linear.plus (First.compose (Codomain.boundary (N.Nat^::succ n)) (Higher.map f g h)) (Second.compose (Lower.map f g h) (Domain.boundary n));
+\definition differenceMap(f, g: A -> B)(h: Family f g): Linear.Map :=
+  Linear.plus (Maps.At[n := N.Nat^::succ n].push g (endContinuous f g h)) (Linear.negative (Maps.At[n := N.Nat^::succ n].push f (startContinuous f g h)));
+\definition onGenerator: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n)) ->
+  #apply{(boundaryMap f g h)} (Domain.generator (N.Nat^::succ n) sigma) = #apply{(differenceMap f g h)} (Domain.generator (N.Nat^::succ n) sigma) :=
+  \fun (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n)) => \block {
+    \let x: Domain.Carrier (N.Nat^::succ n) := Domain.generator (N.Nat^::succ n) sigma \then
+    \let p: Codomain.Carrier (N.Nat^::succ n) := #apply{(Lower.map f g h)} (#apply{(Domain.boundary n)} x) \then
+    \let delta: Codomain.Carrier (N.Nat^::succ n) := Group.difference
+      (Codomain.generator (N.Nat^::succ n) (Maps.postcompose (N.Nat^::succ n) g (endContinuous f g h) sigma))
+      (Codomain.generator (N.Nat^::succ n) (Maps.postcompose (N.Nat^::succ n) f (startContinuous f g h) sigma)) \then
+    \return trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Codomain.Carrier (N.Nat^::succ (N.Nat^::succ n))} {Codomain.Carrier (N.Nat^::succ n)}}
+        (\fun (v: Codomain.Carrier (N.Nat^::succ (N.Nat^::succ n))) => Values.add (#apply{(Codomain.boundary (N.Nat^::succ n))} v) p) _ _ (Higher.onGenerator f g h sigma))
+      (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+        (congr!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}} (\fun (v: Codomain.Carrier (N.Nat^::succ n)) => Values.add v p) _ _ (Higher.Boundary[].law f g h sigma))
+        (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+          (congr!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}} (\fun (v: Codomain.Carrier (N.Nat^::succ n)) => Values.add (Group.difference delta v) p) _ _ (prior f g h sigma))
+          (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (Group.addDifference delta p)
+            (congr2!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}} Group.difference _ _ _ _
+              (sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ (Maps.At[n := N.Nat^::succ n].onGenerator g (endContinuous f g h) sigma))
+              (sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ (Maps.At[n := N.Nat^::succ n].onGenerator f (startContinuous f g h) sigma))))))
+  };
+\definition equation: \forall (f, g: A -> B)(h: Family f g) -> boundaryMap f g h = differenceMap f g h :=
+  \fun (f, g: A -> B)(h: Family f g) => Free.ext _ _ (onGenerator f g h);
+\definition law: \forall (f, g: A -> B)(h: Family f g)(x: Domain.Carrier (N.Nat^::succ n)) ->
+  Group.difference (#apply{(Maps.At[n := N.Nat^::succ n].push g (endContinuous f g h))} x) (#apply{(Maps.At[n := N.Nat^::succ n].push f (startContinuous f g h))} x) =
+    Values.add (#apply{(Codomain.boundary (N.Nat^::succ n))} (#apply{(Higher.map f g h)} x)) (#apply{(Lower.map f g h)} (#apply{(Domain.boundary n)} x)) :=
+  \fun (f, g: A -> B)(h: Family f g)(x: Domain.Carrier (N.Nat^::succ n)) => sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _
+    (congr!{Linear.Map {Codomain.Carrier (N.Nat^::succ n)}} (\fun (map: Linear.Map) => #apply{map} x) _ _ (equation f g h));

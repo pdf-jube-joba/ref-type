@@ -1,0 +1,29 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\definition Empty: \Prop := \forall (x: A) -> Logic.False;
+\module With(coefficients: Modules.Bundle) {
+  \import \root.Chains[A := A, source := source] \as Chains;
+  \import \root.Simplices[A := A, source := source] \as Simplices;
+  \import \root.Cochains[A := A, source := source].With[coefficients := coefficients] \as Cochains;
+  \import algebraic_topology.Simplex[] \as Simplex;
+  \module At(n: N.Nat^) {
+    \import Modules.Free[Generators := Simplices.Carrier n].To[W := coefficients.Carrier, target := coefficients.space] \as Free;
+    \import Modules.Hom[V := Chains.Carrier n, W := coefficients.Carrier, source := Chains.space n, target := coefficients.space] \as Maps;
+    \definition emptyCochains: Empty -> \forall (h: Cochains.Carrier n) -> h = #zero{(Cochains.space n)} :=
+      \fun (empty: Empty)(h: Cochains.Carrier n) => Free.ext h Maps.zeroMap
+        (\fun (sigma: Simplices.Carrier n) => Logic.falseElim _ (empty (sigma (Simplex.lastVertex n))));
+    \import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := Cochains.complex, k := n].Vanishing[] \as Vanishing;
+    \definition emptyCohomology: Empty -> \forall (q: Cochains.cohomology n) -> q = #zero{(Cochains.cohomologySpace n)} :=
+      \fun (empty: Empty) => Vanishing.zero (emptyCochains empty);
+    \import Modules.Zero[] \as Zero;
+    \import Modules.Isomorphism[V := Cochains.cohomology n, W := Zero.Carrier, source := Cochains.cohomologySpace n, target := Zero.moduleSpace] \as Iso;
+    \definition emptyIsomorphism(empty: Empty): Iso.Isomorphism := Vanishing.isomorphism (emptyCochains empty);
+  }
+  \definition emptyCohomology: Empty -> \forall (n: N.Nat^)(q: Cochains.cohomology n) -> q = #zero{(Cochains.cohomologySpace n)} :=
+    \fun (empty: Empty)(n: N.Nat^) => At[n := n].emptyCohomology empty;
+  \module Singleton(a: A);
+  \module Contractible;
+}

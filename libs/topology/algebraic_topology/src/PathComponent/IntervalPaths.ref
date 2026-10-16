@@ -1,0 +1,29 @@
+\import \root.Interval[] \as Interval;
+\import \root.Cylinder[A := Point] \as Cylinder;
+\import topology.Continuity[A := Interval.Carrier, B := A] \as Maps;
+\import topology.Composition[A := Cylinder.Carrier, B := Interval.Carrier, C := A] \as FromInterval;
+\import topology.Composition[A := Interval.Carrier, B := Cylinder.Carrier, C := A] \as IntoInterval;
+\import topological_constructions.Product[A := Interval.Carrier, B := Point].Universal[X := Interval.Carrier] \as Pair;
+\import topology.Maps[A := Interval.Carrier, B := Interval.Carrier].Identity[] \as Identity;
+\import topology.Maps[A := Interval.Carrier, B := Point] \as Constants;
+\definition ofFunction(x, y: A)(f: Interval.Carrier -> A)(continuous: Maps.Continuous Interval.topology source f)
+  (start: f Interval.start = x)(end: f Interval.end = y): Path x y :=
+  \into[Homotopy.Family]((\fun (p: Cylinder.Carrier) => f (Cylinder.time p)), Path x y) \by {
+    Homotopy.Laws[PointSpace.Discrete, source, constant x, constant y, \fun (p: Cylinder.Carrier) => f (Cylinder.time p)] {
+      continuous := FromInterval.composeContinuous (Cylinder.topology PointSpace.Discrete) Interval.topology source Cylinder.time f
+        (Cylinder.timeContinuous PointSpace.Discrete) continuous,
+      start := \fun (_: Point) => start,
+      end := \fun (_: Point) => end,
+    }
+  };
+\definition evaluate(x, y: A)(h: Path x y)(t: Interval.Carrier): A := h (Cylinder.at t Point::point);
+\definition continuous: \forall (x, y: A)(h: Path x y) -> Maps.Continuous Interval.topology source (evaluate x y h) :=
+  \fun (x, y: A)(h: Path x y) => IntoInterval.composeContinuous Interval.topology (Cylinder.topology PointSpace.Discrete) source
+    (\fun (t: Interval.Carrier) => Cylinder.at t Point::point) h
+    (Pair.pairContinuous Interval.topology Interval.topology PointSpace.Discrete (\fun (t: Interval.Carrier) => t) (\fun (_: Interval.Carrier) => Point::point)
+      (Identity.continuous Interval.topology) (Constants.constantContinuous Interval.topology PointSpace.Discrete Point::point))
+    (#continuous{(Homotopy.laws PointSpace.Discrete source (constant x) (constant y) h)});
+\definition start: \forall (x, y: A)(h: Path x y) -> evaluate x y h Interval.start = x :=
+  \fun (x, y: A)(h: Path x y) => #start{(Homotopy.laws PointSpace.Discrete source (constant x) (constant y) h)} Point::point;
+\definition end: \forall (x, y: A)(h: Path x y) -> evaluate x y h Interval.end = y :=
+  \fun (x, y: A)(h: Path x y) => #end{(Homotopy.laws PointSpace.Discrete source (constant x) (constant y) h)} Point::point;

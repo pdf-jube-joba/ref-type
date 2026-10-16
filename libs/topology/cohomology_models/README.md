@@ -1,0 +1,16 @@
+# 特異コホモロジーの利用例
+
+`singular_cohomology` の公開 API を別パッケージから検査する。
+
+| module | 検査する内容 |
+| --- | --- |
+| `Basic` | 定数特異単体、代表余鎖の値、鎖・余鎖の二乗の零性、増大複体の次数 \(-1\)、増大の右逆、空空間・一点・区間の計算、道成分による零次の表示、被約ホモロジーの負一次の規約。 |
+| `Relative` | 部分空間の鎖が商で零になること、相対微分の二乗の零性、係数付き相対群、長完全列の接続写像と完全性、部分空間で零になる余鎖との同型、余鎖の短完全列とコホモロジー長完全列。 |
+| `Coefficients` | 係数短完全列からの Bockstein 接続写像と完全性。 |
+| `Maps` | 連続写像が鎖の生成元に誘導する写像、係数付き余鎖写像の代表元での評価と恒等写像のコホモロジーでの作用。 |
+
+```sh
+target/debug/cli libs/topology/cohomology_models --module cohomology_models --diagnostics compact
+```
+
+依存先と共通の `libs/refcache/` を利用する。

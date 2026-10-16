@@ -1,0 +1,38 @@
+\import Complexes.At[C := Cochains.complex, k := N.Nat^::zero] \as H;
+\import \parent.Degree[n := N.Nat^::zero] \as Degree;
+\import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := coefficients.Carrier, target := coefficients.space] \as Free;
+\import Modules.Free[Generators := Simplices.Carrier (N.Nat^::succ N.Nat^::zero)].To[W := coefficients.Carrier, target := coefficients.space] \as FreeEdges;
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ N.Nat^::zero), W := coefficients.Carrier, source := Chains.space (N.Nat^::succ N.Nat^::zero), target := coefficients.space] \as EdgeMaps;
+\definition constantClosed: \forall (v: coefficients.Carrier) -> Cochains.coboundary N.Nat^::zero (constant N.Nat^::zero v) = #zero{(Cochains.space (N.Nat^::succ N.Nat^::zero))} :=
+  \fun (v: coefficients.Carrier) => FreeEdges.ext (Cochains.coboundary N.Nat^::zero (constant N.Nat^::zero v)) EdgeMaps.zeroMap
+    (\fun (sigma: Simplices.Carrier (N.Nat^::succ N.Nat^::zero)) => trans!{coefficients.Carrier} _ _ _
+      (Degree.constantCoboundary v sigma) (Group.subtractDifference v Values.zero));
+\definition cycle(v: coefficients.Carrier): H.CycleCarrier := H.cycle (constant N.Nat^::zero v) (constantClosed v);
+\import Cochains.At[n := N.Nat^::zero] \as Cochain;
+\import Modules.Hom[V := coefficients.Carrier, W := H.CycleCarrier, source := coefficients.space, target := H.cycleSpace] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := cycle,
+  addition := \fun (v, w: coefficients.Carrier) => #addition{Cochain.extension} (\fun (_: Simplices.Carrier N.Nat^::zero) => v) (\fun (_: Simplices.Carrier N.Nat^::zero) => w),
+  scalar := \fun (a: I.Int^)(v: coefficients.Carrier) => #scalar{Cochain.extension} a (\fun (_: Simplices.Carrier N.Nat^::zero) => v),
+};
+\import Modules.Hom[V := H.CycleCarrier, W := coefficients.Carrier, source := H.cycleSpace, target := coefficients.space] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (h: H.CycleCarrier) => value N.Nat^::zero h,
+  addition := \fun (h, k: H.CycleCarrier) => \refl(Values.add (value N.Nat^::zero h) (value N.Nat^::zero k)),
+  scalar := \fun (a: I.Int^)(h: H.CycleCarrier) => \refl(Values.scale a (value N.Nat^::zero h)),
+};
+\definition leftInverse: \forall (v: coefficients.Carrier) -> value N.Nat^::zero (cycle v) = v :=
+  \fun (v: coefficients.Carrier) => onGenerator N.Nat^::zero v (simplex N.Nat^::zero);
+\definition rightInverse: Unique -> \forall (h: H.CycleCarrier) -> cycle (value N.Nat^::zero h) = h :=
+  \fun (unique: Unique)(h: H.CycleCarrier) => Free.ext (cycle (value N.Nat^::zero h)) h
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _
+      (onGenerator N.Nat^::zero (value N.Nat^::zero h) sigma) (sym!{coefficients.Carrier} _ _ (uniform unique N.Nat^::zero h sigma)));
+\import Modules.Isomorphism[V := coefficients.Carrier, W := H.CycleCarrier, source := coefficients.space, target := H.cycleSpace] \as CyclesIso;
+\definition cyclesIsomorphism(unique: Unique): CyclesIso.Isomorphism := CyclesIso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := leftInverse, rightInverse := rightInverse unique,
+};
+\import Complexes.DegreeZero[C := Cochains.complex] \as DegreeZero;
+\import CyclesIso.Composition[U := H.Cohomology, final := H.cohomologySpace] \as Composition;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := H.Cohomology, source := coefficients.space, target := H.cohomologySpace] \as Iso;
+\definition isomorphism(unique: Unique): Iso.Isomorphism := Composition.compose DegreeZero.kernelIso (cyclesIsomorphism unique);

@@ -1,0 +1,28 @@
+\import \parent.At[n := n] \as Space;
+\import \parent.Compactness[n := n] \as Compact;
+\import topological_algebra.Euclidean[].Dimension[n := N.Nat^::succ n] \as Euclidean;
+\import Euclidean.Norm[] \as Norm;
+\import Euclidean.Topology[] \as AmbientTopology;
+\import topology.Topology[Carrier := Coordinate (N.Nat^::succ n)] \as Ambient;
+\import Ambient.Ext[] \as AmbientExt;
+\import Ambient.Subspace[S := Points n] \as Subspace;
+\import metric_spaces.MetricSpace[Carrier := Coordinate (N.Nat^::succ n)].Subspace[S := Points n] \as Restriction;
+\import metric_spaces.MetricSpace[Carrier := Carrier n] \as Metrics;
+\import Metrics.Topology[] \as Topology;
+\import Metrics.Compactness[] \as Compactness;
+\definition metric: Metrics.Metric := Restriction.restrict Norm.metric;
+\definition ambientTopology: Space.ambientTopology = AmbientTopology.topology := AmbientExt.law _ _ AmbientTopology.coordinateMetricAgreement;
+\definition topology: Topology.topology metric = Space.topology :=
+  trans!{topology.Topology[Carrier := Carrier n].Topology} _ _ _ (Restriction.topology Norm.metric)
+    (congr!{Ambient.Topology {topology.Topology[Carrier := Carrier n].Topology}} Subspace.topology _ _ (sym!{Ambient.Topology} _ _ ambientTopology));
+\definition compact: topology.Topology[Carrier := Carrier n].IsCompact (Topology.topology metric) :=
+  \idelim Space.topology = Topology.topology metric \with t: topology.Topology[Carrier := Carrier n].Topology => topology.Topology[Carrier := Carrier n].IsCompact t
+    \by { base: Compact.compact, equality: sym!{topology.Topology[Carrier := Carrier n].Topology} _ _ topology };
+\definition lebesgue: \forall (family: \Pow (\Pow (Carrier n))) -> topology.Topology[Carrier := Carrier n].IsOpenCover[Space.topology, family, topology.Topology[Carrier := Carrier n].Whole] ->
+  \exists { radius: Real.Real \where Compactness.LebesgueRadius[metric, family, radius] } :=
+  \fun (family: \Pow (\Pow (Carrier n)))(cover: topology.Topology[Carrier := Carrier n].IsOpenCover[Space.topology, family, topology.Topology[Carrier := Carrier n].Whole]) =>
+    Compactness.lebesgue metric compact family
+      (\idelim Space.topology = Topology.topology metric \with t: topology.Topology[Carrier := Carrier n].Topology => topology.Topology[Carrier := Carrier n].IsOpenCover[t, family, topology.Topology[Carrier := Carrier n].Whole]
+        \by { base: cover, equality: sym!{topology.Topology[Carrier := Carrier n].Topology} _ _ topology });
+\definition coordinateDistance: \forall (x, y: Carrier n)(i: Fin.Fin (N.Nat^::succ n)) -> R.Le (Real.distance (x i) (y i)) (#distance{metric} x y) :=
+  \fun (x, y: Carrier n) => Norm.coordinateDistance x y;

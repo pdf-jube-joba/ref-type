@@ -1,0 +1,38 @@
+\import \parent.At[n := m] \as Source;
+\import \parent.At[n := n] \as Target;
+\use Equality.eq_reason;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import topology.Continuity[A := Carrier m, B := Carrier n] \as Maps;
+\definition Vertices: \Set := Fin.Fin (N.Nat^::succ m) -> Carrier n;
+\definition coordinates(vertices: Vertices)(x: Carrier m): Coordinate (N.Nat^::succ n) :=
+  \fun (j: Fin.Fin (N.Nat^::succ n)) => Sums.sum (N.Nat^::succ m)
+    (\fun (i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) (vertices i j));
+\definition positive: \forall (vertices: Vertices)(x: Carrier m)(j: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (coordinates vertices x j) :=
+  \fun (vertices: Vertices)(x: Carrier m)(j: _) => Sums.nonnegative (N.Nat^::succ m) _
+    (\fun (i: Fin.Fin (N.Nat^::succ m)) => Laws.fieldMulNonnegative (x i) (vertices i j)
+      (#nonnegative{(barycentric m x)} i) (#nonnegative{(barycentric n (vertices i))} j));
+\definition total: \forall (vertices: Vertices)(x: Carrier m) -> Sums.sum (N.Nat^::succ n) (coordinates vertices x) = Real.one :=
+  \fun (vertices: Vertices)(x: Carrier m) => trans!{Real.Real} _ _ _
+    (Sums.exchange (N.Nat^::succ n) (N.Nat^::succ m) (\fun (j: Fin.Fin (N.Nat^::succ n))(i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) (vertices i j)))
+    (trans!{Real.Real} _ _ _
+      (Sums.congruent (N.Nat^::succ m) _ x (\fun (i: Fin.Fin (N.Nat^::succ m)) => trans!{Real.Real} _ _ _
+        (Sums.scalar (N.Nat^::succ n) (x i) (vertices i))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (x i)) _ _ (#total{(barycentric n (vertices i))})) (Algebra.mulOneRight (x i)))))
+      (#total{(barycentric m x)}));
+\definition apply(vertices: Vertices)(x: Carrier m): Carrier n :=
+  \into[Coordinate (N.Nat^::succ n)](coordinates vertices x, Points n) \by {
+    Barycentric[N.Nat^::succ n, coordinates vertices x] { nonnegative := positive vertices x, total := total vertices x }
+  };
+\import metric_spaces.RealFunctions[A := Carrier m] \as Functions;
+\import Functions.Product[] \as Product;
+\import Functions.FiniteSums[] \as ContinuousSums;
+\import topological_algebra.Coordinates[K := Real.Real, I := Fin.Fin (N.Nat^::succ n)].Universal[A := Carrier m] \as Ambient;
+\import topology.Continuity[A := Carrier m, B := Coordinate (N.Nat^::succ n)].Corestriction[S := Points n] \as Into;
+\definition continuous: \forall (vertices: Vertices) -> Maps.Continuous Source.topology Target.topology (apply vertices) :=
+  \fun (vertices: Vertices) => Into.corestrictContinuous Source.topology Target.ambientTopology (apply vertices)
+    (Ambient.continuous Source.topology Line.topology (\fun (x: Carrier m) => coordinates vertices x)
+      (\fun (j: Fin.Fin (N.Nat^::succ n)) => ContinuousSums.continuous Source.topology (N.Nat^::succ m)
+        (\fun (i: Fin.Fin (N.Nat^::succ m))(x: Carrier m) => Real.mul (x i) (vertices i j))
+        (\fun (i: Fin.Fin (N.Nat^::succ m)) => Product.continuous Source.topology (\fun (x: Carrier m) => x i)
+          (\fun (_: Carrier m) => vertices i j) (Source.coordinateContinuous i) (Functions.constantContinuous Source.topology (vertices i j)))));
+\module Composition(k: N.Nat^);

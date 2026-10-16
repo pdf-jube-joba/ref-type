@@ -1,0 +1,43 @@
+\definition CarrierSet: \Set := \Cast[Carrier] S;
+\import \root.MetricSpace[Carrier := CarrierSet] \as Submetric;
+\import Submetric.Topology[] \as Subtopology;
+\import \parent.Topology[] \as Ambient;
+\import T.Subspace[S := S] \as Subspace;
+\import topology.Topology[Carrier := CarrierSet] \as Space;
+\import Space.Ext[] \as Ext;
+\use Logic.either;
+\definition restrict(metric: Metric): Submetric.Metric := Submetric.Metric {
+  distance := \fun (x, y: CarrierSet) => #distance{metric} x y,
+  nonnegative := \fun (x, y: CarrierSet) => #nonnegative{metric} x y,
+  self := \fun (x: CarrierSet) => #self{metric} x,
+  separated := \fun (x, y: CarrierSet) => #separated{metric} x y,
+  symmetric := \fun (x, y: CarrierSet) => #symmetric{metric} x y,
+  triangle := \fun (x, y, z: CarrierSet) => #triangle{metric} x y z,
+};
+\definition metricOpen: \forall (metric: Metric)(U: \Pow CarrierSet) -> Submetric.IsOpen (restrict metric) U -> Space.IsOpenIn (Subspace.topology (Ambient.topology metric)) U :=
+  \fun (metric: Metric)(U: \Pow CarrierSet)(open: Submetric.IsOpen (restrict metric) U) => Space.openOfNeighborhoods (Subspace.topology (Ambient.topology metric)) U (\block {
+    \fun (x: CarrierSet)(inside: Space.Member U x) \then
+    \takefrom r: \Cast[R.Real] (Submetric.NeighborhoodRadius (restrict metric) U x) \by open x inside \then
+    \let radius: Logic.And[R.Lt Real.zero r, Space.Subset (Submetric.Ball (restrict metric) x r) U] := \bysub(R.Real, Submetric.NeighborhoodRadius (restrict metric) U x, r) \then
+    \return Logic.existsIntro[\Pow CarrierSet, { V: \Pow CarrierSet \where Space.OpenNeighborhood[Subspace.topology (Ambient.topology metric), x, U, V] }] (Subspace.Trace (Ball metric x r))
+      (Space.OpenNeighborhood[Subspace.topology (Ambient.topology metric), x, U, Subspace.Trace (Ball metric x r)] {
+        open := Subspace.traceOpen (Ambient.topology metric) (Ball metric x r) (Ambient.ballOpen metric x r),
+        contains := ballCenter metric x r #left{radius}, within := #right{radius},
+      })
+  });
+\definition subspaceOpen: \forall (metric: Metric)(U: \Pow CarrierSet) -> Space.IsOpenIn (Subspace.topology (Ambient.topology metric)) U -> Submetric.IsOpen (restrict metric) U :=
+  \fun (metric: Metric)(U: \Pow CarrierSet)(open: Space.IsOpenIn (Subspace.topology (Ambient.topology metric)) U) =>
+    Subspace.openTraceElim (Ambient.topology metric) U (Submetric.IsOpen (restrict metric) U)
+      (\fun (V: \Pow Carrier)(openV: T.IsOpenIn (Ambient.topology metric) V)(same: U = Subspace.Trace V)(x: CarrierSet)(inside: Space.Member U x) => \block {
+        \let inV: T.Member V x := \idelim U = Subspace.Trace V \with W: \Pow CarrierSet => Space.Member W x \by { base: inside, equality: same } \then
+        \takefrom r: \Cast[R.Real] (NeighborhoodRadius metric V x) \by openV x inV \then
+        \let radius: Logic.And[R.Lt Real.zero r, T.Subset (Ball metric x r) V] := \bysub(R.Real, NeighborhoodRadius metric V x, r) \then
+        \return Subtopology.openOfRadius (restrict metric) U x r #left{radius}
+          (\fun (y: CarrierSet)(near: Space.Member (Submetric.Ball (restrict metric) x r) y) =>
+            \idelim Subspace.Trace V = U \with W: \Pow CarrierSet => Space.Member W y
+              \by { base: #right{radius} y near, equality: sym!{\Pow CarrierSet} _ _ same })
+      }) (Subspace.openRepresentation (Ambient.topology metric) U open);
+\definition compatible: \forall (metric: Metric) -> Subtopology.Compatible (restrict metric) (Subspace.topology (Ambient.topology metric)) :=
+  \fun (metric: Metric)(U: \Pow CarrierSet) => Logic.PropEquiv[_, _] { ltr := subspaceOpen metric U, rtl := metricOpen metric U };
+\definition topology: \forall (metric: Metric) -> Subtopology.topology (restrict metric) = Subspace.topology (Ambient.topology metric) :=
+  \fun (metric: Metric) => Ext.law _ _ (\fun (U: \Pow CarrierSet) => Logic.PropEquiv[_, _] { ltr := metricOpen metric U, rtl := subspaceOpen metric U });

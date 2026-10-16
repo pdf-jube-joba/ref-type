@@ -1,0 +1,32 @@
+\import \root.OrderedTuples[V := V] \as Domain;
+\import \root.OrderedTuples[V := W] \as Codomain;
+\import Domain.Mapping[W := W] \as Mapping;
+\import Codomain.Subdivision[centres := targetCentres] \as Other;
+\definition Preserves(f: V -> W): \Prop := \forall (n: N.Nat^)(v: Tuple (N.Nat^::succ n)) ->
+  f (centres n v) = targetCentres n (Mapping.onTuple (N.Nat^::succ n) f v);
+\definition Property(n: N.Nat^): \Prop := \forall (f: V -> W) -> Preserves f -> \forall (x: Carrier n) ->
+  #apply{(Mapping.push n f)} (#apply{(map n)} x) = #apply{(Other.map n)} (#apply{(Mapping.push n f)} x);
+\module At(n: N.Nat^) {
+  \import Modules.Hom[V := Carrier n, W := Codomain.Carrier n, source := space n, target := Codomain.space n].Composition[U := Carrier n, domain := space n] \as First;
+  \import Modules.Hom[V := Codomain.Carrier n, W := Codomain.Carrier n, source := Codomain.space n, target := Codomain.space n].Composition[U := Carrier n, domain := space n] \as Second;
+  \import Modules.Free[Generators := Tuple n].To[W := Codomain.Carrier n, target := Codomain.space n] \as Free;
+  \import Modules.Hom[V := Carrier n, W := Codomain.Carrier n, source := space n, target := Codomain.space n] \as Maps;
+  \definition OnValues: \Prop := \forall (f: V -> W) -> Preserves f -> \forall (v: Tuple n) ->
+    #apply{(Mapping.push n f)} (value n v) = Other.value n (Mapping.onTuple n f v);
+  \definition extend: OnValues -> Property n := \block {
+    \fun (values: OnValues)(f: V -> W)(preserves: Preserves f) \then
+    \let same: First.compose (Mapping.push n f) (map n) = Second.compose (Other.map n) (Mapping.push n f) :=
+      Free.ext _ _ (\fun (v: Tuple n) => trans!{{Codomain.Carrier n}} _ _ _
+        (congr!{{Carrier n} {Codomain.Carrier n}} (#apply{(Mapping.push n f)}) _ _ (onGenerator n v))
+        (trans!{{Codomain.Carrier n}} _ _ _ (values f preserves v)
+          (trans!{{Codomain.Carrier n}} _ _ _ (sym!{{Codomain.Carrier n}} _ _ (Other.onGenerator n (Mapping.onTuple n f v)))
+            (congr!{{Codomain.Carrier n} {Codomain.Carrier n}} (#apply{(Other.map n)}) _ _ (sym!{{Codomain.Carrier n}} _ _ (Mapping.At[n := n].onGenerator f v)))))) \then
+    \return \fun (x: Carrier n) => congr!{Maps.Map {Codomain.Carrier n}} (\fun (arrow: Maps.Map) => #apply{arrow} x) _ _ same
+  };
+}
+\module Step(n: N.Nat^);
+\definition law: \forall (n: N.Nat^) -> Property n :=
+  \induction (n: N.Nat^) \return Property n \with {
+    | zero: At[n := N.Nat^::zero].extend (\fun (f: V -> W)(preserves: Preserves f)(v: Tuple N.Nat^::zero) => Mapping.At[n := N.Nat^::zero].onGenerator f v)
+    | succ: \fun (n: N.Nat^)(previous: Property n) => At[n := N.Nat^::succ n].extend (Step[n := n].law previous)
+  };

@@ -1,0 +1,26 @@
+\definition law: (\forall (f: Fin.Fin (N.Nat^::succ n) -> Fin.Fin n -> V) -> PairIdentity n f ->
+  sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => sum n (f i)) = Values.zero) ->
+  \forall (f: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> Fin.Fin (N.Nat^::succ n) -> V) -> PairIdentity (N.Nat^::succ n) f ->
+    sum (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => sum (N.Nat^::succ n) (f i)) = Values.zero :=
+  \fun (previous: _)(f: _)(pairs: _) => \block {
+    \let row: Fin.Fin (N.Nat^::succ n) -> V := f (Fin.zero (N.Nat^::succ n)) \then
+    \let column: Fin.Fin (N.Nat^::succ n) -> V := \fun (i: Fin.Fin (N.Nat^::succ n)) => f (Fin.succ (N.Nat^::succ n) i) (Fin.zero n) \then
+    \let grid: Fin.Fin (N.Nat^::succ n) -> Fin.Fin n -> V :=
+      \fun (i: Fin.Fin (N.Nat^::succ n))(j: Fin.Fin n) => f (Fin.succ (N.Nat^::succ n) i) (Fin.succ n j) \then
+    \let rowEqualsColumn: sum (N.Nat^::succ n) row = sum (N.Nat^::succ n) column :=
+      congruent (N.Nat^::succ n) row column (\fun (j: Fin.Fin (N.Nat^::succ n)) => pairs (Fin.zero n) j (Bounds.zeroLe j)) \then
+    \let gridZero: sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => sum n (grid i)) = Values.zero :=
+      previous grid (\fun (i, j: Fin.Fin n)(ordered: Bounds.Le i j) => pairs (Fin.succ n i) (Fin.succ n j) ordered) \then
+    \return eq_reason!{
+      {Group.difference (sum (N.Nat^::succ n) row)
+        (sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => Group.difference (column i) (sum n (grid i))))}
+      "=" {Group.difference (sum (N.Nat^::succ n) column)
+        (Group.difference (sum (N.Nat^::succ n) column)
+          (sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => sum n (grid i))))} "by" {
+        congr2!{V V V} Group.difference _ _ _ _ rowEqualsColumn
+          (subtraction (N.Nat^::succ n) column (\fun (i: Fin.Fin (N.Nat^::succ n)) => sum n (grid i)))}
+      "=" {Group.difference (sum (N.Nat^::succ n) column) (Group.difference (sum (N.Nat^::succ n) column) Values.zero)} "by" {
+        congr!{V V} (\fun (v: V) => Group.difference (sum (N.Nat^::succ n) column) (Group.difference (sum (N.Nat^::succ n) column) v)) _ _ gridZero}
+      "=" {Values.zero} "by" {Group.subtractDifference (sum (N.Nat^::succ n) column) Values.zero}
+    }
+  };

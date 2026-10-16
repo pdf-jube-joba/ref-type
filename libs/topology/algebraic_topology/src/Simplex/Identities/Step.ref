@@ -1,0 +1,42 @@
+\definition successor: (\forall (i, j: Fin.Fin (N.Nat^::succ n))(x: Coordinate n) -> Bounds.Le i j -> Interchange n i j x) ->
+  \forall (i, j: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)) -> Bounds.Le i j ->
+    Interchange (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) i) (Fin.succ (N.Nat^::succ n) j) x :=
+  \fun (previous: _)(i, j: _)(x: _)(ordered: _) => \block {
+    \let head: Real.Real := x (Fin.zero n) \then
+    \let tail: Coordinate n := \fun (k: Fin.Fin n) => x (Fin.succ n k) \then
+    \return eq_reason!{
+      {insertZero (N.Nat^::succ (N.Nat^::succ n)) (widen (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ n) i))
+        (insertZero (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) j) x)}
+      "=" {insertZero (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (widen (N.Nat^::succ n) i))
+        (Tuples.extend (N.Nat^::succ n) head (insertZero n j tail))} "by" {
+          congr!{{Coordinate (N.Nat^::succ (N.Nat^::succ n))} {Coordinate (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))}}
+            (insertZero (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (widen (N.Nat^::succ n) i))) _ _
+            (insertionTail n j x)}
+      "=" {Tuples.extend (N.Nat^::succ (N.Nat^::succ n)) head
+        (insertZero (N.Nat^::succ n) (widen (N.Nat^::succ n) i) (insertZero n j tail))} "by" {
+          insertionExtended (N.Nat^::succ n) (widen (N.Nat^::succ n) i) head (insertZero n j tail)}
+      "=" {Tuples.extend (N.Nat^::succ (N.Nat^::succ n)) head
+        (insertZero (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) j) (insertZero n i tail))} "by" {
+          congr!{{Coordinate (N.Nat^::succ (N.Nat^::succ n))} {Coordinate (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))}}
+            (Tuples.extend (N.Nat^::succ (N.Nat^::succ n)) head) _ _ (previous i j tail ordered)}
+      "=" {insertZero (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ n) j))
+        (Tuples.extend (N.Nat^::succ n) head (insertZero n i tail))} "by" {
+          sym!{{Coordinate (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))}} _ _
+            (insertionExtended (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) j) head (insertZero n i tail))}
+      "=" {insertZero (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ n) j))
+        (insertZero (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) i) x)} "by" {
+          congr!{{Coordinate (N.Nat^::succ (N.Nat^::succ n))} {Coordinate (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))}}
+            (insertZero (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ n) j))) _ _
+            (sym!{{Coordinate (N.Nat^::succ (N.Nat^::succ n))}} _ _ (insertionTail n i x))}
+    }
+  };
+\definition law: (\forall (i, j: Fin.Fin (N.Nat^::succ n))(x: Coordinate n) -> Bounds.Le i j -> Interchange n i j x) ->
+  \forall (i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(x: Coordinate (N.Nat^::succ n)) -> Bounds.Le i j -> Interchange (N.Nat^::succ n) i j x :=
+  \fun (previous: _) => cases (N.Nat^::succ n)
+    (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(x: Coordinate (N.Nat^::succ n)) -> Bounds.Le i j -> Interchange (N.Nat^::succ n) i j x)
+    (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(x: Coordinate (N.Nat^::succ n))(ordered: _) => insertionBeforeHead (N.Nat^::succ n) j x)
+    (\fun (i: Fin.Fin (N.Nat^::succ n)) => cases (N.Nat^::succ n)
+      (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (x: Coordinate (N.Nat^::succ n)) -> Bounds.Le (Fin.succ (N.Nat^::succ n) i) j ->
+        Interchange (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) i) j x)
+      (\fun (x: _)(impossible: _) => Logic.falseElim _ (Bounds.succNeZero i (Bounds.leZeroEq (N.Nat^::succ i) impossible)))
+      (\fun (j: Fin.Fin (N.Nat^::succ n)) => successor previous i j));

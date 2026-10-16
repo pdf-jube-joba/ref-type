@@ -35,6 +35,7 @@
 | [topology/topological_constructions](topology/topological_constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 |
 | [topology/topological_algebra](topology/topological_algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
 | [topology/algebraic_topology](topology/algebraic_topology/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |
+| [topology/singular_cohomology](topology/singular_cohomology/README.md) | `singular_cohomology` | 特異鎖・余鎖、相対・被約理論、ホモトピー不変性、道成分と可縮空間 |
 
 標準の実数は `dedekind_reals` から `real` に渡す。
 共通の数値補題は `real.Analysis`、演算と法則の分離には `Def` / `Prop`、等式連鎖には [eq_reason!](std/README.md#等式と合同則) を使う。
@@ -50,3 +51,5 @@ cargo run -p cli -- libs/std --module std.Data.Nat
 再検査・資源制限・進捗は [利用方法](../src/USAGE.md#検査とキャッシュ) を参照。
 
 具体例は [複体](algebra/homological/concrete_complexes/README.md)、[座標計算](geometry/coordinate_calculus/README.md)、[cell_spaces](topology/cell_spaces/src/root.ref)、[スカラーの互換性](analysis/scalar_compatibility/README.md)、[小さい圏](category/src/SmallCategories.ref) と [終対象の圏の極限](category/src/TerminalLimits.ref) にある。
+
+[特異コホモロジーの利用例](topology/cohomology_models/README.md)は代表余鎖、相対接続、係数付き誘導写像、道成分と空空間・一点・区間の計算を検査する。

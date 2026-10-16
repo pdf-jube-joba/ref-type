@@ -1,0 +1,40 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import Modules.Alternating[V := coefficients.Carrier, space := coefficients.space] \as Sums;
+\import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
+\import algebra.Group[].Of[Carrier := coefficients.Carrier, group := Values.additive] \as Group;
+\definition Unique: \Prop := \forall (x: A) -> x = a;
+\definition simplex(n: N.Nat^): Simplices.Carrier n := Simplices.At[n := n].constant a;
+\definition simplexUnique: Unique -> \forall (n: N.Nat^)(sigma: Simplices.Carrier n) -> sigma = simplex n :=
+  \fun (unique: Unique)(n: N.Nat^)(sigma: Simplices.Carrier n) => Simplices.ext n sigma (simplex n)
+    (\fun (x: Simplex.Carrier n) => unique (sigma x));
+\definition constant(n: N.Nat^)(v: coefficients.Carrier): Cochains.Carrier n := Cochains.At[n := n].extend (\fun (_: Simplices.Carrier n) => v);
+\definition value(n: N.Nat^)(h: Cochains.Carrier n): coefficients.Carrier := #apply{h} (Chains.generator n (simplex n));
+\definition onGenerator: \forall (n: N.Nat^)(v: coefficients.Carrier)(sigma: Simplices.Carrier n) ->
+  #apply{(constant n v)} (Chains.generator n sigma) = v :=
+  \fun (n: N.Nat^)(v: coefficients.Carrier) => Cochains.At[n := n].onGenerator (\fun (_: Simplices.Carrier n) => v);
+\definition uniform: Unique -> \forall (n: N.Nat^)(h: Cochains.Carrier n)(sigma: Simplices.Carrier n) ->
+  #apply{h} (Chains.generator n sigma) = value n h :=
+  \fun (unique: Unique)(n: N.Nat^)(h: Cochains.Carrier n)(sigma: Simplices.Carrier n) =>
+    congr!{{Simplices.Carrier n} coefficients.Carrier} (\fun (tau: Simplices.Carrier n) => #apply{h} (Chains.generator n tau)) _ _ (simplexUnique unique n sigma);
+\definition consecutive: \forall (n: N.Nat^)(v: coefficients.Carrier) ->
+  Values.add (Sums.sum (N.Nat^::succ n) (\fun (_: Fin.Fin (N.Nat^::succ n)) => v)) (Sums.sum n (\fun (_: Fin.Fin n) => v)) = v :=
+  \fun (n: N.Nat^)(v: coefficients.Carrier) => Group.addDifference v (Sums.sum n (\fun (_: Fin.Fin n) => v));
+\definition previousSum: \forall (n: N.Nat^)(v: coefficients.Carrier) ->
+  Sums.sum (N.Nat^::succ n) (\fun (_: Fin.Fin (N.Nat^::succ n)) => v) = Values.zero ->
+  Sums.sum n (\fun (_: Fin.Fin n) => v) = v :=
+  \fun (n: N.Nat^)(v: coefficients.Carrier)(zero: _) => trans!{coefficients.Carrier} _ _ _
+    (sym!{coefficients.Carrier} _ _ (Values.zeroLeft (Sums.sum n (\fun (_: Fin.Fin n) => v))))
+    (trans!{coefficients.Carrier} _ _ _
+      (congr!{coefficients.Carrier coefficients.Carrier} (\fun (x: coefficients.Carrier) => Values.add x (Sums.sum n (\fun (_: Fin.Fin n) => v))) _ _ (sym!{coefficients.Carrier} _ _ zero))
+      (consecutive n v));
+\module Degree(n: N.Nat^);
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\module Zero;
+\module Positive(n: N.Nat^);
+\definition positiveCohomology: Unique -> \forall (n: N.Nat^)(q: Cochains.cohomology (N.Nat^::succ n)) ->
+  q = #zero{(Cochains.cohomologySpace (N.Nat^::succ n))} :=
+  \fun (unique: Unique)(n: N.Nat^) => Positive[n := n].zero unique;

@@ -1,0 +1,19 @@
+\import \parent.\parent.At[m := m] \as Lower;
+\import \parent.\parent.At[m := N.Nat^::succ m] \as Higher;
+\import \parent.\parent.Boundary[m := m] \as Evaluation;
+\import Modules.Alternating[V := Chains.Carrier m, space := Chains.space m] \as Sum;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ m), W := Chains.Carrier m, source := Tuples.space (N.Nat^::succ m), target := Chains.space m]
+  .Composition[U := Tuples.Carrier (N.Nat^::succ m), domain := Tuples.space (N.Nat^::succ m)] \as Compose;
+\import Modules.Alternating[V := Tuples.Carrier (N.Nat^::succ m), space := Tuples.space (N.Nat^::succ m)].Mapping[W := Chains.Carrier m, target := Chains.space m] \as Mapping;
+\definition evaluated: Modules.Hom[V := Tuples.Carrier (N.Nat^::succ m), W := Chains.Carrier m, source := Tuples.space (N.Nat^::succ m), target := Chains.space m].Map :=
+  Compose.compose Lower.map (Subdivision.map (N.Nat^::succ m));
+\definition law: \forall (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m))) ->
+  #apply{(Chains.boundary m)} (#apply{Higher.map} (#apply{(Subdivision.map (N.Nat^::succ (N.Nat^::succ m)))} (Tuples.generator (N.Nat^::succ (N.Nat^::succ m)) v))) =
+    Sum.sum (N.Nat^::succ (N.Nat^::succ m)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m))) => #apply{evaluated} (Tuples.generator (N.Nat^::succ m) (Omission.omit (N.Nat^::succ m) i v))) :=
+  \fun (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m))) => trans!{{Chains.Carrier m}} _ _ _
+    (Evaluation.commutes (#apply{(Subdivision.map (N.Nat^::succ (N.Nat^::succ m)))} (Tuples.generator (N.Nat^::succ (N.Nat^::succ m)) v)))
+    (trans!{{Chains.Carrier m}} _ _ _
+      (congr!{{Tuples.Carrier (N.Nat^::succ m)} {Chains.Carrier m}} (#apply{Lower.map}) _ _ (Subdivision.commutes (N.Nat^::succ m) (Tuples.generator (N.Nat^::succ (N.Nat^::succ m)) v)))
+      (trans!{{Chains.Carrier m}} _ _ _
+        (congr!{{Tuples.Carrier (N.Nat^::succ m)} {Chains.Carrier m}} (#apply{evaluated}) _ _ (Tuples.Boundary[n := N.Nat^::succ m].onGenerator v))
+        (Mapping.law evaluated (N.Nat^::succ (N.Nat^::succ m)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m))) => Tuples.generator (N.Nat^::succ m) (Omission.omit (N.Nat^::succ m) i v)))));

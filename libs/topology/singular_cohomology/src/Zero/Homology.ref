@@ -1,0 +1,80 @@
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].DegreeZero[C := Chains.complex] \as H;
+\import Modules.Free[Generators := Components.Carrier] \as FreeComponents;
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := FreeComponents.Carrier, space := FreeComponents.space };
+\definition homologyCoefficients: Modules.Bundle := Modules.Bundle { Carrier := H.Homology, space := H.homologySpace };
+\import \parent.With[coefficients := homologyCoefficients] \as Universal;
+\import \parent.With[coefficients := coefficients] \as Assignments;
+\import \root.Cochains[A := A, source := source].With[coefficients := homologyCoefficients] \as HCochains;
+\import \root.Cochains[A := A, source := source].With[coefficients := coefficients] \as FCochains;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Cochains.At[C := HCochains.complex, k := N.Nat^::zero] \as HCycles;
+\import Cochains.At[C := FCochains.complex, k := N.Nat^::zero] \as FCycles;
+\import Modules.Of[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero].Submodule[] \as Submodules;
+\import Submodules.Image[U := Chains.Carrier Segment.dimension, source := Chains.space Segment.dimension] \as Images;
+\import Submodules.Quotient[S := H.boundaries] \as Quotient;
+\import Modules.Hom[V := Chains.Carrier Segment.dimension, W := H.Homology, source := Chains.space Segment.dimension, target := H.homologySpace] \as EdgeClasses;
+\definition classClosed: HCochains.coboundary N.Nat^::zero H.classLinear = EdgeClasses.zeroMap :=
+  EdgeClasses.ext _ _ (\fun (x: Chains.Carrier Segment.dimension) => Quotient.classZero (#apply{H.prior} x)
+    (Images.introduce H.prior (#apply{H.prior} x) x (\refl(#apply{H.prior} x))));
+\definition classCycle: HCycles.CycleCarrier := HCycles.cycle H.classLinear classClosed;
+\definition pointClass(a: A): H.Homology := H.classOf (Chains.generator N.Nat^::zero (Universal.constant a));
+\definition componentClass: Components.Carrier -> H.Homology := Universal.Functions[].backward classCycle;
+\definition componentOnClass: \forall (a: A) -> componentClass (Components.class a) = pointClass a := Universal.Functions[].onClass classCycle;
+\import FreeComponents.To[W := H.Homology, target := H.homologySpace] \as Backward;
+\definition backward: Modules.Hom[V := FreeComponents.Carrier, W := H.Homology, source := FreeComponents.space, target := H.homologySpace].Map := Backward.extension componentClass;
+\definition backwardOnGenerator: \forall (q: Components.Carrier) -> #apply{backward} (FreeComponents.generator q) = componentClass q := Backward.onGenerator componentClass;
+\definition assignment: FCycles.CycleCarrier := Assignments.Functions[].forward FreeComponents.generator;
+\definition killsBoundary: \forall (x: Chains.Carrier Segment.dimension) -> #apply{assignment} (#apply{H.prior} x) = #zero{FreeComponents.space} :=
+  \fun (x: Chains.Carrier Segment.dimension) => congr!{{FCochains.Carrier Segment.dimension} {FreeComponents.Carrier}}
+    (\fun (h: FCochains.Carrier Segment.dimension) => #apply{h} x) _ _
+    (\bysub(FCochains.Carrier N.Nat^::zero, #carrier{FCycles.cycles}, assignment));
+\import Quotient.To[W := FreeComponents.Carrier, target := FreeComponents.space] \as Descent;
+\definition vanishes: Descent.Vanishes assignment := \block {
+  \fun (x: Chains.Carrier N.Nat^::zero)(member: Submodules.Member H.boundaries x) \then
+  \takefrom y: \Cast[Chains.Carrier Segment.dimension] ({ y: Chains.Carrier Segment.dimension \where #apply{H.prior} y = x }) \by member \then
+  \return trans!{{FreeComponents.Carrier}} _ _ _
+    (congr!{{Chains.Carrier N.Nat^::zero} {FreeComponents.Carrier}} (#apply{assignment}) _ _
+      (sym!{{Chains.Carrier N.Nat^::zero}} _ _ (\bysub(Chains.Carrier Segment.dimension, { y: Chains.Carrier Segment.dimension \where #apply{H.prior} y = x }, y))))
+    (killsBoundary y)
+};
+\definition forward: Modules.Hom[V := H.Homology, W := FreeComponents.Carrier, source := H.homologySpace, target := FreeComponents.space].Map := Descent.descend assignment vanishes;
+\definition forwardOnClass: \forall (x: Chains.Carrier N.Nat^::zero) -> #apply{forward} (H.classOf x) = #apply{assignment} x := Descent.onClass assignment vanishes;
+\definition forwardOnPoint: \forall (a: A) -> #apply{forward} (pointClass a) = FreeComponents.generator (Components.class a) :=
+  \fun (a: A) => trans!{{FreeComponents.Carrier}} _ _ _ (forwardOnClass (Chains.generator N.Nat^::zero (Universal.constant a)))
+    (Assignments.valueExtended (Assignments.Functions[].assigned FreeComponents.generator) a);
+\definition pointOnSimplex: \forall (sigma: Simplices.Carrier N.Nat^::zero) -> H.classOf (Chains.generator N.Nat^::zero sigma) = pointClass (Universal.point sigma) :=
+  \fun (sigma: Simplices.Carrier N.Nat^::zero) => congr!{{Simplices.Carrier N.Nat^::zero} H.Homology}
+    (\fun (s: Simplices.Carrier N.Nat^::zero) => H.classOf (Chains.generator N.Nat^::zero s)) _ _ (Universal.simplexConstant sigma);
+\import Modules.Hom[V := FreeComponents.Carrier, W := H.Homology, source := FreeComponents.space, target := H.homologySpace]
+  .Composition[U := Chains.Carrier N.Nat^::zero, domain := Chains.space N.Nat^::zero] \as First;
+\import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := H.Homology, target := H.homologySpace] \as FreePoints;
+\definition firstEquation: First.compose backward assignment = H.classLinear :=
+  FreePoints.ext _ _ (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{H.Homology} _ _ _
+    (congr!{{FreeComponents.Carrier} H.Homology} (#apply{backward}) _ _
+      (FCochains.At[n := N.Nat^::zero].onGenerator (\fun (s: Simplices.Carrier N.Nat^::zero) => FreeComponents.generator (Components.class (Assignments.point s))) sigma))
+    (trans!{H.Homology} _ _ _ (backwardOnGenerator (Components.class (Universal.point sigma)))
+      (trans!{H.Homology} _ _ _ (componentOnClass (Universal.point sigma)) (sym!{H.Homology} _ _ (pointOnSimplex sigma)))));
+\import Modules.Hom[V := Chains.Carrier N.Nat^::zero, W := H.Homology, source := Chains.space N.Nat^::zero, target := H.homologySpace] \as PointMaps;
+\definition leftInverse: \forall (q: H.Homology) -> #apply{backward} (#apply{forward} q) = q :=
+  H.classInduction (\fun (q: H.Homology) => #apply{backward} (#apply{forward} q) = q)
+    (\fun (x: Chains.Carrier N.Nat^::zero) => trans!{H.Homology} _ _ _
+      (congr!{{FreeComponents.Carrier} H.Homology} (#apply{backward}) _ _ (forwardOnClass x))
+      (congr!{PointMaps.Map H.Homology} (\fun (f: PointMaps.Map) => #apply{f} x) _ _ firstEquation));
+\definition generatorInverse: \forall (q: Components.Carrier) -> #apply{forward} (#apply{backward} (FreeComponents.generator q)) = FreeComponents.generator q :=
+  Components.induction (\fun (q: Components.Carrier) => #apply{forward} (#apply{backward} (FreeComponents.generator q)) = FreeComponents.generator q)
+    (\fun (a: A) => trans!{{FreeComponents.Carrier}} _ _ _
+      (congr!{H.Homology {FreeComponents.Carrier}} (#apply{forward}) _ _
+        (trans!{H.Homology} _ _ _ (backwardOnGenerator (Components.class a)) (componentOnClass a)))
+      (forwardOnPoint a));
+\import Modules.Hom[V := H.Homology, W := FreeComponents.Carrier, source := H.homologySpace, target := FreeComponents.space]
+  .Composition[U := FreeComponents.Carrier, domain := FreeComponents.space] \as Second;
+\import Modules.End[V := FreeComponents.Carrier, space := FreeComponents.space] \as End;
+\import FreeComponents.To[W := FreeComponents.Carrier, target := FreeComponents.space] \as Free;
+\definition secondEquation: Second.compose forward backward = End.identity := Free.ext _ _ generatorInverse;
+\import Modules.Hom[V := FreeComponents.Carrier, W := FreeComponents.Carrier, source := FreeComponents.space, target := FreeComponents.space] \as EndMaps;
+\definition rightInverse: \forall (x: FreeComponents.Carrier) -> #apply{forward} (#apply{backward} x) = x :=
+  \fun (x: FreeComponents.Carrier) => congr!{EndMaps.Map {FreeComponents.Carrier}} (\fun (f: EndMaps.Map) => #apply{f} x) _ _ secondEquation;
+\import Modules.Isomorphism[V := H.Homology, W := FreeComponents.Carrier, source := H.homologySpace, target := FreeComponents.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

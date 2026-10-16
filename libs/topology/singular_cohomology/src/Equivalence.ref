@@ -1,0 +1,62 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import algebraic_topology.HomotopyEquivalence[A := A, B := B] \as Geometry;
+\import algebraic_topology.Homotopy[A := A, B := A] \as LeftHomotopies;
+\import algebraic_topology.Homotopy[A := B, B := B] \as RightHomotopies;
+\import \root.Maps[A := A, B := B, source := source, target := target] \as Forward;
+\import \root.Maps[A := B, B := A, source := target, target := source] \as Backward;
+\import \root.Identity[A := A, source := source] \as SourceIdentity;
+\import \root.Identity[A := B, source := target] \as TargetIdentity;
+\import \root.Homotopy[A := A, B := A, source := source, target := source] \as Left;
+\import \root.Homotopy[A := B, B := B, source := target, target := target] \as Right;
+\definition Equivalence: \Set := Geometry.Equivalence[source, target];
+\module With(coefficients: Modules.Bundle) {
+  \import \root.Cochains[A := A, source := source].With[coefficients := coefficients] \as Source;
+  \import \root.Cochains[A := B, source := target].With[coefficients := coefficients] \as Target;
+  \import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Identity;
+  \import Forward.Coefficients[M := coefficients, L := coefficients] \as Pull;
+  \import Backward.Coefficients[M := coefficients, L := coefficients] \as Push;
+  \import Forward.Composition[C := A, final := source].Coefficients[M := coefficients] \as LeftComposition;
+  \import Backward.Composition[C := B, final := target].Coefficients[M := coefficients] \as RightComposition;
+  \import Left.Coefficients[M := coefficients] \as LeftHomotopy;
+  \import Right.Coefficients[M := coefficients] \as RightHomotopy;
+  \import SourceIdentity.Coefficients[M := coefficients] \as SourceEnd;
+  \import TargetIdentity.Coefficients[M := coefficients] \as TargetEnd;
+  \definition leftInverse: \forall (e: Equivalence)(n: N.Nat^)(q: Source.cohomology n) ->
+    #apply{(Pull.At[n := n].induced e.forward (#forwardContinuous{(Geometry.laws source target e)}) Identity.identity)}
+      (#apply{(Push.At[n := n].induced e.backward (#backwardContinuous{(Geometry.laws source target e)}) Identity.identity)} q) = q := \block {
+    \fun (e: Equivalence)(n: N.Nat^)(q: Source.cohomology n) \then
+    \takefrom h: LeftHomotopies.Homotopy[source, source, (\fun (x: A) => e.backward (e.forward x)), SourceIdentity.function]
+      \by #leftInverse{(Geometry.laws source target e)} \then
+    \return trans!{{Source.cohomology n}} _ _ _
+      (sym!{{Source.cohomology n}} _ _ (LeftComposition.onCohomology e.forward (#forwardContinuous{(Geometry.laws source target e)}) e.backward (#backwardContinuous{(Geometry.laws source target e)}) n q))
+      (trans!{{Source.cohomology n}} _ _ _
+        (sym!{{Source.cohomology n}} _ _ (LeftHomotopy.onCohomology (\fun (x: A) => e.backward (e.forward x)) SourceIdentity.function h n q))
+        (SourceEnd.At[n := n].cohomologyIdentity q))
+  };
+  \definition rightInverse: \forall (e: Equivalence)(n: N.Nat^)(q: Target.cohomology n) ->
+    #apply{(Push.At[n := n].induced e.backward (#backwardContinuous{(Geometry.laws source target e)}) Identity.identity)}
+      (#apply{(Pull.At[n := n].induced e.forward (#forwardContinuous{(Geometry.laws source target e)}) Identity.identity)} q) = q := \block {
+    \fun (e: Equivalence)(n: N.Nat^)(q: Target.cohomology n) \then
+    \takefrom h: RightHomotopies.Homotopy[target, target, (\fun (x: B) => e.forward (e.backward x)), TargetIdentity.function]
+      \by #rightInverse{(Geometry.laws source target e)} \then
+    \return trans!{{Target.cohomology n}} _ _ _
+      (sym!{{Target.cohomology n}} _ _ (RightComposition.onCohomology e.backward (#backwardContinuous{(Geometry.laws source target e)}) e.forward (#forwardContinuous{(Geometry.laws source target e)}) n q))
+      (trans!{{Target.cohomology n}} _ _ _
+        (sym!{{Target.cohomology n}} _ _ (RightHomotopy.onCohomology (\fun (x: B) => e.forward (e.backward x)) TargetIdentity.function h n q))
+        (TargetEnd.At[n := n].cohomologyIdentity q))
+  };
+  \module At(n: N.Nat^) {
+    \import Modules.Isomorphism[V := Source.cohomology n, W := Target.cohomology n, source := Source.cohomologySpace n, target := Target.cohomologySpace n] \as Iso;
+    \definition isomorphism(e: Equivalence): Iso.Isomorphism := Iso.Isomorphism {
+      forward := Push.At[n := n].induced e.backward (#backwardContinuous{(Geometry.laws source target e)}) Identity.identity,
+      backward := Pull.At[n := n].induced e.forward (#forwardContinuous{(Geometry.laws source target e)}) Identity.identity,
+      leftInverse := leftInverse e n, rightInverse := rightInverse e n,
+    };
+  }
+}

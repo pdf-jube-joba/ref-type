@@ -1,0 +1,82 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import topology.Topology[Carrier := A].Subspace[S := subset] \as Subspace;
+\definition SubspaceCarrier: \Set := Subspace.CarrierSet;
+\definition inclusion(x: SubspaceCarrier): A := x;
+\import topology.Continuity[A := SubspaceCarrier, B := A].Corestriction[S := subset] \as Into;
+\import \root.Maps[A := SubspaceCarrier, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\definition inclusionContinuous: Inclusion.Continuous inclusion := Into.inclusionContinuous source;
+\import \root.Chains[A := SubspaceCarrier, source := Subspace.topology source] \as SubspaceChains;
+\import \root.Chains[A := A, source := source] \as WholeChains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := SubspaceChains.complex] \as SubspaceExtension;
+\import Nonnegative.ZeroExtension[C := WholeChains.complex] \as WholeExtension;
+\import chain_complexes.Chain[] \as Degrees;
+\import Degrees.Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Map[C := SubspaceExtension.complex, D := WholeExtension.complex] \as Inclusions;
+\definition inclusionMap: Inclusions.Map := Inclusion.integerPush inclusion inclusionContinuous;
+\import Complexes.Quotient[C := SubspaceExtension.complex, D := WholeExtension.complex].On[f := inclusionMap] \as Quotient;
+\definition complex: Complexes.Complex := Quotient.complex;
+\definition Carrier(z: I.Int^): \Set := Quotient.Carrier z;
+\definition space(z: I.Int^): Modules.Space (Carrier z) := Quotient.space z;
+\module Injection(n: N.Nat^);
+\module Split(n: N.Nat^);
+\definition injective: \forall (z: I.Int^)(x, y: SubspaceExtension.Carrier z) -> #apply{inclusionMap} z x = #apply{inclusionMap} z y -> x = y :=
+  \induction (z: I.Int^) \return \forall (x, y: SubspaceExtension.Carrier z) -> #apply{inclusionMap} z x = #apply{inclusionMap} z y -> x = y \with {
+    | ofNat: \fun (n: N.Nat^) => Injection[n := n].injective
+    | negSucc: \fun (n: N.Nat^)(x, y: _)(same: _) => trans!{{SubspaceExtension.Carrier (I.Int^::negSucc n)}} _ _ _
+        (SubspaceExtension.Negative[n := n].zero x) (sym!{{SubspaceExtension.Carrier (I.Int^::negSucc n)}} _ _ (SubspaceExtension.Negative[n := n].zero y))
+  };
+\import Complexes.ShortExact[A := SubspaceExtension.complex, B := WholeExtension.complex, C := Quotient.complex] \as Exact;
+\definition sequence: Exact.Sequence := Exact.Sequence {
+  inclusion := inclusionMap, projection := Quotient.projection,
+  injective := injective,
+  onto := \fun (z: I.Int^) => Quotient.At[k := z].onto,
+  zero := \fun (z: I.Int^) => Quotient.At[k := z].onImage,
+  kernelImage := \fun (z: I.Int^) => Quotient.At[k := z].zeroClassImage,
+};
+\module Homology(z: I.Int^) {
+  \import Complexes.At[C := Quotient.complex, z := z] \as Native;
+  \definition Carrier: \Set := Native.Homology;
+  \definition space: Modules.Space Carrier := Native.homologySpace;
+  \definition Cycle: \Set := Native.Cycle;
+  \definition classOf: Cycle -> Carrier := Native.classOf;
+}
+\module LongExact(z: I.Int^) {
+  \import Exact.At[s := sequence, k := z] \as Native;
+  \import Complexes.At[C := Quotient.complex, z := z] \as Source;
+  \import Complexes.At[C := SubspaceExtension.complex, z := Degrees.previous z] \as Target;
+  \definition connecting: Modules.Hom[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace].Map := Native.connecting;
+  \import Native.Exactness[] \as Exactness;
+  \definition inclusionProjectionZero: _ := Exactness.inclusionProjectionZero;
+  \definition projectionConnectingZero: _ := Exactness.projectionConnectingZero;
+  \definition connectingInclusionZero: _ := Exactness.connectingInclusionZero;
+  \definition exactAtRelative: _ := Exactness.exactAtC;
+  \definition exactAtSubspace: _ := Exactness.exactAtALower;
+  \definition exactAtSpace: _ := Exactness.exactAtB;
+}
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := Quotient.complex, N := coefficients] \as Hom;
+  \import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+  \definition complex: Cochains.Complex := Hom.complex;
+  \definition Carrier(z: I.Int^): \Set := Hom.Carrier z;
+  \definition space(z: I.Int^): Modules.Space (Carrier z) := Hom.space z;
+  \module Vanishing(z: I.Int^);
+  \module PairSequence;
+  \module At(z: I.Int^) {
+    \import Hom.Cohomology[z := z] \as Native;
+    \definition Carrier: \Set := Native.Cohomology;
+    \definition space: Modules.Space Carrier := Native.cohomologySpace;
+    \definition Closed: \Set := Native.Closed;
+    \definition classOf: Closed -> Carrier := Native.classOf;
+  }
+  \definition cohomology(n: N.Nat^): \Set := At[z := I.Int^::ofNat n].Carrier;
+  \definition cohomologySpace(n: N.Nat^): Modules.Space (cohomology n) := At[z := I.Int^::ofNat n].space;
+}

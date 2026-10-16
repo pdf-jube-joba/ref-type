@@ -1,0 +1,24 @@
+\import \parent.Vertices[] \as Vertices;
+\import \parent.Affine[m := n, n := N.Nat^::succ n] \as Affine;
+\import \parent.AffineIdentity[n := N.Nat^::succ n] \as Identity;
+\import \parent.AffineFaces[m := n, n := N.Nat^::succ n] \as Faces;
+\import Fin.Tuples[A := Carrier (N.Nat^::succ n)].Omission[] \as Omission;
+\definition vertices(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))): Affine.Vertices :=
+  Omission.omit (N.Nat^::succ n) i (Vertices.vertex (N.Nat^::succ n));
+\definition law: \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(x: Carrier n) -> face n i x = Affine.apply (vertices i) x :=
+  \fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(x: Carrier n) => trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+    (sym!{{Carrier (N.Nat^::succ n)}} _ _ (Identity.law (face n i x)))
+    (Faces.law (Vertices.vertex (N.Nat^::succ n)) i x);
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ (N.Nat^::succ n))].Omission[] \as Indices;
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ (N.Nat^::succ n))].Mapping[B := Carrier (N.Nat^::succ n)] \as Mapping;
+\import \parent.AffineVertex[m := n, n := N.Nat^::succ n] \as Evaluation;
+\definition skip(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))): Fin.Fin (N.Nat^::succ n) -> Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) :=
+  Indices.omit (N.Nat^::succ n) i (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => j);
+\definition onVertex: \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(j: Fin.Fin (N.Nat^::succ n)) ->
+  face n i (Vertices.vertex n j) = Vertices.vertex (N.Nat^::succ n) (skip i j) :=
+  \fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(j: Fin.Fin (N.Nat^::succ n)) => trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+    (law i (Vertices.vertex n j))
+    (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (Evaluation.law (vertices i) j)
+      (congr!{{Fin.Fin (N.Nat^::succ n) -> Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (\fun (v: Fin.Fin (N.Nat^::succ n) -> Carrier (N.Nat^::succ n)) => v j) _ _
+        (sym!{{Fin.Fin (N.Nat^::succ n) -> Carrier (N.Nat^::succ n)}} _ _
+          (Mapping.omitMap (N.Nat^::succ n) i (Vertices.vertex (N.Nat^::succ n)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => j)))));

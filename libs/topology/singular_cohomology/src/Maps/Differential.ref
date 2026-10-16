@@ -1,0 +1,39 @@
+\import \parent.At[n := n] \as Lower;
+\import \parent.At[n := N.Nat^::succ n] \as Higher;
+\import Domain.Boundary[n := n] \as SourceBoundary;
+\import Codomain.Boundary[n := n] \as TargetBoundary;
+\import Modules.Alternating[V := Codomain.Carrier n, space := Codomain.space n] \as Sums;
+\import Modules.Alternating[V := Domain.Carrier n, space := Domain.space n].Mapping[W := Codomain.Carrier n, target := Codomain.space n] \as Mapping;
+\import Modules.Hom[V := Codomain.Carrier (N.Nat^::succ n), W := Codomain.Carrier n, source := Codomain.space (N.Nat^::succ n), target := Codomain.space n].Composition[U := Domain.Carrier (N.Nat^::succ n), domain := Domain.space (N.Nat^::succ n)] \as First;
+\import Modules.Hom[V := Domain.Carrier n, W := Codomain.Carrier n, source := Domain.space n, target := Codomain.space n].Composition[U := Domain.Carrier (N.Nat^::succ n), domain := Domain.space (N.Nat^::succ n)] \as Second;
+\import Modules.Free[Generators := Source.Carrier (N.Nat^::succ n)].To[W := Codomain.Carrier n, target := Codomain.space n] \as Universal;
+\definition onGenerator: \forall (f: A -> B)(continuous: Continuous f)(sigma: Source.Carrier (N.Nat^::succ n)) ->
+  #apply{(Second.compose (Lower.push f continuous) (Domain.boundary n))} (Domain.generator (N.Nat^::succ n) sigma) =
+    #apply{(First.compose (Codomain.boundary n) (Higher.push f continuous))} (Domain.generator (N.Nat^::succ n) sigma) :=
+  \fun (f: A -> B)(continuous: Continuous f)(sigma: Source.Carrier (N.Nat^::succ n)) => eq_reason!{
+    {#apply{(Lower.push f continuous)} (#apply{(Domain.boundary n)} (Domain.generator (N.Nat^::succ n) sigma))}
+    "=" {#apply{(Lower.push f continuous)} (SourceBoundary.onSimplex sigma)} "by" {
+      congr!{{Domain.Carrier n} {Codomain.Carrier n}} (#apply{(Lower.push f continuous)}) _ _ (SourceBoundary.onGenerator sigma)}
+    "=" {Sums.sum (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) =>
+      #apply{(Lower.push f continuous)} (Domain.generator n (Source.face n i sigma)))} "by" {
+        Mapping.law (Lower.push f continuous) (N.Nat^::succ (N.Nat^::succ n))
+          (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Domain.generator n (Source.face n i sigma))}
+    "=" {TargetBoundary.onSimplex (postcompose (N.Nat^::succ n) f continuous sigma)} "by" {
+      Sums.congruent (N.Nat^::succ (N.Nat^::succ n)) _ _
+        (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => trans!{{Codomain.Carrier n}} _ _ _
+          (Lower.onGenerator f continuous (Source.face n i sigma))
+          (congr!{{Target.Carrier n} {Codomain.Carrier n}} (Codomain.generator n) _ _ (faceNaturality n f continuous i sigma)))}
+    "=" {#apply{(Codomain.boundary n)} (Codomain.generator (N.Nat^::succ n) (postcompose (N.Nat^::succ n) f continuous sigma))} "by" {
+      sym!{{Codomain.Carrier n}} _ _ (TargetBoundary.onGenerator (postcompose (N.Nat^::succ n) f continuous sigma))}
+    "=" {#apply{(Codomain.boundary n)} (#apply{(Higher.push f continuous)} (Domain.generator (N.Nat^::succ n) sigma))} "by" {
+      congr!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier n}} (#apply{(Codomain.boundary n)}) _ _ (sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ (Higher.onGenerator f continuous sigma))}
+  };
+\definition mapsEqual: \forall (f: A -> B)(continuous: Continuous f) ->
+  First.compose (Codomain.boundary n) (Higher.push f continuous) = Second.compose (Lower.push f continuous) (Domain.boundary n) :=
+  \fun (f: A -> B)(continuous: Continuous f) => Universal.ext _ _
+    (\fun (sigma: Source.Carrier (N.Nat^::succ n)) => sym!{{Codomain.Carrier n}} _ _ (onGenerator f continuous sigma));
+\definition commutes: \forall (f: A -> B)(continuous: Continuous f)(x: Domain.Carrier (N.Nat^::succ n)) ->
+  #apply{(Codomain.boundary n)} (#apply{(Higher.push f continuous)} x) = #apply{(Lower.push f continuous)} (#apply{(Domain.boundary n)} x) :=
+  \fun (f: A -> B)(continuous: Continuous f)(x: _) =>
+    congr!{{Modules.Hom[V := Domain.Carrier (N.Nat^::succ n), W := Codomain.Carrier n, source := Domain.space (N.Nat^::succ n), target := Codomain.space n].Map} {Codomain.Carrier n}}
+      (\fun (h: Modules.Hom[V := Domain.Carrier (N.Nat^::succ n), W := Codomain.Carrier n, source := Domain.space (N.Nat^::succ n), target := Codomain.space n].Map) => #apply{h} x) _ _ (mapsEqual f continuous);

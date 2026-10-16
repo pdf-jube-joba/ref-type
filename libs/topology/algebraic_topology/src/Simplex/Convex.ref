@@ -1,0 +1,58 @@
+\import \parent.At[n := n] \as Space;
+\import \root.Interval[] \as Interval;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\definition time(t: Interval.Carrier): Real.Real := t;
+\definition complement(t: Interval.Carrier): Real.Real := Interval.reverse t;
+\definition coordinates(t: Interval.Carrier)(x, y: Carrier n): Coordinate (N.Nat^::succ n) :=
+  \fun (i: Fin.Fin (N.Nat^::succ n)) => Real.add (Real.mul (complement t) (x i)) (Real.mul (time t) (y i));
+\definition positive: \forall (t: Interval.Carrier)(x, y: Carrier n)(i: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (coordinates t x y i) :=
+  \fun (t: Interval.Carrier)(x, y: Carrier n)(i: Fin.Fin (N.Nat^::succ n)) => Laws.addNonnegative _ _
+    (Laws.fieldMulNonnegative (complement t) (x i) #left{(Interval.bounds (Interval.reverse t))} (#nonnegative{(barycentric n x)} i))
+    (Laws.fieldMulNonnegative (time t) (y i) #left{(Interval.bounds t)} (#nonnegative{(barycentric n y)} i));
+\definition scalarSum: \forall (a: Real.Real)(x: Carrier n) -> Sums.sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => Real.mul a (x i)) = a :=
+  \fun (a: Real.Real)(x: Carrier n) => trans!{Real.Real} _ _ _ (Sums.scalar (N.Nat^::succ n) a x)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _ #total{(barycentric n x)}) (Algebra.mulOneRight a));
+\definition total: \forall (t: Interval.Carrier)(x, y: Carrier n) -> Sums.sum (N.Nat^::succ n) (coordinates t x y) = Real.one :=
+  \fun (t: Interval.Carrier)(x, y: Carrier n) => trans!{Real.Real} _ _ _
+    (Sums.addition (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => Real.mul (complement t) (x i)) (\fun (i: Fin.Fin (N.Nat^::succ n)) => Real.mul (time t) (y i)))
+    (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (scalarSum (complement t) x) (scalarSum (time t) y))
+      (Distance.subAddCancel Real.one (time t)));
+\definition blend(t: Interval.Carrier)(x, y: Carrier n): Carrier n :=
+  \into[Coordinate (N.Nat^::succ n)](coordinates t x y, Points n) \by { Barycentric[N.Nat^::succ n, coordinates t x y] { nonnegative := positive t x y, total := total t x y } };
+\definition scalarStart: \forall (a, b: Real.Real) -> Real.add (Real.mul (complement Interval.start) a) (Real.mul (time Interval.start) b) = a :=
+  \fun (a, b: Real.Real) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c a) _ _ (Laws.subZeroRight Real.one)) (Laws.fieldMulOneLeft a))
+      (Laws.fieldMulZeroLeft b)) (Laws.addZeroRight a);
+\definition scalarEnd: \forall (a, b: Real.Real) -> Real.add (Real.mul (complement Interval.end) a) (Real.mul (time Interval.end) b) = b :=
+  \fun (a, b: Real.Real) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c a) _ _ (Laws.subSelf Real.one)) (Laws.fieldMulZeroLeft a))
+      (Laws.fieldMulOneLeft b)) (Laws.addZeroLeft b);
+\definition atStart: \forall (x, y: Carrier n) -> blend Interval.start x y = x :=
+  \fun (x, y: Carrier n) => \axiom:funext(blend Interval.start x y, x, \fun (i: Fin.Fin (N.Nat^::succ n)) => scalarStart (x i) (y i));
+\definition atEnd: \forall (x, y: Carrier n) -> blend Interval.end x y = y :=
+  \fun (x, y: Carrier n) => \axiom:funext(blend Interval.end x y, y, \fun (i: Fin.Fin (N.Nat^::succ n)) => scalarEnd (x i) (y i));
+\import \root.Cylinder[A := Carrier n] \as Cylinder;
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as Functions;
+\import Functions.Product[] \as Product;
+\import topology.Composition[A := Cylinder.Carrier, B := Interval.Carrier, C := Real.Real] \as Times;
+\import topology.Composition[A := Cylinder.Carrier, B := Carrier n, C := Real.Real] \as PointComposition;
+\definition scalarTime(p: Cylinder.Carrier): Real.Real := Cylinder.time p;
+\definition timeContinuous: Functions.Continuous (Cylinder.topology Space.topology) scalarTime :=
+  Times.composeContinuous (Cylinder.topology Space.topology) Interval.topology Line.topology Cylinder.time (\fun (t: Interval.Carrier) => t)
+    (Cylinder.timeContinuous Space.topology) Interval.inclusionContinuous;
+\definition pointContinuous: \forall (i: Fin.Fin (N.Nat^::succ n)) -> Functions.Continuous (Cylinder.topology Space.topology) (\fun (p: Cylinder.Carrier) => Cylinder.point p i) :=
+  \fun (i: Fin.Fin (N.Nat^::succ n)) => PointComposition.composeContinuous (Cylinder.topology Space.topology) Space.topology Line.topology Cylinder.point (\fun (x: Carrier n) => x i)
+    (Cylinder.pointContinuous Space.topology) (Space.coordinateContinuous i);
+\import topological_algebra.Coordinates[K := Real.Real, I := Fin.Fin (N.Nat^::succ n)].Universal[A := Cylinder.Carrier] \as Ambient;
+\import topology.Continuity[A := Cylinder.Carrier, B := Coordinate (N.Nat^::succ n)].Corestriction[S := Points n] \as Into;
+\definition family(y: Carrier n)(p: Cylinder.Carrier): Carrier n := blend (Cylinder.time p) (Cylinder.point p) y;
+\definition continuous: \forall (y: Carrier n) -> topology.Continuity[A := Cylinder.Carrier, B := Carrier n].Continuous (Cylinder.topology Space.topology) Space.topology (family y) :=
+  \fun (y: Carrier n) => Into.corestrictContinuous (Cylinder.topology Space.topology) Space.ambientTopology (family y)
+    (Ambient.continuous (Cylinder.topology Space.topology) Line.topology (\fun (p: Cylinder.Carrier) => coordinates (Cylinder.time p) (Cylinder.point p) y)
+      (\fun (i: Fin.Fin (N.Nat^::succ n)) => Functions.sumContinuous (Cylinder.topology Space.topology) _ _
+        (Product.continuous (Cylinder.topology Space.topology) (\fun (p: Cylinder.Carrier) => complement (Cylinder.time p)) (\fun (p: Cylinder.Carrier) => Cylinder.point p i)
+          (Functions.subContinuous (Cylinder.topology Space.topology) (\fun (_: Cylinder.Carrier) => Real.one) scalarTime (Functions.constantContinuous (Cylinder.topology Space.topology) Real.one) timeContinuous) (pointContinuous i))
+        (Product.continuous (Cylinder.topology Space.topology) scalarTime (\fun (_: Cylinder.Carrier) => y i) timeContinuous (Functions.constantContinuous (Cylinder.topology Space.topology) (y i)))));

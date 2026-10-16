@@ -1,0 +1,81 @@
+\import \parent.Augmentation[] \as Augmentation;
+\import Modules.Zero[] \as Zero;
+\import chain_complexes.Chain[] \as Degrees;
+\import Degrees.Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\definition ChainCarrier(n: N.Nat^): \Set := Carrier n;
+\definition chainSpace(n: N.Nat^): Modules.Space (ChainCarrier n) := space n;
+\definition positiveBoundary(n: N.Nat^): _ := boundary n;
+\structure Packed: \Set(1) {
+  Carrier: \Set,
+  spaceLift: \forall (X: \Set) -> (Modules.Space Carrier -> X) -> X,
+}
+\definition scalar: Packed := Packed {
+  Carrier := I.Int^,
+  spaceLift := \fun (X: \Set)(f: Modules.Space I.Int^ -> X) => f Modules.scalarModule,
+};
+\definition zero: Packed := Packed {
+  Carrier := Zero.Carrier,
+  spaceLift := \fun (X: \Set)(f: Modules.Space Zero.Carrier -> X) => f Zero.moduleSpace,
+};
+\definition terms: I.Int^ -> Packed := \induction (z: I.Int^) \return Packed \with {
+  | ofNat: \fun (n: N.Nat^) => Packed {
+      Carrier := ChainCarrier n,
+      spaceLift := \fun (X: \Set)(f: Modules.Space (ChainCarrier n) -> X) => f (chainSpace n),
+    }
+  | negSucc: \induction (n: N.Nat^) \return Packed \with {
+      | zero: scalar
+      | succ: \fun (n: N.Nat^)(previous: Packed) => zero
+    }
+};
+\definition Carrier(z: I.Int^): \Set := (terms z).Carrier;
+\definition space(z: I.Int^): Modules.Space (Carrier z) := (terms z).spaceLift (Modules.Space (Carrier z)) (\fun (s: Modules.Space (Carrier z)) => s);
+\definition family: Complexes.Family := Complexes.Family { Carrier := Carrier, space := space };
+\import Modules.Hom[V := I.Int^, W := Zero.Carrier, source := Modules.scalarModule, target := Zero.moduleSpace] \as ScalarZero;
+\import Modules.Hom[V := Zero.Carrier, W := Zero.Carrier, source := Zero.moduleSpace, target := Zero.moduleSpace] \as ZeroEnd;
+\definition boundary: \forall (z: I.Int^) -> Modules.Hom[V := Carrier z, W := Carrier (Degrees.previous z), source := space z, target := space (Degrees.previous z)].Map :=
+  \induction (z: I.Int^) \return Modules.Hom[V := Carrier z, W := Carrier (Degrees.previous z), source := space z, target := space (Degrees.previous z)].Map \with {
+    | ofNat: \induction (n: N.Nat^) \return Modules.Hom[V := Carrier (I.Int^::ofNat n), W := Carrier (Degrees.previous (I.Int^::ofNat n)), source := space (I.Int^::ofNat n), target := space (Degrees.previous (I.Int^::ofNat n))].Map \with {
+        | zero: Augmentation.map
+        | succ: \fun (n: N.Nat^)(previous: _) => positiveBoundary n
+      }
+    | negSucc: \induction (n: N.Nat^) \return Modules.Hom[V := Carrier (I.Int^::negSucc n), W := Carrier (Degrees.previous (I.Int^::negSucc n)), source := space (I.Int^::negSucc n), target := space (Degrees.previous (I.Int^::negSucc n))].Map \with {
+        | zero: ScalarZero.zeroMap
+        | succ: \fun (n: N.Nat^)(previous: _) => ZeroEnd.zeroMap
+      }
+  };
+\definition squareZero: \forall (z: I.Int^)(x: Carrier z) -> #apply{(boundary (Degrees.previous z))} (#apply{(boundary z)} x) = #zero{(space (Degrees.previous (Degrees.previous z)))} :=
+  \induction (z: I.Int^) \return \forall (x: Carrier z) -> #apply{(boundary (Degrees.previous z))} (#apply{(boundary z)} x) = #zero{(space (Degrees.previous (Degrees.previous z)))} \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: Carrier (I.Int^::ofNat n)) ->
+        #apply{(boundary (Degrees.previous (I.Int^::ofNat n)))} (#apply{(boundary (I.Int^::ofNat n))} x) = #zero{(space (Degrees.previous (Degrees.previous (I.Int^::ofNat n))))} \with {
+        | zero: \fun (x: _) => \refl(Zero.Carrier::zero)
+        | succ: \fun (n: N.Nat^)(previous: _) =>
+            (\induction (k: N.Nat^) \return \forall (x: Carrier (I.Int^::ofNat (N.Nat^::succ k))) ->
+              #apply{(boundary (I.Int^::ofNat k))} (#apply{(boundary (I.Int^::ofNat (N.Nat^::succ k)))} x) = #zero{(space (Degrees.previous (I.Int^::ofNat k)))} \with {
+              | zero: Augmentation.killsBoundary
+              | succ: \fun (k: N.Nat^)(previous: _) => \parent.SquareZero[n := k].all
+            }) n
+      }
+    | negSucc: \fun (n: N.Nat^)(x: _) => \refl(Zero.Carrier::zero)
+  };
+\definition differential: Complexes.DifferentialData[family] := Complexes.DifferentialData[family] { apply := \fun (z: I.Int^) => #apply{(boundary z)} };
+\definition complex: Complexes.Complex := Complexes.Complex {
+  family := family, differential := differential,
+  laws := Complexes.DifferentialLaws[family, differential] {
+    addition := \fun (z: I.Int^) => #addition{(boundary z)},
+    scalar := \fun (z: I.Int^) => #scalar{(boundary z)},
+    squareZero := squareZero,
+  },
+};
+\module At(z: I.Int^) {
+  \import Complexes.At[C := complex, z := z] \as Homology;
+  \definition Carrier: \Set := Homology.Homology;
+  \definition space: Modules.Space Carrier := Homology.homologySpace;
+}
+\module NegativeOne;
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := complex, N := coefficients] \as Hom;
+  \module At(z: I.Int^) {
+    \definition Carrier: \Set := Hom.Cohomology[z := z].Cohomology;
+    \definition space: Modules.Space Carrier := Hom.Cohomology[z := z].cohomologySpace;
+  }
+}

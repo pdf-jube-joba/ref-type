@@ -1,0 +1,52 @@
+\import \root.OrderedTuples[V := V] \as Domain;
+\import \root.OrderedTuples[V := W] \as Codomain;
+\import Domain.Mapping[W := W] \as Mapping;
+\module Values(n: N.Nat^) {
+  \import Modules.Laws[V := Codomain.Carrier n, space := Codomain.space n] \as Laws;
+  \import algebra.Group[].Of[Carrier := Codomain.Carrier n, group := Laws.additive] \as Group;
+  \definition difference: Codomain.Carrier n -> Codomain.Carrier n -> Codomain.Carrier n := Group.difference;
+  \definition zero: Codomain.Carrier n := Laws.zero;
+  \definition add: Codomain.Carrier n -> Codomain.Carrier n -> Codomain.Carrier n := Laws.add;
+  \definition addDifference: _ := Group.addDifference;
+  \definition minusZero: \forall (x: Codomain.Carrier n) -> difference x zero = x :=
+    \fun (x: Codomain.Carrier n) => trans!{{Codomain.Carrier n}} _ _ _
+      (congr!{{Codomain.Carrier n} {Codomain.Carrier n}} (Laws.add x) _ _ Group.negZero) (Group.zeroRight x);
+  \import Modules.Alternating[V := Codomain.Carrier n, space := Codomain.space n] \as Alternating;
+  \definition shuffle: _ := Alternating.subtractShuffle;
+  \definition nested: \forall (a, b, c, d: Codomain.Carrier n) ->
+    difference (difference a b) (difference (difference a c) d) = difference c (difference b d) :=
+    \fun (a, b, c, d: Codomain.Carrier n) => trans!{{Codomain.Carrier n}} _ _ _ (shuffle a b (difference a c) d)
+      (congr!{{Codomain.Carrier n} {Codomain.Carrier n}} (\fun (v: Codomain.Carrier n) => difference v (difference b d)) _ _ (Group.subtractDifference a c));
+}
+\definition value: \forall (n: N.Nat^) -> (V -> W) -> (V -> W) -> Domain.Tuple n -> Codomain.Carrier (N.Nat^::succ n) :=
+  \induction (n: N.Nat^) \return (V -> W) -> (V -> W) -> Domain.Tuple n -> Codomain.Carrier (N.Nat^::succ n) \with {
+    | zero: \fun (f, g: V -> W)(v: Domain.Tuple N.Nat^::zero) => #zero{(Codomain.space (N.Nat^::succ N.Nat^::zero))}
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g: V -> W)(v: Domain.Tuple (N.Nat^::succ n)) =>
+        #apply{(Codomain.cone (N.Nat^::succ n) (f (v (Fin.zero n))))}
+          (Values[n := N.Nat^::succ n].difference (Codomain.generator (N.Nat^::succ n) (Mapping.onTuple (N.Nat^::succ n) g v))
+            (previous f g (\fun (i: Fin.Fin n) => v (Fin.succ n i))))
+  };
+\module At(n: N.Nat^) {
+  \import Modules.Free[Generators := Domain.Tuple n].To[W := Codomain.Carrier (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as Free;
+  \definition map(f, g: V -> W): Modules.Hom[V := Domain.Carrier n, W := Codomain.Carrier (N.Nat^::succ n), source := Domain.space n, target := Codomain.space (N.Nat^::succ n)].Map := Free.extension (value n f g);
+  \definition onGenerator: \forall (f, g: V -> W)(v: Domain.Tuple n) -> #apply{(map f g)} (Domain.generator n v) = value n f g v :=
+    \fun (f, g: V -> W) => Free.onGenerator (value n f g);
+}
+\definition map(n: N.Nat^)(f, g: V -> W): Modules.Hom[V := Domain.Carrier n, W := Codomain.Carrier (N.Nat^::succ n), source := Domain.space n, target := Codomain.space (N.Nat^::succ n)].Map := At[n := n].map f g;
+\module Extended(n: N.Nat^);
+\module Empty;
+\module BoundaryZero;
+\definition Property(n: N.Nat^): \Prop := \forall (f, g: V -> W)(x: Domain.Carrier (N.Nat^::succ n)) ->
+  #apply{(Codomain.boundary (N.Nat^::succ n))} (#apply{(map (N.Nat^::succ n) f g)} x) =
+    Values[n := N.Nat^::succ n].difference
+      (Values[n := N.Nat^::succ n].difference (#apply{(Mapping.push (N.Nat^::succ n) g)} x) (#apply{(Mapping.push (N.Nat^::succ n) f)} x))
+      (#apply{(map n f g)} (#apply{(Domain.boundary n)} x));
+\module BoundaryStep(n: N.Nat^);
+\definition boundaryLaw: \forall (n: N.Nat^) -> Property n :=
+  \induction (n: N.Nat^) \return Property n \with {
+    | zero: BoundaryZero[].law
+    | succ: \fun (n: N.Nat^)(previous: Property n) => BoundaryStep[n := n].law previous
+  };
+\module Homotopy;
+\module Postcompose(U: \Set);
+\module Precompose(U: \Set);

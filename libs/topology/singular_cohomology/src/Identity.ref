@@ -1,0 +1,49 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.Simplices[A := A, source := source] \as Simplices;
+\import \root.Chains[A := A, source := source] \as Chains;
+\import \root.Maps[A := A, B := A, source := source, target := source] \as Maps;
+\import topology.Maps[A := A, B := A].Identity[] \as Topology;
+\definition function(x: A): A := x;
+\definition continuous: Maps.Continuous function := Topology.continuous source;
+\definition onSimplices: \forall (n: N.Nat^)(sigma: Simplices.Carrier n) -> Maps.postcompose n function continuous sigma = sigma :=
+  \fun (n: N.Nat^)(sigma: Simplices.Carrier n) => Simplices.ext n (Maps.postcompose n function continuous sigma) sigma
+    (\fun (x: algebraic_topology.Simplex[].Carrier n) => \refl(sigma x));
+\module At(n: N.Nat^) {
+  \import Maps.At[n := n] \as Native;
+  \import Modules.End[V := Chains.Carrier n, space := Chains.space n] \as End;
+  \import Modules.Free[Generators := Simplices.Carrier n].To[W := Chains.Carrier n, target := Chains.space n] \as Universal;
+  \definition law: Native.push function continuous = End.identity := Universal.ext _ _
+    (\fun (sigma: Simplices.Carrier n) => trans!{{Chains.Carrier n}} _ _ _ (Native.onGenerator function continuous sigma)
+      (congr!{{Simplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _ (onSimplices n sigma)));
+}
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].End[C := Chains.complex] \as End;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Chains.complex, D := Chains.complex] \as ChainMaps;
+\definition chainIdentity: Maps.push function continuous = End.identity := ChainMaps.ext _ _
+  (\fun (n: N.Nat^)(x: Chains.Carrier n) =>
+    congr!{{Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier n, source := Chains.space n, target := Chains.space n].Map} {Chains.Carrier n}}
+      (\fun (h: Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier n, source := Chains.space n, target := Chains.space n].Map) => #apply{h} x) _ _ (At[n := n].law));
+\module Coefficients(M: Modules.Bundle) {
+  \import \root.Cochains[A := A, source := source].With[coefficients := M] \as Cochains;
+  \import Maps.Coefficients[M := M, L := M] \as Pullback;
+  \import Modules.End[V := M.Carrier, space := M.space] \as Coefficients;
+  \import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Cochains.complex, D := Cochains.complex] \as CochainMaps;
+  \import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].End[C := Cochains.complex] \as CochainEnd;
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Mapping[P := Chains.complex, Q := Chains.complex, N := M, L := M] \as Mapping;
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].End[P := Chains.complex, N := M] \as HomEnd;
+  \definition act(arrow: ChainMaps.Map): CochainMaps.Map := Mapping.On[f := arrow, u := Coefficients.identity].map;
+  \definition cochainIdentity: Pullback.map function continuous Coefficients.identity = CochainEnd.identity :=
+    trans!{CochainMaps.Map} _ _ _ (congr!{ChainMaps.Map CochainMaps.Map} act _ _ chainIdentity) HomEnd.law;
+  \module At(n: N.Nat^) {
+    \definition cohomologyIdentity: \forall (q: Cochains.cohomology n) ->
+      #apply{(Pullback.At[n := n].induced function continuous Coefficients.identity)} q = q :=
+      \fun (q: Cochains.cohomology n) => trans!{{Cochains.cohomology n}} _ _ _
+        (congr!{CochainMaps.Map {Cochains.cohomology n}} (\fun (f: CochainMaps.Map) => #apply{(CochainMaps.At[k := n].induced f)} q) _ _ cochainIdentity)
+        (CochainEnd.At[k := n].identityOnCohomology q);
+  }
+}

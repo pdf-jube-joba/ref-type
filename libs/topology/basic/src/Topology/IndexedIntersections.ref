@@ -42,3 +42,26 @@
             equality: sym!{\Pow Carrier} _ _ (successor m family)
           }
     };
+\import \parent.Finite[] \as Finite;
+\definition wholeClosed: \forall (space: Topology) -> IsClosedIn space Whole :=
+  \fun (space: Topology) => \idelim Empty = Complement Whole \with U: \Pow Carrier => IsOpenIn space U \by {
+    base: #emptyOpen{(topologyLaws space)},
+    equality: \axiom:setext(Empty, Complement Whole,
+      (\fun (x: Carrier)(empty: Logic.False) => Logic.falseElim (Member (Complement Whole) x) empty),
+      (\fun (x: Carrier)(outside: Member (Complement Whole) x) => outside (\refl(x))))
+  };
+\definition closed: \forall (space: Topology)(m: N.Nat^)(family: Fin.Fin m -> \Pow Carrier) ->
+  (\forall (i: Fin.Fin m) -> IsClosedIn space (family i)) -> IsClosedIn space (All m family) :=
+  \fun (space: Topology) => \induction (m: N.Nat^) \return \forall (family: Fin.Fin m -> \Pow Carrier) ->
+    (\forall (i: Fin.Fin m) -> IsClosedIn space (family i)) -> IsClosedIn space (All m family) \with {
+      | zero: \fun (family: _)(proof: _) => \idelim Whole = All N.Nat^::zero family \with S: \Pow Carrier => IsClosedIn space S \by {
+          base: wholeClosed space, equality: sym!{\Pow Carrier} _ _ (empty family)
+        }
+      | succ: \fun (m: N.Nat^)(previous: _)(family: _)(proof: _) =>
+          \idelim Intersection (family (Fin.zero m)) (All m (\fun (j: Fin.Fin m) => family (Fin.succ m j))) = All (N.Nat^::succ m) family
+            \with S: \Pow Carrier => IsClosedIn space S \by {
+              base: Finite.intersectionClosed space (family (Fin.zero m)) (All m (\fun (j: Fin.Fin m) => family (Fin.succ m j)))
+                (proof (Fin.zero m)) (previous (\fun (j: Fin.Fin m) => family (Fin.succ m j)) (\fun (j: Fin.Fin m) => proof (Fin.succ m j))),
+              equality: sym!{\Pow Carrier} _ _ (successor m family)
+            }
+    };

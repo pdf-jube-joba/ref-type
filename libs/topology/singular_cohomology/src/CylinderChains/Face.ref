@@ -1,0 +1,64 @@
+\use Equality.congr2;
+\import \root.CylinderChains[n := N.Nat^::succ n] \as Higher;
+\import Simplex.Cylinder[n := N.Nat^::succ n] \as HigherSpace;
+\import \parent.Prism[] \as LowerPrism;
+\import Higher.Prism[] \as HigherPrism;
+\import \parent.Postcompose[k := N.Nat^::succ n] \as Push;
+\import Simplex.AffineFace[n := n] \as Affine;
+\import Simplex.Vertices[] \as Vertices;
+\import algebraic_topology.Interval[] \as Interval;
+\import std.Data[].Pair[].Prop[A := Interval.Carrier, B := Simplex.Carrier (N.Nat^::succ n)] \as Pairs;
+\definition transform: Points -> Higher.Points := Push.transform (Affine.vertices i);
+\definition continuous: \root.Maps[A := Points, B := Higher.Points, source := Space.topology, target := HigherSpace.topology].Continuous transform :=
+  Push.continuous (Affine.vertices i);
+\definition pointLaw: \forall (t: Interval.Carrier)(j: LowerPrism.Index) -> transform (Space.vertices t j) = HigherSpace.vertices t (Affine.skip i j) :=
+  \fun (t: Interval.Carrier)(j: LowerPrism.Index) => Pairs.ext (transform (Space.vertices t j)) (HigherSpace.vertices t (Affine.skip i j))
+    (\refl(t)) (trans!{{Simplex.Carrier (N.Nat^::succ n)}} _ _ _
+      (sym!{{Simplex.Carrier (N.Nat^::succ n)}} _ _ (Affine.law i (Vertices.vertex n j))) (Affine.onVertex i j));
+\definition verticesLaw: \forall (t: Interval.Carrier) ->
+  (\fun (j: LowerPrism.Index) => transform (Space.vertices t j)) = (\fun (j: LowerPrism.Index) => HigherSpace.vertices t (Affine.skip i j)) :=
+  \fun (t: Interval.Carrier) => \axiom:funext((\fun (j: LowerPrism.Index) => transform (Space.vertices t j)),
+    (\fun (j: LowerPrism.Index) => HigherSpace.vertices t (Affine.skip i j)), pointLaw t);
+\import \root.OrderedTuples[V := LowerPrism.Index] \as LowerDomain;
+\import \root.OrderedTuples[V := HigherPrism.Index] \as HigherDomain;
+\import \root.OrderedTuples[V := Higher.Points] \as HigherTuples;
+\import LowerDomain.Mapping[W := HigherPrism.Index] \as IndexMap;
+\import Tuples.Mapping[W := Higher.Points] \as TupleMap;
+\import LowerDomain.Prism[W := Points] \as LowerAlgebra;
+\import HigherDomain.Prism[W := Higher.Points] \as HigherAlgebra;
+\import LowerDomain.Prism[W := Higher.Points] \as Mixed;
+\import LowerAlgebra.Postcompose[U := Higher.Points] \as After;
+\import HigherAlgebra.Precompose[U := LowerPrism.Index] \as Before;
+\import Fin.Tuples[A := HigherPrism.Index].Omission[] \as Indices;
+\definition omitted: HigherDomain.Tuple (N.Nat^::succ n) := Indices.omit (N.Nat^::succ n) i HigherPrism.vertices;
+\definition indexLaw: IndexMap.onTuple (N.Nat^::succ n) (Affine.skip i) LowerPrism.vertices = omitted :=
+  \axiom:funext(IndexMap.onTuple (N.Nat^::succ n) (Affine.skip i) LowerPrism.vertices, omitted,
+    \fun (j: LowerPrism.Index) => \refl(Affine.skip i j));
+\definition baseLaw: #apply{(IndexMap.push (N.Nat^::succ n) (Affine.skip i))} LowerPrism.base = HigherDomain.generator (N.Nat^::succ n) omitted :=
+  trans!{{HigherDomain.Carrier (N.Nat^::succ n)}} _ _ _ (IndexMap.At[n := N.Nat^::succ n].onGenerator (Affine.skip i) LowerPrism.vertices)
+    (congr!{{HigherDomain.Tuple (N.Nat^::succ n)} {HigherDomain.Carrier (N.Nat^::succ n)}} (HigherDomain.generator (N.Nat^::succ n)) _ _ indexLaw);
+\definition raw: #apply{(HigherAlgebra.map (N.Nat^::succ n) HigherPrism.start HigherPrism.end)} (HigherDomain.generator (N.Nat^::succ n) omitted) =
+  #apply{(TupleMap.push (N.Nat^::succ (N.Nat^::succ n)) transform)} LowerPrism.tuple := \block {
+  \let left: #apply{(HigherAlgebra.map (N.Nat^::succ n) HigherPrism.start HigherPrism.end)} (HigherDomain.generator (N.Nat^::succ n) omitted) =
+    #apply{(Mixed.map (N.Nat^::succ n) (\fun (j: LowerPrism.Index) => HigherPrism.start (Affine.skip i j)) (\fun (j: LowerPrism.Index) => HigherPrism.end (Affine.skip i j)))} LowerPrism.base :=
+    trans!{{HigherTuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _
+      (congr!{{HigherDomain.Carrier (N.Nat^::succ n)} {HigherTuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}}
+        (#apply{(HigherAlgebra.map (N.Nat^::succ n) HigherPrism.start HigherPrism.end)}) _ _ (sym!{{HigherDomain.Carrier (N.Nat^::succ n)}} _ _ baseLaw))
+      (Before.At[n := N.Nat^::succ n].law HigherPrism.start HigherPrism.end (Affine.skip i) LowerPrism.base) \then
+  \let right: #apply{(TupleMap.push (N.Nat^::succ (N.Nat^::succ n)) transform)} LowerPrism.tuple =
+    #apply{(Mixed.map (N.Nat^::succ n) (\fun (j: LowerPrism.Index) => HigherPrism.start (Affine.skip i j)) (\fun (j: LowerPrism.Index) => HigherPrism.end (Affine.skip i j)))} LowerPrism.base :=
+    trans!{{HigherTuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _
+      (After.At[n := N.Nat^::succ n].law LowerPrism.start LowerPrism.end transform LowerPrism.base)
+      (congr2!{{LowerPrism.Index -> Higher.Points} {LowerPrism.Index -> Higher.Points} {HigherTuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}}
+        (\fun (f, g: LowerPrism.Index -> Higher.Points) => #apply{(Mixed.map (N.Nat^::succ n) f g)} LowerPrism.base) _ _ _ _
+        (verticesLaw Interval.start) (verticesLaw Interval.end)) \then
+  \return trans!{{HigherTuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _ left
+    (sym!{{HigherTuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ right)
+};
+\import Higher.At[m := N.Nat^::succ n] \as Evaluation;
+\import \root.Chains[A := Higher.Points, source := HigherSpace.topology] \as HigherChains;
+\import \root.Maps[A := Points, B := Higher.Points, source := Space.topology, target := HigherSpace.topology] \as Maps;
+\definition chain: HigherPrism.faceTerm i = #apply{(Maps.At[n := N.Nat^::succ n].push transform continuous)} LowerPrism.chain :=
+  trans!{{HigherChains.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{HigherTuples.Carrier (N.Nat^::succ (N.Nat^::succ n))} {HigherChains.Carrier (N.Nat^::succ n)}} (#apply{Evaluation.map}) _ _ raw)
+    (Push.At[m := N.Nat^::succ n].law (Affine.vertices i) LowerPrism.tuple);

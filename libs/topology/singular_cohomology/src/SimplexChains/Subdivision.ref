@@ -1,0 +1,37 @@
+\import Tuples.Subdivision[centres := centres] \as Subdivision;
+\import Subdivision.Homotopy[] \as Homotopy;
+\import \parent.Fundamental[] \as Fundamental;
+\import \parent.At[m := n] \as Evaluation;
+\import \parent.At[m := N.Nat^::succ n] \as HigherEvaluation;
+\import \parent.Boundary[m := n] \as Boundary;
+\import Modules.Laws[V := Chains.Carrier n, space := Chains.space n] \as Values;
+\import algebra.Group[].Of[Carrier := Chains.Carrier n, group := Values.additive] \as Group;
+\import Modules.Laws[V := Tuples.Carrier (N.Nat^::succ n), space := Tuples.space (N.Nat^::succ n)] \as TupleValues;
+\import algebra.Group[].Of[Carrier := Tuples.Carrier (N.Nat^::succ n), group := TupleValues.additive] \as TupleGroup;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ n), W := Chains.Carrier n, source := Tuples.space (N.Nat^::succ n), target := Chains.space n] \as Linear;
+\definition tuple: Tuples.Carrier (N.Nat^::succ n) := #apply{(Subdivision.map (N.Nat^::succ n))} Fundamental.base;
+\definition chain: Chains.Carrier n := #apply{Evaluation.map} tuple;
+\definition homotopyTuple: Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)) := #apply{(Homotopy.map (N.Nat^::succ n))} Fundamental.base;
+\definition homotopy: Chains.Carrier (N.Nat^::succ n) := #apply{HigherEvaluation.map} homotopyTuple;
+\definition prior: Chains.Carrier n := #apply{Evaluation.map} (#apply{(Homotopy.map n)} (#apply{(Tuples.boundary n)} Fundamental.base));
+\import Modules.Alternating[V := Chains.Carrier n, space := Chains.space n] \as Sum;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ n), W := Chains.Carrier n, source := Tuples.space (N.Nat^::succ n), target := Chains.space n]
+  .Composition[U := Tuples.Carrier n, domain := Tuples.space n] \as PriorComposition;
+\import Modules.Alternating[V := Tuples.Carrier n, space := Tuples.space n].Mapping[W := Chains.Carrier n, target := Chains.space n] \as PriorSum;
+\definition priorMap: Modules.Hom[V := Tuples.Carrier n, W := Chains.Carrier n, source := Tuples.space n, target := Chains.space n].Map := PriorComposition.compose Evaluation.map (Homotopy.map n);
+\definition faceTerm(i: Fin.Fin (N.Nat^::succ n)): Chains.Carrier n := #apply{priorMap} (Tuples.generator n (Omission.omit n i Fundamental.vertices));
+\definition priorExpansion: prior = Sum.sum (N.Nat^::succ n) faceTerm :=
+  trans!{{Chains.Carrier n}} _ _ _
+    (congr!{{Tuples.Carrier n} {Chains.Carrier n}} (#apply{priorMap}) _ _ (Tuples.Boundary[n := n].onGenerator Fundamental.vertices))
+    (PriorSum.law priorMap (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => Tuples.generator n (Omission.omit n i Fundamental.vertices)));
+\definition boundary: #apply{(Chains.boundary n)} homotopy = Group.difference (Group.difference chain (Chains.generator n Fundamental.simplex)) prior := \block {
+  \let sd: Tuples.Carrier (N.Nat^::succ n) := #apply{(Subdivision.map (N.Nat^::succ n))} Fundamental.base \then
+  \let pd: Tuples.Carrier (N.Nat^::succ n) := #apply{(Homotopy.map n)} (#apply{(Tuples.boundary n)} Fundamental.base) \then
+  \return trans!{{Chains.Carrier n}} _ _ _ (Boundary.commutes homotopyTuple)
+    (trans!{{Chains.Carrier n}} _ _ _ (congr!{{Tuples.Carrier (N.Nat^::succ n)} {Chains.Carrier n}} (#apply{Evaluation.map}) _ _ (Homotopy.boundaryLaw n Fundamental.base))
+      (trans!{{Chains.Carrier n}} _ _ _ (Linear.differencePreserved Evaluation.map (TupleGroup.difference sd Fundamental.base) pd)
+        (congr!{{Chains.Carrier n} {Chains.Carrier n}} (\fun (x: Chains.Carrier n) => Group.difference x prior) _ _
+          (trans!{{Chains.Carrier n}} _ _ _ (Linear.differencePreserved Evaluation.map sd Fundamental.base)
+            (congr!{{Chains.Carrier n} {Chains.Carrier n}} (Group.difference chain) _ _ Fundamental.chain)))))
+};
+\module Differential(m: N.Nat^);

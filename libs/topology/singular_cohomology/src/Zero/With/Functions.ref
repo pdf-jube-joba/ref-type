@@ -1,0 +1,52 @@
+\import \parent.Edges[] \as Edges;
+\import Components.Functions[B := coefficients.Carrier] \as Descent;
+\import Modules.Functions[X := Components.Carrier, V := coefficients.Carrier, target := coefficients.space] \as Functions;
+\definition Function: \Set := Functions.Carrier;
+\definition functionSpace: Modules.Space Function := Functions.space;
+\definition backward(h: H.CycleCarrier): Function := Descent.descend (value h) (Edges.constantOnPaths h);
+\definition onClass: \forall (h: H.CycleCarrier)(a: A) -> backward h (Components.class a) = value h a :=
+  \fun (h: H.CycleCarrier) => Descent.onClass (value h) (Edges.constantOnPaths h);
+\definition assigned(f: Function): A -> coefficients.Carrier := \fun (a: A) => f (Components.class a);
+\definition assignedOnEdge: \forall (f: Function)(sigma: Simplices.Carrier Segment.dimension) -> assigned f (end sigma) = assigned f (start sigma) :=
+  \fun (f: Function)(sigma: Simplices.Carrier Segment.dimension) => congr!{Components.Carrier coefficients.Carrier} f _ _
+    (Components.sameClass (end sigma) (start sigma) (Components.symmetric (start sigma) (end sigma) (\exact(path sigma, Components.Path (start sigma) (end sigma)))));
+\import Modules.Free[Generators := Simplices.Carrier Segment.dimension].To[W := coefficients.Carrier, target := coefficients.space] \as FreeEdges;
+\import Modules.Hom[V := Chains.Carrier Segment.dimension, W := coefficients.Carrier, source := Chains.space Segment.dimension, target := coefficients.space] \as EdgeMaps;
+\definition closed: \forall (f: Function) -> Cochains.coboundary N.Nat^::zero (extend (assigned f)) = #zero{(Cochains.space Segment.dimension)} :=
+  \fun (f: Function) => FreeEdges.ext (Cochains.coboundary N.Nat^::zero (extend (assigned f))) EdgeMaps.zeroMap
+    (\fun (sigma: Simplices.Carrier Segment.dimension) => trans!{coefficients.Carrier} _ _ _ (Edges.coboundary (extend (assigned f)) sigma)
+      (trans!{coefficients.Carrier} _ _ _
+        (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.difference _ _ _ _
+          (valueExtended (assigned f) (end sigma)) (valueExtended (assigned f) (start sigma)))
+        (trans!{coefficients.Carrier} _ _ _ (congr!{coefficients.Carrier coefficients.Carrier} (\fun (v: coefficients.Carrier) => Group.difference v (assigned f (start sigma))) _ _ (assignedOnEdge f sigma))
+          (Group.inverseRight (assigned f (start sigma))))));
+\definition forward(f: Function): H.CycleCarrier := H.cycle (extend (assigned f)) (closed f);
+\definition leftInverse: \forall (f: Function) -> backward (forward f) = f :=
+  \fun (f: Function) => \axiom:funext(backward (forward f), f,
+    Components.induction (\fun (q: Components.Carrier) => backward (forward f) q = f q)
+      (\fun (a: A) => trans!{coefficients.Carrier} _ _ _ (onClass (forward f) a) (valueExtended (assigned f) a)));
+\definition rightInverse: \forall (h: H.CycleCarrier) -> forward (backward h) = h :=
+  \fun (h: H.CycleCarrier) => Free.ext (forward (backward h)) h
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _
+      (ZeroCochain.onGenerator (\fun (s: Simplices.Carrier N.Nat^::zero) => assigned (backward h) (point s)) sigma)
+      (trans!{coefficients.Carrier} _ _ _ (onClass h (point sigma)) (sym!{coefficients.Carrier} _ _ (valueOnSimplex h sigma))));
+\import Modules.Hom[V := Function, W := H.CycleCarrier, source := functionSpace, target := H.cycleSpace] \as Forward;
+\definition forwardLinear: Forward.Map := Forward.Map {
+  apply := forward,
+  addition := \fun (f, g: Function) => #addition{ZeroCochain.extension}
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => assigned f (point sigma))
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => assigned g (point sigma)),
+  scalar := \fun (a: I.Int^)(f: Function) => #scalar{ZeroCochain.extension} a
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => assigned f (point sigma)),
+};
+\definition injective: \forall (f, g: Function) -> forward f = forward g -> f = g :=
+  \fun (f, g: Function)(equal: _) => trans!{Function} _ _ _ (sym!{Function} _ _ (leftInverse f))
+    (trans!{Function} _ _ _ (congr!{H.CycleCarrier Function} backward _ _ equal) (leftInverse g));
+\definition onto: \forall (h: H.CycleCarrier) -> \exists { f: Function \where forward f = h } :=
+  \fun (h: H.CycleCarrier) => Logic.existsIntro[Function, { f: Function \where forward f = h }] (backward h) (rightInverse h);
+\import Modules.Isomorphism[V := Function, W := H.CycleCarrier, source := functionSpace, target := H.cycleSpace] \as Cycles;
+\definition cyclesIsomorphism: Cycles.Isomorphism := Cycles.OfBijective[f := forwardLinear].isomorphism injective onto;
+\import Complexes.DegreeZero[C := Cochains.complex] \as DegreeZero;
+\import Cycles.Composition[U := H.Cohomology, final := H.cohomologySpace] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := Function, W := H.Cohomology, source := functionSpace, target := H.cohomologySpace].Isomorphism :=
+  Composition.compose DegreeZero.kernelIso cyclesIsomorphism;

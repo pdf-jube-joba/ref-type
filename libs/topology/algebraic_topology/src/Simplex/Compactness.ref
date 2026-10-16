@@ -1,0 +1,81 @@
+\import \parent.At[n := n] \as Simplex;
+\import topology.Topology[Carrier := Coordinate (N.Nat^::succ n)] \as AmbientSpace;
+\import AmbientSpace.Finite[] \as Finite;
+\import AmbientSpace.IndexedIntersections[] \as Intersection;
+\import AmbientSpace.Compactness[] \as CompactSets;
+\import topological_algebra.Coordinates[K := Real.Real, I := Fin.Fin (N.Nat^::succ n)] \as Coordinates;
+\import topology.Continuity[A := Coordinate (N.Nat^::succ n), B := Real.Real] \as Maps;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\import metric_spaces.RealFunctions[A := Coordinate (N.Nat^::succ n)].FiniteSums[] \as SumFunctions;
+\definition Nonnegative(i: Fin.Fin (N.Nat^::succ n)): \Pow (Coordinate (N.Nat^::succ n)) :=
+  { x: Coordinate (N.Nat^::succ n) \where R.Le Real.zero (x i) };
+\definition nonnegativeClosed: \forall (i: Fin.Fin (N.Nat^::succ n)) -> AmbientSpace.IsClosedIn Simplex.ambientTopology (Nonnegative i) :=
+  \fun (i: Fin.Fin (N.Nat^::succ n)) => Maps.closedPreimage Simplex.ambientTopology Line.topology (Coordinates.evaluate i)
+    (Coordinates.evaluationContinuous Line.topology i) (Rays.AtLeast Real.zero) (Rays.atLeastClosed Real.zero);
+\definition Total: \Pow (Coordinate (N.Nat^::succ n)) := { x: Coordinate (N.Nat^::succ n) \where Sums.sum (N.Nat^::succ n) x = Real.one };
+\definition sumContinuous: Maps.Continuous Simplex.ambientTopology Line.topology (Sums.sum (N.Nat^::succ n)) :=
+  \idelim (\fun (x: Coordinate (N.Nat^::succ n)) => Sums.sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => x i)) = Sums.sum (N.Nat^::succ n)
+    \with f: (Coordinate (N.Nat^::succ n) -> Real.Real) => Maps.Continuous Simplex.ambientTopology Line.topology f \by {
+      base: SumFunctions.continuous Simplex.ambientTopology (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)) => x i)
+        (Coordinates.evaluationContinuous Line.topology),
+      equality: \axiom:funext((\fun (x: Coordinate (N.Nat^::succ n)) => Sums.sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => x i)), Sums.sum (N.Nat^::succ n),
+        \fun (x: Coordinate (N.Nat^::succ n)) => Sums.congruent (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => x i) x (\fun (i: Fin.Fin (N.Nat^::succ n)) => \refl(x i)))
+    };
+\definition totalClosed: AmbientSpace.IsClosedIn Simplex.ambientTopology Total := \block {
+  \let below: \Pow (Coordinate (N.Nat^::succ n)) := Maps.Preimage (Sums.sum (N.Nat^::succ n)) (Rays.AtMost Real.one) \then
+  \let above: \Pow (Coordinate (N.Nat^::succ n)) := Maps.Preimage (Sums.sum (N.Nat^::succ n)) (Rays.AtLeast Real.one) \then
+  \let same: AmbientSpace.Intersection below above = Total := \axiom:setext(AmbientSpace.Intersection below above, Total,
+    (\fun (x: Coordinate (N.Nat^::succ n))(both: AmbientSpace.Member (AmbientSpace.Intersection below above) x) => R.leAntisym _ _ #left{both} #right{both}),
+    (\fun (x: Coordinate (N.Nat^::succ n))(equal: AmbientSpace.Member Total x) => Logic.And[_, _]::#
+      (R.leReplaceLeft Real.one (Sums.sum (N.Nat^::succ n) x) Real.one (sym!{Real.Real} _ _ equal) (R.leRefl Real.one))
+      (R.leReplaceRight Real.one Real.one (Sums.sum (N.Nat^::succ n) x) (sym!{Real.Real} _ _ equal) (R.leRefl Real.one)))) \then
+  \return \idelim AmbientSpace.Intersection below above = Total \with S: \Pow (Coordinate (N.Nat^::succ n)) => AmbientSpace.IsClosedIn Simplex.ambientTopology S \by {
+    base: Finite.intersectionClosed Simplex.ambientTopology below above
+      (Maps.closedPreimage Simplex.ambientTopology Line.topology (Sums.sum (N.Nat^::succ n)) sumContinuous (Rays.AtMost Real.one) (Rays.atMostClosed Real.one))
+      (Maps.closedPreimage Simplex.ambientTopology Line.topology (Sums.sum (N.Nat^::succ n)) sumContinuous (Rays.AtLeast Real.one) (Rays.atLeastClosed Real.one)),
+    equality: same
+  }
+};
+\definition closed: AmbientSpace.IsClosedIn Simplex.ambientTopology (Points n) := \block {
+  \let all: \Pow (Coordinate (N.Nat^::succ n)) := Intersection.All (N.Nat^::succ n) Nonnegative \then
+  \let same: AmbientSpace.Intersection all Total = Points n := \axiom:setext(AmbientSpace.Intersection all Total, Points n,
+    (\fun (x: Coordinate (N.Nat^::succ n))(both: AmbientSpace.Member (AmbientSpace.Intersection all Total) x) => Barycentric[N.Nat^::succ n, x] { nonnegative := #left{both}, total := #right{both} }),
+    (\fun (x: Coordinate (N.Nat^::succ n))(laws: Barycentric[N.Nat^::succ n, x]) => Logic.And[_, _]::# #nonnegative{laws} #total{laws})) \then
+  \return \idelim AmbientSpace.Intersection all Total = Points n \with S: \Pow (Coordinate (N.Nat^::succ n)) => AmbientSpace.IsClosedIn Simplex.ambientTopology S \by {
+    base: Finite.intersectionClosed Simplex.ambientTopology all Total (Intersection.closed Simplex.ambientTopology (N.Nat^::succ n) Nonnegative nonnegativeClosed) totalClosed,
+    equality: same
+  }
+};
+\definition coordinateBound: \forall (x: Carrier n)(i: Fin.Fin (N.Nat^::succ n)) -> R.Le (x i) Real.one :=
+  \fun (x: Carrier n)(i: Fin.Fin (N.Nat^::succ n)) => R.leReplaceRight (x i) (Sums.sum (N.Nat^::succ n) x) Real.one #total{(barycentric n x)}
+    (Sums.coordinateUpper (N.Nat^::succ n) x #nonnegative{(barycentric n x)} i);
+\import \root.Interval[] \as Interval;
+\import topological_algebra.FinitePower[K := Interval.Carrier] \as Power;
+\import Power.At[n := N.Nat^::succ n] \as Cube;
+\import topological_algebra.Coordinates[K := Interval.Carrier, I := Fin.Fin (N.Nat^::succ n)] \as CubeCoordinates;
+\import topology.Topology[Carrier := Power.Carrier (N.Nat^::succ n)] \as CubeSpace;
+\import Coordinates.Universal[A := Power.Carrier (N.Nat^::succ n)] \as IntoCoordinates;
+\import topology.Composition[A := Power.Carrier (N.Nat^::succ n), B := Interval.Carrier, C := Real.Real] \as Composition;
+\import topology.Compactness[A := Power.Carrier (N.Nat^::succ n), B := Coordinate (N.Nat^::succ n)] \as Images;
+\import topology.Maps[A := Power.Carrier (N.Nat^::succ n), B := Coordinate (N.Nat^::succ n)] \as Image;
+\definition inclusion(x: Power.Carrier (N.Nat^::succ n)): Coordinate (N.Nat^::succ n) := \fun (i: Fin.Fin (N.Nat^::succ n)) => x i;
+\definition inclusionContinuous: topology.Continuity[A := Power.Carrier (N.Nat^::succ n), B := Coordinate (N.Nat^::succ n)].Continuous
+  (Cube.topology Interval.topology) Simplex.ambientTopology inclusion :=
+  IntoCoordinates.continuous (Cube.topology Interval.topology) Line.topology inclusion
+    (\fun (i: Fin.Fin (N.Nat^::succ n)) => Composition.composeContinuous (Cube.topology Interval.topology) Interval.topology Line.topology
+      (CubeCoordinates.evaluate i) (\fun (t: Interval.Carrier) => t) (CubeCoordinates.evaluationContinuous Interval.topology i) Interval.inclusionContinuous);
+\definition cube: \Pow (Coordinate (N.Nat^::succ n)) := Image.Image inclusion CubeSpace.Whole;
+\definition cubeCompact: AmbientSpace.IsCompactIn Simplex.ambientTopology cube :=
+  Images.continuousImage (Cube.topology Interval.topology) Simplex.ambientTopology inclusion inclusionContinuous CubeSpace.Whole
+    (Power.compact Interval.topology Interval.compact (N.Nat^::succ n));
+\definition contained: AmbientSpace.Subset (Points n) cube := \block {
+  \fun (x: Coordinate (N.Nat^::succ n))(laws: Barycentric[N.Nat^::succ n, x]) \then
+  \let point: Carrier n := \into[Coordinate (N.Nat^::succ n)](x, Points n) \by { laws } \then
+  \let v: Power.Carrier (N.Nat^::succ n) := \fun (i: Fin.Fin (N.Nat^::succ n)) =>
+    \into[Real.Real](x i, Line.ClosedInterval Real.zero Real.one) \by { Logic.And[_, _]::# (#nonnegative{laws} i) (coordinateBound point i) } \then
+  \return Logic.existsIntro[Power.Carrier (N.Nat^::succ n), { v: Power.Carrier (N.Nat^::succ n) \where Logic.And[CubeSpace.Member CubeSpace.Whole v, inclusion v = x] }] v
+    (Logic.And[_, _]::# (\refl(v)) (\axiom:funext(inclusion v, x, \fun (i: Fin.Fin (N.Nat^::succ n)) => \refl(x i))))
+};
+\definition compactIn: AmbientSpace.IsCompactIn Simplex.ambientTopology (Points n) := CompactSets.closedSubset Simplex.ambientTopology cube (Points n) cubeCompact closed contained;
+\import AmbientSpace.Subspace[S := Points n].Properties[] \as Subspace;
+\definition compact: topology.Topology[Carrier := Carrier n].IsCompact Simplex.topology := Subspace.compact Simplex.ambientTopology compactIn;

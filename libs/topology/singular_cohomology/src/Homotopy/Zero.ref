@@ -1,0 +1,55 @@
+\import \parent.At[n := N.Nat^::zero] \as Degree;
+\import \root.CylinderChains[n := N.Nat^::zero] \as Geometry;
+\import Geometry.Prism[] \as Prism;
+\import Geometry.At[m := N.Nat^::zero] \as Evaluation;
+\import algebraic_topology.Simplex[].Cylinder[n := N.Nat^::zero] \as CylinderSpace;
+\import \root.Chains[A := Geometry.Points, source := CylinderSpace.topology] \as CylinderChains;
+\import \root.Maps[A := Geometry.Points, B := B, source := CylinderSpace.topology, target := target] \as Push;
+\import \root.OrderedTuples[V := Prism.Index] \as Indices;
+\import \root.OrderedTuples[V := Geometry.Points] \as Tuples;
+\import Indices.Prism[W := Geometry.Points].Empty[] \as Empty;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ N.Nat^::zero), W := CylinderChains.Carrier N.Nat^::zero, source := Tuples.space (N.Nat^::succ N.Nat^::zero), target := CylinderChains.space N.Nat^::zero] \as EvalMaps;
+\definition geometryPrior: Prism.prior = #zero{(CylinderChains.space N.Nat^::zero)} :=
+  trans!{{CylinderChains.Carrier N.Nat^::zero}} _ _ _
+    (congr!{{Tuples.Carrier (N.Nat^::succ N.Nat^::zero)} {CylinderChains.Carrier N.Nat^::zero}} (#apply{Evaluation.map}) _ _
+      (Empty.zero Prism.start Prism.end (#apply{(Indices.boundary N.Nat^::zero)} Prism.base)))
+    (EvalMaps.zeroPreserved Evaluation.map);
+\import Modules.Hom[V := CylinderChains.Carrier N.Nat^::zero, W := Codomain.Carrier N.Nat^::zero, source := CylinderChains.space N.Nat^::zero, target := Codomain.space N.Nat^::zero] \as PushMaps;
+\definition priorZero: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier N.Nat^::zero) ->
+  Degree.Boundary[].prior f g h sigma = #zero{(Codomain.space N.Nat^::zero)} :=
+  \fun (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier N.Nat^::zero) => trans!{{Codomain.Carrier N.Nat^::zero}} _ _ _
+    (congr!{{CylinderChains.Carrier N.Nat^::zero} {Codomain.Carrier N.Nat^::zero}}
+      (#apply{(Push.At[n := N.Nat^::zero].push (Degree.family f g h sigma) (Degree.continuous f g h sigma))}) _ _ geometryPrior)
+    (PushMaps.zeroPreserved (Push.At[n := N.Nat^::zero].push (Degree.family f g h sigma) (Degree.continuous f g h sigma)));
+\import Modules.Laws[V := Codomain.Carrier N.Nat^::zero, space := Codomain.space N.Nat^::zero] \as Values;
+\import algebra.Group[].Of[Carrier := Codomain.Carrier N.Nat^::zero, group := Values.additive] \as Group;
+\definition onSimplex: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier N.Nat^::zero) ->
+  #apply{(Codomain.boundary N.Nat^::zero)} (Degree.onSimplex f g h sigma) = Group.difference
+    (Codomain.generator N.Nat^::zero (Maps.postcompose N.Nat^::zero g (endContinuous f g h) sigma))
+    (Codomain.generator N.Nat^::zero (Maps.postcompose N.Nat^::zero f (startContinuous f g h) sigma)) :=
+  \fun (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier N.Nat^::zero) => trans!{{Codomain.Carrier N.Nat^::zero}} _ _ _ (Degree.Boundary[].law f g h sigma)
+    (trans!{{Codomain.Carrier N.Nat^::zero}} _ _ _
+      (congr!{{Codomain.Carrier N.Nat^::zero} {Codomain.Carrier N.Nat^::zero}} (Group.difference
+        (Group.difference (Codomain.generator N.Nat^::zero (Maps.postcompose N.Nat^::zero g (endContinuous f g h) sigma))
+          (Codomain.generator N.Nat^::zero (Maps.postcompose N.Nat^::zero f (startContinuous f g h) sigma)))) _ _ (priorZero f g h sigma))
+      (trans!{{Codomain.Carrier N.Nat^::zero}} _ _ _ (congr!{{Codomain.Carrier N.Nat^::zero} {Codomain.Carrier N.Nat^::zero}} (Values.add
+        (Group.difference (Codomain.generator N.Nat^::zero (Maps.postcompose N.Nat^::zero g (endContinuous f g h) sigma))
+          (Codomain.generator N.Nat^::zero (Maps.postcompose N.Nat^::zero f (startContinuous f g h) sigma)))) _ _ Group.negZero)
+        (Group.zeroRight _)));
+\import Modules.Hom[V := Codomain.Carrier (N.Nat^::succ N.Nat^::zero), W := Codomain.Carrier N.Nat^::zero, source := Codomain.space (N.Nat^::succ N.Nat^::zero), target := Codomain.space N.Nat^::zero]
+  .Composition[U := Domain.Carrier N.Nat^::zero, domain := Domain.space N.Nat^::zero] \as Compose;
+\import Modules.Hom[V := Domain.Carrier N.Nat^::zero, W := Codomain.Carrier N.Nat^::zero, source := Domain.space N.Nat^::zero, target := Codomain.space N.Nat^::zero] \as Linear;
+\import Modules.Free[Generators := Source.Carrier N.Nat^::zero].To[W := Codomain.Carrier N.Nat^::zero, target := Codomain.space N.Nat^::zero] \as Free;
+\definition equation: \forall (f, g: A -> B)(h: Family f g) -> Compose.compose (Codomain.boundary N.Nat^::zero) (Degree.map f g h) =
+  Linear.plus (Maps.At[n := N.Nat^::zero].push g (endContinuous f g h)) (Linear.negative (Maps.At[n := N.Nat^::zero].push f (startContinuous f g h))) :=
+  \fun (f, g: A -> B)(h: Family f g) => Free.ext _ _ (\fun (sigma: Source.Carrier N.Nat^::zero) => trans!{{Codomain.Carrier N.Nat^::zero}} _ _ _
+    (congr!{{Codomain.Carrier (N.Nat^::succ N.Nat^::zero)} {Codomain.Carrier N.Nat^::zero}} (#apply{(Codomain.boundary N.Nat^::zero)}) _ _ (Degree.onGenerator f g h sigma))
+    (trans!{{Codomain.Carrier N.Nat^::zero}} _ _ _ (onSimplex f g h sigma)
+      (congr2!{{Codomain.Carrier N.Nat^::zero} {Codomain.Carrier N.Nat^::zero} {Codomain.Carrier N.Nat^::zero}} Group.difference _ _ _ _
+        (sym!{{Codomain.Carrier N.Nat^::zero}} _ _ (Maps.At[n := N.Nat^::zero].onGenerator g (endContinuous f g h) sigma))
+        (sym!{{Codomain.Carrier N.Nat^::zero}} _ _ (Maps.At[n := N.Nat^::zero].onGenerator f (startContinuous f g h) sigma)))));
+\definition law: \forall (f, g: A -> B)(h: Family f g)(x: Domain.Carrier N.Nat^::zero) ->
+  Group.difference (#apply{(Maps.At[n := N.Nat^::zero].push g (endContinuous f g h))} x) (#apply{(Maps.At[n := N.Nat^::zero].push f (startContinuous f g h))} x) =
+    #apply{(Codomain.boundary N.Nat^::zero)} (#apply{(Degree.map f g h)} x) :=
+  \fun (f, g: A -> B)(h: Family f g)(x: Domain.Carrier N.Nat^::zero) => sym!{{Codomain.Carrier N.Nat^::zero}} _ _
+    (congr!{Linear.Map {Codomain.Carrier N.Nat^::zero}} (\fun (map: Linear.Map) => #apply{map} x) _ _ (equation f g h));

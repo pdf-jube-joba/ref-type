@@ -1,6 +1,6 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05・G08・G09・G11・G13・G14 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+G02〜G05・G08・G09・G11・G13〜G15 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 これらのサンプルを個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -253,3 +253,13 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 
 [14-02-explicit-projection.ref](gaps/14-02-explicit-projection.ref) は明示的な field projection `#value{s}` を使うと型検査が通る。
 整数 Künneth の `Assertions.Exact` は `#inclusion{s}` を使って、外積が左端の写像である短完全列の存在を公開する。
+
+<a id="g15"></a>
+
+## G15: 複体を変換した結果を別名で再公開する
+
+同じ複体の構成を異なる台集合で具体化し、変換した複体を通常の定義から再公開して写像の型に使いたい。
+[15-01-complex-alias.ref](gaps/15-01-complex-alias.ref) は、異なる台集合 `A`・`B` の二つの複体を変換すると、戻り値の型の標的まで `A` に特殊化されて `types are not convertible` になる。
+
+[15-02-complex-direct.ref](gaps/15-02-complex-direct.ref) は、利用側で変換 module を二回直接 import すると型検査を通る。
+`singular_cohomology.Maps` は零拡張を `SourceExtension`・`TargetExtension` として直接具体化し、整数次数の鎖写像の型を構成する。

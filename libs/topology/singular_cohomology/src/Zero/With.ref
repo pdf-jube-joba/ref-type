@@ -1,0 +1,27 @@
+\import \root.Cochains[A := A, source := source].With[coefficients := coefficients] \as Cochains;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Cochains.complex, k := N.Nat^::zero] \as H;
+\import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
+\import algebra.Group[].Of[Carrier := coefficients.Carrier, group := Values.additive] \as Group;
+\import Cochains.At[n := N.Nat^::zero] \as ZeroCochain;
+\import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := coefficients.Carrier, target := coefficients.space] \as Free;
+\definition constant(a: A): Simplices.Carrier N.Nat^::zero := Simplices.At[n := N.Nat^::zero].constant a;
+\definition point(sigma: Simplices.Carrier N.Nat^::zero): A := sigma Simplex.zeroPoint;
+\definition simplexConstant: \forall (sigma: Simplices.Carrier N.Nat^::zero) -> sigma = constant (point sigma) :=
+  \fun (sigma: Simplices.Carrier N.Nat^::zero) => Simplices.ext N.Nat^::zero sigma (constant (point sigma))
+    (\fun (u: Simplex.Carrier N.Nat^::zero) => congr!{{Simplex.Carrier N.Nat^::zero} A} sigma _ _ (Simplex.zeroUnique u));
+\definition value(h: Cochains.Carrier N.Nat^::zero)(a: A): coefficients.Carrier := #apply{h} (Chains.generator N.Nat^::zero (constant a));
+\definition valueOnSimplex: \forall (h: Cochains.Carrier N.Nat^::zero)(sigma: Simplices.Carrier N.Nat^::zero) ->
+  #apply{h} (Chains.generator N.Nat^::zero sigma) = value h (point sigma) :=
+  \fun (h: Cochains.Carrier N.Nat^::zero)(sigma: Simplices.Carrier N.Nat^::zero) =>
+    congr!{{Simplices.Carrier N.Nat^::zero} coefficients.Carrier} (\fun (s: Simplices.Carrier N.Nat^::zero) => #apply{h} (Chains.generator N.Nat^::zero s)) _ _ (simplexConstant sigma);
+\definition extend(f: A -> coefficients.Carrier): Cochains.Carrier N.Nat^::zero := ZeroCochain.extend (\fun (sigma: Simplices.Carrier N.Nat^::zero) => f (point sigma));
+\definition valueExtended: \forall (f: A -> coefficients.Carrier)(a: A) -> value (extend f) a = f a :=
+  \fun (f: A -> coefficients.Carrier)(a: A) => ZeroCochain.onGenerator (\fun (sigma: Simplices.Carrier N.Nat^::zero) => f (point sigma)) (constant a);
+\definition cochainInverse: \forall (h: Cochains.Carrier N.Nat^::zero) -> extend (value h) = h :=
+  \fun (h: Cochains.Carrier N.Nat^::zero) => Free.ext (extend (value h)) h
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _
+      (ZeroCochain.onGenerator (\fun (s: Simplices.Carrier N.Nat^::zero) => value h (point s)) sigma)
+      (sym!{coefficients.Carrier} _ _ (valueOnSimplex h sigma)));
+\module Edges;
+\module Functions;

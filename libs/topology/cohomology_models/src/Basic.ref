@@ -1,0 +1,57 @@
+\inductive Point: \Set := | point: Point;
+\inductive Empty: \Set := ;
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import topology.Topology[Carrier := Point] \as Topology;
+\import singular_cohomology.Simplices[A := Point, source := Topology.Discrete] \as Simplices;
+\import singular_cohomology.Chains[A := Point, source := Topology.Discrete] \as Chains;
+\import singular_cohomology.Cochains[A := Point, source := Topology.Discrete].With[coefficients := coefficients] \as Cochains;
+\definition point(n: N.Nat^): Simplices.Carrier n := Simplices.At[n := n].constant Point::point;
+\definition boundarySquared: \forall (n: N.Nat^)(x: Chains.Carrier (N.Nat^::succ (N.Nat^::succ n))) ->
+  #apply{(Chains.boundary n)} (#apply{(Chains.boundary (N.Nat^::succ n))} x) = #zero{(Chains.space n)} :=
+  \fun (n: N.Nat^) => Chains.SquareZero[n := n].all;
+\import Chains.Reduced[] \as Reduced;
+\import Chains.Augmentation[] \as Augmentation;
+\definition negativeOneScalar(x: I.Int^): Reduced.Carrier (I.Int^::negSucc N.Nat^::zero) := x;
+\definition augmentedDegreeZero: \forall (x: Chains.Carrier N.Nat^::zero) ->
+  #apply{Reduced.complex.differential} (I.Int^::ofNat N.Nat^::zero) x = #apply{Augmentation.map} x :=
+  \fun (x: Chains.Carrier N.Nat^::zero) => \refl(#apply{Augmentation.map} x);
+\definition augmentationSection: \forall (x: I.Int^) -> #apply{Augmentation.map} (Augmentation.section Point::point x) = x := Augmentation.sectionLaw Point::point;
+\definition constant(n: N.Nat^): Cochains.Carrier n := Cochains.At[n := n].extend (\fun (_: Simplices.Carrier n) => I.One.specification);
+\definition evaluateConstant: \forall (n: N.Nat^)(sigma: Simplices.Carrier n) ->
+  #apply{(constant n)} (Chains.generator n sigma) = I.One.specification :=
+  \fun (n: N.Nat^) => Cochains.At[n := n].onGenerator (\fun (_: Simplices.Carrier n) => I.One.specification);
+\definition coboundarySquared: \forall (n: N.Nat^)(h: Cochains.Carrier n) ->
+  Cochains.coboundary (N.Nat^::succ n) (Cochains.coboundary n h) = #zero{(Cochains.space (N.Nat^::succ (N.Nat^::succ n)))} :=
+  \fun (n: N.Nat^)(h: Cochains.Carrier n) => #squareZero{Cochains.complex.laws} n h;
+\import topology.Topology[Carrier := Empty] \as EmptyTopology;
+\import singular_cohomology.Cochains[A := Empty, source := EmptyTopology.Discrete].With[coefficients := coefficients] \as EmptyCochains;
+\import singular_cohomology.Calculations[A := Empty, source := EmptyTopology.Discrete].With[coefficients := coefficients] \as EmptyCalculation;
+\definition empty: \forall (x: Empty) -> Logic.False := \induction (x: Empty) \return Logic.False \with {};
+\definition emptyGroups: \forall (n: N.Nat^)(h: EmptyCochains.cohomology n) -> h = #zero{(EmptyCochains.cohomologySpace n)} :=
+  EmptyCalculation.emptyCohomology empty;
+\definition pointUnique: \forall (x: Point) -> x = Point::point :=
+  \induction (x: Point) \return x = Point::point \with { | point: \refl(Point::point) };
+\import singular_cohomology.Zero[A := Point, source := Topology.Discrete].With[coefficients := coefficients] \as Zero;
+\definition pathComponentFunctionsIsomorphism: _ := Zero.Functions[].isomorphism;
+\definition closedValuesConstantOnPaths: _ := Zero.Edges[].constantOnPaths;
+\import singular_cohomology.Calculations[A := Point, source := Topology.Discrete].With[coefficients := coefficients].Singleton[a := Point::point] \as PointCalculation;
+\definition pointPositive: \forall (n: N.Nat^)(q: Cochains.cohomology (N.Nat^::succ n)) ->
+  q = #zero{(Cochains.cohomologySpace (N.Nat^::succ n))} := PointCalculation.positiveCohomology pointUnique;
+\definition pointDegreeZero: _ := PointCalculation.Zero[].isomorphism pointUnique;
+\import Reduced.NegativeOne[] \as ReducedCalculation;
+\definition nonemptyNegativeOne: _ := ReducedCalculation.nonemptyZero Point::point;
+\import singular_cohomology.Chains[A := Empty, source := EmptyTopology.Discrete].Reduced[].NegativeOne[] \as EmptyReduced;
+\definition emptyNegativeOne: _ := EmptyReduced.emptyIsomorphism empty;
+\import singular_cohomology.Zero[A := Point, source := Topology.Discrete].Homology[] \as Homology;
+\definition pathComponentFreeIsomorphism: _ := Homology.isomorphism;
+\import singular_cohomology.Calculations[A := algebraic_topology.Interval[].Carrier, source := algebraic_topology.Interval[].topology].With[coefficients := coefficients].Contractible[] \as IntervalCalculation;
+\import algebraic_topology.Interval[].Contraction[] \as IntervalContraction;
+\definition intervalDegreeZero: _ := IntervalCalculation.zeroIsomorphism IntervalContraction.contraction;
+\definition intervalPositive: _ := IntervalCalculation.positiveCohomology IntervalContraction.contraction;

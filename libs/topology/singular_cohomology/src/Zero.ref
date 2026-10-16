@@ -1,0 +1,41 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.Chains[A := A, source := source] \as Chains;
+\import \root.Simplices[A := A, source := source] \as Simplices;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.Interval[] \as Segment;
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.PathComponent[A := A, source := source] \as Components;
+\import Components.IntervalPaths[] \as Paths;
+\import topology.Composition[A := Simplex.Carrier Segment.dimension, B := Interval.Carrier, C := A] \as FromPath;
+\import topology.Composition[A := Interval.Carrier, B := Simplex.Carrier Segment.dimension, C := A] \as ToPath;
+\definition start(sigma: Simplices.Carrier Segment.dimension): A := sigma (Simplex.face N.Nat^::zero Segment.last Simplex.zeroPoint);
+\definition end(sigma: Simplices.Carrier Segment.dimension): A := sigma (Simplex.face N.Nat^::zero Segment.first Simplex.zeroPoint);
+\definition path(sigma: Simplices.Carrier Segment.dimension): Components.Path (start sigma) (end sigma) :=
+  Paths.ofFunction (start sigma) (end sigma) (\fun (t: Interval.Carrier) => sigma (Segment.embedding t))
+    (ToPath.composeContinuous Interval.topology Simplex.At[n := Segment.dimension].topology source Segment.embedding sigma
+      Segment.embeddingContinuous (Simplices.At[n := Segment.dimension].continuous sigma))
+    (congr!{{Simplex.Carrier Segment.dimension} A} sigma _ _ Segment.startEndpoint)
+    (congr!{{Simplex.Carrier Segment.dimension} A} sigma _ _ Segment.endEndpoint);
+\definition simplex(x, y: A)(h: Components.Path x y): Simplices.Carrier Segment.dimension :=
+  \into[Simplices.At[n := Segment.dimension].Function]((\fun (u: Simplex.Carrier Segment.dimension) => Paths.evaluate x y h (Segment.projection u)), Simplices.Carrier Segment.dimension) \by {
+    FromPath.composeContinuous Simplex.At[n := Segment.dimension].topology Interval.topology source Segment.projection (Paths.evaluate x y h)
+      Segment.projectionContinuous (Paths.continuous x y h)
+  };
+\definition simplexStart: \forall (x, y: A)(h: Components.Path x y) -> start (simplex x y h) = x :=
+  \fun (x, y: A)(h: Components.Path x y) => trans!{A} _ _ _
+    (congr!{Interval.Carrier A} (Paths.evaluate x y h) _ _ (Segment.faceLastStart Simplex.zeroPoint)) (Paths.start x y h);
+\definition simplexEnd: \forall (x, y: A)(h: Components.Path x y) -> end (simplex x y h) = y :=
+  \fun (x, y: A)(h: Components.Path x y) => trans!{A} _ _ _
+    (congr!{Interval.Carrier A} (Paths.evaluate x y h) _ _ (Segment.faceFirstEnd Simplex.zeroPoint)) (Paths.end x y h);
+\module With(coefficients: Modules.Bundle);
+\module Homology;

@@ -1,0 +1,53 @@
+\use Equality.congr2;
+\import algebraic_topology.Interval[] \as Interval;
+\definition Index: \Set := Fin.Fin (N.Nat^::succ n);
+\import \root.OrderedTuples[V := Index] \as Domain;
+\import Domain.Prism[W := Points] \as Prism;
+\import Domain.Mapping[W := Points] \as Mapping;
+\import \parent.At[m := n] \as Lower;
+\import \parent.At[m := N.Nat^::succ n] \as Higher;
+\import \parent.Endpoints[] \as Endpoints;
+\import \parent.Boundary[m := n] \as Boundary;
+\import Modules.Laws[V := Chains.Carrier n, space := Chains.space n] \as Values;
+\import algebra.Group[].Of[Carrier := Chains.Carrier n, group := Values.additive] \as Group;
+\import Modules.Laws[V := Tuples.Carrier (N.Nat^::succ n), space := Tuples.space (N.Nat^::succ n)] \as TupleValues;
+\import algebra.Group[].Of[Carrier := Tuples.Carrier (N.Nat^::succ n), group := TupleValues.additive] \as TupleGroup;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ n), W := Chains.Carrier n, source := Tuples.space (N.Nat^::succ n), target := Chains.space n] \as Evaluation;
+\definition vertices: Domain.Tuple (N.Nat^::succ n) := \fun (i: Index) => i;
+\definition base: Domain.Carrier (N.Nat^::succ n) := Domain.generator (N.Nat^::succ n) vertices;
+\definition start: Index -> Points := Space.vertices Interval.start;
+\definition end: Index -> Points := Space.vertices Interval.end;
+\definition tuple: Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)) := #apply{(Prism.map (N.Nat^::succ n) start end)} base;
+\definition chain: Chains.Carrier (N.Nat^::succ n) := #apply{Higher.map} tuple;
+\definition prior: Chains.Carrier n := #apply{Lower.map} (#apply{(Prism.map n start end)} (#apply{(Domain.boundary n)} base));
+\import Fin.Tuples[A := Index].Omission[] \as Indices;
+\import Modules.Alternating[V := Chains.Carrier n, space := Chains.space n] \as Sum;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ n), W := Chains.Carrier n, source := Tuples.space (N.Nat^::succ n), target := Chains.space n]
+  .Composition[U := Domain.Carrier n, domain := Domain.space n] \as PriorComposition;
+\import Modules.Alternating[V := Domain.Carrier n, space := Domain.space n].Mapping[W := Chains.Carrier n, target := Chains.space n] \as PriorSum;
+\definition priorMap: Modules.Hom[V := Domain.Carrier n, W := Chains.Carrier n, source := Domain.space n, target := Chains.space n].Map :=
+  PriorComposition.compose Lower.map (Prism.map n start end);
+\definition faceTerm(i: Fin.Fin (N.Nat^::succ n)): Chains.Carrier n :=
+  #apply{priorMap} (Domain.generator n (Indices.omit n i vertices));
+\definition priorExpansion: prior = Sum.sum (N.Nat^::succ n) faceTerm :=
+  trans!{{Chains.Carrier n}} _ _ _
+    (congr!{{Domain.Carrier n} {Chains.Carrier n}} (#apply{priorMap}) _ _ (Domain.Boundary[n := n].onGenerator vertices))
+    (PriorSum.law priorMap (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => Domain.generator n (Indices.omit n i vertices)));
+\definition endpointValue: \forall (t: Interval.Carrier) ->
+  #apply{Lower.map} (#apply{(Mapping.push (N.Nat^::succ n) (Space.vertices t))} base) = Chains.generator n (Endpoints.simplex t) :=
+  \fun (t: Interval.Carrier) => trans!{{Chains.Carrier n}} _ _ _
+    (congr!{{Tuples.Carrier (N.Nat^::succ n)} {Chains.Carrier n}} (#apply{Lower.map}) _ _ (Mapping.At[n := N.Nat^::succ n].onGenerator (Space.vertices t) vertices))
+    (Endpoints.onGenerator t);
+\definition boundary: #apply{(Chains.boundary n)} chain = Group.difference
+  (Group.difference (Chains.generator n (Endpoints.simplex Interval.end)) (Chains.generator n (Endpoints.simplex Interval.start))) prior := \block {
+  \let ge: Tuples.Carrier (N.Nat^::succ n) := #apply{(Mapping.push (N.Nat^::succ n) end)} base \then
+  \let gs: Tuples.Carrier (N.Nat^::succ n) := #apply{(Mapping.push (N.Nat^::succ n) start)} base \then
+  \let p: Tuples.Carrier (N.Nat^::succ n) := #apply{(Prism.map n start end)} (#apply{(Domain.boundary n)} base) \then
+  \return trans!{{Chains.Carrier n}} _ _ _ (Boundary.commutes tuple)
+    (trans!{{Chains.Carrier n}} _ _ _
+      (congr!{{Tuples.Carrier (N.Nat^::succ n)} {Chains.Carrier n}} (#apply{Lower.map}) _ _ (Prism.boundaryLaw n start end base))
+      (trans!{{Chains.Carrier n}} _ _ _ (Evaluation.differencePreserved Lower.map (TupleGroup.difference ge gs) p)
+        (congr!{{Chains.Carrier n} {Chains.Carrier n}} (\fun (v: Chains.Carrier n) => Group.difference v prior) _ _
+          (trans!{{Chains.Carrier n}} _ _ _ (Evaluation.differencePreserved Lower.map ge gs)
+            (congr2!{{Chains.Carrier n} {Chains.Carrier n} {Chains.Carrier n}} Group.difference _ _ _ _ (endpointValue Interval.end) (endpointValue Interval.start))))))
+};

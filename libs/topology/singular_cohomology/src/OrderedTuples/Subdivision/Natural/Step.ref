@@ -1,0 +1,20 @@
+\use Equality.eq_reason;
+\import \parent.At[n := N.Nat^::succ n] \as Degree;
+\definition coneApply(a: W)(x: Codomain.Carrier n): Codomain.Carrier (N.Nat^::succ n) := #apply{(Codomain.cone n a)} x;
+\definition law: Property n -> Degree.OnValues :=
+  \fun (previous: Property n)(f: V -> W)(preserves: Preserves f)(v: Tuple (N.Nat^::succ n)) => eq_reason!{
+    {#apply{(Mapping.push (N.Nat^::succ n) f)} (value (N.Nat^::succ n) v)}
+    "=" {coneApply (f (centres n v)) (#apply{(Mapping.push n f)} (#apply{(map n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v))))} "by" {
+      Mapping.Cone[n := n].law f (centres n v) (#apply{(map n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v)))}
+    "=" {coneApply (targetCentres n (Mapping.onTuple (N.Nat^::succ n) f v)) (#apply{(Other.map n)} (#apply{(Mapping.push n f)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v))))} "by" {
+      congr2!{W {Codomain.Carrier n} {Codomain.Carrier (N.Nat^::succ n)}} coneApply _ _ _ _
+        (preserves n v) (previous f preserves (#apply{(boundary n)} (generator (N.Nat^::succ n) v)))}
+    "=" {coneApply (targetCentres n (Mapping.onTuple (N.Nat^::succ n) f v)) (#apply{(Other.map n)} (#apply{(Codomain.boundary n)} (#apply{(Mapping.push (N.Nat^::succ n) f)} (generator (N.Nat^::succ n) v))))} "by" {
+      congr!{{Codomain.Carrier n} {Codomain.Carrier (N.Nat^::succ n)}}
+        (\fun (x: Codomain.Carrier n) => coneApply (targetCentres n (Mapping.onTuple (N.Nat^::succ n) f v)) (#apply{(Other.map n)} x)) _ _
+        (sym!{{Codomain.Carrier n}} _ _ (Mapping.Boundary[n := n].commutes f (generator (N.Nat^::succ n) v)))}
+    "=" {Other.value (N.Nat^::succ n) (Mapping.onTuple (N.Nat^::succ n) f v)} "by" {
+      congr!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}}
+        (\fun (x: Codomain.Carrier (N.Nat^::succ n)) => coneApply (targetCentres n (Mapping.onTuple (N.Nat^::succ n) f v)) (#apply{(Other.map n)} (#apply{(Codomain.boundary n)} x))) _ _
+        (Mapping.At[n := N.Nat^::succ n].onGenerator f v)}
+  };

@@ -1,0 +1,45 @@
+\import metric_spaces.RealFunctions[A := A] \as Functions;
+\definition Continuous(f: A -> Real.Real): \Prop := Functions.Continuous source f;
+\definition evaluateContinuous: \forall (n: N.Nat^)(head: A -> Real.Real)(tail: A -> Coordinate n) ->
+  Continuous head -> (\forall (i: Fin.Fin n) -> Continuous (\fun (x: A) => tail x i)) ->
+  \forall (o: Option.Option[Fin.Fin n]) -> Continuous (\fun (x: A) => Tuples.evaluate n (head x) (tail x) o) :=
+  \fun (n: N.Nat^)(head: A -> Real.Real)(tail: A -> Coordinate n)(hc: _)(tc: _) =>
+    \induction (o: Option.Option[Fin.Fin n]) \return Continuous (\fun (x: A) => Tuples.evaluate n (head x) (tail x) o) \with {
+      | none: hc
+      | some: tc
+    };
+\definition extendContinuous: \forall (n: N.Nat^)(head: A -> Real.Real)(tail: A -> Coordinate n) ->
+  Continuous head -> (\forall (i: Fin.Fin n) -> Continuous (\fun (x: A) => tail x i)) ->
+  \forall (i: Fin.Fin (N.Nat^::succ n)) -> Continuous (\fun (x: A) => Tuples.extend n (head x) (tail x) i) :=
+  \fun (n: N.Nat^)(head: A -> Real.Real)(tail: A -> Coordinate n)(hc: _)(tc: _)(i: _) =>
+    evaluateContinuous n head tail hc tc (Fin.split n i);
+\definition stepContinuous: \forall (n: N.Nat^) ->
+  (\forall (i: Fin.Fin (N.Nat^::succ n))(f: A -> Coordinate n) ->
+    (\forall (j: Fin.Fin n) -> Continuous (\fun (x: A) => f x j)) ->
+    \forall (j: Fin.Fin (N.Nat^::succ n)) -> Continuous (\fun (x: A) => insertZero n i (f x) j)) ->
+  \forall (f: A -> Coordinate (N.Nat^::succ n)) ->
+    (\forall (j: Fin.Fin (N.Nat^::succ n)) -> Continuous (\fun (x: A) => f x j)) ->
+    \forall (o: Option.Option[Fin.Fin (N.Nat^::succ n)])(j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) ->
+      Continuous (\fun (x: A) => insertStep n (insertZero n) (f x) o j) :=
+  \fun (n: N.Nat^)(previous: _)(f: _)(fc: _) =>
+    \induction (o: Option.Option[Fin.Fin (N.Nat^::succ n)]) \return
+      \forall (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) ->
+        Continuous (\fun (x: A) => insertStep n (insertZero n) (f x) o j) \with {
+      | none: extendContinuous (N.Nat^::succ n) (\fun (_: A) => Real.zero) f
+          (Functions.constantContinuous source Real.zero) fc
+      | some: \fun (i: Fin.Fin (N.Nat^::succ n)) =>
+          extendContinuous (N.Nat^::succ n) (\fun (x: A) => f x (Fin.zero n))
+            (\fun (x: A) => insertZero n i (\fun (k: Fin.Fin n) => f x (Fin.succ n k)))
+            (fc (Fin.zero n))
+            (previous i (\fun (x: A)(k: Fin.Fin n) => f x (Fin.succ n k)) (\fun (k: Fin.Fin n) => fc (Fin.succ n k)))
+    };
+\definition insertionContinuous: \forall (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(f: A -> Coordinate n) ->
+  (\forall (j: Fin.Fin n) -> Continuous (\fun (x: A) => f x j)) ->
+  \forall (j: Fin.Fin (N.Nat^::succ n)) -> Continuous (\fun (x: A) => insertZero n i (f x) j) :=
+  \induction (n: N.Nat^) \return \forall (i: Fin.Fin (N.Nat^::succ n))(f: A -> Coordinate n) ->
+    (\forall (j: Fin.Fin n) -> Continuous (\fun (x: A) => f x j)) ->
+    \forall (j: Fin.Fin (N.Nat^::succ n)) -> Continuous (\fun (x: A) => insertZero n i (f x) j) \with {
+      | zero: \fun (i: _)(f: _)(fc: _)(j: _) => Functions.constantContinuous source Real.zero
+      | succ: \fun (n: N.Nat^)(previous: _)(i: _)(f: _)(fc: _) =>
+          stepContinuous n previous f fc (Fin.split (N.Nat^::succ n) i)
+    };
