@@ -1,0 +1,18 @@
+\definition Retraction(z: I.Int^): \Set := Modules.Hom[V := WholeReduced.Carrier z, W := SubspaceReduced.Carrier z, source := WholeReduced.space z, target := SubspaceReduced.space z].Map;
+\import Modules.End[V := I.Int^, space := Modules.scalarModule] \as ScalarIdentity;
+\import Modules.End[V := Modules.Zero[].Carrier, space := Modules.Zero[].moduleSpace] \as ZeroIdentity;
+\definition map: \forall (z: I.Int^) -> Retraction z := \induction (z: I.Int^) \return Retraction z \with {
+  | ofNat: \fun (n: N.Nat^) => Ordinary.Split[n := n].retraction
+  | negSucc: \induction (n: N.Nat^) \return Retraction (I.Int^::negSucc n) \with {
+    | zero: ScalarIdentity.identity
+    | succ: \fun (n: N.Nat^)(unused: _) => ZeroIdentity.identity
+  }
+};
+\definition leftInverse: \forall (z: I.Int^)(x: SubspaceReduced.Carrier z) -> #apply{(map z)} (#apply{inclusionMap} z x) = x :=
+  \induction (z: I.Int^) \return \forall (x: SubspaceReduced.Carrier z) -> #apply{(map z)} (#apply{inclusionMap} z x) = x \with {
+    | ofNat: \fun (n: N.Nat^)(x: SubspaceReduced.Carrier (I.Int^::ofNat n)) => Ordinary.Split[n := n].leftInverse (SubspaceExtension.Positive[n := n].intro x)
+    | negSucc: \induction (n: N.Nat^) \return \forall (x: SubspaceReduced.Carrier (I.Int^::negSucc n)) -> #apply{(map (I.Int^::negSucc n))} (#apply{inclusionMap} (I.Int^::negSucc n) x) = x \with {
+      | zero: \fun (x: I.Int^) => \refl(x)
+      | succ: \fun (n: N.Nat^)(unused: _)(x: Modules.Zero[].Carrier) => \refl(x)
+    }
+  };

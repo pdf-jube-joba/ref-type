@@ -1,0 +1,64 @@
+\import SubspaceChains.Reduced[] \as SubspaceReduced;
+\import WholeChains.Reduced[] \as WholeReduced;
+\import Inclusion.Reduced[] \as InclusionReduced;
+\definition inclusionMap: Complexes.Map[C := SubspaceReduced.complex, D := WholeReduced.complex].Map := InclusionReduced.map inclusion inclusionContinuous;
+\definition Projection(z: I.Int^): \Set := Modules.Hom[V := WholeReduced.Carrier z, W := Carrier z, source := WholeReduced.space z, target := space z].Map;
+\import \root.Relative[A := A, source := source, subset := subset] \as Ordinary;
+\structure ExactAt[z: I.Int^, projection: Projection z]: \Prop {
+  injective: \forall (x, y: SubspaceReduced.Carrier z) -> #apply{inclusionMap} z x = #apply{inclusionMap} z y -> x = y,
+  onto: \forall (q: Carrier z) -> \exists { x: WholeReduced.Carrier z \where #apply{projection} x = q },
+  zero: \forall (x: SubspaceReduced.Carrier z) -> #apply{projection} (#apply{inclusionMap} z x) = #zero{(space z)},
+  kernelImage: \forall (x: WholeReduced.Carrier z) -> #apply{projection} x = #zero{(space z)} ->
+    \exists { y: SubspaceReduced.Carrier z \where #apply{inclusionMap} z y = x },
+}
+\module Positive(n: N.Nat^);
+\module Negative(n: N.Nat^);
+\definition projection: \forall (z: I.Int^) -> Projection z := \induction (z: I.Int^) \return Projection z \with {
+  | ofNat: \fun (n: N.Nat^) => Positive[n := n].map
+  | negSucc: \fun (n: N.Nat^) => Negative[n := n].map
+};
+\definition commutes: \forall (z: I.Int^)(x: WholeReduced.Carrier z) ->
+  #apply{complex.differential} z (#apply{(projection z)} x) = #apply{(projection (Degrees.previous z))} (#apply{WholeReduced.differential} z x) :=
+  \induction (z: I.Int^) \return \forall (x: WholeReduced.Carrier z) ->
+    #apply{complex.differential} z (#apply{(projection z)} x) = #apply{(projection (Degrees.previous z))} (#apply{WholeReduced.differential} z x) \with {
+      | ofNat: \induction (n: N.Nat^) \return \forall (x: WholeReduced.Carrier (I.Int^::ofNat n)) ->
+        #apply{complex.differential} (I.Int^::ofNat n) (#apply{(projection (I.Int^::ofNat n))} x) =
+        #apply{(projection (Degrees.previous (I.Int^::ofNat n)))} (#apply{WholeReduced.differential} (I.Int^::ofNat n) x) \with {
+          | zero: \fun (x: WholeReduced.Carrier (I.Int^::ofNat N.Nat^::zero)) => Negative[n := N.Nat^::zero].equal
+            (#apply{complex.differential} (I.Int^::ofNat N.Nat^::zero) (#apply{(projection (I.Int^::ofNat N.Nat^::zero))} x))
+            (#apply{(projection (I.Int^::negSucc N.Nat^::zero))} (#apply{WholeReduced.differential} (I.Int^::ofNat N.Nat^::zero) x))
+          | succ: \fun (n: N.Nat^)(unused: _)(x: WholeReduced.Carrier (I.Int^::ofNat (N.Nat^::succ n))) =>
+            Quotient.At[k := I.Int^::ofNat (N.Nat^::succ n)].onClass (WholeExtension.Positive[n := N.Nat^::succ n].intro x)
+        }
+      | negSucc: \fun (n: N.Nat^)(x: WholeReduced.Carrier (I.Int^::negSucc n)) => Negative[n := N.Nat^::succ n].equal
+        (#apply{complex.differential} (I.Int^::negSucc n) (#apply{(projection (I.Int^::negSucc n))} x))
+        (#apply{(projection (I.Int^::negSucc (N.Nat^::succ n)))} (#apply{WholeReduced.differential} (I.Int^::negSucc n) x))
+    };
+\definition projectionMap: Complexes.Map[C := WholeReduced.complex, D := complex].Map := Complexes.Map[C := WholeReduced.complex, D := complex].Map {
+  apply := \fun (z: I.Int^) => #apply{(projection z)},
+  addition := \fun (z: I.Int^) => #addition{(projection z)},
+  scalar := \fun (z: I.Int^) => #scalar{(projection z)},
+  commutes := commutes,
+};
+\definition exactness: \forall (z: I.Int^) -> ExactAt[z, projection z] :=
+  \induction (z: I.Int^) \return ExactAt[z, projection z] \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].exactness
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].exactness
+  };
+\import Complexes.ShortExact[A := SubspaceReduced.complex, B := WholeReduced.complex, C := complex] \as Exact;
+\definition sequence: Exact.Sequence := Exact.Sequence {
+  inclusion := inclusionMap, projection := projectionMap,
+  injective := \fun (z: I.Int^) => #injective{(exactness z)},
+  onto := \fun (z: I.Int^) => #onto{(exactness z)},
+  zero := \fun (z: I.Int^) => #zero{(exactness z)},
+  kernelImage := \fun (z: I.Int^) => #kernelImage{(exactness z)},
+};
+\module Retraction;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].IntegerRelative[subcomplex := SubspaceReduced.complex, wholecomplex := WholeReduced.complex] \as SplitCochains;
+\definition splitData: SplitCochains.Data := SplitCochains.Data { inclusion := inclusionMap, retraction := Retraction[].map };
+\definition split: SplitCochains.SplitInjection := \into[SplitCochains.Data](splitData, SplitCochains.SplitInjection) \by {
+  SplitCochains.Laws[splitData] { leftInverse := Retraction[].leftInverse }
+};
+\import Complexes.Quotient[C := SubspaceReduced.complex, D := WholeReduced.complex].On[f := inclusionMap] \as AugmentedQuotient;
+\definition quotientIsomorphism: Complexes.Isomorphism[C := AugmentedQuotient.complex, D := complex].Isomorphism := Exact.Cokernel[s := sequence].isomorphism;
+\module With(coefficients: Modules.Bundle);
