@@ -6,4 +6,32 @@
   forwardPreserves: \forall (x: SourcePair.SubspaceCarrier) -> \In[B] targetSubset (#forward{homeomorphism} x),
   backwardPreserves: \forall (x: TargetPair.SubspaceCarrier) -> \In[A] subset (#backward{homeomorphism} x),
 }
+
+
+\import SourcePair.Maps[B := B].Over[target := target, targetSubset := targetSubset] \as ForwardMaps;
+\import TargetPair.Maps[B := A].Over[target := source, targetSubset := subset] \as BackwardMaps;
+\definition forwardMap(data: Data): ForwardMaps.Map := \into[A -> B](#forward{#homeomorphism{data}}, ForwardMaps.Map) \by {
+  ForwardMaps.Laws[#forward{#homeomorphism{data}}] {
+    continuous := #forwardContinuous{(Geometry.laws source target #homeomorphism{data})},
+    contained := #forwardPreserves{data},
+  }
+};
+\definition backwardMap(data: Data): BackwardMaps.Map := \into[B -> A](#backward{#homeomorphism{data}}, BackwardMaps.Map) \by {
+  BackwardMaps.Laws[#backward{#homeomorphism{data}}] {
+    continuous := #backwardContinuous{(Geometry.laws source target #homeomorphism{data})},
+    contained := #backwardPreserves{data},
+  }
+};
 \module On(data: Data);
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Isomorphism[C := SourcePair.complex, D := TargetPair.complex] \as ChainIsomorphisms;
+\definition chainIsomorphism(data: Data): ChainIsomorphisms.Isomorphism := On[data := data].chainIsomorphism;
+\module Homology(z: I.Int^) {
+  \definition isomorphism(data: Data): Modules.Isomorphism[V := SourcePair.Homology[z := z].Carrier, W := TargetPair.Homology[z := z].Carrier,
+    source := SourcePair.Homology[z := z].space, target := TargetPair.Homology[z := z].space].Isomorphism := \parent.On[data := data].Homology[z := z].isomorphism;
+}
+\module With(coefficients: Modules.Bundle) {
+  \module At(z: I.Int^) {
+    \definition isomorphism(data: Data): Modules.Isomorphism[V := TargetPair.With[coefficients := coefficients].At[z := z].Carrier, W := SourcePair.With[coefficients := coefficients].At[z := z].Carrier,
+      source := TargetPair.With[coefficients := coefficients].At[z := z].space, target := SourcePair.With[coefficients := coefficients].At[z := z].space].Isomorphism := \parent.\parent.On[data := data].With[coefficients := coefficients].At[z := z].isomorphism;
+  }
+}
