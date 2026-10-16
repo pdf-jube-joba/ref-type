@@ -1,0 +1,27 @@
+\inductive Point: \Set := | point: Point;
+\import topology.Topology[Carrier := Point] \as Top;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\module Excision {
+  \import singular_excision.Excision[A := Point].Over[source := Top.Discrete] \as Cut;
+  \definition data: Cut.PairData := Cut.PairData { subset := Top.Whole, removed := Top.Empty };
+  \import Top.Interior[] \as Interior;
+  \definition valid: Cut.Valid data := \fun (x: Point)(member: _) =>
+    Interior.greatest Top.Discrete Top.Whole Top.Whole (Top.discreteOpen Top.Whole)
+      (\fun (a: Point)(inside: Top.Member Top.Whole a) => inside) x (\refl(x));
+  \definition pair: Cut.Pair := \into[Cut.PairData](data, Cut.Pair) \by { valid };
+  \module Groups;
+}
+\module MayerVietoris {
+  \import singular_excision.MayerVietoris[A := Point].Over[source := Top.Discrete] \as Covers;
+  \definition data: Covers.Data := Covers.Data { left := Top.Whole, right := Top.Whole };
+  \definition laws: Covers.Laws[data] := Covers.Laws[data] {
+    leftOpen := Top.discreteOpen Top.Whole, rightOpen := Top.discreteOpen Top.Whole,
+    covered := \fun (x: Point) => Logic.Or[Top.Member Top.Whole x, Top.Member Top.Whole x]::left (\refl(x)),
+  };
+  \definition cover: Covers.Cover := \into[Covers.Data](data, Covers.Cover) \by { laws };
+  \module Sequence;
+}
