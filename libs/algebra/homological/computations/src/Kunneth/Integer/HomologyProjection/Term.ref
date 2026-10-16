@@ -1,0 +1,19 @@
+\import Chains.At[C := Original.chain, z := z] \as Homology;
+\import Decomposition.Term[p := z] \as Current;
+\definition Carrier: \Set := Homology.Homology;
+\definition space: Modules.Space Carrier := Homology.homologySpace;
+\import Modules.Hom[V := Homology.Cycle, W := Carrier, source := Homology.cycleSpace, target := space].Composition[
+  U := Original.chain.family.Carrier z, domain := Original.chain.family.space z] \as Compose;
+\definition map: Modules.Hom[V := Original.chain.family.Carrier z, W := Carrier, source := Original.chain.family.space z, target := space].Map :=
+  Compose.compose Homology.classLinear Current.retraction;
+\definition onCycle: \forall (x: Homology.Cycle) -> #apply{map} x = Homology.classOf x :=
+  \fun (x: Homology.Cycle) => congr!{Homology.Cycle Carrier} Homology.classOf _ _ (Current.retracts x);
+\import \parent.Term[z := Bounded.previous z] \as Lower;
+\definition killsBoundary: \forall (x: Original.chain.family.Carrier z) ->
+  #apply{Lower.map} (#apply{Original.chain.differential} z x) = #zero{Lower.space} :=
+  \fun (x: Original.chain.family.Carrier z) => trans!{Lower.Carrier} _ _ _
+    (Lower.onCycle (Current.boundaryAsCycle (#apply{Current.projection} x)))
+    (Current.boundaryClassZero (#apply{Current.projection} x));
+\definition commutes: \forall (x: Original.chain.family.Carrier z) ->
+  #zero{Lower.space} = #apply{Lower.map} (#apply{Original.chain.differential} z x) :=
+  \fun (x: Original.chain.family.Carrier z) => sym!{Lower.Carrier} _ _ (killsBoundary x);

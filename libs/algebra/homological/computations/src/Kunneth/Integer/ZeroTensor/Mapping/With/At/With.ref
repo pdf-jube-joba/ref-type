@@ -1,0 +1,18 @@
+\import SourceDegree.With[projective := sourceProjective] \as SourceSelected;
+\import TargetDegree.With[projective := targetProjective] \as TargetSelected;
+\import Chains.At[C := TargetTotal.complex, z := n] \as TargetH;
+\import Chains.At[C := Total.complex, z := n] \as SourceH;
+\import Modules.Hom[V := SourceH.Homology, W := TargetH.Homology, source := SourceH.homologySpace, target := TargetH.homologySpace].Composition[
+  U := SourceSum.Carrier, domain := SourceSum.space] \as ThroughMiddle;
+\import Modules.Hom[V := TargetSum.Carrier, W := TargetH.Homology, source := TargetSum.space, target := TargetH.homologySpace].Composition[
+  U := SourceSum.Carrier, domain := SourceSum.space] \as ThroughDiagonal;
+\definition throughMiddle: _ := ThroughMiddle.compose middle SourceSelected.forwardMap;
+\definition throughDiagonal: _ := ThroughDiagonal.compose TargetSelected.forwardMap diagonal;
+\module Point(p: Degree);
+\import SourceSum.To[W := TargetH.Homology, target := TargetH.homologySpace] \as Universal;
+\definition square: throughMiddle = throughDiagonal := Universal.ext throughMiddle throughDiagonal (\fun (p: Degree) => Point[p := p].equality);
+\definition naturality: \forall (x: SourceSum.Carrier) ->
+  #apply{middle} (#apply{#forward{SourceSelected.isomorphism}} x) =
+    #apply{#forward{TargetSelected.isomorphism}} (#apply{diagonal} x) :=
+  \fun (x: SourceSum.Carrier) => congr!{{Modules.Hom[V := SourceSum.Carrier, W := TargetH.Homology, source := SourceSum.space, target := TargetH.homologySpace].Map} TargetH.Homology}
+    (\fun (h: Modules.Hom[V := SourceSum.Carrier, W := TargetH.Homology, source := SourceSum.space, target := TargetH.homologySpace].Map) => #apply{h} x) _ _ square;

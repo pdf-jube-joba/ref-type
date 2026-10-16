@@ -1,0 +1,39 @@
+\import Source.Degree[n := n] \as SD;
+\import Target.Degree[n := n] \as TD;
+\import \parent.\parent.Degree[n := n] \as OriginalDegree;
+\import Reverse.Degree[n := n] \as ReverseDegree;
+\import Modules.Hom[V := Source.Carrier n, W := Source.Carrier n, source := Source.space n, target := Source.space n] \as Linear;
+\definition composite: Linear.Map := Linear.Map {
+  apply := \fun (x: SD.Carrier) => #apply{Reverse.forward} n (#apply{forward} n x),
+  addition := \fun (x, y: SD.Carrier) => trans!{SD.Carrier} _ _ _
+    (congr!{TD.Carrier SD.Carrier} (#apply{Reverse.forward} n) _ _ (#addition{forward} n x y))
+    (#addition{Reverse.forward} n (#apply{forward} n x) (#apply{forward} n y)),
+  scalar := \fun (a: R)(x: SD.Carrier) => trans!{SD.Carrier} _ _ _
+    (congr!{TD.Carrier SD.Carrier} (#apply{Reverse.forward} n) _ _ (#scalar{forward} n a x))
+    (#scalar{Reverse.forward} n a (#apply{forward} n x)),
+};
+\definition topIndex(i: Pair)(closed: Arithmetic.add #first{i} #second{i} = n): Index n :=
+  \into[Pair](i, { j: Pair \where Arithmetic.add #first{j} #second{j} = n }) \by { closed };
+\module PairWitness(p, q: Nat.Nat^) {
+  \import \parent.\parent.\parent.Term[p := p, q := q] \as SignedTerm;
+  \definition i(closed: Arithmetic.add p q = n): Index n := topIndex (Pair::# p q) closed;
+  \definition point: \forall (closed: Arithmetic.add p q = n)(x: Original.Carrier p q) ->
+    #apply{composite} (#apply{(SD.Component[i := i closed].injection)} x) = #apply{(SD.Component[i := i closed].injection)} x :=
+    \fun (closed: Arithmetic.add p q = n)(x: Original.Carrier p q) => trans!{SD.Carrier} _ _ _
+      (congr!{TD.Carrier SD.Carrier} (#apply{Reverse.forward} n) _ _ (OriginalDegree.At[i := i closed].onInjection x))
+      (trans!{SD.Carrier} _ _ _
+        (ReverseDegree.At[i := index n (i closed)].onInjection (#apply{SignedTerm.map} x))
+        (congr!{{Original.Carrier p q} SD.Carrier} (#apply{(SD.Component[i := i closed].injection)}) _ _ (SignedTerm.twice x)));
+}
+\definition onPair: \forall (i: Pair)(closed: Arithmetic.add #first{i} #second{i} = n)(x: Original.Carrier #first{i} #second{i}) ->
+  #apply{composite} (#apply{(SD.Component[i := topIndex i closed].injection)} x) = #apply{(SD.Component[i := topIndex i closed].injection)} x :=
+  \induction (i: Pair) \return \forall (closed: Arithmetic.add #first{i} #second{i} = n)(x: Original.Carrier #first{i} #second{i}) ->
+    #apply{composite} (#apply{(SD.Component[i := topIndex i closed].injection)} x) = #apply{(SD.Component[i := topIndex i closed].injection)} x \with {
+      | # : \fun (p, q: Nat.Nat^)(closed: Arithmetic.add p q = n) => PairWitness[p := p, q := q].point closed
+    };
+\import Modules.DirectSum[Index := Index n, family := SD.family].To[W := SD.Carrier, target := SD.space] \as Universal;
+\import Modules.End[V := SD.Carrier, space := SD.space] \as Identity;
+\definition equality: composite = Identity.identity := Universal.ext composite Identity.identity
+  (\fun (i: Index n) => onPair i (degree n i));
+\definition point: \forall (x: SD.Carrier) -> #apply{Reverse.forward} n (#apply{forward} n x) = x :=
+  \fun (x: SD.Carrier) => congr!{Linear.Map SD.Carrier} (\fun (f: Linear.Map) => #apply{f} x) _ _ equality;

@@ -1,0 +1,56 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import \parent.FiniteSupport[] \as Coordinates;
+\import Coordinates.At[i := point] \as Evaluation;
+\import \parent.Injection[i := point] \as Inclusion;
+\import \parent.\parent.Hom[V := Carrier, W := Carrier, source := space, target := space] \as EndMaps;
+\import \parent.\parent.End[V := Carrier, space := space] \as Identity;
+\import \parent.\parent.Hom[V := family.Carrier point, W := Carrier, source := family.space point, target := space].Composition[
+  U := Carrier, domain := space] \as Compose;
+\definition OtherTrivial: \Prop := \forall (i: Index) -> Logic.Not (i = point) ->
+  \forall (x: family.Carrier i) -> x = #zero{(family.space i)};
+\definition forward: \parent.\parent.Hom[V := Carrier, W := family.Carrier point, source := space, target := family.space point].Map := Evaluation.evaluate;
+\definition backward: \parent.\parent.Hom[V := family.Carrier point, W := Carrier, source := family.space point, target := space].Map := Inclusion.map;
+\definition composite: EndMaps.Map := Compose.compose backward forward;
+\definition rightInverse: \forall (x: family.Carrier point) -> #apply{forward} (#apply{backward} x) = x := Coordinates.atOwn point;
+\definition atPoint: \forall (x: family.Carrier point) ->
+  #apply{composite} (#apply{backward} x) = #apply{backward} x :=
+  \fun (x: family.Carrier point) => congr!{{family.Carrier point} Carrier} (#apply{backward}) _ _ (rightInverse x);
+\module Component(i: Index) {
+  \import \parent.\parent.Injection[i := i] \as Injection;
+  \import \parent.\parent.\parent.Hom[V := family.Carrier i, W := Carrier, source := family.space i, target := space] \as Maps;
+  \definition trivial: OtherTrivial -> Logic.Not (i = point) ->
+    \forall (x: family.Carrier i) -> #apply{composite} (#apply{Injection.map} x) = #apply{Injection.map} x :=
+    \fun (trivial: OtherTrivial)(different: Logic.Not (i = point))(x: family.Carrier i) =>
+      \idelim #apply{Injection.map} #zero{(family.space i)} = #apply{Injection.map} x
+        \with y: Carrier => #apply{composite} y = y \by {
+          base: \idelim #zero{space} = #apply{Injection.map} #zero{(family.space i)}
+            \with y: Carrier => #apply{composite} y = y \by {
+              base: EndMaps.zeroPreserved composite,
+              equality: sym!{Carrier} _ _ (Maps.zeroPreserved Injection.map)
+            },
+          equality: congr!{{family.Carrier i} Carrier} (#apply{Injection.map}) _ _
+            (sym!{{family.Carrier i}} _ _ (trivial i different x))
+        };
+}
+\definition onInjection: OtherTrivial -> \forall (i: Index)(x: family.Carrier i) ->
+  #apply{composite} (#apply{(\parent.Injection[i := i].map)} x) = #apply{(\parent.Injection[i := i].map)} x :=
+  \fun (trivial: OtherTrivial)(i: Index) =>
+    either!{{(Classical.excludedMiddle (i = point))} {
+      \forall (x: family.Carrier i) -> #apply{composite} (#apply{(\parent.Injection[i := i].map)} x) = #apply{(\parent.Injection[i := i].map)} x
+    }
+      {\fun (equal: i = point) => \idelim point = i \with j: Index =>
+        \forall (x: family.Carrier j) -> #apply{composite} (#apply{(\parent.Injection[i := j].map)} x) = #apply{(\parent.Injection[i := j].map)} x \by {
+          base: atPoint, equality: sym!{Index} _ _ equal
+        }}
+      {Component[i := i].trivial trivial}
+    };
+\import \parent.To[W := Carrier, target := space] \as Universal;
+\definition equality: OtherTrivial -> composite = Identity.identity :=
+  \fun (trivial: OtherTrivial) => Universal.ext composite Identity.identity (onInjection trivial);
+\definition leftInverse: OtherTrivial -> \forall (x: Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (trivial: OtherTrivial)(x: Carrier) => congr!{EndMaps.Map Carrier} (\fun (f: EndMaps.Map) => #apply{f} x) _ _ (equality trivial);
+\import \parent.\parent.Isomorphism[V := Carrier, W := family.Carrier point, source := space, target := family.space point] \as Iso;
+\definition isomorphism(trivial: OtherTrivial): Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse trivial, rightInverse := rightInverse,
+};

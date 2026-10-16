@@ -1,0 +1,42 @@
+\import TargetResult.UniversalCoefficient[A := A].CohomologyKernel[] \as Domain;
+\import SourceResult.UniversalCoefficient[A := B].CohomologyKernel[] \as Codomain;
+\import derived_functors.UniversalCoefficient[].Over[R := I.Int^, ring := IntegerRing.commutativeRing] \as UCT;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as Coefficients;
+\import Modules.Biproduct[V := Domain.extBundle.Carrier, W := Domain.homBundle.Carrier, left := Domain.extBundle.space, right := Domain.homBundle.space] \as DomainSum;
+\import Modules.Biproduct[V := Codomain.extBundle.Carrier, W := Codomain.homBundle.Carrier, left := Codomain.extBundle.space, right := Codomain.homBundle.space] \as CodomainSum;
+\module On(u: Coefficients.Map) {
+  \import UCT.Morphism[C := Source.chain, D := Target.chain, A := A, B := B].On[f := chainMap f, u := u].At[z := z] \as Evaluation;
+  \import UCT.ExactNaturality[L := Domain.extBundle, M := Domain.cohomologyBundle, N := Domain.homBundle,
+    L1 := Codomain.extBundle, M1 := Codomain.cohomologyBundle, N1 := Codomain.homBundle] \as Natural;
+  \import Natural.Kernel[s := Domain.sequence, t := Codomain.sequence, b := Evaluation.cohomology, c := Evaluation.values] \as Kernel;
+  \definition ext: _ := Kernel.map Evaluation.naturality;
+  \definition cohomology: _ := Evaluation.cohomology;
+  \definition values: _ := Evaluation.values;
+  \definition inclusionNaturality: \forall (x: Domain.extBundle.Carrier) ->
+    #apply{Codomain.inclusion} (#apply{ext} x) = #apply{cohomology} (#apply{Domain.inclusion} x) :=
+    Kernel.naturality Evaluation.naturality;
+  \definition evaluationNaturality: \forall (x: Domain.cohomologyBundle.Carrier) ->
+    #apply{Codomain.sequence.projection} (#apply{cohomology} x) = #apply{values} (#apply{Domain.sequence.projection} x) :=
+    Evaluation.naturality;
+  \definition diagram: _ := Kernel.diagram Evaluation.naturality;
+  \definition extUnique: \forall (a: Modules.Hom[V := Domain.extBundle.Carrier, W := Codomain.extBundle.Carrier,
+    source := Domain.extBundle.space, target := Codomain.extBundle.space].Map) ->
+    (\forall (x: Domain.extBundle.Carrier) -> #apply{Codomain.inclusion} (#apply{a} x) = #apply{cohomology} (#apply{Domain.inclusion} x)) -> a = ext :=
+    Kernel.unique Evaluation.naturality;
+  \import Modules.Hom[V := Domain.cohomologyBundle.Carrier, W := Codomain.cohomologyBundle.Carrier,
+    source := Domain.cohomologyBundle.space, target := Codomain.cohomologyBundle.space].Composition[U := DomainSum.Carrier, domain := DomainSum.space] \as FromCoordinates;
+  \import Modules.Hom[V := Codomain.cohomologyBundle.Carrier, W := CodomainSum.Carrier,
+    source := Codomain.cohomologyBundle.space, target := CodomainSum.space].Composition[U := DomainSum.Carrier, domain := DomainSum.space] \as ToCoordinates;
+  \definition smithCoordinates: _ := ToCoordinates.compose #backward{Codomain.splitting}
+    (FromCoordinates.compose cohomology #forward{Domain.splitting});
+  \definition smithNaturality: \forall (x: DomainSum.Carrier) ->
+    #apply{#forward{Codomain.splitting}} (#apply{smithCoordinates} x) = #apply{cohomology} (#apply{#forward{Domain.splitting}} x) :=
+    \fun (x: DomainSum.Carrier) => #rightInverse{Codomain.splitting} (#apply{cohomology} (#apply{#forward{Domain.splitting}} x));
+  \module Derived;
+  \definition valuesOnComputedGenerators: \forall (g: Domain.homBundle.Carrier)(v: Modules.FiniteCoordinates[n := SourcePair.nullity].Carrier) ->
+    #apply{(#apply{values} g)} (#apply{#backward{SourceResult.factorIsomorphism}} (SourcePair.factorClasses v)) =
+      #apply{u} (#apply{g} (#apply{#backward{TargetResult.factorIsomorphism}}
+        (TargetPair.factorClasses (Commutative.Matrix[m := TargetPair.nullity, n := SourcePair.nullity].apply coordinateMatrix v)))) :=
+    \fun (g: Domain.homBundle.Carrier)(v: Modules.FiniteCoordinates[n := SourcePair.nullity].Carrier) =>
+      congr!{TargetHomology.Homology B.Carrier} (\fun (q: TargetHomology.Homology) => #apply{u} (#apply{g} q)) _ _ (onComputedGenerator v);
+}

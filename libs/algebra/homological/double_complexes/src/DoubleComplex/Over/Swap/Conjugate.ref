@@ -1,0 +1,21 @@
+\import \parent.\parent.Map[C := Signed.complex, D := Transposed.complex] \as Maps;
+\module Term(p, q: Nat.Nat^);
+\definition data: Maps.Data := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].map;
+\definition map: Maps.Map := \into[Maps.Data](data, { data: Maps.Data \where Maps.Laws[data] }) \by {
+  Maps.Laws[data] {
+    horizontal := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].horizontal,
+    vertical := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].vertical,
+  }
+};
+\import Maps.Inverse[f := map] \as Inverse;
+\definition inverse: Inverse.Inverse := \into[Inverse.Data](data, { reverse: Inverse.Data \where Inverse.Laws[reverse] }) \by {
+  Inverse.Laws[data] {
+    left := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].involutive,
+    right := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].involutive,
+  }
+};
+\import Inverse.With[g := inverse] \as Induced;
+\definition forward: Chains.Map[C := Middle.complex, D := Target.complex].Map := Induced.totalForward;
+\definition backward: Chains.Map[C := Target.complex, D := Middle.complex].Map := Induced.totalBackward;
+\definition leftInverse: \forall (n: Nat.Nat^)(x: Middle.Carrier n) -> #apply{backward} n (#apply{forward} n x) = x := Induced.leftInverse;
+\definition rightInverse: \forall (n: Nat.Nat^)(x: Target.Carrier n) -> #apply{forward} n (#apply{backward} n x) = x := Induced.rightInverse;

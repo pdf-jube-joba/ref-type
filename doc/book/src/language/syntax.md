@@ -18,7 +18,7 @@
 
 ```text
 ( ) \( \) { } [ ]
-^ | : ; . , = ! ::
+^ | : ; . , = ! :: ::#
 -> ~> <- => :=
 ```
 
@@ -27,7 +27,7 @@
 
 ### parameter と名前
 
-型、alias、constructor、型関連 item、module の引数は角括弧で指定する。空の `[]` も指定できる。
+型、文脈付き定義、constructor、型関連 item、module の引数は角括弧で指定する。空の `[]` も指定できる。
 
 ```text
 Type[A, B]
@@ -118,6 +118,7 @@ Set/Prop の式には `\assign` で番号付き推論変数との等式を登録
 
 ```text
 \import .Child[A := T] \as C;
+\import \root.Top[A := T] \as RootTop;
 \import \parent.Sibling[] \as S;
 \import \parent.\parent.Outer[] \as O;
 \import my_package.Top[A := T] \as T;
@@ -126,13 +127,15 @@ Set/Prop の式には `\assign` で番号付き推論変数との等式を登録
 ```
 
 parameter の個数・名前・順序を宣言と一致させる。
-先頭の `.` は現在の module、パッケージ名はそのルート、`\parent.` は一つ上の module から探索する。
+先頭の `.` は現在の module、`\parent.` は一つ上の module から探索する。
+`\root.` は現在のパッケージのルート、パッケージ名はそのパッケージのルートから探索する。
 module argument では metavariable の推論を行わない。
 
 ### 式中の具体化
 
 ```text
 \definition carrier(A: \Set): \Set := Family[A := A].Carrier;
+\definition rootCarrier(A: \Set): \Set := \root.Family[A := A].Carrier;
 \definition disk(n: Nat^): \Set := Euclidean.Dimension[n := n].Disk;
 \structure Cell: \Set {
   dimension: Nat^,
@@ -179,7 +182,7 @@ product 型を形成できる定義は通常の関数として使える。
 ;
 ```
 
-result-kind は `\Prop`、`\PropKind`、`\Set`、`\SetKind`、`\VType` のいずれかである。
+result-kind の終端は `\Prop`、`\PropKind`、`\Set`、`\SetKind`、`\VType` のいずれかである。
 constructor type は `->`、`\forall`、通常の式を組み合わせる。Program inductive の parameter は `\VType`、field は value type である。
 
 ```text
@@ -196,10 +199,36 @@ constructor type は `->`、`\forall`、通常の式を組み合わせる。Prog
 
 constructor は `Type[parameters]::constructor arguments` で参照する。
 
+Set/Prop の帰納型は、結果の sort の前で添字を束縛できる。
+parameter は型族全体で固定し、添字は constructor の結果ごとに指定する。
+
+```text
+\inductive Family[A: \Set]: \forall (x: A) -> \Set :=
+| leaf: \forall (x: A) -> Family x
+| next: \forall (x: A) -> Family x -> Family x
+;
+```
+
 ### structure
 
 関連型・操作・法則をまとめる宣言の束と、sort を指定した record を扱う。
 宣言・literal・既定値・量化は [structure](structure.md)、型関連定義と射影は [型関連 item](types_and_items.md) を参照。
+sort を指定した宣言では、`{` の前に `:=` を置く表記も使える。
+
+sort を持つ法則なしの record は、field の宣言順に引数を取る constructor `#` を持つ。
+帰納法では field を受け取る関数を `#` の枝に指定する。
+
+```text
+\structure Pair[A, B: \Set]: \Set {
+  left: A,
+  right: B,
+}
+\definition pair(A, B: \Set)(a: A)(b: B): Pair[A, B] := Pair[A, B]::# a b;
+\definition eta(A, B: \Set): \forall (p: Pair[A, B]) -> Pair[A, B]::# p.left p.right = p :=
+  \induction (p: Pair[A, B]) \return Pair[A, B]::# p.left p.right = p \with {
+    | # : \fun (a: A)(b: B) => \refl(Pair[A, B]::# a b)
+  };
+```
 
 ### 実装と仕様、状態遷移
 
@@ -443,7 +472,7 @@ Set/Prop の `\match` では `\return` に結果型を指定し、branch の見�
 }
 ```
 
-`\fun`、`\let`、`\enough` を 0 個以上並べ、必須の `\return` で終える。
+`\fun`、`\let`、`\enough`、`\takefrom` を 0 個以上並べ、必須の `\return` で終える。
 `\fun` は目標の前方に binder を追加する。
 `\let` は後続の項と型から展開できる局所定義である。
 `\enough A \by { map } \then` は `map: A -> B` を使って残りの目標を `A` にする。
@@ -574,6 +603,8 @@ Box の対象は computation type である。value を入れるときは `\F(A)
 ## 8. マクロ
 
 数式マクロは `\( ... \)`、名前付きマクロは `name!{ ... }` で呼ぶ。
+宣言はそれぞれ `\math-macro` と `\macro`、別 module からの導入は `\use` を使う。
+名前付きマクロの template では `\tmatch` でトークン列を分岐できる。
 定義・pattern・展開の規則は [マクロ](macro.md) を参照。
 
 実行方法と診断は [利用方法](../../../../src/USAGE.md) を参照する。

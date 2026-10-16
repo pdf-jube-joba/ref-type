@@ -45,3 +45,32 @@
   #apply{TargetConnecting.connecting} (#apply{(Right.induced c)} q) = #apply{(Left.induced a)} (#apply{Source.connecting} q) :=
   \fun (diagram: Commutative) => HC.classInduction (\fun (q: HC.Homology) =>
     #apply{TargetConnecting.connecting} (#apply{(Right.induced c)} q) = #apply{(Left.induced a)} (#apply{Source.connecting} q)) (onClasses diagram);
+
+\import \root.Chain[].Over[R := R, ring := ring].At[C := B, z := k] \as SourceMiddle;
+\import \root.Chain[].Over[R := R, ring := ring].At[C := B1, z := k] \as TargetMiddle;
+\import \root.Chain[].Over[R := R, ring := ring].Map[C := B, D := B1].At[k := k] \as MiddleMap;
+\import \root.Chain[].Over[R := R, ring := ring].Map[C := B, D := C].At[k := k] \as SourceProjection;
+\import \root.Chain[].Over[R := R, ring := ring].Map[C := B1, D := C1].At[k := k] \as TargetProjection;
+\definition projectionOnClass: Commutative -> \forall (x: SourceMiddle.Cycle) ->
+  #apply{(TargetProjection.induced t.projection)} (#apply{(MiddleMap.induced b)} (SourceMiddle.classOf x)) =
+  #apply{(Right.induced c)} (#apply{(SourceProjection.induced s.projection)} (SourceMiddle.classOf x)) :=
+  \fun (diagram: Commutative)(x: SourceMiddle.Cycle) => \block {
+  \let l: HC1.Cycle := #apply{(TargetProjection.cyclesMap t.projection)} (#apply{(MiddleMap.cyclesMap b)} x) \then
+  \let r: HC1.Cycle := #apply{(Right.cyclesMap c)} (#apply{(SourceProjection.cyclesMap s.projection)} x) \then
+  \let equal: l = r := #right{diagram} k x \then
+  \return trans!{HC1.Homology} _ _ _
+    (congr!{TargetMiddle.Homology HC1.Homology} (#apply{(TargetProjection.induced t.projection)}) _ _ (MiddleMap.onClass b x))
+    (trans!{HC1.Homology} _ _ _
+      (TargetProjection.onClass t.projection (#apply{(MiddleMap.cyclesMap b)} x))
+      (trans!{HC1.Homology} _ _ _
+        (congr!{HC1.Cycle HC1.Homology} HC1.classOf l r equal)
+        (sym!{HC1.Homology} _ _ (trans!{HC1.Homology} _ _ _
+          (congr!{HC.Homology HC1.Homology} (#apply{(Right.induced c)}) _ _ (SourceProjection.onClass s.projection x))
+          (Right.onClass c (#apply{(SourceProjection.cyclesMap s.projection)} x))))))
+};
+\definition projectionNaturality: Commutative -> \forall (x: SourceMiddle.Homology) ->
+  #apply{(TargetProjection.induced t.projection)} (#apply{(MiddleMap.induced b)} x) =
+  #apply{(Right.induced c)} (#apply{(SourceProjection.induced s.projection)} x) :=
+  \fun (diagram: Commutative) => SourceMiddle.classInduction (\fun (x: SourceMiddle.Homology) =>
+    #apply{(TargetProjection.induced t.projection)} (#apply{(MiddleMap.induced b)} x) =
+    #apply{(Right.induced c)} (#apply{(SourceProjection.induced s.projection)} x)) (projectionOnClass diagram);

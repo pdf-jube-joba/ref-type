@@ -1,8 +1,8 @@
-\import homological_algebra.TensorCochain[].Over[R := K, ring := Fields.fieldAsCommutativeRing K field] \as Tensors;
+\import field_kunneth.TensorCochain[].Over[R := K, ring := Fields.fieldAsCommutativeRing K field] \as Tensors;
 \import Tensors.Tensor[C := nativeComplex, D := nativeComplex] \as Product;
 \import Tensors.Total[C := Product.complex] \as Total;
 \import Tensors.TensorZero[left := Model.homologyFamily, right := Model.homologyFamily] \as HomologyProduct;
-\import homological_algebra.Kunneth[].Field[K := K, field := field].Of[C := complex, D := complex] \as Kunneth;
+\import field_kunneth.Kunneth[].Field[K := K, field := field].Of[C := complex, D := complex] \as Kunneth;
 \module At(n: N.Nat^) {
   \import Cochains.At[C := Total.complex, k := n] \as ProductCohomology;
   \import Cochains.ZeroDifferential[family := Model.homologyFamily] \as Homology;
@@ -11,6 +11,20 @@
   \import Modules.Isomorphism[V := ProductCohomology.Cohomology, W := HomologyTotal.family.Carrier n,
     source := ProductCohomology.cohomologySpace, target := HomologyTotal.family.space n] \as Isomorphisms;
   \definition finiteTensorKunneth: \exists Isomorphisms.Isomorphism := Kunneth.At[n := n].existence;
+  \import Kunneth.Canonical[n := n] \as Canonical;
+  \definition standardKunneth: Isomorphisms.Isomorphism := Kunneth.At[n := n].isomorphism;
+  \definition standardExterior: _ := Canonical.exterior;
+  \definition standardExteriorIsomorphism: _ := Canonical.isomorphism;
+  \import Cochains.End[C := Model.complex] \as Identity;
+  \import Kunneth.Mapping[E := complex, F := complex] \as EndMapping;
+  \import EndMapping.With[f := Identity.identity, g := Identity.identity].At[n := n] \as Naturality;
+  \definition standardNaturality: _ := Naturality.naturality;
+  \definition inverseNaturality: _ := Naturality.inverseNaturality;
+  \module SplittingChange(s, t: Kunneth.Splittings) {
+    \import Canonical.SplittingChange[s := s, t := t] \as Comparison;
+    \definition sameForward: _ := Comparison.forwardEquality;
+    \definition sameExterior: _ := Comparison.backwardEquality;
+  }
 }
 \import Tensors.CycleProduct[C := nativeComplex, D := nativeComplex, p := N.Nat^::zero, q := N.Nat^::zero] \as Exterior;
 \import Modules.Tensor[V := H.CycleCarrier, W := H.CycleCarrier,
@@ -19,7 +33,7 @@
 \definition exteriorOnRepresentatives: \forall (x, y: H.CycleCarrier) ->
   #apply{Exterior.map} (Cycles.tensor x y) = ProductH.classOf (Exterior.cycle x y) := Exterior.onTensor;
 \definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := H.Cohomology, space := H.cohomologySpace };
-\import resolutions.NonnegativeChain[].Over[R := K, ring := ring].ProjectiveResolution[M := homologyBundle] \as ProjectiveComplex;
+\import double_complexes.NonnegativeChain[].Over[R := K, ring := ring].ProjectiveResolution[M := homologyBundle] \as ProjectiveComplex;
 \import resolutions.Resolution[].Over[R := K, ring := ring].Projective[M := homologyBundle] \as Resolution;
 \import derived_functors.Tor[].Over[R := K, ring := Fields.fieldAsCommutativeRing K field] \as Tor;
 \import Tor.Of[M := homologyBundle, N := homologyBundle, P := ProjectiveComplex.complex] \as Derived;
@@ -29,3 +43,20 @@
   \definition fieldTorVanishes: \forall (x: Term.Carrier) -> x = #zero{Term.space} :=
     Vanishing.vanishing projective (Resolution.resolution projective);
 }
+
+\import double_complexes.DoubleComplex[].Over[R := K, ring := ring] \as Degrees;
+\import N.Basic[].Def[] \as Arithmetic;
+\definition zeroIndex: Degrees.Index N.Nat^::zero :=
+  \into[Degrees.Pair](Degrees.Pair { first := N.Nat^::zero, second := N.Nat^::zero },
+    { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = N.Nat^::zero }) \by { \refl(N.Nat^::zero) };
+\import Kunneth.Canonical[n := N.Nat^::zero].Component[i := zeroIndex] \as StandardExterior;
+\definition standardExteriorOnRepresentatives: _ := StandardExterior.onClass;
+\import Tensors.TensorSymmetry[C := nativeComplex, D := nativeComplex].At[n := N.Nat^::zero] \as ZeroSymmetry;
+\import ZeroSymmetry.Component[i := zeroIndex] \as ZeroSwap;
+\definition symmetryOnRepresentatives: \forall (x, y: H.CycleCarrier) ->
+  #apply{#forward{ZeroSymmetry.isomorphism}} (Exterior.classOf x y) = Exterior.classOf y x := ZeroSwap.onClass;
+\import field_kunneth.Kunneth[].Field[K := K, field := field].Unit[C := complex].At[n := N.Nat^::zero] \as Unit;
+\definition leftUnitCompatibility: _ := Unit.leftCompatibility;
+\definition rightUnitCompatibility: _ := Unit.rightCompatibility;
+\import Kunneth.Symmetry[p := N.Nat^::zero, q := N.Nat^::zero] \as StandardSymmetry;
+\definition standardSymmetryCompatibility: _ := StandardSymmetry.compatibility;

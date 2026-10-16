@@ -1,0 +1,32 @@
+\definition n: Nat.Nat^ := Arithmetic.add p q;
+\definition targetIndex: Index n := \into[Pair](Pair { first := p, second := q }, { i: Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { \refl(n) };
+\definition horizontalIndex: Index (Nat.Nat^::succ n) := \into[Pair](Pair { first := Nat.Nat^::succ p, second := q },
+  { i: Pair \where Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ n }) \by { Natural.addSuccLeft p q };
+\definition verticalIndex: Index (Nat.Nat^::succ n) := \into[Pair](Pair { first := p, second := Nat.Nat^::succ q },
+  { i: Pair \where Arithmetic.add #first{i} #second{i} = Nat.Nat^::succ n }) \by { \refl(Nat.Nat^::succ n) };
+\import Total.Degree[n := n] \as Target;
+\import Total.Degree[n := Nat.Nat^::succ n] \as Source;
+\import Total.Step[n := n] \as Differential;
+\import \parent.Degree[n := n] \as TC;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as SC;
+\import TC.At[i := targetIndex] \as Evaluation;
+\import SC.At[i := horizontalIndex] \as HorizontalEvaluation;
+\import SC.At[i := verticalIndex] \as VerticalEvaluation;
+\import Modules.Hom[V := Source.Carrier, W := C.family.Carrier p q, source := Source.space, target := C.family.space p q] \as Maps;
+\import Modules.Laws[V := C.family.Carrier p q, space := C.family.space p q] \as TargetLaws;
+\module Horizontal;
+\module Vertical;
+\definition differential: \forall (x: Source.Carrier) ->
+  TC.coordinate targetIndex (#apply{Total.differential} n x) =
+  #add{(C.family.space p q)}
+    (#apply{(C.differential.horizontal p q)} (SC.coordinate horizontalIndex x))
+    (#apply{(\parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q].map p)}
+      (#apply{(C.differential.vertical p q)} (SC.coordinate verticalIndex x))) :=
+  \fun (x: Source.Carrier) => trans!{{C.family.Carrier p q}} _ _ _
+    (congr!{Target.Carrier {C.family.Carrier p q}} (TC.coordinate targetIndex) _ _
+      (congr!{{Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map} Target.Carrier}
+        (\fun (f: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map) => #apply{f} x) _ _ Differential.asSum))
+    (trans!{{C.family.Carrier p q}} _ _ _
+      (#addition{Evaluation.map} (#apply{Differential.horizontalTotal} x) (#apply{Differential.verticalTotal} x))
+      (congr2!{{C.family.Carrier p q} {C.family.Carrier p q} {C.family.Carrier p q}} (#add{(C.family.space p q)}) _ _ _ _
+        (Horizontal[].point x) (Vertical[].point x)));

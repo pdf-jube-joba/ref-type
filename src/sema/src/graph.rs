@@ -113,13 +113,6 @@ impl<'a> ModuleGraph<'a> {
         visible: &mut BTreeMap<String, Vec<String>>,
         dependencies: &mut BTreeSet<usize>,
     ) {
-        if let ModuleItem::Scoped { items, .. } = item {
-            let mut scoped = visible.clone();
-            for item in items {
-                self.include_imports(item, path, &mut scoped, dependencies);
-            }
-            return;
-        }
         item.inspect_module_paths(&mut |import| {
             self.include_module_path(import, path, visible, dependencies);
         });

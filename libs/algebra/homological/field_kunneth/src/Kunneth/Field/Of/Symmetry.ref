@@ -1,0 +1,30 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Arithmetic;
+\definition n: N.Nat^ := Arithmetic.add p q;
+\definition index: Degrees.Index n :=
+  \into[Degrees.Pair](Degrees.Pair { first := p, second := q },
+    { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { \refl(n) };
+\import Tensors.Swap[C := Product.complex] \as Indices;
+\definition swappedIndex: Degrees.Index n := Indices.index n index;
+\import \parent.Canonical[n := n] \as Standard;
+\import \parent.\parent.Of[C := D, D := C] \as Reversed;
+\import Reversed.Canonical[n := n] \as ReversedStandard;
+\import Standard.Component[i := index] \as Source;
+\import ReversedStandard.Component[i := swappedIndex] \as Target;
+\import Cochains.At[C := Left.complex, k := p] \as LH;
+\import Cochains.At[C := Right.complex, k := q] \as RH;
+\import Tensors.TensorSymmetry[C := Left.complex, D := Right.complex].At[n := n] \as Swap;
+\import Swap.Component[i := index] \as Component;
+\import Tensors.Tensor[C := Right.complex, D := Left.complex] \as RT;
+\import Tensors.Total[C := RT.complex] \as RTotal;
+\import Cochains.At[C := RTotal.complex, k := n] \as H;
+\import Cochains.At[C := Total.complex, k := n] \as SH;
+\import Degrees.Sign[V := H.Cohomology, space := H.cohomologySpace] \as Sign;
+\definition isomorphism: _ := Swap.isomorphism;
+\definition compatibility: \forall (x: LH.CycleCarrier)(y: RH.CycleCarrier) ->
+  #apply{#forward{isomorphism}} (#apply{Standard.exterior} (Source.product x y)) =
+  #apply{(Sign.map (Arithmetic.mul p q))} (#apply{ReversedStandard.exterior} (Target.product y x)) :=
+  \fun (x: LH.CycleCarrier)(y: RH.CycleCarrier) => trans!{H.Cohomology} _ _ _
+    (congr!{SH.Cohomology H.Cohomology} (#apply{#forward{isomorphism}}) _ _ (Source.onClass x y))
+    (trans!{H.Cohomology} _ _ _ (Component.onClass x y)
+      (congr!{H.Cohomology H.Cohomology} (#apply{(Sign.map (Arithmetic.mul p q))}) _ _
+        (sym!{H.Cohomology} _ _ (Target.onClass y x))));

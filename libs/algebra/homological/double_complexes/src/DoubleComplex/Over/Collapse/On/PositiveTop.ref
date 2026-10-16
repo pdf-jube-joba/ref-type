@@ -1,0 +1,39 @@
+\definition n: Nat.Nat^ := Arithmetic.add p (Nat.Nat^::succ q);
+\import Coordinates.Step[p := p, q := q] \as Step;
+\import Coordinates.Degree[n := n] \as Current;
+\import Coordinates.Degree[n := Arithmetic.add p q] \as Previous;
+\import \parent.\parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as Sign;
+\import Modules.Hom[V := C.family.Carrier (Nat.Nat^::succ p) q, W := C.family.Carrier p q,
+  source := C.family.space (Nat.Nat^::succ p) q, target := C.family.space p q] \as Horizontal;
+\import Modules.Hom[V := C.family.Carrier p q, W := C.family.Carrier p q,
+  source := C.family.space p q, target := C.family.space p q] \as Signed;
+\import Modules.Laws[V := C.family.Carrier p q, space := C.family.space p q] \as Vectors;
+\import algebra.Group[].Of[Carrier := C.family.Carrier p q, group := Vectors.additive] \as Group;
+\definition signedZero: \forall (x: Total.Carrier n) -> Closed n x -> Above n (Nat.Nat^::succ p) x ->
+  #apply{(Sign.map p)} (#apply{(C.differential.vertical p q)} (Current.coordinate Step.verticalIndex x)) = #zero{(C.family.space p q)} :=
+  \fun (x: Total.Carrier n)(closed: Closed n x)(above: Above n (Nat.Nat^::succ p) x) =>
+    trans!{{C.family.Carrier p q}} _ _ _
+      (sym!{{C.family.Carrier p q}} _ _ (Group.zeroLeft (#apply{(Sign.map p)} (#apply{(C.differential.vertical p q)} (Current.coordinate Step.verticalIndex x)))))
+      (trans!{{C.family.Carrier p q}} _ _ _
+        (congr!{{C.family.Carrier p q} {C.family.Carrier p q}}
+          (\fun (a: C.family.Carrier p q) => #add{(C.family.space p q)} a
+            (#apply{(Sign.map p)} (#apply{(C.differential.vertical p q)} (Current.coordinate Step.verticalIndex x)))) _ _
+          (sym!{{C.family.Carrier p q}} _ _
+            (trans!{{C.family.Carrier p q}} _ _ _
+              (congr!{{C.family.Carrier (Nat.Nat^::succ p) q} {C.family.Carrier p q}} (#apply{(C.differential.horizontal p q)}) _ _
+                (above Step.horizontalIndex (Natural.leRefl (Nat.Nat^::succ p))))
+              (Horizontal.zeroPreserved (C.differential.horizontal p q)))))
+        (trans!{{C.family.Carrier p q}} _ _ _
+          (sym!{{C.family.Carrier p q}} _ _ (Step.differential x))
+          (trans!{{C.family.Carrier p q}} _ _ _
+            (congr!{{Total.Carrier (Arithmetic.add p q)} {C.family.Carrier p q}} (Previous.coordinate Step.targetIndex) _ _ closed)
+            Previous.At[i := Step.targetIndex].zero)));
+\definition closed: \forall (x: Total.Carrier n) -> Closed n x -> Above n (Nat.Nat^::succ p) x ->
+  RowClosed p (Nat.Nat^::succ q) (Current.coordinate Step.verticalIndex x) :=
+  \fun (x: Total.Carrier n)(cycle: Closed n x)(above: Above n (Nat.Nat^::succ p) x) =>
+    trans!{{C.family.Carrier p q}} _ _ _
+      (sym!{{C.family.Carrier p q}} _ _
+        (Sign.involutive p (#apply{(C.differential.vertical p q)} (Current.coordinate Step.verticalIndex x))))
+      (trans!{{C.family.Carrier p q}} _ _ _
+        (congr!{{C.family.Carrier p q} {C.family.Carrier p q}} (#apply{(Sign.map p)}) _ _ (signedZero x cycle above))
+        (Signed.zeroPreserved (Sign.map p)));

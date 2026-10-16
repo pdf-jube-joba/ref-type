@@ -1,0 +1,17 @@
+\import \parent.Component[i := i] \as Native;
+\import Modules.Hom[V := Target.Carrier, W := Quotient.Carrier, source := Target.space, target := Quotient.moduleSpace].Composition[
+  U := target.Carrier i, domain := target.space i] \as Compose;
+\definition onChains: Modules.Hom[V := target.Carrier i, W := Quotient.Carrier, source := target.space i, target := Quotient.moduleSpace].Map :=
+  Compose.compose Quotient.projection Target.Injection[i := i].map;
+\import Modules.Of[V := target.Carrier i, space := target.space i].Submodule[].Quotient[S := Native.image].To[
+  W := Quotient.Carrier, target := Quotient.moduleSpace] \as Descent;
+\import Modules.Of[V := target.Carrier i, space := target.space i].Submodule[].Image[U := source.Carrier i, source := source.space i] \as NativeImages;
+\definition killsGenerator: \forall (x: source.Carrier i) -> #apply{onChains} (#apply{(maps i)} x) = #zero{Quotient.moduleSpace} :=
+  \fun (x: source.Carrier i) => Quotient.classZero (#apply{Target.Injection[i := i].map} (#apply{(maps i)} x))
+    (Images.introduce Action.map (#apply{Target.Injection[i := i].map} (#apply{(maps i)} x)) (#apply{Source.Injection[i := i].map} x) (Action.onInjection i x));
+\definition vanishes: Descent.Vanishes onChains := \fun (x: target.Carrier i)(member: _) =>
+  NativeImages.eliminate (maps i) x (#apply{onChains} x = #zero{Quotient.moduleSpace})
+    (\fun (a: source.Carrier i)(equal: #apply{(maps i)} a = x) => trans!{Quotient.Carrier} _ _ _
+      (congr!{{target.Carrier i} Quotient.Carrier} (#apply{onChains}) _ _ (sym!{{target.Carrier i}} _ _ equal)) (killsGenerator a)) member;
+\definition map: Modules.Hom[V := Native.Carrier, W := Quotient.Carrier, source := Native.space, target := Quotient.moduleSpace].Map := Descent.descend onChains vanishes;
+\definition onClass: \forall (x: target.Carrier i) -> #apply{map} (Native.classOf x) = Quotient.class (#apply{Target.Injection[i := i].map} x) := Descent.onClass onChains vanishes;

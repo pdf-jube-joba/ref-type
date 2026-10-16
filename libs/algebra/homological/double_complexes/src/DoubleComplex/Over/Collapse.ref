@@ -1,0 +1,52 @@
+\import \parent.Map[C := C, D := D] \as Maps;
+\import \parent.Total[C := C] \as Total;
+\import \parent.Total[C := D] \as Target;
+\import \parent.Coordinates[C := C] \as Coordinates;
+\import \parent.Coordinates[C := D] \as TargetCoordinates;
+\import \parent.Concentrated[C := D] \as Concentrated;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\structure RowsExact[f: Maps.Map]: \Prop {
+  augmentation: \forall (p: Nat.Nat^)(x: C.family.Carrier p Nat.Nat^::zero) ->
+    #apply{(f p Nat.Nat^::zero)} x = #zero{(D.family.space p Nat.Nat^::zero)} ->
+    \exists { y: C.family.Carrier p (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{(C.differential.vertical p Nat.Nat^::zero)} y = x },
+  positive: \forall (p, q: Nat.Nat^)(x: C.family.Carrier p (Nat.Nat^::succ q)) ->
+    #apply{(C.differential.vertical p q)} x = #zero{(C.family.space p q)} ->
+    \exists { y: C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q)) \where #apply{(C.differential.vertical p (Nat.Nat^::succ q))} y = x },
+}
+\definition Closed: \forall (n: Nat.Nat^) -> Total.Carrier n -> \Prop :=
+  \induction (n: Nat.Nat^) \return Total.Carrier n -> \Prop \with {
+    | zero: \fun (x: Total.Carrier Nat.Nat^::zero) => Logic.True
+    | succ: \fun (n: Nat.Nat^)(previous: _) => \fun (x: Total.Carrier (Nat.Nat^::succ n)) =>
+      #apply{Total.differential} n x = #zero{(Total.space n)}
+  };
+\definition Above(n, k: Nat.Nat^)(x: Total.Carrier n): \Prop :=
+  \forall (i: Index n) -> Natural.Le k #first{i} ->
+    Coordinates.Degree[n := n].coordinate i x = #zero{(C.family.space #first{i} #second{i})};
+\module Vertical(p, q: Nat.Nat^) {
+  \import \parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as TargetSign;
+  \import \parent.\parent.Sign[V := C.family.Carrier p (Nat.Nat^::succ q), space := C.family.space p (Nat.Nat^::succ q)] \as SourceSign;
+  \import SourceSign.Mapping[W := C.family.Carrier p q, target := C.family.space p q] \as NaturalSign;
+  \definition signedPreimage: \forall (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
+    #apply{(C.differential.vertical p q)} y = x ->
+    #apply{(TargetSign.map p)} (#apply{(C.differential.vertical p q)} (#apply{(SourceSign.map p)} y)) = x :=
+    \fun (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q))(preimage: _) =>
+      trans!{{C.family.Carrier p q}} _ _ _
+        (congr!{{C.family.Carrier p q} {C.family.Carrier p q}} (#apply{(TargetSign.map p)}) _ _
+          (NaturalSign.naturality (C.differential.vertical p q) p y))
+        (trans!{{C.family.Carrier p q}} _ _ _
+          (TargetSign.involutive p (#apply{(C.differential.vertical p q)} y)) preimage);
+}
+
+\module Injection(p, q: Nat.Nat^);
+
+\definition indexOfFirst: \forall (n: Nat.Nat^)(i, j: Index n) -> #first{i} = #first{j} -> i = j :=
+  \fun (n: Nat.Nat^)(i, j: Index n)(equal: #first{i} = #first{j}) =>
+    trans!{Pair} _ _ _ (sym!{Pair} _ _ (pairRebuild i))
+      (trans!{Pair} _ _ _
+        (congr2!{Nat.Nat^ Nat.Nat^ Pair} (\fun (p, q: Nat.Nat^) => Pair { first := p, second := q }) _ _ _ _ equal
+          (trans!{Nat.Nat^} _ _ _ (sym!{Nat.Nat^} _ _ (secondDetermined n i))
+            (trans!{Nat.Nat^} _ _ _ (congr!{Nat.Nat^ Nat.Nat^} (Arithmetic.sub n) _ _ equal) (secondDetermined n j))))
+        (pairRebuild j));
+
+\module On(f: Maps.Map);

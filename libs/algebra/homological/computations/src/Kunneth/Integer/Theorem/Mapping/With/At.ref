@@ -1,0 +1,54 @@
+\import Data.At[n := n] \as SourceTerms;
+\import \root.Kunneth[].Integer[].CoreTerms[C := E, D := F].At[n := n] \as TargetTerms;
+\import \root.Kunneth[].Integer[].Theorem[C := C, D := D].ExactAt[n := n] \as SourceSequence;
+\import \root.Kunneth[].Integer[].Theorem[C := E, D := F].ExactAt[n := n] \as TargetResult;
+\import \root.Kunneth[].Integer[].KernelModel[C := E, D := F, n := n] \as TargetKernel;
+\import \root.Kunneth[].Integer[].CoreTerms[C := C, D := D].Mapping[E := E, F := F] \as Coefficients;
+\import Coefficients.At[n := n] \as Maps;
+\import Maps.Exterior[f := f, g := g] \as Exterior;
+\import \root.Kunneth[].Integer[].TorTerms[C := C, D := D, n := n].Mapping[E := E, F := F] \as TorMaps;
+\import \parent.Native[n := n] \as Kernel;
+\import \root.Kunneth[].Integer[].Theorem[C := C, D := D].Projection[n := n] \as SourceProjection;
+\import \root.Kunneth[].Integer[].Theorem[C := E, D := F].Projection[n := n] \as TargetProjection;
+\import \root.Kunneth[].Integer[].TorDiagonal[C := C, D := D, n := n].Mapping[E := E, F := F].With[f := f, g := g] \as EndpointMapping;
+\import \root.Kunneth[].Integer[].TorDiagonal[C := E, D := F, n := n].Endpoint[] \as TargetEndpoint;
+\definition tensorMap: Modules.MapBetween SourceTerms.tensorBundle TargetTerms.tensorBundle := Maps.tensorMap f g;
+\definition homologyMap: Modules.MapBetween SourceTerms.homologyBundle TargetTerms.homologyBundle := Kernel.middleMap;
+\definition torMap: Modules.MapBetween SourceTerms.torBundle TargetTerms.torBundle := TorMaps.torMap f g;
+\import Modules.Hom[V := SourceTerms.tensorBundle.Carrier, W := TargetTerms.homologyBundle.Carrier,
+  source := SourceTerms.tensorBundle.space, target := TargetTerms.homologyBundle.space] \as ExteriorPaths;
+\import Modules.Hom[V := SourceTerms.tensorBundle.Carrier, W := SourceTerms.homologyBundle.Carrier,
+  source := SourceTerms.tensorBundle.space, target := SourceTerms.homologyBundle.space] \as SourceInclusions;
+\import Modules.Hom[V := TargetTerms.tensorBundle.Carrier, W := TargetTerms.homologyBundle.Carrier,
+  source := TargetTerms.tensorBundle.space, target := TargetTerms.homologyBundle.space] \as TargetInclusions;
+\definition leftSquare: \forall (x: SourceTerms.tensorBundle.Carrier) ->
+  #apply{homologyMap} (#apply{SourceSequence.sequence.inclusion} x) = #apply{TargetResult.sequence.inclusion} (#apply{tensorMap} x) :=
+  \fun (x: SourceTerms.tensorBundle.Carrier) => trans!{TargetTerms.homologyBundle.Carrier} _ _ _
+    (congr!{SourceTerms.homologyBundle.Carrier TargetTerms.homologyBundle.Carrier} (#apply{homologyMap}) _ _
+      (congr!{SourceInclusions.Map SourceTerms.homologyBundle.Carrier} (\fun (h: SourceInclusions.Map) => #apply{h} x) _ _ SourceSequence.inclusionEq))
+    (trans!{TargetTerms.homologyBundle.Carrier} _ _ _
+      (congr!{ExteriorPaths.Map TargetTerms.homologyBundle.Carrier} (\fun (h: ExteriorPaths.Map) => #apply{h} x) _ _ Exterior.naturality)
+      (sym!{TargetTerms.homologyBundle.Carrier} _ _
+        (congr!{TargetInclusions.Map TargetTerms.homologyBundle.Carrier} (\fun (h: TargetInclusions.Map) => #apply{h} (#apply{tensorMap} x)) _ _ TargetResult.inclusionEq)));
+\definition projectionNaturality: \forall (x: SourceTerms.homologyBundle.Carrier) ->
+  #apply{TargetProjection.map} (#apply{homologyMap} x) = #apply{torMap} (#apply{SourceProjection.map} x) :=
+  \fun (x: SourceTerms.homologyBundle.Carrier) => trans!{TargetTerms.torBundle.Carrier} _ _ _
+    (congr!{TargetKernel.nativeKernelBundle.Carrier TargetTerms.torBundle.Carrier} (#apply{#forward{TargetEndpoint.isomorphism}}) _ _ (Kernel.projectionSquare x))
+    (EndpointMapping.naturality (#apply{SourceProjection.nativeMap} x));
+\import Modules.Hom[V := SourceTerms.homologyBundle.Carrier, W := SourceTerms.torBundle.Carrier,
+  source := SourceTerms.homologyBundle.space, target := SourceTerms.torBundle.space] \as SourceProjections;
+\import Modules.Hom[V := TargetTerms.homologyBundle.Carrier, W := TargetTerms.torBundle.Carrier,
+  source := TargetTerms.homologyBundle.space, target := TargetTerms.torBundle.space] \as TargetProjections;
+\definition rightSquare: \forall (x: SourceTerms.homologyBundle.Carrier) ->
+  #apply{TargetResult.sequence.projection} (#apply{homologyMap} x) = #apply{torMap} (#apply{SourceSequence.sequence.projection} x) :=
+  \fun (x: SourceTerms.homologyBundle.Carrier) => trans!{TargetTerms.torBundle.Carrier} _ _ _
+    (congr!{TargetProjections.Map TargetTerms.torBundle.Carrier} (\fun (h: TargetProjections.Map) => #apply{h} (#apply{homologyMap} x)) _ _ TargetResult.projectionEq)
+    (trans!{TargetTerms.torBundle.Carrier} _ _ _ (projectionNaturality x)
+      (congr!{SourceTerms.torBundle.Carrier TargetTerms.torBundle.Carrier} (#apply{torMap}) _ _
+        (sym!{SourceTerms.torBundle.Carrier} _ _
+          (congr!{SourceProjections.Map SourceTerms.torBundle.Carrier} (\fun (h: SourceProjections.Map) => #apply{h} x) _ _ SourceSequence.projectionEq))));
+\import Modules.ShortExactComparison[A := SourceTerms.tensorBundle, B := SourceTerms.homologyBundle, C := SourceTerms.torBundle,
+  A1 := TargetTerms.tensorBundle, B1 := TargetTerms.homologyBundle, C1 := TargetTerms.torBundle].Diagram[
+  s := SourceSequence.sequence, t := TargetResult.sequence, a := tensorMap, b := homologyMap, c := torMap] \as Diagram;
+\definition Commutative: \Prop := Diagram.Commutative;
+\definition diagram: Commutative := Diagram.Commutative { left := leftSquare, right := rightSquare };

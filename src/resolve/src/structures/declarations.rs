@@ -121,7 +121,7 @@ impl Resolver {
                 }
             };
             let mut items = Vec::new();
-            self.scoped_item(item, &mut items)?;
+            self.process_declaration(item, &mut items)?;
             let checked = self.output.get_mut(&module.id).unwrap();
             checked.declaration_spans = vec![span; items.len()];
             checked.body = ModuleBody::Inline(items);
@@ -172,7 +172,7 @@ impl Resolver {
             })?;
         let mut checked_items = Vec::new();
         for (value, ty) in &value.checks {
-            self.scoped_item(
+            self.process_declaration(
                 ModuleItem::MemberCheck {
                     value: value.clone(),
                     ty: ty.clone(),
@@ -190,7 +190,7 @@ impl Resolver {
                     ))
                 })?
                 .clone();
-            self.scoped_item(
+            self.process_declaration(
                 ModuleItem::MemberCheck {
                     value: actual,
                     ty: SExp::ConversionTarget {
@@ -201,7 +201,7 @@ impl Resolver {
             )?;
         }
         for (value, ty) in self.signature_checks(&shape, &substitutions) {
-            self.scoped_item(ModuleItem::MemberCheck { value, ty }, &mut checked_items)?;
+            self.process_declaration(ModuleItem::MemberCheck { value, ty }, &mut checked_items)?;
         }
         for (field, expected, _) in &shape.fields {
             let expression = value
@@ -219,7 +219,7 @@ impl Resolver {
                     ))
                 })?;
                 for (value, ty) in nested.checks {
-                    self.scoped_item(
+                    self.process_declaration(
                         ModuleItem::MemberCheck {
                             value: value.clone(),
                             ty: ty.clone(),
@@ -250,7 +250,7 @@ impl Resolver {
                     ty: expected,
                 }
             };
-            self.scoped_item(item, &mut checked_items)?;
+            self.process_declaration(item, &mut checked_items)?;
             let expression = if compiled {
                 let reference = self.compiled_reference(&module, field_name);
                 value

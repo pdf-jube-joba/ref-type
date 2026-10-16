@@ -1,0 +1,43 @@
+\import OriginalRight.Zero[n := n] \as Projection;
+\import SwappedLeft.Zero[n := n] \as ReverseProjection;
+\import Modules.Tensor[V := P.family.Carrier Nat.Nat^::zero, W := Q.family.Carrier n,
+  left := P.family.space Nat.Nat^::zero, right := Q.family.space n] \as Tensor;
+\import Modules.Tensor[V := Q.family.Carrier n, W := M.Carrier, left := Q.family.space n, right := M.space] \as Final;
+\import Doubles.Sign[V := SwappedTensor.Carrier n Nat.Nat^::zero, space := SwappedTensor.space n Nat.Nat^::zero] \as Sign;
+\definition afterOnTensor: \forall (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier n) ->
+  #apply{after} n (#apply{Projection.injection} (Tensor.tensor x y)) = Final.tensor y (#apply{#augmentation{p}} x) :=
+  \fun (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier n) => trans!{Final.Carrier} _ _ _
+    (congr!{{SwappedTotal.Carrier n} Final.Carrier} (#apply{Swapped.standardLeft} n) _ _
+      (Exchange.Degree[n := n].At[i := Projection.point].onTensor x y))
+    (trans!{Final.Carrier} _ _ _
+      (congr!{Nat.Nat^ Final.Carrier}
+        (\fun (k: Nat.Nat^) => #apply{Swapped.standardLeft} n (#apply{ReverseProjection.injection}
+          (#apply{(Sign.map k)} (SwappedTensor.Term[p := n, q := Nat.Nat^::zero].tensor y x)))) _ _
+        (Natural.mulZeroLeft n))
+      (ReverseProjection.onTensor y x));
+\import Modules.Hom[V := Total.Carrier n, W := StandardRight.Carrier n, source := Total.space n, target := StandardRight.space n].Composition[
+  U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\import Chains.Map[C := complex, D := StandardRight.complex].At[n := n] \as Linear;
+\definition afterComponent: Modules.Hom[V := Tensor.Carrier, W := StandardRight.Carrier n, source := Tensor.space, target := StandardRight.space n].Map :=
+  Compose.compose (Linear.linear after) Projection.injection;
+\definition beforeComponent: Modules.Hom[V := Tensor.Carrier, W := StandardRight.Carrier n, source := Tensor.space, target := StandardRight.space n].Map :=
+  Compose.compose (Linear.linear standardRight) Projection.injection;
+\import Tensor.Universal[U := StandardRight.Carrier n, target := StandardRight.space n] \as Universal;
+\definition equality: afterComponent = beforeComponent := Universal.ext afterComponent beforeComponent
+  (\fun (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier n) => trans!{Final.Carrier} _ _ _
+    (afterOnTensor x y) (sym!{Final.Carrier} _ _ (Projection.onTensor x y)));
+\definition point: \forall (x: Tensor.Carrier) -> #apply{after} n (#apply{Projection.injection} x) = #apply{standardRight} n (#apply{Projection.injection} x) :=
+  \fun (x: Tensor.Carrier) => congr!{{Modules.Hom[V := Tensor.Carrier, W := StandardRight.Carrier n, source := Tensor.space, target := StandardRight.space n].Map} {StandardRight.Carrier n}}
+    (\fun (f: Modules.Hom[V := Tensor.Carrier, W := StandardRight.Carrier n, source := Tensor.space, target := StandardRight.space n].Map) => #apply{f} x) _ _ equality;
+\definition zeroDegree(m: Nat.Nat^)(same: n = m): Arithmetic.add Nat.Nat^::zero n = m :=
+  trans!{Nat.Nat^} (Arithmetic.add Nat.Nat^::zero n) n m (Natural.addZeroLeft n) same;
+\definition transported: \forall (m: Nat.Nat^)(same: n = m)(x: Tensor.Carrier) ->
+  #apply{after} m (#apply{(Total.Degree[n := m].Component[i := diagonal m Nat.Nat^::zero n (zeroDegree m same)].injection)} x) =
+  #apply{standardRight} m (#apply{(Total.Degree[n := m].Component[i := diagonal m Nat.Nat^::zero n (zeroDegree m same)].injection)} x) :=
+  \fun (m: Nat.Nat^)(same: n = m) =>
+    (\idelim n = m \with k: Nat.Nat^ => \forall (equal: n = k)(x: Tensor.Carrier) ->
+      #apply{after} k (#apply{(Total.Degree[n := k].Component[i := diagonal k Nat.Nat^::zero n (zeroDegree k equal)].injection)} x) =
+      #apply{standardRight} k (#apply{(Total.Degree[n := k].Component[i := diagonal k Nat.Nat^::zero n (zeroDegree k equal)].injection)} x) \by {
+        base: \fun (equal: n = n) => point,
+        equality: same
+      }) same;

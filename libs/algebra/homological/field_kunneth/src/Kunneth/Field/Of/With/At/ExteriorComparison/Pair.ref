@@ -1,0 +1,124 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Arithmetic;
+\import std.Data[].Nat[].Basic[].Prop[] \as Natural;
+\import Cochains.At[C := Left.complex, k := p] \as LH;
+\import Cochains.At[C := Right.complex, k := q] \as RH;
+\import Cochains.At[C := LeftHomology.complex, k := p] \as LZ;
+\import Cochains.At[C := RightHomology.complex, k := q] \as RZ;
+\import LS.Degree[n := p] \as LT;
+\import RS.Degree[n := q] \as RT;
+\import LS.At[n := p] \as LC;
+\import RS.At[n := q] \as RC;
+\definition exponent: N.Nat^ := Arithmetic.mul p q;
+\definition leftZero(a: LH.Cohomology): LZ.CycleCarrier :=
+  LZ.cycle a (\refl(#zero{(Left.homologyFamily.space (N.Nat^::succ p))}));
+\definition rightZero(b: RH.Cohomology): RZ.CycleCarrier :=
+  RZ.cycle b (\refl(#zero{(Right.homologyFamily.space (N.Nat^::succ q))}));
+\definition leftCycle(a: LH.Cohomology): LH.CycleCarrier := LH.cycle (#apply{LT.inclusion} a) (LT.inclusionClosed a);
+\definition rightCycle(b: RH.Cohomology): RH.CycleCarrier := RH.cycle (#apply{RT.inclusion} b) (RT.inclusionClosed b);
+\definition index(closed: Arithmetic.add p q = n): Degrees.Index n :=
+  \into[Degrees.Pair](Degrees.Pair { first := p, second := q },
+    { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { closed };
+\definition reversed(closed: Arithmetic.add p q = n): Degrees.Index n :=
+  \into[Degrees.Pair](Degrees.Pair { first := q, second := p },
+    { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by {
+      trans!{N.Nat^} _ _ _ (Natural.addComm q p) closed
+    };
+\import Cochains.End[C := LeftHomology.complex] \as LIdentity;
+\import Cochains.End[C := Right.complex] \as RIdentity;
+\import Tensors.IndexedCycleProductNaturality[C := RightHomology.complex, D := Right.complex,
+  E := LeftHomology.complex, F := LeftHomology.complex, n := n].With[
+  f := RS.inclusion, g := LIdentity.identity] \as IncludeRight;
+\import Tensors.IndexedCycleProductNaturality[C := LeftHomology.complex, D := Left.complex,
+  E := Right.complex, F := Right.complex, n := n].With[
+  f := LS.inclusion, g := RIdentity.identity] \as IncludeLeft;
+\import Degrees.Sign[V := H3.Cohomology, space := H3.cohomologySpace] \as Sign3;
+\import Degrees.Sign[V := H2.Cohomology, space := H2.cohomologySpace] \as Sign2;
+\import Degrees.Sign[V := H1.Cohomology, space := H1.cohomologySpace] \as Sign1;
+\import Sign3.Mapping[W := H2.Cohomology, target := H2.cohomologySpace] \as SecondSign;
+\import Sign2.Mapping[W := H1.Cohomology, target := H1.cohomologySpace] \as SwapSign;
+
+\import Tensors.IndexedCycleProduct[C := LeftHomology.complex, D := RightHomology.complex, n := n].At[i := index closed] \as P4;
+\import Tensors.IndexedCycleProduct[C := RightHomology.complex, D := LeftHomology.complex, n := n].At[i := reversed closed] \as P3;
+\import Tensors.IndexedCycleProduct[C := Right.complex, D := LeftHomology.complex, n := n].At[i := reversed closed] \as P2;
+\import Tensors.IndexedCycleProduct[C := LeftHomology.complex, D := Right.complex, n := n].At[i := index closed] \as P1;
+\import Tensors.IndexedCycleProduct[C := Left.complex, D := Right.complex, n := n].At[i := index closed] \as P0;
+\import HomologyProduct.Term[p := p, q := q] \as HomologyTerm;
+\import SecondSwap.At[n := n].Component[i := reversed closed] \as S4;
+\import FirstSwap.At[n := n].Component[i := index closed] \as S2;
+\import IncludeRight.At[i := reversed closed] \as N3;
+\import IncludeLeft.At[i := index closed] \as N1;
+\definition generator(a: LH.Cohomology)(b: RH.Cohomology): Diagonal.Carrier :=
+  #apply{(Diagonal.Component[i := index closed].injection)} (HomologyTerm.tensor a b);
+\definition zeroOnTensor: \forall (a: LH.Cohomology)(b: RH.Cohomology) ->
+  #apply{#forward{Zero.isomorphism}} (generator a b) = P4.classOf (leftZero a) (rightZero b) :=
+  \fun (a: LH.Cohomology)(b: RH.Cohomology) => trans!{H4.Cohomology} _ _ _
+    (Zero.onTerm (generator a b))
+    (H4.equalClass (H4.cycle (generator a b) (HomologyTensor.differentialZero n (generator a b)))
+      (P4.cycle (leftZero a) (rightZero b)) (\refl(generator a b)));
+\definition fourth: \forall (a: LH.Cohomology)(b: RH.Cohomology) ->
+  #apply{#backward{I4.isomorphism}} (P4.classOf (leftZero a) (rightZero b)) =
+  #apply{(Sign3.map exponent)} (P3.classOf (rightZero b) (leftZero a)) :=
+  \fun (a: LH.Cohomology)(b: RH.Cohomology) => trans!{H3.Cohomology} _ _ _
+    (S4.inverseOnClass (rightZero b) (leftZero a))
+    (congr!{N.Nat^ H3.Cohomology}
+      (\fun (k: N.Nat^) => #apply{(Sign3.map k)} (P3.classOf (rightZero b) (leftZero a)))
+      _ _ (Natural.mulComm q p));
+\definition third: \forall (a: LH.Cohomology)(b: RH.Cohomology) ->
+  #apply{#backward{I3.isomorphism}} (#apply{(Sign3.map exponent)} (P3.classOf (rightZero b) (leftZero a))) =
+  #apply{(Sign2.map exponent)} (P2.classOf (rightCycle b) (leftZero a)) :=
+  \fun (a: LH.Cohomology)(b: RH.Cohomology) => trans!{H2.Cohomology} _ _ _
+    (SecondSign.naturality #backward{I3.isomorphism} exponent (P3.classOf (rightZero b) (leftZero a)))
+    (congr!{H2.Cohomology H2.Cohomology} (#apply{(Sign2.map exponent)}) _ _
+      (N3.onClass (rightZero b) (leftZero a)));
+\definition second: \forall (a: LH.Cohomology)(b: RH.Cohomology) ->
+  #apply{#backward{I2.isomorphism}} (#apply{(Sign2.map exponent)} (P2.classOf (rightCycle b) (leftZero a))) =
+  P1.classOf (leftZero a) (rightCycle b) :=
+  \fun (a: LH.Cohomology)(b: RH.Cohomology) => trans!{H1.Cohomology} _ _ _
+    (SwapSign.naturality #backward{I2.isomorphism} exponent (P2.classOf (rightCycle b) (leftZero a)))
+    (trans!{H1.Cohomology} _ _ _
+      (congr!{H1.Cohomology H1.Cohomology} (#apply{(Sign1.map exponent)}) _ _
+        (S2.inverseOnClass (leftZero a) (rightCycle b)))
+      (Sign1.involutive exponent (P1.classOf (leftZero a) (rightCycle b))));
+\definition first: \forall (a: LH.Cohomology)(b: RH.Cohomology) ->
+  #apply{#backward{I1.isomorphism}} (P1.classOf (leftZero a) (rightCycle b)) =
+  P0.classOf (leftCycle a) (rightCycle b) :=
+  \fun (a: LH.Cohomology)(b: RH.Cohomology) => N1.onClass (leftZero a) (rightCycle b);
+\definition onTensor: \forall (a: LH.Cohomology)(b: RH.Cohomology) ->
+  #apply{#backward{isomorphism}} (generator a b) = P0.classOf (leftCycle a) (rightCycle b) :=
+  \fun (a: LH.Cohomology)(b: RH.Cohomology) => \block {
+    \let step0: _ := zeroOnTensor a b \then
+    \let step4: _ := trans!{H3.Cohomology} _ _ _
+      (congr!{H4.Cohomology H3.Cohomology} (#apply{#backward{I4.isomorphism}}) _ _ step0) (fourth a b) \then
+    \let step3: _ := trans!{H2.Cohomology} _ _ _
+      (congr!{H3.Cohomology H2.Cohomology} (#apply{#backward{I3.isomorphism}}) _ _ step4) (third a b) \then
+    \let step2: _ := trans!{H1.Cohomology} _ _ _
+      (congr!{H2.Cohomology H1.Cohomology} (#apply{#backward{I2.isomorphism}}) _ _ step3) (second a b) \then
+    \return trans!{H0.Cohomology} _ _ _
+      (congr!{H1.Cohomology H0.Cohomology} (#apply{#backward{I1.isomorphism}}) _ _ step2) (first a b)
+  };
+
+\import Tensors.IndexedExterior[C := Left.complex, D := Right.complex, n := n].Pair[p := p, q := q] \as Exterior;
+\import Modules.Tensor[V := LH.Cohomology, W := RH.Cohomology,
+  left := LH.cohomologySpace, right := RH.cohomologySpace] \as Tensor;
+\import Modules.Hom[V := Diagonal.Carrier, W := H0.Cohomology,
+  source := Diagonal.space, target := H0.cohomologySpace].Composition[
+  U := Tensor.Carrier, domain := Tensor.space] \as Restrict;
+\definition source: _ := Restrict.compose #backward{isomorphism} (Diagonal.Component[i := index closed].injection);
+\definition target: _ := Exterior.map closed;
+\definition exteriorOnTensor: \forall (a: LH.Cohomology)(b: RH.Cohomology) ->
+  #apply{target} (Tensor.tensor a b) = P0.classOf (leftCycle a) (rightCycle b) :=
+  \fun (a: LH.Cohomology)(b: RH.Cohomology) => trans!{H0.Cohomology} _ _ _
+    (congr2!{LH.Cohomology RH.Cohomology H0.Cohomology}
+      (\fun (h: LH.Cohomology)(k: RH.Cohomology) => #apply{target} (Tensor.tensor h k))
+      _ _ _ _ (sym!{LH.Cohomology} _ _ (LC.inclusionClass a)) (sym!{RH.Cohomology} _ _ (RC.inclusionClass b)))
+    (Exterior.onClass closed (leftCycle a) (rightCycle b));
+\import Tensor.Universal[U := H0.Cohomology, target := H0.cohomologySpace] \as Universal;
+\definition equality: source = target := Universal.ext source target
+  (\fun (a: LH.Cohomology)(b: RH.Cohomology) => trans!{H0.Cohomology} _ _ _
+    (onTensor a b) (sym!{H0.Cohomology} _ _ (exteriorOnTensor a b)));
+\import Modules.Hom[V := Tensor.Carrier, W := H0.Cohomology,
+  source := Tensor.space, target := H0.cohomologySpace] \as Linear;
+\definition onComponent: \forall (x: Tensor.Carrier) ->
+  #apply{#backward{isomorphism}} (#apply{(Diagonal.Component[i := index closed].injection)} x) =
+  #apply{target} x :=
+  \fun (x: Tensor.Carrier) => congr!{Linear.Map H0.Cohomology} (\fun (h: Linear.Map) => #apply{h} x) _ _ equality;

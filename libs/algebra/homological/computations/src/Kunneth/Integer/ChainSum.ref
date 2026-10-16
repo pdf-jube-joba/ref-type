@@ -1,0 +1,63 @@
+\module Point(i: Index) {
+  \import Chains.View[C := terms i] \as Native;
+  \definition Carrier: Degree -> \Set := Native.Carrier;
+  \definition space: \forall (z: Degree) -> Modules.Space (Carrier z) := Native.space;
+  \definition apply: \forall (z: Degree) -> Carrier z -> Carrier (Bounded.previous z) := Native.apply;
+  \definition squareZero: \forall (z: Degree)(x: Carrier z) -> apply (Bounded.previous z) (apply z x) = #zero{(space (Bounded.previous (Bounded.previous z)))} := Native.squareZero;
+}
+\definition termCarrier(i: Index)(z: Degree): \Set := Point[i := i].Carrier z;
+\definition termSpace(i: Index)(z: Degree): Modules.Space (termCarrier i z) := Point[i := i].space z;
+\definition termApply(i: Index)(z: Degree): termCarrier i z -> termCarrier i (Bounded.previous z) := Point[i := i].apply z;
+\definition termSquareZero: \forall (i: Index)(z: Degree)(x: termCarrier i z) -> termApply i (Bounded.previous z) (termApply i z x) = #zero{(termSpace i (Bounded.previous (Bounded.previous z)))} := \fun (i: Index) => Point[i := i].squareZero;
+\module Term(z: Degree) {
+  \definition family: Modules.Family[Index] := Modules.Family[Index] {
+    Carrier := \fun (i: Index) => termCarrier i z,
+    space := \fun (i: Index) => termSpace i z,
+  };
+  \import Modules.DirectSum[Index := Index, family := family] \as Sum;
+  \definition Carrier: \Set := Sum.Carrier;
+  \definition space: Modules.Space Carrier := Sum.space;
+  \module Component(i: Index) {
+    \definition injection: Modules.Hom[V := termCarrier i z, W := Carrier,
+      source := termSpace i z, target := space].Map := Sum.Injection[i := i].map;
+    \import Sum.FiniteSupport[].At[i := i] \as Coordinate;
+    \definition projection: Modules.Hom[V := Carrier, W := termCarrier i z,
+      source := space, target := termSpace i z].Map := Coordinate.evaluate;
+  }
+}
+\module Step(z: Degree);
+\definition family: Chains.Family := Chains.Family {
+  Carrier := \fun (z: Degree) => Term[z := z].Carrier,
+  space := \fun (z: Degree) => Term[z := z].space,
+};
+\definition differential: Chains.DifferentialData[family] := Chains.DifferentialData[family] {
+  apply := \fun (z: Degree) => #apply{Step[z := z].map},
+};
+\definition complex: Chains.Complex := Chains.Complex {
+  family := family, differential := differential,
+  laws := Chains.DifferentialLaws[family, differential] {
+    addition := \fun (z: Degree) => #addition{Step[z := z].map},
+    scalar := \fun (z: Degree) => #scalar{Step[z := z].map},
+    squareZero := \fun (z: Degree) => Step[z := z].squareZero,
+  },
+};
+\module Injection(i: Index) {
+  \import Chains.Map[C := terms i, D := complex] \as Maps;
+  \definition map: Maps.Map := Maps.Map {
+    apply := \fun (z: Degree) => #apply{\parent.Term[z := z].Component[i := i].injection},
+    addition := \fun (z: Degree) => #addition{\parent.Term[z := z].Component[i := i].injection},
+    scalar := \fun (z: Degree) => #scalar{\parent.Term[z := z].Component[i := i].injection},
+    commutes := \fun (z: Degree) => \parent.Step[z := z].onInjection i,
+  };
+}
+\module Projection(i: Index) {
+  \import Chains.Map[C := complex, D := terms i] \as Maps;
+  \definition map: Maps.Map := Maps.Map {
+    apply := \fun (z: Degree) => #apply{\parent.Term[z := z].Component[i := i].projection},
+    addition := \fun (z: Degree) => #addition{\parent.Term[z := z].Component[i := i].projection},
+    scalar := \fun (z: Degree) => #scalar{\parent.Term[z := z].Component[i := i].projection},
+    commutes := \fun (z: Degree)(x: complex.family.Carrier z) =>
+      sym!{{termCarrier i (Bounded.previous z)}} _ _ (\parent.Step[z := z].coordinatesNatural x i),
+  };
+}
+\module At(z: Degree);

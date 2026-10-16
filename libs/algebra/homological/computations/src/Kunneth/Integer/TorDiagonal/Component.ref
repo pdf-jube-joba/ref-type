@@ -1,0 +1,81 @@
+\import \parent.\parent.HomologyDiagonal[C := C, D := D, n := Bounded.previous n] \as Model;
+\import \parent.\parent.DiagonalKernel[Index := Degree, source := Model.source, target := Model.target, maps := Model.maps] \as Kernel;
+\import \parent.\parent.ShiftSum[family := Kernel.family] \as Shift;
+\import tensor_chains.TensorChain[].Grading[] \as Grading;
+\definition q: Degree := complement n p;
+\definition lowerQ: Degree := complement (Bounded.previous n) (Bounded.previous p);
+\definition same: q = lowerQ := sym!{Degree} _ _ (Grading.complementUnique (Bounded.previous n) (Bounded.previous p) q
+  (trans!{Degree} _ _ _ (Grading.previousLeft p q) (congr!{Degree Degree} Bounded.previous _ _ (Grading.complementSum n p))));
+\import Bounded.Of[C := C].At[z := Bounded.previous p].Presentation[] \as Presentation;
+\import Bounded.Of[C := D] \as Other;
+\import Chains.At[C := Other.chain, z := complement n p] \as H;
+\definition coefficient: Modules.Bundle := Modules.Bundle { Carrier := H.Homology, space := H.homologySpace };
+\import Modules.RightExact[A := Presentation.boundaryBundle, B := Presentation.cyclesBundle, C := Presentation.homologyBundle] \as Exact;
+\import Modules.TensorRightExact[A := Presentation.boundaryBundle, B := Presentation.cyclesBundle,
+  C := Presentation.homologyBundle, N := coefficient].On[sequence := Exact.ofShort Presentation.sequence] \as Sequence;
+\import Modules.Tensor[V := Presentation.boundaryBundle.Carrier, W := H.Homology,
+  left := Presentation.boundaryBundle.space, right := H.homologySpace] \as Source;
+\import Modules.Tensor[V := Presentation.cyclesBundle.Carrier, W := H.Homology,
+  left := Presentation.cyclesBundle.space, right := H.homologySpace] \as Target;
+\import Model.Component[p := Bounded.previous p] \as Lower;
+\import Modules.End[V := Presentation.cyclesBundle.Carrier, space := Presentation.cyclesBundle.space] \as Identity;
+\import Modules.Isomorphism[V := Presentation.cyclesBundle.Carrier, W := Presentation.cyclesBundle.Carrier,
+  source := Presentation.cyclesBundle.space, target := Presentation.cyclesBundle.space] \as IdentityIso;
+\definition identity: IdentityIso.Isomorphism := IdentityIso.Isomorphism {
+  forward := Identity.identity, backward := Identity.identity,
+  leftInverse := \fun (x: Presentation.cyclesBundle.Carrier) => \refl(x),
+  rightInverse := \fun (x: Presentation.cyclesBundle.Carrier) => \refl(x),
+};
+\definition homologyFamily: Chains.Family := Chains.Family {
+  Carrier := \fun (r: Degree) => Chains.At[C := Other.chain, z := r].Homology,
+  space := \fun (r: Degree) => Chains.At[C := Other.chain, z := r].homologySpace,
+};
+\import Chains.FamilyTransport[F := homologyFamily] \as Transport;
+\import Target.Mapping[U := Presentation.cyclesBundle.Carrier, Z := homologyFamily.Carrier lowerQ,
+  targetLeft := Presentation.cyclesBundle.space, targetRight := homologyFamily.space lowerQ] \as TargetMap;
+\import TargetMap.Isomorphism[leftIso := identity, rightIso := Transport.isomorphism q lowerQ same] \as TargetComparison;
+\import Source.Mapping[U := Presentation.cyclesBundle.Carrier, Z := H.Homology,
+  targetLeft := Presentation.cyclesBundle.space, targetRight := H.homologySpace] \as Inclusion;
+\import Modules.End[V := H.Homology, space := H.homologySpace] \as HIdentity;
+\import Modules.Tensor[V := Presentation.boundaryBundle.Carrier, W := homologyFamily.Carrier lowerQ,
+  left := Presentation.boundaryBundle.space, right := homologyFamily.space lowerQ] \as LowerSource;
+\import Source.Mapping[U := Presentation.boundaryBundle.Carrier, Z := homologyFamily.Carrier lowerQ,
+  targetLeft := Presentation.boundaryBundle.space, targetRight := homologyFamily.space lowerQ] \as SourceMap;
+\import Modules.End[V := Presentation.boundaryBundle.Carrier, space := Presentation.boundaryBundle.space] \as BIdentity;
+\import Modules.Isomorphism[V := Presentation.boundaryBundle.Carrier, W := Presentation.boundaryBundle.Carrier,
+  source := Presentation.boundaryBundle.space, target := Presentation.boundaryBundle.space] \as BoundaryIdentity;
+\definition boundaryIdentity: BoundaryIdentity.Isomorphism := BoundaryIdentity.Isomorphism {
+  forward := BIdentity.identity, backward := BIdentity.identity,
+  leftInverse := \fun (x: Presentation.boundaryBundle.Carrier) => \refl(x),
+  rightInverse := \fun (x: Presentation.boundaryBundle.Carrier) => \refl(x),
+};
+\import SourceMap.Isomorphism[leftIso := boundaryIdentity, rightIso := Transport.isomorphism q lowerQ same] \as SourceComparison;
+\definition sourceIsomorphism: Modules.Isomorphism[V := Source.Carrier, W := Lower.sourceCarrier,
+  source := Source.space, target := Lower.sourceSpace].Isomorphism := SourceComparison.isomorphism;
+\import Modules.KernelTransport[V := Source.Carrier, W := Target.Carrier, X := Lower.sourceCarrier, Y := Lower.targetCarrier,
+  vSpace := Source.space, wSpace := Target.space, xSpace := Lower.sourceSpace, ySpace := Lower.targetSpace,
+  f := Sequence.inclusion, g := Lower.map, domainIso := sourceIsomorphism, codomainIso := TargetComparison.isomorphism] \as KernelComparison;
+\import Modules.Hom[V := Lower.sourceCarrier, W := Lower.targetCarrier, source := Lower.sourceSpace, target := Lower.targetSpace].Composition[
+  U := Source.Carrier, domain := Source.space] \as LeftCompose;
+\import Modules.Hom[V := Target.Carrier, W := Lower.targetCarrier, source := Target.space, target := Lower.targetSpace].Composition[
+  U := Source.Carrier, domain := Source.space] \as RightCompose;
+\import Source.Universal[U := Lower.targetCarrier, target := Lower.targetSpace] \as Universal;
+\definition squareMap: LeftCompose.compose Lower.map #forward{sourceIsomorphism} =
+  RightCompose.compose #forward{TargetComparison.isomorphism} Sequence.inclusion := Universal.ext _ _
+  (\fun (b: Presentation.boundaryBundle.Carrier)(h: H.Homology) => trans!{Lower.targetCarrier} _ _ _
+    (congr!{Lower.sourceCarrier Lower.targetCarrier} (#apply{Lower.map}) _ _
+      (SourceMap.onTensor BIdentity.identity #forward{Transport.isomorphism q lowerQ same} b h))
+    (trans!{Lower.targetCarrier} _ _ _ (Lower.onTensor b (#apply{#forward{Transport.isomorphism q lowerQ same}} h))
+      (sym!{Lower.targetCarrier} _ _ (trans!{Lower.targetCarrier} _ _ _
+        (congr!{Target.Carrier Lower.targetCarrier} (#apply{#forward{TargetComparison.isomorphism}}) _ _
+          (Inclusion.onTensor Presentation.sequence.inclusion HIdentity.identity b h))
+        (TargetMap.onTensor Identity.identity #forward{Transport.isomorphism q lowerQ same} b h)))));
+\definition square: KernelComparison.Commutes := \fun (x: Source.Carrier) =>
+  congr!{{Modules.Hom[V := Source.Carrier, W := Lower.targetCarrier, source := Source.space, target := Lower.targetSpace].Map} Lower.targetCarrier}
+    (\fun (f: Modules.Hom[V := Source.Carrier, W := Lower.targetCarrier, source := Source.space, target := Lower.targetSpace].Map) => #apply{f} x) _ _ squareMap;
+\import Modules.Isomorphism[V := Terms.Component[p := p].torCarrier, W := Terms.Component[p := p].torKernelCarrier,
+  source := Terms.Component[p := p].torSpace, target := Terms.Component[p := p].torKernelSpace].Composition[
+  U := Shift.shifted.Carrier p, final := Shift.shifted.space p] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := Terms.torFamily.Carrier p, W := Shift.shifted.Carrier p,
+  source := Terms.torFamily.space p, target := Shift.shifted.space p].Isomorphism :=
+  Composition.compose (KernelComparison.isomorphism square) Terms.Component[p := p].torKernelIsomorphism;

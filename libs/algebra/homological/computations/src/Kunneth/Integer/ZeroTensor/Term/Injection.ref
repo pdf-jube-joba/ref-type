@@ -1,0 +1,31 @@
+\import \parent.\parent.Coefficient[p := p] \as Coefficient;
+\import resolutions.TensorComplex[].Over[R := Integers.Int^, ring := IntegerRing.commutativeRing].Integer[P := Original.chain, N := Coefficient.bundle] \as Tensor;
+\definition index(q: Degree)(closed: Grading.add p q = n): Grading.Index n :=
+  \into[Grading.Pair](Grading.Pair { first := p, second := q },
+    { i: Grading.Pair \where Grading.add #first{i} #second{i} = n }) \by { closed };
+\module At(q: Degree, closed: Grading.add p q = n) {
+  \import Modules.Tensor[V := Original.chain.family.Carrier q, W := Z.Carrier p,
+    left := Original.chain.family.space q, right := Z.space p].Symmetry[] \as Swap;
+  \import Target.Component[i := index q closed] \as Inclusion;
+  \import Modules.Hom[V := tensorCarrier p q, W := Target.Carrier,
+    source := tensorSpace p q, target := Target.space].Composition[U := Tensor.Carrier q, domain := Tensor.space q] \as Compose;
+  \definition map: Modules.Hom[V := Tensor.Carrier q, W := Target.Carrier, source := Tensor.space q, target := Target.space].Map :=
+    Compose.compose Inclusion.injection Swap.forward;
+  \definition onTensor: \forall (x: Original.chain.family.Carrier q)(z: Z.Carrier p) ->
+    #apply{map} (Tensor.At[z := q].tensor x z) = #apply{Inclusion.injection} (Product.Term[p := p, q := q].tensor z x) :=
+    \fun (x: Original.chain.family.Carrier q)(z: Z.Carrier p) =>
+      congr!{{tensorCarrier p q} Target.Carrier} (#apply{Inclusion.injection}) _ _ (Swap.onTensor x z);
+}
+\definition q: Degree := Grading.complement n p;
+\definition map: Modules.Hom[V := Tensor.Carrier q, W := Target.Carrier, source := Tensor.space q, target := Target.space].Map := At[q := q, closed := Grading.complementSum n p].map;
+\definition transportedDegree(q, r: Degree)(closed: Grading.add p q = n)(same: q = r): Grading.add p r = n :=
+  trans!{Degree} _ _ _ (sym!{Degree} _ _ (congr!{Degree Degree} (Grading.add p) q r same)) closed;
+\definition natural: \forall (q, r: Degree)(closed: Grading.add p q = n)(same: q = r)(x: Tensor.Carrier q) ->
+  #apply{At[q := r, closed := transportedDegree q r closed same].map} (Transport.cast Tensor.Carrier q r same x) = #apply{At[q := q, closed := closed].map} x :=
+  \fun (q, r: Degree)(closed: Grading.add p q = n)(same: q = r) =>
+    (\idelim q = r \with k: Degree => \forall (same: q = k)(x: Tensor.Carrier q) ->
+      #apply{At[q := k, closed := transportedDegree q k closed same].map} (Transport.cast Tensor.Carrier q k same x) = #apply{At[q := q, closed := closed].map} x \by {
+      base: \fun (same: q = q)(x: Tensor.Carrier q) =>
+        congr!{{Tensor.Carrier q} Target.Carrier} (#apply{At[q := q, closed := closed].map}) _ _ (Transport.castRefl Tensor.Carrier q x),
+      equality: same
+    }) same;

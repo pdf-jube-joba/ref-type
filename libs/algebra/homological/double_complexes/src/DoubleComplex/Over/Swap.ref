@@ -1,0 +1,27 @@
+\import \parent.SignedTranspose[C := C] \as Signed;
+\import \parent.Transpose[C := C] \as Transposed;
+\import \parent.Total[C := C] \as Source;
+\import \parent.Total[C := Signed.complex] \as Middle;
+\import \parent.Total[C := Transposed.complex] \as Target;
+\import Signed.Permutation[] \as Permutation;
+\module Conjugate;
+\import Chains.Map[C := Middle.complex, D := Target.complex].Composition[B := Source.complex] \as Forward;
+\import Chains.Map[C := Middle.complex, D := Source.complex].Composition[B := Target.complex] \as Backward;
+\definition forward: Chains.Map[C := Source.complex, D := Target.complex].Map := Forward.compose Conjugate[].forward Permutation.forward;
+\definition backward: Chains.Map[C := Target.complex, D := Source.complex].Map := Backward.compose Permutation.backward Conjugate[].backward;
+\definition leftInverse: \forall (n: Nat.Nat^)(x: Source.Carrier n) -> #apply{backward} n (#apply{forward} n x) = x :=
+  \fun (n: Nat.Nat^)(x: Source.Carrier n) => trans!{{Source.Carrier n}} _ _ _
+    (congr!{{Middle.Carrier n} {Source.Carrier n}} (#apply{Permutation.backward} n) _ _
+      (Conjugate[].leftInverse n (#apply{Permutation.forward} n x)))
+    (#leftInverse{Permutation.isomorphism} n x);
+\definition rightInverse: \forall (n: Nat.Nat^)(x: Target.Carrier n) -> #apply{forward} n (#apply{backward} n x) = x :=
+  \fun (n: Nat.Nat^)(x: Target.Carrier n) => trans!{{Target.Carrier n}} _ _ _
+    (congr!{{Middle.Carrier n} {Target.Carrier n}} (#apply{(Conjugate[].forward)} n) _ _
+      (#rightInverse{Permutation.isomorphism} n (#apply{(Conjugate[].backward)} n x)))
+    (Conjugate[].rightInverse n x);
+\definition isomorphism: Chains.Isomorphism[C := Source.complex, D := Target.complex].Isomorphism :=
+  Chains.Isomorphism[C := Source.complex, D := Target.complex].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };
+\definition index(n: Nat.Nat^)(i: Index n): Index n := Permutation.index n i;
+\module Degree(n: Nat.Nat^);

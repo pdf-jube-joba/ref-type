@@ -103,7 +103,6 @@ pub(super) fn labels(
             "resolve.macro",
             "resolve.expression",
             "resolve.hygiene",
-            "resolve.declaration",
         ]
         .iter()
         .position(|space| *space == id.space())

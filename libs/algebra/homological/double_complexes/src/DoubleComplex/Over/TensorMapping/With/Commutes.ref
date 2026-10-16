@@ -1,0 +1,49 @@
+\import Source.Term[p := p, q := q] \as S;
+\import Target.Term[p := p, q := q] \as T;
+\import Source.At[p := p, q := q] \as SD;
+\import Target.At[p := p, q := q] \as TD;
+\import \parent.Degree[p := p, q := q] \as Current;
+\module Horizontal {
+  \import Source.Term[p := Nat.Nat^::succ p, q := q] \as SN;
+  \import Target.Term[p := Nat.Nat^::succ p, q := q] \as TN;
+  \import \parent.\parent.Degree[p := Nat.Nat^::succ p, q := q] \as Next;
+  \import Modules.Hom[V := TN.Carrier, W := T.Carrier, source := TN.space, target := T.space].Composition[U := SN.Carrier, domain := SN.space] \as After;
+  \import Modules.Hom[V := S.Carrier, W := T.Carrier, source := S.space, target := T.space].Composition[U := SN.Carrier, domain := SN.space] \as Before;
+  \import Modules.Hom[V := SN.Carrier, W := T.Carrier, source := SN.space, target := T.space] \as Maps;
+  \import Modules.Tensor[V := C.family.Carrier (Nat.Nat^::succ p), W := E.family.Carrier q, left := C.family.space (Nat.Nat^::succ p), right := E.family.space q].Universal[U := T.Carrier, target := T.space] \as Universal;
+  \definition equality: After.compose TD.horizontal Next.map = Before.compose Current.map SD.horizontal :=
+    Universal.ext (After.compose TD.horizontal Next.map) (Before.compose Current.map SD.horizontal)
+      (\fun (x: C.family.Carrier (Nat.Nat^::succ p))(y: E.family.Carrier q) => trans!{T.Carrier} _ _ _
+        (congr!{TN.Carrier T.Carrier} (#apply{TD.horizontal}) _ _ (Next.onTensor x y))
+        (trans!{T.Carrier} _ _ _ (TD.horizontalOnTensor (#apply{f} (Nat.Nat^::succ p) x) (#apply{g} q y))
+          (trans!{T.Carrier} _ _ _ (congr!{{D.family.Carrier p} T.Carrier} (\fun (z: D.family.Carrier p) => T.tensor z (#apply{g} q y)) _ _ (#commutes{f} p x))
+            (sym!{T.Carrier} _ _ (trans!{T.Carrier} _ _ _
+              (congr!{S.Carrier T.Carrier} (#apply{Current.map}) _ _ (SD.horizontalOnTensor x y))
+              (Current.onTensor (#apply{C.differential} p x) (y)))))));
+  \definition point: \forall (x: SN.Carrier) -> #apply{TD.horizontal} (#apply{Next.map} x) = #apply{Current.map} (#apply{SD.horizontal} x) :=
+    \fun (x: SN.Carrier) => congr!{Maps.Map T.Carrier} (\fun (h: Maps.Map) => #apply{h} x) _ _ equality;
+}
+\definition horizontal: \forall (x: Source.Term[p := Nat.Nat^::succ p, q := q].Carrier) ->
+  #apply{TD.horizontal} (#apply{(\parent.Degree[p := Nat.Nat^::succ p, q := q].map)} x) = #apply{Current.map} (#apply{SD.horizontal} x) := Horizontal[].point;
+\module Vertical {
+  \import Source.Term[p := p, q := Nat.Nat^::succ q] \as SN;
+  \import Target.Term[p := p, q := Nat.Nat^::succ q] \as TN;
+  \import \parent.\parent.Degree[p := p, q := Nat.Nat^::succ q] \as Next;
+  \import Modules.Hom[V := TN.Carrier, W := T.Carrier, source := TN.space, target := T.space].Composition[U := SN.Carrier, domain := SN.space] \as After;
+  \import Modules.Hom[V := S.Carrier, W := T.Carrier, source := S.space, target := T.space].Composition[U := SN.Carrier, domain := SN.space] \as Before;
+  \import Modules.Hom[V := SN.Carrier, W := T.Carrier, source := SN.space, target := T.space] \as Maps;
+  \import Modules.Tensor[V := C.family.Carrier p, W := E.family.Carrier (Nat.Nat^::succ q), left := C.family.space p, right := E.family.space (Nat.Nat^::succ q)].Universal[U := T.Carrier, target := T.space] \as Universal;
+  \definition equality: After.compose TD.vertical Next.map = Before.compose Current.map SD.vertical :=
+    Universal.ext (After.compose TD.vertical Next.map) (Before.compose Current.map SD.vertical)
+      (\fun (x: C.family.Carrier p)(y: E.family.Carrier (Nat.Nat^::succ q)) => trans!{T.Carrier} _ _ _
+        (congr!{TN.Carrier T.Carrier} (#apply{TD.vertical}) _ _ (Next.onTensor x y))
+        (trans!{T.Carrier} _ _ _ (TD.verticalOnTensor (#apply{f} p x) (#apply{g} (Nat.Nat^::succ q) y))
+          (trans!{T.Carrier} _ _ _ (congr!{{F.family.Carrier q} T.Carrier} (T.tensor (#apply{f} p x)) _ _ (#commutes{g} q y))
+            (sym!{T.Carrier} _ _ (trans!{T.Carrier} _ _ _
+              (congr!{S.Carrier T.Carrier} (#apply{Current.map}) _ _ (SD.verticalOnTensor x y))
+              (Current.onTensor (x) (#apply{E.differential} q y)))))));
+  \definition point: \forall (x: SN.Carrier) -> #apply{TD.vertical} (#apply{Next.map} x) = #apply{Current.map} (#apply{SD.vertical} x) :=
+    \fun (x: SN.Carrier) => congr!{Maps.Map T.Carrier} (\fun (h: Maps.Map) => #apply{h} x) _ _ equality;
+}
+\definition vertical: \forall (x: Source.Term[p := p, q := Nat.Nat^::succ q].Carrier) ->
+  #apply{TD.vertical} (#apply{(\parent.Degree[p := p, q := Nat.Nat^::succ q].map)} x) = #apply{Current.map} (#apply{SD.vertical} x) := Vertical[].point;

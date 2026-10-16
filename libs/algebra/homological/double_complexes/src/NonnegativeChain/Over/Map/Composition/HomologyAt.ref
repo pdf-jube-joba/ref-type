@@ -1,0 +1,49 @@
+\import std.Arithmetic[].Int[] \as Signed;
+\import chain_complexes.Chain[].Over[R := R, ring := ring] \as Integer;
+\import \parent.\parent.\parent.ZeroExtension[C := B] \as S;
+\import \parent.\parent.\parent.ZeroExtension[C := C] \as M;
+\import \parent.\parent.\parent.ZeroExtension[C := D] \as T;
+\import \parent.\parent.\parent.Homology[C := B].At[n := n] \as Source;
+\import \parent.\parent.\parent.Homology[C := D].At[n := n] \as Target;
+\import \parent.\parent.\parent.IntegerComparison[C := B].At[n := n] \as SourceComparison;
+\import \parent.\parent.\parent.IntegerComparison[C := C].At[n := n] \as MiddleComparison;
+\import \parent.\parent.\parent.IntegerComparison[C := D].At[n := n] \as TargetComparison;
+\import \parent.\parent.HomologyAt[n := n] \as After;
+\import Before.HomologyAt[n := n] \as First;
+\import Result.HomologyAt[n := n] \as Combined;
+\import Integer.Map[C := M.complex, D := T.complex] \as IA;
+\import Integer.Map[C := S.complex, D := M.complex] \as IB;
+\import Integer.Map[C := S.complex, D := T.complex] \as IC;
+\import IA.Composition[B := S.complex] \as IComposition;
+\definition index: Signed.Int^ := Signed.Int^::ofNat n;
+\import Integer.At[C := S.complex, z := index] \as IS;
+\import Integer.At[C := M.complex, z := index] \as IM;
+\import Integer.At[C := T.complex, z := index] \as IT;
+\module On(f: Map, g: Before.Map) {
+  \import \parent.\parent.\parent.ZeroExtension[f := f] \as AF;
+  \import Before.ZeroExtension[f := g] \as BG;
+  \import Result.ZeroExtension[f := compose f g] \as CF;
+  \definition extensionEquality: CF.map = IComposition.compose AF.map BG.map :=
+    IC.ext CF.map (IComposition.compose AF.map BG.map)
+      (\induction (k: Signed.Int^) \return \forall (x: S.Carrier k) -> #apply{CF.map} k x = #apply{(IComposition.compose AF.map BG.map)} k x \with {
+        | ofNat: \fun (m: N.Nat^)(x: S.Carrier (Signed.Int^::ofNat m)) => \refl(#apply{f} m (#apply{g} m x))
+        | negSucc: \fun (m: N.Nat^)(x: S.Carrier (Signed.Int^::negSucc m)) => \refl(#zero{(T.space (Signed.Int^::negSucc m))})
+      });
+  \definition integerComposition: \forall (q: IS.Homology) ->
+    #apply{(IC.At[k := index].induced CF.map)} q = #apply{(IA.At[k := index].induced AF.map)} (#apply{(IB.At[k := index].induced BG.map)} q) :=
+    \fun (q: IS.Homology) => trans!{IT.Homology} _ _ _
+      (congr!{IC.Map IT.Homology} (\fun (h: IC.Map) => #apply{(IC.At[k := index].induced h)} q) _ _ extensionEquality)
+      (IComposition.At[k := index].compositionOnHomology AF.map BG.map q);
+  \definition composition: \forall (q: Source.Carrier) ->
+    #apply{(Combined.induced (compose f g))} q = #apply{(After.induced f)} (#apply{(First.induced g)} q) :=
+    \fun (q: Source.Carrier) => trans!{Target.Carrier} _ _ _
+      (congr!{IT.Homology Target.Carrier} (#apply{#backward{TargetComparison.isomorphism}}) _ _
+        (integerComposition (#apply{#forward{SourceComparison.isomorphism}} q)))
+      (congr!{IM.Homology Target.Carrier}
+        (\fun (h: IM.Homology) => #apply{#backward{TargetComparison.isomorphism}} (#apply{(IA.At[k := index].induced AF.map)} h)) _ _
+        (sym!{IM.Homology} _ _ (#rightInverse{MiddleComparison.isomorphism}
+          (#apply{(IB.At[k := index].induced BG.map)} (#apply{#forward{SourceComparison.isomorphism}} q)))));
+}
+\definition composition: \forall (f: Map)(g: Before.Map)(q: Source.Carrier) ->
+  #apply{(Combined.induced (compose f g))} q = #apply{(After.induced f)} (#apply{(First.induced g)} q) :=
+  \fun (f: Map)(g: Before.Map) => On[f := f, g := g].composition;

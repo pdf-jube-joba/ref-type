@@ -164,11 +164,6 @@ pub enum TokenMatchPattern {
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub enum ModuleItem {
-    /// A declaration scope expanded before elaboration. Only `exports` escape.
-    Scoped {
-        exports: Vec<Identifier>,
-        items: Vec<ModuleItem>,
-    },
     Definition {
         owner: Option<AssociatedOwner>,
         name: Identifier,

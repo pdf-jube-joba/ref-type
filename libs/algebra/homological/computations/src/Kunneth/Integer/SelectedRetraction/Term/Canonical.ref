@@ -1,0 +1,22 @@
+\definition q: Degree := complement n p;
+\definition index: Grading.Index n := \into[Grading.Pair](Grading.Pair { first := p, second := q },
+  { i: Grading.Pair \where Grading.add #first{i} #second{i} = n }) \by { Grading.complementSum n p };
+\import \parent.At[i := index] \as ProjectionTerm;
+\import \parent.Factor[p := p] \as Reindex;
+\import Chains.At[C := Left.chain, z := p] \as LeftHomology;
+\import Chains.At[C := Right.chain, z := q] \as RightHomology;
+\import Product.Term[p := p, q := q] \as Tensor;
+\import Projected.Term[p := p, q := q] \as HomologyTensor;
+\definition onCycles: \forall (x: LeftHomology.Cycle)(y: RightHomology.Cycle) ->
+  #apply{map} (#apply{(Source.Component[i := index].injection)} (Tensor.tensor x y)) =
+    #apply{TargetSum.Injection[i := p].map} (Result.Component[p := p].tensor (LeftHomology.classOf x) (RightHomology.classOf y)) :=
+  \fun (x: LeftHomology.Cycle)(y: RightHomology.Cycle) => trans!{TargetSum.Carrier} _ _ _
+    (onInjection index (Tensor.tensor x y))
+    (trans!{TargetSum.Carrier} _ _ _ (ProjectionTerm.onTensor x y)
+      (trans!{TargetSum.Carrier} _ _ _
+        (congr!{HomologyTensor.Carrier TargetSum.Carrier} (#apply{ProjectionTerm.tail}) _ _
+          (congr2!{{LeftHomology.Homology} {RightHomology.Homology} HomologyTensor.Carrier} HomologyTensor.tensor _ _ _ _
+            (LeftProjection.Term[z := p].onCycle x) (RightProjection.Term[z := q].onCycle y)))
+        (congr!{{Result.Component[p := p].tensorCarrier} TargetSum.Carrier} (#apply{TargetSum.Injection[i := p].map}) _ _
+          (Reindex.canonical (Grading.complementUnique n p q (Grading.degree n index))
+            (HomologyTensor.tensor (LeftHomology.classOf x) (RightHomology.classOf y))))));

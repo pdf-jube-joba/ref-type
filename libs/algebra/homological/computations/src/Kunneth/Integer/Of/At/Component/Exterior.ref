@@ -1,0 +1,18 @@
+\import Tensors.Exterior[C := Left.chain, D := Right.chain, p := p, q := complement n p] \as Native;
+\import Tensors.CycleProduct[C := Left.chain, D := Right.chain, p := p, q := complement n p] \as Product;
+\import tensor_chains.TensorChain[].Grading[] \as Grading;
+\import Chains.FamilyTransport[F := homologyFamily] \as HomologyTransport;
+\import Chains.At[C := tensorComplex, z := n] \as TotalHomology;
+\import Chains.At[C := tensorComplex, z := Grading.add p (complement n p)] \as OriginalHomology;
+\definition transport: Modules.Hom[V := OriginalHomology.Homology, W := TotalHomology.Homology,
+  source := OriginalHomology.homologySpace, target := TotalHomology.homologySpace].Map :=
+  HomologyTransport.forward (Grading.add p (complement n p)) n (Grading.complementSum n p);
+\import Modules.Hom[V := OriginalHomology.Homology, W := TotalHomology.Homology,
+  source := OriginalHomology.homologySpace, target := TotalHomology.homologySpace].Composition[
+  U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\definition map: Modules.Hom[V := Tensor.Carrier, W := TotalHomology.Homology,
+  source := Tensor.space, target := TotalHomology.homologySpace].Map := Compose.compose transport Native.map;
+\definition onClass: \forall (x: LeftHomology.Cycle)(y: RightHomology.Cycle) ->
+  #apply{map} (Tensor.tensor (LeftHomology.classOf x) (RightHomology.classOf y)) = #apply{transport} (Product.classOf x y) :=
+  \fun (x: LeftHomology.Cycle)(y: RightHomology.Cycle) =>
+    congr!{OriginalHomology.Homology TotalHomology.Homology} (#apply{transport}) _ _ (Native.onClass x y);

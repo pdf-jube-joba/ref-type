@@ -1,0 +1,56 @@
+\import std.Logic[].Proposition[] \as Existential;
+\import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
+\definition p: Degree := #first{i};
+\definition q: Degree := #second{i};
+\import Chains.At[C := D, z := q] \as Right;
+\import Chains.At[C := C, z := previous p] \as Left;
+\import \parent.Tensor[C := C, D := D] \as Product;
+\import \parent.Total[C := Product.complex] \as Total;
+\import Total.Term[n := n] \as Before;
+\import Total.Term[n := previous n] \as Current;
+\import Total.Step[n := n] \as Step;
+\import Before.Component[i := i] \as Inclusion;
+\import Current.Component[i := Total.upHorizontal n i] \as HInclusion;
+\import Current.Component[i := Total.upVertical n i] \as VInclusion;
+\import Product.Term[p := p, q := q] \as Term;
+\import Product.Term[p := previous p, q := q] \as HTerm;
+\import Product.Term[p := p, q := previous q] \as VTerm;
+\import Product.At[p := p, q := q] \as Differential;
+\import \root.TensorChain[].Over[R := R, ring := ring].Sign[V := VTerm.Carrier, space := VTerm.space] \as Sign;
+\import Modules.Hom[V := VTerm.Carrier, W := VTerm.Carrier, source := VTerm.space, target := VTerm.space] \as Signs;
+\import Modules.Hom[V := VTerm.Carrier, W := Current.Carrier, source := VTerm.space, target := Current.space] \as VMaps;
+\import Modules.Laws[V := Current.Carrier, space := Current.space] \as Laws;
+\import algebra.Group[].Of[Carrier := Current.Carrier, group := Laws.additive] \as Group;
+\import Chains.At[C := Total.complex, z := previous n] \as H;
+\import \parent.IndexedCycleProduct[C := C, D := D, n := previous n].At[i := Total.upHorizontal n i] \as Exterior;
+\definition lift(a: C.family.Carrier p)(y: Right.Cycle): Before.Carrier := #apply{Inclusion.injection} (Term.tensor a y);
+\definition horizontal: \forall (a: C.family.Carrier p)(y: Right.Cycle) ->
+  #apply{Step.horizontal} (lift a y) = #apply{HInclusion.injection} (HTerm.tensor (#apply{C.differential} p a) y) :=
+  \fun (a: C.family.Carrier p)(y: Right.Cycle) => trans!{Current.Carrier} _ _ _
+    (Step.horizontalOnInjection i (Term.tensor a y))
+    (congr!{HTerm.Carrier Current.Carrier} (#apply{HInclusion.injection}) _ _ (Differential.horizontalOnTensor a y));
+\definition vertical: \forall (a: C.family.Carrier p)(y: Right.Cycle) -> #apply{Step.vertical} (lift a y) = #zero{Current.space} :=
+  \fun (a: C.family.Carrier p)(y: Right.Cycle) => trans!{Current.Carrier} _ _ _
+    (Step.verticalOnInjection i (Term.tensor a y))
+    (trans!{Current.Carrier} _ _ _
+      (congr!{VTerm.Carrier Current.Carrier} (\fun (v: VTerm.Carrier) => #apply{VInclusion.injection} (#apply{(Sign.map p)} v)) _ _
+        (trans!{VTerm.Carrier} _ _ _ (Differential.verticalOnTensor a y)
+          (trans!{VTerm.Carrier} _ _ _
+            (congr!{{D.family.Carrier (previous q)} VTerm.Carrier} (VTerm.tensor a) _ _
+              (\bysub(D.family.Carrier q, #carrier{Right.cycles}, y))) (VTerm.zeroRight a))))
+      (trans!{Current.Carrier} _ _ _
+        (congr!{VTerm.Carrier Current.Carrier} (#apply{VInclusion.injection}) _ _ (Signs.zeroPreserved (Sign.map p)))
+        (VMaps.zeroPreserved VInclusion.injection)));
+\definition value: \forall (a: C.family.Carrier p)(y: Right.Cycle) ->
+  #apply{Total.differential} n (lift a y) = #apply{HInclusion.injection} (HTerm.tensor (#apply{C.differential} p a) y) :=
+  \fun (a: C.family.Carrier p)(y: Right.Cycle) => trans!{Current.Carrier} _ _ _
+    (congr2!{Current.Carrier Current.Carrier Current.Carrier} (#add{Current.space}) _ _ _ _ (horizontal a y) (vertical a y))
+    (Group.zeroRight (#apply{HInclusion.injection} (HTerm.tensor (#apply{C.differential} p a) y)));
+\definition cycle(a: C.family.Carrier p): Left.Cycle := Left.cycle (#apply{C.differential} p a) (#squareZero{C.laws} p a);
+\import Chains.Prior[C := Total.complex] \as Prior;
+\definition vanishes: \forall (a: C.family.Carrier p)(y: Right.Cycle) -> Exterior.classOf (cycle a) y = H.zeroClass :=
+  \fun (a: C.family.Carrier p)(y: Right.Cycle) => H.boundaryClassZero (Exterior.cycle (cycle a) y)
+    (Existential.existsIntro[Total.complex.family.Carrier (next (previous n)),
+      { b: Total.complex.family.Carrier (next (previous n)) \where Prior.value (previous n) b = Exterior.value (cycle a) y }]
+      (Transport.cast Total.complex.family.Carrier n (next (previous n)) (sym!{Degree} _ _ (Degrees.nextPrevious n)) (lift a y))
+      (trans!{Current.Carrier} _ _ _ (Prior.previousValue n (lift a y)) (value a y)));

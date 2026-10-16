@@ -1,0 +1,61 @@
+\import double_complexes.DoubleComplex[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Doubles;
+\import Doubles.TensorSplitSequence[C := P, E := middleComplex, F := Q, D := T].With[sequence := chainSequence] \as Totals;
+\module Degree(n: Nat.Nat^) {
+  \import Modules.Biproduct[V := P.family.Carrier n, W := Q.family.Carrier n, left := P.family.space n, right := Q.family.space n] \as Sum;
+  \definition retraction: Modules.Hom[V := middleComplex.family.Carrier n, W := P.family.Carrier n, source := middleComplex.family.space n, target := P.family.space n].Map := Sum.firstProjection;
+}
+\definition retraction: Totals.Retraction := Totals.Retraction {
+  apply := \fun (n: Nat.Nat^) => Degree[n := n].retraction,
+  retracts := \fun (n: Nat.Nat^)(x: P.family.Carrier n) => \refl(x),
+};
+\import Totals.Split[r := retraction] \as TotalSequence;
+\import Doubles.Tensor[C := P, D := T] \as LeftProduct;
+\import Doubles.Tensor[C := middleComplex, D := T] \as MiddleProduct;
+\import Doubles.Total[C := LeftProduct.complex] \as LeftTotal;
+\import Doubles.Total[C := MiddleProduct.complex] \as MiddleTotal;
+\import \root.Tor[].Over[R := R, ring := ring].Balance[M := A, N := N, P := P, Q := T] \as LeftModel;
+\import \root.Tor[].Over[R := R, ring := ring].Balance[M := B, N := N, P := middleComplex, Q := T] \as MiddleModel;
+\import \root.Tor[].Over[R := R, ring := ring].Balance[M := C, N := N, P := Q, Q := T] \as RightModel;
+\import LeftModel.With[p := p, q := t] \as LeftBalance;
+\import MiddleModel.With[p := Middle.resolution, q := t] \as MiddleBalance;
+\import RightModel.With[p := q, q := t] \as RightBalance;
+\import \root.Tor[].Over[R := R, ring := ring].ShortExactSecond[M := N, A := A, B := B, C := C, P := T].With[sequence := coefficientSequence, resolution := t] \as SecondSequence;
+\import \root.Tor[].Over[R := R, ring := ring].Of[M := N, N := A, P := T] \as SwappedLeft;
+\import \root.Tor[].Over[R := R, ring := ring].Of[M := N, N := B, P := T] \as SwappedMiddle;
+\import \root.Tor[].Over[R := R, ring := ring].Of[M := N, N := C, P := T] \as SwappedRight;
+\import Chains.End[C := T] \as ChainIdentity;
+\import Modules.End[V := N.Carrier, space := N.space] \as Identity;
+\import resolutions.ResolutionTensor[].Over[R := R, ring := ring].Double[M := A, N := N, P := P, Q := T].Naturality[L := B, K := N, S := middleComplex, T := T].With[
+  p := p, q := t, s := Middle.resolution, t := t, u := coefficientSequence.inclusion, v := Identity.identity, f := chainSequence.inclusion, g := ChainIdentity.identity] \as InclusionNaturality;
+\import resolutions.ResolutionTensor[].Over[R := R, ring := ring].Double[M := B, N := N, P := middleComplex, Q := T].Naturality[L := C, K := N, S := Q, T := T].With[
+  p := Middle.resolution, q := t, s := q, t := t, u := coefficientSequence.projection, v := Identity.identity, f := chainSequence.projection, g := ChainIdentity.identity] \as ProjectionNaturality;
+\definition identityAugmented: InclusionNaturality.RightAugmented := \fun (x: T.family.Carrier Nat.Nat^::zero) => \refl(#apply{#augmentation{t}} x);
+\import InclusionNaturality.Left[] \as InclusionLeft;
+\import ProjectionNaturality.Left[] \as ProjectionLeft;
+\import InclusionNaturality.Right[] \as InclusionRight;
+\import ProjectionNaturality.Right[] \as ProjectionRight;
+\import Chains.ShortExact[A := Totals.left, B := Totals.middle, C := Totals.right] \as TotalSequences;
+\import TotalSequences.Morphism[A1 := Left.tensorComplex, B1 := Center.tensorComplex, C1 := Right.tensorComplex].Diagram[
+  s := TotalSequence.sequence, t := sequence, a := LeftBalance.leftChainMap, b := MiddleBalance.leftChainMap, c := RightBalance.leftChainMap] \as LeftDiagram;
+\definition leftInclusion: \forall (n: Nat.Nat^)(x: LeftTotal.Carrier n) ->
+  #apply{MiddleBalance.leftChainMap} n (#apply{TotalSequence.sequence.inclusion} n x) =
+    #apply{sequence.inclusion} n (#apply{LeftBalance.leftChainMap} n x) :=
+  \fun (n: Nat.Nat^)(x: LeftTotal.Carrier n) => InclusionLeft.point identityAugmented n x;
+\definition leftProjection: \forall (n: Nat.Nat^)(x: MiddleTotal.Carrier n) ->
+  #apply{sequence.projection} n (#apply{MiddleBalance.leftChainMap} n x) =
+    #apply{RightBalance.leftChainMap} n (#apply{TotalSequence.sequence.projection} n x) :=
+  \fun (n: Nat.Nat^)(x: MiddleTotal.Carrier n) => sym!{{Right.tensorCarrier n}} _ _ (ProjectionLeft.point identityAugmented n x);
+\definition leftDiagram: LeftDiagram.Commutative := LeftDiagram.Commutative { left := leftInclusion, right := leftProjection };
+\import TotalSequences.Morphism[A1 := SwappedLeft.tensorComplex, B1 := SwappedMiddle.tensorComplex, C1 := SwappedRight.tensorComplex].Diagram[
+  s := TotalSequence.sequence, t := SecondSequence.tensorSequence, a := LeftBalance.rightChainMap, b := MiddleBalance.rightChainMap, c := RightBalance.rightChainMap] \as RightDiagram;
+\definition rightInclusion: \forall (n: Nat.Nat^)(x: LeftTotal.Carrier n) ->
+  #apply{MiddleBalance.rightChainMap} n (#apply{TotalSequence.sequence.inclusion} n x) =
+    #apply{SecondSequence.tensorSequence.inclusion} n (#apply{LeftBalance.rightChainMap} n x) :=
+  \fun (n: Nat.Nat^)(x: LeftTotal.Carrier n) => InclusionRight.point #leftAugmented{resolvedSequence} n x;
+\definition rightProjection: \forall (n: Nat.Nat^)(x: MiddleTotal.Carrier n) ->
+  #apply{SecondSequence.tensorSequence.projection} n (#apply{MiddleBalance.rightChainMap} n x) =
+    #apply{RightBalance.rightChainMap} n (#apply{TotalSequence.sequence.projection} n x) :=
+  \fun (n: Nat.Nat^)(x: MiddleTotal.Carrier n) => sym!{{SwappedRight.tensorCarrier n}} _ _ (ProjectionRight.point #rightAugmented{resolvedSequence} n x);
+\definition rightDiagram: RightDiagram.Commutative := RightDiagram.Commutative { left := rightInclusion, right := rightProjection };
+\import TotalSequences.With[s := TotalSequence.sequence] \as TotalLongExact;
+\module At(n: Nat.Nat^);

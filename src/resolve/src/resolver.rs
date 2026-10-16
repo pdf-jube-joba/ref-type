@@ -1,5 +1,5 @@
-#[path = "scoped.rs"]
-mod scoped;
+#[path = "declarations.rs"]
+mod declarations;
 use crate::ModuleMap;
 use crate::{
     bindings::{self, LocalScope},
@@ -182,10 +182,6 @@ struct Resolver {
     reference_probes: Cell<u64>,
     global_bindings: HashMap<BindingId, Binding>,
     order: Vec<CheckStep>,
-    declaration_scope: Option<u64>,
-    #[serde(serialize_with = "artifact::canonical::serialize_set")]
-    public_declarations: HashSet<String>,
-    next_declaration_scope: u64,
     work: FxHashMap<ModuleId, MacroWork>,
     dependency_stack: Vec<(ModuleId, usize)>,
     declaration_counts: FxHashMap<ModuleId, usize>,
@@ -653,12 +649,7 @@ impl Resolver {
     fn publish(&mut self, name: &mut Identifier) {
         let spelling = name.0.clone();
         let id = self.binding(name);
-        Arc::make_mut(&mut self.scopes[self.current.0 as usize].names).insert(spelling.clone(), id);
-        if let Some(scope) = self.declaration_scope
-            && !self.public_declarations.contains(&spelling)
-        {
-            name.0 = format!("<declaration:{scope}:{spelling}>");
-        }
+        Arc::make_mut(&mut self.scopes[self.current.0 as usize].names).insert(spelling, id);
         self.global_bindings.insert(
             id,
             Binding {
@@ -725,8 +716,6 @@ impl Resolver {
         });
         self.states.insert(id, 1);
         let previous = self.current;
-        let declaration_scope = self.declaration_scope.take();
-        let public_declarations = std::mem::take(&mut self.public_declarations);
         let location = self.location.clone();
         self.current = id;
         let input = self.input.get_mut(&id).expect("reserved module");
@@ -764,8 +753,6 @@ impl Resolver {
         self.output.insert(id, module);
         self.states.insert(id, 2);
         self.current = previous;
-        self.declaration_scope = declaration_scope;
-        self.public_declarations = public_declarations;
         self.location = location;
         if let Some((parent, (names, imports, import_ids))) = parent_terms {
             let scope = &mut self.scopes[parent.0 as usize];
@@ -795,9 +782,6 @@ impl Resolver {
             }
             ModuleItem::Structure { .. } => {
                 unreachable!("structure signatures are expanded before ordinary declarations")
-            }
-            ModuleItem::Scoped { .. } => {
-                unreachable!("declaration scopes are flattened before elaboration")
             }
             ModuleItem::Definition {
                 owner,
@@ -976,25 +960,6 @@ impl Resolver {
         pattern: &[MacroSeqAtom],
         template: &mut SExp,
     ) -> Result<(), Diagnostic> {
-        if name.as_str().contains("::[") {
-            self.expand(template)?;
-        }
-        let mut expansion = Ok(());
-        macros::walk_sexp_control(template, &mut |node| {
-            if expansion.is_err() {
-                return false;
-            }
-            if let SExp::AccessPath { access, parameters } = node
-                && let Some(next) = self.expand_type_member(access, parameters)
-            {
-                match next {
-                    Ok(ty) => *node = ty,
-                    Err(error) => expansion = Err(error),
-                }
-            }
-            true
-        });
-        expansion?;
         if self.scopes[self.current.0 as usize]
             .used
             .iter()
@@ -1131,12 +1096,6 @@ impl Resolver {
             }
             loop {
                 let next = match node {
-                    SExp::AccessPath { access, parameters } => {
-                        let Some(next) = self.expand_type_member(access, parameters) else {
-                            return true;
-                        };
-                        next
-                    }
                     SExp::NamedMacro {
                         name,
                         tokens,
@@ -1488,9 +1447,6 @@ impl Resolver {
             self.module_selections.insert(target, selection);
         }
         let spelling = name.0.clone();
-        if let Some(scope) = self.declaration_scope {
-            name.0 = format!("<declaration:{scope}:{spelling}>");
-        }
         let id = self.binding(name);
         self.scopes[self.current.0 as usize]
             .imports

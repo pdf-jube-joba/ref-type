@@ -1,0 +1,59 @@
+\import \parent.\parent.\parent.\parent.CycleBoundary[C := C] \as SourceDecomposition;
+\import \parent.\parent.\parent.\parent.CycleBoundary[C := E] \as TargetDecomposition;
+\import \parent.\parent.\parent.\parent.ZeroTensor[Z := SourceDecomposition.boundariesFamily, D := D] \as SourceZero;
+\import \parent.\parent.\parent.\parent.ZeroTensor[Z := TargetDecomposition.boundariesFamily, D := F] \as TargetZero;
+\import SourceZero.At[n := n] \as SourceZeroDegree;
+\import TargetZero.At[n := n] \as TargetZeroDegree;
+\import Modules.DirectSum[Index := Degree, family := SourceZeroDegree.inputFamily] \as SourceBoundarySum;
+\import Modules.DirectSum[Index := Degree, family := TargetZeroDegree.inputFamily] \as TargetBoundarySum;
+\definition sourceProjective: SourceZeroDegree.Projective := \fun (p: Degree) => SourceDecomposition.Term[p := p].projective;
+\definition targetProjective: TargetZeroDegree.Projective := \fun (p: Degree) => TargetDecomposition.Term[p := p].projective;
+\definition targetRightIsomorphism: Modules.Isomorphism[V := TargetBoundarySum.Carrier, W := TargetRight.Homology,
+  source := TargetBoundarySum.space, target := TargetRight.homologySpace].Isomorphism := TargetZeroDegree.isomorphism targetProjective;
+\definition boundaryComponents: SourceZero.Mapping[W := TargetDecomposition.boundariesFamily, E := F].Components :=
+  \fun (p: Degree) => SequenceMap.Term[p := p].boundaries;
+\import SourceZero.Mapping[W := TargetDecomposition.boundariesFamily, E := F].With[f := boundaryComponents, g := RightMaps.chainMap g].At[n := n] \as ZeroMap;
+\import ZeroMap.With[sourceProjective := sourceProjective, targetProjective := targetProjective] \as ZeroNaturality;
+\import Modules.DirectSumMapping[Index := Degree, sourceFamily := SourceZeroDegree.inputFamily, targetFamily := TargetZeroDegree.inputFamily].On[f := ZeroMap.components] \as BoundarySumMap;
+\import Modules.DirectSumMapping[Index := Degree, sourceFamily := Terms.torFamily, targetFamily := TargetTerms.torFamily].On[f := Maps.torComponents f g] \as TorSumMap;
+\import Maps.Component[p := p] \as Component;
+\import Terms.Component[p := p] \as SourceComponent;
+\import TargetTerms.Component[p := p] \as TargetComponent;
+\import SourceEndpoint.Injection[p := p] \as SourceInjection;
+\import TargetEndpoint.Injection[p := p] \as TargetInjection;
+\import TargetZeroDegree.Component[p := p] \as TargetBoundary;
+\import ZeroMap.Component[p := p] \as BoundaryMap;
+\definition kernelTerm: \forall (x: SourceComponent.torKernelCarrier) ->
+  #apply{BoundaryMap.map} x = #apply{(Component.torKernelMap f g)} x :=
+  \fun (x: SourceComponent.torKernelCarrier) => \refl(#apply{BoundaryMap.map} x);
+\definition leftOnInjection: \forall (h: SourceComponent.torCarrier) ->
+  #apply{after} (#apply{SourceTorSum.Injection[i := p].map} h) =
+    #apply{#forward{targetRightIsomorphism}}
+      (#apply{TargetBoundarySum.Injection[i := p].map}
+        (#apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{(Component.torMap f g)} h))) :=
+  \fun (h: SourceComponent.torCarrier) => trans!{TargetRight.Homology} _ _ _
+    (congr!{SourceRight.Homology TargetRight.Homology} (#apply{(RightHomology.induced SequenceMap.right)}) _ _ (SourceInjection.onValue h))
+    (trans!{TargetRight.Homology} _ _ _
+      (ZeroNaturality.naturality (#apply{SourceBoundarySum.Injection[i := p].map} (#apply{#forward{SourceComponent.torKernelIsomorphism}} h)))
+      (trans!{TargetRight.Homology} _ _ _
+        (congr!{TargetBoundarySum.Carrier TargetRight.Homology} (#apply{#forward{targetRightIsomorphism}}) _ _
+          (BoundarySumMap.onInjection p (#apply{#forward{SourceComponent.torKernelIsomorphism}} h)))
+        (trans!{TargetRight.Homology} _ _ _
+          (congr!{TargetBoundary.Carrier TargetRight.Homology}
+            (\fun (x: TargetBoundary.Carrier) => #apply{#forward{targetRightIsomorphism}} (#apply{TargetBoundarySum.Injection[i := p].map} x)) _ _
+            (kernelTerm (#apply{#forward{SourceComponent.torKernelIsomorphism}} h)))
+          (congr!{TargetComponent.torKernelCarrier TargetRight.Homology}
+            (\fun (x: TargetComponent.torKernelCarrier) => #apply{#forward{targetRightIsomorphism}} (#apply{TargetBoundarySum.Injection[i := p].map} x)) _ _
+            (sym!{TargetComponent.torKernelCarrier} _ _ (Component.torOnKernel f g h))))));
+\definition rightOnInjection: \forall (h: SourceComponent.torCarrier) ->
+  #apply{before} (#apply{SourceTorSum.Injection[i := p].map} h) =
+    #apply{#forward{targetRightIsomorphism}}
+      (#apply{TargetBoundarySum.Injection[i := p].map}
+        (#apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{(Component.torMap f g)} h))) :=
+  \fun (h: SourceComponent.torCarrier) => trans!{TargetRight.Homology} _ _ _
+    (congr!{TargetTorSum.Carrier TargetRight.Homology} (#apply{#forward{TargetEndpoint.forwardIsomorphism}}) _ _ (TorSumMap.onInjection p h))
+    (TargetInjection.onValue (#apply{(Component.torMap f g)} h));
+\definition equality: \forall (h: SourceComponent.torCarrier) ->
+  #apply{after} (#apply{SourceTorSum.Injection[i := p].map} h) = #apply{before} (#apply{SourceTorSum.Injection[i := p].map} h) :=
+  \fun (h: SourceComponent.torCarrier) => trans!{TargetRight.Homology} _ _ _ (leftOnInjection h)
+    (sym!{TargetRight.Homology} _ _ (rightOnInjection h));

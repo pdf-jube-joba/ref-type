@@ -1,0 +1,40 @@
+\import Original.At[z := p] \as Result;
+\import Result.UniversalCoefficient[A := zeroBundle] \as Coefficients;
+\import Coefficients.Boundary[] \as Boundary;
+\import Chains.At[C := Original.chain, z := p] \as Homology;
+\definition cycleCarrier: \Set := Homology.Cycle;
+\definition cycleSpace: Modules.Space cycleCarrier := Homology.cycleSpace;
+\definition boundaryCarrier: \Set := Boundary.Carrier;
+\definition boundarySpace: Modules.Space boundaryCarrier := Boundary.space;
+\definition cycleBundle: Modules.Bundle := Boundary.cyclesBundle;
+\definition chainBundle: Modules.Bundle := Boundary.chainsBundle;
+\definition boundaryBundle: Modules.Bundle := Boundary.boundaryBundle;
+\definition inclusion: Modules.MapBetween cycleBundle chainBundle := #inclusion{Boundary.sequence};
+\definition projection: Modules.MapBetween chainBundle boundaryBundle := Boundary.map;
+\definition injective: Modules.Injective cycleBundle chainBundle inclusion := #injective{Boundary.sequence};
+\definition onto: Modules.Surjective chainBundle boundaryBundle projection := Boundary.onto;
+\definition zero: \forall (x: cycleCarrier) -> #apply{projection} (#apply{inclusion} x) = #zero{boundarySpace} := Boundary.onCycle;
+\definition kernelImage: \forall (x: Original.chain.family.Carrier p) -> #apply{projection} x = #zero{boundarySpace} ->
+  \exists { c: cycleCarrier \where #apply{inclusion} c = x } := Boundary.kernelImage;
+\import Modules.ShortExact[A := cycleBundle, B := chainBundle, C := boundaryBundle].Splitting[
+  sequence := Boundary.sequence].FromRetraction[r := Coefficients.retraction] \as Smith;
+\definition section: Modules.MapBetween boundaryBundle chainBundle := Smith.section Coefficients.retractCycle;
+\definition sectionLaw: \forall (b: boundaryCarrier) -> #apply{projection} (#apply{section} b) = b := Smith.rightInverse Coefficients.retractCycle;
+\definition projective: Modules.Projective boundaryBundle := Boundary.projective;
+\definition inclusionCommutes: \forall (x: cycleCarrier) ->
+  #apply{Original.chain.differential} p (#apply{inclusion} x) = #zero{(Original.chain.family.space (Bounded.previous p))} :=
+  \fun (x: cycleCarrier) => \bysub(Original.chain.family.Carrier p, #carrier{Homology.cycles}, x);
+\definition projectionCommutes: \forall (x: Original.chain.family.Carrier p) ->
+  #zero{(\parent.Term[p := Bounded.previous p].boundarySpace)} =
+  #apply{\parent.Term[p := Bounded.previous p].projection} (#apply{Original.chain.differential} p x) :=
+  \fun (x: Original.chain.family.Carrier p) => sym!{{Original.chain.family.Carrier (Bounded.previous (Bounded.previous p))}} _ _ (#squareZero{Original.chain.laws} p x);
+\definition retraction: Modules.MapBetween chainBundle cycleBundle := Coefficients.retraction;
+\definition retracts: \forall (x: cycleCarrier) -> #apply{retraction} (#apply{inclusion} x) = x := Coefficients.retractCycle;
+\definition shortExact: Modules.ShortExact[A := cycleBundle, B := chainBundle, C := boundaryBundle].Sequence := Boundary.sequence;
+\import Result.Presentation[] \as Presentation;
+\definition cyclesProjective: Modules.Projective cycleBundle := Presentation.cyclesProjective;
+\import Chains.At[C := Original.chain, z := Bounded.previous p] \as PreviousHomology;
+\definition boundaryAsCycle(b: boundaryCarrier): PreviousHomology.Cycle := b;
+\definition boundaryClassZero: \forall (b: boundaryCarrier) -> PreviousHomology.classOf (boundaryAsCycle b) = PreviousHomology.zeroClass :=
+  \fun (b: boundaryCarrier) => PreviousHomology.boundaryClassZero b
+    (\bysub(PreviousHomology.Cycle, #carrier{PreviousHomology.boundariesInside}, b));

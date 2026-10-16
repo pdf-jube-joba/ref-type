@@ -1,0 +1,23 @@
+\module Component(p: Degree);
+\definition tensorFamily: Modules.Family[Degree] := Modules.Family[Degree] {
+  Carrier := \fun (p: Degree) => Component[p := p].tensorCarrier,
+  space := \fun (p: Degree) => Component[p := p].tensorSpace,
+};
+\import Modules.DirectSum[Index := Degree, family := tensorFamily] \as TensorSum;
+\definition tensorBundle: Modules.Bundle := TensorSum.bundle;
+\import \parent.\parent.TorTerms[C := C, D := D, n := n] \as Tors;
+\definition torFamily: Modules.Family[Degree] := Tors.torFamily;
+\definition torBundle: Modules.Bundle := Tors.torBundle;
+\import Chains.At[C := tensorComplex, z := n] \as TotalHomology;
+\definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := TotalHomology.Homology, space := TotalHomology.homologySpace };
+\import tensor_chains.TensorChain[].Grading[] \as Grading;
+\definition tensorDiagonal: \forall (p: Degree) -> Grading.add p (complement n p) = n := Grading.complementSum n;
+\definition torDiagonal: \forall (p: Degree) -> Grading.add (Bounded.previous p) (complement n p) = Bounded.previous n :=
+  \fun (p: Degree) => trans!{Degree} _ _ _ (Grading.previousLeft p (complement n p))
+    (congr!{Degree Degree} Bounded.previous _ _ (Grading.complementSum n p));
+\import TensorSum.To[W := TotalHomology.Homology, target := TotalHomology.homologySpace] \as ExteriorUniversal;
+\definition exteriorComponents: ExteriorUniversal.Components := \fun (p: Degree) => Component[p := p].Exterior[].map;
+\definition exterior: Modules.MapBetween tensorBundle homologyBundle := ExteriorUniversal.extension exteriorComponents;
+\definition exteriorOnInjection: \forall (p: Degree)(x: Component[p := p].tensorCarrier) ->
+  #apply{exterior} (#apply{TensorSum.Injection[i := p].map} x) = #apply{Component[p := p].Exterior[].map} x :=
+  ExteriorUniversal.onInjection exteriorComponents;

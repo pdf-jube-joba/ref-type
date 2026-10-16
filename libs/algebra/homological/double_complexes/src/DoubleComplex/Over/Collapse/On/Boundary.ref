@@ -1,0 +1,19 @@
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Next;
+\import Total.Step[n := n] \as Differential;
+\import Modules.Hom[V := Next.KernelCarrier, W := Total.Carrier n, source := Next.kernelSpace, target := Total.space n] \as Linear;
+\definition map: Linear.Map := Linear.Map {
+  apply := \fun (y: Next.KernelCarrier) => #apply{Total.differential} n y,
+  addition := \fun (y, z: Next.KernelCarrier) => #addition{Differential.differential} y z,
+  scalar := \fun (a: R)(y: Next.KernelCarrier) => #scalar{Differential.differential} a y,
+};
+\import \parent.\parent.\parent.Descent[V := Next.KernelCarrier, W := Total.Carrier n,
+  source := Next.kernelSpace, target := Total.space n] \as Descending;
+\import Modules.Laws[V := Total.Carrier n, space := Total.space n] \as Vectors;
+\import algebra.Group[].Of[Carrier := Total.Carrier n, group := Vectors.additive] \as Group;
+\definition remainderZero: \forall (x: Total.Carrier n) -> Descending.remainder map x #zero{Next.kernelSpace} = x :=
+  \fun (x: Total.Carrier n) => trans!{{Total.Carrier n}} _ _ _
+    (congr!{{Total.Carrier n} {Total.Carrier n}} (\fun (z: Total.Carrier n) => Group.difference x z) _ _ (Linear.zeroPreserved map))
+    (trans!{{Total.Carrier n}} _ _ _ (congr!{{Total.Carrier n} {Total.Carrier n}} (#add{(Total.space n)} x) _ _ Group.negZero)
+      (Group.zeroRight x));
+
+\definition remainder(x: Total.Carrier n)(y: Next.KernelCarrier): Total.Carrier n := Descending.remainder map x y;

@@ -1,0 +1,44 @@
+\import double_complexes.DoubleComplex[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Sign[V := V, space := space] \as Natural;
+\import Modules.Hom[V := V, W := V, source := space, target := space] \as Maps;
+\import Modules.Laws[V := V, space := space] \as Vector;
+\import algebra.Group[].Of[Carrier := V, group := Vector.additive] \as Group;
+\definition map: Degree -> Maps.Map := \induction (z: Degree) \return Maps.Map \with {
+  | ofNat: \fun (n: Nat.Nat^) => Natural.map n
+  | negSucc: \fun (n: Nat.Nat^) => Natural.map (Nat.Nat^::succ n)
+};
+\definition previousLaw: \forall (z: Degree)(x: V) ->
+  #apply{(map (previous z))} x = #neg{space} (#apply{(map z)} x) :=
+  \induction (z: Degree) \return \forall (x: V) ->
+    #apply{(map (previous z))} x = #neg{space} (#apply{(map z)} x) \with {
+    | ofNat: \induction (n: Nat.Nat^) \return \forall (x: V) ->
+        #apply{(map (previous (Integers.Int^::ofNat n)))} x = #neg{space} (#apply{(map (Integers.Int^::ofNat n))} x) \with {
+      | zero: \fun (x: V) => \refl(#neg{space} x)
+      | succ: \fun (n: Nat.Nat^)(unused: _)(x: V) => sym!{V} _ _ (Group.negNeg (#apply{(Natural.map n)} x))
+    }
+    | negSucc: \fun (n: Nat.Nat^)(x: V) => \refl(#neg{space} (#apply{(Natural.map (Nat.Nat^::succ n))} x))
+  };
+\definition nextLaw: \forall (z: Degree)(x: V) ->
+  #apply{(map (next z))} x = #neg{space} (#apply{(map z)} x) :=
+  \fun (z: Degree)(x: V) => trans!{V} _ _ _
+    (sym!{V} _ _ (Group.negNeg (#apply{(map (next z))} x)))
+    (congr!{V V} (#neg{space}) _ _
+      (trans!{V} _ _ _
+        (sym!{V} _ _ (previousLaw (next z) x))
+        (congr!{Degree V} (\fun (k: Degree) => #apply{(map k)} x) _ _ (Degrees.previousNext z))));
+\definition involutive: \forall (z: Degree)(x: V) -> #apply{(map z)} (#apply{(map z)} x) = x :=
+  \induction (z: Degree) \return \forall (x: V) -> #apply{(map z)} (#apply{(map z)} x) = x \with {
+    | ofNat: \fun (n: Nat.Nat^) => Natural.involutive n
+    | negSucc: \fun (n: Nat.Nat^) => Natural.involutive (Nat.Nat^::succ n)
+  };
+\module Mapping(W: \Set, target: Modules.Space W) {
+  \import \root.TensorChain[].Over[R := R, ring := ring].Sign[V := W, space := target] \as Target;
+  \import Modules.Hom[V := V, W := W, source := space, target := target] \as Hom;
+  \import Natural.Mapping[W := W, target := target] \as Naturality;
+  \definition naturality: \forall (f: Hom.Map)(z: Degree)(x: V) ->
+    #apply{f} (#apply{(map z)} x) = #apply{(Target.map z)} (#apply{f} x) :=
+    \fun (f: Hom.Map) => \induction (z: Degree) \return \forall (x: V) ->
+      #apply{f} (#apply{(map z)} x) = #apply{(Target.map z)} (#apply{f} x) \with {
+      | ofNat: \fun (n: Nat.Nat^) => Naturality.naturality f n
+      | negSucc: \fun (n: Nat.Nat^) => Naturality.naturality f (Nat.Nat^::succ n)
+    };
+}

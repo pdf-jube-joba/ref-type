@@ -2,18 +2,17 @@
 use super::*;
 use artifact::{Identity, Relocate, Relocation};
 
-const SPACES: [&str; 6] = [
+const SPACES: [&str; 5] = [
     "resolve.module",
     "resolve.binding",
     "resolve.macro",
     "resolve.expression",
     "resolve.hygiene",
-    "resolve.declaration",
 ];
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct PackageBoundary {
-    counters: [u64; 6],
+    counters: [u64; 5],
     declarations: usize,
     references: usize,
     order: usize,
@@ -21,7 +20,7 @@ pub struct PackageBoundary {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Allocations([Vec<u64>; 6]);
+struct Allocations([Vec<u64>; 5]);
 impl Relocate for Allocations {
     fn relocate(&mut self, r: &mut Relocation) -> artifact::Result<()> {
         for (space, values) in SPACES.into_iter().zip(&mut self.0) {
@@ -102,7 +101,7 @@ impl PackageExport {
 }
 
 impl Session {
-    fn counters(&self) -> [u64; 6] {
+    fn counters(&self) -> [u64; 5] {
         let r = &self.resolver;
         [
             r.scopes.len().max(1) as u64,
@@ -110,7 +109,6 @@ impl Session {
             r.next_macro,
             r.next_expression,
             r.next_hygiene.get(),
-            r.next_declaration_scope,
         ]
     }
     pub fn boundary(&self) -> PackageBoundary {
@@ -389,7 +387,7 @@ impl Session {
         {
             return Err(artifact::Error("invalid resolver scope table".into()));
         }
-        let ends: [u64; 6] =
+        let ends: [u64; 5] =
             std::array::from_fn(|i| counters[i] + package.allocations.0[i].len() as u64);
         if ends[0] > u32::MAX as u64 || ends[1] >= (1 << 63) || ends[3] >= (1 << 31) {
             return Err(artifact::Error(
@@ -568,7 +566,6 @@ impl Session {
         r.next_macro = ends[2];
         r.next_expression = ends[3];
         r.next_hygiene.set(ends[4]);
-        r.next_declaration_scope = ends[5];
         r.reference_occurrences.get_mut().clear();
         self.roots.extend(package.roots);
         Ok(())

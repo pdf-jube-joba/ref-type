@@ -3,7 +3,6 @@ pub(crate) fn relocate(value: &mut String, r: &mut crate::Relocation) -> crate::
     let prefixes = [
         ("<macro:", "resolve.hygiene"),
         ("<macro-use:", "resolve.binding"),
-        ("<declaration:", "resolve.declaration"),
         ("<temporary:", "resolve.expression"),
     ];
     let mut cursor = 0;
@@ -43,10 +42,10 @@ mod tests {
     #[test]
     fn nested_synthetic_names_keep_the_same_identity_mapping() {
         let mut r = crate::Relocation::default();
-        r.insert("resolve.declaration", 1, 12).unwrap();
+        r.insert("resolve.hygiene", 1, 12).unwrap();
         r.insert("resolve.binding", 7, 19).unwrap();
-        let mut name = "<structure:<declaration:1:Thing>:<macro-use:7>>".to_string();
+        let mut name = "<structure:<macro:1:Thing>:<macro-use:7>>".to_string();
         relocate(&mut name, &mut r).unwrap();
-        assert_eq!(name, "<structure:<declaration:12:Thing>:<macro-use:19>>");
+        assert_eq!(name, "<structure:<macro:12:Thing>:<macro-use:19>>");
     }
 }

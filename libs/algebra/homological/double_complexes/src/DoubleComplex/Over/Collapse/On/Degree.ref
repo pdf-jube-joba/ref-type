@@ -1,0 +1,61 @@
+\import Total.Degree[n := n] \as Term;
+\import Target.Degree[n := n] \as TargetTerm;
+\import Coordinates.Degree[n := n] \as SourceCoordinates;
+\import TargetCoordinates.Degree[n := n] \as DestinationCoordinates;
+\import Induced.Degree[n := n] \as Projection;
+\module At(i: Index n) {
+  \import Modules.Hom[V := Term.Carrier, W := D.family.Carrier #first{i} #second{i}, source := Term.space, target := D.family.space #first{i} #second{i}] \as Linear;
+  \import Modules.Hom[V := TargetTerm.Carrier, W := D.family.Carrier #first{i} #second{i}, source := TargetTerm.space, target := D.family.space #first{i} #second{i}].Composition[U := Term.Carrier, domain := Term.space] \as After;
+  \import Modules.Hom[V := C.family.Carrier #first{i} #second{i}, W := D.family.Carrier #first{i} #second{i}, source := C.family.space #first{i} #second{i}, target := D.family.space #first{i} #second{i}].Composition[U := Term.Carrier, domain := Term.space] \as Before;
+  \definition after: Linear.Map := After.compose DestinationCoordinates.At[i := i].map Projection.map;
+  \definition before: Linear.Map := Before.compose (f #first{i} #second{i}) SourceCoordinates.At[i := i].map;
+  \definition own: \forall (x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{after} (#apply{(Term.Component[i := i].injection)} x) = #apply{before} (#apply{(Term.Component[i := i].injection)} x) :=
+    \fun (x: C.family.Carrier #first{i} #second{i}) => trans!{{D.family.Carrier #first{i} #second{i}}} _ _ _
+      (congr!{TargetTerm.Carrier {D.family.Carrier #first{i} #second{i}}} (DestinationCoordinates.coordinate i) _ _ (Projection.onInjection i x))
+      (trans!{{D.family.Carrier #first{i} #second{i}}} _ _ _ (DestinationCoordinates.own i (#apply{(f #first{i} #second{i})} x))
+        (sym!{{D.family.Carrier #first{i} #second{i}}} _ _
+          (congr!{{C.family.Carrier #first{i} #second{i}} {D.family.Carrier #first{i} #second{i}}} (#apply{(f #first{i} #second{i})}) _ _ (SourceCoordinates.own i x))));
+  \definition other: \forall (j: Index n) -> Logic.Not (j = i) ->
+    \forall (x: C.family.Carrier #first{j} #second{j}) ->
+    #apply{after} (#apply{(Term.Component[i := j].injection)} x) = #apply{before} (#apply{(Term.Component[i := j].injection)} x) :=
+    \fun (j: Index n)(ne: Logic.Not (j = i))(x: C.family.Carrier #first{j} #second{j}) =>
+      trans!{{D.family.Carrier #first{i} #second{i}}} _ #zero{(D.family.space #first{i} #second{i})} _
+        (trans!{{D.family.Carrier #first{i} #second{i}}} _ _ _
+          (congr!{TargetTerm.Carrier {D.family.Carrier #first{i} #second{i}}} (DestinationCoordinates.coordinate i) _ _ (Projection.onInjection j x))
+          (DestinationCoordinates.other j i (#apply{(f #first{j} #second{j})} x) ne))
+        (sym!{{D.family.Carrier #first{i} #second{i}}} _ _
+          (trans!{{D.family.Carrier #first{i} #second{i}}} _ _ _
+            (congr!{{C.family.Carrier #first{i} #second{i}} {D.family.Carrier #first{i} #second{i}}} (#apply{(f #first{i} #second{i})}) _ _ (SourceCoordinates.other j i x ne))
+            (Modules.Hom[V := C.family.Carrier #first{i} #second{i}, W := D.family.Carrier #first{i} #second{i}, source := C.family.space #first{i} #second{i}, target := D.family.space #first{i} #second{i}].zeroPreserved (f #first{i} #second{i}))));
+  \definition onInjection: \forall (j: Index n)(x: C.family.Carrier #first{j} #second{j}) ->
+    #apply{after} (#apply{(Term.Component[i := j].injection)} x) = #apply{before} (#apply{(Term.Component[i := j].injection)} x) :=
+    \fun (j: Index n) => either!{{(Classical.excludedMiddle (j = i))} {
+      \forall (x: C.family.Carrier #first{j} #second{j}) -> #apply{after} (#apply{(Term.Component[i := j].injection)} x) = #apply{before} (#apply{(Term.Component[i := j].injection)} x)}
+      {\fun (equal: j = i) => \idelim i = j \with k: Index n =>
+        \forall (x: C.family.Carrier #first{k} #second{k}) -> #apply{after} (#apply{(Term.Component[i := k].injection)} x) = #apply{before} (#apply{(Term.Component[i := k].injection)} x)
+        \by { base: own, equality: sym!{Pair} _ _ equal }}
+      {other j}};
+  \import Modules.DirectSum[Index := Index n, family := Term.family].To[W := D.family.Carrier #first{i} #second{i}, target := D.family.space #first{i} #second{i}] \as Universal;
+  \definition equality: after = before := Universal.ext after before onInjection;
+  \definition naturality: \forall (x: Term.Carrier) ->
+    DestinationCoordinates.coordinate i (#apply{Induced.map} n x) = #apply{(f #first{i} #second{i})} (SourceCoordinates.coordinate i x) :=
+    \fun (x: Term.Carrier) => congr!{Linear.Map {D.family.Carrier #first{i} #second{i}}} (\fun (g: Linear.Map) => #apply{g} x) _ _ equality;
+  \definition kernel: \forall (x: Term.Carrier) -> #apply{Induced.map} n x = #zero{TargetTerm.space} ->
+    #apply{(f #first{i} #second{i})} (SourceCoordinates.coordinate i x) = #zero{(D.family.space #first{i} #second{i})} :=
+    \fun (x: Term.Carrier)(killed: _) => trans!{{D.family.Carrier #first{i} #second{i}}} _ _ _
+      (sym!{{D.family.Carrier #first{i} #second{i}}} _ _ (naturality x))
+      (trans!{{D.family.Carrier #first{i} #second{i}}} _ _ _
+        (congr!{TargetTerm.Carrier {D.family.Carrier #first{i} #second{i}}} (DestinationCoordinates.coordinate i) _ _ killed)
+        DestinationCoordinates.At[i := i].zero);
+}
+\import Modules.Of[V := Term.Carrier, space := Term.space].Submodule[] \as Submodules;
+\import Submodules.Kernel[W := TargetTerm.Carrier, target := TargetTerm.space] \as Kernels;
+\definition kernel: Submodules.Submodule := Kernels.kernel Projection.map;
+\import Submodules.Of[S := kernel] \as Kernel;
+\definition KernelCarrier: \Set := Kernel.Carrier;
+\definition kernelSpace: Modules.Space KernelCarrier := Kernel.moduleSpace;
+\definition kernelElement(x: Term.Carrier)(killed: Killed n x): Kernel.Carrier :=
+  \into[Term.Carrier](x, #carrier{kernel}) \by { killed };
+\definition killed: \forall (x: Kernel.Carrier) -> Killed n x :=
+  \fun (x: Kernel.Carrier) => \bysub(Term.Carrier, #carrier{kernel}, x);

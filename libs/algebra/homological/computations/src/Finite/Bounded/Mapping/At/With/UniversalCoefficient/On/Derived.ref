@@ -1,0 +1,109 @@
+\import std.Data[].Nat[] \as ResolutionNaturals;
+\definition resolutionOne: ResolutionNaturals.Nat^ := ResolutionNaturals.Nat^::succ ResolutionNaturals.Nat^::zero;
+\import \root.Finite[].Bounded[].Of[C := C].At[z := previous z].Presentation[] \as P;
+\import \root.Finite[].Bounded[].Of[C := D].At[z := previous z].Presentation[] \as Q;
+\import Chains.At[C := Source.chain, z := previous z] \as HC;
+\import Chains.At[C := Target.chain, z := previous z] \as HD;
+\import Maps.At[k := previous z] \as Previous;
+\import Modules.Hom[V := P.boundaryBundle.Carrier, W := Q.boundaryBundle.Carrier, source := P.boundaryBundle.space, target := Q.boundaryBundle.space] \as BoundaryMaps;
+\definition boundaries: BoundaryMaps.Map := BoundaryMaps.Map {
+  apply := \fun (x: P.boundaryBundle.Carrier) => \into[HD.Cycle](#apply{(Previous.cyclesMap (chainMap f))} x, #carrier{HD.boundariesInside}) \by {
+    Previous.preservesBoundaries (chainMap f) x (\bysub(HC.Cycle, #carrier{HC.boundariesInside}, x))
+  },
+  addition := \fun (x, y: P.boundaryBundle.Carrier) => #addition{(chainMap f)} (previous z) x y,
+  scalar := \fun (a: I.Int^)(x: P.boundaryBundle.Carrier) => #scalar{(chainMap f)} (previous z) a x,
+};
+\import UCT.LengthOneMapping[K := P.boundaryBundle, L := P.cyclesBundle, M := P.homologyBundle,
+  K1 := Q.boundaryBundle, L1 := Q.cyclesBundle, M1 := Q.homologyBundle].On[s := P.sequence, t := Q.sequence,
+  a := boundaries, b := Previous.cyclesMap (chainMap f), c := Previous.induced (chainMap f)] \as LengthOne;
+\definition square: LengthOne.Commutes := \fun (x: P.boundaryBundle.Carrier) => \refl(#apply{(chainMap f)} (previous z) x);
+\import derived_functors.Ext[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].LengthOne[K := P.boundaryBundle, L := P.cyclesBundle, M := P.homologyBundle, N := B].With[sequence := P.sequence] \as EC;
+\import derived_functors.Ext[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].LengthOne[K := Q.boundaryBundle, L := Q.cyclesBundle, M := Q.homologyBundle, N := A].With[sequence := Q.sequence] \as ED;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing].Map[C := EC.complex, D := ED.complex] \as ResolutionMaps;
+\definition resolutionMap: ResolutionMaps.Map := ResolutionMaps.Map {
+  apply := \fun (n: ResolutionNaturals.Nat^)(x: EC.family.Carrier n) => #apply{(LengthOne.map square)} n x,
+  addition := \fun (n: ResolutionNaturals.Nat^) => #addition{(LengthOne.map square)} n,
+  scalar := \fun (n: ResolutionNaturals.Nat^) => #scalar{(LengthOne.map square)} n,
+  commutes := \fun (n: ResolutionNaturals.Nat^) => #commutes{(LengthOne.map square)} n,
+};
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].Mapping[P := EC.complex, Q := ED.complex, N := A, L := B].On[f := resolutionMap, u := u] \as Mapping;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[P := ED.complex, N := A] \as SourceHomComplex;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[P := EC.complex, N := B] \as TargetHomComplex;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Cochains;
+\import Cochains.Map[C := SourceHomComplex.complex, D := TargetHomComplex.complex].At[k := resolutionOne] \as Induced;
+\import Cochains.At[C := SourceHomComplex.complex, k := resolutionOne] \as IH;
+\import Cochains.At[C := TargetHomComplex.complex, k := resolutionOne] \as OH;
+\definition map: _ := Induced.induced Mapping.map;
+\import Modules.Hom[V := Carrier C z, W := B.Carrier, source := space C z, target := B.space] \as CochainMaps;
+\import \root.Finite[].Bounded[].Of[C := C].At[z := z].UniversalCoefficient[A := B].Boundary[] \as CB;
+\import \root.Finite[].Bounded[].Of[C := D].At[z := z].UniversalCoefficient[A := A].Boundary[] \as DB;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].Integer[P := Source.chain, N := B].Cohomology[z := z] \as CH;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].IntegerMapping[P := Source.chain, Q := Target.chain, N := A, L := B].On[f := chainMap f, u := u].At[z := z] \as IntegerMap;
+\definition closedNaturality: \forall (h: IH.CycleCarrier) ->
+  Codomain.cocycle (#apply{EC.forward} (#apply{(Induced.cyclesMap Mapping.map)} h)) = #apply{IntegerMap.cycles} (Domain.cocycle (#apply{ED.forward} h)) :=
+  \fun (h: IH.CycleCarrier) => CochainMaps.ext
+    (Codomain.cochain (#apply{EC.forward} (#apply{(Induced.cyclesMap Mapping.map)} h)))
+    (#apply{IntegerMap.cycles} (Domain.cocycle (#apply{ED.forward} h))) (\block {
+    \fun (x: Carrier C z) \then
+    \let boundaryValues: Modules.Hom[V := Q.boundaryBundle.Carrier, W := A.Carrier, source := Q.boundaryBundle.space, target := A.space].Map := #apply{ED.forward} h \then
+    \let left: Q.boundaryBundle.Carrier := #apply{boundaries} (CB.value x) \then
+    \let right: Q.boundaryBundle.Carrier := DB.value (#apply{(chainMap f)} z x) \then
+    \let same: left = right := sym!{{Carrier D (previous z)}} _ _ (#commutes{(chainMap f)} z x) \then
+    \return congr!{Q.boundaryBundle.Carrier B.Carrier} (\fun (y: Q.boundaryBundle.Carrier) => #apply{u} (#apply{boundaryValues} y)) left right same
+  });
+\definition domainOnClass: \forall (h: IH.CycleCarrier) ->
+  #apply{Domain.inclusion} (IH.classOf h) = #apply{Domain.classMap} (#apply{ED.forward} h) :=
+  \fun (h: IH.CycleCarrier) => trans!{Domain.cohomologyBundle.Carrier} _ _ _
+    (congr!{ED.QuotientCarrier Domain.cohomologyBundle.Carrier} (#apply{Domain.quotientMap}) _ _ (ED.onClass h))
+    (Domain.onClass (#apply{ED.forward} h));
+\definition codomainOnClass: \forall (h: OH.CycleCarrier) ->
+  #apply{Codomain.inclusion} (OH.classOf h) = #apply{Codomain.classMap} (#apply{EC.forward} h) :=
+  \fun (h: OH.CycleCarrier) => trans!{Codomain.cohomologyBundle.Carrier} _ _ _
+    (congr!{EC.QuotientCarrier Codomain.cohomologyBundle.Carrier} (#apply{Codomain.quotientMap}) _ _ (EC.onClass h))
+    (Codomain.onClass (#apply{EC.forward} h));
+\definition inclusionNaturality: \forall (x: ED.Carrier) ->
+  #apply{Codomain.inclusion} (#apply{map} x) = #apply{cohomology} (#apply{Domain.inclusion} x) :=
+  IH.classInduction (\fun (x: ED.Carrier) => #apply{Codomain.inclusion} (#apply{map} x) = #apply{cohomology} (#apply{Domain.inclusion} x))
+    (\fun (h: IH.CycleCarrier) => trans!{Codomain.cohomologyBundle.Carrier} _ _ _
+      (congr!{EC.Carrier Codomain.cohomologyBundle.Carrier} (#apply{Codomain.inclusion}) _ _ (Induced.onClass Mapping.map h))
+      (trans!{Codomain.cohomologyBundle.Carrier} _ _ _ (codomainOnClass (#apply{(Induced.cyclesMap Mapping.map)} h))
+        (trans!{Codomain.cohomologyBundle.Carrier} _ _ _
+          (congr!{CH.Closed Codomain.cohomologyBundle.Carrier} CH.classOf _ _ (closedNaturality h))
+          (sym!{Codomain.cohomologyBundle.Carrier} _ _ (trans!{Codomain.cohomologyBundle.Carrier} _ _ _
+            (congr!{Domain.cohomologyBundle.Carrier Codomain.cohomologyBundle.Carrier} (#apply{cohomology}) _ _ (domainOnClass h))
+            (IntegerMap.onClass (Domain.cocycle (#apply{ED.forward} h))))))));
+\definition agrees: map = ext := extUnique map inclusionNaturality;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[P := EC.complex, N := A] \as MiddleHom;
+\import Cochains.At[C := MiddleHom.complex, k := resolutionOne] \as MH;
+\import Modules.End[V := A.Carrier, space := A.space] \as CoefficientIdentity;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].Mapping[P := EC.complex, Q := ED.complex, N := A, L := A].On[f := resolutionMap, u := CoefficientIdentity.identity] \as RawFirst;
+\import Cochains.Map[C := SourceHomComplex.complex, D := MiddleHom.complex].At[k := resolutionOne] \as RawFirstInduced;
+\import derived_functors.Ext[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].First[M := P.homologyBundle, L := Q.homologyBundle, N := A, P := EC.complex, Q := ED.complex].At[k := resolutionOne].With[
+  p := EC.resolution P.boundaryProjective P.cyclesProjective, q := ED.resolution Q.boundaryProjective Q.cyclesProjective,
+  f := Previous.induced (chainMap f)] \as First;
+\definition augmented: LengthOne.Augmented := \fun (x: HC.Cycle) => sym!{HD.Homology} _ _ (Previous.onClass (chainMap f) x);
+\definition firstAgreement: First.map = RawFirstInduced.induced RawFirst.map := First.onComparison resolutionMap (LengthOne.augmentation square augmented);
+\import derived_functors.Ext[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].Second[M := P.homologyBundle, N := A, L := B, P := EC.complex].At[k := resolutionOne] \as Second;
+\import Modules.Hom[V := MH.Cohomology, W := OH.Cohomology, source := MH.cohomologySpace, target := OH.cohomologySpace].Composition[U := IH.Cohomology, domain := IH.cohomologySpace] \as FunctorComposition;
+\definition functorMap: _ := FunctorComposition.compose (Second.map u) First.map;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing].End[C := EC.complex] \as ChainIdentity;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].Mapping[P := EC.complex, Q := EC.complex, N := A, L := B].On[f := ChainIdentity.identity, u := u] \as RawSecond;
+\import Cochains.Map[C := MiddleHom.complex, D := TargetHomComplex.complex].At[k := resolutionOne] \as RawSecondInduced;
+\import Modules.Hom[V := P.boundaryBundle.Carrier, W := B.Carrier, source := P.boundaryBundle.space, target := B.space] \as RelationMaps;
+\definition representativeComposition: \forall (h: IH.CycleCarrier) ->
+  #apply{(RawSecondInduced.cyclesMap RawSecond.map)} (#apply{(RawFirstInduced.cyclesMap RawFirst.map)} h) = #apply{(Induced.cyclesMap Mapping.map)} h :=
+  \fun (h: IH.CycleCarrier) => RelationMaps.ext
+    (#apply{(RawSecondInduced.cyclesMap RawSecond.map)} (#apply{(RawFirstInduced.cyclesMap RawFirst.map)} h))
+    (#apply{(Induced.cyclesMap Mapping.map)} h) (\fun (x: P.boundaryBundle.Carrier) => \refl(#apply{u} (#apply{h} (#apply{boundaries} x))));
+\definition functorOnClass: \forall (h: IH.CycleCarrier) -> #apply{functorMap} (IH.classOf h) = #apply{map} (IH.classOf h) :=
+  \fun (h: IH.CycleCarrier) => trans!{OH.Cohomology} _ _ _
+    (congr!{Modules.Hom[V := IH.Cohomology, W := MH.Cohomology, source := IH.cohomologySpace, target := MH.cohomologySpace].Map OH.Cohomology}
+      (\fun (a: Modules.Hom[V := IH.Cohomology, W := MH.Cohomology, source := IH.cohomologySpace, target := MH.cohomologySpace].Map) => #apply{(Second.map u)} (#apply{a} (IH.classOf h))) _ _ firstAgreement)
+    (trans!{OH.Cohomology} _ _ _
+      (congr!{MH.Cohomology OH.Cohomology} (#apply{(Second.map u)}) _ _ (RawFirstInduced.onClass RawFirst.map h))
+      (trans!{OH.Cohomology} _ _ _ (Second.onClass u (#apply{(RawFirstInduced.cyclesMap RawFirst.map)} h))
+        (trans!{OH.Cohomology} _ _ _ (congr!{OH.CycleCarrier OH.Cohomology} OH.classOf _ _ (representativeComposition h))
+          (sym!{OH.Cohomology} _ _ (Induced.onClass Mapping.map h)))));
+\import Modules.Hom[V := ED.Carrier, W := EC.Carrier, source := ED.space, target := EC.space] \as ExtMaps;
+\definition functorAgreement: functorMap = ext := trans!{ExtMaps.Map} _ _ _
+  (ExtMaps.ext functorMap map (IH.classInduction (\fun (x: IH.Cohomology) => #apply{functorMap} x = #apply{map} x) functorOnClass)) agrees;

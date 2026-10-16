@@ -101,10 +101,6 @@ pub enum TokenMatchPattern {
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ModuleItem {
-    Scoped {
-        exports: Vec<Identifier>,
-        items: Vec<ModuleItem>,
-    },
     Definition {
         owner: Option<AssociatedOwner>,
         name: Identifier,

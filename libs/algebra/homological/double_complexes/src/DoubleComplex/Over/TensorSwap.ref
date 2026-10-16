@@ -1,0 +1,31 @@
+\import \parent.Tensor[C := C, D := D] \as Original;
+\import \parent.Tensor[C := D, D := C] \as Opposite;
+\import \parent.Transpose[C := Original.complex] \as Transposed;
+\import \parent.Swap[C := Original.complex] \as Koszul;
+\import \parent.TensorSymmetry[C := C, D := D] \as Symmetry;
+\import \parent.Total[C := Original.complex] \as Source;
+\import \parent.Total[C := Transposed.complex] \as Middle;
+\import \parent.Total[C := Opposite.complex] \as Target;
+\import Chains.Map[C := Middle.complex, D := Target.complex].Composition[B := Source.complex] \as Forward;
+\import Chains.Map[C := Middle.complex, D := Source.complex].Composition[B := Target.complex] \as Backward;
+\definition forward: Chains.Map[C := Source.complex, D := Target.complex].Map := Forward.compose Symmetry.totalForward Koszul.forward;
+\definition backward: Chains.Map[C := Target.complex, D := Source.complex].Map := Backward.compose Koszul.backward Symmetry.totalBackward;
+\definition leftInverse: \forall (n: Nat.Nat^)(x: Source.Carrier n) -> #apply{backward} n (#apply{forward} n x) = x :=
+  \fun (n: Nat.Nat^)(x: Source.Carrier n) => trans!{{Source.Carrier n}} _ _ _
+    (congr!{{Middle.Carrier n} {Source.Carrier n}} (#apply{Koszul.backward} n) _ _
+      (Symmetry.leftInverse n (#apply{Koszul.forward} n x)))
+    (Koszul.leftInverse n x);
+\definition rightInverse: \forall (n: Nat.Nat^)(x: Target.Carrier n) -> #apply{forward} n (#apply{backward} n x) = x :=
+  \fun (n: Nat.Nat^)(x: Target.Carrier n) => trans!{{Target.Carrier n}} _ _ _
+    (congr!{{Middle.Carrier n} {Target.Carrier n}} (#apply{Symmetry.totalForward} n) _ _
+      (Koszul.rightInverse n (#apply{Symmetry.totalBackward} n x)))
+    (Symmetry.rightInverse n x);
+\definition isomorphism: Chains.Isomorphism[C := Source.complex, D := Target.complex].Isomorphism :=
+  Chains.Isomorphism[C := Source.complex, D := Target.complex].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };
+\definition index(n: Nat.Nat^)(i: Index n): Index n := Koszul.index n i;
+\module Term(p, q: Nat.Nat^);
+\module Degree(n: Nat.Nat^);
+\module Involution;
+\module Mapping(E, F: Chains.Complex);
