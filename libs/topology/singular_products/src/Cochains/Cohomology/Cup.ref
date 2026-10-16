@@ -1,0 +1,43 @@
+\import \parent.\parent.Cup[p := p, q := q] \as CochainCup;
+\import CochainCup.Bilinear[] \as CochainLaws;
+\import CochainCup.Closed[] \as ClosedCup;
+\import \parent.\parent.Boundaries[] \as Boundaries;
+\definition degree: N.Nat^ := CochainCup.total;
+\import Complexes.At[C := Theory.complex, k := p] \as Left;
+\import Complexes.At[C := Theory.complex, k := q] \as Right;
+\import Complexes.At[C := Theory.complex, k := degree] \as Output;
+\definition leftClosed(x: Left.CycleCarrier): Boundaries.Closed p x := \bysub(Carrier p, #carrier{Left.cycles}, x);
+\definition rightClosed(y: Right.CycleCarrier): Boundaries.Closed q y := \bysub(Carrier q, #carrier{Right.cycles}, y);
+\definition cycle(x: Left.CycleCarrier)(y: Right.CycleCarrier): Output.CycleCarrier :=
+  Output.cycle (CochainCup.apply x y) (ClosedCup.law x y (leftClosed x) (rightClosed y));
+\definition leftCycles: Modules.Bundle := Modules.Bundle { Carrier := Left.CycleCarrier, space := Left.cycleSpace };
+\definition rightCycles: Modules.Bundle := Modules.Bundle { Carrier := Right.CycleCarrier, space := Right.cycleSpace };
+\import Commutative.Bilinear[A := leftCycles, B := rightCycles, C := bundle degree] \as ClosedBilinear;
+\definition onCycles: ClosedBilinear.Map := ClosedBilinear.Map {
+  apply := \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => Output.classOf (cycle x y),
+  addLeft := \fun (x, y: Left.CycleCarrier)(z: Right.CycleCarrier) => trans!{{Group degree}} _ _ _
+    (Output.equalClass (cycle (#add{Left.cycleSpace} x y) z) (#add{Output.cycleSpace} (cycle x z) (cycle y z)) (CochainLaws.leftAdd x y z))
+    (#addition{Output.classLinear} (cycle x z) (cycle y z)),
+  addRight := \fun (x: Left.CycleCarrier)(y, z: Right.CycleCarrier) => trans!{{Group degree}} _ _ _
+    (Output.equalClass (cycle x (#add{Right.cycleSpace} y z)) (#add{Output.cycleSpace} (cycle x y) (cycle x z)) (CochainLaws.rightAdd x y z))
+    (#addition{Output.classLinear} (cycle x y) (cycle x z)),
+  scaleLeft := \fun (a: R)(x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{{Group degree}} _ _ _
+    (Output.equalClass (cycle (#smul{Left.cycleSpace} a x) y) (#smul{Output.cycleSpace} a (cycle x y)) (CochainLaws.leftScale a x y))
+    (#scalar{Output.classLinear} a (cycle x y)),
+  scaleRight := \fun (a: R)(x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{{Group degree}} _ _ _
+    (Output.equalClass (cycle x (#smul{Right.cycleSpace} a y)) (#smul{Output.cycleSpace} a (cycle x y)) (CochainLaws.rightScale a x y))
+    (#scalar{Output.classLinear} a (cycle x y)),
+};
+\import ClosedBilinear.Quotients[S := Left.boundariesInside, T := Right.boundariesInside] \as Quotients;
+\definition leftVanishes: Quotients.VanishesLeft onCycles :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier)(boundary: \In[Left.CycleCarrier] (#carrier{Left.boundariesInside}) x) =>
+    Output.boundaryClassZero (cycle x y) (Boundaries.left p q x y (rightClosed y) boundary);
+\definition rightVanishes: Quotients.VanishesRight onCycles :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier)(boundary: \In[Right.CycleCarrier] (#carrier{Right.boundariesInside}) y) =>
+    Output.boundaryClassZero (cycle x y) (Boundaries.right p q x y (leftClosed x) boundary);
+\definition bilinear: Quotients.QuotientMap := Quotients.descend onCycles leftVanishes rightVanishes;
+\definition apply: Group p -> Group q -> Group degree := #apply{bilinear};
+\definition onClasses: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) -> apply (Left.classOf x) (Right.classOf y) = Output.classOf (cycle x y) :=
+  Quotients.onClasses onCycles leftVanishes rightVanishes;
+\import Commutative.Bilinear[A := bundle p, B := bundle q, C := bundle degree] \as Result;
+\definition laws: Result.Laws[bilinear] := Result.laws bilinear;
