@@ -59,3 +59,26 @@
   #apply{(retraction injective)} (Destination.generator t) = #zero{space} :=
   \fun (injective: Injective)(t: TargetGenerators)(empty: Logic.Not (\exists Fiber t)) => trans!{Carrier} _ _ _
     (ExtendBack.onGenerator (value injective) t) (outside injective t empty);
+\definition Onto: \Prop := \forall (t: TargetGenerators) -> \exists Fiber t;
+\import \parent.\parent.\parent.\parent.Hom[V := Carrier, W := Destination.Carrier, source := space, target := Destination.space]
+  .Composition[U := Destination.Carrier, domain := Destination.space] \as ForwardComposition;
+\import \parent.\parent.\parent.\parent.End[V := Destination.Carrier, space := Destination.space] \as TargetIdentity;
+\import \parent.\parent.\parent.\parent.Hom[V := Destination.Carrier, W := Destination.Carrier, source := Destination.space, target := Destination.space] \as TargetEnd;
+\definition rightGenerator: \forall (injective: Injective) -> Onto -> \forall (t: TargetGenerators) ->
+  #apply{(push f)} (#apply{(retraction injective)} (Destination.generator t)) = Destination.generator t := \block {
+  \fun (injective: Injective)(onto: Onto)(t: TargetGenerators) \then
+  \takefrom s: Fiber t \by onto t \then
+  \let same: f s = t := \bysub(Generators, Fiber t, s) \then
+  \return trans!{Destination.Carrier} _ _ _
+    (congr!{TargetGenerators Destination.Carrier} (\fun (b: TargetGenerators) => #apply{(push f)} (#apply{(retraction injective)} (Destination.generator b))) _ _ (sym!{TargetGenerators} _ _ same))
+    (trans!{Destination.Carrier} _ _ _ (congr!{Carrier Destination.Carrier} (#apply{(push f)}) _ _ (generatorLaw injective s))
+      (trans!{Destination.Carrier} _ _ _ (onGenerator f s) (congr!{TargetGenerators Destination.Carrier} Destination.generator _ _ same)))
+};
+\definition rightInverse: \forall (injective: Injective) -> Onto -> ForwardComposition.compose (push f) (retraction injective) = TargetIdentity.identity :=
+  \fun (injective: Injective)(onto: Onto) => Destination.To[W := Destination.Carrier, target := Destination.space].ext _ _ (rightGenerator injective onto);
+\import \parent.\parent.\parent.\parent.Isomorphism[V := Carrier, W := Destination.Carrier, source := space, target := Destination.space] \as Iso;
+\definition isomorphism(injective: Injective)(onto: Onto): Iso.Isomorphism := Iso.Isomorphism {
+  forward := push f, backward := retraction injective,
+  leftInverse := \fun (x: Carrier) => congr!{End.Map Carrier} (\fun (g: End.Map) => #apply{g} x) _ _ (leftInverse injective),
+  rightInverse := \fun (x: Destination.Carrier) => congr!{TargetEnd.Map Destination.Carrier} (\fun (g: TargetEnd.Map) => #apply{g} x) _ _ (rightInverse injective onto),
+};

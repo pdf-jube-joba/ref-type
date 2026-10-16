@@ -7,7 +7,7 @@
 | `module_theory.Module.Over` | 台集合と加群構造の束、準同型の可換加法群、部分加群・核・像・商。 |
 | `module_theory.Module.Over.FirstIsomorphism` | 核による商と像との同型。 |
 | `module_theory.Module.Over.Presentation` / `Free` | 形式和と関係による加群、生成元による準同型の一意な延長、自由加群の射影性。 |
-| `module_theory.Module.Over.Free.Reindex.Injection.Retraction` | 生成元の単射に沿う自由加群の包含の左逆。 |
+| `module_theory.Module.Over.Free.Reindex.Injection.Retraction` | 生成元の単射に沿う左逆、全単射から得る自由加群の同型。 |
 | `module_theory.Module.Over.Free.Subset.Projection` / `QuotientBasis` | 指定した生成元への射影と、その像による商を残りの生成元上の自由加群と同定する同型。 |
 | `module_theory.Module.Over.Free.Reindex.QuotientBasis` | 生成元の写像の像による商と、像に入らない生成元上の自由加群との同型。 |
 | `module_theory.Module.Over.Free.Coefficients` / `Finite` | 係数写像、有限生成元による展開、有限支持関数との同型。 |
