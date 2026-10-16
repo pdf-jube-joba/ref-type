@@ -1,0 +1,35 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import algebraic_topology.Spheres[] \as Spheres;
+\import Spheres.Zero[] \as Sphere;
+\import Sphere.Topology[] \as Geometry;
+\import topology.Topology[Carrier := Sphere.Point] \as Points;
+\definition left: \Pow Sphere.Point := Points.Singleton Sphere.Point::positive;
+\definition right: \Pow Sphere.Point := Points.Singleton Sphere.Point::negative;
+\import singular_excision.MayerVietoris[A := Sphere.Point].Over[source := Sphere.discrete] \as Covers;
+\definition cover: Covers.Cover := Covers.Cover {
+  left := left, right := right,
+  leftOpen := Points.discreteOpen left, rightOpen := Points.discreteOpen right,
+  covered := \induction (p: Sphere.Point) \return Logic.Or[Points.Member left p, Points.Member right p] \with {
+    | positive: Logic.Or[_, _]::left (\refl(Sphere.Point::positive))
+    | negative: Logic.Or[_, _]::right (\refl(Sphere.Point::negative))
+  },
+};
+\definition distinct: Logic.Not (Sphere.Point::positive = Sphere.Point::negative) :=
+  \fun (equal: _) => Sphere.distinct (congr!{Sphere.Point {Spheres.Carrier N.Nat^::zero}} Sphere.forward _ _ equal);
+\definition disjoint: \forall (p: Sphere.Point) -> Points.Member left p -> Points.Member right p -> Logic.False := \fun (p: Sphere.Point)(l: Points.Member left p)(r: Points.Member right p) =>
+  distinct (trans!{Sphere.Point} _ _ _ (sym!{Sphere.Point} _ _ l) r);
+\import Points.Subspace[S := left] \as Left;
+\import Points.Subspace[S := right] \as Right;
+\definition leftPoint: Left.CarrierSet := \into[Sphere.Point](Sphere.Point::positive, left) \by { \refl(Sphere.Point::positive) };
+\definition rightPoint: Right.CarrierSet := \into[Sphere.Point](Sphere.Point::negative, right) \by { \refl(Sphere.Point::negative) };
+\definition leftUnique: \forall (x: Left.CarrierSet) -> x = leftPoint := \fun (x: Left.CarrierSet) => \bysub(Sphere.Point, left, x);
+\definition rightUnique: \forall (x: Right.CarrierSet) -> x = rightPoint := \fun (x: Right.CarrierSet) => \bysub(Sphere.Point, right, x);
+\module With(coefficients: Modules.Bundle);
