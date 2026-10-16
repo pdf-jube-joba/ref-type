@@ -1,0 +1,47 @@
+\import algebraic_topology.Simplex[] \as Simplex;
+\import CoveredSubset.Degree[n := n].Lift[] \as SubsetLift;
+\import RemainingPair.Degree[n := n].Lift[] \as IntersectionLift;
+\import Remaining.Degree[n := n].Lift[] \as RemainingLift;
+\definition InsideSubset(sigma: Target.Carrier n): \Prop := \forall (x: Simplex.Carrier n) -> Top.Member subset (sigma x);
+\definition InsideIntersection(sigma: Source.Carrier n): \Prop := \forall (x: Simplex.Carrier n) -> \In[Remaining.Carrier] intersection (sigma x);
+\definition InsideRemaining(sigma: Target.Carrier n): \Prop := \forall (x: Simplex.Carrier n) -> Top.Member RemainingSet (sigma x);
+\definition targetFiber: \forall (sigma: Target.Carrier n) -> InsideSubset sigma -> \exists TargetBasis.Fiber sigma :=
+  \fun (sigma: Target.Carrier n)(inside: InsideSubset sigma) => Logic.existsIntro[TargetSub.Carrier n,
+    { rho: TargetSub.Carrier n \where targetInclusion rho = sigma }] (SubsetLift.lift sigma inside) (SubsetLift.law sigma inside);
+\definition sourceFiber: \forall (sigma: Source.Carrier n) -> InsideIntersection sigma -> \exists SourceBasis.Fiber sigma :=
+  \fun (sigma: Source.Carrier n)(inside: InsideIntersection sigma) => Logic.existsIntro[SourceSub.Carrier n,
+    { rho: SourceSub.Carrier n \where sourceInclusion rho = sigma }] (IntersectionLift.lift sigma inside) (IntersectionLift.law sigma inside);
+\definition sourceFiberRange: \forall (sigma: Source.Carrier n) -> \exists SourceBasis.Fiber sigma -> InsideIntersection sigma := \block {
+  \fun (sigma: Source.Carrier n)(exists: \exists SourceBasis.Fiber sigma) \then
+  \takefrom rho: SourceBasis.Fiber sigma \by exists \then
+  \return \idelim sourceInclusion rho = sigma \with tau: Source.Carrier n => InsideIntersection tau \by {
+    base: \fun (x: Simplex.Carrier n) => \bysub(Remaining.Carrier, intersection, rho x),
+    equality: \bysub(SourceSub.Carrier n, SourceBasis.Fiber sigma, rho)
+  }
+};
+\definition targetFiberRange: \forall (sigma: Target.Carrier n) -> \exists TargetBasis.Fiber sigma -> InsideSubset sigma := \block {
+  \fun (sigma: Target.Carrier n)(exists: \exists TargetBasis.Fiber sigma) \then
+  \takefrom rho: TargetBasis.Fiber sigma \by exists \then
+  \return \idelim targetInclusion rho = sigma \with tau: Target.Carrier n => InsideSubset tau \by {
+    base: \fun (x: Simplex.Carrier n) => \bysub(A, subset, rho x),
+    equality: \bysub(TargetSub.Carrier n, TargetBasis.Fiber sigma, rho)
+  }
+};
+\definition preserveSubset: \forall (sigma: Source.Carrier n) -> InsideIntersection sigma -> InsideSubset (ambient sigma) :=
+  \fun (sigma: Source.Carrier n)(inside: InsideIntersection sigma)(x: Simplex.Carrier n) => inside x;
+\definition reflectSubset: \forall (sigma: Source.Carrier n) -> InsideSubset (ambient sigma) -> InsideIntersection sigma :=
+  \fun (sigma: Source.Carrier n)(inside: InsideSubset (ambient sigma))(x: Simplex.Carrier n) => inside x;
+\definition targetOutside: \forall (sigma: TargetComplement) -> Logic.Not (InsideSubset sigma) :=
+  \fun (sigma: TargetComplement)(inside: InsideSubset sigma) => (\bysub(Target.Carrier n, TargetBasis.Complement, sigma)) (targetFiber sigma inside);
+\definition smallRange: \forall (sigma: TargetComplement) -> InsideRemaining sigma := \block {
+  \fun (sigma: TargetComplement) \then
+  \takefrom w: Target.Witness[n, sigma] \by Target.witness n sigma \then
+  \return either!{{(members (#element{w}) (#member{w}))} {InsideRemaining sigma}
+    {\fun (included: Top.Subset (#element{w}) subset) => Logic.falseElim (InsideRemaining sigma)
+      (targetOutside sigma (\fun (x: Simplex.Carrier n) => included (sigma x) (#contained{w} x)))}
+    {\fun (included: Top.Subset (#element{w}) RemainingSet)(x: Simplex.Carrier n) => included (sigma x) (#contained{w} x)}
+  }
+};
+\definition lift(sigma: TargetComplement): Source.Carrier n := RemainingLift.lift sigma (smallRange sigma);
+\definition lifted: \forall (sigma: TargetComplement) -> ambient (lift sigma) = sigma :=
+  \fun (sigma: TargetComplement) => RemainingLift.law sigma (smallRange sigma);
