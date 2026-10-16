@@ -73,6 +73,19 @@ impl ArgumentCache {
         id
     }
 
+    fn known_equal(
+        &self,
+        left: &[(ModuleParamId, ModuleArgument)],
+        right: &[(ModuleParamId, ModuleArgument)],
+    ) -> bool {
+        left == right
+            || self
+                .sets
+                .get(left)
+                .zip(self.sets.get(right))
+                .is_some_and(|(&left, &right)| self.root(left) == self.root(right))
+    }
+
     pub(crate) fn equivalents(&self, id: usize) -> &[usize] {
         &self.classes[self.root(id)]
     }
@@ -192,7 +205,10 @@ impl Comparisons {
                         if REPORTED
                             .with_borrow_mut(|seen| seen.insert(std::mem::discriminant(root)))
                         {
-                            eprintln!("namespace.translation-failure sample={root}");
+                            eprintln!(
+                                "namespace.translation-failure sample={root} term={}",
+                                super::printing::format_exp(env, term),
+                            );
                         }
                     }
                     1
@@ -313,19 +329,27 @@ impl CrateEnv {
                 {
                     return false;
                 }
-                if left_args.len() != right_args.len()
-                    || !left_args
-                        .iter()
-                        .zip(right_args.iter())
-                        .all(|((lp, l), (rp, r))| {
-                            lp == rp
-                                && match (*l, *r) {
-                                    (ModuleArgument::Pts(l), ModuleArgument::Pts(r)) => {
-                                        compare(env, l, r, seen, None)
+                let known_equal = env
+                    .namespace_argument_cache
+                    .borrow()
+                    .known_equal(&left_args, &right_args);
+                if known_equal {
+                    timing::costs::count("namespace.syntax-telescope-hits", || 1);
+                }
+                if !known_equal
+                    && (left_args.len() != right_args.len()
+                        || !left_args
+                            .iter()
+                            .zip(right_args.iter())
+                            .all(|((lp, l), (rp, r))| {
+                                lp == rp
+                                    && match (*l, *r) {
+                                        (ModuleArgument::Pts(l), ModuleArgument::Pts(r)) => {
+                                            compare(env, l, r, seen, None)
+                                        }
+                                        _ => l == r,
                                     }
-                                    _ => l == r,
-                                }
-                        })
+                            }))
                 {
                     return false;
                 }
@@ -820,6 +844,10 @@ impl CrateEnv {
             let mut cache = self.namespace_argument_cache.borrow_mut();
             let left = cache.intern(left);
             let right = cache.intern(right);
+            if cache.root(left) == cache.root(right) {
+                timing::costs::count("namespace.argument-equivalence-hits", || 1);
+                return true;
+            }
             (left.min(right), left.max(right))
         };
         if let Some(&equal) = self.namespace_argument_cache.borrow().comparisons.get(&key) {
@@ -1125,6 +1153,48 @@ mod tests {
             members.sort_unstable();
             assert_eq!(members, [0, 1, 2, 3]);
         }
+    }
+
+    #[test]
+    fn transitive_telescope_equalities_survive_comparison_cache_recycling() {
+        use crate::raw::sort::Sort;
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let parameter = ModuleParamId {
+            module: root,
+            position: 0,
+        };
+        let mut arguments = Vec::new();
+        for _ in 0..3 {
+            let alias = env
+                .add_definition(
+                    root,
+                    DefinedConstant::Pts {
+                        ty: env.arena().sort(Sort::SetKind(0)),
+                        body: env.arena().sort(Sort::Set(0)),
+                    },
+                )
+                .unwrap();
+            arguments.push(vec![(
+                parameter,
+                ModuleArgument::Pts(env.arena().alloc(ExpNode::DefinedConstant(alias))),
+            )]);
+        }
+        assert!(env.namespace_arguments_equal(&arguments[0], &arguments[1]));
+        assert!(env.namespace_arguments_equal(&arguments[1], &arguments[2]));
+        env.namespace_argument_cache
+            .borrow_mut()
+            .comparisons
+            .clear();
+        env.namespace_conversion_cache.borrow_mut().clear();
+        assert!(env.namespace_arguments_equal(&arguments[0], &arguments[2]));
+        assert!(env.namespace_argument_cache.borrow().comparisons.is_empty());
+        assert!(env.namespace_conversion_cache.borrow().is_empty());
+        assert!(
+            env.namespace_argument_cache
+                .borrow()
+                .known_equal(&arguments[0], &arguments[2])
+        );
     }
 
     #[test]
