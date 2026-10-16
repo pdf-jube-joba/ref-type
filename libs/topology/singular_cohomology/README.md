@@ -27,6 +27,7 @@
 | `Relative.With.Vanishing` | 相対余鎖と部分空間の鎖上で零になる全体の余鎖との加群同型。 |
 | `Relative.With` | 商鎖複体から係数加群への Hom と相対コホモロジー。 |
 | `Relative.Support` | 部分空間に値を持つ特異単体の持ち上げと、連続写像の全鎖が部分空間の鎖の像に入ること。 |
+| `Relative.Maps.Over.Homotopy.On` | 部分空間を保つホモトピーの prism が誘導する相対鎖ホモトピーと、ホモロジー・任意係数コホモロジーの誘導写像の一致。 |
 | `Relative.Maps.Over.On` / `Integer.With` | 対の連続写像による相対鎖・余鎖の写像と、包含・商・接続写像の自然性。 |
 | `Coefficients.Sequence.On` / `Bockstein` | 係数短完全列が誘導する余鎖の短完全列、Bockstein 接続写像と完全性。 |
 | `OrderedTuples` / `ConeBoundary` / `SquareZero` | 頂点列上の自由鎖、交代境界と複体、頂点を先頭に加える cone の境界公式。 |
