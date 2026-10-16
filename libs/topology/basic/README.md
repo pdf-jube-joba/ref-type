@@ -13,5 +13,6 @@
 | `Topology.Compactness` | 空集合・一点集合・二集合の和のコンパクト性、閉部分集合、Hausdorff 空間のコンパクト集合の閉性、コンパクト Hausdorff 空間の正規性。 |
 | `Compactness` | コンパクト集合の連続像と、連続な全射の値域のコンパクト性。 |
 | `Continuity.closedPreimage` | 連続写像による閉集合の逆像の閉性。 |
+| `Continuity.Covers.pullback` | 全空間の開被覆を連続写像で引き戻した開被覆。 |
 | `Homeomorphism` | 同相写像、逆写像、合成。 |
 | `LocallyCompact` | コンパクト近傍、局所コンパクト性、コンパクト空間の局所コンパクト性。 |

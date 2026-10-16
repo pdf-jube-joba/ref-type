@@ -1,0 +1,26 @@
+\definition pullback: \Pow (\Pow (Simplex.Carrier n)) := Pullbacks.PullbackFamily sigma family;
+\definition continuous: Push.Continuous sigma := WholeSimplices.At[n := n].continuous sigma;
+\definition simplex(v: Affine.Vertices): WholeSimplices.Carrier n := Push.postcompose n sigma continuous (Geometry.At[m := n].onTuple v);
+\definition covered: Global.IsOpenCover[source, family, Global.Whole] -> DomainSpace.IsOpenCover[Domain.topology, pullback, DomainSpace.Whole] :=
+  \fun (cover: Global.IsOpenCover[source, family, Global.Whole]) => InverseCover.pullback Domain.topology source sigma continuous family cover;
+\definition small: \forall (v: Affine.Vertices)(r, delta: Real.Real) -> R.Le Real.zero r ->
+  Mesh.Diameter v r -> R.Lt r delta -> Compactness.LebesgueRadius[Metric.metric, pullback, delta] -> \In[WholeSimplices.Carrier n] (SmallSimplices.Small n) (simplex v) := \block {
+  \fun (v: Affine.Vertices)(r, delta: Real.Real)(positive: R.Le Real.zero r)(diameter: Mesh.Diameter v r)(smaller: R.Lt r delta)(radius: Compactness.LebesgueRadius[Metric.metric, pullback, delta]) \then
+  \let centre: Simplex.Carrier n := v (Fin.zero n) \then
+  \takefrom U: \Cast[\Pow (Simplex.Carrier n)] ({ U: \Pow (Simplex.Carrier n) \where Logic.And[DomainSpace.FamilyMember pullback U, DomainSpace.Subset (Metrics.Ball Metric.metric centre delta) U] }) \by #smallBalls{radius} centre \then
+  \let data: Logic.And[DomainSpace.FamilyMember pullback U, DomainSpace.Subset (Metrics.Ball Metric.metric centre delta) U] :=
+    \bysub(\Pow (Simplex.Carrier n), { U: \Pow (Simplex.Carrier n) \where Logic.And[DomainSpace.FamilyMember pullback U, DomainSpace.Subset (Metrics.Ball Metric.metric centre delta) U] }, U) \then
+  \let inside: \forall (x: Simplex.Carrier n) -> \In[Simplex.Carrier n] U (Affine.apply v x) :=
+    \fun (x: Simplex.Carrier n) => #right{data} (Affine.apply v x) (R.leLtTrans _ r delta
+      (R.leReplaceLeft _ _ _ (#symmetric{Metric.metric} (Affine.apply v x) centre)
+        (MetricAffine.radius v x centre r positive (\fun (i: Fin.Fin (N.Nat^::succ n)) => diameter i (Fin.zero n)))) smaller) \then
+  \return Pullbacks.pullbackElim sigma family U (\In[WholeSimplices.Carrier n] (SmallSimplices.Small n) (simplex v))
+    (\fun (V: \Pow A)(member: Global.FamilyMember family V)(same: U = Pullbacks.Preimage sigma V) =>
+      \exact(SmallSimplices.Witness[n, simplex v] {
+        element := V, member := member,
+        contained := \fun (x: Simplex.Carrier n) => \idelim U = Pullbacks.Preimage sigma V \with W: \Pow (Simplex.Carrier n) => \In[Simplex.Carrier n] W (Affine.apply v x) \by {
+          base: inside x, equality: same
+        },
+      }, SmallSimplices.Witness[n, simplex v])) (#left{data})
+};
+\module Eventually;
