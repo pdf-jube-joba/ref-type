@@ -24,3 +24,50 @@
     congr!{{Option.Option[Fin (N.Nat^::succ n)]} {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}}
       (step n (repeat n) f) _ _ (splitInflate (N.Nat^::succ n) (Option.Option[Fin (N.Nat^::succ n)]::some i));
 \module Sections;
+\definition onExtended: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(a: A)(f: Fin (N.Nat^::succ n) -> A) ->
+  repeat (N.Nat^::succ n) (succ (N.Nat^::succ n) i) (extend (N.Nat^::succ n) a f) =
+  extend (N.Nat^::succ (N.Nat^::succ n)) a (repeat n i f) :=
+  \fun (n: N.Nat^)(i: Fin (N.Nat^::succ n))(a: A)(f: Fin (N.Nat^::succ n) -> A) =>
+    trans!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}} _ _ _ (successor n i (extend (N.Nat^::succ n) a f))
+      (congr2!{A {Fin (N.Nat^::succ (N.Nat^::succ n)) -> A} {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}}
+        (extend (N.Nat^::succ (N.Nat^::succ n))) _ _ _ _ (atZero (N.Nat^::succ n) a f)
+        (congr!{{Fin (N.Nat^::succ n) -> A} {Fin (N.Nat^::succ (N.Nat^::succ n)) -> A}} (repeat n i) _ _
+          (\axiom:funext((\fun (j: Fin (N.Nat^::succ n)) => extend (N.Nat^::succ n) a f (succ (N.Nat^::succ n) j)), f, atSuccessor (N.Nat^::succ n) a f))));
+\definition firstValue: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) ->
+  repeat n i f (zero (N.Nat^::succ n)) = f (zero n) :=
+  \induction (n: N.Nat^) \return \forall (i: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) -> repeat n i f (zero (N.Nat^::succ n)) = f (zero n) \with {
+    | zero: \fun (i: Fin (N.Nat^::succ N.Nat^::zero))(f: Fin (N.Nat^::succ N.Nat^::zero) -> A) =>
+      atZero (N.Nat^::succ N.Nat^::zero) (f (zero N.Nat^::zero)) f
+    | succ: \fun (n: N.Nat^)(unused: _) => cases (N.Nat^::succ n)
+      (\fun (i: Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) ->
+        repeat (N.Nat^::succ n) i f (zero (N.Nat^::succ (N.Nat^::succ n))) = f (zero (N.Nat^::succ n)))
+      (\fun (f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) => trans!{A} _ _ _
+        (congr!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A} A} (\fun (g: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A) => g (zero (N.Nat^::succ (N.Nat^::succ n)))) _ _ (head (N.Nat^::succ n) f))
+        (atZero (N.Nat^::succ (N.Nat^::succ n)) (f (zero (N.Nat^::succ n))) f))
+      (\fun (i: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) => trans!{A} _ _ _
+        (congr!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A} A} (\fun (g: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A) => g (zero (N.Nat^::succ (N.Nat^::succ n)))) _ _ (successor n i f))
+        (atZero (N.Nat^::succ (N.Nat^::succ n)) (f (zero (N.Nat^::succ n))) (repeat n i (\fun (j: Fin (N.Nat^::succ n)) => f (succ (N.Nat^::succ n) j)))))
+  };
+\definition Pair(n: N.Nat^)(i, j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A): \Prop :=
+  repeat (N.Nat^::succ n) (widen (N.Nat^::succ n) i) (repeat n j f) =
+  repeat (N.Nat^::succ n) (succ (N.Nat^::succ n) j) (repeat n i f);
+\definition headPair: \forall (n: N.Nat^)(j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) -> Pair n (zero n) j f :=
+  \fun (n: N.Nat^)(j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) =>
+    trans!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}} _ _ _ (head (N.Nat^::succ n) (repeat n j f))
+      (trans!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}} _ _ _
+        (congr!{A {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}}
+          (\fun (a: A) => extend (N.Nat^::succ (N.Nat^::succ n)) a (repeat n j f)) _ _ (firstValue n j f))
+        (trans!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}} _ _ _
+          (sym!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}} _ _ (onExtended n j (f (zero n)) f))
+          (congr!{{Fin (N.Nat^::succ (N.Nat^::succ n)) -> A} {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}}
+            (repeat (N.Nat^::succ n) (succ (N.Nat^::succ n) j)) _ _
+            (sym!{{Fin (N.Nat^::succ (N.Nat^::succ n)) -> A}} _ _ (head n f)))));
+\module PairStep(n: N.Nat^);
+\definition pairs: \forall (n: N.Nat^)(i, j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) -> NL.Le i j -> Pair n i j f :=
+  \induction (n: N.Nat^) \return \forall (i, j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) -> NL.Le i j -> Pair n i j f \with {
+    | zero: cases N.Nat^::zero
+      (\fun (i: Fin (N.Nat^::succ N.Nat^::zero)) => \forall (j: Fin (N.Nat^::succ N.Nat^::zero))(f: Fin (N.Nat^::succ N.Nat^::zero) -> A) -> NL.Le i j -> Pair N.Nat^::zero i j f)
+      (\fun (j: Fin (N.Nat^::succ N.Nat^::zero))(f: Fin (N.Nat^::succ N.Nat^::zero) -> A)(ordered: _) => headPair N.Nat^::zero j f)
+      (\fun (i: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible i (bound N.Nat^::zero i)))
+    | succ: \fun (n: N.Nat^)(previous: _) => PairStep[n := n].law previous
+  };
