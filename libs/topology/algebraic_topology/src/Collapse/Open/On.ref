@@ -1,0 +1,56 @@
+\definition region: \Pow A := #region{neighborhood};
+\import Source.Subspace[S := region] \as Domain;
+\definition collapsedPart: \Pow Domain.CarrierSet := { x: Domain.CarrierSet \where \In[A] subset x };
+\import \root.Collapse[A := Domain.CarrierSet, subset := collapsedPart] \as Local;
+\definition image: \Pow Carrier := { q: Carrier \where \exists { x: Domain.CarrierSet \where class x = q } };
+\import Space.Subspace[S := image] \as Image;
+\import topology.Topology[Carrier := Image.CarrierSet] \as ImageSpace;
+\import topology.Topology[Carrier := Domain.CarrierSet] \as DomainSpace;
+\definition toImage: Source.Subset region ({ x: A \where Space.Member image (class x) }) :=
+  \fun (x: A)(member: Source.Member region x) => Logic.existsIntro[Domain.CarrierSet, { y: Domain.CarrierSet \where class y = class x }]
+    (\into[A](x, region) \by { member }) (\refl(class x));
+\definition fromImage: Source.Subset ({ x: A \where Space.Member image (class x) }) region := \block {
+  \fun (x: A)(member: Space.Member image (class x)) \then
+  \takefrom y: \Cast[Domain.CarrierSet] ({ y: Domain.CarrierSet \where class y = class x }) \by member \then
+  \let equal: class y = class x := \bysub(Domain.CarrierSet, { y: Domain.CarrierSet \where class y = class x }, y) \then
+  \let related: Related y x := Quotient.equalRelated equivalence y x equal \then
+  \return either!{related {Source.Member region x}
+    {\fun (same: y = x) => \idelim y = x \with z: A => Source.Member region z \by {
+      base: \bysub(A, region, y), equality: same
+    }}
+    {\fun (members: Logic.And[\In[A] subset y, \In[A] subset x]) => #contains{neighborhood} x #right{members}}
+  }
+};
+\definition preimageImage: { x: A \where Space.Member image (class x) } = region :=
+  \axiom:setext({ x: A \where Space.Member image (class x) }, region, fromImage, toImage);
+\definition imageOpen: Space.IsOpenIn (topology source) image :=
+  #reflectsOpen{(Quotient.quotientMap source)} image
+    (\idelim region = { x: A \where Space.Member image (class x) } \with U: \Pow A => Source.IsOpenIn source U
+      \by { base: #open{neighborhood}, equality: sym!{\Pow A} _ _ preimageImage });
+\definition projection(x: Domain.CarrierSet): Image.CarrierSet := \into[Carrier](class x, image) \by {
+  toImage x (\bysub(A, region, x))
+};
+\import topological_constructions.Quotient[A := A, B := Carrier].Restriction[q := class, U := image].From[S := region] \as Restriction;
+\import topological_constructions.Quotient[A := Domain.CarrierSet, B := Image.CarrierSet] \as Quotients;
+\definition quotientMap: Quotients.IsQuotientMap[Domain.topology source, Image.topology (topology source), projection] :=
+  Restriction.quotientMap source (topology source) toImage fromImage (Quotient.quotientMap source) imageOpen;
+\import topological_constructions.RelationQuotient[A := Domain.CarrierSet, relation := Local.Related].Classification[B := Image.CarrierSet, q := projection] \as Classification;
+\definition respects: Classification.Respects := \fun (x, y: Domain.CarrierSet)(related: Local.Related x y) =>
+  either!{related {projection x = projection y}
+    {\fun (same: x = y) => congr!{Domain.CarrierSet Image.CarrierSet} projection _ _ same}
+    {\fun (members: Logic.And[DomainSpace.Member collapsedPart x, DomainSpace.Member collapsedPart y]) =>
+      collapsed x y #left{members} #right{members}}
+  };
+\definition separates: Classification.Separates := \block {
+  \fun (x, y: Domain.CarrierSet)(equal: projection x = projection y) \then
+  \let related: Related x y := Quotient.equalRelated equivalence x y equal \then
+  \return either!{related {Local.Related x y}
+    {\fun (same: x = y) => Logic.Or[_, _]::left same}
+    {\fun (members: Logic.And[\In[A] subset x, \In[A] subset y]) => Logic.Or[_, _]::right members}
+  }
+};
+\import topology.Homeomorphism[A := Local.Carrier, B := Image.CarrierSet] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[Local.topology (Domain.topology source), Image.topology (topology source)] :=
+  Classification.homeomorphism (Domain.topology source) (Image.topology (topology source)) Local.equivalence respects separates quotientMap;
+\definition onClass: \forall (x: Domain.CarrierSet) -> #forward{homeomorphism} (Local.class x) = projection x :=
+  Local.Descent[B := Image.CarrierSet].onClass projection respects;
