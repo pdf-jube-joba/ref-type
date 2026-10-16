@@ -55,3 +55,35 @@
 \module Singleton;
 \module Last(n: N.Nat^);
 \module Overlap(p, q: N.Nat^);
+\module Mapping(W: \Set, target: Space W) {
+  \import \parent.\parent.\parent.Hom[V := V, W := W, source := space, target := target] \as Maps;
+  \import \parent.\parent.\parent.Alternating[V := W, space := target].Concatenation[] \as Other;
+  \definition law: \forall (map: Maps.Map)(n: N.Nat^)(x: V) -> #apply{map} (twist n x) = Other.twist n (#apply{map} x) :=
+    \fun (map: Maps.Map) => \induction (n: N.Nat^) \return \forall (x: V) -> #apply{map} (twist n x) = Other.twist n (#apply{map} x) \with {
+      | zero: \fun (x: V) => \refl(#apply{map} x)
+      | succ: \fun (n: N.Nat^)(previous: \forall (x: V) -> #apply{map} (twist n x) = Other.twist n (#apply{map} x))(x: V) =>
+        trans!{W} _ _ _ (Maps.negativePreserved map (twist n x)) (congr!{W W} (#neg{target}) _ _ (previous x))
+    };
+}
+\use Equality.eq_reason;
+\definition cancelMiddle(n: N.Nat^)(a, middle, left, right, last: V):
+  Values.add (Values.add a (twist n (Group.difference middle right)))
+    (Values.add (Values.neg (twist n (Group.difference middle left))) last) =
+  Values.add (Values.add a (twist n left)) (Values.add (Values.neg (twist n right)) last) :=
+  eq_reason!{
+    {Values.add (Values.add a (twist n (Group.difference middle right))) (Values.add (Values.neg (twist n (Group.difference middle left))) last)}
+    "=" {Values.add a (Values.add (twist n (Group.difference middle right)) (Values.add (Values.neg (twist n (Group.difference middle left))) last))} "by" {
+      Group.assoc a (twist n (Group.difference middle right)) (Values.add (Values.neg (twist n (Group.difference middle left))) last)}
+    "=" {Values.add a (Values.add (Group.difference (twist n (Group.difference middle right)) (twist n (Group.difference middle left))) last)} "by" {
+      congr!{V V} (Values.add a) _ _ (sym!{V} _ _ (Group.assoc (twist n (Group.difference middle right)) (Values.neg (twist n (Group.difference middle left))) last))}
+    "=" {Values.add a (Values.add (twist n (Group.difference (Group.difference middle right) (Group.difference middle left))) last)} "by" {
+      congr!{V V} (\fun (v: V) => Values.add a (Values.add v last)) _ _ (sym!{V} _ _ (twistDifference n (Group.difference middle right) (Group.difference middle left)))}
+    "=" {Values.add a (Values.add (twist n (Group.difference left right)) last)} "by" {
+      congr!{V V} (\fun (v: V) => Values.add a (Values.add (twist n v) last)) _ _ (Group.differenceCommonLeft middle left right)}
+    "=" {Values.add a (Values.add (Group.difference (twist n left) (twist n right)) last)} "by" {
+      congr!{V V} (\fun (v: V) => Values.add a (Values.add v last)) _ _ (twistDifference n left right)}
+    "=" {Values.add a (Values.add (twist n left) (Values.add (Values.neg (twist n right)) last))} "by" {
+      congr!{V V} (Values.add a) _ _ (Group.assoc (twist n left) (Values.neg (twist n right)) last)}
+    "=" {Values.add (Values.add a (twist n left)) (Values.add (Values.neg (twist n right)) last)} "by" {
+      sym!{V} _ _ (Group.assoc a (twist n left) (Values.add (Values.neg (twist n right)) last))}
+  };
