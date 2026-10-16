@@ -1,0 +1,51 @@
+\import Domain.Reduced[] \as SourceReduced;
+\import Codomain.Reduced[] \as TargetReduced;
+\import Maps.Reduced[] \as Push;
+\import chain_complexes.Chain[] \as Degrees;
+\import Degrees.Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Homotopy[C := SourceReduced.complex, D := TargetReduced.complex] \as Homotopies;
+\import Complexes.Prior[C := TargetReduced.complex] \as Prior;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\import \root.Homotopy[A := A, B := B, source := source, target := target] \as Ordinary;
+\definition operator: \forall (f, g: A -> B)(h: Family f g)(z: I.Int^) ->
+  Modules.Hom[V := SourceReduced.Carrier z, W := TargetReduced.Carrier (Degrees.next z), source := SourceReduced.space z, target := TargetReduced.space (Degrees.next z)].Map :=
+  \fun (f, g: A -> B)(h: Family f g) => \induction (z: I.Int^) \return
+    Modules.Hom[V := SourceReduced.Carrier z, W := TargetReduced.Carrier (Degrees.next z), source := SourceReduced.space z, target := TargetReduced.space (Degrees.next z)].Map \with {
+      | ofNat: \fun (n: N.Nat^) => \parent.At[n := n].map f g h
+      | negSucc: \fun (n: N.Nat^) => Modules.Hom[V := SourceReduced.Carrier (I.Int^::negSucc n), W := TargetReduced.Carrier (Degrees.next (I.Int^::negSucc n)),
+          source := SourceReduced.space (I.Int^::negSucc n), target := TargetReduced.space (Degrees.next (I.Int^::negSucc n))].zeroMap
+    };
+\definition data(f, g: A -> B)(h: Family f g): Homotopies.Data := Homotopies.Data { apply := \fun (z: I.Int^) => #apply{(operator f g h z)} };
+\definition nativeLaws(f, g: A -> B)(h: Family f g): Native.Laws[Maps.push g (endContinuous f g h), Maps.push f (startContinuous f g h), Ordinary.data f g h] :=
+  \bysub(Native.Data, Native.Homotopy (Maps.push g (endContinuous f g h)) (Maps.push f (startContinuous f g h)), Ordinary.homotopy f g h);
+\module At(z: I.Int^) {
+  \definition rightHand(f, g: A -> B)(h: Family f g)(x: SourceReduced.Carrier z): TargetReduced.Carrier z :=
+    #add{(TargetReduced.space z)} (Prior.value z (#apply{(data f g h)} z x)) (Homotopies.shifted (data f g h) z (#apply{SourceReduced.differential} z x));
+  \definition leftHand(f, g: A -> B)(h: Family f g)(x: SourceReduced.Carrier z): TargetReduced.Carrier z :=
+    #add{(TargetReduced.space z)} (#apply{(Push.map g (endContinuous f g h))} z x) (#neg{(TargetReduced.space z)} (#apply{(Push.map f (startContinuous f g h))} z x));
+}
+\module ZeroEquation;
+\module PositiveEquation(n: N.Nat^);
+\module NegativeOneEquation;
+\module NegativeEquation(n: N.Nat^);
+\definition equation: \forall (f, g: A -> B)(h: Family f g)(z: I.Int^)(x: SourceReduced.Carrier z) -> At[z := z].leftHand f g h x = At[z := z].rightHand f g h x :=
+  \fun (f, g: A -> B)(h: Family f g) => \induction (z: I.Int^) \return \forall (x: SourceReduced.Carrier z) -> At[z := z].leftHand f g h x = At[z := z].rightHand f g h x \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: SourceReduced.Carrier (I.Int^::ofNat n)) ->
+        At[z := I.Int^::ofNat n].leftHand f g h x = At[z := I.Int^::ofNat n].rightHand f g h x \with {
+          | zero: ZeroEquation[].law f g h
+          | succ: \fun (n: N.Nat^)(previous: _) => PositiveEquation[n := n].law f g h
+        }
+    | negSucc: \induction (n: N.Nat^) \return \forall (x: SourceReduced.Carrier (I.Int^::negSucc n)) ->
+        At[z := I.Int^::negSucc n].leftHand f g h x = At[z := I.Int^::negSucc n].rightHand f g h x \with {
+          | zero: NegativeOneEquation[].law f g h
+          | succ: \fun (n: N.Nat^)(previous: _) => NegativeEquation[n := n].law f g h
+        }
+  };
+\definition homotopy(f, g: A -> B)(h: Family f g): Homotopies.Homotopy (Push.map g (endContinuous f g h)) (Push.map f (startContinuous f g h)) :=
+  \into[Homotopies.Data](data f g h, Homotopies.Homotopy (Push.map g (endContinuous f g h)) (Push.map f (startContinuous f g h))) \by {
+    Homotopies.Laws[Push.map g (endContinuous f g h), Push.map f (startContinuous f g h), data f g h] {
+      addition := \fun (z: I.Int^) => #addition{(operator f g h z)},
+      scalar := \fun (z: I.Int^) => #scalar{(operator f g h z)},
+      equation := equation f g h,
+    }
+  };
