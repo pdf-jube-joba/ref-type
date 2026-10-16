@@ -1,0 +1,38 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
+\import singular_cohomology.OrderedTuples[V := V] \as Left;
+\import singular_cohomology.OrderedTuples[V := W] \as Right;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\structure Pair: \Set { left: V, right: W }
+\import singular_cohomology.OrderedTuples[V := Pair] \as Product;
+\definition degree(p, q: N.Nat^): N.Nat^ := Nat.add q p;
+\definition length(p, q: N.Nat^): N.Nat^ := N.Nat^::succ (degree p q);
+\definition Value(p, q: N.Nat^): \Set := Left.Tuple (N.Nat^::succ p) -> Right.Tuple (N.Nat^::succ q) -> Product.Carrier (length p q);
+\definition leftHead(n: N.Nat^)(x: Left.Tuple (N.Nat^::succ n)): V := x (Fin.zero n);
+\definition rightHead(n: N.Nat^)(y: Right.Tuple (N.Nat^::succ n)): W := y (Fin.zero n);
+\definition leftTail(n: N.Nat^)(x: Left.Tuple (N.Nat^::succ n)): Left.Tuple n := \fun (i: Fin.Fin n) => x (Fin.succ n i);
+\definition rightTail(n: N.Nat^)(y: Right.Tuple (N.Nat^::succ n)): Right.Tuple n := \fun (i: Fin.Fin n) => y (Fin.succ n i);
+\module LeftBase(q: N.Nat^);
+\module RightStep(r: N.Nat^);
+\module Step(r, s: N.Nat^);
+\definition onTuples: \forall (p, q: N.Nat^) -> Value p q :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^) -> Value p q \with {
+    | zero: \fun (q: N.Nat^) => LeftBase[q := q].apply
+    | succ: \fun (r: N.Nat^)(previous: \forall (q: N.Nat^) -> Value r q) =>
+      \induction (q: N.Nat^) \return Value (N.Nat^::succ r) q \with {
+        | zero: \fun (x: Left.Tuple (N.Nat^::succ (N.Nat^::succ r)))(y: Right.Tuple (N.Nat^::succ N.Nat^::zero)) =>
+          RightStep[r := r].apply x y (previous N.Nat^::zero (leftTail (N.Nat^::succ r) x) y)
+        | succ: \fun (s: N.Nat^)(lower: Value (N.Nat^::succ r) s)
+            (x: Left.Tuple (N.Nat^::succ (N.Nat^::succ r)))(y: Right.Tuple (N.Nat^::succ (N.Nat^::succ s))) =>
+          Step[r := r, s := s].apply x y (previous (N.Nat^::succ s) (leftTail (N.Nat^::succ r) x) y) (lower x (rightTail (N.Nat^::succ s) y))
+      }
+  };
+\module At(p, q: N.Nat^);
