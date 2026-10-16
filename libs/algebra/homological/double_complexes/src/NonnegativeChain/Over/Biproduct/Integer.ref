@@ -1,0 +1,41 @@
+\import std.Arithmetic[].Int[] \as I;
+\import chain_complexes.Chain[].Over[R := R, ring := ring] \as Chains;
+\import \root.NonnegativeChain[].Over[R := R, ring := ring] \as Native;
+\import Native.ZeroExtension[C := C] \as Left;
+\import Native.ZeroExtension[C := D] \as Right;
+\import Native.ZeroExtension[C := complex] \as Sum;
+\import Native.Map[C := complex, D := C].ZeroExtension[f := firstProjection] \as FirstProjection;
+\import Native.Map[C := complex, D := D].ZeroExtension[f := secondProjection] \as SecondProjection;
+\import Native.Map[C := C, D := complex].ZeroExtension[f := firstInjection] \as FirstInjection;
+\import Native.Map[C := D, D := complex].ZeroExtension[f := secondInjection] \as SecondInjection;
+\definition firstRoundtrip: \forall (z: I.Int^)(x: Left.Carrier z) -> #apply{FirstProjection.map} z (#apply{FirstInjection.map} z x) = x :=
+  \induction (z: I.Int^) \return \forall (x: Left.Carrier z) -> #apply{FirstProjection.map} z (#apply{FirstInjection.map} z x) = x \with {
+    | ofNat: \fun (n: N.Nat^)(x: Left.Carrier (I.Int^::ofNat n)) => \refl(x)
+    | negSucc: \fun (n: N.Nat^)(x: Left.Carrier (I.Int^::negSucc n)) => trans!{{Left.Carrier (I.Int^::negSucc n)}} _ _ _ (Left.Negative[n := n].zero (#apply{FirstProjection.map} (I.Int^::negSucc n) (#apply{FirstInjection.map} (I.Int^::negSucc n) x))) (sym!{{Left.Carrier (I.Int^::negSucc n)}} _ _ (Left.Negative[n := n].zero x))
+  };
+\definition secondRoundtrip: \forall (z: I.Int^)(x: Right.Carrier z) -> #apply{SecondProjection.map} z (#apply{SecondInjection.map} z x) = x :=
+  \induction (z: I.Int^) \return \forall (x: Right.Carrier z) -> #apply{SecondProjection.map} z (#apply{SecondInjection.map} z x) = x \with {
+    | ofNat: \fun (n: N.Nat^)(x: Right.Carrier (I.Int^::ofNat n)) => \refl(x)
+    | negSucc: \fun (n: N.Nat^)(x: Right.Carrier (I.Int^::negSucc n)) => trans!{{Right.Carrier (I.Int^::negSucc n)}} _ _ _ (Right.Negative[n := n].zero (#apply{SecondProjection.map} (I.Int^::negSucc n) (#apply{SecondInjection.map} (I.Int^::negSucc n) x))) (sym!{{Right.Carrier (I.Int^::negSucc n)}} _ _ (Right.Negative[n := n].zero x))
+  };
+\definition firstCross: \forall (z: I.Int^)(x: Right.Carrier z) -> #apply{FirstProjection.map} z (#apply{SecondInjection.map} z x) = #zero{(Left.space z)} :=
+  \induction (z: I.Int^) \return \forall (x: Right.Carrier z) -> #apply{FirstProjection.map} z (#apply{SecondInjection.map} z x) = #zero{(Left.space z)} \with {
+    | ofNat: \fun (n: N.Nat^)(x: Right.Carrier (I.Int^::ofNat n)) => \refl(#zero{(Left.space (I.Int^::ofNat n))})
+    | negSucc: \fun (n: N.Nat^)(x: Right.Carrier (I.Int^::negSucc n)) => Left.Negative[n := n].zero (#apply{FirstProjection.map} (I.Int^::negSucc n) (#apply{SecondInjection.map} (I.Int^::negSucc n) x))
+  };
+\definition secondCross: \forall (z: I.Int^)(x: Left.Carrier z) -> #apply{SecondProjection.map} z (#apply{FirstInjection.map} z x) = #zero{(Right.space z)} :=
+  \induction (z: I.Int^) \return \forall (x: Left.Carrier z) -> #apply{SecondProjection.map} z (#apply{FirstInjection.map} z x) = #zero{(Right.space z)} \with {
+    | ofNat: \fun (n: N.Nat^)(x: Left.Carrier (I.Int^::ofNat n)) => \refl(#zero{(Right.space (I.Int^::ofNat n))})
+    | negSucc: \fun (n: N.Nat^)(x: Left.Carrier (I.Int^::negSucc n)) => Right.Negative[n := n].zero (#apply{SecondProjection.map} (I.Int^::negSucc n) (#apply{FirstInjection.map} (I.Int^::negSucc n) x))
+  };
+\definition reconstructed(z: I.Int^)(x: Sum.Carrier z): Sum.Carrier z :=
+  #add{(Sum.space z)} (#apply{FirstInjection.map} z (#apply{FirstProjection.map} z x)) (#apply{SecondInjection.map} z (#apply{SecondProjection.map} z x));
+\module Positive(n: N.Nat^);
+\definition reconstruction: \forall (z: I.Int^)(x: Sum.Carrier z) -> reconstructed z x = x :=
+  \induction (z: I.Int^) \return \forall (x: Sum.Carrier z) -> reconstructed z x = x \with {
+    | ofNat: \fun (n: N.Nat^)(x: Sum.Carrier (I.Int^::ofNat n)) =>
+        Positive[n := n].law x
+    | negSucc: \fun (n: N.Nat^)(x: Sum.Carrier (I.Int^::negSucc n)) => trans!{{Sum.Carrier (I.Int^::negSucc n)}} _ _ _
+        (Sum.Negative[n := n].zero (reconstructed (I.Int^::negSucc n) x)) (sym!{{Sum.Carrier (I.Int^::negSucc n)}} _ _ (Sum.Negative[n := n].zero x))
+  };
+\module Homology(z: I.Int^);
