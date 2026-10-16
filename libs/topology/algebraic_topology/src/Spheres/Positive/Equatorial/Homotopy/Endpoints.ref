@@ -1,0 +1,24 @@
+\import Fin.Tuples[A := Real.Real] \as Tuples;
+\definition headAtEnd: \forall (x: Intersection) -> height (move Interval.end x) = Real.zero :=
+  \fun (x: Intersection) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv (Geometry.norm (vector Interval.end x)))) _ _
+      (Split.headJoin (Real.mul (Interval.reverse Interval.end) (height x)) (Split.tail x)))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv (Geometry.norm (vector Interval.end x)))) _ _ (endHeight x))
+      (Laws.fieldMulZeroRight (Laws.fieldInv (Geometry.norm (vector Interval.end x)))));
+\definition tailAtEnd: \forall (x: Intersection) -> Split.tail (move Interval.end x) = retraction x :=
+  \fun (x: Intersection) => \axiom:funext(Split.tail (move Interval.end x), retraction x,
+    \fun (i: Lower.Index) => congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+      (congr!{Real.Real Real.Real} Laws.fieldInv _ _ (endNorm x))
+      (Tuples.atSuccessor (N.Nat^::succ n) (Real.mul (Interval.reverse Interval.end) (height x)) (Split.tail x) i));
+\definition atEnd: \forall (x: Intersection) -> move Interval.end x = inclusion (retraction x) :=
+  \fun (x: Intersection) => Split.ext (move Interval.end x) (inclusion (retraction x))
+    (trans!{Real.Real} _ _ _ (headAtEnd x) (sym!{Real.Real} _ _ (Split.equatorHead (retraction x))))
+    (trans!{Lower.Coordinate} _ _ _ (tailAtEnd x) (sym!{Lower.Coordinate} _ _ (Split.equatorTail (retraction x))));
+\definition coordinatesFixed: \forall (t: Interval.Carrier)(x: Carrier n) -> coordinates t (inclusion x) = equator x :=
+  \fun (t: Interval.Carrier)(x: Carrier n) => congr2!{Real.Real Lower.Coordinate Ambient.Coordinate} Split.join _ _ _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Interval.reverse t)) _ _ (Split.equatorHead x))
+      (Laws.fieldMulZeroRight (Interval.reverse t))) (Split.equatorTail x);
+\definition fixesEquator: \forall (t: Interval.Carrier)(x: Carrier n) -> move t (inclusion x) = inclusion x :=
+  \fun (t: Interval.Carrier)(x: Carrier n) => trans!{Sphere} _ _ _
+    (congr!{AmbientNormalization.Nonzero Sphere} AmbientNormalization.normalize (vector t (inclusion x)) (AmbientNormalization.ofSphere (inclusion x)) (coordinatesFixed t x))
+    (AmbientNormalization.normalizesUnit (inclusion x));

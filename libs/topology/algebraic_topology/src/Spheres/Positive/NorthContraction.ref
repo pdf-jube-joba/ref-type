@@ -1,0 +1,41 @@
+\import \parent.Height[] \as Height;
+\import \root.Interval[] \as Interval;
+\import Lower.Contraction[] \as Scaling;
+\use Equality.congr2;
+\definition centre: Left := \into[Sphere](north, left) \by {
+  R.ltReplaceRight (Real.neg Real.one) Real.one (height north)
+    (sym!{Real.Real} _ _ (Split.headJoin Real.one Scaling.zero)) endpointsOrdered
+};
+\definition move(t: Interval.Carrier)(x: Left): Left := \into[Sphere](Height.adjusted t x, left) \by {
+  R.ltReplaceRight (Real.neg Real.one) (Height.advance t (height x)) (height (Height.adjusted t x))
+    (sym!{Real.Real} _ _ (Split.headJoin (Height.advance t (height x)) (Scaling.scale (Height.multiplier t (height x)) (Split.tail x))))
+    (Height.aboveSouth t (height x) (\bysub(Sphere, left, x)) (#right{(heightBounds x)}))
+};
+\definition startTail: \forall (x: Left) -> Scaling.scale (Height.multiplier Interval.start (height x)) (Split.tail x) = Split.tail x :=
+  \fun (x: Left) => \axiom:funext(Scaling.scale (Height.multiplier Interval.start (height x)) (Split.tail x), Split.tail x,
+    \fun (i: Lower.Index) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Split.tail x i)) _ _ (Height.multiplierAtStart (height x) (\bysub(Sphere, left, x))))
+      (Laws.fieldMulOneLeft (Split.tail x i)));
+\definition endTail: \forall (x: Left) -> Scaling.scale (Height.multiplier Interval.end (height x)) (Split.tail x) = Scaling.zero :=
+  \fun (x: Left) => \axiom:funext(Scaling.scale (Height.multiplier Interval.end (height x)) (Split.tail x), Scaling.zero,
+    \fun (i: Lower.Index) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Split.tail x i)) _ _ (Height.multiplierAtEnd (height x)))
+      (Laws.fieldMulZeroLeft (Split.tail x i)));
+\definition atStart: \forall (x: Left) -> move Interval.start x = x :=
+  \fun (x: Left) => trans!{Ambient.Coordinate} _ _ _
+    (congr2!{Real.Real Lower.Coordinate Ambient.Coordinate} Split.join _ _ _ _ (Height.atStart (height x)) (startTail x))
+    (Split.recover x);
+\definition atEnd: \forall (x: Left) -> move Interval.end x = centre :=
+  \fun (x: Left) => congr2!{Real.Real Lower.Coordinate Ambient.Coordinate} Split.join _ _ _ _ (Height.atEnd (height x)) (endTail x);
+\import \root.Cylinder[A := Left] \as Cylinder;
+\definition family(p: Cylinder.Carrier): Left := move (Cylinder.time p) (Cylinder.point p);
+\module Continuity;
+\import \root.Homotopy[A := Left, B := Left] \as Homotopies;
+\definition homotopy: Homotopies.Homotopy[leftTopology, leftTopology, (\fun (x: Left) => x), (\fun (_: Left) => centre)] :=
+  \into[Homotopies.Family](family, Homotopies.Homotopy[leftTopology, leftTopology, (\fun (x: Left) => x), (\fun (_: Left) => centre)]) \by {
+    Homotopies.Laws[leftTopology, leftTopology, (\fun (x: Left) => x), (\fun (_: Left) => centre), family] {
+      continuous := Continuity[].continuous, start := atStart, end := atEnd,
+    }
+  };
+\import \root.Contraction[A := Left, source := leftTopology] \as General;
+\definition contraction: General.Data := General.Data { centre := centre, homotopy := homotopy };

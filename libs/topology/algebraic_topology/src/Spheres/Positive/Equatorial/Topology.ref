@@ -1,0 +1,21 @@
+\import topology.Continuity[A := Sphere, B := Real.Real].Restriction[S := left] \as LeftRestriction;
+\import topology.Continuity[A := Left, B := Real.Real].Restriction[S := intersection] \as IntersectionRestriction;
+\definition coordinateContinuous: \forall (i: Ambient.Index) ->
+  topology.Continuity[A := Intersection, B := Real.Real].Continuous intersectionTopology Line.topology (\fun (x: Intersection) => x i) :=
+  \fun (i: Ambient.Index) => IntersectionRestriction.restrictContinuous leftTopology Line.topology (\fun (x: Left) => x i)
+    (LeftRestriction.restrictContinuous (topology (N.Nat^::succ n)) Line.topology (\fun (x: Sphere) => x i)
+      (Evaluation.composeContinuous (topology (N.Nat^::succ n)) Ambient.topology Line.topology
+        (\fun (x: Sphere) => x) (\fun (x: Ambient.Coordinate) => x i) (Inclusion.inclusionContinuous Ambient.topology)
+        (Coordinates.evaluationContinuous Line.topology i)));
+\import topological_algebra.Coordinates[K := Real.Real, I := Lower.Index].Universal[A := Intersection] \as TailCoordinates;
+\definition tailContinuous: topology.Continuity[A := Intersection, B := Lower.Coordinate].Continuous intersectionTopology Lower.topology (\fun (x: Intersection) => Split.tail x) :=
+  TailCoordinates.continuous intersectionTopology Line.topology (\fun (x: Intersection) => Split.tail x)
+    (\fun (i: Lower.Index) => coordinateContinuous (Fin.succ (N.Nat^::succ n) i));
+\import Normalization.Continuity[A := Intersection] \as Normalize;
+\definition retractionContinuous: topology.Continuity[A := Intersection, B := Carrier n].Continuous intersectionTopology (topology n) retraction :=
+  Normalize.continuous intersectionTopology tailVector tailContinuous;
+\import topology.Continuity[A := Carrier n, B := Sphere].Corestriction[S := left] \as IntoLeft;
+\import topology.Continuity[A := Carrier n, B := Left].Corestriction[S := intersection] \as IntoIntersection;
+\definition inclusionContinuous: topology.Continuity[A := Carrier n, B := Intersection].Continuous (topology n) intersectionTopology inclusion :=
+  IntoIntersection.corestrictContinuous (topology n) leftTopology inclusion
+    (IntoLeft.corestrictContinuous (topology n) (topology (N.Nat^::succ n)) (\fun (x: Carrier n) => inclusion x) equatorContinuous);

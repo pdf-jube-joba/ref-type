@@ -1,0 +1,25 @@
+\import \parent.Equatorial[] \as Equatorial;
+\import \parent.NorthContraction[] \as North;
+\import \parent.SouthContraction[] \as South;
+\definition common: Intersection := Equatorial.inclusion (point n);
+\definition rightCommon: Right := \into[Sphere](common, right) \by { \bysub(Left, intersection, common) };
+\import \root.PathComponent[A := Sphere, source := topology (N.Nat^::succ n)] \as Components;
+\import \root.Contraction[A := Left, source := leftTopology].Paths[] \as LeftPaths;
+\import \root.Contraction[A := Right, source := rightTopology].Paths[] \as RightPaths;
+\import \root.PathComponent[A := Left, source := leftTopology].Maps[B := Sphere, target := topology (N.Nat^::succ n)] \as LeftInclusion;
+\import \root.PathComponent[A := Right, source := rightTopology].Maps[B := Sphere, target := topology (N.Nat^::succ n)] \as RightInclusion;
+\import topology.Continuity[A := Sphere, B := Sphere].Corestriction[S := left] \as IncludeLeft;
+\import topology.Continuity[A := Sphere, B := Sphere].Corestriction[S := right] \as IncludeRight;
+\definition fromLeft: \forall (x: Left) -> Components.Related x common :=
+  \fun (x: Left) => LeftInclusion.preserves (\fun (x: Left) => x) (IncludeLeft.inclusionContinuous (topology (N.Nat^::succ n))) x common
+    (LeftPaths.connected North.contraction x common);
+\definition fromRight: \forall (x: Right) -> Components.Related x common :=
+  \fun (x: Right) => RightInclusion.preserves (\fun (x: Right) => x) (IncludeRight.inclusionContinuous (topology (N.Nat^::succ n))) x rightCommon
+    (RightPaths.connected South.contraction x rightCommon);
+\definition toCommon: \forall (x: Sphere) -> Components.Related x common :=
+  \fun (x: Sphere) => either!{{(covered x)} {Components.Related x common}
+    {\fun (member: Space.Member left x) => fromLeft (\into[Sphere](x, left) \by { member })}
+    {\fun (member: Space.Member right x) => fromRight (\into[Sphere](x, right) \by { member })}
+  };
+\definition connected: Components.PathConnected := \fun (x, y: Sphere) =>
+  Components.transitive x common y (toCommon x) (Components.symmetric y common (toCommon y));

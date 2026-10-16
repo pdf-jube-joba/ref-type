@@ -1,0 +1,69 @@
+\import \parent.Height[] \as Height;
+\import Lower.Geometry[] \as LowerGeometry;
+\import Lower.Normalization[] \as Normalization;
+\import Ambient.Normalization[] \as AmbientNormalization;
+\import Real.Estimates[].Product[] \as Products;
+\import Real.SquareRoot[] \as Root;
+\import Real.Inverse[] \as Inverse;
+\import Real.Algebra[] \as Algebra;
+\import \root.Interval[] \as Interval;
+\use Equality.congr2;
+\definition tailPositive: \forall (x: Intersection) -> R.Lt Real.zero (Lower.normSquared (Split.tail x)) :=
+  \fun (x: Intersection) => R.ltReplaceRight Real.zero
+    (Real.mul (Real.sub Real.one (height x)) (Real.add Real.one (height x))) (Lower.normSquared (Split.tail x))
+    (sym!{Real.Real} _ _ (Height.tailFactor x))
+    (Products.mulPositive (Real.sub Real.one (height x)) (Real.add Real.one (height x))
+      (Root.subPositive Real.one (height x) (\bysub(Left, intersection, x)))
+      (Height.onePlusPositive (height x) (\bysub(Sphere, left, x))));
+\definition tailVector(x: Intersection): Normalization.Nonzero := \into[Lower.Coordinate](Split.tail x, Normalization.Nonzero) \by {
+  Inverse.positiveNonzero (Lower.normSquared (Split.tail x)) (tailPositive x)
+};
+\definition retraction(x: Intersection): Carrier n := Normalization.normalize (tailVector x);
+\definition inclusion(x: Carrier n): Intersection := \into[Left](\into[Sphere](equator x, left) \by {
+  R.ltReplaceRight (Real.neg Real.one) Real.zero (height (equator x)) (sym!{Real.Real} _ _ (Split.equatorHead x))
+    (R.ltReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero
+      (Laws.negStrictAntitone Real.zero Real.one Products.onePositive))
+}, intersection) \by {
+  R.ltReplaceLeft Real.zero (height (equator x)) Real.one (sym!{Real.Real} _ _ (Split.equatorHead x)) Products.onePositive
+};
+\definition retracts: \forall (x: Carrier n) -> retraction (inclusion x) = x :=
+  \fun (x: Carrier n) => trans!{{Carrier n}} _ _ _
+    (congr!{Normalization.Nonzero {Carrier n}} Normalization.normalize (tailVector (inclusion x)) (Normalization.ofSphere x) (Split.equatorTail x))
+    (Normalization.normalizesUnit x);
+\definition heightNonUnit: \forall (x: Sphere) -> R.Lt Real.zero (Lower.normSquared (Split.tail x)) ->
+  \forall (a: Real.Real) -> Real.mul a a = Real.one -> Logic.Not (height x = a) :=
+  \fun (x: Sphere)(positive: _)(a: Real.Real)(unit: _)(equal: _) =>
+    Inverse.positiveNonzero (Lower.normSquared (Split.tail x)) positive
+      (Split.Pole[].tailSquared x (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ equal equal) unit));
+\definition lowerBound: \forall (x: Sphere) -> R.Lt Real.zero (Lower.normSquared (Split.tail x)) -> Space.Member left x :=
+  \fun (x: Sphere)(positive: _) => Order.ltOfLeNotEq (Real.neg Real.one) (height x) (#left{(heightBounds x)})
+    (\fun (equal: Real.neg Real.one = height x) => heightNonUnit x positive (Real.neg Real.one)
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth Real.one Real.one) (Laws.fieldMulOneLeft Real.one)) (sym!{Real.Real} _ _ equal));
+\definition upperBound: \forall (x: Sphere) -> R.Lt Real.zero (Lower.normSquared (Split.tail x)) -> Space.Member right x :=
+  \fun (x: Sphere)(positive: _) => Order.ltOfLeNotEq (height x) Real.one (#right{(heightBounds x)})
+    (heightNonUnit x positive Real.one (Laws.fieldMulOneLeft Real.one));
+\definition refine(x: Sphere)(positive: R.Lt Real.zero (Lower.normSquared (Split.tail x))): Intersection :=
+  \into[Left](\into[Sphere](x, left) \by { lowerBound x positive }, intersection) \by { upperBound x positive };
+\module Topology;
+\module Homotopy;
+\import \root.Homotopy[A := Carrier n, B := Carrier n] \as LeftHomotopies;
+\import \root.Homotopy[A := Intersection, B := Intersection] \as RightHomotopies;
+\import \root.Cylinder[A := Carrier n] \as LowerCylinder;
+\definition leftHomotopy: LeftHomotopies.Homotopy[topology n, topology n, (\fun (x: Carrier n) => retraction (inclusion x)), (\fun (x: Carrier n) => x)] :=
+  \into[LeftHomotopies.Family](LowerCylinder.point,
+    LeftHomotopies.Homotopy[topology n, topology n, (\fun (x: Carrier n) => retraction (inclusion x)), (\fun (x: Carrier n) => x)]) \by {
+    LeftHomotopies.Laws[topology n, topology n, (\fun (x: Carrier n) => retraction (inclusion x)), (\fun (x: Carrier n) => x), LowerCylinder.point] {
+      continuous := LowerCylinder.pointContinuous (topology n),
+      start := \fun (x: Carrier n) => sym!{{Carrier n}} _ _ (retracts x),
+      end := \fun (x: Carrier n) => \refl(x),
+    }
+  };
+\import \root.HomotopyEquivalence[A := Carrier n, B := Intersection] \as Equivalences;
+\definition equivalence: Equivalences.Equivalence[topology n, intersectionTopology] := Equivalences.Equivalence[topology n, intersectionTopology] {
+  forward := inclusion, backward := retraction,
+  forwardContinuous := Topology[].inclusionContinuous, backwardContinuous := Topology[].retractionContinuous,
+  leftInverse := \exact(leftHomotopy, LeftHomotopies.Homotopy[topology n, topology n, (\fun (x: Carrier n) => retraction (inclusion x)), (\fun (x: Carrier n) => x)]),
+  rightInverse := \exact(RightHomotopies.reverse intersectionTopology intersectionTopology (\fun (x: Intersection) => x)
+    (\fun (x: Intersection) => inclusion (retraction x)) Homotopy[].homotopy,
+    RightHomotopies.Homotopy[intersectionTopology, intersectionTopology, (\fun (x: Intersection) => inclusion (retraction x)), (\fun (x: Intersection) => x)]),
+};
