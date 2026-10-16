@@ -1,0 +1,58 @@
+\import Domain.Reduced[] \as SourceReduced;
+\import Codomain.Reduced[] \as TargetReduced;
+\import \parent.Augmentation[] \as Augmentation;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Map[C := SourceReduced.complex, D := TargetReduced.complex] \as Maps;
+\definition apply(f: A -> B)(continuous: Continuous f): \forall (z: I.Int^) -> SourceReduced.Carrier z -> TargetReduced.Carrier z :=
+  \induction (z: I.Int^) \return SourceReduced.Carrier z -> TargetReduced.Carrier z \with {
+    | ofNat: \fun (n: N.Nat^) => #apply{(push f continuous)} n
+    | negSucc: \induction (n: N.Nat^) \return SourceReduced.Carrier (I.Int^::negSucc n) -> TargetReduced.Carrier (I.Int^::negSucc n) \with {
+      | zero: \fun (x: I.Int^) => x
+      | succ: \fun (n: N.Nat^)(unused: _)(x: Modules.Zero[].Carrier) => x
+    }
+  };
+\definition addition: \forall (f: A -> B)(continuous: Continuous f)(z: I.Int^)(x, y: SourceReduced.Carrier z) ->
+  apply f continuous z (#add{(SourceReduced.space z)} x y) = #add{(TargetReduced.space z)} (apply f continuous z x) (apply f continuous z y) :=
+  \fun (f: A -> B)(continuous: Continuous f) => \induction (z: I.Int^) \return \forall (x, y: SourceReduced.Carrier z) ->
+    apply f continuous z (#add{(SourceReduced.space z)} x y) = #add{(TargetReduced.space z)} (apply f continuous z x) (apply f continuous z y) \with {
+      | ofNat: \fun (n: N.Nat^) => #addition{(push f continuous)} n
+      | negSucc: \induction (n: N.Nat^) \return \forall (x, y: SourceReduced.Carrier (I.Int^::negSucc n)) ->
+        apply f continuous (I.Int^::negSucc n) (#add{(SourceReduced.space (I.Int^::negSucc n))} x y) =
+        #add{(TargetReduced.space (I.Int^::negSucc n))} (apply f continuous (I.Int^::negSucc n) x) (apply f continuous (I.Int^::negSucc n) y) \with {
+          | zero: \fun (x, y: I.Int^) => \refl(#add{Modules.scalarModule} x y)
+          | succ: \fun (n: N.Nat^)(unused: _)(x, y: Modules.Zero[].Carrier) => \refl(Modules.Zero[].Carrier::zero)
+        }
+    };
+\definition scalar: \forall (f: A -> B)(continuous: Continuous f)(z: I.Int^)(r: I.Int^)(x: SourceReduced.Carrier z) ->
+  apply f continuous z (#smul{(SourceReduced.space z)} r x) = #smul{(TargetReduced.space z)} r (apply f continuous z x) :=
+  \fun (f: A -> B)(continuous: Continuous f) => \induction (z: I.Int^) \return \forall (r: I.Int^)(x: SourceReduced.Carrier z) ->
+    apply f continuous z (#smul{(SourceReduced.space z)} r x) = #smul{(TargetReduced.space z)} r (apply f continuous z x) \with {
+      | ofNat: \fun (n: N.Nat^) => #scalar{(push f continuous)} n
+      | negSucc: \induction (n: N.Nat^) \return \forall (r: I.Int^)(x: SourceReduced.Carrier (I.Int^::negSucc n)) ->
+        apply f continuous (I.Int^::negSucc n) (#smul{(SourceReduced.space (I.Int^::negSucc n))} r x) =
+        #smul{(TargetReduced.space (I.Int^::negSucc n))} r (apply f continuous (I.Int^::negSucc n) x) \with {
+          | zero: \fun (r, x: I.Int^) => \refl(#smul{Modules.scalarModule} r x)
+          | succ: \fun (n: N.Nat^)(unused: _)(r: I.Int^)(x: Modules.Zero[].Carrier) => \refl(Modules.Zero[].Carrier::zero)
+        }
+    };
+\import chain_complexes.Chain[] \as Degrees;
+\definition commutes: \forall (f: A -> B)(continuous: Continuous f)(z: I.Int^)(x: SourceReduced.Carrier z) ->
+  #apply{TargetReduced.differential} z (apply f continuous z x) = apply f continuous (Degrees.previous z) (#apply{SourceReduced.differential} z x) :=
+  \fun (f: A -> B)(continuous: Continuous f) => \induction (z: I.Int^) \return \forall (x: SourceReduced.Carrier z) ->
+    #apply{TargetReduced.differential} z (apply f continuous z x) = apply f continuous (Degrees.previous z) (#apply{SourceReduced.differential} z x) \with {
+      | ofNat: \induction (n: N.Nat^) \return \forall (x: SourceReduced.Carrier (I.Int^::ofNat n)) ->
+        #apply{TargetReduced.differential} (I.Int^::ofNat n) (apply f continuous (I.Int^::ofNat n) x) =
+        apply f continuous (Degrees.previous (I.Int^::ofNat n)) (#apply{SourceReduced.differential} (I.Int^::ofNat n) x) \with {
+          | zero: Augmentation.naturality f continuous
+          | succ: \fun (n: N.Nat^)(unused: _) => #commutes{(push f continuous)} n
+        }
+      | negSucc: \induction (n: N.Nat^) \return \forall (x: SourceReduced.Carrier (I.Int^::negSucc n)) ->
+        #apply{TargetReduced.differential} (I.Int^::negSucc n) (apply f continuous (I.Int^::negSucc n) x) =
+        apply f continuous (Degrees.previous (I.Int^::negSucc n)) (#apply{SourceReduced.differential} (I.Int^::negSucc n) x) \with {
+          | zero: \fun (x: I.Int^) => \refl(Modules.Zero[].Carrier::zero)
+          | succ: \fun (n: N.Nat^)(unused: _)(x: Modules.Zero[].Carrier) => \refl(Modules.Zero[].Carrier::zero)
+        }
+    };
+\definition map(f: A -> B)(continuous: Continuous f): Maps.Map := Maps.Map {
+  apply := apply f continuous, addition := addition f continuous, scalar := scalar f continuous, commutes := commutes f continuous,
+};
