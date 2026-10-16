@@ -227,6 +227,7 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 現在は階数だけを自然数の帰納法で定義し、各次数の加群を `FiniteCoordinates` の同じ構成で得る。
 [12-02-coordinate-family.ref](gaps/12-02-coordinate-family.ref) はこの形の族を公開する。
 [`TensorCochain.Over.Unit`](../libs/algebra/homological/field_kunneth/src/TensorCochain/Over/Unit.ref) は階数を零次で一、そのほかで零とし、零次の唯一の座標での評価と定数一のベクトルを用いて左右の単位同型を証明する。
+`algebraic_topology.Simplex.BarycentricSubdivision.Cell` は面の選択列の共通の型を使い、次元ごとの条件を満たす部分集合としてセルの族を定義する。
 
 <a id="g13"></a>
 

@@ -1,0 +1,25 @@
+\import std.Data[].List[] \as Lists;
+\import N.Basic[].Prop[] \as Bounds;
+\definition Raw: \Set := Lists.List[N.Nat^];
+\definition head: Raw -> N.Nat^ := \induction (xs: Raw) \return N.Nat^ \with {
+  | nil: N.Nat^::zero
+  | cons: \fun (i: N.Nat^)(tail: Raw)(previous: N.Nat^) => i
+};
+\definition tail: Raw -> Raw := \induction (xs: Raw) \return Raw \with {
+  | nil: Lists.List[N.Nat^]::nil
+  | cons: \fun (i: N.Nat^)(tail: Raw)(previous: Raw) => tail
+};
+\definition Valid: \forall (n: N.Nat^) -> Raw -> \Prop := \induction (n: N.Nat^) \return Raw -> \Prop \with {
+  | zero: \fun (xs: Raw) => Logic.True
+  | succ: \fun (n: N.Nat^)(previous: Raw -> \Prop)(xs: Raw) => Logic.And[Bounds.Lt (head xs) (N.Nat^::succ (N.Nat^::succ n)), previous (tail xs)]
+};
+\definition Cell(n: N.Nat^): \Set := \Cast[Raw] ({ xs: Raw \where Valid n xs });
+\definition base: Cell N.Nat^::zero := \into[Raw](Lists.List[N.Nat^]::nil, { xs: Raw \where Valid N.Nat^::zero xs }) \by { Logic.True::intro };
+\module Step(n: N.Nat^);
+\definition vertices: \forall (n: N.Nat^) -> Cell n -> Fin.Fin (N.Nat^::succ n) -> Carrier n :=
+  \induction (n: N.Nat^) \return Cell n -> Fin.Fin (N.Nat^::succ n) -> Carrier n \with {
+    | zero: \fun (c: Cell N.Nat^::zero)(i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => zeroPoint
+    | succ: \fun (n: N.Nat^)(previous: Cell n -> Fin.Fin (N.Nat^::succ n) -> Carrier n) => Step[n := n].vertices previous
+  };
+\module At(n: N.Nat^);
+\module Mesh;

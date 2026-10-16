@@ -1,0 +1,18 @@
+\import Fin.Tuples[A := Carrier (N.Nat^::succ n)] \as Tuples;
+\import \parent.\parent.Barycentre[n := N.Nat^::succ n] \as Centre;
+\definition faceIndex(c: Cell (N.Nat^::succ n)): Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) :=
+  \into[N.Nat^](head c, { i: N.Nat^ \where Bounds.Lt i (N.Nat^::succ (N.Nat^::succ n)) }) \by { #left{(\bysub(Raw, { xs: Raw \where Valid (N.Nat^::succ n) xs }, c))} };
+\definition lower(c: Cell (N.Nat^::succ n)): Cell n := \into[Raw](tail c, { xs: Raw \where Valid n xs }) \by {
+  #right{(\bysub(Raw, { xs: Raw \where Valid (N.Nat^::succ n) xs }, c))}
+};
+\definition join(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(c: Cell n): Cell (N.Nat^::succ n) :=
+  \into[Raw](Lists.List[N.Nat^]::cons i c, { xs: Raw \where Valid (N.Nat^::succ n) xs }) \by {
+    Logic.And[_, _]::# (Fin.bound (N.Nat^::succ (N.Nat^::succ n)) i) (\bysub(Raw, { xs: Raw \where Valid n xs }, c))
+  };
+\definition vertices(previous: Cell n -> Fin.Fin (N.Nat^::succ n) -> Carrier n)(c: Cell (N.Nat^::succ n)): Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> Carrier (N.Nat^::succ n) :=
+  Tuples.extend (N.Nat^::succ n) Centre.point (\fun (j: Fin.Fin (N.Nat^::succ n)) => face n (faceIndex c) (previous (lower c) j));
+\definition head: \forall (previous: Cell n -> Fin.Fin (N.Nat^::succ n) -> Carrier n)(c: Cell (N.Nat^::succ n)) -> vertices previous c (Fin.zero (N.Nat^::succ n)) = Centre.point :=
+  \fun (previous: Cell n -> Fin.Fin (N.Nat^::succ n) -> Carrier n)(c: Cell (N.Nat^::succ n)) => Tuples.atZero (N.Nat^::succ n) _ _;
+\definition successor: \forall (previous: Cell n -> Fin.Fin (N.Nat^::succ n) -> Carrier n)(c: Cell (N.Nat^::succ n))(j: Fin.Fin (N.Nat^::succ n)) ->
+  vertices previous c (Fin.succ (N.Nat^::succ n) j) = face n (faceIndex c) (previous (lower c) j) :=
+  \fun (previous: Cell n -> Fin.Fin (N.Nat^::succ n) -> Carrier n)(c: Cell (N.Nat^::succ n))(j: Fin.Fin (N.Nat^::succ n)) => Tuples.atSuccessor (N.Nat^::succ n) _ _ j;
