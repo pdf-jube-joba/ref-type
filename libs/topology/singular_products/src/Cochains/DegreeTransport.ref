@@ -1,0 +1,15 @@
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition evaluate(n: N.Nat^)(alpha: Carrier n)(sigma: Simplices.Carrier n): R := #apply{alpha} (Chains.generator n sigma);
+\definition sameDegree: \forall (n: N.Nat^)(same: n = n)(alpha: Carrier n)(sigma: Simplices.Carrier n) ->
+  evaluate n (Transport.cast Carrier n n same alpha) sigma = evaluate n alpha (Transport.cast Simplices.Carrier n n (sym!{N.Nat^} n n same) sigma) :=
+  \fun (n: N.Nat^)(same: n = n)(alpha: Carrier n)(sigma: Simplices.Carrier n) => trans!{R} _ _ _
+    (congr!{{Carrier n} R} (\fun (h: Carrier n) => evaluate n h sigma) _ _ (Transport.castRefl Carrier n alpha))
+    (sym!{R} _ _ (congr!{{Simplices.Carrier n} R} (evaluate n alpha) _ _ (Transport.castRefl Simplices.Carrier n sigma)));
+\definition law: \forall (m, n: N.Nat^)(same: m = n)(alpha: Carrier m)(sigma: Simplices.Carrier n) ->
+  evaluate n (Transport.cast Carrier m n same alpha) sigma = evaluate m alpha (Transport.cast Simplices.Carrier n m (sym!{N.Nat^} m n same) sigma) :=
+  \fun (m, n: N.Nat^)(same: m = n)(alpha: Carrier m) =>
+    (\idelim m = n \with k: N.Nat^ => \forall (equal: m = k)(sigma: Simplices.Carrier k) ->
+      evaluate k (Transport.cast Carrier m k equal alpha) sigma = evaluate m alpha (Transport.cast Simplices.Carrier k m (sym!{N.Nat^} m k equal) sigma) \by {
+        base: \fun (equal: m = m) => sameDegree m equal alpha,
+        equality: same
+      }) same;
