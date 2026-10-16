@@ -38,6 +38,7 @@
 | `SubdivisionCells.Words` / `Length` / `Evaluation.Comparison` | 反復細分のセル列の鎖、長さごとの部分加群と細分に可換な評価。 |
 | `Small.Cover.On.Eventually` | 引き戻した開被覆の Lebesgue 数と距離評価から、十分な反復細分で各セルが小単体になること。 |
 | `Small.Cover.On.WordChains.Support` | 各特異単体の十分な反復細分が小鎖複体の像に入ること。 |
+| `Small.Persistence` / `Small.Cover.Chains` | 小鎖に入った後の反復細分の保存と、任意の特異鎖についての十分な細分回数の存在。 |
 | `Zero.With.Functions` | 任意の空間の零次コホモロジーと、道成分全体から係数群への全関数の加群との同型。 |
 | `Zero.Homology` | 零次整数ホモロジーと、道成分の集合上の自由整数加群との同型。 |
 | `Calculations.With.Singleton` | 一点空間の零次の係数加群との同型と、全正次数での消滅。 |
