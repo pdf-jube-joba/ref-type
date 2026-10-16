@@ -1,0 +1,29 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Hom.Integer[P := OriginalSource.complex, N := coefficients] \as OriginalSourceH;
+\import Hom.Integer[P := OriginalTarget.complex, N := coefficients] \as OriginalTargetH;
+\import Hom.Integer[P := ExpandedSource.complex, N := coefficients] \as ExpandedSourceH;
+\import Hom.Integer[P := ExpandedTarget.complex, N := coefficients] \as ExpandedTargetH;
+\definition originalSource: Modules.Bundle := Modules.Bundle { Carrier := OriginalSourceH.Cohomology[z := z].Cohomology, space := OriginalSourceH.Cohomology[z := z].cohomologySpace };
+\definition originalTarget: Modules.Bundle := Modules.Bundle { Carrier := OriginalTargetH.Cohomology[z := z].Cohomology, space := OriginalTargetH.Cohomology[z := z].cohomologySpace };
+\definition expandedSource: Modules.Bundle := Modules.Bundle { Carrier := ExpandedSourceH.Cohomology[z := z].Cohomology, space := ExpandedSourceH.Cohomology[z := z].cohomologySpace };
+\definition expandedTarget: Modules.Bundle := Modules.Bundle { Carrier := ExpandedTargetH.Cohomology[z := z].Cohomology, space := ExpandedTargetH.Cohomology[z := z].cohomologySpace };
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficients;
+\import Hom.IntegerMapping[P := OriginalSource.complex, Q := ExpandedSource.complex, N := coefficients, L := coefficients].On[f := sourceChainMap, u := Coefficients.identity] \as SourcePull;
+\import Hom.IntegerMapping[P := OriginalTarget.complex, Q := ExpandedTarget.complex, N := coefficients, L := coefficients].On[f := targetChainMap, u := Coefficients.identity] \as TargetPull;
+\import Hom.IntegerMapping[P := ExpandedSource.complex, Q := ExpandedTarget.complex, N := coefficients, L := coefficients].On[f := expandedChainMap, u := Coefficients.identity] \as ExpandedPull;
+\import Hom.IntegerMapping[P := OriginalSource.complex, Q := OriginalTarget.complex, N := coefficients, L := coefficients].On[f := quotientChainMap, u := Coefficients.identity] \as QuotientPull;
+\definition inclusionSource: Modules.MapBetween expandedSource originalSource := Cochains.Map[C := ExpandedSourceH.complex, D := OriginalSourceH.complex].At[k := z].induced SourcePull.map;
+\definition inclusionTarget: Modules.MapBetween expandedTarget originalTarget := Cochains.Map[C := ExpandedTargetH.complex, D := OriginalTargetH.complex].At[k := z].induced TargetPull.map;
+\definition expanded: Modules.MapBetween expandedTarget expandedSource := Cochains.Map[C := ExpandedTargetH.complex, D := ExpandedSourceH.complex].At[k := z].induced ExpandedPull.map;
+\definition quotient: Modules.MapBetween originalTarget originalSource := Cochains.Map[C := OriginalTargetH.complex, D := OriginalSourceH.complex].At[k := z].induced QuotientPull.map;
+\import Hom.IntegerComposition[P := OriginalSource.complex, Q := ExpandedSource.complex, T := ExpandedTarget.complex, N := coefficients] \as LeftHom;
+\import Hom.IntegerComposition[P := OriginalSource.complex, Q := OriginalTarget.complex, T := ExpandedTarget.complex, N := coefficients] \as RightHom;
+\import Cochains.Map[C := ExpandedTargetH.complex, D := OriginalSourceH.complex] \as Direct;
+\definition cochainAction(m: ChainMaps.Map): Direct.Map := Hom.IntegerMapping[P := OriginalSource.complex, Q := ExpandedTarget.complex, N := coefficients, L := coefficients].On[f := m, u := Coefficients.identity].map;
+\definition law: \forall (q: expandedTarget.Carrier) -> #apply{inclusionSource} (#apply{expanded} q) = #apply{quotient} (#apply{inclusionTarget} q) :=
+  \fun (q: expandedTarget.Carrier) => trans!{originalSource.Carrier} _ _ _
+    (sym!{originalSource.Carrier} _ _ (LeftHom.At[k := z].onCohomology sourceChainMap expandedChainMap q))
+    (trans!{originalSource.Carrier} _ _ _
+      (congr!{ChainMaps.Map originalSource.Carrier} (\fun (m: ChainMaps.Map) => #apply{(Direct.At[k := z].induced (cochainAction m))} q) _ _ chainLaw)
+      (RightHom.At[k := z].onCohomology quotientChainMap targetChainMap q));

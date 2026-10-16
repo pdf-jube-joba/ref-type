@@ -18,3 +18,30 @@ Mayer–Vietoris の交わりは、左の部分空間を右の集合で再び制
 ホモロジーの包含は \((i_*,-j_*)\)、次の写像は両包含の和である。
 余鎖の制限は両開集合への制限、次の写像は交わり上の制限の差である。
 各次数の `exactAtSum`、`exactAtWhole`、`exactAtIntersection` は、写像と像・核の一致を含む `module_theory.ExactPair.Sequence` を返す。
+
+## 良い対と商空間
+
+`GoodPair.Data` は `algebraic_topology.NeighborhoodRetract.Data` であり、非空な閉部分集合と、それを含む開近傍上の強変形収縮を指定する。
+変形収縮は近傍から部分集合への連続な収縮写像、部分集合上の恒等性、部分集合を各時刻で固定するホモトピーからなる。
+この入力から、近傍の像の可縮性と、部分集合を除いた空間と商の基点を除いた空間の同相を構成する。
+
+| module | 同型 |
+| --- | --- |
+| `GoodPair.On.Homology[z].neighborhoodIsomorphism` | \(H_z(X,A;\mathbb Z)\to H_z(X,N;\mathbb Z)\)。 |
+| `GoodPair.Excision.Homology[z].isomorphism` | \(H_z(X,N;\mathbb Z)\to H_z(X/A,qN;\mathbb Z)\)。 |
+| `GoodPair.On.Homology[z].relativeIsomorphism` | 商写像による \(H_z(X,A;\mathbb Z)\to H_z(X/A,*;\mathbb Z)\)。 |
+| `GoodPair.On.Homology[z].isomorphism` | \(H_z(X,A;\mathbb Z)\to\widetilde H_z(X/A;\mathbb Z)\)。 |
+| `GoodPair.On.With[M].At[z].relativeIsomorphism` | 商写像の引き戻しによる \(H^z(X/A,*;M)\to H^z(X,A;M)\)。 |
+| `GoodPair.On.With[M].At[z].isomorphism` | \(\widetilde H^z(X/A;M)\to H^z(X,A;M)\)。 |
+
+次数 `z` は任意の整数であり、係数 `M` は任意の整数加群である。
+`QuotientSquare` は包含写像と商写像の可換図式を鎖写像、ホモロジー、コホモロジーへ移す。
+商の一点との相対理論と被約理論の比較には、増大鎖の短完全列を使う。
+
+## 公開する切除写像と直和
+
+`Excision.Over.Homology[z].isomorphism pair` と `Excision.Over.With[M].At[z].isomorphism pair` は、通常の相対理論で切除写像が誘導する同型を返す。
+`Excision.Over.Ordinary[pair]` は、その始域と終域の型を定める。
+
+二つの開集合が交わらない場合、`MayerVietoris.Over.On.Chains.Disjoint.With[M].At[z].isomorphism` は空の共通部分の余鎖の零性から、空間全体のコホモロジーと両部分空間のコホモロジーの直和との同型を返す。
+交わらないという仮定は、この同型を与える定義の命題引数である。

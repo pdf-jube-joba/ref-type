@@ -1,0 +1,43 @@
+\import topological_constructions.Product[A := A, B := B] \as Product;
+\import Space.Maps[] \as Projections;
+\import Product.Universal[X := Carrier] \as Universal;
+\import singular_cohomology.Simplices[A := A, source := source] \as LeftSimplices;
+\import singular_cohomology.Simplices[A := B, source := target] \as RightSimplices;
+\definition productTopology: topology.Topology[Carrier := Product.CarrierSet].Topology := Product.topology source target;
+\import singular_cohomology.Chains[A := Product.CarrierSet, source := productTopology] \as ActualChains;
+\import singular_cohomology.Maps[A := Carrier, B := Product.CarrierSet, source := topology, target := productTopology] \as Maps;
+\import topology.Composition[A := Carrier, B := Simplex.Carrier p, C := A] \as LeftComposition;
+\import topology.Composition[A := Carrier, B := Simplex.Carrier q, C := B] \as RightComposition;
+\definition function(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Carrier -> Product.CarrierSet :=
+  Pair.map (Simplex.Carrier p) (Simplex.Carrier q) A B sigma tau;
+\definition continuous(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Maps.Continuous (function sigma tau) :=
+  Universal.pairContinuous topology source target
+    (\fun (point: Carrier) => sigma (Pair.first (Simplex.Carrier p) (Simplex.Carrier q) point))
+    (\fun (point: Carrier) => tau (Pair.second (Simplex.Carrier p) (Simplex.Carrier q) point))
+    (LeftComposition.composeContinuous topology LeftSpace.topology source (Pair.first (Simplex.Carrier p) (Simplex.Carrier q)) sigma
+      (Projections.firstContinuous LeftSpace.topology RightSpace.topology) (LeftSimplices.At[n := p].continuous sigma))
+    (RightComposition.composeContinuous topology RightSpace.topology target (Pair.second (Simplex.Carrier p) (Simplex.Carrier q)) tau
+      (Projections.secondContinuous LeftSpace.topology RightSpace.topology) (RightSimplices.At[n := q].continuous tau));
+\import Complexes.Map[C := Chains.complex, D := ActualChains.complex].Composition[B := Tuples.complex] \as Composition;
+\definition evaluation(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Complexes.Map[C := Tuples.complex, D := ActualChains.complex].Map :=
+  Composition.compose (Maps.push (function sigma tau) (continuous sigma tau)) map;
+\definition onGenerator: \forall (m: N.Nat^)(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q)(v: Tuples.Tuple (N.Nat^::succ m)) ->
+  #apply{(evaluation sigma tau)} m (Tuples.generator (N.Nat^::succ m) v) = ActualChains.generator m
+    (Maps.postcompose m (function sigma tau) (continuous sigma tau) (\parent.At[m := m].onTuple v)) :=
+  \fun (m: N.Nat^)(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q)(v: Tuples.Tuple (N.Nat^::succ m)) =>
+    trans!{{ActualChains.Carrier m}} _ _ _
+      (congr!{{Chains.Carrier m} {ActualChains.Carrier m}} (#apply{(Maps.At[n := m].push (function sigma tau) (continuous sigma tau))}) _ _ (\parent.At[m := m].onGenerator v))
+      (Maps.At[n := m].onGenerator (function sigma tau) (continuous sigma tau) (\parent.At[m := m].onTuple v));
+\definition onSimplices(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): ActualChains.Carrier dimension :=
+  #apply{(evaluation sigma tau)} dimension fundamental;
+\import singular_cohomology.Chains[A := A, source := source] \as LeftChains;
+\import singular_cohomology.Chains[A := B, source := target] \as RightChains;
+\definition left: Modules.Bundle := Modules.Bundle { Carrier := LeftChains.Carrier p, space := LeftChains.space p };
+\definition right: Modules.Bundle := Modules.Bundle { Carrier := RightChains.Carrier q, space := RightChains.space q };
+\definition result: Modules.Bundle := Modules.Bundle { Carrier := ActualChains.Carrier dimension, space := ActualChains.space dimension };
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[A := left, B := right, C := result] \as Bilinear;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].FreeBilinear[X := LeftSimplices.Carrier p, Y := RightSimplices.Carrier q, C := result] \as Extension;
+\definition bilinear: Bilinear.Map := Extension.extend onSimplices;
+\definition shuffle: LeftChains.Carrier p -> RightChains.Carrier q -> ActualChains.Carrier dimension := #apply{bilinear};
+\definition onGenerators: \forall (sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q) ->
+  shuffle (LeftChains.generator p sigma) (RightChains.generator q tau) = onSimplices sigma tau := Extension.onGenerators onSimplices;

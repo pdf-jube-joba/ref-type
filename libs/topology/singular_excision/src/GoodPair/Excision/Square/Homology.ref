@@ -1,0 +1,18 @@
+\import Chains.At[C := SourceRelative.complex, z := z] \as CutSource;
+\import Chains.At[C := TargetRelative.complex, z := z] \as CutTarget;
+\import Chains.At[C := ExpandedSource.complex, z := z] \as WholeSource;
+\import Chains.At[C := ExpandedTarget.complex, z := z] \as WholeTarget;
+\definition cutSource: Modules.Bundle := Modules.Bundle { Carrier := CutSource.Homology, space := CutSource.homologySpace };
+\definition cutTarget: Modules.Bundle := Modules.Bundle { Carrier := CutTarget.Homology, space := CutTarget.homologySpace };
+\definition wholeSource: Modules.Bundle := Modules.Bundle { Carrier := WholeSource.Homology, space := WholeSource.homologySpace };
+\definition wholeTarget: Modules.Bundle := Modules.Bundle { Carrier := WholeTarget.Homology, space := WholeTarget.homologySpace };
+\definition inclusionSource: Modules.MapBetween cutSource wholeSource := Chains.Map[C := SourceRelative.complex, D := ExpandedSource.complex].At[k := z].induced sourceChainMap;
+\definition inclusionTarget: Modules.MapBetween cutTarget wholeTarget := Chains.Map[C := TargetRelative.complex, D := ExpandedTarget.complex].At[k := z].induced targetChainMap;
+\definition complement: Modules.MapBetween cutSource cutTarget := Chains.Map[C := SourceRelative.complex, D := TargetRelative.complex].At[k := z].induced complementChainMap;
+\definition quotient: Modules.MapBetween wholeSource wholeTarget := Chains.Map[C := ExpandedSource.complex, D := ExpandedTarget.complex].At[k := z].induced quotientChainMap;
+\definition law: \forall (q: cutSource.Carrier) -> #apply{quotient} (#apply{inclusionSource} q) = #apply{inclusionTarget} (#apply{complement} q) :=
+  \fun (q: cutSource.Carrier) => trans!{wholeTarget.Carrier} _ _ _
+    (sym!{wholeTarget.Carrier} _ _ (LeftComposition.At[k := z].compositionOnHomology quotientChainMap sourceChainMap q))
+    (trans!{wholeTarget.Carrier} _ _ _
+      (congr!{ChainMaps.Map wholeTarget.Carrier} (\fun (m: ChainMaps.Map) => #apply{(ChainMaps.At[k := z].induced m)} q) _ _ chainLaw)
+      (RightComposition.At[k := z].compositionOnHomology targetChainMap complementChainMap q));

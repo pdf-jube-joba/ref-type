@@ -1,0 +1,18 @@
+\import Chains.At[C := OriginalSource.complex, z := z] \as OriginalSourceH;
+\import Chains.At[C := OriginalTarget.complex, z := z] \as OriginalTargetH;
+\import Chains.At[C := ExpandedSource.complex, z := z] \as ExpandedSourceH;
+\import Chains.At[C := ExpandedTarget.complex, z := z] \as ExpandedTargetH;
+\definition originalSource: Modules.Bundle := Modules.Bundle { Carrier := OriginalSourceH.Homology, space := OriginalSourceH.homologySpace };
+\definition originalTarget: Modules.Bundle := Modules.Bundle { Carrier := OriginalTargetH.Homology, space := OriginalTargetH.homologySpace };
+\definition expandedSource: Modules.Bundle := Modules.Bundle { Carrier := ExpandedSourceH.Homology, space := ExpandedSourceH.homologySpace };
+\definition expandedTarget: Modules.Bundle := Modules.Bundle { Carrier := ExpandedTargetH.Homology, space := ExpandedTargetH.homologySpace };
+\definition inclusionSource: Modules.MapBetween originalSource expandedSource := Chains.Map[C := OriginalSource.complex, D := ExpandedSource.complex].At[k := z].induced sourceChainMap;
+\definition inclusionTarget: Modules.MapBetween originalTarget expandedTarget := Chains.Map[C := OriginalTarget.complex, D := ExpandedTarget.complex].At[k := z].induced targetChainMap;
+\definition expanded: Modules.MapBetween expandedSource expandedTarget := Chains.Map[C := ExpandedSource.complex, D := ExpandedTarget.complex].At[k := z].induced expandedChainMap;
+\definition quotient: Modules.MapBetween originalSource originalTarget := Chains.Map[C := OriginalSource.complex, D := OriginalTarget.complex].At[k := z].induced quotientChainMap;
+\definition law: \forall (q: originalSource.Carrier) -> #apply{expanded} (#apply{inclusionSource} q) = #apply{inclusionTarget} (#apply{quotient} q) :=
+  \fun (q: originalSource.Carrier) => trans!{expandedTarget.Carrier} _ _ _
+    (sym!{expandedTarget.Carrier} _ _ (LeftComposition.At[k := z].compositionOnHomology expandedChainMap sourceChainMap q))
+    (trans!{expandedTarget.Carrier} _ _ _
+      (congr!{ChainMaps.Map expandedTarget.Carrier} (\fun (m: ChainMaps.Map) => #apply{(ChainMaps.At[k := z].induced m)} q) _ _ chainLaw)
+      (RightComposition.At[k := z].compositionOnHomology targetChainMap quotientChainMap q));
