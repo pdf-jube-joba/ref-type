@@ -1,0 +1,60 @@
+\definition index: I.Int^ := I.Int^::ofNat n;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import SourceSubSmall.Simplices[] \as Generators;
+\import SourceSmall.Simplices[] \as Source;
+\import TargetSmall.Simplices[] \as Target;
+\import CoveredSubset.Degree[n := n].Lift[] \as Lift;
+\import TargetQuotient.At[k := index] \as TargetAt;
+\import SourceQuotient.At[k := index] \as SourceAt;
+\import Modules.Of[V := TargetSpace.Carrier index, space := TargetSpace.space index].Submodule[] \as TargetSub;
+\import TargetSub.Image[U := TargetSubspace.Carrier index, source := TargetSubspace.space index] \as TargetImages;
+\import Complexes.Map[C := TargetSubspace.complex, D := TargetSpace.complex].At[k := index] \as TargetMap;
+\definition targetGenerator: \forall (sigma: Target.Carrier n) ->
+  (\forall (x: Simplex.Carrier n) -> Top.Member subset (sigma x)) ->
+  TargetSub.Member TargetAt.image (TargetSpace.Positive[n := n].intro (TargetSmall.generator n sigma)) := \block {
+  \fun (sigma: Target.Carrier n)(inside: \forall (x: Simplex.Carrier n) -> Top.Member subset (sigma x)) \then
+  \let rho: _ := Lift.lift sigma inside \then
+  \let equal: #apply{TargetInclusion.map} index (TargetSubspace.Positive[n := n].intro (TargetSubSmall.generator n rho)) =
+    TargetSpace.Positive[n := n].intro (TargetSmall.generator n sigma) := trans!{{TargetSpace.Carrier index}} _ _ _
+      (congr!{{TargetSmall.Carrier n} {TargetSpace.Carrier index}} TargetSpace.Positive[n := n].intro _ _ (CoveredSubset.Degree[n := n].onGenerator rho))
+      (congr!{{Target.Carrier n} {TargetSpace.Carrier index}} (\fun (tau: Target.Carrier n) => TargetSpace.Positive[n := n].intro (TargetSmall.generator n tau)) _ _ (Lift.law sigma inside)) \then
+  \return TargetImages.introduce (TargetMap.linear TargetInclusion.map)
+    (TargetSpace.Positive[n := n].intro (TargetSmall.generator n sigma)) (TargetSubspace.Positive[n := n].intro (TargetSubSmall.generator n rho)) equal
+};
+\import Nonnegative.Map[C := SourceSubSmall.complex, D := SourceSmall.complex].At[n := n] \as First;
+\import Nonnegative.Map[C := SourceSmall.complex, D := TargetSmall.complex].At[n := n] \as Second;
+\import Modules.Hom[V := TargetSmall.Carrier n, W := TargetSpace.Carrier index, source := TargetSmall.space n, target := TargetSpace.space index]
+  .Composition[U := SourceSmall.Carrier n, domain := SourceSmall.space n] \as IntoTarget;
+\definition ambient: Modules.Hom[V := SourceSmall.Carrier n, W := TargetSpace.Carrier index, source := SourceSmall.space n, target := TargetSpace.space index].Map :=
+  IntoTarget.compose TargetSpace.Positive[n := n].forward (Second.linear Remaining.map);
+\import Modules.Hom[V := SourceSmall.Carrier n, W := TargetSpace.Carrier index, source := SourceSmall.space n, target := TargetSpace.space index]
+  .Composition[U := SourceSubSmall.Carrier n, domain := SourceSubSmall.space n] \as Compose;
+\definition map: Modules.Hom[V := SourceSubSmall.Carrier n, W := TargetSpace.Carrier index, source := SourceSubSmall.space n, target := TargetSpace.space index].Map :=
+  Compose.compose ambient (First.linear RemainingPair.map);
+\definition simplex(rho: Generators.Carrier n): Target.Carrier n := Remaining.Degree[n := n].postcompose (RemainingPair.Degree[n := n].postcompose rho);
+\definition onGenerator: \forall (rho: Generators.Carrier n) ->
+  #apply{map} (SourceSubSmall.generator n rho) = TargetSpace.Positive[n := n].intro (TargetSmall.generator n (simplex rho)) :=
+  \fun (rho: Generators.Carrier n) => trans!{{TargetSpace.Carrier index}} _ _ _
+    (congr!{{SourceSmall.Carrier n} {TargetSpace.Carrier index}} (#apply{ambient}) _ _ (RemainingPair.Degree[n := n].onGenerator rho))
+    (congr!{{TargetSmall.Carrier n} {TargetSpace.Carrier index}} TargetSpace.Positive[n := n].intro _ _ (Remaining.Degree[n := n].onGenerator (RemainingPair.Degree[n := n].postcompose rho)));
+\definition generatorImage: \forall (rho: Generators.Carrier n) -> TargetSub.Member TargetAt.image (#apply{map} (SourceSubSmall.generator n rho)) :=
+  \fun (rho: Generators.Carrier n) => \idelim TargetSpace.Positive[n := n].intro (TargetSmall.generator n (simplex rho)) = #apply{map} (SourceSubSmall.generator n rho)
+    \with y: TargetSpace.Carrier index => TargetSub.Member TargetAt.image y \by {
+      base: targetGenerator (simplex rho) (\fun (x: Simplex.Carrier n) => \bysub(Remaining.Carrier, intersection, rho x)),
+      equality: sym!{{TargetSpace.Carrier index}} _ _ (onGenerator rho)
+    };
+\import Modules.Free[Generators := Generators.Carrier n].Induction[].Into[W := TargetSpace.Carrier index, target := TargetSpace.space index] \as Induction;
+\definition all: \forall (x: SourceSubSmall.Carrier n) -> TargetSub.Member TargetAt.image (#apply{map} x) := Induction.law map TargetAt.image generatorImage;
+\import Modules.Of[V := SourceSpace.Carrier index, space := SourceSpace.space index].Submodule[] \as SourceSub;
+\import SourceSub.Image[U := SourceSubspace.Carrier index, source := SourceSubspace.space index] \as SourceImages;
+\import Complexes.Map[C := SourceSubspace.complex, D := SourceSpace.complex].At[k := index] \as SourceMap;
+\definition law: \forall (y: SourceSpace.Carrier index) -> SourceSub.Member SourceAt.image y ->
+  TargetSub.Member TargetAt.image (#apply{Ambient.map} index y) :=
+  \fun (y: SourceSpace.Carrier index)(member: SourceSub.Member SourceAt.image y) => SourceImages.eliminate (SourceMap.linear SourceInclusion.map) y
+    (TargetSub.Member TargetAt.image (#apply{Ambient.map} index y))
+    (\fun (x: SourceSubspace.Carrier index)(same: #apply{SourceInclusion.map} index x = y) =>
+      \idelim #apply{Ambient.map} index (#apply{SourceInclusion.map} index x) = #apply{Ambient.map} index y
+        \with z: TargetSpace.Carrier index => TargetSub.Member TargetAt.image z \by {
+          base: all x,
+          equality: congr!{{SourceSpace.Carrier index} {TargetSpace.Carrier index}} (#apply{Ambient.map} index) _ _ same
+        }) member;
