@@ -1,0 +1,46 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import Chains.At[C := Source.complex, z := z] \as SourceH;
+\import Chains.At[C := Target.complex, z := z] \as TargetH;
+\import ForwardMaps.At[k := z] \as ForwardH;
+\import BackwardMaps.At[k := z] \as BackwardH;
+\definition forwardMap: Modules.Hom[V := SourceH.Homology, W := TargetH.Homology, source := SourceH.homologySpace, target := TargetH.homologySpace].Map := ForwardH.induced forward;
+\definition backwardMap: Modules.Hom[V := TargetH.Homology, W := SourceH.Homology, source := TargetH.homologySpace, target := SourceH.homologySpace].Map := BackwardH.induced backward;
+\definition leftInverse: \forall (q: SourceH.Homology) -> #apply{backwardMap} (#apply{forwardMap} q) = q := \block {
+  \fun (q: SourceH.Homology) \then
+  \takefrom h: LeftHomotopies.Homotopy[source, source, (\fun (x: A) => e.backward (e.forward x)), SourceIdentity.function]
+    \by #leftInverse{(Geometry.laws source target e)} \then
+  \return trans!{SourceH.Homology} _ _ _
+    (sym!{SourceH.Homology} _ _ (LeftComposition.At[k := z].compositionOnHomology backward forward q))
+    (trans!{SourceH.Homology} _ _ _
+      (congr!{SourceMaps.Map SourceH.Homology} (\fun (m: SourceMaps.Map) => #apply{(SourceMaps.At[k := z].induced m)} q) _ _
+        (LeftFunctor.law e.forward (#forwardContinuous{(Geometry.laws source target e)}) e.backward (#backwardContinuous{(Geometry.laws source target e)})))
+      (trans!{SourceH.Homology} _ _ _ (Left.Reduced[].Homology[z := z].law (\fun (x: A) => e.backward (e.forward x)) SourceIdentity.function h q)
+        (trans!{SourceH.Homology} _ _ _
+          (congr!{SourceMaps.Map SourceH.Homology} (\fun (m: SourceMaps.Map) => #apply{(SourceMaps.At[k := z].induced m)} q) _ _ SourceIdentity.Reduced[].law)
+          (Chains.End[C := Source.complex].At[k := z].identityOnHomology q))))
+};
+\definition rightInverse: \forall (q: TargetH.Homology) -> #apply{forwardMap} (#apply{backwardMap} q) = q := \block {
+  \fun (q: TargetH.Homology) \then
+  \takefrom h: RightHomotopies.Homotopy[target, target, (\fun (x: B) => e.forward (e.backward x)), TargetIdentity.function]
+    \by #rightInverse{(Geometry.laws source target e)} \then
+  \return trans!{TargetH.Homology} _ _ _
+    (sym!{TargetH.Homology} _ _ (RightComposition.At[k := z].compositionOnHomology forward backward q))
+    (trans!{TargetH.Homology} _ _ _
+      (congr!{TargetMaps.Map TargetH.Homology} (\fun (m: TargetMaps.Map) => #apply{(TargetMaps.At[k := z].induced m)} q) _ _
+        (RightFunctor.law e.backward (#backwardContinuous{(Geometry.laws source target e)}) e.forward (#forwardContinuous{(Geometry.laws source target e)})))
+      (trans!{TargetH.Homology} _ _ _ (Right.Reduced[].Homology[z := z].law (\fun (x: B) => e.forward (e.backward x)) TargetIdentity.function h q)
+        (trans!{TargetH.Homology} _ _ _
+          (congr!{TargetMaps.Map TargetH.Homology} (\fun (m: TargetMaps.Map) => #apply{(TargetMaps.At[k := z].induced m)} q) _ _ TargetIdentity.Reduced[].law)
+          (Chains.End[C := Target.complex].At[k := z].identityOnHomology q))))
+};
+\definition isomorphism: Modules.Isomorphism[V := SourceH.Homology, W := TargetH.Homology, source := SourceH.homologySpace, target := TargetH.homologySpace].Isomorphism :=
+  Modules.Isomorphism[V := SourceH.Homology, W := TargetH.Homology, source := SourceH.homologySpace, target := TargetH.homologySpace].Isomorphism {
+    forward := forwardMap, backward := backwardMap, leftInverse := leftInverse, rightInverse := rightInverse,
+  };
+\definition bijective: ForwardH.Bijective[forward] := ForwardH.Bijective[forward] {
+  injective := \fun (x, y: SourceH.Homology)(equal: #apply{forwardMap} x = #apply{forwardMap} y) =>
+    trans!{SourceH.Homology} _ _ _ (sym!{SourceH.Homology} _ _ (leftInverse x))
+      (trans!{SourceH.Homology} _ _ _ (congr!{TargetH.Homology SourceH.Homology} (#apply{backwardMap}) _ _ equal) (leftInverse y)),
+  onto := \fun (y: TargetH.Homology) => Logic.existsIntro[SourceH.Homology, { x: SourceH.Homology \where #apply{forwardMap} x = y }]
+    (#apply{backwardMap} y) (rightInverse y),
+};
