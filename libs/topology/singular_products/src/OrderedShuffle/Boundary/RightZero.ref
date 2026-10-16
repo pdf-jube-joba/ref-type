@@ -1,0 +1,27 @@
+\definition p: N.Nat^ := N.Nat^::succ r;
+\definition q: N.Nat^ := N.Nat^::zero;
+\import \parent.At[p := p, q := q] \as Current;
+\import \parent.\parent.At[p := p, q := q] \as Full;
+\import \parent.\parent.At[p := r, q := q] \as Lower;
+\import \parent.\parent.Extended[] \as Extended;
+\import \parent.\parent.RightDegreeZero[p := r] \as Known;
+\import Commutative.Bilinear[A := Full.left, B := Full.right, C := Current.target] \as Form;
+\import Form.Operations[] \as Operations;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import Modules.Laws[V := Product.Carrier (degree p q), space := Product.space (degree p q)] \as Values;
+\import algebra.Group[].Of[Carrier := Product.Carrier (degree p q), group := Values.additive] \as Group;
+\import Modules.Alternating[V := Product.Carrier (degree p q), space := Product.space (degree p q)].Concatenation[] \as Signs;
+\definition rightZero(x: Full.left.Carrier)(y: Full.right.Carrier): #apply{Current.rightTerm} x y = Values.zero :=
+  Transport.pointNatural Product.Carrier (\fun (n: N.Nat^) => #zero{(Product.space n)})
+    (Extended.join (N.Nat^::succ p) q) (degree p q) (Extended.rightDegree p q);
+\definition signedRightZero(x: Full.left.Carrier)(y: Full.right.Carrier):
+  #apply{(Operations.sign p Current.rightTerm)} x y = Values.zero :=
+  trans!{{Product.Carrier (degree p q)}} _ _ _ (Operations.onSign p Current.rightTerm x y)
+    (trans!{{Product.Carrier (degree p q)}} _ _ _
+      (congr!{{Product.Carrier (degree p q)} {Product.Carrier (degree p q)}} (Signs.twist p) _ _ (rightZero x y)) (Signs.twistZero p));
+\definition rhs(x: Full.left.Carrier)(y: Full.right.Carrier): #apply{Current.rhs} x y = Lower.apply (#apply{(Left.boundary p)} x) y :=
+  trans!{{Product.Carrier (degree p q)}} _ _ _
+    (congr!{{Product.Carrier (degree p q)} {Product.Carrier (degree p q)}} (Values.add (#apply{Current.leftTerm} x y)) _ _ (signedRightZero x y))
+    (Group.zeroRight (#apply{Current.leftTerm} x y));
+\definition equation: Statement p q := Form.ext Current.lhs Current.rhs (\fun (x: Full.left.Carrier)(y: Full.right.Carrier) =>
+  trans!{{Product.Carrier (degree p q)}} _ _ _ (Known.law x y) (sym!{{Product.Carrier (degree p q)}} _ _ (rhs x y)));

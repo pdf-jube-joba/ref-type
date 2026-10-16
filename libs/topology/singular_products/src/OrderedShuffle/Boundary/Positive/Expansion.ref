@@ -1,0 +1,40 @@
+\import Commutative.Bilinear[A := LeftShuffle.left, B := LeftShuffle.right, C := LowerLeft.target].Operations[] \as LeftOperations;
+\import Commutative.Bilinear[A := RightShuffle.left, B := RightShuffle.right, C := LowerRight.target].Operations[] \as RightOperations;
+\import Modules.Alternating[V := Product.Carrier t, space := Product.space t].Concatenation[] \as RightSigns;
+\import RightSigns.Mapping[W := Product.Carrier m, target := Product.space m] \as CastSigns;
+\definition first(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier m := #apply{LowerLeft.leftTerm} x (Y y);
+\definition crossLeft(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier m := #apply{LowerLeft.rightTerm} x (Y y);
+\definition crossRight(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier m := #apply{lowerCast} (#apply{LowerRight.leftTerm} (X x) y);
+\definition last(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier m := #apply{lowerCast} (#apply{LowerRight.rightTerm} (X x) y);
+\definition expanded(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier m :=
+  Lower.add (Lower.add (first x y) (LowerSigns.twist r (crossLeft x y)))
+    (Lower.add (LowerSigns.twist p (crossRight x y)) (last x y));
+\definition left: Statement r q -> \forall (x: Left.Carrier p)(y: Right.Carrier q) ->
+  #apply{(Product.boundary m)} (LeftShuffle.apply x (Y y)) = Lower.add (first x y) (LowerSigns.twist r (crossLeft x y)) :=
+  \fun (previous: Statement r q)(x: Left.Carrier p)(y: Right.Carrier q) =>
+    trans!{{Product.Carrier m}} _ _ _ (LowerLeft.onChains previous x (Y y))
+      (congr!{{Product.Carrier m} {Product.Carrier m}} (Lower.add (first x y)) _ _ (LeftOperations.onSign r LowerLeft.rightTerm x (Y y)));
+\definition rightSign(x: Left.Carrier p)(y: Right.Carrier q):
+  #apply{lowerCast} (#apply{(RightOperations.sign p LowerRight.rightTerm)} (X x) y) = LowerSigns.twist p (last x y) :=
+  trans!{{Product.Carrier m}} _ _ _
+    (congr!{{Product.Carrier t} {Product.Carrier m}} (#apply{lowerCast}) _ _ (RightOperations.onSign p LowerRight.rightTerm (X x) y))
+    (CastSigns.law lowerCast p (#apply{LowerRight.rightTerm} (X x) y));
+\definition right: Statement p s -> \forall (x: Left.Carrier p)(y: Right.Carrier q) ->
+  LowerSigns.twist p (#apply{lowerCast} (#apply{(Product.boundary t)} (RightShuffle.apply (X x) y))) =
+    Lower.add (LowerSigns.twist p (crossRight x y)) (last x y) :=
+  \fun (previous: Statement p s)(x: Left.Carrier p)(y: Right.Carrier q) =>
+    trans!{{Product.Carrier m}} _ _ _
+      (congr!{{Product.Carrier t} {Product.Carrier m}} (\fun (v: Product.Carrier t) => LowerSigns.twist p (#apply{lowerCast} v)) _ _
+        (LowerRight.onChains previous (X x) y))
+      (trans!{{Product.Carrier m}} _ _ _
+        (congr!{{Product.Carrier m} {Product.Carrier m}} (LowerSigns.twist p) _ _
+          (#addition{lowerCast} (#apply{LowerRight.leftTerm} (X x) y) (#apply{(RightOperations.sign p LowerRight.rightTerm)} (X x) y)))
+        (trans!{{Product.Carrier m}} _ _ _
+          (congr!{{Product.Carrier m} {Product.Carrier m}} (\fun (v: Product.Carrier m) => LowerSigns.twist p (Lower.add (crossRight x y) v)) _ _ (rightSign x y))
+          (trans!{{Product.Carrier m}} _ _ _ (LowerSigns.twistAdd p (crossRight x y) (LowerSigns.twist p (last x y)))
+            (congr!{{Product.Carrier m} {Product.Carrier m}} (Lower.add (LowerSigns.twist p (crossRight x y))) _ _ (LowerSigns.involution p (last x y))))));
+\definition law: Statement r q -> Statement p s -> \forall (x: Left.Carrier p)(y: Right.Carrier q) ->
+  #apply{(Product.boundary m)} (cut x y) = expanded x y :=
+  \fun (previousLeft: Statement r q)(previousRight: Statement p s)(x: Left.Carrier p)(y: Right.Carrier q) =>
+    trans!{{Product.Carrier m}} _ _ _ (derivative x y)
+      (congr2!{{Product.Carrier m} {Product.Carrier m} {Product.Carrier m}} Lower.add _ _ _ _ (left previousLeft x y) (right previousRight x y));

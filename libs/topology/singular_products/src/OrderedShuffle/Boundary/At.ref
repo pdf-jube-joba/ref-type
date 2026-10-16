@@ -1,0 +1,21 @@
+\import \parent.\parent.At[p := p, q := q] \as Full;
+\import \parent.\parent.Extended[] \as Extended;
+\definition target: Modules.Bundle := Modules.Bundle { Carrier := Product.Carrier (degree p q), space := Product.space (degree p q) };
+\import Commutative.Bilinear[A := Full.left, B := Full.right, C := Full.target].Postcompose[D := target] \as Boundary;
+\definition lhs: Commutative.Bilinear[A := Full.left, B := Full.right, C := target].Map := Boundary.apply Full.bilinear (Product.boundary (degree p q));
+\import Modules.End[V := Full.left.Carrier, space := Full.left.space] \as LeftIdentity;
+\import Modules.End[V := Full.right.Carrier, space := Full.right.space] \as RightIdentity;
+\import Commutative.Bilinear[A := Extended.left p, B := Extended.right (N.Nat^::succ q), C := Extended.target p (N.Nat^::succ q)]
+  .Precompose[D := Full.left, E := Full.right] \as BeforeLeft;
+\definition leftTerm: Commutative.Bilinear[A := Full.left, B := Full.right, C := target].Map :=
+  BeforeLeft.apply (Extended.bilinear p (N.Nat^::succ q)) (Left.boundary p) RightIdentity.identity;
+\import Commutative.Bilinear[A := Extended.left (N.Nat^::succ p), B := Extended.right q, C := Extended.target (N.Nat^::succ p) q]
+  .Precompose[D := Full.left, E := Full.right] \as BeforeRight;
+\import Commutative.Bilinear[A := Full.left, B := Full.right, C := Extended.target (N.Nat^::succ p) q].Postcompose[D := target] \as CastRight;
+\definition rightTerm: Commutative.Bilinear[A := Full.left, B := Full.right, C := target].Map :=
+  CastRight.apply (BeforeRight.apply (Extended.bilinear (N.Nat^::succ p) q) LeftIdentity.identity (Right.boundary q)) (Extended.castRight p q);
+\import Commutative.Bilinear[A := Full.left, B := Full.right, C := target].Operations[] \as Operations;
+\definition rhs: Commutative.Bilinear[A := Full.left, B := Full.right, C := target].Map := Operations.plus leftTerm (Operations.sign p rightTerm);
+\definition onChains(equation: lhs = rhs)(x: Full.left.Carrier)(y: Full.right.Carrier): #apply{lhs} x y = #apply{rhs} x y :=
+  congr!{{Commutative.Bilinear[A := Full.left, B := Full.right, C := target].Map} target.Carrier}
+    (\fun (f: Commutative.Bilinear[A := Full.left, B := Full.right, C := target].Map) => #apply{f} x y) _ _ equation;
