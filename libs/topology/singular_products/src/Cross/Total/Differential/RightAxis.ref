@@ -1,0 +1,35 @@
+\definition p: N.Nat^ := N.Nat^::zero;
+\definition q: N.Nat^ := N.Nat^::succ s;
+\definition k: N.Nat^ := s;
+\definition closed: Nat.add p q = N.Nat^::succ k := NatLaws.addZeroLeft q;
+\definition index: Double.Index (N.Nat^::succ k) := \into[Double.Pair](Double.Pair { first := p, second := q }, { i: Double.Pair \where Nat.add #first{i} #second{i} = N.Nat^::succ k }) \by { closed };
+\definition firstDegree: Double.First (N.Nat^::succ k) q := \into[N.Nat^](p, Double.First (N.Nat^::succ k) q) \by { closed };
+\import \root.Cross[A := A, B := B, left := left, right := right].Total[].Differential[n := k].At[i := index] \as Data;
+\import \root.Cross[A := A, B := B, left := left, right := right].Total[].Differential[n := k].Vertical[s := s, p := firstDegree] \as Vertical;
+\import \root.Cross[A := A, B := B, left := left, right := right].At[p := p, q := q] \as Full;
+\import \root.Cross[A := A, B := B, left := left, right := right].At[p := p, q := s] \as LowerCross;
+\import \root.Cross[A := A, B := B, left := left, right := right].Boundary[].LeftZero[s := s] \as Boundary;
+\import Commutative.Bilinear[A := Full.leftBundle, B := Full.rightBundle, C := LowerCross.targetBundle] \as Forms;
+\import \parent.\parent.Degree[n := k] \as Lower;
+\import Chains.Degree[n := k] \as LowerSum;
+\import Modules.Hom[V := LowerSum.Carrier, W := Target.Carrier k, source := LowerSum.space, target := Target.space k] \as Maps;
+\import Modules.Laws[V := Target.Carrier k, space := Target.space k] \as Vector;
+\import algebra.Group[].Of[Carrier := Target.Carrier k, group := Vector.additive] \as Group;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition common(x: Left.Carrier p)(y: Right.Carrier q): Target.Carrier k := LowerCross.apply x (#apply{(Right.boundary s)} y);
+\definition boundary(x: Left.Carrier p)(y: Right.Carrier q): #apply{(Target.boundary k)} (Full.apply x y) = common x y :=
+  congr!{Forms.Map {Target.Carrier k}} (\fun (h: Forms.Map) => #apply{h} x y) _ _ Boundary.equation;
+\definition first(x: Left.Carrier p)(y: Right.Carrier q): #apply{Data.first} (Tensor.Term[p := p, q := q].tensor x y) = common x y :=
+  trans!{{Target.Carrier k}} _ _ _ (Data.leftExpansion x y)
+    (trans!{{Target.Carrier k}} _ _ _
+      (congr2!{{Target.Carrier k} {Target.Carrier k} {Target.Carrier k}} (#add{(Target.space k)}) _ _ _ _
+        (Maps.zeroPreserved Lower.map)
+        (trans!{{Target.Carrier k}} _ _ _ (Vertical.law x y) (Transport.castRefl Target.Carrier k (common x y))))
+      (Group.zeroLeft (common x y)));
+\definition second(x: Left.Carrier p)(y: Right.Carrier q): #apply{Data.second} (Tensor.Term[p := p, q := q].tensor x y) = common x y :=
+  trans!{{Target.Carrier k}} _ _ _ (Data.rightExpansion x y)
+    (trans!{{Target.Carrier k}} _ _ _
+      (congr!{{Target.Carrier (N.Nat^::succ k)} {Target.Carrier k}} (#apply{(Target.boundary k)}) _ _ (Transport.castRefl Target.Carrier (N.Nat^::succ k) (Full.apply x y)))
+      (boundary x y));
+\definition onTensors: Data.OnTensors := \fun (x: Left.Carrier p)(y: Right.Carrier q) => trans!{{Target.Carrier k}} _ _ _ (first x y) (sym!{{Target.Carrier k}} _ _ (second x y));
+\definition law: Statement k index := Data.extend onTensors;
