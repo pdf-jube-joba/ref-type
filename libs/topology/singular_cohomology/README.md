@@ -30,6 +30,7 @@
 | `OrderedTuples.Subdivision` / `Homotopy` / `Natural` | 各頂点列に指定した中心を使う細分、境界との可換性、恒等写像との鎖ホモトピー、中心を保つ写像に関する自然性。 |
 | `CylinderChains` | 頂点列を cylinder 内のアフィン特異鎖へ送る鎖写像、普遍的 prism、面への制限との整合性。 |
 | `SimplexChains` / `Subdivision` / `Face` | 単体内のアフィン鎖への評価、等重みの重心細分と鎖ホモトピー、面への制限との整合性。 |
+| `Subdivision` / `Natural` / `Coefficients` | 特異鎖上の重心細分と恒等写像との鎖ホモトピー、連続写像との可換性、任意係数のコホモロジーでの恒等作用。 |
 | `Zero.With.Functions` | 任意の空間の零次コホモロジーと、道成分全体から係数群への全関数の加群との同型。 |
 | `Zero.Homology` | 零次整数ホモロジーと、道成分の集合上の自由整数加群との同型。 |
 | `Calculations.With.Singleton` | 一点空間の零次の係数加群との同型と、全正次数での消滅。 |

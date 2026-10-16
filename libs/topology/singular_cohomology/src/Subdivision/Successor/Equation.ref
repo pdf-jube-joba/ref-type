@@ -1,0 +1,32 @@
+\import \parent.Prior[] \as Prior;
+\import Modules.Laws[V := Chains.Carrier (N.Nat^::succ n), space := Chains.space (N.Nat^::succ n)] \as Values;
+\import algebra.Group[].Of[Carrier := Chains.Carrier (N.Nat^::succ n), group := Values.additive] \as Group;
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ n), W := Chains.Carrier (N.Nat^::succ n), source := Chains.space (N.Nat^::succ n), target := Chains.space (N.Nat^::succ n)] \as Linear;
+\import Modules.End[V := Chains.Carrier (N.Nat^::succ n), space := Chains.space (N.Nat^::succ n)] \as Identity;
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Chains.Carrier (N.Nat^::succ n), source := Chains.space (N.Nat^::succ (N.Nat^::succ n)), target := Chains.space (N.Nat^::succ n)]
+  .Composition[U := Chains.Carrier (N.Nat^::succ n), domain := Chains.space (N.Nat^::succ n)] \as First;
+\import Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier (N.Nat^::succ n), source := Chains.space n, target := Chains.space (N.Nat^::succ n)]
+  .Composition[U := Chains.Carrier (N.Nat^::succ n), domain := Chains.space (N.Nat^::succ n)] \as Second;
+\import Modules.Free[Generators := Simplices.Carrier (N.Nat^::succ n)].To[W := Chains.Carrier (N.Nat^::succ n), target := Chains.space (N.Nat^::succ n)] \as Free;
+\definition boundaryMap: Linear.Map := Linear.plus (First.compose (Chains.boundary (N.Nat^::succ n)) Higher.homotopyMap) (Second.compose Lower.homotopyMap (Chains.boundary n));
+\definition differenceMap: Linear.Map := Linear.plus Higher.map (Linear.negative Identity.identity);
+\definition onGenerator: \forall (sigma: Simplices.Carrier (N.Nat^::succ n)) -> #apply{boundaryMap} (Chains.generator (N.Nat^::succ n) sigma) = #apply{differenceMap} (Chains.generator (N.Nat^::succ n) sigma) :=
+  \fun (sigma: Simplices.Carrier (N.Nat^::succ n)) => \block {
+    \let x: Chains.Carrier (N.Nat^::succ n) := Chains.generator (N.Nat^::succ n) sigma \then
+    \let p: Chains.Carrier (N.Nat^::succ n) := #apply{Lower.homotopyMap} (#apply{(Chains.boundary n)} x) \then
+    \let delta: Chains.Carrier (N.Nat^::succ n) := Group.difference (Higher.onSimplex sigma) x \then
+    \return trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Chains.Carrier (N.Nat^::succ (N.Nat^::succ n))} {Chains.Carrier (N.Nat^::succ n)}}
+        (\fun (v: Chains.Carrier (N.Nat^::succ (N.Nat^::succ n))) => Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} v) p) _ _ (Higher.homotopyOnGenerator sigma))
+      (trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _
+        (congr!{{Chains.Carrier (N.Nat^::succ n)} {Chains.Carrier (N.Nat^::succ n)}} (\fun (v: Chains.Carrier (N.Nat^::succ n)) => Values.add v p) _ _ (Higher.Boundary[].law sigma))
+        (trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _
+          (congr!{{Chains.Carrier (N.Nat^::succ n)} {Chains.Carrier (N.Nat^::succ n)}} (\fun (v: Chains.Carrier (N.Nat^::succ n)) => Values.add (Group.difference delta v) p) _ _ (Prior.law sigma))
+          (trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _ (Group.addDifference delta p)
+            (congr!{{Chains.Carrier (N.Nat^::succ n)} {Chains.Carrier (N.Nat^::succ n)}} (\fun (v: Chains.Carrier (N.Nat^::succ n)) => Group.difference v x) _ _ (sym!{{Chains.Carrier (N.Nat^::succ n)}} _ _ (Higher.onGenerator sigma))))))
+  };
+\definition equation: boundaryMap = differenceMap := Free.ext _ _ onGenerator;
+\definition law: \forall (x: Chains.Carrier (N.Nat^::succ n)) -> Group.difference (#apply{Higher.map} x) x =
+  Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{Higher.homotopyMap} x)) (#apply{Lower.homotopyMap} (#apply{(Chains.boundary n)} x)) :=
+  \fun (x: Chains.Carrier (N.Nat^::succ n)) => sym!{{Chains.Carrier (N.Nat^::succ n)}} _ _
+    (congr!{Linear.Map {Chains.Carrier (N.Nat^::succ n)}} (\fun (f: Linear.Map) => #apply{f} x) _ _ equation);
