@@ -1,0 +1,22 @@
+\import \root.OrderedShuffle[V := V2, W := W2] \as Target;
+\import singular_cohomology.OrderedTuples[V := V2] \as TargetLeft;
+\import singular_cohomology.OrderedTuples[V := W2] \as TargetRight;
+\import singular_cohomology.OrderedTuples[V := Target.Pair] \as TargetProduct;
+\import Left.Mapping[W := V2] \as LeftMap;
+\import Right.Mapping[W := W2] \as RightMap;
+\import Product.Mapping[W := Target.Pair] \as Points;
+\definition pair(point: Pair): Target.Pair := Target.Pair { left := leftMap #left{point}, right := rightMap #right{point} };
+\definition Statement(p, q: N.Nat^): \Prop := \forall (x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)) ->
+  #apply{(Points.push (length p q) pair)} (onTuples p q x y) = Target.onTuples p q (LeftMap.onTuple (N.Nat^::succ p) leftMap x) (RightMap.onTuple (N.Nat^::succ q) rightMap y);
+\module Base(q: N.Nat^);
+\module RightStep(r: N.Nat^);
+\module Step(r, s: N.Nat^);
+\definition all: \forall (p, q: N.Nat^) -> Statement p q :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^) -> Statement p q \with {
+    | zero: \fun (q: N.Nat^) => Base[q := q].law
+    | succ: \fun (p: N.Nat^)(previous: \forall (q: N.Nat^) -> Statement p q) =>
+      \induction (q: N.Nat^) \return Statement (N.Nat^::succ p) q \with {
+        | zero: RightStep[r := p].law (previous N.Nat^::zero)
+        | succ: \fun (q: N.Nat^)(lower: Statement (N.Nat^::succ p) q) => Step[r := p, s := q].law (previous (N.Nat^::succ q)) lower
+      }
+  };
