@@ -1,0 +1,42 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Data[].Nat[] \as N;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\definition RemainingSet: \Pow A := Top.Complement removed;
+\import Top.Subspace[S := RemainingSet] \as RemainingTopology;
+\import Top.Subspace[S := subset] \as SubsetTopology;
+\import singular_cohomology.OpenCover[A := A, source := source].On[cover := cover] \as Covered;
+\import Covered.Subspace[subset := RemainingSet] \as Remaining;
+\import Covered.Subspace[subset := subset] \as CoveredSubset;
+\definition intersection: \Pow Remaining.Carrier := { x: Remaining.Carrier \where Top.Member subset x };
+\import topology.Topology[Carrier := Remaining.Carrier].Subspace[S := intersection] \as IntersectionTopology;
+\import singular_cohomology.OpenCover[A := Remaining.Carrier, source := RemainingTopology.topology source]
+  .On[cover := Remaining.restrictedCover] \as RemainingCover;
+\import RemainingCover.Subspace[subset := intersection] \as RemainingPair;
+\import topology.Topology[Carrier := Remaining.Carrier].OpenCovers[topology := RemainingTopology.topology source] \as RemainingCovers;
+\import topology.Topology[Carrier := CoveredSubset.Carrier].OpenCovers[topology := SubsetTopology.topology source] \as SubsetCovers;
+\import topology.Topology[Carrier := RemainingPair.Carrier].OpenCovers[topology := IntersectionTopology.topology (RemainingTopology.topology source)] \as IntersectionCovers;
+\import singular_cohomology.Small[A := Remaining.Carrier, source := RemainingTopology.topology source,
+  family := RemainingCovers.family Remaining.restrictedCover] \as SourceSmall;
+\import singular_cohomology.Small[A := A, source := source, family := family] \as TargetSmall;
+\import singular_cohomology.Small[A := RemainingPair.Carrier, source := IntersectionTopology.topology (RemainingTopology.topology source),
+  family := IntersectionCovers.family RemainingPair.restrictedCover] \as SourceSubSmall;
+\import singular_cohomology.Small[A := CoveredSubset.Carrier, source := SubsetTopology.topology source,
+  family := SubsetCovers.family CoveredSubset.restrictedCover] \as TargetSubSmall;
+\import Nonnegative.ZeroExtension[C := SourceSubSmall.complex] \as SourceSubspace;
+\import Nonnegative.ZeroExtension[C := SourceSmall.complex] \as SourceSpace;
+\import Nonnegative.ZeroExtension[C := TargetSubSmall.complex] \as TargetSubspace;
+\import Nonnegative.ZeroExtension[C := TargetSmall.complex] \as TargetSpace;
+\import Nonnegative.Map[C := SourceSubSmall.complex, D := SourceSmall.complex].ZeroExtension[f := RemainingPair.map] \as SourceInclusion;
+\import Nonnegative.Map[C := TargetSubSmall.complex, D := TargetSmall.complex].ZeroExtension[f := CoveredSubset.map] \as TargetInclusion;
+\import Nonnegative.Map[C := SourceSmall.complex, D := TargetSmall.complex].ZeroExtension[f := Remaining.map] \as Ambient;
+\import Complexes.Quotient[C := SourceSubspace.complex, D := SourceSpace.complex].On[f := SourceInclusion.map] \as SourceQuotient;
+\import Complexes.Quotient[C := TargetSubspace.complex, D := TargetSpace.complex].On[f := TargetInclusion.map] \as TargetQuotient;
+\definition sourceComplex: Complexes.Complex := SourceQuotient.complex;
+\definition targetComplex: Complexes.Complex := TargetQuotient.complex;
+\module Degree(n: N.Nat^);
