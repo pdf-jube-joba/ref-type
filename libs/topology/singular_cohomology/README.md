@@ -35,6 +35,10 @@
 | `SimplicialChains.On` | 面の恒等式を満たす任意の次数付き集合からの自由鎖複体と、その関手性。 |
 | `Small` / `FromSubset` / `With` | 被覆要素に含まれる単体上の小鎖複体、全体への単射、被覆要素からの持ち上げ、余鎖の制限。 |
 | `Small.Subdivision` | 小鎖を保つ細分と鎖ホモトピー、全特異鎖への包含との整合性。 |
+| `Small.Pullback.Over` / `Square` | 被覆の引き戻しによる小鎖写像と、通常の特異鎖写像との可換性。 |
+| `OpenCover.On.Subspace` | 部分空間への開被覆の引き戻しと、小鎖の包含の次数ごとの分裂。 |
+| `OpenCover.On.Subspace.Degree.Lift` | 像が部分空間に入る小単体の持ち上げと、包含後の元の単体との一致。 |
+| `OpenCover.On.Subspace.Relative` / `With` | 通常の相対理論への比較写像、長完全列との整合性、整数ホモロジーと任意係数コホモロジーの同型。 |
 | `SubdivisionCells` / `Comparison` | 細分セルの符号付き鎖、アフィン頂点列への評価と重心細分との一致。 |
 | `SubdivisionCells.Words` / `Length` / `Evaluation.Comparison` | 反復細分のセル列の鎖、長さごとの部分加群と細分に可換な評価。 |
 | `Small.Cover.On.Eventually` | 引き戻した開被覆の Lebesgue 数と距離評価から、十分な反復細分で各セルが小単体になること。 |

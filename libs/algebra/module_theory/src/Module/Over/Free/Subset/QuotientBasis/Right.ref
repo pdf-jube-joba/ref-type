@@ -1,0 +1,23 @@
+\import Modules.Hom[V := Carrier, W := Quotient.Carrier, source := space, target := Quotient.moduleSpace]
+  .Composition[U := Ambient.Carrier, domain := Ambient.space] \as Composition;
+\import Modules.Hom[V := Ambient.Carrier, W := Quotient.Carrier, source := Ambient.space, target := Quotient.moduleSpace] \as Maps;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition onGenerator: \forall (s: Generators) -> #apply{forward} (#apply{Projection.map} (Ambient.generator s)) = Quotient.class (Ambient.generator s) :=
+  \fun (s: Generators) => either!{{(Classical.excludedMiddle (\In[Generators] S s))} {#apply{forward} (#apply{Projection.map} (Ambient.generator s)) = Quotient.class (Ambient.generator s)}
+    {\fun (inside: \In[Generators] S s) => trans!{Quotient.Carrier} _ _ _
+      (congr!{Carrier Quotient.Carrier} (#apply{forward}) _ _ (Projection.outside s (\fun (outside: \In[Generators] Complement s) => outside inside)))
+      (trans!{Quotient.Carrier} _ _ _ (Forward.zeroPreserved forward)
+        (sym!{Quotient.Carrier} _ _ (Quotient.classZero (Ambient.generator s) (generatorMember s inside))))}
+    {\fun (outside: Logic.Not (\In[Generators] S s)) => \block {
+      \let t: Outside.Selected := \into[Generators](s, Complement) \by { outside } \then
+      \return trans!{Quotient.Carrier} _ _ _
+        (congr!{Carrier Quotient.Carrier} (#apply{forward}) _ _ (Projection.onSelected t)) (forwardOnGenerator t)
+    }}
+  };
+\definition equation: Composition.compose forward Projection.map = Quotient.projection := Ambient.To[W := Quotient.Carrier, target := Quotient.moduleSpace].ext _ _ onGenerator;
+\definition law: \forall (q: Quotient.Carrier) -> #apply{forward} (#apply{backward} q) = q :=
+  Quotient.induction (\fun (q: Quotient.Carrier) => #apply{forward} (#apply{backward} q) = q)
+    (\fun (x: Ambient.Carrier) => trans!{Quotient.Carrier} _ _ _
+      (congr!{Carrier Quotient.Carrier} (#apply{forward}) _ _ (backwardOnClass x))
+      (congr!{Maps.Map Quotient.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ equation));
