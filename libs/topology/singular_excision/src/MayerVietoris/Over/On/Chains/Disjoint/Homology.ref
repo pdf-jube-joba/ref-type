@@ -1,0 +1,26 @@
+\import Complexes.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import Complexes.ZeroExtension[C := Sum.complex] \as SumExtension;
+\import Complexes.ZeroExtension[C := IntersectionChains.complex] \as IntersectionExtension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Signed;
+\import Signed.ShortExact[A := IntersectionExtension.complex, B := SumExtension.complex, C := SmallExtension.complex] \as Exact;
+\import \parent.\parent.Sequence[] \as Sequence;
+\import Signed.Map[C := SumExtension.complex, D := SmallExtension.complex] \as Maps;
+\definition quasi: IsDisjoint -> Maps.QuasiIsomorphism Sequence.sequence.projection :=
+  \fun (disjoint: IsDisjoint) => Exact.quasiProjection Sequence.sequence
+    (\fun (z: I.Int^) => Empty.Homology[z := z].zero (empty disjoint));
+\import \parent.\parent.Homology[] \as Ordinary;
+\module At(z: I.Int^) {
+  \import Ordinary.Degree[z := z] \as Current;
+  \import Maps.At[k := z].Invert[f := Sequence.sequence.projection] \as Projection;
+  \definition smallIsomorphism(disjoint: IsDisjoint): Modules.Isomorphism[V := Current.sum.Carrier, W := Current.small.Carrier, source := Current.sum.space, target := Current.small.space].Isomorphism :=
+    Projection.isomorphism (quasi disjoint z);
+  \import Modules.Isomorphism[V := Current.sum.Carrier, W := Current.small.Carrier, source := Current.sum.space, target := Current.small.space]
+    .Composition[U := Current.whole.Carrier, final := Current.whole.space] \as WholeComposition;
+  \definition sumToWhole(disjoint: IsDisjoint): Modules.Isomorphism[V := Current.sum.Carrier, W := Current.whole.Carrier, source := Current.sum.space, target := Current.whole.space].Isomorphism :=
+    WholeComposition.compose Current.comparison (smallIsomorphism disjoint);
+  \import Modules.Isomorphism[V := Current.sum.Carrier, W := Current.whole.Carrier, source := Current.sum.space, target := Current.whole.space].Inverse[] \as Inverse;
+  \import Modules.Isomorphism[V := Current.whole.Carrier, W := Current.sum.Carrier, source := Current.whole.space, target := Current.sum.space]
+    .Composition[U := Current.directSum.Carrier, final := Current.directSum.space] \as Composition;
+  \definition isomorphism(disjoint: IsDisjoint): Modules.Isomorphism[V := Current.whole.Carrier, W := Current.directSum.Carrier, source := Current.whole.space, target := Current.directSum.space].Isomorphism :=
+    Composition.compose Current.sumComparison (Inverse.inverse (sumToWhole disjoint));
+}
