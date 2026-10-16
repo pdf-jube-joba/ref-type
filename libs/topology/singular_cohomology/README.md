@@ -34,6 +34,7 @@
 | `SimplicialChains.On` | 面の恒等式を満たす任意の次数付き集合からの自由鎖複体と、その関手性。 |
 | `Small` / `FromSubset` / `With` | 被覆要素に含まれる単体上の小鎖複体、全体への単射、被覆要素からの持ち上げ、余鎖の制限。 |
 | `Small.Subdivision` | 小鎖を保つ細分と鎖ホモトピー、全特異鎖への包含との整合性。 |
+| `SubdivisionCells` / `Comparison` | 細分セルの符号付き鎖、アフィン頂点列への評価と重心細分との一致。 |
 | `Zero.With.Functions` | 任意の空間の零次コホモロジーと、道成分全体から係数群への全関数の加群との同型。 |
 | `Zero.Homology` | 零次整数ホモロジーと、道成分の集合上の自由整数加群との同型。 |
 | `Calculations.With.Singleton` | 一点空間の零次の係数加群との同型と、全正次数での消滅。 |

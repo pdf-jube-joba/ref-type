@@ -20,7 +20,7 @@
 | `Simplex.Convex` / `Contraction` | 凸結合の連続性と指定点への収縮 |
 | `Simplex.AffineMetric` / `Barycentre` | 頂点間の距離からの直径評価と、重心からの距離の縮小率 |
 | `Simplex.Affine.Hull` / `ConvexFamily` | アフィン像の凸閉性と、凸集合の共通部分 |
-| `Simplex.BarycentricSubdivision` / `Mesh` | 面の選択列で表す細分セル、アフィン写像の連続性と直径の縮小評価 |
+| `Simplex.BarycentricSubdivision` / `Mesh` / `At.Iterated.Decay` | 面の選択列で表す細分セル、アフィン写像の連続性、反復細分の直径評価と任意の半径への縮小 |
 | `Semisimplicial` | 次数付き集合、面の恒等式と、それらを保つ写像 |
 | `Simplex.Cylinder` / `CylinderAffine` | cylinder 内のアフィン評価、面・頂点・後合成との公式 |
 | `Contraction` / `Interval.Contraction` | 一点とのホモトピー同値、区間の具体的な収縮 |

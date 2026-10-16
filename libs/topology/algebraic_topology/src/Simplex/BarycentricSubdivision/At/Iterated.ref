@@ -1,0 +1,24 @@
+\import \root.Simplex[].BarycentricSubdivision[] \as Cells;
+\import \root.Simplex[].Affine[m := n, n := k] \as TargetAffine;
+\import \root.Simplex[].Metric[n := k] \as Metric;
+\import \root.Simplex[].AffineMetric[m := n, n := k].Barycentre[] \as Centre;
+\import Cells.Mesh[].At[n := n, k := k] \as Mesh;
+\import Real.Geometric[q := Centre.factor] \as Power;
+\definition Word: \Set := Lists.List[Cells.Cell n];
+\definition length(word: Word): N.Nat^ := Lists.length (Cells.Cell n) word;
+\definition vertices(v: TargetAffine.Vertices): Word -> TargetAffine.Vertices := \induction (word: Word) \return TargetAffine.Vertices \with {
+  | nil: v
+  | cons: \fun (c: Cells.Cell n)(tail: Word)(previous: TargetAffine.Vertices) => \fun (i: Fin.Fin (N.Nat^::succ n)) => TargetAffine.apply previous (Cells.vertices n c i)
+};
+\definition Bound(v: TargetAffine.Vertices)(word: Word)(r: Real.Real): \Prop := \forall (i, j: Fin.Fin (N.Nat^::succ n)) ->
+  R.Le (#distance{Metric.metric} (vertices v word i) (vertices v word j)) (Real.mul (Power.value (length word)) r);
+\definition boundLaw: \forall (v: TargetAffine.Vertices)(r: Real.Real) -> R.Le Real.zero r -> Mesh.Diameter v r -> \forall (word: Word) -> Bound v word r :=
+  \fun (v: TargetAffine.Vertices)(r: Real.Real)(positive: R.Le Real.zero r)(original: Mesh.Diameter v r) =>
+    \induction (word: Word) \return Bound v word r \with {
+      | nil: \fun (i, j: Fin.Fin (N.Nat^::succ n)) => R.leReplaceRight _ r (Real.mul Real.one r) (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft r)) (original i j)
+      | cons: \fun (c: Cells.Cell n)(tail: Word)(previous: Bound v tail r)(i, j: Fin.Fin (N.Nat^::succ n)) => R.leReplaceRight _ _ _
+          (sym!{Real.Real} _ _ (Laws.fieldMulAssoc Centre.factor (Power.value (length tail)) r))
+          (Cells.Mesh[].law n k (vertices v tail) c (Real.mul (Power.value (length tail)) r)
+            (Laws.fieldMulNonnegative (Power.value (length tail)) r (Power.nonnegative Centre.nonnegative (length tail)) positive) previous i j)
+    };
+\module Decay;
