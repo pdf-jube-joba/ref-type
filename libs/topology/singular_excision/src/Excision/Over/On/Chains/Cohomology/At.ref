@@ -1,0 +1,20 @@
+\definition smallSource: Modules.Bundle := Modules.Bundle { Carrier := SmallSource.Cohomology[z := z].Cohomology, space := SmallSource.Cohomology[z := z].cohomologySpace };
+\definition smallTarget: Modules.Bundle := Modules.Bundle { Carrier := SmallTarget.Cohomology[z := z].Cohomology, space := SmallTarget.Cohomology[z := z].cohomologySpace };
+\definition ordinarySource: Modules.Bundle := Modules.Bundle { Carrier := Source.Cohomology[z := z].Cohomology, space := Source.Cohomology[z := z].cohomologySpace };
+\definition ordinaryTarget: Modules.Bundle := Modules.Bundle { Carrier := Target.Cohomology[z := z].Cohomology, space := Target.Cohomology[z := z].cohomologySpace };
+\import Modules.Isomorphism[V := ordinarySource.Carrier, W := smallSource.Carrier, source := ordinarySource.space, target := smallSource.space].Inverse[] \as SourceInverse;
+\import Modules.Isomorphism[V := ordinaryTarget.Carrier, W := smallTarget.Carrier, source := ordinaryTarget.space, target := smallTarget.space].Inverse[] \as TargetInverse;
+\import Modules.IsomorphismSquare[A := smallTarget, B := smallSource, C := ordinaryTarget, D := ordinarySource]
+  .On[a := TargetInverse.inverse TargetComparison.At[z := z].isomorphism, b := SourceInverse.inverse SourceComparison.At[z := z].isomorphism,
+    c := SmallComparison.At[z := z].isomorphism, f := Ordinary.With[coefficients := coefficients].At[z := z].induced] \as Square;
+\definition commutative: Square.Commutes := \fun (q: smallTarget.Carrier) =>
+  trans!{ordinarySource.Carrier} _ _ _
+    (sym!{ordinarySource.Carrier} _ _ (#leftInverse{SourceComparison.At[z := z].isomorphism}
+      (#apply{(Ordinary.With[coefficients := coefficients].At[z := z].induced)} (#apply{#backward{TargetComparison.At[z := z].isomorphism}} q))))
+    (congr!{smallSource.Carrier ordinarySource.Carrier} (#apply{#backward{SourceComparison.At[z := z].isomorphism}}) _ _
+      (trans!{smallSource.Carrier} _ _ _ (Naturality.At[z := z].law (#apply{#backward{TargetComparison.At[z := z].isomorphism}} q))
+        (congr!{smallTarget.Carrier smallSource.Carrier} (#apply{#forward{SmallComparison.At[z := z].isomorphism}}) _ _
+          (#rightInverse{TargetComparison.At[z := z].isomorphism} q))));
+\definition induced: _ := Ordinary.With[coefficients := coefficients].At[z := z].induced;
+\definition isomorphism: Modules.Isomorphism[V := ordinaryTarget.Carrier, W := ordinarySource.Carrier, source := ordinaryTarget.space, target := ordinarySource.space].Isomorphism :=
+  Square.isomorphism commutative;

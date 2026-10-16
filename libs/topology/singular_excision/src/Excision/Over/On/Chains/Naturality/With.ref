@@ -1,0 +1,27 @@
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.Integer[P := SourceRelative.complex, N := coefficients] \as SourceWhole;
+\import Hom.Integer[P := TargetRelative.complex, N := coefficients] \as TargetWhole;
+\import Hom.Integer[P := SourceQuotient.complex, N := coefficients] \as SourceSmallHom;
+\import Hom.Integer[P := TargetQuotient.complex, N := coefficients] \as TargetSmallHom;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficients;
+\import Hom.IntegerMapping[P := SourceQuotient.complex, Q := SourceRelative.complex, N := coefficients, L := coefficients]
+  .On[f := SourceComparison.comparison, u := Coefficients.identity] \as SourcePull;
+\import Hom.IntegerMapping[P := TargetQuotient.complex, Q := TargetRelative.complex, N := coefficients, L := coefficients]
+  .On[f := TargetComparison.comparison, u := Coefficients.identity] \as TargetPull;
+\import Hom.IntegerMapping[P := SourceQuotient.complex, Q := TargetQuotient.complex, N := coefficients, L := coefficients]
+  .On[f := Mapping.map, u := Coefficients.identity] \as SmallPull;
+\import Hom.IntegerMapping[P := SourceRelative.complex, Q := TargetRelative.complex, N := coefficients, L := coefficients]
+  .On[f := Ordinary.map, u := Coefficients.identity] \as OrdinaryPull;
+\definition sourceRestriction: Cochains.Map[C := SourceWhole.complex, D := SourceSmallHom.complex].Map := SourcePull.map;
+\definition targetRestriction: Cochains.Map[C := TargetWhole.complex, D := TargetSmallHom.complex].Map := TargetPull.map;
+\definition smallMap: Cochains.Map[C := TargetSmallHom.complex, D := SourceSmallHom.complex].Map := SmallPull.map;
+\definition ordinaryMap: Cochains.Map[C := TargetWhole.complex, D := SourceWhole.complex].Map := OrdinaryPull.map;
+\import Cochains.Map[C := SourceWhole.complex, D := SourceSmallHom.complex].Composition[B := TargetWhole.complex] \as Left;
+\import Cochains.Map[C := TargetSmallHom.complex, D := SourceSmallHom.complex].Composition[B := TargetWhole.complex] \as Right;
+\import Cochains.Map[C := TargetWhole.complex, D := SourceSmallHom.complex] \as Maps;
+\definition equation: Left.compose sourceRestriction ordinaryMap = Right.compose smallMap targetRestriction := Maps.ext (Left.compose sourceRestriction ordinaryMap) (Right.compose smallMap targetRestriction)
+  (\fun (z: I.Int^)(h: TargetWhole.Carrier z) => SourceSmallHom.At[z := z].ext
+    (#apply{(Left.compose sourceRestriction ordinaryMap)} z h) (#apply{(Right.compose smallMap targetRestriction)} z h)
+    (\fun (x: SourceQuotient.Carrier z) => congr!{{TargetRelative.Carrier z} coefficients.Carrier} (#apply{h}) _ _ (\parent.At[z := z].law x)));
+\module At(z: I.Int^);
