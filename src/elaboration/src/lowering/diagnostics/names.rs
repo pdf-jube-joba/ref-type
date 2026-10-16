@@ -58,7 +58,7 @@ impl Names {
                     }
                     self.inductives.insert(
                         (*inductive).into(),
-                        (name.clone(), constructor_names.clone()),
+                        (name.clone(), constructor_names.to_vec()),
                     );
                     associated_definitions
                 }
@@ -86,16 +86,16 @@ impl Names {
                     }
                     self.datatypes.insert(
                         (*inductive).into(),
-                        (name.clone(), constructor_names.clone()),
+                        (name.clone(), constructor_names.to_vec()),
                     );
                     self.inductives.insert(
                         (*reflected).into(),
-                        (format!("{name}^"), constructor_names.clone()),
+                        (format!("{name}^"), constructor_names.to_vec()),
                     );
                     associated_definitions
                 }
             };
-            for (field, id) in associated {
+            for (field, id) in associated.iter() {
                 self.definition(env, *id, format!("{name}::{field}"));
             }
         }

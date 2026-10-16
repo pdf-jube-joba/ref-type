@@ -197,8 +197,12 @@ impl ModuleManager {
             self.current,
             ModuleItem::Inductive {
                 name: type_name.0,
-                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
-                associated_definitions: Vec::new(),
+                constructor_names: constructor_names
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect::<Vec<_>>()
+                    .into(),
+                associated_definitions: Box::default(),
                 inductive,
             },
         )
@@ -215,8 +219,12 @@ impl ModuleManager {
             self.current,
             ModuleItem::Inductive {
                 name: type_name.0,
-                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
-                associated_definitions: Vec::new(),
+                constructor_names: constructor_names
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect::<Vec<_>>()
+                    .into(),
+                associated_definitions: Box::default(),
                 inductive,
             },
         )
@@ -234,10 +242,14 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::ProgramInductive {
-                record_fields,
+                record_fields: record_fields.map(Into::into),
                 name: type_name.0,
-                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
-                associated_definitions: Vec::new(),
+                constructor_names: constructor_names
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect::<Vec<_>>()
+                    .into(),
+                associated_definitions: Box::default(),
                 inductive,
                 reflected,
             },
@@ -258,7 +270,8 @@ impl ModuleManager {
                 associated_definitions: associated_definitions
                     .into_iter()
                     .map(|(name, definition)| (name.0, definition))
-                    .collect(),
+                    .collect::<Vec<_>>()
+                    .into(),
                 inductive,
             },
         )
@@ -835,7 +848,8 @@ impl ModuleManager {
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
-                            .collect();
+                            .collect::<Vec<_>>()
+                            .into();
                         ModuleItem::Inductive {
                             name,
                             constructor_names,
@@ -864,7 +878,8 @@ impl ModuleManager {
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
-                            .collect();
+                            .collect::<Vec<_>>()
+                            .into();
                         ModuleItem::Record {
                             name,
                             associated_definitions,
@@ -896,7 +911,8 @@ impl ModuleManager {
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
-                            .collect();
+                            .collect::<Vec<_>>()
+                            .into();
                         ModuleItem::ProgramInductive {
                             record_fields,
                             name,
@@ -1018,7 +1034,7 @@ impl ModuleManager {
                             inductive_ids,
                             group.unchanged
                         );
-                        for (_, definition) in associated_definitions {
+                        for (_, definition) in associated_definitions.iter_mut() {
                             let source = reuse!(
                                 definition,
                                 reuse_lazy_definition,
@@ -1050,7 +1066,7 @@ impl ModuleManager {
                             program_inductive_ids,
                             group.unchanged
                         );
-                        for (_, definition) in associated_definitions {
+                        for (_, definition) in associated_definitions.iter_mut() {
                             let source = reuse!(
                                 definition,
                                 reuse_lazy_definition,

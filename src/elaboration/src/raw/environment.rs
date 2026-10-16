@@ -99,6 +99,9 @@ impl From<Exp> for ModuleArgument {
 #[derive(
     artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
 )]
+// Keep the common definition variant small; constructor labels are immutable
+// across imports, whereas associated definition identities are specialized.
+#[allow(clippy::box_collection)]
 pub enum ModuleItem {
     Definition {
         name: String,
@@ -106,20 +109,20 @@ pub enum ModuleItem {
     },
     Inductive {
         name: String,
-        constructor_names: Vec<String>,
-        associated_definitions: Vec<(String, DefId)>,
+        constructor_names: Arc<Vec<String>>,
+        associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: InductiveId,
     },
     Record {
         name: String,
-        associated_definitions: Vec<(String, DefId)>,
+        associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: InductiveId,
     },
     ProgramInductive {
-        record_fields: Option<Vec<String>>,
+        record_fields: Option<Arc<Vec<String>>>,
         name: String,
-        constructor_names: Vec<String>,
-        associated_definitions: Vec<(String, DefId)>,
+        constructor_names: Arc<Vec<String>>,
+        associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: ProgramInductiveId,
         reflected: InductiveId,
     },
@@ -240,7 +243,7 @@ pub struct ModuleEnv {
     items: Vec<ModuleItem>,
     names: Arc<HashMap<String, usize>>,
     hir_names: Arc<HashMap<String, resolve::hir::BindingId>>,
-    hir_items: HashMap<resolve::hir::BindingId, usize>,
+    hir_items: Arc<HashMap<resolve::hir::BindingId, usize>>,
     bindings: Vec<ModuleId>,
     imports: HashMap<String, ModuleId>,
 }
@@ -258,7 +261,7 @@ impl ModuleEnv {
             items: Vec::new(),
             names: Arc::default(),
             hir_names: Arc::default(),
-            hir_items: HashMap::new(),
+            hir_items: Arc::default(),
             bindings: Vec::new(),
             imports: HashMap::new(),
         }
@@ -1705,7 +1708,7 @@ impl CrateEnv {
     ) {
         let module = self.module_mut(module);
         if let Some(index) = module.names.get(&name) {
-            module.hir_items.insert(binding, *index);
+            Arc::make_mut(&mut module.hir_items).insert(binding, *index);
         }
         Arc::make_mut(&mut module.hir_names).insert(name, binding);
     }
@@ -1727,10 +1730,19 @@ impl CrateEnv {
         );
         let names = original.names.clone();
         let hir_names = original.hir_names.clone();
-        let hir_items = hir_names
-            .iter()
-            .filter_map(|(name, binding)| names.get(name).map(|index| (*binding, *index)))
-            .collect();
+        let current_hir_items = || {
+            hir_names
+                .iter()
+                .filter_map(|(name, binding)| names.get(name).map(|index| (*binding, *index)))
+        };
+        let hir_items = if current_hir_items().count() == original.hir_items.len()
+            && current_hir_items()
+                .all(|(binding, index)| original.hir_items.get(&binding) == Some(&index))
+        {
+            original.hir_items.clone()
+        } else {
+            Arc::new(current_hir_items().collect())
+        };
         let target = self.module_mut(target);
         assert!(target.items.is_empty());
         // Specialization changes declaration identities, but preserves their
@@ -1756,7 +1768,7 @@ impl CrateEnv {
         let index = module.items.len();
         module.items.push(item);
         if let Some(binding) = module.hir_names.get(&name) {
-            module.hir_items.insert(*binding, index);
+            Arc::make_mut(&mut module.hir_items).insert(*binding, index);
         }
         Arc::make_mut(&mut module.names).insert(name, index);
         Ok(())
@@ -2144,6 +2156,97 @@ mod cells {
 mod specialization_tests {
     use super::*;
     #[test]
+    fn compact_module_items_preserve_legacy_checkpoint_bytes() {
+        #[derive(serde::Serialize)]
+        enum LegacyItem {
+            Definition {
+                name: String,
+                definition: DefId,
+            },
+            Inductive {
+                name: String,
+                constructor_names: Vec<String>,
+                associated_definitions: Vec<(String, DefId)>,
+                inductive: InductiveId,
+            },
+            Record {
+                name: String,
+                associated_definitions: Vec<(String, DefId)>,
+                inductive: InductiveId,
+            },
+            ProgramInductive {
+                record_fields: Option<Vec<String>>,
+                name: String,
+                constructor_names: Vec<String>,
+                associated_definitions: Vec<(String, DefId)>,
+                inductive: ProgramInductiveId,
+                reflected: InductiveId,
+            },
+        }
+        let definition = DefId {
+            module: ModuleId(1),
+            index: 2,
+        };
+        let inductive = InductiveId {
+            module: ModuleId(3),
+            index: 4,
+        };
+        let associated = || vec![("method".into(), definition)];
+        let items = [
+            LegacyItem::Definition {
+                name: "value".into(),
+                definition,
+            },
+            LegacyItem::Inductive {
+                name: "Choice".into(),
+                constructor_names: vec!["left".into(), "right".into()],
+                associated_definitions: associated(),
+                inductive,
+            },
+            LegacyItem::Record {
+                name: "Pair".into(),
+                associated_definitions: associated(),
+                inductive,
+            },
+            LegacyItem::ProgramInductive {
+                record_fields: Some(vec!["field".into()]),
+                name: "Value".into(),
+                constructor_names: vec!["make".into()],
+                associated_definitions: associated(),
+                inductive: ProgramInductiveId {
+                    module: ModuleId(5),
+                    index: 6,
+                },
+                reflected: inductive,
+            },
+        ];
+        for item in items {
+            let bytes = postcard::to_allocvec(&item).unwrap();
+            let restored: ModuleItem = postcard::from_bytes(&bytes).unwrap();
+            assert_eq!(postcard::to_allocvec(&restored).unwrap(), bytes);
+            if let ModuleItem::Inductive {
+                constructor_names,
+                associated_definitions,
+                ..
+            } = &restored
+            {
+                let mut copy = restored.clone();
+                let ModuleItem::Inductive {
+                    constructor_names: copied_names,
+                    associated_definitions: copied_definitions,
+                    ..
+                } = &mut copy
+                else {
+                    unreachable!()
+                };
+                assert!(Arc::ptr_eq(constructor_names, copied_names));
+                copied_definitions.clear();
+                assert_eq!(associated_definitions.len(), 1);
+            }
+        }
+        assert!(std::mem::size_of::<ModuleItem>() < std::mem::size_of::<LegacyItem>());
+    }
+    #[test]
     fn namespace_argument_arrays_share_storage_and_preserve_checkpoint_bytes() {
         let mut env = CrateEnv::new();
         let root = env.root_module();
@@ -2225,6 +2328,10 @@ mod specialization_tests {
             &env.module(source).names,
             &env.module(target).names
         ));
+        assert!(Arc::ptr_eq(
+            &env.module(source).hir_items,
+            &env.module(target).hir_items
+        ));
         env.publish_item(
             target,
             ModuleItem::Definition {
@@ -2240,6 +2347,11 @@ mod specialization_tests {
         assert!(env.module(target).item("later").is_some());
         env.register_hir_name(target, resolve::hir::BindingId(18), "later".into());
         assert!(!env.module(source).hir_names.contains_key("later"));
+        assert!(
+            env.module(source)
+                .hir_item(resolve::hir::BindingId(18))
+                .is_none()
+        );
         assert!(env.publish_item(target, specialized).is_err());
     }
     use crate::raw::{exp::ExpNode, sort::Sort};
