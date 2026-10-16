@@ -1,0 +1,18 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\import \parent.\parent.\parent.Degree[n := n] \as Target;
+\import Modules.Hom[V := WholeChains.Carrier n, W := WholeExtension.Carrier degree, source := WholeChains.space n, target := WholeExtension.space degree]
+  .Composition[U := SourceChains.Carrier n, domain := SourceChains.space n] \as Composition;
+\definition map(f: S -> A)(continuous: Maps.Continuous f): Modules.Hom[V := SourceChains.Carrier n, W := WholeExtension.Carrier degree,
+  source := SourceChains.space n, target := WholeExtension.space degree].Map := Composition.compose WholeExtension.Positive[n := n].forward (Maps.At[n := n].push f continuous);
+\definition onGenerator: \forall (f: S -> A)(continuous: Maps.Continuous f) -> Contained f -> \forall (sigma: SourceSimplices.Carrier n) ->
+  Image degree (#apply{(map f continuous)} (SourceChains.generator n sigma)) :=
+  \fun (f: S -> A)(continuous: Maps.Continuous f)(contained: Contained f)(sigma: SourceSimplices.Carrier n) =>
+    \idelim Target.included (WholeChains.generator n (Maps.postcompose n f continuous sigma)) = #apply{(map f continuous)} (SourceChains.generator n sigma)
+      \with x: WholeExtension.Carrier degree => Image degree x \by {
+        base: Target.generatorImage (Maps.postcompose n f continuous sigma) (\fun (x: Simplex.Carrier n) => contained (sigma x)),
+        equality: sym!{{WholeExtension.Carrier degree}} _ _ (congr!{{WholeChains.Carrier n} {WholeExtension.Carrier degree}} Target.included _ _ (Maps.At[n := n].onGenerator f continuous sigma))
+      };
+\definition law: \forall (f: S -> A)(continuous: Maps.Continuous f) -> Contained f -> \forall (x: SourceChains.Carrier n) -> Image degree (#apply{(map f continuous)} x) :=
+  \fun (f: S -> A)(continuous: Maps.Continuous f)(contained: Contained f) =>
+    Modules.Free[Generators := SourceSimplices.Carrier n].Induction[].Into[W := WholeExtension.Carrier degree, target := WholeExtension.space degree]
+      .law (map f continuous) Quotient.At[k := degree].image (onGenerator f continuous contained);
