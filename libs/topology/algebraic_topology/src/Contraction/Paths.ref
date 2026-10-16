@@ -1,0 +1,20 @@
+\import \root.PathComponent[A := A, source := source] \as Components;
+\import Components.IntervalPaths[] \as Paths;
+\import \root.Cylinder[A := A] \as Cylinder;
+\import \root.Interval[] \as Interval;
+\import topological_constructions.Product[A := Interval.Carrier, B := A].Universal[X := Interval.Carrier] \as Pair;
+\import topology.Maps[A := Interval.Carrier, B := Interval.Carrier].Identity[] \as Identity;
+\import topology.Maps[A := Interval.Carrier, B := A] \as Constants;
+\import topology.Composition[A := Interval.Carrier, B := Cylinder.Carrier, C := A] \as Composition;
+\definition toCentre(c: Data)(x: A): Components.Path x c.centre :=
+  Paths.ofFunction x c.centre (\fun (t: Interval.Carrier) => c.homotopy (Cylinder.at t x))
+    (Composition.composeContinuous Interval.topology (Cylinder.topology source) source (\fun (t: Interval.Carrier) => Cylinder.at t x) c.homotopy
+      (Pair.pairContinuous Interval.topology Interval.topology source (\fun (t: Interval.Carrier) => t) (\fun (_: Interval.Carrier) => x)
+        (Identity.continuous Interval.topology) (Constants.constantContinuous Interval.topology source x))
+      (#continuous{(Homotopy.laws source source (\fun (x: A) => x) (\fun (_: A) => c.centre) c.homotopy)}))
+    (#start{(Homotopy.laws source source (\fun (x: A) => x) (\fun (_: A) => c.centre) c.homotopy)} x)
+    (#end{(Homotopy.laws source source (\fun (x: A) => x) (\fun (_: A) => c.centre) c.homotopy)} x);
+\definition connected: \forall (c: Data) -> Components.PathConnected :=
+  \fun (c: Data)(x, y: A) => Components.transitive x c.centre y
+    (\exact(toCentre c x, Components.Path x c.centre))
+    (Components.symmetric y c.centre (\exact(toCentre c y, Components.Path y c.centre)));
