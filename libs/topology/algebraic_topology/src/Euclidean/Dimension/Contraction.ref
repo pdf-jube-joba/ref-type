@@ -1,0 +1,95 @@
+\import \parent.Geometry[] \as Geometry;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Real.SquareRoot[] \as Root;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition zero: Coordinate := \fun (_: Index) => Real.zero;
+\definition scale(a: Real.Real)(x: Coordinate): Coordinate := \fun (i: Index) => Real.mul a (x i);
+\definition zeroSum: \forall (indices: Lists.List[Index]) -> Geometry.sumSquares indices zero = Real.zero :=
+  \induction (indices: Lists.List[Index]) \return Geometry.sumSquares indices zero = Real.zero \with {
+    | nil: \refl(Real.zero)
+    | cons: \fun (i: Index)(tail: Lists.List[Index])(previous: _) => trans!{Real.Real} _ _ _
+      (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulZeroLeft Real.zero) previous)
+      (Laws.addZeroLeft Real.zero)
+  };
+\definition scaleSum: \forall (indices: Lists.List[Index])(a: Real.Real)(x: Coordinate) ->
+  Geometry.sumSquares indices (scale a x) = Real.mul (Real.mul a a) (Geometry.sumSquares indices x) :=
+  \induction (indices: Lists.List[Index]) \return \forall (a: Real.Real)(x: Coordinate) ->
+    Geometry.sumSquares indices (scale a x) = Real.mul (Real.mul a a) (Geometry.sumSquares indices x) \with {
+    | nil: \fun (a: Real.Real)(x: Coordinate) => sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (Real.mul a a))
+    | cons: \fun (i: Index)(tail: Lists.List[Index])(previous: _)(a: Real.Real)(x: Coordinate) =>
+      trans!{Real.Real} _ _ _
+        (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.mulFour a (x i) a (x i)) (previous a x))
+        (sym!{Real.Real} _ _ (Laws.fieldMulAdd (Real.mul a a) (Real.mul (x i) (x i)) (Geometry.sumSquares tail x)))
+  };
+\definition normScale: \forall (a: Real.Real)(x: Coordinate) -> normSquared (scale a x) = Real.mul (Real.mul a a) (normSquared x) :=
+  \fun (a: Real.Real)(x: Coordinate) => scaleSum (Fin.elements n) a x;
+\definition origin: Disk := \into[Coordinate](zero, ClosedBall) \by {
+  R.leReplaceLeft Real.zero (normSquared zero) Real.one (sym!{Real.Real} _ _ (zeroSum (Fin.elements n))) Laws.oneNonnegative
+};
+\import \root.Interval[] \as Interval;
+\definition squareBound: \forall (t: Interval.Carrier) -> R.Le (Real.mul t t) Real.one :=
+  \fun (t: Interval.Carrier) => R.leReplaceRight (Real.mul t t) (Real.mul Real.one Real.one) Real.one
+    (Laws.fieldMulOneLeft Real.one)
+    (Root.squareMonotone t Real.one #left{(Interval.bounds t)} Laws.oneNonnegative #right{(Interval.bounds t)});
+\definition scaled(t: Interval.Carrier)(x: Disk): Disk := \into[Coordinate](scale (Interval.reverse t) x, ClosedBall) \by {
+  R.leReplaceLeft (Real.mul (Real.mul (Interval.reverse t) (Interval.reverse t)) (normSquared x))
+    (normSquared (scale (Interval.reverse t) x)) Real.one (sym!{Real.Real} _ _ (normScale (Interval.reverse t) x))
+    (R.leTrans _ (Real.mul (Interval.reverse t) (Interval.reverse t)) _
+      (R.leReplaceRight _ (Real.mul (Real.mul (Interval.reverse t) (Interval.reverse t)) Real.one)
+        (Real.mul (Interval.reverse t) (Interval.reverse t)) (Algebra.mulOneRight _)
+        (Estimates.mulMonotone (Real.mul (Interval.reverse t) (Interval.reverse t)) (normSquared x) Real.one
+          (Algebra.squareNonnegative (Interval.reverse t)) (\bysub(Coordinate, ClosedBall, x))))
+      (squareBound (Interval.reverse t)))
+};
+\definition atStart: \forall (x: Disk) -> scaled Interval.start x = x :=
+  \fun (x: Disk) => \axiom:funext(scaled Interval.start x, x, \fun (i: Index) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (x i)) _ _ (Laws.subZeroRight Real.one))
+    (Laws.fieldMulOneLeft (x i)));
+\definition atEnd: \forall (x: Disk) -> scaled Interval.end x = origin :=
+  \fun (x: Disk) => \axiom:funext(scaled Interval.end x, origin, \fun (i: Index) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (x i)) _ _ (Laws.subSelf Real.one))
+    (Laws.fieldMulZeroLeft (x i)));
+\import \root.Cylinder[A := Disk] \as Cylinder;
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as Functions;
+\import Functions.Product[] \as Product;
+\import topology.Composition[A := Cylinder.Carrier, B := Interval.Carrier, C := Real.Real] \as TimeComposition;
+\import topology.Continuity[A := Coordinate, B := Coordinate].Corestriction[S := ClosedBall] \as Inclusion;
+\import topology.Composition[A := Disk, B := Coordinate, C := Real.Real] \as CoordinateComposition;
+\import topology.Composition[A := Cylinder.Carrier, B := Disk, C := Real.Real] \as PointComposition;
+\definition coordinateContinuous: \forall (i: Index) -> topology.Continuity[A := Disk, B := Real.Real].Continuous diskTopology Line.topology (\fun (x: Disk) => x i) :=
+  \fun (i: Index) => CoordinateComposition.composeContinuous diskTopology topology Line.topology
+    (\fun (x: Disk) => x) (\fun (x: Coordinate) => x i) (Inclusion.inclusionContinuous topology) (Coordinates.evaluationContinuous Line.topology i);
+\definition scalarTime(p: Cylinder.Carrier): Real.Real := Cylinder.time p;
+\definition timeContinuous: Functions.Continuous (Cylinder.topology diskTopology) scalarTime :=
+  TimeComposition.composeContinuous (Cylinder.topology diskTopology) Interval.topology Line.topology Cylinder.time (\fun (t: Interval.Carrier) => t)
+    (Cylinder.timeContinuous diskTopology) Interval.inclusionContinuous;
+\definition pointContinuous: \forall (i: Index) -> Functions.Continuous (Cylinder.topology diskTopology) (\fun (p: Cylinder.Carrier) => Cylinder.point p i) :=
+  \fun (i: Index) => PointComposition.composeContinuous (Cylinder.topology diskTopology) diskTopology Line.topology Cylinder.point (\fun (x: Disk) => x i)
+    (Cylinder.pointContinuous diskTopology) (coordinateContinuous i);
+\import Coordinates.Universal[A := Cylinder.Carrier] \as Ambient;
+\import topology.Continuity[A := Cylinder.Carrier, B := Coordinate].Corestriction[S := ClosedBall] \as Into;
+\definition family(p: Cylinder.Carrier): Disk := scaled (Cylinder.time p) (Cylinder.point p);
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Disk].Continuous (Cylinder.topology diskTopology) diskTopology family :=
+  Into.corestrictContinuous (Cylinder.topology diskTopology) topology family
+    (Ambient.continuous (Cylinder.topology diskTopology) Line.topology (\fun (p: Cylinder.Carrier) => scale (Interval.reverse (Cylinder.time p)) (Cylinder.point p))
+      (\fun (i: Index) => Product.continuous (Cylinder.topology diskTopology)
+        (\fun (p: Cylinder.Carrier) => Real.sub Real.one (scalarTime p)) (\fun (p: Cylinder.Carrier) => Cylinder.point p i)
+        (Functions.subContinuous (Cylinder.topology diskTopology) (\fun (_: Cylinder.Carrier) => Real.one) scalarTime
+          (Functions.constantContinuous (Cylinder.topology diskTopology) Real.one) timeContinuous) (pointContinuous i)));
+\import \root.Homotopy[A := Disk, B := Disk] \as Homotopy;
+\definition homotopy: Homotopy.Homotopy[diskTopology, diskTopology, (\fun (x: Disk) => x), (\fun (_: Disk) => origin)] :=
+  \into[Homotopy.Family](family, Homotopy.Homotopy[diskTopology, diskTopology, (\fun (x: Disk) => x), (\fun (_: Disk) => origin)]) \by {
+    Homotopy.Laws[diskTopology, diskTopology, (\fun (x: Disk) => x), (\fun (_: Disk) => origin), family] {
+      continuous := continuous,
+      start := atStart,
+      end := atEnd,
+    }
+  };
+\import \root.Contraction[A := Disk, source := diskTopology] \as Contractibility;
+\definition contraction: Contractibility.Data := Contractibility.Data { centre := origin, homotopy := homotopy };
