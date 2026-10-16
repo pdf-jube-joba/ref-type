@@ -1,0 +1,26 @@
+\definition step(n: N.Nat^)(previous: Fin (N.Nat^::succ n) -> (Fin (N.Nat^::succ n) -> A) -> Fin (N.Nat^::succ (N.Nat^::succ n)) -> A)
+  (f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A): Option.Option[Fin (N.Nat^::succ n)] -> Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A :=
+  \induction (index: Option.Option[Fin (N.Nat^::succ n)]) \return Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A \with {
+    | none: extend (N.Nat^::succ (N.Nat^::succ n)) (f (zero (N.Nat^::succ n))) f
+    | some: \fun (i: Fin (N.Nat^::succ n)) => extend (N.Nat^::succ (N.Nat^::succ n)) (f (zero (N.Nat^::succ n)))
+        (previous i (\fun (j: Fin (N.Nat^::succ n)) => f (succ (N.Nat^::succ n) j)))
+  };
+\definition repeat: \forall (n: N.Nat^) -> Fin (N.Nat^::succ n) -> (Fin (N.Nat^::succ n) -> A) -> Fin (N.Nat^::succ (N.Nat^::succ n)) -> A :=
+  \induction (n: N.Nat^) \return Fin (N.Nat^::succ n) -> (Fin (N.Nat^::succ n) -> A) -> Fin (N.Nat^::succ (N.Nat^::succ n)) -> A \with {
+    | zero: \fun (i: Fin (N.Nat^::succ N.Nat^::zero))(f: Fin (N.Nat^::succ N.Nat^::zero) -> A) => extend (N.Nat^::succ N.Nat^::zero) (f (zero N.Nat^::zero)) f
+    | succ: \fun (n: N.Nat^)(previous: _)(i: Fin (N.Nat^::succ (N.Nat^::succ n)))(f: _) => step n previous f (split (N.Nat^::succ n) i)
+  };
+\definition head: \forall (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) -> repeat n (zero n) f = extend (N.Nat^::succ n) (f (zero n)) f :=
+  \induction (n: N.Nat^) \return \forall (f: Fin (N.Nat^::succ n) -> A) -> repeat n (zero n) f = extend (N.Nat^::succ n) (f (zero n)) f \with {
+    | zero: \fun (f: Fin (N.Nat^::succ N.Nat^::zero) -> A) => \refl(extend (N.Nat^::succ N.Nat^::zero) (f (zero N.Nat^::zero)) f)
+    | succ: \fun (n: N.Nat^)(previous: _)(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) =>
+        congr!{{Option.Option[Fin (N.Nat^::succ n)]} {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}}
+          (step n (repeat n) f) _ _ (splitInflate (N.Nat^::succ n) Option.Option[Fin (N.Nat^::succ n)]::none)
+  };
+\definition successor: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) ->
+  repeat (N.Nat^::succ n) (succ (N.Nat^::succ n) i) f = extend (N.Nat^::succ (N.Nat^::succ n)) (f (zero (N.Nat^::succ n)))
+    (repeat n i (\fun (j: Fin (N.Nat^::succ n)) => f (succ (N.Nat^::succ n) j))) :=
+  \fun (n: N.Nat^)(i: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) =>
+    congr!{{Option.Option[Fin (N.Nat^::succ n)]} {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}}
+      (step n (repeat n) f) _ _ (splitInflate (N.Nat^::succ n) (Option.Option[Fin (N.Nat^::succ n)]::some i));
+\module Sections;
