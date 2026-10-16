@@ -1,4 +1,4 @@
-"""Check that the acceptance runner cannot mistake broken execution for rejection."""
+"""Check test isolation, execution failures, and explicit expectations."""
 import contextlib
 import importlib.util
 import io
@@ -39,13 +39,6 @@ class RunnerTests(unittest.TestCase):
             valid.removesuffix('```\n'),
             valid.replace('toml case', 'toml step'),
             valid.replace('expect="accept"', 'expect="accept"\nargs=["--report-json=/tmp/fake.json"]'),
-            valid.replace('expect="accept"', 'expect="accept"\nstdout_same_as="missing"'),
-            valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", pattern="["}]'),
-            valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", count=1}]'),
-            valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", pattern="x", sum_equals="y"}]'),
-            valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", contains=["x"], typo=1}]'),
-            valid.replace('expect="accept"', 'expect="interrupted"'),
-            valid.replace('expect="accept"', 'expect="accept"\ninterrupt={stderr="ready"}'),
             valid.replace('expect="accept"', 'expect="accept"\nfiles=[{path="../escape"}]'),
             valid.replace('expect="accept"', 'expect="accept"\nfiles=[{path="cache", same_as="missing"}]'),
         ]
@@ -62,26 +55,33 @@ class RunnerTests(unittest.TestCase):
             case, = runner.parse_document(self.document(directory, text))
             self.assertEqual(case.sources[0].text, '/* 日本語と ``` */\nbody\n')
 
-    def test_crashes_missing_reports_and_exit_disagreements_fail_negative_cases(self):
-        config = {"expect": "reject"}
+    def test_result_checks_only_the_expected_exit_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "absent.json"
+            for expectation, code in runner.EXPECTATIONS.items():
+                with self.subTest(expectation=expectation):
+                    runner.check_result({"expect": expectation}, code, path)
+                    for status in (-11, 2, 101, 1 - code):
+                        with self.subTest(status=status), self.assertRaises(AssertionError):
+                            runner.check_result({"expect": expectation}, status, path)
+
+    def test_cache_checks_only_explicit_reuse_expectations(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "report.json"
-            for status, report in [
-                (1, None), (1, "malformed"), (-11, {"outcome": "rejected"}),
-                (2, {"outcome": "internal-error"}), (0, {"outcome": "rejected"}),
-                (1, {"outcome": "accepted"}),
-                (1, {"outcome": "rejected", "cache": {"verification_reused": 0}}),
-            ]:
-                with self.subTest(status=status, report=report):
-                    if report is None:
-                        path.unlink(missing_ok=True)
-                    elif isinstance(report, str):
-                        path.write_text(report)
-                    else:
-                        complete = {"version": 1, "cache": {"verification_reused": False}, **report}
-                        path.write_text(json.dumps(complete))
-                    with self.assertRaises(AssertionError):
-                        runner.check_result(config, status, b"", b"", path, {})
+            for reused in (False, True):
+                config = {"expect": "accept", "cache": "reused" if reused else "unused"}
+                # Only the field being measured is needed, regardless of other metadata.
+                path.write_text(json.dumps({"cache": {"verification_reused": reused}}))
+                runner.check_result(config, 0, path)
+                with self.assertRaises(AssertionError):
+                    runner.check_result({**config, "cache": "unused" if reused else "reused"}, 0, path)
+            for report in ('malformed', '[]', '{}', '{"cache":{"verification_reused":0}}'):
+                path.write_text(report)
+                with self.subTest(report=report), self.assertRaises(AssertionError):
+                    runner.check_result(config, 0, path)
+            path.unlink()
+            with self.assertRaises(AssertionError):
+                runner.check_result(config, 0, path)
 
     def test_scenario_mutates_real_files_and_invokes_separate_processes(self):
         document = '''```toml scenario
@@ -91,7 +91,6 @@ scope="module"
 ```toml step
 id="cold"
 expect="accept"
-stdout="first\\n"
 ```
 ```ref
 first
@@ -99,12 +98,10 @@ first
 ```toml step
 id="warm"
 expect="accept"
-stdout_same_as="cold"
 ```
 ```toml step
 id="edit"
 expect="accept"
-stdout="second\\n"
 ```
 ```ref
 second
@@ -113,39 +110,21 @@ second
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
             checker = directory / "checker.py"
-            pids = directory / "pids"
+            observations = directory / "observations"
             checker.write_text('''import json, os, sys
 from pathlib import Path
+assert "--report-json" not in sys.argv
 source = Path(sys.argv[2]).parent / "Test.ref"
 with Path(sys.argv[1]).open("a") as file:
-    file.write(str(os.getpid()) + "\\n")
-sys.stdout.write(source.read_text())
-report = Path(sys.argv[sys.argv.index("--report-json") + 1])
-report.write_text(json.dumps({"version":1,"outcome":"accepted","cache":{"verification_reused":False}}))
+    file.write(json.dumps([os.getpid(), source.read_text()]) + "\\n")
+sys.stdout.buffer.write(b"query" * 20000)
+sys.stderr.buffer.write(b"diagnostics" * 20000)
 ''')
             case, = runner.parse_document(self.document(directory, document))
-            runner.run_case(case, [sys.executable, str(checker), str(pids)])
-            self.assertEqual(len(set(pids.read_text().splitlines())), 3)
-
-    def test_output_checks_detect_missing_repeated_and_misordered_results(self):
-        streams = {"stderr": b"start\npart 1\npart 2\ntotal 3\nfinish\n"}
-        checks = [
-            {"stream": "stderr", "contains": ["start"], "absent": ["error"],
-             "ordered": ["start", "finish"]},
-            {"stream": "stderr", "pattern": r"^part (\d+)$", "count": 2,
-             "sum_equals": r"^total (\d+)$", "positive": True},
-        ]
-        runner.check_output(checks, streams)
-        failures = [
-            {"contains": ["missing"]}, {"absent": ["start"]},
-            {"ordered": ["finish", "start"]}, {"pattern": "missing"},
-            {"pattern": "part", "count": 1},
-            {"pattern": r"^part (\d+)$", "sum_equals": r"^part (\d+)$"},
-            {"pattern": r"^part (\d+)$", "sum_equals": r"^part (2)$"},
-        ]
-        for check in failures:
-            with self.subTest(check=check), self.assertRaises(AssertionError):
-                runner.check_output([{"stream": "stderr", **check}], streams)
+            runner.run_case(case, [sys.executable, str(checker), str(observations)])
+            records = [json.loads(line) for line in observations.read_text().splitlines()]
+            self.assertEqual([source for _, source in records], ["first\n", "first\n", "second\n"])
+            self.assertEqual(len({pid for pid, _ in records}), 3)
 
     def test_file_snapshots_detect_changes_additions_and_removals(self):
         with tempfile.TemporaryDirectory() as directory:

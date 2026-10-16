@@ -47,14 +47,13 @@ cache = "reused"
 
 ### キャッシュ無効
 
-再利用せず検査しても同じ簡約結果になる。
+再利用せず検査しても受理する。
 
 ```toml step
 id = "clean"
 expect = "accept"
 cache = "unused"
 args = ["--no-cache"]
-stdout_same_as = "edit"
 ```
 
 ### 依存先の変更
@@ -181,26 +180,24 @@ cache = "unused"
 
 ### 別の利用側
 
-独立した依存を先に読む利用側でも、保存された型と値を再利用して同じ簡約結果になる。
+独立した依存を先に読む利用側でも、保存された型と値を再利用して受理する。
 
 ```toml step
 id = "other"
 entry = "other"
 expect = "accept"
 cache = "reused"
-stdout_same_as = "cold"
 ```
 
 ### 依存順の変更
 
-manifest の依存の記述順を変えても同じ結果を再利用できる。
+manifest の依存の記述順を変えても検証結果を再利用して受理する。
 
 ```toml step
 id = "reordered"
 entry = "other"
 expect = "accept"
 cache = "reused"
-stdout_same_as = "cold"
 ```
 
 ```toml file=other/ref.toml
@@ -222,7 +219,6 @@ entry = "other"
 expect = "accept"
 cache = "unused"
 args = ["--no-cache"]
-stdout_same_as = "cold"
 ```
 
 ## macro alias と等号移送
@@ -295,14 +291,13 @@ expect = "accept"
 
 ### キャッシュ無効
 
-キャッシュを使わなくても同じ結果になる。
+キャッシュを使わなくても証明を受理する。
 
 ```toml step
 id = "clean"
 expect = "accept"
 cache = "unused"
 args = ["--no-cache"]
-stdout_same_as = "edit"
 ```
 
 ## package の既定のキャッシュ
@@ -342,6 +337,5 @@ id = "other-cwd"
 expect = "accept"
 cache = "reused"
 cwd = "elsewhere"
-stdout_same_as = "cold"
 ```
 

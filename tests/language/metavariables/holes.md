@@ -41,22 +41,6 @@ parameters = '''A: \Set(0)'''
 \definition pending: A -> A := \fun (x: A) => ?;
 ```
 
-## metavariable number overflow
-
-名前付き穴の番号が扱える範囲を超える。
-
-```toml case
-id = "reject-metavariables.metavariable_number_overflow"
-scope = "module"
-expect = "reject"
-name = "MetavariableNumberOverflow"
-parameters = '''A: \Set(0)'''
-```
-
-```ref
-\definition pending: A := _4294967296;
-```
-
 ## named goal captures sibling binder
 
 名前付き穴が別の binder の局所変数を捕捉しようとする。

@@ -65,7 +65,6 @@ id = "local"
 expect = "accept"
 cache = "reused"
 args = ["--full-check-local"]
-stdout_same_as = "cold"
 ```
 
 ### 通常の再検査

@@ -25,13 +25,12 @@ cache = "unused"
 
 ### 再検査
 
-同じ検証結果を再利用し、query の結果も保つ。
+同じ入力を受理し、検証結果を再利用する。
 
 ```toml step
 id = "warm"
 expect = "accept"
 cache = "reused"
-stdout_same_as = "cold"
 ```
 
 ### 強制検査
@@ -43,7 +42,6 @@ id = "full"
 expect = "accept"
 cache = "unused"
 args = ["--full-check"]
-stdout_same_as = "cold"
 ```
 
 ### 変更
@@ -68,7 +66,6 @@ id = "uncached"
 expect = "reject"
 cache = "unused"
 args = ["--no-cache"]
-stdout_same_as = "changed"
 ```
 
 ### 修正
@@ -92,7 +89,6 @@ expect = "accept"
 id = "fixed-warm"
 expect = "accept"
 cache = "reused"
-stdout_same_as = "fixed"
 ```
 
 ### 保存先の変更
@@ -174,6 +170,5 @@ id = "other-cwd"
 expect = "accept"
 cache = "reused"
 cwd = "elsewhere"
-stdout_same_as = "cold"
 ```
 

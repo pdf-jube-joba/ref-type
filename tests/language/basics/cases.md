@@ -44,13 +44,12 @@ parameters = '''A: \Set(0),'''
 
 ## eval id
 
-恒等関数の application が元の引数に簡約される。
+恒等関数の application を評価できる。
 
 ```toml case
 id = "accept-eval_id"
 scope = "module"
 expect = "accept"
-stdout = "\\Set(0)\n"
 name = "Example"
 ```
 

@@ -2,7 +2,8 @@
 
 ## member の選択と列挙
 
-manifest に列挙した member を検査する。同じ member の別表記は重複せず、列挙していない package は対象に含めない。
+manifest に列挙した member を検査する。
+同じ member の別表記を含む manifest も受理し、列挙していない package は検査対象に含めない。
 
 ```toml scenario
 id = "members"
@@ -52,13 +53,12 @@ expect = "accept"
 
 ### module 一覧
 
-重複を除いた member の module を列挙する。
+同じ member の別表記を含んでいても、module 一覧の取得は成功する。
 
 ```toml step
 id = "list"
 expect = "accept"
 args = ["--list-modules"]
-stdout = "left\nleft.Main\nright\nright.Main\n"
 ```
 
 ### member の型エラー

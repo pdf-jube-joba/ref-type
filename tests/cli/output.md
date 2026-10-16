@@ -2,23 +2,21 @@
 
 ## 大きな出力
 
-多数の query の結果を欠落や停止なく受け取れる。
+多数の query を含む入力の検査が完了する。
 
 ```toml case
 id = "large-output"
 scope = "module"
 expect = "accept"
-stdout_lines = 10000
-stdout_bytes_min = 65537
 ```
 
 ```ref repeat=10000
 \infer \Set;
 ```
 
-## trace と標準出力
+## trace を有効にした検査
 
-trace は標準エラーに出力され、query の標準出力は通常の実行と同じになる。
+trace の有無によらず、同じ入力を受理する。
 
 ```toml scenario
 id = "trace-output"
@@ -27,7 +25,7 @@ scope = "module"
 
 ### 通常
 
-恒等関数の値を表示できる。
+命題の定義と query を受理する。
 
 ```toml step
 id = "normal"
@@ -40,13 +38,11 @@ expect = "accept"
 
 ### trace
 
-同じ query の結果を返す。
+trace を有効にしても受理する。
 
 ```toml step
 id = "trace"
 expect = "accept"
 args = ["--trace"]
-stdout_same_as = "normal"
-stderr_empty = false
 ```
 

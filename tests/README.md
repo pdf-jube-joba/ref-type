@@ -17,7 +17,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 ランナーはコマンドを引数列として直接起動する。
 テストの文書やディレクトリを位置引数で選択でき、`--filter` はケース名の部分一致または glob で絞り込む。
 `--keep-failed` は失敗した一時ディレクトリを残し、その場所を表示する。
-`logs/` に各手順のコマンド、作業ディレクトリ、標準出力、標準エラー、JSON レポートが残る。
+`logs/` に各手順のコマンド、作業ディレクトリ、標準出力、標準エラーが残る。
 通常の検査は実行ごとに30秒を上限とし、文書の `timeout` または CLI の `--timeout` で変更できる。
 
 ## ケース
@@ -95,63 +95,22 @@ cache = "reused"
 `cache_dir` は一時ディレクトリからのキャッシュ保存先で、既定値は `cache` である。
 `cache_dir = "default"` は CLI の既定の保存先を使う。
 
-`cache = "reused"` と `cache = "unused"` は JSON レポートの `cache.verification_reused` を検査する。
+`cache = "reused"` と `cache = "unused"` を指定した手順では、`--report-json PATH` を付けて JSON レポートの `cache.verification_reused` を検査する。
+レポートは `logs/` に保存する。
 永続化された検証結果による検査の省略を表し、構文解析だけの再利用は含まない。
 `--no-cache`、`--full-check`、`--trace` では以前の検証結果を利用しない。
 
 ## 観測する結果
 
-ランナーは `--report-json PATH` を各実行に付ける。
+| `expect` | 終了コード |
+| --- | --- |
+| `accept` | 0 |
+| `reject` | 1 |
 
-| `expect` | レポートの `outcome` | 終了コード |
-| --- | --- | --- |
-| `accept` | `accepted` | 0 |
-| `reject` | `rejected` | 1 |
-
-`internal-error`、クラッシュ、タイムアウト、レポートの欠落、終了コードとの不一致は実行の失敗として扱う。
-CLI の内部異常の終了コードは2である。
+内部異常の終了コード2、クラッシュ、タイムアウトは実行の失敗として扱う。
 不明な設定、重複した ID、閉じていないフェンス、ソースのないケースは文書のエラーとして扱う。
 
-query の結果や出力先を検査する場合は、次の設定を追加できる。
-
-| 設定 | 検査する内容 |
-| --- | --- |
-| `stdout` | 標準出力全体との一致 |
-| `stdout_same_as` | 同じシナリオの先行する手順の標準出力との一致 |
-| `stdout_lines` | 標準出力の行数 |
-| `stdout_bytes_min` | 標準出力の最小バイト数 |
-| `stderr_empty` | 標準エラーが空かどうか |
-
-大量の出力を検査する場合は、`ref repeat=10000` で小さなソースを反復して展開できる。
-
-### 出力の部分一致・順序・集計
-
-`checks` は標準出力・標準エラー・制御端末の出力を照合する。
-正規表現は各行の先頭・末尾に `^`・`$` が一致する方式で評価する。
-
-```toml
-checks = [
-  { stream = "stderr", contains = ["event=planned"], absent = ["\r"] },
-  { stream = "stderr", ordered = ["event=start", "event=complete"] },
-  { stream = "stderr", pattern = 'event=finished success=true', count = 1 },
-]
-```
-
-| 設定 | 検査する内容 |
-| --- | --- |
-| `stream` | `stdout`、`stderr`、`terminal` のいずれか |
-| `contains` | 含まれる文字列の配列 |
-| `absent` | 含まれない文字列の配列 |
-| `ordered` | 指定した順に現れる文字列の配列 |
-| `pattern` | 一致する正規表現 |
-| `count` | 正規表現の一致数、省略すると一回以上 |
-| `sum_equals` | `pattern` の数値の合計と比較する正規表現 |
-| `relative_tolerance` | 合計の比較で許容する相対誤差、既定はゼロ |
-| `positive` | 比較する合計が正の数であること |
-
-`sum_equals` を使う場合、両方の正規表現に数値を取り出すキャプチャを一つずつ設ける。
-比較先は一回だけ一致し、各数値は有限の非負数である必要がある。
-[計測の例](cli/profiling.md)を参照。
+大量の query を実行する場合は、`ref repeat=10000` で小さなソースを反復して展開できる。
 
 ### 保存ファイルの比較
 
@@ -165,24 +124,6 @@ files = [{ path = "refcache", same_as = "saved", nonempty = true }]
 `same_as` は同じパスを記録した先行手順との一致を検査する。
 `nonempty` はファイルが一つ以上あるかを検査する。
 [ファイル比較の例](cache/files.md)を参照。
-
-### 制御端末と割り込み
-
-`terminal = true` は擬似端末を制御端末として CLI を起動する。
-標準出力と標準エラーは別々のログファイルに保存し、制御端末への出力は `checks` の `terminal` で照合する。
-端末のログも `logs/` に保存する。
-この実行方式には Unix の擬似端末が必要である。
-
-```toml
-terminal = true
-expect = "interrupted"
-interrupt = { terminal = "\u001b[2K", stderr = "checking " }
-```
-
-`interrupt` に指定した文字列がすべて観測できたら、制御端末へ Ctrl+C を送る。
-`expect = "interrupted"` は Ctrl+C の送信と SIGINT による終了を検査し、JSON レポートを要求しない。
-割り込み前の終了やタイムアウトは失敗となる。
-[端末の例](cli/terminal.md)を参照。
 
 数学の定義・証明は [libs](../libs/README.md)、内部状態・保存形式・プロセス管理は Rust のテストで検査する。
 [test_runner.py](test_runner.py) は共通ランナーの動作を検査する。

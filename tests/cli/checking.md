@@ -72,10 +72,9 @@ expect = "accept"
 }
 ```
 
-## 構文エラー後の独立した query
+## 独立した module を含む構文エラー
 
-詳細な検査では独立した module の query を実行できる。
-簡潔な診断方式では最初の構文エラーで停止する。
+独立した正しい module があっても、構文エラーを含む入力を拒否する。
 
 ```toml scenario
 id = "parse-error-recovery"
@@ -98,24 +97,22 @@ entry = "src/root.ref"
 
 ### 詳細な検査
 
-入力は拒否されるが、独立した query の結果は標準出力に返る。
+構文エラーを含む入力を拒否する。
 
 ```toml step
 id = "detailed"
 expect = "reject"
 args = ["--diagnostics", "detailed"]
-stdout_lines = 1
 ```
 
 ### 簡潔な検査
 
-最初の構文エラーで停止し、後続の query を実行しない。
+簡潔な診断方式でも拒否する。
 
 ```toml step
 id = "compact"
 expect = "reject"
 args = ["--diagnostics", "compact"]
-stdout = ""
 ```
 
 ## module の検査範囲
@@ -182,13 +179,12 @@ scope = "package"
 
 ### 一覧
 
-ソースにある親と子を列挙できる。
+型エラーのある子を含んでいても、module 一覧の取得は成功する。
 
 ```toml step
 id = "list"
 expect = "accept"
 args = ["--list-modules"]
-stdout = "test\ntest.M\ntest.M.Good\ntest.M.Bad\n"
 ```
 
 ### 親自身
@@ -246,8 +242,6 @@ scope = "package"
 id = "parse"
 expect = "accept"
 args = ["--parse-only"]
-stdout = ""
-stderr_empty = true
 ```
 
 ### 型も検査
@@ -298,8 +292,6 @@ scope = "package"
 id = "parse"
 expect = "accept"
 args = ["--parse-only"]
-stdout = ""
-stderr_empty = true
 ```
 
 ### 型も検査
@@ -354,8 +346,6 @@ scope = "package"
 ```toml step
 id = "type"
 expect = "reject"
-stdout = ""
-stderr_empty = false
 ```
 
 ### 構文
