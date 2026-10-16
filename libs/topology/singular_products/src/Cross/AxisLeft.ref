@@ -1,0 +1,25 @@
+\definition p: N.Nat^ := N.Nat^::succ r;
+\definition lower: N.Nat^ := degree r N.Nat^::zero;
+\import \root.ProductChains[p := p, q := N.Nat^::zero] \as Higher;
+\import Higher.Into[A := A, B := B, source := left, target := right] \as Into;
+\import \parent.At[p := r, q := N.Nat^::zero] \as Lower;
+\import \root.OrderedShuffle[V := Simplex.Carrier p, W := Simplex.Carrier N.Nat^::zero] \as Raw;
+\import Raw.At[p := p, q := N.Nat^::zero] \as Full;
+\import Raw.At[p := r, q := N.Nat^::zero] \as LowerRaw;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier p] \as RawLeft;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier N.Nat^::zero] \as RawRight;
+\import singular_cohomology.OrderedTuples[V := Higher.Points] \as Tuples;
+\import Simplex.Vertices[] \as Vertices;
+\definition leftGenerator: RawLeft.Carrier (N.Nat^::succ p) := RawLeft.generator (N.Nat^::succ p) (Vertices.vertex p);
+\definition rightGenerator: RawRight.Carrier (N.Nat^::succ N.Nat^::zero) := RawRight.generator (N.Nat^::succ N.Nat^::zero) (Vertices.vertex N.Nat^::zero);
+\definition rawBoundary: #apply{(Tuples.boundary (N.Nat^::succ lower))} Higher.fundamental = LowerRaw.apply (#apply{(RawLeft.boundary p)} leftGenerator) rightGenerator :=
+  trans!{{Tuples.Carrier (N.Nat^::succ lower)}} _ _ _
+    (sym!{{Tuples.Carrier (N.Nat^::succ lower)}} _ _
+      (congr!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ lower))} {Tuples.Carrier (N.Nat^::succ lower)}} (#apply{(Tuples.boundary (N.Nat^::succ lower))}) _ _
+        (Full.onGenerators (Vertices.vertex p) (Vertices.vertex N.Nat^::zero))))
+    (Raw.RightDegreeZero[p := r].law leftGenerator rightGenerator);
+\definition law: #apply{(Target.boundary lower)} (Into.onSimplices sigma tau) = Lower.apply (#apply{(Left.boundary r)} (Left.generator p sigma)) (Right.generator N.Nat^::zero tau) :=
+  trans!{{Target.Carrier lower}} _ _ _ (#commutes{(Into.evaluation sigma tau)} lower Higher.fundamental)
+    (trans!{{Target.Carrier lower}} _ _ _
+      (congr!{{Tuples.Carrier (N.Nat^::succ lower)} {Target.Carrier lower}} (#apply{(Into.evaluation sigma tau)} lower) _ _ rawBoundary)
+      (\parent.SumLeft[r := r, q := N.Nat^::zero, sigma := sigma, tau := tau].law));

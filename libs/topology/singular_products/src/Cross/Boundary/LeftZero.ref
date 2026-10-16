@@ -1,0 +1,17 @@
+\definition p: N.Nat^ := N.Nat^::zero;
+\definition q: N.Nat^ := N.Nat^::succ s;
+\import \parent.\parent.At[p := p, q := q] \as Full;
+\import \parent.\parent.At[p := p, q := s] \as Lower;
+\import Commutative.Bilinear[A := Full.leftBundle, B := Full.rightBundle, C := Full.targetBundle].Postcompose[D := Lower.targetBundle] \as After;
+\import Commutative.Bilinear[A := Lower.leftBundle, B := Lower.rightBundle, C := Lower.targetBundle].Precompose[D := Full.leftBundle, E := Full.rightBundle] \as Before;
+\import Commutative.Bilinear[A := Full.leftBundle, B := Full.rightBundle, C := Lower.targetBundle] \as Form;
+\import Modules.End[V := Left.Carrier p, space := Left.space p] \as LeftIdentity;
+\definition lhs: Form.Map := After.apply Full.bilinear (Target.boundary s);
+\definition rhs: Form.Map := Before.apply Lower.bilinear LeftIdentity.identity (Right.boundary s);
+\definition onGenerators(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q):
+  #apply{lhs} (Left.generator p sigma) (Right.generator q tau) = #apply{rhs} (Left.generator p sigma) (Right.generator q tau) :=
+  trans!{{Target.Carrier s}} _ _ _
+    (congr!{{Target.Carrier (N.Nat^::succ s)} {Target.Carrier s}} (#apply{(Target.boundary s)}) _ _ (Full.onGenerators sigma tau))
+    (\parent.\parent.AxisRight[s := s, sigma := sigma, tau := tau].law);
+\import Commutative.FreeBilinear[X := LeftSimplices.Carrier p, Y := RightSimplices.Carrier q, C := Lower.targetBundle] \as Extension;
+\definition equation: lhs = rhs := Extension.ext lhs rhs onGenerators;

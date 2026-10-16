@@ -1,0 +1,24 @@
+\definition q: N.Nat^ := N.Nat^::succ s;
+\import \root.ProductChains[p := N.Nat^::zero, q := q] \as Higher;
+\import Higher.Into[A := A, B := B, source := left, target := right] \as Into;
+\import \parent.At[p := N.Nat^::zero, q := s] \as Lower;
+\import \root.OrderedShuffle[V := Simplex.Carrier N.Nat^::zero, W := Simplex.Carrier q] \as Raw;
+\import Raw.At[p := N.Nat^::zero, q := q] \as Full;
+\import Raw.At[p := N.Nat^::zero, q := s] \as LowerRaw;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier N.Nat^::zero] \as RawLeft;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier q] \as RawRight;
+\import singular_cohomology.OrderedTuples[V := Higher.Points] \as Tuples;
+\import Simplex.Vertices[] \as Vertices;
+\definition leftGenerator: RawLeft.Carrier (N.Nat^::succ N.Nat^::zero) := RawLeft.generator (N.Nat^::succ N.Nat^::zero) (Vertices.vertex N.Nat^::zero);
+\definition rightGenerator: RawRight.Carrier (N.Nat^::succ q) := RawRight.generator (N.Nat^::succ q) (Vertices.vertex q);
+\definition rawBoundary: #apply{(Tuples.boundary (N.Nat^::succ s))} Higher.fundamental = LowerRaw.apply leftGenerator (#apply{(RawRight.boundary q)} rightGenerator) :=
+  trans!{{Tuples.Carrier (N.Nat^::succ s)}} _ _ _
+    (sym!{{Tuples.Carrier (N.Nat^::succ s)}} _ _
+      (congr!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ s))} {Tuples.Carrier (N.Nat^::succ s)}} (#apply{(Tuples.boundary (N.Nat^::succ s))}) _ _
+        (Full.onGenerators (Vertices.vertex N.Nat^::zero) (Vertices.vertex q))))
+    (Raw.LeftDegreeZero[q := s].law leftGenerator rightGenerator);
+\definition law: #apply{(Target.boundary s)} (Into.onSimplices sigma tau) = Lower.apply (Left.generator N.Nat^::zero sigma) (#apply{(Right.boundary s)} (Right.generator q tau)) :=
+  trans!{{Target.Carrier s}} _ _ _ (#commutes{(Into.evaluation sigma tau)} s Higher.fundamental)
+    (trans!{{Target.Carrier s}} _ _ _
+      (congr!{{Tuples.Carrier (N.Nat^::succ s)} {Target.Carrier s}} (#apply{(Into.evaluation sigma tau)} s) _ _ rawBoundary)
+      (\parent.SumRight[p := N.Nat^::zero, s := s, sigma := sigma, tau := tau].law));

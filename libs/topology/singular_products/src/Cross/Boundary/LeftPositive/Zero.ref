@@ -1,0 +1,21 @@
+\definition q: N.Nat^ := N.Nat^::zero;
+\definition lower: N.Nat^ := degree r q;
+\import \parent.At[q := q] \as Data;
+\import \parent.On[q := q] \as Current;
+\import \parent.\parent.\parent.At[p := p, q := q] \as Full;
+\import Modules.Laws[V := Data.targetBundle.Carrier, space := Data.targetBundle.space] \as Values;
+\import algebra.Group[].Of[Carrier := Data.targetBundle.Carrier, group := Values.additive] \as Group;
+\import Modules.Alternating[V := Data.targetBundle.Carrier, space := Data.targetBundle.space].Concatenation[] \as Signs;
+\definition rhs(x: Left.Carrier p)(y: Right.Carrier q): #apply{Current.rhs} x y = #apply{Data.leftTerm} x y :=
+  trans!{Data.targetBundle.Carrier} _ _ _ (Current.expansion x y)
+    (trans!{Data.targetBundle.Carrier} _ _ _
+      (congr!{Data.targetBundle.Carrier Data.targetBundle.Carrier} (Values.add (#apply{Data.leftTerm} x y)) _ _ (Signs.twistZero p))
+      (Group.zeroRight (#apply{Data.leftTerm} x y)));
+\definition onGenerators(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q):
+  #apply{Data.lhs} (Left.generator p sigma) (Right.generator q tau) = #apply{Current.rhs} (Left.generator p sigma) (Right.generator q tau) :=
+  trans!{{Target.Carrier lower}} _ _ _
+    (congr!{{Target.Carrier (N.Nat^::succ lower)} {Target.Carrier lower}} (#apply{(Target.boundary lower)}) _ _ (Full.onGenerators sigma tau))
+    (trans!{{Target.Carrier lower}} _ _ _ (\parent.\parent.\parent.AxisLeft[r := r, sigma := sigma, tau := tau].law)
+      (sym!{{Target.Carrier lower}} _ _ (rhs (Left.generator p sigma) (Right.generator q tau))));
+\import Commutative.FreeBilinear[X := LeftSimplices.Carrier p, Y := RightSimplices.Carrier q, C := Data.targetBundle] \as Extension;
+\definition equation: Statement q := Extension.ext Data.lhs Current.rhs onGenerators;

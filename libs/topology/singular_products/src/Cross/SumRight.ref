@@ -1,0 +1,37 @@
+\definition q: N.Nat^ := N.Nat^::succ s;
+\definition lower: N.Nat^ := degree p s;
+\import \root.ProductChains[p := p, q := q] \as Higher;
+\import Higher.Into[A := A, B := B, source := left, target := right] \as HigherInto;
+\import \root.ProductChains[p := p, q := s].Into[A := A, B := B, source := left, target := right] \as LowerInto;
+\import \parent.At[p := p, q := s] \as Lower;
+\import \root.OrderedShuffle[V := Simplex.Carrier p, W := Simplex.Carrier q].At[p := p, q := s] \as Raw;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier p] \as RawLeft;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier q] \as RawRight;
+\import singular_cohomology.OrderedTuples[V := Higher.Points] \as Tuples;
+\import Simplex.Vertices[] \as Vertices;
+\import Simplex.AffineFace[n := s] \as Face;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[A := Raw.left, B := Raw.right, C := Raw.target] \as RawForm;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[A := Lower.leftBundle, B := Lower.rightBundle, C := Lower.targetBundle] \as Form;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Tuples.complex, D := Target.complex].At[n := lower] \as Evaluation;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ lower), W := Target.Carrier lower, source := Tuples.space (N.Nat^::succ lower), target := Target.space lower]
+  .Composition[U := RawRight.Carrier q, domain := RawRight.space q] \as Compose;
+\import Modules.Hom[V := RawRight.Carrier q, W := Target.Carrier lower, source := RawRight.space q, target := Target.space lower] \as RawMaps;
+\import Modules.Hom[V := Right.Carrier s, W := Target.Carrier lower, source := Right.space s, target := Target.space lower] \as NativeMaps;
+\definition rawMap: RawMaps.Map := Compose.compose (Evaluation.linear (HigherInto.evaluation sigma tau)) (RawForm.rightAt Raw.bilinear (RawLeft.generator (N.Nat^::succ p) (Vertices.vertex p)));
+\definition nativeMap: NativeMaps.Map := Form.rightAt Lower.bilinear (Left.generator p sigma);
+\import Modules.Alternating[V := Target.Carrier lower, space := Target.space lower] \as Sum;
+\definition common: Target.Carrier lower := Sum.sum (N.Nat^::succ q) (\fun (i: Fin.Fin (N.Nat^::succ q)) => LowerInto.onSimplices sigma (RightSimplices.face s i tau));
+\definition onFace(i: Fin.Fin (N.Nat^::succ q)):
+  #apply{rawMap} (RawRight.generator q (Face.vertices i)) = LowerInto.onSimplices sigma (RightSimplices.face s i tau) :=
+  trans!{{Target.Carrier lower}} _ _ _
+    (congr!{{Tuples.Carrier (N.Nat^::succ lower)} {Target.Carrier lower}} (#apply{(HigherInto.evaluation sigma tau)} lower) _ _
+      (Raw.onGenerators (Vertices.vertex p) (Face.vertices i)))
+    (sym!{{Target.Carrier lower}} _ _ (\parent.FaceRight[p := p, s := s, i := i, sigma := sigma, tau := tau].law));
+\definition onNativeFace(i: Fin.Fin (N.Nat^::succ q)):
+  #apply{nativeMap} (Right.generator s (RightSimplices.face s i tau)) = LowerInto.onSimplices sigma (RightSimplices.face s i tau) :=
+  Lower.onGenerators sigma (RightSimplices.face s i tau);
+\module OrderedBoundary;
+\module SingularBoundary;
+\definition law: #apply{rawMap} (#apply{(RawRight.boundary q)} (RawRight.generator (N.Nat^::succ q) (Vertices.vertex q))) =
+  Lower.apply (Left.generator p sigma) (#apply{(Right.boundary s)} (Right.generator q tau)) :=
+  trans!{{Target.Carrier lower}} _ _ _ OrderedBoundary[].law (sym!{{Target.Carrier lower}} _ _ SingularBoundary[].law);

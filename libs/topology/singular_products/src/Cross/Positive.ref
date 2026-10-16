@@ -1,0 +1,57 @@
+\definition p: N.Nat^ := N.Nat^::succ r;
+\definition q: N.Nat^ := N.Nat^::succ s;
+\definition lower: N.Nat^ := degree r q;
+\definition other: N.Nat^ := degree p s;
+\import N.Basic[].Prop[] \as NatLaws;
+\definition same: other = lower := sym!{N.Nat^} _ _ (NatLaws.addSuccLeft s r);
+\import \root.ProductChains[p := p, q := q] \as Higher;
+\import Higher.Into[A := A, B := B, source := left, target := right] \as Into;
+\import \parent.At[p := r, q := q] \as LowerLeft;
+\import \parent.At[p := p, q := s] \as LowerRight;
+\import \root.OrderedShuffle[V := Simplex.Carrier p, W := Simplex.Carrier q] \as Raw;
+\import Raw.At[p := p, q := q] \as Full;
+\import Raw.At[p := p, q := s] \as RightRaw;
+\import Raw.Boundary[].At[p := p, q := q] \as Boundary;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier p] \as RawLeft;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier q] \as RawRight;
+\import singular_cohomology.OrderedTuples[V := Higher.Points] \as Tuples;
+\import Simplex.Vertices[] \as Vertices;
+\definition leftGenerator: RawLeft.Carrier (N.Nat^::succ p) := RawLeft.generator (N.Nat^::succ p) (Vertices.vertex p);
+\definition rightGenerator: RawRight.Carrier (N.Nat^::succ q) := RawRight.generator (N.Nat^::succ q) (Vertices.vertex q);
+\definition rightUncast: Tuples.Carrier (N.Nat^::succ other) := RightRaw.apply leftGenerator (#apply{(RawRight.boundary q)} rightGenerator);
+\definition leftTerm: Target.Carrier lower := #apply{(Into.evaluation sigma tau)} lower (#apply{Boundary.leftTerm} leftGenerator rightGenerator);
+\definition rightTerm: Target.Carrier lower := #apply{(Into.evaluation sigma tau)} lower (#apply{Boundary.rightTerm} leftGenerator rightGenerator);
+\definition rawBoundary: #apply{(Tuples.boundary (N.Nat^::succ lower))} Higher.fundamental = #apply{Boundary.rhs} leftGenerator rightGenerator :=
+  trans!{{Tuples.Carrier (N.Nat^::succ lower)}} _ _ _
+    (sym!{{Tuples.Carrier (N.Nat^::succ lower)}} _ _
+      (congr!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ lower))} {Tuples.Carrier (N.Nat^::succ lower)}} (#apply{(Tuples.boundary (N.Nat^::succ lower))}) _ _
+        (Full.onGenerators (Vertices.vertex p) (Vertices.vertex q))))
+    (Boundary.onChains (Raw.Boundary[].equationLeft r q) leftGenerator rightGenerator);
+\definition leftLaw: leftTerm = LowerLeft.apply (#apply{(Left.boundary r)} (Left.generator p sigma)) (Right.generator q tau) :=
+  \parent.SumLeft[r := r, q := q, sigma := sigma, tau := tau].law;
+\definition rightLaw: rightTerm = Degrees.apply other lower same (LowerRight.apply (Left.generator p sigma) (#apply{(Right.boundary s)} (Right.generator q tau))) :=
+  trans!{{Target.Carrier lower}} _ _ _ (sym!{{Target.Carrier lower}} _ _ (Into.DegreeTransport[].law other lower same sigma tau rightUncast))
+    (congr!{{Target.Carrier other} {Target.Carrier lower}} (Degrees.apply other lower same) _ _ (\parent.SumRight[p := p, s := s, sigma := sigma, tau := tau].law));
+\import Modules.Alternating[V := Tuples.Carrier (N.Nat^::succ lower), space := Tuples.space (N.Nat^::succ lower)].Concatenation[] \as SourceSigns;
+\import Modules.Alternating[V := Target.Carrier lower, space := Target.space lower].Concatenation[] \as Signs;
+\import SourceSigns.Mapping[W := Target.Carrier lower, target := Target.space lower] \as SignMapping;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Tuples.complex, D := Target.complex].At[n := lower] \as Evaluation;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[A := Full.left, B := Full.right, C := Boundary.target].Operations[] \as Operations;
+\definition signed: #apply{(Into.evaluation sigma tau)} lower (#apply{(Operations.sign p Boundary.rightTerm)} leftGenerator rightGenerator) = Signs.twist p rightTerm :=
+  trans!{{Target.Carrier lower}} _ _ _
+    (congr!{{Tuples.Carrier (N.Nat^::succ lower)} {Target.Carrier lower}} (#apply{(Into.evaluation sigma tau)} lower) _ _
+      (Operations.onSign p Boundary.rightTerm leftGenerator rightGenerator))
+    (SignMapping.law (Evaluation.linear (Into.evaluation sigma tau)) p (#apply{Boundary.rightTerm} leftGenerator rightGenerator));
+\definition expansion: #apply{(Into.evaluation sigma tau)} lower (#apply{Boundary.rhs} leftGenerator rightGenerator) = #add{(Target.space lower)} leftTerm (Signs.twist p rightTerm) :=
+  trans!{{Target.Carrier lower}} _ _ _
+    (#addition{(Into.evaluation sigma tau)} lower (#apply{Boundary.leftTerm} leftGenerator rightGenerator) (#apply{(Operations.sign p Boundary.rightTerm)} leftGenerator rightGenerator))
+    (congr!{{Target.Carrier lower} {Target.Carrier lower}} (#add{(Target.space lower)} leftTerm) _ _ signed);
+\definition law: #apply{(Target.boundary lower)} (Into.onSimplices sigma tau) =
+  #add{(Target.space lower)} (LowerLeft.apply (#apply{(Left.boundary r)} (Left.generator p sigma)) (Right.generator q tau))
+    (Signs.twist p (Degrees.apply other lower same (LowerRight.apply (Left.generator p sigma) (#apply{(Right.boundary s)} (Right.generator q tau))))) :=
+  trans!{{Target.Carrier lower}} _ _ _ (#commutes{(Into.evaluation sigma tau)} lower Higher.fundamental)
+    (trans!{{Target.Carrier lower}} _ _ _
+      (congr!{{Tuples.Carrier (N.Nat^::succ lower)} {Target.Carrier lower}} (#apply{(Into.evaluation sigma tau)} lower) _ _ rawBoundary)
+      (trans!{{Target.Carrier lower}} _ _ _ expansion
+        (congr2!{{Target.Carrier lower} {Target.Carrier lower} {Target.Carrier lower}} (#add{(Target.space lower)}) _ _ _ _ leftLaw
+          (congr!{{Target.Carrier lower} {Target.Carrier lower}} (Signs.twist p) _ _ rightLaw))));
