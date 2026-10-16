@@ -416,7 +416,7 @@ impl ModuleManager {
                 for (&materialized, &original) in &base.definition_origins {
                     remapping.definition_ids.insert(original, materialized);
                 }
-                (base.arguments.clone(), remapping)
+                (base.arguments.to_vec(), remapping)
             },
         );
         let mut reflected_substitutions = substitutions
@@ -715,7 +715,7 @@ impl ModuleManager {
                 .map(|(source_module, item_source, _)| {
                     let arguments = env.namespace_binding_id(*item_source).map_or_else(
                         || env.namespace_arguments(*source_module),
-                        |binding| env.binding(binding).arguments.clone(),
+                        |binding| env.binding(binding).arguments.to_vec(),
                     );
                     stability.arguments(&arguments)
                         && env
@@ -788,7 +788,7 @@ impl ModuleManager {
             // parameter access lose the imported arguments.
             let arguments = env.namespace_binding_id(item_source).map_or_else(
                 || env.namespace_arguments(source_module),
-                |binding| env.binding(binding).arguments.clone(),
+                |binding| env.binding(binding).arguments.to_vec(),
             );
             let mut reserve_definition =
                 |env: &mut CrateEnv, remapping: &mut DeclarationRemapping, source_id: DefId| {
@@ -1108,7 +1108,7 @@ impl ModuleManager {
             if !group.path_component
                 && env.namespace_arguments_shareable(&arguments)
                 && group.items == env.module(group.item_source).items()
-                && arguments == env.binding(group.item_source).arguments
+                && arguments.as_slice() == env.binding(group.item_source).arguments.as_ref()
             {
                 for target in env
                     .reserved_remapping_mut(remapping)
@@ -2190,8 +2190,8 @@ mod tests {
             unreachable!()
         };
         assert_eq!(
-            env.binding(specialized_dependency).arguments,
-            vec![(source_parameter, ModuleArgument::Pts(argument))],
+            env.binding(specialized_dependency).arguments.as_ref(),
+            &[(source_parameter, ModuleArgument::Pts(argument))],
         );
         let module = env.module(env.binding(binding).materialized);
         let ModuleItem::Definition { definition, .. } = module.item("result").unwrap() else {

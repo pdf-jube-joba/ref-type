@@ -140,7 +140,7 @@ impl ModuleItem {
 pub struct NamespaceBinding {
     pub source: ModuleId,
     pub materialized: ModuleId,
-    pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
+    pub arguments: Arc<[(ModuleParamId, ModuleArgument)]>,
     /// Maps definitions in `materialized` back to definitions in `source`.
     pub definition_origins: HashMap<DefId, DefId>,
     pub(crate) remapping: RemappingId,
@@ -1658,6 +1658,7 @@ impl CrateEnv {
         definition_origins: HashMap<DefId, DefId>,
         remapping: RemappingId,
     ) -> ModuleId {
+        let arguments = self.namespace_argument_cache.borrow_mut().share(&arguments);
         self.module_mut(owner).bindings.push(materialized);
         let previous = self.namespace_bindings.insert(
             materialized,
@@ -2142,6 +2143,56 @@ mod cells {
 #[cfg(test)]
 mod specialization_tests {
     use super::*;
+    #[test]
+    fn namespace_argument_arrays_share_storage_and_preserve_checkpoint_bytes() {
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let namespaces = [env.add_module(), env.add_module()];
+        let parameter = ModuleParamId {
+            module: root,
+            position: 0,
+        };
+        let arguments = vec![(
+            parameter,
+            ModuleArgument::Pts(env.arena().sort(crate::raw::sort::Sort::Set(0))),
+        )];
+        for namespace in namespaces {
+            env.add_namespace_binding(
+                root,
+                root,
+                namespace,
+                arguments.clone(),
+                HashMap::new(),
+                RemappingId(0),
+            );
+        }
+        let binding = env.binding(namespaces[0]);
+        assert!(Arc::ptr_eq(
+            &binding.arguments,
+            &env.binding(namespaces[1]).arguments
+        ));
+        #[derive(serde::Serialize)]
+        struct LegacyBinding {
+            source: ModuleId,
+            materialized: ModuleId,
+            arguments: Vec<(ModuleParamId, ModuleArgument)>,
+            definition_origins: HashMap<DefId, DefId>,
+            remapping: RemappingId,
+        }
+        let legacy = LegacyBinding {
+            source: binding.source,
+            materialized: binding.materialized,
+            arguments,
+            definition_origins: binding.definition_origins.clone(),
+            remapping: binding.remapping,
+        };
+        let bytes = postcard::to_allocvec(&legacy).unwrap();
+        assert_eq!(postcard::to_allocvec(binding).unwrap(), bytes);
+        let restored: NamespaceBinding = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(restored.arguments.as_ref(), binding.arguments.as_ref());
+        assert_eq!(restored.source, binding.source);
+        assert_eq!(restored.materialized, binding.materialized);
+    }
     #[test]
     fn instantiated_name_indexes_keep_new_identities_and_isolate_later_declarations() {
         let mut env = CrateEnv::new();

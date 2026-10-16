@@ -309,7 +309,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
                     return Ok(None);
                 };
                 let binding = self.crate_env.binding(binding);
-                (binding.source, calls, binding.arguments.clone())
+                (binding.source, calls, binding.arguments.to_vec())
             }
         };
         if calls.is_empty() || self.crate_env.namespace_binding_id(source).is_some() {
