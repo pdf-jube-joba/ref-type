@@ -1,0 +1,15 @@
+\definition index: Signed.Int^ := Signed.Int^::ofNat n;
+\definition next: Signed.Int^ := Signed.Int^::ofNat (N.Nat^::succ n);
+\import Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier (N.Nat^::succ n), source := C.family.space n, target := D.family.space (N.Nat^::succ n)] \as Raw;
+\definition raw: Raw.Map := Raw.Map { apply := #apply{h} n, addition := #addition{h} n, scalar := #scalar{h} n };
+\import Raw.Composition[U := Source.Carrier index, domain := Source.space index] \as Before;
+\definition before: Modules.Hom[V := Source.Carrier index, W := D.family.Carrier (N.Nat^::succ n), source := Source.space index, target := D.family.space (N.Nat^::succ n)].Map :=
+  Before.compose raw Source.Positive[n := n].backward;
+\import Modules.Hom[V := D.family.Carrier (N.Nat^::succ n), W := Target.Carrier next, source := D.family.space (N.Nat^::succ n), target := Target.space next]
+  .Composition[U := Source.Carrier index, domain := Source.space index] \as After;
+\definition linear: Modules.Hom[V := Source.Carrier index, W := Target.Carrier next, source := Source.space index, target := Target.space next].Map :=
+  After.compose Target.Positive[n := N.Nat^::succ n].forward before;
+\definition addition: \forall (x, y: Source.Carrier index) ->
+  apply index (#add{(Source.space index)} x y) = #add{(Target.space next)} (apply index x) (apply index y) := #addition{linear};
+\definition scalar: \forall (a: R)(x: Source.Carrier index) ->
+  apply index (#smul{(Source.space index)} a x) = #smul{(Target.space next)} a (apply index x) := #scalar{linear};

@@ -1,0 +1,35 @@
+\import \parent.\parent.ZeroExtension[C := C] \as Source;
+\import \parent.\parent.ZeroExtension[C := D] \as Target;
+\import Forward.ZeroExtension[f := e.forward] \as ForwardMap;
+\import Backward.ZeroExtension[f := e.backward] \as BackwardMap;
+\import SourceHomotopy.ZeroExtension[f := LeftComposition.compose e.backward e.forward, g := SourceEnd.identity, h := leftHomotopy e] \as Left;
+\import TargetHomotopy.ZeroExtension[f := RightComposition.compose e.forward e.backward, g := TargetEnd.identity, h := rightHomotopy e] \as Right;
+\import LeftComposition.ZeroExtension[f := e.backward, g := e.forward] \as LeftCompositionLaw;
+\import RightComposition.ZeroExtension[f := e.forward, g := e.backward] \as RightCompositionLaw;
+\import SourceEnd.ZeroExtension[] \as SourceIdentity;
+\import TargetEnd.ZeroExtension[] \as TargetIdentity;
+\import chain_complexes.Chain[].Over[R := R, ring := ring] \as Chains;
+\import Chains.Equivalence[C := Source.complex, D := Target.complex] \as Equivalences;
+\import Chains.Map[C := Target.complex, D := Source.complex].Composition[B := Source.complex] \as LeftComposite;
+\import Chains.Map[C := Source.complex, D := Target.complex].Composition[B := Target.complex] \as RightComposite;
+\import Chains.End[C := Source.complex] \as SourceEnd;
+\import Chains.End[C := Target.complex] \as TargetEnd;
+\import Chains.Homotopy[C := Source.complex, D := Source.complex] \as SourceHomotopy;
+\import Chains.Homotopy[C := Target.complex, D := Target.complex] \as TargetHomotopy;
+\definition comparison: Equivalences.Data := Equivalences.Data {
+  forward := ForwardMap.map, backward := BackwardMap.map, left := Left.data, right := Right.data,
+};
+\definition equivalence: Equivalences.Equivalence := \into[Equivalences.Data](comparison, Equivalences.Equivalence) \by {
+  Equivalences.Laws[comparison] {
+    left := SourceHomotopy.replacementLaws _ _ (LeftComposite.compose BackwardMap.map ForwardMap.map) SourceEnd.identity Left.data
+      LeftCompositionLaw.law SourceIdentity.law Left.laws,
+    right := TargetHomotopy.replacementLaws _ _ (RightComposite.compose ForwardMap.map BackwardMap.map) TargetEnd.identity Right.data
+      RightCompositionLaw.law TargetIdentity.law Right.laws,
+  }
+};
+\module At(z: chain_complexes.Chain[].Degree) {
+  \import Equivalences.At[k := z] \as Comparison;
+  \definition isomorphism: _ := Comparison.isomorphism equivalence;
+  \definition bijective: _ := Comparison.bijective equivalence;
+}
+\definition quasiIsomorphism: Chains.Map[C := Source.complex, D := Target.complex].QuasiIsomorphism ForwardMap.map := \fun (z: chain_complexes.Chain[].Degree) => At[z := z].bijective;
