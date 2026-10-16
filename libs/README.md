@@ -36,6 +36,7 @@
 | [topology/topological_algebra](topology/topological_algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
 | [topology/algebraic_topology](topology/algebraic_topology/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |
 | [topology/singular_cohomology](topology/singular_cohomology/README.md) | `singular_cohomology` | 特異鎖・余鎖、相対・被約理論、ホモトピー不変性、道成分と可縮空間 |
+| [topology/singular_products](topology/singular_products/README.md) | `singular_products` | 特異余鎖とコホモロジーのカップ積、Leibniz 則、単位・結合・自然性 |
 | [topology/singular_excision](topology/singular_excision/README.md) | `singular_excision` | 切除の閉包条件から得る開被覆と部分集合の包含 |
 
 標準の実数は `dedekind_reals` から `real` に渡す。
