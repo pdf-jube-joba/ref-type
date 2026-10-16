@@ -1,0 +1,16 @@
+\import Shuffle.Mapping[V2 := Simplex.Carrier k, W2 := Simplex.Carrier l, leftMap := LeftAffine.apply u, rightMap := RightAffine.apply v] \as Naturality;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier p].Mapping[W := Simplex.Carrier k] \as LeftMap;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier q].Mapping[W := Simplex.Carrier l] \as RightMap;
+\import Simplex.AffineVertex[m := p, n := k] \as LeftVertex;
+\import Simplex.AffineVertex[m := q, n := l] \as RightVertex;
+\definition leftVertices: LeftMap.onTuple (N.Nat^::succ p) (LeftAffine.apply u) (Vertices.vertex p) = u :=
+  \axiom:funext(LeftMap.onTuple (N.Nat^::succ p) (LeftAffine.apply u) (Vertices.vertex p), u, LeftVertex.law u);
+\definition rightVertices: RightMap.onTuple (N.Nat^::succ q) (RightAffine.apply v) (Vertices.vertex q) = v :=
+  \axiom:funext(RightMap.onTuple (N.Nat^::succ q) (RightAffine.apply v) (Vertices.vertex q), v, RightVertex.law v);
+\definition shuffle: #apply{(TupleMap.push (N.Nat^::succ dimension) (point u v))} fundamental = FinalShuffle.onTuples p q u v :=
+  trans!{{FinalTuples.Carrier (N.Nat^::succ dimension)}} _ _ _ (Naturality.all p q (Vertices.vertex p) (Vertices.vertex q))
+    (congr2!{{Fin.Fin (N.Nat^::succ p) -> Simplex.Carrier k} {Fin.Fin (N.Nat^::succ q) -> Simplex.Carrier l} {FinalTuples.Carrier (N.Nat^::succ dimension)}}
+      (FinalShuffle.onTuples p q) _ _ _ _ leftVertices rightVertices);
+\definition evaluation: Into.onSimplices (left u) (right v) = #apply{Final.At[m := dimension].map} (FinalShuffle.onTuples p q u v) :=
+  trans!{{FinalChains.Carrier dimension}} _ _ _ (sym!{{FinalChains.Carrier dimension}} _ _ (\parent.At[m := dimension].law u v fundamental))
+    (congr!{{FinalTuples.Carrier (N.Nat^::succ dimension)} {FinalChains.Carrier dimension}} (#apply{Final.At[m := dimension].map}) _ _ shuffle);
