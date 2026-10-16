@@ -1,0 +1,28 @@
+\definition targetIndex: Degrees.Index (Nat.Nat^::succ n) := Total.upHorizontal n i;
+\definition U: \Set := C.family.Carrier (Nat.Nat^::succ #first{i}) (#second{i});
+\definition targetSpace: Modules.Space U := C.family.space (Nat.Nat^::succ #first{i}) (#second{i});
+\import Modules.Hom[V := C.family.Carrier #first{i} #second{i}, W := U, source := C.family.space #first{i} #second{i}, target := targetSpace] \as ComponentMaps;
+\definition original: ComponentMaps.Map := C.differential.horizontal #first{i} #second{i};
+\import Modules.Hom[V := Source.Carrier, W := U, source := Source.space, target := targetSpace] \as Maps;
+\import Modules.Hom[V := Target.Carrier, W := U, source := Target.space, target := targetSpace].Composition[U := Source.Carrier, domain := Source.space] \as After;
+\import ComponentMaps.Composition[U := Source.Carrier, domain := Source.space] \as Before;
+\definition lhs: Maps.Map := After.compose (TC.At[i := targetIndex].map) Differential.horizontal;
+\definition rhs: Maps.Map := Before.compose original (SC.At[i := i].map);
+\definition lower(k: Degrees.Pair): Degrees.Pair := Degrees.Pair { first := Arithmetic.pred #first{k}, second := #second{k} };
+\definition different(j: Degrees.Index n)(ne: Logic.Not (j = i)): Logic.Not (Total.upHorizontal n j = targetIndex) :=
+  \fun (same: Total.upHorizontal n j = targetIndex) => ne (trans!{Degrees.Pair} _ _ _ (sym!{Degrees.Pair} _ _ (Degrees.pairRebuild j))
+    (trans!{Degrees.Pair} _ _ _ (congr!{Degrees.Pair Degrees.Pair} lower _ _ same) (Degrees.pairRebuild i)));
+\definition Property(j: Degrees.Index n): \Prop := \forall (x: C.family.Carrier #first{j} #second{j}) -> #apply{lhs} (#apply{Source.Component[i := j].injection} x) = #apply{rhs} (#apply{Source.Component[i := j].injection} x);
+\definition own: Property i := \fun (x: C.family.Carrier #first{i} #second{i}) => trans!{U} _ _ _
+  (congr!{Target.Carrier U} (TC.coordinate targetIndex) _ _ (Differential.horizontalOnInjection i x))
+  (trans!{U} _ _ _ (TC.own targetIndex (#apply{original} x))
+    (sym!{U} _ _ (congr!{{C.family.Carrier #first{i} #second{i}} U} (#apply{original}) _ _ (SC.own i x))));
+\definition other(j: Degrees.Index n)(ne: Logic.Not (j = i)): Property j := \fun (x: C.family.Carrier #first{j} #second{j}) => trans!{U} _ _ _
+  (trans!{U} _ _ _ (congr!{Target.Carrier U} (TC.coordinate targetIndex) _ _ (Differential.horizontalOnInjection j x))
+    (TC.other (Total.upHorizontal n j) targetIndex (#apply{(C.differential.horizontal #first{j} #second{j})} x) (different j ne)))
+  (sym!{U} _ _ (trans!{U} _ _ _ (congr!{{C.family.Carrier #first{i} #second{i}} U} (#apply{original}) _ _ (SC.other j i x ne)) (ComponentMaps.zeroPreserved original)));
+\definition onInjection: \forall (j: Degrees.Index n) -> Property j := \fun (j: Degrees.Index n) => Logic.orElim (j = i) (Logic.Not (j = i)) (Property j) (Classical.excludedMiddle (j = i))
+  (\fun (same: j = i) => \idelim i = j \with k: Degrees.Index n => Property k \by { base: own, equality: sym!{Degrees.Pair} _ _ same }) (other j);
+\import Modules.DirectSum[Index := Degrees.Index n, family := Source.family].To[W := U, target := targetSpace] \as Universal;
+\definition equation: lhs = rhs := Universal.ext lhs rhs onInjection;
+\definition law(x: Source.Carrier): TC.coordinate targetIndex (#apply{Differential.horizontal} x) = #apply{original} (SC.coordinate i x) := congr!{Maps.Map U} (\fun (f: Maps.Map) => #apply{f} x) _ _ equation;

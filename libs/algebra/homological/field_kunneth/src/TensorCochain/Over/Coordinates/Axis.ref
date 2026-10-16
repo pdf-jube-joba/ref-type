@@ -1,0 +1,25 @@
+\import Total.Degree[n := n] \as Source;
+\import Total.Degree[n := Nat.Nat^::succ n] \as Target;
+\import Total.Step[n := n] \as Differential;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as TC;
+\definition U: \Set := C.family.Carrier #first{j} #second{j};
+\definition targetSpace: Modules.Space U := C.family.space #first{j} #second{j};
+\import Modules.Hom[V := Source.Carrier, W := U, source := Source.space, target := targetSpace] \as Maps;
+\import Modules.Hom[V := Target.Carrier, W := U, source := Target.space, target := targetSpace].Composition[U := Source.Carrier, domain := Source.space] \as Compose;
+\import Modules.DirectSum[Index := Degrees.Index n, family := Source.family].To[W := U, target := targetSpace] \as Universal;
+\definition horizontal: Maps.Map := Compose.compose (TC.At[i := j].map) Differential.horizontal;
+\definition horizontalDifferent(k: Degrees.Index n)(zero: #first{j} = Nat.Nat^::zero): Logic.Not (Total.upHorizontal n k = j) :=
+  \fun (same: Total.upHorizontal n k = j) => Natural.succNeZero #first{k} (trans!{Nat.Nat^} _ _ _ (congr!{Degrees.Pair Nat.Nat^} (\fun (i: Degrees.Pair) => #first{i}) _ _ same) zero);
+\definition horizontalOnInjection(zero: #first{j} = Nat.Nat^::zero)(k: Degrees.Index n)(x: C.family.Carrier #first{k} #second{k}): #apply{horizontal} (#apply{Source.Component[i := k].injection} x) = #apply{Maps.zeroMap} (#apply{Source.Component[i := k].injection} x) :=
+  trans!{U} _ _ _ (congr!{Target.Carrier U} (TC.coordinate j) _ _ (Differential.horizontalOnInjection k x))
+    (TC.other (Total.upHorizontal n k) j (#apply{(C.differential.horizontal #first{k} #second{k})} x) (horizontalDifferent k zero));
+\definition horizontalEquation(zero: #first{j} = Nat.Nat^::zero): horizontal = Maps.zeroMap := Universal.ext horizontal Maps.zeroMap (horizontalOnInjection zero);
+\definition horizontalZero(zero: #first{j} = Nat.Nat^::zero)(x: Source.Carrier): TC.coordinate j (#apply{Differential.horizontal} x) = #zero{targetSpace} := congr!{Maps.Map U} (\fun (f: Maps.Map) => #apply{f} x) _ _ (horizontalEquation zero);
+\definition vertical: Maps.Map := Compose.compose (TC.At[i := j].map) Differential.vertical;
+\definition verticalDifferent(k: Degrees.Index n)(zero: #second{j} = Nat.Nat^::zero): Logic.Not (Total.upVertical n k = j) :=
+  \fun (same: Total.upVertical n k = j) => Natural.succNeZero #second{k} (trans!{Nat.Nat^} _ _ _ (congr!{Degrees.Pair Nat.Nat^} (\fun (i: Degrees.Pair) => #second{i}) _ _ same) zero);
+\definition verticalOnInjection(zero: #second{j} = Nat.Nat^::zero)(k: Degrees.Index n)(x: C.family.Carrier #first{k} #second{k}): #apply{vertical} (#apply{Source.Component[i := k].injection} x) = #apply{Maps.zeroMap} (#apply{Source.Component[i := k].injection} x) :=
+  trans!{U} _ _ _ (congr!{Target.Carrier U} (TC.coordinate j) _ _ (Differential.verticalOnInjection k x))
+    (TC.other (Total.upVertical n k) j (#apply{(Degrees.Sign[V := C.family.Carrier #first{k} (Nat.Nat^::succ #second{k}), space := C.family.space #first{k} (Nat.Nat^::succ #second{k})].map #first{k})} (#apply{(C.differential.vertical #first{k} #second{k})} x)) (verticalDifferent k zero));
+\definition verticalEquation(zero: #second{j} = Nat.Nat^::zero): vertical = Maps.zeroMap := Universal.ext vertical Maps.zeroMap (verticalOnInjection zero);
+\definition verticalZero(zero: #second{j} = Nat.Nat^::zero)(x: Source.Carrier): TC.coordinate j (#apply{Differential.vertical} x) = #zero{targetSpace} := congr!{Maps.Map U} (\fun (f: Maps.Map) => #apply{f} x) _ _ (verticalEquation zero);
