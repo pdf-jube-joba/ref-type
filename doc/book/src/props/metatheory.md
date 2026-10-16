@@ -2,8 +2,8 @@
 
 適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
 
-この文書では [`system.md`](../system.md) の、一般の datatype 宣言を除いた
-core を扱う。集合モデル、無矛盾性、subject reduction は仮定しない。
+この文書では [分類付き補助体系](sorted-calculus.md) の、一般の datatype 宣言を除いた core を扱う。
+集合モデル、無矛盾性、subject reduction は仮定しない。
 特に、合流性だけから subject reduction が従うとは主張しない。
 合流性と head の区別は[合流性](confluence.md)、導出の基本補題と subject reduction は[typing](typing.md)、
 モデルの構成は[集合モデル](model.md)、証明全体の到達点は[相対無矛盾性](proof.md)を参照する。
@@ -12,7 +12,7 @@ core を扱う。集合モデル、無矛盾性、subject reduction は仮定し
 
 ## 束縛と代入
 
-以下の構造帰納法は現行の三構文について同時に行い、rule label は固定する。
+以下の構造帰納法は分類付き補助体系の三構文について同時に行い、rule label は固定する。
 項は alpha 同値で同一視する。変数の sort 注釈は名前の一部とし、
 代入 \(t[x^s:=u]\) はその注釈を持つ変数だけを置換する。
 lambda、product、subset は表示された変数を body で束縛する。

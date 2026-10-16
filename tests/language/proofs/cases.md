@@ -1,11 +1,11 @@
 # proofs / cases
 
-## admit proof
+## 所属証明を使う部分集合への導入
 
-明示的に admit した証明項を宣言された命題の証明として使えるため、受理される。
+仮定した所属証明を使い、台集合の要素を部分集合の要素として導入できるため、受理される。
 
 ```toml case
-id = "accept-proofs.admit_proof"
+id = "accept-proofs.subset-introduction-with-membership-proof"
 scope = "module"
 expect = "accept"
 name = "Test"

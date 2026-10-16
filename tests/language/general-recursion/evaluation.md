@@ -214,7 +214,7 @@ parameters = '''A: \VType,
 
 ## ill typed evaluation
 
-型検査とは独立した評価が指定された Program の簡約を行うため、受理される。
+Set/Prop の型が合わない適用も、評価用の query では簡約できるため、受理される。
 
 ```toml case
 id = "accept-general-recursion.ill-typed-evaluation"
@@ -376,12 +376,12 @@ expect = "accept"
 }
 ```
 
-## raw ill typed run evaluation
+## 型が合わない Program application の評価
 
-raw な run の評価が型検査とは独立して簡約を行うため、受理される。
+Program の return を関数として適用した式も、評価用の query では簡約不能な式として保持できるため、受理される。
 
 ```toml case
-id = "accept-general-recursion.raw-ill-typed-run-evaluation"
+id = "accept-general-recursion.raw-ill-typed-program-application-evaluation"
 scope = "module"
 expect = "accept"
 name = "RawIllTypedProgramEvaluation"

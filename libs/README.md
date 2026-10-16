@@ -10,19 +10,19 @@
 
 | 配置 | パッケージ | 内容 | 行数 | 直接依存 |
 | --- | --- | --- | ---: | --- |
-| [std](std/README.md) | `std` | 論理、データ、整数・有理数、商、代数構造 | 18,612 | なし |
-| [category](category/README.md) | `category` | 圏、関手、自然変換、普遍性、随伴、加法圏・アーベル圏 | 1,767 | std |
+| [std](std/README.md) | `std` | 論理、データ、整数・有理数、商、代数構造 | 18,609 | なし |
+| [category](category/README.md) | `category` | 圏、関手、自然変換、普遍性、随伴、加法圏・アーベル圏 | 1,884 | std |
 | [real/axiomatic](real/axiomatic/README.md) | `ordered_fields` | 順序体と上限完備性の共通構造 | 131 | std |
 | [real/dedekind](real/dedekind/README.md) | `dedekind_reals` | 有理数の切断による実数、演算・順序・完備性 | 4,593 | ordered_fields, std |
 | [real/cauchy](real/cauchy/README.md) | `cauchy_reals` | 有理数 Cauchy 列の商による実数、演算・順序・完備性 | 3,886 | ordered_fields, std |
 | [real/basic](real/basic/README.md) | `real` | 構成済みの実数の演算、距離評価、数列、平方根、有限和 | 1,785 | dedekind_reals, std |
-| [complex](complex/README.md) | `complex` | 実数対による複素数と体の構造 | 432 | dedekind_reals, real, std |
+| [complex](complex/README.md) | `complex` | 実数対による複素数と体の構造 | 470 | dedekind_reals, real, std |
 | [algebra/basic](algebra/basic/README.md) | `algebra` | 準同型、群完成、商、多項式環 | 1,545 | std |
 | [algebra/module_theory](algebra/module_theory/README.md) | `module_theory` | 環上の加群、自由加群、直和、テンソル積、完全列 | 5,379 | algebra, std |
 | [algebra/commutative_algebra](algebra/commutative_algebra/README.md) | `commutative_algebra` | Hom とテンソル積、射影性、有限自由加群の行列 | 1,295 | algebra, module_theory, std |
 | [algebra/integer_matrices](algebra/integer_matrices/README.md) | `integer_matrices` | 整数行列の演算、Smith 標準形と変換行列 | 4,976 | algebra, commutative_algebra, module_theory, std |
 | [algebra/finitely_generated_modules](algebra/finitely_generated_modules/README.md) | `finitely_generated_modules` | 整数の核・像・部分加群の基底、巡回加群、体上の有限次元部分空間 | 1,664 | algebra, commutative_algebra, integer_matrices, module_theory, std |
-| [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 | 5,175 | algebra, complex, dedekind_reals, module_theory, real, std |
+| [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 | 5,373 | algebra, complex, dedekind_reals, module_theory, real, std |
 | [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 | 5,108 | algebra, category, module_theory, std |
 | [algebra/homological/double_complexes](algebra/homological/double_complexes/README.md) | `double_complexes` | 非負鎖複体、二重複体、total、比較の完全性と符号付き交換 | 4,878 | algebra, chain_complexes, commutative_algebra, module_theory, std |
 | [algebra/homological/resolutions](algebra/homological/resolutions/README.md) | `resolutions` | 射影分解、比較定理、Hom・テンソル複体、二重 total による分解比較 | 3,275 | algebra, chain_complexes, commutative_algebra, double_complexes, module_theory, std |

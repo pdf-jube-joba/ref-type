@@ -8,7 +8,7 @@ proof checker を作る。
 ## 構成
 - doc/ はドキュメント置き場
     - doc/book/ に考えている体系についての文章を書く
-- formalization/ は他の定理証明支援系で現在の体系の性質を証明する
+- formalization/ は他の定理証明支援系による形式化の設計メモ
 - src/ は実装
 
 ## AI 向け

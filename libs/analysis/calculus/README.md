@@ -45,4 +45,4 @@ Dedekind 実数上の関数の極限と微分を扱う。
 `HasDirectionalDerivativeAlong` は曲線に沿う差商の二側極限、`HasDirectionalDerivativeAt` は同じ始点と接ベクトルを持つすべての曲線についての条件である。
 接ベクトルにはパラメータに対する速さを含む。
 
-[利用例](../../../libs/std/src/root.ref) と [検査方法](../../README.md#型検査) を参照。
+[利用例](../../geometry/coordinate_calculus/src/Calculus.ref) と [検査方法](../../README.md#型検査) を参照。

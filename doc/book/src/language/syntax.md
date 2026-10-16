@@ -7,7 +7,7 @@
 
 ### 字句
 
-- 空白、タブ、改行、フォームフィードは区切りとして無視する。
+- Unicode の空白文字は区切りとして無視する。
 - `/* ... */` は入れ子可能なコメントである。
 - 識別子は英字で始まり、英数字と `_` が続く。
 - キーワードは `\name` の形式で、名前には英数字と `-` が使える。
@@ -145,7 +145,7 @@ module argument では metavariable の推論を行わない。
 
 参照の位置で module 引数を検査し、具体化した module の item を取り出す。
 関数の引数や record の先行 field を参照できる。
-帰納型の具体化と Program の局所値を渡す例は、[module 具体化のテスト](../../../../src/elaboration/tests/module_expressions.rs) を参照。
+帰納型の具体化と Program の局所値を渡す例は、[module 具体化のテスト](../../../../tests/packages/specialization.md) を参照。
 
 ## 3. 宣言
 
@@ -258,7 +258,9 @@ runBox!{machine}
 ### check と評価
 
 Set/Prop と Program に共通の文を使う。
-`\check` は指定された型、`\infer`・`\eval`・`\normalize` は式と参照先に応じて処理する。
+`\check` は指定された型で検査し、`\infer` は推論した型を表示する。
+`\eval` は一段の簡約、`\normalize` は簡約を繰り返した結果を表示する。
+評価用の query では型が合わない式も簡約できるが、Program の run と推論変数を含む式には検査が必要である。
 
 ```text
 \check expression: type;
@@ -599,6 +601,7 @@ Program 側では state type、result type、step、initial を reflection し�
 ```
 
 Box の対象は computation type である。value を入れるときは `\F(A)` と `\return value` を使う。
+computation type と payload は、自由な局所変数と未具体化の module parameter を含まない状態で検査する。
 
 ## 8. マクロ
 

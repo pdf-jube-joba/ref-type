@@ -50,6 +50,6 @@ let hir = resolve::resolve(&ast).unwrap();
 依存先の macro template は定義 ID で参照し、所有 package の成果物に一度だけ保存する。
 
 読み込み側は依存の対応表を用意し、`reserve_import` で自身の ID を予約してから `import_package` を呼ぶ。
-module、束縛、macro、式ごとのローカル束縛、衛生的な名前、宣言 scope を共通の再配置表で更新する。
+module、束縛、macro、式ごとのローカル束縛、衛生的な名前を共通の再配置表で更新する。
 参照先と scope table の検証が成功した時点で session へ公開する。
 source 本文は現在の snapshot から `restore_sources` で接続する。

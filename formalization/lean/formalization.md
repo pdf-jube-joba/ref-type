@@ -1,9 +1,12 @@
-# `proof.md` の Lean 形式化
+# 共通項の PTS の Lean 形式化の設計
 
 ## 1. 役割
 
-この文書は [proof.md](../../doc/book/src/props/proof.md) の自然言語証明を Lean へ移すための設計だけを
-扱う。数学的証明の本体は `proof.md` に置き、ここでは次を記す。
+この文書は [system.md](../../doc/book/src/system.md) の共通項による PTS を Lean で形式化するための設計を扱う。
+自然言語証明の到達点は [proof.md](../../doc/book/src/props/proof.md) と [証明の適用範囲](../../doc/book/src/props/props.md) にまとめている。
+現在の相対無矛盾性の証明は分類付き補助体系の datatype を除いた core に対するもので、共通項の PTS への移送と一般の datatype への拡張は残る証明義務である。
+このディレクトリには設計文書を置き、以下の Lean コードは定義と証明の案を表す。
+共通項の PTS との対応を含め、形式化に必要な次の設計を記す。
 
 - Lean 上の定義の形。
 - `Prop` elimination と derivation index に関する実装上の制約。
@@ -16,9 +19,9 @@
 provability subject reduction を証明し、証明専用の完全注釈付き導出へ elaboration して
 soundness の循環を切る。
 
-### 1.1 現在の Lean presentation との差
+### 1.1 presentation の照合
 
-`system.md` を正本として照合すると、現在の `RefType.System.Derives` には次の差がある。
+`system.md` を正本とし、de Bruijn index を使う `RefType.System.Derives` の設計では次を照合する。
 
 1. `system.md` は名前付き変数、右端への文脈拡張、freshness side conditionを使い、Lean は
    逆順のリスト、de Bruijn index、`Lookup` を使う。さらに Lean の `var` は任意位置の lookup を
@@ -27,20 +30,22 @@ soundness の循環を切る。
    これは導出可能性を変えない表現上の差なので、alpha-renaming、最新変数の lookup、weakening
    による古い変数の lookup の両方向を含む対応を証明する。
 2. Lean の `propWeak` は `system.md` の primitive rule ではない。ただし `proveTerm`、
-   `typeWeak`、`provableIntro` の合成で admissible なので、追加 constructor を残すなら
-   `system.md` の導出へ erase できることを証明する。実装を単純にするなら削除する。
+   `typeWeak`、`provableIntro` の合成で admissible なので、追加 constructor を採用するなら
+   `system.md` の導出へ erase できることを証明する。
 3. Lean の `appElim` は `B[a]` の sorting premise を余分に持つ。`system.md` の rule は
    function typing と argument typing の二 premise だけである。formalization では constructor
-   を正本に合わせて二 premise に戻すか、元の導出から product generation、regularity、
+   を正本に合わせて二 premise で定義するか、元の導出から product generation、regularity、
    substitution によりこの sorting を構成して Lean presentation へ移す equivalence theoremを
    先に証明しなければならない。追加 premise を object theory の仮定として proof.md に持ち込まない。
+4. 以下で具体化するのは Set/Prop の一部である。
+   choice、RunStep・run、Box、datatype 宣言、集合値の transport などを含む体系全体との対応には、各構文と規則の設計も必要になる。
 
 以後 `Derives` に言及する箇所は、この差を解消した presentation、または
 `system.md` との導出可能性の同値が証明済みの presentationを意味する。
 
 ## 2. ファイル構成
 
-既存ファイルの責務は次の通り。
+実装する場合のファイル構成案は次のとおりである。
 
 - `RefType/Sort.lean`: `USort`、`axiomTarget?`、`prodResult?`。
 - `RefType/system.lean`: syntax、lift/substitution、reduction、judgement。
@@ -55,13 +60,13 @@ soundness の循環を切る。
 
 ## 3. `UniverseTower`
 
-`proof.md` では、外部 ZFC に Grothendieck universe
+[集合モデルの universe 仮定](../../doc/book/src/props/model.md#universes) をもとに、外部 ZFC に Grothendieck universe
 
 ```text
 U_0 in U_1 in ... in U_omega in W
 ```
 
-を仮定すれば以下の field が同時に実現できることも示している。対応は
+を仮定し、直接モデルの対応を次のように設計する。
 
 ```text
 D (set i)       = U_i
@@ -70,13 +75,13 @@ D prop          = {0,1}
 D propKind      = U_omega
 ```
 
-である。Lean では ZFC の coding を実装せず、この具体モデルから取り出した law を
-structure にする。従って `UniverseTower` は soundness を field に持たず、単に
-互いの整合性が不明な公理を集めたものでもない。
+Lean では、このモデルで必要になる law を structure にまとめる。
+現在の相対無矛盾性の証明は [型コードモデル](../../doc/book/src/props/coded_model.md) を使う。
+ここでの直接モデル案との対応と、以下の field の同時実現は別途証明する。
 
 ### 3.1 基本 field
 
-現在の `Model.lean` の core に次を追加する。
+`Model.lean` に置く構造の案は次のとおりである。
 
 ```lean
 structure UniverseTower where
@@ -90,7 +95,7 @@ structure UniverseTower where
   sort_el : ∀ s a, El a (sortVal s) ↔ D s a
 ```
 
-実際の field では implicit arguments を使ってよいが、proof.md と対応する名前は
+実際の field では implicit arguments を使ってよいが、採用するモデルの自然言語証明と対応する名前は
 維持する。
 
 ### 3.2 proposition
@@ -173,7 +178,7 @@ existsVal : Val → Val
 takeVal : Val → Val → Val → Val
 ```
 
-必要な law は proof.md の名前に対応させる。
+集合演算の意味を表す law を次の名前でまとめる。
 
 ```text
 power_sort, power_el
@@ -192,8 +197,8 @@ take_set_mem, take_set_eq
 
 ### 4.1 renaming
 
-現在の `Expr.liftFrom` だけで substitution proof を進めると、binder ごとの index
-計算が重複する。一般の renaming を追加する。
+`Expr.liftFrom` だけで substitution proof を進めると、binder ごとの index 計算が重複する。
+一般の renaming を定義する。
 
 ```lean
 def Expr.rename (xi : Nat -> Nat) : Expr -> Expr
@@ -221,7 +226,8 @@ def Expr.substitute (sigma : Nat -> Expr) : Expr -> Expr
 def Substitution.lift (sigma : Nat -> Expr) : Nat -> Expr
 ```
 
-既存の `Expr.subst 0 u` との対応を証明する。必要な補題:
+一変数の代入 `Expr.subst 0 u` との対応を証明する。
+必要な補題:
 
 ```text
 substitute_id
@@ -233,7 +239,7 @@ subst_zero_under_binder
 
 ### 4.3 derivation transport
 
-proof.md 3.1 に対応して次を三判断について証明する。
+[weakening と substitution](../../doc/book/src/props/typing.md#weakening-と-substitution) に対応して次を三判断について証明する。
 
 ```lean
 sort_rename
@@ -246,7 +252,7 @@ provable_subst
 ```
 
 `sortWeak` / `typeWeak` は一般 renaming theorem の系にする。provability weakening は
-`proveTerm`、`typeWeak`、`provableIntro` から導く。現在の `propWeak` constructor を残す場合も、
+`proveTerm`、`typeWeak`、`provableIntro` から導く。`propWeak` constructor を設ける場合も、
 この admissibility derivation へ erase する。
 
 ## 5. confluence
@@ -257,7 +263,7 @@ provable_subst
 abbrev ReducesStar := Relation.ReflTransGen Reduces
 ```
 
-`BetaEq` と `Relation.EqvGen Reduces` の対応を証明するか、現在の constructors に
+`BetaEq` と `Relation.EqvGen Reduces` の対応を証明するか、定義した constructors に
 対して直接 joinability を証明する。
 
 ### 5.2 parallel reduction
@@ -353,7 +359,7 @@ Gamma |= pred A B t
 `system.md` の `dep elim` は result type sorting を premise に持たない。従って
 `typing_regular_type` の application case では、function typing の product generation から
 codomain formation を回収し、argument typing と `sort_subst` から `B[a]` の sorting を構成する。
-現在の Lean constructor にある第三 premise を regularity proof でそのまま使うだけでは、
+第三 premise を追加した Lean constructor を regularity proof でそのまま使うだけでは、
 `system.md` の定理を証明したことにならない。
 
 ### 6.2 head discrimination
@@ -552,8 +558,7 @@ sortInterp typeInterp termInterp propInterp
 
 ### 8.1 semantic reduction
 
-proof.md 6節に対応して、注釈付き導出について次を bundled theorem の一部として
-証明する。
+[意味保存の議論](../../doc/book/src/props/semantic_conversion.md#h-の一歩保存) と対応を取り、注釈付き導出について次を bundled theorem の一部として証明する。
 
 ```text
 sort_step_sound
@@ -575,9 +580,9 @@ prop でも proof term ではない。ordinary beta は graph application で処
 typing soundness の `typeConv` case は `betaEq_sort_sound` を使う。別々の theorem を
 単純な順番で証明すると循環する。
 
-この循環は proof.md 4節の注釈付き presentation で切る。注釈付き証明木は高さを
-取り出すため `Prop` ではなく `Type` に置く。ここでは主要 object だけを略記し、完全な
-mutual family は12節で定める。
+この設計では、12節で定める注釈付き presentation を使って循環を切る。
+注釈付き証明木は高さを取り出すため `Prop` ではなく `Type` に置く。
+ここでは主要 object だけを略記する。
 
 ```text
 DerivesPlus : Context -> Sequent -> Type
@@ -676,8 +681,8 @@ provable_sound :
 
 ## 9. Lean constructor と `system.md` の規則の対応
 
-proof.md 6節との対応は次の通り。`propWeak` と三 premise 版 `appElim` は現在の Lean
-presentation にだけ存在する差であり、1.1節の admissibility / equivalence を経由して扱う。
+共通項の PTS の Set/Prop 規則との対応は次の通りである。
+`propWeak` と三 premise 版 `appElim` を採用する場合は、1.1節の admissibility / equivalence を経由して扱う。
 
 | constructor | 主に使う補題または field |
 | --- | --- |
@@ -706,7 +711,7 @@ presentation にだけ存在する差であり、1.1節の admissibility / equiv
 
 ### 10.1 `falseProp`
 
-既存の theorem を使用する。
+次の形成補題を用意する。
 
 ```lean
 System.falsePropFormed : HasSort [] falseProp .prop

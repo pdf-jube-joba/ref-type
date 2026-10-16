@@ -73,11 +73,11 @@ CLI supervisor は分割 worker 間で同じ lease を保持し、worker 強制�
 ディスク budget の既定は8 GiBで、`Database::set_cache_budget` または `--cache-budget-mib` で変更する。
 古い未使用 manifest・checkpoint を回収し、最後の参照がなくなった共有 object を削除する。
 利用中の成果物により budget を超える場合は `budget_excess_bytes` に記録し、session 終了後に回収する。
-既知の旧形式のキャッシュも回収対象になる。
 
 `cache_store_stats` は結果と環境の読込・書込 byte 数、hit・import・再開、欠損・形式違い・破損・サイズ上限・保存失敗、圧縮・展開時間、共有 object と回収量を返す。
-`retained_bytes` は保存先の保持量で、`retained_bytes_is_upper_bound` が真の間は、置換前の記録などを保守的に含む累積会計値を示す。
+`retained_bytes` は object store が管理するファイルの保持量で、`retained_bytes_is_upper_bound` が真の間は、置換前の記録などを保守的に含む累積会計値を示す。
 GC はファイルのサイズを集計し直して、この値を更新する。
+同じ保存先にある supervisor の作業用 snapshot と batch 構成は、この容量集計に含めない。
 保存失敗の理由は `last_save_error` に残し、検証結果は変更しない。
 成果物の直列化では、失敗した層とbyte・要素数・深さの上限、メモリ確保失敗を区別して報告する。
 処理系 fingerprint は関連 crate・build script・依存解決・toolchain・target・feature・cfg を追跡する。

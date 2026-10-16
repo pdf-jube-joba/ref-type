@@ -1,7 +1,7 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05・G08・G09・G11〜G14 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
-個別に CLI で確認する場合は、リポジトリのルートで実行する。
+G02〜G05・G08・G09・G11・G13・G14 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+これらのサンプルを個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
 cargo build --locked --offline -p cli
@@ -9,6 +9,30 @@ target/debug/cli _plans/gaps/05-01-record-eta.ref --no-cache --diagnostics compa
 ```
 
 Box の検討は [Box の parameter](features/box-parameters.md#g04) に分けている。
+
+## 依存ライブラリを使う再現例
+
+G10・G12 のサンプルは外部 package を import する module の本文である。
+一時パッケージに配置し、共有キャッシュを使って実行する。
+
+```sh
+sample_dir=$(mktemp -d)
+mkdir "$sample_dir/src"
+printf '\\module Repro;\n' > "$sample_dir/src/root.ref"
+cp _plans/gaps/10-02-total-direct.ref "$sample_dir/src/Repro.ref"
+cat > "$sample_dir/ref.toml" <<EOF
+[package]
+name = "docgaps"
+[dependencies]
+std = { path = "$PWD/libs/std" }
+module_theory = { path = "$PWD/libs/algebra/module_theory" }
+double_complexes = { path = "$PWD/libs/algebra/homological/double_complexes" }
+resolutions = { path = "$PWD/libs/algebra/homological/resolutions" }
+EOF
+target/debug/cli "$sample_dir" --module docgaps.Repro --cache-dir "$PWD/libs/refcache" --diagnostics compact
+```
+
+`cp` の入力を各サンプルに替えると、G10・G12 の四つの結果を比較できる。
 
 <a id="g01"></a>
 

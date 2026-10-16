@@ -7,7 +7,7 @@ Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除�
 \(\mathcal S_0\) と書く。判断は有限導出によって生成する。
 ここで示すのは補助 reduction の合流性である。元の reduction の合流性や subject reduction は結論しない。
 代入の合成則は[構文的補題](metatheory.md#substitution)を使う。
-以下の本文は現行の Set/Prop の三構文に適用する。
+以下の本文は分類付き補助体系の Set/Prop の三構文に適用する。
 式中で省略した \(\Pi,\lambda,@,\operatorname{stepMatch}\) の rule label・sort 添字は固定し、
 全 congruence rule はそれらを保持する。
 beta の lambda と application は同じ \(r\) を持つ場合にだけ root とする。

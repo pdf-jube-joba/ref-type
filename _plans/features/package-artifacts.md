@@ -212,7 +212,7 @@ live な検査環境と呼出側が保持する `Arc` は、cache が解放で�
 5. 現在の package の `ResumeCheckpoint`、部分成果物の組合せ、CLI supervisor の公開・分割処理を実装する。
    `--full-check-local` の入力確認、LSP の buffer、playground のメモリ store を接続する。
 6. lease と GC、メモリの保持管理、容量設定、統計と failure reason を整備する。
-   旧形式は cache miss として再構築し、既知の旧ファイルを回収対象として認識する。
+   入力や保存形式が一致しない成果物は cache miss として再構築する。
    置換された累積 `.pkg`、module `.json`、`.env`、`.sources.json` の経路を整理し、新しい一組のモデルに統一する。
 7. 意味の一致と性能を検証し、`src/sema/README.md`、`src/project/README.md`、`src/resolve/README.md`、CLI 利用説明と実装説明を更新する。
    計測結果と残る制約を記録し、以下の完了条件をすべて確認する。

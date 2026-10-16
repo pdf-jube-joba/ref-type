@@ -21,7 +21,7 @@
 `Forms.On.DeRham` は外微分から余鎖複体と商コホモロジーを構成する。
 `At[k]` は閉形式・完全形式・類と等式判定を、`Product` とその法則は商の代表によらない次数付きの積を公開する。
 `DeRham.DegreeZero.isomorphism` は零次コホモロジーと微分が零になる滑らかな関数の線形同型である。
-具体例は [manifolds-de-rham project](../../../libs/geometry/coordinate_calculus/src/root.ref) にある。
+具体例は [座標計算の利用例](../coordinate_calculus/src/root.ref) にある。
 
 ```sh
 target/debug/cli libs/geometry/differential_forms --module differential_forms --full-check-local --diagnostics compact
