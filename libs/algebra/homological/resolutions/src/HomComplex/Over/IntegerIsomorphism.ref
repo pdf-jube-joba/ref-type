@@ -1,0 +1,24 @@
+\import chain_complexes.Chain[] \as Degrees;
+\import chain_complexes.Integer[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Cochains;
+\import \parent.Integer[P := Q, N := N] \as Source;
+\import \parent.Integer[P := P, N := N] \as Target;
+\import IntegerChains.Isomorphism[C := P, D := Q] \as Isomorphisms;
+\module On(e: Isomorphisms.Isomorphism) {
+  \import Modules.End[V := N.Carrier, space := N.space] \as Coefficients;
+  \import \root.HomComplex[].Over[R := R, ring := ring].IntegerMapping[P := P, Q := Q, N := N, L := N].On[f := e.forward, u := Coefficients.identity] \as Forward;
+  \import \root.HomComplex[].Over[R := R, ring := ring].IntegerMapping[P := Q, Q := P, N := N, L := N].On[f := e.backward, u := Coefficients.identity] \as Backward;
+  \import Cochains.Isomorphism[C := Source.complex, D := Target.complex] \as CochainIsomorphisms;
+  \definition isomorphism: CochainIsomorphisms.Isomorphism := CochainIsomorphisms.Isomorphism {
+    forward := Forward.map, backward := Backward.map,
+    leftInverse := \fun (z: Degrees.Degree)(h: Source.Carrier z) => Source.At[z := z].ext
+      (#apply{Backward.map} z (#apply{Forward.map} z h)) h
+      (\fun (x: Q.family.Carrier z) => congr!{{Q.family.Carrier z} N.Carrier} (#apply{h}) _ _ (#rightInverse{e} z x)),
+    rightInverse := \fun (z: Degrees.Degree)(h: Target.Carrier z) => Target.At[z := z].ext
+      (#apply{Forward.map} z (#apply{Backward.map} z h)) h
+      (\fun (x: P.family.Carrier z) => congr!{{P.family.Carrier z} N.Carrier} (#apply{h}) _ _ (#leftInverse{e} z x)),
+  };
+  \module At(z: Degrees.Degree) {
+    \import CochainIsomorphisms.On[e := isomorphism].At[z := z] \as Comparison;
+    \definition isomorphism: _ := Comparison.isomorphism;
+  }
+}
