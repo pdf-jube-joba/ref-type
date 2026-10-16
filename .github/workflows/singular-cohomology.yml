@@ -13,16 +13,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      CARGO_HOME: ${{ runner.temp }}/cargo
-      RUSTUP_HOME: ${{ runner.temp }}/rustup
+      CARGO_HOME: ${{ github.workspace }}/.ci/cargo
+      RUSTUP_HOME: ${{ github.workspace }}/.ci/rustup
       CARGO_BUILD_JOBS: 3
-      REF_TYPE_CACHE: ${{ runner.temp }}/refcache
+      REF_TYPE_CACHE: ${{ github.workspace }}/.ci/refcache
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/cargo/registry
+          path: ${{ github.workspace }}/.ci/cargo/registry
           key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - name: Build checker
         run: |
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/cache/restore@v4
         id: proof-cache
         with:
-          path: ${{ runner.temp }}/refcache
+          path: ${{ github.workspace }}/.ci/refcache
           key: proof-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'src/**/*.rs') }}-${{ hashFiles('libs/**/*.ref', 'libs/**/ref.toml') }}
           restore-keys: proof-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'src/**/*.rs') }}-
       - name: Check the singular chain complex
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/cache/save@v4
         if: steps.proof-cache.outputs.cache-hit != 'true'
         with:
-          path: ${{ runner.temp }}/refcache
+          path: ${{ github.workspace }}/.ci/refcache
           key: ${{ steps.proof-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         with:
@@ -107,7 +107,7 @@ jobs:
             module: singular_products.ProductChains
             scope: subtree
     env:
-      REF_TYPE_CACHE: ${{ runner.temp }}/refcache
+      REF_TYPE_CACHE: ${{ github.workspace }}/.ci/refcache
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -116,7 +116,7 @@ jobs:
           path: build
       - uses: actions/cache/restore@v4
         with:
-          path: ${{ runner.temp }}/refcache
+          path: ${{ github.workspace }}/.ci/refcache
           key: proof-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'src/**/*.rs') }}-${{ hashFiles('libs/**/*.ref', 'libs/**/ref.toml') }}
           restore-keys: proof-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'src/**/*.rs') }}-
       - name: Prepare memory for large comparisons
