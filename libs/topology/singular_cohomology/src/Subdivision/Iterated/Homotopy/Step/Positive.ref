@@ -1,0 +1,37 @@
+\import \parent.\parent.\parent.At[n := n] \as Lower;
+\import \parent.\parent.\parent.At[n := N.Nat^::succ n] \as Higher;
+\import Construction.At[n := n] \as OriginalLower;
+\import Construction.At[n := N.Nat^::succ n] \as OriginalHigher;
+\import Modules.Laws[V := Chains.Carrier (N.Nat^::succ n), space := Chains.space (N.Nat^::succ n)] \as Values;
+\import algebra.Group[].Of[Carrier := Chains.Carrier (N.Nat^::succ n), group := Values.additive] \as Group;
+\definition first: \forall (x: Chains.Carrier (N.Nat^::succ n)) ->
+  Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{OriginalHigher.homotopyMap} (Higher.apply r x)))
+    (#apply{OriginalLower.homotopyMap} (Lower.apply r (#apply{(Chains.boundary n)} x))) = Group.difference (Higher.apply (N.Nat^::succ r) x) (Higher.apply r x) :=
+  \fun (x: Chains.Carrier (N.Nat^::succ n)) => trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{Chains.Carrier n} {Chains.Carrier (N.Nat^::succ n)}} (\fun (z: Chains.Carrier n) => Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{OriginalHigher.homotopyMap} (Higher.apply r x))) (#apply{OriginalLower.homotopyMap} z)) _ _
+      (sym!{{Chains.Carrier n}} _ _ (#commutes{(power r)} n x)))
+    (sym!{{Chains.Carrier (N.Nat^::succ n)}} _ _ (Construction.Successor[n := n].Equation[].law (Higher.apply r x)));
+\definition second: Property r -> \forall (x: Chains.Carrier (N.Nat^::succ n)) ->
+  Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{(Higher.homotopyMap r)} x)) (#apply{(Lower.homotopyMap r)} (#apply{(Chains.boundary n)} x)) = Group.difference (Higher.apply r x) x :=
+  \fun (previous: Property r)(x: Chains.Carrier (N.Nat^::succ n)) => sym!{{Chains.Carrier (N.Nat^::succ n)}} _ _ (#successorEquation{previous} n x);
+\definition expanded: \forall (x: Chains.Carrier (N.Nat^::succ n)) ->
+  Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{(Higher.homotopyMap (N.Nat^::succ r))} x)) (#apply{(Lower.homotopyMap (N.Nat^::succ r))} (#apply{(Chains.boundary n)} x)) =
+  Values.add
+    (Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{OriginalHigher.homotopyMap} (Higher.apply r x))) (#apply{OriginalLower.homotopyMap} (Lower.apply r (#apply{(Chains.boundary n)} x))))
+    (Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{(Higher.homotopyMap r)} x)) (#apply{(Lower.homotopyMap r)} (#apply{(Chains.boundary n)} x))) :=
+  \fun (x: Chains.Carrier (N.Nat^::succ n)) => trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{Chains.Carrier (N.Nat^::succ n)} {Chains.Carrier (N.Nat^::succ n)}}
+      (\fun (z: Chains.Carrier (N.Nat^::succ n)) => Values.add z (#apply{(Lower.homotopyMap (N.Nat^::succ r))} (#apply{(Chains.boundary n)} x))) _ _
+      (#addition{(Chains.boundary (N.Nat^::succ n))} (#apply{OriginalHigher.homotopyMap} (Higher.apply r x)) (#apply{(Higher.homotopyMap r)} x)))
+    (Group.four
+      (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{OriginalHigher.homotopyMap} (Higher.apply r x)))
+      (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{(Higher.homotopyMap r)} x))
+      (#apply{OriginalLower.homotopyMap} (Lower.apply r (#apply{(Chains.boundary n)} x)))
+      (#apply{(Lower.homotopyMap r)} (#apply{(Chains.boundary n)} x)));
+\definition law: Property r -> \forall (x: Chains.Carrier (N.Nat^::succ n)) -> Group.difference (Higher.apply (N.Nat^::succ r) x) x =
+  Values.add (#apply{(Chains.boundary (N.Nat^::succ n))} (#apply{(Higher.homotopyMap (N.Nat^::succ r))} x)) (#apply{(Lower.homotopyMap (N.Nat^::succ r))} (#apply{(Chains.boundary n)} x)) :=
+  \fun (previous: Property r)(x: Chains.Carrier (N.Nat^::succ n)) => sym!{{Chains.Carrier (N.Nat^::succ n)}} _ _
+    (trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _ (expanded x)
+      (trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _
+        (congr2!{{Chains.Carrier (N.Nat^::succ n)} {Chains.Carrier (N.Nat^::succ n)} {Chains.Carrier (N.Nat^::succ n)}} Values.add _ _ _ _ (first x) (second previous x))
+        (Group.composeDifferences (Higher.apply (N.Nat^::succ r) x) (Higher.apply r x) x)));

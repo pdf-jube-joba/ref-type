@@ -31,6 +31,7 @@
 | `CylinderChains` | 頂点列を cylinder 内のアフィン特異鎖へ送る鎖写像、普遍的 prism、面への制限との整合性。 |
 | `SimplexChains` / `Subdivision` / `Face` | 単体内のアフィン鎖への評価、等重みの重心細分と鎖ホモトピー、面への制限との整合性。 |
 | `Subdivision` / `Natural` / `Coefficients` | 特異鎖上の重心細分と恒等写像との鎖ホモトピー、連続写像との可換性、任意係数のコホモロジーでの恒等作用。 |
+| `Subdivision.Iterated` / `Homotopy` | 任意回数の細分の鎖写像と、恒等写像との鎖ホモトピー。 |
 | `SimplicialChains.On` | 面の恒等式を満たす任意の次数付き集合からの自由鎖複体と、その関手性。 |
 | `Small` / `FromSubset` / `With` | 被覆要素に含まれる単体上の小鎖複体、全体への単射、被覆要素からの持ち上げ、余鎖の制限。 |
 | `Small.Subdivision` | 小鎖を保つ細分と鎖ホモトピー、全特異鎖への包含との整合性。 |
