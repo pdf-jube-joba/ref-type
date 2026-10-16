@@ -1,0 +1,36 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import N.Order[].Prop[] \as Order;
+\import \parent.Vertices[] \as Vertices;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition total: N.Nat^ := Nat.add p q;
+\definition frontIndex(i: Fin.Fin (N.Nat^::succ p)): Fin.Fin (N.Nat^::succ total) :=
+  \into[N.Nat^](i, { j: N.Nat^ \where Bounds.Lt j (N.Nat^::succ total) }) \by {
+    Bounds.ltLeTrans i (N.Nat^::succ p) (N.Nat^::succ total) (Fin.bound (N.Nat^::succ p) i)
+      (Bounds.leSuccSucc p total (Bounds.leAddRight p q))
+  };
+\definition backIndex(i: Fin.Fin (N.Nat^::succ q)): Fin.Fin (N.Nat^::succ total) :=
+  \into[N.Nat^](Nat.add p i, { j: N.Nat^ \where Bounds.Lt j (N.Nat^::succ total) }) \by {
+    Order.ltAddLeft p i (N.Nat^::succ q) (Fin.bound (N.Nat^::succ q) i)
+  };
+\definition pivot: Fin.Fin (N.Nat^::succ p) := \into[N.Nat^](p, { j: N.Nat^ \where Bounds.Lt j (N.Nat^::succ p) }) \by {
+  Bounds.ltOfSuccLe (N.Nat^::succ p) p (Bounds.leRefl (N.Nat^::succ p))
+};
+\definition overlap: frontIndex pivot = backIndex (Fin.zero q) := \refl(p);
+\import \parent.Reindex[m := p, n := total] \as Front;
+\import \parent.Reindex[m := q, n := total] \as Back;
+\definition front: Carrier p -> Carrier total := Front.apply frontIndex;
+\definition back: Carrier q -> Carrier total := Back.apply backIndex;
+\definition frontContinuous: topology.Continuity[A := Carrier p, B := Carrier total].Continuous
+  (\parent.At[n := p].topology) (\parent.At[n := total].topology) front := Front.continuous frontIndex;
+\definition backContinuous: topology.Continuity[A := Carrier q, B := Carrier total].Continuous
+  (\parent.At[n := q].topology) (\parent.At[n := total].topology) back := Back.continuous backIndex;
+\definition frontVertex: \forall (i: Fin.Fin (N.Nat^::succ p)) -> front (Vertices.vertex p i) = Vertices.vertex total (frontIndex i) := Front.onVertex frontIndex;
+\definition backVertex: \forall (i: Fin.Fin (N.Nat^::succ q)) -> back (Vertices.vertex q i) = Vertices.vertex total (backIndex i) := Back.onVertex backIndex;
+\definition commonVertex: front (Vertices.vertex p pivot) = back (Vertices.vertex q (Fin.zero q)) :=
+  trans!{{Carrier total}} _ _ _ (frontVertex pivot)
+    (trans!{{Carrier total}} _ _ _ (congr!{{Fin.Fin (N.Nat^::succ total)} {Carrier total}} (Vertices.vertex total) _ _ overlap)
+      (sym!{{Carrier total}} _ _ (backVertex (Fin.zero q))));
