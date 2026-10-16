@@ -3,6 +3,7 @@
 mod declaration_checkpoint;
 #[path = "exports.rs"]
 pub(crate) mod exports;
+use super::sharded_map::ShardedMap;
 use super::shared_map::SharedMap;
 use crate::raw::{
     exp::{Arena, Exp},
@@ -365,11 +366,11 @@ pub struct CrateEnv {
     checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
     checking_program_contexts: HashMap<ModuleId, crate::raw::program::ProgramContext>,
     #[serde(with = "declaration_checkpoint::definitions")]
-    lazy_definitions: HashMap<DefId, LazyDefinition>,
+    lazy_definitions: ShardedMap<DefId, LazyDefinition>,
     #[serde(with = "declaration_checkpoint::inductives")]
     lazy_inductives: HashMap<InductiveId, LazyInductive>,
     #[serde(with = "declaration_checkpoint::specializations")]
-    nominal_definitions: HashMap<DefId, super::namespaces::Specialization<DefId>>,
+    nominal_definitions: ShardedMap<DefId, super::namespaces::Specialization<DefId>>,
     #[serde(with = "declaration_checkpoint::specializations")]
     nominal_inductives: HashMap<InductiveId, super::namespaces::Specialization<InductiveId>>,
     #[serde(with = "declaration_checkpoint::specializations")]
@@ -463,9 +464,9 @@ impl CrateEnv {
             checking_scopes: HashMap::new(),
             checking_contexts: HashMap::new(),
             checking_program_contexts: HashMap::new(),
-            lazy_definitions: HashMap::new(),
+            lazy_definitions: ShardedMap::default(),
             lazy_inductives: HashMap::new(),
-            nominal_definitions: HashMap::new(),
+            nominal_definitions: ShardedMap::default(),
             nominal_inductives: HashMap::new(),
             prospective_inductives: HashMap::new(),
             nominal_datatypes: HashMap::new(),

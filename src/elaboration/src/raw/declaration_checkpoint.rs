@@ -3,11 +3,11 @@ use super::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
 
 // Shared telescope ordinals follow declaration identity, never hash iteration.
-fn ordered<K: Serialize, V, E: serde::ser::Error>(
-    entries: &HashMap<K, V>,
-) -> Result<Vec<(&K, &V)>, E> {
+fn ordered<'a, K: Serialize + 'a, V: 'a, E: serde::ser::Error>(
+    entries: impl IntoIterator<Item = (&'a K, &'a V)>,
+) -> Result<Vec<(&'a K, &'a V)>, E> {
     let mut ordered = entries
-        .iter()
+        .into_iter()
         .map(|(key, value)| {
             artifact::canonical::to_vec(key, 1024 * 1024)
                 .map(|bytes| (bytes, key, value))
@@ -55,10 +55,10 @@ fn get<T, E: Error>(values: &[Arc<[T]>], id: usize) -> Result<Arc<[T]>, E> {
 
 pub(super) mod definitions {
     use super::*;
-    pub fn serialize<S: Serializer>(
-        entries: &HashMap<DefId, LazyDefinition>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
+    pub fn serialize<'a, S: Serializer, T>(entries: &'a T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        &'a T: IntoIterator<Item = (&'a DefId, &'a LazyDefinition)>,
+    {
         let _cost = timing::costs::Scope::enter("query.serialize-lazy-definitions");
         let mut arguments = Slices::default();
         let mut reflected = Slices::default();
@@ -76,9 +76,9 @@ pub(super) mod definitions {
             .collect();
         (arguments.values, reflected.values, entries).serialize(serializer)
     }
-    pub fn deserialize<'de, D: Deserializer<'de>>(
+    pub fn deserialize<'de, D: Deserializer<'de>, T: FromIterator<(DefId, LazyDefinition)>>(
         deserializer: D,
-    ) -> Result<HashMap<DefId, LazyDefinition>, D::Error> {
+    ) -> Result<T, D::Error> {
         type Data = (
             Vec<Arc<[(ModuleParamId, ModuleArgument)]>>,
             Vec<Arc<[(ModuleParamId, Exp)]>>,
@@ -171,10 +171,13 @@ substitution_map!(
 pub(super) mod specializations {
     use super::*;
     use crate::raw::namespaces::Specialization;
-    pub fn serialize<I: Copy + Serialize, S: Serializer>(
-        entries: &HashMap<I, Specialization<I>>,
+    pub fn serialize<'a, I: Copy + Serialize + 'a, S: Serializer, T>(
+        entries: &'a T,
         serializer: S,
-    ) -> Result<S::Ok, S::Error> {
+    ) -> Result<S::Ok, S::Error>
+    where
+        &'a T: IntoIterator<Item = (&'a I, &'a Specialization<I>)>,
+    {
         let _cost = timing::costs::Scope::enter("query.serialize-specializations");
         let mut arguments = Slices::default();
         let entries: Vec<_> = ordered::<_, _, S::Error>(entries)?
@@ -187,9 +190,10 @@ pub(super) mod specializations {
         'de,
         I: Copy + Eq + std::hash::Hash + Deserialize<'de>,
         D: Deserializer<'de>,
+        T: FromIterator<(I, Specialization<I>)>,
     >(
         deserializer: D,
-    ) -> Result<HashMap<I, Specialization<I>>, D::Error> {
+    ) -> Result<T, D::Error> {
         type Data<I> = (
             Vec<Arc<[(ModuleParamId, ModuleArgument)]>>,
             Vec<(I, I, usize)>,
@@ -218,6 +222,51 @@ mod tests {
     struct Saved {
         #[serde(with = "definitions")]
         entries: HashMap<DefId, LazyDefinition>,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct ShardedSaved {
+        #[serde(with = "definitions")]
+        entries: ShardedMap<DefId, LazyDefinition>,
+    }
+
+    #[test]
+    fn sharded_specializations_keep_the_legacy_checkpoint_format() {
+        #[derive(Serialize, Deserialize)]
+        struct Legacy {
+            #[serde(with = "specializations")]
+            entries: HashMap<DefId, super::super::super::namespaces::Specialization<DefId>>,
+        }
+        #[derive(Serialize, Deserialize)]
+        struct Sharded {
+            #[serde(with = "specializations")]
+            entries: ShardedMap<DefId, super::super::super::namespaces::Specialization<DefId>>,
+        }
+        let arguments: Arc<[(ModuleParamId, ModuleArgument)]> = Arc::from([]);
+        let entries = (0..1024)
+            .map(|index| {
+                let id = DefId {
+                    module: ModuleId(index % 31),
+                    index,
+                };
+                (
+                    id,
+                    super::super::super::namespaces::Specialization {
+                        source: id,
+                        arguments: arguments.clone(),
+                    },
+                )
+            })
+            .collect();
+        let legacy = Legacy { entries };
+        let bytes = postcard::to_allocvec(&legacy).unwrap();
+        let restored: Sharded = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(restored.entries.len(), legacy.entries.len());
+        assert_eq!(postcard::to_allocvec(&restored).unwrap(), bytes);
+        for (&id, value) in &restored.entries {
+            assert_eq!(value.source, id);
+            assert!(value.arguments.is_empty());
+        }
     }
 
     #[test]
@@ -262,6 +311,13 @@ mod tests {
         };
         let bytes = postcard::to_allocvec(&saved).unwrap();
         assert!(bytes.len() < 20_000, "{} bytes", bytes.len());
+        let sharded: ShardedSaved = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(postcard::to_allocvec(&sharded).unwrap(), bytes);
+        assert_eq!(sharded.entries.len(), saved.entries.len());
+        let shared = &sharded.entries[&DefId { module, index: 0 }].environment;
+        for (_, value) in &sharded.entries {
+            assert!(Arc::ptr_eq(shared, &value.environment));
+        }
         let restored: Saved = postcard::from_bytes(&bytes).unwrap();
         let first = &restored.entries[&DefId { module, index: 0 }];
         for value in restored.entries.values() {
