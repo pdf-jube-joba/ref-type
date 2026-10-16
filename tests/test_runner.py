@@ -40,6 +40,14 @@ class RunnerTests(unittest.TestCase):
             valid.replace('toml case', 'toml step'),
             valid.replace('expect="accept"', 'expect="accept"\nargs=["--report-json=/tmp/fake.json"]'),
             valid.replace('expect="accept"', 'expect="accept"\nstdout_same_as="missing"'),
+            valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", pattern="["}]'),
+            valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", count=1}]'),
+            valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", pattern="x", sum_equals="y"}]'),
+            valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", contains=["x"], typo=1}]'),
+            valid.replace('expect="accept"', 'expect="interrupted"'),
+            valid.replace('expect="accept"', 'expect="accept"\ninterrupt={stderr="ready"}'),
+            valid.replace('expect="accept"', 'expect="accept"\nfiles=[{path="../escape"}]'),
+            valid.replace('expect="accept"', 'expect="accept"\nfiles=[{path="cache", same_as="missing"}]'),
         ]
         with tempfile.TemporaryDirectory() as directory:
             for text in malformed:
@@ -118,6 +126,51 @@ report.write_text(json.dumps({"version":1,"outcome":"accepted","cache":{"verific
             case, = runner.parse_document(self.document(directory, document))
             runner.run_case(case, [sys.executable, str(checker), str(pids)])
             self.assertEqual(len(set(pids.read_text().splitlines())), 3)
+
+    def test_output_checks_detect_missing_repeated_and_misordered_results(self):
+        streams = {"stderr": b"start\npart 1\npart 2\ntotal 3\nfinish\n"}
+        checks = [
+            {"stream": "stderr", "contains": ["start"], "absent": ["error"],
+             "ordered": ["start", "finish"]},
+            {"stream": "stderr", "pattern": r"^part (\d+)$", "count": 2,
+             "sum_equals": r"^total (\d+)$", "positive": True},
+        ]
+        runner.check_output(checks, streams)
+        failures = [
+            {"contains": ["missing"]}, {"absent": ["start"]},
+            {"ordered": ["finish", "start"]}, {"pattern": "missing"},
+            {"pattern": "part", "count": 1},
+            {"pattern": r"^part (\d+)$", "sum_equals": r"^part (\d+)$"},
+            {"pattern": r"^part (\d+)$", "sum_equals": r"^part (2)$"},
+        ]
+        for check in failures:
+            with self.subTest(check=check), self.assertRaises(AssertionError):
+                runner.check_output([{"stream": "stderr", **check}], streams)
+
+    def test_file_snapshots_detect_changes_additions_and_removals(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / "cache"
+            cache.mkdir()
+            entry = cache / "entry"
+            entry.write_bytes(b"original")
+            saved = runner.check_files([{"path": "cache", "nonempty": True}], root, {})
+            checks = [{"path": "cache", "same_as": "saved"}]
+            runner.check_files(checks, root, {"saved": saved})
+            entry.write_bytes(b"changed")
+            with self.assertRaises(AssertionError):
+                runner.check_files(checks, root, {"saved": saved})
+            entry.write_bytes(b"original")
+            extra = cache / "extra"
+            extra.write_bytes(b"extra")
+            with self.assertRaises(AssertionError):
+                runner.check_files(checks, root, {"saved": saved})
+            extra.unlink()
+            entry.unlink()
+            with self.assertRaises(AssertionError):
+                runner.check_files(checks, root, {"saved": saved})
+            with self.assertRaises(AssertionError):
+                runner.check_files([{"path": "cache", "nonempty": True}], root, {})
 
     def test_timeout_stops_the_checker_and_retains_logs(self):
         with tempfile.TemporaryDirectory() as directory:

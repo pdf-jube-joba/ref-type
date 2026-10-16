@@ -74,7 +74,7 @@ fn files(root: &Path) -> Vec<PathBuf> {
 }
 fn records(directory: &Path) -> BTreeMap<String, StoreManifest> {
     let store = ArtifactStore::new(directory);
-    files(&directory.join("v2/artifacts"))
+    files(&directory.join("artifacts"))
         .into_iter()
         .filter_map(|path| {
             let stem = path.file_stem()?.to_str()?;
@@ -147,7 +147,7 @@ fn individual_and_partial_results_complete_warm_queries_without_environment_impo
                 .map(|byte| format!("{byte:02x}"))
                 .collect::<String>();
             cache
-                .join("v2/artifacts")
+                .join("artifacts")
                 .join(&key[..2])
                 .join(format!("{key}.manifest"))
         };
@@ -165,7 +165,7 @@ fn individual_and_partial_results_complete_warm_queries_without_environment_impo
             partial.environment = None;
             let store = ArtifactStore::new(&cache);
             let mut removed = 0;
-            for path in files(&cache.join("v2/artifacts")) {
+            for path in files(&cache.join("artifacts")) {
                 let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
                     continue;
                 };
@@ -262,7 +262,7 @@ fn transitive_dependency_changes_invalidate_its_consumers() {
             .unwrap();
         assert!(current.iter().any(|manifest| manifest.key == old.key));
     }
-    assert!(files(&cache.join("v2/artifacts")).len() >= 8);
+    assert!(files(&cache.join("artifacts")).len() >= 8);
 }
 
 #[test]
@@ -314,7 +314,7 @@ fn independently_built_processes_publish_identical_objects() {
             "{}",
             String::from_utf8_lossy(&result.stderr)
         );
-        let objects = files(&cache.join("v2/objects"))
+        let objects = files(&cache.join("objects"))
             .into_iter()
             .map(|path| {
                 (

@@ -179,6 +179,66 @@ query の結果や出力先を検査する場合は、次の設定を追加で�
 
 大量の出力を検査する場合は、`ref repeat=10000` で小さなソースを反復して展開できる。
 
+### 出力の部分一致・順序・集計
+
+`checks` は標準出力・標準エラー・制御端末の出力を照合する。
+正規表現は各行の先頭・末尾に `^`・`$` が一致する方式で評価する。
+
+```toml
+checks = [
+  { stream = "stderr", contains = ["event=planned"], absent = ["\r"] },
+  { stream = "stderr", ordered = ["event=start", "event=complete"] },
+  { stream = "stderr", pattern = 'event=finished success=true', count = 1 },
+]
+```
+
+| 設定 | 検査する内容 |
+| --- | --- |
+| `stream` | `stdout`、`stderr`、`terminal` のいずれか |
+| `contains` | 含まれる文字列の配列 |
+| `absent` | 含まれない文字列の配列 |
+| `ordered` | 指定した順に現れる文字列の配列 |
+| `pattern` | 一致する正規表現 |
+| `count` | 正規表現の一致数、省略すると一回以上 |
+| `sum_equals` | `pattern` の数値の合計と比較する正規表現 |
+| `relative_tolerance` | 合計の比較で許容する相対誤差、既定はゼロ |
+| `positive` | 比較する合計が正の数であること |
+
+`sum_equals` を使う場合、両方の正規表現に数値を取り出すキャプチャを一つずつ設ける。
+比較先は一回だけ一致し、各数値は有限の非負数である必要がある。
+実例は [profiling.md](cli/profiling.md) にある。
+
+### 保存ファイルの比較
+
+`files` はソースディレクトリからの相対パスにあるファイルの構成と内容を記録する。
+ディレクトリを指定すると、その配下のファイルを再帰的に記録する。
+
+```toml
+files = [{ path = "refcache", same_as = "saved", nonempty = true }]
+```
+
+`same_as` は同じパスを記録した先行手順との一致を検査する。
+`nonempty` はファイルが一つ以上あるかを検査する。
+実例は [files.md](cache/files.md) にある。
+
+### 制御端末と割り込み
+
+`terminal = true` は擬似端末を制御端末として CLI を起動する。
+標準出力と標準エラーは別々のログファイルに保存し、制御端末への出力は `checks` の `terminal` で照合する。
+端末のログも `logs/` に保存する。
+この実行方式には Unix の擬似端末が必要である。
+
+```toml
+terminal = true
+expect = "interrupted"
+interrupt = { terminal = "\u001b[2K", stderr = "checking " }
+```
+
+`interrupt` に指定した文字列がすべて観測できたら、制御端末へ Ctrl+C を送る。
+`expect = "interrupted"` は Ctrl+C の送信と SIGINT による終了を検査し、JSON レポートを要求しない。
+割り込み前の終了やタイムアウトは失敗となる。
+実例は [terminal.md](cli/terminal.md) にある。
+
 ## 検査する論点
 
 | 文書 | 主な内容 |
@@ -187,9 +247,9 @@ query の結果や出力先を検査する場合は、次の設定を追加で�
 | `language/` | sort、証明、帰納型、宣言、Program、macro、型推論 |
 | `packages/` | module 間の参照、親子関係、外部ファイル、package の依存 |
 | `workspaces/` | member の列挙と検査範囲 |
-| `cli/` | 選択、構文のみの検査、query の出力 |
-| `cache/` | 再利用、ソース変更、依存変更、workspace の共有 |
+| `cli/` | 選択、構文のみの検査、query の出力、計測ログ、端末表示、割り込み |
+| `cache/` | 再利用、ソース変更、依存変更、workspace の共有、保存ファイルの保持 |
 
 数学的な定義と証明は [libs](../libs/README.md) に置く。
-[test_cli.py](test_cli.py) は、小さな独立したソースで計測ログの出力、キャッシュ保存先への変更、端末の表示と割り込みを確認する。
+[test_runner.py](test_runner.py) は、文書の読み取りと実行結果の検証など、共通ランナーの動作を確認する。
 Rust の内部状態、保存形式の破損、supervisor のプロセス管理は `src/` の実装テストで検査する。

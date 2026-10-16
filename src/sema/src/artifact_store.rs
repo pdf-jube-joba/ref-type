@@ -182,7 +182,7 @@ pub(crate) fn decode_memory(bytes: &[u8]) -> Result<Vec<u8>, CacheError> {
 impl ArtifactStore {
     pub fn new(directory: impl Into<PathBuf>) -> Self {
         Self {
-            root: directory.into().join("v2"),
+            root: directory.into(),
             budget: AtomicU64::new(DEFAULT_CACHE_BUDGET),
             pending_bytes: AtomicU64::new(0),
             lease: Mutex::new(None),
@@ -654,7 +654,7 @@ impl ArtifactStore {
                     .map(u64::from_le_bytes);
                 let previous = match previous {
                     Some(previous) => previous,
-                    None => total_bytes(&self.root)?,
+                    None => store_bytes(&self.root)?,
                 };
                 let usage = previous
                     .saturating_add(bytes.len() as u64)
@@ -789,7 +789,7 @@ impl ArtifactStore {
     /// Advisory locks release on process death, including forcibly killed workers.
     pub fn collect(&self) -> Result<CacheStoreStats, CacheError> {
         let _lock = self.lock()?;
-        let before = total_bytes(&self.root)?;
+        let before = store_bytes(&self.root)?;
         let budget = self.budget.load(Ordering::Relaxed);
         let mut pinned = Pins::default();
         for path in files(&self.root.join("leases"))? {
@@ -894,7 +894,7 @@ impl ArtifactStore {
             .unwrap_or(SystemTime::UNIX_EPOCH)
         });
         // Stale leases and damaged records have already been removed above.
-        let mut remaining = total_bytes(&self.root)?;
+        let mut remaining = store_bytes(&self.root)?;
         let mut marked = pinned.objects.clone();
         marked.extend(records.values().flat_map(|m| m.objects().map(|o| o.digest)));
         // Unpublished objects are safe to remove only once their writer lease has ended.
@@ -967,20 +967,7 @@ impl ArtifactStore {
                 remove(&path)?;
             }
         }
-        // Only recognized legacy files are eligible, never source files or user files.
-        if let Some(parent) = self.root.parent() {
-            for entry in
-                fs::read_dir(parent).map_err(|e| io_error(CacheOperation::Collect, parent, e))?
-            {
-                let path = entry
-                    .map_err(|e| io_error(CacheOperation::Collect, parent, e))?
-                    .path();
-                if path.is_file() && legacy_name(&path) {
-                    remove(&path)?;
-                }
-            }
-        }
-        let after = total_bytes(&self.root)?;
+        let after = store_bytes(&self.root)?;
         self.atomic_write(&self.root.join("usage"), &after.to_le_bytes())?;
         let mut stats = self.stats.lock().unwrap();
         stats.collected_bytes += before.saturating_sub(after);
@@ -1107,8 +1094,22 @@ fn files(root: &Path) -> Result<Vec<PathBuf>, CacheError> {
     }
     Ok(paths)
 }
-fn total_bytes(root: &Path) -> Result<u64, CacheError> {
-    Ok(files(root)?
+fn store_bytes(root: &Path) -> Result<u64, CacheError> {
+    let mut paths = vec![root.join("store.lock"), root.join("usage")];
+    // The cache root also hosts supervisor workspaces and batch layouts.
+    for directory in [
+        "artifacts",
+        "objects",
+        "checkpoints",
+        "leases",
+        "access",
+        "tmp",
+        "inputs",
+        "instances",
+    ] {
+        paths.extend(files(&root.join(directory))?);
+    }
+    Ok(paths
         .iter()
         .filter_map(|p| fs::metadata(p).ok())
         .map(|m| m.len())
@@ -1132,14 +1133,6 @@ fn old_temporary(path: &Path) -> bool {
             .ok()
             .and_then(|t| t.elapsed().ok())
             .is_some_and(|elapsed| elapsed > Duration::from_secs(3600))
-}
-fn legacy_name(path: &Path) -> bool {
-    path_key(path).is_some()
-        && path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
-            [".pkg", ".partial", ".json", ".sources.json", ".env"]
-                .iter()
-                .any(|suffix| n == format!("{}{}", &n[..64], suffix))
-        })
 }
 #[cfg(not(target_arch = "wasm32"))]
 fn compress(bytes: &[u8]) -> Result<(u8, Vec<u8>), CacheError> {
@@ -1238,6 +1231,29 @@ mod tests {
     }
 
     #[test]
+    fn collection_budget_excludes_supervisor_workspaces_and_layouts() {
+        let directory = Directory::new();
+        let workspace = directory.0.join(".check-123-0");
+        fs::create_dir(&workspace).unwrap();
+        let snapshot = workspace.join("snapshot.json");
+        let layout = directory.0.join("batches.json");
+        fs::write(&snapshot, vec![0; 16 * 1024]).unwrap();
+        fs::write(&layout, vec![0; 16 * 1024]).unwrap();
+
+        let store = directory.store();
+        store.set_budget(8 * 1024);
+        let record = manifest(&store, 1);
+        store.publish(&record).unwrap();
+        assert!(store.stats().retained_bytes < 8 * 1024);
+        store.release_pins().unwrap();
+        let stats = store.collect().unwrap();
+        assert_eq!(stats.budget_excess_bytes, 0);
+        assert_eq!(store.read_manifest(&record.key).unwrap(), record);
+        assert_eq!(fs::metadata(snapshot).unwrap().len(), 16 * 1024);
+        assert_eq!(fs::metadata(layout).unwrap().len(), 16 * 1024);
+    }
+
+    #[test]
     fn observed_inputs_count_each_persisted_change_once() {
         let directory = Directory::new();
         let first = directory.store();
@@ -1285,7 +1301,7 @@ mod tests {
         let record = manifest(&store, 1);
         store.publish(&record).unwrap();
         store.release_pins().unwrap();
-        let retained_size = total_bytes(&store.root).unwrap();
+        let retained_size = store_bytes(&store.root).unwrap();
         store.set_budget(retained_size + 512);
 
         let damaged = fingerprint(b"damaged manifest");

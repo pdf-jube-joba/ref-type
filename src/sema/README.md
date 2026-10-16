@@ -50,7 +50,7 @@ package の入力キーは、処理系・設定・package identity・自身の�
 依存の訪問順や別の利用側のパスは依存 package の入力キーに含まれない。
 保存用 ID と読み込み先の ID の対応は resolver・raw・kernel の import API で確定し、共通依存は一度登録する。
 
-保存先の `v2/artifacts/` に成果物 manifest、`v2/objects/` に内容 digest で識別する immutable object を置く。
+保存先の `artifacts/` に成果物 manifest、`objects/` に内容 digest で識別する immutable object を置く。
 結果は module ごと、resolver と raw/kernel の export はそれぞれ独立した object とする。
 object は種類・codec・格納長・展開長・checksum を持ち、postcard の構造化データを native では zstd、WebAssembly では deflate で圧縮する。
 要求範囲が検証済みなら manifest と結果 object だけを読み、環境 object の読み込み・展開を省く。
@@ -59,7 +59,7 @@ package の manifest で足りない範囲は、現在の module key に一致�
 展開上限を超える環境を保存できない場合も、結果 object は独立に保存できる。
 単独ファイルと module 増分検査の結果・環境も同じ object store を使う。
 
-`v2/checkpoints/` の途中再開記録は、依存成果物への参照と現在の package の作業状態・解決済みの検査順・次の位置を持つ。
+`checkpoints/` の途中再開記録は、依存成果物への参照と現在の package の作業状態・解決済みの検査順・次の位置を持つ。
 `CheckOptions::checkpoint_interval` はソース module 完了時の保存間隔の下限で、既定30秒、ゼロは全境界を対象とする。
 保存コストの約10倍以上の検査時間を空けるように間隔を調整する。
 環境を含む成果物の公開に成功すると、対応する途中再開記録を回収する。

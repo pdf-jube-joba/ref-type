@@ -120,13 +120,12 @@ object は用途別の version、codec、格納長、展開長、checksum を持
 
 ```text
 refcache/
-  v2/
-    artifacts/<key-prefix>/<artifact-key>.manifest
-    objects/<digest-prefix>/<object-digest>
-    checkpoints/<session-key>/<coverage-key>.checkpoint
-    leases/<session-id>
-    access/
-    tmp/
+  artifacts/<key-prefix>/<artifact-key>.manifest
+  objects/<digest-prefix>/<object-digest>
+  checkpoints/<session-key>/<coverage-key>.checkpoint
+  leases/<session-id>
+  access/
+  tmp/
 ```
 
 結果だけが必要な無変更検査では、入力と検査範囲を照合した manifest と結果 object だけを読む。
@@ -184,7 +183,7 @@ LSP と playground も同じ成果物モデルを使い、ディスク機能を�
 ディスク容量の既定 budget は8 GiBとし、CLI・API から変更可能にする。
 公開後の総量が budget を超えたら、現在利用中の成果物を保護したうえで、古い利用世代から manifest と checkpoint を回収する。
 残る manifest・checkpoint が参照する object を mark し、共有 object は最後の参照がなくなった時点で回収する。
-旧形式の既知のキャッシュファイル、古い checker 世代、公開されなかった一時 object も回収対象として扱う。
+古い checker 世代、公開されなかった一時 object も回収対象として扱う。
 サイズ超過した有効データを保持する必要がある間は、一時的な budget 超過として容量と理由を表示する。
 
 session lease は現在読む成果物と依存閉包を保護する。

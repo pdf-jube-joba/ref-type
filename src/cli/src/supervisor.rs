@@ -727,8 +727,7 @@ mod tests {
         );
         assert_ne!(snapshot_key(&before), snapshot_key(&after));
         let mut value = serde_json::to_value(&after).unwrap();
-        value["aliases"]["/project/cache/v2/objects"] =
-            serde_json::json!("/project/cache/v2/objects");
+        value["aliases"]["/project/cache/objects"] = serde_json::json!("/project/cache/objects");
         let with_cache_directory: SourceSnapshot = serde_json::from_value(value).unwrap();
         assert_eq!(snapshot_key(&after), snapshot_key(&with_cache_directory));
     }

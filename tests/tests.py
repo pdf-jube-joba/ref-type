@@ -5,17 +5,21 @@ from __future__ import annotations
 import argparse
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+import errno
 import fnmatch
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
+import select
 import shlex
 import shutil
 import signal
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,7 +27,7 @@ SCOPES = {"module", "package", "workspace"}
 EXPECTATIONS = {"accept": ("accepted", 0), "reject": ("rejected", 1)}
 COMMON = {"id", "expect", "cache", "args", "env", "entry", "cwd", "timeout",
           "stdout", "stdout_same_as", "stdout_lines", "stdout_bytes_min", "stderr_empty",
-          "remove", "cache_dir"}
+          "remove", "cache_dir", "checks", "files", "terminal", "interrupt"}
 CONFIG = COMMON | {"scope", "name", "parameters"}
 
 
@@ -78,10 +82,11 @@ def validate_config(config, allowed, context, *, expectation=False):
         raise DefinitionError(f"{context}: unknown fields: {', '.join(sorted(unknown))}")
     if not isinstance(config.get("id"), str) or not re.fullmatch(r"[\w.-]+", config["id"]):
         raise DefinitionError(f"{context}: id must be a nonempty identifier")
-    if expectation and (not isinstance(config.get("expect"), str) or config["expect"] not in EXPECTATIONS):
-        raise DefinitionError(f"{context}: expect must be accept or reject")
-    if "expect" in config and (not isinstance(config["expect"], str) or config["expect"] not in EXPECTATIONS):
-        raise DefinitionError(f"{context}: expect must be accept or reject")
+    outcomes = {*EXPECTATIONS, "interrupted"}
+    if expectation and (not isinstance(config.get("expect"), str) or config["expect"] not in outcomes):
+        raise DefinitionError(f"{context}: expect must be accept, reject or interrupted")
+    if "expect" in config and (not isinstance(config["expect"], str) or config["expect"] not in outcomes):
+        raise DefinitionError(f"{context}: expect must be accept, reject or interrupted")
     if "cache" in config and (not isinstance(config["cache"], str) or config["cache"] not in {"reused", "unused"}):
         raise DefinitionError(f"{context}: cache must be reused or unused")
     for key in ("args", "remove"):
@@ -107,8 +112,27 @@ def validate_config(config, allowed, context, *, expectation=False):
     if "timeout" in config and (type(config["timeout"]) not in (int, float)
                                 or not 0 < config["timeout"] < float("inf")):
         raise DefinitionError(f"{context}: timeout must be a positive finite number")
-    if "stderr_empty" in config and type(config["stderr_empty"]) is not bool:
-        raise DefinitionError(f"{context}: stderr_empty must be a boolean")
+    for key in ("stderr_empty", "terminal"):
+        if key in config and type(config[key]) is not bool:
+            raise DefinitionError(f"{context}: {key} must be a boolean")
+    if "interrupt" in config:
+        interrupt = config["interrupt"]
+        if (not isinstance(interrupt, dict) or not interrupt
+                or interrupt.keys() - {"terminal", "stderr"}
+                or not all(isinstance(value, str) and value for value in interrupt.values())):
+            raise DefinitionError(f"{context}: interrupt must map terminal/stderr to nonempty strings")
+    validate_checks(config.get("checks", []), context)
+    files = config.get("files", [])
+    if not isinstance(files, list):
+        raise DefinitionError(f"{context}: files must be an array of tables")
+    for item in files:
+        if not isinstance(item, dict) or item.keys() - {"path", "same_as", "nonempty"}:
+            raise DefinitionError(f"{context}: invalid file expectation")
+        relative_path(item.get("path"), context)
+        if "same_as" in item and not isinstance(item["same_as"], str):
+            raise DefinitionError(f"{context}: same_as must name an earlier step")
+        if "nonempty" in item and type(item["nonempty"]) is not bool:
+            raise DefinitionError(f"{context}: nonempty must be a boolean")
     environment = config.get("env", {})
     if not isinstance(environment, dict) or not all(
         isinstance(key, str) and key and "=" not in key and "\0" not in key
@@ -119,6 +143,46 @@ def validate_config(config, allowed, context, *, expectation=False):
     for arg in config.get("args", []):
         if arg.split("=", 1)[0] in {"--report-json", "--cache-dir", "--worker"}:
             raise DefinitionError(f"{context}: {arg} is managed by the runner")
+
+
+def validate_checks(checks, context):
+    if not isinstance(checks, list):
+        raise DefinitionError(f"{context}: checks must be an array of tables")
+    for check in checks:
+        if not isinstance(check, dict) or check.keys() - {
+            "stream", "contains", "absent", "ordered", "pattern", "count", "sum_equals",
+            "relative_tolerance", "positive",
+        }:
+            raise DefinitionError(f"{context}: invalid output check")
+        if not isinstance(check.get("stream"), str) or check["stream"] not in {"stdout", "stderr", "terminal"}:
+            raise DefinitionError(f"{context}: check stream must be stdout, stderr or terminal")
+        if not ({"contains", "absent", "ordered", "pattern"} & check.keys()):
+            raise DefinitionError(f"{context}: empty output check")
+        for key in ("contains", "absent", "ordered"):
+            if key in check and (not isinstance(check[key], list)
+                                 or not all(isinstance(value, str) and value for value in check[key])):
+                raise DefinitionError(f"{context}: {key} must be an array of nonempty strings")
+        for key in ("pattern", "sum_equals"):
+            if key in check:
+                if not isinstance(check[key], str):
+                    raise DefinitionError(f"{context}: {key} must be a regular expression")
+                try:
+                    pattern = re.compile(check[key], re.MULTILINE)
+                except re.error as error:
+                    raise DefinitionError(f"{context}: {error}") from error
+                if "sum_equals" in check and pattern.groups != 1:
+                    raise DefinitionError(f"{context}: numeric patterns require one capture group")
+        if "count" in check and ("pattern" not in check or type(check["count"]) is not int or check["count"] < 0):
+            raise DefinitionError(f"{context}: count requires a pattern and a nonnegative integer")
+        if "sum_equals" in check and "pattern" not in check:
+            raise DefinitionError(f"{context}: sum_equals requires a pattern")
+        if "relative_tolerance" in check and (
+            "sum_equals" not in check or type(check["relative_tolerance"]) not in (int, float)
+            or not 0 <= check["relative_tolerance"] < float("inf")
+        ):
+            raise DefinitionError(f"{context}: relative_tolerance requires sum_equals and a finite nonnegative number")
+        if "positive" in check and ("sum_equals" not in check or type(check["positive"]) is not bool):
+            raise DefinitionError(f"{context}: positive requires sum_equals and a boolean")
 
 
 def fences(document):
@@ -218,11 +282,21 @@ def parse_document(document):
         if case.config["scope"] != "module" and ({"name", "parameters"} & case.config.keys()):
             raise DefinitionError(f"{context}: name and parameters require module scope")
         previous = set()
+        snapshots = {}
         for item in case.steps if case.scenario else [Step(case.config, case.line, case.sources)]:
             if item.config["id"] in previous:
                 raise DefinitionError(f"{document}:{item.line}: duplicate step id")
             if "stdout_same_as" in item.config and item.config["stdout_same_as"] not in previous:
                 raise DefinitionError(f"{document}:{item.line}: stdout_same_as requires an earlier step")
+            settings = {**case.config, **item.config}
+            if settings.get("interrupt") and not settings.get("terminal"):
+                raise DefinitionError(f"{document}:{item.line}: interrupt requires terminal = true")
+            if (settings.get("expect") == "interrupted") != bool(settings.get("interrupt")):
+                raise DefinitionError(f"{document}:{item.line}: interrupted expectation requires interrupt conditions")
+            for entry in settings.get("files", []):
+                if "same_as" in entry and entry["path"] not in snapshots.get(entry["same_as"], set()):
+                    raise DefinitionError(f"{document}:{item.line}: same_as requires an earlier snapshot of the path")
+            snapshots[item.config["id"]] = {entry["path"] for entry in settings.get("files", [])}
             paths = [source.path for source in item.sources]
             if len(paths) != len(set(paths)):
                 raise DefinitionError(f"{document}:{item.line}: source file written twice in one step")
@@ -304,7 +378,125 @@ def invoke(command, cwd, environment, timeout, logs):
     return (child.returncode, (logs / "stdout").read_bytes(), (logs / "stderr").read_bytes())
 
 
-def check_result(config, status, stdout, stderr, report_path, outputs):
+def invoke_terminal(command, cwd, environment, timeout, logs, interrupt=None):
+    import pty
+    import resource
+
+    logs.mkdir(parents=True, exist_ok=True)
+    (logs / "command.json").write_text(json.dumps(
+        {"command": command, "cwd": str(cwd)}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    child, terminal = pty.fork()
+    if child == 0:
+        try:
+            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            os.chdir(cwd)
+            for descriptor, stream in ((1, "stdout"), (2, "stderr")):
+                with (logs / stream).open("wb", buffering=0) as output:
+                    os.dup2(output.fileno(), descriptor)
+            os.execvpe(command[0], command, environment)
+        finally:
+            os._exit(127)
+    captured = bytearray()
+    sent_interrupt = False
+    reaped = False
+    deadline = time.monotonic() + timeout
+    try:
+        while time.monotonic() < deadline:
+            if select.select([terminal], [], [], 0.01)[0]:
+                try:
+                    captured.extend(os.read(terminal, 65536))
+                except OSError as error:
+                    if error.errno != errno.EIO:
+                        raise
+            if interrupt and not sent_interrupt:
+                streams = {"terminal": bytes(captured), "stderr": (logs / "stderr").read_bytes()
+                           if (logs / "stderr").exists() else b""}
+                if all(value.encode("utf-8") in streams[key] for key, value in interrupt.items()):
+                    os.write(terminal, b"\x03")
+                    sent_interrupt = True
+            waited, status = os.waitpid(child, os.WNOHANG)
+            if waited:
+                reaped = True
+                while select.select([terminal], [], [], 0)[0]:
+                    try:
+                        remaining = os.read(terminal, 65536)
+                    except OSError as error:
+                        if error.errno == errno.EIO:
+                            break
+                        raise
+                    if not remaining:
+                        break
+                    captured.extend(remaining)
+                if interrupt and not sent_interrupt:
+                    raise AssertionError("CLI exited before interrupt conditions were observed")
+                return (os.waitstatus_to_exitcode(status), (logs / "stdout").read_bytes(),
+                        (logs / "stderr").read_bytes(), bytes(captured))
+        raise AssertionError(f"CLI exceeded {timeout} seconds")
+    finally:
+        if not reaped:
+            try:
+                os.killpg(child, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            os.waitpid(child, 0)
+        os.close(terminal)
+        (logs / "terminal").write_bytes(captured)
+
+
+def check_output(checks, streams):
+    for check in checks:
+        text = streams[check["stream"]].decode("utf-8", errors="replace")
+        for value in check.get("contains", []):
+            if value not in text:
+                raise AssertionError(f"{check['stream']} lacks {value!r}")
+        for value in check.get("absent", []):
+            if value in text:
+                raise AssertionError(f"{check['stream']} contains unexpected {value!r}")
+        position = 0
+        for value in check.get("ordered", []):
+            found = text.find(value, position)
+            if found < 0:
+                raise AssertionError(f"{check['stream']} lacks ordered {value!r}")
+            position = found + len(value)
+        if "pattern" not in check:
+            continue
+        matches = list(re.finditer(check["pattern"], text, re.MULTILINE))
+        if len(matches) != check.get("count", len(matches)) or ("count" not in check and not matches):
+            raise AssertionError(f"{check['stream']} pattern {check['pattern']!r} matched {len(matches)} times")
+        if "sum_equals" in check:
+            totals = list(re.finditer(check["sum_equals"], text, re.MULTILINE))
+            if len(totals) != 1 or not matches:
+                raise AssertionError("numeric sum requires components and exactly one total")
+            values = [float(match.group(1)) for match in matches]
+            total = float(totals[0].group(1))
+            if not all(math.isfinite(value) and value >= 0 for value in [*values, total]):
+                raise AssertionError("numeric sum contains a negative or nonfinite value")
+            if check.get("positive") and total <= 0:
+                raise AssertionError("numeric total must be positive")
+            if not math.isclose(sum(values), total, rel_tol=check.get("relative_tolerance", 0)):
+                raise AssertionError(f"components sum to {sum(values)}, expected {total}")
+
+
+def check_result(config, status, stdout, stderr, report_path, outputs, terminal=b""):
+    if config["expect"] == "interrupted":
+        if status != -signal.SIGINT:
+            raise AssertionError(f"expected SIGINT, got exit {status}")
+    else:
+        check_report(config, status, report_path)
+    check_output(config.get("checks", []), {"stdout": stdout, "stderr": stderr, "terminal": terminal})
+    if "stdout" in config and stdout != config["stdout"].encode("utf-8"):
+        raise AssertionError("stdout differs from the documented result")
+    if "stdout_same_as" in config and stdout != outputs[config["stdout_same_as"]]:
+        raise AssertionError(f"stdout differs from step {config['stdout_same_as']}")
+    if "stdout_lines" in config and len(stdout.splitlines()) != config["stdout_lines"]:
+        raise AssertionError(f"expected {config['stdout_lines']} output lines, got {len(stdout.splitlines())}")
+    if "stdout_bytes_min" in config and len(stdout) < config["stdout_bytes_min"]:
+        raise AssertionError(f"stdout shorter than {config['stdout_bytes_min']} bytes")
+    if "stderr_empty" in config and (not stderr) != config["stderr_empty"]:
+        raise AssertionError("stderr emptiness differs from expectation")
+
+
+def check_report(config, status, report_path):
     try:
         report = json.loads(report_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -319,16 +511,22 @@ def check_result(config, status, stdout, stderr, report_path, outputs):
         raise AssertionError(f"expected {outcome}/exit {code}, got {report.get('outcome')}/exit {status}")
     if "cache" in config and cache["verification_reused"] != (config["cache"] == "reused"):
         raise AssertionError(f"expected cache {config['cache']}, got {cache}")
-    if "stdout" in config and stdout != config["stdout"].encode("utf-8"):
-        raise AssertionError("stdout differs from the documented result")
-    if "stdout_same_as" in config and stdout != outputs[config["stdout_same_as"]]:
-        raise AssertionError(f"stdout differs from step {config['stdout_same_as']}")
-    if "stdout_lines" in config and len(stdout.splitlines()) != config["stdout_lines"]:
-        raise AssertionError(f"expected {config['stdout_lines']} output lines, got {len(stdout.splitlines())}")
-    if "stdout_bytes_min" in config and len(stdout) < config["stdout_bytes_min"]:
-        raise AssertionError(f"stdout shorter than {config['stdout_bytes_min']} bytes")
-    if "stderr_empty" in config and (not stderr) != config["stderr_empty"]:
-        raise AssertionError("stderr emptiness differs from expectation")
+
+
+def check_files(expectations, directory, snapshots):
+    current = {}
+    for item in expectations:
+        path = contained(directory, item["path"])
+        if not path.exists():
+            raise AssertionError(f"snapshot path does not exist: {item['path']}")
+        contents = {str(file.relative_to(path)): file.read_bytes()
+                    for file in path.rglob("*") if file.is_file()} if path.is_dir() else {".": path.read_bytes()}
+        if "nonempty" in item and bool(contents) != item["nonempty"]:
+            raise AssertionError(f"snapshot has unexpected file count: {item['path']}")
+        if "same_as" in item and contents != snapshots[item["same_as"]][item["path"]]:
+            raise AssertionError(f"files at {item['path']} differ from step {item['same_as']}")
+        current[item["path"]] = contents
+    return current
 
 
 def run_case(case, command, *, timeout=30, keep_failed=False):
@@ -348,6 +546,7 @@ def run_case(case, command, *, timeout=30, keep_failed=False):
         else:
             steps = [Step(config, case.line, case.sources)]
         outputs = {}
+        snapshots = {}
         for index, step in enumerate(steps):
             settings = {**config, **step.config}
             settings["env"] = {**config.get("env", {}), **step.config.get("env", {})}
@@ -375,12 +574,17 @@ def run_case(case, command, *, timeout=30, keep_failed=False):
                                if not key.startswith("REF_TYPE_PROFILE_")
                                and key not in {"RUST_LOG", "REF_TYPE_COMPACT_DIAGNOSTICS", "REF_TYPE_CACHE_SESSION"}}
                 environment.update(settings["env"])
-                result = invoke(arguments, cwd, environment, settings.get("timeout", timeout), logs)
-                check_result(settings, *result, report_path, outputs)
+                if settings.get("terminal"):
+                    result = invoke_terminal(arguments, cwd, environment, settings.get("timeout", timeout),
+                                             logs, settings.get("interrupt"))
+                else:
+                    result = (*invoke(arguments, cwd, environment, settings.get("timeout", timeout), logs), b"")
+                check_result(settings, *result[:3], report_path, outputs, terminal=result[3])
+                snapshots[step.config["id"]] = check_files(settings.get("files", []), directory, snapshots)
                 outputs[step.config["id"]] = result[1]
             except (AssertionError, OSError, ValueError) as error:
                 details = []
-                for stream in ("stdout", "stderr"):
+                for stream in ("stdout", "stderr", "terminal"):
                     path = logs / stream
                     if path.exists():
                         details.append(f"{stream}:\n" + path.read_bytes()[-8000:].decode("utf-8", errors="replace"))

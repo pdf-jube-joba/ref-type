@@ -23,7 +23,7 @@ impl Drop for Cache {
 }
 
 fn cache_files(cache: &Cache, category: &str) -> Vec<PathBuf> {
-    let mut pending = vec![cache.0.join("v2").join(category)];
+    let mut pending = vec![cache.0.join(category)];
     let mut files = Vec::new();
     while let Some(directory) = pending.pop() {
         let Ok(entries) = fs::read_dir(directory) else {

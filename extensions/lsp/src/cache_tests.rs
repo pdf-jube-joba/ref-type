@@ -169,7 +169,7 @@ fn unlisted_packages_and_standalone_projects_keep_separate_caches() {
         open(&mut server, &connection, file);
         assert!(diagnostics(&client, file).is_empty());
         assert!(server.databases.contains_key(&cache));
-        assert!(cache.join("v2").is_dir());
+        assert!(cache.join("artifacts").is_dir());
         let mut restarted = Server::new();
         open(&mut restarted, &connection, file);
         assert!(diagnostics(&client, file).is_empty());
@@ -225,7 +225,7 @@ fn missing_cache_objects_fall_back_to_source_checking() {
     let fixture = Fixture::new();
     let file = fixture.package("app", "app", "", BASE);
     let cache = fixture.seed(&fixture.0.join("app"));
-    fs::remove_dir_all(cache.join("v2/objects")).unwrap();
+    fs::remove_dir_all(cache.join("objects")).unwrap();
     let (connection, client) = Connection::memory();
     let mut server = Server::new();
     open(&mut server, &connection, &file);

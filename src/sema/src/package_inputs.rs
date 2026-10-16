@@ -47,7 +47,7 @@ pub(crate) fn inputs(
     let mut result: Vec<PackageInput> = Vec::with_capacity(packages.len());
     for (index, package) in packages.iter().enumerate() {
         let mut input = Input::default();
-        input.field(0, b"ref-type.package-input.v2");
+        input.field(0, b"ref-type.package-input");
         input.field(1, env!("REF_SEMA_REVISION").as_bytes());
         input.field(2, configuration.as_bytes());
         input.path(3, &package.instance.0);
@@ -121,7 +121,7 @@ pub(crate) fn artifact_key(
 ) -> Fingerprint {
     let coverage: BTreeSet<_> = coverage.into_iter().collect();
     let mut key = Input::default();
-    key.field(0, b"ref-type.package-artifact.v2");
+    key.field(0, b"ref-type.package-artifact");
     key.field(1, input);
     for path in coverage {
         let mut encoded = Input::default();

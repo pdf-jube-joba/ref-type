@@ -27,7 +27,7 @@ fn project() -> SourceSnapshot {
 }
 
 fn cache_objects(directory: &std::path::Path, kind: Option<u8>) -> Vec<PathBuf> {
-    let mut pending = vec![directory.join("v2/objects")];
+    let mut pending = vec![directory.join("objects")];
     let mut objects = Vec::new();
     while let Some(path) = pending.pop() {
         for entry in fs::read_dir(path).unwrap() {

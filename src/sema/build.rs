@@ -139,7 +139,6 @@ fn main() {
     }
     files.sort();
     let mut hash = Sha256::new();
-    item(&mut hash, b"format", b"package-artifacts", b"v2");
     for file in files {
         println!("cargo:rerun-if-changed={}", file.display());
         let bytes = fs::read(&file).unwrap();

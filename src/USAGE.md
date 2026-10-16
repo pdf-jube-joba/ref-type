@@ -101,7 +101,7 @@ cargo run -p cli --release --locked -- libs/std --full-check-local
 `package_hits` は成果物の再利用で省略した package 数、`package_writes` は結果だけの保存も含む package manifest の公開数、`package_skips` は package export を作れなかった回数である。
 具体化した宣言の引数列と置換は、共有する配列を一度だけ保存し、復元後も共有する。
 package キャッシュには名前解決の状態も含まれ、依存先が一致すれば利用側の module 追加後も依存環境を再利用する。
-検査中の package は、一定時間が経過した後のソース module 完了時に、依存成果物への参照と自身の途中状態を `v2/checkpoints/` に保存する。
+検査中の package は、一定時間が経過した後のソース module 完了時に、依存成果物への参照と自身の途中状態を `checkpoints/` に保存する。
 同じキャッシュ保存先で再実行すると、名前解決の状態と検査位置を復元し、保存位置以降を検査する。
 未完了の module が入れ子で存在する場合も、保存した検査順の続きから再開する。
 `--checkpoint-seconds` の既定値は30秒で、保存に時間がかかった場合は、その約10倍以上の検査時間を空けて次を保存する。
