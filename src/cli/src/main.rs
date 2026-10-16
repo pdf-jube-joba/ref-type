@@ -234,7 +234,9 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
     if args.clear_cache {
         clear_cache_directory(&cache_directory)?;
     }
-    let mut database = if args.no_cache {
+    // Source inspection has no semantic artifacts to reuse or publish. Opening
+    // the shared store would still run collection on drop and wait for its lock.
+    let mut database = if args.no_cache || args.parse_only || args.list_modules {
         sema::Database::new()
     } else {
         sema::Database::with_cache(cache_directory)

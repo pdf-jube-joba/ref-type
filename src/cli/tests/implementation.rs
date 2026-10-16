@@ -122,6 +122,26 @@ fn progress_lines(output: &Output) -> Vec<String> {
         .collect()
 }
 
+#[test]
+fn source_inspection_leaves_existing_semantic_cache_untouched() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = \"inspection\"\n");
+    fixture.write(
+        "src/root.ref",
+        "\\module Values { \\definition value: \\Prop := \\forall (P: \\Prop) -> P -> P; }\n",
+    );
+    let cache = fixture.0.join("refcache");
+    fs::create_dir(&cache).unwrap();
+    for mode in ["--parse-only", "--list-modules"] {
+        let output = run_ref_file_with_args(&fixture.0, &fixture.0, &[mode]).unwrap();
+        assert!(output.status.success(), "{}", output_details(&output));
+        assert!(
+            fs::read_dir(&cache).unwrap().next().is_none(),
+            "source inspection created semantic cache files"
+        );
+    }
+}
+
 #[cfg(target_os = "linux")]
 fn child_process(parent: u32) -> Option<u32> {
     // The per-task `children` file requires an optional kernel configuration.

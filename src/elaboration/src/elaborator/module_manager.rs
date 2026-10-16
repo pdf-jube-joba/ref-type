@@ -626,7 +626,7 @@ impl ModuleManager {
             arguments: substitutions.clone(),
         });
         if let Some(key) = &namespace_key
-            && let Some((binding, dependencies)) = env.namespace_instances.get(key).cloned()
+            && let Some((binding, dependencies)) = env.namespace_instance(key)
         {
             for dependency in dependencies {
                 env.attach_namespace_binding(self.current, dependency);
@@ -639,22 +639,12 @@ impl ModuleManager {
         if let Some(key) = &namespace_key
             && key.scope.is_none()
         {
-            let reused = env
-                .namespace_instances
-                .iter()
-                .find_map(|(candidate, value)| {
-                    (candidate.scope.is_none()
-                        && candidate.base == key.base
-                        && candidate.route == key.route
-                        && env.namespace_arguments_equal(&candidate.arguments, &key.arguments))
-                    .then(|| value.clone())
-                });
+            let reused = env.equivalent_namespace_instance(key);
             if let Some((binding, dependencies)) = reused {
                 for &dependency in &dependencies {
                     env.attach_namespace_binding(self.current, dependency);
                 }
-                env.namespace_instances
-                    .insert(key.clone(), (binding, dependencies));
+                env.remember_namespace_instance(key.clone(), (binding, dependencies));
                 return Ok(binding);
             }
         }
@@ -1164,8 +1154,7 @@ impl ModuleManager {
         env.compact_remapping(remapping);
         let binding = last_binding.expect("non-empty route was checked above");
         if let Some(key) = namespace_key {
-            env.namespace_instances
-                .insert(key, (binding, result_bindings));
+            env.remember_namespace_instance(key, (binding, result_bindings));
         }
         Ok(binding)
     }

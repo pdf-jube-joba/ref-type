@@ -17,6 +17,7 @@ use rustc_hash::FxHashMap;
 use std::{
     cell::{Cell, OnceCell, RefCell},
     collections::{HashMap, HashSet},
+    hash::{Hash, Hasher},
     sync::Arc,
 };
 
@@ -319,6 +320,17 @@ pub(crate) struct NamespaceInstanceKey {
     pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
 }
 
+impl NamespaceInstanceKey {
+    fn route_hash(&self) -> u64 {
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        self.base.hash(&mut hash);
+        self.route.hash(&mut hash);
+        hash.finish()
+    }
+}
+
+type NamespaceInstance = (ModuleId, Vec<ModuleId>);
+
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug)]
 pub struct CrateEnv {
     pub(crate) kernel: RefCell<kernel::environment::Environment>,
@@ -360,7 +372,11 @@ pub struct CrateEnv {
     modules: Vec<Box<ModuleEnv>>,
     namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     #[serde(skip)]
-    pub(crate) namespace_instances: HashMap<NamespaceInstanceKey, (ModuleId, Vec<ModuleId>)>,
+    namespace_instances: HashMap<Arc<NamespaceInstanceKey>, NamespaceInstance>,
+    // Conversion only compares closed instances of the same import route.
+    // Keep shared keys so unrelated and scoped graphs are never scanned.
+    #[serde(skip)]
+    closed_namespace_routes: HashMap<u64, Vec<Arc<NamespaceInstanceKey>>>,
     remappings: super::remapping_checkpoint::Tables,
     remapping_origins: HashMap<RemappingId, RemappingOrigin>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
@@ -460,6 +476,7 @@ impl CrateEnv {
             modules: vec![Box::new(ModuleEnv::new("root".into(), None, vec![]))],
             namespace_bindings: HashMap::new(),
             namespace_instances: HashMap::new(),
+            closed_namespace_routes: HashMap::new(),
             remappings: super::remapping_checkpoint::Tables::default(),
             remapping_origins: HashMap::new(),
             checking_scopes: HashMap::new(),
@@ -2025,6 +2042,46 @@ impl CrateEnv {
 }
 
 impl CrateEnv {
+    pub(crate) fn namespace_instance(
+        &self,
+        key: &NamespaceInstanceKey,
+    ) -> Option<NamespaceInstance> {
+        self.namespace_instances.get(key).cloned()
+    }
+
+    pub(crate) fn equivalent_namespace_instance(
+        &self,
+        key: &NamespaceInstanceKey,
+    ) -> Option<NamespaceInstance> {
+        if key.scope.is_some() {
+            return None;
+        }
+        self.closed_namespace_routes
+            .get(&key.route_hash())?
+            .iter()
+            .find_map(|candidate| {
+                (candidate.base == key.base
+                    && candidate.route == key.route
+                    && self.namespace_arguments_equal(&candidate.arguments, &key.arguments))
+                .then(|| self.namespace_instances.get(candidate).unwrap().clone())
+            })
+    }
+
+    pub(crate) fn remember_namespace_instance(
+        &mut self,
+        key: NamespaceInstanceKey,
+        value: NamespaceInstance,
+    ) {
+        let key = Arc::new(key);
+        if key.scope.is_none() && !self.namespace_instances.contains_key(&key) {
+            self.closed_namespace_routes
+                .entry(key.route_hash())
+                .or_default()
+                .push(key.clone());
+        }
+        self.namespace_instances.insert(key, value);
+    }
+
     pub(crate) fn store_namespace_remapping(
         &mut self,
         remapping: DeclarationRemapping,
@@ -2049,7 +2106,7 @@ impl CrateEnv {
             && std::env::var_os("REF_TYPE_PROFILE_STORAGE").is_some()
         {
             eprintln!(
-                "storage remappings={} modules={} arena_nodes={} nominal_definitions={}/{} lazy_definitions={}/{} exact_definitions={}/{} namespaces={}/{}",
+                "storage remappings={} modules={} arena_nodes={} nominal_definitions={}/{} lazy_definitions={}/{} exact_definitions={}/{} namespaces={}/{} instances={} closed_routes={}",
                 self.remappings.len(),
                 self.modules.len(),
                 self.arena.core.len(),
@@ -2061,6 +2118,8 @@ impl CrateEnv {
                 self.exact_definition_specializations.capacity(),
                 self.namespace_bindings.len(),
                 self.namespace_bindings.capacity(),
+                self.namespace_instances.len(),
+                self.closed_namespace_routes.len(),
             );
         }
         if self.remappings.len().is_multiple_of(1024)
@@ -2190,6 +2249,51 @@ mod cells {
 #[cfg(test)]
 mod specialization_tests {
     use super::*;
+    #[test]
+    fn closed_namespace_route_index_preserves_conversion_and_scope() {
+        use crate::raw::{exp::ExpNode, sort::Sort};
+
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let parameter = ModuleParamId {
+            module: root,
+            position: 0,
+        };
+        let set = env.arena().sort(Sort::Set(0));
+        let identity = env.arena().alloc(ExpNode::Lam {
+            var: SymbolId::ANONYMOUS,
+            ty: env.arena().sort(Sort::SetKind(1)),
+            body: env.arena().exp_bound(0),
+        });
+        let equivalent = env.arena().alloc(ExpNode::App {
+            func: identity,
+            arg: set,
+        });
+        let key = NamespaceInstanceKey {
+            scope: None,
+            base: None,
+            route: vec![(root, 1, 0)],
+            arguments: vec![(parameter, set.into())],
+        };
+        env.remember_namespace_instance(key.clone(), (root, vec![root]));
+        let mut converted = key.clone();
+        converted.arguments[0].1 = equivalent.into();
+        assert!(env.namespace_instance(&converted).is_none());
+        assert_eq!(
+            env.equivalent_namespace_instance(&converted),
+            Some((root, vec![root]))
+        );
+
+        // Hash buckets are only an index: a collision never equates routes.
+        let mut other_route = converted.clone();
+        other_route.route[0].1 += 1;
+        env.closed_namespace_routes
+            .insert(other_route.route_hash(), vec![Arc::new(key.clone())]);
+        assert!(env.equivalent_namespace_instance(&other_route).is_none());
+        converted.scope = Some((root, vec![]));
+        assert!(env.equivalent_namespace_instance(&converted).is_none());
+    }
+
     #[test]
     fn compact_module_items_preserve_legacy_checkpoint_bytes() {
         #[derive(serde::Serialize)]

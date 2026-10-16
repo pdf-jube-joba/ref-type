@@ -125,10 +125,22 @@ pub struct ArtifactStore {
 }
 impl Drop for ArtifactStore {
     fn drop(&mut self) {
-        // End the lease before the final collection; budget overruns caused only by
-        // this session can now be reclaimed, including after the last worker.
-        self.lease.get_mut().unwrap().take();
-        if self.root.is_dir() {
+        // Only the lease owner ends a session. A supervised worker borrows that
+        // lease; collecting on every worker exit repeatedly scans the whole store
+        // while its artifacts remain protected by the supervisor anyway.
+        let ended_session = self
+            .lease
+            .get_mut()
+            .unwrap()
+            .take()
+            .is_some_and(|lease| lease.owner);
+        let collection_needed = self.pending_bytes.load(Ordering::Relaxed) != 0
+            || read_bounded(&self.root.join("usage"), 8)
+                .ok()
+                .and_then(|bytes| bytes.try_into().ok())
+                .map(u64::from_le_bytes)
+                .is_none_or(|usage| usage > self.budget.load(Ordering::Relaxed));
+        if ended_session && collection_needed && self.root.is_dir() {
             let _ = self.collect();
         }
     }
@@ -1508,6 +1520,62 @@ mod tests {
         loop {
             std::thread::park_timeout(Duration::from_secs(60));
         }
+    }
+
+    #[test]
+    fn ending_under_budget_session_does_not_wait_for_collection_lock() {
+        let directory = Directory::new();
+        let store = directory.store();
+        store.session_token().unwrap();
+        fs::write(store.root.join("usage"), 0_u64.to_le_bytes()).unwrap();
+        let lock = store.lock().unwrap();
+        let (finished, completion) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            drop(store);
+            finished.send(()).unwrap();
+        });
+        let completed_without_lock = completion.recv_timeout(Duration::from_secs(2)).is_ok();
+        drop(lock);
+        worker.join().unwrap();
+        assert!(completed_without_lock);
+    }
+
+    #[test]
+    fn borrowed_session_leaves_final_collection_to_its_owner() {
+        let directory = Directory::new();
+        let supervisor = directory.store();
+        supervisor.set_budget(0);
+        supervisor.session_token().unwrap();
+        let path = supervisor
+            .lease
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .path
+            .clone();
+        let worker = directory.store();
+        worker.set_budget(0);
+        *worker.lease.lock().unwrap() = Some(Lease {
+            _file: OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&path)
+                .unwrap(),
+            path,
+            pins: Pins::default(),
+            owner: false,
+            generation: 0,
+        });
+        let writer = directory.store();
+        let record = manifest(&writer, 17);
+        writer.publish(&record).unwrap();
+        writer.release_pins().unwrap();
+        let manifest_path = writer.manifest_path(&record.key, false);
+        drop(worker);
+        assert!(manifest_path.exists());
+        drop(supervisor);
+        assert!(!manifest_path.exists());
     }
 
     #[test]
