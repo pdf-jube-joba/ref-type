@@ -8,6 +8,9 @@ use anyhow::Context;
 use clap::Parser;
 use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
 
+#[global_allocator]
+static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 thread_local! {
     static PROGRESS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
 }

@@ -168,6 +168,21 @@ impl<T: Clone + Eq + Hash> ContextInterner<T> {
         }
     }
 
+    /// Preserve new prefixes whose bindings survived scratch collection. IDs
+    /// stay stable; the first dead binding and all later extensions are retired.
+    pub(crate) fn finish_scratch(
+        &mut self,
+        mark: usize,
+        mut live: impl FnMut(&T) -> bool,
+    ) -> usize {
+        let end = self.bindings[mark..]
+            .iter()
+            .position(|(_, binding)| !live(binding))
+            .map_or(self.bindings.len(), |offset| mark + offset);
+        self.truncate(end);
+        end
+    }
+
     pub fn is_empty(&self) -> bool {
         self.bindings.is_empty()
     }

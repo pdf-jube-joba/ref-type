@@ -586,17 +586,18 @@ struct Properties {
 }
 
 impl Properties {
-    fn push(&mut self, (bound, meta): (Option<usize>, bool)) {
+    fn push(&mut self, (bound, meta, parameter): (Option<usize>, bool, bool)) {
         self.bounds.push(bound.unwrap_or(0));
         self.flags
-            .push(u8::from(bound.is_some()) | (u8::from(meta) << 1));
+            .push(u8::from(bound.is_some()) | (u8::from(meta) << 1) | (u8::from(parameter) << 2));
     }
 
-    fn get(&self, index: usize) -> (Option<usize>, bool) {
+    fn get(&self, index: usize) -> (Option<usize>, bool, bool) {
         let flags = self.flags[index];
         (
             (flags & 1 != 0).then_some(self.bounds[index]),
             flags & 2 != 0,
+            flags & 4 != 0,
         )
     }
 }
@@ -609,7 +610,7 @@ struct Storage {
 }
 
 impl Storage {
-    fn node_properties(&self, node: &Node) -> (Option<usize>, bool) {
+    fn node_properties(&self, node: &Node) -> (Option<usize>, bool, bool) {
         let mut properties = (
             if let Node::Bound(i) = node {
                 Some(*i)
@@ -617,13 +618,15 @@ impl Storage {
                 None
             },
             matches!(node, Node::Meta { .. }),
+            matches!(node, Node::Parameter(_)),
         );
         let _: Result<(), std::convert::Infallible> = node.try_for_each_child(|child, depth| {
-            let (bound, meta) = self.properties.get(child.index());
+            let (bound, meta, parameter) = self.properties.get(child.index());
             if let Some(i) = bound.and_then(|i| i.checked_sub(depth)) {
                 properties.0 = Some(properties.0.map_or(i, |old| old.max(i)));
             }
             properties.1 |= meta;
+            properties.2 |= parameter;
             Ok(())
         });
         properties
@@ -730,10 +733,13 @@ impl Arena {
     pub fn contains_meta(&self, e: Expression) -> bool {
         self.properties(e).1
     }
+    pub fn contains_parameter(&self, e: Expression) -> bool {
+        self.properties(e).2
+    }
     pub fn max_loose_bound(&self, e: Expression) -> Option<usize> {
         self.properties(e).0
     }
-    fn properties(&self, e: Expression) -> (Option<usize>, bool) {
+    fn properties(&self, e: Expression) -> (Option<usize>, bool, bool) {
         self.0.borrow().properties.get(e.index())
     }
     pub fn node_counts(&self) -> Vec<(&'static str, usize)> {
@@ -834,7 +840,7 @@ impl<'de> serde::Deserialize<'de> for Arena {
             }
             storage.properties.push(
                 node.as_ref()
-                    .map_or((None, false), |node| storage.node_properties(node)),
+                    .map_or((None, false, false), |node| storage.node_properties(node)),
             );
         }
         Ok(Self(Rc::new(RefCell::new(storage))))

@@ -14,21 +14,45 @@ use rustc_hash::FxHashSet;
 /// In an open inductive constructor, an unused recursive variable's type can
 /// reference the declaration currently being built and cannot yet be lowered.
 fn judgement_context(env: &CrateEnv, context: &ExpContext, roots: &[Exp]) -> ExpContext {
-    use crate::raw::{sort::Sort, traversal::exp_contains_bound};
-    let mut needed = vec![false; context.len()];
-    for (position, live) in needed.iter_mut().enumerate() {
-        let bound = context.len() - position - 1;
-        *live = roots
-            .iter()
-            .any(|&root| exp_contains_bound(env.arena(), root, bound));
+    use crate::raw::sort::Sort;
+    fn mark(env: &CrateEnv, roots: &[Exp], needed: &mut [bool]) {
+        let mut pending: Vec<_> = roots.iter().map(|&e| (e, 0usize)).collect();
+        let mut seen = FxHashSet::default();
+        while let Some((e, depth)) = pending.pop() {
+            if env
+                .arena()
+                .core
+                .max_loose_bound(e.0)
+                .is_none_or(|bound| bound < depth)
+                || !seen.insert((e, depth))
+            {
+                continue;
+            }
+            if let kernel::syntax::Node::Bound(index) = *env.arena().core.read(e.0) {
+                if let Some(position) = index
+                    .checked_sub(depth)
+                    .and_then(|index| index.checked_add(1))
+                    .and_then(|offset| needed.len().checked_sub(offset))
+                {
+                    needed[position] = true;
+                }
+            } else {
+                Term::Logical(e).visit_children(env.arena(), |child, binders| {
+                    if let Term::Logical(e) = child
+                        && let Some(depth) = depth.checked_add(binders)
+                    {
+                        pending.push((e, depth));
+                    }
+                });
+            }
+        }
     }
+    let mut needed = vec![false; context.len()];
+    mark(env, roots, &mut needed);
     // A variable's type is scoped over the preceding binders.
     for position in (0..context.len()).rev() {
         if needed[position] {
-            for (earlier, live) in needed.iter_mut().enumerate().take(position) {
-                *live |=
-                    exp_contains_bound(env.arena(), context[position].ty, position - earlier - 1);
-            }
+            mark(env, &[context[position].ty], &mut needed[..position]);
         }
     }
     let dummy = env.arena().sort(Sort::Set(0));
@@ -65,7 +89,7 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), crate::error::E
         let (definition, inductive, datatype, parameter) = match term {
             Term::Logical(e)
                 if matches!(
-                    env.arena().core.get(e.0),
+                    *env.arena().core.read(e.0),
                     kernel::syntax::Node::Definition { .. }
                 ) =>
             {

@@ -224,12 +224,14 @@ impl Database {
         options: &CheckOptions,
     ) -> Arc<SemanticResult> {
         elaboration::diagnostics::with_diagnostic_mode(options.diagnostics, || {
-            self.query(snapshot, options, |_| true)
+            self.query(snapshot, options, true, |_| true)
         })
     }
     /// Check the named module and the scopes/imports on which it depends.
     pub fn module(&mut self, snapshot: &SourceSnapshot, path: &[String]) -> Arc<SemanticResult> {
-        self.query(snapshot, &CheckOptions::default(), |unit| unit.path == path)
+        self.query(snapshot, &CheckOptions::default(), false, |unit| {
+            unit.path == path
+        })
     }
     /// Check a named module and its children with the settings of a whole project.
     pub fn module_with_options(
@@ -239,7 +241,7 @@ impl Database {
         options: &CheckOptions,
     ) -> Arc<SemanticResult> {
         elaboration::diagnostics::with_diagnostic_mode(options.diagnostics, || {
-            self.query(snapshot, options, |unit| {
+            self.query(snapshot, options, false, |unit| {
                 unit.path == path || (!options.module_only && unit.path.starts_with(path))
             })
         })
@@ -251,7 +253,7 @@ impl Database {
         path: impl AsRef<Path>,
     ) -> Arc<SemanticResult> {
         let file = snapshot.identity(path.as_ref());
-        self.query(snapshot, &CheckOptions::default(), |unit| {
+        self.query(snapshot, &CheckOptions::default(), false, |unit| {
             unit.module
                 .source
                 .as_ref()
@@ -270,6 +272,7 @@ impl Database {
         &mut self,
         snapshot: &SourceSnapshot,
         options: &CheckOptions,
+        complete: bool,
         select: impl Fn(&crate::graph::Unit<'_>) -> bool,
     ) -> Arc<SemanticResult> {
         self.parses.next_generation();
@@ -297,6 +300,36 @@ impl Database {
         };
         notify(ProgressEvent::Phase(ProgressPhase::Loading));
         let compact = options.diagnostics == elaboration::DiagnosticMode::Compact;
+        // A complete snapshot includes manifests, source identities and contents.
+        // Its verified result can be read without reconstructing the syntax graph.
+        let complete_key = (complete && self.disk.is_some())
+            .then(|| crate::cache::snapshot_key(snapshot, &options.configuration, compact));
+        if let Some(key) = complete_key
+            && !options.force
+            && !options.force_local
+            && !options.collect_statistics
+        {
+            let cached = self
+                .queries
+                .get(&key)
+                .filter(|r| r.is_success())
+                .cloned()
+                .or_else(|| {
+                    let result = self.disk.as_ref()?.read_query(&key)?;
+                    self.stats.disk_hits += result.modules.len();
+                    Some(Arc::new(result))
+                });
+            if let Some(result) = cached {
+                self.stats.reused_modules = result.modules.len();
+                if !snapshot.entry().extension().is_some_and(|ext| ext == "ref") {
+                    self.stats.package_hits =
+                        result.modules.iter().filter(|m| m.path.len() == 1).count();
+                }
+                crate::progress::reused_result(snapshot, &result, options);
+                self.queries.insert(key, result.clone());
+                return result;
+            }
+        }
         let LoadedProject {
             modules,
             diagnostics: parse_diagnostics,
@@ -416,7 +449,7 @@ impl Database {
         }
         query_bytes.push(u8::from(compact));
         query_bytes.extend(serde_json::to_vec(&diagnostics).expect("diagnostics serialize"));
-        let query_key = fingerprint(&query_bytes);
+        let query_key = complete_key.unwrap_or_else(|| fingerprint(&query_bytes));
         if !options.force
             && !options.force_local
             && !options.collect_statistics
@@ -458,6 +491,7 @@ impl Database {
                 &mut progress,
             )
         {
+            self.save_complete_result(complete_key, &result);
             self.queries.insert(query_key, result.clone());
             progress.finish(result.is_success());
             return result;
@@ -531,12 +565,17 @@ impl Database {
             let checked = match &resolved {
                 Ok(project) => {
                     progress.phase(ProgressPhase::Planning);
+                    let cache_environments = !((compact || options.skip_environment_cache)
+                        && (options.force || options.collect_statistics)
+                        && self.disk.is_none());
+                    let environment_settings = cache_environments.then_some(&settings);
                     let fallback_plan;
                     let plan = if full.is_ok() {
-                        full_plan
-                            .get_or_insert_with(|| EnvironmentPlan::new(project, &graph, &settings))
+                        full_plan.get_or_insert_with(|| {
+                            EnvironmentPlan::new(project, &graph, environment_settings)
+                        })
                     } else {
-                        fallback_plan = EnvironmentPlan::new(project, &graph, &settings);
+                        fallback_plan = EnvironmentPlan::new(project, &graph, environment_settings);
                         &fallback_plan
                     };
                     let end = plan.end(&selected);
@@ -616,14 +655,7 @@ impl Database {
                         .collect::<BTreeSet<_>>()
                         .difference(&checked)
                         .count();
-                    let checkpoints = if (compact || options.skip_environment_cache)
-                        && (options.force || options.collect_statistics)
-                        && self.disk.is_none()
-                    {
-                        BTreeSet::new()
-                    } else {
-                        plan.save_points()
-                    };
+                    let checkpoints = plan.save_points();
                     progress.begin_batch(&plan.steps, start, end, &selected_steps);
                     progress.phase(ProgressPhase::Checking);
                     let checked = workspace.check_range_with_progress(
@@ -771,9 +803,21 @@ impl Database {
             self.environments.bytes() + self.package_environments.bytes();
         progress.skip_cached();
         progress.phase(ProgressPhase::Saving);
+        self.save_complete_result(complete_key, &result);
         self.queries.insert(query_key, result.clone());
         progress.finish(result.is_success());
         result
+    }
+
+    fn save_complete_result(&mut self, key: Option<Fingerprint>, result: &SemanticResult) {
+        if result.is_success()
+            && let Some((key, disk)) = key.zip(self.disk.as_ref())
+        {
+            match disk.write_query(&key, result) {
+                Ok(()) => self.stats.disk_writes += 1,
+                Err(_) => self.stats.cache_write_failures += 1,
+            }
+        }
     }
 }
 

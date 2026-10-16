@@ -44,7 +44,7 @@ pub(crate) struct ModuleManager {
     pub(crate) hir_aliases: HashMap<resolve::hir::BindingId, ModuleId>,
     #[serde(skip)]
     pub(crate) hir_bindings: HashMap<resolve::hir::BindingId, resolve::Binding>,
-    pub(crate) hir_modules: HashMap<resolve::hir::ModuleId, ModuleId>,
+    pub(crate) hir_modules: rustc_hash::FxHashMap<resolve::hir::ModuleId, ModuleId>,
     #[serde(skip)]
     pub(crate) hir_imports: HashMap<resolve::hir::BindingId, resolve::Import>,
 }
@@ -64,7 +64,7 @@ impl ModuleManager {
             hir_bindings: HashMap::new(),
             hir_module_bindings: HashMap::new(),
             hir_aliases: HashMap::new(),
-            hir_modules: HashMap::new(),
+            hir_modules: rustc_hash::FxHashMap::default(),
             hir_imports: HashMap::new(),
         }
     }

@@ -128,7 +128,23 @@ impl Drop for ArtifactStore {
         // End the lease before the final collection; budget overruns caused only by
         // this session can now be reclaimed, including after the last worker.
         self.lease.get_mut().unwrap().take();
-        if self.root.is_dir() {
+        // Warm readers do not create reclaimable objects. The shared usage
+        // counter is a conservative bound, so scanning every artifact on every
+        // process exit only adds work. Periodically sweep abandoned publications
+        // as well, including those left by a killed writer.
+        let usage = self.root.join("usage");
+        let needs_collection = self.pending_bytes.load(Ordering::Relaxed) != 0
+            || read_bounded(&usage, 8)
+                .ok()
+                .and_then(|bytes| bytes.try_into().ok())
+                .map(u64::from_le_bytes)
+                .is_none_or(|bytes| bytes > self.budget.load(Ordering::Relaxed))
+            || fs::metadata(&usage)
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|modified| modified.elapsed().ok())
+                .is_none_or(|age| age >= Duration::from_secs(60));
+        if needs_collection && self.root.is_dir() {
             let _ = self.collect();
         }
     }

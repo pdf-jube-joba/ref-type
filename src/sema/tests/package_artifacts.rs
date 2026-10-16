@@ -189,7 +189,12 @@ fn individual_and_partial_results_complete_warm_queries_without_environment_impo
             store.publish(&partial).unwrap();
         }
         let mut warm = Database::with_cache(&cache);
-        assert_eq!(warm.check(&snapshot), expected);
+        // Select the entry subtree to exercise individual and partial records
+        // independently of the complete-snapshot result.
+        assert_eq!(
+            warm.module_with_options(&snapshot, &["app".into()], &Default::default()),
+            expected
+        );
         assert_eq!(warm.stats().checked_modules, 0);
         assert_eq!(warm.cache_store_stats().environment_read_bytes, 0);
         assert_eq!(warm.cache_store_stats().environment_imports, 0);

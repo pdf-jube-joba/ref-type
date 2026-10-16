@@ -1,5 +1,8 @@
 //! Synthetic frontend names carry identities even where a consumer stores only spelling.
 pub(crate) fn relocate(value: &mut String, r: &mut crate::Relocation) -> crate::Result<()> {
+    if !value.contains('<') {
+        return Ok(());
+    }
     let prefixes = [
         ("<macro:", "resolve.hygiene"),
         ("<macro-use:", "resolve.binding"),

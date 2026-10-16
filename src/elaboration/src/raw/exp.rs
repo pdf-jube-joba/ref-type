@@ -338,6 +338,10 @@ pub struct Arena {
     atoms: RefCell<Atoms>,
     #[serde(skip)]
     pub(crate) lowered_definitions: RefCell<rustc_hash::FxHashSet<kernel::syntax::Expression>>,
+    #[serde(skip)]
+    pub(crate) nominal_logical: RefCell<
+        kernel::sharing::Cache<(Exp, usize, super::ids::ModuleId), kernel::syntax::Expression>,
+    >,
     pub(crate) datatype_reflections:
         RefCell<FxHashMap<kernel::ids::ProgramInductiveId, kernel::ids::InductiveId>>,
     pub(crate) inductive_captures:

@@ -333,8 +333,7 @@ impl<'a> Checker<'a> {
         let _cost = timing::costs::Scope::enter("kernel.check_open");
         let closed = self.arena().max_loose_bound(term).is_none()
             && self.arena().max_loose_bound(expected).is_none();
-        let complete = !self.solving
-            && !self.arena().contains_meta(term)
+        let complete = !self.arena().contains_meta(term)
             && !self.arena().contains_meta(expected)
             && (closed || !self.context_state().1);
         let key = complete.then(|| {
@@ -350,7 +349,14 @@ impl<'a> Checker<'a> {
         {
             return Ok(());
         }
+        // A complete judgement cannot solve any metavariables. Validate it
+        // immediately and share the result with the later verification pass.
+        let solving = self.solving;
+        if complete {
+            self.solving = false;
+        }
         let result = self.check_uncached(term, expected);
+        self.solving = solving;
         if result.is_ok()
             && let Some(key) = key
         {
@@ -577,39 +583,19 @@ impl<'a> Checker<'a> {
             }
             return result;
         }
-        let unused = if closed {
-            0
-        } else {
-            self.env
-                .minimum_loose_bound(term)
-                .unwrap_or(0)
-                .min(self.context.len())
-        };
         let context = if closed {
             crate::sharing::ContextId::default()
-        } else if unused > 0 {
-            self.context_state();
-            self.context
-                .len()
-                .checked_sub(unused + 1)
-                .and_then(|index| self.context_states.get(index))
-                .map_or(crate::sharing::ContextId::default(), |state| state.0)
         } else {
             self.context_state().0
         };
-        let canonical = self.env.trim_unused(term, unused)?;
-        if let Some(&ty) = self.env.inferred.borrow().get(&(context, canonical)) {
-            return self.env.shifted(ty, unused);
+        if let Some(&ty) = self.env.inferred.borrow().get(&(context, term)) {
+            return Ok(ty);
         }
         let solving = std::mem::replace(&mut self.solving, false);
         let result = self.infer_framed(term);
         self.solving = solving;
         if let Ok(ty) = result {
-            let canonical_ty = self.env.trim_unused(ty, unused)?;
-            self.env
-                .inferred
-                .borrow_mut()
-                .insert((context, canonical), canonical_ty);
+            self.env.inferred.borrow_mut().insert((context, term), ty);
         }
         result
     }

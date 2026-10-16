@@ -12,7 +12,7 @@ fn decompose(env: &Environment, mut e: Expression) -> (Expression, Vec<Expressio
     let mut args = vec![];
     while let Node::App {
         function, argument, ..
-    } = env.arena.get(e)
+    } = *env.arena.read(e)
     {
         args.push(argument);
         e = function;
@@ -136,7 +136,7 @@ pub(crate) fn head_application(
     env: &Environment,
     e: Expression,
 ) -> Result<Option<Expression>, crate::error::Error> {
-    let Node::App { mode, .. } = env.arena.get(e) else {
+    let Node::App { mode, .. } = *env.arena.read(e) else {
         return Ok(None);
     };
     let mut args = vec![];
@@ -145,7 +145,7 @@ pub(crate) fn head_application(
         mode: actual,
         function,
         argument,
-    } = env.arena.get(head)
+    } = *env.arena.read(head)
     {
         if actual != mode {
             break;
@@ -159,7 +159,7 @@ pub(crate) fn head_application(
     let mut consumed = 0;
     while let Node::Lambda {
         mode: actual, body, ..
-    } = env.arena.get(head)
+    } = *env.arena.read(head)
     {
         if actual != mode || consumed == args.len() {
             break;
@@ -484,8 +484,7 @@ pub(crate) fn map_head(
     e: Expression,
     mut map: impl FnMut(Expression) -> Result<Expression, crate::error::Error>,
 ) -> Result<Expression, crate::error::Error> {
-    let node = env.arena.get(e);
-    let slots: &[usize] = match node {
+    let slots: &[usize] = match *env.arena.read(e) {
         Node::App { .. } => &[0],
         Node::Pred { .. } => &[1],
         Node::ForceBox { .. } => &[1],
@@ -495,7 +494,7 @@ pub(crate) fn map_head(
         Node::IndElim { .. } | Node::Case { .. } => &[0],
         Node::SetCase { .. } => &[0],
         Node::Sequence { .. } => &[1],
-        _ => &[],
+        _ => return Ok(e),
     };
     let mut i = 0;
     env.arena.map_children(e, |child, _| {
@@ -515,8 +514,7 @@ pub fn reduce_once(
     if let Some(next) = root(env, e)? {
         return Ok(Some(next));
     }
-    let node = env.arena.get(e);
-    let slots: Option<&[usize]> = match node {
+    let slots: Option<&[usize]> = match *env.arena.read(e) {
         Node::Lambda {
             mode: Mode::Computation,
             ..
@@ -531,7 +529,7 @@ pub fn reduce_once(
         | Node::ProgramStepMatch { .. }
         | Node::Run { .. }
         | Node::BoxType { .. }
-        | Node::BoxProgram { .. } => Some(&[]),
+        | Node::BoxProgram { .. } => return Ok(None),
         Node::App {
             mode: Mode::Computation,
             ..
@@ -639,7 +637,7 @@ fn beta_head(
     e: Expression,
     erase: bool,
 ) -> Result<Expression, crate::error::Error> {
-    match env.arena.get(e) {
+    match *env.arena.read(e) {
         Node::SubsetIntro { element, .. } if erase => beta_head(env, element, erase),
         Node::App {
             mode,
@@ -649,7 +647,7 @@ fn beta_head(
             let function = beta_head(env, function, erase)?;
             if let Node::Lambda {
                 mode: actual, body, ..
-            } = env.arena.get(function)
+            } = *env.arena.read(function)
                 && mode == actual
             {
                 return beta_head(env, env.instantiate(body, &[argument])?, erase);
@@ -733,7 +731,7 @@ fn conversion(
                 mut term: Expression,
             ) -> Option<crate::ids::DefinitionId> {
                 loop {
-                    match env.arena.get(term) {
+                    match *env.arena.read(term) {
                         Node::Definition { id, .. } => return Some(id),
                         Node::App { function, .. } => term = function,
                         _ => return None,
@@ -744,7 +742,7 @@ fn conversion(
                 env: &Environment,
                 term: Expression,
             ) -> Result<Expression, crate::error::Error> {
-                match env.arena.get(term) {
+                match *env.arena.read(term) {
                     Node::Definition { .. } => {
                         root(env, term)?.ok_or(crate::error::Error::ExpectedADefinitionRedex)
                     }
