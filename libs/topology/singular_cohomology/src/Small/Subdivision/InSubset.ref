@@ -1,0 +1,28 @@
+\import \parent.\parent.FromSubset[U := U] \as Lift;
+\import \parent.\parent.At[n := n] \as SmallDegree;
+\import \parent.\parent.At[n := N.Nat^::succ n] \as SmallHigher;
+\import Lift.At[n := n] \as Lower;
+\import Lift.At[n := N.Nat^::succ n] \as Higher;
+\import topology.Topology[Carrier := A].Subspace[S := U] \as Subspace;
+\import \root.Subdivision[A := Subspace.CarrierSet, source := Subspace.topology source] \as Local;
+\import Local.At[n := n] \as LocalDegree;
+\import Local.Natural[B := A, target := source].At[n := n] \as Natural;
+\import WholeSubdivision.At[n := n] \as WholeDegree;
+\definition subdivision: \forall (sigma: WholeSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] U (sigma x)) -> SmallDegree.Image (WholeDegree.onSimplex sigma) :=
+  \fun (sigma: WholeSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] U (sigma x)) => \block {
+    \let tau: _ := Lower.corestrict sigma contained \then
+    \let x: Carrier n := #apply{Lower.map} (LocalDegree.onSimplex tau) \then
+    \return Logic.existsIntro[Carrier n, { x: Carrier n \where #apply{SmallDegree.inclusion} x = WholeDegree.onSimplex sigma }] x
+      (trans!{{Whole.Carrier n}} _ _ _ (Lower.law (LocalDegree.onSimplex tau))
+        (trans!{{Whole.Carrier n}} _ _ _ (Natural.onSimplex Lift.inclusionFunction Lift.continuous tau)
+          (congr!{{WholeSimplices.Carrier n} {Whole.Carrier n}} WholeDegree.onSimplex _ _ (Lower.underlying sigma contained))))
+  };
+\definition homotopy: \forall (sigma: WholeSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] U (sigma x)) -> SmallHigher.Image (WholeDegree.homotopyOnSimplex sigma) :=
+  \fun (sigma: WholeSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] U (sigma x)) => \block {
+    \let tau: _ := Lower.corestrict sigma contained \then
+    \let x: Carrier (N.Nat^::succ n) := #apply{Higher.map} (LocalDegree.homotopyOnSimplex tau) \then
+    \return Logic.existsIntro[Carrier (N.Nat^::succ n), { x: Carrier (N.Nat^::succ n) \where #apply{SmallHigher.inclusion} x = WholeDegree.homotopyOnSimplex sigma }] x
+      (trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (Higher.law (LocalDegree.homotopyOnSimplex tau))
+        (trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (Natural.homotopyOnSimplex Lift.inclusionFunction Lift.continuous tau)
+          (congr!{{WholeSimplices.Carrier n} {Whole.Carrier (N.Nat^::succ n)}} WholeDegree.homotopyOnSimplex _ _ (Lower.underlying sigma contained))))
+  };

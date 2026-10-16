@@ -1,6 +1,6 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05・G08・G09・G11・G13〜G15 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+G02〜G05・G08・G09・G11・G13〜G16 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 これらのサンプルを個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -263,3 +263,13 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 
 [15-02-complex-direct.ref](gaps/15-02-complex-direct.ref) は、利用側で変換 module を二回直接 import すると型検査を通る。
 `singular_cohomology.Maps` は零拡張を `SourceExtension`・`TargetExtension` として直接具体化し、整数次数の鎖写像の型を構成する。
+
+<a id="g16"></a>
+
+## G16: 型を含む構造を module header で完全修飾する
+
+次数ごとの台集合を含む構造 `Object` を、`Reader(X: \root.Types[].Object)` の parameter 型に直接書きたい。
+[16-01-qualified-signature.ref](gaps/16-01-qualified-signature.ref) では、`X` を別の module に渡すと `argument does not satisfy declaration signature` になり、`Program name was not found: Types.Object` も報告される。
+
+[16-02-imported-signature.ref](gaps/16-02-imported-signature.ref) は、本文で `Types` を import し、parameter を `On(X: Types.Object)` に移す回避例である。
+`singular_cohomology.SimplicialChains.On` はこの方法で面写像を持つ単体の族を受け取る。

@@ -1,0 +1,35 @@
+\import \parent.At[n := n] \as Lower;
+\import \parent.At[n := N.Nat^::succ n] \as Higher;
+\import \parent.\parent.At[n := n] \as SmallDegree;
+\import \parent.\parent.At[n := N.Nat^::succ n] \as SmallHigher;
+\import \parent.\parent.At[n := N.Nat^::succ (N.Nat^::succ n)] \as SmallNext;
+\definition commutes: \forall (x: Carrier (N.Nat^::succ n)) -> #apply{complex.differential} n (#apply{Higher.map} x) = #apply{Lower.map} (#apply{complex.differential} n x) :=
+  \fun (x: Carrier (N.Nat^::succ n)) => SmallDegree.injective _ _
+    (trans!{{Whole.Carrier n}} _ _ _ (sym!{{Whole.Carrier n}} _ _ (#commutes{inclusion} n (#apply{Higher.map} x)))
+      (trans!{{Whole.Carrier n}} _ _ _ (congr!{{Whole.Carrier (N.Nat^::succ n)} {Whole.Carrier n}} (#apply{(Whole.boundary n)}) _ _ (Higher.Inclusion[].law x))
+        (trans!{{Whole.Carrier n}} _ _ _ (#commutes{WholeSubdivision.chainMap} n (#apply{SmallHigher.inclusion} x))
+          (trans!{{Whole.Carrier n}} _ _ _ (congr!{{Whole.Carrier n} {Whole.Carrier n}} (#apply{WholeSubdivision.At[n := n].map}) _ _ (#commutes{inclusion} n x))
+            (sym!{{Whole.Carrier n}} _ _ (Lower.Inclusion[].law (#apply{complex.differential} n x)))))));
+\import Modules.Laws[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Values;
+\import Modules.Laws[V := Whole.Carrier (N.Nat^::succ n), space := Whole.space (N.Nat^::succ n)] \as WholeValues;
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Whole.Carrier (N.Nat^::succ n), source := space (N.Nat^::succ n), target := Whole.space (N.Nat^::succ n)] \as Linear;
+\definition difference: \forall (x: Carrier (N.Nat^::succ n)) -> #apply{SmallHigher.inclusion} (Values.add (#apply{Higher.map} x) (Values.neg x)) =
+  WholeValues.add (#apply{WholeSubdivision.At[n := N.Nat^::succ n].map} (#apply{SmallHigher.inclusion} x)) (WholeValues.neg (#apply{SmallHigher.inclusion} x)) :=
+  \fun (x: Carrier (N.Nat^::succ n)) => trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (#addition{SmallHigher.inclusion} _ _)
+    (congr2!{{Whole.Carrier (N.Nat^::succ n)} {Whole.Carrier (N.Nat^::succ n)} {Whole.Carrier (N.Nat^::succ n)}} WholeValues.add _ _ _ _
+      (Higher.Inclusion[].law x) (Linear.negativePreserved SmallHigher.inclusion x));
+\definition boundary: \forall (x: Carrier (N.Nat^::succ n)) -> #apply{SmallHigher.inclusion}
+  (Values.add (#apply{complex.differential} (N.Nat^::succ n) (#apply{Higher.homotopyMap} x)) (#apply{Lower.homotopyMap} (#apply{complex.differential} n x))) =
+  WholeValues.add (#apply{(Whole.boundary (N.Nat^::succ n))} (#apply{WholeSubdivision.At[n := N.Nat^::succ n].homotopyMap} (#apply{SmallHigher.inclusion} x)))
+    (#apply{WholeSubdivision.At[n := n].homotopyMap} (#apply{(Whole.boundary n)} (#apply{SmallHigher.inclusion} x))) :=
+  \fun (x: Carrier (N.Nat^::succ n)) => trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (#addition{SmallHigher.inclusion} _ _)
+    (congr2!{{Whole.Carrier (N.Nat^::succ n)} {Whole.Carrier (N.Nat^::succ n)} {Whole.Carrier (N.Nat^::succ n)}} WholeValues.add _ _ _ _
+      (trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (sym!{{Whole.Carrier (N.Nat^::succ n)}} _ _ (#commutes{inclusion} (N.Nat^::succ n) (#apply{Higher.homotopyMap} x)))
+        (congr!{{Whole.Carrier (N.Nat^::succ (N.Nat^::succ n))} {Whole.Carrier (N.Nat^::succ n)}} (#apply{(Whole.boundary (N.Nat^::succ n))}) _ _ (Higher.Inclusion[].homotopyLaw x)))
+      (trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (Lower.Inclusion[].homotopyLaw (#apply{complex.differential} n x))
+        (congr!{{Whole.Carrier n} {Whole.Carrier (N.Nat^::succ n)}} (#apply{WholeSubdivision.At[n := n].homotopyMap}) _ _ (sym!{{Whole.Carrier n}} _ _ (#commutes{inclusion} n x)))));
+\definition law: \forall (x: Carrier (N.Nat^::succ n)) -> Values.add (#apply{Higher.map} x) (Values.neg x) =
+  Values.add (#apply{complex.differential} (N.Nat^::succ n) (#apply{Higher.homotopyMap} x)) (#apply{Lower.homotopyMap} (#apply{complex.differential} n x)) :=
+  \fun (x: Carrier (N.Nat^::succ n)) => SmallHigher.injective _ _ (trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (difference x)
+    (trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _ (WholeSubdivision.Successor[n := n].Equation[].law (#apply{SmallHigher.inclusion} x))
+      (sym!{{Whole.Carrier (N.Nat^::succ n)}} _ _ (boundary x))));

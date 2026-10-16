@@ -1,0 +1,22 @@
+\module Types {
+  \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
+  \structure Family { Carrier: Nat -> \Set }
+  \structure Faces[F: Family]: \Set { apply: \forall (n: Nat) -> F.Carrier n -> F.Carrier n }
+  \structure Laws[F: Family, faces: Faces[F]]: \Prop {
+    identity: \forall (n: Nat)(x: F.Carrier n) -> #apply{faces} n (#apply{faces} n x) = #apply{faces} n x,
+  }
+  \structure Object { family: Family, faces: Faces[family], laws: Laws[family, faces] }
+  \module Maps(X, Y: Object) {
+    \structure Data: \Set { apply: \forall (n: Nat) -> X.family.Carrier n -> Y.family.Carrier n }
+    \structure Laws[data: Data]: \Prop {
+      faces: \forall (n: Nat)(x: X.family.Carrier n) -> #apply{data} n (#apply{X.faces} n x) = #apply{Y.faces} n (#apply{data} n x),
+    }
+    \definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+  }
+}
+\module Reader(X: \root.Types[].Object) {
+  \module With(Y: \root.Types[].Object) {
+    \import \root.Types[].Maps[X := X, Y := Y] \as Native;
+    \definition Map: \Set := Native.Map;
+  }
+}

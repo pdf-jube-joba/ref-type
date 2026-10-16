@@ -1,0 +1,34 @@
+\use Equality.eq_reason;
+\import \parent.At[n := n] \as Lower;
+\import \parent.At[n := N.Nat^::succ n] \as Higher;
+\import \parent.\parent.Boundary[n := n] \as SourceBoundary;
+\import Target.Boundary[n := n] \as TargetBoundary;
+\import Modules.Alternating[V := Target.Carrier n, space := Target.space n] \as Sum;
+\import Modules.Alternating[V := Carrier n, space := space n].Mapping[W := Target.Carrier n, target := Target.space n] \as Mapping;
+\import Modules.Hom[V := Target.Carrier (N.Nat^::succ n), W := Target.Carrier n, source := Target.space (N.Nat^::succ n), target := Target.space n]
+  .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as First;
+\import Modules.Hom[V := Carrier n, W := Target.Carrier n, source := space n, target := Target.space n]
+  .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as Second;
+\import Modules.Free[Generators := X.family.Carrier (N.Nat^::succ n)].To[W := Target.Carrier n, target := Target.space n] \as Free;
+\definition onGenerator: \forall (f: Simplicial.Map)(sigma: X.family.Carrier (N.Nat^::succ n)) ->
+  #apply{(Second.compose (Lower.push f) (boundary n))} (generator (N.Nat^::succ n) sigma) =
+    #apply{(First.compose (Target.boundary n) (Higher.push f))} (generator (N.Nat^::succ n) sigma) :=
+  \fun (f: Simplicial.Map)(sigma: X.family.Carrier (N.Nat^::succ n)) => eq_reason!{
+    {#apply{(Lower.push f)} (#apply{(boundary n)} (generator (N.Nat^::succ n) sigma))}
+    "=" {#apply{(Lower.push f)} (SourceBoundary.onSimplex sigma)} "by" {
+      congr!{{Carrier n} {Target.Carrier n}} (#apply{(Lower.push f)}) _ _ (SourceBoundary.onGenerator sigma)}
+    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => #apply{(Lower.push f)} (generator n (X.faces.apply n i sigma)))} "by" {
+      Mapping.law (Lower.push f) (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => generator n (X.faces.apply n i sigma))}
+    "=" {TargetBoundary.onSimplex (#apply{f} (N.Nat^::succ n) sigma)} "by" {
+      Sum.congruent (N.Nat^::succ (N.Nat^::succ n)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => trans!{{Target.Carrier n}} _ _ _
+        (Lower.onGenerator f (X.faces.apply n i sigma))
+        (congr!{{Y.family.Carrier n} {Target.Carrier n}} (Target.generator n) _ _ (#faces{f} n i sigma)))}
+    "=" {#apply{(Target.boundary n)} (Target.generator (N.Nat^::succ n) (#apply{f} (N.Nat^::succ n) sigma))} "by" {sym!{{Target.Carrier n}} _ _ (TargetBoundary.onGenerator (#apply{f} (N.Nat^::succ n) sigma))}
+    "=" {#apply{(Target.boundary n)} (#apply{(Higher.push f)} (generator (N.Nat^::succ n) sigma))} "by" {
+      congr!{{Target.Carrier (N.Nat^::succ n)} {Target.Carrier n}} (#apply{(Target.boundary n)}) _ _ (sym!{{Target.Carrier (N.Nat^::succ n)}} _ _ (Higher.onGenerator f sigma))}
+  };
+\definition equation: \forall (f: Simplicial.Map) -> First.compose (Target.boundary n) (Higher.push f) = Second.compose (Lower.push f) (boundary n) :=
+  \fun (f: Simplicial.Map) => Free.ext _ _ (\fun (sigma: X.family.Carrier (N.Nat^::succ n)) => sym!{{Target.Carrier n}} _ _ (onGenerator f sigma));
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Target.Carrier n, source := space (N.Nat^::succ n), target := Target.space n] \as Linear;
+\definition commutes: \forall (f: Simplicial.Map)(x: Carrier (N.Nat^::succ n)) -> #apply{(Target.boundary n)} (#apply{(Higher.push f)} x) = #apply{(Lower.push f)} (#apply{(boundary n)} x) :=
+  \fun (f: Simplicial.Map)(x: Carrier (N.Nat^::succ n)) => congr!{Linear.Map {Target.Carrier n}} (\fun (g: Linear.Map) => #apply{g} x) _ _ (equation f);

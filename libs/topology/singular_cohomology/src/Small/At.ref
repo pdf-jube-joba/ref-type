@@ -1,0 +1,25 @@
+\import \parent.Simplices[] \as SmallSimplices;
+\definition simplex(sigma: SmallSimplices.Carrier n): WholeSimplices.Carrier n := sigma;
+\import Modules.Free[Generators := SmallSimplices.Carrier n].Reindex[TargetGenerators := WholeSimplices.Carrier n] \as Reindex;
+\import Reindex.Injection[f := simplex] \as Injection;
+\import Injection.Retraction[] \as Retraction;
+\definition generatorInjection: \forall (sigma, tau: SmallSimplices.Carrier n) -> simplex sigma = simplex tau -> sigma = tau :=
+  \fun (sigma, tau: SmallSimplices.Carrier n)(same: simplex sigma = simplex tau) => \axiom:funext(sigma, tau,
+    \fun (x: Simplex.Carrier n) => congr!{{WholeSimplices.Carrier n} A} (\fun (s: WholeSimplices.Carrier n) => s x) _ _ same);
+\import Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n] \as Forward;
+\definition inclusion: Forward.Map := Mapping.At[n := n].push simplicialInclusion;
+\definition onGenerator: \forall (sigma: SmallSimplices.Carrier n) -> #apply{inclusion} (generator n sigma) = Whole.generator n sigma := Mapping.At[n := n].onGenerator simplicialInclusion;
+\definition injective: \forall (x, y: Carrier n) -> #apply{inclusion} x = #apply{inclusion} y -> x = y := Injection.injective generatorInjection;
+\definition retraction: Modules.Hom[V := Whole.Carrier n, W := Carrier n, source := Whole.space n, target := space n].Map := Retraction.retraction generatorInjection;
+\import Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n] \as End;
+\definition retract: \forall (x: Carrier n) -> #apply{retraction} (#apply{inclusion} x) = x :=
+  \fun (x: Carrier n) => congr!{End.Map {Carrier n}} (\fun (f: End.Map) => #apply{f} x) _ _ (Retraction.leftInverse generatorInjection);
+\definition Image(z: Whole.Carrier n): \Prop := \exists { x: Carrier n \where #apply{inclusion} x = z };
+\definition imageRetract: \forall (z: Whole.Carrier n) -> Image z -> #apply{inclusion} (#apply{retraction} z) = z := \block {
+  \fun (z: Whole.Carrier n)(image: Image z) \then
+  \takefrom x: \Cast[Carrier n] ({ x: Carrier n \where #apply{inclusion} x = z }) \by image \then
+  \let same: #apply{inclusion} x = z := \bysub(Carrier n, { x: Carrier n \where #apply{inclusion} x = z }, x) \then
+  \return trans!{{Whole.Carrier n}} _ _ _
+    (congr!{{Whole.Carrier n} {Whole.Carrier n}} (\fun (y: Whole.Carrier n) => #apply{inclusion} (#apply{retraction} y)) _ _ (sym!{{Whole.Carrier n}} _ _ same))
+    (trans!{{Whole.Carrier n}} _ _ _ (congr!{{Carrier n} {Whole.Carrier n}} (#apply{inclusion}) _ _ (retract x)) same)
+};
