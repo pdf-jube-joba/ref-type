@@ -5,8 +5,8 @@ use crate::raw::program::{ProgramContext, ProgramContextEntry};
 use crate::raw::{environment::ModuleParameter, inductive::InductiveTypeSpecs};
 use crate::raw::{
     environment::{
-        ClosedNamespaceKey, CrateEnv, DeclarationRemapping, DefinedConstant, DefinitionEnvironment,
-        ModuleArgument, ModuleItem, ModuleParameterKind, RemappingId,
+        CrateEnv, DeclarationRemapping, DefinedConstant, DefinitionEnvironment, ModuleArgument,
+        ModuleItem, ModuleParameterKind, NamespaceInstanceKey, RemappingId,
     },
     exp::{Exp, ExpContext},
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
@@ -604,17 +604,14 @@ impl ModuleManager {
             ));
         }
 
-        // Repeated closed instantiations can share the entire immutable graph,
-        // including its namespaces, rather than allocating provisional IDs for
-        // declarations that the specialization cache will immediately reuse.
-        // Arguments containing local variables stay on the uncached path.
-        // A closed instantiation is independent of unused caller bindings.
-        // Source namespaces grow
-        // only by appending items/bindings, so their lengths invalidate entries
-        // recorded before a source module has finished elaborating.
-        let namespace_key = (program_context.is_empty()
-            && env.namespace_arguments_shareable(&substitutions))
-        .then(|| ClosedNamespaceKey {
+        // Closed imports are independent of unused caller bindings. Open
+        // imports may share a graph only in the same owner and exact checking
+        // telescope; lowering applies those ambient variables explicitly.
+        // Source namespaces grow by appending items and bindings, so their
+        // lengths invalidate entries recorded before elaboration finishes.
+        let namespace_key = program_context.is_empty().then(|| NamespaceInstanceKey {
+            scope: (!env.namespace_arguments_shareable(&substitutions))
+                .then(|| (self.current, context.clone())),
             base,
             route: route
                 .iter()
@@ -629,7 +626,7 @@ impl ModuleManager {
             arguments: substitutions.clone(),
         });
         if let Some(key) = &namespace_key
-            && let Some((binding, dependencies)) = env.closed_namespaces.get(key).cloned()
+            && let Some((binding, dependencies)) = env.namespace_instances.get(key).cloned()
         {
             for dependency in dependencies {
                 env.attach_namespace_binding(self.current, dependency);
@@ -639,18 +636,24 @@ impl ModuleManager {
         // Conversion-equivalent closed arguments give the same nominal graph,
         // just as in the declaration specialization cache. Reuse that graph
         // before reserving thousands of already canonical declarations.
-        if let Some(key) = &namespace_key {
-            let reused = env.closed_namespaces.iter().find_map(|(candidate, value)| {
-                (candidate.base == key.base
-                    && candidate.route == key.route
-                    && env.namespace_arguments_equal(&candidate.arguments, &key.arguments))
-                .then(|| value.clone())
-            });
+        if let Some(key) = &namespace_key
+            && key.scope.is_none()
+        {
+            let reused = env
+                .namespace_instances
+                .iter()
+                .find_map(|(candidate, value)| {
+                    (candidate.scope.is_none()
+                        && candidate.base == key.base
+                        && candidate.route == key.route
+                        && env.namespace_arguments_equal(&candidate.arguments, &key.arguments))
+                    .then(|| value.clone())
+                });
             if let Some((binding, dependencies)) = reused {
                 for &dependency in &dependencies {
                     env.attach_namespace_binding(self.current, dependency);
                 }
-                env.closed_namespaces
+                env.namespace_instances
                     .insert(key.clone(), (binding, dependencies));
                 return Ok(binding);
             }
@@ -1161,7 +1164,7 @@ impl ModuleManager {
         env.compact_remapping(remapping);
         let binding = last_binding.expect("non-empty route was checked above");
         if let Some(key) = namespace_key {
-            env.closed_namespaces
+            env.namespace_instances
                 .insert(key, (binding, result_bindings));
         }
         Ok(binding)
@@ -1834,6 +1837,112 @@ mod tests {
         manager.moveto_parent(&env);
         let grown = instantiate(&mut manager, &mut env);
         assert_ne!(first, grown);
+        assert!(env.module(grown).item("late").is_some());
+        assert!(env.module(first).item("late").is_none());
+    }
+
+    #[test]
+    fn open_namespace_reuse_respects_owner_telescope_and_arguments() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        let set = env.arena().sort(Sort::Set(0));
+        let argument_parameter = parameter(&mut env, "A", set);
+        manager
+            .add_child_and_moveto(&mut env, "Source".into(), vec![argument_parameter])
+            .unwrap();
+        let source = manager.current();
+        let parameter_exp = env.arena().exp_module_param(ModuleParamId {
+            module: source,
+            position: 0,
+        });
+        manager
+            .add_def(
+                &mut env,
+                Identifier("value".into()),
+                DefinedConstant::Pts {
+                    ty: set,
+                    body: parameter_exp,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        let owner = manager.current();
+        let local = env.intern("local");
+        let mut context = vec![ExpContextEntry {
+            var: local,
+            ty: set,
+        }];
+        let argument = env.arena().exp_bound(0);
+        let instantiate = |manager: &mut ModuleManager,
+                           env: &mut CrateEnv,
+                           context: &mut ExpContext,
+                           argument: Exp| {
+            manager
+                .bind_namespace(
+                    env,
+                    context,
+                    None,
+                    vec![(
+                        Identifier("Source".into()),
+                        vec![(Identifier("A".into()), argument.into())],
+                    )],
+                )
+                .unwrap()
+        };
+        let first = instantiate(&mut manager, &mut env, &mut context, argument);
+        assert_eq!(
+            instantiate(&mut manager, &mut env, &mut context, argument),
+            first
+        );
+        let value_body = |env: &CrateEnv, binding| {
+            let ModuleItem::Definition { definition, .. } =
+                env.module(binding).item("value").unwrap()
+            else {
+                unreachable!()
+            };
+            pts_body(env.definition(*definition))
+        };
+        assert_eq!(value_body(&env, first), argument);
+
+        let mut deeper = context.clone();
+        deeper.push(ExpContextEntry {
+            var: env.intern("second"),
+            ty: set,
+        });
+        let second = instantiate(&mut manager, &mut env, &mut deeper, argument);
+        assert_ne!(second, first);
+        assert_eq!(
+            instantiate(&mut manager, &mut env, &mut deeper, argument),
+            second
+        );
+        let older_argument = env.arena().exp_bound(1);
+        let older = instantiate(&mut manager, &mut env, &mut deeper, older_argument);
+        assert_ne!(older, second);
+        assert_eq!(value_body(&env, older), older_argument);
+
+        manager
+            .add_child_and_moveto(&mut env, "OtherOwner".into(), vec![])
+            .unwrap();
+        let other_owner = instantiate(&mut manager, &mut env, &mut context, argument);
+        assert_ne!(other_owner, first);
+        assert_eq!(value_body(&env, other_owner), argument);
+
+        manager.moveto(source);
+        manager
+            .add_def(
+                &mut env,
+                Identifier("late".into()),
+                DefinedConstant::Pts {
+                    ty: set,
+                    body: parameter_exp,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto(owner);
+        let grown = instantiate(&mut manager, &mut env, &mut context, argument);
+        assert_ne!(grown, first);
         assert!(env.module(grown).item("late").is_some());
         assert!(env.module(first).item("late").is_none());
     }

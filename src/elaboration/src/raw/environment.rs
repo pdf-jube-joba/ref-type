@@ -312,7 +312,8 @@ type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 type ExactSpecializations<I> = HashMap<(I, usize), I>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct ClosedNamespaceKey {
+pub(crate) struct NamespaceInstanceKey {
+    pub scope: Option<(ModuleId, crate::raw::exp::ExpContext)>,
     pub base: Option<ModuleId>,
     pub route: Vec<(ModuleId, usize, usize)>,
     pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
@@ -359,7 +360,7 @@ pub struct CrateEnv {
     modules: Vec<Box<ModuleEnv>>,
     namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     #[serde(skip)]
-    pub(crate) closed_namespaces: HashMap<ClosedNamespaceKey, (ModuleId, Vec<ModuleId>)>,
+    pub(crate) namespace_instances: HashMap<NamespaceInstanceKey, (ModuleId, Vec<ModuleId>)>,
     remappings: super::remapping_checkpoint::Tables,
     remapping_origins: HashMap<RemappingId, RemappingOrigin>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
@@ -458,7 +459,7 @@ impl CrateEnv {
             symbol_ids,
             modules: vec![Box::new(ModuleEnv::new("root".into(), None, vec![]))],
             namespace_bindings: HashMap::new(),
-            closed_namespaces: HashMap::new(),
+            namespace_instances: HashMap::new(),
             remappings: super::remapping_checkpoint::Tables::default(),
             remapping_origins: HashMap::new(),
             checking_scopes: HashMap::new(),

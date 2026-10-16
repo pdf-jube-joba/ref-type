@@ -279,7 +279,9 @@ pub enum ExpNode {
     },
 }
 
-#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
+)]
 pub struct ExpContextEntry {
     pub var: SymbolId,
     pub ty: Exp,
