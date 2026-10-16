@@ -9,6 +9,7 @@
 | `module_theory.Module.Over.Presentation` / `Free` | 形式和と関係による加群、生成元による準同型の一意な延長、自由加群の射影性。 |
 | `module_theory.Module.Over.Free.Reindex.Injection.Retraction` | 生成元の単射に沿う自由加群の包含の左逆。 |
 | `module_theory.Module.Over.Free.Subset.Projection` / `QuotientBasis` | 指定した生成元への射影と、その像による商を残りの生成元上の自由加群と同定する同型。 |
+| `module_theory.Module.Over.Free.Reindex.QuotientBasis` | 生成元の写像の像による商と、像に入らない生成元上の自由加群との同型。 |
 | `module_theory.Module.Over.Free.Coefficients` / `Finite` | 係数写像、有限生成元による展開、有限支持関数との同型。 |
 | `module_theory.Module.Over.Free.Induction` / `Subset` | 加群演算による帰納法、生成元の部分集合が張る部分加群と線形写像による像の判定。 |
 | `module_theory.Module.Over.FiniteCoordinates` | 有限座標加群、標準基底による展開、有限集合上の自由加群との同型、先頭座標と残りの座標の分解、零拡張と先頭が零の部分加群との同型。 |

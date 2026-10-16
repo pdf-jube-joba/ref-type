@@ -18,6 +18,7 @@
 | `Maps.Coefficients` | 空間に関して反変、係数に関して共変な余鎖写像・コホモロジー写像と、生成元での評価公式。 |
 | `Maps.Composition.Coefficients` | 連続写像の合成が誘導するコホモロジー写像の合成則。 |
 | `Homotopy` / `Coefficients` | cylinder のアフィン prism 鎖から構成する鎖ホモトピーと、任意係数でのホモトピー不変性。 |
+| `Homotopy.Homology.At` | 整数次数の特異ホモロジーにおけるホモトピー不変性。 |
 | `Equivalence.With` | 位相空間のホモトピー同値から得るコホモロジーの加群同型。 |
 | `Relative` / `Injection` | 部分空間からの単射な鎖写像、その像による商、相対鎖の短完全列。 |
 | `Relative.Homology` / `LongExact` | 相対ホモロジー、接続写像、その前後の合成の零性と長完全列の完全性。 |
