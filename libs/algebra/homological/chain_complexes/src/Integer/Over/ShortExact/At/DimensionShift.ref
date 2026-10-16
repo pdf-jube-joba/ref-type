@@ -1,0 +1,22 @@
+\import \parent.Exactness[] \as Exact;
+\import \parent.\parent.\parent.At[C := B, z := next k] \as UpperB;
+\definition CurrentZero: \Prop := \forall (q: HB.Cohomology) -> q = HB.zeroClass;
+\definition UpperZero: \Prop := \forall (q: UpperB.Cohomology) -> q = UpperB.zeroClass;
+\import Modules.Hom[V := HB.Cohomology, W := HC.Cohomology, source := HB.cohomologySpace, target := HC.cohomologySpace] \as ProjectionMaps;
+\definition kernelZero: CurrentZero -> \forall (q: HC.Cohomology) -> #apply{connecting} q = HA.zeroClass -> q = HC.zeroClass := \block {
+  \fun (vanishes: CurrentZero)(q: HC.Cohomology)(killed: _) \then
+  \takefrom b: \Cast[HB.Cohomology] ({ b: HB.Cohomology \where #apply{(ProjectionAt.induced s.projection)} b = q }) \by Exact.exactAtC q killed \then
+  \return trans!{HC.Cohomology} _ _ _
+    (sym!{HC.Cohomology} _ _ (\bysub(HB.Cohomology, { b: HB.Cohomology \where #apply{(ProjectionAt.induced s.projection)} b = q }, b)))
+    (trans!{HC.Cohomology} _ _ _
+      (congr!{HB.Cohomology HC.Cohomology} (#apply{(ProjectionAt.induced s.projection)}) _ _ (vanishes b))
+      (ProjectionMaps.zeroPreserved (ProjectionAt.induced s.projection)))
+};
+\definition injective: CurrentZero -> \forall (x, y: HC.Cohomology) -> #apply{connecting} x = #apply{connecting} y -> x = y :=
+  \fun (vanishes: CurrentZero) => Connecting.injectiveOfZeroKernel connecting (kernelZero vanishes);
+\definition onto: UpperZero -> \forall (q: HA.Cohomology) -> \exists { x: HC.Cohomology \where #apply{connecting} x = q } :=
+  \fun (vanishes: UpperZero)(q: HA.Cohomology) => Exact.exactAtALower q (vanishes (#apply{(InclusionAt.induced s.inclusion)} q));
+\import Modules.Isomorphism[V := HC.Cohomology, W := HA.Cohomology, source := HC.cohomologySpace, target := HA.cohomologySpace] \as Isomorphisms;
+\import Isomorphisms.OfBijective[f := connecting] \as Inverse;
+\definition isomorphism(current: CurrentZero)(upper: UpperZero): Isomorphisms.Isomorphism :=
+  Inverse.isomorphism (injective current) (onto upper);
