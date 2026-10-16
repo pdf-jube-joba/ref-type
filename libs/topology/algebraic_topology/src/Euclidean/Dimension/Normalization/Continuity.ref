@@ -1,0 +1,21 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Continuity[A := A, B := Coordinate] \as Maps;
+\import metric_spaces.RealFunctions[A := A] \as Functions;
+\import Functions.Product[] \as Product;
+\import Functions.Reciprocal[] \as Reciprocal;
+\import topological_algebra.Coordinates[K := Real.Real, I := Index] \as Coordinates;
+\import Coordinates.Universal[A := A] \as Universal;
+\import topology.Composition[A := A, B := Coordinate, C := Real.Real] \as Composition;
+\import topology.Continuity[A := A, B := Coordinate].Corestriction[S := Boundary] \as Into;
+\definition continuous: \forall (source: Source.Topology)(f: A -> Nonzero) ->
+  Maps.Continuous source topology (\fun (p: A) => f p) ->
+  topology.Continuity[A := A, B := Sphere].Continuous source sphereTopology (\fun (p: A) => normalize (f p)) :=
+  \fun (source: _)(f: _)(fc: _) => Into.corestrictContinuous source topology (\fun (p: A) => normalize (f p))
+    (Universal.continuous source Line.topology (\fun (p: A) => normalize (f p))
+      (\fun (i: Index) => Product.continuous source
+        (\fun (p: A) => Laws.fieldInv (Geometry.norm (f p))) (\fun (p: A) => f p i)
+        (Reciprocal.continuous source (\fun (p: A) => Geometry.norm (f p))
+          (Composition.composeContinuous source topology Line.topology (\fun (p: A) => f p) Geometry.norm fc Geometry.normContinuous)
+          (\fun (p: A) => normNonzero (f p)))
+        (Composition.composeContinuous source topology Line.topology (\fun (p: A) => f p) (\fun (x: Coordinate) => x i) fc
+          (Coordinates.evaluationContinuous Line.topology i))));

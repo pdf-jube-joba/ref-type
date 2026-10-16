@@ -1,0 +1,20 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import metric_spaces.RealFunctions[A := A] \as Functions;
+\import topological_algebra.Coordinates[K := Real.Real, I := Higher.Index].Universal[A := A] \as Universal;
+\import topology.Continuity[A := A, B := Higher.Coordinate] \as Maps;
+\definition transfer: \forall (source: Source.Topology)(f, g: A -> Real.Real) ->
+  (\forall (x: A) -> f x = g x) -> Functions.Continuous source f -> Functions.Continuous source g :=
+  \fun (source: _)(f, g: _)(equal: _)(continuous: _) =>
+    \idelim f = g \with h: (A -> Real.Real) => Functions.Continuous source h \by {
+      base: continuous, equality: \axiom:funext(f, g, equal)
+    };
+\definition joinContinuous: \forall (source: Source.Topology)(a: A -> Real.Real)(x: A -> Coordinate) ->
+  Functions.Continuous source a -> (\forall (i: Index) -> Functions.Continuous source (\fun (p: A) => x p i)) ->
+  Maps.Continuous source Higher.topology (\fun (p: A) => join (a p) (x p)) :=
+  \fun (source: _)(a: _)(x: _)(first: _)(rest: _) =>
+    Universal.continuous source Line.topology (\fun (p: A) => join (a p) (x p))
+      (Fin.cases n (\fun (i: Higher.Index) => Functions.Continuous source (\fun (p: A) => join (a p) (x p) i))
+        (transfer source a (\fun (p: A) => join (a p) (x p) (Fin.zero n))
+          (\fun (p: A) => sym!{Real.Real} _ _ (headJoin (a p) (x p))) first)
+        (\fun (i: Index) => transfer source (\fun (p: A) => x p i) (\fun (p: A) => join (a p) (x p) (Fin.succ n i))
+          (\fun (p: A) => sym!{Real.Real} _ _ (Tuples.atSuccessor n (a p) (x p) i)) (rest i)));

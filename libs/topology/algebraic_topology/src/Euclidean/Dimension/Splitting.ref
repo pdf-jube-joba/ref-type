@@ -1,0 +1,60 @@
+\import \root.Euclidean[].Dimension[n := N.Nat^::succ n] \as Higher;
+\import Higher.Geometry[] \as HigherGeometry;
+\import \parent.Geometry[] \as Geometry;
+\import \parent.Contraction[] \as Contraction;
+\import Fin.Tuples[A := Real.Real] \as Tuples;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Real.Algebra[] \as Algebra;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition head(x: Higher.Coordinate): Real.Real := x (Fin.zero n);
+\definition tail(x: Higher.Coordinate): Coordinate := \fun (i: Index) => x (Fin.succ n i);
+\definition join(a: Real.Real)(x: Coordinate): Higher.Coordinate := Tuples.extend n a x;
+\definition headJoin: \forall (a: Real.Real)(x: Coordinate) -> head (join a x) = a := Tuples.atZero n;
+\definition tailJoin: \forall (a: Real.Real)(x: Coordinate) -> tail (join a x) = x :=
+  \fun (a: Real.Real)(x: Coordinate) => \axiom:funext(tail (join a x), x, Tuples.atSuccessor n a x);
+\definition recover: \forall (x: Higher.Coordinate) -> join (head x) (tail x) = x := Tuples.recover n;
+\definition ext: \forall (x, y: Higher.Coordinate) -> head x = head y -> tail x = tail y -> x = y :=
+  \fun (x, y: Higher.Coordinate)(first: _)(rest: _) => Tuples.extensionality n x y first
+    (\fun (i: Index) => congr!{Coordinate Real.Real} (\fun (v: Coordinate) => v i) _ _ rest);
+\definition sumTail: \forall (indices: Lists.List[Index])(x: Higher.Coordinate) ->
+  HigherGeometry.sumSquares (Lists.map Index Higher.Index (Fin.succ n) indices) x = Geometry.sumSquares indices (tail x) :=
+  \induction (indices: Lists.List[Index]) \return \forall (x: Higher.Coordinate) ->
+    HigherGeometry.sumSquares (Lists.map Index Higher.Index (Fin.succ n) indices) x = Geometry.sumSquares indices (tail x) \with {
+      | nil: \fun (x: Higher.Coordinate) => \refl(Real.zero)
+      | cons: \fun (i: Index)(indices: Lists.List[Index])(previous: _)(x: Higher.Coordinate) =>
+        congr!{Real.Real Real.Real} (Real.add (Real.mul (x (Fin.succ n i)) (x (Fin.succ n i)))) _ _ (previous x)
+    };
+\definition normSplit: \forall (x: Higher.Coordinate) -> Higher.normSquared x = Real.add (Real.mul (head x) (head x)) (normSquared (tail x)) :=
+  \fun (x: Higher.Coordinate) => congr!{Real.Real Real.Real} (Real.add (Real.mul (head x) (head x))) _ _ (sumTail (Fin.elements n) x);
+\definition normJoin: \forall (a: Real.Real)(x: Coordinate) -> Higher.normSquared (join a x) = Real.add (Real.mul a a) (normSquared x) :=
+  \fun (a: Real.Real)(x: Coordinate) => trans!{Real.Real} _ _ _ (normSplit (join a x))
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (headJoin a x) (headJoin a x))
+      (congr!{Coordinate Real.Real} normSquared _ _ (tailJoin a x)));
+\definition equator(x: Sphere): Higher.Sphere := \into[Higher.Coordinate](join Real.zero x, Higher.Boundary) \by {
+  trans!{Real.Real} _ _ _ (normJoin Real.zero x)
+    (trans!{Real.Real} _ _ _
+      (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulZeroLeft Real.zero) (\bysub(Coordinate, Boundary, x)))
+      (Laws.addZeroLeft Real.one))
+};
+\definition equatorHead: \forall (x: Sphere) -> head (equator x) = Real.zero := \fun (x: Sphere) => headJoin Real.zero x;
+\definition equatorTail: \forall (x: Sphere) -> tail (equator x) = x := \fun (x: Sphere) => tailJoin Real.zero x;
+\definition equatorInjective: \forall (x, y: Sphere) -> equator x = equator y -> x = y :=
+  \fun (x, y: Sphere)(equal: _) => trans!{Coordinate} _ _ _ (sym!{Coordinate} _ _ (equatorTail x))
+    (trans!{Coordinate} _ _ _ (congr!{Higher.Sphere Coordinate} (\fun (p: Higher.Sphere) => tail p) _ _ equal) (equatorTail y));
+\definition pole(a: Real.Real)(unit: Real.mul a a = Real.one): Higher.Sphere :=
+  \into[Higher.Coordinate](join a Contraction.zero, Higher.Boundary) \by {
+    trans!{Real.Real} _ _ _ (normJoin a Contraction.zero)
+      (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ unit (Contraction.zeroSum (Fin.elements n)))
+        (Laws.addZeroRight Real.one))
+  };
+\definition north: Higher.Sphere := pole Real.one (Laws.fieldMulOneLeft Real.one);
+\definition south: Higher.Sphere := pole (Real.neg Real.one)
+  (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth Real.one Real.one) (Laws.fieldMulOneLeft Real.one));
+\module Continuity(A: \Set);
+\module Equator;
+\module Pole;
