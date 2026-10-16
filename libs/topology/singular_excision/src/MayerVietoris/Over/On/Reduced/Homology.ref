@@ -1,0 +1,28 @@
+\import chain_complexes.Chain[] \as Degrees;
+\definition lower: I.Int^ := Degrees.previous z;
+\import singular_cohomology.Chains[A := A, source := source].Reduced[] \as Whole;
+\import singular_cohomology.Chains[A := Intersection, source := IntersectionTopology.topology (LeftTopology.topology source)].Reduced[] \as IntersectionTheory;
+\import Whole.At[z := z] \as Source;
+\import IntersectionTheory.At[z := lower] \as Target;
+\import Local.Homology[z := z] \as LocalH;
+\import Global.Homology[z := z] \as GlobalH;
+\import singular_cohomology.Relative[A := Remaining, source := RemainingTopology.topology source, subset := trace].Homology[z := z] \as RemainingH;
+\definition domain: Modules.Bundle := Modules.Bundle { Carrier := Source.Carrier, space := Source.space };
+\definition codomain: Modules.Bundle := Modules.Bundle { Carrier := Target.Carrier, space := Target.space };
+\import Modules.Isomorphism[V := LocalH.Carrier, W := RemainingH.Carrier, source := LocalH.space, target := RemainingH.space].Inverse[] \as PairInverse;
+\import Modules.Isomorphism[V := RemainingH.Carrier, W := GlobalH.Carrier, source := RemainingH.space, target := GlobalH.space].Inverse[] \as ExcisionInverse;
+\import Modules.Isomorphism[V := GlobalH.Carrier, W := RemainingH.Carrier, source := GlobalH.space, target := RemainingH.space]
+  .Composition[U := LocalH.Carrier, final := LocalH.space] \as CutComposition;
+\definition cut: Modules.Isomorphism[V := GlobalH.Carrier, W := LocalH.Carrier, source := GlobalH.space, target := LocalH.space].Isomorphism :=
+  CutComposition.compose (PairInverse.inverse (Pairs.Homology[z := z].isomorphism pairHomeomorphism))
+    (ExcisionInverse.inverse (Excision.Homology[z := z].isomorphism excision));
+\import Global.Reduced[].Contractible[] \as Comparison;
+\import Local.Reduced[].ConnectingContractible[] \as Connecting;
+\import Modules.Isomorphism[V := Source.Carrier, W := GlobalH.Carrier, source := Source.space, target := GlobalH.space]
+  .Composition[U := LocalH.Carrier, final := LocalH.space] \as First;
+\import Modules.Isomorphism[V := Source.Carrier, W := LocalH.Carrier, source := Source.space, target := LocalH.space]
+  .Composition[U := Target.Carrier, final := Target.space] \as Second;
+\definition isomorphism(leftContraction: LeftContractions.Data)(rightContraction: RightContractions.Data):
+  Modules.Isomorphism[V := domain.Carrier, W := codomain.Carrier, source := domain.space, target := codomain.space].Isomorphism :=
+  Second.compose (Connecting.Homology[z := z].isomorphism leftContraction)
+    (First.compose cut (Comparison.Homology[z := z].isomorphism rightContraction));
