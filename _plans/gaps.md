@@ -123,6 +123,9 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 法則を含む `\Set` の structure はデータ・法則・部分集合型へ展開されるため、公開された型に直接 `\induction` を適用してデータの constructor を指定することはできない。
 [実数値線形写像](../libs/analysis/calculus/src/Real/Multivariable/Differential/Def.ref)は `LinearData` と `LinearLaws` を明示的に分け、通常のデータ record の帰納法から再構成の等式を示す。
 
+> [!note]
+> 対応しません。
+
 <a id="g06"></a>
 
 ## G06: signature の族に対する台集合の束ね直し
@@ -170,6 +173,11 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 
 ライブラリでは [Proposition.existsIntro](../libs/std/src/Logic/Proposition.ref) に部分集合への埋め込みと存在導入をまとめ、部分集合の条件を一度だけ指定している。
 
+> [!note]
+> 対応しません。
+> それやろうとするのは Coq の auto とかっぽい。
+> ある型に対して特定の項を持ってくるような推論は、証明支援系としてコードが大きくなりそうで嫌です。
+
 <a id="g08"></a>
 
 ## G08: signature parameter の型に使う構造の別名
@@ -185,6 +193,9 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 `Tor.Over.ProjectiveSecond` から `resolutions.ResolutionTensor.Over.Of` を具体化した際、一般の可換環上の加群に対して、`Ring.commutativeRingAsRing R ring` と `ResolutionTensor.Over.ordinaryRing` の照合が同じ診断で停止した。
 [ResolutionTensor.ref](../libs/algebra/homological/resolutions/src/ResolutionTensor.ref) では、依存 module の具体化へ変換式を直接渡すことで回避している。
 
+> [!note]
+> 対応したい。
+
 <a id="g09"></a>
 
 ## G09: 構造を返す関数の結果からの入れ子の射影
@@ -196,6 +207,9 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 現在は対象の構造を parameter とする `View` module に射影を定義し、`View[C := terms i]` を import している。
 [`09-02-structure-family-view.ref`](gaps/09-02-structure-family-view.ref) でこの回避を再現する。
 整数複体の直和では [`Chains.View`](../libs/algebra/homological/chain_complexes/src/Chain/Over/View.ref) を介して各複体の台集合・加群・微分を取り出す。
+
+> [!note]
+> 対応したい。
 
 <a id="g10"></a>
 
