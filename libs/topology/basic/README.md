@@ -10,6 +10,7 @@
 | `Topology.Subspace` | 部分空間位相、部分空間の開集合の ambient な開集合による表示。 |
 | `Topology.Subspace.Properties` / `metric_spaces.MetricSpace.Topology.Hausdorff` | 部分空間のコンパクト性・Hausdorff 性、距離位相の Hausdorff 性。 |
 | `Topology.Finite` / `Topology.Closure` | 有限交叉・閉集合の有限和、閉包とその最小性。 |
+| `Topology.Interior` | 内部の開性、包含関係、内部に含まれる開集合の最大性。 |
 | `Topology.Compactness` | 空集合・一点集合・二集合の和のコンパクト性、閉部分集合、Hausdorff 空間のコンパクト集合の閉性、コンパクト Hausdorff 空間の正規性。 |
 | `Compactness` | コンパクト集合の連続像と、連続な全射の値域のコンパクト性。 |
 | `Continuity.closedPreimage` | 連続写像による閉集合の逆像の閉性。 |
