@@ -1,0 +1,31 @@
+\import \root.Chain[].Over[R := R, ring := ring] \as Chains;
+\import Chains.At[C := A, z := k] \as Source;
+\import Chains.At[C := B1, z := k] \as Target;
+\import Chains.At[C := A1, z := k] \as LowerLeft;
+\import Chains.At[C := B, z := k] \as UpperRight;
+\import Chains.Map[C := A, D := A1].At[k := k] \as Left;
+\import Chains.Map[C := B, D := B1].At[k := k] \as Right;
+\import Chains.Map[C := A, D := B].At[k := k] \as Upper;
+\import Chains.Map[C := A1, D := B1].At[k := k] \as Lower;
+\definition onClass: Commutative -> \forall (x: Source.Cycle) ->
+  #apply{(Right.induced b)} (#apply{(Upper.induced s.inclusion)} (Source.classOf x)) =
+  #apply{(Lower.induced t.inclusion)} (#apply{(Left.induced a)} (Source.classOf x)) :=
+  \fun (diagram: Commutative)(x: Source.Cycle) => \block {
+  \let l: Target.Cycle := #apply{(Right.cyclesMap b)} (#apply{(Upper.cyclesMap s.inclusion)} x) \then
+  \let r: Target.Cycle := #apply{(Lower.cyclesMap t.inclusion)} (#apply{(Left.cyclesMap a)} x) \then
+  \let same: l = r := #left{diagram} k x \then
+  \return trans!{Target.Homology} _ _ _
+    (congr!{UpperRight.Homology Target.Homology} (#apply{(Right.induced b)}) _ _ (Upper.onClass s.inclusion x))
+    (trans!{Target.Homology} _ _ _ (Right.onClass b (#apply{(Upper.cyclesMap s.inclusion)} x))
+      (trans!{Target.Homology} _ _ _
+        (congr!{Target.Cycle Target.Homology} Target.classOf l r same)
+        (sym!{Target.Homology} _ _ (trans!{Target.Homology} _ _ _
+          (congr!{LowerLeft.Homology Target.Homology} (#apply{(Lower.induced t.inclusion)}) _ _ (Left.onClass a x))
+          (Lower.onClass t.inclusion (#apply{(Left.cyclesMap a)} x))))))
+};
+\definition naturality: Commutative -> \forall (x: Source.Homology) ->
+  #apply{(Right.induced b)} (#apply{(Upper.induced s.inclusion)} x) =
+  #apply{(Lower.induced t.inclusion)} (#apply{(Left.induced a)} x) :=
+  \fun (diagram: Commutative) => Source.classInduction (\fun (x: Source.Homology) =>
+    #apply{(Right.induced b)} (#apply{(Upper.induced s.inclusion)} x) =
+    #apply{(Lower.induced t.inclusion)} (#apply{(Left.induced a)} x)) (onClass diagram);

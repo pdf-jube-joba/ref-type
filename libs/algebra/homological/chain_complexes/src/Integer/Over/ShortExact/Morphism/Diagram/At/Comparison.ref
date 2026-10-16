@@ -1,0 +1,30 @@
+\import \root.Integer[].Over[R := R, ring := ring] \as Cochains;
+\import Cochains.ShortExact[A := A, B := B, C := C].At[s := s, k := k].NextFiveTerm[] \as Upper;
+\import Cochains.ShortExact[A := A1, B := B1, C := C1].At[s := t, k := k].NextFiveTerm[] \as Lower;
+\import Modules.ExactFiveComparison[A := Upper.first, B := Upper.second, C := Upper.third, D := Upper.fourth, E := Upper.last,
+  A1 := Lower.first, B1 := Lower.second, C1 := Lower.third, D1 := Lower.fourth, E1 := Lower.last] \as Five;
+\import Cochains.Map[C := B, D := B1].At[k := k] \as First;
+\import Cochains.Map[C := C, D := C1].At[k := k] \as Second;
+\import Cochains.Map[C := A, D := A1].At[k := next k] \as Relative;
+\import Cochains.Map[C := B, D := B1].At[k := next k] \as Fourth;
+\import Cochains.Map[C := C, D := C1].At[k := next k] \as Last;
+\import Five.Diagram[s := Upper.sequence, t := Lower.sequence, a := First.induced b, b := Second.induced c,
+  c := Relative.induced a, d := Fourth.induced b, e := Last.induced c] \as Diagram;
+\import \parent.\parent.Inclusion[k := next k] \as InclusionSquare;
+\import \parent.\parent.At[k := next k] \as ProjectionSquare;
+\definition commutative(diagram: Commutative): Diagram.Commutative := Diagram.Commutative {
+  first := \fun (x: Upper.first.Carrier) => sym!{Lower.second.Carrier} _ _ (projectionNaturality diagram x),
+  second := \fun (x: Upper.second.Carrier) => sym!{Lower.third.Carrier} _ _ (naturality diagram x),
+  third := InclusionSquare.naturality diagram,
+  last := \fun (x: Upper.fourth.Carrier) => sym!{Lower.last.Carrier} _ _ (ProjectionSquare.projectionNaturality diagram x),
+};
+\definition bijective: Commutative -> First.Bijective[b] -> Second.Bijective[c] -> Fourth.Bijective[b] -> Last.Bijective[c] -> Relative.Bijective[a] :=
+  \fun (diagram: Commutative)(first: First.Bijective[b])(second: Second.Bijective[c])
+    (fourth: Fourth.Bijective[b])(last: Last.Bijective[c]) => Relative.Bijective[a] {
+      injective := Diagram.Injection[].law (commutative diagram) first.onto second.injective fourth.injective,
+      onto := Diagram.Surjection[].law (commutative diagram) second.onto fourth.onto last.injective,
+    };
+\definition isomorphism(diagram: Commutative)(first: First.Bijective[b])(second: Second.Bijective[c])
+  (fourth: Fourth.Bijective[b])(last: Last.Bijective[c]):
+  Modules.Isomorphism[V := Upper.third.Carrier, W := Lower.third.Carrier, source := Upper.third.space, target := Lower.third.space].Isomorphism :=
+    Relative.Invert[f := a].isomorphism (bijective diagram first second fourth last);

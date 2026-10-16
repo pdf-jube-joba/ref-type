@@ -1,0 +1,34 @@
+\import Source.At[k := k] \as SourceAt;
+\import Target.At[k := k] \as TargetAt;
+\import Inclusion.At[k := k] \as InclusionAt;
+\import TargetInclusion.At[k := k] \as TargetInclusionAt;
+\import Right.At[k := k] \as RightAt;
+\definition sourceBundle: Modules.Bundle := Modules.Bundle { Carrier := D.family.Carrier k, space := D.family.space k };
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := D1.family.Carrier k, space := D1.family.space k };
+\import Modules.QuotientMapping[A := sourceBundle, B := targetBundle].On[S := SourceAt.image, T := TargetAt.image, f := RightAt.linear b] \as Mapping;
+\import Modules.Of[V := D.family.Carrier k, space := D.family.space k].Submodule[].Image[U := C.family.Carrier k, source := C.family.space k] \as SourceImages;
+\import Modules.Of[V := D1.family.Carrier k, space := D1.family.space k].Submodule[] \as TargetSub;
+\import TargetSub.Image[U := C1.family.Carrier k, source := C1.family.space k] \as TargetImages;
+\definition preserves: Compatible -> Mapping.Compatible :=
+  \fun (compatible: Compatible)(x: D.family.Carrier k)(member: _) => SourceImages.eliminate (InclusionAt.linear f) x
+    (TargetSub.Member TargetAt.image (#apply{b} k x))
+    (\fun (y: C.family.Carrier k)(same: #apply{f} k y = x) => TargetImages.introduce (TargetInclusionAt.linear g) (#apply{b} k x) (#apply{a} k y)
+      (trans!{{D1.family.Carrier k}} _ _ _ (sym!{{D1.family.Carrier k}} _ _ (compatible k y))
+        (congr!{{D.family.Carrier k} {D1.family.Carrier k}} (#apply{b} k) _ _ same))) member;
+\definition map(compatible: Compatible): Modules.Hom[V := SourceAt.Carrier, W := TargetAt.Carrier, source := SourceAt.space, target := TargetAt.space].Map := Mapping.map (preserves compatible);
+\definition onClass: \forall (compatible: Compatible)(x: D.family.Carrier k) -> #apply{(map compatible)} (SourceAt.class x) = TargetAt.class (#apply{b} k x) :=
+  \fun (compatible: Compatible) => Mapping.onClass (preserves compatible);
+\import \parent.At[k := previous k] \as Lower;
+\import Source.At[k := previous k] \as SourceLower;
+\import Target.At[k := previous k] \as TargetLower;
+\definition commutes: \forall (compatible: Compatible)(q: SourceAt.Carrier) ->
+  #apply{TargetAt.differential} (#apply{(map compatible)} q) = #apply{(Lower.map compatible)} (#apply{SourceAt.differential} q) :=
+  \fun (compatible: Compatible) => SourceAt.induction (\fun (q: SourceAt.Carrier) =>
+    #apply{TargetAt.differential} (#apply{(map compatible)} q) = #apply{(Lower.map compatible)} (#apply{SourceAt.differential} q))
+    (\fun (x: D.family.Carrier k) => trans!{TargetLower.Carrier} _ _ _
+      (congr!{TargetAt.Carrier TargetLower.Carrier} (#apply{TargetAt.differential}) _ _ (onClass compatible x))
+      (trans!{TargetLower.Carrier} _ _ _ (TargetAt.onClass (#apply{b} k x))
+        (trans!{TargetLower.Carrier} _ _ _ (congr!{{D1.family.Carrier (previous k)} TargetLower.Carrier} TargetLower.class _ _ (#commutes{b} k x))
+          (sym!{TargetLower.Carrier} _ _ (trans!{TargetLower.Carrier} _ _ _
+            (congr!{SourceLower.Carrier TargetLower.Carrier} (#apply{(Lower.map compatible)}) _ _ (SourceAt.onClass x))
+            (Lower.onClass compatible (#apply{D.differential} k x)))))));
