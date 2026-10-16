@@ -238,8 +238,8 @@ pub struct ModuleEnv {
     #[serde(with = "cells")]
     program_inductives: Vec<OnceCell<Box<ProgramInductiveTypeSpecs>>>,
     items: Vec<ModuleItem>,
-    names: HashMap<String, usize>,
-    hir_names: HashMap<String, resolve::hir::BindingId>,
+    names: Arc<HashMap<String, usize>>,
+    hir_names: Arc<HashMap<String, resolve::hir::BindingId>>,
     hir_items: HashMap<resolve::hir::BindingId, usize>,
     bindings: Vec<ModuleId>,
     imports: HashMap<String, ModuleId>,
@@ -256,8 +256,8 @@ impl ModuleEnv {
             inductives: Vec::new(),
             program_inductives: Vec::new(),
             items: Vec::new(),
-            names: HashMap::new(),
-            hir_names: HashMap::new(),
+            names: Arc::default(),
+            hir_names: Arc::default(),
             hir_items: HashMap::new(),
             bindings: Vec::new(),
             imports: HashMap::new(),
@@ -1706,11 +1706,38 @@ impl CrateEnv {
         if let Some(index) = module.names.get(&name) {
             module.hir_items.insert(binding, *index);
         }
-        module.hir_names.insert(name, binding);
+        Arc::make_mut(&mut module.hir_names).insert(name, binding);
     }
 
-    pub fn copy_hir_names(&mut self, source: ModuleId, target: ModuleId) {
-        self.module_mut(target).hir_names = self.module(source).hir_names.clone();
+    pub(crate) fn publish_instantiated_items(
+        &mut self,
+        source: ModuleId,
+        target: ModuleId,
+        items: Vec<ModuleItem>,
+    ) {
+        let original = self.module(source);
+        assert_eq!(original.items.len(), items.len());
+        assert!(
+            original
+                .items
+                .iter()
+                .zip(&items)
+                .all(|(a, b)| a.name() == b.name())
+        );
+        let names = original.names.clone();
+        let hir_names = original.hir_names.clone();
+        let hir_items = hir_names
+            .iter()
+            .filter_map(|(name, binding)| names.get(name).map(|index| (*binding, *index)))
+            .collect();
+        let target = self.module_mut(target);
+        assert!(target.items.is_empty());
+        // Specialization changes declaration identities, but preserves their
+        // order and names. Reuse those immutable indexes across namespaces.
+        target.items = items;
+        target.names = names;
+        target.hir_names = hir_names;
+        target.hir_items = hir_items;
     }
 
     pub fn publish_item(
@@ -1730,7 +1757,7 @@ impl CrateEnv {
         if let Some(binding) = module.hir_names.get(&name) {
             module.hir_items.insert(*binding, index);
         }
-        module.names.insert(name, index);
+        Arc::make_mut(&mut module.names).insert(name, index);
         Ok(())
     }
 
@@ -2079,7 +2106,7 @@ impl CrateEnv {
         bindings: &HashMap<resolve::hir::BindingId, resolve::Binding>,
     ) {
         for &module in modules.values() {
-            self.modules[module.index()].hir_names.clear();
+            Arc::make_mut(&mut self.modules[module.index()].hir_names).clear();
         }
         for (&id, binding) in bindings {
             if binding.parameter.is_none()
@@ -2115,6 +2142,55 @@ mod cells {
 #[cfg(test)]
 mod specialization_tests {
     use super::*;
+    #[test]
+    fn instantiated_name_indexes_keep_new_identities_and_isolate_later_declarations() {
+        let mut env = CrateEnv::new();
+        let source = env.add_module();
+        let target = env.add_module();
+        let binding = resolve::hir::BindingId(17);
+        env.register_hir_name(source, binding, "value".into());
+        env.publish_item(
+            source,
+            ModuleItem::Definition {
+                name: "value".into(),
+                definition: DefId {
+                    module: source,
+                    index: 0,
+                },
+            },
+        )
+        .unwrap();
+        let specialized = ModuleItem::Definition {
+            name: "value".into(),
+            definition: DefId {
+                module: target,
+                index: 0,
+            },
+        };
+        env.publish_instantiated_items(source, target, vec![specialized.clone()]);
+        assert_eq!(env.module(target).item("value"), Some(&specialized));
+        assert_eq!(env.module(target).hir_item(binding), Some(&specialized));
+        assert!(Arc::ptr_eq(
+            &env.module(source).names,
+            &env.module(target).names
+        ));
+        env.publish_item(
+            target,
+            ModuleItem::Definition {
+                name: "later".into(),
+                definition: DefId {
+                    module: target,
+                    index: 1,
+                },
+            },
+        )
+        .unwrap();
+        assert!(env.module(source).item("later").is_none());
+        assert!(env.module(target).item("later").is_some());
+        env.register_hir_name(target, resolve::hir::BindingId(18), "later".into());
+        assert!(!env.module(source).hir_names.contains_key("later"));
+        assert!(env.publish_item(target, specialized).is_err());
+    }
     use crate::raw::{exp::ExpNode, sort::Sort};
 
     #[test]

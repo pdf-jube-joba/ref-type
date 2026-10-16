@@ -686,7 +686,7 @@ fn merge_module(existing: &mut ModuleEnv, incoming: ModuleEnv) -> Result<()> {
     } else if !incoming.items.is_empty() {
         same(&existing.items, &incoming.items)?;
     }
-    existing.hir_names.extend(incoming.hir_names);
+    Arc::make_mut(&mut existing.hir_names).extend(Arc::unwrap_or_clone(incoming.hir_names));
     existing.imports.extend(incoming.imports);
     for child in incoming.children {
         if !existing.children.contains(&child) {

@@ -1123,10 +1123,7 @@ impl ModuleManager {
                 result_bindings.push(group.item_source);
                 continue;
             }
-            env.copy_hir_names(group.item_source, group.namespace);
-            for item in group.items {
-                env.publish_item(group.namespace, item)?;
-            }
+            env.publish_instantiated_items(group.item_source, group.namespace, group.items);
             let binding = env.add_namespace_binding(
                 self.current,
                 group.source,
