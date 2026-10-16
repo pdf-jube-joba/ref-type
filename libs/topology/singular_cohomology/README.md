@@ -43,6 +43,7 @@
 | `Small.HomotopyPersistence` / `OpenCover.On.Selection` | 反復ホモトピーによる小鎖の保存と、各鎖に対する最小の細分回数の選択。 |
 | `OpenCover.On` | 小鎖複体の包含の具体的な鎖ホモトピー逆、面との整合性を持つ再帰構成、小鎖上の厳密な左逆。 |
 | `OpenCover.On.With.At` | 任意の整数加群を係数とする、小鎖への余鎖の制限によるコホモロジー同型。 |
+| `OpenCover.On.With.Homotopies` | 余鎖の制限と延長の両合成を恒等写像へ結ぶ余鎖ホモトピー。 |
 | `Zero.With.Functions` | 任意の空間の零次コホモロジーと、道成分全体から係数群への全関数の加群との同型。 |
 | `Zero.Homology` | 零次整数ホモロジーと、道成分の集合上の自由整数加群との同型。 |
 | `Calculations.With.Singleton` | 一点空間の零次の係数加群との同型と、全正次数での消滅。 |

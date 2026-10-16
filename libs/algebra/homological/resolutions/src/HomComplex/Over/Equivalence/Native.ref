@@ -1,0 +1,26 @@
+\import LeftHomotopy.Native[] \as LeftNative;
+\import RightHomotopy.Native[] \as RightNative;
+\import Cochains.Homotopy[C := Source.complex, D := Source.complex] \as SourceHomotopy;
+\import Cochains.Homotopy[C := Target.complex, D := Target.complex] \as TargetHomotopy;
+\import Cochains.End[C := Source.complex] \as SourceIdentityCochain;
+\import Cochains.End[C := Target.complex] \as TargetIdentityCochain;
+\import Cochains.Map[C := Target.complex, D := Source.complex].Composition[B := Source.complex] \as SourceComposition;
+\import Cochains.Map[C := Source.complex, D := Target.complex].Composition[B := Target.complex] \as TargetComposition;
+\definition forward: ForwardMaps.Map := Forward.map e.backward;
+\definition backward: BackwardMaps.Map := Backward.map e.forward;
+\definition leftData: SourceHomotopy.Data := LeftNative.data (LeftChains.compose e.backward e.forward) SourceIdentity.identity (Equivalences.leftHomotopy e);
+\definition rightData: TargetHomotopy.Data := RightNative.data (RightChains.compose e.forward e.backward) TargetIdentity.identity (Equivalences.rightHomotopy e);
+\definition leftLaws: SourceHomotopy.Laws[SourceComposition.compose backward forward, SourceIdentityCochain.identity, leftData] :=
+  SourceHomotopy.replacementLaws (LeftHomotopy.map (LeftChains.compose e.backward e.forward)) (LeftHomotopy.map SourceIdentity.identity)
+    (SourceComposition.compose backward forward) SourceIdentityCochain.identity leftData
+    (Left.law e.forward e.backward) SourceEnd.law
+    (LeftNative.laws (LeftChains.compose e.backward e.forward) SourceIdentity.identity (Equivalences.leftHomotopy e));
+\definition rightLaws: TargetHomotopy.Laws[TargetComposition.compose forward backward, TargetIdentityCochain.identity, rightData] :=
+  TargetHomotopy.replacementLaws (RightHomotopy.map (RightChains.compose e.forward e.backward)) (RightHomotopy.map TargetIdentity.identity)
+    (TargetComposition.compose forward backward) TargetIdentityCochain.identity rightData
+    (Right.law e.backward e.forward) TargetEnd.law
+    (RightNative.laws (RightChains.compose e.forward e.backward) TargetIdentity.identity (Equivalences.rightHomotopy e));
+\definition leftHomotopy: SourceHomotopy.Homotopy (SourceComposition.compose backward forward) SourceIdentityCochain.identity :=
+  \into[SourceHomotopy.Data](leftData, SourceHomotopy.Homotopy (SourceComposition.compose backward forward) SourceIdentityCochain.identity) \by { leftLaws };
+\definition rightHomotopy: TargetHomotopy.Homotopy (TargetComposition.compose forward backward) TargetIdentityCochain.identity :=
+  \into[TargetHomotopy.Data](rightData, TargetHomotopy.Homotopy (TargetComposition.compose forward backward) TargetIdentityCochain.identity) \by { rightLaws };

@@ -52,6 +52,7 @@ target/debug/cli "$sample_dir" --module docgaps.Repro --cache-dir "$PWD/libs/ref
 
 閉形式の類へ等式を降ろす場合には、通常の形式の等式だけから `congr classOf _ _` の引数を推論すると、閉形式の部分集合への所属が保持されなかった。
 [`PullbackComposition.Between.Of.At.cohomologyLaw`](../libs/geometry/differential_forms/src/PullbackComposition/Between/Of/At.ref) は、余鎖写像で得た二つの閉形式を明示し、形式の合成則から類の合成則を示す。
+[`HomComplex.Homotopy.Native.At`](../libs/algebra/homological/resolutions/src/HomComplex/Over/Homotopy/Native/At.ref) の加法・スカラー則も、外延性に渡す二つの線形写像を明示して証明する。
 
 > [!note]
 > 対応しません。
