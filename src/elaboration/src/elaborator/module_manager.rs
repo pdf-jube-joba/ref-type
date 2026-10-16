@@ -16,7 +16,7 @@ use crate::{
     items::{ModItemDefinition, ModItemInductive, ModItemProgramInductive, ModItemRecord},
     raw::{
         derivation::CheckSession,
-        remapping::{exp_subst_map, remap_all_global_ids},
+        remapping::{remap_all_global_ids, subst_exp_module_params},
     },
 };
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
@@ -486,8 +486,12 @@ impl ModuleManager {
                             &remapping.inductive_ids,
                             &remapping.program_inductive_ids,
                         );
-                        let expected =
-                            exp_subst_map(env.arena(), expected, &reflected_substitutions);
+                        let expected = subst_exp_module_params(
+                            env.arena(),
+                            expected,
+                            &substitutions,
+                            &reflected_substitutions,
+                        );
                         CheckSession::new(env, context)
                             .check_pts(*argument, expected)
                             .map_err(|error| {

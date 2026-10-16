@@ -1,13 +1,13 @@
 # declarations / machines
 
-## machine box closedness
+## machine box parameters
 
-Box の computation type が局所変数に依存して閉じていない。
+Box の computation type と payload に module parameter を使える。
 
 ```toml case
-id = "reject-declarations.machine_box_closedness"
+id = "accept-declarations.machine_box_parameters"
 scope = "package"
-expect = "reject"
+expect = "accept"
 ```
 
 ```ref file=src/root.ref
@@ -38,15 +38,19 @@ expect = "reject"
   run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
     \run[State, Output](step, s) \by { terminates s }),
 }
+\definition runBox(machine: Machine): \Box[machine.State ~> \F(machine.Output)] :=
+  \box[_](\force machine.run);
 }
-\module Open(A: \VType) {
+\module Open(A: \VType, a: A) {
   \import \root.BundleSignatures[] \as Signatures;
   \definition echo: Signatures.Machine := Signatures.Machine {
     State := A, Output := A,
     step := \thunk(\cfun(s: A) => \return(\finish[A, A](s))),
     terminates := \fun(s: A^)(P: _)(h: _) => h s (\fun(Q: \Prop)(q: Q) => q),
   };
-  \definition runbox: \Box[A ~> \F(A)] := \box[A ~> \F(A)](\force echo.run);
+  \definition runbox: \Box[A ~> \F(A)] := Signatures.runBox echo;
+  \definition agrees:
+    \squash[_](\boxapp(runbox, \box[_](\return a))) = a^ := \refl(a^);
 }
 ```
 

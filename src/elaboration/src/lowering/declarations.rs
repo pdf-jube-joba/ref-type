@@ -1,5 +1,6 @@
 //! Register declarations in dependency order, including datatype reflections.
 use super::*;
+use raw::environment::ModuleParameterKind;
 
 impl Lowerer<'_> {
     pub(super) fn definition(&mut self, id: DefId) -> Result<(), crate::error::Error> {
@@ -84,6 +85,9 @@ impl Lowerer<'_> {
                 .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var }),
         );
         self.scope.program_depth = program_context.len();
+        // Captures retain their Program types even in logical definitions.
+        // Logical occurrences use explicit reflection in this shared context.
+        self.scope.program_context = true;
         let (body, classifier, context) = match raw {
             raw::environment::DefinedConstant::Contextual {
                 parameters,
@@ -155,6 +159,17 @@ impl Lowerer<'_> {
                 raw::environment::DefinedConstant::Contextual { .. }
             ),
             self.scope.captures.clone(),
+            self.scope
+                .captures
+                .iter()
+                .map(
+                    |id| match self.raw.module_parameter_opt(*id).unwrap().kind {
+                        ModuleParameterKind::Pts { .. } => None,
+                        ModuleParameterKind::ProgramType => Some(true),
+                        ModuleParameterKind::ProgramValue { .. } => Some(false),
+                    },
+                )
+                .collect(),
             self.kernel
                 .definition(kernel_id)
                 .map_err(crate::error::Error::from)?
@@ -166,6 +181,7 @@ impl Lowerer<'_> {
                 None,
                 false,
                 self.scope.captures.clone(),
+                vec![None; self.scope.captures.len()],
                 self.kernel
                     .definition(reflected)
                     .map_err(crate::error::Error::from)?

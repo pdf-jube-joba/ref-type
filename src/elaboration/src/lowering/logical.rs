@@ -144,7 +144,15 @@ impl Lowerer<'_> {
         if nominal && self.raw.arena().lowered_definitions.borrow().contains(&e.0) {
             return Ok(e.0);
         }
-        let result = self.set_unresolved(e, ctx, m)?;
+        let offset = std::mem::replace(
+            &mut self.scope.program_offset,
+            ctx.len() - self.scope.logical_base,
+        );
+        let depth = std::mem::replace(&mut self.scope.program_depth, self.scope.program_offset);
+        let result = self.set_unresolved(e, ctx, m);
+        self.scope.program_depth = depth;
+        self.scope.program_offset = offset;
+        let result = result?;
         if nominal && matches!(self.kernel.arena().get(result), s::Node::Definition { .. }) {
             self.raw
                 .arena()
@@ -168,7 +176,16 @@ impl Lowerer<'_> {
             }
             let arguments = arguments
                 .into_iter()
-                .map(|argument| self.set(Exp(argument), ctx, m))
+                .enumerate()
+                .map(|(index, argument)| {
+                    match self.raw.arena().definition_capture_kind(id, index) {
+                        Some(true) => self.value_type(raw::program::ValueType(argument)),
+                        Some(false) => {
+                            self.value_term(raw::program::ValueTerm(argument), &mut vec![])
+                        }
+                        None => self.set(Exp(argument), ctx, m),
+                    }
+                })
                 .collect::<Result<Vec<_>, _>>()?;
             let result = self
                 .kernel

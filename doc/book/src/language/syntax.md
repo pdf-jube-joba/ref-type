@@ -241,14 +241,14 @@ sort を持つ法則なしの record は、field の宣言順に引数を取る 
 ```
 
 `Machine` の `State`、`Output`、`step`、`terminates` を実装すると、`run` の既定値が停止性証明を使って実行する。
-具体化された Machine の実行は `runBox` マクロで Box にする。
+Machine の実行は `runBox` 定義で Box にする。
 
 ```text
-\use P.runBox;
-runBox!{machine}
+P.runBox machine
 ```
 
-展開した計算は、呼出側で Box の閉性検査を受ける。
+Box は型・value parameter を保持する。
+`\squash` は Program の簡約で進められるだけ進め、入力待ちを含む残余項を Logic に反映する。
 
 ### check と評価
 

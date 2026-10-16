@@ -11,6 +11,13 @@ pub trait Resolver {
     fn replacement(&self, _term: Expression) -> Result<Option<Expression>, crate::error::Error> {
         Ok(None)
     }
+    /// Expand logical definitions whose captures change under context reflection.
+    fn context_replacement(
+        &self,
+        _term: Expression,
+    ) -> Result<Option<Expression>, crate::error::Error> {
+        Ok(None)
+    }
     fn definition(
         &self,
         id: DefinitionId,
@@ -315,6 +322,34 @@ impl<'a, R: Resolver> Reflection<'a, R> {
     ) -> Result<Expression, crate::error::Error> {
         if let Node::Reflect { term } = self.resolver.arena().get(e) {
             return self.reflect_under(term, depth);
+        }
+        if depth == usize::MAX {
+            // Moving the entire context to Logic also erases boxes occurring
+            // in proof operands. Their free Program variables become logical.
+            match self.resolver.arena().get(e) {
+                Node::BoxType { program_ty } => return self.reflect_under(program_ty, depth),
+                Node::BoxProgram { program, .. } => return self.reflect_under(program, depth),
+                Node::ForceBox { boxed, .. } => return self.resolve_reflections(boxed, depth),
+                Node::BoxApp { function, argument } | Node::BoxTypeApp { function, argument } => {
+                    let type_argument =
+                        matches!(self.resolver.arena().get(e), Node::BoxTypeApp { .. });
+                    let function = self.resolve_reflections(function, depth)?;
+                    let argument = if type_argument {
+                        self.reflect_under(argument, depth)?
+                    } else {
+                        self.resolve_reflections(argument, depth)?
+                    };
+                    return Ok(self.resolver.arena().alloc(Node::App {
+                        mode: Mode::Pure,
+                        function,
+                        argument,
+                    }));
+                }
+                _ => {}
+            }
+            if let Some(replacement) = self.resolver.context_replacement(e)? {
+                return self.resolve_reflections(replacement, depth);
+            }
         }
         self.resolver.arena().map_children(e, |child, bound| {
             self.resolve_reflections(child, depth.saturating_add(bound))

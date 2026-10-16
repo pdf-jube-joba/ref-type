@@ -8,7 +8,7 @@ cargo build --locked --offline -p cli
 target/debug/cli _plans/gaps/05-01-record-eta.ref --no-cache --diagnostics compact
 ```
 
-Box の検討は [Box の parameter](features/box-parameters.md#g04) に分けている。
+Box の仕様と実装結果は [Box の parameter](features/box-parameters.md#g04) にまとめている。
 
 ## 依存ライブラリを使う再現例
 
@@ -101,10 +101,10 @@ Machine を引数に取り、その実行を Box にする共通の定義を書�
 
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
-| [04-01-box-machine.ref](gaps/04-01-box-machine.ref) | `machine` は定義の引数。 | 失敗：`Box requires a closed computation type`。 |
+| [04-01-box-machine.ref](gaps/04-01-box-machine.ref) | `machine` は定義の引数。 | 成功。 |
 | [04-02-box-concrete.ref](gaps/04-02-box-concrete.ref) | `machine` は既に定義した具体値。 | 成功。 |
 
-parameter と評価開始条件の検討は [Box の parameter](features/box-parameters.md#g04) にまとめる。
+parameter と残余項の reflection は [Box の parameter](features/box-parameters.md#g04) にまとめる。
 
 > [!note]
 > 既知の問題のため、今は対処せず。

@@ -809,6 +809,28 @@ impl crate::reflection::Resolver for Environment {
     fn arena(&self) -> &Arena {
         &self.arena
     }
+    fn context_replacement(
+        &self,
+        term: Expression,
+    ) -> Result<Option<Expression>, crate::error::Error> {
+        let Node::Definition { id, arguments } = self.arena.get(term) else {
+            return Ok(None);
+        };
+        let definition = self.definition(id)?;
+        let mut metas = crate::metavariables::MetaContext::new();
+        let mut context = vec![];
+        for binding in &definition.context {
+            if crate::check::Checker::new(self, &mut metas, context.clone())
+                .formation(binding.ty)?
+                .base()
+                .is_program()
+            {
+                return self.instantiate(definition.body, &arguments).map(Some);
+            }
+            context.push(binding.clone());
+        }
+        Ok(None)
+    }
     fn definition(
         &self,
         id: DefinitionId,

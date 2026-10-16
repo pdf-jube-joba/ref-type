@@ -287,6 +287,7 @@ impl Lowerer<'_> {
                 logical_base,
                 program_depth,
                 program_context: false,
+                program_offset: 0,
                 proof_base: None,
                 nominal: false,
             },
@@ -469,7 +470,7 @@ impl Lowerer<'_> {
     ) -> Result<s::Expression, crate::error::Error> {
         self.definition(id)?;
         let captures = self.captures(Declaration::Definition(id));
-        let mut arguments = self.capture_arguments(&captures, depth, program)?;
+        let mut arguments = self.capture_arguments(&captures, depth, true)?;
         let ambient = self.definition_ambient(id)?;
         if ambient > depth {
             if std::env::var_os("REF_TYPE_DEBUG_CONSTRAINTS").is_some() {
@@ -503,6 +504,7 @@ impl Lowerer<'_> {
 
     pub(crate) fn prepare_query(&mut self, roots: Vec<Term>) {
         self.cache.clear();
+        self.scope.program_context = true;
         let mut captures = FxHashSet::default();
         for dependency in self.dependencies(roots) {
             captures.extend(self.captures(dependency));
@@ -535,6 +537,8 @@ pub(super) struct Scope {
     pub captures: Vec<ModuleParamId>,
     pub logical_base: usize,
     pub program_depth: usize,
+    /// Logical binders surrounding embedded Program syntax.
+    pub program_offset: usize,
     pub program_context: bool,
     pub proof_base: Option<usize>,
     pub nominal: bool,

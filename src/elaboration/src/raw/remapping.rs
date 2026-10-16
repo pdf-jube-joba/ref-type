@@ -133,6 +133,18 @@ pub(crate) fn remap(
     )
 }
 
+pub(crate) fn subst_exp_module_params(
+    arena: &Arena,
+    exp: Exp,
+    substitutions: &[(ModuleParamId, ModuleArgument)],
+    reflected: &[(ModuleParamId, Exp)],
+) -> Exp {
+    let Term::Logical(e) = Term::Logical(exp).substitute(arena, substitutions, reflected) else {
+        unreachable!()
+    };
+    e
+}
+
 pub fn exp_subst_map(arena: &Arena, exp: Exp, substitutions: &[(ModuleParamId, Exp)]) -> Exp {
     let Term::Logical(e) = Term::Logical(exp).substitute(arena, &[], substitutions) else {
         unreachable!()

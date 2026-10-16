@@ -326,6 +326,8 @@ struct DefinitionView {
     source: Option<DefId>,
     contextual: bool,
     captures: Vec<ModuleParamId>,
+    /// None is logical, Some(true) is a Program type, Some(false) a Program value.
+    capture_kinds: Vec<Option<bool>>,
     body: kernel::syntax::Expression,
 }
 /// The frontend uses the kernel DAG. Names awaiting resolution are frontend-owned atoms.
@@ -373,6 +375,7 @@ impl Arena {
         source: Option<DefId>,
         contextual: bool,
         captures: Vec<ModuleParamId>,
+        capture_kinds: Vec<Option<bool>>,
         body: kernel::syntax::Expression,
     ) {
         self.definitions.borrow_mut().insert(
@@ -381,9 +384,20 @@ impl Arena {
                 source,
                 contextual,
                 captures,
+                capture_kinds,
                 body,
             },
         );
+    }
+    pub(crate) fn definition_capture_kind(
+        &self,
+        id: kernel::ids::DefinitionId,
+        index: usize,
+    ) -> Option<bool> {
+        self.definitions
+            .borrow()
+            .get(&id)
+            .and_then(|view| view.capture_kinds.get(index).copied().flatten())
     }
     pub(crate) fn definition_captures(
         &self,

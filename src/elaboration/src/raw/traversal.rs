@@ -124,6 +124,13 @@ impl Term {
                 let i = index;
                 index += 1;
                 let family = match (&*node, self, i) {
+                    (N::Definition { id, .. }, Self::Logical(_), _) => {
+                        match arena.definition_capture_kind(*id, i) {
+                            Some(true) => value_type,
+                            Some(false) => value,
+                            None => logical,
+                        }
+                    }
                     (N::Meta { .. }, Self::Logical(_), _) => logical,
                     (N::Meta { .. }, _, _) => {
                         if kinds.as_ref().is_none_or(|k| k[i]) {
@@ -225,7 +232,23 @@ impl Term {
                         None
                     }
                     Term::Logical(e) => match arena.get(e) {
-                        ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => reflected
+                        ExpNode::ModuleParam(id) => substitutions
+                            .iter()
+                            .find_map(|(p, argument)| {
+                                (*p == id).then(|| {
+                                    Term::Logical(match *argument {
+                                        ModuleArgument::Pts(e) => e,
+                                        ModuleArgument::ProgramType(t) => Exp(t.0),
+                                        ModuleArgument::ProgramValue(v) => Exp(v.0),
+                                    })
+                                })
+                            })
+                            .or_else(|| {
+                                reflected
+                                    .iter()
+                                    .find_map(|(p, e)| (*p == id).then_some(Term::Logical(*e)))
+                            }),
+                        ExpNode::ReflectedProgramParam(id) => reflected
                             .iter()
                             .find_map(|(p, e)| (*p == id).then_some(Term::Logical(*e))),
                         _ => None,

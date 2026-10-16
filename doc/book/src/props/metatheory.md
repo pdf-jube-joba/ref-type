@@ -34,6 +34,7 @@ sort の四場合では両辺を代入の定義で展開する。
 束縛を持たない constructor では各引数への帰納法の仮定を使う。
 束縛 constructor では、その局所変数を \(x,y,u,v\) の自由変数と
 異なる名前へ alpha-renaming してから、annotation と body に帰納法を使う。
-閉じた Program payload への Set 変数の代入は恒等である。□
+Box の payload も Program の構文として辿る。
+parameter の具体化は元の名前と反映名に同時に作用し、反映側には Rf-subst を使う。□
 
 同じ証明から、自由変数を capture しない renaming と代入の可換性を得る。

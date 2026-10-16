@@ -790,7 +790,7 @@ fn datatype_registration_reflection_and_positivity_are_checked() {
     .unwrap();
 }
 #[test]
-fn box_closedness_checks_definition_arguments_before_reduction() {
+fn box_accepts_definition_arguments_in_its_context() {
     let mut env = Environment::new();
     let (_, ty, _) = natural(&mut env);
     let a = env.arena.clone();
@@ -815,7 +815,7 @@ fn box_closedness_checks_definition_arguments_before_reduction() {
     assert!(
         Checker::new(&env, &mut metas, vec![binding(ty)])
             .infer(boxed)
-            .is_err()
+            .is_ok()
     );
     assert_eq!(env.whnf(open).unwrap(), a.bound(0));
 }
@@ -1210,6 +1210,109 @@ fn closed_polymorphic_box_applies_types_then_values() {
     Checker::new(&env, &mut metas, vec![])
         .infer(normal)
         .unwrap();
+}
+
+#[test]
+fn boxed_type_application_accepts_an_open_type_argument() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let mut metas = MetaContext::new();
+    let value_kind = sort(a, BaseSort::Value(0));
+    let identity = lambda(
+        a,
+        Mode::Computation,
+        value_kind,
+        lambda(
+            a,
+            Mode::Computation,
+            a.bound(0),
+            a.alloc(Node::Return { value: a.bound(0) }),
+        ),
+    );
+    let ty = Checker::new(&env, &mut metas, vec![])
+        .infer(identity)
+        .unwrap();
+    let boxed = a.alloc(Node::BoxProgram {
+        program_ty: ty,
+        program: identity,
+    });
+    let applied = a.alloc(Node::BoxTypeApp {
+        function: boxed,
+        argument: a.bound(1),
+    });
+    let result_ty = a.alloc(Node::ReturnType {
+        value_ty: a.bound(1),
+    });
+    let input = a.alloc(Node::BoxProgram {
+        program_ty: result_ty,
+        program: a.alloc(Node::Return { value: a.bound(0) }),
+    });
+    let squash = a.alloc(Node::ForceBox {
+        program_ty: result_ty,
+        boxed: a.alloc(Node::BoxApp {
+            function: applied,
+            argument: input,
+        }),
+    });
+    let context = vec![binding(value_kind), binding(a.bound(0))];
+    Checker::new(&env, &mut metas, context.clone())
+        .infer(squash)
+        .unwrap();
+    let result = crate::reduction::normalize(&env, squash).unwrap();
+    assert_eq!(result, a.alloc(Node::Reflect { term: a.bound(0) }));
+    Checker::new(&env, &mut metas, context)
+        .infer(result)
+        .unwrap();
+}
+
+#[test]
+fn open_box_reduces_program_steps_before_reflecting_the_residual() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let mut metas = MetaContext::new();
+    let ctx = vec![
+        binding(sort(a, BaseSort::Value(0))),
+        binding(a.bound(0)),
+        binding(a.alloc(Node::Thunk {
+            computation_ty: a.alloc(Node::ReturnType {
+                value_ty: a.bound(1),
+            }),
+        })),
+    ];
+    let result_ty = a.alloc(Node::ReturnType {
+        value_ty: a.bound(2),
+    });
+    let residual = a.alloc(Node::Sequence {
+        var: SymbolId::ANONYMOUS,
+        value_ty: a.bound(2),
+        computation: a.alloc(Node::Force { value: a.bound(0) }),
+        body: a.alloc(Node::Return { value: a.bound(2) }),
+    });
+    let program = a.alloc(Node::Force {
+        value: a.alloc(Node::ThunkValue {
+            computation: residual,
+        }),
+    });
+    let boxed = a.alloc(Node::BoxProgram {
+        program_ty: result_ty,
+        program,
+    });
+    let squash = a.alloc(Node::ForceBox {
+        program_ty: result_ty,
+        boxed,
+    });
+    Checker::new(&env, &mut metas, ctx.clone())
+        .infer(squash)
+        .unwrap();
+    let first = crate::reduction::reduce_once(&env, boxed).unwrap().unwrap();
+    assert!(matches!(a.get(first), Node::BoxProgram { program, .. } if program == residual));
+    let reflected = crate::reduction::reduce_once(&env, squash)
+        .unwrap()
+        .unwrap();
+    assert_eq!(reflected, a.alloc(Node::Reflect { term: residual }));
+    let normal = crate::reduction::normalize(&env, squash).unwrap();
+    assert_eq!(normal, a.alloc(Node::Reflect { term: a.bound(1) }));
+    Checker::new(&env, &mut metas, ctx).infer(normal).unwrap();
 }
 
 #[test]

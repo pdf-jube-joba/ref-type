@@ -236,10 +236,13 @@ E::=[\,]\mid E@_{r^{i,j}_{vc}}V\mid E@_{r^{q;i,j}_{tc}}P
 
 ### Boxed Computation
 
+Program の評価位置に沿って payload を簡約し、次の Program step がない残余項を reflection に移す。
+parameter による入力待ちもこの条件を満たす。
+
 | category | before | after | premise |
 | --- | --- | --- | --- |
 | box step | \(\operatorname{box}_{\underline B}(M)\) | \(\operatorname{box}_{\underline B}(M')\) | \(M\Rightarrow M'\) |
-| force box | \(\operatorname{Force}_{\underline B}(\operatorname{box}_{\underline B}(M))\) | \(\operatorname{Rf}(M)\) | \(\varnothing\vdash\underline B:*^c_i\)<br>\(\varnothing\vdash M:\underline B\)<br>\(\nexists M'.\ M\Rightarrow M'\) |
+| force box | \(\operatorname{Force}_{\underline B}(\operatorname{box}_{\underline B}(M))\) | \(\operatorname{Rf}(M)\) | \(\Theta\vdash\underline B:*^c_i\)<br>\(\Delta\vdash M:\underline B\)<br>\(\nexists M'.\ M\Rightarrow M'\) |
 | boxed application | \(\operatorname{bapp}_{A,\underline B}(\operatorname{box}_{A\to_{r^{i,j}_{vc}}\underline B}(M),\operatorname{box}_{F A}(\operatorname{return}(V)))\) | \(\operatorname{box}_{\underline B}(M@_{r^{i,j}_{vc}}V)\) | |
 | boxed type application | \(\operatorname{btapp}_{X:K,\underline B}(\operatorname{box}_{\Pi_{r^{q;i,j}_{tc}}X:K.\underline B}(M),P)\) | \(\operatorname{box}_{\underline B[X:=P]}(M@_{r^{q;i,j}_{tc}}P)\) | |
 
@@ -478,13 +481,18 @@ reflection は Program の型判断で分類された項に対し、以下の式
 
 ### Boxed Computation
 
+Box の規則では、Program parameter の文脈を \(\Delta\)、\(\Theta=\operatorname{TyCtx}(\Delta)\) とする。
+\(\Gamma\) は \(\operatorname{RfCtx}(\Delta)\) を先頭に持つ論理文脈とし、各反映名 \(\bar z\) は元の parameter \(z\) に対応する。
+この parameter 文脈は判断に付随し、parameter の具体化は Box 内の \(z\) と Logic 側の \(\bar z\) に、それぞれ \(a\) と \(\operatorname{Rf}(a)\) を同時に代入する。
+論理 binder は parameter の反映名と異なる名前を束縛する。
+
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| box type | \(\Gamma\vdash\operatorname{Box}(\underline B):*^s_i\) | \(\operatorname{WF}(\Gamma)\)<br>\(\varnothing\vdash\underline B:*^c_i\) | |
-| box intro | \(\Gamma\vdash\operatorname{box}_{\underline B}(M):\operatorname{Box}(\underline B)\) | \(\operatorname{WF}(\Gamma)\)<br>\(\varnothing\vdash\underline B:*^c_i\)<br>\(\varnothing\vdash M:\underline B\)<br>\(\varnothing\vdash\operatorname{Rf}(M):\operatorname{Rf}(\underline B)\) | |
-| force box | \(\Gamma\vdash\operatorname{Force}_{\underline B}(b):\operatorname{Rf}(\underline B)\) | \(\varnothing\vdash\underline B:*^c_i\)<br>\(\Gamma\vdash b:\operatorname{Box}(\underline B)\) | |
-| boxed application | \(\Gamma\vdash\operatorname{bapp}_{A,\underline B}(f,a):\operatorname{Box}(\underline B)\) | \(\varnothing\vdash A:*^v_i\)<br>\(\varnothing\vdash\underline B:*^c_j\)<br>\(\Gamma\vdash f:\operatorname{Box}(A\to_{r^{i,j}_{vc}}\underline B)\)<br>\(\Gamma\vdash a:\operatorname{Box}(F A)\) | |
-| boxed type application | \(\Gamma\vdash\operatorname{btapp}_{X:K,\underline B}(f,P):\operatorname{Box}(\underline B[X:=P])\) | \(\varnothing\vdash K:\square^q_i\)<br>\(X:K\vdash\underline B:*^c_j\)<br>\(\varnothing\vdash P:K\)<br>\(\Gamma\vdash f:\operatorname{Box}(\Pi_{r^{q;i,j}_{tc}}X:K.\underline B)\) | |
+| box type | \(\Gamma\vdash\operatorname{Box}(\underline B):*^s_i\) | \(\operatorname{WF}(\Gamma)\)<br>\(\Theta\vdash\underline B:*^c_i\) | |
+| box intro | \(\Gamma\vdash\operatorname{box}_{\underline B}(M):\operatorname{Box}(\underline B)\) | \(\operatorname{WF}(\Gamma)\)<br>\(\Theta\vdash\underline B:*^c_i\)<br>\(\Delta\vdash M:\underline B\)<br>\(\Gamma\vdash\operatorname{Rf}(M):\operatorname{Rf}(\underline B)\) | |
+| force box | \(\Gamma\vdash\operatorname{Force}_{\underline B}(b):\operatorname{Rf}(\underline B)\) | \(\Theta\vdash\underline B:*^c_i\)<br>\(\Gamma\vdash b:\operatorname{Box}(\underline B)\) | |
+| boxed application | \(\Gamma\vdash\operatorname{bapp}_{A,\underline B}(f,a):\operatorname{Box}(\underline B)\) | \(\Theta\vdash A:*^v_i\)<br>\(\Theta\vdash\underline B:*^c_j\)<br>\(\Gamma\vdash f:\operatorname{Box}(A\to_{r^{i,j}_{vc}}\underline B)\)<br>\(\Gamma\vdash a:\operatorname{Box}(F A)\) | |
+| boxed type application | \(\Gamma\vdash\operatorname{btapp}_{X:K,\underline B}(f,P):\operatorname{Box}(\underline B[X:=P])\) | \(\Theta\vdash K:\square^q_i\)<br>\(\Theta,X:K\vdash\underline B:*^c_j\)<br>\(\Theta\vdash P:K\)<br>\(\Gamma\vdash f:\operatorname{Box}(\Pi_{r^{q;i,j}_{tc}}X:K.\underline B)\) | |
 
 ## 帰納型と CBPV
 

@@ -1424,26 +1424,20 @@ impl<'a> Checker<'a> {
                 Ok(computation_ty)
             }
             Node::BoxType { program_ty } => {
-                let i = self.closed_program_type(program_ty)?;
+                let i = self.program_type(program_ty, true)?;
                 Ok(self.base(BaseSort::Set(i)))
             }
             Node::BoxProgram {
                 program_ty,
                 program,
             } => {
-                self.closed_program_type(program_ty)?;
-                if max_loose_bound(self.arena(), program).is_some()
-                    || self.env.contains_parameter(program)
-                {
-                    return Err(crate::error::Error::BoxPayloadMustBeClosed);
-                }
-                let mut closed = Checker::new(self.env, self.metas, vec![]);
-                closed.check_open(program, program_ty)?;
-                closed.check_open(closed.reflect(program), closed.reflect(program_ty))?;
+                self.program_type(program_ty, true)?;
+                self.check_open(program, program_ty)?;
+                self.check_open(self.reflect(program), self.reflect(program_ty))?;
                 Ok(self.alloc(Node::BoxType { program_ty }))
             }
             Node::ForceBox { program_ty, boxed } => {
-                self.closed_program_type(program_ty)?;
+                self.program_type(program_ty, true)?;
                 self.check_open(boxed, self.alloc(Node::BoxType { program_ty }))?;
                 Ok(self.reflect(program_ty))
             }
@@ -1452,7 +1446,7 @@ impl<'a> Checker<'a> {
                 let Node::BoxType { program_ty } = self.arena().get(self.head(ty)?) else {
                     return Err(crate::error::Error::BoxedApplicationRequiresBoxAB);
                 };
-                self.closed_program_type(program_ty)?;
+                self.program_type(program_ty, true)?;
                 let (domain, body) = self.product(program_ty)?;
                 self.program_type(domain, false)?;
                 let input = self.alloc(Node::ReturnType { value_ty: domain });
@@ -1462,7 +1456,7 @@ impl<'a> Checker<'a> {
                     self.alloc(Node::BoxType { program_ty: input }),
                 )?;
                 let codomain = self.env.instantiate(body, &[argument])?;
-                self.closed_program_type(codomain)?;
+                self.program_type(codomain, true)?;
                 Ok(self.alloc(Node::BoxType {
                     program_ty: codomain,
                 }))
@@ -1474,16 +1468,13 @@ impl<'a> Checker<'a> {
                         crate::error::Error::BoxedTypeApplicationRequiresABoxedTypeAbstraction,
                     );
                 };
-                self.closed_program_type(program_ty)?;
+                self.program_type(program_ty, true)?;
                 let (domain, codomain) = self.product(program_ty)?;
                 if !matches!(
                     self.formation(domain)?,
                     Sort::Upper(BaseSort::Value(_) | BaseSort::Computation(_))
                 ) {
                     return Err(crate::error::Error::BoxTypeBinderRequiresProgramKind);
-                }
-                if max_loose_bound(self.arena(), argument).is_some() {
-                    return Err(crate::error::Error::BoxedTypeArgumentMustBeClosed);
                 }
                 self.check_at("check argument type for application", argument, domain)?;
                 let program_ty = self.env.instantiate(codomain, &[argument])?;
@@ -1624,12 +1615,6 @@ impl<'a> Checker<'a> {
             domain,
             body,
         }))
-    }
-    fn closed_program_type(&mut self, ty: Expression) -> Result<usize, Error> {
-        if max_loose_bound(self.arena(), ty).is_some() || self.env.contains_parameter(ty) {
-            return Err(crate::error::Error::BoxRequiresAClosedComputationType);
-        }
-        Checker::new(self.env, self.metas, vec![]).program_type(ty, true)
     }
     fn check_run(
         &mut self,
