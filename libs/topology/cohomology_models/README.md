@@ -11,6 +11,7 @@
 | `Maps` | 連続写像が鎖の生成元に誘導する写像、係数付き余鎖写像の代表元での評価と恒等写像のコホモロジーでの作用。 |
 | `Geometry` | 任意次元のユークリッド円板の可縮性による計算と、ユークリッド球面 \(S^0\) と離散二点空間の同相。 |
 | `ZeroSphere.With` | 二つの一点開集合の Mayer–Vietoris 比較による \(H^0(S^0;M)\cong M\oplus M\) と正次数の零性。 |
+| `ZeroSphere.Homology` | 二点空間との同相と交わらない被覆の比較による \(H_0(S^0;\mathbb Z)\cong\mathbb Z^2\) と、全正次数のホモロジーの消滅。 |
 
 ```sh
 target/debug/cli libs/topology/cohomology_models --module cohomology_models --diagnostics compact
