@@ -293,7 +293,7 @@ impl CrateEnv {
                 .iter()
                 .enumerate()
                 .skip(base.modules)
-                .map(|(i, v)| (ModuleId(i as u32), v.clone()))
+                .map(|(i, v)| (ModuleId(i as u32), v.as_ref().clone()))
                 .collect(),
             symbols: Vec::new(),
             remappings: crate::raw::remapping_checkpoint::Export::empty(),
@@ -527,7 +527,7 @@ impl CrateEnv {
             .collect();
         for (id, incoming) in export.modules {
             if id.index() == self.modules.len() {
-                self.modules.push(incoming);
+                self.modules.push(Box::new(incoming));
             } else {
                 let existing = self
                     .modules

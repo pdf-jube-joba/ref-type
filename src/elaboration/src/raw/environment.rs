@@ -349,7 +349,10 @@ pub struct CrateEnv {
     pub(crate) namespace_alias_cache: RefCell<super::namespaces::AliasCache>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
-    modules: Vec<ModuleEnv>,
+    // Import graphs can contain millions of namespaces. Growing their index
+    // must not transiently duplicate every large module record.
+    #[allow(clippy::vec_box)]
+    modules: Vec<Box<ModuleEnv>>,
     namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     #[serde(skip)]
     pub(crate) closed_namespaces: HashMap<ClosedNamespaceKey, (ModuleId, Vec<ModuleId>)>,
@@ -449,7 +452,7 @@ impl CrateEnv {
             namespace_alias_cache: Default::default(),
             symbols: vec![anonymous, root],
             symbol_ids,
-            modules: vec![ModuleEnv::new("root".into(), None, vec![])],
+            modules: vec![Box::new(ModuleEnv::new("root".into(), None, vec![]))],
             namespace_bindings: HashMap::new(),
             closed_namespaces: HashMap::new(),
             remappings: super::remapping_checkpoint::Tables::default(),
@@ -598,7 +601,8 @@ impl CrateEnv {
     ) -> ModuleId {
         let index = u32::try_from(self.modules.len()).expect("module table exceeded u32::MAX");
         let id = ModuleId(index);
-        self.modules.push(ModuleEnv::new(name, parent, parameters));
+        self.modules
+            .push(Box::new(ModuleEnv::new(name, parent, parameters)));
         id
     }
 
@@ -1796,17 +1800,20 @@ impl CrateEnv {
     }
 
     pub(crate) fn item_for_inductive(&self, inductive: InductiveId) -> Option<&ModuleItem> {
-        self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
-            matches!(item,
+        self.modules
+            .iter()
+            .flat_map(|module| module.items())
+            .find(|item| {
+                matches!(item,
                 ModuleItem::Inductive { inductive: candidate, .. }
                 | ModuleItem::Record { inductive: candidate, .. }
                 | ModuleItem::ProgramInductive { reflected: candidate, .. }
                 if *candidate == inductive)
-        })
+            })
     }
 
     pub fn record_for_inductive(&self, inductive: InductiveId) -> Option<&ModuleItem> {
-        self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
+        self.modules.iter().flat_map(|module| module.items()).find(|item| {
             matches!(item, ModuleItem::Record { inductive: candidate, .. } if *candidate == inductive)
         })
     }
@@ -1815,16 +1822,19 @@ impl CrateEnv {
         &self,
         inductive: ProgramInductiveId,
     ) -> Option<&ModuleItem> {
-        self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
-            matches!(
-                item,
-                ModuleItem::ProgramInductive {
-                    record_fields: Some(_),
-                    inductive: candidate,
-                    ..
-                } if *candidate == inductive
-            )
-        })
+        self.modules
+            .iter()
+            .flat_map(|module| module.items())
+            .find(|item| {
+                matches!(
+                    item,
+                    ModuleItem::ProgramInductive {
+                        record_fields: Some(_),
+                        inductive: candidate,
+                        ..
+                    } if *candidate == inductive
+                )
+            })
     }
 
     pub fn materialization_stats(&self) -> MaterializationStats {
