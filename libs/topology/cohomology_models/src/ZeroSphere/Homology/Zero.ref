@@ -1,0 +1,36 @@
+\import \parent.Degree[n := N.Nat^::zero] \as Degree;
+\import \parent.OnSphere[n := N.Nat^::zero] \as SphereComparison;
+\import algebraic_topology.PathComponent[A := Left.CarrierSet, source := Left.topology Sphere.discrete] \as LeftComponents;
+\import algebraic_topology.PathComponent[A := Right.CarrierSet, source := Right.topology Sphere.discrete] \as RightComponents;
+\definition leftConnected: LeftComponents.PathConnected :=
+  \fun (x, y: Left.CarrierSet) => \idelim x = y \with z: Left.CarrierSet => LeftComponents.Related x z \by {
+    base: LeftComponents.reflexive x,
+    equality: trans!{Left.CarrierSet} _ _ _ (leftUnique x) (sym!{Left.CarrierSet} _ _ (leftUnique y))
+  };
+\definition rightConnected: RightComponents.PathConnected :=
+  \fun (x, y: Right.CarrierSet) => \idelim x = y \with z: Right.CarrierSet => RightComponents.Related x z \by {
+    base: RightComponents.reflexive x,
+    equality: trans!{Right.CarrierSet} _ _ _ (rightUnique x) (sym!{Right.CarrierSet} _ _ (rightUnique y))
+  };
+\import singular_cohomology.Zero[A := Left.CarrierSet, source := Left.topology Sphere.discrete].Homology[].Connected[point := leftPoint] \as LeftCalculation;
+\import singular_cohomology.Zero[A := Right.CarrierSet, source := Right.topology Sphere.discrete].Homology[].Connected[point := rightPoint] \as RightCalculation;
+\import Nonnegative.DegreeZero[C := LeftChains.complex] \as LeftNative;
+\import Nonnegative.DegreeZero[C := RightChains.complex] \as RightNative;
+\import Modules.Isomorphism[V := I.Int^, W := LeftNative.Homology, source := Modules.scalarModule, target := LeftNative.homologySpace]
+  .Composition[U := Degree.left.Carrier, final := Degree.left.space] \as LeftComposition;
+\import Modules.Isomorphism[V := I.Int^, W := RightNative.Homology, source := Modules.scalarModule, target := RightNative.homologySpace]
+  .Composition[U := Degree.right.Carrier, final := Degree.right.space] \as RightComposition;
+\definition leftIsomorphism: Modules.Isomorphism[V := I.Int^, W := Degree.left.Carrier, source := Modules.scalarModule, target := Degree.left.space].Isomorphism :=
+  LeftComposition.compose LeftExtension.DegreeZeroHomology[].isomorphism (LeftCalculation.isomorphism leftConnected);
+\definition rightIsomorphism: Modules.Isomorphism[V := I.Int^, W := Degree.right.Carrier, source := Modules.scalarModule, target := Degree.right.space].Isomorphism :=
+  RightComposition.compose RightExtension.DegreeZeroHomology[].isomorphism (RightCalculation.isomorphism rightConnected);
+\definition scalars: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import Isomorphisms.Product[A := scalars, B := scalars, C := Degree.left, D := Degree.right] \as Product;
+\definition pairIsomorphism: Modules.Isomorphism[V := CoefficientPairs.Carrier, W := Degree.pair.Carrier, source := CoefficientPairs.space, target := Degree.pair.space].Isomorphism := Product.isomorphism leftIsomorphism rightIsomorphism;
+\import Modules.Isomorphism[V := CoefficientPairs.Carrier, W := Degree.pair.Carrier, source := CoefficientPairs.space, target := Degree.pair.space].Inverse[] \as PairInverse;
+\import Modules.Isomorphism[V := SphereComparison.sphere.Carrier, W := Degree.native.Carrier, source := SphereComparison.sphere.space, target := Degree.native.space]
+  .Composition[U := Degree.pair.Carrier, final := Degree.pair.space] \as First;
+\import Modules.Isomorphism[V := SphereComparison.sphere.Carrier, W := Degree.pair.Carrier, source := SphereComparison.sphere.space, target := Degree.pair.space]
+  .Composition[U := CoefficientPairs.Carrier, final := CoefficientPairs.space] \as Second;
+\definition isomorphism: Modules.Isomorphism[V := SphereComparison.sphere.Carrier, W := CoefficientPairs.Carrier, source := SphereComparison.sphere.space, target := CoefficientPairs.space].Isomorphism :=
+  Second.compose (PairInverse.inverse pairIsomorphism) (First.compose Degree.isomorphism SphereComparison.inverse);
