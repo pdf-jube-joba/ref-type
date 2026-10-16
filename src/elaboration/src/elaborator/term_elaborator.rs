@@ -1028,7 +1028,7 @@ impl LocalScope {
                 }
             }
             // this includes accessing constructor of the inductive type, accessing field of record type
-            // `List[Nat]#nil` or `some_group#unit`
+            // `List[Nat]::nil` or `some_group.unit`
             SExp::AssociatedAccess { base, field, span } => {
                 // 1. if base is local access, try to get constructor (parameter is allowed)
                 if let SExp::AccessPath { access, parameters } = base.as_ref() {

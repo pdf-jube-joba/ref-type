@@ -1,22 +1,22 @@
 \import Pointwise.Coordinates[chart := chart] \as Coordinates;
 \import Charts.Of[chart := chart] \as Geometry;
-\import Euclidean.On[U := #image{chart}] \as Forms;
+\import Euclidean.On[U := chart.image] \as Forms;
 \definition domains(right: Chart): Open.OpenSet := Charts.Transition[left := chart, right := right].domain;
-\definition included: \forall (right: Chart) -> Open.Included (domains right) #image{chart} :=
+\definition included: \forall (right: Chart) -> Open.Included (domains right) chart.image :=
   \fun (right: Chart) => Global.Pair[left := chart, right := globalChart right].included;
-\definition covers: \forall (a: Open.Carrier #image{chart}) -> \exists { right: Chart \where \In[Vectors.Vector] (#points{(domains right)}) a } := \block {
-  \fun (a: Open.Carrier #image{chart}) \then
+\definition covers: \forall (a: Open.Carrier chart.image) -> \exists { right: Chart \where \In[Vectors.Vector] ((domains right).points) a } := \block {
+  \fun (a: Open.Carrier chart.image) \then
   \takefrom right: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[Atlases.Member atlas c, Charts.Contains c (Charts.point chart a)] })
-    \by #covers{atlas} (Charts.point chart a) \then
+    \by atlas.covers (Charts.point chart a) \then
   \let witness: Logic.And[Atlases.Member atlas right, Charts.Contains right (Charts.point chart a)] :=
     \bysub(Charts.Chart, { c: Charts.Chart \where Logic.And[Atlases.Member atlas c, Charts.Contains c (Charts.point chart a)] }, right) \then
-  \let chosen: Chart := \into[Charts.Chart](right, #charts{atlas}) \by { #left{witness} } \then
-  \return Logic.existsIntro[Chart, { c: Chart \where \In[Vectors.Vector] (#points{(domains c)}) a }] chosen
-    (Charts.Transition[left := chart, right := chosen].intro a (#right{witness}))
+  \let chosen: Chart := \into[Charts.Chart](right, atlas.charts) \by { witness.left } \then
+  \return Logic.existsIntro[Chart, { c: Chart \where \In[Vectors.Vector] ((domains c).points) a }] chosen
+    (Charts.Transition[left := chart, right := chosen].intro a (witness.right))
 };
 \module Patch(right: Chart);
 \definition regular: \forall (omega: Form k) -> Forms.SmoothFamily k (Coordinates.family (value omega)) :=
   \fun (omega: Form k)(arguments: Multilinear.Arguments k) =>
-    Open.SmoothCover[I := Chart, U := #image{chart}, domains := domains,
-      f := \fun (a: Open.Carrier #image{chart}) => Coordinates.family (value omega) a arguments].smooth included covers
+    Open.SmoothCover[I := Chart, U := chart.image, domains := domains,
+      f := \fun (a: Open.Carrier chart.image) => Coordinates.family (value omega) a arguments].smooth included covers
       (\fun (right: Chart) => Patch[right := right].regular omega arguments);

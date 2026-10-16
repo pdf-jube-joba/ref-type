@@ -8,42 +8,42 @@
   category: Cat.Category,
   addition: \forall (x, y: category.Object) -> Alg.CommutativeGroup[category.Hom x y],
   composeLeft: \forall (x, y, z: category.Object)(f, g: category.Hom y z)(h: category.Hom x y) ->
-    category.structure.compose x y z (#op{(#base{(addition y z)})} f g) h =
-      #op{(#base{(addition x z)})} (category.structure.compose x y z f h) (category.structure.compose x y z g h),
+    category.structure.compose x y z (((addition y z).base).op f g) h =
+      ((addition x z).base).op (category.structure.compose x y z f h) (category.structure.compose x y z g h),
   composeRight: \forall (x, y, z: category.Object)(h: category.Hom y z)(f, g: category.Hom x y) ->
-    category.structure.compose x y z h (#op{(#base{(addition x y)})} f g) =
-      #op{(#base{(addition x z)})} (category.structure.compose x y z h f) (category.structure.compose x y z h g),
+    category.structure.compose x y z h (((addition x y).base).op f g) =
+      ((addition x z).base).op (category.structure.compose x y z h f) (category.structure.compose x y z h g),
 }
 \module Over(P: Preadditive) {
-  \definition zero(x, y: P.category.Object): P.category.Hom x y := #unit{(#base{(P.addition x y)})};
-  \definition add(x, y: P.category.Object): P.category.Hom x y -> P.category.Hom x y -> P.category.Hom x y := #op{(#base{(P.addition x y)})};
-  \definition neg(x, y: P.category.Object): P.category.Hom x y -> P.category.Hom x y := #inv{(#base{(P.addition x y)})};
+  \definition zero(x, y: P.category.Object): P.category.Hom x y := ((P.addition x y).base).unit;
+  \definition add(x, y: P.category.Object): P.category.Hom x y -> P.category.Hom x y -> P.category.Hom x y := ((P.addition x y).base).op;
+  \definition neg(x, y: P.category.Object): P.category.Hom x y -> P.category.Hom x y := ((P.addition x y).base).inv;
   \definition cancel(x, y: P.category.Object)(a, b, c: P.category.Hom x y): add x y a b = add x y a c -> b = c :=
     \fun (same: _) => trans!{{P.category.Hom x y}} _ _ _
       (sym!{{P.category.Hom x y}} _ _ (trans!{{P.category.Hom x y}} _ _ _
-        (sym!{{P.category.Hom x y}} _ _ (#associative{(#monoid{(#group{(P.addition x y)})})} (neg x y a) a b))
+        (sym!{{P.category.Hom x y}} _ _ ((((P.addition x y).group).monoid).associative (neg x y a) a b))
         (trans!{{P.category.Hom x y}} _ _ _
-          (congr!{{P.category.Hom x y} {P.category.Hom x y}} (\fun (t: P.category.Hom x y) => add x y t b) _ _ (#leftInverse{(#group{(P.addition x y)})} a))
-          (#leftIdentity{(#monoid{(#group{(P.addition x y)})})} b))))
+          (congr!{{P.category.Hom x y} {P.category.Hom x y}} (\fun (t: P.category.Hom x y) => add x y t b) _ _ (((P.addition x y).group).leftInverse a))
+          ((((P.addition x y).group).monoid).leftIdentity b))))
       (trans!{{P.category.Hom x y}} _ _ _
         (congr!{{P.category.Hom x y} {P.category.Hom x y}} (add x y (neg x y a)) _ _ same)
         (trans!{{P.category.Hom x y}} _ _ _
-          (sym!{{P.category.Hom x y}} _ _ (#associative{(#monoid{(#group{(P.addition x y)})})} (neg x y a) a c))
+          (sym!{{P.category.Hom x y}} _ _ ((((P.addition x y).group).monoid).associative (neg x y a) a c))
           (trans!{{P.category.Hom x y}} _ _ _
-            (congr!{{P.category.Hom x y} {P.category.Hom x y}} (\fun (t: P.category.Hom x y) => add x y t c) _ _ (#leftInverse{(#group{(P.addition x y)})} a))
-            (#leftIdentity{(#monoid{(#group{(P.addition x y)})})} c))));
+            (congr!{{P.category.Hom x y} {P.category.Hom x y}} (\fun (t: P.category.Hom x y) => add x y t c) _ _ (((P.addition x y).group).leftInverse a))
+            ((((P.addition x y).group).monoid).leftIdentity c))));
   \definition composeZeroRight: \forall (x, y, z: P.category.Object)(f: P.category.Hom y z) -> P.category.structure.compose x y z f (zero x y) = zero x z :=
     \fun (x, y, z: P.category.Object)(f: P.category.Hom y z) =>
       cancel x z (P.category.structure.compose x y z f (zero x y)) (P.category.structure.compose x y z f (zero x y)) (zero x z)
         (trans!{{P.category.Hom x z}} _ _ _ (sym!{{P.category.Hom x z}} _ _ (P.composeRight x y z f (zero x y) (zero x y)))
           (trans!{{P.category.Hom x z}} _ _ _
-            (congr!{{P.category.Hom x y} {P.category.Hom x z}} (P.category.structure.compose x y z f) _ _ (#leftIdentity{(#monoid{(#group{(P.addition x y)})})} (zero x y)))
-            (sym!{{P.category.Hom x z}} _ _ (#rightIdentity{(#monoid{(#group{(P.addition x z)})})} (P.category.structure.compose x y z f (zero x y))))));
+            (congr!{{P.category.Hom x y} {P.category.Hom x z}} (P.category.structure.compose x y z f) _ _ ((((P.addition x y).group).monoid).leftIdentity (zero x y)))
+            (sym!{{P.category.Hom x z}} _ _ ((((P.addition x z).group).monoid).rightIdentity (P.category.structure.compose x y z f (zero x y))))));
   \definition composeZeroLeft: \forall (x, y, z: P.category.Object)(f: P.category.Hom x y) -> P.category.structure.compose x y z (zero y z) f = zero x z :=
     \fun (x, y, z: P.category.Object)(f: P.category.Hom x y) =>
       cancel x z (P.category.structure.compose x y z (zero y z) f) (P.category.structure.compose x y z (zero y z) f) (zero x z)
         (trans!{{P.category.Hom x z}} _ _ _ (sym!{{P.category.Hom x z}} _ _ (P.composeLeft x y z (zero y z) (zero y z) f))
           (trans!{{P.category.Hom x z}} _ _ _
-            (congr!{{P.category.Hom y z} {P.category.Hom x z}} (\fun (g: P.category.Hom y z) => P.category.structure.compose x y z g f) _ _ (#leftIdentity{(#monoid{(#group{(P.addition y z)})})} (zero y z)))
-            (sym!{{P.category.Hom x z}} _ _ (#rightIdentity{(#monoid{(#group{(P.addition x z)})})} (P.category.structure.compose x y z (zero y z) f)))));
+            (congr!{{P.category.Hom y z} {P.category.Hom x z}} (\fun (g: P.category.Hom y z) => P.category.structure.compose x y z g f) _ _ ((((P.addition y z).group).monoid).leftIdentity (zero y z)))
+            (sym!{{P.category.Hom x z}} _ _ ((((P.addition x z).group).monoid).rightIdentity (P.category.structure.compose x y z (zero y z) f)))));
 }

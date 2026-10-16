@@ -24,7 +24,7 @@ expect = "accept"
     vector: M.Vector,
   }
   \module Fiber(M: Space, x: M.Point) {
-    \definition Equivalent(a, b: Representative[M, x]): \Prop := #vector{a} = #vector{b};
+    \definition Equivalent(a, b: Representative[M, x]): \Prop := a.vector = b.vector;
     \import \root.Quotient[A := Representative[M, x], Equivalent := Equivalent] \as Q;
     \definition Carrier: \Set := Q.Carrier;
   }
@@ -151,7 +151,7 @@ expect = "accept"
     \import \parent.Map[C := A, D := B] \as Left;
     \import \parent.Map[C := B, D := C] \as Right;
     \structure Data: \Set { left: Left.Map, right: Right.Map }
-    \structure Laws[data: Data]: \Prop { zero: \forall (x: A.Carrier) -> #apply{data.left} x = #apply{data.left} x }
+    \structure Laws[data: Data]: \Prop { zero: \forall (x: A.Carrier) -> data.left.apply x = data.left.apply x }
     \definition Sequence: \Set := \Cast[Data] ({data: Data \where Laws[data]});
   }
 }

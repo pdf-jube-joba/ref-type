@@ -8,7 +8,7 @@
 \import Forms.DeRham[] \as DeRham;
 \module Positive(k: N.Nat^) {
   \import DeRham.At[k := N.Nat^::succ k] \as H;
-  \definition zero: \forall (h: H.H) -> h = #zero{H.vectorSpace} := DeRham.Above[k := N.Nat^::succ k].zero (Naturals.zeroLtSucc k);
+  \definition zero: \forall (h: H.H) -> h = H.vectorSpace.zero := DeRham.Above[k := N.Nat^::succ k].zero (Naturals.zeroLtSucc k);
 }
 \import real.Analysis[] \as Reals;
 \import Reals.Algebra[] \as Algebra;
@@ -23,18 +23,18 @@
 \definition smoothConstant(a: Reals.Real): Functions.Function :=
   \into[Point.smoothManifold.Point -> Reals.Real](\fun (x: Point.smoothManifold.Point) => a,
     { f: Point.smoothManifold.Point -> Reals.Real \where Functions.Smooth f }) \by {
-      \fun (chart: Forms.Chart) => Open.Smooth[].Operations[].constantSmooth #image{chart} a
+      \fun (chart: Forms.Chart) => Open.Smooth[].Operations[].constantSmooth chart.image a
     };
-\definition constant(a: Reals.Real): Flat.Function := \into[Functions.Function](smoothConstant a, #carrier{Flat.kernel}) \by {
+\definition constant(a: Reals.Real): Flat.Function := \into[Functions.Function](smoothConstant a, Flat.kernel.carrier) \by {
   OneForms.zero (Naturals.zeroLtSucc zero) (Differential.apply (Functions.apply (smoothConstant a)))
 };
 \definition evaluate(f: Flat.Function): Reals.Real := f Points.origin;
 \import Spaces.Linear[V := Reals.Real, W := Flat.Function, source := Spaces.scalarSpace, target := Flat.vectorSpace] \as Constants;
 \definition constants: Constants.Map := Constants.Map {
   apply := constant,
-  preservesAdd := \fun (a, b: Reals.Real) => \axiom:funext(constant (Spaces.add a b), #add{Flat.vectorSpace} (constant a) (constant b),
+  preservesAdd := \fun (a, b: Reals.Real) => \axiom:funext(constant (Spaces.add a b), Flat.vectorSpace.add (constant a) (constant b),
     \fun (x: Point.smoothManifold.Point) => \refl(Spaces.add a b)),
-  preservesScale := \fun (a, b: Reals.Real) => \axiom:funext(constant (Spaces.mul a b), #smul{Flat.vectorSpace} a (constant b),
+  preservesScale := \fun (a, b: Reals.Real) => \axiom:funext(constant (Spaces.mul a b), Flat.vectorSpace.smul a (constant b),
     \fun (x: Point.smoothManifold.Point) => \refl(Spaces.mul a b)),
 };
 \import Spaces.Linear[V := Flat.Function, W := Reals.Real, source := Flat.vectorSpace, target := Spaces.scalarSpace] \as Evaluations;
@@ -60,9 +60,9 @@
 \definition scalarIsomorphism: Iso.Isomorphism := Iso.Isomorphism {
   forward := forward, backward := backward,
   leftInverse := \fun (a: Reals.Real) => congr!{{Flat.Function} {Reals.Real}} evaluate
-    (#apply{Flat.backward} (#apply{Flat.forward} (constant a))) (constant a) (#leftInverse{Flat.isomorphism} (constant a)),
-  rightInverse := \fun (h: H.H) => trans!{{H.H}} (#apply{forward} (#apply{backward} h))
-    (#apply{Flat.forward} (#apply{Flat.backward} h)) h
-    (congr!{{Flat.Function} {H.H}} (#apply{Flat.forward}) _ _ (constantEvaluate (#apply{Flat.backward} h)))
-    (#rightInverse{Flat.isomorphism} h),
+    (Flat.backward.apply (Flat.forward.apply (constant a))) (constant a) (Flat.isomorphism.leftInverse (constant a)),
+  rightInverse := \fun (h: H.H) => trans!{{H.H}} (forward.apply (backward.apply h))
+    (Flat.forward.apply (Flat.backward.apply h)) h
+    (congr!{{Flat.Function} {H.H}} (Flat.forward.apply) _ _ (constantEvaluate (Flat.backward.apply h)))
+    (Flat.isomorphism.rightInverse h),
 };

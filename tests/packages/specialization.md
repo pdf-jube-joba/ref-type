@@ -187,7 +187,7 @@ expect = "accept"
 \module Top(A: \Set) { \structure T: \Set { x: A } }
 \module Parent(A: \Set) {
   \import \root.Top[A := A] \as Base;
-  \module Child(value: Base.T) { \definition get: A := #x{value}; }
+  \module Child(value: Base.T) { \definition get: A := value.x; }
 }
 \module Test {
   \inductive Point: \Set := | point: Point;
@@ -245,7 +245,7 @@ expect = "accept"
     \import \root.Types[A := X] \as Source;
     \definition Source: \Set := Source.T;
     \definition Target: \Set := Top.T;
-    \definition identity(source: Source) (target: Target): X -> Carrier -> \Prop := \fun (x: X) (y: Carrier) => #x{source} = x;
+    \definition identity(source: Source) (target: Target): X -> Carrier -> \Prop := \fun (x: X) (y: Carrier) => source.x = x;
   }
 }
 \module Complex {
@@ -327,10 +327,10 @@ expect = "accept"
   \definition one: \root.Numbers[].N^ := \root.Numbers[].N^::succ \root.Numbers[].N^::zero;
   \import \root.Source[n := one] \as Source;
   \definition point: Source.Index := \into[\root.Numbers[].N^](one, { i: \root.Numbers[].N^ \where i = one }) \by { \refl(one) };
-  \definition Direct: \Set := #Carrier{Source.family} point;
+  \definition Direct: \Set := Source.family.Carrier point;
   \definition direct: Direct := one;
   \import \root.Outer[n := one] \as Outer;
-  \definition Reexported: \Set := #Carrier{Outer.family} point;
+  \definition Reexported: \Set := Outer.family.Carrier point;
   \definition reexported: Reexported := one;
 }
 ```

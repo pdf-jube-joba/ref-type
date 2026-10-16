@@ -1,6 +1,6 @@
 \structure Commutative: \Prop {
-  left: \forall (x: A.Carrier) -> #apply{b} (#apply{s.inclusion} x) = #apply{t.inclusion} (#apply{a} x),
-  right: \forall (x: B.Carrier) -> #apply{t.projection} (#apply{b} x) = #apply{c} (#apply{s.projection} x),
+  left: \forall (x: A.Carrier) -> b.apply (s.inclusion.apply x) = t.inclusion.apply (a.apply x),
+  right: \forall (x: B.Carrier) -> t.projection.apply (b.apply x) = c.apply (s.projection.apply x),
 }
 \import \parent.\parent.Laws[V := B.Carrier, space := B.space] \as Middle;
 \import \parent.\parent.Laws[V := B1.Carrier, space := B1.space] \as Middle1;
@@ -11,63 +11,63 @@
 \import \parent.\parent.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as SourceInclusion;
 \import \parent.\parent.Hom[V := A1.Carrier, W := B1.Carrier, source := A1.space, target := B1.space] \as TargetInclusion;
 \definition kernelZero: Commutative -> Injective A A1 a -> Injective C C1 c ->
-  \forall (x: B.Carrier) -> #apply{b} x = Middle1.zero -> x = Middle.zero := \block {
+  \forall (x: B.Carrier) -> b.apply x = Middle1.zero -> x = Middle.zero := \block {
   \fun (diagram: Commutative)(leftInjective: Injective A A1 a)(rightInjective: Injective C C1 c)(x: B.Carrier)(killed: _) \then
-  \let closed: #apply{s.projection} x = #zero{C.space} := rightInjective _ _
-    (trans!{C1.Carrier} _ _ _ (sym!{C1.Carrier} _ _ (#right{diagram} x))
-      (trans!{C1.Carrier} _ _ _ (congr!{B1.Carrier C1.Carrier} (#apply{t.projection}) _ _ killed)
+  \let closed: s.projection.apply x = C.space.zero := rightInjective _ _
+    (trans!{C1.Carrier} _ _ _ (sym!{C1.Carrier} _ _ (diagram.right x))
+      (trans!{C1.Carrier} _ _ _ (congr!{B1.Carrier C1.Carrier} (t.projection.apply) _ _ killed)
         (trans!{C1.Carrier} _ _ _ (TargetProjection.zeroPreserved t.projection)
           (sym!{C1.Carrier} _ _ (RightMaps.zeroPreserved c))))) \then
-  \takefrom preimage: \Cast[A.Carrier] ({ u: A.Carrier \where #apply{s.inclusion} u = x }) \by #kernelImage{s} x closed \then
-  \let image: #apply{s.inclusion} preimage = x := \bysub(A.Carrier, { u: A.Carrier \where #apply{s.inclusion} u = x }, preimage) \then
-  \let imageZero: #apply{a} preimage = #zero{A1.space} := #injective{t} _ _
-    (trans!{B1.Carrier} _ _ _ (sym!{B1.Carrier} _ _ (#left{diagram} preimage))
-      (trans!{B1.Carrier} _ _ _ (congr!{B.Carrier B1.Carrier} (#apply{b}) _ _ image)
+  \takefrom preimage: \Cast[A.Carrier] ({ u: A.Carrier \where s.inclusion.apply u = x }) \by s.kernelImage x closed \then
+  \let image: s.inclusion.apply preimage = x := \bysub(A.Carrier, { u: A.Carrier \where s.inclusion.apply u = x }, preimage) \then
+  \let imageZero: a.apply preimage = A1.space.zero := t.injective _ _
+    (trans!{B1.Carrier} _ _ _ (sym!{B1.Carrier} _ _ (diagram.left preimage))
+      (trans!{B1.Carrier} _ _ _ (congr!{B.Carrier B1.Carrier} (b.apply) _ _ image)
         (trans!{B1.Carrier} _ _ _ killed (sym!{B1.Carrier} _ _ (TargetInclusion.zeroPreserved t.inclusion))))) \then
-  \let preimageZero: preimage = #zero{A.space} := leftInjective _ _
+  \let preimageZero: preimage = A.space.zero := leftInjective _ _
     (trans!{A1.Carrier} _ _ _ imageZero (sym!{A1.Carrier} _ _ (LeftMaps.zeroPreserved a))) \then
   \return trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ image)
-    (trans!{B.Carrier} _ _ _ (congr!{A.Carrier B.Carrier} (#apply{s.inclusion}) _ _ preimageZero) (SourceInclusion.zeroPreserved s.inclusion))
+    (trans!{B.Carrier} _ _ _ (congr!{A.Carrier B.Carrier} (s.inclusion.apply) _ _ preimageZero) (SourceInclusion.zeroPreserved s.inclusion))
 };
 \definition injective: Commutative -> Injective A A1 a -> Injective C C1 c -> Injective B B1 b := \block {
   \fun (diagram: Commutative)(leftInjective: Injective A A1 a)(rightInjective: Injective C C1 c)(x, y: B.Carrier)(same: _) \then
   \let differenceZero: Group.difference x y = Middle.zero := kernelZero diagram leftInjective rightInjective (Group.difference x y)
     (trans!{B1.Carrier} _ _ _ (MiddleMaps.differencePreserved b x y)
-      (trans!{B1.Carrier} _ _ _ (congr!{B1.Carrier B1.Carrier} (\fun (u: B1.Carrier) => Group1.difference u (#apply{b} y)) _ _ same)
-        (Group1.inverseRight (#apply{b} y)))) \then
+      (trans!{B1.Carrier} _ _ _ (congr!{B1.Carrier B1.Carrier} (\fun (u: B1.Carrier) => Group1.difference u (b.apply y)) _ _ same)
+        (Group1.inverseRight (b.apply y)))) \then
   \return Group.cancelRight (Middle.neg y) x y
     (trans!{B.Carrier} _ _ _ differenceZero (sym!{B.Carrier} _ _ (Group.inverseRight y)))
 };
-\definition remainder(y: B1.Carrier)(x: B.Carrier): B1.Carrier := Group1.difference y (#apply{b} x);
+\definition remainder(y: B1.Carrier)(x: B.Carrier): B1.Carrier := Group1.difference y (b.apply x);
 \definition remainderClosed: \forall (diagram: Commutative)(y: B1.Carrier)(x: B.Carrier) ->
-  #apply{c} (#apply{s.projection} x) = #apply{t.projection} y -> #apply{t.projection} (remainder y x) = #zero{C1.space} :=
+  c.apply (s.projection.apply x) = t.projection.apply y -> t.projection.apply (remainder y x) = C1.space.zero :=
   \fun (diagram: Commutative)(y: B1.Carrier)(x: B.Carrier)(same: _) => trans!{C1.Carrier} _ _ _
-    (TargetProjection.differencePreserved t.projection y (#apply{b} x))
+    (TargetProjection.differencePreserved t.projection y (b.apply x))
     (trans!{C1.Carrier} _ _ _
       (congr!{C1.Carrier C1.Carrier}
-        (\fun (u: C1.Carrier) => #add{C1.space} (#apply{t.projection} y) (#neg{C1.space} u)) _ _
-        (trans!{C1.Carrier} _ _ _ (#right{diagram} x) same))
-      (#rightInverse{(#group{(#additive{C1.space})})} (#apply{t.projection} y)));
+        (\fun (u: C1.Carrier) => C1.space.add (t.projection.apply y) (C1.space.neg u)) _ _
+        (trans!{C1.Carrier} _ _ _ (diagram.right x) same))
+      (((C1.space.additive).group).rightInverse (t.projection.apply y)));
 \definition surjective: Commutative -> Surjective A A1 a -> Surjective C C1 c -> Surjective B B1 b := \block {
   \fun (diagram: Commutative)(leftOnto: Surjective A A1 a)(rightOnto: Surjective C C1 c)(y: B1.Carrier) \then
-  \takefrom z: \Cast[C.Carrier] ({ z: C.Carrier \where #apply{c} z = #apply{t.projection} y }) \by rightOnto (#apply{t.projection} y) \then
-  \takefrom x: \Cast[B.Carrier] ({ x: B.Carrier \where #apply{s.projection} x = z }) \by #onto{s} z \then
-  \let projection: #apply{c} (#apply{s.projection} x) = #apply{t.projection} y := trans!{C1.Carrier} _ _ _
-    (congr!{C.Carrier C1.Carrier} (#apply{c}) _ _ (\bysub(B.Carrier, { x: B.Carrier \where #apply{s.projection} x = z }, x)))
-    (\bysub(C.Carrier, { z: C.Carrier \where #apply{c} z = #apply{t.projection} y }, z)) \then
-  \takefrom u: \Cast[A1.Carrier] ({ u: A1.Carrier \where #apply{t.inclusion} u = remainder y x })
-    \by #kernelImage{t} (remainder y x) (remainderClosed diagram y x projection) \then
-  \takefrom v: \Cast[A.Carrier] ({ v: A.Carrier \where #apply{a} v = u }) \by leftOnto u \then
-  \let correction: #apply{b} (#apply{s.inclusion} v) = remainder y x := trans!{B1.Carrier} _ _ _ (#left{diagram} v)
-    (trans!{B1.Carrier} _ _ _ (congr!{A1.Carrier B1.Carrier} (#apply{t.inclusion}) _ _
-      (\bysub(A.Carrier, { v: A.Carrier \where #apply{a} v = u }, v)))
-      (\bysub(A1.Carrier, { u: A1.Carrier \where #apply{t.inclusion} u = remainder y x }, u))) \then
-  \return Logic.existsIntro[B.Carrier, { x: B.Carrier \where #apply{b} x = y }] (Middle.add x (#apply{s.inclusion} v))
-    (trans!{B1.Carrier} _ _ _ (#addition{b} x (#apply{s.inclusion} v))
-      (trans!{B1.Carrier} _ _ _ (congr!{B1.Carrier B1.Carrier} (Middle1.add (#apply{b} x)) _ _ correction)
-        (trans!{B1.Carrier} _ _ _ (Group1.comm (#apply{b} x) (remainder y x))
-          (trans!{B1.Carrier} _ _ _ (Group1.assoc y (Middle1.neg (#apply{b} x)) (#apply{b} x))
-            (trans!{B1.Carrier} _ _ _ (congr!{B1.Carrier B1.Carrier} (Middle1.add y) _ _ (Group1.inverseLeft (#apply{b} x)))
+  \takefrom z: \Cast[C.Carrier] ({ z: C.Carrier \where c.apply z = t.projection.apply y }) \by rightOnto (t.projection.apply y) \then
+  \takefrom x: \Cast[B.Carrier] ({ x: B.Carrier \where s.projection.apply x = z }) \by s.onto z \then
+  \let projection: c.apply (s.projection.apply x) = t.projection.apply y := trans!{C1.Carrier} _ _ _
+    (congr!{C.Carrier C1.Carrier} (c.apply) _ _ (\bysub(B.Carrier, { x: B.Carrier \where s.projection.apply x = z }, x)))
+    (\bysub(C.Carrier, { z: C.Carrier \where c.apply z = t.projection.apply y }, z)) \then
+  \takefrom u: \Cast[A1.Carrier] ({ u: A1.Carrier \where t.inclusion.apply u = remainder y x })
+    \by t.kernelImage (remainder y x) (remainderClosed diagram y x projection) \then
+  \takefrom v: \Cast[A.Carrier] ({ v: A.Carrier \where a.apply v = u }) \by leftOnto u \then
+  \let correction: b.apply (s.inclusion.apply v) = remainder y x := trans!{B1.Carrier} _ _ _ (diagram.left v)
+    (trans!{B1.Carrier} _ _ _ (congr!{A1.Carrier B1.Carrier} (t.inclusion.apply) _ _
+      (\bysub(A.Carrier, { v: A.Carrier \where a.apply v = u }, v)))
+      (\bysub(A1.Carrier, { u: A1.Carrier \where t.inclusion.apply u = remainder y x }, u))) \then
+  \return Logic.existsIntro[B.Carrier, { x: B.Carrier \where b.apply x = y }] (Middle.add x (s.inclusion.apply v))
+    (trans!{B1.Carrier} _ _ _ (b.addition x (s.inclusion.apply v))
+      (trans!{B1.Carrier} _ _ _ (congr!{B1.Carrier B1.Carrier} (Middle1.add (b.apply x)) _ _ correction)
+        (trans!{B1.Carrier} _ _ _ (Group1.comm (b.apply x) (remainder y x))
+          (trans!{B1.Carrier} _ _ _ (Group1.assoc y (Middle1.neg (b.apply x)) (b.apply x))
+            (trans!{B1.Carrier} _ _ _ (congr!{B1.Carrier B1.Carrier} (Middle1.add y) _ _ (Group1.inverseLeft (b.apply x)))
               (Group1.zeroRight y))))))
 };
 \import \parent.\parent.Isomorphism[V := B.Carrier, W := B1.Carrier, source := B.space, target := B1.space].OfBijective[f := b] \as Iso;

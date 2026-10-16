@@ -1,7 +1,7 @@
 \definition Eligible: N.Nat^ -> M.Carrier -> \Prop :=
   \induction (n: N.Nat^) \return M.Carrier -> \Prop \with {
     | zero: \fun (x: M.Carrier) => Logic.True
-    | succ: \fun (n: N.Nat^)(before: M.Carrier -> \Prop)(x: M.Carrier) => x = #zero{M.space}
+    | succ: \fun (n: N.Nat^)(before: M.Carrier -> \Prop)(x: M.Carrier) => x = M.space.zero
   };
 \module Slot(n: N.Nat^);
 \definition Carrier(n: N.Nat^): \Set := Slot[n := n].Carrier;
@@ -13,32 +13,32 @@
   \definition map: Maps.Map := Maps.zeroMap;
 }
 \definition differential: DifferentialData[family] := DifferentialData[family] {
-  apply := \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) => #apply{Differential[n := n].map} x,
+  apply := \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) => (Differential[n := n].map).apply x,
 };
 \definition complex: Complex := Complex {
   family := family, differential := differential,
   laws := DifferentialLaws[family, differential] {
-    addition := \fun (n: N.Nat^)(x, y: Carrier (N.Nat^::succ n)) => #addition{Differential[n := n].map} x y,
-    scalar := \fun (n: N.Nat^)(a: R)(x: Carrier (N.Nat^::succ n)) => #scalar{Differential[n := n].map} a x,
-    squareZero := \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ (N.Nat^::succ n))) => \refl(#zero{(space n)}),
+    addition := \fun (n: N.Nat^)(x, y: Carrier (N.Nat^::succ n)) => (Differential[n := n].map).addition x y,
+    scalar := \fun (n: N.Nat^)(a: R)(x: Carrier (N.Nat^::succ n)) => (Differential[n := n].map).scalar a x,
+    squareZero := \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ (N.Nat^::succ n))) => \refl((space n).zero),
   },
 };
 \import Modules.Of[V := M.Carrier, space := M.space].Submodule[].Of[S := Slot[n := N.Nat^::zero].submodule] \as Center;
 \definition augmentation: Modules.MapBetween (term N.Nat^::zero) M := Center.inclusion;
 \import Modules.Hom[V := M.Carrier, W := Carrier N.Nat^::zero, source := M.space, target := space N.Nat^::zero] \as Sections;
 \definition section: Sections.Map := Sections.Map {
-  apply := \fun (x: M.Carrier) => \into[M.Carrier](x, #carrier{Slot[n := N.Nat^::zero].submodule}) \by { Logic.True::intro },
-  addition := \fun (x, y: M.Carrier) => \refl(#add{M.space} x y),
-  scalar := \fun (a: R)(x: M.Carrier) => \refl(#smul{M.space} a x),
+  apply := \fun (x: M.Carrier) => \into[M.Carrier](x, (Slot[n := N.Nat^::zero].submodule).carrier) \by { Logic.True::intro },
+  addition := \fun (x, y: M.Carrier) => \refl(M.space.add x y),
+  scalar := \fun (a: R)(x: M.Carrier) => \refl(M.space.smul a x),
 };
 \definition onto: Modules.Surjective (term N.Nat^::zero) M augmentation :=
-  \fun (x: M.Carrier) => Logic.existsIntro[Carrier N.Nat^::zero, { y: Carrier N.Nat^::zero \where #apply{augmentation} y = x }] (#apply{section} x)
+  \fun (x: M.Carrier) => Logic.existsIntro[Carrier N.Nat^::zero, { y: Carrier N.Nat^::zero \where augmentation.apply y = x }] (section.apply x)
     (\refl(x));
 \import Modules.ProjectiveLaws[].Retract[P := term N.Nat^::zero, Q := M, inclusion := augmentation, retraction := section] \as CenterProjective;
 \module Positive(n: N.Nat^) {
-  \definition trivial: \forall (x: Carrier (N.Nat^::succ n)) -> x = #zero{(space (N.Nat^::succ n))} :=
+  \definition trivial: \forall (x: Carrier (N.Nat^::succ n)) -> x = (space (N.Nat^::succ n)).zero :=
     \fun (x: Carrier (N.Nat^::succ n)) => \bysub(M.Carrier,
-      #carrier{\parent.Slot[n := N.Nat^::succ n].submodule}, x);
+      (\parent.Slot[n := N.Nat^::succ n].submodule).carrier, x);
   \import Modules.ProjectiveLaws[].Trivial[P := term (N.Nat^::succ n)] \as Projective;
   \definition projective: Modules.Projective (term (N.Nat^::succ n)) := Projective.projective trivial;
 }
@@ -48,15 +48,15 @@
     | succ: \fun (n: N.Nat^)(before: Modules.Projective (term n)) => Positive[n := n].projective
   };
 \definition augmentationKilled: \forall (x: Carrier (N.Nat^::succ N.Nat^::zero)) ->
-  #apply{augmentation} (#apply{differential} N.Nat^::zero x) = #zero{M.space} :=
-    \fun (x: Carrier (N.Nat^::succ N.Nat^::zero)) => \refl(#zero{M.space});
-\definition augmentationExact: \forall (x: Carrier N.Nat^::zero) -> #apply{augmentation} x = #zero{M.space} ->
-  \exists { y: Carrier (N.Nat^::succ N.Nat^::zero) \where #apply{differential} N.Nat^::zero y = x } :=
-  \fun (x: Carrier N.Nat^::zero)(closed: #apply{augmentation} x = #zero{M.space}) =>
-    Logic.existsIntro[Carrier (N.Nat^::succ N.Nat^::zero), { y: Carrier (N.Nat^::succ N.Nat^::zero) \where #apply{differential} N.Nat^::zero y = x }] (#zero{(space (N.Nat^::succ N.Nat^::zero))})
-    (sym!{{Carrier N.Nat^::zero}} x #zero{(space N.Nat^::zero)} closed);
-\definition exact: \forall (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) -> #apply{differential} n x = #zero{(space n)} ->
-  \exists { y: Carrier (N.Nat^::succ (N.Nat^::succ n)) \where #apply{differential} (N.Nat^::succ n) y = x } :=
+  augmentation.apply (differential.apply N.Nat^::zero x) = M.space.zero :=
+    \fun (x: Carrier (N.Nat^::succ N.Nat^::zero)) => \refl(M.space.zero);
+\definition augmentationExact: \forall (x: Carrier N.Nat^::zero) -> augmentation.apply x = M.space.zero ->
+  \exists { y: Carrier (N.Nat^::succ N.Nat^::zero) \where differential.apply N.Nat^::zero y = x } :=
+  \fun (x: Carrier N.Nat^::zero)(closed: augmentation.apply x = M.space.zero) =>
+    Logic.existsIntro[Carrier (N.Nat^::succ N.Nat^::zero), { y: Carrier (N.Nat^::succ N.Nat^::zero) \where differential.apply N.Nat^::zero y = x }] ((space (N.Nat^::succ N.Nat^::zero)).zero)
+    (sym!{{Carrier N.Nat^::zero}} x (space N.Nat^::zero).zero closed);
+\definition exact: \forall (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) -> differential.apply n x = (space n).zero ->
+  \exists { y: Carrier (N.Nat^::succ (N.Nat^::succ n)) \where differential.apply (N.Nat^::succ n) y = x } :=
   \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ n))(closed: _) =>
-    Logic.existsIntro[Carrier (N.Nat^::succ (N.Nat^::succ n)), { y: Carrier (N.Nat^::succ (N.Nat^::succ n)) \where #apply{differential} (N.Nat^::succ n) y = x }] (#zero{(space (N.Nat^::succ (N.Nat^::succ n)))})
-    (sym!{{Carrier (N.Nat^::succ n)}} x #zero{(space (N.Nat^::succ n))} (Positive[n := n].trivial x));
+    Logic.existsIntro[Carrier (N.Nat^::succ (N.Nat^::succ n)), { y: Carrier (N.Nat^::succ (N.Nat^::succ n)) \where differential.apply (N.Nat^::succ n) y = x }] ((space (N.Nat^::succ (N.Nat^::succ n))).zero)
+    (sym!{{Carrier (N.Nat^::succ n)}} x (space (N.Nat^::succ n)).zero (Positive[n := n].trivial x));

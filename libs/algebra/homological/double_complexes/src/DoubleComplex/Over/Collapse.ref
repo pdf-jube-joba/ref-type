@@ -8,40 +8,40 @@
 \use Logic.either;
 \structure RowsExact[f: Maps.Map]: \Prop {
   augmentation: \forall (p: Nat.Nat^)(x: C.family.Carrier p Nat.Nat^::zero) ->
-    #apply{(f p Nat.Nat^::zero)} x = #zero{(D.family.space p Nat.Nat^::zero)} ->
-    \exists { y: C.family.Carrier p (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{(C.differential.vertical p Nat.Nat^::zero)} y = x },
+    (f p Nat.Nat^::zero).apply x = (D.family.space p Nat.Nat^::zero).zero ->
+    \exists { y: C.family.Carrier p (Nat.Nat^::succ Nat.Nat^::zero) \where (C.differential.vertical p Nat.Nat^::zero).apply y = x },
   positive: \forall (p, q: Nat.Nat^)(x: C.family.Carrier p (Nat.Nat^::succ q)) ->
-    #apply{(C.differential.vertical p q)} x = #zero{(C.family.space p q)} ->
-    \exists { y: C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q)) \where #apply{(C.differential.vertical p (Nat.Nat^::succ q))} y = x },
+    (C.differential.vertical p q).apply x = (C.family.space p q).zero ->
+    \exists { y: C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q)) \where (C.differential.vertical p (Nat.Nat^::succ q)).apply y = x },
 }
 \definition Closed: \forall (n: Nat.Nat^) -> Total.Carrier n -> \Prop :=
   \induction (n: Nat.Nat^) \return Total.Carrier n -> \Prop \with {
     | zero: \fun (x: Total.Carrier Nat.Nat^::zero) => Logic.True
     | succ: \fun (n: Nat.Nat^)(previous: _) => \fun (x: Total.Carrier (Nat.Nat^::succ n)) =>
-      #apply{Total.differential} n x = #zero{(Total.space n)}
+      Total.differential.apply n x = (Total.space n).zero
   };
 \definition Above(n, k: Nat.Nat^)(x: Total.Carrier n): \Prop :=
-  \forall (i: Index n) -> Natural.Le k #first{i} ->
-    Coordinates.Degree[n := n].coordinate i x = #zero{(C.family.space #first{i} #second{i})};
+  \forall (i: Index n) -> Natural.Le k i.first ->
+    Coordinates.Degree[n := n].coordinate i x = (C.family.space i.first i.second).zero;
 \module Vertical(p, q: Nat.Nat^) {
   \import \parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as TargetSign;
   \import \parent.\parent.Sign[V := C.family.Carrier p (Nat.Nat^::succ q), space := C.family.space p (Nat.Nat^::succ q)] \as SourceSign;
   \import SourceSign.Mapping[W := C.family.Carrier p q, target := C.family.space p q] \as NaturalSign;
   \definition signedPreimage: \forall (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q)) ->
-    #apply{(C.differential.vertical p q)} y = x ->
-    #apply{(TargetSign.map p)} (#apply{(C.differential.vertical p q)} (#apply{(SourceSign.map p)} y)) = x :=
+    (C.differential.vertical p q).apply y = x ->
+    (TargetSign.map p).apply ((C.differential.vertical p q).apply ((SourceSign.map p).apply y)) = x :=
     \fun (x: C.family.Carrier p q)(y: C.family.Carrier p (Nat.Nat^::succ q))(preimage: _) =>
       trans!{{C.family.Carrier p q}} _ _ _
-        (congr!{{C.family.Carrier p q} {C.family.Carrier p q}} (#apply{(TargetSign.map p)}) _ _
+        (congr!{{C.family.Carrier p q} {C.family.Carrier p q}} ((TargetSign.map p).apply) _ _
           (NaturalSign.naturality (C.differential.vertical p q) p y))
         (trans!{{C.family.Carrier p q}} _ _ _
-          (TargetSign.involutive p (#apply{(C.differential.vertical p q)} y)) preimage);
+          (TargetSign.involutive p ((C.differential.vertical p q).apply y)) preimage);
 }
 
 \module Injection(p, q: Nat.Nat^);
 
-\definition indexOfFirst: \forall (n: Nat.Nat^)(i, j: Index n) -> #first{i} = #first{j} -> i = j :=
-  \fun (n: Nat.Nat^)(i, j: Index n)(equal: #first{i} = #first{j}) =>
+\definition indexOfFirst: \forall (n: Nat.Nat^)(i, j: Index n) -> i.first = j.first -> i = j :=
+  \fun (n: Nat.Nat^)(i, j: Index n)(equal: i.first = j.first) =>
     trans!{Pair} _ _ _ (sym!{Pair} _ _ (pairRebuild i))
       (trans!{Pair} _ _ _
         (congr2!{Nat.Nat^ Nat.Nat^ Pair} (\fun (p, q: Nat.Nat^) => Pair { first := p, second := q }) _ _ _ _ equal

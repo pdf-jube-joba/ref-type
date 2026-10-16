@@ -194,7 +194,7 @@ parameters = '''A: \Set, a: A'''
  \definition w: Witness :=
    Witness { value := a,
 same := \refl(a), witness := \refl(a) };
- \definition get(s: Witness): s #value = s #value := s #witness;
+ \definition get(s: Witness): s.value = s.value := s.witness;
  \check get w: a = a;
 ```
 
@@ -283,12 +283,12 @@ expect = "accept"
   \definition pair: EqualPair[Unit] :=
     EqualPair[Unit] { second := Unit::unit, first := Unit::unit,
  same := \refl(Unit::unit) };
-  \definition law(p: EqualPair[Unit]): p #first = p #second := p #same;
-  \definition get(p: EqualPair[Unit]): Unit := p #first;
+  \definition law(p: EqualPair[Unit]): p.first = p.second := p.same;
+  \definition get(p: EqualPair[Unit]): Unit := p.first;
   \definition compute: get pair = Unit::unit := \refl(Unit::unit);
   \definition repack(p: EqualPair[Unit]): EqualPair[Unit] :=
-    EqualPair[Unit] { first := p #first, second := p #second,
- same := p #same };
+    EqualPair[Unit] { first := p.first, second := p.second,
+ same := p.same };
 
   \structure Dependent[A: \Set, Family: A -> \Set]: \Set {
     index: A,
@@ -299,7 +299,7 @@ expect = "accept"
   \definition dependent: Dependent[Unit, family] :=
     Dependent[Unit, family] { index := Unit::unit, item := Unit::unit,
  stable := \refl(Unit::unit) };
-  \definition extract(p: Dependent[Unit, family]): family (p #index) := p #item;
+  \definition extract(p: Dependent[Unit, family]): family (p.index) := p.item;
   \definition dependentComputes: extract dependent = Unit::unit := \refl(Unit::unit);
   \structure Empty: \Set {}
   \definition empty: Empty := Empty {
@@ -310,7 +310,7 @@ expect = "accept"
 \module Consumer {
   \import \root.Structures[] \as S;
   \definition p: S.EqualPair[S.Unit] := S.pair;
-  \definition proof: p #first = p #second := p #same;
+  \definition proof: p.first = p.second := p.same;
   \check p.same: p.first = p.second;
 }
 ```
@@ -393,16 +393,24 @@ name = "Records"
   second: B,
 };
 \definition pair: Pair[Bit, Bit] := Pair::# Bit::zero Bit::one;
-\definition first: Bit := #first{pair};
+\definition first: Bit := pair.first;
 \definition swap: \forall (A, B: \Set) -> Pair[A, B] -> Pair[B, A] :=
   \fun (A, B: \Set) => \fun (pair: Pair[A, B]) =>
-Pair::# #second{pair} #first{pair};
+Pair::# pair.second pair.first;
 \definition nestedFirst:
   \forall (A, B, C: \Set) -> Pair[Pair[A, B], C] -> A :=
   \fun (A, B, C: \Set) => \fun (pair: Pair[Pair[A, B], C]) =>
-#first{#first{pair}};
+pair.first.first;
 \definition BitPair: \Set := Pair[Bit, Bit];
-\definition aliasedFirst(pair: BitPair): Bit := #first{pair};
+\definition aliasedFirst(pair: BitPair): Bit := pair.first;
+\definition hasFirst(A: \Set)(a: A): \Prop :=
+  \exists { pair: Pair[A, A] \where pair.first = a };
+\inductive Wrapped: \Set := | wrap: BitPair -> Wrapped;
+\definition unwrapFirst(value: Wrapped): Bit :=
+  \match value \in Wrapped \return \fun (_: _) => Bit \with {
+    | wrap pair: pair.first
+  };
+
 
 \inductive VBit: \VType :=
   | zero: VBit
@@ -414,10 +422,10 @@ Pair::# #second{pair} #first{pair};
   second: A,
 };
 \definition VPair(A: \VType)::getFirst(pair: VPair[A]): \F(A) :=
-  #first{pair};
+  pair.first;
 \definition vpair: VPair[VBit] :=
   VPair::# VBit::zero VBit::one;
-\definition vfirst: \F(VBit) := #first{vpair};
+\definition vfirst: \F(VBit) := vpair.first;
 \definition reflectedPair: VPair^[VBit^] :=
   VPair[VBit]::#^ VBit^::zero VBit^::one;
 \definition reflectedFirst: VBit^ :=
@@ -460,7 +468,7 @@ expect = "accept"
       required := \refl(a),
       copy := \refl(a),
     };
-    \definition result: a = a := #final{overridden};
+    \definition result: a = a := overridden.final;
   }
 }
 ```

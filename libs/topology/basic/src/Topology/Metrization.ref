@@ -21,7 +21,7 @@
     (fClosed: IsClosedIn topology F) (gClosed: IsClosedIn topology G) (disjoint: Disjoint F G) =>
     Urysohn.normalUrysohn topology
       (Normal.regularSecondCountableNormal topology
-        (#right{t3}) secondCountable)
+        (t3.right) secondCountable)
       F G fClosed gClosed disjoint;
 
 \definition singletonDisjoint(x, y: Carrier):
@@ -43,7 +43,7 @@
     (different: Logic.Not (x = y)) =>
     t3SecondCountableUrysohn topology t3 secondCountable
       (Singleton x) (Singleton y)
-      (#left{t3} x) (#left{t3} y)
+      (t3.left x) (t3.left y)
       (singletonDisjoint x y different);
 
 \structure BasisPairData[topology: Topology,
@@ -92,7 +92,7 @@
     \takefrom j: \Cast[N.Nat^]
       ({ n : N.Nat^ \where
         Logic.And[Member (basis n) x, Subset (basis n) U] })
-      \by #refines{isBasis} U open x member \then
+      \by isBasis.refines U open x member \then
     \let jData: Logic.And[Member (basis j) x,
       Subset (basis j) U] :=
       \bysub(N.Nat^,
@@ -102,37 +102,37 @@
       Singleton x, basis j]
       \by Urysohn.shrink topology normal
         (Singleton x) (basis j) (t1 x)
-        (#open{isBasis} j)
-        (singletonWithin (basis j) x (#left{jData})) \then
-    \let xInner: Member (#inner{shrink}) x :=
-      #contains{shrink} x (\refl(x)) \then
+        (isBasis.open j)
+        (singletonWithin (basis j) x (jData.left)) \then
+    \let xInner: Member (shrink.inner) x :=
+      shrink.contains x (\refl(x)) \then
     \takefrom i: \Cast[N.Nat^]
       ({ n : N.Nat^ \where
         Logic.And[Member (basis n) x,
-          Subset (basis n) (#inner{shrink})] })
-      \by #refines{isBasis} (#inner{shrink})
-        (#innerOpen{shrink}) x xInner \then
+          Subset (basis n) (shrink.inner)] })
+      \by isBasis.refines (shrink.inner)
+        (shrink.innerOpen) x xInner \then
     \let iData: Logic.And[Member (basis i) x,
-      Subset (basis i) (#inner{shrink})] :=
+      Subset (basis i) (shrink.inner)] :=
       \bysub(N.Nat^,
         { n : N.Nat^ \where
           Logic.And[Member (basis n) x,
-            Subset (basis n) (#inner{shrink})] }, i) \then
+            Subset (basis n) (shrink.inner)] }, i) \then
     \let pair: NatPair.NatPair := NatPair.natPair i j \then
     \let data: BasisPairData[topology, basis, pair] :=
       BasisPairData[topology, basis, pair] {
-        envelope := #envelope{shrink},
+        envelope := shrink.envelope,
 
-        envelopeClosed := #envelopeClosed{shrink},
+        envelopeClosed := shrink.envelopeClosed,
         innerWithin := subsetTrans (basis i)
-          (#inner{shrink}) (#envelope{shrink})
-          (#right{iData}) (#enclosed{shrink}),
-        envelopeWithin := #within{shrink},
+          (shrink.inner) (shrink.envelope)
+          (iData.right) (shrink.enclosed),
+        envelopeWithin := shrink.within,
       } \then
     \return Logic.existsIntro[NatPair.NatPair, { p : NatPair.NatPair \where
           LocalAdmissiblePairLaw[topology, basis, x, U, p] }] pair
       (LocalAdmissiblePairLaw[topology, basis, x, U, pair]::#
-          (#left{iData}) (#right{jData})
+          (iData.left) (jData.right)
           (\exact(data,
             BasisPairData[topology, basis, pair])))
   };
@@ -176,7 +176,7 @@
         Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where
               OpenNeighborhood[topology, x, S, U] }] Whole
         (OpenNeighborhood[topology, x, S, Whole]::#
-              (#wholeOpen{(topologyLaws topology)})
+              ((topologyLaws topology).wholeOpen)
               (\refl(x))
               (\fun (y: Carrier) =>
                 \fun (_: Member Whole y) =>
@@ -197,29 +197,29 @@
           \by admissible \then
         \let j: N.Nat^ := NatPair.natPairSecond pair \then
         \takefrom f: Urysohn.UrysohnFunction[topology,
-          #envelope{data}, Complement (basis j)]
+          data.envelope, Complement (basis j)]
           \by Urysohn.normalUrysohn topology normal
-            (#envelope{data}) (Complement (basis j))
-            (#envelopeClosed{data})
+            (data.envelope) (Complement (basis j))
+            (data.envelopeClosed)
             (Urysohn.openComplementClosed topology (basis j)
-              (#open{isBasis} j))
+              (isBasis.open j))
             (\fun (x: Carrier) =>
-              \fun (inE: Member (#envelope{data}) x) =>
+              \fun (inE: Member (data.envelope) x) =>
               \fun (outside: Member (Complement (basis j)) x) =>
-                outside (#envelopeWithin{data} x inE)) \then
+                outside (data.envelopeWithin x inE)) \then
         \return \exact(
           PairSeparator[topology, basis, pair] {
-            envelope := #envelope{data},
-            value := #value{f},
+            envelope := data.envelope,
+            value := f.value,
 
-            lowerOpen := #lowerOpen{f},
-            upperOpen := #upperOpen{f},
+            lowerOpen := f.lowerOpen,
+            upperOpen := f.upperOpen,
             good := \fun (_: AdmissibleBasisPair topology basis pair) =>
               PairSeparatorLaws[topology, basis, pair,
-                #envelope{data}, #value{f}]::#
-                (#envelopeClosed{data}) (#innerWithin{data})
-                (#envelopeWithin{data}) (#lowerOpen{f})
-                (#upperOpen{f}) (#zeroOn{f}) (#oneOn{f})
+                data.envelope, f.value]::#
+                (data.envelopeClosed) (data.innerWithin)
+                (data.envelopeWithin) (f.lowerOpen)
+                (f.upperOpen) (f.zeroOn) (f.oneOn)
           }, PairSeparator[topology, basis, pair])
       }}
       {\fun (inadmissible: Logic.Not
@@ -268,34 +268,34 @@
 \definition pairInnerWithin(topology: Topology) (basis: N.Nat^ -> \Pow Carrier)
   (pair: NatPair.NatPair) (separator: PairSeparator[topology, basis, pair]):
   AdmissibleBasisPair topology basis pair ->
-  Subset (basis (NatPair.natPairFirst pair)) (#envelope{separator}) :=
+  Subset (basis (NatPair.natPairFirst pair)) (separator.envelope) :=
   \fun (admissible: AdmissibleBasisPair topology basis pair) =>
-    #innerWithin{(#good{separator} admissible)};
+    (separator.good admissible).innerWithin;
 
 \definition pairEnvelopeWithin(topology: Topology) (basis: N.Nat^ -> \Pow Carrier)
   (pair: NatPair.NatPair) (separator: PairSeparator[topology, basis, pair]):
   AdmissibleBasisPair topology basis pair ->
-  Subset (#envelope{separator})
+  Subset (separator.envelope)
     (basis (NatPair.natPairSecond pair)) :=
   \fun (admissible: AdmissibleBasisPair topology basis pair) =>
-    #envelopeWithin{(#good{separator} admissible)};
+    (separator.good admissible).envelopeWithin;
 
 \definition pairZeroOn(topology: Topology) (basis: N.Nat^ -> \Pow Carrier) (pair: NatPair.NatPair)
   (separator: PairSeparator[topology, basis, pair]):
   AdmissibleBasisPair topology basis pair ->
-  \forall (x: Carrier) -> Member (#envelope{separator}) x ->
-    #value{separator} x = Real.zero :=
+  \forall (x: Carrier) -> Member (separator.envelope) x ->
+    separator.value x = Real.zero :=
   \fun (admissible: AdmissibleBasisPair topology basis pair) =>
-    #zeroOn{(#good{separator} admissible)};
+    (separator.good admissible).zeroOn;
 
 \definition pairOneOn(topology: Topology) (basis: N.Nat^ -> \Pow Carrier) (pair: NatPair.NatPair)
   (separator: PairSeparator[topology, basis, pair]):
   AdmissibleBasisPair topology basis pair ->
   \forall (x: Carrier) ->
     Member (Complement (basis (NatPair.natPairSecond pair))) x ->
-    #value{separator} x = Real.one :=
+    separator.value x = Real.one :=
   \fun (admissible: AdmissibleBasisPair topology basis pair) =>
-    #oneOn{(#good{separator} admissible)};
+    (separator.good admissible).oneOn;
 
 \definition locallySeparatingCoordinate(topology: Topology):
   IsT1 topology -> IsNormal topology ->
@@ -305,9 +305,9 @@
   \forall (U: \Pow Carrier) -> IsOpenIn topology U -> \forall (x: Carrier) ->
   Member U x ->
   \exists { pair : NatPair.NatPair \where
-    Logic.And[#value{(select pair)} x = Real.zero,
+    Logic.And[(select pair).value x = Real.zero,
       \forall (y: Carrier) -> Logic.Not (Member U y) ->
-        #value{(select pair)} y = Real.one] } := \block {
+        (select pair).value y = Real.one] } := \block {
     \fun (t1: IsT1 topology) (normal: IsNormal topology) (basis: N.Nat^ -> \Pow Carrier)
       (isBasis: IsCountableBasis[topology, basis])
       (select: \forall (pair: NatPair.NatPair) ->
@@ -324,23 +324,23 @@
         { p : NatPair.NatPair \where
           LocalAdmissiblePairLaw[topology, basis, x, U, p] }, pair) \then
     \let admissible: AdmissibleBasisPair topology basis pair :=
-      #admissible{data} \then
+      data.admissible \then
     \let separator: PairSeparator[topology, basis, pair] :=
       select pair \then
     \return Logic.existsIntro[NatPair.NatPair, { p : NatPair.NatPair \where
-          Logic.And[#value{(select p)} x = Real.zero,
+          Logic.And[(select p).value x = Real.zero,
             \forall (y: Carrier) -> Logic.Not (Member U y) ->
-              #value{(select p)} y = Real.one] }] pair
+              (select p).value y = Real.one] }] pair
       (Logic.And[_, _]::#
           (pairZeroOn topology basis pair separator admissible x
             (pairInnerWithin topology basis pair separator admissible
-              x (#contains{data})))
+              x (data.contains)))
           (\fun (y: Carrier) =>
             \fun (outsideU: Logic.Not (Member U y)) =>
               pairOneOn topology basis pair separator admissible y
                 (\fun (insideBasis: Member
                   (basis (NatPair.natPairSecond pair)) y) =>
-                  outsideU (#within{data} y insideBasis))))
+                  outsideU (data.within y insideBasis))))
   };
 
 \structure SeparationCoordinates[topology: Topology]: \Set {
@@ -368,7 +368,7 @@
         PairSeparator[topology, basis, pair]
       \by pairSeparatorsExist topology
         (Normal.regularSecondCountableNormal topology
-          (#right{t3}) secondCountable)
+          (t3.right) secondCountable)
         basis isBasis \then
     \return \exact(
       SeparationCoordinates[topology] {
@@ -383,50 +383,50 @@
   \forall (coordinates: SeparationCoordinates[topology]) -> \forall (U: \Pow Carrier) ->
   IsOpenIn topology U -> \forall (x: Carrier) -> Member U x ->
   \exists { pair : NatPair.NatPair \where
-    Logic.And[#value{(#select{coordinates} pair)} x = Real.zero,
+    Logic.And[(coordinates.select pair).value x = Real.zero,
       \forall (y: Carrier) -> Logic.Not (Member U y) ->
-        #value{(#select{coordinates} pair)} y = Real.one] } :=
+        (coordinates.select pair).value y = Real.one] } :=
   \fun (t1: IsT1 topology) (normal: IsNormal topology)
     (coordinates: SeparationCoordinates[topology]) =>
     locallySeparatingCoordinate topology t1 normal
-    (#basis{coordinates}) (#isBasis{coordinates})
-    (#select{coordinates});
+    (coordinates.basis) (coordinates.isBasis)
+    (coordinates.select);
 
 \definition separationCoordinatesDistinguish(topology: Topology):
   IsT1 topology -> IsNormal topology ->
   \forall (coordinates: SeparationCoordinates[topology]) -> \forall (x, y: Carrier) ->
   Logic.Not (x = y) ->
   \exists { pair : NatPair.NatPair \where
-    Logic.And[#value{(#select{coordinates} pair)} x = Real.zero,
-      #value{(#select{coordinates} pair)} y = Real.one] } := \block {
+    Logic.And[(coordinates.select pair).value x = Real.zero,
+      (coordinates.select pair).value y = Real.one] } := \block {
     \fun (t1: IsT1 topology) (normal: IsNormal topology)
       (coordinates: SeparationCoordinates[topology]) (x, y: Carrier)
       (different: Logic.Not (x = y)) \then
     \takefrom pair: \Cast[NatPair.NatPair]
       ({ p : NatPair.NatPair \where
-        Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+        Logic.And[(coordinates.select p).value x = Real.zero,
           \forall (z: Carrier) ->
             Logic.Not (Member (Complement (Singleton y)) z) ->
-            #value{(#select{coordinates} p)} z = Real.one] })
+            (coordinates.select p).value z = Real.one] })
       \by separationCoordinatesLocal topology t1 normal coordinates
         (Complement (Singleton y)) (t1 y) x
         (\fun (same: Member (Singleton y) x) =>
           different same) \then
-    \let data: Logic.And[#value{(#select{coordinates} pair)} x = Real.zero,
+    \let data: Logic.And[(coordinates.select pair).value x = Real.zero,
       \forall (z: Carrier) ->
         Logic.Not (Member (Complement (Singleton y)) z) ->
-        #value{(#select{coordinates} pair)} z = Real.one] :=
+        (coordinates.select pair).value z = Real.one] :=
       \bysub(NatPair.NatPair,
         { p : NatPair.NatPair \where
-          Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+          Logic.And[(coordinates.select p).value x = Real.zero,
             \forall (z: Carrier) ->
               Logic.Not (Member (Complement (Singleton y)) z) ->
-              #value{(#select{coordinates} p)} z = Real.one] }, pair) \then
+              (coordinates.select p).value z = Real.one] }, pair) \then
     \return Logic.existsIntro[NatPair.NatPair, { p : NatPair.NatPair \where
-          Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
-            #value{(#select{coordinates} p)} y = Real.one] }] pair
-      (Logic.And[_, _]::# (#left{data})
-          (#right{data} y
+          Logic.And[(coordinates.select p).value x = Real.zero,
+            (coordinates.select p).value y = Real.one] }] pair
+      (Logic.And[_, _]::# (data.left)
+          (data.right y
             (\fun (outsideSingleton: Member (Complement (Singleton y)) y) =>
               outsideSingleton (\refl(y)))))
   };

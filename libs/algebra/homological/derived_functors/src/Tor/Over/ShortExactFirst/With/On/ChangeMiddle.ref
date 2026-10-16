@@ -13,10 +13,10 @@
   \import Modules.Hom[V := OldMiddle.Carrier, W := NewMiddle.Carrier, source := OldMiddle.space, target := NewMiddle.space].Composition[U := Left.Carrier, domain := Left.space] \as Inclusions;
   \import Modules.Hom[V := OldMiddle.Carrier, W := Right.Carrier, source := OldMiddle.space, target := Right.space].Composition[U := NewMiddle.Carrier, domain := NewMiddle.space] \as Projections;
   \import Modules.Hom[V := OldNextMiddle.Carrier, W := NewNextMiddle.Carrier, source := OldNextMiddle.space, target := NewNextMiddle.space].Composition[U := Next.Carrier, domain := Next.space] \as NextInclusions;
-  \definition inclusion: Modules.MapBetween Left.bundle NewMiddle.bundle := Inclusions.compose #forward{Change.isomorphism} Source.inclusion;
-  \definition projection: Modules.MapBetween NewMiddle.bundle Right.bundle := Projections.compose Source.projection #backward{Change.isomorphism};
+  \definition inclusion: Modules.MapBetween Left.bundle NewMiddle.bundle := Inclusions.compose Change.isomorphism.forward Source.inclusion;
+  \definition projection: Modules.MapBetween NewMiddle.bundle Right.bundle := Projections.compose Source.projection Change.isomorphism.backward;
   \definition connecting: Modules.MapBetween Right.bundle Next.bundle := Source.connecting;
-  \definition nextInclusion: Modules.MapBetween Next.bundle NewNextMiddle.bundle := NextInclusions.compose #forward{NextChange.isomorphism} Source.nextInclusion;
+  \definition nextInclusion: Modules.MapBetween Next.bundle NewNextMiddle.bundle := NextInclusions.compose NextChange.isomorphism.forward Source.nextInclusion;
   \import Modules.End[V := Left.Carrier, space := Left.space] \as LeftIdentity;
   \import Modules.End[V := Right.Carrier, space := Right.space] \as RightIdentity;
   \import Modules.End[V := Next.Carrier, space := Next.space] \as NextIdentity;
@@ -42,11 +42,11 @@
   };
   \import MiddlePair.Transport[A1 := Left.bundle, B1 := NewMiddle.bundle, C1 := Right.bundle, sequence := middleSource,
     f := inclusion, g := projection, a := leftIsomorphism, b := Change.isomorphism, c := rightIsomorphism] \as MiddleTransport;
-  \definition inclusionCommutes: \forall (x: Left.Carrier) -> #apply{#forward{Change.isomorphism}} (#apply{Source.inclusion} x) = #apply{inclusion} x :=
-    \fun (x: Left.Carrier) => \refl(#apply{inclusion} x);
-  \definition projectionCommutes: \forall (x: OldMiddle.Carrier) -> #apply{Source.projection} x = #apply{projection} (#apply{#forward{Change.isomorphism}} x) :=
+  \definition inclusionCommutes: \forall (x: Left.Carrier) -> Change.isomorphism.forward.apply (Source.inclusion.apply x) = inclusion.apply x :=
+    \fun (x: Left.Carrier) => \refl(inclusion.apply x);
+  \definition projectionCommutes: \forall (x: OldMiddle.Carrier) -> Source.projection.apply x = projection.apply (Change.isomorphism.forward.apply x) :=
     \fun (x: OldMiddle.Carrier) => sym!{Right.Carrier} _ _
-      (congr!{OldMiddle.Carrier Right.Carrier} (#apply{Source.projection}) _ _ (#leftInverse{Change.isomorphism} x));
+      (congr!{OldMiddle.Carrier Right.Carrier} (Source.projection.apply) _ _ (Change.isomorphism.leftInverse x));
   \import Modules.ExactPair[A := OldMiddle.bundle, B := Right.bundle, C := Next.bundle] \as RightPair;
   \definition rightSource: RightPair.Sequence := RightPair.Sequence {
     first := Source.projection, last := Source.connecting,
@@ -54,7 +54,7 @@
   };
   \import RightPair.Transport[A1 := NewMiddle.bundle, B1 := Right.bundle, C1 := Next.bundle, sequence := rightSource,
     f := projection, g := connecting, a := Change.isomorphism, b := rightIsomorphism, c := nextIsomorphism] \as RightTransport;
-  \definition connectingCommutes: \forall (x: Right.Carrier) -> #apply{Source.connecting} x = #apply{connecting} x := \fun (x: Right.Carrier) => \refl(#apply{connecting} x);
+  \definition connectingCommutes: \forall (x: Right.Carrier) -> Source.connecting.apply x = connecting.apply x := \fun (x: Right.Carrier) => \refl(connecting.apply x);
   \import Modules.ExactPair[A := Right.bundle, B := Next.bundle, C := OldNextMiddle.bundle] \as NextPair;
   \definition nextSource: NextPair.Sequence := NextPair.Sequence {
     first := Source.connecting, last := Source.nextInclusion,
@@ -62,15 +62,15 @@
   };
   \import NextPair.Transport[A1 := Right.bundle, B1 := Next.bundle, C1 := NewNextMiddle.bundle, sequence := nextSource,
     f := connecting, g := nextInclusion, a := rightIsomorphism, b := nextIsomorphism, c := NextChange.isomorphism] \as NextTransport;
-  \definition nextInclusionCommutes: \forall (x: Next.Carrier) -> #apply{#forward{NextChange.isomorphism}} (#apply{Source.nextInclusion} x) = #apply{nextInclusion} x :=
-    \fun (x: Next.Carrier) => \refl(#apply{nextInclusion} x);
-  \definition inclusionProjectionZero: \forall (x: Left.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{Right.space} := MiddleTransport.zero inclusionCommutes projectionCommutes;
-  \definition projectionConnectingZero: \forall (x: NewMiddle.Carrier) -> #apply{connecting} (#apply{projection} x) = #zero{Next.space} := RightTransport.zero projectionCommutes connectingCommutes;
-  \definition connectingInclusionZero: \forall (x: Right.Carrier) -> #apply{nextInclusion} (#apply{connecting} x) = #zero{NewNextMiddle.space} := NextTransport.zero connectingCommutes nextInclusionCommutes;
-  \definition exactAtB: \forall (x: NewMiddle.Carrier) -> #apply{projection} x = #zero{Right.space} ->
-    \exists { y: Left.Carrier \where #apply{inclusion} y = x } := MiddleTransport.kernelImage inclusionCommutes projectionCommutes;
-  \definition exactAtC: \forall (x: Right.Carrier) -> #apply{connecting} x = #zero{Next.space} ->
-    \exists { y: NewMiddle.Carrier \where #apply{projection} y = x } := RightTransport.kernelImage projectionCommutes connectingCommutes;
-  \definition exactAtALower: \forall (x: Next.Carrier) -> #apply{nextInclusion} x = #zero{NewNextMiddle.space} ->
-    \exists { y: Right.Carrier \where #apply{connecting} y = x } := NextTransport.kernelImage connectingCommutes nextInclusionCommutes;
+  \definition nextInclusionCommutes: \forall (x: Next.Carrier) -> NextChange.isomorphism.forward.apply (Source.nextInclusion.apply x) = nextInclusion.apply x :=
+    \fun (x: Next.Carrier) => \refl(nextInclusion.apply x);
+  \definition inclusionProjectionZero: \forall (x: Left.Carrier) -> projection.apply (inclusion.apply x) = Right.space.zero := MiddleTransport.zero inclusionCommutes projectionCommutes;
+  \definition projectionConnectingZero: \forall (x: NewMiddle.Carrier) -> connecting.apply (projection.apply x) = Next.space.zero := RightTransport.zero projectionCommutes connectingCommutes;
+  \definition connectingInclusionZero: \forall (x: Right.Carrier) -> nextInclusion.apply (connecting.apply x) = NewNextMiddle.space.zero := NextTransport.zero connectingCommutes nextInclusionCommutes;
+  \definition exactAtB: \forall (x: NewMiddle.Carrier) -> projection.apply x = Right.space.zero ->
+    \exists { y: Left.Carrier \where inclusion.apply y = x } := MiddleTransport.kernelImage inclusionCommutes projectionCommutes;
+  \definition exactAtC: \forall (x: Right.Carrier) -> connecting.apply x = Next.space.zero ->
+    \exists { y: NewMiddle.Carrier \where projection.apply y = x } := RightTransport.kernelImage projectionCommutes connectingCommutes;
+  \definition exactAtALower: \forall (x: Next.Carrier) -> nextInclusion.apply x = NewNextMiddle.space.zero ->
+    \exists { y: Right.Carrier \where connecting.apply y = x } := NextTransport.kernelImage connectingCommutes nextInclusionCommutes;
 }

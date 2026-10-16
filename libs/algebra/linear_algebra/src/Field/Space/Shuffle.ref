@@ -15,24 +15,24 @@
 }
 \definition empty: Split := Split { left := Lists.List[I]::nil, right := Lists.List[I]::nil, weight := one };
 \definition insertLeft(i: I)(split: Split): Split := Split {
-  left := Lists.List[I]::cons i #left{split}, right := #right{split}, weight := #weight{split},
+  left := Lists.List[I]::cons i split.left, right := split.right, weight := split.weight,
 };
 \definition insertRight(i: I)(split: Split): Split := Split {
-  left := #left{split}, right := Lists.List[I]::cons i #right{split},
-  weight := mul (Sign.value (Lists.length I #left{split})) #weight{split},
+  left := split.left, right := Lists.List[I]::cons i split.right,
+  weight := mul (Sign.value (Lists.length I split.left)) split.weight,
 };
 \definition swap(split: Split): Split := Split {
-  left := #right{split}, right := #left{split},
-  weight := mul (Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split}))) #weight{split},
+  left := split.right, right := split.left,
+  weight := mul (Sign.value (Nat.mul (Lists.length I split.left) (Lists.length I split.right))) split.weight,
 };
 \definition swapEmpty: swap empty = empty :=
   congr!{K Split} (\fun (w: K) => Split { left := Lists.List[I]::nil, right := Lists.List[I]::nil, weight := w }) (mul one one) one (mulOneLeft one);
 \definition swapLeft: \forall (i: I)(split: Split) -> swap (insertLeft i split) = insertRight i (swap split) := \block {
   \fun (i: I)(split: Split) \then
-  \let l: N.Nat^ := Lists.length I #left{split} \then
-  \let r: N.Nat^ := Lists.length I #right{split} \then
-  \let w: K := #weight{split} \then
-  \return congr!{K Split} (\fun (weight: K) => Split { left := #right{split}, right := Lists.List[I]::cons i #left{split}, weight := weight })
+  \let l: N.Nat^ := Lists.length I split.left \then
+  \let r: N.Nat^ := Lists.length I split.right \then
+  \let w: K := split.weight \then
+  \return congr!{K Split} (\fun (weight: K) => Split { left := split.right, right := Lists.List[I]::cons i split.left, weight := weight })
     (mul (Sign.value (Nat.mul (N.Nat^::succ l) r)) w) (mul (Sign.value r) (mul (Sign.value (Nat.mul l r)) w))
     (trans!{K} _ _ _
       (congr!{K K} (\fun (s: K) => mul s w) (Sign.value (Nat.mul (N.Nat^::succ l) r)) (mul (Sign.value r) (Sign.value (Nat.mul l r))) (Sign.leftSuccessor l r))
@@ -40,9 +40,9 @@
 };
 \definition swapRight: \forall (i: I)(split: Split) -> swap (insertRight i split) = insertLeft i (swap split) :=
   \fun (i: I)(split: Split) => congr!{K Split}
-    (\fun (weight: K) => Split { left := Lists.List[I]::cons i #right{split}, right := #left{split}, weight := weight })
+    (\fun (weight: K) => Split { left := Lists.List[I]::cons i split.right, right := split.left, weight := weight })
     _ _
-    (Sign.rightCancellation (Lists.length I #left{split}) (Lists.length I #right{split}) #weight{split});
+    (Sign.rightCancellation (Lists.length I split.left) (Lists.length I split.right) split.weight);
 \definition partitions: Lists.List[I] -> Lists.List[Split] :=
   \induction (xs: Lists.List[I]) \return Lists.List[Split] \with {
     | nil: Lists.List[Split]::cons empty Lists.List[Split]::nil
@@ -52,7 +52,7 @@
 \import \parent.Sums[I := Split] \as Sums;
 \import Sums.Prop[] \as SumLaws;
 \import SumLaws.Mapping[J := Split] \as Mapping;
-\definition term(f, g: Function)(split: Split): K := mul #weight{split} (mul (f #left{split}) (g #right{split}));
+\definition term(f, g: Function)(split: Split): K := mul split.weight (mul (f split.left) (g split.right));
 \definition product(f, g: Function): Function := \fun (xs: Lists.List[I]) => Sums.sum (partitions xs) (term f g);
 \definition Homogeneous(p: N.Nat^)(f: Function): \Prop := \forall (xs: Lists.List[I]) -> Logic.Not (Lists.length I xs = p) -> f xs = zero;
 \definition unit: Function := \induction (xs: Lists.List[I]) \return K \with {
@@ -61,10 +61,10 @@
 };
 \definition rightTerm: \forall (i: I)(f, g: Function)(split: Split) -> term f g (insertRight i split) = term (twist f) (shift i g) split := \block {
   \fun (i: I)(f, g: Function)(split: Split) \then
-  \let sign: K := Sign.value (Lists.length I #left{split}) \then
-  \let weight: K := #weight{split} \then
-  \let left: K := f #left{split} \then
-  \let right: K := g (Lists.List[I]::cons i #right{split}) \then
+  \let sign: K := Sign.value (Lists.length I split.left) \then
+  \let weight: K := split.weight \then
+  \let left: K := f split.left \then
+  \let right: K := g (Lists.List[I]::cons i split.right) \then
   \return trans!{K} (mul (mul sign weight) (mul left right)) (mul sign (mul weight (mul left right))) (mul weight (mul (mul sign left) right))
     (mulAssoc sign weight (mul left right))
     (trans!{K} (mul sign (mul weight (mul left right))) (mul weight (mul sign (mul left right))) (mul weight (mul (mul sign left) right))

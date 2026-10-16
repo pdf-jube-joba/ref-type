@@ -411,16 +411,16 @@ name = "Assignment"
 \definition andAssoc (P, Q, R: \Prop): PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
   lt := \block {
     \fun (h: _1) \then
-    \let p: P := h #left #left \then
-    \let q: Q := h #left #right \then
-    \let r: R := h #right \then
+    \let p: P := h.left.left \then
+    \let q: Q := h.left.right \then
+    \let r: R := h.right \then
     \return And[_, _]::# p (And[_, _]::# q r)
   },
   rt := \block {
     \fun (h: _2) \then
-    \let p: P := h #left \then
-    \let q: Q := h #right #left \then
-    \let r: R := h #right #right \then
+    \let p: P := h.left \then
+    \let q: Q := h.right.left \then
+    \let r: R := h.right.right \then
     \return And[_, _]::# (And[_, _]::# p q) r
   },
 };

@@ -2,29 +2,29 @@
 \import \root.Finite[].Bounded[].Of[C := C].At[z := z].UniversalCoefficient[A := A].Tensor[].Projection[].Exactness[] \as Exact;
 \import Modules.Hom[V := Tor.Kernel, W := Tor.Carrier, source := Tor.kernelSpace, target := Tor.space].Composition[U := TensorHomology.Homology, domain := TensorHomology.homologySpace] \as Composition;
 \definition projection: Modules.Hom[V := TensorHomology.Homology, W := Tor.Carrier, source := TensorHomology.homologySpace, target := Tor.space].Map :=
-  Composition.compose #backward{Tor.isomorphism} KernelProjection.map;
+  Composition.compose Tor.isomorphism.backward KernelProjection.map;
 \import Modules.Hom[V := Tor.Kernel, W := Tor.Carrier, source := Tor.kernelSpace, target := Tor.space] \as Backward;
 \import Modules.Hom[V := Tor.Carrier, W := Tor.Kernel, source := Tor.space, target := Tor.kernelSpace] \as Forward;
-\definition onto: \forall (b: Tor.Carrier) -> \exists { q: TensorHomology.Homology \where #apply{projection} q = b } := \block {
+\definition onto: \forall (b: Tor.Carrier) -> \exists { q: TensorHomology.Homology \where projection.apply q = b } := \block {
   \fun (b: Tor.Carrier) \then
-  \takefrom q: \Cast[TensorHomology.Homology] ({ q: TensorHomology.Homology \where #apply{KernelProjection.map} q = #apply{#forward{Tor.isomorphism}} b })
-    \by Exact.onto (#apply{#forward{Tor.isomorphism}} b) \then
-  \return Existential.existsIntro[TensorHomology.Homology, { q: TensorHomology.Homology \where #apply{projection} q = b }] q
+  \takefrom q: \Cast[TensorHomology.Homology] ({ q: TensorHomology.Homology \where KernelProjection.map.apply q = Tor.isomorphism.forward.apply b })
+    \by Exact.onto (Tor.isomorphism.forward.apply b) \then
+  \return Existential.existsIntro[TensorHomology.Homology, { q: TensorHomology.Homology \where projection.apply q = b }] q
     (trans!{Tor.Carrier} _ _ _
-      (congr!{Tor.Kernel Tor.Carrier} (#apply{#backward{Tor.isomorphism}}) _ _
-        (\bysub(TensorHomology.Homology, { q: TensorHomology.Homology \where #apply{KernelProjection.map} q = #apply{#forward{Tor.isomorphism}} b }, q)))
-      (#leftInverse{Tor.isomorphism} b))
+      (congr!{Tor.Kernel Tor.Carrier} (Tor.isomorphism.backward.apply) _ _
+        (\bysub(TensorHomology.Homology, { q: TensorHomology.Homology \where KernelProjection.map.apply q = Tor.isomorphism.forward.apply b }, q)))
+      (Tor.isomorphism.leftInverse b))
 };
-\definition zero: \forall (q: HomologyTensor.Carrier) -> #apply{projection} (#apply{Boundaries.map} q) = #zero{Tor.space} :=
+\definition zero: \forall (q: HomologyTensor.Carrier) -> projection.apply (Boundaries.map.apply q) = Tor.space.zero :=
   \fun (q: HomologyTensor.Carrier) => trans!{Tor.Carrier} _ _ _
-    (congr!{Tor.Kernel Tor.Carrier} (#apply{#backward{Tor.isomorphism}}) _ _ (Exact.zero q))
-    (Backward.zeroPreserved #backward{Tor.isomorphism});
-\definition kernelImage: \forall (q: TensorHomology.Homology) -> #apply{projection} q = #zero{Tor.space} ->
-  \exists { h: HomologyTensor.Carrier \where #apply{Boundaries.map} h = q } :=
+    (congr!{Tor.Kernel Tor.Carrier} (Tor.isomorphism.backward.apply) _ _ (Exact.zero q))
+    (Backward.zeroPreserved Tor.isomorphism.backward);
+\definition kernelImage: \forall (q: TensorHomology.Homology) -> projection.apply q = Tor.space.zero ->
+  \exists { h: HomologyTensor.Carrier \where Boundaries.map.apply h = q } :=
   \fun (q: TensorHomology.Homology)(closed: _) => Exact.kernelImage q
-    (trans!{Tor.Kernel} _ _ _ (sym!{Tor.Kernel} _ _ (#rightInverse{Tor.isomorphism} (#apply{KernelProjection.map} q)))
-      (trans!{Tor.Kernel} _ _ _ (congr!{Tor.Carrier Tor.Kernel} (#apply{#forward{Tor.isomorphism}}) _ _ closed)
-        (Forward.zeroPreserved #forward{Tor.isomorphism})));
+    (trans!{Tor.Kernel} _ _ _ (sym!{Tor.Kernel} _ _ (Tor.isomorphism.rightInverse (KernelProjection.map.apply q)))
+      (trans!{Tor.Kernel} _ _ _ (congr!{Tor.Carrier Tor.Kernel} (Tor.isomorphism.forward.apply) _ _ closed)
+        (Forward.zeroPreserved Tor.isomorphism.forward)));
 \definition torBundle: Modules.Bundle := Modules.Bundle { Carrier := Tor.Carrier, space := Tor.space };
 \import Modules.ShortExact[A := homologyTensorBundle, B := homologyBundle, C := torBundle] \as DerivedSequences;
 \import \root.Finite[].Bounded[].Of[C := C].At[z := z].UniversalCoefficient[A := A].CohomologyKernel[] \as CycleSplitting;
@@ -36,14 +36,14 @@
 \import Modules.Biproduct[V := HomologyTensor.Carrier, W := Tor.Carrier, left := HomologyTensor.space, right := Tor.space] \as Sum;
 \import Modules.Isomorphism[V := Sum.Carrier, W := TensorHomology.Homology, source := Sum.space, target := TensorHomology.homologySpace] \as SplitIsomorphisms;
 \definition splitExistence: \exists SplitIsomorphisms.Isomorphism := \block {
-  \takefrom s: \Cast[Sections.Map] ({ s: Sections.Map \where \forall (b: Boundary.Carrier) -> #apply{Boundary.map} (#apply{s} b) = b })
+  \takefrom s: \Cast[Sections.Map] ({ s: Sections.Map \where \forall (b: Boundary.Carrier) -> Boundary.map.apply (s.apply b) = b })
     \by Boundary.sectionExistence \then
   \return \exact(Selected[s := s].isomorphism
-    (\bysub(Sections.Map, { s: Sections.Map \where \forall (b: Boundary.Carrier) -> #apply{Boundary.map} (#apply{s} b) = b }, s)),
+    (\bysub(Sections.Map, { s: Sections.Map \where \forall (b: Boundary.Carrier) -> Boundary.map.apply (s.apply b) = b }, s)),
     SplitIsomorphisms.Isomorphism)
 };
 \import Modules.ShortExact[A := Boundary.cyclesBundle, B := Boundary.chainsBundle, C := Boundary.boundaryBundle].Splitting[sequence := Boundary.sequence].FromRetraction[r := retraction] \as SmithSection;
 \definition smithSection: Sections.Map := SmithSection.section retractCycle;
-\definition smithSplits: \forall (b: Boundary.Carrier) -> #apply{Boundary.map} (#apply{smithSection} b) = b := SmithSection.rightInverse retractCycle;
+\definition smithSplits: \forall (b: Boundary.Carrier) -> Boundary.map.apply (smithSection.apply b) = b := SmithSection.rightInverse retractCycle;
 \definition isomorphism: SplitIsomorphisms.Isomorphism := Selected[s := smithSection].isomorphism smithSplits;
 \module Projective;

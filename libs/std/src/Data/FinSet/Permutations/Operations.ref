@@ -7,26 +7,26 @@
 \definition swapData(s: Swap): Data := Data { forward := swap s, backward := swap s };
 \definition transposition(s: Swap): Permutation := \into[Data](swapData s, { data: Data \where Laws[data] }) \by {
   Laws[swapData s] {
-    leftInverse := \parent.\parent.Transposition[n := n, a := #first{s}, b := #second{s}].involution,
-    rightInverse := \parent.\parent.Transposition[n := n, a := #first{s}, b := #second{s}].involution,
+    leftInverse := \parent.\parent.Transposition[n := n, a := s.first, b := s.second].involution,
+    rightInverse := \parent.\parent.Transposition[n := n, a := s.first, b := s.second].involution,
   }
 };
 \definition composeData(p, q: Permutation): Data := Data {
-  forward := \fun (i: Fin n) => #forward{p} (#forward{q} i),
-  backward := \fun (i: Fin n) => #backward{q} (#backward{p} i),
+  forward := \fun (i: Fin n) => p.forward (q.forward i),
+  backward := \fun (i: Fin n) => q.backward (p.backward i),
 };
 \definition compose(p, q: Permutation): Permutation :=
   \into[Data](composeData p q, { data: Data \where Laws[data] }) \by {
     Laws[composeData p q] {
       leftInverse := \fun (i: Fin n) => trans!{{Fin n}}
-        (#backward{q} (#backward{p} (#forward{p} (#forward{q} i)))) (#backward{q} (#forward{q} i)) i
-        (congr!{{Fin n} {Fin n}} #backward{q}
-          (#backward{p} (#forward{p} (#forward{q} i))) (#forward{q} i) (#leftInverse{(laws p)} (#forward{q} i)))
-        (#leftInverse{(laws q)} i),
+        (q.backward (p.backward (p.forward (q.forward i)))) (q.backward (q.forward i)) i
+        (congr!{{Fin n} {Fin n}} q.backward
+          (p.backward (p.forward (q.forward i))) (q.forward i) ((laws p).leftInverse (q.forward i)))
+        ((laws q).leftInverse i),
       rightInverse := \fun (i: Fin n) => trans!{{Fin n}}
-        (#forward{p} (#forward{q} (#backward{q} (#backward{p} i)))) (#forward{p} (#backward{p} i)) i
-        (congr!{{Fin n} {Fin n}} #forward{p}
-          (#forward{q} (#backward{q} (#backward{p} i))) (#backward{p} i) (#rightInverse{(laws q)} (#backward{p} i)))
-        (#rightInverse{(laws p)} i),
+        (p.forward (q.forward (q.backward (p.backward i)))) (p.forward (p.backward i)) i
+        (congr!{{Fin n} {Fin n}} p.forward
+          (q.forward (q.backward (p.backward i))) (p.backward i) ((laws q).rightInverse (p.backward i)))
+        ((laws p).rightInverse i),
     }
   };

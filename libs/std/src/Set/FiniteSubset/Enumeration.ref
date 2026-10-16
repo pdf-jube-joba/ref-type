@@ -27,11 +27,11 @@
         Enumerates[Insert a X, result] {
           included := \fun (b: A) (member: Occurs b result) => either!{member {\In[A] (Insert a X) b}
             {Logic.Or[_, _]::left}
-            {\fun (old: _) => inInsertOld a X b (#included{data} b old)}
+            {\fun (old: _) => inInsertOld a X b (data.included b old)}
           },
           exhaustive := \fun (b: A) (member: \In[A] (Insert a X) b) => either!{member {Occurs b result}
             {Logic.Or[_, _]::left}
-            {\fun (old: _) => Logic.Or[_, _]::right (#exhaustive{data} b old)}
+            {\fun (old: _) => Logic.Or[_, _]::right (data.exhaustive b old)}
           },
         }
       }, Enumeration[Insert a X])
@@ -46,7 +46,7 @@
   \fun (X: \Pow A) (xs: L.List[A]) (laws: Enumerates[X, xs]) =>
     \idelim Listed xs = X \with Y: \Pow A => Finite Y \by {
       base: listedFinite xs,
-      equality: \axiom:setext(Listed xs, X, #included{laws}, #exhaustive{laws})
+      equality: \axiom:setext(Listed xs, X, laws.included, laws.exhaustive)
     };
 \structure DistinctEnumerationLaws[X: \Pow A, xs: L.List[A]]: \Prop {
   enumerates: Enumerates[X, xs],
@@ -69,20 +69,20 @@
       \fun (X: \Pow A)(previous: \exists DistinctEnumeration[X])(a: A) \then
       \takefrom xs: DistinctEnumeration[X] \by previous \then
       \let laws: DistinctEnumerationLaws[X, xs] := \bysub(L.List[A], DistinctEnumeration[X], xs) \then
-      \let enumeration: Enumerates[X, xs] := #enumerates{laws} \then
+      \let enumeration: Enumerates[X, xs] := laws.enumerates \then
       \return either!{{(Classical.excludedMiddle (\In[A] X a))} {\exists DistinctEnumeration[Insert a X]}
         {\fun (old: \In[A] X a) => \exact(\into[L.List[A]](xs, DistinctEnumeration[Insert a X]) \by {
           DistinctEnumerationLaws[Insert a X, xs] {
             enumerates := Enumerates[Insert a X, xs] {
-              included := \fun (b: A)(occurs: Occurs b xs) => inInsertOld a X b (#included{enumeration} b occurs),
+              included := \fun (b: A)(occurs: Occurs b xs) => inInsertOld a X b (enumeration.included b occurs),
               exhaustive := \fun (b: A)(included: \In[A] (Insert a X) b) =>
                 either!{included {Occurs b xs}
-                  {\fun (equal: b = a) => #exhaustive{enumeration} b
+                  {\fun (equal: b = a) => enumeration.exhaustive b
                     (\idelim a = b \with c: A => \In[A] X c \by { base: old, equality: sym!{A} b a equal })}
-                  {\fun (member: \In[A] X b) => #exhaustive{enumeration} b member}
+                  {\fun (member: \In[A] X b) => enumeration.exhaustive b member}
                 },
             },
-            distinct := #distinct{laws},
+            distinct := laws.distinct,
           }
         }, DistinctEnumeration[Insert a X])}
         {\fun (fresh: Logic.Not (\In[A] X a)) => \exact(\into[L.List[A]](L.List[A]::cons a xs, DistinctEnumeration[Insert a X]) \by {
@@ -91,15 +91,15 @@
               included := \fun (b: A)(occurs: Occurs b (L.List[A]::cons a xs)) =>
                 either!{occurs {\In[A] (Insert a X) b}
                   {Logic.Or[b = a, \In[A] X b]::left}
-                  {\fun (member: Occurs b xs) => inInsertOld a X b (#included{enumeration} b member)}
+                  {\fun (member: Occurs b xs) => inInsertOld a X b (enumeration.included b member)}
                 },
               exhaustive := \fun (b: A)(included: \In[A] (Insert a X) b) =>
                 either!{included {Occurs b (L.List[A]::cons a xs)}
                   {Logic.Or[b = a, Occurs b xs]::left}
-                  {\fun (member: \In[A] X b) => Logic.Or[b = a, Occurs b xs]::right (#exhaustive{enumeration} b member)}
+                  {\fun (member: \In[A] X b) => Logic.Or[b = a, Occurs b xs]::right (enumeration.exhaustive b member)}
                 },
             },
-            distinct := Distinct.cons a xs (\fun (occurs: Occurs a xs) => fresh (#included{enumeration} a occurs)) (#distinct{laws}),
+            distinct := Distinct.cons a xs (\fun (occurs: Occurs a xs) => fresh (enumeration.included a occurs)) (laws.distinct),
           }
         }, DistinctEnumeration[Insert a X])}
       }

@@ -25,7 +25,7 @@
   \fun (a, b: _) => Intersections.open Euclidean.topology n
     (\fun (i: Coordinate) => { x: Point \where Logic.And[R.Lt (Arithmetic.ofRat (a i)) (x i), R.Lt (x i) (Arithmetic.ofRat (b i))] })
     (\fun (i: Coordinate) => Euclidean.coordinateContinuous i (Line.OpenInterval (Arithmetic.ofRat (a i)) (Arithmetic.ofRat (b i)))
-      (#intersectionOpen{(Scalars.topologyLaws Line.topology)} (Rays.Above (Arithmetic.ofRat (a i))) (Rays.Below (Arithmetic.ofRat (b i)))
+      ((Scalars.topologyLaws Line.topology).intersectionOpen (Rays.Above (Arithmetic.ofRat (a i))) (Rays.Below (Arithmetic.ofRat (b i)))
         (Rays.aboveOpen (Arithmetic.ofRat (a i))) (Rays.belowOpen (Arithmetic.ofRat (b i)))));
 \definition basis(k: N.Nat^): \Pow Point := rectangle (lower k) (upper k);
 \definition appears: \forall (a, b: Endpoints) -> \exists { k: N.Nat^ \where basis k = rectangle a b } := \block {
@@ -51,7 +51,7 @@
   \takefrom rho: \Cast[Real] (Metrics.NeighborhoodRadius Norm.metric U x) \by open x member \then
   \let ball: Logic.And[R.Lt zero rho, Space.Subset (Metrics.Ball Norm.metric x rho) U] := \bysub(Real, Metrics.NeighborhoodRadius Norm.metric U x, rho) \then
   \let h: Real := mul real.Analysis[].half rho \then
-  \let positive: R.Lt zero h := Bounds.halfOfPositive rho (#left{ball}) \then
+  \let positive: R.Lt zero h := Bounds.halfOfPositive rho (ball.left) \then
   \takefrom a: (\forall (i: Coordinate) -> LowerValues x h i) \by \axiom:classicalIndefiniteChoice(Coordinate,
     (\fun (i: Coordinate) => LowerValues x h i), (\fun (i: Coordinate) => Laws.rationalDensity (sub (x i) h) (x i) (Intervals.subPositive (x i) h positive))) \then
   \takefrom b: (\forall (i: Coordinate) -> UpperValues x h i) \by \axiom:classicalIndefiniteChoice(Coordinate,
@@ -62,7 +62,7 @@
     \fun (i: Coordinate) => \bysub(Q.Rat, { q: Q.Rat \where Logic.And[R.Lt (sub (x i) h) (Arithmetic.ofRat q), R.Lt (Arithmetic.ofRat q) (x i)] }, a i) \then
   \let rightLaw: \forall (i: Coordinate) -> Logic.And[R.Lt (x i) (Arithmetic.ofRat (right i)), R.Lt (Arithmetic.ofRat (right i)) (add (x i) h)] :=
     \fun (i: Coordinate) => \bysub(Q.Rat, { q: Q.Rat \where Logic.And[R.Lt (x i) (Arithmetic.ofRat q), R.Lt (Arithmetic.ofRat q) (add (x i) h)] }, b i) \then
-  \let contains: Space.Member (rectangle left right) x := \fun (i: Coordinate) => Logic.And[_, _]::# (#right{(leftLaw i)}) (#left{(rightLaw i)}) \then
+  \let contains: Space.Member (rectangle left right) x := \fun (i: Coordinate) => Logic.And[_, _]::# ((leftLaw i).right) ((rightLaw i).left) \then
   \let within: Space.Subset (rectangle left right) U := \block {
     \fun (y: Point)(inside: Space.Member (rectangle left right) y) \then
     \let distanceBound: R.Le (Def.pointDistance y x) h := Norm.finiteUpper n (Def.subPoint y x) h (R.Order[].leOfLt zero h positive)
@@ -70,10 +70,10 @@
         (sym!{Real} (distance (sub (y i) (x i)) zero) (distance (y i) (x i)) (Norm.distanceDifference (y i) (x i)))
         (R.Order[].leOfLt (distance (y i) (x i)) h (R.ltReplaceLeft (distance (x i) (y i)) (distance (y i) (x i)) h (Metric.distanceSymmetric (x i) (y i))
           (Metric.distanceLtOfInterval (x i) (y i) h
-            (R.Order[].ltTrans (sub (x i) h) (Arithmetic.ofRat (left i)) (y i) (#left{(leftLaw i)}) (#left{(inside i)}))
-            (R.Order[].ltTrans (y i) (Arithmetic.ofRat (right i)) (add (x i) h) (#right{(inside i)}) (#right{(rightLaw i)})))))) \then
-    \return #right{ball} y (R.ltReplaceLeft (Def.pointDistance y x) (Def.pointDistance x y) rho (Norm.distanceSymmetric y x)
-      (R.leLtTrans (Def.pointDistance y x) h rho distanceBound (Bounds.halfStrict rho (#left{ball}))))
+            (R.Order[].ltTrans (sub (x i) h) (Arithmetic.ofRat (left i)) (y i) ((leftLaw i).left) ((inside i).left))
+            (R.Order[].ltTrans (y i) (Arithmetic.ofRat (right i)) (add (x i) h) ((inside i).right) ((rightLaw i).right)))))) \then
+    \return ball.right y (R.ltReplaceLeft (Def.pointDistance y x) (Def.pointDistance x y) rho (Norm.distanceSymmetric y x)
+      (R.leLtTrans (Def.pointDistance y x) h rho distanceBound (Bounds.halfStrict rho (ball.left))))
   } \then
   \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where basis k = rectangle left right }) \by appears left right \then
   \let same: basis k = rectangle left right := \bysub(N.Nat^, { k: N.Nat^ \where basis k = rectangle left right }, k) \then

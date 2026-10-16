@@ -4,14 +4,14 @@
 \import BSub.Quotient[S := image] \as Left;
 \import Left.To[W := C.Carrier, target := C.space] \as Descent;
 \definition vanishes: Descent.Vanishes s.second := \fun (b: B.Carrier)(member: _) =>
-  Image.eliminate s.first b (#apply{s.second} b = #zero{C.space})
-    (\fun (a: A.Carrier)(equal: #apply{s.first} a = b) =>
+  Image.eliminate s.first b (s.second.apply b = C.space.zero)
+    (\fun (a: A.Carrier)(equal: s.first.apply a = b) =>
       trans!{C.Carrier} _ _ _
-        (congr!{B.Carrier C.Carrier} (#apply{s.second}) _ _ (sym!{B.Carrier} _ _ equal))
-        (#zeroB{s} a)) member;
+        (congr!{B.Carrier C.Carrier} (s.second.apply) _ _ (sym!{B.Carrier} _ _ equal))
+        (s.zeroB a)) member;
 \definition leftBundle: Modules.Bundle := Modules.Bundle { Carrier := Left.Carrier, space := Left.moduleSpace };
 \definition inclusion: Modules.MapBetween leftBundle C := Descent.descend s.second vanishes;
-\definition onClass: \forall (b: B.Carrier) -> #apply{inclusion} (Left.class b) = #apply{s.second} b := Descent.onClass s.second vanishes;
+\definition onClass: \forall (b: B.Carrier) -> inclusion.apply (Left.class b) = s.second.apply b := Descent.onClass s.second vanishes;
 \import Modules.Of[V := D.Carrier, space := D.space].Submodule[] \as DSub;
 \import DSub.Kernel[W := E.Carrier, target := E.space] \as Kernels;
 \definition kernel: DSub.Submodule := Kernels.kernel s.last;
@@ -19,51 +19,51 @@
 \definition rightBundle: Modules.Bundle := Modules.Bundle { Carrier := Right.Carrier, space := Right.moduleSpace };
 \import Modules.Hom[V := C.Carrier, W := Right.Carrier, source := C.space, target := Right.moduleSpace] \as Projections;
 \definition projection: Projections.Map := Projections.Map {
-  apply := \fun (c: C.Carrier) => \into[D.Carrier](#apply{s.third} c, #carrier{kernel}) \by { #zeroD{s} c },
-  addition := #addition{s.third}, scalar := #scalar{s.third},
+  apply := \fun (c: C.Carrier) => \into[D.Carrier](s.third.apply c, kernel.carrier) \by { s.zeroD c },
+  addition := s.third.addition, scalar := s.third.scalar,
 };
 \import std.Logic[].Proposition[] \as Logic;
 \definition onto: Modules.Surjective C rightBundle projection := \block {
   \fun (q: Right.Carrier) \then
-  \takefrom c: \Cast[C.Carrier] ({ c: C.Carrier \where #apply{s.third} c = q })
-    \by #kernelD{s} q (\bysub(D.Carrier, #carrier{kernel}, q)) \then
-  \return Logic.existsIntro[C.Carrier, { c: C.Carrier \where #apply{projection} c = q }] c
-    (\bysub(C.Carrier, { c: C.Carrier \where #apply{s.third} c = q }, c))
+  \takefrom c: \Cast[C.Carrier] ({ c: C.Carrier \where s.third.apply c = q })
+    \by s.kernelD q (\bysub(D.Carrier, kernel.carrier, q)) \then
+  \return Logic.existsIntro[C.Carrier, { c: C.Carrier \where projection.apply c = q }] c
+    (\bysub(C.Carrier, { c: C.Carrier \where s.third.apply c = q }, c))
 };
-\definition zero: \forall (q: Left.Carrier) -> #apply{projection} (#apply{inclusion} q) = #zero{Right.moduleSpace} :=
-  Left.induction (\fun (q: Left.Carrier) => #apply{projection} (#apply{inclusion} q) = #zero{Right.moduleSpace})
+\definition zero: \forall (q: Left.Carrier) -> projection.apply (inclusion.apply q) = Right.moduleSpace.zero :=
+  Left.induction (\fun (q: Left.Carrier) => projection.apply (inclusion.apply q) = Right.moduleSpace.zero)
     (\fun (b: B.Carrier) => trans!{D.Carrier} _ _ _
-      (congr!{C.Carrier D.Carrier} (#apply{s.third}) _ _ (onClass b)) (#zeroC{s} b));
-\definition kernelImage: \forall (c: C.Carrier) -> #apply{projection} c = #zero{Right.moduleSpace} ->
-  \exists { q: Left.Carrier \where #apply{inclusion} q = c } := \block {
+      (congr!{C.Carrier D.Carrier} (s.third.apply) _ _ (onClass b)) (s.zeroC b));
+\definition kernelImage: \forall (c: C.Carrier) -> projection.apply c = Right.moduleSpace.zero ->
+  \exists { q: Left.Carrier \where inclusion.apply q = c } := \block {
   \fun (c: C.Carrier)(closed: _) \then
-  \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{s.second} b = c }) \by #kernelC{s} c closed \then
-  \return Logic.existsIntro[Left.Carrier, { q: Left.Carrier \where #apply{inclusion} q = c }] (Left.class b)
-    (trans!{C.Carrier} _ _ _ (onClass b) (\bysub(B.Carrier, { b: B.Carrier \where #apply{s.second} b = c }, b)))
+  \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where s.second.apply b = c }) \by s.kernelC c closed \then
+  \return Logic.existsIntro[Left.Carrier, { q: Left.Carrier \where inclusion.apply q = c }] (Left.class b)
+    (trans!{C.Carrier} _ _ _ (onClass b) (\bysub(B.Carrier, { b: B.Carrier \where s.second.apply b = c }, b)))
 };
 \import Modules.Laws[V := B.Carrier, space := B.space] \as BLaws;
 \import Modules.Laws[V := C.Carrier, space := C.space] \as CLaws;
 \import algebra.Group[].Of[Carrier := B.Carrier, group := BLaws.additive] \as BGroup;
 \import algebra.Group[].Of[Carrier := C.Carrier, group := CLaws.additive] \as CGroup;
 \import Modules.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as G;
-\definition injectiveOnClasses: \forall (b, b1: B.Carrier) -> #apply{inclusion} (Left.class b) = #apply{inclusion} (Left.class b1) -> Left.class b = Left.class b1 := \block {
+\definition injectiveOnClasses: \forall (b, b1: B.Carrier) -> inclusion.apply (Left.class b) = inclusion.apply (Left.class b1) -> Left.class b = Left.class b1 := \block {
   \fun (b, b1: B.Carrier)(equal: _) \then
-  \let same: #apply{s.second} b = #apply{s.second} b1 := trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (onClass b))
+  \let same: s.second.apply b = s.second.apply b1 := trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (onClass b))
     (trans!{C.Carrier} _ _ _ equal (onClass b1)) \then
-  \let killed: #apply{s.second} (BGroup.difference b b1) = #zero{C.space} :=
+  \let killed: s.second.apply (BGroup.difference b b1) = C.space.zero :=
     trans!{C.Carrier} _ _ _ (G.differencePreserved s.second b b1)
       (trans!{C.Carrier} _ _ _
-        (congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => CGroup.difference c (#apply{s.second} b1)) _ _ same)
-        (CGroup.inverseRight (#apply{s.second} b1))) \then
-  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{s.first} a = BGroup.difference b b1 })
-    \by #kernelB{s} (BGroup.difference b b1) killed \then
+        (congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => CGroup.difference c (s.second.apply b1)) _ _ same)
+        (CGroup.inverseRight (s.second.apply b1))) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where s.first.apply a = BGroup.difference b b1 })
+    \by s.kernelB (BGroup.difference b b1) killed \then
   \return Left.classRelated b b1
     (Image.introduce s.first (BGroup.difference b b1) a
-      (\bysub(A.Carrier, { a: A.Carrier \where #apply{s.first} a = BGroup.difference b b1 }, a)))
+      (\bysub(A.Carrier, { a: A.Carrier \where s.first.apply a = BGroup.difference b b1 }, a)))
 };
 \definition injective: Modules.Injective leftBundle C inclusion :=
-  Left.induction (\fun (q: Left.Carrier) => \forall (q1: Left.Carrier) -> #apply{inclusion} q = #apply{inclusion} q1 -> q = q1)
-    (\fun (b: B.Carrier) => Left.induction (\fun (q1: Left.Carrier) => #apply{inclusion} (Left.class b) = #apply{inclusion} q1 -> Left.class b = q1)
+  Left.induction (\fun (q: Left.Carrier) => \forall (q1: Left.Carrier) -> inclusion.apply q = inclusion.apply q1 -> q = q1)
+    (\fun (b: B.Carrier) => Left.induction (\fun (q1: Left.Carrier) => inclusion.apply (Left.class b) = inclusion.apply q1 -> Left.class b = q1)
       (\fun (b1: B.Carrier) => injectiveOnClasses b b1));
 \import Modules.ShortExact[A := leftBundle, B := C, C := rightBundle] \as Sequences;
 \definition sequence: Sequences.Sequence := Sequences.Sequence {

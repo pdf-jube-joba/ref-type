@@ -7,19 +7,19 @@
   \induction (x: Expression) \return K \with {
     | constant: \fun (a: R) => f a
     | variable: \fun (a: Variables) => values a
-    | sum: \fun (x: Expression) (vx: K) (y: Expression) (vy: K) => #add{targetRing} vx vy
-    | negative: \fun (x: Expression) (vx: K) => #neg{targetRing} vx
-    | product: \fun (x: Expression) (vx: K) (y: Expression) (vy: K) => #mul{targetRing} vx vy
+    | sum: \fun (x: Expression) (vx: K) (y: Expression) (vy: K) => targetRing.add vx vy
+    | negative: \fun (x: Expression) (vx: K) => targetRing.neg vx
+    | product: \fun (x: Expression) (vx: K) (y: Expression) (vy: K) => targetRing.mul vx vy
   };
 
 \definition coefficientLaws(f: CoefficientMap): Coefficients.SemiringLaws[Ring.ringAsSemiring R coefficientRing, Ring.ringAsSemiring K targetRing, f] :=
   Coefficients.semiringLaws (Ring.ringAsSemiring R coefficientRing) (Ring.ringAsSemiring K targetRing) f;
-\definition coefficientNeg: \forall (f: CoefficientMap) (a: R) -> f (#neg{coefficientRing} a) = #neg{targetRing} (f a) :=
-  \fun (f: _) (a: _) => Group.inverseUnique (f a) (f (#neg{coefficientRing} a))
-    (eq_reason!{{#add{targetRing} (f (#neg{coefficientRing} a)) (f a)}
-      "=" {f (#add{coefficientRing} (#neg{coefficientRing} a) a)} "by" {sym!{K} _ _ (#add{(coefficientLaws f)} (#neg{coefficientRing} a) a)}
-      "=" {f (#zero{coefficientRing})} "by" {congr!{R K} f _ _ (#additiveInverse{coefficientRing} a)}
-      "=" {#zero{targetRing}} "by" {#zero{(coefficientLaws f)}}});
+\definition coefficientNeg: \forall (f: CoefficientMap) (a: R) -> f (coefficientRing.neg a) = targetRing.neg (f a) :=
+  \fun (f: _) (a: _) => Group.inverseUnique (f a) (f (coefficientRing.neg a))
+    (eq_reason!{{targetRing.add (f (coefficientRing.neg a)) (f a)}
+      "=" {f (coefficientRing.add (coefficientRing.neg a) a)} "by" {sym!{K} _ _ ((coefficientLaws f).add (coefficientRing.neg a) a)}
+      "=" {f (coefficientRing.zero)} "by" {congr!{R K} f _ _ (coefficientRing.additiveInverse a)}
+      "=" {targetRing.zero} "by" {(coefficientLaws f).zero}});
 \definition EvaluationRelation(f: CoefficientMap) (values: Variables -> K) (x, y: Expression): \Prop :=
   evaluate f values x = evaluate f values y;
 \definition evaluationRules(f: CoefficientMap) (values: Variables -> K): Rules[EvaluationRelation f values] :=
@@ -29,26 +29,26 @@
       sym := \fun (x, y: _) => sym!{K} _ _,
       trans := \fun (x, y, z: _) => trans!{K} _ _ _,
     },
-    addCong := \fun (x, y, u, v: _) => congr2!{K K K} (#add{targetRing}) _ _ _ _,
-    negCong := \fun (x, y: _) => congr!{K K} (#neg{targetRing}) _ _,
-    mulCong := \fun (x, y, u, v: _) => congr2!{K K K} (#mul{targetRing}) _ _ _ _,
+    addCong := \fun (x, y, u, v: _) => congr2!{K K K} (targetRing.add) _ _ _ _,
+    negCong := \fun (x, y: _) => congr!{K K} (targetRing.neg) _ _,
+    mulCong := \fun (x, y, u, v: _) => congr2!{K K K} (targetRing.mul) _ _ _ _,
     zeroLeft := \fun (x: _) => trans!{K} _ _ _
-      (congr!{K K} (\fun (a: _) => #add{targetRing} a (evaluate f values x)) _ _ (#zero{(coefficientLaws f)})) (Group.zeroLeft (evaluate f values x)),
+      (congr!{K K} (\fun (a: _) => targetRing.add a (evaluate f values x)) _ _ ((coefficientLaws f).zero)) (Group.zeroLeft (evaluate f values x)),
     addAssoc := \fun (x, y, z: _) => Group.assoc (evaluate f values x) (evaluate f values y) (evaluate f values z),
     addComm := \fun (x, y: _) => Group.comm (evaluate f values x) (evaluate f values y),
-    inverse := \fun (x: _) => trans!{K} _ _ _ (Group.inverseLeft (evaluate f values x)) (sym!{K} _ _ (#zero{(coefficientLaws f)})),
+    inverse := \fun (x: _) => trans!{K} _ _ _ (Group.inverseLeft (evaluate f values x)) (sym!{K} _ _ ((coefficientLaws f).zero)),
     oneLeft := \fun (x: _) => trans!{K} _ _ _
-      (congr!{K K} (\fun (a: _) => #mul{targetRing} a (evaluate f values x)) _ _ (#one{(coefficientLaws f)}))
-      (#leftIdentity{(#multiplicative{(#semiring{targetRing})})} (evaluate f values x)),
-    mulAssoc := \fun (x, y, z: _) => #associative{(#multiplicative{(#semiring{targetRing})})} (evaluate f values x) (evaluate f values y) (evaluate f values z),
-    mulComm := \fun (x, y: _) => #mulCommutative{target} (evaluate f values x) (evaluate f values y),
-    distributive := \fun (x, y, z: _) => #leftDistributive{(#semiring{targetRing})} (evaluate f values x) (evaluate f values y) (evaluate f values z),
-    absorbs := \fun (x: _) => eq_reason!{{#mul{targetRing} (f (#zero{coefficientRing})) (evaluate f values x)}
-      "=" {#mul{targetRing} (#zero{targetRing}) (evaluate f values x)} "by" {congr!{K K} (\fun (a: _) => #mul{targetRing} a (evaluate f values x)) _ _ (#zero{(coefficientLaws f)})}
-      "=" {#zero{targetRing}} "by" {#zeroAbsorbsLeft{(#semiring{targetRing})} (evaluate f values x)}
-      "=" {f (#zero{coefficientRing})} "by" {sym!{K} _ _ (#zero{(coefficientLaws f)})}},
-    constantAdd := #add{(coefficientLaws f)},
-    constantMul := #mul{(coefficientLaws f)},
+      (congr!{K K} (\fun (a: _) => targetRing.mul a (evaluate f values x)) _ _ ((coefficientLaws f).one))
+      (((targetRing.semiring).multiplicative).leftIdentity (evaluate f values x)),
+    mulAssoc := \fun (x, y, z: _) => ((targetRing.semiring).multiplicative).associative (evaluate f values x) (evaluate f values y) (evaluate f values z),
+    mulComm := \fun (x, y: _) => target.mulCommutative (evaluate f values x) (evaluate f values y),
+    distributive := \fun (x, y, z: _) => (targetRing.semiring).leftDistributive (evaluate f values x) (evaluate f values y) (evaluate f values z),
+    absorbs := \fun (x: _) => eq_reason!{{targetRing.mul (f (coefficientRing.zero)) (evaluate f values x)}
+      "=" {targetRing.mul (targetRing.zero) (evaluate f values x)} "by" {congr!{K K} (\fun (a: _) => targetRing.mul a (evaluate f values x)) _ _ ((coefficientLaws f).zero)}
+      "=" {targetRing.zero} "by" {(targetRing.semiring).zeroAbsorbsLeft (evaluate f values x)}
+      "=" {f (coefficientRing.zero)} "by" {sym!{K} _ _ ((coefficientLaws f).zero)}},
+    constantAdd := (coefficientLaws f).add,
+    constantMul := (coefficientLaws f).mul,
     constantNeg := coefficientNeg f,
   };
 \definition RespectsRelations(f: CoefficientMap) (values: Variables -> K): \Prop :=
@@ -65,23 +65,23 @@
   Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing :=
   \into[Carrier -> K](apply f values accepts, Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing) \by {
     Output.SemiringLaws[Ring.ringAsSemiring Carrier (Ring.commutativeRingAsRing Carrier ring), Ring.ringAsSemiring K targetRing, apply f values accepts] {
-      zero := trans!{K} _ _ _ (onClass f values accepts zeroExpr) (#zero{(coefficientLaws f)}),
-      one := trans!{K} _ _ _ (onClass f values accepts oneExpr) (#one{(coefficientLaws f)}),
-      add := Lift.preservesBinary equivalence (evaluate f values) (respects f values accepts) Expression::sum (#addCong{rules}) (#add{targetRing})
-        (\fun (x, y: _) => \refl(#add{targetRing} (evaluate f values x) (evaluate f values y))),
-      mul := Lift.preservesBinary equivalence (evaluate f values) (respects f values accepts) Expression::product (#mulCong{rules}) (#mul{targetRing})
-        (\fun (x, y: _) => \refl(#mul{targetRing} (evaluate f values x) (evaluate f values y))),
+      zero := trans!{K} _ _ _ (onClass f values accepts zeroExpr) ((coefficientLaws f).zero),
+      one := trans!{K} _ _ _ (onClass f values accepts oneExpr) ((coefficientLaws f).one),
+      add := Lift.preservesBinary equivalence (evaluate f values) (respects f values accepts) Expression::sum (rules.addCong) (targetRing.add)
+        (\fun (x, y: _) => \refl(targetRing.add (evaluate f values x) (evaluate f values y))),
+      mul := Lift.preservesBinary equivalence (evaluate f values) (respects f values accepts) Expression::product (rules.mulCong) (targetRing.mul)
+        (\fun (x, y: _) => \refl(targetRing.mul (evaluate f values x) (evaluate f values y))),
     }
   };
 \definition homLaws(h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing):
   Output.SemiringLaws[Ring.ringAsSemiring Carrier (Ring.commutativeRingAsRing Carrier ring), Ring.ringAsSemiring K targetRing, h] :=
   Output.semiringLaws (Ring.ringAsSemiring Carrier (Ring.commutativeRingAsRing Carrier ring)) (Ring.ringAsSemiring K targetRing) h;
-\definition homNeg: \forall (h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing) (x: Carrier) -> h (neg x) = #neg{targetRing} (h x) :=
+\definition homNeg: \forall (h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing) (x: Carrier) -> h (neg x) = targetRing.neg (h x) :=
   \fun (h: _) (x: _) => Group.inverseUnique (h x) (h (neg x))
-    (eq_reason!{{#add{targetRing} (h (neg x)) (h x)}
-      "=" {h (add (neg x) x)} "by" {sym!{K} _ _ (#add{(homLaws h)} (neg x) x)}
+    (eq_reason!{{targetRing.add (h (neg x)) (h x)}
+      "=" {h (add (neg x) x)} "by" {sym!{K} _ _ ((homLaws h).add (neg x) x)}
       "=" {h zero} "by" {congr!{Carrier K} h _ _ (inverseLeft x)}
-      "=" {#zero{targetRing}} "by" {#zero{(homLaws h)}}});
+      "=" {targetRing.zero} "by" {(homLaws h).zero}});
 \definition unique: \forall (f: CoefficientMap) (values: Variables -> K) (accepts: RespectsRelations f values)
   (h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) targetRing) ->
   (\forall (a: R) -> h (constant a) = f a) ->
@@ -95,17 +95,17 @@
             (y: Expression) (ihy: h (class y) = evaluate f values y) =>
           eq_reason!{{h (class (Expression::sum x y))}
             "=" {h (add (class x) (class y))} "by" {congr!{Carrier K} h _ _ (sym!{Carrier} _ _ (addClass x y))}
-            "=" {#add{targetRing} (h (class x)) (h (class y))} "by" {#add{(homLaws h)} (class x) (class y)}
-            "=" {evaluate f values (Expression::sum x y)} "by" {congr2!{K K K} (#add{targetRing}) _ _ _ _ ihx ihy}}
+            "=" {targetRing.add (h (class x)) (h (class y))} "by" {(homLaws h).add (class x) (class y)}
+            "=" {evaluate f values (Expression::sum x y)} "by" {congr2!{K K K} (targetRing.add) _ _ _ _ ihx ihy}}
         | negative: \fun (x: Expression) (ihx: h (class x) = evaluate f values x) =>
           eq_reason!{{h (class (Expression::negative x))}
             "=" {h (neg (class x))} "by" {congr!{Carrier K} h _ _ (sym!{Carrier} _ _ (negClass x))}
-            "=" {#neg{targetRing} (h (class x))} "by" {homNeg h (class x)}
-            "=" {evaluate f values (Expression::negative x)} "by" {congr!{K K} (#neg{targetRing}) _ _ ihx}}
+            "=" {targetRing.neg (h (class x))} "by" {homNeg h (class x)}
+            "=" {evaluate f values (Expression::negative x)} "by" {congr!{K K} (targetRing.neg) _ _ ihx}}
         | product: \fun (x: Expression) (ihx: h (class x) = evaluate f values x)
             (y: Expression) (ihy: h (class y) = evaluate f values y) =>
           eq_reason!{{h (class (Expression::product x y))}
             "=" {h (mul (class x) (class y))} "by" {congr!{Carrier K} h _ _ (sym!{Carrier} _ _ (mulClass x y))}
-            "=" {#mul{targetRing} (h (class x)) (h (class y))} "by" {#mul{(homLaws h)} (class x) (class y)}
-            "=" {evaluate f values (Expression::product x y)} "by" {congr2!{K K K} (#mul{targetRing}) _ _ _ _ ihx ihy}}
+            "=" {targetRing.mul (h (class x)) (h (class y))} "by" {(homLaws h).mul (class x) (class y)}
+            "=" {evaluate f values (Expression::product x y)} "by" {congr2!{K K K} (targetRing.mul) _ _ _ _ ihx ihy}}
       });

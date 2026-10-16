@@ -29,18 +29,18 @@
 \definition fromHomeomorphism(source: Source.Topology) (target: Target.Topology)
   (h: Homeo.Homeomorphism[source, target]): Equivalence[source, target] := \block {
   \let hl: Homeo.Laws[source, target, h] := Homeo.laws source target h \then
-  \let leftEqual: (\fun (x: A) => #backward{h} (#forward{h} x)) = (\fun (x: A) => x) :=
-    \axiom:funext((\fun (x: A) => #backward{h} (#forward{h} x)), (\fun (x: A) => x), #leftInverse{hl}) \then
-  \let rightEqual: (\fun (y: B) => #forward{h} (#backward{h} y)) = (\fun (y: B) => y) :=
-    \axiom:funext((\fun (y: B) => #forward{h} (#backward{h} y)), (\fun (y: B) => y), #rightInverse{hl}) \then
+  \let leftEqual: (\fun (x: A) => h.backward (h.forward x)) = (\fun (x: A) => x) :=
+    \axiom:funext((\fun (x: A) => h.backward (h.forward x)), (\fun (x: A) => x), hl.leftInverse) \then
+  \let rightEqual: (\fun (y: B) => h.forward (h.backward y)) = (\fun (y: B) => y) :=
+    \axiom:funext((\fun (y: B) => h.forward (h.backward y)), (\fun (y: B) => y), hl.rightInverse) \then
   \return Equivalence[source, target] {
-    forward := #forward{h}, backward := #backward{h},
-    forwardContinuous := #forwardContinuous{hl}, backwardContinuous := #backwardContinuous{hl},
-    leftInverse := \idelim (\fun (x: A) => x) = (\fun (x: A) => #backward{h} (#forward{h} x))
+    forward := h.forward, backward := h.backward,
+    forwardContinuous := hl.forwardContinuous, backwardContinuous := hl.backwardContinuous,
+    leftInverse := \idelim (\fun (x: A) => x) = (\fun (x: A) => h.backward (h.forward x))
       \with f: (A -> A) => Left.Homotopic source source f (\fun (x: A) => x)
       \by { base: Left.reflexive source source (\fun (x: A) => x) (IdA.continuous source),
         equality: FunctionA.sym _ _ leftEqual },
-    rightInverse := \idelim (\fun (y: B) => y) = (\fun (y: B) => #forward{h} (#backward{h} y))
+    rightInverse := \idelim (\fun (y: B) => y) = (\fun (y: B) => h.forward (h.backward y))
       \with f: (B -> B) => Right.Homotopic target target f (\fun (y: B) => y)
       \by { base: Right.reflexive target target (\fun (y: B) => y) (IdB.continuous target),
         equality: FunctionB.sym _ _ rightEqual },
@@ -51,9 +51,9 @@
   \definition inverse(source: Source.Topology) (target: Target.Topology)
     (e: Equivalence[source, target]): Reverse.Equivalence[target, source] := Reverse.Equivalence[target, source] {
       forward := e.backward, backward := e.forward,
-      forwardContinuous := #backwardContinuous{(laws source target e)},
-      backwardContinuous := #forwardContinuous{(laws source target e)},
-      leftInverse := #rightInverse{(laws source target e)},
-      rightInverse := #leftInverse{(laws source target e)},
+      forwardContinuous := (laws source target e).backwardContinuous,
+      backwardContinuous := (laws source target e).forwardContinuous,
+      leftInverse := (laws source target e).rightInverse,
+      rightInverse := (laws source target e).leftInverse,
     };
 }

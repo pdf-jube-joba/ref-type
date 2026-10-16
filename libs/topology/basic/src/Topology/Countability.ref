@@ -42,7 +42,7 @@
   (\forall (n: N.Nat^) -> IsOpenIn topology (f n)) ->
   IsOpenIn topology (IndexedUnion f) :=
   \fun (allOpen: \forall (n: N.Nat^) -> IsOpenIn topology (f n)) =>
-    #unionOpen{(topologyLaws topology)} (IndexedFamily f)
+    (topologyLaws topology).unionOpen (IndexedFamily f)
       (\fun (U: \Pow Carrier) =>
         \fun (inFamily: FamilyMember (IndexedFamily f) U) => \block {
           \takefrom n: \Cast[N.Nat^]
@@ -119,7 +119,7 @@
           Logic.Not (HasCoverCandidate family basis n), choice = Empty]) =>
         Logic.falseElim
           (FamilyMember (CoverCandidates family basis n) choice)
-          (#left{fallback} available)}
+          (fallback.left available)}
     };
 
 \definition coverChoiceMemberOrEmpty(family: \Pow (\Pow Carrier)) (basis: N.Nat^ -> \Pow Carrier)
@@ -127,10 +127,10 @@
   Logic.Or[FamilyMember family choice, choice = Empty] :=
   either!{{(\bysub(\Pow Carrier, CoverChoices family basis n, choice))} {Logic.Or[FamilyMember family choice, choice = Empty]}
     {\fun (candidate: FamilyMember (CoverCandidates family basis n) choice) =>
-      Logic.Or[_, _]::left (#left{candidate})}
+      Logic.Or[_, _]::left (candidate.left)}
     {\fun (fallback: Logic.And[
         Logic.Not (HasCoverCandidate family basis n), choice = Empty]) =>
-      Logic.Or[_, _]::right (#right{fallback})}
+      Logic.Or[_, _]::right (fallback.right)}
   };
 
 \definition coverChoiceCoversBasis(family: \Pow (\Pow Carrier)) (basis: N.Nat^ -> \Pow Carrier)
@@ -138,7 +138,7 @@
   HasCoverCandidate family basis n ->
   Subset (basis n) choice :=
   \fun (available: HasCoverCandidate family basis n) =>
-    #right{(coverChoiceCandidate family basis n choice available)};
+    (coverChoiceCandidate family basis n choice available).right;
 
 \definition secondCountableLindelof(topology: Topology):
   IsSecondCountable topology -> \forall (family: \Pow (\Pow Carrier)) ->
@@ -171,7 +171,7 @@
               \takefrom n: \Cast[N.Nat^]
                 ({ k : N.Nat^ \where
                   Logic.And[Member (basis k) x, Subset (basis k) U] })
-                \by #refines{basisLaw} U (#open{cover} U inFamily) x inU \then
+                \by basisLaw.refines U (cover.open U inFamily) x inU \then
               \let refinement: Logic.And[Member (basis n) x,
                 Subset (basis n) U] :=
                 \bysub(N.Nat^,
@@ -179,11 +179,11 @@
                     Logic.And[Member (basis k) x, Subset (basis k) U] }, n) \then
               \let available: HasCoverCandidate family basis n :=
                 Logic.existsIntro[\Pow Carrier, CoverCandidates family basis n] U
-                (Logic.And[_, _]::# inFamily (#right{refinement})) \then
+                (Logic.And[_, _]::# inFamily (refinement.right)) \then
               \return indexedUnionMember selected n x
                 (coverChoiceCoversBasis family basis n (choices n)
-                  available x (#left{refinement}))
-            }) (#covers{cover} x inS) \then
+                  available x (refinement.left))
+            }) (cover.covers x inS) \then
     \return Logic.existsIntro[N.Nat^ -> \Pow Carrier, { f : N.Nat^ -> \Pow Carrier \where
           Logic.And[
             \forall (n: N.Nat^) ->

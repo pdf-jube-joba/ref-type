@@ -7,8 +7,8 @@
 \definition Carrier: \Set := Included.Carrier;
 \definition space: Modules.Space Carrier := Included.moduleSpace;
 \import Tail.Laws[] \as ExtensionLaws;
-\definition extension(v: Smaller.Carrier)(laws: Laws[a]): Carrier := \into[Vector](Tail.extension v, #carrier{submodule}) \by {
-  earlyToKernel a (Tail.extension v) #columnRank{laws} #diagonal{laws} #trailing{laws}
+\definition extension(v: Smaller.Carrier)(laws: Laws[a]): Carrier := \into[Vector](Tail.extension v, submodule.carrier) \by {
+  earlyToKernel a (Tail.extension v) laws.columnRank laws.diagonal laws.trailing
     (\fun (i: Finite.Fin n)(early: _) => Tail.atEarly v i early)
 };
 \import Modules.Hom[V := Smaller.Carrier, W := Carrier, source := Smaller.space, target := space] \as Extensions;
@@ -20,17 +20,17 @@
 \import Modules.Hom[V := Carrier, W := Smaller.Carrier, source := space, target := Smaller.space] \as Restrictions;
 \definition backward(within: Bounds.Le rank n): Restrictions.Map := Restrictions.Map {
   apply := \fun (v: Carrier) => Tail.restriction within v,
-  addition := \fun (v, w: Carrier) => \axiom:funext(Tail.restriction within (#add{space} v w), #add{Smaller.space} (Tail.restriction within v) (Tail.restriction within w),
+  addition := \fun (v, w: Carrier) => \axiom:funext(Tail.restriction within (space.add v w), Smaller.space.add (Tail.restriction within v) (Tail.restriction within w),
     \fun (i: Smaller.Index) => \refl(Arithmetic.add (v (Indices.include within i)) (w (Indices.include within i)))),
-  scalar := \fun (c: I.Int^)(v: Carrier) => \axiom:funext(Tail.restriction within (#smul{space} c v), #smul{Smaller.space} c (Tail.restriction within v),
+  scalar := \fun (c: I.Int^)(v: Carrier) => \axiom:funext(Tail.restriction within (space.smul c v), Smaller.space.smul c (Tail.restriction within v),
     \fun (i: Smaller.Index) => \refl(Arithmetic.mul c (v (Indices.include within i)))),
 };
 \import Modules.Isomorphism[V := Smaller.Carrier, W := Carrier, source := Smaller.space, target := space] \as Iso;
-\definition isoData(laws: Laws[a]): Iso.Data := Iso.Data { forward := forward laws, backward := backward #columnRank{laws} };
+\definition isoData(laws: Laws[a]): Iso.Data := Iso.Data { forward := forward laws, backward := backward laws.columnRank };
 \definition isoLaws: \forall (laws: Laws[a]) -> Iso.Laws[isoData laws] :=
   \fun (laws: Laws[a]) => Iso.Laws[isoData laws] {
-    leftInverse := Tail.restrictionExtension #columnRank{laws},
-    rightInverse := \fun (v: Carrier) => Tail.recover #columnRank{laws} v
-      (kernelToEarly a v #rowRank{laws} #diagonal{laws} #nonzero{laws} (\bysub(Vector, #carrier{submodule}, v))),
+    leftInverse := Tail.restrictionExtension laws.columnRank,
+    rightInverse := \fun (v: Carrier) => Tail.recover laws.columnRank v
+      (kernelToEarly a v laws.rowRank laws.diagonal laws.nonzero (\bysub(Vector, submodule.carrier, v))),
   };
 \definition isomorphism(laws: Laws[a]): Iso.Isomorphism := \into[Iso.Data](isoData laws, { data: Iso.Data \where Iso.Laws[data] }) \by { isoLaws laws };

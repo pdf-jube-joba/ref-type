@@ -19,32 +19,32 @@
   \let differentiable: Vertical.DifferentiableOn first := \fun (y: Real)(inside: Vertical.Interior y) =>
     Logic.existsIntro[Real, { d: Real \where Derivatives.HasDerivativeAt first y d }] (firstDerivative y)
     (derivatives (\into[Real](y, Line.ClosedInterval bottom top) \by {
-        Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y (#left{inside})) (Order.leOfLt y top (#right{inside}))
+        Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y (inside.left)) (Order.leOfLt y top (inside.right))
       })) \then
   \takefrom y: \Cast[Real] ({ y: Real \where Vertical.MeanValueResult[first, y] }) \by Vertical.meanValue first verticalOrder continuous differentiable \then
   \let verticalWitness: Vertical.MeanValueResult[first, y] := \bysub(Real, { y: Real \where Vertical.MeanValueResult[first, y] }, y) \then
   \let closedY: Y := \into[Real](y, Line.ClosedInterval bottom top) \by {
-    Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y (#left{(#interior{verticalWitness})})) (Order.leOfLt y top (#right{(#interior{verticalWitness})}))
+    Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y ((verticalWitness.interior).left)) (Order.leOfLt y top ((verticalWitness.interior).right))
   } \then
-  \let firstValue: Vertical.secant first = firstDerivative y := DerivativeLaws.unique first y (Vertical.secant first) (firstDerivative y) (#derivative{verticalWitness}) (derivatives closedY) \then
+  \let firstValue: Vertical.secant first = firstDerivative y := DerivativeLaws.unique first y (Vertical.secant first) (firstDerivative y) (verticalWitness.derivative) (derivatives closedY) \then
   \let second: Real -> Real := \fun (x: Real) => g x y \then
   \let secondDerivative: Real -> Real := \fun (x: Real) => h x y \then
   \let continuousSecond: HorizontalContinuity.ContinuousOn second := \fun (x: X) => HorizontalEstimates.continuousAt second secondDerivative x (mixedPartials x closedY) \then
   \let differentiableSecond: Horizontal.DifferentiableOn second := \fun (x: Real)(inside: Horizontal.Interior x) =>
     Logic.existsIntro[Real, { d: Real \where Derivatives.HasDerivativeAt second x d }] (h x y)
     (mixedPartials (\into[Real](x, Line.ClosedInterval left right) \by {
-        Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (#left{inside})) (Order.leOfLt x right (#right{inside}))
+        Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (inside.left)) (Order.leOfLt x right (inside.right))
       }) closedY) \then
   \takefrom x: \Cast[Real] ({ x: Real \where Horizontal.MeanValueResult[second, x] }) \by Horizontal.meanValue second horizontalOrder continuousSecond differentiableSecond \then
   \let horizontalWitness: Horizontal.MeanValueResult[second, x] := \bysub(Real, { x: Real \where Horizontal.MeanValueResult[second, x] }, x) \then
   \let closedX: X := \into[Real](x, Line.ClosedInterval left right) \by {
-    Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (#left{(#interior{horizontalWitness})})) (Order.leOfLt x right (#right{(#interior{horizontalWitness})}))
+    Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x ((horizontalWitness.interior).left)) (Order.leOfLt x right ((horizontalWitness.interior).right))
   } \then
-  \let secondValue: Horizontal.secant second = h x y := DerivativeLaws.unique second x (Horizontal.secant second) (h x y) (#derivative{horizontalWitness}) (mixedPartials closedX closedY) \then
+  \let secondValue: Horizontal.secant second = h x y := DerivativeLaws.unique second x (Horizontal.secant second) (h x y) (horizontalWitness.derivative) (mixedPartials closedX closedY) \then
   \return Logic.existsIntro[Real, { x: Real \where \exists { y: Real \where Result[f, h, x, y] } }] x
     (Logic.existsIntro[Real, { y: Real \where Result[f, h, x, y] }] y
     (Result[f, h, x, y] {
-        horizontal := #interior{horizontalWitness}, vertical := #interior{verticalWitness},
+        horizontal := horizontalWitness.interior, vertical := verticalWitness.interior,
         value := trans!{Real} (quotient f) (Horizontal.secant second) (h x y)
           (congr!{Real Real} (\fun (r: Real) => mul r (inv (sub right left))) _ _ firstValue) secondValue,
       }))
@@ -58,11 +58,11 @@
   \takefrom y: \Cast[Real] ({ y: Real \where Result[f, h, x, y] }) \by \bysub(Real, { x: Real \where \exists { y: Real \where Result[f, h, x, y] } }, x) \then
   \let result: Result[f, h, x, y] := \bysub(Real, { y: Real \where Result[f, h, x, y] }, y) \then
   \let closedX: X := \into[Real](x, Line.ClosedInterval left right) \by {
-    Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (#left{(#horizontal{result})})) (Order.leOfLt x right (#right{(#horizontal{result})}))
+    Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x ((result.horizontal).left)) (Order.leOfLt x right ((result.horizontal).right))
   } \then
   \let closedY: Y := \into[Real](y, Line.ClosedInterval bottom top) \by {
-    Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y (#left{(#vertical{result})})) (Order.leOfLt y top (#right{(#vertical{result})}))
+    Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y ((result.vertical).left)) (Order.leOfLt y top ((result.vertical).right))
   } \then
   \return R.leReplaceLeft (distance (h x y) c) (distance (quotient f) c) theta
-    (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => distance r c) _ _ (#value{result}))) (bounded closedX closedY)
+    (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => distance r c) _ _ (result.value))) (bounded closedX closedY)
 };

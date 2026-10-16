@@ -7,8 +7,8 @@
       (Laws.columnKeepsPivotColumn cols k k (attemptMatrix firstAttempt) (attemptHistory firstAttempt) secondNoSwap) (firstPivot firstNoSwap),
     column := \fun (i: N.Nat^)(bound: _)(lower: _) => trans!{I.Int^} (attemptMatrix secondAttempt i k) (attemptMatrix firstAttempt i k) Arithmetic.zero
       (Laws.columnKeepsPivotColumn cols k i (attemptMatrix firstAttempt) (attemptHistory firstAttempt) secondNoSwap)
-      (#zero{(Laws.rowCleared rows k a history)} firstNoSwap i bound lower),
-    row := \fun (j: N.Nat^)(bound: _)(lower: _) => #zero{(Laws.columnCleared cols k (attemptMatrix firstAttempt) (attemptHistory firstAttempt))} secondNoSwap j bound lower,
+      ((Laws.rowCleared rows k a history).zero firstNoSwap i bound lower),
+    row := \fun (j: N.Nat^)(bound: _)(lower: _) => (Laws.columnCleared cols k (attemptMatrix firstAttempt) (attemptHistory firstAttempt)).zero secondNoSwap j bound lower,
   };
 \definition settled: attemptReduced (clear rows cols k a history) = B.Bool^::false -> Settled[rows, cols, k, a, clear rows cols k a history] := B.cases
   (\fun (test: B.Bool^) => attemptReduced firstAttempt = test -> attemptReduced (B.ite Attempt^ test firstAttempt secondAttempt) = B.Bool^::false -> Settled[rows, cols, k, a, B.ite Attempt^ test firstAttempt secondAttempt])
@@ -23,12 +23,12 @@
     (trans!{I.Int^} (a k k) (attemptMatrix firstAttempt k k) Arithmetic.zero (sym!{I.Int^} (attemptMatrix firstAttempt k k) (a k k) equal) zero) \then
   \return \fun (changed: _) => \idelim attemptMatrix firstAttempt k k = a k k \with pivot: I.Int^ =>
     Bounds.Lt (Signed.absolute (attemptMatrix secondAttempt k k)) (Signed.absolute pivot) \by {
-    base: #smaller{(Laws.columnPivot cols k (attemptMatrix firstAttempt) (attemptHistory firstAttempt) firstNonzero)} changed, equality: equal
+    base: (Laws.columnPivot cols k (attemptMatrix firstAttempt) (attemptHistory firstAttempt) firstNonzero).smaller changed, equality: equal
   }
 };
 \definition smaller: Logic.Not (a k k = Arithmetic.zero) -> Reduction.Smaller k a (clear rows cols k a history) :=
   \fun (nonzero: _) => B.cases
     (\fun (test: B.Bool^) => attemptReduced firstAttempt = test -> Reduction.Smaller k a (B.ite Attempt^ test firstAttempt secondAttempt))
     (\fun (firstNoSwap: _) => secondSmaller nonzero firstNoSwap)
-    (\fun (changed: _) => #smaller{(Laws.rowPivot rows k a history nonzero)})
+    (\fun (changed: _) => (Laws.rowPivot rows k a history nonzero).smaller)
     (attemptReduced firstAttempt) (\refl(attemptReduced firstAttempt));

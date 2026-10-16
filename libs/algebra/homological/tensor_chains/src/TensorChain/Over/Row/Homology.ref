@@ -29,28 +29,28 @@
   X := family.Carrier n, Y := family.Carrier (previous n),
   vSpace := E.family.space a, wSpace := E.family.space (previous a), xSpace := family.space n, ySpace := family.space (previous n),
   f := Source.differential, g := Target.differential, domainIso := domainIsomorphism, codomainIso := codomainIsomorphism] \as Kernels;
-\definition commutes: Kernels.Commutes := \fun (x: E.family.Carrier a) => \refl(#apply{Current.differential} x);
+\definition commutes: Kernels.Commutes := \fun (x: E.family.Carrier a) => \refl(Current.differential.apply x);
 \definition cycleIsomorphism: Modules.Isomorphism[V := Source.Cycle, W := Target.Cycle, source := Source.cycleSpace, target := Target.cycleSpace].Isomorphism := Kernels.isomorphism commutes;
 \module Prior;
 \definition sourceBundle: Modules.Bundle := Modules.Bundle { Carrier := Source.Cycle, space := Source.cycleSpace };
 \definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := Target.Cycle, space := Target.cycleSpace };
-\import Modules.QuotientMapping[A := sourceBundle, B := targetBundle].On[S := Source.boundariesInside, T := Target.boundariesInside, f := #forward{cycleIsomorphism}] \as Descent;
-\import Descent.Inverse[g := #backward{cycleIsomorphism}] \as Back;
+\import Modules.QuotientMapping[A := sourceBundle, B := targetBundle].On[S := Source.boundariesInside, T := Target.boundariesInside, f := cycleIsomorphism.forward] \as Descent;
+\import Descent.Inverse[g := cycleIsomorphism.backward] \as Back;
 \import Modules.Of[V := E.family.Carrier a, space := E.family.space a].Submodule[] \as Sub;
 \import Sub.Image[U := E.family.Carrier upper, source := E.family.space upper] \as SourceImage;
 \import Sub.Image[U := E.family.Carrier b, source := E.family.space b] \as TargetImage;
 \definition compatible: Descent.Compatible := \fun (x: Source.Cycle)(member: _) =>
   SourceImage.eliminate Source.prior x (Sub.Member Target.boundaries x)
-    (\fun (y: E.family.Carrier upper)(equal: #apply{Source.prior} y = x) =>
+    (\fun (y: E.family.Carrier upper)(equal: Source.prior.apply y = x) =>
       TargetImage.introduce Target.prior x (Prior[].toRow y)
         (trans!{{E.family.Carrier a}} _ _ _ (Prior[].forward y) equal)) member;
 \definition compatibleBack: Back.CompatibleBack := \fun (x: Target.Cycle)(member: _) =>
   TargetImage.eliminate Target.prior x (Sub.Member Source.boundaries x)
-    (\fun (y: E.family.Carrier b)(equal: #apply{Target.prior} y = x) =>
+    (\fun (y: E.family.Carrier b)(equal: Target.prior.apply y = x) =>
       SourceImage.introduce Source.prior x (Prior[].toOriginal y)
         (trans!{{E.family.Carrier a}} _ _ _ (Prior[].backward y) equal)) member;
 \definition isomorphism: Modules.Isomorphism[V := Source.Homology, W := Target.Homology,
   source := Source.homologySpace, target := Target.homologySpace].Isomorphism :=
-  Back.isomorphism compatible compatibleBack #leftInverse{cycleIsomorphism} #rightInverse{cycleIsomorphism};
+  Back.isomorphism compatible compatibleBack cycleIsomorphism.leftInverse cycleIsomorphism.rightInverse;
 \definition onClass: \forall (x: Source.Cycle) ->
-  #apply{#forward{isomorphism}} (Source.classOf x) = Target.classOf (#apply{#forward{cycleIsomorphism}} x) := Descent.onClass compatible;
+  isomorphism.forward.apply (Source.classOf x) = Target.classOf (cycleIsomorphism.forward.apply x) := Descent.onClass compatible;

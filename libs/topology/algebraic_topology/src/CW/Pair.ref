@@ -2,15 +2,15 @@
   cells: Cells,
 }
 \structure SubcomplexLaws[data: SubcomplexData]: \Prop {
-  included: \forall (cell: CellData) -> CellMember data.cells cell -> CellMember (#cells{complex}) cell,
-  boundary: \forall (cell: CellData) -> CellMember data.cells cell -> \forall (p: Euclidean.Disk (#dimension{cell})) ->
-    \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.boundaryAt (#dimension{cell})) p ->
-    \exists BoundaryWitness[data.cells, cell, (#characteristic{cell} p)],
+  included: \forall (cell: CellData) -> CellMember data.cells cell -> CellMember (complex.cells) cell,
+  boundary: \forall (cell: CellData) -> CellMember data.cells cell -> \forall (p: Euclidean.Disk (cell.dimension)) ->
+    \In[Euclidean.coordinateCarrier (cell.dimension)] (Euclidean.boundaryAt (cell.dimension)) p ->
+    \exists BoundaryWitness[data.cells, cell, (cell.characteristic p)],
 }
 \definition Subcomplex: \Set := \Cast[SubcomplexData] ({ data: SubcomplexData \where SubcomplexLaws[data] });
 \module Of(subcomplex: Subcomplex) {
   \definition Subset: \Pow A := { x: A \where \exists { cell: CellData \where
-    Logic.And[CellMember (#cells{subcomplex}) cell, \In[A] (ClosedImage cell) x] } };
+    Logic.And[CellMember (subcomplex.cells) cell, \In[A] (ClosedImage cell) x] } };
   \import Space.Subspace[S := Subset] \as Subspace;
   \import algebraic_topology.Collapse[A := A, subset := Subset] \as Collapsed;
   \import topology.Topology[Carrier := Collapsed.Carrier] \as QuotientSpace;
@@ -20,13 +20,13 @@
   \definition quotient: A -> quotientCarrier := Collapsed.class;
 }
 \definition whole: Subcomplex := Subcomplex {
-  cells := #cells{complex},
-  included := \fun (cell: CellData) (member: CellMember (#cells{complex}) cell) => member,
-  boundary := #boundary{(laws source complex)},
+  cells := complex.cells,
+  included := \fun (cell: CellData) (member: CellMember (complex.cells) cell) => member,
+  boundary := (laws source complex).boundary,
 };
 \definition empty: Subcomplex := Subcomplex {
   cells := Lists.List[CellData]::nil,
-  included := \fun (cell: CellData) (member: Logic.False) => Logic.falseElim (CellMember (#cells{complex}) cell) member,
-  boundary := \fun (cell: CellData) (member: Logic.False) (p: Euclidean.Disk (#dimension{cell})) (onBoundary: _) =>
-    Logic.falseElim (\exists BoundaryWitness[Lists.List[CellData]::nil, cell, (#characteristic{cell} p)]) member,
+  included := \fun (cell: CellData) (member: Logic.False) => Logic.falseElim (CellMember (complex.cells) cell) member,
+  boundary := \fun (cell: CellData) (member: Logic.False) (p: Euclidean.Disk (cell.dimension)) (onBoundary: _) =>
+    Logic.falseElim (\exists BoundaryWitness[Lists.List[CellData]::nil, cell, (cell.characteristic p)]) member,
 };

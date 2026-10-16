@@ -12,7 +12,7 @@
   \let control: Space.ContinuityControl[f, a, epsilon, delta] := \bysub(Real, { d: Real \where Space.ContinuityControl[f, a, epsilon, d] }, delta) \then
   \return Logic.existsIntro[Real, { d: Real \where Local.ContinuityControl[U, function U f, a, epsilon, d] }] delta
     (Local.ContinuityControl[U, function U f, a, epsilon, delta] {
-      positive := #positive{control}, estimate := \fun (x: Carrier U)(near: _) => #estimate{control} x near,
+      positive := control.positive, estimate := \fun (x: Carrier U)(near: _) => control.estimate x near,
     })
 };
 \definition partial: \forall (U: OpenSet)(f, derivative: Function)(i: Coordinate) -> Partial.HasPartialDerivative f i derivative ->
@@ -25,7 +25,7 @@
     \bysub(Real, { d: Real \where \parent.\parent.\parent.Limit[].Def[].Control[Derivative.slope section (a i), a i, derivative a, epsilon, d] }, delta) \then
   \return Logic.existsIntro[Real, { d: Real \where Local.PartialControl[U, function U f, a, i, derivative a, epsilon, d] }] delta
     (Local.PartialControl[U, function U f, a, i, derivative a, epsilon, delta] {
-      positive := #positive{control},
+      positive := control.positive,
       estimate := \fun (t: Real)(x: Carrier U)(same: x = Coordinates.replace a i t)(different: _)(near: _) =>
         R.ltReplaceLeft (distance (Derivative.slope section (a i) t) (derivative a))
           (distance (mul (sub (f x) (f a)) (inv (sub t (a i)))) (derivative a)) epsilon
@@ -33,7 +33,7 @@
             (congr2!{Real Real Real} sub _ _ _ _
               (sym!{Real} _ _ (congr!{Point Real} f x (Coordinates.replace a i t) same))
               (congr!{Point Real} f _ _ (SpaceLaws.replaceOriginal a i))))
-          (#estimate{control} t different near),
+          (control.estimate t different near),
     })
 };
 \definition family(U: OpenSet)(derivatives: GlobalSmooth.PartialFamily): Smooth.PartialFamily U :=
@@ -46,11 +46,11 @@
   \return Logic.existsIntro[Smooth.PartialFamily U, { d: Smooth.PartialFamily U \where Smooth.ContDiffLaws[U, function U f, k, d] }] (family U derivatives)
     (Smooth.ContDiffLaws[U, function U f, k, family U derivatives] {
         partials := Smooth.PartialFamilyLaws[U, function U f, k, family U derivatives] {
-          function := congr!{Function {ScalarFunction U}} (function U) _ _ (#function{(#partials{laws})}),
+          function := congr!{Function {ScalarFunction U}} (function U) _ _ ((laws.partials).function),
           derivative := \fun (directions: Smooth.Directions)(bound: _)(i: Coordinate) =>
-            partial U (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i (#derivative{(#partials{laws})} directions bound i),
+            partial U (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i ((laws.partials).derivative directions bound i),
         },
-        continuous := \fun (directions: Smooth.Directions)(bound: _) => continuous U (derivatives directions) (#continuous{laws} directions bound),
+        continuous := \fun (directions: Smooth.Directions)(bound: _) => continuous U (derivatives directions) (laws.continuous directions bound),
       })
 };
 \definition smooth: \forall (U: OpenSet)(f: Function) -> GlobalSmooth.Smooth f -> Smooth.SmoothOn U (function U f) :=
@@ -64,9 +64,9 @@
   \let control: Local.PartialControl[V, f, b, i, df b, epsilon, delta] := \bysub(Real, { d: Real \where Local.PartialControl[V, f, b, i, df b, epsilon, d] }, delta) \then
   \return Logic.existsIntro[Real, { d: Real \where Local.PartialControl[U, restrict U V included f, a, i, restrict U V included df a, epsilon, d] }] delta
     (Local.PartialControl[U, restrict U V included f, a, i, restrict U V included df a, epsilon, delta] {
-        positive := #positive{control},
+        positive := control.positive,
         estimate := \fun (t: Real)(x: Carrier U)(replaced: x = Coordinates.replace a i t)(different: _)(near: _) =>
-          #estimate{control} t (inclusion U V included x) replaced different near,
+          control.estimate t (inclusion U V included x) replaced different near,
       })
 };
 \definition localFamily(U, V: OpenSet)(included: Included U V)(d: Smooth.PartialFamily V): Smooth.PartialFamily U :=
@@ -80,11 +80,11 @@
   \return Logic.existsIntro[Smooth.PartialFamily U, { d: Smooth.PartialFamily U \where Smooth.ContDiffLaws[U, restrict U V included f, k, d] }] (localFamily U V included derivatives)
     (Smooth.ContDiffLaws[U, restrict U V included f, k, localFamily U V included derivatives] {
         partials := Smooth.PartialFamilyLaws[U, restrict U V included f, k, localFamily U V included derivatives] {
-          function := congr!{{ScalarFunction V} {ScalarFunction U}} (restrict U V included) _ _ (#function{(#partials{laws})}),
+          function := congr!{{ScalarFunction V} {ScalarFunction U}} (restrict U V included) _ _ ((laws.partials).function),
           derivative := \fun (directions: Smooth.Directions)(bound: _)(i: Coordinate) => localPartial U V included
-            (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i (#derivative{(#partials{laws})} directions bound i),
+            (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i ((laws.partials).derivative directions bound i),
         },
-        continuous := \fun (directions: Smooth.Directions)(bound: _) => Local.restrictContinuous U V included (derivatives directions) (#continuous{laws} directions bound),
+        continuous := \fun (directions: Smooth.Directions)(bound: _) => Local.restrictContinuous U V included (derivatives directions) (laws.continuous directions bound),
       })
 };
 \definition localSmooth: \forall (U, V: OpenSet)(included: Included U V)(f: ScalarFunction V) ->
@@ -97,9 +97,9 @@
   \fun (U, V: _)(included: _)(k: _)(f: _)(derivatives: _)(laws: _) =>
     Smooth.ContDiffLaws[U, restrict U V included f, k, localFamily U V included derivatives] {
       partials := Smooth.PartialFamilyLaws[U, restrict U V included f, k, localFamily U V included derivatives] {
-        function := congr!{{ScalarFunction V} {ScalarFunction U}} (restrict U V included) _ _ (#function{(#partials{laws})}),
+        function := congr!{{ScalarFunction V} {ScalarFunction U}} (restrict U V included) _ _ ((laws.partials).function),
         derivative := \fun (directions: Smooth.Directions)(bound: _)(i: Coordinate) => localPartial U V included
-          (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i (#derivative{(#partials{laws})} directions bound i),
+          (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i ((laws.partials).derivative directions bound i),
       },
-      continuous := \fun (directions: Smooth.Directions)(bound: _) => Local.restrictContinuous U V included (derivatives directions) (#continuous{laws} directions bound),
+      continuous := \fun (directions: Smooth.Directions)(bound: _) => Local.restrictContinuous U V included (derivatives directions) (laws.continuous directions bound),
     };

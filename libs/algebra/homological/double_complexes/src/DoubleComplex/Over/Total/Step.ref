@@ -31,32 +31,32 @@
     | succ: \fun (q: Nat.Nat^)(previous: _)(p: First (Nat.Nat^::succ n) (Nat.Nat^::succ q)) => Vertical[q := q, p := p].map
   };
 \module Component(i: Index (Nat.Nat^::succ n)) {
-  \definition q: Second (Nat.Nat^::succ n) #first{i} := \into[Nat.Nat^](#second{i}, { q: Nat.Nat^ \where Arithmetic.add #first{i} q = Nat.Nat^::succ n }) \by { degree (Nat.Nat^::succ n) i };
-  \definition p: First (Nat.Nat^::succ n) #second{i} := \into[Nat.Nat^](#first{i}, { p: Nat.Nat^ \where Arithmetic.add p #second{i} = Nat.Nat^::succ n }) \by { degree (Nat.Nat^::succ n) i };
-  \import Modules.Hom[V := C.family.Carrier #first{i} #second{i}, W := Target.Carrier, source := C.family.space #first{i} #second{i}, target := Target.space] \as Maps;
-  \definition map: Maps.Map := Maps.plus (horizontal #first{i} q) (vertical #second{i} p);
+  \definition q: Second (Nat.Nat^::succ n) i.first := \into[Nat.Nat^](i.second, { q: Nat.Nat^ \where Arithmetic.add i.first q = Nat.Nat^::succ n }) \by { degree (Nat.Nat^::succ n) i };
+  \definition p: First (Nat.Nat^::succ n) i.second := \into[Nat.Nat^](i.first, { p: Nat.Nat^ \where Arithmetic.add p i.second = Nat.Nat^::succ n }) \by { degree (Nat.Nat^::succ n) i };
+  \import Modules.Hom[V := C.family.Carrier i.first i.second, W := Target.Carrier, source := C.family.space i.first i.second, target := Target.space] \as Maps;
+  \definition map: Maps.Map := Maps.plus (horizontal i.first q) (vertical i.second p);
 }
 \import Modules.DirectSum[Index := Index (Nat.Nat^::succ n), family := Source.family].To[W := Target.Carrier, target := Target.space] \as Universal;
 \definition components: Universal.Components := \fun (i: Index (Nat.Nat^::succ n)) => Component[i := i].map;
 \definition differential: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map := Universal.extension components;
-\definition onInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
-  #apply{differential} (#apply{(Source.Component[i := i].injection)} x) = #apply{(Component[i := i].map)} x := Universal.onInjection components;
-\definition onComponent: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
-  #apply{differential} (#apply{(Source.Component[i := i].injection)} x) = #add{Target.space}
-    (#apply{(horizontal #first{i} (Component[i := i].q))} x) (#apply{(vertical #second{i} (Component[i := i].p))} x) := onInjection;
+\definition onInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) ->
+  differential.apply ((Source.Component[i := i].injection).apply x) = (Component[i := i].map).apply x := Universal.onInjection components;
+\definition onComponent: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) ->
+  differential.apply ((Source.Component[i := i].injection).apply x) = Target.space.add
+    ((horizontal i.first (Component[i := i].q)).apply x) ((vertical i.second (Component[i := i].p)).apply x) := onInjection;
 
-\definition horizontalComponents: Universal.Components := \fun (i: Index (Nat.Nat^::succ n)) => horizontal #first{i} (Component[i := i].q);
-\definition verticalComponents: Universal.Components := \fun (i: Index (Nat.Nat^::succ n)) => vertical #second{i} (Component[i := i].p);
+\definition horizontalComponents: Universal.Components := \fun (i: Index (Nat.Nat^::succ n)) => horizontal i.first (Component[i := i].q);
+\definition verticalComponents: Universal.Components := \fun (i: Index (Nat.Nat^::succ n)) => vertical i.second (Component[i := i].p);
 \import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
 \definition horizontalTotal: Maps.Map := Universal.extension horizontalComponents;
 \definition verticalTotal: Maps.Map := Universal.extension verticalComponents;
-\definition horizontalOnInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
-  #apply{horizontalTotal} (#apply{(Source.Component[i := i].injection)} x) = #apply{(horizontalComponents i)} x := Universal.onInjection horizontalComponents;
-\definition verticalOnInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
-  #apply{verticalTotal} (#apply{(Source.Component[i := i].injection)} x) = #apply{(verticalComponents i)} x := Universal.onInjection verticalComponents;
+\definition horizontalOnInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) ->
+  horizontalTotal.apply ((Source.Component[i := i].injection).apply x) = (horizontalComponents i).apply x := Universal.onInjection horizontalComponents;
+\definition verticalOnInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) ->
+  verticalTotal.apply ((Source.Component[i := i].injection).apply x) = (verticalComponents i).apply x := Universal.onInjection verticalComponents;
 \definition asSum: differential = Maps.plus horizontalTotal verticalTotal :=
   Universal.ext differential (Maps.plus horizontalTotal verticalTotal)
-    (\fun (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) => trans!{Target.Carrier} _ _ _
+    (\fun (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) => trans!{Target.Carrier} _ _ _
       (onComponent i x)
-      (congr2!{Target.Carrier Target.Carrier Target.Carrier} (#add{Target.space}) _ _ _ _
+      (congr2!{Target.Carrier Target.Carrier Target.Carrier} (Target.space.add) _ _ _ _
         (sym!{Target.Carrier} _ _ (horizontalOnInjection i x)) (sym!{Target.Carrier} _ _ (verticalOnInjection i x))));

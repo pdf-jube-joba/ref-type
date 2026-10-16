@@ -47,14 +47,14 @@
 \structure Cleared[k, i, j: N.Nat^, a: Runtime^]: \Prop { column: a i k = Arithmetic.zero, row: a k j = Arithmetic.zero }
 \definition remainderAtInjected: \forall (k, i, j: N.Nat^)(a: Runtime^) -> Cleared[k, i, j, a] -> Division.remainder (inject k i a k j) (inject k i a k k) = Division.remainder (a i j) (a k k) :=
   \fun (k, i, j: N.Nat^)(a: Runtime^)(cleared: _) => congr2!{I.Int^ I.Int^ I.Int^} Division.remainder
-    (inject k i a k j) (a i j) (inject k i a k k) (a k k) (injectedEntry k i j a #row{cleared}) (injectedPivot k i a #column{cleared});
+    (inject k i a k j) (a i j) (inject k i a k k) (a k k) (injectedEntry k i j a cleared.row) (injectedPivot k i a cleared.column);
 \definition changed: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> Cleared[k, i, j, a] -> Logic.Not (Division.remainder (a i j) (a k k) = Arithmetic.zero) -> attemptReduced (correct k i j a history) = B.Bool^::true :=
   \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(cleared: _)(nonzero: _) => Reduction.columnIsChanged k j (inject k i a) (injectHistory k i history)
     (\fun (zero: _) => nonzero (trans!{I.Int^} (Division.remainder (a i j) (a k k)) (Division.remainder (inject k i a k j) (inject k i a k k)) Arithmetic.zero
       (sym!{I.Int^} (Division.remainder (inject k i a k j) (inject k i a k k)) (Division.remainder (a i j) (a k k)) (remainderAtInjected k i j a cleared)) zero));
 \definition decreases: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> Cleared[k, i, j, a] -> Logic.Not (a k k = Arithmetic.zero) -> Logic.Not (Division.remainder (a i j) (a k k) = Arithmetic.zero) ->
   NaturalBounds.Lt (Signed.absolute (attemptMatrix (correct k i j a history) k k)) (Signed.absolute (a k k)) :=
-  \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(cleared: _)(pivotNonzero: _)(nonzero: _) => smaller k i j a history #column{cleared} pivotNonzero (changed k i j a history cleared nonzero);
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(cleared: _)(pivotNonzero: _)(nonzero: _) => smaller k i j a history cleared.column pivotNonzero (changed k i j a history cleared nonzero);
 
 \definition nonzero: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> NaturalBounds.Lt k j -> a i k = Arithmetic.zero -> Logic.Not (a k k = Arithmetic.zero) -> Logic.Not (attemptMatrix (correct k i j a history) k k = Arithmetic.zero) :=
   \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(lower: _)(cleared: _)(nonzero: _) => Reduction.columnNonzero k j (inject k i a) (injectHistory k i history) lower

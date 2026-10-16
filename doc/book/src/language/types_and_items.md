@@ -1,6 +1,6 @@
 # 型関連 item と射影
 
-constructor と型関連 item は `::`、field は `.` または `#field` で参照する。
+constructor と型関連 item は `::`、field は `.` で参照する。
 structure の宣言と法則の扱いは [structure](structure.md) を参照。
 
 ## 宣言とアクセス
@@ -61,7 +61,6 @@ Program の型引数は、文脈から決まれば省略または `_` で指定�
 
 ## 型から解決する射影
 
-`p #first` と `#first{p}` は p の型から projection を解決する。
+`p.first` は p の型から projection を解決する。
 Set の法則付き record では data と law の両方を参照でき、Program record では計算を返す。
-名前付きの field 参照 `p.first` も使える。
 block 内の `\fun`・`\let` で導入した変数にも使える。

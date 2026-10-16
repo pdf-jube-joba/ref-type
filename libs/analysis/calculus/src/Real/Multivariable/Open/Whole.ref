@@ -5,7 +5,7 @@
 \import \parent.\parent.Space[].Prop[] \as SpaceLaws;
 \import \parent.\parent.Partial[].Def[] \as Partial;
 \import \parent.\parent.Smooth[].Def[] \as Global;
-\definition point(x: Point): Carrier whole := \into[Point](x, #points{whole}) \by { \refl(x) };
+\definition point(x: Point): Carrier whole := \into[Point](x, whole.points) \by { \refl(x) };
 \definition function(f: ScalarFunction whole): Function := \fun (x: Point) => f (point x);
 \definition continuous: \forall (f: ScalarFunction whole) -> Local.ContinuousOn whole f -> Space.Continuous (function f) := \block {
   \fun (f: _)(regular: _)(a: Point)(epsilon: Real)(positive: _) \then
@@ -14,7 +14,7 @@
     { d: Real \where Local.ContinuityControl[whole, f, point a, epsilon, d] }, delta) \then
   \return Logic.existsIntro[Real, { d: Real \where Space.ContinuityControl[function f, a, epsilon, d] }] delta
     (Space.ContinuityControl[function f, a, epsilon, delta] {
-      positive := #positive{control}, estimate := \fun (x: Point)(near: _) => #estimate{control} (point x) near,
+      positive := control.positive, estimate := \fun (x: Point)(near: _) => control.estimate (point x) near,
     })
 };
 \definition partial: \forall (f, df: ScalarFunction whole)(i: Coordinate) -> Local.HasPartialDerivative whole f i df ->
@@ -27,14 +27,14 @@
     { d: Real \where Local.PartialControl[whole, f, point a, i, df (point a), epsilon, d] }, delta) \then
   \return Logic.existsIntro[Real, { d: Real \where \parent.\parent.\parent.Limit[].Def[].Control[Derivative.slope section (a i), a i, function df a, epsilon, d] }] delta
     (\parent.\parent.\parent.Limit[].Def[].Control[Derivative.slope section (a i), a i, function df a, epsilon, delta] {
-        positive := #positive{control},
+        positive := control.positive,
         estimate := \fun (t: Real)(different: _)(near: _) =>
           R.ltReplaceLeft (distance (mul (sub (f (point (Coordinates.replace a i t))) (f (point a))) (inv (sub t (a i)))) (df (point a)))
             (distance (Derivative.slope section (a i) t) (function df a)) epsilon
             (congr!{Real Real} (\fun (s: Real) => distance (mul (sub (f (point (Coordinates.replace a i t))) s) (inv (sub t (a i)))) (df (point a)))
               (f (point a)) (f (point (Coordinates.replace a i (a i))))
               (sym!{Real} (f (point (Coordinates.replace a i (a i)))) (f (point a)) (congr!{Point Real} (function f) (Coordinates.replace a i (a i)) a (SpaceLaws.replaceOriginal a i))))
-            (#estimate{control} t (point (Coordinates.replace a i t)) (\refl(Coordinates.replace a i t)) different near),
+            (control.estimate t (point (Coordinates.replace a i t)) (\refl(Coordinates.replace a i t)) different near),
       })
 };
 \definition family(derivatives: Smooth.PartialFamily whole): Global.PartialFamily :=
@@ -47,11 +47,11 @@
   \return Logic.existsIntro[Global.PartialFamily, { d: Global.PartialFamily \where Global.ContDiffLaws[function f, k, d] }] (family derivatives)
     (Global.ContDiffLaws[function f, k, family derivatives] {
         partials := Global.PartialFamilyLaws[function f, k, family derivatives] {
-          function := congr!{{ScalarFunction whole} Function} function _ _ (#function{(#partials{laws})}),
+          function := congr!{{ScalarFunction whole} Function} function _ _ ((laws.partials).function),
           derivative := \fun (directions: Smooth.Directions)(bound: _)(i: Coordinate) => partial
-            (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i (#derivative{(#partials{laws})} directions bound i),
+            (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i ((laws.partials).derivative directions bound i),
         },
-        continuous := \fun (directions: Smooth.Directions)(bound: _) => continuous (derivatives directions) (#continuous{laws} directions bound),
+        continuous := \fun (directions: Smooth.Directions)(bound: _) => continuous (derivatives directions) (laws.continuous directions bound),
       })
 };
 \definition smooth: \forall (f: ScalarFunction whole) -> Smooth.SmoothOn whole f -> Global.Smooth (function f) :=

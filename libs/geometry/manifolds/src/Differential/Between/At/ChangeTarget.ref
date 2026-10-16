@@ -2,13 +2,13 @@
 \import \parent.InCharts[left := left, right := after] \as After;
 \import \root.SelfMap[n := m].Identity[M := N] \as Identity;
 \import \root.Composition[n := n, m := m, l := m].Between[M := M, N := N, P := N].Of[f := f, g := Identity.map] \as Composition;
-\definition sourceChart: Composition.SourceChart := \into[SourceCharts.Chart](left, #charts{M.atlas}) \by { Domain.member left };
-\definition middleChart: Composition.MiddleChart := \into[TargetCharts.Chart](before, #charts{N.atlas}) \by { Codomain.member before };
-\definition targetChart: Composition.TargetChart := \into[TargetCharts.Chart](after, #charts{N.atlas}) \by { Codomain.member after };
+\definition sourceChart: Composition.SourceChart := \into[SourceCharts.Chart](left, M.atlas.charts) \by { Domain.member left };
+\definition middleChart: Composition.MiddleChart := \into[TargetCharts.Chart](before, N.atlas.charts) \by { Codomain.member before };
+\definition targetChart: Composition.TargetChart := \into[TargetCharts.Chart](after, N.atlas.charts) \by { Codomain.member after };
 \import \root.CompositionDifferential[n := n, m := m, l := m].Between[M := M, N := N, P := N].Of[f := f, g := Identity.map].InCharts[left := sourceChart, middle := middleChart, right := targetChart] \as CompositionData;
 \import Composition.Coordinates[left := left, right := after].Patch[middle := middleChart] \as Patch;
 \definition point: Open.Carrier CompositionData.domain :=
-  \into[SourceVectors.Vector](Domain.coordinate left, #points{CompositionData.domain}) \by {
+  \into[SourceVectors.Vector](Domain.coordinate left, CompositionData.domain.points) \by {
     Patch.contains After.point Before.containsImage
   };
 \import CompositionData.At[a := point] \as Chain;
@@ -19,7 +19,7 @@
 \import Spaces.Linear[V := TargetVectors.Vector, W := TargetVectors.Vector, source := TargetVectors.space, target := TargetVectors.space] \as End;
 \definition intermediate: TargetOpen.Carrier TargetTransition.domain := Patch.intermediate point;
 \definition pointAgreement: intermediate = TargetChange.point := Before.coordinateAgreement;
-\definition secondAgreement: TargetMaps.Differential[U := TargetTransition.domain, V := #image{after},
+\definition secondAgreement: TargetMaps.Differential[U := TargetTransition.domain, V := after.image,
   f := CompositionData.secondMap, a := intermediate].value = Codomain.jacobian before after :=
     congr!{{TargetOpen.Carrier TargetTransition.domain} {End.Map}} TargetChange.valueAt
       intermediate TargetChange.point pointAgreement;
@@ -33,17 +33,17 @@
 \import Codomain.Coordinate[chart := after] \as Coordinates;
 \import Codomain.ChartIsomorphism[chart := before].Change[other := after] \as Changes;
 \definition coordinateEquality: \forall (v: Domain.Vector) ->
-  Coordinates.decode (#apply{After.value} v) = Coordinates.decode (#apply{Before.value} v) :=
+  Coordinates.decode (After.value.apply v) = Coordinates.decode (Before.value.apply v) :=
     \fun (v: Domain.Vector) => trans!{{TargetVectors.Vector}}
       _ _ _
       (trans!{{TargetVectors.Vector}} _ _ _
         (After.coordinateLaw v)
         (congr!{{Jacobians.Map} {TargetVectors.Vector}}
-          (\fun (d: Jacobians.Map) => #apply{d} (Domain.Coordinate[chart := left].decode v)) _ _ jacobian))
+          (\fun (d: Jacobians.Map) => d.apply (Domain.Coordinate[chart := left].decode v)) _ _ jacobian))
       (sym!{{TargetVectors.Vector}} _ _
         (trans!{{TargetVectors.Vector}} _ _ _
-          (Changes.coordinates (#apply{Before.value} v))
+          (Changes.coordinates (Before.value.apply v))
           (congr!{{TargetVectors.Vector} {TargetVectors.Vector}} (Codomain.transform before after) _ _ (Before.coordinateLaw v))));
 \definition law: After.value = Before.value := Linear.ext After.value Before.value
-  (\axiom:funext((#apply{After.value}), (#apply{Before.value}),
-    \fun (v: Domain.Vector) => Coordinates.injective (#apply{After.value} v) (#apply{Before.value} v) (coordinateEquality v)));
+  (\axiom:funext((After.value.apply), (Before.value.apply),
+    \fun (v: Domain.Vector) => Coordinates.injective (After.value.apply v) (Before.value.apply v) (coordinateEquality v)));

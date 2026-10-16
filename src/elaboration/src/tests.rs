@@ -79,9 +79,9 @@ fn direct_definition_specialization_preserves_dependent_carriers_and_scopes() {
             \definition second(x, y: A): A := At[x := y].value;
             \definition firstLaw(x, y: A): first x y = x := \refl(x);
             \definition secondLaw(x, y: A): second x y = y := \refl(y);
-            \definition projection(x: A): #value{(point x)} = x := \refl(x);
+            \definition projection(x: A): (point x).value = x := \refl(x);
             \definition explicit(x: A): Carrier x := At[x := x].withValue x (\refl(x));
-            \definition explicitProjection(x: A): #value{(explicit x)} = x := \refl(x);
+            \definition explicitProjection(x: A): (explicit x).value = x := \refl(x);
         }
     ";
     let modules = parse::str_parse_modules(source).unwrap();

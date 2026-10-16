@@ -41,7 +41,7 @@
         \by ih (\fun (x: _) (member: _) => total x (inInsertOld a X x member)) \then
       \takefrom b: \Cast[B] ({ b: B \where relation a b }) \by total a (inInsertNew a X) \then
       \let ab: relation a b := \bysub(B, { b: B \where relation a b }, b) \then
-      \let finite: Target.FiniteSubset := Target.insert b (#finite{previous}) \then
+      \let finite: Target.FiniteSubset := Target.insert b (previous.finite) \then
       \return \exact(Selection[relation, Insert a X] {
         finite := finite,
         included := \fun (y: B) (member: Target.Member finite y) => either!{member {\exists RelatedWitness relation (Insert a X) y}
@@ -49,38 +49,38 @@
             (\idelim b = y \with z: B => relation a z \by { base: ab, equality: sym!{B} _ _ equal })}
           {\block {
             \fun (old: _) \then
-            \takefrom x: RelatedWitness relation X y \by #included{previous} y old \then
+            \takefrom x: RelatedWitness relation X y \by previous.included y old \then
             \let data: Logic.And[\In[A] X x, relation x y] :=
               \bysub(A, { x: A \where Logic.And[\In[A] X x, relation x y] }, x) \then
-            \return related relation (Insert a X) x y (inInsertOld a X x (#left{data})) (#right{data})
+            \return related relation (Insert a X) x y (inInsertOld a X x (data.left)) (data.right)
           }}
         },
         covers := \fun (x: A) (member: \In[A] (Insert a X) x) => either!{member {\exists CoveredWitness relation finite x}
-          {\fun (equal: _) => covered relation finite x b (Target.inInsertNew b (#finite{previous}))
+          {\fun (equal: _) => covered relation finite x b (Target.inInsertNew b (previous.finite))
             (\idelim a = x \with z: A => relation z b \by { base: ab, equality: sym!{A} _ _ equal })}
           {\block {
             \fun (old: _) \then
-            \takefrom y: CoveredWitness relation (#finite{previous}) x \by #covers{previous} x old \then
-            \let data: Logic.And[Target.Member (#finite{previous}) y, relation x y] :=
-              \bysub(B, { y: B \where Logic.And[Target.Member (#finite{previous}) y, relation x y] }, y) \then
-            \return covered relation finite x y (Target.inInsertOld b (#finite{previous}) y (#left{data})) (#right{data})
+            \takefrom y: CoveredWitness relation (previous.finite) x \by previous.covers x old \then
+            \let data: Logic.And[Target.Member (previous.finite) y, relation x y] :=
+              \bysub(B, { y: B \where Logic.And[Target.Member (previous.finite) y, relation x y] }, y) \then
+            \return covered relation finite x y (Target.inInsertOld b (previous.finite) y (data.left)) (data.right)
           }}
         },
       }, Selection[relation, Insert a X])
     });
 
 \definition includedElim(relation: A -> B -> \Prop) (X: \Pow A) (selection: Selection[relation, X]) (b: B) (P: \Prop):
-  (\forall (a: A) -> \In[A] X a -> relation a b -> P) -> Target.Member (#finite{selection}) b -> P := \block {
-  \fun (step: \forall (a: A) -> \In[A] X a -> relation a b -> P) (member: Target.Member (#finite{selection}) b) \then
-  \takefrom a: RelatedWitness relation X b \by #included{selection} b member \then
+  (\forall (a: A) -> \In[A] X a -> relation a b -> P) -> Target.Member (selection.finite) b -> P := \block {
+  \fun (step: \forall (a: A) -> \In[A] X a -> relation a b -> P) (member: Target.Member (selection.finite) b) \then
+  \takefrom a: RelatedWitness relation X b \by selection.included b member \then
   \let data: Logic.And[\In[A] X a, relation a b] := \bysub(A, { a: A \where Logic.And[\In[A] X a, relation a b] }, a) \then
-  \return step a (#left{data}) (#right{data})
+  \return step a (data.left) (data.right)
 };
 \definition coversElim(relation: A -> B -> \Prop) (X: \Pow A) (selection: Selection[relation, X]) (a: A) (P: \Prop):
-  (\forall (b: B) -> Target.Member (#finite{selection}) b -> relation a b -> P) -> \In[A] X a -> P := \block {
-  \fun (step: \forall (b: B) -> Target.Member (#finite{selection}) b -> relation a b -> P) (member: \In[A] X a) \then
-  \takefrom b: CoveredWitness relation (#finite{selection}) a \by #covers{selection} a member \then
-  \let data: Logic.And[Target.Member (#finite{selection}) b, relation a b] :=
-    \bysub(B, { b: B \where Logic.And[Target.Member (#finite{selection}) b, relation a b] }, b) \then
-  \return step b (#left{data}) (#right{data})
+  (\forall (b: B) -> Target.Member (selection.finite) b -> relation a b -> P) -> \In[A] X a -> P := \block {
+  \fun (step: \forall (b: B) -> Target.Member (selection.finite) b -> relation a b -> P) (member: \In[A] X a) \then
+  \takefrom b: CoveredWitness relation (selection.finite) a \by selection.covers a member \then
+  \let data: Logic.And[Target.Member (selection.finite) b, relation a b] :=
+    \bysub(B, { b: B \where Logic.And[Target.Member (selection.finite) b, relation a b] }, b) \then
+  \return step b (data.left) (data.right)
 };

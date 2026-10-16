@@ -24,9 +24,9 @@
 \definition normalization: \forall (output: Compute.Output^) -> Computation.result output -> Certificate[normalizeOutput output] :=
   \induction (output: Compute.Output^) \return Computation.result output -> Certificate[normalizeOutput output] \with {
     | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^)(law: Computation.Laws[rank, a, history]) =>
-        assembly rank (Normalize.fold rank a history) #rowRank{law} #columnRank{law}
-          (Signs.boundedHistory rank m n a history #rowRank{law} #bounded{law})
-          (Signs.traced rank a original history #traced{law})
+        assembly rank (Normalize.fold rank a history) law.rowRank law.columnRank
+          (Signs.boundedHistory rank m n a history law.rowRank law.bounded)
+          (Signs.traced rank a original history law.traced)
           (Signs.positive rank a history)
   };
 \definition correctness: Certificate[standardize m n original] := normalization (Compute.executeInitial m n original) Computation.correctness;
@@ -34,7 +34,7 @@
   Frames.change frame (Matrices.reflect original) = Matrices.reflect (Compute.outputMatrix output) });
 \definition equivalence: \forall (output: Compute.Output^) -> Certificate[output] -> \exists FrameFor output := \block {
   \fun (output: Compute.Output^)(law: Certificate[output]) \then
-  \takefrom frame: Frames.HistoryFrame (Compute.outputHistory output) \by Frames.Histories[].existence (Compute.outputHistory output) #bounded{law} \then
+  \takefrom frame: Frames.HistoryFrame (Compute.outputHistory output) \by Frames.Histories[].existence (Compute.outputHistory output) law.bounded \then
   \let action: Frames.HistoryAction (Compute.outputHistory output) frame :=
     \bysub(Frames.Frame, { frame: Frames.Frame \where Frames.HistoryAction (Compute.outputHistory output) frame }, frame) \then
   \return \exact(\into[Frames.Frame](frame, { frame: Frames.Frame \where
@@ -42,7 +42,7 @@
       trans!{Matrices.Matrix} _ _ _
         (action original)
         (congr!{Runtime^ Matrices.Matrix} Matrices.reflect (applyHistory (Compute.outputHistory output) original) (Compute.outputMatrix output)
-          (sym!{Runtime^} (Compute.outputMatrix output) (applyHistory (Compute.outputHistory output) original) #traced{law}))
+          (sym!{Runtime^} (Compute.outputMatrix output) (applyHistory (Compute.outputHistory output) original) law.traced))
     }, FrameFor output)
 };
 \definition computedEquivalence: \exists FrameFor (standardize m n original) := equivalence (standardize m n original) correctness;

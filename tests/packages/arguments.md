@@ -117,7 +117,7 @@ parameters = '''A: \Set'''
 \structure Box: \Set { field: A, }
 \definition get: Box -> A := \block {
   \fun (x: Box) \then
-  \return x #field
+  \return x.field
 };
 ```
 

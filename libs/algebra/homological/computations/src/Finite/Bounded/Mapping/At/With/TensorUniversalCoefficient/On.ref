@@ -26,7 +26,7 @@
   \import SourceTensor.Mapping[U := Carrier D k, Z := B.Carrier, targetLeft := space D k, targetRight := B.space] \as Mapping;
   \definition map: _ := Mapping.map (linear f k) u;
   \definition onTensor: \forall (x: Carrier C k)(a: A.Carrier) ->
-    #apply{map} (SourceTensor.tensor x a) = TargetTensor.tensor (#apply{(linear f k)} x) (#apply{u} a) := Mapping.onTensor (linear f k) u;
+    map.apply (SourceTensor.tensor x a) = TargetTensor.tensor ((linear f k).apply x) (u.apply a) := Mapping.onTensor (linear f k) u;
 }
 \module Differential(k: Degree) {
   \import \parent.Degreewise[k := k] \as Current;
@@ -39,24 +39,24 @@
   \definition equal: Left.compose TargetTensor.differential Current.map = Right.compose Lower.map SourceTensor.differential :=
     Equality.ext (Left.compose TargetTensor.differential Current.map) (Right.compose Lower.map SourceTensor.differential)
       (\fun (x: Carrier C k)(a: A.Carrier) => trans!{{TN.Carrier (previous k)}} _ _ _
-        (congr!{{TN.Carrier k} {TN.Carrier (previous k)}} (#apply{TargetTensor.differential}) _ _ (Current.onTensor x a))
-        (trans!{{TN.Carrier (previous k)}} _ _ _ (TargetTensor.onTensor (#apply{(linear f k)} x) (#apply{u} a))
+        (congr!{{TN.Carrier k} {TN.Carrier (previous k)}} (TargetTensor.differential.apply) _ _ (Current.onTensor x a))
+        (trans!{{TN.Carrier (previous k)}} _ _ _ (TargetTensor.onTensor ((linear f k).apply x) (u.apply a))
           (trans!{{TN.Carrier (previous k)}} _ _ _
-            (congr!{{Carrier D (previous k)} {TN.Carrier (previous k)}} (\fun (y: Carrier D (previous k)) => TN.At[z := previous k].tensor y (#apply{u} a)) _ _
-              (#commutes{(chainMap f)} k x))
+            (congr!{{Carrier D (previous k)} {TN.Carrier (previous k)}} (\fun (y: Carrier D (previous k)) => TN.At[z := previous k].tensor y (u.apply a)) _ _
+              ((chainMap f).commutes k x))
             (sym!{{TN.Carrier (previous k)}} _ _ (trans!{{TN.Carrier (previous k)}} _ _ _
-              (congr!{{SN.Carrier (previous k)} {TN.Carrier (previous k)}} (#apply{Lower.map}) _ _ (SourceTensor.onTensor x a))
-              (Lower.onTensor (#apply{Source.chain.differential} k x) a))))));
+              (congr!{{SN.Carrier (previous k)} {TN.Carrier (previous k)}} (Lower.map.apply) _ _ (SourceTensor.onTensor x a))
+              (Lower.onTensor (Source.chain.differential.apply k x) a))))));
   \definition commutes: \forall (x: S.tensorCarrier k) ->
-    #apply{TargetTensor.differential} (#apply{Current.map} x) = #apply{Lower.map} (#apply{SourceTensor.differential} x) :=
+    TargetTensor.differential.apply (Current.map.apply x) = Lower.map.apply (SourceTensor.differential.apply x) :=
     \fun (x: S.tensorCarrier k) => congr!{Modules.Hom[V := S.tensorCarrier k, W := T.tensorCarrier (previous k), source := S.tensorSpace k, target := T.tensorSpace (previous k)].Map {T.tensorCarrier (previous k)}}
-      (\fun (g: Modules.Hom[V := S.tensorCarrier k, W := T.tensorCarrier (previous k), source := S.tensorSpace k, target := T.tensorSpace (previous k)].Map) => #apply{g} x) _ _ equal;
+      (\fun (g: Modules.Hom[V := S.tensorCarrier k, W := T.tensorCarrier (previous k), source := S.tensorSpace k, target := T.tensorSpace (previous k)].Map) => g.apply x) _ _ equal;
 }
 \import Chains.Map[C := S.tensorComplex, D := T.tensorComplex] \as TensorMaps;
 \definition tensorMap: TensorMaps.Map := TensorMaps.Map {
-  apply := \fun (k: Degree) => #apply{Degreewise[k := k].map},
-  addition := \fun (k: Degree) => #addition{Degreewise[k := k].map},
-  scalar := \fun (k: Degree) => #scalar{Degreewise[k := k].map},
+  apply := \fun (k: Degree) => (Degreewise[k := k].map).apply,
+  addition := \fun (k: Degree) => (Degreewise[k := k].map).addition,
+  scalar := \fun (k: Degree) => (Degreewise[k := k].map).scalar,
   commutes := \fun (k: Degree) => Differential[k := k].commutes,
 };
 \import TensorMaps.At[k := z] \as TensorHomology;
@@ -64,78 +64,78 @@
 \import SA.Mapping[U := TargetHomology.Homology, Z := B.Carrier, targetLeft := TargetHomology.homologySpace, targetRight := B.space] \as LeftMapping;
 \definition left: _ := LeftMapping.map induced u;
 \definition sourcePure: \forall (x: SourceHomology.Cycle)(a: A.Carrier) ->
-  #apply{SB.map} (SA.tensor (SourceHomology.classOf x) a) = SH.classOf (S.cycle (SC.tensor x a)) :=
+  SB.map.apply (SA.tensor (SourceHomology.classOf x) a) = SH.classOf (S.cycle (SC.tensor x a)) :=
   \fun (x: SourceHomology.Cycle)(a: A.Carrier) => trans!{SH.Homology} _ _ _
-    (sym!{SH.Homology} _ _ (congr!{SA.Carrier SH.Homology} (#apply{SB.map}) _ _
+    (sym!{SH.Homology} _ _ (congr!{SA.Carrier SH.Homology} (SB.map.apply) _ _
       (SP.onTensor SourceHomology.classLinear CA.identity x a)))
     (SB.onCycles (SC.tensor x a));
 \definition targetPure: \forall (x: TargetHomology.Cycle)(a: B.Carrier) ->
-  #apply{TB.map} (TA.tensor (TargetHomology.classOf x) a) = TH.classOf (T.cycle (TC.tensor x a)) :=
+  TB.map.apply (TA.tensor (TargetHomology.classOf x) a) = TH.classOf (T.cycle (TC.tensor x a)) :=
   \fun (x: TargetHomology.Cycle)(a: B.Carrier) => trans!{TH.Homology} _ _ _
-    (sym!{TH.Homology} _ _ (congr!{TA.Carrier TH.Homology} (#apply{TB.map}) _ _
+    (sym!{TH.Homology} _ _ (congr!{TA.Carrier TH.Homology} (TB.map.apply) _ _
       (TP.onTensor TargetHomology.classLinear CB.identity x a)))
     (TB.onCycles (TC.tensor x a));
 \definition cycleNaturality: \forall (x: SourceHomology.Cycle)(a: A.Carrier) ->
-  #apply{(TensorHomology.cyclesMap tensorMap)} (S.cycle (SC.tensor x a)) =
-    T.cycle (TC.tensor (#apply{(Induced.cyclesMap (chainMap f))} x) (#apply{u} a)) :=
+  (TensorHomology.cyclesMap tensorMap).apply (S.cycle (SC.tensor x a)) =
+    T.cycle (TC.tensor ((Induced.cyclesMap (chainMap f)).apply x) (u.apply a)) :=
   \fun (x: SourceHomology.Cycle)(a: A.Carrier) => trans!{{TN.Carrier z}} _ _ _
-    (congr!{{SN.Carrier z} {TN.Carrier z}} (#apply{Degreewise[k := z].map}) _ _
+    (congr!{{SN.Carrier z} {TN.Carrier z}} ((Degreewise[k := z].map).apply) _ _
       (SI.onTensor SourceCycles.inclusion CA.identity x a))
     (trans!{{TN.Carrier z}} _ _ _ (Degreewise[k := z].onTensor x a)
       (sym!{{TN.Carrier z}} _ _
-        (TI.onTensor TargetCycles.inclusion CB.identity (#apply{(Induced.cyclesMap (chainMap f))} x) (#apply{u} a))));
+        (TI.onTensor TargetCycles.inclusion CB.identity ((Induced.cyclesMap (chainMap f)).apply x) (u.apply a))));
 \definition pureNaturality: \forall (x: SourceHomology.Cycle)(a: A.Carrier) ->
-  #apply{middle} (#apply{SB.map} (SA.tensor (SourceHomology.classOf x) a)) =
-    #apply{TB.map} (#apply{left} (SA.tensor (SourceHomology.classOf x) a)) :=
+  middle.apply (SB.map.apply (SA.tensor (SourceHomology.classOf x) a)) =
+    TB.map.apply (left.apply (SA.tensor (SourceHomology.classOf x) a)) :=
   \fun (x: SourceHomology.Cycle)(a: A.Carrier) => trans!{TH.Homology} _ _ _
-    (congr!{SH.Homology TH.Homology} (#apply{middle}) _ _ (sourcePure x a))
+    (congr!{SH.Homology TH.Homology} (middle.apply) _ _ (sourcePure x a))
     (trans!{TH.Homology} _ _ _ (TensorHomology.onClass tensorMap (S.cycle (SC.tensor x a)))
       (trans!{TH.Homology} _ _ _
         (congr!{TH.Cycle TH.Homology} TH.classOf _ _ (cycleNaturality x a))
         (sym!{TH.Homology} _ _ (trans!{TH.Homology} _ _ _
-          (congr!{TA.Carrier TH.Homology} (#apply{TB.map}) _ _
+          (congr!{TA.Carrier TH.Homology} (TB.map.apply) _ _
             (LeftMapping.onTensor induced u (SourceHomology.classOf x) a))
           (trans!{TH.Homology} _ _ _
             (congr!{TargetHomology.Homology TH.Homology}
-              (\fun (q: TargetHomology.Homology) => #apply{TB.map} (TA.tensor q (#apply{u} a))) _ _
+              (\fun (q: TargetHomology.Homology) => TB.map.apply (TA.tensor q (u.apply a))) _ _
               (Induced.onClass (chainMap f) x))
-            (targetPure (#apply{(Induced.cyclesMap (chainMap f))} x) (#apply{u} a)))))));
+            (targetPure ((Induced.cyclesMap (chainMap f)).apply x) (u.apply a)))))));
 \import Modules.Hom[V := SH.Homology, W := TH.Homology, source := SH.homologySpace, target := TH.homologySpace].Composition[U := SA.Carrier, domain := SA.space] \as LeftSquare;
 \import Modules.Hom[V := TA.Carrier, W := TH.Homology, source := TA.space, target := TH.homologySpace].Composition[U := SA.Carrier, domain := SA.space] \as RightSquare;
 \import SA.Universal[U := TH.Homology, target := TH.homologySpace] \as TensorEquality;
 \definition square: LeftSquare.compose middle SB.map = RightSquare.compose TB.map left :=
   TensorEquality.ext (LeftSquare.compose middle SB.map) (RightSquare.compose TB.map left)
     (SourceHomology.classInduction (\fun (q: SourceHomology.Homology) => \forall (a: A.Carrier) ->
-      #apply{middle} (#apply{SB.map} (SA.tensor q a)) = #apply{TB.map} (#apply{left} (SA.tensor q a))) pureNaturality);
+      middle.apply (SB.map.apply (SA.tensor q a)) = TB.map.apply (left.apply (SA.tensor q a))) pureNaturality);
 \definition inclusionNaturality: \forall (q: SA.Carrier) ->
-  #apply{middle} (#apply{SB.map} q) = #apply{TB.map} (#apply{left} q) :=
+  middle.apply (SB.map.apply q) = TB.map.apply (left.apply q) :=
   \fun (q: SA.Carrier) => congr!{Modules.Hom[V := SA.Carrier, W := TH.Homology, source := SA.space, target := TH.homologySpace].Map TH.Homology}
-    (\fun (g: Modules.Hom[V := SA.Carrier, W := TH.Homology, source := SA.space, target := TH.homologySpace].Map) => #apply{g} q) _ _ square;
+    (\fun (g: Modules.Hom[V := SA.Carrier, W := TH.Homology, source := SA.space, target := TH.homologySpace].Map) => g.apply q) _ _ square;
 \import derived_functors.UniversalCoefficient[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].ExactNaturality[
   L := sourceLeft, M := sourceMiddle, N := SD.torBundle,
   L1 := targetLeft, M1 := targetMiddle, N1 := TD.torBundle] \as Natural;
 \import Natural.Cokernel[s := SD.sequence, t := TD.sequence, a := left, b := middle] \as Cokernel;
 \definition tor: _ := Cokernel.map inclusionNaturality;
 \definition projectionNaturality: \forall (q: SH.Homology) ->
-  #apply{tor} (#apply{SD.projection} q) = #apply{TD.projection} (#apply{middle} q) := Cokernel.naturality inclusionNaturality;
+  tor.apply (SD.projection.apply q) = TD.projection.apply (middle.apply q) := Cokernel.naturality inclusionNaturality;
 \definition diagram: _ := Cokernel.diagram inclusionNaturality;
 \definition torUnique: \forall (v: Modules.Hom[V := SD.torBundle.Carrier, W := TD.torBundle.Carrier, source := SD.torBundle.space, target := TD.torBundle.space].Map) ->
-  (\forall (q: SH.Homology) -> #apply{v} (#apply{SD.projection} q) = #apply{TD.projection} (#apply{middle} q)) -> v = tor := Cokernel.unique inclusionNaturality;
+  (\forall (q: SH.Homology) -> v.apply (SD.projection.apply q) = TD.projection.apply (middle.apply q)) -> v = tor := Cokernel.unique inclusionNaturality;
 
 \import Modules.Hom[V := SH.Homology, W := TH.Homology,
   source := SH.homologySpace, target := TH.homologySpace].Composition[U := SS.Carrier, domain := SS.space] \as FromCoordinates;
 \import Modules.Hom[V := TH.Homology, W := TS.Carrier,
   source := TH.homologySpace, target := TS.space].Composition[U := SS.Carrier, domain := SS.space] \as ToCoordinates;
-\definition smithCoordinates: _ := ToCoordinates.compose #backward{TD.isomorphism}
-  (FromCoordinates.compose middle #forward{SD.isomorphism});
+\definition smithCoordinates: _ := ToCoordinates.compose TD.isomorphism.backward
+  (FromCoordinates.compose middle SD.isomorphism.forward);
 \definition smithNaturality: \forall (x: SS.Carrier) ->
-  #apply{#forward{TD.isomorphism}} (#apply{smithCoordinates} x) = #apply{middle} (#apply{#forward{SD.isomorphism}} x) :=
-  \fun (x: SS.Carrier) => #rightInverse{TD.isomorphism} (#apply{middle} (#apply{#forward{SD.isomorphism}} x));
+  TD.isomorphism.forward.apply (smithCoordinates.apply x) = middle.apply (SD.isomorphism.forward.apply x) :=
+  \fun (x: SS.Carrier) => TD.isomorphism.rightInverse (middle.apply (SD.isomorphism.forward.apply x));
 \module Derived;
 \definition leftOnComputedGenerators: \forall (v: Modules.FiniteCoordinates[n := SourcePair.nullity].Carrier)(a: A.Carrier) ->
-  #apply{left} (SA.tensor (#apply{#backward{SourceResult.factorIsomorphism}} (SourcePair.factorClasses v)) a) =
-    TA.tensor (#apply{#backward{TargetResult.factorIsomorphism}}
-      (TargetPair.factorClasses (Commutative.Matrix[m := TargetPair.nullity, n := SourcePair.nullity].apply coordinateMatrix v))) (#apply{u} a) :=
+  left.apply (SA.tensor (SourceResult.factorIsomorphism.backward.apply (SourcePair.factorClasses v)) a) =
+    TA.tensor (TargetResult.factorIsomorphism.backward.apply
+      (TargetPair.factorClasses (Commutative.Matrix[m := TargetPair.nullity, n := SourcePair.nullity].apply coordinateMatrix v))) (u.apply a) :=
   \fun (v: Modules.FiniteCoordinates[n := SourcePair.nullity].Carrier)(a: A.Carrier) => trans!{TA.Carrier} _ _ _
-    (LeftMapping.onTensor induced u (#apply{#backward{SourceResult.factorIsomorphism}} (SourcePair.factorClasses v)) a)
-    (congr!{TargetHomology.Homology TA.Carrier} (\fun (q: TargetHomology.Homology) => TA.tensor q (#apply{u} a)) _ _ (onComputedGenerator v));
+    (LeftMapping.onTensor induced u (SourceResult.factorIsomorphism.backward.apply (SourcePair.factorClasses v)) a)
+    (congr!{TargetHomology.Homology TA.Carrier} (\fun (q: TargetHomology.Homology) => TA.tensor q (u.apply a)) _ _ (onComputedGenerator v));

@@ -3,48 +3,48 @@
 \use Equality.congr2;
 \structure Congruence[ring: Ring.CommutativeRing[A]]: \Prop {
   equivalence: Q.EquivalenceLaws,
-  addition: Q.BinaryRespects (#add{(#base{ring})}),
-  inverse: Q.UnaryRespects (#neg{(#base{ring})}),
-  multiplication: Q.BinaryRespects (#mul{(#base{ring})}),
+  addition: Q.BinaryRespects ((ring.base).add),
+  inverse: Q.UnaryRespects ((ring.base).neg),
+  multiplication: Q.BinaryRespects ((ring.base).mul),
 }
 \definition groupCongruence(ring: Ring.CommutativeRing[A]) (congruence: Congruence[ring]):
   Groups.Congruence[(Ring.additiveGroup A (Ring.commutativeRingAsRing A ring))] :=
   Groups.Congruence[(Ring.additiveGroup A (Ring.commutativeRingAsRing A ring))] {
-    equivalence := #equivalence{congruence}, addition := #addition{congruence}, inverse := #inverse{congruence},
+    equivalence := congruence.equivalence, addition := congruence.addition, inverse := congruence.inverse,
   };
 \definition add(ring: Ring.CommutativeRing[A]) (congruence: Congruence[ring]): Carrier -> Carrier -> Carrier :=
-  Operations.binary (#equivalence{congruence}) (#add{(#base{ring})}) (#addition{congruence});
+  Operations.binary (congruence.equivalence) ((ring.base).add) (congruence.addition);
 \definition mul(ring: Ring.CommutativeRing[A]) (congruence: Congruence[ring]): Carrier -> Carrier -> Carrier :=
-  Operations.binary (#equivalence{congruence}) (#mul{(#base{ring})}) (#multiplication{congruence});
+  Operations.binary (congruence.equivalence) ((ring.base).mul) (congruence.multiplication);
 \definition neg(ring: Ring.CommutativeRing[A]) (congruence: Congruence[ring]): Carrier -> Carrier :=
-  Operations.unary (#equivalence{congruence}) (#neg{(#base{ring})}) (#inverse{congruence});
+  Operations.unary (congruence.equivalence) ((ring.base).neg) (congruence.inverse);
 \definition mulComm: \forall (ring: Ring.CommutativeRing[A]) (congruence: Congruence[ring]) (x, y: Carrier) ->
   mul ring congruence x y = mul ring congruence y x :=
-  \fun (ring: _) (congruence: _) => Operations.commutative (#equivalence{congruence}) (#mul{(#base{ring})}) (#multiplication{congruence})
-    (\fun (x, y: A) => Groups.related (#equivalence{congruence}) _ _ (#mulCommutative{ring} x y));
+  \fun (ring: _) (congruence: _) => Operations.commutative (congruence.equivalence) ((ring.base).mul) (congruence.multiplication)
+    (\fun (x, y: A) => Groups.related (congruence.equivalence) _ _ (ring.mulCommutative x y));
 \definition quotient(ring: Ring.CommutativeRing[A]) (congruence: Congruence[ring]): Ring.CommutativeRing[Carrier] := \block {
-  \let laws: Q.EquivalenceLaws := #equivalence{congruence} \then
+  \let laws: Q.EquivalenceLaws := congruence.equivalence \then
   \let additive: Alg.CommutativeGroup[Carrier] := Groups.quotient
     (Ring.additiveGroup A (Ring.commutativeRingAsRing A ring)) (groupCongruence ring congruence) \then
-  \let multiplication: Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# (class (#one{(#base{ring})})) (mul ring congruence))] :=
-    Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# (class (#one{(#base{ring})})) (mul ring congruence))] {
-      leftIdentity := Operations.leftIdentity laws (#mul{(#base{ring})}) (#multiplication{congruence}) (#one{(#base{ring})})
-        (\fun (x: A) => Groups.related laws _ _ (#leftIdentity{(#multiplicative{(#semiring{(#ring{ring})})})} x)),
-      rightIdentity := Operations.rightIdentity laws (#mul{(#base{ring})}) (#multiplication{congruence}) (#one{(#base{ring})})
-        (\fun (x: A) => Groups.related laws _ _ (#rightIdentity{(#multiplicative{(#semiring{(#ring{ring})})})} x)),
-      associative := Operations.associative laws (#mul{(#base{ring})}) (#multiplication{congruence})
-        (\fun (x, y, z: A) => Groups.related laws _ _ (#associative{(#multiplicative{(#semiring{(#ring{ring})})})} x y z)),
+  \let multiplication: Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# (class ((ring.base).one)) (mul ring congruence))] :=
+    Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# (class ((ring.base).one)) (mul ring congruence))] {
+      leftIdentity := Operations.leftIdentity laws ((ring.base).mul) (congruence.multiplication) ((ring.base).one)
+        (\fun (x: A) => Groups.related laws _ _ ((((ring.ring).semiring).multiplicative).leftIdentity x)),
+      rightIdentity := Operations.rightIdentity laws ((ring.base).mul) (congruence.multiplication) ((ring.base).one)
+        (\fun (x: A) => Groups.related laws _ _ ((((ring.ring).semiring).multiplicative).rightIdentity x)),
+      associative := Operations.associative laws ((ring.base).mul) (congruence.multiplication)
+        (\fun (x, y, z: A) => Groups.related laws _ _ ((((ring.ring).semiring).multiplicative).associative x y z)),
     } \then
   \let leftDistributive: \forall (x, y, z: Carrier) -> mul ring congruence x (add ring congruence y z) =
     add ring congruence (mul ring congruence x y) (mul ring congruence x z) :=
-    Operations.distributiveLeft laws (#mul{(#base{ring})}) (#add{(#base{ring})}) (#multiplication{congruence}) (#addition{congruence})
-      (\fun (x, y, z: A) => Groups.related laws _ _ (#leftDistributive{(#semiring{(#ring{ring})})} x y z)) \then
+    Operations.distributiveLeft laws ((ring.base).mul) ((ring.base).add) (congruence.multiplication) (congruence.addition)
+      (\fun (x, y, z: A) => Groups.related laws _ _ (((ring.ring).semiring).leftDistributive x y z)) \then
   \return Ring.CommutativeRing[Carrier] {
-    base := Ring.RingData[Carrier]::# (class (#zero{(#base{ring})})) (class (#one{(#base{ring})})) (add ring congruence) (neg ring congruence) (mul ring congruence),
-    ring := Ring.RingLaws[Carrier, (Ring.RingData[Carrier]::# (class (#zero{(#base{ring})})) (class (#one{(#base{ring})})) (add ring congruence) (neg ring congruence) (mul ring congruence))] {
-      semiring := Alg.SemiringLaws[Carrier, (Alg.SemiringData[Carrier]::# (class (#zero{(#base{ring})})) (class (#one{(#base{ring})})) (add ring congruence) (mul ring congruence))] {
-        additive := Monoid.CommutativeMonoidLaws[Carrier, (Monoid.CommutativeMonoidData[Carrier]::# (Monoid.MonoidData[Carrier]::# (class (#zero{(#base{ring})})) (add ring congruence)))] {
-          monoid := #monoid{(#group{additive})}, commutative := #commutative{additive},
+    base := Ring.RingData[Carrier]::# (class ((ring.base).zero)) (class ((ring.base).one)) (add ring congruence) (neg ring congruence) (mul ring congruence),
+    ring := Ring.RingLaws[Carrier, (Ring.RingData[Carrier]::# (class ((ring.base).zero)) (class ((ring.base).one)) (add ring congruence) (neg ring congruence) (mul ring congruence))] {
+      semiring := Alg.SemiringLaws[Carrier, (Alg.SemiringData[Carrier]::# (class ((ring.base).zero)) (class ((ring.base).one)) (add ring congruence) (mul ring congruence))] {
+        additive := Monoid.CommutativeMonoidLaws[Carrier, (Monoid.CommutativeMonoidData[Carrier]::# (Monoid.MonoidData[Carrier]::# (class ((ring.base).zero)) (add ring congruence)))] {
+          monoid := (additive.group).monoid, commutative := additive.commutative,
         },
         multiplicative := multiplication,
         leftDistributive := leftDistributive,
@@ -52,13 +52,13 @@
           (trans!{Carrier} _ _ _ (leftDistributive z x y)
             (congr2!{Carrier Carrier Carrier} (add ring congruence) _ _ _ _
               (mulComm ring congruence z x) (mulComm ring congruence z y))),
-        zeroAbsorbsLeft := Operations.absorbsLeft laws (#mul{(#base{ring})}) (#multiplication{congruence}) (#zero{(#base{ring})})
-          (\fun (x: A) => Groups.related laws _ _ (#zeroAbsorbsLeft{(#semiring{(#ring{ring})})} x)),
-        zeroAbsorbsRight := \fun (x: Carrier) => trans!{Carrier} _ _ _ (mulComm ring congruence x (class (#zero{(#base{ring})})))
-          (Operations.absorbsLeft laws (#mul{(#base{ring})}) (#multiplication{congruence}) (#zero{(#base{ring})})
-            (\fun (x: A) => Groups.related laws _ _ (#zeroAbsorbsLeft{(#semiring{(#ring{ring})})} x)) x),
+        zeroAbsorbsLeft := Operations.absorbsLeft laws ((ring.base).mul) (congruence.multiplication) ((ring.base).zero)
+          (\fun (x: A) => Groups.related laws _ _ (((ring.ring).semiring).zeroAbsorbsLeft x)),
+        zeroAbsorbsRight := \fun (x: Carrier) => trans!{Carrier} _ _ _ (mulComm ring congruence x (class ((ring.base).zero)))
+          (Operations.absorbsLeft laws ((ring.base).mul) (congruence.multiplication) ((ring.base).zero)
+            (\fun (x: A) => Groups.related laws _ _ (((ring.ring).semiring).zeroAbsorbsLeft x)) x),
       },
-      additiveInverse := #leftInverse{(#group{additive})},
+      additiveInverse := (additive.group).leftInverse,
     },
     mulCommutative := mulComm ring congruence,
   }

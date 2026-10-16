@@ -15,8 +15,8 @@
   source := SourceComponent.smithSpace, target := TargetComponent.smithSpace].Map :=
   SmithMaps.map (LeftAt.With[f := f].factors) (RightAt.With[f := g].factors);
 \definition onTensor: \forall (f: LeftMaps.Map)(g: RightMaps.Map)(x: SourceComponent.leftCarrier)(y: SourceComponent.rightCarrier) ->
-  #apply{(tensorMap f g)} (SourceComponent.tensor x y) =
-  TargetComponent.tensor (#apply{LeftAt.With[f := f].induced} x) (#apply{RightAt.With[f := g].induced} y) :=
+  (tensorMap f g).apply (SourceComponent.tensor x y) =
+  TargetComponent.tensor ((LeftAt.With[f := f].induced).apply x) ((RightAt.With[f := g].induced).apply y) :=
   \fun (f: LeftMaps.Map)(g: RightMaps.Map) => TensorMaps.onTensor (LeftAt.With[f := f].induced) (RightAt.With[f := g].induced);
 \import Modules.Hom[V := SourceComponent.smithCarrier, W := TargetComponent.smithCarrier,
   source := SourceComponent.smithSpace, target := TargetComponent.smithSpace].Composition[
@@ -26,22 +26,22 @@
   U := SourceComponent.tensorCarrier, domain := SourceComponent.tensorSpace] \as ThroughHomology;
 \import SourceTensor.Universal[U := TargetComponent.smithCarrier, target := TargetComponent.smithSpace] \as Universal;
 \definition smithNaturality: \forall (f: LeftMaps.Map)(g: RightMaps.Map) ->
-  ThroughSmith.compose (smithMap f g) #forward{SourceComponent.smithIsomorphism} =
-  ThroughHomology.compose #forward{TargetComponent.smithIsomorphism} (tensorMap f g) :=
+  ThroughSmith.compose (smithMap f g) SourceComponent.smithIsomorphism.forward =
+  ThroughHomology.compose TargetComponent.smithIsomorphism.forward (tensorMap f g) :=
   \fun (f: LeftMaps.Map)(g: RightMaps.Map) => Universal.ext _ _
     (\fun (x: SourceComponent.leftCarrier)(y: SourceComponent.rightCarrier) =>
       trans!{TargetComponent.smithCarrier} _ _ _
-        (congr!{SourceComponent.smithCarrier TargetComponent.smithCarrier} (#apply{(smithMap f g)}) _ _ (SourceComponent.onTensor x y))
+        (congr!{SourceComponent.smithCarrier TargetComponent.smithCarrier} ((smithMap f g).apply) _ _ (SourceComponent.onTensor x y))
         (trans!{TargetComponent.smithCarrier} _ _ _
           (SmithMaps.onTensor (LeftAt.With[f := f].factors) (RightAt.With[f := g].factors)
-            (#apply{#forward{SourceComponent.leftFactorIsomorphism}} x) (#apply{#forward{SourceComponent.rightFactorIsomorphism}} y))
+            (SourceComponent.leftFactorIsomorphism.forward.apply x) (SourceComponent.rightFactorIsomorphism.forward.apply y))
           (trans!{TargetComponent.smithCarrier} _ _ _
             (congr2!{TargetComponent.leftFactorCarrier TargetComponent.rightFactorCarrier TargetComponent.smithCarrier}
               TargetComponent.smithTensor _ _ _ _ (LeftAt.With[f := f].intertwines x) (RightAt.With[f := g].intertwines y))
             (sym!{TargetComponent.smithCarrier} _ _
               (trans!{TargetComponent.smithCarrier} _ _ _
-                (congr!{TargetComponent.tensorCarrier TargetComponent.smithCarrier} (#apply{#forward{TargetComponent.smithIsomorphism}}) _ _ (onTensor f g x y))
-                (TargetComponent.onTensor (#apply{LeftAt.With[f := f].induced} x) (#apply{RightAt.With[f := g].induced} y)))))));
+                (congr!{TargetComponent.tensorCarrier TargetComponent.smithCarrier} (TargetComponent.smithIsomorphism.forward.apply) _ _ (onTensor f g x y))
+                (TargetComponent.onTensor ((LeftAt.With[f := f].induced).apply x) ((RightAt.With[f := g].induced).apply y)))))));
 \import double_complexes.NonnegativeChain[].Over[R := Integers.Int^, ring := IntegerRing.ring] \as Nonnegative;
 \import resolutions.Resolution[].Over[R := Integers.Int^, ring := IntegerRing.ring] \as Resolutions;
 \import Bounded.Of[C := C].At[z := Bounded.previous p].Presentation[] \as SourceResolution;
@@ -72,7 +72,7 @@
 \definition onComputedGenerators: \forall (f: LeftMaps.Map)(g: RightMaps.Map)
   (v: Modules.FiniteCoordinates[n := SourceComponent.leftNullity].Carrier)
   (w: Modules.FiniteCoordinates[n := SourceComponent.rightNullity].Carrier) ->
-  #apply{(smithMap f g)} (SourceComponent.smithTensor (SourceComponent.leftFactorClasses v) (SourceComponent.rightFactorClasses w)) =
+  (smithMap f g).apply (SourceComponent.smithTensor (SourceComponent.leftFactorClasses v) (SourceComponent.rightFactorClasses w)) =
   TargetComponent.smithTensor (TargetComponent.leftFactorClasses (leftCoordinates f v)) (TargetComponent.rightFactorClasses (rightCoordinates g w)) :=
   \fun (f: LeftMaps.Map)(g: RightMaps.Map)
     (v: Modules.FiniteCoordinates[n := SourceComponent.leftNullity].Carrier)
@@ -86,6 +86,6 @@
 \definition torKernelMap(f: LeftMaps.Map)(g: RightMaps.Map): Modules.Hom[V := SourceComponent.torKernelCarrier, W := TargetComponent.torKernelCarrier,
   source := SourceComponent.torKernelSpace, target := TargetComponent.torKernelSpace].Map := TorNaturality[f := f, g := g].kernelMap;
 \definition torOnKernel: \forall (f: LeftMaps.Map)(g: RightMaps.Map)(x: SourceComponent.torCarrier) ->
-  #apply{#forward{TargetComponent.torKernelIsomorphism}} (#apply{(torMap f g)} x) =
-    #apply{(torKernelMap f g)} (#apply{#forward{SourceComponent.torKernelIsomorphism}} x) :=
+  TargetComponent.torKernelIsomorphism.forward.apply ((torMap f g).apply x) =
+    (torKernelMap f g).apply (SourceComponent.torKernelIsomorphism.forward.apply x) :=
   \fun (f: LeftMaps.Map)(g: RightMaps.Map) => TorNaturality[f := f, g := g].onKernel;

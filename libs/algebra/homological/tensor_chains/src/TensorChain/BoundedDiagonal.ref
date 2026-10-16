@@ -38,29 +38,29 @@
   \definition complement(p: Degree): Degree := Arithmetic.difference n p;
   \definition pair(p: Degree): Grading.Pair := Grading.Pair { first := p, second := complement p };
   \definition condition: \Pow Grading.Pair := { i: Grading.Pair \where Logic.And[
-    Grading.add #first{i} #second{i} = n, \In[Degree] Right.values #second{i}] };
+    Grading.add i.first i.second = n, \In[Degree] Right.values i.second] };
   \definition values: \Pow Grading.Pair := Pairs.Filter (Images.Image pair Left.values) condition;
   \definition finite: Pairs.Finite values := Pairs.finiteFilter _ _ (Images.imageFinite pair Left.values Left.finite);
   \definition Index: \Set := \Cast[Grading.Pair] values;
   \definition laws(i: Index): Logic.And[\In[Grading.Pair] (Images.Image pair Left.values) i, \In[Grading.Pair] condition i] :=
     \bysub(Grading.Pair, values, i);
-  \definition degree(i: Index): Grading.add #first{i} #second{i} = n := #left{#right{(laws i)}};
+  \definition degree(i: Index): Grading.add i.first i.second = n := ((laws i).right).left;
   \definition inclusion(i: Index): Grading.Index n :=
-    \into[Grading.Pair](i, { i: Grading.Pair \where Grading.add #first{i} #second{i} = n }) \by { degree i };
+    \into[Grading.Pair](i, { i: Grading.Pair \where Grading.add i.first i.second = n }) \by { degree i };
   \definition complementEqual: \forall (p, q: Degree) -> Grading.add p q = n -> complement p = q :=
     \fun (p, q: Degree)(closed: Grading.add p q = n) => Arithmetic.cancelLeft p (complement p) q
       (trans!{Degree} _ _ _ (IntegerLaws.addComm p (complement p))
         (trans!{Degree} _ _ _ (Arithmetic.addDifference n p) (sym!{Degree} _ _ closed)));
-  \definition includes: \forall (i: Grading.Index n) -> Natural.Le (Signed.absolute #first{i}) leftBound ->
-    Natural.Le (Signed.absolute #second{i}) rightBound -> \In[Grading.Pair] values i :=
-    \fun (i: Grading.Index n)(left: Natural.Le (Signed.absolute #first{i}) leftBound)(right: Natural.Le (Signed.absolute #second{i}) rightBound) =>
+  \definition includes: \forall (i: Grading.Index n) -> Natural.Le (Signed.absolute i.first) leftBound ->
+    Natural.Le (Signed.absolute i.second) rightBound -> \In[Grading.Pair] values i :=
+    \fun (i: Grading.Index n)(left: Natural.Le (Signed.absolute i.first) leftBound)(right: Natural.Le (Signed.absolute i.second) rightBound) =>
       Logic.And[_, _]::#
-        (\idelim pair #first{i} = i \with j: Grading.Pair => \In[Grading.Pair] (Images.Image pair Left.values) j \by {
-          base: Images.member pair Left.values #first{i} (Left.contains #first{i} left),
+        (\idelim pair i.first = i \with j: Grading.Pair => \In[Grading.Pair] (Images.Image pair Left.values) j \by {
+          base: Images.member pair Left.values i.first (Left.contains i.first left),
           equality: trans!{Grading.Pair} _ _ _
-            (congr!{Degree Grading.Pair} (\fun (q: Degree) => Grading.Pair { first := #first{i}, second := q }) _ _
-              (complementEqual #first{i} #second{i} (Grading.degree n i)))
+            (congr!{Degree Grading.Pair} (\fun (q: Degree) => Grading.Pair { first := i.first, second := q }) _ _
+              (complementEqual i.first i.second (Grading.degree n i)))
             (Grading.pairRebuild i)
         })
-        (Logic.And[_, _]::# (Grading.degree n i) (Right.contains #second{i} right));
+        (Logic.And[_, _]::# (Grading.degree n i) (Right.contains i.second right));
 }

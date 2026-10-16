@@ -14,7 +14,7 @@
 \definition radius(c: Real): Real := Metric.min (sub c a) (sub b c);
 \definition radiusPositive: \forall (c: Real) -> Interior c -> R.Lt zero (radius c) :=
   \fun (c: _)(inside: _) => Product.minPositive (sub c a) (sub b c)
-    (Rays.subPositive c a (#left{inside})) (Rays.subPositive b c (#right{inside}));
+    (Rays.subPositive c a (inside.left)) (Rays.subPositive b c (inside.right));
 \definition ballInside: \forall (c, x: Real) -> Interior c -> R.Lt (distance x c) (radius c) -> Ambient.Member (Line.ClosedInterval a b) x :=
   \fun (c, x: _)(inside: _)(near: _) => Logic.And[_, _]::#
     (Order.leOfLt a x (R.ltReplaceLeft (sub c (sub c a)) a x (Rays.subSub c a)
@@ -30,7 +30,7 @@
   \fun (f: _)(c: _)(inside: _)(maximum: _) => Logic.existsIntro[Real, { r: Real \where Fermat.MaximumControl[f, c, r] }] (radius c)
     (Fermat.MaximumControl[f, c, radius c] {
         positive := radiusPositive c inside,
-        upper := \fun (x: Real)(near: _) => #upper{maximum}
+        upper := \fun (x: Real)(near: _) => maximum.upper
           (\into[Real](x, Line.ClosedInterval a b) \by { ballInside c x inside near }) (\refl(x)),
       });
 \definition minimumIsLocal: \forall (f: Real -> Real)(c: Local.Carrier) -> Interior c ->
@@ -38,7 +38,7 @@
   \fun (f: _)(c: _)(inside: _)(minimum: _) => Logic.existsIntro[Real, { r: Real \where Fermat.MinimumControl[f, c, r] }] (radius c)
     (Fermat.MinimumControl[f, c, radius c] {
         positive := radiusPositive c inside,
-        lower := \fun (x: Real)(near: _) => #lower{minimum}
+        lower := \fun (x: Real)(near: _) => minimum.lower
           (\into[Real](x, Line.ClosedInterval a b) \by { ballInside c x inside near }) (\refl(x)),
       });
 \definition closedCompact: Space.IsCompact Local.topology := Subspaces.compact Line.topology (Intervals.intervalCompact a b);
@@ -69,11 +69,11 @@
     \by maximumExists f (Order.leOfLt a b ab) continuous \then
   \let maximum: Extrema.Maximum[Space.Whole, Local.restrict f, c] :=
     \bysub(Local.Carrier, { c: Local.Carrier \where Extrema.Maximum[Space.Whole, Local.restrict f, c] }, c) \then
-  \let ac: R.Lt (f a) (f c) := R.ltLeTrans _ _ _ ax (#upper{maximum} x (\refl(x))) \then
+  \let ac: R.Lt (f a) (f c) := R.ltLeTrans _ _ _ ax (maximum.upper x (\refl(x))) \then
   \let closed: Logic.And[R.Le a c, R.Le c b] := \bysub(Real, Line.ClosedInterval a b, c) \then
   \let inside: Interior c := Logic.And[_, _]::#
-    (Order.ltOfLeNotEq a c (#left{closed}) (\fun (equal: a = c) => Order.ltNotEq (f a) (f c) ac (congr!{Real Real} f _ _ equal)))
-    (Order.ltOfLeNotEq c b (#right{closed}) (\fun (equal: c = b) => Order.ltNotEq (f a) (f c) ac
+    (Order.ltOfLeNotEq a c (closed.left) (\fun (equal: a = c) => Order.ltNotEq (f a) (f c) ac (congr!{Real Real} f _ _ equal)))
+    (Order.ltOfLeNotEq c b (closed.right) (\fun (equal: c = b) => Order.ltNotEq (f a) (f c) ac
       (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} f _ _ equal) endpoints)))) \then
   \takefrom d: \Cast[Real] ({ d: Real \where Derivative.HasDerivativeAt f c d }) \by differentiable c inside \then
   \let derivative: Derivative.HasDerivativeAt f c d := \bysub(Real, { d: Real \where Derivative.HasDerivativeAt f c d }, d) \then
@@ -90,11 +90,11 @@
     \by minimumExists f (Order.leOfLt a b ab) continuous \then
   \let minimum: Extrema.Minimum[Space.Whole, Local.restrict f, c] :=
     \bysub(Local.Carrier, { c: Local.Carrier \where Extrema.Minimum[Space.Whole, Local.restrict f, c] }, c) \then
-  \let ca: R.Lt (f c) (f a) := R.leLtTrans _ _ _ (#lower{minimum} x (\refl(x))) xa \then
+  \let ca: R.Lt (f c) (f a) := R.leLtTrans _ _ _ (minimum.lower x (\refl(x))) xa \then
   \let closed: Logic.And[R.Le a c, R.Le c b] := \bysub(Real, Line.ClosedInterval a b, c) \then
   \let inside: Interior c := Logic.And[_, _]::#
-    (Order.ltOfLeNotEq a c (#left{closed}) (\fun (equal: a = c) => Order.ltNotEq (f c) (f a) ca (sym!{Real} _ _ (congr!{Real Real} f _ _ equal))))
-    (Order.ltOfLeNotEq c b (#right{closed}) (\fun (equal: c = b) => Order.ltNotEq (f c) (f a) ca
+    (Order.ltOfLeNotEq a c (closed.left) (\fun (equal: a = c) => Order.ltNotEq (f c) (f a) ca (sym!{Real} _ _ (congr!{Real Real} f _ _ equal))))
+    (Order.ltOfLeNotEq c b (closed.right) (\fun (equal: c = b) => Order.ltNotEq (f c) (f a) ca
       (trans!{Real} _ _ _ (congr!{Real Real} f _ _ equal) endpoints))) \then
   \takefrom d: \Cast[Real] ({ d: Real \where Derivative.HasDerivativeAt f c d }) \by differentiable c inside \then
   \let derivative: Derivative.HasDerivativeAt f c d := \bysub(Real, { d: Real \where Derivative.HasDerivativeAt f c d }, d) \then
@@ -112,7 +112,7 @@
     (R.ltReplaceRight c (add a (sub b a)) b (Estimates.addSubCancel b a)
       (Laws.ltAddLeft a (mul Analysis.half (sub b a)) (sub b a) (Estimates.halfStrict (sub b a) positive))) \then
   \let point: Local.Carrier := \into[Real](c, Line.ClosedInterval a b) \by {
-    Logic.And[_, _]::# (Order.leOfLt a c (#left{inside})) (Order.leOfLt c b (#right{inside}))
+    Logic.And[_, _]::# (Order.leOfLt a c (inside.left)) (Order.leOfLt c b (inside.right))
   } \then
   \let maximum: Fermat.LocalMaximum f c := Logic.existsIntro[Real, { r: Real \where Fermat.MaximumControl[f, c, r] }] (radius c)
     (Fermat.MaximumControl[f, c, radius c] {
@@ -195,14 +195,14 @@
   \takefrom c: \Cast[Real] ({ c: Real \where RolleResult[adjusted f, c] }) \by
     rolleTopological (adjusted f) ab adjustedContinuous adjustedDifferentiable (adjustedEndpoints f ab) \then
   \let rolle: RolleResult[adjusted f, c] := \bysub(Real, { c: Real \where RolleResult[adjusted f, c] }, c) \then
-  \takefrom d: \Cast[Real] ({ d: Real \where Derivative.HasDerivativeAt f c d }) \by differentiable c (#interior{rolle}) \then
+  \takefrom d: \Cast[Real] ({ d: Real \where Derivative.HasDerivativeAt f c d }) \by differentiable c (rolle.interior) \then
   \let derivative: Derivative.HasDerivativeAt f c d := \bysub(Real, { d: Real \where Derivative.HasDerivativeAt f c d }, d) \then
   \let equal: d = secant f := Metric.subZeroEq d (secant f)
     (Derivatives.unique (adjusted f) c (sub d (secant f)) zero
-      (Derivatives.subDerivative f (chord f) c d (secant f) derivative (chordDerivative f c)) (#derivative{rolle})) \then
+      (Derivatives.subDerivative f (chord f) c d (secant f) derivative (chordDerivative f c)) (rolle.derivative)) \then
   \return Logic.existsIntro[Real, { c: Real \where MeanValueResult[f, c] }] c
     (MeanValueResult[f, c] {
-      interior := #interior{rolle},
+      interior := rolle.interior,
       derivative := \idelim d = secant f \with e: Real => Derivative.HasDerivativeAt f c e \by { base: derivative, equality: equal },
     })
 };

@@ -9,7 +9,7 @@
 
 \definition CoordinateVector: \Set := Coordinates.Vector;
 \definition vectorSum(indices: Lists.List[I]) (f: I -> V): V :=
-  Lists.foldr I V (\fun (i: _) (tail: _) => #add{space} (f i) tail) (#zero{space}) indices;
+  Lists.foldr I V (\fun (i: _) (tail: _) => space.add (f i) tail) (space.zero) indices;
 
 \structure BasisData: \Set {
   indices: Lists.List[I],
@@ -17,8 +17,8 @@
   coordinates: Encode.Map,
 }
 \definition synthesize(b: BasisData) (x: Coordinates.Vector): V :=
-  vectorSum (#indices{b}) (\fun (i: _) => #smul{space} (x i) (#vectors{b} i));
-\definition coordinates(b: BasisData) (v: V): Coordinates.Vector := #apply{(#coordinates{b})} v;
+  vectorSum (b.indices) (\fun (i: _) => space.smul (x i) (b.vectors i));
+\definition coordinates(b: BasisData) (v: V): Coordinates.Vector := (b.coordinates).apply v;
 
 \structure BasisLaws[data: BasisData]: \Prop {
   distinct: Sums.Distinct data.indices,
@@ -28,16 +28,16 @@
   coordinateReconstruction: \forall (x: Coordinates.Vector) -> coordinates data (synthesize data x) = x,
 }
 \definition Basis: \Set := \Cast[BasisData] ({ data: BasisData \where BasisLaws[data] });
-\definition dimension(b: BasisData): N.Nat^ := Lists.length I (#indices{b});
+\definition dimension(b: BasisData): N.Nat^ := Lists.length I (b.indices);
 \definition FiniteDimensional: \Prop := \exists Basis;
 
 \definition coordinate(b: BasisData) (i: I): Dual.Map := Dual.Map {
   apply := \fun (v: _) => coordinates b v i,
-  preservesAdd := \fun (x, y: _) => congr!{Coordinates.Vector K} (\fun (x: _) => x i) _ _ (#preservesAdd{(#coordinates{b})} x y),
-  preservesScale := \fun (a: _) (x: _) => congr!{Coordinates.Vector K} (\fun (x: _) => x i) _ _ (#preservesScale{(#coordinates{b})} a x),
+  preservesAdd := \fun (x, y: _) => congr!{Coordinates.Vector K} (\fun (x: _) => x i) _ _ ((b.coordinates).preservesAdd x y),
+  preservesScale := \fun (a: _) (x: _) => congr!{Coordinates.Vector K} (\fun (x: _) => x i) _ _ ((b.coordinates).preservesScale a x),
 };
 \definition trace(b: Basis) (f: End.Map): K :=
-  Sums.sum (#indices{b}) (\fun (i: _) => coordinates b (#apply{f} (#vectors{b} i)) i);
+  Sums.sum (b.indices) (\fun (i: _) => coordinates b (f.apply (b.vectors i)) i);
 \module Prop;
 \module Rebase(J: \Set);
 \module Representation(W, J: \Set, target: VectorSpace W);

@@ -40,14 +40,14 @@
     (\fun (x: X) =>
       \fun (member: ProductSpace.Member (ProductSpace.Intersection U V) (h x)) =>
         Source.intersectionMember (Preimage h U) (Preimage h V) x
-          #left{member}
-          #right{member}),
+          member.left
+          member.right),
     (\fun (x: X) =>
       \fun (member: Source.Member
         (Source.Intersection (Preimage h U) (Preimage h V)) x) =>
         ProductSpace.intersectionMember U V (h x)
-          #left{member}
-          #right{member}));
+          member.left
+          member.right));
 
 \definition pullbackMember(h: X -> CarrierSet) (family: \Pow (\Pow CarrierSet)) (W: \Pow CarrierSet):
   ProductSpace.FamilyMember family W ->
@@ -77,7 +77,7 @@
         { V : \Pow CarrierSet \where
           Logic.And[ProductSpace.FamilyMember family V, U = Preimage h V] }, W)
       \then
-    \return step W #left{evidence} #right{evidence}
+    \return step W evidence.left evidence.right
   };
 
 \definition preimageUnionEq(h: X -> CarrierSet) (family: \Pow (\Pow CarrierSet)):
@@ -131,12 +131,12 @@
       openTransport source Source.Empty (Preimage h ProductSpace.Empty)
         (sym!{\Pow X} (Preimage h ProductSpace.Empty) Source.Empty
           (preimageEmptyEq h))
-        #emptyOpen{(Source.topologyLaws source)},
+        (Source.topologyLaws source).emptyOpen,
     wholeOpen :=
       openTransport source Source.Whole (Preimage h ProductSpace.Whole)
         (sym!{\Pow X} (Preimage h ProductSpace.Whole) Source.Whole
           (preimageWholeEq h))
-        #wholeOpen{(Source.topologyLaws source)},
+        (Source.topologyLaws source).wholeOpen,
     unionOpen := \fun (family: \Pow (\Pow CarrierSet)) =>
       \fun (allOpen: \forall (W: \Pow CarrierSet) ->
         ProductSpace.FamilyMember family W ->
@@ -147,7 +147,7 @@
           (sym!{\Pow X}
             _ _
             (preimageUnionEq h family))
-          (#unionOpen{(Source.topologyLaws source)} (PullbackFamily h family)
+          ((Source.topologyLaws source).unionOpen (PullbackFamily h family)
             (\fun (U: \Pow X) =>
               \fun (member: Source.FamilyMember (PullbackFamily h family) U) =>
                 pullbackElim h family U (Source.IsOpenIn source U)
@@ -167,7 +167,7 @@
           (sym!{\Pow X}
             _ _
             (preimageIntersectionEq h U V))
-          (#intersectionOpen{(Source.topologyLaws source)}
+          ((Source.topologyLaws source).intersectionOpen
             (Preimage h U) (Preimage h V) uOpen vOpen),
   };
 
@@ -216,13 +216,13 @@
     (\fun (x: X) =>
       \fun (member: ProductSpace.Member (Rectangle U V) (PairMap f g x)) =>
         Source.intersectionMember (LeftPreimage f U) (RightPreimage g V) x
-          #left{member} #right{member}),
+          member.left member.right),
     (\fun (x: X) =>
       \fun (member: Source.Member
         (Source.Intersection (LeftPreimage f U) (RightPreimage g V)) x) =>
         Logic.And[_, _]::#
-          #left{member}
-          #right{member}));
+          member.left
+          member.right));
 
 \definition basisElim(left: Left.Topology) (right: Right.Topology) (W: \Pow CarrierSet)
   (P: \Prop):
@@ -234,10 +234,10 @@
       \forall (V: \Pow B) -> Right.IsOpenIn right V -> W = Rectangle U V -> P)
       (member: ProductSpace.FamilyMember (Basis left right) W) \then
     \takefrom witness: RectangleWitness[left, right, W] \by member \then
-    \let rectangle: OpenRectangle[left, right, W, #leftSet{witness}, #rightSet{witness}] :=
-      #rectangle{witness} \then
-    \return step #leftSet{witness} #leftOpen{rectangle} #rightSet{witness}
-      #rightOpen{rectangle} #rectangle{rectangle}
+    \let rectangle: OpenRectangle[left, right, W, witness.leftSet, witness.rightSet] :=
+      witness.rectangle \then
+    \return step witness.leftSet rectangle.leftOpen witness.rightSet
+      rectangle.rightOpen rectangle.rectangle
   };
 
 \definition pairRectangleOpen(source: SourceTopology) (left: Left.Topology)
@@ -254,7 +254,7 @@
       (sym!{\Pow X}
         _ _
         (pairRectangleEq f g U V))
-      (#intersectionOpen{(Source.topologyLaws source)}
+      ((Source.topologyLaws source).intersectionOpen
         (LeftPreimage f U) (RightPreimage g V)
         (fContinuous U openU) (gContinuous V openV));
 
@@ -312,7 +312,7 @@
     Preimage (PairMap f g) (Rectangle U WholeRight), LeftPreimage f U,
     (\fun (x: X) =>
       \fun (member: ProductSpace.Member
-        (Rectangle U WholeRight) (PairMap f g x)) => #left{member}),
+        (Rectangle U WholeRight) (PairMap f g x)) => member.left),
     (\fun (x: X) => \fun (member: \In[A] U (f x)) =>
       Logic.And[_, _]::# member (\refl(g x))));
 
@@ -322,7 +322,7 @@
     Preimage (PairMap f g) (Rectangle WholeLeft V), RightPreimage g V,
     (\fun (x: X) =>
       \fun (member: ProductSpace.Member
-        (Rectangle WholeLeft V) (PairMap f g x)) => #right{member}),
+        (Rectangle WholeLeft V) (PairMap f g x)) => member.right),
     (\fun (x: X) => \fun (member: \In[B] V (g x)) =>
       Logic.And[_, _]::# (\refl(f x)) member));
 
@@ -337,7 +337,7 @@
         (continuous (Rectangle U WholeRight)
           (ProductSpace.generatedBasisOpen (Basis left right)
             (Rectangle U WholeRight)
-            (rectangleBasisMember left right U WholeRight openU (#wholeOpen{right}))));
+            (rectangleBasisMember left right U WholeRight openU (right.wholeOpen))));
 
 \definition rightOfPairContinuous(source: SourceTopology) (left: Left.Topology)
   (right: Right.Topology) (f: X -> A) (g: X -> B):
@@ -350,7 +350,7 @@
         (continuous (Rectangle WholeLeft V)
           (ProductSpace.generatedBasisOpen (Basis left right)
             (Rectangle WholeLeft V)
-            (rectangleBasisMember left right WholeLeft V (#wholeOpen{left}) openV)));
+            (rectangleBasisMember left right WholeLeft V (left.wholeOpen) openV)));
 
 \definition universal(source: SourceTopology) (left: Left.Topology) (right: Right.Topology)
   (f: X -> A) (g: X -> B):
@@ -368,7 +368,7 @@
     rtl := \fun (components: Logic.And[LeftContinuous source left f,
       RightContinuous source right g]) =>
       pairContinuous source left right f g
-        #left{components} #right{components},
+        components.left components.right,
   };
 
 \definition pairUniquePointwise(h: X -> CarrierSet) (f: X -> A) (g: X -> B):

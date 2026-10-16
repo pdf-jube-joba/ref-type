@@ -1,13 +1,13 @@
 \definition candidate: Attempt^ := reduce k i (attemptMatrix current) (attemptHistory current);
 \definition active: \forall (nonzero: Logic.Not (original k k = Arithmetic.zero))(laws: StepLaws[reduce, k])(previous: PivotLaws[k, original, current]) -> eligible k i current = B.Bool^::true -> PivotLaws[k, original, candidate] := \block {
   \fun (nonzero: Logic.Not (original k k = Arithmetic.zero))(laws: StepLaws[reduce, k])(previous: PivotLaws[k, original, current])(eligible: _) \then
-  \let oldPivot: attemptMatrix current k k = original k k := #preserved{previous} (eligibleUnchanged k i current eligible) \then
+  \let oldPivot: attemptMatrix current k k = original k k := previous.preserved (eligibleUnchanged k i current eligible) \then
   \let currentNonzero: Logic.Not (attemptMatrix current k k = Arithmetic.zero) := \fun (zero: _) => nonzero (trans!{I.Int^} (original k k) (attemptMatrix current k k) Arithmetic.zero (sym!{I.Int^} (attemptMatrix current k k) (original k k) oldPivot) zero) \then
   \return PivotLaws[k, original, candidate] {
     preserved := \fun (noSwap: _) => trans!{I.Int^} (attemptMatrix candidate k k) (attemptMatrix current k k) (original k k)
-      (#pivot{laws} i (attemptMatrix current) (attemptHistory current) (eligibleLess k i current eligible) noSwap) oldPivot,
+      (laws.pivot i (attemptMatrix current) (attemptHistory current) (eligibleLess k i current eligible) noSwap) oldPivot,
     smaller := \fun (swapped: _) => \idelim attemptMatrix current k k = original k k \with value: I.Int^ => Bounds.Lt (Signed.absolute (attemptMatrix candidate k k)) (Signed.absolute value) \by {
-      base: #decrease{laws} i (attemptMatrix current) (attemptHistory current) currentNonzero swapped, equality: oldPivot
+      base: laws.decrease i (attemptMatrix current) (attemptHistory current) currentNonzero swapped, equality: oldPivot
     },
   }
 };

@@ -43,14 +43,14 @@
     (\fun (x: A) =>
       \fun (member: Target.Member (Target.Intersection U V) (h x)) =>
         Source.intersectionMember (Preimage h U) (Preimage h V) x
-          #left{member}
-          #right{member}),
+          member.left
+          member.right),
     (\fun (x: A) =>
       \fun (member: Source.Member
         (Source.Intersection (Preimage h U) (Preimage h V)) x) =>
         Target.intersectionMember U V (h x)
-          #left{member}
-          #right{member}));
+          member.left
+          member.right));
 
 \definition pullbackMember(h: A -> B) (family: \Pow (\Pow B)) (W: \Pow B):
   Target.FamilyMember family W ->
@@ -80,7 +80,7 @@
         { V : \Pow B \where
           Logic.And[Target.FamilyMember family V, U = Preimage h V] }, W)
       \then
-    \return step W #left{evidence} #right{evidence}
+    \return step W evidence.left evidence.right
   };
 
 \definition preimageUnionEq(h: A -> B) (family: \Pow (\Pow B)):
@@ -134,12 +134,12 @@
       openTransport source Source.Empty (Preimage h Target.Empty)
         (sym!{\Pow A} (Preimage h Target.Empty) Source.Empty
           (preimageEmptyEq h))
-        #emptyOpen{(Source.topologyLaws source)},
+        (Source.topologyLaws source).emptyOpen,
     wholeOpen :=
       openTransport source Source.Whole (Preimage h Target.Whole)
         (sym!{\Pow A} (Preimage h Target.Whole) Source.Whole
           (preimageWholeEq h))
-        #wholeOpen{(Source.topologyLaws source)},
+        (Source.topologyLaws source).wholeOpen,
     unionOpen := \fun (family: \Pow (\Pow B)) =>
       \fun (allOpen: \forall (W: \Pow B) ->
         Target.FamilyMember family W ->
@@ -150,7 +150,7 @@
           (sym!{\Pow A}
             _ _
             (preimageUnionEq h family))
-          (#unionOpen{(Source.topologyLaws source)} (PullbackFamily h family)
+          ((Source.topologyLaws source).unionOpen (PullbackFamily h family)
             (\fun (U: \Pow A) =>
               \fun (member: Source.FamilyMember (PullbackFamily h family) U) =>
                 pullbackElim h family U (Source.IsOpenIn source U)
@@ -170,7 +170,7 @@
           (sym!{\Pow A}
             _ _
             (preimageIntersectionEq h U V))
-          (#intersectionOpen{(Source.topologyLaws source)}
+          ((Source.topologyLaws source).intersectionOpen
             (Preimage h U) (Preimage h V) uOpen vOpen),
   };
 
@@ -204,7 +204,7 @@
   \takefrom x: \Cast[A] ({ x: A \where Logic.And[Source.Member S x, f x = y] }) \by member \then
   \let data: Logic.And[Source.Member S x, f x = y] :=
     \bysub(A, { x: A \where Logic.And[Source.Member S x, f x = y] }, x) \then
-  \return step x (#left{data}) (#right{data})
+  \return step x (data.left) (data.right)
 };
 
 \import std.Logic[].Classical[] \as Classical;
@@ -215,12 +215,12 @@
     either!{{(Classical.excludedMiddle (Target.Member V value))} {Source.IsOpenIn source (Preimage (\fun (_: A) => value) V)}
       {\fun (member: _) => \idelim Source.Whole = Preimage (\fun (_: A) => value) V
         \with W: \Pow A => Source.IsOpenIn source W
-        \by { base: #wholeOpen{(Source.topologyLaws source)},
+        \by { base: (Source.topologyLaws source).wholeOpen,
           equality: \axiom:setext(Source.Whole, Preimage (\fun (_: A) => value) V,
             \fun (x: A) (_: _) => member, \fun (x: A) (_: _) => \refl(x)) }}
       {\fun (outside: _) => \idelim Source.Empty = Preimage (\fun (_: A) => value) V
         \with W: \Pow A => Source.IsOpenIn source W
-        \by { base: #emptyOpen{(Source.topologyLaws source)},
+        \by { base: (Source.topologyLaws source).emptyOpen,
           equality: \axiom:setext(Source.Empty, Preimage (\fun (_: A) => value) V,
             \fun (x: A) (empty: Logic.False) => Logic.falseElim (Target.Member V value) empty,
             \fun (x: A) (member: Target.Member V value) => outside member) }}

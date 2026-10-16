@@ -24,17 +24,17 @@
       W := TD.Carrier, target := TD.space] \as Diagonal;
     \module Component(i: HomologyTotal.Index n) {
       \import Tensors.IndexedExteriorNaturality[C := Left.complex, D := TargetLeft.complex,
-        E := Right.complex, F := TargetRight.complex, p := #first{i}, q := #second{i}].With[f := f, g := g] \as Natural;
+        E := Right.complex, F := TargetRight.complex, p := i.first, q := i.second].With[f := f, g := g] \as Natural;
       \import Tensors.CycleProductNaturality[C := Left.complex, D := TargetLeft.complex,
-        E := Right.complex, F := TargetRight.complex, p := #first{i}, q := #second{i}].With[f := f, g := g].Exterior[] \as Known;
+        E := Right.complex, F := TargetRight.complex, p := i.first, q := i.second].With[f := f, g := g].Exterior[] \as Known;
       \import Natural.At[n := n] \as NAt;
       \import Modules.Hom[V := SD.family.Carrier i, W := TH.Cohomology,
         source := SD.family.space i, target := TH.cohomologySpace] \as ComponentMaps;
       \definition commutes: \forall (x: SD.family.Carrier i) ->
-        #apply{(NAt.after (Degrees.degree n i))} x =
-        #apply{(NAt.before (Degrees.degree n i))} x :=
+        (NAt.after (Degrees.degree n i)).apply x =
+        (NAt.before (Degrees.degree n i)).apply x :=
         \fun (x: SD.family.Carrier i) => congr!{ComponentMaps.Map TH.Cohomology}
-          (\fun (h: ComponentMaps.Map) => #apply{h} x) _ _ (Natural.naturality n (Degrees.degree n i));
+          (\fun (h: ComponentMaps.Map) => h.apply x) _ _ (Natural.naturality n (Degrees.degree n i));
       \import Modules.Hom[V := TD.family.Carrier i, W := TD.Carrier,
         source := TD.family.space i, target := TD.space].Composition[
         U := SD.family.Carrier i, domain := SD.family.space i] \as Compose;
@@ -45,8 +45,8 @@
     \definition diagonal: Modules.Hom[V := SD.Carrier, W := TD.Carrier,
       source := SD.space, target := TD.space].Map := Diagonal.extension components;
     \definition diagonalOnInjection: \forall (i: HomologyTotal.Index n)(x: SD.family.Carrier i) ->
-      #apply{diagonal} (#apply{(SD.Component[i := i].injection)} x) =
-      #apply{(Component[i := i].map)} x := Diagonal.onInjection components;
+      diagonal.apply ((SD.Component[i := i].injection).apply x) =
+      (Component[i := i].map).apply x := Diagonal.onInjection components;
     \import Modules.Hom[V := SH.Cohomology, W := TH.Cohomology,
       source := SH.cohomologySpace, target := TH.cohomologySpace].Composition[
       U := SD.Carrier, domain := SD.space] \as After;
@@ -59,12 +59,12 @@
       W := TH.Cohomology, target := TH.cohomologySpace] \as Equality;
     \definition naturality: after = before := Equality.ext after before
       (\fun (i: HomologyTotal.Index n)(x: SD.family.Carrier i) => \block {
-        \let first: _ := congr!{SH.Cohomology TH.Cohomology} (#apply{(Induced.induced TensorMap.total)})
+        \let first: _ := congr!{SH.Cohomology TH.Cohomology} ((Induced.induced TensorMap.total).apply)
           _ _ (SourceExterior.onInjection i x) \then
         \let middle: _ := Component[i := i].commutes x \then
         \let last: _ := trans!{TH.Cohomology} _ _ _
-          (congr!{TD.Carrier TH.Cohomology} (#apply{TargetExterior.exterior}) _ _ (diagonalOnInjection i x))
-          (TargetExterior.onInjection i (#apply{(Component[i := i].tensorMap)} x)) \then
+          (congr!{TD.Carrier TH.Cohomology} (TargetExterior.exterior.apply) _ _ (diagonalOnInjection i x))
+          (TargetExterior.onInjection i ((Component[i := i].tensorMap).apply x)) \then
         \return trans!{TH.Cohomology} _ _ _ first
           (trans!{TH.Cohomology} _ _ _ middle (sym!{TH.Cohomology} _ _ last))
       });
@@ -82,16 +82,16 @@
     \definition inverseBefore: BackMaps.Map := BackBefore.compose TargetExterior.inverse (Induced.induced TensorMap.total);
     \definition inverseNaturality: inverseAfter = inverseBefore := BackMaps.ext inverseAfter inverseBefore
       (\fun (h: SH.Cohomology) => \block {
-        \let x: SD.Carrier := #apply{SourceExterior.inverse} h \then
-        \let commute: #apply{(Induced.induced TensorMap.total)} (#apply{SourceExterior.exterior} x) =
-          #apply{TargetExterior.exterior} (#apply{diagonal} x) :=
-          congr!{ForwardMaps.Map TH.Cohomology} (\fun (f: ForwardMaps.Map) => #apply{f} x) _ _ naturality \then
+        \let x: SD.Carrier := SourceExterior.inverse.apply h \then
+        \let commute: (Induced.induced TensorMap.total).apply (SourceExterior.exterior.apply x) =
+          TargetExterior.exterior.apply (diagonal.apply x) :=
+          congr!{ForwardMaps.Map TH.Cohomology} (\fun (f: ForwardMaps.Map) => f.apply x) _ _ naturality \then
         \return trans!{TD.Carrier} _ _ _
-          (sym!{TD.Carrier} _ _ (TargetExterior.inverseOnExterior (#apply{diagonal} x)))
+          (sym!{TD.Carrier} _ _ (TargetExterior.inverseOnExterior (diagonal.apply x)))
           (trans!{TD.Carrier} _ _ _
-            (congr!{TH.Cohomology TD.Carrier} (#apply{TargetExterior.inverse}) _ _ (sym!{TH.Cohomology} _ _ commute))
+            (congr!{TH.Cohomology TD.Carrier} (TargetExterior.inverse.apply) _ _ (sym!{TH.Cohomology} _ _ commute))
             (congr!{SH.Cohomology TD.Carrier}
-              (\fun (y: SH.Cohomology) => #apply{TargetExterior.inverse} (#apply{(Induced.induced TensorMap.total)} y))
+              (\fun (y: SH.Cohomology) => TargetExterior.inverse.apply ((Induced.induced TensorMap.total).apply y))
               _ _ (SourceExterior.exteriorOnInverse h)))
       });
   }

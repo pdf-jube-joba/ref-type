@@ -9,9 +9,9 @@
 \use Equality.congr2;
 \definition sequence(scalar: Enumerator): \forall (n: N.Nat^) -> N.Nat^ -> Fin.Fin n -> A :=
   \induction (n: N.Nat^) \return N.Nat^ -> Fin.Fin n -> A \with {
-    | zero: \fun (k: N.Nat^)(i: Fin.Fin N.Nat^::zero) => #sequence{scalar} N.Nat^::zero
+    | zero: \fun (k: N.Nat^)(i: Fin.Fin N.Nat^::zero) => scalar.sequence N.Nat^::zero
     | succ: \fun (n: N.Nat^)(previous: N.Nat^ -> Fin.Fin n -> A)(k: N.Nat^) => Tuples.extend n
-      (#sequence{scalar} (Pair.natPairFirst (Pairs.enumerate k))) (previous (Pair.natPairSecond (Pairs.enumerate k)))
+      (scalar.sequence (Pair.natPairFirst (Pairs.enumerate k))) (previous (Pair.natPairSecond (Pairs.enumerate k)))
   };
 \definition Occurs(scalar: Enumerator)(n: N.Nat^)(f: Fin.Fin n -> A): \Prop :=
   \exists { k: N.Nat^ \where sequence scalar n k = f };
@@ -19,11 +19,11 @@
   \fun (scalar: Enumerator) => \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> A) -> Occurs scalar n f \with {
     | zero: \fun (f: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where sequence scalar N.Nat^::zero k = f }] (N.Nat^::zero)
       (\axiom:funext(sequence scalar N.Nat^::zero N.Nat^::zero, f, \fun (i: Fin.Fin N.Nat^::zero) =>
-          Logic.falseElim (#sequence{scalar} N.Nat^::zero = f i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))))
+          Logic.falseElim (scalar.sequence N.Nat^::zero = f i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))))
     | succ: \block {
       \fun (n: N.Nat^)(previous: \forall (f: Fin.Fin n -> A) -> Occurs scalar n f)(f: Fin.Fin (N.Nat^::succ n) -> A) \then
-      \takefrom head: \Cast[N.Nat^] ({ k: N.Nat^ \where #sequence{scalar} k = f (Fin.zero n) }) \by #exhaustive{scalar} (f (Fin.zero n)) \then
-      \let headLaw: #sequence{scalar} head = f (Fin.zero n) := \bysub(N.Nat^, { k: N.Nat^ \where #sequence{scalar} k = f (Fin.zero n) }, head) \then
+      \takefrom head: \Cast[N.Nat^] ({ k: N.Nat^ \where scalar.sequence k = f (Fin.zero n) }) \by scalar.exhaustive (f (Fin.zero n)) \then
+      \let headLaw: scalar.sequence head = f (Fin.zero n) := \bysub(N.Nat^, { k: N.Nat^ \where scalar.sequence k = f (Fin.zero n) }, head) \then
       \let tail: Fin.Fin n -> A := \fun (j: Fin.Fin n) => f (Fin.succ n j) \then
       \takefrom rest: \Cast[N.Nat^] ({ k: N.Nat^ \where sequence scalar n k = tail }) \by previous tail \then
       \let tailLaw: sequence scalar n rest = tail := \bysub(N.Nat^, { k: N.Nat^ \where sequence scalar n k = tail }, rest) \then
@@ -33,11 +33,11 @@
       \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where sequence scalar (N.Nat^::succ n) k = f }] code
         (trans!{{Fin.Fin (N.Nat^::succ n) -> A}} _ _ _
           (congr!{Pair.NatPair {Fin.Fin (N.Nat^::succ n) -> A}}
-            (\fun (p: Pair.NatPair) => Tuples.extend n (#sequence{scalar} (Pair.natPairFirst p)) (sequence scalar n (Pair.natPairSecond p)))
+            (\fun (p: Pair.NatPair) => Tuples.extend n (scalar.sequence (Pair.natPairFirst p)) (sequence scalar n (Pair.natPairSecond p)))
             (Pairs.enumerate code) (Pair.natPair head rest) codeLaw)
           (trans!{{Fin.Fin (N.Nat^::succ n) -> A}} _ _ _
             (congr2!{A {Fin.Fin n -> A} {Fin.Fin (N.Nat^::succ n) -> A}} (Tuples.extend n)
-              (#sequence{scalar} head) (f (Fin.zero n)) (sequence scalar n rest) tail headLaw tailLaw)
+              (scalar.sequence head) (f (Fin.zero n)) (sequence scalar n rest) tail headLaw tailLaw)
             (Tuples.recover n f)))
     }
   };

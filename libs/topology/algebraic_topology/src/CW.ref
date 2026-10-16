@@ -14,18 +14,18 @@
   (\fun (cell: CellData) (tail: \Pow CellData) => { c: CellData \where Logic.Or[c = cell, \In[CellData] tail c] })
   ({ c: CellData \where Logic.False }) cells;
 \definition CellMember(cells: Cells) (cell: CellData): \Prop := \In[CellData] (members cells) cell;
-\definition ClosedImage(cell: CellData): \Pow A := { x: A \where \exists { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x } };
-\definition InteriorImage(cell: CellData): \Pow A := { x: A \where \exists { p: Euclidean.Disk (#dimension{cell}) \where
-  Logic.And[\In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) p, #characteristic{cell} p = x] } };
-\definition Pullback(cell: CellData) (U: \Pow A): \Pow (Euclidean.Disk (#dimension{cell})) :=
-  { p: Euclidean.Disk (#dimension{cell}) \where \In[A] U (#characteristic{cell} p) };
-\structure InteriorPartWitness[cell: CellData, U: \Pow (Euclidean.Disk (#dimension{cell})), x: A]: \Set {
-  point: Euclidean.Disk (#dimension{cell}),
-  member: \In[Euclidean.Disk (#dimension{cell})] U point,
-  interior: \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) point,
-  image: #characteristic{cell} point = x,
+\definition ClosedImage(cell: CellData): \Pow A := { x: A \where \exists { p: Euclidean.Disk (cell.dimension) \where cell.characteristic p = x } };
+\definition InteriorImage(cell: CellData): \Pow A := { x: A \where \exists { p: Euclidean.Disk (cell.dimension) \where
+  Logic.And[\In[Euclidean.coordinateCarrier (cell.dimension)] (Euclidean.interiorAt (cell.dimension)) p, cell.characteristic p = x] } };
+\definition Pullback(cell: CellData) (U: \Pow A): \Pow (Euclidean.Disk (cell.dimension)) :=
+  { p: Euclidean.Disk (cell.dimension) \where \In[A] U (cell.characteristic p) };
+\structure InteriorPartWitness[cell: CellData, U: \Pow (Euclidean.Disk (cell.dimension)), x: A]: \Set {
+  point: Euclidean.Disk (cell.dimension),
+  member: \In[Euclidean.Disk (cell.dimension)] U point,
+  interior: \In[Euclidean.coordinateCarrier (cell.dimension)] (Euclidean.interiorAt (cell.dimension)) point,
+  image: cell.characteristic point = x,
 }
-\definition InteriorPart(cell: CellData) (U: \Pow (Euclidean.Disk (#dimension{cell}))): \Pow A :=
+\definition InteriorPart(cell: CellData) (U: \Pow (Euclidean.Disk (cell.dimension))): \Pow A :=
   { x: A \where \exists InteriorPartWitness[cell, U, x] };
 \import N.Basic[].Prop[] \as Nat;
 \structure CoverWitness[cells: Cells, x: A]: \Set {
@@ -36,20 +36,20 @@
 \structure BoundaryWitness[cells: Cells, cell: CellData, x: A]: \Set {
   other: CellData,
   member: CellMember cells other,
-  lower: Nat.Lt (#dimension{other}) (#dimension{cell}),
+  lower: Nat.Lt (other.dimension) (cell.dimension),
   contains: \In[A] (InteriorImage other) x,
 }
 \structure ComplexData: \Set {
   cells: Cells,
 }
 \structure CellLaws[source: Space.Topology, cell: CellData]: \Prop {
-  continuous: \forall (U: \Pow A) -> Space.IsOpenIn source U -> Euclidean.OpenInDisk (#dimension{cell}) (Pullback cell U),
+  continuous: \forall (U: \Pow A) -> Space.IsOpenIn source U -> Euclidean.OpenInDisk (cell.dimension) (Pullback cell U),
   closed: Space.IsClosedIn source (ClosedImage cell),
-  injectiveInterior: \forall (p, q: Euclidean.Disk (#dimension{cell})) ->
-    \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) p ->
-    \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) q ->
-    #characteristic{cell} p = #characteristic{cell} q -> p = q,
-  inverseContinuous: \forall (U: \Pow (Euclidean.Disk (#dimension{cell}))) -> Euclidean.OpenInDisk (#dimension{cell}) U ->
+  injectiveInterior: \forall (p, q: Euclidean.Disk (cell.dimension)) ->
+    \In[Euclidean.coordinateCarrier (cell.dimension)] (Euclidean.interiorAt (cell.dimension)) p ->
+    \In[Euclidean.coordinateCarrier (cell.dimension)] (Euclidean.interiorAt (cell.dimension)) q ->
+    cell.characteristic p = cell.characteristic q -> p = q,
+  inverseContinuous: \forall (U: \Pow (Euclidean.Disk (cell.dimension))) -> Euclidean.OpenInDisk (cell.dimension) U ->
     \exists { V: \Pow A \where Logic.And[Space.IsOpenIn source V, InteriorPart cell U = Space.Intersection (InteriorImage cell) V] },
 }
 \structure ComplexLaws[source: Space.Topology, data: ComplexData]: \Prop {
@@ -58,11 +58,11 @@
   covers: \forall (x: A) -> \exists CoverWitness[data.cells, x],
   disjoint: \forall (cell, other: CellData) -> CellMember data.cells cell -> CellMember data.cells other ->
     \forall (x: A) -> \In[A] (InteriorImage cell) x -> \In[A] (InteriorImage other) x -> cell = other,
-  boundary: \forall (cell: CellData) -> CellMember data.cells cell -> \forall (p: Euclidean.Disk (#dimension{cell})) ->
-    \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.boundaryAt (#dimension{cell})) p ->
-    \exists BoundaryWitness[data.cells, cell, (#characteristic{cell} p)],
+  boundary: \forall (cell: CellData) -> CellMember data.cells cell -> \forall (p: Euclidean.Disk (cell.dimension)) ->
+    \In[Euclidean.coordinateCarrier (cell.dimension)] (Euclidean.boundaryAt (cell.dimension)) p ->
+    \exists BoundaryWitness[data.cells, cell, (cell.characteristic p)],
   weakTopology: \forall (U: \Pow A) -> Logic.PropEquiv[Space.IsOpenIn source U,
-    \forall (cell: CellData) -> CellMember data.cells cell -> Euclidean.OpenInDisk (#dimension{cell}) (Pullback cell U)],
+    \forall (cell: CellData) -> CellMember data.cells cell -> Euclidean.OpenInDisk (cell.dimension) (Pullback cell U)],
 }
 \definition FiniteComplex[source: Space.Topology]: \Set := \Cast[ComplexData] ({ data: ComplexData \where ComplexLaws[source, data] });
 \definition laws(source: Space.Topology) (complex: FiniteComplex[source]): ComplexLaws[source, complex] := \bysub(ComplexData, FiniteComplex[source], complex);

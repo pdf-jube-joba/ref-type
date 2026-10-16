@@ -1,10 +1,10 @@
 \definition leastLaws: Induction.LeastLaws[Positive, d] := \bysub(N.Nat^, { d: N.Nat^ \where Induction.LeastLaws[Positive, d] }, d);
-\definition positiveLaws: PositiveLaws[d] := #member{leastLaws};
+\definition positiveLaws: PositiveLaws[d] := leastLaws.member;
 \definition remainderMember: \forall (x: I.Int^) -> Submodules.Member S x -> Submodules.Member S (natural (Division.mod (Signed.absolute x) d)) :=
   \fun (x: I.Int^)(member: _) => \idelim Arithmetic.difference (natural (Signed.absolute x)) (Arithmetic.mul (natural (Division.div (Signed.absolute x) d)) (natural d)) = natural (Division.mod (Signed.absolute x) d)
     \with y: I.Int^ => Submodules.Member S y \by {
       base: Submodules.differenceClosed S (natural (Signed.absolute x)) (Arithmetic.mul (natural (Division.div (Signed.absolute x) d)) (natural d))
-        (absoluteMember x member) (#scalar{S} (natural (Division.div (Signed.absolute x) d)) (natural d) #member{positiveLaws}),
+        (absoluteMember x member) (S.scalar (natural (Division.div (Signed.absolute x) d)) (natural d) positiveLaws.member),
       equality: Euclid.remainder (Signed.absolute x) d
     };
 \definition remainderZero: \forall (x: I.Int^) -> Submodules.Member S x -> Division.mod (Signed.absolute x) d = N.Nat^::zero :=
@@ -12,11 +12,11 @@
     {\fun (zero: _) => zero}
     {\fun (nonzero: _) => Logic.falseElim _ (Bounds.ltIrrefl d
       (Bounds.leLtTrans d (Division.mod (Signed.absolute x) d) d
-        (#least{leastLaws} (Division.mod (Signed.absolute x) d) (PositiveLaws[Division.mod (Signed.absolute x) d] {
+        (leastLaws.least (Division.mod (Signed.absolute x) d) (PositiveLaws[Division.mod (Signed.absolute x) d] {
           member := remainderMember x member,
           positive := positiveOfNonzero (Division.mod (Signed.absolute x) d) nonzero,
         }))
-        (remainderLess (Signed.absolute x) d #positive{positiveLaws})))}
+        (remainderLess (Signed.absolute x) d positiveLaws.positive)))}
   };
 \definition contains: \forall (x: I.Int^) -> Submodules.Member S x -> Signed.Divides (natural d) x :=
   \fun (x: I.Int^)(member: _) => Signed.naturalDivisor d x
@@ -24,7 +24,7 @@
       (DivisionLaws.dividesTransport d N.Nat^::zero (Division.mod (Signed.absolute x) d)
         (sym!{N.Nat^} _ _ (remainderZero x member)) (DivisionLaws.dividesZero d)));
 \definition laws: PrincipalLaws[S, d] := PrincipalLaws[S, d] {
-  generator := #member{positiveLaws}, contains := contains,
-  multiples := multiples d #member{positiveLaws},
+  generator := positiveLaws.member, contains := contains,
+  multiples := multiples d positiveLaws.member,
 };
 \definition existence: \exists Principal S := \exact(\into[N.Nat^](d, { n: N.Nat^ \where PrincipalLaws[S, n] }) \by { laws }, Principal S);

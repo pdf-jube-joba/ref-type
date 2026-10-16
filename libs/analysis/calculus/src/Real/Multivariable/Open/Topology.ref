@@ -2,12 +2,12 @@
 \import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as MetricLaws;
 \import topology.Topology[Carrier := Point] \as Space;
 \import metric_spaces.MetricSpace[Carrier := Point] \as MetricSpace;
-\definition open: \forall (U: OpenSet) -> Space.IsOpenIn Euclidean.topology (#points{U}) := \block {
+\definition open: \forall (U: OpenSet) -> Space.IsOpenIn Euclidean.topology (U.points) := \block {
   \fun (U: OpenSet)(a: Point)(member: _) \then
-  \takefrom radius: \Cast[Real] ({ r: Real \where BallInside[#points{U}, a, r] }) \by #open{U} a member \then
-  \let ball: BallInside[#points{U}, a, radius] := \bysub(Real, { r: Real \where BallInside[#points{U}, a, r] }, radius) \then
-  \return Logic.existsIntro[Real, MetricSpace.NeighborhoodRadius MetricLaws.metric (#points{U}) a] radius
-    (Logic.And[_, _]::# (#positive{ball}) (\fun (x: Point)(near: _) => #included{ball} x
+  \takefrom radius: \Cast[Real] ({ r: Real \where BallInside[U.points, a, r] }) \by U.open a member \then
+  \let ball: BallInside[U.points, a, radius] := \bysub(Real, { r: Real \where BallInside[U.points, a, r] }, radius) \then
+  \return Logic.existsIntro[Real, MetricSpace.NeighborhoodRadius MetricLaws.metric (U.points) a] radius
+    (Logic.And[_, _]::# (ball.positive) (\fun (x: Point)(near: _) => ball.included x
       (R.ltReplaceLeft (Coordinates.pointDistance a x) (Coordinates.pointDistance x a) radius (MetricLaws.distanceSymmetric a x) near)))
 };
 \definition ofOpen(points: \Pow Point)(proof: Space.IsOpenIn Euclidean.topology points): OpenSet := OpenSet {
@@ -19,14 +19,14 @@
       \bysub(Real, MetricSpace.NeighborhoodRadius MetricLaws.metric points a, radius) \then
     \return Logic.existsIntro[Real, { r: Real \where BallInside[points, a, r] }] radius
       (BallInside[points, a, radius] {
-        positive := #left{ball},
-        included := \fun (x: Point)(near: _) => #right{ball} x
+        positive := ball.left,
+        included := \fun (x: Point)(near: _) => ball.right x
           (R.ltReplaceLeft (Coordinates.pointDistance x a) (Coordinates.pointDistance a x) radius (MetricLaws.distanceSymmetric x a) near),
       })
   },
 };
 \module Of(U: OpenSet) {
-  \import Space.Subspace[S := #points{U}] \as Subspace;
+  \import Space.Subspace[S := U.points] \as Subspace;
   \definition topology: topology.Topology[Carrier := Carrier U].Topology := Subspace.topology Euclidean.topology;
   \module Continuity;
 }

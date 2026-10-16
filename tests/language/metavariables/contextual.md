@@ -84,7 +84,7 @@ name = "Repro"
 ```ref
 \structure And[P, Q: \Prop]: \Prop { left: P, right: Q, }
 \definition andElim(P, Q, R: \Prop): (P -> Q -> R) -> And[P, Q] -> R :=
-  \fun (curried: _) (value: _) => curried (value #left) (value #right);
+  \fun (curried: _) (value: _) => curried (value.left) (value.right);
 ```
 
 ## infer take continuation

@@ -15,13 +15,13 @@
   \let cr: ContinuityControl[U, g, a, radius, dr] := \bysub(Real, { d: Real \where ContinuityControl[U, g, a, radius, d] }, dr) \then
   \return Logic.existsIntro[Real, { d: Real \where ContinuityControl[U, plus U f g, a, epsilon, d] }] (Metric.min dl dr)
     (ContinuityControl[U, plus U f g, a, epsilon, Metric.min dl dr] {
-        positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
+        positive := Product.minPositive dl dr (cl.positive) (cr.positive),
         estimate := \fun (x: Carrier U)(near: _) =>
           R.ltReplaceRight _ _ _ (Bounds.halfTwice epsilon)
             (R.leLtTrans _ _ _ (Bounds.distanceAdd (f x) (g x) (f a) (g a))
               (Bounds.addLt _ _ _ _
-                (#estimate{cl} x (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
-                (#estimate{cr} x (R.ltLeTrans _ _ _ near (Metric.minRight dl dr))))),
+                (cl.estimate x (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
+                (cr.estimate x (R.ltLeTrans _ _ _ near (Metric.minRight dl dr))))),
       })
 };
 \definition mulContinuous: \forall (U: OpenSet)(f, g: ScalarFunction U) -> ContinuousOn U f -> ContinuousOn U g -> ContinuousOn U (times U f g) := \block {
@@ -36,7 +36,7 @@
   \let cr: ContinuityControl[U, g, a, radius, dr] := \bysub(Real, { d: Real \where ContinuityControl[U, g, a, radius, d] }, dr) \then
   \return Logic.existsIntro[Real, { d: Real \where ContinuityControl[U, times U f g, a, epsilon, d] }] (Metric.min dl dr)
     (ContinuityControl[U, times U f g, a, epsilon, Metric.min dl dr] {
-        positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
+        positive := Product.minPositive dl dr (cl.positive) (cr.positive),
         estimate := \fun (x: Carrier U)(near: _) =>
           R.ltReplaceLeft (distance (mul (f a) (g a)) (mul (f x) (g x))) (distance (mul (f x) (g x)) (mul (f a) (g a))) epsilon
             (Metric.distanceSymmetric (mul (f a) (g a)) (mul (f x) (g x)))
@@ -44,9 +44,9 @@
               (Product.localProductDistance (f a) (g a) (f x) (g x) radius
                 (Order.leOfLt _ _ rp) (Product.radiusBelowOne coefficient epsilon)
                 (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric (f x) (f a))
-                  (#estimate{cl} x (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr))))
+                  (cl.estimate x (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr))))
                 (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric (g x) (g a))
-                  (#estimate{cr} x (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))
+                  (cr.estimate x (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))
               (Product.radiusSmall coefficient epsilon cp positive)),
       })
 };
@@ -67,15 +67,15 @@
   \let cr: PartialControl[U, g, a, i, dg a, radius, dr] := \bysub(Real, { d: Real \where PartialControl[U, g, a, i, dg a, radius, d] }, dr) \then
   \return Logic.existsIntro[Real, { d: Real \where PartialControl[U, plus U f g, a, i, plus U df dg a, epsilon, d] }] (Metric.min dl dr)
     (PartialControl[U, plus U f g, a, i, plus U df dg a, epsilon, Metric.min dl dr] {
-        positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
+        positive := Product.minPositive dl dr (cl.positive) (cr.positive),
         estimate := \fun (t: Real)(x: Carrier U)(replaced: x = Coordinates.replace a i t)(different: _)(near: _) =>
           R.ltReplaceLeft _ _ _ (sym!{Real} _ _ (congr!{Real Real} (\fun (s: Real) => distance s (add (df a) (dg a))) _ _ (addSlope U f g a x t i)))
             (R.ltReplaceRight _ _ _ (Bounds.halfTwice epsilon)
               (R.leLtTrans _ _ _ (Bounds.distanceAdd
                 (mul (sub (f x) (f a)) (inv (sub t (a i)))) (mul (sub (g x) (g a)) (inv (sub t (a i)))) (df a) (dg a))
                 (Bounds.addLt _ _ _ _
-                  (#estimate{cl} t x replaced different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
-                  (#estimate{cr} t x replaced different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))),
+                  (cl.estimate t x replaced different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
+                  (cr.estimate t x replaced different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))),
       })
 };
 
@@ -92,13 +92,13 @@
     { r: Real \where Limits.Control[Derivatives.slope section (a i), a i, d, epsilon, r] }, delta) \then
   \return Logic.existsIntro[Real, { r: Real \where PartialControl[U, f, a, i, d, epsilon, r] }] delta
     (PartialControl[U, f, a, i, d, epsilon, delta] {
-      positive := #positive{control},
+      positive := control.positive,
       estimate := \fun (t: Real)(x: Carrier U)(replaced: x = Coordinates.replace a i t)(different: _)(near: _) =>
         R.ltReplaceLeft (distance (Derivatives.slope section (a i) t) d) (distance (mul (sub (f x) (f a)) (inv (sub t (a i)))) d) epsilon
           (congr!{Real Real} (\fun (s: Real) => distance (mul s (inv (sub t (a i)))) d)
             (sub (section t) (section (a i))) (sub (f x) (f a))
             (congr2!{Real Real Real} sub (section t) (f x) (section (a i)) (f a) (agrees t x replaced) center))
-          (#estimate{control} t different near),
+          (control.estimate t different near),
     })
 };
 \definition productDifferential(U: OpenSet)(f, g, df, dg: ScalarFunction U): ScalarFunction U :=

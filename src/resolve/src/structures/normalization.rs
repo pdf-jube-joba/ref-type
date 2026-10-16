@@ -136,6 +136,68 @@ impl Resolver {
         self.normalize_in_scope(expression, &mut locals.to_vec())
     }
 
+    fn normalize_projection_bind(
+        &mut self,
+        bind: &mut Bind,
+        locals: &mut Vec<LocalScope>,
+    ) -> Result<(), Diagnostic> {
+        let mut scope = LocalScope::default();
+        match bind {
+            Bind::Named(bind) => {
+                self.normalize_in_scope(&mut bind.ty, locals)?;
+                for name in &mut bind.vars {
+                    if name.1.is_none() {
+                        self.binding(name);
+                    }
+                    scope.insert(name.0.clone(), name.clone());
+                }
+            }
+            Bind::Subset { var, ty, predicate }
+            | Bind::SubsetWithProof {
+                var, ty, predicate, ..
+            } => {
+                self.normalize_in_scope(ty, locals)?;
+                if var.1.is_none() {
+                    self.binding(var);
+                }
+                scope.insert(var.0.clone(), var.clone());
+                locals.push(scope.clone());
+                let result = self.normalize_in_scope(predicate, locals);
+                locals.pop();
+                result?;
+                if let Bind::SubsetWithProof { proof_var, .. } = bind {
+                    if proof_var.1.is_none() {
+                        self.binding(proof_var);
+                    }
+                    scope.insert(proof_var.0.clone(), proof_var.clone());
+                }
+            }
+        }
+        locals.push(scope);
+        Ok(())
+    }
+
+    fn normalize_projection_branches(
+        &mut self,
+        branches: &mut [(Identifier, Vec<Identifier>, SExp)],
+        locals: &mut Vec<LocalScope>,
+    ) -> Result<(), Diagnostic> {
+        for (_, binders, body) in branches {
+            let mut scope = LocalScope::default();
+            for name in binders {
+                if name.1.is_none() {
+                    self.binding(name);
+                }
+                scope.insert(name.0.clone(), name.clone());
+            }
+            locals.push(scope);
+            let result = self.normalize_in_scope(body, locals);
+            locals.pop();
+            result?;
+        }
+        Ok(())
+    }
+
     fn normalize_in_scope(
         &mut self,
         expression: &mut SExp,
@@ -304,6 +366,37 @@ impl Resolver {
                 };
                 return false;
             }
+            if let SExp::IndCase {
+                scrutinee,
+                return_type,
+                branches,
+                ..
+            } = node
+            {
+                let result = (|| {
+                    self.normalize_in_scope(scrutinee, locals)?;
+                    self.normalize_in_scope(return_type, locals)?;
+                    self.normalize_projection_branches(branches, locals)
+                })();
+                if let Err(e) = result {
+                    error = Some(e);
+                }
+                return false;
+            }
+            if let SExp::ProgramCase {
+                scrutinee,
+                branches,
+                ..
+            } = node
+            {
+                let result = self
+                    .normalize_in_scope(scrutinee, locals)
+                    .and_then(|()| self.normalize_projection_branches(branches, locals));
+                if let Err(e) = result {
+                    error = Some(e);
+                }
+                return false;
+            }
             let mut children_normalized = false;
             if let SExp::App { func, arg } = node
                 && {
@@ -391,6 +484,46 @@ impl Resolver {
                         }
                     }
                     Err(e) => error = Some(e),
+                }
+                return false;
+            }
+            if matches!(
+                node,
+                SExp::Exists { .. }
+                    | SExp::TakeProp { .. }
+                    | SExp::Prod {
+                        bind: Bind::Subset { .. } | Bind::SubsetWithProof { .. },
+                        ..
+                    }
+                    | SExp::Lam {
+                        bind: Bind::Subset { .. } | Bind::SubsetWithProof { .. },
+                        ..
+                    }
+            ) {
+                let mark = locals.len();
+                let result = (|| {
+                    if let SExp::TakeProp { existence, .. } = node {
+                        self.normalize_in_scope(existence, locals)?;
+                    }
+                    let (SExp::Exists { bind }
+                    | SExp::TakeProp { bind, .. }
+                    | SExp::Prod { bind, .. }
+                    | SExp::Lam { bind, .. }) = node
+                    else {
+                        unreachable!()
+                    };
+                    self.normalize_projection_bind(bind, locals)?;
+                    if let SExp::TakeProp { body, .. }
+                    | SExp::Prod { body, .. }
+                    | SExp::Lam { body, .. } = node
+                    {
+                        self.normalize_in_scope(body, locals)?;
+                    }
+                    Ok(())
+                })();
+                locals.truncate(mark);
+                if let Err(e) = result {
+                    error = Some(e);
                 }
                 return false;
             }

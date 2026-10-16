@@ -47,7 +47,7 @@
       \bysub(\Pow Carrier,
         { V : \Pow Carrier \where
           Logic.And[FamilyMember family V, Member V x] }, U) \then
-    \return step U (#left{evidence}) (#right{evidence})
+    \return step U (evidence.left) (evidence.right)
   };
 
 \definition Intersection(S, T: \Pow Carrier): \Pow Carrier :=
@@ -68,7 +68,7 @@
 \definition topologyLaws(s: Topology): TopologyLaws[s] := \bysub(TopologyData, Topology, s);
 
 \definition IsOpen(topology: TopologyData) (S: \Pow Carrier): \Prop :=
-  \In[\Pow Carrier] (#openSets{topology}) S;
+  \In[\Pow Carrier] (topology.openSets) S;
 
 /* The last two fields express closure under arbitrary unions and finite
  * intersections; binary intersections together with Whole suffice here. */
@@ -111,9 +111,9 @@
       \forall (U: \Pow Carrier) -> FamilyMember family U ->
         IsOpenIn topology U :=
       \fun (U: \Pow Carrier) =>
-        \fun (member: FamilyMember family U) => #left{member} \then
+        \fun (member: FamilyMember family U) => member.left \then
     \let unionOpen: IsOpenIn topology (Union family) :=
-      #unionOpen{(topologyLaws topology)} family allOpen \then
+      (topologyLaws topology).unionOpen family allOpen \then
     \let equal: Union family = S :=
       \axiom:setext(Union family, S,
         (\fun (x: Carrier) =>
@@ -122,7 +122,7 @@
               (\fun (U: \Pow Carrier) =>
                 \fun (inFamily: FamilyMember family U) =>
                 \fun (inU: Member U x) =>
-                  #right{inFamily} x inU)
+                  inFamily.right x inU)
               member),
         (\fun (x: Carrier) => \fun (inS: Member S x) => \block {
           \takefrom U: \Cast[\Pow Carrier]
@@ -134,8 +134,8 @@
               { W : \Pow Carrier \where
                 OpenNeighborhood[topology, x, S, W] }, U) \then
           \return unionMemberOf family U x
-            (Logic.And[_, _]::# (#open{data}) (#within{data}))
-            (#contains{data})
+            (Logic.And[_, _]::# (data.open) (data.within))
+            (data.contains)
         })) \then
     \return \idelim Union family = S
       \with W: \Pow Carrier => IsOpenIn topology W
@@ -193,7 +193,7 @@
   IsT3 topology ->
   IsT2 topology :=
   \fun (t3: IsT3 topology) (x, y: Carrier) (different: Logic.Not (x = y)) =>
-      #right{t3} (Singleton y) (#left{t3} y) x different;
+      t3.right (Singleton y) (t3.left y) x different;
 
 \structure IsCountableBasis[topology: Topology, basis: N.Nat^ -> \Pow Carrier]: \Prop {
   open: \forall (n: N.Nat^) -> IsOpenIn topology (basis n),
@@ -255,17 +255,17 @@
   TopologyLaws[GeneratedRaw basis] {
     emptyOpen := \fun (candidate: Topology) =>
       \fun (_: \forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpenIn candidate U) =>
-        #emptyOpen{(topologyLaws candidate)},
+        (topologyLaws candidate).emptyOpen,
     wholeOpen := \fun (candidate: Topology) =>
       \fun (_: \forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpenIn candidate U) =>
-        #wholeOpen{(topologyLaws candidate)},
+        (topologyLaws candidate).wholeOpen,
     unionOpen := \fun (family: \Pow (\Pow Carrier)) =>
       \fun (allOpen: \forall (S: \Pow Carrier) -> FamilyMember family S ->
         IsOpen (GeneratedRaw basis) S) =>
       \fun (candidate: Topology) =>
       \fun (containsBasis: \forall (U: \Pow Carrier) -> FamilyMember basis U ->
         IsOpenIn candidate U) =>
-        #unionOpen{(topologyLaws candidate)} family
+        (topologyLaws candidate).unionOpen family
           (\fun (S: \Pow Carrier) => \fun (member: FamilyMember family S) =>
             allOpen S member candidate containsBasis),
     intersectionOpen := \fun (S, T: \Pow Carrier) =>
@@ -274,7 +274,7 @@
       \fun (candidate: Topology) =>
       \fun (containsBasis: \forall (U: \Pow Carrier) -> FamilyMember basis U ->
         IsOpenIn candidate U) =>
-        #intersectionOpen{(topologyLaws candidate)} S T
+        (topologyLaws candidate).intersectionOpen S T
           (sOpen candidate containsBasis) (tOpen candidate containsBasis),
   };
 

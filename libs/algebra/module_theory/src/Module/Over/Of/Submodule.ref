@@ -6,7 +6,7 @@
 \definition negativeClosed: \forall (S: Submodule)(x: V) -> Member S x -> Member S (neg x) := Core.negativeClosed;
 \definition differenceClosed: \forall (S: Submodule)(x, y: V) -> Member S x -> Member S y -> Member S (Group.difference x y) := Core.differenceClosed;
 \import Group.Subgroups[] \as Subgroups;
-\definition closed(S: Submodule): Subgroups.Closed[#carrier{S}] := Core.closed S;
+\definition closed(S: Submodule): Subgroups.Closed[S.carrier] := Core.closed S;
 
 \module Of(S: Submodule);
 \module Quotient(S: Submodule);
@@ -31,9 +31,9 @@
   \import \parent.\parent.\parent.Submodule[V := ZSpace.Carrier, space := ZSpace.moduleSpace] \as Sub;
   \definition inside(B: Submodule)(included: Included B Z): Sub.Submodule := Sub.Submodule {
     carrier := { x: ZSpace.Carrier \where Member B x },
-    zero := #zero{B},
-    addition := \fun (x, y: ZSpace.Carrier)(left: _)(right: _) => #addition{B} x y left right,
-    scalar := \fun (a: R)(x: ZSpace.Carrier)(member: _) => #scalar{B} a x member,
+    zero := B.zero,
+    addition := \fun (x, y: ZSpace.Carrier)(left: _)(right: _) => B.addition x y left right,
+    scalar := \fun (a: R)(x: ZSpace.Carrier)(member: _) => B.scalar a x member,
   };
 }
 \module Kernel(W: \Set, target: Space W) {
@@ -41,46 +41,46 @@
   \import \parent.\parent.\parent.Laws[V := W, space := target] \as Target;
   \import algebra.Group[].Of[Carrier := W, group := Target.additive] \as TargetGroup;
   \definition kernel(f: Maps.Map): Submodule := Submodule {
-    carrier := { x: V \where #apply{f} x = Target.zero },
+    carrier := { x: V \where f.apply x = Target.zero },
     zero := Maps.zeroPreserved f,
-    addition := \fun (x, y: V)(left: #apply{f} x = Target.zero)(right: #apply{f} y = Target.zero) =>
-      trans!{W} _ _ _ (#addition{f} x y)
+    addition := \fun (x, y: V)(left: f.apply x = Target.zero)(right: f.apply y = Target.zero) =>
+      trans!{W} _ _ _ (f.addition x y)
         (trans!{W} _ _ _ (congr2!{W W W} Target.add _ _ _ _ left right) (TargetGroup.zeroLeft Target.zero)),
-    scalar := \fun (a: R)(x: V)(member: #apply{f} x = Target.zero) => trans!{W} _ _ _ (#scalar{f} a x)
+    scalar := \fun (a: R)(x: V)(member: f.apply x = Target.zero) => trans!{W} _ _ _ (f.scalar a x)
       (trans!{W} _ _ _ (congr!{W W} (Target.scale a) _ _ member) (Target.scaleZero a)),
   };
 }
 \module Image(U: \Set, source: Space U) {
   \import \parent.\parent.\parent.Hom[V := U, W := V, source := source, target := space] \as Maps;
   \import \parent.\parent.\parent.Laws[V := U, space := source] \as Source;
-  \definition Points(f: Maps.Map): \Pow V := { y: V \where \exists { x: U \where #apply{f} x = y } };
-  \definition member(f: Maps.Map)(x: U): \In[V] (Points f) (#apply{f} x) :=
-    Logic.existsIntro[U, { z: U \where #apply{f} z = #apply{f} x }] x (\refl(#apply{f} x));
-  \definition introduce: \forall (f: Maps.Map)(y: V)(x: U) -> #apply{f} x = y -> \In[V] (Points f) y :=
-    \fun (f: Maps.Map)(y: V)(x: U)(equal: #apply{f} x = y) => \idelim #apply{f} x = y \with z: V => \In[V] (Points f) z \by {
+  \definition Points(f: Maps.Map): \Pow V := { y: V \where \exists { x: U \where f.apply x = y } };
+  \definition member(f: Maps.Map)(x: U): \In[V] (Points f) (f.apply x) :=
+    Logic.existsIntro[U, { z: U \where f.apply z = f.apply x }] x (\refl(f.apply x));
+  \definition introduce: \forall (f: Maps.Map)(y: V)(x: U) -> f.apply x = y -> \In[V] (Points f) y :=
+    \fun (f: Maps.Map)(y: V)(x: U)(equal: f.apply x = y) => \idelim f.apply x = y \with z: V => \In[V] (Points f) z \by {
       base: member f x, equality: equal
     };
   \definition eliminate(f: Maps.Map)(y: V)(P: \Prop):
-    (\forall (x: U) -> #apply{f} x = y -> P) -> \In[V] (Points f) y -> P := \block {
+    (\forall (x: U) -> f.apply x = y -> P) -> \In[V] (Points f) y -> P := \block {
       \fun (step: _)(exists: _) \then
-      \takefrom x: \Cast[U] ({ x: U \where #apply{f} x = y }) \by exists \then
-      \let result: P := step x (\bysub(U, { x: U \where #apply{f} x = y }, x)) \then
+      \takefrom x: \Cast[U] ({ x: U \where f.apply x = y }) \by exists \then
+      \let result: P := step x (\bysub(U, { x: U \where f.apply x = y }, x)) \then
       \return result
     };
   \definition image(f: Maps.Map): Submodule := Submodule {
     carrier := Points f,
-    zero := \idelim #apply{f} Source.zero = zero \with y: V => \In[V] (Points f) y \by {
+    zero := \idelim f.apply Source.zero = zero \with y: V => \In[V] (Points f) y \by {
       base: member f Source.zero, equality: Maps.zeroPreserved f
     },
     addition := \fun (y, z: V)(left: \In[V] (Points f) y)(right: \In[V] (Points f) z) =>
       eliminate f y (\In[V] (Points f) (add y z))
-        (\fun (x: U)(fx: #apply{f} x = y) => eliminate f z (\In[V] (Points f) (add y z))
-          (\fun (w: U)(fw: #apply{f} w = z) => \idelim #apply{f} (Source.add x w) = add y z \with v: V => \In[V] (Points f) v \by {
-            base: member f (Source.add x w), equality: trans!{V} _ _ _ (#addition{f} x w) (congr2!{V V V} add _ _ _ _ fx fw)
+        (\fun (x: U)(fx: f.apply x = y) => eliminate f z (\In[V] (Points f) (add y z))
+          (\fun (w: U)(fw: f.apply w = z) => \idelim f.apply (Source.add x w) = add y z \with v: V => \In[V] (Points f) v \by {
+            base: member f (Source.add x w), equality: trans!{V} _ _ _ (f.addition x w) (congr2!{V V V} add _ _ _ _ fx fw)
           }) right) left,
     scalar := \fun (a: R)(y: V)(exists: \In[V] (Points f) y) => eliminate f y (\In[V] (Points f) (scale a y))
-      (\fun (x: U)(fx: #apply{f} x = y) => \idelim #apply{f} (Source.scale a x) = scale a y \with v: V => \In[V] (Points f) v \by {
-        base: member f (Source.scale a x), equality: trans!{V} _ _ _ (#scalar{f} a x) (congr!{V V} (scale a) _ _ fx)
+      (\fun (x: U)(fx: f.apply x = y) => \idelim f.apply (Source.scale a x) = scale a y \with v: V => \In[V] (Points f) v \by {
+        base: member f (Source.scale a x), equality: trans!{V} _ _ _ (f.scalar a x) (congr!{V V} (scale a) _ _ fx)
       }) exists,
   };
 }

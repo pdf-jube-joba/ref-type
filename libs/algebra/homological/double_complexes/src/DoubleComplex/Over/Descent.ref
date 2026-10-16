@@ -2,36 +2,36 @@
 \import Modules.Laws[V := W, space := target] \as Vectors;
 \import algebra.Group[].Of[Carrier := W, group := Vectors.additive] \as Group;
 \definition remainder(d: Maps.Map)(x: W)(y: V): W :=
-  #add{target} x (#neg{target} (#apply{d} y));
+  target.add x (target.neg (d.apply y));
 \structure Filtration[d: Maps.Map, contains: Nat.Nat^ -> W -> \Prop]: \Prop {
-  bottom: \forall (x: W) -> contains Nat.Nat^::zero x -> x = #zero{target},
+  bottom: \forall (x: W) -> contains Nat.Nat^::zero x -> x = target.zero,
   decrease: \forall (k: Nat.Nat^)(x: W) -> contains (Nat.Nat^::succ k) x ->
     \exists { y: V \where contains k (remainder d x y) },
 }
 \definition Boundary(d: Maps.Map)(x: W): \Prop :=
-  \exists { y: V \where #apply{d} y = x };
+  \exists { y: V \where d.apply y = x };
 \definition fromRemainder: \forall (d: Maps.Map)(x: W)(y: V) ->
   Boundary d (remainder d x y) -> Boundary d x := \block {
   \fun (d: Maps.Map)(x: W)(y: V)(boundary: Boundary d (remainder d x y)) \then
-  \takefrom z: \Cast[V] ({ z: V \where #apply{d} z = remainder d x y }) \by boundary \then
-  \let dz: #apply{d} z = remainder d x y := \bysub(V, { z: V \where #apply{d} z = remainder d x y }, z) \then
-  \return Logic.existsIntro[V, { a: V \where #apply{d} a = x }] (#add{source} z y)
-    (trans!{W} _ _ _ (#addition{d} z y)
-      (trans!{W} _ _ _ (congr!{W W} (\fun (a: W) => #add{target} a (#apply{d} y)) _ _ dz)
-        (Group.addDifference x (#apply{d} y))))
+  \takefrom z: \Cast[V] ({ z: V \where d.apply z = remainder d x y }) \by boundary \then
+  \let dz: d.apply z = remainder d x y := \bysub(V, { z: V \where d.apply z = remainder d x y }, z) \then
+  \return Logic.existsIntro[V, { a: V \where d.apply a = x }] (source.add z y)
+    (trans!{W} _ _ _ (d.addition z y)
+      (trans!{W} _ _ _ (congr!{W W} (\fun (a: W) => target.add a (d.apply y)) _ _ dz)
+        (Group.addDifference x (d.apply y))))
 };
 \definition finiteDescent: \forall (d: Maps.Map)(contains: Nat.Nat^ -> W -> \Prop)(filtration: Filtration[d, contains])(k: Nat.Nat^)(x: W) ->
   contains k x -> Boundary d x :=
   \fun (d: Maps.Map)(contains: Nat.Nat^ -> W -> \Prop)(filtration: Filtration[d, contains]) =>
   \induction (k: Nat.Nat^) \return \forall (x: W) -> contains k x -> Boundary d x \with {
     | zero: \fun (x: W)(bottom: contains Nat.Nat^::zero x) =>
-      Logic.existsIntro[V, { y: V \where #apply{d} y = x }] #zero{source}
-        (trans!{W} _ _ _ (Maps.zeroPreserved d) (sym!{W} _ _ (#bottom{filtration} x bottom)))
+      Logic.existsIntro[V, { y: V \where d.apply y = x }] source.zero
+        (trans!{W} _ _ _ (Maps.zeroPreserved d) (sym!{W} _ _ (filtration.bottom x bottom)))
     | succ: \block {
       \fun (k: Nat.Nat^)(previous: \forall (x: W) -> contains k x -> Boundary d x)
         (x: W)(member: contains (Nat.Nat^::succ k) x) \then
       \takefrom y: \Cast[V] ({ y: V \where contains k (remainder d x y) })
-        \by #decrease{filtration} k x member \then
+        \by filtration.decrease k x member \then
       \let reduced: contains k (remainder d x y) :=
         \bysub(V, { y: V \where contains k (remainder d x y) }, y) \then
       \return fromRemainder d x y (previous (remainder d x y) reduced)

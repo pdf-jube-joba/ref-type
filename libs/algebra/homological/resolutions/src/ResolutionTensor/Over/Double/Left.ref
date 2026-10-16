@@ -10,16 +10,16 @@
       trans!{Tensor.Carrier} _ _ _
         (congr!{{RightModule.Carrier (Nat.Nat^::succ q)} Tensor.Carrier} (Tensor.tensor x) _ _ (RightModule.Positive[n := q].trivial y))
         (Tensor.tensorZeroRight x));
-  \definition trivial: \forall (x: Tensor.Carrier) -> x = #zero{Tensor.space} :=
-    \fun (x: Tensor.Carrier) => congr!{Maps.Map Tensor.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ identityZero;
+  \definition trivial: \forall (x: Tensor.Carrier) -> x = Tensor.space.zero :=
+    \fun (x: Tensor.Carrier) => congr!{Maps.Map Tensor.Carrier} (\fun (f: Maps.Map) => f.apply x) _ _ identityZero;
 }
 \definition vanishes: Concentration.Vanishes := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].trivial;
 \import Doubles.Column[C := LeftTensor.complex, q := Nat.Nat^::zero] \as Column;
 \definition forward: Chains.Map[C := LeftTotal.complex, D := Column.complex].Map := Concentration.forward vanishes;
 \definition backward: Chains.Map[C := Column.complex, D := LeftTotal.complex].Map := Concentration.backward;
-\definition leftInverse: \forall (n: Nat.Nat^)(x: LeftTotal.Carrier n) -> #apply{backward} n (#apply{forward} n x) = x :=
+\definition leftInverse: \forall (n: Nat.Nat^)(x: LeftTotal.Carrier n) -> backward.apply n (forward.apply n x) = x :=
   Concentration.leftInverse vanishes;
-\definition rightInverse: \forall (n: Nat.Nat^)(x: LeftTensor.Carrier n Nat.Nat^::zero) -> #apply{forward} n (#apply{backward} n x) = x :=
+\definition rightInverse: \forall (n: Nat.Nat^)(x: LeftTensor.Carrier n Nat.Nat^::zero) -> forward.apply n (backward.apply n x) = x :=
   Concentration.rightInverse vanishes;
 \definition coefficient: Modules.Bundle := RightModule.term Nat.Nat^::zero;
 \import \root.TensorComplex[].Over[R := R, ring := ring] \as TensorComplex;
@@ -30,15 +30,15 @@
 \import TensorComplex.Mapping[P := P, Q := P, N := N, L := coefficient].On[f := Identity.identity, u := RightModule.section] \as Inclusion;
 \definition columnToTensor: Chains.Map[C := Column.complex, D := ColumnTensor.complex].Map := Chains.Map[C := Column.complex, D := ColumnTensor.complex].Map {
   apply := \fun (n: Nat.Nat^)(x: LeftTensor.Carrier n Nat.Nat^::zero) => x,
-  addition := \fun (n: Nat.Nat^)(x, y: LeftTensor.Carrier n Nat.Nat^::zero) => \refl(#add{(ColumnTensor.space n)} x y),
-  scalar := \fun (n: Nat.Nat^)(a: R)(x: LeftTensor.Carrier n Nat.Nat^::zero) => \refl(#smul{(ColumnTensor.space n)} a x),
-  commutes := \fun (n: Nat.Nat^)(x: LeftTensor.Carrier (Nat.Nat^::succ n) Nat.Nat^::zero) => \refl(#apply{ColumnTensor.differential} n x),
+  addition := \fun (n: Nat.Nat^)(x, y: LeftTensor.Carrier n Nat.Nat^::zero) => \refl((ColumnTensor.space n).add x y),
+  scalar := \fun (n: Nat.Nat^)(a: R)(x: LeftTensor.Carrier n Nat.Nat^::zero) => \refl((ColumnTensor.space n).smul a x),
+  commutes := \fun (n: Nat.Nat^)(x: LeftTensor.Carrier (Nat.Nat^::succ n) Nat.Nat^::zero) => \refl(ColumnTensor.differential.apply n x),
 };
 \definition tensorToColumn: Chains.Map[C := ColumnTensor.complex, D := Column.complex].Map := Chains.Map[C := ColumnTensor.complex, D := Column.complex].Map {
   apply := \fun (n: Nat.Nat^)(x: ColumnTensor.Carrier n) => x,
-  addition := \fun (n: Nat.Nat^)(x, y: ColumnTensor.Carrier n) => \refl(#add{(ColumnTensor.space n)} x y),
-  scalar := \fun (n: Nat.Nat^)(a: R)(x: ColumnTensor.Carrier n) => \refl(#smul{(ColumnTensor.space n)} a x),
-  commutes := \fun (n: Nat.Nat^)(x: ColumnTensor.Carrier (Nat.Nat^::succ n)) => \refl(#apply{ColumnTensor.differential} n x),
+  addition := \fun (n: Nat.Nat^)(x, y: ColumnTensor.Carrier n) => \refl((ColumnTensor.space n).add x y),
+  scalar := \fun (n: Nat.Nat^)(a: R)(x: ColumnTensor.Carrier n) => \refl((ColumnTensor.space n).smul a x),
+  commutes := \fun (n: Nat.Nat^)(x: ColumnTensor.Carrier (Nat.Nat^::succ n)) => \refl(ColumnTensor.differential.apply n x),
 };
 \definition tensorForward: Chains.Map[C := LeftTotal.complex, D := ColumnTensor.complex].Map :=
   Chains.Map[C := Column.complex, D := ColumnTensor.complex].Composition[B := LeftTotal.complex].compose columnToTensor forward;
@@ -68,16 +68,16 @@
     leftIso := termIso, rightIso := coefficientIso] \as TensorIso;
   \definition forward: Modules.Hom[V := Before.Carrier, W := After.Carrier, source := Before.space, target := After.space].Map := Projection.At[n := n].map;
   \definition backward: Modules.Hom[V := After.Carrier, W := Before.Carrier, source := After.space, target := Before.space].Map := Inclusion.At[n := n].map;
-  \definition leftInverse: \forall (x: Before.Carrier) -> #apply{Inclusion.map} n (#apply{Projection.map} n x) = x := TensorIso.leftInverse;
-  \definition rightInverse: \forall (x: After.Carrier) -> #apply{Projection.map} n (#apply{Inclusion.map} n x) = x := TensorIso.rightInverse;
+  \definition leftInverse: \forall (x: Before.Carrier) -> Inclusion.map.apply n (Projection.map.apply n x) = x := TensorIso.leftInverse;
+  \definition rightInverse: \forall (x: After.Carrier) -> Projection.map.apply n (Inclusion.map.apply n x) = x := TensorIso.rightInverse;
 }
-\definition standardLeftInverse: \forall (n: Nat.Nat^)(x: LeftTotal.Carrier n) -> #apply{standardBackward} n (#apply{standardForward} n x) = x :=
+\definition standardLeftInverse: \forall (n: Nat.Nat^)(x: LeftTotal.Carrier n) -> standardBackward.apply n (standardForward.apply n x) = x :=
   \fun (n: Nat.Nat^)(x: LeftTotal.Carrier n) => trans!{{LeftTotal.Carrier n}} _ _ _
-    (congr!{{ColumnTensor.Carrier n} {LeftTotal.Carrier n}} (#apply{backward} n) _ _ (Degree[n := n].leftInverse (#apply{forward} n x)))
+    (congr!{{ColumnTensor.Carrier n} {LeftTotal.Carrier n}} (backward.apply n) _ _ (Degree[n := n].leftInverse (forward.apply n x)))
     (leftInverse n x);
-\definition standardRightInverse: \forall (n: Nat.Nat^)(x: Standard.Carrier n) -> #apply{standardForward} n (#apply{standardBackward} n x) = x :=
+\definition standardRightInverse: \forall (n: Nat.Nat^)(x: Standard.Carrier n) -> standardForward.apply n (standardBackward.apply n x) = x :=
   \fun (n: Nat.Nat^)(x: Standard.Carrier n) => trans!{{Standard.Carrier n}} _ _ _
-    (congr!{{ColumnTensor.Carrier n} {Standard.Carrier n}} (#apply{Projection.map} n) _ _ (rightInverse n (#apply{Inclusion.map} n x)))
+    (congr!{{ColumnTensor.Carrier n} {Standard.Carrier n}} (Projection.map.apply n) _ _ (rightInverse n (Inclusion.map.apply n x)))
     (Degree[n := n].rightInverse x);
 
 \import Chains.Isomorphism[C := LeftTotal.complex, D := Standard.complex] \as StandardIso;
@@ -91,7 +91,7 @@
   \import Chains.Homology[C := LeftTotal.complex].At[n := n] \as Source;
   \import Chains.Homology[C := Standard.complex].At[n := n] \as Target;
   \definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism := Induced.isomorphism;
-  \definition forward: \forall (x: Source.Carrier) -> #apply{#forward{isomorphism}} x =
-    #apply{(Chains.Map[C := LeftTotal.complex, D := Standard.complex].HomologyAt[n := n].induced standardForward)} x :=
-    \fun (x: Source.Carrier) => \refl(#apply{(Chains.Map[C := LeftTotal.complex, D := Standard.complex].HomologyAt[n := n].induced standardForward)} x);
+  \definition forward: \forall (x: Source.Carrier) -> isomorphism.forward.apply x =
+    (Chains.Map[C := LeftTotal.complex, D := Standard.complex].HomologyAt[n := n].induced standardForward).apply x :=
+    \fun (x: Source.Carrier) => \refl((Chains.Map[C := LeftTotal.complex, D := Standard.complex].HomologyAt[n := n].induced standardForward).apply x);
 }

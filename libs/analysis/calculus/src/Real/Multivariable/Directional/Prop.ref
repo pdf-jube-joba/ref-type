@@ -3,12 +3,12 @@
 
 \definition derivativeOfSlopeLimit: \forall (f: Function) -> \forall (curve: Def.Curve) ->
   \forall (extension: Real -> Real) -> \forall (value: Real) ->
-  (\forall (t: Def.Parameter (#interval{curve})) -> Logic.Not (t = zero) ->
+  (\forall (t: Def.Parameter (curve.interval)) -> Logic.Not (t = zero) ->
     extension t = Def.slope f curve t) ->
   Limit.HasLimitAt extension zero value -> Def.HasDirectionalDerivativeAlong f curve value :=
   \block {
     \fun (f: Function) (curve: Def.Curve) (extension: Real -> Real) (value: Real) \then
-    \fun (same: \forall (t: Def.Parameter (#interval{curve})) -> Logic.Not (t = zero) ->
+    \fun (same: \forall (t: Def.Parameter (curve.interval)) -> Logic.Not (t = zero) ->
       extension t = Def.slope f curve t) \then
     \fun (limit: Limit.HasLimitAt extension zero value) (epsilon: Real) (positive: R.Lt zero epsilon) \then
     \takefrom delta: \Cast[Real] ({ d: Real \where Limit.Control[extension, zero, value, epsilon, d] })
@@ -17,17 +17,17 @@
       \bysub(Real, { d: Real \where Limit.Control[extension, zero, value, epsilon, d] }, delta) \then
     \return Logic.existsIntro[Real, { d: Real \where Def.Control[f, curve, value, epsilon, d] }] delta
       (Def.Control[f, curve, value, epsilon, delta] {
-          positive := #positive{control},
-          estimate := \fun (t: Def.Parameter (#interval{curve})) (different: Logic.Not (t = zero))
+          positive := control.positive,
+          estimate := \fun (t: Def.Parameter (curve.interval)) (different: Logic.Not (t = zero))
             (near: R.Lt (distance t zero) delta) =>
             R.ltReplaceLeft (distance (extension t) value) (distance (Def.slope f curve t) value) epsilon
               (congr!{Real Real} (\fun (y: _) => distance y value) _ _ (same t different))
-              (#estimate{control} t different near),
+              (control.estimate t different near),
         })
   };
 
 \definition constantSlope: \forall (c: Real) -> \forall (curve: Def.Curve) ->
-  \forall (t: Def.Parameter (#interval{curve})) -> Def.slope (Space.constantFunction c) curve t = zero :=
+  \forall (t: Def.Parameter (curve.interval)) -> Def.slope (Space.constantFunction c) curve t = zero :=
   \fun (c: _) (curve: _) (t: _) =>
     trans!{Real} _ (mul zero (inv t)) _
       (congr!{Real Real} (\fun (y: _) => mul y (inv t)) _ _ (Laws.subSelf c))
@@ -41,12 +41,12 @@
 
 \definition derivativeOfScalarDerivative: \forall (f: Function) -> \forall (curve: Def.Curve) ->
   \forall (g: Real -> Real) -> \forall (value: Real) ->
-  (\forall (t: Def.Parameter (#interval{curve})) -> f (#path{curve} t) = g t) ->
+  (\forall (t: Def.Parameter (curve.interval)) -> f (curve.path t) = g t) ->
   Derivative.HasDerivativeAt g zero value -> Def.HasDirectionalDerivativeAlong f curve value :=
   \fun (f: Function) (curve: Def.Curve) (g: Real -> Real) (value: _)
-    (same: \forall (t: Def.Parameter (#interval{curve})) -> f (#path{curve} t) = g t) (derivative: _) =>
+    (same: \forall (t: Def.Parameter (curve.interval)) -> f (curve.path t) = g t) (derivative: _) =>
     derivativeOfSlopeLimit f curve (Derivative.slope g zero) value
-      (\fun (t: Def.Parameter (#interval{curve})) (different: _) =>
+      (\fun (t: Def.Parameter (curve.interval)) (different: _) =>
         eq_reason!{
           {Derivative.slope g zero t}
           "=" {mul (sub (g t) (g zero)) (inv t)}
@@ -55,7 +55,7 @@
           "by" {congr!{Real Real} (\fun (s: _) => mul s (inv t)) _ _
             (congr2!{Real Real Real} sub _ _ _ _
               (sym!{Real} _ _ (same t))
-              (sym!{Real} _ _ (same (Def.zeroParameter (#interval{curve}))))) }
+              (sym!{Real} _ _ (same (Def.zeroParameter (curve.interval))))) }
         })
       derivative;
 
@@ -69,7 +69,7 @@
 
 \definition lineCoordinate: \forall (interval: Def.ParameterInterval) -> \forall (point, velocity: Point) ->
   \forall (t: Def.Parameter interval) -> \forall (i: Coordinate) ->
-  #path{(Def.line interval point velocity)} t i = affine (velocity i) (point i) t :=
+  (Def.line interval point velocity).path t i = affine (velocity i) (point i) t :=
   \fun (interval: _) (point, velocity: _) (t: _) (i: _) =>
     trans!{Real} _ (add (mul t (velocity i)) (point i)) _
       (Laws.addComm (point i) (mul t (velocity i)))
@@ -107,8 +107,8 @@
   \fun (first, second: _) (velocity: _) (direction: _) (i: _) =>
     Logic.existsIntro[Real, { value: Real \where Def.Agreement[Space.projection i, first, second, value] }] (velocity i)
     (Def.Agreement[Space.projection i, first, second, velocity i] {
-          firstDerivative := #firstTangent{direction} i,
-          secondDerivative := #secondTangent{direction} i,
+          firstDerivative := direction.firstTangent i,
+          secondDerivative := direction.secondTangent i,
         });
 
 \definition directionallyDifferentiableOfDerivative: \forall (f: Function) -> \forall (curve: Def.Curve) ->
@@ -124,9 +124,9 @@
   \fun (f: _) (first: _) (second: _) (velocity: _) (differential: _)
     (conditions: Def.AgreementConditions[f, first, second, velocity, differential]) =>
     Def.DifferentialAgreementConditions[f, first, second, velocity, velocity, differential] {
-      sameCenter := #center{(#direction{conditions})},
-      firstTangent := #firstTangent{(#direction{conditions})},
-      secondTangent := #secondTangent{(#direction{conditions})},
-      differentiable := #differentiable{conditions},
-      images := \refl(#apply{differential} velocity),
+      sameCenter := (conditions.direction).center,
+      firstTangent := (conditions.direction).firstTangent,
+      secondTangent := (conditions.direction).secondTangent,
+      differentiable := conditions.differentiable,
+      images := \refl(differential.apply velocity),
     };

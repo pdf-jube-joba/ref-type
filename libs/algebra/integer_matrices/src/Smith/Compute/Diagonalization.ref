@@ -73,14 +73,14 @@
     Bounds.Lt k m -> Bounds.Lt k n -> StateLaw[k, a, history] -> Pivot.Laws m n k a history selection ->
     Pivot.prepare m n k a history = selection -> Results.Post (selected m n k a history selection) \with {
     | missing: \fun (k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(law: StateLaw[k, a, history])(empty: _)(selected: _) =>
-        OutputLaw[k, a, history] { computation := #computation{law}, prefix := #prefix{law}, trailing := empty }
+        OutputLaw[k, a, history] { computation := law.computation, prefix := law.prefix, trailing := empty }
     | ready: \fun (current: Attempt^)(k: N.Nat^)(a: Runtime^)(history: History^) => \parent.Diagonalization[m := m, n := n, original := original].Ready[k := k, a := a, history := history, current := current].law
   };
 \definition activePost: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> Results.Post (step (State^::active m n k a history)) :=
   \fun (k: N.Nat^)(a: Runtime^)(history: History^)(law: StateLaw[k, a, history]) => B.cases
     (\fun (test: B.Bool^) => within m n k = test -> Results.Post (B.ite (\RunStep[State^, Output^]) test
       (selected m n k a history (Pivot.prepare m n k a history)) (\finish[State^, Output^](Output^::result k a history))))
-    (\fun (test: _) => OutputLaw[k, a, history] { computation := #computation{law}, prefix := #prefix{law}, trailing := outside k a test })
+    (\fun (test: _) => OutputLaw[k, a, history] { computation := law.computation, prefix := law.prefix, trailing := outside k a test })
     (\fun (test: _) => selections (Pivot.prepare m n k a history) k a history
       (BoolLaws.andTrueLeft (Nat.ltb k m) (Nat.ltb k n) test) (BoolLaws.andTrueRight (Nat.ltb k m) (Nat.ltb k n) test) law
       (Pivot.prepared m n k a history (BoolLaws.andTrueLeft (Nat.ltb k m) (Nat.ltb k n) test) (BoolLaws.andTrueRight (Nat.ltb k m) (Nat.ltb k n) test))

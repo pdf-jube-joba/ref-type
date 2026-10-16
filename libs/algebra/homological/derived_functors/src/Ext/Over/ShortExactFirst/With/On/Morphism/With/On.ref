@@ -4,23 +4,23 @@
 \import HomComplex.Homotopy[P := P, Q := P1, N := N] \as LeftAction;
 \import HomComplex.Homotopy[P := middleComplex, Q := Target.middleComplex, N := N] \as MiddleAction;
 \import HomComplex.Homotopy[P := Q, Q := Q1, N := N] \as RightAction;
-\definition leftMap: Cochains.Map[C := TargetRight.complex, D := RightHom.complex].Map := RightAction.map #right{lift};
-\definition middleMap: Cochains.Map[C := TargetMiddle.complex, D := MiddleHom.complex].Map := MiddleAction.map #middle{lift};
-\definition rightMap: Cochains.Map[C := TargetLeft.complex, D := LeftHom.complex].Map := LeftAction.map #left{lift};
+\definition leftMap: Cochains.Map[C := TargetRight.complex, D := RightHom.complex].Map := RightAction.map lift.right;
+\definition middleMap: Cochains.Map[C := TargetMiddle.complex, D := MiddleHom.complex].Map := MiddleAction.map lift.middle;
+\definition rightMap: Cochains.Map[C := TargetLeft.complex, D := LeftHom.complex].Map := LeftAction.map lift.left;
 \import Cochains.ShortExact[A := TargetRight.complex, B := TargetMiddle.complex, C := TargetLeft.complex].Morphism[
   A1 := RightHom.complex, B1 := MiddleHom.complex, C1 := LeftHom.complex].Diagram[
     s := Target.cochainSequence, t := cochainSequence, a := leftMap, b := middleMap, c := rightMap] \as Diagram;
 \definition commutative: Diagram.Commutative := Diagram.Commutative {
   left := \fun (n: Nat.Nat^)(phi: TargetRight.Carrier n) => MiddleHom.At[n := n].ext
-    (#apply{middleMap} n (#apply{Target.cochainSequence.inclusion} n phi))
-    (#apply{cochainSequence.inclusion} n (#apply{leftMap} n phi))
-    (\fun (x: middleComplex.family.Carrier n) => congr!{{Q1.family.Carrier n} N.Carrier} (#apply{phi})
-      _ _ (#right{#diagram{lift}} n x)),
+    (middleMap.apply n (Target.cochainSequence.inclusion.apply n phi))
+    (cochainSequence.inclusion.apply n (leftMap.apply n phi))
+    (\fun (x: middleComplex.family.Carrier n) => congr!{{Q1.family.Carrier n} N.Carrier} (phi.apply)
+      _ _ (lift.diagram.right n x)),
   right := \fun (n: Nat.Nat^)(phi: TargetMiddle.Carrier n) => LeftHom.At[n := n].ext
-    (#apply{cochainSequence.projection} n (#apply{middleMap} n phi))
-    (#apply{rightMap} n (#apply{Target.cochainSequence.projection} n phi))
-    (\fun (x: P.family.Carrier n) => congr!{{Target.middleComplex.family.Carrier n} N.Carrier} (#apply{phi})
-      _ _ (#left{#diagram{lift}} n x)),
+    (cochainSequence.projection.apply n (middleMap.apply n phi))
+    (rightMap.apply n (Target.cochainSequence.projection.apply n phi))
+    (\fun (x: P.family.Carrier n) => congr!{{Target.middleComplex.family.Carrier n} N.Carrier} (phi.apply)
+      _ _ (lift.diagram.left n x)),
 };
 \module At(n: Nat.Nat^) {
   \import derived_functors.Ext[].Over[R := R, ring := ring] \as Ext;
@@ -28,23 +28,23 @@
   \import Ext.Of[M := A, N := N, P := P].At[n := n] \as SourceA;
   \import Ext.Of[M := C1, N := N, P := Q1].At[n := Nat.Nat^::succ n] \as TargetC;
   \import Ext.Of[M := C, N := N, P := Q].At[n := Nat.Nat^::succ n] \as SourceC;
-  \import Ext.First[M := A, L := A1, N := N, P := P, Q := P1].At[k := n].With[p := p, q := p1, f := #left{f}] \as LeftFunctor;
-  \import Ext.First[M := C, L := C1, N := N, P := Q, Q := Q1].At[k := Nat.Nat^::succ n].With[p := q, q := q1, f := #right{f}] \as RightFunctor;
+  \import Ext.First[M := A, L := A1, N := N, P := P, Q := P1].At[k := n].With[p := p, q := p1, f := f.left] \as LeftFunctor;
+  \import Ext.First[M := C, L := C1, N := N, P := Q, Q := Q1].At[k := Nat.Nat^::succ n].With[p := q, q := q1, f := f.right] \as RightFunctor;
   \import derived_functors.Ext[].Over[R := R, ring := ring].ShortExactFirst[A := A, B := B, C := C, N := N, P := P, Q := Q].With[
     sequence := sequence, p := p, q := q].On[construction := construction].At[n := n] \as Source;
   \import Target.At[n := n] \as TargetConnecting;
   \import Cochains.Map[C := TargetLeft.complex, D := LeftHom.complex].At[k := n] \as LeftInduced;
   \import Cochains.Map[C := TargetRight.complex, D := RightHom.complex].At[k := Nat.Nat^::succ n] \as RightInduced;
-  \definition leftCanonical: LeftFunctor.map = LeftInduced.induced rightMap := LeftFunctor.onComparison #left{lift} #leftAugmented{lift};
-  \definition rightCanonical: RightFunctor.map = RightInduced.induced leftMap := RightFunctor.onComparison #right{lift} #rightAugmented{lift};
+  \definition leftCanonical: LeftFunctor.map = LeftInduced.induced rightMap := LeftFunctor.onComparison lift.left lift.leftAugmented;
+  \definition rightCanonical: RightFunctor.map = RightInduced.induced leftMap := RightFunctor.onComparison lift.right lift.rightAugmented;
   \definition naturality: \forall (x: Domain.Carrier) ->
-    #apply{Source.connecting} (#apply{LeftFunctor.map} x) = #apply{RightFunctor.map} (#apply{TargetConnecting.connecting} x) :=
+    Source.connecting.apply (LeftFunctor.map.apply x) = RightFunctor.map.apply (TargetConnecting.connecting.apply x) :=
     \fun (x: Domain.Carrier) => trans!{SourceC.Carrier} _ _ _
-      (congr!{SourceA.Carrier SourceC.Carrier} (#apply{Source.connecting}) _ _
+      (congr!{SourceA.Carrier SourceC.Carrier} (Source.connecting.apply) _ _
         (congr!{{Modules.MapBetween Domain.bundle SourceA.bundle} SourceA.Carrier}
-          (\fun (g: Modules.MapBetween Domain.bundle SourceA.bundle) => #apply{g} x) _ _ leftCanonical))
+          (\fun (g: Modules.MapBetween Domain.bundle SourceA.bundle) => g.apply x) _ _ leftCanonical))
       (trans!{SourceC.Carrier} _ _ _ (Diagram.At[n := n].naturality commutative x)
         (congr!{{Modules.MapBetween TargetC.bundle SourceC.bundle} SourceC.Carrier}
-          (\fun (g: Modules.MapBetween TargetC.bundle SourceC.bundle) => #apply{g} (#apply{TargetConnecting.connecting} x)) _ _
+          (\fun (g: Modules.MapBetween TargetC.bundle SourceC.bundle) => g.apply (TargetConnecting.connecting.apply x)) _ _
           (sym!{{Modules.MapBetween TargetC.bundle SourceC.bundle}} _ _ rightCanonical)));
 }

@@ -30,18 +30,18 @@
           (FiniteFamilies.inSingleton U)
           (\idelim x = y \with z: Carrier => Member U z \by { base: inU, equality: sym!{Carrier} _ _ equal }),
       }))
-    (#covers{cover} x (\refl(x)))
+    (cover.covers x (\refl(x)))
 };
 \definition joinCompact: \forall (topology: Topology) (S, T: \Pow Carrier) ->
   IsCompactIn topology S -> IsCompactIn topology T -> IsCompactIn topology (Finite.Join S T) := \block {
   \fun (topology: _) (S, T: _) (sc: _) (tc: _) (family: _) (cover: _) \then
   \takefrom F: \Cast[FiniteFamilies.FiniteSubset] ({ F: FiniteFamilies.FiniteSubset \where FiniteSubcover[family, S, F] })
     \by sc family (IsOpenCover[topology, family, S] {
-      open := #open{cover}, covers := \fun (x: _) (member: _) => #covers{cover} x (Logic.Or[_, _]::left member),
+      open := cover.open, covers := \fun (x: _) (member: _) => cover.covers x (Logic.Or[_, _]::left member),
     }) \then
   \takefrom G: \Cast[FiniteFamilies.FiniteSubset] ({ G: FiniteFamilies.FiniteSubset \where FiniteSubcover[family, T, G] })
     \by tc family (IsOpenCover[topology, family, T] {
-      open := #open{cover}, covers := \fun (x: _) (member: _) => #covers{cover} x (Logic.Or[_, _]::right member),
+      open := cover.open, covers := \fun (x: _) (member: _) => cover.covers x (Logic.Or[_, _]::right member),
     }) \then
   \let fs: FiniteSubcover[family, S, F] := \bysub(FiniteFamilies.FiniteSubset,
     { F: FiniteFamilies.FiniteSubset \where FiniteSubcover[family, S, F] }, F) \then
@@ -50,16 +50,16 @@
   \return subcoverExists family (Finite.Join S T) (FiniteFamilies.union F G)
     (FiniteSubcover[family, Finite.Join S T, FiniteFamilies.union F G] {
       included := \fun (U: _) (member: _) => either!{member {FamilyMember family U}
-        {#included{fs} U}
-        {#included{gt} U}
+        {fs.included U}
+        {gt.included U}
       },
       covers := \fun (x: _) (member: _) => either!{member {Member (Union (FiniteFamilies.union F G)) x}
         {\fun (inS: _) => unionMemberElim F x (Member (Union (FiniteFamilies.union F G)) x)
           (\fun (U: _) (inF: _) (inU: _) => unionMemberOf (FiniteFamilies.union F G) U x (Logic.Or[_, _]::left inF) inU)
-          (#covers{fs} x inS)}
+          (fs.covers x inS)}
         {\fun (inT: _) => unionMemberElim G x (Member (Union (FiniteFamilies.union F G)) x)
           (\fun (U: _) (inG: _) (inU: _) => unionMemberOf (FiniteFamilies.union F G) U x (Logic.Or[_, _]::right inG) inU)
-          (#covers{gt} x inT)}
+          (gt.covers x inT)}
       },
     })
 };
@@ -75,12 +75,12 @@
       open := \fun (U: _) (member: _) => either!{member {IsOpenIn topology U}
         {\fun (equal: _) => \idelim Complement F = U \with V: \Pow Carrier => IsOpenIn topology V
           \by { base: closed, equality: sym!{\Pow Carrier} _ _ equal }}
-        {#open{cover} U}
+        {cover.open U}
       },
       covers := \fun (x: _) (inS: _) => either!{{(Classical.excludedMiddle (Member F x))} {Member (Union augmented) x}
         {\fun (inF: _) => unionMemberElim family x (Member (Union augmented) x)
           (\fun (U: _) (inFamily: _) (inU: _) => unionMemberOf augmented U x (Logic.Or[_, _]::right inFamily) inU)
-          (#covers{cover} x inF)}
+          (cover.covers x inF)}
         {unionMemberOf augmented (Complement F) x (FiniteFamilies.inInsertNew (Complement F) family)}
       },
     }) \then
@@ -88,14 +88,14 @@
     { finite: FiniteFamilies.FiniteSubset \where FiniteSubcover[augmented, S, finite] }, finite) \then
   \let selected: FiniteFamilies.FiniteSubset := FiniteFamilies.filter finite family \then
   \return subcoverExists family F selected (FiniteSubcover[family, F, selected] {
-    included := \fun (U: _) (h: _) => #right{h},
+    included := \fun (U: _) (h: _) => h.right,
     covers := \fun (x: _) (inF: _) => unionMemberElim finite x (Member (Union selected) x)
-      (\fun (U: _) (inFinite: _) (inU: _) => either!{{(#included{data} U inFinite)} {Member (Union selected) x}
+      (\fun (U: _) (inFinite: _) (inU: _) => either!{{(data.included U inFinite)} {Member (Union selected) x}
         {\fun (equal: _) => Logic.falseElim (Member (Union selected) x)
           ((\idelim U = Complement F \with V: \Pow Carrier => Member V x \by { base: inU, equality: equal }) inF)}
         {\fun (inFamily: _) => unionMemberOf selected U x (Logic.And[_, _]::# inFinite inFamily) inU}
       })
-      (#covers{data} x (contained x inF)),
+      (data.covers x (contained x inF)),
   })
 };
 \definition closedCompact: \forall (topology: Topology) -> IsCompact topology ->
@@ -116,7 +116,7 @@
       (\forall (U: \Pow Carrier) -> FamilyMember family U -> Partner topology G U) -> Partner topology G (Union family) })
     (\fun (_: _) => partnerExists topology G (Union FiniteFamilies.Empty) Whole
       (NormalPartner[topology, G, Union FiniteFamilies.Empty, Whole] {
-        open := #wholeOpen{(topologyLaws topology)},
+        open := (topologyLaws topology).wholeOpen,
         covers := \fun (x: _) (_: _) => \refl(x),
         disjoint := \fun (x: _) (member: _) (_: _) => unionMemberElim FiniteFamilies.Empty x Logic.False
           (\fun (U: _) (empty: _) (_: _) => empty) member,
@@ -136,13 +136,13 @@
         { W: \Pow Carrier \where NormalPartner[topology, G, Union family, W] }, W) \then
       \return partnerExists topology G (Union (FiniteFamilies.Insert U family)) (Intersection V W)
         (NormalPartner[topology, G, Union (FiniteFamilies.Insert U family), Intersection V W] {
-          open := #intersectionOpen{(topologyLaws topology)} V W (#open{vp}) (#open{wp}),
-          covers := \fun (x: _) (member: _) => Logic.And[_, _]::# (#covers{vp} x member) (#covers{wp} x member),
+          open := (topologyLaws topology).intersectionOpen V W (vp.open) (wp.open),
+          covers := \fun (x: _) (member: _) => Logic.And[_, _]::# (vp.covers x member) (wp.covers x member),
           disjoint := \fun (x: _) (inUnion: _) (inBoth: _) => unionMemberElim (FiniteFamilies.Insert U family) x Logic.False
             (\fun (T: _) (member: _) (inT: _) => either!{member {Logic.False}
-              {\fun (equal: _) => #disjoint{vp} x
-                (\idelim T = U \with S: \Pow Carrier => Member S x \by { base: inT, equality: equal }) (#left{inBoth})}
-              {\fun (old: _) => #disjoint{wp} x (unionMemberOf family T x old inT) (#right{inBoth})}
+              {\fun (equal: _) => vp.disjoint x
+                (\idelim T = U \with S: \Pow Carrier => Member S x \by { base: inT, equality: equal }) (inBoth.left)}
+              {\fun (old: _) => wp.disjoint x (unionMemberOf family T x old inT) (inBoth.right)}
             }) inUnion,
         })
     });
@@ -155,17 +155,17 @@
   \let family: \Pow (\Pow Carrier) := PartnerFamily topology G \then
   \takefrom finite: \Cast[FiniteFamilies.FiniteSubset] ({ finite: FiniteFamilies.FiniteSubset \where FiniteSubcover[family, S, finite] })
     \by compact family (IsOpenCover[topology, family, S] {
-      covers := covers, open := \fun (U: _) (h: _) => #left{h},
+      covers := covers, open := \fun (U: _) (h: _) => h.left,
     }) \then
   \let subcover: FiniteSubcover[family, S, finite] := \bysub(FiniteFamilies.FiniteSubset,
     { finite: FiniteFamilies.FiniteSubset \where FiniteSubcover[family, S, finite] }, finite) \then
   \return Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where NormalChoice[topology, S, G, U] }] (Union finite)
     (NormalChoice[topology, S, G, Union finite] {
-        open := #unionOpen{(topologyLaws topology)} finite
-          (\fun (U: _) (member: _) => #left{(#included{subcover} U member)}),
-        covers := #covers{subcover},
+        open := (topologyLaws topology).unionOpen finite
+          (\fun (U: _) (member: _) => (subcover.included U member).left),
+        covers := subcover.covers,
         partner := finitePartners topology G finite
-          (\fun (U: _) (member: _) => #right{(#included{subcover} U member)}),
+          (\fun (U: _) (member: _) => (subcover.included U member).right),
       })
 };
 \definition compactClosed: \forall (topology: Topology) -> IsT2 topology ->
@@ -181,20 +181,20 @@
       \let choice: RegularChoice[topology, Singleton x, y, U] := \bysub(\Pow Carrier,
         { U: \Pow Carrier \where RegularChoice[topology, Singleton x, y, U] }, U) \then
       \return unionMemberOf (PartnerFamily topology (Singleton x)) U y
-        (Logic.And[_, _]::# (#open{choice}) (#partner{choice})) (#contains{choice})
+        (Logic.And[_, _]::# (choice.open) (choice.partner)) (choice.contains)
     } \then
     \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where NormalChoice[topology, S, Singleton x, U] })
       \by compactPartner topology S (Singleton x) compact covers \then
     \let choice: NormalChoice[topology, S, Singleton x, U] := \bysub(\Pow Carrier,
       { U: \Pow Carrier \where NormalChoice[topology, S, Singleton x, U] }, U) \then
     \takefrom V: \Cast[\Pow Carrier] ({ V: \Pow Carrier \where NormalPartner[topology, Singleton x, U, V] })
-      \by #partner{choice} \then
+      \by choice.partner \then
     \let partner: NormalPartner[topology, Singleton x, U, V] := \bysub(\Pow Carrier,
       { V: \Pow Carrier \where NormalPartner[topology, Singleton x, U, V] }, V) \then
     \return Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where OpenNeighborhood[topology, x, Complement S, V] }] V
       (OpenNeighborhood[topology, x, Complement S, V] {
-          open := #open{partner}, contains := #covers{partner} x (\refl(x)),
-          within := \fun (y: _) (inV: _) (inS: _) => #disjoint{partner} y (#covers{choice} y inS) inV,
+          open := partner.open, contains := partner.covers x (\refl(x)),
+          within := \fun (y: _) (inV: _) (inS: _) => partner.disjoint y (choice.covers y inS) inV,
         })
   })
 };
@@ -210,21 +210,21 @@
         (\idelim y = x \with z: Carrier => Member F z \by { base: inF, equality: equal })) \then
     \let data: RegularChoice[topology, Singleton x, y, U] := \bysub(\Pow Carrier,
       { U: \Pow Carrier \where RegularChoice[topology, Singleton x, y, U] }, U) \then
-    \return unionMemberOf family U y (Logic.And[_, _]::# (#open{data}) (#partner{data})) (#contains{data})
+    \return unionMemberOf family U y (Logic.And[_, _]::# (data.open) (data.partner)) (data.contains)
   } \then
   \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where NormalChoice[topology, F, Singleton x, U] })
     \by compactPartner topology F (Singleton x) (closedCompact topology compact F closed) covers \then
   \let choice: NormalChoice[topology, F, Singleton x, U] := \bysub(\Pow Carrier,
     { U: \Pow Carrier \where NormalChoice[topology, F, Singleton x, U] }, U) \then
-  \takefrom V: \Cast[\Pow Carrier] ({ V: \Pow Carrier \where NormalPartner[topology, Singleton x, U, V] }) \by #partner{choice} \then
+  \takefrom V: \Cast[\Pow Carrier] ({ V: \Pow Carrier \where NormalPartner[topology, Singleton x, U, V] }) \by choice.partner \then
   \let partner: NormalPartner[topology, Singleton x, U, V] := \bysub(\Pow Carrier,
     { V: \Pow Carrier \where NormalPartner[topology, Singleton x, U, V] }, V) \then
   \return Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where RegularChoice[topology, F, x, V] }] V
     (RegularChoice[topology, F, x, V] {
-      open := #open{partner}, contains := #covers{partner} x (\refl(x)),
+      open := partner.open, contains := partner.covers x (\refl(x)),
       partner := partnerExists topology F V U (NormalPartner[topology, F, V, U] {
-        open := #open{choice}, covers := #covers{choice},
-        disjoint := \fun (y: _) (inV: _) (inU: _) => #disjoint{partner} y inU inV,
+        open := choice.open, covers := choice.covers,
+        disjoint := \fun (y: _) (inV: _) (inU: _) => partner.disjoint y inU inV,
       }),
     })
 };
@@ -238,5 +238,5 @@
         \let data: RegularChoice[topology, G, x, U] := \bysub(\Pow Carrier,
           { U: \Pow Carrier \where RegularChoice[topology, G, x, U] }, U) \then
         \return unionMemberOf (PartnerFamily topology G) U x
-          (Logic.And[_, _]::# (#open{data}) (#partner{data})) (#contains{data})
+          (Logic.And[_, _]::# (data.open) (data.partner)) (data.contains)
       });

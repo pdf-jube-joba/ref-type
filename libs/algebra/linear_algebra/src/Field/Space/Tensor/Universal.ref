@@ -10,50 +10,50 @@
 \definition onTensor: \forall (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) (x: V) (y: W) -> descend f laws (tensor x y) = f x y :=
   \fun (f: _) (laws: _) (x: V) (y: W) => onClass f laws (Expression::tensor x y);
 \definition preservesAdd: \forall (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) (x, y: Carrier) ->
-  descend f laws (plus x y) = #add{target} (descend f laws x) (descend f laws y) :=
+  descend f laws (plus x y) = target.add (descend f laws x) (descend f laws y) :=
   \fun (f: _) (laws: _) => Q.induction
-    (\fun (x: Carrier) => \forall (y: Carrier) -> descend f laws (plus x y) = #add{target} (descend f laws x) (descend f laws y))
+    (\fun (x: Carrier) => \forall (y: Carrier) -> descend f laws (plus x y) = target.add (descend f laws x) (descend f laws y))
     (\fun (x: Expression) => Q.induction
-      (\fun (y: Carrier) => descend f laws (plus (class x) y) = #add{target} (descend f laws (class x)) (descend f laws y))
+      (\fun (y: Carrier) => descend f laws (plus (class x) y) = target.add (descend f laws (class x)) (descend f laws y))
       (\fun (y: Expression) => eq_reason!{
         {descend f laws (plus (class x) (class y))}
         "=" {descend f laws (class (Expression::sum x y))} "by" {congr!{Carrier U} (descend f laws) _ _ (plusClass x y)}
-        "=" {#add{target} (evaluate U target f x) (evaluate U target f y)} "by" {onClass f laws (Expression::sum x y)}
-        "=" {#add{target} (descend f laws (class x)) (descend f laws (class y))} "by" {congr2!{U U U} (#add{target}) _ _ _ _
+        "=" {target.add (evaluate U target f x) (evaluate U target f y)} "by" {onClass f laws (Expression::sum x y)}
+        "=" {target.add (descend f laws (class x)) (descend f laws (class y))} "by" {congr2!{U U U} (target.add) _ _ _ _
           (sym!{U} _ _ (onClass f laws x)) (sym!{U} _ _ (onClass f laws y))}
       }));
 \definition preservesScale: \forall (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) (a: K) (x: Carrier) ->
-  descend f laws (scale a x) = #smul{target} a (descend f laws x) :=
+  descend f laws (scale a x) = target.smul a (descend f laws x) :=
   \fun (f: _) (laws: _) (a: K) => Q.induction
-    (\fun (x: Carrier) => descend f laws (scale a x) = #smul{target} a (descend f laws x))
+    (\fun (x: Carrier) => descend f laws (scale a x) = target.smul a (descend f laws x))
     (\fun (x: Expression) => eq_reason!{
       {descend f laws (scale a (class x))}
       "=" {descend f laws (class (Expression::scale a x))} "by" {congr!{Carrier U} (descend f laws) _ _ (scaleClass a x)}
-      "=" {#smul{target} a (evaluate U target f x)} "by" {onClass f laws (Expression::scale a x)}
-      "=" {#smul{target} a (descend f laws (class x))} "by" {congr!{U U} (#smul{target} a) _ _ (sym!{U} _ _ (onClass f laws x))}
+      "=" {target.smul a (evaluate U target f x)} "by" {onClass f laws (Expression::scale a x)}
+      "=" {target.smul a (descend f laws (class x))} "by" {congr!{U U} (target.smul a) _ _ (sym!{U} _ _ (onClass f laws x))}
     });
 \definition map(f: V -> W -> U) (laws: BilinearLaws[U, target, f]): Output.Map := Output.Map {
   apply := descend f laws, preservesAdd := preservesAdd f laws, preservesScale := preservesScale f laws,
 };
 \definition expressionUnique: \forall (f: V -> W -> U) (h: Output.Map) ->
-  (\forall (x: V) (y: W) -> #apply{h} (tensor x y) = f x y) ->
-  \forall (x: Expression) -> #apply{h} (class x) = evaluate U target f x :=
+  (\forall (x: V) (y: W) -> h.apply (tensor x y) = f x y) ->
+  \forall (x: Expression) -> h.apply (class x) = evaluate U target f x :=
   \fun (f: _) (h: Output.Map) (agrees: _) =>
-    \induction (expression: Expression) \return #apply{h} (class expression) = evaluate U target f expression \with {
-      | zero: #preservesZero{h}
+    \induction (expression: Expression) \return h.apply (class expression) = evaluate U target f expression \with {
+      | zero: h.preservesZero
       | tensor: agrees
       | sum: \fun (x: Expression) (ihx: _) (y: Expression) (ihy: _) => trans!{U} _ _ _
-        (congr!{Carrier U} (#apply{h}) _ _ (sym!{Carrier} _ _ (plusClass x y)))
-        (trans!{U} _ _ _ (#preservesAdd{h} (class x) (class y)) (congr2!{U U U} (#add{target}) _ _ _ _ ihx ihy))
+        (congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (plusClass x y)))
+        (trans!{U} _ _ _ (h.preservesAdd (class x) (class y)) (congr2!{U U U} (target.add) _ _ _ _ ihx ihy))
       | negative: \fun (x: Expression) (ih: _) => trans!{U} _ _ _
-        (congr!{Carrier U} (#apply{h}) _ _ (sym!{Carrier} _ _ (negativeClass x)))
-        (trans!{U} _ _ _ (OutputOperations.preservesNeg h (class x)) (congr!{U U} (#neg{target}) _ _ ih))
+        (congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (negativeClass x)))
+        (trans!{U} _ _ _ (OutputOperations.preservesNeg h (class x)) (congr!{U U} (target.neg) _ _ ih))
       | scale: \fun (a: K) (x: Expression) (ih: _) => trans!{U} _ _ _
-        (congr!{Carrier U} (#apply{h}) _ _ (sym!{Carrier} _ _ (scaleClass a x)))
-        (trans!{U} _ _ _ (#preservesScale{h} a (class x)) (congr!{U U} (#smul{target} a) _ _ ih))
+        (congr!{Carrier U} (h.apply) _ _ (sym!{Carrier} _ _ (scaleClass a x)))
+        (trans!{U} _ _ _ (h.preservesScale a (class x)) (congr!{U U} (target.smul a) _ _ ih))
     };
 \definition unique: \forall (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) (h: Output.Map) ->
-  (\forall (x: V) (y: W) -> #apply{h} (tensor x y) = f x y) -> #apply{h} = descend f laws :=
-  \fun (f: _) (laws: _) (h: Output.Map) (agrees: _) => \axiom:funext(#apply{h}, descend f laws,
-    Q.induction (\fun (x: Carrier) => #apply{h} x = descend f laws x)
+  (\forall (x: V) (y: W) -> h.apply (tensor x y) = f x y) -> h.apply = descend f laws :=
+  \fun (f: _) (laws: _) (h: Output.Map) (agrees: _) => \axiom:funext(h.apply, descend f laws,
+    Q.induction (\fun (x: Carrier) => h.apply x = descend f laws x)
       (\fun (x: Expression) => trans!{U} _ _ _ (expressionUnique f h agrees x) (sym!{U} _ _ (onClass f laws x))));

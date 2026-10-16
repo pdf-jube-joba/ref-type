@@ -74,7 +74,7 @@ Program の datatype、constructor、record literal、型関連 item の paramet
 
 ```text
 \definition andElim(P, Q, R: \Prop): (P -> Q -> R) -> And[P, Q] -> R :=
-  \fun (curried: _) (value: _) => curried (value #left) (value #right);
+  \fun (curried: _) (value: _) => curried (value.left) (value.right);
 ```
 
 共有する推論変数の解は、各出現に共通する外側の binder に依存できる。
@@ -284,7 +284,7 @@ Set/Prop と Program に共通の文を使う。
 | 構文 | 結合 |
 | --- | --- |
 | `atom`、括弧 | — |
-| `expression::item`、`expression #field` | 左 |
+| `expression::item`、`expression.field` | 左 |
 | `keyword atom` | 右 |
 | `function argument` | 左 |
 | `left = right` | 一度だけ |
@@ -293,8 +293,8 @@ Set/Prop と Program に共通の文を使う。
 
 ```text
 f x y
-x y #field z
-(x y) #field z
+x y.field z
+(x y).field z
 x = y
 A -> B -> C
 A ~> B ~> C
@@ -302,7 +302,7 @@ A ~> B ~> C
 
 `\let` と `\bind` は `\in` の後を右端まで読む。`\return` も後続の value 式全体を読む。
 atom を一つ取る keyword は右結合する。複合式を引数にするときは括弧で囲む。
-`x y #field z` は `x (y #field) z` と結合する。`#field{value}` も射影として使える。
+`x y.field z` は `x (y.field) z` と結合する。
 
 ### 型注釈
 

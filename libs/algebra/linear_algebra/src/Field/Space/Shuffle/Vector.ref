@@ -7,16 +7,16 @@
 \definition Linear(f: Function): \Prop := Multilinear.SeriesLaws[f];
 \structure AtLaws[xs: Lists.List[I], f: Function]: \Prop {
   addition: \forall (i: N.Nat^) -> NatLaws.Lt i (Lists.length I xs) -> \forall (x, y: I) ->
-    f (Replace.apply xs i (#add{space} x y)) = add (f (Replace.apply xs i x)) (f (Replace.apply xs i y)),
+    f (Replace.apply xs i (space.add x y)) = add (f (Replace.apply xs i x)) (f (Replace.apply xs i y)),
   scalar: \forall (i: N.Nat^) -> NatLaws.Lt i (Lists.length I xs) -> \forall (a: K)(x: I) ->
-    f (Replace.apply xs i (#smul{space} a x)) = mul a (f (Replace.apply xs i x)),
+    f (Replace.apply xs i (space.smul a x)) = mul a (f (Replace.apply xs i x)),
 }
 \definition shiftedLinear: \forall (f: Function) -> Linear f -> \forall (head: I) -> Linear (shift head f) :=
   \fun (f: Function)(linear: Linear f)(head: I) => Multilinear.SeriesLaws[shift head f] {
     addition := \fun (xs: Lists.List[I])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length I xs))(x, y: I) =>
-      #addition{linear} (Lists.List[I]::cons head xs) (N.Nat^::succ i) (NatLaws.ltSuccSucc i (Lists.length I xs) bound) x y,
+      linear.addition (Lists.List[I]::cons head xs) (N.Nat^::succ i) (NatLaws.ltSuccSucc i (Lists.length I xs) bound) x y,
     scalar := \fun (xs: Lists.List[I])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length I xs))(a: K)(x: I) =>
-      #scalar{linear} (Lists.List[I]::cons head xs) (N.Nat^::succ i) (NatLaws.ltSuccSucc i (Lists.length I xs) bound) a x,
+      linear.scalar (Lists.List[I]::cons head xs) (N.Nat^::succ i) (NatLaws.ltSuccSucc i (Lists.length I xs) bound) a x,
   };
 \definition twistReplacement: \forall (f: Function)(xs: Lists.List[I])(i: N.Nat^)(value: I) ->
   twist f (Replace.apply xs i value) = mul (Sign.value (Lists.length I xs)) (f (Replace.apply xs i value)) :=
@@ -40,6 +40,6 @@
   };
 \definition linear: \forall (f, g: Function) -> Linear f -> Linear g -> Linear (product f g) :=
   \fun (f, g: Function)(lf: Linear f)(lg: Linear g) => Multilinear.SeriesLaws[product f g] {
-    addition := \fun (xs: Lists.List[I]) => #addition{(linearAt xs f g lf lg)},
-    scalar := \fun (xs: Lists.List[I]) => #scalar{(linearAt xs f g lf lg)},
+    addition := \fun (xs: Lists.List[I]) => (linearAt xs f g lf lg).addition,
+    scalar := \fun (xs: Lists.List[I]) => (linearAt xs f g lf lg).scalar,
   };

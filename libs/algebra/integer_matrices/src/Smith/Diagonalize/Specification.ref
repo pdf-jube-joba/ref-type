@@ -17,15 +17,15 @@
   Normal.FullCertificate[Compute.Output^::result rank a history] ->
   \exists FrameFor (SmithResult^::result rank a history (NativeFrames.build m n history)) := \block {
   \fun (rank: N.Nat^)(a: Runtime^)(history: History^)(law: Normal.FullCertificate[Compute.Output^::result rank a history]) \then
-  \takefrom witness: Representation.HistoryFrame history \by Representation.Histories[].existence history #bounded{(#computation{law})} \then
+  \takefrom witness: Representation.HistoryFrame history \by Representation.Histories[].existence history (law.computation).bounded \then
   \let laws: Representation.HistoryLaws[history, witness] :=
     \bysub(Frames.Frame, { witness: Frames.Frame \where Representation.HistoryLaws[history, witness] }, witness) \then
   \return \exact(\into[Frames.Frame](witness, { witness: Frames.Frame \where Transformation[SmithResult^::result rank a history (NativeFrames.build m n history), witness] }) \by {
     Transformation[SmithResult^::result rank a history (NativeFrames.build m n history), witness] {
-      representation := #representation{laws},
+      representation := laws.representation,
       equation := trans!{Matrices.Matrix} (Frames.change witness (Matrices.reflect original)) (Matrices.reflect (applyHistory history original)) (Matrices.reflect a)
-        (#action{laws} original)
-        (congr!{Runtime^ Matrices.Matrix} Matrices.reflect (applyHistory history original) a (sym!{Runtime^} a (applyHistory history original) #traced{(#computation{law})})),
+        (laws.action original)
+        (congr!{Runtime^ Matrices.Matrix} Matrices.reflect (applyHistory history original) a (sym!{Runtime^} a (applyHistory history original) (law.computation).traced)),
     }
   }, FrameFor (SmithResult^::result rank a history (NativeFrames.build m n history)))
 };
@@ -62,24 +62,24 @@
 \module Using(value: SmithResult^);
 \definition leftInverseLaws: \forall (value: SmithResult^) -> Certificate[value] -> LeftInverse.Laws[LeftMatrices.reflect (left value), leftInverseData value] := \block {
   \fun (value: SmithResult^)(law: Certificate[value]) \then
-  \takefrom witness: FrameFor value \by #transformation{law} \then
+  \takefrom witness: FrameFor value \by law.transformation \then
   \let proof: Transformation[value, witness] := \bysub(Frames.Frame, { witness: Frames.Frame \where Transformation[value, witness] }, witness) \then
-  \return \parent.Specification[m := m, n := n, original := original].Using[value := value].leftInverseLaws witness #representation{proof}
+  \return \parent.Specification[m := m, n := n, original := original].Using[value := value].leftInverseLaws witness proof.representation
 };
 \definition rightInverseLaws: \forall (value: SmithResult^) -> Certificate[value] -> RightInverse.Laws[RightMatrices.reflect (right value), rightInverseData value] := \block {
   \fun (value: SmithResult^)(law: Certificate[value]) \then
-  \takefrom witness: FrameFor value \by #transformation{law} \then
+  \takefrom witness: FrameFor value \by law.transformation \then
   \let proof: Transformation[value, witness] := \bysub(Frames.Frame, { witness: Frames.Frame \where Transformation[value, witness] }, witness) \then
-  \return \parent.Specification[m := m, n := n, original := original].Using[value := value].rightInverseLaws witness #representation{proof}
+  \return \parent.Specification[m := m, n := n, original := original].Using[value := value].rightInverseLaws witness proof.representation
 };
 \definition equation: \forall (value: SmithResult^) -> Certificate[value] ->
   ActRight.product (ActLeft.product (LeftMatrices.reflect (left value)) (Matrices.reflect original)) (RightMatrices.reflect (right value)) = Matrices.reflect (diagonal value) := \block {
   \fun (value: SmithResult^)(law: Certificate[value]) \then
-  \takefrom witness: FrameFor value \by #transformation{law} \then
+  \takefrom witness: FrameFor value \by law.transformation \then
   \let proof: Transformation[value, witness] := \bysub(Frames.Frame, { witness: Frames.Frame \where Transformation[value, witness] }, witness) \then
   \return trans!{Matrices.Matrix}
     _ _ _
-    (\parent.Specification[m := m, n := n, original := original].Using[value := value].change witness #representation{proof}) #equation{proof}
+    (\parent.Specification[m := m, n := n, original := original].Using[value := value].change witness proof.representation) proof.equation
 };
 \definition typedFrame(value: SmithResult^)(certificate: Certificate[value]): Frames.Frame := Frames.Frame {
   left := LeftMatrices.reflect (left value), right := RightMatrices.reflect (right value),

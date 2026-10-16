@@ -23,10 +23,10 @@
   addAssoc := \fun (x, y, z: Expression) => Group.assoc (evaluate values x) (evaluate values y) (evaluate values z),
   addComm := \fun (x, y: Expression) => Group.comm (evaluate values x) (evaluate values y),
   inverse := \fun (x: Expression) => Group.inverseLeft (evaluate values x),
-  scalarOne := \fun (x: Expression) => #scalarOne{target} (evaluate values x),
-  scalarAssoc := \fun (a, b: R)(x: Expression) => #scalarAssoc{target} a b (evaluate values x),
-  scalarAdd := \fun (a, b: R)(x: Expression) => #scalarAdd{target} a b (evaluate values x),
-  vectorAdd := \fun (a: R)(x, y: Expression) => #vectorAdd{target} a (evaluate values x) (evaluate values y),
+  scalarOne := \fun (x: Expression) => target.scalarOne (evaluate values x),
+  scalarAssoc := \fun (a, b: R)(x: Expression) => target.scalarAssoc a b (evaluate values x),
+  scalarAdd := \fun (a, b: R)(x: Expression) => target.scalarAdd a b (evaluate values x),
+  vectorAdd := \fun (a: R)(x, y: Expression) => target.vectorAdd a (evaluate values x) (evaluate values y),
 };
 \definition RespectsRelations(values: Generators -> W): \Prop :=
   \forall (x, y: Expression) -> relations x y -> EvaluationRelation values x y;
@@ -40,7 +40,7 @@
   \fun (values: _)(accepts: _) => Lift.onClass equivalence (evaluate values) (respects values accepts);
 \definition extension(values: Generators -> W)(accepts: RespectsRelations values): Maps.Map := Maps.Map {
   apply := apply values accepts,
-  addition := Lift.preservesBinary equivalence (evaluate values) (respects values accepts) Expression::sum (#addCong{rules}) Target.add
+  addition := Lift.preservesBinary equivalence (evaluate values) (respects values accepts) Expression::sum (rules.addCong) Target.add
     (\fun (x, y: Expression) => \refl(Target.add (evaluate values x) (evaluate values y))),
   scalar := \fun (a: R) => Q.induction
     (\fun (x: Carrier) => apply values accepts (scale a x) = Target.scale a (apply values accepts x))
@@ -49,24 +49,24 @@
       "=" {Target.scale a (evaluate values x)} "by" {onClass values accepts (Expression::scale a x)}
       "=" {Target.scale a (apply values accepts (class x))} "by" {congr!{W W} (Target.scale a) _ _ (sym!{W} _ _ (onClass values accepts x))}}),
 };
-\definition onGenerator: \forall (values: Generators -> W)(accepts: RespectsRelations values)(s: Generators) -> #apply{(extension values accepts)} (generator s) = values s :=
+\definition onGenerator: \forall (values: Generators -> W)(accepts: RespectsRelations values)(s: Generators) -> (extension values accepts).apply (generator s) = values s :=
   \fun (values: _)(accepts: _)(s: _) => onClass values accepts (Expression::generator s);
 \definition unique: \forall (values: Generators -> W)(accepts: RespectsRelations values)(h: Maps.Map) ->
-  (\forall (s: Generators) -> #apply{h} (generator s) = values s) -> #apply{h} = apply values accepts :=
-  \fun (values: _)(accepts: _)(h: _)(generators: _) => Lift.unique equivalence (evaluate values) (respects values accepts) (#apply{h})
-    (\induction (x: Expression) \return #apply{h} (class x) = evaluate values x \with {
+  (\forall (s: Generators) -> h.apply (generator s) = values s) -> h.apply = apply values accepts :=
+  \fun (values: _)(accepts: _)(h: _)(generators: _) => Lift.unique equivalence (evaluate values) (respects values accepts) (h.apply)
+    (\induction (x: Expression) \return h.apply (class x) = evaluate values x \with {
       | zero: Maps.zeroPreserved h
       | generator: generators
-      | sum: \fun (x: Expression)(ix: #apply{h} (class x) = evaluate values x)(y: Expression)(iy: #apply{h} (class y) = evaluate values y) => eq_reason!{{#apply{h} (class (Expression::sum x y))}
-        "=" {#apply{h} (add (class x) (class y))} "by" {congr!{Carrier W} (#apply{h}) _ _ (sym!{Carrier} _ _ (addClass x y))}
-        "=" {Target.add (#apply{h} (class x)) (#apply{h} (class y))} "by" {#addition{h} (class x) (class y)}
+      | sum: \fun (x: Expression)(ix: h.apply (class x) = evaluate values x)(y: Expression)(iy: h.apply (class y) = evaluate values y) => eq_reason!{{h.apply (class (Expression::sum x y))}
+        "=" {h.apply (add (class x) (class y))} "by" {congr!{Carrier W} (h.apply) _ _ (sym!{Carrier} _ _ (addClass x y))}
+        "=" {Target.add (h.apply (class x)) (h.apply (class y))} "by" {h.addition (class x) (class y)}
         "=" {evaluate values (Expression::sum x y)} "by" {congr2!{W W W} Target.add _ _ _ _ ix iy}}
-      | negative: \fun (x: Expression)(ix: #apply{h} (class x) = evaluate values x) => eq_reason!{{#apply{h} (class (Expression::negative x))}
-        "=" {#apply{h} (neg (class x))} "by" {congr!{Carrier W} (#apply{h}) _ _ (sym!{Carrier} _ _ (negClass x))}
-        "=" {Target.neg (#apply{h} (class x))} "by" {Maps.negativePreserved h (class x)}
+      | negative: \fun (x: Expression)(ix: h.apply (class x) = evaluate values x) => eq_reason!{{h.apply (class (Expression::negative x))}
+        "=" {h.apply (neg (class x))} "by" {congr!{Carrier W} (h.apply) _ _ (sym!{Carrier} _ _ (negClass x))}
+        "=" {Target.neg (h.apply (class x))} "by" {Maps.negativePreserved h (class x)}
         "=" {evaluate values (Expression::negative x)} "by" {congr!{W W} (Target.neg) _ _ ix}}
-      | scale: \fun (a: R)(x: Expression)(ix: #apply{h} (class x) = evaluate values x) => eq_reason!{{#apply{h} (class (Expression::scale a x))}
-        "=" {#apply{h} (scale a (class x))} "by" {congr!{Carrier W} (#apply{h}) _ _ (sym!{Carrier} _ _ (scaleClass a x))}
-        "=" {Target.scale a (#apply{h} (class x))} "by" {#scalar{h} a (class x)}
+      | scale: \fun (a: R)(x: Expression)(ix: h.apply (class x) = evaluate values x) => eq_reason!{{h.apply (class (Expression::scale a x))}
+        "=" {h.apply (scale a (class x))} "by" {congr!{Carrier W} (h.apply) _ _ (sym!{Carrier} _ _ (scaleClass a x))}
+        "=" {Target.scale a (h.apply (class x))} "by" {h.scalar a (class x)}
         "=" {evaluate values (Expression::scale a x)} "by" {congr!{W W} (Target.scale a) _ _ ix}}
     });

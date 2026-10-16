@@ -8,15 +8,15 @@
 \import \parent.Degree[n := Nat.Nat^::succ n] \as Prior;
 \import Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space] \as CurrentMaps;
 \definition HorizontalLaw(p: Nat.Nat^): \Prop := \forall (q: Second (Nat.Nat^::succ n) p)(x: C.family.Carrier p q) ->
-  #apply{(TS.horizontal p q)} (#apply{(f p q)} x) = #apply{Current.map} (#apply{(SS.horizontal p q)} x);
+  (TS.horizontal p q).apply ((f p q).apply x) = Current.map.apply ((SS.horizontal p q).apply x);
 \module Horizontal(p: Nat.Nat^, q: Second (Nat.Nat^::succ n) (Nat.Nat^::succ p)) {
   \definition targetIndex: Index n := index n p (SS.lowerSecond p q);
   \definition law: \forall (x: C.family.Carrier (Nat.Nat^::succ p) q) ->
-    #apply{(TS.horizontal (Nat.Nat^::succ p) q)} (#apply{(f (Nat.Nat^::succ p) q)} x) =
-      #apply{Current.map} (#apply{(SS.horizontal (Nat.Nat^::succ p) q)} x) :=
+    (TS.horizontal (Nat.Nat^::succ p) q).apply ((f (Nat.Nat^::succ p) q).apply x) =
+      Current.map.apply ((SS.horizontal (Nat.Nat^::succ p) q).apply x) :=
     \fun (x: C.family.Carrier (Nat.Nat^::succ p) q) => trans!{TD.Carrier} _ _ _
-      (congr!{{D.family.Carrier p q} TD.Carrier} (#apply{(TD.Component[i := targetIndex].injection)}) _ _ (#horizontal{(laws f)} p q x))
-      (sym!{TD.Carrier} _ _ (Current.onInjection targetIndex (#apply{(C.differential.horizontal p q)} x)));
+      (congr!{{D.family.Carrier p q} TD.Carrier} ((TD.Component[i := targetIndex].injection).apply) _ _ ((laws f).horizontal p q x))
+      (sym!{TD.Carrier} _ _ (Current.onInjection targetIndex ((C.differential.horizontal p q).apply x)));
 }
 \definition horizontal: \forall (p: Nat.Nat^) -> HorizontalLaw p :=
   \induction (p: Nat.Nat^) \return HorizontalLaw p \with {
@@ -24,40 +24,40 @@
     | succ: \fun (p: Nat.Nat^)(previous: _)(q: Second (Nat.Nat^::succ n) (Nat.Nat^::succ p)) => Horizontal[p := p, q := q].law
   };
 \definition VerticalLaw(q: Nat.Nat^): \Prop := \forall (p: First (Nat.Nat^::succ n) q)(x: C.family.Carrier p q) ->
-  #apply{(TS.vertical q p)} (#apply{(f p q)} x) = #apply{Current.map} (#apply{(SS.vertical q p)} x);
+  (TS.vertical q p).apply ((f p q).apply x) = Current.map.apply ((SS.vertical q p).apply x);
 \module Vertical(q: Nat.Nat^, p: First (Nat.Nat^::succ n) (Nat.Nat^::succ q)) {
   \definition targetIndex: Index n := reverseIndex n q (SS.lowerFirst q p);
   \import \parent.\parent.\parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as Sign;
   \import Sign.Mapping[W := D.family.Carrier p q, target := D.family.space p q] \as Naturality;
   \import \parent.\parent.\parent.\parent.Sign[V := D.family.Carrier p q, space := D.family.space p q] \as TargetSign;
   \definition law: \forall (x: C.family.Carrier p (Nat.Nat^::succ q)) ->
-    #apply{(TS.vertical (Nat.Nat^::succ q) p)} (#apply{(f p (Nat.Nat^::succ q))} x) =
-      #apply{Current.map} (#apply{(SS.vertical (Nat.Nat^::succ q) p)} x) :=
+    (TS.vertical (Nat.Nat^::succ q) p).apply ((f p (Nat.Nat^::succ q)).apply x) =
+      Current.map.apply ((SS.vertical (Nat.Nat^::succ q) p).apply x) :=
     \fun (x: C.family.Carrier p (Nat.Nat^::succ q)) => trans!{TD.Carrier} _ _ _
       (congr!{{D.family.Carrier p q} TD.Carrier}
-        (\fun (v: D.family.Carrier p q) => #apply{(TD.Component[i := targetIndex].injection)} (#apply{(TargetSign.map p)} v)) _ _ (#vertical{(laws f)} p q x))
+        (\fun (v: D.family.Carrier p q) => (TD.Component[i := targetIndex].injection).apply ((TargetSign.map p).apply v)) _ _ ((laws f).vertical p q x))
       (trans!{TD.Carrier} _ _ _
-        (congr!{{D.family.Carrier p q} TD.Carrier} (#apply{(TD.Component[i := targetIndex].injection)}) _ _
-          (sym!{{D.family.Carrier p q}} _ _ (Naturality.naturality (f p q) p (#apply{(C.differential.vertical p q)} x))))
-        (sym!{TD.Carrier} _ _ (Current.onInjection targetIndex (#apply{(Sign.map p)} (#apply{(C.differential.vertical p q)} x)))));
+        (congr!{{D.family.Carrier p q} TD.Carrier} ((TD.Component[i := targetIndex].injection).apply) _ _
+          (sym!{{D.family.Carrier p q}} _ _ (Naturality.naturality (f p q) p ((C.differential.vertical p q).apply x))))
+        (sym!{TD.Carrier} _ _ (Current.onInjection targetIndex ((Sign.map p).apply ((C.differential.vertical p q).apply x)))));
 }
 \definition vertical: \forall (q: Nat.Nat^) -> VerticalLaw q :=
   \induction (q: Nat.Nat^) \return VerticalLaw q \with {
     | zero: \fun (p: First (Nat.Nat^::succ n) Nat.Nat^::zero)(x: C.family.Carrier p Nat.Nat^::zero) => sym!{TD.Carrier} _ _ (CurrentMaps.zeroPreserved Current.map)
     | succ: \fun (q: Nat.Nat^)(previous: _)(p: First (Nat.Nat^::succ n) (Nat.Nat^::succ q)) => Vertical[q := q, p := p].law
   };
-\definition onInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) ->
-  #apply{TS.differential} (#apply{Prior.map} (#apply{(SP.Component[i := i].injection)} x)) =
-    #apply{Current.map} (#apply{SS.differential} (#apply{(SP.Component[i := i].injection)} x)) :=
-  \fun (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier #first{i} #second{i}) => trans!{TD.Carrier} _ _ _
-    (congr!{TP.Carrier TD.Carrier} (#apply{TS.differential}) _ _ (Prior.onInjection i x))
-    (trans!{TD.Carrier} _ _ _ (TS.onComponent i (#apply{(f #first{i} #second{i})} x))
+\definition onInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) ->
+  TS.differential.apply (Prior.map.apply ((SP.Component[i := i].injection).apply x)) =
+    Current.map.apply (SS.differential.apply ((SP.Component[i := i].injection).apply x)) :=
+  \fun (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) => trans!{TD.Carrier} _ _ _
+    (congr!{TP.Carrier TD.Carrier} (TS.differential.apply) _ _ (Prior.onInjection i x))
+    (trans!{TD.Carrier} _ _ _ (TS.onComponent i ((f i.first i.second).apply x))
       (trans!{TD.Carrier} _ _ _
-        (congr2!{TD.Carrier TD.Carrier TD.Carrier} (#add{TD.space}) _ _ _ _
-          (horizontal #first{i} (SS.Component[i := i].q) x) (vertical #second{i} (SS.Component[i := i].p) x))
+        (congr2!{TD.Carrier TD.Carrier TD.Carrier} (TD.space.add) _ _ _ _
+          (horizontal i.first (SS.Component[i := i].q) x) (vertical i.second (SS.Component[i := i].p) x))
         (trans!{TD.Carrier} _ _ _
-          (sym!{TD.Carrier} _ _ (#addition{Current.map} (#apply{(SS.horizontal #first{i} (SS.Component[i := i].q))} x) (#apply{(SS.vertical #second{i} (SS.Component[i := i].p))} x)))
-          (congr!{SD.Carrier TD.Carrier} (#apply{Current.map}) _ _ (sym!{SD.Carrier} _ _ (SS.onComponent i x))))));
+          (sym!{TD.Carrier} _ _ (Current.map.addition ((SS.horizontal i.first (SS.Component[i := i].q)).apply x) ((SS.vertical i.second (SS.Component[i := i].p)).apply x)))
+          (congr!{SD.Carrier TD.Carrier} (Current.map.apply) _ _ (sym!{SD.Carrier} _ _ (SS.onComponent i x))))));
 \import Modules.Hom[V := TP.Carrier, W := TD.Carrier, source := TP.space, target := TD.space].Composition[U := SP.Carrier, domain := SP.space] \as TargetComposition;
 \import Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Composition[U := SP.Carrier, domain := SP.space] \as SourceComposition;
 \import Modules.Hom[V := SP.Carrier, W := TD.Carrier, source := SP.space, target := TD.space] \as Maps;
@@ -65,5 +65,5 @@
 \definition before: Maps.Map := SourceComposition.compose Current.map SS.differential;
 \import Modules.DirectSum[Index := Index (Nat.Nat^::succ n), family := SP.family].To[W := TD.Carrier, target := TD.space] \as Universal;
 \definition equality: after = before := Universal.ext after before onInjection;
-\definition commutes: \forall (x: SP.Carrier) -> #apply{TS.differential} (#apply{Prior.map} x) = #apply{Current.map} (#apply{SS.differential} x) :=
-  \fun (x: SP.Carrier) => congr!{Maps.Map TD.Carrier} (\fun (g: Maps.Map) => #apply{g} x) after before equality;
+\definition commutes: \forall (x: SP.Carrier) -> TS.differential.apply (Prior.map.apply x) = Current.map.apply (SS.differential.apply x) :=
+  \fun (x: SP.Carrier) => congr!{Maps.Map TD.Carrier} (\fun (g: Maps.Map) => g.apply x) after before equality;

@@ -8,42 +8,42 @@
 \import Ambient.Image[U := ChainCarrier (next (previous z)), source := chainSpace (next (previous z))] \as Images;
 \import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
 \definition value(x: ChainCarrier z): Carrier :=
-  \into[Previous.Cycle](Previous.cycle (#apply{chain.differential} z x) (#squareZero{chain.laws} z x), #carrier{Previous.boundariesInside}) \by {
-    Images.introduce Previous.prior (#apply{chain.differential} z x)
+  \into[Previous.Cycle](Previous.cycle (chain.differential.apply z x) (chain.laws.squareZero z x), Previous.boundariesInside.carrier) \by {
+    Images.introduce Previous.prior (chain.differential.apply z x)
       (Transport.cast (\fun (k: Degree) => ChainCarrier k) z (next (previous z)) (sym!{Degree} _ _ (Degrees.nextPrevious z)) x)
       (Prior.previousValue z x)
   };
 \import Modules.Hom[V := ChainCarrier z, W := Carrier, source := chainSpace z, target := space] \as Maps;
 \definition map: Maps.Map := Maps.Map {
   apply := value,
-  addition := \fun (x, y: ChainCarrier z) => #addition{chain.laws} z x y,
-  scalar := \fun (a: I.Int^)(x: ChainCarrier z) => #scalar{chain.laws} z a x,
+  addition := \fun (x, y: ChainCarrier z) => chain.laws.addition z x y,
+  scalar := \fun (a: I.Int^)(x: ChainCarrier z) => chain.laws.scalar z a x,
 };
 \definition onto: \forall (b: Carrier) -> \exists { x: ChainCarrier z \where value x = b } := \block {
   \fun (b: Carrier) \then
   \takefrom y: \Cast[ChainCarrier (next (previous z))]
-    ({ y: ChainCarrier (next (previous z)) \where #apply{Previous.prior} y = b })
-    \by \bysub(Previous.Cycle, #carrier{Previous.boundariesInside}, b) \then
+    ({ y: ChainCarrier (next (previous z)) \where Previous.prior.apply y = b })
+    \by \bysub(Previous.Cycle, Previous.boundariesInside.carrier, b) \then
   \let x: ChainCarrier z := Transport.cast
     (\fun (k: Degree) => ChainCarrier k) (next (previous z)) z (Degrees.nextPrevious z) y \then
   \return Existential.existsIntro[ChainCarrier z, { x: ChainCarrier z \where value x = b }] x
     (trans!{{ChainCarrier (previous z)}} _ _ _ (Prior.previousInverse z y)
       (\bysub(ChainCarrier (next (previous z)),
-        { y: ChainCarrier (next (previous z)) \where #apply{Previous.prior} y = b }, y)))
+        { y: ChainCarrier (next (previous z)) \where Previous.prior.apply y = b }, y)))
 };
-\definition kernelCycle: \forall (x: ChainCarrier z) -> value x = #zero{space} ->
-  #apply{chain.differential} z x = #zero{(chain.family.space (previous z))} := \fun (x: ChainCarrier z)(closed: _) => closed;
-\definition onCycle: \forall (x: Homology.Cycle) -> value x = #zero{space} :=
-  \fun (x: Homology.Cycle) => \bysub(ChainCarrier z, #carrier{Homology.cycles}, x);
+\definition kernelCycle: \forall (x: ChainCarrier z) -> value x = space.zero ->
+  chain.differential.apply z x = (chain.family.space (previous z)).zero := \fun (x: ChainCarrier z)(closed: _) => closed;
+\definition onCycle: \forall (x: Homology.Cycle) -> value x = space.zero :=
+  \fun (x: Homology.Cycle) => \bysub(ChainCarrier z, Homology.cycles.carrier, x);
 \definition cyclesBundle: Modules.Bundle := Modules.Bundle { Carrier := Homology.Cycle, space := Homology.cycleSpace };
 \definition chainsBundle: Modules.Bundle := Modules.Bundle { Carrier := ChainCarrier z, space := chainSpace z };
 \definition boundaryBundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
 \import Modules.Of[V := ChainCarrier z, space := chainSpace z].Submodule[].Of[S := Homology.cycles] \as Cycles;
 \import Modules.ShortExact[A := cyclesBundle, B := chainsBundle, C := boundaryBundle] \as Sequences;
 \definition data: Sequences.Data := Sequences.Data { inclusion := Cycles.inclusion, projection := map };
-\definition kernelImage: \forall (x: ChainCarrier z) -> value x = #zero{space} ->
-  \exists { c: Homology.Cycle \where #apply{Cycles.inclusion} c = x } :=
-  \fun (x: ChainCarrier z)(closed: _) => Existential.existsIntro[Homology.Cycle, { c: Homology.Cycle \where #apply{Cycles.inclusion} c = x }] (Homology.cycle x (kernelCycle x closed))
+\definition kernelImage: \forall (x: ChainCarrier z) -> value x = space.zero ->
+  \exists { c: Homology.Cycle \where Cycles.inclusion.apply c = x } :=
+  \fun (x: ChainCarrier z)(closed: _) => Existential.existsIntro[Homology.Cycle, { c: Homology.Cycle \where Cycles.inclusion.apply c = x }] (Homology.cycle x (kernelCycle x closed))
     (\refl(x));
 \definition laws: Sequences.Laws[data] := Sequences.Laws[data] {
   injective := \fun (x, y: Homology.Cycle)(equal: _) => equal,
@@ -54,5 +54,5 @@
 \definition projective: Modules.Projective boundaryBundle := PreviousPresentation.boundaryProjective;
 \import Modules.Hom[V := Carrier, W := ChainCarrier z, source := space, target := chainSpace z] \as Sections;
 \import Modules.End[V := Carrier, space := space] \as Identity;
-\definition sectionExistence: \exists { s: Sections.Map \where \forall (b: Carrier) -> #apply{map} (#apply{s} b) = b } :=
+\definition sectionExistence: \exists { s: Sections.Map \where \forall (b: Carrier) -> map.apply (s.apply b) = b } :=
   projective (ChainCarrier z) (chainSpace z) Carrier space map onto Identity.identity;

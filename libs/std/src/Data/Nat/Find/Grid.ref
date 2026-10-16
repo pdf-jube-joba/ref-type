@@ -27,7 +27,7 @@
       | missing: \fun (test: B.Bool^::false = B.Bool^::true)(laws: Laws (p i) cols Result^::missing) =>
           Logic.falseElim (PositionLaws p rows cols Position^::empty) (BoolLaws.falseNeTrue test)
       | found: \fun (j: Nat^)(test: B.Bool^::true = B.Bool^::true)(laws: FoundLaws[p i, cols, j]) => Found[p, rows, cols, i, j] {
-          rowBound := rowBound, columnBound := #bound{laws}, hit := #hit{laws},
+          rowBound := rowBound, columnBound := laws.bound, hit := laws.hit,
         }
     };
 \definition noneInRow: \forall (cols: Nat^)(p: RowPredicate)(i: Nat^) -> rowHas cols p i = B.Bool^::false -> \forall (j: Nat^) -> Bounds.Lt j cols -> p i j = B.Bool^::false :=
@@ -38,7 +38,7 @@
 \definition chooseCorrect: \forall (p: RowPredicate)(rows, cols: Nat^)(result: Result^) -> Laws (rowHas cols p) rows result -> PositionLaws p rows cols (choose cols p result) :=
   \fun (p: RowPredicate)(rows, cols: Nat^) => \induction (result: Result^) \return Laws (rowHas cols p) rows result -> PositionLaws p rows cols (choose cols p result) \with {
     | missing: \fun (empty: Laws (rowHas cols p) rows Result^::missing)(i, j: Nat^)(rowBound: Bounds.Lt i rows)(colBound: Bounds.Lt j cols) => noneInRow cols p i (empty i rowBound) j colBound
-    | found: \fun (i: Nat^)(laws: FoundLaws[rowHas cols p, rows, i]) => rowCorrect p rows cols i #bound{laws} (find cols (p i)) #hit{laws} (correctness cols (p i))
+    | found: \fun (i: Nat^)(laws: FoundLaws[rowHas cols p, rows, i]) => rowCorrect p rows cols i laws.bound (find cols (p i)) laws.hit (correctness cols (p i))
   };
 \definition linearCorrectness: \forall (count: Nat^)(p: Nat^ -> B.Bool^) -> Laws p count (find count p) := correctness;
 \definition correctness: \forall (rows, cols: Nat^)(p: RowPredicate) -> PositionLaws p rows cols (grid rows cols p) :=

@@ -5,10 +5,10 @@
 \import real.Analysis[].Sums[T := Splits.Split] \as FiniteSum;
 \import FiniteSum.Mapping[S := Splits.Split] \as SumMap;
 \use Equality.congr2;
-\definition term(split: Splits.Split): ScalarFunction U := Operations.times U (left (#left{split})) (right (#right{split}));
+\definition term(split: Splits.Split): ScalarFunction U := Operations.times U (left (split.left)) (right (split.right));
 \definition derivativeTerm(i: Coordinate)(split: Splits.Split): ScalarFunction U := Operations.productDifferential U
-  (left (#left{split})) (right (#right{split}))
-  (left (Directions::cons i (#left{split}))) (right (Directions::cons i (#right{split})));
+  (left (split.left)) (right (split.right))
+  (left (Directions::cons i (split.left))) (right (Directions::cons i (split.right)));
 \definition family: PartialFamily U := \fun (directions: Directions) => Sum.sum U (Splits.partitions directions) term;
 \definition step: \forall (i: Coordinate)(directions: Directions) -> family (Directions::cons i directions) = Sum.sum U (Splits.partitions directions) (derivativeTerm i) :=
   \fun (i: _)(directions: _) => \axiom:funext(family (Directions::cons i directions), Sum.sum U (Splits.partitions directions) (derivativeTerm i),
@@ -23,13 +23,13 @@
           (\fun (split: Splits.Split) => term (Splits.insertLeft i split) a)
           (\fun (split: Splits.Split) => term (Splits.insertRight i split) a)))));
 \module Member(split: Splits.Split, i: Coordinate) {
-  \import \parent.\parent.\parent.Analysis[].Product[U := U, f := left (#left{split}), g := right (#right{split}), i := i] \as Product;
+  \import \parent.\parent.\parent.Analysis[].Product[U := U, f := left (split.left), g := right (split.right), i := i] \as Product;
   \definition partial: \forall (f, g: ScalarFunction U)(k: N.Nat^) -> PartialFamilyLaws[U, f, k, left] -> PartialFamilyLaws[U, g, k, right] ->
-    NatLaws.Lt (order (#left{split})) k -> NatLaws.Lt (order (#right{split})) k ->
+    NatLaws.Lt (order (split.left)) k -> NatLaws.Lt (order (split.right)) k ->
     Analysis.HasPartialDerivative U (term split) i (derivativeTerm i split) :=
     \fun (f, g: _)(k: _)(lf: _)(lg: _)(bl: _)(br: _) => Product.partial
-      (left (Directions::cons i (#left{split}))) (right (Directions::cons i (#right{split})))
-      (#derivative{lf} (#left{split}) bl i) (#derivative{lg} (#right{split}) br i);
+      (left (Directions::cons i (split.left))) (right (Directions::cons i (split.right)))
+      (lf.derivative (split.left) bl i) (lg.derivative (split.right) br i);
 }
 \definition partials: \forall (f, g: ScalarFunction U)(k: N.Nat^) -> PartialFamilyLaws[U, f, k, left] -> PartialFamilyLaws[U, g, k, right] ->
   \forall (directions: Directions) -> NatLaws.Lt (order directions) k -> \forall (i: Coordinate) ->
@@ -41,28 +41,28 @@
           (All.transform (Splits.Bounded (order directions)) (\fun (split: Splits.Split) => Analysis.HasPartialDerivative U (term split) i (derivativeTerm i split))
             (Splits.partitions directions) (\fun (split: Splits.Split)(limits: Splits.Bounded (order directions) split) =>
               Member[split := split, i := i].partial f g k lf lg
-                (NatLaws.leLtTrans _ _ _ (#left{limits}) bound) (NatLaws.leLtTrans _ _ _ (#right{limits}) bound)) (Splits.bounds directions)),
+                (NatLaws.leLtTrans _ _ _ (limits.left) bound) (NatLaws.leLtTrans _ _ _ (limits.right) bound)) (Splits.bounds directions)),
         equality: sym!{{ScalarFunction U}} _ _ (step i directions)
       };
 \definition continuous: \forall (f, g: ScalarFunction U)(k: N.Nat^) -> ContDiffLaws[U, f, k, left] -> ContDiffLaws[U, g, k, right] ->
   \forall (directions: Directions) -> NatLaws.Le (order directions) k -> Analysis.ContinuousOn U (family directions) :=
   \fun (f, g: _)(k: _)(lf: _)(lg: _)(directions: _)(bound: _) => Sum.continuous U (Splits.partitions directions) term
     (All.transform (Splits.Bounded (order directions)) (\fun (split: Splits.Split) => Analysis.ContinuousOn U (term split)) (Splits.partitions directions)
-      (\fun (split: Splits.Split)(limits: Splits.Bounded (order directions) split) => Operations.mulContinuous U (left (#left{split})) (right (#right{split}))
-        (#continuous{lf} (#left{split}) (NatLaws.leTrans _ _ _ (#left{limits}) bound))
-        (#continuous{lg} (#right{split}) (NatLaws.leTrans _ _ _ (#right{limits}) bound))) (Splits.bounds directions));
+      (\fun (split: Splits.Split)(limits: Splits.Bounded (order directions) split) => Operations.mulContinuous U (left (split.left)) (right (split.right))
+        (lf.continuous (split.left) (NatLaws.leTrans _ _ _ (limits.left) bound))
+        (lg.continuous (split.right) (NatLaws.leTrans _ _ _ (limits.right) bound))) (Splits.bounds directions));
 \definition function: \forall (f, g: ScalarFunction U)(k: N.Nat^) -> PartialFamilyLaws[U, f, k, left] -> PartialFamilyLaws[U, g, k, right] ->
   family Directions::nil = Operations.times U f g :=
   \fun (f, g: _)(k: _)(lf: _)(lg: _) => trans!{{ScalarFunction U}} _ _ _
     (\axiom:funext(family Directions::nil, Operations.times U (left Directions::nil) (right Directions::nil),
       \fun (a: Carrier U) => Laws.addZeroRight (mul (left Directions::nil a) (right Directions::nil a))))
     (congr2!{{ScalarFunction U} {ScalarFunction U} {ScalarFunction U}} (Operations.times U)
-      (left Directions::nil) f (right Directions::nil) g (#function{lf}) (#function{lg}));
+      (left Directions::nil) f (right Directions::nil) g (lf.function) (lg.function));
 \definition laws: \forall (f, g: ScalarFunction U)(k: N.Nat^) -> ContDiffLaws[U, f, k, left] -> ContDiffLaws[U, g, k, right] ->
   ContDiffLaws[U, Operations.times U f g, k, family] :=
   \fun (f, g: _)(k: _)(lf: _)(lg: _) => ContDiffLaws[U, Operations.times U f g, k, family] {
     partials := PartialFamilyLaws[U, Operations.times U f g, k, family] {
-      function := function f g k (#partials{lf}) (#partials{lg}), derivative := partials f g k (#partials{lf}) (#partials{lg}),
+      function := function f g k (lf.partials) (lg.partials), derivative := partials f g k (lf.partials) (lg.partials),
     },
     continuous := continuous f g k lf lg,
   };

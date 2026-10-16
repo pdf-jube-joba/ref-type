@@ -11,23 +11,23 @@
 }
 \module On(data: Data) {
   \structure Laws: \Prop {
-    first: \forall (x: V.Carrier) -> #apply{data.first} (#apply{#forward{data.cover}} x) = #apply{data.leftLower} (#apply{data.total} x),
-    second: \forall (x: V.Carrier) -> #apply{data.second} (#apply{data.rightUpper} x) = #apply{data.rightLower} (#apply{data.total} x),
-    upper: \forall (x: V.Carrier) -> #apply{#forward{data.upper}} (#apply{#forward{data.cover}} x) = #apply{data.rightUpper} x,
-    lower: \forall (x: W.Carrier) -> #apply{#forward{data.lower}} (#apply{data.leftLower} x) = #apply{data.rightLower} x,
+    first: \forall (x: V.Carrier) -> data.first.apply (data.cover.forward.apply x) = data.leftLower.apply (data.total.apply x),
+    second: \forall (x: V.Carrier) -> data.second.apply (data.rightUpper.apply x) = data.rightLower.apply (data.total.apply x),
+    upper: \forall (x: V.Carrier) -> data.upper.forward.apply (data.cover.forward.apply x) = data.rightUpper.apply x,
+    lower: \forall (x: W.Carrier) -> data.lower.forward.apply (data.leftLower.apply x) = data.rightLower.apply x,
   }
-  \definition lift(x: A.Carrier): V.Carrier := #apply{#backward{data.cover}} x;
-  \definition upper: \forall (laws: Laws)(x: A.Carrier) -> #apply{#forward{data.upper}} x = #apply{data.rightUpper} (lift x) :=
+  \definition lift(x: A.Carrier): V.Carrier := data.cover.backward.apply x;
+  \definition upper: \forall (laws: Laws)(x: A.Carrier) -> data.upper.forward.apply x = data.rightUpper.apply (lift x) :=
     \fun (laws: Laws)(x: A.Carrier) => trans!{C.Carrier} _ _ _
-      (congr!{A.Carrier C.Carrier} (#apply{#forward{data.upper}}) _ _ (sym!{A.Carrier} _ _ (#rightInverse{data.cover} x))) (#upper{laws} (lift x));
+      (congr!{A.Carrier C.Carrier} (data.upper.forward.apply) _ _ (sym!{A.Carrier} _ _ (data.cover.rightInverse x))) (laws.upper (lift x));
   \definition naturality: \forall (laws: Laws)(x: A.Carrier) ->
-    #apply{#forward{data.lower}} (#apply{data.first} x) = #apply{data.second} (#apply{#forward{data.upper}} x) :=
+    data.lower.forward.apply (data.first.apply x) = data.second.apply (data.upper.forward.apply x) :=
     \fun (laws: Laws)(x: A.Carrier) => sym!{D.Carrier} _ _
       (trans!{D.Carrier} _ _ _
-        (congr!{C.Carrier D.Carrier} (#apply{data.second}) _ _ (upper laws x))
-        (trans!{D.Carrier} _ _ _ (#second{laws} (lift x))
-          (trans!{D.Carrier} _ _ _ (sym!{D.Carrier} _ _ (#lower{laws} (#apply{data.total} (lift x))))
+        (congr!{C.Carrier D.Carrier} (data.second.apply) _ _ (upper laws x))
+        (trans!{D.Carrier} _ _ _ (laws.second (lift x))
+          (trans!{D.Carrier} _ _ _ (sym!{D.Carrier} _ _ (laws.lower (data.total.apply (lift x))))
             (trans!{D.Carrier} _ _ _
-              (congr!{B.Carrier D.Carrier} (#apply{#forward{data.lower}}) _ _ (sym!{B.Carrier} _ _ (#first{laws} (lift x))))
-              (congr!{A.Carrier D.Carrier} (\fun (y: A.Carrier) => #apply{#forward{data.lower}} (#apply{data.first} y)) _ _ (#rightInverse{data.cover} x))))));
+              (congr!{B.Carrier D.Carrier} (data.lower.forward.apply) _ _ (sym!{B.Carrier} _ _ (laws.first (lift x))))
+              (congr!{A.Carrier D.Carrier} (\fun (y: A.Carrier) => data.lower.forward.apply (data.first.apply y)) _ _ (data.cover.rightInverse x))))));
 }

@@ -165,7 +165,7 @@ parameters = '''A: \Set, a, b: A'''
 \definition apply(f: Nat -> Nat)(same: a = b): Nat :=
   (\idelim a = b \with x: _ => Nat -> Nat \by { base: f, equality: same }) Nat::zero;
 \definition project(p: Pair)(same: a = b): Nat :=
-  (\idelim a = b \with x: _ => Pair \by { base: p, equality: same }) #first;
+  (\idelim a = b \with x: _ => Pair \by { base: p, equality: same }).first;
 \definition Sub: \Set := \Cast[Nat] ({ n: Nat \where n = n });
 \definition subset(value: Sub)(same: a = b): Sub :=
   \idelim a = b \with x: _ => Sub \by { base: value, equality: same };

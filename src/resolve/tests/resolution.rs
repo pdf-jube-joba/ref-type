@@ -50,7 +50,7 @@ fn deeply_nested_projections_preserve_the_resolved_base() {
     let depth = 64;
     let source = format!(
         "\\module M {{ \\definition f(x: _): _ := x{}; }}",
-        " #field".repeat(depth)
+        ".field".repeat(depth)
     );
     let modules = syntax::parse::str_parse_modules(&source).unwrap();
     let project = resolve(&modules).unwrap();

@@ -139,20 +139,20 @@ parameters = '''A: \Set, P: A -> \Prop'''
 \structure Pair: \Set { first: A, second: A }
 \definition first: Pair -> A := \block {
   \fun (pair: _) \then
-  \let project: Pair -> A := \fun (p: _) => p #first \then
+  \let project: Pair -> A := \fun (p: _) => p.first \then
   \return project pair
 };
 \definition grouped: Pair -> Pair -> A :=
-  \fun (left, right: _) => left #first;
-\definition dependent: \forall (p: Pair) -> p #first = p #first :=
-  \fun (p: _) => \refl(p #first);
+  \fun (left, right: _) => left.first;
+\definition dependent: \forall (p: Pair) -> p.first = p.first :=
+  \fun (p: _) => \refl(p.first);
 \definition nested: \forall (X: \Set) -> X -> X -> X :=
   \fun (X: _) (x, y: _) => x;
 \definition ascribed: Pair -> A :=
-  (\fun (p: _) => p #first) \of Pair -> A;
+  (\fun (p: _) => p.first) \of Pair -> A;
 \structure Maps: \Set { get: Pair -> A }
 \definition maps: Maps := Maps { get := \block {
-    \fun (p: _) \then \return p #second
+    \fun (p: _) \then \return p.second
   } };
 \definition Sub: \Set := \Cast[A] ({ x: A \where P x });
 \definition property: \forall (x: Sub) -> P x :=
