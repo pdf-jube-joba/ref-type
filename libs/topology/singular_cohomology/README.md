@@ -12,6 +12,7 @@
 | `Chains.Reduced` | 次数 \(-1\) に整数を置く増大鎖複体と、係数付き Hom による被約余鎖。 |
 | `Cochains.With` / `Cohomology` | 任意の整数加群を係数とする余鎖複体、閉余鎖・類・コホモロジーの加群。 |
 | `Cochains.With.At` | 全特異単体への任意の値の割り当てと余鎖との加群同型。 |
+| `Cochains.OverRing.With` / `Relative.OverRing.With` | 可換環上の係数加群、点ごとのスカラー倍、余境界の線形性、通常・相対コホモロジーの環上の加群構造。 |
 | `Cochains.Abelian` | 可換群から標準の整数加群を作り、係数付きコホモロジーへ渡す。 |
 | `Maps` / `Differential` / `Composition` | 後合成から得る鎖写像、境界との可換性と合成則、整数次数への零拡張。 |
 | `Identity` / `Identity.Coefficients` | 恒等連続写像が鎖・余鎖・コホモロジーの恒等写像を誘導すること。 |
@@ -77,3 +78,6 @@ target/debug/cli libs/topology/cohomology_models --module cohomology_models --di
 
 workspace 共通の `libs/refcache/` を利用する。
 整数次数の複体の別名の再公開については [G15](../../../_plans/gaps.md#g15) に、単独で検査できる再現例と直接 import する回避例がある。
+
+`OverRing.With.integerCoefficients` は係数加群の加法群に標準の整数作用を入れる。
+環上の余鎖・コホモロジーの台集合は、その整数係数加群を使った通常の理論と共有する。
