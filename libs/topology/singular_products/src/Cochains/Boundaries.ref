@@ -1,0 +1,29 @@
+\import N.Basic[].Def[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.DegreeTransport[].Boundaries[] \as Membership;
+\import chain_complexes.Cochain[].Over[R := R, ring := baseRing] \as Complexes;
+\definition Member(n: N.Nat^)(alpha: Carrier n): \Prop := Membership.Member n alpha;
+\definition Closed(n: N.Nat^)(alpha: Carrier n): \Prop := Theory.coboundary n alpha = #zero{(space (N.Nat^::succ n))};
+\module At(n: N.Nat^) {
+  \import Complexes.At[C := Theory.complex, k := n] \as Native;
+  \definition zero: Member n #zero{(space n)} := Native.boundaryZero n;
+}
+\definition zero(n: N.Nat^): Member n #zero{(space n)} := At[n := n].zero;
+\definition LeftProperty(p, q: N.Nat^): \Prop := \forall (alpha: Carrier p)(beta: Carrier q) -> Closed q beta -> Member p alpha ->
+  Member (Nat.add p q) (\parent.Cup[p := p, q := q].apply alpha beta);
+\definition RightProperty(p, q: N.Nat^): \Prop := \forall (alpha: Carrier p)(beta: Carrier q) -> Closed p alpha -> Member q beta ->
+  Member (Nat.add p q) (\parent.Cup[p := p, q := q].apply alpha beta);
+\module EmptyLeft(q: N.Nat^);
+\module EmptyRight(p: N.Nat^);
+\module LeftStep(k, q: N.Nat^);
+\module RightStep(p, k: N.Nat^);
+\definition left: \forall (p, q: N.Nat^) -> LeftProperty p q :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^) -> LeftProperty p q \with {
+    | zero: \fun (q: N.Nat^) => EmptyLeft[q := q].law
+    | succ: \fun (k: N.Nat^)(unused: _)(q: N.Nat^) => LeftStep[k := k, q := q].law
+  };
+\definition right: \forall (p, q: N.Nat^) -> RightProperty p q :=
+  \fun (p: N.Nat^) => \induction (q: N.Nat^) \return RightProperty p q \with {
+    | zero: EmptyRight[p := p].law
+    | succ: \fun (k: N.Nat^)(unused: _) => RightStep[p := p, k := k].law
+  };
