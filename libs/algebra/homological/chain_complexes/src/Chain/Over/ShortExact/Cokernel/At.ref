@@ -1,0 +1,24 @@
+\definition left: Modules.Bundle := Modules.Bundle { Carrier := A.family.Carrier k, space := A.family.space k };
+\definition middle: Modules.Bundle := Modules.Bundle { Carrier := B.family.Carrier k, space := B.family.space k };
+\definition right: Modules.Bundle := Modules.Bundle { Carrier := C.family.Carrier k, space := C.family.space k };
+\import \parent.\parent.\parent.Map[C := A, D := B].At[k := k] \as Inclusion;
+\import \parent.\parent.\parent.Map[C := B, D := C].At[k := k] \as Projection;
+\import Modules.RightExact[A := left, B := middle, C := right] \as Exact;
+\definition sequence: Exact.Sequence := Exact.Sequence {
+  inclusion := Inclusion.linear s.inclusion, projection := Projection.linear s.projection,
+  onto := #onto{s} k, zero := #zero{s} k, kernelImage := #kernelImage{s} k,
+};
+\import Exact.Cokernel[sequence := sequence] \as Native;
+\definition forward: Modules.Hom[V := Quotient.Carrier k, W := C.family.Carrier k, source := Quotient.space k, target := C.family.space k].Map := Native.forward;
+\definition onClass: \forall (x: B.family.Carrier k) -> #apply{forward} (Quotient.At[k := k].class x) = #apply{s.projection} k x := Native.onClass;
+\definition injective: \forall (x, y: Quotient.Carrier k) -> #apply{forward} x = #apply{forward} y -> x = y := Native.injective;
+\definition onto: \forall (x: C.family.Carrier k) -> \exists { q: Quotient.Carrier k \where #apply{forward} q = x } := Native.onto;
+\import \parent.At[k := previous k] \as Lower;
+\definition commutes: \forall (q: Quotient.Carrier k) -> #apply{C.differential} k (#apply{forward} q) = #apply{Lower.forward} (#apply{Quotient.differential} k q) :=
+  Quotient.At[k := k].induction (\fun (q: Quotient.Carrier k) => #apply{C.differential} k (#apply{forward} q) = #apply{Lower.forward} (#apply{Quotient.differential} k q))
+    (\fun (x: B.family.Carrier k) => trans!{{C.family.Carrier (previous k)}} _ _ _
+      (congr!{{C.family.Carrier k} {C.family.Carrier (previous k)}} (#apply{C.differential} k) _ _ (onClass x))
+      (trans!{{C.family.Carrier (previous k)}} _ _ _ (#commutes{s.projection} k x)
+        (sym!{{C.family.Carrier (previous k)}} _ _ (trans!{{C.family.Carrier (previous k)}} _ _ _
+          (congr!{{Quotient.Carrier (previous k)} {C.family.Carrier (previous k)}} (#apply{Lower.forward}) _ _ (Quotient.At[k := k].onClass x))
+          (Lower.onClass (#apply{B.differential} k x))))));

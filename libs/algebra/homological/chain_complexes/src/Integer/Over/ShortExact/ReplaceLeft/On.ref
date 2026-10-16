@@ -1,0 +1,21 @@
+\import \root.Integer[].Over[R := R, ring := ring] \as Cochains;
+\import Cochains.ShortExact[A := A1, B := B, C := C] \as New;
+\import Cochains.Map[C := A, D := B].Composition[B := A1] \as Composition;
+\definition inclusion: Cochains.Map[C := A1, D := B].Map := Composition.compose s.inclusion e.forward;
+\definition injective: \forall (z: Degree)(x, y: A1.family.Carrier z) -> #apply{inclusion} z x = #apply{inclusion} z y -> x = y :=
+  \fun (z: Degree)(x, y: A1.family.Carrier z)(same: _) => trans!{{A1.family.Carrier z}} _ _ _ (sym!{{A1.family.Carrier z}} _ _ (#leftInverse{e} z x))
+    (trans!{{A1.family.Carrier z}} _ _ _
+      (congr!{{A.family.Carrier z} {A1.family.Carrier z}} (#apply{e.backward} z) _ _ (#injective{s} z (#apply{e.forward} z x) (#apply{e.forward} z y) same))
+      (#leftInverse{e} z y));
+\definition kernelImage: \forall (z: Degree)(y: B.family.Carrier z) -> #apply{s.projection} z y = #zero{(C.family.space z)} ->
+  \exists { x: A1.family.Carrier z \where #apply{inclusion} z x = y } := \block {
+  \fun (z: Degree)(y: B.family.Carrier z)(closed: #apply{s.projection} z y = #zero{(C.family.space z)}) \then
+  \takefrom x: \Cast[A.family.Carrier z] ({ x: A.family.Carrier z \where #apply{s.inclusion} z x = y }) \by #kernelImage{s} z y closed \then
+  \return Logic.existsIntro[A1.family.Carrier z, { w: A1.family.Carrier z \where #apply{inclusion} z w = y }] (#apply{e.backward} z x)
+    (trans!{{B.family.Carrier z}} _ _ _ (congr!{{A.family.Carrier z} {B.family.Carrier z}} (#apply{s.inclusion} z) _ _ (#rightInverse{e} z x))
+      (\bysub(A.family.Carrier z, { x: A.family.Carrier z \where #apply{s.inclusion} z x = y }, x)))
+};
+\definition sequence: New.Sequence := New.Sequence {
+  inclusion := inclusion, projection := s.projection, injective := injective, onto := #onto{s},
+  zero := \fun (z: Degree)(x: A1.family.Carrier z) => #zero{s} z (#apply{e.forward} z x), kernelImage := kernelImage,
+};
