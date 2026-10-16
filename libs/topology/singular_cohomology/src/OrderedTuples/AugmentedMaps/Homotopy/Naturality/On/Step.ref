@@ -1,0 +1,31 @@
+\import \parent.At[n := N.Nat^::succ n] \as Degree;
+\import \parent.\parent.\parent.Values[n := N.Nat^::succ n] \as Values;
+\import Other.Values[n := N.Nat^::succ n] \as FinalValues;
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Codomain.Carrier (N.Nat^::succ n), source := space (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as Linear;
+\definition law: Property n -> Degree.OnValues :=
+  \fun (previous: Property n)(v: Tuple (N.Nat^::succ n)) => \block {
+    \let x: Carrier (N.Nat^::succ n) := generator (N.Nat^::succ n) v \then
+    \let y: Codomain.Carrier (N.Nat^::succ n) := Codomain.generator (N.Nat^::succ n) (Mapping.onTuple (N.Nat^::succ n) vertices v) \then
+    \let p: Carrier (N.Nat^::succ n) := #apply{(map n)} (#apply{(boundary n)} x) \then
+    \let w: Carrier (N.Nat^::succ n) := Values.difference (Values.difference (#apply{(f.component (N.Nat^::succ n))} x) (#apply{(g.component (N.Nat^::succ n))} x)) p \then
+    \let mapped: #apply{(Mapping.push (N.Nat^::succ n) vertices)} x = y := Mapping.At[n := N.Nat^::succ n].onGenerator vertices v \then
+    \let sd: #apply{(Mapping.push (N.Nat^::succ n) vertices)} (#apply{(f.component (N.Nat^::succ n))} x) = #apply{(targetFirst.component (N.Nat^::succ n))} y :=
+      trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (#first{square} (N.Nat^::succ n) x)
+        (congr!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}} (#apply{(targetFirst.component (N.Nat^::succ n))}) _ _ mapped) \then
+    \let gd: #apply{(Mapping.push (N.Nat^::succ n) vertices)} (#apply{(g.component (N.Nat^::succ n))} x) = #apply{(targetSecond.component (N.Nat^::succ n))} y :=
+      trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (#second{square} (N.Nat^::succ n) x)
+        (congr!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}} (#apply{(targetSecond.component (N.Nat^::succ n))}) _ _ mapped) \then
+    \let shifted: #apply{(Mapping.push (N.Nat^::succ n) vertices)} p = #apply{(Other.map n)} (#apply{(Codomain.boundary n)} y) :=
+      trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (previous (#apply{(boundary n)} x))
+        (congr!{{Codomain.Carrier n} {Codomain.Carrier (N.Nat^::succ n)}} (#apply{(Other.map n)}) _ _
+          (trans!{{Codomain.Carrier n}} _ _ _ (sym!{{Codomain.Carrier n}} _ _ (Mapping.Boundary[n := n].commutes vertices x))
+            (congr!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier n}} (#apply{(Codomain.boundary n)}) _ _ mapped))) \then
+    \let inside: #apply{(Mapping.push (N.Nat^::succ n) vertices)} w = FinalValues.difference (FinalValues.difference (#apply{(targetFirst.component (N.Nat^::succ n))} y) (#apply{(targetSecond.component (N.Nat^::succ n))} y)) (#apply{(Other.map n)} (#apply{(Codomain.boundary n)} y)) :=
+      trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (Linear.differencePreserved (Mapping.push (N.Nat^::succ n) vertices) (Values.difference (#apply{(f.component (N.Nat^::succ n))} x) (#apply{(g.component (N.Nat^::succ n))} x)) p)
+        (congr2!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}} FinalValues.difference _ _ _ _
+          (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (Linear.differencePreserved (Mapping.push (N.Nat^::succ n) vertices) (#apply{(f.component (N.Nat^::succ n))} x) (#apply{(g.component (N.Nat^::succ n))} x))
+            (congr2!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}} FinalValues.difference _ _ _ _ sd gd)) shifted) \then
+    \return trans!{{Codomain.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _
+      (Mapping.Cone[n := N.Nat^::succ n].law vertices (v (Fin.zero n)) w)
+      (congr!{{Codomain.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ (N.Nat^::succ n))}} (#apply{(Codomain.cone (N.Nat^::succ n) (vertices (v (Fin.zero n))))}) _ _ inside)
+  };
