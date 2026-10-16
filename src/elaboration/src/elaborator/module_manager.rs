@@ -151,7 +151,7 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::Definition {
-                name: name.0,
+                name: name.0.into(),
                 definition,
             },
         )
@@ -196,7 +196,7 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::Inductive {
-                name: type_name.0,
+                name: type_name.0.into(),
                 constructor_names: constructor_names
                     .into_iter()
                     .map(|name| name.0)
@@ -218,7 +218,7 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::Inductive {
-                name: type_name.0,
+                name: type_name.0.into(),
                 constructor_names: constructor_names
                     .into_iter()
                     .map(|name| name.0)
@@ -243,7 +243,7 @@ impl ModuleManager {
             self.current,
             ModuleItem::ProgramInductive {
                 record_fields: record_fields.map(Into::into),
-                name: type_name.0,
+                name: type_name.0.into(),
                 constructor_names: constructor_names
                     .into_iter()
                     .map(|name| name.0)
@@ -266,7 +266,7 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::Record {
-                name: type_name.0,
+                name: type_name.0.into(),
                 associated_definitions: associated_definitions
                     .into_iter()
                     .map(|(name, definition)| (name.0, definition))
@@ -300,7 +300,7 @@ impl ModuleManager {
             return None;
         };
         Some(ModItemRecord {
-            type_name: Identifier(name.clone()),
+            type_name: Identifier(name.to_string()),
             inductive: *inductive,
             associated_definitions: associated_definitions
                 .iter()
@@ -1519,7 +1519,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
     match item {
         ModuleItem::Definition { name, definition } => {
             ItemAccessResult::Definition(ModItemDefinition {
-                def_name: Identifier(name.clone()),
+                def_name: Identifier(name.to_string()),
                 definition: *definition,
             })
         }
@@ -1529,7 +1529,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
             associated_definitions,
             inductive,
         } => ItemAccessResult::Inductive(ModItemInductive {
-            type_name: Identifier(name.clone()),
+            type_name: Identifier(name.to_string()),
             ctor_names: constructor_names
                 .iter()
                 .map(|name| Identifier(name.clone()))
@@ -1545,7 +1545,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
             associated_definitions,
             inductive,
         } => ItemAccessResult::Record(ModItemRecord {
-            type_name: Identifier(name.clone()),
+            type_name: Identifier(name.to_string()),
             inductive: *inductive,
             associated_definitions: associated_definitions
                 .iter()
@@ -1563,7 +1563,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
             record_fields: record_fields
                 .as_ref()
                 .map(|fields| fields.iter().cloned().map(Identifier).collect()),
-            type_name: Identifier(name.clone()),
+            type_name: Identifier(name.to_string()),
             ctor_names: constructor_names
                 .iter()
                 .map(|name| Identifier(name.clone()))

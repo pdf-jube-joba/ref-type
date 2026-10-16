@@ -104,23 +104,23 @@ impl From<Exp> for ModuleArgument {
 #[allow(clippy::box_collection)]
 pub enum ModuleItem {
     Definition {
-        name: String,
+        name: Arc<String>,
         definition: DefId,
     },
     Inductive {
-        name: String,
+        name: Arc<String>,
         constructor_names: Arc<Vec<String>>,
         associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: InductiveId,
     },
     Record {
-        name: String,
+        name: Arc<String>,
         associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: InductiveId,
     },
     ProgramInductive {
         record_fields: Option<Arc<Vec<String>>>,
-        name: String,
+        name: Arc<String>,
         constructor_names: Arc<Vec<String>>,
         associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: ProgramInductiveId,
@@ -2028,6 +2028,24 @@ impl CrateEnv {
         });
         let id = RemappingId(self.remappings.len());
         self.remappings.push(remapping);
+        if self.remappings.len().is_multiple_of(16384)
+            && std::env::var_os("REF_TYPE_PROFILE_STORAGE").is_some()
+        {
+            eprintln!(
+                "storage remappings={} modules={} arena_nodes={} nominal_definitions={}/{} lazy_definitions={}/{} exact_definitions={}/{} namespaces={}/{}",
+                self.remappings.len(),
+                self.modules.len(),
+                self.arena.core.len(),
+                self.nominal_definitions.len(),
+                self.nominal_definitions.capacity(),
+                self.lazy_definitions.len(),
+                self.lazy_definitions.capacity(),
+                self.exact_definition_specializations.len(),
+                self.exact_definition_specializations.capacity(),
+                self.namespace_bindings.len(),
+                self.namespace_bindings.capacity(),
+            );
+        }
         if self.remappings.len().is_multiple_of(1024)
             && std::env::var_os("REF_TYPE_PROFILE_REMAPPINGS").is_some()
         {
@@ -2224,6 +2242,14 @@ mod specialization_tests {
             let bytes = postcard::to_allocvec(&item).unwrap();
             let restored: ModuleItem = postcard::from_bytes(&bytes).unwrap();
             assert_eq!(postcard::to_allocvec(&restored).unwrap(), bytes);
+            let copy = restored.clone();
+            let name = |item: &ModuleItem| match item {
+                ModuleItem::Definition { name, .. }
+                | ModuleItem::Inductive { name, .. }
+                | ModuleItem::Record { name, .. }
+                | ModuleItem::ProgramInductive { name, .. } => Arc::as_ptr(name),
+            };
+            assert_eq!(name(&restored), name(&copy));
             if let ModuleItem::Inductive {
                 constructor_names,
                 associated_definitions,
@@ -2306,7 +2332,7 @@ mod specialization_tests {
         env.publish_item(
             source,
             ModuleItem::Definition {
-                name: "value".into(),
+                name: "value".to_string().into(),
                 definition: DefId {
                     module: source,
                     index: 0,
@@ -2315,7 +2341,7 @@ mod specialization_tests {
         )
         .unwrap();
         let specialized = ModuleItem::Definition {
-            name: "value".into(),
+            name: "value".to_string().into(),
             definition: DefId {
                 module: target,
                 index: 0,
@@ -2335,7 +2361,7 @@ mod specialization_tests {
         env.publish_item(
             target,
             ModuleItem::Definition {
-                name: "later".into(),
+                name: "later".to_string().into(),
                 definition: DefId {
                     module: target,
                     index: 1,
