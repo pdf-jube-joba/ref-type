@@ -1,0 +1,17 @@
+\definition degree: I.Int^ := I.Int^::negSucc N.Nat^::zero;
+\import Cochains.At[C := Hom.complex, z := degree] \as H;
+\import H.ZeroDifferentials[] \as Comparison;
+\import \parent.Positive[n := N.Nat^::zero] \as ZeroTerm;
+\import \parent.Negative[n := N.Nat^::zero] \as LowerTerm;
+\definition currentZero: Empty -> Comparison.CurrentZero :=
+  \fun (empty: Empty)(h: Hom.Carrier degree) => ZeroTerm.termZero empty (#apply{H.differential} h);
+\definition priorZero: Comparison.PriorZero :=
+  \fun (h: Hom.Carrier (Degrees.previous degree)) => Hom.At[z := degree].ext (#apply{H.prior} h) #zero{(Hom.space degree)}
+    (\fun (x: I.Int^) => trans!{coefficients.Carrier} _ _ _
+      (Hom.Cohomology[z := degree].priorOnElement h x) (Hom.At[z := Degrees.previous degree].zeroPreserved h));
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].ScalarHom[N := coefficients] \as Scalars;
+\import Modules.Isomorphism[V := Hom.Carrier degree, W := coefficients.Carrier, source := Hom.space degree, target := coefficients.space].Inverse[] \as Inverse;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := Hom.Carrier degree, source := coefficients.space, target := Hom.space degree]
+  .Composition[U := H.Cohomology, final := H.cohomologySpace] \as Composition;
+\definition isomorphism(empty: Empty): Modules.Isomorphism[V := coefficients.Carrier, W := H.Cohomology, source := coefficients.space, target := H.cohomologySpace].Isomorphism :=
+  Composition.compose (Comparison.isomorphism (currentZero empty) priorZero) (Inverse.inverse Scalars.isomorphism);
