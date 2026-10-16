@@ -8,3 +8,4 @@
 | `On.Chains.Degree` | 除去前後の小相対鎖と、部分空間の像に入らない単体上の自由加群との同型。 |
 | `Degree.Range` / `Complement` | 除去後への小単体の持ち上げ、補集合の生成元の全単射と自由加群の同型。 |
 | `Chains.Preservation` / `Mapping` | 部分空間の鎖の像の保存と、除去後の対から元の対への小相対鎖写像。 |
+| `Degree.Comparison` / `Chains.Isomorphism` | 小相対鎖の切除写像の鎖同型、ホモロジーと任意係数コホモロジーの同型。 |
