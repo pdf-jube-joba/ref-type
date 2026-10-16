@@ -1,0 +1,12 @@
+\import \parent.\parent.Induction[] \as Induction;
+\import \parent.\parent.\parent.Hom[V := Carrier, W := W, source := space, target := target] \as Maps;
+\import \parent.\parent.\parent.Of[V := W, space := target].Submodule[] \as Submodules;
+\use Equality.transport;
+\definition law: \forall (f: Maps.Map)(T: Submodules.Submodule) ->
+  (\forall (s: Generators) -> Submodules.Member T (#apply{f} (generator s))) -> \forall (x: Carrier) -> Submodules.Member T (#apply{f} x) :=
+  \fun (f: Maps.Map)(T: Submodules.Submodule)(generators: \forall (s: Generators) -> Submodules.Member T (#apply{f} (generator s))) =>
+    Induction.law (\fun (x: Carrier) => Submodules.Member T (#apply{f} x))
+      (transport!{W} (\fun (y: W) => Submodules.Member T y) _ _ (sym!{W} _ _ (Maps.zeroPreserved f)) (#zero{T})) generators
+      (\fun (x, y: Carrier)(left: _)(right: _) => transport!{W} (\fun (z: W) => Submodules.Member T z) _ _ (sym!{W} _ _ (#addition{f} x y)) (#addition{T} _ _ left right))
+      (\fun (x: Carrier)(previous: _) => transport!{W} (\fun (y: W) => Submodules.Member T y) _ _ (sym!{W} _ _ (Maps.negativePreserved f x)) (Submodules.negativeClosed T _ previous))
+      (\fun (a: R)(x: Carrier)(previous: _) => transport!{W} (\fun (y: W) => Submodules.Member T y) _ _ (sym!{W} _ _ (#scalar{f} a x)) (#scalar{T} a _ previous));
