@@ -1,0 +1,31 @@
+\definition n: Nat.Nat^ := Nat.Nat^::zero;
+\import Source.Degree[n := n] \as SD;
+\import Target.Degree[n := n] \as TD;
+\import Target.Degree[n := Nat.Nat^::succ n] \as TN;
+\import SourceCoordinates.Zero[] \as SourceSingle;
+\import TargetCoordinates.Zero[] \as TargetSingle;
+\import \parent.Degree[n := n] \as H;
+\import Target.Step[n := n] \as Differential;
+\import Forward.Degree[n := n] \as F;
+\import Backward.Degree[n := n] \as G;
+\import Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space] \as Linear;
+\import Modules.Hom[V := TN.Carrier, W := TD.Carrier, source := TN.space, target := TD.space].Composition[U := SD.Carrier, domain := SD.space] \as Compose;
+\definition lhs: Linear.Map := Linear.plus F.map (Linear.negative G.map);
+\definition rhs: Linear.Map := Compose.compose Differential.differential H.map;
+\import Modules.Hom[V := D.family.Carrier n n, W := TD.Carrier, source := D.family.space n n, target := TD.space] \as Injection;
+\import Modules.Laws[V := TD.Carrier, space := TD.space] \as Values;
+\import algebra.Group[].Of[Carrier := TD.Carrier, group := Values.additive] \as Group;
+\definition common(x: C.family.Carrier n n): TD.Carrier := #apply{TargetSingle.inject} (#apply{(D.differential.horizontal n n)} (#apply{(h n n)} x));
+\definition left(x: C.family.Carrier n n): #apply{lhs} (#apply{SourceSingle.inject} x) = common x :=
+  trans!{TD.Carrier} _ _ _ (congr2!{TD.Carrier TD.Carrier TD.Carrier} Group.difference _ _ _ _ (F.onInjection SourceSingle.index x) (G.onInjection SourceSingle.index x))
+    (trans!{TD.Carrier} _ _ _ (sym!{TD.Carrier} _ _ (Injection.differencePreserved TargetSingle.inject (#apply{(f n n)} x) (#apply{(g n n)} x)))
+      (congr!{{D.family.Carrier n n} TD.Carrier} (#apply{TargetSingle.inject}) _ _ (#zero{laws} n x)));
+\definition right(x: C.family.Carrier n n): #apply{rhs} (#apply{SourceSingle.inject} x) = common x :=
+  trans!{TD.Carrier} _ _ _ (congr!{TN.Carrier TD.Carrier} (#apply{Differential.differential}) _ _ (H.onInjection SourceSingle.index x))
+    (trans!{TD.Carrier} _ _ _ (Differential.onComponent (H.Component[i := SourceSingle.index].raised) (#apply{(h n n)} x)) (Group.zeroRight (common x)));
+\definition onComponent(x: C.family.Carrier n n): #apply{lhs} (#apply{SourceSingle.inject} x) = #apply{rhs} (#apply{SourceSingle.inject} x) := trans!{TD.Carrier} _ _ _ (left x) (sym!{TD.Carrier} _ _ (right x));
+\definition Statement(i: Index n): \Prop := \forall (x: C.family.Carrier #first{i} #second{i}) -> #apply{lhs} (#apply{SD.Component[i := i].injection} x) = #apply{rhs} (#apply{SD.Component[i := i].injection} x);
+\definition onInjection(i: Index n): Statement i := \idelim SourceSingle.index = i \with j: Index n => Statement j \by { base: onComponent, equality: sym!{{Index n}} _ _ (SourceSingle.unique i) };
+\import Modules.DirectSum[Index := Index n, family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+\definition equation: lhs = rhs := Universal.ext lhs rhs onInjection;
+\definition law(x: SD.Carrier): #apply{lhs} x = #apply{rhs} x := congr!{Linear.Map TD.Carrier} (\fun (m: Linear.Map) => #apply{m} x) _ _ equation;

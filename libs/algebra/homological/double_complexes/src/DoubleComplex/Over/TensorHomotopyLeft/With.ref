@@ -1,0 +1,27 @@
+\import \parent.\parent.TensorMapping[C := C, D := D, E := E, F := E] \as TensorMaps;
+\definition identity: Chains.Map[C := E, D := E].Map := Chains.End[C := E].identity;
+\import TensorMaps.With[f := f, g := identity] \as Forward;
+\import TensorMaps.With[f := g, g := identity] \as Backward;
+\module Shift(p: Nat.Nat^) {
+  \import Modules.Hom[V := C.family.Carrier p, W := D.family.Carrier (Nat.Nat^::succ p), source := C.family.space p, target := D.family.space (Nat.Nat^::succ p)] \as Linear;
+  \definition map: Linear.Map := Linear.Map { apply := #apply{h} p, addition := #addition{h} p, scalar := #scalar{h} p };
+}
+\module Term(p, q: Nat.Nat^) {
+  \import Modules.Tensor[V := C.family.Carrier p, W := E.family.Carrier q, left := C.family.space p, right := E.family.space q].Mapping[U := D.family.Carrier (Nat.Nat^::succ p), Z := E.family.Carrier q, targetLeft := D.family.space (Nat.Nat^::succ p), targetRight := E.family.space q] \as Mapping;
+  \definition map: Modules.Hom[V := SourceTensor.Term[p := p, q := q].Carrier, W := TargetTensor.Term[p := Nat.Nat^::succ p, q := q].Carrier, source := SourceTensor.Term[p := p, q := q].space, target := TargetTensor.Term[p := Nat.Nat^::succ p, q := q].space].Map := Mapping.map (\parent.Shift[p := p].map) (Modules.End[V := E.family.Carrier q, space := E.family.space q].identity);
+  \definition onTensor: \forall (x: C.family.Carrier p)(y: E.family.Carrier q) -> #apply{map} (SourceTensor.Term[p := p, q := q].tensor x y) = TargetTensor.Term[p := Nat.Nat^::succ p, q := q].tensor (#apply{h} p x) y := Mapping.onTensor (\parent.Shift[p := p].map) (Modules.End[V := E.family.Carrier q, space := E.family.space q].identity);
+}
+\import \parent.\parent.HorizontalHomotopy[C := SourceTensor.complex, D := TargetTensor.complex] \as Horizontal;
+\definition horizontalData: Horizontal.Data := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].map;
+\module Zero(q: Nat.Nat^);
+\module Positive(p, q: Nat.Nat^);
+\module Vertical(p, q: Nat.Nat^);
+\definition horizontalHomotopy: Horizontal.Homotopy Forward.map Backward.map := \into[Horizontal.Data](horizontalData, Horizontal.Homotopy Forward.map Backward.map) \by {
+  Horizontal.Laws[Forward.map, Backward.map, horizontalData] {
+    zero := \fun (q: Nat.Nat^) => Zero[q := q].point,
+    positive := \fun (p, q: Nat.Nat^) => Positive[p := p, q := q].point,
+    vertical := \fun (p, q: Nat.Nat^) => Vertical[p := p, q := q].point,
+  }
+};
+\import Horizontal.With[f := Forward.map, g := Backward.map, h := horizontalHomotopy] \as TotalHomotopy;
+\definition homotopy: Result.Homotopy Forward.total Backward.total := TotalHomotopy.homotopy;
