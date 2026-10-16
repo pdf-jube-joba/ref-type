@@ -4,6 +4,24 @@
   | zero: \fun (x: V) => x
   | succ: \fun (n: N.Nat^)(previous: V -> V)(x: V) => Values.neg (previous x)
 };
+\definition twistZero: \forall (n: N.Nat^) -> twist n Values.zero = Values.zero :=
+  \induction (n: N.Nat^) \return twist n Values.zero = Values.zero \with {
+    | zero: \refl(Values.zero)
+    | succ: \fun (n: N.Nat^)(previous: twist n Values.zero = Values.zero) =>
+      trans!{V} _ _ _ (congr!{V V} Values.neg _ _ previous) Group.negZero
+  };
+\definition twistAdd: \forall (n: N.Nat^)(x, y: V) -> twist n (Values.add x y) = Values.add (twist n x) (twist n y) :=
+  \induction (n: N.Nat^) \return \forall (x, y: V) -> twist n (Values.add x y) = Values.add (twist n x) (twist n y) \with {
+    | zero: \fun (x, y: V) => \refl(Values.add x y)
+    | succ: \fun (n: N.Nat^)(previous: \forall (x, y: V) -> twist n (Values.add x y) = Values.add (twist n x) (twist n y))(x, y: V) =>
+      trans!{V} _ _ _ (congr!{V V} Values.neg _ _ (previous x y)) (Group.negAdd (twist n x) (twist n y))
+  };
+\definition twistScalar: \forall (n: N.Nat^)(a: R)(x: V) -> twist n (Values.scale a x) = Values.scale a (twist n x) :=
+  \induction (n: N.Nat^) \return \forall (a: R)(x: V) -> twist n (Values.scale a x) = Values.scale a (twist n x) \with {
+    | zero: \fun (a: R)(x: V) => \refl(Values.scale a x)
+    | succ: \fun (n: N.Nat^)(previous: \forall (a: R)(x: V) -> twist n (Values.scale a x) = Values.scale a (twist n x))(a: R)(x: V) =>
+      trans!{V} _ _ _ (congr!{V V} Values.neg _ _ (previous a x)) (sym!{V} _ _ (Values.scaleNeg a (twist n x)))
+  };
 \definition twistDifference: \forall (n: N.Nat^)(x, y: V) -> twist n (Group.difference x y) = Group.difference (twist n x) (twist n y) :=
   \induction (n: N.Nat^) \return \forall (x, y: V) -> twist n (Group.difference x y) = Group.difference (twist n x) (twist n y) \with {
     | zero: \fun (x, y: V) => \refl(Group.difference x y)
