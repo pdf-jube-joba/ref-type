@@ -68,9 +68,9 @@ pub(super) mod definitions {
                 (
                     id,
                     value.source,
-                    arguments.insert(&value.substitutions),
-                    reflected.insert(&value.reflected_substitutions),
-                    value.remapping,
+                    arguments.insert(&value.environment.substitutions),
+                    reflected.insert(&value.environment.reflected_substitutions),
+                    value.environment.remapping.get(),
                 )
             })
             .collect();
@@ -85,16 +85,26 @@ pub(super) mod definitions {
             Vec<(DefId, DefId, usize, usize, RemappingId)>,
         );
         let (arguments, reflected, entries): Data = Deserialize::deserialize(deserializer)?;
+        let mut environments: HashMap<(usize, usize, RemappingId), Arc<DefinitionEnvironment>> =
+            HashMap::new();
         entries
             .into_iter()
             .map(|(id, source, a, r, remapping)| {
+                let environment = match environments.entry((a, r, remapping)) {
+                    std::collections::hash_map::Entry::Occupied(entry) => entry.get().clone(),
+                    std::collections::hash_map::Entry::Vacant(entry) => entry
+                        .insert(Arc::new(DefinitionEnvironment {
+                            substitutions: get(&arguments, a)?,
+                            reflected_substitutions: get(&reflected, r)?,
+                            remapping: Cell::new(remapping),
+                        }))
+                        .clone(),
+                };
                 Ok((
                     id,
                     LazyDefinition {
                         source,
-                        substitutions: get(&arguments, a)?,
-                        reflected_substitutions: get(&reflected, r)?,
-                        remapping,
+                        environment,
                     },
                 ))
             })
@@ -231,6 +241,11 @@ mod tests {
                 (id, value)
             })
             .collect();
+        let environment = Arc::new(DefinitionEnvironment {
+            substitutions: arguments.clone(),
+            reflected_substitutions: reflected.clone(),
+            remapping: Cell::new(RemappingId(0)),
+        });
         let saved = Saved {
             entries: (0..1000)
                 .map(|index| {
@@ -239,9 +254,7 @@ mod tests {
                         id,
                         LazyDefinition {
                             source: id,
-                            substitutions: arguments.clone(),
-                            reflected_substitutions: reflected.clone(),
-                            remapping: RemappingId(0),
+                            environment: environment.clone(),
                         },
                     )
                 })
@@ -252,15 +265,43 @@ mod tests {
         let restored: Saved = postcard::from_bytes(&bytes).unwrap();
         let first = &restored.entries[&DefId { module, index: 0 }];
         for value in restored.entries.values() {
-            assert_eq!(value.substitutions, arguments);
-            assert_eq!(value.reflected_substitutions, reflected);
-            assert!(Arc::ptr_eq(&first.substitutions, &value.substitutions));
+            assert_eq!(value.environment.substitutions, arguments);
+            assert_eq!(value.environment.reflected_substitutions, reflected);
+            assert!(Arc::ptr_eq(&first.environment, &value.environment));
             assert!(Arc::ptr_eq(
-                &first.reflected_substitutions,
-                &value.reflected_substitutions
+                &first.environment.substitutions,
+                &value.environment.substitutions
+            ));
+            assert!(Arc::ptr_eq(
+                &first.environment.reflected_substitutions,
+                &value.environment.reflected_substitutions
             ));
         }
     }
+    #[test]
+    fn checkpoint_restores_shared_environments_from_legacy_rows() {
+        let module = ModuleId(0);
+        let arguments: Vec<Arc<[(ModuleParamId, ModuleArgument)]>> = vec![Arc::from([])];
+        let reflected: Vec<Arc<[(ModuleParamId, Exp)]>> = vec![Arc::from([])];
+        let rows: Vec<_> = (0..3)
+            .map(|index| {
+                let id = DefId { module, index };
+                (id, id, 0usize, 0usize, RemappingId(usize::from(index == 1)))
+            })
+            .collect();
+        let bytes = postcard::to_allocvec(&(arguments, reflected, rows)).unwrap();
+        let restored: Saved = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(postcard::to_allocvec(&restored).unwrap(), bytes);
+        let first = &restored.entries[&DefId { module, index: 0 }].environment;
+        let other = &restored.entries[&DefId { module, index: 1 }].environment;
+        let shared = &restored.entries[&DefId { module, index: 2 }].environment;
+        assert!(Arc::ptr_eq(first, shared));
+        assert!(!Arc::ptr_eq(first, other));
+        first.remapping.set(RemappingId(2));
+        assert_eq!(shared.remapping.get(), RemappingId(2));
+        assert_eq!(other.remapping.get(), RemappingId(1));
+    }
+
     #[test]
     fn shared_telescope_bytes_ignore_hash_order_and_allocation_aliasing() {
         let env = CrateEnv::new();
@@ -288,13 +329,15 @@ mod tests {
                             id,
                             LazyDefinition {
                                 source: id,
-                                substitutions: if share {
-                                    arguments.clone()
-                                } else {
-                                    arguments.to_vec().into()
-                                },
-                                reflected_substitutions: Arc::from([]),
-                                remapping: RemappingId(0),
+                                environment: Arc::new(DefinitionEnvironment {
+                                    substitutions: if share {
+                                        arguments.clone()
+                                    } else {
+                                        arguments.to_vec().into()
+                                    },
+                                    reflected_substitutions: Arc::from([]),
+                                    remapping: Cell::new(RemappingId(0)),
+                                }),
                             },
                         )
                     })

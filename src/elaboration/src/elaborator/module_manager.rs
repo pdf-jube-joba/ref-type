@@ -5,8 +5,8 @@ use crate::raw::program::{ProgramContext, ProgramContextEntry};
 use crate::raw::{environment::ModuleParameter, inductive::InductiveTypeSpecs};
 use crate::raw::{
     environment::{
-        ClosedNamespaceKey, CrateEnv, DeclarationRemapping, DefinedConstant, ModuleArgument,
-        ModuleItem, ModuleParameterKind,
+        ClosedNamespaceKey, CrateEnv, DeclarationRemapping, DefinedConstant, DefinitionEnvironment,
+        ModuleArgument, ModuleItem, ModuleParameterKind, RemappingId,
     },
     exp::{Exp, ExpContext},
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
@@ -768,6 +768,11 @@ impl ModuleManager {
         // argument environment; retain it once rather than copying every tuple.
         let shared_substitutions: Arc<[_]> = substitutions.clone().into();
         let shared_reflected_substitutions: Arc<[_]> = reflected_substitutions.clone().into();
+        let shared_definition_environment = Arc::new(DefinitionEnvironment {
+            substitutions: shared_substitutions.clone(),
+            reflected_substitutions: shared_reflected_substitutions.clone(),
+            remapping: std::cell::Cell::new(RemappingId(0)),
+        });
         for (((source_module, item_source, path_component), materialized), unchanged) in
             materialization_sources
                 .into_iter()
@@ -790,11 +795,10 @@ impl ModuleManager {
                     let id = if unchanged {
                         source_id
                     } else {
-                        let id = env.reserve_lazy_definition(
+                        let id = env.reserve_lazy_definition_shared(
                             materialized,
                             source_id,
-                            shared_substitutions.clone(),
-                            shared_reflected_substitutions.clone(),
+                            shared_definition_environment.clone(),
                         );
                         lazy_definitions.push(id);
                         id

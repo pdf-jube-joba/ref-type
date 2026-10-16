@@ -186,11 +186,16 @@ impl DeclarationRemapping {
 }
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub(crate) struct DefinitionEnvironment {
+    pub(crate) substitutions: Arc<[(ModuleParamId, ModuleArgument)]>,
+    pub(crate) reflected_substitutions: Arc<[(ModuleParamId, Exp)]>,
+    pub(crate) remapping: Cell<RemappingId>,
+}
+
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyDefinition {
     source: DefId,
-    substitutions: Arc<[(ModuleParamId, ModuleArgument)]>,
-    reflected_substitutions: Arc<[(ModuleParamId, Exp)]>,
-    remapping: RemappingId,
+    environment: Arc<DefinitionEnvironment>,
 }
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -804,6 +809,7 @@ impl CrateEnv {
             let source = self.resolve_definition(lazy.source)?.clone();
             let count = self.definition_parameters(id).len();
             let shifted_substitutions = lazy
+                .environment
                 .substitutions
                 .iter()
                 .map(|(p, a)| {
@@ -836,6 +842,7 @@ impl CrateEnv {
                 })
                 .collect::<Vec<_>>();
             let reflected = lazy
+                .environment
                 .reflected_substitutions
                 .iter()
                 .map(|(p, e)| {
@@ -845,7 +852,7 @@ impl CrateEnv {
                     )
                 })
                 .collect::<Vec<_>>();
-            let remap = self.remapping(lazy.remapping);
+            let remap = self.remapping(lazy.environment.remapping.get());
             let logical_at = |e, depth| {
                 let shifted;
                 let substitutions = if depth == 0 {
@@ -987,12 +994,30 @@ impl CrateEnv {
         result
     }
 
+    #[cfg(test)]
     pub(crate) fn reserve_lazy_definition(
         &mut self,
         module: ModuleId,
         source: DefId,
         substitutions: impl Into<Arc<[(ModuleParamId, ModuleArgument)]>>,
         reflected_substitutions: impl Into<Arc<[(ModuleParamId, Exp)]>>,
+    ) -> DefId {
+        self.reserve_lazy_definition_shared(
+            module,
+            source,
+            Arc::new(DefinitionEnvironment {
+                substitutions: substitutions.into(),
+                reflected_substitutions: reflected_substitutions.into(),
+                remapping: Cell::new(RemappingId(0)),
+            }),
+        )
+    }
+
+    pub(crate) fn reserve_lazy_definition_shared(
+        &mut self,
+        module: ModuleId,
+        source: DefId,
+        environment: Arc<DefinitionEnvironment>,
     ) -> DefId {
         let parameters = self.definition_parameters(source).to_vec();
         let index = self.module(module).definitions.len() as u32;
@@ -1005,9 +1030,7 @@ impl CrateEnv {
             id,
             LazyDefinition {
                 source,
-                substitutions: substitutions.into(),
-                reflected_substitutions: reflected_substitutions.into(),
-                remapping: RemappingId(0),
+                environment,
             },
         );
         id
@@ -1142,10 +1165,14 @@ impl CrateEnv {
     }
 
     pub(crate) fn set_lazy_definition_remapping(&mut self, id: DefId, remapping: RemappingId) {
-        self.lazy_definitions
-            .get_mut(&id)
+        let environment = &self
+            .lazy_definitions
+            .get(&id)
             .expect("lazy definition")
-            .remapping = remapping;
+            .environment;
+        let previous = environment.remapping.get();
+        assert!(previous == RemappingId(0) || previous == remapping);
+        environment.remapping.set(remapping);
     }
 
     #[cfg(test)]
