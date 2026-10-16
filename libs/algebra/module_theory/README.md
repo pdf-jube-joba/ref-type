@@ -20,6 +20,7 @@
 | `module_theory.Module.Over.Biproduct` | 二項直和と積、射影・包含、組と余組の普遍性。 |
 | `module_theory.Module.Over.ShortExact` / `ShortExactComparison` | 短完全列、分裂から得られる直和同型、可換図式の比較。 |
 | `module_theory.Module.Over.ExactFiveComparison` | 五項完全列の可換図式における中央写像の単射・全射と同型。 |
+| `module_theory.Module.Over.IsomorphismSquare` | 可換な正方形の三辺の同型から、残る辺の逆写像を構成する比較。 |
 | `module_theory.Module.Over.Pushout.On` | 二つの準同型の押し出しと、可換な写像からの一意な準同型。 |
 | `module_theory.Module.Over.ShortExact.Pushout.On` | 短完全列を左端の係数写像に沿って押し出した短完全列。 |
 | `module_theory.Module.Over.CanonicalFree` / `FreeResolution` | 元の集合上の自由加群からの全射、反復する核、射影的な各項と隣接する微分の完全性。 |
