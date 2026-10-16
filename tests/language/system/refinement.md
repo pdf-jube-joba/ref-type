@@ -2,7 +2,7 @@
 
 ## powerset requires set
 
-冪集合の対象が集合ではないため、拒否される。
+冪集合の対象が集合ではない。
 
 ```toml case
 id = "reject-system.powerset_requires_set"
@@ -18,7 +18,7 @@ parameters = '''P: \Prop,'''
 
 ## predicate wrong element
 
-述語に渡した要素が指定された ambient set に属さないため、拒否される。
+述語に渡した要素が指定された ambient set に属さない。
 
 ```toml case
 id = "reject-system.predicate_wrong_element"
@@ -36,7 +36,7 @@ parameters = '''A, B: \Set(0),
 
 ## subset elim requires refined element
 
-部分集合の除去に refinement の要素ではない値を渡すため、拒否される。
+部分集合の除去に refinement の要素ではない値を渡す。
 
 ```toml case
 id = "reject-system.subset_elim_requires_refined_element"
@@ -55,7 +55,7 @@ parameters = '''A: \Set(0),
 
 ## subset intro wrong proof
 
-部分集合の導入に渡した証明が witness の所属を示さないため、拒否される。
+部分集合の導入に渡した証明が witness の所属を示さない。
 
 ```toml case
 id = "reject-system.subset_intro_wrong_proof"
@@ -76,7 +76,7 @@ parameters = '''A: \Set(0),
 
 ## subset requires proposition
 
-部分集合の条件が命題ではないため、拒否される。
+部分集合の条件が命題ではない。
 
 ```toml case
 id = "reject-system.subset_requires_proposition"
@@ -92,7 +92,7 @@ parameters = '''A: \Set(0),'''
 
 ## type lift wrong carrier
 
-refinement が指定された ambient set の部分集合ではないため、拒否される。
+refinement が指定された ambient set の部分集合ではない。
 
 ```toml case
 id = "reject-system.type_lift_wrong_carrier"
@@ -109,7 +109,7 @@ parameters = '''A, B: \Set(0),
 
 ## subset intro
 
-部分集合の witness と所属証明を組み合わせられるため、受理される。
+部分集合の witness と所属証明を組み合わせられる。
 
 ```toml case
 id = "accept-subset_intro"
@@ -182,7 +182,7 @@ parameters = '''A: \Set(0),
 
 ## id elim local subset
 
-局所的な部分集合を motive と binder の下でも保持するため、受理される。
+局所的な部分集合を motive と binder の下でも保持する。
 
 ```toml case
 id = "accept-system.id_elim_local_subset"
@@ -222,7 +222,7 @@ parameters = '''A: \Set'''
 
 ## inductive elimination through refinement
 
-refinement を通して帰納型の要素を除去できるため、受理される。
+refinement を通して帰納型の要素を除去できる。
 
 ```toml case
 id = "accept-system.inductive_elimination_through_refinement"
@@ -255,7 +255,7 @@ name = "RefinedNaturalElimination"
 
 ## nested subset applications
 
-入れ子の refinement と application が型を保つため、受理される。
+入れ子の refinement と application が型を保つ。
 
 ```toml case
 id = "accept-system.nested_subset_applications"
@@ -302,7 +302,7 @@ parameters = '''A: \Set(0),
 
 ## refinement eliminators
 
-refinement の witness と所属証明を対応する型で取り出せるため、受理される。
+refinement の witness と所属証明を対応する型で取り出せる。
 
 ```toml case
 id = "accept-system.refinement_eliminators"
@@ -385,7 +385,7 @@ expect = "accept"
 
 ## subset and equality
 
-部分集合への所属と ambient set の等号を組み合わせられるため、受理される。
+部分集合への所属と ambient set の等号を組み合わせられる。
 
 ```toml case
 id = "accept-system.subset_and_equality"

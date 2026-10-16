@@ -2,7 +2,7 @@
 
 ## display conversion
 
-表示を伴う項でも定義的等価性の検査が成立するため、受理される。
+表示を伴う項でも定義的等価性の検査が成立する。
 
 ```toml case
 id = "accept-regressions.display_conversion"
@@ -25,7 +25,7 @@ name = "Display"
 
 ## inductive reduction large parameter
 
-大きな parameter を持つ帰納型でも再帰子の簡約が型を保つため、受理される。
+大きな parameter を持つ帰納型でも再帰子の簡約が型を保つ。
 
 ```toml case
 id = "accept-regressions.inductive_reduction_large_parameter"
@@ -55,7 +55,7 @@ name = "InductiveReductionLargeParameter"
 
 ## refined function application
 
-refinement を持つ関数の application が対応する型を持つため、受理される。
+refinement を持つ関数の application が対応する型を持つ。
 
 ```toml case
 id = "accept-regressions.refined_function_application"

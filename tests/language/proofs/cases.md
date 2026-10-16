@@ -2,7 +2,7 @@
 
 ## 所属証明を使う部分集合への導入
 
-仮定した所属証明を使い、台集合の要素を部分集合の要素として導入できるため、受理される。
+仮定した所属証明を使い、台集合の要素を部分集合の要素として導入できる。
 
 ```toml case
 id = "accept-proofs.subset-introduction-with-membership-proof"
@@ -21,7 +21,7 @@ parameters = '''A: \Set,
 
 ## explicit proof terms
 
-命題の構成に対応する明示的な証明項を記述できるため、受理される。
+命題の構成に対応する明示的な証明項を記述できる。
 
 ```toml case
 id = "accept-proofs.explicit_proof_terms"

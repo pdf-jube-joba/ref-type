@@ -40,7 +40,7 @@ parameters = '''Carrier: \Set, x: Carrier'''
 
 ## structure result lambdas check their parameter annotations
 
-structure を返す関数でも、lambda の parameter 注釈が domain と異なるため拒否される。
+structure を返す関数でも、lambda の parameter 注釈が domain と異なる。
 
 ```toml case
 id = "structure_result_lambdas_check_their_parameter_annotations"
@@ -75,7 +75,7 @@ name = "Playground"
 
 ### signature
 
-型として利用できないため拒否される。
+型として利用できない。
 
 ```toml step
 id = "compact"
@@ -134,7 +134,7 @@ name = "Playground"
 
 ### signature
 
-型として利用できないため拒否される。
+型として利用できない。
 
 ```toml step
 id = "compact"
@@ -175,7 +175,7 @@ expect = "accept"
 
 ## 生成される projection の sort
 
-projection の積が許可された sort 関係を満たさないため、両方の診断方式で拒否される。
+projection の積が許可された sort 関係を満たさない。
 
 ```toml scenario
 id = "generated-projection"

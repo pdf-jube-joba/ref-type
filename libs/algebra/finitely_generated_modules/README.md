@@ -1,7 +1,6 @@
 # 有限生成加群
 
 整数の核・像・部分加群の基底、巡回加群、体上の有限次元部分空間を扱う。
-公開 module は [root.ref](src/root.ref)、直接依存は [ref.toml](ref.toml) にある。
 
 | module | 公開する内容 |
 | --- | --- |
@@ -11,5 +10,3 @@
 `finitely_generated_modules.FieldSubspaces.Over` は、体と有限座標空間の部分加群から線形な引き戻しの存在を証明する。
 `Dimension.Of.Retraction` は部分空間への写像と包含との左逆の法則を持つ。
 `existence` は次元による帰納法で引き戻しを構成し、`projective` は有限自由加群の直和因子として部分空間の射影性を示す。
-
-検査方法と関連パッケージは [ライブラリ一覧](../../README.md) を参照。

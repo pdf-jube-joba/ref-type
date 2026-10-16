@@ -2,7 +2,7 @@
 
 ## ambiguous implicit value
 
-implicit value を一意に決める制約が足りないため、拒否される。
+implicit value を一意に決める制約が足りない。
 
 ```toml case
 id = "reject-metavariables.ambiguous_implicit_value"
@@ -19,7 +19,7 @@ parameters = '''A: \Set(0), candidate: A'''
 
 ## ambiguous inductive argument
 
-帰納型の引数を一意に決める制約が足りないため、拒否される。
+帰納型の引数を一意に決める制約が足りない。
 
 ```toml case
 id = "reject-metavariables.ambiguous_inductive_argument"
@@ -39,7 +39,7 @@ name = "AmbiguousInductiveArgument"
 
 ## ambiguous module parameter
 
-module parameter の型を確定できないため、拒否される。
+module parameter の型を確定できない。
 
 ```toml case
 id = "reject-metavariables.ambiguous_module_parameter"
@@ -55,7 +55,7 @@ parameters = '''A: _'''
 
 ## ambiguous program value
 
-Program value の型を一意に決める制約が足りないため、拒否される。
+Program value の型を一意に決める制約が足りない。
 
 ```toml case
 id = "reject-metavariables.ambiguous_program_value"
@@ -71,7 +71,7 @@ parameters = '''A: \VType'''
 
 ## application inference
 
-application の期待型と引数から穴を推論できるため、受理される。
+application の期待型と引数から穴を推論できる。
 
 ```toml case
 id = "accept-metavariables.application_inference"
@@ -105,7 +105,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## bidirectional inference
 
-期待型から項へ、項から型への制約を組み合わせられるため、受理される。
+期待型から項へ、項から型への制約を組み合わせられる。
 
 ```toml case
 id = "accept-metavariables.bidirectional_inference"
@@ -129,7 +129,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## contextual inference
 
-穴の解がその局所文脈で型を持つため、受理される。
+穴の解がその局所文脈で型を持つ。
 
 ```toml case
 id = "accept-metavariables.contextual_inference"
@@ -161,7 +161,7 @@ name = "MetaContextual"
 
 ## declaration scopes
 
-穴の共有範囲が declaration の境界に対応するため、受理される。
+穴の共有範囲が declaration の境界に対応する。
 
 ```toml case
 id = "accept-metavariables.declaration_scopes"
@@ -184,7 +184,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## equality inference
 
-等号の両辺から carrier と型引数を推論できるため、受理される。
+等号の両辺から carrier と型引数を推論できる。
 
 ```toml case
 id = "accept-metavariables.equality_inference"
@@ -201,7 +201,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## id elim inferred carrier
 
-等号除去の carrier を等式の両辺から推論できるため、受理される。
+等号除去の carrier を等式の両辺から推論できる。
 
 ```toml case
 id = "accept-metavariables.id_elim_inferred_carrier"
@@ -221,7 +221,7 @@ parameters = '''A: \Set(1), a, b, c: A, ab: a = b, bc: b = c'''
 
 ## indexed match constraints
 
-index を持つ constructor の branch 制約で穴を推論できるため、受理される。
+index を持つ constructor の branch 制約で穴を推論できる。
 
 ```toml case
 id = "accept-metavariables.indexed_match_constraints"
@@ -260,7 +260,7 @@ parameters = '''A: \Set, x: A'''
 
 ## inductive parameter inference
 
-帰納型の parameter を constructor の引数から推論できるため、受理される。
+帰納型の parameter を constructor の引数から推論できる。
 
 ```toml case
 id = "accept-metavariables.inductive_parameter_inference"
@@ -281,7 +281,7 @@ parameters = '''A: \Set(0), a: A'''
 
 ## match constraints
 
-match の scrutinee と branch の制約から穴を推論できるため、受理される。
+match の scrutinee と branch の制約から穴を推論できる。
 
 ```toml case
 id = "accept-metavariables.match_constraints"
@@ -324,7 +324,7 @@ name = "MatchConstraints"
 
 ## program annotations
 
-Program の注釈と期待型が同じ value と computation の型を示すため、受理される。
+Program の注釈と期待型が同じ value と computation の型を示す。
 
 ```toml case
 id = "accept-metavariables.program_annotations"
@@ -351,7 +351,7 @@ parameters = '''A: \VType, a: A'''
 
 ## program constructor inference
 
-Program constructor の parameter を期待型から推論できるため、受理される。
+Program constructor の parameter を期待型から推論できる。
 
 ```toml case
 id = "accept-metavariables.program_constructor_inference"
@@ -374,7 +374,7 @@ parameters = '''A: \VType, a: A'''
 
 ## program type inference
 
-Program の型引数を application の制約から推論できるため、受理される。
+Program の型引数を application の制約から推論できる。
 
 ```toml case
 id = "accept-metavariables.program_type_inference"
@@ -428,7 +428,7 @@ name = "Assignment"
 
 ## Program の let 注釈 / 1
 
-let の型注釈と値の型が異なるため拒否される。
+let の型注釈と値の型が異なる。
 
 ```toml case
 id = "wrong-program-let-0"
@@ -444,7 +444,7 @@ parameters = '''A: \VType, B: \VType, a: A'''
 
 ## Program の let 注釈 / 2
 
-let の型注釈に value を書いているため拒否される。
+let の型注釈に value を書いている。
 
 ```toml case
 id = "wrong-program-let-1"
@@ -460,7 +460,7 @@ parameters = '''A: \VType, B: \VType, a: A'''
 
 ## Program の let 注釈 / 3
 
-let の値とその型を決定する制約がないため拒否される。
+let の値とその型を決定する制約がない。
 
 ```toml case
 id = "wrong-program-let-2"
@@ -476,7 +476,7 @@ parameters = '''A: \VType, B: \VType, a: A'''
 
 ## 推論変数への再代入 / A
 
-同じ型を再代入するため受理される。
+同じ型を再代入する。
 
 ```toml case
 id = "reassign-meta-A"
@@ -492,7 +492,7 @@ parameters = '''A: \Set, B: \Set, a: A'''
 
 ## 推論変数への再代入 / B
 
-既に A と決まった推論変数に異なる型 B を代入するため拒否される。
+既に A と決まった推論変数に異なる型 B を代入する。
 
 ```toml case
 id = "reassign-meta-B"
@@ -508,7 +508,7 @@ parameters = '''A: \Set, B: \Set, a: A'''
 
 ## match の制約 / 1
 
-motive の型が scrutinee の型と異なるため拒否される。
+motive の型が scrutinee の型と異なる。
 
 ```toml case
 id = "match-constraint-mismatch-0"
@@ -551,7 +551,7 @@ name = "MatchConstraints"
 
 ## match の制約 / 2
 
-branch の値が対応する constructor の引数の型と異なるため拒否される。
+branch の値が対応する constructor の引数の型と異なる。
 
 ```toml case
 id = "match-constraint-mismatch-1"

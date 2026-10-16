@@ -65,7 +65,7 @@ expect = "accept"
 
 ## 論理の異なる型
 
-元の項と型注釈の型が一致しないため拒否される。
+元の項と型注釈の型が一致しない。
 
 ```toml case
 id = "wrong-ascription-0"
@@ -81,7 +81,7 @@ parameters = '''A: \Set, B: \Set, a: A'''
 
 ## Program value の異なる型
 
-元の項と型注釈の型が一致しないため拒否される。
+元の項と型注釈の型が一致しない。
 
 ```toml case
 id = "wrong-ascription-1"
@@ -97,7 +97,7 @@ parameters = '''A: \VType, B: \VType, a: A'''
 
 ## Program computation の異なる型
 
-元の項と型注釈の型が一致しないため拒否される。
+元の項と型注釈の型が一致しない。
 
 ```toml case
 id = "wrong-ascription-2"
@@ -130,7 +130,7 @@ parameters = '''A: \Set, S: \Pow A, s: \Cast[A] S'''
 
 ## 注釈後に subset へ戻す
 
-基底型として注釈した値を、membership の証明なしに subset の値として使うため拒否される。
+基底型として注釈した値を、membership の証明なしに subset の値として使う。
 
 ```toml case
 id = "subset-ascription-1"

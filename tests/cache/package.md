@@ -23,7 +23,7 @@ scope = "package"
 
 ### 初回
 
-正しい constructor と import なので受理される。
+正しい constructor と import な。
 
 ```toml step
 id = "cold"
@@ -85,7 +85,7 @@ expect = "accept"
 
 ### 外部ファイルの削除
 
-必要な外部 module のファイルがないため拒否される。
+必要な外部 module のファイルがない。
 
 ```toml step
 id = "missing-source"

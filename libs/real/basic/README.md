@@ -1,7 +1,6 @@
 # 実解析の基礎
 
 構成済みの実数の演算、距離評価、数列、平方根、有限和を扱う。
-公開 module は [root.ref](src/root.ref)、直接依存は [ref.toml](ref.toml) にある。
 
 | module | 内容 |
 | --- | --- |
@@ -23,4 +22,3 @@
 ```
 
 [利用例](../../../libs/analysis/scalar_compatibility/src/Compatibility.ref) は定数列の極限と他分野との演算の共有を検査する。
-検査方法と関連パッケージは [ライブラリ一覧](../../README.md) を参照。

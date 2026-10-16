@@ -2,7 +2,7 @@
 
 ## existence escaping proposition
 
-存在の witness が持つ命題の証明を、任意の別の命題 P の証明として使っているため、拒否される。
+存在の witness が持つ命題の証明を、任意の別の命題 P の証明として使っている。
 
 ```toml case
 id = "reject-declarations.existence_escaping_proposition"
@@ -19,7 +19,7 @@ name = "EscapingExistentialProposition"
 
 ## existence escaping type
 
-存在命題の除去から集合を取り出そうとしているため、拒否される。
+存在命題の除去から集合を取り出そうとしている。
 
 ```toml case
 id = "reject-declarations.existence_escaping_type"
@@ -36,7 +36,7 @@ name = "EscapingExistentialType"
 
 ## correspondences
 
-対応する field と law を持つ structure を構築できるため、受理される。
+対応する field と law を持つ structure を構築できる。
 
 ```toml case
 id = "accept-declarations.correspondences"
@@ -115,7 +115,7 @@ expect = "accept"
 
 ## existence
 
-存在証明の局所 witness を結論の外に漏らさず利用できるため、受理される。
+存在証明の局所 witness を結論の外に漏らさず利用できる。
 
 ```toml case
 id = "accept-declarations.existence"

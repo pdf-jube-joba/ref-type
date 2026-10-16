@@ -25,8 +25,6 @@
 - [条件付き健全性](soundness.md)：TC を仮定した健全性と残る証明義務。
 - [Stratified judgement](stratified_judgement.md)：sorted PTS と判断の層化に関する検討メモ。
 
-Typing・合流性・集合モデルの旧記法による検討は、各ページ末尾に保存している。
-
 集合値の transport は分類付き補助体系の \(\mathsf{Tm}_{*^s_j}\) に属し、命題値の id elim は provability の規則に属する。
 共通項の IdElim からの移送では族の形成の sort によりこの分類を選び、局所 binder と始点・終点の代入を保存する。
 検査用 certificate の比較時の消去は、その certificate の typing と未解決 metavariable の検査を保持して行う。

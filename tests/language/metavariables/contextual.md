@@ -152,7 +152,7 @@ parameters = '''A: \Set'''
 
 ## imported front definitions still check argument types
 
-推論した関数を別の帰納型の関数として渡しているため拒否される。
+推論した関数を別の帰納型の関数として渡している。
 
 ```toml case
 id = "imported_front_definitions_still_check_argument_types"
@@ -174,7 +174,7 @@ expect = "reject"
 
 ## wrong inferred proof
 
-P の証明を Q の証明として返しているため拒否される。
+P の証明を Q の証明として返している。
 
 ```toml case
 id = "wrong-inferred-proof"
@@ -190,7 +190,7 @@ parameters = '''P, Q: \Prop'''
 
 ## escaping inferred witness
 
-exists から取り出した witness が結果へ逃げるため拒否される。
+exists から取り出した witness が結果へ逃げる。
 
 ```toml case
 id = "escaping-inferred-witness"
@@ -206,7 +206,7 @@ parameters = '''A: \Set'''
 
 ## unproved inferred subset
 
-基底型の値を membership の証明なしに subset の値として返すため拒否される。
+基底型の値を membership の証明なしに subset の値として返す。
 
 ```toml case
 id = "unproved-inferred-subset"
@@ -222,7 +222,7 @@ parameters = '''A: \Set, P: A -> \Prop'''
 
 ## module 引数 / hole
 
-module の引数に直接推論の穴を書いているため拒否される。
+module の引数に直接推論の穴を書いている。
 
 ```toml case
 id = "module-argument-hole"
@@ -236,7 +236,7 @@ expect = "reject"
 
 ## module 引数 / lambda-hole
 
-module の引数に直接推論の穴を書いているため拒否される。
+module の引数に直接推論の穴を書いている。
 
 ```toml case
 id = "module-argument-lambda-hole"

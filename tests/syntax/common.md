@@ -2,7 +2,7 @@
 
 ## 空白と入れ子のコメント
 
-空白は区切りとして扱い、入れ子のコメントは項に含めないため受理される。
+空白は区切りとして扱い、入れ子のコメントは項に含めない。
 
 ```toml case
 id = "comments"
@@ -21,7 +21,7 @@ expect = "accept"
 
 ## 対応する開始がないコメントの終端
 
-コメントを開始していない位置で終端が現れるため拒否される。
+コメントを開始していない位置で終端が現れる。
 
 ```toml case
 id = "unmatched-comment-end"
@@ -37,7 +37,7 @@ args = ["--parse-only"]
 
 ## 括弧による grouping
 
-括弧は式を grouping し、恒等関数に渡した証明は結果の命題を証明するため受理される。
+括弧は式を grouping し、恒等関数に渡した証明は結果の命題を証明する。
 
 ```toml case
 id = "grouping"
@@ -78,7 +78,7 @@ args = ["--parse-only"]
 
 ### 本体と区切りがある
 
-definition の必要な要素がそろっているため受理される。
+definition の必要な要素がそろっている。
 
 ```toml step
 id = "complete"
@@ -91,7 +91,7 @@ expect = "accept"
 
 ### 本体が欠けている
 
-代入記号の後に式がないため拒否される。
+代入記号の後に式がない。
 
 ```toml step
 id = "missing-body"
@@ -104,7 +104,7 @@ expect = "reject"
 
 ### 区切りが欠けている
 
-definition の終端がないため拒否される。
+definition の終端がない。
 
 ```toml step
 id = "missing-semicolon"

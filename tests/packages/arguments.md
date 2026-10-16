@@ -206,7 +206,7 @@ expect = "accept"
 
 ## different outer arguments keep distinct nominal types
 
-親 module の引数が異なる特殊化の帰納型を混用するため拒否される。
+親 module の引数が異なる特殊化の帰納型を混用する。
 
 ```toml case
 id = "different_outer_arguments_keep_distinct_nominal_types"
@@ -280,7 +280,7 @@ name = "Repro"
 
 ## expanded structure arguments preserve index type checks
 
-Unit を要求する index に Bit の structure を渡すため拒否される。
+Unit を要求する index に Bit の structure を渡す。
 
 ```toml case
 id = "expanded_structure_arguments_preserve_index_type_checks"
@@ -327,7 +327,7 @@ expect = "accept"
 
 ## structure 引数の個数 / few
 
-structure の宣言と渡した引数の個数が違うため拒否される。
+structure の宣言と渡した引数の個数が違う。
 
 ```toml case
 id = "structure-arity-few"
@@ -342,7 +342,7 @@ name = "Algebra"
 
 ## structure 引数の個数 / many
 
-structure の宣言と渡した引数の個数が違うため拒否される。
+structure の宣言と渡した引数の個数が違う。
 
 ```toml case
 id = "structure-arity-many"

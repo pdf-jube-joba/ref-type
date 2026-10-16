@@ -43,7 +43,7 @@ name = 'unlisted'
 
 ### 列挙した member
 
-列挙した member のソースは正しいため受理される。
+列挙した member のソースは正しい。
 
 ```toml step
 id = "valid"
@@ -86,7 +86,7 @@ args = ["--module", "left"]
 
 ### 存在しない member
 
-選択した member が存在しないため拒否される。
+選択した member が存在しない。
 
 ```toml step
 id = "missing"
@@ -96,7 +96,7 @@ args = ["--module", "missing"]
 
 ### member の欠落
 
-manifest に列挙した package のファイルがないため拒否される。
+manifest に列挙した package のファイルがない。
 
 ```toml step
 id = "missing-file"

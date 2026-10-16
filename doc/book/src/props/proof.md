@@ -7,12 +7,6 @@ Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除�
 \(\mathcal S_0\) と書く。判断は有限導出によって生成する。
 well-termination の略記は、その二つの判断の導出へ展開して数える。
 
-> **証明の到達点。**
-> datatype を除く分類付き core について、外部の集合論的仮定だけから相対無矛盾性を示す。
-> 新しい型コードモデルと証明項の消去により、raw conversion を含む全導出を
-> 意味的 conversion の補助体系へ移す。従来の候補解釈の未証明条件 TC は仮定しない。
-> Box は既存の消去定理で扱う。一般の datatype への拡張は未証明である。
-
 ## 証明すべき命題
 
 \[
@@ -31,7 +25,7 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 
 を示すことである。これは強正規化、Program の停止性、型検査の決定可能性とは別の命題である。
 
-完成した core の証明は
+証明は
 
 \[
 \mathcal S_\Box\ \longrightarrow\ \mathcal S_0\ \subseteq\ \mathcal S_+
@@ -40,24 +34,7 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 \quad+\quad\langle\bot\rangle=0
 \]
 
-という構成である。\(\mathcal H\) の健全性と簡約保存を先に証明してから、
-最後の導出移送で元の raw conversion を取り込む。
-\(\mathrm{TC}\) を外部集合論の公理に紛れ込ませない。
-
-## 証明の構成
-
-導出の基本補題と Box 消去、補助 reduction の合流性を用意し、型コードモデルへ進む。
-
-- [構文的補題](metatheory.md)：束縛と raw 代入の合成。
-- [合流性](confluence.md)：補助 reduction による共通簡約先と head の区別。
-- [Typing](typing.md)：weakening、substitution、Regularity、および subject reduction の到達点。
-- [Generation](generation.md)：補助体系で refinement を含む導出から導入時の型を回収する。
-- [Subject reduction](subject_reduction.md)：補助体系での一般の保存と型付きの共通簡約先。
-- [Box 消去](box_elimination.md)：reflection と Box-free core への導出の移送。
-- [型コードモデル](coded_model.md)：rank 再帰によるコード、decoding、証明消去、universe 閉性。
-- [Conversion と無矛盾性](semantic_conversion.md)：補助体系の健全性・意味保存、元の導出の移送、最終定理。
-- [従来の集合モデル](model.md)：再利用する集合演算と、別の候補解釈に対する条件 TC。
-- [従来の条件付き健全性](soundness.md)：非コード化解釈についての条件付き定理。
+という構成で、\(\mathcal H\) の健全性と簡約保存の後、導出移送で raw conversion を取り込む。
 
 ## 結果と残る証明義務
 
@@ -75,13 +52,7 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 | 分類付き core の相対無矛盾性 | 外部の集合論的仮定だけから証明済み | [最終定理](semantic_conversion.md#相対無矛盾性) |
 | datatype を含む体系への拡張 | 未証明 | [拡張に必要な事項](#datatypes) |
 
-従来の解釈についての [Semantic-step-plus](subject_reduction.md#semantic-step) は未証明のままだが、
-core の無矛盾性証明の前提ではなくなった。
-新しいモデルでは、関数型のコードが domain と fiber の情報を保持し、
-意味的 conversion を経た lambda の generation を直接示せる。
-命題の product は真理値に潰れるため、proof を返す lambda/application は先に消去する。
-これにより、\(\mathcal H\) の一歩保存をその健全性の後に独立に証明できる。
-元の \(\mathcal S_0\) の一般の SR も、この証明の追加仮定ではない。
+[Semantic-step-plus](subject_reduction.md#semantic-step) と元の \(\mathcal S_0\) の一般の SR は、この証明の前提に含まれない。
 
 [Stratified judgement](stratified_judgement.md) の議論は、この証明では利用しない。
 その議論は全 product rule に \(\sigma_2=\sigma_3\) を仮定しているが、
@@ -115,9 +86,6 @@ Box 付きの証明は Clear で先に消去する。□
 \(\llbracket t\rrbracket\in\varnothing\) となって矛盾。
 Box 付きの導出は [Box 消去の Clear](box_elimination.md) により Box-free の導出へ移る。□
 
-これは従来の候補解釈に対する TC 以外の接続を記録した定理である。
-上の型コードモデルによる無矛盾性は、この条件付き定理を経由しない。
-
 <a id="datatypes"></a>
 
 ## 一般の datatype を含める場合
@@ -135,8 +103,3 @@ Set case だけを除けば十分、とはしていない。
 また、well-termination の定義に Set typing が含まれることと、
 Program の operational な停止性を示すことは別である。
 後者の定理はここでは主張しない。
-
-集合値の transport は分類付き補助体系の \(\mathsf{Tm}_{*^s_j}\) に属し、命題値の id elim は provability の規則に属する。
-共通項の IdElim からの移送では族の形成の sort によりこの分類を選び、局所 binder と始点・終点の代入を保存する。
-検査用 certificate の比較時の消去は、その certificate の typing と未解決 metavariable の検査を保持して行う。
-TransportEq の導出は補助体系の恒等則へ移し、等式の形成と意味保存を対応させる。

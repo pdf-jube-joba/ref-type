@@ -1,7 +1,6 @@
 # 標準ライブラリ
 
 `std` は他のパッケージに依存せず、論理・データ・集合・算術・代数構造を提供する。
-公開 module は [root.ref](src/root.ref) を参照。
 
 | module | 内容 |
 | --- | --- |
@@ -57,7 +56,6 @@ Laws.congr3[B, C, D] f a b c d e g ab cd eg
 ```
 
 `Logic.existsIntro[A, S] x member` は `x: A` と `member: \In[A] S x` から `\exists \Cast[A] S` を証明する。
-部分集合の条件は `S` に一度記述する。
 
 ```text
 \definition singletonInhabited(A: \Set)(a: A):
@@ -83,10 +81,7 @@ Nat の演算は数学的な関数を `Def`、計算実装を `Program`、両者
 | `Arithmetic.Rat.Fractions` | 正分母の分数と交差積による同値関係 |
 | `Rat.Fractions.Quotient` | 商上の四則演算と代表元上の計算との一致 |
 
-Nat の各演算 module は、`Def` に Set 上の数学的な定義、`Prop` にその法則を置く。
-計算実装と停止性は `Program`、数学的な関数との一致証明と `Correspondence` は `ProgramProp` に置く。
-例えば `Data.Nat.Basic.Def.add` が数学的な加算、`Data.Nat.Basic.Program.add` が計算用の thunk、`Data.Nat.Basic.ProgramProp.Add.coherence` が両者の一致証明である。
-汎用の Set 上の反復は `Data.Nat.Iteration.Def` にある。
+Nat の法則は `Prop`、汎用の Set 上の反復は `Data.Nat.Iteration.Def` にある。
 自然数では `div a 0 = 0`、`mod a 0 = a`、`0^0 = 1` とする。
 単項表現なので大きな具体値の評価には向かない。
 Int は `ofNat n` / `negSucc n` の正規形を持ち、`toMath` / `fromMath` が群完成と対応する。
@@ -123,7 +118,6 @@ Program 側の型関連操作は計算を返すので、結果を `\bind` で受
 代数構造はデータと法則を `\structure` にまとめる。
 `Alg.Monoid`、`Alg.Alg`、`Alg.Ring`、`Alg.Field` が Monoid・Group・Semiring・Ring・Field と可換版を提供する。
 `RingModule` / `RingAlgebra` はスカラー環と carrier を指定する。
-利用例では自然数の加法モノイド・半環と整数の加法可換群を検査する。
 
 ## 証明付き整数計算と有限探索
 

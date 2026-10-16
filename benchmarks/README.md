@@ -3,22 +3,10 @@
 Python の入口は `bench.py` で、Linux と Python 3.11 以降の標準ライブラリを使う。
 計測するバイナリは事前にビルドし、計測は順番に実行する。
 
-```text
-benchmarks/
-  bench.py                    計測とログ分析の入口
-  cases.toml                  名前付きケースの入力・対象・資源制限
-  tests.py                    計測ツール自身の小さな検査
-  inputs/                     独立した計測用ソース
-  tools/                      resolver と割当追跡の補助ツール
-  records/                    条件を揃えて保存した比較結果
-  runs/                       今回のレポート・ログ・キャッシュ・一時データ
-  Cargo.toml                  resolver 用の独立した Cargo workspace
-```
-
 ## ケースを選ぶ
 
 [cases.toml](cases.toml) に各ケースの目的、入力、計測対象と既定の資源制限をまとめている。
-`case` は設定した秒数とメモリ上限で実行し、CLI オプションで上書きできる。
+資源制限は CLI オプションで上書きできる。
 
 ```sh
 python3 benchmarks/bench.py list
@@ -29,11 +17,6 @@ cargo build --manifest-path benchmarks/Cargo.toml --bin resolve-bench --locked
 python3 benchmarks/bench.py case nested-projections
 python3 benchmarks/tests.py
 ```
-
-| ケース | 対象 | 主な計測内容 |
-| --- | --- | --- |
-| `shared-bodies` | checker | structure 引数を取る定義本体と引数の共有 |
-| `nested-projections` | resolver | 型推論前の連続した field 射影 |
 
 ## その他の入力と生成 workload
 
@@ -60,8 +43,7 @@ python3 benchmarks/bench.py libraries libs/category --binary target/release/cli
 
 レポートの既定の保存先は、名前付きケースでは `runs/<ケース名>/report.json`、その他の計測では `runs/<サブコマンド>/report.json` である。
 `--output` でレポートの保存先を指定でき、各実行のログと CLI レポートは、その隣の `<名前>-logs/` に保存する。
-`runs/` は Git の管理対象から外している。
-比較結果として残す JSON と、その実行条件や考察は `records/` にまとめる。
+比較結果の JSON・条件・考察は [records](records/README.md) に保存する。
 
 `run` と `case` の既定は `--cache-mode off` で、checker の計測では CLI に `--no-cache` を渡す。
 `--cache-mode cold` は各実行に空の一時キャッシュを用意し、保存処理も計測する。
@@ -69,11 +51,6 @@ python3 benchmarks/bench.py libraries libs/category --binary target/release/cli
 `libraries` は既定で共有キャッシュを使う。
 一時ソースと一時キャッシュは `runs/scratch/` に作り、終了時に削除する。
 `--work-dir` で一時領域を指定できる。
-
-```sh
-python3 benchmarks/bench.py case shared-bodies --runs 3 --cache-mode cold
-python3 benchmarks/bench.py case shared-bodies --runs 2 --cache-mode shared
-```
 
 JSON は各実行の終了後に原子的に更新し、中断までの結果を残す。
 wall time、user time、system time、最大 RSS、終了状態、ソースの digest、保存量、公開レポートの合否と再利用を記録する。
@@ -108,5 +85,3 @@ python3 benchmarks/bench.py analyze benchmarks/runs/shared-bodies/report-logs/00
 別のプログラムは `--command` で指定する。
 入力パスだけをコマンドに追加し、追加の引数は末尾の `--extra` に続けて指定する。
 大きな割当の追跡には [alloc_trace.c](tools/alloc_trace.c) を使える。
-
-比較用に保存する結果と条件は [records](records/README.md) を参照。

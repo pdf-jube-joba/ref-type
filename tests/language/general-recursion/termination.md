@@ -2,7 +2,7 @@
 
 ## certificate for wrong step
 
-証明書が別の遷移関数についての証明になっているため、拒否される。
+証明書が別の遷移関数についての証明になっている。
 
 ```toml case
 id = "reject-general-recursion.certificate-for-wrong-step"
@@ -28,7 +28,7 @@ parameters = '''A: \Set, B: \Set,
 
 ## continue wrong state
 
-continue に渡した状態が状態空間の型を持たないため、拒否される。
+continue に渡した状態が状態空間の型を持たない。
 
 ```toml case
 id = "reject-general-recursion.continue-wrong-state"
@@ -44,7 +44,7 @@ parameters = '''A: \VType, B: \VType, b: B'''
 
 ## program run wrong proof
 
-run の証明が指定された computation の実行を保証しないため、拒否される。
+run の証明が指定された computation の実行を保証しない。
 
 ```toml case
 id = "reject-general-recursion.program-run-wrong-proof"
@@ -60,7 +60,7 @@ parameters = '''A: \VType, step: \U((A ~> \F(\RunStep[A, A]))), a: A'''
 
 ## program runcase wrong invariant
 
-Program runCase の不変条件が遷移等式と一致しないため、拒否される。
+Program runCase の不変条件が遷移等式と一致しない。
 
 ```toml case
 id = "reject-general-recursion.program-runcase-wrong-invariant"
@@ -84,7 +84,7 @@ parameters = '''A: \VType, step: \U((A ~> \F(\RunStep[A, A]))), a: A,
 
 ## runcase wrong invariant
 
-runCase の不変条件が要求される遷移等式を示していないため、拒否される。
+runCase の不変条件が要求される遷移等式を示していない。
 
 ```toml case
 id = "reject-general-recursion.runcase-wrong-invariant"
@@ -111,7 +111,7 @@ parameters = '''A: \Set, B: \Set,
 
 ## termination wrong edge
 
-停止証明の辺が指定された状態遷移に対応していないため、拒否される。
+停止証明の辺が指定された状態遷移に対応していない。
 
 ```toml case
 id = "reject-general-recursion.termination-wrong-edge"
@@ -135,7 +135,7 @@ parameters = '''A: \Set, B: \Set, step: A -> \RunStep[A, B], a, b: A,
 
 ## termination wrong state
 
-停止証明の状態が指定された状態空間に属さないため、拒否される。
+停止証明の状態が指定された状態空間に属さない。
 
 ```toml case
 id = "reject-general-recursion.termination-wrong-state"
@@ -158,7 +158,7 @@ parameters = '''A: \Set, B: \Set,
 
 ## termination wrong step proof
 
-停止証明が指定された遷移についての証明になっていないため、拒否される。
+停止証明が指定された遷移についての証明になっていない。
 
 ```toml case
 id = "reject-general-recursion.termination-wrong-step-proof"
@@ -181,7 +181,7 @@ parameters = '''A: \Set, B: \Set, step: A -> \RunStep[A, B], a: A'''
 
 ## wrong initial
 
-初期状態が遷移関数の入力型と一致しないため、拒否される。
+初期状態が遷移関数の入力型と一致しない。
 
 ```toml case
 id = "reject-general-recursion.wrong-initial"
@@ -199,7 +199,7 @@ parameters = '''A: \VType, B: \VType,
 
 ## wrong step
 
-遷移関数の型が指定された状態型と結果型に対応していないため、拒否される。
+遷移関数の型が指定された状態型と結果型に対応していない。
 
 ```toml case
 id = "reject-general-recursion.wrong-step"

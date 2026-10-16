@@ -28,7 +28,7 @@ scope = "package"
 
 ### 詳細な診断
 
-inspection hole と型エラーを含むため拒否される。
+inspection hole と型エラーを含む。
 
 ```toml step
 id = "detailed"
@@ -134,7 +134,7 @@ scope = "package"
 
 ### 正常な範囲
 
-Good の宣言は型が合うため受理される。
+Good の宣言は型が合う。
 
 ```toml step
 id = "good"
@@ -144,7 +144,7 @@ args = ["--module", "test.Good"]
 
 ### 子 module の型エラー
 
-Bad の子 module に型エラーがあるため拒否される。
+Bad の子 module に型エラーがある。
 
 ```toml step
 id = "bad"
@@ -154,7 +154,7 @@ args = ["--module", "test.Bad"]
 
 ### 存在しない module
 
-選択した module が存在しないため拒否される。
+選択した module が存在しない。
 
 ```toml step
 id = "missing"
@@ -193,7 +193,7 @@ stdout = "test\ntest.M\ntest.M.Good\ntest.M.Bad\n"
 
 ### 親自身
 
-親自身の宣言に型エラーがないため受理される。
+親自身の宣言に型エラーがない。
 
 ```toml step
 id = "parent"
@@ -203,7 +203,7 @@ args = ["--module", "test.M", "--module-only"]
 
 ### 子も検査
 
-子の宣言に型エラーがあるため拒否される。
+子の宣言に型エラーがある。
 
 ```toml step
 id = "whole"
@@ -213,7 +213,7 @@ args = ["--module", "test.M"]
 
 ### 親への依存
 
-子が参照する親の宣言が型を持たないため拒否される。
+子が参照する親の宣言が型を持たない。
 
 ```toml step
 id = "dependency"
@@ -240,7 +240,7 @@ scope = "package"
 
 ### 構文だけ
 
-構文が正しいため受理される。
+構文が正しい。
 
 ```toml step
 id = "parse"
@@ -252,7 +252,7 @@ stderr_empty = true
 
 ### 型も検査
 
-宣言された型と本体の型が異なるため拒否される。
+宣言された型と本体の型が異なる。
 
 ```toml step
 id = "check"
@@ -261,7 +261,7 @@ expect = "reject"
 
 ### 構文の欠落
 
-definition の本体が欠けているため拒否される。
+definition の本体が欠けている。
 
 ```toml step
 id = "syntax"
@@ -292,7 +292,7 @@ scope = "package"
 
 ### 構文だけ
 
-構文が正しいため受理される。
+構文が正しい。
 
 ```toml step
 id = "parse"
@@ -304,7 +304,7 @@ stderr_empty = true
 
 ### 型も検査
 
-宣言された型と本体の型が異なるため拒否される。
+宣言された型と本体の型が異なる。
 
 ```toml step
 id = "check"
@@ -313,7 +313,7 @@ expect = "reject"
 
 ### 構文の欠落
 
-definition の本体が欠けているため拒否される。
+definition の本体が欠けている。
 
 ```toml step
 id = "syntax"
@@ -349,7 +349,7 @@ scope = "package"
 
 ### 型
 
-集合を命題として定義しているため拒否される。
+集合を命題として定義している。
 
 ```toml step
 id = "type"
@@ -360,7 +360,7 @@ stderr_empty = false
 
 ### 構文
 
-definition の本体が欠けているため拒否される。
+definition の本体が欠けている。
 
 ```toml step
 id = "syntax"
@@ -447,7 +447,7 @@ scope = "package"
 
 ### 通常
 
-inspection hole が残るため拒否される。
+inspection hole が残る。
 
 ```toml step
 id = "normal"
@@ -482,7 +482,7 @@ scope = "package"
 
 ### 通常
 
-inspection hole が残るため拒否される。
+inspection hole が残る。
 
 ```toml step
 id = "normal"

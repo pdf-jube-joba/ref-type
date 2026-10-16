@@ -2,7 +2,7 @@
 
 ## macro name collision
 
-同じ scope で macro 名が重複しているため、拒否される。
+同じ scope で macro 名が重複している。
 
 ```toml case
 id = "reject-macros.macro_name_collision"
@@ -19,7 +19,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token match branch scope
 
-token match の別の分岐で束縛された capture を参照しているため、拒否される。
+token match の別の分岐で束縛された capture を参照している。
 
 ```toml case
 id = "reject-macros.token_match_branch_scope"
@@ -35,7 +35,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## use requires import
 
-macro の使用元となる module が import されていないため、拒否される。
+macro の使用元となる module が import されていない。
 
 ```toml case
 id = "reject-macros.use_requires_import"
@@ -50,7 +50,7 @@ name = "UseRequiresImport"
 
 ## definition scope hygiene
 
-macro 展開が定義位置の名前と使用位置の binder を区別するため、受理される。
+macro 展開が定義位置の名前と使用位置の binder を区別する。
 
 ```toml case
 id = "accept-macros.definition_scope_hygiene"
@@ -74,7 +74,7 @@ parameters = '''A: \Set(0), x: A'''
 
 ## forward math template
 
-後で定義された math template も module 本体から利用できるため、受理される。
+後で定義された math template も module 本体から利用できる。
 
 ```toml case
 id = "accept-macros.forward_math_template"
@@ -95,7 +95,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 
 ## import forward scope
 
-macro の import が module 本体全体に有効であるため、受理される。
+macro の import が module 本体全体に有効である。
 
 ```toml case
 id = "accept-macros.import_forward_scope"
@@ -114,7 +114,7 @@ expect = "accept"
 
 ## import inherited
 
-子 module が親の macro import を引き継ぐため、受理される。
+子 module が親の macro import を引き継ぐ。
 
 ```toml case
 id = "accept-macros.import_inherited"
@@ -135,7 +135,7 @@ expect = "accept"
 
 ## import repeated in child
 
-子 module で同じ macro を再度 import できるため、受理される。
+子 module で同じ macro を再度 import できる。
 
 ```toml case
 id = "accept-macros.import_repeated_in_child"
@@ -157,7 +157,7 @@ expect = "accept"
 
 ## module visibility
 
-import した module の macro を宣言された scope から利用できるため、受理される。
+import した module の macro を宣言された scope から利用できる。
 
 ```toml case
 id = "accept-macros.module_visibility"
@@ -189,7 +189,7 @@ expect = "accept"
 
 ## named forward reference
 
-名前付き macro を宣言位置より前で使えるため、受理される。
+名前付き macro を宣言位置より前で使える。
 
 ```toml case
 id = "accept-macros.named_forward_reference"
@@ -205,7 +205,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## recursive hygiene
 
-再帰的な macro 展開でも binder の capture を避けるため、受理される。
+再帰的な macro 展開でも binder の capture を避ける。
 
 ```toml case
 id = "accept-macros.recursive_hygiene"

@@ -2,7 +2,7 @@
 
 ## application wrong argument
 
-application の引数が関数の domain の型を持たないため、拒否される。
+application の引数が関数の domain の型を持たない。
 
 ```toml case
 id = "reject-system.application_wrong_argument"
@@ -20,7 +20,7 @@ parameters = '''A, B: \Set(0),
 
 ## non cumulative
 
-異なる universe level の集合を暗黙に同一視しているため、拒否される。
+異なる universe level の集合を暗黙に同一視している。
 
 ```toml case
 id = "reject-system.non_cumulative"
@@ -36,7 +36,7 @@ parameters = '''A: \Set(0)'''
 
 ## product invalid sort relation
 
-積の domain と codomain が許可された sort 関係を満たさないため、拒否される。
+積の domain と codomain が許可された sort 関係を満たさない。
 
 ```toml case
 id = "reject-system.product_invalid_sort_relation"
@@ -53,7 +53,7 @@ parameters = '''P: \Prop,
 
 ## pair cumulative
 
-pair の成分を宣言された universe の条件で組み合わせられるため、受理される。
+pair の成分を宣言された universe の条件で組み合わせられる。
 
 ```toml case
 id = "accept-pair_cumulative"
@@ -75,7 +75,7 @@ name = "PairCumulative"
 
 ## axioms
 
-公開された公理を対応する型を持つ証明 constructor として使えるため、受理される。
+公開された公理を対応する型を持つ証明 constructor として使える。
 
 ```toml case
 id = "accept-system.axioms"
@@ -105,7 +105,7 @@ parameters = '''X, Y: \Set,
 
 ## nested functions
 
-入れ子の関数で外側と内側の binder を区別するため、受理される。
+入れ子の関数で外側と内側の binder を区別する。
 
 ```toml case
 id = "accept-system.nested_functions"
@@ -143,7 +143,7 @@ parameters = '''A, B, C: \Set(0),
 
 ## pure type system
 
-許可された sort 関係で型と積を形成できるため、受理される。
+許可された sort 関係で型と積を形成できる。
 
 ```toml case
 id = "accept-system.pure_type_system"
@@ -176,7 +176,7 @@ parameters = '''A: \Set(0),
 
 ## record induction
 
-record を帰納的に分解して対応する motive の証明を構築できるため、受理される。
+record を帰納的に分解して対応する motive の証明を構築できる。
 
 ```toml case
 id = "accept-system.record_induction"

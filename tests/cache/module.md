@@ -48,7 +48,7 @@ stdout_same_as = "cold"
 
 ### 変更
 
-集合を命題として定義しているため拒否される。
+集合を命題として定義している。
 
 ```toml step
 id = "changed"

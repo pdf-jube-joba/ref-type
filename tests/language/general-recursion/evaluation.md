@@ -2,7 +2,7 @@
 
 ## bind wrong value
 
-bind で束縛する値の型が computation の結果型と一致しないため、拒否される。
+bind で束縛する値の型が computation の結果型と一致しない。
 
 ```toml case
 id = "reject-general-recursion.bind-wrong-value"
@@ -19,7 +19,7 @@ parameters = '''A: \VType, a: A'''
 
 ## finish wrong result
 
-finish に渡した値が結果の型を持たないため、拒否される。
+finish に渡した値が結果の型を持たない。
 
 ```toml case
 id = "reject-general-recursion.finish-wrong-result"
@@ -35,7 +35,7 @@ parameters = '''A: \VType, B: \VType, a: A'''
 
 ## let wrong computation
 
-let の束縛対象が要求される Program value になっていないため、拒否される。
+let の束縛対象が要求される Program value になっていない。
 
 ```toml case
 id = "reject-general-recursion.let-wrong-computation"
@@ -52,7 +52,7 @@ parameters = '''A: \VType, a: A'''
 
 ## program case wrong branch count
 
-Program case の分岐数が constructor の数と一致しないため、拒否される。
+Program case の分岐数が constructor の数と一致しない。
 
 ```toml case
 id = "reject-general-recursion.program-case-wrong-branch-count"
@@ -74,7 +74,7 @@ name = "IncompleteProgramCase"
 
 ## block syntax
 
-block 内の sequencing が Program value と computation の束縛を保つため、受理される。
+block 内の sequencing が Program value と computation の束縛を保つ。
 
 ```toml case
 id = "accept-general-recursion.block-syntax"
@@ -111,7 +111,7 @@ name = "Blocks"
 
 ## continue
 
-continue の状態を遷移に渡して実行を継続できるため、受理される。
+continue の状態を遷移に渡して実行を継続できる。
 
 ```toml case
 id = "accept-general-recursion.continue"
@@ -152,7 +152,7 @@ name = "RunContinue"
 
 ## finish
 
-finish が持つ結果を run の結果として取り出せるため、受理される。
+finish が持つ結果を run の結果として取り出せる。
 
 ```toml case
 id = "accept-general-recursion.finish"
@@ -185,7 +185,7 @@ parameters = '''A: \VType,
 
 ## forms
 
-Program の value と computation の各構文を対応する型で使えるため、受理される。
+Program の value と computation の各構文を対応する型で使える。
 
 ```toml case
 id = "accept-general-recursion.forms"
@@ -214,7 +214,7 @@ parameters = '''A: \VType,
 
 ## ill typed evaluation
 
-Set/Prop の型が合わない適用も、評価用の query では簡約できるため、受理される。
+Set/Prop の型が合わない適用も、評価用の query では簡約できる。
 
 ```toml case
 id = "accept-general-recursion.ill-typed-evaluation"
@@ -230,7 +230,7 @@ name = "IllTypedEvaluation"
 
 ## mccarthy 91
 
-停止証明を持つ McCarthy 91 の再帰的実行を記述できるため、受理される。
+停止証明を持つ McCarthy 91 の再帰的実行を記述できる。
 
 ```toml case
 id = "accept-general-recursion.mccarthy-91"
@@ -378,7 +378,7 @@ expect = "accept"
 
 ## 型が合わない Program application の評価
 
-Program の return を関数として適用した式も、評価用の query では簡約不能な式として保持できるため、受理される。
+Program の return を関数として適用した式も、評価用の query では簡約不能な式として保持できる。
 
 ```toml case
 id = "accept-general-recursion.raw-ill-typed-program-application-evaluation"
@@ -396,7 +396,7 @@ parameters = '''A: \VType,
 
 ## rose map
 
-再帰的な木を停止証明付きの Program で写せるため、受理される。
+再帰的な木を停止証明付きの Program で写せる。
 
 ```toml case
 id = "accept-general-recursion.rose-map"
@@ -493,7 +493,7 @@ expect = "accept"
 
 ## run case
 
-runCase は実行中の遷移 computation と対応する証明を使えるため、受理される。
+runCase は実行中の遷移 computation と対応する証明を使える。
 
 ```toml case
 id = "accept-general-recursion.run-case"
@@ -520,7 +520,7 @@ parameters = '''A: \VType,
 
 ## step match
 
-parameter を持つ遷移の結果を case で分解できるため、受理される。
+parameter を持つ遷移の結果を case で分解できる。
 
 ```toml case
 id = "accept-general-recursion.step-match"
@@ -576,7 +576,7 @@ expect = "accept"
 
 ## stuck
 
-開いた thunk の force は簡約できない computation として保持されるため、受理される。
+開いた thunk の force は簡約できない computation として保持される。
 
 ```toml case
 id = "accept-general-recursion.stuck"

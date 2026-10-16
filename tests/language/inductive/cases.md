@@ -2,7 +2,7 @@
 
 ## inductive motive large elimination
 
-帰納型の motive が許可されない大きな sort への除去を要求するため、拒否される。
+帰納型の motive が許可されない大きな sort への除去を要求する。
 
 ```toml case
 id = "reject-inductive_motive_large_elimination"
@@ -22,7 +22,7 @@ name = "LargeElimination"
 
 ## inductive motive telescope
 
-帰納型の motive の引数列が帰納型の index と一致しないため、拒否される。
+帰納型の motive の引数列が帰納型の index と一致しない。
 
 ```toml case
 id = "reject-inductive_motive_telescope"
@@ -42,7 +42,7 @@ name = "MotiveTelescope"
 
 ## inductives
 
-帰納型の constructor と再帰子の引数が対応しているため、受理される。
+帰納型の constructor と再帰子の引数が対応している。
 
 ```toml case
 id = "accept-inductive.inductives"
@@ -72,7 +72,7 @@ name = "Ind"
 
 ## local parameter arguments
 
-帰納型の引数置換が異なる局所変数を区別するため、受理される。
+帰納型の引数置換が異なる局所変数を区別する。
 
 ```toml case
 id = "accept-inductive.local_parameter_arguments"
@@ -98,7 +98,7 @@ parameters = '''A: \Set(0)'''
 
 ## natural number
 
-自然数の constructor と原始再帰を記述できるため、受理される。
+自然数の constructor と原始再帰を記述できる。
 
 ```toml case
 id = "accept-inductive.natural_number"
@@ -131,7 +131,7 @@ name = "nat"
 
 ## nested parameters
 
-同じ帰納型を parameter に渡すことと再帰的な field を区別するため、受理される。
+同じ帰納型を parameter に渡すことと再帰的な field を区別する。
 
 ```toml case
 id = "accept-inductive.nested_parameters"
@@ -191,7 +191,7 @@ name = "NestedParameters"
 
 ## open motives
 
-局所変数に依存する motive を使って帰納型を除去できるため、受理される。
+局所変数に依存する motive を使って帰納型を除去できる。
 
 ```toml case
 id = "accept-inductive.open_motives"
@@ -248,7 +248,7 @@ name = "OpenMotives"
 
 ## parametrized inductive
 
-parameter を持つ帰納型を具体化できるため、受理される。
+parameter を持つ帰納型を具体化できる。
 
 ```toml case
 id = "accept-inductive.parametrized_inductive"
@@ -268,7 +268,7 @@ parameters = '''B: \Set'''
 
 ## structure motive
 
-structure を返す motive で帰納型を除去できるため、受理される。
+structure を返す motive で帰納型を除去できる。
 
 ```toml case
 id = "accept-inductive.structure_motive"
@@ -295,7 +295,7 @@ expect = "accept"
 
 ## unit prec
 
-有限個の constructor の原始再帰子を使えるため、受理される。
+有限個の constructor の原始再帰子を使える。
 
 ```toml case
 id = "accept-inductive.unit_prec"
@@ -315,7 +315,7 @@ name = "bool"
 
 ## parameterized prec pair
 
-原始再帰で複数の局所 parameter を正しく置換するため、受理される。
+原始再帰で複数の局所 parameter を正しく置換する。
 
 ```toml case
 id = "accept-parameterized_prec_pair"
@@ -392,7 +392,7 @@ parameters = '''A: \Set, a: A'''
 
 ## constant return types check every branch
 
-一方の branch だけが、宣言した結果の型と異なる値を返すため拒否される。
+一方の branch だけが、宣言した結果の型と異なる値を返す。
 
 ```toml case
 id = "constant_return_types_check_every_branch"

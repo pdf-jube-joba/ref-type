@@ -2,7 +2,7 @@
 
 ## machine box closedness
 
-Box の computation type が局所変数に依存して閉じていないため、拒否される。
+Box の computation type が局所変数に依存して閉じていない。
 
 ```toml case
 id = "reject-declarations.machine_box_closedness"
@@ -52,7 +52,7 @@ expect = "reject"
 
 ## machine step
 
-machine の遷移が要求される型を持たないため、拒否される。
+machine の遷移が要求される型を持たない。
 
 ```toml case
 id = "reject-declarations.machine_step"
@@ -102,7 +102,7 @@ expect = "reject"
 
 ## bundles
 
-bundle の実装と仕様と停止証明が対応しているため、受理される。
+bundle の実装と仕様と停止証明が対応している。
 
 ```toml case
 id = "accept-declarations.bundles"
@@ -191,7 +191,7 @@ expect = "accept"
 
 ## closed program namespace
 
-閉じた Program namespace を Box の型に使えるため、受理される。
+閉じた Program namespace を Box の型に使える。
 
 ```toml case
 id = "accept-declarations.closed_program_namespace"
@@ -224,7 +224,7 @@ expect = "accept"
 
 ## machines
 
-machine の状態と遷移と停止証明の型が対応しているため、受理される。
+machine の状態と遷移と停止証明の型が対応している。
 
 ```toml case
 id = "accept-declarations.machines"

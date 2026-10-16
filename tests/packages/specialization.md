@@ -106,7 +106,7 @@ expect = "accept"
 
 ## 環境が異なる bundle の混用
 
-Unit 上で生成した bundle を Two 上の Maps に渡すため拒否される。
+Unit 上で生成した bundle を Two 上の Maps に渡す。
 
 ```toml case
 id = "specialized_bundle_guards_reject_a_different_ambient_type"
@@ -367,7 +367,7 @@ expect = "accept"
 
 ## inline structure / invalid
 
-Unit の値を渡す位置に集合の sort を渡しているため拒否される。
+Unit の値を渡す位置に集合の sort を渡している。
 
 ```toml case
 id = "inline-structure-invalid"
@@ -397,7 +397,7 @@ expect = "reject"
 
 ## 異なる型の module 引数
 
-A の値を要求する module に B の値を渡すため拒否される。
+A の値を要求する module に B の値を渡す。
 
 ```toml case
 id = "direct-argument-0"
@@ -414,7 +414,7 @@ expect = "reject"
 
 ## module 引数に依存する証明
 
-y と x の等式を要求する位置に y と y の等式を渡すため拒否される。
+y と x の等式を要求する位置に y と y の等式を渡す。
 
 ```toml case
 id = "direct-argument-1"

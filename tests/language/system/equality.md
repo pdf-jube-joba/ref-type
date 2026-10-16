@@ -2,7 +2,7 @@
 
 ## equality rejects proofs
 
-集合の要素を比較する等号で証明項を比較しているため、拒否される。
+集合の要素を比較する等号で証明項を比較している。
 
 ```toml case
 id = "reject-system.equality_rejects_proofs"
@@ -19,7 +19,7 @@ parameters = '''P: \Prop,
 
 ## equality requires common set
 
-等号の両辺が共通の集合の要素になっていないため、拒否される。
+等号の両辺が共通の集合の要素になっていない。
 
 ```toml case
 id = "reject-system.equality_requires_common_set"
@@ -37,7 +37,7 @@ parameters = '''A, B: \Set(0),
 
 ## funext wrong pointwise
 
-関数外延性に渡した証明が指定された二つの関数の各点等式ではないため、拒否される。
+関数外延性に渡した証明が指定された二つの関数の各点等式ではない。
 
 ```toml case
 id = "reject-system.funext_wrong_pointwise"
@@ -56,7 +56,7 @@ parameters = '''X, Y: \Set,
 
 ## id elim wrong base
 
-等号除去の基底証明が motive の反射の場合を示していないため、拒否される。
+等号除去の基底証明が motive の反射の場合を示していない。
 
 ```toml case
 id = "reject-system.id_elim_wrong_base"
@@ -78,7 +78,7 @@ parameters = '''A: \Set(0),
 
 ## setext wrong inclusion
 
-集合外延性の包含証明が指定された二つの集合を結ばないため、拒否される。
+集合外延性の包含証明が指定された二つの集合を結ばない。
 
 ```toml case
 id = "reject-system.setext_wrong_inclusion"
@@ -97,7 +97,7 @@ parameters = '''X: \Set,
 
 ## equality transport
 
-等号に沿って型と証明を移送できるため、受理される。
+等号に沿って型と証明を移送できる。
 
 ```toml case
 id = "accept-system.equality_transport"
@@ -196,7 +196,7 @@ parameters = '''A: \Set(1), F: A -> A -> \Set, a, b: A'''
 
 ## transport checks base and equality certificates
 
-移し替える前の型に合わない base を渡すため拒否される。
+移し替える前の型に合わない base を渡す。
 
 ```toml case
 id = "transport_checks_base_and_equality_certificates"
@@ -212,7 +212,7 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F b, e: a = b'''
 
 ## transport checks base and equality certificates 1
 
-移し替えの向きと等式の証明の向きが逆なので拒否される。
+移し替えの向きと等式の証明の向きが逆な。
 
 ```toml case
 id = "transport_checks_base_and_equality_certificates-1"
@@ -228,7 +228,7 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A, v: F a, e: b = a'''
 
 ## transport substitutes through nested family binders 1
 
-transporteq の family に命題を指定しているため拒否される。
+transporteq の family に命題を指定している。
 
 ```toml case
 id = "transport_substitutes_through_nested_family_binders-1"

@@ -100,7 +100,7 @@ right = { path = "../right" }
 
 ## cyclic dependencies
 
-package の依存が循環するため拒否される。
+package の依存が循環する。
 
 ```toml case
 id = "cyclic-dependencies"
@@ -133,7 +133,7 @@ a = { path = "../a" }
 
 ## external parameter inference
 
-外部 module の parameter に未解決の型が残るため拒否される。
+外部 module の parameter に未解決の型が残る。
 
 ```toml case
 id = "external-parameter-inference"

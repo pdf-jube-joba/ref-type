@@ -2,7 +2,7 @@
 
 ## duplicate capture
 
-macro の capture 名が重複しているため、拒否される。
+macro の capture 名が重複している。
 
 ```toml case
 id = "reject-macros.duplicate_capture"
@@ -17,7 +17,7 @@ name = "DuplicateCapture"
 
 ## math extra expression
 
-math macro の一致後に余分な式が残るため、拒否される。
+math macro の一致後に余分な式が残る。
 
 ```toml case
 id = "reject-macros.math_extra_expression"
@@ -37,7 +37,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 
 ## math operator chain
 
-演算子列全体に一致する math macro が存在しないため、拒否される。
+演算子列全体に一致する math macro が存在しない。
 
 ```toml case
 id = "reject-macros.math_operator_chain"
@@ -57,7 +57,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 
 ## named literal mismatch
 
-macro 呼び出しの literal が宣言された template と一致しないため、拒否される。
+macro 呼び出しの literal が宣言された template と一致しない。
 
 ```toml case
 id = "reject-macros.named_literal_mismatch"
@@ -75,7 +75,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## non tail recursion depth
 
-非末尾再帰の macro 展開が有限の展開上限を超えるため、拒否される。
+非末尾再帰の macro 展開が有限の展開上限を超える。
 
 ```toml case
 id = "reject-macros.non_tail_recursion_depth"
@@ -93,7 +93,7 @@ parameters = '''A: \Set(0), x: A'''
 
 ## reserved macro token
 
-macro が構文の予約 token を独自の token として使うため、拒否される。
+macro が構文の予約 token を独自の token として使う。
 
 ```toml case
 id = "reject-macros.reserved_macro_token"
@@ -108,7 +108,7 @@ name = "ReservedMacroToken"
 
 ## rest must be last
 
-rest capture の後にさらに capture を置いているため、拒否される。
+rest capture の後にさらに capture を置いている。
 
 ```toml case
 id = "reject-macros.rest_must_be_last"
@@ -124,7 +124,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## self recursion depth
 
-自分自身を展開し続ける macro が有限の展開上限を超えるため、拒否される。
+自分自身を展開し続ける macro が有限の展開上限を超える。
 
 ```toml case
 id = "reject-macros.self_recursion_depth"
@@ -141,7 +141,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token capture requires token
 
-token capture に通常の項として解釈する value を渡しているため、拒否される。
+token capture に通常の項として解釈する value を渡している。
 
 ```toml case
 id = "reject-macros.token_capture_requires_token"
@@ -158,7 +158,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token match no branch
 
-入力 token に一致する token match の分岐がないため、拒否される。
+入力 token に一致する token match の分岐がない。
 
 ```toml case
 id = "reject-macros.token_match_no_branch"
@@ -175,7 +175,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## local expansion
 
-局所文脈の式を macro の capture に渡せるため、受理される。
+局所文脈の式を macro の capture に渡せる。
 
 ```toml case
 id = "accept-macros.local_expansion"
@@ -202,7 +202,7 @@ parameters = '''A: \Set(0), x: A, y: A'''
 
 ## variadic token match
 
-可変長 capture と token match を組み合わせて展開できるため、受理される。
+可変長 capture と token match を組み合わせて展開できる。
 
 ```toml case
 id = "accept-macros.variadic_token_match"
@@ -321,7 +321,7 @@ parameters = '''A: \Set(0), f: A, y: A'''
 
 ## capture の分類 / 5
 
-宣言していない sequence capture を展開しているため拒否される。
+宣言していない sequence capture を展開している。
 
 ```toml case
 id = "capture-judgement-4"
@@ -337,7 +337,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## capture の分類 / 6
 
-expression capture を sequence として展開しているため拒否される。
+expression capture を sequence として展開している。
 
 ```toml case
 id = "capture-judgement-5"
@@ -353,7 +353,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## capture の分類 / 7
 
-token capture を expression として参照しているため拒否される。
+token capture を expression として参照している。
 
 ```toml case
 id = "capture-judgement-6"
@@ -369,7 +369,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## capture の分類 / 8
 
-sequence capture を expression として参照しているため拒否される。
+sequence capture を expression として参照している。
 
 ```toml case
 id = "capture-judgement-7"
@@ -385,7 +385,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## capture の分類 / 9
 
-expression capture を token match の対象にしているため拒否される。
+expression capture を token match の対象にしている。
 
 ```toml case
 id = "capture-judgement-8"
@@ -401,7 +401,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## capture の分類 / 11
 
-token capture に sequence の match pattern を書いているため拒否される。
+token capture に sequence の match pattern を書いている。
 
 ```toml case
 id = "capture-judgement-10"
@@ -417,7 +417,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## capture の分類 / 12
 
-sequence capture に token の match pattern を書いているため拒否される。
+sequence capture に token の match pattern を書いている。
 
 ```toml case
 id = "capture-judgement-11"
@@ -433,7 +433,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## capture の分類 / 16
 
-token match の分岐の外で分岐内の capture を参照しているため拒否される。
+token match の分岐の外で分岐内の capture を参照している。
 
 ```toml case
 id = "capture-judgement-15"
@@ -449,7 +449,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## capture の分類 / 18
 
-math macro の pattern に named macro 用の token capture を書いているため拒否される。
+math macro の pattern に named macro 用の token capture を書いている。
 
 ```toml case
 id = "capture-judgement-17"
@@ -465,7 +465,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## operator のない math macro
 
-math macro の pattern に operator token がないため拒否される。
+math macro の pattern に operator token がない。
 
 ```toml case
 id = "macro-template-4"
@@ -480,7 +480,7 @@ name = "NoToken"
 
 ## 未宣言の expression capture
 
-template が宣言されていない capture を使っているため拒否される。
+template が宣言されていない capture を使っている。
 
 ```toml case
 id = "macro-template-5"
@@ -495,7 +495,7 @@ name = "UnknownCapture"
 
 ## token match / string-for-symbol
 
-文字列 token は記号 token の pattern に一致しないため拒否される。
+文字列 token は記号 token の pattern に一致しない。
 
 ```toml case
 id = "token-match-string-for-symbol"
@@ -511,7 +511,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token match / symbol-for-string
 
-記号 token は文字列 token の pattern に一致しないため拒否される。
+記号 token は文字列 token の pattern に一致しない。
 
 ```toml case
 id = "token-match-symbol-for-string"
@@ -527,7 +527,7 @@ parameters = '''A: \Set(0), value: A'''
 
 ## token match / group-for-token
 
-括弧で囲った sequence を単独の token capture に渡しているため拒否される。
+括弧で囲った sequence を単独の token capture に渡している。
 
 ```toml case
 id = "token-match-group-for-token"

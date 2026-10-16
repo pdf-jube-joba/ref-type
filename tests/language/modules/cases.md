@@ -2,7 +2,7 @@
 
 ## distinct namespace arguments
 
-異なる引数で具体化した nominal な型を同一視しているため、拒否される。
+異なる引数で具体化した nominal な型を同一視している。
 
 ```toml case
 id = "reject-modules.distinct-namespace-arguments"
@@ -23,7 +23,7 @@ expect = "reject"
 
 ## distinct namespace sources
 
-異なる module の nominal な型を同一視しているため、拒否される。
+異なる module の nominal な型を同一視している。
 
 ```toml case
 id = "reject-modules.distinct-namespace-sources"
@@ -47,7 +47,7 @@ expect = "reject"
 
 ## param free
 
-宣言されていない名前を module parameter として使っているため、拒否される。
+宣言されていない名前を module parameter として使っている。
 
 ```toml case
 id = "reject-param_free"
@@ -63,7 +63,7 @@ parameters = '''A: B,'''
 
 ## module nested
 
-子 module が親の parameter と宣言を参照できるため、受理される。
+子 module が親の parameter と宣言を参照できる。
 
 ```toml case
 id = "accept-modules.module_nested"
@@ -82,7 +82,7 @@ expect = "accept"
 
 ## module reference
 
-module の具体化で parameter を置換して member を参照できるため、受理される。
+module の具体化で parameter を置換して member を参照できる。
 
 ```toml case
 id = "accept-modules.module_reference"
@@ -108,7 +108,7 @@ expect = "accept"
 
 ## module reference2
 
-具体化した module の member を対応する型で利用できるため、受理される。
+具体化した module の member を対応する型で利用できる。
 
 ```toml case
 id = "accept-modules.module_reference2"
@@ -136,7 +136,7 @@ expect = "accept"
 
 ## parent import scope
 
-子 module が親の import alias と macro を利用できるため、受理される。
+子 module が親の import alias と macro を利用できる。
 
 ```toml case
 id = "accept-modules.parent_import_scope"
@@ -186,7 +186,7 @@ expect = "accept"
 
 ## program inductive instance
 
-具体化した Program module の帰納型を区別して使えるため、受理される。
+具体化した Program module の帰納型を区別して使える。
 
 ```toml case
 id = "accept-modules.program_inductive_instance"
@@ -216,7 +216,7 @@ expect = "accept"
 
 ## structure instance
 
-具体化した module 内の structure を対応する field で構築できるため、受理される。
+具体化した module 内の structure を対応する field で構築できる。
 
 ```toml case
 id = "accept-modules.structure_instance"
@@ -242,7 +242,7 @@ expect = "accept"
 
 ## substitution identity
 
-module の置換で同じ引数を再利用すると型の同一性を保つため、受理される。
+module の置換で同じ引数を再利用すると型の同一性を保つ。
 
 ```toml case
 id = "accept-modules.substitution-identity"
@@ -276,7 +276,7 @@ expect = "accept"
 
 ## parameter dependent
 
-後続の module parameter が先行する parameter の型に依存できるため、受理される。
+後続の module parameter が先行する parameter の型に依存できる。
 
 ```toml case
 id = "accept-parameter_dependent"
@@ -293,7 +293,7 @@ parameters = '''P1: \Prop,
 
 ## parameter dependent2
 
-依存 parameter を具体化すると後続の型も置換されるため、受理される。
+依存 parameter を具体化すると後続の型も置換される。
 
 ```toml case
 id = "accept-parameter_dependent2"

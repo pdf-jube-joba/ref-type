@@ -2,7 +2,6 @@
 
 `python3 tests/tests.py` は Markdown に記述したソースを一時ディレクトリに展開し、CLI を別プロセスで実行する。
 Python 3.11 以降の標準ライブラリを使う。
-テストの合否は CLI の公開仕様で決まり、処理系を書き直しても同じ文書を実行できる。
 
 ```sh
 cargo build -p cli --locked
@@ -23,14 +22,13 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 ## ケース
 
-一つの文書には、同じ論点について受理と拒否の条件を比較する複数のケースを置く。
-本文には、その条件で合否が決まる理由を書く。
+同じ論点の受理・拒否条件を一つの文書で比較し、本文に理由を書く。
 ケースは独立したソースディレクトリと空のキャッシュで実行する。
 
 ````markdown
 ## 恒等関数
 
-引数の証明が結果の命題を証明するため受理される。
+引数の証明が結果の命題を証明する。
 
 ```toml case
 id = "identity"
@@ -55,27 +53,7 @@ parameters = '''A: \Set, a: A'''
 `scope = "package"` と `scope = "workspace"` は、コードブロックに書いたファイルを相対パスに展開する。
 package の manifest を省略した場合は、名前が `test` の package を生成する。
 
-````markdown
-```toml case
-id = "import"
-scope = "package"
-expect = "accept"
-```
-
-```ref file=src/root.ref
-\module Base;
-\module Use;
-```
-
-```ref file=src/Base.ref
-\definition P: \Prop := \forall (P: \Prop) -> P -> P;
-```
-
-```ref file=src/Use.ref
-\import \root.Base[] \as B;
-\definition P: \Prop := B.P;
-```
-````
+ファイル配置の例は [imports.md](packages/imports.md) を参照。
 
 manifest は `toml file=ref.toml`、その他の内容は `text file=...` で記述できる。
 `entry` はソースディレクトリからの入力パスで、module では `root.ref`、package と workspace では `.` が既定値である。
@@ -96,10 +74,6 @@ id = "source-change"
 scope = "module"
 ```
 
-### 初回
-
-命題として正しい式なので受理される。
-
 ```toml step
 id = "cold"
 expect = "accept"
@@ -110,53 +84,24 @@ cache = "unused"
 \definition P: \Prop := \forall (P: \Prop) -> P -> P;
 ```
 
-### 再検査
-
-同じソースの検証結果を再利用する。
-
 ```toml step
 id = "warm"
 expect = "accept"
 cache = "reused"
-```
-
-### 変更
-
-集合を命題として定義するため拒否される。
-
-```toml step
-id = "changed"
-expect = "reject"
-```
-
-```ref
-\definition P: \Prop := \Set;
 ```
 ````
 
 `remove = ["src/Base.ref"]` は指定したファイルやディレクトリを実行前に削除する。
 `cache_dir` は一時ディレクトリからのキャッシュ保存先で、既定値は `cache` である。
 `cache_dir = "default"` は CLI の既定の保存先を使う。
-保存先を切り替えると、複数の独立したキャッシュを一つのシナリオで比較できる。
 
 `cache = "reused"` と `cache = "unused"` は JSON レポートの `cache.verification_reused` を検査する。
-これは永続化された検証結果を使って検証処理を省略したことを表す。
-構文解析だけの再利用は含まない。
+永続化された検証結果による検査の省略を表し、構文解析だけの再利用は含まない。
 `--no-cache`、`--full-check`、`--trace` では以前の検証結果を利用しない。
 
 ## 観測する結果
 
 ランナーは `--report-json PATH` を各実行に付ける。
-
-```json
-{
-  "version": 1,
-  "outcome": "accepted",
-  "cache": {
-    "verification_reused": true
-  }
-}
-```
 
 | `expect` | レポートの `outcome` | 終了コード |
 | --- | --- | --- |
@@ -206,7 +151,7 @@ checks = [
 
 `sum_equals` を使う場合、両方の正規表現に数値を取り出すキャプチャを一つずつ設ける。
 比較先は一回だけ一致し、各数値は有限の非負数である必要がある。
-実例は [profiling.md](cli/profiling.md) にある。
+[計測の例](cli/profiling.md)を参照。
 
 ### 保存ファイルの比較
 
@@ -219,7 +164,7 @@ files = [{ path = "refcache", same_as = "saved", nonempty = true }]
 
 `same_as` は同じパスを記録した先行手順との一致を検査する。
 `nonempty` はファイルが一つ以上あるかを検査する。
-実例は [files.md](cache/files.md) にある。
+[ファイル比較の例](cache/files.md)を参照。
 
 ### 制御端末と割り込み
 
@@ -237,19 +182,7 @@ interrupt = { terminal = "\u001b[2K", stderr = "checking " }
 `interrupt` に指定した文字列がすべて観測できたら、制御端末へ Ctrl+C を送る。
 `expect = "interrupted"` は Ctrl+C の送信と SIGINT による終了を検査し、JSON レポートを要求しない。
 割り込み前の終了やタイムアウトは失敗となる。
-実例は [terminal.md](cli/terminal.md) にある。
+[端末の例](cli/terminal.md)を参照。
 
-## 検査する論点
-
-| 文書 | 主な内容 |
-| --- | --- |
-| `syntax/` | 字句、括弧、構文と意味の境界 |
-| `language/` | sort、証明、帰納型、宣言、Program、macro、型推論 |
-| `packages/` | module 間の参照、親子関係、外部ファイル、package の依存 |
-| `workspaces/` | member の列挙と検査範囲 |
-| `cli/` | 選択、構文のみの検査、query の出力、計測ログ、端末表示、割り込み |
-| `cache/` | 再利用、ソース変更、依存変更、workspace の共有、保存ファイルの保持 |
-
-数学的な定義と証明は [libs](../libs/README.md) に置く。
-[test_runner.py](test_runner.py) は、文書の読み取りと実行結果の検証など、共通ランナーの動作を確認する。
-Rust の内部状態、保存形式の破損、supervisor のプロセス管理は `src/` の実装テストで検査する。
+数学の定義・証明は [libs](../libs/README.md)、内部状態・保存形式・プロセス管理は Rust のテストで検査する。
+[test_runner.py](test_runner.py) は共通ランナーの動作を検査する。

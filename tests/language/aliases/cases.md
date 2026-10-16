@@ -2,7 +2,7 @@
 
 ## body type
 
-alias の本体が宣言された型を持たないため、拒否される。
+alias の本体が宣言された型を持たない。
 
 ```toml case
 id = "reject-aliases.body_type"
@@ -17,7 +17,7 @@ name = "Bad"
 
 ## dependent argument type
 
-後続の alias 引数が先行する引数から決まる型を持たないため、拒否される。
+後続の alias 引数が先行する引数から決まる型を持たない。
 
 ```toml case
 id = "reject-aliases.dependent_argument_type"
@@ -35,7 +35,7 @@ name = "Bad"
 
 ## parameter count
 
-alias の引数が不足しており、残った上位 sort を項の型として使えないため、拒否される。
+alias の引数が不足しており、残った上位 sort を項の型として使えない。
 
 ```toml case
 id = "reject-aliases.parameter_count"
@@ -51,7 +51,7 @@ name = "Bad"
 
 ## unused argument type
 
-本体で使わない alias 引数にも型の不一致があるため、拒否される。
+本体で使わない alias 引数にも型の不一致がある。
 
 ```toml case
 id = "reject-aliases.unused_argument_type"
@@ -68,7 +68,7 @@ name = "Bad"
 
 ## aliases
 
-alias の本体を引数で置換すると宣言された型を持つため、受理される。
+alias の本体を引数で置換すると宣言された型を持つ。
 
 ```toml case
 id = "accept-aliases"
@@ -369,7 +369,7 @@ name = "Negative"
 
 ## 命題の alias からの大きな除去
 
-複数の constructor を持つ命題を消去して sort を返しているため拒否される。
+複数の constructor を持つ命題を消去して sort を返している。
 
 ```toml case
 id = "alias-large-elimination"

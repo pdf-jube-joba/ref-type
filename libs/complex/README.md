@@ -26,5 +26,3 @@ Dedekind 実数の対として \(\mathbb{C}=\mathbb{R}\times\mathbb{R}\) を構�
 零の逆数と零による除法は零とする。
 
 [利用例](../../libs/complex/src/SpecificValues.ref) は演算・共役・体の構造を検査する。
-
-検査方法は [ライブラリ一覧](../README.md#型検査) を参照。

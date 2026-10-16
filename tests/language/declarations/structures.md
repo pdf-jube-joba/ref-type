@@ -2,7 +2,7 @@
 
 ## callback product
 
-証明を引数に取って signature を返す callback の積が、許可された sort 関係を満たさないため、拒否される。
+証明を引数に取って signature を返す callback の積が、許可された sort 関係を満たさない。
 
 ```toml case
 id = "reject-declarations.callback_product"
@@ -18,7 +18,7 @@ name = "Callback"
 
 ## coherence
 
-structure の coherence 証明が要求される等式を示していないため、拒否される。
+structure の coherence 証明が要求される等式を示していない。
 
 ```toml case
 id = "reject-declarations.coherence"
@@ -66,7 +66,7 @@ expect = "reject"
 
 ## default override
 
-copy を a と異なる値に上書きすると、既定の same が copy = a を証明できないため、拒否される。
+copy を a と異なる値に上書きすると、既定の same が copy = a を証明できない。
 
 ```toml case
 id = "reject-declarations.default_override"
@@ -83,7 +83,7 @@ name = "Override"
 
 ## duplicate field
 
-同じ field 名が重複しているため、拒否される。
+同じ field 名が重複している。
 
 ```toml case
 id = "reject-declarations.duplicate_field"
@@ -99,7 +99,7 @@ name = "Duplicate"
 
 ## structure law
 
-structure の law が要求される命題の証明になっていないため、拒否される。
+structure の law が要求される命題の証明になっていない。
 
 ```toml case
 id = "reject-declarations.structure_law"
@@ -118,7 +118,7 @@ isZero := \refl(Bit::one) };
 
 ## field classification
 
-field の型と sort に応じて値と証明を分類できるため、受理される。
+field の型と sort に応じて値と証明を分類できる。
 
 ```toml case
 id = "accept-declarations.field_classification"
@@ -176,7 +176,7 @@ expect = "accept"
 
 ## law dependency
 
-後続の law が先行する law の証明を利用できるため、受理される。
+後続の law が先行する law の証明を利用できる。
 
 ```toml case
 id = "accept-declarations.law_dependency"
@@ -200,7 +200,7 @@ same := \refl(a), witness := \refl(a) };
 
 ## structure fields
 
-structure の依存 field と projection の型が対応しているため、受理される。
+structure の依存 field と projection の型が対応している。
 
 ```toml case
 id = "accept-declarations.structure_fields"
@@ -264,7 +264,7 @@ expect = "accept"
 
 ## structures
 
-structure の field と law を満たす値を構築できるため、受理される。
+structure の field と law を満たす値を構築できる。
 
 ```toml case
 id = "accept-declarations.structures"
@@ -317,7 +317,7 @@ expect = "accept"
 
 ## structures
 
-structure の field と law を満たす値を構築できるため、受理される。
+structure の field と law を満たす値を構築できる。
 
 ```toml case
 id = "accept-structures"

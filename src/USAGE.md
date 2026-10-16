@@ -1,44 +1,39 @@
 # 利用方法
 
-コマンドはリポジトリのルートから実行する。
+リポジトリのルートで実行する。
 
 ```sh
 cargo run -p cli -- libs/std
-cargo run -p cli -- libs/category
+cargo run -p cli -- libs
+cargo run -p cli -- libs/std --module std.Data.Nat --diagnostics compact
 ```
 
-入力は `ref.toml` のあるパッケージ・workspace ディレクトリ、またはルート module を含む `.ref` ファイルである。
-パッケージは `src/root.ref` を入口にする。
+入力は package・workspace のディレクトリ、またはルート module を置いた `.ref` ファイル。
+package の入口は `src/root.ref`、依存先は `ref.toml` で指定する。
 
 ```toml
 [package]
 name = "example"
-
 [dependencies]
 std = { path = "../std" }
 ```
 
-複数のパッケージは、共通の親ディレクトリの `ref.toml` にまとめる。
+共通の親ディレクトリに workspace を置ける。
 
 ```toml
 [workspace]
 packages = ["std", "algebra/basic", "algebra/module_theory"]
 ```
 
-workspace を入力にすると、列挙したパッケージとその依存先を検査する。
-各パッケージの依存先は、それぞれの `[dependencies]` で定める。
-`[package]` と `[workspace]` を同じ manifest に置いた場合は、ルートのパッケージも検査対象になる。
-workspace 内の一つのパッケージを検査するには、そのディレクトリを入力にするか、workspace の入力に `--module` でパッケージ名を指定する。
-
-外部 module と import の記法は [表面構文](../doc/book/src/language/syntax.md#2-module)、ライブラリの構成は [libs](../libs/README.md) を参照。
+workspace 入力は全 member と依存先を検査し、`[package]` もある場合はルート package を含める。
+一つの member はそのディレクトリを入力にするか、`--module` に package 名を指定する。
+外部 module と import は [表面構文](../doc/book/src/language/syntax.md#2-module)、配置は [libs](../libs/README.md) を参照。
 
 ## 検査とキャッシュ
 
-workspace のパッケージは、workspace ディレクトリの `refcache/` を共有する。
-個別のパッケージやそのソースファイルを入力にした場合も、祖先の `ref.toml` から所属を確認し、同じ保存先を使う。
-workspace の外では入力ディレクトリの `refcache/` を利用する。
-単独ファイルの場合は親ディレクトリに保存する。
-`--cache-dir` で保存先を指定できる。
+workspace の member は、ソースファイルからの実行でも workspace 直下の `refcache/` を共有する。
+workspace 外は入力ディレクトリ、単独ファイルは親ディレクトリに保存する。
+`--cache-dir` はこの既定値より優先する。
 
 | オプション | 動作 |
 | --- | --- |
@@ -63,103 +58,50 @@ workspace の外では入力ディレクトリの `refcache/` を利用する。
 | `--trace` | 実際の検証を行い、型検査・登録・簡約のログを表示 |
 | `--diagnostics compact` / `detailed` | 診断の詳しさを指定 |
 
-`--module` を省略すると、入口と読み込んだ全依存パッケージの全 module を検査対象にする。
-パッケージ全体とその参照先を検査する場合は、`ref.toml` の package 名を module に指定する。
-個別の証明を編集する場合は、その module を指定すると、子 module と依存する宣言を含めて検査できる。
-`--full-check-local` は再検査とキャッシュ再利用の方針を指定するもので、検査対象の選択には `--module` を使う。
+`--module` を省略すると入口と読み込んだ全依存の全 module を検査する。
+指定すると、その module・子 module と参照先に絞る。
+`--module-only` は自身と参照先に絞り、同名 module は `--list-modules` の `Name#2` などで区別する。
+`--full-check-local` は検査範囲を変えず、入口 package または workspace member の再検査を強制する。
+依存の現在の内容は通常検査でも確認する。
 
-```sh
-cargo run -p cli -- libs/std --module std.Data.Nat --diagnostics compact
-cargo run -p cli -- libs/geometry/differential_forms --module differential_forms --full-check-local --diagnostics compact
-```
+Linux の package 検査は、親 supervisor が一つずつ worker を起動する。
+大きな範囲が時間・メモリ上限に達すると、親自身の宣言と各子 module に分割する。
+末端は時間で打ち切らず、メモリ制限と Ctrl+C を維持する。
+全 worker は固定した source snapshot と実行内の成果物を共有し、ソースが変わると再実行を求める。
 
-Linux では CLI 本体がパッケージの検査範囲を自動分割し、進捗表示を担当する親プロセスから検査プロセスを一つずつ起動する。
-検査プロセスの仮想メモリは既定3072 MiBで、起動元にさらに小さい制限がある場合はそちらを維持する。
-大きな範囲がメモリや時間の制限に達すると、親自身の宣言と子 module に分けて検査を続ける。
-分割できない末端では時間制限を適用せず、Ctrl+Cによる中断とメモリ制限を維持する。
-`--full-check` は実行前の検査結果を使わず、同じ実行中に検査済みとなった結果を共有する。
-各プロセスは共通のソーススナップショットを検査し、終了時にソースの変更が見つかった場合は再実行を求める。
-全ライブラリを検査する入口は `cargo run -p cli -- --full-check libs` である。
-実行手順は [ライブラリの型検査](../libs/README.md#型検査) を参照。
-`--module-only` は、親の宣言を検査してから子の各範囲を独立に検査する場合に使う。
-名前が繰り返される module は、`--list-modules` が返す `Name#2` などのパスで指定できる。
+キャッシュは処理系・設定・ソース・manifest・依存入力・検査範囲を照合する。
+無変更なら結果を再利用し、後続 package の検査には依存環境を復元する。
+module 完了境界の checkpoint から途中再開でき、保存コストの約10倍以上を空けて次を保存する。
+`--full-check` と入口の `--full-check-local` は再開を省いて再検査する。
+budget 超過時は利用中の成果物と依存を保護し、未使用の成果物を回収する。
+保存形式と API は [sema](sema/README.md#再利用) を参照。
 
-キャッシュの仕組みと API は [sema](sema/README.md) を参照。
+`--cache-stats` は query・I/O・圧縮・復元・保存失敗・回収量を表示する。
+`environment_hits` は環境復元数、`restored_modules` はその省略数、`package_hits` は package 成果物の再利用数である。
+`checkpoint_hits`・`checkpoint_writes`・`checkpoint_skips` は途中再開の件数、`budget_excess_bytes` は利用中データによる容量超過を表す。
+`retained_bytes_is_upper_bound` の間は保持量が保守的な累積値で、GC が実サイズへ更新する。
 
-同じコマンドを二度実行すると、別プロセスでのキャッシュ再利用を確認できる。
-
-```sh
-cargo run -p cli --release --locked -- libs/std --cache-stats
-cargo run -p cli --release --locked -- libs/std --cache-stats
-cargo run -p cli --release --locked -- libs/std --no-cache
-cargo run -p cli --release --locked -- libs/std --full-check
-cargo run -p cli --release --locked -- libs/std --full-check-local
-```
-
-`--cache-stats` は query 件数、object store の結果・環境別 I/O、圧縮・展開時間、破損や保存失敗の理由、回収量、メモリの保持件数を表示する。
-`environment_hits` は環境の import・復元数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` はメモリに保持する圧縮データの合計サイズである。
-`package_hits` は成果物の再利用で省略した package 数、`package_writes` は結果だけの保存も含む package manifest の公開数、`package_skips` は package export を作れなかった回数である。
-具体化した宣言の引数列と置換は、共有する配列を一度だけ保存し、復元後も共有する。
-package キャッシュには名前解決の状態も含まれ、依存先が一致すれば利用側の module 追加後も依存環境を再利用する。
-検査中の package は、一定時間が経過した後のソース module 完了時に、依存成果物への参照と自身の途中状態を `checkpoints/` に保存する。
-同じキャッシュ保存先で再実行すると、名前解決の状態と検査位置を復元し、保存位置以降を検査する。
-未完了の module が入れ子で存在する場合も、保存した検査順の続きから再開する。
-`--checkpoint-seconds` の既定値は30秒で、保存に時間がかかった場合は、その約10倍以上の検査時間を空けて次を保存する。
-一つの module の処理中に中断した場合は、最後に保存できた module 境界に戻る。
-途中環境にも package と依存先のソース・検査範囲・設定・処理系の照合を行い、`--full-check` と入口 package の `--full-check-local` は再開を省略して検査し直す。
-保存は一時ファイルへの書き込み後に置き換えるため、保存途中で停止しても前の checkpoint は残る。
-保存サイズ上限を超えた場合は、その package の以後の途中保存を省略し、最後に成功した checkpoint を残す。
-`--cache-stats` の `checkpoint_hits`・`checkpoint_writes`・`checkpoint_skips` で途中環境の復元・保存・省略件数を確認できる。
-`REF_TYPE_PROFILE_PROGRESS=1` のログでは、保存成功時に `event=checkpoint-saved` を出力する。
-異なる入口パッケージ間では、workspace の既定保存先、または `--cache-dir` に指定した共通の保存先から再利用する。
-保存量が budget を超えると、使用中の成果物と依存を保護して古い manifest・checkpoint・参照のなくなった object を回収する。
-使用中のデータによる一時的な超過は `budget_excess_bytes` に表示する。
-`retained_bytes_is_upper_bound` が真の場合、`retained_bytes` は置換前の記録などを保守的に含む累積会計値であり、GC で実際のファイルサイズを集計し直す。
-
-端末では標準エラーの一行を更新し、進捗バー、完了 module 数／総 module 数、現在の module、パッケージ内の完了数と経過秒数を表示する。
-検査前に選択範囲の依存グラフを使って総数を決め、キャッシュで省略した module も完了数に含める。
-総数にはパッケージ直下の宣言を持つルート module と子 module を含める。
-読み込み・依存解析・キャッシュ照合・名前解決・環境復元・検査・保存の段階も表示する。
-進捗は module 数を表し、残り時間の推定ではない。
-端末の描画は毎秒最大10回に制限する。
-各パッケージの選択範囲が完了すると、そのパッケージの `check`・`skip` の件数を一回表示する。
-標準エラーをファイルへ出力する場合や、`--trace`・`RUST_LOG`・`REF_TYPE_PROFILE_*` によるログを有効にした場合は、module ごとの `check` / `skip` と所要秒数を表示する。
-`--progress-tty` を指定すると、これらのログを残しながら制御端末に進捗バーを表示する。
-module ごとの秒数は読み込み・構文解析・名前解決と展開・検査・解析情報の収集・検査結果のキャッシュ処理を合計した実測の経過時間であり、処理の終了時に表示する。
-子 module や依存 module の時間は、その module 自身に計上する。
-生成された内部 module の時間は、元のソース module に計上する。
-再利用した module にも、今回実際に行った解析やキャッシュ処理の時間を表示する。
-`shared` は `total` から各 module の時間合計を引いた値であり、個別の module に計上していない処理の時間を表す。
-ソース全体の読み込み、共通の環境準備、checkpoint の保存・復元、環境の解放などが含まれる。
-各 module と `shared` の秒数の合計が `total` に一致するのは、この計算方法によるものであり、独立した計測値同士の一致を確認した結果ではない。
-`total` は CLI 内の引数処理から module の計測結果の表示と環境の解放までの時間であり、Cargo のビルド・プロセス起動時間と最後の `shared` / `total` の表示時間は別である。
-
-```sh
-cargo run -p cli -- libs/topology/basic --full-check-local
-cargo run -p cli -- libs/topology/basic --full-check-local --no-progress
-```
-
-`--full-check-local` では、C が B に、B が A に依存するとき、A・B の現在のソースと manifest を照合して C を再検証する。
-A の変更は B と C の入力キーへ伝播し、変更に対応する成果物を再構築する。
-一致する依存は保存済みの検証結果と独立した環境 object を再利用する。
-キャッシュは通常の検査と共有し、再検証に成功した結果で更新する。
-単独ファイルに指定すると、そのファイルから読み込む module 全体を再検証する。
+端末には進捗・完了数・現在の module・経過時間と package 別の `check` / `skip` 件数を表示する。
+総数は選択範囲と依存先のソース module 数で、キャッシュ省略も完了に含める。
+リダイレクト時やログ有効時は module 別の所要時間を標準エラーへ出し、`--progress-tty` で制御端末に進捗も表示できる。
+各 module の時間は自身の解析・展開・検査・保存を含み、子と依存は別に計上する。
+`shared = total - 各 module の時間合計` であり、共通準備・checkpoint・解放などを含む。
+`total` は CLI 内の処理時間で、Cargo のビルドと起動時間は含めない。
 
 ## 診断と計測
 
-ログと診断は標準エラー、query の結果は標準出力に書く。
-診断にはファイル位置、局所文脈、要求された型と制約を表示する。
-`#0` は最も内側の束縛を指す。
-`_` は推論する穴、`_0` などは宣言内で共有する穴である。
-`?` は確認用のゴールであり、解決済みでもゴールを表示して検査を失敗させる。
-
-`RUST_LOG` は `--trace` の既定フィルタより優先する。
+診断・ログは標準エラー、query 結果は標準出力へ書く。
+診断には位置・局所文脈・要求型・制約を表示し、`#0` は最内の束縛を表す。
+`_` は推論する穴、`_0` などは宣言内で共有する穴、`?` は解決済みでも失敗を返す確認用ゴールである。
+簡潔な診断は最初のエラーで停止する。
 
 ```sh
 RUST_LOG=ref_type::typing=debug cargo run -p cli -- libs/std --full-check
 RUST_LOG=ref_type::reduction=trace cargo run -p cli -- libs/std --full-check
 REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-cache
 ```
+
+`RUST_LOG` は `--trace` の既定フィルタより優先する。
 
 | 環境変数 | 計測対象 |
 | --- | --- |
@@ -176,65 +118,31 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 | `REF_TYPE_PROFILE_COSTS_PROGRESS_MS=15000` | cost 計測中の途中経過を出す間隔 |
 
 先頭の三つは `1` で全件、名前の一部で対象を絞る。
-`REF_TYPE_PROFILE_COSTS` は `resolve.,namespace.,kernel.` のような接頭辞のカンマ区切りでも対象を選べる。
-`inclusive_us` は子の処理を含み、`exclusive_us` は計測した子の時間を差し引く。
-再帰呼び出しの inclusive 時間は重複するため、内訳の比較には `cost_group` の exclusive 時間を使う。
-`resolve.total` は macro・structure 展開を含む型推論前の名前解決、`namespace.*` は elaboration 中のインスタンス構築・再利用判定である。
-package を依存順に追加する経路では、名前解決を `resolve.package` で計測する。
-namespace の inclusive 時間には引数の比較で呼ぶ kernel の変換判定が含まれる。
-`namespace.compare-arguments` は引数列の比較、`namespace.compare-rigid-arguments` は簡約で変わらない引数による候補の除外、`namespace.compare-syntax`・`namespace.compare-alpha`・`namespace.reduce-alias-head` は比較の各段階を測る。
-`namespace.telescope-candidates` は引数列単位で走査した候補数、`definition-exact-hit`・`definition-equivalent-hit`・`definition-origin-hit`・`definition-candidate-hit`・`definition-fresh` は定義の再利用結果を数える。
-`namespace.translation-failed.*` は再利用判定用の kernel 項への変換に失敗した回数であり、診断として報告された型エラーの件数とは異なる。
-cost 計測中は、その変換で生じた kernel エラーの種類ごとに最初の原因を `namespace.translation-failure sample=...` として出力する。
-`query.environment-plan` は検査順と依存情報から checkpoint のキーを作る時間を表す。
-`REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先される。
-簡潔な診断では最初のエラーで検査を停止する。
-時間とメモリの上限を付けた計測には [bench.py](../benchmarks/README.md) を使える。
-次の実行は空の専用キャッシュを作り、キャッシュ保存を含む初回検査を計測する。
+`REF_TYPE_COMPACT_DIAGNOSTICS=1` でも簡潔な診断を選べるが、CLI の指定が優先する。
+`REF_TYPE_PROFILE_COSTS` は `resolve.,namespace.,kernel.` のような接頭辞でも絞れる。
+`inclusive_us` は子を含み、`exclusive_us` は計測した子の時間を差し引く。
+再帰の内訳は `cost_group` の exclusive 時間で比較する。
+
+`resolve.total` / `resolve.package` は名前解決と展開、`namespace.*` は具体化・再利用判定を測る。
+`namespace.translation-failed.*` は比較用の変換失敗数で、最初の原因を `translation-failure sample=...` に出す。
+`query.environment-plan` は検査順・依存情報から checkpoint キーを作る時間である。
+
+途中ログの `event=start` は開始、`completed` と `package_completed` は完了数である。
+`event=complete` の `module_seconds` は途中の累積値で、終了時の解析情報収集・保存を含む最終集計とは異なる。
+checkpoint 保存時は `event=checkpoint-saved` を出す。
+
+詳細計測・資源制限・中断後のログ分析は [benchmarks](../benchmarks/README.md) を使う。
 
 ```sh
 cargo build -p cli --locked
 REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
   python3 benchmarks/bench.py run libs/algebra/homological/computations \
-  --cache-mode cold \
-  --seconds 180 --memory-mib 3072 --progress-seconds 15 \
+  --cache-mode cold --seconds 180 --memory-mib 3072 --progress-seconds 15 \
   --output benchmarks/runs/check/report.json
 ```
 
-`progress` 行と宣言の `checking` 行は処理の途中にも書き出すため、中断後も最後に開始した処理を追える。
-`completed` は完了数であり、`event=start` の module の通し番号ではない。
-`package_completed` は同じパッケージ内の完了数を表す。
-`event=complete` の `module_seconds` はその時点までの累積値で、後続の解析情報収集やキャッシュ保存を含む最終集計とは異なる。
-`REF_TYPE_PROFILE_DECLARATIONS` には名前の一部を指定して出力対象を絞れる。
-詳細ログをファイルに保存しながら進捗バーを表示する場合は、制御端末のあるシェルから次のように実行する。
-
-```sh
-mkdir -p benchmarks/runs/scratch
-REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
-  /usr/bin/time -v -o benchmarks/runs/homological-memory.log \
-  target/debug/cli libs/algebra/homological/computations --progress-tty \
-  --cache-dir "$(mktemp -d benchmarks/runs/scratch/profile.XXXXXX)" \
-  > benchmarks/runs/homological.log 2>&1
-```
-
-module・宣言の途中ログと完了した宣言の所要時間は `homological.log` に、実行全体の最大 RSS などは `homological-memory.log` に残る。
-Ctrl+C で検査を中断でき、中断前に出力された途中ログはファイルに残る。
-計測スクリプトは経過時間を表示し、終了時の最大 RSS・ユーザー／システム CPU 時間を記録する。
-型検査前に package ごとの検査完了順を調べる場合は、resolver の計測用プログラムを使える。
-
-```sh
-mkdir -p benchmarks/runs
-cargo run --manifest-path benchmarks/Cargo.toml --bin resolve-bench -- libs/algebra/homological/computations --package-order \
-  > benchmarks/runs/module-order.log
-```
-
-`package_complete` 番目の module と、その完了直後に検査する `next_module` を表示する。
-この順序はキャッシュ省略と型エラーからの復旧がない場合の予定であり、実測時間は通常の検査ログで確認する。
-namespace と名前解決の計測方法は [benchmarks](../benchmarks/README.md) にまとめている。
-現在の計測には `python3 benchmarks/bench.py run` を使い、`--runs 3` で通常実行、`--profile-costs --profile-phases` で詳細計測、`--command benchmarks/target/debug/resolve-bench` で resolver 単独の計測を行う。
-事前に `cargo build -p cli --locked` と `cargo build --manifest-path benchmarks/Cargo.toml --bin resolve-bench --locked` で計測用バイナリを更新する。
-`--cache-mode cold` は各 CLI 実行に空の専用キャッシュを用意し、保存処理も計測に含める。
-最大 RSS は子プロセスを含む個々のプロセスの最大値であり、同時点の合計や namespace 固有の使用量ではない。
+`--cache-mode cold` は空の専用キャッシュを作り、保存処理も計測する。
+最大 RSS は子孫を含む個々のプロセスの最大値である。
 
 ## 処理系のテスト
 
@@ -246,9 +154,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
-`tests/tests.py` が `tests/` の Markdown を実行し、CLI の公開仕様に基づいて合否とキャッシュの再利用を検査する。
-形式と実行方法は [acceptance test](../tests/README.md) を参照。
-`--report-json` の `outcome` は `accepted`、`rejected`、`internal-error` で、正常な受理と入力の拒否と処理系の異常を区別する。
-受理の終了コードは0、拒否は1、内部異常は2である。
-`cache.verification_reused` は構文解析だけの再利用を含まず、永続的な検証結果によって検証を省略したことを表す。
-依存クレートを取得済みの場合は Cargo のコマンドに `--offline` を追加できる。
+[受け入れテスト](../tests/README.md) は Markdown のソースと編集手順を CLI で実行する。
+`--report-json` の `outcome` と終了コードは `accepted` / 0、`rejected` / 1、`internal-error` / 2。
+`cache.verification_reused` は永続的な検証結果による検査省略を表す。
+依存取得済みなら Cargo に `--offline` を追加できる。

@@ -2,7 +2,7 @@
 
 ## constructor name collision
 
-associated item の名前が constructor と衝突しているため、拒否される。
+associated item の名前が constructor と衝突している。
 
 ```toml case
 id = "reject-program-items.constructor-name-collision"
@@ -20,7 +20,7 @@ name = "Bad"
 
 ## dependent field
 
-Program record の field 型が先行する field の値に依存するため、拒否される。
+Program record の field 型が先行する field の値に依存する。
 
 ```toml case
 id = "reject-program-items.dependent-field"
@@ -38,7 +38,7 @@ name = "Bad"
 
 ## duplicate declaration field
 
-Program record の宣言で field 名が重複しているため、拒否される。
+Program record の宣言で field 名が重複している。
 
 ```toml case
 id = "reject-program-items.duplicate-declaration-field"
@@ -56,7 +56,7 @@ name = "Bad"
 
 ## duplicate field
 
-Program record の literal で同じ field を二度指定しているため、拒否される。
+Program record の literal で同じ field を二度指定している。
 
 ```toml case
 id = "reject-program-items.duplicate-field"
@@ -74,7 +74,7 @@ name = "Bad"
 
 ## inductive literal
 
-Program record ではない帰納型を record literal として使っているため、拒否される。
+Program record ではない帰納型を record literal として使っている。
 
 ```toml case
 id = "reject-program-items.inductive-literal"
@@ -92,7 +92,7 @@ name = "Bad"
 
 ## missing field
 
-Program record の literal に必要な field が不足しているため、拒否される。
+Program record の literal に必要な field が不足している。
 
 ```toml case
 id = "reject-program-items.missing-field"
@@ -110,7 +110,7 @@ name = "Bad"
 
 ## owner parameter count
 
-associated item の owner 引数の数が宣言と一致しないため、拒否される。
+associated item の owner 引数の数が宣言と一致しない。
 
 ```toml case
 id = "reject-program-items.owner-parameter-count"
@@ -128,7 +128,7 @@ name = "Bad"
 
 ## owner parameter kind
 
-Program associated item の owner 引数が VType に分類されないため、拒否される。
+Program associated item の owner 引数が VType に分類されない。
 
 ```toml case
 id = "reject-program-items.owner-parameter-kind"
@@ -146,7 +146,7 @@ name = "Bad"
 
 ## projection as value
 
-associated projection を Program value として使っているため、拒否される。
+associated projection を Program value として使っている。
 
 ```toml case
 id = "reject-program-items.projection-as-value"
@@ -164,7 +164,7 @@ name = "Bad"
 
 ## projection name collision
 
-associated item の名前が生成される projection と衝突するため、拒否される。
+associated item の名前が生成される projection と衝突する。
 
 ```toml case
 id = "reject-program-items.projection-name-collision"
@@ -182,7 +182,7 @@ name = "Bad"
 
 ## recursive field
 
-Program record の field 型が宣言中の型を参照するため、拒否される。
+Program record の field 型が宣言中の型を参照する。
 
 ```toml case
 id = "reject-program-items.recursive-field"
@@ -200,7 +200,7 @@ name = "Bad"
 
 ## type argument count
 
-associated item の型引数の数が宣言と一致しないため、拒否される。
+associated item の型引数の数が宣言と一致しない。
 
 ```toml case
 id = "reject-program-items.type-argument-count"
@@ -218,7 +218,7 @@ name = "Bad"
 
 ## unknown field
 
-Program record に存在しない field を指定するため、拒否される。
+Program record に存在しない field を指定する。
 
 ```toml case
 id = "reject-program-items.unknown-field"
@@ -236,7 +236,7 @@ name = "Bad"
 
 ## unsolved type argument
 
-associated item の型引数を推論できないため、拒否される。
+associated item の型引数を推論できない。
 
 ```toml case
 id = "reject-program-items.unsolved-type-argument"
@@ -254,7 +254,7 @@ name = "Bad"
 
 ## unused invalid item
 
-使われない associated item にも型の不一致があるため、拒否される。
+使われない associated item にも型の不一致がある。
 
 ```toml case
 id = "reject-program-items.unused-invalid-item"
@@ -272,7 +272,7 @@ name = "Bad"
 
 ## value as computation
 
-Program value を computation として使っているため、拒否される。
+Program value を computation として使っている。
 
 ```toml case
 id = "reject-program-items.value-as-computation"
@@ -290,7 +290,7 @@ name = "Bad"
 
 ## wrong field type
 
-Program record の field 値が宣言された型を持たないため、拒否される。
+Program record の field 値が宣言された型を持たない。
 
 ```toml case
 id = "reject-program-items.wrong-field-type"
@@ -308,7 +308,7 @@ name = "Bad"
 
 ## associated order
 
-Program associated item を宣言順に利用できるため、受理される。
+Program associated item を宣言順に利用できる。
 
 ```toml case
 id = "accept-program-items.associated-order"
@@ -331,7 +331,7 @@ expect = "accept"
 
 ## certificates
 
-Program の実装とその仕様に対応する証明書を構築できるため、受理される。
+Program の実装とその仕様に対応する証明書を構築できる。
 
 ```toml case
 id = "accept-program-items.certificates"
@@ -372,7 +372,7 @@ expect = "accept"
 
 ## modules
 
-Program module の具体化と再 export が member の型を保つため、受理される。
+Program module の具体化と再 export が member の型を保つ。
 
 ```toml case
 id = "accept-program-items.modules"
@@ -436,7 +436,7 @@ expect = "accept"
 
 ## namespace identity
 
-同じ nominal な具体化から取り出した型の同一性を保つため、受理される。
+同じ nominal な具体化から取り出した型の同一性を保つ。
 
 ```toml case
 id = "accept-program-items.namespace-identity"
@@ -458,7 +458,7 @@ expect = "accept"
 
 ## pts associated owner
 
-PTS の型を owner 引数に持つ associated item を使えるため、受理される。
+PTS の型を owner 引数に持つ associated item を使える。
 
 ```toml case
 id = "accept-program-items.pts-associated-owner"
@@ -476,7 +476,7 @@ name = "Bad"
 
 ## records
 
-Program record の field と projection と case の型が対応するため、受理される。
+Program record の field と projection と case の型が対応する。
 
 ```toml case
 id = "accept-program-items.records"

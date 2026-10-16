@@ -1,7 +1,6 @@
 # 位相空間の構成
 
 積、商、直和、貼り合わせ、compact-open 位相を扱う。
-公開 module は [root.ref](src/root.ref)、直接依存は [ref.toml](ref.toml) にある。
 
 | module | 公開する内容 |
 | --- | --- |
@@ -14,5 +13,3 @@
 | `topological_constructions.Gluing.BinaryClosed` / `topological_constructions.Gluing.Pasting` | 二つの閉集合の被覆上での連続性判定と一致する写像の貼り合わせ。 |
 | `topological_constructions.ProductQuotient` | コンパクト Hausdorff 因子と商写像の積が商写像となる定理。 |
 | `topological_constructions.FunctionSpace.Of` | 連続写像の集合上の compact-open 位相と、連続写像との前合成の連続性。 |
-
-検査方法と関連パッケージは [ライブラリ一覧](../../README.md) を参照。

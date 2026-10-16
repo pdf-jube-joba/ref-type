@@ -2,7 +2,7 @@
 
 ## ambient signature parameter
 
-空の signature でも外側の module を異なる引数で具体化すると同一にはならないため、拒否される。
+空の signature でも外側の module を異なる引数で具体化すると同一にはならない。
 
 ```toml case
 id = "reject-declarations.ambient_signature_parameter"
@@ -24,7 +24,7 @@ expect = "reject"
 
 ## contextual unused argument
 
-contextual definition の未使用引数にも型の不一致があるため、拒否される。
+contextual definition の未使用引数にも型の不一致がある。
 
 ```toml case
 id = "reject-declarations.contextual_unused_argument"
@@ -42,7 +42,7 @@ name = "Guard"
 
 ## empty signature import
 
-import の parameter が Empty[Unit] を要求するのに、Empty[Other] の値を渡しているため、拒否される。
+import の parameter が Empty[Unit] を要求するのに、Empty[Other] の値を渡している。
 
 ```toml case
 id = "reject-declarations.empty_signature_import"
@@ -63,7 +63,7 @@ expect = "reject"
 
 ## existence signature
 
-Tag[Other] の存在証明に Tag[Unit] の witness を渡しているため、拒否される。
+Tag[Other] の存在証明に Tag[Unit] の witness を渡している。
 
 ```toml case
 id = "reject-declarations.existence_signature"
@@ -81,7 +81,7 @@ name = "ExistentialSignature"
 
 ## forward member
 
-通常の member が宣言位置より後の member を参照するため、拒否される。
+通常の member が宣言位置より後の member を参照する。
 
 ```toml case
 id = "reject-declarations.forward_member"
@@ -97,7 +97,7 @@ name = "Forward"
 
 ## kind field
 
-field の型として classifier を持たない上位 sort `\SetKind` を使っているため、拒否される。
+field の型として classifier を持たない上位 sort `\SetKind` を使っている。
 
 ```toml case
 id = "reject-declarations.kind_field"
@@ -112,7 +112,7 @@ name = "KindField"
 
 ## private helper
 
-子 module の helper を import や修飾なしで親の scope から参照しているため、拒否される。
+子 module の helper を import や修飾なしで親の scope から参照している。
 
 ```toml case
 id = "reject-declarations.private_helper"
@@ -132,7 +132,7 @@ expect = "reject"
 
 ## signature parameter
 
-異なる引数で具体化した空の signature の値を同一視しているため、拒否される。
+異なる引数で具体化した空の signature の値を同一視している。
 
 ```toml case
 id = "reject-declarations.signature_parameter"
@@ -150,7 +150,7 @@ name = "Parameter"
 
 ## contextual definitions
 
-局所文脈を保った definition の引数置換が型を保つため、受理される。
+局所文脈を保った definition の引数置換が型を保つ。
 
 ```toml case
 id = "accept-declarations.contextual_definitions"
@@ -208,7 +208,7 @@ expect = "accept"
 
 ## signatures
 
-signature の引数と実装の field が一致するため、受理される。
+signature の引数と実装の field が一致する。
 
 ```toml case
 id = "accept-declarations.signatures"

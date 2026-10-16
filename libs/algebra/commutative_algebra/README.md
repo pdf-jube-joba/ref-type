@@ -1,7 +1,6 @@
 # 可換環上の加群
 
 Hom とテンソル積、射影性、有限自由加群の行列を扱う。
-公開 module は [root.ref](src/root.ref)、直接依存は [ref.toml](ref.toml) にある。
 
 | module | 公開する内容 |
 | --- | --- |
@@ -11,5 +10,3 @@ Hom とテンソル積、射影性、有限自由加群の行列を扱う。
 | `commutative_algebra.Modules.Tensor.Adjunction` | テンソル積の双線形な普遍性と Hom–tensor の加群同型。 |
 | `commutative_algebra.Modules.ProjectiveTensor`、`ProjectiveTensorShortExact` | 射影加群とのテンソル積による単射性・短完全列の保存。 |
 | `commutative_algebra.Modules.TensorProjective` | 二つの射影加群のテンソル積の射影性。 |
-
-検査方法と関連パッケージは [ライブラリ一覧](../../README.md) を参照。

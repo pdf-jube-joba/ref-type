@@ -1,7 +1,6 @@
 # 加群論
 
 環上の加群、自由加群、直和、テンソル積、完全列を扱う。
-公開 module は [root.ref](src/root.ref)、直接依存は [ref.toml](ref.toml) にある。
 
 | module | 公開する内容 |
 | --- | --- |
@@ -18,5 +17,3 @@
 | `module_theory.Module.Over.Pushout.On` | 二つの準同型の押し出しと、可換な写像からの一意な準同型。 |
 | `module_theory.Module.Over.ShortExact.Pushout.On` | 短完全列を左端の係数写像に沿って押し出した短完全列。 |
 | `module_theory.Module.Over.CanonicalFree` / `FreeResolution` | 元の集合上の自由加群からの全射、反復する核、射影的な各項と隣接する微分の完全性。 |
-
-検査方法と関連パッケージは [ライブラリ一覧](../../README.md) を参照。

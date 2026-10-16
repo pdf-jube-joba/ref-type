@@ -368,7 +368,7 @@ expect = "accept"
 
 ## 入れ子の family の環境違い
 
-R 上の factory に S 上の complex を渡しているため拒否される。
+R 上の factory に S 上の complex を渡している。
 
 ```toml case
 id = "nested-family-ambient-mismatch"
@@ -463,7 +463,7 @@ expect = "accept"
 
 ## 固定 index の環境違い
 
-index が同じでも親の space の環境は R と S で異なるため拒否される。
+index が同じでも親の space の環境は R と S で異なる。
 
 ```toml case
 id = "fixed-family-ambient-mismatch"
@@ -610,7 +610,7 @@ expect = "accept"
 
 ## 依存する type alias の環境違い
 
-別の親引数から作った complex を type alias の引数に渡しているため拒否される。
+別の親引数から作った complex を type alias の引数に渡している。
 
 ```toml case
 id = "dependent-alias-mismatch"
@@ -803,7 +803,7 @@ expect = "accept"
 
 ## 異なる family index の混用
 
-k の Carrier を要求する位置に j の Carrier の値を渡すため拒否される。
+k の Carrier を要求する位置に j の Carrier の値を渡す。
 
 ```toml case
 id = "wrong-family-index"

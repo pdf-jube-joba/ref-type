@@ -1,6 +1,5 @@
 # 表面構文
 
-現在の `.ref` ファイルで使われている表面構文を、目的別にまとめる。
 例中の `<...>` は実際の名前や式に置き換えるメタ記号である。
 
 ## 1. 字句と共通記法
@@ -157,7 +156,6 @@ module argument では metavariable の推論を行わない。
 \definition Type(parameters)::item(arguments): type := expression;
 ```
 
-括弧付き binder は複数 group 書ける。
 `:` の左の binder を宣言文脈に追加して、結果の型と本体を検査する。
 型と本体から Set/Prop、Program value、Program computation のいずれかに分類される。
 `Type::item` は型関連 item で、owner の parameter を先頭に持つ宣言になる。
@@ -196,8 +194,6 @@ constructor type は `->`、`\forall`、通常の式を組み合わせる。Prog
 | cons: A -> List[A] -> List
 ;
 ```
-
-constructor は `Type[parameters]::constructor arguments` で参照する。
 
 Set/Prop の帰納型は、結果の sort の前で添字を束縛できる。
 parameter は型族全体で固定し、添字は constructor の結果ごとに指定する。
@@ -244,7 +240,6 @@ sort を持つ法則なしの record は、field の宣言順に引数を取る 
 };
 ```
 
-`identity.program` は thunk の値、`identity.specification` は反映先の仕様、`identity.coherence` は両者の等式である。
 `Machine` の `State`、`Output`、`step`、`terminates` を実装すると、`run` の既定値が停止性証明を使って実行する。
 具体化された Machine の実行は `runBox` マクロで Box にする。
 
@@ -267,13 +262,6 @@ Set/Prop と Program に共通の文を使う。
 \infer expression;
 \eval expression;
 \normalize expression;
-
-\check value: value-type;
-\infer value;
-\check computation: computation-type;
-\infer computation;
-\eval computation;
-\normalize computation;
 ```
 
 ## 4. 式の共通構文
@@ -281,10 +269,8 @@ Set/Prop と Program に共通の文を使う。
 ### binder
 
 ```text
-(x: A)
 (x, y: A, z: B)
 (_: A)
-(x: A \where predicate)
 (x: A \where predicate \as proof)
 ```
 
@@ -293,7 +279,7 @@ Set/Prop と Program に共通の文を使う。
 
 ### 優先順位
 
-すべての式は括弧で囲める。強い順の優先順位は次のとおり。
+強い順の優先順位は次のとおり。
 
 | 構文 | 結合 |
 | --- | --- |
@@ -421,7 +407,7 @@ left = right
 
 `\choiceeq` は `element = \choice X \by { existence: existence-proof, uniqueness: uniqueness-proof }` を証明する。
 集合 X の一意性を、choice の型付けを通じて利用する。
-`\of _` の集合は、期待される等式の右辺が choice に展開される場合、その集合から推論する。
+`\of _` の集合は、期待される等式の右辺が choice に展開されれば推論できる。
 choice と choiceeq の証明引数は型検査され、定義的等価性の比較では消去される。
 
 組み込み公理:

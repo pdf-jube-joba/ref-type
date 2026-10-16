@@ -19,9 +19,6 @@ Linux x86_64 / Debian 13、Intel Xeon Platinum 8573C、CPU quota 4 cores、rustc
 | category: std の環境を import して検査・保存 | 8.565 s | 8.184 s | 4.4% |
 | category: 全結果の再利用（1回） | 0.859 s | 0.409 s | 52.4% |
 
-std のキャッシュなし実行、全結果の再利用、圧縮環境キャッシュのメモリ、ディスク保存量はいずれも半減目標を達成した。
-初回保存と依存環境の import を伴う検査では、実行時間の半減には届いていない。
-式識別子の復元処理が加わるため、保存量の削減率がそのまま import の時間短縮になるわけではない。
 単一環境・2ライブラリの測定であり、各回のばらつきは JSON の個別値で確認できる。
 
 ## 条件
@@ -41,34 +38,8 @@ JSONには各回の時間、最大RSS、入力と実行ファイルのSHA-256、
 `cache-statistics.json` は `--cache-stats` のログから、保存メモリと再利用・import の件数などを抜き出したもの。
 `runs/` 配下のログと大きな実行ファイルは保存対象外。
 
-## 実装
-
-`--no-cache` の通常バッチが一時キャッシュの portable artifact を生成していた処理を省き、資源制限による分割後にだけバッチ共有用の一時キャッシュを有効にする。
-通常の全体検査では supervisor による重複構文解析を省き、選択検査・保存済み分割・資源制限後の分割時に module の列挙を行う。
-進捗イベントは1レコード単位で書き込み、`--no-progress` では生成を省く。
-worker への JSON 入力はバイト列から直接読み取り、Linux の pidfd が使える場合は終了通知で待機を解除する。
-依存グラフは AST の複製と Debug 文字列の生成を避け、読み取り専用 visitor とバイナリ形式でハッシュする。
-保存済みの検証結果は、GCから保護する lease の更新をまとめて行ってから個別に読む。
-
-キャッシュの resolver 識別子には source allocation の序数を使い、構造的な識別子にはSHA-256を維持する。
-環境本体のグラフから復元できる式識別子を resolver header に重複保存しない。
-シンボルの対応表を事前に索引化し、保存時の二重走査を除去する。
-resolver artifact は version 3 になり、既存の実装 fingerprint により変更前のキャッシュは再作成される。
-
 ## 再実行
 
 リポジトリルートから `bash benchmarks/records/cache-halving/measure.sh` を実行する。
 比較元と比較先の release CLI を、事前に `benchmarks/runs/halving/before-cli` と `benchmarks/runs/halving/after-cli` に置く。
 スクリプトの `comparison-before-cache` と `comparison-after-cache` は空の状態から開始する。
-
-## 検証
-
-- `cargo test --workspace --release --locked --offline`: 355件成功。
-- 最後の CLI I/O 変更後にも `cargo test -p cli --release --locked --offline` の10件と受け入れ416件、端末表示・中断6件を再実行して成功。
-- `python3 tests/tests.py --command benchmarks/runs/halving/after-cli`: 416件成功。
-- `python3 tests/tests.py tests/language tests/packages tests/workspaces --command 'benchmarks/runs/halving/after-cli --no-cache'`: 390件成功。
-- `tests/test_cli.py` の `BINARY` を比較先に設定して実行: 端末表示・中断など6件成功。
-- `cargo fmt --all --check` と `git diff --check` が成功。
-
-結果オブジェクトの一括 pin とGC、式識別子の完全復元と重複拒否、`--no-cache` の保存量ゼロ、非UTF-8のソース識別子に対する回帰テストを含む。
-既存のテストでキャッシュ破損、無効化、部分的な検査範囲、依存パッケージ、checkpoint、検査中のソース変更、子プロセスの中断も検証した。
