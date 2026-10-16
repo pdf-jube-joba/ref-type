@@ -1,0 +1,93 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import std.Data[].FinSet[] \as Fin;
+\import \root.Chains[A := A, source := source] \as Natural;
+\definition Unique: \Prop := \forall (x: A) -> x = a;
+\definition simplex(n: N.Nat^): Simplices.Carrier n := Simplices.At[n := n].constant a;
+\definition simplexUnique: Unique -> \forall (n: N.Nat^)(sigma: Simplices.Carrier n) -> sigma = simplex n :=
+  \fun (unique: Unique)(n: N.Nat^)(sigma: Simplices.Carrier n) => Simplices.ext n sigma (simplex n)
+    (\fun (x: algebraic_topology.Simplex[].Carrier n) => unique (sigma x));
+\definition generatorUnique: Unique -> \forall (n: N.Nat^)(sigma: Simplices.Carrier n) -> Natural.generator n sigma = Natural.generator n (simplex n) :=
+  \fun (unique: Unique)(n: N.Nat^)(sigma: Simplices.Carrier n) =>
+    congr!{{Simplices.Carrier n} {Natural.Carrier n}} (Natural.generator n) _ _ (simplexUnique unique n sigma);
+\module Shift(n: N.Nat^) {
+  \import Modules.Free[Generators := Simplices.Carrier n].Reindex[TargetGenerators := Simplices.Carrier (N.Nat^::succ n)] \as Reindex;
+  \definition map: Modules.Hom[V := Natural.Carrier n, W := Natural.Carrier (N.Nat^::succ n), source := Natural.space n, target := Natural.space (N.Nat^::succ n)].Map :=
+    Reindex.push (\fun (_: Simplices.Carrier n) => simplex (N.Nat^::succ n));
+  \definition onGenerator: \forall (sigma: Simplices.Carrier n) -> #apply{map} (Natural.generator n sigma) = Natural.generator (N.Nat^::succ n) (simplex (N.Nat^::succ n)) :=
+    Reindex.onGenerator (\fun (_: Simplices.Carrier n) => simplex (N.Nat^::succ n));
+}
+\module Positive(n: N.Nat^);
+\module Zero;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\import Complexes.Homotopy[C := complex, D := complex] \as Homotopies;
+\import Complexes.Prior[C := complex] \as Prior;
+\import Complexes.End[C := complex] \as End;
+\module Negative(n: N.Nat^) {
+  \definition degree: I.Int^ := I.Int^::negSucc (N.Nat^::succ n);
+  \definition map: Modules.Hom[V := Carrier degree, W := Carrier (Degrees.next degree), source := space degree, target := space (Degrees.next degree)].Map :=
+    Modules.Hom[V := Carrier degree, W := Carrier (Degrees.next degree), source := space degree, target := space (Degrees.next degree)].zeroMap;
+}
+\definition operator: \forall (z: I.Int^) -> Modules.Hom[V := Carrier z, W := Carrier (Degrees.next z), source := space z, target := space (Degrees.next z)].Map :=
+  \induction (z: I.Int^) \return Modules.Hom[V := Carrier z, W := Carrier (Degrees.next z), source := space z, target := space (Degrees.next z)].Map \with {
+    | ofNat: \fun (n: N.Nat^) => Shift[n := n].map
+    | negSucc: \induction (n: N.Nat^) \return Modules.Hom[V := Carrier (I.Int^::negSucc n), W := Carrier (Degrees.next (I.Int^::negSucc n)), source := space (I.Int^::negSucc n), target := space (Degrees.next (I.Int^::negSucc n))].Map \with {
+      | zero: Zero[].section
+      | succ: \fun (n: N.Nat^)(unused: _) => Negative[n := n].map
+    }
+  };
+\definition data: Homotopies.Data := Homotopies.Data { apply := \fun (z: I.Int^) => #apply{(operator z)} };
+\module At(z: I.Int^) {
+  \import Modules.Laws[V := Carrier z, space := space z] \as Values;
+  \import algebra.Group[].Of[Carrier := Carrier z, group := Values.additive] \as Group;
+  \definition rightHand(x: Carrier z): Carrier z := Values.add (Prior.value z (#apply{data} z x)) (Homotopies.shifted data z (#apply{differential} z x));
+  \definition identityDifference: \forall (x: Carrier z) -> Values.add x (Values.neg Values.zero) = x :=
+    \fun (x: Carrier z) => trans!{{Carrier z}} _ _ _ (congr!{{Carrier z} {Carrier z}} (Values.add x) _ _ Group.negZero) (Group.zeroRight x);
+}
+\module ZeroEquation;
+\module PositiveEquation(n: N.Nat^);
+\module NegativeOneEquation;
+\definition contractionLaw: Unique -> \forall (z: I.Int^)(x: Carrier z) -> At[z := z].rightHand x = x :=
+  \fun (unique: Unique) => \induction (z: I.Int^) \return \forall (x: Carrier z) -> At[z := z].rightHand x = x \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: Carrier (I.Int^::ofNat n)) -> At[z := I.Int^::ofNat n].rightHand x = x \with {
+      | zero: ZeroEquation[].law unique
+      | succ: \fun (n: N.Nat^)(unused: _) => PositiveEquation[n := n].law unique
+    }
+    | negSucc: \induction (n: N.Nat^) \return \forall (x: Carrier (I.Int^::negSucc n)) -> At[z := I.Int^::negSucc n].rightHand x = x \with {
+      | zero: NegativeOneEquation[].law
+      | succ: \fun (n: N.Nat^)(unused: _)(x: Carrier (I.Int^::negSucc (N.Nat^::succ n))) =>
+        Modules.Zero[].unique (At[z := I.Int^::negSucc (N.Nat^::succ n)].rightHand x) x
+    }
+  };
+\definition homotopy(unique: Unique): Homotopies.Homotopy End.identity End.zeroMap :=
+  \into[Homotopies.Data](data, Homotopies.Homotopy End.identity End.zeroMap) \by {
+    Homotopies.Laws[End.identity, End.zeroMap, data] {
+      addition := \fun (z: I.Int^) => #addition{(operator z)},
+      scalar := \fun (z: I.Int^) => #scalar{(operator z)},
+      equation := \fun (z: I.Int^)(x: Carrier z) => trans!{{Carrier z}} _ _ _ (At[z := z].identityDifference x)
+        (sym!{{Carrier z}} _ _ (contractionLaw unique z x)),
+    }
+  };
+\module Homology(z: I.Int^) {
+  \import Complexes.At[C := complex, z := z] \as H;
+  \definition zero: Unique -> \forall (q: H.Homology) -> q = #zero{H.homologySpace} :=
+    \fun (unique: Unique)(q: H.Homology) => trans!{H.Homology} _ _ _ (sym!{H.Homology} _ _ (End.At[k := z].identityOnHomology q))
+      (trans!{H.Homology} _ _ _ (Homotopies.At[k := z].onHomology End.identity End.zeroMap (homotopy unique) q) (End.At[k := z].zeroOnHomology q));
+}
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+  \import Hom.Integer[P := complex, N := coefficients] \as Cochains;
+  \import Hom.IntegerHomotopy[P := complex, Q := complex, N := coefficients] \as Invariance;
+  \import Hom.IntegerEnd[P := complex, N := coefficients] \as Identity;
+  \import Hom.IntegerZero[P := complex, N := coefficients] \as ZeroAction;
+  \module At(z: I.Int^) {
+    \import Cochains.Cohomology[z := z] \as H;
+    \definition zero: Unique -> \forall (q: H.Cohomology) -> q = #zero{H.cohomologySpace} :=
+      \fun (unique: Unique)(q: H.Cohomology) => trans!{H.Cohomology} _ _ _ (sym!{H.Cohomology} _ _ (Identity.At[k := z].onCohomology q))
+        (trans!{H.Cohomology} _ _ _ (Invariance.onCohomology End.identity End.zeroMap (homotopy unique) z q) (ZeroAction.At[k := z].onCohomology q));
+  }
+}
