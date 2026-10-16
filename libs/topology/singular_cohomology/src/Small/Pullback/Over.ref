@@ -1,0 +1,19 @@
+\import topology.Maps[A := B, B := A] \as Sets;
+\import topology.Continuity[A := B, B := A] \as Continuity;
+\definition Continuous: \Prop := Continuity.Continuous topology source f;
+\definition pullbackFamily: \Pow (\Pow B) := Sets.PullbackFamily f family;
+\import \root.Small[A := B, source := topology, family := pullbackFamily] \as Domain;
+\import \root.Small[A := A, source := source, family := family] \as Target;
+\import Domain.Simplices[] \as DomainSimplices;
+\import Target.Simplices[] \as TargetSimplices;
+\import \root.Maps[A := B, B := A, source := topology, target := source] \as WholeMaps;
+\module At(n: N.Nat^);
+\import Semisimplicial.Maps[X := DomainSimplices.object, Y := TargetSimplices.object] \as Simplicial;
+\definition simplicial(continuous: Continuous): Simplicial.Map := Simplicial.Map {
+  apply := \fun (n: N.Nat^) => At[n := n].postcompose continuous,
+  faces := \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: DomainSimplices.Carrier (N.Nat^::succ n)) =>
+    \refl(WholeMaps.postcompose n f continuous (DomainSimplices.face n i sigma)),
+};
+\import \root.SimplicialChains[].On[X := DomainSimplices.object].Mapping[Y := TargetSimplices.object] \as SmallMaps;
+\definition push(continuous: Continuous): Complexes.Map[C := Domain.complex, D := Target.complex].Map := SmallMaps.map (simplicial continuous);
+\module Square(n: N.Nat^);
