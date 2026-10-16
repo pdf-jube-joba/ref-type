@@ -1085,7 +1085,7 @@ impl CrateEnv {
                 arguments: self
                     .namespace_argument_cache
                     .borrow_mut()
-                    .share(&self.namespace_arguments(source.module)),
+                    .share_compact(&self.namespace_arguments(source.module)),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1165,7 +1165,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
         timing::costs::count("namespace.definition-fresh", || 1);
@@ -1331,7 +1334,7 @@ impl CrateEnv {
                 arguments: self
                     .namespace_argument_cache
                     .borrow_mut()
-                    .share(&self.namespace_arguments(source.module)),
+                    .share_compact(&self.namespace_arguments(source.module)),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1343,7 +1346,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
     }
@@ -1367,7 +1373,7 @@ impl CrateEnv {
                 arguments: self
                     .namespace_argument_cache
                     .borrow_mut()
-                    .share(&self.namespace_arguments(source.module)),
+                    .share_compact(&self.namespace_arguments(source.module)),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1379,7 +1385,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
         self.index_specializations();
@@ -1454,7 +1463,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
         timing::costs::count("namespace.inductive-fresh", || 1);
@@ -1556,7 +1568,7 @@ impl CrateEnv {
                 arguments: self
                     .namespace_argument_cache
                     .borrow_mut()
-                    .share(&self.namespace_arguments(source.module)),
+                    .share_compact(&self.namespace_arguments(source.module)),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1635,7 +1647,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
         timing::costs::count("namespace.datatype-fresh", || 1);

@@ -7,7 +7,40 @@ use super::{environment::*, exp::Exp, ids::*, program::*};
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub(crate) struct Specialization<I> {
     pub source: I,
-    pub arguments: std::sync::Arc<[(ModuleParamId, ModuleArgument)]>,
+    pub arguments: SharedArguments,
+}
+
+// Millions of nominal declarations share a comparatively small collection of
+// telescopes. Keep their length in that shared allocation, not in every entry.
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub(crate) struct SharedArguments(
+    std::sync::Arc<std::sync::Arc<[(ModuleParamId, ModuleArgument)]>>,
+);
+
+impl From<std::sync::Arc<[(ModuleParamId, ModuleArgument)]>> for SharedArguments {
+    fn from(arguments: std::sync::Arc<[(ModuleParamId, ModuleArgument)]>) -> Self {
+        Self(std::sync::Arc::new(arguments))
+    }
+}
+
+impl From<Vec<(ModuleParamId, ModuleArgument)>> for SharedArguments {
+    fn from(arguments: Vec<(ModuleParamId, ModuleArgument)>) -> Self {
+        std::sync::Arc::<[_]>::from(arguments).into()
+    }
+}
+
+impl std::ops::Deref for SharedArguments {
+    type Target = [(ModuleParamId, ModuleArgument)];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl SharedArguments {
+    pub(crate) fn as_arc(&self) -> &std::sync::Arc<[(ModuleParamId, ModuleArgument)]> {
+        &self.0
+    }
 }
 
 // A namespace import updates declaration remappings as each declaration is
@@ -52,6 +85,7 @@ pub(crate) struct ArgumentCache {
     parents: Vec<usize>,
     classes: Vec<Vec<usize>>,
     arguments: Vec<std::sync::Arc<[(ModuleParamId, ModuleArgument)]>>,
+    shared_arguments: Vec<SharedArguments>,
     module_sets: rustc_hash::FxHashMap<ModuleId, Vec<usize>>,
     registered: rustc_hash::FxHashSet<(ModuleId, usize)>,
     searches: rustc_hash::FxHashMap<(ModuleId, usize), CandidateSearch>,
@@ -124,10 +158,19 @@ impl ArgumentCache {
         let id = self.sets.len();
         let arguments: std::sync::Arc<[_]> = arguments.into();
         self.sets.insert(arguments.clone(), id);
+        self.shared_arguments.push(arguments.clone().into());
         self.arguments.push(arguments);
         self.parents.push(id);
         self.classes.push(vec![id]);
         id
+    }
+
+    pub(crate) fn share_compact(
+        &mut self,
+        arguments: &[(ModuleParamId, ModuleArgument)],
+    ) -> SharedArguments {
+        let id = self.intern(arguments);
+        self.shared_arguments[id].clone()
     }
 }
 
@@ -1210,6 +1253,15 @@ mod tests {
         let second = cache.share(&arguments);
         assert!(std::sync::Arc::ptr_eq(&first, &second));
         assert_eq!(cache.intern(&arguments), 0);
+        let compact = cache.share_compact(&arguments);
+        let repeated = cache.share_compact(&arguments);
+        assert!(std::sync::Arc::ptr_eq(&compact.0, &repeated.0));
+        assert!(std::sync::Arc::ptr_eq(&first, compact.as_arc()));
+        assert_eq!(
+            std::mem::size_of::<SharedArguments>(),
+            std::mem::size_of::<usize>()
+        );
+        assert_eq!(std::mem::size_of::<Specialization<DefId>>(), 16);
     }
 
     #[test]

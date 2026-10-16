@@ -182,7 +182,7 @@ pub(super) mod specializations {
         let mut arguments = Slices::default();
         let entries: Vec<_> = ordered::<_, _, S::Error>(entries)?
             .into_iter()
-            .map(|(&id, value)| (id, value.source, arguments.insert(&value.arguments)))
+            .map(|(&id, value)| (id, value.source, arguments.insert(value.arguments.as_arc())))
             .collect();
         (arguments.values, entries).serialize(serializer)
     }
@@ -199,6 +199,8 @@ pub(super) mod specializations {
             Vec<(I, I, usize)>,
         );
         let (arguments, entries): Data<I> = Deserialize::deserialize(deserializer)?;
+        let arguments: Vec<crate::raw::namespaces::SharedArguments> =
+            arguments.into_iter().map(Into::into).collect();
         entries
             .into_iter()
             .map(|(id, source, a)| {
@@ -206,7 +208,10 @@ pub(super) mod specializations {
                     id,
                     Specialization {
                         source,
-                        arguments: get(&arguments, a)?,
+                        arguments: arguments
+                            .get(a)
+                            .cloned()
+                            .ok_or_else(|| D::Error::custom("invalid substitution telescope"))?,
                     },
                 ))
             })
@@ -253,7 +258,7 @@ mod tests {
                     id,
                     super::super::super::namespaces::Specialization {
                         source: id,
-                        arguments: arguments.clone(),
+                        arguments: arguments.clone().into(),
                     },
                 )
             })
