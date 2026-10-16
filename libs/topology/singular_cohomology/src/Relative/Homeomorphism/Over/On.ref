@@ -1,0 +1,86 @@
+\definition homeomorphism: Geometry.Homeomorphism[source, target] := #homeomorphism{data};
+\definition homeomorphismLaws: Geometry.Laws[source, target, homeomorphism] := Geometry.laws source target homeomorphism;
+\import SourcePair.Maps[B := B].Over[target := target, targetSubset := targetSubset] \as Forward;
+\import TargetPair.Maps[B := A].Over[target := source, targetSubset := subset] \as Backward;
+\definition forward: Forward.Map := \into[A -> B](#forward{homeomorphism}, Forward.Map) \by {
+  Forward.Laws[#forward{homeomorphism}] { continuous := #forwardContinuous{homeomorphismLaws}, contained := #forwardPreserves{data} }
+};
+\definition backward: Backward.Map := \into[B -> A](#backward{homeomorphism}, Backward.Map) \by {
+  Backward.Laws[#backward{homeomorphism}] { continuous := #backwardContinuous{homeomorphismLaws}, contained := #backwardPreserves{data} }
+};
+\import Forward.Composition[C := A].Over[final := source, finalSubset := subset] \as Left;
+\import Backward.Composition[C := B].Over[final := target, finalSubset := targetSubset] \as Right;
+\import SourcePair.Identity[] \as SourceIdentity;
+\import TargetPair.Identity[] \as TargetIdentity;
+\import SourcePair.Maps[B := A].Over[target := source, targetSubset := subset].Homotopy[f := Left.compose forward backward, g := SourceIdentity.map] \as LeftHomotopies;
+\import TargetPair.Maps[B := B].Over[target := target, targetSubset := targetSubset].Homotopy[f := Right.compose backward forward, g := TargetIdentity.map] \as RightHomotopies;
+\import algebraic_topology.Homotopy[A := A, B := A] \as SourceHomotopies;
+\import algebraic_topology.Homotopy[A := B, B := B] \as TargetHomotopies;
+\import algebraic_topology.Cylinder[A := A] \as SourceCylinder;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\definition leftWhole: SourceHomotopies.Homotopy[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => x)] :=
+  \into[SourceHomotopies.Family](SourceCylinder.point, SourceHomotopies.Homotopy[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => x)]) \by {
+    SourceHomotopies.Laws[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => x), SourceCylinder.point] {
+      continuous := SourceCylinder.pointContinuous source,
+      start := \fun (x: A) => sym!{A} _ _ (#leftInverse{homeomorphismLaws} x),
+      end := \fun (x: A) => \refl(x),
+    }
+  };
+\definition left: LeftHomotopies.Homotopy := \into[LeftHomotopies.Family](leftWhole, LeftHomotopies.Homotopy) \by {
+  \fun (t: algebraic_topology.Interval[].Carrier)(x: SourcePair.SubspaceCarrier) => \bysub(A, subset, x)
+};
+\definition rightWhole: TargetHomotopies.Homotopy[target, target, (\fun (x: B) => forward (backward x)), (\fun (x: B) => x)] :=
+  \into[TargetHomotopies.Family](TargetCylinder.point, TargetHomotopies.Homotopy[target, target, (\fun (x: B) => forward (backward x)), (\fun (x: B) => x)]) \by {
+    TargetHomotopies.Laws[target, target, (\fun (x: B) => forward (backward x)), (\fun (x: B) => x), TargetCylinder.point] {
+      continuous := TargetCylinder.pointContinuous target,
+      start := \fun (x: B) => sym!{B} _ _ (#rightInverse{homeomorphismLaws} x),
+      end := \fun (x: B) => \refl(x),
+    }
+  };
+\definition right: RightHomotopies.Homotopy := \into[RightHomotopies.Family](rightWhole, RightHomotopies.Homotopy) \by {
+  \fun (t: algebraic_topology.Interval[].Carrier)(x: TargetPair.SubspaceCarrier) => \bysub(B, targetSubset, x)
+};
+\import SourcePair.Equivalence[B := B].Over[target := target, targetSubset := targetSubset] \as Equivalences;
+\definition equivalence: Equivalences.Equivalence := Equivalences.Equivalence {
+  forward := forward, backward := backward, left := left, right := right,
+};
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as IntegerChains;
+\import SourcePair.Maps[B := A].Over[target := source, targetSubset := subset] \as SourceEnd;
+\import TargetPair.Maps[B := B].Over[target := target, targetSubset := targetSubset] \as TargetEnd;
+\import IntegerChains.Map[C := SourcePair.complex, D := SourcePair.complex] \as SourceChainMaps;
+\import IntegerChains.Map[C := TargetPair.complex, D := TargetPair.complex] \as TargetChainMaps;
+\definition sourceAction(m: SourceEnd.Map): SourceChainMaps.Map := SourceEnd.On[f := m].Integer[].map;
+\definition targetAction(m: TargetEnd.Map): TargetChainMaps.Map := TargetEnd.On[f := m].Integer[].map;
+\definition leftMap: Left.compose forward backward = SourceIdentity.map :=
+  \axiom:funext((Left.compose forward backward), SourceIdentity.map, #leftInverse{homeomorphismLaws});
+\definition rightMap: Right.compose backward forward = TargetIdentity.map :=
+  \axiom:funext((Right.compose backward forward), TargetIdentity.map, #rightInverse{homeomorphismLaws});
+\import Forward.On[f := forward].Integer[] \as ForwardInteger;
+\import Backward.On[f := backward].Integer[] \as BackwardInteger;
+\import IntegerChains.Map[C := TargetPair.complex, D := SourcePair.complex].Composition[B := SourcePair.complex] \as LeftComposition;
+\import IntegerChains.Map[C := SourcePair.complex, D := TargetPair.complex].Composition[B := TargetPair.complex] \as RightComposition;
+\definition leftChain: LeftComposition.compose BackwardInteger.map ForwardInteger.map = IntegerChains.End[C := SourcePair.complex].identity :=
+  trans!{SourceChainMaps.Map} _ _ _ (Left.On[f := forward, g := backward].chainLaw)
+    (trans!{SourceChainMaps.Map} _ _ _ (congr!{SourceEnd.Map SourceChainMaps.Map} sourceAction _ _ leftMap) SourceIdentity.chainLaw);
+\definition rightChain: RightComposition.compose ForwardInteger.map BackwardInteger.map = IntegerChains.End[C := TargetPair.complex].identity :=
+  trans!{TargetChainMaps.Map} _ _ _ (Right.On[f := backward, g := forward].chainLaw)
+    (trans!{TargetChainMaps.Map} _ _ _ (congr!{TargetEnd.Map TargetChainMaps.Map} targetAction _ _ rightMap) TargetIdentity.chainLaw);
+\import IntegerChains.Isomorphism[C := SourcePair.complex, D := TargetPair.complex] \as ChainIsomorphisms;
+\definition chainIsomorphism: ChainIsomorphisms.Isomorphism := ChainIsomorphisms.Isomorphism {
+  forward := ForwardInteger.map, backward := BackwardInteger.map,
+  leftInverse := \fun (z: I.Int^)(x: SourcePair.Carrier z) =>
+    congr!{SourceChainMaps.Map {SourcePair.Carrier z}} (\fun (m: SourceChainMaps.Map) => #apply{m} z x) _ _ leftChain,
+  rightInverse := \fun (z: I.Int^)(x: TargetPair.Carrier z) =>
+    congr!{TargetChainMaps.Map {TargetPair.Carrier z}} (\fun (m: TargetChainMaps.Map) => #apply{m} z x) _ _ rightChain,
+};
+\module Homology(z: I.Int^) {
+  \definition isomorphism: Modules.Isomorphism[V := SourcePair.Homology[z := z].Carrier, W := TargetPair.Homology[z := z].Carrier,
+    source := SourcePair.Homology[z := z].space, target := TargetPair.Homology[z := z].space].Isomorphism := ChainIsomorphisms.At[z := z].isomorphism chainIsomorphism;
+}
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].IntegerIsomorphism[P := SourcePair.complex, Q := TargetPair.complex, N := coefficients].On[e := chainIsomorphism] \as Comparison;
+  \module At(z: I.Int^) {
+    \definition isomorphism: Modules.Isomorphism[V := TargetPair.With[coefficients := coefficients].At[z := z].Carrier, W := SourcePair.With[coefficients := coefficients].At[z := z].Carrier,
+      source := TargetPair.With[coefficients := coefficients].At[z := z].space, target := SourcePair.With[coefficients := coefficients].At[z := z].space].Isomorphism := Comparison.At[z := z].isomorphism;
+  }
+}
