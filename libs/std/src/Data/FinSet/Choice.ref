@@ -1,0 +1,21 @@
+\import \parent.Tuples[A := A] \as Tuples;
+\import \parent.Empty[A := A] \as Empty;
+\use Equality.transport;
+\definition exists: \forall (n: N.Nat^)(relation: Fin n -> A -> \Prop) -> (\forall (i: Fin n) -> \exists { a: A \where relation i a }) ->
+  \exists { f: Fin n -> A \where \forall (i: Fin n) -> relation i (f i) } :=
+  \induction (n: N.Nat^) \return \forall (relation: Fin n -> A -> \Prop) -> (\forall (i: Fin n) -> \exists { a: A \where relation i a }) ->
+    \exists { f: Fin n -> A \where \forall (i: Fin n) -> relation i (f i) } \with {
+      | zero: \fun (relation: Fin N.Nat^::zero -> A -> \Prop)(all: _) => Logic.existsIntro[Fin N.Nat^::zero -> A, { f: Fin N.Nat^::zero -> A \where \forall (i: Fin N.Nat^::zero) -> relation i (f i) }]
+          Empty.value (\fun (i: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible i (bound N.Nat^::zero i)))
+      | succ: \fun (n: N.Nat^)(previous: _)(relation: Fin (N.Nat^::succ n) -> A -> \Prop)(all: \forall (i: Fin (N.Nat^::succ n)) -> \exists { a: A \where relation i a }) => \block {
+          \takefrom head: \Cast[A] ({ a: A \where relation (zero n) a }) \by all (zero n) \then
+          \takefrom tail: \Cast[Fin n -> A] ({ f: Fin n -> A \where \forall (i: Fin n) -> relation (succ n i) (f i) }) \by
+            previous (\fun (i: Fin n) => relation (succ n i)) (\fun (i: Fin n) => all (succ n i)) \then
+          \return Logic.existsIntro[Fin (N.Nat^::succ n) -> A, { f: Fin (N.Nat^::succ n) -> A \where \forall (i: Fin (N.Nat^::succ n)) -> relation i (f i) }]
+            (Tuples.extend n head tail)
+            (cases n (\fun (i: Fin (N.Nat^::succ n)) => relation i (Tuples.extend n head tail i))
+              (transport!{A} (relation (zero n)) head (Tuples.extend n head tail (zero n)) (sym!{A} _ _ (Tuples.atZero n head tail)) (\bysub(A, { a: A \where relation (zero n) a }, head)))
+              (\fun (i: Fin n) => transport!{A} (relation (succ n i)) (tail i) (Tuples.extend n head tail (succ n i)) (sym!{A} _ _ (Tuples.atSuccessor n head tail i))
+                ((\bysub(Fin n -> A, { f: Fin n -> A \where \forall (i: Fin n) -> relation (succ n i) (f i) }, tail)) i)))
+        }
+    };

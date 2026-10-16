@@ -13,6 +13,7 @@
 
 `Data.FinSet.Tuples.Omission` は頂点列からの一要素の除去、先頭追加との公式、二要素を除く順序の交換を公開する。
 `Tuples.Mapping.omitMap` は写像の適用と除去の可換性を表す。
+`Data.FinSet.Choice.exists` は有限個の存在命題から、それらを満たす関数の存在を構成する。
 
 ## 等式と合同則
 

@@ -1,0 +1,21 @@
+\import \parent.\parent.\parent.Hom[V := Carrier, W := W, source := space, target := target] \as Maps;
+\import \parent.\parent.\parent.Of[V := W, space := target].Submodule[] \as TargetSubmodules;
+\import Free.Induction[] \as Induction;
+\import \parent.\parent.\parent.Hom[V := Free.Carrier, W := Carrier, source := Free.space, target := space] \as InclusionMaps;
+\use Equality.transport;
+\definition law: \forall (f: Maps.Map)(T: TargetSubmodules.Submodule) ->
+  (\forall (s: Selected) -> TargetSubmodules.Member T (#apply{f} (generator s))) ->
+  \forall (x: Carrier) -> Member x -> TargetSubmodules.Member T (#apply{f} x) :=
+  \fun (f: Maps.Map)(T: TargetSubmodules.Submodule)(generators: \forall (s: Selected) -> TargetSubmodules.Member T (#apply{f} (generator s)))(x: Carrier)(member: Member x) =>
+    Image.eliminate inclusion x (TargetSubmodules.Member T (#apply{f} x))
+      (\fun (y: Free.Carrier)(same: #apply{inclusion} y = x) => transport!{Carrier} (\fun (z: Carrier) => TargetSubmodules.Member T (#apply{f} z)) _ _ same
+        (Induction.law (\fun (z: Free.Carrier) => TargetSubmodules.Member T (#apply{f} (#apply{inclusion} z)))
+          (transport!{W} (\fun (v: W) => TargetSubmodules.Member T v) _ _
+            (sym!{W} _ _ (trans!{W} _ _ _ (congr!{Carrier W} (#apply{f}) _ _ (InclusionMaps.zeroPreserved inclusion)) (Maps.zeroPreserved f))) (#zero{T}))
+          (\fun (s: Selected) => transport!{W} (\fun (v: W) => TargetSubmodules.Member T v) _ _ (sym!{W} _ _ (congr!{Carrier W} (#apply{f}) _ _ (onGenerator s))) (generators s))
+          (\fun (a, b: Free.Carrier)(left: _)(right: _) => transport!{W} (\fun (v: W) => TargetSubmodules.Member T v) _ _
+            (sym!{W} _ _ (trans!{W} _ _ _ (congr!{Carrier W} (#apply{f}) _ _ (#addition{inclusion} a b)) (#addition{f} _ _))) (#addition{T} _ _ left right))
+          (\fun (a: Free.Carrier)(previous: _) => transport!{W} (\fun (v: W) => TargetSubmodules.Member T v) _ _
+            (sym!{W} _ _ (trans!{W} _ _ _ (congr!{Carrier W} (#apply{f}) _ _ (InclusionMaps.negativePreserved inclusion a)) (Maps.negativePreserved f _))) (TargetSubmodules.negativeClosed T _ previous))
+          (\fun (r: R)(a: Free.Carrier)(previous: _) => transport!{W} (\fun (v: W) => TargetSubmodules.Member T v) _ _
+            (sym!{W} _ _ (trans!{W} _ _ _ (congr!{Carrier W} (#apply{f}) _ _ (#scalar{inclusion} r a)) (#scalar{f} r _))) (#scalar{T} r _ previous)) y)) member;

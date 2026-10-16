@@ -18,6 +18,9 @@
 | `Simplex.Interval` | 一次元単体と単位区間の連続な相互逆、端点と面 |
 | `Simplex.Compactness` / `Barycentre` / `Metric` | 閉性・コンパクト性、等重みの重心、最大座標距離と Lebesgue 数 |
 | `Simplex.Convex` / `Contraction` | 凸結合の連続性と指定点への収縮 |
+| `Simplex.AffineMetric` / `Barycentre` | 頂点間の距離からの直径評価と、重心からの距離の縮小率 |
+| `Simplex.Affine.Hull` / `ConvexFamily` | アフィン像の凸閉性と、凸集合の共通部分 |
+| `Semisimplicial` | 次数付き集合、面の恒等式と、それらを保つ写像 |
 | `Simplex.Cylinder` / `CylinderAffine` | cylinder 内のアフィン評価、面・頂点・後合成との公式 |
 | `Contraction` / `Interval.Contraction` | 一点とのホモトピー同値、区間の具体的な収縮 |
 | `PathComponent` / `IntervalPaths` / `Functions` | 道成分の商、区間上の道との対応、成分上一定な関数の降下 |

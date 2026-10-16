@@ -11,6 +11,8 @@
 | `Analysis.Sequence` | 実数列の Cauchy 条件、収束、極限の構成と一意性 |
 | `Analysis.SquareRoot` | 上限からの平方根の構成、非負性・平方・一意性、平方根の距離評価 |
 | `Analysis.Estimates.Product` / `Analysis.Inverse` | 積と逆数の距離評価、正負の領域での逆数の制御 |
+| `Analysis.FiniteSums.Convex` / `Exclusion` | 凸結合の距離評価と、消える一項を除いた有限和の上界 |
+| `Analysis.Geometric` | 非負で 1 未満の係数の冪が、任意の正の値より小さくなること |
 
 `metric_spaces.RealMetric` が距離空間、`linear_algebra.Real` がベクトル空間への接続を提供する。
 
