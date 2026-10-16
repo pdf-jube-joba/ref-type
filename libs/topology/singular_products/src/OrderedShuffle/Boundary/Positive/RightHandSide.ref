@@ -1,0 +1,33 @@
+\import \parent.Coning[] \as Coning;
+\import Commutative.Bilinear[A := LeftShuffle.left, B := LeftShuffle.right, C := LeftShuffle.target] \as LeftForm;
+\import Commutative.Bilinear[A := RightShuffle.left, B := RightShuffle.right, C := RightShuffle.target] \as RightForm;
+\import Commutative.Bilinear[A := FullShuffle.left, B := FullShuffle.right, C := Current.target].Operations[] \as Operations;
+\import Modules.Hom[V := Left.Carrier p, W := Product.Carrier (N.Nat^::succ m), source := Left.space p, target := Product.space (N.Nat^::succ m)] \as LeftMaps;
+\import Modules.Hom[V := Right.Carrier q, W := Product.Carrier (N.Nat^::succ m), source := Right.space q, target := Product.space (N.Nat^::succ m)] \as RightMaps;
+\import Modules.Hom[V := Product.Carrier (N.Nat^::succ t), W := Product.Carrier (N.Nat^::succ m), source := Product.space (N.Nat^::succ t), target := Product.space (N.Nat^::succ m)]
+  .Composition[U := Right.Carrier q, domain := Right.space q] \as Compose;
+\definition rightMap(x: Left.Carrier p): RightMaps.Map := Compose.compose upperCast (RightForm.rightAt RightShuffle.bilinear (X x));
+\definition rightValue(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier (N.Nat^::succ m) := #apply{rightMap x} y;
+\definition rightRemoved(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier (N.Nat^::succ m) := #apply{rightMap x} (#apply{(Right.cone s b)} (rightBoundary y));
+\definition left(x: Left.Carrier p)(y: Right.Carrier q):
+  #apply{Current.leftTerm} (X x) (Y y) = UpperGroup.difference (LeftShuffle.apply x (Y y)) (Coning.removedLeft x y) :=
+  trans!{{Product.Carrier (N.Nat^::succ m)}} _ _ _
+    (congr!{{Left.Carrier p} {Product.Carrier (N.Nat^::succ m)}} (\fun (v: Left.Carrier p) => LeftShuffle.apply v (Y y)) _ _ (Left.ConeBoundary[n := r].law a x))
+    (LeftMaps.differencePreserved (LeftForm.leftAt LeftShuffle.bilinear (Y y)) x (#apply{(Left.cone r a)} (leftBoundary x)));
+\definition rightRaw(x: Left.Carrier p)(y: Right.Carrier q):
+  #apply{Current.rightTerm} (X x) (Y y) = UpperGroup.difference (rightValue x y) (rightRemoved x y) :=
+  trans!{{Product.Carrier (N.Nat^::succ m)}} _ _ _
+    (congr!{{Right.Carrier q} {Product.Carrier (N.Nat^::succ m)}} (#apply{rightMap x}) _ _ (Right.ConeBoundary[n := s].law b y))
+    (RightMaps.differencePreserved (rightMap x) y (#apply{(Right.cone s b)} (rightBoundary y)));
+\definition right(x: Left.Carrier p)(y: Right.Carrier q):
+  #apply{(Operations.sign p Current.rightTerm)} (X x) (Y y) = UpperGroup.difference (UpperSigns.twist p (rightValue x y)) (Coning.removedRight x y) :=
+  trans!{{Product.Carrier (N.Nat^::succ m)}} _ _ _ (Operations.onSign p Current.rightTerm (X x) (Y y))
+    (trans!{{Product.Carrier (N.Nat^::succ m)}} _ _ _
+      (congr!{{Product.Carrier (N.Nat^::succ m)} {Product.Carrier (N.Nat^::succ m)}} (UpperSigns.twist p) _ _ (rightRaw x y))
+      (UpperSigns.twistDifference p (rightValue x y) (rightRemoved x y)));
+\definition law(x: Left.Carrier p)(y: Right.Carrier q):
+  #apply{Current.rhs} (X x) (Y y) = UpperGroup.difference (cut x y) (Coning.removed x y) :=
+  trans!{{Product.Carrier (N.Nat^::succ m)}} _ _ _
+    (congr2!{{Product.Carrier (N.Nat^::succ m)} {Product.Carrier (N.Nat^::succ m)} {Product.Carrier (N.Nat^::succ m)}} Upper.add _ _ _ _ (left x y) (right x y))
+    (sym!{{Product.Carrier (N.Nat^::succ m)}} _ _
+      (UpperGroup.differenceAdd (LeftShuffle.apply x (Y y)) (UpperSigns.twist p (rightValue x y)) (Coning.removedLeft x y) (Coning.removedRight x y)));
