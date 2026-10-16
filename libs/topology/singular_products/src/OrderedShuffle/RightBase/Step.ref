@@ -1,0 +1,20 @@
+\import \parent.At[p := p, y := y] \as Lower;
+\import \parent.At[p := N.Nat^::succ p, y := y] \as Upper;
+\definition head(x: Left.Tuple (N.Nat^::succ (N.Nat^::succ p))): V := leftHead (N.Nat^::succ p) x;
+\definition tail(x: Left.Tuple (N.Nat^::succ (N.Nat^::succ p))): Left.Tuple (N.Nat^::succ p) := leftTail (N.Nat^::succ p) x;
+\definition originalCone: \forall (x: Left.Tuple (N.Nat^::succ (N.Nat^::succ p))) ->
+  #apply{(Left.cone Lower.canonicalLength (head x))} (Left.generator Lower.canonicalLength (tail x)) = Left.generator Upper.canonicalLength x :=
+  \fun (x: Left.Tuple (N.Nat^::succ (N.Nat^::succ p))) => trans!{{Left.Carrier Upper.canonicalLength}} _ _ _
+    (Left.Cone[n := Lower.canonicalLength].onGenerator (head x) (tail x))
+    (congr!{{Left.Tuple Upper.canonicalLength} {Left.Carrier Upper.canonicalLength}} (Left.generator Upper.canonicalLength) _ _ (LeftTuples.recover Lower.canonicalLength x));
+\definition mappedCone: \forall (x: Left.Tuple (N.Nat^::succ (N.Nat^::succ p))) ->
+  #apply{(Product.cone Lower.canonicalLength (Lower.vertex (head x)))} (#apply{Lower.raw} (Left.generator Lower.canonicalLength (tail x))) = #apply{Upper.raw} (Left.generator Upper.canonicalLength x) :=
+  \fun (x: Left.Tuple (N.Nat^::succ (N.Nat^::succ p))) => trans!{{Product.Carrier Upper.canonicalLength}} _ _ _
+    (sym!{{Product.Carrier Upper.canonicalLength}} _ _ (Pointwise.Cone[n := Lower.canonicalLength].onGenerator Lower.vertex (head x) (tail x)))
+    (congr!{{Left.Carrier Upper.canonicalLength} {Product.Carrier Upper.canonicalLength}} (#apply{Upper.raw}) _ _ (originalCone x));
+\definition law: Statement p -> \forall (x: Left.Tuple (N.Nat^::succ (N.Nat^::succ p))) -> onTuples (N.Nat^::succ p) N.Nat^::zero x y = Upper.value x :=
+  \fun (previous: Statement p)(x: Left.Tuple (N.Nat^::succ (N.Nat^::succ p))) => trans!{{Product.Carrier Upper.actualLength}} _ _ _
+    (congr!{{Product.Carrier Lower.actualLength} {Product.Carrier Upper.actualLength}} (#apply{(Product.cone Lower.actualLength (Lower.vertex (head x)))}) _ _ (previous (tail x) y))
+    (trans!{{Product.Carrier Upper.actualLength}} _ _ _
+      (sym!{{Product.Carrier Upper.actualLength}} _ _ (Degrees.coneNatural Lower.canonicalLength Lower.actualLength Lower.same (Lower.vertex (head x)) (#apply{Lower.raw} (Left.generator Lower.canonicalLength (tail x)))))
+      (congr!{{Product.Carrier Upper.canonicalLength} {Product.Carrier Upper.actualLength}} (Degrees.apply Upper.canonicalLength Upper.actualLength Upper.same) _ _ (mappedCone x)));

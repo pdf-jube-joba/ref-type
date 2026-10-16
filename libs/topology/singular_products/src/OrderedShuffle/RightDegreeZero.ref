@@ -1,0 +1,21 @@
+\definition targetLength: N.Nat^ := length p N.Nat^::zero;
+\import \parent.At[p := N.Nat^::succ p, q := N.Nat^::zero] \as Upper;
+\import \parent.At[p := p, q := N.Nat^::zero] \as Lower;
+\import Commutative.Bilinear[A := Upper.left, B := Upper.right, C := Upper.target] \as UpperForm;
+\import Commutative.Bilinear[A := Lower.left, B := Lower.right, C := Lower.target] \as LowerForm;
+\import Modules.Hom[V := Product.Carrier (N.Nat^::succ targetLength), W := Product.Carrier targetLength,
+  source := Product.space (N.Nat^::succ targetLength), target := Product.space targetLength]
+  .Composition[U := Right.Carrier (N.Nat^::succ N.Nat^::zero), domain := Right.space (N.Nat^::succ N.Nat^::zero)] \as Composition;
+\import Modules.Hom[V := Right.Carrier (N.Nat^::succ N.Nat^::zero), W := Product.Carrier targetLength,
+  source := Right.space (N.Nat^::succ N.Nat^::zero), target := Product.space targetLength] \as Maps;
+\definition after(x: Left.Carrier (N.Nat^::succ (N.Nat^::succ p))): Maps.Map :=
+  Composition.compose (Product.boundary targetLength) (UpperForm.rightAt Upper.bilinear x);
+\definition before(x: Left.Carrier (N.Nat^::succ (N.Nat^::succ p))): Maps.Map :=
+  LowerForm.rightAt Lower.bilinear (#apply{(Left.boundary (N.Nat^::succ p))} x);
+\import Modules.Free[Generators := Right.Tuple (N.Nat^::succ N.Nat^::zero)].To[W := Product.Carrier targetLength, target := Product.space targetLength] \as Free;
+\definition equation(x: Left.Carrier (N.Nat^::succ (N.Nat^::succ p))): after x = before x :=
+  Free.ext (after x) (before x) (\fun (y: Right.Tuple (N.Nat^::succ N.Nat^::zero)) => \parent.RightBoundary[p := p, y := y].law x);
+\definition law: \forall (x: Left.Carrier (N.Nat^::succ (N.Nat^::succ p)))(y: Right.Carrier (N.Nat^::succ N.Nat^::zero)) ->
+  #apply{(Product.boundary targetLength)} (Upper.apply x y) = Lower.apply (#apply{(Left.boundary (N.Nat^::succ p))} x) y :=
+  \fun (x: Left.Carrier (N.Nat^::succ (N.Nat^::succ p)))(y: Right.Carrier (N.Nat^::succ N.Nat^::zero)) =>
+    congr!{Maps.Map {Product.Carrier targetLength}} (\fun (f: Maps.Map) => #apply{f} y) _ _ (equation x);
