@@ -1,0 +1,61 @@
+\module At(n: N.Nat^) {
+  \import Modules.Biproduct[V := C.family.Carrier n, W := D.family.Carrier n, left := C.family.space n, right := D.family.space n] \as Pair;
+  \definition Carrier: \Set := Pair.Carrier;
+  \definition space: Modules.Space Carrier := Pair.space;
+  \definition make: C.family.Carrier n -> D.family.Carrier n -> Carrier := Pair.make;
+  \definition first: Carrier -> C.family.Carrier n := Pair.first;
+  \definition second: Carrier -> D.family.Carrier n := Pair.second;
+  \import std.Data[].Pair[].Prop[A := C.family.Carrier n, B := D.family.Carrier n] \as Equality;
+  \definition ext: \forall (x, y: Carrier) -> first x = first y -> second x = second y -> x = y := Equality.ext;
+  \definition firstInjection: Modules.Hom[V := C.family.Carrier n, W := Carrier, source := C.family.space n, target := space].Map := Pair.firstInjection;
+  \definition secondInjection: Modules.Hom[V := D.family.Carrier n, W := Carrier, source := D.family.space n, target := space].Map := Pair.secondInjection;
+  \definition firstProjection: Modules.Hom[V := Carrier, W := C.family.Carrier n, source := space, target := C.family.space n].Map := Pair.firstProjection;
+  \definition secondProjection: Modules.Hom[V := Carrier, W := D.family.Carrier n, source := space, target := D.family.space n].Map := Pair.secondProjection;
+}
+\definition Carrier(n: N.Nat^): \Set := At[n := n].Carrier;
+\definition space(n: N.Nat^): Modules.Space (Carrier n) := At[n := n].space;
+\definition family: Family := Family { Carrier := Carrier, space := space };
+\module Differential(n: N.Nat^);
+\definition differential: DifferentialData[family] := DifferentialData[family] { apply := \fun (n: N.Nat^) => #apply{Differential[n := n].map} };
+\definition complex: Complex := Complex { family := family, differential := differential,
+  laws := DifferentialLaws[family, differential] {
+    addition := \fun (n: N.Nat^) => #addition{Differential[n := n].map},
+    scalar := \fun (n: N.Nat^) => #scalar{Differential[n := n].map},
+    squareZero := \fun (n: N.Nat^) => Differential[n := n].squareZero,
+  }
+};
+\module Injections(n: N.Nat^);
+\definition firstProjection: \parent.Map[C := complex, D := C].Map := \parent.Map[C := complex, D := C].Map {
+  apply := \fun (n: N.Nat^) => #apply{At[n := n].firstProjection},
+  addition := \fun (n: N.Nat^) => #addition{At[n := n].firstProjection},
+  scalar := \fun (n: N.Nat^) => #scalar{At[n := n].firstProjection},
+  commutes := \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) => \refl(#apply{C.differential} n (At[n := N.Nat^::succ n].first x)),
+};
+\definition secondProjection: \parent.Map[C := complex, D := D].Map := \parent.Map[C := complex, D := D].Map {
+  apply := \fun (n: N.Nat^) => #apply{At[n := n].secondProjection},
+  addition := \fun (n: N.Nat^) => #addition{At[n := n].secondProjection},
+  scalar := \fun (n: N.Nat^) => #scalar{At[n := n].secondProjection},
+  commutes := \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) => \refl(#apply{D.differential} n (At[n := N.Nat^::succ n].second x)),
+};
+\definition firstInjection: \parent.Map[C := C, D := complex].Map := \parent.Map[C := C, D := complex].Map {
+  apply := \fun (n: N.Nat^) => #apply{At[n := n].firstInjection},
+  addition := \fun (n: N.Nat^) => #addition{At[n := n].firstInjection},
+  scalar := \fun (n: N.Nat^) => #scalar{At[n := n].firstInjection},
+  commutes := \fun (n: N.Nat^) => Injections[n := n].first,
+};
+\definition secondInjection: \parent.Map[C := D, D := complex].Map := \parent.Map[C := D, D := complex].Map {
+  apply := \fun (n: N.Nat^) => #apply{At[n := n].secondInjection},
+  addition := \fun (n: N.Nat^) => #addition{At[n := n].secondInjection},
+  scalar := \fun (n: N.Nat^) => #scalar{At[n := n].secondInjection},
+  commutes := \fun (n: N.Nat^) => Injections[n := n].second,
+};
+\module Pairing(E: Complex) {
+  \import \parent.\parent.Map[C := E, D := C] \as First;
+  \import \parent.\parent.Map[C := E, D := D] \as Second;
+  \module On(f: First.Map, g: Second.Map);
+}
+\module Copairing(E: Complex) {
+  \import \parent.\parent.Map[C := C, D := E] \as First;
+  \import \parent.\parent.Map[C := D, D := E] \as Second;
+  \module On(f: First.Map, g: Second.Map);
+}

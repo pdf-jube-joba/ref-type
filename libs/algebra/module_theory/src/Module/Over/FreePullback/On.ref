@@ -1,0 +1,36 @@
+\import \root.Module[].Over[R := R, ring := ring] \as Modules;
+\definition leftFunction: Left -> Whole := #left{square};
+\definition rightFunction: Right -> Whole := #right{square};
+\definition topFunction: Overlap -> Left := #overLeft{square};
+\definition bottomFunction: Overlap -> Right := #overRight{square};
+\import Modules.Free[Generators := Left] \as L;
+\import Modules.Free[Generators := Right] \as V;
+\import Modules.Free[Generators := Overlap] \as O;
+\import Modules.Free[Generators := Whole] \as W;
+\import L.Reindex[TargetGenerators := Whole].Injection[f := leftFunction].Retraction[] \as LeftBack;
+\import O.Reindex[TargetGenerators := Right].Injection[f := bottomFunction].Retraction[] \as OverlapBack;
+\import V.Reindex[TargetGenerators := Whole] \as RightPush;
+\import O.Reindex[TargetGenerators := Left] \as TopPush;
+\definition leftInjective: \forall (x, y: Left) -> leftFunction x = leftFunction y -> x = y := #leftInjective{(laws square)};
+\definition bottomInjective: \forall (x, y: Overlap) -> bottomFunction x = bottomFunction y -> x = y := #overlapInjective{(laws square)};
+\import Modules.Hom[V := W.Carrier, W := L.Carrier, source := W.space, target := L.space].Composition[U := V.Carrier, domain := V.space] \as LeftComposition;
+\import Modules.Hom[V := O.Carrier, W := L.Carrier, source := O.space, target := L.space].Composition[U := V.Carrier, domain := V.space] \as RightComposition;
+\import Modules.Hom[V := V.Carrier, W := L.Carrier, source := V.space, target := L.space] \as Maps;
+\definition leftMap: Maps.Map := LeftComposition.compose (LeftBack.retraction leftInjective) (RightPush.push rightFunction);
+\definition rightMap: Maps.Map := RightComposition.compose (TopPush.push topFunction) (OverlapBack.retraction bottomInjective);
+\module Image;
+\module Outside;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition onGenerator: \forall (y: Right) -> #apply{leftMap} (V.generator y) = #apply{rightMap} (V.generator y) :=
+  \fun (y: Right) => either!{{(Classical.excludedMiddle (\exists OverlapBack.Fiber y))} {#apply{leftMap} (V.generator y) = #apply{rightMap} (V.generator y)}
+    {\block {
+      \fun (exists: \exists OverlapBack.Fiber y) \then
+      \takefrom z: OverlapBack.Fiber y \by exists \then
+      \return \idelim bottomFunction z = y \with v: Right => #apply{leftMap} (V.generator v) = #apply{rightMap} (V.generator v) \by {
+        base: Image[].law z, equality: \bysub(Overlap, OverlapBack.Fiber y, z)
+      }
+    }}
+    {Outside[].law y}
+  };
+\definition equation: leftMap = rightMap := V.To[W := L.Carrier, target := L.space].ext leftMap rightMap onGenerator;

@@ -1,0 +1,76 @@
+\import \root.Module[].Over[R := R, ring := ring] \as Modules;
+\import \parent.On[square := square] \as Pull;
+\definition leftFunction: Left -> Whole := #left{square};
+\definition rightFunction: Right -> Whole := #right{square};
+\definition topFunction: Overlap -> Left := #overLeft{square};
+\definition bottomFunction: Overlap -> Right := #overRight{square};
+\definition unionLaws: UnionLaws[square] := \bysub(Square, { s: Square \where UnionLaws[s] }, square);
+\import Modules.Free[Generators := Left] \as L;
+\import Modules.Free[Generators := Right] \as V;
+\import Modules.Free[Generators := Overlap] \as O;
+\import Modules.Free[Generators := Whole] \as W;
+\import O.Reindex[TargetGenerators := Left] \as TopPush;
+\import O.Reindex[TargetGenerators := Right] \as BottomPush;
+\import L.Reindex[TargetGenerators := Whole] \as LeftPush;
+\import V.Reindex[TargetGenerators := Whole] \as RightPush;
+\import L.Reindex[TargetGenerators := Whole].Injection[f := leftFunction].Retraction[] \as LeftBack;
+\import O.Reindex[TargetGenerators := Right].Injection[f := bottomFunction].Retraction[] \as OverlapBack;
+\import V.Reindex[TargetGenerators := Whole].Injection[f := rightFunction] \as RightInjection;
+\import Modules.Biproduct[V := L.Carrier, W := V.Carrier, left := L.space, right := V.space] \as Sum;
+\import Modules.Hom[V := O.Carrier, W := V.Carrier, source := O.space, target := V.space] \as BottomMaps;
+\definition inclusion: Modules.Hom[V := O.Carrier, W := Sum.Carrier, source := O.space, target := Sum.space].Map :=
+  Sum.Universal[U := O.Carrier, domain := O.space].pair (TopPush.push topFunction) (BottomMaps.negative (BottomPush.push bottomFunction));
+\definition projection: Modules.Hom[V := Sum.Carrier, W := W.Carrier, source := Sum.space, target := W.space].Map :=
+  Sum.Copair[U := W.Carrier, target := W.space].copair (LeftPush.push leftFunction) (RightPush.push rightFunction);
+\definition overlapBundle: Modules.Bundle := Modules.Bundle { Carrier := O.Carrier, space := O.space };
+\definition sumBundle: Modules.Bundle := Modules.Bundle { Carrier := Sum.Carrier, space := Sum.space };
+\definition wholeBundle: Modules.Bundle := Modules.Bundle { Carrier := W.Carrier, space := W.space };
+\import Modules.ShortExact[A := overlapBundle, B := sumBundle, C := wholeBundle] \as Exact;
+\import Modules.Hom[V := O.Carrier, W := W.Carrier, source := O.space, target := W.space] \as IntoWhole;
+\import Modules.Hom[V := L.Carrier, W := W.Carrier, source := L.space, target := W.space].Composition[U := O.Carrier, domain := O.space] \as LeftComposition;
+\import Modules.Hom[V := V.Carrier, W := W.Carrier, source := V.space, target := W.space].Composition[U := O.Carrier, domain := O.space] \as RightComposition;
+\definition commutes: LeftComposition.compose (LeftPush.push leftFunction) (TopPush.push topFunction) =
+  RightComposition.compose (RightPush.push rightFunction) (BottomPush.push bottomFunction) := O.To[W := W.Carrier, target := W.space].ext _ _
+    (\fun (z: Overlap) => trans!{W.Carrier} _ _ _
+      (trans!{W.Carrier} _ _ _ (congr!{L.Carrier W.Carrier} (#apply{(LeftPush.push leftFunction)}) _ _ (TopPush.onGenerator topFunction z))
+        (LeftPush.onGenerator leftFunction (topFunction z)))
+      (trans!{W.Carrier} _ _ _ (congr!{Whole W.Carrier} W.generator _ _ (#commutes{(laws square)} z))
+        (sym!{W.Carrier} _ _ (trans!{W.Carrier} _ _ _
+          (congr!{V.Carrier W.Carrier} (#apply{(RightPush.push rightFunction)}) _ _ (BottomPush.onGenerator bottomFunction z))
+          (RightPush.onGenerator rightFunction (bottomFunction z))))));
+\definition commutesOn: \forall (x: O.Carrier) ->
+  #apply{(LeftPush.push leftFunction)} (#apply{(TopPush.push topFunction)} x) =
+  #apply{(RightPush.push rightFunction)} (#apply{(BottomPush.push bottomFunction)} x) :=
+  \fun (x: O.Carrier) => congr!{IntoWhole.Map W.Carrier} (\fun (f: IntoWhole.Map) => #apply{f} x) _ _ commutes;
+\import Modules.Laws[V := O.Carrier, space := O.space] \as OverlapLaws;
+\import algebra.Group[].Of[Carrier := O.Carrier, group := OverlapLaws.additive] \as OverlapGroup;
+\import Modules.Laws[V := L.Carrier, space := L.space] \as LeftLaws;
+\import algebra.Group[].Of[Carrier := L.Carrier, group := LeftLaws.additive] \as LeftGroup;
+\import Modules.Laws[V := V.Carrier, space := V.space] \as RightLaws;
+\import algebra.Group[].Of[Carrier := V.Carrier, group := RightLaws.additive] \as RightGroup;
+\import Modules.Laws[V := W.Carrier, space := W.space] \as WholeLaws;
+\import algebra.Group[].Of[Carrier := W.Carrier, group := WholeLaws.additive] \as WholeGroup;
+\import Modules.Hom[V := V.Carrier, W := W.Carrier, source := V.space, target := W.space] \as RightMaps;
+\import Modules.Hom[V := W.Carrier, W := L.Carrier, source := W.space, target := L.space] \as RetractMaps;
+\import Modules.Hom[V := L.Carrier, W := L.Carrier, source := L.space, target := L.space] \as LeftEnd;
+\import Modules.Hom[V := V.Carrier, W := L.Carrier, source := V.space, target := L.space] \as Cross;
+\import Modules.Hom[V := O.Carrier, W := L.Carrier, source := O.space, target := L.space] \as TopMaps;
+\definition zero: \forall (x: O.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{W.space} :=
+  \fun (x: O.Carrier) => trans!{W.Carrier} _ _ _
+    (congr!{W.Carrier W.Carrier} (WholeGroup.add (#apply{(LeftPush.push leftFunction)} (#apply{(TopPush.push topFunction)} x))) _ _
+      (RightMaps.negativePreserved (RightPush.push rightFunction) (#apply{(BottomPush.push bottomFunction)} x)))
+    (trans!{W.Carrier} _ _ _
+      (congr!{W.Carrier W.Carrier} (\fun (y: W.Carrier) => WholeGroup.add y (WholeGroup.neg (#apply{(RightPush.push rightFunction)} (#apply{(BottomPush.push bottomFunction)} x)))) _ _ (commutesOn x))
+      (WholeGroup.inverseRight (#apply{(RightPush.push rightFunction)} (#apply{(BottomPush.push bottomFunction)} x))));
+\definition injective: \forall (x, y: O.Carrier) -> #apply{inclusion} x = #apply{inclusion} y -> x = y :=
+  \fun (x, y: O.Carrier)(same: _) => BottomPush.Injection[f := bottomFunction].injective Pull.bottomInjective x y
+    (trans!{V.Carrier} _ _ _ (sym!{V.Carrier} _ _ (RightGroup.negNeg (#apply{(BottomPush.push bottomFunction)} x)))
+      (trans!{V.Carrier} _ _ _ (congr!{V.Carrier V.Carrier} RightGroup.neg _ _ (congr!{Sum.Carrier V.Carrier} Sum.second _ _ same))
+        (RightGroup.negNeg (#apply{(BottomPush.push bottomFunction)} y))));
+\module Kernel;
+\module Surjection;
+\definition sequence: Exact.Sequence := \into[Exact.Data](Exact.Data { inclusion := inclusion, projection := projection }, Exact.Sequence) \by {
+  Exact.Laws[Exact.Data { inclusion := inclusion, projection := projection }] {
+    injective := injective, onto := Surjection[].onto, zero := zero, kernelImage := Kernel[].law,
+  }
+};
