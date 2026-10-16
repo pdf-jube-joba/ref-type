@@ -21,6 +21,18 @@ use std::{
 };
 
 static SIGNAL: AtomicI32 = AtomicI32::new(0);
+fn worker_executable() -> std::io::Result<PathBuf> {
+    // Keep using this supervisor's executable when a rebuild replaces its
+    // directory entry. current_exe() can then name an unlinked file on Linux.
+    #[cfg(target_os = "linux")]
+    {
+        Ok(PathBuf::from("/proc/self/exe"))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        std::env::current_exe()
+    }
+}
 extern "C" fn cancel(signal: libc::c_int) {
     SIGNAL.store(signal, Ordering::Relaxed);
 }
@@ -566,7 +578,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             workspace.path("request.json"),
             serde_json::to_vec(&request)?,
         )?;
-        let mut command = Command::new(std::env::current_exe()?);
+        let mut command = Command::new(worker_executable()?);
         command
             .arg(&args.path)
             .arg("--worker")
@@ -704,6 +716,48 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn worker_binary_survives_unlink() {
+        const CHILD: &str = "REF_TYPE_TEST_UNLINKED_WORKER_BINARY";
+        if let Some(linked) = std::env::var_os(CHILD) {
+            assert_eq!(std::env::current_exe().unwrap(), PathBuf::from(&linked));
+            fs::remove_file(&linked).unwrap();
+            let output = Command::new(worker_executable().unwrap())
+                .arg("--list")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        let workspace = Workspace::new(&std::env::temp_dir()).unwrap();
+        let linked = workspace.path("worker-executable");
+        let executable = std::env::current_exe().unwrap();
+        if fs::hard_link(&executable, &linked).is_err() {
+            fs::copy(&executable, &linked).unwrap();
+        }
+        let module = module_path!().split_once("::").unwrap().1;
+        let name = format!("{module}::worker_binary_survives_unlink");
+        let output = Command::new(&linked)
+            .args(["--exact", &name, "--nocapture"])
+            .env(CHILD, &linked)
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success(),
+            "{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            stdout.contains("1 passed"),
+            "child test did not run: {stdout}"
+        );
+    }
 
     #[test]
     fn snapshot_identity_changes_when_import_aliases_are_retargeted() {
