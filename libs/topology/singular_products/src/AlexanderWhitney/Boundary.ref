@@ -1,0 +1,34 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import Simplices.CutFaces[p := p, q := q] \as Geometry;
+\definition total: N.Nat^ := Geometry.total;
+\definition higher: N.Nat^ := Geometry.higher;
+\import \parent.At[p := p, q := q] \as Current;
+\import Modules.Tensor[V := Left.Carrier p, W := Right.Carrier q, left := Left.space p, right := Right.space q] \as Tensor;
+\import Simplices.Cut[p := N.Nat^::succ p, q := q] \as LeftCut;
+\import Simplices.Cut[p := p, q := N.Nat^::succ q] \as RightCut;
+\import Modules.Alternating[V := Current.Carrier, space := Current.space] \as Sum;
+\import Sum.Concatenation[] \as Signs;
+\module Values;
+\module Partition;
+
+\import Modules.Hom[V := Source.Carrier higher, W := Current.Carrier, source := Source.space higher, target := Current.space] \as Maps;
+\import Modules.Free[Generators := Simplices.Carrier higher].To[W := Current.Carrier, target := Current.space] \as Free;
+\import Modules.Hom[V := Source.Carrier total, W := Current.Carrier, source := Source.space total, target := Current.space].Composition[U := Source.Carrier higher, domain := Source.space higher] \as After;
+\definition lhs: Maps.Map := After.compose Current.map (Source.boundary total);
+\module LeftBoundary;
+\module RightBoundary;
+\import LeftBoundary[] \as LeftTerm;
+\import RightBoundary[] \as RightTerm;
+\definition signedRight: Maps.Map := Maps.Map {
+  apply := \fun (x: Source.Carrier higher) => Signs.twist p (#apply{RightTerm.map} x),
+  addition := \fun (x, y: Source.Carrier higher) => trans!{Current.Carrier} _ _ _
+    (congr!{Current.Carrier Current.Carrier} (Signs.twist p) _ _ (#addition{RightTerm.map} x y))
+    (Signs.twistAdd p (#apply{RightTerm.map} x) (#apply{RightTerm.map} y)),
+  scalar := \fun (a: I.Int^)(x: Source.Carrier higher) => trans!{Current.Carrier} _ _ _
+    (congr!{Current.Carrier Current.Carrier} (Signs.twist p) _ _ (#scalar{RightTerm.map} a x))
+    (Signs.twistScalar p a (#apply{RightTerm.map} x)),
+};
+\definition rhs: Maps.Map := Maps.plus LeftTerm.map signedRight;
+\module Proof;
+\definition equation: lhs = rhs := Proof[].equation;

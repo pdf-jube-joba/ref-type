@@ -1,0 +1,26 @@
+\import \root.Homotopy[A := A, B := A] \as LeftHomotopy;
+\import \root.Homotopy[A := B, B := B] \as RightHomotopy;
+\import \root.Homotopy[A := Product.CarrierSet, B := Product.CarrierSet] \as Homotopies;
+\import Product.Universal[X := Cylinder.Carrier] \as Universal;
+\import topology.Composition[A := Cylinder.Carrier, B := LeftCylinder.Carrier, C := A] \as LeftComposition;
+\import topology.Composition[A := Cylinder.Carrier, B := RightCylinder.Carrier, C := B] \as RightComposition;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr2;
+\definition centre: Product.CarrierSet := Pair.pair A B left.centre right.centre;
+\definition family(p: Cylinder.Carrier): Product.CarrierSet := Pair.pair A B (left.homotopy (leftLift p)) (right.homotopy (rightLift p));
+\definition contraction: Result.Data := Result.Data {
+  centre := centre,
+  homotopy := \into[Homotopies.Family](family, Homotopies.Homotopy[topology, topology, (\fun (x: Product.CarrierSet) => x), (\fun (_: Product.CarrierSet) => centre)]) \by {
+    Homotopies.Laws[topology, topology, (\fun (x: Product.CarrierSet) => x), (\fun (_: Product.CarrierSet) => centre), family] {
+      continuous := Universal.pairContinuous (Cylinder.topology topology) source target
+        (\fun (p: Cylinder.Carrier) => left.homotopy (leftLift p)) (\fun (p: Cylinder.Carrier) => right.homotopy (rightLift p))
+        (LeftComposition.composeContinuous (Cylinder.topology topology) (LeftCylinder.topology source) source leftLift left.homotopy leftContinuous (#continuous{left.homotopy}))
+        (RightComposition.composeContinuous (Cylinder.topology topology) (RightCylinder.topology target) target rightLift right.homotopy rightContinuous (#continuous{right.homotopy})),
+      start := \fun (x: Product.CarrierSet) => trans!{Product.CarrierSet} _ _ _
+        (congr2!{A B Product.CarrierSet} (Pair.pair A B) _ _ _ _ (#start{left.homotopy} (Pair.first A B x)) (#start{right.homotopy} (Pair.second A B x)))
+        (Pairs.eta x),
+      end := \fun (x: Product.CarrierSet) => congr2!{A B Product.CarrierSet} (Pair.pair A B) _ _ _ _ (#end{left.homotopy} (Pair.first A B x)) (#end{right.homotopy} (Pair.second A B x)),
+    }
+  },
+};

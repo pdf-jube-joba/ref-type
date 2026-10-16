@@ -1,0 +1,36 @@
+\import \root.AlexanderWhitney[A := A, B := B, left := leftSource, right := rightSource].At[p := p, q := q] \as SourceAW;
+\import \root.AlexanderWhitney[A := C, B := D, left := leftTarget, right := rightTarget].At[p := p, q := q] \as TargetAW;
+\definition n: N.Nat^ := SourceAW.total;
+\import singular_cohomology.Chains[A := A, source := leftSource] \as LeftChains;
+\import singular_cohomology.Chains[A := B, source := rightSource] \as RightChains;
+\import singular_cohomology.Chains[A := C, source := leftTarget] \as FinalLeft;
+\import singular_cohomology.Chains[A := D, source := rightTarget] \as FinalRight;
+\import singular_cohomology.Chains[A := Before.CarrierSet, source := source] \as SourceChains;
+\import singular_cohomology.Chains[A := After.CarrierSet, source := target] \as TargetChains;
+\import singular_cohomology.Simplices[A := Before.CarrierSet, source := source] \as Simplices;
+\import Modules.Tensor[V := LeftChains.Carrier p, W := RightChains.Carrier q, left := LeftChains.space p, right := RightChains.space q] \as Tensor;
+\import Modules.Tensor[V := FinalLeft.Carrier p, W := FinalRight.Carrier q, left := FinalLeft.space p, right := FinalRight.space q] \as FinalTensor;
+\import Tensor.Mapping[U := FinalLeft.Carrier p, Z := FinalRight.Carrier q, targetLeft := FinalLeft.space p, targetRight := FinalRight.space q] \as Mapping;
+\definition leftPush: Modules.Hom[V := LeftChains.Carrier p, W := FinalLeft.Carrier p, source := LeftChains.space p, target := FinalLeft.space p].Map := LeftMaps.At[n := p].push f.leftFunction f.leftContinuous;
+\definition rightPush: Modules.Hom[V := RightChains.Carrier q, W := FinalRight.Carrier q, source := RightChains.space q, target := FinalRight.space q].Map := RightMaps.At[n := q].push f.rightFunction f.rightContinuous;
+\definition tensorMap: Modules.Hom[V := SourceAW.Carrier, W := TargetAW.Carrier, source := SourceAW.space, target := TargetAW.space].Map := Mapping.map leftPush rightPush;
+\import Modules.Hom[V := SourceChains.Carrier n, W := TargetAW.Carrier, source := SourceChains.space n, target := TargetAW.space] \as Maps;
+\import Modules.Hom[V := TargetChains.Carrier n, W := TargetAW.Carrier, source := TargetChains.space n, target := TargetAW.space].Composition[U := SourceChains.Carrier n, domain := SourceChains.space n] \as First;
+\import Modules.Hom[V := SourceAW.Carrier, W := TargetAW.Carrier, source := SourceAW.space, target := TargetAW.space].Composition[U := SourceChains.Carrier n, domain := SourceChains.space n] \as Second;
+\definition lhs: Maps.Map := First.compose TargetAW.map (ProductMaps.At[n := n].push (function f) (continuous f));
+\definition rhs: Maps.Map := Second.compose tensorMap SourceAW.map;
+\definition afterGenerator(sigma: Simplices.Carrier n): #apply{lhs} (SourceChains.generator n sigma) = TargetAW.value (ProductMaps.postcompose n (function f) (continuous f) sigma) :=
+  trans!{TargetAW.Carrier} _ _ _
+    (congr!{{TargetChains.Carrier n} TargetAW.Carrier} (#apply{TargetAW.map}) _ _ (ProductMaps.At[n := n].onGenerator (function f) (continuous f) sigma))
+    (TargetAW.onGenerator (ProductMaps.postcompose n (function f) (continuous f) sigma));
+\definition beforeGenerator(sigma: Simplices.Carrier n): #apply{rhs} (SourceChains.generator n sigma) = TargetAW.value (ProductMaps.postcompose n (function f) (continuous f) sigma) :=
+  trans!{TargetAW.Carrier} _ _ _
+    (congr!{SourceAW.Carrier TargetAW.Carrier} (#apply{tensorMap}) _ _ (SourceAW.onGenerator sigma))
+    (trans!{TargetAW.Carrier} _ _ _
+      (Mapping.onTensor leftPush rightPush (LeftChains.generator p (SourceAW.front sigma)) (RightChains.generator q (SourceAW.back sigma)))
+      (congr2!{{FinalLeft.Carrier p} {FinalRight.Carrier q} TargetAW.Carrier} FinalTensor.tensor _ _ _ _
+        (LeftMaps.At[n := p].onGenerator f.leftFunction f.leftContinuous (SourceAW.front sigma))
+        (RightMaps.At[n := q].onGenerator f.rightFunction f.rightContinuous (SourceAW.back sigma))));
+\import Modules.Free[Generators := Simplices.Carrier n].To[W := TargetAW.Carrier, target := TargetAW.space] \as Free;
+\definition equation: lhs = rhs := Free.ext lhs rhs (\fun (sigma: Simplices.Carrier n) => trans!{TargetAW.Carrier} _ _ _ (afterGenerator sigma) (sym!{TargetAW.Carrier} _ _ (beforeGenerator sigma)));
+\definition law(x: SourceChains.Carrier n): #apply{lhs} x = #apply{rhs} x := congr!{Maps.Map TargetAW.Carrier} (\fun (h: Maps.Map) => #apply{h} x) _ _ equation;

@@ -1,0 +1,38 @@
+\import \root.ProductChains[p := p, q := q] \as Geometry;
+\import Geometry.Into[A := A, B := B, source := leftSource, target := rightSource] \as SourceEvaluation;
+\import Geometry.Into[A := C, B := D, source := leftTarget, target := rightTarget] \as TargetEvaluation;
+\import \root.Cross[A := A, B := B, left := leftSource, right := rightSource].At[p := p, q := q] \as SourceCross;
+\import \root.Cross[A := C, B := D, left := leftTarget, right := rightTarget].At[p := p, q := q] \as TargetCross;
+\definition degree: N.Nat^ := Geometry.dimension;
+\import singular_cohomology.Chains[A := A, source := leftSource] \as LeftChains;
+\import singular_cohomology.Chains[A := B, source := rightSource] \as RightChains;
+\import singular_cohomology.Chains[A := C, source := leftTarget] \as FinalLeft;
+\import singular_cohomology.Chains[A := D, source := rightTarget] \as FinalRight;
+\import singular_cohomology.Chains[A := Before.CarrierSet, source := source] \as SourceChains;
+\import singular_cohomology.Chains[A := After.CarrierSet, source := target] \as TargetChains;
+\import singular_cohomology.Simplices[A := A, source := leftSource] \as LeftSimplices;
+\import singular_cohomology.Simplices[A := B, source := rightSource] \as RightSimplices;
+\import singular_cohomology.Simplices[A := After.CarrierSet, source := target] \as TargetSimplices;
+\import singular_cohomology.OrderedTuples[V := Geometry.Points] \as Tuples;
+\import Commutative.Bilinear[A := SourceCross.leftBundle, B := SourceCross.rightBundle, C := SourceCross.targetBundle].Postcompose[D := TargetCross.targetBundle] \as Post;
+\import Commutative.Bilinear[A := TargetCross.leftBundle, B := TargetCross.rightBundle, C := TargetCross.targetBundle].Precompose[D := SourceCross.leftBundle, E := SourceCross.rightBundle] \as Pre;
+\import Commutative.Bilinear[A := SourceCross.leftBundle, B := SourceCross.rightBundle, C := TargetCross.targetBundle] \as Forms;
+\definition lhs: Forms.Map := Post.apply SourceCross.bilinear (ProductMaps.At[n := degree].push (function f) (continuous f));
+\definition rhs: Forms.Map := Pre.apply TargetCross.bilinear (LeftMaps.At[n := p].push f.leftFunction f.leftContinuous) (RightMaps.At[n := q].push f.rightFunction f.rightContinuous);
+\module Evaluation(m: N.Nat^, sigma: LeftSimplices.Carrier p, tau: RightSimplices.Carrier q);
+\definition afterGenerator(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q):
+  #apply{lhs} (LeftChains.generator p sigma) (RightChains.generator q tau) =
+    TargetEvaluation.onSimplices (LeftMaps.postcompose p f.leftFunction f.leftContinuous sigma) (RightMaps.postcompose q f.rightFunction f.rightContinuous tau) :=
+  trans!{{TargetChains.Carrier degree}} _ _ _
+    (congr!{{SourceChains.Carrier degree} {TargetChains.Carrier degree}} (#apply{(ProductMaps.At[n := degree].push (function f) (continuous f))}) _ _ (SourceCross.onGenerators sigma tau))
+    (Evaluation[m := degree, sigma := sigma, tau := tau].law Geometry.fundamental);
+\definition beforeGenerator(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q):
+  #apply{rhs} (LeftChains.generator p sigma) (RightChains.generator q tau) =
+    TargetEvaluation.onSimplices (LeftMaps.postcompose p f.leftFunction f.leftContinuous sigma) (RightMaps.postcompose q f.rightFunction f.rightContinuous tau) :=
+  trans!{{TargetChains.Carrier degree}} _ _ _
+    (congr2!{{FinalLeft.Carrier p} {FinalRight.Carrier q} {TargetChains.Carrier degree}} TargetCross.apply _ _ _ _
+      (LeftMaps.At[n := p].onGenerator f.leftFunction f.leftContinuous sigma)
+      (RightMaps.At[n := q].onGenerator f.rightFunction f.rightContinuous tau))
+    (TargetCross.onGenerators (LeftMaps.postcompose p f.leftFunction f.leftContinuous sigma) (RightMaps.postcompose q f.rightFunction f.rightContinuous tau));
+\import Commutative.FreeBilinear[X := LeftSimplices.Carrier p, Y := RightSimplices.Carrier q, C := TargetCross.targetBundle] \as Free;
+\definition equation: lhs = rhs := Free.ext lhs rhs (\fun (sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q) => trans!{{TargetChains.Carrier degree}} _ _ _ (afterGenerator sigma tau) (sym!{{TargetChains.Carrier degree}} _ _ (beforeGenerator sigma tau)));

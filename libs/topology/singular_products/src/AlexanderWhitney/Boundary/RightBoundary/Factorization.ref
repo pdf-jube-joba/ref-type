@@ -1,0 +1,14 @@
+\import \root.AlexanderWhitney[A := A, B := B, left := left, right := right].At[p := p, q := N.Nat^::succ q] \as Higher;
+\import Modules.Tensor[V := Left.Carrier p, W := Right.Carrier (N.Nat^::succ q), left := Left.space p, right := Right.space (N.Nat^::succ q)] \as HigherTensor;
+\import HigherTensor.Mapping[U := Left.Carrier p, Z := Right.Carrier q, targetLeft := Left.space p, targetRight := Right.space q] \as TensorMaps;
+\import Modules.End[V := Left.Carrier p, space := Left.space p] \as Identity;
+\definition differential: Modules.Hom[V := Higher.Carrier, W := Current.Carrier, source := Higher.space, target := Current.space].Map := TensorMaps.map Identity.identity (Right.boundary q);
+\import Modules.Hom[V := Higher.Carrier, W := Current.Carrier, source := Higher.space, target := Current.space].Composition[U := Source.Carrier higher, domain := Source.space higher] \as After;
+\definition composite: Maps.Map := After.compose differential Higher.map;
+\definition compositeGenerator(sigma: Simplices.Carrier higher): #apply{composite} (Source.generator higher sigma) = value sigma :=
+  trans!{Current.Carrier} _ _ _
+    (congr!{Higher.Carrier Current.Carrier} (#apply{differential}) _ _ (Higher.onGenerator sigma))
+    (TensorMaps.onTensor Identity.identity (Right.boundary q) (Left.generator p (Higher.front sigma)) (Right.generator (N.Nat^::succ q) (Higher.back sigma)));
+\definition equation: map = composite := Free.ext map composite (\fun (sigma: Simplices.Carrier higher) => trans!{Current.Carrier} _ _ _ (onGenerator sigma) (sym!{Current.Carrier} _ _ (compositeGenerator sigma)));
+\definition onTensor: \forall (x: Left.Carrier p)(y: Right.Carrier (N.Nat^::succ q)) ->
+  #apply{differential} (HigherTensor.tensor x y) = Tensor.tensor x (#apply{(Right.boundary q)} y) := TensorMaps.onTensor Identity.identity (Right.boundary q);

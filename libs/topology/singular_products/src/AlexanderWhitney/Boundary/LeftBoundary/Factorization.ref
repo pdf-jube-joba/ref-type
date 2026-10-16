@@ -1,0 +1,22 @@
+\import \root.AlexanderWhitney[A := A, B := B, left := left, right := right].At[p := N.Nat^::succ p, q := q] \as Higher;
+\import Modules.Tensor[V := Left.Carrier (N.Nat^::succ p), W := Right.Carrier q, left := Left.space (N.Nat^::succ p), right := Right.space q] \as HigherTensor;
+\import HigherTensor.Mapping[U := Left.Carrier p, Z := Right.Carrier q, targetLeft := Left.space p, targetRight := Right.space q] \as TensorMaps;
+\import Modules.End[V := Right.Carrier q, space := Right.space q] \as Identity;
+\definition differential: Modules.Hom[V := Higher.Carrier, W := Current.Carrier, source := Higher.space, target := Current.space].Map := TensorMaps.map (Left.boundary p) Identity.identity;
+\import Source.DegreeTransport[] \as Degrees;
+\definition reindex: Modules.Hom[V := Source.Carrier higher, W := Source.Carrier Geometry.leftDegree, source := Source.space higher, target := Source.space Geometry.leftDegree].Map := Degrees.linear higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same);
+\import Modules.Hom[V := Source.Carrier Geometry.leftDegree, W := Higher.Carrier, source := Source.space Geometry.leftDegree, target := Higher.space].Composition[U := Source.Carrier higher, domain := Source.space higher] \as Before;
+\import Modules.Hom[V := Higher.Carrier, W := Current.Carrier, source := Higher.space, target := Current.space].Composition[U := Source.Carrier higher, domain := Source.space higher] \as After;
+\definition composite: Maps.Map := After.compose differential (Before.compose Higher.map reindex);
+\definition compositeGenerator(sigma: Simplices.Carrier higher): #apply{composite} (Source.generator higher sigma) = value sigma :=
+  trans!{Current.Carrier} _ _ _
+    (congr!{Higher.Carrier Current.Carrier} (#apply{differential}) _ _
+      (trans!{Higher.Carrier} _ _ _
+        (congr!{{Source.Carrier Geometry.leftDegree} Higher.Carrier} (#apply{Higher.map}) _ _ (Degrees.onGenerator higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) sigma))
+        (trans!{Higher.Carrier} _ _ _
+          (Higher.onGenerator (Degrees.simplex higher Geometry.leftDegree (sym!{N.Nat^} _ _ Geometry.same) sigma))
+          (congr!{{Simplices.Carrier Geometry.leftDegree} Higher.Carrier} Higher.value _ _ (sym!{{Simplices.Carrier Geometry.leftDegree}} _ _ (Geometry.leftSimplexLaw sigma))))))
+    (TensorMaps.onTensor (Left.boundary p) Identity.identity (Left.generator (N.Nat^::succ p) (Higher.front (Geometry.leftSimplex sigma))) (Right.generator q (Higher.back (Geometry.leftSimplex sigma))));
+\definition equation: map = composite := Free.ext map composite (\fun (sigma: Simplices.Carrier higher) => trans!{Current.Carrier} _ _ _ (onGenerator sigma) (sym!{Current.Carrier} _ _ (compositeGenerator sigma)));
+\definition onTensor: \forall (x: Left.Carrier (N.Nat^::succ p))(y: Right.Carrier q) ->
+  #apply{differential} (HigherTensor.tensor x y) = Tensor.tensor (#apply{(Left.boundary p)} x) y := TensorMaps.onTensor (Left.boundary p) Identity.identity;
