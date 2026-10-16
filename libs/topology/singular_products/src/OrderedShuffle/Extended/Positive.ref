@@ -1,0 +1,68 @@
+\definition p: N.Nat^ := N.Nat^::succ r;
+\definition q: N.Nat^ := N.Nat^::succ s;
+\import \parent.Recurrence[p := p, q := q, a := a, b := b] \as Recurrence;
+\import \parent.\parent.At[p := p, q := q] \as Full;
+\import \parent.\parent.At[p := r, q := q] \as LowerLeft;
+\import \parent.\parent.At[p := p, q := s] \as LowerRight;
+\import \parent.\parent.Step[r := r, s := s] \as Step;
+\import Fin.Tuples[A := V] \as LeftTuples;
+\import Fin.Tuples[A := W] \as RightTuples;
+\definition nextLeft: Left.Tuple p -> Left.Tuple (N.Nat^::succ p) := LeftTuples.extend p a;
+\definition nextRight: Right.Tuple q -> Right.Tuple (N.Nat^::succ q) := RightTuples.extend q b;
+\definition leftTailLaw(x: Left.Tuple p): leftTail p (nextLeft x) = x :=
+  \axiom:funext(leftTail p (nextLeft x), x, LeftTuples.atSuccessor p a x);
+\definition rightTailLaw(y: Right.Tuple q): rightTail q (nextRight y) = y :=
+  \axiom:funext(rightTail q (nextRight y), y, RightTuples.atSuccessor q b y);
+\definition point: Pair := Pair { left := a, right := b };
+\definition headLaw(x: Left.Tuple p)(y: Right.Tuple q):
+  Pair { left := leftHead p (nextLeft x), right := rightHead q (nextRight y) } = point :=
+  congr2!{V W Pair} (\fun (v: V)(w: W) => Pair { left := v, right := w }) _ _ _ _
+    (LeftTuples.atZero p a x) (RightTuples.atZero q b y);
+\import Modules.Alternating[V := Product.Carrier (degree p q), space := Product.space (degree p q)].Concatenation[] \as Signs;
+\definition leftValue(x: Left.Tuple p)(y: Right.Tuple q): Product.Carrier (degree p q) := onTuples r q x (nextRight y);
+\definition rightValue(x: Left.Tuple p)(y: Right.Tuple q): Product.Carrier (degree p q) := Step.castRight (onTuples p s (nextLeft x) y);
+\definition total(x: Left.Tuple p)(y: Right.Tuple q): Product.Carrier (degree p q) :=
+  #add{(Product.space (degree p q))} (leftValue x y) (Signs.twist p (rightValue x y));
+\definition unfold(x: Left.Tuple p)(y: Right.Tuple q):
+  onTuples p q (nextLeft x) (nextRight y) = #apply{(Product.cone (degree p q) point)} (total x y) :=
+  trans!{{Product.Carrier (length p q)}} _ _ _
+    (congr2!{{Product.Carrier Step.leftLength} {Product.Carrier Step.rightLength} {Product.Carrier (length p q)}}
+      (Step.apply (nextLeft x) (nextRight y)) _ _ _ _
+      (congr!{{Left.Tuple p} {Product.Carrier Step.leftLength}} (\fun (v: Left.Tuple p) => onTuples r q v (nextRight y)) _ _ (leftTailLaw x))
+      (congr!{{Right.Tuple q} {Product.Carrier Step.rightLength}} (onTuples p s (nextLeft x)) _ _ (rightTailLaw y)))
+    (congr!{Pair {Product.Carrier (length p q)}} (\fun (c: Pair) => #apply{(Product.cone (degree p q) c)} (total x y)) _ _ (headLaw x y));
+\definition leftOnGenerators(x: Left.Tuple p)(y: Right.Tuple q):
+  #apply{Recurrence.leftTerm} (Left.generator p x) (Right.generator q y) = leftValue x y :=
+  trans!{{Product.Carrier (degree p q)}} _ _ _
+    (congr!{{Right.Carrier (N.Nat^::succ q)} {Product.Carrier (degree p q)}} (LowerLeft.apply (Left.generator p x)) _ _
+      (Right.Cone[n := q].onGenerator b y))
+    (LowerLeft.onGenerators x (nextRight y));
+\definition rightOnGenerators(x: Left.Tuple p)(y: Right.Tuple q):
+  #apply{Recurrence.rightTerm} (Left.generator p x) (Right.generator q y) = rightValue x y :=
+  congr!{{Product.Carrier Step.rightLength} {Product.Carrier (degree p q)}} Step.castRight _ _
+    (trans!{{Product.Carrier Step.rightLength}} _ _ _
+      (congr!{{Left.Carrier (N.Nat^::succ p)} {Product.Carrier Step.rightLength}}
+        (\fun (v: Left.Carrier (N.Nat^::succ p)) => LowerRight.apply v (Right.generator q y)) _ _ (Left.Cone[n := p].onGenerator a x))
+      (LowerRight.onGenerators (nextLeft x) y));
+\import Commutative.Bilinear[A := Recurrence.domainLeft, B := Recurrence.domainRight, C := Recurrence.middle].Operations[] \as Operations;
+\definition rhsOnGenerators(x: Left.Tuple p)(y: Right.Tuple q):
+  #apply{Recurrence.rhs} (Left.generator p x) (Right.generator q y) = #apply{(Product.cone (degree p q) point)} (total x y) :=
+  congr!{{Product.Carrier (degree p q)} {Product.Carrier (length p q)}} (#apply{(Product.cone (degree p q) point)}) _ _
+    (congr2!{{Product.Carrier (degree p q)} {Product.Carrier (degree p q)} {Product.Carrier (degree p q)}} (#add{(Product.space (degree p q))}) _ _ _ _
+      (leftOnGenerators x y)
+      (trans!{{Product.Carrier (degree p q)}} _ _ _ (Operations.onSign p Recurrence.rightTerm (Left.generator p x) (Right.generator q y))
+        (congr!{{Product.Carrier (degree p q)} {Product.Carrier (degree p q)}} (Signs.twist p) _ _ (rightOnGenerators x y))));
+\definition lhsOnGenerators(x: Left.Tuple p)(y: Right.Tuple q):
+  #apply{Recurrence.lhs} (Left.generator p x) (Right.generator q y) = onTuples p q (nextLeft x) (nextRight y) :=
+  trans!{{Product.Carrier (length p q)}} _ _ _
+    (congr2!{{Left.Carrier (N.Nat^::succ p)} {Right.Carrier (N.Nat^::succ q)} {Product.Carrier (length p q)}} Full.apply _ _ _ _
+      (Left.Cone[n := p].onGenerator a x) (Right.Cone[n := q].onGenerator b y))
+    (Full.onGenerators (nextLeft x) (nextRight y));
+\import Commutative.FreeBilinear[X := Left.Tuple p, Y := Right.Tuple q, C := Full.target] \as Extension;
+\definition equation: Recurrence.lhs = Recurrence.rhs :=
+  Extension.ext Recurrence.lhs Recurrence.rhs (\fun (x: Left.Tuple p)(y: Right.Tuple q) =>
+    trans!{{Product.Carrier (length p q)}} _ _ _ (lhsOnGenerators x y)
+      (trans!{{Product.Carrier (length p q)}} _ _ _ (unfold x y) (sym!{{Product.Carrier (length p q)}} _ _ (rhsOnGenerators x y))));
+\definition law(x: Left.Carrier p)(y: Right.Carrier q): #apply{Recurrence.lhs} x y = #apply{Recurrence.rhs} x y :=
+  congr!{{Commutative.Bilinear[A := Recurrence.domainLeft, B := Recurrence.domainRight, C := Full.target].Map} {Product.Carrier (length p q)}}
+    (\fun (f: Commutative.Bilinear[A := Recurrence.domainLeft, B := Recurrence.domainRight, C := Full.target].Map) => #apply{f} x y) _ _ equation;

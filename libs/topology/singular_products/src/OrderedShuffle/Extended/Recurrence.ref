@@ -1,0 +1,22 @@
+\import \parent.\parent.At[p := p, q := q] \as Full;
+\definition domainLeft: Modules.Bundle := left p;
+\definition domainRight: Modules.Bundle := right q;
+\definition middle: Modules.Bundle := Modules.Bundle { Carrier := Product.Carrier (degree p q), space := Product.space (degree p q) };
+\import Commutative.Bilinear[A := Full.left, B := Full.right, C := Full.target].Precompose[D := domainLeft, E := domainRight] \as Before;
+\definition lhs: Commutative.Bilinear[A := domainLeft, B := domainRight, C := Full.target].Map :=
+  Before.apply Full.bilinear (Left.cone p a) (Right.cone q b);
+\import Modules.End[V := Left.Carrier p, space := Left.space p] \as LeftIdentity;
+\import Modules.End[V := Right.Carrier q, space := Right.space q] \as RightIdentity;
+\import Commutative.Bilinear[A := left p, B := right (N.Nat^::succ q), C := target p (N.Nat^::succ q)]
+  .Precompose[D := domainLeft, E := domainRight] \as BeforeLeft;
+\definition leftTerm: Commutative.Bilinear[A := domainLeft, B := domainRight, C := middle].Map :=
+  BeforeLeft.apply (bilinear p (N.Nat^::succ q)) LeftIdentity.identity (Right.cone q b);
+\import Commutative.Bilinear[A := left (N.Nat^::succ p), B := right q, C := target (N.Nat^::succ p) q]
+  .Precompose[D := domainLeft, E := domainRight] \as BeforeRight;
+\import Commutative.Bilinear[A := domainLeft, B := domainRight, C := target (N.Nat^::succ p) q].Postcompose[D := middle] \as CastRight;
+\definition rightTerm: Commutative.Bilinear[A := domainLeft, B := domainRight, C := middle].Map :=
+  CastRight.apply (BeforeRight.apply (bilinear (N.Nat^::succ p) q) (Left.cone p a) RightIdentity.identity) (castRight p q);
+\import Commutative.Bilinear[A := domainLeft, B := domainRight, C := middle].Operations[] \as Operations;
+\import Commutative.Bilinear[A := domainLeft, B := domainRight, C := middle].Postcompose[D := Full.target] \as After;
+\definition rhs: Commutative.Bilinear[A := domainLeft, B := domainRight, C := Full.target].Map :=
+  After.apply (Operations.plus leftTerm (Operations.sign p rightTerm)) (Product.cone (degree p q) (Pair { left := a, right := b }));
