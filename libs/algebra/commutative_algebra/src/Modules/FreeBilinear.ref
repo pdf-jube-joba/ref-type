@@ -1,0 +1,35 @@
+\import Modules.Free[Generators := X] \as Left;
+\import Modules.Free[Generators := Y] \as Right;
+\import \parent.HomSpace[V := Right.Carrier, W := C.Carrier, source := Right.space, target := C.space] \as Functions;
+\import Right.To[W := C.Carrier, target := C.space] \as RightExtend;
+\import Left.To[W := Functions.Carrier, target := Functions.space] \as LeftExtend;
+\import Modules.Hom[V := Left.Carrier, W := Functions.Carrier, source := Left.space, target := Functions.space] \as Curried;
+\import \parent.Bilinear[A := Left.bundle, B := Right.bundle, C := C] \as Bilinear;
+\definition right(values: X -> Y -> C.Carrier)(x: X): Functions.Carrier := RightExtend.extension (values x);
+\definition curried(values: X -> Y -> C.Carrier): Curried.Map := LeftExtend.extension (right values);
+\definition extend(values: X -> Y -> C.Carrier): Bilinear.Map := Bilinear.Map {
+  apply := \fun (x: Left.Carrier)(y: Right.Carrier) => #apply{(#apply{(curried values)} x)} y,
+  addLeft := \fun (x, y: Left.Carrier)(z: Right.Carrier) =>
+    congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => #apply{h} z) _ _ (#addition{(curried values)} x y),
+  addRight := \fun (x: Left.Carrier)(y, z: Right.Carrier) => #addition{(#apply{(curried values)} x)} y z,
+  scaleLeft := \fun (a: R)(x: Left.Carrier)(y: Right.Carrier) =>
+    congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => #apply{h} y) _ _ (#scalar{(curried values)} a x),
+  scaleRight := \fun (a: R)(x: Left.Carrier)(y: Right.Carrier) => #scalar{(#apply{(curried values)} x)} a y,
+};
+\definition onGenerators: \forall (values: X -> Y -> C.Carrier)(x: X)(y: Y) ->
+  #apply{(extend values)} (Left.generator x) (Right.generator y) = values x y :=
+  \fun (values: X -> Y -> C.Carrier)(x: X)(y: Y) => trans!{C.Carrier} _ _ _
+    (congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => #apply{h} (Right.generator y)) _ _ (LeftExtend.onGenerator (right values) x))
+    (RightExtend.onGenerator (values x) y);
+\definition ext: \forall (f, g: Bilinear.Map) ->
+  (\forall (x: X)(y: Y) -> #apply{f} (Left.generator x) (Right.generator y) = #apply{g} (Left.generator x) (Right.generator y)) -> f = g :=
+  \fun (f, g: Bilinear.Map)(same: _) => Bilinear.ext f g (\fun (x: Left.Carrier)(y: Right.Carrier) =>
+    congr!{{Modules.Hom[V := Left.Carrier, W := C.Carrier, source := Left.space, target := C.space].Map} C.Carrier}
+      (\fun (h: Modules.Hom[V := Left.Carrier, W := C.Carrier, source := Left.space, target := C.space].Map) => #apply{h} x) _ _
+      (Left.To[W := C.Carrier, target := C.space].ext (Bilinear.leftAt f y) (Bilinear.leftAt g y)
+        (\fun (a: X) => congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => #apply{h} y) _ _
+          (RightExtend.ext (Bilinear.rightAt f (Left.generator a)) (Bilinear.rightAt g (Left.generator a)) (same a)))));
+\definition unique: \forall (values: X -> Y -> C.Carrier)(f: Bilinear.Map) ->
+  (\forall (x: X)(y: Y) -> #apply{f} (Left.generator x) (Right.generator y) = values x y) -> f = extend values :=
+  \fun (values: X -> Y -> C.Carrier)(f: Bilinear.Map)(same: _) => ext f (extend values)
+    (\fun (x: X)(y: Y) => trans!{C.Carrier} _ _ _ (same x y) (sym!{C.Carrier} _ _ (onGenerators values x y)));
