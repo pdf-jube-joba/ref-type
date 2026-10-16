@@ -1,0 +1,20 @@
+\import chain_complexes.Chain[] \as Degrees;
+\import std.Arithmetic[].Int[] \as I;
+\definition Degree: \Set := Degrees.Degree;
+\definition degree(n: Nat.Nat^): Degree := I.Int^::ofNat n;
+\structure ModelFamily {
+  Carrier: Nat.Nat^ -> Degree -> \Set,
+  space: \forall (n: Nat.Nat^)(z: Degree) -> Modules.Space (Carrier n z),
+}
+\structure Operators[F: ModelFamily]: \Set {
+  boundary: \forall (n: Nat.Nat^)(z: Degree) -> Modules.Hom[V := F.Carrier n z, W := F.Carrier n (Degrees.previous z), source := F.space n z, target := F.space n (Degrees.previous z)].Map,
+  transition: \forall (n: Nat.Nat^)(z: Degree) -> Modules.Hom[V := F.Carrier n z, W := F.Carrier (Nat.Nat^::succ n) z, source := F.space n z, target := F.space (Nat.Nat^::succ n) z].Map,
+}
+\structure ModelLaws[F: ModelFamily, d: Operators[F]]: \Prop {
+  boundarySquare: \forall (n: Nat.Nat^)(z: Degree)(x: F.Carrier n z) -> #apply{(d.boundary n (Degrees.previous z))} (#apply{(d.boundary n z)} x) = #zero{(F.space n (Degrees.previous (Degrees.previous z)))},
+  transitionSquare: \forall (n: Nat.Nat^)(z: Degree)(x: F.Carrier n z) -> #apply{(d.transition (Nat.Nat^::succ n) z)} (#apply{(d.transition n z)} x) = #zero{(F.space (Nat.Nat^::succ (Nat.Nat^::succ n)) z)},
+  commutes: \forall (n: Nat.Nat^)(z: Degree)(x: F.Carrier n z) ->
+    #apply{(d.boundary (Nat.Nat^::succ n) z)} (#apply{(d.transition n z)} x) = #apply{(d.transition n (Degrees.previous z))} (#apply{(d.boundary n z)} x),
+}
+\structure Model { family: ModelFamily, operators: Operators[family], laws: ModelLaws[family, operators] }
+\module Of(model: Model);
