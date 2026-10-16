@@ -443,27 +443,29 @@ fn snapshot_key(snapshot: &SourceSnapshot) -> Vec<u8> {
 
 pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<report::Report> {
     let _signals = Signals::install()?;
-    let cache = match &args.cache_dir {
-        Some(path) => path.clone(),
-        None => sema::default_cache_directory(&args.path)?,
-    };
+    let cache = crate::cache_directory(args)?;
     if args.clear_cache {
         crate::clear_cache_directory(&cache)?;
     }
     let mut database = sema::Database::new();
-    let snapshot = match database.read_snapshot(&args.path, args.full_check_local) {
+    let snapshot = match crate::input_snapshot(args, &mut database) {
         Ok(snapshot) => snapshot,
         Err(error) => {
             eprintln!("Module Load Error: {error}");
             return Ok(report::Report::checked(false, false));
         }
     };
+    crate::save_input_snapshot(args, &snapshot)?;
     let workspace = Workspace::new(&cache)?;
-    let layout_key: String =
-        Sha256::digest(args.path.canonicalize()?.as_os_str().as_encoded_bytes())
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
+    let layout_key: String = Sha256::digest(
+        snapshot
+            .identity(snapshot.entry())
+            .as_os_str()
+            .as_encoded_bytes(),
+    )
+    .iter()
+    .map(|byte| format!("{byte:02x}"))
+    .collect();
     let layout = if args.no_cache {
         workspace.path("batches.json")
     } else {
@@ -690,8 +692,13 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             }
         }
     }
-    let current = SourceSnapshot::read(&args.path)?;
+    let current = crate::input_snapshot(args, &mut sema::Database::new())?;
     if snapshot_key(&current) != initial_key {
+        if args.source_snapshot.is_some() {
+            bail!(
+                "検査中に入力 snapshot が変更されました。再実行して現在の snapshot を検査してください。"
+            );
+        }
         bail!("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
     }
     if fresh

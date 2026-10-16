@@ -43,6 +43,8 @@ workspace 外は入力ディレクトリ、単独ファイルは親ディレク�
 | `--memory-mib N` | Linux で仮想メモリを制限。既定3072 MiB、0は起動時の上限を維持 |
 | `--batch-seconds N` | Linux のパッケージ検査で大きな範囲を分割するまでの秒数。既定180、末端の検査には適用しない |
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
+| `--save-source-snapshot PATH` | 読み込んだソースと元のファイル識別子を JSON に保存 |
+| `--source-snapshot PATH` | 保存した JSON のソースを検査 |
 | `--no-cache` | 選択した範囲を永続キャッシュの読み書きなしで検証 |
 | `--full-check` | 選択した範囲を再検証し、検証済みの結果でキャッシュを更新 |
 | `--full-check-local` | 入口パッケージ、または workspace の各パッケージの選択範囲を再検証し、外部依存のキャッシュを再利用 |
@@ -68,6 +70,18 @@ Linux の package 検査は、親 supervisor が一つずつ worker を起動す
 大きな範囲が時間・メモリ上限に達すると、親自身の宣言と各子 module に分割する。
 末端は時間で打ち切らず、メモリ制限と Ctrl+C を維持する。
 全 worker は固定した source snapshot と実行内の成果物を共有し、ソースが変わると再実行を求める。
+
+編集を続けながら保存時点のソースを検査する場合は、snapshot を明示して実行する。
+保存時のファイル識別子と内容を使うため、別ディレクトリへソースをコピーせずに検査を固定し、変更していない依存のキャッシュを再利用できる。
+
+```sh
+cargo run -p cli -- libs/std --parse-only --save-source-snapshot work/std.json
+cargo run -p cli -- libs/std --source-snapshot work/std.json --module std.Data.Nat
+```
+
+入力の位置は保存時と同じものを指定する。
+診断は保存時のソースを指し、検査中に入力 JSON の内容が変わると再実行を求める。
+通常の検査は引き続き実行中のソース変更を検出する。
 
 キャッシュは処理系・設定・ソース・manifest・依存入力・検査範囲を照合する。
 無変更なら結果を再利用し、後続 package の検査には依存環境を復元する。

@@ -371,3 +371,183 @@ fn cancelling_native_check_reaps_the_worker_and_removes_its_workspace() {
                 .starts_with(".check-"))
     );
 }
+
+#[test]
+fn captured_sources_keep_cache_identity_and_check_their_own_text() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = 'captured'\n");
+    let root = fixture.write(
+        "src/root.ref",
+        r"\module M { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }",
+    );
+    let first = fixture.0.join("first.json");
+    let second = fixture.0.join("second.json");
+    let export = run_ref_file_with_args(
+        &fixture.0,
+        &fixture.0,
+        &[
+            "--parse-only",
+            "--save-source-snapshot",
+            first.to_str().unwrap(),
+        ],
+    )
+    .unwrap();
+    assert!(export.status.success(), "{}", output_details(&export));
+    assert!(
+        !fixture.0.join("refcache").exists(),
+        "capture created semantic cache"
+    );
+    let snapshot: serde_json::Value = serde_json::from_slice(&fs::read(&first).unwrap()).unwrap();
+    assert_eq!(snapshot["entry"].as_str(), fixture.0.to_str());
+    assert!(snapshot["files"].get(root.to_str().unwrap()).is_some());
+    fs::copy(&first, &second).unwrap();
+    fs::write(&root, r"\module M { \definition P: \Prop := \Set; }").unwrap();
+    for (path, action) in [
+        (&first, "check captured.M ("),
+        (&second, "skip captured.M ("),
+    ] {
+        let output = run_ref_file_with_args(
+            &fixture.0,
+            &fixture.0,
+            &["--source-snapshot", path.to_str().unwrap()],
+        )
+        .unwrap();
+        assert!(output.status.success(), "{}", output_details(&output));
+        assert!(
+            progress_lines(&output)
+                .iter()
+                .any(|line| line.starts_with(action)),
+            "{}",
+            output_details(&output)
+        );
+    }
+    let changed = fixture.0.join("changed.json");
+    let export = run_ref_file_with_args(
+        &fixture.0,
+        &fixture.0,
+        &[
+            "--parse-only",
+            "--save-source-snapshot",
+            changed.to_str().unwrap(),
+        ],
+    )
+    .unwrap();
+    assert!(export.status.success(), "{}", output_details(&export));
+    let output = run_ref_file_with_args(
+        &fixture.0,
+        &fixture.0,
+        &["--source-snapshot", changed.to_str().unwrap()],
+    )
+    .unwrap();
+    assert!(!output.status.success(), "{}", output_details(&output));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("root.ref:1:"),
+        "{}",
+        output_details(&output)
+    );
+}
+
+#[test]
+fn captured_sources_reject_entry_mismatch_and_unreadable_input() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = 'entry'\n");
+    fixture.write("src/root.ref", r"\module M {}");
+    let snapshot = fixture.0.join("source.json");
+    let output = run_ref_file_with_args(
+        &fixture.0,
+        &fixture.0,
+        &[
+            "--parse-only",
+            "--save-source-snapshot",
+            snapshot.to_str().unwrap(),
+        ],
+    )
+    .unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+    let other = FixtureDirectory::new();
+    other.write("ref.toml", "[package]\nname = 'other'\n");
+    other.write("src/root.ref", r"\module Other {}");
+    let output = run_ref_file_with_args(
+        &other.0,
+        &other.0,
+        &["--source-snapshot", snapshot.to_str().unwrap()],
+    )
+    .unwrap();
+    assert!(!output.status.success(), "{}", output_details(&output));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("does not match requested path"));
+    fs::write(&snapshot, "invalid JSON").unwrap();
+    let output = run_ref_file_with_args(
+        &fixture.0,
+        &fixture.0,
+        &[
+            "--parse-only",
+            "--source-snapshot",
+            snapshot.to_str().unwrap(),
+        ],
+    )
+    .unwrap();
+    assert!(!output.status.success(), "{}", output_details(&output));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("decode source snapshot"));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn native_check_detects_captured_input_changes_after_starting() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("ref.toml", "[package]\nname = 'captured_edit'\n");
+    let declarations: String = (0..2000)
+        .map(|n| format!("\\definition value{n}: \\Prop := \\forall (P: \\Prop) -> P -> P;\n"))
+        .collect();
+    fixture.write(
+        "src/root.ref",
+        &format!("\\module Work {{\n{declarations}}}\n"),
+    );
+    let snapshot = fixture.0.join("source.json");
+    let output = run_ref_file_with_args(
+        &fixture.0,
+        &fixture.0,
+        &[
+            "--parse-only",
+            "--save-source-snapshot",
+            snapshot.to_str().unwrap(),
+        ],
+    )
+    .unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+    let mut parent = Command::new(env!("CARGO_BIN_EXE_cli"))
+        .arg(&fixture.0)
+        .arg("--source-snapshot")
+        .arg(&snapshot)
+        .args(["--full-check", "--no-progress"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let started = Instant::now();
+    loop {
+        if child_process(parent.id()).is_some() {
+            break;
+        }
+        if started.elapsed() > Duration::from_secs(10) || parent.try_wait().unwrap().is_some() {
+            let _ = parent.kill();
+            let _ = parent.wait();
+            panic!("native checker did not capture the input");
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    let mut changed: serde_json::Value =
+        serde_json::from_slice(&fs::read(&snapshot).unwrap()).unwrap();
+    for source in changed["files"].as_object_mut().unwrap().values_mut() {
+        if source.as_str().is_some_and(|s| s.contains("value0")) {
+            *source = serde_json::Value::String("\\module Changed {}\n".into());
+        }
+    }
+    fs::write(snapshot, serde_json::to_vec(&changed).unwrap()).unwrap();
+    let output = parent.wait_with_output().unwrap();
+    assert!(!output.status.success(), "{}", output_details(&output));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("検査中に入力 snapshot が変更されました"),
+        "{}",
+        output_details(&output)
+    );
+}
