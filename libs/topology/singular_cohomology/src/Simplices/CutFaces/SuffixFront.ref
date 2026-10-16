@@ -1,0 +1,14 @@
+\import \parent.\parent.Reindex[m := total, n := higher].Composition[k := p] \as Composition;
+\import \parent.\parent.Reindex[m := p, n := higher] \as Direct;
+\definition leftIndices(j: Fin.Fin (N.Nat^::succ q))(i: Fin.Fin (N.Nat^::succ p)): Fin.Fin (N.Nat^::succ higher) := NativeFace.skip (suffix j) (CutIndices.frontIndex i);
+\definition indices: \forall (j: Fin.Fin (N.Nat^::succ q)) -> leftIndices j = RightIndices.frontIndex :=
+  \fun (j: Fin.Fin (N.Nat^::succ q)) => \axiom:funext(leftIndices j, RightIndices.frontIndex, \fun (i: Fin.Fin (N.Nat^::succ p)) =>
+    NativeFace.before (suffix j) (CutIndices.frontIndex i)
+      (Bounds.ltOfSuccLe (N.Nat^::succ (Nat.add p j)) i
+        (Bounds.leSuccSucc i (Nat.add p j) (Bounds.leTrans i p (Nat.add p j)
+          (Bounds.leOfSuccSucc i p (Bounds.succLeOfLt (N.Nat^::succ p) i (Fin.bound (N.Nat^::succ p) i))) (Bounds.leAddRight p j)))));
+\definition law: \forall (j: Fin.Fin (N.Nat^::succ q))(sigma: Carrier higher) -> Cut.front (face total (suffix j) sigma) = Right.front sigma :=
+  \fun (j: Fin.Fin (N.Nat^::succ q))(sigma: Carrier higher) => trans!{{Carrier p}} _ _ _
+    (congr!{{Carrier total} {Carrier p}} Cut.front _ _ (NativeFace.law (suffix j) sigma))
+    (trans!{{Carrier p}} _ _ _ (Composition.law (NativeFace.skip (suffix j)) CutIndices.frontIndex sigma)
+      (congr!{Direct.Function {Carrier p}} (\fun (f: Direct.Function) => Direct.apply f sigma) (leftIndices j) RightIndices.frontIndex (indices j)));
