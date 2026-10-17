@@ -18,20 +18,37 @@
     source := SignedTensor.family.space (I.Int^::negSucc p) q, target := T.space] \as Maps;
   \definition map: Maps.Map := Maps.zeroMap;
 }
-\definition component: \forall (p, q: I.Int^) -> Grading.add p q = z ->
+\structure Coordinates[p, q: I.Int^, i: Grading.Index z]: \Prop {
+  first: #first{i} = p,
+  second: #second{i} = q,
+}
+\definition Closed(p, q: I.Int^): \Set := \Cast[Grading.Index z] ({ i: Grading.Index z \where Coordinates[p, q, i] });
+\definition closedLaws(p, q: I.Int^)(i: Closed p q): Coordinates[p, q, i] :=
+  \bysub(Grading.Index z, { i: Grading.Index z \where Coordinates[p, q, i] }, i);
+\definition close(i: Grading.Index z): Closed #first{i} #second{i} :=
+  \into[Grading.Index z](i, { j: Grading.Index z \where Coordinates[#first{i}, #second{i}, j] }) \by {
+    Coordinates[#first{i}, #second{i}, i] { first := \refl(#first{i}), second := \refl(#second{i}) }
+  };
+\definition degree(p, q: I.Int^)(i: Closed p q): Grading.add p q = z :=
+  trans!{I.Int^} _ _ _
+    (sym!{I.Int^} _ _ (congr2!{I.Int^ I.Int^ I.Int^} Grading.add _ _ _ _
+      (#first{(closedLaws p q i)}) (#second{(closedLaws p q i)})))
+    (Grading.degree z i);
+\definition component: \forall (p, q: I.Int^) -> Closed p q ->
   Modules.Hom[V := SignedTensor.family.Carrier p q, W := T.Carrier, source := SignedTensor.family.space p q, target := T.space].Map :=
-  \induction (p: I.Int^) \return \forall (q: I.Int^) -> Grading.add p q = z ->
+  \induction (p: I.Int^) \return \forall (q: I.Int^) -> Closed p q ->
     Modules.Hom[V := SignedTensor.family.Carrier p q, W := T.Carrier, source := SignedTensor.family.space p q, target := T.space].Map \with {
-    | ofNat: \fun (p: N.Nat^) => \induction (q: I.Int^) \return Grading.add (I.Int^::ofNat p) q = z ->
+    | ofNat: \fun (p: N.Nat^) => \induction (q: I.Int^) \return Closed (I.Int^::ofNat p) q ->
         Modules.Hom[V := SignedTensor.family.Carrier (I.Int^::ofNat p) q, W := T.Carrier,
           source := SignedTensor.family.space (I.Int^::ofNat p) q, target := T.space].Map \with {
-      | ofNat: \fun (q: N.Nat^)(closed: Grading.add (I.Int^::ofNat p) (I.Int^::ofNat q) = z) => Both[p := p, q := q, closed := closed].map
-      | negSucc: \fun (q: N.Nat^)(unused: Grading.add (I.Int^::ofNat p) (I.Int^::negSucc q) = z) => RightAbsent[p := p, q := q].map
+      | ofNat: \fun (q: N.Nat^)(i: Closed (I.Int^::ofNat p) (I.Int^::ofNat q)) =>
+          Both[p := p, q := q, closed := degree (I.Int^::ofNat p) (I.Int^::ofNat q) i].map
+      | negSucc: \fun (q: N.Nat^)(unused: Closed (I.Int^::ofNat p) (I.Int^::negSucc q)) => RightAbsent[p := p, q := q].map
     }
-    | negSucc: \fun (p: N.Nat^)(q: I.Int^)(unused: Grading.add (I.Int^::negSucc p) q = z) => LeftAbsent[p := p, q := q].map
+    | negSucc: \fun (p: N.Nat^)(q: I.Int^)(unused: Closed (I.Int^::negSucc p) q) => LeftAbsent[p := p, q := q].map
   };
 \import Modules.DirectSum[Index := Grading.Index z, family := S.family].To[W := T.Carrier, target := T.space] \as ForwardUniversal;
-\definition components: ForwardUniversal.Components := \fun (i: Grading.Index z) => component #first{i} #second{i} (Grading.degree z i);
+\definition components: ForwardUniversal.Components := \fun (i: Grading.Index z) => component #first{i} #second{i} (close i);
 \import Modules.Hom[V := S.Carrier, W := T.Carrier, source := S.space, target := T.space] \as ForwardMaps;
 \definition forward: ForwardMaps.Map := ForwardUniversal.extension components;
 \definition forwardOnInjection(i: Grading.Index z)(x: SignedTensor.family.Carrier #first{i} #second{i}):
