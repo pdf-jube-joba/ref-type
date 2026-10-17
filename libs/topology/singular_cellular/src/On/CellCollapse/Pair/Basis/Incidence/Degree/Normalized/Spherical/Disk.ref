@@ -1,0 +1,19 @@
+\import singular_cohomology.Chains[A := SourceModel.Disk, source := SourceModel.diskTopology] \as Chains;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import Chains.Reduced[] \as Reduced;
+\import singular_cohomology.Calculations[A := SourceModel.Disk, source := SourceModel.diskTopology].ReducedContractible[] \as Contractible;
+\module Positive(n: N.Nat^);
+\import Complexes.ShortExact[A := BoundaryExtension.complex, B := Extension.complex, C := SourceDiskPair.complex]
+  .At[s := SourceDiskPair.sequence, k := upperDegree].DimensionShift[] \as Shift;
+\definition lowerZero: Shift.LowerZero :=
+  \idelim N.Nat^::succ k = dimension \with d: N.Nat^ => \forall (q: Complexes.At[C := Extension.complex, z := I.Int^::ofNat d].Homology) ->
+    q = #zero{Complexes.At[C := Extension.complex, z := I.Int^::ofNat d].homologySpace} \by {
+    base: Positive[n := k].zero, equality: sym!{N.Nat^} _ _ positive
+  };
+\definition connecting: Modules.Isomorphism[V := SourceDiskPair.Homology[z := upperDegree].Carrier, W := BoundaryH.Homology,
+  source := SourceDiskPair.Homology[z := upperDegree].space, target := BoundaryH.homologySpace].Isomorphism :=
+  Shift.isomorphism (Positive[n := dimension].zero) lowerZero;
+\definition boundaryOrientation: Modules.Isomorphism[V := I.Int^, W := BoundaryH.Homology, source := Modules.scalarModule, target := BoundaryH.homologySpace].Isomorphism :=
+  Modules.Isomorphism[V := I.Int^, W := SourceDiskPair.Homology[z := upperDegree].Carrier, source := Modules.scalarModule, target := SourceDiskPair.Homology[z := upperDegree].space]
+    .Composition[U := BoundaryH.Homology, final := BoundaryH.homologySpace].compose connecting SourceOrientation.orientedDisk;
+\definition onOne: #apply{#forward{boundaryOrientation}} I.One.specification = boundaryGenerator := \refl(boundaryGenerator);

@@ -1,0 +1,43 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition degree: I.Int^ := I.Int^::ofNat zero;
+\import singular_cohomology.Chains[A := Skeleton.Carrier, source := Skeleton.topology] \as Chains;
+\import singular_cohomology.Simplices[A := Skeleton.Carrier, source := Skeleton.topology] \as Simplices;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import singular_cohomology.Maps[A := Skeleton.Carrier, B := Spheres.Carrier zero, source := Skeleton.topology, target := Spheres.topology zero] \as Maps;
+\definition push: Nonnegative.Map[C := Chains.complex, D := singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].complex].Map := Maps.push map continuous;
+\import sphere_maps.ZeroHomology[].Sphere[] \as Points;
+\import Nonnegative.Map[C := Chains.complex, D := singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].complex].At[n := zero] \as Push;
+\definition nativeCochain: Modules.Hom[V := Chains.Carrier zero, W := I.Int^, source := Chains.space zero, target := Modules.scalarModule].Map :=
+  Modules.Hom[V := singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].Carrier zero, W := I.Int^,
+    source := singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].space zero, target := Modules.scalarModule]
+    .Composition[U := Chains.Carrier zero, domain := Chains.space zero].compose Points.cochain (Push.linear push);
+\definition nativeClosed(x: Chains.Carrier one): #apply{nativeCochain} (#apply{(Chains.boundary zero)} x) = I.Zero.specification :=
+  trans!{I.Int^} _ _ _
+    (congr!{{singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].Carrier zero} I.Int^} (#apply{Points.cochain}) _ _ (sym!{{singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].Carrier zero}} _ _ (#commutes{push} zero x)))
+    (Points.closed (#apply{push} one x));
+\definition cochain: Modules.Hom[V := Extension.Carrier degree, W := I.Int^, source := Extension.space degree, target := Modules.scalarModule].Map :=
+  Modules.Hom[V := Chains.Carrier zero, W := I.Int^, source := Chains.space zero, target := Modules.scalarModule]
+    .Composition[U := Extension.Carrier degree, domain := Extension.space degree].compose nativeCochain Extension.Positive[n := zero].backward;
+\import sphere_maps.ZeroHomology[].Algebra[].Functional[C := Extension.complex, z := degree, functional := cochain] \as Functional;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\definition closed: Functional.Closed := \fun (x: Extension.Carrier (chain_complexes.Chain[].next degree)) =>
+  trans!{I.Int^} _ _ _
+    (congr!{{Extension.Carrier degree} I.Int^} (#apply{cochain}) _ _ (Transport.castRefl Extension.Carrier degree (Extension.Positive[n := zero].intro (#apply{(Chains.boundary zero)} x))))
+    (nativeClosed x);
+\import Complexes.At[C := Extension.complex, z := degree] \as H;
+\definition homology: Modules.Hom[V := H.Homology, W := I.Int^, source := H.homologySpace, target := Modules.scalarModule].Map := Functional.map closed;
+\definition pointCycle(x: Skeleton.Carrier): H.Cycle := H.cycle
+  (Extension.Positive[n := zero].intro (Chains.generator zero (Simplices.At[n := zero].constant x))) (\refl(Modules.Zero[].Carrier::zero));
+\definition onPoint(x: Skeleton.Carrier): #apply{homology} (H.classOf (pointCycle x)) = #apply{Points.cochain}
+  (singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].generator zero
+    (singular_cohomology.Simplices[A := Spheres.Carrier zero, source := Spheres.topology zero].At[n := zero].constant (map x))) :=
+  trans!{I.Int^} _ _ _ (Functional.onClass closed (pointCycle x))
+    (congr!{{singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].Carrier zero} I.Int^} (#apply{Points.cochain}) _ _ (Maps.At[n := zero].onGenerator map continuous (Simplices.At[n := zero].constant x)));
+\import Skeleton.Homology[z := degree] \as Absolute;
+\import \parent.\parent.Layer[n := zero] \as Layer;
+\definition coordinate: Modules.Hom[V := Layer.Homology[z := degree].Carrier, W := I.Int^, source := Layer.Homology[z := degree].space, target := Modules.scalarModule].Map :=
+  Modules.Hom[V := H.Homology, W := I.Int^, source := H.homologySpace, target := Modules.scalarModule]
+    .Composition[U := Layer.Homology[z := degree].Carrier, domain := Layer.Homology[z := degree].space].compose homology #backward{Absolute.isomorphism};
+\definition onProjection(q: H.Homology): #apply{coordinate} (#apply{Layer.Homology[z := degree].projection} q) = #apply{homology} q :=
+  congr!{H.Homology I.Int^} (#apply{homology}) _ _ (#leftInverse{Absolute.isomorphism} q);

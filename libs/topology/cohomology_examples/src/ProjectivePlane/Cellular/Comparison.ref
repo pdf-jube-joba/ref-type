@@ -2,8 +2,19 @@
 \import singular_cech.Algebra[R := I.Int^, ring := IntegerRing.ring].Restriction[C := chain] \as Restriction;
 \definition native: Native.Complex := Restriction.complex;
 \import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].Simplicial[] \as Model;
-\definition targetComplex: Native.Complex := Model.chainComplex;
 \import singular_cohomology.SimplicialChains[].On[X := Model.object] \as Target;
+\definition targetFamily: Native.Family := Native.Family { Carrier := Target.Carrier, space := Target.space };
+\definition targetDifferential: Native.DifferentialData[targetFamily] := Native.DifferentialData[targetFamily] {
+  apply := \fun (n: N.Nat^) => #apply{(Target.boundary n)},
+};
+\definition targetComplex: Native.Complex := Native.Complex {
+  family := targetFamily, differential := targetDifferential,
+  laws := Native.DifferentialLaws[targetFamily, targetDifferential] {
+    addition := \fun (n: N.Nat^) => #addition{(Target.boundary n)},
+    scalar := \fun (n: N.Nat^) => #scalar{(Target.boundary n)},
+    squareZero := \fun (n: N.Nat^) => Target.SquareZero[n := n].all,
+  },
+};
 \definition vertex(v: Vertex): Target.Carrier zero := Target.generator zero (Model.vertex v);
 \definition edge(e: Edge): Target.Carrier one := Target.generator one (Model.edge e);
 \definition triangle(t: Triangle): Target.Carrier two := Target.generator two (Model.triangle t);

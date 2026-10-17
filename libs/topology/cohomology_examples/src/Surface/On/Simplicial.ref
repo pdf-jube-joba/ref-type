@@ -120,7 +120,18 @@
 };
 \import singular_cohomology.SimplicialChains[].On[X := object] \as Chains;
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := IntegerRing.ring] \as NativeChains;
-\definition chainComplex: NativeChains.Complex := Chains.complex;
+\definition chainFamily: NativeChains.Family := NativeChains.Family { Carrier := Chains.Carrier, space := Chains.space };
+\definition chainDifferential: NativeChains.DifferentialData[chainFamily] := NativeChains.DifferentialData[chainFamily] {
+  apply := \fun (n: N.Nat^) => #apply{(Chains.boundary n)},
+};
+\definition chainComplex: NativeChains.Complex := NativeChains.Complex {
+  family := chainFamily, differential := chainDifferential,
+  laws := NativeChains.DifferentialLaws[chainFamily, chainDifferential] {
+    addition := \fun (n: N.Nat^) => #addition{(Chains.boundary n)},
+    scalar := \fun (n: N.Nat^) => #scalar{(Chains.boundary n)},
+    squareZero := \fun (n: N.Nat^) => Chains.SquareZero[n := n].all,
+  },
+};
 \module Boundaries;
 \module Coefficients(A: Modules.Bundle);
 \module Sequence(L, M, R: Modules.Bundle);

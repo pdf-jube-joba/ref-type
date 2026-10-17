@@ -15,6 +15,7 @@
 | 円のループ | Circle.Geometry.Loop.Primitive | 上半円を二乗して得られる閉じた特異辺と、その原始的なホモロジー類 |
 | 円の評価 | Circle.Geometry.Evaluation | 閉じたコチェインをこのループで評価する同型 \(H^1(S^1;A)\cong A\) |
 | トーラスの群 | Torus.Geometry.Comparison | 実際の積 \(S^1\times S^1\) を円の有限モデルのテンソル積と比較する |
+| トーラスの基底 | Torus.Geometry.Ring.Basis / UnitBasis | 次数 \(1\) の二つの射影類の基底、および次数 \(0\) の単位生成元 |
 | トーラスの積と反転 | Torus.Geometry.Ring | 二つの射影から得る次数 \(1\) の類、そのカップ積、因子交換の作用 |
 | 実射影平面の空間 | ProjectivePlane.Geometry | 実際の \(S^2/(x\sim -x)\)、半球による商、円板の貼り付けの相互比較 |
 | 実射影平面の有限モデル | ProjectivePlane.With | 二頂点・三辺・二三角形のコチェイン複体 |

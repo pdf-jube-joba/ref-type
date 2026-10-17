@@ -5,7 +5,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: write
 concurrency:
   group: singular-cohomology-${{ github.ref }}
   cancel-in-progress: true
@@ -20,17 +19,6 @@ jobs:
       REF_TYPE_CACHE: ${{ github.workspace }}/.ci/refcache
     steps:
       - uses: actions/checkout@v4
-      - name: Retire earlier checks of this branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/singular-cohomology.yml/runs?branch=$GITHUB_REF_NAME&per_page=100" \
-            --jq '.workflow_runs[] | select(.status != "completed") | .id' |
-          while read -r previous; do
-            if [[ "$previous" -lt "$GITHUB_RUN_ID" ]]; then
-              gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$previous/cancel" || true
-            fi
-          done
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/cache@v4
         with:
@@ -83,6 +71,22 @@ jobs:
       max-parallel: 10
       matrix:
         include:
+          - name: oriented-interval-edge
+            package: singular_cellular
+            module: singular_cellular.Disks.One.Edge.RelativeCycle
+            scope: subtree
+          - name: torus-unit-basis
+            package: cohomology_examples
+            module: cohomology_examples.Torus.Geometry.Ring.UnitBasis
+            scope: subtree
+          - name: projective-plane-ring
+            package: cohomology_examples
+            module: cohomology_examples.ProjectivePlane.Geometry.ModTwo.Ring
+            scope: subtree
+          - name: projective-plane-bockstein
+            package: cohomology_examples
+            module: cohomology_examples.ProjectivePlane.Geometry.Bockstein
+            scope: subtree
           - name: neighborhood-naturality
             package: singular_cellular_algebra
             module: singular_cellular_algebra.Algebra.NeighborhoodMapping
@@ -337,6 +341,7 @@ jobs:
             scope: declarations
     env:
       REF_TYPE_CACHE: ${{ github.workspace }}/.ci/refcache
+      REF_TYPE_PROFILE_STORAGE: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
