@@ -5,8 +5,10 @@
 \import \parent.\parent.Filtration[].Stage[limit := base] \as Initial;
 \import singular_cohomology.Chains[A := Initial.Carrier, source := Initial.topology] \as InitialChains;
 \import singular_cohomology.Chains[A := A, source := source] \as AmbientChains;
-\import Complexes.At[C := InitialChains.integerComplex, z := degree] \as InitialHomology;
-\import Complexes.At[C := AmbientChains.integerComplex, z := degree] \as AmbientHomology;
+\import Nonnegative.ZeroExtension[C := InitialChains.complex] \as InitialExtension;
+\import Nonnegative.ZeroExtension[C := AmbientChains.complex] \as AmbientExtension;
+\import Complexes.At[C := InitialExtension.complex, z := degree] \as InitialHomology;
+\import Complexes.At[C := AmbientExtension.complex, z := degree] \as AmbientHomology;
 \definition above(extra: N.Nat^): Nat.Lt (N.Nat^::succ k) (limit extra) :=
   Nat.ltLeTrans (N.Nat^::succ k) base (limit extra)
     (Nat.ltOfSuccLe base (N.Nat^::succ k) (Nat.leRefl base)) (Nat.leAddRight base extra);
@@ -30,13 +32,14 @@
 \import \parent.\parent.Filtration[].Full[limit := limit height] \as Full;
 \import \parent.\parent.Filtration[].Stage[limit := limit height] \as FinalStage;
 \import singular_cohomology.Chains[A := FinalStage.Carrier, source := FinalStage.topology] \as FinalChains;
-\import Complexes.At[C := FinalChains.integerComplex, z := degree] \as FinalHomology;
+\import Nonnegative.ZeroExtension[C := FinalChains.complex] \as FinalExtension;
+\import Complexes.At[C := FinalExtension.complex, z := degree] \as FinalHomology;
 \import \parent.\parent.Filtration[].Inclusion[m := base, n := limit height] \as FinalInclusion;
 \import singular_cohomology.Maps[A := Initial.Carrier, B := FinalStage.Carrier, source := Initial.topology, target := FinalStage.topology] \as InitialToFinal;
 \definition fullBound: Nat.Le height (limit height) := Nat.leAddLeft base height;
 \import singular_cellular_algebra.Algebra[].AbsoluteHomeomorphism[A := FinalStage.Carrier, B := A,
   source := FinalStage.topology, target := source, homeomorphism := Full.homeomorphism fullBound] \as FullComparison;
-\import Complexes.Isomorphism[C := FinalChains.integerComplex, D := AmbientChains.integerComplex].At[z := degree] \as FullHomology;
+\import Complexes.Isomorphism[C := FinalExtension.complex, D := AmbientExtension.complex].At[z := degree] \as FullHomology;
 \import Modules.Isomorphism[V := InitialHomology.Homology, W := FinalHomology.Homology,
   source := InitialHomology.homologySpace, target := FinalHomology.homologySpace]
   .Composition[U := AmbientHomology.Homology, final := AmbientHomology.homologySpace] \as Composition;
@@ -44,17 +47,17 @@
   source := InitialHomology.homologySpace, target := AmbientHomology.homologySpace].Isomorphism :=
   Composition.compose (FullHomology.isomorphism FullComparison.isomorphism) (telescope height);
 \import singular_cohomology.Maps[A := Initial.Carrier, B := A, source := Initial.topology, target := source] \as Maps;
-\definition chainMap: Complexes.Map[C := InitialChains.integerComplex, D := AmbientChains.integerComplex].Map :=
+\definition chainMap: Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map :=
   Maps.integerPush Initial.inclusion Initial.continuous;
-\import Complexes.Map[C := InitialChains.integerComplex, D := AmbientChains.integerComplex].At[k := degree] \as Induced;
+\import Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].At[k := degree] \as Induced;
 \definition map: Modules.Hom[V := InitialHomology.Homology, W := AmbientHomology.Homology, source := InitialHomology.homologySpace, target := AmbientHomology.homologySpace].Map := Induced.induced chainMap;
 \import singular_cohomology.Maps[A := FinalStage.Carrier, B := A, source := FinalStage.topology, target := source] \as FinalMaps;
-\import Complexes.Map[C := FinalChains.integerComplex, D := AmbientChains.integerComplex].At[k := degree] \as FinalInduced;
-\import Complexes.Map[C := FinalChains.integerComplex, D := AmbientChains.integerComplex]
-  .Composition[B := InitialChains.integerComplex].At[k := degree] \as ChainComposition;
+\import Complexes.Map[C := FinalExtension.complex, D := AmbientExtension.complex].At[k := degree] \as FinalInduced;
+\import Complexes.Map[C := FinalExtension.complex, D := AmbientExtension.complex]
+  .Composition[B := InitialExtension.complex].At[k := degree] \as ChainComposition;
 \import InitialToFinal.Composition[C := A, final := source].Integer[] \as Functor;
-\definition factorization: Complexes.Map[C := FinalChains.integerComplex, D := AmbientChains.integerComplex]
-  .Composition[B := InitialChains.integerComplex].compose
+\definition factorization: Complexes.Map[C := FinalExtension.complex, D := AmbientExtension.complex]
+  .Composition[B := InitialExtension.complex].compose
     (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous) Final.chainMap = chainMap :=
   Functor.law (FinalInclusion.apply Final.bound) (FinalInclusion.continuous Final.bound) FinalStage.inclusion FinalStage.continuous;
 \definition compositeEquation: \forall (q: InitialHomology.Homology) -> #apply{#forward{composite}} q = #apply{map} q :=
@@ -64,8 +67,8 @@
     (trans!{AmbientHomology.Homology} _ _ _
       (sym!{AmbientHomology.Homology} _ _ (ChainComposition.compositionOnHomology
         (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous) Final.chainMap q))
-      (congr!{{Complexes.Map[C := InitialChains.integerComplex, D := AmbientChains.integerComplex].Map} {AmbientHomology.Homology}}
-        (\fun (f: Complexes.Map[C := InitialChains.integerComplex, D := AmbientChains.integerComplex].Map) => #apply{(Induced.induced f)} q) _ _ factorization));
+      (congr!{{Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map} {AmbientHomology.Homology}}
+        (\fun (f: Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map) => #apply{(Induced.induced f)} q) _ _ factorization));
 \definition bijective: Induced.Bijective[chainMap] := Induced.Bijective[chainMap] {
   injective := \fun (q, r: InitialHomology.Homology)(same: _) => trans!{InitialHomology.Homology} _ _ _
     (sym!{InitialHomology.Homology} _ _ (#leftInverse{composite} q))
