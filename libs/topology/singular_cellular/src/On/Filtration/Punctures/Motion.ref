@@ -22,16 +22,20 @@
 }
 \definition Values(t: Interval.Carrier)(x: Carrier): \Pow Carrier := { y: Carrier \where \exists Witness[t, x, y] };
 \definition Value(t: Interval.Carrier)(x: Carrier): \Set := \Cast[Carrier] (Values t x);
+\definition representationFromCell(x: Carrier)(cell: Cells.CellData)(member: Cells.CellMember cells cell)
+  (below: Nat.Lt (#dimension{cell}) (N.Nat^::succ n))(point: Euclidean.Disk (#dimension{cell}))
+  (image: #characteristic{cell} point = x): Representation[x] := Representation[x] {
+    cell := cell, member := member, below := below, point := point, image := image,
+  };
 \definition representationExists: \forall (x: Carrier) -> \exists Representation[x] :=
   \fun (x: Carrier) => eliminate cells (N.Nat^::succ n) x (\exists Representation[x])
     (\block {
-      \fun (cell: Cells.CellData)(member: _)(below: _)(contains: _) \then
+      \fun (cell: Cells.CellData)(member: Cells.CellMember cells cell)
+        (below: Nat.Lt (#dimension{cell}) (N.Nat^::succ n))(contains: Space.Member (Cells.ClosedImage cell) x) \then
       \takefrom p: \Cast[Euclidean.Disk (#dimension{cell})]
         ({ p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }) \by contains \then
-      \return \exact(Representation[x] {
-        cell := cell, member := member, below := below, point := p,
-        image := \bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, p),
-      }, Representation[x])
+      \return \exact(representationFromCell x cell member below p
+        (\bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, p)), Representation[x])
     }) (\bysub(A, subset (N.Nat^::succ n), x));
 \definition existence: \forall (t: Interval.Carrier)(x: Carrier) -> \exists Value t x := \block {
   \fun (t: Interval.Carrier)(x: Carrier) \then
@@ -66,10 +70,14 @@
       (point: \root.DiskCollar[n := #dimension{c}].Carrier) -> R.Lt (Euclidean.normSquaredAt (#dimension{c}) point) Real.one ->
       #characteristic{cell} p = #characteristic{c} point ->
       \parent.Cell[cell := cell, member := member, dimension := dimension].motion t p = \parent.Cell[cell := c, member := mc, dimension := dc].motion t point \by {
-        base: \fun (mc: _)(dc: _)(point: _)(inside: _)(equal: _) =>
+        base: \fun (mc: Cells.CellMember cells cell)(dc: #dimension{cell} = n)
+          (point: \root.DiskCollar[n := #dimension{cell}].Carrier)
+          (inside: R.Lt (Euclidean.normSquaredAt (#dimension{cell}) point) Real.one)
+          (equal: #characteristic{cell} p = #characteristic{cell} point) =>
           congr!{{\root.DiskCollar[n := #dimension{cell}].Carrier} Carrier}
             (\parent.Cell[cell := cell, member := member, dimension := dimension].motion t) _ _
-            (#injectiveInterior{(#cellLaws{laws} cell member)} p point pi inside equal),
+            (Algebra.Refinement[A := Euclidean.Disk (#dimension{cell}), S := \root.DiskCollar[n := #dimension{cell}].punctured]
+              .ext p point (#injectiveInterior{(#cellLaws{laws} cell member)} p point pi inside equal)),
         equality: same
       }) otherMember otherDimension q qi images;
 \module Comparison(x: Carrier, w, v: Representation[x], wd: #dimension{(#cell{w})} = n, vd: #dimension{(#cell{v})} = n);
