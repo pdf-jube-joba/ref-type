@@ -1,0 +1,32 @@
+\import \root.Circle[].Geometry[].FiniteComparison[].With[e := e] \as NativeComparison;
+\definition equivalence: Native.Equivalence[C := model, D := Singular.complex].Equivalence := NativeComparison.equivalence;
+\import Hom.Equivalence[P := model, Q := Singular.complex, N := coefficients].At[k := one] \as Comparison;
+\import Modules.Isomorphism[V := FiniteH.Cohomology, W := H.Cohomology, source := FiniteH.cohomologySpace, target := H.cohomologySpace].Inverse[] \as Inverse;
+\definition restriction: Modules.Isomorphism[V := H.Cohomology, W := FiniteH.Cohomology, source := H.cohomologySpace, target := FiniteH.cohomologySpace].Isomorphism :=
+  Inverse.inverse (Comparison.isomorphism equivalence);
+\import Modules.Isomorphism[V := H.Cohomology, W := FiniteH.Cohomology, source := H.cohomologySpace, target := FiniteH.cohomologySpace]
+  .Composition[U := FiniteCochains.Carrier one, final := FiniteCochains.space one] \as IntoTerm;
+\definition term: Modules.Isomorphism[V := H.Cohomology, W := FiniteCochains.Carrier one, source := H.cohomologySpace, target := FiniteCochains.space one].Isomorphism :=
+  IntoTerm.compose (Zero.At[n := one].isomorphism differentialZero) restriction;
+\import Modules.Isomorphism[V := H.Cohomology, W := FiniteCochains.Carrier one, source := H.cohomologySpace, target := FiniteCochains.space one]
+  .Composition[U := coefficients.Carrier, final := coefficients.space] \as Output;
+\definition isomorphism: Iso.Isomorphism := Output.compose (\parent.\parent.Term[].isomorphism) term;
+\import Hom.Homotopy[P := model, Q := Singular.complex, N := coefficients] \as Pull;
+\import Cochains.Map[C := Theory.complex, D := FiniteCochains.complex].At[k := one] \as CohomologyMaps;
+\definition onClassTerm: \forall (h: H.CycleCarrier) ->
+  #apply{#forward{term}} (H.classOf h) = #apply{(Pull.map #forward{equivalence})} one h :=
+  \fun (h: H.CycleCarrier) => trans!{{FiniteCochains.Carrier one}} _ _ _
+    (congr!{FiniteH.Cohomology {FiniteCochains.Carrier one}}
+      (#apply{#forward{(Zero.At[n := one].isomorphism differentialZero)}}) _ _
+      (CohomologyMaps.onClass (Pull.map #forward{equivalence}) h))
+    (Zero.At[n := one].onClass differentialZero (#apply{(CohomologyMaps.cyclesMap (Pull.map #forward{equivalence}))} h));
+\import Modules.FiniteCoordinates[n := one] \as Coordinates;
+\definition onBasis: #apply{#forward{equivalence}} one (Coordinates.basis (Fin.zero zero)) = Singular.generator one Loop.simplex :=
+  trans!{{Singular.Carrier one}} _ _ _
+    (congr!{Comparisons.Map {Singular.Carrier one}} (\fun (f: Comparisons.Map) => #apply{f} (I.Int^::ofNat one) (Coordinates.basis (Fin.zero zero))) _ _ forwardExact)
+    (trans!{{Singular.Carrier one}} _ _ _ (Representatives.Degree[z := I.Int^::ofNat one].onBasis (Fin.zero zero))
+      Loop.Primitive[].representative);
+\definition formula: Formula isomorphism := \fun (h: H.CycleCarrier) => trans!{coefficients.Carrier} _ _ _
+  (congr!{{FiniteCochains.Carrier one} coefficients.Carrier} (#apply{(\parent.\parent.Term[].forward)}) _ _ (onClassTerm h))
+  (congr!{{Singular.Carrier one} coefficients.Carrier} (#apply{h}) _ _ onBasis);
+\definition result: Result := \into[Iso.Isomorphism](isomorphism, { e: Iso.Isomorphism \where Formula e }) \by { formula };

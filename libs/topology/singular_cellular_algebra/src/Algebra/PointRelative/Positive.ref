@@ -1,0 +1,41 @@
+\definition degree: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
+\import Complexes.At[C := Extension.complex, z := degree] \as OrdinaryH;
+\import Complexes.At[C := Reduced.complex, z := degree] \as ReducedH;
+\import Complexes.At[C := Pair.complex, z := degree] \as RelativeH;
+\import Reduced.Positive[n := n] \as Positive;
+\import Extension.PositiveHomology[n := n] \as Extended;
+\import Complexes.Map[C := Extension.complex, D := Pair.complex].At[k := degree] \as Projection;
+\import Complexes.Map[C := Reduced.complex, D := Pair.complex].At[k := degree] \as ReducedProjection;
+\definition projection: Modules.Hom[V := OrdinaryH.Homology, W := RelativeH.Homology, source := OrdinaryH.homologySpace, target := RelativeH.homologySpace].Map := Projection.induced Pair.sequence.projection;
+\definition reducedProjection: Modules.Hom[V := ReducedH.Homology, W := RelativeH.Homology, source := ReducedH.homologySpace, target := RelativeH.homologySpace].Map :=
+  ReducedProjection.induced Pair.Reduced[].projectionMap;
+\definition forget(x: ReducedH.Cycle): OrdinaryH.Cycle := OrdinaryH.cycle (Extension.Positive[n := N.Nat^::succ n].intro x)
+  (congr!{{Whole.Carrier n} {Extension.Carrier (I.Int^::ofNat n)}} (Extension.Positive[n := n].intro) _ _
+    (\bysub(Reduced.Carrier degree, #carrier{ReducedH.cycles}, x)));
+\definition positiveOnClass(x: ReducedH.Cycle): #apply{#forward{Positive.isomorphism}} (ReducedH.classOf x) = OrdinaryH.classOf (forget x) :=
+  trans!{OrdinaryH.Homology} _ _ _
+    (congr!{{Native.Positive[C := Whole.complex, n := n].Homology} OrdinaryH.Homology} (#apply{#forward{Extended.homologyIsomorphism}}) _ _ (Positive.onClass x))
+    (Extended.onClass (Positive.toNative x));
+\definition classSquare(x: ReducedH.Cycle): #apply{projection} (#apply{#forward{Positive.isomorphism}} (ReducedH.classOf x)) = #apply{reducedProjection} (ReducedH.classOf x) :=
+  trans!{RelativeH.Homology} _ _ _
+    (congr!{OrdinaryH.Homology RelativeH.Homology} (#apply{projection}) _ _ (positiveOnClass x))
+    (trans!{RelativeH.Homology} _ _ _ (Projection.onClass Pair.sequence.projection (forget x))
+      (sym!{RelativeH.Homology} _ _ (ReducedProjection.onClass Pair.Reduced[].projectionMap x)));
+\definition square: \forall (q: ReducedH.Homology) -> #apply{projection} (#apply{#forward{Positive.isomorphism}} q) = #apply{reducedProjection} q :=
+  ReducedH.classInduction (\fun (q: ReducedH.Homology) => #apply{projection} (#apply{#forward{Positive.isomorphism}} q) = #apply{reducedProjection} q) classSquare;
+\import Modules.Isomorphism[V := ReducedH.Homology, W := OrdinaryH.Homology, source := ReducedH.homologySpace, target := OrdinaryH.homologySpace].Inverse[] \as Inverse;
+\definition candidate: Modules.Isomorphism[V := OrdinaryH.Homology, W := RelativeH.Homology, source := OrdinaryH.homologySpace, target := RelativeH.homologySpace].Isomorphism :=
+  Modules.Isomorphism[V := OrdinaryH.Homology, W := ReducedH.Homology, source := OrdinaryH.homologySpace, target := ReducedH.homologySpace]
+    .Composition[U := RelativeH.Homology, final := RelativeH.homologySpace].compose
+      (Singleton.Homology[z := degree].isomorphism unique) (Inverse.inverse Positive.isomorphism);
+\definition candidateLaw(q: OrdinaryH.Homology): #apply{#forward{candidate}} q = #apply{projection} q :=
+  trans!{RelativeH.Homology} _ _ _ (sym!{RelativeH.Homology} _ _ (square (#apply{#backward{Positive.isomorphism}} q)))
+    (congr!{OrdinaryH.Homology RelativeH.Homology} (#apply{projection}) _ _ (#rightInverse{Positive.isomorphism} q));
+\definition isomorphism: Modules.Isomorphism[V := OrdinaryH.Homology, W := RelativeH.Homology, source := OrdinaryH.homologySpace, target := RelativeH.homologySpace].Isomorphism :=
+  Modules.Isomorphism[V := OrdinaryH.Homology, W := RelativeH.Homology, source := OrdinaryH.homologySpace, target := RelativeH.homologySpace].Isomorphism {
+    forward := projection, backward := #backward{candidate},
+    leftInverse := \fun (q: OrdinaryH.Homology) => trans!{OrdinaryH.Homology} _ _ _
+      (congr!{RelativeH.Homology OrdinaryH.Homology} (#apply{#backward{candidate}}) _ _ (sym!{RelativeH.Homology} _ _ (candidateLaw q))) (#leftInverse{candidate} q),
+    rightInverse := \fun (q: RelativeH.Homology) => trans!{RelativeH.Homology} _ _ _
+      (sym!{RelativeH.Homology} _ _ (candidateLaw (#apply{#backward{candidate}} q))) (#rightInverse{candidate} q),
+  };

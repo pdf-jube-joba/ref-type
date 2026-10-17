@@ -1,0 +1,34 @@
+\definition dimension: N.Nat^ := #dimension{cell};
+\import \root.Disks[].At[n := dimension] \as Disk;
+\import \root.DiskLocal[n := dimension] \as Local;
+\import algebraic_topology.Euclidean[].Dimension[n := dimension] \as Model;
+\import \parent.\parent.\parent.Filtration[].Punctures[n := n] \as Punctures;
+\import Punctures.Cell[cell := cell, member := Interiors.member cell, dimension := Interiors.dimension cell] \as Image;
+\import Interiors.Cell[cell := cell, member := Interiors.member cell, dimension := Interiors.dimension cell] \as Interior;
+\import \parent.\parent.\parent.CellProperties[cell := cell, member := Interiors.member cell].Interior[] \as CellInterior;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\import singular_cellular_algebra.Algebra[].NeighborhoodMapping[a := Local.neighborhood, b := Punctures.neighborhood] \as Mapping;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := Local.boundary]
+  .Maps[B := Upper.Carrier].Over[target := Upper.topology, targetSubset := Punctures.Excision[].lower] \as Maps;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := Local.boundary] \as SourcePair;
+\definition map: Maps.Map := \into[Model.Disk -> Upper.Carrier](Image.image, Maps.Map) \by {
+  Maps.Laws[Image.image] {
+    continuous := Image.imageContinuous,
+    contained := \fun (p: SourcePair.SubspaceCarrier) => Image.boundaryLower p (\bysub(Model.Disk, Local.boundary, p)),
+  }
+};
+\definition avoidsLower: \forall (p: Model.Disk) -> Logic.Not (Model.normSquared p = Real.one) ->
+  Logic.Not (Space.Member (\parent.\parent.\parent.Filtration[].subset n) (Image.image p)) :=
+  \fun (p: Model.Disk)(outside: _) => Interior.outsideLower
+    (\into[A](#characteristic{cell} p, Cells.InteriorImage cell) \by {
+      Image.containsInterior p (Order.ltOfLeNotEq (Model.normSquared p) Real.one (\bysub(Model.Coordinate, Model.ClosedBall, p)) outside)
+    });
+\definition data: Mapping.Data := Mapping.Data {
+  map := map, region := Image.insideRegion, complement := avoidsLower,
+};
+\import Mapping.Along[data := data] \as Natural;
+\import Maps.On[f := map].Integer[] \as Action;
+\module Homology(z: I.Int^);
+
+\module Oriented;

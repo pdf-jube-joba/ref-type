@@ -1,0 +1,29 @@
+\import Euclidean.Dimension[n := #dimension{other}] \as OtherModel;
+\definition below: Nat.Lt (#dimension{other}) (N.Nat^::succ dimension) :=
+  \idelim dimension = #dimension{other} \with d: N.Nat^ => Nat.Lt d (N.Nat^::succ dimension) \by {
+    base: Nat.ltOfSuccLe (N.Nat^::succ dimension) dimension (Nat.leRefl (N.Nat^::succ dimension)),
+    equality: sym!{N.Nat^} _ _ sameDimension
+  };
+\import \parent.\parent.Other[other := other, present := present, below := below] \as Other;
+\import Filtration.Characteristic[cell := other, member := present] \as OtherCharacteristic;
+\definition otherBoundary: \Pow OtherModel.Disk := { p: OtherModel.Disk \where OtherModel.normSquared p = Real.one };
+\import singular_cohomology.Relative[A := OtherModel.Disk, source := OtherModel.diskTopology, subset := otherBoundary] \as OtherPair;
+\import OtherPair.Maps[B := Skeleton.Carrier].Over[target := Skeleton.topology, targetSubset := lower] \as IntoSkeleton;
+\definition characteristic: IntoSkeleton.Map := \into[OtherModel.Disk -> Skeleton.Carrier](Other.lift, IntoSkeleton.Map) \by {
+  IntoSkeleton.Laws[Other.lift] {
+    continuous := Skeleton.Open[].liftContinuous other present below,
+    contained := \fun (p: OtherPair.SubspaceCarrier) => Filtration.monotone (#dimension{other}) dimension Other.bound (#characteristic{other} p)
+      (OtherCharacteristic.boundaryImage (\into[OtherModel.Coordinate](p, OtherModel.Boundary) \by { \bysub(OtherModel.Disk, otherBoundary, p) })),
+  }
+};
+\import IntoSkeleton.Composition[C := DiskQuotient.Carrier].Over[final := DiskQuotient.topology Model.diskTopology, finalSubset := Point.subset] \as Composition;
+\definition sourcePair: singular_cellular_algebra.Algebra[].SpacePair := singular_cellular_algebra.Algebra[].SpacePair {
+  Carrier := OtherModel.Disk, topology := OtherModel.diskTopology, subset := otherBoundary,
+};
+\definition targetPair: singular_cellular_algebra.Algebra[].SpacePair := singular_cellular_algebra.Algebra[].SpacePair {
+  Carrier := DiskQuotient.Carrier, topology := DiskQuotient.topology Model.diskTopology, subset := Point.subset,
+};
+\import singular_cellular_algebra.Algebra[].PairVanish[a := sourcePair, b := targetPair]
+  .Along[f := Composition.compose characteristic pairMap] \as Vanishing;
+\definition contained: Vanishing.Contained := Other.onCharacteristic different;
+\module Homology(z: I.Int^);

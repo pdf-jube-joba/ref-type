@@ -1,0 +1,55 @@
+\import \parent.Topology[] \as Topological;
+\import Cochains.At[C := Model.complex, k := one] \as Target;
+\import Cochains.At[C := Actual.complex, k := one] \as Source;
+\import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
+\import algebra.Group[].Of[Carrier := coefficients.Carrier, group := Values.additive] \as Group;
+\import Modules.Hom[V := Target.CycleCarrier, W := coefficients.Carrier, source := Target.cycleSpace, target := coefficients.space] \as Evaluation;
+\definition evaluate: Evaluation.Map := Evaluation.Map {
+  apply := \fun (h: Target.CycleCarrier) => Coordinates.evaluate h Edge::loop,
+  addition := \fun (h, j: Target.CycleCarrier) => \refl(Values.add (Coordinates.evaluate h Edge::loop) (Coordinates.evaluate j Edge::loop)),
+  scalar := \fun (a: I.Int^)(h: Target.CycleCarrier) => \refl(Values.scale a (Coordinates.evaluate h Edge::loop)),
+};
+\import Modules.Of[V := Target.CycleCarrier, space := Target.cycleSpace].Submodule[].Quotient[S := Target.boundariesInside] \as Quotient;
+\import Quotient.To[W := coefficients.Carrier, target := coefficients.space] \as Descent;
+\import Finite.Coefficients[A := coefficients].Differentials[] \as Differential;
+\import Finite.Coefficients[A := coefficients].DegreeZero[] \as ZeroCoordinates;
+\definition kills: Descent.Vanishes evaluate := \block {
+  \fun (h: Target.CycleCarrier)(boundary: _) \then
+  \takefrom f: \Cast[Model.Carrier N.Nat^::zero] ({ f: Model.Carrier N.Nat^::zero \where Model.apply N.Nat^::zero f = h }) \by boundary \then
+  \return trans!{coefficients.Carrier} _ _ _
+    (congr!{{Model.Carrier one} coefficients.Carrier} (\fun (x: Model.Carrier one) => Coordinates.evaluate x Edge::loop) _ _
+      (sym!{{Model.Carrier one}} _ _ (\bysub(Model.Carrier N.Nat^::zero, { f: Model.Carrier N.Nat^::zero \where Model.apply N.Nat^::zero f = h }, f))))
+    (trans!{coefficients.Carrier} _ _ _
+      (congr!{Coordinates.FunctionCarrier coefficients.Carrier} (\fun (g: Coordinates.FunctionCarrier) => g Edge::loop) _ _ (Differential.zeroth f))
+      (Group.inverseRight (ZeroCoordinates.evaluate f Vertex::rim)))
+};
+\definition functional: Modules.Hom[V := Target.Cohomology, W := coefficients.Carrier, source := Target.cohomologySpace, target := coefficients.space].Map := Descent.descend evaluate kills;
+\definition onClass(h: Target.CycleCarrier): #apply{functional} (Target.classOf h) = Coordinates.evaluate h Edge::loop := Descent.onClass evaluate kills h;
+\import \root.Circle[].Geometry[].Evaluation[coefficients := coefficients] \as CircleEvaluation;
+\import Cochains.At[C := Circle.complex, k := one] \as CircleH;
+\import Cochains.Map[C := Actual.complex, D := Circle.complex].At[k := one] \as CircleMap;
+\module With(e: CircleEvaluation.Result) {
+  \definition onCycle(h: Source.CycleCarrier):
+    #apply{#forward{e}} (#apply{Topological.pull} (Source.classOf h)) = #apply{functional} (#apply{At[n := one].induced} (Source.classOf h)) :=
+    trans!{coefficients.Carrier} _ _ _
+      (congr!{CircleH.Cohomology coefficients.Carrier} (#apply{#forward{e}}) _ _ (CircleMap.onClass (CirclePull.map Loop.inclusion Loop.continuous Identity.identity) h))
+      (trans!{coefficients.Carrier} _ _ _ (CircleEvaluation.onClass e (#apply{(CircleMap.cyclesMap (CirclePull.map Loop.inclusion Loop.continuous Identity.identity))} h))
+        (trans!{coefficients.Carrier} _ _ _ (onLoop h)
+          (trans!{coefficients.Carrier} _ _ _ (sym!{coefficients.Carrier} _ _ (onClass (At[n := one].cycle h)))
+            (congr!{Target.Cohomology coefficients.Carrier} (#apply{functional}) _ _ (sym!{Target.Cohomology} _ _ (At[n := one].onClass h))))));
+  \definition law: \forall (q: Source.Cohomology) ->
+    #apply{#forward{e}} (#apply{Topological.pull} q) = #apply{functional} (#apply{At[n := one].induced} q) :=
+    Source.classInduction (\fun (q: Source.Cohomology) => #apply{#forward{e}} (#apply{Topological.pull} q) = #apply{functional} (#apply{At[n := one].induced} q)) onCycle;
+  \definition injective(x, y: Source.Cohomology)(equal: #apply{At[n := one].induced} x = #apply{At[n := one].induced} y): x = y :=
+    Topological.injective x y
+      (trans!{CircleH.Cohomology} _ _ _ (sym!{CircleH.Cohomology} _ _ (#leftInverse{e} (#apply{Topological.pull} x)))
+        (trans!{CircleH.Cohomology} _ _ _
+          (congr!{coefficients.Carrier CircleH.Cohomology} (#apply{#backward{e}}) _ _
+            (trans!{coefficients.Carrier} _ _ _ (law x)
+              (trans!{coefficients.Carrier} _ _ _ (congr!{Target.Cohomology coefficients.Carrier} (#apply{functional}) _ _ equal) (sym!{coefficients.Carrier} _ _ (law y)))))
+          (#leftInverse{e} (#apply{Topological.pull} y))));
+}
+\definition injective(x, y: Source.Cohomology)(equal: #apply{At[n := one].induced} x = #apply{At[n := one].induced} y): x = y := \block {
+  \takefrom e: CircleEvaluation.Result \by CircleEvaluation.existence \then
+  \return With[e := e].injective x y equal
+};

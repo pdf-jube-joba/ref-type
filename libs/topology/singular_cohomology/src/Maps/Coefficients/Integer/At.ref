@@ -1,0 +1,42 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\import SignedCochains.At[C := IntegerSource.complex, z := degree] \as SourceH;
+\import SignedCochains.At[C := IntegerTarget.complex, z := degree] \as TargetH;
+\import NativeCochains.At[C := SourceCochains.complex, k := n] \as NativeSourceH;
+\import NativeCochains.At[C := TargetCochains.complex, k := n] \as NativeTargetH;
+\import SignedCochains.Map[C := IntegerSource.complex, D := IntegerTarget.complex].At[k := degree] \as SignedMap;
+\import NativeCochains.Map[C := SourceCochains.complex, D := TargetCochains.complex].At[k := n] \as NativeMap;
+\definition sourceComparison: Modules.Isomorphism[V := SourceH.Cohomology, W := NativeSourceH.Cohomology,
+  source := SourceH.cohomologySpace, target := NativeSourceH.cohomologySpace].Isomorphism :=
+  SourceComparison.Cohomology[n := n].isomorphism;
+\definition targetComparison: Modules.Isomorphism[V := TargetH.Cohomology, W := NativeTargetH.Cohomology,
+  source := TargetH.cohomologySpace, target := NativeTargetH.cohomologySpace].Isomorphism :=
+  TargetComparison.Cohomology[n := n].isomorphism;
+\definition induced: Modules.Hom[V := SourceH.Cohomology, W := TargetH.Cohomology,
+  source := SourceH.cohomologySpace, target := TargetH.cohomologySpace].Map := SignedMap.induced signedMap;
+\definition onCycle: \forall (h: SourceH.Closed) ->
+  TargetComparison.Cohomology[n := n].restrict (#apply{(SignedMap.cyclesMap signedMap)} h) =
+    #apply{(NativeMap.cyclesMap nativeMap)} (SourceComparison.Cohomology[n := n].restrict h) :=
+  \fun (h: SourceH.Closed) => TargetHom.At[n := n].ext
+    (TargetComparison.Cohomology[n := n].restrict (#apply{(SignedMap.cyclesMap signedMap)} h))
+    (#apply{(NativeMap.cyclesMap nativeMap)} (SourceComparison.Cohomology[n := n].restrict h))
+    (\fun (x: Domain.complex.family.Carrier n) =>
+      \refl(#apply{coefficientMap} (#apply{h} (CodomainExtension.Positive[n := n].intro (#apply{(push f continuous)} n x)))));
+\definition onClass: \forall (h: SourceH.Closed) ->
+  #apply{#forward{targetComparison}} (#apply{induced} (SourceH.classOf h)) =
+    #apply{(NativeMap.induced nativeMap)} (#apply{#forward{sourceComparison}} (SourceH.classOf h)) :=
+  \fun (h: SourceH.Closed) => trans!{NativeTargetH.Cohomology} _ _ _
+    (congr!{TargetH.Cohomology NativeTargetH.Cohomology} (#apply{#forward{targetComparison}}) _ _ (SignedMap.onClass signedMap h))
+    (trans!{NativeTargetH.Cohomology} _ _ _
+      (TargetComparison.Cohomology[n := n].onClass (#apply{(SignedMap.cyclesMap signedMap)} h))
+      (trans!{NativeTargetH.Cohomology} _ _ _
+        (congr!{NativeTargetH.CycleCarrier NativeTargetH.Cohomology} NativeTargetH.classOf _ _ (onCycle h))
+        (trans!{NativeTargetH.Cohomology} _ _ _
+          (sym!{NativeTargetH.Cohomology} _ _ (NativeMap.onClass nativeMap (SourceComparison.Cohomology[n := n].restrict h)))
+          (congr!{NativeSourceH.Cohomology NativeTargetH.Cohomology} (#apply{(NativeMap.induced nativeMap)}) _ _
+            (sym!{NativeSourceH.Cohomology} _ _ (SourceComparison.Cohomology[n := n].onClass h))))));
+\definition law: \forall (q: SourceH.Cohomology) ->
+  #apply{#forward{targetComparison}} (#apply{induced} q) =
+    #apply{(NativeMap.induced nativeMap)} (#apply{#forward{sourceComparison}} q) :=
+  SourceH.classInduction (\fun (q: SourceH.Cohomology) =>
+    #apply{#forward{targetComparison}} (#apply{induced} q) =
+      #apply{(NativeMap.induced nativeMap)} (#apply{#forward{sourceComparison}} q)) onClass;

@@ -1,0 +1,53 @@
+\import Modules.FiniteCoordinates[n := one] \as Coordinates;
+\import \root.Circle[].Homology[].Unit[] \as Unit;
+\definition index: Coordinates.Index := Fin.zero zero;
+\definition basis: Coordinates.Carrier := Coordinates.basis index;
+\definition decomposition(v: Coordinates.Carrier): #smul{Coordinates.space} (Unit.evaluate v) basis = v :=
+  trans!{Coordinates.Carrier} _ _ _
+    (congr!{Coordinates.Carrier Coordinates.Carrier} (#smul{Coordinates.space} (Unit.evaluate v)) _ _ (sym!{Coordinates.Carrier} _ _ Unit.oneAsBasis))
+    (trans!{Coordinates.Carrier} _ _ _
+      (\axiom:funext(#smul{Coordinates.space} (Unit.evaluate v) (Unit.constant I.One.specification), Unit.constant (Unit.evaluate v),
+        \fun (i: Coordinates.Index) => #rightIdentity{(#multiplicative{(#semiring{Integers.ring})})} (Unit.evaluate v)))
+      (Unit.leftInverse v));
+\import Modules.Hom[V := Coordinates.Carrier, W := coefficients.Carrier, source := Coordinates.space, target := coefficients.space] \as Functionals;
+\import Modules.Hom[V := FiniteCochains.Carrier one, W := coefficients.Carrier, source := FiniteCochains.space one, target := coefficients.space] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (h: FiniteCochains.Carrier one) => #apply{h} basis,
+  addition := \fun (h, g: FiniteCochains.Carrier one) => \refl(#add{coefficients.space} (#apply{h} basis) (#apply{g} basis)),
+  scalar := \fun (a: I.Int^)(h: FiniteCochains.Carrier one) => \refl(#smul{coefficients.space} a (#apply{h} basis)),
+};
+\definition functional(m: coefficients.Carrier): FiniteCochains.Carrier one := Functionals.Map {
+  apply := \fun (v: Coordinates.Carrier) => #smul{coefficients.space} (Unit.evaluate v) m,
+  addition := \fun (v, w: Coordinates.Carrier) => #scalarAdd{coefficients.space} (Unit.evaluate v) (Unit.evaluate w) m,
+  scalar := \fun (a: I.Int^)(v: Coordinates.Carrier) => #scalarAssoc{coefficients.space} a (Unit.evaluate v) m,
+};
+\import Modules.Hom[V := coefficients.Carrier, W := FiniteCochains.Carrier one, source := coefficients.space, target := FiniteCochains.space one] \as Backward;
+\import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
+\import std.Alg[].Ring[] \as Rings;
+\definition backward: Backward.Map := Backward.Map {
+  apply := functional,
+  addition := \fun (m, n: coefficients.Carrier) => Functionals.ext _ _
+    (\fun (v: Coordinates.Carrier) => #vectorAdd{coefficients.space} (Unit.evaluate v) m n),
+  scalar := \fun (a: I.Int^)(m: coefficients.Carrier) => Functionals.ext _ _
+    (\fun (v: Coordinates.Carrier) => trans!{coefficients.Carrier} _ _ _
+      (sym!{coefficients.Carrier} _ _ (#scalarAssoc{coefficients.space} (Unit.evaluate v) a m))
+      (trans!{coefficients.Carrier} _ _ _
+        (congr!{I.Int^ coefficients.Carrier} (\fun (r: I.Int^) => #smul{coefficients.space} r m) _ _ (#mulCommutative{Integers.commutativeRing} (Unit.evaluate v) a))
+        (#scalarAssoc{coefficients.space} a (Unit.evaluate v) m))),
+};
+\definition leftInverse: \forall (h: FiniteCochains.Carrier one) -> #apply{backward} (#apply{forward} h) = h :=
+  \fun (h: FiniteCochains.Carrier one) => Functionals.ext _ _
+    (\fun (v: Coordinates.Carrier) => trans!{coefficients.Carrier} _ _ _
+      (sym!{coefficients.Carrier} _ _ (#scalar{h} (Unit.evaluate v) basis))
+      (congr!{Coordinates.Carrier coefficients.Carrier} (#apply{h}) _ _ (decomposition v)));
+\definition rightInverse: \forall (m: coefficients.Carrier) -> #apply{forward} (#apply{backward} m) = m :=
+  \fun (m: coefficients.Carrier) => trans!{coefficients.Carrier} _ _ _
+    (congr!{I.Int^ coefficients.Carrier} (\fun (a: I.Int^) => #smul{coefficients.space} a m) _ _
+      (sym!{I.Int^} _ _ (congr!{Coordinates.Carrier I.Int^} Unit.evaluate _ _ Unit.oneAsBasis)))
+    (#scalarOne{coefficients.space} m);
+\definition isomorphism: Modules.Isomorphism[V := FiniteCochains.Carrier one, W := coefficients.Carrier,
+  source := FiniteCochains.space one, target := coefficients.space].Isomorphism :=
+  Modules.Isomorphism[V := FiniteCochains.Carrier one, W := coefficients.Carrier,
+    source := FiniteCochains.space one, target := coefficients.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

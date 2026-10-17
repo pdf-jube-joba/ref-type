@@ -1,0 +1,47 @@
+\import \parent.Homology[z := degree] \as NaturalBasis;
+\import \parent.\parent.Cell[cell := cell] \as Orientation;
+\import \parent.\parent.\parent.Relative[].Homology[z := degree] \as RelativeComparison;
+\import \parent.\parent.\parent.Homology[z := degree] \as LayerHomology;
+\import singular_cohomology.Relative[A := Upper.Carrier, source := Upper.topology, subset := Punctures.Excision[].lower] \as SkeletalPair;
+\import singular_cohomology.Relative[A := Mapping.targetSmall.Carrier, source := Mapping.targetSmall.topology, subset := Mapping.targetSmall.subset] \as SmallPair;
+\definition image(q: Disk.Homology[z := degree].Carrier): LayerHomology.Carrier :=
+  #apply{#backward{RelativeComparison.isomorphism}} (#apply{Action.At[z := degree].induced} q);
+\definition comparison(q: LayerHomology.Carrier): SmallPair.Homology[z := degree].Carrier :=
+  #apply{#forward{Punctures.Excision[].Homology[z := degree].isomorphism}} (#apply{#forward{RelativeComparison.isomorphism}} q);
+\definition cancel(x, y: LayerHomology.Carrier)(same: comparison x = comparison y): x = y :=
+  trans!{LayerHomology.Carrier} _ _ _ (sym!{LayerHomology.Carrier} _ _ (#leftInverse{RelativeComparison.isomorphism} x))
+    (trans!{LayerHomology.Carrier} _ _ _
+      (congr!{{SkeletalPair.Homology[z := degree].Carrier} LayerHomology.Carrier} (#apply{#backward{RelativeComparison.isomorphism}}) _ _
+        (trans!{{SkeletalPair.Homology[z := degree].Carrier}} _ _ _
+          (sym!{{SkeletalPair.Homology[z := degree].Carrier}} _ _ (#leftInverse{Punctures.Excision[].Homology[z := degree].isomorphism} (#apply{#forward{RelativeComparison.isomorphism}} x)))
+          (trans!{{SkeletalPair.Homology[z := degree].Carrier}} _ _ _
+            (congr!{{SmallPair.Homology[z := degree].Carrier} {SkeletalPair.Homology[z := degree].Carrier}} (#apply{#backward{Punctures.Excision[].Homology[z := degree].isomorphism}}) _ _ same)
+            (#leftInverse{Punctures.Excision[].Homology[z := degree].isomorphism} (#apply{#forward{RelativeComparison.isomorphism}} y)))))
+      (#leftInverse{RelativeComparison.isomorphism} y));
+\definition basisProjection(a: I.Int^):
+  comparison (#apply{#forward{isomorphism}} (#apply{Free.Injection[i := cell].map} a)) =
+  #apply{#forward{ChartPair.Homology[z := degree].isomorphism}}
+    (#apply{NaturalBasis.injection} (#apply{#forward{Orientation.orientation}} a)) :=
+  trans!{{SmallPair.Homology[z := degree].Carrier}} _ _ _
+    (congr!{{SkeletalPair.Homology[z := degree].Carrier} {SmallPair.Homology[z := degree].Carrier}}
+      (#apply{#forward{Punctures.Excision[].Homology[z := degree].isomorphism}}) _ _
+      (#rightInverse{RelativeComparison.isomorphism} (#apply{#forward{Comparison.skeletal}} (#apply{#forward{CellBasis.isomorphism}} (#apply{Free.Injection[i := cell].map} a)))))
+    (trans!{{SmallPair.Homology[z := degree].Carrier}} _ _ _
+      (#rightInverse{Punctures.Excision[].Homology[z := degree].isomorphism}
+        (#apply{#forward{Comparison.excised}} (#apply{#forward{CellBasis.isomorphism}} (#apply{Free.Injection[i := cell].map} a))))
+      (trans!{{SmallPair.Homology[z := degree].Carrier}} _ _ _
+        (congr!{LocalSum.Carrier {SmallPair.Homology[z := degree].Carrier}} (#apply{#forward{Comparison.excised}}) _ _ (CellBasis.onInjection cell a))
+        (congr!{{singular_cohomology.Relative[A := Disks.Carrier, source := Disks.topology, subset := ChartPair.punctures].Homology[z := degree].Carrier} {SmallPair.Homology[z := degree].Carrier}}
+          (#apply{#forward{ChartPair.Homology[z := degree].isomorphism}}) _ _
+          (Additivity.Cell[i := cell].onInjection (#apply{#forward{Orientation.orientation}} a)))));
+\definition imageProjection(q: Disk.Homology[z := degree].Carrier): comparison (image q) =
+  #apply{#forward{Punctures.Excision[].Homology[z := degree].isomorphism}} (#apply{Action.At[z := degree].induced} q) :=
+  congr!{{SkeletalPair.Homology[z := degree].Carrier} {SmallPair.Homology[z := degree].Carrier}}
+    (#apply{#forward{Punctures.Excision[].Homology[z := degree].isomorphism}}) _ _
+    (#rightInverse{RelativeComparison.isomorphism} (#apply{Action.At[z := degree].induced} q));
+\definition onScalar(a: I.Int^): #apply{#forward{isomorphism}} (#apply{Free.Injection[i := cell].map} a) =
+  image (#apply{#forward{Orientation.orientedDisk}} a) := cancel _ _
+    (trans!{{SmallPair.Homology[z := degree].Carrier}} _ _ _ (basisProjection a)
+      (trans!{{SmallPair.Homology[z := degree].Carrier}} _ _ _ (NaturalBasis.naturality (#apply{#forward{Orientation.orientedDisk}} a))
+        (sym!{{SmallPair.Homology[z := degree].Carrier}} _ _ (imageProjection (#apply{#forward{Orientation.orientedDisk}} a)))));
+\definition onGenerator: generator cell = image (#apply{#forward{Orientation.orientedDisk}} I.One.specification) := onScalar I.One.specification;
