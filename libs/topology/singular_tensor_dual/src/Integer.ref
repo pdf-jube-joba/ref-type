@@ -1,0 +1,32 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\definition standard: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import Modules.AbelianHom[N := standard] \as Abelian;
+\definition canonical: Modules.Bundle := Abelian.coefficients;
+\import Modules.Laws[V := I.Int^, space := Modules.scalarModule] \as Values;
+\import module_theory.Module[].IntegerGroup[Carrier := I.Int^, group := Values.additive] \as Action;
+\module ScalarCompatibility;
+\definition toStandard: Modules.Hom[V := I.Int^, W := I.Int^, source := canonical.space, target := standard.space].Map := Modules.Hom[V := I.Int^, W := I.Int^, source := canonical.space, target := standard.space].Map {
+  apply := \fun (a: I.Int^) => a,
+  addition := \fun (a, b: I.Int^) => \refl(#add{Integers.ring} a b),
+  scalar := ScalarCompatibility[].law,
+};
+\definition toCanonical: Modules.Hom[V := I.Int^, W := I.Int^, source := standard.space, target := canonical.space].Map := Modules.Hom[V := I.Int^, W := I.Int^, source := standard.space, target := canonical.space].Map {
+  apply := \fun (a: I.Int^) => a,
+  addition := \fun (a, b: I.Int^) => \refl(#add{Integers.ring} a b),
+  scalar := \fun (a, b: I.Int^) => sym!{I.Int^} _ _ (ScalarCompatibility[].law a b),
+};
+\definition coefficientIsomorphism: Modules.Isomorphism[V := I.Int^, W := I.Int^, source := canonical.space, target := standard.space].Isomorphism := Modules.Isomorphism[V := I.Int^, W := I.Int^, source := canonical.space, target := standard.space].Isomorphism {
+  forward := toStandard, backward := toCanonical,
+  leftInverse := \fun (a: I.Int^) => \refl(a), rightInverse := \fun (a: I.Int^) => \refl(a),
+};
+\module Convert(P: Chains.Complex);
+\module Singular(A: \Set, source: topology.Topology[Carrier := A].Topology, p, q: N.Nat^);

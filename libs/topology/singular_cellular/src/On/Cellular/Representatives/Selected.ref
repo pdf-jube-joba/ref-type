@@ -1,0 +1,48 @@
+\definition at: \forall (n: N.Nat^) -> Data n := \induction (n: N.Nat^) \return Data n \with {
+  | zero: selection.zero
+  | succ: \fun (n: N.Nat^)(previous: Data n) => \parent.At[n := n].Next[previous := previous].Corrected[result := selection.next (Input { degree := n, previous := previous })].data
+};
+\module Degree(n: N.Nat^);
+\definition boundaryLaw: \forall (n: N.Nat^)(q: Carrier (N.Nat^::succ n)) ->
+  #apply{(Degree[n := N.Nat^::succ n].upperComplex).differential} (I.Int^::ofNat (N.Nat^::succ n)) (#apply{(at (N.Nat^::succ n)).relative.map} q) =
+    #apply{(Degree[n := n].inclusion)} (I.Int^::ofNat n) (#apply{(at n).relative.map} (#apply{(boundary n)} q)) :=
+  \fun (n: N.Nat^) => \parent.At[n := n].Next[previous := at n].Corrected[result := selection.next (Input { degree := n, previous := at n })].boundaryLaw;
+
+\module Step(n: N.Nat^);
+\import singular_cohomology.Chains[A := A, source := source] \as AmbientChains;
+\import Nonnegative.Map[C := complex, D := AmbientChains.complex] \as Maps;
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (n: N.Nat^) => #apply{(Degree[n := n].map)},
+  addition := \fun (n: N.Nat^) => #addition{(Degree[n := n].map)},
+  scalar := \fun (n: N.Nat^) => #scalar{(Degree[n := n].map)},
+  commutes := \fun (n: N.Nat^) => Step[n := n].commutes,
+};
+\definition integerMap: Complexes.Map[C := integerComplex, D := AmbientChains.integerComplex].Map := Maps.ZeroExtension[f := map].map;
+
+\module Comparison(k: N.Nat^);
+
+\module NegativeComparison(k: N.Nat^);
+\import Complexes.Map[C := integerComplex, D := AmbientChains.integerComplex] \as IntegerMaps;
+\definition quasiIsomorphism: IntegerMaps.QuasiIsomorphism integerMap :=
+  \induction (z: I.Int^) \return IntegerMaps.At[k := z].Bijective[integerMap] \with {
+    | ofNat: \fun (k: N.Nat^) => Comparison[k := k].bijective
+    | negSucc: \fun (k: N.Nat^) => NegativeComparison[k := k].bijective
+  };
+\module ProjectiveDegree(n: N.Nat^);
+\import singular_finite_algebra.Integer[].ProjectiveCone[P := integerComplex, Q := AmbientChains.integerComplex].On[f := integerMap] \as Bridge;
+\import Nonnegative.ZeroExtension[C := AmbientChains.complex] \as AmbientExtension;
+\definition sourceProjective: \forall (n: N.Nat^) -> Modules.Projective (Modules.Bundle { Carrier := Extension.Carrier (I.Int^::ofNat n), space := Extension.space (I.Int^::ofNat n) }) :=
+  \fun (n: N.Nat^) => ProjectiveDegree[n := n].sourceProjectivity;
+\definition targetProjective: \forall (n: N.Nat^) -> Modules.Projective (Modules.Bundle { Carrier := AmbientExtension.Carrier (I.Int^::ofNat n), space := AmbientExtension.space (I.Int^::ofNat n) }) :=
+  \fun (n: N.Nat^) => ProjectiveDegree[n := n].targetProjectivity;
+\definition sourceNegative: \forall (n: N.Nat^)(x: Extension.Carrier (I.Int^::negSucc n)) -> x = #zero{(Extension.space (I.Int^::negSucc n))} :=
+  \fun (n: N.Nat^) => Extension.Negative[n := n].zero;
+\definition targetNegative: \forall (n: N.Nat^)(x: AmbientExtension.Carrier (I.Int^::negSucc n)) -> x = #zero{(AmbientExtension.space (I.Int^::negSucc n))} :=
+  \fun (n: N.Nat^) => AmbientExtension.Negative[n := n].zero;
+\import Complexes.Equivalence[C := integerComplex, D := AmbientChains.integerComplex] \as Equivalences;
+\definition equivalenceExists: \exists { e: Equivalences.Equivalence \where #forward{e} = integerMap } :=
+  Bridge.equivalenceExists sourceProjective targetProjective sourceNegative targetNegative quasiIsomorphism;
+
+\module With(coefficients: Modules.Bundle);
+
+\module Native(e: Equivalences.Equivalence);

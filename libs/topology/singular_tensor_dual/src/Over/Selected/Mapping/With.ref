@@ -1,0 +1,31 @@
+\import Double.TensorMapping[C := C, D := P, E := D, F := Q].With[f := f, g := g] \as TensorMap;
+\definition totalMap: Chains.Map[C := SourceTotal.complex, D := Total.complex].Map := TensorMap.total;
+\import LeftMaps.At[n := p] \as LeftLinear;
+\import RightMaps.At[n := q] \as RightLinear;
+\import Modules.Hom[V := P.family.Carrier p, W := R, source := P.family.space p, target := Modules.scalarModule].Composition[U := C.family.Carrier p, domain := C.family.space p] \as LeftComposition;
+\import Modules.Hom[V := Q.family.Carrier q, W := R, source := Q.family.space q, target := Modules.scalarModule].Composition[U := D.family.Carrier q, domain := D.family.space q] \as RightComposition;
+\definition left(alpha: LeftCochain p): Source.LeftCochain p := LeftComposition.compose alpha (LeftLinear.linear f);
+\definition right(beta: RightCochain q): Source.RightCochain q := RightComposition.compose beta (RightLinear.linear g);
+\import Modules.Hom[V := Term.Carrier, W := R, source := Term.space, target := Modules.scalarModule].Composition[U := SourceTensor.Term[p := p, q := q].Carrier, domain := SourceTensor.Term[p := p, q := q].space] \as Compose;
+\import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier q, left := C.family.space p, right := D.family.space q].Universal[U := R, target := Modules.scalarModule] \as Universal;
+\definition localEquality(alpha: LeftCochain p)(beta: RightCochain q): Source.comparison (left alpha) (right beta) = Compose.compose (comparison alpha beta) TensorMap.Degree[p := p, q := q].map :=
+  Universal.ext (Source.comparison (left alpha) (right beta)) (Compose.compose (comparison alpha beta) TensorMap.Degree[p := p, q := q].map)
+    (\fun (x: C.family.Carrier p)(y: D.family.Carrier q) => trans!{R} _ _ _
+      (Source.onTensor (left alpha) (right beta) x y)
+      (sym!{R} _ _
+        (trans!{R} _ _ _
+          (congr!{Term.Carrier R} (#apply{(comparison alpha beta)}) _ _ (TensorMap.Degree[p := p, q := q].onTensor x y))
+          (Pairing.evaluation alpha beta (#apply{f} p x) (#apply{g} q y)))));
+\import Double.Map[C := SourceTensor.complex, D := Product.complex].Total[f := TensorMap.map].Coordinates[n := n] \as CoordinatesMap;
+\definition law(alpha: LeftCochain p)(beta: RightCochain q)(z: SourceTotal.Carrier n):
+  #apply{(Source.total (left alpha) (right beta))} z = #apply{(total alpha beta)} (#apply{totalMap} n z) :=
+  trans!{R} _ _ _
+    (congr!{{Modules.Hom[V := SourceTensor.Term[p := p, q := q].Carrier, W := R, source := SourceTensor.Term[p := p, q := q].space, target := Modules.scalarModule].Map} R}
+      (\fun (h: Modules.Hom[V := SourceTensor.Term[p := p, q := q].Carrier, W := R, source := SourceTensor.Term[p := p, q := q].space, target := Modules.scalarModule].Map) => #apply{h} (SourceCoordinates.coordinate Source.index z)) _ _ (localEquality alpha beta))
+    (sym!{R} _ _ (congr!{Term.Carrier R} (#apply{(comparison alpha beta)}) _ _ (CoordinatesMap.law index z)));
+\import Hom.Mapping[P := SourceTotal.complex, Q := Total.complex, N := scalars, L := scalars] \as Pullback;
+\import Modules.End[V := R, space := Modules.scalarModule] \as Identity;
+\definition cochainMap: chain_complexes.Cochain[].Over[R := R, ring := baseRing].Map[C := complex, D := Source.complex].Map := Pullback.On[f := totalMap, u := Identity.identity].map;
+\definition equation(alpha: LeftCochain p)(beta: RightCochain q): Source.total (left alpha) (right beta) = #apply{cochainMap} n (total alpha beta) :=
+  Modules.Hom[V := SourceTotal.Carrier n, W := R, source := SourceTotal.space n, target := Modules.scalarModule].ext
+    (Source.total (left alpha) (right beta)) (#apply{cochainMap} n (total alpha beta)) (law alpha beta);

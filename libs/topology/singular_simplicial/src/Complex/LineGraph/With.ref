@@ -1,0 +1,50 @@
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].Bool[] \as B;
+\import N.Order[].Prop[] \as Order;
+\import Fin.Ordering[] \as Ordering;
+\import Fin.Tuples[A := Vertex] \as Tuples;
+\import \root.OrderedIndices[] \as Indices;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\use Logic.either;
+\definition laws: Laws[graph] := \bysub(Data, { data: Data \where Laws[data] }, graph);
+\definition label: V -> Vertex := #label{graph};
+\definition first: E -> V := #first{graph};
+\definition last: E -> V := #last{graph};
+\definition singleton(v: V): \Pow Vertex := { a: Vertex \where label v = a };
+\definition pair(e: E): \Pow Vertex := { a: Vertex \where Logic.Or[label (first e) = a, label (last e) = a] };
+\structure Singleton[S: \Pow Vertex]: \Set { vertex: V, included: Included S (singleton vertex) }
+\structure Segment[S: \Pow Vertex]: \Set { edge: E, included: Included S (pair edge) }
+\definition Faces: \Pow (\Pow Vertex) := { S: \Pow Vertex \where Logic.Or[\exists Singleton[S], \exists Segment[S]] };
+\definition complex: Object := Object {
+  faces := Faces,
+  hereditary := \fun (S, T: \Pow Vertex)(member: Logic.Or[\exists Singleton[S], \exists Segment[S]])(included: Included T S) =>
+    either!{member {Logic.Or[\exists Singleton[T], \exists Segment[T]]}
+      {\block {
+        \fun (found: \exists Singleton[S]) \then
+        \takefrom w: Singleton[S] \by found \then
+        \return Logic.Or[_, _]::left (\exact(Singleton[T] { vertex := #vertex{w}, included := \fun (v: Vertex)(inside: \In[Vertex] T v) => #included{w} v (included v inside) }, Singleton[T]))
+      }}
+      {\block {
+        \fun (found: \exists Segment[S]) \then
+        \takefrom w: Segment[S] \by found \then
+        \return Logic.Or[_, _]::right (\exact(Segment[T] { edge := #edge{w}, included := \fun (v: Vertex)(inside: \In[Vertex] T v) => #included{w} v (included v inside) }, Segment[T]))
+      }}}
+};
+\import \root.Complex[d := d].On[K := complex] \as Simplicial;
+\definition singleIncreasing(v: Vertex): Ordering.Increasing (N.Nat^::succ N.Nat^::zero) (N.Nat^::succ d)
+  (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => v) :=
+  \fun (i, j: Fin.Fin (N.Nat^::succ N.Nat^::zero))(less: Bounds.Lt i j) => Logic.falseElim _
+    (Bounds.ltNe i j less (trans!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)}} _ _ _ (Fin.singletonValue i) (sym!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)}} _ _ (Fin.singletonValue j))));
+\structure PairMatch[a, b, x, y: Vertex]: \Prop { first: a = x, last: b = y }
+\module Pair(a, b, x, y: Vertex);
+\module Vertices;
+\module Edges;
+\module Higher(n: N.Nat^);
+\module Chains;
+\module Coefficients(A: Modules.Bundle);

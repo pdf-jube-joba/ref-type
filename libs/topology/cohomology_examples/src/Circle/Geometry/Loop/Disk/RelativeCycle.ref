@@ -1,1 +1,107 @@
-/* The connecting image of the relative edge is the actual endpoint difference. */
+\import \root.Circle[].Geometry[].Loop[].Disk[] \as Disk;
+\import \root.Circle[].Geometry[].Loop[].Points[].Sphere[] \as Points;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Signed;
+\definition degree: I.Int^ := I.Int^::ofNat one;
+\definition lowerDegree: I.Int^ := I.Int^::ofNat zero;
+\import topology.Topology[Carrier := Model.Disk].Subspace[S := Relative.subset] \as Boundary;
+\import singular_cohomology.Chains[A := Pair.SubspaceCarrier, source := Boundary.topology Model.diskTopology] \as BoundaryChains;
+\import singular_cohomology.Simplices[A := Pair.SubspaceCarrier, source := Boundary.topology Model.diskTopology] \as BoundarySimplices;
+\import BoundaryChains.Reduced[] \as BoundaryReduced;
+\import Chains.Reduced[] \as WholeReduced;
+\import Pair.Reduced[] \as Reduced;
+\import Signed.At[C := Pair.complex, z := degree] \as H;
+\import Signed.At[C := BoundaryReduced.complex, z := lowerDegree] \as LowerH;
+\import singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero] \as SphereChains;
+\import singular_cohomology.Simplices[A := Spheres.Carrier zero, source := Spheres.topology zero] \as SphereSimplices;
+\import SphereChains.Reduced[] \as SphereReduced;
+\import Signed.At[C := SphereReduced.complex, z := lowerDegree] \as SphereH;
+\import Modules.Laws[V := SphereChains.Carrier zero, space := SphereChains.space zero] \as SphereValues;
+\import algebra.Group[].Of[Carrier := SphereChains.Carrier zero, group := SphereValues.additive] \as SphereGroup;
+\import Modules.Laws[V := BoundaryChains.Carrier zero, space := BoundaryChains.space zero] \as LowerValues;
+\import algebra.Group[].Of[Carrier := BoundaryChains.Carrier zero, group := LowerValues.additive] \as LowerGroup;
+\definition lower: BoundaryChains.Carrier zero := LowerGroup.difference
+  (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant north))
+  (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant south));
+\import Modules.Hom[V := BoundaryChains.Carrier zero, W := I.Int^, source := BoundaryChains.space zero, target := Modules.scalarModule] \as Augmentation;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Modules.scalarGroup] \as Scalars;
+\definition lowerClosed: #apply{BoundaryReduced.differential} lowerDegree lower = I.Zero.specification :=
+  trans!{I.Int^} _ _ _ (Augmentation.differencePreserved BoundaryChains.Augmentation[].map
+    (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant north))
+    (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant south)))
+    (trans!{I.Int^} _ _ _ (congr2!{I.Int^ I.Int^ I.Int^} Scalars.difference _ _ _ _
+      (BoundaryChains.Augmentation[].onGenerator (BoundarySimplices.At[n := zero].constant north))
+      (BoundaryChains.Augmentation[].onGenerator (BoundarySimplices.At[n := zero].constant south)))
+      (Scalars.inverseRight I.One.specification));
+\definition lowerCycle: LowerH.Cycle := LowerH.cycle lower lowerClosed;
+\import singular_cohomology.Maps[A := Pair.SubspaceCarrier, B := Model.Disk,
+  source := Boundary.topology Model.diskTopology, target := Model.diskTopology] \as Inclusion;
+\import Modules.Hom[V := BoundaryChains.Carrier zero, W := Chains.Carrier zero,
+  source := BoundaryChains.space zero, target := Chains.space zero] \as InclusionLinear;
+\definition inclusion: InclusionLinear.Map := InclusionLinear.Map {
+  apply := #apply{Reduced.inclusionMap} lowerDegree,
+  addition := #addition{Reduced.inclusionMap} lowerDegree,
+  scalar := #scalar{Reduced.inclusionMap} lowerDegree,
+};
+\definition inclusionLower: #apply{Reduced.inclusionMap} lowerDegree lower = #apply{WholeReduced.differential} degree edge :=
+  trans!{{Chains.Carrier zero}} _ _ _ (InclusionLinear.differencePreserved inclusion
+    (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant north))
+    (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant south)))
+    (trans!{{Chains.Carrier zero}} _ _ _
+      (congr2!{{Chains.Carrier zero} {Chains.Carrier zero} {Chains.Carrier zero}} Group.difference _ _ _ _
+        (Inclusion.At[n := zero].onGenerator Pair.inclusion Pair.inclusionContinuous (BoundarySimplices.At[n := zero].constant north))
+        (Inclusion.At[n := zero].onGenerator Pair.inclusion Pair.inclusionContinuous (BoundarySimplices.At[n := zero].constant south)))
+      (sym!{{Chains.Carrier zero}} _ _ boundary));
+\definition value: Pair.Carrier degree := #apply{Reduced.projectionMap} degree edge;
+\definition closed: #apply{Pair.complex.differential} degree value = #zero{(Pair.space lowerDegree)} :=
+  trans!{{Pair.Carrier lowerDegree}} _ _ _ (#commutes{Reduced.projectionMap} degree edge)
+    (trans!{{Pair.Carrier lowerDegree}} _ _ _
+      (congr!{{WholeReduced.Carrier lowerDegree} {Pair.Carrier lowerDegree}} (#apply{Reduced.projectionMap} lowerDegree) _ _ (sym!{{WholeReduced.Carrier lowerDegree}} _ _ inclusionLower))
+      (#zero{Reduced.sequence} lowerDegree lower));
+\definition cycle: H.Cycle := H.cycle value closed;
+\definition generator: H.Homology := H.classOf cycle;
+\import Signed.ShortExact[A := BoundaryReduced.complex, B := WholeReduced.complex, C := Pair.complex].At[s := Reduced.sequence, k := degree] \as Connecting;
+\definition connecting: #apply{Connecting.connecting} generator = LowerH.classOf lowerCycle :=
+  trans!{LowerH.Homology} _ _ _ (Connecting.onClass cycle)
+    (Connecting.onLift cycle edge lower (\refl(value)) inclusionLower lowerClosed);
+\definition backward: Pair.SubspaceCarrier -> Spheres.Carrier zero := #backward{Relative.homeomorphism};
+\import singular_cohomology.Maps[A := Pair.SubspaceCarrier, B := Spheres.Carrier zero,
+  source := Boundary.topology Model.diskTopology, target := Spheres.topology zero] \as Back;
+\definition backwardContinuous: Back.Continuous backward := #backwardContinuous{Relative.homeomorphism};
+\definition map: Signed.Map[C := BoundaryReduced.complex, D := SphereReduced.complex].Map := Back.Reduced[].map backward backwardContinuous;
+\import Signed.Map[C := BoundaryReduced.complex, D := SphereReduced.complex].At[k := lowerDegree] \as Map;
+\import Modules.Hom[V := BoundaryChains.Carrier zero, W := SphereChains.Carrier zero,
+  source := BoundaryChains.space zero, target := SphereChains.space zero] \as Linear;
+\definition linear: Linear.Map := Linear.Map {
+  apply := #apply{map} lowerDegree, addition := #addition{map} lowerDegree, scalar := #scalar{map} lowerDegree,
+};
+\definition onPoint: \forall (x: Spheres.Carrier zero) ->
+  #apply{map} lowerDegree (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant (#forward{Relative.homeomorphism} x))) =
+    SphereChains.generator zero (SphereSimplices.At[n := zero].constant x) :=
+  \fun (x: Spheres.Carrier zero) => trans!{{SphereChains.Carrier zero}} _ _ _
+    (Back.At[n := zero].onGenerator backward backwardContinuous (BoundarySimplices.At[n := zero].constant (#forward{Relative.homeomorphism} x)))
+    (congr!{{SphereSimplices.Carrier zero} {SphereChains.Carrier zero}} (SphereChains.generator zero) _ _
+      (SphereSimplices.ext zero _ _ (\fun (_: Simplex.Carrier zero) => #leftInverse{Relative.homeomorphism} x)));
+\definition lowerImage: #apply{map} lowerDegree lower = Points.difference :=
+  trans!{{SphereChains.Carrier zero}} _ _ _ (Linear.differencePreserved linear
+    (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant north))
+    (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant south)))
+    (congr2!{{SphereChains.Carrier zero} {SphereChains.Carrier zero} {SphereChains.Carrier zero}} SphereGroup.difference _ _ _ _
+      (onPoint ZeroSphere.north) (onPoint ZeroSphere.south));
+\definition lowerClass: #apply{(Map.induced map)} (LowerH.classOf lowerCycle) = Points.generator :=
+  trans!{SphereH.Homology} _ _ _ (Map.onClass map lowerCycle)
+    (congr!{SphereH.Cycle SphereH.Homology} SphereH.classOf _ _ lowerImage);
+\import Modules.Hom[V := SphereH.Homology, W := I.Int^, source := SphereH.homologySpace, target := Modules.scalarModule]
+  .Composition[U := LowerH.Homology, domain := LowerH.homologySpace] \as First;
+\definition onBoundary: Modules.Hom[V := LowerH.Homology, W := I.Int^, source := LowerH.homologySpace, target := Modules.scalarModule].Map :=
+  First.compose Points.functional (Map.induced map);
+\import Modules.Hom[V := LowerH.Homology, W := I.Int^, source := LowerH.homologySpace, target := Modules.scalarModule]
+  .Composition[U := H.Homology, domain := H.homologySpace] \as Second;
+\definition functional: Modules.Hom[V := H.Homology, W := I.Int^, source := H.homologySpace, target := Modules.scalarModule].Map :=
+  Second.compose onBoundary Connecting.connecting;
+\definition normalized: #apply{functional} generator = I.One.specification := trans!{I.Int^} _ _ _
+  (congr!{LowerH.Homology I.Int^} (#apply{onBoundary}) _ _ connecting)
+    (trans!{I.Int^} _ _ _ (congr!{SphereH.Homology I.Int^} (#apply{Points.functional}) _ _ lowerClass) Points.normalized);
+\import Relative.Homology[] \as Orientation;
+\import \root.Circle[].Geometry[].Loop[].Algebra[].Cyclic[V := H.Homology, space := H.homologySpace, orientation := Orientation.orientation, point := generator, functional := functional] \as Primitive;
+\definition isomorphism: Modules.Isomorphism[V := I.Int^, W := H.Homology, source := Modules.scalarModule, target := H.homologySpace].Isomorphism := Primitive.isomorphism normalized;
+\definition onOne: #apply{#forward{isomorphism}} I.One.specification = generator := Primitive.onOne;

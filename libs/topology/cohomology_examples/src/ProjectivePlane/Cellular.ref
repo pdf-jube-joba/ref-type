@@ -1,0 +1,63 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Natural;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import homological_algebra.Finite[] \as Finite;
+\import Finite.Bounded[] \as Bounded;
+\import commutative_algebra.Modules[R := I.Int^, ring := IntegerRing.commutativeRing] \as Commutative;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\definition three: N.Nat^ := N.Nat^::succ two;
+\definition positiveRanks: N.Nat^ -> N.Nat^ := \induction (n: N.Nat^) \return N.Nat^ \with {
+  | zero: one
+  | succ: \fun (n: N.Nat^)(previous: _) =>
+    (\induction (n: N.Nat^) \return N.Nat^ \with {
+      | zero: one
+      | succ: \fun (n: N.Nat^)(previous: _) =>
+        (\induction (n: N.Nat^) \return N.Nat^ \with {
+          | zero: one | succ: \fun (n: N.Nat^)(previous: _) => zero
+        }) n
+    }) n
+};
+\definition ranks: I.Int^ -> N.Nat^ := \induction (z: I.Int^) \return N.Nat^ \with {
+  | ofNat: positiveRanks | negSucc: \fun (n: N.Nat^) => zero
+};
+\definition zeroRuntime: Finite.Runtime^ := \fun (i, j: N.Nat^) => Arithmetic.zero;
+\definition doubleRuntime: Finite.Runtime^ := \fun (i, j: N.Nat^) => I.Int^::ofNat two;
+\definition positiveBoundary: N.Nat^ -> Finite.Runtime^ := \induction (n: N.Nat^) \return Finite.Runtime^ \with {
+  | zero: zeroRuntime
+  | succ: \fun (n: N.Nat^)(previous: _) =>
+    (\induction (n: N.Nat^) \return Finite.Runtime^ \with {
+      | zero: zeroRuntime
+      | succ: \fun (n: N.Nat^)(previous: _) =>
+        (\induction (n: N.Nat^) \return Finite.Runtime^ \with {
+          | zero: doubleRuntime | succ: \fun (n: N.Nat^)(previous: _) => zeroRuntime
+        }) n
+    }) n
+};
+\definition boundary: I.Int^ -> Finite.Runtime^ := \induction (z: I.Int^) \return Finite.Runtime^ \with {
+  | ofNat: positiveBoundary | negSucc: \fun (n: N.Nat^) => zeroRuntime
+};
+\definition data: Bounded.Data := Bounded.Data { ranks := ranks, boundary := boundary, bound := two };
+\definition Vector(z: I.Int^): \Set := Bounded.Carrier data z;
+\definition space(z: I.Int^): Modules.Space (Vector z) := Bounded.space data z;
+\definition differential(z: I.Int^): Vector z -> Vector (Bounded.previous z) := Bounded.apply data z;
+\definition zeroInput(z: I.Int^): differential z #zero{(space z)} = #zero{(space (Bounded.previous z))} :=
+  Modules.Hom[V := Vector z, W := Vector (Bounded.previous z), source := space z, target := space (Bounded.previous z)].zeroPreserved
+    (Commutative.Matrix[m := ranks (Bounded.previous z), n := ranks z].linear
+      (\fun (i: Fin.Fin (ranks (Bounded.previous z)))(j: Fin.Fin (ranks z)) => boundary z i j));
+\module Square;
+\module Bound;
+\definition complex: Bounded.Complex := Bounded.Complex {
+  ranks := ranks, boundary := boundary, bound := two, squareZero := Square.law, bounded := Bound.law,
+};
+\import Bounded.Of[C := complex] \as Model;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Chains;
+\definition chain: Chains.Complex := Model.chain;

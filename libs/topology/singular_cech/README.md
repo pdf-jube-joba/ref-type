@@ -1,13 +1,13 @@
 # Čech 比較の鎖代数
 
 `Algebra[R, ring].ProjectiveQuasi[C, D, f].equivalenceExists` は、非負次数の鎖写像 \(f:C\to D\) の前向き写像を保った鎖ホモトピー同値の存在を与える。
-仮定は両複体の各項の射影性、各次数の全射性、および核の閉鎖が核の境界になることである。
+仮定は両複体の各項の射影性、各次数の全射性、および核内のサイクルが核内で境界になることである。
 次数ごとの切断から核を射影加群の直和因子とし、零加群の射影分解の比較ホモトピーで核を収縮する。
 `Algebra.Concentrated[C]` は \(q=0\) の行に \(C\) を置く二重複体と、元の複体との零行の同型を与える。
 
 `PartialCone.On[X]` は、頂点を既に含むかどうかの判定と、含まない単体への頂点の付加を扱う。
 `Cone` は面との関係を含むデータであり、`With[cone].homotopy` は自由整数鎖への延長である。
-`Positive.cycle` と `Zero.cycle` は、正次数の閉鎖と零次の増大写像の核を実際に埋める。
+`Positive.cycle` と `Zero.cycle` は、正次数のサイクルと零次の増大写像の核を実際に埋める。
 `Coproduct.On[Index, objects]` は半単体的対象の族の直和を構成し、各成分の増大鎖収縮から直和の収縮と増大写像の切断を作る。
 
 `CarrierModel.On[C, D]` は \(\operatorname{Hom}(C_n,D_z)\) の部分加群族を模型にする。

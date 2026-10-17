@@ -1,0 +1,34 @@
+\definition degree: I.Int^ := I.Int^::ofNat k;
+\import \parent.\parent.Layer[n := limit] \as Layer;
+\import \parent.\parent.Filtration[].Stage[limit := limit] \as Lower;
+\import \parent.\parent.Filtration[].Stage[limit := N.Nat^::succ limit] \as Upper;
+\import singular_cohomology.Chains[A := Lower.Carrier, source := Lower.topology] \as LowerChains;
+\import singular_cohomology.Chains[A := Upper.Carrier, source := Upper.topology] \as UpperChains;
+\import Nonnegative.ZeroExtension[C := LowerChains.complex] \as LowerExtension;
+\import Nonnegative.ZeroExtension[C := UpperChains.complex] \as UpperExtension;
+\import Complexes.Map[C := LowerExtension.complex, D := UpperExtension.complex].At[k := degree] \as Inclusion;
+\import Complexes.At[C := LowerExtension.complex, z := degree] \as LowerHomology;
+\import Complexes.At[C := UpperExtension.complex, z := degree] \as UpperHomology;
+\import Layer.Homology[z := degree] \as Relative;
+\import Layer.Homology[z := I.Int^::ofNat (N.Nat^::succ k)] \as RelativeAbove;
+\import Modules.Hom[V := LowerHomology.Homology, W := UpperHomology.Homology, source := LowerHomology.homologySpace, target := UpperHomology.homologySpace] \as Maps;
+\definition map: Maps.Map := Inclusion.induced Layer.inclusion;
+\definition unequal: Nat.Lt (N.Nat^::succ k) limit -> limit = k -> Logic.False :=
+  \fun (bound: _)(same: _) => Nat.ltNe k limit (Nat.leLtTrans k (N.Nat^::succ k) limit (Nat.leSelfSucc k) bound) (sym!{N.Nat^} _ _ same);
+\definition unequalAbove: Nat.Lt (N.Nat^::succ k) limit -> limit = N.Nat^::succ k -> Logic.False :=
+  \fun (bound: _)(same: _) => Nat.ltNe (N.Nat^::succ k) limit bound (sym!{N.Nat^} _ _ same);
+\definition kernel: Nat.Lt (N.Nat^::succ k) limit -> \forall (q: LowerHomology.Homology) -> #apply{map} q = UpperHomology.zeroClass -> q = LowerHomology.zeroClass := \block {
+  \fun (bound: _)(q: LowerHomology.Homology)(killed: _) \then
+  \takefrom c: \Cast[RelativeAbove.Carrier] ({ c: RelativeAbove.Carrier \where #apply{RelativeAbove.connecting} c = q }) \by RelativeAbove.exactAtSubspace q killed \then
+  \return trans!{LowerHomology.Homology} _ _ _
+    (sym!{LowerHomology.Homology} _ _ (\bysub(RelativeAbove.Carrier, { c: RelativeAbove.Carrier \where #apply{RelativeAbove.connecting} c = q }, c)))
+    (trans!{LowerHomology.Homology} _ _ _
+      (congr!{RelativeAbove.Carrier LowerHomology.Homology} (#apply{RelativeAbove.connecting}) _ _ (Layer.Vanishing[k := N.Nat^::succ k].zero (unequalAbove bound) c))
+      (Modules.Hom[V := RelativeAbove.Carrier, W := LowerHomology.Homology, source := RelativeAbove.space, target := LowerHomology.homologySpace].zeroPreserved RelativeAbove.connecting))
+};
+\definition onto: Nat.Lt (N.Nat^::succ k) limit -> \forall (q: UpperHomology.Homology) -> \exists { p: LowerHomology.Homology \where #apply{map} p = q } :=
+  \fun (bound: _)(q: UpperHomology.Homology) => Relative.exactAtSpace q
+    (Layer.Vanishing[k := k].zero (unequal bound) (#apply{Relative.projection} q));
+\import Modules.Isomorphism[V := LowerHomology.Homology, W := UpperHomology.Homology, source := LowerHomology.homologySpace, target := UpperHomology.homologySpace].OfBijective[f := map] \as Inverse;
+\definition isomorphism(bound: Nat.Lt (N.Nat^::succ k) limit): Modules.Isomorphism[V := LowerHomology.Homology, W := UpperHomology.Homology, source := LowerHomology.homologySpace, target := UpperHomology.homologySpace].Isomorphism :=
+  Inverse.isomorphism (Maps.injectiveOfZeroKernel map (kernel bound)) (onto bound);

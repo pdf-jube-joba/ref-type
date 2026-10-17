@@ -1,1 +1,82 @@
-/* Naturality of the good-pair isomorphism on the explicit relative interval edge. */
+\import \root.Circle[].Geometry[].Loop[].Disk[] \as Disk;
+\import \parent.RelativeCycle[] \as Interval;
+\import singular_cellular.DiskLocal[n := one].GoodPair[point := north] \as Local;
+\import singular_excision.GoodPair[A := Model.Disk, source := Model.diskTopology, subset := Relative.subset] \as Pairs;
+\definition goodPair: algebraic_topology.NeighborhoodRetract[A := Model.Disk, source := Model.diskTopology, subset := Relative.subset].Data := Local.pair;
+\import Pairs.On[pair := goodPair].Homology[z := I.Int^::ofNat one] \as Good;
+\import algebraic_topology.Collapse[A := Model.Disk, subset := Relative.subset] \as Collapse;
+\definition quotientTopology: topology.Topology[Carrier := Collapse.Carrier].Topology := Collapse.topology Model.diskTopology;
+\import singular_cohomology.Chains[A := Collapse.Carrier, source := quotientTopology] \as QuotientChains;
+\import singular_cohomology.Simplices[A := Collapse.Carrier, source := quotientTopology] \as QuotientSimplices;
+\import QuotientChains.Reduced[] \as QuotientReduced;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Signed;
+\import Signed.At[C := QuotientReduced.complex, z := I.Int^::ofNat one] \as H;
+\import singular_cohomology.Maps[A := Model.Disk, B := Collapse.Carrier, source := Model.diskTopology, target := quotientTopology] \as Maps;
+\definition push: double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Chains.complex, D := QuotientChains.complex].Map :=
+  Maps.push Collapse.class (Collapse.projectionContinuous Model.diskTopology);
+\import Modules.Hom[V := Chains.Carrier zero, W := QuotientChains.Carrier zero, source := Chains.space zero, target := QuotientChains.space zero] \as Linear;
+\definition linear: Linear.Map := Linear.Map {
+  apply := #apply{push} zero, addition := #addition{push} zero, scalar := #scalar{push} zero,
+};
+\import Modules.Laws[V := QuotientChains.Carrier zero, space := QuotientChains.space zero] \as Values;
+\import algebra.Group[].Of[Carrier := QuotientChains.Carrier zero, group := Values.additive] \as Group;
+\definition endpoints: Collapse.class north = Collapse.class south := Collapse.collapsed north south
+  (\bysub(Model.Disk, Relative.subset, north)) (\bysub(Model.Disk, Relative.subset, south));
+\definition pointEquality: QuotientChains.generator zero (QuotientSimplices.At[n := zero].constant (Collapse.class north)) =
+  QuotientChains.generator zero (QuotientSimplices.At[n := zero].constant (Collapse.class south)) :=
+  congr!{{QuotientSimplices.Carrier zero} {QuotientChains.Carrier zero}} (QuotientChains.generator zero) _ _
+    (QuotientSimplices.ext zero _ _ (\fun (_: Simplex.Carrier zero) => endpoints));
+\definition closed: #apply{QuotientReduced.differential} (I.Int^::ofNat one) (#apply{push} one edge) = #zero{(QuotientChains.space zero)} :=
+  trans!{{QuotientChains.Carrier zero}} _ _ _ (#commutes{push} zero edge)
+    (trans!{{QuotientChains.Carrier zero}} _ _ _
+      (congr!{{Chains.Carrier zero} {QuotientChains.Carrier zero}} (#apply{push} zero) _ _ boundary)
+      (trans!{{QuotientChains.Carrier zero}} _ _ _ (Linear.differencePreserved linear
+        (Chains.generator zero (Simplices.At[n := zero].constant north)) (Chains.generator zero (Simplices.At[n := zero].constant south)))
+        (trans!{{QuotientChains.Carrier zero}} _ _ _
+          (congr2!{{QuotientChains.Carrier zero} {QuotientChains.Carrier zero} {QuotientChains.Carrier zero}} Group.difference _ _ _ _
+            (Maps.At[n := zero].onGenerator Collapse.class (Collapse.projectionContinuous Model.diskTopology) (Simplices.At[n := zero].constant north))
+            (Maps.At[n := zero].onGenerator Collapse.class (Collapse.projectionContinuous Model.diskTopology) (Simplices.At[n := zero].constant south)))
+          (trans!{{QuotientChains.Carrier zero}} _ _ _
+            (congr!{{QuotientChains.Carrier zero} {QuotientChains.Carrier zero}}
+              (\fun (x: QuotientChains.Carrier zero) => Group.difference x (QuotientChains.generator zero (QuotientSimplices.At[n := zero].constant (Collapse.class south)))) _ _ pointEquality)
+            (Group.inverseRight (QuotientChains.generator zero (QuotientSimplices.At[n := zero].constant (Collapse.class south))))))));
+\definition cycle: H.Cycle := H.cycle (#apply{push} one edge) closed;
+\definition generator: H.Homology := H.classOf cycle;
+\import Pairs.QuotientSquare[pair := goodPair] \as Square;
+\import Pairs.QuotientPoint[pair := goodPair].Comparison[].Homology[z := I.Int^::ofNat one] \as Comparison;
+\import singular_cohomology.Relative[A := Collapse.Carrier, source := quotientTopology, subset := Square.singleton] \as Target;
+\import Target.Reduced[] \as TargetReduced;
+\import Signed.At[C := Target.complex, z := I.Int^::ofNat one] \as TargetH;
+\import Pair.Maps[B := Collapse.Carrier].Over[target := quotientTopology, targetSubset := Square.singleton].On[f := Square.quotientMap].Integer[] \as QuotientMap;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Chains.complex] \as Extension;
+\definition underlying: #apply{Square.quotientChainMap} (I.Int^::ofNat one) Interval.value =
+  #apply{TargetReduced.projectionMap} (I.Int^::ofNat one) cycle :=
+  QuotientMap.At[z := I.Int^::ofNat one].quotientOnClass (Extension.Positive[n := one].intro edge);
+\import Signed.Map[C := Pair.complex, D := Target.complex].At[k := I.Int^::ofNat one] \as Action;
+\import Signed.Map[C := QuotientReduced.complex, D := Target.complex].At[k := I.Int^::ofNat one] \as Projection;
+\import Signed.At[C := Pair.complex, z := I.Int^::ofNat one] \as SourceH;
+\definition relativeClass: #apply{#forward{Good.relativeIsomorphism}} Interval.generator = #apply{#forward{Comparison.reducedIsomorphism}} generator :=
+  trans!{TargetH.Homology} _ _ _ (Action.onClass Square.quotientChainMap Interval.cycle)
+    (trans!{TargetH.Homology} _ _ _
+      (congr!{TargetH.Cycle TargetH.Homology} TargetH.classOf _ _ underlying)
+      (sym!{TargetH.Homology} _ _ (Projection.onClass TargetReduced.projectionMap cycle)));
+\definition onClass: #apply{#forward{Good.isomorphism}} Interval.generator = generator :=
+  trans!{H.Homology} _ _ _
+    (congr!{TargetH.Homology H.Homology} (#apply{#backward{Comparison.reducedIsomorphism}}) _ _ relativeClass)
+    (#leftInverse{Comparison.reducedIsomorphism} generator);
+\import singular_cellular.DiskSphere[n := zero] \as Sphere;
+\import Sphere.Quotient[] \as SphereQuotient;
+\import algebraic_topology.HomotopyEquivalence[A := Collapse.Carrier, B := Carrier] \as Equivalences;
+\definition equivalence: Equivalences.Equivalence[quotientTopology, topology] :=
+  Equivalences.fromHomeomorphism quotientTopology topology SphereQuotient.homeomorphism;
+\import singular_cohomology.Equivalence[A := Collapse.Carrier, B := Carrier, source := quotientTopology, target := topology].Reduced[].Homology[z := I.Int^::ofNat one] \as SphereComparison;
+\import singular_cohomology.Chains[A := Carrier, source := topology] \as CircleChains;
+\import CircleChains.Reduced[] \as CircleReduced;
+\import Signed.At[C := CircleReduced.complex, z := I.Int^::ofNat one] \as CircleH;
+\import singular_cohomology.Maps[A := Collapse.Carrier, B := Carrier, source := quotientTopology, target := topology] \as IntoSphere;
+\definition map: Signed.Map[C := QuotientReduced.complex, D := CircleReduced.complex].Map :=
+  IntoSphere.Reduced[].map (#forward{SphereQuotient.homeomorphism}) (#forwardContinuous{SphereQuotient.homeomorphism});
+\import Signed.Map[C := QuotientReduced.complex, D := CircleReduced.complex].At[k := I.Int^::ofNat one] \as SphereAction;
+\definition circleCycle: CircleH.Cycle := #apply{(SphereAction.cyclesMap map)} cycle;
+\definition circleClass: #apply{#forward{SphereComparison.isomorphism equivalence}} generator = CircleH.classOf circleCycle := SphereAction.onClass map cycle;
+\module Primitive;

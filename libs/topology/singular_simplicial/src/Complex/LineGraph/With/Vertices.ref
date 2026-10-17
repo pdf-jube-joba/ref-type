@@ -1,0 +1,53 @@
+\definition degree: N.Nat^ := N.Nat^::zero;
+\definition tuple(v: V): Simplicial.Tuple degree := \fun (_: Fin.Fin (N.Nat^::succ degree)) => label v;
+\definition simplex(v: V): Simplicial.Simplex degree := \into[Simplicial.Tuple degree](tuple v, Simplicial.Simplex degree) \by {
+  Simplicial.Admissible[degree, tuple v] {
+    increasing := singleIncreasing (label v),
+    face := Logic.Or[_, _]::left (\exact(Singleton[Simplicial.Image degree (tuple v)] {
+      vertex := v,
+      included := \block {
+        \fun (a: Vertex)(member: \In[Vertex] (Simplicial.Image degree (tuple v)) a) \then
+        \takefrom i: \Cast[Fin.Fin (N.Nat^::succ degree)] ({ i: Fin.Fin (N.Nat^::succ degree) \where tuple v i = a }) \by member \then
+        \return \bysub(Fin.Fin (N.Nat^::succ degree), { i: Fin.Fin (N.Nat^::succ degree) \where tuple v i = a }, i)
+      },
+    }, Singleton[Simplicial.Image degree (tuple v)])),
+  }
+};
+\definition injective: \forall (v, w: V) -> simplex v = simplex w -> v = w :=
+  \fun (v, w: V)(equal: simplex v = simplex w) => #vertices{laws} v w
+    (congr!{{Simplicial.Tuple degree} {Vertex}} (\fun (s: Simplicial.Tuple degree) => s (Fin.zero degree)) _ _ equal);
+\definition equal: \forall (v: V)(s: Simplicial.Simplex degree) -> label v = s (Fin.zero degree) -> simplex v = s :=
+  \fun (v: V)(s: Simplicial.Simplex degree)(head: label v = s (Fin.zero degree)) => \axiom:funext(simplex v, s,
+    \fun (i: Fin.Fin (N.Nat^::succ degree)) => trans!{{Vertex}} _ _ _ head
+      (sym!{{Vertex}} _ _ (congr!{{Fin.Fin (N.Nat^::succ degree)} {Vertex}} s _ _ (Fin.singletonValue i))));
+\definition headExists(s: Simplicial.Simplex degree): \exists { v: V \where label v = s (Fin.zero degree) } :=
+  either!{{(#face{(Simplicial.admissible degree s)})} {\exists { v: V \where label v = s (Fin.zero degree) }}
+    {\block {
+      \fun (found: \exists Singleton[Simplicial.Image degree s]) \then
+      \takefrom w: Singleton[Simplicial.Image degree s] \by found \then
+      \return Logic.existsIntro[V, { v: V \where label v = s (Fin.zero degree) }] #vertex{w}
+        (#included{w} (s (Fin.zero degree)) (Simplicial.imageMember degree s (Fin.zero degree)))
+    }}
+    {\block {
+      \fun (found: \exists Segment[Simplicial.Image degree s]) \then
+      \takefrom w: Segment[Simplicial.Image degree s] \by found \then
+      \return either!{{(#included{w} (s (Fin.zero degree)) (Simplicial.imageMember degree s (Fin.zero degree)))}
+        {\exists { v: V \where label v = s (Fin.zero degree) }}
+        {\fun (same: label (first #edge{w}) = s (Fin.zero degree)) => Logic.existsIntro[V, { v: V \where label v = s (Fin.zero degree) }] (first #edge{w}) same}
+        {\fun (same: label (last #edge{w}) = s (Fin.zero degree)) => Logic.existsIntro[V, { v: V \where label v = s (Fin.zero degree) }] (last #edge{w}) same}}
+    }}
+  };
+\definition Values(s: Simplicial.Simplex degree): \Set := \Cast[V] ({ v: V \where simplex v = s });
+\definition onto: \forall (s: Simplicial.Simplex degree) -> \exists Values s := \block {
+  \fun (s: Simplicial.Simplex degree) \then
+  \takefrom v: \Cast[V] ({ v: V \where label v = s (Fin.zero degree) }) \by headExists s \then
+  \return Logic.existsIntro[V, { v: V \where simplex v = s }] v
+    (equal v s (\bysub(V, { v: V \where label v = s (Fin.zero degree) }, v)))
+};
+\definition unique: \forall (s: Simplicial.Simplex degree)(v, w: Values s) -> v = w :=
+  \fun (s: Simplicial.Simplex degree)(v, w: Values s) => injective v w
+    (trans!{{Simplicial.Tuple degree}} _ _ _ (\bysub(V, Values s, v)) (sym!{{Simplicial.Tuple degree}} _ _ (\bysub(V, Values s, w))));
+\definition index(s: Simplicial.Simplex degree): Values s := \choice Values s \by { existence: onto s, uniqueness: unique s };
+\definition simplexIndex: \forall (s: Simplicial.Simplex degree) -> simplex (index s) = s :=
+  \fun (s: Simplicial.Simplex degree) => \bysub(V, Values s, index s);
+\definition indexSimplex: \forall (v: V) -> index (simplex v) = v := \fun (v: V) => injective (index (simplex v)) v (simplexIndex (simplex v));

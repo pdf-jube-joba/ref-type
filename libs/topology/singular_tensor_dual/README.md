@@ -27,3 +27,8 @@ h\longmapsto\sum_i e^i\otimes\bigl(y\longmapsto h(e_i\otimes y)\bigr)
 \]
 
 と構成する。
+
+`Selected[P, Q, p, q]` は有限性を仮定せず、指定した対角成分のテンソル余鎖評価、閉性、鎖写像に沿う自然性を与える。
+`onPure` は一致する成分での積、`offInjection` は異なる成分での零を示す。
+`Integer.Convert[P]` は整数係数の標準スカラー作用と加法群から構成する整数作用の間の余鎖同値である。
+`Integer.Singular[A, source, p, q]` はこの同値を通じて特異余鎖のカップ積用テンソル評価と `Selected` の評価を同定する。

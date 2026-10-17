@@ -1,0 +1,31 @@
+\import \root.Graph[components := components, forestEdges := forestEdges, chords := chords].On[graph := graph].Geometry[].Coefficients[A := A] \as Subdivision;
+\definition restrictVertex(f, g: VertexFunctions.Carrier): Subdivision.restrictVertex (VertexFunctions.add f g) = #add{Original.zeroth.space} (Subdivision.restrictVertex f) (Subdivision.restrictVertex g) := \refl(\fun (v: Vertex) => Values.add (f (Index.vertex v)) (g (Index.vertex v)));
+\definition liftVertex(f, g: Original.zeroth.Carrier): Subdivision.liftVertex (#add{Original.zeroth.space} f g) = VertexFunctions.add (Subdivision.liftVertex f) (Subdivision.liftVertex g) :=
+  VertexFunctions.ext _ _ (\induction (v: Index.Vertices) \return Subdivision.liftVertex (#add{Original.zeroth.space} f g) v = (VertexFunctions.add (Subdivision.liftVertex f) (Subdivision.liftVertex g)) v \with {
+    | inl: \fun (x: Vertex) => \refl(Values.add (f x) (g x))
+    | inr: \induction (v: Sums.Sum[Edge, Edge]) \return Subdivision.liftVertex (#add{Original.zeroth.space} f g) (Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr v) = (VertexFunctions.add (Subdivision.liftVertex f) (Subdivision.liftVertex g)) (Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr v) \with {
+        | inl: \fun (x: Edge) => \refl(Values.add (f (source x)) (g (source x)))
+        | inr: \fun (x: Edge) => \refl(Values.add (f (source x)) (g (source x)))
+      }
+  });
+\definition liftEdge(f, g: Original.first.Carrier): Subdivision.liftEdge (#add{Original.first.space} f g) = EdgeFunctions.add (Subdivision.liftEdge f) (Subdivision.liftEdge g) :=
+  EdgeFunctions.ext _ _ (\induction (e: Index.Edges) \return Subdivision.liftEdge (#add{Original.first.space} f g) e = (EdgeFunctions.add (Subdivision.liftEdge f) (Subdivision.liftEdge g)) e \with {
+    | inl: \fun (x: Edge) => sym!{A.Carrier} _ _ (Group.zeroLeft Values.zero)
+    | inr: \induction (e: Sums.Sum[Edge, Edge]) \return Subdivision.liftEdge (#add{Original.first.space} f g) (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr e) = (EdgeFunctions.add (Subdivision.liftEdge f) (Subdivision.liftEdge g)) (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr e) \with {
+        | inl: \fun (x: Edge) => sym!{A.Carrier} _ _ (Group.zeroLeft Values.zero)
+        | inr: \fun (x: Edge) => Group.negAdd (f x) (g x)
+      }
+  });
+\definition primitive(f, g: EdgeFunctions.Carrier): Subdivision.primitive (EdgeFunctions.add f g) = VertexFunctions.add (Subdivision.primitive f) (Subdivision.primitive g) :=
+  VertexFunctions.ext _ _ (\induction (v: Index.Vertices) \return Subdivision.primitive (EdgeFunctions.add f g) v = (VertexFunctions.add (Subdivision.primitive f) (Subdivision.primitive g)) v \with {
+    | inl: \fun (x: Vertex) => sym!{A.Carrier} _ _ (Group.zeroLeft Values.zero)
+    | inr: \induction (v: Sums.Sum[Edge, Edge]) \return Subdivision.primitive (EdgeFunctions.add f g) (Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr v) = (VertexFunctions.add (Subdivision.primitive f) (Subdivision.primitive g)) (Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr v) \with {
+        | inl: \fun (x: Edge) => \refl(Values.add (f (Index.initialEdge x)) (g (Index.initialEdge x)))
+        | inr: \fun (x: Edge) => Group.four (f (Index.initialEdge x)) (g (Index.initialEdge x)) (f (Index.middleEdge x)) (g (Index.middleEdge x))
+      }
+  });
+\definition restrictEdge(f, g: EdgeFunctions.Carrier): Subdivision.restrictEdge (EdgeFunctions.add f g) = #add{Original.first.space} (Subdivision.restrictEdge f) (Subdivision.restrictEdge g) :=
+  \axiom:funext(_ , _, \fun (e: Edge) => trans!{A.Carrier} _ _ _
+    (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference x (Values.add (f (Index.terminalEdge e)) (g (Index.terminalEdge e)))) _ _
+      (Group.four (f (Index.initialEdge e)) (g (Index.initialEdge e)) (f (Index.middleEdge e)) (g (Index.middleEdge e))))
+    (Group.differenceAdd (Values.add (f (Index.initialEdge e)) (f (Index.middleEdge e))) (Values.add (g (Index.initialEdge e)) (g (Index.middleEdge e))) (f (Index.terminalEdge e)) (g (Index.terminalEdge e))));

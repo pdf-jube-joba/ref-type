@@ -22,6 +22,7 @@
 \definition original(v: Vertex): Complex.Vertex := Fin.widen ambientDimension (Blocks.left (vertexCode v));
 \definition firstMidpoint(e: Edge): Complex.Vertex := Fin.widen ambientDimension (Blocks.right (MidpointCode.left (edgeCode e)));
 \definition secondMidpoint(e: Edge): Complex.Vertex := Fin.widen ambientDimension (Blocks.right (MidpointCode.right (edgeCode e)));
+\module Indexing;
 \inductive MaximalFace: \Set :=
   | vertex: Vertex -> MaximalFace
   | initial: Edge -> MaximalFace
@@ -34,15 +35,7 @@
   | terminal: \fun (e: Edge) => { w: Complex.Vertex \where Logic.Or[w = original (target e), w = secondMidpoint e] }
 };
 \definition faces: \Pow (\Pow Complex.Vertex) := { S: \Pow Complex.Vertex \where \exists { f: MaximalFace \where Complex.Included S (support f) } };
-\definition object: Complex.Object := Complex.Object {
-  faces := faces,
-  hereditary := \block {
-    \fun (S, T: \Pow Complex.Vertex)(member: \In[\Pow Complex.Vertex] faces S)(included: Complex.Included T S) \then
-    \takefrom f: \Cast[MaximalFace] ({ f: MaximalFace \where Complex.Included S (support f) }) \by member \then
-    \return Logic.existsIntro[MaximalFace, { g: MaximalFace \where Complex.Included T (support g) }] f
-      (\fun (v: Complex.Vertex)(inside: \In[Complex.Vertex] T v) => (\bysub(MaximalFace, { f: MaximalFace \where Complex.Included S (support f) }, f)) v (included v inside))
-  },
-};
+\definition object: Complex.Object := Indexing[].complex;
 \import Complex.On[K := object] \as Subdivision;
 \import Subdivision.Realization[] \as Realization;
 \definition Carrier: \Set := Realization.Carrier;
@@ -53,6 +46,6 @@
 \import algebraic_topology.Simplex[] \as Simplex;
 \import Simplex.Vertices[] \as Vertices;
 \definition vertexMember(v: Vertex): \In[\Pow Complex.Vertex] object.faces ({ w: Complex.Vertex \where w = original v }) :=
-  Logic.existsIntro[MaximalFace, { f: MaximalFace \where Complex.Included ({ w: Complex.Vertex \where w = original v }) (support f) }] (MaximalFace::vertex v)
-    (\fun (w: Complex.Vertex)(same: w = original v) => same);
+  Indexing[].pointFace (Indexing[].vertex v);
 \module Segments;
+\module Coefficients(A: Modules.Bundle);

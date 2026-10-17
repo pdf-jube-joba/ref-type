@@ -17,3 +17,23 @@
 \definition disjoint(i: Fin.Fin a)(j: Fin.Fin b)(same: left i = right j): Logic.False :=
   Natural.ltIrrefl i (Natural.ltLeTrans i a i (Fin.bound a i)
     (\idelim Arithmetic.add j a = i \with n: N.Nat^ => Natural.Le a n \by { base: Natural.leAddLeft j a, equality: sym!{N.Nat^} _ _ same }));
+\definition encode: Sums.Sum[Fin.Fin a, Fin.Fin b] -> Fin.Fin (Arithmetic.add a b) :=
+  \induction (v: Sums.Sum[Fin.Fin a, Fin.Fin b]) \return Fin.Fin (Arithmetic.add a b) \with {
+    | inl: left | inr: right
+  };
+\definition encodeInjective: \forall (v, w: Sums.Sum[Fin.Fin a, Fin.Fin b]) -> encode v = encode w -> v = w :=
+  \induction (v: Sums.Sum[Fin.Fin a, Fin.Fin b]) \return \forall (w: Sums.Sum[Fin.Fin a, Fin.Fin b]) -> encode v = encode w -> v = w \with {
+    | inl: \fun (i: Fin.Fin a) =>
+      \induction (w: Sums.Sum[Fin.Fin a, Fin.Fin b]) \return left i = encode w -> Sums.Sum[Fin.Fin a, Fin.Fin b]::inl i = w \with {
+        | inl: \fun (j: Fin.Fin a)(same: left i = left j) => congr!{{Fin.Fin a} {Sums.Sum[Fin.Fin a, Fin.Fin b]}} (Sums.Sum[Fin.Fin a, Fin.Fin b]::inl) _ _ (leftInjective i j same)
+        | inr: \fun (j: Fin.Fin b)(same: left i = right j) => Logic.falseElim _ (disjoint i j same)
+      }
+    | inr: \fun (i: Fin.Fin b) =>
+      \induction (w: Sums.Sum[Fin.Fin a, Fin.Fin b]) \return right i = encode w -> Sums.Sum[Fin.Fin a, Fin.Fin b]::inr i = w \with {
+        | inl: \fun (j: Fin.Fin a)(same: right i = left j) => Logic.falseElim _ (disjoint j i (sym!{{Fin.Fin (Arithmetic.add a b)}} _ _ same))
+        | inr: \fun (j: Fin.Fin b)(same: right i = right j) => congr!{{Fin.Fin b} {Sums.Sum[Fin.Fin a, Fin.Fin b]}} (Sums.Sum[Fin.Fin a, Fin.Fin b]::inr) _ _ (rightInjective i j same)
+      }
+  };
+\definition leftLessRight(i: Fin.Fin a)(j: Fin.Fin b): Natural.Lt (left i) (right j) :=
+  Natural.ltLeTrans i a (Arithmetic.add j a) (Fin.bound a i) (Natural.leAddLeft j a);
+\definition rightIncreasing(i, j: Fin.Fin b)(less: Natural.Lt i j): Natural.Lt (right i) (right j) := shiftedBound a j i less;

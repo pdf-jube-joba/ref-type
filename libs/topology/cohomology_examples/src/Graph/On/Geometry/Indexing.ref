@@ -1,0 +1,121 @@
+\use Logic.either;
+\definition Vertices: \Set := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]];
+\definition Edges: \Set := Sums.Sum[Edge, Sums.Sum[Edge, Edge]];
+\definition vertex(v: Vertex): Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inl v;
+\definition firstVertex(e: Edge): Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inl e);
+\definition secondVertex(e: Edge): Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inr e);
+\definition initialEdge(e: Edge): Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inl e;
+\definition middleEdge(e: Edge): Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inl e);
+\definition terminalEdge(e: Edge): Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inr e);
+\definition label: Vertices -> Complex.Vertex := \induction (v: Vertices) \return Complex.Vertex \with {
+  | inl: original
+  | inr: \induction (v: Sums.Sum[Edge, Edge]) \return Complex.Vertex \with {
+      | inl: firstMidpoint | inr: secondMidpoint
+    }
+};
+\definition first: Edges -> Vertices := \induction (e: Edges) \return Vertices \with {
+  | inl: \fun (e: Edge) => vertex (source e)
+  | inr: \induction (e: Sums.Sum[Edge, Edge]) \return Vertices \with {
+      | inl: firstVertex | inr: \fun (e: Edge) => vertex (target e)
+    }
+};
+\definition last: Edges -> Vertices := \induction (e: Edges) \return Vertices \with {
+  | inl: firstVertex
+  | inr: \induction (e: Sums.Sum[Edge, Edge]) \return Vertices \with {
+      | inl: secondVertex | inr: secondVertex
+    }
+};
+\definition vertexCodeInjective(v, w: Vertex)(same: vertexCode v = vertexCode w): v = w := VertexCode.encodeInjective v w same;
+\definition edgeCodeInjective(e, f: Edge)(same: edgeCode e = edgeCode f): e = f := EdgeCode.encodeInjective e f same;
+\definition originalInjective(v, w: Vertex)(same: original v = original w): v = w := vertexCodeInjective v w (Blocks.leftInjective _ _ same);
+\definition firstInjective(e, f: Edge)(same: firstMidpoint e = firstMidpoint f): e = f := edgeCodeInjective e f (MidpointCode.leftInjective _ _ (Blocks.rightInjective _ _ same));
+\definition secondInjective(e, f: Edge)(same: secondMidpoint e = secondMidpoint f): e = f := edgeCodeInjective e f (MidpointCode.rightInjective _ _ (Blocks.rightInjective _ _ same));
+\definition originalFirst(v: Vertex)(e: Edge)(same: original v = firstMidpoint e): Logic.False := Blocks.disjoint (vertexCode v) (MidpointCode.left (edgeCode e)) same;
+\definition originalSecond(v: Vertex)(e: Edge)(same: original v = secondMidpoint e): Logic.False := Blocks.disjoint (vertexCode v) (MidpointCode.right (edgeCode e)) same;
+\definition firstSecond(e, f: Edge)(same: firstMidpoint e = secondMidpoint f): Logic.False := MidpointCode.disjoint (edgeCode e) (edgeCode f) (Blocks.rightInjective _ _ same);
+\definition injective: \forall (v, w: Vertices) -> label v = label w -> v = w :=
+  \induction (v: Vertices) \return \forall (w: Vertices) -> label v = label w -> v = w \with {
+    | inl: \fun (x: Vertex) =>
+    \induction (w: Vertices) \return original x = label w -> vertex x = w \with {
+      | inl: \fun (y: Vertex)(same: original x = original y) => congr!{Vertex Vertices} vertex _ _ (originalInjective x y same)
+      | inr: \induction (w: Sums.Sum[Edge, Edge]) \return original x = label (Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr w) -> vertex x = Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr w \with {
+          | inl: \fun (y: Edge)(same: original x = firstMidpoint y) => Logic.falseElim _ (originalFirst x y same)
+          | inr: \fun (y: Edge)(same: original x = secondMidpoint y) => Logic.falseElim _ (originalSecond x y same)
+        }
+    }
+    | inr: \induction (v: Sums.Sum[Edge, Edge]) \return \forall (w: Vertices) -> label (Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr v) = label w -> Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr v = w \with {
+        | inl: \fun (x: Edge) =>
+    \induction (w: Vertices) \return firstMidpoint x = label w -> firstVertex x = w \with {
+      | inl: \fun (y: Vertex)(same: firstMidpoint x = original y) => Logic.falseElim _ (originalFirst y x (sym!{Complex.Vertex} _ _ same))
+      | inr: \induction (w: Sums.Sum[Edge, Edge]) \return firstMidpoint x = label (Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr w) -> firstVertex x = Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr w \with {
+          | inl: \fun (y: Edge)(same: firstMidpoint x = firstMidpoint y) => congr!{Edge Vertices} firstVertex _ _ (firstInjective x y same)
+          | inr: \fun (y: Edge)(same: firstMidpoint x = secondMidpoint y) => Logic.falseElim _ (firstSecond x y same)
+        }
+    }
+        | inr: \fun (x: Edge) =>
+    \induction (w: Vertices) \return secondMidpoint x = label w -> secondVertex x = w \with {
+      | inl: \fun (y: Vertex)(same: secondMidpoint x = original y) => Logic.falseElim _ (originalSecond y x (sym!{Complex.Vertex} _ _ same))
+      | inr: \induction (w: Sums.Sum[Edge, Edge]) \return secondMidpoint x = label (Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr w) -> secondVertex x = Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr w \with {
+          | inl: \fun (y: Edge)(same: secondMidpoint x = firstMidpoint y) => Logic.falseElim _ (firstSecond y x (sym!{Complex.Vertex} _ _ same))
+          | inr: \fun (y: Edge)(same: secondMidpoint x = secondMidpoint y) => congr!{Edge Vertices} secondVertex _ _ (secondInjective x y same)
+        }
+    }
+      }
+  };
+\definition ordered: \forall (e: Edges) -> Natural.Lt (label (first e)) (label (last e)) :=
+  \induction (e: Edges) \return Natural.Lt (label (first e)) (label (last e)) \with {
+    | inl: \fun (e: Edge) => Blocks.leftLessRight (vertexCode (source e)) (MidpointCode.left (edgeCode e))
+    | inr: \induction (e: Sums.Sum[Edge, Edge]) \return Natural.Lt (label (first (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr e))) (label (last (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr e))) \with {
+        | inl: \fun (e: Edge) => Blocks.rightIncreasing _ _ (MidpointCode.leftLessRight (edgeCode e) (edgeCode e))
+        | inr: \fun (e: Edge) => Blocks.leftLessRight (vertexCode (target e)) (MidpointCode.right (edgeCode e))
+      }
+  };
+\definition endpoints: \forall (e, f: Edges) -> first e = first f -> last e = last f -> e = f :=
+  \induction (e: Edges) \return \forall (f: Edges) -> first e = first f -> last e = last f -> e = f \with {
+    | inl: \fun (x: Edge) =>
+    \induction (f: Edges) \return first (initialEdge x) = first f -> last (initialEdge x) = last f -> initialEdge x = f \with {
+      | inl: \fun (y: Edge)(firstEqual: first (initialEdge x) = first (initialEdge y))(lastEqual: last (initialEdge x) = last (initialEdge y)) => congr!{Edge Edges} initialEdge _ _ (firstInjective x y (congr!{Vertices Complex.Vertex} label _ _ lastEqual))
+      | inr: \induction (f: Sums.Sum[Edge, Edge]) \return first (initialEdge x) = first (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f) -> last (initialEdge x) = last (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f) -> initialEdge x = Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f \with {
+          | inl: \fun (y: Edge)(firstEqual: first (initialEdge x) = first (middleEdge y))(lastEqual: last (initialEdge x) = last (middleEdge y)) => Logic.falseElim _ (originalFirst (source x) y (congr!{Vertices Complex.Vertex} label _ _ firstEqual))
+          | inr: \fun (y: Edge)(firstEqual: first (initialEdge x) = first (terminalEdge y))(lastEqual: last (initialEdge x) = last (terminalEdge y)) => Logic.falseElim _ (firstSecond x y (congr!{Vertices Complex.Vertex} label _ _ lastEqual))
+        }
+    }
+    | inr: \induction (e: Sums.Sum[Edge, Edge]) \return \forall (f: Edges) -> first (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr e) = first f -> last (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr e) = last f -> Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr e = f \with {
+        | inl: \fun (x: Edge) =>
+    \induction (f: Edges) \return first (middleEdge x) = first f -> last (middleEdge x) = last f -> middleEdge x = f \with {
+      | inl: \fun (y: Edge)(firstEqual: first (middleEdge x) = first (initialEdge y))(lastEqual: last (middleEdge x) = last (initialEdge y)) => Logic.falseElim _ (originalFirst (source y) x (sym!{Complex.Vertex} _ _ (congr!{Vertices Complex.Vertex} label _ _ firstEqual)))
+      | inr: \induction (f: Sums.Sum[Edge, Edge]) \return first (middleEdge x) = first (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f) -> last (middleEdge x) = last (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f) -> middleEdge x = Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f \with {
+          | inl: \fun (y: Edge)(firstEqual: first (middleEdge x) = first (middleEdge y))(lastEqual: last (middleEdge x) = last (middleEdge y)) => congr!{Edge Edges} middleEdge _ _ (secondInjective x y (congr!{Vertices Complex.Vertex} label _ _ lastEqual))
+          | inr: \fun (y: Edge)(firstEqual: first (middleEdge x) = first (terminalEdge y))(lastEqual: last (middleEdge x) = last (terminalEdge y)) => Logic.falseElim _ (originalFirst (target y) x (sym!{Complex.Vertex} _ _ (congr!{Vertices Complex.Vertex} label _ _ firstEqual)))
+        }
+    }
+        | inr: \fun (x: Edge) =>
+    \induction (f: Edges) \return first (terminalEdge x) = first f -> last (terminalEdge x) = last f -> terminalEdge x = f \with {
+      | inl: \fun (y: Edge)(firstEqual: first (terminalEdge x) = first (initialEdge y))(lastEqual: last (terminalEdge x) = last (initialEdge y)) => Logic.falseElim _ (firstSecond y x (sym!{Complex.Vertex} _ _ (congr!{Vertices Complex.Vertex} label _ _ lastEqual)))
+      | inr: \induction (f: Sums.Sum[Edge, Edge]) \return first (terminalEdge x) = first (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f) -> last (terminalEdge x) = last (Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f) -> terminalEdge x = Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr f \with {
+          | inl: \fun (y: Edge)(firstEqual: first (terminalEdge x) = first (middleEdge y))(lastEqual: last (terminalEdge x) = last (middleEdge y)) => Logic.falseElim _ (originalFirst (target x) y (congr!{Vertices Complex.Vertex} label _ _ firstEqual))
+          | inr: \fun (y: Edge)(firstEqual: first (terminalEdge x) = first (terminalEdge y))(lastEqual: last (terminalEdge x) = last (terminalEdge y)) => congr!{Edge Edges} terminalEdge _ _ (secondInjective x y (congr!{Vertices Complex.Vertex} label _ _ lastEqual))
+        }
+    }
+      }
+  };
+\import Complex.LineGraph[V := Vertices, E := Edges] \as LineGraph;
+\definition indexedGraph: LineGraph.Graph := LineGraph.Graph {
+  label := label, first := first, last := last,
+  vertices := injective, ordered := ordered, edges := endpoints,
+};
+\import LineGraph.With[graph := indexedGraph] \as Ordered;
+\definition complex: Complex.Object := Ordered.complex;
+\definition pointFace(v: Vertices): \In[\Pow Complex.Vertex] complex.faces ({ w: Complex.Vertex \where w = label v }) :=
+  Logic.Or[_, _]::left (\exact(Ordered.Singleton[{ w: Complex.Vertex \where w = label v }] {
+    vertex := v, included := \fun (w: Complex.Vertex)(same: w = label v) => sym!{Complex.Vertex} _ _ same,
+  }, Ordered.Singleton[{ w: Complex.Vertex \where w = label v }]));
+\definition segmentMember(e: Edges)(S: \Pow Complex.Vertex)
+  (included: \forall (w: Complex.Vertex) -> \In[Complex.Vertex] S w -> Logic.Or[w = label (first e), w = label (last e)]):
+  \In[\Pow Complex.Vertex] complex.faces S :=
+  Logic.Or[_, _]::right (\exact(Ordered.Segment[S] {
+    edge := e, included := \fun (w: Complex.Vertex)(member: \In[Complex.Vertex] S w) =>
+      either!{(included w member) {Logic.Or[label (first e) = w, label (last e) = w]}
+        {\fun (same: w = label (first e)) => Logic.Or[_, _]::left (sym!{Complex.Vertex} _ _ same)}
+        {\fun (same: w = label (last e)) => Logic.Or[_, _]::right (sym!{Complex.Vertex} _ _ same)}},
+  }, Ordered.Segment[S]));

@@ -1,0 +1,47 @@
+\import N.Basic[].Def[] \as Nat;
+\import resolutions.HomComplex[].Over[R := R, ring := ring] \as Hom;
+\import Hom.On[P := P, N := scalars] \as Left;
+\import Hom.On[P := Q, N := scalars] \as Right;
+\import Double.Tensor[C := P, D := Q] \as Product;
+\import Double.Total[C := Product.complex] \as Total;
+\import Hom.On[P := Total.complex, N := scalars] \as Cochains;
+\import Double.Coordinates[C := Product.complex] \as Coordinates;
+\import Coordinates.Step[p := p, q := q] \as Position;
+\definition n: N.Nat^ := Nat.add p q;
+\definition index: Double.Index n := Position.targetIndex;
+\definition chain: Chains.Complex := Total.complex;
+\definition chainCarrier(k: N.Nat^): \Set := Total.Carrier k;
+\definition chainSpace(k: N.Nat^): Modules.Space (chainCarrier k) := Total.space k;
+\definition Carrier(k: N.Nat^): \Set := Cochains.Carrier k;
+\definition space(k: N.Nat^): Modules.Space (Carrier k) := Cochains.space k;
+\definition complex: chain_complexes.Cochain[].Over[R := R, ring := baseRing].Complex := Cochains.complex;
+\definition LeftCochain(k: N.Nat^): \Set := Left.Carrier k;
+\definition RightCochain(k: N.Nat^): \Set := Right.Carrier k;
+\definition first: Modules.Bundle := Modules.Bundle { Carrier := P.family.Carrier p, space := P.family.space p };
+\definition second: Modules.Bundle := Modules.Bundle { Carrier := Q.family.Carrier q, space := Q.family.space q };
+\import \parent.Pairing[V := first, W := second] \as Pairing;
+\import Product.Term[p := p, q := q] \as Term;
+\definition comparison: LeftCochain p -> RightCochain q -> Modules.Hom[V := Term.Carrier, W := R, source := Term.space, target := Modules.scalarModule].Map := Pairing.comparison;
+\import Modules.Hom[V := Term.Carrier, W := R, source := Term.space, target := Modules.scalarModule].Composition[U := Total.Carrier n, domain := Total.space n] \as Compose;
+\definition onTensor(alpha: LeftCochain p)(beta: RightCochain q)(x: P.family.Carrier p)(y: Q.family.Carrier q): #apply{(comparison alpha beta)} (Term.tensor x y) = mul (#apply{alpha} x) (#apply{beta} y) := Pairing.evaluation alpha beta x y;
+\definition total(alpha: LeftCochain p)(beta: RightCochain q): Carrier n := Compose.compose (comparison alpha beta) (Coordinates.Degree[n := n].At[i := index].map);
+\definition tensor(x: P.family.Carrier p)(y: Q.family.Carrier q): chainCarrier n := #apply{Total.Degree[n := n].Component[i := index].injection} (Term.tensor x y);
+\definition onPure(alpha: LeftCochain p)(beta: RightCochain q)(x: P.family.Carrier p)(y: Q.family.Carrier q): #apply{(total alpha beta)} (tensor x y) = mul (#apply{alpha} x) (#apply{beta} y) :=
+  trans!{R} _ _ _
+    (congr!{Term.Carrier R} (#apply{(comparison alpha beta)}) _ _ (Coordinates.Degree[n := n].own index (Term.tensor x y)))
+    (Pairing.evaluation alpha beta x y);
+\import std.Logic[].Proposition[] \as Logic;
+\definition offInjection(alpha: LeftCochain p)(beta: RightCochain q)(i: Double.Index n)(z: Product.Carrier #first{i} #second{i})(different: Logic.Not (i = index)):
+  #apply{(total alpha beta)} (#apply{Total.Degree[n := n].Component[i := i].injection} z) = #zero{baseRing} :=
+  trans!{R} _ _ _
+    (congr!{Term.Carrier R} (#apply{(comparison alpha beta)}) _ _ (Coordinates.Degree[n := n].other i index z different))
+    (Modules.Hom[V := Term.Carrier, W := R, source := Term.space, target := Modules.scalarModule].zeroPreserved (comparison alpha beta));
+\definition ClosedLeft(alpha: LeftCochain p): \Prop := \forall (x: P.family.Carrier (N.Nat^::succ p)) -> #apply{alpha} (#apply{P.differential} p x) = #zero{baseRing};
+\definition ClosedRight(beta: RightCochain q): \Prop := \forall (y: Q.family.Carrier (N.Nat^::succ q)) -> #apply{beta} (#apply{Q.differential} q y) = #zero{baseRing};
+\module Closed(alpha: LeftCochain p, beta: RightCochain q);
+\definition boundaryZero(alpha: LeftCochain p)(beta: RightCochain q)(left: ClosedLeft alpha)(right: ClosedRight beta)(z: chainCarrier (N.Nat^::succ n)):
+  #apply{(total alpha beta)} (#apply{Total.differential} n z) = #zero{baseRing} := Closed[alpha := alpha, beta := beta].law left right z;
+\definition closed(alpha: LeftCochain p)(beta: RightCochain q)(left: ClosedLeft alpha)(right: ClosedRight beta):
+  Cochains.apply n (total alpha beta) = #zero{(space (N.Nat^::succ n))} := Cochains.At[n := N.Nat^::succ n].ext
+    (Cochains.apply n (total alpha beta)) (#zero{(space (N.Nat^::succ n))}) (boundaryZero alpha beta left right);
+\module Mapping(C, D: Chains.Complex);
