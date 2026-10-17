@@ -25,7 +25,9 @@
 
 `Cup[R, ring].Product[p, q]` は前半と後半の頂点列による Alexander–Whitney 積を定義する。
 `Compatibility.law` はアフィン比較による特異余鎖の制限がこの積を厳密に保つことを示す。
-`Cohomology.Product[p, q].Representatives.law` は、特異コサイクルを制限した代表元について、この面公式の類とコホモロジーの積を同定する。
+`Cup.Finite.Leibniz[p, q].law` は任意の有限余鎖に対する Leibniz 則を与え、`Finite.Product[p, q].Closed.law` は有限コサイクルの積の閉性を示す。
+`Finite.Boundaries.left` と `right` は境界とコサイクルの積が境界になることを示す。
+`Finite.Product[p, q].Cohomology.leftDescent` と `rightDescent` は代表元変更への不変性を与え、`onClasses` は任意の有限コサイクル対について面公式の類を比較済みのコホモロジーの積と同定する。
 
 `Complex[d].LineGraph[V, E]` は、頂点ラベルと重複のない順序付き辺対から一次元の複体を構成する。
 `With[graph].Chains.Zero` と `One` は、頂点・辺上の自由加群から実際の単体鎖群への同型を与える。
