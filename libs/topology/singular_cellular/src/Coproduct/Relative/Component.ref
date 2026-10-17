@@ -5,7 +5,24 @@
 \import Nonnegative.ZeroExtension[C := FiberWholeChains.complex] \as FiberWholeExtension;
 \definition subcomplex: Complexes.Complex := FiberSubExtension.complex;
 \definition wholecomplex: Complexes.Complex := FiberWholeExtension.complex;
-\definition complex: Complexes.Complex := Native.complex;
+\import Complexes.Quotient[C := FiberSubExtension.complex, D := FiberWholeExtension.complex]
+  .On[f := Native.inclusionMap] \as Quotient;
+\definition chainCarrier(z: I.Int^): \Set := Quotient.Carrier z;
+\definition chainSpace(z: I.Int^): Modules.Space (chainCarrier z) := Quotient.space z;
+\definition chainFamily: Complexes.Family := Complexes.Family {
+  Carrier := chainCarrier, space := chainSpace,
+};
+\definition chainDifferential: Complexes.DifferentialData[chainFamily] := Complexes.DifferentialData[chainFamily] {
+  apply := \fun (z: I.Int^)(x: chainCarrier z) => #apply{Quotient.At[k := z].differential} x,
+};
+\definition chainLaws: Complexes.DifferentialLaws[chainFamily, chainDifferential] := Complexes.DifferentialLaws[chainFamily, chainDifferential] {
+  addition := \fun (z: I.Int^)(x, y: chainCarrier z) => #addition{Quotient.At[k := z].differential} x y,
+  scalar := \fun (z: I.Int^)(a: I.Int^)(x: chainCarrier z) => #scalar{Quotient.At[k := z].differential} a x,
+  squareZero := \fun (z: I.Int^)(x: chainCarrier z) => Quotient.At[k := z].squareZero x,
+};
+\definition complex: Complexes.Complex := Complexes.Complex {
+  family := chainFamily, differential := chainDifferential, laws := chainLaws,
+};
 \definition sequence: Complexes.ShortExact[A := subcomplex, B := wholecomplex, C := complex].Sequence := Native.sequence;
 \import singular_cellular_algebra.Algebra[].RelativeSplit[A := fibers i, source := spaces i, subset := Restriction.fiberSubset i] \as Splitting;
 \definition retraction(z: I.Int^): Modules.Hom[V := wholecomplex.family.Carrier z, W := subcomplex.family.Carrier z,
