@@ -46,6 +46,7 @@
 | [topology/singular_cellular_algebra](topology/singular_cellular_algebra/README.md) | `singular_cellular_algebra` | 相対鎖の直和、Hom と比較写像の補題 |
 | [topology/singular_finite_algebra](topology/singular_finite_algebra/README.md) | `singular_finite_algebra` | 有限モデルとの係数比較、普遍係数と Künneth |
 | [topology/singular_tensor_dual](topology/singular_tensor_dual/README.md) | `singular_tensor_dual` | 有限双対基底によるテンソル積と Hom の比較 |
+| [topology/singular_tensor_bridge](topology/singular_tensor_bridge/README.md) | `singular_tensor_bridge` | 整数次数と非負次数のテンソル複体の比較 |
 | [topology/singular_low_degree](topology/singular_low_degree/README.md) | `singular_low_degree` | 道の選択による鎖の正規化と積空間の一次コホモロジー |
 | [topology/sphere_maps](topology/sphere_maps/README.md) | `sphere_maps` | 球面の向き、反転と円周の整数べき写像の次数 |
 | [topology/cohomology_models](topology/cohomology_models/README.md) | `cohomology_models` | 空空間・可縮空間・球面の計算と相対理論の利用例 |

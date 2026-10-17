@@ -1,0 +1,30 @@
+\definition z: I.Int^ := I.Int^::negSucc n;
+\import Source.Term[n := z] \as Values;
+\definition component: \forall (p, q: I.Int^) -> Grading.add p q = z ->
+  \forall (x: SignedTensor.family.Carrier p q) -> x = #zero{(SignedTensor.family.space p q)} :=
+  \induction (p: I.Int^) \return \forall (q: I.Int^) -> Grading.add p q = z ->
+    \forall (x: SignedTensor.family.Carrier p q) -> x = #zero{(SignedTensor.family.space p q)} \with {
+    | ofNat: \fun (p: N.Nat^) => \induction (q: I.Int^) \return Grading.add (I.Int^::ofNat p) q = z ->
+        \forall (x: SignedTensor.family.Carrier (I.Int^::ofNat p) q) -> x = #zero{(SignedTensor.family.space (I.Int^::ofNat p) q)} \with {
+      | ofNat: \fun (q: N.Nat^)(closed: Grading.add (I.Int^::ofNat p) (I.Int^::ofNat q) = z)
+        (x: SignedTensor.family.Carrier (I.Int^::ofNat p) (I.Int^::ofNat q)) => Logic.falseElim _ (Indices.disjoint (Nat.add p q) n closed)
+      | negSucc: \fun (q: N.Nat^)(unused: Grading.add (I.Int^::ofNat p) (I.Int^::negSucc q) = z) => \parent.TrivialRight[p := I.Int^::ofNat p, q := q].zero
+    }
+    | negSucc: \fun (p: N.Nat^)(q: I.Int^)(unused: Grading.add (I.Int^::negSucc p) q = z) => \parent.TrivialLeft[p := p, q := q].zero
+  };
+\module At(i: Grading.Index z) {
+  \import Values.Component[i := i] \as Injection;
+  \import Modules.Hom[V := SignedTensor.family.Carrier #first{i} #second{i}, W := Values.Carrier,
+    source := SignedTensor.family.space #first{i} #second{i}, target := Values.space] \as Maps;
+  \definition zero(x: SignedTensor.family.Carrier #first{i} #second{i}): #apply{Injection.injection} x = #zero{Values.space} :=
+    trans!{Values.Carrier} _ _ _
+      (congr!{{SignedTensor.family.Carrier #first{i} #second{i}} Values.Carrier} (#apply{Injection.injection}) _ _ (component #first{i} #second{i} (Grading.degree z i) x))
+      (Maps.zeroPreserved Injection.injection);
+}
+\import Modules.End[V := Values.Carrier, space := Values.space] \as Identity;
+\import Modules.Hom[V := Values.Carrier, W := Values.Carrier, source := Values.space, target := Values.space] \as Maps;
+\import Modules.DirectSum[Index := Grading.Index z, family := Values.family].To[W := Values.Carrier, target := Values.space] \as Equality;
+\definition equality: Identity.identity = Maps.zeroMap := Equality.ext Identity.identity Maps.zeroMap
+  (\fun (i: Grading.Index z) => At[i := i].zero);
+\definition zero(x: Values.Carrier): x = #zero{Values.space} :=
+  congr!{Maps.Map Values.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality;
