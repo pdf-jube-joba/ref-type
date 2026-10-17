@@ -12,13 +12,18 @@
 | 円の有限モデル | Circle | 次数 \(0,1\) にそれぞれ階数 \(1\) を持つ零微分の整数鎖複体 |
 | 円の比較 | Circle.Geometry.FiniteComparison | ユークリッド単位円の特異鎖複体との比較 |
 | 円のループ | Circle.Geometry.Loop.Primitive | 上半円を二乗して得られる閉じた特異辺と、その原始的なホモロジー類 |
+| 円の評価 | Circle.Geometry.Evaluation | 閉じたコチェインをこのループで評価する同型 \(H^1(S^1;A)\cong A\) |
 | トーラスの群 | Torus.Geometry.Comparison | 実際の積 \(S^1\times S^1\) を円の有限モデルのテンソル積と比較する |
 | トーラスの積と反転 | Torus.Geometry.Ring | 二つの射影から得る次数 \(1\) の類、そのカップ積、因子交換の作用 |
 | 実射影平面の空間 | ProjectivePlane.Geometry | 実際の \(S^2/(x\sim -x)\)、半球による商、円板の貼り付けの相互比較 |
 | 実射影平面の有限モデル | ProjectivePlane.With | 二頂点・三辺・二三角形のコチェイン複体 |
 | 整数係数 | ProjectivePlane.Integral | \(H^1=0\)、\(H^2\cong\mathbb Z/2\) の有限計算 |
 | 二元体係数 | ProjectivePlane.ModTwo | 次数 \(1\) の類 \(u\) と \(u^2\ne0\) の有限計算 |
-| Bockstein | ProjectivePlane.Bockstein.Finite | \(0\to\mathbb Z\xrightarrow{2}\mathbb Z\to\mathbb F_2\to0\) による実際のコチェイン連結準同型の値 |
+| 実射影平面の群 | ProjectivePlane.Geometry.Cohomology | 任意の整数加群係数で、次数 \(1\) は倍写像の核、次数 \(2\) はその余核、高次は零 |
+| 実際の整数・二元体係数 | ProjectivePlane.Geometry.Integral / ModTwo | 商空間自身の特異コホモロジー、生成元、その非零性 |
+| 三角形への制限 | ProjectivePlane.Geometry.Restriction | 実際の二つの特異三角形への制限、円のループによる次数 \(1\) の検出、カップ積との整合性 |
+| 実射影平面の Bockstein | ProjectivePlane.Geometry.Bockstein | 実際の \(u\) を整数次数 \(2\) の非零生成元へ送る連結準同型 |
+| 有限モデルの Bockstein | ProjectivePlane.Bockstein.Finite | \(0\to\mathbb Z\xrightarrow{2}\mathbb Z\to\mathbb F_2\to0\) による実際のコチェイン連結準同型の値 |
 
 ## 代表元と符号
 
@@ -51,3 +56,6 @@ ProjectivePlane.Geometry.Attachment.Comparison.Pair は、実際の貼り付け�
 
 Two.Quotient は整数の巡回商と二元体との同型を与える。
 Two.Quotient.Sequence は上記の係数短完全列を構成し、Surface.On.Simplicial.Sequence はそれを自由コチェインの短完全列へ移す。
+
+ProjectivePlane.Geometry.CoefficientSequence は、特異コチェインから有限コチェインへの制限と係数の短完全列から得られる連結準同型が可換であることを示す。
+この自然性により、有限モデルでの Bockstein の値を実際の商空間の生成元と同定する。

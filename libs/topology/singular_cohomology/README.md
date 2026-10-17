@@ -17,6 +17,7 @@
 | `Maps` / `Differential` / `Composition` | 後合成から得る鎖写像、境界との可換性と合成則、整数次数への零拡張。 |
 | `Identity` / `Identity.Coefficients` | 恒等連続写像が鎖・余鎖・コホモロジーの恒等写像を誘導すること。 |
 | `Maps.Coefficients` | 空間に関して反変、係数に関して共変な余鎖写像・コホモロジー写像と、生成元での評価公式。 |
+| `Maps.Coefficients.Integer.At` | 空間と係数の写像について、整数次数と非負次数のコホモロジー比較が満たす自然性。 |
 | `Maps.Composition.Coefficients` | 連続写像の合成が誘導するコホモロジー写像の合成則。 |
 | `Homotopy` / `Coefficients` | cylinder のアフィン prism 鎖から構成する鎖ホモトピーと、任意係数でのホモトピー不変性。 |
 | `Homotopy.Homology.At` | 整数次数の特異ホモロジーにおけるホモトピー不変性。 |
