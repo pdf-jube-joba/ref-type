@@ -36,10 +36,19 @@
     OldSpace.openOfNeighborhoods oldTopology (Backward.Preimage backward U)
       (\fun (c: Old)(inside: NewSpace.Member U (backward c)) => AtIndex[i := #index{c}].neighborhood U open
         (\into[fibers (#index{c})](#point{c}, fiberSubset (#index{c})) \by { \bysub(Carrier, S, c) }) inside);
+\definition forget(c: Old): Carrier := c;
+\definition restrict(c: Carrier)(inside: Space.Member S c): Old := \into[Carrier](c, S) \by { inside };
+\definition oldExt(x, y: Old)(same: forget x = forget y): x = y :=
+  (\idelim forget x = forget y \with value: Carrier =>
+    \forall (inside: Space.Member S value) -> x = restrict value inside \by {
+      base: \fun (inside: _) => \refl(x),
+      equality: same
+    }) (\bysub(Carrier, S, y));
 \definition homeomorphism: topology.Homeomorphism[A := New, B := Old].Homeomorphism[Cut.topology, oldTopology] :=
   topology.Homeomorphism[A := New, B := Old].Homeomorphism[Cut.topology, oldTopology] {
     forward := forward, backward := backward,
-    leftInverse := \fun (c: New) => \refl(c), rightInverse := \fun (c: Old) => \refl(c),
+    leftInverse := \fun (c: New) => Cut.eta c,
+    rightInverse := \fun (c: Old) => oldExt (forward (backward c)) c (eta c),
     forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
   };
 \module ProductUniversal(X, B: \Set,
