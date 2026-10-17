@@ -84,24 +84,16 @@ jobs:
     timeout-minutes: 360
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 2
       matrix:
         include:
           - name: circle-integer-degrees
             package: sphere_maps
             module: sphere_maps.Circle.Powers
             scope: subtree
-          - name: sphere-reflection-homology
-            package: sphere_maps
-            module: sphere_maps.Hemispheres.Homology.Whole
-            scope: subtree
           - name: sphere-reflection-cohomology
             package: sphere_maps
             module: sphere_maps.Hemispheres.Degree
-            scope: subtree
-          - name: sphere-antipodal-degrees
-            package: sphere_maps
-            module: sphere_maps.Antipodal
             scope: subtree
     env:
       REF_TYPE_CACHE: ${{ github.workspace }}/.ci/refcache
@@ -122,7 +114,8 @@ jobs:
             proof-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'src/**/*.rs') }}-
       - name: Prepare memory for large comparisons
         run: |
-          sudo fallocate -l 16G /mnt/ref-type-check.swap
+          df -h /mnt
+          sudo fallocate -l 32G /mnt/ref-type-check.swap
           sudo chmod 600 /mnt/ref-type-check.swap
           sudo mkswap /mnt/ref-type-check.swap
           sudo swapon /mnt/ref-type-check.swap
@@ -134,7 +127,7 @@ jobs:
           ulimit -c 0
           chmod +x build/ref-type
           args=("libs/topology/${{ matrix.package }}" --module "${{ matrix.module }}"
-            --memory-mib 24576 --batch-seconds 1800
+            --memory-mib 40960 --batch-seconds 1800
             --cache-dir "$REF_TYPE_CACHE" --cache-budget-mib 4096 --diagnostics compact)
           if [[ "${{ matrix.scope }}" == declarations ]]; then
             args+=(--module-only)

@@ -20,11 +20,15 @@
 \definition naturalPull(k: I.Int^): NaturalCochains.Map[C := Theory.complex, D := Theory.complex].Map :=
   NaturalMaps.map (map k) (continuous k) Coefficient.identity;
 \import Modules.Hom[V := SingularChains.Carrier one, W := coefficients.Carrier, source := SingularChains.space one, target := coefficients.space] \as CochainMaps;
+\definition leftCycle(k: I.Int^)(h: H.Closed): NaturalH.CycleCarrier :=
+  Comparison.toNatural (#apply{(Induced.cyclesMap (pull k))} h);
+\definition rightCycle(k: I.Int^)(h: H.Closed): NaturalH.CycleCarrier :=
+  #apply{(NaturalInduced.cyclesMap (naturalPull k))} (Comparison.toNatural h);
 \definition onCycle: \forall (k: I.Int^)(h: H.Closed) ->
-  NaturalH.ambient (Comparison.toNatural (#apply{(Induced.cyclesMap (pull k))} h)) =
-    NaturalH.ambient (#apply{(NaturalInduced.cyclesMap (naturalPull k))} (Comparison.toNatural h)) :=
-  \fun (k: I.Int^)(h: H.Closed) => CochainMaps.ext _ _
-    (\fun (x: SingularChains.Carrier one) => \refl(#apply{h} (#apply{(Maps.push (map k) (continuous k))} one x)));
+  NaturalH.ambient (leftCycle k h) = NaturalH.ambient (rightCycle k h) :=
+  \fun (k: I.Int^)(h: H.Closed) => CochainMaps.ext
+    (NaturalH.ambient (leftCycle k h)) (NaturalH.ambient (rightCycle k h))
+    (\fun (chain: SingularChains.Carrier one) => \refl(#apply{h} (#apply{(Maps.push (map k) (continuous k))} one chain)));
 \definition naturality: \forall (k: I.Int^)(q: H.Cohomology) ->
   #apply{Comparison.forward} (#apply{(action k)} q) =
     #apply{(NaturalInduced.induced (naturalPull k))} (#apply{Comparison.forward} q) :=
@@ -34,8 +38,7 @@
     (\fun (h: H.Closed) => trans!{NaturalH.Cohomology} _ _ _
       (congr!{H.Cohomology NaturalH.Cohomology} (#apply{Comparison.forward}) _ _ (Induced.onClass (pull k) h))
       (trans!{NaturalH.Cohomology} _ _ _ (Comparison.onIntegerClass (#apply{(Induced.cyclesMap (pull k))} h))
-        (trans!{NaturalH.Cohomology} _ _ _ (NaturalH.equalClass (Comparison.toNatural (#apply{(Induced.cyclesMap (pull k))} h))
-          (#apply{(NaturalInduced.cyclesMap (naturalPull k))} (Comparison.toNatural h)) (onCycle k h))
+        (trans!{NaturalH.Cohomology} _ _ _ (NaturalH.equalClass (leftCycle k h) (rightCycle k h) (onCycle k h))
           (trans!{NaturalH.Cohomology} _ _ _
             (sym!{NaturalH.Cohomology} _ _ (NaturalInduced.onClass (naturalPull k) (Comparison.toNatural h)))
             (congr!{NaturalH.Cohomology NaturalH.Cohomology} (#apply{(NaturalInduced.induced (naturalPull k))}) _ _
