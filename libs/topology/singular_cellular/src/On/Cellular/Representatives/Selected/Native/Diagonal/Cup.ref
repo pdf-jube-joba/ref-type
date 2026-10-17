@@ -1,0 +1,79 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\definition n: N.Nat^ := Nat.add p q;
+\import singular_products.Cochains[A := A, source := source, R := R, ring := ring] \as SingularProducts;
+\import singular_symmetry.Cochains[A := A, source := source, R := R, ring := ring] \as SingularCup;
+\definition coefficients: Modules.Bundle := SingularProducts.integerCoefficients;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.On[P := complex, N := coefficients] \as Cell;
+\import Hom.On[P := AmbientChains.complex, N := coefficients] \as Ordinary;
+\import Hom.Equivalence[P := complex, Q := AmbientChains.complex, N := coefficients] \as Compared;
+\import Hom.Homotopy[P := complex, Q := AmbientChains.complex, N := coefficients] \as ForwardPull;
+\import Hom.Homotopy[P := AmbientChains.complex, Q := complex, N := coefficients] \as BackwardPull;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\definition Group(k: N.Nat^): \Set := Cochains.At[C := Cell.complex, k := k].Cohomology;
+\definition comparison(k: N.Nat^): Modules.Isomorphism[V := Group k, W := SingularProducts.Cohomology[].Group k,
+  source := Cochains.At[C := Cell.complex, k := k].cohomologySpace,
+  target := Cochains.At[C := Ordinary.complex, k := k].cohomologySpace].Isomorphism := Compared.At[k := k].isomorphism equivalence;
+\definition apply(x: Group p)(y: Group q): Group n :=
+  #apply{#backward{(comparison n)}} (SingularProducts.Cohomology[].Cup[p := p, q := q].apply
+    (#apply{#forward{(comparison p)}} x) (#apply{#forward{(comparison q)}} y));
+\definition agreement(x: Group p)(y: Group q):
+  #apply{#forward{(comparison n)}} (apply x y) = SingularProducts.Cohomology[].Cup[p := p, q := q].apply
+    (#apply{#forward{(comparison p)}} x) (#apply{#forward{(comparison q)}} y) :=
+  #rightInverse{(comparison n)} (SingularProducts.Cohomology[].Cup[p := p, q := q].apply
+    (#apply{#forward{(comparison p)}} x) (#apply{#forward{(comparison q)}} y));
+\import \root.RingPairing[P := complex, Q := complex, R := R, ring := ring, p := p, q := q] \as Pairing;
+\import \root.RingPairing[P := AmbientChains.complex, Q := AmbientChains.complex, R := R, ring := ring, p := p, q := q] \as SingularPairing;
+\import Pairing.Mapping[C := AmbientChains.complex, D := AmbientChains.complex]
+  .With[f := #backward{equivalence}, g := #backward{equivalence}] \as Naturality;
+\import Modules.Hom[V := CellTotal.Carrier n, W := R, source := CellTotal.space n, target := coefficients.space]
+  .Composition[U := Carrier n, domain := space n] \as Evaluation;
+\import Nonnegative.Map[C := complex, D := CellTotal.complex].At[n := n] \as DiagonalLinear;
+\definition cochain(alpha: Cell.Carrier p)(beta: Cell.Carrier q): Cell.Carrier n :=
+  Evaluation.compose (Pairing.total alpha beta) (DiagonalLinear.linear map);
+\import SingularCup.Pairing[p := p, q := q] \as OrdinaryPairing;
+\import Modules.Tensor[V := AmbientChains.Carrier p, W := AmbientChains.Carrier q, left := AmbientChains.space p, right := AmbientChains.space q]
+  .Universal[U := R, target := coefficients.space] \as Universal;
+\definition ordinaryLocal(alpha: Ordinary.Carrier p)(beta: Ordinary.Carrier q): SingularPairing.map alpha beta = OrdinaryPairing.map alpha beta :=
+  Universal.ext _ _ (\fun (x: AmbientChains.Carrier p)(y: AmbientChains.Carrier q) => trans!{R} _ _ _
+    (SingularPairing.onTensor alpha beta x y) (sym!{R} _ _ (OrdinaryPairing.onTensor alpha beta x y)));
+\import Double.Tensor[C := AmbientChains.complex, D := AmbientChains.complex].Term[p := p, q := q] \as SingularTerm;
+\import Double.Coordinates[C := SingularTensor.complex].Degree[n := n] \as Coordinates;
+\definition ordinaryTotal(alpha: Ordinary.Carrier p)(beta: Ordinary.Carrier q)(z: SingularTotal.Carrier n):
+  #apply{(SingularPairing.total alpha beta)} z = #apply{(OrdinaryPairing.total alpha beta)} z :=
+  congr!{{Modules.Hom[V := SingularTerm.Carrier, W := R, source := SingularTerm.space, target := coefficients.space].Map} R}
+    (\fun (h: Modules.Hom[V := SingularTerm.Carrier, W := R, source := SingularTerm.space, target := coefficients.space].Map) => #apply{h} (Coordinates.coordinate SingularPairing.index z)) _ _ (ordinaryLocal alpha beta);
+\definition evaluation(alpha: Cell.Carrier p)(beta: Cell.Carrier q)(x: Carrier n):
+  #apply{(cochain alpha beta)} x = #apply{(SingularProducts.Cup[p := p, q := q].apply
+    (Naturality.left alpha) (Naturality.right beta))} (#apply{#forward{equivalence}} n x) :=
+  trans!{R} _ _ _ (sym!{R} _ _ (Naturality.law alpha beta (#apply{first} n x)))
+    (trans!{R} _ _ _
+      (ordinaryTotal (Naturality.left alpha) (Naturality.right beta) (#apply{first} n x))
+      (SingularCup.Cup[p := p, q := q].law (Naturality.left alpha) (Naturality.right beta) (#apply{#forward{equivalence}} n x)));
+\definition cochainEquation(alpha: Cell.Carrier p)(beta: Cell.Carrier q):
+  cochain alpha beta = #apply{(ForwardPull.map #forward{equivalence})} n
+    (SingularProducts.Cup[p := p, q := q].apply (Naturality.left alpha) (Naturality.right beta)) :=
+  Cell.At[n := n].ext _ _ (evaluation alpha beta);
+\import Cochains.At[C := Cell.complex, k := p] \as Left;
+\import Cochains.At[C := Cell.complex, k := q] \as Right;
+\import Cochains.At[C := Cell.complex, k := n] \as Output;
+\import Cochains.At[C := Ordinary.complex, k := p] \as SingularLeft;
+\import Cochains.At[C := Ordinary.complex, k := q] \as SingularRight;
+\import Cochains.At[C := Ordinary.complex, k := n] \as SingularOutput;
+\import Cochains.Map[C := Cell.complex, D := Ordinary.complex] \as BackwardMaps;
+\import Cochains.Map[C := Ordinary.complex, D := Cell.complex] \as ForwardMaps;
+\import SingularProducts.Cohomology[].Cup[p := p, q := q] \as Product;
+\definition leftCycle(x: Left.CycleCarrier): SingularLeft.CycleCarrier := #apply{(BackwardMaps.At[k := p].cyclesMap (BackwardPull.map #backward{equivalence}))} x;
+\definition rightCycle(y: Right.CycleCarrier): SingularRight.CycleCarrier := #apply{(BackwardMaps.At[k := q].cyclesMap (BackwardPull.map #backward{equivalence}))} y;
+\definition productCycle(x: Left.CycleCarrier)(y: Right.CycleCarrier): Output.CycleCarrier :=
+  #apply{(ForwardMaps.At[k := n].cyclesMap (ForwardPull.map #forward{equivalence}))} (Product.cycle (leftCycle x) (rightCycle y));
+\definition diagonalCycle(x: Left.CycleCarrier)(y: Right.CycleCarrier): (#apply{(ForwardPull.map #forward{equivalence})} n (SingularProducts.Cup[p := p, q := q].apply (Naturality.left x) (Naturality.right y))) = cochain x y := sym!{{Cell.Carrier n}} _ _ (cochainEquation x y);
+\definition realizes(x: Left.CycleCarrier)(y: Right.CycleCarrier): apply (Left.classOf x) (Right.classOf y) = Output.classOf (productCycle x y) :=
+  trans!{{Group n}} _ _ _
+    (congr!{SingularOutput.Cohomology {Group n}} (#apply{#backward{(comparison n)}}) _ _
+      (trans!{SingularOutput.Cohomology} _ _ _
+        (congr2!{SingularLeft.Cohomology SingularRight.Cohomology SingularOutput.Cohomology} Product.apply _ _ _ _
+          (BackwardMaps.At[k := p].onClass (BackwardPull.map #backward{equivalence}) x)
+          (BackwardMaps.At[k := q].onClass (BackwardPull.map #backward{equivalence}) y))
+        (Product.onClasses (leftCycle x) (rightCycle y))))
+    (ForwardMaps.At[k := n].onClass (ForwardPull.map #forward{equivalence}) (Product.cycle (leftCycle x) (rightCycle y)));

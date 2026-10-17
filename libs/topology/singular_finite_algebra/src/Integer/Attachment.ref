@@ -1,0 +1,29 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import Modules.Hom[V := coefficients.Carrier, W := coefficients.Carrier,
+  source := coefficients.space, target := coefficients.space] \as Endomorphisms;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Identity;
+\definition double: Endomorphisms.Map := Endomorphisms.plus Identity.identity Identity.identity;
+\import Modules.Hom[V := first.Carrier, W := coefficients.Carrier,
+  source := first.space, target := coefficients.space] \as Restrictions;
+\import Modules.Hom[V := coefficients.Carrier, W := second.Carrier,
+  source := coefficients.space, target := second.space] \as Projections;
+\import Modules.ExactPair[A := first, B := coefficients, C := coefficients] \as FirstExact;
+\import Modules.ExactPair[A := coefficients, B := coefficients, C := second] \as SecondExact;
+\structure Data: \Set {
+  restriction: Restrictions.Map,
+  connecting: Endomorphisms.Map,
+  relative: Projections.Map,
+}
+\structure Laws[data: Data]: \Prop {
+  injective: \forall (x, y: first.Carrier) -> #apply{data.restriction} x = #apply{data.restriction} y -> x = y,
+  exactAtFirst: FirstExact.Laws[FirstExact.Data { first := data.restriction, last := data.connecting }],
+  exactAtSecond: SecondExact.Laws[SecondExact.Data { first := data.connecting, last := data.relative }],
+  onto: \forall (y: second.Carrier) -> \exists { x: coefficients.Carrier \where #apply{data.relative} x = y },
+  doubling: \forall (x: coefficients.Carrier) -> #apply{data.connecting} x = #apply{double} x,
+}
+\definition Object: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\module On(data: Object);

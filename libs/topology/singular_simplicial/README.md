@@ -25,7 +25,10 @@
 
 `Cup[R, ring].Product[p, q]` は前半と後半の頂点列による Alexander–Whitney 積を定義する。
 `Compatibility.law` はアフィン比較による特異余鎖の制限がこの積を厳密に保つことを示す。
+`Cohomology.Product[p, q].Representatives.law` は、特異コサイクルを制限した代表元について、この面公式の類とコホモロジーの積を同定する。
 
 `Complex[d].LineGraph[V, E]` は、頂点ラベルと重複のない順序付き辺対から一次元の複体を構成する。
 `With[graph].Chains.Zero` と `One` は、頂点・辺上の自由加群から実際の単体鎖群への同型を与える。
 `Higher[n].vanishes` は二次以上の鎖群の消滅を、`Boundary.law` は境界が終点から始点を引く接続行列であることを示す。
+`Coefficients[A].Zero` と `One` は、任意の整数加群係数の余鎖を頂点・辺上の関数として同定する。
+`Differential.law` は零次の余境界が終点の値から始点の値を引く写像であることを示す。

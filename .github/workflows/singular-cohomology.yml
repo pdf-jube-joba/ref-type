@@ -24,7 +24,16 @@ jobs:
         with:
           path: ${{ github.workspace }}/.ci/cargo/registry
           key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - name: Identify Rust toolchain
+        id: rust-version
+        run: echo "version=$(rustc --version)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: checker-cache
+        with:
+          path: build/ref-type
+          key: checker-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'src/**/*.rs', 'src/**/Cargo.toml') }}
       - name: Build checker
+        if: steps.checker-cache.outputs.cache-hit != 'true'
         run: |
           cargo build --locked -p cli
           mkdir -p build
@@ -62,6 +71,26 @@ jobs:
       max-parallel: 10
       matrix:
         include:
+          - name: integer-units
+            package: singular_finite_algebra
+            module: singular_finite_algebra.Integer.Units
+            scope: subtree
+          - name: attachment-exactness
+            package: singular_finite_algebra
+            module: singular_finite_algebra.Integer.Attachment
+            scope: subtree
+          - name: simplicial-chain-map
+            package: singular_simplicial
+            module: singular_simplicial.Complex.On.Chains
+            scope: declarations
+          - name: involution-separation
+            package: cohomology_examples
+            module: cohomology_examples.Involution.Separation
+            scope: subtree
+          - name: closed-fillings
+            package: singular_eilenberg_zilber
+            module: singular_eilenberg_zilber.TensorModels.Ladder.Fillings
+            scope: declarations
           - name: projective-cone
             package: singular_finite_algebra
             module: singular_finite_algebra.Integer.ProjectiveCone.On

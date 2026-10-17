@@ -2,7 +2,6 @@
 \import algebra.Group[].Of[Carrier := Complex.Complex, group := Algebra.additiveGroup] \as Group;
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Logic[].Classical[] \as Classical;
-\use Logic.either;
 \definition negMul: \forall (z, w: Complex.Complex) -> Operations.mul (Operations.neg z) w = Operations.neg (Operations.mul z w) :=
   \fun (z, w: Complex.Complex) => Group.inverseUnique (Operations.mul z w) (Operations.mul (Operations.neg z) w)
     (trans!{Complex.Complex} _ _ _ (sym!{Complex.Complex} _ _ (ComplexLaws.mulAddRight (Operations.neg z) z w))
@@ -37,16 +36,13 @@
           (congr!{Complex.Complex Complex.Complex} (Operations.mul (Operations.inv z)) _ _ equal)
           (ComplexLaws.mulZeroRight (Operations.inv z)))));
 \definition sameSquare: \forall (z, w: Complex.Complex) -> Operations.mul z z = Operations.mul w w -> Logic.Or[z = w, z = Operations.neg w] :=
-  \fun (z, w: Complex.Complex)(equal: _) => either!{{(Classical.excludedMiddle (Operations.sub z w = Operations.zero))} {Logic.Or[z = w, z = Operations.neg w]}
-    {\fun (same: _) => Logic.Or[_, _]::left (trans!{Complex.Complex} _ _ _ (sym!{Complex.Complex} _ _ (Group.addDifference z w))
-      (trans!{Complex.Complex} _ _ _ (congr!{Complex.Complex Complex.Complex} (\fun (a: Complex.Complex) => Operations.add a w) _ _ same) (ComplexLaws.addZeroLeft w)))}
-    {\fun (different: _) => Logic.Or[_, _]::right (Group.inverseUnique w z
+  \fun (z, w: Complex.Complex)(equal: _) => (Logic.orElim _ _ (Logic.Or[z = w, z = Operations.neg w]) ((Classical.excludedMiddle (Operations.sub z w = Operations.zero))) (\fun (same: _) => Logic.Or[_, _]::left (trans!{Complex.Complex} _ _ _ (sym!{Complex.Complex} _ _ (Group.addDifference z w))
+      (trans!{Complex.Complex} _ _ _ (congr!{Complex.Complex Complex.Complex} (\fun (a: Complex.Complex) => Operations.add a w) _ _ same) (ComplexLaws.addZeroLeft w)))) (\fun (different: _) => Logic.Or[_, _]::right (Group.inverseUnique w z
       (rightZero (Operations.sub z w) (Operations.add z w) different
         (trans!{Complex.Complex} _ _ _ (factor z w)
           (trans!{Complex.Complex} _ _ _
             (congr!{Complex.Complex Complex.Complex} (\fun (a: Complex.Complex) => Operations.sub a (Operations.mul w w)) _ _ equal)
-            (ComplexLaws.subSelf (Operations.mul w w))))))}
-  };
+            (ComplexLaws.subSelf (Operations.mul w w))))))));
 \definition injective: \forall (x, y: Coordinates.Sphere) -> Coordinates.forward x = Coordinates.forward y -> x = y :=
   \fun (x, y: Coordinates.Sphere)(same: _) => trans!{Coordinates.Sphere} _ _ _ (sym!{Coordinates.Sphere} _ _ (Coordinates.leftInverse x))
     (trans!{Coordinates.Sphere} _ _ _ (congr!{Carrier {Coordinates.Sphere}} Coordinates.backward _ _ same) (Coordinates.leftInverse y));
@@ -58,9 +54,6 @@
   \let polynomial: Operations.mul (Coordinates.forward x) (Coordinates.forward x) = Operations.mul (Coordinates.forward y) (Coordinates.forward y) :=
     trans!{Complex.Complex} _ _ _ (sym!{Complex.Complex} _ _ (squareInCircle (Coordinates.forward x)))
       (trans!{Complex.Complex} _ _ _ unitSquare (squareInCircle (Coordinates.forward y))) \then
-  \return either!{{(sameSquare (Coordinates.forward x) (Coordinates.forward y) polynomial)} {Logic.Or[x = y, x = Antipodal.apply y]}
-    {\fun (equal: _) => Logic.Or[_, _]::left (injective x y equal)}
-    {\fun (equal: _) => Logic.Or[_, _]::right (injective x (Antipodal.apply y)
-      (trans!{Complex.Complex} _ _ _ equal (sym!{Complex.Complex} _ _ (Negative.coordinates y))))}
-  }
+  \return (Logic.orElim _ _ (Logic.Or[x = y, x = Antipodal.apply y]) ((sameSquare (Coordinates.forward x) (Coordinates.forward y) polynomial)) (\fun (equal: _) => Logic.Or[_, _]::left (injective x y equal)) (\fun (equal: _) => Logic.Or[_, _]::right (injective x (Antipodal.apply y)
+      (trans!{Complex.Complex} _ _ _ equal (sym!{Complex.Complex} _ _ (Negative.coordinates y))))))
 };

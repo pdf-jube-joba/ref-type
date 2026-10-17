@@ -1,0 +1,71 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Natural;
+\import N.Basic[].Prop[] \as Bounds;
+\import N.Division[].Prop[] \as Division;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import I.Math[].Specification[].Prop[] \as IntegerLaws;
+\import IntegerLaws.Multiplication[] \as Product;
+\import std.Arithmetic[].ExtendedEuclid[] \as Euclid;
+\import Euclid.Signed[] \as Signed;
+\import Signed.Division[] \as Absolute;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition absoluteNegative: \forall (a: I.Int^) -> Signed.absolute (Arithmetic.neg a) = Signed.absolute a :=
+  \induction (a: I.Int^) \return Signed.absolute (Arithmetic.neg a) = Signed.absolute a \with {
+    | ofNat: Absolute.absoluteNegativeNatural
+    | negSucc: \fun (n: N.Nat^) => \refl(N.Nat^::succ n)
+  };
+\definition negativeLeft(a, b: I.Int^):
+  Signed.absolute (Arithmetic.mul (Arithmetic.neg a) b) = Signed.absolute (Arithmetic.mul a b) :=
+  trans!{N.Nat^} _ _ _ (congr!{I.Int^ N.Nat^} Signed.absolute _ _ (Arithmetic.negMulLeft a b))
+    (absoluteNegative (Arithmetic.mul a b));
+\definition negativeRight(a, b: I.Int^):
+  Signed.absolute (Arithmetic.mul a (Arithmetic.neg b)) = Signed.absolute (Arithmetic.mul a b) :=
+  trans!{N.Nat^} _ _ _ (congr!{I.Int^ N.Nat^} Signed.absolute _ _ (IntegerLaws.mulComm a (Arithmetic.neg b)))
+    (trans!{N.Nat^} _ _ _ (negativeLeft b a)
+      (congr!{I.Int^ N.Nat^} Signed.absolute _ _ (IntegerLaws.mulComm b a)));
+\definition naturalProduct(a, b: N.Nat^):
+  Signed.absolute (Arithmetic.mul (I.Int^::ofNat a) (I.Int^::ofNat b)) = Natural.mul a b :=
+  congr!{I.Int^ N.Nat^} Signed.absolute _ _ (Euclid.naturalMul a b);
+\definition absoluteProduct: \forall (a, b: I.Int^) ->
+  Signed.absolute (Arithmetic.mul a b) = Natural.mul (Signed.absolute a) (Signed.absolute b) :=
+  \induction (a: I.Int^) \return \forall (b: I.Int^) ->
+    Signed.absolute (Arithmetic.mul a b) = Natural.mul (Signed.absolute a) (Signed.absolute b) \with {
+    | ofNat: \fun (a: N.Nat^) => \induction (b: I.Int^) \return
+      Signed.absolute (Arithmetic.mul (I.Int^::ofNat a) b) = Natural.mul a (Signed.absolute b) \with {
+      | ofNat: \fun (b: N.Nat^) => naturalProduct a b
+      | negSucc: \fun (b: N.Nat^) => trans!{N.Nat^} _ _ _
+        (negativeRight (I.Int^::ofNat a) (I.Int^::ofNat (N.Nat^::succ b))) (naturalProduct a (N.Nat^::succ b))
+    }
+    | negSucc: \fun (a: N.Nat^) => \induction (b: I.Int^) \return
+      Signed.absolute (Arithmetic.mul (I.Int^::negSucc a) b) = Natural.mul (N.Nat^::succ a) (Signed.absolute b) \with {
+      | ofNat: \fun (b: N.Nat^) => trans!{N.Nat^} _ _ _
+        (negativeLeft (I.Int^::ofNat (N.Nat^::succ a)) (I.Int^::ofNat b)) (naturalProduct (N.Nat^::succ a) b)
+      | negSucc: \fun (b: N.Nat^) => trans!{N.Nat^} _ _ _
+        (negativeLeft (I.Int^::ofNat (N.Nat^::succ a)) (I.Int^::negSucc b))
+        (trans!{N.Nat^} _ _ _ (negativeRight (I.Int^::ofNat (N.Nat^::succ a)) (I.Int^::ofNat (N.Nat^::succ b)))
+          (naturalProduct (N.Nat^::succ a) (N.Nat^::succ b)))
+    }
+  };
+\definition absoluteOne: \forall (a: I.Int^) -> Signed.absolute a = one ->
+  Logic.Or[a = I.One.specification, a = Arithmetic.neg I.One.specification] :=
+  \induction (a: I.Int^) \return Signed.absolute a = one ->
+    Logic.Or[a = I.One.specification, a = Arithmetic.neg I.One.specification] \with {
+    | ofNat: \fun (n: N.Nat^)(same: n = one) => Logic.Or[_, _]::left
+      (congr!{N.Nat^ I.Int^} (I.Int^::ofNat) n one same)
+    | negSucc: \fun (n: N.Nat^)(same: N.Nat^::succ n = one) => Logic.Or[_, _]::right
+      (congr!{N.Nat^ I.Int^} (\fun (m: N.Nat^) => Arithmetic.neg (I.Int^::ofNat m)) (N.Nat^::succ n) one same)
+  };
+\definition classification(a, b: I.Int^): Arithmetic.mul a b = I.One.specification ->
+  Logic.Or[a = I.One.specification, a = Arithmetic.neg I.One.specification] :=
+  \fun (unit: _) => absoluteOne a
+    (Division.dividesAntisym (Signed.absolute a) one
+      (Logic.existsIntro[N.Nat^, { q: N.Nat^ \where one = Natural.mul (Signed.absolute a) q }]
+        (Signed.absolute b) (trans!{N.Nat^} _ _ _
+          (sym!{N.Nat^} _ _ (congr!{I.Int^ N.Nat^} Signed.absolute _ _ unit)) (absoluteProduct a b)))
+      (Logic.existsIntro[N.Nat^, { q: N.Nat^ \where Signed.absolute a = Natural.mul one q }]
+        (Signed.absolute a) (sym!{N.Nat^} _ _ (Bounds.mulOneLeft (Signed.absolute a)))));

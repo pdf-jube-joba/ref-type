@@ -1,0 +1,33 @@
+\import singular_cohomology.Chains[A := Coordinates.Sphere, source := Coordinates.sphereTopology] \as SingularChains;
+\import singular_cohomology.Cochains[A := Coordinates.Sphere, source := Coordinates.sphereTopology].With[coefficients := coefficients] \as Theory;
+\import singular_cohomology.Maps[A := Coordinates.Sphere, B := Coordinates.Sphere, source := Coordinates.sphereTopology, target := Coordinates.sphereTopology] \as Maps;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := IntegerRing.ring] \as NativeChains;
+\import NativeChains.ZeroExtension[C := SingularChains.complex] \as Extended;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := IntegerRing.ring] \as IntegerCochains;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing] \as Hom;
+\import Hom.Integer[P := Extended.complex, N := coefficients] \as Dual;
+\import IntegerCochains.At[C := Dual.complex, z := I.Int^::ofNat one] \as H;
+\import IntegerCochains.Map[C := Dual.complex, D := Dual.complex].At[k := I.Int^::ofNat one] \as Induced;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficient;
+\definition nativeMap(k: I.Int^): NativeChains.Map[C := SingularChains.complex, D := SingularChains.complex].Map := Maps.push (map k) (continuous k);
+\definition action(k: I.Int^): Modules.Hom[V := H.Cohomology, W := H.Cohomology, source := H.cohomologySpace, target := H.cohomologySpace].Map :=
+  Induced.induced Hom.IntegerMapping[P := Extended.complex, Q := Extended.complex, N := coefficients, L := coefficients]
+    .On[f := Maps.integerPush (map k) (continuous k), u := Coefficient.identity].map;
+\import Modules.Hom[V := H.Cohomology, W := Carrier, source := H.cohomologySpace, target := space] \as Compare;
+\import Modules.Isomorphism[V := H.Cohomology, W := Carrier, source := H.cohomologySpace, target := space] \as Iso;
+\definition injective(e: Iso.Isomorphism)(x, y: H.Cohomology):
+  #apply{#forward{e}} x = #apply{#forward{e}} y -> x = y :=
+  \fun (same: _) => trans!{H.Cohomology} _ _ _ (sym!{H.Cohomology} _ _ (#leftInverse{e} x))
+    (trans!{H.Cohomology} _ _ _
+      (congr!{Carrier H.Cohomology} (#apply{#backward{e}}) _ _ same) (#leftInverse{e} y));
+\import \root.Circle[].Powers[].Actions[coefficients := coefficients] \as Natural;
+\definition integer: \forall (k: I.Int^)(q: H.Cohomology) -> #apply{(action k)} q = #smul{H.cohomologySpace} k q := \block {
+  \fun (k: I.Int^)(q: H.Cohomology) \then
+  \let comparison: Iso.Isomorphism := Theory.Integer[].At[n := one].isomorphism \then
+  \return injective comparison _ _
+    (trans!{Carrier} _ _ _
+      (\root.NaturalComparison[C := SingularChains.complex, D := SingularChains.complex, coefficients := coefficients]
+        .On[f := nativeMap k].At[n := one].law q)
+      (trans!{Carrier} _ _ _ (Natural.integer k (#apply{#forward{comparison}} q))
+        (sym!{Carrier} _ _ (#scalar{#forward{comparison}} k q))))
+};

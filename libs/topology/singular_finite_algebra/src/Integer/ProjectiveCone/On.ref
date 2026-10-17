@@ -49,13 +49,18 @@
   \import SignedChains.At[C := Cone.complex, z := z] \as H;
   \import Modules.Of[V := Cone.Carrier z, space := Cone.space z].Submodule[].Image[
     U := Cone.Carrier (Degrees.next z), source := Cone.space (Degrees.next z)] \as Images;
+  \import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+  \definition priorEquation(y: family.Carrier (N.Nat^::succ n)):
+    #apply{H.prior} y = #apply{differential} n y :=
+    Transport.castRefl Cone.complex.family.Carrier z (#apply{differential} n y);
   \definition exists(quasi: Maps.QuasiIsomorphism f)(x: family.Carrier n)
     (closed: #apply{Cone.complex.differential} z x = #zero{(Cone.space (Degrees.previous z))}):
     \exists { y: family.Carrier (N.Nat^::succ n) \where #apply{differential} n y = x } :=
     Images.eliminate H.prior x
       (\exists { y: family.Carrier (N.Nat^::succ n) \where #apply{differential} n y = x })
       (\fun (y: Cone.Carrier (Degrees.next z))(equation: #apply{H.prior} y = x) =>
-        Logic.existsIntro[family.Carrier (N.Nat^::succ n), { y: family.Carrier (N.Nat^::succ n) \where #apply{differential} n y = x }] y equation)
+        Logic.existsIntro[family.Carrier (N.Nat^::succ n), { y: family.Carrier (N.Nat^::succ n) \where #apply{differential} n y = x }] y
+          (trans!{{family.Carrier n}} _ _ _ (sym!{{family.Carrier n}} _ _ (priorEquation y)) equation))
       (H.zeroClassBoundary (H.cycle x closed) (Cone.Criterion[].acyclic quasi z (H.classOf (H.cycle x closed))));
 }
 \definition exact(source: SourceNegative)(target: TargetNegative)(quasi: Maps.QuasiIsomorphism f): Acyclic.Exact := Acyclic.Exact {

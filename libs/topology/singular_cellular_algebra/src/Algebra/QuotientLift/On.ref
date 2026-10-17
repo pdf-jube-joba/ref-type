@@ -1,0 +1,21 @@
+\import Classes.Classification[B := B, q := q] \as Classification;
+\definition respects: Classification.Respects := \fun (x, y: A)(same: _) => same;
+\definition separates: Classification.Separates := \fun (x, y: A)(same: _) => same;
+\definition homeomorphism: topology.Homeomorphism[A := Classes.Carrier, B := B].Homeomorphism[Classes.topology source, target] :=
+  Classification.homeomorphism source target equivalence respects separates data.quotient;
+\import topology.Homeomorphism[A := Classes.Carrier, B := B] \as Homeomorphisms;
+\definition laws: Homeomorphisms.Laws[Classes.topology source, target, homeomorphism] := Homeomorphisms.laws (Classes.topology source) target homeomorphism;
+\import Classes.Descent[C := C] \as Descent;
+\definition apply(x: B): C := Descent.apply equivalence data.apply data.compatible (#backward{homeomorphism} x);
+\definition onProjection: \forall (x: A) -> apply (q x) = data.apply x :=
+  \fun (x: A) => trans!{C} _ _ _
+    (congr!{Classes.Carrier C} (Descent.apply equivalence data.apply data.compatible) _ _
+      (trans!{Classes.Carrier} _ _ _
+        (congr!{B Classes.Carrier} (#backward{homeomorphism}) _ _ (sym!{B} _ _ (Classes.Descent[C := B].onClass equivalence q respects x)))
+        (#leftInverse{laws} (Classes.class x))))
+    (Descent.onClass equivalence data.apply data.compatible x);
+\import topology.Composition[A := B, B := Classes.Carrier, C := C] \as Composition;
+\definition continuous: topology.Continuity[A := B, B := C].Continuous target final apply :=
+  Composition.composeContinuous target (Classes.topology source) final #backward{homeomorphism}
+    (Descent.apply equivalence data.apply data.compatible) #backwardContinuous{laws}
+    (Descent.continuous source final equivalence data.apply data.compatible data.continuous);

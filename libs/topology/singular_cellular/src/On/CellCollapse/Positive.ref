@@ -1,0 +1,21 @@
+\import Euclidean.Dimension[n := N.Nat^::succ (N.Nat^::succ k)] \as Sphere;
+\import \root.DiskSphere[n := k] \as DiskSphere;
+\module AtDimension(d: N.Nat^);
+\definition homeomorphism: topology.Homeomorphism[A := DiskQuotient.Carrier, B := Sphere.Sphere]
+  .Homeomorphism[DiskQuotient.topology Model.diskTopology, Sphere.sphereTopology] :=
+  \idelim N.Nat^::succ k = dimension \with d: N.Nat^ => AtDimension[d := d].Homeomorphism \by {
+    base: DiskSphere.Quotient[].homeomorphism,
+    equality: sym!{N.Nat^} _ _ equalDimension
+  };
+\import topology.Homeomorphism[A := DiskQuotient.Carrier, B := Sphere.Sphere] \as Homeomorphisms;
+\definition laws: Homeomorphisms.Laws[DiskQuotient.topology Model.diskTopology, Sphere.sphereTopology, homeomorphism] :=
+  Homeomorphisms.laws (DiskQuotient.topology Model.diskTopology) Sphere.sphereTopology homeomorphism;
+\definition collapse(x: Skeleton.Carrier): Sphere.Sphere := #forward{homeomorphism} (map x);
+\import topology.Composition[A := Skeleton.Carrier, B := DiskQuotient.Carrier, C := Sphere.Sphere] \as Composition;
+\definition continuous: topology.Continuity[A := Skeleton.Carrier, B := Sphere.Sphere].Continuous Skeleton.topology Sphere.sphereTopology collapse :=
+  Composition.composeContinuous Skeleton.topology (DiskQuotient.topology Model.diskTopology) Sphere.sphereTopology map #forward{homeomorphism}
+    (\parent.Continuity[].continuous) #forwardContinuous{laws};
+\definition onCharacteristic: \forall (p: Model.Disk) -> collapse (Characteristic.characteristic p) = #forward{homeomorphism} (DiskQuotient.class p) :=
+  \fun (p: Model.Disk) => congr!{DiskQuotient.Carrier Sphere.Sphere} (#forward{homeomorphism}) _ _ (\parent.Boundary[].onCharacteristic p);
+\definition outsideValue: \forall (x: Skeleton.Carrier) -> Logic.Not (InteriorImage x) -> collapse x = #forward{homeomorphism} basepoint :=
+  \fun (x: Skeleton.Carrier)(outside: _) => congr!{DiskQuotient.Carrier Sphere.Sphere} (#forward{homeomorphism}) _ _ (onOutside x outside);

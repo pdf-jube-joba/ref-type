@@ -7,7 +7,6 @@
 \import Real.Algebra[] \as RealAlgebra;
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Logic[].Classical[] \as Classical;
-\use Logic.either;
 \definition scaleOne: \forall (z: Complex.Complex) -> Operations.scale Real.one z = z :=
   \fun (z: Complex.Complex) => ComplexLaws.ext _ _ (Laws.fieldMulOneLeft (Complex.re z)) (Laws.fieldMulOneLeft (Complex.im z));
 \definition scaleAssoc: \forall (a, b: Real.Real)(z: Complex.Complex) -> Operations.scale (Real.mul a b) z = Operations.scale a (Operations.scale b z) :=
@@ -42,13 +41,10 @@
     (Laws.addZeroLeft Real.one);
 \definition imaginary: Carrier := \into[Complex.Complex](Operations.i, unit) \by { iNorm };
 \definition existsRoot: \forall (z: Carrier) -> \exists { w: Carrier \where Powers.natural two w = z } :=
-  \fun (z: Carrier) => either!{{(Classical.excludedMiddle (z = Negative.minusOne))} {\exists { w: Carrier \where Powers.natural two w = z }}
-    {\fun (same: _) => Logic.existsIntro[Carrier, { w: Carrier \where Powers.natural two w = z }] imaginary
+  \fun (z: Carrier) => (Logic.orElim _ _ (\exists { w: Carrier \where Powers.natural two w = z }) ((Classical.excludedMiddle (z = Negative.minusOne))) (\fun (same: _) => Logic.existsIntro[Carrier, { w: Carrier \where Powers.natural two w = z }] imaginary
       (trans!{Complex.Complex} _ _ _ (Powers.squareInCircle imaginary)
-        (trans!{Complex.Complex} _ _ _ ComplexLaws.iSquared (sym!{Complex.Complex} _ _ same)))}
-    {\fun (different: _) => Logic.existsIntro[Carrier, { w: Carrier \where Powers.natural two w = z }] Half[z := z, different := different].value
-      (trans!{Complex.Complex} _ _ _ (Powers.squareInCircle Half[z := z, different := different].value) Half[z := z, different := different].square)}
-  };
+        (trans!{Complex.Complex} _ _ _ ComplexLaws.iSquared (sym!{Complex.Complex} _ _ same)))) (\fun (different: _) => Logic.existsIntro[Carrier, { w: Carrier \where Powers.natural two w = z }] Half[z := z, different := different].value
+      (trans!{Complex.Complex} _ _ _ (Powers.squareInCircle Half[z := z, different := different].value) Half[z := z, different := different].square)));
 \definition onto: \forall (y: Coordinates.Sphere) -> \exists { x: Coordinates.Sphere \where Powers.square x = y } := \block {
   \fun (y: Coordinates.Sphere) \then
   \takefrom w: \Cast[Carrier] ({ w: Carrier \where Powers.natural two w = Coordinates.forward y }) \by existsRoot (Coordinates.forward y) \then

@@ -22,19 +22,18 @@
     \exists { i: Fin.Fin (Lists.length A xs) \where FromList.tuple xs i = a } \with {
     | nil: \fun (empty: Logic.False) => Logic.falseElim _ empty
     | cons: \fun (head: A)(tail: Lists.List[A])(previous: Membership.Occurs a tail -> \exists { i: Fin.Fin (Lists.length A tail) \where FromList.tuple tail i = a })(occurs: _) =>
-        either!{occurs {\exists { i: Fin.Fin (Lists.length A (Lists.List[A]::cons head tail)) \where FromList.tuple (Lists.List[A]::cons head tail) i = a }}
-          {\fun (same: a = head) => Logic.existsIntro[Fin.Fin (N.Nat^::succ (Lists.length A tail)),
+        (Logic.orElim _ _ (\exists { i: Fin.Fin (Lists.length A (Lists.List[A]::cons head tail)) \where FromList.tuple (Lists.List[A]::cons head tail) i = a }) (occurs)
+      (\fun (same: a = head) => Logic.existsIntro[Fin.Fin (N.Nat^::succ (Lists.length A tail)),
             { i: Fin.Fin (N.Nat^::succ (Lists.length A tail)) \where FromList.tuple (Lists.List[A]::cons head tail) i = a }] (Fin.zero (Lists.length A tail))
-            (trans!{A} _ _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)) (sym!{A} _ _ same))}
-          {\block {
+            (trans!{A} _ _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)) (sym!{A} _ _ same)))
+      (\block {
             \fun (old: Membership.Occurs a tail) \then
             \takefrom i: \Cast[Fin.Fin (Lists.length A tail)] ({ i: Fin.Fin (Lists.length A tail) \where FromList.tuple tail i = a }) \by previous old \then
             \return Logic.existsIntro[Fin.Fin (N.Nat^::succ (Lists.length A tail)),
               { j: Fin.Fin (N.Nat^::succ (Lists.length A tail)) \where FromList.tuple (Lists.List[A]::cons head tail) j = a }] (Fin.succ (Lists.length A tail) i)
               (trans!{A} _ _ _ (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) i)
                 (\bysub(Fin.Fin (Lists.length A tail), { i: Fin.Fin (Lists.length A tail) \where FromList.tuple tail i = a }, i)))
-          }}
-        }
+          }))
   };
 \definition Injective(xs: Lists.List[A]): \Prop := \forall (i, j: Fin.Fin (Lists.length A xs)) -> FromList.tuple xs i = FromList.tuple xs j -> i = j;
 \definition freshValue: \forall (head: A)(tail: Lists.List[A]) -> Logic.Not (Membership.Occurs head tail) ->

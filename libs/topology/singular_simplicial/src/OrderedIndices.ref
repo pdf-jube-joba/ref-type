@@ -27,24 +27,21 @@
 \definition skipIncreasing: \forall (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n)) ->
   Ordering.Increasing n (N.Nat^::succ n) (Skip.apply n i) :=
   \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(j, k: Fin.Fin n)(less: Bounds.Lt j k) =>
-    either!{{(comparison j i)} {Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)}
-      {\fun (before: Bounds.Lt j i) =>
-        either!{{(comparison k i)} {Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)}
-          {\fun (alsoBefore: Bounds.Lt k i) => replaceLess _ _ j k
-            (Skip.Before[].law n i j before) (Skip.Before[].law n i k alsoBefore) less}
-          {\fun (after: Bounds.Le i k) => replaceLess _ _ j (N.Nat^::succ k)
+    (Logic.orElim _ _ (Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)) ((comparison j i))
+      (\fun (before: Bounds.Lt j i) =>
+        (Logic.orElim _ _ (Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)) ((comparison k i))
+      (\fun (alsoBefore: Bounds.Lt k i) => replaceLess _ _ j k
+            (Skip.Before[].law n i j before) (Skip.Before[].law n i k alsoBefore) less)
+      (\fun (after: Bounds.Le i k) => replaceLess _ _ j (N.Nat^::succ k)
             (Skip.Before[].law n i j before) (Skip.After[].law n i k after)
-            (Bounds.ltLeTrans j k (N.Nat^::succ k) less (Bounds.leSelfSucc k))}
-        }}
-      {\fun (after: Bounds.Le i j) =>
-        either!{{(comparison k i)} {Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)}
-          {\fun (before: Bounds.Lt k i) => Logic.falseElim _
-            (Bounds.ltIrrefl i (Order.ltTrans i k i (Bounds.leLtTrans i j k after less) before))}
-          {\fun (alsoAfter: Bounds.Le i k) => replaceLess _ _ (N.Nat^::succ j) (N.Nat^::succ k)
+            (Bounds.ltLeTrans j k (N.Nat^::succ k) less (Bounds.leSelfSucc k)))))
+      (\fun (after: Bounds.Le i j) =>
+        (Logic.orElim _ _ (Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)) ((comparison k i))
+      (\fun (before: Bounds.Lt k i) => Logic.falseElim _
+            (Bounds.ltIrrefl i (Order.ltTrans i k i (Bounds.leLtTrans i j k after less) before)))
+      (\fun (alsoAfter: Bounds.Le i k) => replaceLess _ _ (N.Nat^::succ j) (N.Nat^::succ k)
             (Skip.After[].law n i j after) (Skip.After[].law n i k alsoAfter)
-            (Bounds.ltSuccSucc j k less)}
-        }}
-    };
+            (Bounds.ltSuccSucc j k less)))));
 \definition increasingInjective: \forall (k, n: N.Nat^)(f: Fin.Fin k -> Fin.Fin n) ->
   Ordering.Increasing k n f -> Ordering.Injective k n f :=
   \fun (k, n: N.Nat^)(f: Fin.Fin k -> Fin.Fin n)(ordered: Ordering.Increasing k n f)(i, j: Fin.Fin k)(same: f i = f j) =>

@@ -18,39 +18,68 @@
 \import Modules.Hom[V := Carrier (N.Nat^::succ p) (N.Nat^::succ q), W := Carrier p q, source := space (N.Nat^::succ p) (N.Nat^::succ q), target := space p q] \as Linear;
 \definition first: Linear.Map := First.compose (horizontal p q) (vertical (N.Nat^::succ p) q);
 \definition second: Linear.Map := Second.compose (vertical p q) (horizontal p (N.Nat^::succ q));
+\definition horizontalCount: N.Nat^ := N.Nat^::succ (N.Nat^::succ p);
+\definition verticalCount: N.Nat^ := N.Nat^::succ (N.Nat^::succ q);
+\definition verticalValues(s: Generator (N.Nat^::succ p) (N.Nat^::succ q))(j: Fin.Fin verticalCount): Carrier (N.Nat^::succ p) q :=
+  generator (N.Nat^::succ p) q (Cech.vertical (N.Nat^::succ p) q j s);
+\definition horizontalValues(s: Generator (N.Nat^::succ p) (N.Nat^::succ q))(i: Fin.Fin horizontalCount): Carrier p (N.Nat^::succ q) :=
+  generator p (N.Nat^::succ q) (Cech.horizontal p (N.Nat^::succ q) i s);
+\definition grid(s: Generator (N.Nat^::succ p) (N.Nat^::succ q))(j: Fin.Fin verticalCount)(i: Fin.Fin horizontalCount): Carrier p q :=
+  generator p q (Cech.horizontal p q i (Cech.vertical (N.Nat^::succ p) q j s));
+\definition otherGrid(s: Generator (N.Nat^::succ p) (N.Nat^::succ q))(i: Fin.Fin horizontalCount)(j: Fin.Fin verticalCount): Carrier p q :=
+  generator p q (Cech.vertical p q j (Cech.horizontal p (N.Nat^::succ q) i s));
+\definition horizontalOnVertical: \forall (s: Generator (N.Nat^::succ p) (N.Nat^::succ q))(j: Fin.Fin verticalCount) ->
+  #apply{(horizontal p q)} (verticalValues s j) = Sum.sum horizontalCount (grid s j) :=
+  \fun (s: Generator (N.Nat^::succ p) (N.Nat^::succ q))(j: Fin.Fin verticalCount) =>
+    LowerHChains.Boundary[n := p].onGenerator (Cech.vertical (N.Nat^::succ p) q j s);
+\definition verticalOnHorizontal: \forall (s: Generator (N.Nat^::succ p) (N.Nat^::succ q))(i: Fin.Fin horizontalCount) ->
+  #apply{(vertical p q)} (horizontalValues s i) = Sum.sum verticalCount (otherGrid s i) :=
+  \fun (s: Generator (N.Nat^::succ p) (N.Nat^::succ q))(i: Fin.Fin horizontalCount) =>
+    LowerVChains.Boundary[n := q].onGenerator (Cech.horizontal p (N.Nat^::succ q) i s);
 \use Equality.eq_reason;
 \definition onGenerator: \forall (s: Generator (N.Nat^::succ p) (N.Nat^::succ q)) ->
   #apply{first} (generator (N.Nat^::succ p) (N.Nat^::succ q) s) = #apply{second} (generator (N.Nat^::succ p) (N.Nat^::succ q) s) :=
   \fun (s: Generator (N.Nat^::succ p) (N.Nat^::succ q)) => eq_reason!{
     {#apply{(horizontal p q)} (#apply{(vertical (N.Nat^::succ p) q)} (generator (N.Nat^::succ p) (N.Nat^::succ q) s))}
     "=" {#apply{(horizontal p q)} (HigherVChains.Boundary[n := q].onSimplex s)} "by" {
-      congr!{{Carrier (N.Nat^::succ p) q} {Carrier p q}} (#apply{(horizontal p q)}) _ _ (HigherVChains.Boundary[n := q].onGenerator s)}
-    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ q)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
-      #apply{(horizontal p q)} (generator (N.Nat^::succ p) q (Cech.vertical (N.Nat^::succ p) q j s)))} "by" {
-        HorizontalSum.law (horizontal p q) (N.Nat^::succ (N.Nat^::succ q)) _}
-    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ q)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
-      Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
-        generator p q (Cech.horizontal p q i (Cech.vertical (N.Nat^::succ p) q j s))))} "by" {
-          Sum.congruent (N.Nat^::succ (N.Nat^::succ q)) _ _
-            (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) => LowerHChains.Boundary[n := p].onGenerator _)}
-    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
-      Sum.sum (N.Nat^::succ (N.Nat^::succ q)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
-        generator p q (Cech.horizontal p q i (Cech.vertical (N.Nat^::succ p) q j s))))} "by" {
-          Sum.Fubini[].law (N.Nat^::succ (N.Nat^::succ q)) (N.Nat^::succ (N.Nat^::succ p)) _}
-    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
-      Sum.sum (N.Nat^::succ (N.Nat^::succ q)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
-        generator p q (Cech.vertical p q j (Cech.horizontal p (N.Nat^::succ q) i s))))} "by" {
-          Sum.congruent (N.Nat^::succ (N.Nat^::succ p)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
-            Sum.congruent (N.Nat^::succ (N.Nat^::succ q)) _ _ (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
-              congr!{{Generator p q} {Carrier p q}} (generator p q) _ _ (Cech.commute p q i j s)))}
-    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
-      #apply{(vertical p q)} (generator p (N.Nat^::succ q) (Cech.horizontal p (N.Nat^::succ q) i s)))} "by" {
-        Sum.congruent (N.Nat^::succ (N.Nat^::succ p)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
-          sym!{{Carrier p q}} _ _ (LowerVChains.Boundary[n := q].onGenerator _))}
-    "=" {#apply{(vertical p q)} (HigherHChains.Boundary[n := p].onSimplex s)} "by" {
-      sym!{{Carrier p q}} _ _ (VerticalSum.law (vertical p q) (N.Nat^::succ (N.Nat^::succ p)) _)}
-    "=" {#apply{(vertical p q)} (#apply{(horizontal p (N.Nat^::succ q))} (generator (N.Nat^::succ p) (N.Nat^::succ q) s))} "by" {
-      congr!{{Carrier p (N.Nat^::succ q)} {Carrier p q}} (#apply{(vertical p q)}) _ _ (sym!{{Carrier p (N.Nat^::succ q)}} _ _ (HigherHChains.Boundary[n := p].onGenerator s))}
+      congr!{{Carrier (N.Nat^::succ p) q} {Carrier p q}} (#apply{(horizontal p q)})
+        (#apply{(vertical (N.Nat^::succ p) q)} (generator (N.Nat^::succ p) (N.Nat^::succ q) s))
+        (HigherVChains.Boundary[n := q].onSimplex s) (HigherVChains.Boundary[n := q].onGenerator s)}
+    "=" {Sum.sum verticalCount (\fun (j: Fin.Fin verticalCount) => #apply{(horizontal p q)} (verticalValues s j))}
+    "by" {HorizontalSum.law (horizontal p q) verticalCount (verticalValues s)}
+    "=" {Sum.sum verticalCount (\fun (j: Fin.Fin verticalCount) => Sum.sum horizontalCount (grid s j))}
+    "by" {Sum.congruent verticalCount
+      (\fun (j: Fin.Fin verticalCount) => #apply{(horizontal p q)} (verticalValues s j))
+      (\fun (j: Fin.Fin verticalCount) => Sum.sum horizontalCount (grid s j)) (horizontalOnVertical s)}
+    "=" {Sum.sum horizontalCount (\fun (i: Fin.Fin horizontalCount) => Sum.sum verticalCount (\fun (j: Fin.Fin verticalCount) => grid s j i))}
+    "by" {Sum.Fubini[].law verticalCount horizontalCount (grid s)}
+    "=" {Sum.sum horizontalCount (\fun (i: Fin.Fin horizontalCount) => Sum.sum verticalCount (otherGrid s i))}
+    "by" {Sum.congruent horizontalCount
+      (\fun (i: Fin.Fin horizontalCount) => Sum.sum verticalCount (\fun (j: Fin.Fin verticalCount) => grid s j i))
+      (\fun (i: Fin.Fin horizontalCount) => Sum.sum verticalCount (otherGrid s i))
+      (\fun (i: Fin.Fin horizontalCount) => Sum.congruent verticalCount
+        (\fun (j: Fin.Fin verticalCount) => grid s j i) (otherGrid s i)
+        (\fun (j: Fin.Fin verticalCount) => congr!{{Generator p q} {Carrier p q}} (generator p q)
+          (Cech.horizontal p q i (Cech.vertical (N.Nat^::succ p) q j s))
+          (Cech.vertical p q j (Cech.horizontal p (N.Nat^::succ q) i s)) (Cech.commute p q i j s)))}
+    "=" {Sum.sum horizontalCount (\fun (i: Fin.Fin horizontalCount) => #apply{(vertical p q)} (horizontalValues s i))}
+    "by" {Sum.congruent horizontalCount
+      (\fun (i: Fin.Fin horizontalCount) => Sum.sum verticalCount (otherGrid s i))
+      (\fun (i: Fin.Fin horizontalCount) => #apply{(vertical p q)} (horizontalValues s i))
+      (\fun (i: Fin.Fin horizontalCount) => sym!{{Carrier p q}}
+        (#apply{(vertical p q)} (horizontalValues s i)) (Sum.sum verticalCount (otherGrid s i)) (verticalOnHorizontal s i))}
+    "=" {#apply{(vertical p q)} (HigherHChains.Boundary[n := p].onSimplex s)}
+    "by" {sym!{{Carrier p q}}
+      (#apply{(vertical p q)} (HigherHChains.Boundary[n := p].onSimplex s))
+      (Sum.sum horizontalCount (\fun (i: Fin.Fin horizontalCount) => #apply{(vertical p q)} (horizontalValues s i)))
+      (VerticalSum.law (vertical p q) horizontalCount (horizontalValues s))}
+    "=" {#apply{(vertical p q)} (#apply{(horizontal p (N.Nat^::succ q))} (generator (N.Nat^::succ p) (N.Nat^::succ q) s))}
+    "by" {congr!{{Carrier p (N.Nat^::succ q)} {Carrier p q}} (#apply{(vertical p q)})
+      (HigherHChains.Boundary[n := p].onSimplex s)
+      (#apply{(horizontal p (N.Nat^::succ q))} (generator (N.Nat^::succ p) (N.Nat^::succ q) s))
+      (sym!{{Carrier p (N.Nat^::succ q)}}
+        (#apply{(horizontal p (N.Nat^::succ q))} (generator (N.Nat^::succ p) (N.Nat^::succ q) s))
+        (HigherHChains.Boundary[n := p].onSimplex s) (HigherHChains.Boundary[n := p].onGenerator s))}
   };
 \definition equality: first = second := Free.ext first second onGenerator;
 \definition all: \forall (x: Carrier (N.Nat^::succ p) (N.Nat^::succ q)) ->

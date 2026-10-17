@@ -12,6 +12,8 @@
 | `Integer.HomZero.At.isomorphism` | 微分が零の非負次数複体について、任意係数のコホモロジーと各項の Hom 加群を同定。 |
 | `Integer.HomTransport.With.isomorphism` | 台の加群同型から、任意係数への Hom 加群の同型を前合成で構成。 |
 | `Integer.ProjectiveCone.On.equivalenceExists` | 下に有界な射影的複体の擬同型から、同じ前向き写像を持つ鎖ホモトピー同値を構成。 |
+| `Integer.Attachment.On.Kernel` / `Cokernel` | 接続写像が 2 倍となる完全列から、任意係数の 2 倍写像の核と余核を取り出す。 |
+| `Integer.Units.classification` | 積が 1 となる整数は、それぞれ 1 または −1 であることを示す。 |
 | `Integer.Finite.Compared.At` | 有限モデルから特異理論への普遍係数比較。 |
 
 `Finite` の `model` は有限自由整数複体を指定する。

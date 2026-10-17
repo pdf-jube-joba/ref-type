@@ -43,15 +43,15 @@
 \definition Values(s: Simplicial.Simplex degree): \Set := \Cast[E] ({ e: E \where simplex e = s });
 \definition ordered(s: Simplicial.Simplex degree): Bounds.Lt (s head) (s tail) := #increasing{(Simplicial.admissible degree s)} head tail (\refl(B.Bool^::true));
 \definition onto: \forall (s: Simplicial.Simplex degree) -> \exists Values s := \fun (s: Simplicial.Simplex degree) =>
-  either!{{(#face{(Simplicial.admissible degree s)})} {\exists Values s}
-    {\block {
+  (Logic.orElim _ _ (\exists Values s) ((#face{(Simplicial.admissible degree s)}))
+      (\block {
       \fun (found: \exists Singleton[Simplicial.Image degree s]) \then
       \takefrom w: Singleton[Simplicial.Image degree s] \by found \then
       \return Logic.falseElim _ (Bounds.ltNe (s head) (s tail) (ordered s)
         (trans!{{Vertex}} _ _ _ (sym!{{Vertex}} _ _ (#included{w} (s head) (Simplicial.imageMember degree s head)))
           (#included{w} (s tail) (Simplicial.imageMember degree s tail))))
-    }}
-    {\block {
+    })
+      (\block {
       \fun (found: \exists Segment[Simplicial.Image degree s]) \then
       \takefrom w: Segment[Simplicial.Image degree s] \by found \then
       \let matched: PairMatch[label (first #edge{w}), label (last #edge{w}), s head, s tail] :=
@@ -59,8 +59,7 @@
           (#ordered{laws} #edge{w}) (ordered s)
           (#included{w} (s head) (Simplicial.imageMember degree s head)) (#included{w} (s tail) (Simplicial.imageMember degree s tail)) \then
       \return Logic.existsIntro[E, { e: E \where simplex e = s }] #edge{w} (equal #edge{w} s #first{matched} #last{matched})
-    }}
-  };
+    }));
 \definition unique: \forall (s: Simplicial.Simplex degree)(e, f: Values s) -> e = f :=
   \fun (s: Simplicial.Simplex degree)(e, f: Values s) => injective e f
     (trans!{{Simplicial.Tuple degree}} _ _ _ (\bysub(E, Values s, e)) (sym!{{Simplicial.Tuple degree}} _ _ (\bysub(E, Values s, f))));

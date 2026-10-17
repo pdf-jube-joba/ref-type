@@ -1,0 +1,116 @@
+\import topology.Topology[Carrier := Carrier] \as Target;
+\import topology.Continuity[A := A, B := Carrier] \as Projection;
+\definition image(U: \Pow A): \Pow Carrier :=
+  { q: Carrier \where \exists { x: A \where Logic.And[Source.Member U x, class x = q] } };
+\definition imageMember(U: \Pow A)(x: A): Source.Member U x -> Target.Member (image U) (class x) :=
+  \fun (inside: _) => Logic.existsIntro[A, { y: A \where Logic.And[Source.Member U y, class y = class x] }] x
+    (Logic.And[_, _]::# inside (\refl(class x)));
+\definition imageFlip(U: \Pow A)(x: A): Source.Member U (flip x) -> Target.Member (image U) (class x) :=
+  \fun (inside: _) => Logic.existsIntro[A, { y: A \where Logic.And[Source.Member U y, class y = class x] }] (flip x)
+    (Logic.And[_, _]::# inside (identify x));
+\definition imageCases(U: \Pow A)(x: A): Target.Member (image U) (class x) ->
+  Logic.Or[Source.Member U x, Source.Member U (flip x)] := \block {
+  \fun (member: _) \then
+  \takefrom y: \Cast[A] ({ y: A \where Logic.And[Source.Member U y, class y = class x] }) \by member \then
+  \let data: Logic.And[Source.Member U y, class y = class x] :=
+    \bysub(A, { y: A \where Logic.And[Source.Member U y, class y = class x] }, y) \then
+  \return Logic.orElim _ _ _ (classEqual y x (#right{data}))
+    (\fun (same: y = x) => Logic.Or[_, _]::left
+      (\idelim y = x \with a: A => Source.Member U a \by { base: #left{data}, equality: same }))
+    (\fun (same: y = flip x) => Logic.Or[_, _]::right
+      (\idelim y = flip x \with a: A => Source.Member U a \by { base: #left{data}, equality: same }))
+};
+\definition imageOpen: \forall (U: \Pow A) -> Source.IsOpenIn source U -> Target.IsOpenIn topology (image U) :=
+  \fun (U: \Pow A)(open: _) => #reflectsOpen{(Quotient.quotientMap source)} (image U)
+    (Source.openOfNeighborhoods source (Projection.Preimage class (image U))
+      (\fun (x: A)(member: _) => Logic.orElim _ _ _ (imageCases U x member)
+        (\fun (inside: Source.Member U x) => Logic.existsIntro[\Pow A,
+          { W: \Pow A \where Source.OpenNeighborhood[source, x, Projection.Preimage class (image U), W] }] U
+          (Source.OpenNeighborhood[source, x, Projection.Preimage class (image U), U] {
+            open := open, contains := inside, within := imageMember U,
+          }))
+        (\fun (inside: Source.Member U (flip x)) => Logic.existsIntro[\Pow A,
+          { W: \Pow A \where Source.OpenNeighborhood[source, x, Projection.Preimage class (image U), W] }]
+          (SelfMaps.Preimage flip U)
+          (Source.OpenNeighborhood[source, x, Projection.Preimage class (image U), SelfMaps.Preimage flip U] {
+            open := flipContinuous U open, contains := inside, within := imageFlip U,
+          }))));
+\definition disjointImages: \forall (U, V: \Pow A) -> Source.Disjoint U V ->
+  Source.Disjoint U (SelfMaps.Preimage flip V) -> Target.Disjoint (image U) (image V) := \block {
+  \fun (U, V: \Pow A)(direct: _)(crossed: _)(q: Carrier)(inU: _)(inV: _) \then
+  \takefrom x: \Cast[A] ({ x: A \where Logic.And[Source.Member U x, class x = q] }) \by inU \then
+  \takefrom y: \Cast[A] ({ y: A \where Logic.And[Source.Member V y, class y = q] }) \by inV \then
+  \let left: Logic.And[Source.Member U x, class x = q] :=
+    \bysub(A, { x: A \where Logic.And[Source.Member U x, class x = q] }, x) \then
+  \let right: Logic.And[Source.Member V y, class y = q] :=
+    \bysub(A, { y: A \where Logic.And[Source.Member V y, class y = q] }, y) \then
+  \return Logic.orElim _ _ Logic.False
+    (classEqual x y (trans!{Carrier} _ _ _ (#right{left}) (sym!{Carrier} _ _ (#right{right}))))
+    (\fun (same: x = y) => direct x (#left{left})
+      (\idelim y = x \with a: A => Source.Member V a \by { base: #left{right}, equality: sym!{A} _ _ same }))
+    (\fun (same: x = flip y) => crossed x (#left{left})
+      (\idelim y = flip x \with a: A => Source.Member V a \by {
+        base: #left{right}, equality: trans!{A} _ _ _ (sym!{A} _ _ (square y))
+          (congr!{A A} flip _ _ (sym!{A} _ _ same))
+      }))
+};
+\definition separates: Source.IsT2 source -> \forall (x, y: A) -> Logic.Not (class x = class y) ->
+  \exists { U: \Pow Carrier \where Target.RegularChoice[topology, Target.Singleton (class y), class x, U] } := \block {
+  \fun (hausdorff: _)(x, y: A)(different: _) \then
+  \let notEqual: Logic.Not (x = y) := \fun (same: x = y) => different (congr!{A Carrier} class x y same) \then
+  \let notFlipped: Logic.Not (x = flip y) := \fun (same: x = flip y) => different
+    (trans!{Carrier} _ _ _ (congr!{A Carrier} class x (flip y) same) (identify y)) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Source.RegularChoice[source, Source.Singleton y, x, U] })
+    \by hausdorff x y notEqual \then
+  \let first: Source.RegularChoice[source, Source.Singleton y, x, U] :=
+    \bysub(\Pow A, { U: \Pow A \where Source.RegularChoice[source, Source.Singleton y, x, U] }, U) \then
+  \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Source.NormalPartner[source, Source.Singleton y, U, V] })
+    \by #partner{first} \then
+  \let firstPartner: Source.NormalPartner[source, Source.Singleton y, U, V] :=
+    \bysub(\Pow A, { V: \Pow A \where Source.NormalPartner[source, Source.Singleton y, U, V] }, V) \then
+  \takefrom W: \Cast[\Pow A] ({ W: \Pow A \where Source.RegularChoice[source, Source.Singleton (flip y), x, W] })
+    \by hausdorff x (flip y) notFlipped \then
+  \let second: Source.RegularChoice[source, Source.Singleton (flip y), x, W] :=
+    \bysub(\Pow A, { W: \Pow A \where Source.RegularChoice[source, Source.Singleton (flip y), x, W] }, W) \then
+  \takefrom Z: \Cast[\Pow A] ({ Z: \Pow A \where Source.NormalPartner[source, Source.Singleton (flip y), W, Z] })
+    \by #partner{second} \then
+  \let secondPartner: Source.NormalPartner[source, Source.Singleton (flip y), W, Z] :=
+    \bysub(\Pow A, { Z: \Pow A \where Source.NormalPartner[source, Source.Singleton (flip y), W, Z] }, Z) \then
+  \let left: \Pow A := Source.Intersection U W \then
+  \let right: \Pow A := Source.Intersection V (SelfMaps.Preimage flip Z) \then
+  \let leftOpen: Source.IsOpenIn source left := #intersectionOpen{(Source.topologyLaws source)} U W (#open{first}) (#open{second}) \then
+  \let rightOpen: Source.IsOpenIn source right := #intersectionOpen{(Source.topologyLaws source)} V (SelfMaps.Preimage flip Z)
+    (#open{firstPartner}) (flipContinuous Z (#open{secondPartner})) \then
+  \return Logic.existsIntro[\Pow Carrier,
+    { O: \Pow Carrier \where Target.RegularChoice[topology, Target.Singleton (class y), class x, O] }] (image left)
+    (Target.RegularChoice[topology, Target.Singleton (class y), class x, image left] {
+      open := imageOpen left leftOpen,
+      contains := imageMember left x (Logic.And[_, _]::# (#contains{first}) (#contains{second})),
+      partner := Logic.existsIntro[\Pow Carrier,
+        { O: \Pow Carrier \where Target.NormalPartner[topology, Target.Singleton (class y), image left, O] }] (image right)
+        (Target.NormalPartner[topology, Target.Singleton (class y), image left, image right] {
+          open := imageOpen right rightOpen,
+          covers := \fun (q: Carrier)(same: q = class y) => \idelim class y = q
+            \with p: Carrier => Target.Member (image right) p \by {
+              base: imageMember right y (Logic.And[_, _]::# (#covers{firstPartner} y (\refl(y)))
+                (#covers{secondPartner} (flip y) (\refl(flip y)))), equality: sym!{Carrier} _ _ same
+            },
+          disjoint := disjointImages left right
+            (\fun (a: A)(inLeft: Source.Member left a)(inRight: Source.Member right a) =>
+              #disjoint{firstPartner} a (#left{inLeft}) (#left{inRight}))
+            (\fun (a: A)(inLeft: Source.Member left a)(inRight: Source.Member right (flip a)) =>
+              #disjoint{secondPartner} a (#right{inLeft})
+                (\idelim flip (flip a) = a \with b: A => Source.Member Z b \by {
+                  base: #right{inRight}, equality: square a
+                })),
+        }),
+    })
+};
+\definition hausdorff: Source.IsT2 source -> Target.IsT2 topology :=
+  \fun (sourceHausdorff: _) => Quotient.induction
+    (\fun (q: Carrier) => \forall (r: Carrier) -> Logic.Not (q = r) ->
+      \exists { U: \Pow Carrier \where Target.RegularChoice[topology, Target.Singleton r, q, U] })
+    (\fun (x: A) => Quotient.induction
+      (\fun (r: Carrier) => Logic.Not (class x = r) ->
+        \exists { U: \Pow Carrier \where Target.RegularChoice[topology, Target.Singleton r, class x, U] })
+      (\fun (y: A) => separates sourceHausdorff x y));
