@@ -355,7 +355,7 @@ impl CrateEnv {
                 .lazy_definitions
                 .iter()
                 .filter(|(key, _)| key.module.index() >= base.modules)
-                .map(|(k, v)| (*k, v.clone()))
+                .map(|(k, v)| (k, v.clone()))
                 .collect(),
             lazy_inductives: self
                 .lazy_inductives
@@ -367,7 +367,7 @@ impl CrateEnv {
                 .nominal_definitions
                 .iter()
                 .filter(|(key, _)| key.module.index() >= base.modules)
-                .map(|(k, v)| (*k, v.clone()))
+                .map(|(k, v)| (k, v.clone()))
                 .collect(),
             nominal_inductives: self
                 .nominal_inductives

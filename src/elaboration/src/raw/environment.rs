@@ -5,7 +5,7 @@ mod declaration_checkpoint;
 pub(crate) mod exports;
 #[path = "shared_vectors.rs"]
 mod shared_vectors;
-use super::sharded_map::ShardedMap;
+use super::definition_map::DefinitionMap;
 use super::shared_map::SharedMap;
 use crate::raw::{
     exp::{Arena, Exp},
@@ -390,11 +390,11 @@ pub struct CrateEnv {
     #[serde(deserialize_with = "shared_vectors::deserialize")]
     checking_program_contexts: HashMap<ModuleId, Arc<crate::raw::program::ProgramContext>>,
     #[serde(with = "declaration_checkpoint::definitions")]
-    lazy_definitions: ShardedMap<DefId, LazyDefinition>,
+    lazy_definitions: DefinitionMap<LazyDefinition>,
     #[serde(with = "declaration_checkpoint::inductives")]
     lazy_inductives: HashMap<InductiveId, LazyInductive>,
     #[serde(with = "declaration_checkpoint::specializations")]
-    nominal_definitions: ShardedMap<DefId, super::namespaces::Specialization<DefId>>,
+    nominal_definitions: DefinitionMap<super::namespaces::Specialization<DefId>>,
     #[serde(with = "declaration_checkpoint::specializations")]
     nominal_inductives: HashMap<InductiveId, super::namespaces::Specialization<InductiveId>>,
     #[serde(with = "declaration_checkpoint::specializations")]
@@ -489,9 +489,9 @@ impl CrateEnv {
             checking_scopes: HashMap::new(),
             checking_contexts: HashMap::new(),
             checking_program_contexts: HashMap::new(),
-            lazy_definitions: ShardedMap::default(),
+            lazy_definitions: DefinitionMap::default(),
             lazy_inductives: HashMap::new(),
-            nominal_definitions: ShardedMap::default(),
+            nominal_definitions: DefinitionMap::default(),
             nominal_inductives: HashMap::new(),
             prospective_inductives: HashMap::new(),
             nominal_datatypes: HashMap::new(),
@@ -1076,8 +1076,8 @@ impl CrateEnv {
         }
         self.specializations_indexed = true;
         macro_rules! index {
-            ($nominal:ident, $exact:ident) => {
-                for (&id, specialization) in &self.$nominal {
+            ($entries:expr, $exact:ident) => {
+                for (id, specialization) in $entries {
                     if self.namespace_arguments_shareable(&specialization.arguments) {
                         let mut cache = self.namespace_argument_cache.borrow_mut();
                         let arguments = cache.intern(&specialization.arguments);
@@ -1087,9 +1087,22 @@ impl CrateEnv {
                 }
             };
         }
-        index!(nominal_definitions, exact_definition_specializations);
-        index!(nominal_inductives, exact_inductive_specializations);
-        index!(nominal_datatypes, exact_datatype_specializations);
+        index!(
+            self.nominal_definitions.iter(),
+            exact_definition_specializations
+        );
+        index!(
+            self.nominal_inductives
+                .iter()
+                .map(|(&id, value)| (id, value)),
+            exact_inductive_specializations
+        );
+        index!(
+            self.nominal_datatypes
+                .iter()
+                .map(|(&id, value)| (id, value)),
+            exact_datatype_specializations
+        );
     }
 
     pub(crate) fn reuse_lazy_definition(
