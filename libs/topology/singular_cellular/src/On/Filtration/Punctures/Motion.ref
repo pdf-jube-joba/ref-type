@@ -59,13 +59,19 @@
       }, Witness[t, x, x]))}
   }
 };
+\module CellEquality(cell: Cells.CellData, member: Cells.CellMember cells cell, dimension: #dimension{cell} = n);
 \definition topRespects: \forall (cell, other: Cells.CellData)(member: Cells.CellMember cells cell)(otherMember: Cells.CellMember cells other)
   (dimension: #dimension{cell} = n)(otherDimension: #dimension{other} = n)(same: cell = other)(t: Interval.Carrier)
   (p: \root.DiskCollar[n := #dimension{cell}].Carrier)(q: \root.DiskCollar[n := #dimension{other}].Carrier) ->
   R.Lt (Euclidean.normSquaredAt (#dimension{cell}) p) Real.one -> R.Lt (Euclidean.normSquaredAt (#dimension{other}) q) Real.one ->
   #characteristic{cell} p = #characteristic{other} q ->
   \parent.Cell[cell := cell, member := member, dimension := dimension].motion t p = \parent.Cell[cell := other, member := otherMember, dimension := otherDimension].motion t q :=
-  \fun (cell, other: Cells.CellData)(member: _)(otherMember: _)(dimension: _)(otherDimension: _)(same: _)(t: _)(p: _)(q: _)(pi: _)(qi: _)(images: _) =>
+  \fun (cell, other: Cells.CellData)(member: Cells.CellMember cells cell)(otherMember: Cells.CellMember cells other)
+    (dimension: #dimension{cell} = n)(otherDimension: #dimension{other} = n)(same: cell = other)(t: Interval.Carrier)
+    (p: \root.DiskCollar[n := #dimension{cell}].Carrier)(q: \root.DiskCollar[n := #dimension{other}].Carrier)
+    (pi: R.Lt (Euclidean.normSquaredAt (#dimension{cell}) p) Real.one)
+    (qi: R.Lt (Euclidean.normSquaredAt (#dimension{other}) q) Real.one)
+    (images: #characteristic{cell} p = #characteristic{other} q) =>
     (\idelim cell = other \with c: Cells.CellData => \forall (mc: Cells.CellMember cells c)(dc: #dimension{c} = n)
       (point: \root.DiskCollar[n := #dimension{c}].Carrier) -> R.Lt (Euclidean.normSquaredAt (#dimension{c}) point) Real.one ->
       #characteristic{cell} p = #characteristic{c} point ->
@@ -74,10 +80,7 @@
           (point: \root.DiskCollar[n := #dimension{cell}].Carrier)
           (inside: R.Lt (Euclidean.normSquaredAt (#dimension{cell}) point) Real.one)
           (equal: #characteristic{cell} p = #characteristic{cell} point) =>
-          congr!{{\root.DiskCollar[n := #dimension{cell}].Carrier} Carrier}
-            (\parent.Cell[cell := cell, member := member, dimension := dimension].motion t) _ _
-            (Algebra.Refinement[A := Euclidean.Disk (#dimension{cell}), S := \root.DiskCollar[n := #dimension{cell}].punctured]
-              .ext p point (#injectiveInterior{(#cellLaws{laws} cell member)} p point pi inside equal)),
+          CellEquality[cell := cell, member := member, dimension := dimension].law t p point pi inside equal,
         equality: same
       }) otherMember otherDimension q qi images;
 \module Comparison(x: Carrier, w, v: Representation[x], wd: #dimension{(#cell{w})} = n, vd: #dimension{(#cell{v})} = n);
