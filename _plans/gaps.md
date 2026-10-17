@@ -1,6 +1,6 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05・G08・G09・G11・G13・G14 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+G02〜G05・G08・G09・G11・G13〜G15 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 これらのサンプルを個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -263,3 +263,10 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 存在命題の部分集合 `{ s: Objects A \where s.value = a }` で、束縛変数 `s` の構造 field を dot 記法で参照したい。
 [14-01-function-field.ref](gaps/14-01-function-field.ref) と [14-02-explicit-projection.ref](gaps/14-02-explicit-projection.ref) は、どちらも `s.value` で型検査が通る。
 整数 Künneth の `Assertions.Exact` は `s.inclusion` を使って、外積が左端の写像である短完全列の存在を公開する。
+
+<a id="g15"></a>
+
+## G15: 等式消去の束縛変数から構造の field を読む（解消済み）
+
+`\idelim` の族で、束縛変数の field を `entry.value` と書きたい。
+[15-01-idelim-field.ref](gaps/15-01-idelim-field.ref) と [15-02-idelim-predicate.ref](gaps/15-02-idelim-predicate.ref) は、どちらも型検査が通る。

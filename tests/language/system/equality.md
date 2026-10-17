@@ -118,6 +118,46 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A'''
 ```
 
 
+## transport families resolve record fields
+
+等式の移送とその反射則の family で、束縛した record の field を参照できる。
+
+```toml case
+id = "transport_families_resolve_record_fields"
+scope = "module"
+expect = "accept"
+```
+
+```ref
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\structure Entry: \Set := { value: Bit, same: value = value };
+\structure Marker: \Set := { marker: Bit };
+\definition projected[a, b: Entry][same: a = b]: a.value = b.value :=
+  \idelim a = b \with entry: Entry => a.value = entry.value
+    \by { base: \refl(a.value), equality: same };
+\definition inferred[a, b: Entry][same: a = b]: a.value = b.value :=
+  \idelim a = b \with entry: _ => a.value = entry.value
+    \by { base: \refl(a.value), equality: same };
+\definition shadow[a, b: Entry][entry: Marker][same: a = b]: a.value = b.value :=
+  \idelim a = b \with entry: Entry => a.value = entry.value
+    \by { base: (\fun (marker: Bit) => \refl(a.value)) entry.marker, equality: same };
+\module Read(entry: Entry) {
+  \definition value: Bit := entry.value;
+}
+\definition instantiated[a, b: Entry][same: a = b]: a.value = b.value :=
+  \idelim a = b \with entry: Entry => a.value = Read[entry := entry].value
+    \by { base: \refl(a.value), equality: same };
+\definition Family[entry: Entry]: \Set := \Cast[Bit] ({ x: Bit \where x = entry.value });
+\definition cast[a, b: Entry][value: Family a][same: a = b]: Family b :=
+  \idelim a = b \with entry: Entry => \Cast[Bit] ({ x: Bit \where x = entry.value })
+    \by { base: value, equality: same };
+\definition identity[a: Entry][value: Family a]:
+  (\idelim a = a \with entry: _ => \Cast[Bit] ({ x: Bit \where x = entry.value })
+    \by { base: value, equality: \refl(a) }) = value :=
+  \transporteq a \with entry: _ => \Cast[Bit] ({ x: Bit \where x = entry.value })
+    \by { base: value };
+```
+
 ## transport specialization and macro binders
 
 Set(1) の family に対する transport の等式を、macro と module の特殊化を経ても利用できる。

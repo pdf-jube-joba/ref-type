@@ -198,6 +198,25 @@ impl Resolver {
         Ok(())
     }
 
+    fn normalize_bound_family<const N: usize>(
+        &mut self,
+        var: &mut Identifier,
+        family: &mut SExp,
+        outer: [&mut SExp; N],
+        locals: &mut Vec<LocalScope>,
+    ) -> Result<(), Diagnostic> {
+        for expression in outer {
+            self.normalize_in_scope(expression, locals)?;
+        }
+        if var.1.is_none() {
+            self.binding(var);
+        }
+        locals.push(LocalScope::from_iter([(var.0.clone(), var.clone())]));
+        let result = self.normalize_in_scope(family, locals);
+        locals.pop();
+        result
+    }
+
     fn normalize_in_scope(
         &mut self,
         expression: &mut SExp,
@@ -209,24 +228,39 @@ impl Resolver {
             if error.is_some() {
                 return false;
             }
-            if let SExp::SubSet {
-                var,
-                set,
-                predicate,
-            } = node
-            {
-                if let Err(e) = self.normalize_in_scope(set, locals) {
+            let family = match node {
+                SExp::SubSet {
+                    var,
+                    set,
+                    predicate,
+                } => Some(self.normalize_bound_family(var, predicate, [set], locals)),
+                SExp::IdElim {
+                    var,
+                    ty,
+                    left,
+                    right,
+                    family,
+                    base,
+                    equality,
+                } => Some(self.normalize_bound_family(
+                    var,
+                    family,
+                    [ty, left, right, base, equality],
+                    locals,
+                )),
+                SExp::TransportEq {
+                    var,
+                    ty,
+                    index,
+                    family,
+                    base,
+                } => Some(self.normalize_bound_family(var, family, [ty, index, base], locals)),
+                _ => None,
+            };
+            if let Some(result) = family {
+                if let Err(e) = result {
                     error = Some(e);
-                    return false;
                 }
-                if var.1.is_none() {
-                    self.binding(var);
-                }
-                locals.push(LocalScope::from_iter([(var.0.clone(), var.clone())]));
-                if let Err(e) = self.normalize_in_scope(predicate, locals) {
-                    error = Some(e);
-                }
-                locals.pop();
                 return false;
             }
             if let SExp::Induction {
