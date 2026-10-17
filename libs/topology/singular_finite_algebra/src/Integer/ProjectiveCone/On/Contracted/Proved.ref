@@ -1,11 +1,13 @@
 \import SignedChains.Map[C := Q, D := P] \as Backwards;
 \definition Commutes(z: I.Int^): \Prop := \forall (x: Q.family.Carrier z) ->
   #apply{P.differential} z (backward z x) = backward (Degrees.previous z) (#apply{Q.differential} z x);
+\definition successorCommutes(n: N.Nat^): Commutes (I.Int^::ofNat (N.Nat^::succ n)) :=
+  \parent.At[n := n].commutes;
 \definition positiveCommutes: \forall (n: N.Nat^) -> Commutes (I.Int^::ofNat n) :=
   \induction (n: N.Nat^) \return Commutes (I.Int^::ofNat n) \with {
     | zero: \fun (x: Q.family.Carrier (I.Int^::ofNat N.Nat^::zero)) => sourceNegative N.Nat^::zero
       (#apply{P.differential} (I.Int^::ofNat N.Nat^::zero) (backward (I.Int^::ofNat N.Nat^::zero) x))
-    | succ: \fun (n: N.Nat^)(before: Commutes (I.Int^::ofNat n)) => At[n := n].commutes
+    | succ: \fun (n: N.Nat^)(before: Commutes (I.Int^::ofNat n)) => successorCommutes n
   };
 \definition commutes: \forall (z: I.Int^) -> Commutes z :=
   \induction (z: I.Int^) \return Commutes z \with {
@@ -34,15 +36,19 @@
     (TargetHomotopies.shifted targetData z (#apply{Q.differential} z x));
 \definition LeftEquation(z: I.Int^): \Prop := \forall (x: P.family.Carrier z) -> leftLHS z x = leftRHS z x;
 \definition RightEquation(z: I.Int^): \Prop := \forall (x: Q.family.Carrier z) -> rightLHS z x = rightRHS z x;
+\definition successorLeft(n: N.Nat^): LeftEquation (I.Int^::ofNat (N.Nat^::succ n)) :=
+  \parent.At[n := N.Nat^::succ n].sourceEquation;
+\definition successorRight(n: N.Nat^): RightEquation (I.Int^::ofNat (N.Nat^::succ n)) :=
+  \parent.At[n := n].targetHomotopyEquation;
 \definition positiveLeft: \forall (n: N.Nat^) -> LeftEquation (I.Int^::ofNat n) :=
   \induction (n: N.Nat^) \return LeftEquation (I.Int^::ofNat n) \with {
     | zero: Zero[].sourceEquation sourceNegative
-    | succ: \fun (n: N.Nat^)(before: LeftEquation (I.Int^::ofNat n)) => At[n := N.Nat^::succ n].sourceEquation
+    | succ: \fun (n: N.Nat^)(before: LeftEquation (I.Int^::ofNat n)) => successorLeft n
   };
 \definition positiveRight: \forall (n: N.Nat^) -> RightEquation (I.Int^::ofNat n) :=
   \induction (n: N.Nat^) \return RightEquation (I.Int^::ofNat n) \with {
     | zero: Zero[].targetZeroEquation
-    | succ: \fun (n: N.Nat^)(before: RightEquation (I.Int^::ofNat n)) => At[n := n].targetHomotopyEquation
+    | succ: \fun (n: N.Nat^)(before: RightEquation (I.Int^::ofNat n)) => successorRight n
   };
 \definition leftEquation: \forall (z: I.Int^) -> LeftEquation z :=
   \induction (z: I.Int^) \return LeftEquation z \with {

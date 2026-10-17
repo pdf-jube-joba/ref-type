@@ -38,6 +38,18 @@
 | [topology/singular_cohomology](topology/singular_cohomology/README.md) | `singular_cohomology` | 特異鎖・余鎖、相対・被約理論、ホモトピー不変性、道成分と可縮空間 |
 | [topology/singular_products](topology/singular_products/README.md) | `singular_products` | 特異余鎖とコホモロジーのカップ積、Leibniz 則、単位・結合・自然性 |
 | [topology/singular_excision](topology/singular_excision/README.md) | `singular_excision` | 切除の閉包条件から得る開被覆と部分集合の包含 |
+| [topology/singular_eilenberg_zilber](topology/singular_eilenberg_zilber/README.md) | `singular_eilenberg_zilber` | Alexander–Whitney と shuffle の鎖ホモトピー同値 |
+| [topology/singular_symmetry](topology/singular_symmetry/README.md) | `singular_symmetry` | カップ積の交換ホモトピーと次数付き可換性 |
+| [topology/singular_cech](topology/singular_cech/README.md) | `singular_cech` | 被覆の二重複体と射影的複体の比較 |
+| [topology/singular_simplicial](topology/singular_simplicial/README.md) | `singular_simplicial` | 有限単体複体の実現、アフィン特異鎖と積の比較 |
+| [topology/singular_cellular](topology/singular_cellular/README.md) | `singular_cellular` | 有限 CW 複体の相対セル基底と骨格の境界 |
+| [topology/singular_cellular_algebra](topology/singular_cellular_algebra/README.md) | `singular_cellular_algebra` | 相対鎖の直和、Hom と比較写像の補題 |
+| [topology/singular_finite_algebra](topology/singular_finite_algebra/README.md) | `singular_finite_algebra` | 有限モデルとの係数比較、普遍係数と Künneth |
+| [topology/singular_tensor_dual](topology/singular_tensor_dual/README.md) | `singular_tensor_dual` | 有限双対基底によるテンソル積と Hom の比較 |
+| [topology/singular_low_degree](topology/singular_low_degree/README.md) | `singular_low_degree` | 道の選択による鎖の正規化と積空間の一次コホモロジー |
+| [topology/sphere_maps](topology/sphere_maps/README.md) | `sphere_maps` | 球面の向き、反転と円周の整数べき写像の次数 |
+| [topology/cohomology_models](topology/cohomology_models/README.md) | `cohomology_models` | 空空間・可縮空間・球面の計算と相対理論の利用例 |
+| [topology/cohomology_examples](topology/cohomology_examples/README.md) | `cohomology_examples` | 有限グラフ、トーラス、実射影平面の群・積・誘導写像 |
 
 標準の実数は `dedekind_reals` から `real` に渡す。
 共通の数値補題は `real.Analysis`、演算と法則の分離には `Def` / `Prop`、等式連鎖には [eq_reason!](std/README.md#等式と合同則) を使う。
@@ -55,3 +67,4 @@ cargo run -p cli -- libs/std --module std.Data.Nat
 具体例は [複体](algebra/homological/concrete_complexes/README.md)、[座標計算](geometry/coordinate_calculus/README.md)、[cell_spaces](topology/cell_spaces/src/root.ref)、[スカラーの互換性](analysis/scalar_compatibility/README.md)、[小さい圏](category/src/SmallCategories.ref) と [終対象の圏の極限](category/src/TerminalLimits.ref) にある。
 
 [特異コホモロジーの利用例](topology/cohomology_models/README.md)は代表余鎖、相対接続、係数付き誘導写像、道成分と空空間・一点・区間の計算を検査する。
+[有限モデルの利用例](topology/cohomology_examples/README.md)は空間との比較写像を使って群とコホモロジーの積を計算する。

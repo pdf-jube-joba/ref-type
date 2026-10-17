@@ -9,6 +9,8 @@
 | `Integer.CoefficientTensor.On.map` | 整数次数付き鎖写像を係数とのテンソル積へ送る。 |
 | `Integer.CoefficientTensor.Homotopy.With.homotopy` | テンソル積へ移した鎖ホモトピー。 |
 | `Integer.CoefficientEquivalence.With.equivalence` | 任意係数とのテンソル積が保持する鎖ホモトピー同値。 |
+| `Integer.HomZero.At.isomorphism` | 微分が零の非負次数複体について、任意係数のコホモロジーと各項の Hom 加群を同定。 |
+| `Integer.HomTransport.With.isomorphism` | 台の加群同型から、任意係数への Hom 加群の同型を前合成で構成。 |
 | `Integer.ProjectiveCone.On.equivalenceExists` | 下に有界な射影的複体の擬同型から、同じ前向き写像を持つ鎖ホモトピー同値を構成。 |
 | `Integer.Finite.Compared.At` | 有限モデルから特異理論への普遍係数比較。 |
 
@@ -29,6 +31,9 @@
 擬同型の写像錐を非負次数へ制限すると、零加群の射影的分解になる。
 分解の比較ホモトピーからこの錐の収縮を得て、その行列成分を逆写像と両側のホモトピーにする。
 前向き写像は与えた実際の鎖写像と一致し、逆写像の選択は存在命題の内部で行う。
+
+`HomZero` は非負次数の複体と係数加群を受け取り、微分の消滅証明からコホモロジーの座標を取り出す。
+`At.onClass` により、同型の前向き写像は閉余鎖の類を元の余鎖へ送る。
 
 `Integer.Product.Compared.At.kunneth` は有限自由整数モデルのテンソル積の比較から積空間の整数 Künneth 短完全列を返す。
 `Field.Product.Compared.At.kunneth` は体上の有界有限モデルの余鎖比較から、コホモロジーのテンソル和と積空間のコホモロジーとの同型を返す。

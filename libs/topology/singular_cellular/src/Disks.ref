@@ -13,8 +13,20 @@
 \definition Orientation(n: N.Nat^): \Set := Modules.Isomorphism[V := I.Int^, W := homology n (I.Int^::ofNat n),
   source := Modules.scalarModule, target := homologySpace n (I.Int^::ofNat n)].Isomorphism;
 \module Zero;
+\module SphereVanishing;
+\module Positive(n: N.Nat^);
 \definition orientation: \forall (n: N.Nat^) -> Orientation n := \induction (n: N.Nat^) \return Orientation n \with {
   | zero: Zero[].orientation
   | succ: \fun (n: N.Nat^)(previous: Orientation n) => \root.DiskRelative[n := n].Homology[].orientation
 };
 \definition generator(n: N.Nat^): homology n (I.Int^::ofNat n) := #apply{#forward{(orientation n)}} I.One.specification;
+
+\definition Vanishing(n, k: N.Nat^): \Prop := \forall (q: homology n (I.Int^::ofNat k)) -> q = #zero{(homologySpace n (I.Int^::ofNat k))};
+\definition offDiagonal: \forall (n, k: N.Nat^) -> Logic.Not (n = k) -> Vanishing n k :=
+  \induction (n: N.Nat^) \return \forall (k: N.Nat^) -> Logic.Not (n = k) -> Vanishing n k \with {
+    | zero: \induction (k: N.Nat^) \return Logic.Not (N.Nat^::zero = k) -> Vanishing N.Nat^::zero k \with {
+      | zero: \fun (different: _) => Logic.falseElim _ (different (\refl(N.Nat^::zero)))
+      | succ: \fun (k: N.Nat^)(previous: _) (different: _) => Zero[].Positive[k := k].zero
+    }
+    | succ: \fun (n: N.Nat^)(previous: _)(k: N.Nat^)(different: _) => Positive[n := n].zero k different
+  };

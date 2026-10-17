@@ -1,0 +1,64 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import algebraic_topology.Euclidean[].Dimension[n := one] \as Model;
+\import algebraic_topology.Euclidean[].Dimension[n := two].Geometry[] \as PlaneGeometry;
+\import algebraic_topology.Spheres[].Zero[] \as ZeroSphere;
+\import singular_cellular.DiskRelative[n := zero] \as Relative;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := Relative.subset] \as Pair;
+\definition position(x: Simplex.Carrier one): Real.Real := Real.sub (v x) (u x);
+\definition coordinates(x: Simplex.Carrier one): Model.Coordinate := \fun (_: Model.Index) => position x;
+\definition norm: \forall (x: Simplex.Carrier one) -> Model.normSquared (coordinates x) = Real.mul (position x) (position x) :=
+  \fun (x: Simplex.Carrier one) => ZeroSphere.normValue (coordinates x);
+\definition bound: \forall (x: Simplex.Carrier one) -> R.Le (Model.normSquared (coordinates x)) Real.one :=
+  \fun (x: Simplex.Carrier one) => R.leReplaceLeft (Real.mul (position x) (position x)) (Model.normSquared (coordinates x)) Real.one (sym!{Real.Real} _ _ (norm x))
+    (R.leReplaceLeft (Real.mul (upper x Coordinates.first) (upper x Coordinates.first)) (Real.mul (position x) (position x)) Real.one
+      (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (upperFirst x) (upperFirst x))
+      (R.leReplaceRight (Real.mul (upper x Coordinates.first) (upper x Coordinates.first))
+        (algebraic_topology.Euclidean[].Dimension[n := two].normSquared (upper x)) Real.one
+        (\bysub(algebraic_topology.Euclidean[].Dimension[n := two].Coordinate, algebraic_topology.Euclidean[].Dimension[n := two].Boundary, upper x))
+        (PlaneGeometry.coordinateSquareBound (upper x) Coordinates.first)));
+\definition line(x: Simplex.Carrier one): Model.Disk := \into[Model.Coordinate](coordinates x, Model.ClosedBall) \by { bound x };
+\import metric_spaces.RealFunctions[A := Simplex.Carrier one] \as Functions;
+\import topological_algebra.Coordinates[K := Real.Real, I := Model.Index].Universal[A := Simplex.Carrier one] \as Universal;
+\import topology.Continuity[A := Simplex.Carrier one, B := Model.Coordinate].Corestriction[S := Model.ClosedBall] \as Into;
+\definition continuous: topology.Continuity[A := Simplex.Carrier one, B := Model.Disk].Continuous Domain.topology Model.diskTopology line :=
+  Into.corestrictContinuous Domain.topology Model.topology line
+    (Universal.continuous Domain.topology Line.topology coordinates
+      (\fun (_: Model.Index) => Functions.subContinuous Domain.topology v u (Domain.coordinateContinuous last) (Domain.coordinateContinuous first)));
+\import singular_cohomology.Simplices[A := Model.Disk, source := Model.diskTopology] \as Simplices;
+\import singular_cohomology.Chains[A := Model.Disk, source := Model.diskTopology] \as Chains;
+\definition simplex: Simplices.Carrier one := \into[Simplices.At[n := one].Function](line, Simplices.Carrier one) \by { continuous };
+\definition north: Pair.SubspaceCarrier := #forward{Relative.homeomorphism} ZeroSphere.north;
+\definition south: Pair.SubspaceCarrier := #forward{Relative.homeomorphism} ZeroSphere.south;
+\definition startV: \forall (x: Simplex.Carrier zero) -> v (Simplex.face zero last x) = Real.zero := Segment.faceLastStart;
+\definition startU: \forall (x: Simplex.Carrier zero) -> u (Simplex.face zero last x) = Real.one :=
+  \fun (x: Simplex.Carrier zero) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroRight (u (Simplex.face zero last x))))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.add (u (Simplex.face zero last x))) _ _ (sym!{Real.Real} _ _ (startV x)))
+      (Segment.total (Simplex.face zero last x)));
+\definition endU: \forall (x: Simplex.Carrier zero) -> u (Simplex.face zero first x) = Real.zero := Simplex.faceFirstZero zero;
+\definition endV: \forall (x: Simplex.Carrier zero) -> v (Simplex.face zero first x) = Real.one := Segment.faceFirstEnd;
+\definition start: \forall (x: Simplex.Carrier zero) -> line (Simplex.face zero last x) = south :=
+  \fun (x: Simplex.Carrier zero) => \axiom:funext(line (Simplex.face zero last x), south, \fun (_: Model.Index) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (startV x) (startU x)) (Laws.addZeroLeft (Real.neg Real.one)));
+\definition end: \forall (x: Simplex.Carrier zero) -> line (Simplex.face zero first x) = north :=
+  \fun (x: Simplex.Carrier zero) => \axiom:funext(line (Simplex.face zero first x), north, \fun (_: Model.Index) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (endV x) (endU x))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ Laws.negZero) (Laws.addZeroRight Real.one)));
+\definition firstFace: Simplices.face zero first simplex = Simplices.At[n := zero].constant north := Simplices.ext zero _ _ end;
+\definition lastFace: Simplices.face zero last simplex = Simplices.At[n := zero].constant south := Simplices.ext zero _ _ start;
+\import Modules.Laws[V := Chains.Carrier zero, space := Chains.space zero] \as Values;
+\import algebra.Group[].Of[Carrier := Chains.Carrier zero, group := Values.additive] \as Group;
+\definition minusZero: \forall (x: Chains.Carrier zero) -> Group.difference x Group.zero = x :=
+  \fun (x: Chains.Carrier zero) => trans!{{Chains.Carrier zero}} _ _ _ (congr!{{Chains.Carrier zero} {Chains.Carrier zero}} (Group.add x) _ _ Group.negZero) (Group.zeroRight x);
+\definition edge: Chains.Carrier one := Chains.generator one simplex;
+\definition boundary: #apply{(Chains.boundary zero)} edge = Group.difference
+  (Chains.generator zero (Simplices.At[n := zero].constant north)) (Chains.generator zero (Simplices.At[n := zero].constant south)) :=
+  trans!{{Chains.Carrier zero}} _ _ _ (Chains.Boundary[n := zero].onGenerator simplex)
+    (trans!{{Chains.Carrier zero}} _ _ _
+      (congr!{{Chains.Carrier zero} {Chains.Carrier zero}}
+        (Group.difference (Chains.generator zero (Simplices.face zero first simplex))) _ _ (minusZero (Chains.generator zero (Simplices.face zero last simplex))))
+      (congr2!{{Chains.Carrier zero} {Chains.Carrier zero} {Chains.Carrier zero}} Group.difference _ _ _ _
+        (congr!{{Simplices.Carrier zero} {Chains.Carrier zero}} (Chains.generator zero) _ _ firstFace)
+        (congr!{{Simplices.Carrier zero} {Chains.Carrier zero}} (Chains.generator zero) _ _ lastFace)));
+\module RelativeCycle;
+\module Quotient;

@@ -1,0 +1,43 @@
+\import Cochains.At[C := Native.complex, k := N.Nat^::zero] \as Source;
+\import Local.DegreeZero[] \as Target;
+\import \root.Surface[V := V, E := E, T := T].On[surface := surface].Simplicial[].Coefficients[A := A].DegreeZero[] \as ZeroCoordinates;
+\import \root.Surface[V := V, E := E, T := T].On[surface := surface].Simplicial[].Coefficients[A := A].DegreeOne[] \as OneCoordinates;
+\definition forwardClosed(phi: Source.CycleCarrier): Matrix.deltaZero (ZeroCoordinates.evaluate phi) = #zero{Matrix.first.space} :=
+  trans!{OneCoordinates.FunctionCarrier} _ _ _ (sym!{OneCoordinates.FunctionCarrier} _ _ (Differentials.zeroth phi))
+    (trans!{OneCoordinates.FunctionCarrier} _ _ _
+      (congr!{(Native.Carrier one) OneCoordinates.FunctionCarrier} OneCoordinates.evaluate _ _ (\bysub(Native.Carrier N.Nat^::zero, #carrier{Source.cycles}, phi)))
+      (Modules.Hom[V := Native.Carrier one, W := OneCoordinates.FunctionCarrier, source := Native.space one, target := OneCoordinates.functionSpace].zeroPreserved OneCoordinates.forward));
+\definition backwardClosed(f: Target.CycleCarrier): Native.apply N.Nat^::zero (ZeroCoordinates.extend f) = #zero{(Native.space one)} :=
+  trans!{(Native.Carrier one)} _ _ _ (Differentials.inverseZeroth f)
+    (trans!{(Native.Carrier one)} _ _ _
+      (congr!{OneCoordinates.FunctionCarrier (Native.Carrier one)} OneCoordinates.extend _ _ (\bysub(Matrix.zeroth.Carrier, #carrier{Target.cycles}, f)))
+      (Modules.Hom[V := OneCoordinates.FunctionCarrier, W := Native.Carrier one, source := OneCoordinates.functionSpace, target := Native.space one].zeroPreserved OneCoordinates.backward));
+\definition forwardValue(phi: Source.CycleCarrier): Target.CycleCarrier := Target.cycle (ZeroCoordinates.evaluate phi) (forwardClosed phi);
+\definition backwardValue(f: Target.CycleCarrier): Source.CycleCarrier := Source.cycle (ZeroCoordinates.extend f) (backwardClosed f);
+\definition sourceCycles: Modules.Bundle := Modules.Bundle { Carrier := Source.CycleCarrier, space := Source.cycleSpace };
+\definition targetCycles: Modules.Bundle := Modules.Bundle { Carrier := Target.CycleCarrier, space := Target.cycleSpace };
+\import Modules.Hom[V := Source.CycleCarrier, W := Target.CycleCarrier, source := Source.cycleSpace, target := Target.cycleSpace] \as Forward;
+\import Modules.Hom[V := Target.CycleCarrier, W := Source.CycleCarrier, source := Target.cycleSpace, target := Source.cycleSpace] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := forwardValue,
+  addition := \fun (phi, psi: Source.CycleCarrier) => #addition{ZeroCoordinates.forward} phi psi,
+  scalar := \fun (a: I.Int^)(phi: Source.CycleCarrier) => #scalar{ZeroCoordinates.forward} a phi,
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := backwardValue,
+  addition := \fun (f, g: Target.CycleCarrier) => #addition{ZeroCoordinates.backward} f g,
+  scalar := \fun (a: I.Int^)(f: Target.CycleCarrier) => #scalar{ZeroCoordinates.backward} a f,
+};
+\import Modules.QuotientMapping[A := sourceCycles, B := targetCycles].On[S := Source.boundariesInside, T := Target.boundariesInside, f := forward] \as Quotient;
+\definition compatible: Quotient.Compatible := \fun (phi: Source.CycleCarrier)(boundary: _) =>
+  trans!{ZeroCoordinates.FunctionCarrier} _ _ _
+    (congr!{(Native.Carrier N.Nat^::zero) ZeroCoordinates.FunctionCarrier} ZeroCoordinates.evaluate _ _ boundary)
+    (Modules.Hom[V := Native.Carrier N.Nat^::zero, W := ZeroCoordinates.FunctionCarrier, source := Native.space N.Nat^::zero, target := ZeroCoordinates.functionSpace].zeroPreserved ZeroCoordinates.forward);
+\import Quotient.Inverse[g := backward] \as Inverse;
+\definition compatibleBack: Inverse.CompatibleBack := \fun (phi: Target.CycleCarrier)(boundary: _) =>
+  trans!{(Native.Carrier N.Nat^::zero)} _ _ _
+    (congr!{ZeroCoordinates.FunctionCarrier (Native.Carrier N.Nat^::zero)} ZeroCoordinates.extend _ _ boundary)
+    (Modules.Hom[V := ZeroCoordinates.FunctionCarrier, W := Native.Carrier N.Nat^::zero, source := ZeroCoordinates.functionSpace, target := Native.space N.Nat^::zero].zeroPreserved ZeroCoordinates.backward);
+\definition isomorphism: Modules.Isomorphism[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace].Isomorphism :=
+  Inverse.isomorphism compatible compatibleBack (\fun (phi: Source.CycleCarrier) => ZeroCoordinates.leftInverse phi) (\fun (f: Target.CycleCarrier) => ZeroCoordinates.rightInverse f);
+\definition onClass(phi: Source.CycleCarrier): #apply{#forward{isomorphism}} (Source.classOf phi) = Target.classOf (forwardValue phi) := Quotient.onClass compatible phi;

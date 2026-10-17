@@ -1,0 +1,18 @@
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Matrix[m := rank n, n := rank (N.Nat^::succ n)] \as Matrix;
+\import \parent.\parent.Differential[n := n] \as Differential;
+\import \parent.\parent.Natural[] \as Natural;
+\definition matrix: (\fun (i: Fin.Fin (rank n))(j: Fin.Fin (rank (N.Nat^::succ n))) => matrices (I.Int^::ofNat (N.Nat^::succ n)) i j) = Differential.matrix :=
+  \axiom:funext(_, _, \fun (i: Fin.Fin (rank n)) => \axiom:funext(_, _, Differential.runtimeEntry i));
+\import Modules.Hom[V := Natural.Carrier (N.Nat^::succ n), W := Natural.Carrier n, source := Natural.space (N.Nat^::succ n), target := Natural.space n] \as Maps;
+\definition law: \forall (x: Bounded.Carrier data (I.Int^::ofNat (N.Nat^::succ n))) ->
+  Bounded.apply data (I.Int^::ofNat (N.Nat^::succ n)) x = Natural.apply n x :=
+  \fun (x: Bounded.Carrier data (I.Int^::ofNat (N.Nat^::succ n))) => trans!{{Natural.Carrier n}} _ _ _
+    (congr!{Matrix.Matrix {Natural.Carrier n}} (\fun (a: Matrix.Matrix) => Matrix.apply a x) _ _ matrix)
+    (congr!{Maps.Map {Natural.Carrier n}} (\fun (f: Maps.Map) => #apply{f} x) _ _ Differential.represents);
+\definition square: \forall (x: Bounded.Carrier data (I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)))) ->
+  Bounded.apply data (I.Int^::ofNat (N.Nat^::succ n)) (Bounded.apply data (I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ n))) x) =
+    #zero{(Bounded.space data (I.Int^::ofNat n))} :=
+  \fun (x: Bounded.Carrier data (I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)))) => trans!{{Natural.Carrier n}} _ _ _ (law _)
+    (trans!{{Natural.Carrier n}} _ _ _
+      (congr!{{Natural.Carrier (N.Nat^::succ n)} {Natural.Carrier n}} (Natural.apply n) _ _ (\parent.Positive[n := N.Nat^::succ n].law x))
+      (#squareZero{Natural.complex.laws} n x));

@@ -1,0 +1,31 @@
+\import Complexes.ShortExact[A := A, B := B, C := C].At[s := sequence, k := z] \as Connecting;
+\import Complexes.At[C := A, z := previous] \as Lower;
+\definition killed: \forall (q: H.Homology) -> #apply{sequence.projection} previous (#apply{wholeBoundary} q) = #zero{(C.family.space previous)} :=
+  \fun (q: H.Homology) => trans!{{C.family.Carrier previous}} _ _ _
+    (sym!{{C.family.Carrier previous}} _ _ (#commutes{sequence.projection} z (#apply{data.map} q))) (data.closed q);
+\definition onInclusion: \forall (q: H.Homology) -> #apply{sequence.inclusion} previous (#apply{boundary} q) = #apply{wholeBoundary} q := \block {
+  \fun (q: H.Homology) \then
+  \takefrom a: \Cast[A.family.Carrier previous] ({ a: A.family.Carrier previous \where #apply{sequence.inclusion} previous a = #apply{wholeBoundary} q })
+    \by #kernelImage{sequence} previous (#apply{wholeBoundary} q) (killed q) \then
+  \let equal: #apply{sequence.inclusion} previous a = #apply{wholeBoundary} q :=
+    \bysub(A.family.Carrier previous, { a: A.family.Carrier previous \where #apply{sequence.inclusion} previous a = #apply{wholeBoundary} q }, a) \then
+  \return trans!{{B.family.Carrier previous}} _ _ _
+    (congr!{{B.family.Carrier previous} {B.family.Carrier previous}}
+      (\fun (b: B.family.Carrier previous) => #apply{sequence.inclusion} previous (#apply{r} b)) _ _
+      (sym!{{B.family.Carrier previous}} _ _ equal))
+    (trans!{{B.family.Carrier previous}} _ _ _
+      (congr!{{A.family.Carrier previous} {B.family.Carrier previous}} (#apply{sequence.inclusion} previous) _ _ (retracts a)) equal)
+};
+\definition closed: \forall (q: H.Homology) -> #apply{A.differential} previous (#apply{boundary} q) = #zero{(A.family.space (Degrees.previous previous))} :=
+  \fun (q: H.Homology) => Connecting.lowerClosed (#apply{data.map} q) (#apply{boundary} q) (onInclusion q);
+\import Modules.Hom[V := H.Homology, W := Lower.Cycle, source := H.homologySpace, target := Lower.cycleSpace] \as Cycles;
+\definition cycles: Cycles.Map := Cycles.Map {
+  apply := \fun (q: H.Homology) => Lower.cycle (#apply{boundary} q) (closed q),
+  addition := #addition{boundary}, scalar := #scalar{boundary},
+};
+\definition connectingLaw: \forall (q: H.Homology) -> #apply{Connecting.connecting} q = Lower.classOf (#apply{cycles} q) :=
+  \fun (q: H.Homology) => trans!{Lower.Homology} _ _ _
+    (congr!{H.Homology Lower.Homology} (#apply{Connecting.connecting}) _ _ (sym!{H.Homology} _ _ (data.section q)))
+    (trans!{Lower.Homology} _ _ _ (Connecting.onClass (H.cycle (#apply{sequence.projection} z (#apply{data.map} q)) (data.closed q)))
+      (Connecting.onLift (H.cycle (#apply{sequence.projection} z (#apply{data.map} q)) (data.closed q))
+        (#apply{data.map} q) (#apply{boundary} q) (\refl(#apply{sequence.projection} z (#apply{data.map} q))) (onInclusion q) (closed q)));

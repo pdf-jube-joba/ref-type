@@ -12,6 +12,13 @@
 | `Geometry` | 任意次元のユークリッド円板の可縮性による計算と、ユークリッド球面 \(S^0\) と離散二点空間の同相。 |
 | `ZeroSphere.With` | 二つの一点開集合の Mayer–Vietoris 比較による \(H^0(S^0;M)\cong M\oplus M\) と正次数の零性。 |
 | `ZeroSphere.Homology` | 二点空間との同相と交わらない被覆の比較による \(H_0(S^0;\mathbb Z)\cong\mathbb Z^2\) と、全正次数のホモロジーの消滅。 |
+| `ZeroSphere.Reduced` | 増大写像との整合性を含む二点空間の被約理論。 |
+| `SphereCover` | 二つの可縮な開集合と、共通部分の低次元球面への変形収縮。 |
+| `Spheres.With` / `Spheres.Homology` | Mayer–Vietoris による任意次元球面の通常・被約の群の計算。 |
+| `Spheres.Orientation` | 向き付き生成元、誘導写像の次数と合成則。 |
+
+[sphere_maps](../sphere_maps/README.md) は球面の反転と円周の整数べき写像を、この向き付き計算に接続する。
+[cohomology_examples](../cohomology_examples/README.md) は有限グラフ・トーラス・実射影平面について、実際の特異理論との比較を使う。
 
 ```sh
 target/debug/cli libs/topology/cohomology_models --module cohomology_models --diagnostics compact

@@ -1,0 +1,27 @@
+\import VectorSum.Mapping[W := R, target := Modules.scalarModule] \as Evaluation;
+\definition value(f: Left.Carrier)(x: V.Carrier): #apply{f} x = ScalarSum.sum Frame.indices (\fun (i: Frame.Index) => mul (#apply{(frame.coordinate i)} x) (#apply{f} (frame.basis i))) :=
+  trans!{R} _ _ _
+    (congr!{V.Carrier R} (#apply{f}) _ _ (sym!{V.Carrier} _ _ (Frame.decomposition frame x)))
+    (trans!{R} _ _ _
+      (Evaluation.law f Frame.indices (\fun (i: Frame.Index) => #smul{V.space} (#apply{(frame.coordinate i)} x) (frame.basis i)))
+      (ScalarSum.congruent Frame.indices
+        (\fun (i: Frame.Index) => #apply{f} (#smul{V.space} (#apply{(frame.coordinate i)} x) (frame.basis i)))
+        (\fun (i: Frame.Index) => mul (#apply{(frame.coordinate i)} x) (#apply{f} (frame.basis i)))
+        (\fun (i: Frame.Index) => #scalar{f} (#apply{(frame.coordinate i)} x) (frame.basis i))));
+\definition evaluation(x: V.Carrier): Modules.Hom[V := Left.Carrier, W := R, source := Left.space, target := Modules.scalarModule].Map := Modules.Hom[V := Left.Carrier, W := R, source := Left.space, target := Modules.scalarModule].Map {
+  apply := \fun (f: Left.Carrier) => #apply{f} x,
+  addition := \fun (f, g: Left.Carrier) => \refl(add (#apply{f} x) (#apply{g} x)),
+  scalar := \fun (a: R)(f: Left.Carrier) => \refl(mul a (#apply{f} x)),
+};
+\import DualSum.Mapping[W := R, target := Modules.scalarModule] \as EvaluateDual;
+\definition dual(f: Left.Carrier): DualSum.sum Frame.indices (\fun (i: Frame.Index) => #smul{Left.space} (#apply{f} (frame.basis i)) (frame.coordinate i)) = f :=
+  LeftMaps.ext
+    (DualSum.sum Frame.indices (\fun (i: Frame.Index) => #smul{Left.space} (#apply{f} (frame.basis i)) (frame.coordinate i))) f
+    (\fun (x: V.Carrier) => trans!{R} _ _ _
+      (EvaluateDual.law (evaluation x) Frame.indices (\fun (i: Frame.Index) => #smul{Left.space} (#apply{f} (frame.basis i)) (frame.coordinate i)))
+      (trans!{R} _ _ _
+        (ScalarSum.congruent Frame.indices
+          (\fun (i: Frame.Index) => mul (#apply{f} (frame.basis i)) (#apply{(frame.coordinate i)} x))
+          (\fun (i: Frame.Index) => mul (#apply{(frame.coordinate i)} x) (#apply{f} (frame.basis i)))
+          (\fun (i: Frame.Index) => #mulCommutative{ring} (#apply{f} (frame.basis i)) (#apply{(frame.coordinate i)} x)))
+        (sym!{R} _ _ (value f x))));

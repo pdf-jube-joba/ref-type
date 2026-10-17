@@ -1,0 +1,55 @@
+\import topology.Topology[Carrier := pair.base.Carrier] \as Space;
+\import Space.Subspace[S := pair.base.subset] \as Subset;
+\import Space.Subspace[S := pair.region] \as Region;
+\definition localSubset: \Pow Region.CarrierSet := { x: Region.CarrierSet \where \In[pair.base.Carrier] pair.base.subset x };
+\import topology.Topology[Carrier := Region.CarrierSet].Subspace[S := localSubset] \as LocalSubset;
+\import Subset.Inside[U := pair.region] \as Nesting;
+\import algebraic_topology.DeformationRetract[A := Region.CarrierSet, source := Region.topology pair.base.topology, subset := localSubset]
+  .On[retract := pair.deformation] \as Retraction;
+\import algebraic_topology.HomotopyEquivalence[A := Subset.CarrierSet, B := LocalSubset.CarrierSet] \as Refinement;
+\import Refinement.Composition[C := Region.CarrierSet] \as Composition;
+\definition equivalence: algebraic_topology.HomotopyEquivalence[A := Subset.CarrierSet, B := Region.CarrierSet]
+  .Equivalence[Subset.topology pair.base.topology, Region.topology pair.base.topology] :=
+  Composition.compose (Subset.topology pair.base.topology) (LocalSubset.topology (Region.topology pair.base.topology)) (Region.topology pair.base.topology)
+    (Refinement.fromHomeomorphism (Subset.topology pair.base.topology) (LocalSubset.topology (Region.topology pair.base.topology))
+      (Nesting.homeomorphism pair.base.topology pair.included)) Retraction.equivalence;
+\definition expanded: SpacePair := SpacePair { Carrier := pair.base.Carrier, topology := pair.base.topology, subset := pair.region };
+\import singular_cohomology.Relative[A := pair.base.Carrier, source := pair.base.topology, subset := pair.base.subset] \as Original;
+\import singular_cohomology.Relative[A := pair.base.Carrier, source := pair.base.topology, subset := pair.region] \as Expanded;
+\import Original.Maps[B := pair.base.Carrier].Over[target := pair.base.topology, targetSubset := pair.region] \as Maps;
+\import topology.Maps[A := pair.base.Carrier, B := pair.base.Carrier].Identity[] \as Identity;
+\definition map: Maps.Map := \into[pair.base.Carrier -> pair.base.Carrier]((\fun (x: pair.base.Carrier) => x), Maps.Map) \by {
+  Maps.Laws[(\fun (x: pair.base.Carrier) => x)] {
+    continuous := Identity.continuous pair.base.topology,
+    contained := \fun (x: Subset.CarrierSet) => pair.included x (\bysub(pair.base.Carrier, pair.base.subset, x)),
+  }
+};
+\import Maps.On[f := map].Integer[] \as Action;
+\import singular_cohomology.Equivalence[A := Subset.CarrierSet, B := Region.CarrierSet,
+  source := Subset.topology pair.base.topology, target := Region.topology pair.base.topology].Signed[] \as SubspaceComparison;
+\import singular_cohomology.Identity[A := pair.base.Carrier, source := pair.base.topology].Integer[] \as WholeComparison;
+\definition subspaceQuasi: Action.Comparison[].SubspaceQuasi := \fun (z: I.Int^) => SubspaceComparison.Homology[z := z].bijective equivalence;
+\definition wholeQuasi: Action.Comparison[].WholeQuasi := \fun (z: I.Int^) => WholeComparison.Homology[z := z].bijective;
+\import Space.Closure[] \as Closure;
+\import Space.Interior[] \as Interior;
+\definition excisive: ExcisivePair := ExcisivePair {
+  base := expanded, removed := pair.base.subset,
+  valid := \fun (x: pair.base.Carrier)(member: Space.Member (Closure.closure pair.base.topology pair.base.subset) x) =>
+    Interior.greatest pair.base.topology pair.region pair.region pair.open
+      (\fun (x: pair.base.Carrier)(inside: Space.Member pair.region x) => inside) x
+      (pair.included x (Closure.least pair.base.topology pair.base.subset pair.base.subset pair.closed
+        (\fun (x: pair.base.Carrier)(inside: Space.Member pair.base.subset x) => inside) x member)),
+};
+\module Homology(z: I.Int^) {
+  \definition isomorphism: Modules.Isomorphism[V := Original.Homology[z := z].Carrier, W := Expanded.Homology[z := z].Carrier,
+    source := Original.Homology[z := z].space, target := Expanded.Homology[z := z].space].Isomorphism := Action.Comparison[].At[z := z].isomorphism subspaceQuasi wholeQuasi;
+}
+\module With(coefficients: Modules.Bundle) {
+  \import Action.With[coefficients := coefficients] \as Pull;
+  \definition subspaceQuasi: Pull.Comparison[].SubspaceQuasi := \fun (z: I.Int^) => SubspaceComparison.With[coefficients := coefficients].At[z := z].bijective equivalence;
+  \definition wholeQuasi: Pull.Comparison[].WholeQuasi := \fun (z: I.Int^) => WholeComparison.With[coefficients := coefficients].At[z := z].bijective;
+  \module At(z: I.Int^) {
+    \definition isomorphism: Modules.Isomorphism[V := Expanded.With[coefficients := coefficients].At[z := z].Carrier, W := Original.With[coefficients := coefficients].At[z := z].Carrier,
+      source := Expanded.With[coefficients := coefficients].At[z := z].space, target := Original.With[coefficients := coefficients].At[z := z].space].Isomorphism := Pull.Comparison[].At[z := z].isomorphism subspaceQuasi wholeQuasi;
+  }
+}

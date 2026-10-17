@@ -1,0 +1,27 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.RelativeRepresentative[A := A, B := B, C := C, sequence := sequence, z := I.Int^::ofNat (N.Nat^::succ n)] \as Rep;
+\definition z: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
+\definition previous: I.Int^ := I.Int^::ofNat n;
+\import Complexes.At[C := C, z := z] \as H;
+\import Complexes.At[C := A, z := previous] \as Lower;
+\import Complexes.ShortExact[A := A, B := B, C := C].At[s := sequence, k := z] \as Connecting;
+\definition homology: Modules.Bundle := Modules.Bundle { Carrier := H.Homology, space := H.homologySpace };
+\structure Retraction: \Set {
+  map: Modules.Hom[V := B.family.Carrier previous, W := A.family.Carrier previous, source := B.family.space previous, target := A.family.space previous].Map,
+  retracts: \forall (a: A.family.Carrier previous) -> #apply{map} (#apply{sequence.inclusion} previous a) = a,
+}
+\structure Desired: \Set {
+  map: Modules.Hom[V := H.Homology, W := Lower.Cycle, source := H.homologySpace, target := Lower.cycleSpace].Map,
+  compatible: \forall (q: H.Homology) -> Lower.classOf (#apply{map} q) = #apply{Connecting.connecting} q,
+}
+\structure Result[desired: Desired]: \Set {
+  representative: Rep.Data,
+  boundary: \forall (q: H.Homology) -> #apply{B.differential} z (#apply{representative.map} q) = #apply{sequence.inclusion} previous (#apply{desired.map} q),
+}
+\module On(data: Rep.Data, r: Retraction, desired: Desired);
+\definition existence: Modules.Projective homology -> \forall (r: Retraction)(desired: Desired) -> \exists Result[desired] := \block {
+  \fun (projective: Modules.Projective homology)(r: Retraction)(desired: Desired) \then
+  \takefrom data: Rep.Data \by Rep.existence projective \then
+  \return On[data := data, r := r, desired := desired].existence projective
+};

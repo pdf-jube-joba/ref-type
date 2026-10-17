@@ -1,0 +1,37 @@
+\import std.Alg[].Ring[] \as Rings;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as Lists;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\definition baseRing: Rings.Ring[R] := Rings.commutativeRingAsRing R ring;
+\import module_theory.Module[].Over[R := R, ring := baseRing] \as Modules;
+\import commutative_algebra.Modules[R := R, ring := ring] \as Algebra;
+\definition scalars: Modules.Bundle := Modules.Bundle { Carrier := R, space := Modules.scalarModule };
+\definition mul: R -> R -> R := #mul{baseRing};
+\definition add: R -> R -> R := #add{baseRing};
+\definition assoc(a, b, c: R): mul (mul a b) c = mul a (mul b c) := #associative{(#multiplicative{(#semiring{baseRing})})} a b c;
+\definition distributeLeft(a, b, c: R): mul a (add b c) = add (mul a b) (mul a c) := #leftDistributive{(#semiring{baseRing})} a b c;
+\definition distributeRight(a, b, c: R): mul (add a b) c = add (mul a c) (mul b c) := #rightDistributive{(#semiring{baseRing})} a b c;
+\definition middle(a, b, c: R): mul a (mul b c) = mul b (mul a c) :=
+  trans!{R} _ _ _ (sym!{R} _ _ (assoc a b c))
+    (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => mul r c) _ _ (#mulCommutative{ring} a b)) (assoc b a c));
+\module Dual(V: Modules.Bundle) {
+  \import Algebra.HomSpace[V := V.Carrier, W := R, source := V.space, target := Modules.scalarModule] \as Hom;
+  \definition Carrier: \Set := Hom.Carrier;
+  \definition space: Modules.Space Carrier := Hom.space;
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+}
+\module Finite(V: Modules.Bundle, rank: N.Nat^);
+\module Pairing(V, W: Modules.Bundle);
+\module Local(V, W: Modules.Bundle, rank: N.Nat^, frame: Finite[V := V, rank := rank].Frame);
+
+\import double_complexes.DoubleComplex[].Over[R := R, ring := baseRing] \as Double;
+\module Diagonal(n: N.Nat^, family: Modules.Family[Double.Index n]);
+
+\import double_complexes.NonnegativeChain[].Over[R := R, ring := baseRing] \as Chains;
+\module Frames(P: Chains.Complex, ranks: N.Nat^ -> N.Nat^);
+\module On(P, Q: Chains.Complex, ranks: N.Nat^ -> N.Nat^, frames: Frames[P := P, ranks := ranks].Frames);

@@ -1,0 +1,18 @@
+\import Modules.Hom[V := NativeCoordinates.Carrier, W := R, source := NativeCoordinates.space, target := Modules.scalarModule].Composition[U := V.Carrier, domain := V.space] \as Compose;
+\definition data: Data := Data {
+  basis := \fun (i: Index) => #apply{#backward{e}} (NativeCoordinates.basis i),
+  coordinate := \fun (i: Index) => Compose.compose (NativeCoordinates.evaluation i) #forward{e},
+};
+\import Modules.Sums[I := Index].Vector[V := NativeCoordinates.Carrier, space := NativeCoordinates.space].Mapping[W := V.Carrier, target := V.space] \as Mapping;
+\definition decomposition(x: V.Carrier): Sum.sum indices (\fun (i: Index) => #smul{V.space} (#apply{(data.coordinate i)} x) (data.basis i)) = x :=
+  trans!{V.Carrier} _ _ _
+    (Sum.congruent indices
+      (\fun (i: Index) => #smul{V.space} ((#apply{#forward{e}} x) i) (#apply{#backward{e}} (NativeCoordinates.basis i)))
+      (\fun (i: Index) => #apply{#backward{e}} (#smul{NativeCoordinates.space} ((#apply{#forward{e}} x) i) (NativeCoordinates.basis i)))
+      (\fun (i: Index) => sym!{V.Carrier} _ _ (#scalar{#backward{e}} ((#apply{#forward{e}} x) i) (NativeCoordinates.basis i))))
+    (trans!{V.Carrier} _ _ _
+      (sym!{V.Carrier} _ _ (Mapping.law #backward{e} indices (\fun (i: Index) => #smul{NativeCoordinates.space} ((#apply{#forward{e}} x) i) (NativeCoordinates.basis i))))
+      (trans!{V.Carrier} _ _ _
+        (congr!{NativeCoordinates.Carrier V.Carrier} (#apply{#backward{e}}) _ _ (NativeCoordinates.decomposition (#apply{#forward{e}} x)))
+        (#leftInverse{e} x)));
+\definition frame: Frame := \into[Data](data, Frame) \by { Laws[data] { decomposition := decomposition } };

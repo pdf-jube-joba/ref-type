@@ -1,0 +1,32 @@
+\definition p: N.Nat^ := #first{i};
+\definition q: N.Nat^ := #second{i};
+\definition horizontalIndex: Double.Index higher := Source.upHorizontal n i;
+\definition verticalIndex: Double.Index higher := Source.upVertical n i;
+\import SourceTensor.Term[p := p, q := q] \as Term;
+\import SourceTensor.Term[p := N.Nat^::succ p, q := q] \as HTerm;
+\import SourceTensor.Term[p := p, q := N.Nat^::succ q] \as VTerm;
+\import SourceTensor.At[p := p, q := q] \as Differential;
+\import TargetTensor.Term[p := p, q := q] \as Primal;
+\import TargetTensor.At[p := p, q := q] \as PrimalBoundary;
+\import Double.Coordinates[C := TargetTensor.complex] \as Coordinates;
+\import Coordinates.StepAt[n := n, i := i] \as Boundary;
+\import \parent.\parent.Naturality[p := p, q := q] \as Naturality;
+\import Current.Component[i := i] \as Pairing;
+\import Next.Component[i := horizontalIndex] \as HPairing;
+\import Next.Component[i := verticalIndex] \as VPairing;
+\import Double.Sign[V := R, space := Modules.scalarModule] \as ScalarSign;
+\definition h(alpha: Left.Carrier p)(beta: Right.Carrier q)(x: TargetTotal.Carrier higher): R := #apply{(HPairing.comparison (Left.apply p alpha) beta)} (Coordinates.Degree[n := higher].coordinate horizontalIndex x);
+\definition v(alpha: Left.Carrier p)(beta: Right.Carrier q)(x: TargetTotal.Carrier higher): R := #apply{ScalarSign.map p} (#apply{(VPairing.comparison alpha (Right.apply q beta))} (Coordinates.Degree[n := higher].coordinate verticalIndex x));
+\module TargetEquation;
+\module SourceEquation;
+\import Maps.Composition[U := Term.Carrier, domain := Term.space] \as Compose;
+\definition first: Modules.Hom[V := Term.Carrier, W := Target.Carrier higher, source := Term.space, target := Target.space higher].Map := Compose.compose before (SourceCurrent.Component[i := i].injection);
+\definition second: Modules.Hom[V := Term.Carrier, W := Target.Carrier higher, source := Term.space, target := Target.space higher].Map := Compose.compose after (SourceCurrent.Component[i := i].injection);
+\definition pure(alpha: Left.Carrier p)(beta: Right.Carrier q): #apply{first} (Term.tensor alpha beta) = #apply{second} (Term.tensor alpha beta) :=
+  Target.At[n := higher].ext (#apply{first} (Term.tensor alpha beta)) (#apply{second} (Term.tensor alpha beta))
+    (\fun (x: TargetTotal.Carrier higher) => trans!{R} _ _ _ (TargetEquation[].law alpha beta x) (sym!{R} _ _ (SourceEquation[].law alpha beta x)));
+\import Modules.Tensor[V := Left.Carrier p, W := Right.Carrier q, left := Left.space p, right := Right.space q].Universal[U := Target.Carrier higher, target := Target.space higher] \as TensorEquality;
+\definition equality: first = second := TensorEquality.ext first second pure;
+\definition law(z: Term.Carrier): #apply{before} (#apply{SourceCurrent.Component[i := i].injection} z) = #apply{after} (#apply{SourceCurrent.Component[i := i].injection} z) :=
+  congr!{{Modules.Hom[V := Term.Carrier, W := Target.Carrier higher, source := Term.space, target := Target.space higher].Map} {Target.Carrier higher}}
+    (\fun (f: Modules.Hom[V := Term.Carrier, W := Target.Carrier higher, source := Term.space, target := Target.space higher].Map) => #apply{f} z) _ _ equality;
