@@ -11,6 +11,7 @@
 | グラフの群 | Graph.On.Geometry.Coefficients.Singular | 成分数 \(c\)、弦の数 \(k=e-v+c\) に対する \(H^0\cong A^c\)、\(H^1\cong A^k\)、高次の消滅 |
 | 円の有限モデル | Circle | 次数 \(0,1\) にそれぞれ階数 \(1\) を持つ零微分の整数鎖複体 |
 | 円の比較 | Circle.Geometry.FiniteComparison | ユークリッド単位円の特異鎖複体との比較 |
+| 円の普遍係数列 | Circle.Geometry.UniversalCoefficient | 証明済みの有限比較から、任意の整数加群係数に対する実際の特異理論の短完全列を得る |
 | 円のループ | Circle.Geometry.Loop.Primitive | 上半円を二乗して得られる閉じた特異辺と、その原始的なホモロジー類 |
 | 円の評価 | Circle.Geometry.Evaluation | 閉じたコチェインをこのループで評価する同型 \(H^1(S^1;A)\cong A\) |
 | トーラスの群 | Torus.Geometry.Comparison | 実際の積 \(S^1\times S^1\) を円の有限モデルのテンソル積と比較する |

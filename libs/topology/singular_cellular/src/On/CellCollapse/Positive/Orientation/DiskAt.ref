@@ -1,0 +1,35 @@
+\import Euclidean.Dimension[n := d] \as Disk;
+\definition boundary: \Pow Disk.Disk := { p: Disk.Disk \where Disk.normSquared p = Real.one };
+\import algebraic_topology.Collapse[A := Disk.Disk, subset := boundary] \as Quotient;
+\import singular_cohomology.Chains[A := Quotient.Carrier, source := Quotient.topology Disk.diskTopology] \as Chains;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import Complexes.At[C := Extension.complex, z := I.Int^::ofNat d] \as H;
+\import \root.Disks[].At[n := d] \as RelativeDisk;
+\definition Carrier: \Set := H.Homology;
+\definition space: Modules.Space Carrier := H.homologySpace;
+\definition Orientation: \Set := Modules.Isomorphism[V := I.Int^, W := Carrier, source := Modules.scalarModule, target := space].Isomorphism;
+\definition FromRelative: \Set := Modules.Hom[V := RelativeDisk.Homology[z := I.Int^::ofNat d].Carrier, W := Carrier,
+  source := RelativeDisk.Homology[z := I.Int^::ofNat d].space, target := space].Map;
+\definition point(p: Disk.Sphere): Quotient.Carrier := Quotient.class (\into[Disk.Coordinate](p, Disk.ClosedBall) \by {
+  Reals.leReplaceLeft Real.one (Disk.normSquared p) Real.one (sym!{Real.Real} _ _ (\bysub(Disk.Coordinate, Disk.Boundary, p))) (Reals.leRefl Real.one)
+});
+\import singular_cohomology.Relative[A := Disk.Disk, source := Disk.diskTopology, subset := boundary] \as DiskPair;
+\definition pointInBoundary(p: Disk.Sphere): DiskPair.SubspaceCarrier := \into[Disk.Disk]
+  ((\into[Disk.Coordinate](p, Disk.ClosedBall) \by { Reals.leReplaceLeft Real.one (Disk.normSquared p) Real.one
+    (sym!{Real.Real} _ _ (\bysub(Disk.Coordinate, Disk.Boundary, p))) (Reals.leRefl Real.one) }), boundary) \by { \bysub(Disk.Coordinate, Disk.Boundary, p) };
+\definition Projected(p: Disk.Sphere)(f: FromRelative): \Prop :=
+  \forall (q: RelativeDisk.Homology[z := I.Int^::ofNat d].Carrier) ->
+    #apply{Complexes.Map[C := Extension.complex,
+      D := singular_cohomology.Relative[A := Quotient.Carrier, source := Quotient.topology Disk.diskTopology, subset := topology.Topology[Carrier := Quotient.Carrier].Singleton (point p)].complex]
+      .At[k := I.Int^::ofNat d].induced
+      singular_cohomology.Relative[A := Quotient.Carrier, source := Quotient.topology Disk.diskTopology, subset := topology.Topology[Carrier := Quotient.Carrier].Singleton (point p)].sequence.projection}
+      (#apply{f} q) =
+    #apply{#forward{singular_excision.GoodPair[A := Disk.Disk, source := Disk.diskTopology, subset := boundary]
+      .On[pair := \root.DiskLocal[n := d].GoodPair[point := pointInBoundary p].pair].Homology[z := I.Int^::ofNat d].relativeIsomorphism}} q;
+
+\structure Represented[p: Disk.Sphere]: \Set {
+  orientation: Orientation,
+  fromRelative: FromRelative,
+  projected: Projected p fromRelative,
+  onGenerator: #apply{fromRelative} (\root.Disks[].generator d) = #apply{#forward{orientation}} I.One.specification,
+}

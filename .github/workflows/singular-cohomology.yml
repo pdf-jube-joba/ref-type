@@ -5,9 +5,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: write
 concurrency:
-  group: singular-cohomology-${{ github.ref }}-${{ github.sha }}
-  cancel-in-progress: false
+  group: singular-cohomology-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -19,6 +20,17 @@ jobs:
       REF_TYPE_CACHE: ${{ github.workspace }}/.ci/refcache
     steps:
       - uses: actions/checkout@v4
+      - name: Retire earlier checks of this branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/singular-cohomology.yml/runs?branch=$GITHUB_REF_NAME&per_page=100" \
+            --jq '.workflow_runs[] | select(.status != "completed") | .id' |
+          while read -r previous; do
+            if [[ "$previous" -lt "$GITHUB_RUN_ID" ]]; then
+              gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$previous/cancel" || true
+            fi
+          done
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/cache@v4
         with:
@@ -71,6 +83,18 @@ jobs:
       max-parallel: 10
       matrix:
         include:
+          - name: neighborhood-naturality
+            package: singular_cellular_algebra
+            module: singular_cellular_algebra.Algebra.NeighborhoodMapping
+            scope: subtree
+          - name: closed-tensor-cells
+            package: singular_eilenberg_zilber
+            module: singular_eilenberg_zilber.TensorModels.Cells
+            scope: declarations
+          - name: circle-universal-coefficient
+            package: cohomology_examples
+            module: cohomology_examples.Circle.Geometry.UniversalCoefficient
+            scope: subtree
           - name: zero-sphere-primitive
             package: sphere_maps
             module: sphere_maps.ZeroHomology.Sphere
@@ -319,7 +343,8 @@ jobs:
         with:
           name: checker
           path: build
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: scope-proof-cache
         with:
           path: ${{ github.workspace }}/.ci/refcache
           key: proof-scope-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'src/**/*.rs') }}-${{ matrix.name }}-${{ hashFiles('libs/**/*.ref', 'libs/**/ref.toml') }}
@@ -346,6 +371,11 @@ jobs:
             args+=(--module-only)
           fi
           /usr/bin/time -v build/ref-type "${args[@]}" 2>&1 | tee check.log
+      - uses: actions/cache/save@v4
+        if: always() && steps.scope-proof-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ github.workspace }}/.ci/refcache
+          key: ${{ steps.scope-proof-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
