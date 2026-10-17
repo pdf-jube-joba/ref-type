@@ -1,0 +1,71 @@
+\import Kunneth.Of[C := First.finite, D := Second.finite].Canonical[n := n] \as Formula;
+\import Cochains.ZeroDifferential[family := Finite.Of[C := First.finite].homologyFamily] \as LeftZero;
+\import Cochains.ZeroDifferential[family := Finite.Of[C := Second.finite].homologyFamily] \as RightZero;
+\import Tensor.Tensor[C := LeftZero.complex, D := RightZero.complex] \as HomologyTensor;
+\import Tensor.Total[C := HomologyTensor.complex] \as HomologyTotal;
+\import HomologyTotal.Degree[n := n] \as FiniteDiagonal;
+\import Cochains.At[C := FiniteTotal.complex, k := n] \as FiniteH;
+\import Cochains.At[C := HomTotal.complex, k := n] \as HomH;
+\import Hom.Native[P := IntegerTotal.complex] \as TensorHom;
+\import Cochains.At[C := TensorHom.complex, k := n] \as TensorH;
+\import singular_cohomology.Cochains[A := X, source := left].OverRing[R := K, ring := commutativeRing].With[coefficients := GeometryProduct.coefficients] \as ActualLeft;
+\import singular_cohomology.Cochains[A := Y, source := right].OverRing[R := K, ring := commutativeRing].With[coefficients := GeometryProduct.coefficients] \as ActualRight;
+\import singular_cohomology.Cochains[A := Product.CarrierSet, source := Product.topology left right].OverRing[R := K, ring := commutativeRing].With[coefficients := GeometryProduct.coefficients] \as Actual;
+\import Cochains.At[C := Actual.complex, k := n] \as ActualH;
+\import chain_complexes.CochainEquivalence[].Over[R := K, ring := Rings.commutativeRingAsRing K commutativeRing].Of[
+  C := DualComparison.source, D := DualComparison.target].With[e := DualComparison.equivalence].At[n := n] \as DualH;
+\import Modules.Isomorphism[V := FiniteDiagonal.Carrier, W := FiniteH.Cohomology,
+  source := FiniteDiagonal.space, target := FiniteH.cohomologySpace].Composition[U := HomH.Cohomology, final := HomH.cohomologySpace] \as FirstCompose;
+\definition finiteToHom: Modules.Isomorphism[V := FiniteDiagonal.Carrier, W := HomH.Cohomology,
+  source := FiniteDiagonal.space, target := HomH.cohomologySpace].Isomorphism :=
+  FirstCompose.compose TensorComparison[].At[n := n].isomorphism Formula.isomorphism;
+\import Modules.Isomorphism[V := FiniteDiagonal.Carrier, W := HomH.Cohomology,
+  source := FiniteDiagonal.space, target := HomH.cohomologySpace].Composition[U := TensorH.Cohomology, final := TensorH.cohomologySpace] \as SecondCompose;
+\definition finiteToTensor: Modules.Isomorphism[V := FiniteDiagonal.Carrier, W := TensorH.Cohomology,
+  source := FiniteDiagonal.space, target := TensorH.cohomologySpace].Isomorphism :=
+  SecondCompose.compose DualH.isomorphism finiteToHom;
+\import Modules.Isomorphism[V := FiniteDiagonal.Carrier, W := TensorH.Cohomology,
+  source := FiniteDiagonal.space, target := TensorH.cohomologySpace].Composition[U := ActualH.Cohomology, final := ActualH.cohomologySpace] \as ThirdCompose;
+\definition finiteToActual: Modules.Isomorphism[V := FiniteDiagonal.Carrier, W := ActualH.Cohomology,
+  source := FiniteDiagonal.space, target := ActualH.cohomologySpace].Isomorphism :=
+  ThirdCompose.compose ProductComparison.At[n := n].isomorphism finiteToTensor;
+\module Component(i: HomologyTotal.Index n) {
+  \import Cochains.At[C := First.complex, k := #first{i}] \as FiniteLeft;
+  \import Cochains.At[C := Second.complex, k := #second{i}] \as FiniteRight;
+  \import Cochains.At[C := LeftHom.complex, k := #first{i}] \as HomLeft;
+  \import Cochains.At[C := RightHom.complex, k := #second{i}] \as HomRight;
+  \import Cochains.At[C := ActualLeft.complex, k := #first{i}] \as Left;
+  \import Cochains.At[C := ActualRight.complex, k := #second{i}] \as Right;
+  \import Modules.Isomorphism[V := FiniteLeft.Cohomology, W := HomLeft.Cohomology,
+    source := FiniteLeft.cohomologySpace, target := HomLeft.cohomologySpace].Composition[U := Left.Cohomology, final := Left.cohomologySpace] \as LeftCompose;
+  \definition leftIsomorphism: Modules.Isomorphism[V := FiniteLeft.Cohomology, W := Left.Cohomology,
+    source := FiniteLeft.cohomologySpace, target := Left.cohomologySpace].Isomorphism :=
+    LeftCompose.compose LeftComparison.At[n := #first{i}].isomorphism First.Degree[n := #first{i}].isomorphism;
+  \import Modules.Isomorphism[V := FiniteRight.Cohomology, W := HomRight.Cohomology,
+    source := FiniteRight.cohomologySpace, target := HomRight.cohomologySpace].Composition[U := Right.Cohomology, final := Right.cohomologySpace] \as RightCompose;
+  \definition rightIsomorphism: Modules.Isomorphism[V := FiniteRight.Cohomology, W := Right.Cohomology,
+    source := FiniteRight.cohomologySpace, target := Right.cohomologySpace].Isomorphism :=
+    RightCompose.compose RightComparison.At[n := #second{i}].isomorphism Second.Degree[n := #second{i}].isomorphism;
+  \import Modules.Tensor[V := Left.Cohomology, W := Right.Cohomology, left := Left.cohomologySpace, right := Right.cohomologySpace] \as ActualTensor;
+  \definition Carrier: \Set := ActualTensor.Carrier;
+  \definition space: Modules.Space Carrier := ActualTensor.space;
+  \import Modules.Tensor[V := FiniteLeft.Cohomology, W := FiniteRight.Cohomology, left := FiniteLeft.cohomologySpace, right := FiniteRight.cohomologySpace].Mapping[
+    U := Left.Cohomology, Z := Right.Cohomology, targetLeft := Left.cohomologySpace, targetRight := Right.cohomologySpace].Isomorphism[
+    leftIso := leftIsomorphism, rightIso := rightIsomorphism] \as Transport;
+  \definition isomorphism: Modules.Isomorphism[V := FiniteDiagonal.family.Carrier i, W := Carrier,
+    source := FiniteDiagonal.family.space i, target := space].Isomorphism := Transport.isomorphism;
+}
+\definition tensorFamily: Modules.Family[HomologyTotal.Index n] := Modules.Family[HomologyTotal.Index n] {
+  Carrier := \fun (i: HomologyTotal.Index n) => Component[i := i].Carrier,
+  space := \fun (i: HomologyTotal.Index n) => Component[i := i].space,
+};
+\import Modules.DirectSum[Index := HomologyTotal.Index n, family := tensorFamily] \as ActualDiagonal;
+\definition tensorBundle: Modules.Bundle := ActualDiagonal.bundle;
+\import Dual.SumIsomorphism[Index := HomologyTotal.Index n, first := FiniteDiagonal.family, second := tensorFamily,
+  components := \fun (i: HomologyTotal.Index n) => Component[i := i].isomorphism] \as Endpoints;
+\import Modules.Isomorphism[V := FiniteDiagonal.Carrier, W := ActualDiagonal.Carrier, source := FiniteDiagonal.space, target := ActualDiagonal.space].Inverse[] \as Reverse;
+\import Modules.Isomorphism[V := ActualDiagonal.Carrier, W := FiniteDiagonal.Carrier, source := ActualDiagonal.space, target := FiniteDiagonal.space].Composition[
+  U := ActualH.Cohomology, final := ActualH.cohomologySpace] \as Final;
+\definition kunneth: Modules.Isomorphism[V := tensorBundle.Carrier, W := ActualH.Cohomology,
+  source := tensorBundle.space, target := ActualH.cohomologySpace].Isomorphism :=
+  Final.compose finiteToActual (Reverse.inverse Endpoints.isomorphism);

@@ -41,3 +41,18 @@
 `Integer.Product.Compared.At.kunneth` は有限自由整数モデルのテンソル積の比較から積空間の整数 Künneth 短完全列を返す。
 `Field.Product.Compared.At.kunneth` は体上の有界有限モデルの余鎖比較から、コホモロジーのテンソル和と積空間のコホモロジーとの同型を返す。
 両者は有限モデルの条件と係数の条件を引数の型に保持する。
+
+積の各因子について比較がある場合には、次の入口で実際の空間の群を端点にできる。
+
+| API | 入力と結果 |
+| --- | --- |
+| `Integer.Product.Factors.nativeEquivalence` | 各有限整数模型の非負次数部分から各因子の特異鎖への鎖ホモトピー同値を受け取り、テンソル積の全複体から積空間の特異鎖への同値を構成する。 |
+| `Integer.Product.Compared.Factors.At.kunneth` | 各因子の整数次数付き比較を使い、両端を実際の因子の整数ホモロジーのテンソル和と Tor₁ の和へ移す。 |
+| `Integer.Product.Compared.Factors.At.Component.Resolution.resolution` | 実際の第一因子のホモロジーに対する射影的分解。有限模型の分解の増大写像を比較同型で移して構成する。 |
+| `Integer.Product.Compared.Factors.At.Splitting.isomorphism` | 実際の端点の直和から積空間のホモロジーへの選択された分裂同型。 |
+| `Field.IntegralModel` | 有界有限自由整数模型 (P) から、任意の体 (K) に対する \(\operatorname{Hom}_{\mathbb Z}(P,K)\) の有限座標余鎖模型を構成する。 |
+| `Field.IntegralProduct.Factors.At.kunneth` | 各整数模型の非負部分と実際の因子との鎖比較から、実際の \(H^*(X;K)\)、\(H^*(Y;K)\) のテンソル和と \(H^*(X\times Y;K)\) の同型を構成する。 |
+
+`Field.IntegralProduct` の積全体の比較は、因子の比較をテンソル積へ移し、Eilenberg–Zilber 同値の逆と合成して得る。
+整数鎖に対する体係数の Hom と体上のテンソル積の接続には `singular_tensor_dual.Over.Mixed.On` を用いる。
+`IntegralModel` の微分は整数境界との前合成を座標同型で共役したものであり、二乗零と有界性は元の模型から証明する。

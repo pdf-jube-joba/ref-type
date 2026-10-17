@@ -1,0 +1,20 @@
+\definition p: N.Nat^ := #first{i};
+\definition q: N.Nat^ := #second{i};
+\import \parent.Degree[n := n] \as Degree;
+\import Source.Degree[n := n] \as SourceTerm;
+\import TargetTotal.Degree[n := n] \as ChainTerm;
+\import TargetTensor.Term[p := p, q := q] \as Primal;
+\import Double.Coordinates[C := TargetTensor.complex].Degree[n := n] \as Coordinates;
+\definition cochain(alpha: Left.Carrier p)(beta: Right.Carrier q): SourceCarrier n :=
+  #apply{SourceTerm.Component[i := i].injection} (Degree.Component[i := i].tensor alpha beta);
+\definition tensor(x: P.family.Carrier p)(y: Q.family.Carrier q): chainCarrier n :=
+  #apply{ChainTerm.Component[i := i].injection} (Primal.tensor x y);
+\definition first: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := P.family.Carrier p, space := P.family.space p };
+\definition second: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Q.family.Carrier q, space := Q.family.space q };
+\import \parent.\parent.Pairing[V := first, W := second] \as Pairing;
+\definition law(alpha: Left.Carrier p)(beta: Right.Carrier q)(x: P.family.Carrier p)(y: Q.family.Carrier q):
+  #apply{(#apply{forward} n (cochain alpha beta))} (tensor x y) = mul (#apply{alpha} x) (#apply{beta} y) :=
+  trans!{R} _ _ _ (Degree.pure i alpha beta (tensor x y))
+    (trans!{R} _ _ _
+      (congr!{Primal.Carrier R} (#apply{(Degree.Component[i := i].comparison alpha beta)}) _ _ (Coordinates.own i (Primal.tensor x y)))
+      (Pairing.evaluation alpha beta x y));

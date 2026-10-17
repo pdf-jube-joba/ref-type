@@ -1,0 +1,21 @@
+\definition higher: N.Nat^ := N.Nat^::succ n;
+\import Modules.Hom[V := Native.Carrier n, W := Native.Carrier higher, source := Native.space n, target := Native.space higher] \as Boundary;
+\definition boundary: Boundary.Map := Boundary.Map { apply := Native.apply n, addition := #addition{Native.complex.laws} n, scalar := Native.scalar n };
+\import Boundary.Composition[U := Finite.Carrier (ranks n), domain := Finite.space (ranks n)] \as Before;
+\import Modules.Hom[V := Native.Carrier higher, W := Finite.Carrier (ranks higher), source := Native.space higher, target := Finite.space (ranks higher)].Composition[
+  U := Finite.Carrier (ranks n), domain := Finite.space (ranks n)] \as After;
+\definition differential: Modules.Hom[V := Finite.Carrier (ranks n), W := Finite.Carrier (ranks higher), source := Finite.space (ranks n), target := Finite.space (ranks higher)].Map :=
+  After.compose #forward{At[n := higher].isomorphism} (Before.compose boundary #backward{At[n := n].isomorphism});
+\import Modules.Hom[V := Native.Carrier (N.Nat^::succ higher), W := Finite.Carrier (ranks (N.Nat^::succ higher)),
+  source := Native.space (N.Nat^::succ higher), target := Finite.space (ranks (N.Nat^::succ higher))] \as Final;
+\definition squareZero(x: Finite.Carrier (ranks n)):
+  #apply{\parent.Step[n := higher].differential} (#apply{differential} x) = #zero{(Finite.space (ranks (N.Nat^::succ higher)))} :=
+  trans!{{Finite.Carrier (ranks (N.Nat^::succ higher))}} _ _ _
+    (congr!{{Native.Carrier higher} {Finite.Carrier (ranks (N.Nat^::succ higher))}}
+      (\fun (f: Native.Carrier higher) => #apply{#forward{At[n := N.Nat^::succ higher].isomorphism}} (Native.apply higher f)) _ _
+      (#leftInverse{At[n := higher].isomorphism} (Native.apply n (#apply{#backward{At[n := n].isomorphism}} x))))
+    (trans!{{Finite.Carrier (ranks (N.Nat^::succ higher))}} _ _ _
+      (congr!{{Native.Carrier (N.Nat^::succ higher)} {Finite.Carrier (ranks (N.Nat^::succ higher))}}
+        (#apply{#forward{At[n := N.Nat^::succ higher].isomorphism}}) _ _
+        (#squareZero{Native.complex.laws} n (#apply{#backward{At[n := n].isomorphism}} x)))
+      (Final.zeroPreserved #forward{At[n := N.Nat^::succ higher].isomorphism}));

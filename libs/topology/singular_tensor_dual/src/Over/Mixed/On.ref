@@ -1,0 +1,43 @@
+\import resolutions.HomComplex[].Over[R := R, ring := ring].Abelian[N := scalars] \as Hom;
+\import Hom.Native[P := P] \as Left;
+\import Hom.Native[P := Q] \as Right;
+\import field_kunneth.TensorCochain[].Over[R := R, ring := ring] \as CochainTensor;
+\import CochainTensor.Tensor[C := Left.complex, D := Right.complex] \as SourceTensor;
+\import CochainTensor.Total[C := SourceTensor.complex] \as Source;
+\import Double.Tensor[C := P, D := Q] \as TargetTensor;
+\import Double.Total[C := TargetTensor.complex] \as TargetTotal;
+\import Hom.Native[P := TargetTotal.complex] \as Target;
+\definition SourceCarrier(n: N.Nat^): \Set := Source.Degree[n := n].Carrier;
+\definition SourceSpace(n: N.Nat^): Modules.Space (SourceCarrier n) := Source.Degree[n := n].space;
+\module Degree(n: N.Nat^);
+\module Naturality(p, q: N.Nat^);
+\module Step(n: N.Nat^);
+
+\import chain_complexes.Cochain[].Over[R := R, ring := Rings.commutativeRingAsRing R ring] \as Cochains;
+\definition left: Cochains.Complex := Left.complex;
+\definition right: Cochains.Complex := Right.complex;
+\definition source: Cochains.Complex := Source.complex;
+\definition target: Cochains.Complex := Target.complex;
+\import Cochains.Map[C := source, D := target] \as Forward;
+\import Cochains.Map[C := target, D := source] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (n: N.Nat^) => #apply{Degree[n := n].forward},
+  addition := \fun (n: N.Nat^) => #addition{Degree[n := n].forward},
+  scalar := \fun (n: N.Nat^) => #scalar{Degree[n := n].forward},
+  commutes := \fun (n: N.Nat^) => Step[n := n].law,
+};
+\module Inverse;
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (n: N.Nat^) => #apply{Degree[n := n].backward},
+  addition := \fun (n: N.Nat^) => #addition{Degree[n := n].backward},
+  scalar := \fun (n: N.Nat^) => #scalar{Degree[n := n].backward},
+  commutes := \fun (n: N.Nat^) => Inverse[].commutes n,
+};
+\definition leftInverse(n: N.Nat^)(x: SourceCarrier n): #apply{backward} n (#apply{forward} n x) = x := #leftInverse{Degree[n := n].isomorphism} x;
+\definition rightInverse(n: N.Nat^)(y: Target.Carrier n): #apply{forward} n (#apply{backward} n y) = y := #rightInverse{Degree[n := n].isomorphism} y;
+\import chain_complexes.CochainEquivalence[].Over[R := R, ring := Rings.commutativeRingAsRing R ring].Of[C := source, D := target] \as Equivalences;
+\module Equivalence;
+\definition equivalence: Equivalences.Equivalence := Equivalence[].equivalence;
+\definition chain: Chains.Complex := TargetTotal.complex;
+\definition chainCarrier(n: N.Nat^): \Set := TargetTotal.Carrier n;
+\module Evaluation(n: N.Nat^, i: Double.Index n);

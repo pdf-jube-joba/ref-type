@@ -1,0 +1,38 @@
+\definition Index: \Set := Double.Index n;
+\import IntegerModules.DirectSum[Index := Index, family := family] \as Primal;
+\import Primal.FiniteSupport[] \as PrimalCoordinates;
+\definition primal: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Primal.Carrier, space := Primal.space };
+\import \parent.Dual[V := primal] \as Target;
+\module At(i: Index);
+\definition dualFamily: Modules.Family[Index] := Modules.Family[Index] {
+  Carrier := \fun (i: Index) => At[i := i].DualCarrier,
+  space := \fun (i: Index) => At[i := i].dualSpace,
+};
+\import Modules.DirectSum[Index := Index, family := dualFamily] \as Source;
+\import Source.FiniteSupport[] \as SourceCoordinates;
+\import Modules.Product[Index := Index, family := dualFamily] \as Product;
+\module Reconstruction;
+\import Source.To[W := Target.Carrier, target := Target.space] \as SourceUniversal;
+\definition components: SourceUniversal.Components := \fun (i: Index) => At[i := i].forward;
+\definition forward: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map := SourceUniversal.extension components;
+\definition onInjection(i: Index)(f: dualFamily.Carrier i): #apply{forward} (#apply{Source.Injection[i := i].map} f) = #apply{At[i := i].forward} f := SourceUniversal.onInjection components i f;
+\definition restrictions(h: Target.Carrier): Product.Carrier := \fun (i: Index) => At[i := i].restrict h;
+\import Modules.Hom[V := Target.Carrier, W := Product.Carrier, source := Target.space, target := Product.space] \as Restrict;
+\definition restriction: Restrict.Map := Restrict.Map {
+  apply := restrictions,
+  addition := \fun (h, k: Target.Carrier) => Product.ext (restrictions (#add{Target.space} h k)) (Product.add (restrictions h) (restrictions k))
+    (\fun (i: Index) => At[i := i].ext (At[i := i].restrict (#add{Target.space} h k)) (#add{(dualFamily.space i)} (At[i := i].restrict h) (At[i := i].restrict k))
+      (\fun (x: family.Carrier i) => \refl(add (#apply{h} (#apply{Primal.Injection[i := i].map} x)) (#apply{k} (#apply{Primal.Injection[i := i].map} x))))),
+  scalar := \fun (a: R)(h: Target.Carrier) => Product.ext (restrictions (#smul{Target.space} a h)) (Product.scale a (restrictions h))
+    (\fun (i: Index) => At[i := i].ext (At[i := i].restrict (#smul{Target.space} a h)) (#smul{(dualFamily.space i)} a (At[i := i].restrict h))
+      (\fun (x: family.Carrier i) => \refl(mul a (#apply{h} (#apply{Primal.Injection[i := i].map} x))))),
+};
+\import Modules.Hom[V := Product.Carrier, W := Source.Carrier, source := Product.space, target := Source.space].Composition[U := Target.Carrier, domain := Target.space] \as Compose;
+\definition backward: Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Map := Compose.compose Reconstruction[].fromProduct restriction;
+\definition backwardCoordinate(h: Target.Carrier)(i: Index): (#apply{SourceCoordinates.forward} (#apply{backward} h)) i = At[i := i].restrict h := Reconstruction[].coordinate (restrictions h) i;
+\module Coordinate;
+\module LeftInverse;
+\module RightInverse;
+\definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism := Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism {
+  forward := forward, backward := backward, leftInverse := LeftInverse[].law, rightInverse := RightInverse[].law,
+};

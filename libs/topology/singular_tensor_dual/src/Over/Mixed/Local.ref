@@ -1,0 +1,43 @@
+\import \parent.Pairing[V := V, W := W] \as Pairing;
+\import \parent.Finite[V := V, rank := rank] \as Frame;
+\import Frame.With[frame := frame] \as Basis;
+\import \parent.Dual[V := V] \as Left;
+\import \parent.Dual[V := W] \as Right;
+\import IntegerModules.Tensor[V := V.Carrier, W := W.Carrier, left := V.space, right := W.space] \as Primal;
+\definition primal: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Primal.Carrier, space := Primal.space };
+\import \parent.Dual[V := primal] \as Target;
+\import Modules.Tensor[V := Left.Carrier, W := Right.Carrier, left := Left.space, right := Right.space] \as Source;
+\import IntegerModules.Hom[V := V.Carrier, W := R, source := V.space, target := Coefficients.coefficients.space] \as LeftMaps;
+\import IntegerModules.Hom[V := W.Carrier, W := R, source := W.space, target := Coefficients.coefficients.space] \as RightMaps;
+\import IntegerModules.Hom[V := Primal.Carrier, W := R, source := Primal.space, target := Coefficients.coefficients.space] \as TargetMaps;
+\import IntegerAlgebra.Tensor[V := V.Carrier, W := W.Carrier, left := V.space, right := W.space].Adjunction[U := R, target := Coefficients.coefficients.space] \as Curry;
+\import Modules.Sums[I := Frame.Index].Vector[V := Source.Carrier, space := Source.space] \as SourceSum;
+\import Modules.Sums[I := Frame.Index].Vector[V := Left.Carrier, space := Left.space] \as DualSum;
+
+\import Modules.Sums[I := Frame.Index].Vector[V := R, space := Modules.scalarModule] \as ScalarSum;
+\definition restriction(i: Frame.Index)(h: Target.Carrier): Right.Carrier := Curry.curryValue h (Basis.basis i);
+\module At(i: Frame.Index);
+\definition backwardValue(h: Target.Carrier): Source.Carrier := SourceSum.sum Frame.indices (\fun (i: Frame.Index) => #apply{At[i := i].piece} h);
+\import Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := backwardValue,
+  addition := \fun (h, k: Target.Carrier) => trans!{Source.Carrier} _ _ _
+    (SourceSum.congruent Frame.indices
+      (\fun (i: Frame.Index) => #apply{At[i := i].piece} (#add{Target.space} h k))
+      (\fun (i: Frame.Index) => #add{Source.space} (#apply{At[i := i].piece} h) (#apply{At[i := i].piece} k))
+      (\fun (i: Frame.Index) => #addition{At[i := i].piece} h k))
+    (SourceSum.addition Frame.indices (\fun (i: Frame.Index) => #apply{At[i := i].piece} h) (\fun (i: Frame.Index) => #apply{At[i := i].piece} k)),
+  scalar := \fun (a: R)(h: Target.Carrier) => trans!{Source.Carrier} _ _ _
+    (SourceSum.congruent Frame.indices
+      (\fun (i: Frame.Index) => #apply{At[i := i].piece} (#smul{Target.space} a h))
+      (\fun (i: Frame.Index) => #smul{Source.space} a (#apply{At[i := i].piece} h))
+      (\fun (i: Frame.Index) => #scalar{At[i := i].piece} a h))
+    (SourceSum.scalar Frame.indices a (\fun (i: Frame.Index) => #apply{At[i := i].piece} h)),
+};
+\module Expansion;
+\module RightInverse;
+\module LeftInverse;
+\definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism := Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism {
+  forward := Pairing.forward, backward := backward,
+  leftInverse := LeftInverse[].law, rightInverse := RightInverse[].law,
+};

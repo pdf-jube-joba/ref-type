@@ -1,0 +1,46 @@
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import Modules.ShortExact[A := U, B := B, C := V] \as Target;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := U.Carrier, domain := U.space] \as Inclusion;
+\import Modules.Hom[V := C.Carrier, W := V.Carrier, source := C.space, target := V.space].Composition[U := B.Carrier, domain := B.space] \as Projection;
+\import Modules.Hom[V := V.Carrier, W := C.Carrier, source := V.space, target := C.space] \as Backward;
+\import Modules.Hom[V := C.Carrier, W := V.Carrier, source := C.space, target := V.space] \as Forward;
+\definition data: Target.Data := Target.Data {
+  inclusion := Inclusion.compose sequence.inclusion #backward{left},
+  projection := Projection.compose #forward{right} sequence.projection,
+};
+\definition injective: \forall (x, y: U.Carrier) -> #apply{data.inclusion} x = #apply{data.inclusion} y -> x = y :=
+  \fun (x, y: U.Carrier)(equal: _) => trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (#rightInverse{left} x))
+    (trans!{U.Carrier} _ _ _
+      (congr!{A.Carrier U.Carrier} (#apply{#forward{left}}) _ _ (#injective{sequence} (#apply{#backward{left}} x) (#apply{#backward{left}} y) equal))
+      (#rightInverse{left} y));
+\definition onto: \forall (v: V.Carrier) -> \exists { y: B.Carrier \where #apply{data.projection} y = v } := \block {
+  \fun (v: V.Carrier) \then
+  \takefrom y: \Cast[B.Carrier] ({ y: B.Carrier \where #apply{sequence.projection} y = #apply{#backward{right}} v })
+    \by #onto{sequence} (#apply{#backward{right}} v) \then
+  \return Logic.existsIntro[B.Carrier, { y: B.Carrier \where #apply{data.projection} y = v }] y
+    (trans!{V.Carrier} _ _ _
+      (congr!{C.Carrier V.Carrier} (#apply{#forward{right}}) _ _ (\bysub(B.Carrier, { y: B.Carrier \where #apply{sequence.projection} y = #apply{#backward{right}} v }, y)))
+      (#rightInverse{right} v))
+};
+\definition zero: \forall (x: U.Carrier) -> #apply{data.projection} (#apply{data.inclusion} x) = #zero{V.space} :=
+  \fun (x: U.Carrier) => trans!{V.Carrier} _ _ _
+    (congr!{C.Carrier V.Carrier} (#apply{#forward{right}}) _ _ (#zero{sequence} (#apply{#backward{left}} x)))
+    (Forward.zeroPreserved #forward{right});
+\definition kernelImage: \forall (y: B.Carrier) -> #apply{data.projection} y = #zero{V.space} ->
+  \exists { x: U.Carrier \where #apply{data.inclusion} x = y } := \block {
+  \fun (y: B.Carrier)(closed: _) \then
+  \let original: #apply{sequence.projection} y = #zero{C.space} := trans!{C.Carrier} _ _ _
+    (sym!{C.Carrier} _ _ (#leftInverse{right} (#apply{sequence.projection} y)))
+    (trans!{C.Carrier} _ _ _ (congr!{V.Carrier C.Carrier} (#apply{#backward{right}}) _ _ closed) (Backward.zeroPreserved #backward{right})) \then
+  \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where #apply{sequence.inclusion} x = y }) \by #kernelImage{sequence} y original \then
+  \return Logic.existsIntro[U.Carrier, { x: U.Carrier \where #apply{data.inclusion} x = y }] (#apply{#forward{left}} x)
+    (trans!{B.Carrier} _ _ _ (congr!{A.Carrier B.Carrier} (#apply{sequence.inclusion}) _ _ (#leftInverse{left} x))
+      (\bysub(A.Carrier, { x: A.Carrier \where #apply{sequence.inclusion} x = y }, x)))
+};
+\definition exact: Target.Sequence := \into[Target.Data](data, Target.Sequence) \by {
+  Target.Laws[data] { injective := injective, onto := onto, zero := zero, kernelImage := kernelImage }
+};

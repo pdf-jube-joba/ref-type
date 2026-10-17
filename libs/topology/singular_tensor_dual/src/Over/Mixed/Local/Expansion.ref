@@ -1,0 +1,16 @@
+\definition evaluation(x: V.Carrier): Modules.Hom[V := Left.Carrier, W := R, source := Left.space, target := Modules.scalarModule].Map := Modules.Hom[V := Left.Carrier, W := R, source := Left.space, target := Modules.scalarModule].Map {
+  apply := \fun (f: Left.Carrier) => #apply{f} x,
+  addition := \fun (f, g: Left.Carrier) => \refl(add (#apply{f} x) (#apply{g} x)),
+  scalar := \fun (a: R)(f: Left.Carrier) => \refl(mul a (#apply{f} x)),
+};
+\definition dual(f: Left.Carrier): DualSum.sum Frame.indices (\fun (i: Frame.Index) => #smul{Left.space} (#apply{f} (Basis.basis i)) (Basis.coordinate i)) = f := Basis.dual f;
+\import DualSum.Mapping[W := R, target := Modules.scalarModule] \as Evaluate;
+\definition value(f: Left.Carrier)(x: V.Carrier): #apply{f} x = ScalarSum.sum Frame.indices (\fun (i: Frame.Index) => mul (#apply{(Basis.coordinate i)} x) (#apply{f} (Basis.basis i))) :=
+  trans!{R} _ _ _
+    (sym!{R} _ _ (congr!{Left.Carrier R} (\fun (h: Left.Carrier) => #apply{h} x) _ _ (dual f)))
+    (trans!{R} _ _ _
+      (Evaluate.law (evaluation x) Frame.indices (\fun (i: Frame.Index) => #smul{Left.space} (#apply{f} (Basis.basis i)) (Basis.coordinate i)))
+      (ScalarSum.congruent Frame.indices
+        (\fun (i: Frame.Index) => mul (#apply{f} (Basis.basis i)) (#apply{(Basis.coordinate i)} x))
+        (\fun (i: Frame.Index) => mul (#apply{(Basis.coordinate i)} x) (#apply{f} (Basis.basis i)))
+        (\fun (i: Frame.Index) => #mulCommutative{ring} (#apply{f} (Basis.basis i)) (#apply{(Basis.coordinate i)} x))));

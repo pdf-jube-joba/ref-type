@@ -1,0 +1,34 @@
+\import std.Data[].Nat[] \as N;
+\definition complement: I.Int^ := Kunneth.complement z p;
+\import Chains.At[C := FirstModel.chain, z := p] \as FiniteLeft;
+\import Chains.At[C := SecondModel.chain, z := complement] \as FiniteRight;
+\import Chains.At[C := ActualFirst.integerComplex, z := p] \as Left;
+\import Chains.At[C := ActualSecond.integerComplex, z := complement] \as Right;
+\import Modules.Tensor[V := Left.Homology, W := Right.Homology, left := Left.homologySpace, right := Right.homologySpace] \as Tensor;
+\definition tensorCarrier: \Set := Tensor.Carrier;
+\definition tensorSpace: Modules.Space tensorCarrier := Tensor.space;
+\import Modules.Tensor[V := FiniteLeft.Homology, W := FiniteRight.Homology, left := FiniteLeft.homologySpace, right := FiniteRight.homologySpace].Mapping[
+  U := Left.Homology, Z := Right.Homology, targetLeft := Left.homologySpace, targetRight := Right.homologySpace].Isomorphism[
+  leftIso := FirstComparisons.At[k := p].isomorphism firstComparison,
+  rightIso := SecondComparisons.At[k := complement].isomorphism secondComparison] \as TensorTransport;
+\definition tensorIsomorphism: Modules.Isomorphism[V := Terms.Component[p := p].tensorCarrier, W := tensorCarrier,
+  source := Terms.Component[p := p].tensorSpace, target := tensorSpace].Isomorphism := TensorTransport.isomorphism;
+\import FirstModel.At[z := Bounded.previous p].Presentation[] \as Presentation;
+\import Chains.At[C := FirstModel.chain, z := Bounded.previous p] \as FiniteTorLeft;
+\import Chains.At[C := ActualFirst.integerComplex, z := Bounded.previous p] \as TorLeft;
+\definition finiteFirst: Modules.Bundle := Modules.Bundle { Carrier := FiniteTorLeft.Homology, space := FiniteTorLeft.homologySpace };
+\definition actualFirst: Modules.Bundle := Modules.Bundle { Carrier := TorLeft.Homology, space := TorLeft.homologySpace };
+\definition finiteSecond: Modules.Bundle := Modules.Bundle { Carrier := FiniteRight.Homology, space := FiniteRight.homologySpace };
+\definition actualSecond: Modules.Bundle := Modules.Bundle { Carrier := Right.Homology, space := Right.homologySpace };
+\definition firstIsomorphism: Modules.Isomorphism[V := finiteFirst.Carrier, W := actualFirst.Carrier, source := finiteFirst.space, target := actualFirst.space].Isomorphism :=
+  FirstComparisons.At[k := Bounded.previous p].isomorphism firstComparison;
+\definition secondIsomorphism: Modules.Isomorphism[V := finiteSecond.Carrier, W := actualSecond.Carrier, source := finiteSecond.space, target := actualSecond.space].Isomorphism :=
+  SecondComparisons.At[k := complement].isomorphism secondComparison;
+\module Resolution;
+\import derived_functors.Tor[].Over[R := I.Int^, ring := Integers.commutativeRing].Of[M := actualFirst, N := actualSecond, P := Presentation.complex] \as ActualTor;
+\definition torResolution: ActualTor.Resolution := Resolution[].resolution;
+\definition torCarrier: \Set := ActualTor.Positive[n := N.Nat^::zero].Carrier;
+\definition torSpace: Modules.Space torCarrier := ActualTor.Positive[n := N.Nat^::zero].space;
+\module Coefficient;
+\definition torIsomorphism: Modules.Isomorphism[V := Kunneth.TorTerms[C := first, D := second, n := z].Component[p := p].torCarrier,
+  W := torCarrier, source := Kunneth.TorTerms[C := first, D := second, n := z].Component[p := p].torSpace, target := torSpace].Isomorphism := Coefficient[].isomorphism;

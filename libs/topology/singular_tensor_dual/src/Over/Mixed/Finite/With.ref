@@ -1,0 +1,53 @@
+\definition basis(i: Index): V.Carrier := #apply{#backward{frame}} (Coordinates.basis i);
+\import IntegerModules.Hom[V := V.Carrier, W := R, source := V.space, target := Coefficients.coefficients.space] \as Hom;
+\import Hom.Composition[U := Coordinates.Carrier, domain := Coordinates.space] \as Restrict;
+\definition restrict(f: Dual.Carrier): CoordinateDual.Carrier := Restrict.compose f #backward{frame};
+\import IntegerModules.Hom[V := Coordinates.Carrier, W := R, source := Coordinates.space, target := Coefficients.coefficients.space].Composition[U := V.Carrier, domain := V.space] \as Extend;
+\definition extend(f: CoordinateDual.Carrier): Dual.Carrier := Extend.compose f #forward{frame};
+\import Modules.Hom[V := Dual.Carrier, W := ScalarCoordinates.Carrier, source := Dual.space, target := ScalarCoordinates.space] \as Evaluation;
+\definition evaluation: Evaluation.Map := Evaluation.Map {
+  apply := \fun (f: Dual.Carrier)(i: Index) => #apply{f} (basis i),
+  addition := \fun (f, g: Dual.Carrier) => \axiom:funext(
+    \fun (i: Index) => #apply{(#add{Dual.space} f g)} (basis i),
+    #add{ScalarCoordinates.space} (\fun (i: Index) => #apply{f} (basis i)) (\fun (i: Index) => #apply{g} (basis i)),
+    \fun (i: Index) => \refl(add (#apply{f} (basis i)) (#apply{g} (basis i)))),
+  scalar := \fun (a: R)(f: Dual.Carrier) => \axiom:funext(
+    \fun (i: Index) => #apply{(#smul{Dual.space} a f)} (basis i),
+    #smul{ScalarCoordinates.space} a (\fun (i: Index) => #apply{f} (basis i)),
+    \fun (i: Index) => \refl(mul a (#apply{f} (basis i)))),
+};
+\definition injective: \forall (f, g: Dual.Carrier) -> #apply{evaluation} f = #apply{evaluation} g -> f = g :=
+  \fun (f, g: Dual.Carrier)(equal: _) => Hom.ext f g (\fun (x: V.Carrier) => \block {
+    \let same: restrict f = restrict g := CoordinateDual.injective (restrict f) (restrict g) equal \then
+    \return trans!{R} _ _ _
+      (sym!{R} _ _ (congr!{V.Carrier R} (#apply{f}) _ _ (#leftInverse{frame} x)))
+      (trans!{R} _ _ _
+        (congr!{CoordinateDual.Carrier R} (\fun (h: CoordinateDual.Carrier) => #apply{h} (#apply{#forward{frame}} x)) _ _ same)
+        (congr!{V.Carrier R} (#apply{g}) _ _ (#leftInverse{frame} x)))
+  });
+\definition extension(values: ScalarCoordinates.Carrier): Dual.Carrier := extend (#apply{#backward{CoordinateDual.isomorphism}} values);
+\definition extensionBasis(values: ScalarCoordinates.Carrier)(i: Index): #apply{(extension values)} (basis i) = values i :=
+  trans!{R} _ _ _
+    (congr!{Coordinates.Carrier R} (#apply{(#apply{#backward{CoordinateDual.isomorphism}} values)}) _ _ (#rightInverse{frame} (Coordinates.basis i)))
+    (congr!{ScalarCoordinates.Carrier R} (\fun (v: ScalarCoordinates.Carrier) => v i) _ _ (#rightInverse{CoordinateDual.isomorphism} values));
+\import std.Logic[].Proposition[] \as Logic;
+\definition onto: \forall (values: ScalarCoordinates.Carrier) -> \exists { f: Dual.Carrier \where #apply{evaluation} f = values } :=
+  \fun (values: ScalarCoordinates.Carrier) => Logic.existsIntro[Dual.Carrier, { f: Dual.Carrier \where #apply{evaluation} f = values }] (extension values)
+    (\axiom:funext(#apply{evaluation} (extension values), values, extensionBasis values));
+\import Modules.Isomorphism[V := Dual.Carrier, W := ScalarCoordinates.Carrier, source := Dual.space, target := ScalarCoordinates.space].OfBijective[f := evaluation] \as Bijective;
+\definition isomorphism: Modules.Isomorphism[V := Dual.Carrier, W := ScalarCoordinates.Carrier, source := Dual.space, target := ScalarCoordinates.space].Isomorphism := Bijective.isomorphism injective onto;
+\definition coordinate(i: Index): Dual.Carrier := #apply{#backward{isomorphism}} (ScalarCoordinates.basis i);
+\import Modules.Sums[I := Index].Vector[V := Dual.Carrier, space := Dual.space] \as DualSum;
+\import Modules.Sums[I := Index].Vector[V := ScalarCoordinates.Carrier, space := ScalarCoordinates.space].Mapping[W := Dual.Carrier, target := Dual.space] \as MapSum;
+\definition dual(f: Dual.Carrier): DualSum.sum indices (\fun (i: Index) => #smul{Dual.space} (#apply{f} (basis i)) (coordinate i)) = f :=
+  trans!{Dual.Carrier} _ _ _
+    (sym!{Dual.Carrier} _ _
+      (trans!{Dual.Carrier} _ _ _
+        (MapSum.law #backward{isomorphism} indices (\fun (i: Index) => #smul{ScalarCoordinates.space} (#apply{f} (basis i)) (ScalarCoordinates.basis i)))
+        (DualSum.congruent indices
+          (\fun (i: Index) => #apply{#backward{isomorphism}} (#smul{ScalarCoordinates.space} (#apply{f} (basis i)) (ScalarCoordinates.basis i)))
+          (\fun (i: Index) => #smul{Dual.space} (#apply{f} (basis i)) (coordinate i))
+          (\fun (i: Index) => #scalar{#backward{isomorphism}} (#apply{f} (basis i)) (ScalarCoordinates.basis i)))))
+    (trans!{Dual.Carrier} _ _ _
+      (congr!{ScalarCoordinates.Carrier Dual.Carrier} (#apply{#backward{isomorphism}}) _ _ (ScalarCoordinates.decomposition (#apply{evaluation} f)))
+      (#leftInverse{isomorphism} f));

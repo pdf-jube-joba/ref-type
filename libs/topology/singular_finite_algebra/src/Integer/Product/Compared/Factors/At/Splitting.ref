@@ -1,0 +1,32 @@
+\import Modules.Biproduct[V := Terms.tensorBundle.Carrier, W := Terms.torBundle.Carrier, left := Terms.tensorBundle.space, right := Terms.torBundle.space] \as Source;
+\import Modules.Biproduct[V := tensorBundle.Carrier, W := torBundle.Carrier, left := tensorBundle.space, right := torBundle.space] \as Target;
+\import std.Data[].Pair[].Prop[A := Terms.tensorBundle.Carrier, B := Terms.torBundle.Carrier] \as SourcePairs;
+\import std.Data[].Pair[].Prop[A := tensorBundle.Carrier, B := torBundle.Carrier] \as TargetPairs;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Forwards;
+\import Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space] \as Backwards;
+\definition forward: Forwards.Map := Forwards.Map {
+  apply := \fun (x: Source.Carrier) => Target.make (#apply{#forward{TensorEndpoints.isomorphism}} (Source.first x)) (#apply{#forward{TorEndpoints.isomorphism}} (Source.second x)),
+  addition := \fun (x, y: Source.Carrier) => TargetPairs.ext _ _
+    (#addition{#forward{TensorEndpoints.isomorphism}} (Source.first x) (Source.first y))
+    (#addition{#forward{TorEndpoints.isomorphism}} (Source.second x) (Source.second y)),
+  scalar := \fun (a: I.Int^)(x: Source.Carrier) => TargetPairs.ext _ _
+    (#scalar{#forward{TensorEndpoints.isomorphism}} a (Source.first x))
+    (#scalar{#forward{TorEndpoints.isomorphism}} a (Source.second x)),
+};
+\definition backward: Backwards.Map := Backwards.Map {
+  apply := \fun (x: Target.Carrier) => Source.make (#apply{#backward{TensorEndpoints.isomorphism}} (Target.first x)) (#apply{#backward{TorEndpoints.isomorphism}} (Target.second x)),
+  addition := \fun (x, y: Target.Carrier) => SourcePairs.ext _ _
+    (#addition{#backward{TensorEndpoints.isomorphism}} (Target.first x) (Target.first y))
+    (#addition{#backward{TorEndpoints.isomorphism}} (Target.second x) (Target.second y)),
+  scalar := \fun (a: I.Int^)(x: Target.Carrier) => SourcePairs.ext _ _
+    (#scalar{#backward{TensorEndpoints.isomorphism}} a (Target.first x))
+    (#scalar{#backward{TorEndpoints.isomorphism}} a (Target.second x)),
+};
+\definition endpoints: Modules.Isomorphism[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Isomorphism :=
+  Modules.Isomorphism[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Isomorphism {
+    forward := backward, backward := forward,
+    leftInverse := \fun (x: Target.Carrier) => TargetPairs.ext _ _ (#rightInverse{TensorEndpoints.isomorphism} (Target.first x)) (#rightInverse{TorEndpoints.isomorphism} (Target.second x)),
+    rightInverse := \fun (x: Source.Carrier) => SourcePairs.ext _ _ (#leftInverse{TensorEndpoints.isomorphism} (Source.first x)) (#leftInverse{TorEndpoints.isomorphism} (Source.second x)),
+  };
+\import Modules.Isomorphism[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Composition[U := Actual.Homology, final := Actual.homologySpace] \as Compose;
+\definition isomorphism: Modules.Isomorphism[V := Target.Carrier, W := Actual.Homology, source := Target.space, target := Actual.homologySpace].Isomorphism := Compose.compose Finite.splitting endpoints;

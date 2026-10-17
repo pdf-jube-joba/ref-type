@@ -32,3 +32,15 @@ h\longmapsto\sum_i e^i\otimes\bigl(y\longmapsto h(e_i\otimes y)\bigr)
 `onPure` は一致する成分での積、`offInjection` は異なる成分での零を示す。
 `Integer.Convert[P]` は整数係数の標準スカラー作用と加法群から構成する整数作用の間の余鎖同値である。
 `Integer.Singular[A, source, p, q]` はこの同値を通じて特異余鎖のカップ積用テンソル評価と `Selected` の評価を同定する。
+
+`IntegerCoordinates[rank].isomorphism` は、整数座標加群から (R) への整数線形写像を、その整数標準基底での値により (R^{\mathrm{rank}}) と同定する。
+係数の整数作用は (R) の加法群から構成し、余鎖加群自身は (R) 加群として扱う。
+
+`Mixed.On[P,Q,ranks,frames]` は整数上の非負次数鎖複体と各 (P_n) の有限自由整数基底同型を受け取り、
+\[
+\operatorname{Tot}\bigl(\operatorname{Hom}_{\mathbb Z}(P,R)\otimes_R\operatorname{Hom}_{\mathbb Z}(Q,R)\bigr)
+\cong \operatorname{Hom}_{\mathbb Z}\bigl(\operatorname{Tot}(P\otimes_{\mathbb Z}Q),R\bigr)
+\]
+を余鎖同型として構成する。
+`Mixed.On.Evaluation.law` の純テンソルの式は同じ \(\varphi(x)\psi(y)\) である。
+`Mixed.HomEquivalence.At.isomorphism` は整数鎖ホモトピー同値が任意の可換環係数のコホモロジーに誘導する (R) 加群同型を与える。
