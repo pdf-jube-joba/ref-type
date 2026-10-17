@@ -13,6 +13,8 @@
 - `Selected[selection].With[coefficients].At[z].isomorphism` は、任意の係数加群に対するコホモロジーの比較である。
   `Homology[coefficients].At[z].isomorphism` は、比較鎖写像と係数加群のテンソル積からホモロジーを比較する。
 - `Selected[selection].Coefficients[input, output, coefficientMap].cochainNaturality` は、係数準同型と比較コチェイン写像が可換であることを示す。
+- `Selected[selection].Native[e].Diagonal.map` は、特異鎖の Alexander–Whitney 対角を比較同値で胞体鎖へ移す。
+  `Diagonal.Cup[R, ring, p, q].realizes` と `agreement` は、この対角による積と特異コホモロジーの積の一致を与える。
 - `Naturality[B, target, targetCW].Chosen[sourceSelection, targetSelection].Chain[e].Along[f, continuous].With[coefficients].At[z].naturality` は、選んだ鎖ホモトピー逆から構成した実際の胞体鎖写像と特異コホモロジーの比較を結ぶ。
   `recoveryExists` が必要な逆の存在を与える。
   `Along[f, continuous].Homology[coefficients].At[z].naturality` は、実際の比較写像 \(\chi\otimes\mathrm{id}\) の誘導写像によるホモロジーの自然性を与える。
