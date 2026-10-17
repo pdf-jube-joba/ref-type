@@ -1,0 +1,72 @@
+\definition degree: N.Nat^ := N.Nat^::zero;
+\import Modules.Laws[V := Carrier degree, space := space degree] \as Values;
+\import algebra.Group[].Of[Carrier := Carrier degree, group := Values.additive] \as Group;
+\import Modules.Free[Generators := Index] \as Augmented;
+\definition AugmentationCarrier: \Set := Augmented.Carrier;
+\definition augmentationSpace: Modules.Space AugmentationCarrier := Augmented.space;
+\definition augmentationGenerator: Index -> AugmentationCarrier := Augmented.generator;
+\import Modules.Free[Generators := Generator[degree]].To[W := Augmented.Carrier, target := Augmented.space] \as ToIndices;
+\definition augmentation: Modules.Hom[V := Carrier degree, W := Augmented.Carrier, source := space degree, target := Augmented.space].Map :=
+  ToIndices.extension (\fun (s: Generator[degree]) => Augmented.generator #index{s});
+\definition augmentationOnGenerator(s: Generator[degree]): #apply{augmentation} (generator degree s) = Augmented.generator #index{s} :=
+  ToIndices.onGenerator (\fun (s: Generator[degree]) => Augmented.generator #index{s}) s;
+\definition apex(i: Index): Generator[degree] := Generator[degree] { index := i, simplex := #apex{contractions} i };
+\import Augmented.To[W := Carrier degree, target := space degree] \as ToChains;
+\definition centre: Modules.Hom[V := Augmented.Carrier, W := Carrier degree, source := Augmented.space, target := space degree].Map :=
+  ToChains.extension (\fun (i: Index) => generator degree (apex i));
+\definition centreOnGenerator(i: Index): #apply{centre} (Augmented.generator i) = generator degree (apex i) :=
+  ToChains.onGenerator (\fun (i: Index) => generator degree (apex i)) i;
+\import Modules.Hom[V := Augmented.Carrier, W := Carrier degree, source := Augmented.space, target := space degree].Composition[U := Carrier degree, domain := space degree] \as Composition;
+\definition projection: Modules.Hom[V := Carrier degree, W := Carrier degree, source := space degree, target := space degree].Map := Composition.compose centre augmentation;
+\definition projectionOnGenerator(s: Generator[degree]): #apply{projection} (generator degree s) = generator degree (apex #index{s}) :=
+  trans!{{Carrier degree}} _ _ _ (congr!{{Augmented.Carrier} {Carrier degree}} (#apply{centre}) _ _ (augmentationOnGenerator s)) (centreOnGenerator #index{s});
+\module Component(i: Index) {
+  \import \parent.\parent.\parent.Component[i := i] \as Local;
+  \import Complexes.Map[C := Local.complex, D := complex] \as Inclusions;
+  \import Modules.Hom[V := Local.Carrier degree, W := Carrier degree, source := Local.space degree, target := space degree] \as Included;
+  \definition onGenerator(s: Local.Simplex degree):
+    #apply{(boundary degree)} (#apply{(homotopy degree)} (generator degree (Generator[degree] { index := i, simplex := s }))) =
+      Group.difference (generator degree (Generator[degree] { index := i, simplex := s })) (generator degree (apex i)) :=
+    trans!{{Carrier degree}} _ _ _
+      (congr!{{Carrier (N.Nat^::succ degree)} {Carrier degree}} (#apply{(boundary degree)}) _ _
+        (\parent.\parent.Degree[n := degree].onGenerator (Generator[degree] { index := i, simplex := s })))
+      (trans!{{Carrier degree}} _ _ _ (#commutes{Local.inclusion} degree (#apply{(#homotopy{contractions} i degree)} (Local.generator degree s)))
+        (trans!{{Carrier degree}} _ _ _
+          (congr!{{Local.Carrier degree} {Carrier degree}} (#apply{Local.inclusion} degree) _ _ (#zero{contractions} i s))
+          (trans!{{Carrier degree}} _ _ _
+            (Included.differencePreserved (Inclusions.At[n := degree].linear Local.inclusion) (Local.generator degree s) (Local.generator degree (#apex{contractions} i)))
+            (congr2!{{Carrier degree} {Carrier degree} {Carrier degree}} Group.difference _ _ _ _
+              (Local.onGenerator degree s) (Local.onGenerator degree (#apex{contractions} i))))));
+}
+\definition onGenerator: \forall (s: Generator[degree]) ->
+  #apply{(boundary degree)} (#apply{(homotopy degree)} (generator degree s)) = Group.difference (generator degree s) (generator degree (apex #index{s})) :=
+  \induction (s: Generator[degree]) \return
+    #apply{(boundary degree)} (#apply{(homotopy degree)} (generator degree s)) = Group.difference (generator degree s) (generator degree (apex #index{s})) \with {
+    | # : \fun (i: Index)(s: Simplex i degree) => Component[i := i].onGenerator s
+  };
+\import Modules.Hom[V := Carrier degree, W := Carrier degree, source := space degree, target := space degree] \as End;
+\import Modules.End[V := Carrier degree, space := space degree] \as Identity;
+\import Modules.Hom[V := Carrier (N.Nat^::succ degree), W := Carrier degree, source := space (N.Nat^::succ degree), target := space degree].Composition[U := Carrier degree, domain := space degree] \as After;
+\import Modules.Free[Generators := Generator[degree]].To[W := Carrier degree, target := space degree] \as Free;
+\definition equality: After.compose (boundary degree) (homotopy degree) = End.plus Identity.identity (End.negative projection) :=
+  Free.ext _ _ (\fun (s: Generator[degree]) => trans!{{Carrier degree}} _ _ _ (onGenerator s)
+    (congr!{{Carrier degree} {Carrier degree}} (Group.difference (generator degree s)) _ _ (sym!{{Carrier degree}} _ _ (projectionOnGenerator s))));
+\definition law(x: Carrier degree): #apply{(boundary degree)} (#apply{(homotopy degree)} x) = Group.difference x (#apply{projection} x) :=
+  congr!{{End.Map} {Carrier degree}} (\fun (f: End.Map) => #apply{f} x) _ _ equality;
+\import Modules.Hom[V := Augmented.Carrier, W := Carrier degree, source := Augmented.space, target := space degree] \as Centres;
+\definition cycle(x: Carrier degree)(reduced: #apply{augmentation} x = #zero{Augmented.space}):
+  #apply{(boundary degree)} (#apply{(homotopy degree)} x) = x :=
+  trans!{{Carrier degree}} _ _ _ (law x)
+    (trans!{{Carrier degree}} _ _ _
+      (congr!{{Carrier degree} {Carrier degree}} (Group.difference x) _ _
+        (trans!{{Carrier degree}} _ _ _ (congr!{{Augmented.Carrier} {Carrier degree}} (#apply{centre}) _ _ reduced) (Centres.zeroPreserved centre)))
+      (trans!{{Carrier degree}} _ _ _ (congr!{{Carrier degree} {Carrier degree}} (Group.add x) _ _ Group.negZero) (Group.zeroRight x)));
+\import Modules.Hom[V := Carrier degree, W := Augmented.Carrier, source := space degree, target := Augmented.space].Composition[U := Augmented.Carrier, domain := Augmented.space] \as AugmentAfter;
+\import Modules.End[V := Augmented.Carrier, space := Augmented.space] \as ScalarIdentity;
+\import Augmented.To[W := Augmented.Carrier, target := Augmented.space] \as AugmentedTo;
+\definition split: AugmentAfter.compose augmentation centre = ScalarIdentity.identity :=
+  AugmentedTo.ext _ _ (\fun (i: Index) => trans!{{Augmented.Carrier}} _ _ _
+    (congr!{{Carrier degree} {Augmented.Carrier}} (#apply{augmentation}) _ _ (centreOnGenerator i)) (augmentationOnGenerator (apex i)));
+\definition section(x: Augmented.Carrier): #apply{augmentation} (#apply{centre} x) = x :=
+  congr!{{Modules.Hom[V := Augmented.Carrier, W := Augmented.Carrier, source := Augmented.space, target := Augmented.space].Map} {Augmented.Carrier}}
+    (\fun (f: Modules.Hom[V := Augmented.Carrier, W := Augmented.Carrier, source := Augmented.space, target := Augmented.space].Map) => #apply{f} x) _ _ split;

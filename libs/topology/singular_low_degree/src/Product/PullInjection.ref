@@ -1,0 +1,34 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Cohomology;
+\import Hom.On[P := ProductChains.complex, N := coefficients] \as ProductTheory;
+\import Hom.On[P := Total.complex, N := coefficients] \as TensorTheory;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficient;
+\import Hom.Mapping[P := Total.complex, Q := ProductChains.complex, N := coefficients, L := coefficients].On[
+  f := Shuffle.Total[].map, u := Coefficient.identity] \as Pull;
+\import Cohomology.At[C := ProductTheory.complex, k := one] \as ProductH;
+\import Cohomology.At[C := TensorTheory.complex, k := one] \as TensorH;
+\import Cohomology.Map[C := ProductTheory.complex, D := TensorTheory.complex].At[k := one] \as PullMaps;
+\import singular_eilenberg_zilber.On[A := A, B := B, left := left, right := right] \as EZ;
+\import EZ.ProductHomotopy[] \as ProductHomotopy;
+\import Native.End[C := ProductChains.complex] \as ProductIdentity;
+\import Hom.Homotopy[P := ProductChains.complex, Q := ProductChains.complex, N := coefficients] \as ProductCochainHomotopy;
+\import Hom.End[P := ProductChains.complex, N := coefficients] \as ProductCochainIdentity;
+\import Hom.Composition[P := ProductChains.complex, Q := Total.complex, T := ProductChains.complex, N := coefficients].At[k := one] \as Composition;
+\import Hom.Mapping[P := ProductChains.complex, Q := Total.complex, N := coefficients, L := coefficients].On[
+  f := EZ.forward, u := Coefficient.identity] \as Inverse;
+\import Cohomology.Map[C := TensorTheory.complex, D := ProductTheory.complex].At[k := one] \as InverseMaps;
+\import Modules.Hom[V := TensorH.Cohomology, W := ProductH.Cohomology,
+  source := TensorH.cohomologySpace, target := ProductH.cohomologySpace] \as InverseValues;
+\definition compositeIdentity(q: ProductH.Cohomology):
+  #apply{(InverseMaps.induced Inverse.map)} (#apply{(PullMaps.induced Pull.map)} q) = q :=
+  trans!{ProductH.Cohomology} _ _ _ (sym!{ProductH.Cohomology} _ _ (Composition.onCohomology EZ.forward EZ.backward q))
+    (trans!{ProductH.Cohomology} _ _ _
+      (ProductCochainHomotopy.onCohomology EZ.productComposite ProductIdentity.identity ProductHomotopy.homotopy one q)
+      (ProductCochainIdentity.At[k := one].onCohomology q));
+\definition law: \forall (q: ProductH.Cohomology) ->
+  #apply{(PullMaps.induced Pull.map)} q = #zero{TensorH.cohomologySpace} -> q = #zero{ProductH.cohomologySpace} :=
+  \fun (q: ProductH.Cohomology)(vanishes: _) => trans!{ProductH.Cohomology} _ _ _
+    (sym!{ProductH.Cohomology} _ _ (compositeIdentity q))
+    (trans!{ProductH.Cohomology} _ _ _
+      (congr!{TensorH.Cohomology ProductH.Cohomology} (#apply{(InverseMaps.induced Inverse.map)}) _ _ vanishes)
+      (InverseValues.zeroPreserved (InverseMaps.induced Inverse.map)));

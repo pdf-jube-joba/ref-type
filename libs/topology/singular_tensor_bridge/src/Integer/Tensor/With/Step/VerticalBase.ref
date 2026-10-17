@@ -1,0 +1,21 @@
+\definition sourceIndex: Double.Index (N.Nat^::succ n) := Double.reverseIndex (N.Nat^::succ n) N.Nat^::zero p;
+\definition signedIndex: Grading.Index z := Indices.signed (N.Nat^::succ n) sourceIndex;
+\import SignedStep.Component[i := signedIndex] \as Component;
+\import Source.Term[n := I.Int^::ofNat n].Component[i := Grading.vertical z signedIndex] \as Injection;
+\import \parent.\parent.VerticalZero[p := I.Int^::ofNat p] \as Boundary;
+\import Modules.Tensor[V := C.family.Carrier (I.Int^::ofNat p), W := D.family.Carrier (I.Int^::negSucc N.Nat^::zero),
+  left := C.family.space (I.Int^::ofNat p), right := D.family.space (I.Int^::negSucc N.Nat^::zero)] \as TargetTerm;
+\import Tensors.Sign[V := TargetTerm.Carrier, space := TargetTerm.space] \as Sign;
+\import Modules.Hom[V := TargetTerm.Carrier, W := TargetTerm.Carrier,
+  source := TargetTerm.space, target := TargetTerm.space] \as SignMaps;
+\import Modules.Hom[V := TargetTerm.Carrier, W := ST.Carrier,
+  source := TargetTerm.space, target := ST.space] \as InjectionMaps;
+\definition signedZero(x: NativeTensor.family.Carrier p N.Nat^::zero): #apply{Component.vertical} x = #zero{ST.space} :=
+  trans!{ST.Carrier} _ _ _
+    (congr!{TargetTerm.Carrier ST.Carrier} (\fun (v: TargetTerm.Carrier) => #apply{Injection.injection} (#apply{(Sign.map (I.Int^::ofNat p))} v)) _ _ (Boundary.zero x))
+    (trans!{ST.Carrier} _ _ _
+      (congr!{TargetTerm.Carrier ST.Carrier} (#apply{Injection.injection}) _ _ (SignMaps.zeroPreserved (Sign.map (I.Int^::ofNat p))))
+      (InjectionMaps.zeroPreserved Injection.injection));
+\definition law(x: NativeTensor.family.Carrier p N.Nat^::zero):
+  #apply{Q.backward} (#apply{(NativeStep.vertical N.Nat^::zero p)} x) = #apply{Component.vertical} x :=
+  trans!{ST.Carrier} _ _ _ (BackwardMaps.zeroPreserved Q.backward) (sym!{ST.Carrier} _ _ (signedZero x));

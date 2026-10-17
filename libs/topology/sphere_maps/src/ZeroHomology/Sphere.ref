@@ -1,0 +1,66 @@
+\import \root.ZeroHomology[] \as PointCochain;
+\import algebraic_topology.Spheres[] \as Spheres;
+\definition Sphere: \Set := Spheres.Carrier zero;
+\definition topology: topology.Topology[Carrier := Sphere].Topology := Spheres.topology zero;
+\import singular_cohomology.Chains[A := Sphere, source := topology] \as Chains;
+\import singular_cohomology.Simplices[A := Sphere, source := topology] \as Simplices;
+\definition backward: Sphere -> ZeroSphere.Point := #backward{SphereTopology.homeomorphism};
+\import singular_cohomology.Maps[A := Sphere, B := ZeroSphere.Point, source := topology, target := ZeroSphere.discrete] \as Maps;
+\definition continuous: Maps.Continuous backward := #backwardContinuous{SphereTopology.homeomorphism};
+\definition push: Native.Map[C := Chains.complex, D := Whole.complex].Map := Maps.push backward continuous;
+\import Native.Map[C := Chains.complex, D := Whole.complex].At[n := zero] \as Push;
+\import Modules.Hom[V := Whole.Carrier zero, W := I.Int^, source := Whole.space zero, target := Modules.scalarModule].Composition[U := Chains.Carrier zero, domain := Chains.space zero] \as Composition;
+\definition cochain: Modules.Hom[V := Chains.Carrier zero, W := I.Int^, source := Chains.space zero, target := Modules.scalarModule].Map :=
+  Composition.compose PointCochain.cochain (Push.linear push);
+\definition closed: \forall (x: Chains.Carrier one) -> #apply{cochain} (#apply{(Chains.boundary zero)} x) = I.Zero.specification :=
+  \fun (x: Chains.Carrier one) => trans!{I.Int^} _ _ _
+    (congr!{{Whole.Carrier zero} I.Int^} (#apply{PointCochain.cochain}) _ _ (sym!{{Whole.Carrier zero}} _ _ (#commutes{push} zero x)))
+    (PointCochain.closed (#apply{push} one x));
+\definition onPoint: \forall (x: Sphere) -> #apply{cochain} (Chains.generator zero (Simplices.At[n := zero].constant x)) = weight (backward x) :=
+  \fun (x: Sphere) => trans!{I.Int^} _ _ _
+    (congr!{{Whole.Carrier zero} I.Int^} (#apply{PointCochain.cochain}) _ _ (Maps.At[n := zero].onGenerator backward continuous (Simplices.At[n := zero].constant x)))
+    (PointCochain.onPoint (backward x));
+\definition north: #apply{cochain} (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.north)) = I.One.specification :=
+  trans!{I.Int^} _ _ _ (onPoint ZeroSphere.north)
+    (congr!{ZeroSphere.Point I.Int^} weight _ _ (#leftInverse{SphereTopology.homeomorphism} ZeroSphere.Point::positive));
+\definition south: #apply{cochain} (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south)) = I.Zero.specification :=
+  trans!{I.Int^} _ _ _ (onPoint ZeroSphere.south)
+    (congr!{ZeroSphere.Point I.Int^} weight _ _ (#leftInverse{SphereTopology.homeomorphism} ZeroSphere.Point::negative));
+\import Chains.Reduced[] \as Reduced;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Signed;
+\import Signed.At[C := Reduced.complex, z := I.Int^::ofNat zero] \as H;
+\import Modules.Laws[V := Chains.Carrier zero, space := Chains.space zero] \as Values;
+\import algebra.Group[].Of[Carrier := Chains.Carrier zero, group := Values.additive] \as ChainGroup;
+\definition difference: Chains.Carrier zero := ChainGroup.difference
+  (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.north))
+  (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south));
+\import Modules.Hom[V := Chains.Carrier zero, W := I.Int^, source := Chains.space zero, target := Modules.scalarModule] \as Functionals;
+\definition augmented: #apply{Reduced.differential} (I.Int^::ofNat zero) difference = I.Zero.specification :=
+  trans!{I.Int^} _ _ _
+    (Functionals.differencePreserved Chains.Augmentation[].map
+      (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.north))
+      (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south)))
+    (trans!{I.Int^} _ _ _
+      (congr2!{I.Int^ I.Int^ I.Int^} Group.difference _ _ _ _
+        (Chains.Augmentation[].onGenerator (Simplices.At[n := zero].constant ZeroSphere.north))
+        (Chains.Augmentation[].onGenerator (Simplices.At[n := zero].constant ZeroSphere.south)))
+      (Group.inverseRight I.One.specification));
+\definition cycle: H.Cycle := H.cycle difference augmented;
+\definition generator: H.Homology := H.classOf cycle;
+\import \root.ZeroHomology[].Algebra[].Functional[C := Reduced.complex, z := I.Int^::ofNat zero, functional := cochain] \as Functional;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\definition kills: Functional.Closed := \fun (x: Reduced.Carrier (I.Int^::ofNat one)) => trans!{I.Int^} _ _ _
+  (congr!{{Chains.Carrier zero} I.Int^} (#apply{cochain}) _ _ (Transport.castRefl Reduced.Carrier (I.Int^::ofNat zero) (#apply{(Chains.boundary zero)} x)))
+  (closed x);
+\definition functional: Modules.Hom[V := H.Homology, W := I.Int^, source := H.homologySpace, target := Modules.scalarModule].Map := Functional.map kills;
+\definition normalized: #apply{functional} generator = I.One.specification := trans!{I.Int^} _ _ _ (Functional.onClass kills cycle)
+  (trans!{I.Int^} _ _ _
+    (Functionals.differencePreserved cochain
+      (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.north))
+      (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south)))
+    (trans!{I.Int^} _ _ _ (congr2!{I.Int^ I.Int^ I.Int^} Group.difference _ _ _ _ north south)
+      (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (Group.add I.One.specification) _ _ Group.negZero) (Group.zeroRight I.One.specification))));
+\import cohomology_models.ZeroSphere[].Reduced[].Homology[].Zero[] \as Orientation;
+\import \root.ZeroHomology[].Algebra[].Cyclic[V := H.Homology, space := H.homologySpace, orientation := Orientation.isomorphism, point := generator, functional := functional] \as Primitive;
+\definition isomorphism: Modules.Isomorphism[V := I.Int^, W := H.Homology, source := Modules.scalarModule, target := H.homologySpace].Isomorphism := Primitive.isomorphism normalized;
+\definition onOne: #apply{#forward{isomorphism}} I.One.specification = generator := Primitive.onOne;

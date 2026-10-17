@@ -1,0 +1,41 @@
+\definition edgeOnBase: \forall (sigma: Model.Base)(eligible: Model.degree sigma = one) ->
+  FaceEquation zero (\into[Model.Base](sigma, { tau: Model.Base \where Model.degree tau = one }) \by { eligible }) :=
+  \induction (sigma: Model.Base) \return \forall (eligible: Model.degree sigma = one) ->
+    FaceEquation zero (\into[Model.Base](sigma, { tau: Model.Base \where Model.degree tau = one }) \by { eligible }) \with {
+      | inl: \fun (v: Vertex)(eligible: zero = one) => Logic.falseElim
+          (FaceEquation zero (\into[Model.Base](Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inl v, { tau: Model.Base \where Model.degree tau = one }) \by { eligible })) (Bounds.zeroNeSucc zero eligible)
+      | inr: \induction (sigma: Sums.Sum[Edge, Triangle]) \return \forall (eligible: Model.degree (Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inr sigma) = one) ->
+          FaceEquation zero (\into[Model.Base](Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inr sigma, { tau: Model.Base \where Model.degree tau = one }) \by { eligible }) \with {
+            | inl: \fun (e: Edge)(eligible: one = one) => edgeFace e
+            | inr: \fun (t: Triangle)(eligible: two = one) => Logic.falseElim
+                (FaceEquation zero (\into[Model.Base](Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inr (Sums.Sum[Edge, Triangle]::inr t), { tau: Model.Base \where Model.degree tau = one }) \by { eligible }))
+                (Bounds.succNeZero zero (Bounds.succInjective one zero eligible))
+          }
+    };
+\definition triangleOnBase: \forall (sigma: Model.Base)(eligible: Model.degree sigma = two) ->
+  FaceEquation one (\into[Model.Base](sigma, { tau: Model.Base \where Model.degree tau = two }) \by { eligible }) :=
+  \induction (sigma: Model.Base) \return \forall (eligible: Model.degree sigma = two) ->
+    FaceEquation one (\into[Model.Base](sigma, { tau: Model.Base \where Model.degree tau = two }) \by { eligible }) \with {
+      | inl: \fun (v: Vertex)(eligible: zero = two) => Logic.falseElim
+          (FaceEquation one (\into[Model.Base](Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inl v, { tau: Model.Base \where Model.degree tau = two }) \by { eligible })) (Bounds.zeroNeSucc one eligible)
+      | inr: \induction (sigma: Sums.Sum[Edge, Triangle]) \return \forall (eligible: Model.degree (Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inr sigma) = two) ->
+          FaceEquation one (\into[Model.Base](Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inr sigma, { tau: Model.Base \where Model.degree tau = two }) \by { eligible }) \with {
+            | inl: \fun (e: Edge)(eligible: one = two) => Logic.falseElim
+                (FaceEquation one (\into[Model.Base](Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inr (Sums.Sum[Edge, Triangle]::inl e), { tau: Model.Base \where Model.degree tau = two }) \by { eligible }))
+                (Bounds.zeroNeSucc zero (Bounds.succInjective zero one eligible))
+            | inr: \fun (t: Triangle)(eligible: two = two) => triangleFace t
+          }
+    };
+\definition all: \forall (n: N.Nat^)(sigma: Model.Carrier (N.Nat^::succ n)) -> FaceEquation n sigma :=
+  \induction (n: N.Nat^) \return \forall (sigma: Model.Carrier (N.Nat^::succ n)) -> FaceEquation n sigma \with {
+    | zero: \fun (sigma: Model.Carrier one) => edgeOnBase sigma (\bysub(Model.Base, { tau: Model.Base \where Model.degree tau = one }, sigma))
+    | succ: \fun (n: N.Nat^)(previous: _) =>
+      (\induction (n: N.Nat^) \return \forall (sigma: Model.Carrier (N.Nat^::succ (N.Nat^::succ n))) -> FaceEquation (N.Nat^::succ n) sigma \with {
+        | zero: \fun (sigma: Model.Carrier two) => triangleOnBase sigma (\bysub(Model.Base, { tau: Model.Base \where Model.degree tau = two }, sigma))
+        | succ: \fun (n: N.Nat^)(previous: _)(sigma: Model.Carrier (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) => Logic.falseElim
+            (FaceEquation (N.Nat^::succ (N.Nat^::succ n)) sigma)
+            (Model.higherEmpty n sigma (\bysub(Model.Base, { tau: Model.Base \where Model.degree tau = N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)) }, sigma)))
+      }) n
+  };
+\definition law(n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Model.Carrier (N.Nat^::succ n)):
+  apply n (Model.face n i sigma) = Simplices.face n i (apply (N.Nat^::succ n) sigma) := all n sigma i;

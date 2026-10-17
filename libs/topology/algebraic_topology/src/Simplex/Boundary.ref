@@ -1,0 +1,34 @@
+\import \root.Simplex[] \as Simplices;
+\definition SimplexCarrier: \Set := Simplices.Carrier n;
+\import \parent.At[n := n] \as Simplex;
+\import \parent.Compactness[n := n] \as Compactness;
+\import topology.Topology[Carrier := SimplexCarrier] \as Space;
+\import Space.IndexedIntersections[] \as Intersection;
+\import Space.Compactness[] \as CompactSets;
+\import metric_spaces.MetricSpace[Carrier := Real.Real].Topology[] \as ScalarTopology;
+\import metric_spaces.RealMetric[] \as ScalarMetric;
+\definition ZeroCoordinate(x: SimplexCarrier): \Set := \Cast[Fin.Fin (N.Nat^::succ n)] ({ i: Fin.Fin (N.Nat^::succ n) \where x i = Real.zero });
+\definition Points: \Pow (SimplexCarrier) := { x: SimplexCarrier \where \exists ZeroCoordinate x };
+\definition Nonzero(i: Fin.Fin (N.Nat^::succ n)): \Pow (SimplexCarrier) := { x: SimplexCarrier \where Logic.Not (x i = Real.zero) };
+\definition nonzeroOpen: \forall (i: Fin.Fin (N.Nat^::succ n)) -> Space.IsOpenIn Simplex.topology (Nonzero i) :=
+  \fun (i: Fin.Fin (N.Nat^::succ n)) => Simplex.coordinateContinuous i ({ r: Real.Real \where Logic.Not (r = Real.zero) })
+    (ScalarTopology.singletonClosed ScalarMetric.metric Real.zero);
+\definition complement: Space.Complement Points = Intersection.All (N.Nat^::succ n) Nonzero :=
+  \axiom:setext(Space.Complement Points, Intersection.All (N.Nat^::succ n) Nonzero,
+    (\fun (x: SimplexCarrier)(outside: Space.Member (Space.Complement Points) x)(i: Fin.Fin (N.Nat^::succ n))(zero: x i = Real.zero) =>
+      outside (Logic.existsIntro[Fin.Fin (N.Nat^::succ n), { j: Fin.Fin (N.Nat^::succ n) \where x j = Real.zero }] i zero)),
+    (\block {
+      \fun (x: SimplexCarrier)(all: Space.Member (Intersection.All (N.Nat^::succ n) Nonzero) x)(inside: Space.Member Points x) \then
+      \takefrom i: ZeroCoordinate x \by inside \then
+      \return all i (\bysub(Fin.Fin (N.Nat^::succ n), ZeroCoordinate x, i))
+    }));
+\definition closed: Space.IsClosedIn Simplex.topology Points :=
+  \idelim Intersection.All (N.Nat^::succ n) Nonzero = Space.Complement Points \with U: \Pow (SimplexCarrier) => Space.IsOpenIn Simplex.topology U \by {
+    base: Intersection.open Simplex.topology (N.Nat^::succ n) Nonzero nonzeroOpen, equality: sym!{{\Pow (SimplexCarrier)}} _ _ complement
+  };
+\definition compactIn: Space.IsCompactIn Simplex.topology Points := CompactSets.closedCompact Simplex.topology Compactness.compact Points closed;
+\import Space.Subspace[S := Points] \as Subspace;
+\import Subspace.Properties[] \as Properties;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Simplex.topology;
+\definition compact: topology.Topology[Carrier := Carrier].IsCompact topology := Properties.compact Simplex.topology compactIn;

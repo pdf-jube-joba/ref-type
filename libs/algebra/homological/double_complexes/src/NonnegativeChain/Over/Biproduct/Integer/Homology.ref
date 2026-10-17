@@ -1,0 +1,62 @@
+\import Chains.At[C := Left.complex, z := z] \as LeftH;
+\import Chains.At[C := Right.complex, z := z] \as RightH;
+\import Chains.At[C := Sum.complex, z := z] \as SumH;
+\import Chains.Map[C := Sum.complex, D := Left.complex].At[k := z] \as P;
+\import Chains.Map[C := Sum.complex, D := Right.complex].At[k := z] \as Q;
+\import Chains.Map[C := Left.complex, D := Sum.complex].At[k := z] \as L;
+\import Chains.Map[C := Right.complex, D := Sum.complex].At[k := z] \as T;
+\import Modules.Biproduct[V := LeftH.Homology, W := RightH.Homology, left := LeftH.homologySpace, right := RightH.homologySpace] \as Pair;
+\import std.Data[].Pair[].Prop[A := LeftH.Homology, B := RightH.Homology] \as Pairs;
+\definition Carrier: \Set := Pair.Carrier;
+\definition space: Modules.Space Carrier := Pair.space;
+\definition forward: Modules.Hom[V := SumH.Homology, W := Pair.Carrier, source := SumH.homologySpace, target := Pair.space].Map :=
+  Pair.Universal[U := SumH.Homology, domain := SumH.homologySpace].pair (P.induced FirstProjection.map) (Q.induced SecondProjection.map);
+\definition backward: Modules.Hom[V := Pair.Carrier, W := SumH.Homology, source := Pair.space, target := SumH.homologySpace].Map :=
+  Pair.Copair[U := SumH.Homology, target := SumH.homologySpace].copair (L.induced FirstInjection.map) (T.induced SecondInjection.map);
+\definition cycles(x: LeftH.Cycle)(y: RightH.Cycle): SumH.Cycle :=
+  #add{SumH.cycleSpace} (#apply{(L.cyclesMap FirstInjection.map)} x) (#apply{(T.cyclesMap SecondInjection.map)} y);
+\definition forwardOnClass: \forall (x: SumH.Cycle) -> #apply{forward} (SumH.classOf x) =
+  Pair.make (LeftH.classOf (#apply{(P.cyclesMap FirstProjection.map)} x)) (RightH.classOf (#apply{(Q.cyclesMap SecondProjection.map)} x)) :=
+  \fun (x: SumH.Cycle) => Pairs.ext _ _ (P.onClass FirstProjection.map x) (Q.onClass SecondProjection.map x);
+\definition backwardOnClasses: \forall (x: LeftH.Cycle)(y: RightH.Cycle) ->
+  #apply{backward} (Pair.make (LeftH.classOf x) (RightH.classOf y)) = SumH.classOf (cycles x y) :=
+  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => trans!{SumH.Homology} _ _ _
+    (congr2!{SumH.Homology SumH.Homology SumH.Homology} (#add{SumH.homologySpace}) _ _ _ _ (L.onClass FirstInjection.map x) (T.onClass SecondInjection.map y))
+    (sym!{SumH.Homology} _ _ (#addition{SumH.classLinear} (#apply{(L.cyclesMap FirstInjection.map)} x) (#apply{(T.cyclesMap SecondInjection.map)} y)));
+\definition leftInverse: \forall (q: SumH.Homology) -> #apply{backward} (#apply{forward} q) = q :=
+  SumH.classInduction (\fun (q: SumH.Homology) => #apply{backward} (#apply{forward} q) = q)
+    (\fun (x: SumH.Cycle) => trans!{SumH.Homology} _ _ _
+      (congr!{Pair.Carrier SumH.Homology} (#apply{backward}) _ _ (forwardOnClass x))
+      (trans!{SumH.Homology} _ _ _ (backwardOnClasses (#apply{(P.cyclesMap FirstProjection.map)} x) (#apply{(Q.cyclesMap SecondProjection.map)} x))
+        (congr!{SumH.Cycle SumH.Homology} SumH.classOf (cycles (#apply{(P.cyclesMap FirstProjection.map)} x) (#apply{(Q.cyclesMap SecondProjection.map)} x)) x (reconstruction z x))));
+\import Modules.Laws[V := Left.Carrier z, space := Left.space z] \as LeftLaws;
+\import algebra.Group[].Of[Carrier := Left.Carrier z, group := LeftLaws.additive] \as LeftGroup;
+\import Modules.Laws[V := Right.Carrier z, space := Right.space z] \as RightLaws;
+\import algebra.Group[].Of[Carrier := Right.Carrier z, group := RightLaws.additive] \as RightGroup;
+\definition firstSum: \forall (x: LeftH.Cycle)(y: RightH.Cycle) -> #apply{FirstProjection.map} z (cycles x y) = x :=
+  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => trans!{{Left.Carrier z}} _ _ _
+    (#addition{FirstProjection.map} z (#apply{FirstInjection.map} z x) (#apply{SecondInjection.map} z y))
+    (trans!{{Left.Carrier z}} _ _ _
+      (congr2!{{Left.Carrier z} {Left.Carrier z} {Left.Carrier z}} LeftGroup.add _ _ _ _ (firstRoundtrip z x) (firstCross z y)) (LeftGroup.zeroRight x));
+\definition secondSum: \forall (x: LeftH.Cycle)(y: RightH.Cycle) -> #apply{SecondProjection.map} z (cycles x y) = y :=
+  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => trans!{{Right.Carrier z}} _ _ _
+    (#addition{SecondProjection.map} z (#apply{FirstInjection.map} z x) (#apply{SecondInjection.map} z y))
+    (trans!{{Right.Carrier z}} _ _ _
+      (congr2!{{Right.Carrier z} {Right.Carrier z} {Right.Carrier z}} RightGroup.add _ _ _ _ (secondCross z x) (secondRoundtrip z y)) (RightGroup.zeroLeft y));
+\definition rightOnClasses: \forall (x: LeftH.Cycle)(y: RightH.Cycle) ->
+  #apply{forward} (#apply{backward} (Pair.make (LeftH.classOf x) (RightH.classOf y))) = Pair.make (LeftH.classOf x) (RightH.classOf y) :=
+  \fun (x: LeftH.Cycle)(y: RightH.Cycle) => trans!{Pair.Carrier} _ _ _
+    (congr!{SumH.Homology Pair.Carrier} (#apply{forward}) _ _ (backwardOnClasses x y))
+    (trans!{Pair.Carrier} _ _ _ (forwardOnClass (cycles x y))
+      (Pairs.ext _ _ (congr!{LeftH.Cycle LeftH.Homology} LeftH.classOf (#apply{(P.cyclesMap FirstProjection.map)} (cycles x y)) x (firstSum x y)) (congr!{RightH.Cycle RightH.Homology} RightH.classOf (#apply{(Q.cyclesMap SecondProjection.map)} (cycles x y)) y (secondSum x y))));
+\definition rightOnPair: \forall (a: LeftH.Homology)(b: RightH.Homology) -> #apply{forward} (#apply{backward} (Pair.make a b)) = Pair.make a b :=
+  LeftH.classInduction (\fun (a: LeftH.Homology) => \forall (b: RightH.Homology) -> #apply{forward} (#apply{backward} (Pair.make a b)) = Pair.make a b)
+    (\fun (x: LeftH.Cycle) => RightH.classInduction (\fun (b: RightH.Homology) => #apply{forward} (#apply{backward} (Pair.make (LeftH.classOf x) b)) = Pair.make (LeftH.classOf x) b) (rightOnClasses x));
+\definition rightInverse: \forall (q: Pair.Carrier) -> #apply{forward} (#apply{backward} q) = q :=
+  \fun (q: Pair.Carrier) => \idelim Pair.make (Pair.first q) (Pair.second q) = q \with y: Pair.Carrier => #apply{forward} (#apply{backward} y) = y \by {
+    base: rightOnPair (Pair.first q) (Pair.second q), equality: Pairs.eta q
+  };
+\definition isomorphism: Modules.Isomorphism[V := SumH.Homology, W := Pair.Carrier, source := SumH.homologySpace, target := Pair.space].Isomorphism :=
+  Modules.Isomorphism[V := SumH.Homology, W := Pair.Carrier, source := SumH.homologySpace, target := Pair.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

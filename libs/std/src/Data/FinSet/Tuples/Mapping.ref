@@ -1,7 +1,33 @@
 \import \parent.\parent.Tuples[A := B] \as Target;
+\import \parent.Omission[] \as SourceOmission;
+\import Target.Omission[] \as TargetOmission;
 \definition extendMap: \forall (n: N.Nat^)(f: A -> B)(head: A)(tail: Fin n -> A) ->
   (\fun (i: Fin (N.Nat^::succ n)) => f (extend n head tail i)) = Target.extend n (f head) (\fun (i: Fin n) => f (tail i)) :=
   \fun (n: N.Nat^)(f: A -> B)(head: A)(tail: Fin n -> A) => Target.extensionality n _ _
     (trans!{B} _ _ _ (congr!{A B} f _ _ (atZero n head tail)) (sym!{B} _ _ (Target.atZero n (f head) (\fun (i: Fin n) => f (tail i)))))
     (\fun (i: Fin n) => trans!{B} _ _ _ (congr!{A B} f _ _ (atSuccessor n head tail i))
       (sym!{B} _ _ (Target.atSuccessor n (f head) (\fun (j: Fin n) => f (tail j)) i)));
+\module Omission(n: N.Nat^);
+\definition omitMap: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(f: A -> B)(vertices: Fin (N.Nat^::succ n) -> A) ->
+  (\fun (j: Fin n) => f (SourceOmission.omit n i vertices j)) = TargetOmission.omit n i (\fun (j: Fin (N.Nat^::succ n)) => f (vertices j)) :=
+  \induction (n: N.Nat^) \return \forall (i: Fin (N.Nat^::succ n))(f: A -> B)(vertices: Fin (N.Nat^::succ n) -> A) ->
+    (\fun (j: Fin n) => f (SourceOmission.omit n i vertices j)) = TargetOmission.omit n i (\fun (j: Fin (N.Nat^::succ n)) => f (vertices j)) \with {
+      | zero: \fun (i: Fin (N.Nat^::succ N.Nat^::zero))(f: A -> B)(vertices: Fin (N.Nat^::succ N.Nat^::zero) -> A) =>
+          \axiom:funext((\fun (j: Fin N.Nat^::zero) => f (SourceOmission.omit N.Nat^::zero i vertices j)),
+            TargetOmission.omit N.Nat^::zero i (\fun (j: Fin (N.Nat^::succ N.Nat^::zero)) => f (vertices j)),
+            \fun (j: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible j (bound N.Nat^::zero j)))
+      | succ: \fun (n: N.Nat^)(previous: _) => Omission[n := n].law previous
+    };
+\import \parent.Repetition[] \as SourceRepetition;
+\import Target.Repetition[] \as TargetRepetition;
+\module Repetition(n: N.Nat^);
+\definition repeatMap: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(f: A -> B)(vertices: Fin (N.Nat^::succ n) -> A) ->
+  (\fun (j: Fin (N.Nat^::succ (N.Nat^::succ n))) => f (SourceRepetition.repeat n i vertices j)) =
+  TargetRepetition.repeat n i (\fun (j: Fin (N.Nat^::succ n)) => f (vertices j)) :=
+  \induction (n: N.Nat^) \return \forall (i: Fin (N.Nat^::succ n))(f: A -> B)(vertices: Fin (N.Nat^::succ n) -> A) ->
+    (\fun (j: Fin (N.Nat^::succ (N.Nat^::succ n))) => f (SourceRepetition.repeat n i vertices j)) =
+    TargetRepetition.repeat n i (\fun (j: Fin (N.Nat^::succ n)) => f (vertices j)) \with {
+      | zero: \fun (i: Fin (N.Nat^::succ N.Nat^::zero))(f: A -> B)(vertices: Fin (N.Nat^::succ N.Nat^::zero) -> A) =>
+        extendMap (N.Nat^::succ N.Nat^::zero) f (vertices (zero N.Nat^::zero)) vertices
+      | succ: \fun (n: N.Nat^)(previous: _) => Repetition[n := n].law previous
+    };

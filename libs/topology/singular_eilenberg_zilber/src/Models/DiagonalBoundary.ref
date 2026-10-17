@@ -1,0 +1,22 @@
+\import \parent.At[n := n] \as Lower;
+\import \parent.At[n := N.Nat^::succ n] \as Higher;
+\import singular_cohomology.Chains[A := Higher.Points, source := Higher.topology] \as Chains;
+\import singular_cohomology.Simplices[A := Higher.Points, source := Higher.topology] \as Simplices;
+\import singular_cohomology.Maps[A := Lower.Points, B := Higher.Points, source := Lower.topology, target := Higher.topology] \as Maps;
+\import \parent.Transition[n := n].Degree[z := I.Int^::ofNat n] \as Transition;
+\import Modules.Alternating[V := Higher.Carrier (I.Int^::ofNat n), space := Higher.space (I.Int^::ofNat n)] \as Sum;
+\definition count: N.Nat^ := N.Nat^::succ (N.Nat^::succ n);
+\module At(i: Fin.Fin count) {
+  \import \parent.\parent.Face[n := n, i := i] \as Face;
+  \definition simplex: Simplices.face n i Higher.diagonal = Maps.postcompose n Face.function Face.continuous Lower.diagonal :=
+    \axiom:funext(Simplices.face n i Higher.diagonal, Maps.postcompose n Face.function Face.continuous Lower.diagonal, \fun (x: Simplex.Carrier n) => \refl(Face.function (Lower.diagonal x)));
+  \definition law: Chains.generator n (Simplices.face n i Higher.diagonal) = #apply{Face.Degree[z := I.Int^::ofNat n].map} Lower.cell :=
+    trans!{{Chains.Carrier n}} _ _ _ (congr!{{Simplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _ simplex)
+      (sym!{{Chains.Carrier n}} _ _ (Maps.At[n := n].onGenerator Face.function Face.continuous Lower.diagonal));
+}
+\definition law: #apply{(Higher.boundary (I.Int^::ofNat (N.Nat^::succ n)))} Higher.cell = #apply{Transition.map} Lower.cell :=
+  trans!{{Chains.Carrier n}} _ _ _ (Chains.Boundary[n := n].onGenerator Higher.diagonal)
+    (trans!{{Chains.Carrier n}} _ _ _
+      (Sum.congruent count (\fun (i: Fin.Fin count) => Chains.generator n (Simplices.face n i Higher.diagonal))
+        (\fun (i: Fin.Fin count) => #apply{(Transition.faces i)} Lower.cell) (\fun (i: Fin.Fin count) => At[i := i].law))
+      (sym!{{Chains.Carrier n}} _ _ (Transition.onValues Lower.cell)));

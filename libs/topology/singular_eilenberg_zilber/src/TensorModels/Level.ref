@@ -1,0 +1,23 @@
+\import \parent.Fixed[z := z] \as Fixed;
+\import Diagram.Total[C := Fixed.complex] \as Total;
+\import Total.Degree[n := n] \as Current;
+\import Total.Degree[n := N.Nat^::succ n] \as Next;
+\definition Carrier: \Set := Current.Carrier;
+\definition space: Modules.Space Carrier := Current.space;
+\definition family: Modules.Family[Double.Index n] := Current.family;
+\definition transition: Modules.Hom[V := Carrier, W := Next.Carrier, source := space, target := Next.space].Map := Total.Step[n := n].differential;
+\module At(i: Double.Index n) {
+  \import \parent.\parent.At[p := #first{i}, q := #second{i}] \as Model;
+  \definition injection: Modules.Hom[V := Model.Carrier z, W := Carrier, source := Model.space z, target := space].Map := Current.Component[i := i].injection;
+}
+\module Coordinates {
+  \import Modules.DirectSum[Index := Double.Index n, family := family].FiniteSupport[] \as Native;
+  \definition coordinate(i: Double.Index n)(x: Carrier): \parent.\parent.At[p := #first{i}, q := #second{i}].Carrier z := (#apply{Native.forward} x) i;
+  \definition ext(x, y: Carrier)(same: \forall (i: Double.Index n) -> coordinate i x = coordinate i y): x = y := Native.injective x y (\axiom:funext(#apply{Native.forward} x, #apply{Native.forward} y, same));
+  \module At(i: Double.Index n) {
+    \import \parent.\parent.\parent.At[p := #first{i}, q := #second{i}] \as Model;
+    \definition map: Modules.Hom[V := Carrier, W := Model.Carrier z, source := space, target := Model.space z].Map := Native.At[i := i].evaluate;
+    \definition zero: coordinate i #zero{space} = #zero{(Model.space z)} := Modules.Hom[V := Carrier, W := Model.Carrier z, source := space, target := Model.space z].zeroPreserved map;
+  }
+}
+\module Product;

@@ -1,0 +1,54 @@
+\import chain_complexes.Chain[] \as Degrees;
+\import chain_complexes.Integer[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Cochains;
+\import \parent.Integer[P := P, N := N] \as Source;
+\import \parent.Integer[P := Q, N := N] \as Target;
+\import IntegerChains.Equivalence[C := P, D := Q] \as Equivalences;
+\import \parent.IntegerHomotopy[P := Q, Q := P, N := N] \as Forward;
+\import \parent.IntegerHomotopy[P := P, Q := Q, N := N] \as Backward;
+\import Cochains.Map[C := Source.complex, D := Target.complex] \as ForwardMaps;
+\import Cochains.Map[C := Target.complex, D := Source.complex] \as BackwardMaps;
+\import \parent.IntegerComposition[P := P, Q := Q, T := P, N := N] \as Left;
+\import \parent.IntegerComposition[P := Q, Q := P, T := Q, N := N] \as Right;
+\import \parent.IntegerHomotopy[P := P, Q := P, N := N] \as LeftHomotopy;
+\import \parent.IntegerHomotopy[P := Q, Q := Q, N := N] \as RightHomotopy;
+\import \parent.IntegerEnd[P := P, N := N] \as SourceEnd;
+\import \parent.IntegerEnd[P := Q, N := N] \as TargetEnd;
+\import IntegerChains.Map[C := P, D := Q].Composition[B := Q] \as RightChains;
+\import IntegerChains.Map[C := Q, D := P].Composition[B := P] \as LeftChains;
+\import IntegerChains.End[C := P] \as SourceIdentity;
+\import IntegerChains.End[C := Q] \as TargetIdentity;
+\module At(k: Degrees.Degree) {
+  \import Cochains.At[C := Source.complex, z := k] \as SourceH;
+  \import Cochains.At[C := Target.complex, z := k] \as TargetH;
+  \import ForwardMaps.At[k := k] \as ForwardH;
+  \import BackwardMaps.At[k := k] \as BackwardH;
+  \definition left: \forall (e: Equivalences.Equivalence)(q: SourceH.Cohomology) ->
+    #apply{(BackwardH.induced (Backward.map e.forward))} (#apply{(ForwardH.induced (Forward.map e.backward))} q) = q :=
+    \fun (e: Equivalences.Equivalence)(q: SourceH.Cohomology) => trans!{SourceH.Cohomology} _ _ _
+      (sym!{SourceH.Cohomology} _ _ (Left.At[k := k].onCohomology e.forward e.backward q))
+      (trans!{SourceH.Cohomology} _ _ _
+        (LeftHomotopy.onCohomology (LeftChains.compose e.backward e.forward) SourceIdentity.identity (Equivalences.leftHomotopy e) k q)
+        (SourceEnd.At[k := k].onCohomology q));
+  \definition right: \forall (e: Equivalences.Equivalence)(q: TargetH.Cohomology) ->
+    #apply{(ForwardH.induced (Forward.map e.backward))} (#apply{(BackwardH.induced (Backward.map e.forward))} q) = q :=
+    \fun (e: Equivalences.Equivalence)(q: TargetH.Cohomology) => trans!{TargetH.Cohomology} _ _ _
+      (sym!{TargetH.Cohomology} _ _ (Right.At[k := k].onCohomology e.backward e.forward q))
+      (trans!{TargetH.Cohomology} _ _ _
+        (RightHomotopy.onCohomology (RightChains.compose e.forward e.backward) TargetIdentity.identity (Equivalences.rightHomotopy e) k q)
+        (TargetEnd.At[k := k].onCohomology q));
+  \import Modules.Isomorphism[V := SourceH.Cohomology, W := TargetH.Cohomology, source := SourceH.cohomologySpace, target := TargetH.cohomologySpace] \as Iso;
+  \definition isomorphism(e: Equivalences.Equivalence): Iso.Isomorphism := Iso.Isomorphism {
+    forward := ForwardH.induced (Forward.map e.backward), backward := BackwardH.induced (Backward.map e.forward),
+    leftInverse := left e, rightInverse := right e,
+  };
+  \definition backwardBijective(e: Equivalences.Equivalence): BackwardH.Bijective[Backward.map e.forward] := BackwardH.Bijective[Backward.map e.forward] {
+    injective := \fun (x, y: TargetH.Cohomology)(same: #apply{(BackwardH.induced (Backward.map e.forward))} x = #apply{(BackwardH.induced (Backward.map e.forward))} y) =>
+      trans!{TargetH.Cohomology} _ _ _ (sym!{TargetH.Cohomology} _ _ (right e x))
+        (trans!{TargetH.Cohomology} _ _ _ (congr!{SourceH.Cohomology TargetH.Cohomology} (#apply{(ForwardH.induced (Forward.map e.backward))}) _ _ same) (right e y)),
+    onto := \fun (x: SourceH.Cohomology) => std.Logic[].Proposition[].existsIntro[TargetH.Cohomology,
+      { y: TargetH.Cohomology \where #apply{(BackwardH.induced (Backward.map e.forward))} y = x }]
+      (#apply{(ForwardH.induced (Forward.map e.backward))} x) (left e x),
+  };
+}
+\definition quasiIsomorphism(e: Equivalences.Equivalence): BackwardMaps.QuasiIsomorphism (Backward.map e.forward) :=
+  \fun (k: Degrees.Degree) => At[k := k].backwardBijective e;

@@ -1,0 +1,50 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.Simplices[A := A, source := source] \as Simplices;
+\module At(n: N.Nat^) {
+  \import Modules.Free[Generators := Simplices.Carrier n] \as Free;
+  \definition Carrier: \Set := Free.Carrier;
+  \definition space: Modules.Space Carrier := Free.space;
+  \definition generator: Simplices.Carrier n -> Carrier := Free.generator;
+}
+\definition Carrier(n: N.Nat^): \Set := At[n := n].Carrier;
+\definition space(n: N.Nat^): Modules.Space (Carrier n) := At[n := n].space;
+\definition generator(n: N.Nat^): Simplices.Carrier n -> Carrier n := At[n := n].generator;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\definition family: Complexes.Family := Complexes.Family { Carrier := Carrier, space := space };
+\module Boundary(n: N.Nat^) {
+  \import Modules.Free[Generators := Simplices.Carrier (N.Nat^::succ n)].To[W := Carrier n, target := space n] \as Extend;
+  \import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n] \as Maps;
+  \import Modules.Alternating[V := Carrier n, space := space n] \as Sums;
+  \definition onSimplex(sigma: Simplices.Carrier (N.Nat^::succ n)): Carrier n :=
+    Sums.sum (N.Nat^::succ (N.Nat^::succ n))
+      (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => generator n (Simplices.face n i sigma));
+  \definition map: Maps.Map := Extend.extension onSimplex;
+  \definition onGenerator: \forall (sigma: Simplices.Carrier (N.Nat^::succ n)) ->
+    #apply{map} (generator (N.Nat^::succ n) sigma) = onSimplex sigma := Extend.onGenerator onSimplex;
+  \module SumImage(W: \Set, target: Modules.Space W);
+}
+\definition boundary(n: N.Nat^): Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n].Map :=
+  Boundary[n := n].map;
+\module SquareZero(n: N.Nat^);
+\definition differential: Complexes.DifferentialData[family] := Complexes.DifferentialData[family] {
+  apply := \fun (n: N.Nat^) => #apply{(boundary n)},
+};
+\definition complex: Complexes.Complex := Complexes.Complex {
+  family := family,
+  differential := differential,
+  laws := Complexes.DifferentialLaws[family, differential] {
+    addition := \fun (n: N.Nat^) => #addition{(boundary n)},
+    scalar := \fun (n: N.Nat^) => #scalar{(boundary n)},
+    squareZero := \fun (n: N.Nat^) => SquareZero[n := n].all,
+  },
+};
+\import Complexes.ZeroExtension[C := complex] \as Extension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as IntegerChains;
+\definition integerComplex: IntegerChains.Complex := Extension.complex;
+\module Augmentation;
+\module Reduced;
+\module DegreeTransport;

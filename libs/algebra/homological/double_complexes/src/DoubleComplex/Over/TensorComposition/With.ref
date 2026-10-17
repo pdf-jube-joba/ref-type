@@ -1,0 +1,21 @@
+\import \parent.\parent.Tensor[C := A, D := D] \as SourceTensor;
+\import \parent.\parent.Tensor[C := B, D := E] \as MiddleTensor;
+\import \parent.\parent.Tensor[C := C, D := F] \as TargetTensor;
+\import \parent.\parent.Total[C := SourceTensor.complex] \as Source;
+\import \parent.\parent.Total[C := MiddleTensor.complex] \as Middle;
+\import \parent.\parent.Total[C := TargetTensor.complex] \as Target;
+\import LeftLast.Composition[B := A] \as LeftCompose;
+\import RightLast.Composition[B := D] \as RightCompose;
+\import \parent.\parent.TensorMapping[C := A, D := B, E := D, F := E].With[f := f, g := u] \as Before;
+\import \parent.\parent.TensorMapping[C := B, D := C, E := E, F := F].With[f := g, g := v] \as After;
+\import \parent.\parent.TensorMapping[C := A, D := C, E := D, F := F].With[f := LeftCompose.compose g f, g := RightCompose.compose v u] \as Composite;
+\import \parent.\parent.Map[C := MiddleTensor.complex, D := TargetTensor.complex].Composition[B := SourceTensor.complex] \as Compose;
+\import \parent.\parent.Map[C := SourceTensor.complex, D := TargetTensor.complex] \as Maps;
+\module Degree(p, q: Nat.Nat^);
+\definition components: Compose.compose After.map Before.map = Composite.map := Maps.ext (Compose.compose After.map Before.map) Composite.map (\fun (p, q: Nat.Nat^) => Degree[p := p, q := q].law);
+\import Chains.Map[C := Source.complex, D := Target.complex] \as TotalMaps;
+\import Chains.Map[C := Middle.complex, D := Target.complex].Composition[B := Source.complex] \as TotalCompose;
+\definition induced(f: Maps.Map): TotalMaps.Map := Maps.Total[f := f].map;
+\definition equality: TotalCompose.compose After.total Before.total = Composite.total :=
+  trans!{TotalMaps.Map} _ _ _ (sym!{TotalMaps.Map} _ _ (Compose.Total[f := After.map, g := Before.map].equality))
+    (congr!{Maps.Map TotalMaps.Map} induced _ _ components);

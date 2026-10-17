@@ -3,6 +3,9 @@
 mod declaration_checkpoint;
 #[path = "exports.rs"]
 pub(crate) mod exports;
+#[path = "shared_vectors.rs"]
+mod shared_vectors;
+use super::definition_map::DefinitionMap;
 use super::shared_map::SharedMap;
 use crate::raw::{
     exp::{Arena, Exp},
@@ -16,6 +19,7 @@ use rustc_hash::FxHashMap;
 use std::{
     cell::{Cell, OnceCell, RefCell},
     collections::{HashMap, HashSet},
+    hash::{Hash, Hasher},
     sync::Arc,
 };
 
@@ -99,27 +103,30 @@ impl From<Exp> for ModuleArgument {
 #[derive(
     artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
 )]
+// Keep the common definition variant small; constructor labels are immutable
+// across imports, whereas associated definition identities are specialized.
+#[allow(clippy::box_collection)]
 pub enum ModuleItem {
     Definition {
-        name: String,
+        name: Arc<String>,
         definition: DefId,
     },
     Inductive {
-        name: String,
-        constructor_names: Vec<String>,
-        associated_definitions: Vec<(String, DefId)>,
+        name: Arc<String>,
+        constructor_names: Arc<Vec<String>>,
+        associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: InductiveId,
     },
     Record {
-        name: String,
-        associated_definitions: Vec<(String, DefId)>,
+        name: Arc<String>,
+        associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: InductiveId,
     },
     ProgramInductive {
-        record_fields: Option<Vec<String>>,
-        name: String,
-        constructor_names: Vec<String>,
-        associated_definitions: Vec<(String, DefId)>,
+        record_fields: Option<Arc<Vec<String>>>,
+        name: Arc<String>,
+        constructor_names: Arc<Vec<String>>,
+        associated_definitions: Box<Vec<(String, DefId)>>,
         inductive: ProgramInductiveId,
         reflected: InductiveId,
     },
@@ -140,7 +147,7 @@ impl ModuleItem {
 pub struct NamespaceBinding {
     pub source: ModuleId,
     pub materialized: ModuleId,
-    pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
+    pub arguments: Arc<[(ModuleParamId, ModuleArgument)]>,
     /// Maps definitions in `materialized` back to definitions in `source`.
     pub definition_origins: HashMap<DefId, DefId>,
     pub(crate) remapping: RemappingId,
@@ -186,11 +193,16 @@ impl DeclarationRemapping {
 }
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub(crate) struct DefinitionEnvironment {
+    pub(crate) substitutions: Arc<[(ModuleParamId, ModuleArgument)]>,
+    pub(crate) reflected_substitutions: Arc<[(ModuleParamId, Exp)]>,
+    pub(crate) remapping: Cell<RemappingId>,
+}
+
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyDefinition {
     source: DefId,
-    substitutions: Arc<[(ModuleParamId, ModuleArgument)]>,
-    reflected_substitutions: Arc<[(ModuleParamId, Exp)]>,
-    remapping: RemappingId,
+    environment: Arc<DefinitionEnvironment>,
 }
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -233,9 +245,9 @@ pub struct ModuleEnv {
     #[serde(with = "cells")]
     program_inductives: Vec<OnceCell<Box<ProgramInductiveTypeSpecs>>>,
     items: Vec<ModuleItem>,
-    names: HashMap<String, usize>,
-    hir_names: HashMap<String, resolve::hir::BindingId>,
-    hir_items: HashMap<resolve::hir::BindingId, usize>,
+    names: Arc<HashMap<String, usize>>,
+    hir_names: Arc<HashMap<String, resolve::hir::BindingId>>,
+    hir_items: Arc<HashMap<resolve::hir::BindingId, usize>>,
     bindings: Vec<ModuleId>,
     imports: HashMap<String, ModuleId>,
 }
@@ -251,9 +263,9 @@ impl ModuleEnv {
             inductives: Vec::new(),
             program_inductives: Vec::new(),
             items: Vec::new(),
-            names: HashMap::new(),
-            hir_names: HashMap::new(),
-            hir_items: HashMap::new(),
+            names: Arc::default(),
+            hir_names: Arc::default(),
+            hir_items: Arc::default(),
             bindings: Vec::new(),
             imports: HashMap::new(),
         }
@@ -303,18 +315,32 @@ type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 type ExactSpecializations<I> = HashMap<(I, usize), I>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct ClosedNamespaceKey {
+pub(crate) struct NamespaceInstanceKey {
+    pub scope: Option<(ModuleId, crate::raw::exp::ExpContext)>,
     pub base: Option<ModuleId>,
     pub route: Vec<(ModuleId, usize, usize)>,
     pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
 }
+
+impl NamespaceInstanceKey {
+    fn route_hash(&self) -> u64 {
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        self.base.hash(&mut hash);
+        self.route.hash(&mut hash);
+        hash.finish()
+    }
+}
+
+type NamespaceInstance = (ModuleId, Vec<ModuleId>);
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug)]
 pub struct CrateEnv {
     pub(crate) kernel: RefCell<kernel::environment::Environment>,
     pub(crate) kernel_definitions: RefCell<HashMap<DefId, kernel::ids::DefinitionId>>,
     hir_symbols: HashMap<resolve::hir::BindingId, SymbolId>,
-    definition_parameters: HashMap<DefId, Vec<SymbolId>>,
+    // All imported spellings retain the same immutable declaration parameters.
+    #[serde(deserialize_with = "shared_vectors::deserialize")]
+    definition_parameters: HashMap<DefId, Arc<Vec<SymbolId>>>,
     arena: Arena,
     #[serde(skip)]
     pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
@@ -344,21 +370,31 @@ pub struct CrateEnv {
     pub(crate) namespace_alias_cache: RefCell<super::namespaces::AliasCache>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
-    modules: Vec<ModuleEnv>,
+    // Import graphs can contain millions of namespaces. Growing their index
+    // must not transiently duplicate every large module record.
+    #[allow(clippy::vec_box)]
+    modules: Vec<Box<ModuleEnv>>,
     namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     #[serde(skip)]
-    pub(crate) closed_namespaces: HashMap<ClosedNamespaceKey, (ModuleId, Vec<ModuleId>)>,
+    namespace_instances: HashMap<Arc<NamespaceInstanceKey>, NamespaceInstance>,
+    // Conversion only compares closed instances of the same import route.
+    // Keep shared keys so unrelated and scoped graphs are never scanned.
+    #[serde(skip)]
+    closed_namespace_routes: HashMap<u64, Vec<Arc<NamespaceInstanceKey>>>,
     remappings: super::remapping_checkpoint::Tables,
     remapping_origins: HashMap<RemappingId, RemappingOrigin>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
-    checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
-    checking_program_contexts: HashMap<ModuleId, crate::raw::program::ProgramContext>,
+    // One validated capture is shared by every namespace in an import graph.
+    #[serde(deserialize_with = "shared_vectors::deserialize")]
+    checking_contexts: HashMap<ModuleId, Arc<crate::raw::exp::ExpContext>>,
+    #[serde(deserialize_with = "shared_vectors::deserialize")]
+    checking_program_contexts: HashMap<ModuleId, Arc<crate::raw::program::ProgramContext>>,
     #[serde(with = "declaration_checkpoint::definitions")]
-    lazy_definitions: HashMap<DefId, LazyDefinition>,
+    lazy_definitions: DefinitionMap<LazyDefinition>,
     #[serde(with = "declaration_checkpoint::inductives")]
     lazy_inductives: HashMap<InductiveId, LazyInductive>,
     #[serde(with = "declaration_checkpoint::specializations")]
-    nominal_definitions: HashMap<DefId, super::namespaces::Specialization<DefId>>,
+    nominal_definitions: DefinitionMap<super::namespaces::Specialization<DefId>>,
     #[serde(with = "declaration_checkpoint::specializations")]
     nominal_inductives: HashMap<InductiveId, super::namespaces::Specialization<InductiveId>>,
     #[serde(with = "declaration_checkpoint::specializations")]
@@ -444,17 +480,18 @@ impl CrateEnv {
             namespace_alias_cache: Default::default(),
             symbols: vec![anonymous, root],
             symbol_ids,
-            modules: vec![ModuleEnv::new("root".into(), None, vec![])],
+            modules: vec![Box::new(ModuleEnv::new("root".into(), None, vec![]))],
             namespace_bindings: HashMap::new(),
-            closed_namespaces: HashMap::new(),
+            namespace_instances: HashMap::new(),
+            closed_namespace_routes: HashMap::new(),
             remappings: super::remapping_checkpoint::Tables::default(),
             remapping_origins: HashMap::new(),
             checking_scopes: HashMap::new(),
             checking_contexts: HashMap::new(),
             checking_program_contexts: HashMap::new(),
-            lazy_definitions: HashMap::new(),
+            lazy_definitions: DefinitionMap::default(),
             lazy_inductives: HashMap::new(),
-            nominal_definitions: HashMap::new(),
+            nominal_definitions: DefinitionMap::default(),
             nominal_inductives: HashMap::new(),
             prospective_inductives: HashMap::new(),
             nominal_datatypes: HashMap::new(),
@@ -547,6 +584,7 @@ impl CrateEnv {
         crate::raw::derivation::CheckSession::new(self, &mut context)
             .check_wellformed_context()
             .map_err(crate::error::Error::from)?;
+        let context = Arc::new(context);
         let mut modules = Vec::with_capacity(count);
         for _ in 0..count {
             let module = self.add_module();
@@ -593,7 +631,8 @@ impl CrateEnv {
     ) -> ModuleId {
         let index = u32::try_from(self.modules.len()).expect("module table exceeded u32::MAX");
         let id = ModuleId(index);
-        self.modules.push(ModuleEnv::new(name, parent, parameters));
+        self.modules
+            .push(Box::new(ModuleEnv::new(name, parent, parameters)));
         id
     }
 
@@ -637,7 +676,7 @@ impl CrateEnv {
     pub fn definition_parameters(&self, id: DefId) -> &[SymbolId] {
         self.definition_parameters
             .get(&id)
-            .map(Vec::as_slice)
+            .map(|parameters| parameters.as_slice())
             .unwrap_or(&[])
     }
 
@@ -662,7 +701,7 @@ impl CrateEnv {
             .definitions
             .push(OnceCell::from(Box::new(definition)));
         let id = DefId { module, index };
-        self.definition_parameters.insert(id, parameters);
+        self.definition_parameters.insert(id, Arc::new(parameters));
         tracing::debug!(target: "ref_type::environment", ?id, "checked definition registered");
         Ok(id)
     }
@@ -700,7 +739,7 @@ impl CrateEnv {
             })
             .collect();
         if let Some(context) = self.checking_contexts.get(&module) {
-            pts_context = context.clone();
+            pts_context = context.as_ref().clone();
         }
         let mut program_context = self.program_definition_context(module);
         program_context.extend(
@@ -804,6 +843,7 @@ impl CrateEnv {
             let source = self.resolve_definition(lazy.source)?.clone();
             let count = self.definition_parameters(id).len();
             let shifted_substitutions = lazy
+                .environment
                 .substitutions
                 .iter()
                 .map(|(p, a)| {
@@ -836,6 +876,7 @@ impl CrateEnv {
                 })
                 .collect::<Vec<_>>();
             let reflected = lazy
+                .environment
                 .reflected_substitutions
                 .iter()
                 .map(|(p, e)| {
@@ -845,7 +886,7 @@ impl CrateEnv {
                     )
                 })
                 .collect::<Vec<_>>();
-            let remap = self.remapping(lazy.remapping);
+            let remap = self.remapping(lazy.environment.remapping.get());
             let logical_at = |e, depth| {
                 let shifted;
                 let substitutions = if depth == 0 {
@@ -987,6 +1028,7 @@ impl CrateEnv {
         result
     }
 
+    #[cfg(test)]
     pub(crate) fn reserve_lazy_definition(
         &mut self,
         module: ModuleId,
@@ -994,20 +1036,35 @@ impl CrateEnv {
         substitutions: impl Into<Arc<[(ModuleParamId, ModuleArgument)]>>,
         reflected_substitutions: impl Into<Arc<[(ModuleParamId, Exp)]>>,
     ) -> DefId {
-        let parameters = self.definition_parameters(source).to_vec();
+        self.reserve_lazy_definition_shared(
+            module,
+            source,
+            Arc::new(DefinitionEnvironment {
+                substitutions: substitutions.into(),
+                reflected_substitutions: reflected_substitutions.into(),
+                remapping: Cell::new(RemappingId(0)),
+            }),
+        )
+    }
+
+    pub(crate) fn reserve_lazy_definition_shared(
+        &mut self,
+        module: ModuleId,
+        source: DefId,
+        environment: Arc<DefinitionEnvironment>,
+    ) -> DefId {
+        let parameters = self.definition_parameters.get(&source).cloned();
         let index = self.module(module).definitions.len() as u32;
         self.module_mut(module).definitions.push(OnceCell::new());
         let id = DefId { module, index };
-        if !parameters.is_empty() {
+        if let Some(parameters) = parameters.filter(|parameters| !parameters.is_empty()) {
             self.definition_parameters.insert(id, parameters);
         }
         self.lazy_definitions.insert(
             id,
             LazyDefinition {
                 source,
-                substitutions: substitutions.into(),
-                reflected_substitutions: reflected_substitutions.into(),
-                remapping: RemappingId(0),
+                environment,
             },
         );
         id
@@ -1019,8 +1076,8 @@ impl CrateEnv {
         }
         self.specializations_indexed = true;
         macro_rules! index {
-            ($nominal:ident, $exact:ident) => {
-                for (&id, specialization) in &self.$nominal {
+            ($entries:expr, $exact:ident) => {
+                for (id, specialization) in $entries {
                     if self.namespace_arguments_shareable(&specialization.arguments) {
                         let mut cache = self.namespace_argument_cache.borrow_mut();
                         let arguments = cache.intern(&specialization.arguments);
@@ -1030,9 +1087,22 @@ impl CrateEnv {
                 }
             };
         }
-        index!(nominal_definitions, exact_definition_specializations);
-        index!(nominal_inductives, exact_inductive_specializations);
-        index!(nominal_datatypes, exact_datatype_specializations);
+        index!(
+            self.nominal_definitions.iter(),
+            exact_definition_specializations
+        );
+        index!(
+            self.nominal_inductives
+                .iter()
+                .map(|(&id, value)| (id, value)),
+            exact_inductive_specializations
+        );
+        index!(
+            self.nominal_datatypes
+                .iter()
+                .map(|(&id, value)| (id, value)),
+            exact_datatype_specializations
+        );
     }
 
     pub(crate) fn reuse_lazy_definition(
@@ -1054,7 +1124,7 @@ impl CrateEnv {
                 arguments: self
                     .namespace_argument_cache
                     .borrow_mut()
-                    .share(&self.namespace_arguments(source.module)),
+                    .share_compact(&self.namespace_arguments(source.module)),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1134,7 +1204,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
         timing::costs::count("namespace.definition-fresh", || 1);
@@ -1142,10 +1215,14 @@ impl CrateEnv {
     }
 
     pub(crate) fn set_lazy_definition_remapping(&mut self, id: DefId, remapping: RemappingId) {
-        self.lazy_definitions
-            .get_mut(&id)
+        let environment = &self
+            .lazy_definitions
+            .get(&id)
             .expect("lazy definition")
-            .remapping = remapping;
+            .environment;
+        let previous = environment.remapping.get();
+        assert!(previous == RemappingId(0) || previous == remapping);
+        environment.remapping.set(remapping);
     }
 
     #[cfg(test)]
@@ -1296,7 +1373,7 @@ impl CrateEnv {
                 arguments: self
                     .namespace_argument_cache
                     .borrow_mut()
-                    .share(&self.namespace_arguments(source.module)),
+                    .share_compact(&self.namespace_arguments(source.module)),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1308,7 +1385,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
     }
@@ -1332,7 +1412,7 @@ impl CrateEnv {
                 arguments: self
                     .namespace_argument_cache
                     .borrow_mut()
-                    .share(&self.namespace_arguments(source.module)),
+                    .share_compact(&self.namespace_arguments(source.module)),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1344,7 +1424,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
         self.index_specializations();
@@ -1419,7 +1502,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
         timing::costs::count("namespace.inductive-fresh", || 1);
@@ -1521,7 +1607,7 @@ impl CrateEnv {
                 arguments: self
                     .namespace_argument_cache
                     .borrow_mut()
-                    .share(&self.namespace_arguments(source.module)),
+                    .share_compact(&self.namespace_arguments(source.module)),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1600,7 +1686,10 @@ impl CrateEnv {
             id,
             super::namespaces::Specialization {
                 source: origin.source,
-                arguments: self.namespace_argument_cache.borrow_mut().share(&arguments),
+                arguments: self
+                    .namespace_argument_cache
+                    .borrow_mut()
+                    .share_compact(&arguments),
             },
         );
         timing::costs::count("namespace.datatype-fresh", || 1);
@@ -1627,6 +1716,7 @@ impl CrateEnv {
         definition_origins: HashMap<DefId, DefId>,
         remapping: RemappingId,
     ) -> ModuleId {
+        let arguments = self.namespace_argument_cache.borrow_mut().share(&arguments);
         self.module_mut(owner).bindings.push(materialized);
         let previous = self.namespace_bindings.insert(
             materialized,
@@ -1673,13 +1763,49 @@ impl CrateEnv {
     ) {
         let module = self.module_mut(module);
         if let Some(index) = module.names.get(&name) {
-            module.hir_items.insert(binding, *index);
+            Arc::make_mut(&mut module.hir_items).insert(binding, *index);
         }
-        module.hir_names.insert(name, binding);
+        Arc::make_mut(&mut module.hir_names).insert(name, binding);
     }
 
-    pub fn copy_hir_names(&mut self, source: ModuleId, target: ModuleId) {
-        self.module_mut(target).hir_names = self.module(source).hir_names.clone();
+    pub(crate) fn publish_instantiated_items(
+        &mut self,
+        source: ModuleId,
+        target: ModuleId,
+        items: Vec<ModuleItem>,
+    ) {
+        let original = self.module(source);
+        assert_eq!(original.items.len(), items.len());
+        assert!(
+            original
+                .items
+                .iter()
+                .zip(&items)
+                .all(|(a, b)| a.name() == b.name())
+        );
+        let names = original.names.clone();
+        let hir_names = original.hir_names.clone();
+        let current_hir_items = || {
+            hir_names
+                .iter()
+                .filter_map(|(name, binding)| names.get(name).map(|index| (*binding, *index)))
+        };
+        let hir_items = if current_hir_items().count() == original.hir_items.len()
+            && current_hir_items()
+                .all(|(binding, index)| original.hir_items.get(&binding) == Some(&index))
+        {
+            original.hir_items.clone()
+        } else {
+            Arc::new(current_hir_items().collect())
+        };
+        let target = self.module_mut(target);
+        assert!(target.items.is_empty());
+        // Specialization changes declaration identities, but preserves their
+        // order and names. Reuse those immutable indexes across namespaces.
+        target.items = items;
+        target.names = names;
+        target.hir_names = hir_names;
+        target.hir_items = hir_items;
     }
 
     pub fn publish_item(
@@ -1697,9 +1823,9 @@ impl CrateEnv {
         let index = module.items.len();
         module.items.push(item);
         if let Some(binding) = module.hir_names.get(&name) {
-            module.hir_items.insert(*binding, index);
+            Arc::make_mut(&mut module.hir_items).insert(*binding, index);
         }
-        module.names.insert(name, index);
+        Arc::make_mut(&mut module.names).insert(name, index);
         Ok(())
     }
 
@@ -1769,17 +1895,20 @@ impl CrateEnv {
     }
 
     pub(crate) fn item_for_inductive(&self, inductive: InductiveId) -> Option<&ModuleItem> {
-        self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
-            matches!(item,
+        self.modules
+            .iter()
+            .flat_map(|module| module.items())
+            .find(|item| {
+                matches!(item,
                 ModuleItem::Inductive { inductive: candidate, .. }
                 | ModuleItem::Record { inductive: candidate, .. }
                 | ModuleItem::ProgramInductive { reflected: candidate, .. }
                 if *candidate == inductive)
-        })
+            })
     }
 
     pub fn record_for_inductive(&self, inductive: InductiveId) -> Option<&ModuleItem> {
-        self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
+        self.modules.iter().flat_map(|module| module.items()).find(|item| {
             matches!(item, ModuleItem::Record { inductive: candidate, .. } if *candidate == inductive)
         })
     }
@@ -1788,16 +1917,19 @@ impl CrateEnv {
         &self,
         inductive: ProgramInductiveId,
     ) -> Option<&ModuleItem> {
-        self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
-            matches!(
-                item,
-                ModuleItem::ProgramInductive {
-                    record_fields: Some(_),
-                    inductive: candidate,
-                    ..
-                } if *candidate == inductive
-            )
-        })
+        self.modules
+            .iter()
+            .flat_map(|module| module.items())
+            .find(|item| {
+                matches!(
+                    item,
+                    ModuleItem::ProgramInductive {
+                        record_fields: Some(_),
+                        inductive: candidate,
+                        ..
+                    } if *candidate == inductive
+                )
+            })
     }
 
     pub fn materialization_stats(&self) -> MaterializationStats {
@@ -1827,7 +1959,7 @@ impl CrateEnv {
     pub(crate) fn set_program_context(
         &mut self,
         module: ModuleId,
-        context: crate::raw::program::ProgramContext,
+        context: Arc<crate::raw::program::ProgramContext>,
     ) {
         if !context.is_empty() {
             self.checking_program_contexts.insert(module, context);
@@ -1840,7 +1972,7 @@ impl CrateEnv {
     ) -> crate::raw::program::ProgramContext {
         self.checking_program_contexts
             .get(&module)
-            .cloned()
+            .map(|context| context.as_ref().clone())
             .unwrap_or_default()
     }
 
@@ -1852,7 +1984,7 @@ impl CrateEnv {
 
     pub(crate) fn definition_context(&self, module: ModuleId) -> crate::raw::exp::ExpContext {
         if let Some(context) = self.checking_contexts.get(&module) {
-            return context.clone();
+            return context.as_ref().clone();
         }
         // Named module parameters are captured by identity when lowering.
         // Only local binders belong to the de Bruijn context.
@@ -1931,6 +2063,46 @@ impl CrateEnv {
 }
 
 impl CrateEnv {
+    pub(crate) fn namespace_instance(
+        &self,
+        key: &NamespaceInstanceKey,
+    ) -> Option<NamespaceInstance> {
+        self.namespace_instances.get(key).cloned()
+    }
+
+    pub(crate) fn equivalent_namespace_instance(
+        &self,
+        key: &NamespaceInstanceKey,
+    ) -> Option<NamespaceInstance> {
+        if key.scope.is_some() {
+            return None;
+        }
+        self.closed_namespace_routes
+            .get(&key.route_hash())?
+            .iter()
+            .find_map(|candidate| {
+                (candidate.base == key.base
+                    && candidate.route == key.route
+                    && self.namespace_arguments_equal(&candidate.arguments, &key.arguments))
+                .then(|| self.namespace_instances.get(candidate).unwrap().clone())
+            })
+    }
+
+    pub(crate) fn remember_namespace_instance(
+        &mut self,
+        key: NamespaceInstanceKey,
+        value: NamespaceInstance,
+    ) {
+        let key = Arc::new(key);
+        if key.scope.is_none() && !self.namespace_instances.contains_key(&key) {
+            self.closed_namespace_routes
+                .entry(key.route_hash())
+                .or_default()
+                .push(key.clone());
+        }
+        self.namespace_instances.insert(key, value);
+    }
+
     pub(crate) fn store_namespace_remapping(
         &mut self,
         remapping: DeclarationRemapping,
@@ -1951,6 +2123,26 @@ impl CrateEnv {
         });
         let id = RemappingId(self.remappings.len());
         self.remappings.push(remapping);
+        if self.remappings.len().is_multiple_of(16384)
+            && std::env::var_os("REF_TYPE_PROFILE_STORAGE").is_some()
+        {
+            eprintln!(
+                "storage remappings={} modules={} arena_nodes={} nominal_definitions={}/{} lazy_definitions={}/{} exact_definitions={}/{} namespaces={}/{} instances={} closed_routes={}",
+                self.remappings.len(),
+                self.modules.len(),
+                self.arena.core.len(),
+                self.nominal_definitions.len(),
+                self.nominal_definitions.capacity(),
+                self.lazy_definitions.len(),
+                self.lazy_definitions.capacity(),
+                self.exact_definition_specializations.len(),
+                self.exact_definition_specializations.capacity(),
+                self.namespace_bindings.len(),
+                self.namespace_bindings.capacity(),
+                self.namespace_instances.len(),
+                self.closed_namespace_routes.len(),
+            );
+        }
         if self.remappings.len().is_multiple_of(1024)
             && std::env::var_os("REF_TYPE_PROFILE_REMAPPINGS").is_some()
         {
@@ -2042,7 +2234,7 @@ impl CrateEnv {
         bindings: &HashMap<resolve::hir::BindingId, resolve::Binding>,
     ) {
         for &module in modules.values() {
-            self.modules[module.index()].hir_names.clear();
+            Arc::make_mut(&mut self.modules[module.index()].hir_names).clear();
         }
         for (&id, binding) in bindings {
             if binding.parameter.is_none()
@@ -2078,6 +2270,374 @@ mod cells {
 #[cfg(test)]
 mod specialization_tests {
     use super::*;
+
+    #[test]
+    fn lazy_definition_parameters_share_source_symbols_and_restore_sharing() {
+        use crate::raw::program::{ComputationTermNode, ComputationTypeNode};
+
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let arena = env.arena();
+        let domain = arena.value_type_bound(0);
+        let ty = arena.alloc(ComputationTypeNode::Function {
+            domain,
+            codomain: arena.alloc(ComputationTypeNode::Return { value_ty: domain }),
+        });
+        let body = arena.alloc(ComputationTermNode::Lambda {
+            var: SymbolId::ANONYMOUS,
+            value_ty: domain,
+            body: arena.alloc(ComputationTermNode::Return {
+                value: arena.value_bound(0),
+            }),
+        });
+        let mut symbols = vec![SymbolId::ANONYMOUS];
+        let source = env
+            .add_parameterized_definition(
+                root,
+                DefinedConstant::ProgramComputation { ty, body },
+                symbols.clone(),
+            )
+            .unwrap();
+        let namespaces = env.add_modules_in_scope(root, vec![], 2).unwrap();
+        let ids = namespaces
+            .iter()
+            .map(|&namespace| env.reserve_lazy_definition(namespace, source, vec![], vec![]))
+            .collect::<Vec<_>>();
+        for id in &ids {
+            assert!(Arc::ptr_eq(
+                &env.definition_parameters[&source],
+                &env.definition_parameters[id]
+            ));
+        }
+        assert_eq!(
+            postcard::to_allocvec(&env.definition_parameters[&source]).unwrap(),
+            postcard::to_allocvec(&symbols).unwrap()
+        );
+        symbols.clear();
+        assert_eq!(env.definition_parameters(source), &[SymbolId::ANONYMOUS]);
+
+        let restored: CrateEnv =
+            postcard::from_bytes(&postcard::to_allocvec(&env).unwrap()).unwrap();
+        for id in ids {
+            assert!(Arc::ptr_eq(
+                &restored.definition_parameters[&source],
+                &restored.definition_parameters[&id]
+            ));
+        }
+    }
+
+    #[test]
+    fn import_captures_share_storage_without_exposing_caller_mutation() {
+        use crate::raw::{exp::ExpContextEntry, program::ProgramContextEntry, sort::Sort};
+
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let entry = ExpContextEntry {
+            var: SymbolId::ANONYMOUS,
+            ty: env.arena().sort(Sort::Set(0)),
+        };
+        let mut logical = vec![entry.clone()];
+        let modules = env.add_modules_in_scope(root, logical.clone(), 2).unwrap();
+        assert!(Arc::ptr_eq(
+            &env.checking_contexts[&modules[0]],
+            &env.checking_contexts[&modules[1]]
+        ));
+        logical.clear();
+        let mut returned = env.definition_context(modules[0]);
+        returned.clear();
+        assert_eq!(env.definition_context(modules[1]), vec![entry.clone()]);
+
+        let program_entry = ProgramContextEntry::ValueType {
+            var: SymbolId::ANONYMOUS,
+        };
+        let mut program = Arc::new(vec![program_entry.clone()]);
+        for &module in &modules {
+            env.set_program_context(module, program.clone());
+        }
+        assert!(Arc::ptr_eq(
+            &env.checking_program_contexts[&modules[0]],
+            &env.checking_program_contexts[&modules[1]]
+        ));
+        Arc::make_mut(&mut program).clear();
+        let mut returned = env.program_definition_context(modules[0]);
+        returned.clear();
+        assert_eq!(
+            env.program_definition_context(modules[1]),
+            vec![program_entry.clone()]
+        );
+        assert_eq!(
+            postcard::to_allocvec(&env.checking_contexts[&modules[0]]).unwrap(),
+            postcard::to_allocvec(&vec![entry]).unwrap()
+        );
+        assert_eq!(
+            postcard::to_allocvec(&env.checking_program_contexts[&modules[0]]).unwrap(),
+            postcard::to_allocvec(&vec![program_entry]).unwrap()
+        );
+
+        let restored: CrateEnv =
+            postcard::from_bytes(&postcard::to_allocvec(&env).unwrap()).unwrap();
+        assert!(Arc::ptr_eq(
+            &restored.checking_contexts[&modules[0]],
+            &restored.checking_contexts[&modules[1]]
+        ));
+        assert!(Arc::ptr_eq(
+            &restored.checking_program_contexts[&modules[0]],
+            &restored.checking_program_contexts[&modules[1]]
+        ));
+    }
+
+    #[test]
+    fn closed_namespace_route_index_preserves_conversion_and_scope() {
+        use crate::raw::{exp::ExpNode, sort::Sort};
+
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let parameter = ModuleParamId {
+            module: root,
+            position: 0,
+        };
+        let set = env.arena().sort(Sort::Set(0));
+        let identity = env.arena().alloc(ExpNode::Lam {
+            var: SymbolId::ANONYMOUS,
+            ty: env.arena().sort(Sort::SetKind(1)),
+            body: env.arena().exp_bound(0),
+        });
+        let equivalent = env.arena().alloc(ExpNode::App {
+            func: identity,
+            arg: set,
+        });
+        let key = NamespaceInstanceKey {
+            scope: None,
+            base: None,
+            route: vec![(root, 1, 0)],
+            arguments: vec![(parameter, set.into())],
+        };
+        env.remember_namespace_instance(key.clone(), (root, vec![root]));
+        let mut converted = key.clone();
+        converted.arguments[0].1 = equivalent.into();
+        assert!(env.namespace_instance(&converted).is_none());
+        assert_eq!(
+            env.equivalent_namespace_instance(&converted),
+            Some((root, vec![root]))
+        );
+
+        // Hash buckets are only an index: a collision never equates routes.
+        let mut other_route = converted.clone();
+        other_route.route[0].1 += 1;
+        env.closed_namespace_routes
+            .insert(other_route.route_hash(), vec![Arc::new(key.clone())]);
+        assert!(env.equivalent_namespace_instance(&other_route).is_none());
+        converted.scope = Some((root, vec![]));
+        assert!(env.equivalent_namespace_instance(&converted).is_none());
+    }
+
+    #[test]
+    fn compact_module_items_preserve_legacy_checkpoint_bytes() {
+        #[derive(serde::Serialize)]
+        enum LegacyItem {
+            Definition {
+                name: String,
+                definition: DefId,
+            },
+            Inductive {
+                name: String,
+                constructor_names: Vec<String>,
+                associated_definitions: Vec<(String, DefId)>,
+                inductive: InductiveId,
+            },
+            Record {
+                name: String,
+                associated_definitions: Vec<(String, DefId)>,
+                inductive: InductiveId,
+            },
+            ProgramInductive {
+                record_fields: Option<Vec<String>>,
+                name: String,
+                constructor_names: Vec<String>,
+                associated_definitions: Vec<(String, DefId)>,
+                inductive: ProgramInductiveId,
+                reflected: InductiveId,
+            },
+        }
+        let definition = DefId {
+            module: ModuleId(1),
+            index: 2,
+        };
+        let inductive = InductiveId {
+            module: ModuleId(3),
+            index: 4,
+        };
+        let associated = || vec![("method".into(), definition)];
+        let items = [
+            LegacyItem::Definition {
+                name: "value".into(),
+                definition,
+            },
+            LegacyItem::Inductive {
+                name: "Choice".into(),
+                constructor_names: vec!["left".into(), "right".into()],
+                associated_definitions: associated(),
+                inductive,
+            },
+            LegacyItem::Record {
+                name: "Pair".into(),
+                associated_definitions: associated(),
+                inductive,
+            },
+            LegacyItem::ProgramInductive {
+                record_fields: Some(vec!["field".into()]),
+                name: "Value".into(),
+                constructor_names: vec!["make".into()],
+                associated_definitions: associated(),
+                inductive: ProgramInductiveId {
+                    module: ModuleId(5),
+                    index: 6,
+                },
+                reflected: inductive,
+            },
+        ];
+        for item in items {
+            let bytes = postcard::to_allocvec(&item).unwrap();
+            let restored: ModuleItem = postcard::from_bytes(&bytes).unwrap();
+            assert_eq!(postcard::to_allocvec(&restored).unwrap(), bytes);
+            let copy = restored.clone();
+            let name = |item: &ModuleItem| match item {
+                ModuleItem::Definition { name, .. }
+                | ModuleItem::Inductive { name, .. }
+                | ModuleItem::Record { name, .. }
+                | ModuleItem::ProgramInductive { name, .. } => Arc::as_ptr(name),
+            };
+            assert_eq!(name(&restored), name(&copy));
+            if let ModuleItem::Inductive {
+                constructor_names,
+                associated_definitions,
+                ..
+            } = &restored
+            {
+                let mut copy = restored.clone();
+                let ModuleItem::Inductive {
+                    constructor_names: copied_names,
+                    associated_definitions: copied_definitions,
+                    ..
+                } = &mut copy
+                else {
+                    unreachable!()
+                };
+                assert!(Arc::ptr_eq(constructor_names, copied_names));
+                copied_definitions.clear();
+                assert_eq!(associated_definitions.len(), 1);
+            }
+        }
+        assert!(std::mem::size_of::<ModuleItem>() < std::mem::size_of::<LegacyItem>());
+    }
+    #[test]
+    fn namespace_argument_arrays_share_storage_and_preserve_checkpoint_bytes() {
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let namespaces = [env.add_module(), env.add_module()];
+        let parameter = ModuleParamId {
+            module: root,
+            position: 0,
+        };
+        let arguments = vec![(
+            parameter,
+            ModuleArgument::Pts(env.arena().sort(crate::raw::sort::Sort::Set(0))),
+        )];
+        for namespace in namespaces {
+            env.add_namespace_binding(
+                root,
+                root,
+                namespace,
+                arguments.clone(),
+                HashMap::new(),
+                RemappingId(0),
+            );
+        }
+        let binding = env.binding(namespaces[0]);
+        assert!(Arc::ptr_eq(
+            &binding.arguments,
+            &env.binding(namespaces[1]).arguments
+        ));
+        #[derive(serde::Serialize)]
+        struct LegacyBinding {
+            source: ModuleId,
+            materialized: ModuleId,
+            arguments: Vec<(ModuleParamId, ModuleArgument)>,
+            definition_origins: HashMap<DefId, DefId>,
+            remapping: RemappingId,
+        }
+        let legacy = LegacyBinding {
+            source: binding.source,
+            materialized: binding.materialized,
+            arguments,
+            definition_origins: binding.definition_origins.clone(),
+            remapping: binding.remapping,
+        };
+        let bytes = postcard::to_allocvec(&legacy).unwrap();
+        assert_eq!(postcard::to_allocvec(binding).unwrap(), bytes);
+        let restored: NamespaceBinding = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(restored.arguments.as_ref(), binding.arguments.as_ref());
+        assert_eq!(restored.source, binding.source);
+        assert_eq!(restored.materialized, binding.materialized);
+    }
+    #[test]
+    fn instantiated_name_indexes_keep_new_identities_and_isolate_later_declarations() {
+        let mut env = CrateEnv::new();
+        let source = env.add_module();
+        let target = env.add_module();
+        let binding = resolve::hir::BindingId(17);
+        env.register_hir_name(source, binding, "value".into());
+        env.publish_item(
+            source,
+            ModuleItem::Definition {
+                name: "value".to_string().into(),
+                definition: DefId {
+                    module: source,
+                    index: 0,
+                },
+            },
+        )
+        .unwrap();
+        let specialized = ModuleItem::Definition {
+            name: "value".to_string().into(),
+            definition: DefId {
+                module: target,
+                index: 0,
+            },
+        };
+        env.publish_instantiated_items(source, target, vec![specialized.clone()]);
+        assert_eq!(env.module(target).item("value"), Some(&specialized));
+        assert_eq!(env.module(target).hir_item(binding), Some(&specialized));
+        assert!(Arc::ptr_eq(
+            &env.module(source).names,
+            &env.module(target).names
+        ));
+        assert!(Arc::ptr_eq(
+            &env.module(source).hir_items,
+            &env.module(target).hir_items
+        ));
+        env.publish_item(
+            target,
+            ModuleItem::Definition {
+                name: "later".to_string().into(),
+                definition: DefId {
+                    module: target,
+                    index: 1,
+                },
+            },
+        )
+        .unwrap();
+        assert!(env.module(source).item("later").is_none());
+        assert!(env.module(target).item("later").is_some());
+        env.register_hir_name(target, resolve::hir::BindingId(18), "later".into());
+        assert!(!env.module(source).hir_names.contains_key("later"));
+        assert!(
+            env.module(source)
+                .hir_item(resolve::hir::BindingId(18))
+                .is_none()
+        );
+        assert!(env.publish_item(target, specialized).is_err());
+    }
     use crate::raw::{exp::ExpNode, sort::Sort};
 
     #[test]

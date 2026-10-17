@@ -1,0 +1,21 @@
+\import Cells.At[n := n].Iterated[k := n] \as Iteration;
+\import MetricAffine.Barycentre[] \as Centre;
+\import Real.Geometric[q := Centre.factor] \as Power;
+\import Simplex.Vertices[] \as Vertices;
+\definition basis: Affine.Vertices := Vertices.vertex n;
+\definition original: Mesh.Diameter basis Real.one := \fun (i, j: Fin.Fin (N.Nat^::succ n)) => Metric.unitDiameter (basis i) (basis j);
+\definition SmallAfter(threshold: N.Nat^): \Prop := \forall (word: Iteration.Word) -> Iteration.length word = threshold -> \In[WholeSimplices.Carrier n] (SmallSimplices.Small n) (simplex (Iteration.vertices basis word));
+\definition bound: \forall (threshold: N.Nat^)(word: Iteration.Word) -> Iteration.length word = threshold -> Mesh.Diameter (Iteration.vertices basis word) (Real.mul (Power.value threshold) Real.one) :=
+  \fun (threshold: N.Nat^)(word: Iteration.Word)(same: Iteration.length word = threshold)(i, j: Fin.Fin (N.Nat^::succ n)) =>
+    R.leReplaceRight _ _ _ (congr!{N.Nat^ Real.Real} (\fun (m: N.Nat^) => Real.mul (Power.value m) Real.one) _ _ same)
+      (Iteration.boundLaw basis Real.one RealLaws.oneNonnegative original word i j);
+\definition law: Global.IsOpenCover[source, family, Global.Whole] -> \exists { threshold: N.Nat^ \where SmallAfter threshold } := \block {
+  \fun (cover: Global.IsOpenCover[source, family, Global.Whole]) \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Compactness.LebesgueRadius[Metric.metric, pullback, delta] }) \by Metric.lebesgue pullback (covered cover) \then
+  \let radius: Compactness.LebesgueRadius[Metric.metric, pullback, delta] := \bysub(Real.Real, { delta: Real.Real \where Compactness.LebesgueRadius[Metric.metric, pullback, delta] }, delta) \then
+  \takefrom threshold: \Cast[N.Nat^] ({ threshold: N.Nat^ \where R.Lt (Real.mul (Power.value threshold) Real.one) delta }) \by Iteration.Decay[].numerical Real.one delta RealLaws.oneNonnegative (#positive{radius}) \then
+  \return Logic.existsIntro[N.Nat^, { threshold: N.Nat^ \where SmallAfter threshold }] threshold
+    (\fun (word: Iteration.Word)(same: Iteration.length word = threshold) => small (Iteration.vertices basis word) (Real.mul (Power.value threshold) Real.one) delta
+      (RealLaws.fieldMulNonnegative (Power.value threshold) Real.one (Power.nonnegative Centre.nonnegative threshold) RealLaws.oneNonnegative)
+      (bound threshold word same) (\bysub(N.Nat^, { threshold: N.Nat^ \where R.Lt (Real.mul (Power.value threshold) Real.one) delta }, threshold)) radius)
+};

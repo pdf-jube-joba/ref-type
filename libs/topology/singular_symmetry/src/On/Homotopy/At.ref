@@ -1,0 +1,17 @@
+\import \root.Models[].At[n := n] \as Model;
+\import Simplex.At[n := n] \as Domain;
+\import singular_cohomology.Chains[A := Simplex.Carrier n, source := Domain.topology] \as ModelChains;
+\import Double.Tensor[C := ModelChains.complex, D := ModelChains.complex] \as ModelTensor;
+\import Double.Total[C := ModelTensor.complex] \as ModelTotal;
+\definition evaluation(sigma: Simplices.Carrier n): Native.Map[C := ModelTotal.complex, D := Total.complex].Map := Evaluation.At[p := n, q := n].map sigma sigma;
+\definition evaluationLinear(k: N.Nat^)(sigma: Simplices.Carrier n): Modules.Hom[V := Model.Carrier (I.Int^::ofNat k), W := Total.Carrier k, source := Model.space (I.Int^::ofNat k), target := Total.space k].Map :=
+  Modules.Hom[V := Model.Carrier (I.Int^::ofNat k), W := Total.Carrier k, source := Model.space (I.Int^::ofNat k), target := Total.space k].Map {
+    apply := \fun (x: Model.Carrier (I.Int^::ofNat k)) => #apply{(evaluation sigma)} k x,
+    addition := \fun (x, y: Model.Carrier (I.Int^::ofNat k)) => #addition{(evaluation sigma)} k x y,
+    scalar := \fun (a: I.Int^)(x: Model.Carrier (I.Int^::ofNat k)) => #scalar{(evaluation sigma)} k a x,
+  };
+\definition onSimplex(sigma: Simplices.Carrier n): Total.Carrier (N.Nat^::succ n) := #apply{(evaluation sigma)} (N.Nat^::succ n) (Models.homotopy n);
+\import Modules.Free[Generators := Simplices.Carrier n].To[W := Total.Carrier (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as Extension;
+\definition map: Modules.Hom[V := Chains.Carrier n, W := Total.Carrier (N.Nat^::succ n), source := Chains.space n, target := Total.space (N.Nat^::succ n)].Map := Extension.extension onSimplex;
+\definition onGenerator: \forall (sigma: Simplices.Carrier n) -> #apply{map} (Chains.generator n sigma) = onSimplex sigma := Extension.onGenerator onSimplex;
+\module Boundary;

@@ -1,0 +1,47 @@
+\import Modules.Hom[V := V.Carrier, W := coefficients.Carrier,
+  source := V.space, target := coefficients.space].Composition[U := W.Carrier, domain := W.space] \as ForwardComposition;
+\import Modules.Hom[V := W.Carrier, W := coefficients.Carrier,
+  source := W.space, target := coefficients.space].Composition[U := V.Carrier, domain := V.space] \as BackwardComposition;
+\definition apply(phi: Source.Carrier): Target.Carrier := ForwardComposition.compose phi #backward{e};
+\definition unapply(phi: Target.Carrier): Source.Carrier := BackwardComposition.compose phi #forward{e};
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier,
+  source := Source.space, target := Target.space] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := apply,
+  addition := \fun (phi, psi: Source.Carrier) => TargetMaps.ext
+    (apply (#add{Source.space} phi psi)) (#add{Target.space} (apply phi) (apply psi))
+    (\fun (x: W.Carrier) => \refl(#add{coefficients.space} (#apply{phi} (#apply{#backward{e}} x)) (#apply{psi} (#apply{#backward{e}} x)))),
+  scalar := \fun (a: I.Int^)(phi: Source.Carrier) => TargetMaps.ext
+    (apply (#smul{Source.space} a phi)) (#smul{Target.space} a (apply phi))
+    (\fun (x: W.Carrier) => \refl(#smul{coefficients.space} a (#apply{phi} (#apply{#backward{e}} x)))),
+};
+\import Modules.Hom[V := Target.Carrier, W := Source.Carrier,
+  source := Target.space, target := Source.space] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := unapply,
+  addition := \fun (phi, psi: Target.Carrier) => SourceMaps.ext
+    (unapply (#add{Target.space} phi psi)) (#add{Source.space} (unapply phi) (unapply psi))
+    (\fun (x: V.Carrier) => \refl(#add{coefficients.space} (#apply{phi} (#apply{#forward{e}} x)) (#apply{psi} (#apply{#forward{e}} x)))),
+  scalar := \fun (a: I.Int^)(phi: Target.Carrier) => SourceMaps.ext
+    (unapply (#smul{Target.space} a phi)) (#smul{Source.space} a (unapply phi))
+    (\fun (x: V.Carrier) => \refl(#smul{coefficients.space} a (#apply{phi} (#apply{#forward{e}} x)))),
+};
+\definition leftInverse(phi: Source.Carrier): #apply{backward} (#apply{forward} phi) = phi :=
+  SourceMaps.ext (#apply{backward} (#apply{forward} phi)) phi
+    (\fun (x: V.Carrier) => congr!{V.Carrier coefficients.Carrier} (#apply{phi})
+      (#apply{#backward{e}} (#apply{#forward{e}} x)) x (#leftInverse{e} x));
+\definition rightInverse(phi: Target.Carrier): #apply{forward} (#apply{backward} phi) = phi :=
+  TargetMaps.ext (#apply{forward} (#apply{backward} phi)) phi
+    (\fun (x: W.Carrier) => congr!{W.Carrier coefficients.Carrier} (#apply{phi})
+      (#apply{#forward{e}} (#apply{#backward{e}} x)) x (#rightInverse{e} x));
+\import Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier,
+  source := Source.space, target := Target.space] \as Comparison;
+\definition isomorphism: Comparison.Isomorphism := Comparison.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};
+\definition evaluation(phi: Source.Carrier)(x: W.Carrier):
+  #apply{(#apply{#forward{isomorphism}} phi)} x = #apply{phi} (#apply{#backward{e}} x) :=
+  \refl(#apply{phi} (#apply{#backward{e}} x));
+\definition inverseEvaluation(phi: Target.Carrier)(x: V.Carrier):
+  #apply{(#apply{#backward{isomorphism}} phi)} x = #apply{phi} (#apply{#forward{e}} x) :=
+  \refl(#apply{phi} (#apply{#forward{e}} x));

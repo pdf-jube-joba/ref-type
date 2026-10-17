@@ -1,0 +1,58 @@
+
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_cohomology.SimplicialChains[].On[X := Simplicial.object] \as Native;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\definition Carrier: N.Nat^ -> \Set := Native.Carrier;
+\definition space: \forall (n: N.Nat^) -> Modules.Space (Carrier n) := Native.space;
+\definition generator: \forall (n: N.Nat^) -> Simplicial.Simplex n -> Carrier n := Native.generator;
+\definition boundary: \forall (n: N.Nat^) -> Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n].Map := Native.boundary;
+\definition complex: Complexes.Complex := Native.complex;
+\import Modules.Free[Generators := V] \as VertexFree;
+\import Modules.Free[Generators := E] \as EdgeFree;
+\definition vertexCarrier: \Set := VertexFree.Carrier;
+\definition vertexSpace: Modules.Space vertexCarrier := VertexFree.space;
+\definition vertexGenerator: V -> vertexCarrier := VertexFree.generator;
+\definition edgeCarrier: \Set := EdgeFree.Carrier;
+\definition edgeSpace: Modules.Space edgeCarrier := EdgeFree.space;
+\definition edgeGenerator: E -> edgeCarrier := EdgeFree.generator;
+\module Zero {
+  \definition degree: N.Nat^ := N.Nat^::zero;
+  \import \parent.\parent.Vertices[] \as Vertices;
+  \import VertexFree.Reindex[TargetGenerators := Simplicial.Simplex degree] \as Reindex;
+  \import Reindex.Injection[f := Vertices.simplex].Retraction[] \as Retraction;
+  \definition isomorphism: Modules.Isomorphism[V := vertexCarrier, W := Native.Carrier degree, source := vertexSpace, target := Native.space degree].Isomorphism :=
+    Retraction.isomorphism Vertices.injective Vertices.onto;
+  \definition forward: Modules.Hom[V := vertexCarrier, W := Native.Carrier degree, source := vertexSpace, target := Native.space degree].Map := #forward{isomorphism};
+  \definition backward: Modules.Hom[V := Native.Carrier degree, W := vertexCarrier, source := Native.space degree, target := vertexSpace].Map := #backward{isomorphism};
+  \definition onGenerator: \forall (v: V) -> #apply{forward} (vertexGenerator v) = Native.generator degree (Vertices.simplex v) := Reindex.onGenerator Vertices.simplex;
+}
+\module One {
+  \definition degree: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+  \import \parent.\parent.Edges[] \as Edges;
+  \import EdgeFree.Reindex[TargetGenerators := Simplicial.Simplex degree] \as Reindex;
+  \import Reindex.Injection[f := Edges.simplex].Retraction[] \as Retraction;
+  \definition isomorphism: Modules.Isomorphism[V := edgeCarrier, W := Native.Carrier degree, source := edgeSpace, target := Native.space degree].Isomorphism :=
+    Retraction.isomorphism Edges.injective Edges.onto;
+  \definition forward: Modules.Hom[V := edgeCarrier, W := Native.Carrier degree, source := edgeSpace, target := Native.space degree].Map := #forward{isomorphism};
+  \definition backward: Modules.Hom[V := Native.Carrier degree, W := edgeCarrier, source := Native.space degree, target := edgeSpace].Map := #backward{isomorphism};
+  \definition onGenerator: \forall (e: E) -> #apply{forward} (edgeGenerator e) = Native.generator degree (Edges.simplex e) := Reindex.onGenerator Edges.simplex;
+}
+\module Higher(n: N.Nat^) {
+  \definition degree: N.Nat^ := N.Nat^::succ (N.Nat^::succ n);
+  \import Modules.Free[Generators := Simplicial.Simplex degree].To[W := Native.Carrier degree, target := Native.space degree] \as Free;
+  \import Modules.Hom[V := Native.Carrier degree, W := Native.Carrier degree, source := Native.space degree, target := Native.space degree] \as Maps;
+  \import Modules.End[V := Native.Carrier degree, space := Native.space degree] \as End;
+  \definition equality: End.identity = Maps.zeroMap := Free.ext End.identity Maps.zeroMap
+    (\fun (s: Simplicial.Simplex degree) => Logic.falseElim _ (\parent.\parent.Higher[n := n].impossible s));
+  \definition vanishes: \forall (x: Native.Carrier degree) -> x = #zero{(Native.space degree)} :=
+    \fun (x: Native.Carrier degree) => congr!{{Maps.Map} {Native.Carrier degree}} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality;
+}
+\import Modules.Laws[V := vertexCarrier, space := vertexSpace] \as Vertices;
+\import algebra.Group[].Of[Carrier := vertexCarrier, group := Vertices.additive] \as VertexGroup;
+\import EdgeFree.To[W := vertexCarrier, target := vertexSpace] \as Incidence;
+\definition incidenceValues(e: E): vertexCarrier := VertexGroup.difference (vertexGenerator (last e)) (vertexGenerator (first e));
+\definition incidence: Modules.Hom[V := edgeCarrier, W := vertexCarrier, source := edgeSpace, target := vertexSpace].Map := Incidence.extension incidenceValues;
+\definition incidenceOnGenerator: \forall (e: E) -> #apply{incidence} (edgeGenerator e) = incidenceValues e := Incidence.onGenerator incidenceValues;
+\module Boundary;

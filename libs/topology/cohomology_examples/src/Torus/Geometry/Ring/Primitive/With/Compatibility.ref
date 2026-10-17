@@ -1,0 +1,45 @@
+\import \parent.Factor[] \as Factor;
+\import \parent.Target[] \as Target;
+\import TensorDual.Selected[P := nativeFiniteCircle, Q := nativeFiniteCircle, p := one, q := one] \as FinitePairing;
+\import TensorDual.Selected[P := nativeSingularCircle, Q := nativeSingularCircle, p := one, q := one] \as SingularPairing;
+\import FinitePairing.Mapping[C := nativeSingularCircle, D := nativeSingularCircle].With[f := #backward{CircleComparison.equivalence}, g := #backward{CircleComparison.equivalence}] \as Natural;
+\import Coefficients.Singular[A := Circle, source := circleTopology, p := one, q := one] \as Bridge;
+\import singular_symmetry.Cochains[A := Circle, source := circleTopology, R := I.Int^, ring := Integers.commutativeRing] \as Symmetry;
+\import Symmetry.ExternalCup[p := one, q := one] \as External;
+\import Symmetry.Pairing[p := one, q := one] \as OrdinaryPairing;
+\import singular_products.AlexanderWhitney[A := Circle, B := Circle, left := circleTopology, right := circleTopology].Total[] \as AW;
+\import Doubles.Tensor[C := SingularCircle.complex, D := SingularCircle.complex] \as SingularTensor;
+\import Doubles.Total[C := SingularTensor.complex] \as SingularTotal;
+\definition factor(phi: Finite.CircleCochain): Bridge.native one (Factor.cycle phi) = Natural.left phi :=
+  StandardCircle.At[n := one].ext (Bridge.native one (Factor.cycle phi)) (Natural.left phi)
+    (\fun (x: SingularCircle.Carrier one) => \refl(#apply{phi} (#apply{#backward{CircleComparison.equivalence}} one x)));
+\definition natural(alpha, beta: Finite.CircleCochain)(z: SingularTotal.Carrier two):
+  #apply{(Finite.pairing alpha beta)} (#apply{Natural.totalMap} two z) = #apply{(OrdinaryPairing.total (Factor.cycle alpha) (Factor.cycle beta))} z :=
+  trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (Natural.law alpha beta z))
+    (trans!{I.Int^} _ _ _
+      (congr2!{{StandardCircle.Carrier one} {StandardCircle.Carrier one} I.Int^}
+        (\fun (f, g: StandardCircle.Carrier one) => #apply{(SingularPairing.total f g)} z) _ _ _ _
+        (sym!{{StandardCircle.Carrier one}} _ _ (factor alpha)) (sym!{{StandardCircle.Carrier one}} _ _ (factor beta)))
+      (Bridge.law (Factor.cycle alpha) (Factor.cycle beta) z));
+\module At(alpha, beta: Finite.CircleCochain) {
+  \import External.Classes[alpha := Factor.cycle alpha, beta := Factor.cycle beta] \as CupCycle;
+  \definition point(x: SingularTorus.Carrier two):
+    #apply{(Target.cycle (Finite.cycle alpha beta))} x = #apply{CupCycle.cycle} x :=
+    trans!{I.Int^} _ _ _ (natural alpha beta (#apply{AW.map} two x))
+      (CupCycle.evaluation x);
+  \definition representatives: OriginalTorusH.ambient (Target.cycle (Finite.cycle alpha beta)) = OriginalTorusH.ambient CupCycle.cycle :=
+    OriginalTorus.At[n := two].ext (Target.cycle (Finite.cycle alpha beta)) CupCycle.cycle point;
+  \definition cross(h, k: CircleCohomology.Group one): Cohomology.Group two := Cup.apply
+    (Projection.apply one first firstContinuous h) (Projection.apply one second secondContinuous k);
+  \definition law:
+    #apply{#forward{Target.isomorphism}} (FiniteTorusH.classOf (Finite.cycle alpha beta)) =
+      cross (#apply{#forward{Factor.isomorphism}} alpha) (#apply{#forward{Factor.isomorphism}} beta) :=
+    trans!{{Cohomology.Group two}} _ _ _ (Target.onClass (Finite.cycle alpha beta))
+      (trans!{{Cohomology.Group two}} _ _ _
+        (OriginalTorusH.equalClass (Target.cycle (Finite.cycle alpha beta)) CupCycle.cycle representatives)
+        (trans!{{Cohomology.Group two}} _ _ _
+          (sym!{{Cohomology.Group two}} _ _ CupCycle.onClasses)
+          (congr2!{{CircleCohomology.Group one} {CircleCohomology.Group one} {Cohomology.Group two}} cross _ _ _ _
+            (sym!{{CircleCohomology.Group one}} _ _ (Factor.onCycle alpha))
+            (sym!{{CircleCohomology.Group one}} _ _ (Factor.onCycle beta)))));
+}

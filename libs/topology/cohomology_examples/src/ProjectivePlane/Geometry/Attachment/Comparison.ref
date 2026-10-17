@@ -1,0 +1,67 @@
+\import \parent.Fibers[] \as Fibers;
+\import \parent.Fibers[].Closed[] \as Closed;
+\import \parent.Fibers[].Interior[] \as Interior;
+\import \parent.Deformation[] \as Deformation;
+\import \parent.Deformation[].Retract[] \as Retract;
+\import singular_cellular.DiskCollar[n := two] \as Collar;
+\import singular_cellular.DiskLocal[n := two] \as LocalDisk;
+\import singular_cellular_algebra.Algebra[] \as Algebra;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import topology.Topology[Carrier := Point] \as Space;
+\import topology.Topology[Carrier := Disk.Disk] \as DiskSpace;
+\definition baseIncluded(p: Point)(member: \In[Point] Fibers.BaseImage p): \In[Point] Deformation.RegionSet p := \block {
+  \takefrom x: \Cast[Disk.Disk] ({ x: Disk.Disk \where Attached.characteristic x = p }) \by Deformation.onto p \then
+  \let same: Attached.characteristic x = p := \bysub(Disk.Disk, { x: Disk.Disk \where Attached.characteristic x = p }, x) \then
+  \let inBase: \In[Point] Fibers.BaseImage (Attached.characteristic x) :=
+    \idelim p = Attached.characteristic x \with q: Point => \In[Point] Fibers.BaseImage q \by { base: member, equality: sym!{Point} _ _ same } \then
+  \return \idelim Attached.characteristic x = p \with q: Point => \In[Point] Deformation.RegionSet q \by {
+    base: Deformation.toRegion x (\fun (zero: Disk.normSquared x = Real.zero) => Laws.zeroNeOne
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ zero) (Fibers.baseOnlyBoundary x inBase))), equality: same
+  }
+};
+\definition neighborhood: Algebra.NeighborhoodPair := Algebra.NeighborhoodPair {
+  base := Algebra.SpacePair { Carrier := Point, topology := pointTopology, subset := Fibers.BaseImage },
+  region := Deformation.RegionSet, closed := Closed.baseClosed, open := Deformation.regionOpen,
+  included := baseIncluded, deformation := Retract.deformation,
+};
+\import DiskSpace.Subspace[S := DiskSpace.Complement LocalDisk.boundary] \as OpenDisk;
+\import Space.Subspace[S := Space.Complement Fibers.BaseImage] \as OpenCell;
+\definition Domain: \Set := OpenDisk.CarrierSet;
+\definition Range: \Set := OpenCell.CarrierSet;
+\import Algebra.Refinement[A := Disk.Disk, S := DiskSpace.Complement LocalDisk.boundary] \as DomainRefinement;
+\import Algebra.Refinement[A := Point, S := Space.Complement Fibers.BaseImage] \as RangeRefinement;
+\definition domainTopology: topology.Topology[Carrier := Domain].Topology := OpenDisk.topology Disk.diskTopology;
+\definition rangeTopology: topology.Topology[Carrier := Range].Topology := OpenCell.topology pointTopology;
+\definition strict(x: Domain): R.Lt (Disk.normSquared x) Real.one :=
+  Order.ltOfLeNotEq (Disk.normSquared x) Real.one (\bysub(Disk.Coordinate, Disk.ClosedBall, x)) (\bysub(Disk.Disk, DiskSpace.Complement LocalDisk.boundary, x));
+\definition chart(x: Domain): Range := \into[Point](Attached.characteristic x, Space.Complement Fibers.BaseImage) \by {
+  \fun (member: \In[Point] Fibers.BaseImage (Attached.characteristic x)) =>
+    (\bysub(Disk.Disk, DiskSpace.Complement LocalDisk.boundary, x)) (Fibers.baseOnlyBoundary x member)
+};
+\definition injective(x, y: Domain)(same: chart x = chart y): x = y :=
+  DomainRefinement.ext x y (Fibers.interiorInjective x y (strict x) (RangeRefinement.forgetEquality (chart x) (chart y) same));
+\definition onto(p: Range): \exists { x: Domain \where chart x = p } := \block {
+  \takefrom x: \Cast[Disk.Disk] ({ x: Disk.Disk \where Attached.characteristic x = p }) \by Deformation.onto p \then
+  \let same: Attached.characteristic x = p := \bysub(Disk.Disk, { x: Disk.Disk \where Attached.characteristic x = p }, x) \then
+  \let outside: Logic.Not (Disk.normSquared x = Real.one) := \fun (onBoundary: Disk.normSquared x = Real.one) =>
+    (\bysub(Point, Space.Complement Fibers.BaseImage, p))
+      (\idelim Attached.characteristic x = p \with q: Point => \In[Point] Fibers.BaseImage q \by { base: Fibers.boundaryInBase x onBoundary, equality: same }) \then
+  \let witness: Domain := \into[Disk.Disk](x, DiskSpace.Complement LocalDisk.boundary) \by { outside } \then
+  \return Logic.existsIntro[Domain, { y: Domain \where chart y = p }] witness (RangeRefinement.ext (chart witness) p same)
+};
+\import topology.Continuity[A := Disk.Disk, B := Point].Restriction[S := DiskSpace.Complement LocalDisk.boundary] \as Restriction;
+\import topology.Continuity[A := Domain, B := Point].Corestriction[S := Space.Complement Fibers.BaseImage] \as Into;
+\definition continuous: topology.Continuity[A := Domain, B := Range].Continuous domainTopology rangeTopology chart :=
+  Into.corestrictContinuous domainTopology pointTopology chart
+    (Restriction.restrictContinuous Disk.diskTopology pointTopology Attached.characteristic (Attached.characteristicContinuous Circle.topology));
+\import topology.Topology[Carrier := Domain] \as DomainSpace;
+\import topology.Continuity[A := Domain, B := Range] \as ChartMaps;
+\module Open(U: \Pow Range, open: DomainSpace.IsOpenIn domainTopology (ChartMaps.Preimage chart U));
+\import topology.Homeomorphism[A := Domain, B := Range] \as Homeomorphisms;
+\import Homeomorphisms.OfQuotient[f := chart] \as Inverse;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[domainTopology, rangeTopology] :=
+  Inverse.homeomorphism domainTopology rangeTopology injective onto continuous (\fun (U: \Pow Range)(open: _) => Open[U := U, open := open].reflected);
+\module Pair;

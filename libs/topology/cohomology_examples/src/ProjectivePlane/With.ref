@@ -1,0 +1,99 @@
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].With[A := A] \as Surface;
+\import Modules.Laws[V := A.Carrier, space := A.space] \as Values;
+\import algebra.Group[].Of[Carrier := A.Carrier, group := Values.additive] \as Group;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\definition Vertices: \Set := Vertex -> A.Carrier;
+\definition Edges: \Set := Edge -> A.Carrier;
+\definition Triangles: \Set := Triangle -> A.Carrier;
+\definition vertex(c, v: A.Carrier): Vertices := \induction (i: Vertex) \return A.Carrier \with { | center: c | rim: v };
+\definition edge(a, b, d: A.Carrier): Edges := \induction (i: Edge) \return A.Carrier \with { | loop: a | first: b | second: d };
+\definition triangle(p, q: A.Carrier): Triangles := \induction (i: Triangle) \return A.Carrier \with { | upper: p | lower: q };
+\definition verticesExt: \forall (f, g: Vertices) -> f Vertex::center = g Vertex::center -> f Vertex::rim = g Vertex::rim -> f = g :=
+  \fun (f, g: Vertices)(c: f Vertex::center = g Vertex::center)(v: f Vertex::rim = g Vertex::rim) =>
+    \axiom:funext(f, g, \induction (i: Vertex) \return f i = g i \with { | center: c | rim: v });
+\definition edgesExt: \forall (f, g: Edges) -> f Edge::loop = g Edge::loop -> f Edge::first = g Edge::first -> f Edge::second = g Edge::second -> f = g :=
+  \fun (f, g: Edges)(a: f Edge::loop = g Edge::loop)(b: f Edge::first = g Edge::first)(d: f Edge::second = g Edge::second) =>
+    \axiom:funext(f, g, \induction (i: Edge) \return f i = g i \with { | loop: a | first: b | second: d });
+\definition trianglesExt: \forall (f, g: Triangles) -> f Triangle::upper = g Triangle::upper -> f Triangle::lower = g Triangle::lower -> f = g :=
+  \fun (f, g: Triangles)(p: f Triangle::upper = g Triangle::upper)(q: f Triangle::lower = g Triangle::lower) =>
+    \axiom:funext(f, g, \induction (i: Triangle) \return f i = g i \with { | upper: p | lower: q });
+\definition edgeZero: edge Group.zero Group.zero Group.zero = #zero{Surface.first.space} :=
+  edgesExt (edge Group.zero Group.zero Group.zero) #zero{Surface.first.space}
+    (\refl(Group.zero)) (\refl(Group.zero)) (\refl(Group.zero));
+\definition triangleZero: triangle Group.zero Group.zero = #zero{Surface.second.space} :=
+  trianglesExt (triangle Group.zero Group.zero) #zero{Surface.second.space}
+    (\refl(Group.zero)) (\refl(Group.zero));
+\definition deltaZero(f: Vertices): Edges :=
+  \fun (e: Edge) => Group.difference (f (target e)) (f (source e));
+\definition deltaOne(f: Edges): Triangles :=
+  \fun (t: Triangle) => Group.add (Group.difference (f (back t)) (f (diagonal t))) (f (front t));
+\definition closedValue(f: Edges)(closed: deltaOne f = triangle Group.zero Group.zero):
+  deltaOne f = #zero{Surface.second.space} := trans!{Triangles} _ _ _ closed triangleZero;
+\definition closedCoordinates(f: Edges)(closed: deltaOne f = #zero{Surface.second.space}):
+  deltaOne f = triangle Group.zero Group.zero := trans!{Triangles} _ _ _ closed (sym!{Triangles} _ _ triangleZero);
+\definition boundaryZero(c, v: A.Carrier): deltaZero (vertex c v) = edge Group.zero (Group.difference v c) (Group.difference v c) :=
+  edgesExt (deltaZero (vertex c v)) (edge Group.zero (Group.difference v c) (Group.difference v c))
+    (Group.inverseRight v) (\refl(Group.difference v c)) (\refl(Group.difference v c));
+\definition boundaryOne(a, b, d: A.Carrier): deltaOne (edge a b d) =
+  triangle (Group.add (Group.difference a d) b) (Group.add (Group.difference a b) d) :=
+    trianglesExt (deltaOne (edge a b d))
+      (triangle (Group.add (Group.difference a d) b) (Group.add (Group.difference a b) d))
+      (\refl(Group.add (Group.difference a d) b)) (\refl(Group.add (Group.difference a b) d));
+\definition diagonalBoundary(x: A.Carrier): deltaOne (edge Group.zero x Group.zero) = triangle x (Group.neg x) :=
+  trianglesExt (deltaOne (edge Group.zero x Group.zero)) (triangle x (Group.neg x))
+    (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (a: A.Carrier) => Group.add a x) _ _ (Group.inverseRight Group.zero)) (Group.zeroLeft x))
+    (trans!{A.Carrier} _ _ _ (Group.zeroRight (Group.difference Group.zero x)) (Group.zeroLeft (Group.neg x)));
+\definition double(x: A.Carrier): A.Carrier := Group.add x x;
+\definition loopBoundary(x: A.Carrier): deltaOne (edge x Group.zero x) = triangle Group.zero (double x) :=
+  trianglesExt (deltaOne (edge x Group.zero x)) (triangle Group.zero (double x))
+    (trans!{A.Carrier} _ _ _ (Group.zeroRight (Group.difference x x)) (Group.inverseRight x))
+    (congr!{A.Carrier A.Carrier} (\fun (a: A.Carrier) => Group.add a x) _ _ (trans!{A.Carrier} _ _ _
+      (congr!{A.Carrier A.Carrier} (Group.add x) _ _ Group.negZero) (Group.zeroRight x)));
+\definition total(f: Triangles): A.Carrier := Group.add (f Triangle::upper) (f Triangle::lower);
+\definition totalBoundary(f: Edges): total (deltaOne f) = double (f Edge::loop) := \block {
+  \let a: A.Carrier := f Edge::loop \then
+  \let b: A.Carrier := f Edge::first \then
+  \let d: A.Carrier := f Edge::second \then
+  \let middle: Group.add (Group.difference a d) (Group.difference a b) = Group.difference (double a) (Group.add d b) :=
+    sym!{A.Carrier} _ _ (Group.differenceAdd a a d b) \then
+  \return trans!{A.Carrier} _ _ _ (Group.four (Group.difference a d) b (Group.difference a b) d)
+    (trans!{A.Carrier} _ _ _
+      (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.add b d)) _ _ middle)
+      (trans!{A.Carrier} _ _ _
+        (congr!{A.Carrier A.Carrier} (Group.add (Group.difference (double a) (Group.add d b))) _ _ (Group.comm b d))
+        (Group.addDifference (double a) (Group.add d b))))
+};
+
+\definition closedSecond(f: Edges)(closed: deltaOne f = triangle Group.zero Group.zero): f Edge::second = Group.add (f Edge::loop) (f Edge::first) :=
+  sym!{A.Carrier} _ _ (Group.cancelRight (Group.neg (f Edge::second)) (Group.add (f Edge::loop) (f Edge::first)) (f Edge::second)
+    (trans!{A.Carrier} _ _ _
+      (trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (Group.swapLast (f Edge::loop) (Group.neg (f Edge::second)) (f Edge::first)))
+        (congr!{Triangles A.Carrier} (\fun (x: Triangles) => x Triangle::upper) _ _ closed))
+      (sym!{A.Carrier} _ _ (Group.inverseRight (f Edge::second)))));
+\definition closedDouble(f: Edges)(closed: deltaOne f = triangle Group.zero Group.zero): double (f Edge::loop) = Group.zero :=
+  trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (totalBoundary f))
+    (trans!{A.Carrier} _ _ _ (congr!{Triangles A.Carrier} total _ _ closed) (Group.zeroLeft Group.zero));
+\definition normal(f: Triangles): Triangles := triangle Group.zero (total f);
+\definition subtractSum(x, y: A.Carrier): Group.difference x (Group.add x y) = Group.neg y :=
+  trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add x) _ _ (Group.negAdd x y))
+    (trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (Group.assoc x (Group.neg x) (Group.neg y)))
+      (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (z: A.Carrier) => Group.add z (Group.neg y)) _ _ (Group.inverseRight x))
+        (Group.zeroLeft (Group.neg y))));
+\definition lowerDifference(f: Triangles): Group.difference (f Triangle::lower) (total f) = Group.neg (f Triangle::upper) :=
+  trans!{A.Carrier} _ _ _
+    (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference (f Triangle::lower) x) _ _ (Group.comm (f Triangle::upper) (f Triangle::lower)))
+    (subtractSum (f Triangle::lower) (f Triangle::upper));
+\definition boundaryDifference(f: Triangles): deltaOne (edge Group.zero (f Triangle::upper) Group.zero) =
+  \fun (t: Triangle) => Group.difference (f t) (normal f t) :=
+  trianglesExt (deltaOne (edge Group.zero (f Triangle::upper) Group.zero))
+    (\fun (t: Triangle) => Group.difference (f t) (normal f t))
+    (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (f Triangle::upper)) _ _ (Group.inverseRight Group.zero))
+      (trans!{A.Carrier} _ _ _ (Group.zeroLeft (f Triangle::upper))
+        (sym!{A.Carrier} _ _ (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add (f Triangle::upper)) _ _ Group.negZero) (Group.zeroRight (f Triangle::upper))))))
+    (trans!{A.Carrier} _ _ _ (Group.zeroRight (Group.difference Group.zero (f Triangle::upper)))
+      (trans!{A.Carrier} _ _ _ (Group.zeroLeft (Group.neg (f Triangle::upper))) (sym!{A.Carrier} _ _ (lowerDifference f))));
+\module Cohomology;

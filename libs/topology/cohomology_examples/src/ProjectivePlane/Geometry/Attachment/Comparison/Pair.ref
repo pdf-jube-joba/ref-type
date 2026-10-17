@@ -1,0 +1,34 @@
+\definition sourceSubset: \Pow Domain := { x: Domain \where \In[Disk.Disk] Collar.punctured x };
+\definition targetSubset: \Pow Range := { p: Range \where \In[Point] Deformation.RegionSet p };
+\import singular_cohomology.Relative[A := Domain, source := domainTopology, subset := sourceSubset].Homeomorphism[B := Range].Over[target := rangeTopology, targetSubset := targetSubset] \as Charts;
+\definition chart: Charts.Data := Charts.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (x: \Cast[Domain] sourceSubset) => Deformation.toRegion x (\bysub(Domain, sourceSubset, x)),
+  backwardPreserves := \fun (p: \Cast[Range] targetSubset) => Deformation.fromRegion (#backward{homeomorphism} p)
+    (\idelim p = #forward{homeomorphism} (#backward{homeomorphism} p) \with q: Range => \In[Point] Deformation.RegionSet q \by {
+      base: \bysub(Range, targetSubset, p), equality: sym!{Range} _ _ (#rightInverse{(Homeomorphisms.laws domainTopology rangeTopology homeomorphism)} p)
+    }),
+};
+\import singular_cohomology.Relative[A := Disk.Disk, source := Disk.diskTopology, subset := LocalDisk.boundary].Maps[B := Point].Over[target := pointTopology, targetSubset := Fibers.BaseImage] \as Maps;
+\definition characteristic: Maps.Map := \into[Disk.Disk -> Point](Attached.characteristic, Maps.Map) \by {
+  Maps.Laws[Attached.characteristic] {
+    continuous := Attached.characteristicContinuous Circle.topology,
+    contained := \fun (p: \Cast[Disk.Disk] LocalDisk.boundary) => Fibers.boundaryInBase p (\bysub(Disk.Disk, LocalDisk.boundary, p)),
+  }
+};
+\import LocalDisk.Attachment[pair := neighborhood] \as RelativeCell;
+\definition data: RelativeCell.Data := RelativeCell.Data {
+  characteristic := characteristic,
+  punctured := \fun (p: Collar.Carrier) => Deformation.toRegion p (\bysub(Disk.Disk, Collar.punctured, p)),
+  chart := chart,
+  agrees := \fun (p: Domain) => \refl(Attached.characteristic p),
+};
+\import std.Arithmetic[].Int[] \as I;
+\module Homology(z: I.Int^) {
+  \definition isomorphism: _ := RelativeCell.On[data := data].Homology[z := z].isomorphism;
+}
+\module With(coefficients: Modules.Bundle) {
+  \module At(z: I.Int^) {
+    \definition isomorphism: _ := RelativeCell.On[data := data].With[coefficients := coefficients].At[z := z].isomorphism;
+  }
+}

@@ -1,0 +1,32 @@
+\definition Carrier(n: Nat.Nat^)(z: Degree): \Set := model.family.Carrier n z;
+\definition space(n: Nat.Nat^)(z: Degree): Modules.Space (Carrier n z) := model.family.space n z;
+\module At(n: Nat.Nat^) {
+  \import Modules.Laws[V := Carrier n (degree n), space := space n (degree n)] \as Values;
+  \import algebra.Group[].Of[Carrier := Carrier n (degree n), group := Values.additive] \as Group;
+  \definition difference: Carrier n (degree n) -> Carrier n (degree n) -> Carrier n (degree n) := Group.difference;
+  \definition self: \forall (x: Carrier n (degree n)) -> difference x x = #zero{(space n (degree n))} := Group.inverseRight;
+  \definition minusZero(x: Carrier n (degree n)): difference x #zero{(space n (degree n))} = x :=
+    trans!{{Carrier n (degree n)}} _ _ _ (congr!{{Carrier n (degree n)} {Carrier n (degree n)}} (\fun (y: Carrier n (degree n)) => #add{(space n (degree n))} x y) _ _ Group.negZero) (Group.zeroRight x);
+
+}
+\definition value: \forall (n: Nat.Nat^) -> Carrier n (degree (Nat.Nat^::succ n)) :=
+  \induction (n: Nat.Nat^) \return Carrier n (degree (Nat.Nat^::succ n)) \with {
+    | zero: initial.value
+    | succ: \fun (n: Nat.Nat^)(previous: Carrier n (degree (Nat.Nat^::succ n))) =>
+      #apply{(fillings.operator n)} (At[n := Nat.Nat^::succ n].difference (cells.value (Nat.Nat^::succ n)) (#apply{(model.operators.transition n (degree (Nat.Nat^::succ n)))} previous))
+  };
+\definition preceding: \forall (n: Nat.Nat^) -> Carrier n (degree n) :=
+  \induction (n: Nat.Nat^) \return Carrier n (degree n) \with {
+    | zero: #zero{(space Nat.Nat^::zero (degree Nat.Nat^::zero))}
+    | succ: \fun (n: Nat.Nat^)(unused: Carrier n (degree n)) => #apply{(model.operators.transition n (degree (Nat.Nat^::succ n)))} (value n)
+  };
+\definition obstruction(n: Nat.Nat^): Carrier n (degree n) := At[n := n].difference (cells.value n) (preceding n);
+\definition recursion(n: Nat.Nat^): value (Nat.Nat^::succ n) = #apply{(fillings.operator n)} (obstruction (Nat.Nat^::succ n)) := \refl(value (Nat.Nat^::succ n));
+\definition Property(n: Nat.Nat^): \Prop := #apply{(model.operators.boundary n (degree (Nat.Nat^::succ n)))} (value n) = obstruction n;
+\module Preceding(n: Nat.Nat^);
+\module Zero;
+\module Step(n: Nat.Nat^);
+\definition boundary: \forall (n: Nat.Nat^) -> Property n := \induction (n: Nat.Nat^) \return Property n \with {
+  | zero: Zero[].law
+  | succ: \fun (n: Nat.Nat^)(previous: Property n) => Step[n := n].law previous
+};

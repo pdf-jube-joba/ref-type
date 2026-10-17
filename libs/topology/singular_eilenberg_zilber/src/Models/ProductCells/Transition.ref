@@ -1,0 +1,25 @@
+\import \parent.\parent.At[n := n] \as Lower;
+\import \parent.\parent.At[n := N.Nat^::succ n] \as Higher;
+\import Simplex.At[n := n] \as LowDomain;
+\import Simplex.At[n := N.Nat^::succ n] \as HighDomain;
+\import \root.On[A := Simplex.Carrier n, B := Simplex.Carrier n, left := LowDomain.topology, right := LowDomain.topology] \as Low;
+\import \root.On[A := Simplex.Carrier (N.Nat^::succ n), B := Simplex.Carrier (N.Nat^::succ n), left := HighDomain.topology, right := HighDomain.topology] \as High;
+\import \parent.\parent.Transition[n := n].Degree[z := I.Int^::ofNat n] \as T;
+\import Modules.Alternating[V := Higher.Carrier (I.Int^::ofNat n), space := Higher.space (I.Int^::ofNat n)] \as Sum;
+\import Sum.Mapping[W := Higher.Carrier (I.Int^::ofNat n), target := Higher.space (I.Int^::ofNat n)] \as Mapping;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import singular_cohomology.Chains[A := Higher.Points, source := Higher.topology] \as HighChains;
+\import Native.Map[C := HighChains.complex, D := HighChains.complex].At[n := n] \as HighLinear;
+\module At(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) {
+  \import \parent.\parent.\parent.Face[n := n, i := i] \as Face;
+  \import Low.Naturality[C := Simplex.Carrier (N.Nat^::succ n), D := Simplex.Carrier (N.Nat^::succ n), leftTarget := HighDomain.topology, rightTarget := HighDomain.topology].With[f := Face.factors].Composites[n := n] \as Natural;
+  \definition law(x: Lower.Carrier (I.Int^::ofNat n)): #apply{High.productDefect} n (#apply{(T.faces i)} x) = #apply{(T.faces i)} (#apply{Low.productDefect} n x) := sym!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ (Natural.productDefectLaw x);
+}
+\definition law(x: Lower.Carrier (I.Int^::ofNat n)): #apply{High.productDefect} n (#apply{T.map} x) = #apply{T.map} (#apply{Low.productDefect} n x) :=
+  trans!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ _
+    (congr!{{Higher.Carrier (I.Int^::ofNat n)} {Higher.Carrier (I.Int^::ofNat n)}} (#apply{High.productDefect} n) _ _ (T.onValues x))
+    (trans!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ _
+      (Mapping.law (HighLinear.linear High.productDefect) (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => #apply{(T.faces i)} x))
+      (trans!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ _
+        (Sum.congruent (N.Nat^::succ (N.Nat^::succ n)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => At[i := i].law x))
+        (sym!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ (T.onValues (#apply{Low.productDefect} n x)))));

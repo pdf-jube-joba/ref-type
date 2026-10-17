@@ -1,0 +1,31 @@
+\import \parent.\parent.\parent.\parent.At[m := m] \as Source;
+\import Final.At[m := m] \as Target;
+\import \parent.\parent.\parent.At[m := m] \as Geometry;
+\definition mapped(w: Tuples.Tuple (N.Nat^::succ m)): FinalTuples.Tuple (N.Nat^::succ m) := TupleMap.onTuple (N.Nat^::succ m) (point u v) w;
+\definition lowerImage(w: Tuples.Tuple (N.Nat^::succ m)): ActualSimplices.Carrier m := LowerMaps.postcompose m lowerFunction lowerContinuous (Source.onTuple w);
+\definition higherImage(w: Tuples.Tuple (N.Nat^::succ m)): ActualSimplices.Carrier m := HigherMaps.postcompose m higherFunction higherContinuous (Target.onTuple (mapped w));
+\definition simplices(w: Tuples.Tuple (N.Nat^::succ m)): lowerImage w = higherImage w :=
+  ActualSimplices.ext m (lowerImage w) (higherImage w) (\fun (x: Simplex.Carrier m) =>
+    sym!{Product.CarrierSet} _ _
+      (congr!{{FinalSimplices.Carrier m} Product.CarrierSet} (\fun (t: FinalSimplices.Carrier m) => higherFunction (t x)) _ _ (Geometry.simplexNaturality u v w)));
+\import Complexes.Map[C := Tuples.complex, D := ActualChains.complex].At[n := m] \as SourceLinear;
+\import Complexes.Map[C := FinalTuples.complex, D := ActualChains.complex].At[n := m] \as TargetLinear;
+\import Modules.Hom[V := FinalTuples.Carrier (N.Nat^::succ m), W := ActualChains.Carrier m, source := FinalTuples.space (N.Nat^::succ m), target := ActualChains.space m]
+  .Composition[U := Tuples.Carrier (N.Nat^::succ m), domain := Tuples.space (N.Nat^::succ m)] \as Compose;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ m), W := ActualChains.Carrier m, source := Tuples.space (N.Nat^::succ m), target := ActualChains.space m] \as Hom;
+\definition before: Hom.Map := SourceLinear.linear (Lower.evaluation lowerLeft lowerRight);
+\definition after: Hom.Map := Compose.compose (TargetLinear.linear (Higher.evaluation sigma tau)) (TupleMap.push (N.Nat^::succ m) (point u v));
+\definition afterGenerator(w: Tuples.Tuple (N.Nat^::succ m)):
+  #apply{after} (Tuples.generator (N.Nat^::succ m) w) = ActualChains.generator m (higherImage w) :=
+  trans!{{ActualChains.Carrier m}} _ _ _
+    (congr!{{FinalTuples.Carrier (N.Nat^::succ m)} {ActualChains.Carrier m}} (#apply{(Higher.evaluation sigma tau)} m) _ _ (TupleMap.At[n := N.Nat^::succ m].onGenerator (point u v) w))
+    (Higher.onGenerator m sigma tau (mapped w));
+\definition onGenerator(w: Tuples.Tuple (N.Nat^::succ m)):
+  #apply{before} (Tuples.generator (N.Nat^::succ m) w) = #apply{after} (Tuples.generator (N.Nat^::succ m) w) :=
+  trans!{{ActualChains.Carrier m}} _ _ _ (Lower.onGenerator m lowerLeft lowerRight w)
+    (trans!{{ActualChains.Carrier m}} _ _ _ (congr!{{ActualSimplices.Carrier m} {ActualChains.Carrier m}} (ActualChains.generator m) _ _ (simplices w))
+      (sym!{{ActualChains.Carrier m}} _ _ (afterGenerator w)));
+\import Modules.Free[Generators := Tuples.Tuple (N.Nat^::succ m)].To[W := ActualChains.Carrier m, target := ActualChains.space m] \as Free;
+\definition equation: before = after := Free.ext before after onGenerator;
+\definition law(w: Tuples.Carrier (N.Nat^::succ m)): #apply{before} w = #apply{after} w :=
+  congr!{Hom.Map {ActualChains.Carrier m}} (\fun (f: Hom.Map) => #apply{f} w) _ _ equation;

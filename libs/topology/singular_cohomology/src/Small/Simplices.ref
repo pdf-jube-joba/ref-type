@@ -1,0 +1,28 @@
+\import N.Basic[].Prop[] \as Bounds;
+\structure Witness[n: N.Nat^, sigma: WholeSimplices.Carrier n]: \Set {
+  element: \Pow A,
+  member: \In[\Pow A] family element,
+  contained: \forall (x: Simplex.Carrier n) -> \In[A] element (sigma x),
+}
+\definition Small(n: N.Nat^): \Pow (WholeSimplices.Carrier n) := { sigma: WholeSimplices.Carrier n \where \exists Witness[n, sigma] };
+\definition Carrier(n: N.Nat^): \Set := \Cast[WholeSimplices.Carrier n] (Small n);
+\definition witness(n: N.Nat^)(sigma: Carrier n): \exists Witness[n, sigma] := \bysub(WholeSimplices.Carrier n, Small n, sigma);
+\definition faceSmall: \forall (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ n)) ->
+  \In[WholeSimplices.Carrier n] (Small n) (WholeSimplices.face n i sigma) := \block {
+  \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ n)) \then
+  \takefrom w: Witness[N.Nat^::succ n, sigma] \by witness (N.Nat^::succ n) sigma \then
+  \return \exact(Witness[n, WholeSimplices.face n i sigma] {
+    element := #element{w}, member := #member{w}, contained := \fun (x: Simplex.Carrier n) => #contained{w} (Simplex.face n i x),
+  }, Witness[n, WholeSimplices.face n i sigma])
+};
+\definition face(n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ n)): Carrier n :=
+  \into[WholeSimplices.Carrier n](WholeSimplices.face n i sigma, Small n) \by { faceSmall n i sigma };
+\definition family: Semisimplicial.Family := Semisimplicial.Family { Carrier := Carrier };
+\definition faces: Semisimplicial.Faces[family] := Semisimplicial.Faces[family] { apply := face };
+\definition object: Semisimplicial.Object := Semisimplicial.Object {
+  family := family, faces := faces,
+  laws := Semisimplicial.Laws[family, faces] {
+    identity := \fun (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ (N.Nat^::succ n)))(ordered: Bounds.Le i j) =>
+      WholeSimplices.Identities[].faceIdentity n i j sigma ordered,
+  },
+};

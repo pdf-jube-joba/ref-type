@@ -1,0 +1,25 @@
+\import \parent.At[n := N.Nat^::zero] \as Disk;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero] \as Model;
+\import topology.Topology[Carrier := Model.Disk].Subspace[S := Disk.boundary] \as Boundary;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := Disk.boundary] \as Pair;
+\import singular_cohomology.Chains[A := Boundary.CarrierSet, source := Boundary.topology Model.diskTopology].Reduced[] \as BoundaryChains;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition empty: \forall (p: Boundary.CarrierSet) -> Logic.False :=
+  \fun (p: Boundary.CarrierSet) => Laws.zeroNeOne (\bysub(Model.Disk, Disk.boundary, p));
+\definition degree: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+\definition previous: I.Int^ := I.Int^::negSucc N.Nat^::zero;
+\import Pair.Reduced[].ConnectingContractible[].Homology[z := degree] \as Connecting;
+\import BoundaryChains.At[z := previous] \as H;
+\definition boundaryOrientation: Modules.Isomorphism[V := I.Int^, W := H.Carrier, source := Modules.scalarModule, target := H.space].Isomorphism :=
+  BoundaryChains.NegativeOne[].emptyIsomorphism empty;
+\definition connecting: Modules.Isomorphism[V := Pair.Homology[z := degree].Carrier, W := H.Carrier,
+  source := Pair.Homology[z := degree].space, target := H.space].Isomorphism := Connecting.isomorphism (Model.Contraction[].contraction);
+\import Modules.Isomorphism[V := Pair.Homology[z := degree].Carrier, W := H.Carrier,
+  source := Pair.Homology[z := degree].space, target := H.space].Inverse[] \as Inverse;
+\import Modules.Isomorphism[V := I.Int^, W := H.Carrier, source := Modules.scalarModule, target := H.space]
+  .Composition[U := Pair.Homology[z := degree].Carrier, final := Pair.Homology[z := degree].space] \as Composition;
+\definition orientation: Orientation N.Nat^::zero := Composition.compose (Inverse.inverse connecting) boundaryOrientation;
+
+\module Positive(k: N.Nat^);
+
+\module Point(p: Model.Disk);

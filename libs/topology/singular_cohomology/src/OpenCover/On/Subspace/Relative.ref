@@ -1,0 +1,42 @@
+\import std.Arithmetic[].Int[] \as Signed;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import Pairs.On[pair := pair] \as SmallPair;
+\import \root.Relative[A := A, source := source, subset := subset] \as WholePair;
+\import \root.Chains[A := Carrier, source := Space.topology source] \as SubspaceWhole;
+\import Complexes.ZeroExtension[C := SubspaceSmall.complex] \as SmallSubspace;
+\import Complexes.ZeroExtension[C := Small.complex] \as SmallSpace;
+\import Complexes.ZeroExtension[C := SubspaceWhole.complex] \as WholeSubspace;
+\import Complexes.ZeroExtension[C := Whole.complex] \as WholeSpace;
+\import Complexes.Map[C := SubspaceSmall.complex, D := Small.complex].ZeroExtension[f := map] \as Inclusion;
+\import Chains.Quotient[C := SmallSubspace.complex, D := SmallSpace.complex].On[f := Inclusion.map] \as Quotient;
+\definition complex: Chains.Complex := Quotient.complex;
+\import Complexes.Map[C := SubspaceSmall.complex, D := SubspaceWhole.complex].ZeroExtension[f := SubspaceSmall.inclusion] \as SubspaceMap;
+\import Complexes.Map[C := Small.complex, D := Whole.complex].ZeroExtension[f := Small.inclusion] \as SpaceMap;
+\module Square(n: N.Nat^);
+\definition Compatible: \Prop := \forall (z: Signed.Int^)(x: SmallSubspace.Carrier z) ->
+  #apply{SpaceMap.map} z (#apply{Inclusion.map} z x) = #apply{WholePair.inclusionMap} z (#apply{SubspaceMap.map} z x);
+\definition compatible: Compatible := \induction (z: Signed.Int^) \return \forall (x: SmallSubspace.Carrier z) ->
+  #apply{SpaceMap.map} z (#apply{Inclusion.map} z x) = #apply{WholePair.inclusionMap} z (#apply{SubspaceMap.map} z x) \with {
+    | ofNat: \fun (n: N.Nat^) => Square[n := n].law
+    | negSucc: \fun (n: N.Nat^)(x: SmallSubspace.Carrier (Signed.Int^::negSucc n)) => \refl(#zero{(WholeSpace.space (Signed.Int^::negSucc n))})
+  };
+\import Chains.QuotientMapping[C := SmallSubspace.complex, D := SmallSpace.complex, C1 := WholeSubspace.complex, D1 := WholeSpace.complex]
+  .On[f := Inclusion.map, g := WholePair.inclusionMap, a := SubspaceMap.map, b := SpaceMap.map] \as QuotientMap;
+\definition comparison: Chains.Map[C := Quotient.complex, D := WholePair.complex].Map := QuotientMap.map compatible;
+\import Chains.ShortExact[A := SmallSubspace.complex, B := SmallSpace.complex, C := Quotient.complex]
+  .Morphism[A1 := WholeSubspace.complex, B1 := WholeSpace.complex, C1 := WholePair.complex]
+  .Diagram[s := SmallPair.sequence, t := WholePair.sequence, a := SubspaceMap.map, b := SpaceMap.map, c := comparison] \as Diagram;
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := compatible,
+  right := \fun (z: Signed.Int^)(x: SmallSpace.Carrier z) => sym!{{WholePair.Carrier z}} _ _ (QuotientMap.At[k := z].onClass compatible x),
+};
+\import Complexes.Equivalence[C := SubspaceSmall.complex, D := SubspaceWhole.complex].ZeroExtension[e := SubspaceComparison.equivalence] \as SubspaceEquivalence;
+\import Complexes.Equivalence[C := Small.complex, D := Whole.complex].ZeroExtension[e := equivalence] \as SpaceEquivalence;
+\definition quasiIsomorphism: Chains.Map[C := Quotient.complex, D := WholePair.complex].QuasiIsomorphism comparison :=
+  Diagram.rightQuasiIsomorphism diagram SubspaceEquivalence.quasiIsomorphism SpaceEquivalence.quasiIsomorphism;
+\module At(z: Signed.Int^) {
+  \import Chains.Map[C := Quotient.complex, D := WholePair.complex].At[k := z].Invert[f := comparison] \as Inverse;
+  \definition isomorphism: _ := Inverse.isomorphism (quasiIsomorphism z);
+  \definition quotientOnClass: _ := QuotientMap.At[k := z].onClass compatible;
+}
+\module With(coefficients: Modules.Bundle);

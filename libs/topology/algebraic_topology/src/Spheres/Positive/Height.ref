@@ -1,0 +1,125 @@
+\import \root.Interval[] \as Interval;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import Real.Distance[] \as Distance;
+\import Real.SquareRoot[] \as Root;
+\use Equality.congr2;
+\definition advance(t: Interval.Carrier)(h: Real.Real): Real.Real := Real.sub Real.one (Real.mul (Interval.reverse t) (Real.sub Real.one h));
+\definition complement: \forall (t: Interval.Carrier)(h: Real.Real) ->
+  Real.sub Real.one (advance t h) = Real.mul (Interval.reverse t) (Real.sub Real.one h) :=
+  \fun (t: Interval.Carrier)(h: Real.Real) => Algebra.subSub Real.one (Real.mul (Interval.reverse t) (Real.sub Real.one h));
+\definition atStart: \forall (h: Real.Real) -> advance Interval.start h = h :=
+  \fun (h: Real.Real) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Real.sub Real.one h)) _ _ Interval.reverseStart)
+        (Laws.fieldMulOneLeft (Real.sub Real.one h))))
+    (Algebra.subSub Real.one h);
+\definition atEnd: \forall (h: Real.Real) -> advance Interval.end h = Real.one :=
+  \fun (h: Real.Real) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Real.sub Real.one h)) _ _ Interval.reverseEnd)
+        (Laws.fieldMulZeroLeft (Real.sub Real.one h))))
+    (Laws.subZeroRight Real.one);
+\definition squareComplement: \forall (h: Real.Real) -> Real.mul (Real.sub Real.one h) (Real.add Real.one h) = Real.sub Real.one (Real.mul h h) :=
+  \fun (h: Real.Real) => trans!{Real.Real} _ _ _ (Root.differenceOfSquares h Real.one)
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r (Real.mul h h)) _ _ (Laws.fieldMulOneLeft Real.one));
+\definition tailSquared: \forall (x: Sphere) -> Lower.normSquared (Split.tail x) = Real.sub Real.one (Real.mul (height x) (height x)) :=
+  \fun (x: Sphere) => Laws.addCancelLeft (Real.mul (height x) (height x)) (Lower.normSquared (Split.tail x)) (Real.sub Real.one (Real.mul (height x) (height x)))
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.normSplit x))
+      (trans!{Real.Real} _ _ _ (\bysub(Ambient.Coordinate, Ambient.Boundary, x))
+        (sym!{Real.Real} _ _ (Estimates.addSubCancel Real.one (Real.mul (height x) (height x))))));
+\definition tailFactor: \forall (x: Sphere) -> Lower.normSquared (Split.tail x) = Real.mul (Real.sub Real.one (height x)) (Real.add Real.one (height x)) :=
+  \fun (x: Sphere) => trans!{Real.Real} _ _ _ (tailSquared x) (sym!{Real.Real} _ _ (squareComplement (height x)));
+\definition productBound: \forall (t: Interval.Carrier)(h: Real.Real) -> R.Le h Real.one ->
+  R.Le (Real.mul (Interval.reverse t) (Real.sub Real.one h)) (Real.sub Real.one h) :=
+  \fun (t: Interval.Carrier)(h: Real.Real)(bound: _) => R.leReplace
+    (Real.mul (Real.sub Real.one h) (Interval.reverse t)) (Real.mul (Interval.reverse t) (Real.sub Real.one h))
+    (Real.mul (Real.sub Real.one h) Real.one) (Real.sub Real.one h)
+    (Laws.fieldMulComm (Real.sub Real.one h) (Interval.reverse t)) (Algebra.mulOneRight (Real.sub Real.one h))
+    (Estimates.mulMonotone (Real.sub Real.one h) (Interval.reverse t) Real.one (Distance.subNonnegative Real.one h bound) (#right{(Interval.bounds (Interval.reverse t))}));
+\definition aboveOriginal: \forall (t: Interval.Carrier)(h: Real.Real) -> R.Le h Real.one -> R.Le h (advance t h) :=
+  \fun (t: Interval.Carrier)(h: Real.Real)(bound: _) => R.leReplaceLeft
+    (Real.sub Real.one (Real.sub Real.one h)) h (advance t h) (Algebra.subSub Real.one h)
+    (Laws.addMonotoneLeft (Real.neg (Real.sub Real.one h)) (Real.neg (Real.mul (Interval.reverse t) (Real.sub Real.one h))) Real.one
+      (Laws.negAntitone (Real.mul (Interval.reverse t) (Real.sub Real.one h)) (Real.sub Real.one h) (productBound t h bound)));
+\definition belowOne: \forall (t: Interval.Carrier)(h: Real.Real) -> R.Le h Real.one -> R.Le (advance t h) Real.one :=
+  \fun (t: Interval.Carrier)(h: Real.Real)(bound: _) => R.leReplaceRight (advance t h) (Real.add Real.one (Real.neg Real.zero)) Real.one
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ Laws.negZero) (Laws.addZeroRight Real.one))
+    (Laws.addMonotoneLeft (Real.neg (Real.mul (Interval.reverse t) (Real.sub Real.one h))) (Real.neg Real.zero) Real.one
+      (Laws.negAntitone Real.zero (Real.mul (Interval.reverse t) (Real.sub Real.one h))
+        (Laws.fieldMulNonnegative (Interval.reverse t) (Real.sub Real.one h)
+          (#left{(Interval.bounds (Interval.reverse t))}) (Distance.subNonnegative Real.one h bound))));
+\definition aboveSouth: \forall (t: Interval.Carrier)(h: Real.Real) -> R.Lt (Real.neg Real.one) h -> R.Le h Real.one ->
+  R.Lt (Real.neg Real.one) (advance t h) :=
+  \fun (t: Interval.Carrier)(h: Real.Real)(lower: _)(upper: _) => R.ltLeTrans _ h _ lower (aboveOriginal t h upper);
+\definition onePlusPositive: \forall (h: Real.Real) -> R.Lt (Real.neg Real.one) h -> R.Lt Real.zero (Real.add Real.one h) :=
+  \fun (h: Real.Real)(positive: _) => R.ltReplaceLeft (Real.add Real.one (Real.neg Real.one)) Real.zero (Real.add Real.one h)
+    (Laws.addNegRight Real.one) (Laws.ltAddLeft Real.one (Real.neg Real.one) h positive);
+\import Real.Estimates[].Product[] \as Products;
+\import Real.Inverse[] \as Inverse;
+\definition factor(t: Interval.Carrier)(h: Real.Real): Real.Real :=
+  Real.mul (Real.mul (Interval.reverse t) (Real.add Real.one (advance t h))) (Laws.fieldInv (Real.add Real.one h));
+\definition multiplier(t: Interval.Carrier)(h: Real.Real): Real.Real := Root.sqrt (factor t h);
+\definition factorNonnegative: \forall (t: Interval.Carrier)(h: Real.Real) -> R.Lt (Real.neg Real.one) h -> R.Le h Real.one -> R.Le Real.zero (factor t h) :=
+  \fun (t: Interval.Carrier)(h: Real.Real)(lower: _)(upper: _) =>
+    Laws.fieldMulNonnegative (Real.mul (Interval.reverse t) (Real.add Real.one (advance t h))) (Laws.fieldInv (Real.add Real.one h))
+      (Laws.fieldMulNonnegative (Interval.reverse t) (Real.add Real.one (advance t h))
+        (#left{(Interval.bounds (Interval.reverse t))}) (Order.leOfLt _ _ (onePlusPositive (advance t h) (aboveSouth t h lower upper))))
+      (Order.leOfLt _ _ (Products.invPositive (Real.add Real.one h) (onePlusPositive h lower)));
+\definition multiplierSquared: \forall (t: Interval.Carrier)(h: Real.Real) -> R.Lt (Real.neg Real.one) h -> R.Le h Real.one ->
+  Real.mul (multiplier t h) (multiplier t h) = factor t h :=
+  \fun (t: Interval.Carrier)(h: Real.Real)(lower: _)(upper: _) => Root.squareOfNonnegative (factor t h) (factorNonnegative t h lower upper);
+\definition cancelFactor: \forall (a, b, c: Real.Real) -> Logic.Not (b = Real.zero) ->
+  Real.mul (Real.mul a (Laws.fieldInv b)) (Real.mul c b) = Real.mul a c :=
+  \fun (a, b, c: Real.Real)(nonzero: _) => trans!{Real.Real} _ _ _ (Algebra.mulFour a (Laws.fieldInv b) c b)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Real.mul a c)) _ _ (Laws.fieldInverseNonzero b nonzero))
+      (Algebra.mulOneRight (Real.mul a c)));
+\definition factorAtStart: \forall (h: Real.Real) -> R.Lt (Real.neg Real.one) h -> factor Interval.start h = Real.one :=
+  \fun (h: Real.Real)(lower: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Laws.fieldInv (Real.add Real.one h))) _ _
+      (trans!{Real.Real} _ _ _
+        (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ Interval.reverseStart
+          (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ (atStart h)))
+        (Laws.fieldMulOneLeft (Real.add Real.one h))))
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulComm (Real.add Real.one h) (Laws.fieldInv (Real.add Real.one h)))
+      (Laws.fieldInverseNonzero (Real.add Real.one h) (Inverse.positiveNonzero _ (onePlusPositive h lower))));
+\definition factorAtEnd: \forall (h: Real.Real) -> factor Interval.end h = Real.zero :=
+  \fun (h: Real.Real) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Laws.fieldInv (Real.add Real.one h))) _ _
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Real.add Real.one (advance Interval.end h))) _ _ Interval.reverseEnd)
+        (Laws.fieldMulZeroLeft (Real.add Real.one (advance Interval.end h)))))
+    (Laws.fieldMulZeroLeft (Laws.fieldInv (Real.add Real.one h)));
+\definition multiplierAtStart: \forall (h: Real.Real) -> R.Lt (Real.neg Real.one) h -> multiplier Interval.start h = Real.one :=
+  \fun (h: Real.Real)(lower: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ (factorAtStart h lower)) Root.sqrtOne;
+\definition multiplierAtEnd: \forall (h: Real.Real) -> multiplier Interval.end h = Real.zero :=
+  \fun (h: Real.Real) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ (factorAtEnd h)) Root.sqrtZero;
+\definition reorder: \forall (a, b, c: Real.Real) -> Real.mul (Real.mul a b) c = Real.mul (Real.mul a c) b :=
+  \fun (a, b, c: Real.Real) => trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc a b c)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _ (Laws.fieldMulComm b c))
+      (sym!{Real.Real} _ _ (Laws.fieldMulAssoc a c b)));
+\definition factoredComplement: \forall (t: Interval.Carrier)(h: Real.Real) ->
+  Real.mul (Real.mul (Interval.reverse t) (Real.add Real.one (advance t h))) (Real.sub Real.one h) = Real.sub Real.one (Real.mul (advance t h) (advance t h)) :=
+  \fun (t: Interval.Carrier)(h: Real.Real) => trans!{Real.Real} _ _ _ (reorder (Interval.reverse t) (Real.add Real.one (advance t h)) (Real.sub Real.one h))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Real.add Real.one (advance t h))) _ _ (sym!{Real.Real} _ _ (complement t h)))
+      (squareComplement (advance t h)));
+\definition tailCalculation: \forall (t: Interval.Carrier)(x: Left) ->
+  Real.mul (Real.mul (multiplier t (height x)) (multiplier t (height x))) (Lower.normSquared (Split.tail x)) =
+    Real.sub Real.one (Real.mul (advance t (height x)) (advance t (height x))) :=
+  \fun (t: Interval.Carrier)(x: Left) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+      (multiplierSquared t (height x) (\bysub(Sphere, left, x)) (#right{(heightBounds x)})) (tailFactor x))
+    (trans!{Real.Real} _ _ _
+      (cancelFactor (Real.mul (Interval.reverse t) (Real.add Real.one (advance t (height x)))) (Real.add Real.one (height x)) (Real.sub Real.one (height x))
+        (Inverse.positiveNonzero _ (onePlusPositive (height x) (\bysub(Sphere, left, x)))))
+      (factoredComplement t (height x)));
+\import Lower.Contraction[] \as Scaling;
+\definition adjusted(t: Interval.Carrier)(x: Left): Sphere :=
+  \into[Ambient.Coordinate](Split.join (advance t (height x)) (Scaling.scale (multiplier t (height x)) (Split.tail x)), Ambient.Boundary) \by {
+    trans!{Real.Real} _ _ _ (Split.normJoin (advance t (height x)) (Scaling.scale (multiplier t (height x)) (Split.tail x)))
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (Real.add (Real.mul (advance t (height x)) (advance t (height x)))) _ _
+          (trans!{Real.Real} _ _ _ (Scaling.normScale (multiplier t (height x)) (Split.tail x)) (tailCalculation t x)))
+        (Estimates.addSubCancel Real.one (Real.mul (advance t (height x)) (advance t (height x)))))
+  };

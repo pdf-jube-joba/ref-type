@@ -1,0 +1,27 @@
+\import Native.Equivalence[C := native, D := targetComplex] \as Compared;
+\import Native.Map[C := targetComplex, D := native].Composition[B := native] \as Left;
+\import Native.Map[C := native, D := targetComplex].Composition[B := targetComplex] \as Right;
+\import Native.Map[C := native, D := native] \as SourceMaps;
+\import Native.Map[C := targetComplex, D := targetComplex] \as TargetMaps;
+\import Native.Homotopy[C := native, D := native] \as SourceHomotopies;
+\definition leftEquality: Left.compose backward forward = Native.End[C := native].identity := SourceMaps.ext _ _ leftInverse;
+\definition rightEquality: Right.compose forward backward = Corrected.map := TargetMaps.ext _ _ projectionEquation;
+\import SourceHomotopies.Reflexive[] \as Reflexive;
+\definition left: SourceHomotopies.Homotopy (Left.compose backward forward) (Native.End[C := native].identity) :=
+  \into[SourceHomotopies.Data](Reflexive.data, SourceHomotopies.Homotopy (Left.compose backward forward) (Native.End[C := native].identity)) \by {
+    SourceHomotopies.replacementLaws _ _ _ _ Reflexive.data (sym!{SourceMaps.Map} _ _ leftEquality) (\refl(Native.End[C := native].identity))
+      (Reflexive.laws (Native.End[C := native].identity))
+  };
+\definition rightForward: Homotopies.Homotopy (Native.End[C := targetComplex].identity) (Right.compose forward backward) :=
+  \into[Homotopies.Data](homotopyData, Homotopies.Homotopy (Native.End[C := targetComplex].identity) (Right.compose forward backward)) \by {
+    Homotopies.replacementLaws _ _ _ _ homotopyData (\refl(Native.End[C := targetComplex].identity)) (sym!{TargetMaps.Map} _ _ rightEquality)
+      (\bysub(Homotopies.Data, Homotopies.Homotopy (Native.End[C := targetComplex].identity) Corrected.map, Corrected.homotopy))
+  };
+\definition right: Homotopies.Homotopy (Right.compose forward backward) (Native.End[C := targetComplex].identity) := Homotopies.Reverse[].homotopy _ _ rightForward;
+\definition value: Compared.Equivalence := \into[Compared.Data]
+  (Compared.Data { forward := forward, backward := backward, left := left, right := right }, Compared.Equivalence) \by {
+    Compared.Laws[Compared.Data { forward := forward, backward := backward, left := left, right := right }] {
+      left := \bysub(SourceHomotopies.Data, SourceHomotopies.Homotopy (Left.compose backward forward) (Native.End[C := native].identity), left),
+      right := \bysub(Homotopies.Data, Homotopies.Homotopy (Right.compose forward backward) (Native.End[C := targetComplex].identity), right),
+    }
+  };

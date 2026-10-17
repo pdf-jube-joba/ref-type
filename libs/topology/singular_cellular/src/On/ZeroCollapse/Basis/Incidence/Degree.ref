@@ -1,0 +1,44 @@
+\definition indicatorContinuous: topology.Continuity[A := Skeleton.Carrier, B := Spheres.Carrier zero].Continuous
+  Skeleton.topology (Spheres.topology zero) map := continuous;
+\definition cellularEndpoints: matrixCoefficient = endpointDifference := endpoints;
+\definition attachingSphere(x: Spheres.Carrier zero): Spheres.Carrier zero := map (sphereMap x);
+\import topology.Composition[A := Spheres.Carrier zero, B := Skeleton.Carrier, C := Spheres.Carrier zero] \as Topology;
+\definition continuous: topology.Continuity[A := Spheres.Carrier zero, B := Spheres.Carrier zero].Continuous
+  (Spheres.topology zero) (Spheres.topology zero) attachingSphere :=
+  Topology.composeContinuous (Spheres.topology zero) Skeleton.topology (Spheres.topology zero) sphereMap map sphereContinuous indicatorContinuous;
+\import sphere_maps.ZeroHomology[].Sphere[] \as Orientation;
+\import singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero] \as SphereChains;
+\import singular_cohomology.Simplices[A := Spheres.Carrier zero, source := Spheres.topology zero] \as SphereSimplices;
+\import SphereChains.Reduced[] \as Reduced;
+\import Complexes.At[C := Reduced.complex, z := degree] \as H;
+\import singular_cohomology.Maps[A := Spheres.Carrier zero, B := Spheres.Carrier zero,
+  source := Spheres.topology zero, target := Spheres.topology zero] \as Maps;
+\definition chainMap: Complexes.Map[C := Reduced.complex, D := Reduced.complex].Map := Maps.Reduced[].map attachingSphere continuous;
+\import Complexes.Map[C := Reduced.complex, D := Reduced.complex].At[k := degree] \as Induced;
+\definition action: Modules.Hom[V := H.Homology, W := H.Homology, source := H.homologySpace, target := H.homologySpace].Map := Induced.induced chainMap;
+\definition degreeValue: I.Int^ := #apply{#backward{Orientation.isomorphism}} (#apply{action} (#apply{#forward{Orientation.isomorphism}} I.One.specification));
+\import sphere_maps.ZeroHomology[].Algebra[].Functional[C := Reduced.complex, z := degree, functional := Orientation.cochain] \as Evaluated;
+\import Modules.Laws[V := SphereChains.Carrier zero, space := SphereChains.space zero] \as Values;
+\import algebra.Group[].Of[Carrier := SphereChains.Carrier zero, group := Values.additive] \as Group;
+\import Modules.Hom[V := SphereChains.Carrier zero, W := SphereChains.Carrier zero, source := SphereChains.space zero, target := SphereChains.space zero] \as Linear;
+\definition linear: Linear.Map := Linear.Map {
+  apply := #apply{chainMap} degree, addition := #addition{chainMap} degree, scalar := #scalar{chainMap} degree,
+};
+\definition point(x: Spheres.Carrier zero): SphereChains.Carrier zero := SphereChains.generator zero (SphereSimplices.At[n := zero].constant x);
+\definition difference: #apply{chainMap} degree Orientation.difference = Group.difference (point (attachingSphere Sphere.north)) (point (attachingSphere Sphere.south)) :=
+  trans!{{SphereChains.Carrier zero}} _ _ _ (Linear.differencePreserved linear (point Sphere.north) (point Sphere.south))
+    (congr2!{{SphereChains.Carrier zero} {SphereChains.Carrier zero} {SphereChains.Carrier zero}} Group.difference _ _ _ _
+      (Maps.At[n := zero].onGenerator attachingSphere continuous (SphereSimplices.At[n := zero].constant Sphere.north))
+      (Maps.At[n := zero].onGenerator attachingSphere continuous (SphereSimplices.At[n := zero].constant Sphere.south)));
+\import Modules.Hom[V := SphereChains.Carrier zero, W := I.Int^, source := SphereChains.space zero, target := Modules.scalarModule] \as Evaluation;
+\definition endpoints: degreeValue = endpointDifference :=
+  trans!{I.Int^} _ _ _
+    (congr!{H.Homology I.Int^} (\fun (q: H.Homology) => #apply{#backward{Orientation.isomorphism}} (#apply{action} q)) _ _ Orientation.onOne)
+    (trans!{I.Int^} _ _ _
+      (congr!{H.Homology I.Int^} (#apply{#backward{Orientation.isomorphism}}) _ _ (Induced.onClass chainMap Orientation.cycle))
+      (trans!{I.Int^} _ _ _ (Evaluated.onClass Orientation.kills (#apply{(Induced.cyclesMap chainMap)} Orientation.cycle))
+        (trans!{I.Int^} _ _ _
+          (congr!{{SphereChains.Carrier zero} I.Int^} (#apply{Orientation.cochain}) _ _ difference)
+          (Evaluation.differencePreserved Orientation.cochain (point (attachingSphere Sphere.north)) (point (attachingSphere Sphere.south))))));
+\definition incidence: matrixCoefficient = degreeValue :=
+  trans!{I.Int^} _ _ _ cellularEndpoints (sym!{I.Int^} _ _ endpoints);

@@ -1,0 +1,19 @@
+\import \root.Cochains[A := C, source := final].With[coefficients := M] \as SourceCochains;
+\import \root.Cochains[A := A, source := source].With[coefficients := M] \as TargetCochains;
+\import \parent.\parent.Coefficients[M := M, L := M] \as First;
+\import After.Coefficients[M := M, L := M] \as Second;
+\import Direct.Coefficients[M := M, L := M] \as DirectPullback;
+\import \root.Maps[A := A, B := B, source := source, target := target] \as Before;
+\import Modules.End[V := M.Carrier, space := M.space] \as Identity;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Composition[P := Domain.complex, Q := Codomain.complex, T := FinalChains.complex, N := M] \as Native;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Domain.complex, D := FinalChains.complex] \as Chains;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Mapping[P := Domain.complex, Q := FinalChains.complex, N := M, L := M] \as Action;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].Map[C := SourceCochains.complex, D := TargetCochains.complex] \as Cochains;
+\definition action(arrow: Chains.Map): Cochains.Map := Action.On[f := arrow, u := Identity.identity].map;
+\definition onCohomology: \forall (f: A -> B)(fc: Continuous f)(g: B -> C)(gc: After.Continuous g)(n: N.Nat^)(q: SourceCochains.cohomology n) ->
+  #apply{(DirectPullback.At[n := n].induced (\fun (x: A) => g (f x)) (Topology.composeContinuous source target final f g fc gc) Identity.identity)} q =
+    #apply{(First.At[n := n].induced f fc Identity.identity)} (#apply{(Second.At[n := n].induced g gc Identity.identity)} q) :=
+  \fun (f: A -> B)(fc: Continuous f)(g: B -> C)(gc: After.Continuous g)(n: N.Nat^)(q: SourceCochains.cohomology n) => trans!{{TargetCochains.cohomology n}} _ _ _
+    (congr!{Chains.Map {TargetCochains.cohomology n}} (\fun (arrow: Chains.Map) => #apply{(Cochains.At[k := n].induced (action arrow))} q) _ _
+      (sym!{Chains.Map} _ _ (functoriality f fc g gc)))
+    (Native.At[k := n].onCohomology (Before.push f fc) (After.push g gc) q);

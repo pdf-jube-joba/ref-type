@@ -1,0 +1,32 @@
+\import \root.Collapse[A := A, subset := subset] \as Quotient;
+\import Quotient.Mapping[B := A, targetSubset := subset] \as Mapping;
+\definition final(x: A): A := retraction x;
+\import Mapping.Homotopy[].Over[source := source, target := source, f := (\fun (x: A) => x), g := final] \as Descent;
+\definition data: Descent.Data := Descent.Data {
+  homotopy := homotopy,
+  preserves := \fun (t: Interval.Carrier)(x: A)(member: Space.Member subset x) =>
+    \idelim x = homotopy (WholeCylinder.at t x) \with y: A => Space.Member subset y \by {
+      base: member,
+      equality: sym!{A} _ _ (#fixed{(Homotopies.relativeLaws source source subset (\fun (x: A) => x) final #homotopy{retract})} t x member)
+    },
+};
+\import Descent.On[h := data] \as Descended;
+\definition start: \forall (q: Quotient.Carrier) -> Mapping.apply (\fun (x: A) => x) Descended.startPreserves q = q :=
+  Quotient.induction (\fun (q: Quotient.Carrier) => Mapping.apply (\fun (x: A) => x) Descended.startPreserves q = q)
+    (Mapping.onClass (\fun (x: A) => x) Descended.startPreserves);
+\definition end: \forall (q: Quotient.Carrier) -> Mapping.apply final Descended.endPreserves q = Quotient.class point :=
+  Quotient.induction (\fun (q: Quotient.Carrier) => Mapping.apply final Descended.endPreserves q = Quotient.class point)
+    (\fun (x: A) => trans!{Quotient.Carrier} _ _ _ (Mapping.onClass final Descended.endPreserves x)
+      (Quotient.collapsed (retraction x) point (\bysub(A, subset, retraction x)) (\bysub(A, subset, point))));
+\import \root.Homotopy[A := Quotient.Carrier, B := Quotient.Carrier] \as QuotientHomotopies;
+\import \root.Contraction[A := Quotient.Carrier, source := Quotient.topology source] \as Contractions;
+\definition contraction: Contractions.Data := Contractions.Data {
+  centre := Quotient.class point,
+  homotopy := \into[QuotientHomotopies.Family](Descended.apply, QuotientHomotopies.Homotopy[Quotient.topology source, Quotient.topology source, (\fun (q: Quotient.Carrier) => q), (\fun (_: Quotient.Carrier) => Quotient.class point)]) \by {
+    QuotientHomotopies.Laws[_, _, _, _, Descended.apply] {
+      continuous := Descended.continuous,
+      start := \fun (q: Quotient.Carrier) => trans!{Quotient.Carrier} _ _ _ (Descended.start q) (start q),
+      end := \fun (q: Quotient.Carrier) => trans!{Quotient.Carrier} _ _ _ (Descended.end q) (end q),
+    }
+  },
+};

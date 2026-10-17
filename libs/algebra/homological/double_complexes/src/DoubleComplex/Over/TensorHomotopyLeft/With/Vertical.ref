@@ -1,0 +1,18 @@
+\import SourceTensor.Term[p := p, q := Nat.Nat^::succ q] \as Source;
+\import SourceTensor.Term[p := p, q := q] \as BeforeTarget;
+\import TargetTensor.Term[p := Nat.Nat^::succ p, q := Nat.Nat^::succ q] \as AfterSource;
+\import TargetTensor.Term[p := Nat.Nat^::succ p, q := q] \as Target;
+\import SourceTensor.At[p := p, q := q] \as SD;
+\import TargetTensor.At[p := Nat.Nat^::succ p, q := q] \as TD;
+\import \parent.Term[p := p, q := q] \as Current;
+\import \parent.Term[p := p, q := Nat.Nat^::succ q] \as Next;
+\import Modules.Hom[V := AfterSource.Carrier, W := Target.Carrier, source := AfterSource.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as VH;
+\import Modules.Hom[V := BeforeTarget.Carrier, W := Target.Carrier, source := BeforeTarget.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as HV;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Linear;
+\import Modules.Tensor[V := C.family.Carrier p, W := E.family.Carrier (Nat.Nat^::succ q), left := C.family.space p, right := E.family.space (Nat.Nat^::succ q)].Universal[U := Target.Carrier, target := Target.space] \as Universal;
+\definition equality: VH.compose TD.vertical Next.map = HV.compose Current.map SD.vertical := Universal.ext _ _
+  (\fun (x: C.family.Carrier p)(y: E.family.Carrier (Nat.Nat^::succ q)) => trans!{Target.Carrier} _ _ _
+    (congr!{AfterSource.Carrier Target.Carrier} (#apply{TD.vertical}) _ _ (Next.onTensor x y))
+    (trans!{Target.Carrier} _ _ _ (TD.verticalOnTensor (#apply{h} p x) y)
+      (sym!{Target.Carrier} _ _ (trans!{Target.Carrier} _ _ _ (congr!{BeforeTarget.Carrier Target.Carrier} (#apply{Current.map}) _ _ (SD.verticalOnTensor x y)) (Current.onTensor x (#apply{E.differential} q y))))));
+\definition point(x: Source.Carrier): #apply{TD.vertical} (#apply{Next.map} x) = #apply{Current.map} (#apply{SD.vertical} x) := congr!{Linear.Map Target.Carrier} (\fun (m: Linear.Map) => #apply{m} x) _ _ equality;

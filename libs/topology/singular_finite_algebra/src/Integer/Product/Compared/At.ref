@@ -1,0 +1,28 @@
+\import Kunneth.CoreTerms[C := first, D := second].At[n := z] \as Terms;
+\import Theorem.At[n := z] \as Finite;
+\import Chains.At[C := SingularExtension.complex, z := z] \as Homology;
+\definition isomorphism: Modules.Isomorphism[V := Terms.homologyBundle.Carrier, W := Homology.Homology,
+  source := Terms.homologyBundle.space, target := Homology.homologySpace].Isomorphism :=
+  Comparisons.At[k := z].isomorphism comparison;
+\definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := Homology.Homology, space := Homology.homologySpace };
+\import \root.Integer[].Middle[A := Terms.tensorBundle, B := Terms.homologyBundle, C := Terms.torBundle,
+  D := homologyBundle, sequence := Finite.sequence, isomorphism := isomorphism] \as Transport;
+\definition kunneth: Modules.ShortExact[A := Terms.tensorBundle, B := homologyBundle, C := Terms.torBundle].Sequence := Transport.exact;
+\import Modules.Biproduct[V := Terms.tensorBundle.Carrier, W := Terms.torBundle.Carrier,
+  left := Terms.tensorBundle.space, right := Terms.torBundle.space] \as Sum;
+\import Modules.Isomorphism[V := Sum.Carrier, W := Terms.homologyBundle.Carrier,
+  source := Sum.space, target := Terms.homologyBundle.space].Composition[U := Homology.Homology,
+  final := Homology.homologySpace] \as Splitting;
+\definition splitting: Modules.Isomorphism[V := Sum.Carrier, W := Homology.Homology,
+  source := Sum.space, target := Homology.homologySpace].Isomorphism := Splitting.compose isomorphism Finite.selectedSplitting;
+\definition exterior(p: I.Int^)(x: Terms.Component[p := p].tensorCarrier): Homology.Homology :=
+  #apply{#forward{isomorphism}} (#apply{Terms.Component[p := p].Exterior[].map} x);
+\import Modules.DirectSum[Index := I.Int^, family := Terms.tensorFamily] \as Tensors;
+\definition exteriorOnInjection: \forall (p: I.Int^)(x: Terms.Component[p := p].tensorCarrier) ->
+  #apply{kunneth.inclusion} (#apply{Tensors.Injection[i := p].map} x) = exterior p x :=
+  \fun (p: I.Int^)(x: Terms.Component[p := p].tensorCarrier) =>
+    congr!{Terms.homologyBundle.Carrier Homology.Homology} (#apply{#forward{isomorphism}}) _ _
+      (trans!{Terms.homologyBundle.Carrier} _ _ _
+        (congr!{{Modules.MapBetween Terms.tensorBundle Terms.homologyBundle} Terms.homologyBundle.Carrier}
+          (\fun (f: Modules.MapBetween Terms.tensorBundle Terms.homologyBundle) => #apply{f} (#apply{Tensors.Injection[i := p].map} x)) _ _ Finite.inclusionEq)
+        (Terms.exteriorOnInjection p x));

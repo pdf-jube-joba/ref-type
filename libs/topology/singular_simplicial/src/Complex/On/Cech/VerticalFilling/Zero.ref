@@ -1,0 +1,34 @@
+\definition degree: N.Nat^ := N.Nat^::zero;
+\import \parent.\parent.Bicomplex[] \as Bicomplex;
+\import \parent.\parent.NerveAugmentation[] \as Augmentation;
+\import \root.Complex[d := d].On[K := K].Chains[] \as Nerve;
+\import Augmentation.Degree[p := p] \as Section;
+\import Modules.Hom[V := Carrier p degree, W := Nerve.Carrier p, source := space p degree, target := Nerve.space p] \as Augmentations;
+\definition augmentation: Augmentations.Map := Augmentations.Map {
+  apply := #apply{Augmentation.map} p, addition := #addition{Augmentation.map} p, scalar := #scalar{Augmentation.map} p,
+};
+\import Modules.Hom[V := Nerve.Carrier p, W := Carrier p degree, source := Nerve.space p, target := space p degree]
+  .Composition[U := Carrier p degree, domain := space p degree] \as Projectors;
+\definition projector: _ := Projectors.compose Section.section augmentation;
+\import Modules.Hom[V := Carrier p (N.Nat^::succ degree), W := Carrier p degree, source := space p (N.Nat^::succ degree), target := space p degree]
+  .Composition[U := Carrier p degree, domain := space p degree] \as Compose;
+\import Modules.Hom[V := Carrier p degree, W := Carrier p degree, source := space p degree, target := space p degree] \as Maps;
+\import Modules.End[V := Carrier p degree, space := space p degree] \as End;
+\module On(s: Generator p degree);
+\import Modules.Free[Generators := Generator p degree].To[W := Carrier p degree, target := space p degree] \as Free;
+\definition equality: Compose.compose (Bicomplex.vertical p degree) (homotopy degree) = Maps.plus End.identity (Maps.negative projector) :=
+  Free.ext _ _ (\fun (s: Generator p degree) => On[s := s].law);
+\import Modules.Laws[V := Carrier p degree, space := space p degree] \as Vector;
+\import algebra.Group[].Of[Carrier := Carrier p degree, group := Vector.additive] \as Group;
+\definition law: \forall (x: Carrier p degree) ->
+  #apply{(Bicomplex.vertical p degree)} (#apply{(homotopy degree)} x) = Group.difference x (#apply{projector} x) :=
+  \fun (x: Carrier p degree) => congr!{{Maps.Map} {Carrier p degree}} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality;
+\import Modules.Hom[V := Nerve.Carrier p, W := Carrier p degree, source := Nerve.space p, target := space p degree] \as Sections;
+\definition cycle: \forall (x: Carrier p degree) -> #apply{augmentation} x = #zero{(Nerve.space p)} ->
+  #apply{(Bicomplex.vertical p degree)} (#apply{(homotopy degree)} x) = x :=
+  \fun (x: Carrier p degree)(reduced: #apply{augmentation} x = #zero{(Nerve.space p)}) => trans!{{Carrier p degree}} _ _ _ (law x)
+    (trans!{{Carrier p degree}} _ _ _
+      (congr!{{Carrier p degree} {Carrier p degree}} (Group.difference x) _ _
+        (trans!{{Carrier p degree}} _ _ _ (congr!{{Nerve.Carrier p} {Carrier p degree}} (#apply{Section.section}) _ _ reduced)
+          (Sections.zeroPreserved Section.section)))
+      (trans!{{Carrier p degree}} _ _ _ (congr!{{Carrier p degree} {Carrier p degree}} (Vector.add x) _ _ Group.negZero) (Group.zeroRight x)));

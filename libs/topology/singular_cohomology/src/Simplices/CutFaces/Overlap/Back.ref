@@ -1,0 +1,17 @@
+\import \parent.\parent.\parent.Reindex[m := leftDegree, n := higher].Composition[k := q] \as LeftComposition;
+\import \parent.\parent.\parent.Reindex[m := N.Nat^::succ q, n := higher].Composition[k := q] \as RightComposition;
+\import \parent.\parent.\parent.Reindex[m := q, n := higher] \as Direct;
+\import Fin.Skipping[].Step[n := q] \as First;
+\definition leftIndices(j: Fin.Fin (N.Nat^::succ q)): Fin.Fin (N.Nat^::succ higher) := Between.indices same (LeftIndices.backIndex j);
+\definition rightIndices(j: Fin.Fin (N.Nat^::succ q)): Fin.Fin (N.Nat^::succ higher) := RightIndices.backIndex (RightFace.skip (Fin.zero (N.Nat^::succ q)) j);
+\definition indices: leftIndices = rightIndices := \axiom:funext(leftIndices, rightIndices,
+  \fun (j: Fin.Fin (N.Nat^::succ q)) => trans!{N.Nat^} _ _ _ (Between.value same (LeftIndices.backIndex j))
+    (trans!{N.Nat^} _ _ _ (Bounds.addSuccLeft p j)
+      (sym!{N.Nat^} _ _ (congr!{N.Nat^ N.Nat^} (Nat.add p) _ _ (First.first j)))));
+\definition rightFlat: \forall (sigma: Carrier higher) -> face q (Fin.zero (N.Nat^::succ q)) (Right.back sigma) = Direct.apply rightIndices sigma :=
+  \fun (sigma: Carrier higher) => trans!{{Carrier q}} _ _ _ (RightFace.law (Fin.zero (N.Nat^::succ q)) (Right.back sigma))
+    (RightComposition.law RightIndices.backIndex (RightFace.skip (Fin.zero (N.Nat^::succ q))) sigma);
+\definition law: \forall (sigma: Carrier higher) -> Left.back (leftSimplex sigma) = face q (Fin.zero (N.Nat^::succ q)) (Right.back sigma) :=
+  \fun (sigma: Carrier higher) => trans!{{Carrier q}} _ _ _ (LeftComposition.law (Between.indices same) LeftIndices.backIndex sigma)
+    (trans!{{Carrier q}} _ _ _ (congr!{Direct.Function {Carrier q}} (\fun (f: Direct.Function) => Direct.apply f sigma) leftIndices rightIndices indices)
+      (sym!{{Carrier q}} _ _ (rightFlat sigma)));

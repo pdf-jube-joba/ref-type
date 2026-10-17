@@ -1,0 +1,27 @@
+\import Double.TensorMapping[C := Left.complex, D := Left.complex, E := Right.complex, F := Right.complex].With[f := LeftContraction.projection, g := RightContraction.projection] \as Action;
+\module Term(a, b: N.Nat^) {
+  \import Tensor.Term[p := a, q := b] \as Current;
+  \import Action.Degree[p := a, q := b] \as Mapping;
+  \import Modules.Hom[V := Current.Carrier, W := Current.Carrier, source := Current.space, target := Current.space] \as Linear;
+  \definition map: Linear.Map := Mapping.map;
+  \definition zero: Linear.Map := Linear.zeroMap;
+}
+\definition Pointwise(a, b: N.Nat^): \Prop := \forall (x: Tensor.Carrier a b) -> #apply{Term[a := a, b := b].map} x = #zero{(Tensor.space a b)};
+\definition Case(a, b: N.Nat^): \Prop := \forall (k: N.Nat^) -> Nat.add a b = N.Nat^::succ k -> Pointwise a b;
+\definition weaken(a, b: N.Nat^)(law: Pointwise a b): Case a b := \fun (k: N.Nat^)(unused: Nat.add a b = N.Nat^::succ k) => law;
+\module LeftPositive(a, b: N.Nat^);
+\module RightPositive(b: N.Nat^);
+\definition leftCase(a, b: N.Nat^): Case (N.Nat^::succ a) b := weaken (N.Nat^::succ a) b LeftPositive[a := a, b := b].law;
+\definition rightCase(b: N.Nat^): Case N.Nat^::zero (N.Nat^::succ b) := weaken N.Nat^::zero (N.Nat^::succ b) RightPositive[b := b].law;
+\import std.Logic[].Proposition[] \as Logic;
+\import N.Basic[].Prop[] \as Bounds;
+\definition zeroCase: Case N.Nat^::zero N.Nat^::zero := \fun (k: N.Nat^)(bad: N.Nat^::zero = N.Nat^::succ k) => Logic.falseElim (Pointwise N.Nat^::zero N.Nat^::zero) (Bounds.zeroNeSucc k bad);
+\definition leftAxis: \forall (b: N.Nat^) -> Case N.Nat^::zero b := \induction (b: N.Nat^) \return Case N.Nat^::zero b \with {
+  | zero: zeroCase
+  | succ: \fun (b: N.Nat^)(unused: Case N.Nat^::zero b) => rightCase b
+};
+\definition positive(a: N.Nat^): \forall (b: N.Nat^) -> Case (N.Nat^::succ a) b := leftCase a;
+\definition all: \forall (a, b: N.Nat^) -> Case a b := \induction (a: N.Nat^) \return \forall (b: N.Nat^) -> Case a b \with {
+  | zero: leftAxis
+  | succ: \fun (a: N.Nat^)(unused: \forall (b: N.Nat^) -> Case a b) => positive a
+};

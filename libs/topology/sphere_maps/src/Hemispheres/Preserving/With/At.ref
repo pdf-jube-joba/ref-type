@@ -1,0 +1,27 @@
+\import \root.Hemispheres[n := n].Preserving[].With[coefficients := coefficients] \as Parent;
+\import Cochains.At[C := LowerHom.complex, z := z] \as LowerH;
+\import Cochains.At[C := IntersectionHom.complex, z := z] \as IntersectionH;
+\import Cochains.Map[C := IntersectionHom.complex, D := LowerHom.complex].At[k := z] \as Pullback;
+\import Cochains.Map[C := IntersectionHom.complex, D := IntersectionHom.complex].At[k := z] \as IntersectionAction;
+\import Cochains.Map[C := LowerHom.complex, D := LowerHom.complex].At[k := z] \as LowerAction;
+\import Hom.IntegerComposition[P := Lower.complex, Q := Intersection.complex, T := Intersection.complex, N := coefficients] \as Left;
+\import Hom.IntegerComposition[P := Lower.complex, Q := Lower.complex, T := Intersection.complex, N := coefficients] \as Right;
+\definition naturality: \forall (q: IntersectionH.Cohomology) ->
+  #apply{(Pullback.induced inclusionPull)} (#apply{(IntersectionAction.induced ReflectionPull.map)} q) =
+    #apply{(LowerAction.induced AntipodalPull.map)} (#apply{(Pullback.induced inclusionPull)} q) :=
+  \fun (q: IntersectionH.Cohomology) => trans!{LowerH.Cohomology} _ _ _
+    (sym!{LowerH.Cohomology} _ _ (Left.At[k := z].onCohomology inclusion reflection q))
+    (trans!{LowerH.Cohomology} _ _ _
+      (congr!{{Chains.Map[C := Lower.complex, D := Intersection.complex].Map} LowerH.Cohomology}
+        (\fun (f: Chains.Map[C := Lower.complex, D := Intersection.complex].Map) => #apply{(Pullback.induced InclusionPull.On[f := f, u := Coefficient.identity].map)} q)
+        _ _ Parent.naturality)
+      (Right.At[k := z].onCohomology antipodal inclusion q));
+\import singular_cohomology.Equivalence[A := Spheres.Carrier n, B := Geometry.Intersection, source := Spheres.topology n, target := Geometry.intersectionTopology].Signed[].With[coefficients := coefficients].At[z := z] \as Comparison;
+\import Modules.Hom[V := IntersectionH.Cohomology, W := LowerH.Cohomology, source := IntersectionH.cohomologySpace, target := LowerH.cohomologySpace] \as Linear;
+\definition scalarAction: \forall (k: I.Int^) ->
+  (\forall (q: LowerH.Cohomology) -> #apply{(LowerAction.induced AntipodalPull.map)} q = #smul{LowerH.cohomologySpace} k q) ->
+  \forall (q: IntersectionH.Cohomology) -> #apply{(IntersectionAction.induced ReflectionPull.map)} q = #smul{IntersectionH.cohomologySpace} k q :=
+  \fun (k: I.Int^)(law: _)(q: IntersectionH.Cohomology) => #injective{(Comparison.bijective Cover.intersectionEquivalence)} _ _
+    (trans!{LowerH.Cohomology} _ _ _ (naturality q)
+      (trans!{LowerH.Cohomology} _ _ _ (law (#apply{(Pullback.induced inclusionPull)} q))
+        (sym!{LowerH.Cohomology} _ _ (#scalar{(Pullback.induced inclusionPull)} k q))));

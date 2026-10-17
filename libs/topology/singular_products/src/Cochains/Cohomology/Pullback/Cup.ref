@@ -1,0 +1,40 @@
+\use Equality.eq_reason;
+\import \parent.\parent.Cup[p := p, q := q] \as Product;
+\import OtherCohomology.Cup[p := p, q := q] \as OtherProduct;
+\definition degree: N.Nat^ := Product.degree;
+\import Complexes.At[C := OtherTheory.complex, k := p] \as P;
+\import Complexes.At[C := OtherTheory.complex, k := q] \as Q;
+\import Complexes.At[C := OtherTheory.complex, k := degree] \as OtherOutput;
+\import Complexes.At[C := Theory.complex, k := p] \as LocalP;
+\import Complexes.At[C := Theory.complex, k := q] \as LocalQ;
+\import Complexes.At[C := Theory.complex, k := degree] \as Output;
+\import \parent.At[n := p] \as PullP;
+\import \parent.At[n := q] \as PullQ;
+\import \parent.At[n := degree] \as PullOutput;
+\definition onCycles: \forall (f: A -> B)(continuous: Geometry.Continuous f)(x: P.CycleCarrier)(y: Q.CycleCarrier) ->
+  apply degree f continuous (OtherProduct.apply (P.classOf x) (Q.classOf y)) =
+    Product.apply (apply p f continuous (P.classOf x)) (apply q f continuous (Q.classOf y)) :=
+  \fun (f: A -> B)(continuous: Geometry.Continuous f)(x: P.CycleCarrier)(y: Q.CycleCarrier) => eq_reason!{
+    {apply degree f continuous (OtherProduct.apply (P.classOf x) (Q.classOf y))}
+    "=" {apply degree f continuous (OtherOutput.classOf (OtherProduct.cycle x y))}
+    "by" {congr!{{OtherCohomology.Group degree} {Group degree}} (apply degree f continuous) _ _ (OtherProduct.onClasses x y)}
+    "=" {Output.classOf (PullOutput.cycle f continuous (OtherProduct.cycle x y))}
+    "by" {PullOutput.onClass f continuous (OtherProduct.cycle x y)}
+    "=" {Output.classOf (Product.cycle (PullP.cycle f continuous x) (PullQ.cycle f continuous y))}
+    "by" {Output.equalClass
+      (PullOutput.cycle f continuous (OtherProduct.cycle x y))
+      (Product.cycle (PullP.cycle f continuous x) (PullQ.cycle f continuous y))
+      (CochainPull.Cup[p := p, q := q].law f continuous x y)}
+    "=" {Product.apply (LocalP.classOf (PullP.cycle f continuous x)) (LocalQ.classOf (PullQ.cycle f continuous y))}
+    "by" {sym!{{Group degree}} _ _ (Product.onClasses (PullP.cycle f continuous x) (PullQ.cycle f continuous y))}
+    "=" {Product.apply (apply p f continuous (P.classOf x)) (apply q f continuous (Q.classOf y))}
+    "by" {sym!{{Group degree}} _ _ (congr2!{{Group p} {Group q} {Group degree}} Product.apply _ _ _ _
+      (PullP.onClass f continuous x) (PullQ.onClass f continuous y))}
+  };
+\definition law: \forall (f: A -> B)(continuous: Geometry.Continuous f)(a: OtherCohomology.Group p)(b: OtherCohomology.Group q) ->
+  apply degree f continuous (OtherProduct.apply a b) = Product.apply (apply p f continuous a) (apply q f continuous b) :=
+  \fun (f: A -> B)(continuous: Geometry.Continuous f) => P.classInduction (\fun (a: OtherCohomology.Group p) =>
+    \forall (b: OtherCohomology.Group q) -> apply degree f continuous (OtherProduct.apply a b) = Product.apply (apply p f continuous a) (apply q f continuous b))
+    (\fun (x: P.CycleCarrier) => Q.classInduction (\fun (b: OtherCohomology.Group q) =>
+      apply degree f continuous (OtherProduct.apply (P.classOf x) b) = Product.apply (apply p f continuous (P.classOf x)) (apply q f continuous b))
+      (onCycles f continuous x));

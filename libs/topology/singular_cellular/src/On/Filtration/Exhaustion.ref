@@ -1,0 +1,62 @@
+\import N.Basic[].Def[] \as Arithmetic;
+\definition height(family: Cells.Cells): N.Nat^ :=
+  Lists.foldr Cells.CellData N.Nat^
+    (\fun (cell: Cells.CellData)(tail: N.Nat^) => Arithmetic.add (N.Nat^::succ (#dimension{cell})) tail)
+    N.Nat^::zero family;
+\definition dimensionBound: \forall (family: Cells.Cells)(cell: Cells.CellData) ->
+  Cells.CellMember family cell -> Nat.Lt (#dimension{cell}) (height family) :=
+  \induction (family: Cells.Cells) \return \forall (cell: Cells.CellData) ->
+    Cells.CellMember family cell -> Nat.Lt (#dimension{cell}) (height family) \with {
+      | nil: \fun (cell: Cells.CellData)(impossible: Logic.False) => Logic.falseElim _ impossible
+      | cons: \fun (first: Cells.CellData)(tail: _)(ih: _)(cell: Cells.CellData)(member: _) => either!{member
+        {Nat.Lt (#dimension{cell}) (height (Lists.List[Cells.CellData]::cons first tail))}
+        {\fun (same: cell = first) => \idelim first = cell
+          \with c: Cells.CellData => Nat.Lt (#dimension{c}) (height (Lists.List[Cells.CellData]::cons first tail)) \by {
+            base: Nat.ltLeTrans (#dimension{first}) (N.Nat^::succ (#dimension{first}))
+              (Arithmetic.add (N.Nat^::succ (#dimension{first})) (height tail))
+              (Nat.ltOfSuccLe (N.Nat^::succ (#dimension{first})) (#dimension{first}) (Nat.leRefl (N.Nat^::succ (#dimension{first}))))
+              (Nat.leAddRight (N.Nat^::succ (#dimension{first})) (height tail)),
+            equality: sym!{Cells.CellData} _ _ same
+          }}
+        {\fun (old: _) => Nat.ltLeTrans (#dimension{cell}) (height tail)
+          (Arithmetic.add (N.Nat^::succ (#dimension{first})) (height tail)) (ih cell old)
+          (Nat.leAddLeft (N.Nat^::succ (#dimension{first})) (height tail))}
+      }
+    };
+\definition interiorClosed: \forall (cell: Cells.CellData)(x: A) ->
+  \In[A] (Cells.InteriorImage cell) x -> \In[A] (Cells.ClosedImage cell) x := \block {
+  \fun (cell: Cells.CellData)(x: _)(member: _) \then
+  \takefrom point: \Cast[Euclidean.Disk (#dimension{cell})]
+    ({ p: Euclidean.Disk (#dimension{cell}) \where Logic.And[
+      \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) p,
+      #characteristic{cell} p = x] }) \by member \then
+  \return Logic.existsIntro[Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }]
+    point (#right{(\bysub(Euclidean.Disk (#dimension{cell}),
+      { p: Euclidean.Disk (#dimension{cell}) \where Logic.And[
+        \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) p,
+        #characteristic{cell} p = x] }, point))})
+};
+\definition covers: \forall (x: A) -> \In[A] (subset (height cells)) x := \block {
+  \fun (x: A) \then
+  \takefrom witness: Cells.CoverWitness[cells, x] \by #covers{laws} x \then
+  \return include cells (height cells) (#cell{witness}) (#member{witness})
+    (dimensionBound cells (#cell{witness}) (#member{witness})) x (interiorClosed (#cell{witness}) x (#contains{witness}))
+};
+\definition full: subset (height cells) = Space.Whole :=
+  \axiom:setext(subset (height cells), Space.Whole,
+    \fun (x: A)(member: _) => \refl(x),
+    \fun (x: A)(whole: _) => covers x);
+\import \parent.Stage[limit := height cells] \as Last;
+\import topology.Homeomorphism[A := Last.Carrier, B := A] \as Homeomorphisms;
+\import topology.Continuity[A := A, B := A].Corestriction[S := subset (height cells)] \as Into;
+\import topology.Maps[A := A, B := A].Identity[] \as Identity;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[Last.topology, source] :=
+  Homeomorphisms.Homeomorphism[Last.topology, source] {
+    forward := Last.inclusion,
+    backward := \fun (x: A) => \into[A](x, subset (height cells)) \by { covers x },
+    leftInverse := \fun (x: Last.Carrier) => \refl(x),
+    rightInverse := \fun (x: A) => \refl(x),
+    forwardContinuous := Last.continuous,
+    backwardContinuous := Into.corestrictContinuous source source
+      (\fun (x: A) => \into[A](x, subset (height cells)) \by { covers x }) (Identity.continuous source),
+  };

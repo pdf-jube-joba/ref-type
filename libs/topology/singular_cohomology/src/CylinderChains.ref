@@ -1,0 +1,49 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.Cylinder[n := n] \as Space;
+\definition Points: \Set := Space.CarrierSet;
+\import \root.OrderedTuples[V := Points] \as Tuples;
+\import \root.Chains[A := Points, source := Space.topology] \as Chains;
+\import \root.Simplices[A := Points, source := Space.topology] \as Simplices;
+\import Fin.Tuples[A := Points].Omission[] \as Omission;
+\module At(m: N.Nat^) {
+  \import algebraic_topology.CylinderAffine[m := m, n := n] \as Affine;
+  \definition onTuple(v: Tuples.Tuple (N.Nat^::succ m)): Simplices.Carrier m :=
+    \into[Simplices.At[n := m].Function](Affine.apply v, Simplices.Carrier m) \by { Affine.continuous v };
+  \import Modules.Free[Generators := Tuples.Tuple (N.Nat^::succ m)].To[W := Chains.Carrier m, target := Chains.space m] \as Free;
+  \definition map: Modules.Hom[V := Tuples.Carrier (N.Nat^::succ m), W := Chains.Carrier m, source := Tuples.space (N.Nat^::succ m), target := Chains.space m].Map :=
+    Free.extension (\fun (v: Tuples.Tuple (N.Nat^::succ m)) => Chains.generator m (onTuple v));
+  \definition onGenerator: \forall (v: Tuples.Tuple (N.Nat^::succ m)) ->
+    #apply{map} (Tuples.generator (N.Nat^::succ m) v) = Chains.generator m (onTuple v) :=
+    Free.onGenerator (\fun (v: Tuples.Tuple (N.Nat^::succ m)) => Chains.generator m (onTuple v));
+}
+\module Faces(m: N.Nat^) {
+  \import \parent.At[m := m] \as Lower;
+  \import \parent.At[m := N.Nat^::succ m] \as Higher;
+  \import algebraic_topology.CylinderAffine[m := m, n := n].Faces[] \as Affine;
+  \definition law: \forall (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m)))(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m))) ->
+    Simplices.face m i (Higher.onTuple v) = Lower.onTuple (Omission.omit (N.Nat^::succ m) i v) :=
+    \fun (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m)))(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m))) =>
+      Simplices.ext m (Simplices.face m i (Higher.onTuple v)) (Lower.onTuple (Omission.omit (N.Nat^::succ m) i v))
+        (\fun (x: Simplex.Carrier m) => Affine.law v i x);
+}
+\module Boundary(m: N.Nat^);
+\definition map: Complexes.Map[C := Tuples.complex, D := Chains.complex].Map := Complexes.Map[C := Tuples.complex, D := Chains.complex].Map {
+  apply := \fun (m: N.Nat^) => #apply{At[m := m].map},
+  addition := \fun (m: N.Nat^) => #addition{At[m := m].map},
+  scalar := \fun (m: N.Nat^) => #scalar{At[m := m].map},
+  commutes := \fun (m: N.Nat^) => Boundary[m := m].commutes,
+};
+\module Endpoints;
+\module Postcompose(k: N.Nat^);
+\module Prism;
+\module Face(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)));

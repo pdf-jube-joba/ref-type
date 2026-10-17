@@ -1,0 +1,41 @@
+\inductive Point: \Set := | point: Point;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import topology.Topology[Carrier := Point] \as PointSpace;
+\import topology.Maps[A := A, B := Point] \as ToPoint;
+\import topology.Maps[A := Point, B := A] \as FromPoint;
+\import \root.Homotopy[A := A, B := A] \as Homotopy;
+\import \root.Homotopy[A := Point, B := Point] \as PointHomotopy;
+\import \root.HomotopyEquivalence[A := A, B := Point] \as Equivalences;
+\import \root.Cylinder[A := Point] \as Cylinder;
+\import topology.Maps[A := Cylinder.Carrier, B := Point] \as ConstantFamily;
+\structure Data: \Set {
+  centre: A,
+  homotopy: Homotopy.Homotopy[source, source, (\fun (x: A) => x), (\fun (_: A) => centre)],
+}
+\definition Contractible: \Prop := \exists Data;
+\definition pointUnique: \forall (x: Point) -> x = Point::point :=
+  \induction (x: Point) \return x = Point::point \with { | point: \refl(Point::point) };
+\definition right: PointHomotopy.Homotopy[PointSpace.Discrete, PointSpace.Discrete, (\fun (_: Point) => Point::point), (\fun (x: Point) => x)] :=
+  \into[PointHomotopy.Family]((\fun (_: Cylinder.Carrier) => Point::point),
+    PointHomotopy.Homotopy[PointSpace.Discrete, PointSpace.Discrete, (\fun (_: Point) => Point::point), (\fun (x: Point) => x)]) \by {
+    PointHomotopy.Laws[PointSpace.Discrete, PointSpace.Discrete, (\fun (_: Point) => Point::point), (\fun (x: Point) => x), (\fun (_: Cylinder.Carrier) => Point::point)] {
+      continuous := ConstantFamily.constantContinuous (Cylinder.topology PointSpace.Discrete) PointSpace.Discrete Point::point,
+      start := \fun (_: Point) => \refl(Point::point),
+      end := \fun (x: Point) => sym!{Point} _ _ (pointUnique x),
+    }
+  };
+\definition pointEquivalence(c: Data): Equivalences.Equivalence[source, PointSpace.Discrete] := Equivalences.Equivalence[source, PointSpace.Discrete] {
+  forward := \fun (_: A) => Point::point,
+  backward := \fun (_: Point) => c.centre,
+  forwardContinuous := ToPoint.constantContinuous source PointSpace.Discrete Point::point,
+  backwardContinuous := FromPoint.constantContinuous PointSpace.Discrete source c.centre,
+  leftInverse := \exact(Homotopy.reverse source source (\fun (x: A) => x) (\fun (_: A) => c.centre) c.homotopy,
+    Homotopy.Homotopy[source, source, (\fun (_: A) => c.centre), (\fun (x: A) => x)]),
+  rightInverse := \exact(right, PointHomotopy.Homotopy[PointSpace.Discrete, PointSpace.Discrete, (\fun (_: Point) => Point::point), (\fun (x: Point) => x)]),
+};
+
+\module Transport(B: \Set);
+\module Paths;
+\module Singleton(a: A);
+\module Product(B: \Set, target: topology.Topology[Carrier := B].Topology);

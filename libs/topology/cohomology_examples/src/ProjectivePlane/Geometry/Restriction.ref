@@ -1,0 +1,26 @@
+\import \parent.Chart[].Singular[].Finite[] \as Geometric;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].Simplicial[] \as Finite;
+\import singular_cohomology.SimplicialChains[].On[X := Finite.object] \as FiniteChains;
+\import singular_cohomology.Chains[A := Carrier, source := topology] \as SingularChains;
+\import singular_cohomology.Cochains[A := Carrier, source := topology].With[coefficients := coefficients] \as Actual;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing] \as Hom;
+\import Hom.On[P := Finite.chainComplex, N := coefficients] \as Model;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Identity;
+\import Hom.Mapping[P := Finite.chainComplex, Q := SingularChains.complex, N := coefficients, L := coefficients].On[f := Geometric.comparison, u := Identity.identity] \as Pull;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Cochains;
+\import Cochains.Map[C := Actual.complex, D := Model.complex] \as Maps;
+\definition map: Maps.Map := Pull.map;
+\definition apply(n: N.Nat^): Actual.Carrier n -> Model.Carrier n := Pull.apply n;
+\module At(n: N.Nat^) {
+  \import Maps.At[k := n] \as Induced;
+  \import Cochains.At[C := Actual.complex, k := n] \as Source;
+  \import Cochains.At[C := Model.complex, k := n] \as Target;
+  \definition induced: Modules.Hom[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace].Map := Induced.induced map;
+  \definition cycle(h: Source.CycleCarrier): Target.CycleCarrier := #apply{(Induced.cyclesMap map)} h;
+  \definition onClass(h: Source.CycleCarrier): #apply{induced} (Source.classOf h) = Target.classOf (cycle h) := Induced.onClass map h;
+}
+\definition onGenerator(n: N.Nat^)(h: Actual.Carrier n)(sigma: Finite.Carrier n):
+  #apply{(apply n h)} (FiniteChains.generator n sigma) = #apply{h} (SingularChains.generator n (Geometric.apply n sigma)) :=
+  congr!{{SingularChains.Carrier n} coefficients.Carrier} (#apply{h}) _ _ (Geometric.onGenerator n sigma);
+\module DegreeOne;
+\module Cup(R: \Set, ring: std.Alg[].Ring[].CommutativeRing[R]);

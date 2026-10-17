@@ -1,0 +1,67 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import N.Basic[].Prop[] \as Bounds;
+\import \parent.Laws[V := V, space := space] \as Values;
+\import algebra.Group[].Of[Carrier := V, group := Values.additive] \as Group;
+\definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> V) -> V :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> V) -> V \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> V) => Values.zero
+    | succ: \fun (n: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ n) -> V) =>
+        Group.difference (f (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+  };
+\definition congruent: \forall (n: N.Nat^)(f, g: Fin.Fin n -> V) -> (\forall (i: Fin.Fin n) -> f i = g i) -> sum n f = sum n g :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> V) -> (\forall (i: Fin.Fin n) -> f i = g i) -> sum n f = sum n g \with {
+    | zero: \fun (f, g: _)(same: _) => \refl(Values.zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g: _)(same: _) =>
+        congr2!{V V V} Group.difference _ _ _ _ (same (Fin.zero n))
+          (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i)) (\fun (i: Fin.Fin n) => same (Fin.succ n i)))
+  };
+\definition zero: \forall (n: N.Nat^) -> sum n (\fun (_: Fin.Fin n) => Values.zero) = Values.zero :=
+  \induction (n: N.Nat^) \return sum n (\fun (_: Fin.Fin n) => Values.zero) = Values.zero \with {
+    | zero: \refl(Values.zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{V} _ _ _
+        (congr!{V V} (Group.difference Values.zero) _ _ previous) (Group.inverseRight Values.zero)
+  };
+\definition subtractShuffle: \forall (a, b, c, d: V) ->
+  Group.difference (Group.difference a b) (Group.difference c d) =
+    Group.difference (Group.difference a c) (Group.difference b d) :=
+  \fun (a, b, c, d: V) => trans!{V} _ _ _ (Group.differenceAdd a (Values.neg b) c (Values.neg d))
+    (congr!{V V} (Values.add (Group.difference a c)) _ _ (sym!{V} _ _ (Group.negAdd b (Values.neg d))));
+\definition subtraction: \forall (n: N.Nat^)(f, g: Fin.Fin n -> V) ->
+  sum n (\fun (i: Fin.Fin n) => Group.difference (f i) (g i)) = Group.difference (sum n f) (sum n g) :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> V) ->
+    sum n (\fun (i: Fin.Fin n) => Group.difference (f i) (g i)) = Group.difference (sum n f) (sum n g) \with {
+    | zero: \fun (f, g: _) => sym!{V} _ _ (Group.inverseRight Values.zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g: _) => trans!{V} _ _ _
+        (congr!{V V} (Group.difference (Group.difference (f (Fin.zero n)) (g (Fin.zero n)))) _ _
+          (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i))))
+        (subtractShuffle (f (Fin.zero n)) (g (Fin.zero n))
+          (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) (sum n (\fun (i: Fin.Fin n) => g (Fin.succ n i))))
+  };
+\module Mapping(W: \Set, target: Space W) {
+  \import \parent.\parent.Alternating[V := W, space := target] \as Target;
+  \import \parent.\parent.Hom[V := V, W := W, source := space, target := target] \as Maps;
+  \import \parent.\parent.Laws[V := W, space := target] \as Other;
+  \import algebra.Group[].Of[Carrier := W, group := Other.additive] \as OtherGroup;
+  \definition law: \forall (map: Maps.Map)(n: N.Nat^)(f: Fin.Fin n -> V) ->
+    #apply{map} (sum n f) = Target.sum n (\fun (i: Fin.Fin n) => #apply{map} (f i)) :=
+    \fun (map: Maps.Map) => \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> V) ->
+      #apply{map} (sum n f) = Target.sum n (\fun (i: Fin.Fin n) => #apply{map} (f i)) \with {
+      | zero: \fun (f: _) => Maps.zeroPreserved map
+      | succ: \fun (n: N.Nat^)(previous: _)(f: _) => trans!{W} _ _ _
+          (Maps.differencePreserved map (f (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))))
+          (congr!{W W} (OtherGroup.difference (#apply{map} (f (Fin.zero n)))) _ _ (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i))))
+    };
+}
+\definition PairIdentity(n: N.Nat^)(f: Fin.Fin (N.Nat^::succ n) -> Fin.Fin n -> V): \Prop :=
+  \forall (i, j: Fin.Fin n) -> Bounds.Le i j -> f (Fin.widen n i) j = f (Fin.succ n j) i;
+\module Double(n: N.Nat^);
+\module Concatenation;
+\definition doubleZero: \forall (n: N.Nat^)(f: Fin.Fin (N.Nat^::succ n) -> Fin.Fin n -> V) -> PairIdentity n f ->
+  sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => sum n (f i)) = Values.zero :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin (N.Nat^::succ n) -> Fin.Fin n -> V) -> PairIdentity n f ->
+    sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => sum n (f i)) = Values.zero \with {
+      | zero: \fun (f: _)(pairs: _) => Group.inverseRight Values.zero
+      | succ: \fun (n: N.Nat^)(previous: _) => Double[n := n].law previous
+    };
+\module Fubini;

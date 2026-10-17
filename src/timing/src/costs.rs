@@ -176,6 +176,9 @@ impl Scope {
                         measurement.exclusive.as_micros()
                     );
                 }
+                for (label, value) in &ledger.counters {
+                    eprintln!("cost_progress_count={label} value={value}");
+                }
             }
             ledger.stack.push(Frame {
                 label,

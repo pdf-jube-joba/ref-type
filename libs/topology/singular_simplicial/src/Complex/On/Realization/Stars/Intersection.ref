@@ -1,0 +1,26 @@
+\import \root.Complex[d := d].On[K := K].Realization[] \as Realization;
+\import Real.Algebra[] \as Algebra;
+\import Geometric.Barycentre[n := n] \as Barycentre;
+\definition Points: \Pow Realization.Carrier := { y: Realization.Carrier \where
+  \forall (i: Fin.Fin (N.Nat^::succ n)) -> Reals.Lt Real.zero (y (sigma i)) };
+\definition Carrier: \Set := \Cast[Realization.Carrier] Points;
+\import Space.Subspace[S := Points] \as Subspace;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Realization.topology;
+\definition centre: Realization.Carrier := Realization.affine n sigma Barycentre.point;
+\import std.Data[].Bool[] \as B;
+\definition vertexSelf: \forall (v: Vertex) -> Vertices.vertex d v v = Real.one :=
+  \fun (v: Vertex) => congr!{B.Bool^ Real.Real} (\fun (flag: B.Bool^) => B.ite Real.Real flag Real.one Real.zero) _ _ (Bounds.eqbRefl v);
+\definition positive: \forall (i: Fin.Fin (N.Nat^::succ n)) -> Reals.Lt Real.zero (centre (sigma i)) := \block {
+  \fun (i: Fin.Fin (N.Nat^::succ n)) \then
+  \let f: Fin.Fin (N.Nat^::succ n) -> Real.Real := \fun (j: Fin.Fin (N.Nat^::succ n)) => Real.mul Barycentre.weight (Vertices.vertex d (sigma j) (sigma i)) \then
+  \let at: f i = Barycentre.weight := trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul Barycentre.weight) _ _ (vertexSelf (sigma i))) (Algebra.mulOneRight Barycentre.weight) \then
+  \let lower: Reals.Le (f i) (centre (sigma i)) := Sums.coordinateUpper (N.Nat^::succ n) f
+    (\fun (j: Fin.Fin (N.Nat^::succ n)) => RealLaws.fieldMulNonnegative Barycentre.weight (Vertices.vertex d (sigma j) (sigma i))
+      (Order.leOfLt Real.zero Barycentre.weight Barycentre.positive) (#nonnegative{(Geometric.barycentric d (Vertices.vertex d (sigma j)))} (sigma i))) i \then
+  \return Reals.ltLeTrans Real.zero (f i) (centre (sigma i))
+    (Reals.ltReplaceRight Real.zero Barycentre.weight (f i) (sym!{Real.Real} _ _ at) Barycentre.positive) lower
+};
+\definition point: Carrier := \into[Realization.Carrier](centre, Points) \by { positive };
+\module InHull(m: N.Nat^, vertices: Tuple m);
+\module Contraction;

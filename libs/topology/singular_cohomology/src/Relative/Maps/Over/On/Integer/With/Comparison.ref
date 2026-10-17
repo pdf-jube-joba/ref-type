@@ -1,0 +1,21 @@
+\import chain_complexes.Integer[] \as CochainDegrees;
+\import Cochains.Map[C := SourceSub.complex, D := TargetSub.complex] \as SubspaceMaps;
+\import Cochains.Map[C := SourceWhole.complex, D := TargetWhole.complex] \as WholeMaps;
+\import Cochains.Map[C := SourceRelative.complex, D := TargetRelative.complex] \as RelativeMaps;
+\definition SubspaceQuasi: \Prop := SubspaceMaps.QuasiIsomorphism SubspacePull.map;
+\definition WholeQuasi: \Prop := WholeMaps.QuasiIsomorphism WholePull.map;
+\definition bijective: SubspaceQuasi -> WholeQuasi -> RelativeMaps.QuasiIsomorphism pullback :=
+  \fun (subspace: SubspaceQuasi)(whole: WholeQuasi)(z: I.Int^) =>
+    \idelim CochainDegrees.next (CochainDegrees.previous z) = z
+      \with k: I.Int^ => RelativeMaps.At[k := k].Bijective[pullback] \by {
+        base: Diagram.At[k := CochainDegrees.previous z].Comparison[].bijective diagram
+          (whole (CochainDegrees.previous z)) (subspace (CochainDegrees.previous z))
+          (whole (CochainDegrees.next (CochainDegrees.previous z))) (subspace (CochainDegrees.next (CochainDegrees.previous z))),
+        equality: CochainDegrees.nextPrevious z
+      };
+\module At(z: I.Int^) {
+  \import Cochains.At[C := SourceRelative.complex, z := z] \as SourceH;
+  \import Cochains.At[C := TargetRelative.complex, z := z] \as TargetH;
+  \definition isomorphism(subspace: SubspaceQuasi)(whole: WholeQuasi): Modules.Isomorphism[V := SourceH.Cohomology, W := TargetH.Cohomology, source := SourceH.cohomologySpace, target := TargetH.cohomologySpace].Isomorphism :=
+    RelativeMaps.At[k := z].Invert[f := pullback].isomorphism (bijective subspace whole z);
+}

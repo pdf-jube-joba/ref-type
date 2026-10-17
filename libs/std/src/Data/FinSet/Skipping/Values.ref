@@ -1,0 +1,33 @@
+\import N.Basic[].Def[] \as Nat;
+\use Equality.congr2;
+\import \parent.Before[] \as Before;
+\import \parent.After[] \as After;
+\definition branch(j: N.Nat^): B.Bool^ -> N.Nat^ := \induction (b: B.Bool^) \return N.Nat^ \with {
+  | true: j
+  | false: N.Nat^::succ j
+};
+\definition position(i, j: N.Nat^): N.Nat^ := branch j (Nat.ltb j i);
+\definition law: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(j: Fin n) -> value (N.Nat^::succ n) (apply n i j) = position i j :=
+  \fun (n: N.Nat^)(i: Fin (N.Nat^::succ n))(j: Fin n) =>
+    (\induction (b: B.Bool^) \return Nat.ltb j i = b -> value (N.Nat^::succ n) (apply n i j) = branch j b \with {
+      | true: \fun (ordered: Nat.ltb j i = B.Bool^::true) => Before.law n i j ordered
+      | false: \fun (ordered: Nat.ltb j i = B.Bool^::false) => After.law n i j (NL.leOfLtbFalse j i ordered)
+    }) (Nat.ltb j i) (\refl(Nat.ltb j i));
+\definition branchSuccessor: \forall (j: N.Nat^)(b: B.Bool^) -> branch (N.Nat^::succ j) b = N.Nat^::succ (branch j b) :=
+  \fun (j: N.Nat^) => \induction (b: B.Bool^) \return branch (N.Nat^::succ j) b = N.Nat^::succ (branch j b) \with {
+    | true: \refl(N.Nat^::succ j)
+    | false: \refl(N.Nat^::succ (N.Nat^::succ j))
+  };
+\definition successor: \forall (i, j: N.Nat^) -> position (N.Nat^::succ i) (N.Nat^::succ j) = N.Nat^::succ (position i j) :=
+  \fun (i, j: N.Nat^) => branchSuccessor j (Nat.ltb j i);
+\definition translation: \forall (p, i, j: N.Nat^) -> position (Nat.add p i) (Nat.add p j) = Nat.add p (position i j) :=
+  \induction (p: N.Nat^) \return \forall (i, j: N.Nat^) -> position (Nat.add p i) (Nat.add p j) = Nat.add p (position i j) \with {
+    | zero: \fun (i, j: N.Nat^) => trans!{N.Nat^} _ _ _
+        (congr2!{N.Nat^ N.Nat^ N.Nat^} position _ _ _ _ (NL.addZeroLeft i) (NL.addZeroLeft j))
+        (sym!{N.Nat^} _ _ (NL.addZeroLeft (position i j)))
+    | succ: \fun (p: N.Nat^)(previous: _)(i, j: N.Nat^) => trans!{N.Nat^} _ _ _
+        (congr2!{N.Nat^ N.Nat^ N.Nat^} position _ _ _ _ (NL.addSuccLeft p i) (NL.addSuccLeft p j))
+        (trans!{N.Nat^} _ _ _ (successor (Nat.add p i) (Nat.add p j))
+          (trans!{N.Nat^} _ _ _ (congr!{N.Nat^ N.Nat^} (\fun (k: N.Nat^) => N.Nat^::succ k) _ _ (previous i j))
+            (sym!{N.Nat^} _ _ (NL.addSuccLeft p (position i j)))))
+  };

@@ -1,0 +1,29 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Hom.Integer[P := SourceRelative.complex, N := coefficients] \as CutSource;
+\import Hom.Integer[P := TargetRelative.complex, N := coefficients] \as CutTarget;
+\import Hom.Integer[P := ExpandedSource.complex, N := coefficients] \as WholeSource;
+\import Hom.Integer[P := ExpandedTarget.complex, N := coefficients] \as WholeTarget;
+\definition cutSource: Modules.Bundle := Modules.Bundle { Carrier := CutSource.Cohomology[z := z].Cohomology, space := CutSource.Cohomology[z := z].cohomologySpace };
+\definition cutTarget: Modules.Bundle := Modules.Bundle { Carrier := CutTarget.Cohomology[z := z].Cohomology, space := CutTarget.Cohomology[z := z].cohomologySpace };
+\definition wholeSource: Modules.Bundle := Modules.Bundle { Carrier := WholeSource.Cohomology[z := z].Cohomology, space := WholeSource.Cohomology[z := z].cohomologySpace };
+\definition wholeTarget: Modules.Bundle := Modules.Bundle { Carrier := WholeTarget.Cohomology[z := z].Cohomology, space := WholeTarget.Cohomology[z := z].cohomologySpace };
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficients;
+\import Hom.IntegerMapping[P := SourceRelative.complex, Q := ExpandedSource.complex, N := coefficients, L := coefficients].On[f := sourceChainMap, u := Coefficients.identity] \as SourcePull;
+\import Hom.IntegerMapping[P := TargetRelative.complex, Q := ExpandedTarget.complex, N := coefficients, L := coefficients].On[f := targetChainMap, u := Coefficients.identity] \as TargetPull;
+\import Hom.IntegerMapping[P := SourceRelative.complex, Q := TargetRelative.complex, N := coefficients, L := coefficients].On[f := complementChainMap, u := Coefficients.identity] \as ComplementPull;
+\import Hom.IntegerMapping[P := ExpandedSource.complex, Q := ExpandedTarget.complex, N := coefficients, L := coefficients].On[f := quotientChainMap, u := Coefficients.identity] \as QuotientPull;
+\definition inclusionSource: Modules.MapBetween wholeSource cutSource := Cochains.Map[C := WholeSource.complex, D := CutSource.complex].At[k := z].induced SourcePull.map;
+\definition inclusionTarget: Modules.MapBetween wholeTarget cutTarget := Cochains.Map[C := WholeTarget.complex, D := CutTarget.complex].At[k := z].induced TargetPull.map;
+\definition complement: Modules.MapBetween cutTarget cutSource := Cochains.Map[C := CutTarget.complex, D := CutSource.complex].At[k := z].induced ComplementPull.map;
+\definition quotient: Modules.MapBetween wholeTarget wholeSource := Cochains.Map[C := WholeTarget.complex, D := WholeSource.complex].At[k := z].induced QuotientPull.map;
+\import Hom.IntegerComposition[P := SourceRelative.complex, Q := ExpandedSource.complex, T := ExpandedTarget.complex, N := coefficients] \as LeftHom;
+\import Hom.IntegerComposition[P := SourceRelative.complex, Q := TargetRelative.complex, T := ExpandedTarget.complex, N := coefficients] \as RightHom;
+\import Cochains.Map[C := WholeTarget.complex, D := CutSource.complex] \as Direct;
+\definition cochainAction(m: ChainMaps.Map): Direct.Map := Hom.IntegerMapping[P := SourceRelative.complex, Q := ExpandedTarget.complex, N := coefficients, L := coefficients].On[f := m, u := Coefficients.identity].map;
+\definition law: \forall (q: wholeTarget.Carrier) -> #apply{inclusionSource} (#apply{quotient} q) = #apply{complement} (#apply{inclusionTarget} q) :=
+  \fun (q: wholeTarget.Carrier) => trans!{cutSource.Carrier} _ _ _
+    (sym!{cutSource.Carrier} _ _ (LeftHom.At[k := z].onCohomology sourceChainMap quotientChainMap q))
+    (trans!{cutSource.Carrier} _ _ _
+      (congr!{ChainMaps.Map cutSource.Carrier} (\fun (m: ChainMaps.Map) => #apply{(Direct.At[k := z].induced (cochainAction m))} q) _ _ chainLaw)
+      (RightHom.At[k := z].onCohomology complementChainMap targetChainMap q));

@@ -1,0 +1,22 @@
+\definition Allows(n, k: N.Nat^)(A: Modules.Bundle)(x: A.Carrier): \Prop := Logic.Or[n = k, x = #zero{A.space}];
+\module Coordinate(A: Modules.Bundle) {
+  \import Modules.Laws[V := A.Carrier, space := A.space] \as Values;
+  \import algebra.Group[].Of[Carrier := A.Carrier, group := Values.additive] \as Group;
+  \definition addition(n, k: N.Nat^)(x, y: A.Carrier)(left: Allows n k A x)(right: Allows n k A y): Allows n k A (#add{A.space} x y) :=
+    Logic.orElim (n = k) (x = Values.zero) (Allows n k A (#add{A.space} x y)) left
+      (\fun (same: n = k) => Logic.Or[n = k, #add{A.space} x y = Values.zero]::left same)
+      (\fun (zeroX: x = Values.zero) => Logic.orElim (n = k) (y = Values.zero) (Allows n k A (#add{A.space} x y)) right
+        (\fun (same: n = k) => Logic.Or[n = k, #add{A.space} x y = Values.zero]::left same)
+        (\fun (zeroY: y = Values.zero) => Logic.Or[n = k, #add{A.space} x y = Values.zero]::right
+          (trans!{A.Carrier} _ _ _ (congr2!{A.Carrier A.Carrier A.Carrier} Values.add _ _ _ _ zeroX zeroY) (Group.zeroLeft Values.zero))));
+  \definition scalar(n, k: N.Nat^)(a: I.Int^)(x: A.Carrier)(member: Allows n k A x): Allows n k A (#smul{A.space} a x) :=
+    Logic.orElim (n = k) (x = Values.zero) (Allows n k A (#smul{A.space} a x)) member
+      (\fun (same: n = k) => Logic.Or[n = k, #smul{A.space} a x = Values.zero]::left same)
+      (\fun (zero: x = Values.zero) => Logic.Or[n = k, #smul{A.space} a x = Values.zero]::right
+        (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Values.scale a) _ _ zero) (Values.scaleZero a)));
+}
+\structure Eligible[n: N.Nat^, x: Base]: \Prop {
+  zeroth: Allows n N.Nat^::zero zeroth (firstCoordinate x),
+  first: Allows n firstDegree first (secondCoordinate x),
+  second: Allows n secondDegree second (thirdCoordinate x),
+}

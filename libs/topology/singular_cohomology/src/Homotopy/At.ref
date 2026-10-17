@@ -1,0 +1,23 @@
+\import Simplex.At[n := n] \as DomainSpace;
+\import Simplex.Cylinder[n := n] \as GeometrySpace;
+\import \root.CylinderChains[n := n] \as Geometry;
+\import \root.Chains[A := Geometry.Points, source := GeometrySpace.topology] \as CylinderChains;
+\import \root.Maps[A := Geometry.Points, B := B, source := GeometrySpace.topology, target := target] \as CylinderMaps;
+\import Topological.Composition[C := Simplex.Carrier n] \as Precompose;
+\import algebraic_topology.Homotopy[A := Simplex.Carrier n, B := B] \as OnSimplex;
+\definition homotopy(f, g: A -> B)(h: Family f g)(sigma: Source.Carrier n):
+  OnSimplex.Homotopy[DomainSpace.topology, target, (\fun (u: Simplex.Carrier n) => f (sigma u)), (\fun (u: Simplex.Carrier n) => g (sigma u))] :=
+  Precompose.precompose DomainSpace.topology source target f g h sigma (Source.At[n := n].continuous sigma);
+\definition family(f, g: A -> B)(h: Family f g)(sigma: Source.Carrier n): Geometry.Points -> B := homotopy f g h sigma;
+\definition continuous: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier n) -> CylinderMaps.Continuous (family f g h sigma) :=
+  \fun (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier n) =>
+    #continuous{(OnSimplex.laws DomainSpace.topology target (\fun (u: Simplex.Carrier n) => f (sigma u)) (\fun (u: Simplex.Carrier n) => g (sigma u)) (homotopy f g h sigma))};
+\definition onSimplex(f, g: A -> B)(h: Family f g)(sigma: Source.Carrier n): Codomain.Carrier (N.Nat^::succ n) :=
+  #apply{(CylinderMaps.At[n := N.Nat^::succ n].push (family f g h sigma) (continuous f g h sigma))} Geometry.Prism[].chain;
+\import Modules.Free[Generators := Source.Carrier n].To[W := Codomain.Carrier (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as Free;
+\definition map(f, g: A -> B)(h: Family f g): Modules.Hom[V := Domain.Carrier n, W := Codomain.Carrier (N.Nat^::succ n), source := Domain.space n, target := Codomain.space (N.Nat^::succ n)].Map :=
+  Free.extension (onSimplex f g h);
+\definition onGenerator: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier n) -> #apply{(map f g h)} (Domain.generator n sigma) = onSimplex f g h sigma :=
+  \fun (f, g: A -> B)(h: Family f g) => Free.onGenerator (onSimplex f g h);
+\module Endpoints;
+\module Boundary;

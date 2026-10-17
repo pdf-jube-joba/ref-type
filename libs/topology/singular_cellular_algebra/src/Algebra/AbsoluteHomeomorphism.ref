@@ -1,0 +1,62 @@
+\import topology.Homeomorphism[A := A, B := B] \as Homeomorphisms;
+\definition laws: Homeomorphisms.Laws[source, target, homeomorphism] := Homeomorphisms.laws source target homeomorphism;
+\definition forward: A -> B := #forward{homeomorphism};
+\definition backward: B -> A := #backward{homeomorphism};
+\import singular_cohomology.Chains[A := A, source := source] \as Source;
+\import singular_cohomology.Chains[A := B, source := target] \as Target;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Source.complex] \as SourceExtension;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Target.complex] \as TargetExtension;
+\import singular_cohomology.Maps[A := A, B := B, source := source, target := target] \as Forward;
+\import singular_cohomology.Maps[A := B, B := A, source := target, target := source] \as Backward;
+\definition forwardMap: Complexes.Map[C := SourceExtension.complex, D := TargetExtension.complex].Map := Forward.integerPush forward (#forwardContinuous{laws});
+\definition backwardMap: Complexes.Map[C := TargetExtension.complex, D := SourceExtension.complex].Map := Backward.integerPush backward (#backwardContinuous{laws});
+\import Forward.Composition[C := A, final := source] \as Left;
+\import Backward.Composition[C := B, final := target] \as Right;
+\import singular_cohomology.Identity[A := A, source := source] \as SourceIdentity;
+\import singular_cohomology.Identity[A := B, source := target] \as TargetIdentity;
+\import topology.Composition[A := A, B := B, C := A] \as LeftTopology;
+\import topology.Composition[A := B, B := A, C := B] \as RightTopology;
+\import singular_cohomology.Maps[A := A, B := A, source := source, target := source] \as SourceEnd;
+\import singular_cohomology.Maps[A := B, B := B, source := target, target := target] \as TargetEnd;
+\definition leftFunction: (\fun (x: A) => backward (forward x)) = SourceIdentity.function :=
+  \axiom:funext((\fun (x: A) => backward (forward x)), SourceIdentity.function, #leftInverse{laws});
+\definition rightFunction: (\fun (x: B) => forward (backward x)) = TargetIdentity.function :=
+  \axiom:funext((\fun (x: B) => forward (backward x)), TargetIdentity.function, #rightInverse{laws});
+\import Complexes.Map[C := TargetExtension.complex, D := SourceExtension.complex].Composition[B := SourceExtension.complex] \as LeftComposition;
+\import Complexes.Map[C := SourceExtension.complex, D := TargetExtension.complex].Composition[B := TargetExtension.complex] \as RightComposition;
+\import Complexes.Map[C := SourceExtension.complex, D := SourceExtension.complex] \as SourceMaps;
+\import Complexes.Map[C := TargetExtension.complex, D := TargetExtension.complex] \as TargetMaps;
+\definition leftIdentity: LeftComposition.compose backwardMap forwardMap = Complexes.End[C := SourceExtension.complex].identity :=
+  trans!{SourceMaps.Map} _ _ _
+    (Left.Integer[].law forward (#forwardContinuous{laws}) backward (#backwardContinuous{laws}))
+    (trans!{SourceMaps.Map} _ _ _
+      ((\idelim (\fun (x: A) => backward (forward x)) = SourceIdentity.function
+        \with f: (A -> A) => \forall (fc: SourceEnd.Continuous f) ->
+          SourceEnd.integerPush (\fun (x: A) => backward (forward x))
+            (LeftTopology.composeContinuous source target source forward backward (#forwardContinuous{laws}) (#backwardContinuous{laws})) =
+          SourceEnd.integerPush f fc \by {
+            base: \fun (fc: _) => \refl(SourceEnd.integerPush (\fun (x: A) => backward (forward x)) fc),
+            equality: leftFunction
+          }) SourceIdentity.continuous)
+      (SourceIdentity.Integer[].law));
+\definition rightIdentity: RightComposition.compose forwardMap backwardMap = Complexes.End[C := TargetExtension.complex].identity :=
+  trans!{TargetMaps.Map} _ _ _
+    (Right.Integer[].law backward (#backwardContinuous{laws}) forward (#forwardContinuous{laws}))
+    (trans!{TargetMaps.Map} _ _ _
+      ((\idelim (\fun (x: B) => forward (backward x)) = TargetIdentity.function
+        \with f: (B -> B) => \forall (fc: TargetEnd.Continuous f) ->
+          TargetEnd.integerPush (\fun (x: B) => forward (backward x))
+            (RightTopology.composeContinuous target source target backward forward (#backwardContinuous{laws}) (#forwardContinuous{laws})) =
+          TargetEnd.integerPush f fc \by {
+            base: \fun (fc: _) => \refl(TargetEnd.integerPush (\fun (x: B) => forward (backward x)) fc),
+            equality: rightFunction
+          }) TargetIdentity.continuous)
+      (TargetIdentity.Integer[].law));
+\definition isomorphism: Complexes.Isomorphism[C := SourceExtension.complex, D := TargetExtension.complex].Isomorphism :=
+  Complexes.Isomorphism[C := SourceExtension.complex, D := TargetExtension.complex].Isomorphism {
+    forward := forwardMap, backward := backwardMap,
+    leftInverse := \fun (z: I.Int^)(x: SourceExtension.complex.family.Carrier z) =>
+      congr!{SourceMaps.Map {SourceExtension.complex.family.Carrier z}} (\fun (f: SourceMaps.Map) => #apply{f} z x) _ _ leftIdentity,
+    rightInverse := \fun (z: I.Int^)(x: TargetExtension.complex.family.Carrier z) =>
+      congr!{TargetMaps.Map {TargetExtension.complex.family.Carrier z}} (\fun (f: TargetMaps.Map) => #apply{f} z x) _ _ rightIdentity,
+  };

@@ -1,0 +1,61 @@
+\definition step(n: N.Nat^)(previous: Fin (N.Nat^::succ n) -> (Fin (N.Nat^::succ n) -> A) -> Fin n -> A)
+  (f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A): Option.Option[Fin (N.Nat^::succ n)] -> Fin (N.Nat^::succ n) -> A :=
+  \induction (index: Option.Option[Fin (N.Nat^::succ n)]) \return Fin (N.Nat^::succ n) -> A \with {
+    | none: \fun (j: Fin (N.Nat^::succ n)) => f (succ (N.Nat^::succ n) j)
+    | some: \fun (i: Fin (N.Nat^::succ n)) => extend n (f (zero (N.Nat^::succ n)))
+        (previous i (\fun (j: Fin (N.Nat^::succ n)) => f (succ (N.Nat^::succ n) j)))
+  };
+\definition omit: \forall (n: N.Nat^) -> Fin (N.Nat^::succ n) -> (Fin (N.Nat^::succ n) -> A) -> Fin n -> A :=
+  \induction (n: N.Nat^) \return Fin (N.Nat^::succ n) -> (Fin (N.Nat^::succ n) -> A) -> Fin n -> A \with {
+    | zero: \fun (i: Fin (N.Nat^::succ N.Nat^::zero))(f: Fin (N.Nat^::succ N.Nat^::zero) -> A)(j: Fin N.Nat^::zero) =>
+        f (zero N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: _)(i: Fin (N.Nat^::succ (N.Nat^::succ n)))(f: _) => step n previous f (split (N.Nat^::succ n) i)
+  };
+\definition first: \forall (n: N.Nat^)(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) ->
+  omit (N.Nat^::succ n) (zero (N.Nat^::succ n)) f = (\fun (j: Fin (N.Nat^::succ n)) => f (succ (N.Nat^::succ n) j)) :=
+  \fun (n: N.Nat^)(f: _) => congr!{{Option.Option[Fin (N.Nat^::succ n)]} {Fin (N.Nat^::succ n) -> A}}
+    (step n (omit n) f) _ _ (splitInflate (N.Nat^::succ n) Option.Option[Fin (N.Nat^::succ n)]::none);
+\definition successor: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) ->
+  omit (N.Nat^::succ n) (succ (N.Nat^::succ n) i) f = extend n (f (zero (N.Nat^::succ n)))
+    (omit n i (\fun (j: Fin (N.Nat^::succ n)) => f (succ (N.Nat^::succ n) j))) :=
+  \fun (n: N.Nat^)(i: _)(f: _) => congr!{{Option.Option[Fin (N.Nat^::succ n)]} {Fin (N.Nat^::succ n) -> A}}
+    (step n (omit n) f) _ _ (splitInflate (N.Nat^::succ n) (Option.Option[Fin (N.Nat^::succ n)]::some i));
+\definition onExtended: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(a: A)(f: Fin (N.Nat^::succ n) -> A) ->
+  omit (N.Nat^::succ n) (succ (N.Nat^::succ n) i) (extend (N.Nat^::succ n) a f) = extend n a (omit n i f) :=
+  \fun (n: N.Nat^)(i: _)(a: A)(f: _) => trans!{{Fin (N.Nat^::succ n) -> A}} _ _ _
+    (successor n i (extend (N.Nat^::succ n) a f))
+    (congr2!{A {Fin n -> A} {Fin (N.Nat^::succ n) -> A}} (extend n) _ _ _ _ (atZero (N.Nat^::succ n) a f)
+      (congr!{{Fin (N.Nat^::succ n) -> A} {Fin n -> A}} (omit n i) _ _
+        (\axiom:funext((\fun (j: Fin (N.Nat^::succ n)) => extend (N.Nat^::succ n) a f (succ (N.Nat^::succ n) j)), f,
+          atSuccessor (N.Nat^::succ n) a f))));
+\use Equality.eq_reason;
+\definition firstExtended: \forall (n: N.Nat^)(a: A)(v: Fin n -> A) -> omit n (zero n) (extend n a v) = v :=
+  \induction (n: N.Nat^) \return \forall (a: A)(v: Fin n -> A) -> omit n (zero n) (extend n a v) = v \with {
+    | zero: \fun (a: A)(v: Fin N.Nat^::zero -> A) => \axiom:funext(omit N.Nat^::zero (zero N.Nat^::zero) (extend N.Nat^::zero a v), v,
+        \fun (j: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible j (bound N.Nat^::zero j)))
+    | succ: \fun (n: N.Nat^)(previous: _)(a: A)(v: Fin (N.Nat^::succ n) -> A) => trans!{{Fin (N.Nat^::succ n) -> A}} _ _ _
+        (first n (extend (N.Nat^::succ n) a v))
+        (\axiom:funext((\fun (i: Fin (N.Nat^::succ n)) => extend (N.Nat^::succ n) a v (succ (N.Nat^::succ n) i)), v, atSuccessor (N.Nat^::succ n) a v))
+  };
+\definition beforeFirst: \forall (n: N.Nat^)(i: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) ->
+  omit n i (omit (N.Nat^::succ n) (zero (N.Nat^::succ n)) v) = omit n (zero n) (omit (N.Nat^::succ n) (succ (N.Nat^::succ n) i) v) :=
+  \fun (n: N.Nat^)(i: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) => eq_reason!{
+    {omit n i (omit (N.Nat^::succ n) (zero (N.Nat^::succ n)) v)}
+    "=" {omit n i (\fun (j: Fin (N.Nat^::succ n)) => v (succ (N.Nat^::succ n) j))} "by" {
+      congr!{{Fin (N.Nat^::succ n) -> A} {Fin n -> A}} (omit n i) _ _ (first n v)}
+    "=" {omit n (zero n) (extend n (v (zero (N.Nat^::succ n))) (omit n i (\fun (j: Fin (N.Nat^::succ n)) => v (succ (N.Nat^::succ n) j))))} "by" {
+      sym!{{Fin n -> A}} _ _ (firstExtended n (v (zero (N.Nat^::succ n))) _)}
+    "=" {omit n (zero n) (omit (N.Nat^::succ n) (succ (N.Nat^::succ n) i) v)} "by" {
+      congr!{{Fin (N.Nat^::succ n) -> A} {Fin n -> A}} (omit n (zero n)) _ _ (sym!{{Fin (N.Nat^::succ n) -> A}} _ _ (successor n i v))}
+  };
+\definition Interchange(n: N.Nat^)(i, j: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A): \Prop :=
+  omit n j (omit (N.Nat^::succ n) (widen (N.Nat^::succ n) i) v) = omit n i (omit (N.Nat^::succ n) (succ (N.Nat^::succ n) j) v);
+\module Identities(n: N.Nat^);
+\definition interchange: \forall (n: N.Nat^)(i, j: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) -> NL.Le i j -> Interchange n i j v :=
+  \induction (n: N.Nat^) \return \forall (i, j: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) -> NL.Le i j -> Interchange n i j v \with {
+    | zero: \fun (i, j: Fin (N.Nat^::succ N.Nat^::zero))(v: Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) -> A)(ordered: _) =>
+        \axiom:funext(omit N.Nat^::zero j (omit (N.Nat^::succ N.Nat^::zero) (widen (N.Nat^::succ N.Nat^::zero) i) v),
+          omit N.Nat^::zero i (omit (N.Nat^::succ N.Nat^::zero) (succ (N.Nat^::succ N.Nat^::zero) j) v),
+          \fun (k: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible k (bound N.Nat^::zero k)))
+    | succ: \fun (n: N.Nat^)(previous: _) => Identities[n := n].law previous
+  };

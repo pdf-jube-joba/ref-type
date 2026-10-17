@@ -1,0 +1,41 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\module At(n: N.Nat^);
+\definition homology(n: N.Nat^)(z: I.Int^): \Set := At[n := n].Homology[z := z].Carrier;
+\definition homologySpace(n: N.Nat^)(z: I.Int^): Modules.Space (homology n z) := At[n := n].Homology[z := z].space;
+\definition Orientation(n: N.Nat^): \Set := Modules.Isomorphism[V := I.Int^, W := homology n (I.Int^::ofNat n),
+  source := Modules.scalarModule, target := homologySpace n (I.Int^::ofNat n)].Isomorphism;
+\definition Vanishing(n, k: N.Nat^): \Prop := \forall (q: homology n (I.Int^::ofNat k)) -> q = #zero{(homologySpace n (I.Int^::ofNat k))};
+\module Zero;
+\module One;
+\module SphereVanishing;
+\module Positive(n: N.Nat^);
+\definition orientation: \forall (n: N.Nat^) -> Orientation n := \induction (n: N.Nat^) \return Orientation n \with {
+  | zero: Zero[].orientation
+  | succ: \fun (n: N.Nat^)(previous: Orientation n) =>
+      (\induction (n: N.Nat^) \return Orientation (N.Nat^::succ n) \with {
+        | zero: One[].orientation
+        | succ: \fun (n: N.Nat^)(unused: _) => \root.DiskRelative[n := N.Nat^::succ n].Homology[].orientation
+      }) n
+};
+\definition generator(n: N.Nat^): homology n (I.Int^::ofNat n) := #apply{#forward{(orientation n)}} I.One.specification;
+
+\definition offDiagonal: \forall (n, k: N.Nat^) -> Logic.Not (n = k) -> Vanishing n k :=
+  \induction (n: N.Nat^) \return \forall (k: N.Nat^) -> Logic.Not (n = k) -> Vanishing n k \with {
+    | zero: \induction (k: N.Nat^) \return Logic.Not (N.Nat^::zero = k) -> Vanishing N.Nat^::zero k \with {
+      | zero: \fun (different: _) => Logic.falseElim _ (different (\refl(N.Nat^::zero)))
+      | succ: \fun (k: N.Nat^)(previous: _) (different: _) => Zero[].Positive[k := k].zero
+    }
+    | succ: \fun (n: N.Nat^)(previous: _)(k: N.Nat^)(different: _) => Positive[n := n].zero k different
+  };
+
+\module ZeroPoint(n: N.Nat^);
+
+\module OneEdge(n: N.Nat^);

@@ -1,0 +1,24 @@
+\import \root.Torus[].Geometry[].Comparison[].ZeroDifferential[] \as Differential;
+\import Cochains.At[C := Model.complex, k := n] \as Finite;
+\import Cochains.At[C := Actual.complex, k := n] \as Infinite;
+\import \parent.Degree[n := n] \as ActualDegree;
+\definition term: Modules.Bundle := Modules.Bundle { Carrier := model.family.Carrier n, space := model.family.space n };
+\definition scalars: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import singular_finite_algebra.Integer[].HomTransport[V := term, W := scalars, coefficients := M].With[e := coordinates] \as Dual;
+\import singular_finite_algebra.Integer[].HomZero[P := model, coefficients := M].At[n := n] \as Zero;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
+\import Commutative.HomSpace[V := I.Int^, W := M.Carrier, source := Modules.scalarModule, target := M.space] \as ScalarDual;
+\import Commutative.ScalarHom[N := M] \as Scalar;
+\import Modules.Isomorphism[V := Model.Carrier n, W := ScalarDual.Carrier, source := Model.space n, target := ScalarDual.space].Composition[U := M.Carrier, final := M.space] \as DualComposition;
+\definition dualIsomorphism: Modules.Isomorphism[V := Model.Carrier n, W := M.Carrier, source := Model.space n, target := M.space].Isomorphism :=
+  DualComposition.compose Scalar.isomorphism Dual.isomorphism;
+\import Modules.Isomorphism[V := Finite.Cohomology, W := Model.Carrier n, source := Finite.cohomologySpace, target := Model.space n].Composition[U := M.Carrier, final := M.space] \as NativeComposition;
+\definition finiteIsomorphism: Modules.Isomorphism[V := Finite.Cohomology, W := M.Carrier, source := Finite.cohomologySpace, target := M.space].Isomorphism :=
+  NativeComposition.compose dualIsomorphism (Zero.isomorphism Differential.law);
+\import Modules.Isomorphism[V := Finite.Cohomology, W := Infinite.Cohomology, source := Finite.cohomologySpace, target := Infinite.cohomologySpace].Inverse[] \as Inverse;
+\import Modules.Isomorphism[V := Infinite.Cohomology, W := Finite.Cohomology, source := Infinite.cohomologySpace, target := Finite.cohomologySpace].Composition[U := M.Carrier, final := M.space] \as Composition;
+\definition Comparison: \Set := Modules.Isomorphism[V := Infinite.Cohomology, W := M.Carrier, source := Infinite.cohomologySpace, target := M.space].Isomorphism;
+\definition existence: \exists Comparison := \block {
+  \takefrom e: ActualDegree.Comparison \by ActualDegree.existence \then
+  \return \exact(Composition.compose finiteIsomorphism (Inverse.inverse e), Comparison)
+};

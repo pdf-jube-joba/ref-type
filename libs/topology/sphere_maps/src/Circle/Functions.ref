@@ -1,0 +1,24 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Continuity[A := A, B := Carrier] \as Maps;
+\import topology.Continuity[A := Carrier, B := Complex.Complex].Corestriction[S := unit] \as Inclusion;
+\import topology.Composition[A := A, B := Carrier, C := Complex.Complex] \as Compose;
+\import topology.Continuity[A := A, B := Complex.Complex].Corestriction[S := unit] \as Into;
+\import Plane.Functions[A := A] \as PlaneFunctions;
+\definition ambientContinuous: \forall (source: Source.Topology)(f: A -> Carrier) ->
+  Maps.Continuous source topology f ->
+  topology.Continuity[A := A, B := Complex.Complex].Continuous source Plane.topology (\fun (x: A) => f x) :=
+  \fun (source: Source.Topology)(f: A -> Carrier)(continuous: _) =>
+    Compose.composeContinuous source topology Plane.topology f (\fun (z: Carrier) => z)
+      continuous (Inclusion.inclusionContinuous Plane.topology);
+\definition multiplyContinuous: \forall (source: Source.Topology)(f, g: A -> Carrier) ->
+  Maps.Continuous source topology f -> Maps.Continuous source topology g ->
+  Maps.Continuous source topology (\fun (x: A) => multiply (f x) (g x)) :=
+  \fun (source: Source.Topology)(f, g: A -> Carrier)(fc: _)(gc: _) =>
+    Into.corestrictContinuous source Plane.topology (\fun (x: A) => multiply (f x) (g x))
+      (PlaneFunctions.multiplicationContinuous source (\fun (x: A) => f x) (\fun (x: A) => g x)
+        (ambientContinuous source f fc) (ambientContinuous source g gc));
+\definition inverseContinuous: \forall (source: Source.Topology)(f: A -> Carrier) ->
+  Maps.Continuous source topology f -> Maps.Continuous source topology (\fun (x: A) => inverse (f x)) :=
+  \fun (source: Source.Topology)(f: A -> Carrier)(continuous: _) =>
+    Into.corestrictContinuous source Plane.topology (\fun (x: A) => inverse (f x))
+      (PlaneFunctions.conjugateContinuous source (\fun (x: A) => f x) (ambientContinuous source f continuous));

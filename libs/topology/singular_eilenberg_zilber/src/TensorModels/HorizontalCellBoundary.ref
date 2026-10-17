@@ -1,0 +1,43 @@
+\definition z: I.Int^ := I.Int^::ofNat n;
+\import \parent.At[p := p, q := q] \as LowModel;
+\import \parent.At[p := N.Nat^::succ p, q := q] \as HighModel;
+\import Simplex.At[n := p] \as LowLeftDomain;
+\import Simplex.At[n := N.Nat^::succ p] \as HighLeftDomain;
+\import Simplex.At[n := q] \as RightDomain;
+\import singular_cohomology.Chains[A := Simplex.Carrier (N.Nat^::succ p), source := HighLeftDomain.topology] \as Left;
+\import singular_cohomology.Chains[A := Simplex.Carrier q, source := RightDomain.topology] \as Right;
+\import singular_cohomology.Simplices[A := Simplex.Carrier (N.Nat^::succ p), source := HighLeftDomain.topology] \as LeftSimplices;
+\import Double.Tensor[C := Left.complex, D := Right.complex] \as Tensor;
+\import Double.Total[C := Tensor.complex] \as Total;
+\import Total.Step[n := n] \as NativeBoundary;
+\definition lowerQ: Double.Second n p := NativeBoundary.lowerSecond p q;
+\definition lowerIndex: Double.Index n := Double.index n p lowerQ;
+\definition upperIndex: Double.Index (N.Nat^::succ n) := Double.index (N.Nat^::succ n) (N.Nat^::succ p) q;
+\import \parent.Cell[n := n, i := lowerIndex] \as Lower;
+\import \parent.Cell[n := N.Nat^::succ n, i := upperIndex] \as Upper;
+\import \root.On[A := Simplex.Carrier (N.Nat^::succ p), B := Simplex.Carrier q, left := HighLeftDomain.topology, right := RightDomain.topology] \as Comparison;
+\import Native.ZeroExtension[C := Total.complex] \as Signed;
+\import Native.Map[C := Total.complex, D := Total.complex].At[n := n] \as Defect;
+\import Modules.Hom[V := Total.Carrier n, W := HighModel.Carrier z, source := Total.space n, target := HighModel.space z].Composition[U := Total.Carrier n, domain := Total.space n] \as Lift;
+\definition projection: Modules.Hom[V := Total.Carrier n, W := HighModel.Carrier z, source := Total.space n, target := HighModel.space z].Map := Lift.compose (Signed.Positive[n := n].forward) (Defect.linear Comparison.tensorDefect);
+\import Tensor.Term[p := p, q := q] \as Term;
+\import Modules.Hom[V := Total.Carrier n, W := HighModel.Carrier z, source := Total.space n, target := HighModel.space z].Composition[U := Term.Carrier, domain := Term.space] \as AfterInjection;
+\definition injection: Modules.Hom[V := Term.Carrier, W := HighModel.Carrier z, source := Term.space, target := HighModel.space z].Map := AfterInjection.compose projection (Total.Degree[n := n].Component[i := lowerIndex].injection);
+\import Modules.Tensor[V := Left.Carrier p, W := Right.Carrier q, left := Left.space p, right := Right.space q] \as Pure;
+\definition rightGenerator: Right.Carrier q := Right.generator q HighModel.rightSimplex;
+\import Modules.Hom[V := Term.Carrier, W := HighModel.Carrier z, source := Term.space, target := HighModel.space z].Composition[U := Left.Carrier p, domain := Left.space p] \as AfterTensor;
+\definition leftMap: Modules.Hom[V := Left.Carrier p, W := HighModel.Carrier z, source := Left.space p, target := HighModel.space z].Map := AfterTensor.compose injection (Pure.leftLinear rightGenerator);
+\definition part: HighModel.Carrier z := #apply{projection} (#apply{(NativeBoundary.horizontal (N.Nat^::succ p) q)} (Tensor.Term[p := N.Nat^::succ p, q := q].tensor (Left.generator (N.Nat^::succ p) HighModel.leftSimplex) rightGenerator));
+\definition tensorBoundary: part = #apply{leftMap} (#apply{(Left.boundary p)} (Left.generator (N.Nat^::succ p) HighModel.leftSimplex)) :=
+  congr!{Term.Carrier {HighModel.Carrier z}} (#apply{injection}) _ _ (Tensor.At[p := p, q := q].horizontalOnTensor (Left.generator (N.Nat^::succ p) HighModel.leftSimplex) rightGenerator);
+\definition count: N.Nat^ := N.Nat^::succ (N.Nat^::succ p);
+\module Face(i: Fin.Fin count);
+\import \parent.Fixed[z := z].Horizontal[p := p, q := q] \as Faces;
+\import Left.Boundary[n := p].SumImage[W := HighModel.Carrier z, target := HighModel.space z] \as BoundaryImage;
+\import Modules.Alternating[V := HighModel.Carrier z, space := HighModel.space z] \as Sum;
+\definition values(tau: LeftSimplices.Carrier p): HighModel.Carrier z := #apply{leftMap} (Left.generator p tau);
+\definition boundary: part = #apply{Faces.map} Lower.Defect[].value :=
+  trans!{{HighModel.Carrier z}} _ _ _ tensorBoundary
+    (trans!{{HighModel.Carrier z}} _ _ _ (BoundaryImage.law leftMap values (\fun (tau: LeftSimplices.Carrier p) => \refl(values tau)) HighModel.leftSimplex)
+      (trans!{{HighModel.Carrier z}} _ _ _ (Sum.congruent count _ _ (\fun (i: Fin.Fin count) => sym!{{HighModel.Carrier z}} _ _ Face[i := i].law))
+        (sym!{{HighModel.Carrier z}} _ _ (Faces.onValues Lower.Defect[].value))));

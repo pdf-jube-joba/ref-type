@@ -1,0 +1,30 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := Reduced.complex, N := coefficients] \as Hom;
+\module Positive(n: N.Nat^) {
+  \definition degree: I.Int^ := I.Int^::ofNat n;
+  \definition termZero: Empty -> \forall (h: Hom.Carrier degree) -> h = #zero{(Hom.space degree)} :=
+    \fun (empty: Empty)(h: Hom.Carrier degree) => Hom.At[z := degree].ext h #zero{(Hom.space degree)}
+      (\fun (x: Reduced.Carrier degree) => trans!{coefficients.Carrier} _ _ _
+        (congr!{{Reduced.Carrier degree} coefficients.Carrier} (#apply{h}) _ _ (EmptyChains.Native[n := n].zero empty x))
+        (Hom.At[z := degree].zeroPreserved h));
+  \import Cochains.At[C := Hom.complex, z := degree] \as H;
+  \definition zero: Empty -> \forall (q: H.Cohomology) -> q = H.zeroClass :=
+    \fun (empty: Empty) => H.classInduction (\fun (q: H.Cohomology) => q = H.zeroClass)
+      (\fun (x: H.Closed) => trans!{H.Cohomology} _ _ _
+        (congr!{H.Closed H.Cohomology} H.classOf x #zero{H.cycleSpace} (termZero empty x))
+        (Modules.Hom[V := H.Closed, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace].zeroPreserved H.classLinear));
+}
+\module Negative(n: N.Nat^) {
+  \definition degree: I.Int^ := I.Int^::negSucc (N.Nat^::succ n);
+  \definition termZero: \forall (h: Hom.Carrier degree) -> h = #zero{(Hom.space degree)} :=
+    \fun (h: Hom.Carrier degree) => Hom.At[z := degree].ext h #zero{(Hom.space degree)}
+      (\fun (x: Reduced.Carrier degree) => trans!{coefficients.Carrier} _ _ _
+        (congr!{{Reduced.Carrier degree} coefficients.Carrier} (#apply{h}) _ _ (Modules.Zero[].unique x Modules.Zero[].Carrier::zero))
+        (Hom.At[z := degree].zeroPreserved h));
+  \import Cochains.At[C := Hom.complex, z := degree] \as H;
+  \definition zero: \forall (q: H.Cohomology) -> q = H.zeroClass :=
+    H.classInduction (\fun (q: H.Cohomology) => q = H.zeroClass)
+      (\fun (x: H.Closed) => trans!{H.Cohomology} _ _ _
+        (congr!{H.Closed H.Cohomology} H.classOf x #zero{H.cycleSpace} (termZero x))
+        (Modules.Hom[V := H.Closed, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace].zeroPreserved H.classLinear));
+}
+\module NegativeOne;

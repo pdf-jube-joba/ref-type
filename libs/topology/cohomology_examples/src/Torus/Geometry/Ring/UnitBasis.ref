@@ -1,0 +1,41 @@
+\import algebraic_topology.Spheres[].Positive[n := zero].Connected[] \as CircleConnected;
+\import algebraic_topology.PathComponent[A := Circle, source := circleTopology] \as CirclePaths;
+\import CirclePaths.IntervalPaths[] \as CircleInterval;
+\import algebraic_topology.PathComponent[A := Carrier, source := topology] \as Paths;
+\import Paths.IntervalPaths[] \as ProductInterval;
+\import algebraic_topology.Interval[] \as Interval;
+\import Product.Universal[X := Interval.Carrier] \as Pairing;
+\import Pair.Prop[A := Circle, B := Circle] \as Pairs;
+\definition connected: Paths.PathConnected := \block {
+  \fun (x, y: Carrier) \then
+  \takefrom p: CirclePaths.Path (first x) (first y) \by CircleConnected.connected (first x) (first y) \then
+  \takefrom q: CirclePaths.Path (second x) (second y) \by CircleConnected.connected (second x) (second y) \then
+  \return \exact(ProductInterval.ofFunction x y
+    (\fun (t: Interval.Carrier) => Pair.pair Circle Circle
+      (CircleInterval.evaluate (first x) (first y) p t) (CircleInterval.evaluate (second x) (second y) q t))
+    (Pairing.pairContinuous Interval.topology circleTopology circleTopology
+      (CircleInterval.evaluate (first x) (first y) p) (CircleInterval.evaluate (second x) (second y) q)
+      (CircleInterval.continuous (first x) (first y) p) (CircleInterval.continuous (second x) (second y) q))
+    (Pairs.ext _ x (CircleInterval.start (first x) (first y) p) (CircleInterval.start (second x) (second y) q))
+    (Pairs.ext _ y (CircleInterval.end (first x) (first y) p) (CircleInterval.end (second x) (second y) q)), Paths.Path x y)
+};
+\definition point: Carrier := Pair.pair Circle Circle (Spheres.point one) (Spheres.point one);
+\import singular_cohomology.Zero[A := Carrier, source := topology].With[coefficients := Products.integerCoefficients]
+  .Connected[point := point] \as Calculation;
+\import singular_cohomology.Cochains[A := Carrier, source := topology].With[coefficients := Products.integerCoefficients] \as Theory;
+\definition native: IntegerModules.Isomorphism[V := I.Int^, W := Theory.cohomology zero,
+  source := Products.integerCoefficients.space, target := Theory.cohomologySpace zero].Isomorphism := Calculation.isomorphism connected;
+\definition scalars: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := I.Int^, space := IntegerModules.scalarModule };
+\definition actual: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Cohomology.Group zero, space := Cohomology.moduleSpace zero };
+\import \root.Integral[].Maps[A := scalars, B := actual] \as Forward;
+\import \root.Integral[].Maps[A := actual, B := scalars] \as Backward;
+\definition forward: IntegerModules.Hom[V := I.Int^, W := actual.Carrier, source := scalars.space, target := actual.space].Map :=
+  Forward.fromAdditive (#apply{#forward{native}}) (#addition{#forward{native}});
+\definition backward: IntegerModules.Hom[V := actual.Carrier, W := I.Int^, source := actual.space, target := scalars.space].Map :=
+  Backward.fromAdditive (#apply{#backward{native}}) (#addition{#backward{native}});
+\definition isomorphism: IntegerModules.Isomorphism[V := I.Int^, W := actual.Carrier, source := scalars.space, target := actual.space].Isomorphism :=
+  IntegerModules.Isomorphism[V := I.Int^, W := actual.Carrier, source := scalars.space, target := actual.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := #leftInverse{native}, rightInverse := #rightInverse{native},
+  };
+\definition unit: Cohomology.Group zero := Cohomology.Unit[].class;
+\definition onOne: #apply{#forward{isomorphism}} I.One.specification = unit := \refl(unit);

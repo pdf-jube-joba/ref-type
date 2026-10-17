@@ -1,0 +1,29 @@
+\module Component(i: Index);
+\definition maps: \forall (i: Index) -> Complexes.Map[C := terms i, D := WholeExtension.complex].Map :=
+  \fun (i: Index) => Complexes.Map[C := terms i, D := WholeExtension.complex].Map {
+    apply := #apply{Component[i := i].map},
+    addition := #addition{Component[i := i].map},
+    scalar := #scalar{Component[i := i].map},
+    commutes := #commutes{Component[i := i].map},
+  };
+\import singular_cellular_algebra.Algebra[].SumTo[Index := Index, terms := terms, target := WholeExtension.complex, maps := maps] \as Copair;
+\definition map: Complexes.Map[C := Sum.complex, D := WholeExtension.complex].Map := Copair.map;
+\module At(z: I.Int^);
+\definition equation: #forward{equivalence} = map := Complexes.Map[C := Sum.complex, D := WholeExtension.complex].ext _ _
+  (\fun (z: I.Int^) => At[z := z].law);
+\definition quasiIsomorphism: Complexes.Map[C := Sum.complex, D := WholeExtension.complex].QuasiIsomorphism map :=
+  \idelim #forward{equivalence} = map \with f: Complexes.Map[C := Sum.complex, D := WholeExtension.complex].Map =>
+    Complexes.Map[C := Sum.complex, D := WholeExtension.complex].QuasiIsomorphism f \by {
+      base: \fun (z: I.Int^) => Complexes.Equivalence[C := Sum.complex, D := WholeExtension.complex].At[k := z].bijective equivalence,
+      equality: equation };
+
+\definition onInjection: \forall (z: I.Int^)(i: Index)(x: Sum.termCarrier i z) ->
+  #apply{#forward{equivalence}} z (#apply{Sum.Term[z := z].Component[i := i].injection} x) = #apply{(maps i)} z x :=
+  \fun (z: I.Int^)(i: Index)(x: Sum.termCarrier i z) => trans!{{WholeExtension.Carrier z}} _ _ _
+    (congr!{Complexes.Map[C := Sum.complex, D := WholeExtension.complex].Map {WholeExtension.Carrier z}}
+      (\fun (f: Complexes.Map[C := Sum.complex, D := WholeExtension.complex].Map) => #apply{f} z (#apply{Sum.Term[z := z].Component[i := i].injection} x)) _ _ equation)
+    (Copair.At[z := z].onInjection i x);
+
+\definition mapOnInjection: \forall (z: I.Int^)(i: Index)(x: Sum.termCarrier i z) ->
+  #apply{map} z (#apply{Sum.Term[z := z].Component[i := i].injection} x) = #apply{(maps i)} z x :=
+  \fun (z: I.Int^) => Copair.At[z := z].onInjection;

@@ -1,0 +1,36 @@
+\definition first: Modules.Bundle := Modules.Bundle { Carrier := P.family.Carrier p, space := P.family.space p };
+\definition firstHigher: Modules.Bundle := Modules.Bundle { Carrier := P.family.Carrier (N.Nat^::succ p), space := P.family.space (N.Nat^::succ p) };
+\definition second: Modules.Bundle := Modules.Bundle { Carrier := Q.family.Carrier q, space := Q.family.space q };
+\definition secondHigher: Modules.Bundle := Modules.Bundle { Carrier := Q.family.Carrier (N.Nat^::succ q), space := Q.family.space (N.Nat^::succ q) };
+\import \parent.\parent.Pairing[V := first, W := second] \as Current;
+\import \parent.\parent.Pairing[V := firstHigher, W := second] \as Horizontal;
+\import \parent.\parent.Pairing[V := first, W := secondHigher] \as Vertical;
+\import Modules.Tensor[V := firstHigher.Carrier, W := second.Carrier, left := firstHigher.space, right := second.space] \as HTensor;
+\import Modules.Tensor[V := first.Carrier, W := secondHigher.Carrier, left := first.space, right := secondHigher.space] \as VTensor;
+\import TargetTensor.At[p := p, q := q] \as Boundary;
+\import HTensor.Universal[U := R, target := Modules.scalarModule] \as HUniversal;
+\import VTensor.Universal[U := R, target := Modules.scalarModule] \as VUniversal;
+\import Modules.Hom[V := TargetTensor.Term[p := p, q := q].Carrier, W := R, source := TargetTensor.Term[p := p, q := q].space, target := Modules.scalarModule].Composition[U := HTensor.Carrier, domain := HTensor.space] \as HComposition;
+\import Modules.Hom[V := TargetTensor.Term[p := p, q := q].Carrier, W := R, source := TargetTensor.Term[p := p, q := q].space, target := Modules.scalarModule].Composition[U := VTensor.Carrier, domain := VTensor.space] \as VComposition;
+\definition horizontalEquality(alpha: Left.Carrier p)(beta: Right.Carrier q):
+  HComposition.compose (Current.comparison alpha beta) Boundary.horizontal = Horizontal.comparison (Left.apply p alpha) beta :=
+  HUniversal.ext (HComposition.compose (Current.comparison alpha beta) Boundary.horizontal) (Horizontal.comparison (Left.apply p alpha) beta)
+    (\fun (x: P.family.Carrier (N.Nat^::succ p))(y: Q.family.Carrier q) => trans!{R} _ _ _
+      (congr!{{TargetTensor.Term[p := p, q := q].Carrier} R} (#apply{(Current.comparison alpha beta)}) _ _ (Boundary.horizontalOnTensor x y))
+      (trans!{R} _ _ _ (Current.evaluation alpha beta (#apply{P.differential} p x) y)
+        (sym!{R} _ _ (Horizontal.evaluation (Left.apply p alpha) beta x y))));
+\definition verticalEquality(alpha: Left.Carrier p)(beta: Right.Carrier q):
+  VComposition.compose (Current.comparison alpha beta) Boundary.vertical = Vertical.comparison alpha (Right.apply q beta) :=
+  VUniversal.ext (VComposition.compose (Current.comparison alpha beta) Boundary.vertical) (Vertical.comparison alpha (Right.apply q beta))
+    (\fun (x: P.family.Carrier p)(y: Q.family.Carrier (N.Nat^::succ q)) => trans!{R} _ _ _
+      (congr!{{TargetTensor.Term[p := p, q := q].Carrier} R} (#apply{(Current.comparison alpha beta)}) _ _ (Boundary.verticalOnTensor x y))
+      (trans!{R} _ _ _ (Current.evaluation alpha beta x (#apply{Q.differential} q y))
+        (sym!{R} _ _ (Vertical.evaluation alpha (Right.apply q beta) x y))));
+\definition horizontal(alpha: Left.Carrier p)(beta: Right.Carrier q)(z: HTensor.Carrier):
+  #apply{(Current.comparison alpha beta)} (#apply{Boundary.horizontal} z) = #apply{(Horizontal.comparison (Left.apply p alpha) beta)} z :=
+  congr!{{Modules.Hom[V := HTensor.Carrier, W := R, source := HTensor.space, target := Modules.scalarModule].Map} R}
+    (\fun (f: Modules.Hom[V := HTensor.Carrier, W := R, source := HTensor.space, target := Modules.scalarModule].Map) => #apply{f} z) _ _ (horizontalEquality alpha beta);
+\definition vertical(alpha: Left.Carrier p)(beta: Right.Carrier q)(z: VTensor.Carrier):
+  #apply{(Current.comparison alpha beta)} (#apply{Boundary.vertical} z) = #apply{(Vertical.comparison alpha (Right.apply q beta))} z :=
+  congr!{{Modules.Hom[V := VTensor.Carrier, W := R, source := VTensor.space, target := Modules.scalarModule].Map} R}
+    (\fun (f: Modules.Hom[V := VTensor.Carrier, W := R, source := VTensor.space, target := Modules.scalarModule].Map) => #apply{f} z) _ _ (verticalEquality alpha beta);

@@ -1,0 +1,52 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\import chain_complexes.Chain[] \as Degrees;
+\import Degrees.Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.At[C := Reduced.complex, z := z] \as SourceH;
+\import Complexes.At[C := Point.complex, z := z] \as PointH;
+\import \root.Maps[A := A, B := Geometry.Point, source := source, target := PointTopology.Discrete] \as Projection;
+\import \root.Maps[A := Geometry.Point, B := A, source := PointTopology.Discrete, target := source] \as Inclusion;
+\import \root.Maps[A := A, B := A, source := source, target := source] \as SelfMaps;
+\import topology.Maps[A := A, B := Geometry.Point] \as ToPoint;
+\import topology.Maps[A := Geometry.Point, B := A] \as FromPoint;
+\definition pointFunction(x: A): Geometry.Point := Geometry.Point::point;
+\definition centreFunction(x: Geometry.Point): A := contraction.centre;
+\definition pointContinuous: Projection.Continuous pointFunction := ToPoint.constantContinuous source PointTopology.Discrete Geometry.Point::point;
+\definition centreContinuous: Inclusion.Continuous centreFunction := FromPoint.constantContinuous PointTopology.Discrete source contraction.centre;
+\import Complexes.Map[C := Reduced.complex, D := Point.complex] \as ForwardMaps;
+\import Complexes.Map[C := Point.complex, D := Reduced.complex] \as BackwardMaps;
+\definition projection: ForwardMaps.Map := Projection.Reduced[].map pointFunction pointContinuous;
+\definition inclusion: BackwardMaps.Map := Inclusion.Reduced[].map centreFunction centreContinuous;
+\import \root.Identity[A := A, source := source] \as Identity;
+\import \root.Homotopy[A := A, B := A, source := source, target := source] \as Homotopy;
+\definition constant(x: A): A := contraction.centre;
+\import Homotopy.Reduced[] \as Prism;
+\import Complexes.Homotopy[C := Reduced.complex, D := Reduced.complex] \as Homotopies;
+\definition prism: Homotopies.Homotopy
+  (SelfMaps.Reduced[].map constant (Homotopy.endContinuous Identity.function constant contraction.homotopy))
+  (SelfMaps.Reduced[].map Identity.function (Homotopy.startContinuous Identity.function constant contraction.homotopy)) :=
+  Prism.homotopy Identity.function constant contraction.homotopy;
+\import Complexes.End[C := Point.complex] \as PointEnd;
+\import Complexes.Homotopy[C := Point.complex, D := Point.complex] \as PointHomotopies;
+\definition pointHomotopy: PointHomotopies.Homotopy PointEnd.identity PointEnd.zeroMap := PointCalculation.homotopy Geometry.pointUnique;
+\import ForwardMaps.At[k := z] \as Forward;
+\import BackwardMaps.At[k := Degrees.next z] \as Backward;
+\import Modules.Hom[V := Point.Carrier z, W := Point.Carrier (Degrees.next z), source := Point.space z, target := Point.space (Degrees.next z)].Composition[U := Reduced.Carrier z, domain := Reduced.space z] \as First;
+\import Modules.Hom[V := Point.Carrier (Degrees.next z), W := Reduced.Carrier (Degrees.next z), source := Point.space (Degrees.next z), target := Reduced.space (Degrees.next z)].Composition[U := Reduced.Carrier z, domain := Reduced.space z] \as Second;
+\import Modules.Hom[V := Reduced.Carrier z, W := Reduced.Carrier (Degrees.next z), source := Reduced.space z, target := Reduced.space (Degrees.next z)] \as Maps;
+\definition pointPart: Maps.Map := Second.compose (Backward.linear inclusion) (First.compose (PointCalculation.operator z) (Forward.linear projection));
+\definition map: Maps.Map := Maps.plus pointPart (Maps.negative (Prism.operator Identity.function constant contraction.homotopy z));
+\import Modules.Laws[V := Reduced.Carrier z, space := Reduced.space z] \as Values;
+\import algebra.Group[].Of[Carrier := Reduced.Carrier z, group := Values.additive] \as Group;
+\import Modules.Hom[V := Reduced.Carrier (Degrees.next z), W := Reduced.Carrier z, source := Reduced.space (Degrees.next z), target := Reduced.space z] \as Differential;
+\module PointBoundary;
+\module PrismBoundary;
+\definition boundary(x: SourceH.Cycle): #apply{SourceH.prior} (#apply{map} x) = x :=
+  trans!{{Reduced.Carrier z}} _ _ _
+    (Differential.differencePreserved SourceH.prior (#apply{pointPart} x) (#apply{(Prism.operator Identity.function constant contraction.homotopy z)} x))
+    (trans!{{Reduced.Carrier z}} _ _ _
+      (congr2!{{Reduced.Carrier z} {Reduced.Carrier z} {Reduced.Carrier z}} Group.difference _ _ _ _ (PointBoundary[].law x) (PrismBoundary[].law x))
+      (Group.subtractDifference (#apply{inclusion} z (#apply{projection} z x)) x));

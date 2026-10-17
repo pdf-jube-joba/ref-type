@@ -1,0 +1,24 @@
+\import \parent.Flow[] \as Flow;
+\import Collar.Continuity[] \as DiskFlow;
+\import algebraic_topology.Cylinder[A := Collar.Carrier] \as DiskCylinder;
+\import algebraic_topology.Cylinder[A := Region] \as Cylinder;
+\import topological_constructions.ProductQuotient[X := Interval.Carrier, A := Collar.Carrier, B := Region] \as Product;
+\import topological_constructions.Quotient[A := DiskCylinder.Carrier, B := Cylinder.Carrier] \as ProductQuotient;
+\definition productMap: DiskCylinder.Carrier -> Cylinder.Carrier := Product.map project;
+\definition productQuotient: ProductQuotient.IsQuotientMap[DiskCylinder.topology Collar.topology, Cylinder.topology regionTopology, productMap] :=
+  Product.quotientMap Interval.topology Interval.compact Interval.hausdorff Collar.topology regionTopology project regionQuotient;
+\definition family(p: Cylinder.Carrier): Region := Flow.apply (Cylinder.time p) (Cylinder.point p);
+\import topology.Composition[A := DiskCylinder.Carrier, B := Collar.Carrier, C := Region] \as Composition;
+\definition lifted: topology.Continuity[A := DiskCylinder.Carrier, B := Region].Continuous
+  (DiskCylinder.topology Collar.topology) regionTopology (\fun (p: DiskCylinder.Carrier) => project (DiskFlow.family p)) :=
+  Composition.composeContinuous (DiskCylinder.topology Collar.topology) Collar.topology regionTopology DiskFlow.family project DiskFlow.continuous #continuous{regionQuotient};
+\import topology.Continuity[A := Cylinder.Carrier, B := Region] \as Maps;
+\import topology.Continuity[A := DiskCylinder.Carrier, B := Region] \as LiftedMaps;
+\definition liftEquality: (\fun (p: DiskCylinder.Carrier) => project (DiskFlow.family p)) = (\fun (p: DiskCylinder.Carrier) => family (productMap p)) :=
+  \axiom:funext((\fun (p: DiskCylinder.Carrier) => project (DiskFlow.family p)), (\fun (p: DiskCylinder.Carrier) => family (productMap p)),
+    \fun (p: DiskCylinder.Carrier) => sym!{Region} _ _ (Flow.onProject (DiskCylinder.time p) (DiskCylinder.point p)));
+\definition continuous: Maps.Continuous (Cylinder.topology regionTopology) regionTopology family :=
+  \fun (U: \Pow Region)(open: topology.Topology[Carrier := Region].IsOpenIn regionTopology U) => #reflectsOpen{productQuotient} (Maps.Preimage family U)
+    ((\idelim (\fun (p: DiskCylinder.Carrier) => project (DiskFlow.family p)) = (\fun (p: DiskCylinder.Carrier) => family (productMap p))
+      \with f: (DiskCylinder.Carrier -> Region) => LiftedMaps.Continuous (DiskCylinder.topology Collar.topology) regionTopology f
+      \by { base: lifted, equality: liftEquality }) U open);

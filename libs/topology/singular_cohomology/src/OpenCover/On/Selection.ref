@@ -1,0 +1,15 @@
+\import Small.At[n := n] \as Degree;
+\import Small.Cover[n := n].Chains[] \as All;
+\import Subdivision.Iterated[].At[n := n] \as Powers;
+\definition Property(x: Whole.Carrier n)(r: N.Nat^): \Prop := Degree.Image (Powers.apply r x);
+\definition Value(x: Whole.Carrier n): \Set := Induction.LeastValue (Property x);
+\definition laws(x: Whole.Carrier n)(r: Value x): Induction.LeastLaws[Property x, r] :=
+  \bysub(N.Nat^, { r: N.Nat^ \where Induction.LeastLaws[Property x, r] }, r);
+\definition existence: \forall (x: Whole.Carrier n) -> \exists Value x := \fun (x: Whole.Carrier n) => Induction.leastExists (Property x) (All.existence (Covers.laws cover) x);
+\definition uniqueness: \forall (x: Whole.Carrier n)(a, b: Value x) -> a = b :=
+  \fun (x: Whole.Carrier n)(a, b: Value x) => Bounds.leAntisym a b (#least{(laws x a)} b (#member{(laws x b)})) (#least{(laws x b)} a (#member{(laws x a)}));
+\definition minimum(x: Whole.Carrier n): Value x := \choice Value x \by { existence: existence x, uniqueness: uniqueness x };
+\definition number(x: Whole.Carrier n): N.Nat^ := minimum x;
+\definition selected: \forall (x: Whole.Carrier n) -> Degree.Image (Powers.apply (minimum x) x) := \fun (x: Whole.Carrier n) => #member{(laws x (minimum x))};
+\definition alreadySmall: \forall (x: Whole.Carrier n) -> Degree.Image x -> minimum x = N.Nat^::zero :=
+  \fun (x: Whole.Carrier n)(member: Degree.Image x) => Bounds.leZeroEq (minimum x) (#least{(laws x (minimum x))} N.Nat^::zero member);

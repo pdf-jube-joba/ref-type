@@ -1,0 +1,26 @@
+\import \parent.At[p := p, q := q] \as Source;
+\import \parent.At[p := p, q := N.Nat^::succ (N.Nat^::succ q)] \as Target;
+\import \parent.Vertical[p := p, q := q, i := j] \as LeftLower;
+\import \parent.Vertical[p := p, q := N.Nat^::succ q, i := Fin.widen (N.Nat^::succ (N.Nat^::succ q)) i] \as LeftUpper;
+\import \parent.Vertical[p := p, q := q, i := i] \as RightLower;
+\import \parent.Vertical[p := p, q := N.Nat^::succ q, i := Fin.succ (N.Nat^::succ (N.Nat^::succ q)) j] \as RightUpper;
+\import \parent.Mapping[p := p, q := q, r := p, s := N.Nat^::succ q].Composition[t := p, u := N.Nat^::succ (N.Nat^::succ q)] \as Composition;
+\import \parent.Mapping[p := p, q := q, r := p, s := N.Nat^::succ (N.Nat^::succ q)] \as Mapping;
+\definition leftPath: Mapping.Map := Composition.compose LeftLower.factors LeftUpper.factors;
+\definition rightPath: Mapping.Map := Composition.compose RightLower.factors RightUpper.factors;
+\import Composition.With[f := LeftLower.factors, g := LeftUpper.factors] \as LeftFunctor;
+\import Composition.With[f := RightLower.factors, g := RightUpper.factors] \as RightFunctor;
+\import Mapping.Equality[f := leftPath, g := rightPath] \as Same;
+\import N.Basic[].Prop[] \as Bounds;
+\import Simplex.Identities[] \as Identities;
+\definition equation: Bounds.Le i j -> Mapping.arrow leftPath = Mapping.arrow rightPath := \fun (ordered: Bounds.Le i j) => Same.signedLaw
+  (\fun (x: Simplex.Carrier p) => \refl(x))
+  (\fun (x: Simplex.Carrier q) => Identities.faceIdentity q i j x ordered);
+\definition left(z: I.Int^)(x: Source.Carrier z): #apply{LeftUpper.Degree[z := z].map} (#apply{LeftLower.Degree[z := z].map} x) = Mapping.evaluate (Mapping.arrow leftPath) z x :=
+  congr!{Mapping.Arrow {Target.Carrier z}} (\fun (f: Mapping.Arrow) => Mapping.evaluate f z x) _ _ LeftFunctor.signedLaw;
+\definition right(z: I.Int^)(x: Source.Carrier z): #apply{RightUpper.Degree[z := z].map} (#apply{RightLower.Degree[z := z].map} x) = Mapping.evaluate (Mapping.arrow rightPath) z x :=
+  congr!{Mapping.Arrow {Target.Carrier z}} (\fun (f: Mapping.Arrow) => Mapping.evaluate f z x) _ _ RightFunctor.signedLaw;
+\definition law: Bounds.Le i j -> \forall (z: I.Int^)(x: Source.Carrier z) ->
+  #apply{LeftUpper.Degree[z := z].map} (#apply{LeftLower.Degree[z := z].map} x) = #apply{RightUpper.Degree[z := z].map} (#apply{RightLower.Degree[z := z].map} x) :=
+  \fun (ordered: Bounds.Le i j)(z: I.Int^)(x: Source.Carrier z) => trans!{{Target.Carrier z}} _ _ _ (left z x)
+    (trans!{{Target.Carrier z}} _ _ _ (congr!{Mapping.Arrow {Target.Carrier z}} (\fun (f: Mapping.Arrow) => Mapping.evaluate f z x) _ _ (equation ordered)) (sym!{{Target.Carrier z}} _ _ (right z x)));

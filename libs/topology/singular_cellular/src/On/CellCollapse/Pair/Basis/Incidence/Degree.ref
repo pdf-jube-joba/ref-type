@@ -1,0 +1,39 @@
+\import singular_cohomology.Chains[A := DiskQuotient.Carrier, source := DiskQuotient.topology Model.diskTopology] \as QuotientChains;
+\import Nonnegative.ZeroExtension[C := QuotientChains.complex] \as QuotientExtension;
+\import Complexes.At[C := QuotientExtension.complex, z := degree] \as QuotientH;
+\definition collapsed(p: SourceDiskPair.SubspaceCarrier): DiskQuotient.Carrier := map (attaching p);
+\import topology.Composition[A := SourceDiskPair.SubspaceCarrier, B := Skeleton.Carrier, C := DiskQuotient.Carrier] \as Topology;
+\definition continuous: topology.Continuity[A := SourceDiskPair.SubspaceCarrier, B := DiskQuotient.Carrier].Continuous
+  (SourceBoundary.topology SourceModel.diskTopology) (DiskQuotient.topology Model.diskTopology) collapsed :=
+  Topology.composeContinuous (SourceBoundary.topology SourceModel.diskTopology) Skeleton.topology (DiskQuotient.topology Model.diskTopology)
+    attaching map attachingContinuous (\parent.\parent.\parent.\parent.Continuity[].continuous);
+\import AttachingMaps.Composition[C := DiskQuotient.Carrier, final := DiskQuotient.topology Model.diskTopology] \as Composition;
+\import Complexes.Map[C := SkeletonExtension.complex, D := QuotientExtension.complex].Composition[B := BoundaryExtension.complex] \as ChainComposition;
+\import singular_cohomology.Maps[A := SourceDiskPair.SubspaceCarrier, B := DiskQuotient.Carrier,
+  source := SourceBoundary.topology SourceModel.diskTopology, target := DiskQuotient.topology Model.diskTopology] \as Maps;
+\definition chainMap: Complexes.Map[C := BoundaryExtension.complex, D := QuotientExtension.complex].Map := Maps.integerPush collapsed continuous;
+\import Complexes.Map[C := BoundaryExtension.complex, D := QuotientExtension.complex].At[k := degree] \as Induced;
+\definition action: Modules.Hom[V := BoundaryH.Homology, W := QuotientH.Homology, source := BoundaryH.homologySpace, target := QuotientH.homologySpace].Map := Induced.induced chainMap;
+\definition composition(q: BoundaryH.Homology): #apply{action} q = #apply{ActionH.action} (#apply{attachingAction} q) :=
+  trans!{QuotientH.Homology} _ _ _
+    (congr!{{Complexes.Map[C := BoundaryExtension.complex, D := QuotientExtension.complex].Map} QuotientH.Homology}
+      (\fun (f: Complexes.Map[C := BoundaryExtension.complex, D := QuotientExtension.complex].Map) => #apply{(Induced.induced f)} q) _ _
+      (sym!{{Complexes.Map[C := BoundaryExtension.complex, D := QuotientExtension.complex].Map}} _ _
+        (Composition.Integer[].law attaching attachingContinuous map (\parent.\parent.\parent.\parent.Continuity[].continuous))))
+    (ChainComposition.At[k := degree].compositionOnHomology ActionH.collapse attachingMap q);
+\definition value: I.Int^ := #apply{#backward{orientation}} (#apply{ActionH.projection} (#apply{action} boundaryGenerator));
+\definition evaluation(q: SkeletonH.Homology): I.Int^ := #apply{#backward{orientation}} (#apply{ActionH.projection} (#apply{ActionH.action} q));
+\definition projection(q: SkeletonH.Homology): #apply{coordinate} (#apply{Layer.Homology[z := degree].projection} q) = evaluation q :=
+  congr!{{Target.Homology[z := degree].Carrier} I.Int^} (#apply{#backward{orientation}}) _ _ (ActionH.projectionLaw q);
+\definition matrixCoefficient: I.Int^ := coefficient
+  (#apply{\parent.\parent.\parent.\parent.\parent.Cellular[].boundary dimension} (SourceBasis.generator sourceCell));
+\definition law: matrixCoefficient = value :=
+  trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (coefficientLaw (#apply{\parent.\parent.\parent.\parent.\parent.Cellular[].boundary dimension} (SourceBasis.generator sourceCell))))
+    (trans!{I.Int^} _ _ _ (projection (#apply{SourceLayer.Homology[z := upperDegree].connecting} (SourceBasis.generator sourceCell)))
+      (trans!{I.Int^} _ _ _ (congr!{SkeletonH.Homology I.Int^} evaluation _ _ (\parent.Connecting[].law))
+        (congr!{QuotientH.Homology I.Int^} (\fun (q: QuotientH.Homology) => #apply{#backward{orientation}} (#apply{ActionH.projection} q)) _ _ (sym!{QuotientH.Homology} _ _ (composition boundaryGenerator)))));
+
+\definition NormalizedHomeomorphism(k: N.Nat^)(positive: dimension = N.Nat^::succ k): \Set :=
+  \parent.\parent.\parent.\parent.Positive[k := k, equalDimension := positive].Orientation[].Result;
+\module Normalized(k: N.Nat^, positive: dimension = N.Nat^::succ k,
+  h: NormalizedHomeomorphism k positive);

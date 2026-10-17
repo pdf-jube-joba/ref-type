@@ -1,0 +1,58 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.At[n := p] \as LeftSpace;
+\import Simplex.At[n := q] \as RightSpace;
+\import \root.OrderedShuffle[V := Simplex.Carrier p, W := Simplex.Carrier q] \as Shuffle;
+\import topological_constructions.Product[A := Simplex.Carrier p, B := Simplex.Carrier q] \as Space;
+\definition Points: \Set := Shuffle.Pair;
+\definition Carrier: \Set := Space.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Space.topology LeftSpace.topology RightSpace.topology;
+\import singular_cohomology.OrderedTuples[V := Points] \as Tuples;
+\import singular_cohomology.Chains[A := Carrier, source := topology] \as Chains;
+\import singular_cohomology.Simplices[A := Carrier, source := topology] \as Simplices;
+\import Fin.Tuples[A := Points].Omission[] \as Omission;
+\module At(m: N.Nat^) {
+  \import Simplex.At[n := m] \as Domain;
+  \import Simplex.Affine[m := m, n := p] \as LeftAffine;
+  \import Simplex.Affine[m := m, n := q] \as RightAffine;
+  \import Space.Universal[X := Simplex.Carrier m] \as Universal;
+  \definition leftVertices(v: Tuples.Tuple (N.Nat^::succ m)): LeftAffine.Vertices := \fun (i: Fin.Fin (N.Nat^::succ m)) => #left{(v i)};
+  \definition rightVertices(v: Tuples.Tuple (N.Nat^::succ m)): RightAffine.Vertices := \fun (i: Fin.Fin (N.Nat^::succ m)) => #right{(v i)};
+  \definition affine(v: Tuples.Tuple (N.Nat^::succ m))(x: Simplex.Carrier m): Carrier :=
+    Pair.pair (Simplex.Carrier p) (Simplex.Carrier q) (LeftAffine.apply (leftVertices v) x) (RightAffine.apply (rightVertices v) x);
+  \definition continuous(v: Tuples.Tuple (N.Nat^::succ m)): topology.Continuity[A := Simplex.Carrier m, B := Carrier].Continuous Domain.topology topology (affine v) :=
+    Universal.pairContinuous Domain.topology LeftSpace.topology RightSpace.topology
+      (LeftAffine.apply (leftVertices v)) (RightAffine.apply (rightVertices v)) (LeftAffine.continuous (leftVertices v)) (RightAffine.continuous (rightVertices v));
+  \definition onTuple(v: Tuples.Tuple (N.Nat^::succ m)): Simplices.Carrier m :=
+    \into[Simplices.At[n := m].Function](affine v, Simplices.Carrier m) \by { continuous v };
+  \import Modules.Free[Generators := Tuples.Tuple (N.Nat^::succ m)].To[W := Chains.Carrier m, target := Chains.space m] \as Free;
+  \definition map: Modules.Hom[V := Tuples.Carrier (N.Nat^::succ m), W := Chains.Carrier m, source := Tuples.space (N.Nat^::succ m), target := Chains.space m].Map :=
+    Free.extension (\fun (v: Tuples.Tuple (N.Nat^::succ m)) => Chains.generator m (onTuple v));
+  \definition onGenerator: \forall (v: Tuples.Tuple (N.Nat^::succ m)) -> #apply{map} (Tuples.generator (N.Nat^::succ m) v) = Chains.generator m (onTuple v) :=
+    Free.onGenerator (\fun (v: Tuples.Tuple (N.Nat^::succ m)) => Chains.generator m (onTuple v));
+}
+\module Faces(m: N.Nat^);
+\module Boundary(m: N.Nat^);
+\definition map: Complexes.Map[C := Tuples.complex, D := Chains.complex].Map := Complexes.Map[C := Tuples.complex, D := Chains.complex].Map {
+  apply := \fun (m: N.Nat^) => #apply{At[m := m].map},
+  addition := \fun (m: N.Nat^) => #addition{At[m := m].map},
+  scalar := \fun (m: N.Nat^) => #scalar{At[m := m].map},
+  commutes := \fun (m: N.Nat^) => Boundary[m := m].commutes,
+};
+\import Simplex.Vertices[] \as Vertices;
+\definition dimension: N.Nat^ := Shuffle.degree p q;
+\definition fundamental: Tuples.Carrier (N.Nat^::succ dimension) := Shuffle.onTuples p q (Vertices.vertex p) (Vertices.vertex q);
+\module Into(A, B: \Set, source: topology.Topology[Carrier := A].Topology, target: topology.Topology[Carrier := B].Topology);
+\module Transform(k, l: N.Nat^);
+\module Contraction;

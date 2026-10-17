@@ -55,7 +55,24 @@
       (Bounds.addLe _ _ _ _ (R.leRefl (distance (f (Fin.zero n)) zero)) (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j))))
   };
 \module Linear;
+\definition exchange: \forall (m, n: N.Nat^)(f: Fin.Fin m -> Fin.Fin n -> Real) ->
+  sum m (\fun (i: Fin.Fin m) => sum n (f i)) = sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => f i j)) :=
+  \induction (m: N.Nat^) \return \forall (n: N.Nat^)(f: Fin.Fin m -> Fin.Fin n -> Real) ->
+    sum m (\fun (i: Fin.Fin m) => sum n (f i)) = sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => f i j)) \with {
+      | zero: \fun (n: N.Nat^)(f: _) => sym!{Real} _ _ (zeroSum n)
+      | succ: \fun (m: N.Nat^)(previous: _)(n: N.Nat^)(f: Fin.Fin (N.Nat^::succ m) -> Fin.Fin n -> Real) =>
+          eq_reason!{
+            {sum (N.Nat^::succ m) (\fun (i: Fin.Fin (N.Nat^::succ m)) => sum n (f i))}
+            "=" {add (sum n (f (Fin.zero m))) (sum n (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => f (Fin.succ m i) j)))} "by" {
+              congr!{Real Real} (add (sum n (f (Fin.zero m)))) _ _
+                (previous n (\fun (i: Fin.Fin m) => f (Fin.succ m i)))}
+            "=" {sum n (\fun (j: Fin.Fin n) => add (f (Fin.zero m) j) (sum m (\fun (i: Fin.Fin m) => f (Fin.succ m i) j)))} "by" {
+              sym!{Real} _ _ (addition n (f (Fin.zero m)) (\fun (j: Fin.Fin n) => sum m (\fun (i: Fin.Fin m) => f (Fin.succ m i) j)))}
+          }
+    };
 \module Bounds;
+\module Convex;
+\module Exclusion;
 \definition difference: \forall (n: N.Nat^)(f, g: Fin.Fin n -> Real) -> sum n (\fun (i: Fin.Fin n) => sub (f i) (g i)) = sub (sum n f) (sum n g) :=
   \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> Real) -> sum n (\fun (i: Fin.Fin n) => sub (f i) (g i)) = sub (sum n f) (sum n g) \with {
     | zero: \fun (f, g: _) => sym!{Real} (sub zero zero) zero (Laws.subSelf zero)
@@ -81,4 +98,17 @@
         (congr!{Real Real} (add (sub (f (N.Nat^::succ N.Nat^::zero)) (f N.Nat^::zero))) _ _
           (previous (\fun (k: N.Nat^) => f (N.Nat^::succ k))))
         (cancelDifferences (f N.Nat^::zero) (f (N.Nat^::succ N.Nat^::zero)) (f (N.Nat^::succ n)))
+    };
+\definition coordinateUpper: \forall (n: N.Nat^)(f: Fin.Fin n -> Real) -> (\forall (i: Fin.Fin n) -> R.Le zero (f i)) ->
+  \forall (i: Fin.Fin n) -> R.Le (f i) (sum n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> Real) -> (\forall (i: Fin.Fin n) -> R.Le zero (f i)) ->
+    \forall (i: Fin.Fin n) -> R.Le (f i) (sum n f) \with {
+      | zero: \fun (f: _)(positive: _)(i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (n: N.Nat^)(previous: _)(f: _)(positive: _) => Fin.cases n (\fun (i: Fin.Fin (N.Nat^::succ n)) => R.Le (f i) (sum (N.Nat^::succ n) f))
+          (Algebra.leAddRight (f (Fin.zero n)) (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j)))
+            (nonnegative n (\fun (j: Fin.Fin n) => f (Fin.succ n j)) (\fun (j: Fin.Fin n) => positive (Fin.succ n j))))
+          (\fun (i: Fin.Fin n) => R.leTrans _ _ _
+            (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) (\fun (j: Fin.Fin n) => positive (Fin.succ n j)) i)
+            (R.leReplaceRight _ _ _ (Laws.addComm (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j))) (f (Fin.zero n)))
+              (Algebra.leAddRight (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j))) (f (Fin.zero n)) (positive (Fin.zero n)))))
     };

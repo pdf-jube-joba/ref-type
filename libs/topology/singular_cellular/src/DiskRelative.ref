@@ -1,0 +1,31 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n] \as Model;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\definition subset: \Pow Model.Disk := { p: Model.Disk \where Model.normSquared p = Real.one };
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := subset] \as Pair;
+\import topology.Topology[Carrier := Model.Coordinate].Subspace[S := Model.Boundary].Inside[U := Model.ClosedBall] \as Nesting;
+\definition included: \forall (p: Model.Coordinate) -> \In[Model.Coordinate] Model.Boundary p -> \In[Model.Coordinate] Model.ClosedBall p :=
+  \fun (p: Model.Coordinate)(boundary: _) => R.leReplaceLeft Real.one (Model.normSquared p) Real.one
+    (sym!{Real.Real} _ _ boundary) (R.leRefl Real.one);
+\import topology.Topology[Carrier := Model.Disk].Subspace[S := subset] \as Boundary;
+\definition homeomorphism: topology.Homeomorphism[A := Model.Sphere, B := Boundary.CarrierSet]
+  .Homeomorphism[Model.sphereTopology, Boundary.topology Model.diskTopology] := Nesting.homeomorphism Model.topology included;
+\import algebraic_topology.HomotopyEquivalence[A := Model.Sphere, B := Boundary.CarrierSet] \as Equivalences;
+\definition equivalence: Equivalences.Equivalence[Model.sphereTopology, Boundary.topology Model.diskTopology] :=
+  Equivalences.fromHomeomorphism Model.sphereTopology (Boundary.topology Model.diskTopology) homeomorphism;
+\import singular_cohomology.Equivalence[A := Model.Sphere, B := Boundary.CarrierSet,
+  source := Model.sphereTopology, target := Boundary.topology Model.diskTopology].Reduced[] \as BoundaryComparison;
+\import singular_cohomology.Chains[A := Model.Sphere, source := Model.sphereTopology].Reduced[] \as Sphere;
+\import singular_cohomology.Chains[A := Boundary.CarrierSet, source := Boundary.topology Model.diskTopology].Reduced[] \as NestedSphere;
+\module Homology;
+\module With(coefficients: Modules.Bundle);
+
+\module Degree(z: I.Int^);

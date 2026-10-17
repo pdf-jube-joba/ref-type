@@ -1,0 +1,51 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\import \root.Chains[A := A, source := source] \as Original;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\definition degree: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
+\import Complexes.At[C := complex, z := degree] \as H;
+\import Nonnegative.Positive[C := Original.complex, n := n] \as Native;
+\definition toNative(x: H.Cycle): Native.Cycle := Native.cycle x (\bysub(Carrier degree, #carrier{H.cycles}, x));
+\definition toReduced(x: Native.Cycle): H.Cycle := H.cycle x (\bysub(Original.Carrier (N.Nat^::succ n), #carrier{Native.cycles}, x));
+\import Modules.Hom[V := H.Cycle, W := Native.Cycle, source := H.cycleSpace, target := Native.cycleSpace] \as Forward;
+\import Modules.Hom[V := Native.Cycle, W := H.Cycle, source := Native.cycleSpace, target := H.cycleSpace] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := toNative,
+  addition := \fun (x, y: H.Cycle) => \refl(#add{Native.cycleSpace} (toNative x) (toNative y)),
+  scalar := \fun (a: I.Int^)(x: H.Cycle) => \refl(#smul{Native.cycleSpace} a (toNative x)),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := toReduced,
+  addition := \fun (x, y: Native.Cycle) => \refl(#add{H.cycleSpace} (toReduced x) (toReduced y)),
+  scalar := \fun (a: I.Int^)(x: Native.Cycle) => \refl(#smul{H.cycleSpace} a (toReduced x)),
+};
+\definition sourceCycles: Modules.Bundle := Modules.Bundle { Carrier := H.Cycle, space := H.cycleSpace };
+\definition targetCycles: Modules.Bundle := Modules.Bundle { Carrier := Native.Cycle, space := Native.cycleSpace };
+\import Modules.QuotientMapping[A := sourceCycles, B := targetCycles].On[S := H.boundariesInside, T := Native.boundariesInside, f := forward] \as Descent;
+\import Descent.Inverse[g := backward] \as Back;
+\import Modules.Of[V := Carrier degree, space := space degree].Submodule[] \as ReducedSub;
+\import ReducedSub.Image[U := Carrier (Degrees.next degree), source := space (Degrees.next degree)] \as ReducedImage;
+\import Modules.Of[V := Original.Carrier (N.Nat^::succ n), space := Original.space (N.Nat^::succ n)].Submodule[] \as NativeSub;
+\import NativeSub.Image[U := Original.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := Original.space (N.Nat^::succ (N.Nat^::succ n))] \as NativeImage;
+\definition prior: \forall (x: Carrier (Degrees.next degree)) -> #apply{H.prior} x = #apply{Native.prior} x :=
+  \fun (x: Carrier (Degrees.next degree)) => Transport.castRefl Carrier degree (#apply{Native.prior} x);
+\definition compatible: Descent.Compatible := \fun (x: H.Cycle)(member: _) =>
+  ReducedImage.eliminate H.prior x (NativeSub.Member Native.boundaries (toNative x))
+    (\fun (y: Carrier (Degrees.next degree))(equal: #apply{H.prior} y = x) => NativeImage.introduce Native.prior (toNative x) y
+      (trans!{{Carrier degree}} _ _ _ (sym!{{Carrier degree}} _ _ (prior y)) equal)) member;
+\definition compatibleBack: Back.CompatibleBack := \fun (x: Native.Cycle)(member: _) =>
+  NativeImage.eliminate Native.prior x (ReducedSub.Member H.boundaries (toReduced x))
+    (\fun (y: Original.Carrier (N.Nat^::succ (N.Nat^::succ n)))(equal: #apply{Native.prior} y = x) => ReducedImage.introduce H.prior (toReduced x) y
+      (trans!{{Carrier degree}} _ _ _ (prior y) equal)) member;
+\definition nativeIsomorphism: Modules.Isomorphism[V := H.Homology, W := Native.Homology, source := H.homologySpace, target := Native.homologySpace].Isomorphism :=
+  Back.isomorphism compatible compatibleBack (\fun (x: H.Cycle) => \refl(x)) (\fun (x: Native.Cycle) => \refl(x));
+\definition onClass: \forall (x: H.Cycle) -> #apply{#forward{nativeIsomorphism}} (H.classOf x) = Native.classOf (toNative x) := Descent.onClass compatible;
+\import Nonnegative.ZeroExtension[C := Original.complex] \as OrdinaryExtension;
+\import Complexes.At[C := OrdinaryExtension.complex, z := degree] \as Ordinary;
+\import OrdinaryExtension.PositiveHomology[n := n] \as Extension;
+\import Modules.Isomorphism[V := H.Homology, W := Native.Homology, source := H.homologySpace, target := Native.homologySpace]
+  .Composition[U := Ordinary.Homology, final := Ordinary.homologySpace] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := H.Homology, W := Ordinary.Homology, source := H.homologySpace, target := Ordinary.homologySpace].Isomorphism :=
+  Composition.compose Extension.homologyIsomorphism nativeIsomorphism;

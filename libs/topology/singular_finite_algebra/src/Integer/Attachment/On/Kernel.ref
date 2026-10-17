@@ -1,0 +1,24 @@
+\import Modules.Hom[V := first.Carrier, W := KernelCarrier, source := first.space, target := kernelSpace] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (x: first.Carrier) => \into[coefficients.Carrier](#apply{data.restriction} x, #carrier{kernel}) \by {
+    trans!{coefficients.Carrier} _ _ _ (sym!{coefficients.Carrier} _ _ (#doubling{data} (#apply{data.restriction} x)))
+      (#zero{#exactAtFirst{data}} x)
+  },
+  addition := #addition{data.restriction}, scalar := #scalar{data.restriction},
+};
+\definition injective: \forall (x, y: first.Carrier) -> #apply{forward} x = #apply{forward} y -> x = y := #injective{data};
+\definition onto: \forall (q: KernelCarrier) -> \exists { x: first.Carrier \where #apply{forward} x = q } := \block {
+  \fun (q: KernelCarrier) \then
+  \takefrom x: \Cast[first.Carrier] ({ x: first.Carrier \where #apply{data.restriction} x = q }) \by
+    #kernelImage{#exactAtFirst{data}} q
+      (trans!{coefficients.Carrier} _ _ _ (#doubling{data} q) (\bysub(coefficients.Carrier, #carrier{kernel}, q))) \then
+  \return Logic.existsIntro[first.Carrier, { x: first.Carrier \where #apply{forward} x = q }] x
+    (\bysub(first.Carrier, { x: first.Carrier \where #apply{data.restriction} x = q }, x))
+};
+\import Modules.Isomorphism[V := first.Carrier, W := KernelCarrier, source := first.space, target := kernelSpace].OfBijective[f := forward] \as Inverse;
+\definition isomorphism: Modules.Isomorphism[V := first.Carrier, W := KernelCarrier, source := first.space, target := kernelSpace].Isomorphism :=
+  Inverse.isomorphism injective onto;
+\definition onRestriction: \forall (x: first.Carrier) -> #apply{KernelSpace.inclusion} (#apply{#forward{isomorphism}} x) = #apply{data.restriction} x :=
+  \fun (x: first.Carrier) => \refl(#apply{data.restriction} x);
+\definition onKernel: \forall (q: KernelCarrier) -> #apply{data.restriction} (#apply{#backward{isomorphism}} q) = q :=
+  #rightInverse{isomorphism};

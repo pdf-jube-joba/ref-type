@@ -1,0 +1,51 @@
+\use Equality.congr2;
+\import chain_complexes.Chain[] \as Degrees;
+\import chain_complexes.Integer[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Cochains;
+\import Chains.Biproduct[C := P, D := Q] \as Pair;
+\import Pair.Integer[] \as ChainSum;
+\import Chains.ZeroExtension[C := P] \as LeftChains;
+\import Chains.ZeroExtension[C := Q] \as RightChains;
+\import Chains.ZeroExtension[C := Pair.complex] \as SumChains;
+\import Chains.Map[C := P, D := Pair.complex].ZeroExtension[f := Pair.firstInjection] \as LeftInclusion;
+\import Chains.Map[C := Q, D := Pair.complex].ZeroExtension[f := Pair.secondInjection] \as RightInclusion;
+\import Chains.Map[C := Pair.complex, D := P].ZeroExtension[f := Pair.firstProjection] \as LeftProjection;
+\import Chains.Map[C := Pair.complex, D := Q].ZeroExtension[f := Pair.secondProjection] \as RightProjection;
+\import \parent.Integer[P := LeftChains.complex, N := N] \as Left;
+\import \parent.Integer[P := RightChains.complex, N := N] \as Right;
+\import \parent.Integer[P := SumChains.complex, N := N] \as Sum;
+\import Modules.End[V := N.Carrier, space := N.space] \as Coefficients;
+\import \parent.IntegerMapping[P := LeftChains.complex, Q := SumChains.complex, N := N, L := N].On[f := LeftInclusion.map, u := Coefficients.identity] \as FirstProjection;
+\import \parent.IntegerMapping[P := RightChains.complex, Q := SumChains.complex, N := N, L := N].On[f := RightInclusion.map, u := Coefficients.identity] \as SecondProjection;
+\import \parent.IntegerMapping[P := SumChains.complex, Q := LeftChains.complex, N := N, L := N].On[f := LeftProjection.map, u := Coefficients.identity] \as FirstInjection;
+\import \parent.IntegerMapping[P := SumChains.complex, Q := RightChains.complex, N := N, L := N].On[f := RightProjection.map, u := Coefficients.identity] \as SecondInjection;
+\definition firstProjection: Cochains.Map[C := Sum.complex, D := Left.complex].Map := FirstProjection.map;
+\definition secondProjection: Cochains.Map[C := Sum.complex, D := Right.complex].Map := SecondProjection.map;
+\definition firstInjection: Cochains.Map[C := Left.complex, D := Sum.complex].Map := FirstInjection.map;
+\definition secondInjection: Cochains.Map[C := Right.complex, D := Sum.complex].Map := SecondInjection.map;
+\definition firstRoundtrip: \forall (z: Degrees.Degree)(h: Left.Carrier z) -> #apply{firstProjection} z (#apply{firstInjection} z h) = h :=
+  \fun (z: Degrees.Degree)(h: Left.Carrier z) => Left.At[z := z].ext _ _
+    (\fun (x: LeftChains.Carrier z) => congr!{{LeftChains.Carrier z} N.Carrier} (#apply{h}) _ _ (ChainSum.firstRoundtrip z x));
+\definition secondRoundtrip: \forall (z: Degrees.Degree)(h: Right.Carrier z) -> #apply{secondProjection} z (#apply{secondInjection} z h) = h :=
+  \fun (z: Degrees.Degree)(h: Right.Carrier z) => Right.At[z := z].ext _ _
+    (\fun (x: RightChains.Carrier z) => congr!{{RightChains.Carrier z} N.Carrier} (#apply{h}) _ _ (ChainSum.secondRoundtrip z x));
+\module Zero(z: Degrees.Degree) {
+  \import Modules.Hom[V := LeftChains.Carrier z, W := N.Carrier, source := LeftChains.space z, target := N.space] \as LeftMaps;
+  \import Modules.Hom[V := RightChains.Carrier z, W := N.Carrier, source := RightChains.space z, target := N.space] \as RightMaps;
+  \definition first: \forall (h: Right.Carrier z) -> #apply{firstProjection} z (#apply{secondInjection} z h) = #zero{(Left.space z)} :=
+    \fun (h: Right.Carrier z) => Left.At[z := z].ext _ _ (\fun (x: LeftChains.Carrier z) => trans!{N.Carrier} _ _ _
+      (congr!{{RightChains.Carrier z} N.Carrier} (#apply{h}) _ _ (ChainSum.secondCross z x)) (RightMaps.zeroPreserved h));
+  \definition second: \forall (h: Left.Carrier z) -> #apply{secondProjection} z (#apply{firstInjection} z h) = #zero{(Right.space z)} :=
+    \fun (h: Left.Carrier z) => Right.At[z := z].ext _ _ (\fun (x: RightChains.Carrier z) => trans!{N.Carrier} _ _ _
+      (congr!{{LeftChains.Carrier z} N.Carrier} (#apply{h}) _ _ (ChainSum.firstCross z x)) (LeftMaps.zeroPreserved h));
+}
+\definition firstCross: \forall (z: Degrees.Degree)(h: Right.Carrier z) -> #apply{firstProjection} z (#apply{secondInjection} z h) = #zero{(Left.space z)} :=
+  \fun (z: Degrees.Degree) => Zero[z := z].first;
+\definition secondCross: \forall (z: Degrees.Degree)(h: Left.Carrier z) -> #apply{secondProjection} z (#apply{firstInjection} z h) = #zero{(Right.space z)} :=
+  \fun (z: Degrees.Degree) => Zero[z := z].second;
+\definition reconstructed(z: Degrees.Degree)(h: Sum.Carrier z): Sum.Carrier z :=
+  #add{(Sum.space z)} (#apply{firstInjection} z (#apply{firstProjection} z h)) (#apply{secondInjection} z (#apply{secondProjection} z h));
+\definition reconstruction: \forall (z: Degrees.Degree)(h: Sum.Carrier z) -> reconstructed z h = h :=
+  \fun (z: Degrees.Degree)(h: Sum.Carrier z) => Sum.At[z := z].ext _ _ (\fun (x: SumChains.Carrier z) => trans!{N.Carrier} _ _ _
+    (sym!{N.Carrier} _ _ (#addition{h} (#apply{LeftInclusion.map} z (#apply{LeftProjection.map} z x)) (#apply{RightInclusion.map} z (#apply{RightProjection.map} z x))))
+    (congr!{{SumChains.Carrier z} N.Carrier} (#apply{h}) _ _ (ChainSum.reconstruction z x)));
+\module At(z: Degrees.Degree);

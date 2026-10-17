@@ -1,0 +1,29 @@
+\import \parent.Range[] \as Range;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition map(sigma: SourceComplement): TargetComplement :=
+  \into[Target.Carrier n](ambient sigma, TargetBasis.Complement) \by {
+    \fun (exists: \exists TargetBasis.Fiber (ambient sigma)) =>
+      (\bysub(Source.Carrier n, SourceBasis.Complement, sigma))
+        (Range.sourceFiber sigma (Range.reflectSubset sigma (Range.targetFiberRange (ambient sigma) exists)))
+  };
+\definition injective: \forall (sigma, tau: SourceComplement) -> map sigma = map tau -> sigma = tau :=
+  \fun (sigma, tau: SourceComplement)(same: map sigma = map tau) => Remaining.Degree[n := n].injective sigma tau same;
+\import Modules.Free[Generators := SourceComplement].Reindex[TargetGenerators := TargetComplement] \as Reindex;
+\import Reindex.Injection[f := map].Retraction[] \as Inverse;
+\definition onto: Inverse.Onto := \block {
+  \fun (sigma: TargetComplement) \then
+  \let tau: Source.Carrier n := Range.lift sigma \then
+  \let outside: Logic.Not (\exists SourceBasis.Fiber tau) :=
+    \fun (exists: \exists SourceBasis.Fiber tau) => Range.targetOutside sigma
+      (\idelim ambient tau = sigma \with rho: Target.Carrier n => Range.InsideSubset rho \by {
+        base: Range.preserveSubset tau (Range.sourceFiberRange tau exists), equality: Range.lifted sigma
+      }) \then
+  \let selected: SourceComplement := \into[Source.Carrier n](tau, SourceBasis.Complement) \by { outside } \then
+  \return Logic.existsIntro[SourceComplement, { rho: SourceComplement \where map rho = sigma }] selected
+    (\axiom:funext(map selected, sigma, \fun (x: Simplex.Carrier n) =>
+      congr!{{Target.Carrier n} A} (\fun (rho: Target.Carrier n) => rho x) _ _ (Range.lifted sigma)))
+};
+\definition isomorphism: Modules.Isomorphism[V := SourceBasis.Carrier, W := TargetBasis.Carrier, source := SourceBasis.space, target := TargetBasis.space].Isomorphism :=
+  Inverse.isomorphism injective onto;
+\definition onGenerator: \forall (sigma: SourceComplement) ->
+  #apply{#forward{isomorphism}} (SourceBasis.generator sigma) = TargetBasis.generator (map sigma) := Reindex.onGenerator map;

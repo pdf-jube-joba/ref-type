@@ -1,0 +1,26 @@
+\import \root.CylinderAffine[m := N.Nat^::succ m, n := n] \as Higher;
+\import Fin.Tuples[A := Cylinder.Carrier].Omission[] \as Omission;
+\import Fin.Tuples[A := Cylinder.Carrier].Mapping[B := Real.Real] \as Times;
+\import Fin.Tuples[A := Cylinder.Carrier].Mapping[B := Simplex.Carrier n] \as Points;
+\import Simplex.Pairing[] \as Pairing;
+\import Simplex.AffineFaces[m := m, n := n] \as Faces;
+\import std.Data[].Pair[].Prop[A := Interval.Carrier, B := Simplex.Carrier n] \as Pairs;
+\definition scalarTime(p: Cylinder.Carrier): Real.Real := Cylinder.time p;
+\definition timeCoordinateLaw: \forall (v: Higher.Vertices)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) ->
+  Higher.timeCoordinate v (Simplex.face m i x) = timeCoordinate (Omission.omit (N.Nat^::succ m) i v) x :=
+  \fun (v: Higher.Vertices)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) => trans!{Real.Real} _ _ _
+    (Pairing.insertion (N.Nat^::succ m) i x (\fun (a: Fin.Fin (N.Nat^::succ (N.Nat^::succ m))) => scalarTime (v a)))
+    (congr!{{Simplex.Coordinate (N.Nat^::succ m)} Real.Real} (Pairing.pair (N.Nat^::succ m) x) _ _
+      (sym!{{Simplex.Coordinate (N.Nat^::succ m)}} _ _ (Times.omitMap (N.Nat^::succ m) i scalarTime v)));
+\definition timeLaw: \forall (v: Higher.Vertices)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) ->
+  Higher.time v (Simplex.face m i x) = time (Omission.omit (N.Nat^::succ m) i v) x := timeCoordinateLaw;
+\definition pointLaw: \forall (v: Higher.Vertices)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) ->
+  Cylinder.point (Higher.apply v (Simplex.face m i x)) = Cylinder.point (apply (Omission.omit (N.Nat^::succ m) i v) x) :=
+  \fun (v: Higher.Vertices)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) => trans!{{Simplex.Carrier n}} _ _ _
+    (Faces.law (Higher.pointVertices v) i x)
+    (congr!{Affine.Vertices {Simplex.Carrier n}} (\fun (w: Affine.Vertices) => Affine.apply w x) _ _
+      (sym!{Affine.Vertices} _ _ (Points.omitMap (N.Nat^::succ m) i Cylinder.point v)));
+\definition law: \forall (v: Higher.Vertices)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) ->
+  Higher.apply v (Simplex.face m i x) = apply (Omission.omit (N.Nat^::succ m) i v) x :=
+  \fun (v: Higher.Vertices)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) =>
+    Pairs.ext (Higher.apply v (Simplex.face m i x)) (apply (Omission.omit (N.Nat^::succ m) i v) x) (timeLaw v i x) (pointLaw v i x);

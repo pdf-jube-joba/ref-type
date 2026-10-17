@@ -1,0 +1,30 @@
+\import Modules.Isomorphism[V := SourceH.Homology, W := H.Homology, source := SourceH.homologySpace, target := H.homologySpace]
+  .Composition[U := CircleH.Homology, final := CircleH.homologySpace] \as ThroughQuotient;
+\definition comparison: Modules.Isomorphism[V := SourceH.Homology, W := CircleH.Homology, source := SourceH.homologySpace, target := CircleH.homologySpace].Isomorphism :=
+  ThroughQuotient.compose (SphereComparison.isomorphism equivalence) Good.isomorphism;
+\import Modules.Isomorphism[V := I.Int^, W := SourceH.Homology, source := Modules.scalarModule, target := SourceH.homologySpace]
+  .Composition[U := CircleH.Homology, final := CircleH.homologySpace] \as ReducedComposition;
+\definition reducedIsomorphism: Modules.Isomorphism[V := I.Int^, W := CircleH.Homology, source := Modules.scalarModule, target := CircleH.homologySpace].Isomorphism :=
+  ReducedComposition.compose comparison Interval.isomorphism;
+\definition reducedOnOne: #apply{#forward{reducedIsomorphism}} I.One.specification = CircleH.classOf circleCycle :=
+  trans!{CircleH.Homology} _ _ _ (congr!{SourceH.Homology CircleH.Homology} (#apply{#forward{comparison}}) _ _ Interval.onOne)
+    (trans!{CircleH.Homology} _ _ _
+      (congr!{H.Homology CircleH.Homology} (#apply{#forward{SphereComparison.isomorphism equivalence}}) _ _ onClass)
+      circleClass);
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import Native.ZeroExtension[C := CircleChains.complex] \as Extended;
+\import CircleReduced.Positive[n := zero] \as Reduction;
+\import Extended.PositiveHomology[n := zero] \as Extension;
+\import Signed.At[C := Extended.complex, z := I.Int^::ofNat one] \as Ordinary;
+\definition cycle: Ordinary.Cycle := #apply{#forward{Extension.cycleIsomorphism}} (Reduction.toNative circleCycle);
+\import Modules.Isomorphism[V := I.Int^, W := CircleH.Homology, source := Modules.scalarModule, target := CircleH.homologySpace]
+  .Composition[U := Ordinary.Homology, final := Ordinary.homologySpace] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := I.Int^, W := Ordinary.Homology, source := Modules.scalarModule, target := Ordinary.homologySpace].Isomorphism :=
+  Composition.compose Reduction.isomorphism reducedIsomorphism;
+\definition onOne: #apply{#forward{isomorphism}} I.One.specification = Ordinary.classOf cycle :=
+  trans!{Ordinary.Homology} _ _ _
+    (congr!{CircleH.Homology Ordinary.Homology} (#apply{#forward{Reduction.isomorphism}}) _ _ reducedOnOne)
+    (trans!{Ordinary.Homology} _ _ _
+      (congr!{{double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Positive[C := CircleChains.complex, n := zero].Homology} Ordinary.Homology}
+        (#apply{#forward{Extension.homologyIsomorphism}}) _ _ (Reduction.onClass circleCycle))
+      (Extension.onClass (Reduction.toNative circleCycle)));

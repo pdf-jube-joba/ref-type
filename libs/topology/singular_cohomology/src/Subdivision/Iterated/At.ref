@@ -1,0 +1,18 @@
+\import \parent.\parent.At[n := n] \as Degree;
+\import Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier n, source := Chains.space n, target := Chains.space n] \as Linear;
+\definition map(r: N.Nat^): Linear.Map := Maps.At[n := n].linear (power r);
+\definition apply(r: N.Nat^)(x: Chains.Carrier n): Chains.Carrier n := #apply{(map r)} x;
+\definition zero: \forall (x: Chains.Carrier n) -> apply N.Nat^::zero x = x := \fun (x: Chains.Carrier n) => \refl(x);
+\definition successor: \forall (r: N.Nat^)(x: Chains.Carrier n) -> apply (N.Nat^::succ r) x = #apply{Degree.map} (apply r x) := \fun (r: N.Nat^)(x: Chains.Carrier n) => \refl(apply (N.Nat^::succ r) x);
+\definition commutes: \forall (r: N.Nat^)(x: Chains.Carrier n) -> apply r (#apply{Degree.map} x) = #apply{Degree.map} (apply r x) :=
+  \induction (r: N.Nat^) \return \forall (x: Chains.Carrier n) -> apply r (#apply{Degree.map} x) = #apply{Degree.map} (apply r x) \with {
+    | zero: \fun (x: Chains.Carrier n) => \refl(#apply{Degree.map} x)
+    | succ: \fun (r: N.Nat^)(previous: \forall (x: Chains.Carrier n) -> apply r (#apply{Degree.map} x) = #apply{Degree.map} (apply r x))(x: Chains.Carrier n) =>
+        congr!{{Chains.Carrier n} {Chains.Carrier n}} (#apply{Degree.map}) _ _ (previous x)
+  };
+\import Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier (N.Nat^::succ n), source := Chains.space n, target := Chains.space (N.Nat^::succ n)] \as Shift;
+\import Shift.Composition[U := Chains.Carrier n, domain := Chains.space n] \as ShiftComposition;
+\definition homotopyMap: N.Nat^ -> Shift.Map := \induction (r: N.Nat^) \return Shift.Map \with {
+  | zero: Shift.zeroMap
+  | succ: \fun (r: N.Nat^)(previous: Shift.Map) => Shift.plus (ShiftComposition.compose Degree.homotopyMap (map r)) previous
+};

@@ -1,0 +1,65 @@
+\import std.Data[].FinSet[] \as Fin;
+\use Equality.sym;
+\use Equality.congr2;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.At[n := one] \as Domain;
+\import Simplex.Interval[] \as Segment;
+\import sphere_maps.Circle[] \as Circle;
+\import Circle.Coordinates[] \as Coordinates;
+\import Circle.Powers[] \as Powers;
+\import Circle.Functions[A := Simplex.Carrier one] \as CircleFunctions;
+\import complex.Complex[] \as Complex;
+\import Complex.Def[] \as Operations;
+\import Complex.Prop[] \as ComplexLaws;
+\import real.Analysis[] \as Real;
+\import Real.SquareRoot[] \as Root;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition first: Fin.Fin two := Segment.first;
+\definition last: Fin.Fin two := Segment.last;
+\definition u(x: Simplex.Carrier one): Real.Real := x first;
+\definition v(x: Simplex.Carrier one): Real.Real := x last;
+\definition vector(x: Simplex.Carrier one): Complex.Complex := Complex.make (Root.sqrt (v x)) (Root.sqrt (u x));
+\definition vectorNorm: \forall (x: Simplex.Carrier one) -> Operations.normSq (vector x) = Real.one :=
+  \fun (x: Simplex.Carrier one) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (Root.squareOfNonnegative (v x) (#nonnegative{(Simplex.barycentric one x)} last))
+      (Root.squareOfNonnegative (u x) (#nonnegative{(Simplex.barycentric one x)} first)))
+    (trans!{Real.Real} _ _ _ (Laws.addComm (v x) (u x)) (Segment.total x));
+\definition unit(x: Simplex.Carrier one): Circle.Carrier := \into[Complex.Complex](vector x, Circle.unit) \by { vectorNorm x };
+\definition upper(x: Simplex.Carrier one): Carrier := Coordinates.backward (Circle.multiply (unit x) (unit x));
+\definition apply(x: Simplex.Carrier one): Carrier := Powers.square (upper x);
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := Simplex.Carrier one].SquareRoot[] \as Roots;
+\import topological_algebra.Complex[] \as Plane;
+\import topological_constructions.Product[A := Real.Real, B := Real.Real].Universal[X := Simplex.Carrier one] \as Pairing;
+\definition vectorContinuous: topology.Continuity[A := Simplex.Carrier one, B := Complex.Complex].Continuous Domain.topology Plane.topology vector :=
+  Pairing.pairContinuous Domain.topology Line.topology Line.topology
+    (\fun (x: Simplex.Carrier one) => Root.sqrt (v x)) (\fun (x: Simplex.Carrier one) => Root.sqrt (u x))
+    (Roots.continuous Domain.topology v (Domain.coordinateContinuous last))
+    (Roots.continuous Domain.topology u (Domain.coordinateContinuous first));
+\import topology.Continuity[A := Simplex.Carrier one, B := Complex.Complex].Corestriction[S := Circle.unit] \as IntoCircle;
+\definition unitContinuous: topology.Continuity[A := Simplex.Carrier one, B := Circle.Carrier].Continuous Domain.topology Circle.topology unit :=
+  IntoCircle.corestrictContinuous Domain.topology Plane.topology unit vectorContinuous;
+\import topology.Composition[A := Simplex.Carrier one, B := Circle.Carrier, C := Carrier] \as Output;
+\definition upperContinuous: topology.Continuity[A := Simplex.Carrier one, B := Carrier].Continuous Domain.topology topology upper :=
+  Output.composeContinuous Domain.topology Circle.topology topology
+    (\fun (x: Simplex.Carrier one) => Circle.multiply (unit x) (unit x)) Coordinates.backward
+    (CircleFunctions.multiplyContinuous Domain.topology unit unit unitContinuous unitContinuous) Coordinates.backwardContinuous;
+\import topology.Composition[A := Simplex.Carrier one, B := Carrier, C := Carrier] \as Compose;
+\definition continuous: topology.Continuity[A := Simplex.Carrier one, B := Carrier].Continuous Domain.topology topology apply :=
+  Compose.composeContinuous Domain.topology topology topology upper Powers.square upperContinuous Powers.squareContinuous;
+\import singular_cohomology.Simplices[A := Carrier, source := topology] \as Simplices;
+\definition simplex: Simplices.Carrier one := \into[Simplices.At[n := one].Function](apply, Simplices.Carrier one) \by { continuous };
+\definition upperFirst: \forall (x: Simplex.Carrier one) -> upper x Coordinates.first = Real.sub (v x) (u x) :=
+  \fun (x: Simplex.Carrier one) => trans!{Real.Real} _ _ _ (Coordinates.firstBackward (Circle.multiply (unit x) (unit x)))
+    (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+      (Root.squareOfNonnegative (v x) (#nonnegative{(Simplex.barycentric one x)} last))
+      (Root.squareOfNonnegative (u x) (#nonnegative{(Simplex.barycentric one x)} first)));
+\definition upperSecond: \forall (x: Simplex.Carrier one) -> upper x Coordinates.second =
+  Real.add (Real.mul (Root.sqrt (v x)) (Root.sqrt (u x))) (Real.mul (Root.sqrt (u x)) (Root.sqrt (v x))) :=
+  \fun (x: Simplex.Carrier one) => Coordinates.secondBackward (Circle.multiply (unit x) (unit x));
+\module Points;
+\module Disk;
+\module Formula;
+\module Primitive;

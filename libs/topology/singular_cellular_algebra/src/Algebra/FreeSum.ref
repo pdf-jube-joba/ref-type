@@ -1,0 +1,41 @@
+\definition family: Modules.Family[Index] := Modules.Family[Index] {
+  Carrier := \fun (_: Index) => I.Int^, space := \fun (_: Index) => Modules.scalarModule,
+};
+\import Modules.Free[Generators := Index] \as Free;
+\import Modules.DirectSum[Index := Index, family := family] \as Sum;
+\import Free.To[W := Sum.Carrier, target := Sum.space] \as Forward;
+\definition values(i: Index): Sum.Carrier := #apply{Sum.Injection[i := i].map} I.One.specification;
+\definition forward: Modules.Hom[V := Free.Carrier, W := Sum.Carrier, source := Free.space, target := Sum.space].Map := Forward.extension values;
+\import Sum.To[W := Free.Carrier, target := Free.space] \as Backward;
+\module Component(i: Index);
+\definition components: Backward.Components := \fun (i: Index) => Component[i := i].map;
+\definition backward: Modules.Hom[V := Sum.Carrier, W := Free.Carrier, source := Sum.space, target := Free.space].Map := Backward.extension components;
+\import Modules.Hom[V := Sum.Carrier, W := Free.Carrier, source := Sum.space, target := Free.space].Composition[U := Free.Carrier, domain := Free.space] \as Left;
+\import Modules.Hom[V := Free.Carrier, W := Sum.Carrier, source := Free.space, target := Sum.space].Composition[U := Sum.Carrier, domain := Sum.space] \as Right;
+\import Modules.End[V := Free.Carrier, space := Free.space] \as FreeEnd;
+\import Modules.End[V := Sum.Carrier, space := Sum.space] \as SumEnd;
+\import Free.To[W := Free.Carrier, target := Free.space] \as FreeUniversal;
+\definition leftEquation: Left.compose backward forward = FreeEnd.identity :=
+  FreeUniversal.ext _ _ (\fun (i: Index) => trans!{Free.Carrier} _ _ _
+    (congr!{Sum.Carrier Free.Carrier} (#apply{backward}) _ _ (Forward.onGenerator values i))
+    (trans!{Free.Carrier} _ _ _ (Backward.onInjection components i I.One.specification) (#scalarOne{Free.space} (Free.generator i))));
+\import Sum.To[W := Sum.Carrier, target := Sum.space] \as SumUniversal;
+\definition rightEquation: Right.compose forward backward = SumEnd.identity := SumUniversal.ext _ _
+  (\fun (i: Index)(a: I.Int^) => trans!{Sum.Carrier} _ _ _
+    (congr!{Free.Carrier Sum.Carrier} (#apply{forward}) _ _ (Backward.onInjection components i a))
+    (trans!{Sum.Carrier} _ _ _ (#scalar{forward} a (Free.generator i))
+      (trans!{Sum.Carrier} _ _ _
+        (congr!{Sum.Carrier Sum.Carrier} (#smul{Sum.space} a) _ _ (Forward.onGenerator values i))
+        (sym!{Sum.Carrier} _ _
+          (trans!{Sum.Carrier} _ _ _
+            (congr!{I.Int^ Sum.Carrier} (#apply{Sum.Injection[i := i].map}) _ _ (sym!{I.Int^} _ _ (#rightIdentity{(#multiplicative{(#semiring{Integers.ring})})} a)))
+            (#scalar{Sum.Injection[i := i].map} a I.One.specification))))));
+\import Modules.Hom[V := Free.Carrier, W := Free.Carrier, source := Free.space, target := Free.space] \as LeftMaps;
+\import Modules.Hom[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as RightMaps;
+\definition isomorphism: Modules.Isomorphism[V := Free.Carrier, W := Sum.Carrier, source := Free.space, target := Sum.space].Isomorphism :=
+  Modules.Isomorphism[V := Free.Carrier, W := Sum.Carrier, source := Free.space, target := Sum.space].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: Free.Carrier) => congr!{LeftMaps.Map Free.Carrier} (\fun (f: LeftMaps.Map) => #apply{f} x) _ _ leftEquation,
+    rightInverse := \fun (x: Sum.Carrier) => congr!{RightMaps.Map Sum.Carrier} (\fun (f: RightMaps.Map) => #apply{f} x) _ _ rightEquation,
+  };
+\definition onGenerator: \forall (i: Index) -> #apply{forward} (Free.generator i) = values i := Forward.onGenerator values;

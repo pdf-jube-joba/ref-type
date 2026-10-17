@@ -1,0 +1,32 @@
+\import \parent.Expansion[] \as Expansion;
+\definition middleBundle: Modules.Bundle := Modules.Bundle { Carrier := Product.Carrier m, space := Product.space m };
+\import Commutative.Bilinear[A := Extended.left p, B := Extended.right q, C := Extended.target p q].Postcompose[D := middleBundle] \as Cast;
+\import Commutative.Bilinear[A := Extended.left p, B := Extended.right q, C := middleBundle] \as Form;
+\definition bilinear: Form.Map := Cast.apply (Extended.bilinear p q) lowerCast;
+\definition middle: Left.Carrier p -> Right.Carrier q -> Product.Carrier m := #apply{bilinear};
+\definition leftRemoved(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier m := middle (#apply{(Left.cone r a)} (leftBoundary x)) y;
+\definition rightRemoved(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier m := middle x (#apply{(Right.cone s b)} (rightBoundary y));
+\import Modules.Hom[V := Left.Carrier p, W := Product.Carrier m, source := Left.space p, target := Product.space m] \as LeftMaps;
+\import Modules.Hom[V := Right.Carrier q, W := Product.Carrier m, source := Right.space q, target := Product.space m] \as RightMaps;
+\definition crossLeft(x: Left.Carrier p)(y: Right.Carrier q):
+  Expansion.crossLeft x y = LowerGroup.difference (middle x y) (rightRemoved x y) :=
+  trans!{{Product.Carrier m}} _ _ _
+    (congr!{{Right.Carrier q} {Product.Carrier m}} (middle x) _ _ (Right.ConeBoundary[n := s].law b y))
+    (RightMaps.differencePreserved (Form.rightAt bilinear x) y (#apply{(Right.cone s b)} (rightBoundary y)));
+\definition crossRight(x: Left.Carrier p)(y: Right.Carrier q):
+  Expansion.crossRight x y = LowerGroup.difference (middle x y) (leftRemoved x y) :=
+  trans!{{Product.Carrier m}} _ _ _
+    (congr!{{Left.Carrier p} {Product.Carrier m}} (\fun (v: Left.Carrier p) => middle v y) _ _ (Left.ConeBoundary[n := r].law a x))
+    (LeftMaps.differencePreserved (Form.leftAt bilinear y) x (#apply{(Left.cone r a)} (leftBoundary x)));
+\definition reduced(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier m :=
+  Lower.add (Lower.add (Expansion.first x y) (LowerSigns.twist r (leftRemoved x y)))
+    (Lower.add (LowerSigns.twist p (rightRemoved x y)) (Expansion.last x y));
+\definition algebra(x: Left.Carrier p)(y: Right.Carrier q): Expansion.expanded x y = reduced x y :=
+  trans!{{Product.Carrier m}} _ _ _
+    (congr2!{{Product.Carrier m} {Product.Carrier m} {Product.Carrier m}} Lower.add _ _ _ _
+      (congr!{{Product.Carrier m} {Product.Carrier m}} (\fun (v: Product.Carrier m) => Lower.add (Expansion.first x y) (LowerSigns.twist r v)) _ _ (crossLeft x y))
+      (congr!{{Product.Carrier m} {Product.Carrier m}} (\fun (v: Product.Carrier m) => Lower.add (LowerSigns.twist p v) (Expansion.last x y)) _ _ (crossRight x y)))
+    (LowerSigns.cancelMiddle r (Expansion.first x y) (middle x y) (leftRemoved x y) (rightRemoved x y) (Expansion.last x y));
+\definition law: Statement r q -> Statement p s -> \forall (x: Left.Carrier p)(y: Right.Carrier q) -> #apply{(Product.boundary m)} (cut x y) = reduced x y :=
+  \fun (previousLeft: Statement r q)(previousRight: Statement p s)(x: Left.Carrier p)(y: Right.Carrier q) =>
+    trans!{{Product.Carrier m}} _ _ _ (Expansion.law previousLeft previousRight x y) (algebra x y);

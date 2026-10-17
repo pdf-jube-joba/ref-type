@@ -5,7 +5,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs::{self, File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -57,6 +57,75 @@ impl StoreManifest {
             .chain(self.resolver.iter())
             .chain(self.environment.iter())
             .chain(self.checkpoint.iter())
+    }
+}
+/// Reference counts preserve the oldest currently eligible eviction order without
+/// rescanning every manifest for each dependency and object being removed.
+struct CollectionIndex {
+    dependencies: BTreeMap<Fingerprint, usize>,
+    objects: BTreeMap<Fingerprint, usize>,
+    ranks: BTreeMap<(Fingerprint, bool), usize>,
+    eligible: BTreeSet<usize>,
+}
+impl CollectionIndex {
+    fn new(
+        records: &BTreeMap<(Fingerprint, bool), StoreManifest>,
+        candidates: &[(Fingerprint, bool)],
+    ) -> Self {
+        let mut dependencies = BTreeMap::new();
+        let mut objects = BTreeMap::new();
+        for manifest in records.values() {
+            for dependency in &manifest.dependencies {
+                *dependencies.entry(*dependency).or_default() += 1;
+            }
+            for object in manifest.objects() {
+                *objects.entry(object.digest).or_default() += 1;
+            }
+        }
+        let ranks: BTreeMap<_, _> = candidates
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(rank, key)| (key, rank))
+            .collect();
+        let eligible = candidates
+            .iter()
+            .enumerate()
+            .filter_map(|(rank, (key, checkpoint))| {
+                (*checkpoint || !dependencies.contains_key(key)).then_some(rank)
+            })
+            .collect();
+        Self {
+            dependencies,
+            objects,
+            ranks,
+            eligible,
+        }
+    }
+    fn remove(
+        &mut self,
+        key: (Fingerprint, bool),
+        manifest: &StoreManifest,
+    ) -> BTreeSet<Fingerprint> {
+        self.ranks.remove(&key);
+        for dependency in &manifest.dependencies {
+            let count = self.dependencies.get_mut(dependency).unwrap();
+            *count -= 1;
+            if *count == 0 {
+                if let Some(rank) = self.ranks.get(&(*dependency, false)) {
+                    self.eligible.insert(*rank);
+                }
+            }
+        }
+        let mut orphaned = BTreeSet::new();
+        for object in manifest.objects() {
+            let count = self.objects.get_mut(&object.digest).unwrap();
+            *count -= 1;
+            if *count == 0 {
+                orphaned.insert(object.digest);
+            }
+        }
+        orphaned
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -125,10 +194,22 @@ pub struct ArtifactStore {
 }
 impl Drop for ArtifactStore {
     fn drop(&mut self) {
-        // End the lease before the final collection; budget overruns caused only by
-        // this session can now be reclaimed, including after the last worker.
-        self.lease.get_mut().unwrap().take();
-        if self.root.is_dir() {
+        // Only the lease owner ends a session. A supervised worker borrows that
+        // lease; collecting on every worker exit repeatedly scans the whole store
+        // while its artifacts remain protected by the supervisor anyway.
+        let ended_session = self
+            .lease
+            .get_mut()
+            .unwrap()
+            .take()
+            .is_some_and(|lease| lease.owner);
+        let collection_needed = self.pending_bytes.load(Ordering::Relaxed) != 0
+            || read_bounded(&self.root.join("usage"), 8)
+                .ok()
+                .and_then(|bytes| bytes.try_into().ok())
+                .map(u64::from_le_bytes)
+                .is_none_or(|usage| usage > self.budget.load(Ordering::Relaxed));
+        if ended_session && collection_needed && self.root.is_dir() {
             let _ = self.collect();
         }
     }
@@ -884,7 +965,7 @@ impl ArtifactStore {
             .filter(|key| !protected.contains(key))
             .copied()
             .collect();
-        candidates.sort_by_key(|(key, checkpoint)| {
+        candidates.sort_by_cached_key(|(key, checkpoint)| {
             fs::metadata(self.root.join("access").join(format!(
                 "{}-{}",
                 hex(key),
@@ -905,14 +986,14 @@ impl ArtifactStore {
                 remove(&path)?;
             }
         }
+        let mut collection = CollectionIndex::new(&records, &candidates);
         while remaining > budget {
-            let Some(index) = candidates.iter().position(|(key, checkpoint)| {
-                *checkpoint || !records.values().any(|m| m.dependencies.contains(key))
-            }) else {
+            let Some(index) = collection.eligible.pop_first() else {
                 break;
             };
-            let (key, checkpoint) = candidates.remove(index);
+            let (key, checkpoint) = candidates[index];
             let manifest = records.remove(&(key, checkpoint)).unwrap();
+            let orphaned = collection.remove((key, checkpoint), &manifest);
             if !checkpoint {
                 remove(&self.input_directory(&manifest.input).join(hex(&key)))?;
             }
@@ -924,13 +1005,9 @@ impl ArtifactStore {
                 hex(&key),
                 u8::from(checkpoint)
             )))?;
-            for object in manifest.objects() {
-                if !pinned.objects.contains(&object.digest)
-                    && !records
-                        .values()
-                        .any(|m| m.objects().any(|o| o.digest == object.digest))
-                {
-                    let path = self.object_path(&object.digest);
+            for digest in orphaned {
+                if !pinned.objects.contains(&digest) {
+                    let path = self.object_path(&digest);
                     remaining =
                         remaining.saturating_sub(fs::metadata(&path).map(|m| m.len()).unwrap_or(0));
                     remove(&path)?;
@@ -1209,6 +1286,81 @@ mod tests {
             ..StoreManifest::default()
         }
     }
+    #[test]
+    fn collection_index_matches_oldest_eligible_scan_and_shared_object_lifetimes() {
+        fn key(n: u32) -> Fingerprint {
+            fingerprint(&n.to_le_bytes())
+        }
+        let mut records = BTreeMap::new();
+        for n in 0..64u32 {
+            let object = ObjectRef {
+                digest: key(100 + n % 7),
+                kind: ObjectKind::Result,
+                stored_bytes: 1,
+                decoded_bytes: 1,
+            };
+            let mut manifest = StoreManifest {
+                key: key(n),
+                dependencies: if n == 0 { vec![] } else { vec![key(n - 1)] },
+                results: vec![(vec![], object.clone())],
+                ..StoreManifest::default()
+            };
+            if n % 5 == 0 {
+                manifest.results.push((vec!["alias".into()], object));
+            }
+            records.insert((manifest.key, false), manifest.clone());
+            if n % 9 == 0 {
+                manifest.dependencies.push(key(n));
+                records.insert((manifest.key, true), manifest);
+            }
+        }
+        // Cycles and self references remain ineligible, just as in the full scan.
+        for (n, dependency) in [(70, 71), (71, 70), (72, 72)] {
+            records.insert(
+                (key(n), false),
+                StoreManifest {
+                    key: key(n),
+                    dependencies: vec![key(dependency)],
+                    ..StoreManifest::default()
+                },
+            );
+        }
+        // A retained root and its dependency remain outside the candidate set.
+        let protected = BTreeSet::from([(key(0), false), (key(1), false)]);
+        let mut candidates: Vec<_> = records
+            .keys()
+            .filter(|key| !protected.contains(key))
+            .copied()
+            .collect();
+        candidates.rotate_left(11);
+        let mut index = CollectionIndex::new(&records, &candidates);
+        loop {
+            let expected = candidates.iter().position(|candidate| {
+                records.contains_key(candidate)
+                    && (candidate.1
+                        || !records
+                            .values()
+                            .any(|m| m.dependencies.contains(&candidate.0)))
+            });
+            assert_eq!(index.eligible.pop_first(), expected);
+            let Some(rank) = expected else { break };
+            let record_key = candidates[rank];
+            let manifest = records.remove(&record_key).unwrap();
+            let expected_objects: BTreeSet<_> = manifest
+                .objects()
+                .map(|object| object.digest)
+                .filter(|digest| {
+                    !records
+                        .values()
+                        .any(|m| m.objects().any(|o| o.digest == *digest))
+                })
+                .collect();
+            assert_eq!(index.remove(record_key, &manifest), expected_objects);
+        }
+        assert_eq!(records.len(), protected.len() + 3);
+        assert!(protected.iter().all(|key| records.contains_key(key)));
+    }
+
     #[test]
     fn warm_store_reports_persisted_usage_without_a_write() {
         let directory = Directory::new();
@@ -1508,6 +1660,62 @@ mod tests {
         loop {
             std::thread::park_timeout(Duration::from_secs(60));
         }
+    }
+
+    #[test]
+    fn ending_under_budget_session_does_not_wait_for_collection_lock() {
+        let directory = Directory::new();
+        let store = directory.store();
+        store.session_token().unwrap();
+        fs::write(store.root.join("usage"), 0_u64.to_le_bytes()).unwrap();
+        let lock = store.lock().unwrap();
+        let (finished, completion) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            drop(store);
+            finished.send(()).unwrap();
+        });
+        let completed_without_lock = completion.recv_timeout(Duration::from_secs(2)).is_ok();
+        drop(lock);
+        worker.join().unwrap();
+        assert!(completed_without_lock);
+    }
+
+    #[test]
+    fn borrowed_session_leaves_final_collection_to_its_owner() {
+        let directory = Directory::new();
+        let supervisor = directory.store();
+        supervisor.set_budget(0);
+        supervisor.session_token().unwrap();
+        let path = supervisor
+            .lease
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .path
+            .clone();
+        let worker = directory.store();
+        worker.set_budget(0);
+        *worker.lease.lock().unwrap() = Some(Lease {
+            _file: OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&path)
+                .unwrap(),
+            path,
+            pins: Pins::default(),
+            owner: false,
+            generation: 0,
+        });
+        let writer = directory.store();
+        let record = manifest(&writer, 17);
+        writer.publish(&record).unwrap();
+        writer.release_pins().unwrap();
+        let manifest_path = writer.manifest_path(&record.key, false);
+        drop(worker);
+        assert!(manifest_path.exists());
+        drop(supervisor);
+        assert!(!manifest_path.exists());
     }
 
     #[test]

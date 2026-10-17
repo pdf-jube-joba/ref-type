@@ -1,0 +1,30 @@
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := X, B := Old] \as OldProduct;
+\import topological_constructions.Product[A := X, B := New] \as NewProduct;
+\import \root.ProductHomeomorphism[X := X, A := New, B := Old, factor := factor,
+  source := Cut.topology, target := oldTopology, e := homeomorphism] \as ProductComparison;
+\import Cut.ProductUniversal[X := X, B := B, factor := factor, target := target] \as Branches;
+\definition Branchwise(f: OldProduct.CarrierSet -> B): \Prop := \forall (i: Index) ->
+  topology.Continuity[A := Pair.Times^[X, Fiber i], B := B].Continuous
+    (topological_constructions.Product[A := X, B := Fiber i].topology factor (fiberTopology i)) target
+    (\fun (p: Pair.Times^[X, Fiber i]) => f (Pair.pair X Old (Pair.first X (Fiber i) p) (forward (Cut.injection i (Pair.second X (Fiber i) p)))));
+\import topology.Composition[A := OldProduct.CarrierSet, B := NewProduct.CarrierSet, C := B] \as Composition;
+\definition continuous: \forall (f: OldProduct.CarrierSet -> B) -> Branchwise f ->
+  topology.Continuity[A := OldProduct.CarrierSet, B := B].Continuous (OldProduct.topology factor oldTopology) target f := \block {
+  \fun (f: _)(branches: _) \then
+  \let lifted: NewProduct.CarrierSet -> B := \fun (p: NewProduct.CarrierSet) => f (ProductComparison.forward p) \then
+  \let liftedContinuous: topology.Continuity[A := NewProduct.CarrierSet, B := B].Continuous
+    (NewProduct.topology factor Cut.topology) target lifted := Branches.continuous lifted branches \then
+  \let descended: OldProduct.CarrierSet -> B := \fun (p: OldProduct.CarrierSet) => lifted (ProductComparison.backward p) \then
+  \let descendedContinuous: topology.Continuity[A := OldProduct.CarrierSet, B := B].Continuous
+    (OldProduct.topology factor oldTopology) target descended :=
+    Composition.composeContinuous (OldProduct.topology factor oldTopology) (NewProduct.topology factor Cut.topology) target
+      ProductComparison.backward lifted ProductComparison.backwardContinuous liftedContinuous \then
+  \return \idelim descended = f \with h: (OldProduct.CarrierSet -> B) =>
+    topology.Continuity[A := OldProduct.CarrierSet, B := B].Continuous (OldProduct.topology factor oldTopology) target h \by {
+      base: descendedContinuous,
+      equality: \axiom:funext(descended, f, \fun (p: OldProduct.CarrierSet) => congr!{OldProduct.CarrierSet B} f _ _
+        (#rightInverse{(topology.Homeomorphism[A := NewProduct.CarrierSet, B := OldProduct.CarrierSet]
+          .laws (NewProduct.topology factor Cut.topology) (OldProduct.topology factor oldTopology) ProductComparison.homeomorphism)} p))
+    }
+};

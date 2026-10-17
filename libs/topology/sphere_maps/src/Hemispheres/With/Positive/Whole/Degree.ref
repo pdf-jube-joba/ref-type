@@ -1,0 +1,28 @@
+\import SmallChains.Simplices[] \as SmallSimplices;
+\import Native.Map[C := WholeChains.complex, D := WholeChains.complex].At[n := k] \as WholeMaps;
+\import Native.Map[C := SmallChains.complex, D := SmallChains.complex].At[n := k] \as SmallMaps;
+\import Modules.Hom[V := WholeChains.Carrier k, W := WholeChains.Carrier k, source := WholeChains.space k, target := WholeChains.space k].Composition[U := SmallChains.Carrier k, domain := SmallChains.space k] \as Left;
+\import Modules.Hom[V := SmallChains.Carrier k, W := WholeChains.Carrier k, source := SmallChains.space k, target := WholeChains.space k].Composition[U := SmallChains.Carrier k, domain := SmallChains.space k] \as Right;
+\import Modules.Free[Generators := SmallSimplices.Carrier k].To[W := WholeChains.Carrier k, target := WholeChains.space k] \as Free;
+\import singular_cohomology.SimplicialChains[].On[X := SmallSimplices.object].Mapping[Y := SmallSimplices.object] \as SmallMapping;
+\definition squareMaps:
+  Left.compose (WholeMaps.linear (Maps.push Reflection.head Reflection.headContinuous)) SmallChains.At[n := k].inclusion =
+    Right.compose SmallChains.At[n := k].inclusion (SmallMaps.linear Action.smallMap) := Free.ext _ _
+  (\fun (sigma: SmallSimplices.Carrier k) => trans!{{WholeChains.Carrier k}} _ _ _
+    (congr!{{WholeChains.Carrier k} {WholeChains.Carrier k}} (#apply{(Maps.push Reflection.head Reflection.headContinuous)} k) _ _ (SmallChains.At[n := k].onGenerator sigma))
+    (trans!{{WholeChains.Carrier k}} _ _ _ (Maps.At[n := k].onGenerator Reflection.head Reflection.headContinuous sigma)
+      (sym!{{WholeChains.Carrier k}} _ _
+        (trans!{{WholeChains.Carrier k}} _ _ _
+          (congr!{{SmallChains.Carrier k} {WholeChains.Carrier k}} (#apply{SmallChains.At[n := k].inclusion}) _ _ (SmallMapping.At[n := k].onGenerator Action.smallSimplicialMap sigma))
+          (SmallChains.At[n := k].onGenerator (Action.smallSimplex k sigma))))));
+\definition square: \forall (x: SmallChains.Carrier k) ->
+  #apply{(Maps.push Reflection.head Reflection.headContinuous)} k (#apply{SmallChains.inclusion} k x) = #apply{SmallChains.inclusion} k (#apply{Action.smallMap} k x) :=
+  \fun (x: SmallChains.Carrier k) => congr!{{Modules.Hom[V := SmallChains.Carrier k, W := WholeChains.Carrier k, source := SmallChains.space k, target := WholeChains.space k].Map} {WholeChains.Carrier k}}
+    (\fun (f: Modules.Hom[V := SmallChains.Carrier k, W := WholeChains.Carrier k, source := SmallChains.space k, target := WholeChains.space k].Map) => #apply{f} x) _ _ squareMaps;
+
+\import Equality.Prop[A := WholeChains.Carrier k] \as WholeEquality;
+\definition signedSquare: \forall (chain: Small.Carrier (I.Int^::ofNat k)) ->
+  #apply{wholeReflection} (I.Int^::ofNat k) (#apply{Inclusion.map} (I.Int^::ofNat k) chain) =
+    #apply{Inclusion.map} (I.Int^::ofNat k) (#apply{SmallReflection.map} (I.Int^::ofNat k) chain) :=
+  \fun (chain: Small.Carrier (I.Int^::ofNat k)) =>
+    WholeEquality.congr[ExtendedWhole.Carrier (I.Int^::ofNat k)] ExtendedWhole.Positive[n := k].intro _ _ (square chain);

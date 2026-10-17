@@ -1,0 +1,26 @@
+\import \parent.First[a := a] \as FirstVanishing;
+\import \parent.Second[b := b] \as SecondVanishing;
+\definition first: FirstPrimitive a -> Vanishes firstIndex :=
+  \fun (boundary: FirstPrimitive a)(sigma: singular_cohomology.Simplices[A := A, source := left].Carrier one)
+    (tau: singular_cohomology.Simplices[A := B, source := right].Carrier zero) =>
+    FirstVanishing.law boundary (Left.generator one sigma) (Right.generator zero tau);
+\definition second: SecondPrimitive b -> Vanishes secondIndex :=
+  \fun (boundary: SecondPrimitive b)(sigma: singular_cohomology.Simplices[A := A, source := left].Carrier zero)
+    (tau: singular_cohomology.Simplices[A := B, source := right].Carrier one) =>
+    SecondVanishing.law boundary (Left.generator zero sigma) (Right.generator one tau);
+\definition tail: FirstPrimitive a -> \forall (i: Fin.Fin one) -> Vanishes (Double.fromFinite one (Fin.succ one i)) :=
+  \fun (boundary: FirstPrimitive a) => Fin.cases zero
+    (\fun (i: Fin.Fin one) => Vanishes (Double.fromFinite one (Fin.succ one i)))
+    (first boundary)
+    (\fun (i: Fin.Fin zero) => std.Logic[].Proposition[].falseElim _ (Fin.zeroImpossible i (Fin.bound zero i)));
+\definition finite: FirstPrimitive a -> SecondPrimitive b -> \forall (i: Fin.Fin two) -> Vanishes (Double.fromFinite one i) :=
+  \fun (leftBoundary: FirstPrimitive a)(rightBoundary: SecondPrimitive b) => Fin.cases one
+    (\fun (i: Fin.Fin two) => Vanishes (Double.fromFinite one i)) (second rightBoundary) (tail leftBoundary);
+\definition all: FirstPrimitive a -> SecondPrimitive b -> \forall (i: Double.Index one) -> Vanishes i :=
+  \fun (leftBoundary: FirstPrimitive a)(rightBoundary: SecondPrimitive b)(i: Double.Index one) =>
+    \idelim Double.fromFinite one (Double.finiteIndex one i) = i \with j: Double.Index one => Vanishes j \by {
+      base: finite leftBoundary rightBoundary (Double.finiteIndex one i), equality: Double.finiteIndexLeftInverse one i
+    };
+\definition zero: FirstPrimitive a -> SecondPrimitive b -> normalized phi = Linear.zeroMap :=
+  \fun (leftBoundary: FirstPrimitive a)(rightBoundary: SecondPrimitive b) =>
+    Generators.ext (normalized phi) Linear.zeroMap (all leftBoundary rightBoundary);

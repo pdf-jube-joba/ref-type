@@ -1,0 +1,24 @@
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.Cut[p := oneDegree, q := oneDegree] \as Positions;
+\import Simplices.ReindexFace[n := oneDegree] \as Face;
+\import Simplices.Reindex[m := oneDegree, n := twoDegree] \as Reindex;
+\import Natural.Basic[].Prop[] \as Bounds;
+\definition firstFace: Fin.Fin (Natural.Nat^::succ twoDegree) := Fin.zero twoDegree;
+\definition lastFace: Fin.Fin (Natural.Nat^::succ twoDegree) := Fin.succ twoDegree (Fin.succ oneDegree (Fin.zero zeroDegree));
+\definition frontAt(i: Fin.Fin twoDegree): Positions.frontIndex i = Face.skip lastFace i :=
+  sym!{Natural.Nat^} _ _ (Face.before lastFace i (Fin.bound twoDegree i));
+\definition backAt(i: Fin.Fin twoDegree): Positions.backIndex i = Face.skip firstFace i :=
+  trans!{Natural.Nat^} _ _ _ (Bounds.addSuccLeft zeroDegree i)
+    (trans!{Natural.Nat^} _ _ _
+      (congr!{Natural.Nat^ Natural.Nat^} (\fun (k: Natural.Nat^) => Natural.Nat^::succ k) _ _ (Bounds.addZeroLeft i))
+      (sym!{Natural.Nat^} _ _ (Face.after firstFace i (Bounds.zeroLe i))));
+\definition frontIndex: Positions.frontIndex = Face.skip lastFace := \axiom:funext(Positions.frontIndex, Face.skip lastFace, frontAt);
+\definition backIndex: Positions.backIndex = Face.skip firstFace := \axiom:funext(Positions.backIndex, Face.skip firstFace, backAt);
+\definition front(sigma: Simplices.Carrier twoDegree): Cut.front sigma = Simplices.face oneDegree lastFace sigma :=
+  trans!{{Simplices.Carrier oneDegree}} _ _ _
+    (congr!{Reindex.Function {Simplices.Carrier oneDegree}} (\fun (f: Reindex.Function) => Reindex.apply f sigma) _ _ frontIndex)
+    (sym!{{Simplices.Carrier oneDegree}} _ _ (Face.law lastFace sigma));
+\definition back(sigma: Simplices.Carrier twoDegree): Cut.back sigma = Simplices.face oneDegree firstFace sigma :=
+  trans!{{Simplices.Carrier oneDegree}} _ _ _
+    (congr!{Reindex.Function {Simplices.Carrier oneDegree}} (\fun (f: Reindex.Function) => Reindex.apply f sigma) _ _ backIndex)
+    (sym!{{Simplices.Carrier oneDegree}} _ _ (Face.law firstFace sigma));

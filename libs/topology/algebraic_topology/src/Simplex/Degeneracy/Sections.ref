@@ -1,0 +1,26 @@
+\import \parent.\parent.ReindexFace[n := n] \as Face;
+\import \parent.\parent.Reindex[m := n, n := N.Nat^::succ n].Composition[k := n] \as Composition;
+\import \parent.\parent.Reindex[m := n, n := n] \as End;
+\import \parent.\parent.ReindexIdentity[n := n] \as Identity;
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ (N.Nat^::succ n))].Mapping[B := Fin.Fin (N.Nat^::succ n)] \as Mapping;
+\import Repetition.Sections[] \as TupleSections;
+\definition firstIndices: \forall (i: Fin.Fin (N.Nat^::succ n)) ->
+  (\fun (j: Fin.Fin (N.Nat^::succ n)) => collapse i (Face.skip (Fin.widen (N.Nat^::succ n) i) j)) = Identity.identity :=
+  \fun (i: Fin.Fin (N.Nat^::succ n)) => trans!{End.Function} _ _ _
+    (Mapping.omitMap (N.Nat^::succ n) (Fin.widen (N.Nat^::succ n) i) (collapse i) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => j))
+    (TupleSections.first n i Identity.identity);
+\definition secondIndices: \forall (i: Fin.Fin (N.Nat^::succ n)) ->
+  (\fun (j: Fin.Fin (N.Nat^::succ n)) => collapse i (Face.skip (Fin.succ (N.Nat^::succ n) i) j)) = Identity.identity :=
+  \fun (i: Fin.Fin (N.Nat^::succ n)) => trans!{End.Function} _ _ _
+    (Mapping.omitMap (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) i) (collapse i) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => j))
+    (TupleSections.second n i Identity.identity);
+\definition first: \forall (i: Fin.Fin (N.Nat^::succ n))(x: Carrier n) -> apply i (face n (Fin.widen (N.Nat^::succ n) i) x) = x :=
+  \fun (i: Fin.Fin (N.Nat^::succ n))(x: Carrier n) => trans!{{Carrier n}} _ _ _
+    (congr!{{Carrier (N.Nat^::succ n)} {Carrier n}} (apply i) _ _ (Face.law (Fin.widen (N.Nat^::succ n) i) x))
+    (trans!{{Carrier n}} _ _ _ (Composition.law (Face.skip (Fin.widen (N.Nat^::succ n) i)) (collapse i) x)
+      (trans!{{Carrier n}} _ _ _ (congr!{End.Function {Carrier n}} (\fun (f: End.Function) => End.apply f x) _ _ (firstIndices i)) (Identity.law x)));
+\definition second: \forall (i: Fin.Fin (N.Nat^::succ n))(x: Carrier n) -> apply i (face n (Fin.succ (N.Nat^::succ n) i) x) = x :=
+  \fun (i: Fin.Fin (N.Nat^::succ n))(x: Carrier n) => trans!{{Carrier n}} _ _ _
+    (congr!{{Carrier (N.Nat^::succ n)} {Carrier n}} (apply i) _ _ (Face.law (Fin.succ (N.Nat^::succ n) i) x))
+    (trans!{{Carrier n}} _ _ _ (Composition.law (Face.skip (Fin.succ (N.Nat^::succ n) i)) (collapse i) x)
+      (trans!{{Carrier n}} _ _ _ (congr!{End.Function {Carrier n}} (\fun (f: End.Function) => End.apply f x) _ _ (secondIndices i)) (Identity.law x)));

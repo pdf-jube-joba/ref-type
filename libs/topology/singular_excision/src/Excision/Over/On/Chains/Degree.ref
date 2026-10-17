@@ -1,0 +1,35 @@
+\definition index: I.Int^ := I.Int^::ofNat n;
+\import SourceSmall.Simplices[] \as Source;
+\import TargetSmall.Simplices[] \as Target;
+\import SourceSubSmall.Simplices[] \as SourceSub;
+\import TargetSubSmall.Simplices[] \as TargetSub;
+\definition sourceInclusion: SourceSub.Carrier n -> Source.Carrier n := RemainingPair.Degree[n := n].postcompose;
+\definition targetInclusion: TargetSub.Carrier n -> Target.Carrier n := CoveredSubset.Degree[n := n].postcompose;
+\definition ambient: Source.Carrier n -> Target.Carrier n := Remaining.Degree[n := n].postcompose;
+\import Modules.Free[Generators := SourceSub.Carrier n].Reindex[TargetGenerators := Source.Carrier n].QuotientBasis[f := sourceInclusion] \as SourceBasis;
+\import Modules.Free[Generators := TargetSub.Carrier n].Reindex[TargetGenerators := Target.Carrier n].QuotientBasis[f := targetInclusion] \as TargetBasis;
+\definition SourceComplement: \Set := \Cast[Source.Carrier n] SourceBasis.Complement;
+\definition TargetComplement: \Set := \Cast[Target.Carrier n] TargetBasis.Complement;
+\import Nonnegative.SplitInjection[C := SourceSubSmall.complex, D := SourceSmall.complex].On[pair := RemainingPair.pair].Positive[n := n] \as SourceModel;
+\import Nonnegative.SplitInjection[C := TargetSubSmall.complex, D := TargetSmall.complex].On[pair := CoveredSubset.pair].Positive[n := n] \as TargetModel;
+\import Modules.Isomorphism[V := SourceBasis.Carrier, W := SourceModel.Carrier, source := SourceBasis.space, target := SourceModel.space]
+  .Composition[U := SourceQuotient.Carrier index, final := SourceQuotient.space index] \as SourceComposition;
+\import Modules.Isomorphism[V := TargetBasis.Carrier, W := TargetModel.Carrier, source := TargetBasis.space, target := TargetModel.space]
+  .Composition[U := TargetQuotient.Carrier index, final := TargetQuotient.space index] \as TargetComposition;
+\definition sourceIsomorphism: Modules.Isomorphism[V := SourceBasis.Carrier, W := SourceQuotient.Carrier index, source := SourceBasis.space, target := SourceQuotient.space index].Isomorphism :=
+  SourceComposition.compose SourceModel.isomorphism SourceBasis.isomorphism;
+\definition targetIsomorphism: Modules.Isomorphism[V := TargetBasis.Carrier, W := TargetQuotient.Carrier index, source := TargetBasis.space, target := TargetQuotient.space index].Isomorphism :=
+  TargetComposition.compose TargetModel.isomorphism TargetBasis.isomorphism;
+\definition sourceOnGenerator: \forall (sigma: SourceComplement) ->
+  #apply{#forward{sourceIsomorphism}} (SourceBasis.generator sigma) = SourceQuotient.At[k := index].class (SourceSpace.Positive[n := n].intro (SourceSmall.generator n sigma)) :=
+  \fun (sigma: SourceComplement) => trans!{{SourceQuotient.Carrier index}} _ _ _
+    (congr!{SourceModel.Carrier {SourceQuotient.Carrier index}} (#apply{#forward{SourceModel.isomorphism}}) _ _ (SourceBasis.forwardOnGenerator sigma))
+    (SourceModel.onClass (SourceSmall.generator n sigma));
+\definition targetOnGenerator: \forall (sigma: TargetComplement) ->
+  #apply{#forward{targetIsomorphism}} (TargetBasis.generator sigma) = TargetQuotient.At[k := index].class (TargetSpace.Positive[n := n].intro (TargetSmall.generator n sigma)) :=
+  \fun (sigma: TargetComplement) => trans!{{TargetQuotient.Carrier index}} _ _ _
+    (congr!{TargetModel.Carrier {TargetQuotient.Carrier index}} (#apply{#forward{TargetModel.isomorphism}}) _ _ (TargetBasis.forwardOnGenerator sigma))
+    (TargetModel.onClass (TargetSmall.generator n sigma));
+\module Range;
+\module Complement;
+\module Comparison;

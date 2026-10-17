@@ -1,0 +1,91 @@
+\use Equality.congr2;
+\import sphere_maps.Circle[].Product[] \as Geometry;
+\import Geometry.Cohomology[coefficients := Products.integerCoefficients] \as Pullbacks;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as NativeModules;
+\definition NativeCarrier: \Set := Pullbacks.Carrier;
+\definition nativeSpace: NativeModules.Space NativeCarrier := Pullbacks.space;
+\import NativeModules.Biproduct[V := I.Int^, W := I.Int^,
+  left := Products.integerCoefficients.space, right := Products.integerCoefficients.space] \as NativeCoordinates;
+\import NativeModules.Hom[V := CircleCohomology.Group one, W := NativeCarrier,
+  source := CircleGroups.space one one, target := nativeSpace]
+  .Composition[U := I.Int^, domain := Products.integerCoefficients.space] \as ForwardComposition;
+\definition firstColumn: NativeModules.Hom[V := I.Int^, W := NativeCarrier,
+  source := Products.integerCoefficients.space, target := nativeSpace].Map :=
+  ForwardComposition.compose Pullbacks.firstPull #forward{CircleTop.isomorphism};
+\definition secondColumn: NativeModules.Hom[V := I.Int^, W := NativeCarrier,
+  source := Products.integerCoefficients.space, target := nativeSpace].Map :=
+  ForwardComposition.compose Pullbacks.secondPull #forward{CircleTop.isomorphism};
+\import NativeCoordinates.Copair[U := NativeCarrier, target := nativeSpace] \as Assemble;
+\definition nativeForward: NativeModules.Hom[V := NativeCoordinates.Carrier, W := NativeCarrier,
+  source := NativeCoordinates.space, target := nativeSpace].Map := Assemble.copair firstColumn secondColumn;
+\import NativeModules.Hom[V := CircleCohomology.Group one, W := I.Int^,
+  source := CircleGroups.space one one, target := Products.integerCoefficients.space]
+  .Composition[U := NativeCarrier, domain := nativeSpace] \as BackwardComposition;
+\definition firstCoordinate: NativeModules.Hom[V := NativeCarrier, W := I.Int^,
+  source := nativeSpace, target := Products.integerCoefficients.space].Map :=
+  BackwardComposition.compose #backward{CircleTop.isomorphism} Pullbacks.firstRestriction;
+\definition secondCoordinate: NativeModules.Hom[V := NativeCarrier, W := I.Int^,
+  source := nativeSpace, target := Products.integerCoefficients.space].Map :=
+  BackwardComposition.compose #backward{CircleTop.isomorphism} Pullbacks.secondRestriction;
+\import NativeCoordinates.Universal[U := NativeCarrier, domain := nativeSpace] \as Collect;
+\definition nativeBackward: NativeModules.Hom[V := NativeCarrier, W := NativeCoordinates.Carrier,
+  source := nativeSpace, target := NativeCoordinates.space].Map := Collect.pair firstCoordinate secondCoordinate;
+\import NativeModules.Laws[V := CircleCohomology.Group one, space := CircleGroups.space one one] \as CircleLaws;
+\import algebra.Group[].Of[Carrier := CircleCohomology.Group one, group := CircleLaws.additive] \as CircleGroup;
+\definition firstEvaluation(x: NativeCoordinates.Carrier):
+  #apply{Pullbacks.firstRestriction} (#apply{nativeForward} x) =
+    #apply{#forward{CircleTop.isomorphism}} (NativeCoordinates.first x) :=
+  trans!{{CircleCohomology.Group one}} _ _ _
+    (#addition{Pullbacks.firstRestriction} (#apply{firstColumn} (NativeCoordinates.first x)) (#apply{secondColumn} (NativeCoordinates.second x)))
+    (trans!{{CircleCohomology.Group one}} _ _ _
+      (congr2!{{CircleCohomology.Group one} {CircleCohomology.Group one} {CircleCohomology.Group one}}
+        (#add{(CircleGroups.space one one)}) _ _ _ _
+        (Pullbacks.firstFirst (#apply{#forward{CircleTop.isomorphism}} (NativeCoordinates.first x)))
+        (Pullbacks.firstSecond (#apply{#forward{CircleTop.isomorphism}} (NativeCoordinates.second x))))
+      (CircleGroup.zeroRight (#apply{#forward{CircleTop.isomorphism}} (NativeCoordinates.first x))));
+\definition secondEvaluation(x: NativeCoordinates.Carrier):
+  #apply{Pullbacks.secondRestriction} (#apply{nativeForward} x) =
+    #apply{#forward{CircleTop.isomorphism}} (NativeCoordinates.second x) :=
+  trans!{{CircleCohomology.Group one}} _ _ _
+    (#addition{Pullbacks.secondRestriction} (#apply{firstColumn} (NativeCoordinates.first x)) (#apply{secondColumn} (NativeCoordinates.second x)))
+    (trans!{{CircleCohomology.Group one}} _ _ _
+      (congr2!{{CircleCohomology.Group one} {CircleCohomology.Group one} {CircleCohomology.Group one}}
+        (#add{(CircleGroups.space one one)}) _ _ _ _
+        (Pullbacks.secondFirst (#apply{#forward{CircleTop.isomorphism}} (NativeCoordinates.first x)))
+        (Pullbacks.secondSecond (#apply{#forward{CircleTop.isomorphism}} (NativeCoordinates.second x))))
+      (CircleGroup.zeroLeft (#apply{#forward{CircleTop.isomorphism}} (NativeCoordinates.second x))));
+\import Pair.Prop[A := I.Int^, B := I.Int^] \as Pairs;
+\definition leftInverse(x: NativeCoordinates.Carrier): #apply{nativeBackward} (#apply{nativeForward} x) = x :=
+  Pairs.ext _ _
+    (trans!{I.Int^} _ _ _
+      (congr!{{CircleCohomology.Group one} I.Int^} (#apply{#backward{CircleTop.isomorphism}}) _ _ (firstEvaluation x))
+      (#leftInverse{CircleTop.isomorphism} (NativeCoordinates.first x)))
+    (trans!{I.Int^} _ _ _
+      (congr!{{CircleCohomology.Group one} I.Int^} (#apply{#backward{CircleTop.isomorphism}}) _ _ (secondEvaluation x))
+      (#leftInverse{CircleTop.isomorphism} (NativeCoordinates.second x)));
+\module Detection(paths: singular_low_degree.Normalize[A := Circle, source := circleTopology, point := Geometry.point].PathFamily);
+\definition rightInverse(q: NativeCarrier): #apply{nativeForward} (#apply{nativeBackward} q) = q := \block {
+  \takefrom paths: singular_low_degree.Normalize[A := Circle, source := circleTopology, point := Geometry.point].PathFamily \by Geometry.pathsExist \then
+  \return Detection[paths := paths].law q
+};
+\import NativeModules.Biproduct[V := I.Int^, W := I.Int^,
+  left := NativeModules.scalarModule, right := NativeModules.scalarModule] \as Coordinates;
+\definition actual: NativeModules.Bundle := NativeModules.Bundle { Carrier := Cohomology.Group one, space := Cohomology.moduleSpace one };
+\definition coordinateBundle: NativeModules.Bundle := NativeModules.Bundle { Carrier := Coordinates.Carrier, space := Coordinates.space };
+\import \root.Integral[].Maps[A := coordinateBundle, B := actual] \as ForwardLinear;
+\import \root.Integral[].Maps[A := actual, B := coordinateBundle] \as BackwardLinear;
+\definition forward: NativeModules.Hom[V := Coordinates.Carrier, W := actual.Carrier,
+  source := Coordinates.space, target := actual.space].Map :=
+  ForwardLinear.fromAdditive (#apply{nativeForward}) (#addition{nativeForward});
+\definition backward: NativeModules.Hom[V := actual.Carrier, W := Coordinates.Carrier,
+  source := actual.space, target := Coordinates.space].Map :=
+  BackwardLinear.fromAdditive (#apply{nativeBackward}) (#addition{nativeBackward});
+\definition isomorphism: NativeModules.Isomorphism[V := Coordinates.Carrier, W := actual.Carrier,
+  source := Coordinates.space, target := actual.space].Isomorphism :=
+  NativeModules.Isomorphism[V := Coordinates.Carrier, W := actual.Carrier, source := Coordinates.space, target := actual.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };
+\definition onFirst: #apply{#forward{isomorphism}} (Coordinates.make I.One.specification I.Zero.specification) = a :=
+  Assemble.onLeft firstColumn secondColumn I.One.specification;
+\definition onSecond: #apply{#forward{isomorphism}} (Coordinates.make I.Zero.specification I.One.specification) = b :=
+  Assemble.onRight firstColumn secondColumn I.One.specification;

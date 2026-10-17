@@ -1,0 +1,33 @@
+\import Modules.Alternating[V := Carrier n, space := space n].Concatenation[] \as Cochains;
+\import Modules.Laws[V := Carrier n, space := space n] \as Values;
+\import algebra.Group[].Of[Carrier := Carrier n, group := Values.additive] \as Group;
+\definition apply: N.Nat^ -> Carrier n -> Carrier n := Cochains.twist;
+\definition zero: \forall (p: N.Nat^) -> apply p #zero{(space n)} = #zero{(space n)} :=
+  \induction (p: N.Nat^) \return apply p #zero{(space n)} = #zero{(space n)} \with {
+    | zero: \refl(#zero{(space n)})
+    | succ: \fun (p: N.Nat^)(previous: _) => trans!{{Carrier n}} _ _ _ (congr!{{Carrier n} {Carrier n}} (#neg{(space n)}) _ _ previous) Group.negZero
+  };
+\definition involution: \forall (p: N.Nat^)(alpha: Carrier n) -> apply p (apply p alpha) = alpha := Cochains.involution;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := Native.cochainComplex, k := n] \as Cohomology;
+\import Modules.Of[V := Carrier n, space := space n].Submodule[] \as Submodules;
+\definition preservesBoundary: \forall (p: N.Nat^)(alpha: Carrier n) -> Member n alpha -> Member n (apply p alpha) :=
+  \induction (p: N.Nat^) \return \forall (alpha: Carrier n) -> Member n alpha -> Member n (apply p alpha) \with {
+    | zero: \fun (alpha: Carrier n)(member: Member n alpha) => member
+    | succ: \fun (p: N.Nat^)(previous: _)(alpha: Carrier n)(member: Member n alpha) => Submodules.negativeClosed Cohomology.boundaries (apply p alpha) (previous alpha member)
+  };
+\definition reflectsBoundary: \forall (p: N.Nat^)(alpha: Carrier n) -> Member n (apply p alpha) -> Member n alpha :=
+  \fun (p: N.Nat^)(alpha: Carrier n)(member: Member n (apply p alpha)) =>
+    \idelim apply p (apply p alpha) = alpha \with x: Carrier n => Member n x \by {
+      base: preservesBoundary p (apply p alpha) member,
+      equality: involution p alpha
+    };
+\import Singular.Signs[n := n] \as WholeSigns;
+\definition restrictionLaw: \forall (p: N.Nat^)(alpha: Singular.Carrier n) ->
+  #apply{restriction} n (WholeSigns.apply p alpha) = apply p (#apply{restriction} n alpha) :=
+  \induction (p: N.Nat^) \return \forall (alpha: Singular.Carrier n) ->
+    #apply{restriction} n (WholeSigns.apply p alpha) = apply p (#apply{restriction} n alpha) \with {
+      | zero: \fun (alpha: Singular.Carrier n) => \refl(#apply{restriction} n alpha)
+      | succ: \fun (p: N.Nat^)(previous: \forall (alpha: Singular.Carrier n) -> #apply{restriction} n (WholeSigns.apply p alpha) = apply p (#apply{restriction} n alpha))(alpha: Singular.Carrier n) =>
+          trans!{{Carrier n}} _ _ _ (\parent.Restriction[n := n].negative (WholeSigns.apply p alpha))
+            (congr!{{Carrier n} {Carrier n}} (#neg{(space n)}) _ _ (previous alpha))
+    };

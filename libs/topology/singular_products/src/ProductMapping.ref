@@ -1,0 +1,39 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
+\import singular_cohomology.Maps[A := A, B := C, source := leftSource, target := leftTarget] \as LeftMaps;
+\import singular_cohomology.Maps[A := B, B := D, source := rightSource, target := rightTarget] \as RightMaps;
+\structure Map: \Set {
+  leftFunction: A -> C,
+  rightFunction: B -> D,
+  leftContinuous: LeftMaps.Continuous leftFunction,
+  rightContinuous: RightMaps.Continuous rightFunction,
+}
+\import topological_constructions.Product[A := A, B := B] \as Before;
+\import topological_constructions.Product[A := C, B := D] \as After;
+\definition source: topology.Topology[Carrier := Before.CarrierSet].Topology := Before.topology leftSource rightSource;
+\definition target: topology.Topology[Carrier := After.CarrierSet].Topology := After.topology leftTarget rightTarget;
+\import singular_cohomology.Maps[A := Before.CarrierSet, B := After.CarrierSet, source := source, target := target] \as ProductMaps;
+\import Before.Maps[] \as Projections;
+\import After.Universal[X := Before.CarrierSet] \as Universal;
+\import topology.Composition[A := Before.CarrierSet, B := A, C := C] \as LeftComposition;
+\import topology.Composition[A := Before.CarrierSet, B := B, C := D] \as RightComposition;
+\definition function(map: Map): Before.CarrierSet -> After.CarrierSet := Pair.map A B C D map.leftFunction map.rightFunction;
+\definition continuous(map: Map): ProductMaps.Continuous (function map) :=
+  Universal.pairContinuous source leftTarget rightTarget
+    (\fun (x: Before.CarrierSet) => map.leftFunction (Pair.first A B x))
+    (\fun (x: Before.CarrierSet) => map.rightFunction (Pair.second A B x))
+    (LeftComposition.composeContinuous source leftSource leftTarget (Pair.first A B) map.leftFunction (Projections.firstContinuous leftSource rightSource) map.leftContinuous)
+    (RightComposition.composeContinuous source rightSource rightTarget (Pair.second A B) map.rightFunction (Projections.secondContinuous leftSource rightSource) map.rightContinuous);
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\module Cross(p, q: N.Nat^, f: Map);
+\module AlexanderWhitney(p, q: N.Nat^, f: Map);

@@ -1,0 +1,16 @@
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\use Equality.trans;
+\use Equality.sym;
+\definition Indices(n: N.Nat^): \Set := Fin.Fin (N.Nat^::succ n);
+\module Between(m, n: N.Nat^);
+\module At(n: N.Nat^);
+\definition law: \forall (m, n: N.Nat^)(same: m = n)(sigma: Carrier n) ->
+  Between[m := m, n := n].apply same sigma = Transport.cast Carrier n m (sym!{N.Nat^} m n same) sigma :=
+  \fun (m, n: N.Nat^)(same: m = n) =>
+    (\idelim m = n \with k: N.Nat^ => \forall (equal: m = k)(sigma: Carrier k) ->
+      Between[m := m, n := k].apply equal sigma = Transport.cast Carrier k m (sym!{N.Nat^} m k equal) sigma \by {
+        base: \fun (equal: m = m)(sigma: Carrier m) => trans!{{Carrier m}} _ _ _
+          (At[n := m].law equal sigma)
+          (sym!{{Carrier m}} _ _ (Transport.castRefl Carrier m sigma)),
+        equality: same
+      }) same;

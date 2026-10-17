@@ -1,0 +1,28 @@
+\import \parent.At[n := n] \as Source;
+\import \parent.At[n := N.Nat^::succ n] \as Target;
+\import \parent.Restriction[] \as Restrictions;
+\definition eligible(x: Source.Carrier): Restrictions.Eligible[N.Nat^::succ n, rawDifferential x] := Restrictions.Eligible[N.Nat^::succ n, rawDifferential x] {
+  zeroth := Logic.Or[N.Nat^::succ n = N.Nat^::zero, Zeroth.zero = Zeroth.zero]::right (\refl(Zeroth.zero)),
+  first := Logic.orElim (n = N.Nat^::zero) (firstCoordinate x = Zeroth.zero)
+    (Restrictions.Allows (N.Nat^::succ n) firstDegree first (#apply{deltaZero} (firstCoordinate x)))
+    (#zeroth{(\bysub(Base, { z: Base \where Restrictions.Eligible[n, z] }, x))})
+    (\fun (same: n = N.Nat^::zero) => Logic.Or[N.Nat^::succ n = firstDegree, #apply{deltaZero} (firstCoordinate x) = First.zero]::left
+      (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ same))
+    (\fun (zero: firstCoordinate x = Zeroth.zero) => Logic.Or[N.Nat^::succ n = firstDegree, #apply{deltaZero} (firstCoordinate x) = First.zero]::right
+      (trans!{first.Carrier} _ _ _ (congr!{zeroth.Carrier first.Carrier} (#apply{deltaZero}) _ _ zero)
+        (Modules.Hom[V := zeroth.Carrier, W := first.Carrier, source := zeroth.space, target := first.space].zeroPreserved deltaZero))),
+  second := Logic.orElim (n = firstDegree) (secondCoordinate x = First.zero)
+    (Restrictions.Allows (N.Nat^::succ n) secondDegree second (#apply{deltaOne} (secondCoordinate x)))
+    (#first{(\bysub(Base, { z: Base \where Restrictions.Eligible[n, z] }, x))})
+    (\fun (same: n = firstDegree) => Logic.Or[N.Nat^::succ n = secondDegree, #apply{deltaOne} (secondCoordinate x) = Second.zero]::left
+      (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ same))
+    (\fun (zero: secondCoordinate x = First.zero) => Logic.Or[N.Nat^::succ n = secondDegree, #apply{deltaOne} (secondCoordinate x) = Second.zero]::right
+      (trans!{second.Carrier} _ _ _ (congr!{first.Carrier second.Carrier} (#apply{deltaOne}) _ _ zero)
+        (Modules.Hom[V := first.Carrier, W := second.Carrier, source := first.space, target := second.space].zeroPreserved deltaOne))),
+};
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (x: Source.Carrier) => \into[Base](rawDifferential x, { z: Base \where Restrictions.Eligible[N.Nat^::succ n, z] }) \by { eligible x },
+  addition := \fun (x, y: Source.Carrier) => #addition{rawMap} x y,
+  scalar := \fun (a: I.Int^)(x: Source.Carrier) => #scalar{rawMap} a x,
+};

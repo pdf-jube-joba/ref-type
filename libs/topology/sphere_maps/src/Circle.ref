@@ -1,0 +1,64 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import complex.Complex[] \as Complex;
+\import Complex.Def[] \as Operations;
+\import Complex.Prop[] \as ComplexLaws;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import topological_algebra.Complex[] \as Plane;
+\import topology.Topology[Carrier := Complex.Complex] \as Space;
+\definition unit: \Pow Complex.Complex := { z: Complex.Complex \where Operations.normSq z = Real.one };
+\import Space.Subspace[S := unit] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Plane.topology;
+\definition norm: \forall (z: Carrier) -> Operations.normSq z = Real.one :=
+  \fun (z: Carrier) => \bysub(Complex.Complex, unit, z);
+\definition oneNorm: Operations.normSq Operations.one = Real.one :=
+  trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (Laws.fieldMulOneLeft Real.one) (Laws.fieldMulZeroLeft Real.zero))
+    (Laws.addZeroRight Real.one);
+\definition identity: Carrier := \into[Complex.Complex](Operations.one, unit) \by { oneNorm };
+\definition multiply(z, w: Carrier): Carrier :=
+  \into[Complex.Complex](Operations.mul z w, unit) \by {
+    trans!{Real.Real} _ _ _ (ComplexLaws.normSqMul z w)
+      (trans!{Real.Real} _ _ _
+        (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (norm z) (norm w))
+        (Laws.fieldMulOneLeft Real.one))
+  };
+\definition inverse(z: Carrier): Carrier :=
+  \into[Complex.Complex](Operations.conj z, unit) \by {
+    trans!{Real.Real} _ _ _ (ComplexLaws.normSqConj z) (norm z)
+  };
+\definition associative: \forall (z, w, u: Carrier) -> multiply (multiply z w) u = multiply z (multiply w u) :=
+  \fun (z, w, u: Carrier) => ComplexLaws.mulAssoc z w u;
+\definition leftIdentity: \forall (z: Carrier) -> multiply identity z = z :=
+  \fun (z: Carrier) => ComplexLaws.mulOneLeft z;
+\definition rightIdentity: \forall (z: Carrier) -> multiply z identity = z :=
+  \fun (z: Carrier) => ComplexLaws.mulOneRight z;
+\definition commutative: \forall (z, w: Carrier) -> multiply z w = multiply w z :=
+  \fun (z, w: Carrier) => ComplexLaws.mulComm z w;
+\definition leftInverse: \forall (z: Carrier) -> multiply (inverse z) z = identity :=
+  \fun (z: Carrier) => trans!{Complex.Complex} _ _ _ (ComplexLaws.conjMulSelf z)
+    (congr!{Real.Real Complex.Complex} Operations.ofReal _ _ (norm z));
+\definition rightInverse: \forall (z: Carrier) -> multiply z (inverse z) = identity :=
+  \fun (z: Carrier) => trans!{Carrier} _ _ _ (commutative z (inverse z)) (leftInverse z);
+\definition inverseInvolutive: \forall (z: Carrier) -> inverse (inverse z) = z :=
+  \fun (z: Carrier) => ComplexLaws.conjConj z;
+\module Functions(A: \Set);
+\module Coordinates;
+\module Translations;
+\module Antipodal;
+\module Product;
+\module Inversion;
+\module Powers;
+\module Roots;
+\module Quotient;

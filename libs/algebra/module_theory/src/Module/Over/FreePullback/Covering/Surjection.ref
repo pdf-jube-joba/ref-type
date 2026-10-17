@@ -1,0 +1,38 @@
+\use Logic.either;
+\import Modules.Of[V := W.Carrier, space := W.space].Submodule[] \as Submodules;
+\import Submodules.Image[U := Sum.Carrier, source := Sum.space] \as Images;
+\definition Image(y: W.Carrier): \Prop := \In[W.Carrier] (Images.Points projection) y;
+\import Modules.End[V := W.Carrier, space := W.space] \as Identity;
+\import Modules.Hom[V := W.Carrier, W := W.Carrier, source := W.space, target := W.space] \as End;
+\definition onLeft: \forall (x: Left) -> Image (W.generator (leftFunction x)) :=
+  \fun (x: Left) => Logic.existsIntro[Sum.Carrier, { y: Sum.Carrier \where #apply{projection} y = W.generator (leftFunction x) }]
+    (Sum.make (L.generator x) RightGroup.zero)
+    (trans!{W.Carrier} _ _ _ (congr!{W.Carrier W.Carrier} (WholeGroup.add (#apply{(LeftPush.push leftFunction)} (L.generator x))) _ _
+      (RightMaps.zeroPreserved (RightPush.push rightFunction)))
+      (trans!{W.Carrier} _ _ _ (WholeGroup.zeroRight (#apply{(LeftPush.push leftFunction)} (L.generator x))) (LeftPush.onGenerator leftFunction x)));
+\import Modules.Hom[V := L.Carrier, W := W.Carrier, source := L.space, target := W.space] \as LeftMaps;
+\definition onRight: \forall (x: Right) -> Image (W.generator (rightFunction x)) :=
+  \fun (x: Right) => Logic.existsIntro[Sum.Carrier, { y: Sum.Carrier \where #apply{projection} y = W.generator (rightFunction x) }]
+    (Sum.make LeftGroup.zero (V.generator x))
+    (trans!{W.Carrier} _ _ _ (congr!{W.Carrier W.Carrier} (\fun (w: W.Carrier) => WholeGroup.add w (#apply{(RightPush.push rightFunction)} (V.generator x))) _ _
+      (LeftMaps.zeroPreserved (LeftPush.push leftFunction)))
+      (trans!{W.Carrier} _ _ _ (WholeGroup.zeroLeft (#apply{(RightPush.push rightFunction)} (V.generator x))) (RightPush.onGenerator rightFunction x)));
+\definition onGenerator: \forall (w: Whole) -> Image (W.generator w) :=
+  \fun (w: Whole) => either!{{(#covered{unionLaws} w)} {Image (W.generator w)}
+    {\block {
+      \fun (exists: \exists { x: Left \where leftFunction x = w }) \then
+      \takefrom x: \Cast[Left] ({ x: Left \where leftFunction x = w }) \by exists \then
+      \return \idelim leftFunction x = w \with z: Whole => Image (W.generator z) \by {
+        base: onLeft x, equality: \bysub(Left, { x: Left \where leftFunction x = w }, x)
+      }
+    }}
+    {\block {
+      \fun (exists: \exists { x: Right \where rightFunction x = w }) \then
+      \takefrom x: \Cast[Right] ({ x: Right \where rightFunction x = w }) \by exists \then
+      \return \idelim rightFunction x = w \with z: Whole => Image (W.generator z) \by {
+        base: onRight x, equality: \bysub(Right, { x: Right \where rightFunction x = w }, x)
+      }
+    }}
+  };
+\definition onto: \forall (w: W.Carrier) -> Image w :=
+  W.Induction[].Into[W := W.Carrier, target := W.space].law Identity.identity (Images.image projection) onGenerator;

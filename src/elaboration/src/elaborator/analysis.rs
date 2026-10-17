@@ -217,7 +217,7 @@ impl GlobalEnvironment {
                         location: location.clone(),
                         ty: Some(constructor_type(env, *inductive, 0)),
                     });
-                    for (field, definition) in associated_definitions {
+                    for (field, definition) in associated_definitions.iter() {
                         self.analysis.declarations.push(Declaration {
                             module: module.clone(),
                             name: format!("{name}::{field}"),
@@ -242,7 +242,7 @@ impl GlobalEnvironment {
                             ty: Some(program_constructor_type(env, *inductive, index)),
                         });
                     }
-                    for (field, definition) in associated_definitions {
+                    for (field, definition) in associated_definitions.iter() {
                         self.analysis.declarations.push(Declaration {
                             module: module.clone(),
                             name: format!("{name}::{field}"),

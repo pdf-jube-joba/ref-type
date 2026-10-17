@@ -1,0 +1,27 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\import \parent.\parent.Layer[n := n] \as Pair;
+\import Pair.Homology[z := degree] \as Relative;
+\import \parent.\parent.Cellular[] \as Cellular;
+\import \parent.\parent.Filtration[].Stage[limit := n] \as Lower;
+\import \parent.\parent.Filtration[].Stage[limit := N.Nat^::succ n] \as Upper;
+\import singular_cohomology.Chains[A := Lower.Carrier, source := Lower.topology] \as LowerChains;
+\import singular_cohomology.Chains[A := Upper.Carrier, source := Upper.topology] \as UpperChains;
+\import Nonnegative.ZeroExtension[C := LowerChains.complex] \as LowerExtension;
+\import Nonnegative.ZeroExtension[C := UpperChains.complex] \as UpperExtension;
+\import Complexes.Map[C := LowerExtension.complex, D := UpperExtension.complex].At[k := degree] \as Inclusion;
+\import Modules.Hom[V := homology (N.Nat^::succ n) degree, W := Cellular.Carrier n,
+  source := space (N.Nat^::succ n) degree, target := Cellular.space n] \as Projection;
+\import Modules.Hom[V := homology n degree, W := homology (N.Nat^::succ n) degree,
+  source := space n degree, target := space (N.Nat^::succ n) degree] \as Included;
+\definition kernel: \forall (q: homology (N.Nat^::succ n) degree) -> #apply{Relative.projection} q = #zero{(Cellular.space n)} ->
+  q = #zero{(space (N.Nat^::succ n) degree)} := \block {
+  \fun (q: homology (N.Nat^::succ n) degree)(zero: _) \then
+  \takefrom p: \Cast[homology n degree] ({ p: homology n degree \where #apply{(Inclusion.induced Pair.inclusion)} p = q }) \by Relative.exactAtSpace q zero \then
+  \return trans!{{homology (N.Nat^::succ n) degree}} _ _ _
+    (sym!{{homology (N.Nat^::succ n) degree}} _ _ (\bysub(homology n degree, { p: homology n degree \where #apply{(Inclusion.induced Pair.inclusion)} p = q }, p)))
+    (trans!{{homology (N.Nat^::succ n) degree}} _ _ _
+      (congr!{{homology n degree} {homology (N.Nat^::succ n) degree}} (#apply{(Inclusion.induced Pair.inclusion)}) _ _ (above n n (Nat.leRefl n) p))
+      (Included.zeroPreserved (Inclusion.induced Pair.inclusion)))
+};
+\definition projectionInjective: \forall (q, r: homology (N.Nat^::succ n) degree) ->
+  #apply{Relative.projection} q = #apply{Relative.projection} r -> q = r := Projection.injectiveOfZeroKernel Relative.projection kernel;

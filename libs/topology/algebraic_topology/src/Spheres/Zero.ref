@@ -1,0 +1,84 @@
+\import Euclidean.Dimension[n := N.Nat^::succ N.Nat^::zero] \as Line;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.SquareRoot[] \as Root;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import N.Basic[].Prop[] \as Natural;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition index: Line.Index := Fin.zero N.Nat^::zero;
+\definition indexUnique: \forall (i: Line.Index) -> i = index := Fin.cases N.Nat^::zero
+  (\fun (i: Line.Index) => i = index) (\refl(index))
+  (\fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition normValue: \forall (x: Line.Coordinate) -> Line.normSquared x = Real.mul (x index) (x index) :=
+  \fun (x: Line.Coordinate) => Laws.addZeroRight (Real.mul (x index) (x index));
+\definition north: Carrier N.Nat^::zero := \into[Line.Coordinate]((\fun (_: Line.Index) => Real.one), Line.Boundary) \by {
+  trans!{Real.Real} _ _ _ (normValue (\fun (_: Line.Index) => Real.one)) (Laws.fieldMulOneLeft Real.one)
+};
+\definition south: Carrier N.Nat^::zero := \into[Line.Coordinate]((\fun (_: Line.Index) => Real.neg Real.one), Line.Boundary) \by {
+  trans!{Real.Real} _ _ _ (normValue (\fun (_: Line.Index) => Real.neg Real.one))
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth Real.one Real.one) (Laws.fieldMulOneLeft Real.one))
+};
+\definition squareValue: \forall (x: Carrier N.Nat^::zero) -> Real.mul (x index) (x index) = Real.one :=
+  \fun (x: Carrier N.Nat^::zero) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normValue x))
+    (\bysub(Line.Coordinate, Line.Boundary, x));
+\definition negativeNonnegative: \forall (x: Real.Real) -> R.Le x Real.zero -> R.Le Real.zero (Real.neg x) :=
+  \fun (x: Real.Real)(nonpositive: _) => R.leReplaceLeft (Real.neg Real.zero) Real.zero (Real.neg x) Laws.negZero
+    (Laws.negAntitone x Real.zero nonpositive);
+\definition onePositive: R.Lt Real.zero Real.one := Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne;
+\definition negativeOneNonpositive: R.Le (Real.neg Real.one) Real.zero :=
+  R.leReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero
+    (Laws.negAntitone Real.zero Real.one Laws.oneNonnegative);
+\definition negativeOneNegative: R.Lt (Real.neg Real.one) Real.zero :=
+  R.ltReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero
+    (Laws.negStrictAntitone Real.zero Real.one onePositive);
+\definition roots: \forall (r: Real.Real) -> Real.mul r r = Real.one -> Logic.Or[r = Real.one, r = Real.neg Real.one] :=
+  \fun (r: Real.Real)(square: _) => either!{{(Order.leTotal Real.zero r)} {Logic.Or[r = Real.one, r = Real.neg Real.one]}
+    {\fun (nonnegative: _) => Logic.Or[_, _]::left (Root.squaresInjective r Real.one nonnegative Laws.oneNonnegative
+      (trans!{Real.Real} _ _ _ square (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft Real.one))))}
+    {\fun (nonpositive: _) => Logic.Or[_, _]::right (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.negInvolutive r))
+      (congr!{Real.Real Real.Real} Real.neg _ _ (Root.squaresInjective (Real.neg r) Real.one (negativeNonnegative r nonpositive) Laws.oneNonnegative
+        (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth r r)
+          (trans!{Real.Real} _ _ _ square (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft Real.one)))))))}
+  };
+\definition ext: \forall (x, y: Carrier N.Nat^::zero) -> x index = y index -> x = y :=
+  \fun (x, y: Carrier N.Nat^::zero)(equal: _) => \axiom:funext(x, y,
+    \fun (i: Line.Index) => trans!{Real.Real} _ _ _ (congr!{Line.Index Real.Real} x _ _ (indexUnique i))
+      (trans!{Real.Real} _ _ _ equal (sym!{Real.Real} _ _ (congr!{Line.Index Real.Real} y _ _ (indexUnique i)))));
+\definition cases: \forall (x: Carrier N.Nat^::zero) -> Logic.Or[x = north, x = south] :=
+  \fun (x: Carrier N.Nat^::zero) => either!{{(roots (x index) (squareValue x))} {Logic.Or[x = north, x = south]}
+    {\fun (equal: _) => Logic.Or[_, _]::left (ext x north equal)}
+    {\fun (equal: _) => Logic.Or[_, _]::right (ext x south equal)}};
+\definition distinct: Logic.Not (north = south) := \fun (equal: _) =>
+  R.ltNotLeReverse Real.zero Real.one onePositive
+    (R.leReplaceLeft (Real.neg Real.one) Real.one Real.zero
+      (sym!{Real.Real} _ _ (congr!{{Carrier N.Nat^::zero} Real.Real} (\fun (x: Carrier N.Nat^::zero) => x index) _ _ equal)) negativeOneNonpositive);
+\inductive Point: \Set := | positive: Point | negative: Point;
+\import topology.Topology[Carrier := Point] \as Points;
+\definition discrete: Points.Topology := Points.Discrete;
+\definition forward: Point -> Carrier N.Nat^::zero := \induction (p: Point) \return Carrier N.Nat^::zero \with {
+  | positive: north
+  | negative: south
+};
+\import topology.Homeomorphism[A := Point, B := Carrier N.Nat^::zero] \as Homeomorphisms;
+\import Homeomorphisms.OfQuotient[f := forward] \as Inverse;
+\definition injective: Inverse.Injective := \induction (p: Point) \return \forall (q: Point) -> forward p = forward q -> p = q \with {
+  | positive: \induction (q: Point) \return north = forward q -> Point::positive = q \with {
+    | positive: \fun (equal: _) => \refl(Point::positive)
+    | negative: \fun (equal: _) => Logic.falseElim _ (distinct equal)
+  }
+  | negative: \induction (q: Point) \return south = forward q -> Point::negative = q \with {
+    | positive: \fun (equal: _) => Logic.falseElim _ (distinct (sym!{{Carrier N.Nat^::zero}} _ _ equal))
+    | negative: \fun (equal: _) => \refl(Point::negative)
+  }
+};
+\definition onto: Inverse.Onto := \fun (x: Carrier N.Nat^::zero) => either!{{(cases x)} {\exists { p: Point \where forward p = x }}
+  {\fun (equal: _) => Logic.existsIntro[Point, { p: Point \where forward p = x }] Point::positive (sym!{{Carrier N.Nat^::zero}} _ _ equal)}
+  {\fun (equal: _) => Logic.existsIntro[Point, { p: Point \where forward p = x }] Point::negative (sym!{{Carrier N.Nat^::zero}} _ _ equal)}};
+\module Topology;

@@ -1,0 +1,28 @@
+\import \parent.At[m := m] \as Lower;
+\import \parent.At[m := N.Nat^::succ m] \as Higher;
+\import Simplex.Affine[m := m, n := p] \as LeftAffine;
+\import Simplex.Affine[m := m, n := q] \as RightAffine;
+\import Simplex.Affine[m := N.Nat^::succ m, n := p] \as LeftHigher;
+\import Simplex.Affine[m := N.Nat^::succ m, n := q] \as RightHigher;
+\import Simplex.AffineFaces[m := m, n := p] \as LeftFaces;
+\import Simplex.AffineFaces[m := m, n := q] \as RightFaces;
+\import Fin.Tuples[A := Points].Mapping[B := Simplex.Carrier p] \as LeftMapping;
+\import Fin.Tuples[A := Points].Mapping[B := Simplex.Carrier q] \as RightMapping;
+\import Pair.Prop[A := Simplex.Carrier p, B := Simplex.Carrier q] \as Pairs;
+\definition left: \forall (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m)))(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) ->
+  LeftHigher.apply (Higher.leftVertices v) (Simplex.face m i x) = LeftAffine.apply (Lower.leftVertices (Omission.omit (N.Nat^::succ m) i v)) x :=
+  \fun (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m)))(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) =>
+    trans!{{Simplex.Carrier p}} _ _ _ (LeftFaces.law (Higher.leftVertices v) i x)
+      (congr!{LeftAffine.Vertices {Simplex.Carrier p}} (\fun (w: LeftAffine.Vertices) => LeftAffine.apply w x) _ _
+        (sym!{LeftAffine.Vertices} _ _ (LeftMapping.omitMap (N.Nat^::succ m) i (\fun (z: Points) => #left{z}) v)));
+\definition right: \forall (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m)))(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) ->
+  RightHigher.apply (Higher.rightVertices v) (Simplex.face m i x) = RightAffine.apply (Lower.rightVertices (Omission.omit (N.Nat^::succ m) i v)) x :=
+  \fun (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m)))(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)))(x: Simplex.Carrier m) =>
+    trans!{{Simplex.Carrier q}} _ _ _ (RightFaces.law (Higher.rightVertices v) i x)
+      (congr!{RightAffine.Vertices {Simplex.Carrier q}} (\fun (w: RightAffine.Vertices) => RightAffine.apply w x) _ _
+        (sym!{RightAffine.Vertices} _ _ (RightMapping.omitMap (N.Nat^::succ m) i (\fun (z: Points) => #right{z}) v)));
+\definition law: \forall (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m)))(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m))) ->
+  Simplices.face m i (Higher.onTuple v) = Lower.onTuple (Omission.omit (N.Nat^::succ m) i v) :=
+  \fun (v: Tuples.Tuple (N.Nat^::succ (N.Nat^::succ m)))(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m))) =>
+    Simplices.ext m (Simplices.face m i (Higher.onTuple v)) (Lower.onTuple (Omission.omit (N.Nat^::succ m) i v))
+      (\fun (x: Simplex.Carrier m) => Pairs.ext (Higher.affine v (Simplex.face m i x)) (Lower.affine (Omission.omit (N.Nat^::succ m) i v) x) (left v i x) (right v i x));

@@ -1,0 +1,29 @@
+\import \parent.Flow[] \as Flow;
+\import \parent.Continuity[] \as Continuous;
+\import algebraic_topology.Homotopy[A := Region, B := Region] \as Homotopies;
+\import algebraic_topology.Cylinder[A := Region] \as Cylinder;
+\definition endpoint(p: Region): Region := Flow.apply Interval.end p;
+\definition homotopy: Homotopies.Homotopy[regionTopology, regionTopology, (\fun (p: Region) => p), endpoint] :=
+  \into[Homotopies.Family](Continuous.family, Homotopies.Homotopy[regionTopology, regionTopology, (\fun (p: Region) => p), endpoint]) \by {
+    Homotopies.Laws[regionTopology, regionTopology, (\fun (p: Region) => p), endpoint, Continuous.family] {
+      continuous := Continuous.continuous, start := Flow.start, end := \fun (p: Region) => \refl(endpoint p),
+    }
+  };
+\definition relativeHomotopy: Homotopies.RelativeHomotopy[regionTopology, regionTopology, Flow.Base, (\fun (p: Region) => p), endpoint] :=
+  \into[Homotopies.Family](homotopy, Homotopies.RelativeHomotopy[regionTopology, regionTopology, Flow.Base, (\fun (p: Region) => p), endpoint]) \by {
+    Homotopies.RelativeLaws[regionTopology, regionTopology, Flow.Base, (\fun (p: Region) => p), endpoint, homotopy] {
+      homotopy := Homotopies.laws regionTopology regionTopology (\fun (p: Region) => p) endpoint homotopy,
+      fixed := Flow.fixed,
+    }
+  };
+\import topology.Topology[Carrier := Region].Subspace[S := Flow.Base] \as BaseSpace;
+\definition retraction(p: Region): BaseSpace.CarrierSet := \into[Region](endpoint p, Flow.Base) \by { Flow.endInBase p };
+\import topology.Continuity[A := Region, B := Region].Corestriction[S := Flow.Base] \as Into;
+\definition retractionContinuous: topology.Continuity[A := Region, B := BaseSpace.CarrierSet].Continuous regionTopology (BaseSpace.topology regionTopology) retraction :=
+  Into.corestrictContinuous regionTopology regionTopology retraction (Homotopies.endContinuous regionTopology regionTopology (\fun (p: Region) => p) endpoint homotopy);
+\import algebraic_topology.DeformationRetract[A := Region, source := regionTopology, subset := Flow.Base] \as Deformations;
+\definition deformation: Deformations.Data := Deformations.Data {
+  retraction := retraction, continuous := retractionContinuous,
+  retracts := \fun (p: BaseSpace.CarrierSet) => Flow.fixed Interval.end p (\bysub(Region, Flow.Base, p)),
+  homotopy := relativeHomotopy,
+};

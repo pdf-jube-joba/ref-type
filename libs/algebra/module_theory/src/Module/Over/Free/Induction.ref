@@ -1,0 +1,19 @@
+\import std.Set[].Quotient[A := Expressions.Expression, Equivalent := Presented.Equivalent] \as Quotient;
+\use Equality.transport;
+\definition law: \forall (P: Carrier -> \Prop) -> P (#zero{space}) -> (\forall (s: Generators) -> P (generator s)) ->
+  (\forall (x, y: Carrier) -> P x -> P y -> P (#add{space} x y)) ->
+  (\forall (x: Carrier) -> P x -> P (#neg{space} x)) -> (\forall (a: R)(x: Carrier) -> P x -> P (#smul{space} a x)) -> \forall (x: Carrier) -> P x :=
+  \fun (P: Carrier -> \Prop)(zero: P (#zero{space}))(generators: \forall (s: Generators) -> P (generator s))
+    (addition: \forall (x, y: Carrier) -> P x -> P y -> P (#add{space} x y))(negative: \forall (x: Carrier) -> P x -> P (#neg{space} x))
+    (scalar: \forall (a: R)(x: Carrier) -> P x -> P (#smul{space} a x)) => Quotient.induction P
+      (\induction (e: Expressions.Expression) \return P (Presented.class e) \with {
+        | zero: zero
+        | generator: generators
+        | sum: \fun (e: Expressions.Expression)(left: P (Presented.class e))(f: Expressions.Expression)(right: P (Presented.class f)) =>
+            transport!{Carrier} P _ _ (Presented.addClass e f) (addition (Presented.class e) (Presented.class f) left right)
+        | negative: \fun (e: Expressions.Expression)(previous: P (Presented.class e)) =>
+            transport!{Carrier} P _ _ (Presented.negClass e) (negative (Presented.class e) previous)
+        | scale: \fun (a: R)(e: Expressions.Expression)(previous: P (Presented.class e)) =>
+            transport!{Carrier} P _ _ (Presented.scaleClass a e) (scalar a (Presented.class e) previous)
+      });
+\module Into(W: \Set, target: Space W);

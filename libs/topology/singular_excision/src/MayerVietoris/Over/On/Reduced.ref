@@ -1,0 +1,49 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Top.Finite[] \as Finite;
+\import Top.Closure[] \as Closure;
+\import Top.Interior[] \as Interior;
+\import Top.Subspace[S := left] \as LeftTopology;
+\import Top.Subspace[S := right] \as RightTopology;
+\definition Left: \Set := LeftTopology.CarrierSet;
+\definition Right: \Set := RightTopology.CarrierSet;
+\definition intersection: \Pow Left := { x: Left \where Top.Member right x };
+\import topology.Topology[Carrier := Left].Subspace[S := intersection] \as IntersectionTopology;
+\definition Intersection: \Set := IntersectionTopology.CarrierSet;
+\import algebraic_topology.Contraction[A := Left, source := LeftTopology.topology source] \as LeftContractions;
+\import algebraic_topology.Contraction[A := Right, source := RightTopology.topology source] \as RightContractions;
+\definition removed: \Pow A := Top.Complement left;
+\definition remaining: \Pow A := Top.Complement removed;
+\import Top.Subspace[S := remaining] \as RemainingTopology;
+\definition Remaining: \Set := RemainingTopology.CarrierSet;
+\definition trace: \Pow Remaining := { x: Remaining \where Top.Member right x };
+\import topology.Topology[Carrier := Remaining].Subspace[S := trace] \as TraceTopology;
+\definition intoRemaining: Top.Subset left remaining :=
+  \fun (x: A)(member: Top.Member left x)(outside: Top.Member removed x) => outside member;
+\definition intoLeft: Top.Subset remaining left :=
+  \fun (x: A)(member: Top.Member remaining x) => Finite.doubleNegElim (Top.Member left x) member;
+\import LeftTopology.Equivalent[T := remaining] \as Equivalent;
+\definition homeomorphism: topology.Homeomorphism[A := Left, B := Remaining].Homeomorphism[LeftTopology.topology source, RemainingTopology.topology source] :=
+  Equivalent.homeomorphism source intoRemaining intoLeft;
+\import singular_cohomology.Relative[A := Left, source := LeftTopology.topology source, subset := intersection] \as Local;
+\import singular_cohomology.Relative[A := A, source := source, subset := right] \as Global;
+\import Local.Homeomorphism[B := Remaining].Over[target := RemainingTopology.topology source, targetSubset := trace] \as Pairs;
+\definition pairHomeomorphism: Pairs.Data := Pairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (x: Local.SubspaceCarrier) => \bysub(Left, intersection, x),
+  backwardPreserves := \fun (x: TraceTopology.CarrierSet) => \bysub(Remaining, trace, x),
+};
+\import \root.Excision[A := A].Over[source := source] \as Excision;
+\definition excision: Excision.Pair := \into[Excision.PairData](Excision.PairData { subset := right, removed := removed }, Excision.Pair) \by {
+  \fun (x: A)(member: Top.Member (Closure.closure source removed) x) =>
+    Interior.greatest source right right (#rightOpen{(laws cover)}) (\fun (y: A)(inside: Top.Member right y) => inside) x
+      (either!{{(#covered{(laws cover)} x)} {Top.Member right x}
+        {\fun (inside: Top.Member left x) => Logic.falseElim (Top.Member right x)
+          (Closure.least source removed removed (Finite.openComplementClosed source left (#leftOpen{(laws cover)}))
+            (\fun (y: A)(outside: Top.Member removed y) => outside) x member inside)}
+        {\fun (inside: Top.Member right x) => inside}
+      })
+};
+\module With(coefficients: Modules.Bundle);
+\module Homology(z: I.Int^);

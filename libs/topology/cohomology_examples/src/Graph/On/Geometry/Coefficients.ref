@@ -1,0 +1,62 @@
+\import \parent.Indexing[] \as Index;
+\import \root.Graph[components := components, forestEdges := forestEdges, chords := chords].On[graph := graph].With[A := A] \as Original;
+\import Modules.Laws[V := A.Carrier, space := A.space] \as Values;
+\import algebra.Group[].Of[Carrier := A.Carrier, group := Values.additive] \as Group;
+\import Modules.Functions[X := Index.Vertices, V := A.Carrier, target := A.space] \as VertexFunctions;
+\import Modules.Functions[X := Index.Edges, V := A.Carrier, target := A.space] \as EdgeFunctions;
+\definition zeroth: Modules.Bundle := Modules.Bundle { Carrier := VertexFunctions.Carrier, space := VertexFunctions.space };
+\definition first: Modules.Bundle := Modules.Bundle { Carrier := EdgeFunctions.Carrier, space := EdgeFunctions.space };
+\definition delta(f: VertexFunctions.Carrier): EdgeFunctions.Carrier := \fun (e: Index.Edges) => Group.difference (f (Index.last e)) (f (Index.first e));
+\import Modules.Hom[V := VertexFunctions.Carrier, W := EdgeFunctions.Carrier, source := VertexFunctions.space, target := EdgeFunctions.space] \as Differentials;
+\definition differential: Differentials.Map := Differentials.Map {
+  apply := delta,
+  addition := \fun (f, g: VertexFunctions.Carrier) => EdgeFunctions.ext (delta (VertexFunctions.add f g)) (EdgeFunctions.add (delta f) (delta g))
+    (\fun (e: Index.Edges) => Group.differenceAdd (f (Index.last e)) (g (Index.last e)) (f (Index.first e)) (g (Index.first e))),
+  scalar := \fun (a: I.Int^)(f: VertexFunctions.Carrier) => EdgeFunctions.ext (delta (VertexFunctions.scale a f)) (EdgeFunctions.scale a (delta f))
+    (\fun (e: Index.Edges) => sym!{A.Carrier} _ _ (Values.scaleDifference a (f (Index.last e)) (f (Index.first e)))),
+};
+\import Modules.Zero[] \as Zero;
+\definition last: Modules.Bundle := Modules.Bundle { Carrier := Zero.Carrier, space := Zero.moduleSpace };
+\import \root.Truncated[].Over[zeroth := zeroth, first := first, second := last] \as Local;
+\definition upper: Modules.Hom[V := EdgeFunctions.Carrier, W := Zero.Carrier, source := EdgeFunctions.space, target := Zero.moduleSpace].Map :=
+  Modules.Hom[V := EdgeFunctions.Carrier, W := Zero.Carrier, source := EdgeFunctions.space, target := Zero.moduleSpace].zeroMap;
+\import Local.On[deltaZero := differential, deltaOne := upper, square := \fun (f: VertexFunctions.Carrier) => \refl(Zero.Carrier::zero)] \as Model;
+\definition liftVertex(f: Original.zeroth.Carrier): VertexFunctions.Carrier := \induction (v: Index.Vertices) \return A.Carrier \with {
+  | inl: f
+  | inr: \induction (v: Sums.Sum[Edge, Edge]) \return A.Carrier \with {
+      | inl: \fun (e: Edge) => f (source e)
+      | inr: \fun (e: Edge) => f (source e)
+    }
+};
+\definition restrictVertex(f: VertexFunctions.Carrier): Original.zeroth.Carrier := \fun (v: Vertex) => f (Index.vertex v);
+\definition liftEdge(f: Original.first.Carrier): EdgeFunctions.Carrier := \induction (e: Index.Edges) \return A.Carrier \with {
+  | inl: \fun (e: Edge) => Values.zero
+  | inr: \induction (e: Sums.Sum[Edge, Edge]) \return A.Carrier \with {
+      | inl: \fun (e: Edge) => Values.zero
+      | inr: \fun (e: Edge) => Values.neg (f e)
+    }
+};
+\definition restrictEdge(f: EdgeFunctions.Carrier): Original.first.Carrier := \fun (e: Edge) =>
+  Group.difference (Values.add (f (Index.initialEdge e)) (f (Index.middleEdge e))) (f (Index.terminalEdge e));
+\definition primitive(f: EdgeFunctions.Carrier): VertexFunctions.Carrier := \induction (v: Index.Vertices) \return A.Carrier \with {
+  | inl: \fun (v: Vertex) => Values.zero
+  | inr: \induction (v: Sums.Sum[Edge, Edge]) \return A.Carrier \with {
+      | inl: \fun (e: Edge) => f (Index.initialEdge e)
+      | inr: \fun (e: Edge) => Values.add (f (Index.initialEdge e)) (f (Index.middleEdge e))
+    }
+};
+\module Additivity;
+\import \root.Integral[].Maps[A := Original.zeroth, B := zeroth] \as LiftVertexLinear;
+\import \root.Integral[].Maps[A := zeroth, B := Original.zeroth] \as RestrictVertexLinear;
+\import \root.Integral[].Maps[A := Original.first, B := first] \as LiftEdgeLinear;
+\import \root.Integral[].Maps[A := first, B := Original.first] \as RestrictEdgeLinear;
+\import \root.Integral[].Maps[A := first, B := zeroth] \as PrimitiveLinear;
+\definition vertexInclusion: Modules.MapBetween Original.zeroth zeroth := LiftVertexLinear.fromAdditive liftVertex Additivity[].liftVertex;
+\definition vertexProjection: Modules.MapBetween zeroth Original.zeroth := RestrictVertexLinear.fromAdditive restrictVertex Additivity[].restrictVertex;
+\definition edgeInclusion: Modules.MapBetween Original.first first := LiftEdgeLinear.fromAdditive liftEdge Additivity[].liftEdge;
+\definition edgeProjection: Modules.MapBetween first Original.first := RestrictEdgeLinear.fromAdditive restrictEdge Additivity[].restrictEdge;
+\definition contraction: Modules.MapBetween first zeroth := PrimitiveLinear.fromAdditive primitive Additivity[].primitive;
+\module Equations;
+\module Cohomology;
+\module NativeComparison;
+\module Singular;

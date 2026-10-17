@@ -1,0 +1,18 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\import IntegerCochains.At[C := Target.complex, z := degree] \as IntegerH;
+\import IntegerCochains.At[C := Source.complex, z := degree] \as ExtendedH;
+\import Cochains.At[C := Natural.complex, k := n] \as NaturalH;
+\import Source.PositiveCohomology[n := n] \as NaturalComparison;
+\import IntegerCochains.Isomorphism[C := Source.complex, D := Target.complex].On[e := cochainIsomorphism].At[z := degree] \as Comparison;
+\import Modules.Isomorphism[V := ExtendedH.Cohomology, W := IntegerH.Cohomology, source := ExtendedH.cohomologySpace, target := IntegerH.cohomologySpace].Inverse[] \as Inverse;
+\import Modules.Isomorphism[V := IntegerH.Cohomology, W := ExtendedH.Cohomology, source := IntegerH.cohomologySpace, target := ExtendedH.cohomologySpace]
+  .Composition[U := NaturalH.Cohomology, final := NaturalH.cohomologySpace] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := IntegerH.Cohomology, W := NaturalH.Cohomology, source := IntegerH.cohomologySpace, target := NaturalH.cohomologySpace].Isomorphism :=
+  Composition.compose NaturalComparison.isomorphism (Inverse.inverse Comparison.isomorphism);
+\import IntegerCochains.Map[C := Target.complex, D := Source.complex].At[k := degree] \as Backward;
+\definition restrict(h: IntegerH.Closed): NaturalH.CycleCarrier := NaturalComparison.toNatural (#apply{(Backward.cyclesMap #backward{cochainIsomorphism})} h);
+\definition onClass: \forall (h: IntegerH.Closed) -> #apply{#forward{isomorphism}} (IntegerH.classOf h) = NaturalH.classOf (restrict h) :=
+  \fun (h: IntegerH.Closed) => trans!{NaturalH.Cohomology} _ _ _
+    (congr!{ExtendedH.Cohomology NaturalH.Cohomology} (#apply{#forward{NaturalComparison.isomorphism}}) _ _
+      (Backward.onClass #backward{cochainIsomorphism} h))
+    (NaturalComparison.onIntegerClass (#apply{(Backward.cyclesMap #backward{cochainIsomorphism})} h));

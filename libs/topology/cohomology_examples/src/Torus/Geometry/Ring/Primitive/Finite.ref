@@ -1,0 +1,48 @@
+\import Hom.On[P := FiniteCircle.complex, N := scalars] \as CircleTheory;
+\import Hom.On[P := Comparison.model, N := scalars] \as TorusTheory;
+\import Cochains.At[C := CircleTheory.complex, k := one] \as CircleH;
+\import Cochains.At[C := TorusTheory.complex, k := two] \as TorusH;
+\import singular_finite_algebra.Integer[].HomZero[P := FiniteCircle.complex, coefficients := scalars] \as CircleZero;
+\import singular_finite_algebra.Integer[].HomZero[P := Comparison.model, coefficients := scalars] \as TorusZero;
+\definition circleZero: CircleZero.DifferentialZero := \fun (n: N.Nat^) => \root.Circle[].zeroAction (I.Int^::ofNat (N.Nat^::succ n));
+\import Comparison.ZeroDifferential[] \as TorusDifferential;
+\definition torusZero: TorusZero.DifferentialZero := TorusDifferential.law;
+\definition circleIsomorphism: _ := CircleZero.At[n := one].isomorphism circleZero;
+\definition torusIsomorphism: _ := TorusZero.At[n := two].isomorphism torusZero;
+\definition term: TensorModules.Bundle := TensorModules.Bundle { Carrier := FiniteCircle.complex.family.Carrier one, space := FiniteCircle.complex.family.space one };
+\import TensorDual.Finite[V := term, rank := one].Coordinates[] \as Frame;
+\import TensorDual.Local[V := term, W := term, rank := one, frame := Frame.frame] \as Local;
+\import Doubles.Tensor[C := FiniteCircle.complex, D := FiniteCircle.complex] \as Tensor;
+\import Doubles.Total[C := Tensor.complex].Degree[n := two] \as TotalTerm;
+\import NativeModules.DirectSum[Index := Doubles.Index two, family := TotalTerm.family].Single[point := Terms.i11] \as Single;
+\definition termIsomorphism: _ := Single.isomorphism Terms.DegreeTwo[].trivial;
+\definition totalTerm: NativeModules.Bundle := NativeModules.Bundle { Carrier := Comparison.model.family.Carrier two, space := Comparison.model.family.space two };
+\definition pureTerm: NativeModules.Bundle := NativeModules.Bundle { Carrier := Tensor.Term[p := one, q := one].Carrier, space := Tensor.Term[p := one, q := one].space };
+\import TensorDual.Dual[V := pureTerm] \as PureDual;
+\import singular_finite_algebra.Integer[].HomTransport[V := totalTerm, W := pureTerm, coefficients := scalars].With[e := termIsomorphism] \as Dual;
+\import NativeModules.Isomorphism[V := TorusTheory.Carrier two, W := PureDual.Carrier, source := TorusTheory.space two, target := PureDual.space].Inverse[] \as DualInverse;
+\import NativeModules.Tensor[V := CircleTheory.Carrier one, W := CircleTheory.Carrier one, left := CircleTheory.space one, right := CircleTheory.space one] \as Source;
+\import NativeModules.Isomorphism[V := Source.Carrier, W := PureDual.Carrier, source := Source.space, target := PureDual.space].Composition[U := TorusTheory.Carrier two, final := TorusTheory.space two] \as ComposeDual;
+\definition cochainIsomorphism: _ := ComposeDual.compose (DualInverse.inverse Dual.isomorphism) Local.isomorphism;
+\import NativeModules.Isomorphism[V := TorusH.Cohomology, W := TorusTheory.Carrier two, source := TorusH.cohomologySpace, target := TorusTheory.space two].Inverse[] \as HomInverse;
+\import NativeModules.Isomorphism[V := Source.Carrier, W := TorusTheory.Carrier two, source := Source.space, target := TorusTheory.space two].Composition[U := TorusH.Cohomology, final := TorusH.cohomologySpace] \as ComposeHom;
+\definition isomorphism: _ := ComposeHom.compose (HomInverse.inverse torusIsomorphism) cochainIsomorphism;
+\import TensorDual.Selected[P := nativeFiniteCircle, Q := nativeFiniteCircle, p := one, q := one] \as Selected;
+\definition pairing(alpha, beta: CircleTheory.Carrier one): TorusTheory.Carrier two := Selected.total alpha beta;
+\definition cycle(alpha, beta: CircleTheory.Carrier one): TorusH.CycleCarrier := TorusH.cycle (pairing alpha beta) (TorusZero.cochainDifferentialZero torusZero two (pairing alpha beta));
+\definition cochainOnTensor(alpha, beta: CircleTheory.Carrier one): #apply{#forward{cochainIsomorphism}} (Source.tensor alpha beta) = pairing alpha beta :=
+  TorusTheory.At[n := two].ext (#apply{#forward{cochainIsomorphism}} (Source.tensor alpha beta)) (pairing alpha beta)
+    (\fun (x: Comparison.model.family.Carrier two) =>
+      congr!{PureDual.Carrier I.Int^} (\fun (f: PureDual.Carrier) => #apply{f} (#apply{#forward{termIsomorphism}} x)) _ _
+        (TensorDual.Pairing[V := term, W := term].onTensor alpha beta));
+\definition onTensor(alpha, beta: CircleTheory.Carrier one): #apply{#forward{isomorphism}} (Source.tensor alpha beta) = TorusH.classOf (cycle alpha beta) :=
+  trans!{TorusH.Cohomology} _ _ _
+    (congr!{{TorusTheory.Carrier two} TorusH.Cohomology} (#apply{#backward{torusIsomorphism}}) _ _ (cochainOnTensor alpha beta))
+    (TorusZero.At[n := two].onTerm torusZero (pairing alpha beta));
+\definition CircleCochain: \Set := CircleTheory.Carrier one;
+\definition circleSpace: NativeModules.Space CircleCochain := CircleTheory.space one;
+\definition TensorCarrier: \Set := Source.Carrier;
+\definition tensorSpace: NativeModules.Space TensorCarrier := Source.space;
+\definition tensor: CircleCochain -> CircleCochain -> TensorCarrier := Source.tensor;
+\definition Group: \Set := TorusH.Cohomology;
+\definition groupSpace: NativeModules.Space Group := TorusH.cohomologySpace;

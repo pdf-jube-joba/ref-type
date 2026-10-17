@@ -1,0 +1,116 @@
+\import Covers.On[cover := cover].Chains[] \as Chains;
+\definition function: A -> A := #function{mapping};
+\definition continuous: Maps.Continuous source source function := #continuous{mapping};
+\import Space.Subspace[S := left] \as LeftSubspace;
+\import Space.Subspace[S := right] \as RightSubspace;
+\definition Left: \Set := LeftSubspace.CarrierSet;
+\definition Right: \Set := RightSubspace.CarrierSet;
+\definition leftTopology: topology.Topology[Carrier := Left].Topology := LeftSubspace.topology source;
+\definition rightTopology: topology.Topology[Carrier := Right].Topology := RightSubspace.topology source;
+\definition intersection: \Pow Left := { x: Left \where Space.Member right x };
+\import topology.Topology[Carrier := Left].Subspace[S := intersection] \as IntersectionSubspace;
+\definition Intersection: \Set := IntersectionSubspace.CarrierSet;
+\definition intersectionTopology: topology.Topology[Carrier := Intersection].Topology := IntersectionSubspace.topology leftTopology;
+\definition leftFunction(x: Left): Left := \into[A](function x, left) \by { #toLeft{mapping} x (\bysub(A, left, x)) };
+\definition rightFunction(x: Right): Right := \into[A](function x, right) \by { #toRight{mapping} x (\bysub(A, right, x)) };
+\definition intersectionFunction(x: Intersection): Intersection :=
+  \into[Left](\into[A](function x, left) \by { #toLeft{mapping} x (\bysub(A, left, x)) }, intersection) \by {
+    #toRight{mapping} x (\bysub(Left, intersection, x))
+  };
+\import topology.Continuity[A := A, B := A].Restriction[S := left] \as LeftRestriction;
+\import topology.Continuity[A := A, B := A].Restriction[S := right] \as RightRestriction;
+\import topology.Continuity[A := Left, B := A].Corestriction[S := left] \as IntoRight;
+\import topology.Continuity[A := Right, B := A].Corestriction[S := right] \as IntoLeft;
+\definition leftContinuous: topology.Continuity[A := Left, B := Left].Continuous leftTopology leftTopology leftFunction :=
+  IntoRight.corestrictContinuous leftTopology source leftFunction (LeftRestriction.restrictContinuous source source function continuous);
+\definition rightContinuous: topology.Continuity[A := Right, B := Right].Continuous rightTopology rightTopology rightFunction :=
+  IntoLeft.corestrictContinuous rightTopology source rightFunction (RightRestriction.restrictContinuous source source function continuous);
+\import topology.Continuity[A := Left, B := A].Restriction[S := intersection] \as IntersectionRestriction;
+\import topology.Continuity[A := Intersection, B := A].Corestriction[S := left] \as IntoFirst;
+\import topology.Continuity[A := Intersection, B := Left].Corestriction[S := intersection] \as IntoIntersection;
+\definition intersectionContinuous: topology.Continuity[A := Intersection, B := Intersection].Continuous intersectionTopology intersectionTopology intersectionFunction :=
+  IntoIntersection.corestrictContinuous intersectionTopology leftTopology intersectionFunction
+    (IntoFirst.corestrictContinuous intersectionTopology source (\fun (x: Intersection) => intersectionFunction x)
+      (IntersectionRestriction.restrictContinuous leftTopology source (\fun (x: Left) => function x)
+        (LeftRestriction.restrictContinuous source source function continuous)));
+\import singular_cohomology.Maps[A := Left, B := Left, source := leftTopology, target := leftTopology] \as LeftMaps;
+\import singular_cohomology.Maps[A := Right, B := Right, source := rightTopology, target := rightTopology] \as RightMaps;
+\import singular_cohomology.Maps[A := Intersection, B := Intersection, source := intersectionTopology, target := intersectionTopology] \as IntersectionMaps;
+\import singular_cohomology.Maps[A := A, B := A, source := source, target := source] \as WholeMaps;
+\import singular_cohomology.Chains[A := Left, source := leftTopology] \as LeftChains;
+\import singular_cohomology.Chains[A := Right, source := rightTopology] \as RightChains;
+\import singular_cohomology.Chains[A := Intersection, source := intersectionTopology] \as IntersectionChains;
+\import singular_cohomology.Chains[A := A, source := source] \as WholeChains;
+\definition leftMap: Native.Map[C := LeftChains.complex, D := LeftChains.complex].Map := LeftMaps.push leftFunction leftContinuous;
+\definition rightMap: Native.Map[C := RightChains.complex, D := RightChains.complex].Map := RightMaps.push rightFunction rightContinuous;
+\definition intersectionMap: Native.Map[C := IntersectionChains.complex, D := IntersectionChains.complex].Map :=
+  IntersectionMaps.push intersectionFunction intersectionContinuous;
+\definition wholeMap: Native.Map[C := WholeChains.complex, D := WholeChains.complex].Map := WholeMaps.push function continuous;
+\import Native.Biproduct[C := LeftChains.complex, D := RightChains.complex] \as Sum;
+\definition middleMap: Native.Map[C := Sum.complex, D := Sum.complex].Map := Native.Map[C := Sum.complex, D := Sum.complex].Map {
+  apply := \fun (n: N.Nat^)(x: Sum.Carrier n) => Sum.At[n := n].make (#apply{leftMap} n (Sum.At[n := n].first x)) (#apply{rightMap} n (Sum.At[n := n].second x)),
+  addition := \fun (n: N.Nat^)(x, y: Sum.Carrier n) => Sum.At[n := n].ext _ _
+    (#addition{leftMap} n (Sum.At[n := n].first x) (Sum.At[n := n].first y))
+    (#addition{rightMap} n (Sum.At[n := n].second x) (Sum.At[n := n].second y)),
+  scalar := \fun (n: N.Nat^)(a: I.Int^)(x: Sum.Carrier n) => Sum.At[n := n].ext _ _
+    (#scalar{leftMap} n a (Sum.At[n := n].first x))
+    (#scalar{rightMap} n a (Sum.At[n := n].second x)),
+  commutes := \fun (n: N.Nat^)(x: Sum.Carrier (N.Nat^::succ n)) => Sum.At[n := n].ext _ _
+    (#commutes{leftMap} n (Sum.At[n := N.Nat^::succ n].first x))
+    (#commutes{rightMap} n (Sum.At[n := N.Nat^::succ n].second x)),
+};
+\import singular_cohomology.Small[A := A, source := source, family := { U: \Pow A \where Logic.Or[U = left, U = right] }] \as Small;
+\import Small.Simplices[] \as SmallSimplices;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition smallness(n: N.Nat^)(sigma: SmallSimplices.Carrier n): \exists SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] := \block {
+  \takefrom w: SmallSimplices.Witness[n, sigma] \by SmallSimplices.witness n sigma \then
+  \return (Logic.orElim _ _ (\exists SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma]) ((#member{w})) (\fun (equal: #element{w} = left) => \exact(SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] {
+      element := left, member := Logic.Or[_, _]::left (\refl(left)),
+      contained := \fun (x: Simplex.Carrier n) => #toLeft{mapping} (sigma x)
+        (\idelim #element{w} = left \with U: \Pow A => Space.Member U (sigma x) \by { base: #contained{w} x, equality: equal }),
+    }, SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma])) (\fun (equal: #element{w} = right) => \exact(SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] {
+      element := right, member := Logic.Or[_, _]::right (\refl(right)),
+      contained := \fun (x: Simplex.Carrier n) => #toRight{mapping} (sigma x)
+        (\idelim #element{w} = right \with U: \Pow A => Space.Member U (sigma x) \by { base: #contained{w} x, equality: equal }),
+    }, SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma])))
+};
+\definition smallSimplex(n: N.Nat^)(sigma: SmallSimplices.Carrier n): SmallSimplices.Carrier n :=
+  \into[singular_cohomology.Simplices[A := A, source := source].Carrier n](WholeMaps.postcompose n function continuous sigma, SmallSimplices.Small n) \by { smallness n sigma };
+\import algebraic_topology.Semisimplicial[].Maps[X := SmallSimplices.object, Y := SmallSimplices.object] \as SmallMaps;
+\definition smallSimplicialMap: SmallMaps.Map := SmallMaps.Map {
+  apply := smallSimplex,
+  faces := \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: SmallSimplices.Carrier (N.Nat^::succ n)) => \refl(smallSimplex n (SmallSimplices.face n i sigma)),
+};
+\import singular_cohomology.SimplicialChains[].On[X := SmallSimplices.object].Mapping[Y := SmallSimplices.object] \as SmallMapping;
+\definition smallMap: Native.Map[C := Small.complex, D := Small.complex].Map := SmallMapping.map smallSimplicialMap;
+\import singular_cohomology.Maps[A := Intersection, B := Left, source := intersectionTopology, target := leftTopology].Composition[C := Left, final := leftTopology] \as LeftThenLeft;
+\import singular_cohomology.Maps[A := Intersection, B := Intersection, source := intersectionTopology, target := intersectionTopology].Composition[C := Left, final := leftTopology] \as IntersectionThenLeft;
+\import Native.Map[C := LeftChains.complex, D := LeftChains.complex].Composition[B := IntersectionChains.complex] \as LeftRoute;
+\import Native.Map[C := IntersectionChains.complex, D := LeftChains.complex].Composition[B := IntersectionChains.complex] \as OtherLeftRoute;
+\definition leftRoutes: LeftRoute.compose leftMap Chains.leftMap = OtherLeftRoute.compose Chains.leftMap intersectionMap :=
+  trans!{{Native.Map[C := IntersectionChains.complex, D := LeftChains.complex].Map}} _ _ _
+    (LeftThenLeft.functoriality Chains.toLeft Chains.leftContinuous leftFunction leftContinuous)
+    (sym!{{Native.Map[C := IntersectionChains.complex, D := LeftChains.complex].Map}} _ _
+      (IntersectionThenLeft.functoriality intersectionFunction intersectionContinuous Chains.toLeft Chains.leftContinuous));
+\import singular_cohomology.Maps[A := Intersection, B := Right, source := intersectionTopology, target := rightTopology].Composition[C := Right, final := rightTopology] \as RightThenRight;
+\import singular_cohomology.Maps[A := Intersection, B := Intersection, source := intersectionTopology, target := intersectionTopology].Composition[C := Right, final := rightTopology] \as IntersectionThenRight;
+\import Native.Map[C := RightChains.complex, D := RightChains.complex].Composition[B := IntersectionChains.complex] \as RightRoute;
+\import Native.Map[C := IntersectionChains.complex, D := RightChains.complex].Composition[B := IntersectionChains.complex] \as OtherRightRoute;
+\definition rightRoutes: RightRoute.compose rightMap Chains.rightMap = OtherRightRoute.compose Chains.rightMap intersectionMap :=
+  trans!{{Native.Map[C := IntersectionChains.complex, D := RightChains.complex].Map}} _ _ _
+    (RightThenRight.functoriality Chains.toRight Chains.rightContinuous rightFunction rightContinuous)
+    (sym!{{Native.Map[C := IntersectionChains.complex, D := RightChains.complex].Map}} _ _
+      (IntersectionThenRight.functoriality intersectionFunction intersectionContinuous Chains.toRight Chains.rightContinuous));
+\import Small.FromSubset[U := Chains.leftElement] \as LeftSmall;
+\import Small.FromSubset[U := Chains.rightElement] \as RightSmall;
+\module Degree(n: N.Nat^);
+
+\import \root.CoverAction[A := A, source := source].On[cover := cover] \as Actions;
+\definition action: Actions.Mapping := \into[Actions.Data](Actions.Data {
+  intersection := intersectionMap, middle := middleMap, small := smallMap,
+}, Actions.Mapping) \by {
+  Actions.Laws[Actions.Data { intersection := intersectionMap, middle := middleMap, small := smallMap }] {
+    left := \fun (n: N.Nat^) => Degree[n := n].inclusionSquare,
+    right := \fun (n: N.Nat^) => Degree[n := n].projectionSquare,
+  }
+};

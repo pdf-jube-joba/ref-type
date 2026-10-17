@@ -1,0 +1,31 @@
+\import metric_spaces.RealFunctions[A := Disk.Disk] \as Functions;
+\import Functions.Product[] \as Products;
+\import Functions.SquareRoot[] \as SquareRoots;
+\import topology.Continuity[A := Disk.Coordinate, B := Disk.Coordinate].Corestriction[S := Disk.ClosedBall] \as Inclusion;
+\import topology.Composition[A := Disk.Disk, B := Disk.Coordinate, C := Real.Real] \as Composition;
+\import metric_spaces.RealLine[] \as Line;
+\definition squaredContinuous: Functions.Continuous Disk.diskTopology squared :=
+  Composition.composeContinuous Disk.diskTopology Disk.topology Line.topology (\fun (p: Disk.Disk) => p) Disk.normSquared
+    (Inclusion.inclusionContinuous Disk.topology) Geometry.normSquaredContinuous;
+\definition remainingContinuous: Functions.Continuous Disk.diskTopology remaining :=
+  Functions.subContinuous Disk.diskTopology (\fun (_: Disk.Disk) => Real.one) squared
+    (Functions.constantContinuous Disk.diskTopology Real.one) squaredContinuous;
+\definition heightContinuous: Functions.Continuous Disk.diskTopology height :=
+  Functions.subContinuous Disk.diskTopology squared remaining squaredContinuous remainingContinuous;
+\import \parent.Scalars[] \as Scalars;
+\definition fourContinuous: Functions.Continuous Disk.diskTopology (\fun (p: Disk.Disk) => Scalars.four (remaining p)) :=
+  Functions.sumContinuous Disk.diskTopology
+    (\fun (p: Disk.Disk) => Scalars.twice (remaining p)) (\fun (p: Disk.Disk) => Scalars.twice (remaining p))
+    (Functions.sumContinuous Disk.diskTopology remaining remaining remainingContinuous remainingContinuous)
+    (Functions.sumContinuous Disk.diskTopology remaining remaining remainingContinuous remainingContinuous);
+\definition coefficientContinuous: Functions.Continuous Disk.diskTopology coefficient :=
+  SquareRoots.continuous Disk.diskTopology (\fun (p: Disk.Disk) => Scalars.four (remaining p)) fourContinuous;
+\import Split.Continuity[A := Disk.Disk] \as Joining;
+\definition ambientContinuous: topology.Continuity[A := Disk.Disk, B := Ambient.Coordinate].Continuous Disk.diskTopology Ambient.topology
+  (\fun (p: Disk.Disk) => map p) :=
+  Joining.joinContinuous Disk.diskTopology height (\fun (p: Disk.Disk) => Scaling.scale (coefficient p) p) heightContinuous
+    (\fun (i: Disk.Index) => Products.continuous Disk.diskTopology coefficient (\fun (p: Disk.Disk) => p i)
+      coefficientContinuous (Scaling.coordinateContinuous i));
+\import topology.Continuity[A := Disk.Disk, B := Ambient.Coordinate].Corestriction[S := Ambient.Boundary] \as Into;
+\definition continuous: topology.Continuity[A := Disk.Disk, B := Ambient.Sphere].Continuous Disk.diskTopology Ambient.sphereTopology map :=
+  Into.corestrictContinuous Disk.diskTopology Ambient.topology map ambientContinuous;

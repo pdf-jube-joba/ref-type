@@ -1,0 +1,74 @@
+\import topology.Topology[Carrier := Carrier N.Nat^::zero] \as Space;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\import metric_spaces.RealLine[] \as RealLine;
+\import topology.Continuity[A := Carrier N.Nat^::zero, B := Real.Real] \as Coordinates;
+\import topological_algebra.Coordinates[K := Real.Real, I := Line.Index] \as AmbientCoordinates;
+\import topology.Continuity[A := Line.Coordinate, B := Line.Coordinate].Corestriction[S := Line.Boundary] \as Inclusion;
+\import topology.Composition[A := Carrier N.Nat^::zero, B := Line.Coordinate, C := Real.Real] \as Composition;
+\definition coordinate(x: Carrier N.Nat^::zero): Real.Real := x index;
+\definition coordinateContinuous: Coordinates.Continuous (topology N.Nat^::zero) RealLine.topology coordinate :=
+  Composition.composeContinuous (topology N.Nat^::zero) Line.topology RealLine.topology
+    (\fun (x: Carrier N.Nat^::zero) => x) (\fun (x: Line.Coordinate) => x index)
+    (Inclusion.inclusionContinuous Line.topology) (AmbientCoordinates.evaluationContinuous RealLine.topology index);
+\definition upper: \Pow (Carrier N.Nat^::zero) := Coordinates.Preimage coordinate (Rays.Above Real.zero);
+\definition lower: \Pow (Carrier N.Nat^::zero) := Coordinates.Preimage coordinate (Rays.Below Real.zero);
+\definition upperOpen: Space.IsOpenIn (topology N.Nat^::zero) upper := coordinateContinuous (Rays.Above Real.zero) (Rays.aboveOpen Real.zero);
+\definition lowerOpen: Space.IsOpenIn (topology N.Nat^::zero) lower := coordinateContinuous (Rays.Below Real.zero) (Rays.belowOpen Real.zero);
+\definition upperOnly: \forall (x: Carrier N.Nat^::zero) -> Space.Member upper x -> x = north :=
+  \fun (x: Carrier N.Nat^::zero)(positive: _) => either!{{(cases x)} {x = north}
+    {\fun (equal: _) => equal}
+    {\fun (equal: _) => Logic.falseElim _ (R.ltNotLeReverse Real.zero (Real.neg Real.one)
+      (R.ltReplaceRight Real.zero (coordinate x) (Real.neg Real.one) (congr!{{Carrier N.Nat^::zero} Real.Real} coordinate _ _ equal) positive)
+      negativeOneNonpositive)}
+  };
+\definition lowerOnly: \forall (x: Carrier N.Nat^::zero) -> Space.Member lower x -> x = south :=
+  \fun (x: Carrier N.Nat^::zero)(negative: _) => either!{{(cases x)} {x = south}
+    {\fun (equal: _) => Logic.falseElim _ (R.ltNotLeReverse Real.one Real.zero
+      (R.ltReplaceLeft (coordinate x) Real.one Real.zero (congr!{{Carrier N.Nat^::zero} Real.Real} coordinate _ _ equal) negative)
+      Laws.oneNonnegative)}
+    {\fun (equal: _) => equal}
+  };
+\definition northNeighborhood(U: \Pow (Carrier N.Nat^::zero))(member: Space.Member U north):
+  Space.OpenNeighborhood[topology N.Nat^::zero, north, U, upper] := Space.OpenNeighborhood[topology N.Nat^::zero, north, U, upper] {
+    open := upperOpen,
+    contains := onePositive,
+    within := \fun (x: Carrier N.Nat^::zero)(positive: Space.Member upper x) =>
+      \idelim north = x \with y: Carrier N.Nat^::zero => Space.Member U y \by {
+        base: member, equality: sym!{{Carrier N.Nat^::zero}} _ _ (upperOnly x positive)
+      },
+  };
+\definition southNeighborhood(U: \Pow (Carrier N.Nat^::zero))(member: Space.Member U south):
+  Space.OpenNeighborhood[topology N.Nat^::zero, south, U, lower] := Space.OpenNeighborhood[topology N.Nat^::zero, south, U, lower] {
+    open := lowerOpen,
+    contains := negativeOneNegative,
+    within := \fun (x: Carrier N.Nat^::zero)(negative: Space.Member lower x) =>
+      \idelim south = x \with y: Carrier N.Nat^::zero => Space.Member U y \by {
+        base: member, equality: sym!{{Carrier N.Nat^::zero}} _ _ (lowerOnly x negative)
+      },
+  };
+\definition local: \forall (U: \Pow (Carrier N.Nat^::zero))(x: Carrier N.Nat^::zero) -> Space.Member U x ->
+  \exists { V: \Pow (Carrier N.Nat^::zero) \where Space.OpenNeighborhood[topology N.Nat^::zero, x, U, V] } :=
+  \fun (U: \Pow (Carrier N.Nat^::zero))(x: Carrier N.Nat^::zero)(member: Space.Member U x) => either!{{(cases x)}
+    {\exists { V: \Pow (Carrier N.Nat^::zero) \where Space.OpenNeighborhood[topology N.Nat^::zero, x, U, V] }}
+    {\fun (equal: x = north) => \idelim north = x \with y: Carrier N.Nat^::zero =>
+      \exists { V: \Pow (Carrier N.Nat^::zero) \where Space.OpenNeighborhood[topology N.Nat^::zero, y, U, V] } \by {
+        base: Logic.existsIntro[\Pow (Carrier N.Nat^::zero), { V: \Pow (Carrier N.Nat^::zero) \where Space.OpenNeighborhood[topology N.Nat^::zero, north, U, V] }]
+          upper (northNeighborhood U (\idelim x = north \with y: Carrier N.Nat^::zero => Space.Member U y \by { base: member, equality: equal })),
+        equality: sym!{{Carrier N.Nat^::zero}} _ _ equal
+      }}
+    {\fun (equal: x = south) => \idelim south = x \with y: Carrier N.Nat^::zero =>
+      \exists { V: \Pow (Carrier N.Nat^::zero) \where Space.OpenNeighborhood[topology N.Nat^::zero, y, U, V] } \by {
+        base: Logic.existsIntro[\Pow (Carrier N.Nat^::zero), { V: \Pow (Carrier N.Nat^::zero) \where Space.OpenNeighborhood[topology N.Nat^::zero, south, U, V] }]
+          lower (southNeighborhood U (\idelim x = south \with y: Carrier N.Nat^::zero => Space.Member U y \by { base: member, equality: equal })),
+        equality: sym!{{Carrier N.Nat^::zero}} _ _ equal
+      }}
+  };
+\definition allOpen(U: \Pow (Carrier N.Nat^::zero)): Space.IsOpenIn (topology N.Nat^::zero) U :=
+  Space.openOfNeighborhoods (topology N.Nat^::zero) U (local U);
+\import topology.Continuity[A := Point, B := Carrier N.Nat^::zero] \as Forward;
+\definition continuous: Forward.Continuous discrete (topology N.Nat^::zero) forward :=
+  \fun (U: \Pow (Carrier N.Nat^::zero))(open: Space.IsOpenIn (topology N.Nat^::zero) U) => Points.discreteOpen (Forward.Preimage forward U);
+\definition reflects: Inverse.ReflectsOpen discrete (topology N.Nat^::zero) :=
+  \fun (U: \Pow (Carrier N.Nat^::zero))(open: Points.IsOpenIn discrete (Forward.Preimage forward U)) => allOpen U;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[discrete, topology N.Nat^::zero] :=
+  Inverse.homeomorphism discrete (topology N.Nat^::zero) injective onto continuous reflects;

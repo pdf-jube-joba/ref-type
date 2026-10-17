@@ -1,0 +1,29 @@
+\definition leftPreimage: LeftMaps.Preimage Attached.inclusion (Image U) = CircleSpace.Empty :=
+  \axiom:setext(LeftMaps.Preimage Attached.inclusion (Image U), CircleSpace.Empty,
+    \block {
+      \fun (q: Circle.Carrier)(exists: \In[Point] (Image U) (Attached.inclusion q)) \then
+      \takefrom w: Witness[U, Attached.inclusion q] \by exists \then
+      \return R.ltIrrefl Real.one (R.ltReplaceLeft (Disk.normSquared (#point{w})) Real.one Real.one
+        (meetsBase (#point{w}) q (#image{w})) (#interior{w}))
+    },
+    \fun (q: Circle.Carrier)(empty: Logic.False) => Logic.falseElim (\In[Point] (Image U) (Attached.inclusion q)) empty);
+\definition rightPreimage: RightMaps.Preimage Attached.characteristic (Image U) = DiskSpace.Intersection U interior :=
+  \axiom:setext(RightMaps.Preimage Attached.characteristic (Image U), DiskSpace.Intersection U interior,
+    \block {
+      \fun (x: Disk.Disk)(exists: \In[Point] (Image U) (Attached.characteristic x)) \then
+      \takefrom w: Witness[U, Attached.characteristic x] \by exists \then
+      \let same: #point{w} = x := interiorInjective (#point{w}) x (#interior{w}) (#image{w}) \then
+      \return Logic.And[_, _]::#
+        (\idelim #point{w} = x \with y: Disk.Disk => \In[Disk.Disk] U y \by { base: #member{w}, equality: same })
+        (\idelim #point{w} = x \with y: Disk.Disk => R.Lt (Disk.normSquared y) Real.one \by { base: #interior{w}, equality: same })
+    },
+    \fun (x: Disk.Disk)(member: DiskSpace.Member (DiskSpace.Intersection U interior) x) =>
+      \exact(Witness[U, Attached.characteristic x] { point := x, member := #left{member}, interior := #right{member}, image := \refl(Attached.characteristic x) }, Witness[U, Attached.characteristic x]));
+\definition imageOpen: Space.IsOpenIn pointTopology (Image U) := Logic.And[_, _]::#
+  (\idelim CircleSpace.Empty = LeftMaps.Preimage Attached.inclusion (Image U)
+    \with V: \Pow Circle.Carrier => CircleSpace.IsOpenIn Circle.topology V
+    \by { base: #emptyOpen{(CircleSpace.topologyLaws Circle.topology)}, equality: sym!{\Pow Circle.Carrier} _ _ leftPreimage })
+  (\idelim DiskSpace.Intersection U interior = RightMaps.Preimage Attached.characteristic (Image U)
+    \with V: \Pow Disk.Disk => DiskSpace.IsOpenIn Disk.diskTopology V
+    \by { base: #intersectionOpen{(DiskSpace.topologyLaws Disk.diskTopology)} U interior open interiorOpen,
+      equality: sym!{\Pow Disk.Disk} _ _ rightPreimage });

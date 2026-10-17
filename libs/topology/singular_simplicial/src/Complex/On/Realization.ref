@@ -1,0 +1,51 @@
+\import Geometric.At[n := d] \as Ambient;
+\import topology.Topology[Carrier := Geometric.Carrier d] \as Topology;
+\structure Witness[y: Geometric.Carrier d]: \Set {
+  dimension: N.Nat^,
+  vertices: Tuple dimension,
+  face: \In[\Pow Vertex] K.faces (Image dimension vertices),
+  point: Geometric.Carrier dimension,
+  equation: Geometric.Reindex[m := dimension, n := d].apply vertices point = y,
+}
+\definition Points: \Pow (Geometric.Carrier d) := { y: Geometric.Carrier d \where \exists Witness[y] };
+\definition Carrier: \Set := \Cast[Geometric.Carrier d] Points;
+\import Topology.Subspace[S := Points] \as Subspace;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Ambient.topology;
+\definition witness(y: Carrier): \exists Witness[y] := \bysub(Geometric.Carrier d, Points, y);
+\module At(n: N.Nat^) {
+  \import Geometric.Reindex[m := n, n := d] \as Affine;
+  \definition apply(sigma: Simplex n)(x: Geometric.Carrier n): Carrier :=
+    \into[Geometric.Carrier d](Affine.apply sigma x, Points) \by {
+      \exact(Witness[Affine.apply sigma x] {
+        dimension := n, vertices := sigma, face := #face{(admissible n sigma)}, point := x, equation := \refl(Affine.apply sigma x),
+      }, Witness[Affine.apply sigma x])
+    };
+  \import topology.Continuity[A := Geometric.Carrier n, B := Geometric.Carrier d].Corestriction[S := Points] \as Into;
+  \definition continuous: \forall (sigma: Simplex n) -> topology.Continuity[A := Geometric.Carrier n, B := Carrier].Continuous
+    (Geometric.At[n := n].topology) topology (apply sigma) :=
+    \fun (sigma: Simplex n) => Into.corestrictContinuous (Geometric.At[n := n].topology) Ambient.topology (apply sigma) (Affine.continuous sigma);
+}
+\definition affine(n: N.Nat^): Simplex n -> Geometric.Carrier n -> Carrier := At[n := n].apply;
+\import singular_cohomology.Simplices[A := Carrier, source := topology] \as Singular;
+\definition simplex(n: N.Nat^)(sigma: Simplex n): Singular.Carrier n :=
+  \into[Singular.At[n := n].Function](affine n sigma, Singular.Carrier n) \by { At[n := n].continuous sigma };
+\module Faces;
+\import Semisimplicial.Maps[X := object, Y := Singular.object] \as Maps;
+\definition mapping: Maps.Map := Maps.Map {
+  apply := simplex,
+  faces := Faces[].commutes,
+};
+\import Geometric.Vertices[] \as Vertices;
+\definition onVertex: \forall (n: N.Nat^)(sigma: Simplex n)(i: Fin.Fin (N.Nat^::succ n)) ->
+  affine n sigma (Vertices.vertex n i) = Vertices.vertex d (sigma i) :=
+  \fun (n: N.Nat^)(sigma: Simplex n) => Geometric.Reindex[m := n, n := d].onVertex sigma;
+\module Support;
+\module Stars;
+\module SimplicialCarrier(n: N.Nat^, sigma: Singular.Carrier n);
+\definition simplexInjective: \forall (n: N.Nat^)(sigma, tau: Simplex n) -> simplex n sigma = simplex n tau -> sigma = tau :=
+  \fun (n: N.Nat^)(sigma, tau: Simplex n)(same: simplex n sigma = simplex n tau) => \axiom:funext(sigma, tau,
+    \fun (i: Fin.Fin (N.Nat^::succ n)) => Support[].vertexInjective (sigma i) (tau i)
+      (trans!{{Geometric.Carrier d}} _ _ _ (sym!{{Geometric.Carrier d}} _ _ (onVertex n sigma i))
+        (trans!{{Geometric.Carrier d}} _ _ _
+          (congr!{{Singular.Carrier n} {Geometric.Carrier d}} (\fun (s: Singular.Carrier n) => s (Vertices.vertex n i)) _ _ same)
+          (onVertex n tau i))));

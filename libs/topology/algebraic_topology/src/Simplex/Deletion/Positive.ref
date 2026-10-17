@@ -1,0 +1,15 @@
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ n)].Omission[] \as Indices;
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ n)].Mapping[B := Real.Real] \as Mapping;
+\definition skip(i: Fin.Fin (N.Nat^::succ n)): Fin.Fin n -> Fin.Fin (N.Nat^::succ n) := Indices.omit n i (\fun (j: Fin.Fin (N.Nat^::succ n)) => j);
+\definition equation: \forall (i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)) ->
+  (\fun (k: Fin.Fin n) => x (skip i k)) = Omission.omit n i x :=
+  \fun (i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)) => trans!{{Coordinate n}} _ _ _
+    (Mapping.omitMap n i x (\fun (k: Fin.Fin (N.Nat^::succ n)) => k))
+    (congr!{{Coordinate (N.Nat^::succ n)} {Coordinate n}} (Omission.omit n i) _ _
+      (\axiom:funext((\fun (k: Fin.Fin (N.Nat^::succ n)) => x k), x, \fun (k: Fin.Fin (N.Nat^::succ n)) => \refl(x k))));
+\definition law: \forall (i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)) ->
+  (\forall (j: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (x j)) -> \forall (j: Fin.Fin n) -> R.Le Real.zero (Omission.omit n i x j) :=
+  \fun (i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n))(positive: _)(j: Fin.Fin n) =>
+    R.leReplaceRight Real.zero (x (skip i j)) (Omission.omit n i x j)
+      (congr!{{Fin.Fin n -> Real.Real} Real.Real} (\fun (f: Fin.Fin n -> Real.Real) => f j) (\fun (k: Fin.Fin n) => x (skip i k)) (Omission.omit n i x)
+        (equation i x)) (positive (skip i j));

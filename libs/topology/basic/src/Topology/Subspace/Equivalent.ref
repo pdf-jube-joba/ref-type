@@ -1,0 +1,18 @@
+\import \parent.\parent.Subspace[S := T] \as Other;
+\import topology.Homeomorphism[A := CarrierSet, B := Other.CarrierSet] \as Homeomorphisms;
+\import topology.Continuity[A := Carrier, B := Carrier].Restriction[S := S] \as SourceRestriction;
+\import topology.Continuity[A := Carrier, B := Carrier].Restriction[S := T] \as TargetRestriction;
+\import topology.Continuity[A := CarrierSet, B := Carrier].Corestriction[S := T] \as IntoTarget;
+\import topology.Continuity[A := Other.CarrierSet, B := Carrier].Corestriction[S := S] \as IntoSource;
+\import topology.Maps[A := Carrier, B := Carrier].Identity[] \as Identity;
+\definition forward(included: Subset S T)(x: CarrierSet): Other.CarrierSet := \into[Carrier](x, T) \by { included x (\bysub(Carrier, S, x)) };
+\definition backward(included: Subset T S)(x: Other.CarrierSet): CarrierSet := \into[Carrier](x, S) \by { included x (\bysub(Carrier, T, x)) };
+\definition homeomorphism(ambient: Topology)(toTarget: Subset S T)(toSource: Subset T S): Homeomorphisms.Homeomorphism[topology ambient, Other.topology ambient] :=
+  Homeomorphisms.Homeomorphism[_, _] {
+    forward := forward toTarget, backward := backward toSource,
+    leftInverse := \fun (x: CarrierSet) => \refl(x), rightInverse := \fun (x: Other.CarrierSet) => \refl(x),
+    forwardContinuous := IntoTarget.corestrictContinuous (topology ambient) ambient (forward toTarget)
+      (SourceRestriction.restrictContinuous ambient ambient (\fun (x: Carrier) => x) (Identity.continuous ambient)),
+    backwardContinuous := IntoSource.corestrictContinuous (Other.topology ambient) ambient (backward toSource)
+      (TargetRestriction.restrictContinuous ambient ambient (\fun (x: Carrier) => x) (Identity.continuous ambient)),
+  };

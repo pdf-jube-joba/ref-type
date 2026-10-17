@@ -1,0 +1,46 @@
+\import singular_cohomology.Relative[A := Mapping.sourceSmall.Carrier, source := Mapping.sourceSmall.topology, subset := Mapping.sourceSmall.subset] \as SourceSmall;
+\import singular_cohomology.Relative[A := Mapping.targetSmall.Carrier, source := Mapping.targetSmall.topology, subset := Mapping.targetSmall.subset] \as TargetSmall;
+\import singular_cohomology.Relative[A := Local.Carrier, source := Local.topology, subset := Local.subset] \as LocalPair;
+\import SourceSmall.Maps[B := Local.Carrier].Over[target := Local.topology, targetSubset := Local.subset] \as Identify;
+\import SourceSmall.Homeomorphism[B := Local.Carrier].Over[target := Local.topology, targetSubset := Local.subset] \as Identification;
+\definition identify: Identify.Map := Identification.forwardMap Local.Identification[].data;
+\import LocalPair.Maps[B := Disks.Carrier].Over[target := Disks.topology, targetSubset := ChartPair.punctures] \as Inject;
+\definition inject: Inject.Map := Disks.RelativeComponent[subset := ChartPair.punctures, i := cell].pairMap;
+\import singular_cohomology.Relative[A := Disks.Carrier, source := Disks.topology, subset := ChartPair.punctures]
+  .Homeomorphism[B := Interiors.Carrier].Over[target := Interiors.topology, targetSubset := Punctures.Excision[].punctures] \as Chart;
+\definition chart: singular_cohomology.Relative[A := Disks.Carrier, source := Disks.topology, subset := ChartPair.punctures]
+  .Maps[B := Interiors.Carrier].Over[target := Interiors.topology, targetSubset := Punctures.Excision[].punctures].Map := Chart.forwardMap ChartPair.data;
+\import Inject.Composition[C := Interiors.Carrier].Over[final := Interiors.topology, finalSubset := Punctures.Excision[].punctures] \as LocalComposition;
+\definition localMap: LocalPair.Maps[B := Interiors.Carrier].Over[target := Interiors.topology, targetSubset := Punctures.Excision[].punctures].Map := LocalComposition.compose inject chart;
+\import Identify.Composition[C := Interiors.Carrier].Over[final := Interiors.topology, finalSubset := Punctures.Excision[].punctures] \as FullComposition;
+\import SourceSmall.Maps[B := Interiors.Carrier].Over[target := Interiors.topology, targetSubset := Punctures.Excision[].punctures] \as Direct;
+\definition equality: FullComposition.compose identify localMap = Natural.small :=
+  \axiom:funext(FullComposition.compose identify localMap, Natural.small, \fun (p: Mapping.sourceSmall.Carrier) => \refl(Image.image p));
+\import Direct.On[f := Natural.small].Integer[] \as Small;
+\import LocalPair.Maps[B := Interiors.Carrier].Over[target := Interiors.topology, targetSubset := Punctures.Excision[].punctures]
+  .On[f := localMap].Integer[] \as LocalAction;
+\import Identify.On[f := identify].Integer[] \as Identified;
+\import Inject.On[f := inject].Integer[] \as Injected;
+\definition injection: Modules.Hom[V := LocalPair.Homology[z := z].Carrier,
+  W := singular_cohomology.Relative[A := Disks.Carrier, source := Disks.topology, subset := ChartPair.punctures].Homology[z := z].Carrier,
+  source := LocalPair.Homology[z := z].space,
+  target := singular_cohomology.Relative[A := Disks.Carrier, source := Disks.topology, subset := ChartPair.punctures].Homology[z := z].space].Map := Injected.At[z := z].induced;
+\import singular_cohomology.Relative[A := Disks.Carrier, source := Disks.topology, subset := ChartPair.punctures]
+  .Maps[B := Interiors.Carrier].Over[target := Interiors.topology, targetSubset := Punctures.Excision[].punctures].On[f := chart].Integer[] \as ChartAction;
+\definition localLaw: \forall (q: SourceSmall.Homology[z := z].Carrier) ->
+  #apply{Small.At[z := z].induced} q =
+  #apply{#forward{ChartPair.Homology[z := z].isomorphism}}
+    (#apply{Injected.At[z := z].induced} (#apply{#forward{Local.Identification[].Homology[z := z].isomorphism}} q)) :=
+  \fun (q: SourceSmall.Homology[z := z].Carrier) => trans!{{TargetSmall.Homology[z := z].Carrier}} _ _ _
+    (congr!{Direct.Map {TargetSmall.Homology[z := z].Carrier}}
+      (\fun (f: Direct.Map) => #apply{Direct.On[f := f].Integer[].At[z := z].induced} q) _ _ (sym!{Direct.Map} _ _ equality))
+    (trans!{{TargetSmall.Homology[z := z].Carrier}} _ _ _
+      (FullComposition.On[f := identify, g := localMap].Homology[z := z].law q)
+      (LocalComposition.On[f := inject, g := chart].Homology[z := z].law (#apply{Identified.At[z := z].induced} q)));
+\definition naturality: \forall (q: Disk.Homology[z := z].Carrier) ->
+  #apply{#forward{ChartPair.Homology[z := z].isomorphism}}
+    (#apply{Injected.At[z := z].induced} (#apply{#forward{Local.Homology[z := z].isomorphism}} q)) =
+  #apply{#forward{Punctures.Excision[].Homology[z := z].isomorphism}} (#apply{Action.At[z := z].induced} q) :=
+  \fun (q: Disk.Homology[z := z].Carrier) => trans!{{TargetSmall.Homology[z := z].Carrier}} _ _ _
+    (sym!{{TargetSmall.Homology[z := z].Carrier}} _ _ (localLaw (#apply{#forward{Local.Homology[z := z].excisedIsomorphism}} q)))
+    (Natural.At[z := z].law q);

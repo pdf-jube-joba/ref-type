@@ -1,0 +1,29 @@
+\import \root.Complex[d := d].On[K := K].Cech[].VerticalFilling[p := p].Degree[q := q] \as Degree;
+\import \parent.\parent.\parent.Fibre[p := p, vertices := vertices] \as Fibre;
+\import \root.Complex[d := d].On[K := K].Realization[].Stars[].Intersection[n := p, sigma := vertices] \as Intersection;
+\import singular_cohomology.Simplices[A := Intersection.Carrier, source := Intersection.topology] \as Simplices;
+\import singular_cohomology.Chains[A := Intersection.Carrier, source := Intersection.topology] \as Local;
+\import Modules.Hom[V := Carrier p q, W := Carrier p (N.Nat^::succ q), source := space p q, target := space p (N.Nat^::succ q)]
+  .Composition[U := Local.Carrier q, domain := Local.space q] \as First;
+\import Modules.Hom[V := Local.Carrier (N.Nat^::succ q), W := Carrier p (N.Nat^::succ q), source := Local.space (N.Nat^::succ q), target := space p (N.Nat^::succ q)]
+  .Composition[U := Local.Carrier q, domain := Local.space q] \as Second;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Local.complex, D := Native.complex] \as NativeMaps;
+\definition first: _ := First.compose map (NativeMaps.At[n := q].linear Fibre.map);
+\definition second: _ := Second.compose (NativeMaps.At[n := N.Nat^::succ q].linear Fibre.map) (Fibre.Homotopy[q := q].local);
+\import Modules.Free[Generators := Simplices.Carrier q].To[W := Carrier p (N.Nat^::succ q), target := space p (N.Nat^::succ q)] \as Free;
+\definition liftEncoded: \forall (sigma: Simplices.Carrier q) ->
+  Fibre.Lift[q := q, sigma := #singular{(Fibre.encode q sigma)}, contained := common p q (Fibre.encode q sigma)].simplex = sigma :=
+  \fun (sigma: Simplices.Carrier q) => Simplices.ext q
+    (Fibre.Lift[q := q, sigma := #singular{(Fibre.encode q sigma)}, contained := common p q (Fibre.encode q sigma)].simplex) sigma
+    (\fun (x: Geometric.Carrier q) => \refl(sigma x));
+\definition onGenerator: \forall (sigma: Simplices.Carrier q) -> #apply{first} (Local.generator q sigma) = #apply{second} (Local.generator q sigma) :=
+  \fun (sigma: Simplices.Carrier q) => trans!{{Carrier p (N.Nat^::succ q)}} _ _ _
+    (congr!{{Carrier p q} {Carrier p (N.Nat^::succ q)}} (#apply{map}) _ _ (Fibre.onGenerator q sigma))
+    (trans!{{Carrier p (N.Nat^::succ q)}} _ _ _ (Degree.onGenerator (Fibre.encode q sigma))
+      (congr!{{Simplices.Carrier q} {Carrier p (N.Nat^::succ q)}}
+        (\fun (s: Simplices.Carrier q) => #apply{Fibre.map} (N.Nat^::succ q) (#apply{(Fibre.Homotopy[q := q].local)} (Local.generator q s))) _ _ (liftEncoded sigma)));
+\definition equality: first = second := Free.ext first second onGenerator;
+\definition law: \forall (x: Local.Carrier q) -> #apply{map} (#apply{Fibre.map} q x) =
+  #apply{Fibre.map} (N.Nat^::succ q) (#apply{(Fibre.Homotopy[q := q].local)} x) :=
+  \fun (x: Local.Carrier q) => congr!{{Modules.Hom[V := Local.Carrier q, W := Carrier p (N.Nat^::succ q), source := Local.space q, target := space p (N.Nat^::succ q)].Map} {Carrier p (N.Nat^::succ q)}}
+    (\fun (f: Modules.Hom[V := Local.Carrier q, W := Carrier p (N.Nat^::succ q), source := Local.space q, target := space p (N.Nat^::succ q)].Map) => #apply{f} x) first second equality;

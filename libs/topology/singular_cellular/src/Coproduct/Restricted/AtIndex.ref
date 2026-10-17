@@ -1,0 +1,55 @@
+\import \parent.\parent.At[i := i] \as Original;
+\import topology.Topology[Carrier := fibers i] \as Scalar;
+\import Scalar.Subspace[S := fiberSubset i] \as Subscalar;
+\import topology.Topology[Carrier := Fiber i] \as CutScalar;
+\import topology.Continuity[A := Fiber i, B := fibers i].Corestriction[S := fiberSubset i] \as Inclusion;
+\import topology.Composition[A := Fiber i, B := fibers i, C := Carrier] \as Composition;
+\definition injectionContinuous: topology.Continuity[A := Fiber i, B := Carrier].Continuous (fiberTopology i) topology
+  (\fun (x: Fiber i) => injection i x) :=
+  Composition.composeContinuous (fiberTopology i) (spaces i) topology (\fun (x: Fiber i) => x) (injection i)
+    (Inclusion.inclusionContinuous (spaces i)) Original.continuous;
+\definition forwardContinuous: \forall (U: \Pow Carrier) -> Space.IsOpenIn topology U ->
+  CutScalar.IsOpenIn (fiberTopology i) ({ x: Fiber i \where Space.Member U (forward (Cut.injection i x)) }) :=
+  \fun (U: _)(open: _) => injectionContinuous U open;
+\definition point(x: Fiber i): Old := \into[Carrier](injection i x, S) \by { \bysub(fibers i, fiberSubset i, x) };
+\definition neighborhood: \forall (U: \Pow New) -> NewSpace.IsOpenIn Cut.topology U ->
+  \forall (x: Fiber i) -> NewSpace.Member U (Cut.injection i x) ->
+  \exists { V: \Pow Old \where OldSpace.OpenNeighborhood[oldTopology, point x, Backward.Preimage backward U, V] } :=
+  \fun (U: _)(open: _)(x: _)(inside: _) =>
+    Subscalar.openTraceElim (spaces i) ({ y: Fiber i \where NewSpace.Member U (Cut.injection i y) })
+      (\exists { V: \Pow Old \where OldSpace.OpenNeighborhood[oldTopology, point x, Backward.Preimage backward U, V] })
+      (\block {
+        \fun (V: \Pow (fibers i))(vo: Scalar.IsOpenIn (spaces i) V)
+          (same: { y: Fiber i \where NewSpace.Member U (Cut.injection i y) } = Subscalar.Trace V) \then
+        \let patch: \Pow Old := Subspace.Trace (Original.Image V) \then
+        \let contains: Scalar.Member V x := \idelim
+          { y: Fiber i \where NewSpace.Member U (Cut.injection i y) } = Subscalar.Trace V
+          \with W: \Pow (Fiber i) => CutScalar.Member W x \by { base: inside, equality: same } \then
+        \return Logic.existsIntro[\Pow Old,
+          { W: \Pow Old \where OldSpace.OpenNeighborhood[oldTopology, point x, Backward.Preimage backward U, W] }] patch
+          (OldSpace.OpenNeighborhood[oldTopology, point x, Backward.Preimage backward U, patch] {
+            open := Subspace.traceOpen topology (Original.Image V) (Original.imageOpen V vo),
+            contains := Logic.existsIntro[fibers i,
+              { y: fibers i \where Logic.And[Scalar.Member V y, injection i y = injection i x] }] x
+              (Logic.And[_, _]::# contains (\refl(injection i x))),
+            within := \block {
+              \fun (c: Old)(member: OldSpace.Member patch c) \then
+              \takefrom y: \Cast[fibers i] ({ y: fibers i \where Logic.And[Scalar.Member V y, injection i y = c] }) \by member \then
+              \let data: Logic.And[Scalar.Member V y, injection i y = c] :=
+                \bysub(fibers i, { y: fibers i \where Logic.And[Scalar.Member V y, injection i y = c] }, y) \then
+              \let yInside: Space.Member S (injection i y) := \idelim c = injection i y \with a: Carrier => Space.Member S a \by {
+                base: \bysub(Carrier, S, c), equality: sym!{Carrier} _ _ (#right{data})
+              } \then
+              \let cut: Fiber i := \into[fibers i](y, fiberSubset i) \by { yInside } \then
+              \let result: NewSpace.Member U (Cut.injection i cut) := \idelim Subscalar.Trace V =
+                { y: Fiber i \where NewSpace.Member U (Cut.injection i y) } \with W: \Pow (Fiber i) => CutScalar.Member W cut \by {
+                  base: #left{data}, equality: sym!{{\Pow (Fiber i)}} _ _ same
+                } \then
+              \return \idelim point cut = c \with z: Old => NewSpace.Member U (backward z) \by {
+                base: result, equality: Refined.ext (point cut) c (#right{data})
+              }
+            },
+          })
+      }) (Subscalar.openRepresentation (spaces i)
+        ({ y: Fiber i \where NewSpace.Member U (Cut.injection i y) })
+        (#ltr{(Cut.openCriterion U)} open i));

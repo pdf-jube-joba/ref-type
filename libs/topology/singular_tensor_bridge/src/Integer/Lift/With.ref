@@ -1,0 +1,19 @@
+\import Native.Map[C := C, D := D].ZeroExtension[f := #forward{e}] \as Forward;
+\import Native.Map[C := D, D := C].ZeroExtension[f := #backward{e}] \as Backward;
+\definition leftInverse: \forall (z: I.Int^)(x: Source.Carrier z) -> #apply{Backward.map} z (#apply{Forward.map} z x) = x :=
+  \induction (z: I.Int^) \return \forall (x: Source.Carrier z) -> #apply{Backward.map} z (#apply{Forward.map} z x) = x \with {
+    | ofNat: \fun (n: N.Nat^)(x: Source.Carrier (I.Int^::ofNat n)) => #leftInverse{e} n x
+    | negSucc: \fun (n: N.Nat^)(x: Source.Carrier (I.Int^::negSucc n)) => sym!{{Source.Carrier (I.Int^::negSucc n)}} _ _ (Source.Negative[n := n].zero x)
+  };
+\definition rightInverse: \forall (z: I.Int^)(x: Target.Carrier z) -> #apply{Forward.map} z (#apply{Backward.map} z x) = x :=
+  \induction (z: I.Int^) \return \forall (x: Target.Carrier z) -> #apply{Forward.map} z (#apply{Backward.map} z x) = x \with {
+    | ofNat: \fun (n: N.Nat^)(x: Target.Carrier (I.Int^::ofNat n)) => #rightInverse{e} n x
+    | negSucc: \fun (n: N.Nat^)(x: Target.Carrier (I.Int^::negSucc n)) => sym!{{Target.Carrier (I.Int^::negSucc n)}} _ _ (Target.Negative[n := n].zero x)
+  };
+\import Signed.Isomorphism[C := Source.complex, D := Target.complex] \as Output;
+\definition data: Output.Data := Output.Data { forward := Forward.map, backward := Backward.map };
+\definition isomorphism: Output.Isomorphism := \into[Output.Data](data, { d: Output.Data \where Output.Laws[d] }) \by {
+  Output.Laws[data] { leftInverse := leftInverse, rightInverse := rightInverse }
+};
+\import Signed.Equivalence[C := Source.complex, D := Target.complex].FromIsomorphism[] \as Equivalences;
+\definition equivalence: Signed.Equivalence[C := Source.complex, D := Target.complex].Equivalence := Equivalences.apply isomorphism;

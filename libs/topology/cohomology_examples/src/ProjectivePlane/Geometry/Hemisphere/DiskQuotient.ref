@@ -1,0 +1,61 @@
+\import \parent.Fundamental[] \as Fundamental;
+\import \parent.Continuity[] \as Continuity;
+\import std.Logic[].Proposition[] \as Logic;
+\import Quotient.FundamentalDomain[F := northern, closed := Fundamental.closed, covers := Fundamental.covers, flipContinuous := Antipodal.continuous] \as Domain;
+\import topological_constructions.RelationQuotient[A := Carrier, relation := Domain.Restricted] \as NorthernQuotient;
+\definition Equivalent(x, y: Lower.Disk): \Prop := Domain.Restricted (lift x) (lift y);
+\import topological_constructions.RelationQuotient[A := Lower.Disk, relation := Equivalent] \as Disk;
+\definition laws: Disk.Laws := Disk.Laws {
+  refl := \fun (x: Lower.Disk) => #refl{Domain.restrictedLaws} (lift x),
+  sym := \fun (x, y: Lower.Disk) => #sym{Domain.restrictedLaws} (lift x) (lift y),
+  trans := \fun (x, y, z: Lower.Disk) => #trans{Domain.restrictedLaws} (lift x) (lift y) (lift z),
+};
+\definition Point: \Set := Disk.Carrier;
+\definition pointTopology: topology.Topology[Carrier := Point].Topology := Disk.topology Lower.diskTopology;
+\definition projection: Lower.Disk -> Point := Disk.class;
+\definition northProjection(x: Lower.Disk): Domain.QuotientPoint := NorthernQuotient.class (lift x);
+\import Disk.Classification[B := Domain.QuotientPoint, q := northProjection] \as Classification;
+\definition respects: Classification.Respects := \fun (x, y: Lower.Disk)(related: Equivalent x y) =>
+  NorthernQuotient.relatedEqual Domain.restrictedLaws (lift x) (lift y) related;
+\definition separates: Classification.Separates := \fun (x, y: Lower.Disk)(equal: northProjection x = northProjection y) =>
+  NorthernQuotient.equalRelated Domain.restrictedLaws (lift x) (lift y) equal;
+\import topology.Composition[A := Lower.Disk, B := Carrier, C := Domain.QuotientPoint] \as ProjectionComposition;
+\definition continuous: topology.Continuity[A := Lower.Disk, B := Domain.QuotientPoint].Continuous Lower.diskTopology Domain.quotientTopology northProjection :=
+  ProjectionComposition.composeContinuous Lower.diskTopology topology Domain.quotientTopology lift NorthernQuotient.class
+    Continuity.liftContinuous (NorthernQuotient.projectionContinuous topology);
+\definition onto: \forall (q: Domain.QuotientPoint) -> \exists { x: Lower.Disk \where northProjection x = q } := NorthernQuotient.induction
+  (\fun (q: Domain.QuotientPoint) => \exists { x: Lower.Disk \where northProjection x = q })
+  (\fun (x: Carrier) => Logic.existsIntro[Lower.Disk, { y: Lower.Disk \where northProjection y = NorthernQuotient.class x }] (project x)
+    (congr!{Carrier Domain.QuotientPoint} NorthernQuotient.class _ _ (rightInverse x)));
+\import topology.Topology[Carrier := Domain.QuotientPoint] \as Target;
+\import topology.Topology[Carrier := Carrier] \as NorthernSpace;
+\import topology.Topology[Carrier := Lower.Disk] \as DiskSpace;
+\import topology.Continuity[A := Lower.Disk, B := Domain.QuotientPoint] \as DiskMaps;
+\import topology.Continuity[A := Carrier, B := Domain.QuotientPoint] \as NorthernMaps;
+\definition reflectsOpen(V: \Pow Domain.QuotientPoint)(open: DiskSpace.IsOpenIn Lower.diskTopology (DiskMaps.Preimage northProjection V)):
+  Target.IsOpenIn Domain.quotientTopology V :=
+  \idelim { x: Carrier \where Target.Member V (northProjection (project x)) } = NorthernMaps.Preimage NorthernQuotient.class V
+    \with W: \Pow Carrier => NorthernSpace.IsOpenIn topology W
+    \by {
+      base: Continuity.projectContinuous (DiskMaps.Preimage northProjection V) open,
+      equality: \axiom:setext({ x: Carrier \where Target.Member V (northProjection (project x)) }, NorthernMaps.Preimage NorthernQuotient.class V,
+        \fun (x: Carrier)(member: Target.Member V (northProjection (project x))) =>
+          \idelim northProjection (project x) = NorthernQuotient.class x
+            \with q: Domain.QuotientPoint => Target.Member V q
+            \by { base: member, equality: congr!{Carrier Domain.QuotientPoint} NorthernQuotient.class _ _ (rightInverse x) },
+        \fun (x: Carrier)(member: Target.Member V (NorthernQuotient.class x)) =>
+          \idelim NorthernQuotient.class x = northProjection (project x)
+            \with q: Domain.QuotientPoint => Target.Member V q
+            \by { base: member, equality: sym!{Domain.QuotientPoint} _ _ (congr!{Carrier Domain.QuotientPoint} NorthernQuotient.class _ _ (rightInverse x)) })
+    };
+\import topological_constructions.Quotient[A := Lower.Disk, B := Domain.QuotientPoint] \as Final;
+\definition quotient: Final.IsQuotientMap[Lower.diskTopology, Domain.quotientTopology, northProjection] := Final.IsQuotientMap[Lower.diskTopology, Domain.quotientTopology, northProjection] {
+  onto := onto, continuous := continuous, reflectsOpen := reflectsOpen,
+};
+\definition northernHomeomorphism: topology.Homeomorphism[A := Point, B := Domain.QuotientPoint].Homeomorphism[pointTopology, Domain.quotientTopology] :=
+  Classification.homeomorphism Lower.diskTopology Domain.quotientTopology laws respects separates quotient;
+\import \root.ProjectivePlane[].Geometry[] \as Projective;
+\import topology.Homeomorphism[A := Point, B := Domain.QuotientPoint].Composition[C := Projective.Carrier] \as Composition;
+\definition homeomorphism: topology.Homeomorphism[A := Point, B := Projective.Carrier].Homeomorphism[pointTopology, Projective.topology] :=
+  Composition.compose pointTopology Domain.quotientTopology Projective.topology northernHomeomorphism Fundamental.homeomorphism;
+\module Boundary;

@@ -1,0 +1,35 @@
+\import chain_complexes.Chain[] \as Degrees;
+\import std.Logic[].Proposition[] \as Logic;
+\import Complexes.At[C := C, z := z] \as H;
+\definition homology: Modules.Bundle := Modules.Bundle { Carrier := H.Homology, space := H.homologySpace };
+\definition cycles: Modules.Bundle := Modules.Bundle { Carrier := H.Cycle, space := H.cycleSpace };
+\definition whole: Modules.Bundle := Modules.Bundle { Carrier := B.family.Carrier z, space := B.family.space z };
+\definition relative: Modules.Bundle := Modules.Bundle { Carrier := C.family.Carrier z, space := C.family.space z };
+\import Modules.End[V := H.Homology, space := H.homologySpace] \as Identity;
+\import Complexes.Map[C := B, D := C].At[k := z] \as Projection;
+\import Modules.Hom[V := H.Cycle, W := C.family.Carrier z, source := H.cycleSpace, target := C.family.space z] \as Inclusion;
+\definition inclusion: Inclusion.Map := Inclusion.Map {
+  apply := \fun (x: H.Cycle) => x,
+  addition := \fun (x, y: H.Cycle) => \refl(#add{(C.family.space z)} x y),
+  scalar := \fun (a: I.Int^)(x: H.Cycle) => \refl(#smul{(C.family.space z)} a x),
+};
+\definition classOnto: Modules.Surjective cycles homology H.classLinear :=
+  H.classInduction (\fun (q: H.Homology) => \exists { x: H.Cycle \where H.classOf x = q })
+    (\fun (x: H.Cycle) => Logic.existsIntro[H.Cycle, { y: H.Cycle \where H.classOf y = H.classOf x }] x (\refl(H.classOf x)));
+\structure Data: \Set {
+  map: Modules.MapBetween homology whole,
+  closed: \forall (q: H.Homology) -> #apply{C.differential} z (#apply{sequence.projection} z (#apply{map} q)) = #zero{(C.family.space (Degrees.previous z))},
+  section: \forall (q: H.Homology) -> H.classOf (H.cycle (#apply{sequence.projection} z (#apply{map} q)) (closed q)) = q,
+}
+\definition CycleSection: \Set := \Cast[Modules.MapBetween homology cycles]
+  ({ s: Modules.MapBetween homology cycles \where \forall (q: H.Homology) -> H.classOf (#apply{s} q) = q });
+\definition cycleSectionExists: Modules.Projective homology -> \exists CycleSection :=
+  \fun (projective: Modules.Projective homology) => projective H.Cycle H.cycleSpace H.Homology H.homologySpace H.classLinear classOnto Identity.identity;
+\module On(section: CycleSection);
+\definition existence: Modules.Projective homology -> \exists Data := \block {
+  \fun (projective: Modules.Projective homology) \then
+  \takefrom section: CycleSection \by cycleSectionExists projective \then
+  \return On[section := section].existence projective
+};
+
+\module Represented(data: Data);

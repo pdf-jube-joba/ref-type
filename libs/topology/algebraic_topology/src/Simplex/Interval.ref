@@ -1,0 +1,73 @@
+\import \root.Interval[] \as Interval;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import \parent.At[n := N.Nat^::succ N.Nat^::zero] \as Space;
+\import \parent.Identities[] \as Insertion;
+\definition dimension: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition count: N.Nat^ := N.Nat^::succ dimension;
+\definition first: Fin.Fin count := Fin.zero dimension;
+\definition last: Fin.Fin count := Fin.succ dimension (Fin.zero N.Nat^::zero);
+\definition sumTwo: \forall (x: Coordinate count) -> Sums.sum count x = Real.add (x first) (x last) :=
+  \fun (x: Coordinate count) => congr!{Real.Real Real.Real} (Real.add (x first)) _ _ (Laws.addZeroRight (x last));
+\definition total: \forall (x: Carrier dimension) -> Real.add (x first) (x last) = Real.one :=
+  \fun (x: Carrier dimension) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (sumTwo x)) #total{(barycentric dimension x)};
+\definition projection(x: Carrier dimension): Interval.Carrier :=
+  \into[Real.Real](x last, Line.ClosedInterval Real.zero Real.one) \by {
+    Logic.And[_, _]::# (#nonnegative{(barycentric dimension x)} last)
+      (R.leReplaceRight (x last) (Real.add (x last) (x first)) Real.one
+        (trans!{Real.Real} _ _ _ (Laws.addComm (x last) (x first)) (total x))
+        (Algebra.leAddRight (x last) (x first) (#nonnegative{(barycentric dimension x)} first)))
+  };
+\definition coordinates(t: Interval.Carrier): Coordinate count :=
+  Tuples.extend dimension (Interval.reverse t) (\fun (_: Fin.Fin dimension) => t);
+\definition coordinatesPositive: \forall (t: Interval.Carrier)(i: Fin.Fin count) -> R.Le Real.zero (coordinates t i) :=
+  \fun (t: Interval.Carrier) => extendNonnegative dimension (Interval.reverse t) (\fun (_: Fin.Fin dimension) => t)
+    (#left{(Interval.bounds (Interval.reverse t))}) (\fun (_: Fin.Fin dimension) => #left{(Interval.bounds t)});
+\definition coordinatesTotal: \forall (t: Interval.Carrier) -> Sums.sum count (coordinates t) = Real.one :=
+  \fun (t: Interval.Carrier) => trans!{Real.Real} _ _ _
+    (extendSum dimension (Interval.reverse t) (\fun (_: Fin.Fin dimension) => t))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (Interval.reverse t)) _ _ (Laws.addZeroRight t)) (Distance.subAddCancel Real.one t));
+\definition embedding(t: Interval.Carrier): Carrier dimension := \into[Coordinate count](coordinates t, Points dimension) \by {
+  Barycentric[count, coordinates t] { nonnegative := coordinatesPositive t, total := coordinatesTotal t }
+};
+\definition firstCoordinate: \forall (t: Interval.Carrier) -> embedding t first = Interval.reverse t :=
+  \fun (t: Interval.Carrier) => Tuples.atZero dimension (Interval.reverse t) (\fun (_: Fin.Fin dimension) => t);
+\definition lastCoordinate: \forall (t: Interval.Carrier) -> embedding t last = t :=
+  \fun (t: Interval.Carrier) => Tuples.atSuccessor dimension (Interval.reverse t) (\fun (_: Fin.Fin dimension) => t) (Fin.zero N.Nat^::zero);
+\definition projectionEmbedding: \forall (t: Interval.Carrier) -> projection (embedding t) = t := lastCoordinate;
+\definition embeddingProjection: \forall (x: Carrier dimension) -> embedding (projection x) = x :=
+  \fun (x: Carrier dimension) => Tuples.extensionality dimension (embedding (projection x)) x
+    (trans!{Real.Real} _ _ _ (firstCoordinate (projection x))
+      (Laws.addCancelRight (Real.sub Real.one (x last)) (x first) (x last)
+        (trans!{Real.Real} _ _ _ (Distance.subAddCancel Real.one (x last)) (sym!{Real.Real} _ _ (total x)))))
+    (\fun (i: Fin.Fin dimension) => trans!{Real.Real} _ _ _
+      (Tuples.atSuccessor dimension (Interval.reverse (projection x)) (\fun (_: Fin.Fin dimension) => projection x) i)
+      (sym!{Real.Real} _ _ (congr!{{Fin.Fin dimension} Real.Real} (\fun (j: Fin.Fin dimension) => x (Fin.succ dimension j)) _ _ (Fin.singletonValue i))));
+\import topology.Continuity[A := Carrier dimension, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one] \as IntoInterval;
+\definition projectionContinuous: topology.Continuity[A := Carrier dimension, B := Interval.Carrier].Continuous Space.topology Interval.topology projection :=
+  IntoInterval.corestrictContinuous Space.topology Line.topology projection (Space.coordinateContinuous last);
+\import \parent.Continuity[A := Interval.Carrier, source := Interval.topology] \as CoordinateContinuity;
+\import metric_spaces.RealFunctions[A := Interval.Carrier] \as Functions;
+\import topological_algebra.Coordinates[K := Real.Real, I := Fin.Fin count].Universal[A := Interval.Carrier] \as Ambient;
+\import topology.Continuity[A := Interval.Carrier, B := Coordinate count].Corestriction[S := Points dimension] \as IntoSimplex;
+\definition embeddingContinuous: topology.Continuity[A := Interval.Carrier, B := Carrier dimension].Continuous Interval.topology Space.topology embedding :=
+  IntoSimplex.corestrictContinuous Interval.topology Space.ambientTopology embedding
+    (Ambient.continuous Interval.topology Line.topology embedding
+      (CoordinateContinuity.extendContinuous dimension (\fun (t: Interval.Carrier) => Interval.reverse t)
+        (\fun (t: Interval.Carrier) => \fun (_: Fin.Fin dimension) => t)
+        (Functions.subContinuous Interval.topology (\fun (_: Interval.Carrier) => Real.one) (\fun (t: Interval.Carrier) => t)
+          (Functions.constantContinuous Interval.topology Real.one) Interval.inclusionContinuous)
+        (\fun (_: Fin.Fin dimension) => Interval.inclusionContinuous)));
+\definition faceFirstEnd: \forall (x: Carrier N.Nat^::zero) -> projection (face N.Nat^::zero first x) = Interval.end :=
+  \fun (x: Carrier N.Nat^::zero) => trans!{Real.Real} _ _ _ (faceFirstSuccessor N.Nat^::zero x (Fin.zero N.Nat^::zero))
+    (congr!{{Carrier N.Nat^::zero} Real.Real} (\fun (y: Carrier N.Nat^::zero) => y (Fin.zero N.Nat^::zero)) _ _ (zeroUnique x));
+\definition faceLastStart: \forall (x: Carrier N.Nat^::zero) -> projection (face N.Nat^::zero last x) = Interval.start :=
+  \fun (x: Carrier N.Nat^::zero) => trans!{Real.Real} _ _ _
+    (congr!{{Coordinate count} Real.Real} (\fun (v: Coordinate count) => v last) _ _ (Insertion.insertionTail N.Nat^::zero (Fin.zero N.Nat^::zero) x))
+    (Tuples.atSuccessor dimension (x (Fin.zero N.Nat^::zero)) (insertZero N.Nat^::zero (Fin.zero N.Nat^::zero) (\fun (i: Fin.Fin N.Nat^::zero) => x (Fin.succ N.Nat^::zero i))) (Fin.zero N.Nat^::zero));
+\definition startEndpoint: embedding Interval.start = face N.Nat^::zero last zeroPoint :=
+  trans!{{Carrier dimension}} _ _ _ (congr!{Interval.Carrier {Carrier dimension}} embedding _ _ (sym!{Interval.Carrier} _ _ (faceLastStart zeroPoint)))
+    (embeddingProjection (face N.Nat^::zero last zeroPoint));
+\definition endEndpoint: embedding Interval.end = face N.Nat^::zero first zeroPoint :=
+  trans!{{Carrier dimension}} _ _ _ (congr!{Interval.Carrier {Carrier dimension}} embedding _ _ (sym!{Interval.Carrier} _ _ (faceFirstEnd zeroPoint)))
+    (embeddingProjection (face N.Nat^::zero first zeroPoint));

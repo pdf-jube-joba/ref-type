@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import cohomology_models.Spheres[].Orientation[n := n] \as Orientation;
+\definition Sphere: \Set := Orientation.Sphere;
+\definition topology: topology.Topology[Carrier := Sphere].Topology := Orientation.topology;
+\import topology.Continuity[A := Sphere, B := Sphere] \as Maps;
+\definition functionEquality: \forall (f, g: Sphere -> Sphere)(fc: Maps.Continuous topology topology f)(gc: Maps.Continuous topology topology g) ->
+  (\forall (x: Sphere) -> f x = g x) -> Orientation.degree f fc = Orientation.degree g gc :=
+  \fun (f, g: Sphere -> Sphere)(fc: _)(gc: _)(same: _) =>
+    (\idelim f = g \with h: (Sphere -> Sphere) =>
+      \forall (hc: Maps.Continuous topology topology h) -> Orientation.degree f fc = Orientation.degree h hc \by {
+      base: \fun (hc: Maps.Continuous topology topology f) => \refl(Orientation.degree f fc),
+      equality: \axiom:funext(f, g, same)
+    }) gc;
+\import singular_cohomology.Identity[A := Sphere, source := topology] \as Identity;
+\definition identityPointwise: \forall (f: Sphere -> Sphere)(continuous: Maps.Continuous topology topology f) ->
+  (\forall (x: Sphere) -> f x = x) -> Orientation.degree f continuous = I.One.specification :=
+  \fun (f: Sphere -> Sphere)(continuous: _)(same: _) => trans!{I.Int^} _ _ _
+    (functionEquality f Identity.function continuous Identity.continuous same) Orientation.Identity[].law;
+\import algebraic_topology.Spheres[].Antipodal[n := N.Nat^::succ n] \as Antipodal;
+\import topology.Composition[A := Sphere, B := Sphere, C := Sphere] \as Composition;
+\definition antipodalSquare: #mul{Integers.ring} (Orientation.degree Antipodal.apply Antipodal.continuous) (Orientation.degree Antipodal.apply Antipodal.continuous) = I.One.specification :=
+  trans!{I.Int^} _ _ _
+    (sym!{I.Int^} _ _ (Orientation.Composition[].law Antipodal.apply Antipodal.apply Antipodal.continuous Antipodal.continuous))
+    (identityPointwise (\fun (x: Sphere) => Antipodal.apply (Antipodal.apply x))
+      (Composition.composeContinuous topology topology topology Antipodal.apply Antipodal.apply Antipodal.continuous Antipodal.continuous)
+      Antipodal.involution);
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import cohomology_models.Spheres[].With[coefficients := Orientation.coefficients].Top[n := n] \as Top;
+\definition actionScalar: \forall (f: Sphere -> Sphere)(continuous: Maps.Continuous topology topology f)(q: Orientation.Carrier) ->
+  #apply{(Orientation.action f continuous)} q = #smul{Orientation.space} (Orientation.degree f continuous) q :=
+  \fun (f: Sphere -> Sphere)(continuous: _)(q: Orientation.Carrier) => \block {
+    \let a: I.Int^ := #apply{Orientation.toCoefficient} q \then
+    \let recovered: #apply{Orientation.fromCoefficient} a = q := #rightInverse{Top.isomorphism} q \then
+    \return trans!{Orientation.Carrier} _ _ _
+      (sym!{Orientation.Carrier} _ _ (congr!{Orientation.Carrier Orientation.Carrier} (#apply{(Orientation.action f continuous)}) _ _ recovered))
+      (trans!{Orientation.Carrier} _ _ _ (Orientation.onBasis f continuous a)
+        (trans!{Orientation.Carrier} _ _ _
+          (congr!{I.Int^ Orientation.Carrier} (#apply{Orientation.fromCoefficient}) _ _ (#mulCommutative{Integers.commutativeRing} a (Orientation.degree f continuous)))
+          (trans!{Orientation.Carrier} _ _ _ (#scalar{Orientation.fromCoefficient} (Orientation.degree f continuous) a)
+            (congr!{Orientation.Carrier Orientation.Carrier} (#smul{Orientation.space} (Orientation.degree f continuous)) _ _ recovered))))
+  };

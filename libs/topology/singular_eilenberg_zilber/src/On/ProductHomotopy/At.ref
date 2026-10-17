@@ -1,0 +1,25 @@
+\import \root.Models[].At[n := n] \as Model;
+\import Simplex.At[n := n] \as Domain;
+\import singular_products.ProductChains[p := n, q := n].Into[A := A, B := B, source := left, target := right] \as Evaluation;
+\import singular_products.AlexanderWhitney[A := A, B := B, left := left, right := right] \as Projections;
+\import singular_cohomology.Maps[A := Product.CarrierSet, B := A, source := topology, target := left] \as LeftMaps;
+\import singular_cohomology.Maps[A := Product.CarrierSet, B := B, source := topology, target := right] \as RightMaps;
+\import singular_cohomology.Simplices[A := A, source := left] \as LeftSimplices;
+\import singular_cohomology.Simplices[A := B, source := right] \as RightSimplices;
+\definition leftSimplex(sigma: Simplices.Carrier n): LeftSimplices.Carrier n := LeftMaps.postcompose n Projections.leftProjection Projections.leftContinuous sigma;
+\definition rightSimplex(sigma: Simplices.Carrier n): RightSimplices.Carrier n := RightMaps.postcompose n Projections.rightProjection Projections.rightContinuous sigma;
+\import singular_cohomology.Maps[A := Model.Points, B := Product.CarrierSet, source := Model.topology, target := topology] \as Maps;
+\definition function(sigma: Simplices.Carrier n): Model.Points -> Product.CarrierSet := Evaluation.function (leftSimplex sigma) (rightSimplex sigma);
+\definition continuous(sigma: Simplices.Carrier n): Maps.Continuous (function sigma) := Evaluation.continuous (leftSimplex sigma) (rightSimplex sigma);
+\definition onSimplex(sigma: Simplices.Carrier n): Chains.Carrier (N.Nat^::succ n) := #apply{Maps.push (function sigma) (continuous sigma)} (N.Nat^::succ n) (Models.homotopy n);
+\import Modules.Free[Generators := Simplices.Carrier n].To[W := Chains.Carrier (N.Nat^::succ n), target := Chains.space (N.Nat^::succ n)] \as Extension;
+\definition map: Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier (N.Nat^::succ n), source := Chains.space n, target := Chains.space (N.Nat^::succ n)].Map := Extension.extension onSimplex;
+\definition onGenerator: \forall (sigma: Simplices.Carrier n) -> #apply{map} (Chains.generator n sigma) = onSimplex sigma := Extension.onGenerator onSimplex;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := A, B := B] \as Pairs;
+\definition diagonal(sigma: Simplices.Carrier n): Maps.postcompose n (function sigma) (continuous sigma) Model.diagonal = sigma :=
+  \axiom:funext(Maps.postcompose n (function sigma) (continuous sigma) Model.diagonal, sigma, \fun (x: Simplex.Carrier n) => Pairs.eta (sigma x));
+\definition original(sigma: Simplices.Carrier n): #apply{Maps.push (function sigma) (continuous sigma)} n Model.cell = Chains.generator n sigma :=
+  trans!{{Chains.Carrier n}} _ _ _ (Maps.At[n := n].onGenerator (function sigma) (continuous sigma) Model.diagonal)
+    (congr!{{Simplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _ (diagonal sigma));
+\module Boundary;

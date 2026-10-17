@@ -1,0 +1,67 @@
+\import Real.Distance[] \as Distance;
+\import Lower.Contraction[] \as Scaling;
+\definition coordinates(t: Interval.Carrier)(x: Intersection): Ambient.Coordinate :=
+  Split.join (Real.mul (Interval.reverse t) (height x)) (Split.tail x);
+\definition normPositive: \forall (t: Interval.Carrier)(x: Intersection) -> R.Lt Real.zero (Ambient.normSquared (coordinates t x)) :=
+  \fun (t: Interval.Carrier)(x: Intersection) => R.ltLeTrans Real.zero (Lower.normSquared (Split.tail x)) _ (tailPositive x)
+    (R.leReplaceRight (Lower.normSquared (Split.tail x))
+      (Real.add (Real.mul (Real.mul (Interval.reverse t) (height x)) (Real.mul (Interval.reverse t) (height x))) (Lower.normSquared (Split.tail x)))
+      (Ambient.normSquared (coordinates t x)) (sym!{Real.Real} _ _ (Split.normJoin (Real.mul (Interval.reverse t) (height x)) (Split.tail x)))
+      (Distance.leAddRightOfNonnegative (Real.mul (Real.mul (Interval.reverse t) (height x)) (Real.mul (Interval.reverse t) (height x)))
+        (Lower.normSquared (Split.tail x)) (Algebra.squareNonnegative (Real.mul (Interval.reverse t) (height x)))));
+\definition vector(t: Interval.Carrier)(x: Intersection): AmbientNormalization.Nonzero :=
+  \into[Ambient.Coordinate](coordinates t x, AmbientNormalization.Nonzero) \by {
+    Inverse.positiveNonzero _ (normPositive t x)
+  };
+\definition radiusPositive: \forall (t: Interval.Carrier)(x: Intersection) -> R.Lt Real.zero (Geometry.norm (vector t x)) :=
+  \fun (t: Interval.Carrier)(x: Intersection) => Order.ltOfLeNotEq Real.zero (Geometry.norm (vector t x))
+    (Root.nonnegative (Ambient.normSquared (vector t x)))
+    (\fun (equal: Real.zero = Geometry.norm (vector t x)) => AmbientNormalization.normNonzero (vector t x) (sym!{Real.Real} _ _ equal));
+\definition inverseRadiusPositive: \forall (t: Interval.Carrier)(x: Intersection) -> R.Lt Real.zero (Laws.fieldInv (Geometry.norm (vector t x))) :=
+  \fun (t: Interval.Carrier)(x: Intersection) => Products.invPositive _ (radiusPositive t x);
+\definition remainingPositive: \forall (t: Interval.Carrier)(x: Intersection) -> R.Lt Real.zero (Lower.normSquared (Split.tail (vector t x))) :=
+  \fun (t: Interval.Carrier)(x: Intersection) => R.ltReplaceRight Real.zero (Lower.normSquared (Split.tail x)) (Lower.normSquared (Split.tail (vector t x)))
+    (sym!{Real.Real} _ _ (congr!{Lower.Coordinate Real.Real} Lower.normSquared _ _ (Split.tailJoin (Real.mul (Interval.reverse t) (height x)) (Split.tail x))))
+    (tailPositive x);
+\definition normalizedTailPositive: \forall (t: Interval.Carrier)(x: Intersection) ->
+  R.Lt Real.zero (Lower.normSquared (Split.tail (AmbientNormalization.normalize (vector t x)))) :=
+  \fun (t: Interval.Carrier)(x: Intersection) => R.ltReplaceRight Real.zero
+    (Real.mul (Real.mul (Laws.fieldInv (Geometry.norm (vector t x))) (Laws.fieldInv (Geometry.norm (vector t x)))) (Lower.normSquared (Split.tail (vector t x))))
+    (Lower.normSquared (Split.tail (AmbientNormalization.normalize (vector t x))))
+    (sym!{Real.Real} _ _ (Scaling.normScale (Laws.fieldInv (Geometry.norm (vector t x))) (Split.tail (vector t x))))
+    (Products.mulPositive _ _ (Products.mulPositive _ _ (inverseRadiusPositive t x) (inverseRadiusPositive t x)) (remainingPositive t x));
+\definition move(t: Interval.Carrier)(x: Intersection): Intersection :=
+  refine (AmbientNormalization.normalize (vector t x)) (normalizedTailPositive t x);
+\definition coordinatesAtStart: \forall (x: Intersection) -> coordinates Interval.start x = x :=
+  \fun (x: Intersection) => trans!{Ambient.Coordinate} _ _ _
+    (congr2!{Real.Real Lower.Coordinate Ambient.Coordinate} Split.join _ _ _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (height x)) _ _ Interval.reverseStart)
+        (Laws.fieldMulOneLeft (height x))) (\refl(Split.tail x))) (Split.recover x);
+\definition atStart: \forall (x: Intersection) -> move Interval.start x = x :=
+  \fun (x: Intersection) => trans!{Sphere} _ _ _
+    (congr!{AmbientNormalization.Nonzero Sphere} AmbientNormalization.normalize (vector Interval.start x) (AmbientNormalization.ofSphere x) (coordinatesAtStart x))
+    (AmbientNormalization.normalizesUnit x);
+\definition endHeight: \forall (x: Intersection) -> Real.mul (Interval.reverse Interval.end) (height x) = Real.zero :=
+  \fun (x: Intersection) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (height x)) _ _ Interval.reverseEnd) (Laws.fieldMulZeroLeft (height x));
+\definition endNormSquared: \forall (x: Intersection) -> Ambient.normSquared (vector Interval.end x) = Lower.normSquared (tailVector x) :=
+  \fun (x: Intersection) => trans!{Real.Real} _ _ _ (Split.normJoin (Real.mul (Interval.reverse Interval.end) (height x)) (Split.tail x))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add (Real.mul r r) (Lower.normSquared (Split.tail x))) _ _ (endHeight x))
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Lower.normSquared (Split.tail x))) _ _ (Laws.fieldMulZeroLeft Real.zero))
+        (Laws.addZeroLeft (Lower.normSquared (Split.tail x)))));
+\definition endNorm: \forall (x: Intersection) -> Geometry.norm (vector Interval.end x) = LowerGeometry.norm (tailVector x) :=
+  \fun (x: Intersection) => congr!{Real.Real Real.Real} Root.sqrt _ _ (endNormSquared x);
+\import \root.Cylinder[A := Intersection] \as Cylinder;
+\definition family(p: Cylinder.Carrier): Intersection := move (Cylinder.time p) (Cylinder.point p);
+\module Endpoints;
+\module Continuity;
+\import \root.Homotopy[A := Intersection, B := Intersection] \as Homotopies;
+\definition homotopy: Homotopies.Homotopy[intersectionTopology, intersectionTopology, (\fun (x: Intersection) => x), (\fun (x: Intersection) => inclusion (retraction x))] :=
+  \into[Homotopies.Family](family, Homotopies.Homotopy[intersectionTopology, intersectionTopology, (\fun (x: Intersection) => x), (\fun (x: Intersection) => inclusion (retraction x))]) \by {
+    Homotopies.Laws[intersectionTopology, intersectionTopology, (\fun (x: Intersection) => x), (\fun (x: Intersection) => inclusion (retraction x)), family] {
+      continuous := Continuity[].continuous, start := atStart, end := Endpoints[].atEnd,
+    }
+  };
+\definition fixed: \forall (t: Interval.Carrier)(x: Carrier n) -> family (Cylinder.at t (inclusion x)) = inclusion x := Endpoints[].fixesEquator;

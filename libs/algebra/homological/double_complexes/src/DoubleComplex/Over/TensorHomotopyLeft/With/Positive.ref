@@ -1,0 +1,30 @@
+\definition next: Nat.Nat^ := Nat.Nat^::succ p;
+\import SourceTensor.Term[p := next, q := q] \as Source;
+\import SourceTensor.Term[p := p, q := q] \as BeforeTarget;
+\import TargetTensor.Term[p := Nat.Nat^::succ next, q := q] \as AfterSource;
+\import TargetTensor.Term[p := next, q := q] \as Target;
+\import SourceTensor.At[p := p, q := q] \as SD;
+\import TargetTensor.At[p := next, q := q] \as TD;
+\import \parent.Term[p := p, q := q] \as BeforeH;
+\import \parent.Term[p := next, q := q] \as AfterH;
+\import Forward.Degree[p := next, q := q] \as F;
+\import Backward.Degree[p := next, q := q] \as G;
+\import Modules.Tensor[V := D.family.Carrier next, W := E.family.Carrier q, left := D.family.space next, right := E.family.space q] \as TensorModule;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Linear;
+\import Modules.Hom[V := AfterSource.Carrier, W := Target.Carrier, source := AfterSource.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as DH;
+\import Modules.Hom[V := BeforeTarget.Carrier, W := Target.Carrier, source := BeforeTarget.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as HD;
+\definition after(x: C.family.Carrier next)(y: E.family.Carrier q): #apply{TD.horizontal} (#apply{AfterH.map} (Source.tensor x y)) = Target.tensor (#apply{D.differential} next (#apply{h} next x)) y :=
+  trans!{Target.Carrier} _ _ _ (congr!{AfterSource.Carrier Target.Carrier} (#apply{TD.horizontal}) _ _ (AfterH.onTensor x y)) (TD.horizontalOnTensor (#apply{h} next x) y);
+\definition before(x: C.family.Carrier next)(y: E.family.Carrier q): #apply{BeforeH.map} (#apply{SD.horizontal} (Source.tensor x y)) = Target.tensor (#apply{h} p (#apply{C.differential} p x)) y :=
+  trans!{Target.Carrier} _ _ _ (congr!{BeforeTarget.Carrier Target.Carrier} (#apply{BeforeH.map}) _ _ (SD.horizontalOnTensor x y)) (BeforeH.onTensor (#apply{C.differential} p x) y);
+\import Modules.Tensor[V := C.family.Carrier next, W := E.family.Carrier q, left := C.family.space next, right := E.family.space q].Universal[U := Target.Carrier, target := Target.space] \as Universal;
+\definition equality: Linear.plus F.map (Linear.negative G.map) = Linear.plus (DH.compose TD.horizontal AfterH.map) (HD.compose BeforeH.map SD.horizontal) := Universal.ext _ _
+  (\fun (x: C.family.Carrier next)(y: E.family.Carrier q) => trans!{Target.Carrier} _ _ _
+    (congr2!{Target.Carrier Target.Carrier Target.Carrier} (\fun (a, b: Target.Carrier) => #add{Target.space} a (#neg{Target.space} b)) _ _ _ _ (F.onTensor x y) (G.onTensor x y))
+    (trans!{Target.Carrier} _ _ _ (sym!{Target.Carrier} _ _ (TensorModule.tensorDifferenceLeft (#apply{f} next x) (#apply{g} next x) y))
+      (trans!{Target.Carrier} _ _ _
+        (congr!{{D.family.Carrier next} Target.Carrier} (\fun (z: D.family.Carrier next) => Target.tensor z y) _ _ (#successorEquation{h} p x))
+        (trans!{Target.Carrier} _ _ _
+          (#addLeft{TensorModule.bilinear} (#apply{D.differential} next (#apply{h} next x)) (#apply{h} p (#apply{C.differential} p x)) y)
+          (congr2!{Target.Carrier Target.Carrier Target.Carrier} (#add{Target.space}) _ _ _ _ (sym!{Target.Carrier} _ _ (after x y)) (sym!{Target.Carrier} _ _ (before x y)))))));
+\definition point(x: Source.Carrier): #add{Target.space} (#apply{F.map} x) (#neg{Target.space} (#apply{G.map} x)) = #add{Target.space} (#apply{TD.horizontal} (#apply{AfterH.map} x)) (#apply{BeforeH.map} (#apply{SD.horizontal} x)) := congr!{Linear.Map Target.Carrier} (\fun (m: Linear.Map) => #apply{m} x) _ _ equality;

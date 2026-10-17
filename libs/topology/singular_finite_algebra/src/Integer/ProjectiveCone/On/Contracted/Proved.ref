@@ -1,0 +1,87 @@
+\import SignedChains.Map[C := Q, D := P] \as Backwards;
+\definition Commutes(z: I.Int^): \Prop := \forall (x: Q.family.Carrier z) ->
+  #apply{P.differential} z (backward z x) = backward (Degrees.previous z) (#apply{Q.differential} z x);
+\definition successorCommutes(n: N.Nat^): Commutes (I.Int^::ofNat (N.Nat^::succ n)) :=
+  \parent.At[n := n].commutes;
+\definition positiveCommutes: \forall (n: N.Nat^) -> Commutes (I.Int^::ofNat n) :=
+  \induction (n: N.Nat^) \return Commutes (I.Int^::ofNat n) \with {
+    | zero: \fun (x: Q.family.Carrier (I.Int^::ofNat N.Nat^::zero)) => sourceNegative N.Nat^::zero
+      (#apply{P.differential} (I.Int^::ofNat N.Nat^::zero) (backward (I.Int^::ofNat N.Nat^::zero) x))
+    | succ: \fun (n: N.Nat^)(before: Commutes (I.Int^::ofNat n)) => successorCommutes n
+  };
+\definition commutes: \forall (z: I.Int^) -> Commutes z :=
+  \induction (z: I.Int^) \return Commutes z \with {
+    | ofNat: positiveCommutes
+    | negSucc: \fun (n: N.Nat^)(x: Q.family.Carrier (I.Int^::negSucc n)) => sourceNegative (N.Nat^::succ n)
+      (#apply{P.differential} (I.Int^::negSucc n) (backward (I.Int^::negSucc n) x))
+  };
+\definition backwardMap: Backwards.Map := Backwards.Map {
+  apply := backward, addition := backwardAddition, scalar := backwardScalar, commutes := commutes,
+};
+\import Backwards.Composition[B := P] \as Left;
+\import Maps.Composition[B := Q] \as Right;
+\definition leftComposite: SignedChains.Map[C := P, D := P].Map := Left.compose backwardMap f;
+\definition rightComposite: SignedChains.Map[C := Q, D := Q].Map := Right.compose f backwardMap;
+\import SignedChains.Prior[C := P] \as SourcePrior;
+\import SignedChains.Prior[C := Q] \as TargetPrior;
+\definition leftLHS(z: I.Int^)(x: P.family.Carrier z): P.family.Carrier z :=
+  #add{(P.family.space z)} (#apply{leftComposite} z x) (#neg{(P.family.space z)} x);
+\definition leftRHS(z: I.Int^)(x: P.family.Carrier z): P.family.Carrier z :=
+  #add{(P.family.space z)} (SourcePrior.value z (sourceOperator z x))
+    (SourceHomotopies.shifted sourceData z (#apply{P.differential} z x));
+\definition rightLHS(z: I.Int^)(x: Q.family.Carrier z): Q.family.Carrier z :=
+  #add{(Q.family.space z)} (#apply{rightComposite} z x) (#neg{(Q.family.space z)} x);
+\definition rightRHS(z: I.Int^)(x: Q.family.Carrier z): Q.family.Carrier z :=
+  #add{(Q.family.space z)} (TargetPrior.value z (targetOperator z x))
+    (TargetHomotopies.shifted targetData z (#apply{Q.differential} z x));
+\definition LeftEquation(z: I.Int^): \Prop := \forall (x: P.family.Carrier z) -> leftLHS z x = leftRHS z x;
+\definition RightEquation(z: I.Int^): \Prop := \forall (x: Q.family.Carrier z) -> rightLHS z x = rightRHS z x;
+\module Positive(n: N.Nat^);
+\module AtZero;
+\definition successorLeft(n: N.Nat^): LeftEquation (I.Int^::ofNat (N.Nat^::succ n)) :=
+  Positive[n := n].left;
+\definition successorRight(n: N.Nat^): RightEquation (I.Int^::ofNat (N.Nat^::succ n)) :=
+  Positive[n := n].right;
+\definition positiveLeft: \forall (n: N.Nat^) -> LeftEquation (I.Int^::ofNat n) :=
+  \induction (n: N.Nat^) \return LeftEquation (I.Int^::ofNat n) \with {
+    | zero: AtZero[].left
+    | succ: \fun (n: N.Nat^)(before: LeftEquation (I.Int^::ofNat n)) => successorLeft n
+  };
+\definition positiveRight: \forall (n: N.Nat^) -> RightEquation (I.Int^::ofNat n) :=
+  \induction (n: N.Nat^) \return RightEquation (I.Int^::ofNat n) \with {
+    | zero: AtZero[].right
+    | succ: \fun (n: N.Nat^)(before: RightEquation (I.Int^::ofNat n)) => successorRight n
+  };
+\definition leftEquation: \forall (z: I.Int^) -> LeftEquation z :=
+  \induction (z: I.Int^) \return LeftEquation z \with {
+    | ofNat: positiveLeft
+    | negSucc: \fun (n: N.Nat^)(x: P.family.Carrier (I.Int^::negSucc n)) =>
+      trans!{{P.family.Carrier (I.Int^::negSucc n)}} _ _ _
+        (sourceNegative n (leftLHS (I.Int^::negSucc n) x))
+        (sym!{{P.family.Carrier (I.Int^::negSucc n)}} _ _ (sourceNegative n (leftRHS (I.Int^::negSucc n) x)))
+  };
+\definition rightEquation: \forall (z: I.Int^) -> RightEquation z :=
+  \induction (z: I.Int^) \return RightEquation z \with {
+    | ofNat: positiveRight
+    | negSucc: \fun (n: N.Nat^)(x: Q.family.Carrier (I.Int^::negSucc n)) =>
+      trans!{{Q.family.Carrier (I.Int^::negSucc n)}} _ _ _
+        (targetNegative n (rightLHS (I.Int^::negSucc n) x))
+        (sym!{{Q.family.Carrier (I.Int^::negSucc n)}} _ _ (targetNegative n (rightRHS (I.Int^::negSucc n) x)))
+  };
+\import SignedChains.End[C := P] \as SourceEnd;
+\import SignedChains.End[C := Q] \as TargetEnd;
+\definition sourceLaws: SourceHomotopies.Laws[leftComposite, SourceEnd.identity, sourceData] :=
+  SourceHomotopies.Laws[leftComposite, SourceEnd.identity, sourceData] {
+    addition := sourceOperatorAddition, scalar := sourceOperatorScalar, equation := leftEquation,
+  };
+\definition targetLaws: TargetHomotopies.Laws[rightComposite, TargetEnd.identity, targetData] :=
+  TargetHomotopies.Laws[rightComposite, TargetEnd.identity, targetData] {
+    addition := targetOperatorAddition, scalar := targetOperatorScalar, equation := rightEquation,
+  };
+\import SignedChains.Equivalence[C := P, D := Q] \as Equivalences;
+\definition data: Equivalences.Data := Equivalences.Data {
+  forward := f, backward := backwardMap, left := sourceData, right := targetData,
+};
+\definition equivalence: Equivalences.Equivalence := \into[Equivalences.Data](data, Equivalences.Equivalence) \by {
+  Equivalences.Laws[data] { left := sourceLaws, right := targetLaws }
+};

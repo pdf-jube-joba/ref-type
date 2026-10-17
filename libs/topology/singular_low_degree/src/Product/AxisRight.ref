@@ -1,0 +1,53 @@
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.Vertices[] \as Vertices;
+\import Simplex.Affine[m := one, n := one] \as IdentityAffine;
+\import Simplex.AffineIdentity[n := one] \as AffineIdentity;
+\import singular_products.ProductChains[p := zero, q := one] \as Model;
+\import Model.Into[A := A, B := B, source := left, target := right] \as Evaluation;
+\import Model.At[m := one] \as Affine;
+\import singular_products.OrderedShuffle[V := Simplex.Carrier zero, W := Simplex.Carrier one] \as Raw;
+\import singular_cohomology.OrderedTuples[V := Raw.Pair] \as Tuples;
+\import singular_cohomology.Simplices[A := A, source := left] \as LeftSimplices;
+\import singular_cohomology.Simplices[A := B, source := right] \as RightSimplices;
+\import singular_cohomology.Simplices[A := Geometry.CarrierSet, source := productTopology] \as ProductSimplices;
+\import Shuffle.At[p := zero, q := one] \as Cross;
+\definition constant: LeftSimplices.Carrier zero := LeftSimplices.At[n := zero].constant leftPoint;
+\definition pointChain: Left.Carrier zero := Left.generator zero constant;
+\definition vertices: Tuples.Tuple two := \fun (i: Fin.Fin two) => Raw.Pair {
+  left := Vertices.vertex zero (Fin.zero zero), right := Vertices.vertex one i,
+};
+\definition fundamental: Model.fundamental = Tuples.generator two vertices := \refl(Model.fundamental);
+\definition rightVertices: Affine.rightVertices vertices = Vertices.vertex one :=
+  \axiom:funext(Affine.rightVertices vertices, Vertices.vertex one, \fun (i: Fin.Fin two) => \refl(Vertices.vertex one i));
+\definition rightIdentity(x: Simplex.Carrier one): IdentityAffine.apply (Affine.rightVertices vertices) x = x :=
+  trans!{{Simplex.Carrier one}} _ _ _
+    (congr!{IdentityAffine.Vertices {Simplex.Carrier one}} (\fun (v: IdentityAffine.Vertices) => IdentityAffine.apply v x) _ _ rightVertices)
+    (AffineIdentity.law x);
+\import singular_cohomology.Maps[A := Model.Carrier, B := Geometry.CarrierSet,
+  source := Model.topology, target := productTopology] \as Evaluate;
+\definition same(tau: RightSimplices.Carrier one):
+  Evaluate.postcompose one (Evaluation.function constant tau) (Evaluation.continuous constant tau) (Affine.onTuple vertices) =
+    RightAxis.postcompose one second secondContinuous tau :=
+  ProductSimplices.ext one
+    (Evaluate.postcompose one (Evaluation.function constant tau) (Evaluation.continuous constant tau) (Affine.onTuple vertices))
+    (RightAxis.postcompose one second secondContinuous tau) (\fun (x: Simplex.Carrier one) =>
+    congr2!{A B Geometry.CarrierSet} (Pairs.pair A B)
+      leftPoint leftPoint (tau (IdentityAffine.apply (Affine.rightVertices vertices) x)) (tau x)
+      (\refl(leftPoint)) (congr!{{Simplex.Carrier one} B} tau _ _ (rightIdentity x)));
+\definition onGenerators(tau: RightSimplices.Carrier one): Cross.apply pointChain (Right.generator one tau) =
+  #apply{(RightAxis.At[n := one].push second secondContinuous)} (Right.generator one tau) :=
+  trans!{{ProductChains.Carrier one}} _ _ _ (Cross.onGenerators constant tau)
+    (trans!{{ProductChains.Carrier one}} _ _ _
+      (congr!{{Tuples.Carrier two} {ProductChains.Carrier one}} (#apply{(Evaluation.evaluation constant tau)} one) _ _ fundamental)
+      (trans!{{ProductChains.Carrier one}} _ _ _ (Evaluation.onGenerator one constant tau vertices)
+        (trans!{{ProductChains.Carrier one}} _ _ _
+          (congr!{{ProductSimplices.Carrier one} {ProductChains.Carrier one}} (ProductChains.generator one) _ _ (same tau))
+          (sym!{{ProductChains.Carrier one}} _ _ (RightAxis.At[n := one].onGenerator second secondContinuous tau)))));
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[
+  A := Cross.leftBundle, B := Cross.rightBundle, C := Cross.targetBundle] \as Bilinear;
+\import Modules.Free[Generators := RightSimplices.Carrier one].To[W := ProductChains.Carrier one, target := ProductChains.space one] \as Free;
+\definition equality: Bilinear.rightAt Cross.bilinear pointChain = RightAxis.At[n := one].push second secondContinuous :=
+  Free.ext (Bilinear.rightAt Cross.bilinear pointChain) (RightAxis.At[n := one].push second secondContinuous) onGenerators;
+\definition law(y: Right.Carrier one): Cross.apply pointChain y = #apply{(RightAxis.At[n := one].push second secondContinuous)} y :=
+  congr!{{Modules.Hom[V := Right.Carrier one, W := ProductChains.Carrier one, source := Right.space one, target := ProductChains.space one].Map}
+    {ProductChains.Carrier one}} (\fun (f: Modules.Hom[V := Right.Carrier one, W := ProductChains.Carrier one, source := Right.space one, target := ProductChains.space one].Map) => #apply{f} y) _ _ equality;

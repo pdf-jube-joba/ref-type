@@ -1,0 +1,44 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\import Modules.Free[Generators := Generators] \as FreeModule;
+\import commutative_algebra.Modules[R := I.Int^, ring := IntegerRing.commutativeRing].HomSpace[V := FreeModule.Carrier, W := coefficients.Carrier, source := FreeModule.space, target := coefficients.space] \as Hom;
+\definition Carrier: \Set := Hom.Carrier;
+\definition space: Modules.Space Carrier := Hom.space;
+\import Modules.Free[Generators := Generators].To[W := coefficients.Carrier, target := coefficients.space] \as Free;
+\import Modules.Hom[V := FreeModule.Carrier, W := coefficients.Carrier, source := FreeModule.space, target := coefficients.space] \as Maps;
+\import Modules.Functions[X := Generators, V := coefficients.Carrier, target := coefficients.space] \as Functions;
+\definition Values: \Set := Functions.Carrier;
+\definition valuesSpace: Modules.Space Values := Functions.space;
+\definition evaluate(h: Carrier): Values := \fun (sigma: Generators) => #apply{h} (FreeModule.generator sigma);
+\definition extend(values: Values): Carrier := Free.extension values;
+\definition onGenerator: \forall (values: Values)(sigma: Generators) -> evaluate (extend values) sigma = values sigma := Free.onGenerator;
+\definition valuesInverse: \forall (values: Values) -> evaluate (extend values) = values :=
+  \fun (values: Values) => \axiom:funext(evaluate (extend values), values, onGenerator values);
+\definition cochainInverse: \forall (h: Carrier) -> extend (evaluate h) = h :=
+  \fun (h: Carrier) => Maps.dataExt (extend (evaluate h)) h
+    (sym!{{FreeModule.Carrier -> coefficients.Carrier}} _ _ (Free.unique (evaluate h) h (\fun (sigma: Generators) => \refl(evaluate h sigma))));
+\import Modules.Hom[V := Carrier, W := Values, source := space, target := valuesSpace] \as Evaluation;
+\definition evaluation: Evaluation.Map := Evaluation.Map {
+  apply := evaluate,
+  addition := \fun (h, j: Carrier) => \refl(Functions.add (evaluate h) (evaluate j)),
+  scalar := \fun (a: I.Int^)(h: Carrier) => \refl(Functions.scale a (evaluate h)),
+};
+\import Modules.Hom[V := Values, W := Carrier, source := valuesSpace, target := space] \as Extension;
+\definition extension: Extension.Map := Extension.Map {
+  apply := extend,
+  addition := \fun (f, g: Values) => Free.ext (extend (Functions.add f g)) (#add{(space)} (extend f) (extend g))
+    (\fun (sigma: Generators) => trans!{coefficients.Carrier} _ _ _ (onGenerator (Functions.add f g) sigma)
+      (sym!{coefficients.Carrier} _ _ (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} (#add{coefficients.space}) _ _ _ _
+        (onGenerator f sigma) (onGenerator g sigma)))),
+  scalar := \fun (a: I.Int^)(f: Values) => Free.ext (extend (Functions.scale a f)) (#smul{(space)} a (extend f))
+    (\fun (sigma: Generators) => trans!{coefficients.Carrier} _ _ _ (onGenerator (Functions.scale a f) sigma)
+      (sym!{coefficients.Carrier} _ _ (congr!{coefficients.Carrier coefficients.Carrier} (#smul{coefficients.space} a) _ _ (onGenerator f sigma)))),
+};
+\import Modules.Isomorphism[V := Carrier, W := Values, source := space, target := valuesSpace] \as Isomorphisms;
+\definition productIsomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := evaluation, backward := extension,
+  leftInverse := cochainInverse, rightInverse := valuesInverse,
+};

@@ -1,0 +1,43 @@
+\import Modules.DirectSum[Index := Index, family := first] \as Source;
+\import Modules.DirectSum[Index := Index, family := second] \as Target;
+\import Source.Mapping[targetFamily := second] \as Forward;
+\import Target.Mapping[targetFamily := first] \as Backward;
+\definition forwards: Forward.Data := \fun (i: Index) => #forward{(components i)};
+\definition backwards: Backward.Data := \fun (i: Index) => #backward{(components i)};
+\definition forward: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map := Forward.map forwards;
+\definition backward: Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Map := Backward.map backwards;
+\import Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Composition[U := Source.Carrier, domain := Source.space] \as LeftComposition;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Composition[U := Target.Carrier, domain := Target.space] \as RightComposition;
+\import Modules.End[V := Source.Carrier, space := Source.space] \as SourceEnd;
+\import Modules.End[V := Target.Carrier, space := Target.space] \as TargetEnd;
+\import Source.To[W := Source.Carrier, target := Source.space] \as SourceUniversal;
+\import Target.To[W := Target.Carrier, target := Target.space] \as TargetUniversal;
+\definition leftEquality: LeftComposition.compose backward forward = SourceEnd.identity :=
+  SourceUniversal.ext (LeftComposition.compose backward forward) SourceEnd.identity
+    (\fun (i: Index)(x: first.Carrier i) => trans!{Source.Carrier} _ _ _
+      (congr!{Target.Carrier Source.Carrier} (#apply{backward}) _ _ (Forward.onInjection forwards i x))
+      (trans!{Source.Carrier} _ _ _ (Backward.onInjection backwards i (#apply{(forwards i)} x))
+        (congr!{{first.Carrier i} Source.Carrier} (#apply{Source.Injection[i := i].map}) _ _ (#leftInverse{(components i)} x))));
+\definition rightEquality: RightComposition.compose forward backward = TargetEnd.identity :=
+  TargetUniversal.ext (RightComposition.compose forward backward) TargetEnd.identity
+    (\fun (i: Index)(x: second.Carrier i) => trans!{Target.Carrier} _ _ _
+      (congr!{Source.Carrier Target.Carrier} (#apply{forward}) _ _ (Backward.onInjection backwards i x))
+      (trans!{Target.Carrier} _ _ _ (Forward.onInjection forwards i (#apply{(backwards i)} x))
+        (congr!{{second.Carrier i} Target.Carrier} (#apply{Target.Injection[i := i].map}) _ _ (#rightInverse{(components i)} x))));
+\definition left(x: Source.Carrier): #apply{backward} (#apply{forward} x) = x :=
+  congr!{{Modules.Hom[V := Source.Carrier, W := Source.Carrier, source := Source.space, target := Source.space].Map} Source.Carrier}
+    (\fun (f: Modules.Hom[V := Source.Carrier, W := Source.Carrier, source := Source.space, target := Source.space].Map) => #apply{f} x) _ _ leftEquality;
+\definition right(x: Target.Carrier): #apply{forward} (#apply{backward} x) = x :=
+  congr!{{Modules.Hom[V := Target.Carrier, W := Target.Carrier, source := Target.space, target := Target.space].Map} Target.Carrier}
+    (\fun (f: Modules.Hom[V := Target.Carrier, W := Target.Carrier, source := Target.space, target := Target.space].Map) => #apply{f} x) _ _ rightEquality;
+\definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism :=
+  Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := left, rightInverse := right,
+  };
+\definition onInjection(i: Index)(x: first.Carrier i):
+  #apply{forward} (#apply{Source.Injection[i := i].map} x) = #apply{Target.Injection[i := i].map} (#apply{#forward{(components i)}} x) :=
+  Forward.onInjection forwards i x;
+
+\definition onBackwardInjection(i: Index)(x: second.Carrier i):
+  #apply{backward} (#apply{Target.Injection[i := i].map} x) = #apply{Source.Injection[i := i].map} (#apply{#backward{(components i)}} x) :=
+  Backward.onInjection backwards i x;

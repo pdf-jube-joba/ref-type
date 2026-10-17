@@ -1,0 +1,83 @@
+\import Modules.Laws[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Values;
+\import algebra.Group[].Of[Carrier := Carrier (N.Nat^::succ n), group := Values.additive] \as Group;
+\import Modules.Alternating[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Sum;
+\import Modules.Alternating[V := Carrier n, space := space n].Mapping[W := Carrier (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Mapping;
+\import Modules.Hom[V := Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Carrier (N.Nat^::succ n), source := space (N.Nat^::succ (N.Nat^::succ n)), target := space (N.Nat^::succ n)] \as Differentials;
+\definition zeroDifference(x: Carrier (N.Nat^::succ n)): Group.difference x Group.zero = x :=
+  trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (Group.add x) _ _ Group.negZero) (Group.zeroRight x);
+\definition absent(s: Simplex (N.Nat^::succ n))(missing: #present{cone} (N.Nat^::succ n) s = B.Bool^::false):
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} (generator (N.Nat^::succ n) s)) =
+    Group.difference (generator (N.Nat^::succ n) s) (#apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) s))) := \block {
+  \let faces: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> Carrier n := \fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => generator n (face n i s) \then
+  \let tails: Sum.sum (N.Nat^::succ (N.Nat^::succ n))
+    (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => generator (N.Nat^::succ n)
+      (face (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) i) (extended (N.Nat^::succ n) s missing))) =
+      #apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) s)) :=
+    trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (Sum.congruent (N.Nat^::succ (N.Nat^::succ n)) _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => #apply{(homotopy n)} (faces i))
+        (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+          (congr!{{Simplex (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (generator (N.Nat^::succ n)) _ _ (#other{cone} n s missing i))
+          (sym!{{Carrier (N.Nat^::succ n)}} _ _ (homotopyAbsent n (face n i s) (#absentFaces{cone} n s missing i)))))
+      (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+        (sym!{{Carrier (N.Nat^::succ n)}} _ _ (Mapping.law (homotopy n) (N.Nat^::succ (N.Nat^::succ n)) faces))
+        (congr!{{Carrier n} {Carrier (N.Nat^::succ n)}} (#apply{(homotopy n)}) _ _ (sym!{{Carrier n}} _ _ (Chains.Boundary[n := n].onGenerator s)))) \then
+  \return trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{Carrier (N.Nat^::succ (N.Nat^::succ n))} {Carrier (N.Nat^::succ n)}} (#apply{(boundary (N.Nat^::succ n))}) _ _ (homotopyAbsent (N.Nat^::succ n) s missing))
+    (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (Chains.Boundary[n := N.Nat^::succ n].onGenerator (extended (N.Nat^::succ n) s missing))
+      (congr2!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} Group.difference _ _ _ _
+        (congr!{{Simplex (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (generator (N.Nat^::succ n)) _ _ (#first{cone} (N.Nat^::succ n) s missing)) tails))
+};
+\definition presentIncoming(s: Simplex (N.Nat^::succ n))(present: #present{cone} (N.Nat^::succ n) s = B.Bool^::true):
+  #apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) s)) = generator (N.Nat^::succ n) s :=
+  trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{Carrier n} {Carrier (N.Nat^::succ n)}} (#apply{(homotopy n)}) _ _ (Chains.Boundary[n := n].onGenerator s))
+    (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (Mapping.law (homotopy n) (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => generator n (face n i s)))
+      (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+        (congr2!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} Group.difference _ _ _ _
+          (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (homotopyAbsent n (face n (Fin.zero (N.Nat^::succ n)) s) (#presentFirst{cone} n s present))
+            (congr!{{Simplex (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (generator (N.Nat^::succ n)) _ _ (#recover{cone} n s present)))
+          (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+            (Sum.congruent (N.Nat^::succ n) _ (\fun (i: Fin.Fin (N.Nat^::succ n)) => Group.zero)
+              (\fun (i: Fin.Fin (N.Nat^::succ n)) => homotopyPresent n (face n (Fin.succ (N.Nat^::succ n) i) s) (#presentOthers{cone} n s present i)))
+            (Sum.zero (N.Nat^::succ n))))
+        (zeroDifference (generator (N.Nat^::succ n) s))));
+\definition present(s: Simplex (N.Nat^::succ n))(present: #present{cone} (N.Nat^::succ n) s = B.Bool^::true):
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} (generator (N.Nat^::succ n) s)) =
+    Group.difference (generator (N.Nat^::succ n) s) (#apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) s))) :=
+  trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{Carrier (N.Nat^::succ (N.Nat^::succ n))} {Carrier (N.Nat^::succ n)}} (#apply{(boundary (N.Nat^::succ n))}) _ _ (homotopyPresent (N.Nat^::succ n) s present))
+    (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (Differentials.zeroPreserved (boundary (N.Nat^::succ n)))
+      (sym!{{Carrier (N.Nat^::succ n)}} _ _
+        (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+          (congr!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (Group.difference (generator (N.Nat^::succ n) s)) _ _ (presentIncoming s present))
+          (Group.inverseRight (generator (N.Nat^::succ n) s)))));
+\definition onGenerator(s: Simplex (N.Nat^::succ n)):
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} (generator (N.Nat^::succ n) s)) =
+    Group.difference (generator (N.Nat^::succ n) s) (#apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) s))) :=
+  (\induction (flag: B.Bool^) \return #present{cone} (N.Nat^::succ n) s = flag ->
+    #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} (generator (N.Nat^::succ n) s)) =
+      Group.difference (generator (N.Nat^::succ n) s) (#apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) s))) \with {
+    | true: present s
+    | false: absent s
+  }) (#present{cone} (N.Nat^::succ n) s) (\refl(#present{cone} (N.Nat^::succ n) s));
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier (N.Nat^::succ n), source := space (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as End;
+\import Differentials.Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as After;
+\import Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)]
+  .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as Before;
+\import Modules.End[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Identity;
+\import Modules.Free[Generators := Simplex (N.Nat^::succ n)].To[W := Carrier (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Free;
+\definition equality: After.compose (boundary (N.Nat^::succ n)) (homotopy (N.Nat^::succ n)) =
+  End.plus Identity.identity (End.negative (Before.compose (homotopy n) (boundary n))) := Free.ext _ _ onGenerator;
+\definition law(x: Carrier (N.Nat^::succ n)):
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} x) =
+    Group.difference x (#apply{(homotopy n)} (#apply{(boundary n)} x)) :=
+  congr!{{End.Map} {Carrier (N.Nat^::succ n)}} (\fun (f: End.Map) => #apply{f} x) _ _ equality;
+\import Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)] \as Fillers;
+\definition cycle(x: Carrier (N.Nat^::succ n))(closed: #apply{(boundary n)} x = #zero{(space n)}):
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} x) = x :=
+  trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (law x)
+    (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (Group.difference x) _ _
+        (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Carrier n} {Carrier (N.Nat^::succ n)}} (#apply{(homotopy n)}) _ _ closed) (Fillers.zeroPreserved (homotopy n))))
+      (zeroDifference x));

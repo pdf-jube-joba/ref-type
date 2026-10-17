@@ -28,9 +28,23 @@
     scalar := \fun (k: Degree)(a: R)(x: C.family.Carrier k) => \refl(#smul{(C.family.space k)} a x),
     commutes := \fun (k: Degree)(x: C.family.Carrier k) => \refl(#apply{C.differential} k x),
   };
+  \module Point(k: Degree) {
+    \import \parent.\parent.At[C := C, z := k] \as Differential;
+    \definition commutes: \forall (x: C.family.Carrier k) -> #apply{C.differential} k #zero{(C.family.space k)} = #zero{(C.family.space (next k))} :=
+      \fun (x: C.family.Carrier k) => Modules.Hom[V := C.family.Carrier k, W := C.family.Carrier (next k), source := C.family.space k, target := C.family.space (next k)].zeroPreserved Differential.differential;
+  }
+  \definition zeroMap: Maps.Map := Maps.Map {
+    apply := \fun (k: Degree)(x: C.family.Carrier k) => #zero{(C.family.space k)},
+    addition := \fun (k: Degree) => #addition{(Modules.Hom[V := C.family.Carrier k, W := C.family.Carrier k, source := C.family.space k, target := C.family.space k].zeroMap)},
+    scalar := \fun (k: Degree) => #scalar{(Modules.Hom[V := C.family.Carrier k, W := C.family.Carrier k, source := C.family.space k, target := C.family.space k].zeroMap)},
+    commutes := \fun (k: Degree) => Point[k := k].commutes,
+  };
   \module At(k: Degree) {
     \import \parent.\parent.At[C := C, z := k] \as Cohomology;
     \import Maps.At[k := k] \as Map;
+    \definition zeroOnCohomology: \forall (q: Cohomology.Cohomology) -> #apply{(Map.induced zeroMap)} q = Cohomology.zeroClass :=
+      Cohomology.classInduction (\fun (q: Cohomology.Cohomology) => #apply{(Map.induced zeroMap)} q = Cohomology.zeroClass)
+        (\fun (x: Cohomology.Closed) => Map.onClass zeroMap x);
     \definition inducedIdentity(h: Cohomology.Cohomology): Cohomology.Cohomology := #apply{(Map.induced identity)} h;
     \definition identityOnCohomology: \forall (h: Cohomology.Cohomology) -> #apply{(Map.induced identity)} h = h :=
       Cohomology.classInduction (\fun (h: Cohomology.Cohomology) => #apply{(Map.induced identity)} h = h)

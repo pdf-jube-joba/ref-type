@@ -1,0 +1,155 @@
+\definition z: I.Int^ := I.Int^::ofNat n;
+\import Source.Term[n := z] \as S;
+\import Target.Degree[n := n] \as T;
+\module Both(p, q: N.Nat^, closed: Grading.add (I.Int^::ofNat p) (I.Int^::ofNat q) = z) {
+  \definition sourceIndex: Grading.Index z := Indices.pair z (I.Int^::ofNat p) (I.Int^::ofNat q) closed;
+  \definition targetIndex: Double.Index n := Indices.unsigned n p q closed;
+  \import T.Component[i := targetIndex] \as Injection;
+  \definition map: Modules.Hom[V := SignedTensor.family.Carrier (I.Int^::ofNat p) (I.Int^::ofNat q), W := T.Carrier,
+    source := SignedTensor.family.space (I.Int^::ofNat p) (I.Int^::ofNat q), target := T.space].Map := Injection.injection;
+}
+\module RightAbsent(p, q: N.Nat^) {
+  \import Modules.Hom[V := SignedTensor.family.Carrier (I.Int^::ofNat p) (I.Int^::negSucc q), W := T.Carrier,
+    source := SignedTensor.family.space (I.Int^::ofNat p) (I.Int^::negSucc q), target := T.space] \as Maps;
+  \definition map: Maps.Map := Maps.zeroMap;
+}
+\module LeftAbsent(p: N.Nat^, q: I.Int^) {
+  \import Modules.Hom[V := SignedTensor.family.Carrier (I.Int^::negSucc p) q, W := T.Carrier,
+    source := SignedTensor.family.space (I.Int^::negSucc p) q, target := T.space] \as Maps;
+  \definition map: Maps.Map := Maps.zeroMap;
+}
+\structure Coordinates[p, q: I.Int^, i: Grading.Index z]: \Prop {
+  first: #first{i} = p,
+  second: #second{i} = q,
+}
+\definition Closed(p, q: I.Int^): \Set := \Cast[Grading.Index z] ({ i: Grading.Index z \where Coordinates[p, q, i] });
+\definition closedLaws(p, q: I.Int^)(i: Closed p q): Coordinates[p, q, i] :=
+  \bysub(Grading.Index z, { i: Grading.Index z \where Coordinates[p, q, i] }, i);
+\definition close(i: Grading.Index z): Closed #first{i} #second{i} :=
+  \into[Grading.Index z](i, { j: Grading.Index z \where Coordinates[#first{i}, #second{i}, j] }) \by {
+    Coordinates[#first{i}, #second{i}, i] { first := \refl(#first{i}), second := \refl(#second{i}) }
+  };
+\definition degree(p, q: I.Int^)(i: Closed p q): Grading.add p q = z :=
+  trans!{I.Int^} _ _ _
+    (sym!{I.Int^} _ _ (congr2!{I.Int^ I.Int^ I.Int^} Grading.add _ _ _ _
+      (#first{(closedLaws p q i)}) (#second{(closedLaws p q i)})))
+    (Grading.degree z i);
+\definition component: \forall (p, q: I.Int^) -> Closed p q ->
+  Modules.Hom[V := SignedTensor.family.Carrier p q, W := T.Carrier, source := SignedTensor.family.space p q, target := T.space].Map :=
+  \induction (p: I.Int^) \return \forall (q: I.Int^) -> Closed p q ->
+    Modules.Hom[V := SignedTensor.family.Carrier p q, W := T.Carrier, source := SignedTensor.family.space p q, target := T.space].Map \with {
+    | ofNat: \fun (p: N.Nat^) => \induction (q: I.Int^) \return Closed (I.Int^::ofNat p) q ->
+        Modules.Hom[V := SignedTensor.family.Carrier (I.Int^::ofNat p) q, W := T.Carrier,
+          source := SignedTensor.family.space (I.Int^::ofNat p) q, target := T.space].Map \with {
+      | ofNat: \fun (q: N.Nat^)(i: Closed (I.Int^::ofNat p) (I.Int^::ofNat q)) =>
+          Both[p := p, q := q, closed := degree (I.Int^::ofNat p) (I.Int^::ofNat q) i].map
+      | negSucc: \fun (q: N.Nat^)(unused: Closed (I.Int^::ofNat p) (I.Int^::negSucc q)) => RightAbsent[p := p, q := q].map
+    }
+    | negSucc: \fun (p: N.Nat^)(q: I.Int^)(unused: Closed (I.Int^::negSucc p) q) => LeftAbsent[p := p, q := q].map
+  };
+\import Modules.DirectSum[Index := Grading.Index z, family := S.family].To[W := T.Carrier, target := T.space] \as ForwardUniversal;
+\definition components: ForwardUniversal.Components := \fun (i: Grading.Index z) => component #first{i} #second{i} (close i);
+\import Modules.Hom[V := S.Carrier, W := T.Carrier, source := S.space, target := T.space] \as ForwardMaps;
+\definition forward: ForwardMaps.Map := ForwardUniversal.extension components;
+\definition forwardOnInjection(i: Grading.Index z)(x: SignedTensor.family.Carrier #first{i} #second{i}):
+  #apply{forward} (#apply{(S.Component[i := i].injection)} x) = #apply{(components i)} x := ForwardUniversal.onInjection components i x;
+\module BackwardAt(i: Double.Index n) {
+  \import S.Component[i := Indices.signed n i] \as Injection;
+  \definition map: Modules.Hom[V := NativeTensor.family.Carrier #first{i} #second{i}, W := S.Carrier,
+    source := NativeTensor.family.space #first{i} #second{i}, target := S.space].Map := Injection.injection;
+}
+\import Modules.DirectSum[Index := Double.Index n, family := T.family].To[W := S.Carrier, target := S.space] \as BackwardUniversal;
+\definition backwardComponents: BackwardUniversal.Components := \fun (i: Double.Index n) => BackwardAt[i := i].map;
+\import Modules.Hom[V := T.Carrier, W := S.Carrier, source := T.space, target := S.space] \as BackwardMaps;
+\definition backward: BackwardMaps.Map := BackwardUniversal.extension backwardComponents;
+\definition backwardOnInjection(i: Double.Index n)(x: NativeTensor.family.Carrier #first{i} #second{i}):
+  #apply{backward} (#apply{(T.Component[i := i].injection)} x) = #apply{(S.Component[i := Indices.signed n i].injection)} x :=
+  BackwardUniversal.onInjection backwardComponents i x;
+\import BackwardMaps.Composition[U := S.Carrier, domain := S.space] \as LeftCompose;
+\import ForwardMaps.Composition[U := T.Carrier, domain := T.space] \as RightCompose;
+\definition leftComposite: Modules.Hom[V := S.Carrier, W := S.Carrier, source := S.space, target := S.space].Map := LeftCompose.compose backward forward;
+\definition rightComposite: Modules.Hom[V := T.Carrier, W := T.Carrier, source := T.space, target := T.space].Map := RightCompose.compose forward backward;
+\module InverseBoth(p, q: N.Nat^, closed: Grading.add (I.Int^::ofNat p) (I.Int^::ofNat q) = z);
+\module TrivialAt(i: Grading.Index z) {
+  \import S.Component[i := i] \as Injection;
+  \import Modules.Hom[V := SignedTensor.family.Carrier #first{i} #second{i}, W := S.Carrier,
+    source := SignedTensor.family.space #first{i} #second{i}, target := S.space] \as Maps;
+  \import Modules.Hom[V := S.Carrier, W := S.Carrier, source := S.space, target := S.space] \as Ends;
+  \definition Vanishes: \Prop := \forall (x: SignedTensor.family.Carrier #first{i} #second{i}) -> x = #zero{(SignedTensor.family.space #first{i} #second{i})};
+  \definition injectionZero(vanishes: Vanishes)(x: SignedTensor.family.Carrier #first{i} #second{i}): #apply{Injection.injection} x = #zero{S.space} :=
+    trans!{S.Carrier} _ _ _ (congr!{{SignedTensor.family.Carrier #first{i} #second{i}} S.Carrier} (#apply{Injection.injection}) _ _ (vanishes x))
+      (Maps.zeroPreserved Injection.injection);
+  \definition law(vanishes: Vanishes)(x: SignedTensor.family.Carrier #first{i} #second{i}):
+    #apply{leftComposite} (#apply{Injection.injection} x) = #apply{Injection.injection} x :=
+    trans!{S.Carrier} _ _ _ (congr!{S.Carrier S.Carrier} (#apply{leftComposite}) _ _ (injectionZero vanishes x))
+      (trans!{S.Carrier} _ _ _ (Ends.zeroPreserved leftComposite) (sym!{S.Carrier} _ _ (injectionZero vanishes x)));
+}
+\definition rightVanishes(p: I.Int^)(q: N.Nat^)(x: SignedTensor.family.Carrier p (I.Int^::negSucc q)):
+  x = #zero{(SignedTensor.family.space p (I.Int^::negSucc q))} := \parent.TrivialRight[p := p, q := q].zero x;
+\definition leftVanishes(p: N.Nat^)(q: I.Int^)(x: SignedTensor.family.Carrier (I.Int^::negSucc p) q):
+  x = #zero{(SignedTensor.family.space (I.Int^::negSucc p) q)} := \parent.TrivialLeft[p := p, q := q].zero x;
+\module InverseRightAbsent(p, q: N.Nat^, closed: Grading.add (I.Int^::ofNat p) (I.Int^::negSucc q) = z) {
+  \definition i: Grading.Index z := Indices.pair z (I.Int^::ofNat p) (I.Int^::negSucc q) closed;
+  \import \parent.TrivialAt[i := i] \as Comparison;
+  \definition law(x: SignedTensor.family.Carrier (I.Int^::ofNat p) (I.Int^::negSucc q)):
+    #apply{leftComposite} (#apply{(S.Component[i := i].injection)} x) = #apply{(S.Component[i := i].injection)} x :=
+    Comparison.law (\fun (y: SignedTensor.family.Carrier (I.Int^::ofNat p) (I.Int^::negSucc q)) => rightVanishes (I.Int^::ofNat p) q y) x;
+}
+\module InverseLeftAbsent(p: N.Nat^, q: I.Int^, closed: Grading.add (I.Int^::negSucc p) q = z) {
+  \definition i: Grading.Index z := Indices.pair z (I.Int^::negSucc p) q closed;
+  \import \parent.TrivialAt[i := i] \as Comparison;
+  \definition law(x: SignedTensor.family.Carrier (I.Int^::negSucc p) q):
+    #apply{leftComposite} (#apply{(S.Component[i := i].injection)} x) = #apply{(S.Component[i := i].injection)} x :=
+    Comparison.law (\fun (y: SignedTensor.family.Carrier (I.Int^::negSucc p) q) => leftVanishes p q y) x;
+}
+\definition componentLeft: \forall (p, q: I.Int^)(closed: Grading.add p q = z)(x: SignedTensor.family.Carrier p q) ->
+  #apply{leftComposite} (#apply{(S.Component[i := Indices.pair z p q closed].injection)} x) =
+    #apply{(S.Component[i := Indices.pair z p q closed].injection)} x :=
+  \induction (p: I.Int^) \return \forall (q: I.Int^)(closed: Grading.add p q = z)(x: SignedTensor.family.Carrier p q) ->
+    #apply{leftComposite} (#apply{(S.Component[i := Indices.pair z p q closed].injection)} x) =
+      #apply{(S.Component[i := Indices.pair z p q closed].injection)} x \with {
+    | ofNat: \fun (p: N.Nat^) => \induction (q: I.Int^) \return \forall (closed: Grading.add (I.Int^::ofNat p) q = z)(x: SignedTensor.family.Carrier (I.Int^::ofNat p) q) ->
+        #apply{leftComposite} (#apply{(S.Component[i := Indices.pair z (I.Int^::ofNat p) q closed].injection)} x) =
+          #apply{(S.Component[i := Indices.pair z (I.Int^::ofNat p) q closed].injection)} x \with {
+      | ofNat: \fun (q: N.Nat^)(closed: Grading.add (I.Int^::ofNat p) (I.Int^::ofNat q) = z)
+          (x: SignedTensor.family.Carrier (I.Int^::ofNat p) (I.Int^::ofNat q)) => InverseBoth[p := p, q := q, closed := closed].left x
+      | negSucc: \fun (q: N.Nat^)(closed: Grading.add (I.Int^::ofNat p) (I.Int^::negSucc q) = z)
+          (x: SignedTensor.family.Carrier (I.Int^::ofNat p) (I.Int^::negSucc q)) =>
+        InverseRightAbsent[p := p, q := q, closed := closed].law x
+    }
+    | negSucc: \fun (p: N.Nat^)(q: I.Int^)(closed: Grading.add (I.Int^::negSucc p) q = z)
+        (x: SignedTensor.family.Carrier (I.Int^::negSucc p) q) =>
+      InverseLeftAbsent[p := p, q := q, closed := closed].law x
+  };
+\definition onLeft(i: Grading.Index z)(x: SignedTensor.family.Carrier #first{i} #second{i}):
+  #apply{leftComposite} (#apply{(S.Component[i := i].injection)} x) = #apply{(S.Component[i := i].injection)} x :=
+  (\idelim Indices.pair z #first{i} #second{i} (Grading.degree z i) = i
+    \with j: Grading.Index z => \forall (v: SignedTensor.family.Carrier #first{j} #second{j}) ->
+      #apply{leftComposite} (#apply{(S.Component[i := j].injection)} v) = #apply{(S.Component[i := j].injection)} v \by {
+      base: componentLeft #first{i} #second{i} (Grading.degree z i), equality: Indices.rebuild z i
+    }) x;
+\definition onRight(i: Double.Index n)(x: NativeTensor.family.Carrier #first{i} #second{i}):
+  #apply{rightComposite} (#apply{(T.Component[i := i].injection)} x) = #apply{(T.Component[i := i].injection)} x :=
+  (\idelim Indices.unsigned n #first{i} #second{i} (Grading.degree z (Indices.signed n i)) = i
+    \with j: Double.Index n => \forall (v: NativeTensor.family.Carrier #first{j} #second{j}) ->
+      #apply{rightComposite} (#apply{(T.Component[i := j].injection)} v) = #apply{(T.Component[i := j].injection)} v \by {
+      base: \fun (v: NativeTensor.family.Carrier #first{i} #second{i}) =>
+        InverseBoth[p := #first{i}, q := #second{i}, closed := Grading.degree z (Indices.signed n i)].right v,
+      equality: Indices.unsignedSigned n i
+    }) x;
+\import Modules.End[V := S.Carrier, space := S.space] \as SourceIdentity;
+\import Modules.End[V := T.Carrier, space := T.space] \as TargetIdentity;
+\import Modules.DirectSum[Index := Grading.Index z, family := S.family].To[W := S.Carrier, target := S.space] \as SourceEquality;
+\import Modules.DirectSum[Index := Double.Index n, family := T.family].To[W := T.Carrier, target := T.space] \as TargetEquality;
+\definition leftEquality: leftComposite = SourceIdentity.identity := SourceEquality.ext leftComposite SourceIdentity.identity onLeft;
+\definition rightEquality: rightComposite = TargetIdentity.identity := TargetEquality.ext rightComposite TargetIdentity.identity onRight;
+\import Modules.Hom[V := S.Carrier, W := S.Carrier, source := S.space, target := S.space] \as SourceEnds;
+\import Modules.Hom[V := T.Carrier, W := T.Carrier, source := T.space, target := T.space] \as TargetEnds;
+\definition leftInverse(x: S.Carrier): #apply{backward} (#apply{forward} x) = x :=
+  congr!{SourceEnds.Map S.Carrier} (\fun (f: SourceEnds.Map) => #apply{f} x) _ _ leftEquality;
+\definition rightInverse(x: T.Carrier): #apply{forward} (#apply{backward} x) = x :=
+  congr!{TargetEnds.Map T.Carrier} (\fun (f: TargetEnds.Map) => #apply{f} x) _ _ rightEquality;
+\import Modules.Isomorphism[V := S.Carrier, W := T.Carrier, source := S.space, target := T.space] \as Compared;
+\definition isomorphism: Compared.Isomorphism := Compared.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

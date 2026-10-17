@@ -1,0 +1,27 @@
+\import \parent.\parent.Other[other := other, present := present, below := below] \as Other;
+\definition continuous: topology.Continuity[A := Euclidean.Disk (#dimension{other}), B := DiskQuotient.Carrier]
+  .Continuous (Euclidean.Dimension[n := #dimension{other}].diskTopology) (DiskQuotient.topology Model.diskTopology) (\fun (p: Euclidean.Disk (#dimension{other})) => map (Skeleton.Open[].lift other present below p)) :=
+  either!{{(Classical.excludedMiddle (other = cell))}
+    {topology.Continuity[A := Euclidean.Disk (#dimension{other}), B := DiskQuotient.Carrier]
+      .Continuous (Euclidean.Dimension[n := #dimension{other}].diskTopology) (DiskQuotient.topology Model.diskTopology) (\fun (p: Euclidean.Disk (#dimension{other})) => map (Skeleton.Open[].lift other present below p))}
+    {\fun (same: other = cell) => (\idelim cell = other \with c: Cells.CellData => \forall (present: Cells.CellMember cells c)(below: Nat.Lt (#dimension{c}) (N.Nat^::succ dimension)) ->
+      topology.Continuity[A := Euclidean.Disk (#dimension{c}), B := DiskQuotient.Carrier]
+        .Continuous (Euclidean.Dimension[n := #dimension{c}].diskTopology) (DiskQuotient.topology Model.diskTopology) (\fun (p: Euclidean.Disk (#dimension{c})) => map (Skeleton.Open[].lift c present below p)) \by {
+      base: \fun (present: _)(below: _) => \idelim DiskQuotient.class = (\fun (p: Model.Disk) => map (Characteristic.characteristic p))
+        \with f: (Model.Disk -> DiskQuotient.Carrier) => topology.Continuity[A := Model.Disk, B := DiskQuotient.Carrier].Continuous Model.diskTopology (DiskQuotient.topology Model.diskTopology) f \by {
+          base: DiskQuotient.projectionContinuous Model.diskTopology,
+          equality: \axiom:funext(DiskQuotient.class, (\fun (p: Model.Disk) => map (Characteristic.characteristic p)),
+            \fun (p: Model.Disk) => sym!{DiskQuotient.Carrier} _ _ (\parent.\parent.Boundary[].onCharacteristic p))
+        },
+      equality: sym!{Cells.CellData} _ _ same
+    }) present below}
+    {\fun (different: _) => \idelim (\fun (p: Euclidean.Disk (#dimension{other})) => basepoint) = (\fun (p: Euclidean.Disk (#dimension{other})) => map (Other.lift p))
+      \with f: (Euclidean.Disk (#dimension{other}) -> DiskQuotient.Carrier) =>
+        topology.Continuity[A := Euclidean.Disk (#dimension{other}), B := DiskQuotient.Carrier]
+          .Continuous (Euclidean.Dimension[n := #dimension{other}].diskTopology) (DiskQuotient.topology Model.diskTopology) f \by {
+        base: topology.Maps[A := Euclidean.Disk (#dimension{other}), B := DiskQuotient.Carrier].constantContinuous
+          (Euclidean.Dimension[n := #dimension{other}].diskTopology) (DiskQuotient.topology Model.diskTopology) basepoint,
+        equality: \axiom:funext((\fun (p: Euclidean.Disk (#dimension{other})) => basepoint), (\fun (p: Euclidean.Disk (#dimension{other})) => map (Other.lift p)),
+          \fun (p: Euclidean.Disk (#dimension{other})) => sym!{DiskQuotient.Carrier} _ _ (Other.onCharacteristic different p))
+      }}
+  };

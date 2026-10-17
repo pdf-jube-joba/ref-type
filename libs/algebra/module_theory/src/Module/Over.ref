@@ -60,10 +60,12 @@
 \module ProjectiveLaws;
 \module Coordinates(I: \Set);
 \module Sums(I: \Set);
+\module Alternating(V: \Set, space: Space V);
 \module DirectSum(Index: \Set, family: Family[Index]);
 \module FinitelySupported(Index: \Set, family: Family[Index]);
 \module ShortExactComparison(A, B, C, A1, B1, C1: Bundle);
 \module ExactFive(A, B, C, D, E: Bundle);
+\module ExactFiveComparison(A, B, C, D, E, A1, B1, C1, D1, E1: Bundle);
 \module FiveLemma(A, B, C, D, E, A1, B1, C1, D1, E1: Bundle);
 \module Snake(A, B, C, A1, B1, C1: Bundle);
 \module QuotientMapping(A, B: Bundle);
@@ -89,3 +91,31 @@
 \module Pushout(A, B, C: Bundle);
 
 \module DirectSumMapping(Index: \Set, sourceFamily, targetFamily: Family[Index]);
+\module IsomorphismSquare(A, B, C, D: Bundle) {
+  \import \parent.Isomorphism[V := A.Carrier, W := C.Carrier, source := A.space, target := C.space] \as SourceIso;
+  \import \parent.Isomorphism[V := B.Carrier, W := D.Carrier, source := B.space, target := D.space] \as TargetIso;
+  \import \parent.Isomorphism[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as TopIso;
+  \import \parent.Hom[V := C.Carrier, W := D.Carrier, source := C.space, target := D.space] \as Maps;
+  \module On(a: SourceIso.Isomorphism, b: TargetIso.Isomorphism, c: TopIso.Isomorphism, f: Maps.Map);
+  \import \parent.Isomorphism[V := C.Carrier, W := A.Carrier, source := C.space, target := A.space] \as ReverseSourceIso;
+  \import \parent.Isomorphism[V := D.Carrier, W := B.Carrier, source := D.space, target := B.space] \as ReverseTargetIso;
+  \module Incoming(a: ReverseSourceIso.Isomorphism, b: ReverseTargetIso.Isomorphism, c: TopIso.Isomorphism, f: Maps.Map);
+  \import \parent.Isomorphism[V := C.Carrier, W := D.Carrier, source := C.space, target := D.space] \as Result;
+  \definition transport(a: SourceIso.Isomorphism)(b: TargetIso.Isomorphism)(c: TopIso.Isomorphism)(f: Maps.Map)
+    (commutes: \forall (x: A.Carrier) -> #apply{f} (#apply{#forward{a}} x) = #apply{#forward{b}} (#apply{#forward{c}} x)): Result.Isomorphism :=
+      On[a := a, b := b, c := c, f := f].isomorphism commutes;
+  \definition incoming(a: ReverseSourceIso.Isomorphism)(b: ReverseTargetIso.Isomorphism)(c: TopIso.Isomorphism)(f: Maps.Map)
+    (commutes: \forall (x: C.Carrier) -> #apply{#forward{b}} (#apply{f} x) = #apply{#forward{c}} (#apply{#forward{a}} x)): Result.Isomorphism :=
+      Incoming[a := a, b := b, c := c, f := f].isomorphism commutes;
+}
+\module FreePullback(Left, Right, Overlap, Whole: \Set);
+
+\module Identity(V: \Set, space: Space V) {
+  \import \parent.End[V := V, space := space] \as Maps;
+  \import \parent.Isomorphism[V := V, W := V, source := space, target := space] \as Iso;
+  \definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+    forward := Maps.identity, backward := Maps.identity,
+    leftInverse := \fun (x: V) => \refl(x), rightInverse := \fun (x: V) => \refl(x),
+  };
+}
+\module AbelianHom(N: Bundle);

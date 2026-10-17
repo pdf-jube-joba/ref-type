@@ -1,0 +1,33 @@
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import singular_cohomology.Chains[A := A, source := source] \as SourceChains;
+\import singular_cohomology.Chains[A := B, source := target] \as TargetChains;
+\import Native.ZeroExtension[C := SourceChains.complex] \as SourceExtension;
+\import Native.ZeroExtension[C := TargetChains.complex] \as TargetExtension;
+\import SignedChains.At[C := SourceExtension.complex, z := z] \as SourceH;
+\import SignedChains.At[C := TargetExtension.complex, z := z] \as TargetH;
+\definition SourceCarrier: \Set := SourceH.Homology;
+\definition TargetCarrier: \Set := TargetH.Homology;
+\definition sourceSpace: Modules.Space SourceCarrier := SourceH.homologySpace;
+\definition targetSpace: Modules.Space TargetCarrier := TargetH.homologySpace;
+\import topology.Homeomorphism[A := A, B := B] \as Homeomorphisms;
+\import topology.Homeomorphism[A := B, B := B] \as Reflections;
+\import Modules.Isomorphism[V := I.Int^, W := SourceCarrier, source := Modules.scalarModule, target := sourceSpace] \as SourceOrientations;
+\import Modules.Isomorphism[V := I.Int^, W := TargetCarrier, source := Modules.scalarModule, target := targetSpace] \as TargetOrientations;
+\import singular_cohomology.Maps[A := A, B := B, source := source, target := target] \as Maps;
+\import SignedChains.Map[C := SourceExtension.complex, D := TargetExtension.complex].At[k := z] \as Induced;
+\definition action(h: Homeomorphisms.Homeomorphism[source, target]):
+  Modules.Hom[V := SourceCarrier, W := TargetCarrier, source := sourceSpace, target := targetSpace].Map :=
+  Induced.induced (Maps.integerPush (#forward{h}) (#forwardContinuous{(Homeomorphisms.laws source target h)}));
+\import singular_cohomology.Maps[A := B, B := B, source := target, target := target] \as EndMaps;
+\import SignedChains.Map[C := TargetExtension.complex, D := TargetExtension.complex].At[k := z] \as EndInduced;
+\definition endAction(r: Reflections.Homeomorphism[target, target]):
+  Modules.Hom[V := TargetCarrier, W := TargetCarrier, source := targetSpace, target := targetSpace].Map :=
+  EndInduced.induced (EndMaps.integerPush (#forward{r}) (#forwardContinuous{(Reflections.laws target target r)}));
+\module Normalize(homeomorphism: Homeomorphisms.Homeomorphism[source, target],
+  reflection: Reflections.Homeomorphism[target, target],
+  sourceOrientation: SourceOrientations.Isomorphism,
+  targetOrientation: TargetOrientations.Isomorphism);

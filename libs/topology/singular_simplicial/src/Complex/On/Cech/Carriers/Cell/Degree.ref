@@ -1,0 +1,28 @@
+\import Modules.Of[V := Global.Carrier z, space := Global.space z].Submodule[] \as Submodules;
+\import Submodules.Image[U := Local.Carrier z, source := Local.space z] \as Images;
+\import Complexes.Map[C := Local.complex, D := Global.complex].At[k := z] \as Maps;
+\definition inclusion: Modules.Hom[V := Local.Carrier z, W := Global.Carrier z, source := Local.space z, target := Global.space z].Map := Maps.linear Inclusion.map;
+\definition image: Submodules.Submodule := Images.image inclusion;
+\definition Member(y: Global.Carrier z): \Prop := Submodules.Member image y;
+\definition zero: Member #zero{(Global.space z)} := #zero{image};
+\definition introduce: \forall (y: Global.Carrier z)(x: Local.Carrier z) -> #apply{inclusion} x = y -> Member y := Images.introduce inclusion;
+\definition Values(y: Global.Carrier z): \Set := \Cast[Local.Carrier z] ({ x: Local.Carrier z \where #apply{inclusion} x = y });
+\definition unique: \forall (y: Global.Carrier z)(x, w: Values y) -> x = w :=
+  \fun (y: Global.Carrier z)(x, w: Values y) => Inclusion.injective z x w
+    (trans!{{Global.Carrier z}} _ _ _ (\bysub(Local.Carrier z, Values y, x)) (sym!{{Global.Carrier z}} _ _ (\bysub(Local.Carrier z, Values y, w))));
+\definition lift(y: Global.Carrier z)(member: Member y): Values y :=
+  \choice Values y \by { existence: member, uniqueness: unique y };
+\definition equation: \forall (y: Global.Carrier z)(member: Member y) -> #apply{inclusion} (lift y member) = y :=
+  \fun (y: Global.Carrier z)(member: Member y) => \bysub(Local.Carrier z, Values y, lift y member);
+\definition addition: \forall (y, w: Global.Carrier z)(left: Member y)(right: Member w)(sum: Member (#add{(Global.space z)} y w)) ->
+  lift (#add{(Global.space z)} y w) sum = #add{(Local.space z)} (lift y left) (lift w right) :=
+  \fun (y, w: Global.Carrier z)(left: Member y)(right: Member w)(sum: Member (#add{(Global.space z)} y w)) =>
+    Inclusion.injective z _ _ (trans!{{Global.Carrier z}} _ _ _ (equation _ sum)
+      (sym!{{Global.Carrier z}} _ _ (trans!{{Global.Carrier z}} _ _ _ (#addition{inclusion} (lift y left) (lift w right))
+        (congr2!{{Global.Carrier z} {Global.Carrier z} {Global.Carrier z}} (#add{(Global.space z)}) _ _ _ _ (equation y left) (equation w right)))));
+\definition scalar: \forall (a: I.Int^)(y: Global.Carrier z)(member: Member y)(scaled: Member (#smul{(Global.space z)} a y)) ->
+  lift (#smul{(Global.space z)} a y) scaled = #smul{(Local.space z)} a (lift y member) :=
+  \fun (a: I.Int^)(y: Global.Carrier z)(member: Member y)(scaled: Member (#smul{(Global.space z)} a y)) =>
+    Inclusion.injective z _ _ (trans!{{Global.Carrier z}} _ _ _ (equation _ scaled)
+      (sym!{{Global.Carrier z}} _ _ (trans!{{Global.Carrier z}} _ _ _ (#scalar{inclusion} a (lift y member))
+        (congr!{{Global.Carrier z} {Global.Carrier z}} (#smul{(Global.space z)} a) _ _ (equation y member)))));

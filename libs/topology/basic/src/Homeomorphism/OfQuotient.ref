@@ -1,0 +1,37 @@
+\use Equality.sym;
+\import std.Logic[].Proposition[] \as Logic;
+\definition Injective: \Prop := \forall (x, y: A) -> f x = f y -> x = y;
+\definition Onto: \Prop := \forall (y: B) -> \exists { x: A \where f x = y };
+\definition Values(y: B): \Pow A := { x: A \where f x = y };
+\definition Value(y: B): \Set := \Cast[A] (Values y);
+\definition unique: Injective -> \forall (y: B)(x, z: Value y) -> x = z :=
+  \fun (injective: Injective)(y: B)(x, z: Value y) => injective x z
+    (trans!{B} _ _ _ (\bysub(A, Values y, x)) (sym!{B} _ _ (\bysub(A, Values y, z))));
+\definition inverse(injective: Injective)(onto: Onto)(y: B): Value y :=
+  \choice Value y \by { existence: onto y, uniqueness: unique injective y };
+\definition rightInverse: \forall (injective: Injective)(onto: Onto)(y: B) -> f (inverse injective onto y) = y :=
+  \fun (injective: Injective)(onto: Onto)(y: B) => \bysub(A, Values y, inverse injective onto y);
+\definition leftInverse: \forall (injective: Injective)(onto: Onto)(x: A) -> inverse injective onto (f x) = x :=
+  \fun (injective: Injective)(onto: Onto)(x: A) => injective _ x (rightInverse injective onto (f x));
+\definition ReflectsOpen(source: Source.Topology)(target: Target.Topology): \Prop :=
+  \forall (V: \Pow B) -> Source.IsOpenIn source (Forward.Preimage f V) -> Target.IsOpenIn target V;
+\definition backwardContinuous: \forall (source: Source.Topology)(target: Target.Topology)(injective: Injective)(onto: Onto) ->
+  ReflectsOpen source target -> Backward.Continuous target source (\fun (y: B) => inverse injective onto y) :=
+  \fun (source: _)(target: _)(injective: Injective)(onto: Onto)(reflects: _)(U: \Pow A)(open: Source.IsOpenIn source U) =>
+    reflects (Backward.Preimage (\fun (y: B) => inverse injective onto y) U)
+      (\idelim U = Forward.Preimage f (Backward.Preimage (\fun (y: B) => inverse injective onto y) U)
+        \with W: \Pow A => Source.IsOpenIn source W \by {
+          base: open,
+          equality: \axiom:setext(U, Forward.Preimage f (Backward.Preimage (\fun (y: B) => inverse injective onto y) U),
+            \fun (x: A)(member: Source.Member U x) => \idelim x = inverse injective onto (f x)
+              \with z: A => Source.Member U z \by { base: member, equality: sym!{A} _ _ (leftInverse injective onto x) },
+            \fun (x: A)(member: Source.Member U (inverse injective onto (f x))) => \idelim inverse injective onto (f x) = x
+              \with z: A => Source.Member U z \by { base: member, equality: leftInverse injective onto x })
+        });
+\definition homeomorphism(source: Source.Topology)(target: Target.Topology)(injective: Injective)(onto: Onto)
+  (continuous: Forward.Continuous source target f)(reflects: ReflectsOpen source target): Homeomorphism[source, target] :=
+  Homeomorphism[source, target] {
+    forward := f, backward := \fun (y: B) => inverse injective onto y,
+    leftInverse := leftInverse injective onto, rightInverse := rightInverse injective onto,
+    forwardContinuous := continuous, backwardContinuous := backwardContinuous source target injective onto reflects,
+  };

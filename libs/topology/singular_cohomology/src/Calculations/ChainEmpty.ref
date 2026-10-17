@@ -1,0 +1,51 @@
+\import \root.Chains[A := A, source := source] \as Chains;
+\import \root.Simplices[A := A, source := source] \as Simplices;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Chains.complex] \as Extension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as IntegerChains;
+\definition Carrier(n: N.Nat^): \Set := Chains.Carrier n;
+\definition space(n: N.Nat^): Modules.Space (Carrier n) := Chains.space n;
+\definition integerComplex: IntegerChains.Complex := Extension.complex;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\definition IsEmpty: \Prop := \forall (x: A) -> Logic.False;
+\module Native(n: N.Nat^) {
+  \import Modules.Free[Generators := Simplices.Carrier n].To[W := Carrier n, target := space n] \as Free;
+  \import Modules.End[V := Carrier n, space := space n] \as Identity;
+  \import Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n] \as Maps;
+  \definition identityZero: IsEmpty -> Identity.identity = Maps.zeroMap :=
+    \fun (empty: IsEmpty) => Free.ext Identity.identity Maps.zeroMap
+      (\fun (sigma: Simplices.Carrier n) => Logic.falseElim _ (empty (sigma (algebraic_topology.Simplex[].lastVertex n))));
+  \definition zero: IsEmpty -> \forall (x: Carrier n) -> x = #zero{(space n)} :=
+    \fun (empty: IsEmpty)(x: Carrier n) => congr!{Maps.Map {Carrier n}} (\fun (f: Maps.Map) => #apply{f} x) _ _ (identityZero empty);
+}
+\module Positive(n: N.Nat^);
+\definition integerZero: \forall (z: I.Int^) -> IsEmpty -> \forall (x: Extension.Carrier z) -> x = #zero{(Extension.space z)} :=
+  \induction (z: I.Int^) \return IsEmpty -> \forall (x: Extension.Carrier z) -> x = #zero{(Extension.space z)} \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].zero
+    | negSucc: \fun (n: N.Nat^)(empty: IsEmpty) => Extension.Negative[n := n].zero
+  };
+\module Homology(z: I.Int^) {
+  \import IntegerChains.At[C := integerComplex, z := z].Vanishing[] \as Vanishing;
+  \definition zero: IsEmpty -> \forall (q: IntegerChains.At[C := integerComplex, z := z].Homology) -> q = #zero{(IntegerChains.At[C := integerComplex, z := z].homologySpace)} :=
+    \fun (empty: IsEmpty) => Vanishing.zero (integerZero z empty);
+}
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := integerComplex, N := coefficients] \as Hom;
+  \module At(z: I.Int^) {
+    \definition zero: IsEmpty -> \forall (h: Hom.Carrier z) -> h = #zero{(Hom.space z)} :=
+      \fun (empty: IsEmpty)(h: Hom.Carrier z) => Hom.At[z := z].ext h #zero{(Hom.space z)}
+        (\fun (x: Extension.Carrier z) => trans!{coefficients.Carrier} _ _ _
+          (congr!{{Extension.Carrier z} coefficients.Carrier} (#apply{h}) _ _ (integerZero z empty x))
+          (Hom.At[z := z].zeroPreserved h));
+    \import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := Hom.complex, z := z] \as Cohomology;
+    \import Modules.Hom[V := Cohomology.Closed, W := Cohomology.Cohomology, source := Cohomology.cycleSpace, target := Cohomology.cohomologySpace] \as Classes;
+    \definition onClosed: IsEmpty -> \forall (x: Cohomology.Closed) -> Cohomology.classOf x = Cohomology.zeroClass :=
+      \fun (empty: IsEmpty)(x: Cohomology.Closed) => trans!{Cohomology.Cohomology} _ _ _
+        (congr!{Cohomology.Closed Cohomology.Cohomology} Cohomology.classOf x #zero{Cohomology.cycleSpace} (zero empty x))
+        (Classes.zeroPreserved Cohomology.classLinear);
+    \definition cohomologyZero: IsEmpty -> \forall (q: Cohomology.Cohomology) -> q = Cohomology.zeroClass :=
+      \fun (empty: IsEmpty) => Cohomology.classInduction (\fun (q: Cohomology.Cohomology) => q = Cohomology.zeroClass) (onClosed empty);
+  }
+}

@@ -1,0 +1,14 @@
+\import Modules.Hom[V := P.family.Carrier n, W := Q.family.Carrier (Nat.Nat^::succ n), source := P.family.space n, target := Q.family.space (Nat.Nat^::succ n)] \as ChainMapsAt;
+\import Modules.Hom[V := Q.family.Carrier (Nat.Nat^::succ n), W := N.Carrier, source := Q.family.space (Nat.Nat^::succ n), target := N.space].Composition[U := P.family.Carrier n, domain := P.family.space n] \as Composition;
+\definition chainMap(f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g): ChainMapsAt.Map := ChainMapsAt.Map { apply := #apply{h} n, addition := #addition{h} n, scalar := #scalar{h} n };
+\definition apply(f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: Source.Carrier (Nat.Nat^::succ n)): Target.Carrier n := Composition.compose x (chainMap f g h);
+\import Modules.Hom[V := Source.Carrier (Nat.Nat^::succ n), W := Target.Carrier n, source := Source.space (Nat.Nat^::succ n), target := Target.space n] \as Linear;
+\definition map(f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g): Linear.Map := Linear.Map {
+  apply := apply f g h,
+  addition := \fun (x, y: Source.Carrier (Nat.Nat^::succ n)) => Target.At[n := n].ext
+    (apply f g h (#add{(Source.space (Nat.Nat^::succ n))} x y)) (#add{(Target.space n)} (apply f g h x) (apply f g h y))
+    (\fun (z: P.family.Carrier n) => \refl(#add{N.space} (#apply{x} (#apply{h} n z)) (#apply{y} (#apply{h} n z)))),
+  scalar := \fun (a: R)(x: Source.Carrier (Nat.Nat^::succ n)) => Target.At[n := n].ext
+    (apply f g h (#smul{(Source.space (Nat.Nat^::succ n))} a x)) (#smul{(Target.space n)} a (apply f g h x))
+    (\fun (z: P.family.Carrier n) => \refl(#smul{N.space} a (#apply{x} (#apply{h} n z)))),
+};

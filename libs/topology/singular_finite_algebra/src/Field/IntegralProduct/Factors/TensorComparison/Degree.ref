@@ -1,0 +1,18 @@
+\import FiniteTotal.Degree[n := n] \as Source;
+\import HomTotal.Degree[n := n] \as Target;
+\module Component(i: FiniteTotal.Index n) {
+  \import Modules.Isomorphism[V := LeftHom.Carrier #first{i}, W := Finite.Carrier (First.ranks #first{i}),
+    source := LeftHom.space #first{i}, target := Finite.space (First.ranks #first{i})].Inverse[] \as ReverseLeft;
+  \import Modules.Isomorphism[V := RightHom.Carrier #second{i}, W := Finite.Carrier (Second.ranks #second{i}),
+    source := RightHom.space #second{i}, target := Finite.space (Second.ranks #second{i})].Inverse[] \as ReverseRight;
+  \import Modules.Tensor[V := Finite.Carrier (First.ranks #first{i}), W := Finite.Carrier (Second.ranks #second{i}),
+    left := Finite.space (First.ranks #first{i}), right := Finite.space (Second.ranks #second{i})].Mapping[
+    U := LeftHom.Carrier #first{i}, Z := RightHom.Carrier #second{i}, targetLeft := LeftHom.space #first{i}, targetRight := RightHom.space #second{i}].Isomorphism[
+    leftIso := ReverseLeft.inverse First.At[n := #first{i}].isomorphism, rightIso := ReverseRight.inverse Second.At[n := #second{i}].isomorphism] \as TensorIso;
+  \definition isomorphism: Modules.Isomorphism[V := Source.family.Carrier i, W := Target.family.Carrier i,
+    source := Source.family.space i, target := Target.family.space i].Isomorphism := TensorIso.isomorphism;
+}
+\import Dual.SumIsomorphism[Index := FiniteTotal.Index n, first := Source.family, second := Target.family,
+  components := \fun (i: FiniteTotal.Index n) => Component[i := i].isomorphism] \as Sum;
+\definition left(x: Source.Carrier): #apply{Backward.total} n (#apply{Forward.total} n x) = x := #leftInverse{Sum.isomorphism} x;
+\definition right(x: Target.Carrier): #apply{Forward.total} n (#apply{Backward.total} n x) = x := #rightInverse{Sum.isomorphism} x;

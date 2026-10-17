@@ -1,0 +1,22 @@
+\import Geometric.Reindex[m := m, n := d] \as Reindex;
+\import Geometric.Affine[m := m, n := d] \as Affine;
+\import Affine.Hull[vertices := Reindex.vertices vertices] \as Hull;
+\definition Contained: \Prop := \forall (i: Fin.Fin (N.Nat^::succ n)) -> \In[Vertex] (Image m vertices) (sigma i);
+\definition vertex: Contained -> \forall (i: Fin.Fin (N.Nat^::succ n)) ->
+  \In[Geometric.Carrier d] Hull.Points (Vertices.vertex d (sigma i)) := \block {
+  \fun (contained: Contained)(i: Fin.Fin (N.Nat^::succ n)) \then
+  \takefrom j: \Cast[Fin.Fin (N.Nat^::succ m)] ({ j: Fin.Fin (N.Nat^::succ m) \where vertices j = sigma i }) \by contained i \then
+  \return \idelim vertices j = sigma i \with v: Vertex => \In[Geometric.Carrier d] Hull.Points (Vertices.vertex d v) \by {
+    base: Hull.vertexMember j,
+    equality: \bysub(Fin.Fin (N.Nat^::succ m), { j: Fin.Fin (N.Nat^::succ m) \where vertices j = sigma i }, j)
+  }
+};
+\definition centreInHull: Contained -> \In[Geometric.Carrier d] Hull.Points centre :=
+  \fun (contained: Contained) => Hull.closed n (\fun (i: Fin.Fin (N.Nat^::succ n)) => Vertices.vertex d (sigma i)) (vertex contained) Barycentre.point;
+\import \root.AffineBlend[m := m, n := d].Hull[vertices := Reindex.vertices vertices] \as Blending;
+\import algebraic_topology.Interval[] \as Interval;
+\import Geometric.Convex[n := d] \as Convex;
+\definition blend: Contained -> \forall (x: Geometric.Carrier m)(t: Interval.Carrier) ->
+  \In[Geometric.Carrier d] Hull.Points (Convex.blend t (Reindex.apply vertices x) centre) :=
+  \fun (contained: Contained)(x: Geometric.Carrier m)(t: Interval.Carrier) =>
+    Blending.closed t (Reindex.apply vertices x) centre (Hull.member x) (centreInHull contained);

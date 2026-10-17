@@ -1,0 +1,23 @@
+\import \parent.Cut[p := N.Nat^::zero, q := p] \as Cut;
+\import Simplex.Cut[p := N.Nat^::zero, q := p] \as Geometry;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import Transport.Constant[C := N.Nat^] \as Constants;
+\import \parent.ReindexTransport[] \as Degrees;
+\import Degrees.Between[m := p, n := Cut.total] \as Between;
+\import \parent.Reindex[m := p, n := Cut.total] \as Restriction;
+\use Equality.trans;
+\use Equality.sym;
+\definition same: p = Cut.total := sym!{N.Nat^} _ _ (Nat.addZeroLeft p);
+\definition indexValue: \forall (i: Fin.Fin (N.Nat^::succ p)) -> Fin.value (N.Nat^::succ p) i = Fin.value (N.Nat^::succ Cut.total) (Between.indices same i) :=
+  \fun (i: Fin.Fin (N.Nat^::succ p)) => trans!{N.Nat^} _ _ _
+    (sym!{N.Nat^} _ _ (Constants.law p Cut.total i same))
+    (Transport.natural Degrees.Indices (\fun (_: N.Nat^) => N.Nat^) (\fun (n: N.Nat^)(j: Degrees.Indices n) => j) p Cut.total same i);
+\definition indices: Geometry.backIndex = Between.indices same :=
+  \axiom:funext(Geometry.backIndex, Between.indices same, \fun (i: Fin.Fin (N.Nat^::succ p)) =>
+    trans!{N.Nat^} _ _ _ (Nat.addZeroLeft i) (indexValue i));
+\definition law: \forall (sigma: Carrier Cut.total) ->
+  Cut.back sigma = Transport.cast Carrier Cut.total p (Nat.addZeroLeft p) sigma :=
+  \fun (sigma: Carrier Cut.total) => trans!{{Carrier p}} _ _ _
+    (congr!{Restriction.Function {Carrier p}} (\fun (f: Restriction.Function) => Restriction.apply f sigma) _ _ indices)
+    (Degrees.law p Cut.total same sigma);

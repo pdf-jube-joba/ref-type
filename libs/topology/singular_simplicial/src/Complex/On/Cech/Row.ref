@@ -1,0 +1,53 @@
+\import \root.Complex[d := d].On[K := K] \as Complex;
+\import Complex.Realization[].Stars[] \as Stars;
+\import \parent.SmallAugmentation[] \as Augmentation;
+\import N.Induction[] \as Induction;
+\import std.Data[].Bool[] \as B;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition CommonVertex(v: Vertex): \Prop := \forall (x: Geometric.Carrier q) -> Reals.Lt Real.zero (sigma x v);
+\structure Apex: \Set {
+  vertex: Vertex,
+  positive: CommonVertex vertex,
+  least: \forall (v: Vertex) -> CommonVertex v -> Bounds.Le vertex v,
+}
+\definition Predicate(n: N.Nat^): \Prop := \exists { v: Vertex \where Logic.And[CommonVertex v, v = n] };
+\definition apexExists: \exists Apex := \block {
+  \takefrom w: Augmentation.Label[q := q, sigma := sigma].Witness \by Augmentation.Label[q := q, sigma := sigma].existence \then
+  \let member: Predicate #vertex{w} := Logic.existsIntro[Vertex, { v: Vertex \where Logic.And[CommonVertex v, v = #vertex{w}] }]
+    #vertex{w} (Logic.And[CommonVertex #vertex{w}, #vertex{w} = #vertex{w}]::# #positive{w} (\refl(#vertex{w}))) \then
+  \takefrom minimum: Induction.LeastValue Predicate \by Induction.leastExists Predicate
+    (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Predicate n }] #vertex{w} member) \then
+  \let laws: Induction.LeastLaws[Predicate, minimum] := \bysub(N.Nat^, Induction.LeastValue Predicate, minimum) \then
+  \takefrom a: \Cast[Vertex] ({ v: Vertex \where Logic.And[CommonVertex v, v = minimum] }) \by #member{laws} \then
+  \let properties: Logic.And[CommonVertex a, a = minimum] := \bysub(Vertex, { v: Vertex \where Logic.And[CommonVertex v, v = minimum] }, a) \then
+  \return \exact(Apex {
+    vertex := a, positive := #left{properties},
+    least := \fun (v: Vertex)(positive: CommonVertex v) => \idelim minimum = a \with r: N.Nat^ => Bounds.Le r v \by {
+      base: #least{laws} v (Logic.existsIntro[Vertex, { b: Vertex \where Logic.And[CommonVertex b, b = v] }]
+        v (Logic.And[CommonVertex v, v = v]::# positive (\refl(v)))),
+      equality: sym!{N.Nat^} _ _ (#right{properties})
+    },
+  }, Apex)
+};
+\definition Common(n: N.Nat^)(vertices: Complex.Simplex n): \Prop :=
+  \forall (i: Fin.Fin (N.Nat^::succ n)) -> CommonVertex (vertices i);
+\definition Carrier(n: N.Nat^): \Set := \Cast[Complex.Simplex n] ({ vertices: Complex.Simplex n \where Common n vertices });
+\definition common(n: N.Nat^)(s: Carrier n): Common n s := \bysub(Complex.Simplex n, Carrier n, s);
+\definition face(n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(s: Carrier (N.Nat^::succ n)): Carrier n :=
+  \into[Complex.Simplex n](Faces.apply n i s, Carrier n) \by {
+    \fun (j: Fin.Fin (N.Nat^::succ n)) => common (N.Nat^::succ n) s (Fin.Skipping[].apply (N.Nat^::succ n) i j)
+  };
+\definition family: Semisimplicial.Family := Semisimplicial.Family { Carrier := Carrier };
+\definition faces: Semisimplicial.Faces[family] := Semisimplicial.Faces[family] { apply := face };
+\definition object: Semisimplicial.Object := Semisimplicial.Object {
+  family := family, faces := faces,
+  laws := Semisimplicial.Laws[family, faces] {
+    identity := \fun (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(s: Carrier (N.Nat^::succ (N.Nat^::succ n)))(ordered: Bounds.Le i j) => Faces.identity n i j s ordered,
+  },
+};
+\definition encode(n: N.Nat^)(vertices: Carrier n): Generator n q :=
+  \into[Data[n, q]](Data[n, q] { vertices := vertices, singular := sigma }, Generator n q) \by {
+    \fun (x: Geometric.Carrier q)(i: Fin.Fin (N.Nat^::succ n)) => common n vertices i x
+  };
+\module With(apex: Apex);

@@ -1,0 +1,59 @@
+\import \parent.\parent.One[] \as H;
+\import \parent.\parent.Two[] \as Maps;
+\import \parent.\parent.Degree[n := two] \as Degree;
+\import Modules.Laws[V := Target.Carrier two, space := Target.space two] \as Values;
+\import algebra.Group[].Of[Carrier := Target.Carrier two, group := Values.additive] \as Group;
+\import Modules.Hom[V := Target.Carrier one, W := Target.Carrier two, source := Target.space one, target := Target.space two] \as H1;
+\import Modules.Hom[V := Target.Carrier three, W := Target.Carrier two, source := Target.space three, target := Target.space two] \as Boundaries;
+\definition image(t: Triangle): #apply{H.homotopy} (#apply{targetComplex.differential} one (triangle t)) =
+  Values.add (Group.difference (H.homotopyValues (back t)) (H.homotopyValues (diagonal t))) (H.homotopyValues (front t)) :=
+  trans!{{Target.Carrier two}} _ _ _
+    (congr!{{Target.Carrier one} {Target.Carrier two}} (#apply{H.homotopy}) _ _ (Model.Boundaries[].triangleBoundary t))
+    (trans!{{Target.Carrier two}} _ _ _
+      (#addition{H.homotopy} (#add{(Target.space one)} (edge (back t)) (#neg{(Target.space one)} (edge (diagonal t)))) (edge (front t)))
+      (congr2!{{Target.Carrier two} {Target.Carrier two} {Target.Carrier two}} Values.add _ _ _ _
+        (trans!{{Target.Carrier two}} _ _ _ (H1.differencePreserved H.homotopy (edge (back t)) (edge (diagonal t)))
+          (congr2!{{Target.Carrier two} {Target.Carrier two} {Target.Carrier two}} Group.difference _ _ _ _ (H.homotopyOnGenerator (back t)) (H.homotopyOnGenerator (diagonal t))))
+        (H.homotopyOnGenerator (front t))));
+\definition imageUpper: #apply{H.homotopy} (#apply{targetComplex.differential} one (triangle Triangle::upper)) = triangle Triangle::upper :=
+  trans!{{Target.Carrier two}} _ _ _ (image Triangle::upper)
+    (trans!{{Target.Carrier two}} _ _ _
+      (congr!{{Target.Carrier two} {Target.Carrier two}} (\fun (x: Target.Carrier two) => Values.add (Values.add Values.zero x) Values.zero) _ _ (Group.negNeg (triangle Triangle::upper)))
+      (trans!{{Target.Carrier two}} _ _ _ (Group.zeroRight (Values.add Values.zero (triangle Triangle::upper))) (Group.zeroLeft (triangle Triangle::upper))));
+\definition imageLower: #apply{H.homotopy} (#apply{targetComplex.differential} one (triangle Triangle::lower)) = Values.neg (triangle Triangle::upper) :=
+  trans!{{Target.Carrier two}} _ _ _ (image Triangle::lower)
+    (trans!{{Target.Carrier two}} _ _ _
+      (congr!{{Target.Carrier two} {Target.Carrier two}} (\fun (x: Target.Carrier two) => Values.add (Values.add Values.zero x) (Values.neg (triangle Triangle::upper))) _ _ Group.negZero)
+      (trans!{{Target.Carrier two}} _ _ _
+        (congr!{{Target.Carrier two} {Target.Carrier two}} (\fun (x: Target.Carrier two) => Values.add x (Values.neg (triangle Triangle::upper))) _ _ (Group.zeroLeft Values.zero))
+        (Group.zeroLeft (Values.neg (triangle Triangle::upper)))));
+\definition defect(t: Triangle): #apply{Corrected.boundary} two (triangle t) = #apply{H.homotopy} (#apply{targetComplex.differential} one (triangle t)) :=
+  trans!{{Target.Carrier two}} _ _ _
+    (congr!{{Target.Carrier two} {Target.Carrier two}} (\fun (x: Target.Carrier two) => Values.add x (#apply{H.homotopy} (#apply{targetComplex.differential} one (triangle t)))) _ _ (Boundaries.zeroPreserved Degree.differential))
+    (Group.zeroLeft _);
+\definition correctedUpper: #apply{Corrected.map} two (triangle Triangle::upper) = Values.zero :=
+  trans!{{Target.Carrier two}} _ _ _
+    (congr!{{Target.Carrier two} {Target.Carrier two}} (Group.difference (triangle Triangle::upper)) _ _
+      (trans!{{Target.Carrier two}} _ _ _ (defect Triangle::upper) imageUpper))
+    (Group.inverseRight (triangle Triangle::upper));
+\definition correctedLower: #apply{Corrected.map} two (triangle Triangle::lower) = Maps.value :=
+  trans!{{Target.Carrier two}} _ _ _
+    (congr!{{Target.Carrier two} {Target.Carrier two}} (Group.difference (triangle Triangle::lower)) _ _
+      (trans!{{Target.Carrier two}} _ _ _ (defect Triangle::lower) imageLower))
+    (trans!{{Target.Carrier two}} _ _ _
+      (congr!{{Target.Carrier two} {Target.Carrier two}} (Values.add (triangle Triangle::lower)) _ _ (Group.negNeg (triangle Triangle::upper)))
+      (Group.comm (triangle Triangle::lower) (triangle Triangle::upper)));
+\import Native.Map[C := targetComplex, D := targetComplex].At[n := two] \as CorrectedAt;
+\import Model.Coefficients[A := targetBundle two].DegreeTwo[] \as Ext;
+\import Modules.Hom[V := native.family.Carrier two, W := Target.Carrier two, source := native.family.space two, target := Target.space two] \as ForwardLinear;
+\definition equation: Degree.right = CorrectedAt.linear Corrected.map := Ext.injective Degree.right (CorrectedAt.linear Corrected.map)
+  (\axiom:funext((\fun (x: Triangle) => #apply{Degree.right} (triangle x)), (\fun (x: Triangle) => #apply{Corrected.map} two (triangle x)), \induction (t: Triangle) \return #apply{Degree.right} (triangle t) = #apply{Corrected.map} two (triangle t) \with {
+    | upper: trans!{{Target.Carrier two}} _ _ _
+      (congr!{{native.family.Carrier two} {Target.Carrier two}} (#apply{Maps.forward}) _ _ (Maps.backwardOnGenerator Triangle::upper))
+      (trans!{{Target.Carrier two}} _ _ _ (ForwardLinear.zeroPreserved Maps.forward) (sym!{{Target.Carrier two}} _ _ correctedUpper))
+    | lower: trans!{{Target.Carrier two}} _ _ _
+      (congr!{{native.family.Carrier two} {Target.Carrier two}} (#apply{Maps.forward}) _ _ (Maps.backwardOnGenerator Triangle::lower))
+      (trans!{{Target.Carrier two}} _ _ _ Maps.forwardUnit (sym!{{Target.Carrier two}} _ _ correctedLower))
+  }));
+\definition law: Equation two := \fun (y: Target.Carrier two) => congr!{{Modules.Hom[V := Target.Carrier two, W := Target.Carrier two, source := Target.space two, target := Target.space two].Map} {Target.Carrier two}}
+  (\fun (f: Modules.Hom[V := Target.Carrier two, W := Target.Carrier two, source := Target.space two, target := Target.space two].Map) => #apply{f} y) _ _ equation;

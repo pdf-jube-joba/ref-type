@@ -1,0 +1,34 @@
+\import Modules.Hom[V := H0.CycleCarrier, W := A.Carrier, source := H0.cycleSpace, target := A.space] \as Evaluation;
+\definition evaluate: Evaluation.Map := Evaluation.Map {
+  apply := \fun (f: H0.CycleCarrier) => f Vertex::rim,
+  addition := \fun (f, g: H0.CycleCarrier) => \refl(Group.add (f Vertex::rim) (g Vertex::rim)),
+  scalar := \fun (a: I.Int^)(f: H0.CycleCarrier) => \refl(Values.scale a (f Vertex::rim)),
+};
+\definition constant(x: A.Carrier): Vertices := vertex x x;
+\definition constantClosed(x: A.Carrier): deltaZero (constant x) = edge Group.zero Group.zero Group.zero :=
+  trans!{Edges} _ _ _ (boundaryZero x x) (edgesExt (edge Group.zero (Group.difference x x) (Group.difference x x))
+    (edge Group.zero Group.zero Group.zero) (\refl(Group.zero)) (Group.inverseRight x) (Group.inverseRight x));
+\import Modules.Hom[V := A.Carrier, W := H0.CycleCarrier, source := A.space, target := H0.cycleSpace] \as Inclusion;
+\definition include: Inclusion.Map := Inclusion.Map {
+  apply := \fun (x: A.Carrier) => H0.cycle (constant x) (trans!{Edges} _ _ _ (constantClosed x) edgeZero),
+  addition := \fun (x, y: A.Carrier) => verticesExt (constant (Group.add x y))
+    (\fun (v: Vertex) => Group.add (constant x v) (constant y v)) (\refl(Group.add x y)) (\refl(Group.add x y)),
+  scalar := \fun (a: I.Int^)(x: A.Carrier) => verticesExt (constant (Values.scale a x))
+    (\fun (v: Vertex) => Values.scale a (constant x v)) (\refl(Values.scale a x)) (\refl(Values.scale a x)),
+};
+\definition closedEqual(f: H0.CycleCarrier): f Vertex::rim = f Vertex::center :=
+  Group.cancelRight (Group.neg (f Vertex::center)) (f Vertex::rim) (f Vertex::center)
+    (trans!{A.Carrier} _ _ _
+      (congr!{Edges A.Carrier} (\fun (g: Edges) => g Edge::first) _ _ (\bysub(Vertices, #carrier{H0.cycles}, f)))
+      (sym!{A.Carrier} _ _ (Group.inverseRight (f Vertex::center))));
+\import Modules.Isomorphism[V := H0.CycleCarrier, W := A.Carrier, source := H0.cycleSpace, target := A.space] \as Iso;
+\definition kernelIso: Iso.Isomorphism := Iso.Isomorphism {
+  forward := evaluate, backward := include,
+  leftInverse := \fun (f: H0.CycleCarrier) => verticesExt (constant (f Vertex::rim)) f (closedEqual f) (\refl(f Vertex::rim)),
+  rightInverse := \fun (x: A.Carrier) => \refl(x),
+};
+\import Complex.DegreeZero[] \as DegreeZero;
+\import Modules.Isomorphism[V := H0.CycleCarrier, W := H0.Cohomology, source := H0.cycleSpace, target := H0.cohomologySpace].Inverse[] \as Inverse;
+\import Modules.Isomorphism[V := H0.Cohomology, W := H0.CycleCarrier, source := H0.cohomologySpace, target := H0.cycleSpace].Composition[U := A.Carrier, final := A.space] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := H0.Cohomology, W := A.Carrier, source := H0.cohomologySpace, target := A.space].Isomorphism :=
+  Composition.compose kernelIso (Inverse.inverse DegreeZero.kernelIso);

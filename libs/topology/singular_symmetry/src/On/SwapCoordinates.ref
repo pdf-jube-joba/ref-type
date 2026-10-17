@@ -1,0 +1,29 @@
+\import Double.SignedTranspose[C := Tensor.complex] \as SignedTranspose;
+\import SignedTranspose.Permutation[] \as Permutation;
+\import Double.Transpose[C := Tensor.complex] \as Transposed;
+\import Double.Swap[C := Tensor.complex] \as Koszul;
+\import Koszul.Conjugate[] \as SignChange;
+\import Double.TensorSymmetry[C := Chains.complex, D := Chains.complex] \as TensorSymmetry;
+\import Double.Coordinates[C := Tensor.complex].Degree[n := n] \as Values;
+\import Double.Coordinates[C := Transposed.complex].Degree[n := n] \as TransposedValues;
+\import Double.Coordinates[C := SignedTranspose.complex].Degree[n := n] \as SignedValues;
+\definition swapped: Double.Index n := Swap.index n i;
+\import Double.Map[C := Transposed.complex, D := Tensor.complex].Total[f := TensorSymmetry.map].Coordinates[n := n] \as SymmetryCoordinates;
+\import Double.Map[C := SignedTranspose.complex, D := Transposed.complex].Total[f := SignChange.map].Coordinates[n := n] \as SignCoordinates;
+\import Double.TensorSwap[C := Chains.complex, D := Chains.complex].Term[p := #first{i}, q := #second{i}] \as SignedSymmetry;
+\import TensorSymmetry.Term[p := #second{i}, q := #first{i}] \as Flip;
+\import Double.Sign[V := Tensor.Carrier #first{i} #second{i}, space := Tensor.space #first{i} #second{i}] \as Sign;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Natural;
+\definition law(x: Total.Carrier n): Values.coordinate swapped (#apply{Swap.forward} n x) = #apply{SignedSymmetry.map} (Values.coordinate i x) :=
+  trans!{{Tensor.Carrier #second{i} #first{i}}} _ _ _ (SymmetryCoordinates.law swapped (#apply{Koszul.forward} n x))
+    (trans!{{Tensor.Carrier #second{i} #first{i}}} _ _ _
+      (congr!{{Tensor.Carrier #first{i} #second{i}} {Tensor.Carrier #second{i} #first{i}}} (#apply{Flip.forward}) _ _ (SignCoordinates.law swapped (#apply{Permutation.forward} n x)))
+      (trans!{{Tensor.Carrier #second{i} #first{i}}} _ _ _
+        (congr!{N.Nat^ {Tensor.Carrier #second{i} #first{i}}}
+          (\fun (k: N.Nat^) => #apply{Flip.forward} (#apply{(Sign.map k)} (SignedValues.coordinate swapped (#apply{Permutation.forward} n x)))) _ _ (Natural.mulComm #second{i} #first{i}))
+        (trans!{{Tensor.Carrier #second{i} #first{i}}} _ _ _
+          (congr!{{Tensor.Carrier #first{i} #second{i}} {Tensor.Carrier #second{i} #first{i}}}
+            (\fun (v: Tensor.Carrier #first{i} #second{i}) => #apply{Flip.forward} (#apply{(Sign.map (Nat.mul #first{i} #second{i}))} v)) _ _
+            (Permutation.Degree[n := n].Coordinate[i := i].formula x))
+          (SignedSymmetry.naturality (Values.coordinate i x)))));

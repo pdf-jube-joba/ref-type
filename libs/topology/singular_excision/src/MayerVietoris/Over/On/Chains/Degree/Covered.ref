@@ -1,0 +1,22 @@
+\definition LeftImage(sigma: SmallSimplices.Carrier n): \Prop := \exists { tau: LeftSimplices.Carrier n \where leftFunction tau = sigma };
+\definition RightImage(sigma: SmallSimplices.Carrier n): \Prop := \exists { tau: RightSimplices.Carrier n \where rightFunction tau = sigma };
+\definition fromLeft: \forall (sigma: SmallSimplices.Carrier n) -> (\forall (x: Simplex.Carrier n) -> Top.Member left (sigma x)) -> LeftImage sigma :=
+  \fun (sigma: SmallSimplices.Carrier n)(inside: \forall (x: Simplex.Carrier n) -> Top.Member left (sigma x)) =>
+    Logic.existsIntro[LeftSimplices.Carrier n, { tau: LeftSimplices.Carrier n \where leftFunction tau = sigma }]
+      (LeftSmall.At[n := n].corestrict sigma inside)
+      (\axiom:funext(leftFunction (LeftSmall.At[n := n].corestrict sigma inside), sigma, \fun (x: Simplex.Carrier n) => \refl(sigma x)));
+\definition fromRight: \forall (sigma: SmallSimplices.Carrier n) -> (\forall (x: Simplex.Carrier n) -> Top.Member right (sigma x)) -> RightImage sigma :=
+  \fun (sigma: SmallSimplices.Carrier n)(inside: \forall (x: Simplex.Carrier n) -> Top.Member right (sigma x)) =>
+    Logic.existsIntro[RightSimplices.Carrier n, { tau: RightSimplices.Carrier n \where rightFunction tau = sigma }]
+      (RightSmall.At[n := n].corestrict sigma inside)
+      (\axiom:funext(rightFunction (RightSmall.At[n := n].corestrict sigma inside), sigma, \fun (x: Simplex.Carrier n) => \refl(sigma x)));
+\definition law: \forall (sigma: SmallSimplices.Carrier n) -> Logic.Or[LeftImage sigma, RightImage sigma] := \block {
+  \fun (sigma: SmallSimplices.Carrier n) \then
+  \takefrom w: SmallSimplices.Witness[n, sigma] \by SmallSimplices.witness n sigma \then
+  \return either!{{(#member{w})} {Logic.Or[LeftImage sigma, RightImage sigma]}
+    {\fun (same: #element{w} = left) => Logic.Or[_, _]::left (fromLeft sigma (\fun (x: Simplex.Carrier n) =>
+      \idelim #element{w} = left \with U: \Pow A => Top.Member U (sigma x) \by { base: #contained{w} x, equality: same }))}
+    {\fun (same: #element{w} = right) => Logic.Or[_, _]::right (fromRight sigma (\fun (x: Simplex.Carrier n) =>
+      \idelim #element{w} = right \with U: \Pow A => Top.Member U (sigma x) \by { base: #contained{w} x, equality: same }))}
+  }
+};

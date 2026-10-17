@@ -1,0 +1,73 @@
+\import \root.ProjectivePlane[].Geometry[].Attachment[] \as Attachment;
+\import Attachment.Base[] \as Base;
+\import Attachment.Fibers[] \as Fibers;
+\import Attachment.Inverse[] \as AttachmentInverse;
+\import Attachment.Coefficients[coefficients := coefficients] \as Attached;
+\import Attached.Groups[] \as Groups;
+\import Groups.Injectivity[] \as SignedInjectivity;
+\import singular_cohomology.Relative[A := Attachment.Point, source := Attachment.pointTopology, subset := Fibers.BaseImage] \as Pair;
+\import singular_cohomology.Cochains[A := Attachment.Point, source := Attachment.pointTopology].With[coefficients := coefficients] \as Whole;
+\import singular_cohomology.Cochains[A := Base.Carrier, source := Base.topology].With[coefficients := coefficients] \as Sub;
+\import Whole.Integer[] \as SignedWhole;
+\import Sub.Integer[] \as SignedSub;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := IntegerRing.ring] \as Signed;
+\import Signed.At[C := SignedWhole.complex, z := I.Int^::ofNat one] \as SH;
+\import Signed.At[C := SignedSub.complex, z := I.Int^::ofNat one] \as SB;
+\import singular_cohomology.Maps[A := Base.Carrier, B := Attachment.Point, source := Base.topology, target := Attachment.pointTopology].Coefficients[M := coefficients, L := coefficients] \as BasePull;
+\import BasePull.Integer[f := Pair.inclusion, continuous := Pair.inclusionContinuous, coefficientMap := Identity.identity].At[n := one] \as Natural;
+\definition baseRestriction: Modules.Hom[V := Whole.cohomology one, W := Sub.cohomology one, source := Whole.cohomologySpace one, target := Sub.cohomologySpace one].Map := BasePull.At[n := one].induced Pair.inclusion Pair.inclusionContinuous Identity.identity;
+\definition signedEqual(x, y: Whole.cohomology one)(equal: #apply{baseRestriction} x = #apply{baseRestriction} y):
+  #apply{Natural.induced} (#apply{#backward{Natural.sourceComparison}} x) = #apply{Natural.induced} (#apply{#backward{Natural.sourceComparison}} y) :=
+  trans!{SB.Cohomology} _ _ _
+    (sym!{SB.Cohomology} _ _ (#leftInverse{Natural.targetComparison} (#apply{Natural.induced} (#apply{#backward{Natural.sourceComparison}} x))))
+    (trans!{SB.Cohomology} _ _ _
+      (congr!{{Sub.cohomology one} SB.Cohomology} (#apply{#backward{Natural.targetComparison}}) _ _
+        (trans!{{Sub.cohomology one}} _ _ _ (Natural.law (#apply{#backward{Natural.sourceComparison}} x))
+          (trans!{{Sub.cohomology one}} _ _ _
+            (congr!{{Whole.cohomology one} {Sub.cohomology one}} (#apply{baseRestriction}) _ _ (#rightInverse{Natural.sourceComparison} x))
+            (trans!{{Sub.cohomology one}} _ _ _ equal
+              (trans!{{Sub.cohomology one}} _ _ _
+                (congr!{{Whole.cohomology one} {Sub.cohomology one}} (#apply{baseRestriction}) _ _ (sym!{{Whole.cohomology one}} _ _ (#rightInverse{Natural.sourceComparison} y)))
+                (sym!{{Sub.cohomology one}} _ _ (Natural.law (#apply{#backward{Natural.sourceComparison}} y))))))))
+      (#leftInverse{Natural.targetComparison} (#apply{Natural.induced} (#apply{#backward{Natural.sourceComparison}} y))));
+\definition baseInjective(x, y: Whole.cohomology one)(equal: #apply{baseRestriction} x = #apply{baseRestriction} y): x = y :=
+  trans!{{Whole.cohomology one}} _ _ _
+    (sym!{{Whole.cohomology one}} _ _ (#rightInverse{Natural.sourceComparison} x))
+    (trans!{{Whole.cohomology one}} _ _ _
+      (congr!{SH.Cohomology {Whole.cohomology one}} (#apply{#forward{Natural.sourceComparison}}) _ _
+        (SignedInjectivity.law (#apply{#backward{Natural.sourceComparison}} x) (#apply{#backward{Natural.sourceComparison}} y)
+          (congr!{SB.Cohomology coefficients.Carrier} (#apply{#backward{Attached.baseOrientation}}) _ _ (signedEqual x y equal))))
+      (#rightInverse{Natural.sourceComparison} y));
+\import \root.ProjectivePlane[].Geometry[].Cohomology[coefficients := coefficients] \as QuotientComparison;
+\import algebraic_topology.HomotopyEquivalence[A := Attachment.Point, B := Carrier] \as WholeEquivalences;
+\definition wholeEquivalence: WholeEquivalences.Equivalence[Attachment.pointTopology, topology] := WholeEquivalences.fromHomeomorphism Attachment.pointTopology topology AttachmentInverse.projectiveHomeomorphism;
+\import singular_cohomology.Equivalence[A := Attachment.Point, B := Carrier, source := Attachment.pointTopology, target := topology].With[coefficients := coefficients] \as WholeComparison;
+\definition wholeIsomorphism: Modules.Isomorphism[V := Whole.cohomology one, W := Actual.cohomology one, source := Whole.cohomologySpace one, target := Actual.cohomologySpace one].Isomorphism := WholeComparison.At[n := one].isomorphism wholeEquivalence;
+\import sphere_maps.Circle[].Quotient[] \as CircleSpace;
+\import algebraic_topology.HomotopyEquivalence[A := CircleSpace.Sphere, B := Base.Carrier] \as BaseEquivalences;
+\import topology.Homeomorphism[A := Base.Carrier, B := CircleSpace.Sphere].Inverse[] \as BaseReverse;
+\definition baseEquivalence: BaseEquivalences.Equivalence[CircleSpace.sphereTopology, Base.topology] := BaseEquivalences.fromHomeomorphism CircleSpace.sphereTopology Base.topology (BaseReverse.inverse Base.topology CircleSpace.sphereTopology Base.sphereHomeomorphism);
+\import singular_cohomology.Equivalence[A := CircleSpace.Sphere, B := Base.Carrier, source := CircleSpace.sphereTopology, target := Base.topology].With[coefficients := coefficients] \as BaseComparison;
+\definition baseIsomorphism: Modules.Isomorphism[V := Circle.cohomology one, W := Sub.cohomology one, source := Circle.cohomologySpace one, target := Sub.cohomologySpace one].Isomorphism := BaseComparison.At[n := one].isomorphism baseEquivalence;
+\definition pull: Modules.Hom[V := Actual.cohomology one, W := Circle.cohomology one, source := Actual.cohomologySpace one, target := Circle.cohomologySpace one].Map := CirclePull.At[n := one].induced Loop.inclusion Loop.continuous Identity.identity;
+\import singular_cohomology.Maps[A := CircleSpace.Sphere, B := Base.Carrier, source := CircleSpace.sphereTopology, target := Base.topology].Composition[C := Attachment.Point, final := Attachment.pointTopology].Coefficients[M := coefficients] \as FirstComposition;
+\import singular_cohomology.Maps[A := CircleSpace.Sphere, B := Attachment.Point, source := CircleSpace.sphereTopology, target := Attachment.pointTopology].Composition[C := Carrier, final := topology].Coefficients[M := coefficients] \as SecondComposition;
+\import singular_cohomology.Maps[A := Base.Carrier, B := Attachment.Point, source := Base.topology, target := Attachment.pointTopology] \as Include;
+\definition factor(q: Actual.cohomology one):
+  #apply{pull} q = #apply{#backward{baseIsomorphism}} (#apply{baseRestriction} (#apply{#backward{wholeIsomorphism}} q)) :=
+  trans!{{Circle.cohomology one}} _ _ _
+    (SecondComposition.onCohomology (\fun (y: CircleSpace.Sphere) => Loop.basePoint y) Loop.baseContinuous (#forward{AttachmentInverse.projectiveHomeomorphism}) (#forwardContinuous{AttachmentInverse.projectiveHomeomorphism}) one q)
+    (FirstComposition.onCohomology (#backward{Base.sphereHomeomorphism}) (#backwardContinuous{Base.sphereHomeomorphism}) Pair.inclusion Pair.inclusionContinuous one (#apply{#backward{wholeIsomorphism}} q));
+\definition injective(x, y: Actual.cohomology one)(equal: #apply{pull} x = #apply{pull} y): x = y := \block {
+  \let baseEqual: #apply{baseRestriction} (#apply{#backward{wholeIsomorphism}} x) = #apply{baseRestriction} (#apply{#backward{wholeIsomorphism}} y) :=
+    trans!{{Sub.cohomology one}} _ _ _
+      (sym!{{Sub.cohomology one}} _ _ (#rightInverse{baseIsomorphism} (#apply{baseRestriction} (#apply{#backward{wholeIsomorphism}} x))))
+      (trans!{{Sub.cohomology one}} _ _ _
+        (congr!{{Circle.cohomology one} {Sub.cohomology one}} (#apply{#forward{baseIsomorphism}}) _ _
+          (trans!{{Circle.cohomology one}} _ _ _ (sym!{{Circle.cohomology one}} _ _ (factor x)) (trans!{{Circle.cohomology one}} _ _ _ equal (factor y))))
+        (#rightInverse{baseIsomorphism} (#apply{baseRestriction} (#apply{#backward{wholeIsomorphism}} y)))) \then
+  \return trans!{{Actual.cohomology one}} _ _ _ (sym!{{Actual.cohomology one}} _ _ (#rightInverse{wholeIsomorphism} x))
+    (trans!{{Actual.cohomology one}} _ _ _
+      (congr!{{Whole.cohomology one} {Actual.cohomology one}} (#apply{#forward{wholeIsomorphism}}) _ _ (baseInjective _ _ baseEqual))
+      (#rightInverse{wholeIsomorphism} y))
+};

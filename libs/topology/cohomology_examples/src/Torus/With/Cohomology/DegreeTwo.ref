@@ -1,0 +1,39 @@
+\definition cycles: Modules.Bundle := Modules.Bundle { Carrier := H2.CycleCarrier, space := H2.cycleSpace };
+\import \root.Integral[].Maps[A := cycles, B := A] \as Totals;
+\definition totalAdd(f, g: H2.CycleCarrier): total (#add{H2.cycleSpace} f g) = Group.add (total f) (total g) :=
+  Group.differenceAdd (f Triangle::first) (g Triangle::first) (f Triangle::second) (g Triangle::second);
+\definition evaluate: Modules.Hom[V := H2.CycleCarrier, W := A.Carrier, source := H2.cycleSpace, target := A.space].Map := Totals.fromAdditive (\fun (f: H2.CycleCarrier) => total f) totalAdd;
+\import Modules.Of[V := H2.CycleCarrier, space := H2.cycleSpace].Submodule[].Quotient[S := H2.boundariesInside] \as Quotient;
+\import Quotient.To[W := A.Carrier, target := A.space] \as Descent;
+\definition kills: Descent.Vanishes evaluate := \block {
+  \fun (f: H2.CycleCarrier)(boundary: _) \then
+  \takefrom g: \Cast[Edges] ({ g: Edges \where deltaOne g = f }) \by boundary \then
+  \let equal: deltaOne g = f := \bysub(Edges, { g: Edges \where deltaOne g = f }, g) \then
+  \return trans!{A.Carrier} _ _ _ (congr!{Triangles A.Carrier} total _ _ (sym!{Triangles} _ _ equal)) (totalBoundary g)
+};
+\definition forward: Modules.Hom[V := H2.Cohomology, W := A.Carrier, source := H2.cohomologySpace, target := A.space].Map := Descent.descend evaluate kills;
+\import Modules.Hom[V := A.Carrier, W := H2.CycleCarrier, source := A.space, target := H2.cycleSpace] \as Inclusion;
+\definition include: Inclusion.Map := Inclusion.Map {
+  apply := \fun (x: A.Carrier) => H2.cycle (triangle x Group.zero) (\refl(Zero.Carrier::zero)),
+  addition := \fun (x, y: A.Carrier) => trianglesExt (triangle (Group.add x y) Group.zero)
+    (\fun (t: Triangle) => Group.add (triangle x Group.zero t) (triangle y Group.zero t)) (\refl(Group.add x y)) (sym!{A.Carrier} _ _ (Group.zeroLeft Group.zero)),
+  scalar := \fun (a: I.Int^)(x: A.Carrier) => trianglesExt (triangle (Values.scale a x) Group.zero)
+    (\fun (t: Triangle) => Values.scale a (triangle x Group.zero t)) (\refl(Values.scale a x)) (sym!{A.Carrier} _ _ (Values.scaleZero a)),
+};
+\import Modules.Hom[V := H2.CycleCarrier, W := H2.Cohomology, source := H2.cycleSpace, target := H2.cohomologySpace].Composition[U := A.Carrier, domain := A.space] \as Composition;
+\definition backward: Modules.Hom[V := A.Carrier, W := H2.Cohomology, source := A.space, target := H2.cohomologySpace].Map := Composition.compose H2.classLinear include;
+\definition rightInverse(x: A.Carrier): #apply{forward} (#apply{backward} x) = x :=
+  trans!{A.Carrier} _ _ _ (Descent.onClass evaluate kills (#apply{include} x))
+    (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add x) _ _ Group.negZero) (Group.zeroRight x));
+\definition leftInverse: \forall (h: H2.Cohomology) -> #apply{backward} (#apply{forward} h) = h :=
+  H2.classInduction (\fun (h: H2.Cohomology) => #apply{backward} (#apply{forward} h) = h)
+    (\fun (f: H2.CycleCarrier) => trans!{H2.Cohomology} _ _ _
+      (congr!{A.Carrier H2.Cohomology} (#apply{backward}) _ _ (Descent.onClass evaluate kills f))
+      (sym!{H2.Cohomology} _ _ (H2.classEqual f (#apply{include} (total f))
+        (Logic.existsIntro[Edges, { g: Edges \where deltaOne g =
+          #add{(Raw.second.space)} f (#neg{(Raw.second.space)} (normal f)) }]
+          (edge (f Triangle::second) Group.zero Group.zero) (boundaryDifference f)))));
+\definition isomorphism: Modules.Isomorphism[V := H2.Cohomology, W := A.Carrier, source := H2.cohomologySpace, target := A.space].Isomorphism :=
+  Modules.Isomorphism[V := H2.Cohomology, W := A.Carrier, source := H2.cohomologySpace, target := A.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

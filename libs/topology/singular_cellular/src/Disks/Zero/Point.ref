@@ -1,0 +1,23 @@
+\import singular_cohomology.Chains[A := Model.Disk, source := Model.diskTopology] \as Whole;
+\import singular_cohomology.Simplices[A := Model.Disk, source := Model.diskTopology] \as Simplices;
+\import Whole.Reduced[] \as ReducedWhole;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import Native.ZeroExtension[C := Whole.complex] \as WholeExtension;
+\import Pair.Reduced[] \as ReducedPair;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import Chains.At[C := Pair.complex, z := degree] \as RelativeH;
+\import Chains.ShortExact[A := BoundaryChains.complex, B := ReducedWhole.complex, C := Pair.complex]
+  .At[s := ReducedPair.sequence, k := degree] \as Exact;
+\definition chain: Whole.Carrier N.Nat^::zero := Whole.generator N.Nat^::zero (Simplices.At[n := N.Nat^::zero].constant p);
+\definition relative: Pair.Carrier degree := Pair.class degree (WholeExtension.Positive[n := N.Nat^::zero].intro chain);
+\import singular_cellular_algebra.Algebra[].RelativeSplit[A := Model.Disk, source := Model.diskTopology, subset := Disk.boundary] \as Splitting;
+\definition cycle: RelativeH.Cycle := RelativeH.cycle relative (Splitting.Negative[n := N.Nat^::zero].zero (#apply{Pair.complex.differential} degree relative));
+\definition class: RelativeH.Homology := RelativeH.classOf cycle;
+\definition connectingPoint: #apply{#forward{connecting}} class = #apply{#forward{boundaryOrientation}} I.One.specification :=
+  trans!{H.Carrier} _ _ _ (Exact.onClass cycle)
+    (Exact.onLift cycle chain I.One.specification (\refl(relative))
+      (sym!{I.Int^} _ _ (Whole.Augmentation[].onGenerator (Simplices.At[n := N.Nat^::zero].constant p))) (\refl(Modules.Zero[].Carrier::zero)));
+\definition onGenerator: #apply{#forward{orientation}} I.One.specification = class :=
+  trans!{RelativeH.Homology} _ _ _
+    (congr!{H.Carrier RelativeH.Homology} (#apply{#backward{connecting}}) _ _ (sym!{H.Carrier} _ _ connectingPoint))
+    (#leftInverse{connecting} class);

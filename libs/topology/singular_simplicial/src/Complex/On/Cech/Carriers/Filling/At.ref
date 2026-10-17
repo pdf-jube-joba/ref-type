@@ -1,0 +1,40 @@
+\import \parent.\parent.Cell[n := n, c := c] \as Cell;
+\import Cell.Degree[z := degree] \as Lower;
+\import Cell.Degree[z := next] \as Upper;
+\import Cell.Degree[z := Degrees.previous degree] \as Before;
+\import Cell.Filling[] \as Fill;
+\definition lift(f: Source.Carrier): Cell.localCarrier degree := Lower.lift (#apply{f} (Based.generator c)) (Source.member f c);
+\definition value(f: Source.Carrier): Global.Carrier next := #apply{Cell.map} next (#apply{Fill.map} (lift f));
+\definition member(f: Source.Carrier): Upper.Member (value f) := Upper.introduce (value f) (#apply{Fill.map} (lift f)) (\refl(value f));
+\definition addition: \forall (f, g: Source.Carrier) -> value (#add{Source.space} f g) = #add{(Global.space next)} (value f) (value g) :=
+  \fun (f, g: Source.Carrier) => trans!{{Global.Carrier next}} _ _ _
+    (congr!{{Cell.localCarrier degree} {Global.Carrier next}} (\fun (x: Cell.localCarrier degree) => #apply{Cell.map} next (#apply{Fill.map} x)) _ _
+      (Lower.addition (#apply{f} (Based.generator c)) (#apply{g} (Based.generator c)) (Source.member f c) (Source.member g c) (Source.member (#add{Source.space} f g) c)))
+    (trans!{{Global.Carrier next}} _ _ _
+      (congr!{{Cell.localCarrier next} {Global.Carrier next}} (#apply{Cell.map} next) _ _ (#addition{Fill.map} (lift f) (lift g)))
+      (#addition{Cell.map} next (#apply{Fill.map} (lift f)) (#apply{Fill.map} (lift g))));
+\definition scalar: \forall (a: I.Int^)(f: Source.Carrier) -> value (#smul{Source.space} a f) = #smul{(Global.space next)} a (value f) :=
+  \fun (a: I.Int^)(f: Source.Carrier) => trans!{{Global.Carrier next}} _ _ _
+    (congr!{{Cell.localCarrier degree} {Global.Carrier next}} (\fun (x: Cell.localCarrier degree) => #apply{Cell.map} next (#apply{Fill.map} x)) _ _
+      (Lower.scalar a (#apply{f} (Based.generator c)) (Source.member f c) (Source.member (#smul{Source.space} a f) c)))
+    (trans!{{Global.Carrier next}} _ _ _
+      (congr!{{Cell.localCarrier next} {Global.Carrier next}} (#apply{Cell.map} next) _ _ (#scalar{Fill.map} a (lift f)))
+      (#scalar{Cell.map} next a (#apply{Fill.map} (lift f))));
+\import Modules.Hom[V := Cell.localCarrier (Degrees.previous degree), W := Global.Carrier (Degrees.previous degree),
+  source := Cell.localSpace (Degrees.previous degree), target := Global.space (Degrees.previous degree)] \as Maps;
+\definition localClosed: \forall (f: Source.Carrier) -> #apply{Global.differential} degree (#apply{f} (Based.generator c)) = #zero{(Global.space (Degrees.previous degree))} ->
+  #apply{Cell.localComplex.differential} degree (lift f) = #zero{(Cell.localSpace (Degrees.previous degree))} :=
+  \fun (f: Source.Carrier)(closed: #apply{Global.differential} degree (#apply{f} (Based.generator c)) = #zero{(Global.space (Degrees.previous degree))}) =>
+    Cell.injective (Degrees.previous degree) _ _ (trans!{{Global.Carrier (Degrees.previous degree)}} _ _ _
+      (sym!{{Global.Carrier (Degrees.previous degree)}} _ _ (#commutes{Cell.map} degree (lift f)))
+      (trans!{{Global.Carrier (Degrees.previous degree)}} _ _ _
+        (congr!{{Global.Carrier degree} {Global.Carrier (Degrees.previous degree)}} (#apply{Global.differential} degree) _ _
+          (Lower.equation (#apply{f} (Based.generator c)) (Source.member f c)))
+        (trans!{{Global.Carrier (Degrees.previous degree)}} _ _ _ closed (sym!{{Global.Carrier (Degrees.previous degree)}} _ _ (Maps.zeroPreserved Before.inclusion)))));
+\definition boundary: \forall (f: Source.Carrier) -> #apply{Global.differential} degree (#apply{f} (Based.generator c)) = #zero{(Global.space (Degrees.previous degree))} ->
+  #apply{Global.differential} next (value f) = #apply{f} (Based.generator c) :=
+  \fun (f: Source.Carrier)(closed: #apply{Global.differential} degree (#apply{f} (Based.generator c)) = #zero{(Global.space (Degrees.previous degree))}) =>
+    trans!{{Global.Carrier degree}} _ _ _ (#commutes{Cell.map} next (#apply{Fill.map} (lift f)))
+      (trans!{{Global.Carrier degree}} _ _ _
+        (congr!{{Cell.localCarrier degree} {Global.Carrier degree}} (#apply{Cell.map} degree) _ _ (Fill.boundary (lift f) (localClosed f closed)))
+        (Lower.equation (#apply{f} (Based.generator c)) (Source.member f c)));

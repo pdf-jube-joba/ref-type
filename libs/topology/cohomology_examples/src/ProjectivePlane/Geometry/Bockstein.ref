@@ -1,0 +1,52 @@
+\import \parent.Integral[] \as Integer;
+\import \parent.ModTwo[] \as Binary;
+\import Binary.Comparison[] \as BinaryComparison;
+\import \root.ProjectivePlane[].Integral[] \as FiniteInteger;
+\import \root.ProjectivePlane[].ModTwo[] \as FiniteBinary;
+\import \root.ProjectivePlane[].Bockstein[].Finite[] \as Finite;
+\import \root.ProjectivePlane[].Integral[].Top[] \as FiniteTop;
+\import \root.Two[] \as F;
+\import F.Quotient[] \as Quotient;
+\import Quotient.Sequence[] \as Coefficients;
+\import singular_cohomology.Coefficients[A := Carrier, source := topology].Sequence[L := FiniteInteger.coefficients, M := FiniteInteger.coefficients, R := FiniteBinary.coefficients].On[s := Coefficients.sequence] \as Sequence;
+\import \parent.CoefficientSequence[L := FiniteInteger.coefficients, M := FiniteInteger.coefficients, R := FiniteBinary.coefficients].On[s := Coefficients.sequence] \as Naturality;
+\import \parent.Restriction[coefficients := FiniteInteger.coefficients] \as Restriction;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].Simplicial[] \as Simplicial;
+\import Simplicial.Coefficients[A := FiniteInteger.coefficients].Cohomology[].DegreeTwo[] \as FiniteComparison;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[P := Simplicial.chainComplex, N := FiniteInteger.coefficients] \as Model;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Cochains;
+\import singular_cohomology.Cochains[A := Carrier, source := topology].With[coefficients := FiniteInteger.coefficients] \as Whole;
+\import singular_cohomology.Cochains[A := Carrier, source := topology].With[coefficients := FiniteBinary.coefficients] \as BinaryWhole;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[P := Simplicial.chainComplex, N := FiniteBinary.coefficients] \as BinaryModel;
+\import Cochains.At[C := BinaryModel.complex, k := one] \as BinaryTarget;
+\import Cochains.At[C := Model.complex, k := two] \as Target;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].With[A := FiniteInteger.coefficients] \as Matrix;
+\import \root.Truncated[].Over[zeroth := Matrix.zeroth, first := Matrix.first, second := Matrix.second].On[deltaZero := Matrix.differentialZero, deltaOne := Matrix.differentialOne, square := Matrix.squareZero].DegreeTwo[] \as Local;
+\definition beta: Modules.Hom[V := BinaryWhole.cohomology one, W := Whole.cohomology two, source := BinaryWhole.cohomologySpace one, target := Whole.cohomologySpace two].Map := Sequence.Bockstein[n := one].connecting;
+\definition image: #apply{Restriction.At[n := two].induced} (#apply{beta} Binary.u) = Finite.integerGenerator :=
+  trans!{Target.Cohomology} _ _ _ (sym!{Target.Cohomology} _ _ (Naturality.At[n := one].law Binary.u))
+    (trans!{Target.Cohomology} _ _ _
+      (congr!{BinaryTarget.Cohomology Target.Cohomology}
+        (#apply{Simplicial.Sequence[L := FiniteInteger.coefficients, M := FiniteInteger.coefficients, R := FiniteBinary.coefficients].On[s := Coefficients.sequence].Bockstein[n := one].connecting}) _ _ BinaryComparison.onU)
+      Finite.law);
+\definition finiteNonzero(equal: Finite.integerGenerator = Target.zeroClass): std.Logic[].Proposition[].False :=
+  FiniteTop.generatorNonzero (trans!{Local.Cohomology} _ _ _ (sym!{Local.Cohomology} _ _ Finite.integerCompared)
+    (trans!{Local.Cohomology} _ _ _
+      (congr!{Target.Cohomology Local.Cohomology} (#apply{#forward{FiniteComparison.isomorphism}}) _ _ equal)
+      (Modules.Hom[V := Target.Cohomology, W := Local.Cohomology, source := Target.cohomologySpace, target := Local.cohomologySpace].zeroPreserved #forward{FiniteComparison.isomorphism})));
+\definition nonzero(equal: #apply{beta} Binary.u = #zero{(Whole.cohomologySpace two)}): std.Logic[].Proposition[].False :=
+  finiteNonzero (trans!{Target.Cohomology} _ _ _ (sym!{Target.Cohomology} _ _ image)
+    (trans!{Target.Cohomology} _ _ _
+      (congr!{{Whole.cohomology two} Target.Cohomology} (#apply{Restriction.At[n := two].induced}) _ _ equal)
+      (Modules.Hom[V := Whole.cohomology two, W := Target.Cohomology, source := Whole.cohomologySpace two, target := Target.cohomologySpace].zeroPreserved Restriction.At[n := two].induced)));
+\import finitely_generated_modules.IntegerCyclic[d := FiniteInteger.two] \as Z2;
+\import Modules.Isomorphism[V := Whole.cohomology two, W := Z2.Carrier, source := Whole.cohomologySpace two, target := Z2.space].Composition[U := F.Carrier, final := F.integerSpace] \as Compose;
+\definition coordinate: Modules.Isomorphism[V := Whole.cohomology two, W := F.Carrier, source := Whole.cohomologySpace two, target := F.integerSpace].Isomorphism := Compose.compose Quotient.isomorphism Integer.degreeTwo;
+\definition generatorNonzero(equal: Integer.generator = #zero{(Whole.cohomologySpace two)}): std.Logic[].Proposition[].False :=
+  Quotient.generatorNonzero (trans!{Z2.Carrier} _ _ _ (sym!{Z2.Carrier} _ _ Integer.onGenerator)
+    (trans!{Z2.Carrier} _ _ _
+      (congr!{{Whole.cohomology two} Z2.Carrier} (#apply{#forward{Integer.degreeTwo}}) _ _ equal)
+      (Modules.Hom[V := Whole.cohomology two, W := Z2.Carrier, source := Whole.cohomologySpace two, target := Z2.space].zeroPreserved #forward{Integer.degreeTwo})));
+\import \parent.BinaryClassification[V := Whole.cohomology two, space := Whole.cohomologySpace two] \as Detection;
+\definition law: #apply{beta} Binary.u = Integer.generator := Detection.unique coordinate _ _ nonzero generatorNonzero;

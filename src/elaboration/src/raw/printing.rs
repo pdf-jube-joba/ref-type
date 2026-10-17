@@ -865,7 +865,7 @@ impl Printer<'_> {
                     ..
                 } => associated_definitions,
             };
-            for (name, definition) in associated {
+            for (name, definition) in associated.iter() {
                 if *definition == id {
                     return format!(
                         "\\{}.{}::{name}",

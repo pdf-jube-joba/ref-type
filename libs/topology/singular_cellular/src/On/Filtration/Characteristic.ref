@@ -1,0 +1,46 @@
+\definition dimension: N.Nat^ := #dimension{cell};
+\import Euclidean.Dimension[n := dimension] \as Model;
+\import Cells.Attach[n := dimension] \as Attachment;
+\definition disk: \Set := Model.Disk;
+\definition sphere: \Set := Model.Sphere;
+\definition boundaryInclusion: sphere -> disk := Attachment.boundaryInclusion;
+\definition image: \forall (p: disk) -> \In[A] (Cells.ClosedImage cell) (#characteristic{cell} p) :=
+  \fun (p: disk) => Logic.existsIntro[disk, { q: disk \where #characteristic{cell} q = #characteristic{cell} p }] p (\refl(#characteristic{cell} p));
+\definition boundaryImage: \forall (p: sphere) -> \In[A] (subset dimension) (#characteristic{cell} (boundaryInclusion p)) := \block {
+  \fun (p: sphere) \then
+  \takefrom other: Cells.BoundaryWitness[cells, cell, (#characteristic{cell} (boundaryInclusion p))]
+    \by #boundary{laws} cell member (boundaryInclusion p) (\bysub(Model.Coordinate, Model.Boundary, p)) \then
+  \takefrom point: \Cast[Euclidean.Disk (#dimension{(#other{other})})]
+    ({ q: Euclidean.Disk (#dimension{(#other{other})}) \where Logic.And[
+      \In[Euclidean.coordinateCarrier (#dimension{(#other{other})})] (Euclidean.interiorAt (#dimension{(#other{other})})) q,
+      #characteristic{(#other{other})} q = #characteristic{cell} (boundaryInclusion p)] }) \by #contains{other} \then
+  \return include cells dimension (#other{other}) (#member{other}) (#lower{other}) (#characteristic{cell} (boundaryInclusion p))
+    (Logic.existsIntro[Euclidean.Disk (#dimension{(#other{other})}),
+      { q: Euclidean.Disk (#dimension{(#other{other})}) \where #characteristic{(#other{other})} q = #characteristic{cell} (boundaryInclusion p) }]
+      point (#right{(\bysub(Euclidean.Disk (#dimension{(#other{other})}),
+        { q: Euclidean.Disk (#dimension{(#other{other})}) \where Logic.And[
+          \In[Euclidean.coordinateCarrier (#dimension{(#other{other})})] (Euclidean.interiorAt (#dimension{(#other{other})})) q,
+          #characteristic{(#other{other})} q = #characteristic{cell} (boundaryInclusion p)] }, point))}))
+};
+\import \parent.Stage[limit := N.Nat^::succ dimension] \as Target;
+\import \parent.Stage[limit := dimension] \as BoundaryTarget;
+\definition characteristic(p: disk): Target.Carrier := \into[A](#characteristic{cell} p, subset (N.Nat^::succ dimension)) \by {
+  include cells (N.Nat^::succ dimension) cell member (Nat.ltOfSuccLe (N.Nat^::succ dimension) dimension (Nat.leRefl (N.Nat^::succ dimension)))
+    (#characteristic{cell} p) (image p)
+};
+\definition attaching(p: sphere): BoundaryTarget.Carrier := \into[A](#characteristic{cell} (boundaryInclusion p), subset dimension) \by { boundaryImage p };
+\definition attached: \forall (p: sphere) -> BoundaryTarget.Next[].inclusion (attaching p) = characteristic (boundaryInclusion p) :=
+  \fun (p: sphere) => \refl(characteristic (boundaryInclusion p));
+\import topology.Continuity[A := disk, B := A].Corestriction[S := subset (N.Nat^::succ dimension)] \as IntoSkeleton;
+\definition characteristicContinuous: topology.Continuity[A := disk, B := Target.Carrier].Continuous Model.diskTopology Target.topology characteristic :=
+  IntoSkeleton.corestrictContinuous Model.diskTopology source characteristic (#continuous{(#cellLaws{laws} cell member)});
+\import topology.Continuity[A := sphere, B := Model.Coordinate].Corestriction[S := Model.Boundary] \as SphereInclusion;
+\import topology.Continuity[A := sphere, B := Model.Coordinate].Corestriction[S := Model.ClosedBall] \as IntoDisk;
+\definition boundaryContinuous: topology.Continuity[A := sphere, B := disk].Continuous Model.sphereTopology Model.diskTopology boundaryInclusion :=
+  IntoDisk.corestrictContinuous Model.sphereTopology Model.topology boundaryInclusion (SphereInclusion.inclusionContinuous Model.topology);
+\import topology.Composition[A := sphere, B := disk, C := A] \as Composition;
+\import topology.Continuity[A := sphere, B := A].Corestriction[S := subset dimension] \as IntoBoundary;
+\definition attachingContinuous: topology.Continuity[A := sphere, B := BoundaryTarget.Carrier].Continuous Model.sphereTopology BoundaryTarget.topology attaching :=
+  IntoBoundary.corestrictContinuous Model.sphereTopology source attaching
+    (Composition.composeContinuous Model.sphereTopology Model.diskTopology source boundaryInclusion (#characteristic{cell})
+      boundaryContinuous (#continuous{(#cellLaws{laws} cell member)}));

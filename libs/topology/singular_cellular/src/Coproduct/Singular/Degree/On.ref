@@ -1,0 +1,24 @@
+\definition index: Index := label sigma;
+\import \parent.\parent.\parent.At[i := index] \as Image;
+\import Space.Subspace[S := Image.subset] \as Component;
+\definition image(x: Simplex.Carrier n): Component.CarrierSet := \into[Carrier](sigma x, Image.subset) \by {
+  Membership.ofIndex index (sigma x) (sameLabel sigma x)
+};
+\import topology.Continuity[A := Simplex.Carrier n, B := Carrier].Corestriction[S := Image.subset] \as Into;
+\definition imageContinuous: topology.Continuity[A := Simplex.Carrier n, B := Component.CarrierSet]
+  .Continuous Simplex.At[n := n].topology (Component.topology topology) image :=
+  Into.corestrictContinuous Simplex.At[n := n].topology topology image (WholeSimplices.At[n := n].continuous sigma);
+\definition value(x: Simplex.Carrier n): fibers index := #backward{Image.homeomorphism} (image x);
+\import topology.Homeomorphism[A := fibers index, B := Component.CarrierSet] \as Homeomorphisms;
+\definition homeomorphismLaws: Homeomorphisms.Laws[spaces index, Component.topology topology, Image.homeomorphism] :=
+  Homeomorphisms.laws (spaces index) (Component.topology topology) Image.homeomorphism;
+\import topology.Composition[A := Simplex.Carrier n, B := Component.CarrierSet, C := fibers index] \as Composition;
+\import singular_cohomology.Simplices[A := fibers index, source := spaces index] \as Simplices;
+\definition simplex: Simplices.Carrier n := \into[Simplices.At[n := n].Function](value, Simplices.Carrier n) \by {
+  Composition.composeContinuous Simplex.At[n := n].topology (Component.topology topology) (spaces index)
+    image (#backward{Image.homeomorphism}) imageContinuous (#backwardContinuous{homeomorphismLaws})
+};
+\definition recovers: \forall (x: Simplex.Carrier n) -> injection index (simplex x) = sigma x :=
+  \fun (x: Simplex.Carrier n) => #rightInverse{homeomorphismLaws} (image x);
+\definition forward: \parent.\parent.Component[i := index].simplex n simplex = sigma :=
+  \axiom:funext(\parent.\parent.Component[i := index].simplex n simplex, sigma, recovers);

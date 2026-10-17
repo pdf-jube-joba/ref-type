@@ -1,0 +1,32 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import topological_constructions.Product[A := A, B := B] \as Product;
+\import singular_cohomology.Chains[A := Product.CarrierSet, source := Product.topology left right] \as Chains;
+\import singular_cohomology.Chains[A := A, source := left] \as Left;
+\import singular_cohomology.Chains[A := B, source := right] \as Right;
+\import double_complexes.DoubleComplex[].Over[R := I.Int^, ring := Integers.ring] \as Double;
+\import Double.Tensor[C := Left.complex, D := Right.complex] \as Tensor;
+\import Double.Total[C := Tensor.complex] \as Total;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import \root.On[A := A, B := B, left := left, right := right] \as Comparison;
+\import Comparison.ProductHomotopy[] \as ProductHomotopy;
+\import \root.TensorHomotopy[A := A, B := B, left := left, right := right] \as TensorHomotopy;
+\import Native.Homotopy[C := Chains.complex, D := Chains.complex] \as SourceHomotopy;
+\import Native.Homotopy[C := Total.complex, D := Total.complex] \as TargetHomotopy;
+\import Native.End[C := Chains.complex] \as SourceEnd;
+\import Native.End[C := Total.complex] \as TargetEnd;
+\import Native.Equivalence[C := Chains.complex, D := Total.complex] \as Equivalences;
+\definition data: Equivalences.Data := Equivalences.Data {
+  forward := Comparison.forward, backward := Comparison.backward,
+  left := ProductHomotopy.data, right := TensorHomotopy.data,
+};
+\definition equivalence: Equivalences.Equivalence := \into[Equivalences.Data](data, Equivalences.Equivalence) \by {
+  Equivalences.Laws[data] {
+    left := \bysub(SourceHomotopy.Data, { h: SourceHomotopy.Data \where SourceHomotopy.Laws[Comparison.productComposite, SourceEnd.identity, h] }, ProductHomotopy.homotopy),
+    right := \bysub(TargetHomotopy.Data, { h: TargetHomotopy.Data \where TargetHomotopy.Laws[Comparison.tensorComposite, TargetEnd.identity, h] }, TensorHomotopy.homotopy),
+  }
+};
+\module Signed {
+  \import Equivalences.ZeroExtension[e := equivalence] \as Extension;
+  \definition equivalence: _ := Extension.equivalence;
+}

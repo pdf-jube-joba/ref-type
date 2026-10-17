@@ -1,0 +1,37 @@
+\import singular_excision.GoodPair[A := Model.Disk, source := Model.diskTopology, subset := boundary].On[pair := GoodPair.pair]
+  .Homology[z := z] \as CollapseComparison;
+\import Characteristics.On[f := characteristic].Integer[] \as CharacteristicAction;
+\import Direct.On[f := Quotient.quotientMap].Integer[] \as QuotientAction;
+\definition relative: Modules.Hom[V := Source.Homology[z := z].Carrier, W := Target.Homology[z := z].Carrier,
+  source := Source.Homology[z := z].space, target := Target.Homology[z := z].space].Map := Action.At[z := z].induced;
+\definition fromLayer: Modules.Hom[V := Layer.Homology[z := z].Carrier, W := Target.Homology[z := z].Carrier,
+  source := Layer.Homology[z := z].space, target := Target.Homology[z := z].space].Map :=
+  Modules.Hom[V := Source.Homology[z := z].Carrier, W := Target.Homology[z := z].Carrier,
+    source := Source.Homology[z := z].space, target := Target.Homology[z := z].space]
+    .Composition[U := Layer.Homology[z := z].Carrier, domain := Layer.Homology[z := z].space]
+    .compose relative #forward{Layer.Relative[].Homology[z := z].isomorphism};
+\definition onCharacteristic: \forall (q: DiskPair.Homology[z := z].Carrier) ->
+  #apply{relative} (#apply{CharacteristicAction.At[z := z].induced} q) =
+  #apply{#forward{CollapseComparison.relativeIsomorphism}} q :=
+  \fun (q: DiskPair.Homology[z := z].Carrier) => trans!{{Target.Homology[z := z].Carrier}} _ _ _
+    (sym!{{Target.Homology[z := z].Carrier}} _ _ (Composition.On[f := characteristic, g := pairMap].Homology[z := z].law q))
+    (congr!{Direct.Map {Target.Homology[z := z].Carrier}}
+      (\fun (f: Direct.Map) => #apply{Direct.On[f := f].Integer[].At[z := z].induced} q) _ _ characteristicSquare);
+
+\import singular_cohomology.Chains[A := Skeleton.Carrier, source := Skeleton.topology] \as WholeSource;
+\import singular_cohomology.Chains[A := DiskQuotient.Carrier, source := DiskQuotient.topology Model.diskTopology] \as WholeTarget;
+\import Nonnegative.ZeroExtension[C := WholeSource.complex] \as SourceExtension;
+\import Nonnegative.ZeroExtension[C := WholeTarget.complex] \as TargetExtension;
+\import Complexes.At[C := SourceExtension.complex, z := z] \as WholeH;
+\import Complexes.At[C := TargetExtension.complex, z := z] \as QuotientH;
+\import singular_cohomology.Maps[A := Skeleton.Carrier, B := DiskQuotient.Carrier, source := Skeleton.topology, target := DiskQuotient.topology Model.diskTopology] \as WholeMaps;
+\definition collapse: Complexes.Map[C := SourceExtension.complex, D := TargetExtension.complex].Map := WholeMaps.integerPush map (\parent.\parent.Continuity[].continuous);
+\definition action: Modules.Hom[V := WholeH.Homology, W := QuotientH.Homology, source := WholeH.homologySpace, target := QuotientH.homologySpace].Map :=
+  Complexes.Map[C := SourceExtension.complex, D := TargetExtension.complex].At[k := z].induced collapse;
+\definition projection: Modules.Hom[V := QuotientH.Homology, W := Target.Homology[z := z].Carrier, source := QuotientH.homologySpace, target := Target.Homology[z := z].space].Map :=
+  Complexes.Map[C := TargetExtension.complex, D := Target.complex].At[k := z].induced Target.sequence.projection;
+\definition projectionLaw(q: WholeH.Homology): #apply{fromLayer} (#apply{Layer.Homology[z := z].projection} q) = #apply{projection} (#apply{action} q) :=
+  trans!{{Target.Homology[z := z].Carrier}} _ _ _
+    (congr!{{Source.Homology[z := z].Carrier} {Target.Homology[z := z].Carrier}} (#apply{relative}) _ _
+      (sym!{{Source.Homology[z := z].Carrier}} _ _ (Layer.Relative[].Naturality[].At[z := z].projection q)))
+    (sym!{{Target.Homology[z := z].Carrier}} _ _ (Action.At[z := z].projectionNaturality q));

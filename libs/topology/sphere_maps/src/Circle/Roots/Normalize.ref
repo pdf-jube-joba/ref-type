@@ -1,0 +1,21 @@
+\definition radius: Real.Real := Absolute.abs v;
+\definition factor: Real.Real := Laws.fieldInv radius;
+\definition radiusNonzero: Logic.Not (radius = Real.zero) :=
+  \fun (same: radius = Real.zero) => nonzero (Absolute.zeroOfAbsZero v same);
+\definition factorNorm: Real.mul (Real.mul factor factor) (Operations.normSq v) = Real.one :=
+  trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (Real.mul factor factor)) _ _ (sym!{Real.Real} _ _ (Absolute.square v)))
+    (trans!{Real.Real} _ _ _ (RealAlgebra.mulFour factor factor radius radius)
+      (trans!{Real.Real} _ _ _
+        (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Laws.fieldInverseNonzero radius radiusNonzero) (Laws.fieldInverseNonzero radius radiusNonzero))
+        (Laws.fieldMulOneLeft Real.one)));
+\definition value: Carrier := \into[Complex.Complex](Operations.scale factor v, unit) \by {
+  trans!{Real.Real} _ _ _ (normScale factor v) factorNorm
+};
+\definition square(w: Complex.Complex)(equation: Operations.mul v v = Operations.scale (Operations.normSq v) w): Operations.mul value value = w :=
+  trans!{Complex.Complex} _ _ _ (productScale factor v)
+    (trans!{Complex.Complex} _ _ _
+      (congr!{Complex.Complex Complex.Complex} (Operations.scale (Real.mul factor factor)) _ _ equation)
+      (trans!{Complex.Complex} _ _ _ (sym!{Complex.Complex} _ _ (scaleAssoc (Real.mul factor factor) (Operations.normSq v) w))
+        (trans!{Complex.Complex} _ _ _
+          (congr!{Real.Real Complex.Complex} (\fun (a: Real.Real) => Operations.scale a w) _ _ factorNorm) (scaleOne w))));

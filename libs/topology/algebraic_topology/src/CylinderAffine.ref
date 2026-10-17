@@ -1,0 +1,53 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import \root.Simplex[] \as Simplex;
+\import Simplex.At[n := m] \as Source;
+\import Simplex.At[n := n] \as Target;
+\import Simplex.Affine[m := m, n := n] \as Affine;
+\import \root.Cylinder[A := Simplex.Carrier n] \as Cylinder;
+\import \root.Interval[] \as Interval;
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import metric_spaces.RealLine[] \as Line;
+\definition Vertices: \Set := Fin.Fin (N.Nat^::succ m) -> Cylinder.Carrier;
+\definition pointVertices(v: Vertices): Affine.Vertices := \fun (i: Fin.Fin (N.Nat^::succ m)) => Cylinder.point (v i);
+\definition timeCoordinate(v: Vertices)(x: Simplex.Carrier m): Real.Real :=
+  Sums.sum (N.Nat^::succ m) (\fun (i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) (Cylinder.time (v i)));
+\definition nonnegative: \forall (v: Vertices)(x: Simplex.Carrier m) -> R.Le Real.zero (timeCoordinate v x) :=
+  \fun (v: Vertices)(x: Simplex.Carrier m) => Sums.nonnegative (N.Nat^::succ m) _
+    (\fun (i: Fin.Fin (N.Nat^::succ m)) => Laws.fieldMulNonnegative (x i) (Cylinder.time (v i))
+      (#nonnegative{(Simplex.barycentric m x)} i) (#left{(Interval.bounds (Cylinder.time (v i)))}));
+\definition bounded: \forall (v: Vertices)(x: Simplex.Carrier m) -> R.Le (timeCoordinate v x) Real.one :=
+  \fun (v: Vertices)(x: Simplex.Carrier m) => R.leReplaceRight (timeCoordinate v x)
+    (Sums.sum (N.Nat^::succ m) (\fun (i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) Real.one)) Real.one
+    (trans!{Real.Real} _ _ _ (Sums.congruent (N.Nat^::succ m) _ x (\fun (i: Fin.Fin (N.Nat^::succ m)) => Algebra.mulOneRight (x i))) (#total{(Simplex.barycentric m x)}))
+    (Sums.comparison (N.Nat^::succ m) _ _ (\fun (i: Fin.Fin (N.Nat^::succ m)) => Estimates.mulMonotone (x i) (Cylinder.time (v i)) Real.one
+      (#nonnegative{(Simplex.barycentric m x)} i) (#right{(Interval.bounds (Cylinder.time (v i)))})));
+\definition time(v: Vertices)(x: Simplex.Carrier m): Interval.Carrier :=
+  \into[Real.Real](timeCoordinate v x, Line.ClosedInterval Real.zero Real.one) \by { Logic.And[_, _]::# (nonnegative v x) (bounded v x) };
+\definition apply(v: Vertices)(x: Simplex.Carrier m): Cylinder.Carrier := Cylinder.at (time v x) (Affine.apply (pointVertices v) x);
+\import metric_spaces.RealFunctions[A := Simplex.Carrier m] \as Functions;
+\import Functions.Product[] \as Product;
+\import Functions.FiniteSums[] \as ContinuousSums;
+\import topology.Continuity[A := Simplex.Carrier m, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one] \as Into;
+\definition timeContinuous: \forall (v: Vertices) -> topology.Continuity[A := Simplex.Carrier m, B := Interval.Carrier].Continuous Source.topology Interval.topology (time v) :=
+  \fun (v: Vertices) => Into.corestrictContinuous Source.topology Line.topology (time v)
+    (ContinuousSums.continuous Source.topology (N.Nat^::succ m)
+      (\fun (i: Fin.Fin (N.Nat^::succ m))(x: Simplex.Carrier m) => Real.mul (x i) (Cylinder.time (v i)))
+      (\fun (i: Fin.Fin (N.Nat^::succ m)) => Product.continuous Source.topology (\fun (x: Simplex.Carrier m) => x i)
+        (\fun (_: Simplex.Carrier m) => Cylinder.time (v i)) (Source.coordinateContinuous i) (Functions.constantContinuous Source.topology (Cylinder.time (v i)))));
+\import topological_constructions.Product[A := Interval.Carrier, B := Simplex.Carrier n].Universal[X := Simplex.Carrier m] \as Pair;
+\definition continuous: \forall (v: Vertices) -> topology.Continuity[A := Simplex.Carrier m, B := Cylinder.Carrier].Continuous Source.topology (Cylinder.topology Target.topology) (apply v) :=
+  \fun (v: Vertices) => Pair.pairContinuous Source.topology Interval.topology Target.topology (time v) (Affine.apply (pointVertices v)) (timeContinuous v) (Affine.continuous (pointVertices v));
+\module Faces;
+\module Postcompose(k: N.Nat^);
+\module Vertex;

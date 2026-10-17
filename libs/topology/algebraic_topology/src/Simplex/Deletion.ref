@@ -1,0 +1,18 @@
+\import Fin.Tuples[A := Real.Real].Omission[] \as Omission;
+\import \parent.Identities[] \as Identities;
+\module Positive(n: N.Nat^);
+\module Step(n: N.Nat^);
+\definition apply(n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)): Coordinate n := Omission.omit n i x;
+\definition recover: \forall (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)) -> x i = Real.zero -> insertZero n i (apply n i x) = x :=
+  \induction (n: N.Nat^) \return \forall (i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)) -> x i = Real.zero -> insertZero n i (apply n i x) = x \with {
+    | zero: \fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero))(x: Coordinate (N.Nat^::succ N.Nat^::zero))(zero: x i = Real.zero) =>
+        \axiom:funext(insertZero N.Nat^::zero i (apply N.Nat^::zero i x), x, \fun (j: Fin.Fin (N.Nat^::succ N.Nat^::zero)) =>
+          sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+            (congr!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)} Real.Real} x _ _
+              (trans!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)}} _ _ _ (Fin.singletonValue j) (sym!{{Fin.Fin (N.Nat^::succ N.Nat^::zero)}} _ _ (Fin.singletonValue i)))) zero))
+    | succ: \fun (n: N.Nat^)(previous: _) => Step[n := n].law previous
+  };
+\definition total: \forall (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n)) -> x i = Real.zero -> Sums.sum n (apply n i x) = Sums.sum (N.Nat^::succ n) x :=
+  \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(x: Coordinate (N.Nat^::succ n))(zero: x i = Real.zero) => trans!{Real.Real} _ _ _
+    (sym!{Real.Real} _ _ (insertSum n i (apply n i x)))
+    (congr!{{Coordinate (N.Nat^::succ n)} Real.Real} (Sums.sum (N.Nat^::succ n)) _ _ (recover n i x zero));

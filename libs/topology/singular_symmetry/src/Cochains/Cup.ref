@@ -1,0 +1,42 @@
+\import \root.On[A := A, source := source] \as Exchange;
+\import \parent.Pairing[p := p, q := q] \as Pairing;
+\definition n: N.Nat^ := Nat.add p q;
+\import Products.Cup[p := p, q := q] \as Product;
+\import Simplices.Cut[p := p, q := q] \as Cut;
+\import singular_products.AlexanderWhitney[A := A, B := A, left := source, right := source] \as AlexanderWhitney;
+\import AlexanderWhitney.At[p := p, q := q] \as AW;
+\import AlexanderWhitney.Total[] \as TotalAW;
+\import topological_constructions.Product[A := A, B := A] \as Points;
+\import singular_cohomology.Chains[A := Points.CarrierSet, source := Exchange.productTopology] \as ProductChains;
+\import singular_cohomology.Simplices[A := Points.CarrierSet, source := Exchange.productTopology] \as ProductSimplices;
+\import singular_cohomology.Maps[A := A, B := Points.CarrierSet, source := source, target := Exchange.productTopology] \as Diagonal;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition diagonal(sigma: Simplices.Carrier n): ProductSimplices.Carrier n := Diagonal.postcompose n Exchange.diagonal Exchange.diagonalContinuous sigma;
+\definition front(sigma: Simplices.Carrier n): AW.front (diagonal sigma) = Cut.front sigma := \axiom:funext(AW.front (diagonal sigma), Cut.front sigma, \fun (x: Simplex.Carrier p) => \refl(Cut.front sigma x));
+\definition back(sigma: Simplices.Carrier n): AW.back (diagonal sigma) = Cut.back sigma := \axiom:funext(AW.back (diagonal sigma), Cut.back sigma, \fun (x: Simplex.Carrier q) => \refl(Cut.back sigma x));
+\definition coordinate(sigma: Simplices.Carrier n): Coordinates.Degree[n := n].coordinate Pairing.index (#apply{Exchange.forward} n (Chains.generator n sigma)) = AW.value (diagonal sigma) :=
+  trans!{AW.Carrier} _ _ _
+    (congr!{{ProductChains.Carrier n} AW.Carrier} (\fun (x: ProductChains.Carrier n) => Coordinates.Degree[n := n].coordinate Pairing.index (#apply{TotalAW.map} n x)) _ _ (Diagonal.At[n := n].onGenerator Exchange.diagonal Exchange.diagonalContinuous sigma))
+    (trans!{AW.Carrier} _ _ _ (TotalAW.Degree[n := n].coordinate Pairing.index (ProductChains.generator n (diagonal sigma)))
+      (trans!{AW.Carrier} _ _ _
+        (congr!{{ProductChains.Carrier n} AW.Carrier} (#apply{AW.map}) _ _ (Transport.castRefl ProductChains.Carrier n (ProductChains.generator n (diagonal sigma))))
+        (AW.onGenerator (diagonal sigma))));
+\import IntegerModules.Hom[V := Total.Carrier n, W := R, source := Total.space n, target := integerCoefficients.space].Composition[U := Chains.Carrier n, domain := Chains.space n] \as Composition;
+\import Native.Map[C := Chains.complex, D := Total.complex].At[n := n] \as Linear;
+\definition pullback(alpha: Carrier p)(beta: Carrier q): Carrier n := Composition.compose (Pairing.total alpha beta) (Linear.linear Exchange.forward);
+\definition onSimplex(alpha: Carrier p)(beta: Carrier q)(sigma: Simplices.Carrier n): #apply{(pullback alpha beta)} (Chains.generator n sigma) = #apply{(Product.apply alpha beta)} (Chains.generator n sigma) :=
+  trans!{R} _ _ _
+    (congr!{AW.Carrier R} (#apply{(Pairing.map alpha beta)}) _ _ (coordinate sigma))
+    (trans!{R} _ _ _ (Pairing.onTensor alpha beta (Chains.generator p (AW.front (diagonal sigma))) (Chains.generator q (AW.back (diagonal sigma))))
+      (trans!{R} _ _ _
+        (congr2!{R R R} (#mul{baseRing}) _ _ _ _
+          (congr!{{Simplices.Carrier p} R} (\fun (s: Simplices.Carrier p) => #apply{alpha} (Chains.generator p s)) _ _ (front sigma))
+          (congr!{{Simplices.Carrier q} R} (\fun (s: Simplices.Carrier q) => #apply{beta} (Chains.generator q s)) _ _ (back sigma)))
+        (sym!{R} _ _ (Product.onSimplex alpha beta sigma))));
+\import IntegerModules.Free[Generators := Simplices.Carrier n].To[W := R, target := integerCoefficients.space] \as Free;
+\definition equation(alpha: Carrier p)(beta: Carrier q): pullback alpha beta = Product.apply alpha beta := Free.ext (pullback alpha beta) (Product.apply alpha beta) (onSimplex alpha beta);
+\definition law(alpha: Carrier p)(beta: Carrier q)(x: Chains.Carrier n): #apply{(Pairing.total alpha beta)} (#apply{Exchange.forward} n x) = #apply{(Product.apply alpha beta)} x :=
+  congr!{{Carrier n} R} (\fun (f: Carrier n) => #apply{f} x) _ _ (equation alpha beta);
+\module Regrading(k: N.Nat^);
+\module Swapped;

@@ -1,0 +1,21 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import N.Basic[].Prop[] \as Bounds;
+\structure Family { Carrier: N.Nat^ -> \Set }
+\structure Faces[F: Family]: \Set {
+  apply: \forall (n: N.Nat^) -> Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> F.Carrier (N.Nat^::succ n) -> F.Carrier n,
+}
+\structure Laws[F: Family, faces: Faces[F]]: \Prop {
+  identity: \forall (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: F.Carrier (N.Nat^::succ (N.Nat^::succ n))) -> Bounds.Le i j ->
+    faces.apply n j (faces.apply (N.Nat^::succ n) (Fin.widen (N.Nat^::succ (N.Nat^::succ n)) i) sigma) =
+      faces.apply n i (faces.apply (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) j) sigma),
+}
+\structure Object { family: Family, faces: Faces[family], laws: Laws[family, faces] }
+\module Maps(X, Y: Object) {
+  \structure Data: \Set { apply: \forall (n: N.Nat^) -> X.family.Carrier n -> Y.family.Carrier n }
+  \structure Laws[data: Data]: \Prop {
+    faces: \forall (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: X.family.Carrier (N.Nat^::succ n)) ->
+      data.apply n (X.faces.apply n i sigma) = Y.faces.apply n i (data.apply (N.Nat^::succ n) sigma),
+  }
+  \definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+}

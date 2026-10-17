@@ -1,0 +1,37 @@
+\import Modules.Laws[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero] \as VertexValues;
+\import Modules.Laws[V := Chains.Carrier one, space := Chains.space one] \as EdgeValues;
+\import algebra.Group[].Of[Carrier := Chains.Carrier N.Nat^::zero, group := VertexValues.additive] \as VertexGroup;
+\import algebra.Group[].Of[Carrier := Chains.Carrier one, group := EdgeValues.additive] \as EdgeGroup;
+\definition vertexDifferenceZero(x: Chains.Carrier N.Nat^::zero): VertexGroup.difference x VertexValues.zero = x :=
+  trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+    (congr!{{Chains.Carrier N.Nat^::zero} {Chains.Carrier N.Nat^::zero}} (VertexValues.add x) _ _ VertexGroup.negZero)
+    (VertexGroup.zeroRight x);
+\definition edgeDifferenceZero(x: Chains.Carrier one): EdgeGroup.difference x EdgeValues.zero = x :=
+  trans!{{Chains.Carrier one}} _ _ _
+    (congr!{{Chains.Carrier one} {Chains.Carrier one}} (EdgeValues.add x) _ _ EdgeGroup.negZero)
+    (EdgeGroup.zeroRight x);
+\definition edgeBoundary(e: E):
+  #apply{(Chains.boundary N.Nat^::zero)} (Chains.generator one (edge e)) =
+  VertexGroup.difference (Chains.generator N.Nat^::zero (vertex (surface.target e))) (Chains.generator N.Nat^::zero (vertex (surface.source e))) :=
+  trans!{{Chains.Carrier N.Nat^::zero}} _ _ _ (Chains.Boundary[n := N.Nat^::zero].onGenerator (edge e))
+    (congr!{{Chains.Carrier N.Nat^::zero} {Chains.Carrier N.Nat^::zero}}
+      (VertexGroup.difference (Chains.generator N.Nat^::zero (vertex (surface.target e)))) _ _
+      (vertexDifferenceZero (Chains.generator N.Nat^::zero (vertex (surface.source e)))));
+\definition triangleBoundary(t: T):
+  #apply{(Chains.boundary one)} (Chains.generator two (triangle t)) =
+  EdgeValues.add
+    (EdgeGroup.difference (Chains.generator one (edge (surface.back t))) (Chains.generator one (edge (surface.diagonal t))))
+    (Chains.generator one (edge (surface.front t))) :=
+  trans!{{Chains.Carrier one}} _ _ _ (Chains.Boundary[n := one].onGenerator (triangle t))
+    (trans!{{Chains.Carrier one}} _ _ _
+      (congr!{{Chains.Carrier one} {Chains.Carrier one}}
+        (\fun (x: Chains.Carrier one) => EdgeGroup.difference (Chains.generator one (edge (surface.back t))) (EdgeGroup.difference (Chains.generator one (edge (surface.diagonal t))) x)) _ _
+        (edgeDifferenceZero (Chains.generator one (edge (surface.front t)))))
+      (trans!{{Chains.Carrier one}} _ _ _
+        (congr!{{Chains.Carrier one} {Chains.Carrier one}} (EdgeValues.add (Chains.generator one (edge (surface.back t)))) _ _
+          (EdgeGroup.negAdd (Chains.generator one (edge (surface.diagonal t))) (EdgeValues.neg (Chains.generator one (edge (surface.front t))))))
+        (trans!{{Chains.Carrier one}} _ _ _
+          (congr!{{Chains.Carrier one} {Chains.Carrier one}}
+            (\fun (x: Chains.Carrier one) => EdgeValues.add (Chains.generator one (edge (surface.back t))) (EdgeValues.add (EdgeValues.neg (Chains.generator one (edge (surface.diagonal t)))) x)) _ _
+            (EdgeGroup.negNeg (Chains.generator one (edge (surface.front t)))))
+          (sym!{{Chains.Carrier one}} _ _ (EdgeGroup.assoc (Chains.generator one (edge (surface.back t))) (EdgeValues.neg (Chains.generator one (edge (surface.diagonal t)))) (Chains.generator one (edge (surface.front t))))))));

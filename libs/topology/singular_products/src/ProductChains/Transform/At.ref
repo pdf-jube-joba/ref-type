@@ -1,0 +1,38 @@
+\import \parent.\parent.At[m := m] \as Source;
+\import Final.At[m := m] \as Target;
+\import Simplex.Affine[m := m, n := p].Composition[k := k] \as LeftComposition;
+\import Simplex.Affine[m := m, n := q].Composition[k := l] \as RightComposition;
+\import Pair.Prop[A := Simplex.Carrier k, B := Simplex.Carrier l] \as Pairs;
+\definition simplexNaturality: \forall (u: LeftAffine.Vertices)(v: RightAffine.Vertices)(w: Tuples.Tuple (N.Nat^::succ m)) ->
+  Target.onTuple (TupleMap.onTuple (N.Nat^::succ m) (point u v) w) =
+    Maps.postcompose m (Into.function (left u) (right v)) (Into.continuous (left u) (right v)) (Source.onTuple w) :=
+  \fun (u: LeftAffine.Vertices)(v: RightAffine.Vertices)(w: Tuples.Tuple (N.Nat^::succ m)) =>
+    FinalSimplices.ext m (Target.onTuple (TupleMap.onTuple (N.Nat^::succ m) (point u v) w))
+      (Maps.postcompose m (Into.function (left u) (right v)) (Into.continuous (left u) (right v)) (Source.onTuple w))
+      (\fun (x: Simplex.Carrier m) => Pairs.ext
+        (Target.onTuple (TupleMap.onTuple (N.Nat^::succ m) (point u v) w) x)
+        (Maps.postcompose m (Into.function (left u) (right v)) (Into.continuous (left u) (right v)) (Source.onTuple w) x)
+        (sym!{{Simplex.Carrier k}} _ _ (LeftComposition.law (Source.leftVertices w) u x))
+        (sym!{{Simplex.Carrier l}} _ _ (RightComposition.law (Source.rightVertices w) v x)));
+\import Modules.Hom[V := FinalTuples.Carrier (N.Nat^::succ m), W := FinalChains.Carrier m, source := FinalTuples.space (N.Nat^::succ m), target := FinalChains.space m]
+  .Composition[U := Tuples.Carrier (N.Nat^::succ m), domain := Tuples.space (N.Nat^::succ m)] \as Compose;
+\import Complexes.Map[C := Tuples.complex, D := FinalChains.complex].At[n := m] \as Linear;
+\definition after(u: LeftAffine.Vertices)(v: RightAffine.Vertices): Modules.Hom[V := Tuples.Carrier (N.Nat^::succ m), W := FinalChains.Carrier m, source := Tuples.space (N.Nat^::succ m), target := FinalChains.space m].Map :=
+  Compose.compose Target.map (TupleMap.push (N.Nat^::succ m) (point u v));
+\definition before(u: LeftAffine.Vertices)(v: RightAffine.Vertices): Modules.Hom[V := Tuples.Carrier (N.Nat^::succ m), W := FinalChains.Carrier m, source := Tuples.space (N.Nat^::succ m), target := FinalChains.space m].Map :=
+  Linear.linear (Into.evaluation (left u) (right v));
+\definition onGenerator: \forall (u: LeftAffine.Vertices)(v: RightAffine.Vertices)(w: Tuples.Tuple (N.Nat^::succ m)) ->
+  #apply{(after u v)} (Tuples.generator (N.Nat^::succ m) w) = #apply{(before u v)} (Tuples.generator (N.Nat^::succ m) w) :=
+  \fun (u: LeftAffine.Vertices)(v: RightAffine.Vertices)(w: Tuples.Tuple (N.Nat^::succ m)) =>
+    trans!{{FinalChains.Carrier m}} _ _ _
+      (congr!{{FinalTuples.Carrier (N.Nat^::succ m)} {FinalChains.Carrier m}} (#apply{Target.map}) _ _ (TupleMap.At[n := N.Nat^::succ m].onGenerator (point u v) w))
+      (trans!{{FinalChains.Carrier m}} _ _ _ (Target.onGenerator (TupleMap.onTuple (N.Nat^::succ m) (point u v) w))
+        (trans!{{FinalChains.Carrier m}} _ _ _
+          (congr!{{FinalSimplices.Carrier m} {FinalChains.Carrier m}} (FinalChains.generator m) _ _ (simplexNaturality u v w))
+          (sym!{{FinalChains.Carrier m}} _ _ (Into.onGenerator m (left u) (right v) w))));
+\import Modules.Free[Generators := Tuples.Tuple (N.Nat^::succ m)].To[W := FinalChains.Carrier m, target := FinalChains.space m] \as Free;
+\definition equation(u: LeftAffine.Vertices)(v: RightAffine.Vertices): after u v = before u v := Free.ext (after u v) (before u v) (onGenerator u v);
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ m), W := FinalChains.Carrier m, source := Tuples.space (N.Nat^::succ m), target := FinalChains.space m] \as Hom;
+\definition law(u: LeftAffine.Vertices)(v: RightAffine.Vertices)(w: Tuples.Carrier (N.Nat^::succ m)):
+  #apply{(after u v)} w = #apply{(before u v)} w :=
+  congr!{Hom.Map {FinalChains.Carrier m}} (\fun (f: Hom.Map) => #apply{f} w) _ _ (equation u v);

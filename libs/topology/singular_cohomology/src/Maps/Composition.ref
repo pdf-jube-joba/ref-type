@@ -1,0 +1,31 @@
+\import \root.Maps[A := B, B := C, source := target, target := final] \as After;
+\import \root.Maps[A := A, B := C, source := source, target := final] \as Direct;
+\import \root.Chains[A := C, source := final] \as FinalChains;
+\import \root.Simplices[A := C, source := final] \as FinalSimplices;
+\import topology.Composition[A := A, B := B, C := C] \as Topology;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Codomain.complex, D := FinalChains.complex].Composition[B := Domain.complex] \as Compose;
+\module At(n: N.Nat^) {
+  \import \parent.\parent.At[n := n] \as FirstMap;
+  \import After.At[n := n] \as SecondMap;
+  \import Direct.At[n := n] \as DirectMap;
+  \import Modules.Hom[V := Codomain.Carrier n, W := FinalChains.Carrier n, source := Codomain.space n, target := FinalChains.space n].Composition[U := Domain.Carrier n, domain := Domain.space n] \as LinearComposition;
+  \import Modules.Free[Generators := Source.Carrier n].To[W := FinalChains.Carrier n, target := FinalChains.space n] \as Universal;
+  \definition law: \forall (f: A -> B)(fc: Continuous f)(g: B -> C)(gc: After.Continuous g) ->
+    LinearComposition.compose (SecondMap.push g gc) (FirstMap.push f fc) =
+      DirectMap.push (\fun (x: A) => g (f x)) (Topology.composeContinuous source target final f g fc gc) :=
+    \fun (f: A -> B)(fc: Continuous f)(g: B -> C)(gc: After.Continuous g) => Universal.ext _ _
+      (\fun (sigma: Source.Carrier n) => trans!{{FinalChains.Carrier n}} _ _ _
+        (congr!{{Codomain.Carrier n} {FinalChains.Carrier n}} (#apply{(SecondMap.push g gc)}) _ _ (FirstMap.onGenerator f fc sigma))
+        (trans!{{FinalChains.Carrier n}} _ _ _ (SecondMap.onGenerator g gc (postcompose n f fc sigma))
+          (sym!{{FinalChains.Carrier n}} _ _ (DirectMap.onGenerator (\fun (x: A) => g (f x)) (Topology.composeContinuous source target final f g fc gc) sigma))));
+}
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Domain.complex, D := FinalChains.complex] \as Result;
+\definition functoriality: \forall (f: A -> B)(fc: Continuous f)(g: B -> C)(gc: After.Continuous g) ->
+  Compose.compose (After.push g gc) (push f fc) = Direct.push (\fun (x: A) => g (f x)) (Topology.composeContinuous source target final f g fc gc) :=
+  \fun (f: A -> B)(fc: Continuous f)(g: B -> C)(gc: After.Continuous g) => Result.ext _ _
+    (\fun (n: N.Nat^)(x: Domain.Carrier n) =>
+      congr!{{Modules.Hom[V := Domain.Carrier n, W := FinalChains.Carrier n, source := Domain.space n, target := FinalChains.space n].Map} {FinalChains.Carrier n}}
+        (\fun (h: Modules.Hom[V := Domain.Carrier n, W := FinalChains.Carrier n, source := Domain.space n, target := FinalChains.space n].Map) => #apply{h} x) _ _ (At[n := n].law f fc g gc));
+\module Coefficients(M: Modules.Bundle);
+\module Integer;
+\module Reduced;

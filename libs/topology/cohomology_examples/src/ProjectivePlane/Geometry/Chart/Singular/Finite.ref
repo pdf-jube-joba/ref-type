@@ -1,0 +1,104 @@
+\import \parent.Faces[] \as GeometricFaces;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].Simplicial[] \as Model;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Data[].Sum[] \as Sums;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition firstIndex: Fin.Fin two := Fin.zero one;
+\definition lastIndex: Fin.Fin two := Fin.succ one (Fin.zero zero);
+\definition loopEdge: Simplices.Carrier one := Simplices.face one centerIndex upperSimplex;
+\definition firstEdge: Simplices.Carrier one := Simplices.face one rightIndex upperSimplex;
+\definition secondEdge: Simplices.Carrier one := Simplices.face one leftIndex upperSimplex;
+\definition centerSimplex: Simplices.Carrier zero := Simplices.face zero lastIndex firstEdge;
+\definition rimSimplex: Simplices.Carrier zero := Simplices.face zero firstIndex firstEdge;
+\definition vertices: Vertex -> Simplices.Carrier zero := \induction (v: Vertex) \return Simplices.Carrier zero \with {
+  | center: centerSimplex | rim: rimSimplex
+};
+\definition edges: Edge -> Simplices.Carrier one := \induction (e: Edge) \return Simplices.Carrier one \with {
+  | loop: loopEdge | first: firstEdge | second: secondEdge
+};
+\definition triangles: Triangle -> Simplices.Carrier two := \induction (t: Triangle) \return Simplices.Carrier two \with {
+  | upper: upperSimplex | lower: lowerSimplex
+};
+\import Simplices.Identities[] \as Identities;
+\definition loopSource: Simplices.face zero lastIndex loopEdge = rimSimplex :=
+  Identities.faceIdentity zero firstIndex lastIndex upperSimplex (Bounds.zeroLe one);
+\definition secondSource: Simplices.face zero lastIndex secondEdge = centerSimplex :=
+  Identities.faceIdentity zero lastIndex lastIndex upperSimplex (Bounds.leRefl one);
+\definition secondTarget: Simplices.face zero firstIndex secondEdge = rimSimplex :=
+  trans!{{Simplices.Carrier zero}} _ _ _ (sym!{{Simplices.Carrier zero}} _ _ (congr!{{Simplices.Carrier one} {Simplices.Carrier zero}} (Simplices.face zero firstIndex) _ _ GeometricFaces.frontEquation))
+    (trans!{{Simplices.Carrier zero}} _ _ _ (sym!{{Simplices.Carrier zero}} _ _ (Identities.faceIdentity zero firstIndex lastIndex lowerSimplex (Bounds.zeroLe one)))
+      (trans!{{Simplices.Carrier zero}} _ _ _ (congr!{{Simplices.Carrier one} {Simplices.Carrier zero}} (Simplices.face zero lastIndex) _ _ GeometricFaces.backEquation) loopSource));
+\definition loopTarget: Simplices.face zero firstIndex loopEdge = rimSimplex :=
+  trans!{{Simplices.Carrier zero}} _ _ _ (Identities.faceIdentity zero firstIndex firstIndex upperSimplex (Bounds.zeroLe zero)) secondTarget;
+\definition sourceLaw: \forall (e: Edge) -> Simplices.face zero lastIndex (edges e) = vertices (source e) :=
+  \induction (e: Edge) \return Simplices.face zero lastIndex (edges e) = vertices (source e) \with {
+    | loop: loopSource | first: \refl(centerSimplex) | second: secondSource
+  };
+\definition targetLaw: \forall (e: Edge) -> Simplices.face zero firstIndex (edges e) = vertices (target e) :=
+  \induction (e: Edge) \return Simplices.face zero firstIndex (edges e) = vertices (target e) \with {
+    | loop: loopTarget | first: \refl(rimSimplex) | second: secondTarget
+  };
+\definition backLaw: \forall (t: Triangle) -> Simplices.face one centerIndex (triangles t) = edges (back t) :=
+  \induction (t: Triangle) \return Simplices.face one centerIndex (triangles t) = edges (back t) \with {
+    | upper: \refl(loopEdge) | lower: GeometricFaces.backEquation
+  };
+\definition diagonalLaw: \forall (t: Triangle) -> Simplices.face one leftIndex (triangles t) = edges (diagonal t) :=
+  \induction (t: Triangle) \return Simplices.face one leftIndex (triangles t) = edges (diagonal t) \with {
+    | upper: \refl(secondEdge) | lower: GeometricFaces.diagonalEquation
+  };
+\definition frontLaw: \forall (t: Triangle) -> Simplices.face one rightIndex (triangles t) = edges (front t) :=
+  \induction (t: Triangle) \return Simplices.face one rightIndex (triangles t) = edges (front t) \with {
+    | upper: \refl(firstEdge) | lower: GeometricFaces.frontEquation
+  };
+\definition raw: \forall (sigma: Model.Base) -> Simplices.Carrier (Model.degree sigma) :=
+  \induction (sigma: Model.Base) \return Simplices.Carrier (Model.degree sigma) \with {
+    | inl: vertices
+    | inr: \induction (sigma: Sums.Sum[Edge, Triangle]) \return Simplices.Carrier (Model.degree (Sums.Sum[Vertex, Sums.Sum[Edge, Triangle]]::inr sigma)) \with {
+        | inl: edges | inr: triangles
+      }
+  };
+\definition apply(n: N.Nat^)(sigma: Model.Carrier n): Simplices.Carrier n :=
+  Transport.cast Simplices.Carrier (Model.degree sigma) n (\bysub(Model.Base, { tau: Model.Base \where Model.degree tau = n }, sigma)) (raw sigma);
+\definition onVertex(v: Vertex): apply zero (Model.vertex v) = vertices v := Transport.castRefl Simplices.Carrier zero (vertices v);
+\definition onEdge(e: Edge): apply one (Model.edge e) = edges e := Transport.castRefl Simplices.Carrier one (edges e);
+\definition onTriangle(t: Triangle): apply two (Model.triangle t) = triangles t := Transport.castRefl Simplices.Carrier two (triangles t);
+\definition FaceEquation(n: N.Nat^)(sigma: Model.Carrier (N.Nat^::succ n)): \Prop :=
+  \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) -> apply n (Model.face n i sigma) = Simplices.face n i (apply (N.Nat^::succ n) sigma);
+\definition edgeFace(e: Edge): FaceEquation zero (Model.edge e) := Model.twoCases
+  (\fun (i: Fin.Fin two) => apply zero (Model.face zero i (Model.edge e)) = Simplices.face zero i (apply one (Model.edge e)))
+  (trans!{{Simplices.Carrier zero}} _ _ _ (onVertex (target e))
+    (trans!{{Simplices.Carrier zero}} _ _ _ (sym!{{Simplices.Carrier zero}} _ _ (targetLaw e))
+      (congr!{{Simplices.Carrier one} {Simplices.Carrier zero}} (Simplices.face zero firstIndex) _ _ (sym!{{Simplices.Carrier one}} _ _ (onEdge e)))))
+  (trans!{{Simplices.Carrier zero}} _ _ _ (onVertex (source e))
+    (trans!{{Simplices.Carrier zero}} _ _ _ (sym!{{Simplices.Carrier zero}} _ _ (sourceLaw e))
+      (congr!{{Simplices.Carrier one} {Simplices.Carrier zero}} (Simplices.face zero lastIndex) _ _ (sym!{{Simplices.Carrier one}} _ _ (onEdge e)))));
+\definition triangleFace(t: Triangle): FaceEquation one (Model.triangle t) := Fin.cases two
+  (\fun (i: Fin.Fin (N.Nat^::succ two)) => apply one (Model.face one i (Model.triangle t)) = Simplices.face one i (apply two (Model.triangle t)))
+  (trans!{{Simplices.Carrier one}} _ _ _ (onEdge (back t))
+    (trans!{{Simplices.Carrier one}} _ _ _ (sym!{{Simplices.Carrier one}} _ _ (backLaw t))
+      (congr!{{Simplices.Carrier two} {Simplices.Carrier one}} (Simplices.face one centerIndex) _ _ (sym!{{Simplices.Carrier two}} _ _ (onTriangle t)))))
+  (Model.twoCases (\fun (i: Fin.Fin two) => apply one (Model.face one (Fin.succ two i) (Model.triangle t)) = Simplices.face one (Fin.succ two i) (apply two (Model.triangle t)))
+    (trans!{{Simplices.Carrier one}} _ _ _ (onEdge (diagonal t))
+      (trans!{{Simplices.Carrier one}} _ _ _ (sym!{{Simplices.Carrier one}} _ _ (diagonalLaw t))
+        (congr!{{Simplices.Carrier two} {Simplices.Carrier one}} (Simplices.face one leftIndex) _ _ (sym!{{Simplices.Carrier two}} _ _ (onTriangle t)))))
+    (trans!{{Simplices.Carrier one}} _ _ _ (onEdge (front t))
+      (trans!{{Simplices.Carrier one}} _ _ _ (sym!{{Simplices.Carrier one}} _ _ (frontLaw t))
+        (congr!{{Simplices.Carrier two} {Simplices.Carrier one}} (Simplices.face one rightIndex) _ _ (sym!{{Simplices.Carrier two}} _ _ (onTriangle t))))));
+\module Faces;
+\import algebraic_topology.Semisimplicial[].Maps[X := Model.object, Y := Simplices.object] \as Maps;
+\definition mapping: Maps.Map := Maps.Map { apply := apply, faces := Faces[].law };
+\import singular_cohomology.SimplicialChains[].On[X := Model.object].Mapping[Y := Simplices.object] \as Chains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := IntegerRing.ring] \as NativeChains;
+\import singular_cohomology.Chains[A := Projective.Carrier, source := Projective.topology] \as SingularChains;
+\import singular_cohomology.SimplicialChains[].On[X := Model.object] \as ModelChains;
+\definition comparison: NativeChains.Map[C := Model.chainComplex, D := SingularChains.complex].Map := NativeChains.Map[C := Model.chainComplex, D := SingularChains.complex].Map {
+  apply := \fun (n: N.Nat^) => #apply{(Chains.At[n := n].push mapping)},
+  addition := \fun (n: N.Nat^) => #addition{(Chains.At[n := n].push mapping)},
+  scalar := \fun (n: N.Nat^) => #scalar{(Chains.At[n := n].push mapping)},
+  commutes := \fun (n: N.Nat^) => Chains.Differential[n := n].commutes mapping,
+};
+\definition onGenerator(n: N.Nat^)(sigma: Model.Carrier n):
+  #apply{comparison} n (ModelChains.generator n sigma) = SingularChains.generator n (apply n sigma) :=
+  Chains.At[n := n].onGenerator mapping sigma;

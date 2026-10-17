@@ -1,0 +1,62 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Maps[A := A, B := A, source := source, target := source] \as SourceSelf;
+\import \root.Maps[A := B, B := B, source := target, target := target] \as TargetSelf;
+\import Cochains.At[C := SourceHom.complex, z := z] \as SourceH;
+\import Cochains.At[C := TargetHom.complex, z := z] \as TargetH;
+\import Cochains.Map[C := SourceHom.complex, D := TargetHom.complex].At[k := z] \as PushH;
+\import Cochains.Map[C := TargetHom.complex, D := SourceHom.complex].At[k := z] \as PullH;
+\definition forwardMap: Modules.Hom[V := SourceH.Cohomology, W := TargetH.Cohomology, source := SourceH.cohomologySpace, target := TargetH.cohomologySpace].Map := PushH.induced Push.map;
+\definition backwardMap: Modules.Hom[V := TargetH.Cohomology, W := SourceH.Cohomology, source := TargetH.cohomologySpace, target := SourceH.cohomologySpace].Map := PullH.induced Pull.map;
+\import Hom.IntegerMapping[P := Source.complex, Q := Source.complex, N := coefficients, L := coefficients] \as LeftAction;
+\import Cochains.Map[C := SourceHom.complex, D := SourceHom.complex].At[k := z] \as LeftEnd;
+\definition leftAction(m: SourceMaps.Map)(q: SourceH.Cohomology): SourceH.Cohomology := #apply{(LeftEnd.induced LeftAction.On[f := m, u := Coefficients.identity].map)} q;
+\definition leftInverse: \forall (q: SourceH.Cohomology) -> #apply{backwardMap} (#apply{forwardMap} q) = q := \block {
+  \fun (q: SourceH.Cohomology) \then
+  \takefrom h: LeftHomotopies.Homotopy[source, source, (\fun (x: A) => e.backward (e.forward x)), SourceIdentity.function]
+    \by #leftInverse{(Geometry.laws source target e)} \then
+  \return trans!{SourceH.Cohomology} _ _ _
+    (sym!{SourceH.Cohomology} _ _ (LeftHomComposition.At[k := z].onCohomology forward backward q))
+    (trans!{SourceH.Cohomology} _ _ _
+      (congr!{SourceMaps.Map SourceH.Cohomology} (\fun (m: SourceMaps.Map) => leftAction m q) _ _
+        (LeftFunctor.law e.forward (#forwardContinuous{(Geometry.laws source target e)}) e.backward (#backwardContinuous{(Geometry.laws source target e)})))
+      (trans!{SourceH.Cohomology} _ _ _
+        (sym!{SourceH.Cohomology} _ _ (LeftHomotopy.onCohomology
+          (SourceSelf.Reduced[].map SourceIdentity.function SourceIdentity.continuous)
+          (SourceSelf.Reduced[].map (\fun (x: A) => e.backward (e.forward x)) (Left.startContinuous (\fun (x: A) => e.backward (e.forward x)) SourceIdentity.function h))
+          (Left.Reduced[].homotopy (\fun (x: A) => e.backward (e.forward x)) SourceIdentity.function h) z q))
+        (trans!{SourceH.Cohomology} _ _ _
+          (congr!{SourceMaps.Map SourceH.Cohomology} (\fun (m: SourceMaps.Map) => leftAction m q) _ _ SourceIdentity.Reduced[].law)
+          (Hom.IntegerEnd[P := Source.complex, N := coefficients].At[k := z].onCohomology q))))
+};
+\import Hom.IntegerMapping[P := Target.complex, Q := Target.complex, N := coefficients, L := coefficients] \as RightAction;
+\import Cochains.Map[C := TargetHom.complex, D := TargetHom.complex].At[k := z] \as RightEnd;
+\definition rightAction(m: TargetMaps.Map)(q: TargetH.Cohomology): TargetH.Cohomology := #apply{(RightEnd.induced RightAction.On[f := m, u := Coefficients.identity].map)} q;
+\definition rightInverse: \forall (q: TargetH.Cohomology) -> #apply{forwardMap} (#apply{backwardMap} q) = q := \block {
+  \fun (q: TargetH.Cohomology) \then
+  \takefrom h: RightHomotopies.Homotopy[target, target, (\fun (x: B) => e.forward (e.backward x)), TargetIdentity.function]
+    \by #rightInverse{(Geometry.laws source target e)} \then
+  \return trans!{TargetH.Cohomology} _ _ _
+    (sym!{TargetH.Cohomology} _ _ (RightHomComposition.At[k := z].onCohomology backward forward q))
+    (trans!{TargetH.Cohomology} _ _ _
+      (congr!{TargetMaps.Map TargetH.Cohomology} (\fun (m: TargetMaps.Map) => rightAction m q) _ _
+        (RightFunctor.law e.backward (#backwardContinuous{(Geometry.laws source target e)}) e.forward (#forwardContinuous{(Geometry.laws source target e)})))
+      (trans!{TargetH.Cohomology} _ _ _
+        (sym!{TargetH.Cohomology} _ _ (RightHomotopy.onCohomology
+          (TargetSelf.Reduced[].map TargetIdentity.function TargetIdentity.continuous)
+          (TargetSelf.Reduced[].map (\fun (x: B) => e.forward (e.backward x)) (Right.startContinuous (\fun (x: B) => e.forward (e.backward x)) TargetIdentity.function h))
+          (Right.Reduced[].homotopy (\fun (x: B) => e.forward (e.backward x)) TargetIdentity.function h) z q))
+        (trans!{TargetH.Cohomology} _ _ _
+          (congr!{TargetMaps.Map TargetH.Cohomology} (\fun (m: TargetMaps.Map) => rightAction m q) _ _ TargetIdentity.Reduced[].law)
+          (Hom.IntegerEnd[P := Target.complex, N := coefficients].At[k := z].onCohomology q))))
+};
+\definition isomorphism: Modules.Isomorphism[V := SourceH.Cohomology, W := TargetH.Cohomology, source := SourceH.cohomologySpace, target := TargetH.cohomologySpace].Isomorphism :=
+  Modules.Isomorphism[V := SourceH.Cohomology, W := TargetH.Cohomology, source := SourceH.cohomologySpace, target := TargetH.cohomologySpace].Isomorphism {
+    forward := forwardMap, backward := backwardMap, leftInverse := leftInverse, rightInverse := rightInverse,
+  };
+\definition bijective: PullH.Bijective[Pull.map] := PullH.Bijective[Pull.map] {
+  injective := \fun (x, y: TargetH.Cohomology)(equal: #apply{backwardMap} x = #apply{backwardMap} y) =>
+    trans!{TargetH.Cohomology} _ _ _ (sym!{TargetH.Cohomology} _ _ (rightInverse x))
+      (trans!{TargetH.Cohomology} _ _ _ (congr!{SourceH.Cohomology TargetH.Cohomology} (#apply{forwardMap}) _ _ equal) (rightInverse y)),
+  onto := \fun (y: SourceH.Cohomology) => Logic.existsIntro[TargetH.Cohomology, { x: TargetH.Cohomology \where #apply{backwardMap} x = y }]
+    (#apply{forwardMap} y) (leftInverse y),
+};

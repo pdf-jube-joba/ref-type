@@ -1,0 +1,50 @@
+\import Modules.Laws[V := R, space := Modules.scalarModule] \as Scalars;
+\import algebra.Group[].Of[Carrier := R, group := Scalars.additive] \as Group;
+\import Product.At[p := p, q := q] \as Differential;
+\import Product.Term[p := N.Nat^::succ p, q := q] \as HTerm;
+\import Product.Term[p := p, q := N.Nat^::succ q] \as VTerm;
+\import Modules.Tensor[V := P.family.Carrier (N.Nat^::succ p), W := Q.family.Carrier q, left := P.family.space (N.Nat^::succ p), right := Q.family.space q].Universal[U := R, target := Modules.scalarModule] \as HUniversal;
+\import Modules.Tensor[V := P.family.Carrier p, W := Q.family.Carrier (N.Nat^::succ q), left := P.family.space p, right := Q.family.space (N.Nat^::succ q)].Universal[U := R, target := Modules.scalarModule] \as VUniversal;
+\import Modules.Hom[V := Term.Carrier, W := R, source := Term.space, target := Modules.scalarModule].Composition[U := HTerm.Carrier, domain := HTerm.space] \as HComposition;
+\import Modules.Hom[V := Term.Carrier, W := R, source := Term.space, target := Modules.scalarModule].Composition[U := VTerm.Carrier, domain := VTerm.space] \as VComposition;
+\import Modules.Hom[V := HTerm.Carrier, W := R, source := HTerm.space, target := Modules.scalarModule] \as HMaps;
+\import Modules.Hom[V := VTerm.Carrier, W := R, source := VTerm.space, target := Modules.scalarModule] \as VMaps;
+\definition horizontal(left: ClosedLeft alpha): HComposition.compose (comparison alpha beta) Differential.horizontal = HMaps.zeroMap :=
+  HUniversal.ext (HComposition.compose (comparison alpha beta) Differential.horizontal) HMaps.zeroMap
+    (\fun (x: P.family.Carrier (N.Nat^::succ p))(y: Q.family.Carrier q) => trans!{R} _ _ _
+      (congr!{Term.Carrier R} (#apply{(comparison alpha beta)}) _ _ (Differential.horizontalOnTensor x y))
+      (trans!{R} _ _ _ (Pairing.evaluation alpha beta (#apply{P.differential} p x) y)
+        (trans!{R} _ _ _
+          (congr!{R R} (\fun (r: R) => mul r (#apply{beta} y)) _ _ (left x))
+          (Scalars.zeroScale (#apply{beta} y)))));
+\definition vertical(right: ClosedRight beta): VComposition.compose (comparison alpha beta) Differential.vertical = VMaps.zeroMap :=
+  VUniversal.ext (VComposition.compose (comparison alpha beta) Differential.vertical) VMaps.zeroMap
+    (\fun (x: P.family.Carrier p)(y: Q.family.Carrier (N.Nat^::succ q)) => trans!{R} _ _ _
+      (congr!{Term.Carrier R} (#apply{(comparison alpha beta)}) _ _ (Differential.verticalOnTensor x y))
+      (trans!{R} _ _ _ (Pairing.evaluation alpha beta x (#apply{Q.differential} q y))
+        (trans!{R} _ _ _
+          (congr!{R R} (mul (#apply{alpha} x)) _ _ (right y))
+          (Scalars.scaleZero (#apply{alpha} x)))));
+\definition hZero(left: ClosedLeft alpha)(z: HTerm.Carrier): #apply{(comparison alpha beta)} (#apply{Differential.horizontal} z) = #zero{baseRing} :=
+  congr!{HMaps.Map R} (\fun (f: HMaps.Map) => #apply{f} z) _ _ (horizontal left);
+\definition vZero(right: ClosedRight beta)(z: VTerm.Carrier): #apply{(comparison alpha beta)} (#apply{Differential.vertical} z) = #zero{baseRing} :=
+  congr!{VMaps.Map R} (\fun (f: VMaps.Map) => #apply{f} z) _ _ (vertical right);
+\import Double.Sign[V := Term.Carrier, space := Term.space].Mapping[W := R, target := Modules.scalarModule] \as SignMapping;
+\import Double.Sign[V := R, space := Modules.scalarModule] \as Sign;
+\definition law(left: ClosedLeft alpha)(right: ClosedRight beta)(z: Total.Carrier (N.Nat^::succ n)):
+  #apply{(total alpha beta)} (#apply{Total.differential} n z) = #zero{baseRing} :=
+  trans!{R} _ _ _
+    (congr!{Term.Carrier R} (#apply{(comparison alpha beta)}) _ _ (Position.differential z))
+    (trans!{R} _ _ _
+      (#addition{(comparison alpha beta)}
+        (#apply{Differential.horizontal} (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.horizontalIndex z))
+        (#apply{Double.Sign[V := Term.Carrier, space := Term.space].map p} (#apply{Differential.vertical} (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z))))
+      (trans!{R} _ _ _
+        (congr2!{R R R} add _ _ _ _
+          (hZero left (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.horizontalIndex z))
+          (trans!{R} _ _ _
+            (SignMapping.naturality (comparison alpha beta) p (#apply{Differential.vertical} (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z)))
+            (trans!{R} _ _ _
+              (congr!{R R} (#apply{Sign.map p}) _ _ (vZero right (Coordinates.Degree[n := N.Nat^::succ n].coordinate Position.verticalIndex z)))
+              (Modules.Hom[V := R, W := R, source := Modules.scalarModule, target := Modules.scalarModule].zeroPreserved (Sign.map p)))))
+        (Group.zeroLeft (#zero{baseRing}))));

@@ -1,0 +1,77 @@
+\import std.Data[].FinSet[] \as Fin;
+\import \parent.At[n := n] \as Lower;
+\import \parent.At[n := N.Nat^::succ n] \as Higher;
+\import \root.CylinderChains[n := n] \as LowerGeometry;
+\import \root.CylinderChains[n := N.Nat^::succ n] \as HigherGeometry;
+\import Simplex.Cylinder[n := n] \as LowerSpace;
+\import Simplex.Cylinder[n := N.Nat^::succ n] \as HigherSpace;
+\import algebraic_topology.Cylinder[A := Simplex.Carrier n] \as Cylinder;
+\import algebraic_topology.Cylinder[A := A] \as OriginalCylinder;
+\import Simplex.AffineFace[n := n] \as Affine;
+\import \root.Chains[A := LowerGeometry.Points, source := LowerSpace.topology] \as LowerChains;
+\import \root.Chains[A := HigherGeometry.Points, source := HigherSpace.topology] \as HigherChains;
+\import \root.Simplices[A := LowerGeometry.Points, source := LowerSpace.topology] \as LowerSimplices;
+\import \root.Maps[A := LowerGeometry.Points, B := HigherGeometry.Points, source := LowerSpace.topology, target := HigherSpace.topology] \as FaceMaps;
+\import \root.Maps[A := LowerGeometry.Points, B := B, source := LowerSpace.topology, target := target] \as LowerMaps;
+\import \root.Maps[A := HigherGeometry.Points, B := B, source := HigherSpace.topology, target := target] \as HigherMaps;
+\module Face(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) {
+  \import LowerGeometry.Face[i := i] \as Geometry;
+  \definition familyLaw: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n))(p: LowerGeometry.Points) ->
+    Higher.family f g h sigma (Geometry.transform p) = Lower.family f g h (Source.face n i sigma) p :=
+    \fun (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n))(p: LowerGeometry.Points) =>
+      congr!{{Simplex.Carrier (N.Nat^::succ n)} B} (\fun (z: Simplex.Carrier (N.Nat^::succ n)) => h (OriginalCylinder.at (Cylinder.time p) (sigma z))) _ _
+        (sym!{{Simplex.Carrier (N.Nat^::succ n)}} _ _ (Affine.law i (Cylinder.point p)));
+  \import Modules.Hom[V := HigherChains.Carrier (N.Nat^::succ n), W := Codomain.Carrier (N.Nat^::succ n), source := HigherChains.space (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)]
+    .Composition[U := LowerChains.Carrier (N.Nat^::succ n), domain := LowerChains.space (N.Nat^::succ n)] \as Compose;
+  \import Modules.Free[Generators := LowerSimplices.Carrier (N.Nat^::succ n)].To[W := Codomain.Carrier (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as Free;
+  \import Modules.Hom[V := LowerChains.Carrier (N.Nat^::succ n), W := Codomain.Carrier (N.Nat^::succ n), source := LowerChains.space (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as Linear;
+  \definition equation: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n)) ->
+    Compose.compose (HigherMaps.At[n := N.Nat^::succ n].push (Higher.family f g h sigma) (Higher.continuous f g h sigma))
+      (FaceMaps.At[n := N.Nat^::succ n].push Geometry.transform Geometry.continuous) =
+    LowerMaps.At[n := N.Nat^::succ n].push (Lower.family f g h (Source.face n i sigma)) (Lower.continuous f g h (Source.face n i sigma)) :=
+    \fun (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n)) => Free.ext _ _
+      (\fun (tau: LowerSimplices.Carrier (N.Nat^::succ n)) => trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+        (congr!{{HigherChains.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}}
+          (#apply{(HigherMaps.At[n := N.Nat^::succ n].push (Higher.family f g h sigma) (Higher.continuous f g h sigma))}) _ _
+          (FaceMaps.At[n := N.Nat^::succ n].onGenerator Geometry.transform Geometry.continuous tau))
+        (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+          (HigherMaps.At[n := N.Nat^::succ n].onGenerator (Higher.family f g h sigma) (Higher.continuous f g h sigma)
+            (FaceMaps.postcompose (N.Nat^::succ n) Geometry.transform Geometry.continuous tau))
+          (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+            (congr!{{Target.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}} (Codomain.generator (N.Nat^::succ n)) _ _
+              (Target.ext (N.Nat^::succ n)
+                (HigherMaps.postcompose (N.Nat^::succ n) (Higher.family f g h sigma) (Higher.continuous f g h sigma) (FaceMaps.postcompose (N.Nat^::succ n) Geometry.transform Geometry.continuous tau))
+                (LowerMaps.postcompose (N.Nat^::succ n) (Lower.family f g h (Source.face n i sigma)) (Lower.continuous f g h (Source.face n i sigma)) tau)
+                (\fun (x: Simplex.Carrier (N.Nat^::succ n)) => familyLaw f g h sigma (tau x))))
+            (sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _
+              (LowerMaps.At[n := N.Nat^::succ n].onGenerator (Lower.family f g h (Source.face n i sigma)) (Lower.continuous f g h (Source.face n i sigma)) tau)))));
+  \definition law: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n)) ->
+    #apply{(HigherMaps.At[n := N.Nat^::succ n].push (Higher.family f g h sigma) (Higher.continuous f g h sigma))} (HigherGeometry.Prism[].faceTerm i) =
+      Lower.onSimplex f g h (Source.face n i sigma) :=
+    \fun (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n)) => trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{HigherChains.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}}
+        (#apply{(HigherMaps.At[n := N.Nat^::succ n].push (Higher.family f g h sigma) (Higher.continuous f g h sigma))}) _ _ Geometry.chain)
+      (congr!{Linear.Map {Codomain.Carrier (N.Nat^::succ n)}} (\fun (map: Linear.Map) => #apply{map} LowerGeometry.Prism[].chain) _ _ (equation f g h sigma));
+}
+\import Modules.Alternating[V := Codomain.Carrier (N.Nat^::succ n), space := Codomain.space (N.Nat^::succ n)] \as Sum;
+\import Modules.Alternating[V := HigherChains.Carrier (N.Nat^::succ n), space := HigherChains.space (N.Nat^::succ n)].Mapping[W := Codomain.Carrier (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as PushSum;
+\import Modules.Alternating[V := Domain.Carrier n, space := Domain.space n].Mapping[W := Codomain.Carrier (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as PrismSum;
+\definition prior: \forall (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n)) ->
+  Higher.Boundary[].prior f g h sigma = #apply{(Lower.map f g h)} (#apply{(Domain.boundary n)} (Domain.generator (N.Nat^::succ n) sigma)) :=
+  \fun (f, g: A -> B)(h: Family f g)(sigma: Source.Carrier (N.Nat^::succ n)) => \block {
+    \let left: Higher.Boundary[].prior f g h sigma = Sum.sum (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Lower.onSimplex f g h (Source.face n i sigma)) :=
+      trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+        (congr!{{HigherChains.Carrier (N.Nat^::succ n)} {Codomain.Carrier (N.Nat^::succ n)}}
+          (#apply{(HigherMaps.At[n := N.Nat^::succ n].push (Higher.family f g h sigma) (Higher.continuous f g h sigma))}) _ _ HigherGeometry.Prism[].priorExpansion)
+        (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+          (PushSum.law (HigherMaps.At[n := N.Nat^::succ n].push (Higher.family f g h sigma) (Higher.continuous f g h sigma)) (N.Nat^::succ (N.Nat^::succ n)) HigherGeometry.Prism[].faceTerm)
+          (Sum.congruent (N.Nat^::succ (N.Nat^::succ n)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Face[i := i].law f g h sigma))) \then
+    \let right: #apply{(Lower.map f g h)} (#apply{(Domain.boundary n)} (Domain.generator (N.Nat^::succ n) sigma)) = Sum.sum (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Lower.onSimplex f g h (Source.face n i sigma)) :=
+      trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+        (congr!{{Domain.Carrier n} {Codomain.Carrier (N.Nat^::succ n)}} (#apply{(Lower.map f g h)}) _ _ (Domain.Boundary[n := n].onGenerator sigma))
+        (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
+          (PrismSum.law (Lower.map f g h) (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Domain.generator n (Source.face n i sigma)))
+          (Sum.congruent (N.Nat^::succ (N.Nat^::succ n)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Lower.onGenerator f g h (Source.face n i sigma)))) \then
+    \return trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ left (sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ right)
+  };
+\module Equation;

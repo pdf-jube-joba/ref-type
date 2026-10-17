@@ -17,6 +17,42 @@ pub(crate) struct Export {
     definitions: Vec<(kernel::ids::DefinitionId, DefinitionView)>,
 }
 
+/// Index table keys once; payloads are traversed only when a key is reached.
+pub(crate) struct Reachability<'a> {
+    export: &'a Export,
+    entries: rustc_hash::FxHashMap<artifact::Identity, Vec<(u8, usize)>>,
+    visited: HashSet<(u8, artifact::Identity)>,
+}
+impl Reachability<'_> {
+    pub(crate) fn extend(
+        &mut self,
+        identities: &[artifact::Identity],
+        references: &mut artifact::Relocation,
+    ) -> Result<()> {
+        for id in identities {
+            for &(table, index) in self.entries.get(id).into_iter().flatten() {
+                if !self.visited.insert((table, id.clone())) {
+                    continue;
+                }
+                match table {
+                    0 => self.export.atoms[index].1.clone().relocate(references)?,
+                    1 => self.export.reflections[index]
+                        .1
+                        .clone()
+                        .relocate(references)?,
+                    2 => self.export.captures[index].1.clone().relocate(references)?,
+                    3 => self.export.definitions[index]
+                        .1
+                        .clone()
+                        .relocate(references)?,
+                    _ => unreachable!("raw arena table"),
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl Arena {
     pub(crate) fn boundary(&self) -> Boundary {
         Boundary {
@@ -98,33 +134,47 @@ impl Export {
         self.definitions.sort_by_key(|(id, _)| identity(*id));
     }
 
-    pub(crate) fn collect_reachable(
-        &self,
-        identities: &std::collections::BTreeSet<artifact::Identity>,
-        visited: &mut std::collections::BTreeSet<(u8, artifact::Identity)>,
-        references: &mut artifact::Relocation,
-    ) -> Result<()> {
-        fn visit<K: Relocate + Clone, V: Relocate + Clone>(
+    pub(crate) fn reachability(&self) -> Result<Reachability<'_>> {
+        let _phase = crate::profiling::Phase::start("artifact.arena-index");
+        let mut traversal = Reachability {
+            export: self,
+            entries: rustc_hash::FxHashMap::default(),
+            visited: HashSet::new(),
+        };
+        fn index<K: Relocate + Clone>(
+            entries: &mut rustc_hash::FxHashMap<artifact::Identity, Vec<(u8, usize)>>,
             table: u8,
-            entries: &[(K, V)],
-            identities: &std::collections::BTreeSet<artifact::Identity>,
-            visited: &mut std::collections::BTreeSet<(u8, artifact::Identity)>,
-            references: &mut artifact::Relocation,
+            keys: impl Iterator<Item = K>,
         ) -> Result<()> {
-            for (key, value) in entries {
+            for (position, mut key) in keys.enumerate() {
                 let mut collector = artifact::Relocation::collecting();
-                key.clone().relocate(&mut collector)?;
+                key.relocate(&mut collector)?;
                 let id = collector.into_identities().into_iter().next().unwrap();
-                if identities.contains(&id) && visited.insert((table, id)) {
-                    value.clone().relocate(references)?;
-                }
+                entries.entry(id).or_default().push((table, position));
             }
             Ok(())
         }
-        visit(0, &self.atoms, identities, visited, references)?;
-        visit(1, &self.reflections, identities, visited, references)?;
-        visit(2, &self.captures, identities, visited, references)?;
-        visit(3, &self.definitions, identities, visited, references)
+        index(
+            &mut traversal.entries,
+            0,
+            self.atoms.iter().map(|(key, _)| *key),
+        )?;
+        index(
+            &mut traversal.entries,
+            1,
+            self.reflections.iter().map(|(key, _)| *key),
+        )?;
+        index(
+            &mut traversal.entries,
+            2,
+            self.captures.iter().map(|(key, _)| *key),
+        )?;
+        index(
+            &mut traversal.entries,
+            3,
+            self.definitions.iter().map(|(key, _)| *key),
+        )?;
+        Ok(traversal)
     }
 
     pub(crate) fn retain_reachable(
@@ -169,5 +219,120 @@ impl Export {
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::raw::ids::ModuleId;
+    use artifact::Identity;
+    use std::collections::BTreeSet;
+
+    fn identity<T: Relocate + Clone>(value: &T) -> Identity {
+        let mut collector = artifact::Relocation::collecting();
+        value.clone().relocate(&mut collector).unwrap();
+        collector.into_identities().into_iter().next().unwrap()
+    }
+
+    #[test]
+    fn indexed_arena_reachability_matches_full_scan_across_all_metadata_tables() {
+        let arena = Arena::default();
+        let mut export = arena.export_since(&arena.boundary());
+        let meta: kernel::syntax::MetaId =
+            postcard::from_bytes(&postcard::to_allocvec(&(1u64, 2u32)).unwrap()).unwrap();
+        let definition: kernel::ids::DefinitionId =
+            postcard::from_bytes(&postcard::to_allocvec(&(1u64, 3u32)).unwrap()).unwrap();
+        let reflected = kernel::ids::InductiveId(40);
+        let datatype = kernel::ids::ProgramInductiveId(41);
+        export.atoms.push((
+            meta,
+            Atom::Definition(DefId {
+                module: ModuleId(42),
+                index: 2,
+            }),
+        ));
+        export.reflections.push((datatype, reflected));
+        export.captures.push((
+            reflected,
+            (
+                vec![ModuleParamId {
+                    module: ModuleId(43),
+                    position: 4,
+                }],
+                1,
+            ),
+        ));
+        export.definitions.push((
+            definition,
+            DefinitionView {
+                source: Some(DefId {
+                    module: ModuleId(44),
+                    index: 5,
+                }),
+                contextual: false,
+                captures: vec![],
+                body: arena.core.bound(0),
+            },
+        ));
+        // This table entry must stay unreachable even though its key is indexed.
+        export.captures.push((
+            kernel::ids::InductiveId(45),
+            (
+                vec![ModuleParamId {
+                    module: ModuleId(46),
+                    position: 6,
+                }],
+                1,
+            ),
+        ));
+        let roots = BTreeSet::from([identity(&meta), identity(&datatype), identity(&definition)]);
+        let mut expected = roots.clone();
+        let mut visited = HashSet::new();
+        loop {
+            let before = expected.len();
+            let mut references = artifact::Relocation::collecting();
+            macro_rules! scan {
+                ($table:expr, $entries:expr) => {
+                    for (key, value) in $entries {
+                        let id = identity(key);
+                        if expected.contains(&id) && visited.insert(($table, id)) {
+                            value.clone().relocate(&mut references).unwrap();
+                        }
+                    }
+                };
+            }
+            scan!(0, &export.atoms);
+            scan!(1, &export.reflections);
+            scan!(2, &export.captures);
+            scan!(3, &export.definitions);
+            expected.extend(references.into_identities());
+            if expected.len() == before {
+                break;
+            }
+        }
+        let mut traversal = export.reachability().unwrap();
+        let mut actual = roots;
+        let mut pending: Vec<_> = actual.iter().cloned().collect();
+        while !pending.is_empty() {
+            let mut references = artifact::Relocation::collecting();
+            traversal.extend(&pending, &mut references).unwrap();
+            pending.clear();
+            for id in references.into_identities() {
+                if actual.insert(id.clone()) {
+                    pending.push(id);
+                }
+            }
+        }
+        assert_eq!(actual, expected);
+        assert!(actual.contains(&identity(&reflected)));
+        assert!(actual.contains(&Identity::scalar("raw.module", 43)));
+        assert!(!actual.contains(&Identity::scalar("raw.module", 46)));
+        // Repeated frontiers do not repeat metadata payload traversal.
+        let mut references = artifact::Relocation::collecting();
+        traversal
+            .extend(&actual.into_iter().collect::<Vec<_>>(), &mut references)
+            .unwrap();
+        assert!(references.into_identities().is_empty());
     }
 }

@@ -1,0 +1,23 @@
+\import Cochains.At[C := Theory.complex, k := n] \as H;
+\import Criterion.At[n := n] \as Term;
+\import Modules.Isomorphism[V := Theory.Carrier n, W := H.Cohomology,
+  source := Theory.space n, target := H.cohomologySpace] \as Into;
+\import Into.Inverse[] \as Inverse;
+\definition isomorphism(zero: DifferentialZero):
+  Modules.Isomorphism[V := H.Cohomology, W := Theory.Carrier n,
+    source := H.cohomologySpace, target := Theory.space n].Isomorphism :=
+  Inverse.inverse (Term.termIsomorphism (cochainDifferentialZero zero));
+\import Cochains.ZeroDifferential[family := Theory.family].At[k := n] \as ZeroTerm;
+\import Cochains.Map[C := Cochains.ZeroDifferential[family := Theory.family].complex,
+  D := Theory.complex].At[k := n] \as Inclusion;
+\definition onTerm(zero: DifferentialZero)(phi: Theory.Carrier n):
+  #apply{#forward{(Term.termIsomorphism (cochainDifferentialZero zero))}} phi =
+    H.classOf (H.cycle phi (cochainDifferentialZero zero n phi)) :=
+  Inclusion.onClass (Criterion.forward (cochainDifferentialZero zero)) (#apply{ZeroTerm.cycles} phi);
+\definition onClass(zero: DifferentialZero)(phi: H.CycleCarrier):
+  #apply{#forward{(isomorphism zero)}} (H.classOf phi) = H.ambient phi :=
+  trans!{{Theory.Carrier n}} _ _ _
+    (congr!{H.Cohomology {Theory.Carrier n}} (#apply{#forward{(isomorphism zero)}})
+      (H.classOf phi) (#apply{#forward{(Term.termIsomorphism (cochainDifferentialZero zero))}} (H.ambient phi))
+      (sym!{H.Cohomology} _ _ (onTerm zero (H.ambient phi))))
+    (#leftInverse{(Term.termIsomorphism (cochainDifferentialZero zero))} (H.ambient phi));

@@ -17,6 +17,14 @@ thread_local! {
 struct Args {
     /// パッケージ・workspace のディレクトリ、または .ref ファイル
     path: PathBuf,
+    /// 保存済みのソース snapshot JSON を入力とし、元のファイルを読み直さない
+    #[arg(long)]
+    #[serde(default)]
+    source_snapshot: Option<PathBuf>,
+    /// 読み込んだソースと元のファイル識別子を snapshot JSON に保存する
+    #[arg(long)]
+    #[serde(default)]
+    save_source_snapshot: Option<PathBuf>,
     /// 検査プロセスの仮想メモリ上限 MiB（Linux の既定3072、0は既存の上限を維持）
     #[arg(long)]
     memory_mib: Option<u64>,
@@ -226,15 +234,58 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn input_snapshot(
+    args: &Args,
+    database: &mut sema::Database,
+) -> anyhow::Result<sema::SourceSnapshot> {
+    if let Some(path) = &args.source_snapshot {
+        let snapshot: sema::SourceSnapshot = serde_json::from_slice(
+            &std::fs::read(path)
+                .with_context(|| format!("read source snapshot {}", path.display()))?,
+        )
+        .with_context(|| format!("decode source snapshot {}", path.display()))?;
+        let requested = sema::SourceSnapshot::new(&args.path);
+        anyhow::ensure!(
+            snapshot.entry() == requested.entry(),
+            "source snapshot entry {} does not match requested path {}",
+            snapshot.entry().display(),
+            requested.entry().display()
+        );
+        Ok(snapshot)
+    } else {
+        Ok(database.read_snapshot(&args.path, args.full_check_local)?)
+    }
+}
+
+fn cache_directory(args: &Args) -> anyhow::Result<PathBuf> {
+    match &args.cache_dir {
+        Some(path) => Ok(path.clone()),
+        None if args.source_snapshot.is_some() => {
+            Ok(input_snapshot(args, &mut sema::Database::new())?.default_cache_directory())
+        }
+        None => Ok(sema::default_cache_directory(&args.path)?),
+    }
+}
+
+fn save_input_snapshot(args: &Args, snapshot: &sema::SourceSnapshot) -> anyhow::Result<()> {
+    if let Some(path) = &args.save_source_snapshot {
+        let file = std::fs::File::create(path)
+            .with_context(|| format!("save source snapshot {}", path.display()))?;
+        let mut writer = std::io::BufWriter::new(file);
+        serde_json::to_writer(&mut writer, snapshot)?;
+        std::io::Write::flush(&mut writer)?;
+    }
+    Ok(())
+}
+
 fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<report::Report> {
-    let cache_directory = match &args.cache_dir {
-        Some(path) => path.clone(),
-        None => sema::default_cache_directory(&args.path)?,
-    };
+    let cache_directory = cache_directory(args)?;
     if args.clear_cache {
         clear_cache_directory(&cache_directory)?;
     }
-    let mut database = if args.no_cache {
+    // Source inspection has no semantic artifacts to reuse or publish. Opening
+    // the shared store would still run collection on drop and wait for its lock.
+    let mut database = if args.no_cache || args.parse_only || args.list_modules {
         sema::Database::new()
     } else {
         sema::Database::with_cache(cache_directory)
@@ -250,7 +301,7 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
     let snapshot = None;
     let snapshot = match snapshot
         .map(Ok)
-        .unwrap_or_else(|| database.read_snapshot(&args.path, args.full_check_local))
+        .unwrap_or_else(|| input_snapshot(args, &mut database))
     {
         Ok(snapshot) => snapshot,
         Err(error) => {
@@ -260,6 +311,9 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
             return Ok(report::Report::checked(false, false));
         }
     };
+    if args.worker.is_none() {
+        save_input_snapshot(args, &snapshot)?;
+    }
     if args.list_modules {
         return match database.module_paths(&snapshot) {
             Ok(paths) => {

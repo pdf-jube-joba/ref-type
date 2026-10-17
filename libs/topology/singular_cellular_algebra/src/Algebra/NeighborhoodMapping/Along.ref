@@ -1,0 +1,32 @@
+\definition expanded: ExpandedMaps.Map := \into[a.base.Carrier -> b.base.Carrier](data.map, ExpandedMaps.Map) \by {
+  ExpandedMaps.Laws[data.map] {
+    continuous := #continuous{(OriginalMaps.laws data.map)},
+    contained := \fun (x: SourceExpanded.SubspaceCarrier) => data.region x (\bysub(a.base.Carrier, a.region, x)),
+  }
+};
+\definition restricted(x: sourceSmall.Carrier): targetSmall.Carrier := \into[b.base.Carrier](data.map x, TargetSpace.Complement b.base.subset) \by {
+  data.complement x (\bysub(a.base.Carrier, SourceSpace.Complement a.base.subset, x))
+};
+\import topology.Continuity[A := sourceSmall.Carrier, B := a.base.Carrier].Corestriction[S := SourceSpace.Complement a.base.subset] \as SourceInclusion;
+\import topology.Composition[A := sourceSmall.Carrier, B := a.base.Carrier, C := b.base.Carrier] \as Composition;
+\import topology.Continuity[A := sourceSmall.Carrier, B := b.base.Carrier].Corestriction[S := TargetSpace.Complement b.base.subset] \as Restriction;
+\definition restrictedContinuous: topology.Continuity[A := sourceSmall.Carrier, B := targetSmall.Carrier].Continuous sourceSmall.topology targetSmall.topology restricted :=
+  Restriction.corestrictContinuous sourceSmall.topology b.base.topology restricted
+    (Composition.composeContinuous sourceSmall.topology a.base.topology b.base.topology (\fun (x: sourceSmall.Carrier) => x) data.map
+      (SourceInclusion.inclusionContinuous a.base.topology) (#continuous{(OriginalMaps.laws data.map)}));
+\definition small: SmallMaps.Map := \into[sourceSmall.Carrier -> targetSmall.Carrier](restricted, SmallMaps.Map) \by {
+  SmallMaps.Laws[restricted] {
+    continuous := restrictedContinuous,
+    contained := \fun (x: SourceSmall.SubspaceCarrier) => data.region x (\bysub(sourceSmall.Carrier, sourceSmallSubset, x)),
+  }
+};
+\import \parent.\parent.PairSquare[a := sourceBase, b := targetBase, c := sourceExpanded, d := targetExpanded]
+  .Along[f := data.map, g := SourceNeighborhood.map, h := TargetNeighborhood.map, k := expanded] \as NeighborhoodSquare;
+\import SourceExcision.On[pair := sourceExcision].Chains[].Ordinary[] \as SourceExcisionInclusion;
+\import TargetExcision.On[pair := targetExcision].Chains[].Ordinary[] \as TargetExcisionInclusion;
+\import \parent.\parent.PairSquare[a := sourceSmall, b := targetSmall, c := sourceExpanded, d := targetExpanded]
+  .Along[f := small, g := SourceExcisionInclusion.inclusion, h := TargetExcisionInclusion.inclusion, k := expanded] \as ExcisionSquare;
+\import OriginalMaps.On[f := data.map].Integer[] \as OriginalAction;
+\import ExpandedMaps.On[f := expanded].Integer[] \as ExpandedAction;
+\import SmallMaps.On[f := small].Integer[] \as SmallAction;
+\module At(z: I.Int^);

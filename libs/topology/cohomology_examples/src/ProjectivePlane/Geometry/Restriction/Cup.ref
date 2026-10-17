@@ -1,0 +1,57 @@
+\import std.Alg[].Ring[] \as Rings;
+\import std.Data[].Nat[] \as Natural;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\definition zeroDegree: Natural.Nat^ := Natural.Nat^::zero;
+\definition oneDegree: Natural.Nat^ := Natural.Nat^::succ zeroDegree;
+\definition twoDegree: Natural.Nat^ := Natural.Nat^::succ oneDegree;
+\definition baseRing: Rings.Ring[R] := Rings.commutativeRingAsRing R ring;
+\import \root.ProjectivePlane[].Geometry[] \as Geometry;
+\import Geometry.Chart[].Singular[].Finite[] \as Geometric;
+\import singular_cohomology.Simplices[A := Geometry.Carrier, source := Geometry.topology] \as Simplices;
+\import singular_cohomology.Chains[A := Geometry.Carrier, source := Geometry.topology] \as SingularChains;
+\import singular_products.Cochains[A := Geometry.Carrier, source := Geometry.topology, R := R, ring := ring] \as Actual;
+\definition canonical: Modules.Bundle := Actual.integerCoefficients;
+\import Geometry.Restriction[coefficients := canonical] \as Restriction;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].Simplicial[] \as Model;
+\import Model.Coefficients[A := canonical].DegreeOne[] \as Edges;
+\import Model.Coefficients[A := canonical].DegreeTwo[] \as Triangles;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[P := Model.chainComplex, N := canonical] \as Finite;
+\import Actual.Cup[p := oneDegree, q := oneDegree] \as Product;
+\import Simplices.Cut[p := oneDegree, q := oneDegree] \as Cut;
+\module Faces;
+\definition edge(h: Actual.Carrier oneDegree)(e: Edge): Edges.evaluate (Restriction.apply oneDegree h) e = #apply{h} (SingularChains.generator oneDegree (Geometric.edges e)) :=
+  trans!{R} _ _ _ (Restriction.onGenerator oneDegree h (Model.edge e))
+    (congr!{{Simplices.Carrier oneDegree} R} (\fun (sigma: Simplices.Carrier oneDegree) => #apply{h} (SingularChains.generator oneDegree sigma)) _ _ (Geometric.onEdge e));
+\definition finiteCup(alpha, beta: Finite.Carrier oneDegree): Finite.Carrier twoDegree := Triangles.extend
+  (\fun (t: Triangle) => #mul{baseRing} (Edges.evaluate alpha (front t)) (Edges.evaluate beta (back t)));
+\definition law(alpha, beta: Actual.Carrier oneDegree)(t: Triangle):
+  Triangles.evaluate (Restriction.apply twoDegree (Product.apply alpha beta)) t =
+    #mul{baseRing} (Edges.evaluate (Restriction.apply oneDegree alpha) (front t)) (Edges.evaluate (Restriction.apply oneDegree beta) (back t)) :=
+  trans!{R} _ _ _ (Restriction.onGenerator twoDegree (Product.apply alpha beta) (Model.triangle t))
+    (trans!{R} _ _ _
+      (congr!{{Simplices.Carrier twoDegree} R} (\fun (sigma: Simplices.Carrier twoDegree) => #apply{(Product.apply alpha beta)} (SingularChains.generator twoDegree sigma)) _ _ (Geometric.onTriangle t))
+      (trans!{R} _ _ _ (Product.onSimplex alpha beta (Geometric.triangles t))
+        (trans!{R} _ _ _
+          (congr2!{{Simplices.Carrier oneDegree} {Simplices.Carrier oneDegree} R}
+            (\fun (sigma, tau: Simplices.Carrier oneDegree) => #mul{baseRing} (#apply{alpha} (SingularChains.generator oneDegree sigma)) (#apply{beta} (SingularChains.generator oneDegree tau))) _ _ _ _
+            (trans!{{Simplices.Carrier oneDegree}} _ _ _ (Faces[].front (Geometric.triangles t)) (Geometric.frontLaw t))
+            (trans!{{Simplices.Carrier oneDegree}} _ _ _ (Faces[].back (Geometric.triangles t)) (Geometric.backLaw t)))
+          (congr2!{R R R} (#mul{baseRing}) _ _ _ _ (sym!{R} _ _ (edge alpha (front t))) (sym!{R} _ _ (edge beta (back t)))))));
+\definition equation(alpha, beta: Actual.Carrier oneDegree):
+  Restriction.apply twoDegree (Product.apply alpha beta) = finiteCup (Restriction.apply oneDegree alpha) (Restriction.apply oneDegree beta) :=
+  Triangles.injective (Restriction.apply twoDegree (Product.apply alpha beta)) (finiteCup (Restriction.apply oneDegree alpha) (Restriction.apply oneDegree beta))
+    (\axiom:funext(Triangles.evaluate (Restriction.apply twoDegree (Product.apply alpha beta)), Triangles.evaluate (finiteCup (Restriction.apply oneDegree alpha) (Restriction.apply oneDegree beta)),
+      \fun (t: Triangle) => trans!{R} _ _ _ (law alpha beta t)
+        (sym!{R} _ _ (Triangles.onGenerator (\fun (t: Triangle) => #mul{baseRing} (Edges.evaluate (Restriction.apply oneDegree alpha) (front t)) (Edges.evaluate (Restriction.apply oneDegree beta) (back t))) t))));
+\import singular_cohomology.Cochains[A := Geometry.Carrier, source := Geometry.topology].With[coefficients := canonical] \as Ordinary;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Complexes;
+\import Complexes.At[C := Ordinary.complex, k := oneDegree] \as ActualOne;
+\import Complexes.At[C := Ordinary.complex, k := twoDegree] \as ActualTwo;
+\import Complexes.At[C := Finite.complex, k := twoDegree] \as FiniteTwo;
+\import Actual.Cohomology[].Cup[p := oneDegree, q := oneDegree] \as ClassCup;
+\module Classes(alpha, beta: ActualOne.CycleCarrier);

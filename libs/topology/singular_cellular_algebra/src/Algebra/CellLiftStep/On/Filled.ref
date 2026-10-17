@@ -1,0 +1,38 @@
+\import \parent.\parent.\parent.CycleEquality[C := C, z := z] \as CyclesEqual;
+\import Complexes.Prior[C := A] \as Prior;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\definition filled: \forall (q: H.Homology) -> #apply{A.differential} z (#apply{f} q) = #apply{difference} q :=
+  \fun (q: H.Homology) => trans!{{A.family.Carrier previous}} _ _ _ (sym!{{A.family.Carrier previous}} _ _
+      (Transport.castRefl A.family.Carrier previous (#apply{A.differential} z (#apply{f} q))))
+    ((\bysub(Modules.Hom[V := H.Homology, W := A.family.Carrier z, source := H.homologySpace, target := A.family.space z].Map,
+      { f: Modules.Hom[V := H.Homology, W := A.family.Carrier z, source := H.homologySpace, target := A.family.space z].Map \where
+        \forall (q: H.Homology) -> #apply{Lower.prior} (#apply{f} q) = #apply{difference} q }, f)) q);
+\import Complexes.Map[C := A, D := B].At[k := z] \as InclusionAt;
+\import Modules.Hom[V := A.family.Carrier z, W := B.family.Carrier z, source := A.family.space z, target := B.family.space z]
+  .Composition[U := H.Homology, domain := H.homologySpace] \as Include;
+\definition correction: Modules.MapBetween homology (Modules.Bundle { Carrier := B.family.Carrier z, space := B.family.space z }) :=
+  Include.compose (InclusionAt.linear sequence.inclusion) f;
+\import Modules.Hom[V := H.Homology, W := B.family.Carrier z, source := H.homologySpace, target := B.family.space z] \as Maps;
+\definition map: Maps.Map := Maps.plus data.map (Maps.negative correction);
+\import Modules.Laws[V := C.family.Carrier z, space := C.family.space z] \as Relative;
+\import algebra.Group[].Of[Carrier := C.family.Carrier z, group := Relative.additive] \as RelativeGroup;
+\import Modules.Hom[V := B.family.Carrier z, W := C.family.Carrier z, source := B.family.space z, target := C.family.space z] \as Projections;
+\import Complexes.Map[C := B, D := C].At[k := z] \as Projected;
+\definition onProjection: \forall (q: H.Homology) -> #apply{sequence.projection} z (#apply{map} q) = #apply{sequence.projection} z (#apply{data.map} q) :=
+  \fun (q: H.Homology) => trans!{{C.family.Carrier z}} _ _ _
+    (Projections.differencePreserved (Projected.linear sequence.projection) (#apply{data.map} q) (#apply{correction} q))
+    (trans!{{C.family.Carrier z}} _ _ _
+      (congr!{{C.family.Carrier z} {C.family.Carrier z}} (RelativeGroup.difference (#apply{sequence.projection} z (#apply{data.map} q))) _ _ (#zero{sequence} z (#apply{f} q)))
+      (trans!{{C.family.Carrier z}} _ _ _
+        (congr!{{C.family.Carrier z} {C.family.Carrier z}} (Relative.add (#apply{sequence.projection} z (#apply{data.map} q))) _ _ RelativeGroup.negZero)
+        (RelativeGroup.zeroRight (#apply{sequence.projection} z (#apply{data.map} q)))));
+\definition closed: \forall (q: H.Homology) -> #apply{C.differential} z (#apply{sequence.projection} z (#apply{map} q)) = #zero{(C.family.space previous)} :=
+  \fun (q: H.Homology) => trans!{{C.family.Carrier previous}} _ _ _
+    (congr!{{C.family.Carrier z} {C.family.Carrier previous}} (#apply{C.differential} z) _ _ (onProjection q)) (data.closed q);
+\definition sectionLaw: \forall (q: H.Homology) -> H.classOf (H.cycle (#apply{sequence.projection} z (#apply{map} q)) (closed q)) = q :=
+  \fun (q: H.Homology) => trans!{H.Homology} _ _ _
+    (CyclesEqual.onClass (H.cycle (#apply{sequence.projection} z (#apply{map} q)) (closed q))
+      (H.cycle (#apply{sequence.projection} z (#apply{data.map} q)) (data.closed q)) (onProjection q)) (data.section q);
+\definition representative: Rep.Data := Rep.Data { map := map, closed := closed, section := sectionLaw };
+\module Boundary;
+\definition result: Result[desired] := Result[desired] { representative := representative, boundary := Boundary[].law };

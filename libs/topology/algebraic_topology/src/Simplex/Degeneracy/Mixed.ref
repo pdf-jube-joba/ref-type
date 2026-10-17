@@ -1,0 +1,61 @@
+\import \parent.\parent.Degeneracy[n := N.Nat^::succ n] \as Upper;
+\import \parent.\parent.ReindexFace[n := n] \as LowerFace;
+\import \parent.\parent.ReindexFace[n := N.Nat^::succ n] \as UpperFace;
+\import \parent.\parent.Reindex[m := N.Nat^::succ n, n := N.Nat^::succ (N.Nat^::succ n)].Composition[k := N.Nat^::succ n] \as FaceThenDegeneracy;
+\import \parent.\parent.Reindex[m := N.Nat^::succ n, n := n].Composition[k := N.Nat^::succ n] \as DegeneracyThenFace;
+\import \parent.\parent.Reindex[m := N.Nat^::succ n, n := N.Nat^::succ n] \as End;
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ (N.Nat^::succ n))].Repetition[] \as Repetitions;
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))].Mapping[B := Fin.Fin (N.Nat^::succ (N.Nat^::succ n))] \as OmitMapping;
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ n)].Mapping[B := Fin.Fin (N.Nat^::succ (N.Nat^::succ n))] \as RepeatMapping;
+\import N.Basic[].Prop[] \as Bounds;
+\use Equality.eq_reason;
+
+\import \parent.\parent.Reindex[m := (N.Nat^::succ n), n := (N.Nat^::succ (N.Nat^::succ n))] \as FaceReindex;
+\import \parent.\parent.Reindex[m := n, n := (N.Nat^::succ n)] \as LowerFaceReindex;
+\import Fin.Tuples[A := Fin.Fin (N.Nat^::succ (N.Nat^::succ n))].Omission[] \as Omissions;
+\definition omitted: \forall (k: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))))(f: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) ->
+  (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => f (UpperFace.skip k r)) = Omissions.omit (N.Nat^::succ (N.Nat^::succ n)) k f :=
+  \fun (k: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))))(f: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => trans!{End.Function} _ _ _
+    (OmitMapping.omitMap (N.Nat^::succ (N.Nat^::succ n)) k f (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) => r))
+    (congr!{{Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> Fin.Fin (N.Nat^::succ (N.Nat^::succ n))} End.Function} (Omissions.omit (N.Nat^::succ (N.Nat^::succ n)) k) _ _
+      (\axiom:funext((\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) => f r), f, \fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) => \refl(f r))));
+\definition repeated: \forall (j: Fin.Fin (N.Nat^::succ n))(f: Fin.Fin (N.Nat^::succ n) -> Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) ->
+  (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => f (collapse j r)) = Repetitions.repeat n j f :=
+  \fun (j: Fin.Fin (N.Nat^::succ n))(f: Fin.Fin (N.Nat^::succ n) -> Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => trans!{End.Function} _ _ _
+    (RepeatMapping.repeatMap n j f (\fun (r: Fin.Fin (N.Nat^::succ n)) => r))
+    (congr!{{Fin.Fin (N.Nat^::succ n) -> Fin.Fin (N.Nat^::succ (N.Nat^::succ n))} End.Function} (Repetitions.repeat n j) _ _
+      (\axiom:funext((\fun (r: Fin.Fin (N.Nat^::succ n)) => f r), f, \fun (r: Fin.Fin (N.Nat^::succ n)) => \refl(f r))));
+\definition commute: \forall (upperIndex: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(upperFace: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))))(lowerIndex: Fin.Fin (N.Nat^::succ n))(lowerFace: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) ->
+  (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Upper.collapse upperIndex (UpperFace.skip upperFace r)) =
+    (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => LowerFace.skip lowerFace (collapse lowerIndex r)) ->
+  \forall (x: Carrier (N.Nat^::succ n)) -> Upper.apply upperIndex (face (N.Nat^::succ n) upperFace x) = face n lowerFace (apply lowerIndex x) :=
+  \fun (upperIndex: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(upperFace: Fin.Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))))(lowerIndex: Fin.Fin (N.Nat^::succ n))(lowerFace: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(indices: _)(x: Carrier (N.Nat^::succ n)) => eq_reason!{
+    {Upper.apply upperIndex (face (N.Nat^::succ n) upperFace x)}
+    "=" {Upper.apply upperIndex (FaceReindex.apply (UpperFace.skip upperFace) x)} "by" {
+      congr!{{Carrier (N.Nat^::succ (N.Nat^::succ n))} {Carrier (N.Nat^::succ n)}} (Upper.apply upperIndex) _ _ (UpperFace.law upperFace x) }
+    "=" {End.apply (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Upper.collapse upperIndex (UpperFace.skip upperFace r)) x} "by" {
+      FaceThenDegeneracy.law (UpperFace.skip upperFace) (Upper.collapse upperIndex) x }
+    "=" {End.apply (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => LowerFace.skip lowerFace (collapse lowerIndex r)) x} "by" {
+      congr!{End.Function {Carrier (N.Nat^::succ n)}} (\fun (f: End.Function) => End.apply f x) _ _ indices }
+    "=" {LowerFaceReindex.apply (LowerFace.skip lowerFace) (apply lowerIndex x)} "by" {
+      sym!{{Carrier (N.Nat^::succ n)}} _ _ (DegeneracyThenFace.law (collapse lowerIndex) (LowerFace.skip lowerFace) x) }
+    "=" {face n lowerFace (apply lowerIndex x)} "by" { sym!{{Carrier (N.Nat^::succ n)}} _ _ (LowerFace.law lowerFace (apply lowerIndex x)) }
+  };
+\definition beforeIndices: \forall (i, j: Fin.Fin (N.Nat^::succ n)) -> Bounds.Le i j ->
+  (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Upper.collapse (Fin.succ (N.Nat^::succ n) j) (UpperFace.skip (Fin.widen (N.Nat^::succ (N.Nat^::succ n)) (Fin.widen (N.Nat^::succ n) i)) r)) =
+  (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => LowerFace.skip (Fin.widen (N.Nat^::succ n) i) (collapse j r)) :=
+  \fun (i, j: Fin.Fin (N.Nat^::succ n))(ordered: _) => trans!{End.Function} _ _ _ (omitted (Fin.widen (N.Nat^::succ (N.Nat^::succ n)) (Fin.widen (N.Nat^::succ n) i)) (Upper.collapse (Fin.succ (N.Nat^::succ n) j)))
+    (trans!{End.Function} _ _ _ (Repetitions.before n i j (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => r) ordered)
+      (sym!{End.Function} _ _ (repeated j (LowerFace.skip (Fin.widen (N.Nat^::succ n) i)))));
+\definition before: \forall (i, j: Fin.Fin (N.Nat^::succ n))(x: Carrier (N.Nat^::succ n)) -> Bounds.Le i j ->
+  Upper.apply (Fin.succ (N.Nat^::succ n) j) (face (N.Nat^::succ n) (Fin.widen (N.Nat^::succ (N.Nat^::succ n)) (Fin.widen (N.Nat^::succ n) i)) x) = face n (Fin.widen (N.Nat^::succ n) i) (apply j x) :=
+  \fun (i, j: Fin.Fin (N.Nat^::succ n))(x: Carrier (N.Nat^::succ n))(ordered: _) => commute (Fin.succ (N.Nat^::succ n) j) (Fin.widen (N.Nat^::succ (N.Nat^::succ n)) (Fin.widen (N.Nat^::succ n) i)) j (Fin.widen (N.Nat^::succ n) i) (beforeIndices i j ordered) x;
+\definition afterIndices: \forall (i, j: Fin.Fin (N.Nat^::succ n)) -> Bounds.Le i j ->
+  (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Upper.collapse (Fin.widen (N.Nat^::succ n) i) (UpperFace.skip (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ n) j)) r)) =
+  (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => LowerFace.skip (Fin.succ (N.Nat^::succ n) j) (collapse i r)) :=
+  \fun (i, j: Fin.Fin (N.Nat^::succ n))(ordered: _) => trans!{End.Function} _ _ _ (omitted (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ n) j)) (Upper.collapse (Fin.widen (N.Nat^::succ n) i)))
+    (trans!{End.Function} _ _ _ (Repetitions.after n i j (\fun (r: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => r) ordered)
+      (sym!{End.Function} _ _ (repeated i (LowerFace.skip (Fin.succ (N.Nat^::succ n) j)))));
+\definition after: \forall (i, j: Fin.Fin (N.Nat^::succ n))(x: Carrier (N.Nat^::succ n)) -> Bounds.Le i j ->
+  Upper.apply (Fin.widen (N.Nat^::succ n) i) (face (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ n) j)) x) = face n (Fin.succ (N.Nat^::succ n) j) (apply i x) :=
+  \fun (i, j: Fin.Fin (N.Nat^::succ n))(x: Carrier (N.Nat^::succ n))(ordered: _) => commute (Fin.widen (N.Nat^::succ n) i) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) (Fin.succ (N.Nat^::succ n) j)) i (Fin.succ (N.Nat^::succ n) j) (afterIndices i j ordered) x;

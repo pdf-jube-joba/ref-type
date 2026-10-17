@@ -1,0 +1,33 @@
+\definition leftClosed: Theory.coboundary p alpha = #zero{(space (N.Nat^::succ p))} := \bysub(Carrier p, #carrier{Left.cycles}, alpha);
+\definition rightClosed: Theory.coboundary q beta = #zero{(space (N.Nat^::succ q))} := \bysub(Carrier q, #carrier{Right.cycles}, beta);
+\import IntegerModules.Hom[V := Total.Carrier (N.Nat^::succ n), W := R, source := Total.space (N.Nat^::succ n), target := integerCoefficients.space] \as Upper;
+\definition tensorClosed: TensorCochains.apply n (Pairing.total alpha beta) = #zero{(TensorCochains.space (N.Nat^::succ n))} := Upper.ext _ _ (Pairing.Closed[].law alpha beta leftClosed rightClosed);
+\definition pair: TensorCohomology.CycleCarrier := TensorCohomology.cycle (Pairing.total alpha beta) tensorClosed;
+\definition forwardCycle: Output.CycleCarrier := #apply{Actions.At[k := n].cyclesMap (Invariance.map Exchange.forward)} pair;
+\definition backwardCycle: Output.CycleCarrier := #apply{Actions.At[k := n].cyclesMap (Invariance.map Exchange.backward)} pair;
+\definition equality: Output.classOf forwardCycle = Output.classOf backwardCycle :=
+  trans!{Output.Cohomology} _ _ _ (sym!{Output.Cohomology} _ _ (Actions.At[k := n].onClass (Invariance.map Exchange.forward) pair))
+    (trans!{Output.Cohomology} _ _ _
+      (Invariance.onCohomology Exchange.forward Exchange.backward Exchange.Homotopy[].homotopy n (TensorCohomology.classOf pair))
+      (Actions.At[k := n].onClass (Invariance.map Exchange.backward) pair));
+\definition forwardClass: Output.classOf forwardCycle = Product.apply (Left.classOf alpha) (Right.classOf beta) :=
+  trans!{Output.Cohomology} _ _ _ (Output.equalClass forwardCycle (Product.cycle alpha beta) (CochainCup.equation alpha beta))
+    (sym!{Output.Cohomology} _ _ (Product.onClasses alpha beta));
+\definition reverseCycle: Output.CycleCarrier := Regrading.cycle Swapped.reverseDegree n Swapped.same (ReverseProduct.cycle beta alpha);
+\definition reverseAmbient: Swapped.reversed alpha beta = ambient reverseCycle := Regrading.onAmbient Swapped.reverseDegree n Swapped.same (ReverseProduct.cycle beta alpha);
+\definition reverseClass: Output.classOf reverseCycle = Transport.cast Theory.cohomology Swapped.reverseDegree n Swapped.same (ReverseProduct.apply (Right.classOf beta) (Left.classOf alpha)) :=
+  trans!{Output.Cohomology} _ _ _
+    (sym!{Output.Cohomology} _ _ (Regrading.onClass Swapped.reverseDegree n Swapped.same (ReverseProduct.cycle beta alpha)))
+    (congr!{{Theory.cohomology Swapped.reverseDegree} Output.Cohomology} (Transport.cast Theory.cohomology Swapped.reverseDegree n Swapped.same) _ _ (sym!{{Theory.cohomology Swapped.reverseDegree}} _ _ (ReverseProduct.onClasses beta alpha)));
+\definition signedAmbient: Swapped.signed alpha beta = ambient (cycleSign Swapped.exponent reverseCycle) :=
+  trans!{{Carrier n}} _ _ _
+    (congr!{{Carrier n} {Carrier n}} (Products.Signs[n := n].apply Swapped.exponent) _ _ reverseAmbient)
+    (sym!{{Carrier n}} _ _ (ambientSign Swapped.exponent reverseCycle));
+\definition backwardClass: Output.classOf backwardCycle = sign Swapped.exponent (Transport.cast Theory.cohomology Swapped.reverseDegree n Swapped.same (ReverseProduct.apply (Right.classOf beta) (Left.classOf alpha))) :=
+  trans!{Output.Cohomology} _ _ _
+    (Output.equalClass backwardCycle (cycleSign Swapped.exponent reverseCycle) (trans!{{Carrier n}} _ _ _ (Swapped.equation alpha beta) signedAmbient))
+    (trans!{Output.Cohomology} _ _ _ (signedClass Swapped.exponent reverseCycle)
+      (congr!{Output.Cohomology Output.Cohomology} (sign Swapped.exponent) _ _ reverseClass));
+\definition law: Product.apply (Left.classOf alpha) (Right.classOf beta) = sign Swapped.exponent (Transport.cast Theory.cohomology Swapped.reverseDegree n Swapped.same (ReverseProduct.apply (Right.classOf beta) (Left.classOf alpha))) :=
+  trans!{Output.Cohomology} _ _ _ (sym!{Output.Cohomology} _ _ forwardClass)
+    (trans!{Output.Cohomology} _ _ _ equality backwardClass);

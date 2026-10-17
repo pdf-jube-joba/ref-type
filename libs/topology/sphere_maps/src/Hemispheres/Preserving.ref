@@ -1,0 +1,30 @@
+\import \root.CoverPreserve[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].On[cover := Cover.cover] \as Covers;
+\definition toLeft: \forall (x: Geometry.Sphere) ->
+  topology.Topology[Carrier := Geometry.Sphere].Member Geometry.left x ->
+  topology.Topology[Carrier := Geometry.Sphere].Member Geometry.left (Reflection.tail x) :=
+  \fun (x: Geometry.Sphere)(above: _) => Reals.ltReplaceRight (Real.neg Real.one) (Geometry.height x) (Geometry.height (Reflection.tail x))
+    (sym!{Real.Real} _ _ (Reflection.tailHead x)) above;
+\definition toRight: \forall (x: Geometry.Sphere) ->
+  topology.Topology[Carrier := Geometry.Sphere].Member Geometry.right x ->
+  topology.Topology[Carrier := Geometry.Sphere].Member Geometry.right (Reflection.tail x) :=
+  \fun (x: Geometry.Sphere)(below: _) => Reals.ltReplaceLeft (Geometry.height x) (Geometry.height (Reflection.tail x)) Real.one
+    (sym!{Real.Real} _ _ (Reflection.tailHead x)) below;
+\definition reflection: Covers.Mapping := \into[Covers.Data](Covers.Data { function := Reflection.tail }, Covers.Mapping) \by {
+  Covers.Laws[Covers.Data { function := Reflection.tail }] {
+    continuous := Reflection.tailContinuous, toLeft := toLeft, toRight := toRight,
+  }
+};
+\import Covers.With[mapping := reflection] \as Action;
+\import Spheres.Antipodal[n := n] \as LowerAntipodal;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n].Contraction[] \as Scaling;
+\import std.Data[].FinSet[] \as Fin;
+\definition equatorNatural: \forall (x: Spheres.Carrier n) ->
+  Action.intersectionFunction (Equator.inclusion x) = Equator.inclusion (LowerAntipodal.apply x) :=
+  \fun (x: Spheres.Carrier n) => Splitting.ext _ _
+    (trans!{Real.Real} _ _ _ (Reflection.tailHead (Equator.inclusion x))
+      (trans!{Real.Real} _ _ _ (Splitting.equatorHead x) (sym!{Real.Real} _ _ (Splitting.equatorHead (LowerAntipodal.apply x)))))
+    (trans!{{algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n].Coordinate}} _ _ _ (Reflection.tailTail (Equator.inclusion x))
+      (trans!{{algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n].Coordinate}} _ _ _
+        (congr!{{algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n].Coordinate} {algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n].Coordinate}} (Scaling.scale (Real.neg Real.one)) _ _ (Splitting.equatorTail x))
+        (sym!{{algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n].Coordinate}} _ _ (Splitting.equatorTail (LowerAntipodal.apply x)))));
+\module With(coefficients: Modules.Bundle);

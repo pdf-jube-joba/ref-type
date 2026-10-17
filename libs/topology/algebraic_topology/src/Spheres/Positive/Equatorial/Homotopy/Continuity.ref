@@ -1,0 +1,33 @@
+\import \parent.\parent.Topology[] \as GeometryTopology;
+\definition cylinderTopology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology intersectionTopology;
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as Scalars;
+\import Scalars.Product[] \as Product;
+\import topology.Composition[A := Cylinder.Carrier, B := Intersection, C := Real.Real] \as PointEvaluation;
+\import topology.Composition[A := Cylinder.Carrier, B := Interval.Carrier, C := Real.Real] \as TimeEvaluation;
+\definition pointCoordinateContinuous: \forall (i: Ambient.Index) -> Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Cylinder.point p i) :=
+  \fun (i: Ambient.Index) => PointEvaluation.composeContinuous cylinderTopology intersectionTopology Line.topology Cylinder.point (\fun (x: Intersection) => x i)
+    (Cylinder.pointContinuous intersectionTopology) (GeometryTopology.coordinateContinuous i);
+\definition timeContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Cylinder.time p) :=
+  TimeEvaluation.composeContinuous cylinderTopology Interval.topology Line.topology Cylinder.time (\fun (t: Interval.Carrier) => t)
+    (Cylinder.timeContinuous intersectionTopology) Interval.inclusionContinuous;
+\definition heightContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => height (Cylinder.point p)) :=
+  pointCoordinateContinuous (Fin.zero (N.Nat^::succ n));
+\definition reverseContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Interval.reverse (Cylinder.time p)) :=
+  Scalars.subContinuous cylinderTopology (\fun (_: Cylinder.Carrier) => Real.one) (\fun (p: Cylinder.Carrier) => Cylinder.time p)
+    (Scalars.constantContinuous cylinderTopology Real.one) timeContinuous;
+\import Split.Continuity[A := Cylinder.Carrier] \as Join;
+\definition coordinatesContinuous: topology.Continuity[A := Cylinder.Carrier, B := Ambient.Coordinate].Continuous cylinderTopology Ambient.topology
+  (\fun (p: Cylinder.Carrier) => vector (Cylinder.time p) (Cylinder.point p)) :=
+  Join.joinContinuous cylinderTopology
+    (\fun (p: Cylinder.Carrier) => Real.mul (Interval.reverse (Cylinder.time p)) (height (Cylinder.point p)))
+    (\fun (p: Cylinder.Carrier) => Split.tail (Cylinder.point p))
+    (Product.continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Interval.reverse (Cylinder.time p))
+      (\fun (p: Cylinder.Carrier) => height (Cylinder.point p)) reverseContinuous heightContinuous)
+    (\fun (i: Lower.Index) => pointCoordinateContinuous (Fin.succ (N.Nat^::succ n) i));
+\import AmbientNormalization.Continuity[A := Cylinder.Carrier] \as Normalize;
+\import topology.Continuity[A := Cylinder.Carrier, B := Sphere].Corestriction[S := left] \as IntoLeft;
+\import topology.Continuity[A := Cylinder.Carrier, B := Left].Corestriction[S := intersection] \as IntoIntersection;
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Intersection].Continuous cylinderTopology intersectionTopology family :=
+  IntoIntersection.corestrictContinuous cylinderTopology leftTopology family
+    (IntoLeft.corestrictContinuous cylinderTopology (topology (N.Nat^::succ n)) (\fun (p: Cylinder.Carrier) => family p)
+      (Normalize.continuous cylinderTopology (\fun (p: Cylinder.Carrier) => vector (Cylinder.time p) (Cylinder.point p)) coordinatesContinuous));

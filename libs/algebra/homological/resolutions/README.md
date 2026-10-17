@@ -11,5 +11,10 @@
 | `Naturality.With.Left` / `Right` | 分解写像・係数写像による比較の自然性 |
 | `With.Swap` | Koszul 符号付き交換と左右の比較の整合性 |
 | `With.LeftInjection` / `RightInjection` | 直和成分上の公式 |
+| `HomComplex.Over.Homotopy.Native` | 鎖ホモトピーから任意係数の Hom 余鎖ホモトピーへの反変な移行 |
+| `HomComplex.Over.Equivalence.Native` | 鎖ホモトピー同値から得る余鎖の比較写像と、両合成の余鎖ホモトピー |
+| `HomComplex.Over.Abelian.On` / `Native` / `Mapping` / `NativeMapping` | 整数鎖と環上の係数加群の Hom、環上で線形な余境界・誘導写像、通常の可換群コホモロジー上の加群構造。 |
+| `HomComplex.Over.IntegerHomotopy` / `IntegerEquivalence` | 整数次数の鎖ホモトピー不変性と、任意係数の Hom コホモロジーの比較 |
+| `HomComplex.Over.Relative.On` | 分裂する鎖の包含からの相対余鎖、消滅余鎖との同型、対の長完全列 |
 
 二重複体の基盤は [double_complexes](../double_complexes/README.md)、次数ごとに台集合が変わる利用例は [Cohomology.ref](../../../geometry/coordinate_calculus/src/Cohomology.ref) にある。

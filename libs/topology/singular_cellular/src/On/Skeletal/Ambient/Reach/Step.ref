@@ -1,0 +1,34 @@
+\import \parent.\parent.\parent.StabilityStep[limit := limit extra, k := k] \as Stability;
+\import \parent.\parent.\parent.\parent.Filtration[].Stage[limit := N.Nat^::succ (limit extra)] \as Upper;
+\import singular_cohomology.Chains[A := Upper.Carrier, source := Upper.topology] \as UpperChains;
+\import Nonnegative.ZeroExtension[C := UpperChains.complex] \as UpperExtension;
+\import Complexes.At[C := UpperExtension.complex, z := degree] \as UpperHomology;
+\import \parent.\parent.Reach[extra := N.Nat^::succ extra] \as Next;
+\import \parent.\parent.\parent.\parent.Filtration[].Inclusion[m := base, n := limit (N.Nat^::succ extra)] \as Direct;
+\import singular_cohomology.Maps[A := Initial.Carrier, B := Stage.Carrier,
+  source := Initial.topology, target := Stage.topology].Composition[C := Upper.Carrier, final := Upper.topology].Integer[] \as Functor;
+\import singular_cohomology.Maps[A := Stage.Carrier, B := Upper.Carrier,
+  source := Stage.topology, target := Upper.topology] \as After;
+\import Complexes.Map[C := Extension.complex, D := UpperExtension.complex]
+  .Composition[B := InitialExtension.complex] \as Compose;
+\import Complexes.Map[C := InitialExtension.complex, D := UpperExtension.complex] \as DirectMaps;
+\definition factorization: Compose.compose
+  (After.integerPush Stage.Next[].inclusion Stage.Next[].continuous) chainMap = Next.chainMap :=
+  Functor.law (Inclusion.apply bound) (Inclusion.continuous bound) Stage.Next[].inclusion Stage.Next[].continuous;
+\import Compose.At[k := degree] \as HomologyComposition;
+\import Modules.Isomorphism[V := InitialHomology.Homology, W := Homology.Homology,
+  source := InitialHomology.homologySpace, target := Homology.homologySpace]
+  .Composition[U := UpperHomology.Homology, final := UpperHomology.homologySpace] \as Composition;
+\definition extend(previous: Isomorphism): Next.Isomorphism :=
+  Composition.compose (Stability.isomorphism (above extra)) previous;
+\import Complexes.Map[C := InitialExtension.complex, D := UpperExtension.complex].At[k := degree] \as NextInduced;
+\definition equation: \forall (previous: Isomorphism) ->
+  (\forall (q: InitialHomology.Homology) -> #apply{#forward{previous}} q = #apply{map} q) ->
+  \forall (q: InitialHomology.Homology) -> #apply{#forward{(extend previous)}} q = #apply{Next.map} q :=
+  \fun (previous: Isomorphism)(previousEquation: _)(q: InitialHomology.Homology) => trans!{UpperHomology.Homology} _ _ _
+    (congr!{Homology.Homology UpperHomology.Homology} (#apply{Stability.map}) _ _ (previousEquation q))
+    (trans!{UpperHomology.Homology} _ _ _
+      (sym!{UpperHomology.Homology} _ _ (HomologyComposition.compositionOnHomology
+        (After.integerPush Stage.Next[].inclusion Stage.Next[].continuous) chainMap q))
+      (congr!{DirectMaps.Map UpperHomology.Homology} (\fun (f: DirectMaps.Map) => #apply{(NextInduced.induced f)} q)
+        _ _ factorization));

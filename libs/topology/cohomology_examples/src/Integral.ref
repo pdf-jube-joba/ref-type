@@ -1,0 +1,76 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := IntegerRing.ring] \as Modules;
+\module Maps(A, B: Modules.Bundle) {
+  \import Modules.Laws[V := A.Carrier, space := A.space] \as Source;
+  \import Modules.Laws[V := B.Carrier, space := B.space] \as Target;
+  \import algebra.Group[].Of[Carrier := A.Carrier, group := Source.additive] \as SourceGroup;
+  \import algebra.Group[].Of[Carrier := B.Carrier, group := Target.additive] \as TargetGroup;
+  \import algebra.Exact[A := A.Carrier, B := B.Carrier].Groups[source := Source.additive, target := Target.additive] \as Groups;
+  \import algebra.Hom[A := A.Carrier, B := B.Carrier] \as GroupMaps;
+  \import module_theory.Module[].IntegerGroup[Carrier := B.Carrier, group := Target.additive] \as Integers;
+  \import algebra.Hom[A := I.Int^, B := B.Carrier] \as ScalarMaps;
+  \import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as Linear;
+  \module On(f: Groups.Map) {
+    \module At(x: A.Carrier) {
+      \definition before: Integers.IntegerMap :=
+        \into[I.Int^ -> B.Carrier](\fun (a: I.Int^) => f (#smul{A.space} a x), Integers.IntegerMap) \by {
+          ScalarMaps.MonoidLaws[Integers.integerDomain, Integers.target, \fun (a: I.Int^) => f (#smul{A.space} a x)] {
+            unit := trans!{B.Carrier} _ _ _ (congr!{A.Carrier B.Carrier} f _ _ (Source.zeroScale x))
+              (#unit{(GroupMaps.monoidLaws Groups.domain Groups.codomain f)}),
+            operation := \fun (a, b: I.Int^) => trans!{B.Carrier} _ _ _
+              (congr!{A.Carrier B.Carrier} f _ _ (#scalarAdd{A.space} a b x))
+              (#operation{(GroupMaps.monoidLaws Groups.domain Groups.codomain f)} (#smul{A.space} a x) (#smul{A.space} b x)),
+          }
+        };
+      \definition after: Integers.IntegerMap :=
+        \into[I.Int^ -> B.Carrier](\fun (a: I.Int^) => #smul{B.space} a (f x), Integers.IntegerMap) \by {
+          ScalarMaps.MonoidLaws[Integers.integerDomain, Integers.target, \fun (a: I.Int^) => #smul{B.space} a (f x)] {
+            unit := Target.zeroScale (f x), operation := \fun (a, b: I.Int^) => #scalarAdd{B.space} a b (f x),
+          }
+        };
+      \definition same: before = after := Integers.generatorExt before after
+        (trans!{B.Carrier} _ _ _ (congr!{A.Carrier B.Carrier} f _ _ (#scalarOne{A.space} x))
+          (sym!{B.Carrier} _ _ (#scalarOne{B.space} (f x))));
+      \definition law: \forall (a: I.Int^) -> f (#smul{A.space} a x) = #smul{B.space} a (f x) :=
+        \fun (a: I.Int^) => congr!{{I.Int^ -> B.Carrier} B.Carrier} (\fun (g: I.Int^ -> B.Carrier) => g a) _ _ same;
+    }
+    \definition linear: Linear.Map := Linear.Map {
+      apply := f,
+      addition := #operation{(GroupMaps.monoidLaws Groups.domain Groups.codomain f)},
+      scalar := \fun (a: I.Int^)(x: A.Carrier) => At[x := x].law a,
+    };
+  }
+  \definition fromGroup(f: Groups.Map): Linear.Map := On[f := f].linear;
+  \definition zeroOfAdditive(f: A.Carrier -> B.Carrier)
+    (addition: \forall (x, y: A.Carrier) -> f (#add{A.space} x y) = #add{B.space} (f x) (f y)):
+    f (#zero{A.space}) = #zero{B.space} :=
+    TargetGroup.cancelLeft (f (#zero{A.space})) (f (#zero{A.space})) (#zero{B.space})
+      (trans!{B.Carrier} _ _ _
+        (trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ (addition (#zero{A.space}) (#zero{A.space})))
+          (congr!{A.Carrier B.Carrier} f _ _ (SourceGroup.zeroLeft (#zero{A.space}))))
+        (sym!{B.Carrier} _ _ (TargetGroup.zeroRight (f (#zero{A.space})))));
+  \definition fromAdditive(f: A.Carrier -> B.Carrier)
+    (addition: \forall (x, y: A.Carrier) -> f (#add{A.space} x y) = #add{B.space} (f x) (f y)): Linear.Map :=
+    fromGroup (\into[A.Carrier -> B.Carrier](f, Groups.Map) \by {
+      GroupMaps.MonoidLaws[Groups.domain, Groups.codomain, f] {
+        unit := zeroOfAdditive f addition, operation := addition,
+      }
+    });
+
+}
+
+\module Generator(B: Modules.Bundle) {
+  \import Modules.Hom[V := I.Int^, W := B.Carrier, source := Modules.scalarModule, target := B.space] \as Maps;
+  \import I.Math[].Specification[].Prop[].Multiplication[] \as Product;
+  \definition value(f: Maps.Map)(a: I.Int^): #apply{f} a = #smul{B.space} a (#apply{f} I.One.specification) :=
+    trans!{B.Carrier} _ _ _ (congr!{I.Int^ B.Carrier} (#apply{f}) _ _ (sym!{I.Int^} _ _ (Product.mulOneRight a)))
+      (#scalar{f} a I.One.specification);
+  \definition equal(f, g: Maps.Map)(one: #apply{f} I.One.specification = #apply{g} I.One.specification): f = g :=
+    Maps.ext f g (\fun (a: I.Int^) => trans!{B.Carrier} _ _ _ (value f a)
+      (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} (#smul{B.space} a) _ _ one) (sym!{B.Carrier} _ _ (value g a))));
+}

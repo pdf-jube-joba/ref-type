@@ -1,0 +1,21 @@
+\module Degree(n: N.Nat^) {
+  \import Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier (N.Nat^::succ n), source := C.family.space n, target := D.family.space (N.Nat^::succ n)] \as Shift;
+  \definition shift: Shift.Map := Shift.Map { apply := #apply{h} n, addition := #addition{h} n, scalar := #scalar{h} n };
+  \import Before.At[n := n] \as BeforeDegree;
+  \import Shift.Composition[U := B.family.Carrier n, domain := B.family.space n] \as Compose;
+  \definition map: Modules.Hom[V := B.family.Carrier n, W := D.family.Carrier (N.Nat^::succ n), source := B.family.space n, target := D.family.space (N.Nat^::succ n)].Map := Compose.compose shift (BeforeDegree.linear k);
+}
+\definition data: Result.Data := Result.Data { apply := \fun (n: N.Nat^) => #apply{Degree[n := n].map} };
+\definition positive(n: N.Nat^)(x: B.family.Carrier (N.Nat^::succ n)):
+  #add{(D.family.space (N.Nat^::succ n))} (#apply{f} (N.Nat^::succ n) (#apply{k} (N.Nat^::succ n) x)) (#neg{(D.family.space (N.Nat^::succ n))} (#apply{g} (N.Nat^::succ n) (#apply{k} (N.Nat^::succ n) x))) =
+  #add{(D.family.space (N.Nat^::succ n))} (#apply{D.differential} (N.Nat^::succ n) (#apply{h} (N.Nat^::succ n) (#apply{k} (N.Nat^::succ n) x))) (#apply{h} n (#apply{k} n (#apply{B.differential} n x))) :=
+  trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _ (#successorEquation{h} n (#apply{k} (N.Nat^::succ n) x))
+    (congr!{{C.family.Carrier n} {D.family.Carrier (N.Nat^::succ n)}} (\fun (y: C.family.Carrier n) => #add{(D.family.space (N.Nat^::succ n))} (#apply{D.differential} (N.Nat^::succ n) (#apply{h} (N.Nat^::succ n) (#apply{k} (N.Nat^::succ n) x))) (#apply{h} n y)) _ _ (#commutes{k} n x));
+\definition homotopy: Result.Homotopy (Composition.compose f k) (Composition.compose g k) := \into[Result.Data](data, Result.Homotopy (Composition.compose f k) (Composition.compose g k)) \by {
+  Result.Laws[Composition.compose f k, Composition.compose g k, data] {
+    addition := \fun (n: N.Nat^) => #addition{Degree[n := n].map},
+    scalar := \fun (n: N.Nat^) => #scalar{Degree[n := n].map},
+    zeroEquation := \fun (x: B.family.Carrier N.Nat^::zero) => #zeroEquation{h} (#apply{k} N.Nat^::zero x),
+    successorEquation := positive,
+  }
+};

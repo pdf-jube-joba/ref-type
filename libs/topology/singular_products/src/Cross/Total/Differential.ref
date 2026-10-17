@@ -1,0 +1,27 @@
+\import Chains.Degree[n := n] \as LowerSum;
+\import Chains.Degree[n := N.Nat^::succ n] \as HigherSum;
+\import \parent.Degree[n := n] \as Lower;
+\import \parent.Degree[n := N.Nat^::succ n] \as Higher;
+\import Chains.Step[n := n] \as Step;
+\import Modules.Hom[V := HigherSum.Carrier, W := Target.Carrier n, source := HigherSum.space, target := Target.space n] \as Linear;
+\import Modules.Hom[V := LowerSum.Carrier, W := Target.Carrier n, source := LowerSum.space, target := Target.space n].Composition[U := HigherSum.Carrier, domain := HigherSum.space] \as First;
+\import Modules.Hom[V := Target.Carrier (N.Nat^::succ n), W := Target.Carrier n, source := Target.space (N.Nat^::succ n), target := Target.space n].Composition[U := HigherSum.Carrier, domain := HigherSum.space] \as Second;
+\definition lhs: Linear.Map := First.compose Lower.map Step.differential;
+\definition rhs: Linear.Map := Second.compose (Target.boundary n) Higher.map;
+\definition Statement(k: N.Nat^)(i: Double.Index (N.Nat^::succ k)): \Prop := \forall (z: Tensor.Carrier #first{i} #second{i}) ->
+  #apply{\parent.Degree[n := k].map} (#apply{Chains.differential} k (#apply{Chains.Degree[n := N.Nat^::succ k].Component[i := i].injection} z)) =
+    #apply{Target.differential} k (#apply{\parent.Degree[n := N.Nat^::succ k].map} (#apply{Chains.Degree[n := N.Nat^::succ k].Component[i := i].injection} z));
+\definition pairIndex(k, p, q: N.Nat^)(closed: Nat.add p q = N.Nat^::succ k): Double.Index (N.Nat^::succ k) :=
+  \into[Double.Pair](Double.Pair { first := p, second := q }, { i: Double.Pair \where Nat.add #first{i} #second{i} = N.Nat^::succ k }) \by { closed };
+\module At(i: Double.Index (N.Nat^::succ n));
+\module Horizontal(r: N.Nat^, q: Double.Second (N.Nat^::succ n) (N.Nat^::succ r));
+\module Vertical(s: N.Nat^, p: Double.First (N.Nat^::succ n) (N.Nat^::succ s));
+\module LeftAxis(r: N.Nat^);
+\module RightAxis(s: N.Nat^);
+\module Positive(r, s: N.Nat^);
+\module Transported;
+\module Indexed(i: Double.Index (N.Nat^::succ n));
+\import Modules.DirectSum[Index := Double.Index (N.Nat^::succ n), family := HigherSum.family].To[W := Target.Carrier n, target := Target.space n] \as Extension;
+\definition equation: lhs = rhs := Extension.ext lhs rhs (\fun (i: Double.Index (N.Nat^::succ n)) => Indexed[i := i].law);
+\definition law: \forall (x: HigherSum.Carrier) -> #apply{lhs} x = #apply{rhs} x :=
+  \fun (x: HigherSum.Carrier) => congr!{Linear.Map {Target.Carrier n}} (\fun (h: Linear.Map) => #apply{h} x) _ _ equation;

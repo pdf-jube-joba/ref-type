@@ -1,0 +1,31 @@
+\definition scalarRight: \forall (n: N.Nat^)(w: Fin.Fin n -> Real)(c: Real) -> sum n (\fun (i: Fin.Fin n) => mul (w i) c) = mul (sum n w) c :=
+  \fun (n: N.Nat^)(w: Fin.Fin n -> Real)(c: Real) => trans!{Real} _ _ _
+    (congruent n (\fun (i: Fin.Fin n) => mul (w i) c) (\fun (i: Fin.Fin n) => mul c (w i)) (\fun (i: Fin.Fin n) => Laws.fieldMulComm (w i) c))
+    (trans!{Real} _ _ _ (scalar n c w) (Laws.fieldMulComm c (sum n w)));
+\definition constant: \forall (n: N.Nat^)(w: Fin.Fin n -> Real)(c: Real) -> sum n w = one -> sum n (\fun (i: Fin.Fin n) => mul (w i) c) = c :=
+  \fun (n: N.Nat^)(w: Fin.Fin n -> Real)(c: Real)(total: sum n w = one) => trans!{Real} _ _ _ (scalarRight n w c)
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => mul s c) _ _ total) (Laws.fieldMulOneLeft c));
+\definition sumDistance: \forall (n: N.Nat^)(f, g: Fin.Fin n -> Real) ->
+  R.Le (distance (sum n f) (sum n g)) (sum n (\fun (i: Fin.Fin n) => distance (f i) (g i))) :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> Real) ->
+    R.Le (distance (sum n f) (sum n g)) (sum n (\fun (i: Fin.Fin n) => distance (f i) (g i))) \with {
+      | zero: \fun (f, g: Fin.Fin N.Nat^::zero -> Real) => R.leReplaceLeft zero (distance zero zero) zero (sym!{Real} _ _ (Metric.distanceSelf zero)) (R.leRefl zero)
+      | succ: \fun (n: N.Nat^)(previous: _)(f, g: Fin.Fin (N.Nat^::succ n) -> Real) => R.leTrans _ _ _
+          (Bounds.distanceAdd (f (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) (g (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => g (Fin.succ n i))))
+          (Bounds.addLe _ _ _ _ (R.leRefl _) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => g (Fin.succ n i))))
+    };
+\definition weightedDistance: \forall (n: N.Nat^)(w, f, g: Fin.Fin n -> Real) -> (\forall (i: Fin.Fin n) -> R.Le zero (w i)) ->
+  R.Le (distance (sum n (\fun (i: Fin.Fin n) => mul (w i) (f i))) (sum n (\fun (i: Fin.Fin n) => mul (w i) (g i))))
+    (sum n (\fun (i: Fin.Fin n) => mul (w i) (distance (f i) (g i)))) :=
+  \fun (n: N.Nat^)(w, f, g: Fin.Fin n -> Real)(positive: \forall (i: Fin.Fin n) -> R.Le zero (w i)) => R.leTrans _ _ _
+    (sumDistance n (\fun (i: Fin.Fin n) => mul (w i) (f i)) (\fun (i: Fin.Fin n) => mul (w i) (g i)))
+    (comparison n _ _ (\fun (i: Fin.Fin n) => Bounds.distanceMul (w i) (f i) (g i) (positive i)));
+\definition radius: \forall (n: N.Nat^)(w, f: Fin.Fin n -> Real)(c, r: Real) -> (\forall (i: Fin.Fin n) -> R.Le zero (w i)) -> sum n w = one ->
+  (\forall (i: Fin.Fin n) -> R.Le (distance (f i) c) r) -> R.Le (distance (sum n (\fun (i: Fin.Fin n) => mul (w i) (f i))) c) r :=
+  \fun (n: N.Nat^)(w, f: Fin.Fin n -> Real)(c, r: Real)(positive: \forall (i: Fin.Fin n) -> R.Le zero (w i))(total: sum n w = one)(bounds: \forall (i: Fin.Fin n) -> R.Le (distance (f i) c) r) =>
+    R.leReplace
+      (distance (sum n (\fun (i: Fin.Fin n) => mul (w i) (f i))) (sum n (\fun (i: Fin.Fin n) => mul (w i) c))) (distance (sum n (\fun (i: Fin.Fin n) => mul (w i) (f i))) c)
+      (sum n (\fun (i: Fin.Fin n) => mul (w i) r)) r
+      (congr!{Real Real} (distance (sum n (\fun (i: Fin.Fin n) => mul (w i) (f i)))) _ _ (constant n w c total)) (constant n w r total)
+      (R.leTrans _ _ _ (weightedDistance n w f (\fun (_: Fin.Fin n) => c) positive)
+        (comparison n _ _ (\fun (i: Fin.Fin n) => Bounds.mulMonotone (w i) (distance (f i) c) r (positive i) (bounds i))));

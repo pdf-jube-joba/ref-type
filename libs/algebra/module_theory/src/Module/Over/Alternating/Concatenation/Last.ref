@@ -1,0 +1,15 @@
+\import \parent.Ordered[p := n, q := N.Nat^::succ N.Nat^::zero] \as Cut;
+\import \parent.Singleton[] \as Singleton;
+\definition last: Fin.Fin (N.Nat^::succ n) := \into[N.Nat^](n, { i: N.Nat^ \where Bounds.Lt i (N.Nat^::succ n) }) \by {
+  Bounds.ltOfSuccLe (N.Nat^::succ n) n (Bounds.leRefl (N.Nat^::succ n))
+};
+\definition right: \forall (f: Fin.Fin (N.Nat^::succ n) -> V) -> sum (N.Nat^::succ N.Nat^::zero) (\fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => f (Cut.back i)) = f last :=
+  \fun (f: Fin.Fin (N.Nat^::succ n) -> V) => trans!{V} _ _ _ (Singleton.law (\fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => f (Cut.back i)))
+    (congr!{{Fin.Fin (N.Nat^::succ n)} V} f (Cut.back (Fin.zero N.Nat^::zero)) last (Cut.backValue (Fin.zero N.Nat^::zero)));
+\definition law: \forall (f: Fin.Fin (N.Nat^::succ n) -> V) -> sum (N.Nat^::succ n) f =
+  Values.add (sum n (\fun (i: Fin.Fin n) => f (Fin.widen n i))) (twist n (f last)) :=
+  \fun (f: Fin.Fin (N.Nat^::succ n) -> V) => trans!{V} _ _ _ (Cut.law f)
+    (congr2!{V V V} Values.add _ _ _ _
+      (congruent n (\fun (i: Fin.Fin n) => f (Cut.front i)) (\fun (i: Fin.Fin n) => f (Fin.widen n i))
+        (\fun (i: Fin.Fin n) => congr!{{Fin.Fin (N.Nat^::succ n)} V} f (Cut.front i) (Fin.widen n i) (Cut.frontValue i)))
+      (congr!{V V} (twist n) _ _ (right f)));

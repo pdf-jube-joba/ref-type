@@ -1,0 +1,32 @@
+\import Modules.FiniteCoordinates[n := ranks z] \as Coordinates;
+\import Coordinates.Free[] \as CoordinateFree;
+\import Modules.Free[Generators := Coordinates.Index] \as Free;
+\import SignedChains.At[C := ExtendedSingular.complex, z := z] \as H;
+\import Free.To[W := H.Cycle, target := H.cycleSpace] \as Extend;
+\definition assignment(i: Coordinates.Index): H.Cycle := cycle z;
+\import Modules.Hom[V := Free.Carrier, W := H.Cycle, source := Free.space, target := H.cycleSpace]
+  .Composition[U := Coordinates.Carrier, domain := Coordinates.space] \as CycleComposition;
+\definition intoCycles: Modules.Hom[V := Coordinates.Carrier, W := H.Cycle, source := Coordinates.space, target := H.cycleSpace].Map :=
+  CycleComposition.compose (Extend.extension assignment) #backward{CoordinateFree.isomorphism};
+\import Modules.Hom[V := H.Cycle, W := ExtendedSingular.complex.family.Carrier z, source := H.cycleSpace, target := ExtendedSingular.complex.family.space z] \as Forget;
+\definition forget: Forget.Map := Forget.Map {
+  apply := \fun (x: H.Cycle) => x,
+  addition := \fun (x, y: H.Cycle) => \refl(#add{(ExtendedSingular.complex.family.space z)} x y),
+  scalar := \fun (a: I.Int^)(x: H.Cycle) => \refl(#smul{(ExtendedSingular.complex.family.space z)} a x),
+};
+\import Forget.Composition[U := Coordinates.Carrier, domain := Coordinates.space] \as Composition;
+\definition map: Modules.Hom[V := Coordinates.Carrier, W := ExtendedSingular.complex.family.Carrier z, source := Coordinates.space, target := ExtendedSingular.complex.family.space z].Map := Composition.compose forget intoCycles;
+\module Prior;
+\definition commutes(v: Vector z):
+  #apply{ExtendedSingular.complex.differential} z (#apply{map} v) = #apply{(\parent.Degree[z := Bounded.previous z].map)} (differential z v) :=
+  trans!{{ExtendedSingular.complex.family.Carrier (Bounded.previous z)}} _ _ _
+    (\bysub(ExtendedSingular.complex.family.Carrier z, #carrier{H.cycles}, #apply{intoCycles} v))
+    (sym!{{ExtendedSingular.complex.family.Carrier (Bounded.previous z)}} _ _ (Prior[].zero v));
+
+\definition onBasis(i: Coordinates.Index): #apply{map} (Coordinates.basis i) = cycle z :=
+  trans!{{ExtendedSingular.complex.family.Carrier z}} _ _ _
+    (congr!{Coordinates.Carrier {ExtendedSingular.complex.family.Carrier z}} (#apply{map}) _ _ (sym!{Coordinates.Carrier} _ _ (CoordinateFree.onGenerator i)))
+    (trans!{{ExtendedSingular.complex.family.Carrier z}} _ _ _
+      (congr!{Free.Carrier {ExtendedSingular.complex.family.Carrier z}} (\fun (x: Free.Carrier) => #apply{(Extend.extension assignment)} x) _ _
+        (#leftInverse{CoordinateFree.isomorphism} (Free.generator i)))
+      (Extend.onGenerator assignment i));

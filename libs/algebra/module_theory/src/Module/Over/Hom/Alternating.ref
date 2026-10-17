@@ -1,0 +1,15 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import \parent.\parent.Alternating[V := W, space := target] \as Sum;
+\definition map: \forall (n: N.Nat^) -> (Fin.Fin n -> Map) -> Map :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> Map) -> Map \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> Map) => zeroMap
+    | succ: \fun (n: N.Nat^)(previous: (Fin.Fin n -> Map) -> Map)(f: Fin.Fin (N.Nat^::succ n) -> Map) =>
+      plus (f (Fin.zero n)) (negative (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i))))
+  };
+\definition onValues: \forall (n: N.Nat^)(f: Fin.Fin n -> Map)(x: V) -> #apply{(map n f)} x = Sum.sum n (\fun (i: Fin.Fin n) => #apply{(f i)} x) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> Map)(x: V) -> #apply{(map n f)} x = Sum.sum n (\fun (i: Fin.Fin n) => #apply{(f i)} x) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> Map)(x: V) => \refl(#zero{target})
+    | succ: \fun (n: N.Nat^)(previous: \forall (f: Fin.Fin n -> Map)(x: V) -> #apply{(map n f)} x = Sum.sum n (\fun (i: Fin.Fin n) => #apply{(f i)} x))(f: Fin.Fin (N.Nat^::succ n) -> Map)(x: V) =>
+      congr!{W W} (\fun (y: W) => #add{target} (#apply{(f (Fin.zero n))} x) (#neg{target} y)) _ _ (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) x)
+  };

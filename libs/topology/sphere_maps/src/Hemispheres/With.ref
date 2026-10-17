@@ -1,0 +1,36 @@
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import singular_cohomology.Chains[A := Spheres.Carrier n, source := Spheres.topology n] \as LowerChains;
+\import singular_cohomology.Chains[A := Geometry.Intersection, source := Geometry.intersectionTopology] \as IntersectionChains;
+\import Native.ZeroExtension[C := LowerChains.complex] \as Lower;
+\import Native.ZeroExtension[C := IntersectionChains.complex] \as Intersection;
+\import Hom.Integer[P := Lower.complex, N := coefficients] \as LowerHom;
+\import Hom.Integer[P := Intersection.complex, N := coefficients] \as IntersectionHom;
+\import singular_cohomology.Maps[A := Spheres.Carrier n, B := Geometry.Intersection, source := Spheres.topology n, target := Geometry.intersectionTopology] \as Inclusion;
+\import singular_cohomology.Maps[A := Geometry.Intersection, B := Geometry.Intersection, source := Geometry.intersectionTopology, target := Geometry.intersectionTopology] \as Endomorphism;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficient;
+\definition inclusion: Chains.Map[C := Lower.complex, D := Intersection.complex].Map := Inclusion.integerPush Equator.inclusion Equator.Topology[].inclusionContinuous;
+\definition reflection: Chains.Map[C := Intersection.complex, D := Intersection.complex].Map := Endomorphism.integerPush Action.intersectionFunction Action.intersectionContinuous;
+\import Chains.Map[C := Intersection.complex, D := Intersection.complex].Composition[B := Lower.complex] \as Composition;
+\import Inclusion.Composition[C := Geometry.Intersection, final := Geometry.intersectionTopology].Integer[] \as Functions;
+\import Inclusion.FunctionEquality[] \as FunctionEquality;
+\import Native.Map[C := LowerChains.complex, D := IntersectionChains.complex] \as NativeMaps;
+\definition lift(f: NativeMaps.Map): Chains.Map[C := Lower.complex, D := Intersection.complex].Map := NativeMaps.ZeroExtension[f := f].map;
+\definition fixed: Composition.compose reflection inclusion = inclusion :=
+  trans!{{Chains.Map[C := Lower.complex, D := Intersection.complex].Map}} _ _ _
+    (Functions.law Equator.inclusion Equator.Topology[].inclusionContinuous Action.intersectionFunction Action.intersectionContinuous)
+    (congr!{NativeMaps.Map {Chains.Map[C := Lower.complex, D := Intersection.complex].Map}} lift _ _
+      (FunctionEquality.law (\fun (x: Spheres.Carrier n) => Action.intersectionFunction (Equator.inclusion x))
+        (topology.Composition[A := Spheres.Carrier n, B := Geometry.Intersection, C := Geometry.Intersection].composeContinuous
+          (Spheres.topology n) Geometry.intersectionTopology Geometry.intersectionTopology Equator.inclusion Action.intersectionFunction
+          Equator.Topology[].inclusionContinuous Action.intersectionContinuous)
+        Equator.inclusion Equator.Topology[].inclusionContinuous fixedEquator));
+\import Hom.IntegerMapping[P := Lower.complex, Q := Intersection.complex, N := coefficients, L := coefficients] \as Pull;
+\import Hom.IntegerMapping[P := Intersection.complex, Q := Intersection.complex, N := coefficients, L := coefficients] \as Reflect;
+\definition inclusionPull: Cochains.Map[C := IntersectionHom.complex, D := LowerHom.complex].Map := Pull.On[f := inclusion, u := Coefficient.identity].map;
+\definition reflectionPull: Cochains.Map[C := IntersectionHom.complex, D := IntersectionHom.complex].Map := Reflect.On[f := reflection, u := Coefficient.identity].map;
+\module At(z: I.Int^);
+\module Vanishing;
+\module Positive;

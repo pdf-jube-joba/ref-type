@@ -1,0 +1,18 @@
+\definition extended: Tuple (N.Nat^::succ m) := Tuples.extend (N.Nat^::succ m) a vertices;
+\import Geometric.Affine[m := N.Nat^::succ m, n := d].Hull[vertices := Geometric.Reindex[m := N.Nat^::succ m, n := d].vertices extended] \as Hull;
+\definition Points: \Pow (Geometric.Carrier d) := Hull.Points;
+\definition apex: \In[Geometric.Carrier d] Points (Vertices.vertex d a) :=
+  \idelim extended (Fin.zero (N.Nat^::succ m)) = a \with v: Vertex => \In[Geometric.Carrier d] Points (Vertices.vertex d v) \by {
+    base: Hull.vertexMember (Fin.zero (N.Nat^::succ m)), equality: Tuples.atZero (N.Nat^::succ m) a vertices
+  };
+\definition old: \forall (i: Fin.Fin (N.Nat^::succ m)) -> \In[Geometric.Carrier d] Points (Vertices.vertex d (vertices i)) :=
+  \fun (i: Fin.Fin (N.Nat^::succ m)) =>
+    \idelim extended (Fin.succ (N.Nat^::succ m) i) = vertices i \with v: Vertex => \In[Geometric.Carrier d] Points (Vertices.vertex d v) \by {
+      base: Hull.vertexMember (Fin.succ (N.Nat^::succ m) i), equality: Tuples.atSuccessor (N.Nat^::succ m) a vertices i
+    };
+\definition point: \forall (x: Geometric.Carrier m) -> \In[Geometric.Carrier d] Points (Geometric.Reindex[m := m, n := d].apply vertices x) :=
+  Hull.closed m (\fun (i: Fin.Fin (N.Nat^::succ m)) => Vertices.vertex d (vertices i)) old;
+\import \root.AffineBlend[m := N.Nat^::succ m, n := d].Hull[vertices := Geometric.Reindex[m := N.Nat^::succ m, n := d].vertices extended] \as Blend;
+\definition blend: \forall (x: Geometric.Carrier m)(t: Interval.Carrier) ->
+  \In[Geometric.Carrier d] Points (Convex.blend t (Geometric.Reindex[m := m, n := d].apply vertices x) centre) :=
+  \fun (x: Geometric.Carrier m)(t: Interval.Carrier) => Blend.closed t (Geometric.Reindex[m := m, n := d].apply vertices x) centre (point x) apex;

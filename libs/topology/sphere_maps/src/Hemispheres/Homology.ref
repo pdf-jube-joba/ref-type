@@ -1,0 +1,48 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as SignedChains;
+\definition lowerDegree: I.Int^ := I.Int^::ofNat n;
+\definition upperDegree: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
+\import singular_cohomology.Chains[A := Spheres.Carrier n, source := Spheres.topology n] \as LowerChains;
+\import singular_cohomology.Chains[A := Geometry.Intersection, source := Geometry.intersectionTopology] \as IntersectionChains;
+\import singular_cohomology.Chains[A := Geometry.Left, source := Geometry.leftTopology] \as LeftChains;
+\import singular_cohomology.Chains[A := Geometry.Right, source := Geometry.rightTopology] \as RightChains;
+\import singular_cohomology.Chains[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)] \as WholeChains;
+\import singular_cohomology.Small[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n), family := { U: \Pow Geometry.Sphere \where Logic.Or[U = Geometry.left, U = Geometry.right] }] \as SmallChains;
+\import Native.Biproduct[C := LeftChains.complex, D := RightChains.complex] \as Sum;
+\import Native.ZeroExtension[C := LowerChains.complex] \as LowerExtension;
+\import Native.ZeroExtension[C := IntersectionChains.complex] \as IntersectionExtension;
+\import Native.ZeroExtension[C := Sum.complex] \as MiddleExtension;
+\import Native.ZeroExtension[C := SmallChains.complex] \as SmallExtension;
+\import Native.ZeroExtension[C := WholeChains.complex] \as WholeExtension;
+\import SignedChains.At[C := LowerExtension.complex, z := lowerDegree] \as LowerH;
+\import SignedChains.At[C := IntersectionExtension.complex, z := lowerDegree] \as IntersectionH;
+\import SignedChains.At[C := MiddleExtension.complex, z := upperDegree] \as MiddleH;
+\import SignedChains.At[C := SmallExtension.complex, z := upperDegree] \as SmallH;
+\import SignedChains.At[C := WholeExtension.complex, z := upperDegree] \as WholeH;
+\import singular_cohomology.Maps[A := Spheres.Carrier n, B := Geometry.Intersection, source := Spheres.topology n, target := Geometry.intersectionTopology] \as InclusionMaps;
+\import singular_cohomology.Maps[A := Geometry.Intersection, B := Geometry.Intersection, source := Geometry.intersectionTopology, target := Geometry.intersectionTopology] \as IntersectionMaps;
+\definition inclusion: SignedChains.Map[C := LowerExtension.complex, D := IntersectionExtension.complex].Map :=
+  InclusionMaps.integerPush Equator.inclusion Equator.Topology[].inclusionContinuous;
+\definition intersectionReflection: SignedChains.Map[C := IntersectionExtension.complex, D := IntersectionExtension.complex].Map :=
+  IntersectionMaps.integerPush Action.intersectionFunction Action.intersectionContinuous;
+\import SignedChains.Map[C := IntersectionExtension.complex, D := IntersectionExtension.complex].Composition[B := LowerExtension.complex] \as InclusionComposition;
+\import InclusionMaps.Composition[C := Geometry.Intersection, final := Geometry.intersectionTopology].Integer[] \as Functions;
+\import InclusionMaps.FunctionEquality[] \as FunctionEquality;
+\import Native.Map[C := LowerChains.complex, D := IntersectionChains.complex] \as NativeInclusions;
+\definition extendInclusion(f: NativeInclusions.Map): SignedChains.Map[C := LowerExtension.complex, D := IntersectionExtension.complex].Map := NativeInclusions.ZeroExtension[f := f].map;
+\definition fixed: InclusionComposition.compose intersectionReflection inclusion = inclusion :=
+  trans!{{SignedChains.Map[C := LowerExtension.complex, D := IntersectionExtension.complex].Map}} _ _ _
+    (Functions.law Equator.inclusion Equator.Topology[].inclusionContinuous Action.intersectionFunction Action.intersectionContinuous)
+    (congr!{NativeInclusions.Map {SignedChains.Map[C := LowerExtension.complex, D := IntersectionExtension.complex].Map}} extendInclusion _ _
+      (FunctionEquality.law (\fun (x: Spheres.Carrier n) => Action.intersectionFunction (Equator.inclusion x))
+        (topology.Composition[A := Spheres.Carrier n, B := Geometry.Intersection, C := Geometry.Intersection].composeContinuous
+          (Spheres.topology n) Geometry.intersectionTopology Geometry.intersectionTopology Equator.inclusion Action.intersectionFunction
+          Equator.Topology[].inclusionContinuous Action.intersectionContinuous)
+        Equator.inclusion Equator.Topology[].inclusionContinuous fixedEquator));
+\import \root.CoverAction[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].On[cover := Cover.cover] \as Sequence;
+\import Sequence.With[mapping := Action.Integer[].action] \as Diagram;
+\module Intersection;
+\module Vanishing;
+\module Small;
+\module Whole;

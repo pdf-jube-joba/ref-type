@@ -1,0 +1,32 @@
+\definition successorLaw:
+  (\forall (i, j: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) -> NL.Le i j -> Interchange n i j v) ->
+  \forall (i, j: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A) -> NL.Le i j ->
+    Interchange (N.Nat^::succ n) (succ (N.Nat^::succ n) i) (succ (N.Nat^::succ n) j) v :=
+  \fun (previous: _)(i, j: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A)(ordered: _) => \block {
+    \let a: A := v (zero (N.Nat^::succ (N.Nat^::succ n))) \then
+    \let tail: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A := \fun (k: Fin (N.Nat^::succ (N.Nat^::succ n))) => v (succ (N.Nat^::succ (N.Nat^::succ n)) k) \then
+    \return eq_reason!{
+      {omit (N.Nat^::succ n) (succ (N.Nat^::succ n) j) (omit (N.Nat^::succ (N.Nat^::succ n)) (widen (N.Nat^::succ (N.Nat^::succ n)) (succ (N.Nat^::succ n) i)) v)}
+      "=" {omit (N.Nat^::succ n) (succ (N.Nat^::succ n) j) (extend (N.Nat^::succ n) a (omit (N.Nat^::succ n) (widen (N.Nat^::succ n) i) tail))} "by" {
+        congr!{{Fin (N.Nat^::succ (N.Nat^::succ n)) -> A} {Fin (N.Nat^::succ n) -> A}} (omit (N.Nat^::succ n) (succ (N.Nat^::succ n) j)) _ _ (successor (N.Nat^::succ n) (widen (N.Nat^::succ n) i) v)}
+      "=" {extend n a (omit n j (omit (N.Nat^::succ n) (widen (N.Nat^::succ n) i) tail))} "by" {
+        onExtended n j a (omit (N.Nat^::succ n) (widen (N.Nat^::succ n) i) tail)}
+      "=" {extend n a (omit n i (omit (N.Nat^::succ n) (succ (N.Nat^::succ n) j) tail))} "by" {
+        congr!{{Fin n -> A} {Fin (N.Nat^::succ n) -> A}} (extend n a) _ _ (previous i j tail ordered)}
+      "=" {omit (N.Nat^::succ n) (succ (N.Nat^::succ n) i) (extend (N.Nat^::succ n) a (omit (N.Nat^::succ n) (succ (N.Nat^::succ n) j) tail))} "by" {
+        sym!{{Fin (N.Nat^::succ n) -> A}} _ _ (onExtended n i a (omit (N.Nat^::succ n) (succ (N.Nat^::succ n) j) tail))}
+      "=" {omit (N.Nat^::succ n) (succ (N.Nat^::succ n) i) (omit (N.Nat^::succ (N.Nat^::succ n)) (succ (N.Nat^::succ (N.Nat^::succ n)) (succ (N.Nat^::succ n) j)) v)} "by" {
+        congr!{{Fin (N.Nat^::succ (N.Nat^::succ n)) -> A} {Fin (N.Nat^::succ n) -> A}} (omit (N.Nat^::succ n) (succ (N.Nat^::succ n) i)) _ _
+          (sym!{{Fin (N.Nat^::succ (N.Nat^::succ n)) -> A}} _ _ (successor (N.Nat^::succ n) (succ (N.Nat^::succ n) j) v))}
+    }
+  };
+\definition law:
+  (\forall (i, j: Fin (N.Nat^::succ n))(v: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) -> NL.Le i j -> Interchange n i j v) ->
+  \forall (i, j: Fin (N.Nat^::succ (N.Nat^::succ n)))(v: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A) -> NL.Le i j -> Interchange (N.Nat^::succ n) i j v :=
+  \fun (previous: _) => cases (N.Nat^::succ n)
+    (\fun (i: Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (j: Fin (N.Nat^::succ (N.Nat^::succ n)))(v: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A) -> NL.Le i j -> Interchange (N.Nat^::succ n) i j v)
+    (\fun (j: Fin (N.Nat^::succ (N.Nat^::succ n)))(v: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A)(ordered: _) => beforeFirst (N.Nat^::succ n) j v)
+    (\fun (i: Fin (N.Nat^::succ n)) => cases (N.Nat^::succ n)
+      (\fun (j: Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (v: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A) -> NL.Le (succ (N.Nat^::succ n) i) j -> Interchange (N.Nat^::succ n) (succ (N.Nat^::succ n) i) j v)
+      (\fun (v: Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A)(ordered: _) => Logic.falseElim _ (NL.succNeZero i (NL.leZeroEq (N.Nat^::succ i) ordered)))
+      (\fun (j: Fin (N.Nat^::succ n)) => successorLaw previous i j));

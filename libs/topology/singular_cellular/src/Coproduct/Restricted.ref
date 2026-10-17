@@ -1,0 +1,64 @@
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition fiberSubset(i: Index): \Pow (fibers i) := { x: fibers i \where Space.Member S (injection i x) };
+\definition Fiber(i: Index): \Set := \Cast[fibers i] (fiberSubset i);
+\definition fiberTopology(i: Index): topology.Topology[Carrier := Fiber i].Topology :=
+  topology.Topology[Carrier := fibers i].Subspace[S := fiberSubset i].topology (spaces i);
+\import \root.Coproduct[Index := Index, fibers := Fiber, spaces := fiberTopology] \as Cut;
+\import Space.Subspace[S := S] \as Subspace;
+\definition Old: \Set := Subspace.CarrierSet;
+\definition New: \Set := Cut.Carrier;
+\import singular_cellular_algebra.Algebra[].Refinement[A := Carrier, S := S] \as Refined;
+\definition oldTopology: topology.Topology[Carrier := Old].Topology := Subspace.topology topology;
+\definition forward(c: New): Old :=
+  \into[Carrier](injection (#index{c}) (#point{c}), S) \by {
+    \bysub(fibers (#index{c}), fiberSubset (#index{c}), #point{c})
+  };
+\definition pointInside(c: Old): Space.Member S (injection (#index{c}) (#point{c})) :=
+  \idelim c = injection (#index{c}) (#point{c}) \with a: Carrier => Space.Member S a \by {
+    base: \bysub(Carrier, S, c), equality: sym!{Carrier} _ _ (eta c)
+  };
+\definition backward(c: Old): New := Cut.injection (#index{c})
+  (\into[fibers (#index{c})](#point{c}, fiberSubset (#index{c})) \by {
+    pointInside c
+  });
+\import topology.Topology[Carrier := New] \as NewSpace;
+\import topology.Topology[Carrier := Old] \as OldSpace;
+\import topology.Continuity[A := New, B := Old] \as Forward;
+\import topology.Continuity[A := Old, B := New] \as Backward;
+\module AtIndex(i: Index);
+\import topology.Continuity[A := New, B := Carrier].Corestriction[S := S] \as Into;
+\definition forwardContinuous: Forward.Continuous Cut.topology oldTopology forward :=
+  Into.corestrictContinuous Cut.topology topology forward
+    (\fun (U: \Pow Carrier)(open: Space.IsOpenIn topology U) =>
+      #rtl{(Cut.openCriterion ({ c: New \where Space.Member U (forward c) }))}
+        (\fun (i: Index) => AtIndex[i := i].forwardContinuous U open));
+\definition backwardContinuous: Backward.Continuous oldTopology Cut.topology backward :=
+  \fun (U: \Pow New)(open: NewSpace.IsOpenIn Cut.topology U) =>
+    OldSpace.openOfNeighborhoods oldTopology (Backward.Preimage backward U)
+      (\block {
+        \fun (c: Old)(inside: NewSpace.Member U (backward c)) \then
+        \let x: Fiber (#index{c}) := \into[fibers (#index{c})](#point{c}, fiberSubset (#index{c})) \by { pointInside c } \then
+        \let same: AtIndex[i := #index{c}].point x = c :=
+          Refined.ext (AtIndex[i := #index{c}].point x) c (eta c) \then
+        \return \idelim AtIndex[i := #index{c}].point x = c \with point: Old =>
+          \exists { V: \Pow Old \where OldSpace.OpenNeighborhood[oldTopology, point, Backward.Preimage backward U, V] } \by {
+            base: AtIndex[i := #index{c}].neighborhood U open x inside,
+            equality: same
+          }
+      });
+\definition forget(c: Old): Carrier := c;
+\definition restrict(c: Carrier)(inside: Space.Member S c): Old := \into[Carrier](c, S) \by { inside };
+\definition oldExt(x, y: Old)(same: forget x = forget y): x = y := Refined.ext x y same;
+\definition homeomorphism: topology.Homeomorphism[A := New, B := Old].Homeomorphism[Cut.topology, oldTopology] :=
+  topology.Homeomorphism[A := New, B := Old].Homeomorphism[Cut.topology, oldTopology] {
+    forward := forward, backward := backward,
+    leftInverse := \fun (c: New) => Cut.eta c,
+    rightInverse := \fun (c: Old) => oldExt (forward (backward c)) c (eta c),
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };
+\module ProductUniversal(X, B: \Set,
+  factor: topology.Topology[Carrier := X].Topology, target: topology.Topology[Carrier := B].Topology);

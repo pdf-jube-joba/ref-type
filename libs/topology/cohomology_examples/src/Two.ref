@@ -1,0 +1,118 @@
+\import std.Data[].Bool[] \as B;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Alg[].Ring[] \as Rings;
+\import std.Alg[].Field[] \as Fields;
+\import std.Logic[].Proposition[] \as Logic;
+\definition Carrier: \Set := B.Bool^;
+\definition zero: Carrier := B.Bool^::false;
+\definition one: Carrier := B.Bool^::true;
+\definition add: Carrier -> Carrier -> Carrier := B.Xor.specification;
+\definition mul: Carrier -> Carrier -> Carrier := B.And.specification;
+\definition neg(x: Carrier): Carrier := x;
+\definition inverse(x: Carrier): Carrier := x;
+\definition cases3(P: Carrier -> Carrier -> Carrier -> \Prop):
+  P zero zero zero -> P zero zero one -> P zero one zero -> P zero one one ->
+  P one zero zero -> P one zero one -> P one one zero -> P one one one ->
+  \forall (x, y, z: Carrier) -> P x y z :=
+  \fun (a: P zero zero zero)(b: P zero zero one)(c: P zero one zero)(d: P zero one one)
+    (e: P one zero zero)(f: P one zero one)(g: P one one zero)(h: P one one one) =>
+    B.cases (\fun (x: Carrier) => \forall (y, z: Carrier) -> P x y z)
+      (B.cases2 (P zero) a b c d) (B.cases2 (P one) e f g h);
+\definition addZeroLeft: \forall (x: Carrier) -> add zero x = x :=
+  B.cases (\fun (x: Carrier) => add zero x = x)
+    (\refl(add zero zero)) (\refl(add zero one));
+\definition addZeroRight: \forall (x: Carrier) -> add x zero = x :=
+  B.cases (\fun (x: Carrier) => add x zero = x)
+    (\refl(add zero zero)) (\refl(add one zero));
+\definition addAssociative: \forall (x, y, z: Carrier) -> add (add x y) z = add x (add y z) :=
+  cases3 (\fun (x, y, z: Carrier) => add (add x y) z = add x (add y z))
+    (\refl(add (add zero zero) zero)) (\refl(add (add zero zero) one)) (\refl(add (add zero one) zero)) (\refl(add (add zero one) one)) (\refl(add (add one zero) zero)) (\refl(add (add one zero) one)) (\refl(add (add one one) zero)) (\refl(add (add one one) one));
+\definition addCommutative: \forall (x, y: Carrier) -> add x y = add y x :=
+  B.cases2 (\fun (x, y: Carrier) => add x y = add y x)
+    (\refl(add zero zero)) (\refl(add zero one)) (\refl(add one zero)) (\refl(add one one));
+\definition addSelf: \forall (x: Carrier) -> add x x = zero :=
+  B.cases (\fun (x: Carrier) => add x x = zero)
+    (\refl(add zero zero)) (\refl(add one one));
+\definition mulOneLeft: \forall (x: Carrier) -> mul one x = x :=
+  B.cases (\fun (x: Carrier) => mul one x = x)
+    (\refl(mul one zero)) (\refl(mul one one));
+\definition mulOneRight: \forall (x: Carrier) -> mul x one = x :=
+  B.cases (\fun (x: Carrier) => mul x one = x)
+    (\refl(mul zero one)) (\refl(mul one one));
+\definition mulAssociative: \forall (x, y, z: Carrier) -> mul (mul x y) z = mul x (mul y z) :=
+  cases3 (\fun (x, y, z: Carrier) => mul (mul x y) z = mul x (mul y z))
+    (\refl(mul (mul zero zero) zero)) (\refl(mul (mul zero zero) one)) (\refl(mul (mul zero one) zero)) (\refl(mul (mul zero one) one)) (\refl(mul (mul one zero) zero)) (\refl(mul (mul one zero) one)) (\refl(mul (mul one one) zero)) (\refl(mul (mul one one) one));
+\definition mulCommutative: \forall (x, y: Carrier) -> mul x y = mul y x :=
+  B.cases2 (\fun (x, y: Carrier) => mul x y = mul y x)
+    (\refl(mul zero zero)) (\refl(mul zero one)) (\refl(mul one zero)) (\refl(mul one one));
+\definition distributeLeft: \forall (x, y, z: Carrier) -> mul x (add y z) = add (mul x y) (mul x z) :=
+  cases3 (\fun (x, y, z: Carrier) => mul x (add y z) = add (mul x y) (mul x z))
+    (\refl(mul zero (add zero zero))) (\refl(mul zero (add zero one))) (\refl(mul zero (add one zero))) (\refl(mul zero (add one one))) (\refl(mul one (add zero zero))) (\refl(mul one (add zero one))) (\refl(mul one (add one zero))) (\refl(mul one (add one one)));
+\definition distributeRight: \forall (x, y, z: Carrier) -> mul (add x y) z = add (mul x z) (mul y z) :=
+  cases3 (\fun (x, y, z: Carrier) => mul (add x y) z = add (mul x z) (mul y z))
+    (\refl(mul (add zero zero) zero)) (\refl(mul (add zero zero) one)) (\refl(mul (add zero one) zero)) (\refl(mul (add zero one) one)) (\refl(mul (add one zero) zero)) (\refl(mul (add one zero) one)) (\refl(mul (add one one) zero)) (\refl(mul (add one one) one));
+\definition mulZeroLeft: \forall (x: Carrier) -> mul zero x = zero :=
+  B.cases (\fun (x: Carrier) => mul zero x = zero)
+    (\refl(mul zero zero)) (\refl(mul zero one));
+\definition mulZeroRight: \forall (x: Carrier) -> mul x zero = zero :=
+  B.cases (\fun (x: Carrier) => mul x zero = zero)
+    (\refl(mul zero zero)) (\refl(mul one zero));
+\definition data: Rings.RingData[Carrier] := Rings.RingData[Carrier] {
+  zero := zero, one := one, add := add, neg := neg, mul := mul,
+};
+\definition ringLaws: Rings.RingLaws[Carrier, data] := Rings.RingLaws[Carrier, data] {
+  semiring := Alg.SemiringLaws[Carrier, Alg.SemiringData[Carrier]::# zero one add mul] {
+    additive := Monoid.CommutativeMonoidLaws[Carrier, Monoid.CommutativeMonoidData[Carrier]::# (Monoid.MonoidData[Carrier]::# zero add)] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# zero add] {
+        leftIdentity := addZeroLeft, rightIdentity := addZeroRight, associative := addAssociative,
+      },
+      commutative := addCommutative,
+    },
+    multiplicative := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# one mul] {
+      leftIdentity := mulOneLeft, rightIdentity := mulOneRight, associative := mulAssociative,
+    },
+    leftDistributive := distributeLeft, rightDistributive := distributeRight,
+    zeroAbsorbsLeft := mulZeroLeft, zeroAbsorbsRight := mulZeroRight,
+  },
+  additiveInverse := addSelf,
+};
+\definition ring: Rings.Ring[Carrier] := \into[Rings.RingData[Carrier]](data, Rings.Ring[Carrier]) \by { ringLaws };
+\definition commutativeRing: Rings.CommutativeRing[Carrier] := Rings.CommutativeRing[Carrier] {
+  base := data, ring := ringLaws, mulCommutative := mulCommutative,
+};
+\definition distinguish(x: Carrier): \Prop :=
+  (\induction (x: Carrier) \return \Prop \with { | false: Logic.True | true: Logic.False }) x;
+\definition nontrivial: zero = one -> Logic.False := \fun (same: zero = one) =>
+  \idelim zero = one \with x: Carrier => distinguish x \by {
+    base: Logic.True::intro, equality: same
+  };
+\definition inverseLaw: \forall (x: Carrier) -> (x = zero -> Logic.False) -> mul (inverse x) x = one :=
+  B.cases (\fun (x: Carrier) => (x = zero -> Logic.False) -> mul (inverse x) x = one)
+    (\fun (nonzero: zero = zero -> Logic.False) => Logic.falseElim (mul (inverse zero) zero = one) (nonzero (\refl(zero))))
+    (\fun (nonzero: one = zero -> Logic.False) => \refl(one));
+\definition field: Fields.Field[Carrier] := Fields.Field[Carrier] {
+  zero := zero, one := one, add := add, neg := neg, mul := mul, inv := inverse,
+  ring := Rings.CommutativeRingLaws[Carrier, Rings.CommutativeRingData[Carrier]::# data] {
+    ring := ringLaws, mulCommutative := mulCommutative,
+  },
+  nontrivial := nontrivial, inverse := inverseLaw,
+};
+\import module_theory.Module[].IntegerGroup[Carrier := Carrier, group := Rings.additiveGroup Carrier ring] \as Integral;
+\definition integerSpace: _ := Integral.space;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition two: I.Int^ := I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ N.Nat^::zero));
+\definition doubleZero(x: Carrier): #smul{integerSpace} two x = zero :=
+  trans!{Carrier} _ _ _ (Integral.onNatural (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) x)
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (add x) _ _ (addZeroRight x)) (addSelf x));
+\import module_theory.Module[].Over[R := I.Int^, ring := std.Arithmetic[].IntAlgebra[].Ring[].ring].Laws[V := Carrier, space := integerSpace] \as IntegerValues;
+\definition scaleMultiply(a: I.Int^): \forall (x: Carrier) -> #smul{integerSpace} a x = mul (#smul{integerSpace} a one) x :=
+  B.cases (\fun (x: Carrier) => #smul{integerSpace} a x = mul (#smul{integerSpace} a one) x)
+    (trans!{Carrier} _ _ _ (IntegerValues.scaleZero a) (sym!{Carrier} _ _ (mulZeroRight (#smul{integerSpace} a one))))
+    (sym!{Carrier} _ _ (mulOneRight (#smul{integerSpace} a one)));
+\module Quotient;

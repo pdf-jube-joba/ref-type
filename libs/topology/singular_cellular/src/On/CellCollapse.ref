@@ -1,0 +1,95 @@
+\import dedekind_reals.DedekindReal[] \as Reals;
+\import Reals.Order[] \as Order;
+\import real.Analysis[] \as Real;
+\import std.Logic[].Classical[] \as Classical;
+\definition dimension: N.Nat^ := #dimension{cell};
+\import Euclidean.Dimension[n := dimension] \as Model;
+\import \parent.Filtration[] \as Filtration;
+\import Filtration.Stage[limit := N.Nat^::succ dimension] \as Skeleton;
+\import Filtration.Characteristic[cell := cell, member := member] \as Characteristic;
+\import Filtration.CellInteriors[n := dimension].Cell[cell := cell, member := member, dimension := \refl(dimension)] \as Interior;
+\definition boundary: \Pow Model.Disk := { p: Model.Disk \where Model.normSquared p = Real.one };
+\import algebraic_topology.Collapse[A := Model.Disk, subset := boundary] \as DiskQuotient;
+\definition basepoint: DiskQuotient.Carrier := DiskQuotient.class (Characteristic.boundaryInclusion point);
+\definition InteriorImage(x: Skeleton.Carrier): \Prop := \In[A] (Cells.InteriorImage cell) x;
+\structure InteriorValue[x: Skeleton.Carrier, v: DiskQuotient.Carrier]: \Set {
+  point: Model.Disk,
+  interior: Reals.Lt (Model.normSquared point) Real.one,
+  image: #characteristic{cell} point = x,
+  value: DiskQuotient.class point = v,
+}
+\definition Values(x: Skeleton.Carrier): \Pow DiskQuotient.Carrier := { v: DiskQuotient.Carrier \where
+  Logic.Or[\exists InteriorValue[x, v], Logic.And[Logic.Not (InteriorImage x), v = basepoint]] };
+\definition Value(x: Skeleton.Carrier): \Set := \Cast[DiskQuotient.Carrier] (Values x);
+\definition existence: \forall (x: Skeleton.Carrier) -> \exists Value x := \block {
+  \fun (x: Skeleton.Carrier) \then
+  \return either!{{(Classical.excludedMiddle (InteriorImage x))} {\exists Value x}
+    {\block {
+      \fun (inside: InteriorImage x) \then
+      \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[Reals.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] }) \by inside \then
+      \let data: Logic.And[Reals.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] :=
+        \bysub(Model.Disk, { p: Model.Disk \where Logic.And[Reals.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] }, p) \then
+      \return \exact(\into[DiskQuotient.Carrier](DiskQuotient.class p, Values x) \by {
+        Logic.Or[_, _]::left (\exact(InteriorValue[x, DiskQuotient.class p] {
+          point := p, interior := #left{data}, image := #right{data}, value := \refl(DiskQuotient.class p),
+        }, InteriorValue[x, DiskQuotient.class p]))
+      }, Value x)
+    }}
+    {\fun (outside: Logic.Not (InteriorImage x)) => \exact(\into[DiskQuotient.Carrier](basepoint, Values x) \by {
+      Logic.Or[_, _]::right (Logic.And[_, _]::# outside (\refl(basepoint)))
+    }, Value x)}
+  }
+};
+\definition witnessInside(x: Skeleton.Carrier)(v: DiskQuotient.Carrier)(w: InteriorValue[x, v]): InteriorImage x :=
+  Logic.existsIntro[Model.Disk, { p: Model.Disk \where Logic.And[Reals.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] }] (#point{w})
+    (Logic.And[_, _]::# (#interior{w}) (#image{w}));
+\definition uniqueness: \forall (x: Skeleton.Carrier)(v, w: Value x) -> v = w := \block {
+  \fun (x: Skeleton.Carrier)(v, w: Value x) \then
+  \return either!{{(\bysub(DiskQuotient.Carrier, Values x, v))} {v = w}
+    {\block {
+      \fun (left: \exists InteriorValue[x, v]) \then
+      \takefrom l: InteriorValue[x, v] \by left \then
+      \return either!{{(\bysub(DiskQuotient.Carrier, Values x, w))} {v = w}
+        {\block {
+          \fun (right: \exists InteriorValue[x, w]) \then
+          \takefrom r: InteriorValue[x, w] \by right \then
+          \return trans!{DiskQuotient.Carrier} _ _ _ (sym!{DiskQuotient.Carrier} _ _ (#value{l}))
+            (trans!{DiskQuotient.Carrier} _ _ _
+              (congr!{Model.Disk DiskQuotient.Carrier} DiskQuotient.class _ _
+                (#injectiveInterior{(#cellLaws{laws} cell member)} (#point{l}) (#point{r}) (#interior{l}) (#interior{r})
+                  (trans!{A} _ _ _ (#image{l}) (sym!{A} _ _ (#image{r}))))) (#value{r}))
+        }}
+        {\fun (outside: Logic.And[Logic.Not (InteriorImage x), w = basepoint]) =>
+          Logic.falseElim (v = w) (#left{outside} (witnessInside x v l))}
+      }
+    }}
+    {\fun (left: Logic.And[Logic.Not (InteriorImage x), v = basepoint]) =>
+      either!{{(\bysub(DiskQuotient.Carrier, Values x, w))} {v = w}
+        {\block {
+          \fun (right: \exists InteriorValue[x, w]) \then
+          \takefrom r: InteriorValue[x, w] \by right \then
+          \return Logic.falseElim (v = w) (#left{left} (witnessInside x w r))
+        }}
+        {\fun (right: Logic.And[Logic.Not (InteriorImage x), w = basepoint]) => trans!{DiskQuotient.Carrier} _ _ _ (#right{left}) (sym!{DiskQuotient.Carrier} _ _ (#right{right}))}
+      }
+    }
+  }
+};
+\definition map(x: Skeleton.Carrier): DiskQuotient.Carrier := \choice Value x \by { existence: existence x, uniqueness: uniqueness x };
+\definition onInterior(p: Model.Disk)(inside: Reals.Lt (Model.normSquared p) Real.one): map (Characteristic.characteristic p) = DiskQuotient.class p :=
+  sym!{DiskQuotient.Carrier} _ _ (\choiceeq \into[DiskQuotient.Carrier](DiskQuotient.class p, Values (Characteristic.characteristic p)) \by {
+    Logic.Or[_, _]::left (\exact(InteriorValue[Characteristic.characteristic p, DiskQuotient.class p] {
+      point := p, interior := inside, image := \refl(#characteristic{cell} p), value := \refl(DiskQuotient.class p),
+    }, InteriorValue[Characteristic.characteristic p, DiskQuotient.class p]))
+  } \of Value (Characteristic.characteristic p) \by { existence: existence (Characteristic.characteristic p), uniqueness: uniqueness (Characteristic.characteristic p) });
+\definition onOutside(x: Skeleton.Carrier)(outside: Logic.Not (InteriorImage x)): map x = basepoint :=
+  sym!{DiskQuotient.Carrier} _ _ (\choiceeq \into[DiskQuotient.Carrier](basepoint, Values x) \by {
+    Logic.Or[_, _]::right (Logic.And[_, _]::# outside (\refl(basepoint)))
+  } \of Value x \by { existence: existence x, uniqueness: uniqueness x });
+\module Boundary;
+\module Other(other: Cells.CellData, present: Cells.CellMember cells other, below: Nat.Lt (#dimension{other}) (N.Nat^::succ dimension));
+\module Continuity;
+
+\module Positive(k: N.Nat^, equalDimension: dimension = N.Nat^::succ k);
+
+\module Pair;

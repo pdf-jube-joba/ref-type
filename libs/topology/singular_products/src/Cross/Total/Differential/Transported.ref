@@ -1,0 +1,21 @@
+\import std.Logic[].Proposition[] \as Logic;
+\definition Case(p, q: N.Nat^): \Prop := \forall (k: N.Nat^)(closed: Nat.add p q = N.Nat^::succ k) -> Statement k (pairIndex k p q closed);
+\module LeftAxis(r: N.Nat^);
+\module RightAxis(s: N.Nat^);
+\module Positive(r, s: N.Nat^);
+\definition zero: \forall (q: N.Nat^) -> Case N.Nat^::zero q :=
+  \induction (q: N.Nat^) \return Case N.Nat^::zero q \with {
+    | zero: \fun (k: N.Nat^)(closed: N.Nat^::zero = N.Nat^::succ k) =>
+      Logic.falseElim (Statement k (pairIndex k N.Nat^::zero N.Nat^::zero closed)) (NatLaws.zeroNeSucc k closed)
+    | succ: \fun (s: N.Nat^)(previous: Case N.Nat^::zero s) => RightAxis[s := s].law
+  };
+\definition successor(r: N.Nat^): \forall (q: N.Nat^) -> Case (N.Nat^::succ r) q :=
+  \induction (q: N.Nat^) \return Case (N.Nat^::succ r) q \with {
+    | zero: LeftAxis[r := r].law
+    | succ: \fun (s: N.Nat^)(previous: Case (N.Nat^::succ r) s) => Positive[r := r, s := s].law
+  };
+\definition all: \forall (p, q: N.Nat^) -> Case p q :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^) -> Case p q \with {
+    | zero: zero
+    | succ: \fun (r: N.Nat^)(previous: \forall (q: N.Nat^) -> Case r q) => successor r
+  };

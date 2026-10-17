@@ -1,0 +1,57 @@
+\definition cylinderTopology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology leftTopology;
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as Scalars;
+\import Scalars.Product[] \as Product;
+\import Scalars.Reciprocal[] \as Reciprocal;
+\import Scalars.SquareRoot[] \as SquareRoots;
+\import topology.Continuity[A := Sphere, B := Real.Real].Restriction[S := left] \as Restriction;
+\import topology.Composition[A := Cylinder.Carrier, B := Left, C := Real.Real] \as PointEvaluation;
+\import topology.Composition[A := Cylinder.Carrier, B := Interval.Carrier, C := Real.Real] \as TimeEvaluation;
+\definition sphereCoordinateContinuous: \forall (i: Ambient.Index) ->
+  topology.Continuity[A := Sphere, B := Real.Real].Continuous (topology (N.Nat^::succ n)) Line.topology (\fun (x: Sphere) => x i) :=
+  \fun (i: Ambient.Index) => Evaluation.composeContinuous (topology (N.Nat^::succ n)) Ambient.topology Line.topology
+    (\fun (x: Sphere) => x) (\fun (x: Ambient.Coordinate) => x i) (Inclusion.inclusionContinuous Ambient.topology)
+    (Coordinates.evaluationContinuous Line.topology i);
+\definition pointCoordinateContinuous: \forall (i: Ambient.Index) -> Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Cylinder.point p i) :=
+  \fun (i: Ambient.Index) => PointEvaluation.composeContinuous cylinderTopology leftTopology Line.topology Cylinder.point (\fun (x: Left) => x i)
+    (Cylinder.pointContinuous leftTopology)
+    (Restriction.restrictContinuous (topology (N.Nat^::succ n)) Line.topology (\fun (x: Sphere) => x i) (sphereCoordinateContinuous i));
+\definition h(p: Cylinder.Carrier): Real.Real := height (Cylinder.point p);
+\definition c(p: Cylinder.Carrier): Real.Real := Interval.reverse (Cylinder.time p);
+\definition heightContinuous: Scalars.Continuous cylinderTopology h := pointCoordinateContinuous (Fin.zero (N.Nat^::succ n));
+\definition timeContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Cylinder.time p) :=
+  TimeEvaluation.composeContinuous cylinderTopology Interval.topology Line.topology Cylinder.time (\fun (t: Interval.Carrier) => t)
+    (Cylinder.timeContinuous leftTopology) Interval.inclusionContinuous;
+\definition reverseContinuous: Scalars.Continuous cylinderTopology c :=
+  Scalars.subContinuous cylinderTopology (\fun (_: Cylinder.Carrier) => Real.one) (\fun (p: Cylinder.Carrier) => Cylinder.time p)
+    (Scalars.constantContinuous cylinderTopology Real.one) timeContinuous;
+\definition advanceContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Height.advance (Cylinder.time p) (h p)) :=
+  Scalars.subContinuous cylinderTopology (\fun (_: Cylinder.Carrier) => Real.one)
+    (\fun (p: Cylinder.Carrier) => Real.mul (c p) (Real.sub Real.one (h p))) (Scalars.constantContinuous cylinderTopology Real.one)
+    (Product.continuous cylinderTopology c (\fun (p: Cylinder.Carrier) => Real.sub Real.one (h p)) reverseContinuous
+      (Scalars.subContinuous cylinderTopology (\fun (_: Cylinder.Carrier) => Real.one) h (Scalars.constantContinuous cylinderTopology Real.one) heightContinuous));
+\definition denominatorContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Real.add Real.one (h p)) :=
+  Scalars.sumContinuous cylinderTopology (\fun (_: Cylinder.Carrier) => Real.one) h (Scalars.constantContinuous cylinderTopology Real.one) heightContinuous;
+\definition inverseContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Laws.fieldInv (Real.add Real.one (h p))) :=
+  Reciprocal.continuousPositive cylinderTopology (\fun (p: Cylinder.Carrier) => Real.add Real.one (h p)) denominatorContinuous
+    (\fun (p: Cylinder.Carrier) => Height.onePlusPositive (h p) (\bysub(Sphere, left, Cylinder.point p)));
+\definition factorContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Height.factor (Cylinder.time p) (h p)) :=
+  Product.continuous cylinderTopology
+    (\fun (p: Cylinder.Carrier) => Real.mul (c p) (Real.add Real.one (Height.advance (Cylinder.time p) (h p))))
+    (\fun (p: Cylinder.Carrier) => Laws.fieldInv (Real.add Real.one (h p)))
+    (Product.continuous cylinderTopology c (\fun (p: Cylinder.Carrier) => Real.add Real.one (Height.advance (Cylinder.time p) (h p))) reverseContinuous
+      (Scalars.sumContinuous cylinderTopology (\fun (_: Cylinder.Carrier) => Real.one)
+        (\fun (p: Cylinder.Carrier) => Height.advance (Cylinder.time p) (h p)) (Scalars.constantContinuous cylinderTopology Real.one) advanceContinuous))
+    inverseContinuous;
+\definition multiplierContinuous: Scalars.Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Height.multiplier (Cylinder.time p) (h p)) :=
+  SquareRoots.continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Height.factor (Cylinder.time p) (h p)) factorContinuous;
+\import Split.Continuity[A := Cylinder.Carrier] \as Join;
+\import topology.Continuity[A := Cylinder.Carrier, B := Ambient.Coordinate].Corestriction[S := Ambient.Boundary] \as IntoSphere;
+\import topology.Continuity[A := Cylinder.Carrier, B := Sphere].Corestriction[S := left] \as IntoLeft;
+\definition ambientContinuous: topology.Continuity[A := Cylinder.Carrier, B := Ambient.Coordinate].Continuous cylinderTopology Ambient.topology (\fun (p: Cylinder.Carrier) => family p) :=
+  Join.joinContinuous cylinderTopology (\fun (p: Cylinder.Carrier) => Height.advance (Cylinder.time p) (h p))
+    (\fun (p: Cylinder.Carrier) => Scaling.scale (Height.multiplier (Cylinder.time p) (h p)) (Split.tail (Cylinder.point p))) advanceContinuous
+    (\fun (i: Lower.Index) => Product.continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Height.multiplier (Cylinder.time p) (h p))
+      (\fun (p: Cylinder.Carrier) => Split.tail (Cylinder.point p) i) multiplierContinuous (pointCoordinateContinuous (Fin.succ (N.Nat^::succ n) i)));
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Left].Continuous cylinderTopology leftTopology family :=
+  IntoLeft.corestrictContinuous cylinderTopology (topology (N.Nat^::succ n)) family
+    (IntoSphere.corestrictContinuous cylinderTopology Ambient.topology (\fun (p: Cylinder.Carrier) => family p) ambientContinuous);

@@ -1,0 +1,38 @@
+\import Native.ZeroExtension[C := Total.complex] \as Source;
+\definition linear: \forall (z: I.Int^) -> Modules.Hom[V := Source.Carrier z, W := Global.Carrier z, source := Source.space z, target := Global.space z].Map :=
+  \induction (z: I.Int^) \return Modules.Hom[V := Source.Carrier z, W := Global.Carrier z, source := Source.space z, target := Global.space z].Map \with {
+    | ofNat: \fun (n: N.Nat^) => Modules.Hom[V := Source.Carrier (I.Int^::ofNat n), W := Global.Carrier (I.Int^::ofNat n), source := Source.space (I.Int^::ofNat n), target := Global.space (I.Int^::ofNat n)].Map {
+        apply := \fun (x: Source.Carrier (I.Int^::ofNat n)) => #apply{difference} n x,
+        addition := \fun (x, y: Source.Carrier (I.Int^::ofNat n)) => #addition{difference} n x y,
+        scalar := \fun (a: I.Int^)(x: Source.Carrier (I.Int^::ofNat n)) => #scalar{difference} n a x,
+      }
+    | negSucc: \fun (n: N.Nat^) => Modules.Hom[V := Source.Carrier (I.Int^::negSucc n), W := Global.Carrier (I.Int^::negSucc n), source := Source.space (I.Int^::negSucc n), target := Global.space (I.Int^::negSucc n)].zeroMap
+  };
+\definition commutes: \forall (z: I.Int^)(x: Source.Carrier z) ->
+  #apply{Global.differential} z (#apply{(linear z)} x) = #apply{(linear (Degrees.previous z))} (#apply{Source.differential} z x) :=
+  \induction (z: I.Int^) \return \forall (x: Source.Carrier z) ->
+    #apply{Global.differential} z (#apply{(linear z)} x) = #apply{(linear (Degrees.previous z))} (#apply{Source.differential} z x) \with {
+      | ofNat: \induction (n: N.Nat^) \return \forall (x: Source.Carrier (I.Int^::ofNat n)) ->
+          #apply{Global.differential} (I.Int^::ofNat n) (#apply{(linear (I.Int^::ofNat n))} x) =
+            #apply{(linear (Degrees.previous (I.Int^::ofNat n)))} (#apply{Source.differential} (I.Int^::ofNat n) x) \with {
+              | zero: \fun (x: Source.Carrier (I.Int^::ofNat N.Nat^::zero)) => \parent.Augmentation[].differenceZero x
+              | succ: \fun (n: N.Nat^)(previous: _)(x: Source.Carrier (I.Int^::ofNat (N.Nat^::succ n))) => #commutes{difference} n x
+            }
+      | negSucc: \induction (n: N.Nat^) \return \forall (x: Source.Carrier (I.Int^::negSucc n)) ->
+          #apply{Global.differential} (I.Int^::negSucc n) (#apply{(linear (I.Int^::negSucc n))} x) =
+            #apply{(linear (Degrees.previous (I.Int^::negSucc n)))} (#apply{Source.differential} (I.Int^::negSucc n) x) \with {
+              | zero: \fun (x: _) => \refl(Modules.Zero[].Carrier::zero)
+              | succ: \fun (n: N.Nat^)(previous: _)(x: _) => \refl(Modules.Zero[].Carrier::zero)
+            }
+    };
+\definition map: Complexes.Map[C := Source.complex, D := Global.complex].Map := Complexes.Map[C := Source.complex, D := Global.complex].Map {
+  apply := \fun (z: I.Int^) => #apply{(linear z)},
+  addition := \fun (z: I.Int^) => #addition{(linear z)},
+  scalar := \fun (z: I.Int^) => #scalar{(linear z)},
+  commutes := commutes,
+};
+\import Modules.Of[V := Global.Carrier (I.Int^::ofNat N.Nat^::zero), space := Global.space (I.Int^::ofNat N.Nat^::zero)].Submodule[] \as Submodules;
+\definition carried: Supported.Carried map := \fun (n: N.Nat^)(c: \parent.\parent.Based[n := n].Cell) =>
+  Modules.Of[V := Global.Carrier (I.Int^::ofNat n), space := Global.space (I.Int^::ofNat n)].Submodule[].differenceClosed
+    (\parent.Singular[q := #second{#index{c}}, sigma := #singular{#simplex{c}}, z := I.Int^::ofNat n].image) _ _
+    (\parent.Factors[n := n].first #index{c} #simplex{c}) (\parent.Factors[n := n].second #index{c} #simplex{c});

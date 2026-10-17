@@ -1,0 +1,51 @@
+\definition dimension: N.Nat^ := #dimension{cell};
+\import Euclidean.Dimension[n := dimension] \as Model;
+\import Space.Subspace[S := Cells.ClosedImage cell] \as Image;
+\import Image.Properties[] \as Properties;
+\definition Carrier: \Set := Image.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Image.topology source;
+\definition map(p: Model.Disk): Carrier := \into[A](#characteristic{cell} p, Cells.ClosedImage cell) \by {
+  Logic.existsIntro[Model.Disk, { q: Model.Disk \where #characteristic{cell} q = #characteristic{cell} p }] p (\refl(#characteristic{cell} p))
+};
+\import topology.Continuity[A := Model.Disk, B := A].Corestriction[S := Cells.ClosedImage cell] \as Into;
+\definition continuous: topology.Continuity[A := Model.Disk, B := Carrier].Continuous Model.diskTopology topology map :=
+  Into.corestrictContinuous Model.diskTopology source map (#continuous{(#cellLaws{laws} cell member)});
+\definition onto: \forall (x: Carrier) -> \exists { p: Model.Disk \where map p = x } := \block {
+  \fun (x: Carrier) \then
+  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where #characteristic{cell} p = x })
+    \by \bysub(A, Cells.ClosedImage cell, x) \then
+  \return Logic.existsIntro[Model.Disk, { p: Model.Disk \where map p = x }] p
+    (\bysub(Model.Disk, { p: Model.Disk \where #characteristic{cell} p = x }, p))
+};
+\import topological_constructions.CompactQuotient[A := Model.Disk, B := Carrier, source := Model.diskTopology, target := topology, q := map] \as Quotient;
+\definition quotientMap: topological_constructions.Quotient[A := Model.Disk, B := Carrier].IsQuotientMap[Model.diskTopology, topology, map] :=
+  Quotient.quotientMap (Model.Compactness[].compact) (Properties.hausdorff source (#hausdorff{laws})) continuous onto;
+\import topological_constructions.CompactQuotient[A := Model.Disk, B := A, source := Model.diskTopology, target := source, q := #characteristic{cell}] \as Closed;
+\definition closedImage: Closed.ClosedMap :=
+  Closed.closedMap (Model.Compactness[].compact) (#hausdorff{laws}) (#continuous{(#cellLaws{laws} cell member)});
+\import topology.Topology[Carrier := Model.Disk] \as DiskSpace;
+\import topology.Maps[A := Model.Disk, B := A] \as Images;
+\import topology.Compactness[A := Model.Disk, B := A] \as CompactImages;
+\definition imageWhole: Images.Image (#characteristic{cell}) DiskSpace.Whole = Cells.ClosedImage cell :=
+  \axiom:setext(Images.Image (#characteristic{cell}) DiskSpace.Whole, Cells.ClosedImage cell,
+    \block {
+      \fun (x: A)(inside: _) \then
+      \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[DiskSpace.Member DiskSpace.Whole p, #characteristic{cell} p = x] }) \by inside \then
+      \return Logic.existsIntro[Model.Disk, { p: Model.Disk \where #characteristic{cell} p = x }] p
+        (#right{(\bysub(Model.Disk, { p: Model.Disk \where Logic.And[DiskSpace.Member DiskSpace.Whole p, #characteristic{cell} p = x] }, p))})
+    },
+    \block {
+      \fun (x: A)(inside: _) \then
+      \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where #characteristic{cell} p = x }) \by inside \then
+      \return Logic.existsIntro[Model.Disk, { p: Model.Disk \where Logic.And[DiskSpace.Member DiskSpace.Whole p, #characteristic{cell} p = x] }] p
+        (Logic.And[_, _]::# (\refl(p)) (\bysub(Model.Disk, { p: Model.Disk \where #characteristic{cell} p = x }, p)))
+    });
+\definition compactImage: Space.IsCompactIn source (Cells.ClosedImage cell) :=
+  \idelim Images.Image (#characteristic{cell}) DiskSpace.Whole = Cells.ClosedImage cell
+    \with F: \Pow A => Space.IsCompactIn source F \by {
+      base: CompactImages.continuousImage Model.diskTopology source (#characteristic{cell}) (#continuous{(#cellLaws{laws} cell member)})
+        DiskSpace.Whole (Model.Compactness[].compact),
+      equality: imageWhole
+    };
+
+\module Interior;

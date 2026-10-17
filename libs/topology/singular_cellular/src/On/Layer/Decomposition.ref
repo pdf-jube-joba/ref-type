@@ -1,0 +1,35 @@
+\definition degree: I.Int^ := z;
+\import \parent.\parent.Filtration[].CellInteriors[n := n] \as Interiors;
+\import Interiors.Charts[] \as Charts;
+\import Charts.Pair[] \as ChartPair;
+\import \root.Coproduct[Index := Interiors.Index, fibers := Charts.fiber, spaces := Charts.fiberTopology] \as Disks;
+\import Disks.Relative[subset := ChartPair.punctures] \as RelativeDisks;
+\import RelativeDisks.Homology[z := degree] \as Additivity;
+\definition localGroups: Modules.Family[Interiors.Index] := Additivity.family;
+\import Modules.DirectSum[Index := Interiors.Index, family := localGroups] \as LocalSum;
+\definition Carrier: \Set := LocalSum.Carrier;
+\definition space: Modules.Space Carrier := LocalSum.space;
+\import \parent.\parent.Filtration[].Punctures[n := n].Excision[] \as Excision;
+\import singular_cohomology.Relative[A := Upper.Carrier, source := Upper.topology, subset := Excision.lower] \as SkeletalPair;
+\import singular_cohomology.Relative[A := Excision.remaining, source := Excision.remainingTopology, subset := Excision.punctures] \as Excised;
+\import singular_cohomology.Relative[A := Disks.Carrier, source := Disks.topology, subset := ChartPair.punctures] \as CoproductPair;
+\definition coproduct: Modules.Isomorphism[V := Carrier, W := CoproductPair.Homology[z := degree].Carrier,
+  source := space, target := CoproductPair.Homology[z := degree].space].Isomorphism := Additivity.isomorphism;
+\import Modules.Isomorphism[V := Carrier, W := CoproductPair.Homology[z := degree].Carrier, source := space, target := CoproductPair.Homology[z := degree].space]
+  .Composition[U := Excised.Homology[z := degree].Carrier, final := Excised.Homology[z := degree].space] \as Second;
+\definition excised: Modules.Isomorphism[V := Carrier, W := Excised.Homology[z := degree].Carrier,
+  source := space, target := Excised.Homology[z := degree].space].Isomorphism := Second.compose (ChartPair.Homology[z := degree].isomorphism) coproduct;
+\import Modules.Isomorphism[V := SkeletalPair.Homology[z := degree].Carrier, W := Excised.Homology[z := degree].Carrier,
+  source := SkeletalPair.Homology[z := degree].space, target := Excised.Homology[z := degree].space].Inverse[] \as InverseExcision;
+\import Modules.Isomorphism[V := Carrier, W := Excised.Homology[z := degree].Carrier, source := space, target := Excised.Homology[z := degree].space]
+  .Composition[U := SkeletalPair.Homology[z := degree].Carrier, final := SkeletalPair.Homology[z := degree].space] \as Third;
+\definition skeletal: Modules.Isomorphism[V := Carrier, W := SkeletalPair.Homology[z := degree].Carrier,
+  source := space, target := SkeletalPair.Homology[z := degree].space].Isomorphism := Third.compose (InverseExcision.inverse (Excision.Homology[z := degree].isomorphism)) excised;
+\import Modules.Isomorphism[V := \parent.Homology[z := degree].Carrier, W := SkeletalPair.Homology[z := degree].Carrier,
+  source := \parent.Homology[z := degree].space, target := SkeletalPair.Homology[z := degree].space].Inverse[] \as InverseRelative;
+\import Modules.Isomorphism[V := Carrier, W := SkeletalPair.Homology[z := degree].Carrier, source := space, target := SkeletalPair.Homology[z := degree].space]
+  .Composition[U := \parent.Homology[z := degree].Carrier, final := \parent.Homology[z := degree].space] \as Fourth;
+\definition isomorphism: Modules.Isomorphism[V := Carrier, W := \parent.Homology[z := degree].Carrier,
+  source := space, target := \parent.Homology[z := degree].space].Isomorphism := Fourth.compose (InverseRelative.inverse (\parent.Relative[].Homology[z := degree].isomorphism)) skeletal;
+
+\module Cell(cell: Interiors.Index);

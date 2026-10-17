@@ -1,0 +1,20 @@
+\import SourceIso.Inverse[] \as Inverse;
+\import \parent.\parent.Isomorphism[V := C.Carrier, W := A.Carrier, source := C.space, target := A.space]
+  .Composition[U := B.Carrier, final := B.space] \as First;
+\definition middle: \parent.\parent.Isomorphism[V := C.Carrier, W := B.Carrier, source := C.space, target := B.space].Isomorphism :=
+  First.compose c (Inverse.inverse a);
+\import \parent.\parent.Isomorphism[V := C.Carrier, W := B.Carrier, source := C.space, target := B.space]
+  .Composition[U := D.Carrier, final := D.space] \as Last;
+\import \parent.\parent.Isomorphism[V := C.Carrier, W := D.Carrier, source := C.space, target := D.space] \as Iso;
+\definition candidate: Iso.Isomorphism := Last.compose b middle;
+\definition Commutes: \Prop := \forall (x: A.Carrier) -> #apply{f} (#apply{#forward{a}} x) = #apply{#forward{b}} (#apply{#forward{c}} x);
+\definition forwardEquality: Commutes -> \forall (y: C.Carrier) -> #apply{f} y = #apply{#forward{candidate}} y :=
+  \fun (commutes: Commutes)(y: C.Carrier) => trans!{D.Carrier} _ _ _
+    (congr!{C.Carrier D.Carrier} (#apply{f}) _ _ (sym!{C.Carrier} _ _ (#rightInverse{a} y))) (commutes (#apply{#backward{a}} y));
+\definition isomorphism(commutes: Commutes): Iso.Isomorphism := Iso.Isomorphism {
+  forward := f, backward := #backward{candidate},
+  leftInverse := \fun (x: C.Carrier) => trans!{C.Carrier} _ _ _
+    (congr!{D.Carrier C.Carrier} (#apply{#backward{candidate}}) _ _ (forwardEquality commutes x)) (#leftInverse{candidate} x),
+  rightInverse := \fun (y: D.Carrier) => trans!{D.Carrier} _ _ _
+    (forwardEquality commutes (#apply{#backward{candidate}} y)) (#rightInverse{candidate} y),
+};

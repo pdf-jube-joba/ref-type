@@ -1,0 +1,37 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason;
+\import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := I.Int^, target := Modules.scalarModule] \as Universal;
+\import Modules.Hom[V := Carrier N.Nat^::zero, W := I.Int^, source := space N.Nat^::zero, target := Modules.scalarModule] \as Maps;
+\definition map: Maps.Map := Universal.extension (\fun (_: Simplices.Carrier N.Nat^::zero) => I.One.specification);
+\definition onGenerator: \forall (sigma: Simplices.Carrier N.Nat^::zero) -> #apply{map} (generator N.Nat^::zero sigma) = I.One.specification :=
+  Universal.onGenerator (\fun (_: Simplices.Carrier N.Nat^::zero) => I.One.specification);
+\import Modules.Alternating[V := Carrier N.Nat^::zero, space := space N.Nat^::zero].Mapping[W := I.Int^, target := Modules.scalarModule] \as Mapping;
+\import Modules.Alternating[V := I.Int^, space := Modules.scalarModule] \as Sums;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Modules.scalarGroup] \as Group;
+\import \parent.Boundary[n := N.Nat^::zero] \as Boundary;
+\definition killsGenerator: \forall (sigma: Simplices.Carrier (N.Nat^::succ N.Nat^::zero)) ->
+  #apply{map} (#apply{(boundary N.Nat^::zero)} (generator (N.Nat^::succ N.Nat^::zero) sigma)) = I.Zero.specification :=
+  \fun (sigma: _) => eq_reason!{
+    {#apply{map} (#apply{(boundary N.Nat^::zero)} (generator (N.Nat^::succ N.Nat^::zero) sigma))}
+    "=" {#apply{map} (Boundary.onSimplex sigma)} "by" {congr!{{Carrier N.Nat^::zero} I.Int^} (#apply{map}) _ _ (Boundary.onGenerator sigma)}
+    "=" {Sums.sum (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))
+      (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) => #apply{map} (generator N.Nat^::zero (Simplices.face N.Nat^::zero i sigma)))} "by" {
+        Mapping.law map (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) => generator N.Nat^::zero (Simplices.face N.Nat^::zero i sigma))}
+    "=" {Sums.sum (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) (\fun (_: Fin.Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) => I.One.specification)} "by" {
+        Sums.congruent (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) _ _ (\fun (i: _) => onGenerator (Simplices.face N.Nat^::zero i sigma))}
+    "=" {I.Zero.specification} "by" {Group.subtractDifference I.One.specification I.Zero.specification}
+  };
+\import Maps.Composition[U := Carrier (N.Nat^::succ N.Nat^::zero), domain := space (N.Nat^::succ N.Nat^::zero)] \as Composition;
+\import Modules.Hom[V := Carrier (N.Nat^::succ N.Nat^::zero), W := I.Int^, source := space (N.Nat^::succ N.Nat^::zero), target := Modules.scalarModule] \as FromEdges;
+\import Modules.Free[Generators := Simplices.Carrier (N.Nat^::succ N.Nat^::zero)].To[W := I.Int^, target := Modules.scalarModule] \as FreeEdges;
+\definition killsMap: Composition.compose map (boundary N.Nat^::zero) = FromEdges.zeroMap := FreeEdges.ext _ _ killsGenerator;
+\definition killsBoundary: \forall (x: Carrier (N.Nat^::succ N.Nat^::zero)) -> #apply{map} (#apply{(boundary N.Nat^::zero)} x) = I.Zero.specification :=
+  \fun (x: _) => congr!{FromEdges.Map I.Int^} (\fun (f: FromEdges.Map) => #apply{f} x) _ _ killsMap;
+\definition section(a: A)(r: I.Int^): Carrier N.Nat^::zero := #smul{(space N.Nat^::zero)} r (generator N.Nat^::zero (Simplices.At[n := N.Nat^::zero].constant a));
+\definition sectionLaw: \forall (a: A)(r: I.Int^) -> #apply{map} (section a r) = r :=
+  \fun (a: A)(r: I.Int^) => trans!{I.Int^} _ _ _ (#scalar{map} r (generator N.Nat^::zero (Simplices.At[n := N.Nat^::zero].constant a)))
+    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (#mul{Integers.ring} r) _ _ (onGenerator (Simplices.At[n := N.Nat^::zero].constant a)))
+      (#rightIdentity{(#multiplicative{(#semiring{Integers.ring})})} r));

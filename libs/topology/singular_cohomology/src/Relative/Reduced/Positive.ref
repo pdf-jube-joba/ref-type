@@ -1,0 +1,27 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\import Modules.Hom[V := WholeExtension.Carrier degree, W := Carrier degree, source := WholeExtension.space degree, target := space degree]
+  .Composition[U := WholeReduced.Carrier degree, domain := WholeReduced.space degree] \as Composition;
+\definition map: Projection degree := Composition.compose Quotient.At[k := degree].projection WholeExtension.Positive[n := n].forward;
+\definition injective: \forall (x, y: SubspaceReduced.Carrier degree) -> #apply{inclusionMap} degree x = #apply{inclusionMap} degree y -> x = y :=
+  \fun (x, y: SubspaceReduced.Carrier degree)(equal: _) =>
+    congr!{{SubspaceExtension.Carrier degree} {SubspaceReduced.Carrier degree}} (#apply{SubspaceExtension.Positive[n := n].backward}) _ _
+      (Ordinary.injective degree (SubspaceExtension.Positive[n := n].intro x) (SubspaceExtension.Positive[n := n].intro y)
+        (congr!{{WholeReduced.Carrier degree} {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := n].intro) _ _ equal));
+\definition onto: \forall (q: Carrier degree) -> \exists { x: WholeReduced.Carrier degree \where #apply{map} x = q } :=
+  Quotient.At[k := degree].induction (\fun (q: Carrier degree) => \exists { x: WholeReduced.Carrier degree \where #apply{map} x = q })
+    (\fun (x: WholeExtension.Carrier degree) => Logic.existsIntro[WholeReduced.Carrier degree, { y: WholeReduced.Carrier degree \where #apply{map} y = class degree x }] x
+      (congr!{{WholeExtension.Carrier degree} {Carrier degree}} (class degree) _ _ (#rightInverse{WholeExtension.Positive[n := n].isomorphism} x)));
+\definition zero: \forall (x: SubspaceReduced.Carrier degree) -> #apply{map} (#apply{inclusionMap} degree x) = #zero{(space degree)} :=
+  \fun (x: SubspaceReduced.Carrier degree) => Quotient.At[k := degree].onImage (SubspaceExtension.Positive[n := n].intro x);
+\definition kernelImage: \forall (x: WholeReduced.Carrier degree) -> #apply{map} x = #zero{(space degree)} ->
+  \exists { y: SubspaceReduced.Carrier degree \where #apply{inclusionMap} degree y = x } := \block {
+  \fun (x: WholeReduced.Carrier degree)(killed: _) \then
+  \takefrom y: \Cast[SubspaceExtension.Carrier degree] ({ y: SubspaceExtension.Carrier degree \where #apply{Ordinary.inclusionMap} degree y = WholeExtension.Positive[n := n].intro x })
+    \by Quotient.At[k := degree].zeroClassImage (WholeExtension.Positive[n := n].intro x) killed \then
+  \return Logic.existsIntro[SubspaceReduced.Carrier degree, { y: SubspaceReduced.Carrier degree \where #apply{inclusionMap} degree y = x }] y
+    (congr!{{WholeExtension.Carrier degree} {WholeReduced.Carrier degree}} (#apply{WholeExtension.Positive[n := n].backward}) _ _
+      (\bysub(SubspaceExtension.Carrier degree, { y: SubspaceExtension.Carrier degree \where #apply{Ordinary.inclusionMap} degree y = WholeExtension.Positive[n := n].intro x }, y)))
+};
+\definition exactness: ExactAt[degree, map] := ExactAt[degree, map] {
+  injective := injective, onto := onto, zero := zero, kernelImage := kernelImage,
+};

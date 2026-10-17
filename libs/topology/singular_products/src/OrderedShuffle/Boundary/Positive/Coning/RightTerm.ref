@@ -1,0 +1,36 @@
+\import Commutative.Bilinear[A := RightRecurrence.domainLeft, B := RightRecurrence.domainRight, C := RightShuffle.target] \as Form;
+\import Commutative.Bilinear[A := RightRecurrence.domainLeft, B := RightRecurrence.domainRight, C := RightRecurrence.middle].Operations[] \as Operations;
+\import Modules.Alternating[V := Product.Carrier t, space := Product.space t].Concatenation[] \as Signs;
+\import Signs.Mapping[W := Product.Carrier m, target := Product.space m] \as CastSigns;
+\definition inside(x: Left.Carrier p)(y: Right.Carrier q): Product.Carrier t :=
+  #add{(Product.space t)} (#apply{RightRecurrence.leftTerm} x (rightBoundary y))
+    (#apply{(Operations.sign p RightRecurrence.rightTerm)} x (rightBoundary y));
+\definition recurrence(x: Left.Carrier p)(y: Right.Carrier q):
+  RightShuffle.apply (X x) (#apply{(Right.cone s b)} (rightBoundary y)) = #apply{(Product.cone t point)} (inside x y) :=
+  congr!{Form.Map {Product.Carrier (N.Nat^::succ t)}} (\fun (f: Form.Map) => #apply{f} x (rightBoundary y)) _ _
+    (Extended.LeftPositive[r := r, a := a, b := b].equation s);
+\definition castSign(x: Left.Carrier p)(y: Right.Carrier q):
+  #apply{lowerCast} (#apply{(Operations.sign p RightRecurrence.rightTerm)} x (rightBoundary y)) = LowerSigns.twist p (Expansion.last x y) :=
+  trans!{{Product.Carrier m}} _ _ _
+    (congr!{{Product.Carrier t} {Product.Carrier m}} (#apply{lowerCast}) _ _ (Operations.onSign p RightRecurrence.rightTerm x (rightBoundary y)))
+    (CastSigns.law lowerCast p (#apply{RightRecurrence.rightTerm} x (rightBoundary y)));
+\definition castInside(x: Left.Carrier p)(y: Right.Carrier q): #apply{lowerCast} (inside x y) =
+  Lower.add (Cancellation.rightRemoved x y) (LowerSigns.twist p (Expansion.last x y)) :=
+  trans!{{Product.Carrier m}} _ _ _
+    (#addition{lowerCast} (#apply{RightRecurrence.leftTerm} x (rightBoundary y)) (#apply{(Operations.sign p RightRecurrence.rightTerm)} x (rightBoundary y)))
+    (congr!{{Product.Carrier m} {Product.Carrier m}} (Lower.add (Cancellation.rightRemoved x y)) _ _ (castSign x y));
+\definition signedInside(x: Left.Carrier p)(y: Right.Carrier q): LowerSigns.twist p (#apply{lowerCast} (inside x y)) = rightPart x y :=
+  trans!{{Product.Carrier m}} _ _ _ (congr!{{Product.Carrier m} {Product.Carrier m}} (LowerSigns.twist p) _ _ (castInside x y))
+    (trans!{{Product.Carrier m}} _ _ _ (LowerSigns.twistAdd p (Cancellation.rightRemoved x y) (LowerSigns.twist p (Expansion.last x y)))
+      (congr!{{Product.Carrier m} {Product.Carrier m}} (Lower.add (LowerSigns.twist p (Cancellation.rightRemoved x y))) _ _ (LowerSigns.involution p (Expansion.last x y))));
+\definition castRecurrence(x: Left.Carrier p)(y: Right.Carrier q):
+  #apply{upperCast} (RightShuffle.apply (X x) (#apply{(Right.cone s b)} (rightBoundary y))) = #apply{(Product.cone m point)} (#apply{lowerCast} (inside x y)) :=
+  trans!{{Product.Carrier (N.Nat^::succ m)}} _ _ _
+    (congr!{{Product.Carrier (N.Nat^::succ t)} {Product.Carrier (N.Nat^::succ m)}} (#apply{upperCast}) _ _ (recurrence x y))
+    (Degrees.coneNatural t m same point (inside x y));
+\definition law(x: Left.Carrier p)(y: Right.Carrier q): removedRight x y = #apply{(Product.cone m point)} (rightPart x y) :=
+  trans!{{Product.Carrier (N.Nat^::succ m)}} _ _ _
+    (congr!{{Product.Carrier (N.Nat^::succ m)} {Product.Carrier (N.Nat^::succ m)}} (UpperSigns.twist p) _ _ (castRecurrence x y))
+    (trans!{{Product.Carrier (N.Nat^::succ m)}} _ _ _
+      (sym!{{Product.Carrier (N.Nat^::succ m)}} _ _ (ConeSigns.law (Product.cone m point) p (#apply{lowerCast} (inside x y))))
+      (congr!{{Product.Carrier m} {Product.Carrier (N.Nat^::succ m)}} (#apply{(Product.cone m point)}) _ _ (signedInside x y)));

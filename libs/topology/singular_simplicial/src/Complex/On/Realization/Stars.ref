@@ -1,0 +1,66 @@
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import dedekind_reals.DedekindReal[] \as Reals;
+\import Reals.Order[] \as Order;
+\import Reals.Arithmetic[].Prop[] \as RealLaws;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\import topology.Topology[Carrier := Real.Real] \as Scalar;
+\definition star(v: Vertex): \Pow Carrier := { y: Carrier \where Reals.Lt Real.zero (y v) };
+\import topology.Continuity[A := Carrier, B := Geometric.Carrier d].Corestriction[S := Points] \as Into;
+\import topology.Composition[A := Carrier, B := Geometric.Carrier d, C := Real.Real] \as Composition;
+\import topology.Continuity[A := Carrier, B := Real.Real] \as Coordinates;
+\definition coordinateContinuous: \forall (v: Vertex) -> Coordinates.Continuous topology Line.topology (\fun (y: Carrier) => y v) :=
+  \fun (v: Vertex) => Composition.composeContinuous topology Ambient.topology Line.topology (\fun (y: Carrier) => y)
+    (\fun (y: Geometric.Carrier d) => y v) (Into.inclusionContinuous Ambient.topology) (Ambient.coordinateContinuous v);
+\definition open: \forall (v: Vertex) -> Space.IsOpenIn topology (star v) :=
+  \fun (v: Vertex) => coordinateContinuous v (Rays.Above Real.zero) (Rays.aboveOpen Real.zero);
+\structure Witness[y: Carrier]: \Set {
+  vertex: Vertex,
+  positive: Reals.Lt Real.zero (y vertex),
+}
+\definition coversPoint: \forall (y: Carrier) -> \exists Witness[y] :=
+  \fun (y: Carrier) => Order.byContradiction (\exists Witness[y]) (\block {
+    \fun (none: Logic.Not (\exists Witness[y])) \then
+    \let zero: \forall (v: Vertex) -> y v = Real.zero := \fun (v: Vertex) => Reals.leAntisym (y v) Real.zero
+      (Order.leOfNotLtReverse (y v) Real.zero (\fun (positive: Reals.Lt Real.zero (y v)) => none
+        (\exact(Witness[y] { vertex := v, positive := positive }, Witness[y]))))
+      (#nonnegative{(Geometric.barycentric d y)} v) \then
+    \let totalZero: Sums.sum (N.Nat^::succ d) y = Real.zero := trans!{Real.Real} _ _ _
+      (Sums.congruent (N.Nat^::succ d) y (\fun (_: Vertex) => Real.zero) zero)
+      (Sums.zeroSum (N.Nat^::succ d)) \then
+    \return RealLaws.zeroNeOne (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ totalZero) (#total{(Geometric.barycentric d y)}))
+  });
+\definition family: \Pow (\Pow Carrier) := { U: \Pow Carrier \where \exists { v: Vertex \where star v = U } };
+\definition member(v: Vertex): Space.FamilyMember family (star v) :=
+  Logic.existsIntro[Vertex, { w: Vertex \where star w = star v }] v (\refl(star v));
+\definition coverLaws: Space.IsOpenCover[topology, family, Space.Whole] := Space.IsOpenCover[topology, family, Space.Whole] {
+  open := \block {
+    \fun (U: \Pow Carrier)(inFamily: Space.FamilyMember family U) \then
+    \takefrom v: \Cast[Vertex] ({ v: Vertex \where star v = U }) \by inFamily \then
+    \return \idelim star v = U \with V: \Pow Carrier => Space.IsOpenIn topology V \by {
+      base: open v, equality: \bysub(Vertex, { v: Vertex \where star v = U }, v)
+    }
+  },
+  covers := \block {
+    \fun (y: Carrier)(whole: Space.Member Space.Whole y) \then
+    \takefrom w: Witness[y] \by coversPoint y \then
+    \return Space.unionMemberOf family (star #vertex{w}) y (member #vertex{w}) #positive{w}
+  },
+};
+\import Space.OpenCovers[topology := topology] \as Covers;
+\definition cover: Covers.Cover := \into[\Pow (\Pow Carrier)](family, Covers.Families) \by { coverLaws };
+\definition commonFace: \forall (n: N.Nat^)(vertices: Tuple n)(y: Carrier) ->
+  (\forall (i: Fin.Fin (N.Nat^::succ n)) -> Reals.Lt Real.zero (y (vertices i))) -> \In[\Pow Vertex] K.faces (Image n vertices) :=
+  \fun (n: N.Nat^)(vertices: Tuple n)(y: Carrier)(positive: _) =>
+    #hereditary{K} (\parent.Support[].Points y) (Image n vertices) (\parent.Support[].face y) (\block {
+      \fun (v: Vertex)(member: \In[Vertex] (Image n vertices) v) \then
+      \takefrom i: \Cast[Fin.Fin (N.Nat^::succ n)] ({ i: Fin.Fin (N.Nat^::succ n) \where vertices i = v }) \by member \then
+      \let equal: vertices i = v := \bysub(Fin.Fin (N.Nat^::succ n), { i: Fin.Fin (N.Nat^::succ n) \where vertices i = v }, i) \then
+      \let greater: Reals.Lt Real.zero (y v) := \idelim vertices i = v \with w: Vertex => Reals.Lt Real.zero (y w)
+        \by { base: positive i, equality: equal } \then
+      \return \fun (zero: y v = Real.zero) => Reals.ltIrrefl Real.zero
+        (\idelim y v = Real.zero \with r: Real.Real => Reals.Lt Real.zero r \by { base: greater, equality: zero })
+    });
+\module Intersection(n: N.Nat^, sigma: Simplex n);

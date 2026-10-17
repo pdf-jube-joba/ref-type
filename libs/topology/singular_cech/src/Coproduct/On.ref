@@ -1,0 +1,67 @@
+\definition Simplex(i: Index)(n: N.Nat^): \Set := \parent.View[X := objects i].Carrier n;
+\structure Generator[n: N.Nat^]: \Set {
+  index: Index,
+  simplex: Simplex index n,
+}
+\definition family: Semisimplicial.Family := Semisimplicial.Family { Carrier := \fun (n: N.Nat^) => Generator[n] };
+\definition face(n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(s: Generator[N.Nat^::succ n]): Generator[n] := Generator[n] {
+  index := #index{s}, simplex := \parent.View[X := objects #index{s}].face n i #simplex{s},
+};
+\definition faces: Semisimplicial.Faces[family] := Semisimplicial.Faces[family] { apply := face };
+\definition object: Semisimplicial.Object := Semisimplicial.Object {
+  family := family, faces := faces,
+  laws := Semisimplicial.Laws[family, faces] {
+    identity := \fun (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(s: Generator[N.Nat^::succ (N.Nat^::succ n)])(ordered: Bounds.Le i j) =>
+      congr!{{Simplex #index{s} n} {Generator[n]}}
+        (\fun (x: Simplex #index{s} n) => Generator[n] { index := #index{s}, simplex := x }) _ _
+        (\parent.View[X := objects #index{s}].identity n i j #simplex{s} ordered),
+  },
+};
+\import singular_cohomology.SimplicialChains[].On[X := object] \as Native;
+\definition Carrier: N.Nat^ -> \Set := Native.Carrier;
+\definition space: \forall (n: N.Nat^) -> Modules.Space (Carrier n) := Native.space;
+\definition generator: \forall (n: N.Nat^) -> Generator[n] -> Carrier n := Native.generator;
+\definition boundary: \forall (n: N.Nat^) -> Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n].Map := Native.boundary;
+\definition complex: Complexes.Complex := Native.complex;
+\module Component(i: Index) {
+  \import \parent.\parent.View[X := objects i] \as View;
+  \definition Simplex(n: N.Nat^): \Set := View.Carrier n;
+  \import singular_cohomology.SimplicialChains[].On[X := objects i] \as Local;
+  \definition Carrier: N.Nat^ -> \Set := Local.Carrier;
+  \definition space: \forall (n: N.Nat^) -> Modules.Space (Carrier n) := Local.space;
+  \definition generator: \forall (n: N.Nat^) -> Simplex n -> Carrier n := Local.generator;
+  \definition boundary: \forall (n: N.Nat^) -> Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n].Map := Local.boundary;
+  \definition complex: Complexes.Complex := Local.complex;
+  \import Semisimplicial.Maps[X := objects i, Y := object] \as Mappings;
+  \definition mappingData: Mappings.Data := Mappings.Data { apply := \fun (n: N.Nat^)(s: Simplex n) => Generator[n] { index := i, simplex := s } };
+  \definition mapping: Mappings.Map := \into[Mappings.Data](mappingData, { d: Mappings.Data \where Mappings.Laws[d] }) \by {
+    Mappings.Laws[mappingData] {
+      faces := \fun (n: N.Nat^)(j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(s: Simplex (N.Nat^::succ n)) =>
+        \refl(Generator[n] { index := i, simplex := View.face n j s }),
+    }
+  };
+  \import Local.Mapping[Y := object] \as Included;
+  \definition inclusion: Complexes.Map[C := complex, D := Native.complex].Map := Included.map mapping;
+  \definition onGenerator(n: N.Nat^)(s: Simplex n): #apply{inclusion} n (generator n s) = Native.generator n (Generator[n] { index := i, simplex := s }) := Included.At[n := n].onGenerator mapping s;
+}
+\structure Operators: \Set {
+  apex: \forall (i: Index) -> Component[i := i].Simplex N.Nat^::zero,
+  homotopy: \forall (i: Index)(n: N.Nat^) -> Modules.Hom[V := Component[i := i].Carrier n, W := Component[i := i].Carrier (N.Nat^::succ n),
+    source := Component[i := i].space n, target := Component[i := i].space (N.Nat^::succ n)].Map,
+}
+\module Point(i: Index, n: N.Nat^) {
+  \import \parent.Component[i := i] \as Component;
+  \import Modules.Laws[V := Component.Carrier n, space := Component.space n] \as Values;
+  \import algebra.Group[].Of[Carrier := Component.Carrier n, group := Values.additive] \as Group;
+  \definition difference: Component.Carrier n -> Component.Carrier n -> Component.Carrier n := Group.difference;
+}
+\structure Laws[d: Operators]: \Prop {
+  zero: \forall (i: Index)(s: Component[i := i].Simplex N.Nat^::zero) ->
+    #apply{(Component[i := i].boundary N.Nat^::zero)} (#apply{(d.homotopy i N.Nat^::zero)} (Component[i := i].generator N.Nat^::zero s)) =
+      Point[i := i, n := N.Nat^::zero].difference (Component[i := i].generator N.Nat^::zero s) (Component[i := i].generator N.Nat^::zero (d.apex i)),
+  positive: \forall (i: Index)(n: N.Nat^)(x: Component[i := i].Carrier (N.Nat^::succ n)) ->
+    #apply{(Component[i := i].boundary (N.Nat^::succ n))} (#apply{(d.homotopy i (N.Nat^::succ n))} x) =
+      Point[i := i, n := N.Nat^::succ n].difference x (#apply{(d.homotopy i n)} (#apply{(Component[i := i].boundary n)} x)),
+}
+\definition Contractions: \Set := \Cast[Operators] ({ d: Operators \where Laws[d] });
+\module With(contractions: Contractions);

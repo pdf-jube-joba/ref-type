@@ -1,0 +1,15 @@
+\import \parent.\parent.\parent.Affine[m := r, n := m] \as Inner;
+\import Inner.Composition[k := n] \as Composition;
+\import \parent.\parent.\parent.Affine[m := r, n := n] \as Final;
+\import Fin.Choice[A := Carrier m] \as Choice;
+\definition law: \forall (w: Final.Vertices) -> (\forall (i: Fin.Fin (N.Nat^::succ r)) -> \In[Carrier n] Points (w i)) ->
+  \forall (x: Carrier r) -> \In[Carrier n] Points (Final.apply w x) := \block {
+  \fun (w: Final.Vertices)(contained: \forall (i: Fin.Fin (N.Nat^::succ r)) -> \In[Carrier n] Points (w i))(x: Carrier r) \then
+  \takefrom u: \Cast[Inner.Vertices] ({ u: Inner.Vertices \where \forall (i: Fin.Fin (N.Nat^::succ r)) -> apply vertices (u i) = w i }) \by
+    Choice.exists (N.Nat^::succ r) (\fun (i: Fin.Fin (N.Nat^::succ r))(z: Carrier m) => apply vertices z = w i) contained \then
+  \let same: (\fun (i: Fin.Fin (N.Nat^::succ r)) => apply vertices (u i)) = w := \axiom:funext((\fun (i: Fin.Fin (N.Nat^::succ r)) => apply vertices (u i)), w,
+    \bysub(Inner.Vertices, { u: Inner.Vertices \where \forall (i: Fin.Fin (N.Nat^::succ r)) -> apply vertices (u i) = w i }, u)) \then
+  \return Logic.existsIntro[Carrier m, { z: Carrier m \where apply vertices z = Final.apply w x }] (Inner.apply u x)
+    (trans!{{Carrier n}} _ _ _ (Composition.law u vertices x)
+      (congr!{Final.Vertices {Carrier n}} (\fun (v: Final.Vertices) => Final.apply v x) _ _ same))
+};

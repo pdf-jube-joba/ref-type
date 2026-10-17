@@ -5,8 +5,8 @@ use crate::raw::program::{ProgramContext, ProgramContextEntry};
 use crate::raw::{environment::ModuleParameter, inductive::InductiveTypeSpecs};
 use crate::raw::{
     environment::{
-        ClosedNamespaceKey, CrateEnv, DeclarationRemapping, DefinedConstant, ModuleArgument,
-        ModuleItem, ModuleParameterKind,
+        CrateEnv, DeclarationRemapping, DefinedConstant, DefinitionEnvironment, ModuleArgument,
+        ModuleItem, ModuleParameterKind, NamespaceInstanceKey, RemappingId,
     },
     exp::{Exp, ExpContext},
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
@@ -151,7 +151,7 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::Definition {
-                name: name.0,
+                name: name.0.into(),
                 definition,
             },
         )
@@ -196,9 +196,13 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::Inductive {
-                name: type_name.0,
-                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
-                associated_definitions: Vec::new(),
+                name: type_name.0.into(),
+                constructor_names: constructor_names
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect::<Vec<_>>()
+                    .into(),
+                associated_definitions: Box::default(),
                 inductive,
             },
         )
@@ -214,9 +218,13 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::Inductive {
-                name: type_name.0,
-                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
-                associated_definitions: Vec::new(),
+                name: type_name.0.into(),
+                constructor_names: constructor_names
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect::<Vec<_>>()
+                    .into(),
+                associated_definitions: Box::default(),
                 inductive,
             },
         )
@@ -234,10 +242,14 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::ProgramInductive {
-                record_fields,
-                name: type_name.0,
-                constructor_names: constructor_names.into_iter().map(|name| name.0).collect(),
-                associated_definitions: Vec::new(),
+                record_fields: record_fields.map(Into::into),
+                name: type_name.0.into(),
+                constructor_names: constructor_names
+                    .into_iter()
+                    .map(|name| name.0)
+                    .collect::<Vec<_>>()
+                    .into(),
+                associated_definitions: Box::default(),
                 inductive,
                 reflected,
             },
@@ -254,11 +266,12 @@ impl ModuleManager {
         env.publish_item(
             self.current,
             ModuleItem::Record {
-                name: type_name.0,
+                name: type_name.0.into(),
                 associated_definitions: associated_definitions
                     .into_iter()
                     .map(|(name, definition)| (name.0, definition))
-                    .collect(),
+                    .collect::<Vec<_>>()
+                    .into(),
                 inductive,
             },
         )
@@ -287,7 +300,7 @@ impl ModuleManager {
             return None;
         };
         Some(ModItemRecord {
-            type_name: Identifier(name.clone()),
+            type_name: Identifier(name.to_string()),
             inductive: *inductive,
             associated_definitions: associated_definitions
                 .iter()
@@ -416,7 +429,7 @@ impl ModuleManager {
                 for (&materialized, &original) in &base.definition_origins {
                     remapping.definition_ids.insert(original, materialized);
                 }
-                (base.arguments.clone(), remapping)
+                (base.arguments.to_vec(), remapping)
             },
         );
         let mut reflected_substitutions = substitutions
@@ -591,17 +604,14 @@ impl ModuleManager {
             ));
         }
 
-        // Repeated closed instantiations can share the entire immutable graph,
-        // including its namespaces, rather than allocating provisional IDs for
-        // declarations that the specialization cache will immediately reuse.
-        // Arguments containing local variables stay on the uncached path.
-        // A closed instantiation is independent of unused caller bindings.
-        // Source namespaces grow
-        // only by appending items/bindings, so their lengths invalidate entries
-        // recorded before a source module has finished elaborating.
-        let namespace_key = (program_context.is_empty()
-            && env.namespace_arguments_shareable(&substitutions))
-        .then(|| ClosedNamespaceKey {
+        // Closed imports are independent of unused caller bindings. Open
+        // imports may share a graph only in the same owner and exact checking
+        // telescope; lowering applies those ambient variables explicitly.
+        // Source namespaces grow by appending items and bindings, so their
+        // lengths invalidate entries recorded before elaboration finishes.
+        let namespace_key = program_context.is_empty().then(|| NamespaceInstanceKey {
+            scope: (!env.namespace_arguments_shareable(&substitutions))
+                .then(|| (self.current, context.clone())),
             base,
             route: route
                 .iter()
@@ -616,7 +626,7 @@ impl ModuleManager {
             arguments: substitutions.clone(),
         });
         if let Some(key) = &namespace_key
-            && let Some((binding, dependencies)) = env.closed_namespaces.get(key).cloned()
+            && let Some((binding, dependencies)) = env.namespace_instance(key)
         {
             for dependency in dependencies {
                 env.attach_namespace_binding(self.current, dependency);
@@ -626,19 +636,15 @@ impl ModuleManager {
         // Conversion-equivalent closed arguments give the same nominal graph,
         // just as in the declaration specialization cache. Reuse that graph
         // before reserving thousands of already canonical declarations.
-        if let Some(key) = &namespace_key {
-            let reused = env.closed_namespaces.iter().find_map(|(candidate, value)| {
-                (candidate.base == key.base
-                    && candidate.route == key.route
-                    && env.namespace_arguments_equal(&candidate.arguments, &key.arguments))
-                .then(|| value.clone())
-            });
+        if let Some(key) = &namespace_key
+            && key.scope.is_none()
+        {
+            let reused = env.equivalent_namespace_instance(key);
             if let Some((binding, dependencies)) = reused {
                 for &dependency in &dependencies {
                     env.attach_namespace_binding(self.current, dependency);
                 }
-                env.closed_namespaces
-                    .insert(key.clone(), (binding, dependencies));
+                env.remember_namespace_instance(key.clone(), (binding, dependencies));
                 return Ok(binding);
             }
         }
@@ -715,7 +721,7 @@ impl ModuleManager {
                 .map(|(source_module, item_source, _)| {
                     let arguments = env.namespace_binding_id(*item_source).map_or_else(
                         || env.namespace_arguments(*source_module),
-                        |binding| env.binding(binding).arguments.clone(),
+                        |binding| env.binding(binding).arguments.to_vec(),
                     );
                     stability.arguments(&arguments)
                         && env
@@ -738,6 +744,7 @@ impl ModuleManager {
                 },
             )
             .collect::<Vec<_>>();
+        let shared_program_context = Arc::new(program_context.clone());
         let mut allocated = env
             .add_modules_in_scope(
                 self.current,
@@ -757,7 +764,7 @@ impl ModuleManager {
                 continue;
             }
             let materialized = allocated.next().expect("allocated import namespace");
-            env.set_program_context(materialized, program_context.clone());
+            env.set_program_context(materialized, shared_program_context.clone());
             remapping.module_ids.insert(*item_source, materialized);
             namespaces.push(materialized);
         }
@@ -768,6 +775,11 @@ impl ModuleManager {
         // argument environment; retain it once rather than copying every tuple.
         let shared_substitutions: Arc<[_]> = substitutions.clone().into();
         let shared_reflected_substitutions: Arc<[_]> = reflected_substitutions.clone().into();
+        let shared_definition_environment = Arc::new(DefinitionEnvironment {
+            substitutions: shared_substitutions.clone(),
+            reflected_substitutions: shared_reflected_substitutions.clone(),
+            remapping: std::cell::Cell::new(RemappingId(0)),
+        });
         for (((source_module, item_source, path_component), materialized), unchanged) in
             materialization_sources
                 .into_iter()
@@ -783,18 +795,17 @@ impl ModuleManager {
             // parameter access lose the imported arguments.
             let arguments = env.namespace_binding_id(item_source).map_or_else(
                 || env.namespace_arguments(source_module),
-                |binding| env.binding(binding).arguments.clone(),
+                |binding| env.binding(binding).arguments.to_vec(),
             );
             let mut reserve_definition =
                 |env: &mut CrateEnv, remapping: &mut DeclarationRemapping, source_id: DefId| {
                     let id = if unchanged {
                         source_id
                     } else {
-                        let id = env.reserve_lazy_definition(
+                        let id = env.reserve_lazy_definition_shared(
                             materialized,
                             source_id,
-                            shared_substitutions.clone(),
-                            shared_reflected_substitutions.clone(),
+                            shared_definition_environment.clone(),
                         );
                         lazy_definitions.push(id);
                         id
@@ -831,7 +842,8 @@ impl ModuleManager {
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
-                            .collect();
+                            .collect::<Vec<_>>()
+                            .into();
                         ModuleItem::Inductive {
                             name,
                             constructor_names,
@@ -860,7 +872,8 @@ impl ModuleManager {
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
-                            .collect();
+                            .collect::<Vec<_>>()
+                            .into();
                         ModuleItem::Record {
                             name,
                             associated_definitions,
@@ -892,7 +905,8 @@ impl ModuleManager {
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
-                            .collect();
+                            .collect::<Vec<_>>()
+                            .into();
                         ModuleItem::ProgramInductive {
                             record_fields,
                             name,
@@ -1014,7 +1028,7 @@ impl ModuleManager {
                             inductive_ids,
                             group.unchanged
                         );
-                        for (_, definition) in associated_definitions {
+                        for (_, definition) in associated_definitions.iter_mut() {
                             let source = reuse!(
                                 definition,
                                 reuse_lazy_definition,
@@ -1046,7 +1060,7 @@ impl ModuleManager {
                             program_inductive_ids,
                             group.unchanged
                         );
-                        for (_, definition) in associated_definitions {
+                        for (_, definition) in associated_definitions.iter_mut() {
                             let source = reuse!(
                                 definition,
                                 reuse_lazy_definition,
@@ -1104,7 +1118,7 @@ impl ModuleManager {
             if !group.path_component
                 && env.namespace_arguments_shareable(&arguments)
                 && group.items == env.module(group.item_source).items()
-                && arguments == env.binding(group.item_source).arguments
+                && arguments.as_slice() == env.binding(group.item_source).arguments.as_ref()
             {
                 for target in env
                     .reserved_remapping_mut(remapping)
@@ -1119,10 +1133,7 @@ impl ModuleManager {
                 result_bindings.push(group.item_source);
                 continue;
             }
-            env.copy_hir_names(group.item_source, group.namespace);
-            for item in group.items {
-                env.publish_item(group.namespace, item)?;
-            }
+            env.publish_instantiated_items(group.item_source, group.namespace, group.items);
             let binding = env.add_namespace_binding(
                 self.current,
                 group.source,
@@ -1144,8 +1155,7 @@ impl ModuleManager {
         env.compact_remapping(remapping);
         let binding = last_binding.expect("non-empty route was checked above");
         if let Some(key) = namespace_key {
-            env.closed_namespaces
-                .insert(key, (binding, result_bindings));
+            env.remember_namespace_instance(key, (binding, result_bindings));
         }
         Ok(binding)
     }
@@ -1502,7 +1512,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
     match item {
         ModuleItem::Definition { name, definition } => {
             ItemAccessResult::Definition(ModItemDefinition {
-                def_name: Identifier(name.clone()),
+                def_name: Identifier(name.to_string()),
                 definition: *definition,
             })
         }
@@ -1512,7 +1522,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
             associated_definitions,
             inductive,
         } => ItemAccessResult::Inductive(ModItemInductive {
-            type_name: Identifier(name.clone()),
+            type_name: Identifier(name.to_string()),
             ctor_names: constructor_names
                 .iter()
                 .map(|name| Identifier(name.clone()))
@@ -1528,7 +1538,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
             associated_definitions,
             inductive,
         } => ItemAccessResult::Record(ModItemRecord {
-            type_name: Identifier(name.clone()),
+            type_name: Identifier(name.to_string()),
             inductive: *inductive,
             associated_definitions: associated_definitions
                 .iter()
@@ -1546,7 +1556,7 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
             record_fields: record_fields
                 .as_ref()
                 .map(|fields| fields.iter().cloned().map(Identifier).collect()),
-            type_name: Identifier(name.clone()),
+            type_name: Identifier(name.to_string()),
             ctor_names: constructor_names
                 .iter()
                 .map(|name| Identifier(name.clone()))
@@ -1817,6 +1827,112 @@ mod tests {
         manager.moveto_parent(&env);
         let grown = instantiate(&mut manager, &mut env);
         assert_ne!(first, grown);
+        assert!(env.module(grown).item("late").is_some());
+        assert!(env.module(first).item("late").is_none());
+    }
+
+    #[test]
+    fn open_namespace_reuse_respects_owner_telescope_and_arguments() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        let set = env.arena().sort(Sort::Set(0));
+        let argument_parameter = parameter(&mut env, "A", set);
+        manager
+            .add_child_and_moveto(&mut env, "Source".into(), vec![argument_parameter])
+            .unwrap();
+        let source = manager.current();
+        let parameter_exp = env.arena().exp_module_param(ModuleParamId {
+            module: source,
+            position: 0,
+        });
+        manager
+            .add_def(
+                &mut env,
+                Identifier("value".into()),
+                DefinedConstant::Pts {
+                    ty: set,
+                    body: parameter_exp,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        let owner = manager.current();
+        let local = env.intern("local");
+        let mut context = vec![ExpContextEntry {
+            var: local,
+            ty: set,
+        }];
+        let argument = env.arena().exp_bound(0);
+        let instantiate = |manager: &mut ModuleManager,
+                           env: &mut CrateEnv,
+                           context: &mut ExpContext,
+                           argument: Exp| {
+            manager
+                .bind_namespace(
+                    env,
+                    context,
+                    None,
+                    vec![(
+                        Identifier("Source".into()),
+                        vec![(Identifier("A".into()), argument.into())],
+                    )],
+                )
+                .unwrap()
+        };
+        let first = instantiate(&mut manager, &mut env, &mut context, argument);
+        assert_eq!(
+            instantiate(&mut manager, &mut env, &mut context, argument),
+            first
+        );
+        let value_body = |env: &CrateEnv, binding| {
+            let ModuleItem::Definition { definition, .. } =
+                env.module(binding).item("value").unwrap()
+            else {
+                unreachable!()
+            };
+            pts_body(env.definition(*definition))
+        };
+        assert_eq!(value_body(&env, first), argument);
+
+        let mut deeper = context.clone();
+        deeper.push(ExpContextEntry {
+            var: env.intern("second"),
+            ty: set,
+        });
+        let second = instantiate(&mut manager, &mut env, &mut deeper, argument);
+        assert_ne!(second, first);
+        assert_eq!(
+            instantiate(&mut manager, &mut env, &mut deeper, argument),
+            second
+        );
+        let older_argument = env.arena().exp_bound(1);
+        let older = instantiate(&mut manager, &mut env, &mut deeper, older_argument);
+        assert_ne!(older, second);
+        assert_eq!(value_body(&env, older), older_argument);
+
+        manager
+            .add_child_and_moveto(&mut env, "OtherOwner".into(), vec![])
+            .unwrap();
+        let other_owner = instantiate(&mut manager, &mut env, &mut context, argument);
+        assert_ne!(other_owner, first);
+        assert_eq!(value_body(&env, other_owner), argument);
+
+        manager.moveto(source);
+        manager
+            .add_def(
+                &mut env,
+                Identifier("late".into()),
+                DefinedConstant::Pts {
+                    ty: set,
+                    body: parameter_exp,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto(owner);
+        let grown = instantiate(&mut manager, &mut env, &mut context, argument);
+        assert_ne!(grown, first);
         assert!(env.module(grown).item("late").is_some());
         assert!(env.module(first).item("late").is_none());
     }
@@ -2189,8 +2305,8 @@ mod tests {
             unreachable!()
         };
         assert_eq!(
-            env.binding(specialized_dependency).arguments,
-            vec![(source_parameter, ModuleArgument::Pts(argument))],
+            env.binding(specialized_dependency).arguments.as_ref(),
+            &[(source_parameter, ModuleArgument::Pts(argument))],
         );
         let module = env.module(env.binding(binding).materialized);
         let ModuleItem::Definition { definition, .. } = module.item("result").unwrap() else {

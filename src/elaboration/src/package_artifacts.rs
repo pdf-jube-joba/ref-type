@@ -418,6 +418,7 @@ impl State<'_> {
         if catalog.contains(&owner) {
             return Err(Error("package already exported".into()));
         }
+        let _export_phase = crate::profiling::Phase::start("artifact.export");
         let snapshots = self.workspace.crate_env.snapshot_transaction();
         let mut resolver = self.resolution.export_package(&boundary.resolution)?;
         let mut resolver_inventory = Relocation::collecting();
@@ -443,6 +444,7 @@ impl State<'_> {
                 }
             }
         }
+        let workspace_phase = crate::profiling::Phase::start("artifact.export-workspace");
         let mut workspace = self.workspace.export_artifact(
             &boundary.workspace,
             |expression| {
@@ -457,6 +459,7 @@ impl State<'_> {
                     .is_some()
             },
         )?;
+        drop(workspace_phase);
         let mut inventory = Relocation::collecting();
         resolver.relocate(&mut inventory)?;
         workspace.relocate(&mut inventory)?;
@@ -475,6 +478,7 @@ impl State<'_> {
             })
             .collect();
         identities.extend(nominal_modules);
+        let labels_phase = crate::profiling::Phase::start("artifact.identity-labels");
         let semantic = identity::labels(
             &mut workspace,
             self.workspace,
@@ -485,6 +489,7 @@ impl State<'_> {
             input,
             owner,
         )?;
+        drop(labels_phase);
         let mut depths = rustc_hash::FxHashMap::default();
         for (expression, node) in &workspace.graph.nodes {
             let mut depth = 0usize;
@@ -583,6 +588,7 @@ impl State<'_> {
             .collect();
         drop(relocation);
         header.sort_by(|(a, _), (b, _)| a.cmp(b));
+        let serialization_phase = crate::profiling::Phase::start("artifact.serialize");
         let resolver_bytes = artifact::canonical::to_vec_detailed(
             &ResolverObject {
                 version: 3,
@@ -608,6 +614,7 @@ impl State<'_> {
         let environment = artifact::canonical::to_vec_detailed(&workspace, MAX_PACKAGE_BYTES)
             .map_err(|error| Error(format!("workspace artifact serialization: {error}")))?;
         drop(workspace);
+        drop(serialization_phase);
         if !self.pending {
             let mut updated = catalog.clone();
             for (runtime, reference) in references {

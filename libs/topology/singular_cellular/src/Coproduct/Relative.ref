@@ -1,0 +1,93 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import \parent.Restricted[S := subset] \as Restriction;
+\import \root.Coproduct[Index := Index, fibers := Restriction.Fiber, spaces := Restriction.fiberTopology] \as Cut;
+\import \parent.Singular[].Decomposition[] \as WholeSum;
+\import Cut.Singular[].Decomposition[] \as SubspaceSum;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := subset] \as Pair;
+\import Space.Subspace[S := subset] \as Subspace;
+\import singular_cohomology.Chains[A := Subspace.CarrierSet, source := Subspace.topology topology] \as SubspaceChains;
+\import singular_cohomology.Chains[A := Carrier, source := topology] \as WholeChains;
+\import Nonnegative.ZeroExtension[C := SubspaceChains.complex] \as SubspaceExtension;
+\import Nonnegative.ZeroExtension[C := WholeChains.complex] \as WholeExtension;
+\definition leftFamily(i: Index): Complexes.Family := Complexes.Family {
+  Carrier := \parent.RelativeComponent[subset := subset, i := i].subCarrier, space := \parent.RelativeComponent[subset := subset, i := i].subSpace,
+};
+\definition leftDifferential(i: Index): Complexes.DifferentialData[leftFamily i] := Complexes.DifferentialData[leftFamily i] {
+  apply := \parent.RelativeComponent[subset := subset, i := i].subApply,
+};
+\definition leftLaws(i: Index): Complexes.DifferentialLaws[leftFamily i, leftDifferential i] := Complexes.DifferentialLaws[leftFamily i, leftDifferential i] {
+  addition := \parent.RelativeComponent[subset := subset, i := i].subAddition, scalar := \parent.RelativeComponent[subset := subset, i := i].subScalar,
+  squareZero := \parent.RelativeComponent[subset := subset, i := i].subSquareZero,
+};
+\definition leftTerms(i: Index): Complexes.Complex := Complexes.Complex {
+  family := leftFamily i, differential := leftDifferential i, laws := leftLaws i,
+};
+\definition middleFamily(i: Index): Complexes.Family := Complexes.Family {
+  Carrier := \parent.RelativeComponent[subset := subset, i := i].wholeCarrier, space := \parent.RelativeComponent[subset := subset, i := i].wholeSpace,
+};
+\definition middleDifferential(i: Index): Complexes.DifferentialData[middleFamily i] := Complexes.DifferentialData[middleFamily i] {
+  apply := \parent.RelativeComponent[subset := subset, i := i].wholeApply,
+};
+\definition middleLaws(i: Index): Complexes.DifferentialLaws[middleFamily i, middleDifferential i] := Complexes.DifferentialLaws[middleFamily i, middleDifferential i] {
+  addition := \parent.RelativeComponent[subset := subset, i := i].wholeAddition, scalar := \parent.RelativeComponent[subset := subset, i := i].wholeScalar,
+  squareZero := \parent.RelativeComponent[subset := subset, i := i].wholeSquareZero,
+};
+\definition middleTerms(i: Index): Complexes.Complex := Complexes.Complex {
+  family := middleFamily i, differential := middleDifferential i, laws := middleLaws i,
+};
+\definition rightFamily(i: Index): Complexes.Family := Complexes.Family {
+  Carrier := \parent.RelativeComponent[subset := subset, i := i].chainCarrier, space := \parent.RelativeComponent[subset := subset, i := i].chainSpace,
+};
+\definition rightDifferential(i: Index): Complexes.DifferentialData[rightFamily i] := Complexes.DifferentialData[rightFamily i] {
+  apply := \parent.RelativeComponent[subset := subset, i := i].chainApply,
+};
+\definition rightLaws(i: Index): Complexes.DifferentialLaws[rightFamily i, rightDifferential i] := Complexes.DifferentialLaws[rightFamily i, rightDifferential i] {
+  addition := \parent.RelativeComponent[subset := subset, i := i].chainAddition, scalar := \parent.RelativeComponent[subset := subset, i := i].chainScalar,
+  squareZero := \parent.RelativeComponent[subset := subset, i := i].chainSquareZero,
+};
+\definition rightTerms(i: Index): Complexes.Complex := Complexes.Complex {
+  family := rightFamily i, differential := rightDifferential i, laws := rightLaws i,
+};
+\definition sequences: \forall (i: Index) -> Complexes.ShortExact[A := leftTerms i, B := middleTerms i, C := rightTerms i].Sequence :=
+  \fun (i: Index) => \parent.RelativeComponent[subset := subset, i := i].sequence;
+\import singular_cellular_algebra.Algebra[].SumSequence[Index := Index, leftTerms := leftTerms, middleTerms := middleTerms, rightTerms := rightTerms, sequences := sequences] \as Sums;
+\definition splitting(i: Index)(z: I.Int^): Sums.Splitting[i, z] := Sums.Splitting[i, z] {
+  retraction := \parent.RelativeComponent[subset := subset, i := i].retraction z,
+  section := \parent.RelativeComponent[subset := subset, i := i].section z,
+  retracts := \parent.RelativeComponent[subset := subset, i := i].retracts z,
+  sectionLaw := \parent.RelativeComponent[subset := subset, i := i].sectionLaw z,
+};
+\import Sums.With[splitting := splitting] \as Exact;
+\import homological_algebra.Kunneth[].Integer[].ChainSum[Index := Index, terms := leftTerms] \as Left;
+\import homological_algebra.Kunneth[].Integer[].ChainSum[Index := Index, terms := middleTerms] \as Middle;
+\import homological_algebra.Kunneth[].Integer[].ChainSum[Index := Index, terms := rightTerms] \as Right;
+\definition maps: \forall (i: Index) -> Complexes.Map[C := rightTerms i, D := Pair.complex].Map := \fun (i: Index) => \parent.RelativeComponent[subset := subset, i := i].relativeMap;
+\import singular_cellular_algebra.Algebra[].SumTo[Index := Index, terms := rightTerms, target := Pair.complex, maps := maps] \as Copair;
+\definition map: Complexes.Map[C := Right.complex, D := Pair.complex].Map := Copair.map;
+\module SubspaceComparison;
+\definition ambientMap: Complexes.Map[C := Middle.complex, D := WholeExtension.complex].Map := WholeSum.Canonical[].map;
+\definition subspaceMap: Complexes.Map[C := Left.complex, D := SubspaceExtension.complex].Map := SubspaceComparison[].map;
+\import Complexes.ShortExact[A := Left.complex, B := Middle.complex, C := Right.complex]
+  .Morphism[A1 := SubspaceExtension.complex, B1 := WholeExtension.complex, C1 := Pair.complex]
+  .Diagram[s := Exact.sequence, t := Pair.sequence, a := subspaceMap, b := ambientMap, c := map] \as Diagram;
+\module Square(z: I.Int^);
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (z: I.Int^) => Square[z := z].left,
+  right := \fun (z: I.Int^) => Square[z := z].right,
+};
+\definition quasiIsomorphism: Complexes.Map[C := Right.complex, D := Pair.complex].QuasiIsomorphism map :=
+  Diagram.rightQuasiIsomorphism diagram (SubspaceComparison[].quasiIsomorphism) (WholeSum.Canonical[].quasiIsomorphism);
+\module Homology(z: I.Int^);
+
+\module Comparison;
+\module With(coefficients: Modules.Bundle);

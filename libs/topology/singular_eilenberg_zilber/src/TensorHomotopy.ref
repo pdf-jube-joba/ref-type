@@ -1,0 +1,49 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_cohomology.Chains[A := A, source := left] \as Left;
+\import singular_cohomology.Chains[A := B, source := right] \as Right;
+\import singular_cohomology.Simplices[A := A, source := left] \as LeftSimplices;
+\import singular_cohomology.Simplices[A := B, source := right] \as RightSimplices;
+\import double_complexes.DoubleComplex[].Over[R := I.Int^, ring := Integers.ring] \as Double;
+\import Double.Tensor[C := Left.complex, D := Right.complex] \as Tensor;
+\import Double.Total[C := Tensor.complex] \as Total;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import chain_complexes.Chain[] \as Degrees;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import \root.On[A := A, B := B, left := left, right := right] \as Comparison;
+\import \root.TensorModels[].Cells[] \as Models;
+\import \root.TensorEvaluation[A := A, B := B, left := left, right := right] \as Evaluation;
+\import field_kunneth.TensorCochain[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Diagram;
+\module Degree(n: N.Nat^);
+\module Zero;
+\module Successor(n: N.Nat^);
+\import Native.Homotopy[C := Total.complex, D := Total.complex] \as Homotopies;
+\definition operator: \forall (n: N.Nat^) -> Modules.Hom[
+  V := Total.Carrier n, W := Total.Carrier (N.Nat^::succ n),
+  source := Total.space n, target := Total.space (N.Nat^::succ n)].Map :=
+  \fun (n: N.Nat^) => Degree[n := n].map;
+\definition data: Homotopies.Data := Homotopies.Data { apply := \fun (n: N.Nat^) => #apply{(operator n)} };
+\definition successorEquation: \forall (n: N.Nat^)(x: Total.Carrier (N.Nat^::succ n)) ->
+  #apply{Comparison.tensorDefect} (N.Nat^::succ n) x =
+    #add{(Total.space (N.Nat^::succ n))}
+      (#apply{Total.differential} (N.Nat^::succ n) (#apply{(operator (N.Nat^::succ n))} x))
+      (#apply{(operator n)} (#apply{Total.differential} n x)) :=
+  \fun (n: N.Nat^) => Successor[n := n].law;
+\definition homotopy: Homotopies.Homotopy Comparison.tensorComposite (Native.End[C := Total.complex].identity) :=
+  \into[Homotopies.Data](data, Homotopies.Homotopy Comparison.tensorComposite (Native.End[C := Total.complex].identity)) \by {
+    Homotopies.Laws[Comparison.tensorComposite, Native.End[C := Total.complex].identity, data] {
+      addition := \fun (n: N.Nat^) => #addition{(operator n)},
+      scalar := \fun (n: N.Nat^) => #scalar{(operator n)},
+      zeroEquation := Zero[].law,
+      successorEquation := successorEquation,
+    }
+  };

@@ -1,0 +1,44 @@
+\import Source.Subspace[S := Source.Complement subset] \as Original;
+\import Space.Subspace[S := Space.Complement (Space.Singleton basepoint)] \as Image;
+\definition outside: \Pow A := { x: A \where Logic.Not (class x = basepoint) };
+\import Source.Subspace[S := outside] \as Domain;
+\import topology.Topology[Carrier := Original.CarrierSet] \as OriginalSpace;
+\import topology.Topology[Carrier := Domain.CarrierSet] \as DomainSpace;
+\import topology.Topology[Carrier := Image.CarrierSet] \as ImageSpace;
+\import topological_constructions.Quotient[A := A, B := Carrier].Restriction[q := class, U := Space.Complement (Space.Singleton basepoint)] \as Cut;
+\import topology.Homeomorphism[A := Domain.CarrierSet, B := Image.CarrierSet] \as Restricted;
+\import Restricted.OfQuotient[f := Cut.map] \as Bijection;
+\definition injective: Bijection.Injective := \fun (x, y: Domain.CarrierSet)(equal: Cut.map x = Cut.map y) =>
+  outsideEqual x y (\fun (member: \In[A] subset x) => (\bysub(A, outside, x)) (inFiber x member)) equal;
+\definition restricted(source: Source.Topology)(isClosed: Source.IsClosedIn source subset): Restricted.Homeomorphism[Domain.topology source, Image.topology (topology source)] :=
+  Bijection.homeomorphism (Domain.topology source) (Image.topology (topology source)) injective (Cut.onto Quotient.surjective)
+    (Cut.continuous source (topology source) (projectionContinuous source))
+    (Cut.reflectsOpen source (topology source) (Quotient.quotientMap source) (closed source isClosed));
+\definition forward(x: Original.CarrierSet): Domain.CarrierSet := \into[A](x, outside) \by {
+  \fun (equal: class x = basepoint) => (\bysub(A, Source.Complement subset, x)) (fiber x equal)
+};
+\definition backward(x: Domain.CarrierSet): Original.CarrierSet := \into[A](x, Source.Complement subset) \by {
+  \fun (member: \In[A] subset x) => (\bysub(A, outside, x)) (inFiber x member)
+};
+\import topology.Continuity[A := A, B := A].Restriction[S := Source.Complement subset] \as OriginalRestriction;
+\import topology.Continuity[A := A, B := A].Restriction[S := outside] \as DomainRestriction;
+\import topology.Continuity[A := Original.CarrierSet, B := A].Corestriction[S := outside] \as IntoDomain;
+\import topology.Continuity[A := Domain.CarrierSet, B := A].Corestriction[S := Source.Complement subset] \as IntoOriginal;
+\import topology.Maps[A := A, B := A].Identity[] \as Identity;
+\import topology.Homeomorphism[A := Original.CarrierSet, B := Domain.CarrierSet] \as Refinement;
+\definition refinement(source: Source.Topology): Refinement.Homeomorphism[Original.topology source, Domain.topology source] :=
+  Refinement.Homeomorphism[_, _] {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: Original.CarrierSet) => \refl(x),
+    rightInverse := \fun (x: Domain.CarrierSet) => \refl(x),
+    forwardContinuous := IntoDomain.corestrictContinuous (Original.topology source) source forward
+      (OriginalRestriction.restrictContinuous source source (\fun (x: A) => x) (Identity.continuous source)),
+    backwardContinuous := IntoOriginal.corestrictContinuous (Domain.topology source) source backward
+      (DomainRestriction.restrictContinuous source source (\fun (x: A) => x) (Identity.continuous source)),
+  };
+\import Refinement.Composition[C := Image.CarrierSet] \as Composition;
+\import topology.Homeomorphism[A := Original.CarrierSet, B := Image.CarrierSet] \as Homeomorphisms;
+\definition homeomorphism(source: Source.Topology)(isClosed: Source.IsClosedIn source subset): Homeomorphisms.Homeomorphism[Original.topology source, Image.topology (topology source)] :=
+  Composition.compose (Original.topology source) (Domain.topology source) (Image.topology (topology source)) (refinement source) (restricted source isClosed);
+\definition onPoint: \forall (source: Source.Topology)(isClosed: Source.IsClosedIn source subset)(x: Original.CarrierSet) ->
+  #forward{(homeomorphism source isClosed)} x = class x := \fun (source: _)(isClosed: _)(x: _) => \refl(class x);

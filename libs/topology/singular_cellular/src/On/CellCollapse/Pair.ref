@@ -1,0 +1,37 @@
+\import topology.Topology[Carrier := Skeleton.Carrier] \as SkeletonSpace;
+\definition lower: \Pow Skeleton.Carrier := { x: Skeleton.Carrier \where \In[A] (Filtration.subset dimension) x };
+\import singular_cohomology.Relative[A := Skeleton.Carrier, source := Skeleton.topology, subset := lower] \as Source;
+\import singular_cellular_algebra.Algebra[].PointRelative[A := DiskQuotient.Carrier, source := DiskQuotient.topology Model.diskTopology, point := basepoint] \as Point;
+\import singular_cohomology.Relative[A := DiskQuotient.Carrier, source := DiskQuotient.topology Model.diskTopology, subset := Point.subset] \as Target;
+\import Source.Maps[B := DiskQuotient.Carrier].Over[target := DiskQuotient.topology Model.diskTopology, targetSubset := Point.subset] \as Maps;
+\definition lowerConstant(x: Source.SubspaceCarrier): map x = basepoint :=
+  onOutside x (\parent.Boundary[].onLower x (\bysub(Skeleton.Carrier, lower, x)));
+\definition pairMap: Maps.Map := \into[Skeleton.Carrier -> DiskQuotient.Carrier](map, Maps.Map) \by {
+  Maps.Laws[map] { continuous := \parent.Continuity[].continuous, contained := lowerConstant }
+};
+\import Maps.On[f := pairMap].Integer[] \as Action;
+\import \parent.\parent.Layer[n := dimension] \as Layer;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := boundary] \as DiskPair;
+\import DiskPair.Maps[B := Skeleton.Carrier].Over[target := Skeleton.topology, targetSubset := lower] \as Characteristics;
+\definition characteristic: Characteristics.Map := \into[Model.Disk -> Skeleton.Carrier](Characteristic.characteristic, Characteristics.Map) \by {
+  Characteristics.Laws[Characteristic.characteristic] {
+    continuous := Characteristic.characteristicContinuous,
+    contained := \fun (p: DiskPair.SubspaceCarrier) => Characteristic.boundaryImage
+      (\into[Model.Coordinate](p, Model.Boundary) \by { \bysub(Model.Disk, boundary, p) }),
+  }
+};
+\import \root.DiskLocal[n := dimension] \as Local;
+\definition boundaryPoint: DiskPair.SubspaceCarrier := \into[Model.Disk](Characteristic.boundaryInclusion point, boundary) \by {
+  \bysub(Model.Coordinate, Model.Boundary, point)
+};
+\import Local.GoodPair[point := boundaryPoint] \as GoodPair;
+\import singular_excision.GoodPair[A := Model.Disk, source := Model.diskTopology, subset := boundary].QuotientSquare[pair := GoodPair.pair] \as Quotient;
+\import Characteristics.Composition[C := DiskQuotient.Carrier].Over[final := DiskQuotient.topology Model.diskTopology, finalSubset := Point.subset] \as Composition;
+\import DiskPair.Maps[B := DiskQuotient.Carrier].Over[target := DiskQuotient.topology Model.diskTopology, targetSubset := Point.subset] \as Direct;
+\definition characteristicSquare: Composition.compose characteristic pairMap = Quotient.quotientMap :=
+  \axiom:funext(Composition.compose characteristic pairMap, Quotient.quotientMap, \parent.Boundary[].onCharacteristic);
+\module Homology(z: I.Int^);
+\module Other(other: Cells.CellData, present: Cells.CellMember cells other,
+  sameDimension: #dimension{other} = dimension, different: Logic.Not (other = cell));
+
+\module Basis;

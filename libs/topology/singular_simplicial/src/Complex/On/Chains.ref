@@ -1,0 +1,45 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import singular_cohomology.SimplicialChains[].On[X := object] \as Native;
+\import \parent.Realization[] \as Realization;
+\import singular_cohomology.Chains[A := Realization.Carrier, source := Realization.topology] \as Singular;
+\import singular_cohomology.Simplices[A := Realization.Carrier, source := Realization.topology] \as SingularSimplices;
+\import Native.Mapping[Y := SingularSimplices.object] \as Mapping;
+\definition Carrier: N.Nat^ -> \Set := Native.Carrier;
+\definition space: \forall (n: N.Nat^) -> Modules.Space (Carrier n) := Native.space;
+\definition generator: \forall (n: N.Nat^) -> Simplex n -> Carrier n := Native.generator;
+\definition boundary: \forall (n: N.Nat^) -> Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n].Map := Native.boundary;
+\definition complex: Complexes.Complex := Native.complex;
+\definition comparison: Complexes.Map[C := complex, D := Singular.complex].Map := Mapping.map Realization.mapping;
+\definition onGenerator: \forall (n: N.Nat^)(sigma: Simplex n) ->
+  #apply{comparison} n (generator n sigma) = Singular.generator n (Realization.simplex n sigma) :=
+  \fun (n: N.Nat^) => Mapping.At[n := n].onGenerator Realization.mapping;
+\import Complexes.ZeroExtension[C := complex] \as Extension;
+\import Complexes.ZeroExtension[C := Singular.complex] \as TargetExtension;
+\import Complexes.Map[C := complex, D := Singular.complex] \as NativeMaps;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as IntegerComplexes;
+\definition integerComplex: IntegerComplexes.Complex := Extension.complex;
+\import IntegerComplexes.Map[C := Extension.complex, D := TargetExtension.complex] \as IntegerMaps;
+\definition signedAction(f: NativeMaps.Map): IntegerMaps.Map := NativeMaps.ZeroExtension[f := f].map;
+\definition integerComparison: IntegerMaps.Map := signedAction comparison;
+\module Degree(n: N.Nat^);
+\module HomotopyEquivalence;
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+  \import Hom.On[P := complex, N := coefficients] \as Cochains;
+  \import singular_cohomology.Cochains[A := Realization.Carrier, source := Realization.topology].With[coefficients := coefficients] \as Whole;
+  \import Hom.Mapping[P := complex, Q := Singular.complex, N := coefficients, L := coefficients] \as Pull;
+  \import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as End;
+  \import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as CochainComplexes;
+  \definition Carrier: N.Nat^ -> \Set := Cochains.Carrier;
+  \definition cochainComplex: CochainComplexes.Complex := Cochains.complex;
+  \definition restriction: CochainComplexes.Map[C := Whole.complex, D := cochainComplex].Map := Pull.On[f := comparison, u := End.identity].map;
+  \module At(n: N.Nat^) {
+    \import CochainComplexes.At[C := cochainComplex, k := n] \as Cohomology;
+    \definition Carrier: \Set := Cohomology.Cohomology;
+    \definition space: Modules.Space Carrier := Cohomology.cohomologySpace;
+  }
+  \module Comparison;
+}

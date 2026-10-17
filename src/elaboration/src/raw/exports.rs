@@ -42,11 +42,14 @@ pub(crate) struct Export {
     pub arena: super::super::exp::exports::Export,
     pub kernel_definitions: HashMap<DefId, kernel::ids::DefinitionId>,
     pub hir_symbols: HashMap<resolve::hir::BindingId, SymbolId>,
-    definition_parameters: HashMap<DefId, Vec<SymbolId>>,
+    #[serde(deserialize_with = "super::shared_vectors::deserialize")]
+    definition_parameters: HashMap<DefId, Arc<Vec<SymbolId>>>,
     pub namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     pub checking_scopes: HashMap<ModuleId, ModuleId>,
-    checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
-    checking_program_contexts: HashMap<ModuleId, crate::raw::program::ProgramContext>,
+    #[serde(deserialize_with = "super::shared_vectors::deserialize")]
+    checking_contexts: HashMap<ModuleId, Arc<crate::raw::exp::ExpContext>>,
+    #[serde(deserialize_with = "super::shared_vectors::deserialize")]
+    checking_program_contexts: HashMap<ModuleId, Arc<crate::raw::program::ProgramContext>>,
     #[serde(with = "super::declaration_checkpoint::definitions")]
     lazy_definitions: HashMap<DefId, LazyDefinition>,
     #[serde(with = "super::declaration_checkpoint::inductives")]
@@ -76,6 +79,7 @@ impl Export {
         external: &mut impl FnMut(kernel::syntax::Expression) -> bool,
     ) -> Result<()> {
         use std::collections::BTreeSet;
+        let _phase = crate::profiling::Phase::start("artifact.raw-retain-reachable");
         let mut reachable = BTreeSet::new();
         reachable.extend(
             roots
@@ -84,7 +88,7 @@ impl Export {
         );
         let mut modules = HashSet::new();
         let mut remappings = HashSet::new();
-        let mut arena_entries = BTreeSet::new();
+        let mut arena_reachability = self.arena.reachability()?;
         let mut kernel_reachability = self.kernel.reachability(&environment.arena.core);
         let mut remapping_tables = HashSet::new();
         let module_entries: HashMap<_, _> = self
@@ -112,10 +116,11 @@ impl Export {
         group!(nominal_inductives);
         group!(prospective_inductives);
         group!(nominal_datatypes);
-        loop {
-            let before = reachable.len();
+        let mut pending: Vec<_> = reachable.iter().cloned().collect();
+        while !pending.is_empty() {
+            let frontier = std::mem::take(&mut pending);
             let mut references = Relocation::collecting();
-            for identity in &reachable {
+            for identity in &frontier {
                 let Identity::Scalar { space, value } = identity else {
                     continue;
                 };
@@ -184,12 +189,14 @@ impl Export {
                     mappings!(program_inductive_ids);
                 }
             }
-            self.arena
-                .collect_reachable(&reachable, &mut arena_entries, &mut references)?;
-            reachable.extend(references.into_identities());
-            kernel_reachability.extend(&mut reachable, external)?;
-            if reachable.len() == before {
-                break;
+            arena_reachability.extend(&frontier, &mut references)?;
+            let mut discovered: BTreeSet<_> = frontier.into_iter().collect();
+            discovered.extend(references.into_identities());
+            kernel_reachability.extend(&mut discovered, external)?;
+            for identity in discovered {
+                if reachable.insert(identity.clone()) {
+                    pending.push(identity);
+                }
             }
         }
         self.modules.retain(|(id, _)| modules.contains(id));
@@ -216,6 +223,7 @@ impl Export {
         declaration_table!(nominal_inductives);
         declaration_table!(prospective_inductives);
         declaration_table!(nominal_datatypes);
+        drop(arena_reachability);
         self.arena.retain_reachable(&reachable);
         drop(kernel_reachability);
         self.kernel.retain_reachable(&reachable);
@@ -293,7 +301,7 @@ impl CrateEnv {
                 .iter()
                 .enumerate()
                 .skip(base.modules)
-                .map(|(i, v)| (ModuleId(i as u32), v.clone()))
+                .map(|(i, v)| (ModuleId(i as u32), v.as_ref().clone()))
                 .collect(),
             symbols: Vec::new(),
             remappings: crate::raw::remapping_checkpoint::Export::empty(),
@@ -347,7 +355,7 @@ impl CrateEnv {
                 .lazy_definitions
                 .iter()
                 .filter(|(key, _)| key.module.index() >= base.modules)
-                .map(|(k, v)| (*k, v.clone()))
+                .map(|(k, v)| (k, v.clone()))
                 .collect(),
             lazy_inductives: self
                 .lazy_inductives
@@ -359,7 +367,7 @@ impl CrateEnv {
                 .nominal_definitions
                 .iter()
                 .filter(|(key, _)| key.module.index() >= base.modules)
-                .map(|(k, v)| (*k, v.clone()))
+                .map(|(k, v)| (k, v.clone()))
                 .collect(),
             nominal_inductives: self
                 .nominal_inductives
@@ -527,7 +535,7 @@ impl CrateEnv {
             .collect();
         for (id, incoming) in export.modules {
             if id.index() == self.modules.len() {
-                self.modules.push(incoming);
+                self.modules.push(Box::new(incoming));
             } else {
                 let existing = self
                     .modules
@@ -686,7 +694,7 @@ fn merge_module(existing: &mut ModuleEnv, incoming: ModuleEnv) -> Result<()> {
     } else if !incoming.items.is_empty() {
         same(&existing.items, &incoming.items)?;
     }
-    existing.hir_names.extend(incoming.hir_names);
+    Arc::make_mut(&mut existing.hir_names).extend(Arc::unwrap_or_clone(incoming.hir_names));
     existing.imports.extend(incoming.imports);
     for child in incoming.children {
         if !existing.children.contains(&child) {
@@ -704,6 +712,43 @@ fn merge_module(existing: &mut ModuleEnv, incoming: ModuleEnv) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn verified_export_follows_deep_namespace_bindings_and_discards_detached_branches() {
+        let mut env = CrateEnv::new();
+        let boundary = env.boundary();
+        let source = env.add_module();
+        let mut retained = vec![source];
+        let mut current = source;
+        for _ in 0..1024 {
+            let next = env.add_module_in_scope(source, vec![]).unwrap();
+            let remapping = env.store_namespace_remapping(DeclarationRemapping::default(), next);
+            env.add_namespace_binding(current, source, next, vec![], HashMap::new(), remapping);
+            retained.push(next);
+            current = next;
+        }
+        let detached = env.add_module_in_scope(source, vec![]).unwrap();
+        let detached_child = env.add_module_in_scope(source, vec![]).unwrap();
+        let remapping =
+            env.store_namespace_remapping(DeclarationRemapping::default(), detached_child);
+        env.add_namespace_binding(
+            detached,
+            source,
+            detached_child,
+            vec![],
+            HashMap::new(),
+            remapping,
+        );
+        let export = env
+            .export_since_with_snapshots(&boundary, |_| true, Some(&[source]), &mut |_| false)
+            .unwrap();
+        let actual: HashSet<_> = export.modules.iter().map(|(id, _)| *id).collect();
+        assert_eq!(actual, retained.into_iter().collect());
+        assert!(!actual.contains(&detached));
+        assert!(!actual.contains(&detached_child));
+        assert_eq!(export.namespace_bindings.len(), 1024);
+        assert_eq!(export.remappings.ids.len(), 1024);
+    }
 
     #[test]
     fn verified_exports_drop_detached_provisional_scopes_but_pending_keeps_them() {

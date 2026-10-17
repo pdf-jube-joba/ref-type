@@ -1,0 +1,33 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition dimension: N.Nat^ := N.Nat^::succ n;
+\definition Sphere: \Set := Geometry.Carrier dimension;
+\definition topology: topology.Topology[Carrier := Sphere].Topology := Geometry.topology dimension;
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import \parent.With[coefficients := coefficients] \as Groups;
+\import Groups.Top[n := n] \as Top;
+\definition Carrier: \Set := Groups.cohomology dimension dimension;
+\definition space: Modules.Space Carrier := Groups.space dimension dimension;
+\definition fromCoefficient: Modules.Hom[V := I.Int^, W := Carrier, source := Modules.scalarModule, target := space].Map := #forward{Top.isomorphism};
+\definition toCoefficient: Modules.Hom[V := Carrier, W := I.Int^, source := space, target := Modules.scalarModule].Map := #backward{Top.isomorphism};
+\definition generator: Carrier := #apply{fromCoefficient} I.One.specification;
+\import singular_cohomology.Maps[A := Sphere, B := Sphere, source := topology, target := topology] \as Maps;
+\import Maps.Coefficients[M := coefficients, L := coefficients] \as Pull;
+\import Modules.End[V := I.Int^, space := Modules.scalarModule] \as Scalars;
+\import Modules.Hom[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Modules.scalarModule] \as ScalarMaps;
+\import Modules.Hom[V := Carrier, W := Carrier, source := space, target := space].Composition[U := I.Int^, domain := Modules.scalarModule] \as First;
+\import Modules.Hom[V := Carrier, W := I.Int^, source := space, target := Modules.scalarModule].Composition[U := I.Int^, domain := Modules.scalarModule] \as Second;
+\module Operators;
+\definition action(f: Sphere -> Sphere)(continuous: Maps.Continuous f): Modules.Hom[V := Carrier, W := Carrier, source := space, target := space].Map :=
+  Operators[].action f continuous;
+\definition conjugate(f: Sphere -> Sphere)(continuous: Maps.Continuous f): ScalarMaps.Map := Operators[].conjugate f continuous;
+\definition degree(f: Sphere -> Sphere)(continuous: Maps.Continuous f): I.Int^ := Operators[].degree f continuous;
+\definition onCoefficients: \forall (f: Sphere -> Sphere)(continuous: Maps.Continuous f)(a: I.Int^) ->
+  #apply{(conjugate f continuous)} a = #mul{Integers.ring} a (degree f continuous) := Operators[].onCoefficients;
+\definition onBasis: \forall (f: Sphere -> Sphere)(continuous: Maps.Continuous f)(a: I.Int^) ->
+  #apply{(action f continuous)} (#apply{fromCoefficient} a) = #apply{fromCoefficient} (#mul{Integers.ring} a (degree f continuous)) := Operators[].onBasis;
+\module Identity;
+\module Composition;
+\module Homotopy;

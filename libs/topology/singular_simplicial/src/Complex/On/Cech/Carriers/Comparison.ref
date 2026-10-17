@@ -1,0 +1,49 @@
+\import \parent.Delta[] \as Delta;
+\import Doubles.AcyclicDiagonal[] \as Acyclic;
+\import Acyclic.Of[model := Supported.model] \as Recursion;
+\definition fillings: Recursion.Fillings := Recursion.Fillings {
+  operator := \fun (n: N.Nat^) => \parent.Filling[n := n].map,
+  boundary := \fun (n: N.Nat^) => \parent.Filling[n := n].boundary,
+};
+\import Supported.Diagonal[delta := Delta.map, carried := Delta.carried] \as Diagonal;
+\import Recursion.On[fillings := fillings, cells := Diagonal.cells] \as Rec;
+\import Native.Homotopy[C := Total.complex, D := Whole.complex] \as Homotopies;
+\definition data: Homotopies.Data := Homotopies.Data { apply := \fun (n: N.Nat^) => #apply{(Rec.value n)} };
+\module Zero {
+  \definition degree: N.Nat^ := N.Nat^::zero;
+  \import Modules.Laws[V := Whole.Carrier degree, space := Whole.space degree] \as Values;
+  \import algebra.Group[].Of[Carrier := Whole.Carrier degree, group := Values.additive] \as Group;
+  \definition boundary: \forall (x: Total.Carrier degree) -> #apply{(Whole.boundary degree)} (#apply{data} degree x) =
+    Group.difference (#apply{difference} degree x) #zero{(Whole.space degree)} :=
+    \fun (x: Total.Carrier degree) => congr!{{Supported.Carrier degree (I.Int^::ofNat degree)} {Whole.Carrier degree}}
+      (\fun (f: Supported.Carrier degree (I.Int^::ofNat degree)) => #apply{f} x) _ _ (Rec.boundary degree);
+  \definition law: \forall (x: Total.Carrier degree) -> Group.difference (#apply{first} degree x) (#apply{second} degree x) =
+    #apply{(Whole.boundary degree)} (#apply{data} degree x) :=
+    \fun (x: Total.Carrier degree) => sym!{{Whole.Carrier degree}} _ _ (trans!{{Whole.Carrier degree}} _ _ _ (boundary x)
+      (trans!{{Whole.Carrier degree}} _ _ _
+        (congr!{{Whole.Carrier degree} {Whole.Carrier degree}} (Values.add (#apply{difference} degree x)) _ _ Group.negZero)
+        (Group.zeroRight (#apply{difference} degree x))));
+}
+\module Positive(n: N.Nat^) {
+  \definition degree: N.Nat^ := N.Nat^::succ n;
+  \import Modules.Laws[V := Whole.Carrier degree, space := Whole.space degree] \as Values;
+  \import algebra.Group[].Of[Carrier := Whole.Carrier degree, group := Values.additive] \as Group;
+  \definition prior(x: Total.Carrier degree): Whole.Carrier degree := #apply{data} n (#apply{Total.differential} n x);
+  \definition boundary: \forall (x: Total.Carrier degree) -> #apply{(Whole.boundary degree)} (#apply{data} degree x) =
+    Group.difference (#apply{difference} degree x) (prior x) :=
+    \fun (x: Total.Carrier degree) => congr!{{Supported.Carrier degree (I.Int^::ofNat degree)} {Whole.Carrier degree}}
+      (\fun (f: Supported.Carrier degree (I.Int^::ofNat degree)) => #apply{f} x) _ _ (Rec.boundary degree);
+  \definition law: \forall (x: Total.Carrier degree) -> Group.difference (#apply{first} degree x) (#apply{second} degree x) =
+    #add{(Whole.space degree)} (#apply{(Whole.boundary degree)} (#apply{data} degree x)) (#apply{data} n (#apply{Total.differential} n x)) :=
+    \fun (x: Total.Carrier degree) => sym!{{Whole.Carrier degree}} _ _ (trans!{{Whole.Carrier degree}} _ _ _
+      (congr!{{Whole.Carrier degree} {Whole.Carrier degree}} (\fun (y: Whole.Carrier degree) => Values.add y (prior x)) _ _ (boundary x))
+      (Group.addDifference (#apply{difference} degree x) (prior x)));
+}
+\definition homotopy: Homotopies.Homotopy first second := \into[Homotopies.Data](data, Homotopies.Homotopy first second) \by {
+  Homotopies.Laws[first, second, data] {
+    addition := \fun (n: N.Nat^) => #addition{(Rec.value n)},
+    scalar := \fun (n: N.Nat^) => #scalar{(Rec.value n)},
+    zeroEquation := Zero[].law,
+    successorEquation := \fun (n: N.Nat^) => Positive[n := n].law,
+  }
+};

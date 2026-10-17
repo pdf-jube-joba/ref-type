@@ -1,0 +1,70 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import topology.Topology[Carrier := A] \as Space;
+\import Space.Finite[] \as Finite;
+\definition Family: \Set := Lists.List[C];
+\definition members(family: Family): \Pow C := Lists.foldr C (\Pow C)
+  (\fun (c: C)(tail: \Pow C) => { other: C \where Logic.Or[other = c, \In[C] tail other] })
+  ({ c: C \where Logic.False }) family;
+\definition Member(family: Family)(c: C): \Prop := \In[C] (members family) c;
+\definition union(family: Family): \Pow A := Lists.foldr C (\Pow A)
+  (\fun (c: C)(tail: \Pow A) => Finite.Join (pieces c) tail) Space.Empty family;
+\definition include: \forall (family: Family)(c: C) -> Member family c -> Space.Subset (pieces c) (union family) :=
+  \induction (family: Family) \return \forall (c: C) -> Member family c -> Space.Subset (pieces c) (union family) \with {
+    | nil: \fun (c: C)(impossible: Logic.False)(x: A)(member: _) => Logic.falseElim _ impossible
+    | cons: \fun (first: C)(tail: Family)(ih: _)(c: C)(member: _)(x: A)(inside: _) => either!{member
+      {Space.Member (union (Lists.List[C]::cons first tail)) x}
+      {\fun (same: c = first) => Logic.Or[_, _]::left
+        (\idelim c = first \with v: C => Space.Member (pieces v) x \by { base: inside, equality: same })}
+      {\fun (old: _) => Logic.Or[_, _]::right (ih c old x inside)}
+    }
+  };
+\definition eliminate: \forall (family: Family)(x: A)(P: \Prop) ->
+  (\forall (c: C) -> Member family c -> Space.Member (pieces c) x -> P) -> Space.Member (union family) x -> P :=
+  \induction (family: Family) \return \forall (x: A)(P: \Prop) ->
+    (\forall (c: C) -> Member family c -> Space.Member (pieces c) x -> P) -> Space.Member (union family) x -> P \with {
+      | nil: \fun (x: A)(P: \Prop)(step: _)(impossible: Logic.False) => Logic.falseElim P impossible
+      | cons: \fun (first: C)(tail: Family)(ih: _)(x: A)(P: \Prop)(step: _)(member: _) => either!{member P
+        {step first (Logic.Or[_, _]::left (\refl(first)))}
+        {\fun (old: _) => ih x P (\fun (c: C)(present: _) => step c (Logic.Or[_, _]::right present)) old}
+      }
+    };
+\definition emptyClosed: Space.IsClosedIn source Space.Empty :=
+  \idelim Space.Whole = Space.Complement Space.Empty \with U: \Pow A => Space.IsOpenIn source U \by {
+    base: #wholeOpen{(Space.topologyLaws source)},
+    equality: \axiom:setext(Space.Whole, Space.Complement Space.Empty,
+      \fun (x: A)(whole: _)(impossible: Logic.False) => impossible,
+      \fun (x: A)(outside: _) => \refl(x))
+  };
+\definition closed: \forall (family: Family) ->
+  (\forall (c: C) -> Member family c -> Space.IsClosedIn source (pieces c)) -> Space.IsClosedIn source (union family) :=
+  \induction (family: Family) \return
+    (\forall (c: C) -> Member family c -> Space.IsClosedIn source (pieces c)) -> Space.IsClosedIn source (union family) \with {
+      | nil: \fun (allClosed: _) => emptyClosed
+      | cons: \fun (first: C)(tail: Family)(ih: _)(allClosed: _) => Finite.joinClosed source (pieces first) (union tail)
+        (allClosed first (Logic.Or[_, _]::left (\refl(first))))
+        (ih (\fun (c: C)(present: _) => allClosed c (Logic.Or[_, _]::right present)))
+    };
+\import Space.Compactness[] \as Compact;
+\definition compact: \forall (family: Family) ->
+  (\forall (c: C) -> Member family c -> Space.IsCompactIn source (pieces c)) -> Space.IsCompactIn source (union family) :=
+  \induction (family: Family) \return
+    (\forall (c: C) -> Member family c -> Space.IsCompactIn source (pieces c)) -> Space.IsCompactIn source (union family) \with {
+      | nil: \fun (allCompact: _) => Compact.emptyCompact source
+      | cons: \fun (first: C)(tail: Family)(ih: _)(allCompact: _) => Compact.joinCompact source (pieces first) (union tail)
+        (allCompact first (Logic.Or[_, _]::left (\refl(first))))
+        (ih (\fun (c: C)(present: _) => allCompact c (Logic.Or[_, _]::right present)))
+    };
+
+\structure PartitionLaws[family: Family]: \Prop {
+  closed: \forall (c: C) -> Member family c -> Space.IsClosedIn source (pieces c),
+  covers: Space.Subset Space.Whole (union family),
+  disjoint: \forall (c, d: C) -> Member family c -> Member family d -> Logic.Not (c = d) ->
+    \forall (x: A) -> Space.Member (pieces c) x -> Space.Member (pieces d) x -> Logic.False,
+}
+\module Partition(family: Family, laws: PartitionLaws[family]);

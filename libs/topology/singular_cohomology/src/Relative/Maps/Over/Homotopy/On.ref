@@ -1,0 +1,41 @@
+\import \root.Homotopy[A := A, B := B, source := source, target := target] \as Whole;
+\definition ambient: Family := h;
+\definition preserves: Preserves ambient := \bysub(Family, Homotopy, h);
+\import \parent.\parent.On[f := f] \as Start;
+\import \parent.\parent.On[f := g] \as End;
+\import Start.Integer[] \as StartInteger;
+\import End.Integer[] \as EndInteger;
+\import Whole.Homology[f := f, g := g, h := ambient] \as WholeInteger;
+\import \root.Chains[A := B, source := target] \as TargetChains;
+\import \root.Chains[A := TargetPair.SubspaceCarrier, source := TargetSubspace.topology target] \as TargetSubspaceChains;
+\import Nonnegative.ZeroExtension[C := TargetChains.complex] \as TargetExtension;
+\import Nonnegative.ZeroExtension[C := TargetSubspaceChains.complex] \as TargetSubspaceExtension;
+\import Nonnegative.Map[C := WholeChains.complex, D := TargetChains.complex].ZeroExtension[f := Start.ambientMap] \as StartAmbient;
+\import Nonnegative.Map[C := WholeChains.complex, D := TargetChains.complex].ZeroExtension[f := End.ambientMap] \as EndAmbient;
+\import Nonnegative.Map[C := SubspaceChains.complex, D := TargetSubspaceChains.complex].ZeroExtension[f := Start.subspaceMap] \as StartSubspace;
+\import Nonnegative.Map[C := SubspaceChains.complex, D := TargetSubspaceChains.complex].ZeroExtension[f := End.subspaceMap] \as EndSubspace;
+\import Complexes.QuotientMapping[C := SubspaceExtension.complex, D := WholeExtension.complex, C1 := TargetSubspaceExtension.complex, D1 := TargetExtension.complex]
+  .On[f := inclusionMap, g := TargetPair.inclusionMap, a := StartSubspace.map, b := StartAmbient.map] \as StartSquare;
+\import Complexes.QuotientMapping[C := SubspaceExtension.complex, D := WholeExtension.complex, C1 := TargetSubspaceExtension.complex, D1 := TargetExtension.complex]
+  .On[f := inclusionMap, g := TargetPair.inclusionMap, a := EndSubspace.map, b := EndAmbient.map] \as EndSquare;
+\import Complexes.QuotientHomotopy[C := SubspaceExtension.complex, D := WholeExtension.complex, C1 := TargetSubspaceExtension.complex, D1 := TargetExtension.complex]
+  .Along[a := inclusionMap, b := TargetPair.inclusionMap, f := EndAmbient.map, g := StartAmbient.map] \as Descent;
+\import TargetPair.Support[] \as TargetSupport;
+\import Complexes.Quotient[C := TargetSubspaceExtension.complex, D := TargetExtension.complex].On[f := TargetPair.inclusionMap] \as TargetQuotient;
+\module Degree(n: N.Nat^);
+\module Image;
+\definition supported: Descent.SupportedHomotopy := Descent.SupportedHomotopy {
+  homotopy := WholeInteger.integerHomotopy,
+  left := \fun (z: I.Int^) => EndSquare.At[k := z].preserves EndInteger.compatible,
+  right := \fun (z: I.Int^) => StartSquare.At[k := z].preserves StartInteger.compatible,
+  preserves := Image[].law,
+};
+\import Descent.On[h := supported] \as RelativeHomotopy;
+\definition homotopy: Complexes.Homotopy[C := complex, D := TargetPair.complex].Homotopy EndInteger.map StartInteger.map := RelativeHomotopy.homotopy;
+\module At(z: I.Int^) {
+  \import Complexes.At[C := complex, z := z] \as SourceH;
+  \import Complexes.At[C := TargetPair.complex, z := z] \as TargetH;
+  \definition law: \forall (q: SourceH.Homology) -> #apply{StartInteger.At[z := z].induced} q = #apply{EndInteger.At[z := z].induced} q :=
+    \fun (q: SourceH.Homology) => sym!{TargetH.Homology} _ _ (RelativeHomotopy.Homology[k := z].law q);
+}
+\module With(coefficients: Modules.Bundle);

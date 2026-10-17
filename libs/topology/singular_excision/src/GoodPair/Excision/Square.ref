@@ -1,0 +1,60 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\use Equality.trans;
+\use Equality.congr;
+\import singular_cohomology.Relative[A := A, source := source, subset := Topology.region] \as ExpandedSource;
+\import singular_cohomology.Relative[A := Quotient.Carrier, source := Quotient.topology source, subset := image] \as ExpandedTarget;
+\import ExpandedSource.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := image] \as QuotientMaps;
+\definition quotientMap: QuotientMaps.Map := \into[A -> Quotient.Carrier](Quotient.class, QuotientMaps.Map) \by {
+  QuotientMaps.Laws[Quotient.class] {
+    continuous := Quotient.projectionContinuous source,
+    contained := \fun (x: ExpandedSource.SubspaceCarrier) => NeighborhoodQuotient.toImage x (\bysub(A, Topology.region, x)),
+  }
+};
+\import SourceRelative.Maps[B := A].Over[target := source, targetSubset := Topology.region] \as SourceMaps;
+\import TargetRelative.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := image] \as TargetMaps;
+\import topology.Continuity[A := SourceComplement.CarrierSet, B := A].Corestriction[S := Space.Complement subset] \as SourceInclusion;
+\import topology.Continuity[A := TargetComplement.CarrierSet, B := Quotient.Carrier].Corestriction[S := QuotientSpace.Complement (QuotientSpace.Singleton basepoint)] \as TargetInclusion;
+\definition sourceMap: SourceMaps.Map := \into[SourceComplement.CarrierSet -> A]((\fun (x: SourceComplement.CarrierSet) => x), SourceMaps.Map) \by {
+  SourceMaps.Laws[(\fun (x: SourceComplement.CarrierSet) => x)] {
+    continuous := SourceInclusion.inclusionContinuous source,
+    contained := \fun (x: SourceRelative.SubspaceCarrier) => \bysub(SourceComplement.CarrierSet, sourceSubset, x),
+  }
+};
+\definition targetMap: TargetMaps.Map := \into[TargetComplement.CarrierSet -> Quotient.Carrier]((\fun (x: TargetComplement.CarrierSet) => x), TargetMaps.Map) \by {
+  TargetMaps.Laws[(\fun (x: TargetComplement.CarrierSet) => x)] {
+    continuous := TargetInclusion.inclusionContinuous (Quotient.topology source),
+    contained := \fun (x: TargetRelative.SubspaceCarrier) => \bysub(TargetComplement.CarrierSet, targetSubset, x),
+  }
+};
+\definition complementMap: SourceRelative.Maps[B := TargetComplement.CarrierSet].Over[target := TargetComplement.topology (Quotient.topology source), targetSubset := targetSubset].Map := Homeomorphisms.forwardMap homeomorphismData;
+\import SourceMaps.Composition[C := Quotient.Carrier].Over[final := Quotient.topology source, finalSubset := image] \as Left;
+\import SourceRelative.Maps[B := TargetComplement.CarrierSet].Over[target := TargetComplement.topology (Quotient.topology source), targetSubset := targetSubset]
+  .Composition[C := Quotient.Carrier].Over[final := Quotient.topology source, finalSubset := image] \as Right;
+\definition mapEquality: Left.compose sourceMap quotientMap = Right.compose complementMap targetMap :=
+  \axiom:funext((Left.compose sourceMap quotientMap), (Right.compose complementMap targetMap),
+    \fun (x: SourceComplement.CarrierSet) => sym!{Quotient.Carrier} _ _ (Outside.onPoint source #closed{pair} x));
+\import QuotientMaps.On[f := quotientMap].Integer[] \as QuotientAction;
+\import SourceMaps.On[f := sourceMap].Integer[] \as SourceAction;
+\import TargetMaps.On[f := targetMap].Integer[] \as TargetAction;
+\import SourceRelative.Maps[B := TargetComplement.CarrierSet].Over[target := TargetComplement.topology (Quotient.topology source), targetSubset := targetSubset]
+  .On[f := complementMap].Integer[] \as ComplementAction;
+\import SourceRelative.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := image] \as Direct;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import Chains.Map[C := SourceRelative.complex, D := ExpandedTarget.complex] \as ChainMaps;
+\import Chains.Map[C := ExpandedSource.complex, D := ExpandedTarget.complex].Composition[B := SourceRelative.complex] \as LeftComposition;
+\import Chains.Map[C := TargetRelative.complex, D := ExpandedTarget.complex].Composition[B := SourceRelative.complex] \as RightComposition;
+\definition action(f: Direct.Map): ChainMaps.Map := Direct.On[f := f].Integer[].map;
+\definition chainLaw: LeftComposition.compose QuotientAction.map SourceAction.map = RightComposition.compose TargetAction.map ComplementAction.map :=
+  trans!{ChainMaps.Map} _ _ _ (Left.On[f := sourceMap, g := quotientMap].chainLaw)
+    (trans!{ChainMaps.Map} _ _ _ (congr!{Direct.Map ChainMaps.Map} action _ _ mapEquality)
+      (sym!{ChainMaps.Map} _ _ (Right.On[f := complementMap, g := targetMap].chainLaw)));
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\definition sourceChainMap: Chains.Map[C := SourceRelative.complex, D := ExpandedSource.complex].Map := SourceAction.map;
+\definition targetChainMap: Chains.Map[C := TargetRelative.complex, D := ExpandedTarget.complex].Map := TargetAction.map;
+\definition complementChainMap: Chains.Map[C := SourceRelative.complex, D := TargetRelative.complex].Map := ComplementAction.map;
+\definition quotientChainMap: Chains.Map[C := ExpandedSource.complex, D := ExpandedTarget.complex].Map := QuotientAction.map;
+\module Homology(z: I.Int^);
+\module With(coefficients: Modules.Bundle) {
+  \module At(z: I.Int^);
+}

@@ -1,0 +1,55 @@
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import dedekind_reals.DedekindReal[] \as Reals;
+\import Reals.Arithmetic[].Prop[] \as RealLaws;
+\import std.Data[].Bool[] \as B;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition Points(y: Geometric.Carrier d): \Pow Vertex := { v: Vertex \where Logic.Not (y v = Real.zero) };
+\definition vertexOutside: \forall (a, b: Vertex) -> Logic.Not (a = b) -> Vertices.vertex d a b = Real.zero :=
+  \fun (a, b: Vertex)(different: Logic.Not (a = b)) =>
+    congr!{B.Bool^ Real.Real} (\fun (flag: B.Bool^) => B.ite Real.Real flag Real.one Real.zero) _ _
+      (Bounds.eqbFalseOfNe b a (\fun (equal: b = a) => different (sym!{Vertex} _ _ equal)));
+\definition vertexSelf: \forall (v: Vertex) -> Vertices.vertex d v v = Real.one :=
+  \fun (v: Vertex) => congr!{B.Bool^ Real.Real} (\fun (flag: B.Bool^) => B.ite Real.Real flag Real.one Real.zero) _ _ (Bounds.eqbRefl v);
+\definition vertexInjective: \forall (a, b: Vertex) -> Vertices.vertex d a = Vertices.vertex d b -> a = b :=
+  \fun (a, b: Vertex)(same: Vertices.vertex d a = Vertices.vertex d b) =>
+    (Logic.orElim _ _ (a = b) ((Classical.excludedMiddle (a = b)))
+      (\fun (equal: a = b) => equal)
+      (\fun (different: Logic.Not (a = b)) => Logic.falseElim (a = b) (RealLaws.zeroNeOne (sym!{Real.Real} _ _
+        (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (vertexSelf a))
+          (trans!{Real.Real} _ _ _
+            (congr!{{Geometric.Carrier d} Real.Real} (\fun (y: Geometric.Carrier d) => y a) _ _ same)
+            (vertexOutside b a (\fun (equal: b = a) => different (sym!{Vertex} _ _ equal)))))))));
+\definition coordinateOutside: \forall (n: N.Nat^)(vertices: Tuple n)(x: Geometric.Carrier n)(v: Vertex) ->
+  Logic.Not (\In[Vertex] (Image n vertices) v) -> Geometric.Reindex[m := n, n := d].apply vertices x v = Real.zero :=
+  \fun (n: N.Nat^)(vertices: Tuple n)(x: Geometric.Carrier n)(v: Vertex)(outside: Logic.Not (\In[Vertex] (Image n vertices) v)) =>
+    trans!{Real.Real} _ _ _
+      (Sums.congruent (N.Nat^::succ n) _ (\fun (_: Fin.Fin (N.Nat^::succ n)) => Real.zero)
+        (\fun (i: Fin.Fin (N.Nat^::succ n)) => trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.mul (x i)) _ _
+            (vertexOutside (vertices i) v (\fun (equal: vertices i = v) => outside
+              (Logic.existsIntro[Fin.Fin (N.Nat^::succ n), { j: Fin.Fin (N.Nat^::succ n) \where vertices j = v }] i equal))))
+          (RealLaws.fieldMulZeroRight (x i))))
+      (Sums.zeroSum (N.Nat^::succ n));
+\definition included: \forall (n: N.Nat^)(vertices: Tuple n)(x: Geometric.Carrier n) ->
+  Included (Points (Geometric.Reindex[m := n, n := d].apply vertices x)) (Image n vertices) :=
+  \fun (n: N.Nat^)(vertices: Tuple n)(x: Geometric.Carrier n)(v: Vertex)(nonzero: Logic.Not (Geometric.Reindex[m := n, n := d].apply vertices x v = Real.zero)) =>
+    (Logic.orElim _ _ (\In[Vertex] (Image n vertices) v) ((Classical.excludedMiddle (\In[Vertex] (Image n vertices) v)))
+      (\fun (member: \In[Vertex] (Image n vertices) v) => member)
+      (\fun (outside: Logic.Not (\In[Vertex] (Image n vertices) v)) => Logic.falseElim _ (nonzero (coordinateOutside n vertices x v outside))));
+\definition face: \forall (y: Carrier) -> \In[\Pow Vertex] K.faces (Points y) := \block {
+  \fun (y: Carrier) \then
+  \takefrom w: Witness[y] \by witness y \then
+  \let contained: Included (Points y) (Image #dimension{w} #vertices{w}) :=
+    \idelim Geometric.Reindex[m := #dimension{w}, n := d].apply #vertices{w} #point{w} = y
+      \with z: Geometric.Carrier d => Included (Points z) (Image #dimension{w} #vertices{w}) \by {
+        base: included #dimension{w} #vertices{w} #point{w}, equality: #equation{w}
+      } \then
+  \return #hereditary{K} (Image #dimension{w} #vertices{w}) (Points y) #face{w} contained
+};
+\definition witnessContains(y: Carrier)(w: Witness[y]): Included (Points y) (Image #dimension{w} #vertices{w}) :=
+  \idelim Geometric.Reindex[m := #dimension{w}, n := d].apply #vertices{w} #point{w} = y
+    \with z: Geometric.Carrier d => Included (Points z) (Image #dimension{w} #vertices{w}) \by {
+      base: included #dimension{w} #vertices{w} #point{w}, equality: #equation{w}
+    };

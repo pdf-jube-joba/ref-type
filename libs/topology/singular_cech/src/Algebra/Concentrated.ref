@@ -1,0 +1,66 @@
+\import Modules.Zero[] \as Point;
+\import double_complexes.DoubleComplex[].Over[R := R, ring := ring] \as Doubles;
+\structure Packed: \Set(1) {
+  Carrier: \Set,
+  spaceLift: \forall (X: \Set) -> (Modules.Space Carrier -> X) -> X,
+}
+\definition lower(p: Packed): Modules.Space p.Carrier := p.spaceLift (Modules.Space p.Carrier) (\fun (m: Modules.Space p.Carrier) => m);
+\definition stage(p: N.Nat^): N.Nat^ -> Packed :=
+  \induction (q: N.Nat^) \return Packed \with {
+    | zero: Packed { Carrier := C.family.Carrier p, spaceLift := \fun (X: \Set)(f: Modules.Space (C.family.Carrier p) -> X) => f (C.family.space p) }
+    | succ: \fun (q: N.Nat^)(previous: Packed) => Packed { Carrier := Point.Carrier, spaceLift := \fun (X: \Set)(f: Modules.Space Point.Carrier -> X) => f Point.moduleSpace }
+  };
+\definition bundle(p, q: N.Nat^): Modules.Bundle := Modules.Bundle { Carrier := (stage p q).Carrier, space := lower (stage p q) };
+\definition family: Doubles.Family := Doubles.Family {
+  Carrier := \fun (p, q: N.Nat^) => #Carrier{(bundle p q)},
+  space := \fun (p, q: N.Nat^) => #space{(bundle p q)},
+};
+\definition horizontal(p: N.Nat^): \forall (q: N.Nat^) ->
+  Modules.Hom[V := family.Carrier (N.Nat^::succ p) q, W := family.Carrier p q,
+    source := family.space (N.Nat^::succ p) q, target := family.space p q].Map :=
+  \induction (q: N.Nat^) \return Modules.Hom[V := family.Carrier (N.Nat^::succ p) q, W := family.Carrier p q,
+    source := family.space (N.Nat^::succ p) q, target := family.space p q].Map \with {
+    | zero: Modules.Hom[V := C.family.Carrier (N.Nat^::succ p), W := C.family.Carrier p,
+        source := C.family.space (N.Nat^::succ p), target := C.family.space p].Map {
+        apply := #apply{C.differential} p, addition := #addition{C.laws} p, scalar := #scalar{C.laws} p,
+      }
+    | succ: \fun (q: N.Nat^)(previous: _) =>
+        Modules.Hom[V := Point.Carrier, W := Point.Carrier, source := Point.moduleSpace, target := Point.moduleSpace].zeroMap
+  };
+\definition vertical(p, q: N.Nat^): Modules.Hom[V := family.Carrier p (N.Nat^::succ q), W := family.Carrier p q,
+  source := family.space p (N.Nat^::succ q), target := family.space p q].Map :=
+  Modules.Hom[V := family.Carrier p (N.Nat^::succ q), W := family.Carrier p q,
+    source := family.space p (N.Nat^::succ q), target := family.space p q].zeroMap;
+\definition differential: Doubles.DifferentialData[family] := Doubles.DifferentialData[family] {
+  horizontal := horizontal, vertical := vertical,
+};
+\definition horizontalZero(p: N.Nat^): \forall (q: N.Nat^)(x: family.Carrier (N.Nat^::succ (N.Nat^::succ p)) q) ->
+  #apply{(horizontal p q)} (#apply{(horizontal (N.Nat^::succ p) q)} x) = #zero{(family.space p q)} :=
+  \induction (q: N.Nat^) \return \forall (x: family.Carrier (N.Nat^::succ (N.Nat^::succ p)) q) ->
+    #apply{(horizontal p q)} (#apply{(horizontal (N.Nat^::succ p) q)} x) = #zero{(family.space p q)} \with {
+    | zero: #squareZero{C.laws} p
+    | succ: \fun (q: N.Nat^)(previous: _)(x: Point.Carrier) => \refl(Point.Carrier::zero)
+  };
+\definition complex: Doubles.Complex := Doubles.Complex {
+  family := family, differential := differential,
+  laws := Doubles.DifferentialLaws[family, differential] {
+    horizontalZero := horizontalZero,
+    verticalZero := \fun (p, q: N.Nat^)(x: family.Carrier p (N.Nat^::succ (N.Nat^::succ q))) => \refl(#zero{(family.space p q)}),
+    commute := \fun (p, q: N.Nat^)(x: family.Carrier (N.Nat^::succ p) (N.Nat^::succ q)) =>
+      Modules.Hom[V := family.Carrier (N.Nat^::succ p) q, W := family.Carrier p q,
+        source := family.space (N.Nat^::succ p) q, target := family.space p q].zeroPreserved (horizontal p q),
+  },
+};
+\definition vanishes: Doubles.Concentrated[C := complex].Vanishes :=
+  \fun (p, q: N.Nat^)(x: Point.Carrier) => Point.unique x Point.Carrier::zero;
+\module Comparison;
+\module PositiveProjective(p, q: N.Nat^) {
+  \import Modules.ProjectiveLaws[].Trivial[P := bundle p (N.Nat^::succ q)] \as Trivial;
+  \definition projective: Modules.Projective (bundle p (N.Nat^::succ q)) := Trivial.projective (vanishes p q);
+}
+\definition componentProjective(projective: \forall (n: N.Nat^) -> Modules.Projective (Modules.Bundle { Carrier := C.family.Carrier n, space := C.family.space n })):
+  \forall (p, q: N.Nat^) -> Modules.Projective (bundle p q) :=
+  \fun (p: N.Nat^) => \induction (q: N.Nat^) \return Modules.Projective (bundle p q) \with {
+    | zero: projective p
+    | succ: \fun (q: N.Nat^)(previous: _) => PositiveProjective[p := p, q := q].projective
+  };

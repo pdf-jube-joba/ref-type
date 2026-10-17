@@ -1,0 +1,21 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\definition Vertex: \Set := Fin.Fin (N.Nat^::succ d);
+\definition Included(S, T: \Pow Vertex): \Prop := \forall (v: Vertex) -> \In[Vertex] S v -> \In[Vertex] T v;
+\structure Data: \Set { faces: \Pow (\Pow Vertex) }
+\structure Laws[data: Data]: \Prop {
+  hereditary: \forall (S, T: \Pow Vertex) -> \In[\Pow Vertex] data.faces S -> Included T S -> \In[\Pow Vertex] data.faces T,
+}
+\definition Object: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition full: Object := Object {
+  faces := { S: \Pow Vertex \where S = S },
+  hereditary := \fun (S, T: \Pow Vertex)(member: S = S)(included: Included T S) => \refl(T),
+};
+\definition empty: Object := Object {
+  faces := { S: \Pow Vertex \where \forall (v: Vertex) -> \In[Vertex] S v -> Logic.False },
+  hereditary := \fun (S, T: \Pow Vertex)(member: _)(included: Included T S)(v: Vertex)(inside: \In[Vertex] T v) => member v (included v inside),
+};
+\module On(K: Object);
+\module Full;
+\module LineGraph(V, E: \Set);

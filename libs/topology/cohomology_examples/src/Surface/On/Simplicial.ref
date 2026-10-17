@@ -1,0 +1,138 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as B;
+\import B.Prop[] \as Booleans;
+\import std.Logic[].Proposition[] \as Logic;
+\import algebraic_topology.Semisimplicial[] \as Simplicial;
+\inductive Empty: \Set := ;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import std.Data[].Sum[] \as Sums;
+\definition Base: \Set := Sums.Sum[V, Sums.Sum[E, T]];
+\definition degree: Base -> N.Nat^ := \induction (sigma: Base) \return N.Nat^ \with {
+  | inl: \fun (v: V) => N.Nat^::zero
+  | inr: \induction (sigma: Sums.Sum[E, T]) \return N.Nat^ \with {
+      | inl: \fun (e: E) => one
+      | inr: \fun (t: T) => two
+    }
+};
+\definition Carrier(n: N.Nat^): \Set := \Cast[Base] ({ sigma: Base \where degree sigma = n });
+\definition vertex(v: V): Carrier N.Nat^::zero := \into[Base](Sums.Sum[V, Sums.Sum[E, T]]::inl v,
+  { sigma: Base \where degree sigma = N.Nat^::zero }) \by { \refl(N.Nat^::zero) };
+\definition edge(e: E): Carrier one := \into[Base](Sums.Sum[V, Sums.Sum[E, T]]::inr (Sums.Sum[E, T]::inl e),
+  { sigma: Base \where degree sigma = one }) \by { \refl(one) };
+\definition triangle(t: T): Carrier two := \into[Base](Sums.Sum[V, Sums.Sum[E, T]]::inr (Sums.Sum[E, T]::inr t),
+  { sigma: Base \where degree sigma = two }) \by { \refl(two) };
+\definition edgeFaceValue(i: N.Nat^)(e: E): V := B.ite V (Nat.isZero i) (surface.target e) (surface.source e);
+\definition triangleFaceValue(i: N.Nat^)(t: T): E :=
+  B.ite E (Nat.isZero i) (surface.back t) (B.ite E (Nat.isZero (Nat.pred i)) (surface.diagonal t) (surface.front t));
+\definition rawFace(i: N.Nat^): Base -> Base := \induction (sigma: Base) \return Base \with {
+  | inl: \fun (v: V) => Sums.Sum[V, Sums.Sum[E, T]]::inl v
+  | inr: \induction (sigma: Sums.Sum[E, T]) \return Base \with {
+      | inl: \fun (e: E) => Sums.Sum[V, Sums.Sum[E, T]]::inl (edgeFaceValue i e)
+      | inr: \fun (t: T) => Sums.Sum[V, Sums.Sum[E, T]]::inr (Sums.Sum[E, T]::inl (triangleFaceValue i t))
+    }
+};
+\definition rawDegree(n, i: N.Nat^): \forall (sigma: Base) -> degree sigma = N.Nat^::succ n -> degree (rawFace i sigma) = n :=
+  \induction (sigma: Base) \return degree sigma = N.Nat^::succ n -> degree (rawFace i sigma) = n \with {
+    | inl: \fun (v: V)(invalid: N.Nat^::zero = N.Nat^::succ n) => Logic.falseElim (N.Nat^::zero = n) (Bounds.zeroNeSucc n invalid)
+    | inr: \induction (sigma: Sums.Sum[E, T]) \return degree (Sums.Sum[V, Sums.Sum[E, T]]::inr sigma) = N.Nat^::succ n ->
+        degree (rawFace i (Sums.Sum[V, Sums.Sum[E, T]]::inr sigma)) = n \with {
+        | inl: \fun (e: E)(equal: one = N.Nat^::succ n) => Bounds.succInjective N.Nat^::zero n equal
+        | inr: \fun (t: T)(equal: two = N.Nat^::succ n) => Bounds.succInjective one n equal
+      }
+  };
+\definition face(n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ n)): Carrier n :=
+  \into[Base](rawFace i sigma, { tau: Base \where degree tau = n }) \by {
+    rawDegree n i sigma (\bysub(Base, { tau: Base \where degree tau = N.Nat^::succ n }, sigma))
+  };
+\definition edgeFace(i: Fin.Fin two)(e: E): V := edgeFaceValue i e;
+\definition triangleFace(i: Fin.Fin (N.Nat^::succ two))(t: T): E := triangleFaceValue i t;
+\definition firstIndex: Fin.Fin two := Fin.zero one;
+\definition secondIndex: Fin.Fin two := Fin.succ one (Fin.zero N.Nat^::zero);
+\definition twoCases(P: Fin.Fin two -> \Prop)(first: P firstIndex)(second: P secondIndex): \forall (i: Fin.Fin two) -> P i :=
+  Fin.cases one P first (\fun (i: Fin.Fin one) =>
+    \idelim Fin.zero N.Nat^::zero = i \with j: Fin.Fin one => P (Fin.succ one j) \by {
+      base: second, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+    });
+\definition triangleIdentity(i, j: Fin.Fin two)(t: T)(ordered: Bounds.Le i j):
+  edgeFace j (triangleFace (Fin.widen two i) t) = edgeFace i (triangleFace (Fin.succ two j) t) :=
+  (twoCases (\fun (i: Fin.Fin two) => \forall (j: Fin.Fin two) -> Bounds.Le i j ->
+    edgeFace j (triangleFace (Fin.widen two i) t) = edgeFace i (triangleFace (Fin.succ two j) t))
+    (twoCases (\fun (j: Fin.Fin two) => Bounds.Le firstIndex j -> edgeFace j (triangleFace (Fin.widen two firstIndex) t) = edgeFace firstIndex (triangleFace (Fin.succ two j) t))
+      (\fun (ordered: Bounds.Le firstIndex firstIndex) => sym!{V} _ _ (#last{(\bysub(Data, Object, surface))} t))
+      (\fun (ordered: Bounds.Le firstIndex secondIndex) => sym!{V} _ _ (#middle{(\bysub(Data, Object, surface))} t)))
+    (twoCases (\fun (j: Fin.Fin two) => Bounds.Le secondIndex j -> edgeFace j (triangleFace (Fin.widen two secondIndex) t) = edgeFace secondIndex (triangleFace (Fin.succ two j) t))
+      (\fun (ordered: Bounds.Le secondIndex firstIndex) => Logic.falseElim
+        (edgeFace firstIndex (triangleFace (Fin.widen two secondIndex) t) = edgeFace secondIndex (triangleFace (Fin.succ two firstIndex) t)) (Booleans.falseNeTrue ordered))
+      (\fun (ordered: Bounds.Le secondIndex secondIndex) => sym!{V} _ _ (#first{(\bysub(Data, Object, surface))} t)))) i j ordered;
+\definition FaceIdentity(n: N.Nat^)(sigma: Carrier (N.Nat^::succ (N.Nat^::succ n))): \Prop :=
+  \forall (i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) -> Bounds.Le i j ->
+    face n j (face (N.Nat^::succ n) (Fin.widen (N.Nat^::succ (N.Nat^::succ n)) i) sigma) =
+    face n i (face (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) j) sigma);
+\definition triangleLaw(t: T): FaceIdentity N.Nat^::zero (triangle t) :=
+  \fun (i, j: Fin.Fin two)(ordered: Bounds.Le i j) =>
+    congr!{V {Carrier N.Nat^::zero}} vertex _ _ (triangleIdentity i j t ordered);
+\definition zeroOnBase: \forall (sigma: Base)(eligible: degree sigma = two) ->
+  FaceIdentity N.Nat^::zero (\into[Base](sigma, { tau: Base \where degree tau = two }) \by { eligible }) :=
+  \induction (sigma: Base) \return \forall (eligible: degree sigma = two) ->
+    FaceIdentity N.Nat^::zero (\into[Base](sigma, { tau: Base \where degree tau = two }) \by { eligible }) \with {
+    | inl: \fun (v: V)(invalid: N.Nat^::zero = two) => Logic.falseElim
+        (FaceIdentity N.Nat^::zero (\into[Base](Sums.Sum[V, Sums.Sum[E, T]]::inl v, { tau: Base \where degree tau = two }) \by { invalid }))
+        (Bounds.zeroNeSucc one invalid)
+    | inr: \induction (sigma: Sums.Sum[E, T]) \return \forall (eligible: degree (Sums.Sum[V, Sums.Sum[E, T]]::inr sigma) = two) ->
+        FaceIdentity N.Nat^::zero (\into[Base](Sums.Sum[V, Sums.Sum[E, T]]::inr sigma, { tau: Base \where degree tau = two }) \by { eligible }) \with {
+        | inl: \fun (e: E)(invalid: one = two) => Logic.falseElim
+            (FaceIdentity N.Nat^::zero (\into[Base](Sums.Sum[V, Sums.Sum[E, T]]::inr (Sums.Sum[E, T]::inl e), { tau: Base \where degree tau = two }) \by { invalid }))
+            (Bounds.zeroNeSucc N.Nat^::zero (Bounds.succInjective N.Nat^::zero one invalid))
+        | inr: \fun (t: T)(eligible: two = two) => triangleLaw t
+      }
+  };
+\definition zeroLaw(sigma: Carrier two): FaceIdentity N.Nat^::zero sigma := zeroOnBase sigma
+  (\bysub(Base, { tau: Base \where degree tau = two }, sigma));
+\definition higherEmpty(k: N.Nat^): \forall (sigma: Base) -> degree sigma = N.Nat^::succ (N.Nat^::succ (N.Nat^::succ k)) -> Logic.False :=
+  \induction (sigma: Base) \return degree sigma = N.Nat^::succ (N.Nat^::succ (N.Nat^::succ k)) -> Logic.False \with {
+    | inl: \fun (v: V)(invalid: N.Nat^::zero = N.Nat^::succ (N.Nat^::succ (N.Nat^::succ k))) => Bounds.zeroNeSucc (N.Nat^::succ (N.Nat^::succ k)) invalid
+    | inr: \induction (sigma: Sums.Sum[E, T]) \return degree (Sums.Sum[V, Sums.Sum[E, T]]::inr sigma) = N.Nat^::succ (N.Nat^::succ (N.Nat^::succ k)) -> Logic.False \with {
+        | inl: \fun (e: E)(invalid: one = N.Nat^::succ (N.Nat^::succ (N.Nat^::succ k))) =>
+            Bounds.zeroNeSucc (N.Nat^::succ k) (Bounds.succInjective N.Nat^::zero (N.Nat^::succ (N.Nat^::succ k)) invalid)
+        | inr: \fun (t: T)(invalid: two = N.Nat^::succ (N.Nat^::succ (N.Nat^::succ k))) =>
+            Bounds.zeroNeSucc k (Bounds.succInjective N.Nat^::zero (N.Nat^::succ k)
+              (Bounds.succInjective one (N.Nat^::succ (N.Nat^::succ k)) invalid))
+      }
+  };
+\definition identity: \forall (n: N.Nat^)(sigma: Carrier (N.Nat^::succ (N.Nat^::succ n))) -> FaceIdentity n sigma :=
+  \induction (n: N.Nat^) \return \forall (sigma: Carrier (N.Nat^::succ (N.Nat^::succ n))) -> FaceIdentity n sigma \with {
+    | zero: zeroLaw
+    | succ: \fun (k: N.Nat^)(previous: _)(sigma: Carrier (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ k)))) =>
+        Logic.falseElim (FaceIdentity (N.Nat^::succ k) sigma)
+          (higherEmpty k sigma (\bysub(Base, { tau: Base \where degree tau = N.Nat^::succ (N.Nat^::succ (N.Nat^::succ k)) }, sigma)))
+  };
+\definition family: Simplicial.Family := Simplicial.Family { Carrier := Carrier };
+\definition faces: Simplicial.Faces[family] := Simplicial.Faces[family] { apply := face };
+\definition object: Simplicial.Object := Simplicial.Object {
+  family := family, faces := faces,
+  laws := Simplicial.Laws[family, faces] {
+    identity := \fun (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ (N.Nat^::succ n)))(ordered: Bounds.Le i j) => identity n sigma i j ordered,
+  },
+};
+\import singular_cohomology.SimplicialChains[].On[X := object] \as Chains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := IntegerRing.ring] \as NativeChains;
+\definition chainFamily: NativeChains.Family := NativeChains.Family { Carrier := Chains.Carrier, space := Chains.space };
+\definition chainDifferential: NativeChains.DifferentialData[chainFamily] := NativeChains.DifferentialData[chainFamily] {
+  apply := \fun (n: N.Nat^) => #apply{(Chains.boundary n)},
+};
+\definition chainComplex: NativeChains.Complex := NativeChains.Complex {
+  family := chainFamily, differential := chainDifferential,
+  laws := NativeChains.DifferentialLaws[chainFamily, chainDifferential] {
+    addition := \fun (n: N.Nat^) => #addition{(Chains.boundary n)},
+    scalar := \fun (n: N.Nat^) => #scalar{(Chains.boundary n)},
+    squareZero := \fun (n: N.Nat^) => Chains.SquareZero[n := n].all,
+  },
+};
+\module Boundaries;
+\module Coefficients(A: Modules.Bundle);
+\module Sequence(L, M, R: Modules.Bundle);
+\module Change(A, B: Modules.Bundle, u: Modules.MapBetween A B);

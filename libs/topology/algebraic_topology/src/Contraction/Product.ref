@@ -1,0 +1,26 @@
+\import \root.Interval[] \as Interval;
+\import \root.Contraction[A := B, source := target] \as Other;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := A, B := B] \as Pairs;
+\import topological_constructions.Product[A := A, B := B] \as Product;
+\import Product.Maps[] \as Projections;
+\definition topology: topology.Topology[Carrier := Product.CarrierSet].Topology := Product.topology source target;
+\import \root.Contraction[A := Product.CarrierSet, source := topology] \as Result;
+\import \root.Cylinder[A := Product.CarrierSet] \as Cylinder;
+\import \root.Cylinder[A := A] \as LeftCylinder;
+\import \root.Cylinder[A := B] \as RightCylinder;
+\import topological_constructions.Product[A := Interval.Carrier, B := A].Universal[X := Cylinder.Carrier] \as LeftLift;
+\import topological_constructions.Product[A := Interval.Carrier, B := B].Universal[X := Cylinder.Carrier] \as RightLift;
+\import topology.Composition[A := Cylinder.Carrier, B := Product.CarrierSet, C := A] \as LeftProjection;
+\import topology.Composition[A := Cylinder.Carrier, B := Product.CarrierSet, C := B] \as RightProjection;
+\definition leftLift(p: Cylinder.Carrier): LeftCylinder.Carrier := LeftCylinder.at (Cylinder.time p) (Pair.first A B (Cylinder.point p));
+\definition rightLift(p: Cylinder.Carrier): RightCylinder.Carrier := RightCylinder.at (Cylinder.time p) (Pair.second A B (Cylinder.point p));
+\definition leftContinuous: topology.Continuity[A := Cylinder.Carrier, B := LeftCylinder.Carrier].Continuous (Cylinder.topology topology) (LeftCylinder.topology source) leftLift :=
+  LeftLift.pairContinuous (Cylinder.topology topology) Interval.topology source Cylinder.time (\fun (p: Cylinder.Carrier) => Pair.first A B (Cylinder.point p))
+    (Cylinder.timeContinuous topology)
+    (LeftProjection.composeContinuous (Cylinder.topology topology) topology source Cylinder.point (Pair.first A B) (Cylinder.pointContinuous topology) (Projections.firstContinuous source target));
+\definition rightContinuous: topology.Continuity[A := Cylinder.Carrier, B := RightCylinder.Carrier].Continuous (Cylinder.topology topology) (RightCylinder.topology target) rightLift :=
+  RightLift.pairContinuous (Cylinder.topology topology) Interval.topology target Cylinder.time (\fun (p: Cylinder.Carrier) => Pair.second A B (Cylinder.point p))
+    (Cylinder.timeContinuous topology)
+    (RightProjection.composeContinuous (Cylinder.topology topology) topology target Cylinder.point (Pair.second A B) (Cylinder.pointContinuous topology) (Projections.secondContinuous source target));
+\module With(left: Data, right: Other.Data);

@@ -1,0 +1,22 @@
+\import \root.Cochains[A := B, source := target].With[coefficients := M] \as SourceCochains;
+\import \root.Cochains[A := A, source := source].With[coefficients := L] \as TargetCochains;
+\import Modules.Hom[V := M.Carrier, W := L.Carrier, source := M.space, target := L.space] \as CoefficientMaps;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Mapping[P := Domain.complex, Q := Codomain.complex, N := M, L := L] \as Mapping;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].Map[C := SourceCochains.complex, D := TargetCochains.complex] \as Maps;
+\definition map(f: A -> B)(continuous: Continuous f)(coefficientMap: CoefficientMaps.Map): Maps.Map :=
+  Mapping.On[f := push f continuous, u := coefficientMap].map;
+\module At(n: N.Nat^) {
+  \import Maps.At[k := n] \as Native;
+  \import Modules.Hom[V := SourceCochains.cohomology n, W := TargetCochains.cohomology n,
+    source := SourceCochains.cohomologySpace n, target := TargetCochains.cohomologySpace n] \as Hom;
+  \definition induced(f: A -> B)(continuous: Continuous f)(coefficientMap: CoefficientMaps.Map): Hom.Map := Native.induced (map f continuous coefficientMap);
+  \definition onCochain: \forall (f: A -> B)(continuous: Continuous f)(coefficientMap: CoefficientMaps.Map)
+    (h: SourceCochains.Carrier n)(sigma: Source.Carrier n) ->
+    #apply{(#apply{(map f continuous coefficientMap)} n h)} (Domain.generator n sigma) =
+      #apply{coefficientMap} (#apply{h} (Codomain.generator n (postcompose n f continuous sigma))) :=
+    \fun (f: A -> B)(continuous: Continuous f)(coefficientMap: CoefficientMaps.Map)(h: SourceCochains.Carrier n)(sigma: Source.Carrier n) =>
+      congr!{{Codomain.Carrier n} L.Carrier} (\fun (x: Codomain.Carrier n) => #apply{coefficientMap} (#apply{h} x)) _ _
+        (\parent.\parent.At[n := n].onGenerator f continuous sigma);
+}
+
+\module Integer(f: A -> B, continuous: Continuous f, coefficientMap: CoefficientMaps.Map);

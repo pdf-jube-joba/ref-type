@@ -1,0 +1,97 @@
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Native;
+\import singular_cech.Algebra[R := I.Int^, ring := IntegerRing.ring].Restriction[C := chain] \as Restriction;
+\definition native: Native.Complex := Restriction.complex;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].Simplicial[] \as Model;
+\import singular_cohomology.SimplicialChains[].On[X := Model.object] \as Target;
+\definition targetFamily: Native.Family := Native.Family { Carrier := Target.Carrier, space := Target.space };
+\definition targetDifferential: Native.DifferentialData[targetFamily] := Native.DifferentialData[targetFamily] {
+  apply := \fun (n: N.Nat^) => #apply{(Target.boundary n)},
+};
+\definition targetComplex: Native.Complex := Native.Complex {
+  family := targetFamily, differential := targetDifferential,
+  laws := Native.DifferentialLaws[targetFamily, targetDifferential] {
+    addition := \fun (n: N.Nat^) => #addition{(Target.boundary n)},
+    scalar := \fun (n: N.Nat^) => #scalar{(Target.boundary n)},
+    squareZero := \fun (n: N.Nat^) => Target.SquareZero[n := n].all,
+  },
+};
+\definition vertex(v: Vertex): Target.Carrier zero := Target.generator zero (Model.vertex v);
+\definition edge(e: Edge): Target.Carrier one := Target.generator one (Model.edge e);
+\definition triangle(t: Triangle): Target.Carrier two := Target.generator two (Model.triangle t);
+\definition sourceBundle(n: N.Nat^): Modules.Bundle := Modules.Bundle { Carrier := native.family.Carrier n, space := native.family.space n };
+\definition targetBundle(n: N.Nat^): Modules.Bundle := Modules.Bundle { Carrier := targetComplex.family.Carrier n, space := targetComplex.family.space n };
+\definition Forward(n: N.Nat^): \Set := Modules.MapBetween (sourceBundle n) (targetBundle n);
+\definition Backward(n: N.Nat^): \Set := Modules.MapBetween (targetBundle n) (sourceBundle n);
+\definition Homotopy(n: N.Nat^): \Set := Modules.MapBetween (targetBundle n) (targetBundle (N.Nat^::succ n));
+\module Zero;
+\module One;
+\module Two;
+\module Higher(n: N.Nat^);
+\definition forwardDegree: \forall (n: N.Nat^) -> Forward n := \induction (n: N.Nat^) \return Forward n \with {
+  | zero: Zero[].forward
+  | succ: \fun (n: N.Nat^)(unused: _) => (\induction (n: N.Nat^) \return Forward (N.Nat^::succ n) \with {
+      | zero: One[].forward
+      | succ: \fun (n: N.Nat^)(unused: _) => (\induction (n: N.Nat^) \return Forward (N.Nat^::succ (N.Nat^::succ n)) \with {
+          | zero: Two[].forward
+          | succ: \fun (n: N.Nat^)(unused: _) => Higher[n := n].forward
+        }) n
+    }) n
+};
+\definition backwardDegree: \forall (n: N.Nat^) -> Backward n := \induction (n: N.Nat^) \return Backward n \with {
+  | zero: Zero[].backward
+  | succ: \fun (n: N.Nat^)(unused: _) => (\induction (n: N.Nat^) \return Backward (N.Nat^::succ n) \with {
+      | zero: One[].backward
+      | succ: \fun (n: N.Nat^)(unused: _) => (\induction (n: N.Nat^) \return Backward (N.Nat^::succ (N.Nat^::succ n)) \with {
+          | zero: Two[].backward
+          | succ: \fun (n: N.Nat^)(unused: _) => Higher[n := n].backward
+        }) n
+    }) n
+};
+\definition homotopyDegree: \forall (n: N.Nat^) -> Homotopy n := \induction (n: N.Nat^) \return Homotopy n \with {
+  | zero: Zero[].homotopy
+  | succ: \fun (n: N.Nat^)(unused: _) => (\induction (n: N.Nat^) \return Homotopy (N.Nat^::succ n) \with {
+      | zero: One[].homotopy
+      | succ: \fun (n: N.Nat^)(unused: _) => Modules.Hom[V := Target.Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Target.Carrier (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))), source := Target.space (N.Nat^::succ (N.Nat^::succ n)), target := Target.space (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))].zeroMap
+    }) n
+};
+
+\module Line(W: \Set, target: Modules.Space W);
+\use Equality.congr2;
+\module Group(W: \Set, target: Modules.Space W);
+\module Differentials;
+\module Degree(n: N.Nat^);
+\module CheckZero;
+\module CheckOne;
+\module CheckTwo;
+\module CheckHigher(n: N.Nat^);
+\module ForwardEquation(n: N.Nat^);
+\definition forward: Native.Map[C := native, D := targetComplex].Map := Native.Map[C := native, D := targetComplex].Map {
+  apply := \fun (n: N.Nat^) => #apply{(forwardDegree n)},
+  addition := \fun (n: N.Nat^) => #addition{(forwardDegree n)},
+  scalar := \fun (n: N.Nat^) => #scalar{(forwardDegree n)},
+  commutes := \fun (n: N.Nat^) => ForwardEquation[n := n].law,
+};
+\module LeftInverse(n: N.Nat^);
+\definition leftInverse: \forall (n: N.Nat^)(x: native.family.Carrier n) -> #apply{(backwardDegree n)} (#apply{forward} n x) = x :=
+  \fun (n: N.Nat^) => LeftInverse[n := n].law;
+\import Native.Homotopy[C := targetComplex, D := targetComplex] \as Homotopies;
+\definition homotopyData: Homotopies.LinearData := \into[Homotopies.Data]
+  (Homotopies.Data { apply := \fun (n: N.Nat^) => #apply{(homotopyDegree n)} }, Homotopies.LinearData) \by {
+    Homotopies.LinearLaws[Homotopies.Data { apply := \fun (n: N.Nat^) => #apply{(homotopyDegree n)} }] {
+      addition := \fun (n: N.Nat^) => #addition{(homotopyDegree n)},
+      scalar := \fun (n: N.Nat^) => #scalar{(homotopyDegree n)},
+    }
+  };
+\import Homotopies.Boundary[h := homotopyData].Correct[f := Native.End[C := targetComplex].identity] \as Corrected;
+\module Projection(n: N.Nat^);
+\definition projectionEquation: \forall (n: N.Nat^)(y: Target.Carrier n) ->
+  #apply{forward} n (#apply{(backwardDegree n)} y) = #apply{Corrected.map} n y := \fun (n: N.Nat^) => Projection[n := n].law;
+\module BackwardEquation(n: N.Nat^);
+\definition backward: Native.Map[C := targetComplex, D := native].Map := Native.Map[C := targetComplex, D := native].Map {
+  apply := \fun (n: N.Nat^) => #apply{(backwardDegree n)},
+  addition := \fun (n: N.Nat^) => #addition{(backwardDegree n)},
+  scalar := \fun (n: N.Nat^) => #scalar{(backwardDegree n)},
+  commutes := \fun (n: N.Nat^) => BackwardEquation[n := n].law,
+};
+\module Equivalence;
+\definition equivalence: Native.Equivalence[C := native, D := targetComplex].Equivalence := Equivalence[].value;

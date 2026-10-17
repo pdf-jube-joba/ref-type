@@ -1,0 +1,29 @@
+\import \parent.ZeroSkeleton[] \as Skeleton;
+\import \parent.Filtration[].CellInteriors[n := N.Nat^::zero] \as AtZero;
+\import std.Logic[].Classical[] \as Classical;
+\import algebraic_topology.Spheres[].Zero[] \as Sphere;
+\import algebraic_topology.Spheres[] \as Spheres;
+\definition below: Nat.Lt (#dimension{cell}) (N.Nat^::succ N.Nat^::zero) :=
+  \idelim N.Nat^::zero = #dimension{cell} \with d: N.Nat^ => Nat.Lt d (N.Nat^::succ N.Nat^::zero) \by {
+    base: Nat.ltOfSuccLe (N.Nat^::succ N.Nat^::zero) N.Nat^::zero (Nat.leRefl (N.Nat^::succ N.Nat^::zero)),
+    equality: sym!{N.Nat^} _ _ (AtZero.dimension cell)
+  };
+\import Skeleton.Disk[cell := cell, member := AtZero.member cell, below := below] \as Disk;
+\import \parent.Filtration[].Stage[limit := N.Nat^::succ N.Nat^::zero] \as Stage;
+\definition point: Skeleton.Carrier := Stage.Open[].lift cell (AtZero.member cell) below Disk.origin;
+\definition map(x: Skeleton.Carrier): Spheres.Carrier N.Nat^::zero :=
+  Classical.Cases[A := Spheres.Carrier N.Nat^::zero, P := x = point].select Sphere.north Sphere.south;
+\definition onPoint: map point = Sphere.north := Classical.Cases[A := Spheres.Carrier N.Nat^::zero, P := point = point].whenTrue Sphere.north Sphere.south (\refl(point));
+\definition outside(x: Skeleton.Carrier)(different: Logic.Not (x = point)): map x = Sphere.south :=
+  Classical.Cases[A := Spheres.Carrier N.Nat^::zero, P := x = point].whenFalse Sphere.north Sphere.south different;
+\definition continuous: topology.Continuity[A := Skeleton.Carrier, B := Spheres.Carrier N.Nat^::zero].Continuous Skeleton.topology (Spheres.topology N.Nat^::zero) map :=
+  Skeleton.Mapping[B := Spheres.Carrier N.Nat^::zero, target := Spheres.topology N.Nat^::zero, f := map].continuous;
+\definition onCharacteristic(p: Euclidean.Disk (#dimension{cell})): map (Stage.Open[].lift cell (AtZero.member cell) below p) = Sphere.north :=
+  trans!{{Spheres.Carrier N.Nat^::zero}} _ _ _
+    (congr!{Skeleton.Carrier {Spheres.Carrier N.Nat^::zero}} map _ _
+      (congr!{{Euclidean.Disk (#dimension{cell})} Skeleton.Carrier} (Stage.Open[].lift cell (AtZero.member cell) below) _ _ (Disk.unique p Disk.origin))) onPoint;
+\module Other(other: AtZero.Index, different: Logic.Not (other = cell));
+
+\module Functional;
+
+\module Basis;

@@ -1,0 +1,26 @@
+\definition Point(i: Double.Index (N.Nat^::succ n)): \Prop := \forall (sigma: LeftSimplices.Carrier #first{i})(tau: RightSimplices.Carrier #second{i}) -> \parent.At[i := i].vertical sigma tau = \parent.At[i := i].verticalCoordinate sigma tau;
+\definition Property(q: N.Nat^): \Prop := \forall (p: Double.First (N.Nat^::succ n) q) -> Point (Double.reverseIndex (N.Nat^::succ n) q p);
+\module Zero(p: Double.First (N.Nat^::succ n) N.Nat^::zero) {
+  \definition i: Double.Index (N.Nat^::succ n) := Double.reverseIndex (N.Nat^::succ n) N.Nat^::zero p;
+  \import Higher.Component[i := i] \as Component;
+  \import \root.TensorModels[].At[p := #first{i}, q := #second{i}] \as Model;
+  \import Coordinates.Axis[n := n, j := i] \as Axis;
+  \import Modules.Hom[V := Total.Carrier n, W := Total.Carrier (N.Nat^::succ n), source := Total.space n, target := Total.space (N.Nat^::succ n)] \as Maps;
+  \import Modules.Hom[V := Model.Carrier z, W := Total.Carrier (N.Nat^::succ n), source := Model.space z, target := Total.space (N.Nat^::succ n)] \as EvaluationMaps;
+  \definition law: Point i := \fun (sigma: LeftSimplices.Carrier #first{i})(tau: RightSimplices.Carrier #second{i}) => trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (Maps.zeroPreserved Lower.map)
+    (sym!{{Total.Carrier (N.Nat^::succ n)}} _ _ (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Model.Carrier z} {Total.Carrier (N.Nat^::succ n)}} (#apply{(Component.evaluationLinear (N.Nat^::succ n) sigma tau)}) _ _ (Axis.verticalZero (\refl(N.Nat^::zero)) (Models.homotopy n)))
+      (EvaluationMaps.zeroPreserved (Component.evaluationLinear (N.Nat^::succ n) sigma tau))));
+}
+\module Positive(q: N.Nat^, p: Double.First (N.Nat^::succ n) (N.Nat^::succ q));
+\definition successor(q: N.Nat^): Property (N.Nat^::succ q) := \fun (p: Double.First (N.Nat^::succ n) (N.Nat^::succ q)) => Positive[q := q, p := p].law;
+\definition holds: \forall (q: N.Nat^) -> Property q := \induction (q: N.Nat^) \return Property q \with {
+  | zero: \fun (p: Double.First (N.Nat^::succ n) N.Nat^::zero) => Zero[p := p].law
+  | succ: \fun (q: N.Nat^)(previous: Property q) => successor q
+};
+\definition lower(i: Double.Index (N.Nat^::succ n)): Double.First (N.Nat^::succ n) #second{i} :=
+  \into[N.Nat^](#first{i}, { p: N.Nat^ \where Nat.add p #second{i} = N.Nat^::succ n }) \by { Double.degree (N.Nat^::succ n) i };
+\definition law(i: Double.Index (N.Nat^::succ n)): Point i :=
+  \idelim Double.reverseIndex (N.Nat^::succ n) #second{i} (lower i) = i \with j: Double.Index (N.Nat^::succ n) => Point j \by {
+    base: holds #second{i} (lower i), equality: Double.pairRebuild i
+  };

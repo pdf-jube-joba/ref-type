@@ -1,0 +1,25 @@
+\definition faceVertices: LowerAffine.Vertices := Omission.omit (N.Nat^::succ n) i v;
+\definition centre: Simplex.Carrier k := Geometry.centres (N.Nat^::succ n) v;
+\definition head(c: Cells.Cell n): HigherEvaluation.tuple v (CellsStep.join i c) (Fin.zero (N.Nat^::succ n)) = centre :=
+  congr!{{Simplex.Carrier (N.Nat^::succ n)} {Simplex.Carrier k}} (Affine.apply v) _ _ (CellsStep.head (Cells.vertices n) (CellsStep.join i c));
+\definition tail: \forall (c: Cells.Cell n)(j: Fin.Fin (N.Nat^::succ n)) -> HigherEvaluation.tuple v (CellsStep.join i c) (Fin.succ (N.Nat^::succ n) j) = LowerEvaluation.tuple faceVertices c j :=
+  \fun (c: Cells.Cell n)(j: Fin.Fin (N.Nat^::succ n)) => trans!{{Simplex.Carrier k}} _ _ _
+    (congr!{{Simplex.Carrier (N.Nat^::succ n)} {Simplex.Carrier k}} (Affine.apply v) _ _ (CellsStep.successor (Cells.vertices n) (CellsStep.join i c) j))
+    (Faces.law v i (Cells.vertices n c j));
+\definition tuple: \forall (c: Cells.Cell n) -> HigherEvaluation.tuple v (CellsStep.join i c) = VertexTuples.extend (N.Nat^::succ n) centre (LowerEvaluation.tuple faceVertices c) :=
+  \fun (c: Cells.Cell n) => VertexTuples.extensionality (N.Nat^::succ n) _ _
+    (trans!{{Simplex.Carrier k}} _ _ _ (head c) (sym!{{Simplex.Carrier k}} _ _ (VertexTuples.atZero (N.Nat^::succ n) centre (LowerEvaluation.tuple faceVertices c))))
+    (\fun (j: Fin.Fin (N.Nat^::succ n)) => trans!{{Simplex.Carrier k}} _ _ _ (tail c j) (sym!{{Simplex.Carrier k}} _ _ (VertexTuples.atSuccessor (N.Nat^::succ n) centre (LowerEvaluation.tuple faceVertices c) j)));
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := space (N.Nat^::succ n), target := Tuples.space (N.Nat^::succ (N.Nat^::succ n))].Composition[U := Carrier n, domain := space n] \as First;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ n), W := Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := Tuples.space (N.Nat^::succ n), target := Tuples.space (N.Nat^::succ (N.Nat^::succ n))].Composition[U := Carrier n, domain := space n] \as Second;
+\import Modules.Free[Generators := Cells.Cell n].To[W := Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)), target := Tuples.space (N.Nat^::succ (N.Nat^::succ n))] \as Free;
+\definition equation: First.compose (HigherEvaluation.map v) (CellChains.lift i) = Second.compose (Tuples.cone (N.Nat^::succ n) centre) (LowerEvaluation.map faceVertices) :=
+  Free.ext _ _ (\fun (c: Cells.Cell n) => trans!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _
+    (congr!{{Carrier (N.Nat^::succ n)} {Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} (#apply{(HigherEvaluation.map v)}) _ _ (CellChains.onGenerator i c))
+    (trans!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _ (HigherEvaluation.onGenerator v (CellsStep.join i c))
+      (trans!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _ (congr!{{Tuples.Tuple (N.Nat^::succ (N.Nat^::succ n))} {Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} (Tuples.generator (N.Nat^::succ (N.Nat^::succ n))) _ _ (tuple c))
+        (trans!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _ (sym!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ (Tuples.Cone[n := N.Nat^::succ n].onGenerator centre (LowerEvaluation.tuple faceVertices c)))
+          (congr!{{Tuples.Carrier (N.Nat^::succ n)} {Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} (#apply{(Tuples.cone (N.Nat^::succ n) centre)}) _ _ (sym!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ (LowerEvaluation.onGenerator faceVertices c)))))));
+\import Modules.Hom[V := Carrier n, W := Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := space n, target := Tuples.space (N.Nat^::succ (N.Nat^::succ n))] \as Linear;
+\definition law: \forall (x: Carrier n) -> #apply{(HigherEvaluation.map v)} (#apply{(CellChains.lift i)} x) = #apply{(Tuples.cone (N.Nat^::succ n) centre)} (#apply{(LowerEvaluation.map faceVertices)} x) :=
+  \fun (x: Carrier n) => congr!{Linear.Map {Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} (\fun (f: Linear.Map) => #apply{f} x) _ _ equation;

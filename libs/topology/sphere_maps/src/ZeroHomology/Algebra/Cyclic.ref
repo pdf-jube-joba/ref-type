@@ -1,0 +1,43 @@
+\definition generator: V := #apply{#forward{orientation}} I.One.specification;
+\definition coordinate(x: V): I.Int^ := #apply{#backward{orientation}} x;
+\definition basis: \forall (x: V) -> #smul{space} (coordinate x) generator = x :=
+  \fun (x: V) => trans!{V} _ _ _ (sym!{V} _ _ (#scalar{#forward{orientation}} (coordinate x) I.One.specification))
+    (trans!{V} _ _ _
+      (congr!{I.Int^ V} (#apply{#forward{orientation}}) _ _ (#rightIdentity{(#multiplicative{(#semiring{Integers.ring})})} (coordinate x)))
+      (#rightInverse{orientation} x));
+\definition value: \forall (x: V) -> #apply{functional} x = #mul{Integers.ring} (coordinate x) (#apply{functional} generator) :=
+  \fun (x: V) => trans!{I.Int^} _ _ _
+    (sym!{I.Int^} _ _ (congr!{V I.Int^} (#apply{functional}) _ _ (basis x)))
+    (#scalar{functional} (coordinate x) generator);
+\definition unit: #apply{functional} point = I.One.specification ->
+  #mul{Integers.ring} (#apply{functional} generator) (coordinate point) = I.One.specification :=
+  \fun (normalized: _) => trans!{I.Int^} _ _ _ (#mulCommutative{Integers.commutativeRing} (#apply{functional} generator) (coordinate point))
+    (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (value point)) normalized);
+\import Modules.Hom[V := I.Int^, W := V, source := Modules.scalarModule, target := space] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (a: I.Int^) => #smul{space} a point,
+  addition := \fun (a, b: I.Int^) => #scalarAdd{space} a b point,
+  scalar := \fun (a, b: I.Int^) => #scalarAssoc{space} a b point,
+};
+\definition leftInverse: #apply{functional} point = I.One.specification -> \forall (a: I.Int^) -> #apply{functional} (#apply{forward} a) = a :=
+  \fun (normalized: _)(a: I.Int^) => trans!{I.Int^} _ _ _ (#scalar{functional} a point)
+    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (#mul{Integers.ring} a) _ _ normalized)
+      (#rightIdentity{(#multiplicative{(#semiring{Integers.ring})})} a));
+\definition rightInverse: #apply{functional} point = I.One.specification -> \forall (x: V) -> #apply{forward} (#apply{functional} x) = x :=
+  \fun (normalized: _)(x: V) => trans!{V} _ _ _
+    (congr!{V V} (#smul{space} (#apply{functional} x)) _ _ (sym!{V} _ _ (basis point)))
+    (trans!{V} _ _ _ (sym!{V} _ _ (#scalarAssoc{space} (#apply{functional} x) (coordinate point) generator))
+      (trans!{V} _ _ _
+        (congr!{I.Int^ V} (\fun (a: I.Int^) => #smul{space} a generator) _ _
+          (trans!{I.Int^} _ _ _
+            (congr!{I.Int^ I.Int^} (\fun (a: I.Int^) => #mul{Integers.ring} a (coordinate point)) _ _ (value x))
+            (trans!{I.Int^} _ _ _ (#associative{(#multiplicative{(#semiring{Integers.ring})})} (coordinate x) (#apply{functional} generator) (coordinate point))
+              (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (#mul{Integers.ring} (coordinate x)) _ _ (unit normalized))
+                (#rightIdentity{(#multiplicative{(#semiring{Integers.ring})})} (coordinate x))))))
+        (basis x)));
+\import Modules.Isomorphism[V := I.Int^, W := V, source := Modules.scalarModule, target := space] \as Isomorphism;
+\definition isomorphism(normalized: #apply{functional} point = I.One.specification): Isomorphism.Isomorphism := Isomorphism.Isomorphism {
+  forward := forward, backward := functional,
+  leftInverse := leftInverse normalized, rightInverse := rightInverse normalized,
+};
+\definition onOne: #apply{forward} I.One.specification = point := #scalarOne{space} point;

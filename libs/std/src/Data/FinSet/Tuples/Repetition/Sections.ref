@@ -1,0 +1,45 @@
+\import \parent.\parent.Omission[] \as Omission;
+\definition firstTail: \forall (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) -> Omission.omit n (zero n) f = (\fun (j: Fin n) => f (succ n j)) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin (N.Nat^::succ n) -> A) -> Omission.omit n (zero n) f = (\fun (j: Fin n) => f (succ n j)) \with {
+    | zero: \fun (f: Fin (N.Nat^::succ N.Nat^::zero) -> A) => \axiom:funext(Omission.omit N.Nat^::zero (zero N.Nat^::zero) f, (\fun (j: Fin N.Nat^::zero) => f (succ N.Nat^::zero j)),
+        \fun (j: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible j (bound N.Nat^::zero j)))
+    | succ: \fun (n: N.Nat^)(previous: _)(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) => Omission.first n f
+  };
+\definition recoverFirst: \forall (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) -> extend n (f (zero n)) (Omission.omit n (zero n) f) = f :=
+  \fun (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) => trans!{{Fin (N.Nat^::succ n) -> A}} _ _ _
+    (congr!{{Fin n -> A} {Fin (N.Nat^::succ n) -> A}} (extend n (f (zero n))) _ _ (firstTail n f)) (recover n f);
+\definition HeadFirst: \forall (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) ->
+  Omission.omit (N.Nat^::succ n) (widen (N.Nat^::succ n) (zero n)) (repeat n (zero n) f) = f :=
+  \fun (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) => trans!{{Fin (N.Nat^::succ n) -> A}} _ _ _
+    (congr!{{Fin (N.Nat^::succ (N.Nat^::succ n)) -> A} {Fin (N.Nat^::succ n) -> A}}
+      (Omission.omit (N.Nat^::succ n) (zero (N.Nat^::succ n))) _ _ (head n f))
+    (Omission.firstExtended (N.Nat^::succ n) (f (zero n)) f);
+\definition HeadSecond: \forall (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) ->
+  Omission.omit (N.Nat^::succ n) (succ (N.Nat^::succ n) (zero n)) (repeat n (zero n) f) = f :=
+  \fun (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) => trans!{{Fin (N.Nat^::succ n) -> A}} _ _ _
+    (congr!{{Fin (N.Nat^::succ (N.Nat^::succ n)) -> A} {Fin (N.Nat^::succ n) -> A}}
+      (Omission.omit (N.Nat^::succ n) (succ (N.Nat^::succ n) (zero n))) _ _ (head n f))
+    (trans!{{Fin (N.Nat^::succ n) -> A}} _ _ _ (Omission.onExtended n (zero n) (f (zero n)) f) (recoverFirst n f));
+\definition First(n: N.Nat^): \Prop := \forall (i: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) ->
+  Omission.omit (N.Nat^::succ n) (widen (N.Nat^::succ n) i) (repeat n i f) = f;
+\definition Second(n: N.Nat^): \Prop := \forall (i: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) ->
+  Omission.omit (N.Nat^::succ n) (succ (N.Nat^::succ n) i) (repeat n i f) = f;
+\module Tail(n: N.Nat^);
+\definition first: \forall (n: N.Nat^) -> First n := \induction (n: N.Nat^) \return First n \with {
+  | zero: cases N.Nat^::zero (\fun (i: Fin (N.Nat^::succ N.Nat^::zero)) => \forall (f: Fin (N.Nat^::succ N.Nat^::zero) -> A) ->
+      Omission.omit (N.Nat^::succ N.Nat^::zero) (widen (N.Nat^::succ N.Nat^::zero) i) (repeat N.Nat^::zero i f) = f)
+      (HeadFirst N.Nat^::zero) (\fun (i: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible i (bound N.Nat^::zero i)))
+  | succ: \fun (n: N.Nat^)(previous: First n) => cases (N.Nat^::succ n)
+      (\fun (i: Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) ->
+        Omission.omit (N.Nat^::succ (N.Nat^::succ n)) (widen (N.Nat^::succ (N.Nat^::succ n)) i) (repeat (N.Nat^::succ n) i f) = f)
+      (HeadFirst (N.Nat^::succ n)) (Tail[n := n].first previous)
+};
+\definition second: \forall (n: N.Nat^) -> Second n := \induction (n: N.Nat^) \return Second n \with {
+  | zero: cases N.Nat^::zero (\fun (i: Fin (N.Nat^::succ N.Nat^::zero)) => \forall (f: Fin (N.Nat^::succ N.Nat^::zero) -> A) ->
+      Omission.omit (N.Nat^::succ N.Nat^::zero) (succ (N.Nat^::succ N.Nat^::zero) i) (repeat N.Nat^::zero i f) = f)
+      (HeadSecond N.Nat^::zero) (\fun (i: Fin N.Nat^::zero) => Logic.falseElim _ (zeroImpossible i (bound N.Nat^::zero i)))
+  | succ: \fun (n: N.Nat^)(previous: Second n) => cases (N.Nat^::succ n)
+      (\fun (i: Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) ->
+        Omission.omit (N.Nat^::succ (N.Nat^::succ n)) (succ (N.Nat^::succ (N.Nat^::succ n)) i) (repeat (N.Nat^::succ n) i f) = f)
+      (HeadSecond (N.Nat^::succ n)) (Tail[n := n].second previous)
+};

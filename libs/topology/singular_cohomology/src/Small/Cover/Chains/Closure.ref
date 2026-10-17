@@ -1,0 +1,27 @@
+\definition zero: Eventually Values.zero := Logic.existsIntro[N.Nat^, { r: N.Nat^ \where Persistence.Persistent Values.zero r }] N.Nat^::zero
+  (\fun (r: N.Nat^)(later: Bounds.Le N.Nat^::zero r) => transport!{{Whole.Carrier n}} Degree.Image _ _ (sym!{{Whole.Carrier n}} _ _ (Linear.zeroPreserved (Powers.map r))) (#zero{Degree.submodule}));
+\definition addition: \forall (x, y: Whole.Carrier n) -> Eventually x -> Eventually y -> Eventually (Values.add x y) := \block {
+  \fun (x, y: Whole.Carrier n)(left: Eventually x)(right: Eventually y) \then
+  \takefrom a: \Cast[N.Nat^] ({ r: N.Nat^ \where Persistence.Persistent x r }) \by left \then
+  \takefrom b: \Cast[N.Nat^] ({ r: N.Nat^ \where Persistence.Persistent y r }) \by right \then
+  \let bound: N.Nat^ := Order.commonBound a b \then
+  \return Logic.existsIntro[N.Nat^, { r: N.Nat^ \where Persistence.Persistent (Values.add x y) r }] bound
+    (\fun (r: N.Nat^)(later: Bounds.Le bound r) => transport!{{Whole.Carrier n}} Degree.Image _ _ (sym!{{Whole.Carrier n}} _ _ (#addition{(Powers.map r)} x y))
+      (#addition{Degree.submodule} (Powers.apply r x) (Powers.apply r y)
+        ((\bysub(N.Nat^, { r: N.Nat^ \where Persistence.Persistent x r }, a)) r (Bounds.leTrans a bound r (Order.leftLeCommonBound a b) later))
+        ((\bysub(N.Nat^, { r: N.Nat^ \where Persistence.Persistent y r }, b)) r (Bounds.leTrans b bound r (Order.rightLeCommonBound a b) later))))
+};
+\definition negative: \forall (x: Whole.Carrier n) -> Eventually x -> Eventually (Values.neg x) := \block {
+  \fun (x: Whole.Carrier n)(member: Eventually x) \then
+  \takefrom a: \Cast[N.Nat^] ({ r: N.Nat^ \where Persistence.Persistent x r }) \by member \then
+  \return Logic.existsIntro[N.Nat^, { r: N.Nat^ \where Persistence.Persistent (Values.neg x) r }] a
+    (\fun (r: N.Nat^)(later: Bounds.Le a r) => transport!{{Whole.Carrier n}} Degree.Image _ _ (sym!{{Whole.Carrier n}} _ _ (Linear.negativePreserved (Powers.map r) x))
+      (Submodules.negativeClosed Degree.submodule (Powers.apply r x) ((\bysub(N.Nat^, { r: N.Nat^ \where Persistence.Persistent x r }, a)) r later)))
+};
+\definition scalar: \forall (a: I.Int^)(x: Whole.Carrier n) -> Eventually x -> Eventually (Values.scale a x) := \block {
+  \fun (a: I.Int^)(x: Whole.Carrier n)(member: Eventually x) \then
+  \takefrom bound: \Cast[N.Nat^] ({ r: N.Nat^ \where Persistence.Persistent x r }) \by member \then
+  \return Logic.existsIntro[N.Nat^, { r: N.Nat^ \where Persistence.Persistent (Values.scale a x) r }] bound
+    (\fun (r: N.Nat^)(later: Bounds.Le bound r) => transport!{{Whole.Carrier n}} Degree.Image _ _ (sym!{{Whole.Carrier n}} _ _ (#scalar{(Powers.map r)} a x))
+      (#scalar{Degree.submodule} a (Powers.apply r x) ((\bysub(N.Nat^, { r: N.Nat^ \where Persistence.Persistent x r }, bound)) r later)))
+};

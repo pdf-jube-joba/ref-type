@@ -5,11 +5,16 @@
 
 ## 配置
 
-- `algebraic_topology`：単体、道成分、有限単体複体と実現、有限 CW 構造。
+- `algebraic_topology`：単体、道成分、円板・球面、有限 CW 構造。
 - `metric_spaces`：Lebesgue 数、一様連続性、細分の距離評価。
 - `topological_constructions`：積・商・貼り合わせ。
-- 新規 `libs/topology/singular_cohomology`：鎖・余鎖・相対理論、ホモトピー、細分、切除、積、有限モデルとの比較。
-- 新規 `libs/topology/cohomology_models`：計算と利用例。
+- `singular_cohomology`：鎖・余鎖・相対理論、ホモトピー、細分。
+- `singular_excision`・`singular_products`・`singular_eilenberg_zilber`・`singular_symmetry`：切除、積、Eilenberg–Zilber 比較と交換ホモトピー。
+- `singular_cech`・`singular_simplicial`・`singular_cellular`：有限モデルとの比較。
+- `singular_finite_algebra`・`singular_tensor_dual`・`singular_tensor_bridge`：有限模型の普遍係数・Künneth と係数の比較。
+- `cohomology_models`・`sphere_maps`・`cohomology_examples`：計算と利用例。
+
+分割後の全パッケージと公開 API の入口は [ライブラリ一覧](../../libs/README.md) にある。
 
 加群・複体は `module_theory`・`chain_complexes`、有限モデルの普遍係数・Künneth は [ホモロジー代数](homological-algebra.md) を使う。
 新規 package は約5,000行を目安に分割し、直接 import する依存と workspace member を登録する。
@@ -66,7 +71,7 @@ C_*(U)\oplus C_*(V)\xrightarrow{a+b}C_*^{\{U,V\}}(X)\to0
 \(S^0\) と二点空間の同相、二つの可縮な開集合の被覆と共通部分の変形収縮から、球面の群を帰納的に求める。
 向き付き生成元、写像の次数・合成則、低次元セルの符号を定める。
 
-有限順序付き単体複体の実現とアフィン特異単体の比較を構成し、細分・切除・骨格帰納法で鎖ホモトピー同値を示す。
+有限順序付き単体複体の実現とアフィン特異単体の比較を構成し、細分・切除、星被覆の Čech 二重複体と担体ホモトピーで鎖ホモトピー同値を示す。
 有限 CW 複体では
 
 \[
@@ -94,7 +99,7 @@ Alexander–Whitney・shuffle 写像による Eilenberg–Zilber の鎖ホモト
 
 ## 7. 計算と完了条件
 
-生成元・関係・積・写像と元の特異理論との比較を、別 package の `cohomology_models` から検査する。
+生成元・関係・積・写像と元の特異理論との比較を、別 package の `cohomology_models`・`sphere_maps`・`cohomology_examples` から検査する。
 
 | 空間 | 目標 |
 | --- | --- |
@@ -107,7 +112,7 @@ Alexander–Whitney・shuffle 写像による Eilenberg–Zilber の鎖ホモト
 | \(\mathbb{RP}^2\)、\(\mathbb F_2\) | \(\mathbb F_2[u]/(u^3)\)、\(\deg u=1\)、\(u^2\ne0\) |
 
 実射影平面の球面商と円板貼り合わせモデルを同相にし、付着写像から境界の2倍を導く。
-有限三角形分割の Alexander–Whitney 公式で \(u^2\) を計算し、Bockstein が次数1の mod 2 生成元を次数2の整数生成元へ送ることを示す。
+有限半単体的モデルの Alexander–Whitney 面公式と実際の特異三角形への制限で \(u^2\) を計算し、Bockstein が次数1の mod 2 生成元を次数2の整数生成元へ送ることを示す。
 \(\mathbb F_2\) は整数商と二元表現を結ぶ。
 球面の反転、円周の整数次数の写像、相対群の接続写像も検査し、モデル変更に対する一致を示す。
 検査は [共有キャッシュと範囲選択](../../src/USAGE.md#検査とキャッシュ) を使う。

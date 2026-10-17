@@ -1,0 +1,18 @@
+\import \parent.\parent.Reindex[m := pq, n := leftDegree].Composition[k := q] \as LeftComposition;
+\import \parent.\parent.Reindex[m := qr, n := rightDegree].Composition[k := q] \as FirstComposition;
+\import \parent.\parent.Reindex[m := rightDegree, n := leftDegree].Composition[k := q] \as SecondComposition;
+\import \parent.\parent.Reindex[m := q, n := leftDegree] \as Direct;
+\definition leftIndices(i: Fin.Fin (N.Nat^::succ q)): Fin.Fin (N.Nat^::succ leftDegree) := LeftIndices.frontIndex (PQIndices.backIndex i);
+\definition rightIndices(i: Fin.Fin (N.Nat^::succ q)): Fin.Fin (N.Nat^::succ leftDegree) := Between.indices same (RightIndices.backIndex (QRIndices.frontIndex i));
+\definition indices: leftIndices = rightIndices := \axiom:funext(leftIndices, rightIndices,
+  \fun (i: Fin.Fin (N.Nat^::succ q)) => sym!{N.Nat^} _ _ (Between.value same (RightIndices.backIndex (QRIndices.frontIndex i))));
+\definition rightFlat: \forall (sigma: Carrier leftDegree) -> QR.front (Right.back (rightSimplex sigma)) = Direct.apply rightIndices sigma :=
+  \fun (sigma: Carrier leftDegree) => trans!{{Carrier q}} _ _ _
+    (FirstComposition.law RightIndices.backIndex QRIndices.frontIndex (rightSimplex sigma))
+    (SecondComposition.law (Between.indices same) (\fun (i: Fin.Fin (N.Nat^::succ q)) => RightIndices.backIndex (QRIndices.frontIndex i)) sigma);
+\definition law: \forall (sigma: Carrier leftDegree) -> PQ.back (Left.front sigma) = QR.front (Right.back (rightSimplex sigma)) :=
+  \fun (sigma: Carrier leftDegree) => trans!{{Carrier q}} _ _ _
+    (LeftComposition.law LeftIndices.frontIndex PQIndices.backIndex sigma)
+    (trans!{{Carrier q}} _ _ _
+      (congr!{Direct.Function {Carrier q}} (\fun (f: Direct.Function) => Direct.apply f sigma) leftIndices rightIndices indices)
+      (sym!{{Carrier q}} _ _ (rightFlat sigma)));

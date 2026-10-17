@@ -1,0 +1,18 @@
+\import Tensor.Term[p := p, q := N.Nat^::succ q] \as Before;
+\import IntegerModules.Tensor[V := Chains.Carrier p, W := Chains.Carrier (N.Nat^::succ q), left := Chains.space p, right := Chains.space (N.Nat^::succ q)].Universal[U := R, target := integerCoefficients.space] \as Universal;
+\import IntegerModules.Hom[V := Before.Carrier, W := R, source := Before.space, target := integerCoefficients.space] \as Output;
+\import Linear.Composition[U := Before.Carrier, domain := Before.space] \as Composition;
+\definition composed: Output.Map := Composition.compose (map alpha beta) Differential.vertical;
+\definition cycle: \Prop := Theory.coboundary q beta = #zero{(space (N.Nat^::succ q))};
+\definition closedValue(closed: cycle)(y: Chains.Carrier (N.Nat^::succ q)): #apply{beta} (#apply{(Chains.boundary q)} y) = #zero{integerCoefficients.space} :=
+  congr!{{Carrier (N.Nat^::succ q)} R} (\fun (f: Carrier (N.Nat^::succ q)) => #apply{f} y) _ _ closed;
+\definition pure(closed: cycle)(x: Chains.Carrier p)(y: Chains.Carrier (N.Nat^::succ q)): #apply{composed} (Before.tensor x y) = #zero{integerCoefficients.space} :=
+  trans!{R} _ _ _
+    (congr!{Term.Carrier R} (#apply{(map alpha beta)}) _ _ (Differential.verticalOnTensor x y))
+    (trans!{R} _ _ _ (onTensor alpha beta x (#apply{(Chains.boundary q)} y))
+      (trans!{R} _ _ _
+        (congr!{R R} (#mul{baseRing} (#apply{alpha} x)) _ _ (closedValue closed y))
+        (Scalars.scaleZero (#apply{alpha} x))));
+\definition equation(closed: cycle): composed = Output.zeroMap := Universal.ext composed Output.zeroMap (pure closed);
+\definition law(closed: cycle)(x: Before.Carrier): #apply{(map alpha beta)} (#apply{Differential.vertical} x) = #zero{integerCoefficients.space} :=
+  congr!{Output.Map R} (\fun (f: Output.Map) => #apply{f} x) _ _ (equation closed);

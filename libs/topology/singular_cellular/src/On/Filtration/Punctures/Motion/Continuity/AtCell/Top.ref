@@ -1,0 +1,26 @@
+\import \parent.\parent.\parent.\parent.Cell[cell := cell, member := Charts.member cell, dimension := dimension] \as Cell;
+\import \root.DiskCollar[n := #dimension{cell}] \as Collar;
+\import algebraic_topology.Cylinder[A := Collar.Carrier] \as Target;
+\definition input(p: Cut.Fiber cell): Collar.Carrier := \into[Model.Disk](p, Collar.punctured) \by {
+  Cell.nonzero p (\bysub(Upper.Carrier, region, point cell p))
+};
+\import topology.Continuity[A := Cut.Fiber cell, B := Model.Disk].Corestriction[S := Collar.punctured] \as Into;
+\definition inputContinuous: topology.Continuity[A := Cut.Fiber cell, B := Collar.Carrier].Continuous (Cut.fiberTopology cell) Collar.topology input :=
+  Into.corestrictContinuous (Cut.fiberTopology cell) Model.diskTopology input diskContinuous;
+\definition cylinder(p: Domain.Carrier): Target.Carrier := Target.at (Domain.time p) (input (Domain.point p));
+\import topological_constructions.Product[A := Interval.Carrier, B := Collar.Carrier].Universal[X := Domain.Carrier] \as Pair;
+\import topology.Composition[A := Domain.Carrier, B := Cut.Fiber cell, C := Collar.Carrier] \as PointComposition;
+\definition cylinderContinuous: topology.Continuity[A := Domain.Carrier, B := Target.Carrier].Continuous source (Target.topology Collar.topology) cylinder :=
+  Pair.pairContinuous source Interval.topology Collar.topology Domain.time (\fun (p: Domain.Carrier) => input (Domain.point p))
+    (Domain.timeContinuous (Cut.fiberTopology cell))
+    (PointComposition.composeContinuous source (Cut.fiberTopology cell) Collar.topology Domain.point input
+      (Domain.pointContinuous (Cut.fiberTopology cell)) inputContinuous);
+\definition assembled(p: Domain.Carrier): Carrier := Cell.motion (Target.time (cylinder p)) (Target.point (cylinder p));
+\definition continuous: topology.Continuity[A := Domain.Carrier, B := Carrier].Continuous source topology branch :=
+  \idelim assembled = branch \with f: (Domain.Carrier -> Carrier) => topology.Continuity[A := Domain.Carrier, B := Carrier].Continuous source topology f \by {
+    base: topology.Composition[A := Domain.Carrier, B := Target.Carrier, C := Carrier]
+      .composeContinuous source (Target.topology Collar.topology) topology cylinder
+        (\fun (p: Target.Carrier) => Cell.motion (Target.time p) (Target.point p)) cylinderContinuous Cell.motionContinuous,
+    equality: \axiom:funext(assembled, branch, \fun (p: Domain.Carrier) => sym!{Carrier} _ _
+      (onTop (Domain.time p) (point cell (Domain.point p)) (representation cell (Domain.point p)) dimension))
+  };

@@ -1,0 +1,32 @@
+\import SourcePair.Maps[B := A].Over[target := source, targetSubset := subset].Homotopy[f := Left.compose forward backward, g := SourceIdentity.map] \as LeftHomotopies;
+\import TargetPair.Maps[B := B].Over[target := target, targetSubset := targetSubset].Homotopy[f := Right.compose backward forward, g := TargetIdentity.map] \as RightHomotopies;
+\import algebraic_topology.Homotopy[A := A, B := A] \as SourceHomotopies;
+\import algebraic_topology.Homotopy[A := B, B := B] \as TargetHomotopies;
+\import algebraic_topology.Cylinder[A := A] \as SourceCylinder;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\definition leftWhole: SourceHomotopies.Homotopy[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => x)] :=
+  \into[SourceHomotopies.Family](SourceCylinder.point, SourceHomotopies.Homotopy[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => x)]) \by {
+    SourceHomotopies.Laws[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => x), SourceCylinder.point] {
+      continuous := SourceCylinder.pointContinuous source,
+      start := \fun (x: A) => sym!{A} _ _ (#leftInverse{homeomorphismLaws} x),
+      end := \fun (x: A) => \refl(x),
+    }
+  };
+\definition left: LeftHomotopies.Homotopy := \into[LeftHomotopies.Family](leftWhole, LeftHomotopies.Homotopy) \by {
+  \fun (t: algebraic_topology.Interval[].Carrier)(x: SourcePair.SubspaceCarrier) => \bysub(A, subset, x)
+};
+\definition rightWhole: TargetHomotopies.Homotopy[target, target, (\fun (x: B) => forward (backward x)), (\fun (x: B) => x)] :=
+  \into[TargetHomotopies.Family](TargetCylinder.point, TargetHomotopies.Homotopy[target, target, (\fun (x: B) => forward (backward x)), (\fun (x: B) => x)]) \by {
+    TargetHomotopies.Laws[target, target, (\fun (x: B) => forward (backward x)), (\fun (x: B) => x), TargetCylinder.point] {
+      continuous := TargetCylinder.pointContinuous target,
+      start := \fun (x: B) => sym!{B} _ _ (#rightInverse{homeomorphismLaws} x),
+      end := \fun (x: B) => \refl(x),
+    }
+  };
+\definition right: RightHomotopies.Homotopy := \into[RightHomotopies.Family](rightWhole, RightHomotopies.Homotopy) \by {
+  \fun (t: algebraic_topology.Interval[].Carrier)(x: TargetPair.SubspaceCarrier) => \bysub(B, targetSubset, x)
+};
+\import SourcePair.Equivalence[B := B].Over[target := target, targetSubset := targetSubset] \as Equivalences;
+\definition equivalence: Equivalences.Equivalence := Equivalences.Equivalence {
+  forward := forward, backward := backward, left := left, right := right,
+};

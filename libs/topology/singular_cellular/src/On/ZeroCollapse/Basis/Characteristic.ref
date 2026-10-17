@@ -1,0 +1,37 @@
+\import Basis.Cell[cell := other] \as Orientation;
+\import Basis.Characteristic[cell := other] \as Characteristic;
+\import Characteristic.Oriented[] \as Oriented;
+\import Euclidean.Dimension[n := #dimension{other}] \as Model;
+\import \root.Disks[].At[n := #dimension{other}] \as Disk;
+\import singular_cellular_algebra.Algebra[].PointClass[A := Model.Disk, source := Model.diskTopology] \as SourcePoints;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := Disk.boundary] \as SourcePair;
+\import SourcePair.Maps[B := Skeleton.Carrier].Over[target := Skeleton.topology, targetSubset := Layer.Relative[].subset] \as Mapping;
+\import Mapping.On[f := Characteristic.map].Integer[] \as Action;
+\import SourcePoints.Mapping[B := Skeleton.Carrier, target := Skeleton.topology, f := Characteristic.map,
+  continuous := #continuous{(Mapping.laws Characteristic.map)}] \as PointMapping;
+\import Complexes.Map[C := SourcePoints.complex, D := SourcePair.complex].At[k := degree] \as Projected;
+\definition diskPoint: #apply{#forward{Orientation.orientedDisk}} I.One.specification =
+  #apply{(Projected.induced SourcePair.sequence.projection)} (SourcePoints.class p) :=
+  trans!{{SourcePair.Homology[z := degree].Carrier}} _ _ _
+    (\root.Disks[].ZeroPoint[n := #dimension{other}].onGenerator (AtZero.dimension other) (AtZero.dimension other) p)
+    (sym!{{SourcePair.Homology[z := degree].Carrier}} _ _ (Projected.onClass SourcePair.sequence.projection (SourcePoints.cycle p)));
+\definition point: Skeleton.Carrier := Characteristic.map p;
+\definition onGenerator: Basis.generator other = #apply{Layer.Homology[z := degree].projection} (Points.class point) :=
+  trans!{{Layer.Homology[z := degree].Carrier}} _ _ _ Oriented.onGenerator
+    (trans!{{Layer.Homology[z := degree].Carrier}} _ _ _
+      (congr!{{SourcePair.Homology[z := degree].Carrier} {Layer.Homology[z := degree].Carrier}} Oriented.image _ _ diskPoint)
+      (trans!{{Layer.Homology[z := degree].Carrier}} _ _ _
+        (congr!{{singular_cohomology.Relative[A := Skeleton.Carrier, source := Skeleton.topology, subset := Layer.Relative[].subset].Homology[z := degree].Carrier}
+          {Layer.Homology[z := degree].Carrier}} (#apply{#backward{Layer.Relative[].Homology[z := degree].isomorphism}}) _ _
+          (sym!{{singular_cohomology.Relative[A := Skeleton.Carrier, source := Skeleton.topology, subset := Layer.Relative[].subset].Homology[z := degree].Carrier}} _ _
+            (Action.At[z := degree].projectionNaturality (SourcePoints.class p))))
+        (trans!{{Layer.Homology[z := degree].Carrier}} _ _ _
+          (congr!{Points.Carrier {Layer.Homology[z := degree].Carrier}}
+            (\fun (q: Points.Carrier) => #apply{#backward{Layer.Relative[].Homology[z := degree].isomorphism}}
+              (#apply{(Complexes.Map[C := Points.complex, D := singular_cohomology.Relative[A := Skeleton.Carrier, source := Skeleton.topology, subset := Layer.Relative[].subset].complex].At[k := degree]
+                .induced singular_cohomology.Relative[A := Skeleton.Carrier, source := Skeleton.topology, subset := Layer.Relative[].subset].sequence.projection)} q)) _ _ (PointMapping.law p))
+          (trans!{{Layer.Homology[z := degree].Carrier}} _ _ _
+            (congr!{{singular_cohomology.Relative[A := Skeleton.Carrier, source := Skeleton.topology, subset := Layer.Relative[].subset].Homology[z := degree].Carrier}
+              {Layer.Homology[z := degree].Carrier}} (#apply{#backward{Layer.Relative[].Homology[z := degree].isomorphism}}) _ _
+              (Layer.Relative[].Naturality[].At[z := degree].projection (Points.class point)))
+            (#leftInverse{Layer.Relative[].Homology[z := degree].isomorphism} (#apply{Layer.Homology[z := degree].projection} (Points.class point)))))));

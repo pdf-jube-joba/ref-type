@@ -1,0 +1,20 @@
+\import LeftNormalization.With[paths := leftPaths] \as L;
+\import RightNormalization.With[paths := rightPaths] \as R;
+\import Double.TensorContraction[C := Left.complex, D := Right.complex].With[p := L.map, q := R.map,
+  left := L.homotopy, right := R.homotopy] \as Normalization;
+\import Native.End[C := Total.complex] \as End;
+\import Native.Homotopy[C := Total.complex, D := Total.complex] \as Homotopies;
+\definition map: Native.Map[C := Total.complex, D := Total.complex].Map := Normalization.projection;
+\definition homotopy: Homotopies.Homotopy End.identity map := Normalization.homotopy;
+\import Double.TensorMapping[C := Left.complex, D := Left.complex, E := Right.complex, F := Right.complex].With[f := L.map, g := R.map] \as Mapping;
+\import Double.Map[C := Tensor.complex, D := Tensor.complex].Total[f := Mapping.map] \as TotalMapping;
+\module Degree(n: N.Nat^) {
+  \import Total.Degree[n := n] \as Current;
+  \definition onTensor(i: Double.Index n)(x: Left.Carrier #first{i})(y: Right.Carrier #second{i}):
+    #apply{map} n (#apply{Current.Component[i := i].injection} (Tensor.Term[p := #first{i}, q := #second{i}].tensor x y)) =
+      #apply{Current.Component[i := i].injection} (Tensor.Term[p := #first{i}, q := #second{i}].tensor (#apply{L.map} #first{i} x) (#apply{R.map} #second{i} y)) :=
+    trans!{Current.Carrier} _ _ _ (TotalMapping.Degree[n := n].onInjection i (Tensor.Term[p := #first{i}, q := #second{i}].tensor x y))
+      (congr!{{Tensor.Term[p := #first{i}, q := #second{i}].Carrier} Current.Carrier} (#apply{Current.Component[i := i].injection}) _ _
+        (Mapping.Degree[p := #first{i}, q := #second{i}].onTensor x y));
+}
+\module Coefficients(coefficients: Modules.Bundle);

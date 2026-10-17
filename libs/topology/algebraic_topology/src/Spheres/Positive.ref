@@ -1,0 +1,64 @@
+\import Euclidean.Dimension[n := N.Nat^::succ n] \as Lower;
+\import Euclidean.Dimension[n := N.Nat^::succ (N.Nat^::succ n)] \as Ambient;
+\import Lower.Splitting[] \as Split;
+\import Ambient.Geometry[] \as Geometry;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\definition Sphere: \Set := Carrier (N.Nat^::succ n);
+\import topology.Topology[Carrier := Sphere] \as Space;
+\import topological_algebra.Coordinates[K := Real.Real, I := Ambient.Index] \as Coordinates;
+\import topology.Continuity[A := Ambient.Coordinate, B := Ambient.Coordinate].Corestriction[S := Ambient.Boundary] \as Inclusion;
+\import topology.Composition[A := Sphere, B := Ambient.Coordinate, C := Real.Real] \as Evaluation;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.Continuity[A := Sphere, B := Real.Real] \as Functions;
+\definition height(x: Sphere): Real.Real := Split.head x;
+\definition heightContinuous: Functions.Continuous (topology (N.Nat^::succ n)) Line.topology height :=
+  Evaluation.composeContinuous (topology (N.Nat^::succ n)) Ambient.topology Line.topology
+    (\fun (x: Sphere) => x) Split.head (Inclusion.inclusionContinuous Ambient.topology)
+    (Coordinates.evaluationContinuous Line.topology (Fin.zero (N.Nat^::succ n)));
+\definition left: \Pow Sphere := Functions.Preimage height (Rays.Above (Real.neg Real.one));
+\definition right: \Pow Sphere := Functions.Preimage height (Rays.Below Real.one);
+\definition leftOpen: Space.IsOpenIn (topology (N.Nat^::succ n)) left := heightContinuous _ (Rays.aboveOpen (Real.neg Real.one));
+\definition rightOpen: Space.IsOpenIn (topology (N.Nat^::succ n)) right := heightContinuous _ (Rays.belowOpen Real.one);
+\definition endpointsOrdered: R.Lt (Real.neg Real.one) Real.one := R.leLtTrans (Real.neg Real.one) Real.zero Real.one
+  (R.leReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero (Laws.negAntitone Real.zero Real.one Laws.oneNonnegative))
+  (Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne);
+\definition covered: \forall (x: Sphere) -> Logic.Or[Space.Member left x, Space.Member right x] :=
+  \fun (x: Sphere) => either!{{(Classical.excludedMiddle (R.Lt (Real.neg Real.one) (height x)))} {Logic.Or[Space.Member left x, Space.Member right x]}
+    {\fun (member: _) => Logic.Or[_, _]::left member}
+    {\fun (outside: _) => Logic.Or[_, _]::right
+      (R.leLtTrans (height x) (Real.neg Real.one) Real.one (Order.leOfNotLtReverse (height x) (Real.neg Real.one) outside) endpointsOrdered)}
+  };
+\definition heightBounds: \forall (x: Sphere) -> Logic.And[R.Le (Real.neg Real.one) (height x), R.Le (height x) Real.one] :=
+  \fun (x: Sphere) => Geometry.unitBounds (height x)
+    (R.leReplaceRight (Real.mul (height x) (height x)) (Ambient.normSquared x) Real.one
+      (\bysub(Ambient.Coordinate, Ambient.Boundary, x)) (Geometry.coordinateSquareBound x (Fin.zero (N.Nat^::succ n))));
+\definition north: Sphere := Split.north;
+\definition south: Sphere := Split.south;
+\definition equator: Carrier n -> Sphere := Split.equator;
+\definition equatorContinuous: topology.Continuity[A := Carrier n, B := Sphere].Continuous (topology n) (topology (N.Nat^::succ n)) equator := Split.Equator[].continuous;
+\import Space.Subspace[S := left] \as LeftSubspace;
+\import Space.Subspace[S := right] \as RightSubspace;
+\definition Left: \Set := LeftSubspace.CarrierSet;
+\definition Right: \Set := RightSubspace.CarrierSet;
+\definition leftTopology: topology.Topology[Carrier := Left].Topology := LeftSubspace.topology (topology (N.Nat^::succ n));
+\definition rightTopology: topology.Topology[Carrier := Right].Topology := RightSubspace.topology (topology (N.Nat^::succ n));
+\definition intersection: \Pow Left := { x: Left \where Space.Member right x };
+\import topology.Topology[Carrier := Left].Subspace[S := intersection] \as IntersectionSubspace;
+\definition Intersection: \Set := IntersectionSubspace.CarrierSet;
+\definition intersectionTopology: topology.Topology[Carrier := Intersection].Topology := IntersectionSubspace.topology leftTopology;
+\module Height;
+\module NorthContraction;
+\module SouthContraction;
+\module Equatorial;
+\module Connected;

@@ -1,0 +1,40 @@
+\import \parent.Bicomplex[] \as Bicomplex;
+\import Doubles.Total[C := Bicomplex.complex] \as Total;
+\import Total.Degree[n := n] \as Degree;
+\structure Cell: \Set {
+  index: Doubles.Index n,
+  simplex: Generator #first{index} #second{index},
+}
+\definition generator(c: Cell): Total.Carrier n :=
+  #apply{(Degree.Component[i := #index{c}].injection)} (\parent.At[p := #first{#index{c}}, q := #second{#index{c}}].generator #simplex{c});
+\module To(W: \Set, target: Modules.Space W) {
+  \import Modules.DirectSum[Index := Doubles.Index n, family := Degree.family].To[W := W, target := target] \as Sum;
+  \module Component(i: Doubles.Index n) {
+    \import Modules.Free[Generators := Generator #first{i} #second{i}].To[W := W, target := target] \as Free;
+    \definition map(values: Cell -> W): Modules.Hom[V := Carrier #first{i} #second{i}, W := W, source := space #first{i} #second{i}, target := target].Map :=
+      Free.extension (\fun (s: Generator #first{i} #second{i}) => values (Cell { index := i, simplex := s }));
+    \definition onGenerator: \forall (values: Cell -> W)(s: Generator #first{i} #second{i}) ->
+      #apply{(map values)} (\parent.\parent.\parent.At[p := #first{i}, q := #second{i}].generator s) = values (Cell { index := i, simplex := s }) :=
+      \fun (values: Cell -> W) => Free.onGenerator (\fun (s: Generator #first{i} #second{i}) => values (Cell { index := i, simplex := s }));
+    \import Modules.Hom[V := Total.Carrier n, W := W, source := Total.space n, target := target]
+      .Composition[U := Carrier #first{i} #second{i}, domain := space #first{i} #second{i}] \as Compose;
+    \definition restrict(f: Modules.Hom[V := Total.Carrier n, W := W, source := Total.space n, target := target].Map):
+      Modules.Hom[V := Carrier #first{i} #second{i}, W := W, source := space #first{i} #second{i}, target := target].Map := Compose.compose f (Degree.Component[i := i].injection);
+  }
+  \definition components(values: Cell -> W): Sum.Components := \fun (i: Doubles.Index n) => Component[i := i].map values;
+  \definition extension(values: Cell -> W): Modules.Hom[V := Total.Carrier n, W := W, source := Total.space n, target := target].Map := Sum.extension (components values);
+  \definition onGenerator: \forall (values: Cell -> W)(c: Cell) -> #apply{(extension values)} (generator c) = values c :=
+    \fun (values: Cell -> W) => \induction (c: Cell) \return #apply{(extension values)} (generator c) = values c \with {
+      | # : \fun (i: Doubles.Index n)(s: Generator #first{i} #second{i}) => trans!{{W}} _ _ _
+        (Sum.onInjection (components values) i (\parent.\parent.At[p := #first{i}, q := #second{i}].generator s))
+        (Component[i := i].onGenerator values s)
+    };
+  \import Modules.Hom[V := Total.Carrier n, W := W, source := Total.space n, target := target] \as Maps;
+  \definition ext: \forall (f, g: Maps.Map) -> (\forall (c: Cell) -> #apply{f} (generator c) = #apply{g} (generator c)) -> f = g :=
+    \fun (f, g: Maps.Map)(same: \forall (c: Cell) -> #apply{f} (generator c) = #apply{g} (generator c)) =>
+      Sum.ext f g (\fun (i: Doubles.Index n)(x: Carrier #first{i} #second{i}) =>
+        congr!{{Modules.Hom[V := Carrier #first{i} #second{i}, W := W, source := space #first{i} #second{i}, target := target].Map} {W}}
+          (\fun (h: Modules.Hom[V := Carrier #first{i} #second{i}, W := W, source := space #first{i} #second{i}, target := target].Map) => #apply{h} x) _ _
+          (Modules.Free[Generators := Generator #first{i} #second{i}].To[W := W, target := target].ext (Component[i := i].restrict f) (Component[i := i].restrict g)
+            (\fun (s: Generator #first{i} #second{i}) => same (Cell { index := i, simplex := s }))));
+}

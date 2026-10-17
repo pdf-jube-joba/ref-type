@@ -1,0 +1,43 @@
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import Complexes.ZeroExtension[C := IntersectionChains.complex] \as Sub;
+\import Complexes.ZeroExtension[C := Sum.complex] \as Middle;
+\import Complexes.ZeroExtension[C := Small.complex] \as Target;
+\import Complexes.Map[C := IntersectionChains.complex, D := Sum.complex].ZeroExtension[f := inclusion] \as Inclusion;
+\import Complexes.Map[C := Sum.complex, D := Small.complex].ZeroExtension[f := projection] \as Projection;
+\import Integer.ShortExact[A := Sub.complex, B := Middle.complex, C := Target.complex] \as Exact;
+\module Positive(n: N.Nat^);
+\module Negative(n: N.Nat^);
+\definition sequence: Exact.Sequence := Exact.Sequence {
+  inclusion := Inclusion.map, projection := Projection.map,
+  injective := \induction (z: I.Int^) \return \forall (x, y: Sub.Carrier z) -> #apply{Inclusion.map} z x = #apply{Inclusion.map} z y -> x = y \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].injective
+    | negSucc: \fun (n: N.Nat^)(x, y: Sub.Carrier (I.Int^::negSucc n))(same: _) => trans!{{Sub.Carrier (I.Int^::negSucc n)}} _ _ _
+        (Sub.Negative[n := n].zero x) (sym!{{Sub.Carrier (I.Int^::negSucc n)}} _ _ (Sub.Negative[n := n].zero y))
+  },
+  onto := \induction (z: I.Int^) \return \forall (x: Target.Carrier z) -> \exists { y: Middle.Carrier z \where #apply{Projection.map} z y = x } \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].onto
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].onto
+  },
+  zero := \induction (z: I.Int^) \return \forall (x: Sub.Carrier z) -> #apply{Projection.map} z (#apply{Inclusion.map} z x) = #zero{(Target.space z)} \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].zero
+    | negSucc: \fun (n: N.Nat^)(x: Sub.Carrier (I.Int^::negSucc n)) => \refl(#zero{(Target.space (I.Int^::negSucc n))})
+  },
+  kernelImage := \induction (z: I.Int^) \return \forall (y: Middle.Carrier z) -> #apply{Projection.map} z y = #zero{(Target.space z)} ->
+    \exists { x: Sub.Carrier z \where #apply{Inclusion.map} z x = y } \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].kernelImage
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].kernelImage
+  },
+};
+\import Exact.Cokernel[s := sequence] \as Cokernel;
+\definition quotientIsomorphism: Integer.Isomorphism[C := Quotient.complex, D := Target.complex].Isomorphism := Cokernel.isomorphism;
+\module At(z: I.Int^) {
+  \import Exact.At[s := sequence, k := z] \as Native;
+  \import Native.Exactness[] \as Exactness;
+  \definition connecting: _ := Native.connecting;
+  \definition exactAtSmall: _ := Exactness.exactAtC;
+  \definition exactAtIntersection: _ := Exactness.exactAtALower;
+  \definition exactAtSum: _ := Exactness.exactAtB;
+  \definition inclusionProjectionZero: _ := Exactness.inclusionProjectionZero;
+  \definition projectionConnectingZero: _ := Exactness.projectionConnectingZero;
+  \definition connectingInclusionZero: _ := Exactness.connectingInclusionZero;
+}

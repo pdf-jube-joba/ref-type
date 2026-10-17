@@ -1,0 +1,42 @@
+\import Modules.Hom[V := I.Int^, W := Natural.Carrier N.Nat^::zero, source := Modules.scalarModule, target := Natural.space N.Nat^::zero] \as Sections;
+\definition section: Sections.Map := Sections.Map {
+  apply := Augmentation.section a,
+  addition := \fun (r, s: I.Int^) => #scalarAdd{(Natural.space N.Nat^::zero)} r s (Natural.generator N.Nat^::zero (simplex N.Nat^::zero)),
+  scalar := \fun (r, s: I.Int^) => #scalarAssoc{(Natural.space N.Nat^::zero)} r s (Natural.generator N.Nat^::zero (simplex N.Nat^::zero)),
+};
+\import \parent.Shift[n := N.Nat^::zero] \as Shift;
+\import Natural.Boundary[n := N.Nat^::zero] \as Boundary;
+\import Modules.Laws[V := Natural.Carrier N.Nat^::zero, space := Natural.space N.Nat^::zero] \as Values;
+\import algebra.Group[].Of[Carrier := Natural.Carrier N.Nat^::zero, group := Values.additive] \as Group;
+\import Modules.Alternating[V := Natural.Carrier N.Nat^::zero, space := Natural.space N.Nat^::zero] \as Sums;
+\definition value: Natural.Carrier N.Nat^::zero := Natural.generator N.Nat^::zero (simplex N.Nat^::zero);
+\definition upper: Unique -> \forall (sigma: Simplices.Carrier N.Nat^::zero) ->
+  #apply{(Natural.boundary N.Nat^::zero)} (#apply{Shift.map} (Natural.generator N.Nat^::zero sigma)) = Values.zero :=
+  \fun (unique: Unique)(sigma: Simplices.Carrier N.Nat^::zero) => trans!{{Natural.Carrier N.Nat^::zero}} _ _ _
+    (congr!{{Natural.Carrier (N.Nat^::succ N.Nat^::zero)} {Natural.Carrier N.Nat^::zero}} (#apply{(Natural.boundary N.Nat^::zero)}) _ _ (Shift.onGenerator sigma))
+    (trans!{{Natural.Carrier N.Nat^::zero}} _ _ _ (Boundary.onGenerator (simplex (N.Nat^::succ N.Nat^::zero)))
+      (trans!{{Natural.Carrier N.Nat^::zero}} _ _ _
+        (Sums.congruent (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) _ (\fun (_: Fin.Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) => value)
+          (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) => generatorUnique unique N.Nat^::zero (Simplices.face N.Nat^::zero i (simplex (N.Nat^::succ N.Nat^::zero)))))
+        (Group.subtractDifference value Values.zero)));
+\definition lower: Unique -> \forall (sigma: Simplices.Carrier N.Nat^::zero) ->
+  #apply{section} (#apply{Augmentation.map} (Natural.generator N.Nat^::zero sigma)) = Natural.generator N.Nat^::zero sigma :=
+  \fun (unique: Unique)(sigma: Simplices.Carrier N.Nat^::zero) => trans!{{Natural.Carrier N.Nat^::zero}} _ _ _
+    (congr!{I.Int^ {Natural.Carrier N.Nat^::zero}} (#apply{section}) _ _ (Augmentation.onGenerator sigma))
+    (trans!{{Natural.Carrier N.Nat^::zero}} _ _ _ (#scalarOne{(Natural.space N.Nat^::zero)} value)
+      (sym!{{Natural.Carrier N.Nat^::zero}} _ _ (generatorUnique unique N.Nat^::zero sigma)));
+\import Modules.Hom[V := Natural.Carrier (N.Nat^::succ N.Nat^::zero), W := Natural.Carrier N.Nat^::zero, source := Natural.space (N.Nat^::succ N.Nat^::zero), target := Natural.space N.Nat^::zero]
+  .Composition[U := Natural.Carrier N.Nat^::zero, domain := Natural.space N.Nat^::zero] \as UpperComposition;
+\import Sections.Composition[U := Natural.Carrier N.Nat^::zero, domain := Natural.space N.Nat^::zero] \as LowerComposition;
+\import Modules.Hom[V := Natural.Carrier N.Nat^::zero, W := Natural.Carrier N.Nat^::zero, source := Natural.space N.Nat^::zero, target := Natural.space N.Nat^::zero] \as End;
+\import Modules.End[V := Natural.Carrier N.Nat^::zero, space := Natural.space N.Nat^::zero] \as Identity;
+\definition sum: End.Map := End.plus (UpperComposition.compose (Natural.boundary N.Nat^::zero) Shift.map) (LowerComposition.compose section Augmentation.map);
+\definition onGenerator: Unique -> \forall (sigma: Simplices.Carrier N.Nat^::zero) -> #apply{sum} (Natural.generator N.Nat^::zero sigma) = Natural.generator N.Nat^::zero sigma :=
+  \fun (unique: Unique)(sigma: Simplices.Carrier N.Nat^::zero) => trans!{{Natural.Carrier N.Nat^::zero}} _ _ _
+    (congr2!{{Natural.Carrier N.Nat^::zero} {Natural.Carrier N.Nat^::zero} {Natural.Carrier N.Nat^::zero}} Values.add _ _ _ _ (upper unique sigma) (lower unique sigma))
+    (Values.zeroLeft (Natural.generator N.Nat^::zero sigma));
+\import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := Natural.Carrier N.Nat^::zero, target := Natural.space N.Nat^::zero] \as Free;
+\definition mapLaw: Unique -> sum = Identity.identity := \fun (unique: Unique) => Free.ext sum Identity.identity (onGenerator unique);
+\definition law: Unique -> \forall (x: Natural.Carrier N.Nat^::zero) ->
+  Values.add (#apply{(Natural.boundary N.Nat^::zero)} (#apply{Shift.map} x)) (#apply{section} (#apply{Augmentation.map} x)) = x :=
+  \fun (unique: Unique)(x: Natural.Carrier N.Nat^::zero) => congr!{End.Map {Natural.Carrier N.Nat^::zero}} (\fun (m: End.Map) => #apply{m} x) _ _ (mapLaw unique);

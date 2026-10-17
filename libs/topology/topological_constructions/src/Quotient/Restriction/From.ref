@@ -1,0 +1,36 @@
+\import topological_constructions.Quotient[A := A, B := B].Restriction[q := q, U := U] \as CutRestriction;
+\import Source.Subspace[S := S] \as Original;
+\import topology.Topology[Carrier := Original.CarrierSet] \as OriginalSpace;
+\import Original.Equivalent[T := Maps.Preimage q U] \as Equivalent;
+\import topology.Homeomorphism[A := Original.CarrierSet, B := Domain.CarrierSet] \as Homeomorphisms;
+\import topology.Continuity[A := Original.CarrierSet, B := Range.CarrierSet] \as MapsCut;
+\import topological_constructions.Quotient[A := Original.CarrierSet, B := Range.CarrierSet] \as Quotients;
+\import Continuous.Restriction[S := S] \as Restriction;
+\import topology.Continuity[A := Original.CarrierSet, B := B].Corestriction[S := U] \as Into;
+\definition map(toRange: Source.Subset S (Maps.Preimage q U))(x: Original.CarrierSet): Range.CarrierSet :=
+  \into[B](q x, U) \by { toRange x (\bysub(A, S, x)) };
+\definition onto: \forall (toRange: Source.Subset S (Maps.Preimage q U))(fromRange: Source.Subset (Maps.Preimage q U) S) ->
+  Surjective q -> Quotients.Surjective (map toRange) := \block {
+  \fun (toRange: _)(fromRange: _)(surjective: Surjective q)(y: Range.CarrierSet) \then
+  \takefrom x: \Cast[Domain.CarrierSet] ({ x: Domain.CarrierSet \where CutRestriction.map x = y }) \by CutRestriction.onto surjective y \then
+  \let point: Original.CarrierSet := Equivalent.backward fromRange x \then
+  \return Logic.existsIntro[Original.CarrierSet, { x: Original.CarrierSet \where map toRange x = y }] point
+    (\bysub(Domain.CarrierSet, { x: Domain.CarrierSet \where CutRestriction.map x = y }, x))
+};
+\definition continuous: \forall (source: Source.Topology)(target: Target.Topology)(toRange: Source.Subset S (Maps.Preimage q U)) ->
+  Continuous.Continuous source target q -> MapsCut.Continuous (Original.topology source) (Range.topology target) (map toRange) :=
+  \fun (source: _)(target: _)(toRange: _)(continuous: _) => Into.corestrictContinuous (Original.topology source) target (map toRange)
+    (Restriction.restrictContinuous source target q continuous);
+\definition reflectsOpen: \forall (source: Source.Topology)(target: Target.Topology)(toRange: Source.Subset S (Maps.Preimage q U))(fromRange: Source.Subset (Maps.Preimage q U) S) ->
+  IsQuotientMap[source, target, q] -> Target.IsOpenIn target U -> \forall (W: \Pow Range.CarrierSet) ->
+  OriginalSpace.IsOpenIn (Original.topology source) (MapsCut.Preimage (map toRange) W) -> RangeSpace.IsOpenIn (Range.topology target) W :=
+  \fun (source: _)(target: _)(toRange: _)(fromRange: _)(laws: _)(openU: _)(W: _)(openW: _) =>
+    CutRestriction.reflectsOpen source target laws openU W
+      (#backwardContinuous{(Homeomorphisms.laws (Original.topology source) (Domain.topology source) (Equivalent.homeomorphism source toRange fromRange))}
+        (MapsCut.Preimage (map toRange) W) openW);
+\definition quotientMap: \forall (source: Source.Topology)(target: Target.Topology)(toRange: Source.Subset S (Maps.Preimage q U))(fromRange: Source.Subset (Maps.Preimage q U) S) ->
+  IsQuotientMap[source, target, q] -> Target.IsOpenIn target U -> Quotients.IsQuotientMap[Original.topology source, Range.topology target, map toRange] :=
+  \fun (source: _)(target: _)(toRange: _)(fromRange: _)(laws: _)(open: _) => Quotients.IsQuotientMap[_, _, map toRange] {
+    onto := onto toRange fromRange #onto{laws}, continuous := continuous source target toRange #continuous{laws},
+    reflectsOpen := reflectsOpen source target toRange fromRange laws open,
+  };

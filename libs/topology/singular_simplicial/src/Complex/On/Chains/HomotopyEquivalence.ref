@@ -1,0 +1,28 @@
+\import \parent.\parent.Cech[].Comparison[] \as Comparison;
+\import Complexes.Equivalence[C := complex, D := Singular.complex] \as Native;
+\definition existence: \exists { e: Native.Equivalence \where #forward{e} = comparison } := Comparison.equivalenceExists;
+\import IntegerComplexes.Map[C := Extension.complex, D := TargetExtension.complex] \as IntegerMaps;
+\import IntegerComplexes.Equivalence[C := Extension.complex, D := TargetExtension.complex] \as SignedEquivalences;
+\definition integerExistence: \exists { e: SignedEquivalences.Equivalence \where #forward{e} = integerComparison } := \block {
+  \takefrom e: \Cast[Native.Equivalence] ({ e: Native.Equivalence \where #forward{e} = comparison }) \by existence \then
+  \return Logic.existsIntro[SignedEquivalences.Equivalence, { e: SignedEquivalences.Equivalence \where #forward{e} = integerComparison }]
+    Native.ZeroExtension[e := e].equivalence
+    (congr!{{NativeMaps.Map} {IntegerMaps.Map}} signedAction
+      #forward{e} comparison (\bysub(Native.Equivalence, { e: Native.Equivalence \where #forward{e} = comparison }, e)))
+};
+\definition quasiIsomorphism: IntegerMaps.QuasiIsomorphism integerComparison := \block {
+  \takefrom e: \Cast[SignedEquivalences.Equivalence] ({ e: SignedEquivalences.Equivalence \where #forward{e} = integerComparison }) \by integerExistence \then
+  \return \idelim #forward{e} = integerComparison \with f: IntegerMaps.Map => IntegerMaps.QuasiIsomorphism f \by {
+    base: \fun (z: I.Int^) => SignedEquivalences.At[k := z].bijective e,
+    equality: \bysub(SignedEquivalences.Equivalence, { e: SignedEquivalences.Equivalence \where #forward{e} = integerComparison }, e)
+  }
+};
+\module At(z: I.Int^) {
+  \import IntegerComplexes.At[C := Extension.complex, z := z] \as Source;
+  \import IntegerComplexes.At[C := TargetExtension.complex, z := z] \as Target;
+  \import IntegerMaps.At[k := z] \as Mapping;
+  \import Modules.Isomorphism[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace]
+    .OfBijective[f := Mapping.induced integerComparison] \as Inverse;
+  \definition isomorphism: Modules.Isomorphism[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace].Isomorphism :=
+    Inverse.isomorphism #injective{(quasiIsomorphism z)} #onto{(quasiIsomorphism z)};
+}

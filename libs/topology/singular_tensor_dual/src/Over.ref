@@ -1,0 +1,52 @@
+\import std.Alg[].Ring[] \as Rings;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as Lists;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\definition baseRing: Rings.Ring[R] := Rings.commutativeRingAsRing R ring;
+\import module_theory.Module[].Over[R := R, ring := Rings.commutativeRingAsRing R ring] \as Modules;
+\import commutative_algebra.Modules[R := R, ring := ring] \as Algebra;
+\definition scalars: Modules.Bundle := Modules.Bundle { Carrier := R, space := Modules.scalarModule };
+\definition mul: R -> R -> R := #mul{baseRing};
+\definition add: R -> R -> R := #add{baseRing};
+\definition assoc(a, b, c: R): mul (mul a b) c = mul a (mul b c) := #associative{(#multiplicative{(#semiring{baseRing})})} a b c;
+\definition distributeLeft(a, b, c: R): mul a (add b c) = add (mul a b) (mul a c) := #leftDistributive{(#semiring{baseRing})} a b c;
+\definition distributeRight(a, b, c: R): mul (add a b) c = add (mul a c) (mul b c) := #rightDistributive{(#semiring{baseRing})} a b c;
+\definition middle(a, b, c: R): mul a (mul b c) = mul b (mul a c) :=
+  trans!{R} _ _ _ (sym!{R} _ _ (assoc a b c))
+    (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => mul r c) _ _ (#mulCommutative{ring} a b)) (assoc b a c));
+\module Dual(V: Modules.Bundle) {
+  \import Algebra.HomSpace[V := V.Carrier, W := R, source := V.space, target := Modules.scalarModule] \as Hom;
+  \definition Carrier: \Set := Hom.Carrier;
+  \definition space: Modules.Space Carrier := Hom.space;
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+}
+\module Finite(V: Modules.Bundle, rank: N.Nat^);
+\module Pairing(V, W: Modules.Bundle);
+\module Local(V, W: Modules.Bundle, rank: N.Nat^, frame: \root.Over[R := R, ring := ring].Finite[V := V, rank := rank].Frame);
+
+\import double_complexes.DoubleComplex[].Over[R := R, ring := Rings.commutativeRingAsRing R ring] \as Double;
+\module Diagonal(n: N.Nat^, family: Modules.Family[Double.Index n]);
+
+\import double_complexes.NonnegativeChain[].Over[R := R, ring := Rings.commutativeRingAsRing R ring] \as Chains;
+\module Frames(P: Chains.Complex, ranks: N.Nat^ -> N.Nat^);
+\module On(P, Q: Chains.Complex, ranks: N.Nat^ -> N.Nat^, frames: \root.Over[R := R, ring := ring].Frames[P := P, ranks := ranks].Frames);
+\module Selected(P, Q: Chains.Complex, p, q: N.Nat^);
+
+\module SumIsomorphism(Index: \Set, first, second: Modules.Family[Index],
+  components: \forall (i: Index) -> Modules.Isomorphism[V := first.Carrier i, W := second.Carrier i, source := first.space i, target := second.space i].Isomorphism);
+
+\module IntegerCoordinates(rank: N.Nat^);
+
+\module Mixed;
+
+\import chain_complexes.Cochain[].Over[R := R, ring := Rings.commutativeRingAsRing R ring] \as Cochains;
+\module CochainIsomorphism(C, D: Cochains.Complex,
+  forward: Cochains.Map[C := C, D := D].Map,
+  backward: Cochains.Map[C := D, D := C].Map,
+  left: \forall (n: N.Nat^)(x: C.family.Carrier n) -> #apply{backward} n (#apply{forward} n x) = x,
+  right: \forall (n: N.Nat^)(x: D.family.Carrier n) -> #apply{forward} n (#apply{backward} n x) = x);

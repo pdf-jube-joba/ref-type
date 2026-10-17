@@ -1,0 +1,42 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\module Vanishing(A, B: Modules.Bundle) {
+  \import Modules.Isomorphism[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as Iso;
+  \import Modules.Hom[V := B.Carrier, W := A.Carrier, source := B.space, target := A.space] \as Backward;
+  \definition zero(e: Iso.Isomorphism)(trivial: \forall (y: B.Carrier) -> y = #zero{B.space}):
+    \forall (x: A.Carrier) -> x = #zero{A.space} :=
+    \fun (x: A.Carrier) => trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (#leftInverse{e} x))
+      (trans!{A.Carrier} _ _ _ (congr!{B.Carrier A.Carrier} (#apply{#backward{e}}) _ _ (trivial (#apply{#forward{e}} x)))
+        (Backward.zeroPreserved #backward{e}));
+}
+\module Product(A, B, C, D: Modules.Bundle) {
+  \import Modules.Biproduct[V := A.Carrier, W := B.Carrier, left := A.space, right := B.space] \as Source;
+  \import Modules.Biproduct[V := C.Carrier, W := D.Carrier, left := C.space, right := D.space] \as Target;
+  \import std.Data[].Pair[].Prop[A := A.Carrier, B := B.Carrier] \as SourcePairs;
+  \import std.Data[].Pair[].Prop[A := C.Carrier, B := D.Carrier] \as TargetPairs;
+  \import Modules.Isomorphism[V := A.Carrier, W := C.Carrier, source := A.space, target := C.space] \as Left;
+  \import Modules.Isomorphism[V := B.Carrier, W := D.Carrier, source := B.space, target := D.space] \as Right;
+  \import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Forward;
+  \import Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space] \as Backward;
+  \definition forward(a: Left.Isomorphism)(b: Right.Isomorphism): Forward.Map := Forward.Map {
+    apply := \fun (x: Source.Carrier) => Target.make (#apply{#forward{a}} (Source.first x)) (#apply{#forward{b}} (Source.second x)),
+    addition := \fun (x, y: Source.Carrier) => TargetPairs.ext _ _ (#addition{#forward{a}} (Source.first x) (Source.first y)) (#addition{#forward{b}} (Source.second x) (Source.second y)),
+    scalar := \fun (r: I.Int^)(x: Source.Carrier) => TargetPairs.ext _ _ (#scalar{#forward{a}} r (Source.first x)) (#scalar{#forward{b}} r (Source.second x)),
+  };
+  \definition backward(a: Left.Isomorphism)(b: Right.Isomorphism): Backward.Map := Backward.Map {
+    apply := \fun (x: Target.Carrier) => Source.make (#apply{#backward{a}} (Target.first x)) (#apply{#backward{b}} (Target.second x)),
+    addition := \fun (x, y: Target.Carrier) => SourcePairs.ext _ _ (#addition{#backward{a}} (Target.first x) (Target.first y)) (#addition{#backward{b}} (Target.second x) (Target.second y)),
+    scalar := \fun (r: I.Int^)(x: Target.Carrier) => SourcePairs.ext _ _ (#scalar{#backward{a}} r (Target.first x)) (#scalar{#backward{b}} r (Target.second x)),
+  };
+  \import Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Iso;
+  \definition isomorphism(a: Left.Isomorphism)(b: Right.Isomorphism): Iso.Isomorphism := Iso.Isomorphism {
+    forward := forward a b, backward := backward a b,
+    leftInverse := \fun (x: Source.Carrier) => SourcePairs.ext _ _ (#leftInverse{a} (Source.first x)) (#leftInverse{b} (Source.second x)),
+    rightInverse := \fun (x: Target.Carrier) => TargetPairs.ext _ _ (#rightInverse{a} (Target.first x)) (#rightInverse{b} (Target.second x)),
+  };
+}

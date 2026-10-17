@@ -4,6 +4,9 @@
 | --- | --- |
 | `NonnegativeChain.Over` | 非負鎖複体、写像・ホモトピー、ホモロジー、短完全列と接続写像 |
 | `ZeroExtension` | 整数次数への零拡張とホモロジー同型 |
+| `Homotopy.ZeroExtension` / `Equivalence.ZeroExtension` | 鎖ホモトピーと同値の零拡張、誘導写像のホモロジー同型 |
+| `SplitInjection.On` | 次数ごとの線形な左逆を持つ包含の商複体、短完全列と相対長完全列 |
+| `SplitInjection.On.Positive` | 非負次数の商と、整数次数へ零拡張した包含の商との同型 |
 | `ShortExact.Morphism.Straighten` | 比較写像をホモトピーで補正する可換図式 |
 | `DoubleComplex.Over.Total` | 第一象限の有限対角直和と微分 \(d_h+(-1)^p d_v\) |
 | `Coordinates.StepAt` / `Degree` | 微分の成分公式、成分による零の判定 |

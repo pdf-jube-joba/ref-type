@@ -1,0 +1,63 @@
+\import Complexes.At[C := Native.cochainComplex, k := p] \as Left;
+\import Complexes.At[C := Native.cochainComplex, k := q] \as Right;
+\import Complexes.At[C := Native.cochainComplex, k := total] \as Output;
+\import \parent.Closed[] \as ClosedProduct;
+\import \parent.Bilinear[] \as Bilinear;
+\import \parent.\parent.Boundaries[] \as Boundaries;
+\definition leftClosed(x: Left.CycleCarrier): coboundary p x = #zero{(space (N.Nat^::succ p))} := \bysub(Carrier p, #carrier{Left.cycles}, x);
+\definition rightClosed(y: Right.CycleCarrier): coboundary q y = #zero{(space (N.Nat^::succ q))} := \bysub(Carrier q, #carrier{Right.cycles}, y);
+\definition cycle(x: Left.CycleCarrier)(y: Right.CycleCarrier): Output.CycleCarrier :=
+  Output.cycle (Formula.apply x y) (ClosedProduct.law x y (leftClosed x) (rightClosed y));
+\definition leftDescent: \forall (x, xPrime: Left.CycleCarrier)(y: Right.CycleCarrier) -> Left.classOf x = Left.classOf xPrime ->
+  Output.classOf (cycle x y) = Output.classOf (cycle xPrime y) :=
+  \fun (x, xPrime: Left.CycleCarrier)(y: Right.CycleCarrier)(same: Left.classOf x = Left.classOf xPrime) =>
+    Output.classEqual (cycle x y) (cycle xPrime y)
+      (\idelim Formula.apply (#add{(space p)} x (#neg{(space p)} xPrime)) y = #add{(space total)} (Formula.apply x y) (#neg{(space total)} (Formula.apply xPrime y))
+        \with z: Carrier total => Member total z \by {
+          base: Boundaries.left p q (#add{(space p)} x (#neg{(space p)} xPrime)) y (rightClosed y) (Left.classRelated x xPrime same),
+          equality: Bilinear.leftDifference x xPrime y
+        });
+\definition rightDescent: \forall (x: Left.CycleCarrier)(y, yPrime: Right.CycleCarrier) -> Right.classOf y = Right.classOf yPrime ->
+  Output.classOf (cycle x y) = Output.classOf (cycle x yPrime) :=
+  \fun (x: Left.CycleCarrier)(y, yPrime: Right.CycleCarrier)(same: Right.classOf y = Right.classOf yPrime) =>
+    Output.classEqual (cycle x y) (cycle x yPrime)
+      (\idelim Formula.apply x (#add{(space q)} y (#neg{(space q)} yPrime)) = #add{(space total)} (Formula.apply x y) (#neg{(space total)} (Formula.apply x yPrime))
+        \with z: Carrier total => Member total z \by {
+          base: Boundaries.right p q x (#add{(space q)} y (#neg{(space q)} yPrime)) (leftClosed x) (Right.classRelated y yPrime same),
+          equality: Bilinear.rightDifference x y yPrime
+        });
+\import \root.Complex[d := d].On[K := K].Cup[R := R, ring := ring].Cohomology[].Product[p := p, q := q] \as Compared;
+\import Compared.Representatives[] \as Representatives;
+\import Representatives.Degree[n := p] \as LeftCycles;
+\import Representatives.Degree[n := q] \as RightCycles;
+\definition apply: Left.Cohomology -> Right.Cohomology -> Output.Cohomology := Compared.apply;
+\definition onClasses: \forall (alpha: Left.CycleCarrier)(beta: Right.CycleCarrier) ->
+  apply (Left.classOf alpha) (Right.classOf beta) = Output.classOf (cycle alpha beta) := \block {
+  \fun (alpha: Left.CycleCarrier)(beta: Right.CycleCarrier) \then
+  \takefrom x: \Cast[LeftCycles.Cycle]
+    ({ x: LeftCycles.Cycle \where LeftCycles.finiteClass (LeftCycles.restrict x) = Left.classOf alpha })
+    \by LeftCycles.existsOnClass (Left.classOf alpha) \then
+  \takefrom y: \Cast[RightCycles.Cycle]
+    ({ y: RightCycles.Cycle \where RightCycles.finiteClass (RightCycles.restrict y) = Right.classOf beta })
+    \by RightCycles.existsOnClass (Right.classOf beta) \then
+  \let leftEqual: Left.classOf (LeftCycles.restrict x) = Left.classOf alpha :=
+    \bysub(LeftCycles.Cycle,
+      { x: LeftCycles.Cycle \where LeftCycles.finiteClass (LeftCycles.restrict x) = Left.classOf alpha }, x) \then
+  \let rightEqual: Right.classOf (RightCycles.restrict y) = Right.classOf beta :=
+    \bysub(RightCycles.Cycle,
+      { y: RightCycles.Cycle \where RightCycles.finiteClass (RightCycles.restrict y) = Right.classOf beta }, y) \then
+  \return eq_reason!{
+    {apply (Left.classOf alpha) (Right.classOf beta)}
+    "=" {apply (Left.classOf (LeftCycles.restrict x)) (Right.classOf (RightCycles.restrict y))}
+    "by" {congr2!{{Left.Cohomology} {Right.Cohomology} {Output.Cohomology}} apply _ _ _ _
+      (sym!{{Left.Cohomology}} _ _ leftEqual) (sym!{{Right.Cohomology}} _ _ rightEqual)}
+    "=" {Output.classOf (Representatives.cycle x y)} "by" {Representatives.law x y}
+    "=" {Output.classOf (cycle (LeftCycles.restrict x) (RightCycles.restrict y))}
+    "by" {Output.equalClass (Representatives.cycle x y) (cycle (LeftCycles.restrict x) (RightCycles.restrict y))
+      (\refl(Formula.apply (LeftCycles.restrict x) (RightCycles.restrict y)))}
+    "=" {Output.classOf (cycle alpha (RightCycles.restrict y))}
+    "by" {leftDescent (LeftCycles.restrict x) alpha (RightCycles.restrict y) leftEqual}
+    "=" {Output.classOf (cycle alpha beta)}
+    "by" {rightDescent alpha (RightCycles.restrict y) beta rightEqual}
+  }
+};

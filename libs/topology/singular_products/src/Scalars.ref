@@ -1,0 +1,23 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Alg[].Ring[] \as Rings;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\definition base: Rings.Ring[R] := Rings.commutativeRingAsRing R ring;
+\import module_theory.Module[].Over[R := R, ring := base] \as Modules;
+\import Modules.Alternating[V := R, space := Modules.scalarModule] \as Sums;
+\import Sums.Mapping[W := R, target := Modules.scalarModule] \as Mapping;
+\import Modules.Hom[V := R, W := R, source := Modules.scalarModule, target := Modules.scalarModule] \as Maps;
+\definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> R) -> R := Sums.sum;
+\definition right(b: R): Maps.Map := Maps.Map {
+  apply := \fun (x: R) => #mul{base} x b,
+  addition := \fun (x, y: R) => #scalarAdd{Modules.scalarModule} x y b,
+  scalar := \fun (a, x: R) => #scalarAssoc{Modules.scalarModule} a x b,
+};
+\definition rightSum: \forall (n: N.Nat^)(f: Fin.Fin n -> R)(b: R) -> #mul{base} (sum n f) b = sum n (\fun (i: Fin.Fin n) => #mul{base} (f i) b) :=
+  \fun (n: N.Nat^)(f: Fin.Fin n -> R)(b: R) => Mapping.law (right b) n f;
+\definition leftSum: \forall (n: N.Nat^)(a: R)(f: Fin.Fin n -> R) -> #mul{base} a (sum n f) = sum n (\fun (i: Fin.Fin n) => #mul{base} a (f i)) :=
+  \fun (n: N.Nat^)(a: R)(f: Fin.Fin n -> R) => trans!{R} _ _ _ (#mulCommutative{ring} a (sum n f))
+    (trans!{R} _ _ _ (rightSum n f a)
+      (Sums.congruent n (\fun (i: Fin.Fin n) => #mul{base} (f i) a) (\fun (i: Fin.Fin n) => #mul{base} a (f i))
+        (\fun (i: Fin.Fin n) => #mulCommutative{ring} (f i) a)));

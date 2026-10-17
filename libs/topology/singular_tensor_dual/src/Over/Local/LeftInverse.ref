@@ -1,0 +1,25 @@
+\definition restrictionLaw(alpha: Left.Carrier)(beta: Right.Carrier)(i: Frame.Index): restriction i (#apply{Pairing.forward} (Source.tensor alpha beta)) = #smul{Right.space} (#apply{alpha} (frame.basis i)) beta :=
+  RightMaps.ext (restriction i (#apply{Pairing.forward} (Source.tensor alpha beta))) (#smul{Right.space} (#apply{alpha} (frame.basis i)) beta)
+    (\fun (y: W.Carrier) => Pairing.onPure alpha beta (frame.basis i) y);
+\definition piece(alpha: Left.Carrier)(beta: Right.Carrier)(i: Frame.Index): #apply{\parent.At[i := i].piece} (#apply{Pairing.forward} (Source.tensor alpha beta)) = Source.tensor (#smul{Left.space} (#apply{alpha} (frame.basis i)) (frame.coordinate i)) beta :=
+  trans!{Source.Carrier} _ _ _
+    (congr!{Right.Carrier Source.Carrier} (Source.tensor (frame.coordinate i)) _ _ (restrictionLaw alpha beta i))
+    (trans!{Source.Carrier} _ _ _ (#scaleRight{Source.bilinear} (#apply{alpha} (frame.basis i)) (frame.coordinate i) beta)
+      (sym!{Source.Carrier} _ _ (#scaleLeft{Source.bilinear} (#apply{alpha} (frame.basis i)) (frame.coordinate i) beta)));
+\import DualSum.Mapping[W := Source.Carrier, target := Source.space] \as TensorSum;
+\definition onTensor(alpha: Left.Carrier)(beta: Right.Carrier): #apply{backward} (#apply{Pairing.forward} (Source.tensor alpha beta)) = Source.tensor alpha beta :=
+  trans!{Source.Carrier} _ _ _
+    (SourceSum.congruent Frame.indices
+      (\fun (i: Frame.Index) => #apply{\parent.At[i := i].piece} (#apply{Pairing.forward} (Source.tensor alpha beta)))
+      (\fun (i: Frame.Index) => Source.tensor (#smul{Left.space} (#apply{alpha} (frame.basis i)) (frame.coordinate i)) beta)
+      (piece alpha beta))
+    (trans!{Source.Carrier} _ _ _
+      (sym!{Source.Carrier} _ _ (TensorSum.law (Source.leftLinear beta) Frame.indices (\fun (i: Frame.Index) => #smul{Left.space} (#apply{alpha} (frame.basis i)) (frame.coordinate i))))
+      (congr!{Left.Carrier Source.Carrier} (\fun (f: Left.Carrier) => Source.tensor f beta) _ _ (\parent.Expansion[].dual alpha)));
+\import Backward.Composition[U := Source.Carrier, domain := Source.space] \as Composition;
+\import Modules.End[V := Source.Carrier, space := Source.space] \as End;
+\import Source.Universal[U := Source.Carrier, target := Source.space] \as Equality;
+\definition equality: Composition.compose backward Pairing.forward = End.identity := Equality.ext (Composition.compose backward Pairing.forward) End.identity onTensor;
+\import Modules.Hom[V := Source.Carrier, W := Source.Carrier, source := Source.space, target := Source.space] \as EndMaps;
+\definition law(x: Source.Carrier): #apply{backward} (#apply{Pairing.forward} x) = x :=
+  congr!{EndMaps.Map Source.Carrier} (\fun (f: EndMaps.Map) => #apply{f} x) _ _ equality;

@@ -1,0 +1,35 @@
+\definition enumeration: Enumeration n := indexing n;
+\import Modules.Free[Generators := Simplex n] \as Native;
+\import Modules.Free[Generators := Fin.Fin (rank n)] \as Finite;
+\import Modules.FiniteCoordinates[n := rank n] \as Coordinates;
+\import Native.Reindex[TargetGenerators := Fin.Fin (rank n)] \as Forward;
+\import Finite.Reindex[TargetGenerators := Simplex n] \as Backward;
+\definition forward: Modules.Hom[V := Native.Carrier, W := Finite.Carrier, source := Native.space, target := Finite.space].Map := Forward.push #index{enumeration};
+\definition backward: Modules.Hom[V := Finite.Carrier, W := Native.Carrier, source := Finite.space, target := Native.space].Map := Backward.push #enumerate{enumeration};
+\import Modules.Hom[V := Finite.Carrier, W := Native.Carrier, source := Finite.space, target := Native.space].Composition[U := Native.Carrier, domain := Native.space] \as Left;
+\import Modules.Hom[V := Native.Carrier, W := Finite.Carrier, source := Native.space, target := Finite.space].Composition[U := Finite.Carrier, domain := Finite.space] \as Right;
+\import Modules.End[V := Native.Carrier, space := Native.space] \as NativeEnd;
+\import Modules.End[V := Finite.Carrier, space := Finite.space] \as FiniteEnd;
+\import Native.To[W := Native.Carrier, target := Native.space] \as NativeExt;
+\import Finite.To[W := Finite.Carrier, target := Finite.space] \as FiniteExt;
+\definition leftMap: Left.compose backward forward = NativeEnd.identity := NativeExt.ext _ _
+  (\fun (sigma: Simplex n) => trans!{Native.Carrier} _ _ _
+    (congr!{Finite.Carrier Native.Carrier} (#apply{backward}) _ _ (Forward.onGenerator #index{enumeration} sigma))
+    (trans!{Native.Carrier} _ _ _ (Backward.onGenerator #enumerate{enumeration} (#index{enumeration} sigma))
+      (congr!{{Simplex n} Native.Carrier} Native.generator _ _ (#enumerateIndex{enumeration} sigma))));
+\definition rightMap: Right.compose forward backward = FiniteEnd.identity := FiniteExt.ext _ _
+  (\fun (i: Fin.Fin (rank n)) => trans!{Finite.Carrier} _ _ _
+    (congr!{Native.Carrier Finite.Carrier} (#apply{forward}) _ _ (Backward.onGenerator #enumerate{enumeration} i))
+    (trans!{Finite.Carrier} _ _ _ (Forward.onGenerator #index{enumeration} (#enumerate{enumeration} i))
+      (congr!{{Fin.Fin (rank n)} Finite.Carrier} Finite.generator _ _ (#indexEnumerate{enumeration} i))));
+\import Modules.Isomorphism[V := Native.Carrier, W := Finite.Carrier, source := Native.space, target := Finite.space] \as Iso;
+\import Modules.Hom[V := Native.Carrier, W := Native.Carrier, source := Native.space, target := Native.space] \as NativeMaps;
+\import Modules.Hom[V := Finite.Carrier, W := Finite.Carrier, source := Finite.space, target := Finite.space] \as FiniteMaps;
+\definition freeIsomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (x: Native.Carrier) => congr!{NativeMaps.Map Native.Carrier} (\fun (f: NativeMaps.Map) => #apply{f} x) _ _ leftMap,
+  rightInverse := \fun (x: Finite.Carrier) => congr!{FiniteMaps.Map Finite.Carrier} (\fun (f: FiniteMaps.Map) => #apply{f} x) _ _ rightMap,
+};
+\import Iso.Composition[U := Coordinates.Carrier, final := Coordinates.space] \as Compose;
+\definition isomorphism: Modules.Isomorphism[V := Chains.Carrier n, W := Coordinates.Carrier, source := Chains.space n, target := Coordinates.space].Isomorphism :=
+  Compose.compose (Coordinates.Free[].isomorphism) freeIsomorphism;

@@ -1,0 +1,19 @@
+\definition bound: \forall (n: N.Nat^)(f, g: Fin.Fin n -> Real)(i: Fin.Fin n) -> f i = zero ->
+  (\forall (j: Fin.Fin n) -> R.Le (f j) (g j)) -> R.Le (sum n f) (sub (sum n g) (g i)) :=
+  \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> Real)(i: Fin.Fin n) -> f i = zero ->
+    (\forall (j: Fin.Fin n) -> R.Le (f j) (g j)) -> R.Le (sum n f) (sub (sum n g) (g i)) \with {
+      | zero: \fun (f, g: Fin.Fin N.Nat^::zero -> Real)(i: Fin.Fin N.Nat^::zero)(vanishes: _)(bounds: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (n: N.Nat^)(previous: _)(f, g: Fin.Fin (N.Nat^::succ n) -> Real) => Fin.cases n
+          (\fun (i: Fin.Fin (N.Nat^::succ n)) => f i = zero -> (\forall (j: Fin.Fin (N.Nat^::succ n)) -> R.Le (f j) (g j)) -> R.Le (sum (N.Nat^::succ n) f) (sub (sum (N.Nat^::succ n) g) (g i)))
+          (\fun (vanishes: f (Fin.zero n) = zero)(bounds: \forall (j: Fin.Fin (N.Nat^::succ n)) -> R.Le (f j) (g j)) => R.leReplace
+            (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j))) (sum (N.Nat^::succ n) f)
+            (sum n (\fun (j: Fin.Fin n) => g (Fin.succ n j))) (sub (sum (N.Nat^::succ n) g) (g (Fin.zero n)))
+            (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (a: Real) => add a (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j)))) _ _ vanishes) (Laws.addZeroLeft _)))
+            (sym!{Real} _ _ (trans!{Real} _ _ _ (Laws.addComm (sum (N.Nat^::succ n) g) (neg (g (Fin.zero n)))) (Laws.addNegCancelLeft (g (Fin.zero n)) _)))
+            (comparison n _ _ (\fun (j: Fin.Fin n) => bounds (Fin.succ n j))))
+          (\fun (i: Fin.Fin n)(vanishes: f (Fin.succ n i) = zero)(bounds: \forall (j: Fin.Fin (N.Nat^::succ n)) -> R.Le (f j) (g j)) =>
+            R.leReplaceRight _ (add (g (Fin.zero n)) (sub (sum n (\fun (j: Fin.Fin n) => g (Fin.succ n j))) (g (Fin.succ n i)))) (sub (sum (N.Nat^::succ n) g) (g (Fin.succ n i)))
+              (sym!{Real} _ _ (Laws.addAssoc (g (Fin.zero n)) (sum n (\fun (j: Fin.Fin n) => g (Fin.succ n j))) (neg (g (Fin.succ n i)))))
+              (Bounds.addLe _ _ _ _ (bounds (Fin.zero n))
+                (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) (\fun (j: Fin.Fin n) => g (Fin.succ n j)) i vanishes (\fun (j: Fin.Fin n) => bounds (Fin.succ n j)))))
+    };

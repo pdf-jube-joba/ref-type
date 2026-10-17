@@ -1,0 +1,47 @@
+\import \root.Circle[] \as Circle;
+\import \parent.Coordinates[] \as Coordinates;
+\import std.Data[].Pair[] \as Pairs;
+\import topological_constructions.Product[A := Coordinates.Sphere, B := Coordinates.Sphere] \as Geometry;
+\import Geometry.Maps[] \as Projections;
+\definition Sphere: \Set := Coordinates.Sphere;
+\definition sphereTopology: topology.Topology[Carrier := Sphere].Topology := Coordinates.sphereTopology;
+\definition Product: \Set := Geometry.CarrierSet;
+\definition productTopology: topology.Topology[Carrier := Product].Topology := Geometry.topology sphereTopology sphereTopology;
+\definition point: Sphere := Coordinates.backward identity;
+\definition pointInCircle: Coordinates.forward point = identity := Coordinates.rightInverse identity;
+\definition first: Product -> Sphere := Pairs.first Sphere Sphere;
+\definition second: Product -> Sphere := Pairs.second Sphere Sphere;
+\definition multiply(p: Product): Sphere := Coordinates.backward (Circle.multiply (Coordinates.forward (first p)) (Coordinates.forward (second p)));
+\import topology.Composition[A := Product, B := Sphere, C := Carrier] \as CoordinatesComposition;
+\import \parent.Functions[A := Product] \as ProductFunctions;
+\import topology.Composition[A := Product, B := Carrier, C := Sphere] \as Output;
+\definition firstContinuous: topology.Continuity[A := Product, B := Sphere].Continuous productTopology sphereTopology first := Projections.firstContinuous sphereTopology sphereTopology;
+\definition secondContinuous: topology.Continuity[A := Product, B := Sphere].Continuous productTopology sphereTopology second := Projections.secondContinuous sphereTopology sphereTopology;
+\definition continuous: topology.Continuity[A := Product, B := Sphere].Continuous productTopology sphereTopology multiply :=
+  Output.composeContinuous productTopology topology sphereTopology
+    (\fun (p: Product) => Circle.multiply (Coordinates.forward (first p)) (Coordinates.forward (second p))) Coordinates.backward
+    (ProductFunctions.multiplyContinuous productTopology (\fun (p: Product) => Coordinates.forward (first p)) (\fun (p: Product) => Coordinates.forward (second p))
+      (CoordinatesComposition.composeContinuous productTopology sphereTopology topology first Coordinates.forward firstContinuous Coordinates.forwardContinuous)
+      (CoordinatesComposition.composeContinuous productTopology sphereTopology topology second Coordinates.forward secondContinuous Coordinates.forwardContinuous))
+    Coordinates.backwardContinuous;
+\import singular_low_degree.Product[A := Sphere, B := Sphere, left := sphereTopology, right := sphereTopology, leftPoint := point, rightPoint := point] \as Axes;
+\definition onFirst: \forall (x: Sphere) -> multiply (Axes.first x) = x :=
+  \fun (x: Sphere) => trans!{Sphere} _ _ _
+    (congr!{Carrier Sphere} Coordinates.backward _ _
+      (congr!{Carrier Carrier} (Circle.multiply (Coordinates.forward x)) _ _ pointInCircle))
+    (trans!{Sphere} _ _ _
+      (congr!{Carrier Sphere} Coordinates.backward _ _ (rightIdentity (Coordinates.forward x))) (Coordinates.leftInverse x));
+\definition onSecond: \forall (x: Sphere) -> multiply (Axes.second x) = x :=
+  \fun (x: Sphere) => trans!{Sphere} _ _ _
+    (congr!{Carrier Sphere} Coordinates.backward _ _
+      (congr!{Carrier Carrier} (\fun (z: Carrier) => Circle.multiply z (Coordinates.forward x)) _ _ pointInCircle))
+    (trans!{Sphere} _ _ _
+      (congr!{Carrier Sphere} Coordinates.backward _ _ (leftIdentity (Coordinates.forward x))) (Coordinates.leftInverse x));
+\import algebraic_topology.PathComponent[A := Sphere, source := sphereTopology] \as Paths;
+\import algebraic_topology.Spheres[].Positive[n := N.Nat^::zero].Connected[] \as Connected;
+\import singular_low_degree.Normalize[A := Sphere, source := sphereTopology, point := point] \as Normalize;
+\definition pathsExist: \exists Normalize.PathFamily := Normalize.pathFamilyExists Connected.connected;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\module Cohomology(coefficients: Modules.Bundle);

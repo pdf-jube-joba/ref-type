@@ -1,0 +1,64 @@
+\import std.Logic[].Classical[] \as Classical;
+\import Space.Finite[] \as Finite;
+\structure Witness[cell: Cells.CellData, x: A]: \Set {
+  member: Cells.CellMember cells cell,
+  below: Nat.Lt (#dimension{cell}) limit,
+  point: Euclidean.Disk (#dimension{cell}),
+  image: #characteristic{cell} point = x,
+  outside: Logic.Not (StageSpace.Member W (lift cell member below point)),
+}
+\definition piece(cell: Cells.CellData): \Pow A := { x: A \where \exists Witness[cell, x] };
+\definition Selected(cell: Cells.CellData): \Prop := Logic.And[Cells.CellMember cells cell, Nat.Lt (#dimension{cell}) limit];
+\module SelectedPiece(cell: Cells.CellData, selected: Selected cell);
+\definition unselectedEmpty: \forall (cell: Cells.CellData) -> Logic.Not (Selected cell) -> piece cell = Space.Empty :=
+  \fun (cell: Cells.CellData)(unselected: _) => \axiom:setext(piece cell, Space.Empty,
+    \block {
+      \fun (x: A)(inside: _) \then
+      \takefrom witness: Witness[cell, x] \by inside \then
+      \return unselected (Logic.And[_, _]::# (#member{witness}) (#below{witness}))
+    },
+    \fun (x: A)(impossible: Logic.False) => Logic.falseElim _ impossible);
+\definition pieceClosed: \forall (cell: Cells.CellData) -> Space.IsClosedIn source (piece cell) :=
+  \fun (cell: Cells.CellData) => either!{{(Classical.excludedMiddle (Selected cell))} {Space.IsClosedIn source (piece cell)}
+    {\fun (selected: _) => SelectedPiece[cell := cell, selected := selected].closed}
+    {\fun (outside: _) => \idelim Space.Empty = piece cell \with F: \Pow A => Space.IsClosedIn source F \by {
+      base: \parent.\parent.\parent.Closed[].emptyClosed, equality: sym!{{\Pow A}} _ _ (unselectedEmpty cell outside)
+    }}
+  };
+\import \root.FiniteUnion[A := A, C := Cells.CellData, source := source, pieces := piece] \as Union;
+\definition bad: \Pow A := Union.union cells;
+\definition badClosed: Space.IsClosedIn source bad := Union.closed cells (\fun (cell: Cells.CellData)(member: _) => pieceClosed cell);
+\definition insideBad: \forall (x: Carrier) -> Logic.Not (StageSpace.Member W x) -> Space.Member bad x :=
+  \fun (x: Carrier)(outside: _) => eliminate cells limit x (Space.Member bad x)
+    (\block {
+      \fun (cell: Cells.CellData)(member: _)(below: _)(contains: _) \then
+      \takefrom point: \Cast[Euclidean.Disk (#dimension{cell})]
+        ({ p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }) \by contains \then
+      \let same: #characteristic{cell} point = x :=
+        \bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, point) \then
+      \return Union.include cells cell member x
+        (\exact(Witness[cell, x] {
+          member := member, below := below, point := point, image := same,
+          outside := \idelim x = lift cell member below point \with p: Carrier => Logic.Not (StageSpace.Member W p) \by {
+            base: outside, equality: sym!{A} _ _ same
+          },
+        }, Witness[cell, x]))
+    }) (\bysub(A, subset limit, x));
+\definition outsideW: \forall (x: Carrier) -> Space.Member bad x -> Logic.Not (StageSpace.Member W x) :=
+  \fun (x: Carrier)(member: _) => Union.eliminate cells x (Logic.Not (StageSpace.Member W x))
+    (\block {
+      \fun (cell: Cells.CellData)(present: _)(inside: _) \then
+      \takefrom witness: Witness[cell, x] \by inside \then
+      \return \idelim lift cell (#member{witness}) (#below{witness}) (#point{witness}) = x
+        \with p: Carrier => Logic.Not (StageSpace.Member W p) \by {
+          base: #outside{witness}, equality: #image{witness}
+        }
+    }) member;
+\definition open: StageSpace.IsOpenIn topology W :=
+  \idelim Subspace.Trace (Space.Complement bad) = W \with U: \Pow Carrier => StageSpace.IsOpenIn topology U \by {
+    base: Subspace.traceOpen source (Space.Complement bad) badClosed,
+    equality: \axiom:setext(Subspace.Trace (Space.Complement bad), W,
+      \fun (x: Carrier)(outside: _) => StageSpace.Finite[].doubleNegElim (StageSpace.Member W x)
+        (\fun (notW: _) => outside (insideBad x notW)),
+      \fun (x: Carrier)(inside: _)(bad: _) => outsideW x bad inside)
+  };

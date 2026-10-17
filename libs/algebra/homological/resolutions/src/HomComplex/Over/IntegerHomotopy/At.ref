@@ -1,0 +1,72 @@
+\import Cochains.At[C := Source.complex, z := z] \as SourceH;
+\import Cochains.At[C := Target.complex, z := z] \as TargetH;
+\import Maps.At[k := z] \as Induced;
+\import Modules.Hom[V := Q.family.Carrier z, W := N.Carrier, source := Q.family.space z, target := N.space] \as CoefficientMaps;
+\import Modules.Hom[V := P.family.Carrier z, W := N.Carrier, source := P.family.space z, target := N.space] \as Output;
+\definition difference(f, g: ChainMaps.Map)(x: Source.Carrier z): Target.Carrier z :=
+  Output.plus (#apply{(map f)} z x) (Output.negative (#apply{(map g)} z x));
+\definition evaluateDifference: \forall (f, g: ChainMaps.Map)(x: Source.Carrier z)(y: P.family.Carrier z) ->
+  #apply{(difference f g x)} y = #apply{x} (#add{(Q.family.space z)} (#apply{f} z y) (#neg{(Q.family.space z)} (#apply{g} z y))) :=
+  \fun (f, g: ChainMaps.Map)(x: Source.Carrier z)(y: P.family.Carrier z) => sym!{N.Carrier} _ _
+    (CoefficientMaps.differencePreserved x (#apply{f} z y) (#apply{g} z y));
+\definition closedEvaluation: \forall (x: SourceH.Closed)(y: Q.family.Carrier (Degrees.next z)) ->
+  #apply{x} (QPrior.value z y) = #zero{N.space} :=
+  \fun (x: SourceH.Closed)(y: Q.family.Carrier (Degrees.next z)) => congr!{{Source.Carrier (Degrees.next z)} N.Carrier}
+    (\fun (v: Source.Carrier (Degrees.next z)) => #apply{v} y) _ _ (\bysub(Source.Carrier z, #carrier{SourceH.cycles}, x));
+\import std.Logic[].Equality[].Transport[A := Degrees.Degree] \as Transport;
+\import Modules.Hom[V := P.family.Carrier (Degrees.previous z), W := Q.family.Carrier (Degrees.next (Degrees.previous z)),
+  source := P.family.space (Degrees.previous z), target := Q.family.space (Degrees.next (Degrees.previous z))] \as Raw;
+\definition raw(f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g): Raw.Map := Raw.Map {
+  apply := #apply{h} (Degrees.previous z), addition := #addition{h} (Degrees.previous z), scalar := #scalar{h} (Degrees.previous z),
+};
+\import Modules.Hom[V := P.family.Carrier (Degrees.previous z), W := Q.family.Carrier z,
+  source := P.family.space (Degrees.previous z), target := Q.family.space z] \as Shifted;
+\definition shifted(f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g): Shifted.Map := Shifted.Map {
+  apply := Homotopies.shifted h z,
+  addition := \fun (x, y: P.family.Carrier (Degrees.previous z)) => trans!{{Q.family.Carrier z}} _ _ _
+    (congr!{{Q.family.Carrier (Degrees.next (Degrees.previous z))} {Q.family.Carrier z}}
+      (Transport.cast Q.family.Carrier (Degrees.next (Degrees.previous z)) z (Degrees.nextPrevious z)) _ _ (#addition{h} (Degrees.previous z) x y))
+    (Transport.binaryNatural Q.family.Carrier Q.family.Carrier Q.family.Carrier (\fun (k: Degrees.Degree) => #add{(Q.family.space k)})
+      (Degrees.next (Degrees.previous z)) z (Degrees.nextPrevious z) (#apply{h} (Degrees.previous z) x) (#apply{h} (Degrees.previous z) y)),
+  scalar := \fun (a: R)(x: P.family.Carrier (Degrees.previous z)) => trans!{{Q.family.Carrier z}} _ _ _
+    (congr!{{Q.family.Carrier (Degrees.next (Degrees.previous z))} {Q.family.Carrier z}}
+      (Transport.cast Q.family.Carrier (Degrees.next (Degrees.previous z)) z (Degrees.nextPrevious z)) _ _ (#scalar{h} (Degrees.previous z) a x))
+    (Transport.natural Q.family.Carrier Q.family.Carrier (\fun (k: Degrees.Degree) => #smul{(Q.family.space k)} a)
+      (Degrees.next (Degrees.previous z)) z (Degrees.nextPrevious z) (#apply{h} (Degrees.previous z) x)),
+};
+\import CoefficientMaps.Composition[U := P.family.Carrier (Degrees.previous z), domain := P.family.space (Degrees.previous z)] \as Composition;
+\definition witness(f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.Closed): Target.Carrier (Degrees.previous z) := Composition.compose x (shifted f g h);
+\import algebra.Group[].Of[Carrier := N.Carrier, group := Modules.Laws[V := N.Carrier, space := N.space].additive] \as Group;
+\use Equality.eq_reason;
+\definition lift: \forall (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.Closed) ->
+  #apply{TargetH.prior} (witness f g h x) = difference f g x :=
+  \fun (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.Closed) => Target.At[z := z].ext
+    (#apply{TargetH.prior} (witness f g h x)) (difference f g x)
+    (\fun (y: P.family.Carrier z) => \block {
+      \let evaluated: #apply{(difference f g x)} y = #apply{x} (Homotopies.shifted h z (#apply{P.differential} z y)) := eq_reason!{
+        {#apply{(difference f g x)} y}
+        "=" {#apply{x} (#add{(Q.family.space z)} (#apply{f} z y) (#neg{(Q.family.space z)} (#apply{g} z y)))}
+        "by" {evaluateDifference f g x y}
+        "=" {#apply{x} (#add{(Q.family.space z)} (QPrior.value z (#apply{h} z y)) (Homotopies.shifted h z (#apply{P.differential} z y)))}
+        "by" {congr!{{Q.family.Carrier z} N.Carrier} (#apply{x}) _ _ (#equation{h} z y)}
+        "=" {Group.add (#apply{x} (QPrior.value z (#apply{h} z y))) (#apply{x} (Homotopies.shifted h z (#apply{P.differential} z y)))}
+        "by" {#addition{x} (QPrior.value z (#apply{h} z y)) (Homotopies.shifted h z (#apply{P.differential} z y))}
+        "=" {Group.add #zero{N.space} (#apply{x} (Homotopies.shifted h z (#apply{P.differential} z y)))}
+        "by" {congr!{N.Carrier N.Carrier} (\fun (a: N.Carrier) => Group.add a (#apply{x} (Homotopies.shifted h z (#apply{P.differential} z y)))) _ _ (closedEvaluation x (#apply{h} z y))}
+        "=" {#apply{x} (Homotopies.shifted h z (#apply{P.differential} z y))}
+        "by" {Group.zeroLeft (#apply{x} (Homotopies.shifted h z (#apply{P.differential} z y)))}
+      } \then
+      \return trans!{N.Carrier} _ _ _ (Target.Cohomology[z := z].priorOnElement (witness f g h x) y) (sym!{N.Carrier} _ _ evaluated)
+    });
+\import Modules.Of[V := Target.Carrier z, space := Target.space z].Submodule[] \as Sub;
+\import Sub.Image[U := Target.Carrier (Degrees.previous z), source := Target.space (Degrees.previous z)] \as Images;
+\definition boundary: \forall (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.Closed) -> Sub.Member TargetH.boundaries (difference f g x) :=
+  \fun (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.Closed) => Images.introduce TargetH.prior (difference f g x) (witness f g h x) (lift f g h x);
+\definition onCohomology: \forall (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(q: SourceH.Cohomology) ->
+  #apply{(Induced.induced (map f))} q = #apply{(Induced.induced (map g))} q :=
+  \fun (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g) => SourceH.classInduction
+    (\fun (q: SourceH.Cohomology) => #apply{(Induced.induced (map f))} q = #apply{(Induced.induced (map g))} q)
+    (\fun (x: SourceH.Closed) => trans!{TargetH.Cohomology} _ _ _ (Induced.onClass (map f) x)
+      (trans!{TargetH.Cohomology} _ _ _
+        (TargetH.classEqual (#apply{(Induced.cyclesMap (map f))} x) (#apply{(Induced.cyclesMap (map g))} x) (boundary f g h x))
+        (sym!{TargetH.Cohomology} _ _ (Induced.onClass (map g) x))));

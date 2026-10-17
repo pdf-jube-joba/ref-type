@@ -1,0 +1,68 @@
+\import \parent.Scalars[] \as Scalars;
+\import algebraic_topology.Euclidean[].Dimension[n := n].Splitting[] \as BoundaryPole;
+\definition north: Ambient.Sphere := Split.north;
+\definition sameSquared: \forall (p, q: Disk.Disk) -> map p = map q -> squared p = squared q :=
+  \fun (p, q: Disk.Disk)(same: _) => \block {
+    \let heights: height p = height q := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.headJoin (height p) (Scaling.scale (coefficient p) p)))
+      (trans!{Real.Real} _ _ _ (congr!{Ambient.Sphere Real.Real} (\fun (x: Ambient.Sphere) => Split.head x) _ _ same)
+        (Split.headJoin (height q) (Scaling.scale (coefficient q) q))) \then
+    \let complements: remaining p = remaining q := Scalars.twiceInjective (remaining p) (remaining q)
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Scalars.subtractComplement (squared p) (remaining p) (Estimates.addSubCancel Real.one (squared p))))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ heights)
+          (Scalars.subtractComplement (squared q) (remaining q) (Estimates.addSubCancel Real.one (squared q))))) \then
+    \return trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Algebra.subSub Real.one (squared p)))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ complements) (Algebra.subSub Real.one (squared q)))
+  };
+\definition boundaryCoefficient: \forall (p: Disk.Disk) -> squared p = Real.one -> coefficient p = Real.zero :=
+  \fun (p: Disk.Disk)(boundary: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} Root.sqrt _ _
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} Scalars.four _ _ (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ boundary) (Laws.subSelf Real.one))) Scalars.fourZero)) Root.sqrtZero;
+\definition boundaryHeight: \forall (p: Disk.Disk) -> squared p = Real.one -> height p = Real.one :=
+  \fun (p: Disk.Disk)(boundary: _) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ boundary
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ boundary) (Laws.subSelf Real.one)))
+    (Laws.subZeroRight Real.one);
+\definition onBoundary: \forall (p: Disk.Disk) -> squared p = Real.one -> map p = north :=
+  \fun (p: Disk.Disk)(boundary: _) => Split.ext (map p) north
+    (trans!{Real.Real} _ _ _ (Split.headJoin (height p) (Scaling.scale (coefficient p) p))
+      (trans!{Real.Real} _ _ _ (boundaryHeight p boundary) (sym!{Real.Real} _ _ (Split.headJoin Real.one Scaling.zero))))
+    (trans!{Disk.Coordinate} _ _ _ (Split.tailJoin (height p) (Scaling.scale (coefficient p) p))
+      (trans!{Disk.Coordinate} _ _ _
+        (\axiom:funext(Scaling.scale (coefficient p) p, Scaling.zero, \fun (i: Disk.Index) => trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (p i)) _ _ (boundaryCoefficient p boundary)) (Laws.fieldMulZeroLeft (p i))))
+        (sym!{Disk.Coordinate} _ _ (Split.tailJoin Real.one Scaling.zero))));
+\definition coefficientNonzero: \forall (p: Disk.Disk) -> Logic.Not (squared p = Real.one) -> Logic.Not (coefficient p = Real.zero) :=
+  \fun (p: Disk.Disk)(interior: _)(zero: coefficient p = Real.zero) => \block {
+    \let vanishes: remaining p = Real.zero := Scalars.fourInjective (remaining p) Real.zero
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (coefficientSquared p))
+        (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ zero zero)
+          (trans!{Real.Real} _ _ _ (Laws.fieldMulZeroLeft Real.zero) (sym!{Real.Real} _ _ Scalars.fourZero)))) \then
+    \return interior (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroLeft (squared p)))
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add a (squared p)) _ _ (sym!{Real.Real} _ _ vanishes))
+        (Distance.subAddCancel Real.one (squared p))))
+  };
+\definition sameCoefficients: \forall (p, q: Disk.Disk) -> map p = map q -> coefficient p = coefficient q :=
+  \fun (p, q: Disk.Disk)(same: _) =>
+    congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Root.sqrt (Scalars.four (Real.sub Real.one a))) _ _ (sameSquared p q same);
+\definition sameTail: \forall (p, q: Disk.Disk) -> map p = map q -> Scaling.scale (coefficient p) p = Scaling.scale (coefficient q) q :=
+  \fun (p, q: Disk.Disk)(same: _) => trans!{Disk.Coordinate} _ _ _
+    (sym!{Disk.Coordinate} _ _ (Split.tailJoin (height p) (Scaling.scale (coefficient p) p)))
+    (trans!{Disk.Coordinate} _ _ _ (congr!{Ambient.Sphere Disk.Coordinate} (\fun (x: Ambient.Sphere) => Split.tail x) _ _ same)
+      (Split.tailJoin (height q) (Scaling.scale (coefficient q) q)));
+\definition equalInterior: \forall (p, q: Disk.Disk) -> Logic.Not (squared p = Real.one) -> map p = map q -> p = q :=
+  \fun (p, q: Disk.Disk)(interior: _)(same: _) => \axiom:funext(p, q, \fun (i: Disk.Index) =>
+    Scalars.multiplyCancel (coefficient p) (p i) (q i) (coefficientNonzero p interior)
+      (trans!{Real.Real} _ _ _
+        (congr!{Disk.Coordinate Real.Real} (\fun (v: Disk.Coordinate) => v i) _ _ (sameTail p q same))
+        (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (q i)) _ _ (sym!{Real.Real} _ _ (sameCoefficients p q same)))));
+\definition separates: \forall (p, q: Disk.Disk) -> map p = map q ->
+  Logic.Or[p = q, Logic.And[squared p = Real.one, squared q = Real.one]] :=
+  \fun (p, q: Disk.Disk)(same: _) => either!{{(Classical.excludedMiddle (squared p = Real.one))}
+    {Logic.Or[p = q, Logic.And[squared p = Real.one, squared q = Real.one]]}
+    {\fun (boundary: _) => Logic.Or[_, _]::right (Logic.And[_, _]::# boundary
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (sameSquared p q same)) boundary))}
+    {\fun (interior: _) => Logic.Or[_, _]::left (equalInterior p q interior same)}
+  };

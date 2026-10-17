@@ -1,0 +1,45 @@
+\import \root.Two[] \as F;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := F.Carrier, space := F.integerSpace };
+\import \parent.With[A := coefficients] \as Model;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].With[A := coefficients] \as Raw;
+\import \root.Truncated[].Over[zeroth := Raw.zeroth, first := Raw.first, second := Raw.second] \as Truncated;
+\import Truncated.On[deltaZero := Raw.differentialZero, deltaOne := Raw.differentialOne, square := Raw.squareZero] \as Complex;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Cochains;
+\definition firstDegree: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition secondDegree: N.Nat^ := N.Nat^::succ firstDegree;
+\import Modules.Zero[] \as Zero;
+\import Complex.DegreeOne[] \as H1;
+\import Complex.DegreeTwo[] \as H2;
+\definition u: Model.Edges := Model.edge F.one F.zero F.one;
+\definition v: Model.Triangles := Model.triangle F.zero F.one;
+\definition uClosed: Model.deltaOne u = Model.triangle F.zero F.zero :=
+  Model.trianglesExt (Model.deltaOne u) (Model.triangle F.zero F.zero) (\refl(F.zero)) (\refl(F.zero));
+\definition uCycle: H1.CycleCarrier := H1.cycle u (Model.closedValue u uClosed);
+\definition vCycle: H2.CycleCarrier := H2.cycle v (\refl(Zero.Carrier::zero));
+\definition generator: H1.Cohomology := H1.classOf uCycle;
+\definition topGenerator: H2.Cohomology := H2.classOf vCycle;
+\definition cup(alpha, beta: Model.Edges): Model.Triangles :=
+  \fun (t: Triangle) => F.mul (alpha (front t)) (beta (back t));
+\definition square: cup u u = v := Model.trianglesExt (cup u u) v (\refl(F.zero)) (\refl(F.one));
+\definition boundaryTotal(f: Model.Edges): Model.total (Model.deltaOne f) = F.zero :=
+  trans!{F.Carrier} _ _ _ (Model.totalBoundary f) (F.addSelf (f Edge::loop));
+\definition topNonzero: topGenerator = H2.zeroClass -> Logic.False := \block {
+  \fun (same: topGenerator = H2.zeroClass) \then
+  \let boundary: \In[Raw.second.Carrier] (H2.Boundaries secondDegree) v := H2.zeroClassBoundary vCycle same \then
+  \takefrom f: \Cast[Model.Edges] ({ f: Model.Edges \where Model.deltaOne f = v }) \by boundary \then
+  \let equal: Model.deltaOne f = v := \bysub(Model.Edges, { f: Model.Edges \where Model.deltaOne f = v }, f) \then
+  \return F.nontrivial (trans!{F.Carrier} _ _ _ (sym!{F.Carrier} _ _ (boundaryTotal f))
+    (congr!{Model.Triangles F.Carrier} Model.total _ _ equal))
+};
+\definition squareCycle: H2.CycleCarrier := H2.cycle (cup u u) (\refl(Zero.Carrier::zero));
+\definition squareClass: H2.classOf squareCycle = topGenerator := H2.equalClass squareCycle vCycle square;
+\definition squareNonzero: H2.classOf squareCycle = H2.zeroClass -> Logic.False :=
+  \fun (same: H2.classOf squareCycle = H2.zeroClass) => topNonzero (trans!{H2.Cohomology} _ _ _ (sym!{H2.Cohomology} _ _ squareClass) same);
+\module Top;
+\module DegreeOne;

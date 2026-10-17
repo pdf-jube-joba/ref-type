@@ -1,0 +1,27 @@
+\import \parent.At[n := N.Nat^::succ n] \as Degree;
+\import \root.OrderedTuples[V := V].Subdivision[centres := centres] \as Construction;
+\import \parent.\parent.ConeBoundary[n := n] \as ConeBoundary;
+\import \parent.\parent.SquareZero[n := n] \as SquareZero;
+\import Modules.Laws[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Values;
+\import algebra.Group[].Of[Carrier := Carrier (N.Nat^::succ n), group := Values.additive] \as Group;
+\import Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n] \as Lower;
+\import Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)] \as Cone;
+\definition onGenerator: Property n -> Degree.OnGenerators :=
+  \fun (previous: Property n)(v: Tuple (N.Nat^::succ (N.Nat^::succ n))) => \block {
+    \let a: V := centres (N.Nat^::succ n) v \then
+    \let d: Carrier (N.Nat^::succ n) := #apply{(boundary (N.Nat^::succ n))} (generator (N.Nat^::succ (N.Nat^::succ n)) v) \then
+    \let sd: Carrier (N.Nat^::succ n) := #apply{(map (N.Nat^::succ n))} d \then
+    \let cycle: #apply{(boundary n)} sd = #zero{(space n)} := trans!{{Carrier n}} _ _ _ (previous d)
+      (trans!{{Carrier n}} _ _ _
+        (congr!{{Carrier n} {Carrier n}} (#apply{(map n)}) _ _ (SquareZero.all (generator (N.Nat^::succ (N.Nat^::succ n)) v)))
+        (Lower.zeroPreserved (map n))) \then
+    \return trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Carrier (N.Nat^::succ (N.Nat^::succ n))} {Carrier (N.Nat^::succ n)}} (#apply{(boundary (N.Nat^::succ n))}) _ _ (Construction.onGenerator (N.Nat^::succ (N.Nat^::succ n)) v))
+      (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (ConeBoundary.law a sd)
+        (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+          (congr!{{Carrier n} {Carrier (N.Nat^::succ n)}} (\fun (x: Carrier n) => Group.difference sd (#apply{(cone n a)} x)) _ _ cycle)
+          (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+            (congr!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (Group.difference sd) _ _ (Cone.zeroPreserved (cone n a)))
+            (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (Values.add sd) _ _ Group.negZero) (Group.zeroRight sd)))))
+  };
+\definition law: Property n -> Property (N.Nat^::succ n) := \fun (previous: Property n) => Degree.extend (onGenerator previous);

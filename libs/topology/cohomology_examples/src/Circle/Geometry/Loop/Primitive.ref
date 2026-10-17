@@ -1,0 +1,38 @@
+\import \root.Circle[].Geometry[].Loop[] \as Loop;
+\import \parent.Disk[] \as Disk;
+\import Disk.Quotient[] \as Quotient;
+\import Quotient.Primitive[] \as Comparison;
+\import \parent.Formula[] \as Formula;
+\import singular_cellular.DiskSphere[n := zero].Quotient[] \as SphereQuotient;
+\import singular_cohomology.Chains[A := Carrier, source := topology] \as Chains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import Native.ZeroExtension[C := Chains.complex] \as Extended;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Signed;
+\import Signed.At[C := Extended.complex, z := I.Int^::ofNat one] \as H;
+\definition cycle: H.Cycle := Comparison.cycle;
+\definition class: H.Homology := H.classOf cycle;
+\definition isomorphism: Modules.Isomorphism[V := I.Int^, W := H.Homology, source := Modules.scalarModule, target := H.homologySpace].Isomorphism := Comparison.isomorphism;
+\definition onOne: #apply{#forward{isomorphism}} I.One.specification = class := Comparison.onOne;
+\import algebraic_topology.Euclidean[].Dimension[n := one] \as DiskModel;
+\import singular_cohomology.Chains[A := DiskModel.Disk, source := DiskModel.diskTopology] \as DiskChains;
+\import singular_cohomology.Simplices[A := DiskModel.Disk, source := DiskModel.diskTopology] \as DiskSimplices;
+\import algebraic_topology.Collapse[A := DiskModel.Disk, subset := singular_cellular.DiskRelative[n := zero].subset] \as Collapse;
+\import singular_cohomology.Chains[A := Collapse.Carrier, source := Collapse.topology DiskModel.diskTopology] \as QuotientChains;
+\import singular_cohomology.Simplices[A := Collapse.Carrier, source := Collapse.topology DiskModel.diskTopology] \as QuotientSimplices;
+\import singular_cohomology.Maps[A := DiskModel.Disk, B := Collapse.Carrier, source := DiskModel.diskTopology, target := Collapse.topology DiskModel.diskTopology] \as IntoQuotient;
+\import singular_cohomology.Maps[A := Collapse.Carrier, B := Carrier, source := Collapse.topology DiskModel.diskTopology, target := topology] \as IntoSphere;
+\definition quotientSimplex: QuotientSimplices.Carrier one := IntoQuotient.postcompose one Collapse.class (Collapse.projectionContinuous DiskModel.diskTopology) Disk.simplex;
+\definition functions: \forall (x: Simplex.Carrier one) -> #forward{SphereQuotient.homeomorphism} (quotientSimplex x) = Loop.simplex x :=
+  \fun (x: Simplex.Carrier one) => trans!{Carrier} _ _ _ (SphereQuotient.onClass (Disk.line x)) (Formula.law x);
+\definition nativeCycle: Chains.Carrier one := Quotient.circleCycle;
+\definition nativeRepresentative: nativeCycle = Chains.generator one Loop.simplex :=
+  trans!{{Chains.Carrier one}} _ _ _
+    (congr!{{QuotientChains.Carrier one} {Chains.Carrier one}}
+      (#apply{(IntoSphere.push (#forward{SphereQuotient.homeomorphism}) (#forwardContinuous{SphereQuotient.homeomorphism}))} one) _ _
+      (IntoQuotient.At[n := one].onGenerator Collapse.class (Collapse.projectionContinuous DiskModel.diskTopology) Disk.simplex))
+    (trans!{{Chains.Carrier one}} _ _ _
+      (IntoSphere.At[n := one].onGenerator (#forward{SphereQuotient.homeomorphism}) (#forwardContinuous{SphereQuotient.homeomorphism}) quotientSimplex)
+      (congr!{{Simplices.Carrier one} {Chains.Carrier one}} (Chains.generator one) _ _
+        (Simplices.ext one _ _ functions)));
+\definition representative: H.forget cycle = Extended.Positive[n := one].intro (Chains.generator one Loop.simplex) :=
+  congr!{{Chains.Carrier one} {Extended.Carrier (I.Int^::ofNat one)}} Extended.Positive[n := one].intro _ _ nativeRepresentative;

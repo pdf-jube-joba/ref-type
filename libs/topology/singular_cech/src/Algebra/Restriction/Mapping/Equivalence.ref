@@ -1,0 +1,53 @@
+\import \parent.\parent.Mapping[D := C] \as SourceMapping;
+\import \parent.\parent.\parent.Restriction[C := D].Mapping[D := D] \as TargetMapping;
+\import \parent.\parent.\parent.Restriction[C := D].Mapping[D := C] \as BackwardMapping;
+\import Signed.Map[C := D, D := C].Composition[B := C] \as SignedLeft;
+\import Maps.Composition[B := D] \as SignedRight;
+\import Signed.End[C := C] \as SignedSourceEnd;
+\import Signed.End[C := D] \as SignedTargetEnd;
+\import Chains.Equivalence[C := complex, D := Target.complex] \as NativeCompared;
+\import Chains.Homotopy[C := complex, D := complex] \as SourceHomotopies;
+\import Chains.Homotopy[C := Target.complex, D := Target.complex] \as TargetHomotopies;
+\import Chains.End[C := complex] \as SourceEnd;
+\import Chains.End[C := Target.complex] \as TargetEnd;
+\import Chains.Map[C := Target.complex, D := complex].Composition[B := complex] \as Left;
+\import NativeMaps.Composition[B := Target.complex] \as Right;
+\import Chains.Map[C := complex, D := complex] \as SourceMaps;
+\import Chains.Map[C := Target.complex, D := Target.complex] \as TargetMaps;
+\definition forward: NativeMaps.Map := map #forward{e};
+\definition backward: Chains.Map[C := Target.complex, D := complex].Map := BackwardMapping.map #backward{e};
+\definition leftEquality: SourceMapping.map (SignedLeft.compose #backward{e} #forward{e}) = Left.compose backward forward :=
+  SourceMaps.ext (SourceMapping.map (SignedLeft.compose #backward{e} #forward{e})) (Left.compose backward forward)
+    (\fun (n: N.Nat^)(x: C.family.Carrier (degree n)) => \refl(#apply{#backward{e}} (degree n) (#apply{#forward{e}} (degree n) x)));
+\definition rightEquality: TargetMapping.map (SignedRight.compose #forward{e} #backward{e}) = Right.compose forward backward :=
+  TargetMaps.ext (TargetMapping.map (SignedRight.compose #forward{e} #backward{e})) (Right.compose forward backward)
+    (\fun (n: N.Nat^)(x: D.family.Carrier (degree n)) => \refl(#apply{#forward{e}} (degree n) (#apply{#backward{e}} (degree n) x)));
+\definition sourceIdentity: SourceMapping.map SignedSourceEnd.identity = SourceEnd.identity :=
+  SourceMaps.ext (SourceMapping.map SignedSourceEnd.identity) SourceEnd.identity
+    (\fun (n: N.Nat^)(x: C.family.Carrier (degree n)) => \refl(x));
+\definition targetIdentity: TargetMapping.map SignedTargetEnd.identity = TargetEnd.identity :=
+  TargetMaps.ext (TargetMapping.map SignedTargetEnd.identity) TargetEnd.identity
+    (\fun (n: N.Nat^)(x: D.family.Carrier (degree n)) => \refl(x));
+\definition left: SourceHomotopies.Homotopy (Left.compose backward forward) SourceEnd.identity := \block {
+  \let h: SourceHomotopies.Homotopy (SourceMapping.map (SignedLeft.compose #backward{e} #forward{e})) (SourceMapping.map SignedSourceEnd.identity) :=
+    SourceMapping.homotopy (SignedLeft.compose #backward{e} #forward{e}) SignedSourceEnd.identity (Compared.leftHomotopy e) sourceNegative \then
+  \return \into[SourceHomotopies.Data](h, SourceHomotopies.Homotopy (Left.compose backward forward) SourceEnd.identity) \by {
+    SourceHomotopies.replacementLaws _ _ _ _ h leftEquality sourceIdentity
+      (\bysub(SourceHomotopies.Data, SourceHomotopies.Homotopy (SourceMapping.map (SignedLeft.compose #backward{e} #forward{e})) (SourceMapping.map SignedSourceEnd.identity), h))
+  }
+};
+\definition right: TargetHomotopies.Homotopy (Right.compose forward backward) TargetEnd.identity := \block {
+  \let h: TargetHomotopies.Homotopy (TargetMapping.map (SignedRight.compose #forward{e} #backward{e})) (TargetMapping.map SignedTargetEnd.identity) :=
+    TargetMapping.homotopy (SignedRight.compose #forward{e} #backward{e}) SignedTargetEnd.identity (Compared.rightHomotopy e) targetNegative \then
+  \return \into[TargetHomotopies.Data](h, TargetHomotopies.Homotopy (Right.compose forward backward) TargetEnd.identity) \by {
+    TargetHomotopies.replacementLaws _ _ _ _ h rightEquality targetIdentity
+      (\bysub(TargetHomotopies.Data, TargetHomotopies.Homotopy (TargetMapping.map (SignedRight.compose #forward{e} #backward{e})) (TargetMapping.map SignedTargetEnd.identity), h))
+  }
+};
+\definition data: NativeCompared.Data := NativeCompared.Data { forward := forward, backward := backward, left := left, right := right };
+\definition value: NativeCompared.Equivalence := \into[NativeCompared.Data](data, { d: NativeCompared.Data \where NativeCompared.Laws[d] }) \by {
+  NativeCompared.Laws[data] {
+    left := \bysub(SourceHomotopies.Data, SourceHomotopies.Homotopy (Left.compose backward forward) SourceEnd.identity, left),
+    right := \bysub(TargetHomotopies.Data, TargetHomotopies.Homotopy (Right.compose forward backward) TargetEnd.identity, right),
+  }
+};

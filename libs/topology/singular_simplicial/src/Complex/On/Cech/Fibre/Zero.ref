@@ -1,0 +1,25 @@
+\definition degree: N.Nat^ := N.Nat^::zero;
+\import algebraic_topology.Contraction[A := Intersection.Carrier, source := Intersection.topology] \as Geometry;
+\import topology.Topology[Carrier := Geometry.Point] \as PointTopology;
+\import singular_cohomology.Chains[A := Geometry.Point, source := PointTopology.Discrete] \as PointChains;
+\import singular_cohomology.Chains[A := Geometry.Point, source := PointTopology.Discrete].Reduced[].Singleton[a := Geometry.Point::point].NativeContraction[] \as PointContraction;
+\import singular_cohomology.Maps[A := Intersection.Carrier, B := Geometry.Point, source := Intersection.topology, target := PointTopology.Discrete] \as Projection;
+\import singular_cohomology.Maps[A := Geometry.Point, B := Intersection.Carrier, source := PointTopology.Discrete, target := Intersection.topology] \as Inclusion;
+\import topology.Maps[A := Intersection.Carrier, B := Geometry.Point] \as ToPoint;
+\import topology.Maps[A := Geometry.Point, B := Intersection.Carrier] \as FromPoint;
+\definition pointFunction(x: Intersection.Carrier): Geometry.Point := Geometry.Point::point;
+\definition centreFunction(x: Geometry.Point): Intersection.Carrier := Intersection.point;
+\definition pointContinuous: Projection.Continuous pointFunction := ToPoint.constantContinuous Intersection.topology PointTopology.Discrete Geometry.Point::point;
+\definition centreContinuous: Inclusion.Continuous centreFunction := FromPoint.constantContinuous PointTopology.Discrete Intersection.topology Intersection.point;
+\definition projection: \forall (x: LocalChains.Carrier degree) ->
+  #apply{Contraction.projection} degree x = #apply{Contraction.constantMap} degree x :=
+  \fun (x: LocalChains.Carrier degree) => congr!{{PointChains.Carrier degree} {LocalChains.Carrier degree}} (#apply{Contraction.backward} degree) _ _
+    (PointContraction.Zero[].law Geometry.pointUnique (#apply{Contraction.forward} degree x));
+\definition onGenerator: \forall (sigma: LocalSimplices.Carrier degree) ->
+  #apply{Contraction.projection} degree (LocalChains.generator degree sigma) =
+    LocalChains.generator degree (LocalSimplices.At[n := degree].constant Intersection.point) :=
+  \fun (sigma: LocalSimplices.Carrier degree) => trans!{{LocalChains.Carrier degree}} _ _ _ (projection (LocalChains.generator degree sigma))
+    (trans!{{LocalChains.Carrier degree}} _ _ _
+      (congr!{{PointChains.Carrier degree} {LocalChains.Carrier degree}} (#apply{Contraction.backward} degree) _ _
+        (Projection.At[n := degree].onGenerator pointFunction pointContinuous sigma))
+      (Inclusion.At[n := degree].onGenerator centreFunction centreContinuous (Projection.postcompose degree pointFunction pointContinuous sigma)));

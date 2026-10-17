@@ -1,6 +1,6 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05・G08・G09・G11・G13・G14 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+G02〜G05・G08・G09・G11・G13〜G16 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 これらのサンプルを個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -52,6 +52,7 @@ target/debug/cli "$sample_dir" --module docgaps.Repro --cache-dir "$PWD/libs/ref
 
 閉形式の類へ等式を降ろす場合には、通常の形式の等式だけから `congr classOf _ _` の引数を推論すると、閉形式の部分集合への所属が保持されなかった。
 [`PullbackComposition.Between.Of.At.cohomologyLaw`](../libs/geometry/differential_forms/src/PullbackComposition/Between/Of/At.ref) は、余鎖写像で得た二つの閉形式を明示し、形式の合成則から類の合成則を示す。
+[`HomComplex.Homotopy.Native.At`](../libs/algebra/homological/resolutions/src/HomComplex/Over/Homotopy/Native/At.ref) の加法・スカラー則も、外延性に渡す二つの線形写像を明示して証明する。
 
 > [!note]
 > 対応しません。
@@ -227,6 +228,7 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 現在は階数だけを自然数の帰納法で定義し、各次数の加群を `FiniteCoordinates` の同じ構成で得る。
 [12-02-coordinate-family.ref](gaps/12-02-coordinate-family.ref) はこの形の族を公開する。
 [`TensorCochain.Over.Unit`](../libs/algebra/homological/field_kunneth/src/TensorCochain/Over/Unit.ref) は階数を零次で一、そのほかで零とし、零次の唯一の座標での評価と定数一のベクトルを用いて左右の単位同型を証明する。
+`algebraic_topology.Simplex.BarycentricSubdivision.Cell` は面の選択列の共通の型を使い、次元ごとの条件を満たす部分集合としてセルの族を定義する。
 
 <a id="g13"></a>
 
@@ -253,3 +255,23 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 
 [14-02-explicit-projection.ref](gaps/14-02-explicit-projection.ref) は明示的な field projection `#value{s}` を使うと型検査が通る。
 整数 Künneth の `Assertions.Exact` は `#inclusion{s}` を使って、外積が左端の写像である短完全列の存在を公開する。
+
+<a id="g15"></a>
+
+## G15: 複体を変換した結果を別名で再公開する
+
+同じ複体の構成を異なる台集合で具体化し、変換した複体を通常の定義から再公開して写像の型に使いたい。
+[15-01-complex-alias.ref](gaps/15-01-complex-alias.ref) は、異なる台集合 `A`・`B` の二つの複体を変換すると、戻り値の型の標的まで `A` に特殊化されて `types are not convertible` になる。
+
+[15-02-complex-direct.ref](gaps/15-02-complex-direct.ref) は、利用側で変換 module を二回直接 import すると型検査を通る。
+`singular_cohomology.Maps` は零拡張を `SourceExtension`・`TargetExtension` として直接具体化し、整数次数の鎖写像の型を構成する。
+
+<a id="g16"></a>
+
+## G16: 型を含む構造を module header で完全修飾する
+
+次数ごとの台集合を含む構造 `Object` を、`Reader(X: \root.Types[].Object)` の parameter 型に直接書きたい。
+[16-01-qualified-signature.ref](gaps/16-01-qualified-signature.ref) では、`X` を別の module に渡すと `argument does not satisfy declaration signature` になり、`Program name was not found: Types.Object` も報告される。
+
+[16-02-imported-signature.ref](gaps/16-02-imported-signature.ref) は、本文で `Types` を import し、parameter を `On(X: Types.Object)` に移す回避例である。
+`singular_cohomology.SimplicialChains.On` はこの方法で面写像を持つ単体の族を受け取る。

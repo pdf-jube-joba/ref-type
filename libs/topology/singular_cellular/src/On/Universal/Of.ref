@@ -1,0 +1,77 @@
+\structure Witness[x: A, value: B]: \Set {
+  cell: Cells.CellData,
+  member: Cells.CellMember cells cell,
+  point: Euclidean.Disk (#dimension{cell}),
+  image: #characteristic{cell} point = x,
+  result: family cell point = value,
+}
+\definition Values(x: A): \Pow B := { value: B \where \exists Witness[x, value] };
+\definition Value(x: A): \Set := \Cast[B] (Values x);
+\definition existence: \forall (x: A) -> \exists Value x := \block {
+  \fun (x: A) \then
+  \takefrom cover: Cells.CoverWitness[cells, x] \by #covers{laws} x \then
+  \takefrom point: \Cast[Euclidean.Disk (#dimension{(#cell{cover})})]
+    ({ p: Euclidean.Disk (#dimension{(#cell{cover})}) \where Logic.And[
+      \In[Euclidean.coordinateCarrier (#dimension{(#cell{cover})})] (Euclidean.interiorAt (#dimension{(#cell{cover})})) p,
+      #characteristic{(#cell{cover})} p = x] }) \by #contains{cover} \then
+  \let same: #characteristic{(#cell{cover})} point = x :=
+    #right{(\bysub(Euclidean.Disk (#dimension{(#cell{cover})}),
+      { p: Euclidean.Disk (#dimension{(#cell{cover})}) \where Logic.And[
+        \In[Euclidean.coordinateCarrier (#dimension{(#cell{cover})})] (Euclidean.interiorAt (#dimension{(#cell{cover})})) p,
+        #characteristic{(#cell{cover})} p = x] }, point))} \then
+  \return Logic.existsIntro[B, Values x] (family (#cell{cover}) point)
+    (\exact(Witness[x, family (#cell{cover}) point] {
+      cell := #cell{cover}, member := #member{cover}, point := point, image := same,
+      result := \refl(family (#cell{cover}) point),
+    }, Witness[x, family (#cell{cover}) point]))
+};
+\definition uniqueness: \forall (x: A)(left, right: Value x) -> left = right := \block {
+  \fun (x: A)(left, right: Value x) \then
+  \takefrom l: Witness[x, left] \by \bysub(B, Values x, left) \then
+  \takefrom r: Witness[x, right] \by \bysub(B, Values x, right) \then
+  \return trans!{B} _ _ _ (sym!{B} _ _ (#result{l}))
+    (trans!{B} _ _ _
+      (compatible (#cell{l}) (#cell{r}) (#member{l}) (#member{r}) (#point{l}) (#point{r})
+        (trans!{A} _ _ _ (#image{l}) (sym!{A} _ _ (#image{r})))) (#result{r}))
+};
+\definition value(x: A): B := \choice Value x \by { existence: existence x, uniqueness: uniqueness x };
+\definition onCharacteristic: \forall (cell: Cells.CellData)(member: Cells.CellMember cells cell)(p: Euclidean.Disk (#dimension{cell})) ->
+  value (#characteristic{cell} p) = family cell p :=
+  \fun (cell: Cells.CellData)(member: _)(p: _) => sym!{B} _ _
+    (\choiceeq \into[B](family cell p, Values (#characteristic{cell} p)) \by {
+      \exact(Witness[#characteristic{cell} p, family cell p] {
+        cell := cell, member := member, point := p, image := \refl(#characteristic{cell} p), result := \refl(family cell p),
+      }, Witness[#characteristic{cell} p, family cell p])
+    } \of Value (#characteristic{cell} p) \by {
+      existence: existence (#characteristic{cell} p), uniqueness: uniqueness (#characteristic{cell} p)
+    });
+\definition unique: \forall (f: A -> B) ->
+  (\forall (cell: Cells.CellData)(member: Cells.CellMember cells cell)(p: Euclidean.Disk (#dimension{cell})) ->
+    f (#characteristic{cell} p) = family cell p) -> f = value := \block {
+  \fun (f: A -> B)(local: _) \then
+  \return \axiom:funext(f, value, \block {
+    \fun (x: A) \then
+    \takefrom w: Witness[x, value x] \by \bysub(B, Values x, \choice Value x \by { existence: existence x, uniqueness: uniqueness x }) \then
+    \return trans!{B} _ _ _
+      (congr!{A B} f _ _ (sym!{A} _ _ (#image{w})))
+      (trans!{B} _ _ _ (local (#cell{w}) (#member{w}) (#point{w})) (#result{w}))
+  })
+};
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Continuity[A := A, B := B] \as Maps;
+\definition ContinuousFamily: \Prop := \forall (cell: Cells.CellData) -> Cells.CellMember cells cell ->
+  topology.Continuity[A := Euclidean.Disk (#dimension{cell}), B := B]
+    .Continuous (Euclidean.Dimension[n := #dimension{cell}].diskTopology) target (family cell);
+\definition continuous: ContinuousFamily -> Maps.Continuous source target value :=
+  \fun (allContinuous: ContinuousFamily)(U: \Pow B)(open: Target.IsOpenIn target U) =>
+    #rtl{(#weakTopology{laws} (Maps.Preimage value U))}
+      (\fun (cell: Cells.CellData)(member: Cells.CellMember cells cell) =>
+        \idelim { p: Euclidean.Disk (#dimension{cell}) \where \In[B] U (family cell p) } = Cells.Pullback cell (Maps.Preimage value U)
+          \with V: \Pow (Euclidean.Disk (#dimension{cell})) => Cells.DiskOpen (#dimension{cell}) V \by {
+            base: allContinuous cell member U open,
+            equality: \axiom:setext({ p: Euclidean.Disk (#dimension{cell}) \where \In[B] U (family cell p) }, Cells.Pullback cell (Maps.Preimage value U),
+              \fun (p: _)(inside: _) => \idelim family cell p = value (#characteristic{cell} p)
+                \with b: B => \In[B] U b \by { base: inside, equality: sym!{B} _ _ (onCharacteristic cell member p) },
+              \fun (p: _)(inside: _) => \idelim value (#characteristic{cell} p) = family cell p
+                \with b: B => \In[B] U b \by { base: inside, equality: onCharacteristic cell member p })
+          });

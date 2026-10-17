@@ -1,0 +1,22 @@
+\definition q: N.Nat^ := N.Nat^::succ s;
+\import \root.ProductChains[p := p, q := q] \as Higher;
+\import Higher.Into[A := A, B := B, source := left, target := right] \as HigherInto;
+\import \root.ProductChains[p := p, q := s].Into[A := A, B := B, source := left, target := right] \as LowerInto;
+\import Simplex.AffineFace[n := s] \as Face;
+\import Simplex.AffineIdentity[n := p] \as Identity;
+\import Simplex.Vertices[] \as Vertices;
+\import \root.ProductChains[p := p, q := s].Transform[k := p, l := q].IntoSpace[A := A, B := B, source := left, target := right]
+  .On[u := Vertices.vertex p, v := Face.vertices i, sigma := sigma, tau := tau] \as Comparison;
+\import \root.OrderedShuffle[V := Simplex.Carrier p, W := Simplex.Carrier q] \as Raw;
+\import singular_cohomology.OrderedTuples[V := Higher.Points] \as Tuples;
+\definition leftSimplex: Comparison.lowerLeft = sigma :=
+  LeftSimplices.ext p Comparison.lowerLeft sigma (\fun (x: Simplex.Carrier p) => congr!{{Simplex.Carrier p} A} sigma _ _ (Identity.law x));
+\definition rightSimplex: Comparison.lowerRight = RightSimplices.face s i tau :=
+  RightSimplices.ext s Comparison.lowerRight (RightSimplices.face s i tau) (\fun (x: Simplex.Carrier s) =>
+    congr!{{Simplex.Carrier q} B} tau _ _ (sym!{{Simplex.Carrier q}} _ _ (Face.law i x)));
+\definition ordered: Tuples.Carrier (N.Nat^::succ (degree p s)) := Raw.onTuples p s (Vertices.vertex p) (Face.vertices i);
+\definition law: LowerInto.onSimplices sigma (RightSimplices.face s i tau) = #apply{(HigherInto.evaluation sigma tau)} (degree p s) ordered :=
+  trans!{{Target.Carrier (degree p s)}} _ _ _
+    (sym!{{Target.Carrier (degree p s)}} _ _
+      (congr2!{{LeftSimplices.Carrier p} {RightSimplices.Carrier s} {Target.Carrier (degree p s)}} LowerInto.onSimplices _ _ _ _ leftSimplex rightSimplex))
+    Comparison.shuffle;

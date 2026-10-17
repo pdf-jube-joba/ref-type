@@ -1,0 +1,31 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \parent.Loop[] \as ExplicitLoop;
+\import singular_cohomology.Cochains[A := Carrier, source := topology].With[coefficients := coefficients] \as Theory;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Cochains.At[C := Theory.complex, k := one] \as H;
+\import Modules.Isomorphism[V := H.Cohomology, W := coefficients.Carrier, source := H.cohomologySpace, target := coefficients.space] \as Iso;
+\definition Formula(e: Iso.Isomorphism): \Prop := \forall (h: H.CycleCarrier) ->
+  #apply{#forward{e}} (H.classOf h) = #apply{h} (Singular.generator one ExplicitLoop.simplex);
+\definition Result: \Set := \Cast[Iso.Isomorphism] ({ e: Iso.Isomorphism \where Formula e });
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import singular_cech.Algebra[R := I.Int^, ring := Integers.ring].Restriction[C := chain] \as Restriction;
+\definition model: Native.Complex := Restriction.complex;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.On[P := model, N := coefficients] \as FiniteCochains;
+\import Cochains.At[C := FiniteCochains.complex, k := one] \as FiniteH;
+\import singular_finite_algebra.Integer[].HomZero[P := model, coefficients := coefficients] \as Zero;
+\definition differentialZero: Zero.DifferentialZero := \fun (n: N.Nat^)(x: model.family.Carrier (N.Nat^::succ n)) =>
+  zeroAction (I.Int^::ofNat (N.Nat^::succ n)) x;
+\module Term;
+\module Chosen(pointCycle: H0.Cycle, represents: H0.classOf pointCycle = pointClass);
+\definition existence: \exists Result := \block {
+  \takefrom p: \Cast[H0.Cycle] ({ p: H0.Cycle \where H0.classOf p = pointClass }) \by pointRepresentative \then
+  \return Chosen[pointCycle := p, represents := \bysub(H0.Cycle, { p: H0.Cycle \where H0.classOf p = pointClass }, p)].existence
+};
+\definition onClass(e: Result): \forall (h: H.CycleCarrier) ->
+  #apply{#forward{e}} (H.classOf h) = #apply{h} (Singular.generator one ExplicitLoop.simplex) :=
+  \bysub(Iso.Isomorphism, { e: Iso.Isomorphism \where Formula e }, e);

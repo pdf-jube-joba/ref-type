@@ -1,0 +1,34 @@
+\import Modules.DirectSum[Index := Index, family := sourceFamily] \as Source;
+\import Modules.DirectSum[Index := Index, family := targetFamily] \as Target;
+\import Source.FiniteSupport[] \as SourceCoordinates;
+\import Target.FiniteSupport[] \as TargetCoordinates;
+\import Modules.Product[Index := Index, family := sourceFamily] \as SourceProduct;
+\import Modules.Product[Index := Index, family := targetFamily] \as TargetProduct;
+\import Modules.DirectSumMapping[Index := Index, sourceFamily := sourceFamily, targetFamily := targetFamily] \as ForwardMaps;
+\import Modules.DirectSumMapping[Index := Index, sourceFamily := targetFamily, targetFamily := sourceFamily] \as BackwardMaps;
+\definition forwardComponents: ForwardMaps.Components := \fun (i: Index) => #forward{(isomorphisms i)};
+\definition backwardComponents: BackwardMaps.Components := \fun (i: Index) => #backward{(isomorphisms i)};
+\import ForwardMaps.On[f := forwardComponents] \as Forward;
+\import BackwardMaps.On[f := backwardComponents] \as Backward;
+\definition left: \forall (x: Source.Carrier) -> #apply{Backward.map} (#apply{Forward.map} x) = x :=
+  \fun (x: Source.Carrier) => SourceCoordinates.injective _ _
+    (\axiom:funext(SourceCoordinates.coordinates (#apply{Backward.map} (#apply{Forward.map} x)), SourceCoordinates.coordinates x,
+      \fun (i: Index) => trans!{{sourceFamily.Carrier i}} _ _ _ (Backward.coordinatesNatural (#apply{Forward.map} x) i)
+        (trans!{{sourceFamily.Carrier i}} _ _ _
+          (congr!{{targetFamily.Carrier i} {sourceFamily.Carrier i}} (#apply{#backward{(isomorphisms i)}}) _ _ (Forward.coordinatesNatural x i))
+          (#leftInverse{(isomorphisms i)} (SourceCoordinates.coordinates x i)))));
+\definition right: \forall (x: Target.Carrier) -> #apply{Forward.map} (#apply{Backward.map} x) = x :=
+  \fun (x: Target.Carrier) => TargetCoordinates.injective _ _
+    (\axiom:funext(TargetCoordinates.coordinates (#apply{Forward.map} (#apply{Backward.map} x)), TargetCoordinates.coordinates x,
+      \fun (i: Index) => trans!{{targetFamily.Carrier i}} _ _ _ (Forward.coordinatesNatural (#apply{Backward.map} x) i)
+        (trans!{{targetFamily.Carrier i}} _ _ _
+          (congr!{{sourceFamily.Carrier i} {targetFamily.Carrier i}} (#apply{#forward{(isomorphisms i)}}) _ _ (Backward.coordinatesNatural x i))
+          (#rightInverse{(isomorphisms i)} (TargetCoordinates.coordinates x i)))));
+\definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism :=
+  Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism {
+    forward := Forward.map, backward := Backward.map, leftInverse := left, rightInverse := right,
+  };
+
+\definition onInjection: \forall (i: Index)(x: sourceFamily.Carrier i) ->
+  #apply{#forward{isomorphism}} (#apply{Source.Injection[i := i].map} x) =
+  #apply{Target.Injection[i := i].map} (#apply{#forward{(isomorphisms i)}} x) := Forward.onInjection;

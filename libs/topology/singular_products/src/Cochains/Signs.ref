@@ -1,0 +1,32 @@
+\import Modules.Alternating[V := Carrier n, space := space n].Concatenation[] \as Cochains;
+\import Modules.Alternating[V := R, space := Modules.scalarModule].Concatenation[] \as Scalars;
+\import Modules.Laws[V := Carrier n, space := space n] \as Values;
+\import algebra.Group[].Of[Carrier := Carrier n, group := Values.additive] \as Group;
+\definition apply: N.Nat^ -> Carrier n -> Carrier n := Cochains.twist;
+\definition onSimplex: \forall (p: N.Nat^)(alpha: Carrier n)(sigma: Simplices.Carrier n) ->
+  #apply{(apply p alpha)} (Chains.generator n sigma) = Scalars.twist p (#apply{alpha} (Chains.generator n sigma)) :=
+  \induction (p: N.Nat^) \return \forall (alpha: Carrier n)(sigma: Simplices.Carrier n) ->
+    #apply{(apply p alpha)} (Chains.generator n sigma) = Scalars.twist p (#apply{alpha} (Chains.generator n sigma)) \with {
+      | zero: \fun (alpha: Carrier n)(sigma: Simplices.Carrier n) => \refl(#apply{alpha} (Chains.generator n sigma))
+      | succ: \fun (p: N.Nat^)(previous: _)(alpha: Carrier n)(sigma: Simplices.Carrier n) => congr!{R R} (#neg{baseRing}) _ _ (previous alpha sigma)
+    };
+\definition zero: \forall (p: N.Nat^) -> apply p #zero{(space n)} = #zero{(space n)} :=
+  \induction (p: N.Nat^) \return apply p #zero{(space n)} = #zero{(space n)} \with {
+    | zero: \refl(#zero{(space n)})
+    | succ: \fun (p: N.Nat^)(previous: _) => trans!{{Carrier n}} _ _ _ (congr!{{Carrier n} {Carrier n}} (#neg{(space n)}) _ _ previous) Group.negZero
+  };
+\definition involution: \forall (p: N.Nat^)(alpha: Carrier n) -> apply p (apply p alpha) = alpha := Cochains.involution;
+\import \parent.DegreeTransport[].Boundaries[] \as Boundaries;
+\import chain_complexes.Cochain[].Over[R := R, ring := baseRing].At[C := Theory.complex, k := n] \as Native;
+\import Modules.Of[V := Carrier n, space := space n].Submodule[] \as Submodules;
+\definition preservesBoundary: \forall (p: N.Nat^)(alpha: Carrier n) -> Boundaries.Member n alpha -> Boundaries.Member n (apply p alpha) :=
+  \induction (p: N.Nat^) \return \forall (alpha: Carrier n) -> Boundaries.Member n alpha -> Boundaries.Member n (apply p alpha) \with {
+    | zero: \fun (alpha: Carrier n)(member: Boundaries.Member n alpha) => member
+    | succ: \fun (p: N.Nat^)(previous: _)(alpha: Carrier n)(member: Boundaries.Member n alpha) => Submodules.negativeClosed Native.boundaries (apply p alpha) (previous alpha member)
+  };
+\definition reflectsBoundary: \forall (p: N.Nat^)(alpha: Carrier n) -> Boundaries.Member n (apply p alpha) -> Boundaries.Member n alpha :=
+  \fun (p: N.Nat^)(alpha: Carrier n)(member: Boundaries.Member n (apply p alpha)) =>
+    \idelim apply p (apply p alpha) = alpha \with x: Carrier n => Boundaries.Member n x \by {
+      base: preservesBoundary p (apply p alpha) member,
+      equality: involution p alpha
+    };

@@ -1,0 +1,28 @@
+\definition coefficientStart: \forall (p: Carrier) -> coefficient Interval.start p = Real.one :=
+  \fun (p: Carrier) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} Root.sqrt _ _
+      (trans!{Real.Real} _ _ _
+        (congr!{Interval.Carrier Real.Real} (\fun (s: Interval.Carrier) => Real.mul s (Laws.fieldInv (squared p))) _ _ (Time.advanceStart (squared p)))
+        (trans!{Real.Real} _ _ _ (Laws.fieldMulComm (squared p) (Laws.fieldInv (squared p)))
+          (Laws.fieldInverseNonzero (squared p) (\bysub(Model.Disk, punctured, p)))))) Root.sqrtOne;
+\definition atStart: \forall (p: Carrier) -> value Interval.start p = p :=
+  \fun (p: Carrier) => \axiom:funext(value Interval.start p, p, \fun (i: Model.Index) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (p i)) _ _ (coefficientStart p)) (Laws.fieldMulOneLeft (p i)));
+\definition endOnSphere: \forall (p: Carrier) -> Model.normSquared (value Interval.end p) = Real.one :=
+  \fun (p: Carrier) => trans!{Real.Real} _ _ _ (normFormula Interval.end p) (Time.advanceEnd (squared p));
+\definition boundaryCoefficient: \forall (t: Interval.Carrier)(p: Carrier) -> Model.normSquared p = Real.one -> coefficient t p = Real.one :=
+  \fun (t: Interval.Carrier)(p: Carrier)(boundary: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} Root.sqrt _ _
+      (trans!{Real.Real} _ _ _
+        (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+          (trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real}
+              (\fun (s: Real.Real) => Real.sub Real.one (Real.mul (Interval.reverse t) (Real.sub Real.one s))) _ _ boundary)
+            (Time.advanceTop t))
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Laws.fieldInv _ _ boundary) Normalization.inverseOne))
+        (Laws.fieldMulOneLeft Real.one))) Root.sqrtOne;
+\definition fixesBoundary: \forall (t: Interval.Carrier)(p: Carrier) -> Model.normSquared p = Real.one -> value t p = p :=
+  \fun (t: Interval.Carrier)(p: Carrier)(boundary: _) => \axiom:funext(value t p, p, \fun (i: Model.Index) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (p i)) _ _ (boundaryCoefficient t p boundary))
+    (Laws.fieldMulOneLeft (p i)));
+\definition retract(p: Carrier): Model.Sphere := \into[Model.Coordinate](value Interval.end p, Model.Boundary) \by { endOnSphere p };

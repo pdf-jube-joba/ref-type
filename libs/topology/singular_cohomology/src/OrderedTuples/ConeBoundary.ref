@@ -1,0 +1,45 @@
+\import Modules.Laws[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Values;
+\import algebra.Group[].Of[Carrier := Carrier (N.Nat^::succ n), group := Values.additive] \as Group;
+\import Modules.Alternating[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Sum;
+\import Modules.Alternating[V := Carrier n, space := space n].Mapping[W := Carrier (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Mapping;
+\definition omitFirst: \forall (a: V)(v: Tuple (N.Nat^::succ n)) ->
+  Omission.omit (N.Nat^::succ n) (Fin.zero (N.Nat^::succ n)) (Tuples.extend (N.Nat^::succ n) a v) = v :=
+  \fun (a: V)(v: Tuple (N.Nat^::succ n)) => trans!{{Tuple (N.Nat^::succ n)}} _ _ _
+    (Omission.first n (Tuples.extend (N.Nat^::succ n) a v))
+    (\axiom:funext((\fun (i: Fin.Fin (N.Nat^::succ n)) => Tuples.extend (N.Nat^::succ n) a v (Fin.succ (N.Nat^::succ n) i)), v,
+      Tuples.atSuccessor (N.Nat^::succ n) a v));
+\definition onTuple: \forall (a: V)(v: Tuple (N.Nat^::succ n)) ->
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(cone (N.Nat^::succ n) a)} (generator (N.Nat^::succ n) v)) =
+    Group.difference (generator (N.Nat^::succ n) v) (#apply{(cone n a)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v))) :=
+  \fun (a: V)(v: Tuple (N.Nat^::succ n)) => \block {
+    \let faces: Fin.Fin (N.Nat^::succ n) -> Carrier n := \fun (i: Fin.Fin (N.Nat^::succ n)) => generator n (Omission.omit n i v) \then
+    \let tails: Sum.sum (N.Nat^::succ n)
+      (\fun (i: Fin.Fin (N.Nat^::succ n)) => generator (N.Nat^::succ n)
+        (Omission.omit (N.Nat^::succ n) (Fin.succ (N.Nat^::succ n) i) (Tuples.extend (N.Nat^::succ n) a v))) =
+      #apply{(cone n a)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v)) :=
+      trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+        (Sum.congruent (N.Nat^::succ n) _ (\fun (i: Fin.Fin (N.Nat^::succ n)) => #apply{(cone n a)} (faces i))
+          (\fun (i: Fin.Fin (N.Nat^::succ n)) => trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+            (congr!{{Tuple (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (generator (N.Nat^::succ n)) _ _ (Omission.onExtended n i a v))
+            (sym!{{Carrier (N.Nat^::succ n)}} _ _ (\parent.Cone[n := n].onGenerator a (Omission.omit n i v)))))
+        (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (sym!{{Carrier (N.Nat^::succ n)}} _ _ (Mapping.law (cone n a) (N.Nat^::succ n) faces))
+          (congr!{{Carrier n} {Carrier (N.Nat^::succ n)}} (#apply{(cone n a)}) _ _ (sym!{{Carrier n}} _ _ (\parent.Boundary[n := n].onGenerator v)))) \then
+    \return trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Carrier (N.Nat^::succ (N.Nat^::succ n))} {Carrier (N.Nat^::succ n)}} (#apply{(boundary (N.Nat^::succ n))}) _ _ (\parent.Cone[n := N.Nat^::succ n].onGenerator a v))
+      (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (\parent.Boundary[n := N.Nat^::succ n].onGenerator (Tuples.extend (N.Nat^::succ n) a v))
+        (congr2!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} Group.difference _ _ _ _
+          (congr!{{Tuple (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (generator (N.Nat^::succ n)) _ _ (omitFirst a v)) tails))
+  };
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier (N.Nat^::succ n), source := space (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as End;
+\import Modules.Hom[V := Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Carrier (N.Nat^::succ n), source := space (N.Nat^::succ (N.Nat^::succ n)), target := space (N.Nat^::succ n)]
+  .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as After;
+\import Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)]
+  .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as Before;
+\import Modules.End[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Identity;
+\import Modules.Free[Generators := Tuple (N.Nat^::succ n)].To[W := Carrier (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Extend;
+\definition equation(a: V): After.compose (boundary (N.Nat^::succ n)) (cone (N.Nat^::succ n) a) =
+  End.plus Identity.identity (End.negative (Before.compose (cone n a) (boundary n))) :=
+  Extend.ext _ _ (onTuple a);
+\definition law: \forall (a: V)(x: Carrier (N.Nat^::succ n)) ->
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(cone (N.Nat^::succ n) a)} x) = Group.difference x (#apply{(cone n a)} (#apply{(boundary n)} x)) :=
+  \fun (a: V)(x: Carrier (N.Nat^::succ n)) => congr!{End.Map {Carrier (N.Nat^::succ n)}} (\fun (f: End.Map) => #apply{f} x) _ _ (equation a);

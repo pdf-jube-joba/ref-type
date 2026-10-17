@@ -1,0 +1,56 @@
+\import \parent.Chains[] \as Chains;
+\import \parent.Realization[] \as Realization;
+\import singular_products.Cochains[A := Realization.Carrier, source := Realization.topology, R := R, ring := ring] \as Singular;
+\import singular_cohomology.Chains[A := Realization.Carrier, source := Realization.topology] \as SingularChains;
+\import singular_cohomology.Simplices[A := Realization.Carrier, source := Realization.topology] \as Simplices;
+\import Chains.With[coefficients := Singular.integerCoefficients] \as Native;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\definition Carrier: N.Nat^ -> \Set := Native.Carrier;
+\definition restriction: _ := Native.restriction;
+\definition baseRing: _ := Singular.baseRing;
+\module At(n: N.Nat^) {
+  \import Modules.Free[Generators := Simplex n].To[W := R, target := Singular.integerCoefficients.space] \as Free;
+  \definition extend: (Simplex n -> R) -> Carrier n := Free.extension;
+  \definition onGenerator: \forall (values: Simplex n -> R)(sigma: Simplex n) ->
+    #apply{(extend values)} (Chains.generator n sigma) = values sigma := Free.onGenerator;
+  \definition restrictOnGenerator: \forall (alpha: Singular.Carrier n)(sigma: Simplex n) ->
+    #apply{(#apply{restriction} n alpha)} (Chains.generator n sigma) =
+      #apply{alpha} (SingularChains.generator n (Realization.simplex n sigma)) :=
+    \fun (alpha: Singular.Carrier n)(sigma: Simplex n) => congr!{{SingularChains.Carrier n} R} (#apply{alpha}) _ _ (Chains.onGenerator n sigma);
+}
+\module Cut(p, q: N.Nat^) {
+  \import Geometric.Cut[p := p, q := q] \as Geometry;
+  \import \parent.\parent.Restrictions[m := p, n := Geometry.total] \as Front;
+  \import \parent.\parent.Restrictions[m := q, n := Geometry.total] \as Back;
+  \import N.Order[].Prop[] \as Order;
+  \definition total: N.Nat^ := Geometry.total;
+  \definition front(sigma: Simplex total): Simplex p := Front.apply Geometry.frontIndex
+    (\fun (i, j: Fin.Fin (N.Nat^::succ p))(less: Bounds.Lt i j) => less) sigma;
+  \definition back(sigma: Simplex total): Simplex q := Back.apply Geometry.backIndex
+    (\fun (i, j: Fin.Fin (N.Nat^::succ q))(less: Bounds.Lt i j) => Order.ltAddLeft p i j less) sigma;
+  \import Simplices.Cut[p := p, q := q] \as SingularCut;
+  \definition frontComparison: \forall (sigma: Simplex total) ->
+    SingularCut.front (Realization.simplex total sigma) = Realization.simplex p (front sigma) :=
+    \fun (sigma: Simplex total) => Simplices.ext p (SingularCut.front (Realization.simplex total sigma)) (Realization.simplex p (front sigma))
+      (\fun (x: Geometric.Carrier p) => Geometric.Reindex[m := p, n := total].Composition[k := d].law Geometry.frontIndex sigma x);
+  \definition backComparison: \forall (sigma: Simplex total) ->
+    SingularCut.back (Realization.simplex total sigma) = Realization.simplex q (back sigma) :=
+    \fun (sigma: Simplex total) => Simplices.ext q (SingularCut.back (Realization.simplex total sigma)) (Realization.simplex q (back sigma))
+      (\fun (x: Geometric.Carrier q) => Geometric.Reindex[m := q, n := total].Composition[k := d].law Geometry.backIndex sigma x);
+}
+\module Product(p, q: N.Nat^) {
+  \import \parent.Cut[p := p, q := q] \as Cut;
+  \definition total: N.Nat^ := Cut.total;
+  \definition values(alpha: Carrier p)(beta: Carrier q)(sigma: Simplex total): R :=
+    #mul{baseRing} (#apply{alpha} (Chains.generator p (Cut.front sigma))) (#apply{beta} (Chains.generator q (Cut.back sigma)));
+  \definition apply(alpha: Carrier p)(beta: Carrier q): Carrier total := \parent.At[n := total].extend (values alpha beta);
+  \definition onSimplex: \forall (alpha: Carrier p)(beta: Carrier q)(sigma: Simplex total) ->
+    #apply{(apply alpha beta)} (Chains.generator total sigma) =
+      #mul{baseRing} (#apply{alpha} (Chains.generator p (Cut.front sigma))) (#apply{beta} (Chains.generator q (Cut.back sigma))) :=
+    \fun (alpha: Carrier p)(beta: Carrier q) => \parent.At[n := total].onGenerator (values alpha beta);
+  \module Compatibility;
+}
+\module Cohomology;
+\module Finite;

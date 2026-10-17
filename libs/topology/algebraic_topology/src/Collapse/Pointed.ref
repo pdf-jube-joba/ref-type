@@ -1,0 +1,35 @@
+\definition basepoint: Carrier := class point;
+\definition pointMember: \In[A] subset point := \bysub(A, subset, point);
+\definition fiber: \forall (x: A) -> class x = basepoint -> \In[A] subset x :=
+  \block {
+  \fun (x: A)(equal: class x = basepoint) \then
+  \let related: Related x point := Quotient.equalRelated equivalence x point equal \then
+  \return either!{related {\In[A] subset x}
+      {\fun (same: x = point) => \idelim point = x \with y: A => \In[A] subset y
+        \by { base: pointMember, equality: sym!{A} _ _ same }}
+      {\fun (members: Logic.And[\In[A] subset x, \In[A] subset point]) => #left{members}}
+    }
+};
+\definition inFiber: \forall (x: A) -> \In[A] subset x -> class x = basepoint :=
+  \fun (x: A)(member: \In[A] subset x) => collapsed x point member pointMember;
+\definition fiberSet: { x: A \where class x = basepoint } = subset :=
+  \axiom:setext({ x: A \where class x = basepoint }, subset, fiber, inFiber);
+\definition complementSet: Source.Complement subset = { x: A \where Logic.Not (class x = basepoint) } :=
+  \axiom:setext(Source.Complement subset, { x: A \where Logic.Not (class x = basepoint) },
+    \fun (x: A)(outside: Logic.Not (\In[A] subset x))(equal: class x = basepoint) => outside (fiber x equal),
+    \fun (x: A)(different: Logic.Not (class x = basepoint))(member: \In[A] subset x) => different (inFiber x member));
+\definition closed: \forall (source: Source.Topology) -> Source.IsClosedIn source subset -> Space.IsClosedIn (topology source) (Space.Singleton basepoint) :=
+  \fun (source: _)(closed: Source.IsClosedIn source subset) =>
+    \idelim Source.Complement subset = { x: A \where Logic.Not (class x = basepoint) }
+      \with U: \Pow A => Source.IsOpenIn source U \by { base: closed, equality: complementSet };
+\definition outsideEqual: \forall (x, y: A) -> Logic.Not (\In[A] subset x) -> class x = class y -> x = y :=
+  \block {
+  \fun (x, y: A)(outside: Logic.Not (\In[A] subset x))(equal: class x = class y) \then
+  \let related: Related x y := Quotient.equalRelated equivalence x y equal \then
+  \return either!{related {x = y}
+      {\fun (same: x = y) => same}
+      {\fun (members: Logic.And[\In[A] subset x, \In[A] subset y]) => Logic.falseElim (x = y) (outside #left{members})}
+    }
+};
+
+\module Outside;

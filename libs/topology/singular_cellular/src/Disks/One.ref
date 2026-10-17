@@ -1,0 +1,31 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition degree: I.Int^ := I.Int^::ofNat one;
+\import \root.DiskRelative[n := zero] \as Disk;
+\import algebraic_topology.Euclidean[].Dimension[n := one] \as Model;
+\import topology.Topology[Carrier := Model.Disk].Subspace[S := Disk.subset] \as Boundary;
+\import singular_cohomology.Chains[A := Model.Sphere, source := Model.sphereTopology].Reduced[] \as SphereChains;
+\import singular_cohomology.Chains[A := Boundary.CarrierSet, source := Boundary.topology Model.diskTopology].Reduced[] \as BoundaryChains;
+\import sphere_maps.ZeroHomology[].Sphere[] \as Sphere;
+\import singular_cohomology.Equivalence[A := Model.Sphere, B := Boundary.CarrierSet,
+  source := Model.sphereTopology, target := Boundary.topology Model.diskTopology].Reduced[] \as BoundaryComparison;
+\import Disk.Homology[] \as Relative;
+\definition connecting: Modules.Isomorphism[V := Relative.Carrier, W := BoundaryChains.At[z := I.Int^::ofNat zero].Carrier,
+  source := Relative.space, target := BoundaryChains.At[z := I.Int^::ofNat zero].space].Isomorphism := Relative.connecting;
+\definition boundaryOrientation: Modules.Isomorphism[V := I.Int^, W := BoundaryChains.At[z := I.Int^::ofNat zero].Carrier,
+  source := Modules.scalarModule, target := BoundaryChains.At[z := I.Int^::ofNat zero].space].Isomorphism :=
+  Modules.Isomorphism[V := I.Int^, W := SphereChains.At[z := I.Int^::ofNat zero].Carrier,
+    source := Modules.scalarModule, target := SphereChains.At[z := I.Int^::ofNat zero].space]
+    .Composition[U := BoundaryChains.At[z := I.Int^::ofNat zero].Carrier, final := BoundaryChains.At[z := I.Int^::ofNat zero].space]
+    .compose (BoundaryComparison.Homology[z := I.Int^::ofNat zero].isomorphism Disk.equivalence) Sphere.isomorphism;
+\definition orientation: Orientation one :=
+  Modules.Isomorphism[V := I.Int^, W := BoundaryChains.At[z := I.Int^::ofNat zero].Carrier,
+    source := Modules.scalarModule, target := BoundaryChains.At[z := I.Int^::ofNat zero].space]
+    .Composition[U := Relative.Carrier, final := Relative.space]
+    .compose (Modules.Isomorphism[V := Relative.Carrier, W := BoundaryChains.At[z := I.Int^::ofNat zero].Carrier,
+      source := Relative.space, target := BoundaryChains.At[z := I.Int^::ofNat zero].space].Inverse[].inverse connecting) boundaryOrientation;
+\definition generator: Relative.Carrier := #apply{#forward{orientation}} I.One.specification;
+\definition orientedBoundary: #apply{#forward{connecting}} generator = #apply{#forward{boundaryOrientation}} I.One.specification :=
+  #rightInverse{connecting} (#apply{#forward{boundaryOrientation}} I.One.specification);
+
+\module Edge;

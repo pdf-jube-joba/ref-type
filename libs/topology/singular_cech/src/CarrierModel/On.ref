@@ -1,0 +1,64 @@
+\module HomAt(n: N.Nat^, z: I.Int^) {
+  \import Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier z, source := C.family.space n, target := D.family.space z] \as Maps;
+  \import Commutative.HomSpace[V := C.family.Carrier n, W := D.family.Carrier z, source := C.family.space n, target := D.family.space z] \as HomSpace;
+  \definition Carrier: \Set := Maps.Map;
+  \definition space: Modules.Space Carrier := HomSpace.space;
+  \definition ext: \forall (f, g: Carrier) -> (\forall (x: C.family.Carrier n) -> #apply{f} x = #apply{g} x) -> f = g := Maps.ext;
+  \definition zeroPreserved: \forall (f: Carrier) -> #apply{f} #zero{(C.family.space n)} = #zero{(D.family.space z)} := Maps.zeroPreserved;
+  \import Modules.Of[V := Carrier, space := space].Submodule[] \as Submodules;
+  \definition Submodule: \Set := Submodules.Submodule;
+}
+\module Boundary(n: N.Nat^, z: I.Int^) {
+  \import \parent.HomAt[n := n, z := z] \as Source;
+  \import \parent.HomAt[n := n, z := Degrees.previous z] \as Target;
+  \definition value(f: Source.Carrier): Target.Carrier := Target.Carrier {
+    apply := \fun (x: C.family.Carrier n) => #apply{D.differential} z (#apply{f} x),
+    addition := \fun (x, y: C.family.Carrier n) => trans!{{D.family.Carrier (Degrees.previous z)}} _ _ _
+      (congr!{{D.family.Carrier z} {D.family.Carrier (Degrees.previous z)}} (#apply{D.differential} z) _ _ (#addition{f} x y))
+      (#addition{D.laws} z (#apply{f} x) (#apply{f} y)),
+    scalar := \fun (a: I.Int^)(x: C.family.Carrier n) => trans!{{D.family.Carrier (Degrees.previous z)}} _ _ _
+      (congr!{{D.family.Carrier z} {D.family.Carrier (Degrees.previous z)}} (#apply{D.differential} z) _ _ (#scalar{f} a x))
+      (#scalar{D.laws} z a (#apply{f} x)),
+  };
+  \definition map: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map :=
+    Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map {
+      apply := value,
+      addition := \fun (f, g: Source.Carrier) =>
+        Target.ext (value (#add{Source.space} f g)) (#add{Target.space} (value f) (value g))
+          (\fun (x: C.family.Carrier n) => #addition{D.laws} z (#apply{f} x) (#apply{g} x)),
+      scalar := \fun (a: I.Int^)(f: Source.Carrier) =>
+        Target.ext (value (#smul{Source.space} a f)) (#smul{Target.space} a (value f))
+          (\fun (x: C.family.Carrier n) => #scalar{D.laws} z a (#apply{f} x)),
+    };
+}
+\module Transition(n: N.Nat^, z: I.Int^) {
+  \import \parent.HomAt[n := n, z := z] \as Source;
+  \import \parent.HomAt[n := N.Nat^::succ n, z := z] \as Target;
+  \definition value(f: Source.Carrier): Target.Carrier := Target.Carrier {
+    apply := \fun (x: C.family.Carrier (N.Nat^::succ n)) => #apply{f} (#apply{C.differential} n x),
+    addition := \fun (x, y: C.family.Carrier (N.Nat^::succ n)) => trans!{{D.family.Carrier z}} _ _ _
+      (congr!{{C.family.Carrier n} {D.family.Carrier z}} (#apply{f}) _ _ (#addition{C.laws} n x y))
+      (#addition{f} (#apply{C.differential} n x) (#apply{C.differential} n y)),
+    scalar := \fun (a: I.Int^)(x: C.family.Carrier (N.Nat^::succ n)) => trans!{{D.family.Carrier z}} _ _ _
+      (congr!{{C.family.Carrier n} {D.family.Carrier z}} (#apply{f}) _ _ (#scalar{C.laws} n a x))
+      (#scalar{f} a (#apply{C.differential} n x)),
+  };
+  \definition map: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map :=
+    Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map {
+      apply := value,
+      addition := \fun (f, g: Source.Carrier) =>
+        Target.ext (value (#add{Source.space} f g)) (#add{Target.space} (value f) (value g))
+          (\fun (x: C.family.Carrier (N.Nat^::succ n)) => \refl(#add{(D.family.space z)} (#apply{f} (#apply{C.differential} n x)) (#apply{g} (#apply{C.differential} n x)))),
+      scalar := \fun (a: I.Int^)(f: Source.Carrier) =>
+        Target.ext (value (#smul{Source.space} a f)) (#smul{Target.space} a (value f))
+          (\fun (x: C.family.Carrier (N.Nat^::succ n)) => \refl(#smul{(D.family.space z)} a (#apply{f} (#apply{C.differential} n x)))),
+    };
+}
+\definition Supports: \Set := \forall (n: N.Nat^)(z: I.Int^) -> HomAt[n := n, z := z].Submodule;
+\structure Closure[S: Supports]: \Prop {
+  boundary: \forall (n: N.Nat^)(z: I.Int^)(f: HomAt[n := n, z := z].Carrier) -> \In[HomAt[n := n, z := z].Carrier] #carrier{(S n z)} f ->
+    \In[HomAt[n := n, z := Degrees.previous z].Carrier] #carrier{(S n (Degrees.previous z))} (Boundary[n := n, z := z].value f),
+  transition: \forall (n: N.Nat^)(z: I.Int^)(f: HomAt[n := n, z := z].Carrier) -> \In[HomAt[n := n, z := z].Carrier] #carrier{(S n z)} f ->
+    \In[HomAt[n := N.Nat^::succ n, z := z].Carrier] #carrier{(S (N.Nat^::succ n) z)} (Transition[n := n, z := z].value f),
+}
+\module With(S: Supports, closed: Closure[S]);

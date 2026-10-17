@@ -1,0 +1,45 @@
+\definition p: N.Nat^ := #first{i};
+\definition q: N.Nat^ := #second{i};
+\import singular_products.Cross[A := A, B := B, left := left, right := right].Total[].Degree[n := n] \as SourceDegree;
+\import SourceDegree.At[i := i] \as SourceComponent;
+\import TargetShuffle.Degree[n := n] \as TargetDegree;
+\import TargetDegree.At[i := i] \as TargetComponent;
+\import Mapping.Cross[p := p, q := q, f := f] \as Component;
+\import TensorMapping.Degree[p := p, q := q] \as TensorComponent;
+\import singular_products.Cross[A := A, B := B, left := left, right := right].At[p := p, q := q] \as SourceCross;
+\import singular_products.Cross[A := C, B := D, left := leftTarget, right := rightTarget].At[p := p, q := q] \as TargetCross;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[A := SourceCross.leftBundle, B := SourceCross.rightBundle, C := TargetCross.targetBundle] \as Forms;
+\definition degree: N.Nat^ := SourceComponent.total;
+\import Chains.DegreeTransport[] \as SourceDegrees;
+\import TargetChains.DegreeTransport[] \as TargetDegrees;
+\import ProductMaps.DegreeTransport[] \as Naturality;
+\import Modules.Tensor[V := Left.Carrier p, W := Right.Carrier q, left := Left.space p, right := Right.space q] \as Term;
+\import Modules.Tensor[V := TargetLeft.Carrier p, W := TargetRight.Carrier q, left := TargetLeft.space p, right := TargetRight.space q] \as TargetTerm;
+\import Modules.Hom[V := Chains.Carrier n, W := TargetChains.Carrier n, source := Chains.space n, target := TargetChains.space n].Composition[U := Term.Carrier, domain := Term.space] \as AfterPush;
+\import Modules.Hom[V := TargetTerm.Carrier, W := TargetChains.Carrier n, source := TargetTerm.space, target := TargetChains.space n].Composition[U := Term.Carrier, domain := Term.space] \as AfterTerm;
+\import Modules.Hom[V := Term.Carrier, W := TargetChains.Carrier n, source := Term.space, target := TargetChains.space n] \as TermMaps;
+\definition before: TermMaps.Map := AfterPush.compose (ProductLinear.linear product) SourceComponent.map;
+\definition after: TermMaps.Map := AfterTerm.compose TargetComponent.map TensorComponent.map;
+\definition onTensor(x: Left.Carrier p)(y: Right.Carrier q): #apply{before} (Term.tensor x y) = #apply{after} (Term.tensor x y) :=
+  trans!{{TargetChains.Carrier n}} _ _ _
+    (congr!{{Chains.Carrier n} {TargetChains.Carrier n}} (#apply{product} n) _ _ (SourceComponent.onTensor x y))
+    (trans!{{TargetChains.Carrier n}} _ _ _
+      (sym!{{TargetChains.Carrier n}} _ _ (Naturality.law degree n SourceComponent.same (Mapping.function f) (Mapping.continuous f) (SourceCross.apply x y)))
+      (trans!{{TargetChains.Carrier n}} _ _ _
+        (congr!{{TargetChains.Carrier degree} {TargetChains.Carrier n}} (TargetDegrees.apply degree n SourceComponent.same) _ _
+          (congr!{Forms.Map {TargetChains.Carrier degree}} (\fun (h: Forms.Map) => #apply{h} x y) _ _ Component.equation))
+        (sym!{{TargetChains.Carrier n}} _ _
+          (trans!{{TargetChains.Carrier n}} _ _ _
+            (congr!{TargetTerm.Carrier {TargetChains.Carrier n}} (#apply{TargetComponent.map}) _ _ (TensorComponent.onTensor x y))
+            (TargetComponent.onTensor (#apply{LeftMaps.push f.leftFunction f.leftContinuous} p x) (#apply{RightMaps.push f.rightFunction f.rightContinuous} q y))))));
+\import Term.Universal[U := TargetChains.Carrier n, target := TargetChains.space n] \as TensorUniversal;
+\definition equation: before = after := TensorUniversal.ext before after onTensor;
+\definition termLaw(x: Term.Carrier): #apply{before} x = #apply{after} x := congr!{TermMaps.Map {TargetChains.Carrier n}} (\fun (h: TermMaps.Map) => #apply{h} x) _ _ equation;
+\definition law(x: Tensor.Carrier p q): #apply{lhs} (#apply{SourceSum.Component[i := i].injection} x) = #apply{rhs} (#apply{SourceSum.Component[i := i].injection} x) :=
+  trans!{{TargetChains.Carrier n}} _ _ _
+    (congr!{{Chains.Carrier n} {TargetChains.Carrier n}} (#apply{product} n) _ _ (SourceDegree.onInjection i x))
+    (trans!{{TargetChains.Carrier n}} _ _ _ (termLaw x)
+      (sym!{{TargetChains.Carrier n}} _ _
+        (trans!{{TargetChains.Carrier n}} _ _ _
+          (congr!{{TargetTotal.Carrier n} {TargetChains.Carrier n}} (#apply{Other.backward} n) _ _ (MappingDegree.onInjection i x))
+          (TargetDegree.onInjection i (#apply{TensorComponent.map} x)))));

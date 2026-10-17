@@ -1,0 +1,96 @@
+\import singular_cellular_algebra.Algebra[] \as Algebra;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Model;
+\import \root.DiskCollar[n := n] \as Collar;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import topology.Topology[Carrier := Model.Disk] \as Space;
+\definition boundary: \Pow Model.Disk := { p: Model.Disk \where Model.normSquared p = Real.one };
+\definition interior: \Pow Model.Disk := { p: Model.Disk \where R.Lt (Model.normSquared p) Real.one };
+\import Space.Subspace[S := boundary] \as Boundary;
+\import Space.Subspace[S := Collar.punctured] \as Neighborhood;
+\definition included: Space.Subset boundary Collar.punctured :=
+  \fun (p: Model.Disk)(onBoundary: Space.Member boundary p)(zero: Model.normSquared p = Real.zero) =>
+    Laws.zeroNeOne (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ zero) onBoundary);
+\definition localBoundary: \Pow Neighborhood.CarrierSet := { p: Neighborhood.CarrierSet \where Space.Member boundary p };
+\import topology.Topology[Carrier := Neighborhood.CarrierSet].Subspace[S := localBoundary] \as LocalBoundary;
+\import Boundary.Inside[U := Collar.punctured] \as Nesting;
+\import algebraic_topology.DeformationRetract[A := Neighborhood.CarrierSet, source := Neighborhood.topology Model.diskTopology, subset := localBoundary]
+  .On[retract := Collar.Deformation[].deformation] \as Retraction;
+\import algebraic_topology.HomotopyEquivalence[A := Boundary.CarrierSet, B := LocalBoundary.CarrierSet] \as Equivalences;
+\import Equivalences.Composition[C := Neighborhood.CarrierSet] \as Compose;
+\definition equivalence: algebraic_topology.HomotopyEquivalence[A := Boundary.CarrierSet, B := Neighborhood.CarrierSet]
+  .Equivalence[Boundary.topology Model.diskTopology, Neighborhood.topology Model.diskTopology] :=
+  Compose.compose (Boundary.topology Model.diskTopology) (LocalBoundary.topology (Neighborhood.topology Model.diskTopology)) (Neighborhood.topology Model.diskTopology)
+    (Equivalences.fromHomeomorphism (Boundary.topology Model.diskTopology) (LocalBoundary.topology (Neighborhood.topology Model.diskTopology))
+      (Nesting.homeomorphism Model.diskTopology included)) Retraction.equivalence;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := boundary] \as Original;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := Collar.punctured] \as Expanded;
+\import Original.Maps[B := Model.Disk].Over[target := Model.diskTopology, targetSubset := Collar.punctured] \as Maps;
+\import topology.Maps[A := Model.Disk, B := Model.Disk].Identity[] \as Identity;
+\definition map: Maps.Map := \into[Model.Disk -> Model.Disk]((\fun (p: Model.Disk) => p), Maps.Map) \by {
+  Maps.Laws[(\fun (p: Model.Disk) => p)] {
+    continuous := Identity.continuous Model.diskTopology,
+    contained := \fun (p: Boundary.CarrierSet) => included p (\bysub(Model.Disk, boundary, p)),
+  }
+};
+\import Maps.On[f := map].Integer[] \as Action;
+\import singular_cohomology.Equivalence[A := Boundary.CarrierSet, B := Neighborhood.CarrierSet,
+  source := Boundary.topology Model.diskTopology, target := Neighborhood.topology Model.diskTopology].Signed[] \as SubspaceComparison;
+\import singular_cohomology.Identity[A := Model.Disk, source := Model.diskTopology].Integer[] \as WholeComparison;
+\definition subspaceQuasi: Action.Comparison[].SubspaceQuasi := \fun (z: I.Int^) => SubspaceComparison.Homology[z := z].bijective equivalence;
+\definition wholeQuasi: Action.Comparison[].WholeQuasi := \fun (z: I.Int^) => WholeComparison.Homology[z := z].bijective;
+\import singular_excision.Excision[A := Model.Disk].Over[source := Model.diskTopology] \as Excision;
+\import Space.Closure[] \as Closure;
+\import Space.Interior[] \as Interior;
+\import metric_spaces.RealFunctions[A := Model.Disk] \as Functions;
+\import metric_spaces.RealLine[] \as Line;
+\import topology.Continuity[A := Model.Disk, B := Model.Coordinate].Corestriction[S := Model.ClosedBall] \as DiskInclusion;
+\import topology.Composition[A := Model.Disk, B := Model.Coordinate, C := Real.Real] \as NormComposition;
+\definition normContinuous: Functions.Continuous Model.diskTopology (\fun (p: Model.Disk) => Model.normSquared p) :=
+  NormComposition.composeContinuous Model.diskTopology Model.topology Line.topology (\fun (p: Model.Disk) => p) Model.normSquared
+    (DiskInclusion.inclusionContinuous Model.topology) Model.Geometry[].normSquaredContinuous;
+\import topology.Topology[Carrier := Model.Coordinate].Subspace[S := Model.ClosedBall] \as NativeBall;
+\definition boundaryClosed: Space.IsClosedIn Model.diskTopology boundary :=
+  NativeBall.traceOpen Model.topology (topology.Topology[Carrier := Model.Coordinate].Complement Model.Boundary) Model.Geometry[].sphereClosed;
+\import metric_spaces.MetricSpace[Carrier := Real.Real].Topology[] \as ScalarTopology;
+\import metric_spaces.RealMetric[] \as ScalarMetric;
+\definition puncturedOpen: Space.IsOpenIn Model.diskTopology Collar.punctured :=
+  normContinuous ({ r: Real.Real \where Logic.Not (r = Real.zero) }) (ScalarTopology.singletonClosed ScalarMetric.metric Real.zero);
+\definition pair: Excision.Pair := \into[Excision.PairData](Excision.PairData { subset := Collar.punctured, removed := boundary }, Excision.Pair) \by {
+  \fun (p: Model.Disk)(member: Space.Member (Closure.closure Model.diskTopology boundary) p) =>
+    Interior.greatest Model.diskTopology Collar.punctured Collar.punctured puncturedOpen
+      (\fun (p: Model.Disk)(inside: Space.Member Collar.punctured p) => inside) p
+      (included p (Closure.least Model.diskTopology boundary boundary boundaryClosed
+        (\fun (p: Model.Disk)(inside: Space.Member boundary p) => inside) p member))
+};
+\import Space.Subspace[S := Space.Complement boundary] \as Remaining;
+\definition punctures: \Pow Remaining.CarrierSet := { p: Remaining.CarrierSet \where Space.Member Collar.punctured p };
+\import singular_cohomology.Relative[A := Remaining.CarrierSet, source := Remaining.topology Model.diskTopology, subset := punctures] \as Excised;
+\import Space.Subspace[S := interior] \as OpenBall;
+\definition Carrier: \Set := OpenBall.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := OpenBall.topology Model.diskTopology;
+\definition subset: \Pow Carrier := { p: Carrier \where Space.Member Collar.punctured p };
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := subset] \as Local;
+\module Identification;
+\module Homology(z: I.Int^);
+\module With(coefficients: Modules.Bundle);
+
+\definition neighborhood: Algebra.NeighborhoodPair := Algebra.NeighborhoodPair {
+  base := Algebra.SpacePair { Carrier := Model.Disk, topology := Model.diskTopology, subset := boundary },
+  region := Collar.punctured, closed := boundaryClosed, open := puncturedOpen, included := included,
+  deformation := Collar.Deformation[].deformation,
+};
+\module Attachment(pair: Algebra.NeighborhoodPair);
+
+\module GoodPair(point: Boundary.CarrierSet);

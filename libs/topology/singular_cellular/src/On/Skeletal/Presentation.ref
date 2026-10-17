@@ -1,0 +1,79 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\import \parent.\parent.Cellular[] \as Cellular;
+\import \parent.Cycles[n := n] \as Cycles;
+\import \parent.\parent.Layer[n := N.Nat^::succ n] \as Layer;
+\import \parent.\parent.Filtration[].Stage[limit := N.Nat^::succ n] \as Upper;
+\import \parent.\parent.Filtration[].Stage[limit := N.Nat^::succ (N.Nat^::succ n)] \as NextUpper;
+\import singular_cohomology.Chains[A := Upper.Carrier, source := Upper.topology] \as UpperChains;
+\import singular_cohomology.Chains[A := NextUpper.Carrier, source := NextUpper.topology] \as NextChains;
+\import Nonnegative.ZeroExtension[C := UpperChains.complex] \as UpperExtension;
+\import Nonnegative.ZeroExtension[C := NextChains.complex] \as NextExtension;
+\import Nonnegative.ZeroExtension[C := Cellular.complex] \as CellExtension;
+\import Complexes.At[C := UpperExtension.complex, z := degree] \as Whole;
+\import Complexes.At[C := NextExtension.complex, z := degree] \as Next;
+\import Complexes.At[C := Cellular.integerComplex, z := degree] \as Cell;
+\import Layer.Homology[z := I.Int^::ofNat (N.Nat^::succ n)] \as Above;
+\import Layer.Homology[z := degree] \as Relative;
+\import Complexes.Map[C := UpperExtension.complex, D := NextExtension.complex].At[k := degree] \as Inclusion;
+\import Modules.Hom[V := Whole.Homology, W := Next.Homology, source := Whole.homologySpace, target := Next.homologySpace]
+  .Composition[U := Cell.Cycle, domain := Cell.cycleSpace] \as Compose;
+\definition map: Modules.Hom[V := Cell.Cycle, W := Next.Homology, source := Cell.cycleSpace, target := Next.homologySpace].Map :=
+  Compose.compose (Inclusion.induced Layer.inclusion) #backward{Cycles.isomorphism};
+\definition onProjected: \forall (h: Whole.Homology) -> #apply{map} (#apply{#forward{Cycles.isomorphism}} h) = #apply{(Inclusion.induced Layer.inclusion)} h :=
+  \fun (h: Whole.Homology) => congr!{Whole.Homology Next.Homology} (#apply{(Inclusion.induced Layer.inclusion)}) _ _ (#leftInverse{Cycles.isomorphism} h);
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\import Modules.Of[V := CellExtension.Carrier degree, space := CellExtension.space degree].Submodule[] \as Submodules;
+\import Submodules.Image[U := CellExtension.Carrier (Degrees.next degree), source := CellExtension.space (Degrees.next degree)] \as Images;
+\definition prior: \forall (q: CellExtension.Carrier (Degrees.next degree)) ->
+  #apply{Cell.prior} q = CellExtension.Positive[n := n].intro (#apply{(Cellular.boundary n)} q) :=
+  \fun (q: CellExtension.Carrier (Degrees.next degree)) => Transport.castRefl CellExtension.Carrier degree
+    (CellExtension.Positive[n := n].intro (#apply{(Cellular.boundary n)} q));
+\definition boundaryCycle(q: CellExtension.Carrier (Degrees.next degree)): Cell.Cycle :=
+  Cell.cycle (#apply{Cell.prior} q) (Cell.boundaryCycle (#apply{Cell.prior} q) (Images.member Cell.prior q));
+\import singular_cellular_algebra.Algebra[].CycleEquality[C := Cellular.integerComplex, z := degree] \as CyclesEqual;
+\definition boundaryProjected: \forall (q: CellExtension.Carrier (Degrees.next degree)) ->
+  #apply{#forward{Cycles.isomorphism}} (#apply{Above.connecting} q) = boundaryCycle q :=
+  \fun (q: CellExtension.Carrier (Degrees.next degree)) => CyclesEqual.law _ _ (sym!{{CellExtension.Carrier degree}} _ _ (prior q));
+\definition boundaryZero: \forall (q: CellExtension.Carrier (Degrees.next degree)) -> #apply{map} (boundaryCycle q) = Next.zeroClass :=
+  \fun (q: CellExtension.Carrier (Degrees.next degree)) => trans!{Next.Homology} _ _ _
+    (congr!{Cell.Cycle Next.Homology} (#apply{map}) _ _ (sym!{Cell.Cycle} _ _ (boundaryProjected q)))
+    (trans!{Next.Homology} _ _ _ (onProjected (#apply{Above.connecting} q)) (Above.connectingInclusionZero q));
+\definition vanishes: \forall (x: Cell.Cycle) -> Submodules.Member Cell.boundaries x -> #apply{map} x = Next.zeroClass :=
+  \fun (x: Cell.Cycle)(member: _) => Images.eliminate Cell.prior x (#apply{map} x = Next.zeroClass)
+    (\fun (q: CellExtension.Carrier (Degrees.next degree))(equal: _) =>
+      trans!{Next.Homology} _ _ _
+        (congr!{Cell.Cycle Next.Homology} (#apply{map}) x (boundaryCycle q) (CyclesEqual.law _ _ (sym!{{CellExtension.Carrier degree}} _ _ equal)))
+        (boundaryZero q)) member;
+\definition unequal: Logic.Not (N.Nat^::succ n = n) :=
+  \fun (same: _) => Nat.ltNe n (N.Nat^::succ n) (Nat.ltOfSuccLe (N.Nat^::succ n) n (Nat.leRefl (N.Nat^::succ n))) (sym!{N.Nat^} _ _ same);
+\definition onto: \forall (q: Next.Homology) -> \exists { x: Cell.Cycle \where #apply{map} x = q } := \block {
+  \fun (q: Next.Homology) \then
+  \takefrom h: \Cast[Whole.Homology] ({ h: Whole.Homology \where #apply{(Inclusion.induced Layer.inclusion)} h = q })
+    \by Relative.exactAtSpace q (Layer.Vanishing[k := n].zero unequal (#apply{Relative.projection} q)) \then
+  \return Logic.existsIntro[Cell.Cycle, { x: Cell.Cycle \where #apply{map} x = q }] (#apply{#forward{Cycles.isomorphism}} h)
+    (trans!{Next.Homology} _ _ _ (onProjected h)
+      (\bysub(Whole.Homology, { h: Whole.Homology \where #apply{(Inclusion.induced Layer.inclusion)} h = q }, h)))
+};
+\definition kernel: \forall (x: Cell.Cycle) -> #apply{map} x = Next.zeroClass -> Submodules.Member Cell.boundaries x := \block {
+  \fun (x: Cell.Cycle)(killed: _) \then
+  \takefrom q: \Cast[Cellular.Carrier (N.Nat^::succ n)]
+    ({ q: Cellular.Carrier (N.Nat^::succ n) \where #apply{Above.connecting} q = #apply{#backward{Cycles.isomorphism}} x })
+    \by Above.exactAtSubspace (#apply{#backward{Cycles.isomorphism}} x) killed \then
+  \let q1: CellExtension.Carrier (Degrees.next degree) := CellExtension.Positive[n := N.Nat^::succ n].intro q \then
+  \return Images.introduce Cell.prior x q1
+    (CyclesEqual.forget (boundaryCycle q1) x
+      (trans!{Cell.Cycle} _ _ _
+        (sym!{Cell.Cycle} _ _ (boundaryProjected q1))
+        (trans!{Cell.Cycle} _ _ _
+          (congr!{Whole.Homology Cell.Cycle} (#apply{#forward{Cycles.isomorphism}}) _ _
+            (\bysub(Cellular.Carrier (N.Nat^::succ n),
+              { q: Cellular.Carrier (N.Nat^::succ n) \where #apply{Above.connecting} q = #apply{#backward{Cycles.isomorphism}} x }, q)))
+          (#rightInverse{Cycles.isomorphism} x))))
+};
+\definition target: Modules.Bundle := Modules.Bundle { Carrier := Next.Homology, space := Next.homologySpace };
+\import singular_cellular_algebra.Algebra[].HomologyPresentation[P := Cellular.integerComplex, z := degree, target := target] \as Presentation;
+\definition data: Presentation.Data := Presentation.Data { map := map, vanishes := vanishes, onto := onto, kernel := kernel };
+\definition isomorphism: Modules.Isomorphism[V := Cell.Homology, W := Next.Homology, source := Cell.homologySpace, target := Next.homologySpace].Isomorphism :=
+  Presentation.On[data := data].isomorphism;
+\definition onClass: \forall (x: Cell.Cycle) -> #apply{#forward{isomorphism}} (Cell.classOf x) = #apply{map} x :=
+  Presentation.On[data := data].onClass;

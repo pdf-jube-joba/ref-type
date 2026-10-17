@@ -1,0 +1,46 @@
+\import \root.Collapse[A := A, subset := subset].Mapping[B := B, targetSubset := targetSubset] \as Mapping;
+\import topology.Continuity[A := QuotientCylinder.Carrier, B := Target.Carrier] \as CylinderMaps;
+\import topology.Topology[Carrier := Target.Carrier] \as QuotientSpace;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as OriginalCylinderSpace;
+\definition original: Original.Homotopy[source, target, f, g] := #homotopy{h};
+\definition originalLaws: Original.Laws[source, target, f, g, original] := Original.laws source target f g original;
+\definition startPreserves: Preserves f := \fun (x: A)(member: \In[A] subset x) =>
+  \idelim original (Cylinder.at Interval.start x) = f x \with y: B => \In[B] targetSubset y
+    \by { base: #preserves{h} Interval.start x member, equality: #start{originalLaws} x };
+\definition endPreserves: Preserves g := \fun (x: A)(member: \In[A] subset x) =>
+  \idelim original (Cylinder.at Interval.end x) = g x \with y: B => \In[B] targetSubset y
+    \by { base: #preserves{h} Interval.end x member, equality: #end{originalLaws} x };
+\definition slice(t: Interval.Carrier)(x: A): B := original (Cylinder.at t x);
+\definition slicePreserves(t: Interval.Carrier): Preserves (slice t) := #preserves{h} t;
+\definition apply(p: QuotientCylinder.Carrier): Target.Carrier :=
+  Mapping.apply (slice (QuotientCylinder.time p)) (slicePreserves (QuotientCylinder.time p)) (QuotientCylinder.point p);
+\definition onLift: \forall (p: Cylinder.Carrier) -> apply (Product.map class p) = Target.class (original p) :=
+  \fun (p: Cylinder.Carrier) => trans!{Target.Carrier} _ _ _
+    (Mapping.onClass (slice (Cylinder.time p)) (slicePreserves (Cylinder.time p)) (Cylinder.point p))
+    (congr!{Cylinder.Carrier Target.Carrier} (\fun (q: Cylinder.Carrier) => Target.class (original q)) _ _ (Pairs.eta p));
+\definition continuous: CylinderMaps.Continuous (QuotientCylinder.topology (topology source)) (Target.topology target) apply :=
+  \fun (U: \Pow Target.Carrier)(open: QuotientSpace.IsOpenIn (Target.topology target) U) =>
+    #reflectsOpen{(Product.quotientMap Interval.topology Interval.compact Interval.hausdorff source (topology source) class (Quotient.quotientMap source))}
+      ({ p: QuotientCylinder.Carrier \where \In[Target.Carrier] U (apply p) })
+      (\idelim (\fun (p: Cylinder.Carrier) => Target.class (original p)) = (\fun (p: Cylinder.Carrier) => apply (Product.map class p))
+        \with k: (Cylinder.Carrier -> Target.Carrier) =>
+          OriginalCylinderSpace.IsOpenIn (Cylinder.topology source) ({ p: Cylinder.Carrier \where \In[Target.Carrier] U (k p) })
+        \by {
+          base: Projection.composeContinuous (Cylinder.topology source) target (Target.topology target) original Target.class #continuous{originalLaws} (Target.projectionContinuous target) U open,
+          equality: \axiom:funext((\fun (p: Cylinder.Carrier) => Target.class (original p)), (\fun (p: Cylinder.Carrier) => apply (Product.map class p)),
+            \fun (p: Cylinder.Carrier) => sym!{Target.Carrier} (apply (Product.map class p)) (Target.class (original p)) (onLift p))
+        });
+\definition start: \forall (q: Carrier) -> apply (QuotientCylinder.at Interval.start q) = Mapping.apply f startPreserves q :=
+  induction (\fun (q: Carrier) => apply (QuotientCylinder.at Interval.start q) = Mapping.apply f startPreserves q)
+    (\fun (x: A) => trans!{Target.Carrier} _ _ _ (onLift (Cylinder.at Interval.start x))
+      (trans!{Target.Carrier} _ _ _ (congr!{B Target.Carrier} Target.class _ _ (#start{originalLaws} x))
+        (sym!{Target.Carrier} _ _ (Mapping.onClass f startPreserves x))));
+\definition end: \forall (q: Carrier) -> apply (QuotientCylinder.at Interval.end q) = Mapping.apply g endPreserves q :=
+  induction (\fun (q: Carrier) => apply (QuotientCylinder.at Interval.end q) = Mapping.apply g endPreserves q)
+    (\fun (x: A) => trans!{Target.Carrier} _ _ _ (onLift (Cylinder.at Interval.end x))
+      (trans!{Target.Carrier} _ _ _ (congr!{B Target.Carrier} Target.class _ _ (#end{originalLaws} x))
+        (sym!{Target.Carrier} _ _ (Mapping.onClass g endPreserves x))));
+\definition homotopy: DescendedHomotopy.Homotopy[topology source, Target.topology target, Mapping.apply f startPreserves, Mapping.apply g endPreserves] :=
+  \into[DescendedHomotopy.Family](apply, DescendedHomotopy.Homotopy[topology source, Target.topology target, Mapping.apply f startPreserves, Mapping.apply g endPreserves]) \by {
+    DescendedHomotopy.Laws[_, _, _, _, apply] { continuous := continuous, start := start, end := end }
+  };

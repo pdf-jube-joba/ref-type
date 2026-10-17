@@ -1,0 +1,67 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import singular_tensor_dual.Over[R := K, ring := commutativeRing] \as Dual;
+\import IntegerModels.Of[C := model] \as IntegerModel;
+\import singular_cech.Algebra[R := I.Int^, ring := Integers.ring].Restriction[C := IntegerModel.chain] \as Restriction;
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := K, space := Modules.scalarModule };
+\import resolutions.HomComplex[].Over[R := K, ring := commutativeRing].Abelian[N := coefficients].Native[P := Restriction.complex] \as Native;
+\definition ranks(n: N.Nat^): N.Nat^ := model.ranks (I.Int^::ofNat n);
+\module At(n: N.Nat^) {
+  \import Dual.IntegerCoordinates[rank := ranks n] \as Coordinates;
+  \definition isomorphism: Modules.Isomorphism[V := Native.Carrier n, W := Finite.Carrier (ranks n),
+    source := Native.space n, target := Finite.space (ranks n)].Isomorphism := Coordinates.isomorphism;
+}
+\module Step(n: N.Nat^);
+\definition data: Finite.Data := Finite.Data { ranks := ranks,
+  differential := \fun (n: N.Nat^) => Step[n := n].differential, bound := model.bound };
+\import std.Data[].Nat[].Basic[].Prop[] \as Bounds;
+\definition laws: Finite.Laws[data] := Finite.Laws[data] {
+  squareZero := \fun (n: N.Nat^) => Step[n := n].squareZero,
+  bounded := \fun (n: N.Nat^)(outside: Bounds.Lt model.bound n) =>
+    #bounded{(\bysub(IntegerModels.Data, { data: IntegerModels.Data \where IntegerModels.Laws[data] }, model))} (I.Int^::ofNat n) (Bounds.succLeOfLt n model.bound outside),
+};
+\definition finite: Finite.Complex := \into[Finite.Data](data, Finite.Complex) \by { laws };
+\import Finite.Of[C := finite] \as Model;
+\definition complex: Cochains.Complex := Model.complex;
+\import Cochains.Map[C := complex, D := Native.complex] \as Forward;
+\import Cochains.Map[C := Native.complex, D := complex] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (n: N.Nat^) => #apply{#backward{At[n := n].isomorphism}},
+  addition := \fun (n: N.Nat^) => #addition{#backward{At[n := n].isomorphism}},
+  scalar := \fun (n: N.Nat^) => #scalar{#backward{At[n := n].isomorphism}},
+  commutes := \fun (n: N.Nat^)(x: Finite.Carrier (ranks n)) =>
+    sym!{{Native.Carrier (N.Nat^::succ n)}} _ _
+      (#leftInverse{At[n := N.Nat^::succ n].isomorphism} (Native.apply n (#apply{#backward{At[n := n].isomorphism}} x))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (n: N.Nat^) => #apply{#forward{At[n := n].isomorphism}},
+  addition := \fun (n: N.Nat^) => #addition{#forward{At[n := n].isomorphism}},
+  scalar := \fun (n: N.Nat^) => #scalar{#forward{At[n := n].isomorphism}},
+  commutes := \fun (n: N.Nat^)(f: Native.Carrier n) =>
+    congr!{{Native.Carrier n} {Finite.Carrier (ranks (N.Nat^::succ n))}}
+      (\fun (g: Native.Carrier n) => #apply{#forward{At[n := N.Nat^::succ n].isomorphism}} (Native.apply n g)) _ _
+      (#leftInverse{At[n := n].isomorphism} f),
+};
+\import Dual.CochainIsomorphism[C := complex, D := Native.complex, forward := forward, backward := backward,
+  left := \fun (n: N.Nat^) => #rightInverse{At[n := n].isomorphism},
+  right := \fun (n: N.Nat^) => #leftInverse{At[n := n].isomorphism}] \as Compared;
+\definition equivalence: chain_complexes.CochainEquivalence[].Over[R := K, ring := Rings.commutativeRingAsRing K commutativeRing].Of[C := complex, D := Native.complex].Equivalence := Compared.equivalence;
+\module Degree(n: N.Nat^);
+
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as IntegerModules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as IntegerChains;
+\module ChainFrame(n: N.Nat^) {
+  \definition bundle: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Restriction.complex.family.Carrier n, space := Restriction.complex.family.space n };
+  \import IntegerModules.End[V := bundle.Carrier, space := bundle.space] \as Identity;
+  \definition frame: Dual.Mixed[].Finite[V := bundle, rank := ranks n].Frame :=
+    IntegerModules.Isomorphism[V := bundle.Carrier, W := bundle.Carrier, source := bundle.space, target := bundle.space].Isomorphism {
+      forward := Identity.identity, backward := Identity.identity,
+      leftInverse := \fun (x: bundle.Carrier) => \refl(x), rightInverse := \fun (x: bundle.Carrier) => \refl(x),
+    };
+}
+\definition frames: Dual.Mixed[].Frames[P := Restriction.complex, ranks := ranks].Frames := \fun (n: N.Nat^) => ChainFrame[n := n].frame;
+\definition chain: IntegerChains.Complex := Restriction.complex;

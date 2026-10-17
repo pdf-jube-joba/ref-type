@@ -1,0 +1,34 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\import N.Basic[].Prop[] \as Bounds;
+\import Fin.Ordering[] \as Ordering;
+\import Fin.Tuples[A := Fin.Fin n] \as Tuples;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition tuple(a: Fin.Fin n)(tail: Fin.Fin k -> Fin.Fin n): Fin.Fin (N.Nat^::succ k) -> Fin.Fin n := Tuples.extend k a tail;
+\module With(a: Fin.Fin n, tail: Fin.Fin k -> Fin.Fin n) {
+  \definition atZero: tuple a tail (Fin.zero k) = a := Tuples.atZero k a tail;
+  \definition atSuccessor: \forall (i: Fin.Fin k) -> tuple a tail (Fin.succ k i) = tail i := Tuples.atSuccessor k a tail;
+  \definition increasing: Ordering.Increasing k n tail -> (\forall (i: Fin.Fin k) -> Bounds.Lt a (tail i)) -> Ordering.Increasing (N.Nat^::succ k) n (tuple a tail) :=
+    \fun (ordered: Ordering.Increasing k n tail)(lower: \forall (i: Fin.Fin k) -> Bounds.Lt a (tail i)) =>
+    Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => \forall (j: Fin.Fin (N.Nat^::succ k)) -> Bounds.Lt i j -> Bounds.Lt (tuple a tail i) (tuple a tail j))
+      (Fin.cases k (\fun (j: Fin.Fin (N.Nat^::succ k)) => Bounds.Lt (Fin.zero k) j -> Bounds.Lt (tuple a tail (Fin.zero k)) (tuple a tail j))
+        (\fun (less: Bounds.Lt (Fin.zero k) (Fin.zero k)) => Logic.falseElim _ (Bounds.ltIrrefl (Fin.zero k) less))
+        (\fun (j: Fin.Fin k)(less: Bounds.Lt (Fin.zero k) (Fin.succ k j)) =>
+          \idelim a = tuple a tail (Fin.zero k) \with u: Fin.Fin n => Bounds.Lt u (tuple a tail (Fin.succ k j)) \by {
+            base: \idelim tail j = tuple a tail (Fin.succ k j) \with v: Fin.Fin n => Bounds.Lt a v
+              \by { base: lower j, equality: sym!{{Fin.Fin n}} _ _ (atSuccessor j) },
+            equality: sym!{{Fin.Fin n}} _ _ atZero
+          }))
+      (\fun (i: Fin.Fin k) => Fin.cases k (\fun (j: Fin.Fin (N.Nat^::succ k)) => Bounds.Lt (Fin.succ k i) j -> Bounds.Lt (tuple a tail (Fin.succ k i)) (tuple a tail j))
+        (\fun (less: Bounds.Lt (Fin.succ k i) (Fin.zero k)) => Logic.falseElim _ (Fin.zeroImpossible (Fin.succ k i) less))
+        (\fun (j: Fin.Fin k)(less: Bounds.Lt (Fin.succ k i) (Fin.succ k j)) =>
+          \idelim tail i = tuple a tail (Fin.succ k i) \with u: Fin.Fin n => Bounds.Lt u (tuple a tail (Fin.succ k j)) \by {
+            base: \idelim tail j = tuple a tail (Fin.succ k j) \with v: Fin.Fin n => Bounds.Lt (tail i) v
+              \by { base: ordered i j less, equality: sym!{{Fin.Fin n}} _ _ (atSuccessor j) },
+            equality: sym!{{Fin.Fin n}} _ _ (atSuccessor i)
+          }));
+}

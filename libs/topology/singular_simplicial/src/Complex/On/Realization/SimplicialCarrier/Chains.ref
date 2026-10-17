@@ -1,0 +1,18 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_cohomology.Chains[A := Realization.Carrier, source := Realization.topology] \as Local;
+\import singular_cohomology.Chains[A := Global.Carrier, source := Global.topology] \as Whole;
+\import singular_cohomology.Maps[A := Realization.Carrier, B := Global.Carrier, source := Realization.topology, target := Global.topology] \as Inclusion;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\definition map: Complexes.Map[C := Local.complex, D := Whole.complex].Map := Inclusion.push inclusion continuous;
+\module Degree(q: N.Nat^) {
+  \definition simplex: LocalSimplices.Carrier q -> DomainSimplices.Carrier q := Inclusion.postcompose q inclusion continuous;
+  \definition simplexInjective: \forall (a, b: LocalSimplices.Carrier q) -> simplex a = simplex b -> a = b :=
+    \fun (a, b: LocalSimplices.Carrier q)(equal: simplex a = simplex b) => LocalSimplices.ext q a b
+      (\fun (x: Geometric.Carrier q) => congr!{{DomainSimplices.Carrier q} {Geometric.Carrier d}}
+        (\fun (s: DomainSimplices.Carrier q) => s x) _ _ equal);
+  \import Modules.Free[Generators := LocalSimplices.Carrier q].Reindex[TargetGenerators := DomainSimplices.Carrier q].Injection[f := simplex] \as Injection;
+  \definition injective: \forall (x, y: Local.Carrier q) -> #apply{map} q x = #apply{map} q y -> x = y := Injection.injective simplexInjective;
+}
+\module Reduced;

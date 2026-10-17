@@ -1,4 +1,5 @@
 //! Source views, module environments, and declaration provenance over kernel terms.
+mod definition_map;
 pub mod derivation;
 pub mod environment;
 pub mod exp;

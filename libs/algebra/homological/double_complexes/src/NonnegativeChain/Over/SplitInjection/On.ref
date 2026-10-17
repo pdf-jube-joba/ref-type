@@ -1,0 +1,40 @@
+\import std.Arithmetic[].Int[] \as Signed;
+\import \parent.\parent.ZeroExtension[C := C] \as SubspaceExtension;
+\import \parent.\parent.ZeroExtension[C := D] \as WholeExtension;
+\import Maps.ZeroExtension[f := pair.inclusion] \as Inclusion;
+\import chain_complexes.Chain[].Over[R := R, ring := ring] \as Complexes;
+\import Complexes.Map[C := SubspaceExtension.complex, D := WholeExtension.complex] \as Inclusions;
+\definition inclusion: Inclusions.Map := Inclusion.map;
+\import Complexes.Quotient[C := SubspaceExtension.complex, D := WholeExtension.complex].On[f := inclusion] \as Quotient;
+\definition complex: Complexes.Complex := Quotient.complex;
+\definition injective: \forall (z: Signed.Int^)(x, y: SubspaceExtension.Carrier z) -> #apply{inclusion} z x = #apply{inclusion} z y -> x = y :=
+  \induction (z: Signed.Int^) \return \forall (x, y: SubspaceExtension.Carrier z) -> #apply{inclusion} z x = #apply{inclusion} z y -> x = y \with {
+    | ofNat: \fun (n: N.Nat^)(x, y: SubspaceExtension.Carrier (Signed.Int^::ofNat n))(same: _) =>
+        trans!{{C.family.Carrier n}} _ _ _ (sym!{{C.family.Carrier n}} _ _ (#leftInverse{(laws pair)} n x))
+          (trans!{{C.family.Carrier n}} _ _ _ (congr!{{D.family.Carrier n} {C.family.Carrier n}} (#apply{(pair.retraction n)}) _ _ same) (#leftInverse{(laws pair)} n y))
+    | negSucc: \fun (n: N.Nat^)(x, y: SubspaceExtension.Carrier (Signed.Int^::negSucc n))(same: _) =>
+        trans!{{SubspaceExtension.Carrier (Signed.Int^::negSucc n)}} _ _ _ (SubspaceExtension.Negative[n := n].zero x)
+          (sym!{{SubspaceExtension.Carrier (Signed.Int^::negSucc n)}} _ _ (SubspaceExtension.Negative[n := n].zero y))
+  };
+\import Complexes.ShortExact[A := SubspaceExtension.complex, B := WholeExtension.complex, C := Quotient.complex] \as Exact;
+\definition sequence: Exact.Sequence := Exact.Sequence {
+  inclusion := inclusion, projection := Quotient.projection, injective := injective,
+  onto := \fun (z: Signed.Int^) => Quotient.At[k := z].onto,
+  zero := \fun (z: Signed.Int^) => Quotient.At[k := z].onImage,
+  kernelImage := \fun (z: Signed.Int^) => Quotient.At[k := z].zeroClassImage,
+};
+\module At(z: Signed.Int^) {
+  \import Complexes.At[C := Quotient.complex, z := z] \as Native;
+  \definition Carrier: \Set := Native.Homology;
+  \definition space: Modules.Space Carrier := Native.homologySpace;
+  \definition classOf: Native.Cycle -> Carrier := Native.classOf;
+}
+\module LongExact(z: Signed.Int^) {
+  \import Exact.At[s := sequence, k := z] \as Native;
+  \definition connecting: _ := Native.connecting;
+  \import Native.Exactness[] \as Exactness;
+  \definition exactAtRelative: _ := Exactness.exactAtC;
+  \definition exactAtSubspace: _ := Exactness.exactAtALower;
+  \definition exactAtSpace: _ := Exactness.exactAtB;
+}
+\module Positive(n: N.Nat^);

@@ -1,0 +1,18 @@
+\import Integers.Hom[V := V, W := N.Carrier, source := domain, target := TargetIntegers.space] \as Hom;
+\import Integers.Hom[V := N.Carrier, W := N.Carrier, source := TargetIntegers.space, target := TargetIntegers.space].Composition[U := V, domain := domain] \as Composition;
+\definition Carrier: \Set := Hom.Map;
+\definition scale(a: R)(h: Carrier): Carrier := Composition.compose (\parent.Scalar[a := a].map) h;
+\definition space: Space Carrier := Ring.RingModule[R, Carrier, ring] {
+  zero := Hom.zeroMap, add := Hom.plus, neg := Hom.negative, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# Hom.zeroMap Hom.plus Hom.negative)] {
+    group := #group{Hom.additive}, commutative := #commutative{Hom.additive},
+  },
+  scalarOne := \fun (h: Carrier) => Hom.ext (scale (#one{ring}) h) h (\fun (x: V) => #scalarOne{N.space} (#apply{h} x)),
+  scalarAssoc := \fun (a, b: R)(h: Carrier) => Hom.ext (scale (#mul{ring} a b) h) (scale a (scale b h))
+    (\fun (x: V) => #scalarAssoc{N.space} a b (#apply{h} x)),
+  scalarAdd := \fun (a, b: R)(h: Carrier) => Hom.ext (scale (#add{ring} a b) h) (Hom.plus (scale a h) (scale b h))
+    (\fun (x: V) => #scalarAdd{N.space} a b (#apply{h} x)),
+  vectorAdd := \fun (a: R)(h, g: Carrier) => Hom.ext (scale a (Hom.plus h g)) (Hom.plus (scale a h) (scale a g))
+    (\fun (x: V) => #vectorAdd{N.space} a (#apply{h} x) (#apply{g} x)),
+};
+\definition ext: \forall (f, g: Carrier) -> (\forall (x: V) -> #apply{f} x = #apply{g} x) -> f = g := Hom.ext;

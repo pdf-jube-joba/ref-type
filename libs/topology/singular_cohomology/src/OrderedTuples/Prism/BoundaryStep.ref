@@ -1,0 +1,90 @@
+\definition n1: N.Nat^ := N.Nat^::succ n;
+\definition n2: N.Nat^ := N.Nat^::succ n1;
+\definition n3: N.Nat^ := N.Nat^::succ n2;
+\import \parent.Values[n := n1] \as Lower;
+\import \parent.Values[n := n2] \as Upper;
+\import \parent.Extended[n := n] \as LowerRecurrence;
+\import \parent.Extended[n := n1] \as UpperRecurrence;
+\import Modules.Hom[V := Codomain.Carrier n2, W := Codomain.Carrier n1, source := Codomain.space n2, target := Codomain.space n1] \as LowerDifferential;
+\import Modules.Hom[V := Codomain.Carrier n1, W := Codomain.Carrier n2, source := Codomain.space n1, target := Codomain.space n2] \as LowerCone;
+\import Modules.Hom[V := Domain.Carrier n1, W := Codomain.Carrier n2, source := Domain.space n1, target := Codomain.space n2] \as PriorPrism;
+\import Modules.Laws[V := Domain.Carrier n1, space := Domain.space n1] \as SourceValues;
+\import algebra.Group[].Of[Carrier := Domain.Carrier n1, group := SourceValues.additive] \as SourceGroup;
+\definition boundaryMappedCone: \forall (g: V -> W)(a: V)(x: Domain.Carrier n1) ->
+  #apply{(Codomain.boundary n1)} (#apply{(Mapping.push n2 g)} (#apply{(Domain.cone n1 a)} x)) =
+    Lower.difference (#apply{(Mapping.push n1 g)} x)
+      (#apply{(Codomain.cone n (g a))} (#apply{(Mapping.push n g)} (#apply{(Domain.boundary n)} x))) :=
+  \fun (g: V -> W)(a: V)(x: Domain.Carrier n1) => trans!{{Codomain.Carrier n1}} _ _ _
+    (congr!{{Codomain.Carrier n2} {Codomain.Carrier n1}} (#apply{(Codomain.boundary n1)}) _ _ (Mapping.Cone[n := n1].law g a x))
+    (trans!{{Codomain.Carrier n1}} _ _ _ (Codomain.ConeBoundary[n := n].law (g a) (#apply{(Mapping.push n1 g)} x))
+      (congr!{{Codomain.Carrier n} {Codomain.Carrier n1}}
+        (\fun (v: Codomain.Carrier n) => Lower.difference (#apply{(Mapping.push n1 g)} x) (#apply{(Codomain.cone n (g a))} v)) _ _
+        (Mapping.Boundary[n := n].commutes g x)));
+\definition onCone: Property n -> \forall (f, g: V -> W)(a: V)(x: Domain.Carrier n1) ->
+  #apply{(Codomain.boundary n2)} (#apply{(map n2 f g)} (#apply{(Domain.cone n1 a)} x)) = Upper.difference
+    (Upper.difference (#apply{(Mapping.push n2 g)} (#apply{(Domain.cone n1 a)} x)) (#apply{(Mapping.push n2 f)} (#apply{(Domain.cone n1 a)} x)))
+    (#apply{(map n1 f g)} (#apply{(Domain.boundary n1)} (#apply{(Domain.cone n1 a)} x))) :=
+  \fun (previous: Property n)(f, g: V -> W)(a: V)(x: Domain.Carrier n1) => \block {
+    \let u: Domain.Carrier n2 := #apply{(Domain.cone n1 a)} x \then
+    \let dx: Domain.Carrier n := #apply{(Domain.boundary n)} x \then
+    \let cdx: Domain.Carrier n1 := #apply{(Domain.cone n a)} dx \then
+    \let gx: Codomain.Carrier n1 := #apply{(Mapping.push n1 g)} x \then
+    \let fx: Codomain.Carrier n1 := #apply{(Mapping.push n1 f)} x \then
+    \let gu: Codomain.Carrier n2 := #apply{(Mapping.push n2 g)} u \then
+    \let fu: Codomain.Carrier n2 := #apply{(Mapping.push n2 f)} u \then
+    \let px: Codomain.Carrier n2 := #apply{(map n1 f g)} x \then
+    \let pdx: Codomain.Carrier n1 := #apply{(map n f g)} dx \then
+    \let cgd: Codomain.Carrier n1 := #apply{(Codomain.cone n (g a))} (#apply{(Mapping.push n g)} dx) \then
+    \let z: Codomain.Carrier n2 := Upper.difference gu px \then
+    \let dz: #apply{(Codomain.boundary n1)} z = Lower.difference fx (Lower.difference cgd pdx) :=
+      trans!{{Codomain.Carrier n1}} _ _ _ (LowerDifferential.differencePreserved (Codomain.boundary n1) gu px)
+        (trans!{{Codomain.Carrier n1}} _ _ _
+          (congr2!{{Codomain.Carrier n1} {Codomain.Carrier n1} {Codomain.Carrier n1}} Lower.difference _ _ _ _
+            (boundaryMappedCone g a x) (previous f g x))
+          (Lower.nested gx cgd fx pdx)) \then
+    \let coneFirst: #apply{(Codomain.cone n1 (f a))} fx = fu := sym!{{Codomain.Carrier n2}} _ _ (Mapping.Cone[n := n1].law f a x) \then
+    \let coneSecond: #apply{(Codomain.cone n1 (f a))} (Lower.difference cgd pdx) = #apply{(map n1 f g)} cdx :=
+      trans!{{Codomain.Carrier n2}} _ _ _
+        (congr!{{Codomain.Carrier n1} {Codomain.Carrier n2}} (#apply{(Codomain.cone n1 (f a))}) _ _
+          (congr!{{Codomain.Carrier n1} {Codomain.Carrier n1}} (\fun (v: Codomain.Carrier n1) => Lower.difference v pdx) _ _
+            (sym!{{Codomain.Carrier n1}} _ _ (Mapping.Cone[n := n].law g a dx))))
+        (sym!{{Codomain.Carrier n2}} _ _ (LowerRecurrence.law f g a dx)) \then
+    \let coneDz: #apply{(Codomain.cone n1 (f a))} (#apply{(Codomain.boundary n1)} z) = Upper.difference fu (#apply{(map n1 f g)} cdx) :=
+      trans!{{Codomain.Carrier n2}} _ _ _ (congr!{{Codomain.Carrier n1} {Codomain.Carrier n2}} (#apply{(Codomain.cone n1 (f a))}) _ _ dz)
+        (trans!{{Codomain.Carrier n2}} _ _ _ (LowerCone.differencePreserved (Codomain.cone n1 (f a)) fx (Lower.difference cgd pdx))
+          (congr2!{{Codomain.Carrier n2} {Codomain.Carrier n2} {Codomain.Carrier n2}} Upper.difference _ _ _ _ coneFirst coneSecond)) \then
+    \let prior: #apply{(map n1 f g)} (#apply{(Domain.boundary n1)} u) = Upper.difference px (#apply{(map n1 f g)} cdx) :=
+      trans!{{Codomain.Carrier n2}} _ _ _
+        (congr!{{Domain.Carrier n1} {Codomain.Carrier n2}} (#apply{(map n1 f g)}) _ _ (Domain.ConeBoundary[n := n].law a x))
+        (PriorPrism.differencePreserved (map n1 f g) x cdx) \then
+    \return trans!{{Codomain.Carrier n2}} _ _ _
+      (congr!{{Codomain.Carrier n3} {Codomain.Carrier n2}} (#apply{(Codomain.boundary n2)}) _ _ (UpperRecurrence.law f g a x))
+      (trans!{{Codomain.Carrier n2}} _ _ _ (Codomain.ConeBoundary[n := n1].law (f a) z)
+        (trans!{{Codomain.Carrier n2}} _ _ _ (congr!{{Codomain.Carrier n2} {Codomain.Carrier n2}} (Upper.difference z) _ _ coneDz)
+          (trans!{{Codomain.Carrier n2}} _ _ _ (Upper.shuffle gu px fu (#apply{(map n1 f g)} cdx))
+            (congr!{{Codomain.Carrier n2} {Codomain.Carrier n2}} (Upper.difference (Upper.difference gu fu)) _ _ (sym!{{Codomain.Carrier n2}} _ _ prior)))))
+  };
+\definition onGenerator: Property n -> \forall (f, g: V -> W)(v: Domain.Tuple n2) ->
+  #apply{(Codomain.boundary n2)} (#apply{(map n2 f g)} (Domain.generator n2 v)) = Upper.difference
+    (Upper.difference (#apply{(Mapping.push n2 g)} (Domain.generator n2 v)) (#apply{(Mapping.push n2 f)} (Domain.generator n2 v)))
+    (#apply{(map n1 f g)} (#apply{(Domain.boundary n1)} (Domain.generator n2 v))) :=
+  \fun (previous: Property n)(f, g: V -> W)(v: Domain.Tuple n2) =>
+    \idelim #apply{(Domain.cone n1 (v (Fin.zero n1)))} (Domain.generator n1 (\fun (i: Fin.Fin n1) => v (Fin.succ n1 i))) = Domain.generator n2 v
+      \with x: Domain.Carrier n2 => #apply{(Codomain.boundary n2)} (#apply{(map n2 f g)} x) = Upper.difference
+        (Upper.difference (#apply{(Mapping.push n2 g)} x) (#apply{(Mapping.push n2 f)} x)) (#apply{(map n1 f g)} (#apply{(Domain.boundary n1)} x)) \by {
+          base: onCone previous f g (v (Fin.zero n1)) (Domain.generator n1 (\fun (i: Fin.Fin n1) => v (Fin.succ n1 i))),
+          equality: trans!{{Domain.Carrier n2}} _ _ _ (Domain.Cone[n := n1].onGenerator (v (Fin.zero n1)) (\fun (i: Fin.Fin n1) => v (Fin.succ n1 i)))
+            (congr!{{Domain.Tuple n2} {Domain.Carrier n2}} (Domain.generator n2) _ _ (Tuples.recover n1 v))
+        };
+\import Modules.Hom[V := Codomain.Carrier n3, W := Codomain.Carrier n2, source := Codomain.space n3, target := Codomain.space n2]
+  .Composition[U := Domain.Carrier n2, domain := Domain.space n2] \as After;
+\import Modules.Hom[V := Domain.Carrier n1, W := Codomain.Carrier n2, source := Domain.space n1, target := Codomain.space n2]
+  .Composition[U := Domain.Carrier n2, domain := Domain.space n2] \as Before;
+\import Modules.Hom[V := Domain.Carrier n2, W := Codomain.Carrier n2, source := Domain.space n2, target := Codomain.space n2] \as Maps;
+\import Modules.Free[Generators := Domain.Tuple n2].To[W := Codomain.Carrier n2, target := Codomain.space n2] \as Free;
+\definition right(f, g: V -> W): Maps.Map := Maps.plus (Maps.plus (Mapping.push n2 g) (Maps.negative (Mapping.push n2 f)))
+  (Maps.negative (Before.compose (map n1 f g) (Domain.boundary n1)));
+\definition equation: Property n -> \forall (f, g: V -> W) -> After.compose (Codomain.boundary n2) (map n2 f g) = right f g :=
+  \fun (previous: Property n)(f, g: V -> W) => Free.ext _ _ (onGenerator previous f g);
+\definition law: Property n -> Property n1 :=
+  \fun (previous: Property n)(f, g: V -> W)(x: Domain.Carrier n2) => congr!{Maps.Map {Codomain.Carrier n2}} (\fun (h: Maps.Map) => #apply{h} x) _ _ (equation previous f g);

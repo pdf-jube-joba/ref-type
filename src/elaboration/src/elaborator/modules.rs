@@ -77,7 +77,7 @@ impl GlobalEnvironment {
             };
         let initial_source = source;
         let mut program_substitutions = base
-            .map(|base| self.crate_env.binding(base).arguments.clone())
+            .map(|base| self.crate_env.binding(base).arguments.to_vec())
             .unwrap_or_default();
         let mut args = Vec::with_capacity(calls.len());
         for (child_name, supplied) in calls.iter() {
@@ -233,7 +233,7 @@ impl GlobalEnvironment {
             return Ok(());
         }
         let inherited_arguments = base
-            .map(|base| self.crate_env.binding(base).arguments.clone())
+            .map(|base| self.crate_env.binding(base).arguments.to_vec())
             .unwrap_or_default();
         let base_remapping = base.map(|base| self.crate_env.binding(base).remapping);
         let mut substitutions = inherited_arguments

@@ -1,0 +1,29 @@
+\import Modules.Alternating[V := Chains.Carrier n, space := Chains.space n] \as Sum;
+\import Modules.Alternating[V := HigherChains.Carrier n, space := HigherChains.space n].Mapping[W := Chains.Carrier n, target := Chains.space n] \as Mapping;
+\import HigherGeometry.Subdivision[] \as Geometry;
+\import HigherGeometry.Fundamental[] \as Fundamental;
+\import \parent.SumImage[W := Chains.Carrier n, target := Chains.space n] \as Image;
+\definition onSimplex: \forall (sigma: Simplices.Carrier (N.Nat^::succ n)) ->
+  #apply{(Chains.boundary n)} (Higher.onSimplex sigma) = #apply{Lower.map} (#apply{(Chains.boundary n)} (Chains.generator (N.Nat^::succ n) sigma)) :=
+  \fun (sigma: Simplices.Carrier (N.Nat^::succ n)) => \block {
+    \let terms: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> HigherChains.Carrier n :=
+      \fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => LowerGeometry.Face[i := i].subdivisionTerm \then
+    \let left: #apply{(Chains.boundary n)} (Higher.onSimplex sigma) = Sum.sum (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => Lower.onSimplex (Simplices.face n i sigma)) :=
+      trans!{{Chains.Carrier n}} _ _ _ (HigherMaps.Differential[n := n].commutes sigma (Higher.continuous sigma) Geometry.chain)
+        (trans!{{Chains.Carrier n}} _ _ _
+          (congr!{{HigherChains.Carrier n} {Chains.Carrier n}} (#apply{(HigherMaps.At[n := n].push sigma (Higher.continuous sigma))}) _ _ (Geometry.Differential[m := n].law Fundamental.vertices))
+          (trans!{{Chains.Carrier n}} _ _ _ (Mapping.law (HigherMaps.At[n := n].push sigma (Higher.continuous sigma)) (N.Nat^::succ (N.Nat^::succ n)) terms)
+            (Sum.congruent (N.Nat^::succ (N.Nat^::succ n)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => \parent.Face[i := i].subdivision sigma)))) \then
+    \return trans!{{Chains.Carrier n}} _ _ _ left (sym!{{Chains.Carrier n}} _ _ (Image.law Lower.map Lower.onSimplex Lower.onGenerator sigma))
+  };
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ n), W := Chains.Carrier n, source := Chains.space (N.Nat^::succ n), target := Chains.space n]
+  .Composition[U := Chains.Carrier (N.Nat^::succ n), domain := Chains.space (N.Nat^::succ n)] \as First;
+\import Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier n, source := Chains.space n, target := Chains.space n]
+  .Composition[U := Chains.Carrier (N.Nat^::succ n), domain := Chains.space (N.Nat^::succ n)] \as Second;
+\import Modules.Free[Generators := Simplices.Carrier (N.Nat^::succ n)].To[W := Chains.Carrier n, target := Chains.space n] \as Free;
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ n), W := Chains.Carrier n, source := Chains.space (N.Nat^::succ n), target := Chains.space n] \as Linear;
+\definition equation: First.compose (Chains.boundary n) Higher.map = Second.compose Lower.map (Chains.boundary n) := Free.ext _ _
+  (\fun (sigma: Simplices.Carrier (N.Nat^::succ n)) => trans!{{Chains.Carrier n}} _ _ _
+    (congr!{{Chains.Carrier (N.Nat^::succ n)} {Chains.Carrier n}} (#apply{(Chains.boundary n)}) _ _ (Higher.onGenerator sigma)) (onSimplex sigma));
+\definition commutes: \forall (x: Chains.Carrier (N.Nat^::succ n)) -> #apply{(Chains.boundary n)} (#apply{Higher.map} x) = #apply{Lower.map} (#apply{(Chains.boundary n)} x) :=
+  \fun (x: Chains.Carrier (N.Nat^::succ n)) => congr!{Linear.Map {Chains.Carrier n}} (\fun (f: Linear.Map) => #apply{f} x) _ _ equation;

@@ -1,0 +1,47 @@
+\import Simplices.CutAssociativity[p := p, q := q, r := r] \as Geometry;
+\import Simplices.Cut[p := p, q := q] \as PQCut;
+\import Simplices.Cut[p := Geometry.pq, q := r] \as LeftCut;
+\import Simplices.Cut[p := q, q := r] \as QRCut;
+\import Simplices.Cut[p := p, q := Geometry.qr] \as RightCut;
+\import \parent.Cup[p := p, q := q] \as PQ;
+\import \parent.Cup[p := Geometry.pq, q := r] \as Left;
+\import \parent.Cup[p := q, q := r] \as QR;
+\import \parent.Cup[p := p, q := Geometry.qr] \as Right;
+\import Left.Bilinear[] \as Extensionality;
+\import \parent.DegreeTransport[] \as Degrees;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition leftValue(alpha: Carrier p)(beta: Carrier q)(gamma: Carrier r)(sigma: Simplices.Carrier Geometry.leftDegree): R :=
+  #mul{baseRing} (#mul{baseRing}
+    (#apply{alpha} (Chains.generator p (PQCut.front (LeftCut.front sigma))))
+    (#apply{beta} (Chains.generator q (PQCut.back (LeftCut.front sigma)))))
+    (#apply{gamma} (Chains.generator r (LeftCut.back sigma)));
+\definition rightValue(alpha: Carrier p)(beta: Carrier q)(gamma: Carrier r)(sigma: Simplices.Carrier Geometry.rightDegree): R :=
+  #mul{baseRing} (#apply{alpha} (Chains.generator p (RightCut.front sigma)))
+    (#mul{baseRing} (#apply{beta} (Chains.generator q (QRCut.front (RightCut.back sigma))))
+      (#apply{gamma} (Chains.generator r (QRCut.back (RightCut.back sigma)))));
+\definition leftExpansion: \forall (alpha: Carrier p)(beta: Carrier q)(gamma: Carrier r)(sigma: Simplices.Carrier Geometry.leftDegree) ->
+  #apply{(Left.apply (PQ.apply alpha beta) gamma)} (Chains.generator Geometry.leftDegree sigma) = leftValue alpha beta gamma sigma :=
+  \fun (alpha: Carrier p)(beta: Carrier q)(gamma: Carrier r)(sigma: Simplices.Carrier Geometry.leftDegree) =>
+    trans!{R} _ _ _ (Left.onSimplex (PQ.apply alpha beta) gamma sigma)
+      (congr!{R R} (\fun (x: R) => #mul{baseRing} x (#apply{gamma} (Chains.generator r (LeftCut.back sigma)))) _ _ (PQ.onSimplex alpha beta (LeftCut.front sigma)));
+\definition rightExpansion: \forall (alpha: Carrier p)(beta: Carrier q)(gamma: Carrier r)(sigma: Simplices.Carrier Geometry.rightDegree) ->
+  #apply{(Right.apply alpha (QR.apply beta gamma))} (Chains.generator Geometry.rightDegree sigma) = rightValue alpha beta gamma sigma :=
+  \fun (alpha: Carrier p)(beta: Carrier q)(gamma: Carrier r)(sigma: Simplices.Carrier Geometry.rightDegree) =>
+    trans!{R} _ _ _ (Right.onSimplex alpha (QR.apply beta gamma) sigma)
+      (congr!{R R} (#mul{baseRing} (#apply{alpha} (Chains.generator p (RightCut.front sigma)))) _ _ (QR.onSimplex beta gamma (RightCut.back sigma)));
+\module Restrictions;
+\use Equality.eq_reason;
+\definition law: \forall (alpha: Carrier p)(beta: Carrier q)(gamma: Carrier r) ->
+  Left.apply (PQ.apply alpha beta) gamma = Transport.cast Carrier Geometry.rightDegree Geometry.leftDegree Geometry.same (Right.apply alpha (QR.apply beta gamma)) :=
+  \fun (alpha: Carrier p)(beta: Carrier q)(gamma: Carrier r) => Extensionality.ext _ _
+    (\fun (sigma: Simplices.Carrier Geometry.leftDegree) => eq_reason!{
+      {#apply{(Left.apply (PQ.apply alpha beta) gamma)} (Chains.generator Geometry.leftDegree sigma)}
+      "=" {leftValue alpha beta gamma sigma} "by" {leftExpansion alpha beta gamma sigma}
+      "=" {rightValue alpha beta gamma (Geometry.rightSimplex sigma)} "by" {Restrictions[].law alpha beta gamma sigma}
+      "=" {#apply{(Right.apply alpha (QR.apply beta gamma))} (Chains.generator Geometry.rightDegree (Geometry.rightSimplex sigma))}
+      "by" {sym!{R} _ _ (rightExpansion alpha beta gamma (Geometry.rightSimplex sigma))}
+      "=" {#apply{(Right.apply alpha (QR.apply beta gamma))} (Chains.generator Geometry.rightDegree (Transport.cast Simplices.Carrier Geometry.leftDegree Geometry.rightDegree (sym!{N.Nat^} _ _ Geometry.same) sigma))}
+      "by" {congr!{{Simplices.Carrier Geometry.rightDegree} R} (\fun (tau: Simplices.Carrier Geometry.rightDegree) => #apply{(Right.apply alpha (QR.apply beta gamma))} (Chains.generator Geometry.rightDegree tau)) _ _ (Geometry.rightSimplexLaw sigma)}
+      "=" {#apply{(Transport.cast Carrier Geometry.rightDegree Geometry.leftDegree Geometry.same (Right.apply alpha (QR.apply beta gamma)))} (Chains.generator Geometry.leftDegree sigma)}
+      "by" {sym!{R} _ _ (Degrees.law Geometry.rightDegree Geometry.leftDegree Geometry.same (Right.apply alpha (QR.apply beta gamma)) sigma)}
+    });

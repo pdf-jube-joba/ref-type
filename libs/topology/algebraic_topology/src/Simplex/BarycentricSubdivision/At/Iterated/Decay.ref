@@ -1,0 +1,32 @@
+\import Real.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\definition Small(v: TargetAffine.Vertices)(word: Word)(epsilon: Real.Real): \Prop := \forall (i, j: Fin.Fin (N.Nat^::succ n)) ->
+  R.Lt (#distance{Metric.metric} (vertices v word i) (vertices v word j)) epsilon;
+\definition numerical: \forall (r, epsilon: Real.Real) -> R.Le Real.zero r -> R.Lt Real.zero epsilon ->
+  \exists { threshold: N.Nat^ \where R.Lt (Real.mul (Power.value threshold) r) epsilon } := \block {
+  \fun (r, epsilon: Real.Real)(positive: R.Le Real.zero r)(radius: R.Lt Real.zero epsilon) \then
+  \let coefficient: Real.Real := Product.coefficient r Real.zero \then
+  \let cp: R.Lt Real.zero coefficient := Product.coefficientPositive r Real.zero \then
+  \let delta: Real.Real := Product.radius coefficient epsilon \then
+  \takefrom threshold: \Cast[N.Nat^] ({ threshold: N.Nat^ \where R.Lt (Power.value threshold) delta }) \by
+    Power.eventual Centre.nonnegative Centre.belowOne delta (Product.radiusPositive coefficient epsilon cp radius) \then
+  \let rBound: R.Le r coefficient := R.leReplaceLeft (Product.abs r) r coefficient (Product.absOfNonnegative r positive) (Product.coefficientFirst r Real.zero) \then
+  \let estimate: R.Le (Real.mul (Power.value threshold) r) (Real.mul coefficient (Power.value threshold)) :=
+    R.leReplaceRight _ _ _ (Laws.fieldMulComm (Power.value threshold) coefficient)
+      (Estimates.mulMonotone (Power.value threshold) r coefficient (Power.nonnegative Centre.nonnegative threshold) rBound) \then
+  \return Logic.existsIntro[N.Nat^, { threshold: N.Nat^ \where R.Lt (Real.mul (Power.value threshold) r) epsilon }] threshold
+    (R.leLtTrans _ _ _ estimate (R.Order[].ltTrans _ _ _
+      (Product.mulStrict coefficient (Power.value threshold) delta cp (\bysub(N.Nat^, { threshold: N.Nat^ \where R.Lt (Power.value threshold) delta }, threshold)))
+      (Product.radiusSmall coefficient epsilon cp radius)))
+};
+\definition law: \forall (v: TargetAffine.Vertices)(r, epsilon: Real.Real) -> R.Le Real.zero r -> Mesh.Diameter v r -> R.Lt Real.zero epsilon ->
+  \exists { threshold: N.Nat^ \where \forall (word: Word) -> length word = threshold -> Small v word epsilon } := \block {
+  \fun (v: TargetAffine.Vertices)(r, epsilon: Real.Real)(positive: R.Le Real.zero r)(original: Mesh.Diameter v r)(radius: R.Lt Real.zero epsilon) \then
+  \takefrom threshold: \Cast[N.Nat^] ({ threshold: N.Nat^ \where R.Lt (Real.mul (Power.value threshold) r) epsilon }) \by numerical r epsilon positive radius \then
+  \return Logic.existsIntro[N.Nat^, { threshold: N.Nat^ \where \forall (word: Word) -> length word = threshold -> Small v word epsilon }] threshold
+    (\fun (word: Word)(same: length word = threshold)(i, j: Fin.Fin (N.Nat^::succ n)) => R.leLtTrans _ _ _
+      (boundLaw v r positive original word i j)
+      (R.ltReplaceLeft (Real.mul (Power.value threshold) r) (Real.mul (Power.value (length word)) r) epsilon
+        (congr!{N.Nat^ Real.Real} (\fun (m: N.Nat^) => Real.mul (Power.value m) r) _ _ (sym!{N.Nat^} _ _ same))
+        (\bysub(N.Nat^, { threshold: N.Nat^ \where R.Lt (Real.mul (Power.value threshold) r) epsilon }, threshold))))
+};

@@ -1,0 +1,32 @@
+\definition successorLaw:
+  (\forall (i, j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) -> NL.Le i j -> Pair n i j f) ->
+  \forall (i, j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) -> NL.Le i j ->
+    Pair (N.Nat^::succ n) (succ (N.Nat^::succ n) i) (succ (N.Nat^::succ n) j) f := \block {
+  \fun (previous: _)(i, j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A)(ordered: _) \then
+  \let a: A := f (zero (N.Nat^::succ n)) \then
+  \let tail: Fin (N.Nat^::succ n) -> A := \fun (k: Fin (N.Nat^::succ n)) => f (succ (N.Nat^::succ n) k) \then
+  \return trans!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) -> A}} _ _ _
+    (congr!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A} {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) -> A}}
+      (repeat (N.Nat^::succ (N.Nat^::succ n)) (succ (N.Nat^::succ (N.Nat^::succ n)) (widen (N.Nat^::succ n) i))) _ _ (successor n j f))
+    (trans!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) -> A}} _ _ _
+      (onExtended (N.Nat^::succ n) (widen (N.Nat^::succ n) i) a (repeat n j tail))
+      (trans!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) -> A}} _ _ _
+        (congr!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A} {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) -> A}}
+          (extend (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) a) _ _ (previous i j tail ordered))
+        (trans!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) -> A}} _ _ _
+          (sym!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) -> A}} _ _
+            (onExtended (N.Nat^::succ n) (succ (N.Nat^::succ n) j) a (repeat n i tail)))
+          (congr!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A} {Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) -> A}}
+            (repeat (N.Nat^::succ (N.Nat^::succ n)) (succ (N.Nat^::succ (N.Nat^::succ n)) (succ (N.Nat^::succ n) j))) _ _
+            (sym!{{Fin (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n))) -> A}} _ _ (successor n i f))))))
+};
+\definition law:
+  (\forall (i, j: Fin (N.Nat^::succ n))(f: Fin (N.Nat^::succ n) -> A) -> NL.Le i j -> Pair n i j f) ->
+  \forall (i, j: Fin (N.Nat^::succ (N.Nat^::succ n)))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) -> NL.Le i j -> Pair (N.Nat^::succ n) i j f :=
+  \fun (previous: _) => cases (N.Nat^::succ n)
+    (\fun (i: Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (j: Fin (N.Nat^::succ (N.Nat^::succ n)))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) -> NL.Le i j -> Pair (N.Nat^::succ n) i j f)
+    (\fun (j: Fin (N.Nat^::succ (N.Nat^::succ n)))(f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A)(ordered: _) => headPair (N.Nat^::succ n) j f)
+    (\fun (i: Fin (N.Nat^::succ n)) => cases (N.Nat^::succ n)
+      (\fun (j: Fin (N.Nat^::succ (N.Nat^::succ n))) => \forall (f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A) -> NL.Le (succ (N.Nat^::succ n) i) j -> Pair (N.Nat^::succ n) (succ (N.Nat^::succ n) i) j f)
+      (\fun (f: Fin (N.Nat^::succ (N.Nat^::succ n)) -> A)(ordered: _) => Logic.falseElim _ (NL.succNeZero i (NL.leZeroEq (N.Nat^::succ i) ordered)))
+      (\fun (j: Fin (N.Nat^::succ n)) => successorLaw previous i j));

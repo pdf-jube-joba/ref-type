@@ -1,0 +1,32 @@
+\definition factors: ProductMapping.Map := ProductMapping.Map {
+  leftFunction := f, rightFunction := f,
+  leftContinuous := continuous, rightContinuous := continuous,
+};
+\import Double.TensorMapping[C := Chains.complex, D := TargetChains.complex, E := Chains.complex, F := TargetChains.complex].With[f := Maps.push f continuous, g := Maps.push f continuous] \as TensorMapping;
+\definition tensor: Native.Map[C := Total.complex, D := TargetTotal.complex].Map := TensorMapping.total;
+\definition product: Native.Map[C := ProductChains.complex, D := TargetProductChains.complex].Map := ProductMaps.push (ProductMapping.function factors) (ProductMapping.continuous factors);
+\import Native.Map[C := ProductChains.complex, D := TargetProductChains.complex].Composition[B := Chains.complex] \as AfterDiagonalComposition;
+\import Native.Map[C := TargetChains.complex, D := TargetProductChains.complex].Composition[B := Chains.complex] \as BeforeDiagonalComposition;
+\import Native.Map[C := Chains.complex, D := TargetProductChains.complex] \as DiagonalLinear;
+\definition firstFunction(x: A): TargetProduct.CarrierSet := ProductMapping.function factors (Initial.diagonal x);
+\definition secondFunction(x: A): TargetProduct.CarrierSet := Target.diagonal (f x);
+\import topology.Composition[A := A, B := Product.CarrierSet, C := TargetProduct.CarrierSet] \as AfterContinuity;
+\import topology.Composition[A := A, B := B, C := TargetProduct.CarrierSet] \as BeforeContinuity;
+\definition firstContinuous: DiagonalTargetMaps.Continuous firstFunction := AfterContinuity.composeContinuous source productTopology Target.productTopology Initial.diagonal (ProductMapping.function factors) diagonalContinuous (ProductMapping.continuous factors);
+\definition secondContinuous: DiagonalTargetMaps.Continuous secondFunction := BeforeContinuity.composeContinuous source target Target.productTopology f Target.diagonal continuous Target.diagonalContinuous;
+\definition firstPush: DiagonalLinear.Map := DiagonalTargetMaps.push firstFunction firstContinuous;
+\definition secondPush: DiagonalLinear.Map := DiagonalTargetMaps.push secondFunction secondContinuous;
+\definition diagonalSquare: AfterDiagonalComposition.compose product (DiagonalMaps.push Initial.diagonal diagonalContinuous) = BeforeDiagonalComposition.compose (TargetDiagonalMaps.push Target.diagonal Target.diagonalContinuous) (Maps.push f continuous) :=
+  trans!{DiagonalLinear.Map}
+    (AfterDiagonalComposition.compose product (DiagonalMaps.push Initial.diagonal diagonalContinuous)) firstPush
+    (BeforeDiagonalComposition.compose (TargetDiagonalMaps.push Target.diagonal Target.diagonalContinuous) (Maps.push f continuous))
+    (AfterDiagonal.functoriality Initial.diagonal diagonalContinuous (ProductMapping.function factors) (ProductMapping.continuous factors))
+    (trans!{DiagonalLinear.Map} firstPush secondPush
+      (BeforeDiagonalComposition.compose (TargetDiagonalMaps.push Target.diagonal Target.diagonalContinuous) (Maps.push f continuous))
+      (DiagonalTargetMaps.FunctionEquality[].law firstFunction firstContinuous secondFunction secondContinuous (\fun (x: A) => \refl(Target.diagonal (f x))))
+      (sym!{DiagonalLinear.Map}
+        (BeforeDiagonalComposition.compose (TargetDiagonalMaps.push Target.diagonal Target.diagonalContinuous) (Maps.push f continuous)) secondPush
+        (BeforeDiagonal.functoriality f continuous Target.diagonal Target.diagonalContinuous)));
+\import singular_eilenberg_zilber.On[A := A, B := A, left := source, right := source].Naturality[C := B, D := B, leftTarget := target, rightTarget := target].With[f := factors] \as AWNaturality;
+\import Swap.Mapping[E := TargetChains.complex, F := TargetChains.complex].On[f := Maps.push f continuous, g := Maps.push f continuous] \as SwapNaturality;
+\module Degree(n: N.Nat^);

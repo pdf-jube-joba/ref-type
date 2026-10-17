@@ -1,0 +1,30 @@
+\import \parent.Prior[] \as Prior;
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ n), W := Total.Carrier (N.Nat^::succ n), source := Chains.space (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as Linear;
+\import Native.Map[C := Chains.complex, D := Total.complex].At[n := N.Nat^::succ n] \as Degree;
+\import Modules.Laws[V := Total.Carrier (N.Nat^::succ n), space := Total.space (N.Nat^::succ n)] \as Values;
+\import algebra.Group[].Of[Carrier := Total.Carrier (N.Nat^::succ n), group := Values.additive] \as Group;
+\import Modules.Hom[V := Total.Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Total.Carrier (N.Nat^::succ n), source := Total.space (N.Nat^::succ (N.Nat^::succ n)), target := Total.space (N.Nat^::succ n)].Composition[U := Chains.Carrier (N.Nat^::succ n), domain := Chains.space (N.Nat^::succ n)] \as AfterBoundary;
+\import Modules.Hom[V := Chains.Carrier n, W := Total.Carrier (N.Nat^::succ n), source := Chains.space n, target := Total.space (N.Nat^::succ n)].Composition[U := Chains.Carrier (N.Nat^::succ n), domain := Chains.space (N.Nat^::succ n)] \as AfterPrior;
+\import Modules.Hom[V := Total.Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Total.Carrier (N.Nat^::succ n), source := Total.space (N.Nat^::succ (N.Nat^::succ n)), target := Total.space (N.Nat^::succ n)] \as TotalBoundary;
+\definition totalBoundary: TotalBoundary.Map := TotalBoundary.Map {
+  apply := #apply{Total.differential} (N.Nat^::succ n),
+  addition := Total.addition (N.Nat^::succ n),
+  scalar := Total.scalar (N.Nat^::succ n),
+};
+\definition boundaryMap: Linear.Map := Linear.plus (AfterBoundary.compose totalBoundary Higher.map) (AfterPrior.compose Lower.map (Chains.boundary n));
+\definition differenceMap: Linear.Map := Degree.linear Initial.defect;
+\definition onGenerator(sigma: Simplices.Carrier (N.Nat^::succ n)): #apply{boundaryMap} (Chains.generator (N.Nat^::succ n) sigma) = #apply{differenceMap} (Chains.generator (N.Nat^::succ n) sigma) := \block {
+  \let x: Chains.Carrier (N.Nat^::succ n) := Chains.generator (N.Nat^::succ n) sigma \then
+  \let p: Total.Carrier (N.Nat^::succ n) := #apply{Lower.map} (#apply{(Chains.boundary n)} x) \then
+  \return trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{Total.Carrier (N.Nat^::succ (N.Nat^::succ n))} {Total.Carrier (N.Nat^::succ n)}} (\fun (y: Total.Carrier (N.Nat^::succ (N.Nat^::succ n))) => Values.add (#apply{Total.differential} (N.Nat^::succ n) y) p) _ _ (Higher.onGenerator sigma))
+    (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Total.Carrier (N.Nat^::succ n)} {Total.Carrier (N.Nat^::succ n)}} (\fun (y: Total.Carrier (N.Nat^::succ n)) => Values.add y p) _ _ (Higher.Boundary[].law sigma))
+      (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _
+        (congr!{{Total.Carrier (N.Nat^::succ n)} {Total.Carrier (N.Nat^::succ n)}} (\fun (y: Total.Carrier (N.Nat^::succ n)) => Values.add (Group.difference (#apply{Initial.defect} (N.Nat^::succ n) x) y) p) _ _ (Prior.law sigma))
+        (Group.addDifference (#apply{Initial.defect} (N.Nat^::succ n) x) p)))
+};
+\import Modules.Free[Generators := Simplices.Carrier (N.Nat^::succ n)].To[W := Total.Carrier (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as Free;
+\definition equation: boundaryMap = differenceMap := Free.ext _ _ onGenerator;
+\definition law(x: Chains.Carrier (N.Nat^::succ n)): #apply{Initial.defect} (N.Nat^::succ n) x = #add{(Total.space (N.Nat^::succ n))} (#apply{Total.differential} (N.Nat^::succ n) (#apply{Higher.map} x)) (#apply{Lower.map} (#apply{(Chains.boundary n)} x)) :=
+  sym!{{Total.Carrier (N.Nat^::succ n)}} _ _ (congr!{Linear.Map {Total.Carrier (N.Nat^::succ n)}} (\fun (h: Linear.Map) => #apply{h} x) _ _ equation);

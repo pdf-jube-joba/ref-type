@@ -1,0 +1,28 @@
+\inductive Point: \Set := | point: Point;
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import topology.Topology[Carrier := Point] \as Topology;
+\import topology.Maps[A := Point, B := Point].Identity[] \as Identity;
+\import singular_cohomology.Simplices[A := Point, source := Topology.Discrete] \as Simplices;
+\import singular_cohomology.Chains[A := Point, source := Topology.Discrete] \as Chains;
+\import singular_cohomology.Maps[A := Point, B := Point, source := Topology.Discrete, target := Topology.Discrete] \as Maps;
+\definition identity(x: Point): Point := x;
+\definition continuous: Maps.Continuous identity := Identity.continuous Topology.Discrete;
+\definition onGenerators: \forall (n: N.Nat^)(sigma: Simplices.Carrier n) ->
+  #apply{(Maps.push identity continuous)} n (Chains.generator n sigma) = Chains.generator n (Maps.postcompose n identity continuous sigma) :=
+  \fun (n: N.Nat^) => Maps.At[n := n].onGenerator identity continuous;
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import Maps.Coefficients[M := coefficients, L := coefficients] \as Coefficients;
+\import Modules.End[V := I.Int^, space := Modules.scalarModule] \as End;
+\import singular_cohomology.Cochains[A := Point, source := Topology.Discrete].With[coefficients := coefficients] \as Cochains;
+\definition pullbackOnRepresentatives: \forall (n: N.Nat^)(h: Cochains.Carrier n)(sigma: Simplices.Carrier n) ->
+  #apply{(#apply{(Coefficients.map identity continuous End.identity)} n h)} (Chains.generator n sigma) =
+    #apply{h} (Chains.generator n (Maps.postcompose n identity continuous sigma)) :=
+  \fun (n: N.Nat^) => Coefficients.At[n := n].onCochain identity continuous End.identity;
+\import singular_cohomology.Identity[A := Point, source := Topology.Discrete] \as IdentityAction;
+\import IdentityAction.Coefficients[M := coefficients] \as IdentityCoefficients;
+\definition identityOnCohomology: \forall (n: N.Nat^)(q: Cochains.cohomology n) ->
+  #apply{(Coefficients.At[n := n].induced identity continuous End.identity)} q = q :=
+  \fun (n: N.Nat^) => IdentityCoefficients.At[n := n].cohomologyIdentity;

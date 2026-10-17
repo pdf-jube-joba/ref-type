@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import Real.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import algebraic_topology.Interval[] \as Interval;
+\import Simplex.Affine[m := m, n := n] \as Affine;
+\import Simplex.Convex[n := m] \as Source;
+\import Simplex.Convex[n := n] \as Target;
+\definition scalar(a, b, x, y, z: Real.Real):
+  Real.mul (Real.add (Real.mul a x) (Real.mul b y)) z = Real.add (Real.mul a (Real.mul x z)) (Real.mul b (Real.mul y z)) :=
+  trans!{Real.Real} _ _ _ (Algebra.mulAddRight (Real.mul a x) (Real.mul b y) z)
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulAssoc a x z) (Laws.fieldMulAssoc b y z));
+\definition law: \forall (vertices: Affine.Vertices)(t: Interval.Carrier)(x, y: Simplex.Carrier m) ->
+  Affine.apply vertices (Source.blend t x y) = Target.blend t (Affine.apply vertices x) (Affine.apply vertices y) :=
+  \fun (vertices: Affine.Vertices)(t: Interval.Carrier)(x, y: Simplex.Carrier m) => \axiom:funext(Affine.apply vertices (Source.blend t x y), Target.blend t (Affine.apply vertices x) (Affine.apply vertices y),
+    \fun (j: Fin.Fin (N.Nat^::succ n)) => trans!{Real.Real} _ _ _
+      (Sums.congruent (N.Nat^::succ m) _ _ (\fun (i: Fin.Fin (N.Nat^::succ m)) => scalar (Interval.reverse t) t (x i) (y i) (vertices i j)))
+      (trans!{Real.Real} _ _ _
+        (Sums.addition (N.Nat^::succ m) (\fun (i: Fin.Fin (N.Nat^::succ m)) => Real.mul (Interval.reverse t) (Real.mul (x i) (vertices i j)))
+          (\fun (i: Fin.Fin (N.Nat^::succ m)) => Real.mul t (Real.mul (y i) (vertices i j))))
+        (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+          (Sums.scalar (N.Nat^::succ m) (Interval.reverse t) (\fun (i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) (vertices i j)))
+          (Sums.scalar (N.Nat^::succ m) t (\fun (i: Fin.Fin (N.Nat^::succ m)) => Real.mul (y i) (vertices i j))))));
+\module Hull(vertices: Affine.Vertices) {
+  \import Affine.Hull[vertices := vertices] \as Hull;
+  \definition closed: \forall (t: Interval.Carrier)(x, y: Simplex.Carrier n) ->
+    \In[Simplex.Carrier n] Hull.Points x -> \In[Simplex.Carrier n] Hull.Points y ->
+    \In[Simplex.Carrier n] Hull.Points (Target.blend t x y) := \block {
+    \fun (t: Interval.Carrier)(x, y: Simplex.Carrier n)(left: \In[Simplex.Carrier n] Hull.Points x)(right: \In[Simplex.Carrier n] Hull.Points y) \then
+    \takefrom a: \Cast[Simplex.Carrier m] ({ a: Simplex.Carrier m \where Affine.apply vertices a = x }) \by left \then
+    \takefrom b: \Cast[Simplex.Carrier m] ({ b: Simplex.Carrier m \where Affine.apply vertices b = y }) \by right \then
+    \return Logic.existsIntro[Simplex.Carrier m, { z: Simplex.Carrier m \where Affine.apply vertices z = Target.blend t x y }] (Source.blend t a b)
+      (trans!{{Simplex.Carrier n}} _ _ _ (law vertices t a b)
+        (congr2!{{Simplex.Carrier n} {Simplex.Carrier n} {Simplex.Carrier n}} (Target.blend t) _ _ _ _
+          (\bysub(Simplex.Carrier m, { a: Simplex.Carrier m \where Affine.apply vertices a = x }, a))
+          (\bysub(Simplex.Carrier m, { b: Simplex.Carrier m \where Affine.apply vertices b = y }, b))))
+  };
+}

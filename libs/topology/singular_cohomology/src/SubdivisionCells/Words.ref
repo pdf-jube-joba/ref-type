@@ -1,0 +1,23 @@
+\import std.Data[].List[] \as Lists;
+\import \parent.At[n := n] \as CellDegree;
+\definition Word: \Set := Lists.List[Cells.Cell n];
+\definition length(word: Word): N.Nat^ := Lists.length (Cells.Cell n) word;
+\import Modules.Free[Generators := Word] \as Free;
+\definition Carrier: \Set := Free.Carrier;
+\definition space: Modules.Space Carrier := Free.space;
+\definition generator: Word -> Carrier := Free.generator;
+\import Modules.Free[Generators := Cells.Cell n].Reindex[TargetGenerators := Word] \as Reindex;
+\definition lift(word: Word): Modules.Hom[V := CellDegree.Carrier, W := Carrier, source := CellDegree.space, target := space].Map :=
+  Reindex.push (\fun (c: Cells.Cell n) => Lists.List[Cells.Cell n]::cons c word);
+\definition liftOnGenerator: \forall (word: Word)(c: Cells.Cell n) -> #apply{(lift word)} (CellDegree.generator c) = generator (Lists.List[Cells.Cell n]::cons c word) :=
+  \fun (word: Word) => Reindex.onGenerator (\fun (c: Cells.Cell n) => Lists.List[Cells.Cell n]::cons c word);
+\import Free.To[W := Carrier, target := space] \as Extend;
+\definition step: Modules.Hom[V := Carrier, W := Carrier, source := space, target := space].Map := Extend.extension (\fun (word: Word) => #apply{(lift word)} (chain n));
+\definition stepOnGenerator: \forall (word: Word) -> #apply{step} (generator word) = #apply{(lift word)} (chain n) := Extend.onGenerator (\fun (word: Word) => #apply{(lift word)} (chain n));
+\definition wordChain: N.Nat^ -> Carrier := \induction (r: N.Nat^) \return Carrier \with {
+  | zero: generator Lists.List[Cells.Cell n]::nil
+  | succ: \fun (r: N.Nat^)(previous: Carrier) => #apply{step} previous
+};
+\module Fixed(r: N.Nat^);
+\module Evaluation(k: N.Nat^);
+\module Length;

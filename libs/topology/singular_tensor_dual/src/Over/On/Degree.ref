@@ -1,0 +1,34 @@
+\import Source.Degree[n := n] \as SourceTerm;
+\import TargetTotal.Degree[n := n] \as ChainTerm;
+\import \parent.\parent.Diagonal[n := n, family := ChainTerm.family] \as Diagonal;
+\import Modules.DirectSum[Index := Double.Index n, family := SourceTerm.family] \as SourceSum;
+\import Modules.DirectSum[Index := Double.Index n, family := Diagonal.dualFamily] \as DualSum;
+\module Component(i: Double.Index n);
+\import SourceSum.Mapping[targetFamily := Diagonal.dualFamily] \as ForwardMapping;
+\import DualSum.Mapping[targetFamily := SourceTerm.family] \as BackwardMapping;
+\definition forwards: ForwardMapping.Data := \fun (i: Double.Index n) => #forward{Component[i := i].isomorphism};
+\definition backwards: BackwardMapping.Data := \fun (i: Double.Index n) => #backward{Component[i := i].isomorphism};
+\definition toDual: Modules.Hom[V := SourceTerm.Carrier, W := DualSum.Carrier, source := SourceTerm.space, target := DualSum.space].Map := ForwardMapping.map forwards;
+\definition fromDual: Modules.Hom[V := DualSum.Carrier, W := SourceTerm.Carrier, source := DualSum.space, target := SourceTerm.space].Map := BackwardMapping.map backwards;
+\module Inverses;
+\definition components: Modules.Isomorphism[V := SourceTerm.Carrier, W := DualSum.Carrier, source := SourceTerm.space, target := DualSum.space].Isomorphism := Modules.Isomorphism[V := SourceTerm.Carrier, W := DualSum.Carrier, source := SourceTerm.space, target := DualSum.space].Isomorphism {
+  forward := toDual, backward := fromDual, leftInverse := Inverses[].left, rightInverse := Inverses[].right,
+};
+\import Modules.Isomorphism[V := SourceTerm.Carrier, W := DualSum.Carrier, source := SourceTerm.space, target := DualSum.space].Composition[U := Target.Carrier n, final := Target.space n] \as Compose;
+\definition isomorphism: Modules.Isomorphism[V := SourceTerm.Carrier, W := Target.Carrier n, source := SourceTerm.space, target := Target.space n].Isomorphism := Compose.compose Diagonal.isomorphism components;
+\definition forward: Modules.Hom[V := SourceCarrier n, W := Target.Carrier n, source := SourceSpace n, target := Target.space n].Map := #forward{isomorphism};
+\definition backward: Modules.Hom[V := Target.Carrier n, W := SourceCarrier n, source := Target.space n, target := SourceSpace n].Map := #backward{isomorphism};
+\definition onInjection(i: Double.Index n)(z: SourceTerm.family.Carrier i): #apply{forward} (#apply{SourceTerm.Component[i := i].injection} z) = Diagonal.At[i := i].extend (#apply{(forwards i)} z) :=
+  trans!{{Target.Carrier n}} _ _ _
+    (congr!{DualSum.Carrier {Target.Carrier n}} (#apply{Diagonal.forward}) _ _ (ForwardMapping.onInjection forwards i z))
+    (Diagonal.onInjection i (#apply{(forwards i)} z));
+\import Double.Coordinates[C := TargetTensor.complex].Degree[n := n] \as Coordinates;
+\definition evaluation(i: Double.Index n)(z: SourceTerm.family.Carrier i)(x: TargetTotal.Carrier n):
+  #apply{(#apply{forward} (#apply{SourceTerm.Component[i := i].injection} z))} x = #apply{(#apply{(forwards i)} z)} (Coordinates.coordinate i x) :=
+  congr!{{Target.Carrier n} R} (\fun (f: Target.Carrier n) => #apply{f} x) _ _ (onInjection i z);
+
+\definition pure(i: Double.Index n)(alpha: Left.Carrier #first{i})(beta: Right.Carrier #second{i})(x: TargetTotal.Carrier n):
+  #apply{(#apply{forward} (#apply{SourceTerm.Component[i := i].injection} (Component[i := i].tensor alpha beta)))} x =
+  #apply{(Component[i := i].comparison alpha beta)} (Coordinates.coordinate i x) :=
+  trans!{R} _ _ _ (evaluation i (Component[i := i].tensor alpha beta) x)
+    (congr!{{Diagonal.dualFamily.Carrier i} R} (\fun (f: Diagonal.dualFamily.Carrier i) => #apply{f} (Coordinates.coordinate i x)) _ _ (Component[i := i].onTensor alpha beta));

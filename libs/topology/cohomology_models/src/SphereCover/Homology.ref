@@ -1,0 +1,18 @@
+\import chain_complexes.Chain[] \as Degrees;
+\definition lower: I.Int^ := Degrees.previous z;
+\import Covers.On[cover := cover].Reduced[].Homology[z := z] \as Suspension;
+\import singular_cohomology.Chains[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].Reduced[].At[z := z] \as Upper;
+\import singular_cohomology.Chains[A := Geometry.Intersection, source := Geometry.intersectionTopology].Reduced[].At[z := lower] \as Intersection;
+\import singular_cohomology.Chains[A := Spheres.Carrier n, source := Spheres.topology n].Reduced[].At[z := lower] \as Lower;
+\definition domain: Modules.Bundle := Modules.Bundle { Carrier := Upper.Carrier, space := Upper.space };
+\definition codomain: Modules.Bundle := Modules.Bundle { Carrier := Lower.Carrier, space := Lower.space };
+\import singular_cohomology.Equivalence[A := Spheres.Carrier n, B := Geometry.Intersection, source := Spheres.topology n, target := Geometry.intersectionTopology]
+  .Reduced[].Homology[z := lower] \as Comparison;
+\import Modules.Isomorphism[V := Lower.Carrier, W := Intersection.Carrier, source := Lower.space, target := Intersection.space].Inverse[] \as ComparisonInverse;
+\import Modules.Isomorphism[V := Upper.Carrier, W := Intersection.Carrier, source := Upper.space, target := Intersection.space]
+  .Composition[U := Lower.Carrier, final := Lower.space] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := domain.Carrier, W := codomain.Carrier, source := domain.space, target := codomain.space].Isomorphism :=
+  Composition.compose (ComparisonInverse.inverse (Comparison.isomorphism intersectionEquivalence))
+    (Suspension.isomorphism leftContraction rightContraction);
+\import Modules.Isomorphism[V := domain.Carrier, W := codomain.Carrier, source := domain.space, target := codomain.space].Inverse[] \as Inverse;
+\definition upward: Modules.Isomorphism[V := codomain.Carrier, W := domain.Carrier, source := codomain.space, target := domain.space].Isomorphism := Inverse.inverse isomorphism;

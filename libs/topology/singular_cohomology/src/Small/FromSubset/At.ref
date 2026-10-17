@@ -1,0 +1,33 @@
+\import \parent.\parent.At[n := n] \as SmallDegree;
+\definition simplex(sigma: SubspaceSimplices.Carrier n): SmallSimplices.Carrier n :=
+  \into[WholeSimplices.Carrier n](Inclusion.postcompose n inclusionFunction continuous sigma, SmallSimplices.Small n) \by {
+    \exact(SmallSimplices.Witness[n, Inclusion.postcompose n inclusionFunction continuous sigma] {
+      element := U, member := member, contained := \fun (x: Simplex.Carrier n) => \bysub(A, U, sigma x),
+    }, SmallSimplices.Witness[n, Inclusion.postcompose n inclusionFunction continuous sigma])
+  };
+\import Modules.Free[Generators := SubspaceSimplices.Carrier n].Reindex[TargetGenerators := SmallSimplices.Carrier n] \as Reindex;
+\definition map: Modules.Hom[V := SubspaceChains.Carrier n, W := Carrier n, source := SubspaceChains.space n, target := space n].Map := Reindex.push simplex;
+\definition onGenerator: \forall (sigma: SubspaceSimplices.Carrier n) -> #apply{map} (SubspaceChains.generator n sigma) = generator n (simplex sigma) := Reindex.onGenerator simplex;
+\import Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n]
+  .Composition[U := SubspaceChains.Carrier n, domain := SubspaceChains.space n] \as Compose;
+\import Modules.Free[Generators := SubspaceSimplices.Carrier n].To[W := Whole.Carrier n, target := Whole.space n] \as Free;
+\definition equation: Compose.compose SmallDegree.inclusion map = Inclusion.At[n := n].push inclusionFunction continuous :=
+  Free.ext _ _ (\fun (sigma: SubspaceSimplices.Carrier n) => trans!{{Whole.Carrier n}} _ _ _
+    (congr!{{Carrier n} {Whole.Carrier n}} (#apply{SmallDegree.inclusion}) _ _ (onGenerator sigma))
+    (trans!{{Whole.Carrier n}} _ _ _ (SmallDegree.onGenerator (simplex sigma))
+      (sym!{{Whole.Carrier n}} _ _ (Inclusion.At[n := n].onGenerator inclusionFunction continuous sigma))));
+\import Modules.Hom[V := SubspaceChains.Carrier n, W := Whole.Carrier n, source := SubspaceChains.space n, target := Whole.space n] \as Linear;
+\definition law: \forall (x: SubspaceChains.Carrier n) -> #apply{SmallDegree.inclusion} (#apply{map} x) = #apply{(Inclusion.At[n := n].push inclusionFunction continuous)} x :=
+  \fun (x: SubspaceChains.Carrier n) => congr!{Linear.Map {Whole.Carrier n}} (\fun (f: Linear.Map) => #apply{f} x) _ _ equation;
+\import topology.Continuity[A := Simplex.Carrier n, B := A].Corestriction[S := U] \as IntoSubset;
+\import Simplex.At[n := n] \as Domain;
+\definition corestrictFunction(sigma: WholeSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] U (sigma x))(x: Simplex.Carrier n): Subspace.CarrierSet :=
+  \into[A](sigma x, U) \by { contained x };
+\definition corestrict(sigma: WholeSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] U (sigma x)): SubspaceSimplices.Carrier n :=
+  \into[SubspaceSimplices.At[n := n].Function](corestrictFunction sigma contained, SubspaceSimplices.Carrier n) \by {
+    IntoSubset.corestrictContinuous Domain.topology source (corestrictFunction sigma contained) (WholeSimplices.At[n := n].continuous sigma)
+  };
+\definition underlying: \forall (sigma: WholeSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] U (sigma x)) ->
+  Inclusion.postcompose n inclusionFunction continuous (corestrict sigma contained) = sigma :=
+  \fun (sigma: WholeSimplices.Carrier n)(contained: \forall (x: Simplex.Carrier n) -> \In[A] U (sigma x)) => WholeSimplices.ext n
+    (Inclusion.postcompose n inclusionFunction continuous (corestrict sigma contained)) sigma (\fun (x: Simplex.Carrier n) => \refl(sigma x));

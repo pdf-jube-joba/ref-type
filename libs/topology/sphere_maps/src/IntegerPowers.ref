@@ -1,0 +1,23 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Modules.Laws[V := I.Int^, space := Modules.scalarModule] \as Scalars;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Scalars.additive] \as Group;
+\definition power: I.Int^ -> N.Nat^ -> I.Int^ :=
+  \fun (a: I.Int^) => \induction (n: N.Nat^) \return I.Int^ \with {
+    | zero: I.One.specification
+    | succ: \fun (n: N.Nat^)(previous: I.Int^) => #mul{Integers.ring} a previous
+  };
+\definition minusOne: I.Int^ := I.Neg.specification I.One.specification;
+\definition sign(n: N.Nat^): I.Int^ := power minusOne n;
+\definition successor: \forall (n: N.Nat^) -> sign (N.Nat^::succ n) = I.Neg.specification (sign n) :=
+  \fun (n: N.Nat^) => Scalars.negativeOne (sign n);
+\definition first: sign (N.Nat^::succ N.Nat^::zero) = minusOne := successor N.Nat^::zero;
+\definition square: sign (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) = I.One.specification :=
+  trans!{I.Int^} _ _ _ (successor (N.Nat^::succ N.Nat^::zero))
+    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} I.Neg.specification _ _ first) (Group.negNeg I.One.specification));

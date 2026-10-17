@@ -1,0 +1,21 @@
+\import \parent.\parent.\parent.\parent.Filtration[].Stage[limit := N.Nat^::succ n] \as Upper;
+\import singular_cohomology.Chains[A := Upper.Carrier, source := Upper.topology] \as UpperChains;
+\import Nonnegative.ZeroExtension[C := UpperChains.complex] \as UpperExtension;
+\import \parent.\parent.\parent.\parent.Layer[n := N.Nat^::succ n] \as NextLayer;
+\import \parent.\parent.\parent.\parent.Filtration[].Stage[limit := N.Nat^::succ (N.Nat^::succ n)] \as NextUpper;
+\import singular_cohomology.Chains[A := NextUpper.Carrier, source := NextUpper.topology] \as NextChains;
+\import Nonnegative.ZeroExtension[C := NextChains.complex] \as NextExtension;
+\definition upperComplex: Complexes.Complex := UpperExtension.complex;
+\definition inclusion: Complexes.Map[C := UpperExtension.complex, D := NextExtension.complex].Map := NextLayer.inclusion;
+
+\import singular_cohomology.Chains[A := A, source := source] \as AmbientChains;
+\import singular_cohomology.Maps[A := Upper.Carrier, B := A, source := Upper.topology, target := source] \as AmbientMaps;
+\import Modules.Hom[V := Carrier n, W := UpperChains.Carrier n, source := space n, target := UpperChains.space n] \as Local;
+\definition local: Local.Map := Local.Map {
+  apply := \fun (q: Carrier n) => #apply{(at n).relative.map} q,
+  addition := #addition{(at n).relative.map}, scalar := #scalar{(at n).relative.map},
+};
+\import Modules.Hom[V := UpperChains.Carrier n, W := AmbientChains.Carrier n, source := UpperChains.space n, target := AmbientChains.space n]
+  .Composition[U := Carrier n, domain := space n] \as Compose;
+\definition map: Modules.Hom[V := Carrier n, W := AmbientChains.Carrier n, source := space n, target := AmbientChains.space n].Map :=
+  Compose.compose (AmbientMaps.At[n := n].push Upper.inclusion Upper.continuous) local;

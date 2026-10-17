@@ -1,0 +1,61 @@
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.At[n := two] \as Domain;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Disk;
+\import sphere_maps.Circle[].Coordinates[] \as Coordinates;
+\import complex.Complex[] \as Complex;
+\import Complex.Def[] \as Operations;
+\import Complex.Prop[] \as ComplexLaws;
+\import real.Analysis[] \as Real;
+\import Real.SquareRoot[] \as Root;
+\import Real.Distance[] \as Distance;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition centerIndex: Domain.Index := Fin.zero two;
+\definition leftIndex: Domain.Index := Fin.succ two (Fin.zero one);
+\definition rightIndex: Domain.Index := Fin.succ two (Fin.succ one (Fin.zero N.Nat^::zero));
+\definition center(x: Domain.CarrierSet): Real.Real := x centerIndex;
+\definition left(x: Domain.CarrierSet): Real.Real := x leftIndex;
+\definition right(x: Domain.CarrierSet): Real.Real := x rightIndex;
+\definition radius(x: Domain.CarrierSet): Real.Real := Real.add (right x) (left x);
+\definition vector(x: Domain.CarrierSet): Complex.Complex := Complex.make (Root.sqrt (right x)) (Root.sqrt (left x));
+\definition square(x: Domain.CarrierSet): Complex.Complex := Operations.mul (vector x) (vector x);
+\definition upperCoordinate(x: Domain.CarrierSet): Disk.Coordinate := Coordinates.ambientBackward (square x);
+\definition vectorNorm(x: Domain.CarrierSet): Operations.normSq (vector x) = radius x :=
+  congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+    (Root.squareOfNonnegative (right x) (#nonnegative{(Simplex.barycentric two x)} rightIndex))
+    (Root.squareOfNonnegative (left x) (#nonnegative{(Simplex.barycentric two x)} leftIndex));
+\definition normFormula(x: Domain.CarrierSet): Disk.normSquared (upperCoordinate x) = Real.mul (radius x) (radius x) :=
+  trans!{Real.Real} _ _ _ (Coordinates.normFormula (upperCoordinate x))
+    (trans!{Real.Real} _ _ _ (congr!{Complex.Complex Real.Real} Operations.normSq _ _ (Coordinates.ambientRightInverse (square x)))
+      (trans!{Real.Real} _ _ _ (ComplexLaws.normSqMul (vector x) (vector x))
+        (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (vectorNorm x) (vectorNorm x))));
+\definition total(x: Domain.CarrierSet): Real.add (center x) (Real.add (left x) (right x)) = Real.one :=
+  trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.add (center x)) _ _
+      (congr!{Real.Real Real.Real} (Real.add (left x)) _ _ (sym!{Real.Real} _ _ (Laws.addZeroRight (right x)))))
+    (#total{(Simplex.barycentric two x)});
+\definition radiusNonnegative(x: Domain.CarrierSet): R.Le Real.zero (radius x) :=
+  Laws.addNonnegative (right x) (left x) (#nonnegative{(Simplex.barycentric two x)} rightIndex) (#nonnegative{(Simplex.barycentric two x)} leftIndex);
+\definition radiusBound(x: Domain.CarrierSet): R.Le (radius x) Real.one :=
+  R.leReplaceLeft (Real.add (left x) (right x)) (radius x) Real.one (Laws.addComm (left x) (right x))
+    (R.leReplaceRight (Real.add (left x) (right x)) (Real.add (center x) (Real.add (left x) (right x))) Real.one (total x)
+      (Distance.leAddRightOfNonnegative (center x) (Real.add (left x) (right x)) (#nonnegative{(Simplex.barycentric two x)} centerIndex)));
+\definition upper(x: Domain.CarrierSet): Disk.Disk := \into[Disk.Coordinate](upperCoordinate x, Disk.ClosedBall) \by {
+  R.leReplaceLeft (Real.mul (radius x) (radius x)) (Disk.normSquared (upperCoordinate x)) Real.one (sym!{Real.Real} _ _ (normFormula x))
+    (R.leReplaceRight (Real.mul (radius x) (radius x)) (Real.mul Real.one Real.one) Real.one (Laws.fieldMulOneLeft Real.one)
+      (Root.squareMonotone (radius x) Real.one (radiusNonnegative x) Laws.oneNonnegative (radiusBound x)))
+};
+\import \parent.Hemisphere[].DiskQuotient[].Boundary[] \as Boundary;
+\definition lower(x: Domain.CarrierSet): Disk.Disk := Boundary.negative (upper x);
+\definition lowerNorm(x: Domain.CarrierSet): Disk.normSquared (lower x) = Real.mul (radius x) (radius x) :=
+  trans!{Real.Real} _ _ _ (Boundary.negativeNorm (upper x)) (normFormula x);
+\module Continuity;
+\module Formulas;
+\module Singular;

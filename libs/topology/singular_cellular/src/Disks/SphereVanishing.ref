@@ -1,0 +1,20 @@
+\import cohomology_models.Spheres[].Homology[].Reduced[] \as Groups;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\definition Zero(n, k: N.Nat^): \Prop := \forall (q: Groups.homology n (I.Int^::ofNat k)) -> q = #zero{(Groups.space n (I.Int^::ofNat k))};
+\module Step(n, k: N.Nat^);
+\definition zero: \forall (n, k: N.Nat^) -> Logic.Not (n = k) -> Zero n k :=
+  \induction (n: N.Nat^) \return \forall (k: N.Nat^) -> Logic.Not (n = k) -> Zero n k \with {
+    | zero: \induction (k: N.Nat^) \return Logic.Not (N.Nat^::zero = k) -> Zero N.Nat^::zero k \with {
+      | zero: \fun (different: Logic.Not (N.Nat^::zero = N.Nat^::zero)) =>
+          Logic.falseElim (Zero N.Nat^::zero N.Nat^::zero) (different (\refl(N.Nat^::zero)))
+      | succ: \fun (k: N.Nat^)(previous: Logic.Not (N.Nat^::zero = k) -> Zero N.Nat^::zero k)
+          (different: Logic.Not (N.Nat^::zero = N.Nat^::succ k)) => Groups.above N.Nat^::zero k
+    }
+    | succ: \fun (n: N.Nat^)(previous: \forall (k: N.Nat^) -> Logic.Not (n = k) -> Zero n k) =>
+      \induction (k: N.Nat^) \return Logic.Not (N.Nat^::succ n = k) -> Zero (N.Nat^::succ n) k \with {
+        | zero: \fun (different: Logic.Not (N.Nat^::succ n = N.Nat^::zero)) => Groups.below N.Nat^::zero n
+        | succ: \fun (k: N.Nat^)(before: Logic.Not (N.Nat^::succ n = k) -> Zero (N.Nat^::succ n) k)
+            (different: Logic.Not (N.Nat^::succ n = N.Nat^::succ k)) => Step[n := n, k := k].zero
+          (previous k (\fun (same: n = k) => different (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ same)))
+      }
+  };

@@ -1,0 +1,18 @@
+\definition n1: N.Nat^ := N.Nat^::succ n;
+\definition n2: N.Nat^ := N.Nat^::succ n1;
+\import \parent.\parent.Values[n := n1] \as SourceValues;
+\import Other.Values[n := n1] \as Values;
+\import Modules.Hom[V := Codomain.Carrier n1, W := Final.Carrier n1, source := Codomain.space n1, target := Final.space n1] \as Maps;
+\definition law: Property n -> Property n1 :=
+  \fun (previous: Property n)(f, g: V -> W)(h: W -> U)(v: Domain.Tuple n1) => \block {
+    \let head: V := v (Fin.zero n) \then
+    \let tail: Domain.Tuple n := \fun (i: Fin.Fin n) => v (Fin.succ n i) \then
+    \let z: Codomain.Carrier n1 := SourceValues.difference (Codomain.generator n1 (Mapping.onTuple n1 g v)) (value n f g tail) \then
+    \let image: #apply{(After.push n1 h)} z = Values.difference
+      (Final.generator n1 (\fun (i: Fin.Fin n1) => h (g (v i)))) (Other.value n (\fun (x: V) => h (f x)) (\fun (x: V) => h (g x)) tail) :=
+      trans!{{Final.Carrier n1}} _ _ _ (Maps.differencePreserved (After.push n1 h) (Codomain.generator n1 (Mapping.onTuple n1 g v)) (value n f g tail))
+        (congr2!{{Final.Carrier n1} {Final.Carrier n1} {Final.Carrier n1}} Values.difference _ _ _ _
+          (After.At[n := n1].onGenerator h (Mapping.onTuple n1 g v)) (previous f g h tail)) \then
+    \return trans!{{Final.Carrier n2}} _ _ _ (After.Cone[n := n1].law h (f head) z)
+      (congr!{{Final.Carrier n1} {Final.Carrier n2}} (#apply{(Final.cone n1 (h (f head)))}) _ _ image)
+  };

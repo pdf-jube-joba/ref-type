@@ -1,0 +1,26 @@
+\import Cochains.End[C := C] \as SourceEnd;
+\import Cochains.End[C := D] \as TargetEnd;
+\import Cochains.Map[C := C, D := C] \as SourceMaps;
+\import Cochains.Map[C := D, D := D] \as TargetMaps;
+\import Cochains.Map[C := D, D := C].Composition[B := C] \as LeftComposition;
+\import Cochains.Map[C := C, D := D].Composition[B := D] \as RightComposition;
+\definition leftEquality: LeftComposition.compose backward forward = SourceEnd.identity := SourceMaps.ext (LeftComposition.compose backward forward) SourceEnd.identity left;
+\definition rightEquality: RightComposition.compose forward backward = TargetEnd.identity := TargetMaps.ext (RightComposition.compose forward backward) TargetEnd.identity right;
+\import Cochains.Homotopy[C := C, D := C] \as LeftHomotopy;
+\import Cochains.Homotopy[C := D, D := D] \as RightHomotopy;
+\import LeftHomotopy.Reflexive[f := SourceEnd.identity] \as LeftZero;
+\import RightHomotopy.Reflexive[f := TargetEnd.identity] \as RightZero;
+\definition leftHomotopy: LeftHomotopy.Homotopy SourceEnd.identity (LeftComposition.compose backward forward) :=
+  \into[LeftHomotopy.Data](LeftZero.data, LeftHomotopy.Homotopy SourceEnd.identity (LeftComposition.compose backward forward)) \by {
+    LeftHomotopy.replacementLaws SourceEnd.identity SourceEnd.identity SourceEnd.identity (LeftComposition.compose backward forward)
+      LeftZero.data (\refl(SourceEnd.identity)) (sym!{SourceMaps.Map} _ _ leftEquality) LeftZero.laws
+  };
+\definition rightHomotopy: RightHomotopy.Homotopy TargetEnd.identity (RightComposition.compose forward backward) :=
+  \into[RightHomotopy.Data](RightZero.data, RightHomotopy.Homotopy TargetEnd.identity (RightComposition.compose forward backward)) \by {
+    RightHomotopy.replacementLaws TargetEnd.identity TargetEnd.identity TargetEnd.identity (RightComposition.compose forward backward)
+      RightZero.data (\refl(TargetEnd.identity)) (sym!{TargetMaps.Map} _ _ rightEquality) RightZero.laws
+  };
+\import chain_complexes.CochainEquivalence[].Over[R := R, ring := Rings.commutativeRingAsRing R ring].Of[C := C, D := D] \as Equivalences;
+\definition equivalence: Equivalences.Equivalence := Equivalences.Equivalence { forward := forward, backward := backward, left := leftHomotopy, right := rightHomotopy };
+
+\module At(n: N.Nat^);

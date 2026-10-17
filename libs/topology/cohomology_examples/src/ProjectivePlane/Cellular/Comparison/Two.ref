@@ -1,0 +1,18 @@
+\definition degree: N.Nat^ := two;
+\definition value: Target.Carrier degree := #add{(Target.space two)} (triangle Triangle::upper) (triangle Triangle::lower);
+\import Modules.Hom[V := native.family.Carrier degree, W := Target.Carrier degree, source := native.family.space degree, target := Target.space degree] \as ForwardLinear;
+\definition forward: ForwardLinear.Map := ForwardLinear.Map {
+  apply := \fun (x: native.family.Carrier degree) => #smul{(Target.space degree)} (x (Fin.zero zero)) value,
+  addition := \fun (x, y: native.family.Carrier degree) => #scalarAdd{(Target.space degree)} (x (Fin.zero zero)) (y (Fin.zero zero)) value,
+  scalar := \fun (a: I.Int^)(x: native.family.Carrier degree) => #scalarAssoc{(Target.space degree)} a (x (Fin.zero zero)) value,
+};
+\import Model.Coefficients[A := sourceBundle degree] \as BackwardExtension;
+\definition backwardValues: Triangle -> native.family.Carrier degree := \induction (t: Triangle) \return native.family.Carrier two \with {
+  | upper: \fun (i: Fin.Fin one) => I.Zero.specification
+  | lower: \fun (i: Fin.Fin one) => I.One.specification
+};
+\definition backward: Modules.MapBetween (targetBundle degree) (sourceBundle degree) := BackwardExtension.DegreeTwo[].extend backwardValues;
+\definition backwardOnGenerator: \forall (x: Triangle) -> #apply{backward} (triangle x) = backwardValues x := BackwardExtension.DegreeTwo[].onGenerator backwardValues;
+
+\definition unit: native.family.Carrier degree := \fun (i: Fin.Fin one) => I.One.specification;
+\definition forwardUnit: #apply{forward} unit = value := #scalarOne{(Target.space degree)} value;

@@ -1,0 +1,28 @@
+\import \parent.\parent.Based[n := n] \as Based;
+\import Algebra.HomAt[n := n, z := z] \as Hom;
+\definition Member(f: Hom.Carrier): \Prop := \forall (c: Based.Cell) ->
+  \parent.Cell[n := n, c := c].Degree[z := z].Member (#apply{f} (Based.generator c));
+\definition support: Hom.Submodule := Hom.Submodule {
+  carrier := { f: Hom.Carrier \where Member f },
+  zero := \fun (c: Based.Cell) => \parent.Cell[n := n, c := c].Degree[z := z].zero,
+  addition := \fun (f, g: Hom.Carrier)(left: Member f)(right: Member g)(c: Based.Cell) =>
+    #addition{(\parent.Cell[n := n, c := c].Degree[z := z].image)} (#apply{f} (Based.generator c)) (#apply{g} (Based.generator c)) (left c) (right c),
+  scalar := \fun (a: I.Int^)(f: Hom.Carrier)(member: Member f)(c: Based.Cell) =>
+    #scalar{(\parent.Cell[n := n, c := c].Degree[z := z].image)} a (#apply{f} (Based.generator c)) (member c),
+};
+\module Boundary(f: Hom.Carrier, member: Member f) {
+  \module At(c: Based.Cell) {
+    \import \parent.\parent.\parent.Cell[n := n, c := c] \as Cell;
+    \import Cell.Degree[z := z] \as Degree;
+    \import Cell.Degree[z := Degrees.previous z] \as Lower;
+    \definition value: _ := Degree.lift (#apply{f} (Based.generator c)) (member c);
+    \definition law: Lower.Member (#apply{Global.differential} z (#apply{f} (Based.generator c))) :=
+      Lower.introduce _ (#apply{Cell.localComplex.differential} z value)
+        (trans!{{Global.Carrier (Degrees.previous z)}} _ _ _
+          (sym!{{Global.Carrier (Degrees.previous z)}} _ _ (#commutes{Cell.map} z value))
+          (congr!{{Global.Carrier z} {Global.Carrier (Degrees.previous z)}} (#apply{Global.differential} z) _ _
+            (Degree.equation (#apply{f} (Based.generator c)) (member c))));
+  }
+  \definition law: \forall (c: Based.Cell) -> \parent.\parent.Cell[n := n, c := c].Degree[z := Degrees.previous z].Member
+    (#apply{(Algebra.Boundary[n := n, z := z].value f)} (Based.generator c)) := \fun (c: Based.Cell) => At[c := c].law;
+}

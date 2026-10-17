@@ -1,0 +1,50 @@
+\import \parent.\parent.Realization[].Stars[].Intersection[n := p, sigma := vertices] \as Intersection;
+\import singular_cohomology.Simplices[A := Intersection.Carrier, source := Intersection.topology] \as LocalSimplices;
+\import \parent.Vertical[p := p] \as Vertical;
+\definition inclusion(y: Intersection.Carrier): Realization.Carrier := y;
+\import topology.Continuity[A := Intersection.Carrier, B := Realization.Carrier].Corestriction[S := Intersection.Points] \as Into;
+\definition continuous: topology.Continuity[A := Intersection.Carrier, B := Realization.Carrier].Continuous Intersection.topology Realization.topology inclusion := Into.inclusionContinuous Realization.topology;
+\import singular_cohomology.Maps[A := Intersection.Carrier, B := Realization.Carrier, source := Intersection.topology, target := Realization.topology] \as Inclusion;
+\definition encode(q: N.Nat^)(sigma: LocalSimplices.Carrier q): Generator p q :=
+  \into[Data[p, q]](Data[p, q] { vertices := vertices, singular := Inclusion.postcompose q inclusion continuous sigma }, Generator p q) \by {
+    \fun (x: Geometric.Carrier q)(i: Fin.Fin (N.Nat^::succ p)) => (\bysub(Realization.Carrier, Intersection.Points, sigma x)) i
+  };
+\import Semisimplicial.Maps[X := LocalSimplices.object, Y := Vertical.object] \as Simplicial;
+\definition simplicial: Simplicial.Map := Simplicial.Map {
+  apply := encode,
+  faces := \fun (q: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ q)))(sigma: LocalSimplices.Carrier (N.Nat^::succ q)) =>
+    dataExt p q (encode q (LocalSimplices.face q i sigma)) (vertical p q i (encode (N.Nat^::succ q) sigma)) (\refl(vertices)) (\refl(Simplices.face q i (Inclusion.postcompose (N.Nat^::succ q) inclusion continuous sigma))),
+};
+\definition Common(q: N.Nat^)(sigma: Simplices.Carrier q): \Prop :=
+  \forall (x: Geometric.Carrier q)(i: Fin.Fin (N.Nat^::succ p)) -> Reals.Lt Real.zero (sigma x (vertices i));
+\module Lift(q: N.Nat^, sigma: Simplices.Carrier q, contained: Common q sigma) {
+  \definition apply(x: Geometric.Carrier q): Intersection.Carrier := \into[Realization.Carrier](sigma x, Intersection.Points) \by { contained x };
+  \import topology.Continuity[A := Geometric.Carrier q, B := Realization.Carrier].Corestriction[S := Intersection.Points] \as Restrict;
+  \definition continuous: topology.Continuity[A := Geometric.Carrier q, B := Intersection.Carrier].Continuous (Geometric.At[n := q].topology) Intersection.topology apply :=
+    Restrict.corestrictContinuous (Geometric.At[n := q].topology) Realization.topology apply (Simplices.At[n := q].continuous sigma);
+  \definition simplex: LocalSimplices.Carrier q := \into[LocalSimplices.At[n := q].Function](apply, LocalSimplices.Carrier q) \by { continuous };
+  \definition encoded: #singular{(encode q simplex)} = sigma :=
+    Simplices.ext q #singular{(encode q simplex)} sigma (\fun (x: Geometric.Carrier q) => \refl(sigma x));
+}
+\import singular_cohomology.SimplicialChains[].On[X := LocalSimplices.object] \as LocalChains;
+\import singular_cohomology.SimplicialChains[].On[X := Vertical.object] \as VerticalChains;
+\import LocalChains.Mapping[Y := Vertical.object] \as Mapping;
+\definition map: _ := Mapping.map simplicial;
+\definition onGenerator: \forall (q: N.Nat^)(sigma: LocalSimplices.Carrier q) ->
+  #apply{map} q (LocalChains.generator q sigma) = generator p q (encode q sigma) :=
+  \fun (q: N.Nat^) => Mapping.At[n := q].onGenerator simplicial;
+\import singular_cohomology.Calculations[A := Intersection.Carrier, source := Intersection.topology].ReducedContractible[]
+  .Native[contraction := Intersection.Contraction[].contraction] \as Contraction;
+\module Homotopy(q: N.Nat^) {
+  \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring]
+    .Homotopy[C := LocalChains.complex, D := LocalChains.complex] \as Homotopies;
+  \definition local: Modules.Hom[V := LocalChains.Carrier q, W := LocalChains.Carrier (N.Nat^::succ q), source := LocalChains.space q, target := LocalChains.space (N.Nat^::succ q)].Map :=
+    Modules.Hom[V := LocalChains.Carrier q, W := LocalChains.Carrier (N.Nat^::succ q), source := LocalChains.space q, target := LocalChains.space (N.Nat^::succ q)].Map {
+      apply := #apply{Contraction.homotopy} q,
+      addition := #addition{Contraction.homotopy} q,
+      scalar := #scalar{Contraction.homotopy} q,
+    };
+  \definition value(sigma: Simplices.Carrier q)(contained: Common q sigma): Carrier p (N.Nat^::succ q) :=
+    #apply{map} (N.Nat^::succ q) (#apply{local} (LocalChains.generator q (\parent.Lift[q := q, sigma := sigma, contained := contained].simplex)));
+}
+\module Zero;

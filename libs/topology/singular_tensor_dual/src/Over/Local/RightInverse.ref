@@ -1,0 +1,20 @@
+\import SourceSum.Mapping[W := R, target := Modules.scalarModule] \as MapSum;
+\definition evaluation(z: Primal.Carrier): Modules.Hom[V := Target.Carrier, W := R, source := Target.space, target := Modules.scalarModule].Map := Modules.Hom[V := Target.Carrier, W := R, source := Target.space, target := Modules.scalarModule].Map {
+  apply := \fun (f: Target.Carrier) => #apply{f} z,
+  addition := \fun (f, g: Target.Carrier) => \refl(add (#apply{f} z) (#apply{g} z)),
+  scalar := \fun (a: R)(f: Target.Carrier) => \refl(mul a (#apply{f} z)),
+};
+\import Modules.Hom[V := Target.Carrier, W := R, source := Target.space, target := Modules.scalarModule].Composition[U := Source.Carrier, domain := Source.space] \as EvaluationComposition;
+\definition evaluate(z: Primal.Carrier): Modules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Modules.scalarModule].Map := EvaluationComposition.compose (evaluation z) Pairing.forward;
+\import TargetMaps.Composition[U := V.Carrier, domain := V.space] \as InputComposition;
+\definition slice(h: Target.Carrier)(y: W.Carrier): Left.Carrier := InputComposition.compose h (Primal.leftLinear y);
+\definition point(h: Target.Carrier)(x: V.Carrier)(y: W.Carrier): #apply{(#apply{Pairing.forward} (#apply{backward} h))} (Primal.tensor x y) = #apply{h} (Primal.tensor x y) :=
+  trans!{R} _ _ _ (MapSum.law (evaluate (Primal.tensor x y)) Frame.indices (\fun (i: Frame.Index) => #apply{\parent.At[i := i].piece} h))
+    (trans!{R} _ _ _
+      (ScalarSum.congruent Frame.indices
+        (\fun (i: Frame.Index) => #apply{(#apply{Pairing.forward} (#apply{\parent.At[i := i].piece} h))} (Primal.tensor x y))
+        (\fun (i: Frame.Index) => mul (#apply{(frame.coordinate i)} x) (#apply{h} (Primal.tensor (frame.basis i) y)))
+        (\fun (i: Frame.Index) => Pairing.onPure (frame.coordinate i) (restriction i h) x y))
+      (sym!{R} _ _ (\parent.Expansion[].value (slice h y) x)));
+\import Primal.Universal[U := R, target := Modules.scalarModule] \as TensorEquality;
+\definition law(h: Target.Carrier): #apply{Pairing.forward} (#apply{backward} h) = h := TensorEquality.ext (#apply{Pairing.forward} (#apply{backward} h)) h (point h);

@@ -1,0 +1,16 @@
+\import \parent.At[n := n] \as Degree;
+\import \parent.Subdivision[].At[n := n].Inclusion[] \as Preserve;
+\import \root.Subdivision[A := A, source := source].Iterated[].At[n := n] \as Powers;
+\import N.Basic[].Def[] \as Natural;
+\import N.Basic[].Prop[] \as Bounds;
+\use Equality.transport;
+\definition At(x: Whole.Carrier n)(r: N.Nat^): \Prop := Degree.Image (Powers.apply r x);
+\definition Persistent(x: Whole.Carrier n)(r: N.Nat^): \Prop := \forall (s: N.Nat^) -> Bounds.Le r s -> At x s;
+\definition after: \forall (x: Whole.Carrier n)(r: N.Nat^) -> At x r -> \forall (k: N.Nat^) -> At x (Natural.add r k) :=
+  \fun (x: Whole.Carrier n)(r: N.Nat^)(member: At x r) => \induction (k: N.Nat^) \return At x (Natural.add r k) \with {
+    | zero: member
+    | succ: \fun (k: N.Nat^)(previous: At x (Natural.add r k)) => Preserve.preserves (Powers.apply (Natural.add r k) x) previous
+  };
+\definition law: \forall (x: Whole.Carrier n)(r: N.Nat^) -> At x r -> Persistent x r :=
+  \fun (x: Whole.Carrier n)(r: N.Nat^)(member: At x r)(s: N.Nat^)(later: Bounds.Le r s) =>
+    transport!{N.Nat^} (At x) _ _ (Bounds.addSubOfLe r s later) (after x r member (Natural.sub s r));

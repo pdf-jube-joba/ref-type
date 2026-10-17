@@ -1,0 +1,27 @@
+\import Cochains.At[C := complex, z := z] \as Source;
+
+\module Component(i: Index);
+\definition homologyFamily: Modules.Family[Index] := Modules.Family[Index] {
+  Carrier := \fun (i: Index) => Component[i := i].Carrier,
+  space := \fun (i: Index) => Component[i := i].space,
+};
+\import Modules.Product[Index := Index, family := homologyFamily] \as Product;
+\import Modules.Hom[V := Source.Cohomology, W := Product.Carrier, source := Source.cohomologySpace, target := Product.space] \as Maps;
+\definition forward: Maps.Map := Maps.Map {
+  apply := \fun (q: Source.Cohomology)(i: Index) => #apply{Component[i := i].map} q,
+  addition := \fun (q, r: Source.Cohomology) =>
+    \axiom:funext((\fun (i: Index) => #apply{Component[i := i].map} (#add{Source.cohomologySpace} q r)),
+      #add{Product.space} (\fun (i: Index) => #apply{Component[i := i].map} q) (\fun (i: Index) => #apply{Component[i := i].map} r),
+      \fun (i: Index) => #addition{Component[i := i].map} q r),
+  scalar := \fun (a: I.Int^)(q: Source.Cohomology) =>
+    \axiom:funext((\fun (i: Index) => #apply{Component[i := i].map} (#smul{Source.cohomologySpace} a q)),
+      #smul{Product.space} a (\fun (i: Index) => #apply{Component[i := i].map} q),
+      \fun (i: Index) => #scalar{Component[i := i].map} a q),
+};
+\module Kernel;
+\module Surjection;
+\definition injective: \forall (q, r: Source.Cohomology) -> #apply{forward} q = #apply{forward} r -> q = r :=
+  Maps.injectiveOfZeroKernel forward Kernel[].zero;
+\import Modules.Isomorphism[V := Source.Cohomology, W := Product.Carrier, source := Source.cohomologySpace, target := Product.space].OfBijective[f := forward] \as Inverse;
+\definition isomorphism: Modules.Isomorphism[V := Source.Cohomology, W := Product.Carrier, source := Source.cohomologySpace, target := Product.space].Isomorphism :=
+  Inverse.isomorphism injective Surjection[].onto;

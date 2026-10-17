@@ -1,0 +1,25 @@
+\import \parent.Mapping[] \as Mapping;
+\import Complexes.Map[C := SourceQuotient.complex, D := TargetQuotient.complex].Invert[f := Mapping.map] \as Inverse;
+\definition bijective: Inverse.Bijective := Inverse.Bijective {
+  injective := \induction (z: I.Int^) \return \forall (x, y: SourceQuotient.Carrier z) -> #apply{Mapping.map} z x = #apply{Mapping.map} z y -> x = y \with {
+    | ofNat: \fun (n: N.Nat^) => \parent.Degree[n := n].Comparison[].injective
+    | negSucc: \fun (n: N.Nat^) => \parent.Negative[n := n].injective
+  },
+  onto := \induction (z: I.Int^) \return \forall (y: TargetQuotient.Carrier z) -> \exists { x: SourceQuotient.Carrier z \where #apply{Mapping.map} z x = y } \with {
+    | ofNat: \fun (n: N.Nat^) => \parent.Degree[n := n].Comparison[].onto
+    | negSucc: \fun (n: N.Nat^) => \parent.Negative[n := n].onto
+  },
+};
+\definition chainIsomorphism: Complexes.Isomorphism[C := SourceQuotient.complex, D := TargetQuotient.complex].Isomorphism := Inverse.isomorphism bijective;
+\module At(z: I.Int^) {
+  \import Complexes.Isomorphism[C := SourceQuotient.complex, D := TargetQuotient.complex].At[z := z] \as Native;
+  \definition isomorphism: _ := Native.isomorphism chainIsomorphism;
+}
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing]
+    .IntegerIsomorphism[P := SourceQuotient.complex, Q := TargetQuotient.complex, N := coefficients].On[e := chainIsomorphism] \as Native;
+  \definition cochainIsomorphism: _ := Native.isomorphism;
+  \module At(z: I.Int^) {
+    \definition isomorphism: _ := Native.At[z := z].isomorphism;
+  }
+}

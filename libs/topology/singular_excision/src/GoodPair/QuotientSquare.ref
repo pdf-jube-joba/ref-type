@@ -1,0 +1,81 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import Geometry.On[pair := pair] \as Topology;
+\import algebraic_topology.Collapse[A := A, subset := subset] \as Quotient;
+\import Quotient.Open[source := source].On[neighborhood := Topology.neighborhood] \as Neighborhood;
+\import topology.Topology[Carrier := Quotient.Carrier] \as QuotientSpace;
+\definition basepoint: Quotient.Carrier := Quotient.class Topology.point;
+\definition singleton: \Pow Quotient.Carrier := QuotientSpace.Singleton basepoint;
+\definition image: \Pow Quotient.Carrier := Neighborhood.image;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as OriginalSource;
+\import singular_cohomology.Relative[A := A, source := source, subset := Topology.region] \as ExpandedSource;
+\import singular_cohomology.Relative[A := Quotient.Carrier, source := Quotient.topology source, subset := singleton] \as OriginalTarget;
+\import singular_cohomology.Relative[A := Quotient.Carrier, source := Quotient.topology source, subset := image] \as ExpandedTarget;
+\import OriginalSource.Maps[B := A].Over[target := source, targetSubset := Topology.region] \as SourceMaps;
+\import OriginalTarget.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := image] \as TargetMaps;
+\import ExpandedSource.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := image] \as ExpandedMaps;
+\import topology.Maps[A := A, B := A].Identity[] \as SourceIdentity;
+\import topology.Maps[A := Quotient.Carrier, B := Quotient.Carrier].Identity[] \as TargetIdentity;
+\definition sourceMap: SourceMaps.Map := \into[A -> A]((\fun (x: A) => x), SourceMaps.Map) \by {
+  SourceMaps.Laws[\fun (x: A) => x] {
+    continuous := SourceIdentity.continuous source,
+    contained := \fun (x: OriginalSource.SubspaceCarrier) => #contains{Topology.neighborhood} x (\bysub(A, subset, x)),
+  }
+};
+\definition imageContains: QuotientSpace.Member image basepoint := Neighborhood.toImage Topology.point
+  (#contains{Topology.neighborhood} Topology.point (\bysub(A, subset, Topology.point)));
+\definition targetMap: TargetMaps.Map := \into[Quotient.Carrier -> Quotient.Carrier]((\fun (q: Quotient.Carrier) => q), TargetMaps.Map) \by {
+  TargetMaps.Laws[\fun (q: Quotient.Carrier) => q] {
+    continuous := TargetIdentity.continuous (Quotient.topology source),
+    contained := \fun (x: OriginalTarget.SubspaceCarrier) => \idelim basepoint = x
+      \with q: Quotient.Carrier => QuotientSpace.Member image q \by {
+        base: imageContains, equality: sym!{Quotient.Carrier} _ _ (\bysub(Quotient.Carrier, singleton, x))
+      },
+  }
+};
+\definition expandedMap: ExpandedMaps.Map := \into[A -> Quotient.Carrier](Quotient.class, ExpandedMaps.Map) \by {
+  ExpandedMaps.Laws[Quotient.class] {
+    continuous := Quotient.projectionContinuous source,
+    contained := \fun (x: ExpandedSource.SubspaceCarrier) => Neighborhood.toImage x (\bysub(A, Topology.region, x)),
+  }
+};
+\import OriginalSource.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := singleton] \as QuotientMaps;
+\definition quotientMap: QuotientMaps.Map := \into[A -> Quotient.Carrier](Quotient.class, QuotientMaps.Map) \by {
+  QuotientMaps.Laws[Quotient.class] {
+    continuous := Quotient.projectionContinuous source,
+    contained := \fun (x: OriginalSource.SubspaceCarrier) => Quotient.collapsed x Topology.point
+      (\bysub(A, subset, x)) (\bysub(A, subset, Topology.point)),
+  }
+};
+\import OriginalSource.Maps[B := A].Over[target := source, targetSubset := Topology.region]
+  .Composition[C := Quotient.Carrier].Over[final := Quotient.topology source, finalSubset := image] \as Left;
+\import QuotientMaps.Composition[C := Quotient.Carrier].Over[final := Quotient.topology source, finalSubset := image] \as Right;
+\definition mapEquality: Left.compose sourceMap expandedMap = Right.compose quotientMap targetMap :=
+  \refl(Left.compose sourceMap expandedMap);
+\import OriginalSource.Maps[B := A].Over[target := source, targetSubset := Topology.region].On[f := sourceMap].Integer[] \as SourceAction;
+\import OriginalTarget.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := image].On[f := targetMap].Integer[] \as TargetAction;
+\import ExpandedSource.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := image].On[f := expandedMap].Integer[] \as ExpandedAction;
+\import QuotientMaps.On[f := quotientMap].Integer[] \as QuotientAction;
+\import OriginalSource.Maps[B := Quotient.Carrier].Over[target := Quotient.topology source, targetSubset := image] \as Direct;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import Chains.Map[C := OriginalSource.complex, D := ExpandedTarget.complex] \as ChainMaps;
+\import Chains.Map[C := ExpandedSource.complex, D := ExpandedTarget.complex].Composition[B := OriginalSource.complex] \as LeftComposition;
+\import Chains.Map[C := OriginalTarget.complex, D := ExpandedTarget.complex].Composition[B := OriginalSource.complex] \as RightComposition;
+\definition action(f: Direct.Map): ChainMaps.Map := Direct.On[f := f].Integer[].map;
+\definition chainLaw: LeftComposition.compose ExpandedAction.map SourceAction.map = RightComposition.compose TargetAction.map QuotientAction.map :=
+  trans!{ChainMaps.Map} _ _ _ (Left.On[f := sourceMap, g := expandedMap].chainLaw)
+    (trans!{ChainMaps.Map} _ _ _ (congr!{Direct.Map ChainMaps.Map} action _ _ mapEquality)
+      (sym!{ChainMaps.Map} _ _ (Right.On[f := quotientMap, g := targetMap].chainLaw)));
+\definition sourceChainMap: Chains.Map[C := OriginalSource.complex, D := ExpandedSource.complex].Map := SourceAction.map;
+\definition targetChainMap: Chains.Map[C := OriginalTarget.complex, D := ExpandedTarget.complex].Map := TargetAction.map;
+\definition expandedChainMap: Chains.Map[C := ExpandedSource.complex, D := ExpandedTarget.complex].Map := ExpandedAction.map;
+\definition quotientChainMap: Chains.Map[C := OriginalSource.complex, D := OriginalTarget.complex].Map := QuotientAction.map;
+\module Homology(z: I.Int^);
+\module With(coefficients: Modules.Bundle) {
+  \module At(z: I.Int^);
+}

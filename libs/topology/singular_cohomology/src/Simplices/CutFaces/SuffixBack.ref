@@ -1,0 +1,22 @@
+\import \parent.\parent.Reindex[m := total, n := higher].Composition[k := q] \as NativeComposition;
+\import \parent.\parent.Reindex[m := N.Nat^::succ q, n := higher].Composition[k := q] \as RightComposition;
+\import \parent.\parent.Reindex[m := q, n := higher] \as Direct;
+\definition leftIndices(j: Fin.Fin (N.Nat^::succ q))(k: Fin.Fin (N.Nat^::succ q)): Fin.Fin (N.Nat^::succ higher) := NativeFace.skip (suffix j) (CutIndices.backIndex k);
+\definition rightIndices(j: Fin.Fin (N.Nat^::succ q))(k: Fin.Fin (N.Nat^::succ q)): Fin.Fin (N.Nat^::succ higher) := RightIndices.backIndex (RightFace.skip (Fin.succ (N.Nat^::succ q) j) k);
+\definition indices: \forall (j: Fin.Fin (N.Nat^::succ q)) -> leftIndices j = rightIndices j :=
+  \fun (j: Fin.Fin (N.Nat^::succ q)) => \axiom:funext(leftIndices j, rightIndices j, \fun (k: Fin.Fin (N.Nat^::succ q)) => trans!{N.Nat^} _ _ _
+    (NativeFace.value (suffix j) (CutIndices.backIndex k))
+    (trans!{N.Nat^} _ _ _ (Positions.translation p (N.Nat^::succ j) k)
+      (congr!{N.Nat^ N.Nat^} (Nat.add p) _ _ (sym!{N.Nat^} _ _ (RightFace.value (Fin.succ (N.Nat^::succ q) j) k)))));
+\definition rightFlat: \forall (j: Fin.Fin (N.Nat^::succ q))(sigma: Carrier higher) ->
+  face q (Fin.succ (N.Nat^::succ q) j) (Right.back sigma) = Direct.apply (rightIndices j) sigma :=
+  \fun (j: Fin.Fin (N.Nat^::succ q))(sigma: Carrier higher) => trans!{{Carrier q}} _ _ _
+    (RightFace.law (Fin.succ (N.Nat^::succ q) j) (Right.back sigma))
+    (RightComposition.law RightIndices.backIndex (RightFace.skip (Fin.succ (N.Nat^::succ q) j)) sigma);
+\definition law: \forall (j: Fin.Fin (N.Nat^::succ q))(sigma: Carrier higher) ->
+  Cut.back (face total (suffix j) sigma) = face q (Fin.succ (N.Nat^::succ q) j) (Right.back sigma) :=
+  \fun (j: Fin.Fin (N.Nat^::succ q))(sigma: Carrier higher) => trans!{{Carrier q}} _ _ _
+    (congr!{{Carrier total} {Carrier q}} Cut.back _ _ (NativeFace.law (suffix j) sigma))
+    (trans!{{Carrier q}} _ _ _ (NativeComposition.law (NativeFace.skip (suffix j)) CutIndices.backIndex sigma)
+      (trans!{{Carrier q}} _ _ _ (congr!{Direct.Function {Carrier q}} (\fun (f: Direct.Function) => Direct.apply f sigma) (leftIndices j) (rightIndices j) (indices j))
+        (sym!{{Carrier q}} _ _ (rightFlat j sigma))));

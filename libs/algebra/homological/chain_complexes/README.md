@@ -12,6 +12,8 @@
 | `Chain.Over.Shift` / `Cone` / `ConeIdentity` | 符号 \(-d\) のシフト、mapping cone、恒等写像の cone の収縮 |
 | `Chain.Over.Zero` / `Concentrated` / `ZeroDifferential.At` | 零複体、単一次数、零微分のホモロジー |
 | `Chain.Over.Map.Kernel` | 項ごとの核、全射な比較写像の核の完全性から得るホモロジー同型 |
+| `Chain.Over.QuotientMapping.On` | 可換な正方形が誘導する商複体の写像と生成元での公式 |
+| `Chain.Over.ShortExact.Morphism.Diagram` / `Integer.Over.ShortExact.Morphism.Diagram` | 長完全列の自然性と五項完全列による相対群の比較 |
 | `Chain.Over.Reverse` / `Reversal.Over.ToChain` | 次数の符号反転による鎖・余鎖の変換 |
 | `ModuleCategory.Over.On` / `ShortExactCategory.Over.On` | 加群族の前加法圏、短完全列の圏と接続写像の自然性 |
 | `CochainEquivalence.Over.Of.With` | 余鎖ホモトピー同値によるコホモロジー同型 |

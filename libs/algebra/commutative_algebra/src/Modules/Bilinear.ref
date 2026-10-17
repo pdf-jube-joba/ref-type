@@ -1,0 +1,39 @@
+\structure Data: \Set { apply: A.Carrier -> B.Carrier -> C.Carrier }
+\structure Laws[f: Data]: \Prop {
+  addLeft: \forall (x, y: A.Carrier)(z: B.Carrier) -> #apply{f} (#add{A.space} x y) z = #add{C.space} (#apply{f} x z) (#apply{f} y z),
+  addRight: \forall (x: A.Carrier)(y, z: B.Carrier) -> #apply{f} x (#add{B.space} y z) = #add{C.space} (#apply{f} x y) (#apply{f} x z),
+  scaleLeft: \forall (a: R)(x: A.Carrier)(y: B.Carrier) -> #apply{f} (#smul{A.space} a x) y = #smul{C.space} a (#apply{f} x y),
+  scaleRight: \forall (a: R)(x: A.Carrier)(y: B.Carrier) -> #apply{f} x (#smul{B.space} a y) = #smul{C.space} a (#apply{f} x y),
+}
+\definition Map: \Set := \Cast[Data] ({ f: Data \where Laws[f] });
+\definition laws(f: Map): Laws[f] := \bysub(Data, { g: Data \where Laws[g] }, f);
+\definition dataExt: \forall (f, g: Data) -> #apply{f} = #apply{g} -> f = g :=
+  \induction (f: Data) \return \forall (g: Data) -> #apply{f} = #apply{g} -> f = g \with {
+    | # : \fun (f: A.Carrier -> B.Carrier -> C.Carrier) =>
+      \induction (g: Data) \return f = #apply{g} -> Data::# f = g \with {
+        | # : \fun (g: A.Carrier -> B.Carrier -> C.Carrier)(same: f = g) =>
+          congr!{{A.Carrier -> B.Carrier -> C.Carrier} Data} (\fun (h: A.Carrier -> B.Carrier -> C.Carrier) => Data::# h) _ _ same
+      }
+  };
+\definition ext: \forall (f, g: Map) -> (\forall (x: A.Carrier)(y: B.Carrier) -> #apply{f} x y = #apply{g} x y) -> f = g :=
+  \fun (f, g: Map)(same: _) => dataExt f g
+    (\axiom:funext(#apply{f}, #apply{g}, \fun (x: A.Carrier) => \axiom:funext(#apply{f} x, #apply{g} x, same x)));
+\import Modules.Hom[V := A.Carrier, W := C.Carrier, source := A.space, target := C.space] \as LeftMaps;
+\import Modules.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as RightMaps;
+\definition leftAt(f: Map)(y: B.Carrier): LeftMaps.Map := LeftMaps.Map {
+  apply := \fun (x: A.Carrier) => #apply{f} x y,
+  addition := \fun (x, z: A.Carrier) => #addLeft{(laws f)} x z y,
+  scalar := \fun (a: R)(x: A.Carrier) => #scaleLeft{(laws f)} a x y,
+};
+\definition rightAt(f: Map)(x: A.Carrier): RightMaps.Map := RightMaps.Map {
+  apply := #apply{f} x,
+  addition := #addRight{(laws f)} x,
+  scalar := \fun (a: R)(y: B.Carrier) => #scaleRight{(laws f)} a x y,
+};
+\import Modules.Of[V := A.Carrier, space := A.space].Submodule[] \as LeftSubmodules;
+\import Modules.Of[V := B.Carrier, space := B.space].Submodule[] \as RightSubmodules;
+\module Quotients(S: LeftSubmodules.Submodule, T: RightSubmodules.Submodule);
+\module Operations;
+\module Precompose(D, E: Modules.Bundle);
+\module Postcompose(D: Modules.Bundle);
+\module Properties;

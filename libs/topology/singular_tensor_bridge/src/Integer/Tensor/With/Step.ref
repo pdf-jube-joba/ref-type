@@ -1,0 +1,73 @@
+\definition z: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
+\import \parent.Positive[n := N.Nat^::succ n] \as P;
+\import \parent.Positive[n := n] \as Q;
+\import Target.Step[n := n] \as NativeStep;
+\import Source.Step[n := z] \as SignedStep;
+\import Source.Term[n := I.Int^::ofNat n] \as ST;
+\import Source.Term[n := z] \as SS;
+\import Target.Degree[n := n] \as NT;
+\import Target.Degree[n := N.Nat^::succ n] \as NS;
+\import Modules.Hom[V := NT.Carrier, W := ST.Carrier, source := NT.space, target := ST.space] \as BackwardMaps;
+\module HorizontalBase(q: Double.Second (N.Nat^::succ n) N.Nat^::zero);
+\module HorizontalPositive(p: N.Nat^, q: Double.Second (N.Nat^::succ n) (N.Nat^::succ p));
+\module VerticalBase(p: Double.First (N.Nat^::succ n) N.Nat^::zero);
+\module VerticalPositive(q: N.Nat^, p: Double.First (N.Nat^::succ n) (N.Nat^::succ q));
+\definition HorizontalLaw(p: N.Nat^): \Prop := \forall (q: Double.Second (N.Nat^::succ n) p)(x: NativeTensor.family.Carrier p q) ->
+  #apply{Q.backward} (#apply{(NativeStep.horizontal p q)} x) =
+    #apply{(SignedStep.Component[i := Indices.signed (N.Nat^::succ n) (Double.index (N.Nat^::succ n) p q)].horizontal)} x;
+\definition horizontal: \forall (p: N.Nat^) -> HorizontalLaw p :=
+  \induction (p: N.Nat^) \return HorizontalLaw p \with {
+    | zero: \fun (q: Double.Second (N.Nat^::succ n) N.Nat^::zero)(x: NativeTensor.family.Carrier N.Nat^::zero q) => HorizontalBase[q := q].law x
+    | succ: \fun (p: N.Nat^)(unused: HorizontalLaw p)(q: Double.Second (N.Nat^::succ n) (N.Nat^::succ p))
+        (x: NativeTensor.family.Carrier (N.Nat^::succ p) q) => HorizontalPositive[p := p, q := q].law x
+  };
+\definition VerticalLaw(q: N.Nat^): \Prop := \forall (p: Double.First (N.Nat^::succ n) q)(x: NativeTensor.family.Carrier p q) ->
+  #apply{Q.backward} (#apply{(NativeStep.vertical q p)} x) =
+    #apply{(SignedStep.Component[i := Indices.signed (N.Nat^::succ n) (Double.reverseIndex (N.Nat^::succ n) q p)].vertical)} x;
+\definition vertical: \forall (q: N.Nat^) -> VerticalLaw q :=
+  \induction (q: N.Nat^) \return VerticalLaw q \with {
+    | zero: \fun (p: Double.First (N.Nat^::succ n) N.Nat^::zero)(x: NativeTensor.family.Carrier p N.Nat^::zero) => VerticalBase[p := p].law x
+    | succ: \fun (q: N.Nat^)(unused: VerticalLaw q)(p: Double.First (N.Nat^::succ n) (N.Nat^::succ q))
+        (x: NativeTensor.family.Carrier p (N.Nat^::succ q)) => VerticalPositive[q := q, p := p].law x
+  };
+\import BackwardMaps.Composition[U := NS.Carrier, domain := NS.space] \as LeftCompose;
+\import Modules.Hom[V := SS.Carrier, W := ST.Carrier, source := SS.space, target := ST.space].Composition[U := NS.Carrier, domain := NS.space] \as RightCompose;
+\import Modules.Hom[V := NS.Carrier, W := ST.Carrier, source := NS.space, target := ST.space] \as Maps;
+\definition left: Maps.Map := LeftCompose.compose Q.backward NativeStep.differential;
+\definition right: Maps.Map := RightCompose.compose SignedStep.differential P.backward;
+\module At(i: Double.Index (N.Nat^::succ n)) {
+  \definition j: Grading.Index z := Indices.signed (N.Nat^::succ n) i;
+  \import NativeStep.Component[i := i] \as NativeAt;
+  \import SignedStep.Component[i := j] \as SignedAt;
+  \import NS.Component[i := i] \as Injection;
+  \definition leftValue(x: NativeTensor.family.Carrier #first{i} #second{i}):
+    #apply{left} (#apply{Injection.injection} x) = #add{ST.space} (#apply{SignedAt.horizontal} x) (#apply{SignedAt.vertical} x) :=
+    trans!{ST.Carrier} _ _ _
+      (congr!{NT.Carrier ST.Carrier} (#apply{Q.backward}) _ _ (NativeStep.onComponent i x))
+      (trans!{ST.Carrier} _ _ _
+        (#addition{Q.backward} (#apply{(NativeStep.horizontal #first{i} NativeAt.q)} x) (#apply{(NativeStep.vertical #second{i} NativeAt.p)} x))
+        (congr2!{ST.Carrier ST.Carrier ST.Carrier} (#add{ST.space}) _ _ _ _
+          (horizontal #first{i} NativeAt.q x) (vertical #second{i} NativeAt.p x)));
+  \definition rightValue(x: NativeTensor.family.Carrier #first{i} #second{i}):
+    #apply{right} (#apply{Injection.injection} x) = #add{ST.space} (#apply{SignedAt.horizontal} x) (#apply{SignedAt.vertical} x) :=
+    trans!{ST.Carrier} _ _ _
+      (congr!{SS.Carrier ST.Carrier} (#apply{SignedStep.differential}) _ _ (P.backwardOnInjection i x))
+      (congr2!{ST.Carrier ST.Carrier ST.Carrier} (#add{ST.space}) _ _ _ _
+        (SignedStep.horizontalOnInjection j x) (SignedStep.verticalOnInjection j x));
+  \definition law(x: NativeTensor.family.Carrier #first{i} #second{i}):
+    #apply{left} (#apply{Injection.injection} x) = #apply{right} (#apply{Injection.injection} x) :=
+    trans!{ST.Carrier} _ _ _ (leftValue x) (sym!{ST.Carrier} _ _ (rightValue x));
+}
+\import Modules.DirectSum[Index := Double.Index (N.Nat^::succ n), family := NS.family].To[W := ST.Carrier, target := ST.space] \as Equality;
+\definition equality: left = right := Equality.ext left right (\fun (i: Double.Index (N.Nat^::succ n)) => At[i := i].law);
+\definition commutes(x: NS.Carrier): #apply{SignedStep.differential} (#apply{P.backward} x) = #apply{Q.backward} (#apply{NativeStep.differential} x) :=
+  sym!{ST.Carrier} _ _ (congr!{Maps.Map ST.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality);
+\definition backwardInjective(a, b: NT.Carrier)(equal: #apply{Q.backward} a = #apply{Q.backward} b): a = b :=
+  trans!{NT.Carrier} _ _ _ (sym!{NT.Carrier} _ _ (Q.rightInverse a))
+    (trans!{NT.Carrier} _ _ _ (congr!{ST.Carrier NT.Carrier} (#apply{Q.forward}) _ _ equal) (Q.rightInverse b));
+\definition forwardCommutes(x: SS.Carrier): #apply{NativeStep.differential} (#apply{P.forward} x) = #apply{Q.forward} (#apply{SignedStep.differential} x) :=
+  backwardInjective _ _
+    (trans!{ST.Carrier} _ _ _ (sym!{ST.Carrier} _ _ (commutes (#apply{P.forward} x)))
+      (trans!{ST.Carrier} _ _ _
+        (congr!{SS.Carrier ST.Carrier} (#apply{SignedStep.differential}) _ _ (P.leftInverse x))
+        (sym!{ST.Carrier} _ _ (Q.leftInverse (#apply{SignedStep.differential} x)))));

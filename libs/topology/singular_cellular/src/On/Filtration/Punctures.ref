@@ -1,0 +1,74 @@
+\import singular_cellular_algebra.Algebra[] \as Algebra;
+\import \parent.Stage[limit := N.Nat^::succ n] \as Upper;
+\import \parent.Stage[limit := n] \as Lower;
+\import std.Logic[].Classical[] \as Classical;
+\import dedekind_reals.DedekindReal[] \as R;
+\import real.Analysis[] \as Real;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Space.Finite[] \as Finite;
+\import Space.Compactness[] \as Compact;
+\definition centre(cell: Cells.CellData): A :=
+  #characteristic{cell} (Euclidean.Dimension[n := #dimension{cell}].Contraction[].origin);
+\structure CentreLaws[cell: Cells.CellData, x: A]: \Prop {
+  member: Cells.CellMember cells cell,
+  dimension: #dimension{cell} = n,
+  same: x = centre cell,
+}
+\definition piece(cell: Cells.CellData): \Pow A := { x: A \where CentreLaws[cell, x] };
+\definition Selected(cell: Cells.CellData): \Prop := Logic.And[Cells.CellMember cells cell, #dimension{cell} = n];
+\definition selectedPiece: \forall (cell: Cells.CellData) -> Selected cell -> piece cell = Space.Singleton (centre cell) :=
+  \fun (cell: Cells.CellData)(selected: _) => \axiom:setext(piece cell, Space.Singleton (centre cell),
+    \fun (x: A)(member: CentreLaws[cell, x]) => #same{member},
+    \fun (x: A)(same: _) => CentreLaws[cell, x] { member := #left{selected}, dimension := #right{selected}, same := same });
+\definition unselectedPiece: \forall (cell: Cells.CellData) -> Logic.Not (Selected cell) -> piece cell = Space.Empty :=
+  \fun (cell: Cells.CellData)(outside: _) => \axiom:setext(piece cell, Space.Empty,
+    \fun (x: A)(member: CentreLaws[cell, x]) => outside (Logic.And[_, _]::# (#member{member}) (#dimension{member})),
+    \fun (x: A)(impossible: Logic.False) => Logic.falseElim _ impossible);
+\definition pieceClosed: \forall (cell: Cells.CellData) -> Space.IsClosedIn source (piece cell) :=
+  \fun (cell: Cells.CellData) => either!{{(Classical.excludedMiddle (Selected cell))} {Space.IsClosedIn source (piece cell)}
+    {\fun (selected: _) => \idelim Space.Singleton (centre cell) = piece cell \with F: \Pow A => Space.IsClosedIn source F \by {
+      base: Compact.hausdorffT1 source (#hausdorff{laws}) (centre cell), equality: sym!{{\Pow A}} _ _ (selectedPiece cell selected)
+    }}
+    {\fun (outside: _) => \idelim Space.Empty = piece cell \with F: \Pow A => Space.IsClosedIn source F \by {
+      base: \parent.Closed[].emptyClosed, equality: sym!{{\Pow A}} _ _ (unselectedPiece cell outside)
+    }}
+  };
+\import \root.FiniteUnion[A := A, C := Cells.CellData, source := source, pieces := piece] \as Union;
+\definition centres: \Pow A := Union.union cells;
+\definition centresClosed: Space.IsClosedIn source centres := Union.closed cells (\fun (cell: Cells.CellData)(member: _) => pieceClosed cell);
+\definition region: \Pow Upper.Carrier := { x: Upper.Carrier \where Logic.Not (Space.Member centres x) };
+\import topology.Topology[Carrier := Upper.Carrier] \as UpperSpace;
+\definition regionOpen: UpperSpace.IsOpenIn Upper.topology region :=
+  Space.Subspace[S := subset (N.Nat^::succ n)].traceOpen source (Space.Complement centres) centresClosed;
+\definition centreNotLower: \forall (cell: Cells.CellData) -> Cells.CellMember cells cell -> #dimension{cell} = n ->
+  Logic.Not (Space.Member (subset n) (centre cell)) :=
+  \fun (cell: Cells.CellData)(member: _)(dimension: _)(lower: _) => Laws.zeroNeOne
+    (trans!{Real.Real} _ _ _
+      (sym!{Real.Real} _ _ (Euclidean.Dimension[n := #dimension{cell}].Contraction[].zeroSum
+        (std.Data[].FinSet[].elements (#dimension{cell}))))
+      (\parent.Interiors[].topBoundary n cell member dimension (Euclidean.Dimension[n := #dimension{cell}].Contraction[].origin) lower));
+\definition lowerIncluded: \forall (x: Upper.Carrier) -> Space.Member (subset n) x -> UpperSpace.Member region x :=
+  \fun (x: Upper.Carrier)(lower: _)(bad: _) => Union.eliminate cells x Logic.False
+    (\fun (cell: Cells.CellData)(present: _)(centre: CentreLaws[cell, x]) =>
+      centreNotLower cell (#member{centre}) (#dimension{centre})
+        (\idelim x = \parent.Punctures[n := n].centre cell \with a: A => Space.Member (subset n) a \by {
+          base: lower, equality: #same{centre}
+        })) bad;
+\import UpperSpace.Subspace[S := region] \as RegionSpace;
+\definition Carrier: \Set := RegionSpace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := RegionSpace.topology Upper.topology;
+\module Cell(cell: Cells.CellData, member: Cells.CellMember cells cell, dimension: #dimension{cell} = n);
+\module Motion;
+\module Deformation;
+\module GoodPair(point: Lower.Carrier);
+
+\module Excision;
+
+\definition neighborhood: Algebra.NeighborhoodPair := Algebra.NeighborhoodPair {
+  base := Algebra.SpacePair {
+    Carrier := Upper.Carrier, topology := Upper.topology,
+    subset := { x: Upper.Carrier \where Space.Member (subset n) x },
+  },
+  region := region, closed := Excision[].lowerClosed, open := regionOpen,
+  included := lowerIncluded, deformation := Deformation[].deformation,
+};

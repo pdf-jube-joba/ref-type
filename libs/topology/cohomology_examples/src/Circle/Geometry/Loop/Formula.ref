@@ -1,0 +1,57 @@
+\import \root.Circle[].Geometry[].Loop[] \as Loop;
+\import \parent.Disk[] \as Disk;
+\import singular_cellular.DiskSphere[n := zero] \as Quotient;
+\import Quotient.Scalars[] \as Scalars;
+\import algebraic_topology.Euclidean[].Dimension[n := one].Splitting[] \as Split;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import real.Analysis[].Distance[] \as Distance;
+\definition y(x: Simplex.Carrier one): Real.Real := upper x Coordinates.second;
+\definition x(x: Simplex.Carrier one): Real.Real := upper x Coordinates.first;
+\definition total: \forall (p: Simplex.Carrier one) -> Real.add (Real.mul (x p) (x p)) (Real.mul (y p) (y p)) = Real.one :=
+  \fun (p: Simplex.Carrier one) => trans!{Real.Real} _ _ _
+    (sym!{Real.Real} _ _ (Coordinates.normFormula (upper p)))
+    (\bysub(algebraic_topology.Euclidean[].Dimension[n := two].Coordinate, algebraic_topology.Euclidean[].Dimension[n := two].Boundary, upper p));
+\definition remaining: \forall (p: Simplex.Carrier one) -> Quotient.remaining (Disk.line p) = Real.mul (y p) (y p) :=
+  \fun (p: Simplex.Carrier one) => Laws.addCancelRight _ _ (Real.mul (x p) (x p))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add (Real.sub Real.one a) (Real.mul (x p) (x p))) _ _
+        (trans!{Real.Real} _ _ _ (Disk.norm p)
+          (sym!{Real.Real} _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (upperFirst p) (upperFirst p)))))
+      (trans!{Real.Real} _ _ _ (Distance.subAddCancel Real.one (Real.mul (x p) (x p)))
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.addComm (Real.mul (y p) (y p)) (Real.mul (x p) (x p))) (total p)))));
+\definition nonnegative: \forall (p: Simplex.Carrier one) -> R.Le Real.zero (y p) :=
+  \fun (p: Simplex.Carrier one) => R.leReplaceRight Real.zero
+    (Real.add (Real.mul (Root.sqrt (v p)) (Root.sqrt (u p))) (Real.mul (Root.sqrt (u p)) (Root.sqrt (v p)))) (y p)
+    (sym!{Real.Real} _ _ (upperSecond p))
+    (Laws.addNonnegative _ _
+      (Laws.fieldMulNonnegative _ _ (Root.nonnegative (v p)) (Root.nonnegative (u p)))
+      (Laws.fieldMulNonnegative _ _ (Root.nonnegative (u p)) (Root.nonnegative (v p))));
+\definition twiceSquare: \forall (a: Real.Real) -> Real.mul (Scalars.twice a) (Scalars.twice a) = Scalars.four (Real.mul a a) :=
+  \fun (a: Real.Real) => trans!{Real.Real} _ _ _ (Scalars.twiceMul a (Scalars.twice a))
+    (congr!{Real.Real Real.Real} Scalars.twice _ _ (Laws.fieldMulAdd a a a));
+\definition coefficient: \forall (p: Simplex.Carrier one) -> Quotient.coefficient (Disk.line p) = Scalars.twice (y p) :=
+  \fun (p: Simplex.Carrier one) => Root.squaresInjective _ _ (Root.nonnegative (Scalars.four (Quotient.remaining (Disk.line p))))
+    (Laws.addNonnegative (y p) (y p) (nonnegative p) (nonnegative p))
+    (trans!{Real.Real} _ _ _ (Quotient.coefficientSquared (Disk.line p))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Scalars.four _ _ (remaining p)) (sym!{Real.Real} _ _ (twiceSquare (y p)))));
+\definition first: \forall (p: Simplex.Carrier one) -> Quotient.map (Disk.line p) Coordinates.first = Loop.apply p Coordinates.first :=
+  \fun (p: Simplex.Carrier one) => trans!{Real.Real} _ _ _ (Split.headJoin (Quotient.height (Disk.line p)) (algebraic_topology.Euclidean[].Dimension[n := one].Contraction[].scale (Quotient.coefficient (Disk.line p)) (Disk.line p)))
+    (trans!{Real.Real} _ _ _
+      (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+        (trans!{Real.Real} _ _ _ (Disk.norm p) (sym!{Real.Real} _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (upperFirst p) (upperFirst p)))) (remaining p))
+      (sym!{Real.Real} _ _ (Powers.squareFirst (upper p))));
+\definition second: \forall (p: Simplex.Carrier one) -> Quotient.map (Disk.line p) Coordinates.second = Loop.apply p Coordinates.second :=
+  \fun (p: Simplex.Carrier one) => trans!{Real.Real} _ _ _
+    (congr!{{algebraic_topology.Euclidean[].Dimension[n := one].Coordinate} Real.Real}
+      (\fun (a: algebraic_topology.Euclidean[].Dimension[n := one].Coordinate) => a (Fin.zero zero)) _ _
+      (Split.tailJoin (Quotient.height (Disk.line p)) (algebraic_topology.Euclidean[].Dimension[n := one].Contraction[].scale (Quotient.coefficient (Disk.line p)) (Disk.line p))))
+    (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (coefficient p) (sym!{Real.Real} _ _ (upperFirst p)))
+      (trans!{Real.Real} _ _ _ (Scalars.twiceMul (y p) (x p))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add a (Real.mul (y p) (x p))) _ _ (Laws.fieldMulComm (y p) (x p)))
+          (sym!{Real.Real} _ _ (Powers.squareSecond (upper p))))));
+\definition law: \forall (p: Simplex.Carrier one) -> Quotient.map (Disk.line p) = Loop.apply p :=
+  \fun (p: Simplex.Carrier one) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Coordinates.leftInverse (Quotient.map (Disk.line p))))
+    (trans!{Carrier} _ _ _
+      (congr!{Circle.Carrier Carrier} Coordinates.backward _ _
+        (ComplexLaws.ext (Coordinates.forward (Quotient.map (Disk.line p))) (Coordinates.forward (Loop.apply p)) (first p) (second p)))
+      (Coordinates.leftInverse (Loop.apply p)));

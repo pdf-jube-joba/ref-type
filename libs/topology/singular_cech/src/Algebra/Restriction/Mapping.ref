@@ -1,0 +1,67 @@
+\import \parent.\parent.Restriction[C := D] \as Target;
+\import Signed.Map[C := C, D := D] \as Maps;
+\import Chains.Map[C := complex, D := Target.complex] \as NativeMaps;
+\definition map(f: Maps.Map): NativeMaps.Map := NativeMaps.Map {
+  apply := \fun (n: N.Nat^) => #apply{f} (degree n),
+  addition := \fun (n: N.Nat^) => #addition{f} (degree n),
+  scalar := \fun (n: N.Nat^) => #scalar{f} (degree n),
+  commutes := \fun (n: N.Nat^) => #commutes{f} (degree (N.Nat^::succ n)),
+};
+\import Signed.Homotopy[C := C, D := D] \as Homotopies;
+\import Signed.Prior[C := D] \as Prior;
+\import Chains.Homotopy[C := complex, D := Target.complex] \as NativeHomotopies;
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Transport;
+\module Zero(f, g: Maps.Map, h: Homotopies.Homotopy f g) {
+  \definition index: I.Int^ := degree N.Nat^::zero;
+  \import Modules.Laws[V := D.family.Carrier index, space := D.family.space index] \as Values;
+  \import algebra.Group[].Of[Carrier := D.family.Carrier index, group := Values.additive] \as Group;
+  \definition law(negative: NegativeVanishes)(x: C.family.Carrier index):
+    #add{(D.family.space index)} (#apply{f} index x) (#neg{(D.family.space index)} (#apply{g} index x)) =
+      #apply{D.differential} (degree (N.Nat^::succ N.Nat^::zero)) (#apply{h} index x) :=
+    trans!{{D.family.Carrier index}} _ _ _ (#equation{h} index x)
+      (trans!{{D.family.Carrier index}} _ _ _
+        (congr2!{{D.family.Carrier index} {D.family.Carrier index} {D.family.Carrier index}} (#add{(D.family.space index)}) _ _ _ _
+          (Transport.castRefl D.family.Carrier index _)
+          (trans!{{D.family.Carrier index}} _ _ _
+            (congr!{{C.family.Carrier (Degrees.previous index)} {D.family.Carrier index}} (Homotopies.shifted h index) _ _ (negative N.Nat^::zero (#apply{C.differential} index x)))
+            (Homotopies.At[k := index].shiftedZero f g h)))
+        (Group.zeroRight _));
+}
+\module Positive(f, g: Maps.Map, h: Homotopies.Homotopy f g, n: N.Nat^) {
+  \definition index: I.Int^ := degree (N.Nat^::succ n);
+  \definition law(x: C.family.Carrier index):
+    #add{(D.family.space index)} (#apply{f} index x) (#neg{(D.family.space index)} (#apply{g} index x)) =
+      #add{(D.family.space index)} (#apply{D.differential} (degree (N.Nat^::succ (N.Nat^::succ n))) (#apply{h} index x))
+        (#apply{h} (degree n) (#apply{C.differential} index x)) :=
+    trans!{{D.family.Carrier index}} _ _ _ (#equation{h} index x)
+      (congr2!{{D.family.Carrier index} {D.family.Carrier index} {D.family.Carrier index}} (#add{(D.family.space index)}) _ _ _ _
+        (Transport.castRefl D.family.Carrier index _) (Transport.castRefl D.family.Carrier index _));
+}
+\module HomotopyData(f, g: Maps.Map, h: Homotopies.Homotopy f g) {
+  \definition data: NativeHomotopies.Data := NativeHomotopies.Data { apply := \fun (n: N.Nat^) => #apply{h} (degree n) };
+  \import \parent.Zero[f := f, g := g, h := h] \as AtZero;
+  \definition linearLaws: NativeHomotopies.LinearLaws[data] := NativeHomotopies.LinearLaws[data] {
+    addition := \fun (n: N.Nat^) => #addition{h} (degree n),
+    scalar := \fun (n: N.Nat^) => #scalar{h} (degree n),
+  };
+  \definition successors: \forall (n: N.Nat^)(x: C.family.Carrier (degree (N.Nat^::succ n))) ->
+    #add{(D.family.space (degree (N.Nat^::succ n)))} (#apply{f} (degree (N.Nat^::succ n)) x)
+      (#neg{(D.family.space (degree (N.Nat^::succ n)))} (#apply{g} (degree (N.Nat^::succ n)) x)) =
+    #add{(D.family.space (degree (N.Nat^::succ n)))}
+      (#apply{D.differential} (degree (N.Nat^::succ (N.Nat^::succ n))) (#apply{h} (degree (N.Nat^::succ n)) x))
+      (#apply{h} (degree n) (#apply{C.differential} (degree (N.Nat^::succ n)) x)) :=
+    \fun (n: N.Nat^) => \parent.Positive[f := f, g := g, h := h, n := n].law;
+  \definition laws(vanishing: NegativeVanishes): NativeHomotopies.Laws[map f, map g, data] :=
+    NativeHomotopies.Laws[map f, map g, data] {
+      addition := #addition{linearLaws},
+      scalar := #scalar{linearLaws},
+      zeroEquation := AtZero.law vanishing,
+      successorEquation := successors,
+    };
+  \definition value(vanishing: NegativeVanishes): NativeHomotopies.Homotopy (map f) (map g) :=
+    \into[NativeHomotopies.Data](data, NativeHomotopies.Homotopy (map f) (map g)) \by { laws vanishing };
+}
+\definition homotopy(f, g: Maps.Map)(h: Homotopies.Homotopy f g)(vanishing: NegativeVanishes): NativeHomotopies.Homotopy (map f) (map g) :=
+  HomotopyData[f := f, g := g, h := h].value vanishing;
+\import Signed.Equivalence[C := C, D := D] \as Compared;
+\module Equivalence(e: Compared.Equivalence, sourceNegative: NegativeVanishes, targetNegative: Target.NegativeVanishes);

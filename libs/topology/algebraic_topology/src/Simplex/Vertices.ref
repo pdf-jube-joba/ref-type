@@ -1,0 +1,61 @@
+\import Sums.Linear[] \as Linear;
+\import std.Data[].Bool[] \as Bool;
+\import N.Basic[].Def[] \as Natural;
+\definition basisNonnegative: \forall (n: N.Nat^)(i, j: Fin.Fin n) -> R.Le Real.zero (Linear.basis n i j) :=
+  \fun (n: N.Nat^)(i, j: Fin.Fin n) =>
+    (\induction (test: Bool.Bool^) \return R.Le Real.zero (Bool.ite Real.Real test Real.one Real.zero) \with {
+      | false: R.leRefl Real.zero
+      | true: Laws.oneNonnegative
+    }) (Natural.eqb j i);
+\definition headTotal: \forall (n: N.Nat^) -> Sums.sum (N.Nat^::succ n) (Linear.basis (N.Nat^::succ n) (Fin.zero n)) = Real.one :=
+  \fun (n: N.Nat^) => trans!{Real.Real} _ _ _
+    (congr!{{Coordinate (N.Nat^::succ n)} Real.Real} (Sums.sum (N.Nat^::succ n)) _ _ (Linear.Step[n := n].headBasis))
+    (trans!{Real.Real} _ _ _ (extendSum n Real.one (\fun (_: Fin.Fin n) => Real.zero))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ (Sums.zeroSum n)) (Laws.addZeroRight Real.one)));
+\definition basisTotal: \forall (n: N.Nat^)(i: Fin.Fin n) -> Sums.sum n (Linear.basis n i) = Real.one :=
+  \induction (n: N.Nat^) \return \forall (i: Fin.Fin n) -> Sums.sum n (Linear.basis n i) = Real.one \with {
+    | zero: \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (n: N.Nat^)(previous: _) => Fin.cases n
+        (\fun (i: Fin.Fin (N.Nat^::succ n)) => Sums.sum (N.Nat^::succ n) (Linear.basis (N.Nat^::succ n) i) = Real.one)
+        (headTotal n)
+        (\fun (i: Fin.Fin n) => trans!{Real.Real} _ _ _
+          (congr!{{Coordinate (N.Nat^::succ n)} Real.Real} (Sums.sum (N.Nat^::succ n)) _ _ (Linear.Step[n := n].tailBasis i))
+          (trans!{Real.Real} _ _ _ (extendSum n Real.zero (Linear.basis n i))
+            (trans!{Real.Real} _ _ _ (Laws.addZeroLeft (Sums.sum n (Linear.basis n i))) (previous i))))
+  };
+\definition vertex(n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n)): Carrier n :=
+  \into[Coordinate (N.Nat^::succ n)](Linear.basis (N.Nat^::succ n) i, Points n) \by {
+    Barycentric[N.Nat^::succ n, Linear.basis (N.Nat^::succ n) i] {
+      nonnegative := basisNonnegative (N.Nat^::succ n) i,
+      total := basisTotal (N.Nat^::succ n) i,
+    }
+  };
+\definition equalSymmetric: \forall (a, b: N.Nat^) -> Natural.eqb a b = Natural.eqb b a :=
+  \induction (a: N.Nat^) \return \forall (b: N.Nat^) -> Natural.eqb a b = Natural.eqb b a \with {
+    | zero: \induction (b: N.Nat^) \return Natural.eqb N.Nat^::zero b = Natural.eqb b N.Nat^::zero \with {
+        | zero: \refl(Bool.Bool^::true)
+        | succ: \fun (b: N.Nat^)(previous: _) => \refl(Bool.Bool^::false)
+      }
+    | succ: \fun (a: N.Nat^)(previous: _) => \induction (b: N.Nat^) \return Natural.eqb (N.Nat^::succ a) b = Natural.eqb b (N.Nat^::succ a) \with {
+        | zero: \refl(Bool.Bool^::false)
+        | succ: \fun (b: N.Nat^)(unused: _) => previous b
+      }
+  };
+\definition basisSymmetric: \forall (n: N.Nat^)(i, j: Fin.Fin n) -> Linear.basis n i j = Linear.basis n j i :=
+  \fun (n: N.Nat^)(i, j: Fin.Fin n) => congr!{Bool.Bool^ Real.Real}
+    (\fun (test: Bool.Bool^) => Bool.ite Real.Real test Real.one Real.zero) _ _ (equalSymmetric j i);
+\definition coordinate(n: N.Nat^)(i: Fin.Fin n): Linear.Map n := Linear.Data[n] {
+  apply := \fun (v: Coordinate n) => v i,
+  additive := \fun (v, w: Coordinate n) => \refl(Real.add (v i) (w i)),
+  homogeneous := \fun (c: Real.Real)(v: Coordinate n) => \refl(Real.mul c (v i)),
+};
+\import \parent.Pairing[] \as Pairing;
+\definition pairing: \forall (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(v: Coordinate (N.Nat^::succ n)) -> Pairing.pair (N.Nat^::succ n) (vertex n i) v = v i :=
+  \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(v: Coordinate (N.Nat^::succ n)) => trans!{Real.Real} _ _ _
+    (Sums.congruent (N.Nat^::succ n)
+      (\fun (j: Fin.Fin (N.Nat^::succ n)) => Real.mul (Linear.basis (N.Nat^::succ n) i j) (v j))
+      (\fun (j: Fin.Fin (N.Nat^::succ n)) => Real.mul (v j) (Linear.basis (N.Nat^::succ n) j i))
+      (\fun (j: Fin.Fin (N.Nat^::succ n)) => trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (v j)) _ _ (basisSymmetric (N.Nat^::succ n) i j))
+        (Laws.fieldMulComm (Linear.basis (N.Nat^::succ n) j i) (v j))))
+    (sym!{Real.Real} _ _ (Linear.expansion (N.Nat^::succ n) (coordinate (N.Nat^::succ n) i) v));

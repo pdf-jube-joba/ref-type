@@ -1,0 +1,35 @@
+\import NativeModules.Isomorphism[V := FiniteCircleH.Cohomology, W := Finite.CircleCochain, source := FiniteCircleH.cohomologySpace, target := Finite.circleSpace].Inverse[] \as ZeroInverse;
+\import NativeModules.Isomorphism[V := Finite.CircleCochain, W := FiniteCircleH.Cohomology, source := Finite.circleSpace, target := FiniteCircleH.cohomologySpace].Composition[U := StandardCircleH.Cohomology, final := StandardCircleH.cohomologySpace] \as TransportComposition;
+\definition standard: _ := TransportComposition.compose circleTransport (ZeroInverse.inverse Finite.circleIsomorphism);
+\import NativeModules.Isomorphism[V := OriginalCircleH.Cohomology, W := StandardCircleH.Cohomology, source := OriginalCircleH.cohomologySpace, target := StandardCircleH.cohomologySpace].Inverse[] \as CoefficientInverse;
+\import NativeModules.Isomorphism[V := Finite.CircleCochain, W := StandardCircleH.Cohomology, source := Finite.circleSpace, target := StandardCircleH.cohomologySpace].Composition[U := OriginalCircleH.Cohomology, final := OriginalCircleH.cohomologySpace] \as CoefficientComposition;
+\definition original: _ := CoefficientComposition.compose (CoefficientInverse.inverse CircleCoefficientIso.isomorphism) standard;
+\import NativeModules.Isomorphism[V := Finite.CircleCochain, W := OriginalCircleH.Cohomology, source := Finite.circleSpace, target := OriginalCircleH.cohomologySpace].Composition[U := CircleCohomology.Group one, final := CircleCohomology.moduleSpace one] \as ActionComposition;
+\definition isomorphism: _ := ActionComposition.compose CircleAction.isomorphism original;
+\import NativeModules.Isomorphism[V := I.Int^, W := I.Int^, source := Coefficients.canonical.space, target := scalars.space].Inverse[] \as ScalarInverse;
+\import NativeModules.Isomorphism[V := I.Int^, W := I.Int^, source := scalars.space, target := Coefficients.canonical.space].Composition[U := OriginalCircleH.Cohomology, final := OriginalCircleH.cohomologySpace] \as SphereComposition;
+\definition sphere: _ := SphereComposition.compose CircleTop.isomorphism (ScalarInverse.inverse Coefficients.coefficientIsomorphism);
+\import NativeModules.Isomorphism[V := I.Int^, W := OriginalCircleH.Cohomology, source := scalars.space, target := OriginalCircleH.cohomologySpace].Composition[U := CircleCohomology.Group one, final := CircleCohomology.moduleSpace one] \as GeneratorComposition;
+\definition generatorIsomorphism: _ := GeneratorComposition.compose CircleAction.isomorphism sphere;
+\import NativeModules.Isomorphism[V := Finite.CircleCochain, W := CircleCohomology.Group one, source := Finite.circleSpace, target := CircleCohomology.moduleSpace one].Inverse[] \as Inverse;
+\import NativeModules.Isomorphism[V := I.Int^, W := CircleCohomology.Group one, source := scalars.space, target := CircleCohomology.moduleSpace one].Composition[U := Finite.CircleCochain, final := Finite.circleSpace] \as ModelComposition;
+\definition model: _ := ModelComposition.compose (Inverse.inverse isomorphism) generatorIsomorphism;
+\definition alpha: Finite.CircleCochain := #apply{#forward{model}} I.One.specification;
+\definition onAlpha: #apply{#forward{isomorphism}} alpha = generator := #rightInverse{isomorphism} generator;
+\import singular_finite_algebra.Integer[].HomZero[P := FiniteCircle.complex, coefficients := scalars] \as Zero;
+\definition finiteCycle(phi: Finite.CircleCochain): FiniteCircleH.CycleCarrier := FiniteCircleH.cycle phi (Zero.cochainDifferentialZero Finite.circleZero one phi);
+\import Hom.Homotopy[P := SingularCircle.complex, Q := FiniteCircle.complex, N := scalars] \as Forward;
+\import Cochains.Map[C := FiniteCircleTheory.complex, D := StandardCircle.complex].At[k := one] \as Pullback;
+\import Cochains.Map[C := StandardCircle.complex, D := OriginalCircle.complex].At[k := one] \as Change;
+\definition standardCycle(phi: Finite.CircleCochain): StandardCircleH.CycleCarrier := #apply{(Pullback.cyclesMap (Forward.map #backward{CircleComparison.equivalence}))} (finiteCycle phi);
+\definition cycle(phi: Finite.CircleCochain): OriginalCircleH.CycleCarrier := #apply{(Change.cyclesMap ConvertCircle.inverse)} (standardCycle phi);
+\definition onCycle(phi: Finite.CircleCochain): #apply{#forward{isomorphism}} phi = OriginalCircleH.classOf (cycle phi) :=
+  trans!{{CircleCohomology.Group one}} _ _ _
+    (congr!{FiniteCircleH.Cohomology {CircleCohomology.Group one}}
+      (\fun (h: FiniteCircleH.Cohomology) => #apply{#forward{CircleAction.isomorphism}} (#apply{#backward{CircleCoefficientIso.isomorphism}} (#apply{#forward{circleTransport}} h))) _ _
+      (Zero.At[n := one].onTerm Finite.circleZero phi))
+    (trans!{{CircleCohomology.Group one}} _ _ _
+      (congr!{StandardCircleH.Cohomology {CircleCohomology.Group one}}
+        (\fun (h: StandardCircleH.Cohomology) => #apply{#forward{CircleAction.isomorphism}} (#apply{#backward{CircleCoefficientIso.isomorphism}} h)) _ _
+        (Pullback.onClass (Forward.map #backward{CircleComparison.equivalence}) (finiteCycle phi)))
+      (Change.onClass ConvertCircle.inverse (standardCycle phi)));

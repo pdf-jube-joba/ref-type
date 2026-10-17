@@ -1,0 +1,69 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import \parent.Geometry[] \as Geometry;
+\import real.Analysis[] \as Real;
+\import metric_spaces.RealLine[] \as Line;
+\import topology.Topology[Carrier := Real.Real] \as Scalars;
+\import Scalars.Subspace[S := Line.ClosedInterval (Real.neg Real.one) Real.one] \as Interval;
+\definition Scalar: \Set := Interval.CarrierSet;
+\definition scalarTopology: topology.Topology[Carrier := Scalar].Topology := Interval.topology Line.topology;
+\import Interval.Properties[] \as IntervalProperties;
+\definition scalarCompact: topology.Topology[Carrier := Scalar].IsCompact scalarTopology :=
+  IntervalProperties.compact Line.topology (Line.CompactIntervals[].intervalCompact (Real.neg Real.one) Real.one);
+\import topological_algebra.FinitePower[K := Scalar] \as Power;
+\import Power.At[n := n] \as Cube;
+\import topology.Topology[Carrier := Power.Carrier n] \as CubeSpace;
+\import topological_algebra.Coordinates[K := Scalar, I := Index] \as CubeCoordinates;
+\import topological_algebra.Coordinates[K := Real.Real, I := Index].Universal[A := Power.Carrier n] \as Coordinates;
+\import topology.Composition[A := Power.Carrier n, B := Scalar, C := Real.Real] \as Composition;
+\import topology.Continuity[A := Scalar, B := Real.Real].Corestriction[S := Line.ClosedInterval (Real.neg Real.one) Real.one] \as Inclusion;
+\definition inclusion(x: Power.Carrier n): Coordinate := \fun (i: Index) => x i;
+\definition continuous: topology.Continuity[A := Power.Carrier n, B := Coordinate].Continuous
+  (Cube.topology scalarTopology) topology inclusion :=
+  Coordinates.continuous (Cube.topology scalarTopology) Line.topology inclusion
+    (\fun (i: Index) => Composition.composeContinuous (Cube.topology scalarTopology) scalarTopology Line.topology
+      (CubeCoordinates.evaluate i) (\fun (t: Scalar) => t) (CubeCoordinates.evaluationContinuous scalarTopology i)
+      (Inclusion.inclusionContinuous Line.topology));
+\import topology.Topology[Carrier := Coordinate] \as Ambient;
+\import Ambient.Compactness[] \as CompactSets;
+\import topology.Compactness[A := Power.Carrier n, B := Coordinate] \as Images;
+\import topology.Maps[A := Power.Carrier n, B := Coordinate] \as Maps;
+\definition cube: \Pow Coordinate := Maps.Image inclusion CubeSpace.Whole;
+\definition cubeCompact: Ambient.IsCompactIn topology cube :=
+  Images.continuousImage (Cube.topology scalarTopology) topology inclusion continuous CubeSpace.Whole
+    (Power.compact scalarTopology scalarCompact n);
+\definition contained: Ambient.Subset ClosedBall cube := \block {
+  \fun (x: Coordinate)(bound: Ambient.Member ClosedBall x) \then
+  \let vector: Power.Carrier n := \fun (i: Index) =>
+    \into[Real.Real](x i, Line.ClosedInterval (Real.neg Real.one) Real.one) \by {
+      Geometry.unitBounds (x i)
+        (dedekind_reals.DedekindReal[].leTrans _ (normSquared x) _ (Geometry.coordinateSquareBound x i) bound)
+    } \then
+  \return std.Logic[].Proposition[].existsIntro[Power.Carrier n,
+    { v: Power.Carrier n \where std.Logic[].Proposition[].And[CubeSpace.Member CubeSpace.Whole v, inclusion v = x] }] vector
+    (std.Logic[].Proposition[].And[_, _]::# (\refl(vector))
+      (\axiom:funext(inclusion vector, x, \fun (i: Index) => \refl(x i))))
+};
+\definition compactIn: Ambient.IsCompactIn topology ClosedBall :=
+  CompactSets.closedSubset topology cube ClosedBall cubeCompact Geometry.diskClosed contained;
+\definition compact: topology.Topology[Carrier := Disk].IsCompact diskTopology :=
+  Ambient.Subspace[S := ClosedBall].Properties[].compact topology compactIn;
+\definition sphereContained: Ambient.Subset Boundary cube :=
+  \fun (x: Coordinate)(unit: normSquared x = Real.one) => contained x
+    (dedekind_reals.DedekindReal[].leReplaceLeft Real.one (normSquared x) Real.one (sym!{Real.Real} _ _ unit) (dedekind_reals.DedekindReal[].leRefl Real.one));
+\definition sphereCompactIn: Ambient.IsCompactIn topology Boundary :=
+  CompactSets.closedSubset topology cube Boundary cubeCompact Geometry.sphereClosed sphereContained;
+\definition sphere: topology.Topology[Carrier := Sphere].IsCompact sphereTopology :=
+  Ambient.Subspace[S := Boundary].Properties[].compact topology sphereCompactIn;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as MetricTopology;
+\import Ambient.Ext[] \as Topologies;
+\definition coordinateMetricAgreement: topology = MetricTopology.topology :=
+  Topologies.law topology MetricTopology.topology MetricTopology.coordinateMetricAgreement;
+\definition hausdorff: Ambient.IsT2 topology :=
+  \idelim MetricTopology.topology = topology \with t: Ambient.Topology => Ambient.IsT2 t \by {
+    base: MetricTopology.hausdorff, equality: sym!{Ambient.Topology} _ _ coordinateMetricAgreement
+  };
+\definition sphereHausdorff: topology.Topology[Carrier := Sphere].IsT2 sphereTopology :=
+  Ambient.Subspace[S := Boundary].Properties[].hausdorff topology hausdorff;

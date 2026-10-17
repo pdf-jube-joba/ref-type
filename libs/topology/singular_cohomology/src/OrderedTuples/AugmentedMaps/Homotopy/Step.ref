@@ -1,0 +1,29 @@
+\import \parent.At[n := N.Nat^::succ n] \as Degree;
+\import \parent.Values[n := N.Nat^::succ n] \as Lower;
+\import \parent.Values[n := N.Nat^::succ (N.Nat^::succ n)] \as Values;
+\import \parent.Filling[n := N.Nat^::succ n] \as Filling;
+\import \root.OrderedTuples[V := V].SquareZero[n := n] \as SquareZero;
+\import Modules.Hom[V := Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Carrier (N.Nat^::succ n), source := space (N.Nat^::succ (N.Nat^::succ n)), target := space (N.Nat^::succ n)] \as Differential;
+\import Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)] \as Shift;
+\definition onGenerator: Property n -> Degree.OnGenerators :=
+  \fun (previous: Property n)(v: Tuple (N.Nat^::succ (N.Nat^::succ n))) => \block {
+    \let x: Carrier (N.Nat^::succ (N.Nat^::succ n)) := generator (N.Nat^::succ (N.Nat^::succ n)) v \then
+    \let d: Carrier (N.Nat^::succ n) := #apply{(boundary (N.Nat^::succ n))} x \then
+    \let a: Carrier (N.Nat^::succ (N.Nat^::succ n)) := Values.difference (#apply{(f.component (N.Nat^::succ (N.Nat^::succ n)))} x) (#apply{(g.component (N.Nat^::succ (N.Nat^::succ n)))} x) \then
+    \let b: Carrier (N.Nat^::succ n) := Lower.difference (#apply{(f.component (N.Nat^::succ n))} d) (#apply{(g.component (N.Nat^::succ n))} d) \then
+    \let p: Carrier (N.Nat^::succ (N.Nat^::succ n)) := #apply{(map (N.Nat^::succ n))} d \then
+    \let w: Carrier (N.Nat^::succ (N.Nat^::succ n)) := Values.difference a p \then
+    \let square: #apply{(map n)} (#apply{(boundary n)} d) = Lower.zero := trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Carrier n} {Carrier (N.Nat^::succ n)}} (#apply{(map n)}) _ _ (SquareZero.all x)) (Shift.zeroPreserved (map n)) \then
+    \let first: #apply{(boundary (N.Nat^::succ n))} a = b := trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (Differential.differencePreserved (boundary (N.Nat^::succ n)) (#apply{(f.component (N.Nat^::succ (N.Nat^::succ n)))} x) (#apply{(g.component (N.Nat^::succ (N.Nat^::succ n)))} x))
+      (congr2!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} Lower.difference _ _ _ _
+        (#commutes{f} (N.Nat^::succ n) x) (#commutes{g} (N.Nat^::succ n) x)) \then
+    \let second: #apply{(boundary (N.Nat^::succ n))} p = b := trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (previous d)
+      (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (Lower.difference b) _ _ square) (Lower.minusZero b)) \then
+    \let closed: #apply{(boundary (N.Nat^::succ n))} w = Lower.zero := trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (Differential.differencePreserved (boundary (N.Nat^::succ n)) a p)
+      (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+        (congr2!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} Lower.difference _ _ _ _ first second) (Lower.self b)) \then
+    \return Filling.law (v (Fin.zero (N.Nat^::succ n))) w closed
+  };

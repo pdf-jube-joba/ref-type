@@ -4,9 +4,12 @@
 
 | module | 公開する内容 |
 | --- | --- |
+| `metric_spaces.MetricSpace.Compactness` / `Uniform` | コンパクト距離空間の開被覆の Lebesgue 数、連続写像の一様連続性。 |
+| `metric_spaces.MetricSpace.Subspace` | 部分集合への距離の制限と、距離位相と部分空間位相の一致。 |
 | `metric_spaces.RealLine.CompactIntervals` | 実数の距離位相における閉区間のコンパクト性。 |
 | `metric_spaces.RealFunctions.Product` / `Lattice` / `SquareRoot` / `Reciprocal` | 一般の実数値関数の積、最大・最小・絶対値、平方根、非零逆数の連続性。 |
 | `metric_spaces.RealFunctions` | 実数値関数の局所連続性判定、和・差、\([0,1]\) に値を持つ関数の積、Urysohn 関数の連続性。 |
+| `metric_spaces.RealFunctions.FiniteSums` | 有限個の連続な実数値関数の和の連続性。 |
 | `metric_spaces.PartitionOfUnity` | コンパクト Hausdorff 空間の開被覆に従属する有限分割。 |
 
 ## 有限従属分割

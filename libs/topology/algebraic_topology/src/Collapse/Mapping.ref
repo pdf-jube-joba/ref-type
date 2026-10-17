@@ -1,0 +1,24 @@
+\import \root.Collapse[A := B, subset := targetSubset] \as Target;
+\import \parent.Descent[B := Target.Carrier] \as Descent;
+\import topology.Topology[Carrier := B] \as TargetSpace;
+\import topology.Continuity[A := A, B := B] \as Maps;
+\import topology.Continuity[A := Carrier, B := Target.Carrier] \as Descended;
+\import topology.Composition[A := A, B := B, C := Target.Carrier] \as Composition;
+\definition Preserves(f: A -> B): \Prop := \forall (x: A) -> \In[A] subset x -> \In[B] targetSubset (f x);
+\definition respects: \forall (f: A -> B) -> Preserves f -> Descent.Respects (\fun (x: A) => Target.class (f x)) :=
+  \fun (f: _)(preserves: _)(x, y: A)(related: Related x y) =>
+    either!{related {Target.class (f x) = Target.class (f y)}
+      {\fun (equal: x = y) => congr!{A Target.Carrier} (\fun (z: A) => Target.class (f z)) _ _ equal}
+      {\fun (members: Logic.And[\In[A] subset x, \In[A] subset y]) =>
+        Target.collapsed (f x) (f y) (preserves x #left{members}) (preserves y #right{members})}
+    };
+\definition apply(f: A -> B)(preserves: Preserves f): Carrier -> Target.Carrier :=
+  Descent.apply (\fun (x: A) => Target.class (f x)) (respects f preserves);
+\definition onClass: \forall (f: A -> B)(preserves: Preserves f)(x: A) -> apply f preserves (class x) = Target.class (f x) :=
+  \fun (f: _)(preserves: _)(x: A) => Descent.onClass (\fun (x: A) => Target.class (f x)) (respects f preserves) x;
+\definition continuous: \forall (source: Source.Topology)(target: TargetSpace.Topology)(f: A -> B)(preserves: Preserves f) ->
+  Maps.Continuous source target f -> Descended.Continuous (topology source) (Target.topology target) (apply f preserves) :=
+  \fun (source: _)(target: _)(f: _)(preserves: _)(continuous: _) =>
+    Descent.continuous source (Target.topology target) (\fun (x: A) => Target.class (f x)) (respects f preserves)
+      (Composition.composeContinuous source target (Target.topology target) f Target.class continuous (Target.projectionContinuous target));
+\module Homotopy;

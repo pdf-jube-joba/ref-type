@@ -1,15 +1,17 @@
 //! Store shared substitution telescopes once, including their sharing on restore.
 use super::*;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
+use std::borrow::Borrow;
 
 // Shared telescope ordinals follow declaration identity, never hash iteration.
-fn ordered<K: Serialize, V, E: serde::ser::Error>(
-    entries: &HashMap<K, V>,
-) -> Result<Vec<(&K, &V)>, E> {
+fn ordered<'a, K: Copy + Serialize + 'a, V: 'a, E: serde::ser::Error, Q: Borrow<K>>(
+    entries: impl IntoIterator<Item = (Q, &'a V)>,
+) -> Result<Vec<(K, &'a V)>, E> {
     let mut ordered = entries
-        .iter()
+        .into_iter()
         .map(|(key, value)| {
-            artifact::canonical::to_vec(key, 1024 * 1024)
+            let key = *key.borrow();
+            artifact::canonical::to_vec(&key, 1024 * 1024)
                 .map(|bytes| (bytes, key, value))
                 .map_err(E::custom)
         })
@@ -55,46 +57,59 @@ fn get<T, E: Error>(values: &[Arc<[T]>], id: usize) -> Result<Arc<[T]>, E> {
 
 pub(super) mod definitions {
     use super::*;
-    pub fn serialize<S: Serializer>(
-        entries: &HashMap<DefId, LazyDefinition>,
+    pub fn serialize<'a, S: Serializer, T, K: Borrow<DefId>>(
+        entries: &'a T,
         serializer: S,
-    ) -> Result<S::Ok, S::Error> {
+    ) -> Result<S::Ok, S::Error>
+    where
+        &'a T: IntoIterator<Item = (K, &'a LazyDefinition)>,
+    {
         let _cost = timing::costs::Scope::enter("query.serialize-lazy-definitions");
         let mut arguments = Slices::default();
         let mut reflected = Slices::default();
-        let entries: Vec<_> = ordered::<_, _, S::Error>(entries)?
+        let entries: Vec<_> = ordered::<DefId, _, S::Error, _>(entries)?
             .into_iter()
-            .map(|(&id, value)| {
+            .map(|(id, value)| {
                 (
                     id,
                     value.source,
-                    arguments.insert(&value.substitutions),
-                    reflected.insert(&value.reflected_substitutions),
-                    value.remapping,
+                    arguments.insert(&value.environment.substitutions),
+                    reflected.insert(&value.environment.reflected_substitutions),
+                    value.environment.remapping.get(),
                 )
             })
             .collect();
         (arguments.values, reflected.values, entries).serialize(serializer)
     }
-    pub fn deserialize<'de, D: Deserializer<'de>>(
+    pub fn deserialize<'de, D: Deserializer<'de>, T: FromIterator<(DefId, LazyDefinition)>>(
         deserializer: D,
-    ) -> Result<HashMap<DefId, LazyDefinition>, D::Error> {
+    ) -> Result<T, D::Error> {
         type Data = (
             Vec<Arc<[(ModuleParamId, ModuleArgument)]>>,
             Vec<Arc<[(ModuleParamId, Exp)]>>,
             Vec<(DefId, DefId, usize, usize, RemappingId)>,
         );
         let (arguments, reflected, entries): Data = Deserialize::deserialize(deserializer)?;
+        let mut environments: HashMap<(usize, usize, RemappingId), Arc<DefinitionEnvironment>> =
+            HashMap::new();
         entries
             .into_iter()
             .map(|(id, source, a, r, remapping)| {
+                let environment = match environments.entry((a, r, remapping)) {
+                    std::collections::hash_map::Entry::Occupied(entry) => entry.get().clone(),
+                    std::collections::hash_map::Entry::Vacant(entry) => entry
+                        .insert(Arc::new(DefinitionEnvironment {
+                            substitutions: get(&arguments, a)?,
+                            reflected_substitutions: get(&reflected, r)?,
+                            remapping: Cell::new(remapping),
+                        }))
+                        .clone(),
+                };
                 Ok((
                     id,
                     LazyDefinition {
                         source,
-                        substitutions: get(&arguments, a)?,
-                        reflected_substitutions: get(&reflected, r)?,
-                        remapping,
+                        environment,
                     },
                 ))
             })
@@ -112,9 +127,9 @@ macro_rules! substitution_map {
             ) -> Result<S::Ok, S::Error> {
                 let _cost = timing::costs::Scope::enter("query.serialize-lazy-types");
                 let mut arguments = Slices::default();
-                let entries: Vec<_> = ordered::<_, _, S::Error>(entries)?
+                let entries: Vec<_> = ordered::<$id, _, S::Error, _>(entries)?
                     .into_iter()
-                    .map(|(&id, value)| {
+                    .map(|(id, value)| {
                         (
                             id,
                             value.source,
@@ -161,15 +176,18 @@ substitution_map!(
 pub(super) mod specializations {
     use super::*;
     use crate::raw::namespaces::Specialization;
-    pub fn serialize<I: Copy + Serialize, S: Serializer>(
-        entries: &HashMap<I, Specialization<I>>,
+    pub fn serialize<'a, I: Copy + Serialize + 'a, S: Serializer, T, K: Borrow<I>>(
+        entries: &'a T,
         serializer: S,
-    ) -> Result<S::Ok, S::Error> {
+    ) -> Result<S::Ok, S::Error>
+    where
+        &'a T: IntoIterator<Item = (K, &'a Specialization<I>)>,
+    {
         let _cost = timing::costs::Scope::enter("query.serialize-specializations");
         let mut arguments = Slices::default();
-        let entries: Vec<_> = ordered::<_, _, S::Error>(entries)?
+        let entries: Vec<_> = ordered::<I, _, S::Error, _>(entries)?
             .into_iter()
-            .map(|(&id, value)| (id, value.source, arguments.insert(&value.arguments)))
+            .map(|(id, value)| (id, value.source, arguments.insert(value.arguments.as_arc())))
             .collect();
         (arguments.values, entries).serialize(serializer)
     }
@@ -177,14 +195,17 @@ pub(super) mod specializations {
         'de,
         I: Copy + Eq + std::hash::Hash + Deserialize<'de>,
         D: Deserializer<'de>,
+        T: FromIterator<(I, Specialization<I>)>,
     >(
         deserializer: D,
-    ) -> Result<HashMap<I, Specialization<I>>, D::Error> {
+    ) -> Result<T, D::Error> {
         type Data<I> = (
             Vec<Arc<[(ModuleParamId, ModuleArgument)]>>,
             Vec<(I, I, usize)>,
         );
         let (arguments, entries): Data<I> = Deserialize::deserialize(deserializer)?;
+        let arguments: Vec<crate::raw::namespaces::SharedArguments> =
+            arguments.into_iter().map(Into::into).collect();
         entries
             .into_iter()
             .map(|(id, source, a)| {
@@ -192,7 +213,10 @@ pub(super) mod specializations {
                     id,
                     Specialization {
                         source,
-                        arguments: get(&arguments, a)?,
+                        arguments: arguments
+                            .get(a)
+                            .cloned()
+                            .ok_or_else(|| D::Error::custom("invalid substitution telescope"))?,
                     },
                 ))
             })
@@ -208,6 +232,51 @@ mod tests {
     struct Saved {
         #[serde(with = "definitions")]
         entries: HashMap<DefId, LazyDefinition>,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct ChunkedSaved {
+        #[serde(with = "definitions")]
+        entries: DefinitionMap<LazyDefinition>,
+    }
+
+    #[test]
+    fn chunked_specializations_keep_the_legacy_checkpoint_format() {
+        #[derive(Serialize, Deserialize)]
+        struct Legacy {
+            #[serde(with = "specializations")]
+            entries: HashMap<DefId, super::super::super::namespaces::Specialization<DefId>>,
+        }
+        #[derive(Serialize, Deserialize)]
+        struct Chunked {
+            #[serde(with = "specializations")]
+            entries: DefinitionMap<super::super::super::namespaces::Specialization<DefId>>,
+        }
+        let arguments: Arc<[(ModuleParamId, ModuleArgument)]> = Arc::from([]);
+        let entries = (0..1024)
+            .map(|index| {
+                let id = DefId {
+                    module: ModuleId(index % 31),
+                    index,
+                };
+                (
+                    id,
+                    super::super::super::namespaces::Specialization {
+                        source: id,
+                        arguments: arguments.clone().into(),
+                    },
+                )
+            })
+            .collect();
+        let legacy = Legacy { entries };
+        let bytes = postcard::to_allocvec(&legacy).unwrap();
+        let restored: Chunked = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(restored.entries.len(), legacy.entries.len());
+        assert_eq!(postcard::to_allocvec(&restored).unwrap(), bytes);
+        for (id, value) in &restored.entries {
+            assert_eq!(value.source, id);
+            assert!(value.arguments.is_empty());
+        }
     }
 
     #[test]
@@ -231,6 +300,11 @@ mod tests {
                 (id, value)
             })
             .collect();
+        let environment = Arc::new(DefinitionEnvironment {
+            substitutions: arguments.clone(),
+            reflected_substitutions: reflected.clone(),
+            remapping: Cell::new(RemappingId(0)),
+        });
         let saved = Saved {
             entries: (0..1000)
                 .map(|index| {
@@ -239,9 +313,7 @@ mod tests {
                         id,
                         LazyDefinition {
                             source: id,
-                            substitutions: arguments.clone(),
-                            reflected_substitutions: reflected.clone(),
-                            remapping: RemappingId(0),
+                            environment: environment.clone(),
                         },
                     )
                 })
@@ -249,18 +321,53 @@ mod tests {
         };
         let bytes = postcard::to_allocvec(&saved).unwrap();
         assert!(bytes.len() < 20_000, "{} bytes", bytes.len());
+        let chunked: ChunkedSaved = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(postcard::to_allocvec(&chunked).unwrap(), bytes);
+        assert_eq!(chunked.entries.len(), saved.entries.len());
+        let shared = &chunked.entries[&DefId { module, index: 0 }].environment;
+        for (_, value) in &chunked.entries {
+            assert!(Arc::ptr_eq(shared, &value.environment));
+        }
         let restored: Saved = postcard::from_bytes(&bytes).unwrap();
         let first = &restored.entries[&DefId { module, index: 0 }];
         for value in restored.entries.values() {
-            assert_eq!(value.substitutions, arguments);
-            assert_eq!(value.reflected_substitutions, reflected);
-            assert!(Arc::ptr_eq(&first.substitutions, &value.substitutions));
+            assert_eq!(value.environment.substitutions, arguments);
+            assert_eq!(value.environment.reflected_substitutions, reflected);
+            assert!(Arc::ptr_eq(&first.environment, &value.environment));
             assert!(Arc::ptr_eq(
-                &first.reflected_substitutions,
-                &value.reflected_substitutions
+                &first.environment.substitutions,
+                &value.environment.substitutions
+            ));
+            assert!(Arc::ptr_eq(
+                &first.environment.reflected_substitutions,
+                &value.environment.reflected_substitutions
             ));
         }
     }
+    #[test]
+    fn checkpoint_restores_shared_environments_from_legacy_rows() {
+        let module = ModuleId(0);
+        let arguments: Vec<Arc<[(ModuleParamId, ModuleArgument)]>> = vec![Arc::from([])];
+        let reflected: Vec<Arc<[(ModuleParamId, Exp)]>> = vec![Arc::from([])];
+        let rows: Vec<_> = (0..3)
+            .map(|index| {
+                let id = DefId { module, index };
+                (id, id, 0usize, 0usize, RemappingId(usize::from(index == 1)))
+            })
+            .collect();
+        let bytes = postcard::to_allocvec(&(arguments, reflected, rows)).unwrap();
+        let restored: Saved = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(postcard::to_allocvec(&restored).unwrap(), bytes);
+        let first = &restored.entries[&DefId { module, index: 0 }].environment;
+        let other = &restored.entries[&DefId { module, index: 1 }].environment;
+        let shared = &restored.entries[&DefId { module, index: 2 }].environment;
+        assert!(Arc::ptr_eq(first, shared));
+        assert!(!Arc::ptr_eq(first, other));
+        first.remapping.set(RemappingId(2));
+        assert_eq!(shared.remapping.get(), RemappingId(2));
+        assert_eq!(other.remapping.get(), RemappingId(1));
+    }
+
     #[test]
     fn shared_telescope_bytes_ignore_hash_order_and_allocation_aliasing() {
         let env = CrateEnv::new();
@@ -288,13 +395,15 @@ mod tests {
                             id,
                             LazyDefinition {
                                 source: id,
-                                substitutions: if share {
-                                    arguments.clone()
-                                } else {
-                                    arguments.to_vec().into()
-                                },
-                                reflected_substitutions: Arc::from([]),
-                                remapping: RemappingId(0),
+                                environment: Arc::new(DefinitionEnvironment {
+                                    substitutions: if share {
+                                        arguments.clone()
+                                    } else {
+                                        arguments.to_vec().into()
+                                    },
+                                    reflected_substitutions: Arc::from([]),
+                                    remapping: Cell::new(RemappingId(0)),
+                                }),
                             },
                         )
                     })

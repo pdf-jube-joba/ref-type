@@ -1,0 +1,31 @@
+\import \parent.\parent.\parent.Laws[V := C.Carrier, space := C.space] \as Middle;
+\import \parent.\parent.\parent.Laws[V := C1.Carrier, space := C1.space] \as TargetMiddle;
+\import \parent.\parent.\parent.Laws[V := D1.Carrier, space := D1.space] \as TargetRight;
+\import algebra.Group[].Of[Carrier := C1.Carrier, group := TargetMiddle.additive] \as Group;
+\import algebra.Group[].Of[Carrier := D1.Carrier, group := TargetRight.additive] \as RightGroup;
+\definition remainder(z: C1.Carrier)(x: C.Carrier): C1.Carrier := Group.difference z (#apply{c} x);
+\definition remainderClosed: \forall (diagram: Commutative)(z: C1.Carrier)(x: C.Carrier) -> #apply{d} (#apply{s.third} x) = #apply{t.third} z -> #apply{t.third} (remainder z x) = #zero{D1.space} :=
+  \fun (diagram: Commutative)(z: C1.Carrier)(x: C.Carrier)(same: #apply{d} (#apply{s.third} x) = #apply{t.third} z) => trans!{D1.Carrier} _ _ _
+    (TargetThird.differencePreserved t.third z (#apply{c} x))
+    (trans!{D1.Carrier} _ _ _ (congr!{D1.Carrier D1.Carrier} (RightGroup.difference (#apply{t.third} z)) _ _
+      (trans!{D1.Carrier} _ _ _ (sym!{D1.Carrier} _ _ (#third{diagram} x)) same)) (RightGroup.inverseRight (#apply{t.third} z)));
+\definition law: Commutative -> Surjective B B1 b -> Surjective D D1 d -> Injective E E1 e -> Surjective C C1 c := \block {
+  \fun (diagram: Commutative)(bOnto: Surjective B B1 b)(dOnto: Surjective D D1 d)(eInjective: Injective E E1 e)(z: C1.Carrier) \then
+  \takefrom y: \Cast[D.Carrier] ({ y: D.Carrier \where #apply{d} y = #apply{t.third} z }) \by dOnto (#apply{t.third} z) \then
+  \let dy: #apply{d} y = #apply{t.third} z := \bysub(D.Carrier, { y: D.Carrier \where #apply{d} y = #apply{t.third} z }, y) \then
+  \let killed: #apply{s.last} y = #zero{E.space} := eInjective _ _ (trans!{E1.Carrier} _ _ _ (#last{diagram} y)
+    (trans!{E1.Carrier} _ _ _ (congr!{D1.Carrier E1.Carrier} (#apply{t.last}) _ _ dy)
+      (trans!{E1.Carrier} _ _ _ (#zeroD{t} z) (sym!{E1.Carrier} _ _ (EMaps.zeroPreserved e))))) \then
+  \takefrom x: \Cast[C.Carrier] ({ x: C.Carrier \where #apply{s.third} x = y }) \by #kernelD{s} y killed \then
+  \let thirdImage: #apply{d} (#apply{s.third} x) = #apply{t.third} z := trans!{D1.Carrier} _ _ _
+    (congr!{D.Carrier D1.Carrier} (#apply{d}) _ _ (\bysub(C.Carrier, { x: C.Carrier \where #apply{s.third} x = y }, x))) dy \then
+  \takefrom v: \Cast[B1.Carrier] ({ v: B1.Carrier \where #apply{t.second} v = remainder z x }) \by #kernelC{t} (remainder z x) (remainderClosed diagram z x thirdImage) \then
+  \takefrom w: \Cast[B.Carrier] ({ w: B.Carrier \where #apply{b} w = v }) \by bOnto v \then
+  \let correction: #apply{c} (#apply{s.second} w) = remainder z x := trans!{C1.Carrier} _ _ _ (#second{diagram} w)
+    (trans!{C1.Carrier} _ _ _ (congr!{B1.Carrier C1.Carrier} (#apply{t.second}) _ _ (\bysub(B.Carrier, { w: B.Carrier \where #apply{b} w = v }, w)))
+      (\bysub(B1.Carrier, { v: B1.Carrier \where #apply{t.second} v = remainder z x }, v))) \then
+  \return Logic.existsIntro[C.Carrier, { q: C.Carrier \where #apply{c} q = z }] (Middle.add x (#apply{s.second} w))
+    (trans!{C1.Carrier} _ _ _ (#addition{c} x (#apply{s.second} w))
+      (trans!{C1.Carrier} _ _ _ (congr!{C1.Carrier C1.Carrier} (TargetMiddle.add (#apply{c} x)) _ _ correction)
+        (trans!{C1.Carrier} _ _ _ (Group.comm (#apply{c} x) (remainder z x)) (Group.addDifference z (#apply{c} x)))))
+};

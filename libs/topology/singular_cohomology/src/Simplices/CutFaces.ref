@@ -1,0 +1,43 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr2;
+\definition total: N.Nat^ := Nat.add p q;
+\definition higher: N.Nat^ := N.Nat^::succ total;
+\definition leftDegree: N.Nat^ := Nat.add (N.Nat^::succ p) q;
+\definition same: leftDegree = higher := Bounds.addSuccLeft p q;
+\import \parent.Cut[p := p, q := q] \as Cut;
+\import \parent.Cut[p := N.Nat^::succ p, q := q] \as Left;
+\import \parent.Cut[p := p, q := N.Nat^::succ q] \as Right;
+\import Simplex.Cut[p := p, q := q] \as CutIndices;
+\import Simplex.Cut[p := N.Nat^::succ p, q := q] \as LeftIndices;
+\import Simplex.Cut[p := p, q := N.Nat^::succ q] \as RightIndices;
+\import \parent.ReindexTransport[].Between[m := leftDegree, n := higher] \as Between;
+\import \parent.ReindexFace[n := total] \as NativeFace;
+\import \parent.ReindexFace[n := p] \as LeftFace;
+\import \parent.ReindexFace[n := q] \as RightFace;
+\import Fin.Skipping[].Values[] \as Positions;
+\definition leftSimplex(sigma: Carrier higher): Carrier leftDegree := Between.apply same sigma;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as CarrierTransport;
+\import \parent.ReindexTransport[] \as DegreeTransport;
+\definition leftSimplexLaw: \forall (sigma: Carrier higher) -> leftSimplex sigma = CarrierTransport.cast Carrier higher leftDegree (sym!{N.Nat^} _ _ same) sigma :=
+  \fun (sigma: Carrier higher) => DegreeTransport.law leftDegree higher same sigma;
+\definition prefix(i: Fin.Fin (N.Nat^::succ p)): Fin.Fin (N.Nat^::succ higher) :=
+  Between.indices same (LeftIndices.frontIndex (Fin.widen (N.Nat^::succ p) i));
+\definition prefixValue: \forall (i: Fin.Fin (N.Nat^::succ p)) -> Fin.value (N.Nat^::succ higher) (prefix i) = Fin.value (N.Nat^::succ p) i :=
+  \fun (i: Fin.Fin (N.Nat^::succ p)) => Between.value same (LeftIndices.frontIndex (Fin.widen (N.Nat^::succ p) i));
+\definition prefixBound: \forall (i: Fin.Fin (N.Nat^::succ p)) -> Bounds.Le (prefix i) p :=
+  \fun (i: Fin.Fin (N.Nat^::succ p)) => \idelim i = Fin.value (N.Nat^::succ higher) (prefix i) \with j: N.Nat^ => Bounds.Le j p \by {
+    base: Bounds.leOfSuccSucc i p (Bounds.succLeOfLt (N.Nat^::succ p) i (Fin.bound (N.Nat^::succ p) i)),
+    equality: sym!{N.Nat^} _ _ (prefixValue i)
+  };
+\module PrefixFront;
+\module PrefixBack;
+\definition suffix(j: Fin.Fin (N.Nat^::succ q)): Fin.Fin (N.Nat^::succ higher) := RightIndices.backIndex (Fin.succ (N.Nat^::succ q) j);
+\module SuffixFront;
+\module SuffixBack;
+\definition lastLeft: Fin.Fin (N.Nat^::succ (N.Nat^::succ p)) := \into[N.Nat^](N.Nat^::succ p, { i: N.Nat^ \where Bounds.Lt i (N.Nat^::succ (N.Nat^::succ p)) }) \by {
+  Bounds.ltOfSuccLe (N.Nat^::succ (N.Nat^::succ p)) (N.Nat^::succ p) (Bounds.leRefl (N.Nat^::succ (N.Nat^::succ p)))
+};
+\module Overlap;

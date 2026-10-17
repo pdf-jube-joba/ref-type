@@ -1,0 +1,48 @@
+\import std.Data[].Nat[] \as N;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object] \as SurfaceModel;
+\import SurfaceModel.Simplicial[] \as Simplicial;
+\import SurfaceModel.With[A := Z.coefficients] \as IntegerMatrix;
+\import SurfaceModel.With[A := ModTwo.coefficients] \as BinaryMatrix;
+\import Simplicial.Coefficients[A := Z.coefficients] \as IntegerCochains;
+\import Simplicial.Coefficients[A := ModTwo.coefficients] \as BinaryCochains;
+\import \root.Two[].Quotient[].Sequence[] \as CoefficientSequence;
+\import Simplicial.Sequence[L := Z.coefficients, M := Z.coefficients, R := ModTwo.coefficients].On[s := CoefficientSequence.sequence] \as Sequence;
+\import Sequence.Bockstein[n := one] \as NativeBockstein;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing] \as Hom;
+\import Hom.On[P := Simplicial.chainComplex, N := Z.coefficients] \as IntegerHom;
+\import Hom.On[P := Simplicial.chainComplex, N := ModTwo.coefficients] \as Binary;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Cochains;
+\import Cochains.At[C := Binary.complex, k := one] \as Source;
+\import Cochains.At[C := IntegerHom.complex, k := two] \as Target;
+\import IntegerCochains.DegreeOne[] \as IntegerOne;
+\import IntegerCochains.DegreeTwo[] \as IntegerTwo;
+\import BinaryCochains.DegreeOne[] \as BinaryOne;
+\import IntegerCochains.Differentials[] \as Differential;
+\import BinaryCochains.Cohomology[].DegreeOne[] \as BinaryComparison;
+\import IntegerCochains.Cohomology[].DegreeTwo[] \as IntegerComparison;
+\definition binaryCycle: Source.CycleCarrier := BinaryComparison.backwardValue ModTwo.uCycle;
+\definition lift: IntegerHom.Carrier one := IntegerOne.extend integralLift;
+\definition lower: IntegerHom.Carrier two := IntegerTwo.extend Z.orientation;
+\definition closed: IntegerHom.apply two lower = #zero{(IntegerHom.space (N.Nat^::succ two))} := Differential.second lower;
+\definition integralCycle: Target.CycleCarrier := Target.cycle lower closed;
+\definition binaryGenerator: Source.Cohomology := Source.classOf binaryCycle;
+\definition integerGenerator: Target.Cohomology := Target.classOf integralCycle;
+\import Simplicial.Change[A := Z.coefficients, B := ModTwo.coefficients, u := Reduction.reduction].DegreeOne[] \as Project;
+\import Simplicial.Change[A := Z.coefficients, B := Z.coefficients, u := CoefficientSequence.sequence.inclusion].DegreeTwo[] \as Include;
+\definition lifted: #apply{Sequence.projection} one lift = binaryCycle :=
+  trans!{{Binary.Carrier one}} _ _ _ (Project.extend integralLift) (congr!{BinaryOne.FunctionCarrier {Binary.Carrier one}} BinaryOne.extend _ _ liftReduces);
+\definition differential: #apply{Sequence.inclusion} two lower = IntegerHom.apply one lift :=
+  trans!{{IntegerHom.Carrier two}} _ _ _ (Include.extend Z.orientation)
+    (trans!{{IntegerHom.Carrier two}} _ _ _ (congr!{IntegerTwo.FunctionCarrier {IntegerHom.Carrier two}} IntegerTwo.extend _ _ (sym!{IntegerTwo.FunctionCarrier} _ _ dividedDerivative))
+      (sym!{{IntegerHom.Carrier two}} _ _ (Differential.inverseFirst integralLift)));
+\definition law: #apply{NativeBockstein.connecting} binaryGenerator = integerGenerator := NativeBockstein.onLift binaryCycle lift lower lifted differential closed;
+\import \root.Truncated[].Over[zeroth := IntegerMatrix.zeroth, first := IntegerMatrix.first, second := IntegerMatrix.second].On[deltaZero := IntegerMatrix.differentialZero, deltaOne := IntegerMatrix.differentialOne, square := IntegerMatrix.squareZero].DegreeTwo[] \as IntegerTarget;
+\import \root.Truncated[].Over[zeroth := BinaryMatrix.zeroth, first := BinaryMatrix.first, second := BinaryMatrix.second].On[deltaZero := BinaryMatrix.differentialZero, deltaOne := BinaryMatrix.differentialOne, square := BinaryMatrix.squareZero].DegreeOne[] \as BinaryTarget;
+\definition integerCompared: #apply{#forward{IntegerComparison.isomorphism}} integerGenerator = Z.generator :=
+  trans!{IntegerTarget.Cohomology} _ _ _ (IntegerComparison.onClass integralCycle)
+    (IntegerTarget.equalClass (IntegerComparison.forwardValue integralCycle) Z.orientationCycle (IntegerTwo.rightInverse Z.orientation));
+\definition binaryCompared: #apply{#forward{BinaryComparison.isomorphism}} binaryGenerator = ModTwo.generator :=
+  trans!{BinaryTarget.Cohomology} _ _ _ (BinaryComparison.onClass binaryCycle)
+    (BinaryTarget.equalClass (BinaryComparison.forwardValue binaryCycle) ModTwo.uCycle (BinaryOne.rightInverse ModTwo.u));

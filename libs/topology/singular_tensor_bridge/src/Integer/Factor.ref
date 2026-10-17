@@ -1,0 +1,64 @@
+\import Algebra.Restriction[C := C] \as Restricted;
+\import Native.ZeroExtension[C := Restricted.complex] \as Extension;
+\definition NegativeVanishes: \Prop := Restricted.NegativeVanishes;
+\module Positive(n: N.Nat^) {
+  \import Extension.Positive[n := n] \as At;
+  \definition forward: Modules.Hom[V := C.family.Carrier (I.Int^::ofNat n), W := Extension.Carrier (I.Int^::ofNat n),
+    source := C.family.space (I.Int^::ofNat n), target := Extension.space (I.Int^::ofNat n)].Map := At.forward;
+  \definition backward: Modules.Hom[V := Extension.Carrier (I.Int^::ofNat n), W := C.family.Carrier (I.Int^::ofNat n),
+    source := Extension.space (I.Int^::ofNat n), target := C.family.space (I.Int^::ofNat n)].Map := At.backward;
+}
+\module Negative(n: N.Nat^) {
+  \import Modules.Hom[V := C.family.Carrier (I.Int^::negSucc n), W := Extension.Carrier (I.Int^::negSucc n),
+    source := C.family.space (I.Int^::negSucc n), target := Extension.space (I.Int^::negSucc n)] \as Forward;
+  \import Modules.Hom[V := Extension.Carrier (I.Int^::negSucc n), W := C.family.Carrier (I.Int^::negSucc n),
+    source := Extension.space (I.Int^::negSucc n), target := C.family.space (I.Int^::negSucc n)] \as Backward;
+  \definition forward: Forward.Map := Forward.zeroMap;
+  \definition backward: Backward.Map := Backward.zeroMap;
+}
+\definition forwardComponent: \forall (z: I.Int^) -> Modules.Hom[V := C.family.Carrier z, W := Extension.Carrier z,
+  source := C.family.space z, target := Extension.space z].Map :=
+  \induction (z: I.Int^) \return Modules.Hom[V := C.family.Carrier z, W := Extension.Carrier z,
+    source := C.family.space z, target := Extension.space z].Map \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].forward
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].forward
+  };
+\definition backwardComponent: \forall (z: I.Int^) -> Modules.Hom[V := Extension.Carrier z, W := C.family.Carrier z,
+  source := Extension.space z, target := C.family.space z].Map :=
+  \induction (z: I.Int^) \return Modules.Hom[V := Extension.Carrier z, W := C.family.Carrier z,
+    source := Extension.space z, target := C.family.space z].Map \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].backward
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].backward
+  };
+\definition forwardCommutes: \forall (z: I.Int^)(x: C.family.Carrier z) ->
+  Extension.apply z (#apply{(forwardComponent z)} x) =
+    #apply{(forwardComponent (Degrees.previous z))} (#apply{C.differential} z x) :=
+  \induction (z: I.Int^) \return \forall (x: C.family.Carrier z) ->
+    Extension.apply z (#apply{(forwardComponent z)} x) =
+      #apply{(forwardComponent (Degrees.previous z))} (#apply{C.differential} z x) \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: C.family.Carrier (I.Int^::ofNat n)) ->
+        Extension.apply (I.Int^::ofNat n) (#apply{(forwardComponent (I.Int^::ofNat n))} x) =
+          #apply{(forwardComponent (Degrees.previous (I.Int^::ofNat n)))} (#apply{C.differential} (I.Int^::ofNat n) x) \with {
+      | zero: \fun (x: C.family.Carrier (I.Int^::ofNat N.Nat^::zero)) => \refl(#zero{(Extension.space (I.Int^::negSucc N.Nat^::zero))})
+      | succ: \fun (n: N.Nat^)(unused: _)(x: C.family.Carrier (I.Int^::ofNat (N.Nat^::succ n))) => \refl(#apply{C.differential} (I.Int^::ofNat (N.Nat^::succ n)) x)
+    }
+    | negSucc: \fun (n: N.Nat^)(x: C.family.Carrier (I.Int^::negSucc n)) => \refl(#zero{(Extension.space (I.Int^::negSucc (N.Nat^::succ n)))})
+  };
+\import Signed.Map[C := C, D := Extension.complex] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (z: I.Int^) => #apply{(forwardComponent z)},
+  addition := \fun (z: I.Int^) => #addition{(forwardComponent z)},
+  scalar := \fun (z: I.Int^) => #scalar{(forwardComponent z)},
+  commutes := forwardCommutes,
+};
+\module Differential(z: I.Int^) {
+  \import Modules.Hom[V := C.family.Carrier z, W := C.family.Carrier (Degrees.previous z),
+    source := C.family.space z, target := C.family.space (Degrees.previous z)] \as Maps;
+  \definition map: Maps.Map := Maps.Map {
+    apply := #apply{C.differential} z,
+    addition := #addition{C.laws} z,
+    scalar := #scalar{C.laws} z,
+  };
+  \definition zero: #apply{C.differential} z #zero{(C.family.space z)} = #zero{(C.family.space (Degrees.previous z))} := Maps.zeroPreserved map;
+}
+\module With(negative: NegativeVanishes);

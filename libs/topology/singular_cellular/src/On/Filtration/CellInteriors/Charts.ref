@@ -1,0 +1,75 @@
+\import \parent.\parent.CellInteriors[n := n] \as Target;
+\definition fiber(cell: Index): \Set := \parent.\parent.\parent.CellProperties[cell := cell, member := member cell].Interior[].Carrier;
+\definition fiberTopology(cell: Index): topology.Topology[Carrier := fiber cell].Topology :=
+  \parent.\parent.\parent.CellProperties[cell := cell, member := member cell].Interior[].topology;
+\import \root.Coproduct[Index := Index, fibers := fiber, spaces := fiberTopology] \as Disks;
+\definition Carrier: \Set := Disks.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Disks.topology;
+\import singular_cellular_algebra.Algebra[] \as Algebra;
+\import Algebra.Refinement[A := Cells.CellData, S := Selected] \as IndexRefinement;
+\definition ambient(x: Target.Carrier): A := x;
+\definition map(chart: Carrier): Target.Carrier := \parent.Cell[cell := #index{chart}, member := member (#index{chart}), dimension := dimension (#index{chart})].embed (#point{chart});
+\definition continuous: topology.Continuity[A := Carrier, B := Target.Carrier].Continuous topology Target.topology map :=
+  \fun (U: \Pow Target.Carrier)(open: RemainingSpace.IsOpenIn Target.topology U) => #rtl{(Disks.openCriterion ({ chart: Carrier \where RemainingSpace.Member U (map chart) }))}
+    (\fun (cell: Index) => \parent.Cell[cell := cell, member := member cell, dimension := dimension cell].embedContinuous U open);
+\definition sameIndex: \forall (left, right: Carrier) -> map left = map right -> #index{left} = #index{right} :=
+  \fun (left, right: Carrier)(same: _) => IndexRefinement.ext (#index{left}) (#index{right})
+    (#disjoint{laws} (#index{left}) (#index{right}) (member (#index{left})) (member (#index{right})) (map left)
+    (\parent.Cell[cell := #index{left}, member := member (#index{left}), dimension := dimension (#index{left})].contains (#point{left}))
+    (\idelim map right = map left \with x: A => Space.Member (Cells.InteriorImage (#index{right})) x \by {
+      base: \parent.Cell[cell := #index{right}, member := member (#index{right}), dimension := dimension (#index{right})].contains (#point{right}),
+      equality: congr!{Target.Carrier A} ambient _ _ (sym!{Target.Carrier} _ _ same) }));
+\definition injective: \forall (left, right: Carrier) -> map left = map right -> left = right :=
+  \fun (left, right: Carrier)(same: _) => trans!{Carrier} _ _ _
+    ((\idelim #index{left} = #index{right} \with cell: Index => \forall (p: fiber cell) ->
+      map left = map (Disks.injection cell p) -> left = Disks.injection cell p \by {
+        base: \fun (p: fiber (#index{left}))(images: _) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Disks.eta left))
+          (congr!{{fiber (#index{left})} Carrier} (Disks.injection (#index{left})) _ _
+            (\parent.Cell[cell := #index{left}, member := member (#index{left}), dimension := dimension (#index{left})].embedInjective (#point{left}) p images)),
+        equality: sameIndex left right same
+      }) (#point{right})
+      (trans!{Target.Carrier} _ _ _ same (congr!{Carrier Target.Carrier} map _ _ (sym!{Carrier} _ _ (Disks.eta right)))))
+    (Disks.eta right);
+\definition onto: \forall (x: Target.Carrier) -> \exists { chart: Carrier \where map chart = x } := \block {
+  \fun (x: Target.Carrier) \then
+  \takefrom w: Representation[x] \by representation x \then
+  \let index: Index := \into[Cells.CellData](#cell{w}, Selected) \by { Logic.And[_, _]::# (#member{w}) (#dimension{w}) } \then
+  \let inPiece: RemainingSpace.Member (piece index) x := Logic.And[_, _]::# (#dimension{w})
+    (\parent.\parent.Exhaustion[].interiorClosed (#cell{w}) x (#contains{w})) \then
+  \let component: RemainingSpace.Subspace[S := piece index].CarrierSet := \into[Target.Carrier](x, piece index) \by { inPiece } \then
+  \let point: fiber index := #backward{\parent.Cell[cell := index, member := member index, dimension := dimension index].homeomorphism} component \then
+  \return Logic.existsIntro[Carrier, { chart: Carrier \where map chart = x }] (Disks.injection index point)
+    (Algebra.Refinement[A := Target.Carrier, S := piece index].forgetEquality
+      (#forward{\parent.Cell[cell := index, member := member index, dimension := dimension index].homeomorphism} point) component
+      (#rightInverse{\parent.Cell[cell := index, member := member index, dimension := dimension index].homeomorphismLaws} component))
+};
+\import topology.Homeomorphism[A := Carrier, B := Target.Carrier].OfQuotient[f := map] \as Inverse;
+\definition backward(x: Target.Carrier): Carrier := Inverse.inverse injective onto x;
+\import topological_constructions.Gluing[A := Target.Carrier, B := Carrier] \as Gluing;
+\module At(cell: Index);
+\structure Witness[U: \Pow Target.Carrier]: \Set { index: Index, same: U = piece index }
+\definition family: \Pow (\Pow Target.Carrier) := { U: \Pow Target.Carrier \where \exists Witness[U] };
+\definition covers: RemainingSpace.Covers family RemainingSpace.Whole := \block {
+  \fun (x: Target.Carrier)(whole: _) \then
+  \takefrom w: Representation[x] \by representation x \then
+  \let index: Index := \into[Cells.CellData](#cell{w}, Selected) \by { Logic.And[_, _]::# (#member{w}) (#dimension{w}) } \then
+  \return RemainingSpace.unionMemberOf family (piece index) x
+    (\exact(Witness[piece index] { index := index, same := \refl(piece index) }, Witness[piece index]))
+    (Logic.And[_, _]::# (#dimension{w}) (\parent.\parent.Exhaustion[].interiorClosed (#cell{w}) x (#contains{w})))
+};
+\definition backwardContinuous: topology.Continuity[A := Target.Carrier, B := Carrier].Continuous Target.topology topology backward :=
+  Gluing.openCover Target.topology topology backward family covers (\block {
+    \fun (U: \Pow Target.Carrier)(member: _) \then
+    \takefrom w: Witness[U] \by member \then
+    \return \idelim piece (#index{w}) = U \with S: \Pow Target.Carrier => Gluing.ContinuousOn Target.topology topology backward S \by {
+      base: At[cell := #index{w}].local,
+      equality: sym!{{\Pow Target.Carrier}} _ _ (#same{w}) }
+  });
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Target.Carrier].Homeomorphism[topology, Target.topology] :=
+  topology.Homeomorphism[A := Carrier, B := Target.Carrier].Homeomorphism[topology, Target.topology] {
+    forward := map, backward := backward,
+    leftInverse := Inverse.leftInverse injective onto, rightInverse := Inverse.rightInverse injective onto,
+    forwardContinuous := continuous, backwardContinuous := backwardContinuous,
+  };
+
+\module Pair;

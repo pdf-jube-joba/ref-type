@@ -1,0 +1,27 @@
+\definition U: \Set := targetFamily.Carrier i;
+\definition targetSpace: Space U := targetFamily.space i;
+\import \parent.\parent.\parent.\parent.Hom[V := Source.Carrier, W := U, source := Source.space, target := targetSpace] \as Maps;
+\import \parent.\parent.\parent.\parent.Hom[V := Target.Carrier, W := U, source := Target.space, target := targetSpace].Composition[U := Source.Carrier, domain := Source.space] \as AfterTotal;
+\import \parent.\parent.\parent.\parent.Hom[V := family.Carrier i, W := U, source := family.space i, target := targetSpace].Composition[U := Source.Carrier, domain := Source.space] \as AfterCoordinate;
+\import \parent.\parent.\parent.\parent.Hom[V := family.Carrier i, W := U, source := family.space i, target := targetSpace] \as ComponentMaps;
+\definition lhs: Maps.Map := AfterTotal.compose TargetCoordinates.At[i := i].evaluate (map f);
+\definition rhs: Maps.Map := AfterCoordinate.compose (f i) SourceCoordinates.At[i := i].evaluate;
+\definition Property(j: Index): \Prop := \forall (x: family.Carrier j) ->
+  #apply{lhs} (#apply{Source.Injection[i := j].map} x) = #apply{rhs} (#apply{Source.Injection[i := j].map} x);
+\definition own: Property i := \fun (x: family.Carrier i) => trans!{U} _ _ _
+  (congr!{Target.Carrier U} (targetCoordinate i) _ _ (onInjection f i x))
+  (trans!{U} _ _ _ (TargetCoordinates.atOwn i (#apply{(f i)} x))
+    (sym!{U} _ _ (congr!{{family.Carrier i} U} (#apply{(f i)}) _ _ (SourceCoordinates.atOwn i x))));
+\definition other: \forall (j: Index) -> Logic.Not (j = i) -> Property j :=
+  \fun (j: Index)(different: Logic.Not (j = i))(x: family.Carrier j) => trans!{U} _ _ _
+    (trans!{U} _ _ _ (congr!{Target.Carrier U} (targetCoordinate i) _ _ (onInjection f j x))
+      (TargetCoordinates.atOther j i (#apply{(f j)} x) different))
+    (sym!{U} _ _ (trans!{U} _ _ _
+      (congr!{{family.Carrier i} U} (#apply{(f i)}) _ _ (SourceCoordinates.atOther j i x different))
+      (ComponentMaps.zeroPreserved (f i))));
+\definition onGenerators: \forall (j: Index) -> Property j := \fun (j: Index) => Logic.orElim (j = i) (Logic.Not (j = i)) (Property j) (Classical.excludedMiddle (j = i))
+  (\fun (same: j = i) => \idelim i = j \with k: Index => Property k \by { base: own, equality: sym!{{Index}} _ _ same })
+  (other j);
+\import \parent.\parent.\parent.\parent.DirectSum[Index := Index, family := family].To[W := U, target := targetSpace] \as Extension;
+\definition equation: lhs = rhs := Extension.ext lhs rhs onGenerators;
+\definition law(x: Source.Carrier): #apply{lhs} x = #apply{rhs} x := congr!{Maps.Map U} (\fun (h: Maps.Map) => #apply{h} x) _ _ equation;

@@ -1,0 +1,16 @@
+\definition leftSimplex: LeftSimplices.Carrier p := \into[LeftSimplices.At[n := p].Function]((\fun (x: Simplex.Carrier p) => sigma (f.leftFunction x)), LeftSimplices.Carrier p) \by {
+  LeftContinuity.composeContinuous SourceLeftDomain.topology MiddleLeftDomain.topology left f.leftFunction sigma f.leftContinuous (LeftSimplices.At[n := r].continuous sigma)
+};
+\definition rightSimplex: RightSimplices.Carrier q := \into[RightSimplices.At[n := q].Function]((\fun (x: Simplex.Carrier q) => tau (f.rightFunction x)), RightSimplices.Carrier q) \by {
+  RightContinuity.composeContinuous SourceRightDomain.topology MiddleRightDomain.topology right f.rightFunction tau f.rightContinuous (RightSimplices.At[n := s].continuous tau)
+};
+\import Double.TensorComposition[A := SourceLeft.complex, B := MiddleLeft.complex, C := Left.complex, D := SourceRight.complex, E := MiddleRight.complex, F := Right.complex].With[f := ModelMaps.leftPush f, g := MiddleEvaluation.leftPush sigma, u := ModelMaps.rightPush f, v := MiddleEvaluation.rightPush tau] \as TensorComposition;
+\import Native.Map[C := SourceLeft.complex, D := Left.complex] \as LeftLinear;
+\import Native.Map[C := SourceRight.complex, D := Right.complex] \as RightLinear;
+\definition equality: Compose.compose (MiddleEvaluation.map sigma tau) (ModelMaps.native f) = SourceEvaluation.map leftSimplex rightSimplex :=
+  trans!{Linear.Map} _ _ _ TensorComposition.equality
+    (congr2!{LeftLinear.Map RightLinear.Map Linear.Map} SourceEvaluation.tensor _ _ _ _
+      (LeftComposition.functoriality f.leftFunction f.leftContinuous sigma (LeftSimplices.At[n := r].continuous sigma))
+      (RightComposition.functoriality f.rightFunction f.rightContinuous tau (RightSimplices.At[n := s].continuous tau)));
+\definition law(k: N.Nat^)(x: SourceTotal.Carrier k): #apply{(MiddleEvaluation.map sigma tau)} k (#apply{(ModelMaps.native f)} k x) = #apply{(SourceEvaluation.map leftSimplex rightSimplex)} k x :=
+  congr!{Linear.Map {Total.Carrier k}} (\fun (h: Linear.Map) => #apply{h} k x) _ _ equality;

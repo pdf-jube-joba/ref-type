@@ -1,0 +1,20 @@
+\import \root.On[A := Simplex.Carrier n, source := Domain.topology] \as ModelComparison;
+\import singular_cohomology.Maps[A := Simplex.Carrier n, B := A, source := Domain.topology, target := source] \as Maps;
+\definition original(sigma: Simplices.Carrier n): #apply{Maps.push sigma (Simplices.At[n := n].continuous sigma)} n Model.cell = Chains.generator n sigma :=
+  trans!{{Chains.Carrier n}} _ _ _ (Maps.At[n := n].onGenerator sigma (Simplices.At[n := n].continuous sigma) Model.simplex)
+    (congr!{{Simplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _
+      (\axiom:funext(Maps.postcompose n sigma (Simplices.At[n := n].continuous sigma) Model.simplex, sigma, \fun (x: Simplex.Carrier n) => \refl(sigma x))));
+\definition defect(sigma: Simplices.Carrier n): #apply{(evaluation sigma)} n Models.Degree[n := n].value = #apply{Initial.defect} n (Chains.generator n sigma) :=
+  trans!{{Total.Carrier n}} _ _ _ (ModelComparison.Naturality[B := A, target := source].With[f := sigma, continuous := Simplices.At[n := n].continuous sigma].Degree[n := n].defect Model.cell)
+    (congr!{{Chains.Carrier n} {Total.Carrier n}} (#apply{Initial.defect} n) _ _ (original sigma));
+\definition prior(sigma: Simplices.Carrier n): Total.Carrier n := #apply{(evaluation sigma)} n (Models.prior n);
+\import Modules.Laws[V := Total.Carrier n, space := Total.space n] \as Values;
+\import algebra.Group[].Of[Carrier := Total.Carrier n, group := Values.additive] \as Group;
+\import Modules.Hom[V := Model.Carrier (I.Int^::ofNat n), W := Total.Carrier n, source := Model.space (I.Int^::ofNat n), target := Total.space n] \as Linear;
+\definition law(sigma: Simplices.Carrier n): #apply{Total.differential} n (onSimplex sigma) = Group.difference (#apply{Initial.defect} n (Chains.generator n sigma)) (prior sigma) :=
+  trans!{{Total.Carrier n}} _ _ _ (#commutes{(evaluation sigma)} n (Models.homotopy n))
+    (trans!{{Total.Carrier n}} _ _ _
+      (congr!{{Model.Carrier (I.Int^::ofNat n)} {Total.Carrier n}} (#apply{(evaluationLinear n sigma)}) _ _ (Models.boundary n))
+      (trans!{{Total.Carrier n}} _ _ _
+        (Linear.differencePreserved (evaluationLinear n sigma) Models.Degree[n := n].value (Models.prior n))
+        (congr!{{Total.Carrier n} {Total.Carrier n}} (\fun (x: Total.Carrier n) => Group.difference x (prior sigma)) _ _ (defect sigma))));

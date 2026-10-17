@@ -1,0 +1,30 @@
+\import Modules.Alternating[V := Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)), space := Tuples.space (N.Nat^::succ (N.Nat^::succ n))] \as Sum;
+\import Modules.Alternating[V := Tuples.Carrier (N.Nat^::succ n), space := Tuples.space (N.Nat^::succ n)] \as LowerSum;
+\import Modules.Alternating[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)].Mapping[W := Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)), target := Tuples.space (N.Nat^::succ (N.Nat^::succ n))] \as EvaluationSum;
+\import LowerSum.Mapping[W := Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)), target := Tuples.space (N.Nat^::succ (N.Nat^::succ n))] \as ConeSum;
+\import LowerSum.Mapping[W := Tuples.Carrier (N.Nat^::succ n), target := Tuples.space (N.Nat^::succ n)] \as SubdivisionSum;
+\definition centre: Simplex.Carrier k := Geometry.centres (N.Nat^::succ n) v;
+\definition faceVertices(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))): LowerAffine.Vertices := Omission.omit (N.Nat^::succ n) i v;
+\definition faceChain(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))): Tuples.Carrier (N.Nat^::succ n) := Tuples.generator (N.Nat^::succ n) (faceVertices i);
+\definition term(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))): Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n)) := #apply{(HigherEvaluation.map v)} (#apply{(CellChains.lift i)} (chain n));
+\definition faceLaw: Property n -> \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) -> term i = #apply{(Tuples.cone (N.Nat^::succ n) centre)} (#apply{(Subdivision.map (N.Nat^::succ n))} (faceChain i)) :=
+  \fun (previous: Property n)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => trans!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ _ (\parent.Face[v := v, i := i].law (chain n))
+    (congr!{{Tuples.Carrier (N.Nat^::succ n)} {Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} (#apply{(Tuples.cone (N.Nat^::succ n) centre)}) _ _ (previous k (faceVertices i)));
+\use Equality.eq_reason;
+\definition law: Property n -> Higher.Equation v := \fun (previous: Property n) => eq_reason!{
+  {#apply{(HigherEvaluation.map v)} (chain (N.Nat^::succ n))}
+  "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ n)) term} "by" {
+    EvaluationSum.law (HigherEvaluation.map v) (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => #apply{(CellChains.lift i)} (chain n))}
+  "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => #apply{(Tuples.cone (N.Nat^::succ n) centre)} (#apply{(Subdivision.map (N.Nat^::succ n))} (faceChain i)))} "by" {
+    Sum.congruent (N.Nat^::succ (N.Nat^::succ n)) term (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => #apply{(Tuples.cone (N.Nat^::succ n) centre)} (#apply{(Subdivision.map (N.Nat^::succ n))} (faceChain i))) (faceLaw previous)}
+  "=" {#apply{(Tuples.cone (N.Nat^::succ n) centre)} (LowerSum.sum (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => #apply{(Subdivision.map (N.Nat^::succ n))} (faceChain i)))} "by" {
+    sym!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ (ConeSum.law (Tuples.cone (N.Nat^::succ n) centre) (N.Nat^::succ (N.Nat^::succ n)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => #apply{(Subdivision.map (N.Nat^::succ n))} (faceChain i)))}
+  "=" {#apply{(Tuples.cone (N.Nat^::succ n) centre)} (#apply{(Subdivision.map (N.Nat^::succ n))} (LowerSum.sum (N.Nat^::succ (N.Nat^::succ n)) faceChain))} "by" {
+    congr!{{Tuples.Carrier (N.Nat^::succ n)} {Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} (#apply{(Tuples.cone (N.Nat^::succ n) centre)}) _ _
+      (sym!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ (SubdivisionSum.law (Subdivision.map (N.Nat^::succ n)) (N.Nat^::succ (N.Nat^::succ n)) faceChain))}
+  "=" {#apply{(Tuples.cone (N.Nat^::succ n) centre)} (#apply{(Subdivision.map (N.Nat^::succ n))} (#apply{(Tuples.boundary (N.Nat^::succ n))} (Tuples.generator (N.Nat^::succ (N.Nat^::succ n)) v)))} "by" {
+    congr!{{Tuples.Carrier (N.Nat^::succ n)} {Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} (\fun (x: Tuples.Carrier (N.Nat^::succ n)) => #apply{(Tuples.cone (N.Nat^::succ n) centre)} (#apply{(Subdivision.map (N.Nat^::succ n))} x)) _ _
+      (sym!{{Tuples.Carrier (N.Nat^::succ n)}} _ _ (Tuples.Boundary[n := N.Nat^::succ n].onGenerator v))}
+  "=" {#apply{(Subdivision.map (N.Nat^::succ (N.Nat^::succ n)))} (Tuples.generator (N.Nat^::succ (N.Nat^::succ n)) v)} "by" {
+    sym!{{Tuples.Carrier (N.Nat^::succ (N.Nat^::succ n))}} _ _ (Subdivision.onGenerator (N.Nat^::succ (N.Nat^::succ n)) v)}
+};

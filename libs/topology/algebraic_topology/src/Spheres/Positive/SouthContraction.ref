@@ -1,0 +1,33 @@
+\import \parent.\parent.Antipodal[n := N.Nat^::succ n] \as Antipodal;
+\import \parent.NorthContraction[] \as North;
+\definition heightNegated: \forall (x: Sphere) -> height (Antipodal.apply x) = Real.neg (height x) :=
+  \fun (x: Sphere) => trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (height x))
+    (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (height x)));
+\definition forward(x: Left): Right := \into[Sphere](Antipodal.apply x, right) \by {
+  R.ltReplaceLeft (Real.neg (height x)) (height (Antipodal.apply x)) Real.one (sym!{Real.Real} _ _ (heightNegated x))
+    (R.ltReplaceRight (Real.neg (height x)) (Real.neg (Real.neg Real.one)) Real.one (Laws.negInvolutive Real.one)
+      (Laws.negStrictAntitone (Real.neg Real.one) (height x) (\bysub(Sphere, left, x))))
+};
+\definition backward(x: Right): Left := \into[Sphere](Antipodal.apply x, left) \by {
+  R.ltReplaceRight (Real.neg Real.one) (Real.neg (height x)) (height (Antipodal.apply x)) (sym!{Real.Real} _ _ (heightNegated x))
+    (Laws.negStrictAntitone (height x) Real.one (\bysub(Sphere, right, x)))
+};
+\import topology.Continuity[A := Sphere, B := Sphere].Restriction[S := left] \as LeftRestriction;
+\import topology.Continuity[A := Sphere, B := Sphere].Restriction[S := right] \as RightRestriction;
+\import topology.Continuity[A := Left, B := Sphere].Corestriction[S := right] \as IntoRight;
+\import topology.Continuity[A := Right, B := Sphere].Corestriction[S := left] \as IntoLeft;
+\definition forwardContinuous: topology.Continuity[A := Left, B := Right].Continuous leftTopology rightTopology forward :=
+  IntoRight.corestrictContinuous leftTopology (topology (N.Nat^::succ n)) forward
+    (LeftRestriction.restrictContinuous (topology (N.Nat^::succ n)) (topology (N.Nat^::succ n)) Antipodal.apply Antipodal.continuous);
+\definition backwardContinuous: topology.Continuity[A := Right, B := Left].Continuous rightTopology leftTopology backward :=
+  IntoLeft.corestrictContinuous rightTopology (topology (N.Nat^::succ n)) backward
+    (RightRestriction.restrictContinuous (topology (N.Nat^::succ n)) (topology (N.Nat^::succ n)) Antipodal.apply Antipodal.continuous);
+\import topology.Homeomorphism[A := Left, B := Right] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[leftTopology, rightTopology] := Homeomorphisms.Homeomorphism[leftTopology, rightTopology] {
+  forward := forward, backward := backward,
+  leftInverse := \fun (x: Left) => Antipodal.involution x,
+  rightInverse := \fun (x: Right) => Antipodal.involution x,
+  forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+};
+\import \root.Contraction[A := Left, source := leftTopology].Transport[B := Right].Over[target := rightTopology].Along[homeomorphism := homeomorphism] \as Transport;
+\definition contraction: \root.Contraction[A := Right, source := rightTopology].Data := Transport.apply North.contraction;

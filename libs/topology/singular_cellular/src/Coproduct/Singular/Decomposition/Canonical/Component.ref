@@ -1,0 +1,22 @@
+\import \parent.\parent.\parent.Component[i := i] \as SmallComponent;
+\import \parent.\parent.\parent.\parent.At[i := i] \as Image;
+\import singular_cohomology.Maps[A := fibers i, B := Carrier, source := spaces i, target := topology] \as Maps;
+\import singular_cohomology.Chains[A := fibers i, source := spaces i] \as FiberChains;
+\import singular_cohomology.Simplices[A := fibers i, source := spaces i] \as FiberSimplices;
+\import Nonnegative.ZeroExtension[C := FiberChains.complex] \as FiberExtension;
+\import Complexes.Map[C := terms i, D := WholeExtension.complex] \as WholeMaps;
+\definition map: WholeMaps.Map := WholeMaps.Map {
+  apply := #apply{(Maps.integerPush (injection i) Image.continuous)},
+  addition := #addition{(Maps.integerPush (injection i) Image.continuous)},
+  scalar := #scalar{(Maps.integerPush (injection i) Image.continuous)},
+  commutes := #commutes{(Maps.integerPush (injection i) Image.continuous)},
+};
+\import Nonnegative.Map[C := Small.complex, D := Whole.complex].ZeroExtension[f := Small.inclusion] \as Forget;
+\import Complexes.Map[C := SmallExtension.complex, D := WholeExtension.complex].Composition[B := terms i] \as Composite;
+\definition throughSmall: Complexes.Map[C := terms i, D := WholeExtension.complex].Map := Composite.compose Forget.map SmallComponent.map;
+\definition Equation(z: I.Int^): \Prop := \forall (x: Sum.termCarrier i z) -> #apply{throughSmall} z x = #apply{map} z x;
+\module Positive(n: N.Nat^);
+\definition equation: \forall (z: I.Int^) -> Equation z := \induction (z: I.Int^) \return Equation z \with {
+  | ofNat: \fun (n: N.Nat^) => Positive[n := n].law
+  | negSucc: \fun (n: N.Nat^)(x: Sum.termCarrier i (I.Int^::negSucc n)) => \refl(#zero{(WholeExtension.space (I.Int^::negSucc n))})
+};

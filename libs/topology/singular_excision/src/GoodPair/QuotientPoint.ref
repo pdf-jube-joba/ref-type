@@ -1,0 +1,48 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import Geometry.On[pair := pair] \as Topology;
+\import algebraic_topology.Collapse[A := A, subset := subset] \as Quotient;
+\import Quotient.Open[source := source].On[neighborhood := Topology.neighborhood] \as Neighborhood;
+\import topology.Topology[Carrier := Quotient.Carrier] \as Space;
+\definition basepoint: Quotient.Carrier := Quotient.class Topology.point;
+\definition image: \Pow Quotient.Carrier := Neighborhood.image;
+\definition singleton: \Pow Quotient.Carrier := Space.Singleton basepoint;
+\import Space.Subspace[S := singleton] \as Point;
+\import Space.Subspace[S := image] \as Region;
+\definition point: Point.CarrierSet := \into[Quotient.Carrier](basepoint, singleton) \by { \refl(basepoint) };
+\definition pointUnique: \forall (x: Point.CarrierSet) -> x = point := \fun (x: Point.CarrierSet) => \bysub(Quotient.Carrier, singleton, x);
+\definition pointMember: Space.Member image basepoint := Neighborhood.toImage Topology.point
+  (#contains{Topology.neighborhood} Topology.point (\bysub(A, subset, Topology.point)));
+\definition forward(x: Point.CarrierSet): Region.CarrierSet := \into[Quotient.Carrier](x, image) \by {
+  \idelim basepoint = x \with q: Quotient.Carrier => Space.Member image q \by { base: pointMember, equality: sym!{Quotient.Carrier} _ _ (pointUnique x) }
+};
+\definition backward(x: Region.CarrierSet): Point.CarrierSet := point;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import topology.Continuity[A := Point.CarrierSet, B := Quotient.Carrier].Corestriction[S := singleton] \as PointInclusion;
+\import topology.Continuity[A := Point.CarrierSet, B := Quotient.Carrier].Corestriction[S := image] \as IntoRegion;
+\import topology.Maps[A := Region.CarrierSet, B := Point.CarrierSet] \as Constant;
+\import algebraic_topology.Homotopy[A := Point.CarrierSet, B := Point.CarrierSet] \as PointHomotopies;
+\import algebraic_topology.Homotopy[A := Region.CarrierSet, B := Region.CarrierSet] \as RegionHomotopies;
+\import algebraic_topology.Cylinder[A := Point.CarrierSet] \as PointCylinder;
+\definition left: PointHomotopies.Homotopy[Point.topology (Quotient.topology source), Point.topology (Quotient.topology source), (\fun (x: Point.CarrierSet) => backward (forward x)), (\fun (x: Point.CarrierSet) => x)] :=
+  \into[PointHomotopies.Family](PointCylinder.point, PointHomotopies.Homotopy[Point.topology (Quotient.topology source), Point.topology (Quotient.topology source), (\fun (x: Point.CarrierSet) => backward (forward x)), (\fun (x: Point.CarrierSet) => x)]) \by {
+    PointHomotopies.Laws[Point.topology (Quotient.topology source), Point.topology (Quotient.topology source), (\fun (x: Point.CarrierSet) => backward (forward x)), (\fun (x: Point.CarrierSet) => x), PointCylinder.point] {
+      continuous := PointCylinder.pointContinuous (Point.topology (Quotient.topology source)), start := pointUnique, end := \fun (x: Point.CarrierSet) => \refl(x),
+    }
+  };
+\definition contraction: RegionHomotopies.Homotopy[Region.topology (Quotient.topology source), Region.topology (Quotient.topology source), (\fun (x: Region.CarrierSet) => x), (\fun (_: Region.CarrierSet) => Topology.imagePoint)] :=
+  \idelim #centre{Topology.imageContraction} = Topology.imagePoint \with p: Region.CarrierSet =>
+    RegionHomotopies.Homotopy[Region.topology (Quotient.topology source), Region.topology (Quotient.topology source), (\fun (x: Region.CarrierSet) => x), (\fun (_: Region.CarrierSet) => p)]
+    \by { base: #homotopy{Topology.imageContraction}, equality: Topology.centre };
+\import algebraic_topology.HomotopyEquivalence[A := Point.CarrierSet, B := Region.CarrierSet] \as Equivalences;
+\definition equivalence: Equivalences.Equivalence[Point.topology (Quotient.topology source), Region.topology (Quotient.topology source)] := Equivalences.Equivalence[Point.topology (Quotient.topology source), Region.topology (Quotient.topology source)] {
+  forward := forward, backward := backward,
+  forwardContinuous := IntoRegion.corestrictContinuous (Point.topology (Quotient.topology source)) (Quotient.topology source) forward (PointInclusion.inclusionContinuous (Quotient.topology source)),
+  backwardContinuous := Constant.constantContinuous (Region.topology (Quotient.topology source)) (Point.topology (Quotient.topology source)) point,
+  leftInverse := \exact(left, PointHomotopies.Homotopy[Point.topology (Quotient.topology source), Point.topology (Quotient.topology source), (\fun (x: Point.CarrierSet) => backward (forward x)), (\fun (x: Point.CarrierSet) => x)]),
+  rightInverse := \exact(RegionHomotopies.reverse (Region.topology (Quotient.topology source)) (Region.topology (Quotient.topology source)) (\fun (x: Region.CarrierSet) => x) (\fun (_: Region.CarrierSet) => Topology.imagePoint) contraction,
+    RegionHomotopies.Homotopy[Region.topology (Quotient.topology source), Region.topology (Quotient.topology source), (\fun (x: Region.CarrierSet) => forward (backward x)), (\fun (x: Region.CarrierSet) => x)]),
+};
+\module Comparison;

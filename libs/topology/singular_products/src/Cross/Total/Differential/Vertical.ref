@@ -1,0 +1,25 @@
+\definition q: N.Nat^ := N.Nat^::succ s;
+\definition targetIndex: Double.Index n := Double.reverseIndex n s (Step.lowerFirst s p);
+\import Tensor.Term[p := p, q := q] \as SourceTerm;
+\import Tensor.Term[p := p, q := s] \as TargetTerm;
+\import Tensor.At[p := p, q := s] \as Differential;
+\import \root.Cross[A := A, B := B, left := left, right := right].At[p := p, q := s] \as Cross;
+\import Lower.At[i := targetIndex] \as Component;
+\import Double.Sign[V := TargetTerm.Carrier, space := TargetTerm.space] \as SourceSign;
+\import SourceSign.Mapping[W := Target.Carrier n, target := Target.space n] \as SignMapping;
+\import Double.Sign[V := Target.Carrier n, space := Target.space n] \as TargetSign;
+\import Double.SignComparison[V := Target.Carrier n, space := Target.space n] \as Comparison;
+\import Modules.Alternating[V := Target.Carrier n, space := Target.space n].Concatenation[] \as Parity;
+\definition law(x: Left.Carrier p)(y: Right.Carrier q):
+  #apply{Lower.map} (#apply{(Step.vertical q p)} (SourceTerm.tensor x y)) =
+    Parity.twist p (Degrees.apply (degree p s) n Component.same (Cross.apply x (#apply{(Right.boundary s)} y))) :=
+  trans!{{Target.Carrier n}} _ _ _
+    (Lower.onInjection targetIndex (#apply{(SourceSign.map p)} (#apply{Differential.vertical} (SourceTerm.tensor x y))))
+    (trans!{{Target.Carrier n}} _ _ _
+      (SignMapping.naturality Component.map p (#apply{Differential.vertical} (SourceTerm.tensor x y)))
+      (trans!{{Target.Carrier n}} _ _ _
+        (congr!{{Target.Carrier n} {Target.Carrier n}} (#apply{(TargetSign.map p)}) _ _
+          (trans!{{Target.Carrier n}} _ _ _
+            (congr!{TargetTerm.Carrier {Target.Carrier n}} (#apply{Component.map}) _ _ (Differential.verticalOnTensor x y))
+            (Component.onTensor x (#apply{(Right.boundary s)} y))))
+        (Comparison.law p _)));

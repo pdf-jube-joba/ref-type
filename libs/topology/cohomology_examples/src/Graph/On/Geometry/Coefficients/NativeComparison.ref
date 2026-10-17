@@ -1,0 +1,21 @@
+\import Complex.LineGraph[V := Index.Vertices, E := Index.Edges].With[graph := Index.indexedGraph].Coefficients[A := A] \as Native;
+\import Modules.Zero[] \as ZeroModule;
+\import Native.Zero[] \as Zero;
+\import Native.One[] \as One;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Cochains;
+\definition degreeZero: N.Nat^ := N.Nat^::zero;
+\definition degreeOne: N.Nat^ := N.Nat^::succ degreeZero;
+\definition evaluateZero(phi: Native.Carrier degreeZero): VertexFunctions.Carrier := #apply{Zero.forward} phi;
+\definition extendZero(f: VertexFunctions.Carrier): Native.Carrier degreeZero := #apply{Zero.backward} f;
+\definition evaluateOne(phi: Native.Carrier degreeOne): EdgeFunctions.Carrier := #apply{One.forward} phi;
+\definition extendOne(f: EdgeFunctions.Carrier): Native.Carrier degreeOne := #apply{One.backward} f;
+\definition zeroth(phi: Native.Carrier degreeZero): evaluateOne (Native.differential degreeZero phi) = delta (evaluateZero phi) :=
+  EdgeFunctions.ext (evaluateOne (Native.differential degreeZero phi)) (delta (evaluateZero phi)) (Native.Differential[].law phi);
+\definition inverseZeroth(f: VertexFunctions.Carrier): Native.differential degreeZero (extendZero f) = extendOne (delta f) :=
+  trans!{{Native.Carrier degreeOne}} _ _ _ (sym!{{Native.Carrier degreeOne}} _ _ (#leftInverse{One.isomorphism} (Native.differential degreeZero (extendZero f))))
+    (congr!{EdgeFunctions.Carrier {Native.Carrier degreeOne}} extendOne _ _
+      (trans!{EdgeFunctions.Carrier} _ _ _ (zeroth (extendZero f))
+        (congr!{VertexFunctions.Carrier EdgeFunctions.Carrier} delta _ _ (#rightInverse{Zero.isomorphism} f))));
+\module DegreeZero;
+\module DegreeOne;
+\module Higher(n: N.Nat^);

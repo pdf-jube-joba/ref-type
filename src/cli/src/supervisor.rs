@@ -21,6 +21,18 @@ use std::{
 };
 
 static SIGNAL: AtomicI32 = AtomicI32::new(0);
+fn worker_executable() -> std::io::Result<PathBuf> {
+    // Keep using this supervisor's executable when a rebuild replaces its
+    // directory entry. current_exe() can then name an unlinked file on Linux.
+    #[cfg(target_os = "linux")]
+    {
+        Ok(PathBuf::from("/proc/self/exe"))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        std::env::current_exe()
+    }
+}
 extern "C" fn cancel(signal: libc::c_int) {
     SIGNAL.store(signal, Ordering::Relaxed);
 }
@@ -431,27 +443,29 @@ fn snapshot_key(snapshot: &SourceSnapshot) -> Vec<u8> {
 
 pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<report::Report> {
     let _signals = Signals::install()?;
-    let cache = match &args.cache_dir {
-        Some(path) => path.clone(),
-        None => sema::default_cache_directory(&args.path)?,
-    };
+    let cache = crate::cache_directory(args)?;
     if args.clear_cache {
         crate::clear_cache_directory(&cache)?;
     }
     let mut database = sema::Database::new();
-    let snapshot = match database.read_snapshot(&args.path, args.full_check_local) {
+    let snapshot = match crate::input_snapshot(args, &mut database) {
         Ok(snapshot) => snapshot,
         Err(error) => {
             eprintln!("Module Load Error: {error}");
             return Ok(report::Report::checked(false, false));
         }
     };
+    crate::save_input_snapshot(args, &snapshot)?;
     let workspace = Workspace::new(&cache)?;
-    let layout_key: String =
-        Sha256::digest(args.path.canonicalize()?.as_os_str().as_encoded_bytes())
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
+    let layout_key: String = Sha256::digest(
+        snapshot
+            .identity(snapshot.entry())
+            .as_os_str()
+            .as_encoded_bytes(),
+    )
+    .iter()
+    .map(|byte| format!("{byte:02x}"))
+    .collect();
     let layout = if args.no_cache {
         workspace.path("batches.json")
     } else {
@@ -566,7 +580,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             workspace.path("request.json"),
             serde_json::to_vec(&request)?,
         )?;
-        let mut command = Command::new(std::env::current_exe()?);
+        let mut command = Command::new(worker_executable()?);
         command
             .arg(&args.path)
             .arg("--worker")
@@ -678,8 +692,13 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             }
         }
     }
-    let current = SourceSnapshot::read(&args.path)?;
+    let current = crate::input_snapshot(args, &mut sema::Database::new())?;
     if snapshot_key(&current) != initial_key {
+        if args.source_snapshot.is_some() {
+            bail!(
+                "検査中に入力 snapshot が変更されました。再実行して現在の snapshot を検査してください。"
+            );
+        }
         bail!("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
     }
     if fresh
@@ -704,6 +723,48 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn worker_binary_survives_unlink() {
+        const CHILD: &str = "REF_TYPE_TEST_UNLINKED_WORKER_BINARY";
+        if let Some(linked) = std::env::var_os(CHILD) {
+            assert_eq!(std::env::current_exe().unwrap(), PathBuf::from(&linked));
+            fs::remove_file(&linked).unwrap();
+            let output = Command::new(worker_executable().unwrap())
+                .arg("--list")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        let workspace = Workspace::new(&std::env::temp_dir()).unwrap();
+        let linked = workspace.path("worker-executable");
+        let executable = std::env::current_exe().unwrap();
+        if fs::hard_link(&executable, &linked).is_err() {
+            fs::copy(&executable, &linked).unwrap();
+        }
+        let module = module_path!().split_once("::").unwrap().1;
+        let name = format!("{module}::worker_binary_survives_unlink");
+        let output = Command::new(&linked)
+            .args(["--exact", &name, "--nocapture"])
+            .env(CHILD, &linked)
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success(),
+            "{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            stdout.contains("1 passed"),
+            "child test did not run: {stdout}"
+        );
+    }
 
     #[test]
     fn snapshot_identity_changes_when_import_aliases_are_retargeted() {

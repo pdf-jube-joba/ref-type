@@ -1,0 +1,45 @@
+\import \parent.\parent.Pair[] \as Pair;
+\import \root.Disks[].At[n := dimension] \as DiskHomology;
+\module DiskAt(d: N.Nat^);
+\module SphereAt(d: N.Nat^);
+\definition represented: DiskAt[d := dimension].Represented[point] :=
+  (\idelim N.Nat^::succ k = dimension \with d: N.Nat^ => \forall (p: Euclidean.Dimension[n := d].Sphere) -> DiskAt[d := d].Represented[p] \by {
+    base: \fun (p: Euclidean.Dimension[n := N.Nat^::succ k].Sphere) => DiskAt[d := N.Nat^::succ k].Represented[p] {
+      orientation := DiskSphere.Orientation[point := p].orientation,
+      fromRelative := #forward{DiskSphere.Orientation[point := p].fromRelative},
+      projected := DiskSphere.Orientation[point := p].projectionLaw,
+      onGenerator := DiskSphere.Orientation[point := p].onRelativeGenerator,
+    },
+    equality: sym!{N.Nat^} _ _ equalDimension
+  }) point;
+\definition sourceOrientation: DiskAt[d := dimension].Orientation := represented.orientation;
+\definition fromRelative: DiskAt[d := dimension].FromRelative := represented.fromRelative;
+\definition targetOrientation: SphereAt[d := dimension].Orientation :=
+  \idelim N.Nat^::succ k = dimension \with d: N.Nat^ => SphereAt[d := d].Orientation \by {
+    base: cohomology_models.Spheres[].Homology[].Top[n := k].isomorphism,
+    equality: sym!{N.Nat^} _ _ equalDimension
+  };
+\import sphere_maps.Reflection[n := N.Nat^::succ k] \as Reflection;
+\definition reflection: topology.Homeomorphism[A := Sphere.Sphere, B := Sphere.Sphere].Homeomorphism[Sphere.sphereTopology, Sphere.sphereTopology] :=
+  topology.Homeomorphism[A := Sphere.Sphere, B := Sphere.Sphere].Homeomorphism[Sphere.sphereTopology, Sphere.sphereTopology] {
+    forward := Reflection.head, backward := Reflection.head,
+    leftInverse := Reflection.headInvolution, rightInverse := Reflection.headInvolution,
+    forwardContinuous := Reflection.headContinuous, backwardContinuous := Reflection.headContinuous,
+  };
+\definition negativeAction: SphereAt[d := dimension].Negative :=
+  \idelim N.Nat^::succ k = dimension \with d: N.Nat^ => SphereAt[d := d].Negative \by {
+    base: sphere_maps.Hemispheres[n := k].Homology[].Whole[].head,
+    equality: sym!{N.Nat^} _ _ equalDimension
+  };
+\import singular_finite_algebra.Integer[].Orientation[A := DiskQuotient.Carrier, B := Sphere.Sphere,
+  source := DiskQuotient.topology Model.diskTopology, target := Sphere.sphereTopology, z := I.Int^::ofNat dimension] \as Actual;
+\import Actual.Normalize[homeomorphism := homeomorphism, reflection := reflection, sourceOrientation := sourceOrientation, targetOrientation := targetOrientation] \as Normalize;
+\definition Result: \Set := Normalize.Result;
+\definition existence: \exists Result := Normalize.existence negativeAction;
+\definition onGenerator(h: Result): #apply{(Actual.action h)} (#apply{#forward{sourceOrientation}} I.One.specification) = #apply{#forward{targetOrientation}} I.One.specification :=
+  \bysub(topology.Homeomorphism[A := DiskQuotient.Carrier, B := Sphere.Sphere].Homeomorphism[DiskQuotient.topology Model.diskTopology, Sphere.sphereTopology],
+    { value: topology.Homeomorphism[A := DiskQuotient.Carrier, B := Sphere.Sphere].Homeomorphism[DiskQuotient.topology Model.diskTopology, Sphere.sphereTopology] \where Normalize.Positive value }, h);
+\module Relative;
+\module On(h: Result);
+
+\module Coordinates;

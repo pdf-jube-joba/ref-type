@@ -1,0 +1,53 @@
+\import Modules.Tensor[V := Left.Carrier n, W := Right.Carrier n, left := Left.space n, right := Right.space n] \as Term;
+\import singular_cohomology.Simplices[A := A, source := left] \as LeftSimplices;
+\import singular_cohomology.Simplices[A := B, source := right] \as RightSimplices;
+\definition front(sigma: LeftSimplices.Carrier n)(tau: RightSimplices.Carrier n): Cut.front (Cross.simplex sigma tau) = sigma :=
+  \axiom:funext(Cut.front (Cross.simplex sigma tau), sigma, \fun (x: Simplex.Carrier n) => congr!{{Simplex.Carrier n} A} sigma _ _
+    (trans!{{Simplex.Carrier n}} _ _ _ (Simplex.zeroUnique _) (sym!{{Simplex.Carrier n}} _ _ (Simplex.zeroUnique x))));
+\definition back(sigma: LeftSimplices.Carrier n)(tau: RightSimplices.Carrier n): Cut.back (Cross.simplex sigma tau) = tau :=
+  \axiom:funext(Cut.back (Cross.simplex sigma tau), tau, \fun (x: Simplex.Carrier n) => congr!{{Simplex.Carrier n} B} tau _ _
+    (trans!{{Simplex.Carrier n}} _ _ _ (Simplex.zeroUnique _) (sym!{{Simplex.Carrier n}} _ _ (Simplex.zeroUnique x))));
+\definition cut(sigma: LeftSimplices.Carrier n)(tau: RightSimplices.Carrier n): Cut.value (Cross.simplex sigma tau) = Term.tensor (Left.generator n sigma) (Right.generator n tau) :=
+  congr2!{{Left.Carrier n} {Right.Carrier n} Term.Carrier} Term.tensor _ _ _ _
+    (congr!{{LeftSimplices.Carrier n} {Left.Carrier n}} (Left.generator n) _ _ (front sigma tau))
+    (congr!{{RightSimplices.Carrier n} {Right.Carrier n}} (Right.generator n) _ _ (back sigma tau));
+\definition backwardPure(sigma: LeftSimplices.Carrier n)(tau: RightSimplices.Carrier n): #apply{backward} n (#apply{Single.inject} (Term.tensor (Left.generator n sigma) (Right.generator n tau))) = Chains.generator n (Cross.simplex sigma tau) :=
+  trans!{{Chains.Carrier n}} _ _ _ (ShuffleZero.onInjection Single.index (Term.tensor (Left.generator n sigma) (Right.generator n tau)))
+    (trans!{{Chains.Carrier n}} _ _ _ (ShuffleComponent.onTensor (Left.generator n sigma) (Right.generator n tau))
+      (trans!{{Chains.Carrier n}} _ _ _ (Transport.castRefl Chains.Carrier n _) (Cross.law sigma tau)));
+\definition onGenerators(sigma: LeftSimplices.Carrier n)(tau: RightSimplices.Carrier n): #apply{tensorComposite} n (#apply{Single.inject} (Term.tensor (Left.generator n sigma) (Right.generator n tau))) = #apply{Single.inject} (Term.tensor (Left.generator n sigma) (Right.generator n tau)) :=
+  trans!{{Total.Carrier n}} _ _ _ (congr!{{Chains.Carrier n} {Total.Carrier n}} (#apply{forward} n) _ _ (backwardPure sigma tau))
+    (trans!{{Total.Carrier n}} _ _ _ (forwardGenerator (Cross.simplex sigma tau))
+      (congr!{Term.Carrier {Total.Carrier n}} (#apply{Single.inject}) _ _ (cut sigma tau)));
+\import Modules.Hom[V := Total.Carrier n, W := Total.Carrier n, source := Total.space n, target := Total.space n] \as EndMaps;
+\import Native.Map[C := Total.complex, D := Total.complex].At[n := n] \as NativeDegree;
+\import EndMaps.Composition[U := Term.Carrier, domain := Term.space] \as Compose;
+\import Modules.Hom[V := Term.Carrier, W := Total.Carrier n, source := Term.space, target := Total.space n] \as TermMaps;
+\definition before: TermMaps.Map := Compose.compose (NativeDegree.linear tensorComposite) Single.inject;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
+\definition leftBundle: Modules.Bundle := Modules.Bundle { Carrier := Left.Carrier n, space := Left.space n };
+\definition rightBundle: Modules.Bundle := Modules.Bundle { Carrier := Right.Carrier n, space := Right.space n };
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := Total.Carrier n, space := Total.space n };
+\import Commutative.FreeBilinear[X := LeftSimplices.Carrier n, Y := RightSimplices.Carrier n, C := targetBundle] \as Free;
+\import Commutative.Bilinear[A := leftBundle, B := rightBundle, C := targetBundle] \as Forms;
+\definition tensorBundle: Modules.Bundle := Modules.Bundle { Carrier := Term.Carrier, space := Term.space };
+\import Commutative.Bilinear[A := leftBundle, B := rightBundle, C := tensorBundle] \as Pure;
+\definition pure: Pure.Map := Pure.Map {
+  apply := Term.tensor,
+  addLeft := #addLeft{Term.bilinear}, addRight := #addRight{Term.bilinear},
+  scaleLeft := #scaleLeft{Term.bilinear}, scaleRight := #scaleRight{Term.bilinear},
+};
+\import Pure.Postcompose[D := targetBundle] \as After;
+\definition lhs: Forms.Map := After.apply pure before;
+\definition rhs: Forms.Map := After.apply pure Single.inject;
+\definition generatorEquality: lhs = rhs := Free.ext lhs rhs onGenerators;
+\definition onTensor(x: Left.Carrier n)(y: Right.Carrier n): #apply{before} (Term.tensor x y) = #apply{Single.inject} (Term.tensor x y) := congr!{Forms.Map {Total.Carrier n}} (\fun (h: Forms.Map) => #apply{h} x y) _ _ generatorEquality;
+\import Term.Universal[U := Total.Carrier n, target := Total.space n] \as Universal;
+\definition equation: before = Single.inject := Universal.ext before Single.inject onTensor;
+\definition onTerm(x: Term.Carrier): #apply{tensorComposite} n (#apply{Single.inject} x) = #apply{Single.inject} x := congr!{TermMaps.Map {Total.Carrier n}} (\fun (h: TermMaps.Map) => #apply{h} x) _ _ equation;
+\definition law(x: Total.Carrier n): #apply{tensorComposite} n x = x :=
+  trans!{{Total.Carrier n}} _ _ _ (congr!{{Total.Carrier n} {Total.Carrier n}} (#apply{tensorComposite} n) _ _ (Single.reconstruct x))
+    (trans!{{Total.Carrier n}} _ _ _ (onTerm (Single.coordinate x)) (sym!{{Total.Carrier n}} _ _ (Single.reconstruct x)));
+\import Modules.Laws[V := Total.Carrier n, space := Total.space n] \as Vector;
+\import algebra.Group[].Of[Carrier := Total.Carrier n, group := Vector.additive] \as Group;
+\definition defect(x: Total.Carrier n): #apply{tensorDefect} n x = #zero{(Total.space n)} := trans!{{Total.Carrier n}} _ _ _ (congr!{{Total.Carrier n} {Total.Carrier n}} (\fun (y: Total.Carrier n) => Group.difference y x) _ _ (law x)) (Group.inverseRight x);

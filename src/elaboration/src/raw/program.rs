@@ -195,7 +195,9 @@ pub enum ComputationTermNode {
     },
 }
 
-#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(
+    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash,
+)]
 pub enum ProgramContextEntry {
     ValueType { var: SymbolId },
     ValueTerm { var: SymbolId, ty: ValueType },

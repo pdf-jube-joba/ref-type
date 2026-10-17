@@ -1,0 +1,37 @@
+\import LowerGeometry.Face[i := i] \as Geometry;
+\import Simplex.AffineFace[n := n] \as Affine;
+\definition familyLaw: \forall (sigma: Simplices.Carrier (N.Nat^::succ n))(x: LowerGeometry.Points) -> sigma (Geometry.transform x) = Simplices.face n i sigma x :=
+  \fun (sigma: Simplices.Carrier (N.Nat^::succ n))(x: LowerGeometry.Points) => congr!{{HigherGeometry.Points} A} sigma _ _
+    (sym!{{HigherGeometry.Points}} _ _ (Affine.law i x));
+\module At(m: N.Nat^) {
+  \import Modules.Hom[V := HigherChains.Carrier m, W := Chains.Carrier m, source := HigherChains.space m, target := Chains.space m]
+    .Composition[U := LowerChains.Carrier m, domain := LowerChains.space m] \as Compose;
+  \import Modules.Free[Generators := LowerSimplices.Carrier m].To[W := Chains.Carrier m, target := Chains.space m] \as Free;
+  \import Modules.Hom[V := LowerChains.Carrier m, W := Chains.Carrier m, source := LowerChains.space m, target := Chains.space m] \as Linear;
+  \definition equation: \forall (sigma: Simplices.Carrier (N.Nat^::succ n)) ->
+    Compose.compose (HigherMaps.At[n := m].push sigma (Higher.continuous sigma)) (FaceMaps.At[n := m].push Geometry.transform Geometry.continuous) =
+      LowerMaps.At[n := m].push (Simplices.face n i sigma) (Lower.continuous (Simplices.face n i sigma)) :=
+    \fun (sigma: Simplices.Carrier (N.Nat^::succ n)) => Free.ext _ _ (\fun (tau: LowerSimplices.Carrier m) => trans!{{Chains.Carrier m}} _ _ _
+      (congr!{{HigherChains.Carrier m} {Chains.Carrier m}} (#apply{(HigherMaps.At[n := m].push sigma (Higher.continuous sigma))}) _ _ (FaceMaps.At[n := m].onGenerator Geometry.transform Geometry.continuous tau))
+      (trans!{{Chains.Carrier m}} _ _ _ (HigherMaps.At[n := m].onGenerator sigma (Higher.continuous sigma) (FaceMaps.postcompose m Geometry.transform Geometry.continuous tau))
+        (trans!{{Chains.Carrier m}} _ _ _
+          (congr!{{Simplices.Carrier m} {Chains.Carrier m}} (Chains.generator m) _ _
+            (Simplices.ext m (HigherMaps.postcompose m sigma (Higher.continuous sigma) (FaceMaps.postcompose m Geometry.transform Geometry.continuous tau))
+              (LowerMaps.postcompose m (Simplices.face n i sigma) (Lower.continuous (Simplices.face n i sigma)) tau)
+              (\fun (x: Simplex.Carrier m) => familyLaw sigma (tau x))))
+          (sym!{{Chains.Carrier m}} _ _ (LowerMaps.At[n := m].onGenerator (Simplices.face n i sigma) (Lower.continuous (Simplices.face n i sigma)) tau)))));
+  \definition law: \forall (sigma: Simplices.Carrier (N.Nat^::succ n))(x: LowerChains.Carrier m) ->
+    #apply{(HigherMaps.At[n := m].push sigma (Higher.continuous sigma))} (#apply{(FaceMaps.At[n := m].push Geometry.transform Geometry.continuous)} x) =
+      #apply{(LowerMaps.At[n := m].push (Simplices.face n i sigma) (Lower.continuous (Simplices.face n i sigma)))} x :=
+    \fun (sigma: Simplices.Carrier (N.Nat^::succ n))(x: LowerChains.Carrier m) => congr!{Linear.Map {Chains.Carrier m}} (\fun (f: Linear.Map) => #apply{f} x) _ _ (equation sigma);
+}
+\definition subdivision: \forall (sigma: Simplices.Carrier (N.Nat^::succ n)) ->
+  #apply{(HigherMaps.At[n := n].push sigma (Higher.continuous sigma))} Geometry.subdivisionTerm = Lower.onSimplex (Simplices.face n i sigma) :=
+  \fun (sigma: Simplices.Carrier (N.Nat^::succ n)) => trans!{{Chains.Carrier n}} _ _ _
+    (congr!{{HigherChains.Carrier n} {Chains.Carrier n}} (#apply{(HigherMaps.At[n := n].push sigma (Higher.continuous sigma))}) _ _ Geometry.subdivision)
+    (At[m := n].law sigma LowerGeometry.Subdivision[].chain);
+\definition homotopy: \forall (sigma: Simplices.Carrier (N.Nat^::succ n)) ->
+  #apply{(HigherMaps.At[n := N.Nat^::succ n].push sigma (Higher.continuous sigma))} (HigherGeometry.Subdivision[].faceTerm i) = Lower.homotopyOnSimplex (Simplices.face n i sigma) :=
+  \fun (sigma: Simplices.Carrier (N.Nat^::succ n)) => trans!{{Chains.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{HigherChains.Carrier (N.Nat^::succ n)} {Chains.Carrier (N.Nat^::succ n)}} (#apply{(HigherMaps.At[n := N.Nat^::succ n].push sigma (Higher.continuous sigma))}) _ _ Geometry.homotopy)
+    (At[m := N.Nat^::succ n].law sigma LowerGeometry.Subdivision[].homotopy);

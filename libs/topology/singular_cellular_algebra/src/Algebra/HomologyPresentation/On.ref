@@ -1,0 +1,17 @@
+\import Modules.Of[V := H.Cycle, space := H.cycleSpace].Submodule[].Quotient[S := H.boundariesInside].To[W := target.Carrier, target := target.space] \as Descent;
+\import Modules.Hom[V := H.Homology, W := target.Carrier, source := H.homologySpace, target := target.space] \as Result;
+\definition map: Result.Map := Descent.descend data.map data.vanishes;
+\definition onClass: \forall (x: H.Cycle) -> #apply{map} (H.classOf x) = #apply{data.map} x := Descent.onClass data.map data.vanishes;
+\definition zeroKernel: \forall (q: H.Homology) -> #apply{map} q = #zero{target.space} -> q = H.zeroClass :=
+  H.classInduction (\fun (q: H.Homology) => #apply{map} q = #zero{target.space} -> q = H.zeroClass)
+    (\fun (x: H.Cycle)(killed: _) => H.boundaryClassZero x (data.kernel x
+      (trans!{target.Carrier} _ _ _ (sym!{target.Carrier} _ _ (onClass x)) killed)));
+\definition onto: \forall (y: target.Carrier) -> \exists { q: H.Homology \where #apply{map} q = y } := \block {
+  \fun (y: target.Carrier) \then
+  \takefrom x: \Cast[H.Cycle] ({ x: H.Cycle \where #apply{data.map} x = y }) \by data.onto y \then
+  \return Logic.existsIntro[H.Homology, { q: H.Homology \where #apply{map} q = y }] (H.classOf x)
+    (trans!{target.Carrier} _ _ _ (onClass x) (\bysub(H.Cycle, { x: H.Cycle \where #apply{data.map} x = y }, x)))
+};
+\import Modules.Isomorphism[V := H.Homology, W := target.Carrier, source := H.homologySpace, target := target.space].OfBijective[f := map] \as Inverse;
+\definition isomorphism: Modules.Isomorphism[V := H.Homology, W := target.Carrier, source := H.homologySpace, target := target.space].Isomorphism :=
+  Inverse.isomorphism (Result.injectiveOfZeroKernel map zeroKernel) onto;

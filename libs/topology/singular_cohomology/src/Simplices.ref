@@ -1,0 +1,65 @@
+\import algebraic_topology.Simplex[] \as Simplex;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\module At(n: N.Nat^) {
+  \import Simplex.At[n := n] \as Domain;
+  \import topology.Continuity[A := Simplex.Carrier n, B := A] \as Maps;
+  \definition Function: \Set := Simplex.Carrier n -> A;
+  \definition Continuous(f: Function): \Prop := Maps.Continuous Domain.topology source f;
+  \definition Carrier: \Set := \Cast[Function] ({ f: Function \where Continuous f });
+  \definition continuous: \forall (sigma: Carrier) -> Continuous sigma :=
+    \fun (sigma: Carrier) => \bysub(Function, Carrier, sigma);
+  \definition ext: \forall (sigma, tau: Carrier) -> (\forall (x: Simplex.Carrier n) -> sigma x = tau x) -> sigma = tau :=
+    \fun (sigma, tau: Carrier)(agrees: _) => \axiom:funext(sigma, tau, agrees);
+  \import topology.Maps[A := Simplex.Carrier n, B := A] \as Constants;
+  \definition constant(a: A): Carrier := \into[Function]((\fun (_: Simplex.Carrier n) => a), Carrier) \by {
+    Constants.constantContinuous Domain.topology source a
+  };
+}
+\definition Carrier(n: N.Nat^): \Set := At[n := n].Carrier;
+\definition ext: \forall (n: N.Nat^)(sigma, tau: Carrier n) -> (\forall (x: Simplex.Carrier n) -> sigma x = tau x) -> sigma = tau :=
+  \fun (n: N.Nat^) => At[n := n].ext;
+\module Faces(n: N.Nat^) {
+  \import \parent.At[n := n] \as Lower;
+  \import \parent.At[n := N.Nat^::succ n] \as Higher;
+  \import Simplex.At[n := n] \as Domain;
+  \import Simplex.At[n := N.Nat^::succ n] \as Codomain;
+  \import Simplex.Faces[n := n] \as Geometric;
+  \import topology.Composition[A := Simplex.Carrier n, B := Simplex.Carrier (N.Nat^::succ n), C := A] \as Composition;
+  \definition face(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ n)): Carrier n :=
+    \into[Lower.Function]((\fun (x: Simplex.Carrier n) => sigma (Simplex.face n i x)), Lower.Carrier) \by {
+      Composition.composeContinuous Domain.topology Codomain.topology source (Simplex.face n i) sigma
+        (Geometric.continuous i) (Higher.continuous sigma)
+    };
+}
+\definition face(n: N.Nat^): Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> Carrier (N.Nat^::succ n) -> Carrier n := Faces[n := n].face;
+\module Identities {
+  \import Simplex.Identities[] \as Geometric;
+  \import N.Basic[].Prop[] \as Bounds;
+  \definition faceIdentity: \forall (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ (N.Nat^::succ n))) -> Bounds.Le i j ->
+    face n j (face (N.Nat^::succ n) (Geometric.widen (N.Nat^::succ (N.Nat^::succ n)) i) sigma) =
+      face n i (face (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) j) sigma) :=
+    \fun (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Carrier (N.Nat^::succ (N.Nat^::succ n)))(ordered: Bounds.Le i j) =>
+      \axiom:funext(
+        face n j (face (N.Nat^::succ n) (Geometric.widen (N.Nat^::succ (N.Nat^::succ n)) i) sigma),
+        face n i (face (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) j) sigma),
+        \fun (x: Simplex.Carrier n) => congr!{{Simplex.Carrier (N.Nat^::succ (N.Nat^::succ n))} A} sigma _ _ (Geometric.faceIdentity n i j x ordered));
+}
+\import algebraic_topology.Semisimplicial[] \as Semisimplicial;
+\definition family: Semisimplicial.Family := Semisimplicial.Family { Carrier := Carrier };
+\definition faces: Semisimplicial.Faces[family] := Semisimplicial.Faces[family] { apply := face };
+\definition object: Semisimplicial.Object := Semisimplicial.Object {
+  family := family, faces := faces, laws := Semisimplicial.Laws[family, faces] { identity := Identities[].faceIdentity },
+};
+\module Degeneracies;
+\module Reindex(m, n: N.Nat^);
+\module ReindexIdentity(n: N.Nat^);
+\module Cut(p, q: N.Nat^);
+\module CutRightUnit(p: N.Nat^);
+\module ReindexTransport;
+\module CutLeftUnit(p: N.Nat^);
+\module CutAssociativity(p, q, r: N.Nat^);
+\module ReindexFace(n: N.Nat^);
+\module CutFaces(p, q: N.Nat^);

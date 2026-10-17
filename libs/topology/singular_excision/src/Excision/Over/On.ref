@@ -1,0 +1,34 @@
+\definition subset: \Pow A := #subset{pair};
+\definition removed: \Pow A := #removed{pair};
+\definition interior: \Pow A := Interior.interior source subset;
+\definition exterior: \Pow A := Top.Complement (Closure.closure source removed);
+\definition family: \Pow (\Pow A) := { U: \Pow A \where Logic.Or[U = interior, U = exterior] };
+\definition coverLaws: Top.IsOpenCover[source, family, Top.Whole] := Top.IsOpenCover[source, family, Top.Whole] {
+  open := \fun (U: \Pow A)(member: Top.FamilyMember family U) => either!{member {Top.IsOpenIn source U}
+    {\fun (same: U = interior) => \idelim interior = U \with V: \Pow A => Top.IsOpenIn source V \by {
+      base: Interior.open source subset, equality: sym!{{\Pow A}} _ _ same
+    }}
+    {\fun (same: U = exterior) => \idelim exterior = U \with V: \Pow A => Top.IsOpenIn source V \by {
+      base: Closure.closed source removed, equality: sym!{{\Pow A}} _ _ same
+    }}
+  },
+  covers := \fun (x: A)(member: Top.Member Top.Whole x) => either!{{(Classical.excludedMiddle (Top.Member (Closure.closure source removed) x))} {Top.Member (Top.Union family) x}
+    {\fun (inside: Top.Member (Closure.closure source removed) x) => Top.unionMemberOf family interior x
+      (Logic.Or[_, _]::left (\refl(interior))) (laws pair x inside)}
+    {\fun (outside: Logic.Not (Top.Member (Closure.closure source removed) x)) => Top.unionMemberOf family exterior x
+      (Logic.Or[_, _]::right (\refl(exterior))) outside}
+  },
+};
+\definition cover: Covers.Cover := \into[\Pow (\Pow A)](family, Covers.Families) \by { coverLaws };
+\definition removedInSubset: Top.Subset removed subset :=
+  \fun (x: A)(member: Top.Member removed x) => Interior.inside source subset x (laws pair x (Closure.contains source removed x member));
+\definition exteriorAvoidsRemoved: Top.Subset exterior (Top.Complement removed) :=
+  \fun (x: A)(outside: Top.Member exterior x)(inside: Top.Member removed x) => outside (Closure.contains source removed x inside);
+\definition members: \forall (U: \Pow A) -> Top.FamilyMember family U -> Logic.Or[Top.Subset U subset, Top.Subset U (Top.Complement removed)] :=
+  \fun (U: \Pow A)(member: Top.FamilyMember family U) => either!{member {Logic.Or[Top.Subset U subset, Top.Subset U (Top.Complement removed)]}
+    {\fun (same: U = interior) => Logic.Or[_, _]::left (\fun (x: A)(inside: Top.Member U x) => Interior.inside source subset x
+      (\idelim U = interior \with V: \Pow A => Top.Member V x \by { base: inside, equality: same }))}
+    {\fun (same: U = exterior) => Logic.Or[_, _]::right (\fun (x: A)(inside: Top.Member U x) => exteriorAvoidsRemoved x
+      (\idelim U = exterior \with V: \Pow A => Top.Member V x \by { base: inside, equality: same }))}
+  };
+\module Chains;

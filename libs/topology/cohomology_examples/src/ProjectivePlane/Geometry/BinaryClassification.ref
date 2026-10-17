@@ -1,0 +1,21 @@
+\import \root.Two[] \as F;
+\import std.Data[].Bool[] \as Booleans;
+\import std.Logic[].Proposition[] \as Logic;
+\import Modules.Isomorphism[V := V, W := F.Carrier, source := space, target := F.integerSpace] \as Isomorphisms;
+\import Modules.Hom[V := V, W := F.Carrier, source := space, target := F.integerSpace] \as Forward;
+\definition zeroCoordinate(e: Isomorphisms.Isomorphism)(x: V)(zero: #apply{#forward{e}} x = F.zero): x = #zero{space} :=
+  trans!{V} _ _ _ (sym!{V} _ _ (#leftInverse{e} x))
+    (trans!{V} _ _ _ (congr!{F.Carrier V} (#apply{#backward{e}}) _ _ zero)
+      (Modules.Hom[V := F.Carrier, W := V, source := F.integerSpace, target := space].zeroPreserved #backward{e}));
+\definition nonzeroCoordinate(e: Isomorphisms.Isomorphism)(x: V)(nonzero: x = #zero{space} -> Logic.False):
+  #apply{#forward{e}} x = F.zero -> Logic.False := \fun (zero: _) => nonzero (zeroCoordinate e x zero);
+\definition binaryOne: \forall (x: F.Carrier) -> (x = F.zero -> Logic.False) -> x = F.one :=
+  Booleans.cases (\fun (x: F.Carrier) => (x = F.zero -> Logic.False) -> x = F.one)
+    (\fun (bad: F.zero = F.zero -> Logic.False) => Logic.falseElim (F.zero = F.one) (bad (\refl(F.zero))))
+    (\fun (good: F.one = F.zero -> Logic.False) => \refl(F.one));
+\definition coordinateOne(e: Isomorphisms.Isomorphism)(x: V)(nonzero: x = #zero{space} -> Logic.False): #apply{#forward{e}} x = F.one := binaryOne _ (nonzeroCoordinate e x nonzero);
+\definition unique(e: Isomorphisms.Isomorphism)(x, y: V)(first: x = #zero{space} -> Logic.False)(last: y = #zero{space} -> Logic.False): x = y :=
+  trans!{V} _ _ _ (sym!{V} _ _ (#leftInverse{e} x))
+    (trans!{V} _ _ _
+      (congr!{F.Carrier V} (#apply{#backward{e}}) _ _ (trans!{F.Carrier} _ _ _ (coordinateOne e x first) (sym!{F.Carrier} _ _ (coordinateOne e y last))))
+      (#leftInverse{e} y));

@@ -1,0 +1,59 @@
+\import homological_algebra.Finite[].Bounded[] \as Bounded;
+\import integer_matrices.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero] \as Matrices;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\definition ranks: I.Int^ -> N.Nat^ := \induction (z: I.Int^) \return N.Nat^ \with {
+  | ofNat: rank
+  | negSucc: \fun (_: N.Nat^) => N.Nat^::zero
+};
+\definition zeroMatrix: Matrices.Runtime^ := \fun (row, column: N.Nat^) => I.Int^::ofNat N.Nat^::zero;
+\definition naturalBoundary: N.Nat^ -> Matrices.Runtime^ := \induction (n: N.Nat^) \return Matrices.Runtime^ \with {
+  | zero: zeroMatrix
+  | succ: \fun (n: N.Nat^)(previous: Matrices.Runtime^) => \parent.Differential[n := n].runtime
+};
+\definition matrices: I.Int^ -> Matrices.Runtime^ := \induction (z: I.Int^) \return Matrices.Runtime^ \with {
+  | ofNat: naturalBoundary
+  | negSucc: \fun (_: N.Nat^) => zeroMatrix
+};
+\definition data: Bounded.Data := Bounded.Data { ranks := ranks, boundary := matrices, bound := d };
+\definition emptyCoordinates(x, y: Modules.FiniteCoordinates[n := N.Nat^::zero].Carrier): x = y :=
+  \axiom:funext(x, y, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim (x i = y i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\module Positive(n: N.Nat^);
+\definition atZero: \forall (x: Bounded.Carrier data (I.Int^::ofNat N.Nat^::zero)) ->
+  Bounded.apply data (Bounded.previous (I.Int^::ofNat N.Nat^::zero)) (Bounded.apply data (I.Int^::ofNat N.Nat^::zero) x) =
+    #zero{(Bounded.space data (Bounded.previous (Bounded.previous (I.Int^::ofNat N.Nat^::zero))))} :=
+  \fun (x: Bounded.Carrier data (I.Int^::ofNat N.Nat^::zero)) => emptyCoordinates
+    (Bounded.apply data (Bounded.previous (I.Int^::ofNat N.Nat^::zero)) (Bounded.apply data (I.Int^::ofNat N.Nat^::zero) x))
+    (#zero{(Bounded.space data (Bounded.previous (Bounded.previous (I.Int^::ofNat N.Nat^::zero))))});
+\definition atOne: \forall (x: Bounded.Carrier data (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero))) ->
+  Bounded.apply data (Bounded.previous (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero))) (Bounded.apply data (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero)) x) =
+    #zero{(Bounded.space data (Bounded.previous (Bounded.previous (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero)))))} :=
+  \fun (x: Bounded.Carrier data (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero))) => emptyCoordinates
+    (Bounded.apply data (Bounded.previous (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero))) (Bounded.apply data (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero)) x))
+    (#zero{(Bounded.space data (Bounded.previous (Bounded.previous (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero)))))});
+\definition squareZero: \forall (z: I.Int^)(x: Bounded.Carrier data z) ->
+  Bounded.apply data (Bounded.previous z) (Bounded.apply data z x) = #zero{(Bounded.space data (Bounded.previous (Bounded.previous z)))} :=
+  \induction (z: I.Int^) \return \forall (x: Bounded.Carrier data z) ->
+    Bounded.apply data (Bounded.previous z) (Bounded.apply data z x) = #zero{(Bounded.space data (Bounded.previous (Bounded.previous z)))} \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: Bounded.Carrier data (I.Int^::ofNat n)) ->
+        Bounded.apply data (Bounded.previous (I.Int^::ofNat n)) (Bounded.apply data (I.Int^::ofNat n) x) = #zero{(Bounded.space data (Bounded.previous (Bounded.previous (I.Int^::ofNat n))))} \with {
+        | zero: atZero
+        | succ: \fun (n: N.Nat^)(previous: _) => (\induction (n: N.Nat^) \return \forall (x: Bounded.Carrier data (I.Int^::ofNat (N.Nat^::succ n))) ->
+            Bounded.apply data (Bounded.previous (I.Int^::ofNat (N.Nat^::succ n))) (Bounded.apply data (I.Int^::ofNat (N.Nat^::succ n)) x) =
+              #zero{(Bounded.space data (Bounded.previous (Bounded.previous (I.Int^::ofNat (N.Nat^::succ n)))))} \with {
+              | zero: atOne
+              | succ: \fun (n: N.Nat^)(unused: _) => Positive[n := n].square
+            }) n
+      }
+    | negSucc: \fun (n: N.Nat^)(x: Bounded.Carrier data (I.Int^::negSucc n)) => emptyCoordinates
+        (Bounded.apply data (Bounded.previous (I.Int^::negSucc n)) (Bounded.apply data (I.Int^::negSucc n) x))
+        (#zero{(Bounded.space data (Bounded.previous (Bounded.previous (I.Int^::negSucc n))))})
+  };
+\definition bounded: \forall (z: I.Int^) -> Bounds.Le (N.Nat^::succ d) (Signed.absolute z) -> ranks z = N.Nat^::zero :=
+  \induction (z: I.Int^) \return Bounds.Le (N.Nat^::succ d) (Signed.absolute z) -> ranks z = N.Nat^::zero \with {
+    | ofNat: \fun (n: N.Nat^)(large: Bounds.Le (N.Nat^::succ d) n) => aboveDimension n (Bounds.ltOfSuccLe n d large)
+    | negSucc: \fun (n: N.Nat^)(large: _) => \refl(N.Nat^::zero)
+  };
+\definition model: Bounded.Complex := \into[Bounded.Data](data, Bounded.Complex) \by {
+  Bounded.Laws[data] { squareZero := squareZero, bounded := bounded }
+};
+\module SignedModel;

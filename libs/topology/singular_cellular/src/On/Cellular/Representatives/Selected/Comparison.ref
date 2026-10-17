@@ -1,0 +1,84 @@
+\definition degree: I.Int^ := I.Int^::ofNat k;
+\import \parent.\parent.\parent.\parent.Skeletal[].Cycles[n := k] \as Cycles;
+\import \parent.\parent.\parent.\parent.Skeletal[].Presentation[n := k] \as Presentation;
+\import \parent.\parent.\parent.\parent.Skeletal[].Ambient[k := k] \as Ambient;
+\import \parent.\parent.\parent.\parent.Filtration[].Stage[limit := N.Nat^::succ k] \as Upper;
+\import \parent.\parent.\parent.\parent.Filtration[].Stage[limit := N.Nat^::succ (N.Nat^::succ k)] \as NextUpper;
+\import \parent.\parent.\parent.\parent.Layer[n := k] \as Layer;
+\import \parent.\parent.\parent.\parent.Layer[n := N.Nat^::succ k] \as NextLayer;
+\import \parent.Degree[n := k] \as Chosen;
+\import singular_cohomology.Chains[A := Upper.Carrier, source := Upper.topology] \as UpperChains;
+\import singular_cohomology.Chains[A := NextUpper.Carrier, source := NextUpper.topology] \as NextChains;
+\import Nonnegative.ZeroExtension[C := UpperChains.complex] \as UpperExtension;
+\import Nonnegative.ZeroExtension[C := NextChains.complex] \as NextExtension;
+\import Nonnegative.ZeroExtension[C := complex] \as CellExtension;
+\import Complexes.At[C := integerComplex, z := degree] \as Cell;
+\import Complexes.At[C := UpperExtension.complex, z := degree] \as Whole;
+\import Complexes.At[C := NextExtension.complex, z := degree] \as Next;
+\import Complexes.At[C := AmbientChains.integerComplex, z := degree] \as Target;
+\import Complexes.Map[C := integerComplex, D := AmbientChains.integerComplex].At[k := degree] \as Comparison;
+\import \parent.\parent.\parent.\parent.Filtration[].Stage[limit := k] \as Lower;
+\import singular_cohomology.Chains[A := Lower.Carrier, source := Lower.topology] \as LowerChains;
+\import Nonnegative.ZeroExtension[C := LowerChains.complex] \as LowerExtension;
+\import Complexes.Quotient[C := LowerExtension.complex, D := UpperExtension.complex].On[f := Layer.inclusion] \as Quotient;
+\import Complexes.Map[C := UpperExtension.complex, D := Layer.complex].At[k := degree] \as Projection;
+\import singular_cohomology.Maps[A := Upper.Carrier, B := A, source := Upper.topology, target := source] \as AmbientMap;
+\import singular_cohomology.Maps[A := NextUpper.Carrier, B := A, source := NextUpper.topology, target := source] \as NextAmbientMap;
+\import singular_cohomology.Maps[A := Upper.Carrier, B := NextUpper.Carrier, source := Upper.topology, target := NextUpper.topology] \as Inclusion;
+\import Inclusion.Composition[C := A, final := source].Integer[] \as Functor;
+\import Complexes.Map[C := UpperExtension.complex, D := AmbientChains.integerComplex].At[k := degree] \as IntoAmbient;
+\import Complexes.Map[C := UpperExtension.complex, D := NextExtension.complex].At[k := degree] \as Included;
+\import Complexes.Map[C := NextExtension.complex, D := AmbientChains.integerComplex].At[k := degree] \as NextIntoAmbient;
+\import Complexes.Map[C := NextExtension.complex, D := AmbientChains.integerComplex].Composition[B := UpperExtension.complex].At[k := degree] \as Composition;
+\definition localCycle(x: Cell.Cycle): Whole.Cycle := Whole.cycle (#apply{(at k).relative.map} x) ((at k).onCycle x);
+\definition localClass(x: Cell.Cycle): Whole.Homology := Whole.classOf (localCycle x);
+\import singular_cellular_algebra.Algebra[].CycleEquality[C := integerComplex, z := degree] \as CyclesEqual;
+\definition projectedClass: \forall (x: Cell.Cycle) -> #apply{#forward{Cycles.isomorphism}} (localClass x) = x :=
+  \fun (x: Cell.Cycle) => CyclesEqual.law _ _ (trans!{{Carrier k}} _ _ _
+    (Projection.onClass Quotient.projection (localCycle x)) ((at k).relative.section x));
+\definition localInverse: \forall (x: Cell.Cycle) -> localClass x = #apply{#backward{Cycles.isomorphism}} x :=
+  \fun (x: Cell.Cycle) => trans!{Whole.Homology} _ _ _
+    (sym!{Whole.Homology} _ _ (#leftInverse{Cycles.isomorphism} (localClass x)))
+    (congr!{Cell.Cycle Whole.Homology} (#apply{#backward{Cycles.isomorphism}}) _ _ (projectedClass x));
+\definition factorization: Complexes.Map[C := NextExtension.complex, D := AmbientChains.integerComplex].Composition[B := UpperExtension.complex]
+  .compose (NextAmbientMap.integerPush NextUpper.inclusion NextUpper.continuous) NextLayer.inclusion = AmbientMap.integerPush Upper.inclusion Upper.continuous :=
+  Functor.law Upper.Next[].inclusion Upper.Next[].continuous NextUpper.inclusion NextUpper.continuous;
+\definition factorOnHomology: \forall (h: Whole.Homology) ->
+  #apply{(IntoAmbient.induced (AmbientMap.integerPush Upper.inclusion Upper.continuous))} h =
+    #apply{(NextIntoAmbient.induced (NextAmbientMap.integerPush NextUpper.inclusion NextUpper.continuous))}
+      (#apply{(Included.induced NextLayer.inclusion)} h) :=
+  \fun (h: Whole.Homology) => trans!{Target.Homology} _ _ _
+    (congr!{{Complexes.Map[C := UpperExtension.complex, D := AmbientChains.integerComplex].Map} Target.Homology}
+      (\fun (f: Complexes.Map[C := UpperExtension.complex, D := AmbientChains.integerComplex].Map) => #apply{(IntoAmbient.induced f)} h) _ _
+      (sym!{{Complexes.Map[C := UpperExtension.complex, D := AmbientChains.integerComplex].Map}} _ _ factorization))
+    (Composition.compositionOnHomology (NextAmbientMap.integerPush NextUpper.inclusion NextUpper.continuous) NextLayer.inclusion h);
+\import Modules.Isomorphism[V := Cell.Homology, W := Next.Homology, source := Cell.homologySpace, target := Next.homologySpace]
+  .Composition[U := Target.Homology, final := Target.homologySpace] \as IsoComposition;
+\definition isomorphism: Modules.Isomorphism[V := Cell.Homology, W := Target.Homology, source := Cell.homologySpace, target := Target.homologySpace].Isomorphism :=
+  IsoComposition.compose Ambient.isomorphism Presentation.isomorphism;
+\definition onClass: \forall (x: Cell.Cycle) ->
+  #apply{(Comparison.induced integerMap)} (Cell.classOf x) = #apply{#forward{isomorphism}} (Cell.classOf x) :=
+  \fun (x: Cell.Cycle) => trans!{Target.Homology} _ _ _
+    (Comparison.onClass integerMap x)
+    (trans!{Target.Homology} _ _ _
+      (sym!{Target.Homology} _ _ (IntoAmbient.onClass (AmbientMap.integerPush Upper.inclusion Upper.continuous) (localCycle x)))
+      (trans!{Target.Homology} _ _ _ (factorOnHomology (localClass x))
+        (trans!{Target.Homology} _ _ _
+          (congr!{Whole.Homology Target.Homology}
+            (\fun (h: Whole.Homology) => #apply{(NextIntoAmbient.induced (NextAmbientMap.integerPush NextUpper.inclusion NextUpper.continuous))}
+              (#apply{(Included.induced NextLayer.inclusion)} h)) _ _ (localInverse x))
+          (sym!{Target.Homology} _ _
+            (congr!{Next.Homology Target.Homology} (#apply{#forward{Ambient.isomorphism}}) _ _ (Presentation.onClass x))))));
+\definition equation: \forall (q: Cell.Homology) -> #apply{(Comparison.induced integerMap)} q = #apply{#forward{isomorphism}} q :=
+  Cell.classInduction (\fun (q: Cell.Homology) => #apply{(Comparison.induced integerMap)} q = #apply{#forward{isomorphism}} q) onClass;
+\definition bijective: Comparison.Bijective[integerMap] := Comparison.Bijective[integerMap] {
+  injective := \fun (q, r: Cell.Homology)(same: _) => trans!{Cell.Homology} _ _ _
+    (sym!{Cell.Homology} _ _ (#leftInverse{isomorphism} q))
+    (trans!{Cell.Homology} _ _ _
+      (congr!{Target.Homology Cell.Homology} (#apply{#backward{isomorphism}}) _ _
+        (trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (equation q))
+          (trans!{Target.Homology} _ _ _ same (equation r))))
+      (#leftInverse{isomorphism} r)),
+  onto := \fun (q: Target.Homology) => Logic.existsIntro[Cell.Homology, { x: Cell.Homology \where #apply{(Comparison.induced integerMap)} x = q }]
+    (#apply{#backward{isomorphism}} q) (trans!{Target.Homology} _ _ _ (equation (#apply{#backward{isomorphism}} q)) (#rightInverse{isomorphism} q)),
+};

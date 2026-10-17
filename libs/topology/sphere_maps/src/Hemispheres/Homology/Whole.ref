@@ -1,0 +1,49 @@
+\import singular_cohomology.Maps[A := Geometry.Sphere, B := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n), target := Spheres.topology (N.Nat^::succ n)] \as Maps;
+\import Native.Map[C := SmallChains.complex, D := WholeChains.complex].ZeroExtension[f := SmallChains.inclusion] \as InclusionExtension;
+\definition reflection: SignedChains.Map[C := WholeExtension.complex, D := WholeExtension.complex].Map := Maps.integerPush Reflection.head Reflection.headContinuous;
+\import SignedChains.Map[C := WholeExtension.complex, D := WholeExtension.complex].Composition[B := SmallExtension.complex] \as ReflectAfterInclude;
+\import SignedChains.Map[C := SmallExtension.complex, D := WholeExtension.complex].Composition[B := SmallExtension.complex] \as IncludeAfterReflect;
+\module Degree(k: N.Nat^);
+\import SignedChains.Map[C := SmallExtension.complex, D := WholeExtension.complex] \as InclusionMaps;
+\definition square: ReflectAfterInclude.compose reflection InclusionExtension.map = IncludeAfterReflect.compose InclusionExtension.map Diagram.rightAction := InclusionMaps.ext
+  (ReflectAfterInclude.compose reflection InclusionExtension.map) (IncludeAfterReflect.compose InclusionExtension.map Diagram.rightAction)
+  (\induction (z: I.Int^) \return \forall (x: SmallExtension.Carrier z) ->
+    #apply{reflection} z (#apply{InclusionExtension.map} z x) = #apply{InclusionExtension.map} z (#apply{Diagram.rightAction} z x) \with {
+    | ofNat: \fun (k: N.Nat^) => Degree[k := k].signedSquare
+    | negSucc: \fun (k: N.Nat^)(x: SmallExtension.Carrier (I.Int^::negSucc k)) => \refl(#zero{(WholeExtension.space (I.Int^::negSucc k))})
+  });
+\import SignedChains.Map[C := SmallExtension.complex, D := WholeExtension.complex].At[k := upperDegree] \as Inclusion;
+\import SignedChains.Map[C := SmallExtension.complex, D := SmallExtension.complex].At[k := upperDegree] \as SmallReflection;
+\import SignedChains.Map[C := WholeExtension.complex, D := WholeExtension.complex].At[k := upperDegree] \as WholeReflection;
+\import ReflectAfterInclude.At[k := upperDegree] \as LeftComposition;
+\import IncludeAfterReflect.At[k := upperDegree] \as RightComposition;
+\definition naturality: \forall (q: SmallH.Homology) ->
+  #apply{(WholeReflection.induced reflection)} (#apply{(Inclusion.induced InclusionExtension.map)} q) =
+    #apply{(Inclusion.induced InclusionExtension.map)} (#apply{(SmallReflection.induced Diagram.rightAction)} q) :=
+  \fun (q: SmallH.Homology) => trans!{WholeH.Homology} _ _ _
+    (sym!{WholeH.Homology} _ _ (LeftComposition.compositionOnHomology reflection InclusionExtension.map q))
+    (trans!{WholeH.Homology} _ _ _
+      (congr!{InclusionMaps.Map WholeH.Homology} (\fun (f: InclusionMaps.Map) => #apply{(Inclusion.induced f)} q) _ _ square)
+      (RightComposition.compositionOnHomology InclusionExtension.map Diagram.rightAction q));
+\import singular_excision.MayerVietoris[A := Geometry.Sphere].Over[source := Spheres.topology (N.Nat^::succ n)].On[cover := Cover.cover] \as CoverData;
+\import singular_cohomology.OpenCover[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].On[cover := CoverData.openCover] \as Covered;
+\import Native.Equivalence[C := SmallChains.complex, D := WholeChains.complex].ZeroExtension[e := Covered.equivalence] \as ChainComparison;
+\import SignedChains.Equivalence[C := SmallExtension.complex, D := WholeExtension.complex].At[k := upperDegree] \as Comparison;
+\import Modules.Hom[V := SmallH.Homology, W := WholeH.Homology, source := SmallH.homologySpace, target := WholeH.homologySpace] \as InclusionLinear;
+\definition Carrier: \Set := WholeH.Homology;
+\definition space: Modules.Space Carrier := WholeH.homologySpace;
+\definition action: Modules.Hom[V := Carrier, W := Carrier, source := space, target := space].Map := WholeReflection.induced reflection;
+\definition head: \forall (q: Carrier) -> #apply{action} q = #neg{space} q := \block {
+  \fun (q: Carrier) \then
+  \takefrom p: \Cast[SmallH.Homology] ({ p: SmallH.Homology \where #apply{(Inclusion.induced InclusionExtension.map)} p = q })
+    \by #onto{(Comparison.bijective ChainComparison.equivalence)} q \then
+  \let same: #apply{(Inclusion.induced InclusionExtension.map)} p = q :=
+    \bysub(SmallH.Homology, { p: SmallH.Homology \where #apply{(Inclusion.induced InclusionExtension.map)} p = q }, p) \then
+  \return trans!{Carrier} _ _ _
+    (sym!{Carrier} _ _ (congr!{Carrier Carrier} (#apply{action}) _ _ same))
+    (trans!{Carrier} _ _ _ (naturality p)
+      (trans!{Carrier} _ _ _
+        (congr!{SmallH.Homology Carrier} (#apply{(Inclusion.induced InclusionExtension.map)}) _ _ (\parent.Small[].action p))
+        (trans!{Carrier} _ _ _ (InclusionLinear.negativePreserved (Inclusion.induced InclusionExtension.map) p)
+          (congr!{Carrier Carrier} (#neg{space}) _ _ same))))
+};

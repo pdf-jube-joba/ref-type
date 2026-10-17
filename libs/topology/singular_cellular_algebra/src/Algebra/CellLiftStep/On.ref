@@ -1,0 +1,24 @@
+\import Rep.Represented[data := data].WithRetraction[r := r.map].On[retracts := r.retracts] \as Derivative;
+\import Modules.Hom[V := H.Homology, W := Lower.Cycle, source := H.homologySpace, target := Lower.cycleSpace] \as CycleMaps;
+\definition difference: CycleMaps.Map := CycleMaps.plus Derivative.cycles (CycleMaps.negative desired.map);
+\import Modules.Hom[V := Lower.Cycle, W := Lower.Homology, source := Lower.cycleSpace, target := Lower.homologySpace] \as Classes;
+\import Modules.Laws[V := Lower.Homology, space := Lower.homologySpace] \as LowerHomology;
+\import algebra.Group[].Of[Carrier := Lower.Homology, group := LowerHomology.additive] \as HomologyGroup;
+\definition differenceZero: \forall (q: H.Homology) -> Lower.classOf (#apply{difference} q) = Lower.zeroClass :=
+  \fun (q: H.Homology) => trans!{Lower.Homology} _ _ _
+    (Classes.differencePreserved Lower.classLinear (#apply{Derivative.cycles} q) (#apply{desired.map} q))
+    (trans!{Lower.Homology} _ _ _
+      (congr2!{Lower.Homology Lower.Homology Lower.Homology} HomologyGroup.difference _ _ _ _
+        (sym!{Lower.Homology} _ _ (Derivative.connectingLaw q)) (desired.compatible q))
+      (HomologyGroup.inverseRight (#apply{Connecting.connecting} q)));
+\import \parent.\parent.BoundaryFill[P := A, z := previous, M := homology] \as Fill;
+\definition fillData: Fill.Data := Fill.Data { map := difference, killed := differenceZero };
+\definition FillMap: \Set := \Cast[Modules.Hom[V := H.Homology, W := A.family.Carrier z, source := H.homologySpace, target := A.family.space z].Map]
+  ({ f: Modules.Hom[V := H.Homology, W := A.family.Carrier z, source := H.homologySpace, target := A.family.space z].Map \where
+    \forall (q: H.Homology) -> #apply{Lower.prior} (#apply{f} q) = #apply{difference} q });
+\module Filled(f: FillMap);
+\definition existence: Modules.Projective homology -> \exists Result[desired] := \block {
+  \fun (projective: Modules.Projective homology) \then
+  \takefrom f: FillMap \by Fill.On[data := fillData].existence projective \then
+  \return \exact(Filled[f := f].result, Result[desired])
+};

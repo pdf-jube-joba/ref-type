@@ -1,0 +1,34 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Hom.Relative[subcomplex := SubspaceSmall.complex, wholecomplex := Small.complex].On[pair := pair, coefficients := coefficients] \as SmallRelative;
+\import Hom.Integer[P := WholePair.complex, N := coefficients] \as WholeRelative;
+\import Hom.Integer[P := SmallSpace.complex, N := coefficients] \as SmallWhole;
+\import Hom.Integer[P := SmallSubspace.complex, N := coefficients] \as SmallSub;
+\import Hom.Integer[P := WholeSpace.complex, N := coefficients] \as WholeWhole;
+\import Hom.Integer[P := WholeSubspace.complex, N := coefficients] \as WholeSub;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficients;
+\import Hom.IntegerMapping[P := Quotient.complex, Q := WholePair.complex, N := coefficients, L := coefficients]
+  .On[f := comparison, u := Coefficients.identity] \as RelativeMap;
+\import Hom.IntegerMapping[P := SmallSpace.complex, Q := WholeSpace.complex, N := coefficients, L := coefficients]
+  .On[f := SpaceMap.map, u := Coefficients.identity] \as WholeMap;
+\import Hom.IntegerMapping[P := SmallSubspace.complex, Q := WholeSubspace.complex, N := coefficients, L := coefficients]
+  .On[f := SubspaceMap.map, u := Coefficients.identity] \as SubMap;
+\definition restriction: Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].Map := RelativeMap.map;
+\import WholePair.With[coefficients := coefficients].PairSequence[] \as SourceSequence;
+\import SmallRelative.PairSequence[] \as TargetSequence;
+\module Square(z: Signed.Int^);
+\import Cochains.ShortExact[A := WholeRelative.complex, B := WholeWhole.complex, C := WholeSub.complex]
+  .Morphism[A1 := SmallRelative.complex, B1 := SmallWhole.complex, C1 := SmallSub.complex]
+  .Diagram[s := SourceSequence.sequence, t := TargetSequence.sequence, a := restriction, b := WholeMap.map, c := SubMap.map] \as Diagram;
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (z: Signed.Int^) => Square[z := z].inclusion,
+  right := \fun (z: Signed.Int^)(h: WholeWhole.Carrier z) => sym!{{SmallSub.Carrier z}} _ _ (Square[z := z].restriction h),
+};
+\import Hom.IntegerEquivalence[P := SmallSpace.complex, Q := WholeSpace.complex, N := coefficients] \as WholeComparison;
+\import Hom.IntegerEquivalence[P := SmallSubspace.complex, Q := WholeSubspace.complex, N := coefficients] \as SubComparison;
+\definition quasiIsomorphism: Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].QuasiIsomorphism restriction :=
+  Diagram.leftQuasiIsomorphism diagram (WholeComparison.quasiIsomorphism SpaceEquivalence.equivalence) (SubComparison.quasiIsomorphism SubspaceEquivalence.equivalence);
+\module At(z: Signed.Int^) {
+  \import Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].At[k := z].Invert[f := restriction] \as Inverse;
+  \definition isomorphism: _ := Inverse.isomorphism (quasiIsomorphism z);
+}
