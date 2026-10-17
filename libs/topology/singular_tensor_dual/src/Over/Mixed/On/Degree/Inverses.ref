@@ -4,18 +4,51 @@
 \import Modules.End[V := DualSum.Carrier, space := DualSum.space] \as DualEnd;
 \import SourceSum.To[W := SourceTerm.Carrier, target := SourceTerm.space] \as SourceUniversal;
 \import DualSum.To[W := DualSum.Carrier, target := DualSum.space] \as DualUniversal;
+\import N.Basic[].Def[] \as Arithmetic;
+\definition sourceIndex(pair: ScalarDouble.Pair)(degree: Arithmetic.add #first{pair} #second{pair} = n): ScalarDouble.Index n :=
+  \into[ScalarDouble.Pair](pair, ScalarDouble.Index n) \by { degree };
+\definition targetIndex(pair: Double.Pair)(degree: Arithmetic.add #first{pair} #second{pair} = n): Double.Index n :=
+  \into[Double.Pair](pair, Double.Index n) \by { degree };
+\definition sourceRoundtrip: \forall (pair: ScalarDouble.Pair)(degree: Arithmetic.add #first{pair} #second{pair} = n)
+  (x: SourceTerm.family.Carrier (sourceIndex pair degree)) ->
+  #apply{SourceSum.Injection[i := Indices.toScalar (Indices.toInteger (sourceIndex pair degree))].map} x =
+    #apply{SourceSum.Injection[i := sourceIndex pair degree].map} x :=
+  \induction (pair: ScalarDouble.Pair) \return \forall (degree: Arithmetic.add #first{pair} #second{pair} = n)
+    (x: SourceTerm.family.Carrier (sourceIndex pair degree)) ->
+    #apply{SourceSum.Injection[i := Indices.toScalar (Indices.toInteger (sourceIndex pair degree))].map} x =
+      #apply{SourceSum.Injection[i := sourceIndex pair degree].map} x \with {
+    | # : \fun (p, q: N.Nat^)(degree: Arithmetic.add p q = n)(x: SourceTensor.Term[p := p, q := q].Carrier) =>
+      \refl(#apply{SourceSum.Injection[i := sourceIndex (ScalarDouble.Pair::# p q) degree].map} x)
+  };
+\definition targetRoundtrip: \forall (pair: Double.Pair)(degree: Arithmetic.add #first{pair} #second{pair} = n)
+  (x: Diagonal.dualFamily.Carrier (targetIndex pair degree)) ->
+  #apply{DualSum.Injection[i := Indices.toInteger (Indices.toScalar (targetIndex pair degree))].map} x =
+    #apply{DualSum.Injection[i := targetIndex pair degree].map} x :=
+  \induction (pair: Double.Pair) \return \forall (degree: Arithmetic.add #first{pair} #second{pair} = n)
+    (x: Diagonal.dualFamily.Carrier (targetIndex pair degree)) ->
+    #apply{DualSum.Injection[i := Indices.toInteger (Indices.toScalar (targetIndex pair degree))].map} x =
+      #apply{DualSum.Injection[i := targetIndex pair degree].map} x \with {
+    | # : \fun (p, q: N.Nat^)(degree: Arithmetic.add p q = n)(x: Diagonal.dualFamily.Carrier (targetIndex (Double.Pair::# p q) degree)) =>
+      \refl(#apply{DualSum.Injection[i := targetIndex (Double.Pair::# p q) degree].map} x)
+  };
 \definition leftEquality: LeftComposition.compose fromDual toDual = SourceEnd.identity :=
   SourceUniversal.ext (LeftComposition.compose fromDual toDual) SourceEnd.identity
-    (\fun (i: Double.Index n)(x: SourceTerm.family.Carrier i) => trans!{SourceTerm.Carrier} _ _ _
-      (congr!{DualSum.Carrier SourceTerm.Carrier} (#apply{fromDual}) _ _ (ForwardMapping.onInjection forwards i x))
-      (trans!{SourceTerm.Carrier} _ _ _ (BackwardMapping.onInjection backwards i (#apply{(forwards i)} x))
-        (congr!{{SourceTerm.family.Carrier i} SourceTerm.Carrier} (#apply{SourceSum.Injection[i := i].map}) _ _ (#leftInverse{\parent.Component[i := i].isomorphism} x))));
+    (\fun (i: ScalarDouble.Index n)(x: SourceTerm.family.Carrier i) => trans!{SourceTerm.Carrier} _ _ _
+      (congr!{DualSum.Carrier SourceTerm.Carrier} (#apply{fromDual}) _ _ (forwardInjection i x))
+      (trans!{SourceTerm.Carrier} _ _ _
+        (backwardInjection (Indices.toInteger i) (#apply{#forward{\parent.Component[i := i].isomorphism}} x))
+        (trans!{SourceTerm.Carrier} _ _ _
+          (congr!{{SourceTerm.family.Carrier i} SourceTerm.Carrier} (#apply{SourceSum.Injection[i := Indices.toScalar (Indices.toInteger i)].map}) _ _ (#leftInverse{\parent.Component[i := i].isomorphism} x))
+          (sourceRoundtrip i (ScalarDouble.degree n i) x))));
 \definition rightEquality: RightComposition.compose toDual fromDual = DualEnd.identity :=
   DualUniversal.ext (RightComposition.compose toDual fromDual) DualEnd.identity
     (\fun (i: Double.Index n)(x: Diagonal.dualFamily.Carrier i) => trans!{DualSum.Carrier} _ _ _
-      (congr!{SourceTerm.Carrier DualSum.Carrier} (#apply{toDual}) _ _ (BackwardMapping.onInjection backwards i x))
-      (trans!{DualSum.Carrier} _ _ _ (ForwardMapping.onInjection forwards i (#apply{(backwards i)} x))
-        (congr!{{Diagonal.dualFamily.Carrier i} DualSum.Carrier} (#apply{DualSum.Injection[i := i].map}) _ _ (#rightInverse{\parent.Component[i := i].isomorphism} x))));
+      (congr!{SourceTerm.Carrier DualSum.Carrier} (#apply{toDual}) _ _ (backwardInjection i x))
+      (trans!{DualSum.Carrier} _ _ _
+        (forwardInjection (Indices.toScalar i) (#apply{#backward{\parent.Component[i := Indices.toScalar i].isomorphism}} x))
+        (trans!{DualSum.Carrier} _ _ _
+          (congr!{{Diagonal.dualFamily.Carrier i} DualSum.Carrier} (#apply{DualSum.Injection[i := Indices.toInteger (Indices.toScalar i)].map}) _ _ (#rightInverse{\parent.Component[i := Indices.toScalar i].isomorphism} x))
+          (targetRoundtrip i (Double.degree n i) x))));
 \definition left(x: SourceTerm.Carrier): #apply{fromDual} (#apply{toDual} x) = x :=
   congr!{{Modules.Hom[V := SourceTerm.Carrier, W := SourceTerm.Carrier, source := SourceTerm.space, target := SourceTerm.space].Map} SourceTerm.Carrier}
     (\fun (f: Modules.Hom[V := SourceTerm.Carrier, W := SourceTerm.Carrier, source := SourceTerm.space, target := SourceTerm.space].Map) => #apply{f} x) _ _ leftEquality;

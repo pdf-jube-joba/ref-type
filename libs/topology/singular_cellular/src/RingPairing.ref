@@ -15,8 +15,34 @@
 \import Scalars.AbelianHom[N := coefficients] \as Abelian;
 \definition integerCoefficients: Modules.Bundle := Modules.Bundle { Carrier := R, space := Abelian.coefficients.space };
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\definition leftFamily: Native.Family := Native.Family {
+  Carrier := \fun (k: N.Nat^) => P.family.Carrier k,
+  space := \fun (k: N.Nat^) => P.family.space k,
+};
+\definition rightFamily: Native.Family := Native.Family {
+  Carrier := \fun (k: N.Nat^) => Q.family.Carrier k,
+  space := \fun (k: N.Nat^) => Q.family.space k,
+};
+\definition leftDifferential: Native.DifferentialData[leftFamily] := Native.DifferentialData[leftFamily] {
+  apply := \fun (k: N.Nat^)(x: P.family.Carrier (N.Nat^::succ k)) => #apply{P.differential} k x,
+};
+\definition rightDifferential: Native.DifferentialData[rightFamily] := Native.DifferentialData[rightFamily] {
+  apply := \fun (k: N.Nat^)(x: Q.family.Carrier (N.Nat^::succ k)) => #apply{Q.differential} k x,
+};
+\definition leftLaws: Native.DifferentialLaws[leftFamily, leftDifferential] := Native.DifferentialLaws[leftFamily, leftDifferential] {
+  addition := \fun (k: N.Nat^)(x, y: P.family.Carrier (N.Nat^::succ k)) => #addition{P.laws} k x y,
+  scalar := \fun (k: N.Nat^)(a: I.Int^)(x: P.family.Carrier (N.Nat^::succ k)) => #scalar{P.laws} k a x,
+  squareZero := \fun (k: N.Nat^)(x: P.family.Carrier (N.Nat^::succ (N.Nat^::succ k))) => #squareZero{P.laws} k x,
+};
+\definition rightLaws: Native.DifferentialLaws[rightFamily, rightDifferential] := Native.DifferentialLaws[rightFamily, rightDifferential] {
+  addition := \fun (k: N.Nat^)(x, y: Q.family.Carrier (N.Nat^::succ k)) => #addition{Q.laws} k x y,
+  scalar := \fun (k: N.Nat^)(a: I.Int^)(x: Q.family.Carrier (N.Nat^::succ k)) => #scalar{Q.laws} k a x,
+  squareZero := \fun (k: N.Nat^)(x: Q.family.Carrier (N.Nat^::succ (N.Nat^::succ k))) => #squareZero{Q.laws} k x,
+};
+\definition leftComplex: Native.Complex := Native.Complex { family := leftFamily, differential := leftDifferential, laws := leftLaws };
+\definition rightComplex: Native.Complex := Native.Complex { family := rightFamily, differential := rightDifferential, laws := rightLaws };
 \import double_complexes.DoubleComplex[].Over[R := I.Int^, ring := Integers.ring] \as Double;
-\import Double.Tensor[C := P, D := Q] \as Tensor;
+\import Double.Tensor[C := leftComplex, D := rightComplex] \as Tensor;
 \import Double.Total[C := Tensor.complex] \as Total;
 \import Double.Coordinates[C := Tensor.complex] \as Coordinates;
 \import Tensor.Term[p := p, q := q] \as Term;
