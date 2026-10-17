@@ -5,16 +5,20 @@
 \import \root.Coproduct[Index := Index, fibers := fiber, spaces := fiberTopology] \as Disks;
 \definition Carrier: \Set := Disks.Carrier;
 \definition topology: topology.Topology[Carrier := Carrier].Topology := Disks.topology;
+\import singular_cellular_algebra.Algebra[] \as Algebra;
+\import Algebra.Refinement[A := Cells.CellData, S := Selected] \as IndexRefinement;
+\definition ambient(x: Target.Carrier): A := x;
 \definition map(chart: Carrier): Target.Carrier := \parent.Cell[cell := #index{chart}, member := member (#index{chart}), dimension := dimension (#index{chart})].embed (#point{chart});
 \definition continuous: topology.Continuity[A := Carrier, B := Target.Carrier].Continuous topology Target.topology map :=
   \fun (U: \Pow Target.Carrier)(open: RemainingSpace.IsOpenIn Target.topology U) => #rtl{(Disks.openCriterion ({ chart: Carrier \where RemainingSpace.Member U (map chart) }))}
     (\fun (cell: Index) => \parent.Cell[cell := cell, member := member cell, dimension := dimension cell].embedContinuous U open);
 \definition sameIndex: \forall (left, right: Carrier) -> map left = map right -> #index{left} = #index{right} :=
-  \fun (left, right: Carrier)(same: _) => #disjoint{laws} (#index{left}) (#index{right}) (member (#index{left})) (member (#index{right})) (map left)
+  \fun (left, right: Carrier)(same: _) => IndexRefinement.ext (#index{left}) (#index{right})
+    (#disjoint{laws} (#index{left}) (#index{right}) (member (#index{left})) (member (#index{right})) (map left)
     (\parent.Cell[cell := #index{left}, member := member (#index{left}), dimension := dimension (#index{left})].contains (#point{left}))
     (\idelim map right = map left \with x: A => Space.Member (Cells.InteriorImage (#index{right})) x \by {
       base: \parent.Cell[cell := #index{right}, member := member (#index{right}), dimension := dimension (#index{right})].contains (#point{right}),
-      equality: sym!{A} _ _ same });
+      equality: congr!{Target.Carrier A} ambient _ _ (sym!{Target.Carrier} _ _ same) }));
 \definition injective: \forall (left, right: Carrier) -> map left = map right -> left = right :=
   \fun (left, right: Carrier)(same: _) =>
     (\idelim #index{left} = #index{right} \with cell: Index => \forall (p: fiber cell) ->
@@ -34,7 +38,9 @@
   \let component: RemainingSpace.Subspace[S := piece index].CarrierSet := \into[Target.Carrier](x, piece index) \by { inPiece } \then
   \let point: fiber index := #backward{\parent.Cell[cell := index, member := member index, dimension := dimension index].homeomorphism} component \then
   \return Logic.existsIntro[Carrier, { chart: Carrier \where map chart = x }] (Disks.injection index point)
-    (#rightInverse{\parent.Cell[cell := index, member := member index, dimension := dimension index].homeomorphismLaws} component)
+    (Algebra.Refinement[A := Target.Carrier, S := piece index].forgetEquality
+      (#forward{\parent.Cell[cell := index, member := member index, dimension := dimension index].homeomorphism} point) component
+      (#rightInverse{\parent.Cell[cell := index, member := member index, dimension := dimension index].homeomorphismLaws} component))
 };
 \import topology.Homeomorphism[A := Carrier, B := Target.Carrier].OfQuotient[f := map] \as Inverse;
 \definition backward(x: Target.Carrier): Carrier := Inverse.inverse injective onto x;
