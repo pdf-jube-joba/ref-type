@@ -965,7 +965,7 @@ impl ArtifactStore {
             .filter(|key| !protected.contains(key))
             .copied()
             .collect();
-        candidates.sort_by_key(|(key, checkpoint)| {
+        candidates.sort_by_cached_key(|(key, checkpoint)| {
             fs::metadata(self.root.join("access").join(format!(
                 "{}-{}",
                 hex(key),
