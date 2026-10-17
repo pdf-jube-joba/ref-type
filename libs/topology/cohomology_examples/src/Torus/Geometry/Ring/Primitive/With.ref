@@ -24,6 +24,31 @@
 \definition torusTransport: _ := TorusTransport.At[k := two].isomorphism TorusComparison.equivalence;
 \import \parent.Action[A := Circle, source := circleTopology, n := one] \as CircleAction;
 \import \parent.Action[A := Carrier, source := topology, n := two] \as TorusAction;
-\module Circle;
-\module Torus;
+\module Factor;
+\module Target;
 \module Compatibility;
+\import \parent.Finite[] \as FinitePair;
+\import \root.Torus[].Geometry[].Ring[].Primitive[].With[circle := circle].Factor[] \as FactorData;
+\import \root.Torus[].Geometry[].Ring[].Primitive[].With[circle := circle].Target[] \as TargetData;
+\import NativeModules.Tensor[V := I.Int^, W := I.Int^, left := scalars.space, right := scalars.space] \as ScalarTensor;
+\import Commutative.ScalarTensor[N := scalars] \as ScalarProduct;
+\import NativeModules.Isomorphism[V := ScalarTensor.Carrier, W := I.Int^, source := ScalarTensor.space, target := scalars.space].Inverse[] \as ScalarInverse;
+\import ScalarTensor.Mapping[U := FinitePair.CircleCochain, Z := FinitePair.CircleCochain, targetLeft := FinitePair.circleSpace, targetRight := FinitePair.circleSpace] \as MapTensor;
+\import MapTensor.Isomorphism[leftIso := FactorData.model, rightIso := FactorData.model] \as FactorTensor;
+\import NativeModules.Isomorphism[V := I.Int^, W := ScalarTensor.Carrier, source := scalars.space, target := ScalarTensor.space].Composition[U := FinitePair.TensorCarrier, final := FinitePair.tensorSpace] \as FactorComposition;
+\definition factorIsomorphism: _ := FactorComposition.compose FactorTensor.isomorphism (ScalarInverse.inverse ScalarProduct.isomorphism);
+\import NativeModules.Isomorphism[V := I.Int^, W := FinitePair.TensorCarrier, source := scalars.space, target := FinitePair.tensorSpace].Composition[U := FinitePair.Group, final := FinitePair.groupSpace] \as FiniteComposition;
+\definition finiteIsomorphism: _ := FiniteComposition.compose FinitePair.isomorphism factorIsomorphism;
+\import NativeModules.Isomorphism[V := I.Int^, W := FinitePair.Group, source := scalars.space, target := FinitePair.groupSpace].Composition[U := Cohomology.Group two, final := Cohomology.moduleSpace two] \as Composition;
+\definition isomorphism: NativeModules.Isomorphism[V := I.Int^, W := Cohomology.Group two, source := scalars.space, target := Cohomology.moduleSpace two].Isomorphism := Composition.compose TargetData.isomorphism finiteIsomorphism;
+\definition onOne: #apply{#forward{isomorphism}} I.One.specification = orientation :=
+  trans!{{Cohomology.Group two}} _ _ _
+    (congr!{FinitePair.TensorCarrier {Cohomology.Group two}}
+      (\fun (z: FinitePair.TensorCarrier) => #apply{#forward{TargetData.isomorphism}} (#apply{#forward{FinitePair.isomorphism}} z)) _ _
+      (MapTensor.onTensor (#forward{FactorData.model}) (#forward{FactorData.model}) I.One.specification I.One.specification))
+    (trans!{{Cohomology.Group two}} _ _ _
+      (congr!{FinitePair.Group {Cohomology.Group two}} (#apply{#forward{TargetData.isomorphism}}) _ _ (FinitePair.onTensor FactorData.alpha FactorData.alpha))
+      (trans!{{Cohomology.Group two}} _ _ _
+        (Compatibility.At[alpha := FactorData.alpha, beta := FactorData.alpha].law)
+        (congr2!{{CircleCohomology.Group one} {CircleCohomology.Group one} {Cohomology.Group two}}
+          (\fun (h, k: CircleCohomology.Group one) => Cup.apply (Projection.apply one first firstContinuous h) (Projection.apply one second secondContinuous k)) _ _ _ _ FactorData.onAlpha FactorData.onAlpha)));
