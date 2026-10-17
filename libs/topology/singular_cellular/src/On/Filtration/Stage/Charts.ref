@@ -12,16 +12,20 @@
   \parent.Open[].lift (#index{chart}) (member (#index{chart})) (below (#index{chart})) (#point{chart});
 \import topological_constructions.Quotient[A := Carrier, B := Target.Carrier] \as Quotient;
 \import topology.Continuity[A := Carrier, B := Target.Carrier] \as Maps;
+\definition indexOf(cell: Cells.CellData)(member: Cells.CellMember cells cell)(below: Nat.Lt (#dimension{cell}) limit): Index :=
+  \into[Cells.CellData](cell, Selected) \by { Logic.And[_, _]::# member below };
+\definition chartOf(cell: Cells.CellData)(member: Cells.CellMember cells cell)(below: Nat.Lt (#dimension{cell}) limit)
+  (point: Euclidean.Disk (#dimension{cell})): Carrier := Disks.injection (indexOf cell member below) point;
+\import singular_cellular_algebra.Algebra[].Refinement[A := A, S := subset limit] \as TargetRefinement;
 \definition onto: Quotient.Surjective map :=
   \fun (x: Target.Carrier) => eliminate cells limit x (\exists { chart: Carrier \where map chart = x })
     (\block {
       \fun (cell: Cells.CellData)(member: _)(below: _)(contains: _) \then
       \takefrom point: \Cast[Euclidean.Disk (#dimension{cell})]
         ({ p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }) \by contains \then
-      \let index: Index := \into[Cells.CellData](cell, Selected) \by { Logic.And[_, _]::# member below } \then
-      \let chart: Carrier := Disks.injection index point \then
-      \return Logic.existsIntro[Carrier, { chart: Carrier \where map chart = x }] chart
-        (\bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, point))
+      \return Logic.existsIntro[Carrier, { chart: Carrier \where map chart = x }] (chartOf cell member below point)
+        (TargetRefinement.ext (map (chartOf cell member below point)) x
+          (\bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, point)))
     }) (\bysub(A, subset limit, x));
 \definition continuous: Maps.Continuous topology Target.topology map :=
   \fun (W: \Pow Target.Carrier)(open: _) => #rtl{(Disks.openCriterion (Maps.Preimage map W))}
