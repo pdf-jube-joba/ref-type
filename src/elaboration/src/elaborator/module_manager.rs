@@ -744,6 +744,7 @@ impl ModuleManager {
                 },
             )
             .collect::<Vec<_>>();
+        let shared_program_context = Arc::new(program_context.clone());
         let mut allocated = env
             .add_modules_in_scope(
                 self.current,
@@ -763,7 +764,7 @@ impl ModuleManager {
                 continue;
             }
             let materialized = allocated.next().expect("allocated import namespace");
-            env.set_program_context(materialized, program_context.clone());
+            env.set_program_context(materialized, shared_program_context.clone());
             remapping.module_ids.insert(*item_source, materialized);
             namespaces.push(materialized);
         }

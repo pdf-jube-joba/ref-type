@@ -3,6 +3,8 @@
 mod declaration_checkpoint;
 #[path = "exports.rs"]
 pub(crate) mod exports;
+#[path = "shared_vectors.rs"]
+mod shared_vectors;
 use super::sharded_map::ShardedMap;
 use super::shared_map::SharedMap;
 use crate::raw::{
@@ -336,7 +338,9 @@ pub struct CrateEnv {
     pub(crate) kernel: RefCell<kernel::environment::Environment>,
     pub(crate) kernel_definitions: RefCell<HashMap<DefId, kernel::ids::DefinitionId>>,
     hir_symbols: HashMap<resolve::hir::BindingId, SymbolId>,
-    definition_parameters: HashMap<DefId, Vec<SymbolId>>,
+    // All imported spellings retain the same immutable declaration parameters.
+    #[serde(deserialize_with = "shared_vectors::deserialize")]
+    definition_parameters: HashMap<DefId, Arc<Vec<SymbolId>>>,
     arena: Arena,
     #[serde(skip)]
     pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
@@ -380,8 +384,11 @@ pub struct CrateEnv {
     remappings: super::remapping_checkpoint::Tables,
     remapping_origins: HashMap<RemappingId, RemappingOrigin>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
-    checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
-    checking_program_contexts: HashMap<ModuleId, crate::raw::program::ProgramContext>,
+    // One validated capture is shared by every namespace in an import graph.
+    #[serde(deserialize_with = "shared_vectors::deserialize")]
+    checking_contexts: HashMap<ModuleId, Arc<crate::raw::exp::ExpContext>>,
+    #[serde(deserialize_with = "shared_vectors::deserialize")]
+    checking_program_contexts: HashMap<ModuleId, Arc<crate::raw::program::ProgramContext>>,
     #[serde(with = "declaration_checkpoint::definitions")]
     lazy_definitions: ShardedMap<DefId, LazyDefinition>,
     #[serde(with = "declaration_checkpoint::inductives")]
@@ -577,6 +584,7 @@ impl CrateEnv {
         crate::raw::derivation::CheckSession::new(self, &mut context)
             .check_wellformed_context()
             .map_err(crate::error::Error::from)?;
+        let context = Arc::new(context);
         let mut modules = Vec::with_capacity(count);
         for _ in 0..count {
             let module = self.add_module();
@@ -668,7 +676,7 @@ impl CrateEnv {
     pub fn definition_parameters(&self, id: DefId) -> &[SymbolId] {
         self.definition_parameters
             .get(&id)
-            .map(Vec::as_slice)
+            .map(|parameters| parameters.as_slice())
             .unwrap_or(&[])
     }
 
@@ -693,7 +701,7 @@ impl CrateEnv {
             .definitions
             .push(OnceCell::from(Box::new(definition)));
         let id = DefId { module, index };
-        self.definition_parameters.insert(id, parameters);
+        self.definition_parameters.insert(id, Arc::new(parameters));
         tracing::debug!(target: "ref_type::environment", ?id, "checked definition registered");
         Ok(id)
     }
@@ -731,7 +739,7 @@ impl CrateEnv {
             })
             .collect();
         if let Some(context) = self.checking_contexts.get(&module) {
-            pts_context = context.clone();
+            pts_context = context.as_ref().clone();
         }
         let mut program_context = self.program_definition_context(module);
         program_context.extend(
@@ -1045,11 +1053,11 @@ impl CrateEnv {
         source: DefId,
         environment: Arc<DefinitionEnvironment>,
     ) -> DefId {
-        let parameters = self.definition_parameters(source).to_vec();
+        let parameters = self.definition_parameters.get(&source).cloned();
         let index = self.module(module).definitions.len() as u32;
         self.module_mut(module).definitions.push(OnceCell::new());
         let id = DefId { module, index };
-        if !parameters.is_empty() {
+        if let Some(parameters) = parameters.filter(|parameters| !parameters.is_empty()) {
             self.definition_parameters.insert(id, parameters);
         }
         self.lazy_definitions.insert(
@@ -1938,7 +1946,7 @@ impl CrateEnv {
     pub(crate) fn set_program_context(
         &mut self,
         module: ModuleId,
-        context: crate::raw::program::ProgramContext,
+        context: Arc<crate::raw::program::ProgramContext>,
     ) {
         if !context.is_empty() {
             self.checking_program_contexts.insert(module, context);
@@ -1951,7 +1959,7 @@ impl CrateEnv {
     ) -> crate::raw::program::ProgramContext {
         self.checking_program_contexts
             .get(&module)
-            .cloned()
+            .map(|context| context.as_ref().clone())
             .unwrap_or_default()
     }
 
@@ -1963,7 +1971,7 @@ impl CrateEnv {
 
     pub(crate) fn definition_context(&self, module: ModuleId) -> crate::raw::exp::ExpContext {
         if let Some(context) = self.checking_contexts.get(&module) {
-            return context.clone();
+            return context.as_ref().clone();
         }
         // Named module parameters are captured by identity when lowering.
         // Only local binders belong to the de Bruijn context.
@@ -2249,6 +2257,122 @@ mod cells {
 #[cfg(test)]
 mod specialization_tests {
     use super::*;
+
+    #[test]
+    fn lazy_definition_parameters_share_source_symbols_and_restore_sharing() {
+        use crate::raw::program::{ComputationTermNode, ComputationTypeNode};
+
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let arena = env.arena();
+        let domain = arena.value_type_bound(0);
+        let ty = arena.alloc(ComputationTypeNode::Function {
+            domain,
+            codomain: arena.alloc(ComputationTypeNode::Return { value_ty: domain }),
+        });
+        let body = arena.alloc(ComputationTermNode::Lambda {
+            var: SymbolId::ANONYMOUS,
+            value_ty: domain,
+            body: arena.alloc(ComputationTermNode::Return {
+                value: arena.value_bound(0),
+            }),
+        });
+        let mut symbols = vec![SymbolId::ANONYMOUS];
+        let source = env
+            .add_parameterized_definition(
+                root,
+                DefinedConstant::ProgramComputation { ty, body },
+                symbols.clone(),
+            )
+            .unwrap();
+        let namespaces = env.add_modules_in_scope(root, vec![], 2).unwrap();
+        let ids = namespaces
+            .iter()
+            .map(|&namespace| env.reserve_lazy_definition(namespace, source, vec![], vec![]))
+            .collect::<Vec<_>>();
+        for id in &ids {
+            assert!(Arc::ptr_eq(
+                &env.definition_parameters[&source],
+                &env.definition_parameters[id]
+            ));
+        }
+        assert_eq!(
+            postcard::to_allocvec(&env.definition_parameters[&source]).unwrap(),
+            postcard::to_allocvec(&symbols).unwrap()
+        );
+        symbols.clear();
+        assert_eq!(env.definition_parameters(source), &[SymbolId::ANONYMOUS]);
+
+        let restored: CrateEnv =
+            postcard::from_bytes(&postcard::to_allocvec(&env).unwrap()).unwrap();
+        for id in ids {
+            assert!(Arc::ptr_eq(
+                &restored.definition_parameters[&source],
+                &restored.definition_parameters[&id]
+            ));
+        }
+    }
+
+    #[test]
+    fn import_captures_share_storage_without_exposing_caller_mutation() {
+        use crate::raw::{exp::ExpContextEntry, program::ProgramContextEntry, sort::Sort};
+
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let entry = ExpContextEntry {
+            var: SymbolId::ANONYMOUS,
+            ty: env.arena().sort(Sort::Set(0)),
+        };
+        let mut logical = vec![entry.clone()];
+        let modules = env.add_modules_in_scope(root, logical.clone(), 2).unwrap();
+        assert!(Arc::ptr_eq(
+            &env.checking_contexts[&modules[0]],
+            &env.checking_contexts[&modules[1]]
+        ));
+        logical.clear();
+        let mut returned = env.definition_context(modules[0]);
+        returned.clear();
+        assert_eq!(env.definition_context(modules[1]), vec![entry.clone()]);
+
+        let program_entry = ProgramContextEntry::ValueType {
+            var: SymbolId::ANONYMOUS,
+        };
+        let mut program = Arc::new(vec![program_entry.clone()]);
+        for &module in &modules {
+            env.set_program_context(module, program.clone());
+        }
+        assert!(Arc::ptr_eq(
+            &env.checking_program_contexts[&modules[0]],
+            &env.checking_program_contexts[&modules[1]]
+        ));
+        Arc::make_mut(&mut program).clear();
+        let mut returned = env.program_definition_context(modules[0]);
+        returned.clear();
+        assert_eq!(
+            env.program_definition_context(modules[1]),
+            vec![program_entry.clone()]
+        );
+        assert_eq!(
+            postcard::to_allocvec(&env.checking_contexts[&modules[0]]).unwrap(),
+            postcard::to_allocvec(&vec![entry]).unwrap()
+        );
+        assert_eq!(
+            postcard::to_allocvec(&env.checking_program_contexts[&modules[0]]).unwrap(),
+            postcard::to_allocvec(&vec![program_entry]).unwrap()
+        );
+
+        let restored: CrateEnv =
+            postcard::from_bytes(&postcard::to_allocvec(&env).unwrap()).unwrap();
+        assert!(Arc::ptr_eq(
+            &restored.checking_contexts[&modules[0]],
+            &restored.checking_contexts[&modules[1]]
+        ));
+        assert!(Arc::ptr_eq(
+            &restored.checking_program_contexts[&modules[0]],
+            &restored.checking_program_contexts[&modules[1]]
+        ));
+    }
+
     #[test]
     fn closed_namespace_route_index_preserves_conversion_and_scope() {
         use crate::raw::{exp::ExpNode, sort::Sort};

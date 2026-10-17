@@ -42,11 +42,14 @@ pub(crate) struct Export {
     pub arena: super::super::exp::exports::Export,
     pub kernel_definitions: HashMap<DefId, kernel::ids::DefinitionId>,
     pub hir_symbols: HashMap<resolve::hir::BindingId, SymbolId>,
-    definition_parameters: HashMap<DefId, Vec<SymbolId>>,
+    #[serde(deserialize_with = "super::shared_vectors::deserialize")]
+    definition_parameters: HashMap<DefId, Arc<Vec<SymbolId>>>,
     pub namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     pub checking_scopes: HashMap<ModuleId, ModuleId>,
-    checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
-    checking_program_contexts: HashMap<ModuleId, crate::raw::program::ProgramContext>,
+    #[serde(deserialize_with = "super::shared_vectors::deserialize")]
+    checking_contexts: HashMap<ModuleId, Arc<crate::raw::exp::ExpContext>>,
+    #[serde(deserialize_with = "super::shared_vectors::deserialize")]
+    checking_program_contexts: HashMap<ModuleId, Arc<crate::raw::program::ProgramContext>>,
     #[serde(with = "super::declaration_checkpoint::definitions")]
     lazy_definitions: HashMap<DefId, LazyDefinition>,
     #[serde(with = "super::declaration_checkpoint::inductives")]
