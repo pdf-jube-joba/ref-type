@@ -3,6 +3,29 @@
 \definition boundary: \Pow Model.Disk := { p: Model.Disk \where Model.normSquared p = Real.one };
 \import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := boundary] \as Pair;
 \import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
-\definition complex: Complexes.Complex := Pair.complex;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import topology.Topology[Carrier := Model.Disk].Subspace[S := boundary] \as Boundary;
+\import singular_cohomology.Chains[A := Boundary.CarrierSet, source := Boundary.topology Model.diskTopology] \as BoundaryChains;
+\import singular_cohomology.Chains[A := Model.Disk, source := Model.diskTopology] \as DiskChains;
+\import Nonnegative.ZeroExtension[C := BoundaryChains.complex] \as BoundaryExtension;
+\import Nonnegative.ZeroExtension[C := DiskChains.complex] \as DiskExtension;
+\import Complexes.Quotient[C := BoundaryExtension.complex, D := DiskExtension.complex]
+  .On[f := Pair.inclusionMap] \as Quotient;
+\definition chainCarrier(z: I.Int^): \Set := Quotient.Carrier z;
+\definition chainSpace(z: I.Int^): Modules.Space (chainCarrier z) := Quotient.space z;
+\definition chainFamily: Complexes.Family := Complexes.Family {
+  Carrier := chainCarrier, space := chainSpace,
+};
+\definition chainDifferential: Complexes.DifferentialData[chainFamily] := Complexes.DifferentialData[chainFamily] {
+  apply := \fun (z: I.Int^)(x: chainCarrier z) => #apply{Quotient.At[k := z].differential} x,
+};
+\definition chainLaws: Complexes.DifferentialLaws[chainFamily, chainDifferential] := Complexes.DifferentialLaws[chainFamily, chainDifferential] {
+  addition := \fun (z: I.Int^)(x, y: chainCarrier z) => #addition{Quotient.At[k := z].differential} x y,
+  scalar := \fun (z: I.Int^)(a: I.Int^)(x: chainCarrier z) => #scalar{Quotient.At[k := z].differential} a x,
+  squareZero := \fun (z: I.Int^)(x: chainCarrier z) => Quotient.At[k := z].squareZero x,
+};
+\definition complex: Complexes.Complex := Complexes.Complex {
+  family := chainFamily, differential := chainDifferential, laws := chainLaws,
+};
 
 \module Homology(z: I.Int^);
