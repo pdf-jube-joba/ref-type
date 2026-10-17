@@ -21,6 +21,7 @@
 - `Naturality[B, target, targetCW].Chosen[sourceSelection, targetSelection].Coefficients[input, output, coefficientMap].At[z].Along[f, continuous]` は、実際の連続写像から胞体コホモロジーの引き戻しを構成し、比較同型との自然性を与える。
 - `CellCollapse[cell, member, point].Pair.Basis.Incidence[sourceCell].Degree.Normalized[k, positive, h].Spherical.incidence` は、正の次元で胞体境界行列の成分が実際の球面間写像の次数であることを示す。
   球面間写像は貼り付け写像と他の胞体の圧縮から構成し、同相写像の向きも補正する。
+  `CellCollapse[cell, member, point].Positive[k, positive].Orientation.existence` が、向きを補正した同相写像の存在を与える。
 - `ZeroCollapse[cell].Basis.Incidence[sourceCell].Degree.incidence` は、\(1\) 次元胞体の境界成分を実際の \(S^0\) 上の次数と同定する。
   `endpoints` はこの成分を正の端点の指示値から負の端点の指示値を引いた整数として与える。
 - `Coordinates.indexingExistence` と `With[indexing].Bounded.model` は、有限胞体の列挙と整数境界行列を与える。

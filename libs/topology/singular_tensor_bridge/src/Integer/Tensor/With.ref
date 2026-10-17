@@ -26,3 +26,86 @@
 }
 \module Negative(n: N.Nat^);
 \module Positive(n: N.Nat^);
+\module HorizontalZero(q: I.Int^) {
+  \definition z: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+  \import Modules.Tensor[V := C.family.Carrier z, W := D.family.Carrier q, left := C.family.space z, right := D.family.space q] \as Domain;
+  \import Modules.Tensor[V := C.family.Carrier (Degrees.previous z), W := D.family.Carrier q,
+    left := C.family.space (Degrees.previous z), right := D.family.space q] \as Codomain;
+  \import SignedTensor.At[p := z, q := q] \as Boundary;
+  \import Modules.Hom[V := Domain.Carrier, W := Codomain.Carrier, source := Domain.space, target := Codomain.space] \as Maps;
+  \import Domain.Universal[U := Codomain.Carrier, target := Codomain.space] \as Equality;
+  \definition equality: Boundary.horizontal = Maps.zeroMap := Equality.ext Boundary.horizontal Maps.zeroMap
+    (\fun (x: C.family.Carrier z)(y: D.family.Carrier q) => trans!{Codomain.Carrier} _ _ _ (Boundary.horizontalOnTensor x y)
+      (trans!{Codomain.Carrier} _ _ _
+        (congr!{{C.family.Carrier (Degrees.previous z)} Codomain.Carrier} (\fun (v: C.family.Carrier (Degrees.previous z)) => Codomain.tensor v y) _ _
+          (leftNegative N.Nat^::zero (#apply{C.differential} z x))) (Codomain.tensorZeroLeft y)));
+  \definition zero(x: Domain.Carrier): #apply{Boundary.horizontal} x = #zero{Codomain.space} :=
+    congr!{Maps.Map Codomain.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality;
+}
+\module VerticalZero(p: I.Int^) {
+  \definition z: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+  \import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier z, left := C.family.space p, right := D.family.space z] \as Domain;
+  \import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier (Degrees.previous z),
+    left := C.family.space p, right := D.family.space (Degrees.previous z)] \as Codomain;
+  \import SignedTensor.At[p := p, q := z] \as Boundary;
+  \import Modules.Hom[V := Domain.Carrier, W := Codomain.Carrier, source := Domain.space, target := Codomain.space] \as Maps;
+  \import Domain.Universal[U := Codomain.Carrier, target := Codomain.space] \as Equality;
+  \definition equality: Boundary.vertical = Maps.zeroMap := Equality.ext Boundary.vertical Maps.zeroMap
+    (\fun (x: C.family.Carrier p)(y: D.family.Carrier z) => trans!{Codomain.Carrier} _ _ _ (Boundary.verticalOnTensor x y)
+      (trans!{Codomain.Carrier} _ _ _
+        (congr!{{D.family.Carrier (Degrees.previous z)} Codomain.Carrier} (Codomain.tensor x) _ _
+          (rightNegative N.Nat^::zero (#apply{D.differential} z y))) (Codomain.tensorZeroRight x)));
+  \definition zero(x: Domain.Carrier): #apply{Boundary.vertical} x = #zero{Codomain.space} :=
+    congr!{Maps.Map Codomain.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ equality;
+}
+\module Step(n: N.Nat^);
+\import Native.Map[C := SourceRestriction.complex, D := Target.complex] \as NativeForward;
+\import Native.Map[C := Target.complex, D := SourceRestriction.complex] \as NativeBackward;
+\definition nativeForward: NativeForward.Map := NativeForward.Map {
+  apply := \fun (n: N.Nat^) => #apply{(Positive[n := n].forward)},
+  addition := \fun (n: N.Nat^) => #addition{(Positive[n := n].forward)},
+  scalar := \fun (n: N.Nat^) => #scalar{(Positive[n := n].forward)},
+  commutes := \fun (n: N.Nat^) => Step[n := n].forwardCommutes,
+};
+\definition nativeBackward: NativeBackward.Map := NativeBackward.Map {
+  apply := \fun (n: N.Nat^) => #apply{(Positive[n := n].backward)},
+  addition := \fun (n: N.Nat^) => #addition{(Positive[n := n].backward)},
+  scalar := \fun (n: N.Nat^) => #scalar{(Positive[n := n].backward)},
+  commutes := \fun (n: N.Nat^) => Step[n := n].commutes,
+};
+\import Native.Isomorphism[C := SourceRestriction.complex, D := Target.complex] \as NativeCompared;
+\definition nativeData: NativeCompared.Data := NativeCompared.Data { forward := nativeForward, backward := nativeBackward };
+\definition nativeIsomorphism: NativeCompared.Isomorphism := \into[NativeCompared.Data](nativeData, { d: NativeCompared.Data \where NativeCompared.Laws[d] }) \by {
+  NativeCompared.Laws[nativeData] {
+    leftInverse := \fun (n: N.Nat^) => Positive[n := n].leftInverse,
+    rightInverse := \fun (n: N.Nat^) => Positive[n := n].rightInverse,
+  }
+};
+\import \root.Integer[].Factor[C := Source.complex] \as SourceFactor;
+\definition sourceNegative: SourceFactor.NegativeVanishes := \fun (n: N.Nat^) => Negative[n := n].zero;
+\import SourceFactor.With[negative := sourceNegative] \as Factored;
+\import \root.Integer[].Lift[C := SourceRestriction.complex, D := Target.complex].With[e := nativeIsomorphism] \as Lifted;
+\import Native.ZeroExtension[C := SourceRestriction.complex] \as Middle;
+\import Signed.Map[C := Middle.complex, D := TargetExtension.complex].Composition[B := Source.complex] \as ForwardCompose;
+\import Signed.Map[C := Middle.complex, D := Source.complex].Composition[B := TargetExtension.complex] \as BackwardCompose;
+\import Signed.Map[C := Source.complex, D := TargetExtension.complex] \as Forward;
+\import Signed.Map[C := TargetExtension.complex, D := Source.complex] \as Backward;
+\definition forward: Forward.Map := ForwardCompose.compose #forward{Lifted.isomorphism} #forward{Factored.isomorphism};
+\definition backward: Backward.Map := BackwardCompose.compose #backward{Factored.isomorphism} #backward{Lifted.isomorphism};
+\definition leftInverse(z: I.Int^)(x: Source.family.Carrier z): #apply{backward} z (#apply{forward} z x) = x :=
+  trans!{{Source.family.Carrier z}} _ _ _
+    (congr!{{Middle.Carrier z} {Source.family.Carrier z}} (#apply{#backward{Factored.isomorphism}} z) _ _
+      (#leftInverse{Lifted.isomorphism} z (#apply{#forward{Factored.isomorphism}} z x)))
+    (#leftInverse{Factored.isomorphism} z x);
+\definition rightInverse(z: I.Int^)(x: TargetExtension.Carrier z): #apply{forward} z (#apply{backward} z x) = x :=
+  trans!{{TargetExtension.Carrier z}} _ _ _
+    (congr!{{Middle.Carrier z} {TargetExtension.Carrier z}} (#apply{#forward{Lifted.isomorphism}} z) _ _
+      (#rightInverse{Factored.isomorphism} z (#apply{#backward{Lifted.isomorphism}} z x)))
+    (#rightInverse{Lifted.isomorphism} z x);
+\import Signed.Isomorphism[C := Source.complex, D := TargetExtension.complex] \as Compared;
+\definition data: Compared.Data := Compared.Data { forward := forward, backward := backward };
+\definition isomorphism: Compared.Isomorphism := \into[Compared.Data](data, { d: Compared.Data \where Compared.Laws[d] }) \by {
+  Compared.Laws[data] { leftInverse := leftInverse, rightInverse := rightInverse }
+};
+\import Signed.Equivalence[C := Source.complex, D := TargetExtension.complex].FromIsomorphism[] \as Equivalences;
+\definition equivalence: Signed.Equivalence[C := Source.complex, D := TargetExtension.complex].Equivalence := Equivalences.apply isomorphism;
