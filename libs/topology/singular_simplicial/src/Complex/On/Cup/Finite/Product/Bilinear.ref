@@ -1,0 +1,41 @@
+\import Modules.Free[Generators := Simplex total].To[W := R, target := Singular.integerCoefficients.space] \as Free;
+\definition ext: \forall (f, g: Carrier total) ->
+  (\forall (sigma: Simplex total) -> #apply{f} (Chains.generator total sigma) = #apply{g} (Chains.generator total sigma)) -> f = g := Free.ext;
+\import RingModules.Laws[V := R, space := RingModules.scalarModule] \as Scalars;
+\definition leftZero: \forall (beta: Carrier q) -> apply #zero{(space p)} beta = #zero{(space total)} :=
+  \fun (beta: Carrier q) => ext _ _ (\fun (sigma: Simplex total) => trans!{R} _ _ _ (onSimplex #zero{(space p)} beta sigma)
+    (Scalars.zeroScale (#apply{beta} (Chains.generator q (Cut.back sigma)))));
+\definition rightZero: \forall (alpha: Carrier p) -> apply alpha #zero{(space q)} = #zero{(space total)} :=
+  \fun (alpha: Carrier p) => ext _ _ (\fun (sigma: Simplex total) => trans!{R} _ _ _ (onSimplex alpha #zero{(space q)} sigma)
+    (Scalars.scaleZero (#apply{alpha} (Chains.generator p (Cut.front sigma)))));
+\definition leftAdd: \forall (alpha, alphaPrime: Carrier p)(beta: Carrier q) ->
+  apply (#add{(space p)} alpha alphaPrime) beta = #add{(space total)} (apply alpha beta) (apply alphaPrime beta) :=
+  \fun (alpha, alphaPrime: Carrier p)(beta: Carrier q) => ext _ _ (\fun (sigma: Simplex total) =>
+    trans!{R} _ _ _ (onSimplex (#add{(space p)} alpha alphaPrime) beta sigma)
+      (trans!{R} _ _ _
+        (#scalarAdd{RingModules.scalarModule} (#apply{alpha} (Chains.generator p (Cut.front sigma))) (#apply{alphaPrime} (Chains.generator p (Cut.front sigma))) (#apply{beta} (Chains.generator q (Cut.back sigma))))
+        (sym!{R} _ _ (congr2!{R R R} (#add{baseRing}) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alphaPrime beta sigma)))));
+\definition rightAdd: \forall (alpha: Carrier p)(beta, betaPrime: Carrier q) ->
+  apply alpha (#add{(space q)} beta betaPrime) = #add{(space total)} (apply alpha beta) (apply alpha betaPrime) :=
+  \fun (alpha: Carrier p)(beta, betaPrime: Carrier q) => ext _ _ (\fun (sigma: Simplex total) =>
+    trans!{R} _ _ _ (onSimplex alpha (#add{(space q)} beta betaPrime) sigma)
+      (trans!{R} _ _ _
+        (#vectorAdd{RingModules.scalarModule} (#apply{alpha} (Chains.generator p (Cut.front sigma))) (#apply{beta} (Chains.generator q (Cut.back sigma))) (#apply{betaPrime} (Chains.generator q (Cut.back sigma))))
+        (sym!{R} _ _ (congr2!{R R R} (#add{baseRing}) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alpha betaPrime sigma)))));
+\import \parent.\parent.Degree[n := p].Group[] \as LeftGroup;
+\import \parent.\parent.Degree[n := q].Group[] \as RightGroup;
+\import \parent.\parent.Degree[n := total].Group[] \as OutputGroup;
+\definition leftDifference: \forall (x, y: Carrier p)(z: Carrier q) ->
+  apply (LeftGroup.difference x y) z = OutputGroup.difference (apply x z) (apply y z) :=
+  \fun (x, y: Carrier p)(z: Carrier q) => OutputGroup.cancelRight (apply y z) _ _
+    (trans!{{Carrier total}} _ _ _ (sym!{{Carrier total}} _ _ (leftAdd (LeftGroup.difference x y) y z))
+      (trans!{{Carrier total}} _ _ _
+        (congr!{{Carrier p} {Carrier total}} (\fun (a: Carrier p) => apply a z) _ _ (LeftGroup.addDifference x y))
+        (sym!{{Carrier total}} _ _ (OutputGroup.addDifference (apply x z) (apply y z)))));
+\definition rightDifference: \forall (x: Carrier p)(y, z: Carrier q) ->
+  apply x (RightGroup.difference y z) = OutputGroup.difference (apply x y) (apply x z) :=
+  \fun (x: Carrier p)(y, z: Carrier q) => OutputGroup.cancelRight (apply x z) _ _
+    (trans!{{Carrier total}} _ _ _ (sym!{{Carrier total}} _ _ (rightAdd x (RightGroup.difference y z) z))
+      (trans!{{Carrier total}} _ _ _
+        (congr!{{Carrier q} {Carrier total}} (apply x) _ _ (RightGroup.addDifference y z))
+        (sym!{{Carrier total}} _ _ (OutputGroup.addDifference (apply x y) (apply x z)))));

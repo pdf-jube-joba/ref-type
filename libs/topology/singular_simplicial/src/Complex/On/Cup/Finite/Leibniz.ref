@@ -1,0 +1,55 @@
+\import Simplices.CutFaces[p := p, q := q] \as Geometry;
+\import \parent.Product[p := p, q := q] \as Product;
+\import \parent.Product[p := N.Nat^::succ p, q := q] \as LeftProduct;
+\import \parent.Product[p := p, q := N.Nat^::succ q] \as RightProduct;
+\import \parent.Lift[n := p] \as LeftLift;
+\import \parent.Lift[n := q] \as RightLift;
+\import Singular.Leibniz[p := p, q := q] \as WholeRule;
+\definition total: N.Nat^ := Product.total;
+\definition higher: N.Nat^ := N.Nat^::succ total;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import \parent.Signs[n := higher] \as Signs;
+\definition leftTerm(alpha: Carrier p)(beta: Carrier q): Carrier higher :=
+  Transport.cast Carrier Geometry.leftDegree higher Geometry.same (LeftProduct.apply (coboundary p alpha) beta);
+\definition leftRestriction: \forall (alpha: Carrier p)(beta: Carrier q) ->
+  #apply{restriction} higher (WholeRule.leftTerm (LeftLift.apply alpha) (RightLift.apply beta)) = leftTerm alpha beta :=
+  \fun (alpha: Carrier p)(beta: Carrier q) => trans!{{Carrier higher}} _ _ _
+    (sym!{{Carrier higher}} _ _ (Transport.natural Singular.Carrier Carrier (#apply{restriction}) Geometry.leftDegree higher Geometry.same
+      (LeftProduct.WholeProduct.apply (Whole.coboundary p (LeftLift.apply alpha)) (RightLift.apply beta))))
+    (congr!{{Carrier Geometry.leftDegree} {Carrier higher}} (Transport.cast Carrier Geometry.leftDegree higher Geometry.same) _ _
+      (trans!{{Carrier Geometry.leftDegree}} _ _ _
+        (LeftProduct.restrictionLaw (Whole.coboundary p (LeftLift.apply alpha)) (RightLift.apply beta))
+        (congr2!{{Carrier (N.Nat^::succ p)} {Carrier q} {Carrier Geometry.leftDegree}} LeftProduct.apply _ _ _ _
+          (LeftLift.differential alpha) (RightLift.section beta))));
+\definition rightRestriction: \forall (alpha: Carrier p)(beta: Carrier q) ->
+  #apply{restriction} higher (RightProduct.WholeProduct.apply (LeftLift.apply alpha) (Whole.coboundary q (RightLift.apply beta))) =
+    RightProduct.apply alpha (coboundary q beta) :=
+  \fun (alpha: Carrier p)(beta: Carrier q) => trans!{{Carrier higher}} _ _ _
+    (RightProduct.restrictionLaw (LeftLift.apply alpha) (Whole.coboundary q (RightLift.apply beta)))
+    (congr2!{{Carrier p} {Carrier (N.Nat^::succ q)} {Carrier higher}} RightProduct.apply _ _ _ _
+      (LeftLift.section alpha) (RightLift.differential beta));
+\definition law: \forall (alpha: Carrier p)(beta: Carrier q) ->
+  coboundary total (Product.apply alpha beta) = #add{(space higher)} (leftTerm alpha beta) (Signs.apply p (RightProduct.apply alpha (coboundary q beta))) :=
+  \fun (alpha: Carrier p)(beta: Carrier q) => eq_reason!{
+    {coboundary total (Product.apply alpha beta)}
+    "=" {coboundary total (#apply{restriction} total (Product.WholeProduct.apply (LeftLift.apply alpha) (RightLift.apply beta)))}
+    "by" {congr!{{Carrier total} {Carrier higher}} (coboundary total) _ _ (sym!{{Carrier total}} _ _ (Product.lifted alpha beta))}
+    "=" {#apply{restriction} higher (Whole.coboundary total (Product.WholeProduct.apply (LeftLift.apply alpha) (RightLift.apply beta)))}
+    "by" {#commutes{restriction} total (Product.WholeProduct.apply (LeftLift.apply alpha) (RightLift.apply beta))}
+    "=" {#apply{restriction} higher (#add{(Whole.space higher)}
+      (WholeRule.leftTerm (LeftLift.apply alpha) (RightLift.apply beta))
+      (Signs.WholeSigns.apply p (RightProduct.WholeProduct.apply (LeftLift.apply alpha) (Whole.coboundary q (RightLift.apply beta)))))}
+    "by" {congr!{{Singular.Carrier higher} {Carrier higher}} (#apply{restriction} higher) _ _ (WholeRule.law (LeftLift.apply alpha) (RightLift.apply beta))}
+    "=" {#add{(space higher)}
+      (#apply{restriction} higher (WholeRule.leftTerm (LeftLift.apply alpha) (RightLift.apply beta)))
+      (#apply{restriction} higher (Signs.WholeSigns.apply p (RightProduct.WholeProduct.apply (LeftLift.apply alpha) (Whole.coboundary q (RightLift.apply beta)))))}
+    "by" {#addition{restriction} higher
+      (WholeRule.leftTerm (LeftLift.apply alpha) (RightLift.apply beta))
+      (Signs.WholeSigns.apply p (RightProduct.WholeProduct.apply (LeftLift.apply alpha) (Whole.coboundary q (RightLift.apply beta))))}
+    "=" {#add{(space higher)} (leftTerm alpha beta) (Signs.apply p (RightProduct.apply alpha (coboundary q beta)))}
+    "by" {congr2!{{Carrier higher} {Carrier higher} {Carrier higher}} (#add{(space higher)}) _ _ _ _
+      (leftRestriction alpha beta)
+      (trans!{{Carrier higher}} _ _ _
+        (Signs.restrictionLaw p (RightProduct.WholeProduct.apply (LeftLift.apply alpha) (Whole.coboundary q (RightLift.apply beta))))
+        (congr!{{Carrier higher} {Carrier higher}} (Signs.apply p) _ _ (rightRestriction alpha beta)))}
+  };

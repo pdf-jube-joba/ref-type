@@ -15,6 +15,7 @@
 - `Selected[selection].Coefficients[input, output, coefficientMap].cochainNaturality` は、係数準同型と比較コチェイン写像が可換であることを示す。
 - `Naturality[B, target, targetCW].Chosen[sourceSelection, targetSelection].Chain[e].Along[f, continuous].With[coefficients].At[z].naturality` は、選んだ鎖ホモトピー逆から構成した実際の胞体鎖写像と特異コホモロジーの比較を結ぶ。
   `recoveryExists` が必要な逆の存在を与える。
+  `Along[f, continuous].Homology[coefficients].At[z].naturality` は、実際の比較写像 \(\chi\otimes\mathrm{id}\) の誘導写像によるホモロジーの自然性を与える。
 - `Naturality[B, target, targetCW].Chosen[sourceSelection, targetSelection].Coefficients[input, output, coefficientMap].At[z].Along[f, continuous]` は、実際の連続写像から胞体コホモロジーの引き戻しを構成し、比較同型との自然性を与える。
 - `CellCollapse[cell, member, point].Pair.Basis.Incidence[sourceCell].Degree.Normalized[k, positive, h].Spherical.incidence` は、正の次元で胞体境界行列の成分が実際の球面間写像の次数であることを示す。
   球面間写像は貼り付け写像と他の胞体の圧縮から構成し、同相写像の向きも補正する。
