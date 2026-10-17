@@ -12,23 +12,23 @@
 \module HorizontalPositive(p: N.Nat^, q: Double.Second (N.Nat^::succ n) (N.Nat^::succ p));
 \module VerticalBase(p: Double.First (N.Nat^::succ n) N.Nat^::zero);
 \module VerticalPositive(q: N.Nat^, p: Double.First (N.Nat^::succ n) (N.Nat^::succ q));
-\definition horizontal: \forall (p: N.Nat^)(q: Double.Second (N.Nat^::succ n) p)(x: NativeTensor.family.Carrier p q) ->
+\definition HorizontalLaw(p: N.Nat^): \Prop := \forall (q: Double.Second (N.Nat^::succ n) p)(x: NativeTensor.family.Carrier p q) ->
   #apply{Q.backward} (#apply{(NativeStep.horizontal p q)} x) =
-    #apply{(SignedStep.Component[i := Indices.signed (N.Nat^::succ n) (Double.index (N.Nat^::succ n) p q)].horizontal)} x :=
-  \induction (p: N.Nat^) \return \forall (q: Double.Second (N.Nat^::succ n) p)(x: NativeTensor.family.Carrier p q) ->
-    #apply{Q.backward} (#apply{(NativeStep.horizontal p q)} x) =
-      #apply{(SignedStep.Component[i := Indices.signed (N.Nat^::succ n) (Double.index (N.Nat^::succ n) p q)].horizontal)} x \with {
-    | zero: \fun (q: Double.Second (N.Nat^::succ n) N.Nat^::zero) => HorizontalBase[q := q].law
-    | succ: \fun (p: N.Nat^)(unused: _)(q: Double.Second (N.Nat^::succ n) (N.Nat^::succ p)) => HorizontalPositive[p := p, q := q].law
+    #apply{(SignedStep.Component[i := Indices.signed (N.Nat^::succ n) (Double.index (N.Nat^::succ n) p q)].horizontal)} x;
+\definition horizontal: \forall (p: N.Nat^) -> HorizontalLaw p :=
+  \induction (p: N.Nat^) \return HorizontalLaw p \with {
+    | zero: \fun (q: Double.Second (N.Nat^::succ n) N.Nat^::zero)(x: NativeTensor.family.Carrier N.Nat^::zero q) => HorizontalBase[q := q].law x
+    | succ: \fun (p: N.Nat^)(unused: HorizontalLaw p)(q: Double.Second (N.Nat^::succ n) (N.Nat^::succ p))
+        (x: NativeTensor.family.Carrier (N.Nat^::succ p) q) => HorizontalPositive[p := p, q := q].law x
   };
-\definition vertical: \forall (q: N.Nat^)(p: Double.First (N.Nat^::succ n) q)(x: NativeTensor.family.Carrier p q) ->
+\definition VerticalLaw(q: N.Nat^): \Prop := \forall (p: Double.First (N.Nat^::succ n) q)(x: NativeTensor.family.Carrier p q) ->
   #apply{Q.backward} (#apply{(NativeStep.vertical q p)} x) =
-    #apply{(SignedStep.Component[i := Indices.signed (N.Nat^::succ n) (Double.reverseIndex (N.Nat^::succ n) q p)].vertical)} x :=
-  \induction (q: N.Nat^) \return \forall (p: Double.First (N.Nat^::succ n) q)(x: NativeTensor.family.Carrier p q) ->
-    #apply{Q.backward} (#apply{(NativeStep.vertical q p)} x) =
-      #apply{(SignedStep.Component[i := Indices.signed (N.Nat^::succ n) (Double.reverseIndex (N.Nat^::succ n) q p)].vertical)} x \with {
-    | zero: \fun (p: Double.First (N.Nat^::succ n) N.Nat^::zero) => VerticalBase[p := p].law
-    | succ: \fun (q: N.Nat^)(unused: _)(p: Double.First (N.Nat^::succ n) (N.Nat^::succ q)) => VerticalPositive[q := q, p := p].law
+    #apply{(SignedStep.Component[i := Indices.signed (N.Nat^::succ n) (Double.reverseIndex (N.Nat^::succ n) q p)].vertical)} x;
+\definition vertical: \forall (q: N.Nat^) -> VerticalLaw q :=
+  \induction (q: N.Nat^) \return VerticalLaw q \with {
+    | zero: \fun (p: Double.First (N.Nat^::succ n) N.Nat^::zero)(x: NativeTensor.family.Carrier p N.Nat^::zero) => VerticalBase[p := p].law x
+    | succ: \fun (q: N.Nat^)(unused: VerticalLaw q)(p: Double.First (N.Nat^::succ n) (N.Nat^::succ q))
+        (x: NativeTensor.family.Carrier p (N.Nat^::succ q)) => VerticalPositive[q := q, p := p].law x
   };
 \import BackwardMaps.Composition[U := NS.Carrier, domain := NS.space] \as LeftCompose;
 \import Modules.Hom[V := SS.Carrier, W := ST.Carrier, source := SS.space, target := ST.space].Composition[U := NS.Carrier, domain := NS.space] \as RightCompose;
