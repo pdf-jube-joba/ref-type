@@ -24,12 +24,25 @@
 \definition signedOnCochain: \forall (h: IntersectionHom.Carrier degree) -> #apply{SignedPull.map} degree h = #neg{(IntersectionHom.space degree)} (#apply{reflectionPull} degree h) :=
   \fun (h: IntersectionHom.Carrier degree) => IntersectionHom.At[z := degree].ext _ _
     (\fun (x: Intersection.Carrier degree) => Evaluation.negativePreserved h (#apply{reflection} degree x));
+\definition signedCycle(h: IntersectionH.Closed):
+  #apply{(IntersectionPull.cyclesMap SignedPull.map)} h =
+    #neg{IntersectionH.cycleSpace} (#apply{(IntersectionPull.cyclesMap reflectionPull)} h) := \block {
+  \let left: IntersectionH.Closed := #apply{(IntersectionPull.cyclesMap SignedPull.map)} h \then
+  \let right: IntersectionH.Closed := #neg{IntersectionH.cycleSpace} (#apply{(IntersectionPull.cyclesMap reflectionPull)} h) \then
+  \return (\idelim (\exact(left, IntersectionHom.Carrier degree)) = (\exact(right, IntersectionHom.Carrier degree))
+    \with value: IntersectionHom.Carrier degree =>
+      \forall (closed: #apply{IntersectionH.differential} value = #zero{(IntersectionHom.space (chain_complexes.Integer[].next degree))}) ->
+        left = IntersectionH.cycle value closed \by {
+      base: \fun (closed: _) => \refl(left),
+      equality: signedOnCochain h
+    }) (\bysub(IntersectionHom.Carrier degree, #carrier{IntersectionH.cycles}, right))
+};
 \import Modules.Hom[V := IntersectionH.Closed, W := IntersectionH.Cohomology, source := IntersectionH.cycleSpace, target := IntersectionH.cohomologySpace] \as IntersectionClasses;
 \definition signedOnClass: \forall (h: IntersectionH.Closed) ->
   #apply{(IntersectionPull.induced SignedPull.map)} (IntersectionH.classOf h) = #neg{IntersectionH.cohomologySpace} (#apply{(IntersectionPull.induced reflectionPull)} (IntersectionH.classOf h)) :=
   \fun (h: IntersectionH.Closed) => trans!{IntersectionH.Cohomology} _ _ _ (IntersectionPull.onClass SignedPull.map h)
     (trans!{IntersectionH.Cohomology} _ _ _
-      (congr!{IntersectionH.Closed IntersectionH.Cohomology} IntersectionH.classOf _ _ (signedOnCochain h))
+      (congr!{IntersectionH.Closed IntersectionH.Cohomology} IntersectionH.classOf _ _ (signedCycle h))
       (trans!{IntersectionH.Cohomology} _ _ _
         (IntersectionClasses.negativePreserved IntersectionH.classLinear (#apply{(IntersectionPull.cyclesMap reflectionPull)} h))
         (congr!{IntersectionH.Cohomology IntersectionH.Cohomology} (#neg{IntersectionH.cohomologySpace}) _ _
