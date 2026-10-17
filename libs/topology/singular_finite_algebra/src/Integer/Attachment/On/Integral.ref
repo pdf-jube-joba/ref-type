@@ -1,0 +1,41 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Arithmetic[].IntAlgebra[].IntegralDomain[] \as Domain;
+\import I.Math[].Specification[].Prop[].Multiplication[] \as Product;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr2;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: I.Int^ := I.Int^::ofNat (N.Nat^::succ one);
+\import finitely_generated_modules.IntegerCyclic[d := two] \as Z2;
+\definition twice(x: I.Int^): Arithmetic.mul two x = Arithmetic.add x x :=
+  trans!{I.Int^} _ _ _ (Product.addMul I.One.specification I.One.specification x)
+    (congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.add _ _ _ _ (Product.mulOneLeft x) (Product.mulOneLeft x));
+\import Modules.Hom[V := coefficients.Carrier, W := I.Int^, source := coefficients.space, target := Modules.scalarModule] \as Forward;
+\import Modules.Hom[V := I.Int^, W := coefficients.Carrier, source := Modules.scalarModule, target := coefficients.space] \as Backward;
+\definition scalarClosed(x: KernelCarrier): Arithmetic.mul two (#apply{#forward{e}} x) = I.Zero.specification :=
+  trans!{I.Int^} _ _ _ (twice (#apply{#forward{e}} x))
+    (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (#addition{#forward{e}} x x))
+      (trans!{I.Int^} _ _ _
+        (congr!{coefficients.Carrier I.Int^} (#apply{#forward{e}}) _ _ (\bysub(coefficients.Carrier, #carrier{kernel}, x)))
+        (Forward.zeroPreserved #forward{e})));
+\definition scalarZero(x: KernelCarrier): #apply{#forward{e}} x = I.Zero.specification :=
+  Domain.positiveCancellation one (#apply{#forward{e}} x) I.Zero.specification
+    (trans!{I.Int^} _ _ _ (scalarClosed x) (sym!{I.Int^} _ _ (Product.mulZeroRight two)));
+\definition kernelZero: \forall (x: KernelCarrier) -> x = #zero{kernelSpace} :=
+  \fun (x: KernelCarrier) => trans!{coefficients.Carrier} _ _ _
+    (sym!{coefficients.Carrier} _ _ (#leftInverse{e} x))
+    (trans!{coefficients.Carrier} _ _ _
+      (congr!{I.Int^ coefficients.Carrier} (#apply{#backward{e}}) _ _ (scalarZero x))
+      (Backward.zeroPreserved #backward{e}));
+\import Modules.KernelTransport[V := coefficients.Carrier, W := coefficients.Carrier, X := I.Int^, Y := I.Int^,
+  vSpace := coefficients.space, wSpace := coefficients.space, xSpace := Modules.scalarModule, ySpace := Modules.scalarModule,
+  f := double, g := Z2.multiplication, domainIso := e, codomainIso := e] \as Transport;
+\definition commutes: Transport.Commutes := \fun (x: coefficients.Carrier) =>
+  trans!{I.Int^} _ _ _ (twice (#apply{#forward{e}} x))
+    (sym!{I.Int^} _ _ (#addition{#forward{e}} x x));
+\definition cokernelIsomorphism: Modules.Isomorphism[V := CokernelCarrier, W := Z2.Carrier,
+  source := cokernelSpace, target := Z2.space].Isomorphism := Transport.Cokernel[].isomorphism commutes;
+\definition onClass: \forall (x: coefficients.Carrier) ->
+  #apply{#forward{cokernelIsomorphism}} (relativeClass x) = Z2.class (#apply{#forward{e}} x) :=
+  Transport.Cokernel[].onClass commutes;

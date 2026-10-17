@@ -21,20 +21,28 @@
 \structure Singleton[S: \Pow Vertex]: \Set { vertex: V, included: Included S (singleton vertex) }
 \structure Segment[S: \Pow Vertex]: \Set { edge: E, included: Included S (pair edge) }
 \definition Faces: \Pow (\Pow Vertex) := { S: \Pow Vertex \where Logic.Or[\exists Singleton[S], \exists Segment[S]] };
+\definition singletonHereditary(S, T: \Pow Vertex)(found: \exists Singleton[S])(included: Included T S): \exists Singleton[T] := \block {
+  \takefrom w: Singleton[S] \by found \then
+  \let result: \exists Singleton[T] := \exact(Singleton[T] {
+    vertex := #vertex{w},
+    included := \fun (v: Vertex)(inside: \In[Vertex] T v) => #included{w} v (included v inside),
+  }, Singleton[T]) \then
+  \return result
+};
+\definition segmentHereditary(S, T: \Pow Vertex)(found: \exists Segment[S])(included: Included T S): \exists Segment[T] := \block {
+  \takefrom w: Segment[S] \by found \then
+  \let result: \exists Segment[T] := \exact(Segment[T] {
+    edge := #edge{w},
+    included := \fun (v: Vertex)(inside: \In[Vertex] T v) => #included{w} v (included v inside),
+  }, Segment[T]) \then
+  \return result
+};
 \definition complex: Object := Object {
   faces := Faces,
   hereditary := \fun (S, T: \Pow Vertex)(member: Logic.Or[\exists Singleton[S], \exists Segment[S]])(included: Included T S) =>
-    (Logic.orElim _ _ (Logic.Or[\exists Singleton[T], \exists Segment[T]]) (member)
-      (\block {
-        \fun (found: \exists Singleton[S]) \then
-        \takefrom w: Singleton[S] \by found \then
-        \return Logic.Or[_, _]::left (\exact(Singleton[T] { vertex := #vertex{w}, included := \fun (v: Vertex)(inside: \In[Vertex] T v) => #included{w} v (included v inside) }, Singleton[T]))
-      })
-      (\block {
-        \fun (found: \exists Segment[S]) \then
-        \takefrom w: Segment[S] \by found \then
-        \return Logic.Or[_, _]::right (\exact(Segment[T] { edge := #edge{w}, included := \fun (v: Vertex)(inside: \In[Vertex] T v) => #included{w} v (included v inside) }, Segment[T]))
-      }))
+    Logic.orElim (\exists Singleton[S]) (\exists Segment[S]) (Logic.Or[\exists Singleton[T], \exists Segment[T]]) member
+      (\fun (found: \exists Singleton[S]) => Logic.Or[\exists Singleton[T], \exists Segment[T]]::left (singletonHereditary S T found included))
+      (\fun (found: \exists Segment[S]) => Logic.Or[\exists Singleton[T], \exists Segment[T]]::right (segmentHereditary S T found included))
 };
 \import \root.Complex[d := d].On[K := complex] \as Simplicial;
 \definition singleIncreasing(v: Vertex): Ordering.Increasing (N.Nat^::succ N.Nat^::zero) (N.Nat^::succ d)

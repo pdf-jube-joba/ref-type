@@ -1,0 +1,69 @@
+\import DiskPair.Maps[B := Point].Over[target := pointTopology, targetSubset := Fibers.BaseImage].On[f := CellComparison.characteristic] \as Characteristic;
+\import Characteristic.Integer[].With[coefficients := coefficients] \as CoefficientMap;
+\import singular_cohomology.Chains[A := DiskPair.SubspaceCarrier, source := DiskBoundary.topology Disk.diskTopology] \as BoundaryChains;
+\import singular_cohomology.Chains[A := Base.Carrier, source := Base.topology] \as BaseChains;
+\import singular_cohomology.Chains[A := Circle.Sphere, source := Circle.sphereTopology] \as CircleChains;
+\import singular_cohomology.Maps[A := DiskPair.SubspaceCarrier, B := Base.Carrier, source := DiskBoundary.topology Disk.diskTopology, target := Base.topology] \as ToBase;
+\import singular_cohomology.Maps[A := Base.Carrier, B := Circle.Sphere, source := Base.topology, target := Circle.sphereTopology] \as FromBase;
+\import singular_cohomology.Maps[A := DiskPair.SubspaceCarrier, B := Circle.Sphere, source := DiskBoundary.topology Disk.diskTopology, target := Circle.sphereTopology] \as FromBoundary;
+\import singular_cohomology.Maps[A := Circle.Sphere, B := Circle.Sphere, source := Circle.sphereTopology, target := Circle.sphereTopology] \as Square;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficient;
+\definition toCircle: Base.Carrier -> Circle.Sphere := Base.toSphere;
+\definition toCircleContinuous: FromBase.Continuous toCircle := #forwardContinuous{Base.sphereHomeomorphism};
+\definition fromBoundary: DiskPair.SubspaceCarrier -> Circle.Sphere := #backward{DiskRelative.homeomorphism};
+\definition fromBoundaryContinuous: FromBoundary.Continuous fromBoundary := #backwardContinuous{DiskRelative.homeomorphism};
+\import ToBase.Composition[C := Circle.Sphere, final := Circle.sphereTopology].Integer[] \as FirstFunctor;
+\import FromBoundary.Composition[C := Circle.Sphere, final := Circle.sphereTopology].Integer[] \as SecondFunctor;
+\import topology.Composition[A := DiskPair.SubspaceCarrier, B := Base.Carrier, C := Circle.Sphere] \as FirstTopology;
+\import topology.Composition[A := DiskPair.SubspaceCarrier, B := Circle.Sphere, C := Circle.Sphere] \as SecondTopology;
+\definition firstFunction(p: DiskPair.SubspaceCarrier): Circle.Sphere := toCircle (Characteristic.restriction p);
+\definition secondFunction(p: DiskPair.SubspaceCarrier): Circle.Sphere := Powers.square (fromBoundary p);
+\definition firstContinuous: FromBoundary.Continuous firstFunction := FirstTopology.composeContinuous (DiskBoundary.topology Disk.diskTopology) Base.topology Circle.sphereTopology Characteristic.restriction toCircle Characteristic.restrictionContinuous toCircleContinuous;
+\definition secondContinuous: FromBoundary.Continuous secondFunction := SecondTopology.composeContinuous (DiskBoundary.topology Disk.diskTopology) Circle.sphereTopology Circle.sphereTopology fromBoundary Powers.square fromBoundaryContinuous Powers.squareContinuous;
+\definition functions(p: DiskPair.SubspaceCarrier): firstFunction p = secondFunction p :=
+  trans!{Circle.Sphere} _ _ _
+    (congr!{DiskPair.SubspaceCarrier Circle.Sphere} firstFunction _ _ (sym!{DiskPair.SubspaceCarrier} _ _ (#rightInverse{DiskRelative.homeomorphism} p)))
+    (Base.attachingEquation (fromBoundary p));
+\definition equalMaps: FromBoundary.integerPush firstFunction firstContinuous = FromBoundary.integerPush secondFunction secondContinuous :=
+  (\idelim firstFunction = secondFunction \with f: (DiskPair.SubspaceCarrier -> Circle.Sphere) => \forall (continuous: FromBoundary.Continuous f) ->
+    FromBoundary.integerPush firstFunction firstContinuous = FromBoundary.integerPush f continuous \by {
+      base: \fun (continuous: FromBoundary.Continuous firstFunction) => \refl(FromBoundary.integerPush firstFunction firstContinuous),
+      equality: \axiom:funext(firstFunction, secondFunction, functions)
+    }) secondContinuous;
+\import Chains.Map[C := BaseChains.integerComplex, D := CircleChains.integerComplex].Composition[B := BoundaryChains.integerComplex] \as FirstComposition;
+\import Chains.Map[C := CircleChains.integerComplex, D := CircleChains.integerComplex].Composition[B := BoundaryChains.integerComplex] \as SecondComposition;
+\definition composedMaps:
+  FirstComposition.compose (FromBase.integerPush toCircle toCircleContinuous) (ToBase.integerPush Characteristic.restriction Characteristic.restrictionContinuous) =
+  SecondComposition.compose (Square.integerPush Powers.square Powers.squareContinuous) (FromBoundary.integerPush fromBoundary fromBoundaryContinuous) :=
+  trans!{{Chains.Map[C := BoundaryChains.integerComplex, D := CircleChains.integerComplex].Map}} _ _ _
+    (FirstFunctor.law Characteristic.restriction Characteristic.restrictionContinuous toCircle toCircleContinuous)
+    (trans!{{Chains.Map[C := BoundaryChains.integerComplex, D := CircleChains.integerComplex].Map}} _ _ _ equalMaps
+      (sym!{{Chains.Map[C := BoundaryChains.integerComplex, D := CircleChains.integerComplex].Map}} _ _ (SecondFunctor.law fromBoundary fromBoundaryContinuous Powers.square Powers.squareContinuous)));
+\import Hom.IntegerMapping[P := BoundaryChains.integerComplex, Q := BaseChains.integerComplex, N := coefficients, L := coefficients] \as SubspacePull;
+\import Cochains.Map[C := Sub.complex, D := DiskSub.complex].At[k := degreeOne] \as SubspaceAction;
+\definition restriction: Modules.Hom[V := BaseH.Cohomology, W := BoundaryH.Cohomology, source := BaseH.cohomologySpace, target := BoundaryH.cohomologySpace].Map :=
+  SubspaceAction.induced SubspacePull.On[f := ToBase.integerPush Characteristic.restriction Characteristic.restrictionContinuous, u := Coefficient.identity].map;
+\import Hom.IntegerMapping[P := BoundaryChains.integerComplex, Q := CircleChains.integerComplex, N := coefficients, L := coefficients] \as DirectPull;
+\import Cochains.Map[C := CircleSigned.complex, D := DiskSub.complex].At[k := degreeOne] \as DirectAction;
+\definition direct(f: Chains.Map[C := BoundaryChains.integerComplex, D := CircleChains.integerComplex].Map)(q: CircleH.Cohomology): BoundaryH.Cohomology :=
+  #apply{(DirectAction.induced DirectPull.On[f := f, u := Coefficient.identity].map)} q;
+\import Hom.IntegerComposition[P := BoundaryChains.integerComplex, Q := BaseChains.integerComplex, T := CircleChains.integerComplex, N := coefficients].At[k := degreeOne] \as FirstDual;
+\import Hom.IntegerComposition[P := BoundaryChains.integerComplex, Q := CircleChains.integerComplex, T := CircleChains.integerComplex, N := coefficients].At[k := degreeOne] \as SecondDual;
+\import sphere_maps.Circle[].Powers[].Actions[coefficients := coefficients].Signed[] \as PowersAction;
+\definition intertwines(q: CircleH.Cohomology): #apply{restriction} (#apply{BaseComparison.forwardMap} q) = #apply{BoundaryComparison.forwardMap} (#apply{(PowersAction.action (I.Int^::ofNat two))} q) :=
+  trans!{BoundaryH.Cohomology} _ _ _
+    (sym!{BoundaryH.Cohomology} _ _ (FirstDual.onCohomology (ToBase.integerPush Characteristic.restriction Characteristic.restrictionContinuous) (FromBase.integerPush toCircle toCircleContinuous) q))
+    (trans!{BoundaryH.Cohomology} _ _ _
+      (congr!{{Chains.Map[C := BoundaryChains.integerComplex, D := CircleChains.integerComplex].Map} BoundaryH.Cohomology} (\fun (f: Chains.Map[C := BoundaryChains.integerComplex, D := CircleChains.integerComplex].Map) => direct f q) _ _ composedMaps)
+      (SecondDual.onCohomology (FromBoundary.integerPush fromBoundary fromBoundaryContinuous) (Square.integerPush Powers.square Powers.squareContinuous) q));
+\definition scalarTwo(q: CircleH.Cohomology): #smul{CircleH.cohomologySpace} (I.Int^::ofNat two) q = #add{CircleH.cohomologySpace} q q :=
+  trans!{CircleH.Cohomology} _ _ _ (#scalarAdd{CircleH.cohomologySpace} I.One.specification I.One.specification q)
+    (congr2!{CircleH.Cohomology CircleH.Cohomology CircleH.Cohomology} (#add{CircleH.cohomologySpace}) _ _ _ _
+      (#scalarOne{CircleH.cohomologySpace} q) (#scalarOne{CircleH.cohomologySpace} q));
+\definition onOrientation(q: coefficients.Carrier): #apply{restriction} (#apply{#forward{baseOrientation}} q) = #apply{#forward{boundaryOrientation}} (#add{coefficients.space} q q) :=
+  trans!{BoundaryH.Cohomology} _ _ _ (intertwines (#apply{#forward{circleOrientation}} q))
+    (congr!{CircleH.Cohomology BoundaryH.Cohomology} (#apply{BoundaryComparison.forwardMap}) _ _
+      (trans!{CircleH.Cohomology} _ _ _ (PowersAction.integer (I.Int^::ofNat two) (#apply{#forward{circleOrientation}} q))
+        (trans!{CircleH.Cohomology} _ _ _ (scalarTwo (#apply{#forward{circleOrientation}} q))
+          (sym!{CircleH.Cohomology} _ _ (#addition{#forward{circleOrientation}} q q)))));

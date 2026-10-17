@@ -1,0 +1,68 @@
+\import Cochains.At[C := Whole.complex, z := degreeOne] \as H1;
+\import Cochains.At[C := Whole.complex, z := degreeTwo] \as H2;
+\import Cochains.At[C := Relative.complex, z := degreeOne] \as R1;
+\import Exact.At[s := Sequence.sequence, k := degreeOne] \as Connecting;
+\import Connecting.Exactness[] \as FirstExactness;
+\import Exact.At[s := Sequence.sequence, k := degreeTwo].Exactness[] \as SecondExactness;
+\import Cochains.Map[C := Whole.complex, D := Sub.complex].At[k := degreeOne] \as Restriction;
+\import Cochains.Map[C := Relative.complex, D := Whole.complex].At[k := degreeOne] \as LowerInclusion;
+\import Cochains.Map[C := Relative.complex, D := Whole.complex].At[k := degreeTwo] \as Inclusion;
+\definition first: Modules.Bundle := Modules.Bundle { Carrier := H1.Cohomology, space := H1.cohomologySpace };
+\definition second: Modules.Bundle := Modules.Bundle { Carrier := H2.Cohomology, space := H2.cohomologySpace };
+\definition base: Modules.Bundle := Modules.Bundle { Carrier := BaseH.Cohomology, space := BaseH.cohomologySpace };
+\definition relative: Modules.Bundle := Modules.Bundle { Carrier := RelativeH.Cohomology, space := RelativeH.cohomologySpace };
+\import Modules.ExactPair[A := first, B := base, C := relative] \as FirstSequence;
+\import Modules.ExactPair[A := base, B := relative, C := second] \as SecondSequence;
+\definition firstSequence: FirstSequence.Sequence := FirstSequence.Sequence {
+  first := Restriction.induced Sequence.restriction, last := Connecting.connecting,
+  zero := FirstExactness.projectionConnectingZero, kernelImage := FirstExactness.exactAtC,
+};
+\definition secondSequence: SecondSequence.Sequence := SecondSequence.Sequence {
+  first := Connecting.connecting, last := Inclusion.induced Sequence.inclusion,
+  zero := FirstExactness.connectingInclusionZero, kernelImage := FirstExactness.exactAtALower,
+};
+\import Modules.End[V := first.Carrier, space := first.space] \as FirstIdentity;
+\import Modules.End[V := second.Carrier, space := second.space] \as SecondIdentity;
+\definition firstIdentity: Modules.Isomorphism[V := first.Carrier, W := first.Carrier, source := first.space, target := first.space].Isomorphism :=
+  Modules.Isomorphism[V := first.Carrier, W := first.Carrier, source := first.space, target := first.space].Isomorphism {
+    forward := FirstIdentity.identity, backward := FirstIdentity.identity,
+    leftInverse := \fun (h: first.Carrier) => \refl(h), rightInverse := \fun (h: first.Carrier) => \refl(h),
+  };
+\definition secondIdentity: Modules.Isomorphism[V := second.Carrier, W := second.Carrier, source := second.space, target := second.space].Isomorphism :=
+  Modules.Isomorphism[V := second.Carrier, W := second.Carrier, source := second.space, target := second.space].Isomorphism {
+    forward := SecondIdentity.identity, backward := SecondIdentity.identity,
+    leftInverse := \fun (h: second.Carrier) => \refl(h), rightInverse := \fun (h: second.Carrier) => \refl(h),
+  };
+\import Modules.Isomorphism[V := coefficients.Carrier, W := BaseH.Cohomology, source := coefficients.space, target := BaseH.cohomologySpace].Inverse[] \as BaseInverse;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := RelativeH.Cohomology, source := coefficients.space, target := RelativeH.cohomologySpace].Inverse[] \as RelativeInverse;
+\import FirstSequence.Reindex[A1 := first, B1 := coefficients, C1 := coefficients, sequence := firstSequence,
+  a := firstIdentity, b := BaseInverse.inverse baseOrientation, c := RelativeInverse.inverse relativeOrientation] \as ReindexFirst;
+\import SecondSequence.Reindex[A1 := coefficients, B1 := coefficients, C1 := second, sequence := secondSequence,
+  a := BaseInverse.inverse baseOrientation, b := RelativeInverse.inverse relativeOrientation, c := secondIdentity] \as ReindexSecond;
+\definition restriction: Modules.MapBetween first coefficients := ReindexFirst.first;
+\definition connecting: Modules.MapBetween coefficients coefficients := ReindexFirst.last;
+\definition inclusion: Modules.MapBetween coefficients second := ReindexSecond.last;
+\import \parent.Connecting[] \as ConnectingGeometry;
+\definition doubling(q: coefficients.Carrier): #apply{connecting} q = #add{coefficients.space} q q :=
+  trans!{coefficients.Carrier} _ _ _
+    (congr!{RelativeH.Cohomology coefficients.Carrier} (#apply{#backward{relativeOrientation}}) _ _ (ConnectingGeometry.onOrientation q))
+    (#leftInverse{relativeOrientation} (#add{coefficients.space} q q));
+\module Injectivity;
+\module Surjectivity;
+\import singular_finite_algebra.Integer[].Attachment[coefficients := coefficients, first := first, second := second] \as Calculation;
+\import Modules.ExactPair[A := first, B := coefficients, C := coefficients] \as FirstTarget;
+\import Modules.ExactPair[A := coefficients, B := coefficients, C := second] \as SecondTarget;
+\definition data: Calculation.Object := Calculation.Object {
+  restriction := restriction, connecting := connecting, relative := inclusion,
+  injective := Injectivity[].law,
+  exactAtFirst := \bysub(FirstTarget.Data, { data: FirstTarget.Data \where FirstTarget.Laws[data] }, ReindexFirst.transported),
+  exactAtSecond := \bysub(SecondTarget.Data, { data: SecondTarget.Data \where SecondTarget.Laws[data] }, ReindexSecond.transported),
+  onto := Surjectivity[].law, doubling := doubling,
+};
+\import Calculation.On[data := data] \as Computed;
+\definition Kernel: \Set := Computed.KernelCarrier;
+\definition kernelSpace: Modules.Space Kernel := Computed.kernelSpace;
+\definition Cokernel: \Set := Computed.CokernelCarrier;
+\definition cokernelSpace: Modules.Space Cokernel := Computed.cokernelSpace;
+\definition kernelIsomorphism: Modules.Isomorphism[V := first.Carrier, W := Kernel, source := first.space, target := kernelSpace].Isomorphism := Computed.Kernel[].isomorphism;
+\definition cokernelIsomorphism: Modules.Isomorphism[V := Cokernel, W := second.Carrier, source := cokernelSpace, target := second.space].Isomorphism := Computed.Cokernel[].isomorphism;

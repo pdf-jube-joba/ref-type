@@ -27,13 +27,23 @@
 \module Zero;
 \module Successor(n: N.Nat^);
 \import Native.Homotopy[C := Total.complex, D := Total.complex] \as Homotopies;
-\definition data: Homotopies.Data := Homotopies.Data { apply := \fun (n: N.Nat^) => #apply{Degree[n := n].map} };
+\definition operator: \forall (n: N.Nat^) -> Modules.Hom[
+  V := Total.Carrier n, W := Total.Carrier (N.Nat^::succ n),
+  source := Total.space n, target := Total.space (N.Nat^::succ n)].Map :=
+  \fun (n: N.Nat^) => Degree[n := n].map;
+\definition data: Homotopies.Data := Homotopies.Data { apply := \fun (n: N.Nat^) => #apply{(operator n)} };
+\definition successorEquation: \forall (n: N.Nat^)(x: Total.Carrier (N.Nat^::succ n)) ->
+  #apply{Comparison.tensorDefect} (N.Nat^::succ n) x =
+    #add{(Total.space (N.Nat^::succ n))}
+      (#apply{Total.differential} (N.Nat^::succ n) (#apply{(operator (N.Nat^::succ n))} x))
+      (#apply{(operator n)} (#apply{Total.differential} n x)) :=
+  \fun (n: N.Nat^) => Successor[n := n].law;
 \definition homotopy: Homotopies.Homotopy Comparison.tensorComposite (Native.End[C := Total.complex].identity) :=
   \into[Homotopies.Data](data, Homotopies.Homotopy Comparison.tensorComposite (Native.End[C := Total.complex].identity)) \by {
     Homotopies.Laws[Comparison.tensorComposite, Native.End[C := Total.complex].identity, data] {
-      addition := \fun (n: N.Nat^) => #addition{Degree[n := n].map},
-      scalar := \fun (n: N.Nat^) => #scalar{Degree[n := n].map},
+      addition := \fun (n: N.Nat^) => #addition{(operator n)},
+      scalar := \fun (n: N.Nat^) => #scalar{(operator n)},
       zeroEquation := Zero[].law,
-      successorEquation := \fun (n: N.Nat^) => Successor[n := n].law,
+      successorEquation := successorEquation,
     }
   };

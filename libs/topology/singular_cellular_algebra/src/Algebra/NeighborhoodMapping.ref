@@ -1,0 +1,36 @@
+\import \parent.Neighborhood[pair := a] \as SourceNeighborhood;
+\import \parent.Neighborhood[pair := b] \as TargetNeighborhood;
+\import topology.Topology[Carrier := a.base.Carrier] \as SourceSpace;
+\import topology.Topology[Carrier := b.base.Carrier] \as TargetSpace;
+\import SourceSpace.Subspace[S := SourceSpace.Complement a.base.subset] \as SourceRemaining;
+\import TargetSpace.Subspace[S := TargetSpace.Complement b.base.subset] \as TargetRemaining;
+\definition sourceSmallSubset: \Pow SourceRemaining.CarrierSet := { x: SourceRemaining.CarrierSet \where SourceSpace.Member a.region x };
+\definition targetSmallSubset: \Pow TargetRemaining.CarrierSet := { x: TargetRemaining.CarrierSet \where TargetSpace.Member b.region x };
+\definition sourceBase: SpacePair := SpacePair { Carrier := a.base.Carrier, topology := a.base.topology, subset := a.base.subset };
+\definition targetBase: SpacePair := SpacePair { Carrier := b.base.Carrier, topology := b.base.topology, subset := b.base.subset };
+\definition sourceExpanded: SpacePair := SpacePair { Carrier := a.base.Carrier, topology := a.base.topology, subset := a.region };
+\definition targetExpanded: SpacePair := SpacePair { Carrier := b.base.Carrier, topology := b.base.topology, subset := b.region };
+\definition sourceSmall: SpacePair := SpacePair { Carrier := SourceRemaining.CarrierSet, topology := SourceRemaining.topology a.base.topology, subset := sourceSmallSubset };
+\definition targetSmall: SpacePair := SpacePair { Carrier := TargetRemaining.CarrierSet, topology := TargetRemaining.topology b.base.topology, subset := targetSmallSubset };
+\import singular_cohomology.Relative[A := a.base.Carrier, source := a.base.topology, subset := a.base.subset] \as Source;
+\import singular_cohomology.Relative[A := b.base.Carrier, source := b.base.topology, subset := b.base.subset] \as Target;
+\import singular_cohomology.Relative[A := a.base.Carrier, source := a.base.topology, subset := a.region] \as SourceExpanded;
+\import singular_cohomology.Relative[A := b.base.Carrier, source := b.base.topology, subset := b.region] \as TargetExpanded;
+\import singular_cohomology.Relative[A := sourceSmall.Carrier, source := sourceSmall.topology, subset := sourceSmall.subset] \as SourceSmall;
+\import singular_cohomology.Relative[A := targetSmall.Carrier, source := targetSmall.topology, subset := targetSmall.subset] \as TargetSmall;
+\import Source.Maps[B := b.base.Carrier].Over[target := b.base.topology, targetSubset := b.base.subset] \as OriginalMaps;
+\import SourceExpanded.Maps[B := b.base.Carrier].Over[target := b.base.topology, targetSubset := b.region] \as ExpandedMaps;
+\import SourceSmall.Maps[B := targetSmall.Carrier].Over[target := targetSmall.topology, targetSubset := targetSmall.subset] \as SmallMaps;
+\import singular_excision.Excision[A := a.base.Carrier].Over[source := a.base.topology] \as SourceExcision;
+\import singular_excision.Excision[A := b.base.Carrier].Over[source := b.base.topology] \as TargetExcision;
+\definition sourceExcision: SourceExcision.Pair := \into[SourceExcision.PairData]
+  (SourceExcision.PairData { subset := a.region, removed := a.base.subset }, SourceExcision.Pair) \by { SourceNeighborhood.excisive.valid };
+\definition targetExcision: TargetExcision.Pair := \into[TargetExcision.PairData]
+  (TargetExcision.PairData { subset := b.region, removed := b.base.subset }, TargetExcision.Pair) \by { TargetNeighborhood.excisive.valid };
+\structure Data: \Set {
+  map: OriginalMaps.Map,
+  region: \forall (x: a.base.Carrier) -> SourceSpace.Member a.region x -> TargetSpace.Member b.region (map x),
+  complement: \forall (x: a.base.Carrier) -> Logic.Not (SourceSpace.Member a.base.subset x) -> Logic.Not (TargetSpace.Member b.base.subset (map x)),
+}
+\module Along(data: Data);
+\module Homology(z: I.Int^);

@@ -1,0 +1,72 @@
+\import singular_cohomology.Chains[A := Sphere, source := topology] \as Chains;
+\import Chains.Reduced[] \as Augmented;
+\import singular_cohomology.Maps[A := Sphere, B := Sphere, source := topology, target := topology] \as Maps;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.Integer[P := Augmented.complex, N := coefficients] \as Dual;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as SignedCochains;
+\definition zeroDegree: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+\definition negativeDegree: I.Int^ := I.Int^::negSucc N.Nat^::zero;
+\import SignedCochains.At[C := Dual.complex, z := zeroDegree] \as ReducedH;
+\import SignedCochains.Map[C := Dual.complex, D := Dual.complex].At[k := zeroDegree] \as Induced;
+\definition pull: SignedCochains.Map[C := Dual.complex, D := Dual.complex].Map :=
+  Hom.IntegerMapping[P := Augmented.complex, Q := Augmented.complex, N := coefficients, L := coefficients]
+    .On[f := Maps.Reduced[].map Antipodal.apply Antipodal.continuous, u := Coefficient.identity].map;
+\definition Carrier: \Set := ReducedH.Cohomology;
+\definition space: Modules.Space Carrier := ReducedH.cohomologySpace;
+\definition action: Modules.Hom[V := Carrier, W := Carrier, source := space, target := space].Map := Induced.induced pull;
+\definition constantValue(h: Dual.Carrier zeroDegree): coefficients.Carrier := Group.add (Zero.value h Model.north) (Zero.value h Model.south);
+\definition sumAt: \forall (h: Dual.Carrier zeroDegree)(a: Sphere) ->
+  Group.add (Zero.value h (Antipodal.apply a)) (Zero.value h a) = constantValue h :=
+  \fun (h: Dual.Carrier zeroDegree)(a: Sphere) => Logic.orElim (a = Model.north) (a = Model.south)
+    (Group.add (Zero.value h (Antipodal.apply a)) (Zero.value h a) = constantValue h) (Model.cases a)
+    (\fun (same: a = Model.north) => trans!{coefficients.Carrier} _ _ _
+      (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.add _ _ _ _
+        (congr!{Sphere coefficients.Carrier} (Zero.value h) _ _
+          (trans!{Sphere} _ _ _ (congr!{Sphere Sphere} Antipodal.apply _ _ same) north))
+        (congr!{Sphere coefficients.Carrier} (Zero.value h) _ _ same))
+      (Group.comm (Zero.value h Model.south) (Zero.value h Model.north)))
+    (\fun (same: a = Model.south) => congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.add _ _ _ _
+      (congr!{Sphere coefficients.Carrier} (Zero.value h) _ _
+        (trans!{Sphere} _ _ _ (congr!{Sphere Sphere} Antipodal.apply _ _ same) south))
+      (congr!{Sphere coefficients.Carrier} (Zero.value h) _ _ same));
+\definition primitive(h: Dual.Carrier zeroDegree): Dual.Carrier negativeDegree := Dual.At[z := negativeDegree].Carrier {
+  apply := \fun (a: I.Int^) => #smul{coefficients.space} a (constantValue h),
+  addition := \fun (a, b: I.Int^) => #scalarAdd{coefficients.space} a b (constantValue h),
+  scalar := \fun (a, b: I.Int^) => #scalarAssoc{coefficients.space} a b (constantValue h),
+};
+\definition primitiveOnGenerator: \forall (h: Dual.Carrier zeroDegree)(sigma: Simplices.Carrier N.Nat^::zero) ->
+  #apply{(Dual.Cohomology[z := zeroDegree].prior (primitive h))} (Chains.generator N.Nat^::zero sigma) = constantValue h :=
+  \fun (h: Dual.Carrier zeroDegree)(sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _
+    (Dual.Cohomology[z := zeroDegree].priorOnElement (primitive h) (Chains.generator N.Nat^::zero sigma))
+    (trans!{coefficients.Carrier} _ _ _
+      (congr!{I.Int^ coefficients.Carrier} (#apply{(primitive h)}) _ _ (Chains.Augmentation[].onGenerator sigma))
+      (#scalarOne{coefficients.space} (constantValue h)));
+\definition pullOnGenerator: \forall (h: Dual.Carrier zeroDegree)(sigma: Simplices.Carrier N.Nat^::zero) ->
+  #apply{(#apply{pull} zeroDegree h)} (Chains.generator N.Nat^::zero sigma) = Zero.value h (Antipodal.apply (Zero.point sigma)) :=
+  \fun (h: Dual.Carrier zeroDegree)(sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _
+    (congr!{{Chains.Carrier N.Nat^::zero} coefficients.Carrier} (#apply{h}) _ _ (Maps.At[n := N.Nat^::zero].onGenerator Antipodal.apply Antipodal.continuous sigma))
+    (Zero.valueOnSimplex h (Maps.postcompose N.Nat^::zero Antipodal.apply Antipodal.continuous sigma));
+\definition primitiveLaw: \forall (h: Dual.Carrier zeroDegree) ->
+  Dual.Cohomology[z := zeroDegree].prior (primitive h) = #add{(Dual.space zeroDegree)} (#apply{pull} zeroDegree h) h :=
+  \fun (h: Dual.Carrier zeroDegree) => Free.ext _ _
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _ (primitiveOnGenerator h sigma)
+      (sym!{coefficients.Carrier} _ _
+        (trans!{coefficients.Carrier} _ _ _
+          (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.add _ _ _ _
+            (pullOnGenerator h sigma) (Zero.valueOnSimplex h sigma))
+          (sumAt h (Zero.point sigma)))));
+\definition sumCycle(h: ReducedH.Closed): ReducedH.Closed := #add{ReducedH.cycleSpace} (#apply{(Induced.cyclesMap pull)} h) h;
+\import Modules.Hom[V := ReducedH.Closed, W := Carrier, source := ReducedH.cycleSpace, target := space] \as Classes;
+\import algebra.Group[].Of[Carrier := Carrier, group := Modules.Laws[V := Carrier, space := space].additive] \as CohomologyGroup;
+\definition sumZero: \forall (h: ReducedH.Closed) ->
+  #add{space} (#apply{action} (ReducedH.classOf h)) (ReducedH.classOf h) = #zero{space} :=
+  \fun (h: ReducedH.Closed) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} (\fun (q: Carrier) => #add{space} q (ReducedH.classOf h)) _ _ (Induced.onClass pull h))
+    (trans!{Carrier} _ _ _
+      (sym!{Carrier} _ _ (#addition{ReducedH.classLinear} (#apply{(Induced.cyclesMap pull)} h) h))
+      (ReducedH.boundaryClassZero (sumCycle h)
+        (Logic.existsIntro[Dual.Carrier negativeDegree,
+          { g: Dual.Carrier negativeDegree \where #apply{ReducedH.prior} g = sumCycle h }] (primitive h) (primitiveLaw h))));
+\definition law: \forall (q: Carrier) -> #apply{action} q = #neg{space} q :=
+  ReducedH.classInduction (\fun (q: Carrier) => #apply{action} q = #neg{space} q)
+    (\fun (h: ReducedH.Closed) => CohomologyGroup.inverseUnique (ReducedH.classOf h) (#apply{action} (ReducedH.classOf h)) (sumZero h));

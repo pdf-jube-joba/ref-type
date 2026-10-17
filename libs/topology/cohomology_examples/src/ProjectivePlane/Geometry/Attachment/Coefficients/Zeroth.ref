@@ -1,0 +1,38 @@
+\definition degree: I.Int^ := I.Int^::ofNat zero;
+\import Cochains.At[C := Whole.complex, z := degree] \as H;
+\import Cochains.At[C := Sub.complex, z := degree] \as BaseH0;
+\import Cochains.At[C := Relative.complex, z := degree] \as R;
+\import Cochains.At[C := Relative.complex, z := degreeOne] \as R1;
+\import Exact.At[s := Sequence.sequence, k := degree] \as Connecting;
+\import Connecting.Exactness[] \as Exactness;
+\import Cochains.Map[C := Relative.complex, D := Whole.complex].At[k := degree] \as Inclusion;
+\import Cochains.Map[C := Whole.complex, D := Sub.complex].At[k := degree] \as Restriction;
+\definition restriction: Modules.Hom[V := H.Cohomology, W := BaseH0.Cohomology, source := H.cohomologySpace, target := BaseH0.cohomologySpace].Map := Restriction.induced Sequence.restriction;
+\import Modules.Hom[V := H.Cohomology, W := BaseH0.Cohomology, source := H.cohomologySpace, target := BaseH0.cohomologySpace] \as Maps;
+\import Modules.Hom[V := R.Cohomology, W := H.Cohomology, source := R.cohomologySpace, target := H.cohomologySpace] \as InclusionMaps;
+\definition kernelZero(h: H.Cohomology)(killed: #apply{restriction} h = BaseH0.zeroClass): h = H.zeroClass := \block {
+  \takefrom a: \Cast[R.Cohomology] ({ a: R.Cohomology \where #apply{(Inclusion.induced Sequence.inclusion)} a = h }) \by Exactness.exactAtB h killed \then
+  \return trans!{H.Cohomology} _ _ _
+    (sym!{H.Cohomology} _ _ (\bysub(R.Cohomology, { a: R.Cohomology \where #apply{(Inclusion.induced Sequence.inclusion)} a = h }, a)))
+    (trans!{H.Cohomology} _ _ _
+      (congr!{R.Cohomology H.Cohomology} (#apply{(Inclusion.induced Sequence.inclusion)}) _ _ (\parent.RelativeVanishing[].zeroth a))
+      (InclusionMaps.zeroPreserved (Inclusion.induced Sequence.inclusion)))
+};
+\definition injective: \forall (h, k: H.Cohomology) -> #apply{restriction} h = #apply{restriction} k -> h = k := Maps.injectiveOfZeroKernel restriction kernelZero;
+\definition onto(h: BaseH0.Cohomology): \exists { x: H.Cohomology \where #apply{restriction} x = h } :=
+  Exactness.exactAtC h (\parent.RelativeVanishing[].first (#apply{Connecting.connecting} h));
+\import Modules.Isomorphism[V := H.Cohomology, W := BaseH0.Cohomology, source := H.cohomologySpace, target := BaseH0.cohomologySpace].OfBijective[f := restriction] \as Inverse;
+\definition restrictionIsomorphism: Modules.Isomorphism[V := H.Cohomology, W := BaseH0.Cohomology, source := H.cohomologySpace, target := BaseH0.cohomologySpace].Isomorphism :=
+  Inverse.isomorphism injective onto;
+\import Cochains.At[C := CircleSigned.complex, z := degree] \as SphereH0;
+\import cohomology_models.Spheres[].With[coefficients := coefficients].Zero[n := zero] \as CircleZero;
+\import Modules.Isomorphism[V := SphereH0.Cohomology, W := CircleNatural.cohomology zero, source := SphereH0.cohomologySpace, target := CircleNatural.cohomologySpace zero].Inverse[] \as CircleInverse;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := CircleNatural.cohomology zero, source := coefficients.space, target := CircleNatural.cohomologySpace zero].Composition[U := SphereH0.Cohomology, final := SphereH0.cohomologySpace] \as CircleCompose;
+\definition circleOrientation: Modules.Isomorphism[V := coefficients.Carrier, W := SphereH0.Cohomology, source := coefficients.space, target := SphereH0.cohomologySpace].Isomorphism :=
+  CircleCompose.compose (CircleInverse.inverse CircleSigned.At[n := zero].isomorphism) CircleZero.isomorphism;
+\import singular_cohomology.Equivalence[A := Circle.Sphere, B := Base.Carrier, source := Circle.sphereTopology, target := Base.topology].Integer[e := baseEquivalence].With[coefficients := coefficients].At[z := degree] \as BaseComparison;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := SphereH0.Cohomology, source := coefficients.space, target := SphereH0.cohomologySpace].Composition[U := BaseH0.Cohomology, final := BaseH0.cohomologySpace] \as BaseCompose;
+\definition baseOrientation: Modules.Isomorphism[V := coefficients.Carrier, W := BaseH0.Cohomology, source := coefficients.space, target := BaseH0.cohomologySpace].Isomorphism := BaseCompose.compose BaseComparison.isomorphism circleOrientation;
+\import Modules.Isomorphism[V := H.Cohomology, W := BaseH0.Cohomology, source := H.cohomologySpace, target := BaseH0.cohomologySpace].Inverse[] \as ProjectionInverse;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := BaseH0.Cohomology, source := coefficients.space, target := BaseH0.cohomologySpace].Composition[U := H.Cohomology, final := H.cohomologySpace] \as Compose;
+\definition isomorphism: Modules.Isomorphism[V := coefficients.Carrier, W := H.Cohomology, source := coefficients.space, target := H.cohomologySpace].Isomorphism := Compose.compose (ProjectionInverse.inverse restrictionIsomorphism) baseOrientation;

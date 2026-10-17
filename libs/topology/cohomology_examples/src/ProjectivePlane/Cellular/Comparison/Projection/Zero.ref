@@ -1,0 +1,35 @@
+\import \parent.\parent.Zero[] \as Maps;
+\import \parent.\parent.Degree[n := zero] \as Degree;
+\import \parent.\parent.Group[W := Target.Carrier zero, target := Target.space zero] \as Algebra;
+\import Modules.Laws[V := Target.Carrier zero, space := Target.space zero] \as Values;
+\import algebra.Group[].Of[Carrier := Target.Carrier zero, group := Values.additive] \as Group;
+\import Modules.Hom[V := Target.Carrier one, W := Target.Carrier zero, source := Target.space one, target := Target.space zero] \as Boundaries;
+\definition firstBoundary: #apply{targetComplex.differential} zero (#neg{(Target.space one)} (edge Edge::first)) = Group.difference (vertex Vertex::center) (vertex Vertex::rim) :=
+  trans!{{Target.Carrier zero}} _ _ _ (Boundaries.negativePreserved Degree.differential (edge Edge::first))
+    (trans!{{Target.Carrier zero}} _ _ _ (congr!{{Target.Carrier zero} {Target.Carrier zero}} Values.neg _ _ (Model.Boundaries[].edgeBoundary Edge::first))
+      (Algebra.inverseDifference (vertex Vertex::rim) (vertex Vertex::center)));
+\definition correctedCenter: #apply{Corrected.map} zero (vertex Vertex::center) = vertex Vertex::rim :=
+  trans!{{Target.Carrier zero}} _ _ _
+    (congr!{{Target.Carrier zero} {Target.Carrier zero}} (Group.difference (vertex Vertex::center)) _ _
+      (trans!{{Target.Carrier zero}} _ _ _
+        (congr!{{Target.Carrier one} {Target.Carrier zero}} (#apply{targetComplex.differential} zero) _ _ (Maps.homotopyOnGenerator Vertex::center)) firstBoundary))
+    (Group.subtractDifference (vertex Vertex::center) (vertex Vertex::rim));
+\definition correctedRim: #apply{Corrected.map} zero (vertex Vertex::rim) = vertex Vertex::rim :=
+  trans!{{Target.Carrier zero}} _ _ _
+    (congr!{{Target.Carrier zero} {Target.Carrier zero}} (Group.difference (vertex Vertex::rim)) _ _
+      (trans!{{Target.Carrier zero}} _ _ _
+        (congr!{{Target.Carrier one} {Target.Carrier zero}} (#apply{targetComplex.differential} zero) _ _ (Maps.homotopyOnGenerator Vertex::rim))
+        (Boundaries.zeroPreserved Degree.differential)))
+    (trans!{{Target.Carrier zero}} _ _ _ (congr!{{Target.Carrier zero} {Target.Carrier zero}} (Values.add (vertex Vertex::rim)) _ _ Group.negZero) (Group.zeroRight (vertex Vertex::rim)));
+\definition actual(v: Vertex): #apply{Degree.right} (vertex v) = vertex Vertex::rim :=
+  trans!{{Target.Carrier zero}} _ _ _
+    (congr!{{native.family.Carrier zero} {Target.Carrier zero}} (#apply{Maps.forward}) _ _ (Maps.backwardOnGenerator v)) Maps.forwardUnit;
+\import Native.Map[C := targetComplex, D := targetComplex].At[n := zero] \as CorrectedAt;
+\import Model.Coefficients[A := targetBundle zero].DegreeZero[] \as Ext;
+\definition equation: Degree.right = CorrectedAt.linear Corrected.map := Ext.injective _ _
+  (\axiom:funext(_, _, \induction (v: Vertex) \return #apply{Degree.right} (vertex v) = #apply{Corrected.map} zero (vertex v) \with {
+    | center: trans!{{Target.Carrier zero}} _ _ _ (actual Vertex::center) (sym!{{Target.Carrier zero}} _ _ correctedCenter)
+    | rim: trans!{{Target.Carrier zero}} _ _ _ (actual Vertex::rim) (sym!{{Target.Carrier zero}} _ _ correctedRim)
+  }));
+\definition law: Equation zero := \fun (y: Target.Carrier zero) => congr!{{Modules.Hom[V := Target.Carrier zero, W := Target.Carrier zero, source := Target.space zero, target := Target.space zero].Map} {Target.Carrier zero}}
+  (\fun (f: Modules.Hom[V := Target.Carrier zero, W := Target.Carrier zero, source := Target.space zero, target := Target.space zero].Map) => #apply{f} y) _ _ equation;

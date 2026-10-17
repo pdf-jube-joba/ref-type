@@ -1,0 +1,71 @@
+\import \parent.Base[] \as Base;
+\import \parent.Fibers[] \as Fibers;
+\import \parent.Comparison[].Pair[] \as CellComparison;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import singular_cohomology.Relative[A := Point, source := pointTopology, subset := Fibers.BaseImage] \as Pair;
+\import Pair.With[coefficients := coefficients] \as Relative;
+\import singular_cohomology.Cochains[A := Point, source := pointTopology].With[coefficients := coefficients].Integer[] \as Whole;
+\import singular_cohomology.Cochains[A := Base.Carrier, source := Base.topology].With[coefficients := coefficients].Integer[] \as Sub;
+\import Relative.PairSequence[] \as Sequence;
+\import Cochains.ShortExact[A := Relative.complex, B := Whole.complex, C := Sub.complex] \as Exact;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition three: N.Nat^ := N.Nat^::succ two;
+\definition degreeOne: I.Int^ := I.Int^::ofNat one;
+\definition degreeTwo: I.Int^ := I.Int^::ofNat two;
+\import singular_cellular.DiskRelative[n := one] \as DiskRelative;
+\import singular_cohomology.Relative[A := Disk.Disk, source := Disk.diskTopology, subset := DiskRelative.subset] \as DiskPair;
+\import topology.Topology[Carrier := Disk.Disk].Subspace[S := DiskRelative.subset] \as DiskBoundary;
+\import DiskPair.With[coefficients := coefficients] \as DiskRelativeCochains;
+\import singular_cohomology.Cochains[A := Disk.Disk, source := Disk.diskTopology].With[coefficients := coefficients].Integer[] \as DiskWhole;
+\import singular_cohomology.Cochains[A := DiskPair.SubspaceCarrier, source := DiskBoundary.topology Disk.diskTopology].With[coefficients := coefficients].Integer[] \as DiskSub;
+\import DiskRelativeCochains.PairSequence[] \as DiskSequence;
+\import Cochains.ShortExact[A := DiskRelativeCochains.complex, B := DiskWhole.complex, C := DiskSub.complex] \as DiskExact;
+\import singular_cohomology.Cochains[A := Circle.Sphere, source := Circle.sphereTopology].With[coefficients := coefficients] \as CircleNatural;
+\import CircleNatural.Integer[] \as CircleSigned;
+\import cohomology_models.Spheres[].With[coefficients := coefficients].Top[n := zero] \as CircleTop;
+\import Cochains.At[C := CircleSigned.complex, z := degreeOne] \as CircleH;
+\import Cochains.At[C := Sub.complex, z := degreeOne] \as BaseH;
+\import Cochains.At[C := DiskSub.complex, z := degreeOne] \as BoundaryH;
+\import Cochains.At[C := DiskRelativeCochains.complex, z := degreeTwo] \as DiskH;
+\import Cochains.At[C := Relative.complex, z := degreeTwo] \as RelativeH;
+\import Modules.Isomorphism[V := CircleH.Cohomology, W := CircleNatural.cohomology one, source := CircleH.cohomologySpace, target := CircleNatural.cohomologySpace one].Inverse[] \as CircleInverse;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := CircleNatural.cohomology one, source := coefficients.space, target := CircleNatural.cohomologySpace one].Composition[U := CircleH.Cohomology, final := CircleH.cohomologySpace] \as CircleCompose;
+\definition circleOrientation: Modules.Isomorphism[V := coefficients.Carrier, W := CircleH.Cohomology, source := coefficients.space, target := CircleH.cohomologySpace].Isomorphism :=
+  CircleCompose.compose (CircleInverse.inverse CircleSigned.At[n := one].isomorphism) CircleTop.isomorphism;
+\import topology.Homeomorphism[A := Base.Carrier, B := Circle.Sphere].Inverse[] \as BaseInverse;
+\import algebraic_topology.HomotopyEquivalence[A := Circle.Sphere, B := Base.Carrier] \as BaseEquivalences;
+\definition baseEquivalence: BaseEquivalences.Equivalence[Circle.sphereTopology, Base.topology] :=
+  BaseEquivalences.fromHomeomorphism Circle.sphereTopology Base.topology (BaseInverse.inverse Base.topology Circle.sphereTopology Base.sphereHomeomorphism);
+\import singular_cohomology.Equivalence[A := Circle.Sphere, B := Base.Carrier, source := Circle.sphereTopology, target := Base.topology].Integer[e := baseEquivalence].With[coefficients := coefficients].At[z := degreeOne] \as BaseComparison;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := CircleH.Cohomology, source := coefficients.space, target := CircleH.cohomologySpace].Composition[U := BaseH.Cohomology, final := BaseH.cohomologySpace] \as BaseCompose;
+\definition baseOrientation: Modules.Isomorphism[V := coefficients.Carrier, W := BaseH.Cohomology, source := coefficients.space, target := BaseH.cohomologySpace].Isomorphism :=
+  BaseCompose.compose BaseComparison.isomorphism circleOrientation;
+\import singular_cohomology.Equivalence[A := Circle.Sphere, B := DiskPair.SubspaceCarrier, source := Circle.sphereTopology, target := DiskBoundary.topology Disk.diskTopology].Integer[e := DiskRelative.equivalence].With[coefficients := coefficients].At[z := degreeOne] \as BoundaryComparison;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := CircleH.Cohomology, source := coefficients.space, target := CircleH.cohomologySpace].Composition[U := BoundaryH.Cohomology, final := BoundaryH.cohomologySpace] \as BoundaryCompose;
+\definition boundaryOrientation: Modules.Isomorphism[V := coefficients.Carrier, W := BoundaryH.Cohomology, source := coefficients.space, target := BoundaryH.cohomologySpace].Isomorphism :=
+  BoundaryCompose.compose BoundaryComparison.isomorphism circleOrientation;
+\module DiskVanishing(n: N.Nat^);
+\import DiskExact.At[s := DiskSequence.sequence, k := degreeOne].DimensionShift[] \as DiskShift;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := BoundaryH.Cohomology, source := coefficients.space, target := BoundaryH.cohomologySpace].Composition[U := DiskH.Cohomology, final := DiskH.cohomologySpace] \as DiskCompose;
+\definition diskOrientation: Modules.Isomorphism[V := coefficients.Carrier, W := DiskH.Cohomology, source := coefficients.space, target := DiskH.cohomologySpace].Isomorphism :=
+  DiskCompose.compose (DiskShift.isomorphism DiskVanishing[n := zero].law DiskVanishing[n := one].law) boundaryOrientation;
+\definition cellRestriction: Modules.Isomorphism[V := RelativeH.Cohomology, W := DiskH.Cohomology, source := RelativeH.cohomologySpace, target := DiskH.cohomologySpace].Isomorphism :=
+  CellComparison.With[coefficients := coefficients].At[z := degreeTwo].isomorphism;
+\import Modules.Isomorphism[V := RelativeH.Cohomology, W := DiskH.Cohomology, source := RelativeH.cohomologySpace, target := DiskH.cohomologySpace].Inverse[] \as CellInverse;
+\import Modules.Isomorphism[V := coefficients.Carrier, W := DiskH.Cohomology, source := coefficients.space, target := DiskH.cohomologySpace].Composition[U := RelativeH.Cohomology, final := RelativeH.cohomologySpace] \as RelativeCompose;
+\definition relativeOrientation: Modules.Isomorphism[V := coefficients.Carrier, W := RelativeH.Cohomology, source := coefficients.space, target := RelativeH.cohomologySpace].Isomorphism :=
+  RelativeCompose.compose (CellInverse.inverse cellRestriction) diskOrientation;
+\module BoundaryAction;
+\module Connecting;
+\module RelativeDegree(n: N.Nat^);
+\module RelativeVanishing;
+\module BaseHigher(n: N.Nat^);
+\module Groups;
+\module RelativeSigned(z: I.Int^);
+\module Higher(n: N.Nat^);
+\module Zeroth;

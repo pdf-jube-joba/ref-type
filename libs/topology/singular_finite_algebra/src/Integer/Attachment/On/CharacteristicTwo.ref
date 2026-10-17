@@ -1,0 +1,30 @@
+\definition Vanishes: \Prop := \forall (x: coefficients.Carrier) -> #apply{double} x = #zero{coefficients.space};
+\import Modules.Hom[V := coefficients.Carrier, W := KernelCarrier,
+  source := coefficients.space, target := kernelSpace] \as IntoKernel;
+\definition forward(zero: Vanishes): IntoKernel.Map := IntoKernel.Map {
+  apply := \fun (x: coefficients.Carrier) => \into[coefficients.Carrier](x, #carrier{kernel}) \by { zero x },
+  addition := \fun (x, y: coefficients.Carrier) => \refl(#add{coefficients.space} x y),
+  scalar := \fun (a: I.Int^)(x: coefficients.Carrier) => \refl(#smul{coefficients.space} a x),
+};
+\definition kernelIsomorphism(zero: Vanishes): Modules.Isomorphism[V := coefficients.Carrier, W := KernelCarrier,
+  source := coefficients.space, target := kernelSpace].Isomorphism :=
+  Modules.Isomorphism[V := coefficients.Carrier, W := KernelCarrier, source := coefficients.space, target := kernelSpace].Isomorphism {
+    forward := forward zero, backward := KernelSpace.inclusion,
+    leftInverse := \fun (x: coefficients.Carrier) => \refl(x),
+    rightInverse := \fun (x: KernelCarrier) => \refl(x),
+  };
+\definition imageZero: Vanishes -> \forall (x: coefficients.Carrier) -> Submodules.Member image x -> x = #zero{coefficients.space} :=
+  \fun (zero: Vanishes)(x: coefficients.Carrier)(member: _) => Images.eliminate double x (x = #zero{coefficients.space})
+    (\fun (y: coefficients.Carrier)(equal: #apply{double} y = x) =>
+      trans!{coefficients.Carrier} _ _ _ (sym!{coefficients.Carrier} _ _ equal) (zero y)) member;
+\import Quotient.ZeroQuotient[] \as ZeroQuotient;
+\definition cokernelIsomorphism(zero: Vanishes): Modules.Isomorphism[V := CokernelCarrier, W := coefficients.Carrier,
+  source := cokernelSpace, target := coefficients.space].Isomorphism :=
+  Modules.Isomorphism[V := CokernelCarrier, W := coefficients.Carrier, source := cokernelSpace, target := coefficients.space].Isomorphism {
+    forward := ZeroQuotient.inverse (imageZero zero), backward := Quotient.projection,
+    leftInverse := ZeroQuotient.classInverse (imageZero zero),
+    rightInverse := ZeroQuotient.inverseClass (imageZero zero),
+  };
+\definition onClass: \forall (zero: Vanishes)(x: coefficients.Carrier) ->
+  #apply{#forward{(cokernelIsomorphism zero)}} (relativeClass x) = x :=
+  \fun (zero: Vanishes) => ZeroQuotient.inverseClass (imageZero zero);
