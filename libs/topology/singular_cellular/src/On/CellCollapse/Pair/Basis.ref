@@ -1,0 +1,62 @@
+\definition degree: I.Int^ := I.Int^::ofNat dimension;
+\import \parent.Homology[z := degree] \as ActionH;
+\import Layer.Basis[] \as Basis;
+\import Filtration.CellInteriors[n := dimension] \as CellsAt;
+\definition self: CellsAt.Index := \into[Cells.CellData](cell, CellsAt.Selected) \by {
+  Logic.And[_, _]::# member (\refl(dimension))
+};
+\definition scalars: Modules.Family[CellsAt.Index] := Modules.Family[CellsAt.Index] {
+  Carrier := \fun (_: CellsAt.Index) => I.Int^,
+  space := \fun (_: CellsAt.Index) => Modules.scalarModule,
+};
+\import Modules.DirectSum[Index := CellsAt.Index, family := scalars] \as Free;
+\import \root.Disks[].At[n := dimension] \as Disk;
+\definition sourceOrientation: Modules.Isomorphism[V := I.Int^, W := Disk.Homology[z := degree].Carrier,
+  source := Modules.scalarModule, target := Disk.Homology[z := degree].space].Isomorphism := \root.Disks[].orientation dimension;
+\import singular_excision.GoodPair[A := Model.Disk, source := Model.diskTopology, subset := boundary].On[pair := GoodPair.pair]
+  .Homology[z := degree] \as Collapsed;
+\definition orientation: Modules.Isomorphism[V := I.Int^, W := Target.Homology[z := degree].Carrier,
+  source := Modules.scalarModule, target := Target.Homology[z := degree].space].Isomorphism :=
+  Modules.Isomorphism[V := I.Int^, W := Disk.Homology[z := degree].Carrier, source := Modules.scalarModule, target := Disk.Homology[z := degree].space]
+    .Composition[U := Target.Homology[z := degree].Carrier, final := Target.Homology[z := degree].space]
+    .compose Collapsed.relativeIsomorphism sourceOrientation;
+\definition coordinate: Modules.Hom[V := Layer.Homology[z := degree].Carrier, W := I.Int^,
+  source := Layer.Homology[z := degree].space, target := Modules.scalarModule].Map :=
+  Modules.Hom[V := Target.Homology[z := degree].Carrier, W := I.Int^, source := Target.Homology[z := degree].space, target := Modules.scalarModule]
+    .Composition[U := Layer.Homology[z := degree].Carrier, domain := Layer.Homology[z := degree].space]
+    .compose #backward{orientation} ActionH.fromLayer;
+\import Basis.Characteristic[cell := self].Oriented[] \as Selected;
+\definition selected(a: I.Int^): #apply{ActionH.fromLayer} (#apply{#forward{Basis.isomorphism}} (#apply{Free.Injection[i := self].map} a)) = #apply{#forward{orientation}} a :=
+  trans!{{Target.Homology[z := degree].Carrier}} _ _ _
+    (congr!{{Layer.Homology[z := degree].Carrier} {Target.Homology[z := degree].Carrier}} (#apply{ActionH.fromLayer}) _ _ (Selected.onScalar a))
+    (trans!{{Target.Homology[z := degree].Carrier}} _ _ _
+      (congr!{{Source.Homology[z := degree].Carrier} {Target.Homology[z := degree].Carrier}} (#apply{ActionH.relative}) _ _
+        (#rightInverse{Layer.Relative[].Homology[z := degree].isomorphism} (#apply{Characteristics.On[f := characteristic].Integer[].At[z := degree].induced} (#apply{#forward{sourceOrientation}} a))))
+      (ActionH.onCharacteristic (#apply{#forward{sourceOrientation}} a)));
+\definition onSelf(a: I.Int^): #apply{coordinate} (#apply{#forward{Basis.isomorphism}} (#apply{Free.Injection[i := self].map} a)) = a :=
+  trans!{I.Int^} _ _ _
+    (congr!{{Target.Homology[z := degree].Carrier} I.Int^} (#apply{#backward{orientation}}) _ _ (selected a)) (#leftInverse{orientation} a);
+\module Other(other: CellsAt.Index, different: Logic.Not (other = cell));
+
+\import Free.FiniteSupport[] \as Coordinates;
+\import Free.To[W := I.Int^, target := Modules.scalarModule] \as Universal;
+\import Modules.Hom[V := Layer.Homology[z := degree].Carrier, W := I.Int^, source := Layer.Homology[z := degree].space, target := Modules.scalarModule]
+  .Composition[U := Free.Carrier, domain := Free.space] \as Rows;
+\definition row: Modules.Hom[V := Free.Carrier, W := I.Int^, source := Free.space, target := Modules.scalarModule].Map := Rows.compose coordinate #forward{Basis.isomorphism};
+\definition onInjection: \forall (other: CellsAt.Index)(a: I.Int^) ->
+  #apply{row} (#apply{Free.Injection[i := other].map} a) = #apply{Coordinates.At[i := self].evaluate} (#apply{Free.Injection[i := other].map} a) :=
+  \fun (other: CellsAt.Index)(a: I.Int^) => Logic.orElim _ _ _ (Classical.excludedMiddle (other = self))
+    (\fun (same: other = self) => \idelim self = other \with i: CellsAt.Index =>
+      #apply{row} (#apply{Free.Injection[i := i].map} a) = #apply{Coordinates.At[i := self].evaluate} (#apply{Free.Injection[i := i].map} a) \by {
+        base: trans!{I.Int^} _ _ _ (onSelf a) (sym!{I.Int^} _ _ (Coordinates.atOwn self a)),
+        equality: sym!{CellsAt.Index} _ _ same
+      })
+    (\fun (different: Logic.Not (other = self)) => trans!{I.Int^} _ _ _ (Other[other := other, different := different].onScalar a)
+      (sym!{I.Int^} _ _ (Coordinates.atOther other self a different)));
+\definition rowEquation: row = Coordinates.At[i := self].evaluate := Universal.ext _ _ onInjection;
+\definition coefficient(q: Layer.Homology[z := degree].Carrier): I.Int^ := #apply{Coordinates.At[i := self].evaluate} (#apply{#backward{Basis.isomorphism}} q);
+\definition coefficientLaw(q: Layer.Homology[z := degree].Carrier): #apply{coordinate} q = coefficient q :=
+  trans!{I.Int^} _ _ _
+    (sym!{I.Int^} _ _ (congr!{{Layer.Homology[z := degree].Carrier} I.Int^} (#apply{coordinate}) _ _ (#rightInverse{Basis.isomorphism} q)))
+    (congr!{{Modules.Hom[V := Free.Carrier, W := I.Int^, source := Free.space, target := Modules.scalarModule].Map} I.Int^}
+      (\fun (f: Modules.Hom[V := Free.Carrier, W := I.Int^, source := Free.space, target := Modules.scalarModule].Map) => #apply{f} (#apply{#backward{Basis.isomorphism}} q)) _ _ rowEquation);
