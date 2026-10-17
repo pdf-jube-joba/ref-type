@@ -9,3 +9,4 @@
 - `Algebra.PointRelative.Positive` は、正次数で一点を相対化した射影の誘導写像が同型になることを示す。
 - `Algebra.IntegerCoordinates` は、生成元を保つ写像と整数座標の整合性を与える。
   `PointClass` は実際の定数特異単体の零次ホモロジー類と、その連続写像に関する自然性を公開する。
+- `Algebra.Refinement.ext` と `forgetEquality` は、部分型の等式と元の台集合の等式を相互に移す。

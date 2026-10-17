@@ -7,12 +7,14 @@
 \use Equality.congr;
 \use Logic.either;
 \definition injective: \forall (x, y: fibers i) -> injection i x = injection i y -> x = y :=
-  \fun (x, y: fibers i)(same: _) => sym!{{fibers i}} _ _
-    ((\idelim injection i x = injection i y \with c: Carrier => \forall (e: #index{c} = i) ->
-      Transport.cast fibers (#index{c}) i e (#point{c}) = x \by {
-        base: \fun (e: i = i) => Transport.castRefl fibers i x,
-        equality: same
-      }) (\refl(i)));
+  \fun (x, y: fibers i)(same: _) => trans!{{fibers i}} x (Transport.cast fibers i i (\refl(i)) y) y
+    (sym!{{fibers i}} _ _
+      ((\idelim injection i x = injection i y \with c: Carrier => \forall (e: #index{c} = i) ->
+        Transport.cast fibers (#index{c}) i e (#point{c}) = x \by {
+          base: \fun (e: i = i) => Transport.castRefl fibers i x,
+          equality: same
+        }) (\refl(i))))
+    (Transport.castRefl fibers i y);
 \import topology.Topology[Carrier := fibers i] \as Source;
 \import topology.Maps[A := fibers i, B := Carrier] \as Maps;
 \import topology.Continuity[A := fibers i, B := Carrier] \as Into;
@@ -42,12 +44,16 @@
   Logic.existsIntro[fibers i, { y: fibers i \where Logic.And[Source.Member Source.Whole y, injection i y = injection i x] }] x
     (Logic.And[_, _]::# (\refl(x)) (\refl(injection i x)))
 };
+\import singular_cellular_algebra.Algebra[].Refinement[A := Carrier, S := subset] \as Refined;
+\definition mapInjective(x, y: fibers i)(same: map x = map y): x = y :=
+  injective x y (Refined.forgetEquality (map x) (map y) same);
 \definition onto: \forall (c: Component.CarrierSet) -> \exists { x: fibers i \where map x = c } := \block {
   \fun (c: Component.CarrierSet) \then
   \takefrom x: \Cast[fibers i] ({ x: fibers i \where Logic.And[Source.Member Source.Whole x, injection i x = c] })
     \by \bysub(Carrier, subset, c) \then
   \return Logic.existsIntro[fibers i, { x: fibers i \where map x = c }] x
-    (#right{(\bysub(fibers i, { x: fibers i \where Logic.And[Source.Member Source.Whole x, injection i x = c] }, x))})
+    (Refined.ext (map x) c
+      (#right{(\bysub(fibers i, { x: fibers i \where Logic.And[Source.Member Source.Whole x, injection i x = c] }, x))}))
 };
 \import topology.Continuity[A := fibers i, B := Carrier].Corestriction[S := subset] \as IntoComponent;
 \definition mapContinuous: topology.Continuity[A := fibers i, B := Component.CarrierSet].Continuous
@@ -66,7 +72,7 @@
           \let data: Logic.And[\In[Component.CarrierSet] U (map x), injection i x = c] :=
             \bysub(fibers i, { x: fibers i \where Logic.And[\In[Component.CarrierSet] U (map x), injection i x = c] }, x) \then
           \return \idelim map x = c \with y: Component.CarrierSet => \In[Component.CarrierSet] U y \by {
-            base: #left{data}, equality: #right{data}
+            base: #left{data}, equality: Refined.ext (map x) c (#right{data})
           }
         },
         \block {
@@ -77,10 +83,10 @@
             { x: fibers i \where Logic.And[\In[Component.CarrierSet] U (map x), injection i x = c] }] x
             (Logic.And[_, _]::#
               (\idelim c = map x \with y: Component.CarrierSet => \In[Component.CarrierSet] U y \by {
-                base: member, equality: sym!{Carrier} _ _ same
-              }) same)
+                base: member, equality: sym!{Component.CarrierSet} _ _ same
+              }) (Refined.forgetEquality (map x) c same))
         })
     };
 \import topology.Homeomorphism[A := fibers i, B := Component.CarrierSet].OfQuotient[f := map] \as Inverse;
 \definition homeomorphism: topology.Homeomorphism[A := fibers i, B := Component.CarrierSet].Homeomorphism[spaces i, Component.topology topology] :=
-  Inverse.homeomorphism (spaces i) (Component.topology topology) injective onto mapContinuous reflectsOpen;
+  Inverse.homeomorphism (spaces i) (Component.topology topology) mapInjective onto mapContinuous reflectsOpen;
