@@ -1,0 +1,82 @@
+\import dedekind_reals.DedekindReal[] \as R;
+\import real.Analysis[] \as Real;
+\definition interior: \Pow Model.Disk := { p: Model.Disk \where R.Lt (Model.normSquared p) Real.one };
+\import DiskSpace.Subspace[S := interior] \as Domain;
+\import Space.Subspace[S := Cells.InteriorImage cell] \as Image;
+\definition Carrier: \Set := Domain.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Domain.topology Model.diskTopology;
+\definition imageTopology: topology.Topology[Carrier := Image.CarrierSet].Topology := Image.topology source;
+\definition map(p: Carrier): Image.CarrierSet := \into[A](#characteristic{cell} p, Cells.InteriorImage cell) \by {
+  Logic.existsIntro[Model.Disk, { q: Model.Disk \where Logic.And[R.Lt (Model.normSquared q) Real.one, #characteristic{cell} q = #characteristic{cell} p] }] p
+    (Logic.And[_, _]::# (\bysub(Model.Disk, interior, p)) (\refl(#characteristic{cell} p)))
+};
+\definition injective: \forall (p, q: Carrier) -> map p = map q -> p = q :=
+  \fun (p, q: Carrier)(same: _) => #injectiveInterior{(#cellLaws{laws} cell member)} p q
+    (\bysub(Model.Disk, interior, p)) (\bysub(Model.Disk, interior, q))
+    (congr!{Image.CarrierSet A} (\fun (x: Image.CarrierSet) => x) _ _ same);
+\definition onto: \forall (x: Image.CarrierSet) -> \exists { p: Carrier \where map p = x } := \block {
+  \fun (x: Image.CarrierSet) \then
+  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[R.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] })
+    \by \bysub(A, Cells.InteriorImage cell, x) \then
+  \let data: Logic.And[R.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] :=
+    \bysub(Model.Disk, { p: Model.Disk \where Logic.And[R.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] }, p) \then
+  \let point: Carrier := \into[Model.Disk](p, interior) \by { #left{data} } \then
+  \return Logic.existsIntro[Carrier, { p: Carrier \where map p = x }] point (#right{data})
+};
+\import topology.Continuity[A := Model.Disk, B := Model.Disk].Corestriction[S := interior] \as Inclusion;
+\import topology.Composition[A := Carrier, B := Model.Disk, C := A] \as Composition;
+\import topology.Continuity[A := Carrier, B := A].Corestriction[S := Cells.InteriorImage cell] \as Into;
+\definition continuous: topology.Continuity[A := Carrier, B := Image.CarrierSet].Continuous topology imageTopology map :=
+  Into.corestrictContinuous topology source map
+    (Composition.composeContinuous topology Model.diskTopology source (\fun (p: Carrier) => p) (#characteristic{cell})
+      (Inclusion.inclusionContinuous Model.diskTopology) (#continuous{(#cellLaws{laws} cell member)}));
+\import topology.Continuity[A := Carrier, B := Image.CarrierSet] \as Maps;
+\definition reflectsOpen: \forall (W: \Pow Image.CarrierSet) ->
+  topology.Topology[Carrier := Carrier].IsOpenIn topology (Maps.Preimage map W) ->
+  topology.Topology[Carrier := Image.CarrierSet].IsOpenIn imageTopology W := \block {
+    \fun (W: \Pow Image.CarrierSet)(open: _) \then
+    \takefrom U: \Cast[\Pow Model.Disk] ({ U: \Pow Model.Disk \where Logic.And[DiskSpace.IsOpenIn Model.diskTopology U, Maps.Preimage map W = Domain.Trace U] })
+      \by Domain.openRepresentation Model.diskTopology (Maps.Preimage map W) open \then
+    \let diskData: Logic.And[DiskSpace.IsOpenIn Model.diskTopology U, Maps.Preimage map W = Domain.Trace U] :=
+      \bysub(\Pow Model.Disk, { U: \Pow Model.Disk \where Logic.And[DiskSpace.IsOpenIn Model.diskTopology U, Maps.Preimage map W = Domain.Trace U] }, U) \then
+    \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Logic.And[Space.IsOpenIn source V, Cells.InteriorPart cell U = Space.Intersection (Cells.InteriorImage cell) V] })
+      \by #inverseContinuous{(#cellLaws{laws} cell member)} U (#left{diskData}) \then
+    \let ambientData: Logic.And[Space.IsOpenIn source V, Cells.InteriorPart cell U = Space.Intersection (Cells.InteriorImage cell) V] :=
+      \bysub(\Pow A, { V: \Pow A \where Logic.And[Space.IsOpenIn source V, Cells.InteriorPart cell U = Space.Intersection (Cells.InteriorImage cell) V] }, V) \then
+    \let equality: W = Image.Trace V := \axiom:setext(W, Image.Trace V,
+      \block {
+        \fun (x: Image.CarrierSet)(inside: \In[Image.CarrierSet] W x) \then
+        \takefrom p: \Cast[Carrier] ({ p: Carrier \where map p = x }) \by onto x \then
+        \let image: map p = x := \bysub(Carrier, { p: Carrier \where map p = x }, p) \then
+        \let inPreimage: \In[Carrier] (Maps.Preimage map W) p :=
+          \idelim x = map p \with z: Image.CarrierSet => \In[Image.CarrierSet] W z \by { base: inside, equality: sym!{Image.CarrierSet} _ _ image } \then
+        \let inU: \In[Model.Disk] U p := \idelim Maps.Preimage map W = Domain.Trace U
+          \with S: \Pow Carrier => \In[Carrier] S p \by { base: inPreimage, equality: #right{diskData} } \then
+        \let part: \In[A] (Cells.InteriorPart cell U) x := \exact(Cells.InteriorPartWitness[cell, U, x] {
+          point := p, member := inU, interior := \bysub(Model.Disk, interior, p),
+          image := congr!{Image.CarrierSet A} (\fun (z: Image.CarrierSet) => z) _ _ image,
+        }, Cells.InteriorPartWitness[cell, U, x]) \then
+        \return #right{(\idelim Cells.InteriorPart cell U = Space.Intersection (Cells.InteriorImage cell) V
+          \with S: \Pow A => \In[A] S x \by { base: part, equality: #right{ambientData} })}
+      },
+      \block {
+        \fun (x: Image.CarrierSet)(inside: \In[A] V x) \then
+        \let part: \In[A] (Cells.InteriorPart cell U) x :=
+          \idelim Space.Intersection (Cells.InteriorImage cell) V = Cells.InteriorPart cell U
+            \with S: \Pow A => \In[A] S x \by {
+              base: Logic.And[_, _]::# (\bysub(A, Cells.InteriorImage cell, x)) inside,
+              equality: sym!{\Pow A} _ _ (#right{ambientData}) } \then
+        \takefrom p: Cells.InteriorPartWitness[cell, U, x] \by part \then
+        \let point: Carrier := \into[Model.Disk](#point{p}, interior) \by { #interior{p} } \then
+        \let inPreimage: \In[Carrier] (Maps.Preimage map W) point :=
+          \idelim Domain.Trace U = Maps.Preimage map W \with S: \Pow Carrier => \In[Carrier] S point \by {
+            base: #member{p}, equality: sym!{\Pow Carrier} _ _ (#right{diskData}) } \then
+        \return \idelim map point = x \with z: Image.CarrierSet => \In[Image.CarrierSet] W z \by {
+          base: inPreimage, equality: #image{p} }
+      }) \then
+    \return \idelim Image.Trace V = W \with S: \Pow Image.CarrierSet => topology.Topology[Carrier := Image.CarrierSet].IsOpenIn imageTopology S \by {
+      base: Image.traceOpen source V (#left{ambientData}), equality: sym!{\Pow Image.CarrierSet} _ _ equality }
+  };
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Image.CarrierSet].Homeomorphism[topology, imageTopology] :=
+  topology.Homeomorphism[A := Carrier, B := Image.CarrierSet].OfQuotient[f := map]
+    .homeomorphism topology imageTopology injective onto continuous reflectsOpen;

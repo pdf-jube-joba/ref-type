@@ -1,0 +1,65 @@
+\import std.Arithmetic[].Int[] \as I;
+\definition natural: \forall (n: N.Nat^)(z: Carrier) -> Carrier :=
+  \induction (n: N.Nat^) \return Carrier -> Carrier \with {
+    | zero: \fun (_: Carrier) => identity
+    | succ: \fun (n: N.Nat^)(previous: Carrier -> Carrier)(z: Carrier) => multiply z (previous z)
+  };
+\definition integer: \forall (k: I.Int^)(z: Carrier) -> Carrier :=
+  \induction (k: I.Int^) \return Carrier -> Carrier \with {
+    | ofNat: \fun (n: N.Nat^) => natural n
+    | negSucc: \fun (n: N.Nat^)(z: Carrier) => inverse (natural (N.Nat^::succ n) z)
+  };
+\import \parent.Functions[A := Carrier] \as ContinuousFunctions;
+\import topology.Maps[A := Carrier, B := Carrier].Identity[] \as IdentityMaps;
+\import topology.Maps[A := Carrier, B := Carrier] \as ConstantMaps;
+\definition naturalContinuous: \forall (n: N.Nat^) -> topology.Continuity[A := Carrier, B := Carrier].Continuous topology topology (natural n) :=
+  \induction (n: N.Nat^) \return topology.Continuity[A := Carrier, B := Carrier].Continuous topology topology (natural n) \with {
+    | zero: ConstantMaps.constantContinuous topology topology identity
+    | succ: \fun (n: N.Nat^)(previous: _) => ContinuousFunctions.multiplyContinuous topology (\fun (z: Carrier) => z) (natural n)
+        (IdentityMaps.continuous topology) previous
+  };
+\definition integerContinuous: \forall (k: I.Int^) -> topology.Continuity[A := Carrier, B := Carrier].Continuous topology topology (integer k) :=
+  \induction (k: I.Int^) \return topology.Continuity[A := Carrier, B := Carrier].Continuous topology topology (integer k) \with {
+    | ofNat: \fun (n: N.Nat^) => naturalContinuous n
+    | negSucc: \fun (n: N.Nat^) => ContinuousFunctions.inverseContinuous topology (natural (N.Nat^::succ n)) (naturalContinuous (N.Nat^::succ n))
+  };
+\definition naturalZero: \forall (z: Carrier) -> natural N.Nat^::zero z = identity := \fun (z: Carrier) => \refl(identity);
+\definition naturalOne: \forall (z: Carrier) -> natural one z = z := rightIdentity;
+\definition addByRight: \forall (n, m: N.Nat^)(z: Carrier) -> natural (Nat.add m n) z = multiply (natural m z) (natural n z) :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(z: Carrier) -> natural (Nat.add m n) z = multiply (natural m z) (natural n z) \with {
+    | zero: \fun (m: N.Nat^)(z: Carrier) => sym!{Carrier} _ _ (rightIdentity (natural m z))
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(z: Carrier) => trans!{Carrier} _ _ _
+        (congr!{Carrier Carrier} (multiply z) _ _ (previous m z))
+        (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (associative z (natural m z) (natural n z)))
+          (trans!{Carrier} _ _ _
+            (congr!{Carrier Carrier} (\fun (w: Carrier) => multiply w (natural n z)) _ _ (commutative z (natural m z)))
+            (associative (natural m z) z (natural n z))))
+  };
+\definition naturalAdd: \forall (m, n: N.Nat^)(z: Carrier) -> natural (Nat.add m n) z = multiply (natural m z) (natural n z) :=
+  \fun (m, n: N.Nat^) => addByRight n m;
+\import \parent.Coordinates[] \as Coordinates;
+\definition map(k: I.Int^)(x: Coordinates.Sphere): Coordinates.Sphere := Coordinates.backward (integer k (Coordinates.forward x));
+\import topology.Composition[A := Coordinates.Sphere, B := Carrier, C := Carrier] \as First;
+\import topology.Composition[A := Coordinates.Sphere, B := Carrier, C := Coordinates.Sphere] \as Second;
+\definition continuous: \forall (k: I.Int^) -> topology.Continuity[A := Coordinates.Sphere, B := Coordinates.Sphere].Continuous Coordinates.sphereTopology Coordinates.sphereTopology (map k) :=
+  \fun (k: I.Int^) => Second.composeContinuous Coordinates.sphereTopology topology Coordinates.sphereTopology
+    (\fun (x: Coordinates.Sphere) => integer k (Coordinates.forward x)) Coordinates.backward
+    (First.composeContinuous Coordinates.sphereTopology topology topology Coordinates.forward (integer k)
+      Coordinates.forwardContinuous (integerContinuous k)) Coordinates.backwardContinuous;
+\definition square: Coordinates.Sphere -> Coordinates.Sphere := map (I.Int^::ofNat two);
+\definition squareContinuous: topology.Continuity[A := Coordinates.Sphere, B := Coordinates.Sphere].Continuous Coordinates.sphereTopology Coordinates.sphereTopology square := continuous (I.Int^::ofNat two);
+\definition squareInCircle: \forall (z: Carrier) -> natural two z = multiply z z :=
+  \fun (z: Carrier) => congr!{Carrier Carrier} (multiply z) _ _ (rightIdentity z);
+\definition squareFirst: \forall (x: Coordinates.Sphere) ->
+  square x Coordinates.first = Real.sub (Real.mul (x Coordinates.first) (x Coordinates.first)) (Real.mul (x Coordinates.second) (x Coordinates.second)) :=
+  \fun (x: Coordinates.Sphere) => trans!{Real.Real} _ _ _ (Coordinates.firstBackward (integer (I.Int^::ofNat two) (Coordinates.forward x)))
+    (congr!{Complex.Complex Real.Real} Complex.re _ _ (squareInCircle (Coordinates.forward x)));
+\definition squareSecond: \forall (x: Coordinates.Sphere) ->
+  square x Coordinates.second = Real.add (Real.mul (x Coordinates.first) (x Coordinates.second)) (Real.mul (x Coordinates.second) (x Coordinates.first)) :=
+  \fun (x: Coordinates.Sphere) => trans!{Real.Real} _ _ _ (Coordinates.secondBackward (integer (I.Int^::ofNat two) (Coordinates.forward x)))
+    (congr!{Complex.Complex Real.Real} Complex.im _ _ (squareInCircle (Coordinates.forward x)));
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import module_theory.Module[].Over[R := I.Int^, ring := IntegerRing.ring] \as Modules;
+\module Actions(coefficients: Modules.Bundle);
+\module Degree;
+\module Antipodal;

@@ -1,0 +1,70 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Scalars;
+\import singular_cohomology.Cochains[A := Sphere, source := sphereTopology].With[coefficients := coefficients] \as SphereTheory;
+\definition SphereCohomology: \Set := SphereTheory.cohomology one;
+\definition sphereSpace: Modules.Space SphereCohomology := SphereTheory.cohomologySpace one;
+\import singular_cohomology.Cochains[A := Product, source := productTopology].With[coefficients := coefficients] \as ProductTheory;
+\definition Carrier: \Set := ProductTheory.cohomology one;
+\definition space: Modules.Space Carrier := ProductTheory.cohomologySpace one;
+\import singular_cohomology.Maps[A := Product, B := Sphere, source := productTopology, target := sphereTopology].Coefficients[M := coefficients, L := coefficients] \as Pull;
+\definition multiplication: Modules.Hom[V := SphereCohomology, W := Carrier, source := sphereSpace, target := space].Map :=
+  Pull.At[n := one].induced multiply continuous Scalars.identity;
+\definition firstPull: Modules.Hom[V := SphereCohomology, W := Carrier, source := sphereSpace, target := space].Map :=
+  Pull.At[n := one].induced first firstContinuous Scalars.identity;
+\definition secondPull: Modules.Hom[V := SphereCohomology, W := Carrier, source := sphereSpace, target := space].Map :=
+  Pull.At[n := one].induced second secondContinuous Scalars.identity;
+\import singular_cohomology.Maps[A := Sphere, B := Product, source := sphereTopology, target := productTopology].Coefficients[M := coefficients, L := coefficients] \as Restriction;
+\definition firstRestriction: Modules.Hom[V := Carrier, W := SphereCohomology, source := space, target := sphereSpace].Map :=
+  Restriction.At[n := one].induced Axes.first Axes.firstContinuous Scalars.identity;
+\definition secondRestriction: Modules.Hom[V := Carrier, W := SphereCohomology, source := space, target := sphereSpace].Map :=
+  Restriction.At[n := one].induced Axes.second Axes.secondContinuous Scalars.identity;
+\import singular_cohomology.Maps[A := Sphere, B := Product, source := sphereTopology, target := productTopology].Composition[C := Sphere, final := sphereTopology].Coefficients[M := coefficients] \as Composition;
+\import singular_cohomology.Maps[A := Sphere, B := Sphere, source := sphereTopology, target := sphereTopology] \as SelfMaps;
+\import SelfMaps.Coefficients[M := coefficients, L := coefficients] \as SelfPull;
+\definition action(f: Sphere -> Sphere)(fc: SelfMaps.Continuous f): Modules.Hom[V := SphereCohomology, W := SphereCohomology, source := sphereSpace, target := sphereSpace].Map := SelfPull.At[n := one].induced f fc Scalars.identity;
+\definition functionEquality: \forall (f, g: Sphere -> Sphere)(fc: SelfMaps.Continuous f)(gc: SelfMaps.Continuous g) ->
+  (\forall (x: Sphere) -> f x = g x) -> \forall (q: SphereCohomology) ->
+  #apply{(SelfPull.At[n := one].induced f fc Scalars.identity)} q = #apply{(SelfPull.At[n := one].induced g gc Scalars.identity)} q :=
+  \fun (f, g: Sphere -> Sphere)(fc: _)(gc: _)(same: _) =>
+    (\idelim f = g \with h: (Sphere -> Sphere) => \forall (hc: SelfMaps.Continuous h)(q: SphereCohomology) ->
+      #apply{(SelfPull.At[n := one].induced f fc Scalars.identity)} q = #apply{(SelfPull.At[n := one].induced h hc Scalars.identity)} q \by {
+      base: \fun (hc: SelfMaps.Continuous f)(q: SphereCohomology) => \refl(#apply{(SelfPull.At[n := one].induced f fc Scalars.identity)} q),
+      equality: \axiom:funext(f, g, same)
+    }) gc;
+\import topology.Composition[A := Sphere, B := Product, C := Sphere] \as Topological;
+\import singular_cohomology.Identity[A := Sphere, source := sphereTopology] \as Identity;
+\import topology.Continuity[A := Sphere, B := Product] \as AxisContinuity;
+\import topology.Continuity[A := Product, B := Sphere] \as ProductContinuity;
+\definition compositionIdentity: \forall (axis: Sphere -> Product)(ac: AxisContinuity.Continuous sphereTopology productTopology axis)(f: Product -> Sphere)(fc: ProductContinuity.Continuous productTopology sphereTopology f) ->
+  (\forall (x: Sphere) -> f (axis x) = x) -> \forall (q: SphereCohomology) ->
+  #apply{(Restriction.At[n := one].induced axis ac Scalars.identity)} (#apply{(Pull.At[n := one].induced f fc Scalars.identity)} q) = q :=
+  \fun (axis: Sphere -> Product)(ac: _)(f: Product -> Sphere)(fc: _)(same: _)(q: SphereCohomology) => trans!{SphereCohomology} _ _ _
+    (sym!{SphereCohomology} _ _ (Composition.onCohomology axis ac f fc one q))
+    (trans!{SphereCohomology} _ _ _
+      (functionEquality (\fun (x: Sphere) => f (axis x)) Identity.function
+        (Topological.composeContinuous sphereTopology productTopology sphereTopology axis f ac fc) Identity.continuous same q)
+      (Identity.Coefficients[M := coefficients].At[n := one].cohomologyIdentity q));
+\definition firstMultiplication: \forall (q: SphereCohomology) -> #apply{firstRestriction} (#apply{multiplication} q) = q :=
+  compositionIdentity Axes.first Axes.firstContinuous multiply continuous onFirst;
+\definition secondMultiplication: \forall (q: SphereCohomology) -> #apply{secondRestriction} (#apply{multiplication} q) = q :=
+  compositionIdentity Axes.second Axes.secondContinuous multiply continuous onSecond;
+\definition firstFirst: \forall (q: SphereCohomology) -> #apply{firstRestriction} (#apply{firstPull} q) = q :=
+  compositionIdentity Axes.first Axes.firstContinuous first firstContinuous (\fun (x: Sphere) => \refl(x));
+\definition secondSecond: \forall (q: SphereCohomology) -> #apply{secondRestriction} (#apply{secondPull} q) = q :=
+  compositionIdentity Axes.second Axes.secondContinuous second secondContinuous (\fun (x: Sphere) => \refl(x));
+\import \root.Constants[n := N.Nat^::zero].With[coefficients := coefficients] \as Constants;
+\definition firstSecond: \forall (q: SphereCohomology) -> #apply{firstRestriction} (#apply{secondPull} q) = #zero{sphereSpace} :=
+  \fun (q: SphereCohomology) => trans!{SphereCohomology} _ _ _
+    (sym!{SphereCohomology} _ _ (Composition.onCohomology Axes.first Axes.firstContinuous second secondContinuous one q))
+    (Constants.actionZero point q);
+\definition secondFirst: \forall (q: SphereCohomology) -> #apply{secondRestriction} (#apply{firstPull} q) = #zero{sphereSpace} :=
+  \fun (q: SphereCohomology) => trans!{SphereCohomology} _ _ _
+    (sym!{SphereCohomology} _ _ (Composition.onCohomology Axes.second Axes.secondContinuous first firstContinuous one q))
+    (Constants.actionZero point q);
+\import Modules.Laws[V := SphereCohomology, space := sphereSpace] \as SphereLaws;
+\import algebra.Group[].Of[Carrier := SphereCohomology, group := SphereLaws.additive] \as SphereGroup;
+\import Modules.Hom[V := Carrier, W := SphereCohomology, source := space, target := sphereSpace] \as RestrictionMaps;
+\module Primitive;
+\module Pointwise(f, g: Sphere -> Sphere, fc: SelfMaps.Continuous f, gc: SelfMaps.Continuous g);

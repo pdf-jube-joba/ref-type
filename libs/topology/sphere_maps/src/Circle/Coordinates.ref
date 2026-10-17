@@ -1,0 +1,72 @@
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Ambient;
+\import algebraic_topology.Euclidean[].Dimension[n := one] \as Line;
+\import Line.Splitting[] \as Split;
+\import algebraic_topology.Spheres[] \as Spheres;
+\import Spheres.Zero[] \as Zero;
+\import Fin.Tuples[A := Real.Real] \as Tuples;
+\definition Sphere: \Set := Spheres.Carrier one;
+\definition sphereTopology: topology.Topology[Carrier := Sphere].Topology := Spheres.topology one;
+\definition first: Ambient.Index := Fin.zero one;
+\definition second: Ambient.Index := Fin.succ one (Fin.zero N.Nat^::zero);
+\definition ambientForward(x: Ambient.Coordinate): Complex.Complex := Complex.make (x first) (x second);
+\definition ambientBackward(z: Complex.Complex): Ambient.Coordinate := Split.join (Complex.re z) (\fun (_: Line.Index) => Complex.im z);
+\definition normFormula: \forall (x: Ambient.Coordinate) -> Ambient.normSquared x = Operations.normSq (ambientForward x) :=
+  \fun (x: Ambient.Coordinate) => trans!{Real.Real} _ _ _ (Split.normSplit x)
+    (congr!{Real.Real Real.Real} (Real.add (Real.mul (x first) (x first))) _ _ (Zero.normValue (Split.tail x)));
+\definition firstBackward: \forall (z: Complex.Complex) -> ambientBackward z first = Complex.re z :=
+  \fun (z: Complex.Complex) => Split.headJoin (Complex.re z) (\fun (_: Line.Index) => Complex.im z);
+\definition secondBackward: \forall (z: Complex.Complex) -> ambientBackward z second = Complex.im z :=
+  \fun (z: Complex.Complex) => Tuples.atSuccessor one (Complex.re z) (\fun (_: Line.Index) => Complex.im z) (Fin.zero N.Nat^::zero);
+\definition ambientLeftInverse: \forall (x: Ambient.Coordinate) -> ambientBackward (ambientForward x) = x :=
+  \fun (x: Ambient.Coordinate) => Split.ext (ambientBackward (ambientForward x)) x
+    (firstBackward (ambientForward x))
+    (\axiom:funext(Split.tail (ambientBackward (ambientForward x)), Split.tail x,
+      \fun (i: Line.Index) => trans!{Real.Real} _ _ _
+        (Tuples.atSuccessor one (x first) (\fun (_: Line.Index) => x second) i)
+        (congr!{Line.Index Real.Real} (\fun (j: Line.Index) => x (Fin.succ one j)) _ _ (sym!{Line.Index} _ _ (Fin.singletonValue i)))));
+\definition ambientRightInverse: \forall (z: Complex.Complex) -> ambientForward (ambientBackward z) = z :=
+  \fun (z: Complex.Complex) => ComplexLaws.ext _ _ (firstBackward z) (secondBackward z);
+\definition forward(x: Sphere): Carrier := \into[Complex.Complex](ambientForward x, unit) \by {
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normFormula x)) (\bysub(Ambient.Coordinate, Ambient.Boundary, x))
+};
+\definition backward(z: Carrier): Sphere := \into[Ambient.Coordinate](ambientBackward z, Ambient.Boundary) \by {
+  trans!{Real.Real} _ _ _ (normFormula (ambientBackward z))
+    (trans!{Real.Real} _ _ _
+      (congr!{Complex.Complex Real.Real} Operations.normSq _ _ (ambientRightInverse z)) (norm z))
+};
+\definition leftInverse: \forall (x: Sphere) -> backward (forward x) = x :=
+  \fun (x: Sphere) => ambientLeftInverse x;
+\definition rightInverse: \forall (z: Carrier) -> forward (backward z) = z :=
+  \fun (z: Carrier) => ambientRightInverse z;
+\import metric_spaces.RealLine[] \as RealLine;
+\import topological_algebra.Coordinates[K := Real.Real, I := Ambient.Index] \as CoordinateTopology;
+\import topology.Continuity[A := Ambient.Coordinate, B := Ambient.Coordinate].Corestriction[S := Ambient.Boundary] \as SphereInclusion;
+\import topology.Composition[A := Sphere, B := Ambient.Coordinate, C := Real.Real] \as Evaluation;
+\import topological_constructions.Product[A := Real.Real, B := Real.Real].Universal[X := Sphere] \as Pairing;
+\import topology.Continuity[A := Sphere, B := Complex.Complex].Corestriction[S := unit] \as IntoCircle;
+\definition coordinateContinuous: \forall (i: Ambient.Index) ->
+  topology.Continuity[A := Sphere, B := Real.Real].Continuous sphereTopology RealLine.topology (\fun (x: Sphere) => x i) :=
+  \fun (i: Ambient.Index) => Evaluation.composeContinuous sphereTopology Ambient.topology RealLine.topology
+    (\fun (x: Sphere) => x) (\fun (x: Ambient.Coordinate) => x i)
+    (SphereInclusion.inclusionContinuous Ambient.topology) (CoordinateTopology.evaluationContinuous RealLine.topology i);
+\definition forwardContinuous: topology.Continuity[A := Sphere, B := Carrier].Continuous sphereTopology topology forward :=
+  IntoCircle.corestrictContinuous sphereTopology Plane.topology forward
+    (Pairing.pairContinuous sphereTopology RealLine.topology RealLine.topology
+      (\fun (x: Sphere) => x first) (\fun (x: Sphere) => x second) (coordinateContinuous first) (coordinateContinuous second));
+\import \parent.Functions[A := Carrier] \as CircleFunctions;
+\import Plane.Functions[A := Carrier] \as PlaneFunctions;
+\import topology.Maps[A := Carrier, B := Carrier].Identity[] \as IdentityMaps;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Complex.Complex].Continuous topology Plane.topology (\fun (z: Carrier) => z) :=
+  CircleFunctions.ambientContinuous topology (\fun (z: Carrier) => z) (IdentityMaps.continuous topology);
+\import Split.Continuity[A := Carrier] \as Joining;
+\import topology.Continuity[A := Carrier, B := Ambient.Coordinate].Corestriction[S := Ambient.Boundary] \as IntoSphere;
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := Sphere].Continuous topology sphereTopology backward :=
+  IntoSphere.corestrictContinuous topology Ambient.topology backward
+    (Joining.joinContinuous topology (\fun (z: Carrier) => Complex.re z) (\fun (z: Carrier)(_ : Line.Index) => Complex.im z)
+      (PlaneFunctions.realContinuous topology (\fun (z: Carrier) => z) inclusionContinuous)
+      (\fun (_: Line.Index) => PlaneFunctions.imaginaryContinuous topology (\fun (z: Carrier) => z) inclusionContinuous));
+\definition homeomorphism: topology.Homeomorphism[A := Sphere, B := Carrier].Homeomorphism[sphereTopology, topology] :=
+  topology.Homeomorphism[A := Sphere, B := Carrier].Homeomorphism[sphereTopology, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };

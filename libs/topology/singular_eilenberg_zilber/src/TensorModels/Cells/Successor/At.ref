@@ -1,0 +1,26 @@
+\definition p: N.Nat^ := #first{i};
+\definition q: N.Nat^ := #second{i};
+\import \parent.\parent.\parent.At[p := p, q := q] \as Model;
+\import \parent.\parent.\parent.Cell[n := N.Nat^::succ n, i := i] \as Cell;
+\import Cell.Defect[].Degree[k := n] \as Projection;
+\import Simplex.At[n := p] \as LeftDomain;
+\import Simplex.At[n := q] \as RightDomain;
+\import singular_cohomology.Chains[A := Simplex.Carrier p, source := LeftDomain.topology] \as Left;
+\import singular_cohomology.Chains[A := Simplex.Carrier q, source := RightDomain.topology] \as Right;
+\import Double.Tensor[C := Left.complex, D := Right.complex] \as Tensor;
+\import Double.Total[C := Tensor.complex] \as Total;
+\import Total.Step[n := n] \as NativeBoundary;
+\definition pure: Tensor.Term[p := p, q := q].Carrier := Tensor.Term[p := p, q := q].tensor (Left.generator p Model.leftSimplex) (Right.generator q Model.rightSimplex);
+\definition horizontal: Model.Carrier z := #apply{Projection.map} (#apply{(NativeBoundary.horizontal p NativeBoundary.Component[i := i].q)} pure);
+\definition vertical: Model.Carrier z := #apply{Projection.map} (#apply{(NativeBoundary.vertical q NativeBoundary.Component[i := i].p)} pure);
+\definition horizontalCoordinate: Model.Carrier z := Target.Coordinates[].coordinate i (#apply{CoBoundary.horizontal} LowerCells.value);
+\definition verticalCoordinate: Model.Carrier z := Target.Coordinates[].coordinate i (#apply{CoBoundary.vertical} LowerCells.value);
+\import Differential.Coordinates[] \as BoundaryCoordinates;
+\definition left: Target.Coordinates[].coordinate i (#apply{Differential.map} UpperCells.value) = #add{(Model.space z)} horizontal vertical :=
+  trans!{{Model.Carrier z}} _ _ _ (BoundaryCoordinates.law i UpperCells.value)
+    (trans!{{Model.Carrier z}} _ _ _ (congr!{{Model.Carrier (Degrees.next z)} {Model.Carrier z}} (#apply{(Model.boundary (Degrees.next z))}) _ _ (UpperCells.coordinate i))
+      (trans!{{Model.Carrier z}} _ _ _ (Projection.boundary Cell.nativeCell)
+        (trans!{{Model.Carrier z}} _ _ _ (congr!{{Total.Carrier n} {Model.Carrier z}} (#apply{Projection.map}) _ _ (NativeBoundary.onComponent i pure))
+          (#addition{Projection.map} _ _))));
+\definition right: Target.Coordinates[].coordinate i (#apply{Lower.transition} LowerCells.value) = #add{(Model.space z)} horizontalCoordinate verticalCoordinate :=
+  #addition{Target.Coordinates[].At[i := i].map} (#apply{CoBoundary.horizontal} LowerCells.value) (#apply{CoBoundary.vertical} LowerCells.value);

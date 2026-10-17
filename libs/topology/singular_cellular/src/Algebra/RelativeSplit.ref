@@ -1,0 +1,31 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import topology.Topology[Carrier := A].Subspace[S := subset] \as Subspace;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as Pair;
+\import singular_cohomology.Chains[A := Subspace.CarrierSet, source := Subspace.topology source] \as SubspaceChains;
+\import singular_cohomology.Chains[A := A, source := source] \as WholeChains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := SubspaceChains.complex] \as Sub;
+\import Nonnegative.ZeroExtension[C := WholeChains.complex] \as Whole;
+\module Positive(n: N.Nat^);
+\module Negative(n: N.Nat^);
+\definition Retraction(z: I.Int^): \Set := Modules.Hom[V := Whole.Carrier z, W := Sub.Carrier z, source := Whole.space z, target := Sub.space z].Map;
+\definition retraction: \forall (z: I.Int^) -> Retraction z := \induction (z: I.Int^) \return Retraction z \with {
+  | ofNat: \fun (n: N.Nat^) => Positive[n := n].retraction
+  | negSucc: \fun (n: N.Nat^) => Negative[n := n].retraction
+};
+\definition retracts: \forall (z: I.Int^)(x: Sub.Carrier z) -> #apply{(retraction z)} (#apply{Pair.inclusionMap} z x) = x :=
+  \induction (z: I.Int^) \return \forall (x: Sub.Carrier z) -> #apply{(retraction z)} (#apply{Pair.inclusionMap} z x) = x \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].retracts
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].retracts
+  };
+\definition wholeProjective: \forall (z: I.Int^) -> Modules.Projective (Modules.Bundle { Carrier := Whole.Carrier z, space := Whole.space z }) :=
+  \induction (z: I.Int^) \return Modules.Projective (Modules.Bundle { Carrier := Whole.Carrier z, space := Whole.space z }) \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].projective
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].projective
+  };
+\module At(z: I.Int^);
+\definition projective: \forall (z: I.Int^) -> Modules.Projective (Modules.Bundle { Carrier := Pair.Carrier z, space := Pair.space z }) :=
+  \fun (z: I.Int^) => At[z := z].projective;
+\definition zeroBelow: \forall (n: N.Nat^)(q: Pair.Carrier (I.Int^::negSucc n)) -> q = #zero{(Pair.space (I.Int^::negSucc n))} :=
+  \fun (n: N.Nat^) => Negative[n := n].zero;

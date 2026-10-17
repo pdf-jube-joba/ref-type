@@ -1,0 +1,46 @@
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\inductive Part: \Set := | initial: Part | middle: Part | terminal: Part;
+\definition first: Part -> Edge -> Complex.Vertex := \induction (p: Part) \return Edge -> Complex.Vertex \with {
+  | initial: \fun (e: Edge) => original (source e)
+  | middle: firstMidpoint
+  | terminal: \fun (e: Edge) => original (target e)
+};
+\definition last: Part -> Edge -> Complex.Vertex := \induction (p: Part) \return Edge -> Complex.Vertex \with {
+  | initial: firstMidpoint | middle: secondMidpoint | terminal: secondMidpoint
+};
+\definition maximal: Part -> Edge -> MaximalFace := \induction (p: Part) \return Edge -> MaximalFace \with {
+  | initial: MaximalFace::initial | middle: MaximalFace::middle | terminal: MaximalFace::terminal
+};
+\import Fin.Tuples[A := Complex.Vertex] \as Tuples;
+\definition tuple(p: Part)(e: Edge): Fin.Fin two -> Complex.Vertex := Tuples.extend one (first p e) (\fun (_: Fin.Fin one) => last p e);
+\definition inSupport(p: Part)(e: Edge): \forall (i: Fin.Fin two) -> \In[Complex.Vertex] (support (maximal p e)) (tuple p e i) :=
+  Fin.cases one (\fun (i: Fin.Fin two) => \In[Complex.Vertex] (support (maximal p e)) (tuple p e i))
+    ((\induction (p: Part) \return \In[Complex.Vertex] (support (maximal p e)) (tuple p e (Fin.zero one)) \with {
+      | initial: Logic.Or[_, _]::left (Tuples.atZero one (original (source e)) (\fun (_: Fin.Fin one) => firstMidpoint e))
+      | middle: Logic.Or[_, _]::left (Tuples.atZero one (firstMidpoint e) (\fun (_: Fin.Fin one) => secondMidpoint e))
+      | terminal: Logic.Or[_, _]::left (Tuples.atZero one (original (target e)) (\fun (_: Fin.Fin one) => secondMidpoint e))
+    }) p)
+    (\fun (i: Fin.Fin one) => (\induction (p: Part) \return \In[Complex.Vertex] (support (maximal p e)) (tuple p e (Fin.succ one i)) \with {
+      | initial: Logic.Or[_, _]::right (Tuples.atSuccessor one (original (source e)) (\fun (_: Fin.Fin one) => firstMidpoint e) i)
+      | middle: Logic.Or[_, _]::right (Tuples.atSuccessor one (firstMidpoint e) (\fun (_: Fin.Fin one) => secondMidpoint e) i)
+      | terminal: Logic.Or[_, _]::right (Tuples.atSuccessor one (original (target e)) (\fun (_: Fin.Fin one) => secondMidpoint e) i)
+    }) p);
+\definition face(p: Part)(e: Edge): \In[\Pow Complex.Vertex] object.faces (Subdivision.Image one (tuple p e)) :=
+  Logic.existsIntro[MaximalFace, { f: MaximalFace \where Complex.Included (Subdivision.Image one (tuple p e)) (support f) }] (maximal p e)
+    (\block {
+      \fun (v: Complex.Vertex)(member: \In[Complex.Vertex] (Subdivision.Image one (tuple p e)) v) \then
+      \takefrom i: \Cast[Fin.Fin two] ({ i: Fin.Fin two \where tuple p e i = v }) \by member \then
+      \return \idelim tuple p e i = v \with w: Complex.Vertex => \In[Complex.Vertex] (support (maximal p e)) w
+        \by { base: inSupport p e i, equality: \bysub(Fin.Fin two, { i: Fin.Fin two \where tuple p e i = v }, i) }
+    });
+\import Simplex.Reindex[m := one, n := ambientDimension] \as Affine;
+\definition apply(p: Part)(e: Edge)(x: Simplex.Carrier one): Carrier :=
+  \into[Simplex.Carrier ambientDimension](Affine.apply (tuple p e) x, Realization.Points) \by {
+    \exact(Realization.Witness[Affine.apply (tuple p e) x] { dimension := one, vertices := tuple p e, face := face p e, point := x, equation := \refl(Affine.apply (tuple p e) x) }, Realization.Witness[Affine.apply (tuple p e) x])
+  };
+\import topology.Continuity[A := Simplex.Carrier one, B := Simplex.Carrier ambientDimension].Corestriction[S := Realization.Points] \as Into;
+\definition continuous(p: Part)(e: Edge): topology.Continuity[A := Simplex.Carrier one, B := Carrier].Continuous (Simplex.At[n := one].topology) topology (apply p e) :=
+  Into.corestrictContinuous (Simplex.At[n := one].topology) (Simplex.At[n := ambientDimension].topology) (apply p e) (Affine.continuous (tuple p e));
+\import singular_cohomology.Simplices[A := Carrier, source := topology] \as Singular;
+\definition simplex(p: Part)(e: Edge): Singular.Carrier one := \into[Singular.At[n := one].Function](apply p e, Singular.Carrier one) \by { continuous p e };

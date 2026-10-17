@@ -1,0 +1,31 @@
+\module On(s: Generator p (N.Nat^::succ q));
+\import \parent.\parent.Bicomplex[] \as Bicomplex;
+\import Modules.Hom[V := Carrier p (N.Nat^::succ (N.Nat^::succ q)), W := Carrier p (N.Nat^::succ q), source := space p (N.Nat^::succ (N.Nat^::succ q)), target := space p (N.Nat^::succ q)]
+  .Composition[U := Carrier p (N.Nat^::succ q), domain := space p (N.Nat^::succ q)] \as First;
+\import Modules.Hom[V := Carrier p q, W := Carrier p (N.Nat^::succ q), source := space p q, target := space p (N.Nat^::succ q)]
+  .Composition[U := Carrier p (N.Nat^::succ q), domain := space p (N.Nat^::succ q)] \as Second;
+\import Modules.End[V := Carrier p (N.Nat^::succ q), space := space p (N.Nat^::succ q)] \as End;
+\import Modules.Hom[V := Carrier p (N.Nat^::succ q), W := Carrier p (N.Nat^::succ q), source := space p (N.Nat^::succ q), target := space p (N.Nat^::succ q)] \as Maps;
+\definition operator: Maps.Map := Maps.plus
+  (First.compose (Bicomplex.vertical p (N.Nat^::succ q)) (homotopy (N.Nat^::succ q)))
+  (Second.compose (homotopy q) (Bicomplex.vertical p q));
+\import Modules.Free[Generators := Generator p (N.Nat^::succ q)].To[W := Carrier p (N.Nat^::succ q), target := space p (N.Nat^::succ q)] \as Free;
+\definition equality: operator = End.identity := Free.ext operator End.identity (\fun (s: Generator p (N.Nat^::succ q)) => On[s := s].law);
+\definition law: \forall (x: Carrier p (N.Nat^::succ q)) ->
+  #add{(space p (N.Nat^::succ q))}
+    (#apply{(Bicomplex.vertical p (N.Nat^::succ q))} (#apply{(homotopy (N.Nat^::succ q))} x))
+    (#apply{(homotopy q)} (#apply{(Bicomplex.vertical p q)} x)) = x :=
+  \fun (x: Carrier p (N.Nat^::succ q)) => congr!{{Maps.Map} {Carrier p (N.Nat^::succ q)}} (\fun (f: Maps.Map) => #apply{f} x) operator End.identity equality;
+\import Modules.Laws[V := Carrier p (N.Nat^::succ q), space := space p (N.Nat^::succ q)] \as Vector;
+\import algebra.Group[].Of[Carrier := Carrier p (N.Nat^::succ q), group := Vector.additive] \as Group;
+\import Modules.Hom[V := Carrier p q, W := Carrier p (N.Nat^::succ q), source := space p q, target := space p (N.Nat^::succ q)] \as Shift;
+\definition cycle: \forall (x: Carrier p (N.Nat^::succ q)) -> #apply{(Bicomplex.vertical p q)} x = #zero{(space p q)} ->
+  #apply{(Bicomplex.vertical p (N.Nat^::succ q))} (#apply{(homotopy (N.Nat^::succ q))} x) = x :=
+  \fun (x: Carrier p (N.Nat^::succ q))(closed: #apply{(Bicomplex.vertical p q)} x = #zero{(space p q)}) => trans!{{Carrier p (N.Nat^::succ q)}} _ _ _
+    (sym!{{Carrier p (N.Nat^::succ q)}} _ _ (Group.zeroRight (#apply{(Bicomplex.vertical p (N.Nat^::succ q))} (#apply{(homotopy (N.Nat^::succ q))} x))))
+    (trans!{{Carrier p (N.Nat^::succ q)}} _ _ _
+      (congr!{{Carrier p (N.Nat^::succ q)} {Carrier p (N.Nat^::succ q)}}
+        (#add{(space p (N.Nat^::succ q))} (#apply{(Bicomplex.vertical p (N.Nat^::succ q))} (#apply{(homotopy (N.Nat^::succ q))} x))) _ _
+        (sym!{{Carrier p (N.Nat^::succ q)}} _ _ (trans!{{Carrier p (N.Nat^::succ q)}} _ _ _
+          (congr!{{Carrier p q} {Carrier p (N.Nat^::succ q)}} (#apply{(homotopy q)}) _ _ closed) (Shift.zeroPreserved (homotopy q)))))
+      (law x));

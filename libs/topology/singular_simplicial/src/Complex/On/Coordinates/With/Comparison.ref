@@ -1,0 +1,49 @@
+\import \parent.Natural[] \as Natural;
+\import \parent.Bounded[] \as Bounded;
+\import Bounded.SignedModel[] \as Signed;
+\import homological_algebra.Finite[].Bounded[].Of[C := Bounded.model] \as Model;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Natural.complex] \as Coordinate;
+\definition naturalIsomorphism: _ := Natural.integerIsomorphism;
+\import Complexes.Map[C := Coordinate.complex, D := Chains.integerComplex].Composition[B := Model.chain] \as Forward;
+\import Complexes.Map[C := Coordinate.complex, D := Model.chain].Composition[B := Chains.integerComplex] \as Backward;
+\definition forward: Complexes.Map[C := Model.chain, D := Chains.integerComplex].Map :=
+  Forward.compose #backward{naturalIsomorphism} Signed.forward;
+\definition backward: Complexes.Map[C := Chains.integerComplex, D := Model.chain].Map :=
+  Backward.compose Signed.backward #forward{naturalIsomorphism};
+\definition isomorphism: Complexes.Isomorphism[C := Model.chain, D := Chains.integerComplex].Isomorphism :=
+  Complexes.Isomorphism[C := Model.chain, D := Chains.integerComplex].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (z: I.Int^)(x: Model.family.Carrier z) => trans!{{Model.family.Carrier z}} _ _ _
+      (congr!{{Coordinate.Carrier z} {Model.family.Carrier z}} (#apply{Signed.backward} z) _ _ (#rightInverse{naturalIsomorphism} z (#apply{Signed.forward} z x)))
+      (#leftInverse{Signed.isomorphism} z x),
+    rightInverse := \fun (z: I.Int^)(x: Chains.integerComplex.family.Carrier z) => trans!{{Chains.integerComplex.family.Carrier z}} _ _ _
+      (congr!{{Coordinate.Carrier z} {Chains.integerComplex.family.Carrier z}} (#apply{#backward{naturalIsomorphism}} z) _ _ (#rightInverse{Signed.isomorphism} z (#apply{#forward{naturalIsomorphism}} z x)))
+      (#leftInverse{naturalIsomorphism} z x),
+  };
+\import \root.Complex[d := d].On[K := K].Realization[] \as Realization;
+\import singular_cohomology.Chains[A := Realization.Carrier, source := Realization.topology] \as Singular;
+\import Complexes.Map[C := Chains.integerComplex, D := Singular.integerComplex].Composition[B := Model.chain] \as Affine;
+\definition comparison: Complexes.Map[C := Model.chain, D := Singular.integerComplex].Map := Affine.compose Chains.integerComparison forward;
+\import \root.Complex[d := d].On[K := K].Chains[].HomotopyEquivalence[] \as AffineEquivalence;
+\import Complexes.Equivalence[C := Model.chain, D := Chains.integerComplex] \as Identification;
+\definition identification: Identification.Equivalence := Identification.FromIsomorphism[].apply isomorphism;
+\import Complexes.Equivalence[C := Chains.integerComplex, D := Singular.integerComplex] \as SingularEquivalences;
+\import Complexes.Equivalence[C := Model.chain, D := Singular.integerComplex] \as ModelEquivalences;
+\definition equivalenceExists: \exists { e: ModelEquivalences.Equivalence \where #forward{e} = comparison } := \block {
+  \takefrom e: \Cast[SingularEquivalences.Equivalence]
+    ({ e: SingularEquivalences.Equivalence \where #forward{e} = Chains.integerComparison }) \by AffineEquivalence.integerExistence \then
+  \let result: ModelEquivalences.Equivalence := Identification.Composition[E := Singular.integerComplex].compose identification e \then
+  \return Logic.existsIntro[ModelEquivalences.Equivalence, { e: ModelEquivalences.Equivalence \where #forward{e} = comparison }] result
+    (congr!{{Complexes.Map[C := Chains.integerComplex, D := Singular.integerComplex].Map} {Complexes.Map[C := Model.chain, D := Singular.integerComplex].Map}}
+      (\fun (f: Complexes.Map[C := Chains.integerComplex, D := Singular.integerComplex].Map) => Affine.compose f forward) _ _
+      (\bysub(SingularEquivalences.Equivalence, { e: SingularEquivalences.Equivalence \where #forward{e} = Chains.integerComparison }, e)))
+};
+\import Complexes.Map[C := Model.chain, D := Singular.integerComplex] \as ModelMaps;
+\definition quasiIsomorphism: ModelMaps.QuasiIsomorphism comparison := \block {
+  \takefrom e: \Cast[ModelEquivalences.Equivalence] ({ e: ModelEquivalences.Equivalence \where #forward{e} = comparison }) \by equivalenceExists \then
+  \return \idelim #forward{e} = comparison \with f: ModelMaps.Map => ModelMaps.QuasiIsomorphism f \by {
+    base: \fun (z: I.Int^) => ModelEquivalences.At[k := z].bijective e,
+    equality: \bysub(ModelEquivalences.Equivalence, { e: ModelEquivalences.Equivalence \where #forward{e} = comparison }, e)
+  }
+};

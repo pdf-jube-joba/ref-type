@@ -1,0 +1,32 @@
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := Domain.CarrierSet] \as Scalars;
+\import Scalars.SquareRoot[] \as Roots;
+\import Scalars.Product[] \as ScalarProduct;
+\import topological_algebra.Complex[] \as Plane;
+\import Plane.Functions[A := Domain.CarrierSet] \as Functions;
+\import topological_constructions.Product[A := Real.Real, B := Real.Real].Universal[X := Domain.CarrierSet] \as Pairing;
+\definition vectorContinuous: topology.Continuity[A := Domain.CarrierSet, B := Complex.Complex].Continuous Domain.topology Plane.topology vector :=
+  Pairing.pairContinuous Domain.topology Line.topology Line.topology
+    (\fun (x: Domain.CarrierSet) => Root.sqrt (right x)) (\fun (x: Domain.CarrierSet) => Root.sqrt (left x))
+    (Roots.continuous Domain.topology right (Domain.coordinateContinuous rightIndex))
+    (Roots.continuous Domain.topology left (Domain.coordinateContinuous leftIndex));
+\definition squareContinuous: topology.Continuity[A := Domain.CarrierSet, B := Complex.Complex].Continuous Domain.topology Plane.topology square :=
+  Functions.multiplicationContinuous Domain.topology vector vector vectorContinuous vectorContinuous;
+\import algebraic_topology.Euclidean[].Dimension[n := one].Splitting[].Continuity[A := Domain.CarrierSet] \as Joining;
+\definition upperCoordinateContinuous: topology.Continuity[A := Domain.CarrierSet, B := Disk.Coordinate].Continuous Domain.topology Disk.topology upperCoordinate :=
+  Joining.joinContinuous Domain.topology (\fun (x: Domain.CarrierSet) => Complex.re (square x)) (\fun (x: Domain.CarrierSet)(_ : Fin.Fin one) => Complex.im (square x))
+    (Functions.realContinuous Domain.topology square squareContinuous)
+    (\fun (_: Fin.Fin one) => Functions.imaginaryContinuous Domain.topology square squareContinuous);
+\import topology.Continuity[A := Domain.CarrierSet, B := Disk.Coordinate].Corestriction[S := Disk.ClosedBall] \as Into;
+\definition upperContinuous: topology.Continuity[A := Domain.CarrierSet, B := Disk.Disk].Continuous Domain.topology Disk.diskTopology upper :=
+  Into.corestrictContinuous Domain.topology Disk.topology upper upperCoordinateContinuous;
+\import topological_algebra.Coordinates[K := Real.Real, I := Disk.Index].Universal[A := Domain.CarrierSet] \as Universal;
+\import topology.Composition[A := Domain.CarrierSet, B := Disk.Coordinate, C := Real.Real] \as Evaluation;
+\import topological_algebra.Coordinates[K := Real.Real, I := Disk.Index] \as CoordinateTopology;
+\definition lowerContinuous: topology.Continuity[A := Domain.CarrierSet, B := Disk.Disk].Continuous Domain.topology Disk.diskTopology lower :=
+  Into.corestrictContinuous Domain.topology Disk.topology lower
+    (Universal.continuous Domain.topology Line.topology (\fun (x: Domain.CarrierSet) => lower x)
+      (\fun (i: Disk.Index) => ScalarProduct.continuous Domain.topology (\fun (_: Domain.CarrierSet) => Real.neg Real.one) (\fun (x: Domain.CarrierSet) => upperCoordinate x i)
+        (Scalars.constantContinuous Domain.topology (Real.neg Real.one))
+        (Evaluation.composeContinuous Domain.topology Disk.topology Line.topology upperCoordinate (\fun (x: Disk.Coordinate) => x i)
+          upperCoordinateContinuous (CoordinateTopology.evaluationContinuous Line.topology i))));

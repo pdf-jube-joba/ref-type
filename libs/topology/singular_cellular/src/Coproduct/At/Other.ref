@@ -1,0 +1,29 @@
+\import topology.Topology[Carrier := fibers j] \as OtherSpace;
+\import topology.Maps[A := fibers j, B := Carrier] \as OtherMaps;
+\definition emptyPreimage: Logic.Not (j = i) -> \forall (U: \Pow (fibers i)) ->
+  OtherMaps.Preimage (injection j) (Image U) = OtherSpace.Empty :=
+  \fun (different: _)(U: _) => \axiom:setext(OtherMaps.Preimage (injection j) (Image U), OtherSpace.Empty,
+    \block {
+      \fun (x: fibers j)(member: _) \then
+      \takefrom y: \Cast[fibers i] ({ y: fibers i \where Logic.And[Source.Member U y, injection i y = injection j x] }) \by member \then
+      \let data: Logic.And[Source.Member U y, injection i y = injection j x] :=
+        \bysub(fibers i, { y: fibers i \where Logic.And[Source.Member U y, injection i y = injection j x] }, y) \then
+      \return different (sym!{Index} _ _ (congr!{Carrier Index} (\fun (c: Carrier) => #index{c}) _ _ (#right{data})))
+    },
+    \fun (x: fibers j)(impossible: Logic.False) => Logic.falseElim _ impossible);
+\definition open: \forall (U: \Pow (fibers i)) -> Source.IsOpenIn (spaces i) U ->
+  OtherSpace.IsOpenIn (spaces j) (OtherMaps.Preimage (injection j) (Image U)) :=
+  \fun (U: _)(uo: _) => either!{{(Classical.excludedMiddle (j = i))}
+    {OtherSpace.IsOpenIn (spaces j) (OtherMaps.Preimage (injection j) (Image U))}
+    {\fun (same: j = i) => \idelim i = j \with k: Index => topology.Topology[Carrier := fibers k].IsOpenIn (spaces k)
+      ({ x: fibers k \where Space.Member (Image U) (injection k x) }) \by {
+        base: \idelim U = Maps.Preimage (injection i) (Image U) \with V: \Pow (fibers i) => Source.IsOpenIn (spaces i) V \by {
+          base: uo, equality: sym!{\Pow (fibers i)} _ _ (ownPreimage U)
+        }, equality: sym!{Index} _ _ same
+      }}
+    {\fun (different: _) => \idelim OtherSpace.Empty = OtherMaps.Preimage (injection j) (Image U)
+      \with V: \Pow (fibers j) => OtherSpace.IsOpenIn (spaces j) V \by {
+        base: #emptyOpen{(OtherSpace.topologyLaws (spaces j))},
+        equality: sym!{\Pow (fibers j)} _ _ (emptyPreimage different U)
+      }}
+  };

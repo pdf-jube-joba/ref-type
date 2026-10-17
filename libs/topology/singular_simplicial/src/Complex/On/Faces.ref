@@ -1,0 +1,25 @@
+\import Fin.Tuples[A := Vertex].Omission[] \as Omission;
+\module At(n: N.Nat^) {
+  \import \parent.\parent.Restrictions[m := n, n := N.Nat^::succ n] \as Restrict;
+  \import Fin.Tuples[A := Fin.Fin (N.Nat^::succ (N.Nat^::succ n))].Mapping[B := Vertex] \as Mapping;
+  \definition apply(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplex (N.Nat^::succ n)): Simplex n :=
+    Restrict.apply (Fin.Skipping[].apply (N.Nat^::succ n) i) (Indices.skipIncreasing (N.Nat^::succ n) i) sigma;
+  \definition omission: \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplex (N.Nat^::succ n)) ->
+    apply i sigma = Omission.omit (N.Nat^::succ n) i sigma :=
+    \fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplex (N.Nat^::succ n)) =>
+      Mapping.omitMap (N.Nat^::succ n) i sigma (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) => j);
+}
+\definition apply(n: N.Nat^): Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> Simplex (N.Nat^::succ n) -> Simplex n := At[n := n].apply;
+\definition identity: \forall (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplex (N.Nat^::succ (N.Nat^::succ n))) -> Bounds.Le i j ->
+  apply n j (apply (N.Nat^::succ n) (Fin.widen (N.Nat^::succ (N.Nat^::succ n)) i) sigma) =
+    apply n i (apply (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) j) sigma) :=
+  \fun (n: N.Nat^)(i, j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplex (N.Nat^::succ (N.Nat^::succ n)))(ordered: Bounds.Le i j) =>
+    trans!{{Tuple n}} _ _ _ (At[n := n].omission j _)
+      (trans!{{Tuple n}} _ _ _
+        (congr!{{Tuple (N.Nat^::succ n)} {Tuple n}} (Omission.omit (N.Nat^::succ n) j) _ _
+          (At[n := N.Nat^::succ n].omission (Fin.widen (N.Nat^::succ (N.Nat^::succ n)) i) sigma))
+        (trans!{{Tuple n}} _ _ _ (Omission.interchange (N.Nat^::succ n) i j sigma ordered)
+          (trans!{{Tuple n}} _ _ _
+            (congr!{{Tuple (N.Nat^::succ n)} {Tuple n}} (Omission.omit (N.Nat^::succ n) i) _ _
+              (sym!{{Tuple (N.Nat^::succ n)}} _ _ (At[n := N.Nat^::succ n].omission (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) j) sigma)))
+            (sym!{{Tuple n}} _ _ (At[n := n].omission i _)))));

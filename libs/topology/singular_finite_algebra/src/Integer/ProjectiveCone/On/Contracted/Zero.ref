@@ -1,0 +1,51 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition z: I.Int^ := I.Int^::ofNat zero;
+\import \parent.At[n := zero] \as Model;
+\import Modules.Laws[V := Q.family.Carrier z, space := Q.family.space z] \as QLaws;
+\import Modules.Laws[V := P.family.Carrier z, space := P.family.space z] \as PLaws;
+\import algebra.Group[].Of[Carrier := Q.family.Carrier z, group := QLaws.additive] \as QGroup;
+\import algebra.Group[].Of[Carrier := P.family.Carrier z, group := PLaws.additive] \as PGroup;
+\import Modules.Biproduct[V := Q.family.Carrier z, W := P.family.Carrier (Degrees.previous z),
+  left := Q.family.space z, right := P.family.space (Degrees.previous z)] \as Here;
+\import SignedChains.At[C := Q, z := Degrees.next z] \as QBoundary;
+\import Modules.Hom[V := Q.family.Carrier (Degrees.next z), W := Q.family.Carrier z,
+  source := Q.family.space (Degrees.next z), target := Q.family.space z] \as QBoundaryMaps;
+\import Modules.Hom[V := P.family.Carrier (Degrees.previous z), W := P.family.Carrier z,
+  source := P.family.space (Degrees.previous z), target := P.family.space z] \as LowerMaps;
+\import Modules.Laws[V := family.Carrier zero, space := family.space zero] \as ConeLaws;
+\import algebra.Group[].Of[Carrier := family.Carrier zero, group := ConeLaws.additive] \as ConeGroup;
+\definition equation(x: family.Carrier zero): x = #apply{differential} zero (#apply{h} zero x) :=
+  trans!{{family.Carrier zero}} _ _ _
+    (sym!{{family.Carrier zero}} _ _ (trans!{{family.Carrier zero}} _ _ _
+      (congr!{{family.Carrier zero} {family.Carrier zero}} (#add{(family.space zero)} x) _ _ ConeGroup.negZero)
+      (ConeGroup.zeroRight x)))
+    (#zeroEquation{h} x);
+\definition targetRaw(x: Q.family.Carrier z): x =
+  QGroup.add (#apply{Q.differential} (Degrees.next z) (#apply{Model.firstBlock} x)) (#apply{f} z (#apply{Model.backward} x)) :=
+  congr!{{family.Carrier zero} {Q.family.Carrier z}} Here.first _ _ (equation (#apply{Here.firstInjection} x));
+\definition targetEquation(x: Q.family.Carrier z): QGroup.difference (#apply{f} z (#apply{Model.backward} x)) x =
+  #apply{Q.differential} (Degrees.next z) (#apply{Model.targetHomotopy} x) :=
+  trans!{{Q.family.Carrier z}} _ _ _
+    (QGroup.balancedDifference (#apply{f} z (#apply{Model.backward} x)) x QGroup.zero
+      (#apply{Q.differential} (Degrees.next z) (#apply{Model.firstBlock} x))
+      (trans!{{Q.family.Carrier z}} _ _ _
+        (QGroup.comm (#apply{f} z (#apply{Model.backward} x)) (#apply{Q.differential} (Degrees.next z) (#apply{Model.firstBlock} x)))
+        (trans!{{Q.family.Carrier z}} _ _ _ (sym!{{Q.family.Carrier z}} _ _ (targetRaw x)) (sym!{{Q.family.Carrier z}} _ _ (QGroup.zeroLeft x)))))
+    (trans!{{Q.family.Carrier z}} _ _ _
+      (QGroup.zeroLeft (QGroup.neg (#apply{Q.differential} (Degrees.next z) (#apply{Model.firstBlock} x))))
+      (sym!{{Q.family.Carrier z}} _ _ (QBoundaryMaps.negativePreserved QBoundary.differential (#apply{Model.firstBlock} x))));
+\definition sourceEquation(negative: SourceNegative)(x: P.family.Carrier z):
+  PGroup.difference (#apply{Model.backward} (#apply{f} z x)) x =
+  PGroup.add (#apply{P.differential} (Degrees.next z) (#apply{Model.sourceHomotopy} x)) #zero{(P.family.space z)} :=
+  trans!{{P.family.Carrier z}} _ _ _ (Model.sourceEquation x)
+    (congr!{{P.family.Carrier z} {P.family.Carrier z}}
+      (PGroup.add (#apply{P.differential} (Degrees.next z) (#apply{Model.sourceHomotopy} x))) _ _
+      (trans!{{P.family.Carrier z}} _ _ _
+        (congr!{{P.family.Carrier (Degrees.previous z)} {P.family.Carrier z}} (#apply{Model.lowerBlock}) _ _
+          (negative zero (#apply{P.differential} z x)))
+        (LowerMaps.zeroPreserved Model.lowerBlock)));
+
+\definition targetZeroEquation(x: Q.family.Carrier z): QGroup.difference (#apply{f} z (#apply{Model.backward} x)) x =
+  QGroup.add (#apply{Q.differential} (Degrees.next z) (#apply{Model.targetHomotopy} x)) #zero{(Q.family.space z)} :=
+  trans!{{Q.family.Carrier z}} _ _ _ (targetEquation x)
+    (sym!{{Q.family.Carrier z}} _ _ (QGroup.zeroRight (#apply{Q.differential} (Degrees.next z) (#apply{Model.targetHomotopy} x))));

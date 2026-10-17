@@ -1,0 +1,25 @@
+\definition p: N.Nat^ := #first{i};
+\definition q: N.Nat^ := #second{i};
+\import Mapping.AlexanderWhitney[p := p, q := q, f := f] \as Component;
+\import AW.Degree[n := n] \as SourceDegree;
+\import SourceDegree.At[i := i] \as SourceComponent;
+\import TargetAW.Degree[n := n] \as TargetDegree;
+\import singular_products.AlexanderWhitney[A := A, B := B, left := left, right := right].At[p := p, q := q] \as SourceCut;
+\definition degree: N.Nat^ := SourceComponent.total;
+\definition same: n = degree := sym!{N.Nat^} _ _ SourceComponent.same;
+\import Chains.DegreeTransport[] \as SourceDegrees;
+\import TargetChains.DegreeTransport[] \as TargetDegrees;
+\import ProductMaps.DegreeTransport[] \as Naturality;
+\import singular_products.AlexanderWhitney[A := C, B := D, left := leftTarget, right := rightTarget].At[p := p, q := q] \as Cut;
+\import Modules.Hom[V := Chains.Carrier degree, W := Cut.Carrier, source := Chains.space degree, target := Cut.space] \as ComponentMaps;
+\definition cut(x: Chains.Carrier n): #apply{Component.rhs} (SourceDegrees.apply n degree same x) = #apply{Component.lhs} (SourceDegrees.apply n degree same x) :=
+  sym!{Cut.Carrier} _ _ (congr!{ComponentMaps.Map Cut.Carrier} (\fun (h: ComponentMaps.Map) => #apply{h} (SourceDegrees.apply n degree same x)) _ _ Component.equation);
+\definition law(x: Chains.Carrier n): Coordinates.coordinate i (#apply{lhs} x) = Coordinates.coordinate i (#apply{rhs} x) :=
+  trans!{Cut.Carrier} _ _ _ (MappingCoordinates.law i (#apply{forward} n x))
+    (trans!{Cut.Carrier} _ _ _
+      (congr!{SourceCut.Carrier Cut.Carrier} (#apply{Component.tensorMap}) _ _ (SourceDegree.coordinate i x))
+      (trans!{Cut.Carrier} _ _ _ (cut x)
+        (trans!{Cut.Carrier} _ _ _
+          (congr!{{TargetChains.Carrier degree} Cut.Carrier} (#apply{Cut.map}) _ _
+            (sym!{{TargetChains.Carrier degree}} _ _ (Naturality.law n degree same (Mapping.function f) (Mapping.continuous f) x)))
+          (sym!{Cut.Carrier} _ _ (TargetDegree.coordinate i (#apply{product} n x))))));

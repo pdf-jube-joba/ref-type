@@ -1,0 +1,31 @@
+\definition Simplex(n: N.Nat^): \Set := X.family.Carrier n;
+\definition face(n: N.Nat^): Fin.Fin (N.Nat^::succ (N.Nat^::succ n)) -> Simplex (N.Nat^::succ n) -> Simplex n := X.faces.apply n;
+\structure Data: \Set {
+  present: \forall (n: N.Nat^) -> Simplex n -> B.Bool^,
+  cone: \forall (n: N.Nat^) -> \Cast[Simplex n] ({ s: Simplex n \where present n s = B.Bool^::false }) -> Simplex (N.Nat^::succ n),
+  apex: Simplex N.Nat^::zero,
+}
+\definition extend(d: Data)(n: N.Nat^)(s: Simplex n)(absent: d.present n s = B.Bool^::false): Simplex (N.Nat^::succ n) :=
+  d.cone n (\into[Simplex n](s, { t: Simplex n \where d.present n t = B.Bool^::false }) \by { absent });
+\structure Laws[d: Data]: \Prop {
+  first: \forall (n: N.Nat^)(s: Simplex n)(absent: d.present n s = B.Bool^::false) ->
+    face n (Fin.zero (N.Nat^::succ n)) (extend d n s absent) = s,
+  absentFaces: \forall (n: N.Nat^)(s: Simplex (N.Nat^::succ n)) -> d.present (N.Nat^::succ n) s = B.Bool^::false ->
+    \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) -> d.present n (face n i s) = B.Bool^::false,
+  other: \forall (n: N.Nat^)(s: Simplex (N.Nat^::succ n))(absent: d.present (N.Nat^::succ n) s = B.Bool^::false)
+    (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) ->
+    face (N.Nat^::succ n) (Fin.succ (N.Nat^::succ (N.Nat^::succ n)) i) (extend d (N.Nat^::succ n) s absent) =
+      extend d n (face n i s) (absentFaces n s absent i),
+  presentFirst: \forall (n: N.Nat^)(s: Simplex (N.Nat^::succ n)) -> d.present (N.Nat^::succ n) s = B.Bool^::true ->
+    d.present n (face n (Fin.zero (N.Nat^::succ n)) s) = B.Bool^::false,
+  recover: \forall (n: N.Nat^)(s: Simplex (N.Nat^::succ n))(present: d.present (N.Nat^::succ n) s = B.Bool^::true) ->
+    extend d n (face n (Fin.zero (N.Nat^::succ n)) s) (presentFirst n s present) = s,
+  presentOthers: \forall (n: N.Nat^)(s: Simplex (N.Nat^::succ n)) -> d.present (N.Nat^::succ n) s = B.Bool^::true ->
+    \forall (i: Fin.Fin (N.Nat^::succ n)) ->
+      d.present n (face n (Fin.succ (N.Nat^::succ n) i) s) = B.Bool^::true,
+  zero: \forall (s: Simplex N.Nat^::zero) -> d.present N.Nat^::zero s = B.Bool^::true -> s = d.apex,
+  last: \forall (s: Simplex N.Nat^::zero)(absent: d.present N.Nat^::zero s = B.Bool^::false) ->
+    face N.Nat^::zero (Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero)) (extend d N.Nat^::zero s absent) = d.apex,
+}
+\definition Cone: \Set := \Cast[Data] ({ d: Data \where Laws[d] });
+\module With(cone: Cone);

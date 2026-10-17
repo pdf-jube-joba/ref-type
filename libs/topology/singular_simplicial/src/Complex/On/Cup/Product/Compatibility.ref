@@ -1,0 +1,35 @@
+\import \root.Complex[d := d].On[K := K].Cup[R := R, ring := ring].Product[p := p, q := q] \as Product;
+\import Simplices.Cut[p := p, q := q] \as SingularCut;
+\import Singular.Cup[p := p, q := q] \as Whole;
+\use Equality.eq_reason;
+\use Equality.congr2;
+\definition onSimplex: \forall (alpha: Singular.Carrier p)(beta: Singular.Carrier q)(sigma: Simplex total) ->
+  #apply{(#apply{restriction} total (Whole.apply alpha beta))} (Chains.generator total sigma) =
+    #apply{(apply (#apply{restriction} p alpha) (#apply{restriction} q beta))} (Chains.generator total sigma) :=
+  \fun (alpha: Singular.Carrier p)(beta: Singular.Carrier q)(sigma: Simplex total) => eq_reason!{
+    {#apply{(#apply{restriction} total (Whole.apply alpha beta))} (Chains.generator total sigma)}
+    "=" {#apply{(Whole.apply alpha beta)} (SingularChains.generator total (Realization.simplex total sigma))}
+    "by" {\parent.\parent.At[n := total].restrictOnGenerator (Whole.apply alpha beta) sigma}
+    "=" {#mul{baseRing}
+      (#apply{alpha} (SingularChains.generator p (SingularCut.front (Realization.simplex total sigma))))
+      (#apply{beta} (SingularChains.generator q (SingularCut.back (Realization.simplex total sigma))))}
+    "by" {Whole.onSimplex alpha beta (Realization.simplex total sigma)}
+    "=" {#mul{baseRing}
+      (#apply{alpha} (SingularChains.generator p (Realization.simplex p (Cut.front sigma))))
+      (#apply{beta} (SingularChains.generator q (Realization.simplex q (Cut.back sigma))))}
+    "by" {congr2!{R R R} (#mul{baseRing}) _ _ _ _
+      (congr!{{Simplices.Carrier p} R} (\fun (s: Simplices.Carrier p) => #apply{alpha} (SingularChains.generator p s)) _ _ (Cut.frontComparison sigma))
+      (congr!{{Simplices.Carrier q} R} (\fun (s: Simplices.Carrier q) => #apply{beta} (SingularChains.generator q s)) _ _ (Cut.backComparison sigma))}
+    "=" {#mul{baseRing}
+      (#apply{(#apply{restriction} p alpha)} (Chains.generator p (Cut.front sigma)))
+      (#apply{(#apply{restriction} q beta)} (Chains.generator q (Cut.back sigma)))}
+    "by" {congr2!{R R R} (#mul{baseRing}) _ _ _ _
+      (sym!{R} _ _ (\parent.\parent.At[n := p].restrictOnGenerator alpha (Cut.front sigma)))
+      (sym!{R} _ _ (\parent.\parent.At[n := q].restrictOnGenerator beta (Cut.back sigma)))}
+    "=" {#apply{(apply (#apply{restriction} p alpha) (#apply{restriction} q beta))} (Chains.generator total sigma)}
+    "by" {sym!{R} _ _ (Product.onSimplex (#apply{restriction} p alpha) (#apply{restriction} q beta) sigma)}
+  };
+\import Modules.Free[Generators := Simplex total].To[W := R, target := Singular.integerCoefficients.space] \as Free;
+\definition law: \forall (alpha: Singular.Carrier p)(beta: Singular.Carrier q) ->
+  #apply{restriction} total (Whole.apply alpha beta) = apply (#apply{restriction} p alpha) (#apply{restriction} q beta) :=
+  \fun (alpha: Singular.Carrier p)(beta: Singular.Carrier q) => Free.ext _ _ (onSimplex alpha beta);

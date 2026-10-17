@@ -1,0 +1,23 @@
+\import Native.Map[C := IntersectionChains.complex, D := IntersectionChains.complex].ZeroExtension[f := #intersection{mapping}] \as LeftAction;
+\import Native.Map[C := Sum.complex, D := Sum.complex].ZeroExtension[f := #middle{mapping}] \as MiddleAction;
+\import Native.Map[C := Small.complex, D := Small.complex].ZeroExtension[f := #small{mapping}] \as RightAction;
+\import ChainSequence.Morphism[A1 := Intersection.complex, B1 := Middle.complex, C1 := Target.complex] \as Morphism;
+\definition leftAction: Signed.Map[C := Intersection.complex, D := Intersection.complex].Map := LeftAction.map;
+\definition middleAction: Signed.Map[C := Middle.complex, D := Middle.complex].Map := MiddleAction.map;
+\definition rightAction: Signed.Map[C := Target.complex, D := Target.complex].Map := RightAction.map;
+\import Morphism.Diagram[s := nativeSequence, t := nativeSequence, a := leftAction, b := middleAction, c := rightAction] \as Diagram;
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := \induction (z: I.Int^) \return \forall (x: Intersection.Carrier z) ->
+    #apply{MiddleAction.map} z (#apply{Inclusion.map} z x) = #apply{Inclusion.map} z (#apply{LeftAction.map} z x) \with {
+    | ofNat: \fun (n: N.Nat^)(x: Intersection.Carrier (I.Int^::ofNat n)) =>
+        congr!{{Sum.Carrier n} {Middle.Carrier (I.Int^::ofNat n)}} Middle.Positive[n := n].intro _ _ (#left{mapping} n x)
+    | negSucc: \fun (n: N.Nat^)(x: Intersection.Carrier (I.Int^::negSucc n)) => \refl(#zero{(Middle.space (I.Int^::negSucc n))})
+  },
+  right := \induction (z: I.Int^) \return \forall (x: Middle.Carrier z) ->
+    #apply{Projection.map} z (#apply{MiddleAction.map} z x) = #apply{RightAction.map} z (#apply{Projection.map} z x) \with {
+    | ofNat: \fun (n: N.Nat^)(x: Middle.Carrier (I.Int^::ofNat n)) =>
+        congr!{{Small.Carrier n} {Target.Carrier (I.Int^::ofNat n)}} Target.Positive[n := n].intro _ _ (#right{mapping} n x)
+    | negSucc: \fun (n: N.Nat^)(x: Middle.Carrier (I.Int^::negSucc n)) => \refl(#zero{(Target.space (I.Int^::negSucc n))})
+  },
+};
+\module Coefficients(coefficients: Modules.Bundle);

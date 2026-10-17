@@ -1,0 +1,33 @@
+\definition ambient: Modules.Bundle := first;
+\definition target: Modules.Bundle := second;
+\definition differential: Modules.MapBetween ambient target := deltaOne;
+\definition boundaries: FirstSubmodules.Submodule := firstBoundaries;
+\definition boundaryClosed: \forall (x: ambient.Carrier) -> FirstSubmodules.Member boundaries x -> #apply{differential} x = #zero{target.space} := firstBoundaryClosed;
+\import Modules.Of[V := ambient.Carrier, space := ambient.space] \as Current;
+\import Current.Submodule[] \as Subspaces;
+\import Modules.Hom[V := ambient.Carrier, W := target.Carrier, source := ambient.space, target := target.space] \as Maps;
+\import Subspaces.Kernel[W := target.Carrier, target := target.space] \as Kernels;
+\definition cycles: Subspaces.Submodule := Kernels.kernel differential;
+\import Subspaces.Of[S := cycles] \as Cycles;
+\import Subspaces.Inside[Z := cycles] \as Inside;
+\import Modules.Submodule[V := Cycles.Carrier, space := Cycles.moduleSpace] \as CycleSubmodules;
+\definition boundariesInside: CycleSubmodules.Submodule := Inside.inside boundaries boundaryClosed;
+\import Modules.Of[V := Cycles.Carrier, space := Cycles.moduleSpace].Submodule[].Quotient[S := boundariesInside] \as Quotient;
+\definition CycleCarrier: \Set := Cycles.Carrier;
+\definition cycleSpace: Modules.Space CycleCarrier := Cycles.moduleSpace;
+\definition Cohomology: \Set := Quotient.Carrier;
+\definition cohomologySpace: Modules.Space Cohomology := Quotient.moduleSpace;
+\definition Boundaries(n: N.Nat^): \Pow ambient.Carrier := #carrier{boundaries};
+\definition classOf(x: CycleCarrier): Cohomology := Quotient.class x;
+\definition cycle(x: ambient.Carrier)(closed: #apply{differential} x = #zero{target.space}): CycleCarrier :=
+  \into[ambient.Carrier](x, #carrier{cycles}) \by { closed };
+\definition boundaryClassZero: \forall (x: CycleCarrier) -> Subspaces.Member boundaries x -> classOf x = Quotient.zeroClass := Quotient.classZero;
+\definition zeroClassBoundary: \forall (x: CycleCarrier) -> classOf x = Quotient.zeroClass -> Subspaces.Member boundaries x := Quotient.zeroClassMember;
+\definition zeroClass: Cohomology := Quotient.zeroClass;
+\definition classEqual: \forall (x, y: CycleCarrier) -> Subspaces.Member boundaries (#add{ambient.space} x (#neg{ambient.space} y)) -> classOf x = classOf y := Quotient.classRelated;
+\definition classInduction(P: Cohomology -> \Prop): (\forall (x: CycleCarrier) -> P (classOf x)) -> \forall (h: Cohomology) -> P h := Quotient.induction P;
+\definition classLinear: Modules.Hom[V := CycleCarrier, W := Cohomology, source := cycleSpace, target := cohomologySpace].Map := Quotient.projection;
+\definition ambientValue(x: CycleCarrier): ambient.Carrier := x;
+\definition equalClass: \forall (x, y: CycleCarrier) -> ambientValue x = ambientValue y -> classOf x = classOf y :=
+  \fun (x, y: CycleCarrier)(same: ambientValue x = ambientValue y) =>
+    congr!{CycleCarrier Cohomology} classOf x y same;

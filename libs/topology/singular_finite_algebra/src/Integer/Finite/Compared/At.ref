@@ -1,0 +1,41 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.Integer[P := Singular.integerComplex, N := coefficients] \as SingularCochains;
+\import Hom.Integer[P := Model.chain, N := coefficients] \as ModelCochains;
+\import Hom.IntegerEquivalence[P := Model.chain, Q := Singular.integerComplex, N := coefficients].At[k := z] \as CochainComparison;
+\import SingularCochains.Cohomology[z := z] \as SingularCohomology;
+\import ModelCochains.Cohomology[z := z] \as ModelCohomology;
+\definition cohomologyIsomorphism: Modules.Isomorphism[
+  V := ModelCohomology.Cohomology, W := SingularCohomology.Cohomology,
+  source := ModelCohomology.cohomologySpace, target := SingularCohomology.cohomologySpace].Isomorphism :=
+  CochainComparison.isomorphism comparison;
+\import Model.At[z := z].UniversalCoefficient[A := coefficients].CohomologyKernel[] \as UCT;
+\definition singularCohomology: Modules.Bundle := Modules.Bundle {
+  Carrier := SingularCohomology.Cohomology, space := SingularCohomology.cohomologySpace,
+};
+\import \root.Integer[].Middle[A := UCT.extBundle, B := UCT.cohomologyBundle, C := UCT.homBundle, D := singularCohomology,
+  sequence := UCT.sequence, isomorphism := cohomologyIsomorphism] \as Transport;
+\definition universalCoefficient: Modules.ShortExact[A := UCT.extBundle, B := singularCohomology, C := UCT.homBundle].Sequence := Transport.exact;
+\import Modules.Biproduct[V := UCT.extBundle.Carrier, W := UCT.homBundle.Carrier,
+  left := UCT.extBundle.space, right := UCT.homBundle.space] \as Sum;
+\import Modules.Isomorphism[V := Sum.Carrier, W := ModelCohomology.Cohomology,
+  source := Sum.space, target := ModelCohomology.cohomologySpace].Composition[
+  U := SingularCohomology.Cohomology, final := SingularCohomology.cohomologySpace] \as Splitting;
+\definition splitting: Modules.Isomorphism[V := Sum.Carrier, W := SingularCohomology.Cohomology,
+  source := Sum.space, target := SingularCohomology.cohomologySpace].Isomorphism :=
+  Splitting.compose cohomologyIsomorphism UCT.splitting;
+\definition homologyIsomorphism: _ := Comparisons.At[k := z].isomorphism comparison;
+
+\import resolutions.TensorComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := Singular.integerComplex, N := coefficients] \as SingularTensor;
+\import Chains.At[C := SingularTensor.complex, z := z] \as SingularHomology;
+\import Model.At[z := z].UniversalCoefficient[A := coefficients].Tensor[].Projection[].Exactness[] \as TensorExact;
+\import TensorExact.Derived[] \as Derived;
+\import \root.Integer[].CoefficientEquivalence[P := Model.chain, Q := Singular.integerComplex, coefficients := coefficients].With[e := comparison] \as TensorComparison;
+\import Chains.Equivalence[C := Model.At[z := z].UniversalCoefficient[A := coefficients].Tensor[].tensorComplex, D := SingularTensor.complex].At[k := z] \as TensorHomologyComparison;
+\definition coefficientHomologyIsomorphism: _ := TensorHomologyComparison.isomorphism TensorComparison.equivalence;
+\definition singularHomology: Modules.Bundle := Modules.Bundle {
+  Carrier := SingularHomology.Homology, space := SingularHomology.homologySpace,
+};
+\import \root.Integer[].Middle[A := TensorExact.homologyTensorBundle, B := TensorExact.homologyBundle, C := Derived.torBundle,
+  D := singularHomology, sequence := Derived.sequence, isomorphism := coefficientHomologyIsomorphism] \as HomologyTransport;
+\definition homologyUniversalCoefficient: Modules.ShortExact[A := TensorExact.homologyTensorBundle,
+  B := singularHomology, C := Derived.torBundle].Sequence := HomologyTransport.exact;

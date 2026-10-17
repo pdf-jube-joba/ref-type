@@ -1,0 +1,18 @@
+\import topology.Composition[A := Sphere, B := Sphere, C := Sphere] \as Composition;
+\definition function(x: Sphere): Sphere := apply (f x);
+\definition functionContinuous: Maps.Continuous function := Composition.composeContinuous sphereTopology sphereTopology sphereTopology f apply fc continuous;
+\import Groups.Pointwise[f := f, g := function, fc := fc, gc := functionContinuous] \as Multiplication;
+\definition functions: \forall (x: Sphere) -> Multiplication.map x = Product.point :=
+  \fun (x: Sphere) => trans!{Sphere} _ _ _
+    (congr!{{\root.Circle[].Carrier} Sphere} Coordinates.backward _ _
+      (congr!{{\root.Circle[].Carrier} {\root.Circle[].Carrier}} (multiply (Coordinates.forward (f x))) _ _ (Coordinates.rightInverse (inverse (Coordinates.forward (f x))))))
+    (congr!{{\root.Circle[].Carrier} Sphere} Coordinates.backward _ _ (rightInverse (Coordinates.forward (f x))));
+\definition sumZero: \forall (q: Carrier) -> #add{space} (#apply{(Groups.action f fc)} q) (#apply{(Groups.action function functionContinuous)} q) = #zero{space} :=
+  \fun (q: Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Multiplication.law q))
+    (trans!{Carrier} _ _ _
+      (Groups.functionEquality Multiplication.map (\root.Constants[n := N.Nat^::zero].apply Product.point)
+        Multiplication.mapContinuous (\root.Constants[n := N.Nat^::zero].continuous Product.point) functions q)
+      (Constants.actionZero Product.point q));
+\definition action: \forall (q: Carrier) -> #apply{(Groups.action function functionContinuous)} q = #neg{space} (#apply{(Groups.action f fc)} q) :=
+  \fun (q: Carrier) => Group.inverseUnique (#apply{(Groups.action f fc)} q) (#apply{(Groups.action function functionContinuous)} q)
+    (trans!{Carrier} _ _ _ (Group.comm (#apply{(Groups.action function functionContinuous)} q) (#apply{(Groups.action f fc)} q)) (sumZero q));

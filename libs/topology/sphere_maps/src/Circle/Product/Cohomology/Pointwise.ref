@@ -1,0 +1,29 @@
+\import Geometry.Universal[X := Sphere] \as Pairing;
+\definition combined(x: Sphere): Product := Pairs.pair Sphere Sphere (f x) (g x);
+\definition combinedContinuous: AxisContinuity.Continuous sphereTopology productTopology combined :=
+  Pairing.pairContinuous sphereTopology sphereTopology sphereTopology f g fc gc;
+\definition map(x: Sphere): Sphere := multiply (combined x);
+\definition mapContinuous: SelfMaps.Continuous map :=
+  Topological.composeContinuous sphereTopology productTopology sphereTopology combined multiply combinedContinuous continuous;
+\definition pull: Modules.Hom[V := Carrier, W := SphereCohomology, source := space, target := sphereSpace].Map :=
+  Restriction.At[n := one].induced combined combinedContinuous Scalars.identity;
+\definition onFirst: \forall (q: SphereCohomology) -> #apply{pull} (#apply{firstPull} q) = #apply{(action f fc)} q :=
+  \fun (q: SphereCohomology) => trans!{SphereCohomology} _ _ _
+    (sym!{SphereCohomology} _ _ (Composition.onCohomology combined combinedContinuous first firstContinuous one q))
+    (functionEquality (\fun (x: Sphere) => first (combined x)) f
+      (Topological.composeContinuous sphereTopology productTopology sphereTopology combined first combinedContinuous firstContinuous) fc
+      (\fun (x: Sphere) => \refl(f x)) q);
+\definition onSecond: \forall (q: SphereCohomology) -> #apply{pull} (#apply{secondPull} q) = #apply{(action g gc)} q :=
+  \fun (q: SphereCohomology) => trans!{SphereCohomology} _ _ _
+    (sym!{SphereCohomology} _ _ (Composition.onCohomology combined combinedContinuous second secondContinuous one q))
+    (functionEquality (\fun (x: Sphere) => second (combined x)) g
+      (Topological.composeContinuous sphereTopology productTopology sphereTopology combined second combinedContinuous secondContinuous) gc
+      (\fun (x: Sphere) => \refl(g x)) q);
+\definition law: \forall (q: SphereCohomology) ->
+  #apply{(action map mapContinuous)} q = #add{sphereSpace} (#apply{(action f fc)} q) (#apply{(action g gc)} q) :=
+  \fun (q: SphereCohomology) => trans!{SphereCohomology} _ _ _
+    (Composition.onCohomology combined combinedContinuous multiply continuous one q)
+    (trans!{SphereCohomology} _ _ _
+      (congr!{Carrier SphereCohomology} (#apply{pull}) _ _ (Primitive[].law q))
+      (trans!{SphereCohomology} _ _ _ (#addition{pull} (#apply{firstPull} q) (#apply{secondPull} q))
+        (congr2!{SphereCohomology SphereCohomology SphereCohomology} (#add{sphereSpace}) _ _ _ _ (onFirst q) (onSecond q))));

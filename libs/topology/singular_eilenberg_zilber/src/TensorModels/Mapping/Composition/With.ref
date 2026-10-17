@@ -1,0 +1,23 @@
+\import singular_cohomology.Chains[A := Simplex.Carrier t, source := LeftFinal.topology] \as FurtherLeft;
+\import singular_cohomology.Chains[A := Simplex.Carrier u, source := RightFinal.topology] \as FurtherRight;
+\import Double.Tensor[C := FurtherLeft.complex, D := FurtherRight.complex] \as FurtherTensor;
+\import Double.Total[C := FurtherTensor.complex] \as FurtherTotal;
+\import Native.Map[C := InitialLeft.complex, D := FurtherLeft.complex] \as LeftOutput;
+\import Native.Map[C := InitialRight.complex, D := FurtherRight.complex] \as RightOutput;
+\import Native.Map[C := SourceTotal.complex, D := FurtherTotal.complex] \as Output;
+\import Native.Map[C := TargetTotal.complex, D := FurtherTotal.complex].Composition[B := SourceTotal.complex] \as Compose;
+\import LeftMaps.Composition[C := Simplex.Carrier t, final := LeftFinal.topology] \as LeftFunctor;
+\import RightMaps.Composition[C := Simplex.Carrier u, final := RightFinal.topology] \as RightFunctor;
+\import Double.TensorComposition[A := InitialLeft.complex, B := FinalLeft.complex, C := FurtherLeft.complex, D := InitialRight.complex, E := FinalRight.complex, F := FurtherRight.complex].With[f := leftPush f, g := Next.leftPush g, u := rightPush f, v := Next.rightPush g] \as Functor;
+\definition law: Compose.compose (Next.native g) (native f) = Result.native (compose f g) :=
+  trans!{Output.Map} _ _ _ Functor.equality
+    (congr2!{LeftOutput.Map RightOutput.Map Output.Map} Result.tensor _ _ _ _
+      (LeftFunctor.functoriality f.leftFunction f.leftContinuous g.leftFunction g.leftContinuous)
+      (RightFunctor.functoriality f.rightFunction f.rightContinuous g.rightFunction g.rightContinuous));
+\import Native.ZeroExtension[C := FurtherTotal.complex] \as FurtherSigned;
+\import Complexes.Map[C := SourceSigned.complex, D := FurtherSigned.complex] \as SignedOutput;
+\import Complexes.Map[C := TargetSigned.complex, D := FurtherSigned.complex].Composition[B := SourceSigned.complex] \as SignedCompose;
+\import Compose.ZeroExtension[f := Next.native g, g := native f] \as SignedFunctor;
+\definition extend(f: Output.Map): SignedOutput.Map := Output.ZeroExtension[f := f].map;
+\definition signedLaw: SignedCompose.compose (Next.arrow g) (arrow f) = Result.arrow (compose f g) :=
+  trans!{SignedOutput.Map} _ _ _ (sym!{SignedOutput.Map} _ _ SignedFunctor.law) (congr!{Output.Map SignedOutput.Map} extend _ _ law);

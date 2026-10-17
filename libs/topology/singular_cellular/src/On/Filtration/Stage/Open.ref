@@ -1,0 +1,21 @@
+\definition lift(cell: Cells.CellData)(member: Cells.CellMember cells cell)(below: Nat.Lt (#dimension{cell}) limit)
+  (p: Euclidean.Disk (#dimension{cell})): Carrier := \into[A](#characteristic{cell} p, subset limit) \by {
+    include cells limit cell member below (#characteristic{cell} p)
+      (Logic.existsIntro[Euclidean.Disk (#dimension{cell}),
+        { q: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} q = #characteristic{cell} p }] p (\refl(#characteristic{cell} p)))
+  };
+\definition LocalOpen(W: \Pow Carrier): \Prop := \forall (cell: Cells.CellData)(member: Cells.CellMember cells cell)
+  (below: Nat.Lt (#dimension{cell}) limit) -> Cells.DiskOpen (#dimension{cell})
+    ({ p: Euclidean.Disk (#dimension{cell}) \where StageSpace.Member W (lift cell member below p) });
+\module For(W: \Pow Carrier, local: LocalOpen W);
+\definition liftContinuous(cell: Cells.CellData)(member: Cells.CellMember cells cell)(below: Nat.Lt (#dimension{cell}) limit):
+  topology.Continuity[A := Euclidean.Disk (#dimension{cell}), B := Carrier]
+    .Continuous (Euclidean.Dimension[n := #dimension{cell}].diskTopology) topology (lift cell member below) :=
+  topology.Continuity[A := Euclidean.Disk (#dimension{cell}), B := A].Corestriction[S := subset limit]
+    .corestrictContinuous (Euclidean.Dimension[n := #dimension{cell}].diskTopology) source
+      (lift cell member below) (#continuous{(#cellLaws{laws} cell member)});
+\definition criterion(W: \Pow Carrier): Logic.PropEquiv[StageSpace.IsOpenIn topology W, LocalOpen W] :=
+  Logic.PropEquiv[_, _] {
+    ltr := \fun (open: _)(cell: Cells.CellData)(member: _)(below: _) => liftContinuous cell member below W open,
+    rtl := \fun (local: _) => For[W := W, local := local].open,
+  };

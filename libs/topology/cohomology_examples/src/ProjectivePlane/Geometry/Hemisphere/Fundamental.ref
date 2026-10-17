@@ -1,0 +1,23 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import R.Order[] \as Order;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\import Spheres.Positive[n := N.Nat^::succ N.Nat^::zero] \as Positive;
+\import topology.Topology[Carrier := Sphere] \as SphereSpace;
+\import topology.Topology[Carrier := Real.Real] \as RealSpace;
+\definition closed: SphereSpace.IsClosedIn (Spheres.topology two) northern := Positive.heightContinuous (RealSpace.Complement (Rays.AtLeast Real.zero)) (Rays.atLeastClosed Real.zero);
+\definition antipodalHeight(x: Sphere): Split.head (Antipodal.apply x) = Real.neg (Split.head x) :=
+  trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (Split.head x))
+    (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (Split.head x)));
+\definition covers(x: Sphere): Logic.Or[SphereSpace.Member northern x, SphereSpace.Member northern (Antipodal.apply x)] :=
+  Logic.orElim (R.Le Real.zero (Split.head x)) (R.Le (Split.head x) Real.zero)
+    (Logic.Or[SphereSpace.Member northern x, SphereSpace.Member northern (Antipodal.apply x)]) (Order.leTotal Real.zero (Split.head x))
+    (\fun (member: R.Le Real.zero (Split.head x)) => Logic.Or[_, _]::left member)
+    (\fun (member: R.Le (Split.head x) Real.zero) => Logic.Or[_, _]::right
+      (R.leReplace (Real.neg Real.zero) Real.zero (Real.neg (Split.head x)) (Split.head (Antipodal.apply x))
+        Laws.negZero (sym!{Real.Real} _ _ (antipodalHeight x)) (Laws.negAntitone (Split.head x) Real.zero member)));
+\import Quotient.FundamentalDomain[F := northern, closed := closed, covers := covers, flipContinuous := Antipodal.continuous] \as Domain;
+\definition QuotientPoint: \Set := Domain.QuotientPoint;
+\definition quotientTopology: topology.Topology[Carrier := QuotientPoint].Topology := Domain.quotientTopology;
+\import Domain.Comparison[] \as Comparison;
+\import \root.ProjectivePlane[].Geometry[] \as Projective;
+\definition homeomorphism: topology.Homeomorphism[A := QuotientPoint, B := Projective.Carrier].Homeomorphism[quotientTopology, Projective.topology] := Comparison.homeomorphism;

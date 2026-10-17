@@ -1,0 +1,64 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import Lists.Membership[A := A] \as Membership;
+\import Lists.Distinct[A := A] \as Distinct;
+\import Fin.FromList[A := A] \as FromList;
+\import Fin.Tuples[A := A] \as Tuples;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Logic.either;
+\definition member: \forall (xs: Lists.List[A])(i: Fin.Fin (Lists.length A xs)) -> Membership.Occurs (FromList.tuple xs i) xs :=
+  \fun (xs: Lists.List[A])(i: Fin.Fin (Lists.length A xs)) =>
+    \idelim FromList.list (Lists.length A xs) (FromList.tuple xs) = xs \with ys: Lists.List[A] => Membership.Occurs (FromList.tuple xs i) ys \by {
+      base: FromList.occurs (Lists.length A xs) (FromList.tuple xs) i, equality: FromList.listTuple xs
+    };
+\definition occurrenceIndex(a: A): \forall (xs: Lists.List[A]) -> Membership.Occurs a xs ->
+  \exists { i: Fin.Fin (Lists.length A xs) \where FromList.tuple xs i = a } :=
+  \induction (xs: Lists.List[A]) \return Membership.Occurs a xs ->
+    \exists { i: Fin.Fin (Lists.length A xs) \where FromList.tuple xs i = a } \with {
+    | nil: \fun (empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: Membership.Occurs a tail -> \exists { i: Fin.Fin (Lists.length A tail) \where FromList.tuple tail i = a })(occurs: _) =>
+        either!{occurs {\exists { i: Fin.Fin (Lists.length A (Lists.List[A]::cons head tail)) \where FromList.tuple (Lists.List[A]::cons head tail) i = a }}
+          {\fun (same: a = head) => Logic.existsIntro[Fin.Fin (N.Nat^::succ (Lists.length A tail)),
+            { i: Fin.Fin (N.Nat^::succ (Lists.length A tail)) \where FromList.tuple (Lists.List[A]::cons head tail) i = a }] (Fin.zero (Lists.length A tail))
+            (trans!{A} _ _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)) (sym!{A} _ _ same))}
+          {\block {
+            \fun (old: Membership.Occurs a tail) \then
+            \takefrom i: \Cast[Fin.Fin (Lists.length A tail)] ({ i: Fin.Fin (Lists.length A tail) \where FromList.tuple tail i = a }) \by previous old \then
+            \return Logic.existsIntro[Fin.Fin (N.Nat^::succ (Lists.length A tail)),
+              { j: Fin.Fin (N.Nat^::succ (Lists.length A tail)) \where FromList.tuple (Lists.List[A]::cons head tail) j = a }] (Fin.succ (Lists.length A tail) i)
+              (trans!{A} _ _ _ (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) i)
+                (\bysub(Fin.Fin (Lists.length A tail), { i: Fin.Fin (Lists.length A tail) \where FromList.tuple tail i = a }, i)))
+          }}
+        }
+  };
+\definition Injective(xs: Lists.List[A]): \Prop := \forall (i, j: Fin.Fin (Lists.length A xs)) -> FromList.tuple xs i = FromList.tuple xs j -> i = j;
+\definition freshValue: \forall (head: A)(tail: Lists.List[A]) -> Logic.Not (Membership.Occurs head tail) ->
+  \forall (i: Fin.Fin (Lists.length A tail)) -> Logic.Not (head = FromList.tuple tail i) :=
+  \fun (head: A)(tail: Lists.List[A])(fresh: Logic.Not (Membership.Occurs head tail))(i: Fin.Fin (Lists.length A tail))(same: head = FromList.tuple tail i) =>
+    fresh (\idelim FromList.tuple tail i = head \with a: A => Membership.Occurs a tail \by { base: member tail i, equality: sym!{A} _ _ same });
+\definition consInjective: \forall (head: A)(tail: Lists.List[A]) -> Logic.Not (Membership.Occurs head tail) -> Injective tail -> Injective (Lists.List[A]::cons head tail) :=
+  \fun (head: A)(tail: Lists.List[A])(fresh: Logic.Not (Membership.Occurs head tail))(previous: Injective tail) => Fin.cases (Lists.length A tail)
+    (\fun (i: Fin.Fin (N.Nat^::succ (Lists.length A tail))) => \forall (j: Fin.Fin (N.Nat^::succ (Lists.length A tail))) ->
+      FromList.tuple (Lists.List[A]::cons head tail) i = FromList.tuple (Lists.List[A]::cons head tail) j -> i = j)
+    (Fin.cases (Lists.length A tail)
+      (\fun (j: Fin.Fin (N.Nat^::succ (Lists.length A tail))) => FromList.tuple (Lists.List[A]::cons head tail) (Fin.zero (Lists.length A tail)) = FromList.tuple (Lists.List[A]::cons head tail) j -> Fin.zero (Lists.length A tail) = j)
+      (\fun (same: _) => \refl(Fin.zero (Lists.length A tail)))
+      (\fun (j: Fin.Fin (Lists.length A tail))(same: _) => Logic.falseElim _ (freshValue head tail fresh j
+        (trans!{A} _ _ _ (sym!{A} _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)))
+          (trans!{A} _ _ _ same (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) j))))))
+    (\fun (i: Fin.Fin (Lists.length A tail)) => Fin.cases (Lists.length A tail)
+      (\fun (j: Fin.Fin (N.Nat^::succ (Lists.length A tail))) => FromList.tuple (Lists.List[A]::cons head tail) (Fin.succ (Lists.length A tail) i) = FromList.tuple (Lists.List[A]::cons head tail) j -> Fin.succ (Lists.length A tail) i = j)
+      (\fun (same: _) => Logic.falseElim _ (freshValue head tail fresh i
+        (trans!{A} _ _ _ (sym!{A} _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)))
+          (trans!{A} _ _ _ (sym!{A} _ _ same) (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) i)))))
+      (\fun (j: Fin.Fin (Lists.length A tail))(same: _) => congr!{{Fin.Fin (Lists.length A tail)} {Fin.Fin (N.Nat^::succ (Lists.length A tail))}} (Fin.succ (Lists.length A tail)) _ _
+        (previous i j (trans!{A} _ _ _ (sym!{A} _ _ (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) i))
+          (trans!{A} _ _ _ same (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) j))))));
+\definition injective: \forall (xs: Lists.List[A]) -> Distinct.Distinct xs -> Injective xs :=
+  \fun (xs: Lists.List[A])(distinct: Distinct.Distinct xs) => distinct Injective
+    (\fun (i, j: Fin.Fin N.Nat^::zero)(same: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))) consInjective;

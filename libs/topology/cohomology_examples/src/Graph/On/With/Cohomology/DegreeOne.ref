@@ -1,0 +1,44 @@
+\import Modules.Hom[V := H1.CycleCarrier, W := Chords.Carrier, source := H1.cycleSpace, target := Chords.space] \as Cycles;
+\definition evaluate: Cycles.Map := Cycles.Map {
+  apply := \fun (x: H1.CycleCarrier) => evaluateChord x,
+  addition := \fun (x, y: H1.CycleCarrier) => #addition{chordProjection} x y,
+  scalar := \fun (a: I.Int^)(x: H1.CycleCarrier) => #scalar{chordProjection} a x,
+};
+\import Modules.Of[V := H1.CycleCarrier, space := H1.cycleSpace].Submodule[].Quotient[S := H1.boundariesInside] \as Quotient;
+\import Quotient.To[W := Chords.Carrier, target := Chords.space] \as Descent;
+\definition kills: Descent.Vanishes evaluate := \block {
+  \fun (x: H1.CycleCarrier)(boundary: _) \then
+  \takefrom f: \Cast[Vertices.Carrier] ({ f: Vertices.Carrier \where delta f = x }) \by boundary \then
+  \let equal: delta f = x := \bysub(Vertices.Carrier, { f: Vertices.Carrier \where delta f = x }, f) \then
+  \return trans!{Chords.Carrier} _ _ _ (congr!{Edges.Carrier Chords.Carrier} evaluateChord _ _ (sym!{Edges.Carrier} _ _ equal)) (evaluateChordBoundary f)
+};
+\definition forward: Modules.Hom[V := H1.Cohomology, W := Chords.Carrier, source := H1.cohomologySpace, target := Chords.space].Map := Descent.descend evaluate kills;
+\definition extendAdd(f, g: Chords.Carrier): extendChord (Chords.add f g) = Edges.add (extendChord f) (extendChord g) :=
+  Edges.ext _ _ (\induction (e: Edge) \return extendChord (Chords.add f g) e = Edges.add (extendChord f) (extendChord g) e \with {
+    | inl: \fun (e: ForestEdge) => sym!{A.Carrier} _ _ (Group.zeroLeft Group.zero)
+    | inr: \fun (j: Fin.Fin chords) => \refl(Group.add (f j) (g j))
+  });
+\import \root.Integral[].Maps[A := chordValues, B := first] \as LinearExtension;
+\definition extension: Modules.Hom[V := Chords.Carrier, W := Edges.Carrier, source := Chords.space, target := Edges.space].Map := LinearExtension.fromAdditive extendChord extendAdd;
+\import Modules.Hom[V := Chords.Carrier, W := H1.CycleCarrier, source := Chords.space, target := H1.cycleSpace] \as Inclusion;
+\definition include: Inclusion.Map := Inclusion.Map {
+  apply := \fun (f: Chords.Carrier) => H1.cycle (extendChord f) (\refl(Zero.Carrier::zero)),
+  addition := #addition{extension}, scalar := #scalar{extension},
+};
+\import Modules.Hom[V := H1.CycleCarrier, W := H1.Cohomology, source := H1.cycleSpace, target := H1.cohomologySpace].Composition[U := Chords.Carrier, domain := Chords.space] \as Composition;
+\definition backward: Modules.Hom[V := Chords.Carrier, W := H1.Cohomology, source := Chords.space, target := H1.cohomologySpace].Map := Composition.compose H1.classLinear include;
+\definition leftInverse(f: Chords.Carrier): #apply{forward} (#apply{backward} f) = f :=
+  trans!{Chords.Carrier} _ _ _ (Descent.onClass evaluate kills (#apply{include} f)) (chordRoundtrip f);
+\definition classReconstruction(f: H1.CycleCarrier): H1.classOf f = #apply{backward} (evaluateChord f) :=
+  H1.classEqual f (#apply{include} (evaluateChord f))
+    (Logic.existsIntro[Vertices.Carrier, { g: Vertices.Carrier \where delta g = Edges.add f (Edges.neg (extendChord (evaluateChord f))) }]
+      (potential f) (sym!{Edges.Carrier} _ _ (reductionEquation f)));
+\definition rightInverse: \forall (h: H1.Cohomology) -> #apply{backward} (#apply{forward} h) = h :=
+  H1.classInduction (\fun (h: H1.Cohomology) => #apply{backward} (#apply{forward} h) = h)
+    (\fun (f: H1.CycleCarrier) => trans!{H1.Cohomology} _ _ _
+      (congr!{Chords.Carrier H1.Cohomology} (#apply{backward}) _ _ (Descent.onClass evaluate kills f))
+      (sym!{H1.Cohomology} _ _ (classReconstruction f)));
+\definition isomorphism: Modules.Isomorphism[V := H1.Cohomology, W := Chords.Carrier, source := H1.cohomologySpace, target := Chords.space].Isomorphism :=
+  Modules.Isomorphism[V := H1.Cohomology, W := Chords.Carrier, source := H1.cohomologySpace, target := Chords.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := rightInverse, rightInverse := leftInverse,
+  };

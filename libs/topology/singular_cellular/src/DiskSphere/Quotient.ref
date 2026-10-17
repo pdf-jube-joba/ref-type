@@ -1,0 +1,27 @@
+\definition boundary: \Pow Disk.Disk := { p: Disk.Disk \where squared p = Real.one };
+\import algebraic_topology.Collapse[A := Disk.Disk, subset := boundary] \as Collapse;
+\import topological_constructions.RelationQuotient[A := Disk.Disk, relation := Collapse.Related] \as Quotient;
+\import Quotient.Classification[B := Ambient.Sphere, q := map] \as Classification;
+\import \parent.Fibers[] \as Fibers;
+\import \parent.Continuity[] \as Continuity;
+\import \parent.Surjection[] \as Surjection;
+\definition respects: Classification.Respects := \fun (p, q: Disk.Disk)(related: Collapse.Related p q) =>
+  either!{related {map p = map q}
+    {congr!{Disk.Disk Ambient.Sphere} map p q}
+    {\fun (both: Logic.And[squared p = Real.one, squared q = Real.one]) =>
+      trans!{Ambient.Sphere} _ _ _ (Fibers.onBoundary p (#left{both})) (sym!{Ambient.Sphere} _ _ (Fibers.onBoundary q (#right{both})))}
+  };
+\definition separates: Classification.Separates := Fibers.separates;
+\import Disk.Compactness[] \as DiskCompactness;
+\import Ambient.Compactness[] \as SphereCompactness;
+\import topological_constructions.CompactQuotient[A := Disk.Disk, B := Ambient.Sphere,
+  source := Disk.diskTopology, target := Ambient.sphereTopology, q := map] \as Compact;
+\definition quotientMap: topological_constructions.Quotient[A := Disk.Disk, B := Ambient.Sphere]
+  .IsQuotientMap[Disk.diskTopology, Ambient.sphereTopology, map] :=
+  Compact.quotientMap DiskCompactness.compact SphereCompactness.sphereHausdorff Continuity.continuous Surjection.onto;
+\definition homeomorphism: topology.Homeomorphism[A := Collapse.Carrier, B := Ambient.Sphere]
+  .Homeomorphism[Collapse.topology Disk.diskTopology, Ambient.sphereTopology] :=
+  Classification.homeomorphism Disk.diskTopology Ambient.sphereTopology Collapse.equivalence respects separates quotientMap;
+\definition forward: Collapse.Carrier -> Ambient.Sphere := Classification.apply Collapse.equivalence respects;
+\definition onClass: \forall (p: Disk.Disk) -> forward (Collapse.class p) = map p :=
+  Quotient.Descent[C := Ambient.Sphere].onClass Collapse.equivalence map respects;

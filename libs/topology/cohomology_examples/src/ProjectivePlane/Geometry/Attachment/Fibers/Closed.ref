@@ -1,0 +1,26 @@
+\import topology.Topology[Carrier := Point] \as Space;
+\import topology.Topology[Carrier := Circle.Carrier] \as CircleSpace;
+\import topology.Topology[Carrier := Disk.Disk] \as DiskSpace;
+\import topological_constructions.Coproduct[A := Circle.Carrier, B := Disk.Disk] \as Sum;
+\import topology.Continuity[A := Circle.Carrier, B := Point] \as LeftMaps;
+\import topology.Continuity[A := Disk.Disk, B := Point] \as RightMaps;
+\import topology.Continuity[A := Disk.Coordinate, B := Disk.Coordinate].Corestriction[S := Disk.ClosedBall] \as DiskInclusion;
+\import Disk.Geometry[] \as Geometry;
+\definition DiskBoundary: \Pow Disk.Disk := { x: Disk.Disk \where Disk.normSquared x = Real.one };
+\definition diskBoundaryClosed: DiskSpace.IsClosedIn Disk.diskTopology DiskBoundary :=
+  DiskInclusion.inclusionContinuous Disk.topology ({ x: Disk.Coordinate \where Logic.Not (Disk.normSquared x = Real.one) }) Geometry.sphereClosed;
+\definition leftPreimage: LeftMaps.Preimage Attached.inclusion (Space.Complement BaseImage) = CircleSpace.Empty :=
+  \axiom:setext(LeftMaps.Preimage Attached.inclusion (Space.Complement BaseImage), CircleSpace.Empty,
+    \fun (x: Circle.Carrier)(outside: Logic.Not (\In[Point] BaseImage (Attached.inclusion x))) => outside (baseMember x),
+    \fun (x: Circle.Carrier)(empty: Logic.False) => Logic.falseElim (Logic.Not (\In[Point] BaseImage (Attached.inclusion x))) empty);
+\definition rightPreimage: RightMaps.Preimage Attached.characteristic (Space.Complement BaseImage) = DiskSpace.Complement DiskBoundary :=
+  \axiom:setext(RightMaps.Preimage Attached.characteristic (Space.Complement BaseImage), DiskSpace.Complement DiskBoundary,
+    \fun (x: Disk.Disk)(outside: Logic.Not (\In[Point] BaseImage (Attached.characteristic x)))(onBoundary: Disk.normSquared x = Real.one) => outside (boundaryInBase x onBoundary),
+    \fun (x: Disk.Disk)(interior: Logic.Not (Disk.normSquared x = Real.one))(member: \In[Point] BaseImage (Attached.characteristic x)) => interior (baseOnlyBoundary x member));
+\definition baseClosed: Space.IsClosedIn pointTopology BaseImage := Logic.And[_, _]::#
+  (\idelim CircleSpace.Empty = LeftMaps.Preimage Attached.inclusion (Space.Complement BaseImage)
+    \with U: \Pow Circle.Carrier => CircleSpace.IsOpenIn Circle.topology U
+    \by { base: #emptyOpen{(CircleSpace.topologyLaws Circle.topology)}, equality: sym!{\Pow Circle.Carrier} _ _ leftPreimage })
+  (\idelim DiskSpace.Complement DiskBoundary = RightMaps.Preimage Attached.characteristic (Space.Complement BaseImage)
+    \with U: \Pow Disk.Disk => DiskSpace.IsOpenIn Disk.diskTopology U
+    \by { base: diskBoundaryClosed, equality: sym!{\Pow Disk.Disk} _ _ rightPreimage });

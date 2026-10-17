@@ -1,0 +1,25 @@
+\import N.Basic[].Prop[] \as Bounds;
+\import Simplex.Identities[] \as Identities;
+\import \parent.At[n := n] \as Lower;
+\import \parent.At[n := N.Nat^::succ n] \as Middle;
+\import \parent.At[n := N.Nat^::succ (N.Nat^::succ n)] \as Higher;
+\import \parent.Face[n := n, i := j] \as LeftLower;
+\import \parent.Face[n := N.Nat^::succ n, i := Fin.widen (N.Nat^::succ (N.Nat^::succ n)) i] \as LeftUpper;
+\import \parent.Face[n := n, i := i] \as RightLower;
+\import \parent.Face[n := N.Nat^::succ n, i := Fin.succ (N.Nat^::succ (N.Nat^::succ n)) j] \as RightUpper;
+\import TensorModels.Mapping[p := n, q := n, r := N.Nat^::succ n, s := N.Nat^::succ n].Composition[t := N.Nat^::succ (N.Nat^::succ n), u := N.Nat^::succ (N.Nat^::succ n)] \as Functor;
+\import TensorModels.Mapping[p := n, q := n, r := N.Nat^::succ (N.Nat^::succ n), s := N.Nat^::succ (N.Nat^::succ n)] \as Direct;
+\definition leftFactors: Direct.Map := Functor.compose LeftLower.factors LeftUpper.factors;
+\definition rightFactors: Direct.Map := Functor.compose RightLower.factors RightUpper.factors;
+\import Direct.Equality[f := leftFactors, g := rightFactors] \as Equality;
+\definition points: Bounds.Le i j -> \forall (x: Simplex.Carrier n) -> leftFactors.leftFunction x = rightFactors.leftFunction x :=
+  \fun (ordered: Bounds.Le i j)(x: Simplex.Carrier n) => Identities.faceIdentity n i j x ordered;
+\definition law: Bounds.Le i j -> \forall (z: I.Int^)(x: Lower.Carrier z) ->
+  #apply{LeftUpper.Degree[z := z].map} (#apply{LeftLower.Degree[z := z].map} x) =
+    #apply{RightUpper.Degree[z := z].map} (#apply{RightLower.Degree[z := z].map} x) :=
+  \fun (ordered: Bounds.Le i j)(z: I.Int^)(x: Lower.Carrier z) =>
+    trans!{{Higher.Carrier z}} _ _ _
+      (congr!{Direct.Arrow {Higher.Carrier z}} (\fun (f: Direct.Arrow) => Direct.evaluate f z x) _ _ Functor.With[f := LeftLower.factors, g := LeftUpper.factors].signedLaw)
+      (trans!{{Higher.Carrier z}} _ _ _
+        (congr!{Direct.Arrow {Higher.Carrier z}} (\fun (f: Direct.Arrow) => Direct.evaluate f z x) _ _ (Equality.signedLaw (points ordered) (points ordered)))
+        (sym!{{Higher.Carrier z}} _ _ (congr!{Direct.Arrow {Higher.Carrier z}} (\fun (f: Direct.Arrow) => Direct.evaluate f z x) _ _ Functor.With[f := RightLower.factors, g := RightUpper.factors].signedLaw)));

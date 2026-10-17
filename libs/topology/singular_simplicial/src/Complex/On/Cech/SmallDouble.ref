@@ -1,0 +1,70 @@
+\import \parent.SmallAugmentation[] \as Augmentation;
+\import \parent.\parent.Realization[].Stars[] \as Stars;
+\import singular_cohomology.Small[A := Realization.Carrier, source := Realization.topology, family := Stars.family] \as Small;
+\import \parent.Bicomplex[] \as Source;
+\import Modules.Zero[] \as Zero;
+\import singular_cech.Algebra[R := I.Int^, ring := Integers.ring].Concentrated[C := Small.complex] \as OriginalTarget;
+\import Doubles.Transpose[C := OriginalTarget.complex] \as Target;
+\import Doubles.Map[C := Source.complex, D := Target.complex] \as Maps;
+\definition data: \forall (p, q: N.Nat^) ->
+  Modules.Hom[V := Carrier p q, W := Target.family.Carrier p q, source := space p q, target := Target.family.space p q].Map :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^) -> Modules.Hom[V := Carrier p q, W := Target.family.Carrier p q, source := space p q, target := Target.family.space p q].Map \with {
+    | zero: \fun (q: N.Nat^) => singular_cohomology.SimplicialChains[].On[X := \parent.Vertical[p := N.Nat^::zero].object]
+        .Mapping[Y := singular_cohomology.Small[A := Realization.Carrier, source := Realization.topology, family := Stars.family].Simplices[].object].At[n := q].push Augmentation.simplicial
+    | succ: \fun (p: N.Nat^)(previous: _)(q: N.Nat^) =>
+        Modules.Hom[V := Carrier (N.Nat^::succ p) q, W := Target.family.Carrier (N.Nat^::succ p) q, source := space (N.Nat^::succ p) q, target := Target.family.space (N.Nat^::succ p) q].zeroMap
+  };
+\module Horizontal(q: N.Nat^);
+\definition horizontal: \forall (p, q: N.Nat^)(x: Carrier (N.Nat^::succ p) q) ->
+  #apply{(Target.differential.horizontal p q)} (#apply{(data (N.Nat^::succ p) q)} x) = #apply{(data p q)} (#apply{(Source.horizontal p q)} x) :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^)(x: Carrier (N.Nat^::succ p) q) ->
+    #apply{(Target.differential.horizontal p q)} (#apply{(data (N.Nat^::succ p) q)} x) = #apply{(data p q)} (#apply{(Source.horizontal p q)} x) \with {
+      | zero: \fun (q: N.Nat^)(x: Carrier (N.Nat^::succ N.Nat^::zero) q) => sym!{{Small.Carrier q}} _ _ (Horizontal[q := q].all x)
+      | succ: \fun (p: N.Nat^)(previous: _)(q: N.Nat^)(x: Carrier (N.Nat^::succ (N.Nat^::succ p)) q) => \refl(Zero.Carrier::zero)
+    };
+\definition vertical: \forall (p, q: N.Nat^)(x: Carrier p (N.Nat^::succ q)) ->
+  #apply{(Target.differential.vertical p q)} (#apply{(data p (N.Nat^::succ q))} x) = #apply{(data p q)} (#apply{(Source.vertical p q)} x) :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^)(x: Carrier p (N.Nat^::succ q)) ->
+    #apply{(Target.differential.vertical p q)} (#apply{(data p (N.Nat^::succ q))} x) = #apply{(data p q)} (#apply{(Source.vertical p q)} x) \with {
+      | zero: \fun (q: N.Nat^) => #commutes{Augmentation.map} q
+      | succ: \fun (p: N.Nat^)(previous: _)(q: N.Nat^)(x: Carrier (N.Nat^::succ p) (N.Nat^::succ q)) => \refl(Zero.Carrier::zero)
+    };
+\definition mapping: Maps.Map := \into[Maps.Data](data, Maps.Map) \by { Maps.Laws[data] { horizontal := horizontal, vertical := vertical } };
+\definition vanishes: Doubles.ConcentratedFirst[C := Target.complex].Vanishes :=
+  \fun (p, q: N.Nat^)(x: Zero.Carrier) => Zero.unique x Zero.Carrier::zero;
+\import Doubles.Total[C := Source.complex] \as Total;
+\import Doubles.Total[C := Target.complex] \as TargetTotal;
+\import Maps.Total[f := mapping] \as Induced;
+\import Doubles.ConcentratedFirst[C := Target.complex] \as Concentrated;
+\definition point(n: N.Nat^): Doubles.Index n := Concentrated.point n;
+\definition zeroIndex: \forall (n: N.Nat^)(i: Doubles.Index n) -> #first{i} = N.Nat^::zero -> i = point n := Concentrated.zeroIndex;
+\import Doubles.Row[C := Target.complex, p := N.Nat^::zero] \as TargetRow;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\definition identification: Chains.Map[C := TargetRow.complex, D := Small.complex].Map := Chains.Map[C := TargetRow.complex, D := Small.complex].Map {
+  apply := \fun (n: N.Nat^)(x: Small.Carrier n) => x,
+  addition := \fun (n: N.Nat^)(x, y: Small.Carrier n) => \refl(#add{(Small.space n)} x y),
+  scalar := \fun (n: N.Nat^)(a: I.Int^)(x: Small.Carrier n) => \refl(#smul{(Small.space n)} a x),
+  commutes := \fun (n: N.Nat^)(x: Small.Carrier (N.Nat^::succ n)) => \refl(#apply{Small.complex.differential} n x),
+};
+\import Chains.Map[C := TargetRow.complex, D := Small.complex].Composition[B := TargetTotal.complex] \as ProjectionComposition;
+\definition projection: Chains.Map[C := TargetTotal.complex, D := Small.complex].Map := ProjectionComposition.compose identification (Concentrated.forward vanishes);
+\import Chains.Map[C := TargetTotal.complex, D := Small.complex].Composition[B := Total.complex] \as Composition;
+\definition comparison: Chains.Map[C := Total.complex, D := Small.complex].Map := Composition.compose projection Induced.map;
+\import singular_cohomology.Chains[A := Realization.Carrier, source := Realization.topology] \as Singular;
+\import Chains.Map[C := Small.complex, D := Singular.complex].Composition[B := Total.complex] \as Inclusion;
+\definition global: Chains.Map[C := Total.complex, D := Singular.complex].Map := Inclusion.compose Small.inclusion comparison;
+\module Exact;
+\module Generators(n: N.Nat^);
+\module ProjectionIso;
+\definition equivalenceExists: \exists { e: Chains.Equivalence[C := Total.complex, D := Small.complex].Equivalence \where #forward{e} = comparison } := \block {
+  \takefrom e: \Cast[Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence]
+    ({ e: Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence \where #forward{e} = Induced.map })
+    \by Exact[].Equivalence[].existence \then
+  \let result: Chains.Equivalence[C := Total.complex, D := Small.complex].Equivalence :=
+    Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Composition[E := Small.complex].compose e ProjectionIso[].equivalence \then
+  \return Logic.existsIntro[Chains.Equivalence[C := Total.complex, D := Small.complex].Equivalence,
+    { e: Chains.Equivalence[C := Total.complex, D := Small.complex].Equivalence \where #forward{e} = comparison }] result
+    (congr!{{Chains.Map[C := Total.complex, D := TargetTotal.complex].Map} {Chains.Map[C := Total.complex, D := Small.complex].Map}}
+      (Composition.compose projection) _ _ (\bysub(Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence,
+        { e: Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence \where #forward{e} = Induced.map }, e)))
+};

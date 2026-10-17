@@ -1,0 +1,64 @@
+\import \parent.\parent.At[i := i] \as Component;
+\import Domain.Subspace[S := component i] \as Patch;
+\import Space.Subspace[S := Component.subset] \as ComponentSpace;
+\import topological_constructions.Product[A := X, B := fibers i] \as FiberProduct;
+\import FiberProduct.Maps[] \as FiberProjections;
+\definition Fiber: \Set := FiberProduct.CarrierSet;
+\definition fiberTopology: topology.Topology[Carrier := Fiber].Topology := FiberProduct.topology factor (spaces i);
+\definition DomainPart: \Set := Patch.CarrierSet;
+\definition patchTopology: topology.Topology[Carrier := DomainPart].Topology := Patch.topology productTopology;
+\definition forward(p: Fiber): DomainPart :=
+  \into[Product.CarrierSet](Pair.pair X Carrier (Pair.first X (fibers i) p) (injection i (Pair.second X (fibers i) p)), component i) \by {
+    Logic.existsIntro[fibers i,
+      { y: fibers i \where Logic.And[topology.Topology[Carrier := fibers i].Member (topology.Topology[Carrier := fibers i].Whole) y,
+        injection i y = injection i (Pair.second X (fibers i) p)] }] (Pair.second X (fibers i) p)
+      (Logic.And[_, _]::# (\refl(Pair.second X (fibers i) p)) (\refl(injection i (Pair.second X (fibers i) p))))
+  };
+\definition second(p: DomainPart): ComponentSpace.CarrierSet :=
+  \into[Carrier](Pair.second X Carrier p, Component.subset) \by { \bysub(Product.CarrierSet, component i, p) };
+\definition backward(p: DomainPart): Fiber :=
+  Pair.pair X (fibers i) (Pair.first X Carrier p) (#backward{Component.homeomorphism} (second p));
+\import topology.Continuity[A := DomainPart, B := Product.CarrierSet].Corestriction[S := component i] \as Inclusion;
+\import topology.Composition[A := DomainPart, B := Product.CarrierSet, C := X] \as FirstComposition;
+\import topology.Composition[A := DomainPart, B := Product.CarrierSet, C := Carrier] \as SecondComposition;
+\definition firstContinuous: topology.Continuity[A := DomainPart, B := X].Continuous patchTopology factor (\fun (p: DomainPart) => Pair.first X Carrier p) :=
+  FirstComposition.composeContinuous patchTopology productTopology factor (\fun (p: DomainPart) => p) (Pair.first X Carrier)
+    (Inclusion.inclusionContinuous productTopology) (Projections.firstContinuous factor topology);
+\import topology.Continuity[A := DomainPart, B := Carrier].Corestriction[S := Component.subset] \as IntoSecond;
+\definition secondContinuous: topology.Continuity[A := DomainPart, B := ComponentSpace.CarrierSet].Continuous patchTopology (ComponentSpace.topology topology) second :=
+  IntoSecond.corestrictContinuous patchTopology topology second
+    (SecondComposition.composeContinuous patchTopology productTopology topology (\fun (p: DomainPart) => p) (Pair.second X Carrier)
+      (Inclusion.inclusionContinuous productTopology) (Projections.secondContinuous factor topology));
+\import topology.Homeomorphism[A := fibers i, B := ComponentSpace.CarrierSet] \as Components;
+\import topology.Composition[A := DomainPart, B := ComponentSpace.CarrierSet, C := fibers i] \as InverseComposition;
+\import FiberProduct.Universal[X := DomainPart] \as Backward;
+\definition backwardContinuous: topology.Continuity[A := DomainPart, B := Fiber].Continuous patchTopology fiberTopology backward :=
+  Backward.pairContinuous patchTopology factor (spaces i) (\fun (p: DomainPart) => Pair.first X Carrier p)
+    (\fun (p: DomainPart) => #backward{Component.homeomorphism} (second p)) firstContinuous
+    (InverseComposition.composeContinuous patchTopology (ComponentSpace.topology topology) (spaces i) second (#backward{Component.homeomorphism})
+      secondContinuous (#backwardContinuous{(Components.laws (spaces i) (ComponentSpace.topology topology) Component.homeomorphism)}));
+\import topology.Composition[A := DomainPart, B := Fiber, C := B] \as Composition;
+\import Pair.Prop[A := X, B := Carrier] \as Pairs;
+\definition recovers(p: DomainPart):
+  Pair.pair X Carrier (Pair.first X (fibers i) (backward p)) (injection i (Pair.second X (fibers i) (backward p))) = p :=
+  trans!{Product.CarrierSet} _ _ _
+    (congr!{Carrier Product.CarrierSet} (Pair.pair X Carrier (Pair.first X Carrier p)) _ _
+      (#rightInverse{(Components.laws (spaces i) (ComponentSpace.topology topology) Component.homeomorphism)} (second p)))
+    (Pairs.eta p);
+\import Gluing.Restriction[U := component i] \as Restriction;
+\definition local: \forall (f: Product.CarrierSet -> B) ->
+  topology.Continuity[A := Fiber, B := B].Continuous fiberTopology target
+    (\fun (p: Fiber) => f (Pair.pair X Carrier (Pair.first X (fibers i) p) (injection i (Pair.second X (fibers i) p)))) ->
+  Gluing.ContinuousOn productTopology target f (component i) := \block {
+  \fun (f: _)(branch: _) \then
+  \let assembled: DomainPart -> B := \fun (p: DomainPart) =>
+    f (Pair.pair X Carrier (Pair.first X (fibers i) (backward p)) (injection i (Pair.second X (fibers i) (backward p)))) \then
+  \let continuous: topology.Continuity[A := DomainPart, B := B].Continuous patchTopology target assembled :=
+    Composition.composeContinuous patchTopology fiberTopology target backward
+      (\fun (p: Fiber) => f (Pair.pair X Carrier (Pair.first X (fibers i) p) (injection i (Pair.second X (fibers i) p)))) backwardContinuous branch \then
+  \return Restriction.localFromRestriction productTopology target f (componentOpen i)
+    (\idelim assembled = (\fun (p: DomainPart) => f p) \with h: (DomainPart -> B) => topology.Continuity[A := DomainPart, B := B].Continuous patchTopology target h \by {
+      base: continuous,
+      equality: \axiom:funext(assembled, (\fun (p: DomainPart) => f p), \fun (p: DomainPart) => congr!{Product.CarrierSet B} f _ _ (recovers p))
+    })
+};

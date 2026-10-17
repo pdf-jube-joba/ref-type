@@ -1,0 +1,40 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\definition next: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
+\import \parent.\parent.Based[n := n] \as Based;
+\import Supported.Cell[n := n, z := degree] \as Source;
+\import Supported.Cell[n := n, z := next] \as Target;
+\import Based.To[W := Global.Carrier next, target := Global.space next] \as Universal;
+\module At(c: Based.Cell);
+\definition values(f: Source.Carrier)(c: Based.Cell): Global.Carrier next := At[c := c].value f;
+\definition raw(f: Source.Carrier): Algebra.HomAt[n := n, z := next].Carrier := Universal.extension (values f);
+\definition carried(f: Source.Carrier): Point[n := n, z := next].Member (raw f) :=
+  \fun (c: Based.Cell) => \idelim values f c = #apply{(raw f)} (Based.generator c) \with y: Global.Carrier next =>
+    \parent.Cell[n := n, c := c].Degree[z := next].Member y \by {
+      base: At[c := c].member f, equality: sym!{{Global.Carrier next}} _ _ (Universal.onGenerator (values f) c)
+    };
+\definition value(f: Source.Carrier): Target.Carrier := Target.intro (raw f) (carried f);
+\import Modules.Hom[V := Total.Carrier n, W := Global.Carrier next, source := Total.space n, target := Global.space next] \as Hom;
+\definition map: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map :=
+  Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map {
+    apply := value,
+    addition := \fun (f, g: Source.Carrier) => Universal.ext (raw (#add{Source.space} f g)) (Hom.plus (raw f) (raw g))
+      (\fun (c: Based.Cell) => trans!{{Global.Carrier next}} _ _ _ (Universal.onGenerator (values (#add{Source.space} f g)) c)
+        (trans!{{Global.Carrier next}} _ _ _ (At[c := c].addition f g)
+          (sym!{{Global.Carrier next}} _ _ (congr2!{{Global.Carrier next} {Global.Carrier next} {Global.Carrier next}} (#add{(Global.space next)}) _ _ _ _
+            (Universal.onGenerator (values f) c) (Universal.onGenerator (values g) c))))),
+    scalar := \fun (a: I.Int^)(f: Source.Carrier) => Universal.ext (raw (#smul{Source.space} a f)) (#smul{(Algebra.HomAt[n := n, z := next].space)} a (raw f))
+      (\fun (c: Based.Cell) => trans!{{Global.Carrier next}} _ _ _ (Universal.onGenerator (values (#smul{Source.space} a f)) c)
+        (trans!{{Global.Carrier next}} _ _ _ (At[c := c].scalar a f)
+          (sym!{{Global.Carrier next}} _ _ (congr!{{Global.Carrier next} {Global.Carrier next}} (#smul{(Global.space next)} a) _ _ (Universal.onGenerator (values f) c))))),
+  };
+\import Based.To[W := Global.Carrier degree, target := Global.space degree] \as LowerUniversal;
+\definition boundary: \forall (f: Source.Carrier) ->
+  #apply{(Supported.operators.boundary n degree)} f = #zero{(Supported.space n (Degrees.previous degree))} ->
+  #apply{(Supported.operators.boundary n next)} (#apply{map} f) = f :=
+  \fun (f: Source.Carrier)(closed: #apply{(Supported.operators.boundary n degree)} f = #zero{(Supported.space n (Degrees.previous degree))}) =>
+    LowerUniversal.ext (#apply{(Supported.operators.boundary n next)} (value f)) f
+      (\fun (c: Based.Cell) => trans!{{Global.Carrier degree}} _ _ _
+        (congr!{{Global.Carrier next} {Global.Carrier degree}} (#apply{Global.differential} next) _ _ (Universal.onGenerator (values f) c))
+        (At[c := c].boundary f
+          (congr!{{Supported.Carrier n (Degrees.previous degree)} {Global.Carrier (Degrees.previous degree)}}
+            (\fun (g: Supported.Carrier n (Degrees.previous degree)) => #apply{g} (Based.generator c)) _ _ closed)));

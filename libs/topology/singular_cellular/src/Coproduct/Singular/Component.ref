@@ -1,0 +1,36 @@
+\import singular_cohomology.Simplices[A := fibers i, source := spaces i] \as Simplices;
+\import singular_cohomology.Chains[A := fibers i, source := spaces i] \as Chains;
+\import singular_cohomology.Maps[A := fibers i, B := Carrier, source := spaces i, target := topology] \as Maps;
+\import \parent.\parent.At[i := i] \as Image;
+\definition simplex(n: N.Nat^)(sigma: Simplices.Carrier n): SmallSimplices.Carrier n :=
+  \into[WholeSimplices.Carrier n](Maps.postcompose n (injection i) Image.continuous sigma, SmallSimplices.Small n) \by {
+    \exact(SmallSimplices.Witness[n, Maps.postcompose n (injection i) Image.continuous sigma] {
+      element := Image.subset,
+      member := \exact(\parent.Witness[Image.subset] { index := i, same := \refl(Image.subset) }, \parent.Witness[Image.subset]),
+      contained := \fun (x: Simplex.Carrier n) => Membership.belongs (injection i (sigma x)),
+    }, SmallSimplices.Witness[n, Maps.postcompose n (injection i) Image.continuous sigma])
+  };
+\import algebraic_topology.Semisimplicial[].Maps[X := Simplices.object, Y := SmallSimplices.object] \as Simplicial;
+\definition simplicialMap: Simplicial.Map := Simplicial.Map {
+  apply := simplex,
+  faces := \fun (n: N.Nat^)(j: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplices.Carrier (N.Nat^::succ n)) =>
+    \axiom:funext(simplex n (Simplices.face n j sigma), SmallSimplices.face n j (simplex (N.Nat^::succ n) sigma),
+      \fun (x: Simplex.Carrier n) => \refl(injection i (sigma (Simplex.face n j x)))),
+};
+\import singular_cohomology.SimplicialChains[].On[X := Simplices.object].Mapping[Y := SmallSimplices.object] \as Push;
+\definition nonnegativeMap: Nonnegative.Map[C := Chains.complex, D := Small.complex].Map := Push.map simplicialMap;
+\import Nonnegative.ZeroExtension[C := Chains.complex] \as Extension;
+\import Nonnegative.Map[C := Chains.complex, D := Small.complex].ZeroExtension[f := nonnegativeMap] \as Native;
+\definition complex: chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Complex := Extension.complex;
+\definition map: chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Map[C := complex, D := SmallExtension.complex].Map := Native.map;
+
+\definition generator(n: N.Nat^)(sigma: Simplices.Carrier n): complex.family.Carrier (I.Int^::ofNat n) :=
+  Extension.Positive[n := n].intro (Chains.generator n sigma);
+\definition onGenerator: \forall (n: N.Nat^)(sigma: Simplices.Carrier n) -> #apply{map} (I.Int^::ofNat n) (generator n sigma) =
+  SmallExtension.Positive[n := n].intro (Small.generator n (simplex n sigma)) :=
+  \fun (n: N.Nat^)(sigma: Simplices.Carrier n) =>
+    congr!{Small.Carrier n {SmallExtension.Carrier (I.Int^::ofNat n)}} (SmallExtension.Positive[n := n].intro) _ _
+      (Push.At[n := n].onGenerator simplicialMap sigma);
+
+\definition zeroBelow: \forall (n: N.Nat^)(x: complex.family.Carrier (I.Int^::negSucc n)) -> x = #zero{(complex.family.space (I.Int^::negSucc n))} :=
+  \fun (n: N.Nat^) => Extension.Negative[n := n].zero;

@@ -1,0 +1,20 @@
+\definition length: N.Nat^ := Lists.length (Tuple n) xs;
+\definition laws: Enumerations.DistinctEnumerationLaws[simplices, xs] := \bysub(Lists.List[Tuple n], Enumerations.DistinctEnumeration[simplices], xs);
+\definition enumerate(i: Fin.Fin length): Simplex n :=
+  \into[Tuple n](FromList.tuple xs i, Simplex n) \by { #included{#enumerates{laws}} (FromList.tuple xs i) (Index.member xs i) };
+\definition injective: \forall (i, j: Fin.Fin length) -> enumerate i = enumerate j -> i = j :=
+  Index.injective xs #distinct{laws};
+\definition Values(sigma: Simplex n): \Set := \Cast[Fin.Fin length] ({ i: Fin.Fin length \where enumerate i = sigma });
+\definition existsIndex: \forall (sigma: Simplex n) -> \exists Values sigma :=
+  \fun (sigma: Simplex n) => Index.occurrenceIndex sigma xs (#exhaustive{#enumerates{laws}} sigma (admissible n sigma));
+\definition uniqueIndex: \forall (sigma: Simplex n)(i, j: Values sigma) -> i = j :=
+  \fun (sigma: Simplex n)(i, j: Values sigma) => injective i j
+    (trans!{{Tuple n}} _ _ _ (\bysub(Fin.Fin length, Values sigma, i)) (sym!{{Tuple n}} _ _ (\bysub(Fin.Fin length, Values sigma, j))));
+\definition index(sigma: Simplex n): Values sigma := \choice Values sigma \by { existence: existsIndex sigma, uniqueness: uniqueIndex sigma };
+\definition data: Data[n] := Data[n] { rank := length, enumerate := enumerate, index := index };
+\definition enumeration: Enumeration n := \into[Data[n]](data, Enumeration n) \by {
+  Laws[n, data] {
+    indexEnumerate := \fun (i: Fin.Fin length) => injective (index (enumerate i)) i (\bysub(Fin.Fin length, Values (enumerate i), index (enumerate i))),
+    enumerateIndex := \fun (sigma: Simplex n) => \bysub(Fin.Fin length, Values sigma, index sigma),
+  }
+};

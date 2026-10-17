@@ -1,0 +1,19 @@
+\definition forward: \parent.\parent.\parent.Map[C := C, D := E].Map := ForwardComposition.compose f.forward e.forward;
+\definition backward: \parent.\parent.\parent.Map[C := E, D := C].Map := BackwardComposition.compose e.backward f.backward;
+\import TargetHomotopy.Precompose[B := C].With[f := MiddleLeft.compose f.backward f.forward, g := MiddleEnd.identity, h := Next.leftHomotopy f, k := e.forward] \as LeftBefore;
+\import \parent.\parent.\parent.Homotopy[C := C, D := D].Postcompose[E := C].With[f := BeforeLeft.compose (MiddleLeft.compose f.backward f.forward) e.forward, g := BeforeLeft.compose MiddleEnd.identity e.forward, h := LeftBefore.homotopy, k := e.backward] \as LeftAfter;
+\definition leftStep: SourceHomotopy.Homotopy (ResultLeft.compose backward forward) (LeftComposition.compose e.backward e.forward) := LeftAfter.homotopy;
+\definition left: SourceHomotopy.Homotopy (ResultLeft.compose backward forward) SourceEnd.identity :=
+  SourceHomotopy.Transitive[].homotopy (ResultLeft.compose backward forward) (LeftComposition.compose e.backward e.forward) SourceEnd.identity leftStep (leftHomotopy e);
+\import TargetHomotopy.Precompose[B := E].With[f := RightComposition.compose e.forward e.backward, g := MiddleEnd.identity, h := rightHomotopy e, k := f.backward] \as RightBefore;
+\import \parent.\parent.\parent.Homotopy[C := E, D := D].Postcompose[E := E].With[f := BeforeRight.compose (RightComposition.compose e.forward e.backward) f.backward, g := BeforeRight.compose MiddleEnd.identity f.backward, h := RightBefore.homotopy, k := f.forward] \as RightAfter;
+\definition rightStep: FinalHomotopy.Homotopy (ResultRight.compose forward backward) (FinalRight.compose f.forward f.backward) := RightAfter.homotopy;
+\definition right: FinalHomotopy.Homotopy (ResultRight.compose forward backward) FinalEnd.identity :=
+  FinalHomotopy.Transitive[].homotopy (ResultRight.compose forward backward) (FinalRight.compose f.forward f.backward) FinalEnd.identity rightStep (Next.rightHomotopy f);
+\definition data: Result.Data := Result.Data { forward := forward, backward := backward, left := left, right := right };
+\definition equivalence: Result.Equivalence := \into[Result.Data](data, Result.Equivalence) \by {
+  Result.Laws[data] {
+    left := \bysub(SourceHomotopy.Data, { h: SourceHomotopy.Data \where SourceHomotopy.Laws[ResultLeft.compose backward forward, SourceEnd.identity, h] }, left),
+    right := \bysub(FinalHomotopy.Data, { h: FinalHomotopy.Data \where FinalHomotopy.Laws[ResultRight.compose forward backward, FinalEnd.identity, h] }, right),
+  }
+};

@@ -1,0 +1,86 @@
+\import \root.Complex[d := d].On[K := K].Realization[] \as Global;
+\structure Witness[S: \Pow Vertex]: \Set {
+  point: Geometric.Carrier n,
+  hull: Global.Witness[sigma point],
+  included: Included S (Image #dimension{hull} #vertices{hull}),
+}
+\definition Faces: \Pow (\Pow Vertex) := { S: \Pow Vertex \where \exists Witness[S] };
+\definition complex: Object := Object {
+  faces := Faces,
+  hereditary := \block {
+    \fun (S, T: \Pow Vertex)(member: \In[\Pow Vertex] Faces S)(included: Included T S) \then
+    \takefrom w: Witness[S] \by member \then
+    \return \exact(Witness[T] {
+      point := #point{w}, hull := #hull{w}, included := \fun (v: Vertex)(inside: \In[Vertex] T v) => #included{w} v (included v inside),
+    }, Witness[T])
+  },
+};
+\definition faceInGlobal: \forall (S: \Pow Vertex) -> \In[\Pow Vertex] Faces S -> \In[\Pow Vertex] K.faces S := \block {
+  \fun (S: \Pow Vertex)(member: \In[\Pow Vertex] Faces S) \then
+  \takefrom w: Witness[S] \by member \then
+  \return #hereditary{K} (Image #dimension{#hull{w}} #vertices{#hull{w}}) S #face{#hull{w}} #included{w}
+};
+\import \root.Complex[d := d].On[K := complex] \as Local;
+\import Local.Realization[] \as Realization;
+\definition inclusion(y: Realization.Carrier): Global.Carrier := \into[Geometric.Carrier d](y, Global.Points) \by { \block {
+  \takefrom w: Realization.Witness[y] \by Realization.witness y \then
+  \return \exact(Global.Witness[y] {
+    dimension := #dimension{w}, vertices := #vertices{w}, face := faceInGlobal (Image #dimension{w} #vertices{w}) #face{w},
+    point := #point{w}, equation := #equation{w},
+  }, Global.Witness[y])
+} };
+\import topology.Continuity[A := Realization.Carrier, B := Geometric.Carrier d].Corestriction[S := Realization.Points] \as Out;
+\import topology.Continuity[A := Realization.Carrier, B := Geometric.Carrier d].Corestriction[S := Global.Points] \as Into;
+\definition continuous: topology.Continuity[A := Realization.Carrier, B := Global.Carrier].Continuous Realization.topology Global.topology inclusion :=
+  Into.corestrictContinuous Realization.topology (Geometric.At[n := d].topology) inclusion (Out.inclusionContinuous (Geometric.At[n := d].topology));
+\definition lifts: \forall (x: Geometric.Carrier n) -> \In[Geometric.Carrier d] Realization.Points (sigma x) := \block {
+  \fun (x: Geometric.Carrier n) \then
+  \takefrom w: Global.Witness[sigma x] \by Global.witness (sigma x) \then
+  \let member: \In[\Pow Vertex] Faces (Image #dimension{w} #vertices{w}) := \exact(Witness[Image #dimension{w} #vertices{w}] {
+    point := x, hull := w, included := \fun (v: Vertex)(inside: \In[Vertex] (Image #dimension{w} #vertices{w}) v) => inside,
+  }, Witness[Image #dimension{w} #vertices{w}]) \then
+  \return \exact(Realization.Witness[sigma x] {
+    dimension := #dimension{w}, vertices := #vertices{w}, face := member, point := #point{w}, equation := #equation{w},
+  }, Realization.Witness[sigma x])
+};
+\definition lift(x: Geometric.Carrier n): Realization.Carrier := \into[Geometric.Carrier d](sigma x, Realization.Points) \by { lifts x };
+\import singular_cohomology.Simplices[A := Global.Carrier, source := Global.topology] \as DomainSimplices;
+\import topology.Continuity[A := Global.Carrier, B := Geometric.Carrier d].Corestriction[S := Global.Points] \as GlobalOut;
+\import topology.Composition[A := Geometric.Carrier n, B := Global.Carrier, C := Geometric.Carrier d] \as Composition;
+\import topology.Continuity[A := Geometric.Carrier n, B := Geometric.Carrier d].Corestriction[S := Realization.Points] \as Lift;
+\definition liftContinuous: topology.Continuity[A := Geometric.Carrier n, B := Realization.Carrier].Continuous (Geometric.At[n := n].topology) Realization.topology lift :=
+  Lift.corestrictContinuous (Geometric.At[n := n].topology) (Geometric.At[n := d].topology) lift
+    (Composition.composeContinuous (Geometric.At[n := n].topology) Global.topology (Geometric.At[n := d].topology) sigma (\fun (y: Global.Carrier) => y)
+      (DomainSimplices.At[n := n].continuous sigma) (GlobalOut.inclusionContinuous (Geometric.At[n := d].topology)));
+\import singular_cohomology.Simplices[A := Realization.Carrier, source := Realization.topology] \as LocalSimplices;
+\definition simplex: LocalSimplices.Carrier n := \into[LocalSimplices.At[n := n].Function](lift, LocalSimplices.Carrier n) \by { liftContinuous };
+\module At(a: Vertex);
+\definition CommonVertices(m: N.Nat^)(vertices: Tuple m): \Prop :=
+  \forall (x: Geometric.Carrier n)(i: Fin.Fin (N.Nat^::succ m)) ->
+    dedekind_reals.DedekindReal[].Lt real.Analysis[].zero (sigma x (vertices i));
+\definition faceSimplex(m: N.Nat^)(vertices: Simplex m)(common: CommonVertices m vertices): Local.Simplex m :=
+  \into[Local.Tuple m](vertices, Local.Simplex m) \by {
+    Local.Admissible[m, vertices] {
+      increasing := #increasing{(admissible m vertices)},
+      face := \block {
+        \let x: Geometric.Carrier n := Geometric.lastVertex n \then
+        \takefrom w: Global.Witness[sigma x] \by Global.witness (sigma x) \then
+        \return \exact(Witness[Image m vertices] {
+          point := x, hull := w, included := \block {
+            \fun (v: Vertex)(member: \In[Vertex] (Image m vertices) v) \then
+            \takefrom i: \Cast[Fin.Fin (N.Nat^::succ m)] ({ i: Fin.Fin (N.Nat^::succ m) \where vertices i = v }) \by member \then
+            \return \idelim vertices i = v \with a: Vertex => \In[Vertex] (Image #dimension{w} #vertices{w}) a \by {
+              base: At[a := vertices i].contains (\fun (y: Geometric.Carrier n) => common y i) x w,
+              equality: \bysub(Fin.Fin (N.Nat^::succ m), { i: Fin.Fin (N.Nat^::succ m) \where vertices i = v }, i)
+            }
+          },
+        }, Witness[Image m vertices])
+      },
+    }
+  };
+\definition affineComparison: \forall (m: N.Nat^)(vertices: Simplex m)(common: CommonVertices m vertices)(x: Geometric.Carrier m) ->
+  inclusion (Realization.affine m (faceSimplex m vertices common) x) = Global.affine m vertices x :=
+  \fun (m: N.Nat^)(vertices: Simplex m)(common: CommonVertices m vertices)(x: Geometric.Carrier m) => \refl(Global.affine m vertices x);
+\module Restriction(m: N.Nat^, f: Geometric.Carrier m -> Geometric.Carrier n,
+  continuous: topology.Continuity[A := Geometric.Carrier m, B := Geometric.Carrier n].Continuous (Geometric.At[n := m].topology) (Geometric.At[n := n].topology) f);
+\module Chains;

@@ -1,0 +1,22 @@
+\import \parent.At[n := n] \as Lower;
+\import \parent.At[n := N.Nat^::succ n] \as Higher;
+\import Simplex.At[n := n] \as Domain;
+\import Simplex.At[n := N.Nat^::succ n] \as Codomain;
+\import Simplex.Faces[n := n] \as Faces;
+\import singular_products.ProductMapping[A := Simplex.Carrier n, B := Simplex.Carrier n, C := Simplex.Carrier (N.Nat^::succ n), D := Simplex.Carrier (N.Nat^::succ n), leftSource := Domain.topology, rightSource := Domain.topology, leftTarget := Codomain.topology, rightTarget := Codomain.topology] \as Mapping;
+\definition factors: Mapping.Map := Mapping.Map {
+  leftFunction := Simplex.face n i, rightFunction := Simplex.face n i,
+  leftContinuous := Faces.continuous i, rightContinuous := Faces.continuous i,
+};
+\definition function: Lower.Points -> Higher.Points := Mapping.function factors;
+\import singular_cohomology.Maps[A := Lower.Points, B := Higher.Points, source := Lower.topology, target := Higher.topology] \as Maps;
+\definition continuous: Maps.Continuous function := Mapping.continuous factors;
+\import singular_cohomology.Chains[A := Lower.Points, source := Lower.topology].Reduced[] \as Source;
+\import singular_cohomology.Chains[A := Higher.Points, source := Higher.topology].Reduced[] \as Target;
+\import Complexes.Map[C := Source.complex, D := Target.complex] \as Native;
+\definition chainMap: Native.Map := Maps.Reduced[].map function continuous;
+\module Degree(z: I.Int^) {
+  \import Native.At[k := z] \as Linear;
+  \definition map: Modules.Hom[V := Lower.Carrier z, W := Higher.Carrier z, source := Lower.space z, target := Higher.space z].Map := Linear.linear chainMap;
+}
+\definition commutes: \forall (z: I.Int^)(x: Lower.Carrier z) -> #apply{(Higher.boundary z)} (#apply{Degree[z := z].map} x) = #apply{Degree[z := Degrees.previous z].map} (#apply{(Lower.boundary z)} x) := #commutes{chainMap};

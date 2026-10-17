@@ -31,7 +31,7 @@
 | `CW` / `Attach` / `Pair` | 有限 CW 複体、セル付着、部分複体と商 |
 
 `FiniteComplex` は特性写像・境界の付着・Hausdorff 条件・弱位相を保持する部分集合型である。
-円板の開集合は有限座標の距離による `Euclidean.OpenInDisk` で記述する。
+円板の開集合には `Euclidean.Dimension.diskTopology` を使い、特性写像の連続性を特異鎖と同じ位相で検査する。
 `Cofibration.ForTarget.homotopyExtension` は cofibration 条件を前提に延長を証明する。
 
 `Cone` と unreduced suspension は cylinder の商なので、入力空間が空なら空になる。

@@ -1,0 +1,50 @@
+\import \parent.Hemisphere[] \as Hemisphere;
+\import Hemisphere.DiskQuotient[] \as DiskQuotient;
+\import DiskQuotient.Boundary[] \as Boundary;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Disk;
+\import algebraic_topology.CW[A := sphere_maps.Circle[].Quotient[].Carrier].Attach[n := two] \as Cell;
+\import sphere_maps.Circle[].Quotient[] \as Circle;
+\import sphere_maps.Circle[].Powers[] \as Powers;
+\import algebraic_topology.Spheres[].Antipodal[n := N.Nat^::succ N.Nat^::zero] \as CircleAntipodal;
+\import Cell.Along[attach := Circle.class] \as Attached;
+\definition Point: \Set := Attached.Carrier;
+\definition pointTopology: topology.Topology[Carrier := Point].Topology := Attached.topology Circle.topology;
+\definition attaching: Circle.Sphere -> Circle.Carrier := Circle.class;
+\definition attachingSquare(x: Circle.Sphere): Circle.forward (attaching x) = Powers.square x := Circle.onClass x;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition boundary: Circle.Sphere -> Disk.Disk := Cell.boundaryInclusion;
+\import topology.Continuity[A := Disk.Coordinate, B := Disk.Coordinate].Corestriction[S := Disk.Boundary] \as BoundaryInclusion;
+\import topology.Continuity[A := Disk.Sphere, B := Disk.Coordinate].Corestriction[S := Disk.ClosedBall] \as IntoDisk;
+\definition boundaryContinuous: topology.Continuity[A := Circle.Sphere, B := Disk.Disk].Continuous Circle.sphereTopology Disk.diskTopology boundary :=
+  IntoDisk.corestrictContinuous Circle.sphereTopology Disk.topology boundary (BoundaryInclusion.inclusionContinuous Disk.topology);
+\import topological_constructions.RelationQuotient[A := Disk.Disk, relation := DiskQuotient.Equivalent] \as DiskClasses;
+\definition boundaryProjection(x: Circle.Sphere): DiskQuotient.Point := DiskQuotient.projection (boundary x);
+\definition boundaryRespects(x, y: Circle.Sphere)(related: Circle.Equivalent x y): boundaryProjection x = boundaryProjection y :=
+  Logic.orElim (x = y) (x = CircleAntipodal.apply y) (boundaryProjection x = boundaryProjection y) related
+    (congr!{Circle.Sphere DiskQuotient.Point} boundaryProjection x y)
+    (\fun (opposite: x = CircleAntipodal.apply y) => DiskClasses.relatedEqual DiskQuotient.laws (boundary x) (boundary y)
+      (#rtl{(Boundary.characterizes (boundary x) (boundary y))}
+        (Logic.Or[_, _]::right (Logic.And[_, _]::# (\bysub(Disk.Coordinate, Disk.Boundary, x)) opposite))));
+\import topological_constructions.RelationQuotient[A := Circle.Sphere, relation := Circle.Equivalent].Descent[C := DiskQuotient.Point] \as CircleDescent;
+\definition left: Circle.Carrier -> DiskQuotient.Point := CircleDescent.apply Circle.laws boundaryProjection boundaryRespects;
+\definition onCircleClass(x: Circle.Sphere): left (Circle.class x) = boundaryProjection x := CircleDescent.onClass Circle.laws boundaryProjection boundaryRespects x;
+\import topology.Composition[A := Circle.Sphere, B := Disk.Disk, C := DiskQuotient.Point] \as BoundaryComposition;
+\definition leftContinuous: topology.Continuity[A := Circle.Carrier, B := DiskQuotient.Point].Continuous Circle.topology DiskQuotient.pointTopology left :=
+  CircleDescent.continuous Circle.sphereTopology DiskQuotient.pointTopology Circle.laws boundaryProjection boundaryRespects
+    (BoundaryComposition.composeContinuous Circle.sphereTopology Disk.diskTopology DiskQuotient.pointTopology boundary DiskQuotient.projection
+      boundaryContinuous (DiskClasses.projectionContinuous Disk.diskTopology));
+\import topological_constructions.Pushout[A := Circle.Carrier, B := Disk.Disk, C := Circle.Sphere].Of[u := attaching, v := boundary] \as Pushout;
+\import Pushout.Universal[D := DiskQuotient.Point] \as Universal;
+\definition forward: Point -> DiskQuotient.Point := Universal.apply left DiskQuotient.projection onCircleClass;
+\definition forwardOnLeft: \forall (x: Circle.Carrier) -> forward (Attached.inclusion x) = left x := Universal.onLeft left DiskQuotient.projection onCircleClass;
+\definition forwardOnRight: \forall (x: Disk.Disk) -> forward (Attached.characteristic x) = DiskQuotient.projection x := Universal.onRight left DiskQuotient.projection onCircleClass;
+\definition forwardContinuous: topology.Continuity[A := Point, B := DiskQuotient.Point].Continuous pointTopology DiskQuotient.pointTopology forward :=
+  Universal.continuous Circle.topology Disk.diskTopology DiskQuotient.pointTopology left DiskQuotient.projection onCircleClass
+    leftContinuous (DiskClasses.projectionContinuous Disk.diskTopology);
+\module Inverse;
+\module Fibers;
+\module Deformation;

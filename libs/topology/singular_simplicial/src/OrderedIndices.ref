@@ -1,0 +1,56 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import N.Order[].Prop[] \as Order;
+\import std.Data[].Bool[] \as B;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Skipping[] \as Skip;
+\import Fin.Ordering[] \as Ordering;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Order[] \as Orders;
+\use Logic.either;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition comparison(a, b: N.Nat^): Logic.Or[Bounds.Lt a b, Bounds.Le b a] :=
+  (\induction (flag: B.Bool^) \return Nat.ltb a b = flag -> Logic.Or[Bounds.Lt a b, Bounds.Le b a] \with {
+    | true: Logic.Or[_, _]::left
+    | false: \fun (same: _) => Logic.Or[_, _]::right (Bounds.leOfLtbFalse a b same)
+  }) (Nat.ltb a b) (\refl(Nat.ltb a b));
+\definition replaceLess: \forall (a, b, c, e: N.Nat^) -> a = c -> b = e -> Bounds.Lt c e -> Bounds.Lt a b :=
+  \fun (a, b, c, e: N.Nat^)(left: a = c)(right: b = e)(less: Bounds.Lt c e) =>
+    \idelim c = a \with x: N.Nat^ => Bounds.Lt x b \by {
+      base: \idelim e = b \with y: N.Nat^ => Bounds.Lt c y \by { base: less, equality: sym!{N.Nat^} _ _ right },
+      equality: sym!{N.Nat^} _ _ left
+    };
+\definition skipIncreasing: \forall (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n)) ->
+  Ordering.Increasing n (N.Nat^::succ n) (Skip.apply n i) :=
+  \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ n))(j, k: Fin.Fin n)(less: Bounds.Lt j k) =>
+    either!{{(comparison j i)} {Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)}
+      {\fun (before: Bounds.Lt j i) =>
+        either!{{(comparison k i)} {Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)}
+          {\fun (alsoBefore: Bounds.Lt k i) => replaceLess _ _ j k
+            (Skip.Before[].law n i j before) (Skip.Before[].law n i k alsoBefore) less}
+          {\fun (after: Bounds.Le i k) => replaceLess _ _ j (N.Nat^::succ k)
+            (Skip.Before[].law n i j before) (Skip.After[].law n i k after)
+            (Bounds.ltLeTrans j k (N.Nat^::succ k) less (Bounds.leSelfSucc k))}
+        }}
+      {\fun (after: Bounds.Le i j) =>
+        either!{{(comparison k i)} {Bounds.Lt (Skip.apply n i j) (Skip.apply n i k)}
+          {\fun (before: Bounds.Lt k i) => Logic.falseElim _
+            (Bounds.ltIrrefl i (Order.ltTrans i k i (Bounds.leLtTrans i j k after less) before))}
+          {\fun (alsoAfter: Bounds.Le i k) => replaceLess _ _ (N.Nat^::succ j) (N.Nat^::succ k)
+            (Skip.After[].law n i j after) (Skip.After[].law n i k alsoAfter)
+            (Bounds.ltSuccSucc j k less)}
+        }}
+    };
+\definition increasingInjective: \forall (k, n: N.Nat^)(f: Fin.Fin k -> Fin.Fin n) ->
+  Ordering.Increasing k n f -> Ordering.Injective k n f :=
+  \fun (k, n: N.Nat^)(f: Fin.Fin k -> Fin.Fin n)(ordered: Ordering.Increasing k n f)(i, j: Fin.Fin k)(same: f i = f j) =>
+    \match Order.trichotomy i j \in Orders.Trichotomy \return
+      (\fun (_: Order.Trichotomy i j) => i = j) \with {
+      | less less: Logic.falseElim (i = j) (Bounds.ltNe (f i) (f j) (ordered i j less) same)
+      | equal equal: equal
+      | greater greater: Logic.falseElim (i = j) (Bounds.ltNe (f j) (f i) (ordered j i greater) (sym!{{Fin.Fin n}} _ _ same))
+    };

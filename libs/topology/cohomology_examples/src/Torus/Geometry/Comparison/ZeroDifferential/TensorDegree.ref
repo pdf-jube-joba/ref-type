@@ -1,0 +1,28 @@
+\import FiniteTensor.Term[p := p, q := q] \as Current;
+\import FiniteTensor.Term[p := N.Nat^::succ p, q := q] \as HSource;
+\import FiniteTensor.Term[p := p, q := N.Nat^::succ q] \as VSource;
+\import FiniteTensor.At[p := p, q := q] \as At;
+\import Modules.Tensor[V := FiniteCircle.complex.family.Carrier (N.Nat^::succ p), W := FiniteCircle.complex.family.Carrier q,
+  left := FiniteCircle.complex.family.space (N.Nat^::succ p), right := FiniteCircle.complex.family.space q]
+  .Universal[U := Current.Carrier, target := Current.space] \as HUniversal;
+\import Modules.Tensor[V := FiniteCircle.complex.family.Carrier p, W := FiniteCircle.complex.family.Carrier (N.Nat^::succ q),
+  left := FiniteCircle.complex.family.space p, right := FiniteCircle.complex.family.space (N.Nat^::succ q)]
+  .Universal[U := Current.Carrier, target := Current.space] \as VUniversal;
+\import Modules.Hom[V := HSource.Carrier, W := Current.Carrier, source := HSource.space, target := Current.space] \as HMaps;
+\import Modules.Hom[V := VSource.Carrier, W := Current.Carrier, source := VSource.space, target := Current.space] \as VMaps;
+\definition horizontalEquality: At.horizontal = HMaps.zeroMap := HUniversal.ext At.horizontal HMaps.zeroMap
+  (\fun (x: FiniteCircle.complex.family.Carrier (N.Nat^::succ p))(y: FiniteCircle.complex.family.Carrier q) =>
+    trans!{Current.Carrier} _ _ _ (At.horizontalOnTensor x y)
+      (trans!{Current.Carrier} _ _ _
+        (congr!{{FiniteCircle.complex.family.Carrier p} Current.Carrier} (\fun (v: FiniteCircle.complex.family.Carrier p) => Current.tensor v y) _ _
+          (CircleModel.zeroAction (I.Int^::ofNat (N.Nat^::succ p)) x)) (Current.zeroLeft y)));
+\definition verticalEquality: At.vertical = VMaps.zeroMap := VUniversal.ext At.vertical VMaps.zeroMap
+  (\fun (x: FiniteCircle.complex.family.Carrier p)(y: FiniteCircle.complex.family.Carrier (N.Nat^::succ q)) =>
+    trans!{Current.Carrier} _ _ _ (At.verticalOnTensor x y)
+      (trans!{Current.Carrier} _ _ _
+        (congr!{{FiniteCircle.complex.family.Carrier q} Current.Carrier} (Current.tensor x) _ _
+          (CircleModel.zeroAction (I.Int^::ofNat (N.Nat^::succ q)) y)) (Current.zeroRight x)));
+\definition horizontal(x: HSource.Carrier): #apply{At.horizontal} x = #zero{Current.space} :=
+  congr!{HMaps.Map Current.Carrier} (\fun (f: HMaps.Map) => #apply{f} x) _ _ horizontalEquality;
+\definition vertical(x: VSource.Carrier): #apply{At.vertical} x = #zero{Current.space} :=
+  congr!{VMaps.Map Current.Carrier} (\fun (f: VMaps.Map) => #apply{f} x) _ _ verticalEquality;

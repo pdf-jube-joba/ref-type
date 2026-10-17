@@ -1,0 +1,60 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import cohomology_models.Spheres[].Orientation[n := n] \as Lower;
+\import cohomology_models.Spheres[].Orientation[n := N.Nat^::succ n] \as Upper;
+\import \root.Degrees[n := n] \as LowerDegrees;
+\import \root.Degrees[n := N.Nat^::succ n] \as UpperDegrees;
+\import algebraic_topology.Spheres[] \as Geometry;
+\import Geometry.Antipodal[n := N.Nat^::succ n] \as LowerAntipodal;
+\import Geometry.Antipodal[n := N.Nat^::succ (N.Nat^::succ n)] \as UpperAntipodal;
+\import \root.Hemispheres[n := N.Nat^::succ n] \as Hemispheres;
+\import \root.Reflection[n := N.Nat^::succ (N.Nat^::succ n)] \as Reflection;
+\import Hemispheres.Preserving[].With[coefficients := Lower.coefficients].Positive[] \as Suspension;
+\import Suspension.Whole[] \as Whole;
+\definition scalar: I.Int^ := Lower.degree LowerAntipodal.apply LowerAntipodal.continuous;
+\import singular_cohomology.Chains[A := Lower.Sphere, source := Lower.topology] \as LowerChains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
+\import Native.ZeroExtension[C := LowerChains.complex] \as Extended;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.Integer[P := Extended.complex, N := Lower.coefficients] \as IntegerTheory;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import Cochains.At[C := IntegerTheory.complex, z := I.Int^::ofNat (N.Nat^::succ n)] \as IntegerH;
+\import singular_cohomology.Maps[A := Lower.Sphere, B := Lower.Sphere, source := Lower.topology, target := Lower.topology] \as Maps;
+\definition nativeAntipodal: Native.Map[C := LowerChains.complex, D := LowerChains.complex].Map := Maps.push LowerAntipodal.apply LowerAntipodal.continuous;
+\import \root.NaturalComparison[C := LowerChains.complex, D := LowerChains.complex, coefficients := Lower.coefficients].On[f := nativeAntipodal].At[n := N.Nat^::succ n] \as Comparison;
+\import singular_cohomology.Cochains[A := Lower.Sphere, source := Lower.topology].With[coefficients := Lower.coefficients] \as NaturalTheory;
+\definition comparison: _ := NaturalTheory.Integer[].At[n := N.Nat^::succ n].isomorphism;
+\definition injective: \forall (x, y: IntegerH.Cohomology) -> #apply{#forward{comparison}} x = #apply{#forward{comparison}} y -> x = y :=
+  \fun (x, y: IntegerH.Cohomology)(same: _) => trans!{IntegerH.Cohomology} _ _ _ (sym!{IntegerH.Cohomology} _ _ (#leftInverse{comparison} x))
+    (trans!{IntegerH.Cohomology} _ _ _ (congr!{Lower.Carrier IntegerH.Cohomology} (#apply{#backward{comparison}}) _ _ same) (#leftInverse{comparison} y));
+\definition lowerScalar: Suspension.LowerScalar scalar :=
+  \fun (q: IntegerH.Cohomology) => injective _ _
+    (trans!{Lower.Carrier} _ _ _ (Comparison.law q)
+      (trans!{Lower.Carrier} _ _ _ (LowerDegrees.actionScalar LowerAntipodal.apply LowerAntipodal.continuous (#apply{#forward{comparison}} q))
+        (sym!{Lower.Carrier} _ _ (#scalar{#forward{comparison}} scalar q))));
+\import cohomology_models.Spheres[].With[coefficients := Upper.coefficients].Top[n := N.Nat^::succ n] \as Top;
+\definition tail: Upper.degree Reflection.tail Reflection.tailContinuous = scalar :=
+  trans!{I.Int^} _ _ _
+    (congr!{Upper.Carrier I.Int^} (#apply{Upper.toCoefficient}) _ _ (Whole.naturalAction scalar lowerScalar Upper.generator))
+    (trans!{I.Int^} _ _ _ (#scalar{Upper.toCoefficient} scalar Upper.generator)
+      (trans!{I.Int^} _ _ _
+        (congr!{I.Int^ I.Int^} (#mul{Integers.ring} scalar) _ _ (#leftInverse{Top.isomorphism} I.One.specification))
+        (#rightIdentity{(#multiplicative{(#semiring{Integers.ring})})} scalar)));
+\import topology.Composition[A := Upper.Sphere, B := Upper.Sphere, C := Upper.Sphere] \as Composition;
+\import Modules.Laws[V := I.Int^, space := Modules.scalarModule] \as Scalars;
+\definition law: Upper.degree UpperAntipodal.apply UpperAntipodal.continuous = I.Neg.specification scalar :=
+  trans!{I.Int^} _ _ _
+    (sym!{I.Int^} _ _ (UpperDegrees.functionEquality (\fun (x: Upper.Sphere) => Reflection.head (Reflection.tail x)) UpperAntipodal.apply
+      (Composition.composeContinuous Upper.topology Upper.topology Upper.topology Reflection.tail Reflection.head Reflection.tailContinuous Reflection.headContinuous)
+      UpperAntipodal.continuous Reflection.factorization))
+    (trans!{I.Int^} _ _ _ (Upper.Composition[].law Reflection.tail Reflection.head Reflection.tailContinuous Reflection.headContinuous)
+      (trans!{I.Int^} _ _ _
+        (congr2!{I.Int^ I.Int^ I.Int^} (#mul{Integers.ring}) _ _ _ _ tail Hemispheres.Degree[].head)
+        (trans!{I.Int^} _ _ _ (#mulCommutative{Integers.commutativeRing} scalar (I.Neg.specification I.One.specification)) (Scalars.negativeOne scalar))));

@@ -1,0 +1,37 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\module At(z: Degrees.Degree);
+\module Boundary(z: Degrees.Degree) {
+  \import Source.At[z := z] \as Current;
+  \import Target.At[z := Degrees.previous z] \as Lower;
+  \import Modules.Tensor[V := P.family.Carrier z, W := coefficients.Carrier,
+    left := P.family.space z, right := coefficients.space].Universal[U := Lower.Carrier, target := Lower.space] \as Universal;
+  \import Modules.Hom[V := Target.Carrier z, W := Lower.Carrier,
+    source := Target.space z, target := Lower.space].Composition[U := Current.Carrier, domain := Current.space] \as Left;
+  \import Modules.Hom[V := Source.Carrier (Degrees.previous z), W := Lower.Carrier,
+    source := Source.space (Degrees.previous z), target := Lower.space].Composition[U := Current.Carrier, domain := Current.space] \as Right;
+  \definition first: _ := Left.compose Target.Step[z := z].differential \parent.At[z := z].map;
+  \definition second: _ := Right.compose \parent.At[z := Degrees.previous z].map Source.Step[z := z].differential;
+  \definition equality: first = second := Universal.ext first second
+    (\fun (x: P.family.Carrier z)(a: coefficients.Carrier) => trans!{Lower.Carrier} _ _ _
+      (congr!{{Target.Carrier z} Lower.Carrier} (#apply{Target.Step[z := z].differential}) _ _ (\parent.At[z := z].onTensor x a))
+      (trans!{Lower.Carrier} _ _ _ (Target.Step[z := z].onTensor (#apply{f} z x) a)
+        (trans!{Lower.Carrier} _ _ _
+          (congr!{{Q.family.Carrier (Degrees.previous z)} Lower.Carrier} (\fun (y: Q.family.Carrier (Degrees.previous z)) => Lower.tensor y a) _ _ (#commutes{f} z x))
+          (sym!{Lower.Carrier} _ _ (trans!{Lower.Carrier} _ _ _
+            (congr!{{Source.Carrier (Degrees.previous z)} Lower.Carrier} (#apply{\parent.At[z := Degrees.previous z].map}) _ _
+              (Source.Step[z := z].onTensor x a))
+            (\parent.At[z := Degrees.previous z].onTensor (#apply{P.differential} z x) a))))));
+  \import Modules.Hom[V := Current.Carrier, W := Lower.Carrier, source := Current.space, target := Lower.space] \as Linear;
+  \definition law(x: Current.Carrier): #apply{Target.differential} z (#apply{\parent.At[z := z].map} x) =
+    #apply{\parent.At[z := Degrees.previous z].map} (#apply{Source.differential} z x) :=
+    congr!{Linear.Map Lower.Carrier} (\fun (g: Linear.Map) => #apply{g} x) first second equality;
+}
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (z: Degrees.Degree) => #apply{At[z := z].map},
+  addition := \fun (z: Degrees.Degree) => #addition{At[z := z].map},
+  scalar := \fun (z: Degrees.Degree) => #scalar{At[z := z].map},
+  commutes := \fun (z: Degrees.Degree) => Boundary[z := z].law,
+};

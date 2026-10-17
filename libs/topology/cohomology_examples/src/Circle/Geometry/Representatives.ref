@@ -1,0 +1,30 @@
+\definition naturalCycle: \forall (n: N.Nat^) -> SignedChains.At[C := Singular.integerComplex, z := I.Int^::ofNat n].Cycle :=
+  \induction (n: N.Nat^) \return SignedChains.At[C := Singular.integerComplex, z := I.Int^::ofNat n].Cycle \with {
+    | zero: pointCycle
+    | succ: \fun (n: N.Nat^)(previous: _) =>
+      (\induction (n: N.Nat^) \return SignedChains.At[C := Singular.integerComplex, z := I.Int^::ofNat (N.Nat^::succ n)].Cycle \with {
+        | zero: orientationCycle
+        | succ: \fun (n: N.Nat^)(previous: _) => ZeroCycle[z := I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ n))].value
+      }) n
+  };
+\definition cycle: \forall (z: I.Int^) -> SignedChains.At[C := Singular.integerComplex, z := z].Cycle :=
+  \induction (z: I.Int^) \return SignedChains.At[C := Singular.integerComplex, z := z].Cycle \with {
+    | ofNat: naturalCycle | negSucc: \fun (n: N.Nat^) => ZeroCycle[z := I.Int^::negSucc n].value
+  };
+\module Degree(z: I.Int^);
+\import SignedChains.Map[C := chain, D := Singular.integerComplex] \as Maps;
+\definition comparison: Maps.Map := Maps.Map {
+  apply := \fun (z: I.Int^) => #apply{(Degree[z := z].map)},
+  addition := \fun (z: I.Int^) => #addition{(Degree[z := z].map)},
+  scalar := \fun (z: I.Int^) => #scalar{(Degree[z := z].map)},
+  commutes := \fun (z: I.Int^) => Degree[z := z].commutes,
+};
+
+\module DegreeZero(represents: H0.classOf pointCycle = pointClass);
+\module DegreeOne(represents: H1.classOf orientationCycle = orientation);
+
+\module EmptyCoordinates;
+\module Away(z: I.Int^,
+  sourceZero: \forall (v: Vector z) -> v = #zero{(vectorSpace z)},
+  targetZero: \forall (h: SignedChains.At[C := Singular.integerComplex, z := z].Homology) -> h = SignedChains.At[C := Singular.integerComplex, z := z].zeroClass);
+\module Quasi(pointRepresents: H0.classOf pointCycle = pointClass, orientationRepresents: H1.classOf orientationCycle = orientation);

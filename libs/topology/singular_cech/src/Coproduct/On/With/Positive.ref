@@ -1,0 +1,61 @@
+\import Modules.Laws[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Values;
+\import algebra.Group[].Of[Carrier := Carrier (N.Nat^::succ n), group := Values.additive] \as Group;
+\module Component(i: Index) {
+  \import \parent.\parent.\parent.Component[i := i] \as Local;
+  \import Modules.Hom[V := Local.Carrier (N.Nat^::succ n), W := Carrier (N.Nat^::succ n), source := Local.space (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Inclusion;
+  \import Complexes.Map[C := Local.complex, D := complex] \as Inclusions;
+  \definition incoming(s: Local.Simplex (N.Nat^::succ n)):
+    #apply{Local.inclusion} n (#apply{(Local.boundary n)} (Local.generator (N.Nat^::succ n) s)) =
+      #apply{(boundary n)} (generator (N.Nat^::succ n) (Generator[N.Nat^::succ n] { index := i, simplex := s })) :=
+    trans!{{Carrier n}} _ _ _
+      (sym!{{Carrier n}} _ _ (#commutes{Local.inclusion} n (Local.generator (N.Nat^::succ n) s)))
+      (congr!{{Carrier (N.Nat^::succ n)} {Carrier n}} (#apply{(boundary n)}) _ _ (Local.onGenerator (N.Nat^::succ n) s));
+  \definition onGenerator(s: Local.Simplex (N.Nat^::succ n)):
+    #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} (generator (N.Nat^::succ n) (Generator[N.Nat^::succ n] { index := i, simplex := s }))) =
+      Group.difference (generator (N.Nat^::succ n) (Generator[N.Nat^::succ n] { index := i, simplex := s }))
+        (#apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) (Generator[N.Nat^::succ n] { index := i, simplex := s })))) :=
+    trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Carrier (N.Nat^::succ (N.Nat^::succ n))} {Carrier (N.Nat^::succ n)}} (#apply{(boundary (N.Nat^::succ n))}) _ _
+        (\parent.\parent.Degree[n := N.Nat^::succ n].onGenerator (Generator[N.Nat^::succ n] { index := i, simplex := s })))
+      (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+        (#commutes{Local.inclusion} (N.Nat^::succ n) (#apply{(#homotopy{contractions} i (N.Nat^::succ n))} (Local.generator (N.Nat^::succ n) s)))
+        (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+          (congr!{{Local.Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (#apply{Local.inclusion} (N.Nat^::succ n)) _ _
+            (#positive{contractions} i n (Local.generator (N.Nat^::succ n) s)))
+          (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+            (Inclusion.differencePreserved (Inclusions.At[n := N.Nat^::succ n].linear Local.inclusion) (Local.generator (N.Nat^::succ n) s)
+              (#apply{(#homotopy{contractions} i n)} (#apply{(Local.boundary n)} (Local.generator (N.Nat^::succ n) s))))
+            (congr2!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} Group.difference _ _ _ _
+              (Local.onGenerator (N.Nat^::succ n) s)
+              (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+                (sym!{{Carrier (N.Nat^::succ n)}} _ _ (\parent.\parent.Intertwining[i := i, n := n].law (#apply{(Local.boundary n)} (Local.generator (N.Nat^::succ n) s))))
+                (congr!{{Carrier n} {Carrier (N.Nat^::succ n)}} (#apply{(homotopy n)}) _ _ (incoming s)))))));
+}
+\definition onGenerator: \forall (s: Generator[N.Nat^::succ n]) ->
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} (generator (N.Nat^::succ n) s)) =
+    Group.difference (generator (N.Nat^::succ n) s) (#apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) s))) :=
+  \induction (s: Generator[N.Nat^::succ n]) \return
+    #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} (generator (N.Nat^::succ n) s)) =
+      Group.difference (generator (N.Nat^::succ n) s) (#apply{(homotopy n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) s))) \with {
+    | # : \fun (i: Index)(s: Simplex i (N.Nat^::succ n)) => Component[i := i].onGenerator s
+  };
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier (N.Nat^::succ n), source := space (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as End;
+\import Modules.Hom[V := Carrier (N.Nat^::succ (N.Nat^::succ n)), W := Carrier (N.Nat^::succ n), source := space (N.Nat^::succ (N.Nat^::succ n)), target := space (N.Nat^::succ n)]
+  .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as After;
+\import Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)]
+  .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as Before;
+\import Modules.End[V := Carrier (N.Nat^::succ n), space := space (N.Nat^::succ n)] \as Identity;
+\import Modules.Free[Generators := Generator[N.Nat^::succ n]].To[W := Carrier (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Free;
+\definition equality: After.compose (boundary (N.Nat^::succ n)) (homotopy (N.Nat^::succ n)) =
+  End.plus Identity.identity (End.negative (Before.compose (homotopy n) (boundary n))) := Free.ext _ _ onGenerator;
+\definition law(x: Carrier (N.Nat^::succ n)):
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} x) = Group.difference x (#apply{(homotopy n)} (#apply{(boundary n)} x)) :=
+  congr!{{End.Map} {Carrier (N.Nat^::succ n)}} (\fun (f: End.Map) => #apply{f} x) _ _ equality;
+\import Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)] \as Fillers;
+\definition cycle(x: Carrier (N.Nat^::succ n))(closed: #apply{(boundary n)} x = #zero{(space n)}):
+  #apply{(boundary (N.Nat^::succ n))} (#apply{(homotopy (N.Nat^::succ n))} x) = x :=
+  trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (law x)
+    (trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (Group.difference x) _ _
+        (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Carrier n} {Carrier (N.Nat^::succ n)}} (#apply{(homotopy n)}) _ _ closed) (Fillers.zeroPreserved (homotopy n))))
+      (trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Carrier (N.Nat^::succ n)} {Carrier (N.Nat^::succ n)}} (Group.add x) _ _ Group.negZero) (Group.zeroRight x)));

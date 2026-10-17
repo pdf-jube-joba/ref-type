@@ -1,0 +1,46 @@
+\import Modules.Biproduct[V := A.Carrier, W := A.Carrier, left := A.space, right := A.space] \as Product;
+\import std.Data[].Pair[].Prop[A := A.Carrier, B := A.Carrier] \as Pairs;
+\import Modules.Hom[V := H1.CycleCarrier, W := Product.Carrier, source := H1.cycleSpace, target := Product.space] \as Evaluation;
+\definition evaluate: Evaluation.Map := Evaluation.Map {
+  apply := \fun (f: H1.CycleCarrier) => Product.make (f Edge::horizontal) (f Edge::vertical),
+  addition := \fun (f, g: H1.CycleCarrier) => \refl(Product.make (Group.add (f Edge::horizontal) (g Edge::horizontal)) (Group.add (f Edge::vertical) (g Edge::vertical))),
+  scalar := \fun (a: I.Int^)(f: H1.CycleCarrier) => \refl(Product.make (Values.scale a (f Edge::horizontal)) (Values.scale a (f Edge::vertical))),
+};
+\import Modules.Of[V := H1.CycleCarrier, space := H1.cycleSpace].Submodule[].Quotient[S := H1.boundariesInside] \as Quotient;
+\import Quotient.To[W := Product.Carrier, target := Product.space] \as Descent;
+\definition kills: Descent.Vanishes evaluate := \block {
+  \fun (f: H1.CycleCarrier)(boundary: _) \then
+  \takefrom g: \Cast[Vertex -> A.Carrier] ({ g: Vertex -> A.Carrier \where deltaZero g = f }) \by boundary \then
+  \let equal: deltaZero g = f := \bysub(Vertex -> A.Carrier, { g: Vertex -> A.Carrier \where deltaZero g = f }, g) \then
+  \let ambient: f = edge Group.zero Group.zero Group.zero := trans!{Edges} _ _ _ (sym!{Edges} _ _ equal) (zeroDifferential g) \then
+  \return Pairs.ext _ _
+    (congr!{Edges A.Carrier} (\fun (x: Edges) => x Edge::horizontal) _ _ ambient)
+    (congr!{Edges A.Carrier} (\fun (x: Edges) => x Edge::vertical) _ _ ambient)
+};
+\definition forward: Modules.Hom[V := H1.Cohomology, W := Product.Carrier, source := H1.cohomologySpace, target := Product.space].Map := Descent.descend evaluate kills;
+\import Modules.Hom[V := Product.Carrier, W := H1.CycleCarrier, source := Product.space, target := H1.cycleSpace] \as Inclusion;
+\definition include: Inclusion.Map := Inclusion.Map {
+  apply := \fun (x: Product.Carrier) => H1.cycle (cocycle (Product.first x) (Product.second x)) (cocycleClosed (Product.first x) (Product.second x)),
+  addition := \fun (x, y: Product.Carrier) => edgesExt _ _
+    (\refl(Group.add (Product.first x) (Product.first y)))
+    (\refl(Group.add (Product.second x) (Product.second y)))
+    (Group.four (Product.first x) (Product.first y) (Product.second x) (Product.second y)),
+  scalar := \fun (a: I.Int^)(x: Product.Carrier) => edgesExt _ _
+    (\refl(Values.scale a (Product.first x))) (\refl(Values.scale a (Product.second x)))
+    (sym!{A.Carrier} _ _ (#vectorAdd{A.space} a (Product.first x) (Product.second x))),
+};
+\import Modules.Hom[V := H1.CycleCarrier, W := H1.Cohomology, source := H1.cycleSpace, target := H1.cohomologySpace].Composition[U := Product.Carrier, domain := Product.space] \as Composition;
+\definition backward: Modules.Hom[V := Product.Carrier, W := H1.Cohomology, source := Product.space, target := H1.cohomologySpace].Map := Composition.compose H1.classLinear include;
+\definition rightInverse(x: Product.Carrier): #apply{forward} (#apply{backward} x) = x :=
+  trans!{Product.Carrier} _ _ _ (Descent.onClass evaluate kills (#apply{include} x)) (Pairs.eta x);
+\definition leftInverse: \forall (h: H1.Cohomology) -> #apply{backward} (#apply{forward} h) = h :=
+  H1.classInduction (\fun (h: H1.Cohomology) => #apply{backward} (#apply{forward} h) = h)
+    (\fun (f: H1.CycleCarrier) => trans!{H1.Cohomology} _ _ _
+      (congr!{Product.Carrier H1.Cohomology} (#apply{backward}) _ _ (Descent.onClass evaluate kills f))
+      (H1.equalClass (#apply{include} (#apply{evaluate} f)) f
+        (edgesExt _ _ (\refl(f Edge::horizontal)) (\refl(f Edge::vertical))
+          (sym!{A.Carrier} _ _ (closedDiagonal f (\bysub(Edges, #carrier{H1.cycles}, f)))))));
+\definition isomorphism: Modules.Isomorphism[V := H1.Cohomology, W := Product.Carrier, source := H1.cohomologySpace, target := Product.space].Isomorphism :=
+  Modules.Isomorphism[V := H1.Cohomology, W := Product.Carrier, source := H1.cohomologySpace, target := Product.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

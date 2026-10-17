@@ -1,0 +1,35 @@
+\module Component(k0: Degree) {
+  \import Modules.Hom[V := C.family.Carrier k0, W := D.family.Carrier (next k0), source := C.family.space k0, target := D.family.space (next k0)] \as Shift;
+  \definition shift: Shift.Map := Shift.Map { apply := #apply{h} k0, addition := #addition{h} k0, scalar := #scalar{h} k0 };
+  \import After.At[k := next k0] \as AfterDegree;
+  \import Modules.Hom[V := D.family.Carrier (next k0), W := E.family.Carrier (next k0), source := D.family.space (next k0), target := E.family.space (next k0)].Composition[U := C.family.Carrier k0, domain := C.family.space k0] \as Compose;
+  \definition map: Modules.Hom[V := C.family.Carrier k0, W := E.family.Carrier (next k0), source := C.family.space k0, target := E.family.space (next k0)].Map := Compose.compose (AfterDegree.linear k) shift;
+  \import Modules.Hom[V := D.family.Carrier k0, W := E.family.Carrier k0, source := D.family.space k0, target := E.family.space k0] \as Output;
+  \import After.At[k := k0] \as Current;
+  \definition difference(x, y: D.family.Carrier k0): #apply{k} k0 (#add{(D.family.space k0)} x (#neg{(D.family.space k0)} y)) = #add{(E.family.space k0)} (#apply{k} k0 x) (#neg{(E.family.space k0)} (#apply{k} k0 y)) := Output.differencePreserved (Current.linear k) x y;
+}
+
+\import \parent.\parent.\parent.Prior[C := E] \as FinalPrior;
+\definition data: Result.Data := Result.Data { apply := \fun (k0: Degree) => #apply{Component[k0 := k0].map} };
+\definition shiftedLaw(k0: Degree)(x: C.family.Carrier (previous k0)):
+  #apply{k} k0 (shifted h k0 x) = Result.shifted data k0 x :=
+  sym!{{E.family.Carrier k0}} _ _
+    (Transport.natural D.family.Carrier E.family.Carrier (#apply{k}) (next (previous k0)) k0 (nextPrevious k0) (#apply{h} (previous k0) x));
+\definition equation(k0: Degree)(x: C.family.Carrier k0):
+  #add{(E.family.space k0)} (#apply{k} k0 (#apply{f} k0 x)) (#neg{(E.family.space k0)} (#apply{k} k0 (#apply{g} k0 x))) =
+  #add{(E.family.space k0)} (FinalPrior.value k0 (#apply{data} k0 x)) (Result.shifted data k0 (#apply{C.differential} k0 x)) :=
+  trans!{{E.family.Carrier k0}} _ _ _ (sym!{{E.family.Carrier k0}} _ _ (Component[k0 := k0].difference (#apply{f} k0 x) (#apply{g} k0 x)))
+    (trans!{{E.family.Carrier k0}} _ _ _
+      (congr!{{D.family.Carrier k0} {E.family.Carrier k0}} (#apply{k} k0) _ _ (#equation{h} k0 x))
+      (trans!{{E.family.Carrier k0}} _ _ _
+        (#addition{k} k0 (TargetPrior.value k0 (#apply{h} k0 x)) (shifted h k0 (#apply{C.differential} k0 x)))
+        (congr2!{{E.family.Carrier k0} {E.family.Carrier k0} {E.family.Carrier k0}} (#add{(E.family.space k0)}) _ _ _ _
+          (sym!{{E.family.Carrier k0}} _ _ (After.priorCommutes k0 k (#apply{h} k0 x)))
+          (shiftedLaw k0 (#apply{C.differential} k0 x)))));
+\definition homotopy: Result.Homotopy (Composition.compose k f) (Composition.compose k g) := \into[Result.Data](data, Result.Homotopy (Composition.compose k f) (Composition.compose k g)) \by {
+  Result.Laws[Composition.compose k f, Composition.compose k g, data] {
+    addition := \fun (k0: Degree) => #addition{Component[k0 := k0].map},
+    scalar := \fun (k0: Degree) => #scalar{Component[k0 := k0].map},
+    equation := equation,
+  }
+};

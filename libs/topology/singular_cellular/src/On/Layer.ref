@@ -1,0 +1,34 @@
+\import \parent.Filtration[].Stage[limit := n] \as Lower;
+\import \parent.Filtration[].Stage[limit := N.Nat^::succ n] \as Upper;
+\import singular_cohomology.Chains[A := Lower.Carrier, source := Lower.topology] \as LowerChains;
+\import singular_cohomology.Chains[A := Upper.Carrier, source := Upper.topology] \as UpperChains;
+\import Nonnegative.ZeroExtension[C := LowerChains.complex] \as LowerExtension;
+\import Nonnegative.ZeroExtension[C := UpperChains.complex] \as UpperExtension;
+\import singular_cohomology.Maps[A := Lower.Carrier, B := Upper.Carrier, source := Lower.topology, target := Upper.topology] \as Inclusion;
+\definition inclusion: Complexes.Map[C := LowerExtension.complex, D := UpperExtension.complex].Map :=
+  Inclusion.integerPush Lower.Next[].inclusion Lower.Next[].continuous;
+\import Complexes.Quotient[C := LowerExtension.complex, D := UpperExtension.complex].On[f := inclusion] \as Quotient;
+\definition complex: Complexes.Complex := Quotient.complex;
+\module Injection(k: N.Nat^);
+\definition injective: \forall (z: I.Int^)(x, y: LowerExtension.Carrier z) ->
+  #apply{inclusion} z x = #apply{inclusion} z y -> x = y :=
+  \induction (z: I.Int^) \return \forall (x, y: LowerExtension.Carrier z) ->
+    #apply{inclusion} z x = #apply{inclusion} z y -> x = y \with {
+      | ofNat: \fun (k: N.Nat^) => Injection[k := k].injective
+      | negSucc: \fun (k: N.Nat^)(x, y: _)(same: _) => trans!{{LowerExtension.Carrier (I.Int^::negSucc k)}} _ _ _
+        (LowerExtension.Negative[n := k].zero x) (sym!{{LowerExtension.Carrier (I.Int^::negSucc k)}} _ _ (LowerExtension.Negative[n := k].zero y))
+    };
+\import Complexes.ShortExact[A := LowerExtension.complex, B := UpperExtension.complex, C := complex] \as Exact;
+\definition sequence: Exact.Sequence := Exact.Sequence {
+  inclusion := inclusion,
+  projection := Quotient.projection,
+  injective := injective,
+  onto := \fun (z: I.Int^) => Quotient.At[k := z].onto,
+  zero := \fun (z: I.Int^) => Quotient.At[k := z].onImage,
+  kernelImage := \fun (z: I.Int^) => Quotient.At[k := z].zeroClassImage,
+};
+\module Homology(z: I.Int^);
+
+\module With(coefficients: Modules.Bundle);
+\module Relative;
+\module GoodPair(point: Lower.Carrier);

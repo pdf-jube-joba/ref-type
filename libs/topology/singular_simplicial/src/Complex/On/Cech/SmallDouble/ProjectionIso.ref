@@ -1,0 +1,19 @@
+\definition identifyBackward: Chains.Map[C := Small.complex, D := TargetRow.complex].Map := Chains.Map[C := Small.complex, D := TargetRow.complex].Map {
+  apply := \fun (n: N.Nat^)(x: Small.Carrier n) => x,
+  addition := \fun (n: N.Nat^)(x, y: Small.Carrier n) => \refl(#add{(Small.space n)} x y),
+  scalar := \fun (n: N.Nat^)(a: I.Int^)(x: Small.Carrier n) => \refl(#smul{(Small.space n)} a x),
+  commutes := \fun (n: N.Nat^)(x: Small.Carrier (N.Nat^::succ n)) => \refl(#apply{Small.complex.differential} n x),
+};
+\import Chains.Map[C := TargetRow.complex, D := TargetTotal.complex].Composition[B := Small.complex] \as Composition;
+\definition backward: Chains.Map[C := Small.complex, D := TargetTotal.complex].Map := Composition.compose Concentrated.backward identifyBackward;
+\definition leftInverse: \forall (n: N.Nat^)(x: TargetTotal.Carrier n) -> #apply{backward} n (#apply{projection} n x) = x :=
+  Concentrated.leftInverse vanishes;
+\definition rightInverse: \forall (n: N.Nat^)(x: Small.Carrier n) -> #apply{projection} n (#apply{backward} n x) = x :=
+  \fun (n: N.Nat^) => Concentrated.rightInverse vanishes n;
+\import Chains.Isomorphism[C := TargetTotal.complex, D := Small.complex] \as Isomorphisms;
+\definition data: Isomorphisms.Data := Isomorphisms.Data { forward := projection, backward := backward };
+\definition isomorphism: Isomorphisms.Isomorphism := \into[Isomorphisms.Data](data, Isomorphisms.Isomorphism) \by {
+  Isomorphisms.Laws[data] { leftInverse := leftInverse, rightInverse := rightInverse }
+};
+\definition equivalence: Chains.Equivalence[C := TargetTotal.complex, D := Small.complex].Equivalence :=
+  Chains.Equivalence[C := TargetTotal.complex, D := Small.complex].FromIsomorphism[].apply isomorphism;

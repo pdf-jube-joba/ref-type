@@ -1,0 +1,26 @@
+\import \parent.\parent.Pairing[p := p, q := q] \as Pairing;
+\import Tensor.At[p := p, q := q] \as Differential;
+\import IntegerModules.Hom[V := Term.Carrier, W := R, source := Term.space, target := integerCoefficients.space] \as Linear;
+\import Modules.Laws[V := R, space := Modules.scalarModule] \as Scalars;
+\module Horizontal(alpha: Carrier p, beta: Carrier q);
+\module Vertical(alpha: Carrier p, beta: Carrier q);
+\import Double.Sign[V := Term.Carrier, space := Term.space].Mapping[W := R, target := integerCoefficients.space] \as SignMapping;
+\import Double.Sign[V := R, space := integerCoefficients.space] \as Sign;
+\import IntegerModules.Hom[V := R, W := R, source := integerCoefficients.space, target := integerCoefficients.space] \as CoefficientLinear;
+\import Coordinates.Degree[n := N.Nat^::succ n] \as NextCoordinates;
+\definition law(alpha: Carrier p)(beta: Carrier q)(leftClosed: Theory.coboundary p alpha = #zero{(space (N.Nat^::succ p))})(rightClosed: Theory.coboundary q beta = #zero{(space (N.Nat^::succ q))})(x: Total.Carrier (N.Nat^::succ n)): #apply{(total alpha beta)} (#apply{Total.differential} n x) = #zero{integerCoefficients.space} :=
+  trans!{R} _ _ _
+    (congr!{Term.Carrier R} (#apply{(map alpha beta)}) _ _ (Position.differential x))
+    (trans!{R} _ _ _
+      (#addition{(map alpha beta)}
+        (#apply{Differential.horizontal} (NextCoordinates.coordinate Position.horizontalIndex x))
+        (#apply{Double.Sign[V := Term.Carrier, space := Term.space].map p} (#apply{Differential.vertical} (NextCoordinates.coordinate Position.verticalIndex x))))
+      (trans!{R} _ _ _
+        (congr2!{R R R} (#add{integerCoefficients.space}) _ _ _ _
+          (Horizontal[alpha := alpha, beta := beta].law leftClosed (NextCoordinates.coordinate Position.horizontalIndex x))
+          (trans!{R} _ _ _
+            (SignMapping.naturality (map alpha beta) p (#apply{Differential.vertical} (NextCoordinates.coordinate Position.verticalIndex x)))
+            (trans!{R} _ _ _
+              (congr!{R R} (#apply{(Sign.map p)}) _ _ (Vertical[alpha := alpha, beta := beta].law rightClosed (NextCoordinates.coordinate Position.verticalIndex x)))
+              (CoefficientLinear.zeroPreserved (Sign.map p)))))
+        (Scalars.zeroLeft #zero{integerCoefficients.space})));

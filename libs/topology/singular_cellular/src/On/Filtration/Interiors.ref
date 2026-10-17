@@ -1,0 +1,71 @@
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import real.Analysis[] \as Real;
+\import std.Logic[].Classical[] \as Classical;
+\structure Witness[limit: N.Nat^, x: A]: \Set {
+  cell: Cells.CellData,
+  member: Cells.CellMember cells cell,
+  below: Nat.Lt (#dimension{cell}) limit,
+  contains: \In[A] (Cells.InteriorImage cell) x,
+}
+\definition ltTrans(a, b, c: N.Nat^)(ab: Nat.Lt a b)(bc: Nat.Lt b c): Nat.Lt a c :=
+  Nat.ltLeTrans a b c ab (Nat.leTrans b (N.Nat^::succ b) c (Nat.leSelfSucc b) (Nat.succLeOfLt c b bc));
+\definition fromPoint: \forall (limit: N.Nat^)(cell: Cells.CellData)(member: Cells.CellMember cells cell)
+  (below: Nat.Lt (#dimension{cell}) limit)(p: Euclidean.Disk (#dimension{cell})) ->
+  \exists Witness[limit, #characteristic{cell} p] :=
+  \fun (limit: _)(cell: Cells.CellData)(member: _)(below: _)(p: _) =>
+    either!{{(Classical.excludedMiddle (R.Lt (Euclidean.normSquaredAt (#dimension{cell}) p) Real.one))}
+      {\exists Witness[limit, #characteristic{cell} p]}
+      {\fun (inside: _) => \exact(Witness[limit, #characteristic{cell} p] {
+        cell := cell, member := member, below := below,
+        contains := Logic.existsIntro[Euclidean.Disk (#dimension{cell}),
+          { q: Euclidean.Disk (#dimension{cell}) \where Logic.And[
+            \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) q,
+            #characteristic{cell} q = #characteristic{cell} p] }] p
+          (Logic.And[_, _]::# inside (\refl(#characteristic{cell} p))),
+      }, Witness[limit, #characteristic{cell} p])}
+      {\block {
+        \fun (outside: _) \then
+        \let boundary: Euclidean.normSquaredAt (#dimension{cell}) p = Real.one :=
+          R.leAntisym _ _ (\bysub(Euclidean.coordinateCarrier (#dimension{cell}), Euclidean.closedBallAt (#dimension{cell}), p))
+            (Order.leOfNotLtReverse Real.one (Euclidean.normSquaredAt (#dimension{cell}) p) outside) \then
+        \takefrom witness: Cells.BoundaryWitness[cells, cell, #characteristic{cell} p] \by #boundary{laws} cell member p boundary \then
+        \return \exact(Witness[limit, #characteristic{cell} p] {
+          cell := #other{witness}, member := #member{witness},
+          below := ltTrans (#dimension{(#other{witness})}) (#dimension{cell}) limit (#lower{witness}) below,
+          contains := #contains{witness},
+        }, Witness[limit, #characteristic{cell} p])
+      }}
+    };
+\definition cover: \forall (limit: N.Nat^)(x: A) -> \In[A] (subset limit) x -> \exists Witness[limit, x] :=
+  \fun (limit: _)(x: _)(member: _) => eliminate cells limit x (\exists Witness[limit, x])
+    (\block {
+      \fun (cell: Cells.CellData)(present: _)(below: _)(contains: _) \then
+      \takefrom p: \Cast[Euclidean.Disk (#dimension{cell})]
+        ({ p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }) \by contains \then
+      \return \idelim #characteristic{cell} p = x \with a: A => \exists Witness[limit, a] \by {
+        base: fromPoint limit cell present below p,
+        equality: \bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, p)
+      }
+    }) member;
+\definition topBoundary: \forall (n: N.Nat^)(cell: Cells.CellData)(member: Cells.CellMember cells cell)
+  (dimension: #dimension{cell} = n)(p: Euclidean.Disk (#dimension{cell})) ->
+  \In[A] (subset n) (#characteristic{cell} p) -> Euclidean.normSquaredAt (#dimension{cell}) p = Real.one := \block {
+  \fun (n: _)(cell: Cells.CellData)(member: _)(dimension: _)(p: _)(lower: _) \then
+  \let notInterior: Logic.Not (R.Lt (Euclidean.normSquaredAt (#dimension{cell}) p) Real.one) := \block {
+    \fun (inside: _) \then
+    \takefrom other: Witness[n, #characteristic{cell} p] \by cover n (#characteristic{cell} p) lower \then
+    \let same: cell = #cell{other} := #disjoint{laws} cell (#cell{other}) member (#member{other}) (#characteristic{cell} p)
+      (Logic.existsIntro[Euclidean.Disk (#dimension{cell}),
+        { q: Euclidean.Disk (#dimension{cell}) \where Logic.And[
+          \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) q,
+          #characteristic{cell} q = #characteristic{cell} p] }] p (Logic.And[_, _]::# inside (\refl(#characteristic{cell} p)))) (#contains{other}) \then
+    \return Nat.ltIrrefl n
+      (\idelim #dimension{(#cell{other})} = n \with d: N.Nat^ => Nat.Lt d n \by {
+        base: #below{other}, equality: trans!{N.Nat^} _ _ _
+          (congr!{Cells.CellData N.Nat^} (\fun (c: Cells.CellData) => #dimension{c}) _ _ (sym!{Cells.CellData} _ _ same)) dimension
+      })
+  } \then
+  \return R.leAntisym _ _ (\bysub(Euclidean.coordinateCarrier (#dimension{cell}), Euclidean.closedBallAt (#dimension{cell}), p))
+    (Order.leOfNotLtReverse Real.one (Euclidean.normSquaredAt (#dimension{cell}) p) notInterior)
+};

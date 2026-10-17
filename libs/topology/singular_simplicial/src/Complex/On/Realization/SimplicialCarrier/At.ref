@@ -1,0 +1,50 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as Reals;
+\import Fin.Tuples[A := Vertex] \as Tuples;
+\definition Common: \Prop := \forall (x: Geometric.Carrier n) -> Reals.Lt Real.zero (sigma x a);
+\definition contains: Common -> \forall (x: Geometric.Carrier n)(w: Global.Witness[sigma x]) ->
+  \In[Vertex] (Image #dimension{w} #vertices{w}) a :=
+  \fun (common: Common)(x: Geometric.Carrier n)(w: Global.Witness[sigma x]) => Global.Support[].witnessContains (sigma x) w a
+    (\fun (zero: sigma x a = Real.zero) => Reals.ltIrrefl Real.zero
+      (\idelim sigma x a = Real.zero \with r: Real.Real => Reals.Lt Real.zero r \by { base: common x, equality: zero }));
+\definition extendedIncluded: \forall (m: N.Nat^)(vertices: Tuple m)(S: \Pow Vertex) -> Included (Image m vertices) S -> \In[Vertex] S a ->
+  Included (Image (N.Nat^::succ m) (Tuples.extend (N.Nat^::succ m) a vertices)) S := \block {
+  \fun (m: N.Nat^)(vertices: Tuple m)(S: \Pow Vertex)(included: Included (Image m vertices) S)(apex: \In[Vertex] S a)(v: Vertex)(member: _) \then
+  \takefrom i: \Cast[Fin.Fin (N.Nat^::succ (N.Nat^::succ m))] ({ i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)) \where Tuples.extend (N.Nat^::succ m) a vertices i = v }) \by member \then
+  \let raw: \In[Vertex] S (Tuples.extend (N.Nat^::succ m) a vertices i) := Fin.cases (N.Nat^::succ m)
+    (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ m))) => \In[Vertex] S (Tuples.extend (N.Nat^::succ m) a vertices j))
+    (\idelim a = Tuples.extend (N.Nat^::succ m) a vertices (Fin.zero (N.Nat^::succ m)) \with w: Vertex => \In[Vertex] S w \by {
+      base: apex, equality: sym!{Vertex} _ _ (Tuples.atZero (N.Nat^::succ m) a vertices)
+    })
+    (\fun (j: Fin.Fin (N.Nat^::succ m)) => \idelim vertices j = Tuples.extend (N.Nat^::succ m) a vertices (Fin.succ (N.Nat^::succ m) j) \with w: Vertex => \In[Vertex] S w \by {
+      base: included (vertices j) (imageMember m vertices j), equality: sym!{Vertex} _ _ (Tuples.atSuccessor (N.Nat^::succ m) a vertices j)
+    }) i \then
+  \return \idelim Tuples.extend (N.Nat^::succ m) a vertices i = v \with w: Vertex => \In[Vertex] S w \by {
+    base: raw, equality: \bysub(Fin.Fin (N.Nat^::succ (N.Nat^::succ m)), { i: Fin.Fin (N.Nat^::succ (N.Nat^::succ m)) \where Tuples.extend (N.Nat^::succ m) a vertices i = v }, i)
+  }
+};
+\definition conical(common: Common): Local.Conical[a := a].Laws := Local.Conical[a := a].Laws {
+  vertex := \block {
+    \let x: Geometric.Carrier n := Geometric.lastVertex n \then
+    \takefrom w: Global.Witness[sigma x] \by Global.witness (sigma x) \then
+    \return \exact(Witness[Image N.Nat^::zero (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => a)] {
+      point := x, hull := w, included := \block {
+        \fun (v: Vertex)(member: _) \then
+        \takefrom i: \Cast[Fin.Fin (N.Nat^::succ N.Nat^::zero)] ({ i: Fin.Fin (N.Nat^::succ N.Nat^::zero) \where a = v }) \by member \then
+        \return \idelim a = v \with z: Vertex => \In[Vertex] (Image #dimension{w} #vertices{w}) z \by {
+          base: contains common x w, equality: \bysub(Fin.Fin (N.Nat^::succ N.Nat^::zero), { i: Fin.Fin (N.Nat^::succ N.Nat^::zero) \where a = v }, i)
+        }
+      },
+    }, Witness[Image N.Nat^::zero (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => a)])
+  },
+  extension := \block {
+    \fun (m: N.Nat^)(vertices: Tuple m)(member: \In[\Pow Vertex] Faces (Image m vertices)) \then
+    \takefrom w: Witness[Image m vertices] \by member \then
+    \return \exact(Witness[Image (N.Nat^::succ m) (Tuples.extend (N.Nat^::succ m) a vertices)] {
+      point := #point{w}, hull := #hull{w},
+      included := extendedIncluded m vertices (Image #dimension{#hull{w}} #vertices{#hull{w}}) #included{w} (contains common #point{w} #hull{w}),
+    }, Witness[Image (N.Nat^::succ m) (Tuples.extend (N.Nat^::succ m) a vertices)])
+  },
+};
+\definition contraction(common: Common): algebraic_topology.Contraction[A := Realization.Carrier, source := Realization.topology].Data :=
+  Local.Conical[a := a].With[cone := conical common].contraction;

@@ -1,0 +1,59 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import homological_algebra.Finite[] \as Finite;
+\import Finite.Bounded[] \as Bounded;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import std.Data[].Bool[].Prop[] \as Bool;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\definition naturalRanks: N.Nat^ -> N.Nat^ := \induction (n: N.Nat^) \return N.Nat^ \with {
+  | zero: one
+  | succ: \fun (n: N.Nat^)(previous: N.Nat^) =>
+    (\induction (n: N.Nat^) \return N.Nat^ \with {
+      | zero: one | succ: \fun (n: N.Nat^)(previous: N.Nat^) => zero
+    }) n
+};
+\definition ranks: I.Int^ -> N.Nat^ := \induction (z: I.Int^) \return N.Nat^ \with {
+  | ofNat: naturalRanks | negSucc: \fun (n: N.Nat^) => zero
+};
+\definition zeroRuntime: Finite.Runtime^ := \fun (i, j: N.Nat^) => I.Int^::ofNat zero;
+\definition matrices(z: I.Int^): Finite.Runtime^ := zeroRuntime;
+\definition data: Bounded.Data := Bounded.Data { ranks := ranks, boundary := matrices, bound := one };
+\definition Vector(z: I.Int^): \Set := Bounded.Carrier data z;
+\definition vectorSpace(z: I.Int^): Modules.Space (Vector z) := Bounded.space data z;
+\definition differential(z: I.Int^): Vector z -> Vector (Bounded.previous z) := Bounded.apply data z;
+\definition zeroAction(z: I.Int^)(v: Vector z): differential z v = #zero{(vectorSpace (Bounded.previous z))} :=
+  Commutative.Matrix[m := ranks (Bounded.previous z), n := ranks z].zeroAction v;
+\definition squareZero(z: I.Int^)(v: Vector z): differential (Bounded.previous z) (differential z v) = #zero{(vectorSpace (Bounded.previous (Bounded.previous z)))} :=
+  zeroAction (Bounded.previous z) (differential z v);
+\definition naturalBound: \forall (n: N.Nat^) -> Nat.Le two n -> naturalRanks n = zero :=
+  \induction (n: N.Nat^) \return Nat.Le two n -> naturalRanks n = zero \with {
+    | zero: \fun (bad: Nat.Le two zero) => Bool.absurd (naturalRanks zero = zero) bad
+    | succ: \fun (n: N.Nat^)(previous: Nat.Le two n -> naturalRanks n = zero) =>
+      (\induction (n: N.Nat^) \return Nat.Le two (N.Nat^::succ n) -> naturalRanks (N.Nat^::succ n) = zero \with {
+        | zero: \fun (bad: Nat.Le two one) => Bool.absurd (naturalRanks one = zero) bad
+        | succ: \fun (n: N.Nat^)(previous: _)(bound: _) => \refl(zero)
+      }) n
+  };
+\definition bounded: \forall (z: I.Int^) -> Nat.Le two (Signed.absolute z) -> ranks z = zero :=
+  \induction (z: I.Int^) \return Nat.Le two (Signed.absolute z) -> ranks z = zero \with {
+    | ofNat: naturalBound | negSucc: \fun (n: N.Nat^)(bound: _) => \refl(zero)
+  };
+\definition complex: Bounded.Complex := Bounded.Complex {
+  ranks := ranks, boundary := matrices, bound := one,
+  squareZero := squareZero, bounded := bounded,
+};
+\import Bounded.Of[C := complex] \as FiniteModel;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as SignedChains;
+\definition chain: SignedChains.Complex := FiniteModel.chain;
+\module Geometry;
+\module Homology;
+\module Projectivity;

@@ -1,0 +1,92 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\structure Data: \Set {
+  source: E -> V,
+  target: E -> V,
+  front: T -> E,
+  diagonal: T -> E,
+  back: T -> E,
+}
+\structure Laws[data: Data]: \Prop {
+  first: \forall (t: T) -> data.source (data.front t) = data.source (data.diagonal t),
+  middle: \forall (t: T) -> data.target (data.front t) = data.source (data.back t),
+  last: \forall (t: T) -> data.target (data.diagonal t) = data.target (data.back t),
+}
+\definition Object: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\module On(surface: Object) {
+  \import std.Arithmetic[].Int[] \as I;
+  \import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+  \import module_theory.Module[].Over[R := I.Int^, ring := IntegerRing.ring] \as Modules;
+  \module Simplicial;
+  \module With(A: Modules.Bundle) {
+    \import Modules.Laws[V := A.Carrier, space := A.space] \as Values;
+    \import algebra.Group[].Of[Carrier := A.Carrier, group := Values.additive] \as Group;
+    \import Modules.Functions[X := V, V := A.Carrier, target := A.space] \as Vertices;
+    \import Modules.Functions[X := E, V := A.Carrier, target := A.space] \as Edges;
+    \import Modules.Functions[X := T, V := A.Carrier, target := A.space] \as Triangles;
+    \definition zeroth: Modules.Bundle := Modules.Bundle { Carrier := Vertices.Carrier, space := Vertices.space };
+    \definition first: Modules.Bundle := Modules.Bundle { Carrier := Edges.Carrier, space := Edges.space };
+    \definition second: Modules.Bundle := Modules.Bundle { Carrier := Triangles.Carrier, space := Triangles.space };
+    \definition deltaZero(f: Vertices.Carrier): Edges.Carrier :=
+      \fun (e: E) => Group.difference (f (surface.target e)) (f (surface.source e));
+    \definition deltaOne(f: Edges.Carrier): Triangles.Carrier :=
+      \fun (t: T) => Group.add (Group.difference (f (surface.back t)) (f (surface.diagonal t))) (f (surface.front t));
+    \import Modules.Hom[V := Vertices.Carrier, W := Edges.Carrier, source := Vertices.space, target := Edges.space] \as ZeroMaps;
+    \definition differentialZero: ZeroMaps.Map := ZeroMaps.Map {
+      apply := deltaZero,
+      addition := \fun (f, g: Vertices.Carrier) => Edges.ext (deltaZero (Vertices.add f g)) (Edges.add (deltaZero f) (deltaZero g))
+        (\fun (e: E) => Group.differenceAdd (f (surface.target e)) (g (surface.target e)) (f (surface.source e)) (g (surface.source e))),
+      scalar := \fun (a: I.Int^)(f: Vertices.Carrier) => Edges.ext (deltaZero (Vertices.scale a f)) (Edges.scale a (deltaZero f))
+        (\fun (e: E) => sym!{A.Carrier} _ _ (Values.scaleDifference a (f (surface.target e)) (f (surface.source e)))),
+    };
+    \import Modules.Hom[V := Edges.Carrier, W := Triangles.Carrier, source := Edges.space, target := Triangles.space] \as OneMaps;
+    \definition differentialOne: OneMaps.Map := OneMaps.Map {
+      apply := deltaOne,
+      addition := \fun (f, g: Edges.Carrier) => Triangles.ext (deltaOne (Edges.add f g)) (Triangles.add (deltaOne f) (deltaOne g))
+        (\fun (t: T) => trans!{A.Carrier} _ _ _
+          (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.add (f (surface.front t)) (g (surface.front t)))) _ _
+            (Group.differenceAdd (f (surface.back t)) (g (surface.back t)) (f (surface.diagonal t)) (g (surface.diagonal t))))
+          (Group.four (Group.difference (f (surface.back t)) (f (surface.diagonal t))) (Group.difference (g (surface.back t)) (g (surface.diagonal t))) (f (surface.front t)) (g (surface.front t)))),
+      scalar := \fun (a: I.Int^)(f: Edges.Carrier) => Triangles.ext (deltaOne (Edges.scale a f)) (Triangles.scale a (deltaOne f))
+        (\fun (t: T) => trans!{A.Carrier} _ _ _
+          (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Values.scale a (f (surface.front t)))) _ _
+            (sym!{A.Carrier} _ _ (Values.scaleDifference a (f (surface.back t)) (f (surface.diagonal t)))))
+          (sym!{A.Carrier} _ _ (#vectorAdd{A.space} a (Group.difference (f (surface.back t)) (f (surface.diagonal t))) (f (surface.front t))))),
+    };
+    \definition laws: Laws[surface] := \bysub(Data, Object, surface);
+    \definition endpoints(f: Vertices.Carrier)(t: T):
+      deltaOne (deltaZero f) t =
+      Group.add (Group.difference
+        (Group.difference (f (surface.target (surface.back t))) (f (surface.target (surface.front t))))
+        (Group.difference (f (surface.target (surface.back t))) (f (surface.source (surface.front t)))))
+        (Group.difference (f (surface.target (surface.front t))) (f (surface.source (surface.front t)))) :=
+      congr2!{A.Carrier A.Carrier A.Carrier} Group.add _ _ _ _
+        (congr2!{A.Carrier A.Carrier A.Carrier} Group.difference _ _ _ _
+          (congr!{V A.Carrier} (\fun (v: V) => Group.difference (f (surface.target (surface.back t))) (f v)) _ _ (sym!{V} _ _ (#middle{laws} t)))
+          (congr2!{A.Carrier A.Carrier A.Carrier} Group.difference _ _ _ _
+            (congr!{V A.Carrier} f _ _ (#last{laws} t))
+            (congr!{V A.Carrier} f _ _ (sym!{V} _ _ (#first{laws} t)))))
+        (\refl(deltaZero f (surface.front t)));
+    \definition squareZero(f: Vertices.Carrier): deltaOne (deltaZero f) = Triangles.zero :=
+      Triangles.ext (deltaOne (deltaZero f)) Triangles.zero (\fun (t: T) => \block {
+        \let firstVertex: A.Carrier := f (surface.source (surface.front t)) \then
+        \let middleVertex: A.Carrier := f (surface.target (surface.front t)) \then
+        \let lastVertex: A.Carrier := f (surface.target (surface.back t)) \then
+        \let cancelMiddle:
+          Group.add (Group.difference (Group.difference lastVertex middleVertex) (Group.difference lastVertex firstVertex))
+            (Group.difference middleVertex firstVertex) =
+          Group.add (Group.difference firstVertex middleVertex) (Group.difference middleVertex firstVertex) :=
+          congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.difference middleVertex firstVertex)) _ _
+            (Group.differenceCommonLeft lastVertex firstVertex middleVertex) \then
+        \return trans!{A.Carrier} _ _ _ (endpoints f t)
+          (trans!{A.Carrier} _ _ _ cancelMiddle
+            (trans!{A.Carrier} _ _ _ (Group.composeDifferences firstVertex middleVertex firstVertex) (Group.inverseRight firstVertex)))
+      });
+    \import \root.Truncated[].Over[zeroth := zeroth, first := first, second := second] \as Truncated;
+    \import Truncated.On[deltaZero := differentialZero, deltaOne := differentialOne, square := squareZero] \as TruncatedModel;
+
+  }
+}

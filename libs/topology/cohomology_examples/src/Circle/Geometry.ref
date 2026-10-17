@@ -1,0 +1,39 @@
+\import algebraic_topology.Spheres[] \as Spheres;
+\definition Carrier: \Set := Spheres.Carrier one;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Spheres.topology one;
+\definition point: Carrier := Spheres.point one;
+\import singular_cohomology.Chains[A := Carrier, source := topology] \as Singular;
+\import cohomology_models.Spheres[].Homology[].Top[n := zero] \as Top;
+\import cohomology_models.Spheres[].Homology[].Zero[n := zero] \as Bottom;
+\definition orientationIsomorphism: Modules.Isomorphism[V := I.Int^, W := cohomology_models.Spheres[].Homology[].homology one one,
+  source := Modules.scalarModule, target := cohomology_models.Spheres[].Homology[].space one one].Isomorphism := Top.isomorphism;
+\definition pointIsomorphism: Modules.Isomorphism[V := I.Int^, W := cohomology_models.Spheres[].Homology[].homology one zero,
+  source := Modules.scalarModule, target := cohomology_models.Spheres[].Homology[].space one zero].Isomorphism := Bottom.isomorphism;
+
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as SignedChains;
+\import SignedChains.At[C := Singular.integerComplex, z := I.Int^::ofNat zero] \as H0;
+\import SignedChains.At[C := Singular.integerComplex, z := I.Int^::ofNat one] \as H1;
+\definition orientation: H1.Homology := #apply{#forward{orientationIsomorphism}} I.One.specification;
+\definition pointClass: H0.Homology := #apply{#forward{pointIsomorphism}} I.One.specification;
+\import std.Logic[].Proposition[] \as Logic;
+\definition orientationRepresentative: \exists { x: H1.Cycle \where H1.classOf x = orientation } :=
+  H1.classInduction (\fun (h: H1.Homology) => \exists { x: H1.Cycle \where H1.classOf x = h })
+    (\fun (x: H1.Cycle) => Logic.existsIntro[H1.Cycle, { y: H1.Cycle \where H1.classOf y = H1.classOf x }] x (\refl(H1.classOf x))) orientation;
+\definition pointRepresentative: \exists { x: H0.Cycle \where H0.classOf x = pointClass } :=
+  H0.classInduction (\fun (h: H0.Homology) => \exists { x: H0.Cycle \where H0.classOf x = h })
+    (\fun (x: H0.Cycle) => Logic.existsIntro[H0.Cycle, { y: H0.Cycle \where H0.classOf y = H0.classOf x }] x (\refl(H0.classOf x))) pointClass;
+\module ZeroCycle(z: I.Int^);
+\module Representatives(pointCycle: H0.Cycle, orientationCycle: H1.Cycle);
+
+\import SignedChains.Map[C := chain, D := Singular.integerComplex] \as Comparisons;
+\definition quasiComparison: \exists { f: Comparisons.Map \where Comparisons.QuasiIsomorphism f } := \block {
+  \takefrom p: \Cast[H0.Cycle] ({ p: H0.Cycle \where H0.classOf p = pointClass }) \by pointRepresentative \then
+  \takefrom c: \Cast[H1.Cycle] ({ c: H1.Cycle \where H1.classOf c = orientation }) \by orientationRepresentative \then
+  \return Logic.existsIntro[Comparisons.Map, { f: Comparisons.Map \where Comparisons.QuasiIsomorphism f }]
+    (Representatives[pointCycle := p, orientationCycle := c].comparison)
+    (Representatives[pointCycle := p, orientationCycle := c].Quasi[
+      pointRepresents := \bysub(H0.Cycle, { p: H0.Cycle \where H0.classOf p = pointClass }, p),
+      orientationRepresents := \bysub(H1.Cycle, { c: H1.Cycle \where H1.classOf c = orientation }, c)].law)
+};
+\module Projectivity;
+\module FiniteComparison;

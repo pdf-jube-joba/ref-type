@@ -1,0 +1,83 @@
+\import Modules.Hom[V := V, W := V, source := space, target := space] \as Maps;
+\import Maps.Composition[U := V, domain := space] \as Composition;
+\import Modules.End[V := V, space := space] \as End;
+\import Modules.Laws[V := V, space := space] \as Vector;
+\import algebra.Group[].Of[Carrier := V, group := Vector.additive] \as Group;
+\definition power: N.Nat^ -> Maps.Map :=
+  \induction (n: N.Nat^) \return Maps.Map \with {
+    | zero: End.identity
+    | succ: \fun (n: N.Nat^)(previous: Maps.Map) => Composition.compose operator previous
+  };
+\definition sum: N.Nat^ -> Maps.Map :=
+  \induction (n: N.Nat^) \return Maps.Map \with {
+    | zero: Maps.zeroMap
+    | succ: \fun (n: N.Nat^)(previous: Maps.Map) => Maps.plus previous (power n)
+  };
+\definition powerCommutes: \forall (n: N.Nat^)(x: V) ->
+  #apply{(power n)} (#apply{operator} x) = #apply{operator} (#apply{(power n)} x) :=
+  \induction (n: N.Nat^) \return \forall (x: V) ->
+    #apply{(power n)} (#apply{operator} x) = #apply{operator} (#apply{(power n)} x) \with {
+    | zero: \fun (x: V) => \refl(#apply{operator} x)
+    | succ: \fun (n: N.Nat^)(previous: _)(x: V) =>
+      congr!{V V} (#apply{operator}) _ _ (previous x)
+  };
+\definition sumCommutes: \forall (n: N.Nat^)(x: V) ->
+  #apply{(sum n)} (#apply{operator} x) = #apply{operator} (#apply{(sum n)} x) :=
+  \induction (n: N.Nat^) \return \forall (x: V) ->
+    #apply{(sum n)} (#apply{operator} x) = #apply{operator} (#apply{(sum n)} x) \with {
+    | zero: \fun (x: V) => sym!{V} _ _ (Maps.zeroPreserved operator)
+    | succ: \fun (n: N.Nat^)(previous: _)(x: V) =>
+      trans!{V} _ _ _
+        (congr2!{V V V} Group.add _ _ _ _ (previous x) (powerCommutes n x))
+        (sym!{V} _ _ (#addition{operator} (#apply{(sum n)} x) (#apply{(power n)} x)))
+  };
+\definition telescope: \forall (n: N.Nat^)(x: V) ->
+  Group.add (#apply{(sum n)} x) (#apply{(power n)} x) =
+    Group.add x (#apply{operator} (#apply{(sum n)} x)) :=
+  \induction (n: N.Nat^) \return \forall (x: V) ->
+    Group.add (#apply{(sum n)} x) (#apply{(power n)} x) =
+      Group.add x (#apply{operator} (#apply{(sum n)} x)) \with {
+    | zero: \fun (x: V) => trans!{V} _ _ _ (Group.zeroLeft x)
+        (trans!{V} _ _ _ (sym!{V} _ _ (Group.zeroRight x))
+          (congr!{V V} (Group.add x) _ _ (sym!{V} _ _ (Maps.zeroPreserved operator))))
+    | succ: \fun (n: N.Nat^)(previous: _)(x: V) =>
+      trans!{V} _ _ _
+        (congr!{V V} (\fun (v: V) => Group.add v (#apply{operator} (#apply{(power n)} x))) _ _ (previous x))
+        (trans!{V} _ _ _
+          (Group.assoc x (#apply{operator} (#apply{(sum n)} x)) (#apply{operator} (#apply{(power n)} x)))
+          (congr!{V V} (Group.add x) _ _
+            (sym!{V} _ _ (#addition{operator} (#apply{(sum n)} x) (#apply{(power n)} x)))))
+  };
+\definition complement: Maps.Map := Maps.plus End.identity (Maps.negative operator);
+\definition leftRemainder: \forall (n: N.Nat^)(x: V) ->
+  #apply{complement} (#apply{(sum n)} x) = Group.difference x (#apply{(power n)} x) :=
+  \fun (n: N.Nat^)(x: V) => Group.balancedDifference
+    (#apply{(sum n)} x) (#apply{operator} (#apply{(sum n)} x)) x (#apply{(power n)} x)
+    (telescope n x);
+\definition rightRemainder: \forall (n: N.Nat^)(x: V) ->
+  #apply{(sum n)} (#apply{complement} x) = Group.difference x (#apply{(power n)} x) :=
+  \fun (n: N.Nat^)(x: V) => trans!{V} _ _ _
+    (Maps.differencePreserved (sum n) x (#apply{operator} x))
+    (trans!{V} _ _ _
+      (congr!{V V} (\fun (v: V) => Group.difference (#apply{(sum n)} x) v) _ _ (sumCommutes n x))
+      (leftRemainder n x));
+\module AtBound(n: N.Nat^) {
+  \definition Nilpotent: \Prop := \forall (x: V) -> #apply{(power n)} x = Group.zero;
+  \definition leftInverse: Nilpotent -> \forall (x: V) -> #apply{complement} (#apply{(sum n)} x) = x :=
+    \fun (nilpotent: Nilpotent)(x: V) => trans!{V} _ _ _ (leftRemainder n x)
+      (trans!{V} _ _ _
+        (congr!{V V} (\fun (v: V) => Group.difference x v) _ _ (nilpotent x))
+        (trans!{V} _ _ _ (congr!{V V} (Group.add x) _ _ Group.negZero) (Group.zeroRight x)));
+  \definition rightInverse: Nilpotent -> \forall (x: V) -> #apply{(sum n)} (#apply{complement} x) = x :=
+    \fun (nilpotent: Nilpotent)(x: V) => trans!{V} _ _ _ (rightRemainder n x)
+      (trans!{V} _ _ _
+        (congr!{V V} (\fun (v: V) => Group.difference x v) _ _ (nilpotent x))
+        (trans!{V} _ _ _ (congr!{V V} (Group.add x) _ _ Group.negZero) (Group.zeroRight x)));
+  \import Modules.Isomorphism[V := V, W := V, source := space, target := space] \as Isomorphisms;
+  \definition isomorphism(nilpotent: Nilpotent): Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+    forward := complement,
+    backward := sum n,
+    leftInverse := rightInverse nilpotent,
+    rightInverse := leftInverse nilpotent,
+  };
+}

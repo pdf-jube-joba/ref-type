@@ -1,0 +1,25 @@
+\import singular_cohomology.Maps[A := Lower.Carrier, B := Nested.CarrierSet,
+  source := Lower.topology, target := Nested.topology Upper.topology] \as Lift;
+\import Lift.Composition[C := Upper.Carrier, final := Upper.topology] \as Compose;
+\import Complexes.Map[C := NestedExtension.complex, D := UpperExtension.complex]
+  .Composition[B := LowerExtension.complex] \as Composition;
+\import Complexes.Map[C := LowerExtension.complex, D := UpperExtension.complex] \as Maps;
+\definition functions: (\fun (x: Lower.Carrier) => Pair.inclusion (Left.forward x)) = Lower.Next[].inclusion :=
+  \axiom:funext((\fun (x: Lower.Carrier) => Pair.inclusion (Left.forward x)), Lower.Next[].inclusion,
+    \fun (x: Lower.Carrier) => \refl(Lower.Next[].inclusion x));
+\import topology.Composition[A := Lower.Carrier, B := Nested.CarrierSet, C := Upper.Carrier] \as Topology;
+\definition law: Composition.compose Pair.inclusionMap Left.forwardMap = inclusion :=
+  trans!{Maps.Map} _ _ _
+    (Compose.Integer[].law Left.forward (#forwardContinuous{Left.laws}) Pair.inclusion Pair.inclusionContinuous)
+    ((\idelim (\fun (x: Lower.Carrier) => Pair.inclusion (Left.forward x)) = Lower.Next[].inclusion
+      \with f: (Lower.Carrier -> Upper.Carrier) => \forall (fc: Inclusion.Continuous f) ->
+        Inclusion.integerPush (\fun (x: Lower.Carrier) => Pair.inclusion (Left.forward x))
+          (Topology.composeContinuous Lower.topology (Nested.topology Upper.topology) Upper.topology
+            Left.forward Pair.inclusion (#forwardContinuous{Left.laws}) Pair.inclusionContinuous) = Inclusion.integerPush f fc \by {
+        base: \fun (fc: _) => \refl(Inclusion.integerPush (\fun (x: Lower.Carrier) => Pair.inclusion (Left.forward x)) fc),
+        equality: functions
+      }) Lower.Next[].continuous);
+\definition compatible: Comparison.Compatible :=
+  \fun (z: I.Int^)(x: LowerExtension.complex.family.Carrier z) =>
+    sym!{{UpperExtension.complex.family.Carrier z}} _ _
+      (congr!{Maps.Map {UpperExtension.complex.family.Carrier z}} (\fun (f: Maps.Map) => #apply{f} z x) _ _ law);

@@ -1,0 +1,58 @@
+\import N.Basic[].Def[] \as Arithmetic;
+\import N.Basic[].Prop[] \as Natural;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition vertexCount: N.Nat^ := Arithmetic.add components forestEdges;
+\definition edgeCount: N.Nat^ := Arithmetic.add forestEdges chords;
+\definition ambientDimension: N.Nat^ := Arithmetic.add vertexCount (Arithmetic.add edgeCount edgeCount);
+\import singular_simplicial.Complex[d := ambientDimension] \as Complex;
+\module SumCode(a, b: N.Nat^);
+\import SumCode[a := components, b := forestEdges] \as VertexCode;
+\import SumCode[a := forestEdges, b := chords] \as EdgeCode;
+\import SumCode[a := edgeCount, b := edgeCount] \as MidpointCode;
+\import SumCode[a := vertexCount, b := Arithmetic.add edgeCount edgeCount] \as Blocks;
+\definition vertexCode: Vertex -> Fin.Fin vertexCount := \induction (v: Vertex) \return Fin.Fin vertexCount \with {
+  | inl: VertexCode.left | inr: VertexCode.right
+};
+\definition edgeCode: Edge -> Fin.Fin edgeCount := \induction (e: Edge) \return Fin.Fin edgeCount \with {
+  | inl: EdgeCode.left | inr: EdgeCode.right
+};
+\definition original(v: Vertex): Complex.Vertex := Fin.widen ambientDimension (Blocks.left (vertexCode v));
+\definition firstMidpoint(e: Edge): Complex.Vertex := Fin.widen ambientDimension (Blocks.right (MidpointCode.left (edgeCode e)));
+\definition secondMidpoint(e: Edge): Complex.Vertex := Fin.widen ambientDimension (Blocks.right (MidpointCode.right (edgeCode e)));
+\inductive MaximalFace: \Set :=
+  | vertex: Vertex -> MaximalFace
+  | initial: Edge -> MaximalFace
+  | middle: Edge -> MaximalFace
+  | terminal: Edge -> MaximalFace;
+\definition support: MaximalFace -> \Pow Complex.Vertex := \induction (f: MaximalFace) \return \Pow Complex.Vertex \with {
+  | vertex: \fun (v: Vertex) => { w: Complex.Vertex \where w = original v }
+  | initial: \fun (e: Edge) => { w: Complex.Vertex \where Logic.Or[w = original (source e), w = firstMidpoint e] }
+  | middle: \fun (e: Edge) => { w: Complex.Vertex \where Logic.Or[w = firstMidpoint e, w = secondMidpoint e] }
+  | terminal: \fun (e: Edge) => { w: Complex.Vertex \where Logic.Or[w = original (target e), w = secondMidpoint e] }
+};
+\definition faces: \Pow (\Pow Complex.Vertex) := { S: \Pow Complex.Vertex \where \exists { f: MaximalFace \where Complex.Included S (support f) } };
+\definition object: Complex.Object := Complex.Object {
+  faces := faces,
+  hereditary := \block {
+    \fun (S, T: \Pow Complex.Vertex)(member: \In[\Pow Complex.Vertex] faces S)(included: Complex.Included T S) \then
+    \takefrom f: \Cast[MaximalFace] ({ f: MaximalFace \where Complex.Included S (support f) }) \by member \then
+    \return Logic.existsIntro[MaximalFace, { g: MaximalFace \where Complex.Included T (support g) }] f
+      (\fun (v: Complex.Vertex)(inside: \In[Complex.Vertex] T v) => (\bysub(MaximalFace, { f: MaximalFace \where Complex.Included S (support f) }, f)) v (included v inside))
+  },
+};
+\import Complex.On[K := object] \as Subdivision;
+\import Subdivision.Realization[] \as Realization;
+\definition Carrier: \Set := Realization.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Realization.topology;
+\import Subdivision.Chains[] \as FiniteChains;
+\definition chainComplex: _ := FiniteChains.complex;
+\definition singularComparison: _ := FiniteChains.comparison;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.Vertices[] \as Vertices;
+\definition vertexMember(v: Vertex): \In[\Pow Complex.Vertex] object.faces ({ w: Complex.Vertex \where w = original v }) :=
+  Logic.existsIntro[MaximalFace, { f: MaximalFace \where Complex.Included ({ w: Complex.Vertex \where w = original v }) (support f) }] (MaximalFace::vertex v)
+    (\fun (w: Complex.Vertex)(same: w = original v) => same);
+\module Segments;

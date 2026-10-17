@@ -1,0 +1,58 @@
+\import \root.Complex[d := d].On[K := K].Cech[] \as Cech;
+\import \parent.\parent.Horizontal[q := q] \as LowerH;
+\import singular_cohomology.SimplicialChains[].On[X := LowerH.object] \as LowerHChains;
+\import \parent.\parent.Horizontal[q := N.Nat^::succ q] \as HigherH;
+\import singular_cohomology.SimplicialChains[].On[X := HigherH.object] \as HigherHChains;
+\import \parent.\parent.Vertical[p := p] \as LowerV;
+\import singular_cohomology.SimplicialChains[].On[X := LowerV.object] \as LowerVChains;
+\import \parent.\parent.Vertical[p := N.Nat^::succ p] \as HigherV;
+\import singular_cohomology.SimplicialChains[].On[X := HigherV.object] \as HigherVChains;
+\import Modules.Alternating[V := Carrier p q, space := space p q] \as Sum;
+\import Modules.Alternating[V := Carrier (N.Nat^::succ p) q, space := space (N.Nat^::succ p) q].Mapping[W := Carrier p q, target := space p q] \as HorizontalSum;
+\import Modules.Alternating[V := Carrier p (N.Nat^::succ q), space := space p (N.Nat^::succ q)].Mapping[W := Carrier p q, target := space p q] \as VerticalSum;
+\import Modules.Hom[V := Carrier (N.Nat^::succ p) q, W := Carrier p q, source := space (N.Nat^::succ p) q, target := space p q]
+  .Composition[U := Carrier (N.Nat^::succ p) (N.Nat^::succ q), domain := space (N.Nat^::succ p) (N.Nat^::succ q)] \as First;
+\import Modules.Hom[V := Carrier p (N.Nat^::succ q), W := Carrier p q, source := space p (N.Nat^::succ q), target := space p q]
+  .Composition[U := Carrier (N.Nat^::succ p) (N.Nat^::succ q), domain := space (N.Nat^::succ p) (N.Nat^::succ q)] \as Second;
+\import Modules.Free[Generators := Generator (N.Nat^::succ p) (N.Nat^::succ q)].To[W := Carrier p q, target := space p q] \as Free;
+\import Modules.Hom[V := Carrier (N.Nat^::succ p) (N.Nat^::succ q), W := Carrier p q, source := space (N.Nat^::succ p) (N.Nat^::succ q), target := space p q] \as Linear;
+\definition first: Linear.Map := First.compose (horizontal p q) (vertical (N.Nat^::succ p) q);
+\definition second: Linear.Map := Second.compose (vertical p q) (horizontal p (N.Nat^::succ q));
+\use Equality.eq_reason;
+\definition onGenerator: \forall (s: Generator (N.Nat^::succ p) (N.Nat^::succ q)) ->
+  #apply{first} (generator (N.Nat^::succ p) (N.Nat^::succ q) s) = #apply{second} (generator (N.Nat^::succ p) (N.Nat^::succ q) s) :=
+  \fun (s: Generator (N.Nat^::succ p) (N.Nat^::succ q)) => eq_reason!{
+    {#apply{(horizontal p q)} (#apply{(vertical (N.Nat^::succ p) q)} (generator (N.Nat^::succ p) (N.Nat^::succ q) s))}
+    "=" {#apply{(horizontal p q)} (HigherVChains.Boundary[n := q].onSimplex s)} "by" {
+      congr!{{Carrier (N.Nat^::succ p) q} {Carrier p q}} (#apply{(horizontal p q)}) _ _ (HigherVChains.Boundary[n := q].onGenerator s)}
+    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ q)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
+      #apply{(horizontal p q)} (generator (N.Nat^::succ p) q (Cech.vertical (N.Nat^::succ p) q j s)))} "by" {
+        HorizontalSum.law (horizontal p q) (N.Nat^::succ (N.Nat^::succ q)) _}
+    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ q)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
+      Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
+        generator p q (Cech.horizontal p q i (Cech.vertical (N.Nat^::succ p) q j s))))} "by" {
+          Sum.congruent (N.Nat^::succ (N.Nat^::succ q)) _ _
+            (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) => LowerHChains.Boundary[n := p].onGenerator _)}
+    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
+      Sum.sum (N.Nat^::succ (N.Nat^::succ q)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
+        generator p q (Cech.horizontal p q i (Cech.vertical (N.Nat^::succ p) q j s))))} "by" {
+          Sum.Fubini[].law (N.Nat^::succ (N.Nat^::succ q)) (N.Nat^::succ (N.Nat^::succ p)) _}
+    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
+      Sum.sum (N.Nat^::succ (N.Nat^::succ q)) (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
+        generator p q (Cech.vertical p q j (Cech.horizontal p (N.Nat^::succ q) i s))))} "by" {
+          Sum.congruent (N.Nat^::succ (N.Nat^::succ p)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
+            Sum.congruent (N.Nat^::succ (N.Nat^::succ q)) _ _ (\fun (j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))) =>
+              congr!{{Generator p q} {Carrier p q}} (generator p q) _ _ (Cech.commute p q i j s)))}
+    "=" {Sum.sum (N.Nat^::succ (N.Nat^::succ p)) (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
+      #apply{(vertical p q)} (generator p (N.Nat^::succ q) (Cech.horizontal p (N.Nat^::succ q) i s)))} "by" {
+        Sum.congruent (N.Nat^::succ (N.Nat^::succ p)) _ _ (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))) =>
+          sym!{{Carrier p q}} _ _ (LowerVChains.Boundary[n := q].onGenerator _))}
+    "=" {#apply{(vertical p q)} (HigherHChains.Boundary[n := p].onSimplex s)} "by" {
+      sym!{{Carrier p q}} _ _ (VerticalSum.law (vertical p q) (N.Nat^::succ (N.Nat^::succ p)) _)}
+    "=" {#apply{(vertical p q)} (#apply{(horizontal p (N.Nat^::succ q))} (generator (N.Nat^::succ p) (N.Nat^::succ q) s))} "by" {
+      congr!{{Carrier p (N.Nat^::succ q)} {Carrier p q}} (#apply{(vertical p q)}) _ _ (sym!{{Carrier p (N.Nat^::succ q)}} _ _ (HigherHChains.Boundary[n := p].onGenerator s))}
+  };
+\definition equality: first = second := Free.ext first second onGenerator;
+\definition all: \forall (x: Carrier (N.Nat^::succ p) (N.Nat^::succ q)) ->
+  #apply{(horizontal p q)} (#apply{(vertical (N.Nat^::succ p) q)} x) = #apply{(vertical p q)} (#apply{(horizontal p (N.Nat^::succ q))} x) :=
+  \fun (x: Carrier (N.Nat^::succ p) (N.Nat^::succ q)) => congr!{{Linear.Map} {Carrier p q}} (\fun (f: Linear.Map) => #apply{f} x) first second equality;

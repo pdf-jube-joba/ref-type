@@ -1,0 +1,70 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as NatBounds;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import \parent.With[A := coefficients] \as Model;
+\import \root.Surface[V := Vertex, E := Edge, T := Triangle].On[surface := object].With[A := coefficients] \as Raw;
+\import \root.Truncated[].Over[zeroth := Raw.zeroth, first := Raw.first, second := Raw.second].On[deltaZero := Raw.differentialZero, deltaOne := Raw.differentialOne, square := Raw.squareZero] \as Complex;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Cochains;
+\import Modules.Zero[] \as Zero;
+\definition firstDegree: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition secondDegree: N.Nat^ := N.Nat^::succ firstDegree;
+\import Complex.DegreeOne[] \as H1;
+\import Complex.DegreeTwo[] \as H2;
+\definition a: Model.Edges := Model.edge Arithmetic.one Arithmetic.zero Arithmetic.one;
+\definition b: Model.Edges := Model.edge Arithmetic.zero Arithmetic.one Arithmetic.one;
+\definition orientation: Model.Triangles := Model.triangle Arithmetic.one Arithmetic.zero;
+\definition aClosed: Model.deltaOne a = Model.triangle Arithmetic.zero Arithmetic.zero := Model.cocycleClosed Arithmetic.one Arithmetic.zero;
+\definition bClosed: Model.deltaOne b = Model.triangle Arithmetic.zero Arithmetic.zero := Model.cocycleClosed Arithmetic.zero Arithmetic.one;
+\definition aCycle: H1.CycleCarrier := H1.cycle a aClosed;
+\definition bCycle: H1.CycleCarrier := H1.cycle b bClosed;
+\definition orientationCycle: H2.CycleCarrier := H2.cycle orientation (\refl(Zero.Carrier::zero));
+\definition firstGenerator: H1.Cohomology := H1.classOf aCycle;
+\definition secondGenerator: H1.Cohomology := H1.classOf bCycle;
+\definition topGenerator: H2.Cohomology := H2.classOf orientationCycle;
+\definition cup(alpha, beta: Model.Edges): Model.Triangles :=
+  \fun (t: Triangle) => Arithmetic.mul (alpha (front t)) (beta (back t));
+\definition firstSquare: cup a a = Model.triangle Arithmetic.zero Arithmetic.zero := Model.trianglesExt _ _ (\refl(Arithmetic.zero)) (\refl(Arithmetic.zero));
+\definition secondSquare: cup b b = Model.triangle Arithmetic.zero Arithmetic.zero := Model.trianglesExt _ _ (\refl(Arithmetic.zero)) (\refl(Arithmetic.zero));
+\definition product: cup a b = orientation := Model.trianglesExt _ _ (\refl(Arithmetic.one)) (\refl(Arithmetic.zero));
+\definition reversed: cup b a = Model.triangle Arithmetic.zero Arithmetic.one := Model.trianglesExt _ _ (\refl(Arithmetic.zero)) (\refl(Arithmetic.one));
+\definition productCycle: H2.CycleCarrier := H2.cycle (cup a b) (\refl(Zero.Carrier::zero));
+\definition reversedCycle: H2.CycleCarrier := H2.cycle (cup b a) (\refl(Zero.Carrier::zero));
+\definition productClass: H2.classOf productCycle = topGenerator := H2.equalClass productCycle orientationCycle product;
+\definition negativeOrientation: Model.Triangles := Model.triangle (Arithmetic.neg Arithmetic.one) Arithmetic.zero;
+\definition negativeCycle: H2.CycleCarrier := H2.cycle negativeOrientation (\refl(Zero.Carrier::zero));
+\definition reversingBoundary: \In[Raw.second.Carrier] (H2.Boundaries secondDegree)
+  (#add{(Raw.second.space)} (cup b a) (#neg{(Raw.second.space)} negativeOrientation)) :=
+  Logic.existsIntro[Model.Edges, { f: Model.Edges \where Model.deltaOne f =
+    #add{(Raw.second.space)} (cup b a) (#neg{(Raw.second.space)} negativeOrientation) }]
+    (Model.edge Arithmetic.one Arithmetic.zero Arithmetic.zero)
+    (Model.trianglesExt _ _ (\refl(Arithmetic.one)) (\refl(Arithmetic.one)));
+\definition reversedClass: H2.classOf reversedCycle = H2.classOf negativeCycle := H2.classEqual reversedCycle negativeCycle reversingBoundary;
+\definition magnitude: I.Int^ -> N.Nat^ := \induction (z: I.Int^) \return N.Nat^ \with {
+  | ofNat: \fun (n: N.Nat^) => n
+  | negSucc: \fun (n: N.Nat^) => n
+};
+\definition integralZeroDistinct: Arithmetic.zero = Arithmetic.one -> Logic.False :=
+  \fun (same: Arithmetic.zero = Arithmetic.one) => NatBounds.zeroNeSucc N.Nat^::zero
+    (congr!{I.Int^ N.Nat^} magnitude _ _ same);
+\definition topNonzero: topGenerator = H2.zeroClass -> Logic.False := \block {
+  \fun (same: topGenerator = H2.zeroClass) \then
+  \let boundary: \In[Raw.second.Carrier] (H2.Boundaries secondDegree) orientation := H2.zeroClassBoundary orientationCycle same \then
+  \takefrom f: \Cast[Model.Edges] ({ f: Model.Edges \where Model.deltaOne f = orientation }) \by boundary \then
+  \let equal: Model.deltaOne f = orientation := \bysub(Model.Edges, { f: Model.Edges \where Model.deltaOne f = orientation }, f) \then
+  \return integralZeroDistinct (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (Model.totalBoundary f))
+    (congr!{Model.Triangles I.Int^} Model.total _ _ equal))
+};
+\definition negativeAmbient: negativeOrientation = #neg{(Raw.second.space)} orientation :=
+  Model.trianglesExt _ _ (\refl(Arithmetic.neg Arithmetic.one)) (\refl(Arithmetic.zero));
+\import Modules.Hom[V := H2.CycleCarrier, W := H2.Cohomology, source := H2.cycleSpace, target := H2.cohomologySpace] \as Classes;
+\definition negativeClass: H2.classOf negativeCycle = #neg{H2.cohomologySpace} topGenerator :=
+  trans!{H2.Cohomology} _ _ _ (H2.equalClass negativeCycle (#neg{H2.cycleSpace} orientationCycle) negativeAmbient)
+    (Classes.negativePreserved H2.classLinear orientationCycle);
+\definition skewCommutativity: H2.classOf reversedCycle = #neg{H2.cohomologySpace} topGenerator :=
+  trans!{H2.Cohomology} _ _ _ reversedClass negativeClass;

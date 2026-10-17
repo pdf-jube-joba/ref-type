@@ -1,0 +1,53 @@
+\import \parent.\parent.Realization[] \as Realization;
+\import Geometric.Vertices[] \as Vertices;
+\import algebraic_topology.Interval[] \as Interval;
+\import Geometric.Convex[n := d] \as Convex;
+\definition centre: Realization.Carrier := \into[Geometric.Carrier d](Vertices.vertex d a, Realization.Points) \by {
+  \exact(Realization.Witness[Vertices.vertex d a] {
+    dimension := N.Nat^::zero, vertices := \fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => a,
+    face := #vertex{cone}, point := Vertices.vertex N.Nat^::zero (Fin.zero N.Nat^::zero),
+    equation := Geometric.Reindex[m := N.Nat^::zero, n := d].onVertex (\fun (_: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => a) (Fin.zero N.Nat^::zero),
+  }, Realization.Witness[Vertices.vertex d a])
+};
+\module Hull(m: N.Nat^, vertices: Tuple m);
+\definition realized: \forall (t: Interval.Carrier)(y: Realization.Carrier) ->
+  \In[Geometric.Carrier d] Realization.Points (Convex.blend t y centre) := \block {
+  \fun (t: Interval.Carrier)(y: Realization.Carrier) \then
+  \takefrom w: Realization.Witness[y] \by Realization.witness y \then
+  \let contained: \In[Geometric.Carrier d] (Hull[m := #dimension{w}, vertices := #vertices{w}].Points) (Convex.blend t y centre) :=
+    \idelim Geometric.Reindex[m := #dimension{w}, n := d].apply #vertices{w} #point{w} = y
+      \with z: Geometric.Carrier d => \In[Geometric.Carrier d] (Hull[m := #dimension{w}, vertices := #vertices{w}].Points) (Convex.blend t z centre) \by {
+        base: Hull[m := #dimension{w}, vertices := #vertices{w}].blend #point{w} t, equality: #equation{w}
+      } \then
+  \takefrom x: \Cast[Geometric.Carrier (N.Nat^::succ #dimension{w})] ({ x: Geometric.Carrier (N.Nat^::succ #dimension{w}) \where
+    Geometric.Reindex[m := N.Nat^::succ #dimension{w}, n := d].apply (Tuples.extend (N.Nat^::succ #dimension{w}) a #vertices{w}) x = Convex.blend t y centre }) \by contained \then
+  \return \exact(Realization.Witness[Convex.blend t y centre] {
+    dimension := N.Nat^::succ #dimension{w}, vertices := Tuples.extend (N.Nat^::succ #dimension{w}) a #vertices{w},
+    face := #extension{cone} #dimension{w} #vertices{w} #face{w}, point := x,
+    equation := \bysub(Geometric.Carrier (N.Nat^::succ #dimension{w}), { x: Geometric.Carrier (N.Nat^::succ #dimension{w}) \where
+      Geometric.Reindex[m := N.Nat^::succ #dimension{w}, n := d].apply (Tuples.extend (N.Nat^::succ #dimension{w}) a #vertices{w}) x = Convex.blend t y centre }, x),
+  }, Realization.Witness[Convex.blend t y centre])
+};
+\import algebraic_topology.Cylinder[A := Realization.Carrier] \as Cylinder;
+\definition family(p: Cylinder.Carrier): Realization.Carrier :=
+  \into[Geometric.Carrier d](Convex.blend (Cylinder.time p) (Cylinder.point p) centre, Realization.Points) \by { realized (Cylinder.time p) (Cylinder.point p) };
+\import topology.Continuity[A := Realization.Carrier, B := Geometric.Carrier d].Corestriction[S := Realization.Points] \as Inclusion;
+\import algebraic_topology.Homotopy[A := Geometric.Carrier d, B := Geometric.Carrier d].Composition[C := Realization.Carrier] \as Precompose;
+\import algebraic_topology.Homotopy[A := Realization.Carrier, B := Geometric.Carrier d] \as AmbientHomotopy;
+\definition ambientHomotopy: AmbientHomotopy.Homotopy[Realization.topology, Geometric.At[n := d].topology, (\fun (y: Realization.Carrier) => y), (\fun (_: Realization.Carrier) => centre)] :=
+  Precompose.precompose Realization.topology (Geometric.At[n := d].topology) (Geometric.At[n := d].topology)
+    (\fun (y: Geometric.Carrier d) => y) (\fun (_: Geometric.Carrier d) => centre) (Geometric.Contraction[n := d].homotopy centre)
+    (\fun (y: Realization.Carrier) => y) (Inclusion.inclusionContinuous (Geometric.At[n := d].topology));
+\import topology.Continuity[A := Cylinder.Carrier, B := Geometric.Carrier d].Corestriction[S := Realization.Points] \as Into;
+\import algebraic_topology.Homotopy[A := Realization.Carrier, B := Realization.Carrier] \as Homotopy;
+\definition homotopy: Homotopy.Homotopy[Realization.topology, Realization.topology, (\fun (y: Realization.Carrier) => y), (\fun (_: Realization.Carrier) => centre)] :=
+  \into[Homotopy.Family](family, Homotopy.Homotopy[Realization.topology, Realization.topology, (\fun (y: Realization.Carrier) => y), (\fun (_: Realization.Carrier) => centre)]) \by {
+    Homotopy.Laws[Realization.topology, Realization.topology, (\fun (y: Realization.Carrier) => y), (\fun (_: Realization.Carrier) => centre), family] {
+      continuous := Into.corestrictContinuous (Cylinder.topology Realization.topology) (Geometric.At[n := d].topology) family
+        (#continuous{(AmbientHomotopy.laws Realization.topology (Geometric.At[n := d].topology) (\fun (y: Realization.Carrier) => y) (\fun (_: Realization.Carrier) => centre) ambientHomotopy)}),
+      start := \fun (y: Realization.Carrier) => Convex.atStart y centre,
+      end := \fun (y: Realization.Carrier) => Convex.atEnd y centre,
+    }
+  };
+\import algebraic_topology.Contraction[A := Realization.Carrier, source := Realization.topology] \as General;
+\definition contraction: General.Data := General.Data { centre := centre, homotopy := homotopy };

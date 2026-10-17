@@ -1,0 +1,51 @@
+\definition h: Real.Real := Split.head y;
+\definition u: Real.Real := Real.mul Real.half (Real.sub Real.one h);
+\definition s: Real.Real := Real.sub Real.one u;
+\definition positiveDifference: R.Lt Real.zero (Real.sub Real.one h) :=
+  R.ltReplaceLeft (Real.sub h h) Real.zero (Real.sub Real.one h) (Laws.subSelf h)
+    (Laws.ltAddRight h Real.one (Real.neg h) (Order.ltOfLeNotEq h Real.one (#right{(Sphere.heightBounds y)}) different));
+\definition positive: R.Lt Real.zero u := Estimates.halfOfPositive (Real.sub Real.one h) positiveDifference;
+\definition nonnegative: R.Le Real.zero u := Order.leOfLt Real.zero u positive;
+\definition sum: Real.add s u = Real.one := Distance.subAddCancel Real.one u;
+\definition heightFormula: Real.sub s u = h :=
+  trans!{Real.Real} _ _ _ (Scalars.subtractTwice Real.one u)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ (Estimates.halfTwice (Real.sub Real.one h)))
+      (Algebra.subSub Real.one h));
+\definition c: Real.Real := Root.sqrt (Scalars.four u);
+\definition square: Real.mul c c = Scalars.four u := Root.squareOfNonnegative (Scalars.four u) (Scalars.fourNonnegative u nonnegative);
+\definition nonzero: Logic.Not (c = Real.zero) := \fun (zero: c = Real.zero) =>
+  Order.ltNotEq Real.zero u positive (sym!{Real.Real} _ _ (Scalars.fourInjective u Real.zero
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ square)
+      (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ zero zero)
+        (trans!{Real.Real} _ _ _ (Laws.fieldMulZeroLeft Real.zero) (sym!{Real.Real} _ _ Scalars.fourZero))))));
+\definition tailSquared: Disk.normSquared (Split.tail y) = Real.mul (Real.mul c c) s :=
+  Laws.addCancelLeft (Real.mul h h) (Disk.normSquared (Split.tail y)) (Real.mul (Real.mul c c) s)
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.normSplit y))
+      (trans!{Real.Real} _ _ _ (\bysub(Ambient.Coordinate, Ambient.Boundary, y))
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+            (sym!{Real.Real} _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ heightFormula heightFormula))
+            (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a s) _ _ square))
+          (Scalars.unit s u sum)))));
+\definition vector: Disk.Coordinate := Scaling.scale (Laws.fieldInv c) (Split.tail y);
+\definition norm: Disk.normSquared vector = s := trans!{Real.Real} _ _ _ (Scaling.normScale (Laws.fieldInv c) (Split.tail y))
+  (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (Real.mul (Laws.fieldInv c) (Laws.fieldInv c))) _ _ tailSquared)
+    (Scalars.inverseSquare c s nonzero));
+\definition bound: R.Le s Real.one := Laws.leAddCancelRight s Real.one u
+  (R.leReplaceLeft Real.one (Real.add s u) (Real.add Real.one u) (sym!{Real.Real} _ _ sum)
+    (Algebra.leAddRight Real.one u nonnegative));
+\definition point: Disk.Disk := \into[Disk.Coordinate](vector, Disk.ClosedBall) \by {
+  R.leReplaceLeft s (Disk.normSquared vector) Real.one (sym!{Real.Real} _ _ norm) bound
+};
+\definition remainingPoint: remaining point = u :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ norm) (Algebra.subSub Real.one u);
+\definition coefficientPoint: coefficient point = c :=
+  congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Root.sqrt (Scalars.four a)) _ _ remainingPoint;
+\definition onPoint: map point = y := Split.ext (map point) y
+  (trans!{Real.Real} _ _ _ (Split.headJoin (height point) (Scaling.scale (coefficient point) point))
+    (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ norm remainingPoint) heightFormula))
+  (trans!{Disk.Coordinate} _ _ _ (Split.tailJoin (height point) (Scaling.scale (coefficient point) point))
+    (\axiom:funext(Scaling.scale (coefficient point) point, Split.tail y, \fun (i: Disk.Index) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (point i)) _ _ coefficientPoint)
+      (Scalars.scaleInverse c (Split.tail y i) nonzero))));

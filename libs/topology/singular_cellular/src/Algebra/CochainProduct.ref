@@ -1,0 +1,28 @@
+\import chain_complexes.Chain[] \as Degrees;
+\import std.Logic[].Proposition[] \as Logic;
+
+\module Term(z: I.Int^);
+\definition family: Cochains.Family := Cochains.Family {
+  Carrier := \fun (z: I.Int^) => Term[z := z].Carrier,
+  space := \fun (z: I.Int^) => Term[z := z].space,
+};
+\definition apply(z: I.Int^)(x: Term[z := z].Carrier): Term[z := Degrees.next z].Carrier :=
+  \fun (i: Index) => #apply{(terms i).differential} z (x i);
+\definition differential: Cochains.DifferentialData[family] := Cochains.DifferentialData[family] { apply := apply };
+\definition complex: Cochains.Complex := Cochains.Complex {
+  family := family, differential := differential,
+  laws := Cochains.DifferentialLaws[family, differential] {
+    addition := \fun (z: I.Int^)(x, y: Term[z := z].Carrier) =>
+      \axiom:funext(apply z (#add{Term[z := z].space} x y), #add{Term[z := Degrees.next z].space} (apply z x) (apply z y),
+        \fun (i: Index) => #addition{(terms i).laws} z (x i) (y i)),
+    scalar := \fun (z: I.Int^)(a: I.Int^)(x: Term[z := z].Carrier) =>
+      \axiom:funext(apply z (#smul{Term[z := z].space} a x), #smul{Term[z := Degrees.next z].space} a (apply z x),
+        \fun (i: Index) => #scalar{(terms i).laws} z a (x i)),
+    squareZero := \fun (z: I.Int^)(x: Term[z := z].Carrier) =>
+      \axiom:funext(apply (Degrees.next z) (apply z x), #zero{Term[z := Degrees.next (Degrees.next z)].space},
+        \fun (i: Index) => #squareZero{(terms i).laws} z (x i)),
+  },
+};
+
+\module Projection(i: Index);
+\module At(z: I.Int^);

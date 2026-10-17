@@ -1,0 +1,51 @@
+\import \parent.\parent.At[n := n] \as Lower;
+\import \parent.\parent.At[n := N.Nat^::succ n] \as Higher;
+\import Simplex.At[n := n] \as LowerDomain;
+\import Simplex.At[n := N.Nat^::succ n] \as HigherDomain;
+\import singular_cohomology.Chains[A := Simplex.Carrier (N.Nat^::succ n), source := HigherDomain.topology] \as Chains;
+\import singular_cohomology.Simplices[A := Simplex.Carrier (N.Nat^::succ n), source := HigherDomain.topology] \as Simplices;
+\import singular_cohomology.Maps[A := Simplex.Carrier n, B := Simplex.Carrier (N.Nat^::succ n), source := LowerDomain.topology, target := HigherDomain.topology] \as Maps;
+\import \root.On[A := Simplex.Carrier (N.Nat^::succ n), source := HigherDomain.topology] \as High;
+\import Double.Tensor[C := Chains.complex, D := Chains.complex] \as Tensor;
+\import Double.Total[C := Tensor.complex] \as Total;
+\import Native.ZeroExtension[C := Total.complex] \as Signed;
+\import \parent.\parent.Transition[n := n].Degree[z := I.Int^::ofNat n] \as T;
+\import \parent.Degree[n := n] \as LowerValue;
+\import \parent.Degree[n := N.Nat^::succ n] \as HigherValue;
+\definition count: N.Nat^ := N.Nat^::succ (N.Nat^::succ n);
+\import Modules.Alternating[V := Total.Carrier n, space := Total.space n] \as Sum;
+\import Modules.Alternating[V := Chains.Carrier n, space := Chains.space n].Mapping[W := Total.Carrier n, target := Total.space n] \as SumMapping;
+\import Native.Map[C := Chains.complex, D := Total.complex].At[n := n] \as Linear;
+\module At(i: Fin.Fin count) {
+  \import \parent.\parent.\parent.Face[n := n, i := i] \as Face;
+  \import Simplex.Faces[n := n] \as Faces;
+  \import \root.On[A := Simplex.Carrier n, source := LowerDomain.topology].Naturality[B := Simplex.Carrier (N.Nat^::succ n), target := HigherDomain.topology].With[f := Simplex.face n i, continuous := Faces.continuous i].Degree[n := n] \as Natural;
+  \definition simplex: Maps.postcompose n (Simplex.face n i) (Faces.continuous i) Lower.simplex = Simplices.face n i Higher.simplex :=
+    \axiom:funext(Maps.postcompose n (Simplex.face n i) (Faces.continuous i) Lower.simplex, Simplices.face n i Higher.simplex, \fun (x: Simplex.Carrier n) => \refl(Simplex.face n i x));
+  \definition original: #apply{Maps.push (Simplex.face n i) (Faces.continuous i)} n Lower.cell = Chains.generator n (Simplices.face n i Higher.simplex) :=
+    trans!{{Chains.Carrier n}} _ _ _ (Maps.At[n := n].onGenerator (Simplex.face n i) (Faces.continuous i) Lower.simplex)
+      (congr!{{Simplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _ simplex);
+  \definition law: #apply{(T.faces i)} LowerValue.value = Signed.Positive[n := n].intro (#apply{High.defect} n (Chains.generator n (Simplices.face n i Higher.simplex))) :=
+    trans!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ _
+      (congr!{{Total.Carrier n} {Higher.Carrier (I.Int^::ofNat n)}} (Signed.Positive[n := n].intro) _ _ (Natural.defect Lower.cell))
+      (congr!{{Chains.Carrier n} {Higher.Carrier (I.Int^::ofNat n)}} (\fun (x: Chains.Carrier n) => Signed.Positive[n := n].intro (#apply{High.defect} n x)) _ _ original);
+}
+\definition ordinary: #apply{Total.differential} n HigherValue.native = Sum.sum count (\fun (i: Fin.Fin count) => #apply{High.defect} n (Chains.generator n (Simplices.face n i Higher.simplex))) :=
+  trans!{{Total.Carrier n}} _ _ _ (#commutes{High.defect} n Higher.cell)
+    (trans!{{Total.Carrier n}} _ _ _
+      (congr!{{Chains.Carrier n} {Total.Carrier n}} (#apply{High.defect} n) _ _ (Chains.Boundary[n := n].onGenerator Higher.simplex))
+      (SumMapping.law (Linear.linear High.defect) count (\fun (i: Fin.Fin count) => Chains.generator n (Simplices.face n i Higher.simplex))));
+\import Modules.Alternating[V := Higher.Carrier (I.Int^::ofNat n), space := Higher.space (I.Int^::ofNat n)] \as SignedSum;
+\import Modules.Alternating[V := Total.Carrier n, space := Total.space n].Mapping[W := Higher.Carrier (I.Int^::ofNat n), target := Higher.space (I.Int^::ofNat n)] \as Introduction;
+\definition terms(i: Fin.Fin count): Total.Carrier n := #apply{High.defect} n (Chains.generator n (Simplices.face n i Higher.simplex));
+\definition law: #apply{(Higher.boundary (I.Int^::ofNat (N.Nat^::succ n)))} HigherValue.value = #apply{T.map} LowerValue.value :=
+  trans!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ _
+    (congr!{{Total.Carrier n} {Higher.Carrier (I.Int^::ofNat n)}} (Signed.Positive[n := n].intro) _ _ ordinary)
+    (trans!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ _
+      (Introduction.law Signed.Positive[n := n].forward count terms)
+      (trans!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ _
+        (sym!{{Higher.Carrier (I.Int^::ofNat n)}} _ _
+          (SignedSum.congruent count (\fun (i: Fin.Fin count) => #apply{(T.faces i)} LowerValue.value)
+            (\fun (i: Fin.Fin count) => Signed.Positive[n := n].intro (terms i))
+            (\fun (i: Fin.Fin count) => At[i := i].law)))
+        (sym!{{Higher.Carrier (I.Int^::ofNat n)}} _ _ (T.onValues LowerValue.value))));

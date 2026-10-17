@@ -1,0 +1,44 @@
+\import metric_spaces.RealFunctions[A := Lower.Disk] \as Functions;
+\import Functions.SquareRoot[] \as SquareRoots;
+\import topology.Continuity[A := Lower.Coordinate, B := Lower.Coordinate].Corestriction[S := Lower.ClosedBall] \as DiskInclusion;
+\import topology.Composition[A := Lower.Disk, B := Lower.Coordinate, C := Real.Real] \as NormComposition;
+\definition normSquaredContinuous: Functions.Continuous Lower.diskTopology (\fun (x: Lower.Disk) => Lower.normSquared x) :=
+  NormComposition.composeContinuous Lower.diskTopology Lower.topology Line.topology
+    (\fun (x: Lower.Disk) => x) Lower.normSquared (DiskInclusion.inclusionContinuous Lower.topology) LowerGeometry.normSquaredContinuous;
+\definition heightContinuous: Functions.Continuous Lower.diskTopology height :=
+  SquareRoots.continuous Lower.diskTopology (\fun (x: Lower.Disk) => Real.sub Real.one (Lower.normSquared x))
+    (Functions.subContinuous Lower.diskTopology (\fun (_: Lower.Disk) => Real.one) (\fun (x: Lower.Disk) => Lower.normSquared x)
+      (Functions.constantContinuous Lower.diskTopology Real.one) normSquaredContinuous);
+\import Split.Continuity[A := Lower.Disk] \as Join;
+\import topology.Continuity[A := Lower.Disk, B := Higher.Coordinate].Corestriction[S := Higher.Boundary] \as IntoSphere;
+\definition sphereLiftContinuous: topology.Continuity[A := Lower.Disk, B := Sphere].Continuous Lower.diskTopology (Spheres.topology two) sphereLift :=
+  IntoSphere.corestrictContinuous Lower.diskTopology Higher.topology sphereLift
+    (Join.joinContinuous Lower.diskTopology height (\fun (x: Lower.Disk) => x) heightContinuous LowerContraction.coordinateContinuous);
+\import topology.Continuity[A := Lower.Disk, B := Sphere].Corestriction[S := northern] \as IntoNorthern;
+\definition liftContinuous: topology.Continuity[A := Lower.Disk, B := Carrier].Continuous Lower.diskTopology topology lift :=
+  IntoNorthern.corestrictContinuous Lower.diskTopology (Spheres.topology two) lift sphereLiftContinuous;
+\import topology.Continuity[A := Higher.Coordinate, B := Higher.Coordinate].Corestriction[S := Higher.Boundary] \as SphereInclusion;
+\import topology.Continuity[A := Sphere, B := Sphere].Corestriction[S := northern] \as NorthernInclusion;
+\import topology.Composition[A := Carrier, B := Sphere, C := Higher.Coordinate] \as AmbientComposition;
+\definition ambientContinuous: topology.Continuity[A := Carrier, B := Higher.Coordinate].Continuous topology Higher.topology (\fun (x: Carrier) => x) :=
+  AmbientComposition.composeContinuous topology (Spheres.topology two) Higher.topology
+    (\fun (x: Carrier) => x) (\fun (x: Sphere) => x)
+    (NorthernInclusion.inclusionContinuous (Spheres.topology two)) (SphereInclusion.inclusionContinuous Higher.topology);
+\import std.Data[].FinSet[] \as Fin;
+\import topological_algebra.Coordinates[K := Real.Real, I := Higher.Index] \as HigherCoordinates;
+\import topology.Composition[A := Carrier, B := Higher.Coordinate, C := Real.Real] \as CoordinateComposition;
+\import topological_algebra.Coordinates[K := Real.Real, I := Lower.Index].Universal[A := Carrier] \as LowerCoordinates;
+\definition tailContinuous: topology.Continuity[A := Carrier, B := Lower.Coordinate].Continuous topology Lower.topology (\fun (x: Carrier) => Split.tail x) :=
+  LowerCoordinates.continuous topology Line.topology (\fun (x: Carrier) => Split.tail x)
+    (\fun (i: Lower.Index) => CoordinateComposition.composeContinuous topology Higher.topology Line.topology
+      (\fun (x: Carrier) => x) (\fun (x: Higher.Coordinate) => x (Fin.succ two i)) ambientContinuous
+      (HigherCoordinates.evaluationContinuous Line.topology (Fin.succ two i)));
+\import topology.Continuity[A := Carrier, B := Lower.Coordinate].Corestriction[S := Lower.ClosedBall] \as IntoDisk;
+\definition projectContinuous: topology.Continuity[A := Carrier, B := Lower.Disk].Continuous topology Lower.diskTopology project :=
+  IntoDisk.corestrictContinuous topology Lower.topology project tailContinuous;
+\import topology.Homeomorphism[A := Lower.Disk, B := Carrier] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[Lower.diskTopology, topology] := Homeomorphisms.Homeomorphism[Lower.diskTopology, topology] {
+  forward := lift, backward := project,
+  leftInverse := leftInverse, rightInverse := rightInverse,
+  forwardContinuous := liftContinuous, backwardContinuous := projectContinuous,
+};

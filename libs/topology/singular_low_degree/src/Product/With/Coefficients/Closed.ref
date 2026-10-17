@@ -1,0 +1,98 @@
+\import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
+\import Modules.Hom[V := Left.Carrier zero, W := coefficients.Carrier,
+  source := Left.space zero, target := coefficients.space] \as LeftValues;
+\import Modules.Hom[V := Right.Carrier zero, W := coefficients.Carrier,
+  source := Right.space zero, target := coefficients.space] \as RightValues;
+\import Total.Degree[n := one] \as Current;
+\import Shuffle.Total[].Degree[n := one] \as ShuffleDegree;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition firstIndex: Double.Index one := \into[Double.Pair](Double.Pair { first := one, second := zero }, Double.Index one) \by { \refl(one) };
+\definition secondIndex: Double.Index one := \into[Double.Pair](Double.Pair { first := zero, second := one }, Double.Index one) \by { \refl(one) };
+\import ShuffleDegree.At[i := firstIndex] \as FirstShuffle;
+\import ShuffleDegree.At[i := secondIndex] \as SecondShuffle;
+\import Tensor.Term[p := one, q := zero] \as FirstTerm;
+\import Tensor.Term[p := zero, q := one] \as SecondTerm;
+\import Shuffle.At[p := one, q := zero] \as FirstCross;
+\import Shuffle.At[p := zero, q := one] \as SecondCross;
+\definition firstShuffle(x: Left.Carrier one)(y: Right.Carrier zero):
+  #apply{Shuffle.Total[].map} one (#apply{Current.Component[i := firstIndex].injection} (FirstTerm.tensor x y)) = FirstCross.apply x y :=
+  trans!{{ProductChains.Carrier one}} _ _ _ (ShuffleDegree.onInjection firstIndex (FirstTerm.tensor x y))
+    (trans!{{ProductChains.Carrier one}} _ _ _ (FirstShuffle.onTensor x y)
+      (Transport.castRefl ProductChains.Carrier one (FirstCross.apply x y)));
+\definition secondShuffle(x: Left.Carrier zero)(y: Right.Carrier one):
+  #apply{Shuffle.Total[].map} one (#apply{Current.Component[i := secondIndex].injection} (SecondTerm.tensor x y)) = SecondCross.apply x y :=
+  trans!{{ProductChains.Carrier one}} _ _ _ (ShuffleDegree.onInjection secondIndex (SecondTerm.tensor x y))
+    (trans!{{ProductChains.Carrier one}} _ _ _ (SecondShuffle.onTensor x y)
+      (Transport.castRefl ProductChains.Carrier one (SecondCross.apply x y)));
+\definition firstFormula(x: Left.Carrier one)(y: Right.Carrier zero):
+  #apply{(normalized phi)} (#apply{Current.Component[i := firstIndex].injection} (FirstTerm.tensor x y)) =
+    #apply{phi} (FirstCross.apply (#apply{L.map} one x) (#apply{R.map} zero y)) :=
+  trans!{coefficients.Carrier} _ _ _
+    (congr!{Current.Carrier coefficients.Carrier} (\fun (v: Current.Carrier) => #apply{phi} (#apply{Shuffle.Total[].map} one v)) _ _
+      (\parent.\parent.Degree[n := one].onTensor firstIndex x y))
+    (congr!{{ProductChains.Carrier one} coefficients.Carrier} (#apply{phi}) _ _ (firstShuffle (#apply{L.map} one x) (#apply{R.map} zero y)));
+\definition secondFormula(x: Left.Carrier zero)(y: Right.Carrier one):
+  #apply{(normalized phi)} (#apply{Current.Component[i := secondIndex].injection} (SecondTerm.tensor x y)) =
+    #apply{phi} (SecondCross.apply (#apply{L.map} zero x) (#apply{R.map} one y)) :=
+  trans!{coefficients.Carrier} _ _ _
+    (congr!{Current.Carrier coefficients.Carrier} (\fun (v: Current.Carrier) => #apply{phi} (#apply{Shuffle.Total[].map} one v)) _ _
+      (\parent.\parent.Degree[n := one].onTensor secondIndex x y))
+    (congr!{{ProductChains.Carrier one} coefficients.Carrier} (#apply{phi}) _ _ (secondShuffle (#apply{L.map} zero x) (#apply{R.map} one y)));
+\definition FirstPrimitive(a: LeftTheory.Carrier zero): \Prop := #apply{FirstRestriction.map} one phi = LeftTheory.apply zero a;
+\definition SecondPrimitive(b: RightTheory.Carrier zero): \Prop := #apply{SecondRestriction.map} one phi = RightTheory.apply zero b;
+\module First(a: LeftTheory.Carrier zero);
+\module Second(b: RightTheory.Carrier zero);
+\import singular_eilenberg_zilber.TensorGenerators[A := A, B := B, left := left, right := right].To[
+  n := one, W := coefficients.Carrier, target := coefficients.space] \as Generators;
+\import Modules.Hom[V := Current.Carrier, W := coefficients.Carrier,
+  source := Current.space, target := coefficients.space] \as Linear;
+\definition Vanishes(i: Double.Index one): \Prop :=
+  \forall (sigma: singular_cohomology.Simplices[A := A, source := left].Carrier #first{i})
+    (tau: singular_cohomology.Simplices[A := B, source := right].Carrier #second{i}) ->
+    #apply{(normalized phi)} (Generators.generator i sigma tau) = #zero{coefficients.space};
+\module Primitive(a: LeftTheory.Carrier zero, b: RightTheory.Carrier zero);
+\import std.Logic[].Proposition[] \as Logic;
+\definition firstPrimitiveExists: #apply{firstRestriction} (ProductH.classOf phi) = #zero{LeftH.cohomologySpace} ->
+  \exists { a: LeftTheory.Carrier zero \where FirstPrimitive a } := \block {
+  \fun (vanishes: _) \then
+  \let boundary: _ := LeftH.zeroClassBoundary (#apply{(LeftMaps.cyclesMap FirstRestriction.map)} phi)
+    (trans!{LeftH.Cohomology} _ _ _ (sym!{LeftH.Cohomology} _ _ (LeftMaps.onClass FirstRestriction.map phi)) vanishes) \then
+  \takefrom a: \Cast[LeftTheory.Carrier zero] ({ a: LeftTheory.Carrier zero \where LeftTheory.apply zero a = #apply{FirstRestriction.map} one phi }) \by boundary \then
+  \return Logic.existsIntro[LeftTheory.Carrier zero, { a: LeftTheory.Carrier zero \where FirstPrimitive a }] a
+    (sym!{{LeftTheory.Carrier one}} _ _ (\bysub(LeftTheory.Carrier zero,
+      { a: LeftTheory.Carrier zero \where LeftTheory.apply zero a = #apply{FirstRestriction.map} one phi }, a)))
+};
+\definition secondPrimitiveExists: #apply{secondRestriction} (ProductH.classOf phi) = #zero{RightH.cohomologySpace} ->
+  \exists { b: RightTheory.Carrier zero \where SecondPrimitive b } := \block {
+  \fun (vanishes: _) \then
+  \let boundary: _ := RightH.zeroClassBoundary (#apply{(RightMaps.cyclesMap SecondRestriction.map)} phi)
+    (trans!{RightH.Cohomology} _ _ _ (sym!{RightH.Cohomology} _ _ (RightMaps.onClass SecondRestriction.map phi)) vanishes) \then
+  \takefrom b: \Cast[RightTheory.Carrier zero] ({ b: RightTheory.Carrier zero \where RightTheory.apply zero b = #apply{SecondRestriction.map} one phi }) \by boundary \then
+  \return Logic.existsIntro[RightTheory.Carrier zero, { b: RightTheory.Carrier zero \where SecondPrimitive b }] b
+    (sym!{{RightTheory.Carrier one}} _ _ (\bysub(RightTheory.Carrier zero,
+      { b: RightTheory.Carrier zero \where RightTheory.apply zero b = #apply{SecondRestriction.map} one phi }, b)))
+};
+\definition normalizedCycle: TensorH.CycleCarrier := #apply{(NormalizeMaps.cyclesMap Normalize.map)} (#apply{(PullMaps.cyclesMap Pull.map)} phi);
+\import Cohomology.At[C := TensorTheory.complex, k := zero] \as TensorZero;
+\definition normalizedClassZero: normalized phi = Linear.zeroMap -> TensorH.classOf normalizedCycle = #zero{TensorH.cohomologySpace} :=
+  \fun (vanishes: normalized phi = Linear.zeroMap) => TensorH.boundaryClassZero normalizedCycle
+    (Logic.existsIntro[TensorTheory.Carrier zero, { a: TensorTheory.Carrier zero \where TensorTheory.apply zero a = normalized phi }]
+      #zero{(TensorTheory.space zero)}
+      (trans!{{TensorTheory.Carrier one}} _ _ _ TensorZero.differentialZero (sym!{{TensorTheory.Carrier one}} _ _ vanishes)));
+\definition pullClassZero: normalized phi = Linear.zeroMap -> #apply{(PullMaps.induced Pull.map)} (ProductH.classOf phi) = #zero{TensorH.cohomologySpace} :=
+  \fun (vanishes: _) => trans!{TensorH.Cohomology} _ _ _
+    (sym!{TensorH.Cohomology} _ _ (normalizationIdentity (#apply{(PullMaps.induced Pull.map)} (ProductH.classOf phi))))
+    (trans!{TensorH.Cohomology} _ _ _
+      (congr!{TensorH.Cohomology TensorH.Cohomology} (#apply{(NormalizeMaps.induced Normalize.map)}) _ _ (PullMaps.onClass Pull.map phi))
+      (trans!{TensorH.Cohomology} _ _ _ (NormalizeMaps.onClass Normalize.map (#apply{(PullMaps.cyclesMap Pull.map)} phi))
+        (normalizedClassZero vanishes)));
+\definition detected: #apply{firstRestriction} (ProductH.classOf phi) = #zero{LeftH.cohomologySpace} ->
+  #apply{secondRestriction} (ProductH.classOf phi) = #zero{RightH.cohomologySpace} -> ProductH.classOf phi = #zero{ProductH.cohomologySpace} := \block {
+  \fun (leftZero: _)(rightZero: _) \then
+  \takefrom a: \Cast[LeftTheory.Carrier zero] ({ a: LeftTheory.Carrier zero \where FirstPrimitive a }) \by firstPrimitiveExists leftZero \then
+  \takefrom b: \Cast[RightTheory.Carrier zero] ({ b: RightTheory.Carrier zero \where SecondPrimitive b }) \by secondPrimitiveExists rightZero \then
+  \return pullDetectsZero (ProductH.classOf phi)
+    (pullClassZero (Primitive[a := a, b := b].zero
+      (\bysub(LeftTheory.Carrier zero, { a: LeftTheory.Carrier zero \where FirstPrimitive a }, a))
+      (\bysub(RightTheory.Carrier zero, { b: RightTheory.Carrier zero \where SecondPrimitive b }, b))))
+};

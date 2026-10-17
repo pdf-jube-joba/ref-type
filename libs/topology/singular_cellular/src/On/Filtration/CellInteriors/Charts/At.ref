@@ -1,0 +1,20 @@
+\import RemainingSpace.Subspace[S := piece cell] \as Component;
+\import \parent.\parent.Cell[cell := cell, member := member cell, dimension := dimension cell] \as Cell;
+\definition inverse(x: Component.CarrierSet): Carrier := Disks.injection cell (#backward{Cell.homeomorphism} x);
+\import topology.Composition[A := Component.CarrierSet, B := fiber cell, C := Carrier] \as Composition;
+\definition continuous: topology.Continuity[A := Component.CarrierSet, B := Carrier].Continuous (Component.topology Target.topology) topology inverse :=
+  Composition.composeContinuous (Component.topology Target.topology) (fiberTopology cell) topology
+    (#backward{Cell.homeomorphism}) (Disks.injection cell)
+    (#backwardContinuous{Cell.homeomorphismLaws}) (Disks.At[i := cell].continuous);
+\definition equals: \forall (x: Component.CarrierSet) -> inverse x = backward x :=
+  \fun (x: Component.CarrierSet) => injective (inverse x) (backward x)
+    (trans!{Target.Carrier} _ _ _ (#rightInverse{Cell.homeomorphismLaws} x)
+      (sym!{Target.Carrier} _ _ (Inverse.rightInverse injective onto x)));
+\import Gluing.Restriction[U := piece cell] \as Restriction;
+\definition local: Gluing.ContinuousOn Target.topology topology backward (piece cell) :=
+  Restriction.localFromRestriction Target.topology topology backward (componentOpen cell)
+    (\idelim inverse = (\fun (x: Component.CarrierSet) => backward x)
+      \with f: (Component.CarrierSet -> Carrier) => topology.Continuity[A := Component.CarrierSet, B := Carrier].Continuous (Component.topology Target.topology) topology f \by {
+        base: continuous,
+        equality: \axiom:funext(inverse, (\fun (x: Component.CarrierSet) => backward x), equals)
+      });

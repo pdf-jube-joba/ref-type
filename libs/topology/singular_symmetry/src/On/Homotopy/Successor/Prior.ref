@@ -1,0 +1,18 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Modules.Alternating[V := Total.Carrier (N.Nat^::succ n), space := Total.space (N.Nat^::succ n)] \as Sum;
+\import Modules.Alternating[V := HighModel.Carrier (I.Int^::ofNat (N.Nat^::succ n)), space := HighModel.space (I.Int^::ofNat (N.Nat^::succ n))].Mapping[W := Total.Carrier (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as Mapping;
+\import \root.Models[].Transition[n := n].Degree[z := I.Int^::ofNat (N.Nat^::succ n)] \as Transition;
+\import Chains.Boundary[n := n].SumImage[W := Total.Carrier (N.Nat^::succ n), target := Total.space (N.Nat^::succ n)] \as Image;
+\definition count: N.Nat^ := N.Nat^::succ (N.Nat^::succ n);
+\definition faceValues(sigma: Simplices.Carrier (N.Nat^::succ n))(i: Fin.Fin count): Total.Carrier (N.Nat^::succ n) := #apply{(Higher.evaluation sigma)} (N.Nat^::succ n) (#apply{(Transition.faces i)} (Models.homotopy n));
+\definition evaluatedFaces(sigma: Simplices.Carrier (N.Nat^::succ n))(i: Fin.Fin count): Total.Carrier (N.Nat^::succ n) := Lower.onSimplex (Simplices.face n i sigma);
+\definition law(sigma: Simplices.Carrier (N.Nat^::succ n)): Higher.Boundary[].prior sigma = #apply{Lower.map} (#apply{(Chains.boundary n)} (Chains.generator (N.Nat^::succ n) sigma)) :=
+  trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{HighModel.Carrier (I.Int^::ofNat (N.Nat^::succ n))} {Total.Carrier (N.Nat^::succ n)}} (#apply{(Higher.evaluationLinear (N.Nat^::succ n) sigma)}) _ _ (Models.priorSuccessor n))
+    (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{HighModel.Carrier (I.Int^::ofNat (N.Nat^::succ n))} {Total.Carrier (N.Nat^::succ n)}} (#apply{(Higher.evaluationLinear (N.Nat^::succ n) sigma)}) _ _ (Transition.onValues (Models.homotopy n)))
+      (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _
+        (Mapping.law (Higher.evaluationLinear (N.Nat^::succ n) sigma) count (\fun (i: Fin.Fin count) => #apply{(Transition.faces i)} (Models.homotopy n)))
+        (trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _
+          (Sum.congruent count (faceValues sigma) (evaluatedFaces sigma) (\fun (i: Fin.Fin count) => \parent.Face[i := i].With[sigma := sigma].law (N.Nat^::succ n) (Models.homotopy n)))
+          (sym!{{Total.Carrier (N.Nat^::succ n)}} _ _ (Image.law Lower.map Lower.onSimplex Lower.onGenerator sigma)))));

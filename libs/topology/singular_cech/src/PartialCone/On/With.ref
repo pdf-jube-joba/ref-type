@@ -1,0 +1,64 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_cohomology.SimplicialChains[].On[X := X] \as Chains;
+\use Equality.transport;
+\definition Carrier: N.Nat^ -> \Set := Chains.Carrier;
+\definition space: \forall (n: N.Nat^) -> Modules.Space (Carrier n) := Chains.space;
+\definition generator: \forall (n: N.Nat^) -> Simplex n -> Carrier n := Chains.generator;
+\definition boundary: \forall (n: N.Nat^) -> Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n,
+  source := space (N.Nat^::succ n), target := space n].Map := Chains.boundary;
+\definition extended(n: N.Nat^)(s: Simplex n)(absent: #present{cone} n s = B.Bool^::false): Simplex (N.Nat^::succ n) := extend cone n s absent;
+\import B.Prop[] \as BooleanLaws;
+\structure ValueLaws[n: N.Nat^, s: Simplex n, y: Carrier (N.Nat^::succ n)]: \Prop {
+  present: #present{cone} n s = B.Bool^::true -> y = #zero{(space (N.Nat^::succ n))},
+  absent: \forall (missing: #present{cone} n s = B.Bool^::false) -> y = generator (N.Nat^::succ n) (extended n s missing),
+}
+\definition Value(n: N.Nat^)(s: Simplex n): \Set := \Cast[Carrier (N.Nat^::succ n)] ({ y: Carrier (N.Nat^::succ n) \where ValueLaws[n, s, y] });
+\definition valueLaws(n: N.Nat^)(s: Simplex n)(y: Value n s): ValueLaws[n, s, y] :=
+  \bysub(Carrier (N.Nat^::succ n), { y: Carrier (N.Nat^::succ n) \where ValueLaws[n, s, y] }, y);
+\definition valueExists(n: N.Nat^)(s: Simplex n): \exists Value n s :=
+  (\induction (flag: B.Bool^) \return #present{cone} n s = flag -> \exists Value n s \with {
+    | true: \fun (present: _) => Logic.existsIntro[Carrier (N.Nat^::succ n),
+        { y: Carrier (N.Nat^::succ n) \where ValueLaws[n, s, y] }]
+        #zero{(space (N.Nat^::succ n))} (ValueLaws[n, s, #zero{(space (N.Nat^::succ n))}] {
+          present := \fun (same: _) => \refl(#zero{(space (N.Nat^::succ n))}),
+          absent := \fun (missing: _) => Logic.falseElim _ (BooleanLaws.trueNeFalse
+            (trans!{{B.Bool^}} _ _ _ (sym!{{B.Bool^}} _ _ present) missing)),
+        })
+    | false: \fun (missing: _) => Logic.existsIntro[Carrier (N.Nat^::succ n),
+        { y: Carrier (N.Nat^::succ n) \where ValueLaws[n, s, y] }]
+        (generator (N.Nat^::succ n) (extended n s missing))
+        (ValueLaws[n, s, generator (N.Nat^::succ n) (extended n s missing)] {
+          present := \fun (present: _) => Logic.falseElim _ (BooleanLaws.falseNeTrue
+            (trans!{{B.Bool^}} _ _ _ (sym!{{B.Bool^}} _ _ missing) present)),
+          absent := \fun (same: _) => \refl(generator (N.Nat^::succ n) (extended n s missing)),
+        })
+  }) (#present{cone} n s) (\refl(#present{cone} n s));
+\definition valueUnique(n: N.Nat^)(s: Simplex n)(a, b: Value n s): a = b :=
+  (\induction (flag: B.Bool^) \return #present{cone} n s = flag -> a = b \with {
+    | true: \fun (present: _) => trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+        (#present{(valueLaws n s a)} present) (sym!{{Carrier (N.Nat^::succ n)}} _ _ (#present{(valueLaws n s b)} present))
+    | false: \fun (missing: _) => trans!{{Carrier (N.Nat^::succ n)}} _ _ _
+        (#absent{(valueLaws n s a)} missing) (sym!{{Carrier (N.Nat^::succ n)}} _ _ (#absent{(valueLaws n s b)} missing))
+  }) (#present{cone} n s) (\refl(#present{cone} n s));
+\definition selected(n: N.Nat^)(s: Simplex n): Value n s := \choice Value n s \by { existence: valueExists n s, uniqueness: valueUnique n s };
+\definition value(n: N.Nat^)(s: Simplex n): Carrier (N.Nat^::succ n) := selected n s;
+\definition onPresent(n: N.Nat^)(s: Simplex n)(present: #present{cone} n s = B.Bool^::true): value n s = #zero{(space (N.Nat^::succ n))} :=
+  #present{(valueLaws n s (selected n s))} present;
+\definition onAbsent(n: N.Nat^)(s: Simplex n)(absent: #present{cone} n s = B.Bool^::false):
+  value n s = generator (N.Nat^::succ n) (extended n s absent) := #absent{(valueLaws n s (selected n s))} absent;
+\module Degree(n: N.Nat^) {
+  \import Modules.Free[Generators := Simplex n].To[W := Carrier (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Free;
+  \definition map: Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)].Map := Free.extension (value n);
+  \definition onGenerator: \forall (s: Simplex n) -> #apply{map} (generator n s) = value n s := Free.onGenerator (value n);
+}
+\definition homotopy(n: N.Nat^): Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)].Map := Degree[n := n].map;
+\definition homotopyPresent(n: N.Nat^)(s: Simplex n)(present: #present{cone} n s = B.Bool^::true):
+  #apply{(homotopy n)} (generator n s) = #zero{(space (N.Nat^::succ n))} :=
+  trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (Degree[n := n].onGenerator s) (onPresent n s present);
+\definition homotopyAbsent(n: N.Nat^)(s: Simplex n)(absent: #present{cone} n s = B.Bool^::false):
+  #apply{(homotopy n)} (generator n s) = generator (N.Nat^::succ n) (extended n s absent) :=
+  trans!{{Carrier (N.Nat^::succ n)}} _ _ _ (Degree[n := n].onGenerator s) (onAbsent n s absent);
+\module Positive(n: N.Nat^);
+\module Zero;

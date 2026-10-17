@@ -1,0 +1,59 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import Source.Compactness[] \as SourceCompact;
+\import Target.Compactness[] \as TargetCompact;
+\import Source.Finite[] \as SourceFinite;
+\import Target.Finite[] \as TargetFinite;
+\import topology.Continuity[A := A, B := B] \as Maps;
+\import topology.Maps[A := A, B := B] \as Sets;
+\import topology.Compactness[A := A, B := B] \as Images;
+\import topological_constructions.Quotient[A := A, B := B] \as Quotient;
+\import std.Logic[].Proposition[] \as Logic;
+\definition ClosedMap: \Prop := \forall (F: \Pow A) -> Source.IsClosedIn source F -> Target.IsClosedIn target (Sets.Image q F);
+\definition closedMap: Source.IsCompact source -> Target.IsT2 target -> Maps.Continuous source target q -> ClosedMap :=
+  \fun (compact: _)(hausdorff: _)(continuous: _)(F: _)(closed: _) =>
+    TargetCompact.compactClosed target hausdorff (Sets.Image q F)
+      (Images.continuousImage source target q continuous F (SourceCompact.closedCompact source compact F closed));
+\definition imageComplement: Quotient.Surjective q -> \forall (W: \Pow B) ->
+  Sets.Image q (Source.Complement (Maps.Preimage q W)) = Target.Complement W :=
+  \fun (onto: _)(W: _) => \axiom:setext(Sets.Image q (Source.Complement (Maps.Preimage q W)), Target.Complement W,
+    \block {
+      \fun (y: B)(member: _) \then
+      \takefrom x: \Cast[A] ({ x: A \where Logic.And[Source.Member (Source.Complement (Maps.Preimage q W)) x, q x = y] }) \by member \then
+      \let data: Logic.And[Source.Member (Source.Complement (Maps.Preimage q W)) x, q x = y] :=
+        \bysub(A, { x: A \where Logic.And[Source.Member (Source.Complement (Maps.Preimage q W)) x, q x = y] }, x) \then
+      \return \fun (inside: Target.Member W y) => #left{data}
+        (\idelim y = q x \with b: B => Target.Member W b \by { base: inside, equality: sym!{B} _ _ (#right{data}) })
+    },
+    \block {
+      \fun (y: B)(outside: Target.Member (Target.Complement W) y) \then
+      \takefrom x: \Cast[A] ({ x: A \where q x = y }) \by onto y \then
+      \let same: q x = y := \bysub(A, { x: A \where q x = y }, x) \then
+      \return Logic.existsIntro[A, { x: A \where Logic.And[Source.Member (Source.Complement (Maps.Preimage q W)) x, q x = y] }] x
+        (Logic.And[_, _]::#
+          (\fun (inside: Target.Member W (q x)) => outside
+            (\idelim q x = y \with b: B => Target.Member W b \by { base: inside, equality: same })) same)
+    });
+\definition reflectsOpen: ClosedMap -> Quotient.Surjective q -> \forall (W: \Pow B) ->
+  Source.IsOpenIn source (Maps.Preimage q W) -> Target.IsOpenIn target W := \block {
+  \fun (closedMap: ClosedMap)(onto: _)(W: _)(open: _) \then
+  \let complementClosed: Target.IsClosedIn target (Target.Complement W) :=
+    \idelim Sets.Image q (Source.Complement (Maps.Preimage q W)) = Target.Complement W
+      \with F: \Pow B => Target.IsClosedIn target F \by {
+        base: closedMap (Source.Complement (Maps.Preimage q W)) (SourceFinite.openComplementClosed source (Maps.Preimage q W) open),
+        equality: imageComplement onto W
+      } \then
+  \return \idelim Target.Complement (Target.Complement W) = W \with U: \Pow B => Target.IsOpenIn target U \by {
+    base: complementClosed, equality: TargetFinite.doubleComplement W
+  }
+};
+\definition quotientMap: Source.IsCompact source -> Target.IsT2 target -> Maps.Continuous source target q -> Quotient.Surjective q ->
+  Quotient.IsQuotientMap[source, target, q] :=
+  \fun (compact: _)(hausdorff: _)(continuous: _)(onto: _) => Quotient.IsQuotientMap[source, target, q] {
+    onto := onto, continuous := continuous,
+    reflectsOpen := reflectsOpen (closedMap compact hausdorff continuous) onto,
+  };

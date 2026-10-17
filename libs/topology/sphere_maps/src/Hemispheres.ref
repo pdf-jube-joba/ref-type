@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as Reals;
+\import Reals.Arithmetic[].Prop[] \as Laws;
+\import algebraic_topology.Spheres[] \as Spheres;
+\import Spheres.Positive[n := n] \as Geometry;
+\import \root.Reflection[n := N.Nat^::succ n] \as Reflection;
+\import cohomology_models.SphereCover[n := n] \as Cover;
+\import \root.CoverSwap[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].On[cover := Cover.cover] \as Maps;
+\definition toRight: \forall (x: Geometry.Sphere) ->
+  topology.Topology[Carrier := Geometry.Sphere].Member Geometry.left x ->
+  topology.Topology[Carrier := Geometry.Sphere].Member Geometry.right (Reflection.head x) :=
+  \fun (x: Geometry.Sphere)(above: _) => Reals.ltReplaceLeft (Real.neg (Geometry.height x)) (Geometry.height (Reflection.head x)) Real.one
+    (sym!{Real.Real} _ _ (Reflection.headHead x))
+    (Reals.ltReplaceRight (Real.neg (Geometry.height x)) (Real.neg (Real.neg Real.one)) Real.one (Laws.negInvolutive Real.one)
+      (Laws.negStrictAntitone (Real.neg Real.one) (Geometry.height x) above));
+\definition toLeft: \forall (x: Geometry.Sphere) ->
+  topology.Topology[Carrier := Geometry.Sphere].Member Geometry.right x ->
+  topology.Topology[Carrier := Geometry.Sphere].Member Geometry.left (Reflection.head x) :=
+  \fun (x: Geometry.Sphere)(below: _) => Reals.ltReplaceRight (Real.neg Real.one) (Real.neg (Geometry.height x)) (Geometry.height (Reflection.head x))
+    (sym!{Real.Real} _ _ (Reflection.headHead x))
+    (Laws.negStrictAntitone (Geometry.height x) Real.one below);
+\definition reflection: Maps.Mapping := \into[Maps.Data](Maps.Data { function := Reflection.head }, Maps.Mapping) \by {
+  Maps.Laws[Maps.Data { function := Reflection.head }] {
+    continuous := Reflection.headContinuous, toRight := toRight, toLeft := toLeft,
+  }
+};
+\import Maps.With[mapping := reflection] \as Action;
+\import Geometry.Equatorial[] \as Equator;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n].Splitting[] \as Splitting;
+\definition fixedEquator: \forall (x: Spheres.Carrier n) -> Action.intersectionFunction (Equator.inclusion x) = Equator.inclusion x :=
+  \fun (x: Spheres.Carrier n) => Splitting.ext (Action.intersectionFunction (Equator.inclusion x)) (Equator.inclusion x)
+    (trans!{Real.Real} _ _ _ (Reflection.headHead (Equator.inclusion x))
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} Real.neg _ _ (Splitting.equatorHead x))
+        (trans!{Real.Real} _ _ _ Laws.negZero (sym!{Real.Real} _ _ (Splitting.equatorHead x)))))
+    (Reflection.headTail (Equator.inclusion x));
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\module With(coefficients: Modules.Bundle);
+\module Degree;
+\module Preserving;

@@ -1,0 +1,20 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\module At(n: N.Nat^);
+\definition homology(n: N.Nat^)(z: I.Int^): \Set := At[n := n].Homology[z := z].Carrier;
+\definition homologySpace(n: N.Nat^)(z: I.Int^): Modules.Space (homology n z) := At[n := n].Homology[z := z].space;
+\definition Orientation(n: N.Nat^): \Set := Modules.Isomorphism[V := I.Int^, W := homology n (I.Int^::ofNat n),
+  source := Modules.scalarModule, target := homologySpace n (I.Int^::ofNat n)].Isomorphism;
+\module Zero;
+\definition orientation: \forall (n: N.Nat^) -> Orientation n := \induction (n: N.Nat^) \return Orientation n \with {
+  | zero: Zero[].orientation
+  | succ: \fun (n: N.Nat^)(previous: Orientation n) => \root.DiskRelative[n := n].Homology[].orientation
+};
+\definition generator(n: N.Nat^): homology n (I.Int^::ofNat n) := #apply{#forward{(orientation n)}} I.One.specification;

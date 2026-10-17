@@ -1,0 +1,45 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \parent.Membership[] \as Membership;
+\import topology.Topology[Carrier := Carrier].OpenCovers[topology := topology] \as Covers;
+\structure Witness[U: \Pow Carrier]: \Set { index: Index, same: U = \parent.At[i := index].subset }
+\definition family: \Pow (\Pow Carrier) := { U: \Pow Carrier \where \exists Witness[U] };
+\definition coverLaws: Space.IsOpenCover[topology, family, Space.Whole] := Space.IsOpenCover[topology, family, Space.Whole] {
+  open := \block {
+    \fun (U: \Pow Carrier)(member: _) \then
+    \takefrom w: Witness[U] \by member \then
+    \return \idelim \parent.At[i := #index{w}].subset = U \with V: \Pow Carrier => Space.IsOpenIn topology V \by {
+      base: \parent.At[i := #index{w}].imageOpen (topology.Topology[Carrier := fibers (#index{w})].Whole)
+        (#wholeOpen{(topology.Topology[Carrier := fibers (#index{w})].topologyLaws (spaces (#index{w})))}),
+      equality: sym!{\Pow Carrier} _ _ (#same{w}) }
+  },
+  covers := \fun (chart: Carrier)(whole: _) => Space.unionMemberOf family (\parent.At[i := #index{chart}].subset) chart
+    (\exact(Witness[\parent.At[i := #index{chart}].subset] { index := #index{chart}, same := \refl(\parent.At[i := #index{chart}].subset) }, Witness[\parent.At[i := #index{chart}].subset]))
+    (Membership.belongs chart),
+};
+\definition cover: Covers.Cover := \into[\Pow (\Pow Carrier)](family, Covers.Families) \by { coverLaws };
+\import singular_cohomology.OpenCover[A := Carrier, source := topology].On[cover := cover] \as Covered;
+\import singular_cohomology.Small[A := Carrier, source := topology, family := family] \as Small;
+\import singular_cohomology.Small[A := Carrier, source := topology, family := family].Simplices[] \as SmallSimplices;
+\import singular_cohomology.Simplices[A := Carrier, source := topology] \as WholeSimplices;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import \parent.\parent.Coproduct[Index := Index, fibers := fibers, spaces := spaces] \as Sum;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import singular_cohomology.Chains[A := Carrier, source := topology] \as Whole;
+\import Nonnegative.ZeroExtension[C := Whole.complex] \as WholeExtension;
+\import Nonnegative.Equivalence[C := Small.complex, D := Whole.complex].ZeroExtension[e := Covered.equivalence] \as Comparison;
+\definition equivalence: chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Equivalence[C := SmallExtension.complex, D := WholeExtension.complex].Equivalence :=
+  Comparison.equivalence;
+\module Component(i: Index);
+\module Degree(n: N.Nat^);
+
+\module Decomposition;

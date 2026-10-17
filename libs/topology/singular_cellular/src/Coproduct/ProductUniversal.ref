@@ -1,0 +1,45 @@
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import topological_constructions.Product[A := X, B := Carrier] \as Product;
+\import Product.Maps[] \as Projections;
+\import topology.Topology[Carrier := Product.CarrierSet] \as Domain;
+\definition productTopology: Domain.Topology := Product.topology factor topology;
+\definition component(i: Index): \Pow Product.CarrierSet :=
+  { p: Product.CarrierSet \where Space.Member (\parent.At[i := i].subset) (Pair.second X Carrier p) };
+\definition componentOpen(i: Index): Domain.IsOpenIn productTopology (component i) :=
+  Projections.secondContinuous factor topology (\parent.At[i := i].subset)
+    (\parent.At[i := i].imageOpen (topology.Topology[Carrier := fibers i].Whole)
+      (#wholeOpen{(topology.Topology[Carrier := fibers i].topologyLaws (spaces i))}));
+\import topological_constructions.Gluing[A := Product.CarrierSet, B := B] \as Gluing;
+\module AtIndex(i: Index);
+\definition Branches(f: Product.CarrierSet -> B): \Prop := \forall (i: Index) ->
+  topology.Continuity[A := Pair.Times^[X, fibers i], B := B].Continuous
+    (topological_constructions.Product[A := X, B := fibers i].topology factor (spaces i)) target
+    (\fun (p: Pair.Times^[X, fibers i]) => f (Pair.pair X Carrier (Pair.first X (fibers i) p) (injection i (Pair.second X (fibers i) p))));
+\structure Witness[U: \Pow Product.CarrierSet]: \Set { index: Index, same: U = component index }
+\definition family: \Pow (\Pow Product.CarrierSet) := { U: \Pow Product.CarrierSet \where \exists Witness[U] };
+\definition covers: Domain.Covers family Domain.Whole := \block {
+  \fun (p: Product.CarrierSet)(whole: _) \then
+  \let chart: Carrier := Pair.second X Carrier p \then
+  \let i: Index := #index{chart} \then
+  \let proof: Space.Member (\parent.At[i := i].subset) chart :=
+    Logic.existsIntro[fibers i,
+      { point: fibers i \where Logic.And[topology.Topology[Carrier := fibers i].Member (topology.Topology[Carrier := fibers i].Whole) point,
+        injection i point = chart] }] (#point{chart}) (Logic.And[_, _]::# (\refl(#point{chart})) (\refl(chart))) \then
+  \return Domain.unionMemberOf family (component i) p
+    (\exact(Witness[component i] { index := i, same := \refl(component i) }, Witness[component i])) proof
+};
+\definition continuous: \forall (f: Product.CarrierSet -> B) -> Branches f -> topology.Continuity[A := Product.CarrierSet, B := B].Continuous productTopology target f :=
+  \fun (f: _)(branches: _) => Gluing.openCover productTopology target f family covers
+    (\block {
+      \fun (U: \Pow Product.CarrierSet)(member: _) \then
+      \takefrom witness: Witness[U] \by member \then
+      \return \idelim component (#index{witness}) = U \with W: \Pow Product.CarrierSet => Gluing.ContinuousOn productTopology target f W \by {
+        base: AtIndex[i := #index{witness}].local f (branches (#index{witness})),
+        equality: sym!{\Pow Product.CarrierSet} _ _ (#same{witness})
+      }
+    });

@@ -1,0 +1,65 @@
+\definition degree: N.Nat^ := N.Nat^::zero;
+\import Modules.Laws[V := Carrier degree, space := space degree] \as Values;
+\import algebra.Group[].Of[Carrier := Carrier degree, group := Values.additive] \as Group;
+\import Modules.Hom[V := Carrier (N.Nat^::succ degree), W := Carrier degree, source := space (N.Nat^::succ degree), target := space degree] \as Differentials;
+\import Modules.Free[Generators := Simplex degree].To[W := I.Int^, target := Modules.scalarModule] \as ToScalar;
+\definition augmentation: Modules.Hom[V := Carrier degree, W := I.Int^, source := space degree, target := Modules.scalarModule].Map := ToScalar.extension (\fun (s: Simplex degree) => #one{Integers.ring});
+\definition augmentationOnGenerator(s: Simplex degree): #apply{augmentation} (generator degree s) = #one{Integers.ring} := ToScalar.onGenerator (\fun (s: Simplex degree) => #one{Integers.ring}) s;
+\import Modules.Hom[V := I.Int^, W := Carrier degree, source := Modules.scalarModule, target := space degree] \as Centres;
+\definition centre: Centres.Map := Centres.Map {
+  apply := \fun (a: I.Int^) => #smul{(space degree)} a (generator degree #apex{cone}),
+  addition := \fun (a, b: I.Int^) => #scalarAdd{(space degree)} a b (generator degree #apex{cone}),
+  scalar := \fun (a, b: I.Int^) => #scalarAssoc{(space degree)} a b (generator degree #apex{cone}),
+};
+\import Centres.Composition[U := Carrier degree, domain := space degree] \as Composition;
+\definition projection: Modules.Hom[V := Carrier degree, W := Carrier degree, source := space degree, target := space degree].Map := Composition.compose centre augmentation;
+\definition projectionOnGenerator(s: Simplex degree): #apply{projection} (generator degree s) = generator degree #apex{cone} :=
+  trans!{{Carrier degree}} _ _ _
+    (congr!{{I.Int^} {Carrier degree}} (#apply{centre}) _ _ (augmentationOnGenerator s))
+    (#scalarOne{(space degree)} (generator degree #apex{cone}));
+\definition zeroDifference(x: Carrier degree): Group.difference x Group.zero = x :=
+  trans!{{Carrier degree}} _ _ _ (congr!{{Carrier degree} {Carrier degree}} (Group.add x) _ _ Group.negZero) (Group.zeroRight x);
+\definition absent(s: Simplex degree)(missing: #present{cone} degree s = B.Bool^::false):
+  #apply{(boundary degree)} (#apply{(homotopy degree)} (generator degree s)) = Group.difference (generator degree s) (generator degree #apex{cone}) :=
+  trans!{{Carrier degree}} _ _ _
+    (congr!{{Carrier (N.Nat^::succ degree)} {Carrier degree}} (#apply{(boundary degree)}) _ _ (homotopyAbsent degree s missing))
+    (trans!{{Carrier degree}} _ _ _ (Chains.Boundary[n := degree].onGenerator (extended degree s missing))
+      (congr2!{{Carrier degree} {Carrier degree} {Carrier degree}} Group.difference _ _ _ _
+        (congr!{{Simplex degree} {Carrier degree}} (generator degree) _ _ (#first{cone} degree s missing))
+        (trans!{{Carrier degree}} _ _ _
+          (congr!{{Carrier degree} {Carrier degree}} (\fun (x: Carrier degree) => Group.difference x Group.zero) _ _
+            (congr!{{Simplex degree} {Carrier degree}} (generator degree) _ _ (#last{cone} s missing)))
+          (zeroDifference (generator degree #apex{cone})))));
+\definition present(s: Simplex degree)(present: #present{cone} degree s = B.Bool^::true):
+  #apply{(boundary degree)} (#apply{(homotopy degree)} (generator degree s)) = Group.difference (generator degree s) (generator degree #apex{cone}) :=
+  trans!{{Carrier degree}} _ _ _
+    (congr!{{Carrier (N.Nat^::succ degree)} {Carrier degree}} (#apply{(boundary degree)}) _ _ (homotopyPresent degree s present))
+    (trans!{{Carrier degree}} _ _ _ (Differentials.zeroPreserved (boundary degree))
+      (sym!{{Carrier degree}} _ _
+        (trans!{{Carrier degree}} _ _ _
+          (congr!{{Carrier degree} {Carrier degree}} (Group.difference (generator degree s)) _ _
+            (sym!{{Carrier degree}} _ _ (congr!{{Simplex degree} {Carrier degree}} (generator degree) _ _ (#zero{cone} s present))))
+          (Group.inverseRight (generator degree s)))));
+\definition onGenerator(s: Simplex degree):
+  #apply{(boundary degree)} (#apply{(homotopy degree)} (generator degree s)) = Group.difference (generator degree s) (generator degree #apex{cone}) :=
+  (\induction (flag: B.Bool^) \return #present{cone} degree s = flag ->
+    #apply{(boundary degree)} (#apply{(homotopy degree)} (generator degree s)) = Group.difference (generator degree s) (generator degree #apex{cone}) \with {
+    | true: present s
+    | false: absent s
+  }) (#present{cone} degree s) (\refl(#present{cone} degree s));
+\import Modules.Hom[V := Carrier degree, W := Carrier degree, source := space degree, target := space degree] \as End;
+\import Modules.End[V := Carrier degree, space := space degree] \as Identity;
+\import Differentials.Composition[U := Carrier degree, domain := space degree] \as After;
+\import Modules.Free[Generators := Simplex degree].To[W := Carrier degree, target := space degree] \as Free;
+\definition equality: After.compose (boundary degree) (homotopy degree) = End.plus Identity.identity (End.negative projection) :=
+  Free.ext _ _ (\fun (s: Simplex degree) => trans!{{Carrier degree}} _ _ _ (onGenerator s)
+    (congr!{{Carrier degree} {Carrier degree}} (Group.difference (generator degree s)) _ _ (sym!{{Carrier degree}} _ _ (projectionOnGenerator s))));
+\definition law(x: Carrier degree): #apply{(boundary degree)} (#apply{(homotopy degree)} x) = Group.difference x (#apply{projection} x) :=
+  congr!{{End.Map} {Carrier degree}} (\fun (f: End.Map) => #apply{f} x) _ _ equality;
+\definition cycle(x: Carrier degree)(reduced: #apply{augmentation} x = #zero{Modules.scalarModule}):
+  #apply{(boundary degree)} (#apply{(homotopy degree)} x) = x :=
+  trans!{{Carrier degree}} _ _ _ (law x)
+    (trans!{{Carrier degree}} _ _ _
+      (congr!{{Carrier degree} {Carrier degree}} (Group.difference x) _ _
+        (trans!{{Carrier degree}} _ _ _ (congr!{{I.Int^} {Carrier degree}} (#apply{centre}) _ _ reduced) (Centres.zeroPreserved centre)))
+      (zeroDifference x));

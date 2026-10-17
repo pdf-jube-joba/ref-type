@@ -1,0 +1,33 @@
+\module Degree(n: N.Nat^) {
+  \definition z: I.Int^ := I.Int^::ofNat n;
+  \import \parent.\parent.Level[n := n, z := z] \as Level;
+  \import Level.Product[] \as Assembly;
+  \definition components: \forall (i: Double.Index n) -> Level.family.Carrier i := \fun (i: Double.Index n) => \parent.\parent.Cell[n := n, i := i].Defect[].value;
+  \definition value: Level.Carrier := #apply{Assembly.fromProduct} components;
+  \definition coordinate(i: Double.Index n): Level.Coordinates[].coordinate i value = components i := Assembly.coordinate components i;
+}
+\module Zero;
+\module Successor(n: N.Nat^);
+\import \parent.Ladder[] \as Ladder;
+\import Double.AcyclicDiagonal[].Of[model := Ladder.model] \as Construction;
+\definition cells: Construction.ClosedDiagonal := Construction.ClosedDiagonal {
+  value := \fun (n: N.Nat^) => Degree[n := n].value,
+  zero := Zero[].closed,
+  successor := \fun (n: N.Nat^) => Successor[n := n].law,
+};
+\import Construction.Positive[fillings := Ladder.Fillings[].data, cells := cells] \as Recursion;
+\import \parent.Level[n := N.Nat^::zero, z := I.Int^::ofNat (N.Nat^::succ N.Nat^::zero)] \as InitialSource;
+\import \parent.Level[n := N.Nat^::zero, z := I.Int^::ofNat N.Nat^::zero] \as InitialTarget;
+\import \parent.Differential[z := I.Int^::ofNat (N.Nat^::succ N.Nat^::zero)].Degree[n := N.Nat^::zero] \as InitialBoundary;
+\import Modules.Hom[V := InitialSource.Carrier, W := InitialTarget.Carrier, source := InitialSource.space, target := InitialTarget.space] \as InitialMaps;
+\definition initial: Recursion.Initial := Recursion.Initial {
+  value := #zero{InitialSource.space},
+  boundary := trans!{InitialTarget.Carrier} _ _ _ (InitialMaps.zeroPreserved InitialBoundary.map) (sym!{InitialTarget.Carrier} _ _ Zero[].vanishes),
+};
+\import Recursion.On[initial := initial] \as Filled;
+\definition homotopy: \forall (n: N.Nat^) -> \parent.Level[n := n, z := I.Int^::ofNat (N.Nat^::succ n)].Carrier := Filled.value;
+\definition boundary: \forall (n: N.Nat^) -> Filled.Property n := Filled.boundary;
+\definition prior: \forall (n: N.Nat^) -> \parent.Level[n := n, z := I.Int^::ofNat n].Carrier := Filled.preceding;
+\definition homotopyZero: homotopy N.Nat^::zero = #zero{InitialSource.space} := \refl(homotopy N.Nat^::zero);
+\definition priorZero: prior N.Nat^::zero = #zero{InitialTarget.space} := \refl(prior N.Nat^::zero);
+\definition priorSuccessor(n: N.Nat^): prior (N.Nat^::succ n) = #apply{\parent.Level[n := n, z := I.Int^::ofNat (N.Nat^::succ n)].transition} (homotopy n) := \refl(prior (N.Nat^::succ n));

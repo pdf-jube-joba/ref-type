@@ -1,0 +1,37 @@
+\import singular_cohomology.Relative[A := fibers i, source := spaces i, subset := Restriction.fiberSubset i] \as Native;
+\import singular_cohomology.Chains[A := Restriction.Fiber i, source := Restriction.fiberTopology i] \as FiberSubChains;
+\import singular_cohomology.Chains[A := fibers i, source := spaces i] \as FiberWholeChains;
+\import Nonnegative.ZeroExtension[C := FiberSubChains.complex] \as FiberSubExtension;
+\import Nonnegative.ZeroExtension[C := FiberWholeChains.complex] \as FiberWholeExtension;
+\definition subcomplex: Complexes.Complex := FiberSubExtension.complex;
+\definition wholecomplex: Complexes.Complex := FiberWholeExtension.complex;
+\definition complex: Complexes.Complex := Native.complex;
+\definition sequence: Complexes.ShortExact[A := subcomplex, B := wholecomplex, C := complex].Sequence := Native.sequence;
+\import \root.Algebra[].RelativeSplit[A := fibers i, source := spaces i, subset := Restriction.fiberSubset i] \as Splitting;
+\definition retraction(z: I.Int^): Modules.Hom[V := wholecomplex.family.Carrier z, W := subcomplex.family.Carrier z,
+  source := wholecomplex.family.space z, target := subcomplex.family.space z].Map := Splitting.retraction z;
+\definition section(z: I.Int^): Modules.Hom[V := complex.family.Carrier z, W := wholecomplex.family.Carrier z,
+  source := complex.family.space z, target := wholecomplex.family.space z].Map := Splitting.At[z := z].section;
+\definition retracts: \forall (z: I.Int^)(x: subcomplex.family.Carrier z) -> #apply{(retraction z)} (#apply{sequence.inclusion} z x) = x := Splitting.retracts;
+\definition sectionLaw: \forall (z: I.Int^)(x: complex.family.Carrier z) -> #apply{sequence.projection} z (#apply{(section z)} x) = x :=
+  \fun (z: I.Int^) => Splitting.At[z := z].sectionLaw;
+\import Native.Maps[B := Carrier].Over[target := topology, targetSubset := subset] \as Maps;
+\import \parent.\parent.At[i := i] \as Image;
+\definition pairMap: Maps.Map := \into[fibers i -> Carrier](injection i, Maps.Map) \by {
+  Maps.Laws[injection i] { continuous := Image.continuous, contained := \fun (x: Native.SubspaceCarrier) => \bysub(fibers i, Restriction.fiberSubset i, x) }
+};
+\import Maps.On[f := pairMap] \as Topological;
+\import Topological.Integer[] \as Action;
+\definition relativeMap: Complexes.Map[C := complex, D := Pair.complex].Map := Action.map;
+\import Nonnegative.Map[C := FiberSubChains.complex, D := SubspaceChains.complex].ZeroExtension[f := Topological.subspaceMap] \as Restricted;
+\definition restrictedMap: Complexes.Map[C := subcomplex, D := SubspaceExtension.complex].Map := Restricted.map;
+\definition ambientMap: Complexes.Map[C := wholecomplex, D := WholeExtension.complex].Map := WholeSum.Canonical[].Component[i := i].map;
+\definition leftSquare: \forall (z: I.Int^)(x: subcomplex.family.Carrier z) ->
+  #apply{ambientMap} z (#apply{sequence.inclusion} z x) = #apply{Pair.inclusionMap} z (#apply{restrictedMap} z x) := Action.compatible;
+\definition rightSquare: \forall (z: I.Int^)(x: wholecomplex.family.Carrier z) ->
+  #apply{Pair.sequence.projection} z (#apply{ambientMap} z x) = #apply{relativeMap} z (#apply{sequence.projection} z x) := #right{Action.diagram};
+\definition Carrier(z: I.Int^): \Set := Native.Homology[z := z].Carrier;
+\definition space(z: I.Int^): Modules.Space (Carrier z) := Native.Homology[z := z].space;
+
+\definition projective(z: I.Int^): Modules.Projective (Modules.Bundle { Carrier := complex.family.Carrier z, space := complex.family.space z }) := Splitting.projective z;
+\definition zeroBelow: \forall (n: N.Nat^)(x: complex.family.Carrier (I.Int^::negSucc n)) -> x = #zero{(complex.family.space (I.Int^::negSucc n))} := Splitting.zeroBelow;

@@ -1,0 +1,30 @@
+\import \root.Complex[d := d].On[K := K].Realization[].SimplicialCarrier[n := n, sigma := sigma] \as Original;
+\import topology.Composition[A := Geometric.Carrier m, B := Geometric.Carrier n, C := Global.Carrier] \as Composition;
+\definition simplex: DomainSimplices.Carrier m := \into[DomainSimplices.At[n := m].Function]((\fun (x: Geometric.Carrier m) => sigma (f x)), DomainSimplices.Carrier m) \by {
+  Composition.composeContinuous (Geometric.At[n := m].topology) (Geometric.At[n := n].topology) Global.topology f sigma continuous (DomainSimplices.At[n := n].continuous sigma)
+};
+\import \root.Complex[d := d].On[K := K].Realization[].SimplicialCarrier[n := m, sigma := simplex] \as Source;
+\definition faceInCarrier: \forall (S: \Pow Vertex) -> \In[\Pow Vertex] Source.Faces S -> \In[\Pow Vertex] Original.Faces S := \block {
+  \fun (S: \Pow Vertex)(member: \In[\Pow Vertex] Source.Faces S) \then
+  \takefrom w: Source.Witness[S] \by member \then
+  \return \exact(Original.Witness[S] { point := f #point{w}, hull := #hull{w}, included := #included{w} }, Original.Witness[S])
+};
+\import \root.Complex[d := d].On[K := Source.complex].Realization[] \as SourceRealization;
+\import \root.Complex[d := d].On[K := Original.complex].Realization[] \as TargetRealization;
+\definition inclusion(y: SourceRealization.Carrier): TargetRealization.Carrier := \into[Geometric.Carrier d](y, TargetRealization.Points) \by { \block {
+  \takefrom w: SourceRealization.Witness[y] \by SourceRealization.witness y \then
+  \return \exact(TargetRealization.Witness[y] {
+    dimension := #dimension{w}, vertices := #vertices{w}, face := faceInCarrier (Image #dimension{w} #vertices{w}) #face{w},
+    point := #point{w}, equation := #equation{w},
+  }, TargetRealization.Witness[y])
+} };
+\import topology.Continuity[A := SourceRealization.Carrier, B := Geometric.Carrier d].Corestriction[S := SourceRealization.Points] \as Out;
+\import topology.Continuity[A := SourceRealization.Carrier, B := Geometric.Carrier d].Corestriction[S := TargetRealization.Points] \as Into;
+\definition inclusionContinuous: topology.Continuity[A := SourceRealization.Carrier, B := TargetRealization.Carrier].Continuous SourceRealization.topology TargetRealization.topology inclusion :=
+  Into.corestrictContinuous SourceRealization.topology (Geometric.At[n := d].topology) inclusion (Out.inclusionContinuous (Geometric.At[n := d].topology));
+\definition commutes: \forall (y: SourceRealization.Carrier) -> Original.inclusion (inclusion y) = Source.inclusion y :=
+  \fun (y: SourceRealization.Carrier) => \refl(Source.inclusion y);
+\import singular_cohomology.Maps[A := SourceRealization.Carrier, B := TargetRealization.Carrier, source := SourceRealization.topology, target := TargetRealization.topology] \as Maps;
+\definition map: _ := Maps.push inclusion inclusionContinuous;
+\definition reducedMap: _ := Maps.Reduced[].map inclusion inclusionContinuous;
+\module Reduced;

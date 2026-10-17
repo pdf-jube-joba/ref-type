@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\use Logic.either;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.SquareRoot[] \as Root;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Products;
+\import Real.Distance[] \as Distance;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\module Scalars;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n] \as Disk;
+\import Disk.Geometry[] \as Geometry;
+\import Disk.Contraction[] \as Scaling;
+\import Disk.Splitting[] \as Split;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ (N.Nat^::succ n)] \as Ambient;
+\definition squared(p: Disk.Disk): Real.Real := Disk.normSquared p;
+\definition remaining(p: Disk.Disk): Real.Real := Real.sub Real.one (squared p);
+\definition height(p: Disk.Disk): Real.Real := Real.sub (squared p) (remaining p);
+\definition coefficient(p: Disk.Disk): Real.Real := Root.sqrt (Scalars[].four (remaining p));
+\definition remainingNonnegative: \forall (p: Disk.Disk) -> R.Le Real.zero (remaining p) :=
+  \fun (p: Disk.Disk) => Distance.subNonnegative Real.one (squared p) (\bysub(Disk.Coordinate, Disk.ClosedBall, p));
+\definition coefficientSquared: \forall (p: Disk.Disk) -> Real.mul (coefficient p) (coefficient p) = Scalars[].four (remaining p) :=
+  \fun (p: Disk.Disk) => Root.squareOfNonnegative (Scalars[].four (remaining p))
+    (Scalars[].fourNonnegative (remaining p) (remainingNonnegative p));
+\definition norm: \forall (p: Disk.Disk) -> Ambient.normSquared (Split.join (height p) (Scaling.scale (coefficient p) p)) = Real.one :=
+  \fun (p: Disk.Disk) => trans!{Real.Real} _ _ _ (Split.normJoin (height p) (Scaling.scale (coefficient p) p))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.add (Real.mul (height p) (height p))) _ _
+        (trans!{Real.Real} _ _ _ (Scaling.normScale (coefficient p) p)
+          (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (squared p)) _ _ (coefficientSquared p))))
+      (Scalars[].unit (squared p) (remaining p) (Estimates.addSubCancel Real.one (squared p))));
+\definition map(p: Disk.Disk): Ambient.Sphere :=
+  \into[Ambient.Coordinate](Split.join (height p) (Scaling.scale (coefficient p) p), Ambient.Boundary) \by { norm p };
+\module Continuity;
+\module Fibers;
+\module Surjection;
+\module Quotient;

@@ -1,0 +1,27 @@
+\import algebraic_topology.Simplex[] \as Simplex;
+\import \parent.On[K := full].Realization[] \as Realization;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import Simplex.At[n := d] \as Standard;
+\import Simplex.ReindexIdentity[n := d] \as Identity;
+\definition inclusion(y: Realization.Carrier): Simplex.Carrier d := y;
+\definition inverse(y: Simplex.Carrier d): Realization.Carrier :=
+  \into[Simplex.Carrier d](y, Realization.Points) \by {
+    \exact(Realization.Witness[y] {
+      dimension := d, vertices := \fun (i: Vertex) => i, face := \refl(\parent.On[K := full].Image d (\fun (i: Vertex) => i)),
+      point := y, equation := Identity.law y,
+    }, Realization.Witness[y])
+  };
+\import topology.Continuity[A := Realization.Carrier, B := Simplex.Carrier d].Corestriction[S := Realization.Points] \as IntoAmbient;
+\definition inclusionContinuous: topology.Continuity[A := Realization.Carrier, B := Simplex.Carrier d].Continuous
+  Realization.topology Standard.topology inclusion := IntoAmbient.inclusionContinuous Standard.topology;
+\import topology.Continuity[A := Simplex.Carrier d, B := Simplex.Carrier d].Corestriction[S := Realization.Points] \as Into;
+\import topology.Maps[A := Simplex.Carrier d, B := Simplex.Carrier d] \as Maps;
+\definition inverseContinuous: topology.Continuity[A := Simplex.Carrier d, B := Realization.Carrier].Continuous
+  Standard.topology Realization.topology inverse := Into.corestrictContinuous Standard.topology Standard.topology inverse (Maps.Identity[].continuous Standard.topology);
+\import topology.Homeomorphism[A := Realization.Carrier, B := Simplex.Carrier d] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[Realization.topology, Standard.topology] := Homeomorphisms.Homeomorphism[Realization.topology, Standard.topology] {
+  forward := inclusion, backward := inverse,
+  leftInverse := \fun (y: Realization.Carrier) => \refl(y), rightInverse := \fun (y: Simplex.Carrier d) => \refl(y),
+  forwardContinuous := inclusionContinuous, backwardContinuous := inverseContinuous,
+};

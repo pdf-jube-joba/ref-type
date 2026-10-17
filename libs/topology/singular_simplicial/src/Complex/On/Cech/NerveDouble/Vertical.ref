@@ -1,0 +1,26 @@
+\import \root.Complex[d := d].On[K := K].Cech[] \as Cech;
+\import \parent.\parent.Vertical[p := p] \as Vertical;
+\import singular_cohomology.SimplicialChains[].On[X := Vertical.object] \as Native;
+\import Native.Boundary[n := N.Nat^::zero] \as Boundary;
+\import Modules.Alternating[V := Carrier p N.Nat^::zero, space := space p N.Nat^::zero].Mapping[W := Nerve.Carrier p, target := Nerve.space p] \as Mapping;
+\import Modules.Alternating[V := Nerve.Carrier p, space := Nerve.space p] \as Sum;
+\import Modules.Laws[V := Nerve.Carrier p, space := Nerve.space p] \as Vector;
+\import algebra.Group[].Of[Carrier := Nerve.Carrier p, group := Vector.additive] \as Group;
+\import Modules.Hom[V := Carrier p N.Nat^::zero, W := Nerve.Carrier p, source := space p N.Nat^::zero, target := Nerve.space p]
+  .Composition[U := Carrier p (N.Nat^::succ N.Nat^::zero), domain := space p (N.Nat^::succ N.Nat^::zero)] \as Compose;
+\import Modules.Hom[V := Carrier p (N.Nat^::succ N.Nat^::zero), W := Nerve.Carrier p, source := space p (N.Nat^::succ N.Nat^::zero), target := Nerve.space p] \as Linear;
+\import Modules.Free[Generators := Generator p (N.Nat^::succ N.Nat^::zero)].To[W := Nerve.Carrier p, target := Nerve.space p] \as Free;
+\definition composed: Linear.Map := Compose.compose (data p N.Nat^::zero) (Source.vertical p N.Nat^::zero);
+\definition onGenerator: \forall (s: Generator p (N.Nat^::succ N.Nat^::zero)) ->
+  #apply{composed} (generator p (N.Nat^::succ N.Nat^::zero) s) = #zero{(Nerve.space p)} :=
+  \fun (s: Generator p (N.Nat^::succ N.Nat^::zero)) => trans!{{Nerve.Carrier p}} _ _ _
+    (congr!{{Carrier p N.Nat^::zero} {Nerve.Carrier p}} (#apply{(data p N.Nat^::zero)}) _ _ (Boundary.onGenerator s))
+    (trans!{{Nerve.Carrier p}} _ _ _ (Mapping.law (data p N.Nat^::zero) (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) _)
+      (trans!{{Nerve.Carrier p}} _ _ _
+        (Sum.congruent (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)) _ (\fun (_: Fin.Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) => Nerve.generator p #vertices{s})
+          (\fun (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) => Augmentation.onGenerator p (Cech.vertical p N.Nat^::zero i s)))
+        (Group.subtractDifference (Nerve.generator p #vertices{s}) #zero{(Nerve.space p)})));
+\definition equation: composed = Linear.zeroMap := Free.ext composed Linear.zeroMap onGenerator;
+\definition all: \forall (x: Carrier p (N.Nat^::succ N.Nat^::zero)) ->
+  #apply{(data p N.Nat^::zero)} (#apply{(Source.vertical p N.Nat^::zero)} x) = #zero{(Nerve.space p)} :=
+  \fun (x: Carrier p (N.Nat^::succ N.Nat^::zero)) => congr!{{Linear.Map} {Nerve.Carrier p}} (\fun (f: Linear.Map) => #apply{f} x) composed Linear.zeroMap equation;

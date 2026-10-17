@@ -1,0 +1,73 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Cohomology;
+\import Hom.On[P := ProductChains.complex, N := coefficients] \as ProductTheory;
+\import Hom.On[P := Total.complex, N := coefficients] \as TensorTheory;
+\import Hom.On[P := Left.complex, N := coefficients] \as LeftTheory;
+\import Hom.On[P := Right.complex, N := coefficients] \as RightTheory;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficient;
+\import Hom.Mapping[P := Total.complex, Q := ProductChains.complex, N := coefficients, L := coefficients].On[
+  f := Shuffle.Total[].map, u := Coefficient.identity] \as Pull;
+\import Hom.Mapping[P := Total.complex, Q := Total.complex, N := coefficients, L := coefficients].On[
+  f := map, u := Coefficient.identity] \as Normalize;
+\import Hom.Mapping[P := Left.complex, Q := ProductChains.complex, N := coefficients, L := coefficients].On[
+  f := LeftAxis.push first firstContinuous, u := Coefficient.identity] \as FirstRestriction;
+\import Hom.Mapping[P := Right.complex, Q := ProductChains.complex, N := coefficients, L := coefficients].On[
+  f := RightAxis.push second secondContinuous, u := Coefficient.identity] \as SecondRestriction;
+\import Cohomology.At[C := ProductTheory.complex, k := one] \as ProductH;
+\import Cohomology.At[C := TensorTheory.complex, k := one] \as TensorH;
+\import Cohomology.At[C := LeftTheory.complex, k := one] \as LeftH;
+\import Cohomology.At[C := RightTheory.complex, k := one] \as RightH;
+\import Cohomology.Map[C := ProductTheory.complex, D := LeftTheory.complex].At[k := one] \as LeftMaps;
+\import Cohomology.Map[C := ProductTheory.complex, D := RightTheory.complex].At[k := one] \as RightMaps;
+\import Cohomology.Map[C := ProductTheory.complex, D := TensorTheory.complex].At[k := one] \as PullMaps;
+\import Cohomology.Map[C := TensorTheory.complex, D := TensorTheory.complex].At[k := one] \as NormalizeMaps;
+\definition firstRestriction: Modules.Hom[V := ProductH.Cohomology, W := LeftH.Cohomology,
+  source := ProductH.cohomologySpace, target := LeftH.cohomologySpace].Map := LeftMaps.induced FirstRestriction.map;
+\definition secondRestriction: Modules.Hom[V := ProductH.Cohomology, W := RightH.Cohomology,
+  source := ProductH.cohomologySpace, target := RightH.cohomologySpace].Map := RightMaps.induced SecondRestriction.map;
+\definition normalized(phi: ProductTheory.Carrier one): TensorTheory.Carrier one :=
+  #apply{Normalize.map} one (#apply{Pull.map} one phi);
+\import Hom.Homotopy[P := Total.complex, Q := Total.complex, N := coefficients] \as TensorHomotopy;
+\import Hom.End[P := Total.complex, N := coefficients] \as TensorIdentity;
+\definition normalizationIdentity(q: TensorH.Cohomology): #apply{(NormalizeMaps.induced Normalize.map)} q = q :=
+  trans!{TensorH.Cohomology} _ _ _
+    (sym!{TensorH.Cohomology} _ _ (TensorHomotopy.onCohomology End.identity map homotopy one q))
+    (TensorIdentity.At[k := one].onCohomology q);
+\import \root.Product[A := A, B := B, left := left, right := right, leftPoint := leftPoint, rightPoint := rightPoint].PullInjection[
+  coefficients := coefficients] \as PullInjection;
+\definition pullDetectsZero: \forall (q: ProductH.Cohomology) ->
+  #apply{(PullMaps.induced Pull.map)} q = #zero{TensorH.cohomologySpace} -> q = #zero{ProductH.cohomologySpace} := PullInjection.law;
+\module Closed(phi: ProductH.CycleCarrier);
+\definition detectsZero: \forall (q: ProductH.Cohomology) ->
+  #apply{firstRestriction} q = #zero{LeftH.cohomologySpace} ->
+  #apply{secondRestriction} q = #zero{RightH.cohomologySpace} -> q = #zero{ProductH.cohomologySpace} :=
+  ProductH.classInduction (\fun (q: ProductH.Cohomology) =>
+    #apply{firstRestriction} q = #zero{LeftH.cohomologySpace} ->
+    #apply{secondRestriction} q = #zero{RightH.cohomologySpace} -> q = #zero{ProductH.cohomologySpace})
+    (\fun (phi: ProductH.CycleCarrier) => Closed[phi := phi].detected);
+\import Modules.Laws[V := ProductH.Cohomology, space := ProductH.cohomologySpace] \as ProductLaws;
+\import algebra.Group[].Of[Carrier := ProductH.Cohomology, group := ProductLaws.additive] \as ProductGroup;
+\import Modules.Laws[V := LeftH.Cohomology, space := LeftH.cohomologySpace] \as LeftLaws;
+\import algebra.Group[].Of[Carrier := LeftH.Cohomology, group := LeftLaws.additive] \as LeftGroup;
+\import Modules.Laws[V := RightH.Cohomology, space := RightH.cohomologySpace] \as RightLaws;
+\import algebra.Group[].Of[Carrier := RightH.Cohomology, group := RightLaws.additive] \as RightGroup;
+\import Modules.Hom[V := ProductH.Cohomology, W := LeftH.Cohomology,
+  source := ProductH.cohomologySpace, target := LeftH.cohomologySpace] \as FirstMaps;
+\import Modules.Hom[V := ProductH.Cohomology, W := RightH.Cohomology,
+  source := ProductH.cohomologySpace, target := RightH.cohomologySpace] \as SecondMaps;
+\definition detectsEqual: \forall (q, r: ProductH.Cohomology) ->
+  #apply{firstRestriction} q = #apply{firstRestriction} r ->
+  #apply{secondRestriction} q = #apply{secondRestriction} r -> q = r :=
+  \fun (q, r: ProductH.Cohomology)(firstEqual: _)(secondEqual: _) =>
+    ProductGroup.cancelRight (ProductGroup.neg r) q r
+      (trans!{ProductH.Cohomology} _ _ _
+        (detectsZero (ProductGroup.difference q r)
+          (trans!{LeftH.Cohomology} _ _ _ (FirstMaps.differencePreserved firstRestriction q r)
+            (trans!{LeftH.Cohomology} _ _ _
+              (congr!{LeftH.Cohomology LeftH.Cohomology} (\fun (v: LeftH.Cohomology) => LeftGroup.difference v (#apply{firstRestriction} r)) _ _ firstEqual)
+              (LeftGroup.inverseRight (#apply{firstRestriction} r))))
+          (trans!{RightH.Cohomology} _ _ _ (SecondMaps.differencePreserved secondRestriction q r)
+            (trans!{RightH.Cohomology} _ _ _
+              (congr!{RightH.Cohomology RightH.Cohomology} (\fun (v: RightH.Cohomology) => RightGroup.difference v (#apply{secondRestriction} r)) _ _ secondEqual)
+              (RightGroup.inverseRight (#apply{secondRestriction} r)))))
+        (sym!{ProductH.Cohomology} _ _ (ProductGroup.inverseRight r)));

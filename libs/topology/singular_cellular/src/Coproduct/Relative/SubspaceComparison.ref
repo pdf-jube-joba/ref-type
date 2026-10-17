@@ -1,0 +1,17 @@
+\import singular_cohomology.Chains[A := Cut.Carrier, source := Cut.topology] \as CutChains;
+\import Nonnegative.ZeroExtension[C := CutChains.complex] \as CutExtension;
+\import \root.Algebra[].AbsoluteHomeomorphism[A := Cut.Carrier, B := Subspace.CarrierSet,
+  source := Cut.topology, target := Subspace.topology topology, homeomorphism := Restriction.homeomorphism] \as Homeomorphism;
+\import Complexes.Equivalence[C := CutExtension.complex, D := SubspaceExtension.complex].FromIsomorphism[] \as Second;
+\import Complexes.Equivalence[C := Left.complex, D := CutExtension.complex].Composition[E := SubspaceExtension.complex] \as Composition;
+\definition equivalence: Complexes.Equivalence[C := Left.complex, D := SubspaceExtension.complex].Equivalence :=
+  Composition.compose SubspaceSum.equivalence (Second.apply Homeomorphism.isomorphism);
+\definition map: Complexes.Map[C := Left.complex, D := SubspaceExtension.complex].Map := #forward{equivalence};
+\definition quasiIsomorphism: Complexes.Map[C := Left.complex, D := SubspaceExtension.complex].QuasiIsomorphism map :=
+  \fun (z: I.Int^) => Complexes.Equivalence[C := Left.complex, D := SubspaceExtension.complex].At[k := z].bijective equivalence;
+\module Component(i: Index);
+\definition onInjection: \forall (z: I.Int^)(i: Index)(x: (leftTerms i).family.Carrier z) ->
+  #apply{map} z (#apply{Left.Term[z := z].Component[i := i].injection} x) = #apply{\parent.Component[i := i].restrictedMap} z x :=
+  \fun (z: I.Int^)(i: Index)(x: (leftTerms i).family.Carrier z) => trans!{SubspaceExtension.Carrier z} _ _ _
+    (congr!{CutExtension.Carrier z {SubspaceExtension.Carrier z}} (#apply{Homeomorphism.forwardMap} z) _ _ (SubspaceSum.Canonical[].onInjection z i x))
+    (Component[i := i].law z x);

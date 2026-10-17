@@ -1,0 +1,19 @@
+\definition shiftedBound: \forall (m, n, i: N.Nat^) -> Natural.Lt i n -> Natural.Lt (Arithmetic.add i m) (Arithmetic.add n m) :=
+  \induction (m: N.Nat^) \return \forall (n, i: N.Nat^) -> Natural.Lt i n -> Natural.Lt (Arithmetic.add i m) (Arithmetic.add n m) \with {
+    | zero: \fun (n, i: N.Nat^)(bound: Natural.Lt i n) => bound
+    | succ: \fun (m: N.Nat^)(previous: _)(n, i: N.Nat^)(bound: Natural.Lt i n) => Natural.ltSuccSucc (Arithmetic.add i m) (Arithmetic.add n m) (previous n i bound)
+  };
+\definition left(i: Fin.Fin a): Fin.Fin (Arithmetic.add a b) :=
+  \into[N.Nat^](i, { k: N.Nat^ \where Natural.Lt k (Arithmetic.add a b) }) \by {
+    Natural.ltLeTrans i a (Arithmetic.add a b) (Fin.bound a i) (Natural.leAddRight a b)
+  };
+\definition right(i: Fin.Fin b): Fin.Fin (Arithmetic.add a b) :=
+  \into[N.Nat^](Arithmetic.add i a, { k: N.Nat^ \where Natural.Lt k (Arithmetic.add a b) }) \by {
+    \idelim Arithmetic.add b a = Arithmetic.add a b \with n: N.Nat^ => Natural.Lt (Arithmetic.add i a) n
+      \by { base: shiftedBound a b i (Fin.bound b i), equality: Natural.addComm b a }
+  };
+\definition leftInjective(i, j: Fin.Fin a)(same: left i = left j): i = j := same;
+\definition rightInjective(i, j: Fin.Fin b)(same: right i = right j): i = j := Natural.addCancelRight a i j same;
+\definition disjoint(i: Fin.Fin a)(j: Fin.Fin b)(same: left i = right j): Logic.False :=
+  Natural.ltNotLeReverse i a (Fin.bound a i)
+    (\idelim Arithmetic.add j a = i \with n: N.Nat^ => Natural.Le a n \by { base: Natural.leAddLeft j a, equality: sym!{N.Nat^} _ _ same });

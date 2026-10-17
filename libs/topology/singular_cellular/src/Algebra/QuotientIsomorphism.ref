@@ -1,0 +1,23 @@
+\import Complexes.Quotient[C := C, D := D].On[f := f] \as Source;
+\import Complexes.Quotient[C := C1, D := D1].On[f := g] \as Target;
+\import Complexes.QuotientMapping[C := C, D := D, C1 := C1, D1 := D1]
+  .On[f := f, g := g, a := #forward{left}, b := #forward{right}] \as Forward;
+\import Complexes.QuotientMapping[C := C1, D := D1, C1 := C, D1 := D]
+  .On[f := g, g := f, a := #backward{left}, b := #backward{right}] \as Backward;
+\definition Compatible: \Prop := Forward.Compatible;
+\definition reverseCompatible: Compatible -> Backward.Compatible :=
+  \fun (commutes: Compatible)(z: I.Int^)(x: C1.family.Carrier z) => sym!{{D.family.Carrier z}} _ _ (trans!{{D.family.Carrier z}} _ _ _
+    (sym!{{D.family.Carrier z}} _ _ (#leftInverse{right} z (#apply{f} z (#apply{(#backward{left})} z x))))
+    (trans!{{D.family.Carrier z}} _ _ _
+      (congr!{{D1.family.Carrier z} {D.family.Carrier z}} (#apply{(#backward{right})} z) _ _
+        (commutes z (#apply{(#backward{left})} z x)))
+      (congr!{{C1.family.Carrier z} {D.family.Carrier z}}
+        (\fun (y: C1.family.Carrier z) => #apply{(#backward{right})} z (#apply{g} z y)) _ _ (#rightInverse{left} z x))));
+\module At(commutes: Compatible, z: I.Int^);
+\definition isomorphism(commutes: Compatible): Complexes.Isomorphism[C := Source.complex, D := Target.complex].Isomorphism :=
+  Complexes.Isomorphism[C := Source.complex, D := Target.complex].Isomorphism {
+    forward := Forward.map commutes,
+    backward := Backward.map (reverseCompatible commutes),
+    leftInverse := \fun (z: I.Int^) => At[commutes := commutes, z := z].leftInverse,
+    rightInverse := \fun (z: I.Int^) => At[commutes := commutes, z := z].rightInverse,
+  };

@@ -1,0 +1,57 @@
+\import std.Data[].FinSet[] \as Fin;
+\definition degree: I.Int^ := I.Int^::ofNat zero;
+\import SignedChains.At[C := chain, z := degree] \as Source;
+\import SignedChains.At[C := Singular.integerComplex, z := degree] \as Target;
+\import \root.Circle[].Homology[].Degree[z := degree] \as Coordinates;
+\import \root.Circle[].Homology[].Unit[] \as Unit;
+\import Modules.Isomorphism[V := Source.Homology, W := Vector degree, source := Source.homologySpace, target := vectorSpace degree]
+  .Composition[U := I.Int^, final := Modules.scalarModule] \as ToInteger;
+\definition integerCoordinates: Modules.Isomorphism[V := Source.Homology, W := I.Int^, source := Source.homologySpace, target := Modules.scalarModule].Isomorphism :=
+  ToInteger.compose Unit.isomorphism Coordinates.coordinates;
+\import Maps.At[k := degree] \as Actual;
+\import \parent.Degree[z := degree] \as DegreeMap;
+\import Modules.FiniteCoordinates[n := one] \as Vectors;
+\definition finiteCycle: Source.Cycle := Source.cycle (Unit.constant I.One.specification) (zeroAction degree (Unit.constant I.One.specification));
+\definition finiteClass: Source.Homology := Source.classOf finiteCycle;
+\definition coordinateOne: #apply{#forward{integerCoordinates}} finiteClass = I.One.specification :=
+  congr!{{Vector degree} I.Int^} Unit.evaluate _ _ (Coordinates.onClass finiteCycle);
+\definition inverseOne: #apply{#backward{integerCoordinates}} I.One.specification = finiteClass :=
+  trans!{Source.Homology} _ _ _
+    (congr!{I.Int^ Source.Homology} (#apply{#backward{integerCoordinates}}) _ _ (sym!{I.Int^} _ _ coordinateOne))
+    (#leftInverse{integerCoordinates} finiteClass);
+\definition onFiniteClass: #apply{(Actual.induced comparison)} finiteClass = pointClass :=
+  trans!{Target.Homology} _ _ _ (Actual.onClass comparison finiteCycle)
+    (trans!{Target.Homology} _ _ _
+      (congr!{Target.Cycle Target.Homology} Target.classOf _ _
+        (trans!{{Singular.integerComplex.family.Carrier degree}} _ _ _
+          (congr!{{Vector degree} {Singular.integerComplex.family.Carrier degree}} (#apply{DegreeMap.map}) _ _ Unit.oneAsBasis)
+          (DegreeMap.onBasis (Fin.zero zero)))) represents);
+\import Modules.Hom[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace]
+  .Composition[U := I.Int^, domain := Modules.scalarModule] \as FromInteger;
+\definition actualInteger: Modules.Hom[V := I.Int^, W := Target.Homology, source := Modules.scalarModule, target := Target.homologySpace].Map :=
+  FromInteger.compose (Actual.induced comparison) #backward{integerCoordinates};
+\definition actualOne: #apply{actualInteger} I.One.specification = pointClass :=
+  trans!{Target.Homology} _ _ _ (congr!{Source.Homology Target.Homology} (#apply{(Actual.induced comparison)}) _ _ inverseOne) onFiniteClass;
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := Target.Homology, space := Target.homologySpace };
+\import \root.Integral[].Generator[B := targetBundle] \as Generator;
+\definition integerEquality: actualInteger = #forward{pointIsomorphism} := Generator.equal actualInteger #forward{pointIsomorphism} actualOne;
+\import Modules.Isomorphism[V := Source.Homology, W := I.Int^, source := Source.homologySpace, target := Modules.scalarModule]
+  .Composition[U := Target.Homology, final := Target.homologySpace] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace].Isomorphism :=
+  Composition.compose pointIsomorphism integerCoordinates;
+\definition law(h: Source.Homology): #apply{(Actual.induced comparison)} h = #apply{#forward{isomorphism}} h :=
+  trans!{Target.Homology} _ _ _
+    (congr!{Source.Homology Target.Homology} (#apply{(Actual.induced comparison)}) _ _ (sym!{Source.Homology} _ _ (#leftInverse{integerCoordinates} h)))
+    (congr!{Modules.Hom[V := I.Int^, W := Target.Homology, source := Modules.scalarModule, target := Target.homologySpace].Map Target.Homology}
+      (\fun (f: Modules.Hom[V := I.Int^, W := Target.Homology, source := Modules.scalarModule, target := Target.homologySpace].Map) => #apply{f} (#apply{#forward{integerCoordinates}} h)) _ _ integerEquality);
+\definition bijective: Actual.Bijective[comparison] := Actual.Bijective[comparison] {
+  injective := \fun (h, k: Source.Homology)(equal: #apply{(Actual.induced comparison)} h = #apply{(Actual.induced comparison)} k) =>
+    trans!{Source.Homology} _ _ _ (sym!{Source.Homology} _ _ (#leftInverse{isomorphism} h))
+      (trans!{Source.Homology} _ _ _
+        (congr!{Target.Homology Source.Homology} (#apply{#backward{isomorphism}}) _ _
+          (trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (law h)) (trans!{Target.Homology} _ _ _ equal (law k))))
+        (#leftInverse{isomorphism} k)),
+  onto := \fun (h: Target.Homology) => Logic.existsIntro[Source.Homology, { k: Source.Homology \where #apply{(Actual.induced comparison)} k = h }]
+    (#apply{#backward{isomorphism}} h)
+    (trans!{Target.Homology} _ _ _ (law (#apply{#backward{isomorphism}} h)) (#rightInverse{isomorphism} h)),
+};

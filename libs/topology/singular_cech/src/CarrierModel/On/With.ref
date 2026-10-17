@@ -1,0 +1,63 @@
+\module Cell(n: N.Nat^, z: I.Int^) {
+  \import \parent.\parent.HomAt[n := n, z := z] \as Ambient;
+  \import Modules.Of[V := Ambient.Carrier, space := Ambient.space].Submodule[].Of[S := S n z] \as Induced;
+  \definition Carrier: \Set := Induced.Carrier;
+  \definition space: Modules.Space Carrier := Induced.moduleSpace;
+  \definition member(f: Carrier): \In[Ambient.Carrier] #carrier{(S n z)} f := \bysub(Ambient.Carrier, #carrier{(S n z)}, f);
+  \definition intro(f: Ambient.Carrier)(member: \In[Ambient.Carrier] #carrier{(S n z)} f): Carrier := \into[Ambient.Carrier](f, #carrier{(S n z)}) \by { member };
+}
+\definition Carrier(n: N.Nat^)(z: I.Int^): \Set := Cell[n := n, z := z].Carrier;
+\definition space(n: N.Nat^)(z: I.Int^): Modules.Space (Carrier n z) := Cell[n := n, z := z].space;
+\definition family: Acyclic.ModelFamily := Acyclic.ModelFamily { Carrier := Carrier, space := space };
+\module Boundary(n: N.Nat^, z: I.Int^) {
+  \import \parent.\parent.Boundary[n := n, z := z] \as Ambient;
+  \import \parent.Cell[n := n, z := z] \as Source;
+  \import \parent.Cell[n := n, z := Degrees.previous z] \as Target;
+  \definition map: Modules.Hom[V := Carrier n z, W := Carrier n (Degrees.previous z), source := space n z, target := space n (Degrees.previous z)].Map :=
+    Modules.Hom[V := Carrier n z, W := Carrier n (Degrees.previous z), source := space n z, target := space n (Degrees.previous z)].Map {
+      apply := \fun (f: Carrier n z) => Target.intro (Ambient.value f) (#boundary{closed} n z f (Source.member f)),
+      addition := #addition{Ambient.map}, scalar := #scalar{Ambient.map},
+    };
+}
+\module Transition(n: N.Nat^, z: I.Int^) {
+  \import \parent.\parent.Transition[n := n, z := z] \as Ambient;
+  \import \parent.Cell[n := n, z := z] \as Source;
+  \import \parent.Cell[n := N.Nat^::succ n, z := z] \as Target;
+  \definition map: Modules.Hom[V := Carrier n z, W := Carrier (N.Nat^::succ n) z, source := space n z, target := space (N.Nat^::succ n) z].Map :=
+    Modules.Hom[V := Carrier n z, W := Carrier (N.Nat^::succ n) z, source := space n z, target := space (N.Nat^::succ n) z].Map {
+      apply := \fun (f: Carrier n z) => Target.intro (Ambient.value f) (#transition{closed} n z f (Source.member f)),
+      addition := #addition{Ambient.map}, scalar := #scalar{Ambient.map},
+    };
+}
+\definition operators: Acyclic.Operators[family] := Acyclic.Operators[family] {
+  boundary := \fun (n: N.Nat^)(z: I.Int^) => Boundary[n := n, z := z].map,
+  transition := \fun (n: N.Nat^)(z: I.Int^) => Transition[n := n, z := z].map,
+};
+\definition laws: Acyclic.ModelLaws[family, operators] := Acyclic.ModelLaws[family, operators] {
+  boundarySquare := \fun (n: N.Nat^)(z: I.Int^)(f: Carrier n z) =>
+    \parent.HomAt[n := n, z := Degrees.previous (Degrees.previous z)].ext _ _
+      (\fun (x: C.family.Carrier n) => #squareZero{D.laws} z (#apply{f} x)),
+  transitionSquare := \fun (n: N.Nat^)(z: I.Int^)(f: Carrier n z) =>
+    \parent.HomAt[n := N.Nat^::succ (N.Nat^::succ n), z := z].ext _ _
+      (\fun (x: C.family.Carrier (N.Nat^::succ (N.Nat^::succ n))) => trans!{{D.family.Carrier z}} _ _ _
+        (congr!{{C.family.Carrier n} {D.family.Carrier z}} (#apply{f}) _ _ (#squareZero{C.laws} n x))
+        (\parent.HomAt[n := n, z := z].zeroPreserved f)),
+  commutes := \fun (n: N.Nat^)(z: I.Int^)(f: Carrier n z) =>
+    \parent.HomAt[n := N.Nat^::succ n, z := Degrees.previous z].ext _ _
+      (\fun (x: C.family.Carrier (N.Nat^::succ n)) => \refl(#apply{D.differential} z (#apply{f} (#apply{C.differential} n x)))),
+};
+\definition model: Acyclic.Model := Acyclic.Model { family := family, operators := operators, laws := laws };
+\import Native.ZeroExtension[C := C] \as Source;
+\import Signed.Map[C := Source.complex, D := D] \as SignedMaps;
+\import Acyclic.Of[model := model] \as Recursion;
+\module DeltaComponent(delta: SignedMaps.Map, n: N.Nat^) {
+  \import \parent.\parent.HomAt[n := n, z := I.Int^::ofNat n] \as Ambient;
+  \definition map: Ambient.Carrier := Ambient.Carrier {
+    apply := \fun (x: C.family.Carrier n) => #apply{delta} (I.Int^::ofNat n) (Source.Positive[n := n].intro x),
+    addition := \fun (x, y: C.family.Carrier n) => #addition{delta} (I.Int^::ofNat n) (Source.Positive[n := n].intro x) (Source.Positive[n := n].intro y),
+    scalar := \fun (a: I.Int^)(x: C.family.Carrier n) => #scalar{delta} (I.Int^::ofNat n) a (Source.Positive[n := n].intro x),
+  };
+}
+\definition Carried(delta: SignedMaps.Map): \Prop := \forall (n: N.Nat^) ->
+  \In[\parent.HomAt[n := n, z := I.Int^::ofNat n].Carrier] #carrier{(S n (I.Int^::ofNat n))} (DeltaComponent[delta := delta, n := n].map);
+\module Diagonal(delta: SignedMaps.Map, carried: Carried delta);

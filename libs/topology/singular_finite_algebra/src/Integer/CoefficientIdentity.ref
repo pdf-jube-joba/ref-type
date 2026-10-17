@@ -1,0 +1,23 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import chain_complexes.Chain[] \as Degrees;
+\import Degrees.Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import resolutions.TensorComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := P, N := coefficients] \as Tensor;
+\import Chains.End[C := P] \as Original;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficients;
+\import \root.Integer[].CoefficientTensor[P := P, Q := P, coefficients := coefficients].On[f := Original.identity] \as Action;
+\import Chains.Map[C := Tensor.complex, D := Tensor.complex] \as Maps;
+\import Chains.End[C := Tensor.complex] \as Identity;
+\module At(n: Degrees.Degree) {
+  \import Modules.Tensor[V := P.family.Carrier n, W := coefficients.Carrier, left := P.family.space n, right := coefficients.space] \as T;
+  \import T.Universal[U := T.Carrier, target := T.space] \as Universal;
+  \import Modules.End[V := T.Carrier, space := T.space] \as Native;
+  \import Modules.Hom[V := T.Carrier, W := T.Carrier, source := T.space, target := T.space] \as NativeMaps;
+  \definition law: Action.At[z := n].map = Native.identity :=
+    Universal.ext (Action.At[z := n].map) Native.identity (\fun (x: P.family.Carrier n)(y: coefficients.Carrier) => Action.At[z := n].onTensor x y);
+  \definition pointwise: \forall (x: T.Carrier) -> #apply{Action.map} n x = x :=
+    \fun (x: T.Carrier) => congr!{NativeMaps.Map T.Carrier} (\fun (f: NativeMaps.Map) => #apply{f} x) _ _ law;
+}
+\definition law: Action.map = Identity.identity := Maps.ext Action.map Identity.identity (\fun (n: Degrees.Degree) => At[n := n].pointwise);

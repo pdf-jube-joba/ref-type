@@ -1,0 +1,86 @@
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Equality[].Transport[A := Index] \as Transport;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\definition injective: \forall (x, y: fibers i) -> injection i x = injection i y -> x = y :=
+  \fun (x, y: fibers i)(same: _) => sym!{{fibers i}} _ _
+    ((\idelim injection i x = injection i y \with c: Carrier => \forall (e: #index{c} = i) ->
+      Transport.cast fibers (#index{c}) i e (#point{c}) = x \by {
+        base: \fun (e: i = i) => Transport.castRefl fibers i x,
+        equality: same
+      }) (\refl(i)));
+\import topology.Topology[Carrier := fibers i] \as Source;
+\import topology.Maps[A := fibers i, B := Carrier] \as Maps;
+\import topology.Continuity[A := fibers i, B := Carrier] \as Into;
+\definition Image(U: \Pow (fibers i)): \Pow Carrier := Maps.Image (injection i) U;
+\definition ownPreimage(U: \Pow (fibers i)): Maps.Preimage (injection i) (Image U) = U :=
+  \axiom:setext(Maps.Preimage (injection i) (Image U), U,
+    \block {
+      \fun (x: fibers i)(member: _) \then
+      \takefrom y: \Cast[fibers i] ({ y: fibers i \where Logic.And[Source.Member U y, injection i y = injection i x] }) \by member \then
+      \let data: Logic.And[Source.Member U y, injection i y = injection i x] :=
+        \bysub(fibers i, { y: fibers i \where Logic.And[Source.Member U y, injection i y = injection i x] }, y) \then
+      \return \idelim y = x \with z: fibers i => Source.Member U z \by {
+        base: #left{data}, equality: injective y x (#right{data})
+      }
+    },
+    \fun (x: fibers i)(member: _) => Logic.existsIntro[fibers i,
+      { y: fibers i \where Logic.And[Source.Member U y, injection i y = injection i x] }] x (Logic.And[_, _]::# member (\refl(injection i x))));
+\module Other(j: Index);
+\definition imageOpen: \forall (U: \Pow (fibers i)) -> Source.IsOpenIn (spaces i) U -> Space.IsOpenIn topology (Image U) :=
+  \fun (U: _)(open: _) => #rtl{(openCriterion (Image U))}
+    (\fun (j: Index) => Other[j := j].open U open);
+\definition continuous: Into.Continuous (spaces i) topology (injection i) :=
+  \fun (U: \Pow Carrier)(open: _) => #ltr{(openCriterion U)} open i;
+\definition subset: \Pow Carrier := Image Source.Whole;
+\import Space.Subspace[S := subset] \as Component;
+\definition map(x: fibers i): Component.CarrierSet := \into[Carrier](injection i x, subset) \by {
+  Logic.existsIntro[fibers i, { y: fibers i \where Logic.And[Source.Member Source.Whole y, injection i y = injection i x] }] x
+    (Logic.And[_, _]::# (\refl(x)) (\refl(injection i x)))
+};
+\definition onto: \forall (c: Component.CarrierSet) -> \exists { x: fibers i \where map x = c } := \block {
+  \fun (c: Component.CarrierSet) \then
+  \takefrom x: \Cast[fibers i] ({ x: fibers i \where Logic.And[Source.Member Source.Whole x, injection i x = c] })
+    \by \bysub(Carrier, subset, c) \then
+  \return Logic.existsIntro[fibers i, { x: fibers i \where map x = c }] x
+    (#right{(\bysub(fibers i, { x: fibers i \where Logic.And[Source.Member Source.Whole x, injection i x = c] }, x))})
+};
+\import topology.Continuity[A := fibers i, B := Carrier].Corestriction[S := subset] \as IntoComponent;
+\definition mapContinuous: topology.Continuity[A := fibers i, B := Component.CarrierSet].Continuous
+  (spaces i) (Component.topology topology) map := IntoComponent.corestrictContinuous (spaces i) topology map continuous;
+\definition reflectsOpen: \forall (U: \Pow Component.CarrierSet) ->
+  Source.IsOpenIn (spaces i) ({ x: fibers i \where \In[Component.CarrierSet] U (map x) }) ->
+  topology.Topology[Carrier := Component.CarrierSet].IsOpenIn (Component.topology topology) U :=
+  \fun (U: _)(open: _) => \idelim Component.Trace (Image ({ x: fibers i \where \In[Component.CarrierSet] U (map x) })) = U
+    \with W: \Pow Component.CarrierSet => topology.Topology[Carrier := Component.CarrierSet].IsOpenIn (Component.topology topology) W \by {
+      base: Component.traceOpen topology (Image ({ x: fibers i \where \In[Component.CarrierSet] U (map x) }))
+        (imageOpen ({ x: fibers i \where \In[Component.CarrierSet] U (map x) }) open),
+      equality: \axiom:setext(Component.Trace (Image ({ x: fibers i \where \In[Component.CarrierSet] U (map x) })), U,
+        \block {
+          \fun (c: Component.CarrierSet)(member: _) \then
+          \takefrom x: \Cast[fibers i] ({ x: fibers i \where Logic.And[\In[Component.CarrierSet] U (map x), injection i x = c] }) \by member \then
+          \let data: Logic.And[\In[Component.CarrierSet] U (map x), injection i x = c] :=
+            \bysub(fibers i, { x: fibers i \where Logic.And[\In[Component.CarrierSet] U (map x), injection i x = c] }, x) \then
+          \return \idelim map x = c \with y: Component.CarrierSet => \In[Component.CarrierSet] U y \by {
+            base: #left{data}, equality: #right{data}
+          }
+        },
+        \block {
+          \fun (c: Component.CarrierSet)(member: _) \then
+          \takefrom x: \Cast[fibers i] ({ x: fibers i \where map x = c }) \by onto c \then
+          \let same: map x = c := \bysub(fibers i, { x: fibers i \where map x = c }, x) \then
+          \return Logic.existsIntro[fibers i,
+            { x: fibers i \where Logic.And[\In[Component.CarrierSet] U (map x), injection i x = c] }] x
+            (Logic.And[_, _]::#
+              (\idelim c = map x \with y: Component.CarrierSet => \In[Component.CarrierSet] U y \by {
+                base: member, equality: sym!{Carrier} _ _ same
+              }) same)
+        })
+    };
+\import topology.Homeomorphism[A := fibers i, B := Component.CarrierSet].OfQuotient[f := map] \as Inverse;
+\definition homeomorphism: topology.Homeomorphism[A := fibers i, B := Component.CarrierSet].Homeomorphism[spaces i, Component.topology topology] :=
+  Inverse.homeomorphism (spaces i) (Component.topology topology) injective onto mapContinuous reflectsOpen;

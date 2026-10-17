@@ -1,0 +1,49 @@
+\import \parent.Coordinates[] \as Coordinates;
+\import \parent.Powers[] \as Powers;
+\import \parent.Roots[] \as Roots;
+\import algebraic_topology.Spheres[].Antipodal[n := one] \as Antipodal;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition Sphere: \Set := Coordinates.Sphere;
+\definition sphereTopology: topology.Topology[Carrier := Sphere].Topology := Coordinates.sphereTopology;
+\definition Equivalent(x, y: Sphere): \Prop := Logic.Or[x = y, x = Antipodal.apply y];
+\import topological_constructions.RelationQuotient[A := Sphere, relation := Equivalent] \as Quotient;
+\definition reflexive: \forall (x: Sphere) -> Equivalent x x := \fun (x: Sphere) => Logic.Or[_, _]::left (\refl(x));
+\definition symmetric: \forall (x, y: Sphere) -> Equivalent x y -> Equivalent y x :=
+  \fun (x, y: Sphere)(related: _) => either!{related {Equivalent y x}
+    {\fun (same: x = y) => Logic.Or[_, _]::left (sym!{Sphere} _ _ same)}
+    {\fun (same: x = Antipodal.apply y) => Logic.Or[_, _]::right
+      (trans!{Sphere} _ _ _ (sym!{Sphere} _ _ (Antipodal.involution y))
+        (congr!{Sphere Sphere} Antipodal.apply _ _ (sym!{Sphere} _ _ same)))}
+  };
+\definition transitive: \forall (x, y, z: Sphere) -> Equivalent x y -> Equivalent y z -> Equivalent x z :=
+  \fun (x, y, z: Sphere)(xy: _)(yz: _) => either!{xy {Equivalent x z}
+    {\fun (same: x = y) => either!{yz {Equivalent x z}
+      {\fun (equal: y = z) => Logic.Or[_, _]::left (trans!{Sphere} _ _ _ same equal)}
+      {\fun (equal: y = Antipodal.apply z) => Logic.Or[_, _]::right (trans!{Sphere} _ _ _ same equal)}
+    }}
+    {\fun (same: x = Antipodal.apply y) => either!{yz {Equivalent x z}
+      {\fun (equal: y = z) => Logic.Or[_, _]::right (trans!{Sphere} _ _ _ same (congr!{Sphere Sphere} Antipodal.apply _ _ equal))}
+      {\fun (equal: y = Antipodal.apply z) => Logic.Or[_, _]::left
+        (trans!{Sphere} _ _ _ same (trans!{Sphere} _ _ _ (congr!{Sphere Sphere} Antipodal.apply _ _ equal) (Antipodal.involution z)))}
+    }}
+  };
+\definition laws: Quotient.Laws := Quotient.Laws { refl := reflexive, sym := symmetric, trans := transitive };
+\definition Carrier: \Set := Quotient.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Quotient.topology sphereTopology;
+\definition class: Sphere -> Carrier := Quotient.class;
+\import Quotient.Classification[B := Sphere, q := Powers.square] \as Classification;
+\definition respects: Classification.Respects := \fun (x, y: Sphere)(related: Equivalent x y) => either!{related {Powers.square x = Powers.square y}
+  {congr!{Sphere Sphere} Powers.square x y}
+  {\fun (same: x = Antipodal.apply y) => trans!{Sphere} _ _ _ (congr!{Sphere Sphere} Powers.square _ _ same) (Powers.Antipodal[].invariant y)}
+};
+\definition separates: Classification.Separates := Powers.Antipodal[].Fibers[].law;
+\import algebraic_topology.Euclidean[].Dimension[n := two].Compactness[] \as Compactness;
+\import topological_constructions.CompactQuotient[A := Sphere, B := Sphere, source := sphereTopology, target := sphereTopology, q := Powers.square] \as Maps;
+\definition quotientMap: topological_constructions.Quotient[A := Sphere, B := Sphere].IsQuotientMap[sphereTopology, sphereTopology, Powers.square] :=
+  Maps.quotientMap Compactness.sphere Compactness.sphereHausdorff Powers.squareContinuous Roots.onto;
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Sphere].Homeomorphism[topology, sphereTopology] :=
+  Classification.homeomorphism sphereTopology sphereTopology laws respects separates quotientMap;
+\definition forward: Carrier -> Sphere := Classification.apply laws respects;
+\definition onClass: \forall (x: Sphere) -> forward (class x) = Powers.square x :=
+  Quotient.Descent[C := Sphere].onClass laws Powers.square respects;

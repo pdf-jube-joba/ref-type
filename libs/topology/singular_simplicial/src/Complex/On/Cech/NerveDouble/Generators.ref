@@ -1,0 +1,27 @@
+\import Chains.Map[C := TargetTotal.complex, D := Nerve.complex].At[n := n] \as Projection;
+\module Component(i: Doubles.Index n) {
+  \import TargetTotal.Degree[n := n].Component[i := i] \as Component;
+  \import Modules.Hom[V := Target.family.Carrier #first{i} #second{i}, W := TargetTotal.Carrier n, source := Target.family.space #first{i} #second{i}, target := TargetTotal.space n] \as Injection;
+  \definition zero: \forall (x: Carrier #first{i} #second{i}) -> #apply{(mapping #first{i} #second{i})} x = #zero{(Target.family.space #first{i} #second{i})} ->
+    #apply{comparison} n (#apply{(Total.Degree[n := n].Component[i := i].injection)} x) = #zero{(Nerve.space n)} :=
+    \fun (x: Carrier #first{i} #second{i})(killed: #apply{(mapping #first{i} #second{i})} x = #zero{(Target.family.space #first{i} #second{i})}) =>
+      trans!{{Nerve.Carrier n}} _ _ _
+        (congr!{{TargetTotal.Carrier n} {Nerve.Carrier n}} (#apply{projection} n) _ _ (Induced.Degree[n := n].onInjection i x))
+        (trans!{{Nerve.Carrier n}} _ _ _
+          (congr!{{TargetTotal.Carrier n} {Nerve.Carrier n}} (#apply{projection} n) _ _
+            (trans!{{TargetTotal.Carrier n}} _ _ _ (congr!{{Target.family.Carrier #first{i} #second{i}} {TargetTotal.Carrier n}} (#apply{Component.injection}) _ _ killed)
+              (Injection.zeroPreserved Component.injection)))
+          (Projection.zeroPreserved projection));
+}
+\definition atPoint: \forall (s: Generator n N.Nat^::zero) ->
+  #apply{comparison} n (#apply{(Total.Degree[n := n].Component[i := Concentrated.point n].injection)} (generator n N.Nat^::zero s)) = Nerve.generator n #vertices{s} :=
+  \fun (s: Generator n N.Nat^::zero) => trans!{{Nerve.Carrier n}} _ _ _
+    (congr!{{TargetTotal.Carrier n} {Nerve.Carrier n}} (#apply{projection} n) _ _
+      (Induced.Degree[n := n].onInjection (Concentrated.point n) (generator n N.Nat^::zero s)))
+    (trans!{{Nerve.Carrier n}} _ _ _
+      (Concentrated.Degree[n := n].rightInverse (#apply{(mapping n N.Nat^::zero)} (generator n N.Nat^::zero s)))
+      (Augmentation.onGenerator n s));
+\definition other: \forall (i: Doubles.Index n) -> Logic.Not (i = Concentrated.point n) -> \forall (x: Carrier #first{i} #second{i}) ->
+  #apply{comparison} n (#apply{(Total.Degree[n := n].Component[i := i].injection)} x) = #zero{(Nerve.space n)} :=
+  \fun (i: Doubles.Index n)(different: Logic.Not (i = Concentrated.point n))(x: Carrier #first{i} #second{i}) => Component[i := i].zero x
+    (Concentrated.positive Target.vanishes #second{i} #first{i} (\fun (zero: #second{i} = N.Nat^::zero) => different (Concentrated.zeroIndex n i zero)) _);

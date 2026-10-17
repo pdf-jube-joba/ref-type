@@ -1,0 +1,85 @@
+\definition twice(a: Real.Real): Real.Real := Real.add a a;
+\definition four(a: Real.Real): Real.Real := twice (twice a);
+\definition fourNonnegative: \forall (a: Real.Real) -> R.Le Real.zero a -> R.Le Real.zero (four a) :=
+  \fun (a: Real.Real)(positive: _) => Laws.addNonnegative (twice a) (twice a)
+    (Laws.addNonnegative a a positive positive) (Laws.addNonnegative a a positive positive);
+\definition twiceMul: \forall (a, b: Real.Real) -> Real.mul (twice a) b = twice (Real.mul a b) :=
+  \fun (a, b: Real.Real) => Algebra.mulAddRight a a b;
+\definition fourMul: \forall (a, b: Real.Real) -> Real.mul (four a) b = four (Real.mul a b) :=
+  \fun (a, b: Real.Real) => trans!{Real.Real} _ _ _ (twiceMul (twice a) b)
+    (congr!{Real.Real Real.Real} twice _ _ (twiceMul a b));
+\definition squareSub: \forall (a, b: Real.Real) ->
+  Real.mul (Real.sub a b) (Real.sub a b) =
+    Real.sub (Real.add (Real.mul a a) (Real.mul b b)) (twice (Real.mul a b)) :=
+  \fun (a, b: Real.Real) => trans!{Real.Real} _ _ _ (Algebra.squareAdd a (Real.neg b))
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (congr!{Real.Real Real.Real} (Real.add (Real.mul a a)) _ _ (Laws.fieldMulNegBoth b b))
+      (trans!{Real.Real} _ _ _
+        (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulNegRight a b) (Laws.fieldMulNegRight a b))
+        (sym!{Real.Real} _ _ (Laws.negAdd (Real.mul a b) (Real.mul a b)))));
+\definition cancel: \forall (a, b: Real.Real) -> Real.add (Real.sub a b) (twice b) = Real.add a b :=
+  \fun (a, b: Real.Real) => trans!{Real.Real} _ _ _ (Laws.addAssoc a (Real.neg b) (twice b))
+    (congr!{Real.Real Real.Real} (Real.add a) _ _
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addAssoc (Real.neg b) b b))
+        (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.add x b) _ _ (Laws.addNegLeft b))
+          (Laws.addZeroLeft b))));
+\definition identity: \forall (a, b: Real.Real) ->
+  Real.add (Real.mul (Real.sub a b) (Real.sub a b)) (Real.mul (four b) a) =
+    Real.mul (Real.add a b) (Real.add a b) :=
+  \fun (a, b: Real.Real) => eq_reason!{
+    {Real.add (Real.mul (Real.sub a b) (Real.sub a b)) (Real.mul (four b) a)}
+    "=" {Real.add (Real.sub (Real.add (Real.mul a a) (Real.mul b b)) (twice (Real.mul a b))) (four (Real.mul a b))}
+    "by" {congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (squareSub a b)
+      (trans!{Real.Real} _ _ _ (fourMul b a) (congr!{Real.Real Real.Real} four _ _ (Laws.fieldMulComm b a)))}
+    "=" {Real.add (Real.add (Real.mul a a) (Real.mul b b)) (twice (Real.mul a b))}
+    "by" {cancel (Real.add (Real.mul a a) (Real.mul b b)) (twice (Real.mul a b))}
+    "=" {Real.mul (Real.add a b) (Real.add a b)} "by" {sym!{Real.Real} _ _ (Algebra.squareAdd a b)}
+  };
+\definition unit: \forall (a, b: Real.Real) -> Real.add a b = Real.one ->
+  Real.add (Real.mul (Real.sub a b) (Real.sub a b)) (Real.mul (four b) a) = Real.one :=
+  \fun (a, b: Real.Real)(sum: _) => trans!{Real.Real} _ _ _ (identity a b)
+    (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ sum sum) (Laws.fieldMulOneLeft Real.one));
+\definition subtractComplement: \forall (a, b: Real.Real) -> Real.add a b = Real.one ->
+  Real.sub Real.one (Real.sub a b) = twice b :=
+  \fun (a, b: Real.Real)(sum: _) => Laws.addCancelRight (Real.sub Real.one (Real.sub a b)) (twice b) (Real.sub a b)
+    (trans!{Real.Real} _ _ _ (Distance.subAddCancel Real.one (Real.sub a b))
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.addComm (twice b) (Real.sub a b))
+        (trans!{Real.Real} _ _ _ (cancel a b) sum))));
+\definition halfTwice: \forall (a: Real.Real) -> Real.mul Real.half (twice a) = a :=
+  \fun (a: Real.Real) => trans!{Real.Real} _ _ _ (Laws.fieldMulAdd Real.half a a) (Estimates.halfTwice a);
+\definition twiceInjective: \forall (a, b: Real.Real) -> twice a = twice b -> a = b :=
+  \fun (a, b: Real.Real)(same: _) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (halfTwice a))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ same) (halfTwice b));
+\definition fourInjective: \forall (a, b: Real.Real) -> four a = four b -> a = b :=
+  \fun (a, b: Real.Real)(same: _) => twiceInjective a b (twiceInjective (twice a) (twice b) same);
+\definition twiceZero: twice Real.zero = Real.zero := Laws.addZeroLeft Real.zero;
+\definition fourZero: four Real.zero = Real.zero := trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} twice _ _ twiceZero) twiceZero;
+\definition multiplyCancel: \forall (a, b, c: Real.Real) -> Logic.Not (a = Real.zero) -> Real.mul a b = Real.mul a c -> b = c :=
+  \fun (a, b, c: Real.Real)(nonzero: _)(same: _) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft b))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x b) _ _ (sym!{Real.Real} _ _ (Laws.fieldInverseNonzero a nonzero)))
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) a b)
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv a)) _ _ same)
+          (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) a c))
+            (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x c) _ _ (Laws.fieldInverseNonzero a nonzero))
+              (Laws.fieldMulOneLeft c))))));
+\definition subtractTwice: \forall (a, b: Real.Real) -> Real.sub (Real.sub a b) b = Real.sub a (twice b) :=
+  \fun (a, b: Real.Real) => trans!{Real.Real} _ _ _ (Laws.addAssoc a (Real.neg b) (Real.neg b))
+    (congr!{Real.Real Real.Real} (Real.add a) _ _ (sym!{Real.Real} _ _ (Laws.negAdd b b)));
+\definition inverseSquare: \forall (a, b: Real.Real) -> Logic.Not (a = Real.zero) ->
+  Real.mul (Real.mul (Laws.fieldInv a) (Laws.fieldInv a)) (Real.mul (Real.mul a a) b) = b :=
+  \fun (a, b: Real.Real)(nonzero: _) => trans!{Real.Real} _ _ _
+    (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Real.mul (Laws.fieldInv a) (Laws.fieldInv a)) (Real.mul a a) b))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x b) _ _
+        (trans!{Real.Real} _ _ _ (Algebra.mulFour (Laws.fieldInv a) (Laws.fieldInv a) a a)
+          (trans!{Real.Real} _ _ _
+            (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Laws.fieldInverseNonzero a nonzero) (Laws.fieldInverseNonzero a nonzero))
+            (Laws.fieldMulOneLeft Real.one)))) (Laws.fieldMulOneLeft b));
+\definition scaleInverse: \forall (a, b: Real.Real) -> Logic.Not (a = Real.zero) -> Real.mul a (Real.mul (Laws.fieldInv a) b) = b :=
+  \fun (a, b: Real.Real)(nonzero: _) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc a (Laws.fieldInv a) b))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x b) _ _
+        (trans!{Real.Real} _ _ _ (Laws.fieldMulComm a (Laws.fieldInv a)) (Laws.fieldInverseNonzero a nonzero)))
+      (Laws.fieldMulOneLeft b));

@@ -1,0 +1,27 @@
+\import Doubles.CollapseFirst[C := Source.complex, D := Target.complex] \as Collapse;
+\definition augmentation: \forall (q: N.Nat^)(x: Carrier N.Nat^::zero q) ->
+  #apply{(mapping N.Nat^::zero q)} x = #zero{(Small.space q)} ->
+  \exists { y: Carrier (N.Nat^::succ N.Nat^::zero) q \where #apply{(Source.horizontal N.Nat^::zero q)} y = x } := \block {
+  \fun (q: N.Nat^)(x: Carrier N.Nat^::zero q)(killed: #apply{(mapping N.Nat^::zero q)} x = #zero{(Small.space q)}) \then
+  \takefrom apices: \parent.\parent.HorizontalFibres[q := q].Apices \by \parent.\parent.HorizontalFibres[q := q].apicesExist \then
+  \return Logic.existsIntro[Carrier (N.Nat^::succ N.Nat^::zero) q, { y: Carrier (N.Nat^::succ N.Nat^::zero) q \where #apply{(Source.horizontal N.Nat^::zero q)} y = x }]
+    (\parent.\parent.HorizontalFibres[q := q].With[apices := apices].Zero[].filler x)
+    (\parent.\parent.HorizontalFibres[q := q].With[apices := apices].Zero[].boundary x killed)
+};
+\definition positive: \forall (p, q: N.Nat^)(x: Carrier (N.Nat^::succ p) q) ->
+  #apply{(Source.horizontal p q)} x = #zero{(space p q)} ->
+  \exists { y: Carrier (N.Nat^::succ (N.Nat^::succ p)) q \where #apply{(Source.horizontal (N.Nat^::succ p) q)} y = x } := \block {
+  \fun (p, q: N.Nat^)(x: Carrier (N.Nat^::succ p) q)(closed: #apply{(Source.horizontal p q)} x = #zero{(space p q)}) \then
+  \takefrom apices: \parent.\parent.HorizontalFibres[q := q].Apices \by \parent.\parent.HorizontalFibres[q := q].apicesExist \then
+  \return Logic.existsIntro[Carrier (N.Nat^::succ (N.Nat^::succ p)) q, { y: Carrier (N.Nat^::succ (N.Nat^::succ p)) q \where #apply{(Source.horizontal (N.Nat^::succ p) q)} y = x }]
+    (\parent.\parent.HorizontalFibres[q := q].With[apices := apices].Positive[n := p].filler x)
+    (\parent.\parent.HorizontalFibres[q := q].With[apices := apices].Positive[n := p].boundary x closed)
+};
+\definition rows: Collapse.RowsExact[mapping] := Collapse.RowsExact[mapping] { augmentation := augmentation, positive := positive };
+\import Collapse.On[f := mapping] \as CollapseMap;
+\import CollapseMap.Exact[] \as Exact;
+\import CollapseMap.Surjection[] \as Onto;
+\import Chains.Map[C := Total.complex, D := TargetTotal.complex].SurjectiveQuasi[f := Induced.map] \as Criterion;
+\definition onto: Criterion.Onto := Onto.onto vanishes (\fun (q: N.Nat^) => Augmentation.Degree[q := q].onto);
+\definition exact: Criterion.ExactCycles := Exact.exact rows vanishes;
+\module Equivalence;

@@ -1,0 +1,99 @@
+\import Euclidean.Dimension[n := #dimension{cell}] \as Model;
+\import Model.Contraction[] \as Scaling;
+\import Model.Geometry[] \as Geometry;
+\import \root.DiskCollar[n := #dimension{cell}] \as Collar;
+\definition below: Nat.Lt (#dimension{cell}) (N.Nat^::succ n) :=
+  \idelim n = #dimension{cell} \with d: N.Nat^ => Nat.Lt d (N.Nat^::succ n) \by {
+    base: Nat.ltOfSuccLe (N.Nat^::succ n) n (Nat.leRefl (N.Nat^::succ n)), equality: sym!{N.Nat^} _ _ dimension
+  };
+\definition image(p: Model.Disk): Upper.Carrier := \parent.\parent.Stage[limit := N.Nat^::succ n].Open[].lift cell member below p;
+\definition nonzero: \forall (p: Model.Disk) -> UpperSpace.Member region (image p) -> Logic.Not (Model.normSquared p = Real.zero) := \block {
+  \fun (p: Model.Disk)(inside: _)(zero: _) \then
+  \let same: p = Scaling.origin := Geometry.normSquaredZero p zero \then
+  \let centre: image p = \parent.\parent.Punctures[n := n].centre cell :=
+    congr!{Model.Disk A} (#characteristic{cell}) _ _ same \then
+  \return inside (Union.include cells cell member (image p)
+    (CentreLaws[cell, image p] { member := member, dimension := dimension, same := centre }))
+};
+\import R.Order[] \as Order;
+\definition originInterior: R.Lt (Model.normSquared Scaling.origin) Real.one :=
+  R.ltReplaceLeft Real.zero (Model.normSquared Scaling.origin) Real.one
+    (sym!{Real.Real} _ _ (Scaling.zeroSum (std.Data[].FinSet[].elements (#dimension{cell}))))
+    (Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne);
+\definition containsInterior(p: Model.Disk)(inside: R.Lt (Model.normSquared p) Real.one):
+  Space.Member (Cells.InteriorImage cell) (#characteristic{cell} p) :=
+  Logic.existsIntro[Model.Disk, { q: Model.Disk \where Logic.And[R.Lt (Model.normSquared q) Real.one,
+    #characteristic{cell} q = #characteristic{cell} p] }] p (Logic.And[_, _]::# inside (\refl(#characteristic{cell} p)));
+\definition boundaryLower: \forall (p: Model.Disk) -> Model.normSquared p = Real.one -> Space.Member (subset n) (#characteristic{cell} p) :=
+  \fun (p: Model.Disk)(boundary: _) =>
+    \idelim #dimension{cell} = n \with k: N.Nat^ => Space.Member (subset k) (#characteristic{cell} p) \by {
+      base: \parent.\parent.Characteristic[cell := cell, member := member].boundaryImage (\into[Model.Coordinate](p, Model.Boundary) \by { boundary }),
+      equality: dimension
+    };
+\definition insideRegion: \forall (p: Model.Disk) -> Logic.Not (Model.normSquared p = Real.zero) -> UpperSpace.Member region (image p) :=
+  \fun (p: Model.Disk)(notZero: _)(bad: _) => Union.eliminate cells (image p) Logic.False
+    (\fun (other: Cells.CellData)(present: _)(atCentre: CentreLaws[other, image p]) =>
+      either!{{(Classical.excludedMiddle (R.Lt (Model.normSquared p) Real.one))} {Logic.False}
+        {\block {
+          \fun (inside: _) \then
+          \let otherOrigin: Euclidean.Disk (#dimension{other}) := Euclidean.Dimension[n := #dimension{other}].Contraction[].origin \then
+          \let otherInside: Space.Member (Cells.InteriorImage other) (image p) :=
+            \idelim centre other = image p \with x: A => Space.Member (Cells.InteriorImage other) x \by {
+              base: Logic.existsIntro[Euclidean.Disk (#dimension{other}),
+                { q: Euclidean.Disk (#dimension{other}) \where Logic.And[
+                  \In[Euclidean.coordinateCarrier (#dimension{other})] (Euclidean.interiorAt (#dimension{other})) q,
+                  #characteristic{other} q = centre other] }] otherOrigin
+                (Logic.And[_, _]::#
+                  (R.ltReplaceLeft Real.zero (Euclidean.normSquaredAt (#dimension{other}) otherOrigin) Real.one
+                    (sym!{Real.Real} _ _ (Euclidean.Dimension[n := #dimension{other}].Contraction[].zeroSum
+                      (std.Data[].FinSet[].elements (#dimension{other}))))
+                    (Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne))
+                  (\refl(centre other))),
+              equality: sym!{A} _ _ (#same{atCentre})
+            } \then
+          \let equalCells: cell = other := #disjoint{laws} cell other member (#member{atCentre}) (image p) (containsInterior p inside) otherInside \then
+          \let samePointImage: #characteristic{cell} p = #characteristic{cell} Scaling.origin :=
+            trans!{A} _ _ _ (#same{atCentre}) (congr!{Cells.CellData A} centre _ _ (sym!{Cells.CellData} _ _ equalCells)) \then
+          \let equalPoints: p = Scaling.origin := #injectiveInterior{(#cellLaws{laws} cell member)} p Scaling.origin inside originInterior samePointImage \then
+          \return notZero (trans!{Real.Real} _ _ _
+            (congr!{Model.Disk Real.Real} Model.normSquared _ _ equalPoints)
+            (Scaling.zeroSum (std.Data[].FinSet[].elements (#dimension{cell}))))
+        }}
+        {\block {
+          \fun (outside: _) \then
+          \let boundary: Model.normSquared p = Real.one := R.leAntisym _ _ (\bysub(Model.Coordinate, Model.ClosedBall, p))
+            (Order.leOfNotLtReverse Real.one (Model.normSquared p) outside) \then
+          \return centreNotLower other (#member{atCentre}) (#dimension{atCentre})
+            (\idelim image p = centre other \with x: A => Space.Member (subset n) x \by {
+              base: boundaryLower p boundary, equality: #same{atCentre}
+            })
+        }}
+      }) bad;
+\definition motion(t: algebraic_topology.Interval[].Carrier)(p: Collar.Carrier): Carrier :=
+  \into[Upper.Carrier](image (Collar.value t p), region) \by {
+    insideRegion (Collar.value t p) (\bysub(Model.Disk, Collar.punctured, Collar.value t p))
+  };
+\definition starts: \forall (p: Collar.Carrier) -> motion algebraic_topology.Interval[].start p = image p :=
+  \fun (p: Collar.Carrier) => congr!{Model.Disk Upper.Carrier} image _ _ (Collar.Endpoints[].atStart p);
+\definition endpointLower: \forall (p: Collar.Carrier) -> Space.Member (subset n) (motion algebraic_topology.Interval[].end p) :=
+  \fun (p: Collar.Carrier) => boundaryLower (Collar.value algebraic_topology.Interval[].end p) (Collar.Endpoints[].endOnSphere p);
+\definition fixesBoundary: \forall (t: algebraic_topology.Interval[].Carrier)(p: Collar.Carrier) -> Model.normSquared p = Real.one -> motion t p = image p :=
+  \fun (t: _)(p: _)(boundary: _) => congr!{Model.Disk Upper.Carrier} image _ _ (Collar.Endpoints[].fixesBoundary t p boundary);
+\import algebraic_topology.Cylinder[A := Collar.Carrier] \as Cylinder;
+\import topology.Continuity[A := Collar.Carrier, B := Model.Disk].Corestriction[S := Collar.punctured] \as CollarInclusion;
+\import topology.Composition[A := Cylinder.Carrier, B := Collar.Carrier, C := Model.Disk] \as FlowComposition;
+\definition diskMotionContinuous: topology.Continuity[A := Cylinder.Carrier, B := Model.Disk].Continuous
+  (Cylinder.topology Collar.topology) Model.diskTopology (\fun (p: Cylinder.Carrier) => Collar.value (Cylinder.time p) (Cylinder.point p)) :=
+  FlowComposition.composeContinuous (Cylinder.topology Collar.topology) Collar.topology Model.diskTopology
+    (Collar.Continuity[].family) (\fun (p: Collar.Carrier) => p) (Collar.Continuity[].continuous)
+    (CollarInclusion.inclusionContinuous Model.diskTopology);
+\definition imageContinuous: topology.Continuity[A := Model.Disk, B := Upper.Carrier].Continuous Model.diskTopology Upper.topology image :=
+  \parent.\parent.Stage[limit := N.Nat^::succ n].Open[].liftContinuous cell member below;
+\import topology.Composition[A := Cylinder.Carrier, B := Model.Disk, C := Upper.Carrier] \as ImageComposition;
+\import topology.Continuity[A := Cylinder.Carrier, B := Upper.Carrier].Corestriction[S := region] \as IntoRegion;
+\definition motionContinuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous
+  (Cylinder.topology Collar.topology) topology (\fun (p: Cylinder.Carrier) => motion (Cylinder.time p) (Cylinder.point p)) :=
+  IntoRegion.corestrictContinuous (Cylinder.topology Collar.topology) Upper.topology
+    (\fun (p: Cylinder.Carrier) => motion (Cylinder.time p) (Cylinder.point p))
+    (ImageComposition.composeContinuous (Cylinder.topology Collar.topology) Model.diskTopology Upper.topology
+      (\fun (p: Cylinder.Carrier) => Collar.value (Cylinder.time p) (Cylinder.point p)) image diskMotionContinuous imageContinuous);

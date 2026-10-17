@@ -1,0 +1,77 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import Fin.Tuples[A := Real.Real] \as Tuples;
+\import Simplex.Identities[] \as Insert;
+\import Simplex.InsertionZero[] \as InsertZero;
+\definition edgeFirst: Fin.Fin two := Fin.zero one;
+\definition edgeLast: Fin.Fin two := Fin.succ one (Fin.zero N.Nat^::zero);
+\definition backPoint(x: Simplex.Carrier one): Domain.CarrierSet := Simplex.face one centerIndex x;
+\definition diagonalPoint(x: Simplex.Carrier one): Domain.CarrierSet := Simplex.face one leftIndex x;
+\definition frontPoint(x: Simplex.Carrier one): Domain.CarrierSet := Simplex.face one rightIndex x;
+\definition backCenter(x: Simplex.Carrier one): center (backPoint x) = Real.zero := Simplex.faceFirstZero one x;
+\definition diagonalLeft(x: Simplex.Carrier one): left (diagonalPoint x) = Real.zero := InsertZero.law two leftIndex x;
+\definition frontRight(x: Simplex.Carrier one): right (frontPoint x) = Real.zero := InsertZero.law two rightIndex x;
+\definition diagonalRight(x: Simplex.Carrier one): right (diagonalPoint x) = x edgeLast :=
+  trans!{Real.Real} _ _ _
+    (congr!{(Simplex.Coordinate (N.Nat^::succ two)) Real.Real} (\fun (v: Simplex.Coordinate (N.Nat^::succ two)) => v rightIndex) _ _ (Insert.insertionTail one (Fin.zero one) x))
+    (trans!{Real.Real} _ _ _
+      (Tuples.atSuccessor two (x edgeFirst) (Simplex.insertZero one (Fin.zero one) (\fun (i: Fin.Fin one) => x (Fin.succ one i))) edgeLast)
+      (trans!{Real.Real} _ _ _
+        (congr!{(Simplex.Coordinate two) Real.Real} (\fun (v: Simplex.Coordinate two) => v edgeLast) _ _
+          (Insert.insertionHead one (\fun (i: Fin.Fin one) => x (Fin.succ one i))))
+        (Tuples.atSuccessor one Real.zero (\fun (i: Fin.Fin one) => x (Fin.succ one i)) (Fin.zero N.Nat^::zero))));
+\definition frontLeft(x: Simplex.Carrier one): left (frontPoint x) = x edgeLast :=
+  trans!{Real.Real} _ _ _
+    (congr!{(Simplex.Coordinate (N.Nat^::succ two)) Real.Real} (\fun (v: Simplex.Coordinate (N.Nat^::succ two)) => v leftIndex) _ _ (Insert.insertionTail one (Fin.succ one (Fin.zero N.Nat^::zero)) x))
+    (trans!{Real.Real} _ _ _
+      (Tuples.atSuccessor two (x edgeFirst) (Simplex.insertZero one (Fin.succ one (Fin.zero N.Nat^::zero)) (\fun (i: Fin.Fin one) => x (Fin.succ one i))) (Fin.zero one))
+      (trans!{Real.Real} _ _ _
+        (congr!{(Simplex.Coordinate two) Real.Real} (\fun (v: Simplex.Coordinate two) => v (Fin.zero one)) _ _
+          (Insert.insertionTail N.Nat^::zero (Fin.zero N.Nat^::zero) (\fun (i: Fin.Fin one) => x (Fin.succ one i))))
+        (Tuples.atZero one (x edgeLast) (Simplex.insertZero N.Nat^::zero (Fin.zero N.Nat^::zero) (\fun (i: Fin.Fin N.Nat^::zero) => x (Fin.succ one (Fin.succ N.Nat^::zero i)))))));
+\definition coordinateExt(x, y: Disk.Coordinate)(first: x Coordinates.first = y Coordinates.first)(second: x Coordinates.second = y Coordinates.second): x = y :=
+  trans!{Disk.Coordinate} _ _ _ (sym!{Disk.Coordinate} _ _ (Coordinates.ambientLeftInverse x))
+    (trans!{Disk.Coordinate} _ _ _
+      (congr!{Complex.Complex Disk.Coordinate} Coordinates.ambientBackward _ _ (ComplexLaws.ext (Coordinates.ambientForward x) (Coordinates.ambientForward y) first second))
+      (Coordinates.ambientLeftInverse y));
+\definition zeroProduct(a: Real.Real): Real.add (Real.mul a Real.zero) (Real.mul Real.zero a) = Real.zero :=
+  trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulZeroRight a) (Laws.fieldMulZeroLeft a)) (Laws.addZeroLeft Real.zero);
+\definition axisLeft(x: Domain.CarrierSet)(leftZero: left x = Real.zero): upper x Coordinates.second = Real.zero :=
+  trans!{Real.Real} _ _ _ (Formulas.second x)
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add (Real.mul (Root.sqrt (right x)) a) (Real.mul a (Root.sqrt (right x)))) _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ leftZero) Root.sqrtZero))
+      (zeroProduct (Root.sqrt (right x))));
+\definition axisRight(x: Domain.CarrierSet)(rightZero: right x = Real.zero): upper x Coordinates.second = Real.zero :=
+  trans!{Real.Real} _ _ _ (Formulas.second x)
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add (Real.mul a (Root.sqrt (left x))) (Real.mul (Root.sqrt (left x)) a)) _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ rightZero) Root.sqrtZero))
+      (trans!{Real.Real} _ _ _ (Laws.addComm (Real.mul Real.zero (Root.sqrt (left x))) (Real.mul (Root.sqrt (left x)) Real.zero)) (zeroProduct (Root.sqrt (left x)))));
+\definition lowerFrontFirst(x: Simplex.Carrier one): lower (frontPoint x) Coordinates.first = upper (diagonalPoint x) Coordinates.first :=
+  trans!{Real.Real} _ _ _ (Formulas.lowerFirst (frontPoint x))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} Real.neg _ _
+        (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (frontRight x) (frontLeft x)) (Laws.addZeroLeft (Real.neg (x edgeLast)))))
+      (trans!{Real.Real} _ _ _ (Laws.negInvolutive (x edgeLast))
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Formulas.first (diagonalPoint x))
+          (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (diagonalRight x) (diagonalLeft x))
+            (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (x edgeLast)) _ _ Laws.negZero) (Laws.addZeroRight (x edgeLast))))))));
+\definition lowerFrontSecond(x: Simplex.Carrier one): lower (frontPoint x) Coordinates.second = upper (diagonalPoint x) Coordinates.second :=
+  trans!{Real.Real} _ _ _ (Formulas.lowerSecond (frontPoint x))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (axisRight (frontPoint x) (frontRight x)))
+      (trans!{Real.Real} _ _ _ Laws.negZero (sym!{Real.Real} _ _ (axisLeft (diagonalPoint x) (diagonalLeft x)))));
+\definition lowerFront(x: Simplex.Carrier one): lower (frontPoint x) = upper (diagonalPoint x) := coordinateExt (lower (frontPoint x)) (upper (diagonalPoint x)) (lowerFrontFirst x) (lowerFrontSecond x);
+\definition negativeInvolutive(x: Disk.Disk): Boundary.negative (Boundary.negative x) = x :=
+  \axiom:funext(Boundary.negative (Boundary.negative x), x, \fun (i: Disk.Index) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (Real.neg Real.one)) _ _
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (x i)) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (x i)))))
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (Real.neg (x i)))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (Real.neg (x i)))) (Laws.negInvolutive (x i)))));
+\definition lowerDiagonal(x: Simplex.Carrier one): lower (diagonalPoint x) = upper (frontPoint x) :=
+  trans!{Disk.Disk} _ _ _ (congr!{Disk.Disk Disk.Disk} Boundary.negative _ _ (sym!{Disk.Disk} _ _ (lowerFront x))) (negativeInvolutive (upper (frontPoint x)));
+\definition frontEquation: Simplices.face one rightIndex lowerSimplex = Simplices.face one leftIndex upperSimplex :=
+  Simplices.ext one _ _ (\fun (x: Simplex.Carrier one) => congr!{Disk.Disk Projective.Carrier} diskProjection _ _ (lowerFront x));
+\definition diagonalEquation: Simplices.face one leftIndex lowerSimplex = Simplices.face one rightIndex upperSimplex :=
+  Simplices.ext one _ _ (\fun (x: Simplex.Carrier one) => congr!{Disk.Disk Projective.Carrier} diskProjection _ _ (lowerDiagonal x));
+\definition backEquation: Simplices.face one centerIndex lowerSimplex = Simplices.face one centerIndex upperSimplex :=
+  Simplices.ext one _ _ (\fun (x: Simplex.Carrier one) => boundaryEqual (backPoint x) (backCenter x));

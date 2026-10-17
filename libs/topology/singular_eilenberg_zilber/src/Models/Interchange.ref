@@ -1,0 +1,36 @@
+\import N.Basic[].Prop[] \as Bounds;
+\import Simplex.Identities[] \as Identities;
+\import \parent.At[n := n] \as Lower;
+\import \parent.At[n := N.Nat^::succ n] \as Middle;
+\import \parent.At[n := N.Nat^::succ (N.Nat^::succ n)] \as Higher;
+\import \parent.Face[n := n, i := j] \as LeftLower;
+\import \parent.Face[n := N.Nat^::succ n, i := Fin.widen (N.Nat^::succ (N.Nat^::succ n)) i] \as LeftUpper;
+\import \parent.Face[n := n, i := i] \as RightLower;
+\import \parent.Face[n := N.Nat^::succ n, i := Fin.succ (N.Nat^::succ (N.Nat^::succ n)) j] \as RightUpper;
+\import singular_cohomology.Maps[A := Lower.Points, B := Middle.Points, source := Lower.topology, target := Middle.topology] \as First;
+\import First.Composition[C := Higher.Points, final := Higher.topology] \as Functor;
+\import singular_cohomology.Maps[A := Middle.Points, B := Higher.Points, source := Middle.topology, target := Higher.topology] \as Second;
+\import singular_cohomology.Maps[A := Lower.Points, B := Higher.Points, source := Lower.topology, target := Higher.topology] \as Direct;
+\import singular_cohomology.Chains[A := Lower.Points, source := Lower.topology].Reduced[] \as Source;
+\import singular_cohomology.Chains[A := Middle.Points, source := Middle.topology].Reduced[] \as Mid;
+\import singular_cohomology.Chains[A := Higher.Points, source := Higher.topology].Reduced[] \as Target;
+\import Complexes.Map[C := Source.complex, D := Target.complex] \as Maps;
+\import Complexes.Map[C := Mid.complex, D := Target.complex].Composition[B := Source.complex] \as Compose;
+\definition lhs: Maps.Map := Compose.compose LeftUpper.chainMap LeftLower.chainMap;
+\definition rhs: Maps.Map := Compose.compose RightUpper.chainMap RightLower.chainMap;
+\import std.Data[].Pair[] \as Pair;
+\definition points: Bounds.Le i j -> \forall (x: Lower.Points) -> LeftUpper.function (LeftLower.function x) = RightUpper.function (RightLower.function x) :=
+  \fun (ordered: Bounds.Le i j)(x: Lower.Points) =>
+    congr2!{{Simplex.Carrier (N.Nat^::succ (N.Nat^::succ n))} {Simplex.Carrier (N.Nat^::succ (N.Nat^::succ n))} Higher.Points}
+      (Pair.pair (Simplex.Carrier (N.Nat^::succ (N.Nat^::succ n))) (Simplex.Carrier (N.Nat^::succ (N.Nat^::succ n)))) _ _ _ _
+      (Identities.faceIdentity n i j (Pair.first (Simplex.Carrier n) (Simplex.Carrier n) x) ordered)
+      (Identities.faceIdentity n i j (Pair.second (Simplex.Carrier n) (Simplex.Carrier n) x) ordered);
+\definition equation: Bounds.Le i j -> lhs = rhs := \fun (ordered: Bounds.Le i j) =>
+  trans!{Maps.Map} _ _ _ (Functor.Reduced[].law LeftLower.function LeftLower.continuous LeftUpper.function LeftUpper.continuous)
+    (trans!{Maps.Map} _ _ _
+      (Direct.Reduced[].FunctionEquality[].law _ _ _ _ (points ordered))
+      (sym!{Maps.Map} _ _ (Functor.Reduced[].law RightLower.function RightLower.continuous RightUpper.function RightUpper.continuous)));
+\definition law: Bounds.Le i j -> \forall (z: I.Int^)(x: Lower.Carrier z) ->
+  #apply{LeftUpper.Degree[z := z].map} (#apply{LeftLower.Degree[z := z].map} x) =
+    #apply{RightUpper.Degree[z := z].map} (#apply{RightLower.Degree[z := z].map} x) :=
+  \fun (ordered: Bounds.Le i j)(z: I.Int^)(x: Lower.Carrier z) => congr!{Maps.Map {Higher.Carrier z}} (\fun (f: Maps.Map) => #apply{f} z x) _ _ (equation ordered);

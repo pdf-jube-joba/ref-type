@@ -1,0 +1,63 @@
+\import \parent.\parent.Natural[] \as Natural;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Natural.complex] \as Extension;
+\import Bounded.Of[C := model] \as Model;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\module Negative(n: N.Nat^) {
+  \definition index: I.Int^ := I.Int^::negSucc n;
+  \import Modules.Hom[V := Bounded.Carrier model index, W := Extension.Carrier index, source := Bounded.space model index, target := Extension.space index] \as Forward;
+  \import Modules.Hom[V := Extension.Carrier index, W := Bounded.Carrier model index, source := Extension.space index, target := Bounded.space model index] \as Backward;
+  \definition isomorphism: Modules.Isomorphism[V := Bounded.Carrier model index, W := Extension.Carrier index, source := Bounded.space model index, target := Extension.space index].Isomorphism :=
+    Modules.Isomorphism[V := Bounded.Carrier model index, W := Extension.Carrier index, source := Bounded.space model index, target := Extension.space index].Isomorphism {
+      forward := Forward.zeroMap, backward := Backward.zeroMap,
+      leftInverse := \fun (x: Bounded.Carrier model index) => \axiom:funext(_, _, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))),
+      rightInverse := \fun (x: Extension.Carrier index) => sym!{{Extension.Carrier index}} _ _ (Extension.Negative[n := n].zero x),
+    };
+}
+\definition degreeIsomorphism: \forall (z: I.Int^) -> Modules.Isomorphism[V := Bounded.Carrier model z, W := Extension.Carrier z, source := Bounded.space model z, target := Extension.space z].Isomorphism :=
+  \induction (z: I.Int^) \return Modules.Isomorphism[V := Bounded.Carrier model z, W := Extension.Carrier z, source := Bounded.space model z, target := Extension.space z].Isomorphism \with {
+    | ofNat: \fun (n: N.Nat^) => Extension.Positive[n := n].isomorphism
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].isomorphism
+  };
+\definition forwardCommutes: \forall (z: I.Int^)(x: Bounded.Carrier model z) ->
+  Extension.apply z (#apply{#forward{(degreeIsomorphism z)}} x) = #apply{#forward{(degreeIsomorphism (Bounded.previous z))}} (Bounded.apply model z x) :=
+  \induction (z: I.Int^) \return \forall (x: Bounded.Carrier model z) ->
+    Extension.apply z (#apply{#forward{(degreeIsomorphism z)}} x) = #apply{#forward{(degreeIsomorphism (Bounded.previous z))}} (Bounded.apply model z x) \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: Bounded.Carrier model (I.Int^::ofNat n)) ->
+        Extension.apply (I.Int^::ofNat n) (#apply{#forward{(degreeIsomorphism (I.Int^::ofNat n))}} x) =
+          #apply{#forward{(degreeIsomorphism (Bounded.previous (I.Int^::ofNat n)))}} (Bounded.apply model (I.Int^::ofNat n) x) \with {
+        | zero: \fun (x: _) => \refl(#zero{(Extension.space (I.Int^::negSucc N.Nat^::zero))})
+        | succ: \fun (n: N.Nat^)(previous: _)(x: _) => sym!{{Natural.Carrier n}} _ _ (\parent.Positive[n := n].law x)
+      }
+    | negSucc: \fun (n: N.Nat^)(x: _) => \refl(#zero{(Extension.space (I.Int^::negSucc (N.Nat^::succ n)))})
+  };
+\definition backwardCommutes: \forall (z: I.Int^)(x: Extension.Carrier z) ->
+  Bounded.apply model z (#apply{#backward{(degreeIsomorphism z)}} x) = #apply{#backward{(degreeIsomorphism (Bounded.previous z))}} (Extension.apply z x) :=
+  \induction (z: I.Int^) \return \forall (x: Extension.Carrier z) ->
+    Bounded.apply model z (#apply{#backward{(degreeIsomorphism z)}} x) = #apply{#backward{(degreeIsomorphism (Bounded.previous z))}} (Extension.apply z x) \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: Extension.Carrier (I.Int^::ofNat n)) ->
+        Bounded.apply model (I.Int^::ofNat n) (#apply{#backward{(degreeIsomorphism (I.Int^::ofNat n))}} x) =
+          #apply{#backward{(degreeIsomorphism (Bounded.previous (I.Int^::ofNat n)))}} (Extension.apply (I.Int^::ofNat n) x) \with {
+        | zero: \fun (x: _) => \axiom:funext(_, _, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
+        | succ: \fun (n: N.Nat^)(previous: _)(x: _) => \parent.Positive[n := n].law x
+      }
+    | negSucc: \fun (n: N.Nat^)(x: _) => \axiom:funext(_, _, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
+  };
+\import Complexes.Map[C := Model.chain, D := Extension.complex] \as Forward;
+\import Complexes.Map[C := Extension.complex, D := Model.chain] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (z: I.Int^) => #apply{#forward{(degreeIsomorphism z)}},
+  addition := \fun (z: I.Int^) => #addition{#forward{(degreeIsomorphism z)}},
+  scalar := \fun (z: I.Int^) => #scalar{#forward{(degreeIsomorphism z)}},
+  commutes := forwardCommutes,
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (z: I.Int^) => #apply{#backward{(degreeIsomorphism z)}},
+  addition := \fun (z: I.Int^) => #addition{#backward{(degreeIsomorphism z)}},
+  scalar := \fun (z: I.Int^) => #scalar{#backward{(degreeIsomorphism z)}},
+  commutes := backwardCommutes,
+};
+\definition isomorphism: Complexes.Isomorphism[C := Model.chain, D := Extension.complex].Isomorphism := Complexes.Isomorphism[C := Model.chain, D := Extension.complex].Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (z: I.Int^) => #leftInverse{(degreeIsomorphism z)},
+  rightInverse := \fun (z: I.Int^) => #rightInverse{(degreeIsomorphism z)},
+};

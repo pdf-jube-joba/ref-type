@@ -1,0 +1,73 @@
+\import double_complexes.DoubleComplex[].Over[R := R, ring := ring] \as Doubles;
+\import Doubles.Tensor[C := C, D := E] \as SourceTensor;
+\import Doubles.Tensor[C := D, D := F] \as TargetTensor;
+\import Doubles.Total[C := SourceTensor.complex] \as Source;
+\import Doubles.Total[C := TargetTensor.complex] \as Target;
+\import Doubles.TensorMapping[C := C, D := D, E := E, F := F].With[f := #forward{left}, g := #forward{right}] \as Forward;
+\import Doubles.TensorMapping[C := D, D := C, E := F, F := E].With[f := #backward{left}, g := #backward{right}] \as Backward;
+\definition forward: Chains.Map[C := Source.complex, D := Target.complex].Map := Forward.total;
+\definition backward: Chains.Map[C := Target.complex, D := Source.complex].Map := Backward.total;
+\import Chains.Equivalence[C := C, D := D] \as Left;
+\import Chains.Equivalence[C := E, D := F] \as Right;
+\import Chains.Map[C := D, D := C].Composition[B := C] \as LeftSourceCompose;
+\import Chains.Map[C := F, D := E].Composition[B := E] \as RightSourceCompose;
+\import Chains.Map[C := C, D := D].Composition[B := D] \as LeftTargetCompose;
+\import Chains.Map[C := E, D := F].Composition[B := F] \as RightTargetCompose;
+\import Chains.Homotopy[C := C, D := C].Reverse[] \as ReverseLeftSource;
+\import Chains.Homotopy[C := E, D := E].Reverse[] \as ReverseRightSource;
+\import Chains.Homotopy[C := D, D := D].Reverse[] \as ReverseLeftTarget;
+\import Chains.Homotopy[C := F, D := F].Reverse[] \as ReverseRightTarget;
+\import Chains.End[C := C] \as LeftSourceEnd;
+\import Chains.End[C := E] \as RightSourceEnd;
+\import Chains.End[C := D] \as LeftTargetEnd;
+\import Chains.End[C := F] \as RightTargetEnd;
+\definition leftSource: Chains.Homotopy[C := C, D := C].Homotopy LeftSourceEnd.identity (LeftSourceCompose.compose #backward{left} #forward{left}) :=
+  ReverseLeftSource.homotopy (LeftSourceCompose.compose #backward{left} #forward{left}) LeftSourceEnd.identity (Left.leftHomotopy left);
+\definition rightSource: Chains.Homotopy[C := E, D := E].Homotopy RightSourceEnd.identity (RightSourceCompose.compose #backward{right} #forward{right}) :=
+  ReverseRightSource.homotopy (RightSourceCompose.compose #backward{right} #forward{right}) RightSourceEnd.identity (Right.leftHomotopy right);
+\definition leftTarget: Chains.Homotopy[C := D, D := D].Homotopy LeftTargetEnd.identity (LeftTargetCompose.compose #forward{left} #backward{left}) :=
+  ReverseLeftTarget.homotopy (LeftTargetCompose.compose #forward{left} #backward{left}) LeftTargetEnd.identity (Left.rightHomotopy left);
+\definition rightTarget: Chains.Homotopy[C := F, D := F].Homotopy RightTargetEnd.identity (RightTargetCompose.compose #forward{right} #backward{right}) :=
+  ReverseRightTarget.homotopy (RightTargetCompose.compose #forward{right} #backward{right}) RightTargetEnd.identity (Right.rightHomotopy right);
+\import Doubles.TensorContraction[C := C, D := E].With[p := LeftSourceCompose.compose #backward{left} #forward{left},
+  q := RightSourceCompose.compose #backward{right} #forward{right}, left := leftSource, right := rightSource] \as SourceContraction;
+\import Doubles.TensorContraction[C := D, D := F].With[p := LeftTargetCompose.compose #forward{left} #backward{left},
+  q := RightTargetCompose.compose #forward{right} #backward{right}, left := leftTarget, right := rightTarget] \as TargetContraction;
+\import Doubles.TensorComposition[A := C, B := D, C := C, D := E, E := F, F := E]
+  .With[f := #forward{left}, g := #backward{left}, u := #forward{right}, v := #backward{right}] \as SourceComposition;
+\import Doubles.TensorComposition[A := D, B := C, C := D, D := F, E := E, F := F]
+  .With[f := #backward{left}, g := #forward{left}, u := #backward{right}, v := #forward{right}] \as TargetComposition;
+\import Chains.Homotopy[C := Source.complex, D := Source.complex] \as SourceHomotopies;
+\import Chains.Homotopy[C := Target.complex, D := Target.complex] \as TargetHomotopies;
+\import SourceHomotopies.Reverse[] \as ReverseSource;
+\import TargetHomotopies.Reverse[] \as ReverseTarget;
+\import Chains.End[C := Source.complex] \as SourceEnd;
+\import Chains.End[C := Target.complex] \as TargetEnd;
+\import Chains.Map[C := Target.complex, D := Source.complex].Composition[B := Source.complex] \as SourceCompose;
+\import Chains.Map[C := Source.complex, D := Target.complex].Composition[B := Target.complex] \as TargetCompose;
+\definition sourceHomotopy: SourceHomotopies.Homotopy SourceContraction.projection SourceEnd.identity :=
+  ReverseSource.homotopy SourceEnd.identity SourceContraction.projection SourceContraction.homotopy;
+\definition targetHomotopy: TargetHomotopies.Homotopy TargetContraction.projection TargetEnd.identity :=
+  ReverseTarget.homotopy TargetEnd.identity TargetContraction.projection TargetContraction.homotopy;
+\import Chains.Map[C := Source.complex, D := Source.complex] \as SourceMaps;
+\import Chains.Map[C := Target.complex, D := Target.complex] \as TargetMaps;
+\definition leftHomotopy: SourceHomotopies.Homotopy (SourceCompose.compose backward forward) SourceEnd.identity :=
+  \into[SourceHomotopies.Data](sourceHomotopy, SourceHomotopies.Homotopy (SourceCompose.compose backward forward) SourceEnd.identity) \by {
+    SourceHomotopies.replacementLaws _ _ _ _ sourceHomotopy
+      (sym!{{SourceMaps.Map}} _ _ SourceComposition.equality) (\refl(SourceEnd.identity))
+      (\bysub(SourceHomotopies.Data, SourceHomotopies.Homotopy SourceContraction.projection SourceEnd.identity, sourceHomotopy))
+  };
+\definition rightHomotopy: TargetHomotopies.Homotopy (TargetCompose.compose forward backward) TargetEnd.identity :=
+  \into[TargetHomotopies.Data](targetHomotopy, TargetHomotopies.Homotopy (TargetCompose.compose forward backward) TargetEnd.identity) \by {
+    TargetHomotopies.replacementLaws _ _ _ _ targetHomotopy
+      (sym!{{TargetMaps.Map}} _ _ TargetComposition.equality) (\refl(TargetEnd.identity))
+      (\bysub(TargetHomotopies.Data, TargetHomotopies.Homotopy TargetContraction.projection TargetEnd.identity, targetHomotopy))
+  };
+\import Chains.Equivalence[C := Source.complex, D := Target.complex] \as Compared;
+\definition data: Compared.Data := Compared.Data { forward := forward, backward := backward, left := leftHomotopy, right := rightHomotopy };
+\definition value: Compared.Equivalence := \into[Compared.Data](data, { d: Compared.Data \where Compared.Laws[d] }) \by {
+  Compared.Laws[data] {
+    left := \bysub(SourceHomotopies.Data, SourceHomotopies.Homotopy (SourceCompose.compose backward forward) SourceEnd.identity, leftHomotopy),
+    right := \bysub(TargetHomotopies.Data, TargetHomotopies.Homotopy (TargetCompose.compose forward backward) TargetEnd.identity, rightHomotopy),
+  }
+};

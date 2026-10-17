@@ -1,0 +1,22 @@
+\definition degree: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
+\definition boundaryDegree: I.Int^ := I.Int^::ofNat n;
+\import Pair.Reduced[].ConnectingContractible[].Homology[z := degree] \as Connecting;
+\import Sphere.At[z := boundaryDegree] \as SphereH;
+\import NestedSphere.At[z := boundaryDegree] \as BoundaryH;
+\definition Carrier: \Set := Pair.Homology[z := degree].Carrier;
+\definition space: Modules.Space Carrier := Pair.Homology[z := degree].space;
+\definition connecting: Modules.Isomorphism[V := Carrier, W := BoundaryH.Carrier, source := space, target := BoundaryH.space].Isomorphism :=
+  Connecting.isomorphism (Model.Contraction[].contraction);
+\import cohomology_models.Spheres[].Homology[].Reduced[] \as Groups;
+\import Modules.Isomorphism[V := I.Int^, W := SphereH.Carrier, source := Modules.scalarModule, target := SphereH.space]
+  .Composition[U := BoundaryH.Carrier, final := BoundaryH.space] \as First;
+\definition boundaryOrientation: Modules.Isomorphism[V := I.Int^, W := BoundaryH.Carrier, source := Modules.scalarModule, target := BoundaryH.space].Isomorphism :=
+  First.compose (BoundaryComparison.Homology[z := boundaryDegree].isomorphism equivalence) (Groups.top n);
+\import Modules.Isomorphism[V := Carrier, W := BoundaryH.Carrier, source := space, target := BoundaryH.space].Inverse[] \as Inverse;
+\import Modules.Isomorphism[V := I.Int^, W := BoundaryH.Carrier, source := Modules.scalarModule, target := BoundaryH.space]
+  .Composition[U := Carrier, final := space] \as Composition;
+\definition orientation: Modules.Isomorphism[V := I.Int^, W := Carrier, source := Modules.scalarModule, target := space].Isomorphism :=
+  Composition.compose (Inverse.inverse connecting) boundaryOrientation;
+\definition generator: Carrier := #apply{#forward{orientation}} I.One.specification;
+\definition orientedBoundary: #apply{#forward{connecting}} generator = #apply{#forward{boundaryOrientation}} I.One.specification :=
+  #rightInverse{connecting} (#apply{#forward{boundaryOrientation}} I.One.specification);

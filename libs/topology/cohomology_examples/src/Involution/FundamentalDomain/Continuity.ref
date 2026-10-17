@@ -1,0 +1,29 @@
+\definition reflected: \Pow A := { x: A \where Source.Member F (flip x) };
+\import Source.Subspace[S := reflected] \as Reflected;
+\definition reflectedClosed: Source.IsClosedIn source reflected := flipContinuous (Source.Complement F) closed;
+\import topology.Continuity[A := A, B := A].Corestriction[S := reflected] \as ReflectedInclusion;
+\import topology.Composition[A := Reflected.CarrierSet, B := A, C := A] \as FlipComposition;
+\import topology.Continuity[A := Reflected.CarrierSet, B := A].Corestriction[S := F] \as IntoDomain;
+\definition reflectedPoint(x: Reflected.CarrierSet): Point := \into[A](flip x, F) \by { \bysub(A, reflected, x) };
+\definition reflectedContinuous: topology.Continuity[A := Reflected.CarrierSet, B := Point].Continuous (Reflected.topology source) pointTopology reflectedPoint :=
+  IntoDomain.corestrictContinuous (Reflected.topology source) source reflectedPoint
+    (FlipComposition.composeContinuous (Reflected.topology source) source source (\fun (x: Reflected.CarrierSet) => x) flip
+      (ReflectedInclusion.inclusionContinuous source) flipContinuous);
+\import topology.Composition[A := Reflected.CarrierSet, B := Point, C := QuotientPoint] \as ProjectionComposition;
+\import topology.Continuity[A := Point, B := QuotientPoint] \as LeftMaps;
+\import topology.Continuity[A := Reflected.CarrierSet, B := QuotientPoint] \as RightMaps;
+\definition leftContinuous: LeftMaps.Continuous pointTopology quotientTopology (\fun (x: Point) => fold x) :=
+  \idelim RestrictedQuotient.class = (\fun (x: Point) => fold x)
+    \with f: (Point -> QuotientPoint) => LeftMaps.Continuous pointTopology quotientTopology f
+    \by { base: RestrictedQuotient.projectionContinuous pointTopology,
+      equality: \axiom:funext(RestrictedQuotient.class, (\fun (x: Point) => fold x), \fun (x: Point) => sym!{QuotientPoint} _ _ (onPoint x)) };
+\definition rightContinuous: RightMaps.Continuous (Reflected.topology source) quotientTopology (\fun (x: Reflected.CarrierSet) => fold x) :=
+  \idelim (\fun (x: Reflected.CarrierSet) => RestrictedQuotient.class (reflectedPoint x)) = (\fun (x: Reflected.CarrierSet) => fold x)
+    \with f: (Reflected.CarrierSet -> QuotientPoint) => RightMaps.Continuous (Reflected.topology source) quotientTopology f
+    \by { base: ProjectionComposition.composeContinuous (Reflected.topology source) pointTopology quotientTopology
+      reflectedPoint RestrictedQuotient.class reflectedContinuous (RestrictedQuotient.projectionContinuous pointTopology),
+      equality: \axiom:funext((\fun (x: Reflected.CarrierSet) => RestrictedQuotient.class (reflectedPoint x)), (\fun (x: Reflected.CarrierSet) => fold x),
+        \fun (x: Reflected.CarrierSet) => trans!{QuotientPoint} _ _ _ (sym!{QuotientPoint} _ _ (onPoint (reflectedPoint x))) (onFlip x)) };
+\import topological_constructions.Gluing[A := A, B := QuotientPoint].BinaryClosed[F := F, G := reflected] \as Gluing;
+\definition continuous: topology.Continuity[A := A, B := QuotientPoint].Continuous source quotientTopology fold :=
+  Gluing.continuous source quotientTopology fold closed reflectedClosed covers leftContinuous rightContinuous;

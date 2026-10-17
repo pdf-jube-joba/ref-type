@@ -1,0 +1,20 @@
+\definition p: N.Nat^ := #first{i};
+\definition q: N.Nat^ := #second{i};
+\import Higher.Component[i := i] \as Component;
+\import Component.Boundary[] \as Boundary;
+\import \root.TensorModels[].At[p := p, q := q] \as Model;
+\definition pure(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Tensor.Term[p := p, q := q].Carrier := Tensor.Term[p := p, q := q].tensor (Left.generator p sigma) (Right.generator q tau);
+\definition horizontal(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Total.Carrier (N.Nat^::succ n) := #apply{Lower.map} (#apply{(NativeBoundary.horizontal p NativeBoundary.Component[i := i].q)} (pure sigma tau));
+\definition vertical(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Total.Carrier (N.Nat^::succ n) := #apply{Lower.map} (#apply{(NativeBoundary.vertical q NativeBoundary.Component[i := i].p)} (pure sigma tau));
+\definition horizontalCoordinate(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Total.Carrier (N.Nat^::succ n) := #apply{(Component.evaluationLinear (N.Nat^::succ n) sigma tau)} (TargetLevel.Coordinates[].coordinate i (#apply{CoBoundary.horizontal} (Models.homotopy n)));
+\definition verticalCoordinate(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Total.Carrier (N.Nat^::succ n) := #apply{(Component.evaluationLinear (N.Nat^::succ n) sigma tau)} (TargetLevel.Coordinates[].coordinate i (#apply{CoBoundary.vertical} (Models.homotopy n)));
+\definition modelPrior: Boundary.modelPrior = #add{(Model.space z)}
+  (TargetLevel.Coordinates[].coordinate i (#apply{CoBoundary.horizontal} (Models.homotopy n))) (TargetLevel.Coordinates[].coordinate i (#apply{CoBoundary.vertical} (Models.homotopy n))) :=
+  trans!{{Model.Carrier z}} _ _ _ (congr!{TargetLevel.Carrier {Model.Carrier z}} (TargetLevel.Coordinates[].coordinate i) _ _ (Models.priorSuccessor n))
+    (#addition{TargetLevel.Coordinates[].At[i := i].map} (#apply{CoBoundary.horizontal} (Models.homotopy n)) (#apply{CoBoundary.vertical} (Models.homotopy n)));
+\definition prior(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Boundary.prior sigma tau = #add{(Total.space (N.Nat^::succ n))} (horizontalCoordinate sigma tau) (verticalCoordinate sigma tau) :=
+  trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Model.Carrier z} {Total.Carrier (N.Nat^::succ n)}} (#apply{(Component.evaluationLinear (N.Nat^::succ n) sigma tau)}) _ _ modelPrior)
+    (#addition{(Component.evaluationLinear (N.Nat^::succ n) sigma tau)} _ _);
+\definition boundary(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): #apply{Lower.map} (#apply{Total.differential} n (Evaluation.Cell[n := N.Nat^::succ n, i := i].generator sigma tau)) = #add{(Total.space (N.Nat^::succ n))} (horizontal sigma tau) (vertical sigma tau) :=
+  trans!{{Total.Carrier (N.Nat^::succ n)}} _ _ _ (congr!{{Total.Carrier n} {Total.Carrier (N.Nat^::succ n)}} (#apply{Lower.map}) _ _ (NativeBoundary.onComponent i (pure sigma tau)))
+    (#addition{Lower.map} _ _);

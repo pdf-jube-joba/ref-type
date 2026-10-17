@@ -1,0 +1,60 @@
+\import algebraic_topology.Cylinder[A := Carrier] \as Cylinder;
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as Functions;
+\import Functions.Product[] \as Product;
+\import Functions.Reciprocal[] \as Reciprocal;
+\import Functions.SquareRoot[] \as SquareRoot;
+\import metric_spaces.RealLine[] \as Line;
+\import topology.Continuity[A := Carrier, B := Model.Disk].Corestriction[S := punctured] \as PuncturedInclusion;
+\import topology.Continuity[A := Model.Disk, B := Model.Coordinate].Corestriction[S := Model.ClosedBall] \as DiskInclusion;
+\import topology.Composition[A := Carrier, B := Model.Disk, C := Model.Coordinate] \as Inclusion;
+\definition ambientContinuous: topology.Continuity[A := Carrier, B := Model.Coordinate].Continuous topology Model.topology (\fun (p: Carrier) => p) :=
+  Inclusion.composeContinuous topology Model.diskTopology Model.topology (\fun (p: Carrier) => p) (\fun (p: Model.Disk) => p)
+    (PuncturedInclusion.inclusionContinuous Model.diskTopology) (DiskInclusion.inclusionContinuous Model.topology);
+\import topology.Composition[A := Cylinder.Carrier, B := Carrier, C := Model.Coordinate] \as Point;
+\definition pointContinuous: topology.Continuity[A := Cylinder.Carrier, B := Model.Coordinate].Continuous
+  (Cylinder.topology topology) Model.topology (\fun (p: Cylinder.Carrier) => Cylinder.point p) :=
+  Point.composeContinuous (Cylinder.topology topology) topology Model.topology Cylinder.point (\fun (p: Carrier) => p)
+    (Cylinder.pointContinuous topology) ambientContinuous;
+\import topology.Composition[A := Cylinder.Carrier, B := Model.Coordinate, C := Real.Real] \as Norm;
+\definition squaredContinuous: Functions.Continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => squared (Cylinder.point p)) :=
+  Norm.composeContinuous (Cylinder.topology topology) Model.topology Line.topology (\fun (p: Cylinder.Carrier) => Cylinder.point p)
+    Model.normSquared pointContinuous Geometry.normSquaredContinuous;
+\import topology.Composition[A := Cylinder.Carrier, B := Interval.Carrier, C := Real.Real] \as TimeInclusion;
+\definition timeContinuous: Functions.Continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => Cylinder.time p) :=
+  TimeInclusion.composeContinuous (Cylinder.topology topology) Interval.topology Line.topology Cylinder.time (\fun (t: Interval.Carrier) => t)
+    (Cylinder.timeContinuous topology) Interval.inclusionContinuous;
+\definition reverseTimeContinuous: Functions.Continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => Interval.reverse (Cylinder.time p)) :=
+  Functions.subContinuous (Cylinder.topology topology) (\fun (_: Cylinder.Carrier) => Real.one) (\fun (p: Cylinder.Carrier) => Cylinder.time p)
+    (Functions.constantContinuous (Cylinder.topology topology) Real.one) timeContinuous;
+\definition reverseSquaredContinuous: Functions.Continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => Interval.reverse (squared (Cylinder.point p))) :=
+  Functions.subContinuous (Cylinder.topology topology) (\fun (_: Cylinder.Carrier) => Real.one) (\fun (p: Cylinder.Carrier) => squared (Cylinder.point p))
+    (Functions.constantContinuous (Cylinder.topology topology) Real.one) squaredContinuous;
+\definition levelContinuous: Functions.Continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => level (Cylinder.time p) (Cylinder.point p)) :=
+  Functions.subContinuous (Cylinder.topology topology) (\fun (_: Cylinder.Carrier) => Real.one)
+    (\fun (p: Cylinder.Carrier) => Real.mul (Interval.reverse (Cylinder.time p)) (Interval.reverse (squared (Cylinder.point p))))
+    (Functions.constantContinuous (Cylinder.topology topology) Real.one)
+    (Product.continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => Interval.reverse (Cylinder.time p))
+      (\fun (p: Cylinder.Carrier) => Interval.reverse (squared (Cylinder.point p))) reverseTimeContinuous reverseSquaredContinuous);
+\definition coefficientContinuous: Functions.Continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => coefficient (Cylinder.time p) (Cylinder.point p)) :=
+  SquareRoot.continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => radicand (Cylinder.time p) (Cylinder.point p))
+    (Product.continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => level (Cylinder.time p) (Cylinder.point p))
+      (\fun (p: Cylinder.Carrier) => Laws.fieldInv (squared (Cylinder.point p))) levelContinuous
+      (Reciprocal.continuous (Cylinder.topology topology) (\fun (p: Cylinder.Carrier) => squared (Cylinder.point p)) squaredContinuous
+        (\fun (p: Cylinder.Carrier) => \bysub(Model.Disk, punctured, Cylinder.point p))));
+\import topological_algebra.Coordinates[K := Real.Real, I := Model.Index] \as Coordinates;
+\import Coordinates.Universal[A := Cylinder.Carrier] \as Universal;
+\import topology.Composition[A := Cylinder.Carrier, B := Model.Coordinate, C := Real.Real] \as Coordinate;
+\definition family(p: Cylinder.Carrier): Carrier := value (Cylinder.time p) (Cylinder.point p);
+\definition familyAmbientContinuous: topology.Continuity[A := Cylinder.Carrier, B := Model.Coordinate].Continuous
+  (Cylinder.topology topology) Model.topology (\fun (p: Cylinder.Carrier) => family p) :=
+  Universal.continuous (Cylinder.topology topology) Line.topology (\fun (p: Cylinder.Carrier) => family p)
+    (\fun (i: Model.Index) => Product.continuous (Cylinder.topology topology)
+      (\fun (p: Cylinder.Carrier) => coefficient (Cylinder.time p) (Cylinder.point p))
+      (\fun (p: Cylinder.Carrier) => Cylinder.point p i) coefficientContinuous
+      (Coordinate.composeContinuous (Cylinder.topology topology) Model.topology Line.topology (\fun (p: Cylinder.Carrier) => Cylinder.point p)
+        (Coordinates.evaluate i) pointContinuous (Coordinates.evaluationContinuous Line.topology i)));
+\import topology.Continuity[A := Cylinder.Carrier, B := Model.Coordinate].Corestriction[S := Model.ClosedBall] \as IntoDisk;
+\import topology.Continuity[A := Cylinder.Carrier, B := Model.Disk].Corestriction[S := punctured] \as Into;
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous (Cylinder.topology topology) topology family :=
+  Into.corestrictContinuous (Cylinder.topology topology) Model.diskTopology family
+    (IntoDisk.corestrictContinuous (Cylinder.topology topology) Model.topology (\fun (p: Cylinder.Carrier) => family p) familyAmbientContinuous);

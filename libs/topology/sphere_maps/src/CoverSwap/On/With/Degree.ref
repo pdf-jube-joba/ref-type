@@ -1,0 +1,94 @@
+\import Native.Map[C := RightChains.complex, D := LeftChains.complex].At[n := n] \as FromRight;
+\import Native.Map[C := IntersectionChains.complex, D := LeftChains.complex].At[n := n] \as IntoLeft;
+\import Native.Map[C := IntersectionChains.complex, D := RightChains.complex].At[n := n] \as IntoRight;
+\import Modules.Hom[V := RightChains.Carrier n, W := LeftChains.Carrier n, source := RightChains.space n, target := LeftChains.space n] \as RightLinear;
+\import Modules.Hom[V := IntersectionChains.Carrier n, W := LeftChains.Carrier n, source := IntersectionChains.space n, target := LeftChains.space n] \as LeftInclusion;
+\import Modules.Hom[V := IntersectionChains.Carrier n, W := RightChains.Carrier n, source := IntersectionChains.space n, target := RightChains.space n] \as RightInclusion;
+\import Modules.Laws[V := RightChains.Carrier n, space := RightChains.space n] \as RightLaws;
+\import algebra.Group[].Of[Carrier := RightChains.Carrier n, group := RightLaws.additive] \as RightGroup;
+\definition leftRoute: \forall (x: IntersectionChains.Carrier n) ->
+  #apply{rightMap} n (#apply{Chains.rightMap} n x) = #apply{Chains.leftMap} n (#apply{intersectionMap} n x) :=
+  \fun (x: IntersectionChains.Carrier n) => congr!{{Native.Map[C := IntersectionChains.complex, D := LeftChains.complex].Map} {LeftChains.Carrier n}}
+    (\fun (f: Native.Map[C := IntersectionChains.complex, D := LeftChains.complex].Map) => #apply{f} n x) _ _ leftRoutes;
+\definition rightRoute: \forall (x: IntersectionChains.Carrier n) ->
+  #apply{leftMap} n (#apply{Chains.leftMap} n x) = #apply{Chains.rightMap} n (#apply{intersectionMap} n x) :=
+  \fun (x: IntersectionChains.Carrier n) => congr!{{Native.Map[C := IntersectionChains.complex, D := RightChains.complex].Map} {RightChains.Carrier n}}
+    (\fun (f: Native.Map[C := IntersectionChains.complex, D := RightChains.complex].Map) => #apply{f} n x) _ _ rightRoutes;
+\definition inclusionSquare: \forall (x: IntersectionChains.Carrier n) ->
+  #apply{middleMap} n (#apply{Chains.inclusion} n x) = #apply{Chains.inclusion} n (#apply{signedIntersectionMap} n x) :=
+  \fun (x: IntersectionChains.Carrier n) => Sum.At[n := n].ext _ _
+    (trans!{{LeftChains.Carrier n}} _ _ _
+      (RightLinear.negativePreserved (FromRight.linear rightMap) (#apply{Chains.rightMap} n x))
+      (trans!{{LeftChains.Carrier n}} _ _ _
+        (congr!{{LeftChains.Carrier n} {LeftChains.Carrier n}} (#neg{(LeftChains.space n)}) _ _ (leftRoute x))
+        (sym!{{LeftChains.Carrier n}} _ _ (LeftInclusion.negativePreserved (IntoLeft.linear Chains.leftMap) (#apply{intersectionMap} n x)))))
+    (trans!{{RightChains.Carrier n}} _ _ _ (rightRoute x)
+      (sym!{{RightChains.Carrier n}} _ _
+        (trans!{{RightChains.Carrier n}} _ _ _
+          (congr!{{RightChains.Carrier n} {RightChains.Carrier n}} (#neg{(RightChains.space n)}) _ _
+            (RightInclusion.negativePreserved (IntoRight.linear Chains.rightMap) (#apply{intersectionMap} n x)))
+          (RightGroup.negNeg (#apply{Chains.rightMap} n (#apply{intersectionMap} n x))))));
+\import singular_cohomology.Simplices[A := Left, source := leftTopology] \as LeftSimplices;
+\import singular_cohomology.Simplices[A := Right, source := rightTopology] \as RightSimplices;
+\import Native.Map[C := Small.complex, D := Small.complex].At[n := n] \as SmallDegree;
+\import Native.Map[C := LeftChains.complex, D := RightChains.complex].At[n := n] \as LeftDegree;
+\import Native.Map[C := RightChains.complex, D := LeftChains.complex].At[n := n] \as RightDegree;
+\import Modules.Hom[V := Small.Carrier n, W := Small.Carrier n, source := Small.space n, target := Small.space n].Composition[U := LeftChains.Carrier n, domain := LeftChains.space n] \as SmallAfterLeft;
+\import Modules.Hom[V := RightChains.Carrier n, W := Small.Carrier n, source := RightChains.space n, target := Small.space n].Composition[U := LeftChains.Carrier n, domain := LeftChains.space n] \as RightAfterLeft;
+\import Modules.Free[Generators := LeftSimplices.Carrier n].To[W := Small.Carrier n, target := Small.space n] \as FreeLeft;
+\definition leftSmallEquation:
+  SmallAfterLeft.compose (SmallDegree.linear smallMap) LeftSmall.At[n := n].map =
+    RightAfterLeft.compose RightSmall.At[n := n].map (LeftDegree.linear leftMap) :=
+  FreeLeft.ext _ _
+    (\fun (sigma: LeftSimplices.Carrier n) => trans!{{Small.Carrier n}} _ _ _
+      (congr!{{Small.Carrier n} {Small.Carrier n}} (#apply{smallMap} n) _ _ (LeftSmall.At[n := n].onGenerator sigma))
+      (trans!{{Small.Carrier n}} _ _ _
+        (SmallMapping.At[n := n].onGenerator smallSimplicialMap (LeftSmall.At[n := n].simplex sigma))
+        (trans!{{Small.Carrier n}} _ _ _
+          (congr!{{SmallSimplices.Carrier n} {Small.Carrier n}} (Small.generator n) _ _
+            (\axiom:funext(smallSimplex n (LeftSmall.At[n := n].simplex sigma), RightSmall.At[n := n].simplex (LeftMaps.postcompose n leftFunction leftContinuous sigma),
+              \fun (x: Simplex.Carrier n) => \refl(function (sigma x)))))
+          (sym!{{Small.Carrier n}} _ _
+            (trans!{{Small.Carrier n}} _ _ _
+              (congr!{{RightChains.Carrier n} {Small.Carrier n}} (#apply{RightSmall.At[n := n].map}) _ _
+                (LeftMaps.At[n := n].onGenerator leftFunction leftContinuous sigma))
+              (RightSmall.At[n := n].onGenerator (LeftMaps.postcompose n leftFunction leftContinuous sigma)))))));
+\import Modules.Hom[V := Small.Carrier n, W := Small.Carrier n, source := Small.space n, target := Small.space n].Composition[U := RightChains.Carrier n, domain := RightChains.space n] \as SmallAfterRight;
+\import Modules.Hom[V := LeftChains.Carrier n, W := Small.Carrier n, source := LeftChains.space n, target := Small.space n].Composition[U := RightChains.Carrier n, domain := RightChains.space n] \as LeftAfterRight;
+\import Modules.Free[Generators := RightSimplices.Carrier n].To[W := Small.Carrier n, target := Small.space n] \as FreeRight;
+\definition rightSmallEquation:
+  SmallAfterRight.compose (SmallDegree.linear smallMap) RightSmall.At[n := n].map =
+    LeftAfterRight.compose LeftSmall.At[n := n].map (RightDegree.linear rightMap) :=
+  FreeRight.ext _ _
+    (\fun (sigma: RightSimplices.Carrier n) => trans!{{Small.Carrier n}} _ _ _
+      (congr!{{Small.Carrier n} {Small.Carrier n}} (#apply{smallMap} n) _ _ (RightSmall.At[n := n].onGenerator sigma))
+      (trans!{{Small.Carrier n}} _ _ _
+        (SmallMapping.At[n := n].onGenerator smallSimplicialMap (RightSmall.At[n := n].simplex sigma))
+        (trans!{{Small.Carrier n}} _ _ _
+          (congr!{{SmallSimplices.Carrier n} {Small.Carrier n}} (Small.generator n) _ _
+            (\axiom:funext(smallSimplex n (RightSmall.At[n := n].simplex sigma), LeftSmall.At[n := n].simplex (RightMaps.postcompose n rightFunction rightContinuous sigma),
+              \fun (x: Simplex.Carrier n) => \refl(function (sigma x)))))
+          (sym!{{Small.Carrier n}} _ _
+            (trans!{{Small.Carrier n}} _ _ _
+              (congr!{{LeftChains.Carrier n} {Small.Carrier n}} (#apply{LeftSmall.At[n := n].map}) _ _
+                (RightMaps.At[n := n].onGenerator rightFunction rightContinuous sigma))
+              (LeftSmall.At[n := n].onGenerator (RightMaps.postcompose n rightFunction rightContinuous sigma)))))));
+\definition leftSmall: \forall (x: LeftChains.Carrier n) ->
+  #apply{smallMap} n (#apply{LeftSmall.map} n x) = #apply{RightSmall.map} n (#apply{leftMap} n x) :=
+  \fun (x: LeftChains.Carrier n) => congr!{{Modules.Hom[V := LeftChains.Carrier n, W := Small.Carrier n, source := LeftChains.space n, target := Small.space n].Map} {Small.Carrier n}}
+    (\fun (f: Modules.Hom[V := LeftChains.Carrier n, W := Small.Carrier n, source := LeftChains.space n, target := Small.space n].Map) => #apply{f} x) _ _ leftSmallEquation;
+\definition rightSmall: \forall (x: RightChains.Carrier n) ->
+  #apply{smallMap} n (#apply{RightSmall.map} n x) = #apply{LeftSmall.map} n (#apply{rightMap} n x) :=
+  \fun (x: RightChains.Carrier n) => congr!{{Modules.Hom[V := RightChains.Carrier n, W := Small.Carrier n, source := RightChains.space n, target := Small.space n].Map} {Small.Carrier n}}
+    (\fun (f: Modules.Hom[V := RightChains.Carrier n, W := Small.Carrier n, source := RightChains.space n, target := Small.space n].Map) => #apply{f} x) _ _ rightSmallEquation;
+\import Modules.Laws[V := Small.Carrier n, space := Small.space n] \as SmallLaws;
+\import algebra.Group[].Of[Carrier := Small.Carrier n, group := SmallLaws.additive] \as SmallGroup;
+\definition projectionSquare: \forall (x: Sum.Carrier n) ->
+  #apply{Chains.projection} n (#apply{middleMap} n x) = #apply{smallMap} n (#apply{Chains.projection} n x) :=
+  \fun (x: Sum.Carrier n) => trans!{{Small.Carrier n}} _ _ _
+    (SmallGroup.comm (#apply{LeftSmall.map} n (#apply{rightMap} n (Sum.At[n := n].second x))) (#apply{RightSmall.map} n (#apply{leftMap} n (Sum.At[n := n].first x))))
+    (trans!{{Small.Carrier n}} _ _ _
+      (congr2!{{Small.Carrier n} {Small.Carrier n} {Small.Carrier n}} (#add{(Small.space n)}) _ _ _ _
+        (sym!{{Small.Carrier n}} _ _ (leftSmall (Sum.At[n := n].first x)))
+        (sym!{{Small.Carrier n}} _ _ (rightSmall (Sum.At[n := n].second x))))
+      (sym!{{Small.Carrier n}} _ _ (#addition{smallMap} n (#apply{LeftSmall.map} n (Sum.At[n := n].first x)) (#apply{RightSmall.map} n (Sum.At[n := n].second x)))));

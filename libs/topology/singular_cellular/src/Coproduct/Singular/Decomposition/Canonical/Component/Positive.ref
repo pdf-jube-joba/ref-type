@@ -1,0 +1,27 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\import Modules.Hom[V := FiberExtension.Carrier degree, W := WholeExtension.Carrier degree,
+  source := FiberExtension.space degree, target := WholeExtension.space degree] \as Maps;
+\definition first: Maps.Map := Maps.Map {
+  apply := #apply{throughSmall} degree, addition := #addition{throughSmall} degree, scalar := #scalar{throughSmall} degree,
+};
+\definition second: Maps.Map := Maps.Map {
+  apply := #apply{map} degree, addition := #addition{map} degree, scalar := #scalar{map} degree,
+};
+\import Maps.Composition[U := FiberChains.Carrier n, domain := FiberChains.space n] \as Lift;
+\import Modules.Free[Generators := FiberSimplices.Carrier n].To[W := WholeExtension.Carrier degree, target := WholeExtension.space degree] \as Universal;
+\definition generator: \forall (sigma: FiberSimplices.Carrier n) ->
+  #apply{throughSmall} degree (SmallComponent.generator n sigma) = #apply{map} degree (SmallComponent.generator n sigma) :=
+  \fun (sigma: FiberSimplices.Carrier n) => trans!{WholeExtension.Carrier degree} _ _ _
+    (congr!{SmallExtension.Carrier degree {WholeExtension.Carrier degree}} (#apply{Forget.map} degree) _ _ (SmallComponent.onGenerator n sigma))
+    (trans!{WholeExtension.Carrier degree} _ _ _
+      (congr!{Whole.Carrier n {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := n].intro) _ _
+        (Small.At[n := n].onGenerator (SmallComponent.simplex n sigma)))
+      (sym!{WholeExtension.Carrier degree} _ _
+        (congr!{Whole.Carrier n {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := n].intro) _ _
+          (singular_cohomology.Maps[A := fibers i, B := Carrier, source := spaces i, target := topology].At[n := n].onGenerator (injection i) Image.continuous sigma))));
+\definition equation: Lift.compose first FiberExtension.Positive[n := n].forward = Lift.compose second FiberExtension.Positive[n := n].forward :=
+  Universal.ext _ _ generator;
+\import Modules.Hom[V := FiberChains.Carrier n, W := WholeExtension.Carrier degree,
+  source := FiberChains.space n, target := WholeExtension.space degree] \as Linear;
+\definition law: Equation degree := \fun (x: (terms i).family.Carrier degree) =>
+  congr!{Linear.Map {WholeExtension.Carrier degree}} (\fun (f: Linear.Map) => #apply{f} x) _ _ equation;

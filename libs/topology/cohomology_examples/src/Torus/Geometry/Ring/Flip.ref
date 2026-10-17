@@ -1,0 +1,31 @@
+\use Equality.congr2;
+\import Cohomology.Pullback[B := Carrier, target := topology] \as Action;
+\import singular_cohomology.Maps[A := Carrier, B := Carrier, source := topology, target := topology]
+  .Composition[C := Circle, final := circleTopology].Coefficients[M := Products.integerCoefficients] \as Functor;
+\import topology.Composition[A := Carrier, B := Carrier, C := Circle] \as Composition;
+\definition equalPullback(f, g: Carrier -> Circle)
+  (fc: topology.Continuity[A := Carrier, B := Circle].Continuous topology circleTopology f)
+  (gc: topology.Continuity[A := Carrier, B := Circle].Continuous topology circleTopology g)
+  (equal: \forall (x: Carrier) -> f x = g x)(h: CircleCohomology.Group one):
+  Projection.apply one f fc h = Projection.apply one g gc h :=
+  (\idelim f = g \with k: (Carrier -> Circle) => \forall (kc: topology.Continuity[A := Carrier, B := Circle].Continuous topology circleTopology k) ->
+    Projection.apply one f fc h = Projection.apply one k kc h
+    \by { base: \fun (kc: _) => \refl(Projection.apply one f fc h), equality: \axiom:funext(f, g, equal) }) gc;
+\definition firstAction: Action.apply one flip flipContinuous a = b :=
+  trans!{{Cohomology.Group one}} _ _ _
+    (sym!{{Cohomology.Group one}} _ _ (Functor.onCohomology flip flipContinuous first firstContinuous one generator))
+    (equalPullback (\fun (p: Carrier) => first (flip p)) second
+      (Composition.composeContinuous topology topology circleTopology flip first flipContinuous firstContinuous) secondContinuous
+      (\fun (p: Carrier) => \refl(second p)) generator);
+\definition secondAction: Action.apply one flip flipContinuous b = a :=
+  trans!{{Cohomology.Group one}} _ _ _
+    (sym!{{Cohomology.Group one}} _ _ (Functor.onCohomology flip flipContinuous second secondContinuous one generator))
+    (equalPullback (\fun (p: Carrier) => second (flip p)) first
+      (Composition.composeContinuous topology topology circleTopology flip second flipContinuous secondContinuous) firstContinuous
+      (\fun (p: Carrier) => \refl(first p)) generator);
+\import Action.Cup[p := one, q := one] \as Natural;
+\definition orientationAction: Action.apply two flip flipContinuous orientation = #neg{(Cohomology.moduleSpace two)} orientation :=
+  trans!{{Cohomology.Group two}} _ _ _ (Natural.law flip flipContinuous a b)
+    (trans!{{Cohomology.Group two}} _ _ _
+      (congr2!{{Cohomology.Group one} {Cohomology.Group one} {Cohomology.Group two}} Cup.apply _ _ _ _ firstAction secondAction)
+      skewCommutativity);

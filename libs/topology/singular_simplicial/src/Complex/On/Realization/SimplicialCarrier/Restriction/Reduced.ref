@@ -1,0 +1,37 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import singular_cohomology.Chains[A := SourceRealization.Carrier, source := SourceRealization.topology].Reduced[] \as SourceChains;
+\import singular_cohomology.Chains[A := TargetRealization.Carrier, source := TargetRealization.topology].Reduced[] \as TargetChains;
+\import singular_cohomology.Chains[A := Global.Carrier, source := Global.topology].Reduced[] \as GlobalChains;
+\import singular_cohomology.Maps[A := SourceRealization.Carrier, B := Global.Carrier, source := SourceRealization.topology, target := Global.topology] \as Direct;
+\import singular_cohomology.Maps[A := TargetRealization.Carrier, B := Global.Carrier, source := TargetRealization.topology, target := Global.topology] \as After;
+\import Maps.Composition[C := Global.Carrier, final := Global.topology].Reduced[] \as Composition;
+\import topology.Composition[A := SourceRealization.Carrier, B := TargetRealization.Carrier, C := Global.Carrier] \as Topological;
+\import Direct.Reduced[].FunctionEquality[] \as FunctionEquality;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import Complexes.Map[C := SourceChains.complex, D := GlobalChains.complex] \as Result;
+\import Complexes.Map[C := TargetChains.complex, D := GlobalChains.complex].Composition[B := SourceChains.complex] \as Compose;
+\definition commutes: Compose.compose (After.Reduced[].map Original.inclusion Original.continuous) reducedMap =
+  Direct.Reduced[].map Source.inclusion Source.continuous :=
+  trans!{{Result.Map}} _ _ _ (Composition.law inclusion inclusionContinuous Original.inclusion Original.continuous)
+    (FunctionEquality.law (\fun (x: SourceRealization.Carrier) => Original.inclusion (inclusion x))
+      (Topological.composeContinuous SourceRealization.topology TargetRealization.topology Global.topology inclusion Original.inclusion inclusionContinuous Original.continuous)
+      Source.inclusion Source.continuous (\fun (x: SourceRealization.Carrier) => \refl(Source.inclusion x)));
+\definition point: \forall (z: I.Int^)(x: SourceChains.Carrier z) ->
+  #apply{(After.Reduced[].map Original.inclusion Original.continuous)} z (#apply{reducedMap} z x) = #apply{(Direct.Reduced[].map Source.inclusion Source.continuous)} z x :=
+  \fun (z: I.Int^)(x: SourceChains.Carrier z) => congr!{{Result.Map} {GlobalChains.Carrier z}} (\fun (f: Result.Map) => #apply{f} z x) _ _ commutes;
+\module Degree(z: I.Int^) {
+  \import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+  \import Modules.Of[V := GlobalChains.Carrier z, space := GlobalChains.space z].Submodule[] \as Submodules;
+  \import Submodules.Image[U := SourceChains.Carrier z, source := SourceChains.space z] \as SourceImages;
+  \import Submodules.Image[U := TargetChains.Carrier z, source := TargetChains.space z] \as TargetImages;
+  \definition sourceLinear: _ := Result.At[k := z].linear (Direct.Reduced[].map Source.inclusion Source.continuous);
+  \definition targetLinear: _ := Complexes.Map[C := TargetChains.complex, D := GlobalChains.complex].At[k := z].linear (After.Reduced[].map Original.inclusion Original.continuous);
+  \definition sourceImage: Submodules.Submodule := SourceImages.image sourceLinear;
+  \definition targetImage: Submodules.Submodule := TargetImages.image targetLinear;
+  \definition included: Submodules.Included sourceImage targetImage :=
+    \fun (y: GlobalChains.Carrier z)(member: Submodules.Member sourceImage y) =>
+      SourceImages.eliminate sourceLinear y (Submodules.Member targetImage y)
+        (\fun (x: SourceChains.Carrier z)(equal: #apply{sourceLinear} x = y) =>
+          TargetImages.introduce targetLinear y (#apply{reducedMap} z x) (trans!{{GlobalChains.Carrier z}} _ _ _ (point z x) equal)) member;
+}

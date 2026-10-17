@@ -1,0 +1,28 @@
+\definition forward(p: Remaining.CarrierSet): Carrier := \into[Model.Disk](p, interior) \by {
+  Order.ltOfLeNotEq (Model.normSquared p) Real.one (\bysub(Model.Coordinate, Model.ClosedBall, p))
+    (\bysub(Model.Disk, Space.Complement boundary, p))
+};
+\definition backward(p: Carrier): Remaining.CarrierSet := \into[Model.Disk](p, Space.Complement boundary) \by {
+  Order.ltNotEq (Model.normSquared p) Real.one (\bysub(Model.Disk, interior, p))
+};
+\import topology.Continuity[A := Remaining.CarrierSet, B := Model.Disk].Corestriction[S := Space.Complement boundary] \as SourceInclusion;
+\import topology.Continuity[A := Carrier, B := Model.Disk].Corestriction[S := interior] \as TargetInclusion;
+\import topology.Continuity[A := Remaining.CarrierSet, B := Model.Disk].Corestriction[S := interior] \as IntoTarget;
+\import topology.Continuity[A := Carrier, B := Model.Disk].Corestriction[S := Space.Complement boundary] \as IntoSource;
+\definition homeomorphism: topology.Homeomorphism[A := Remaining.CarrierSet, B := Carrier].Homeomorphism[Remaining.topology Model.diskTopology, topology] :=
+  topology.Homeomorphism[A := Remaining.CarrierSet, B := Carrier].Homeomorphism[Remaining.topology Model.diskTopology, topology] {
+    forward := forward, backward := backward,
+    leftInverse := \fun (p: Remaining.CarrierSet) => \refl(p), rightInverse := \fun (p: Carrier) => \refl(p),
+    forwardContinuous := IntoTarget.corestrictContinuous (Remaining.topology Model.diskTopology) Model.diskTopology forward (SourceInclusion.inclusionContinuous Model.diskTopology),
+    backwardContinuous := IntoSource.corestrictContinuous topology Model.diskTopology backward (TargetInclusion.inclusionContinuous Model.diskTopology),
+  };
+\import Excised.Homeomorphism[B := Carrier].Over[target := topology, targetSubset := subset] \as Relative;
+\definition data: Relative.Data := Relative.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: Excised.SubspaceCarrier) => \bysub(Remaining.CarrierSet, punctures, p),
+  backwardPreserves := \fun (p: Local.SubspaceCarrier) => \bysub(Carrier, subset, p),
+};
+
+\module Homology(z: I.Int^);
+
+\module With(coefficients: Modules.Bundle);

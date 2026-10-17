@@ -1,0 +1,65 @@
+\import Modules.Laws[V := F.Carrier, space := F.integerSpace] \as Values;
+\import algebra.Group[].Of[Carrier := F.Carrier, group := Values.additive] \as Group;
+\import Modules.Hom[V := H1.CycleCarrier, W := F.Carrier, source := H1.cycleSpace, target := F.integerSpace] \as Evaluation;
+\definition evaluate: Evaluation.Map := Evaluation.Map {
+  apply := \fun (f: H1.CycleCarrier) => f Edge::loop,
+  addition := \fun (f, g: H1.CycleCarrier) => \refl(F.add (f Edge::loop) (g Edge::loop)),
+  scalar := \fun (a: I.Int^)(f: H1.CycleCarrier) => \refl(Values.scale a (f Edge::loop)),
+};
+\import Modules.Of[V := H1.CycleCarrier, space := H1.cycleSpace].Submodule[].Quotient[S := H1.boundariesInside] \as Quotient;
+\import Quotient.To[W := F.Carrier, target := F.integerSpace] \as Descent;
+\definition kills: Descent.Vanishes evaluate := \block {
+  \fun (f: H1.CycleCarrier)(boundary: _) \then
+  \takefrom g: \Cast[Model.Vertices] ({ g: Model.Vertices \where Model.deltaZero g = f }) \by boundary \then
+  \let equal: Model.deltaZero g = f := \bysub(Model.Vertices, { g: Model.Vertices \where Model.deltaZero g = f }, g) \then
+  \return trans!{F.Carrier} _ _ _
+    (congr!{Model.Edges F.Carrier} (\fun (x: Model.Edges) => x Edge::loop) _ _ (sym!{Model.Edges} _ _ equal)) (F.addSelf (g Vertex::rim))
+};
+\definition forward: Modules.Hom[V := H1.Cohomology, W := F.Carrier, source := H1.cohomologySpace, target := F.integerSpace].Map := Descent.descend evaluate kills;
+\definition representative(x: F.Carrier): Model.Edges := Model.edge x F.zero x;
+\definition representativeClosed(x: F.Carrier): Model.deltaOne (representative x) = Model.triangle F.zero F.zero :=
+  Model.trianglesExt _ _ (trans!{F.Carrier} _ _ _ (F.addZeroRight (F.add x x)) (F.addSelf x))
+    (trans!{F.Carrier} _ _ _ (congr!{F.Carrier F.Carrier} (\fun (z: F.Carrier) => F.add z x) _ _ (F.addZeroRight x)) (F.addSelf x));
+\import Modules.Hom[V := F.Carrier, W := H1.CycleCarrier, source := F.integerSpace, target := H1.cycleSpace] \as Inclusion;
+\definition include: Inclusion.Map := Inclusion.Map {
+  apply := \fun (x: F.Carrier) => H1.cycle (representative x) (representativeClosed x),
+  addition := \fun (x, y: F.Carrier) => Model.edgesExt _ _ (\refl(F.add x y)) (\refl(F.zero)) (\refl(F.add x y)),
+  scalar := \fun (a: I.Int^)(x: F.Carrier) => Model.edgesExt _ _ (\refl(Values.scale a x)) (sym!{F.Carrier} _ _ (Values.scaleZero a)) (\refl(Values.scale a x)),
+};
+\import Modules.Hom[V := H1.CycleCarrier, W := H1.Cohomology, source := H1.cycleSpace, target := H1.cohomologySpace].Composition[U := F.Carrier, domain := F.integerSpace] \as Composition;
+\definition backward: Modules.Hom[V := F.Carrier, W := H1.Cohomology, source := F.integerSpace, target := H1.cohomologySpace].Map := Composition.compose H1.classLinear include;
+\definition rightInverse(x: F.Carrier): #apply{forward} (#apply{backward} x) = x := Descent.onClass evaluate kills (#apply{include} x);
+\definition thirdDifference(f: H1.CycleCarrier): Group.difference (f Edge::second) (f Edge::loop) = f Edge::first := \block {
+  \let a: F.Carrier := f Edge::loop \then
+  \let b: F.Carrier := f Edge::first \then
+  \let sum: f Edge::second = Group.add b a := trans!{F.Carrier} _ _ _
+    (Model.closedSecond f (\bysub(Model.Edges, #carrier{H1.cycles}, f))) (F.addCommutative a b) \then
+  \return trans!{F.Carrier} _ _ _
+    (congr!{F.Carrier F.Carrier} (\fun (z: F.Carrier) => Group.difference z a) _ _ sum)
+    (trans!{F.Carrier} _ _ _ (Group.assoc b a (Group.neg a))
+      (trans!{F.Carrier} _ _ _ (congr!{F.Carrier F.Carrier} (Group.add b) _ _ (Group.inverseRight a)) (F.addZeroRight b)))
+};
+\definition boundaryDifference(f: H1.CycleCarrier): Model.deltaZero (Model.vertex F.zero (f Edge::first)) =
+  #add{(Raw.first.space)} f (#neg{(Raw.first.space)} (representative (f Edge::loop))) :=
+  Model.edgesExt _ _
+    (trans!{F.Carrier} _ _ _ (F.addSelf (f Edge::first)) (sym!{F.Carrier} _ _ (F.addSelf (f Edge::loop))))
+    (\refl(F.add (f Edge::first) F.zero))
+    (trans!{F.Carrier} _ _ _ (F.addZeroRight (f Edge::first)) (sym!{F.Carrier} _ _ (thirdDifference f)));
+\definition leftInverse: \forall (h: H1.Cohomology) -> #apply{backward} (#apply{forward} h) = h :=
+  H1.classInduction (\fun (h: H1.Cohomology) => #apply{backward} (#apply{forward} h) = h)
+    (\fun (f: H1.CycleCarrier) => trans!{H1.Cohomology} _ _ _
+      (congr!{F.Carrier H1.Cohomology} (#apply{backward}) _ _ (Descent.onClass evaluate kills f))
+      (sym!{H1.Cohomology} _ _ (H1.classEqual f (#apply{include} (f Edge::loop))
+        (Logic.existsIntro[Model.Vertices, { g: Model.Vertices \where Model.deltaZero g =
+          #add{(Raw.first.space)} f (#neg{(Raw.first.space)} (representative (f Edge::loop))) }]
+          (Model.vertex F.zero (f Edge::first)) (boundaryDifference f)))));
+\definition isomorphism: Modules.Isomorphism[V := H1.Cohomology, W := F.Carrier, source := H1.cohomologySpace, target := F.integerSpace].Isomorphism :=
+  Modules.Isomorphism[V := H1.Cohomology, W := F.Carrier, source := H1.cohomologySpace, target := F.integerSpace].Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };
+\definition generatorCoordinate: #apply{forward} generator = F.one := Descent.onClass evaluate kills uCycle;
+\import Modules.Hom[V := H1.Cohomology, W := F.Carrier, source := H1.cohomologySpace, target := F.integerSpace] \as ForwardMaps;
+\definition generatorNonzero: generator = H1.zeroClass -> Logic.False :=
+  \fun (same: generator = H1.zeroClass) => F.nontrivial
+    (sym!{F.Carrier} _ _ (trans!{F.Carrier} _ _ _ (sym!{F.Carrier} _ _ generatorCoordinate)
+      (trans!{F.Carrier} _ _ _ (congr!{H1.Cohomology F.Carrier} (#apply{forward}) _ _ same) (ForwardMaps.zeroPreserved forward))));

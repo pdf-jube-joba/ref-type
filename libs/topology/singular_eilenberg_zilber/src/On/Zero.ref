@@ -1,0 +1,49 @@
+\definition n: N.Nat^ := N.Nat^::zero;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := A, B := B] \as Pairs;
+\import singular_cohomology.Simplices[A := Product.CarrierSet, source := topology] \as Simplices;
+\import singular_products.AlexanderWhitney[A := A, B := B, left := left, right := right].At[p := n, q := n] \as Cut;
+\import singular_products.Cross[A := A, B := B, left := left, right := right].Zero[] \as Cross;
+\import Double.Coordinates[C := Tensor.complex].Zero[] \as Single;
+\import AW.Degree[n := n] \as AWZero;
+\import singular_products.Cross[A := A, B := B, left := left, right := right].Total[].Degree[n := n] \as ShuffleZero;
+\import ShuffleZero.At[i := Single.index] \as ShuffleComponent;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition cutGenerator(sigma: Simplices.Carrier n): Single.coordinate (#apply{forward} n (Chains.generator n sigma)) = Cut.value sigma :=
+  trans!{Cut.Carrier} _ _ _ (AWZero.coordinate Single.index (Chains.generator n sigma))
+    (trans!{Cut.Carrier} _ _ _
+      (congr!{{Chains.Carrier n} Cut.Carrier} (#apply{Cut.map}) _ _ (Transport.castRefl Chains.Carrier n (Chains.generator n sigma)))
+      (Cut.onGenerator sigma));
+\definition forwardGenerator(sigma: Simplices.Carrier n): #apply{forward} n (Chains.generator n sigma) = #apply{Single.inject} (Cut.value sigma) :=
+  trans!{{Total.Carrier n}} _ _ _ (Single.reconstruct (#apply{forward} n (Chains.generator n sigma)))
+    (congr!{Cut.Carrier {Total.Carrier n}} (#apply{Single.inject}) _ _ (cutGenerator sigma));
+\definition simplex(sigma: Simplices.Carrier n): Cross.simplex (Cut.front sigma) (Cut.back sigma) = sigma :=
+  \axiom:funext(Cross.simplex (Cut.front sigma) (Cut.back sigma), sigma, \fun (x: Simplex.Carrier n) =>
+    trans!{Product.CarrierSet} _ _ _
+      (congr2!{A B Product.CarrierSet} (Pair.pair A B) _ _ _ _
+        (congr!{{Simplex.Carrier n} A} (\fun (t: Simplex.Carrier n) => Pair.first A B (sigma t)) _ _
+          (trans!{{Simplex.Carrier n}} _ _ _ (Simplex.zeroUnique _) (sym!{{Simplex.Carrier n}} _ _ (Simplex.zeroUnique x))))
+        (congr!{{Simplex.Carrier n} B} (\fun (t: Simplex.Carrier n) => Pair.second A B (sigma t)) _ _
+          (trans!{{Simplex.Carrier n}} _ _ _ (Simplex.zeroUnique _) (sym!{{Simplex.Carrier n}} _ _ (Simplex.zeroUnique x)))))
+      (Pairs.eta (sigma x)));
+\definition backwardGenerator(sigma: Simplices.Carrier n): #apply{backward} n (#apply{Single.inject} (Cut.value sigma)) = Chains.generator n sigma :=
+  trans!{{Chains.Carrier n}} _ _ _ (ShuffleZero.onInjection Single.index (Cut.value sigma))
+    (trans!{{Chains.Carrier n}} _ _ _ (ShuffleComponent.onTensor (Left.generator n (Cut.front sigma)) (Right.generator n (Cut.back sigma)))
+      (trans!{{Chains.Carrier n}} _ _ _ (Transport.castRefl Chains.Carrier n _)
+        (trans!{{Chains.Carrier n}} _ _ _ (Cross.law (Cut.front sigma) (Cut.back sigma))
+          (congr!{{Simplices.Carrier n} {Chains.Carrier n}} (Chains.generator n) _ _ (simplex sigma)))));
+\definition onGenerator(sigma: Simplices.Carrier n): #apply{productComposite} n (Chains.generator n sigma) = Chains.generator n sigma :=
+  trans!{{Chains.Carrier n}} _ _ _
+    (congr!{{Total.Carrier n} {Chains.Carrier n}} (#apply{backward} n) _ _ (forwardGenerator sigma))
+    (backwardGenerator sigma);
+\import Native.Map[C := Chains.complex, D := Chains.complex].At[n := n] \as Linear;
+\import Modules.End[V := Chains.Carrier n, space := Chains.space n] \as End;
+\import Modules.Free[Generators := Simplices.Carrier n].To[W := Chains.Carrier n, target := Chains.space n] \as Free;
+\definition equation: Linear.linear productComposite = End.identity := Free.ext (Linear.linear productComposite) End.identity onGenerator;
+\definition law(x: Chains.Carrier n): #apply{productComposite} n x = x := congr!{{Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier n, source := Chains.space n, target := Chains.space n].Map} {Chains.Carrier n}} (\fun (h: Modules.Hom[V := Chains.Carrier n, W := Chains.Carrier n, source := Chains.space n, target := Chains.space n].Map) => #apply{h} x) _ _ equation;
+\import Modules.Laws[V := Chains.Carrier n, space := Chains.space n] \as Vector;
+\import algebra.Group[].Of[Carrier := Chains.Carrier n, group := Vector.additive] \as Group;
+\definition defect(x: Chains.Carrier n): #apply{productDefect} n x = #zero{(Chains.space n)} :=
+  trans!{{Chains.Carrier n}} _ _ _ (congr!{{Chains.Carrier n} {Chains.Carrier n}} (\fun (y: Chains.Carrier n) => Group.difference y x) _ _ (law x)) (Group.inverseRight x);
+\module Tensor;

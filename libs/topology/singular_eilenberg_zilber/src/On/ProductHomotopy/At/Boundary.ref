@@ -1,0 +1,25 @@
+\import \root.On[A := Simplex.Carrier n, B := Simplex.Carrier n, left := Domain.topology, right := Domain.topology] \as Comparison;
+\import Comparison.Naturality[C := A, D := B, leftTarget := left, rightTarget := right] \as Natural;
+\import singular_products.ProductMapping[A := Simplex.Carrier n, B := Simplex.Carrier n, C := A, D := B, leftSource := Domain.topology, rightSource := Domain.topology, leftTarget := left, rightTarget := right] \as ProductMapping;
+\definition factors(sigma: Simplices.Carrier n): ProductMapping.Map := ProductMapping.Map {
+  leftFunction := leftSimplex sigma, rightFunction := rightSimplex sigma,
+  leftContinuous := LeftSimplices.At[n := n].continuous (leftSimplex sigma),
+  rightContinuous := RightSimplices.At[n := n].continuous (rightSimplex sigma),
+};
+\import singular_cohomology.Chains[A := Model.Points, source := Model.topology] \as GeometricChains;
+\import Modules.Hom[V := GeometricChains.Carrier n, W := Chains.Carrier n, source := GeometricChains.space n, target := Chains.space n] \as PushLinear;
+\import Modules.Laws[V := Chains.Carrier n, space := Chains.space n] \as Vector;
+\import algebra.Group[].Of[Carrier := Chains.Carrier n, group := Vector.additive] \as Group;
+\import Modules.Laws[V := GeometricChains.Carrier n, space := GeometricChains.space n] \as GeometricVector;
+\import algebra.Group[].Of[Carrier := GeometricChains.Carrier n, group := GeometricVector.additive] \as GeometricGroup;
+\definition defect(sigma: Simplices.Carrier n): #apply{Maps.push (function sigma) (continuous sigma)} n Models.Degree[n := n].value = #apply{productDefect} n (Chains.generator n sigma) :=
+  trans!{{Chains.Carrier n}} _ _ _ (Natural.With[f := factors sigma].Composites[n := n].productDefectLaw Model.cell)
+    (congr!{{Chains.Carrier n} {Chains.Carrier n}} (#apply{productDefect} n) _ _ (original sigma));
+\definition prior(sigma: Simplices.Carrier n): Chains.Carrier n := #apply{Maps.push (function sigma) (continuous sigma)} n (Models.prior n);
+\definition law(sigma: Simplices.Carrier n): #apply{(Chains.boundary n)} (onSimplex sigma) = Group.difference (#apply{productDefect} n (Chains.generator n sigma)) (prior sigma) :=
+  trans!{{Chains.Carrier n}} _ _ _ (Maps.Differential[n := n].commutes (function sigma) (continuous sigma) (Models.homotopy n))
+    (trans!{{Chains.Carrier n}} _ _ _
+      (congr!{{GeometricChains.Carrier n} {Chains.Carrier n}} (#apply{Maps.push (function sigma) (continuous sigma)} n) _ _ (Models.boundary n))
+      (trans!{{Chains.Carrier n}} _ _ _
+        (PushLinear.differencePreserved (Maps.At[n := n].push (function sigma) (continuous sigma)) Models.Degree[n := n].value (Models.prior n))
+        (congr!{{Chains.Carrier n} {Chains.Carrier n}} (\fun (y: Chains.Carrier n) => Group.difference y (prior sigma)) _ _ (defect sigma))));

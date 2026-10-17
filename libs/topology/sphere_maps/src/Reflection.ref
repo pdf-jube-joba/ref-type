@@ -1,0 +1,88 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import algebraic_topology.Spheres[] \as Spheres;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Lower;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n] \as Ambient;
+\import Lower.Splitting[] \as Split;
+\import Lower.Contraction[] \as Scaling;
+\import Spheres.Antipodal[n := n] \as Antipodal;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition Sphere: \Set := Spheres.Carrier n;
+\definition topology: topology.Topology[Carrier := Sphere].Topology := Spheres.topology n;
+\definition squaredNegative: \forall (a: Real.Real) -> Real.mul (Real.neg a) (Real.neg a) = Real.mul a a :=
+  \fun (a: Real.Real) => Laws.fieldMulNegBoth a a;
+\definition minusOneSquared: Real.mul (Real.neg Real.one) (Real.neg Real.one) = Real.one :=
+  trans!{Real.Real} _ _ _ (squaredNegative Real.one) (Laws.fieldMulOneLeft Real.one);
+\definition head(x: Sphere): Sphere :=
+  \into[Ambient.Coordinate](Split.join (Real.neg (Split.head x)) (Split.tail x), Ambient.Boundary) \by {
+    trans!{Real.Real} _ _ _ (Split.normJoin (Real.neg (Split.head x)) (Split.tail x))
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Lower.normSquared (Split.tail x))) _ _ (squaredNegative (Split.head x)))
+        (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.normSplit x)) (\bysub(Ambient.Coordinate, Ambient.Boundary, x))))
+  };
+\definition tail(x: Sphere): Sphere :=
+  \into[Ambient.Coordinate](Split.join (Split.head x) (Scaling.scale (Real.neg Real.one) (Split.tail x)), Ambient.Boundary) \by {
+    trans!{Real.Real} _ _ _ (Split.normJoin (Split.head x) (Scaling.scale (Real.neg Real.one) (Split.tail x)))
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (Real.add (Real.mul (Split.head x) (Split.head x))) _ _
+          (trans!{Real.Real} _ _ _ (Scaling.normScale (Real.neg Real.one) (Split.tail x))
+            (trans!{Real.Real} _ _ _
+              (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Lower.normSquared (Split.tail x))) _ _ minusOneSquared)
+              (Laws.fieldMulOneLeft (Lower.normSquared (Split.tail x))))))
+        (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.normSplit x)) (\bysub(Ambient.Coordinate, Ambient.Boundary, x))))
+  };
+\definition headHead: \forall (x: Sphere) -> Split.head (head x) = Real.neg (Split.head x) :=
+  \fun (x: Sphere) => Split.headJoin (Real.neg (Split.head x)) (Split.tail x);
+\definition headTail: \forall (x: Sphere) -> Split.tail (head x) = Split.tail x :=
+  \fun (x: Sphere) => Split.tailJoin (Real.neg (Split.head x)) (Split.tail x);
+\definition tailHead: \forall (x: Sphere) -> Split.head (tail x) = Split.head x :=
+  \fun (x: Sphere) => Split.headJoin (Split.head x) (Scaling.scale (Real.neg Real.one) (Split.tail x));
+\definition tailTail: \forall (x: Sphere) -> Split.tail (tail x) = Scaling.scale (Real.neg Real.one) (Split.tail x) :=
+  \fun (x: Sphere) => Split.tailJoin (Split.head x) (Scaling.scale (Real.neg Real.one) (Split.tail x));
+\definition antipodalHead: \forall (x: Sphere) -> Split.head (Antipodal.apply x) = Real.neg (Split.head x) :=
+  \fun (x: Sphere) => trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (Split.head x))
+    (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (Split.head x)));
+\definition antipodalTail: \forall (x: Sphere) -> Split.tail (Antipodal.apply x) = Scaling.scale (Real.neg Real.one) (Split.tail x) :=
+  \fun (x: Sphere) => \axiom:funext(Split.tail (Antipodal.apply x), Scaling.scale (Real.neg Real.one) (Split.tail x),
+    \fun (i: Lower.Index) => \refl(Real.mul (Real.neg Real.one) (x (Fin.succ n i))));
+\definition factorization: \forall (x: Sphere) -> head (tail x) = Antipodal.apply x :=
+  \fun (x: Sphere) => Split.ext (head (tail x)) (Antipodal.apply x)
+    (trans!{Real.Real} _ _ _ (headHead (tail x))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (tailHead x)) (sym!{Real.Real} _ _ (antipodalHead x))))
+    (trans!{Lower.Coordinate} _ _ _ (headTail (tail x))
+      (trans!{Lower.Coordinate} _ _ _ (tailTail x) (sym!{Lower.Coordinate} _ _ (antipodalTail x))));
+\definition headInvolution: \forall (x: Sphere) -> head (head x) = x :=
+  \fun (x: Sphere) => Split.ext (head (head x)) x
+    (trans!{Real.Real} _ _ _ (headHead (head x))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (headHead x)) (Laws.negInvolutive (Split.head x))))
+    (trans!{Lower.Coordinate} _ _ _ (headTail (head x)) (headTail x));
+\import metric_spaces.RealLine[] \as Line;
+\import topological_algebra.Coordinates[K := Real.Real, I := Ambient.Index] \as CoordinateTopology;
+\import topology.Continuity[A := Ambient.Coordinate, B := Ambient.Coordinate].Corestriction[S := Ambient.Boundary] \as Inclusion;
+\import topology.Composition[A := Sphere, B := Ambient.Coordinate, C := Real.Real] \as Evaluation;
+\import metric_spaces.RealFunctions[A := Sphere] \as Functions;
+\import Functions.Product[] \as Product;
+\import Split.Continuity[A := Sphere] \as Joining;
+\import topology.Continuity[A := Sphere, B := Ambient.Coordinate].Corestriction[S := Ambient.Boundary] \as Into;
+\definition coordinateContinuous: \forall (i: Ambient.Index) -> Functions.Continuous topology (\fun (x: Sphere) => x i) :=
+  \fun (i: Ambient.Index) => Evaluation.composeContinuous topology Ambient.topology Line.topology
+    (\fun (x: Sphere) => x) (\fun (x: Ambient.Coordinate) => x i)
+    (Inclusion.inclusionContinuous Ambient.topology) (CoordinateTopology.evaluationContinuous Line.topology i);
+\definition headContinuous: topology.Continuity[A := Sphere, B := Sphere].Continuous topology topology head :=
+  Into.corestrictContinuous topology Ambient.topology head
+    (Joining.joinContinuous topology (\fun (x: Sphere) => Real.neg (Split.head x)) (\fun (x: Sphere) => Split.tail x)
+      (Functions.negContinuous topology Split.head (coordinateContinuous (Fin.zero n)))
+      (\fun (i: Lower.Index) => coordinateContinuous (Fin.succ n i)));
+\definition tailContinuous: topology.Continuity[A := Sphere, B := Sphere].Continuous topology topology tail :=
+  Into.corestrictContinuous topology Ambient.topology tail
+    (Joining.joinContinuous topology Split.head (\fun (x: Sphere) => Scaling.scale (Real.neg Real.one) (Split.tail x))
+      (coordinateContinuous (Fin.zero n))
+      (\fun (i: Lower.Index) => Product.continuous topology (\fun (_: Sphere) => Real.neg Real.one) (\fun (x: Sphere) => x (Fin.succ n i))
+        (Functions.constantContinuous topology (Real.neg Real.one)) (coordinateContinuous (Fin.succ n i))));

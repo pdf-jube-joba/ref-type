@@ -1,0 +1,49 @@
+\definition nerveForward: #forward{nerve} = NerveComparison.comparison := \bysub(Nerve.Equivalence,
+  { e: Nerve.Equivalence \where #forward{e} = NerveComparison.comparison }, nerve);
+\definition smallForward: #forward{small} = SmallComparison.comparison := \bysub(SmallEquivalences.Equivalence,
+  { e: SmallEquivalences.Equivalence \where #forward{e} = SmallComparison.comparison }, small);
+\import Native.Equivalence[C := Total.complex, D := Singular.complex] \as TotalEquivalences;
+\definition total: TotalEquivalences.Equivalence := SmallEquivalences.Composition[E := Singular.complex].compose small Cover.equivalence;
+\definition candidate: Result.Equivalence := Native.Equivalence[C := Affine.complex, D := Total.complex].Composition[E := Singular.complex]
+  .compose (Nerve.Reverse[].apply nerve) total;
+\import Native.Map[C := Total.complex, D := Singular.complex] \as TotalMaps;
+\import TotalMaps.Composition[B := Affine.complex] \as Before;
+\import Native.Map[C := Affine.complex, D := Singular.complex] \as Maps;
+\import Native.Homotopy[C := Affine.complex, D := Singular.complex] \as Homotopies;
+\definition middle: Maps.Map := Before.compose Carriers.second #backward{nerve};
+\definition candidateEquality: Before.compose Carriers.first #backward{nerve} = #forward{candidate} :=
+  Maps.ext (Before.compose Carriers.first #backward{nerve}) #forward{candidate} (\fun (n: N.Nat^)(x: Affine.Carrier n) =>
+    congr!{{Small.Carrier n} {Singular.Carrier n}} (#apply{Small.inclusion} n) _ _
+      (congr!{{Native.Map[C := Total.complex, D := Small.complex].Map} {Small.Carrier n}}
+        (\fun (f: Native.Map[C := Total.complex, D := Small.complex].Map) => #apply{f} n (#apply{#backward{nerve}} n x)) _ _
+        (sym!{{Native.Map[C := Total.complex, D := Small.complex].Map}} _ _ smallForward)));
+\import Native.Homotopy[C := Total.complex, D := Singular.complex].Precompose[B := Affine.complex]
+  .With[f := Carriers.first, g := Carriers.second, h := Carriers.Comparison[].homotopy, k := #backward{nerve}] \as BeforeHomotopy;
+\definition firstHomotopy: Homotopies.Homotopy #forward{candidate} middle :=
+  \into[Homotopies.Data](BeforeHomotopy.homotopy, Homotopies.Homotopy #forward{candidate} middle) \by {
+    Homotopies.replacementLaws (Before.compose Carriers.first #backward{nerve}) middle #forward{candidate} middle BeforeHomotopy.homotopy
+      candidateEquality (\refl(middle))
+      (\bysub(Homotopies.Data, { h: Homotopies.Data \where Homotopies.Laws[Before.compose Carriers.first #backward{nerve}, middle, h] }, BeforeHomotopy.homotopy))
+  };
+\import Native.Map[C := Affine.complex, D := Affine.complex].Composition[B := Affine.complex] \as EndComposition;
+\import Native.End[C := Affine.complex] \as End;
+\import Native.Map[C := Affine.complex, D := Singular.complex].Composition[B := Affine.complex] \as After;
+\definition right: Native.Map[C := Affine.complex, D := Affine.complex].Map := EndComposition.compose #forward{nerve} #backward{nerve};
+\import Native.Homotopy[C := Affine.complex, D := Affine.complex].Postcompose[E := Singular.complex]
+  .With[f := right, g := End.identity, h := Nerve.rightHomotopy nerve, k := Affine.comparison] \as AfterHomotopy;
+\definition middleEquality: After.compose Affine.comparison right = middle :=
+  Maps.ext (After.compose Affine.comparison right) middle (\fun (n: N.Nat^)(x: Affine.Carrier n) =>
+    congr!{{Affine.Carrier n} {Singular.Carrier n}} (#apply{Affine.comparison} n) _ _
+      (congr!{{Native.Map[C := Total.complex, D := Affine.complex].Map} {Affine.Carrier n}}
+        (\fun (f: Native.Map[C := Total.complex, D := Affine.complex].Map) => #apply{f} n (#apply{#backward{nerve}} n x)) _ _ nerveForward));
+\definition identityEquality: After.compose Affine.comparison End.identity = Affine.comparison :=
+  Maps.ext (After.compose Affine.comparison End.identity) Affine.comparison (\fun (n: N.Nat^)(x: Affine.Carrier n) => \refl(#apply{Affine.comparison} n x));
+\definition secondHomotopy: Homotopies.Homotopy middle Affine.comparison :=
+  \into[Homotopies.Data](AfterHomotopy.homotopy, Homotopies.Homotopy middle Affine.comparison) \by {
+    Homotopies.replacementLaws (After.compose Affine.comparison right) (After.compose Affine.comparison End.identity) middle Affine.comparison AfterHomotopy.homotopy
+      middleEquality identityEquality
+      (\bysub(Homotopies.Data, { h: Homotopies.Data \where Homotopies.Laws[After.compose Affine.comparison right, After.compose Affine.comparison End.identity, h] }, AfterHomotopy.homotopy))
+  };
+\definition homotopy: Homotopies.Homotopy #forward{candidate} Affine.comparison :=
+  Homotopies.Transitive[].homotopy #forward{candidate} middle Affine.comparison firstHomotopy secondHomotopy;
+\definition equivalence: Result.Equivalence := Result.Replacement[].apply candidate Affine.comparison homotopy;

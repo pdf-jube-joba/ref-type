@@ -1,0 +1,25 @@
+\definition k: N.Nat^ := N.Nat^::succ n;
+\definition z: I.Int^ := I.Int^::ofNat k;
+\import \root.TensorModels[].Level[n := k, z := z] \as Source;
+\import \root.TensorModels[].Level[n := k, z := Degrees.next z] \as Target;
+\import \root.TensorModels[].Level[n := k, z := Degrees.previous z] \as Lower;
+\import Modules.DirectSum[Index := Double.Index k, family := Source.family].Mapping[targetFamily := Target.family] \as Mapping;
+\definition components: Mapping.Data := \fun (i: Double.Index k) => \root.TensorModels[].At[p := #first{i}, q := #second{i}].Contraction[].Filling[n := n].map;
+\definition map: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map := Mapping.map components;
+\import Mapping.Coordinates[f := components] \as Coordinates;
+\import \root.TensorModels[].Differential[z := z].Degree[n := k].Coordinates[] \as LowerBoundary;
+\import \root.TensorModels[].Differential[z := Degrees.next z].Degree[n := k].Coordinates[] \as UpperBoundary;
+\import \root.TensorModels[].Differential[z := z].Degree[n := k] \as Differential;
+\import \root.TensorModels[].Differential[z := Degrees.next z].Degree[n := k] \as UpperDifferential;
+\module At(i: Double.Index k) {
+  \import \root.TensorModels[].At[p := #first{i}, q := #second{i}] \as Model;
+  \import Model.Contraction[].Filling[n := n] \as Filler;
+  \definition closed(x: Source.Carrier)(cycle: #apply{Differential.map} x = #zero{Lower.space}): #apply{(Model.boundary z)} (Source.Coordinates[].coordinate i x) = #zero{(Model.space (Degrees.previous z))} :=
+    trans!{{Model.Carrier (Degrees.previous z)}} _ _ _ (sym!{{Model.Carrier (Degrees.previous z)}} _ _ (LowerBoundary.law i x))
+      (trans!{{Model.Carrier (Degrees.previous z)}} _ _ _ (congr!{Lower.Carrier {Model.Carrier (Degrees.previous z)}} (Lower.Coordinates[].coordinate i) _ _ cycle) Lower.Coordinates[].At[i := i].zero);
+  \definition law(x: Source.Carrier)(cycle: #apply{Differential.map} x = #zero{Lower.space}): Source.Coordinates[].coordinate i (#apply{UpperDifferential.map} (#apply{map} x)) = Source.Coordinates[].coordinate i x :=
+    trans!{{Model.Carrier z}} _ _ _ (UpperBoundary.law i (#apply{map} x))
+      (trans!{{Model.Carrier z}} _ _ _ (congr!{{Model.Carrier (Degrees.next z)} {Model.Carrier z}} (#apply{(Model.boundary (Degrees.next z))}) _ _ (Coordinates.law i x))
+        (Filler.boundaryClosed (Source.Coordinates[].coordinate i x) (closed x cycle)));
+}
+\definition boundary(x: Source.Carrier)(cycle: #apply{Differential.map} x = #zero{Lower.space}): #apply{UpperDifferential.map} (#apply{map} x) = x := Source.Coordinates[].ext _ _ (\fun (i: Double.Index k) => At[i := i].law x cycle);
