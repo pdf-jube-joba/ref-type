@@ -30,9 +30,10 @@
     (CellExtension.Positive[n := n].intro (#apply{(Cellular.boundary n)} q));
 \definition boundaryCycle(q: CellExtension.Carrier (Degrees.next degree)): Cell.Cycle :=
   Cell.cycle (#apply{Cell.prior} q) (Cell.boundaryCycle (#apply{Cell.prior} q) (Images.member Cell.prior q));
+\import singular_cellular_algebra.Algebra[].CycleEquality[C := Cellular.integerComplex, z := degree] \as CyclesEqual;
 \definition boundaryProjected: \forall (q: CellExtension.Carrier (Degrees.next degree)) ->
   #apply{#forward{Cycles.isomorphism}} (#apply{Above.connecting} q) = boundaryCycle q :=
-  \fun (q: CellExtension.Carrier (Degrees.next degree)) => sym!{Cell.Cycle} _ _ (prior q);
+  \fun (q: CellExtension.Carrier (Degrees.next degree)) => CyclesEqual.law _ _ (sym!{{CellExtension.Carrier degree}} _ _ (prior q));
 \definition boundaryZero: \forall (q: CellExtension.Carrier (Degrees.next degree)) -> #apply{map} (boundaryCycle q) = Next.zeroClass :=
   \fun (q: CellExtension.Carrier (Degrees.next degree)) => trans!{Next.Homology} _ _ _
     (congr!{Cell.Cycle Next.Homology} (#apply{map}) _ _ (sym!{Cell.Cycle} _ _ (boundaryProjected q)))
@@ -41,7 +42,7 @@
   \fun (x: Cell.Cycle)(member: _) => Images.eliminate Cell.prior x (#apply{map} x = Next.zeroClass)
     (\fun (q: CellExtension.Carrier (Degrees.next degree))(equal: _) =>
       trans!{Next.Homology} _ _ _
-        (congr!{Cell.Cycle Next.Homology} (#apply{map}) x (boundaryCycle q) (sym!{Cell.Cycle} _ _ equal))
+        (congr!{Cell.Cycle Next.Homology} (#apply{map}) x (boundaryCycle q) (CyclesEqual.law _ _ (sym!{{CellExtension.Carrier degree}} _ _ equal)))
         (boundaryZero q)) member;
 \definition unequal: Logic.Not (N.Nat^::succ n = n) :=
   \fun (same: _) => Nat.ltNe n (N.Nat^::succ n) (Nat.ltOfSuccLe (N.Nat^::succ n) n (Nat.leRefl (N.Nat^::succ n))) (sym!{N.Nat^} _ _ same);
@@ -60,13 +61,14 @@
     \by Above.exactAtSubspace (#apply{#backward{Cycles.isomorphism}} x) killed \then
   \let q1: CellExtension.Carrier (Degrees.next degree) := CellExtension.Positive[n := N.Nat^::succ n].intro q \then
   \return Images.introduce Cell.prior x q1
-    (trans!{{CellExtension.Carrier degree}} _ _ _
-      (sym!{{CellExtension.Carrier degree}} _ _ (boundaryProjected q1))
+    (CyclesEqual.forget (boundaryCycle q1) x
       (trans!{Cell.Cycle} _ _ _
-        (congr!{Whole.Homology Cell.Cycle} (#apply{#forward{Cycles.isomorphism}}) _ _
-          (\bysub(Cellular.Carrier (N.Nat^::succ n),
-            { q: Cellular.Carrier (N.Nat^::succ n) \where #apply{Above.connecting} q = #apply{#backward{Cycles.isomorphism}} x }, q)))
-        (#rightInverse{Cycles.isomorphism} x)))
+        (sym!{Cell.Cycle} _ _ (boundaryProjected q1))
+        (trans!{Cell.Cycle} _ _ _
+          (congr!{Whole.Homology Cell.Cycle} (#apply{#forward{Cycles.isomorphism}}) _ _
+            (\bysub(Cellular.Carrier (N.Nat^::succ n),
+              { q: Cellular.Carrier (N.Nat^::succ n) \where #apply{Above.connecting} q = #apply{#backward{Cycles.isomorphism}} x }, q)))
+          (#rightInverse{Cycles.isomorphism} x))))
 };
 \definition target: Modules.Bundle := Modules.Bundle { Carrier := Next.Homology, space := Next.homologySpace };
 \import singular_cellular_algebra.Algebra[].HomologyPresentation[P := Cellular.integerComplex, z := degree, target := target] \as Presentation;

@@ -2,21 +2,16 @@
 \import Simplex.Cut[p := oneDegree, q := oneDegree] \as Positions;
 \import Simplices.ReindexFace[n := oneDegree] \as Face;
 \import Simplices.Reindex[m := oneDegree, n := twoDegree] \as Reindex;
-\definition first: Fin.Fin twoDegree := Fin.zero oneDegree;
-\definition last: Fin.Fin twoDegree := Fin.succ oneDegree (Fin.zero zeroDegree);
+\import Natural.Basic[].Prop[] \as Bounds;
 \definition firstFace: Fin.Fin (Natural.Nat^::succ twoDegree) := Fin.zero twoDegree;
-\definition middleFace: Fin.Fin (Natural.Nat^::succ twoDegree) := Fin.succ twoDegree (Fin.zero oneDegree);
 \definition lastFace: Fin.Fin (Natural.Nat^::succ twoDegree) := Fin.succ twoDegree (Fin.succ oneDegree (Fin.zero zeroDegree));
 \definition frontAt(i: Fin.Fin twoDegree): Positions.frontIndex i = Face.skip lastFace i :=
-  Fin.cases oneDegree (\fun (i: Fin.Fin twoDegree) => Positions.frontIndex i = Face.skip lastFace i) (\refl(firstFace))
-    (\fun (j: Fin.Fin oneDegree) => \idelim Fin.zero zeroDegree = j \with k: Fin.Fin oneDegree => Positions.frontIndex (Fin.succ oneDegree k) = Face.skip lastFace (Fin.succ oneDegree k) \by {
-      base: \refl(middleFace), equality: sym!{{Fin.Fin oneDegree}} _ _ (Fin.singletonValue j)
-    }) i;
+  sym!{Natural.Nat^} _ _ (Face.before lastFace i (Fin.bound twoDegree i));
 \definition backAt(i: Fin.Fin twoDegree): Positions.backIndex i = Face.skip firstFace i :=
-  Fin.cases oneDegree (\fun (i: Fin.Fin twoDegree) => Positions.backIndex i = Face.skip firstFace i) (\refl(middleFace))
-    (\fun (j: Fin.Fin oneDegree) => \idelim Fin.zero zeroDegree = j \with k: Fin.Fin oneDegree => Positions.backIndex (Fin.succ oneDegree k) = Face.skip firstFace (Fin.succ oneDegree k) \by {
-      base: \refl(lastFace), equality: sym!{{Fin.Fin oneDegree}} _ _ (Fin.singletonValue j)
-    }) i;
+  trans!{Natural.Nat^} _ _ _ (Bounds.addSuccLeft zeroDegree i)
+    (trans!{Natural.Nat^} _ _ _
+      (congr!{Natural.Nat^ Natural.Nat^} (\fun (k: Natural.Nat^) => Natural.Nat^::succ k) _ _ (Bounds.addZeroLeft i))
+      (sym!{Natural.Nat^} _ _ (Face.after firstFace i (Bounds.zeroLe i))));
 \definition frontIndex: Positions.frontIndex = Face.skip lastFace := \axiom:funext(Positions.frontIndex, Face.skip lastFace, frontAt);
 \definition backIndex: Positions.backIndex = Face.skip firstFace := \axiom:funext(Positions.backIndex, Face.skip firstFace, backAt);
 \definition front(sigma: Simplices.Carrier twoDegree): Cut.front sigma = Simplices.face oneDegree lastFace sigma :=

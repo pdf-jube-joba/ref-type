@@ -11,6 +11,15 @@
 - `Cellular.Representatives.selectionExists` は、各胞体の相対基本類について、胞体境界と整合する特異鎖の代表を選ぶ。
   `Selected[selection].integerMap` と `equivalenceExists` が特異鎖との比較を与える。
 - `Selected[selection].With[coefficients].At[z].isomorphism` は、任意の係数加群に対するコホモロジーの比較である。
+  `Homology[coefficients].At[z].isomorphism` は、比較鎖写像と係数加群のテンソル積からホモロジーを比較する。
+- `Selected[selection].Coefficients[input, output, coefficientMap].cochainNaturality` は、係数準同型と比較コチェイン写像が可換であることを示す。
+- `Naturality[B, target, targetCW].Chosen[sourceSelection, targetSelection].Chain[e].Along[f, continuous].With[coefficients].At[z].naturality` は、選んだ鎖ホモトピー逆から構成した実際の胞体鎖写像と特異コホモロジーの比較を結ぶ。
+  `recoveryExists` が必要な逆の存在を与える。
+- `Naturality[B, target, targetCW].Chosen[sourceSelection, targetSelection].Coefficients[input, output, coefficientMap].At[z].Along[f, continuous]` は、実際の連続写像から胞体コホモロジーの引き戻しを構成し、比較同型との自然性を与える。
+- `CellCollapse[cell, member, point].Pair.Basis.Incidence[sourceCell].Degree.Normalized[k, positive, h].Spherical.incidence` は、正の次元で胞体境界行列の成分が実際の球面間写像の次数であることを示す。
+  球面間写像は貼り付け写像と他の胞体の圧縮から構成し、同相写像の向きも補正する。
+- `ZeroCollapse[cell].Basis.Incidence[sourceCell].Degree.incidence` は、\(1\) 次元胞体の境界成分を実際の \(S^0\) 上の次数と同定する。
+  `endpoints` はこの成分を正の端点の指示値から負の端点の指示値を引いた整数として与える。
 - `Coordinates.indexingExistence` と `With[indexing].Bounded.model` は、有限胞体の列挙と整数境界行列を与える。
   `Bounded.Compared[selection].equivalenceExists` は、この有限行列模型を実際の特異鎖に比較する。
 

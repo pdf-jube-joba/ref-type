@@ -1,0 +1,31 @@
+\import Cochains.At[C := SourceCell.complex, z := z] \as SourceCellH;
+\import Cochains.At[C := TargetCell.complex, z := z] \as TargetCellH;
+\import Cochains.At[C := TargetOrdinary.complex, z := z] \as TargetH;
+\import Cochains.At[C := SourceOrdinary.complex, z := z] \as SourceH;
+\import Cochains.Map[C := TargetCell.complex, D := SourceCell.complex].At[k := z] \as CellInduced;
+\import Cochains.Map[C := TargetOrdinary.complex, D := SourceOrdinary.complex].At[k := z] \as SingularInduced;
+\import Cochains.Map[C := TargetCell.complex, D := TargetOrdinary.complex].At[k := z] \as RecoveryInduced;
+\import Cochains.Map[C := TargetOrdinary.complex, D := TargetCell.complex].At[k := z] \as TargetInduced;
+\import Cochains.Map[C := TargetOrdinary.complex, D := SourceCell.complex].At[k := z] \as IntermediateInduced;
+\definition cellularPullback: Modules.Hom[V := TargetCellH.Cohomology, W := SourceCellH.Cohomology,
+  source := TargetCellH.cohomologySpace, target := SourceCellH.cohomologySpace].Map := CellInduced.induced cochainMap;
+\definition singularPullback: Modules.Hom[V := TargetH.Cohomology, W := SourceH.Cohomology,
+  source := TargetH.cohomologySpace, target := SourceH.cohomologySpace].Map := SingularInduced.induced (Singular.map (Maps.integerPush f continuous));
+\definition recover(q: TargetH.Cohomology):
+  #apply{(RecoveryInduced.induced (Recover.map #backward{e}))}
+    (#apply{#forward{TargetComparison.With[coefficients := coefficients].At[z := z].isomorphism}} q) = q :=
+  trans!{TargetH.Cohomology} _ _ _
+    (congr!{{Complexes.Map[C := Target.Cellular[].integerComplex, D := TargetSingular.integerComplex].Map} TargetH.Cohomology}
+      (\fun (g: Complexes.Map[C := Target.Cellular[].integerComplex, D := TargetSingular.integerComplex].Map) =>
+        #apply{(RecoveryInduced.induced (Recover.map #backward{e}))} (#apply{(TargetInduced.induced (TargetPull.map g))} q)) _ _
+      (sym!{{Complexes.Map[C := Target.Cellular[].integerComplex, D := TargetSingular.integerComplex].Map}} _ _ forwardLaw))
+    (Invariant.At[k := z].right e q);
+\definition naturality(q: TargetH.Cohomology):
+  #apply{cellularPullback} (#apply{#forward{TargetComparison.With[coefficients := coefficients].At[z := z].isomorphism}} q) =
+  #apply{#forward{SourceComparison.With[coefficients := coefficients].At[z := z].isomorphism}} (#apply{singularPullback} q) :=
+  trans!{SourceCellH.Cohomology} _ _ _
+    (SecondComposition.At[k := z].onCohomology first #backward{e}
+      (#apply{#forward{TargetComparison.With[coefficients := coefficients].At[z := z].isomorphism}} q))
+    (trans!{SourceCellH.Cohomology} _ _ _
+      (congr!{TargetH.Cohomology SourceCellH.Cohomology} (#apply{(IntermediateInduced.induced (Intermediate.map first))}) _ _ (recover q))
+      (FirstComposition.At[k := z].onCohomology SourceComparison.integerMap (Maps.integerPush f continuous) q));

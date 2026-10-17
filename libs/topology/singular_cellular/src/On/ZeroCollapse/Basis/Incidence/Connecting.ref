@@ -1,0 +1,55 @@
+\import singular_cohomology.Maps[A := Pair.SubspaceCarrier, B := Model.Disk,
+  source := Boundary.topology Model.diskTopology, target := Model.diskTopology] \as Inclusion;
+\import Modules.Hom[V := BoundaryExtension.Carrier degree, W := WholeExtension.Carrier degree,
+  source := BoundaryExtension.space degree, target := WholeExtension.space degree] \as Included;
+\definition inclusion: Included.Map := Included.Map {
+  apply := #apply{Pair.inclusionMap} degree,
+  addition := #addition{Pair.inclusionMap} degree,
+  scalar := #scalar{Pair.inclusionMap} degree,
+};
+\import Modules.Laws[V := Whole.Carrier zero, space := Whole.space zero] \as WholeValues;
+\import algebra.Group[].Of[Carrier := Whole.Carrier zero, group := WholeValues.additive] \as WholeGroup;
+\definition boundary: #apply{Pair.inclusionMap} degree lowerCycle =
+  #apply{WholeExtension.complex.differential} upperDegree (WholeExtension.Positive[n := one].intro (#edge{edgeData})) :=
+  trans!{{WholeExtension.Carrier degree}} _ _ _
+    (Included.differencePreserved inclusion
+      (BoundaryExtension.Positive[n := zero].intro (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant north)))
+      (BoundaryExtension.Positive[n := zero].intro (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant south))))
+    (trans!{{WholeExtension.Carrier degree}} _ _ _
+      (congr!{{Whole.Carrier zero} {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := zero].intro) _ _
+        (congr2!{{Whole.Carrier zero} {Whole.Carrier zero} {Whole.Carrier zero}} WholeGroup.difference _ _ _ _
+          (Inclusion.At[n := zero].onGenerator Pair.inclusion Pair.inclusionContinuous (BoundarySimplices.At[n := zero].constant north))
+          (Inclusion.At[n := zero].onGenerator Pair.inclusion Pair.inclusionContinuous (BoundarySimplices.At[n := zero].constant south))))
+      (congr!{{Whole.Carrier zero} {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := zero].intro) _ _ (sym!{{Whole.Carrier zero}} _ _ (#boundary{edgeData}))));
+\import Complexes.ShortExact[A := BoundaryExtension.complex, B := WholeExtension.complex, C := Pair.complex]
+  .At[s := Pair.sequence, k := upperDegree] \as Exact;
+\definition diskBoundary: #apply{Pair.LongExact[z := upperDegree].connecting} (Attaching.diskGenerator) = boundaryClass :=
+  trans!{BoundaryH.Homology} _ _ _
+    (congr!{{Pair.Homology[z := upperDegree].Carrier} BoundaryH.Homology} (#apply{Pair.LongExact[z := upperDegree].connecting}) _ _
+      (sym!{{Pair.Homology[z := upperDegree].Carrier}} _ _ (#fundamental{edgeData})))
+    (trans!{BoundaryH.Homology} _ _ _ (Exact.onClass (#cycle{edgeData}))
+      (Exact.onLift (#cycle{edgeData}) (WholeExtension.Positive[n := one].intro (#edge{edgeData})) lowerCycle
+        (sym!{{Pair.Carrier upperDegree}} _ _ (#lifted{edgeData})) boundary (\bysub(BoundaryExtension.Carrier degree, #carrier{BoundaryH.cycles}, lowerCycle))));
+\import singular_cellular_algebra.Algebra[].PointClass[A := Pair.SubspaceCarrier, source := Boundary.topology Model.diskTopology] \as BoundaryPoints;
+\import Modules.Laws[V := BoundaryH.Cycle, space := BoundaryH.cycleSpace] \as CycleValues;
+\import algebra.Group[].Of[Carrier := BoundaryH.Cycle, group := CycleValues.additive] \as CycleGroup;
+\import Modules.Laws[V := BoundaryH.Homology, space := BoundaryH.homologySpace] \as HomologyValues;
+\import algebra.Group[].Of[Carrier := BoundaryH.Homology, group := HomologyValues.additive] \as HomologyGroup;
+\import Modules.Hom[V := BoundaryH.Cycle, W := BoundaryH.Homology, source := BoundaryH.cycleSpace, target := BoundaryH.homologySpace] \as Class;
+\definition difference: boundaryClass = HomologyGroup.difference (BoundaryPoints.class north) (BoundaryPoints.class south) :=
+  Class.differencePreserved BoundaryH.classLinear (BoundaryPoints.cycle north) (BoundaryPoints.cycle south);
+\import Modules.Laws[V := Points.Carrier, space := Points.space] \as PointValues;
+\import algebra.Group[].Of[Carrier := Points.Carrier, group := PointValues.additive] \as PointGroup;
+\import BoundaryPoints.Mapping[B := Skeleton.Carrier, target := Skeleton.topology, f := Attaching.attaching,
+  continuous := Attaching.attachingContinuous] \as PointMapping;
+\import Modules.Hom[V := BoundaryH.Homology, W := Points.Carrier, source := BoundaryH.homologySpace, target := Points.space] \as Action;
+\definition law: #apply{SourceLayer.Homology[z := upperDegree].connecting} (SourceBasis.generator sourceCell) =
+  PointGroup.difference (Points.class northImage) (Points.class southImage) :=
+  trans!{Points.Carrier} _ _ _ Attaching.law
+    (trans!{Points.Carrier} _ _ _
+      (congr!{BoundaryH.Homology Points.Carrier} (#apply{Attaching.attachingAction}) _ _ diskBoundary)
+      (trans!{Points.Carrier} _ _ _
+        (congr!{BoundaryH.Homology Points.Carrier} (#apply{Attaching.attachingAction}) _ _ difference)
+        (trans!{Points.Carrier} _ _ _
+          (Action.differencePreserved Attaching.attachingAction (BoundaryPoints.class north) (BoundaryPoints.class south))
+          (congr2!{Points.Carrier Points.Carrier Points.Carrier} PointGroup.difference _ _ _ _ (PointMapping.law north) (PointMapping.law south)))));

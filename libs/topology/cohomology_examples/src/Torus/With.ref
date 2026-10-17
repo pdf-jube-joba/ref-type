@@ -25,7 +25,8 @@
 \definition deltaOne(f: Edges): Triangles :=
   \fun (t: Triangle) => Group.add (Group.difference (f (back t)) (f (diagonal t))) (f (front t));
 \definition zeroDifferential(f: Vertex -> A.Carrier): deltaZero f = edge Group.zero Group.zero Group.zero :=
-  edgesExt _ _ (Group.inverseRight (f Vertex::point)) (Group.inverseRight (f Vertex::point)) (Group.inverseRight (f Vertex::point));
+  edgesExt (deltaZero f) (edge Group.zero Group.zero Group.zero)
+    (Group.inverseRight (f Vertex::point)) (Group.inverseRight (f Vertex::point)) (Group.inverseRight (f Vertex::point));
 \definition cocycle(a, b: A.Carrier): Edges := edge a b (Group.add a b);
 \definition firstBoundary(f: Edges): deltaOne f Triangle::first = Group.difference (Group.add (f Edge::horizontal) (f Edge::vertical)) (f Edge::diagonal) :=
   trans!{A.Carrier} _ _ _
@@ -34,7 +35,7 @@
 \definition secondBoundary(f: Edges): deltaOne f Triangle::second = Group.difference (Group.add (f Edge::horizontal) (f Edge::vertical)) (f Edge::diagonal) :=
   Group.swapLast (f Edge::horizontal) (Group.neg (f Edge::diagonal)) (f Edge::vertical);
 \definition cocycleClosed(a, b: A.Carrier): deltaOne (cocycle a b) = triangle Group.zero Group.zero :=
-  trianglesExt _ _
+  trianglesExt (deltaOne (cocycle a b)) (triangle Group.zero Group.zero)
     (trans!{A.Carrier} _ _ _ (firstBoundary (cocycle a b)) (Group.inverseRight (Group.add a b)))
     (trans!{A.Carrier} _ _ _ (secondBoundary (cocycle a b)) (Group.inverseRight (Group.add a b)));
 \definition total(f: Triangles): A.Carrier := Group.difference (f Triangle::first) (f Triangle::second);
@@ -52,13 +53,15 @@
         (sym!{A.Carrier} _ _ (Group.inverseRight (f Edge::diagonal)))));
 \definition normal(f: Triangles): Triangles := triangle (total f) Group.zero;
 \definition diagonalBoundary(x: A.Carrier): deltaOne (edge x Group.zero Group.zero) = triangle x x :=
-  trianglesExt _ _
+  trianglesExt (deltaOne (edge x Group.zero Group.zero)) (triangle x x)
     (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (z: A.Carrier) => Group.add z x) _ _ (Group.inverseRight Group.zero)) (Group.zeroLeft x))
     (trans!{A.Carrier} _ _ _ (Group.zeroRight (Group.difference x Group.zero))
       (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add x) _ _ Group.negZero) (Group.zeroRight x)));
 \definition boundaryDifference(f: Triangles): deltaOne (edge (f Triangle::second) Group.zero Group.zero) =
   \fun (t: Triangle) => Group.difference (f t) (normal f t) :=
   trans!{Triangles} _ _ _ (diagonalBoundary (f Triangle::second))
-    (trianglesExt _ _ (sym!{A.Carrier} _ _ (Group.subtractDifference (f Triangle::first) (f Triangle::second)))
+    (trianglesExt (triangle (f Triangle::second) (f Triangle::second))
+      (\fun (t: Triangle) => Group.difference (f t) (normal f t))
+      (sym!{A.Carrier} _ _ (Group.subtractDifference (f Triangle::first) (f Triangle::second)))
       (sym!{A.Carrier} _ _ (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add (f Triangle::second)) _ _ Group.negZero) (Group.zeroRight (f Triangle::second)))));
 \module Cohomology;

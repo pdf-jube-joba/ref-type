@@ -18,13 +18,16 @@
 \definition forward: Modules.Hom[V := H1.Cohomology, W := F.Carrier, source := H1.cohomologySpace, target := F.integerSpace].Map := Descent.descend evaluate kills;
 \definition representative(x: F.Carrier): Model.Edges := Model.edge x F.zero x;
 \definition representativeClosed(x: F.Carrier): Model.deltaOne (representative x) = Model.triangle F.zero F.zero :=
-  Model.trianglesExt _ _ (trans!{F.Carrier} _ _ _ (F.addZeroRight (F.add x x)) (F.addSelf x))
+  Model.trianglesExt (Model.deltaOne (representative x)) (Model.triangle F.zero F.zero)
+    (trans!{F.Carrier} _ _ _ (F.addZeroRight (F.add x x)) (F.addSelf x))
     (trans!{F.Carrier} _ _ _ (congr!{F.Carrier F.Carrier} (\fun (z: F.Carrier) => F.add z x) _ _ (F.addZeroRight x)) (F.addSelf x));
 \import Modules.Hom[V := F.Carrier, W := H1.CycleCarrier, source := F.integerSpace, target := H1.cycleSpace] \as Inclusion;
 \definition include: Inclusion.Map := Inclusion.Map {
   apply := \fun (x: F.Carrier) => H1.cycle (representative x) (representativeClosed x),
-  addition := \fun (x, y: F.Carrier) => Model.edgesExt _ _ (\refl(F.add x y)) (\refl(F.zero)) (\refl(F.add x y)),
-  scalar := \fun (a: I.Int^)(x: F.Carrier) => Model.edgesExt _ _ (\refl(Values.scale a x)) (sym!{F.Carrier} _ _ (Values.scaleZero a)) (\refl(Values.scale a x)),
+  addition := \fun (x, y: F.Carrier) => Model.edgesExt (representative (F.add x y))
+    (\fun (e: Edge) => F.add (representative x e) (representative y e)) (\refl(F.add x y)) (\refl(F.zero)) (\refl(F.add x y)),
+  scalar := \fun (a: I.Int^)(x: F.Carrier) => Model.edgesExt (representative (Values.scale a x))
+    (\fun (e: Edge) => Values.scale a (representative x e)) (\refl(Values.scale a x)) (sym!{F.Carrier} _ _ (Values.scaleZero a)) (\refl(Values.scale a x)),
 };
 \import Modules.Hom[V := H1.CycleCarrier, W := H1.Cohomology, source := H1.cycleSpace, target := H1.cohomologySpace].Composition[U := F.Carrier, domain := F.integerSpace] \as Composition;
 \definition backward: Modules.Hom[V := F.Carrier, W := H1.Cohomology, source := F.integerSpace, target := H1.cohomologySpace].Map := Composition.compose H1.classLinear include;
@@ -41,7 +44,8 @@
 };
 \definition boundaryDifference(f: H1.CycleCarrier): Model.deltaZero (Model.vertex F.zero (f Edge::first)) =
   #add{(Raw.first.space)} f (#neg{(Raw.first.space)} (representative (f Edge::loop))) :=
-  Model.edgesExt _ _
+  Model.edgesExt (Model.deltaZero (Model.vertex F.zero (f Edge::first)))
+    (#add{(Raw.first.space)} f (#neg{(Raw.first.space)} (representative (f Edge::loop))))
     (trans!{F.Carrier} _ _ _ (F.addSelf (f Edge::first)) (sym!{F.Carrier} _ _ (F.addSelf (f Edge::loop))))
     (\refl(F.add (f Edge::first) F.zero))
     (trans!{F.Carrier} _ _ _ (F.addZeroRight (f Edge::first)) (sym!{F.Carrier} _ _ (thirdDifference f)));

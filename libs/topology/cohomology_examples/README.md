@@ -15,6 +15,7 @@
 | 円のループ | Circle.Geometry.Loop.Primitive | 上半円を二乗して得られる閉じた特異辺と、その原始的なホモロジー類 |
 | 円の評価 | Circle.Geometry.Evaluation | 閉じたコチェインをこのループで評価する同型 \(H^1(S^1;A)\cong A\) |
 | トーラスの群 | Torus.Geometry.Comparison | 実際の積 \(S^1\times S^1\) を円の有限モデルのテンソル積と比較する |
+| トーラスの最高次 | Torus.Geometry.Ring.Primitive | 射影類の積が整数次数 \(2\) の生成元を与える同型 |
 | トーラスの基底 | Torus.Geometry.Ring.Basis / UnitBasis | 次数 \(1\) の二つの射影類の基底、および次数 \(0\) の単位生成元 |
 | トーラスの積と反転 | Torus.Geometry.Ring | 二つの射影から得る次数 \(1\) の類、そのカップ積、因子交換の作用 |
 | 実射影平面の空間 | ProjectivePlane.Geometry | 実際の \(S^2/(x\sim -x)\)、半球による商、円板の貼り付けの相互比較 |
@@ -23,6 +24,7 @@
 | 二元体係数 | ProjectivePlane.ModTwo | 次数 \(1\) の類 \(u\) と \(u^2\ne0\) の有限計算 |
 | 実射影平面の群 | ProjectivePlane.Geometry.Cohomology | 任意の整数加群係数で、次数 \(1\) は倍写像の核、次数 \(2\) はその余核、高次は零 |
 | 実際の整数・二元体係数 | ProjectivePlane.Geometry.Integral / ModTwo | 商空間自身の特異コホモロジー、生成元、その非零性 |
+| 実射影平面の環 | ProjectivePlane.Geometry.ModTwo.Ring | 商空間自身で \(u^2=v\ne0\)、\(u^3=0\)、および次数 \(0\) の単位 |
 | 三角形への制限 | ProjectivePlane.Geometry.Restriction | 実際の二つの特異三角形への制限、円のループによる次数 \(1\) の検出、カップ積との整合性 |
 | 実射影平面の Bockstein | ProjectivePlane.Geometry.Bockstein | 実際の \(u\) を整数次数 \(2\) の非零生成元へ送る連結準同型 |
 | 有限モデルの Bockstein | ProjectivePlane.Bockstein.Finite | \(0\to\mathbb Z\xrightarrow{2}\mathbb Z\to\mathbb F_2\to0\) による実際のコチェイン連結準同型の値 |

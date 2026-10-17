@@ -1,0 +1,21 @@
+\definition singularCochainMap: Cochains.Map[C := TargetOrdinary.complex, D := SourceOrdinary.complex].Map :=
+  Pullback.On[f := Maps.integerPush f continuous, u := coefficientMap].map;
+\import Cochains.Map[C := TargetOrdinary.complex, D := SourceOrdinary.complex].At[k := z] \as Induced;
+\definition singularPullback: Modules.Hom[V := TargetH.Cohomology, W := SourceH.Cohomology,
+  source := TargetH.cohomologySpace, target := SourceH.cohomologySpace].Map := Induced.induced singularCochainMap;
+\import Modules.Hom[V := TargetH.Cohomology, W := SourceH.Cohomology,
+  source := TargetH.cohomologySpace, target := SourceH.cohomologySpace]
+  .Composition[U := TargetCellH.Cohomology, domain := TargetCellH.cohomologySpace] \as First;
+\import Modules.Hom[V := SourceH.Cohomology, W := SourceCellH.Cohomology,
+  source := SourceH.cohomologySpace, target := SourceCellH.cohomologySpace]
+  .Composition[U := TargetCellH.Cohomology, domain := TargetCellH.cohomologySpace] \as Second;
+\definition cellularPullback: Modules.Hom[V := TargetCellH.Cohomology, W := SourceCellH.Cohomology,
+  source := TargetCellH.cohomologySpace, target := SourceCellH.cohomologySpace].Map :=
+  Second.compose #forward{sourceIsomorphism} (First.compose singularPullback #backward{targetIsomorphism});
+\definition naturality(q: TargetH.Cohomology):
+  #apply{cellularPullback} (#apply{#forward{targetIsomorphism}} q) = #apply{#forward{sourceIsomorphism}} (#apply{singularPullback} q) :=
+  congr!{TargetH.Cohomology SourceCellH.Cohomology}
+    (\fun (x: TargetH.Cohomology) => #apply{#forward{sourceIsomorphism}} (#apply{singularPullback} x)) _ _ (#leftInverse{targetIsomorphism} q);
+\definition comparisonInverse(q: TargetCellH.Cohomology):
+  #apply{#backward{sourceIsomorphism}} (#apply{cellularPullback} q) = #apply{singularPullback} (#apply{#backward{targetIsomorphism}} q) :=
+  #leftInverse{sourceIsomorphism} (#apply{singularPullback} (#apply{#backward{targetIsomorphism}} q));

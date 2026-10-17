@@ -16,9 +16,15 @@
 \import Complexes.At[C := Target.complex, z := z] \as TargetH;
 \import Complexes.Map[C := Source.complex, D := Target.complex].At[k := z] \as Induced;
 \import Modules.Hom[V := TargetH.Cycle, W := TargetH.Homology, source := TargetH.cycleSpace, target := TargetH.homologySpace] \as Classes;
+\import Modules.Of[V := Target.Carrier z, space := Target.space z].Submodule[] \as Submodules;
+\definition boundaryZero(contained: Contained)(x: SourceH.Cycle):
+  Submodules.Member TargetH.boundaries (#apply{Action.map} z x) :=
+  \idelim #zero{(Target.space z)} = #apply{Action.map} z x \with y: Target.Carrier z =>
+    Submodules.Member TargetH.boundaries y \by {
+      base: #zero{TargetH.boundaries},
+      equality: sym!{{Target.Carrier z}} _ _ (zero contained x)
+    };
 \definition homology(contained: Contained): \forall (q: SourceH.Homology) -> #apply{Action.At[z := z].induced} q = #zero{TargetH.homologySpace} :=
   SourceH.classInduction (\fun (q: SourceH.Homology) => #apply{Action.At[z := z].induced} q = #zero{TargetH.homologySpace})
-    (\fun (x: SourceH.Cycle) => trans!{TargetH.Homology} _ _ _ (Action.At[z := z].onClass x)
-      (trans!{TargetH.Homology} _ _ _
-        (congr!{TargetH.Cycle TargetH.Homology} TargetH.classOf _ _ (zero contained x))
-        (Classes.zeroPreserved TargetH.classLinear)));
+    (\fun (x: SourceH.Cycle) => trans!{TargetH.Homology} _ _ _ (Induced.onClass Action.map x)
+      (TargetH.boundaryClassZero (#apply{(Induced.cyclesMap Action.map)} x) (boundaryZero contained x)));

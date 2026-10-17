@@ -7,11 +7,13 @@
 \import Signed.Map[C := IntegerSource.complex, D := IntegerTarget.complex].At[k := degree] \as IntegerMap;
 \definition sourceComparison: _ := SourceComparison.Cohomology[n := n].isomorphism;
 \definition targetComparison: _ := TargetComparison.Cohomology[n := n].isomorphism;
-\definition cycles: \forall (h: IntegerSourceH.Closed) ->
-  TargetComparison.Cohomology[n := n].restrict (#apply{(IntegerMap.cyclesMap IntegerAction.map)} h) =
-    #apply{(NaturalMap.cyclesMap NaturalAction.map)} (SourceComparison.Cohomology[n := n].restrict h) :=
-  \fun (h: IntegerSourceH.Closed) => Target.At[n := n].ext _ _
-    (\fun (x: C.family.Carrier n) => \refl(#apply{h} (Codomain.Positive[n := n].intro (#apply{f} n x))));
+\definition leftCycle(h: IntegerSourceH.Closed): TargetH.CycleCarrier :=
+  TargetComparison.Cohomology[n := n].restrict (#apply{(IntegerMap.cyclesMap IntegerAction.map)} h);
+\definition rightCycle(h: IntegerSourceH.Closed): TargetH.CycleCarrier :=
+  #apply{(NaturalMap.cyclesMap NaturalAction.map)} (SourceComparison.Cohomology[n := n].restrict h);
+\definition cycles: \forall (h: IntegerSourceH.Closed) -> TargetH.ambient (leftCycle h) = TargetH.ambient (rightCycle h) :=
+  \fun (h: IntegerSourceH.Closed) => Target.At[n := n].ext (TargetH.ambient (leftCycle h)) (TargetH.ambient (rightCycle h))
+    (\fun (chain: C.family.Carrier n) => \refl(#apply{h} (Codomain.Positive[n := n].intro (#apply{f} n chain))));
 \definition onClass: \forall (h: IntegerSourceH.Closed) ->
   #apply{#forward{targetComparison}} (#apply{(IntegerMap.induced IntegerAction.map)} (IntegerSourceH.classOf h)) =
     #apply{(NaturalMap.induced NaturalAction.map)} (#apply{#forward{sourceComparison}} (IntegerSourceH.classOf h)) :=
@@ -20,7 +22,7 @@
     (trans!{TargetH.Cohomology} _ _ _
       (TargetComparison.Cohomology[n := n].onClass (#apply{(IntegerMap.cyclesMap IntegerAction.map)} h))
       (trans!{TargetH.Cohomology} _ _ _
-        (congr!{TargetH.CycleCarrier TargetH.Cohomology} TargetH.classOf _ _ (cycles h))
+        (TargetH.equalClass _ _ (cycles h))
         (trans!{TargetH.Cohomology} _ _ _
           (sym!{TargetH.Cohomology} _ _ (NaturalMap.onClass NaturalAction.map (SourceComparison.Cohomology[n := n].restrict h)))
           (congr!{SourceH.Cohomology TargetH.Cohomology} (#apply{(NaturalMap.induced NaturalAction.map)}) _ _

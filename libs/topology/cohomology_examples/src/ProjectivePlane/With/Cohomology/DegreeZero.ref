@@ -6,12 +6,15 @@
 };
 \definition constant(x: A.Carrier): Vertices := vertex x x;
 \definition constantClosed(x: A.Carrier): deltaZero (constant x) = edge Group.zero Group.zero Group.zero :=
-  trans!{Edges} _ _ _ (boundaryZero x x) (edgesExt _ _ (\refl(Group.zero)) (Group.inverseRight x) (Group.inverseRight x));
+  trans!{Edges} _ _ _ (boundaryZero x x) (edgesExt (edge Group.zero (Group.difference x x) (Group.difference x x))
+    (edge Group.zero Group.zero Group.zero) (\refl(Group.zero)) (Group.inverseRight x) (Group.inverseRight x));
 \import Modules.Hom[V := A.Carrier, W := H0.CycleCarrier, source := A.space, target := H0.cycleSpace] \as Inclusion;
 \definition include: Inclusion.Map := Inclusion.Map {
   apply := \fun (x: A.Carrier) => H0.cycle (constant x) (constantClosed x),
-  addition := \fun (x, y: A.Carrier) => verticesExt _ _ (\refl(Group.add x y)) (\refl(Group.add x y)),
-  scalar := \fun (a: I.Int^)(x: A.Carrier) => verticesExt _ _ (\refl(Values.scale a x)) (\refl(Values.scale a x)),
+  addition := \fun (x, y: A.Carrier) => verticesExt (constant (Group.add x y))
+    (\fun (v: Vertex) => Group.add (constant x v) (constant y v)) (\refl(Group.add x y)) (\refl(Group.add x y)),
+  scalar := \fun (a: I.Int^)(x: A.Carrier) => verticesExt (constant (Values.scale a x))
+    (\fun (v: Vertex) => Values.scale a (constant x v)) (\refl(Values.scale a x)) (\refl(Values.scale a x)),
 };
 \definition closedEqual(f: H0.CycleCarrier): f Vertex::rim = f Vertex::center :=
   Group.cancelRight (Group.neg (f Vertex::center)) (f Vertex::rim) (f Vertex::center)
@@ -21,7 +24,7 @@
 \import Modules.Isomorphism[V := H0.CycleCarrier, W := A.Carrier, source := H0.cycleSpace, target := A.space] \as Iso;
 \definition kernelIso: Iso.Isomorphism := Iso.Isomorphism {
   forward := evaluate, backward := include,
-  leftInverse := \fun (f: H0.CycleCarrier) => verticesExt _ _ (closedEqual f) (\refl(f Vertex::rim)),
+  leftInverse := \fun (f: H0.CycleCarrier) => verticesExt (constant (f Vertex::rim)) f (closedEqual f) (\refl(f Vertex::rim)),
   rightInverse := \fun (x: A.Carrier) => \refl(x),
 };
 \import Complex.DegreeZero[] \as DegreeZero;
