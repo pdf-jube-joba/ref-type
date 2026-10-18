@@ -7,6 +7,10 @@ impl Lowerer<'_> {
         let mut pending = vec![(id, false)];
         let mut active = FxHashSet::default();
         while let Some((id, ready)) = pending.pop() {
+            let id = self
+                .raw
+                .generic_definition_specialization(id)
+                .map_or(id, |origin| origin.source);
             if self
                 .raw
                 .kernel_definitions

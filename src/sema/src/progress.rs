@@ -61,6 +61,9 @@ pub enum ProgressEvent {
     CheckpointSaved {
         steps: usize,
     },
+    EnvironmentReused {
+        extra_modules: usize,
+    },
 }
 
 pub(crate) fn reused_result(
@@ -259,6 +262,14 @@ impl Reporter {
     pub fn checkpoint_saved(&self, steps: usize) {
         if let Some(receive) = self.events {
             receive(&ProgressEvent::CheckpointSaved { steps });
+        }
+    }
+
+    pub fn environment_reused(&self, extra_modules: usize) {
+        if extra_modules > 0
+            && let Some(receive) = self.events
+        {
+            receive(&ProgressEvent::EnvironmentReused { extra_modules });
         }
     }
 

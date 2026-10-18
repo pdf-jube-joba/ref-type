@@ -25,7 +25,7 @@ def main():
     args.profile_costs = None
     args.profile_phases = False
     args.work_dir = BENCHMARKS / "runs/scratch"
-    args.cache_mib = 8192
+    args.cache_mib = None
     args.output_mib = 8
     args.progress_seconds = 30
     args.batch_seconds = None

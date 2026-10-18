@@ -100,6 +100,11 @@ pub fn send_event(event: &ProgressEvent) {
     };
     send(Message::Event(event.clone(), elapsed));
 }
+pub fn send_environment_event(event: &ProgressEvent) {
+    if matches!(event, ProgressEvent::EnvironmentReused { .. }) {
+        send_event(event);
+    }
+}
 
 const CACHE_MISS: i32 = 75;
 
@@ -199,6 +204,8 @@ struct Layout {
     memory_mib: u64,
     batch_seconds: u64,
     splits: BTreeSet<String>,
+    #[serde(default)]
+    narrow: BTreeSet<String>,
 }
 impl Batch {
     fn label(&self) -> String {
@@ -276,6 +283,7 @@ struct Events {
     pending: Vec<u8>,
     timings: Vec<ModuleProgress>,
     outputs: Vec<sema::QueryOutput>,
+    broad_environment: bool,
 }
 impl Events {
     fn new(path: &Path) -> anyhow::Result<Self> {
@@ -285,6 +293,7 @@ impl Events {
             pending: Vec::new(),
             timings: Vec::new(),
             outputs: Vec::new(),
+            broad_environment: false,
         })
     }
     fn poll(&mut self, plan: &mut ProgressPlan) -> anyhow::Result<()> {
@@ -319,6 +328,10 @@ impl Events {
                     progress::receive(&ProgressEvent::Planned(plan.clone()));
                 }
                 Message::Event(ProgressEvent::Finished { .. }, _) => {}
+                Message::Event(event @ ProgressEvent::EnvironmentReused { .. }, elapsed) => {
+                    self.broad_environment = true;
+                    progress::receive_timed(&event, elapsed);
+                }
                 Message::Event(event, elapsed) => progress::receive_timed(&event, elapsed),
                 Message::Timing(timing) => self.timings.push(timing),
                 Message::Output(output) => self.outputs.push(output),
@@ -331,6 +344,7 @@ impl Events {
 struct Outcome {
     status: ExitStatus,
     limited: bool,
+    memory_limited: bool,
     events: Events,
 }
 fn execute(
@@ -419,12 +433,14 @@ fn execute(
     stderr.seek(SeekFrom::Start(size.saturating_sub(8192)))?;
     let mut tail = String::new();
     stderr.read_to_string(&mut tail)?;
-    let limited = timeout_hit
-        || status.signal() == Some(libc::SIGKILL)
-        || (status.signal() == Some(libc::SIGABRT) && tail.contains("memory allocation of"));
+    let memory_limited = !timeout_hit
+        && (status.signal() == Some(libc::SIGKILL)
+            || (status.signal() == Some(libc::SIGABRT) && tail.contains("memory allocation of")));
+    let limited = timeout_hit || memory_limited;
     Ok(Outcome {
         status,
         limited,
+        memory_limited,
         events,
     })
 }
@@ -483,11 +499,11 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         cache.join(format!("{layout_key}.batches.json"))
     };
     let memory_mib = args.memory_mib.unwrap_or(3072);
-    let mut splits = fs::read(&layout)
+    let (mut splits, mut narrow) = fs::read(&layout)
         .ok()
         .and_then(|s| serde_json::from_slice::<Layout>(&s).ok())
         .filter(|saved| saved.memory_mib == memory_mib && saved.batch_seconds == args.batch_seconds)
-        .map(|saved| saved.splits)
+        .map(|saved| (saved.splits, saved.narrow))
         .unwrap_or_default();
     // The worker already parses the full snapshot. Only enumerate scopes here
     // when selection or a saved resource-limit split needs them in advance.
@@ -551,7 +567,9 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         cache.clone()
     };
     let session_store = sema::artifact_store::ArtifactStore::new(&worker_cache);
-    session_store.set_budget(args.cache_budget_mib.saturating_mul(1024 * 1024));
+    if let Some(budget) = args.cache_budget_mib {
+        session_store.set_budget(budget.saturating_mul(1024 * 1024));
+    }
     let session_token = session_store.session_token()?;
     let mut pending = vec![Batch {
         module,
@@ -580,6 +598,8 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         let mut request = args.clone();
         request.worker = Some(workspace.directory.clone());
         request.cache_probe = cache_probe;
+        request.worker_progress = display.enabled();
+        request.narrow_environment = narrow.contains(&batch.key());
         request.module = batch.module.as_ref().map(|m| m.join("."));
         request.module_only = batch.exact;
         request.full_check = false;
@@ -618,6 +638,22 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             pending.extend(smaller.into_iter().rev());
             continue;
         }
+        if outcome.memory_limited && outcome.events.broad_environment && !request.narrow_environment
+        {
+            narrow.insert(batch.key());
+            fs::write(
+                workspace.path("layout.json"),
+                serde_json::to_vec(&Layout {
+                    memory_mib,
+                    batch_seconds: args.batch_seconds,
+                    splits: splits.clone(),
+                    narrow: narrow.clone(),
+                })?,
+            )?;
+            fs::rename(workspace.path("layout.json"), &layout)?;
+            pending.push(batch);
+            continue;
+        }
         if outcome.limited && paths.is_empty() {
             let snapshot = read_snapshot(&workspace.directory)?;
             paths = match sema::Database::new().module_paths(&snapshot) {
@@ -650,6 +686,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
                     memory_mib,
                     batch_seconds: args.batch_seconds,
                     splits: splits.clone(),
+                    narrow: narrow.clone(),
                 })?,
             )?;
             fs::rename(workspace.path("layout.json"), &layout)?;
@@ -729,8 +766,11 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     }
     if fresh
         && !args.no_cache
-        && let Err(error) =
-            workspace.publish(&cache, args.cache_budget_mib.saturating_mul(1024 * 1024))
+        && let Err(error) = workspace.publish(
+            &cache,
+            args.cache_budget_mib
+                .map_or(u64::MAX, |budget| budget.saturating_mul(1024 * 1024)),
+        )
     {
         eprintln!("キャッシュの公開を省略しました: {error:#}");
     }

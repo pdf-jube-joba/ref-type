@@ -7,7 +7,6 @@ pub(crate) struct Boundary {
     raw: crate::raw::environment::exports::Boundary,
     aliases: std::collections::HashSet<resolve::hir::BindingId>,
     references: usize,
-    resolved_declarations: usize,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Relocate)]
@@ -159,8 +158,8 @@ impl GlobalEnvironment {
         });
     }
 
-    pub(crate) fn restore_artifact_analysis(&mut self, project: &resolve::Project) {
-        self.analysis.references = project.references.clone();
+    pub(crate) fn restore_artifact_analysis(&mut self, references: &[resolve::Reference]) {
+        self.analysis.references = references.to_vec();
         self.collect_references();
     }
 
@@ -169,13 +168,14 @@ impl GlobalEnvironment {
             raw: self.crate_env.boundary(),
             aliases: self.module_manager.hir_aliases.keys().copied().collect(),
             references: self.module_manager.references.borrow().len(),
-            resolved_declarations: self.resolved_declarations,
         }
     }
 
     pub(crate) fn export_artifact(
         &self,
         base: &Boundary,
+        source_modules: &std::collections::HashSet<resolve::hir::ModuleId>,
+        owns_binding: impl Fn(resolve::hir::BindingId) -> bool,
         mut external: impl FnMut(kernel::syntax::Expression) -> bool,
         pending: bool,
         external_snapshot: impl Fn(crate::raw::environment::RemappingSnapshotId) -> bool,
@@ -184,26 +184,33 @@ impl GlobalEnvironment {
             .module_manager
             .hir_modules
             .iter()
-            .filter(|(_, id)| id.index() >= base.raw.modules)
+            .filter(|(hir, id)| source_modules.contains(hir) && id.index() >= base.raw.modules)
             .map(|(k, v)| (*k, *v))
+            .collect();
+        let bindings: HashMap<_, _> = self
+            .module_manager
+            .hir_module_bindings
+            .iter()
+            .filter(|(binding, id)| owns_binding(**binding) && id.index() >= base.raw.modules)
+            .map(|(binding, id)| (*binding, *id))
+            .collect();
+        let aliases: HashMap<_, _> = self
+            .module_manager
+            .hir_aliases
+            .iter()
+            .filter(|(binding, _)| owns_binding(**binding) && !base.aliases.contains(binding))
+            .map(|(binding, id)| (*binding, *id))
             .collect();
         let roots: Vec<_> = modules
             .values()
             .copied()
             .chain(
-                self.module_manager
-                    .hir_module_bindings
+                bindings
                     .values()
                     .copied()
                     .filter(|id| id.index() >= base.raw.modules),
             )
-            .chain(
-                self.module_manager
-                    .hir_aliases
-                    .iter()
-                    .filter(|(binding, _)| !base.aliases.contains(binding))
-                    .map(|(_, id)| *id),
-            )
+            .chain(aliases.values().copied())
             .collect();
         let raw = self.crate_env.export_since_with_snapshots(
             &base.raw,
@@ -231,20 +238,8 @@ impl GlobalEnvironment {
             raw,
             graph: ExpressionGraph { nodes: Vec::new() },
             modules,
-            bindings: self
-                .module_manager
-                .hir_module_bindings
-                .iter()
-                .filter(|(_, id)| id.index() >= base.raw.modules)
-                .map(|(k, v)| (*k, *v))
-                .collect(),
-            aliases: self
-                .module_manager
-                .hir_aliases
-                .iter()
-                .filter(|(k, _)| !base.aliases.contains(k))
-                .map(|(k, v)| (*k, *v))
-                .collect(),
+            bindings,
+            aliases,
             references: self
                 .module_manager
                 .references
@@ -261,7 +256,10 @@ impl GlobalEnvironment {
                 .filter(|v| own(&v.module))
                 .cloned()
                 .collect(),
-            resolved_declarations: self.resolved_declarations - base.resolved_declarations,
+            resolved_declarations: self.analysis.declarations[..self.resolved_declarations]
+                .iter()
+                .filter(|declaration| own(&declaration.module))
+                .count(),
         };
         let mut roots = Relocation::collecting();
         export.relocate(&mut roots)?;
@@ -289,6 +287,19 @@ impl GlobalEnvironment {
     }
 
     pub(crate) fn reserve_artifact(&self, export: &mut Export, r: &mut Relocation) -> Result<()> {
+        // A resolver-only dependency can already have source namespace stubs.
+        // Fill those same namespaces when its checked environment arrives.
+        for (hir, raw) in &export.modules {
+            if r.get("raw.module", raw.0 as u64).is_none()
+                && let Some(hir) = r.get("resolve.module", hir.0 as u64)
+                && let Some(existing) = self
+                    .module_manager
+                    .hir_modules
+                    .get(&resolve::hir::ModuleId(hir as u32))
+            {
+                r.insert("raw.module", raw.0 as u64, existing.0 as u64)?;
+            }
+        }
         self.crate_env.reserve_export(&export.raw, r)?;
         export.raw.nominal_mappings(r)?;
         // Nominal IDs in expressions need the same module-based translation as metadata.

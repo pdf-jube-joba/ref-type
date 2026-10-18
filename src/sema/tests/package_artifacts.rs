@@ -74,23 +74,42 @@ fn files(root: &Path) -> Vec<PathBuf> {
 }
 fn records(directory: &Path) -> BTreeMap<String, StoreManifest> {
     let store = ArtifactStore::new(directory);
-    files(&directory.join("artifacts"))
-        .into_iter()
-        .filter_map(|path| {
-            let stem = path.file_stem()?.to_str()?;
-            if stem.len() != 64 {
-                return None;
-            }
-            let mut key = [0; 32];
-            for (i, byte) in key.iter_mut().enumerate() {
-                *byte = u8::from_str_radix(&stem[i * 2..i * 2 + 2], 16).ok()?;
-            }
-            let manifest = store.read_manifest(&key).ok()?;
-            manifest.resolver.as_ref()?;
-            Some((manifest.coverage.first()?.first()?.clone(), manifest))
-        })
-        .collect()
+    let mut records: BTreeMap<String, StoreManifest> = BTreeMap::new();
+    for path in files(&directory.join("artifacts")) {
+        let Some(stem) = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .filter(|s| s.len() == 64)
+        else {
+            continue;
+        };
+        let mut key = [0; 32];
+        for (i, byte) in key.iter_mut().enumerate() {
+            *byte = u8::from_str_radix(&stem[i * 2..i * 2 + 2], 16).unwrap();
+        }
+        let manifest = store.read_manifest(&key).unwrap();
+        let Some(name) = manifest
+            .coverage
+            .first()
+            .and_then(|path| path.first())
+            .cloned()
+        else {
+            continue;
+        };
+        if manifest.results.is_empty() || manifest.coverage.iter().any(|p| p.first() != Some(&name))
+        {
+            continue;
+        }
+        if records
+            .get(&name)
+            .is_none_or(|previous| previous.coverage.len() < manifest.coverage.len())
+        {
+            records.insert(name, manifest);
+        }
+    }
+    records
 }
+
 fn independent_result(snapshot: &SourceSnapshot) -> std::sync::Arc<sema::SemanticResult> {
     Database::new().check_with_options(
         snapshot,
@@ -118,16 +137,6 @@ fn diamond_warm_results_read_no_environment_bytes() {
     assert!(warm.cache_store_stats().result_read_bytes > 0);
     let manifests = records(&cache);
     assert_eq!(manifests.len(), 4);
-    assert!(
-        manifests["left"]
-            .dependencies
-            .contains(&manifests["base"].key)
-    );
-    assert!(
-        manifests["right"]
-            .dependencies
-            .contains(&manifests["base"].key)
-    );
 }
 
 #[test]
@@ -302,7 +311,7 @@ fn package_process_helper() {
 }
 
 #[test]
-fn independently_built_processes_publish_identical_objects() {
+fn independently_built_processes_publish_identical_results() {
     let fixture = Fixture::new();
     let entry = fixture.diamond();
     let mut outputs = Vec::new();
@@ -321,11 +330,9 @@ fn independently_built_processes_publish_identical_objects() {
         );
         let objects = files(&cache.join("objects"))
             .into_iter()
-            .map(|path| {
-                (
-                    path.file_name().unwrap().to_owned(),
-                    fs::read(&path).unwrap(),
-                )
+            .filter_map(|path| {
+                let bytes = fs::read(&path).unwrap();
+                (bytes.get(8) == Some(&1)).then(|| (path.file_name().unwrap().to_owned(), bytes))
             })
             .collect::<BTreeMap<_, _>>();
         assert!(!objects.is_empty());

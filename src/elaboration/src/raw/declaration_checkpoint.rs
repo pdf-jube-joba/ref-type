@@ -4,23 +4,36 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
 use std::borrow::Borrow;
 
 // Shared telescope ordinals follow declaration identity, never hash iteration.
-fn ordered<'a, K: Copy + Serialize + 'a, V: 'a, E: serde::ser::Error, Q: Borrow<K>>(
+pub(super) trait CheckpointKey: Copy {
+    fn order(self) -> (u32, u32);
+}
+macro_rules! checkpoint_key {
+    ($($id:ty),*) => {$(
+        impl CheckpointKey for $id {
+            fn order(self) -> (u32, u32) { (self.module.0, self.index) }
+        }
+    )*};
+}
+checkpoint_key!(DefId, InductiveId, ProgramInductiveId);
+
+fn ordered<'a, K: CheckpointKey + 'a, V: 'a, E: serde::ser::Error, Q: Borrow<K>>(
     entries: impl IntoIterator<Item = (Q, &'a V)>,
 ) -> Result<Vec<(K, &'a V)>, E> {
-    let mut ordered = entries
-        .into_iter()
-        .map(|(key, value)| {
-            let key = *key.borrow();
-            artifact::canonical::to_vec(&key, 1024 * 1024)
-                .map(|bytes| (bytes, key, value))
-                .map_err(E::custom)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    ordered.sort_unstable_by(|left, right| left.0.cmp(&right.0));
-    Ok(ordered
-        .into_iter()
-        .map(|(_, key, value)| (key, value))
-        .collect())
+    let entries = entries.into_iter();
+    let mut ordered = Vec::new();
+    ordered
+        .try_reserve_exact(entries.size_hint().0)
+        .map_err(E::custom)?;
+    ordered.extend(entries.map(|(key, value)| (*key.borrow(), value)));
+    ordered.sort_unstable_by_key(|(key, _)| key.order());
+    Ok(ordered)
+}
+
+struct Rows<I>(I);
+impl<I: Clone + Iterator<Item: Serialize>> Serialize for Rows<I> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.0.clone())
+    }
 }
 
 struct Slices<'a, T> {
@@ -38,6 +51,9 @@ impl<T> Default for Slices<'_, T> {
     }
 }
 impl<'a, T: Eq + std::hash::Hash> Slices<'a, T> {
+    fn id(&self, value: &Arc<[T]>) -> usize {
+        self.ids[&value.as_ptr()]
+    }
     fn insert(&mut self, value: &'a Arc<[T]>) -> usize {
         *self.ids.entry(value.as_ptr()).or_insert_with(|| {
             *self.contents.entry(value.as_ref()).or_insert_with(|| {
@@ -67,20 +83,23 @@ pub(super) mod definitions {
         let _cost = timing::costs::Scope::enter("query.serialize-lazy-definitions");
         let mut arguments = Slices::default();
         let mut reflected = Slices::default();
-        let entries: Vec<_> = ordered::<DefId, _, S::Error, _>(entries)?
-            .into_iter()
-            .map(|(id, value)| {
-                (
-                    id,
-                    value.source,
-                    arguments.insert(&value.environment.substitutions),
-                    reflected.insert(&value.environment.reflected_substitutions),
-                    value.environment.remapping.get(),
-                )
-            })
-            .collect();
-        (arguments.values, reflected.values, entries).serialize(serializer)
+        let entries = ordered::<DefId, _, S::Error, _>(entries)?;
+        for (_, value) in &entries {
+            arguments.insert(&value.environment.substitutions);
+            reflected.insert(&value.environment.reflected_substitutions);
+        }
+        let rows = Rows(entries.iter().map(|(id, value)| {
+            (
+                *id,
+                value.source,
+                arguments.id(&value.environment.substitutions),
+                reflected.id(&value.environment.reflected_substitutions),
+                value.environment.remapping.get(),
+            )
+        }));
+        (&arguments.values, &reflected.values, rows).serialize(serializer)
     }
+
     pub fn deserialize<'de, D: Deserializer<'de>, T: FromIterator<(DefId, LazyDefinition)>>(
         deserializer: D,
     ) -> Result<T, D::Error> {
@@ -127,19 +146,21 @@ macro_rules! substitution_map {
             ) -> Result<S::Ok, S::Error> {
                 let _cost = timing::costs::Scope::enter("query.serialize-lazy-types");
                 let mut arguments = Slices::default();
-                let entries: Vec<_> = ordered::<$id, _, S::Error, _>(entries)?
-                    .into_iter()
-                    .map(|(id, value)| {
-                        (
-                            id,
-                            value.source,
-                            arguments.insert(&value.substitutions),
-                            value.remapping,
-                        )
-                    })
-                    .collect();
-                (arguments.values, entries).serialize(serializer)
+                let entries = ordered::<$id, _, S::Error, _>(entries)?;
+                for (_, value) in &entries {
+                    arguments.insert(&value.substitutions);
+                }
+                let rows = Rows(entries.iter().map(|(id, value)| {
+                    (
+                        *id,
+                        value.source,
+                        arguments.id(&value.substitutions),
+                        value.remapping,
+                    )
+                }));
+                (&arguments.values, rows).serialize(serializer)
             }
+
             pub fn deserialize<'de, D: Deserializer<'de>>(
                 deserializer: D,
             ) -> Result<HashMap<$id, $value>, D::Error> {
@@ -176,7 +197,7 @@ substitution_map!(
 pub(super) mod specializations {
     use super::*;
     use crate::raw::namespaces::Specialization;
-    pub fn serialize<'a, I: Copy + Serialize + 'a, S: Serializer, T, K: Borrow<I>>(
+    pub fn serialize<'a, I: CheckpointKey + Serialize + 'a, S: Serializer, T, K: Borrow<I>>(
         entries: &'a T,
         serializer: S,
     ) -> Result<S::Ok, S::Error>
@@ -185,12 +206,18 @@ pub(super) mod specializations {
     {
         let _cost = timing::costs::Scope::enter("query.serialize-specializations");
         let mut arguments = Slices::default();
-        let entries: Vec<_> = ordered::<I, _, S::Error, _>(entries)?
-            .into_iter()
-            .map(|(id, value)| (id, value.source, arguments.insert(value.arguments.as_arc())))
-            .collect();
-        (arguments.values, entries).serialize(serializer)
+        let entries = ordered::<I, _, S::Error, _>(entries)?;
+        for (_, value) in &entries {
+            arguments.insert(value.arguments.as_arc());
+        }
+        let rows = Rows(
+            entries
+                .iter()
+                .map(|(id, value)| (*id, value.source, arguments.id(value.arguments.as_arc()))),
+        );
+        (&arguments.values, rows).serialize(serializer)
     }
+
     pub fn deserialize<
         'de,
         I: Copy + Eq + std::hash::Hash + Deserialize<'de>,

@@ -456,7 +456,14 @@ impl EnvironmentExport {
             }
             if (id.index as usize) < destination.definitions.len() {
                 if &destination.definitions[id.index as usize] != value {
-                    return Err(Error("overlapping definition contents disagree".into()));
+                    return Err(Error(format!(
+                        "overlapping definition contents disagree: {id:?}: {:?} versus {value:?}; bodies {:?} versus {:?}",
+                        destination.definitions[id.index as usize],
+                        destination
+                            .arena
+                            .get(destination.definitions[id.index as usize].body),
+                        destination.arena.get(value.body)
+                    )));
                 }
             } else {
                 if id.index as usize != end {

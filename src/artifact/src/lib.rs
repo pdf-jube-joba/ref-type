@@ -77,7 +77,7 @@ impl IdentityValue {
 pub struct Relocation {
     // Traversal repeatedly visits the same small set of identity spaces.
     // Numeric lookups avoid allocating and hashing an owned space per edge.
-    mappings: FxHashMap<String, FxHashMap<IdentityValue, (Identity, Identity)>>,
+    mappings: FxHashMap<String, FxHashMap<IdentityValue, IdentityValue>>,
     collected: FxHashMap<String, FxHashSet<IdentityValue>>,
     ordered: std::cell::OnceCell<BTreeSet<Identity>>,
     collecting: bool,
@@ -104,10 +104,12 @@ impl Relocation {
             .take()
             .unwrap_or_else(|| self.ordered_identities())
     }
-    pub fn mappings(&self) -> impl Iterator<Item = (&Identity, &Identity)> {
-        self.mappings
-            .values()
-            .flat_map(|space| space.values().map(|(old, new)| (old, new)))
+    pub fn mappings(&self) -> impl Iterator<Item = (Identity, Identity)> {
+        self.mappings.iter().flat_map(|(space, values)| {
+            values
+                .iter()
+                .map(|(old, new)| (old.in_space(space), new.in_space(space)))
+        })
     }
     fn ordered_identities(&self) -> BTreeSet<Identity> {
         self.collected
@@ -128,35 +130,47 @@ impl Relocation {
         if old.space() != new.space() {
             return Err(Error("identity space mismatch".into()));
         }
-        if !self.mappings.contains_key(old.space()) {
-            self.mappings
-                .insert(old.space().to_owned(), FxHashMap::default());
+        self.insert_value(old.space(), old.value(), new.value())
+    }
+    fn insert_value(&mut self, name: &str, old: IdentityValue, new: IdentityValue) -> Result<()> {
+        if !self.mappings.contains_key(name) {
+            self.mappings.insert(name.to_owned(), FxHashMap::default());
         }
-        let space = self.mappings.get_mut(old.space()).unwrap();
-        match space.entry(old.value()) {
+        let space = self.mappings.get_mut(name).unwrap();
+        match space.entry(old) {
             std::collections::hash_map::Entry::Occupied(entry) => {
-                if entry.get().1 != new {
-                    return Err(Error(format!("conflicting identity {old:?}")));
+                if *entry.get() != new {
+                    return Err(Error(format!(
+                        "conflicting identity {:?}",
+                        old.in_space(name)
+                    )));
                 }
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert((old, new));
+                entry.insert(new);
             }
         }
         Ok(())
     }
-    pub fn lookup(&self, old: &Identity) -> Option<&Identity> {
-        self.lookup_value(old.space(), old.value())
+    pub fn lookup(&self, old: &Identity) -> Option<Identity> {
+        Some(
+            self.lookup_value(old.space(), old.value())?
+                .in_space(old.space()),
+        )
     }
-    fn lookup_value(&self, space: &str, value: IdentityValue) -> Option<&Identity> {
-        self.mappings.get(space)?.get(&value).map(|(_, new)| new)
+    fn lookup_value(&self, space: &str, value: IdentityValue) -> Option<IdentityValue> {
+        self.mappings.get(space)?.get(&value).copied()
     }
     pub fn insert_pair(&mut self, space: &str, old: (u64, u32), new: (u64, u32)) -> Result<()> {
-        self.insert_identity(Identity::pair(space, old), Identity::pair(space, new))
+        self.insert_value(
+            space,
+            IdentityValue::Pair(old.0, old.1),
+            IdentityValue::Pair(new.0, new.1),
+        )
     }
     pub fn get_pair(&self, space: &str, old: (u64, u32)) -> Option<(u64, u32)> {
         match self.lookup_value(space, IdentityValue::Pair(old.0, old.1))? {
-            Identity::Pair { arena, index, .. } => Some((*arena, *index)),
+            IdentityValue::Pair(arena, index) => Some((arena, index)),
             _ => None,
         }
     }
@@ -169,11 +183,15 @@ impl Relocation {
             .ok_or_else(|| Error(format!("missing {space} identity {old:?}")))
     }
     pub fn insert(&mut self, space: &str, old: u64, new: u64) -> Result<()> {
-        self.insert_identity(Identity::scalar(space, old), Identity::scalar(space, new))
+        self.insert_value(
+            space,
+            IdentityValue::Scalar(old),
+            IdentityValue::Scalar(new),
+        )
     }
     pub fn get(&self, space: &str, old: u64) -> Option<u64> {
         match self.lookup_value(space, IdentityValue::Scalar(old))? {
-            Identity::Scalar { value, .. } => Some(*value),
+            IdentityValue::Scalar(value) => Some(value),
             _ => None,
         }
     }

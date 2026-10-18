@@ -15,6 +15,18 @@ impl Lowerer<'_> {
     fn roots(&self, declaration: Declaration) -> Vec<Term> {
         let mut roots = match declaration {
             Declaration::Definition(id) => {
+                if let Some(origin) = self.raw.generic_definition_specialization(id) {
+                    return origin
+                        .arguments
+                        .iter()
+                        .map(|(_, argument)| {
+                            let raw::environment::ModuleArgument::Pts(e) = argument else {
+                                unreachable!()
+                            };
+                            Term::Logical(*e)
+                        })
+                        .collect();
+                }
                 let mut roots = definition_roots(self.raw.definition(id));
                 let parameters = self.definition_parameter_count(id);
                 let uses_local_context = roots.iter().any(|root| {
@@ -175,14 +187,14 @@ impl Lowerer<'_> {
                 )
                 .into_iter()
                 .collect();
-            dependencies.sort_by_key(|p| (p.module.0, p.position));
+            dependencies.sort_by_key(|&p| this.raw.parameter_sort_key(p));
             for dependency in dependencies {
                 order(this, dependency, remaining, result);
             }
             result.push(id);
         }
         let mut ids: Vec<_> = captures.iter().copied().collect();
-        ids.sort_by_key(|p| (p.module.0, p.position));
+        ids.sort_by_key(|&p| self.raw.parameter_sort_key(p));
         let mut result = vec![];
         for id in ids {
             order(self, id, &mut captures, &mut result);
@@ -468,6 +480,45 @@ impl Lowerer<'_> {
         program: bool,
         parameters: &[s::Expression],
     ) -> Result<s::Expression, crate::error::Error> {
+        if let Some(origin) = self.raw.generic_definition_specialization(id).cloned() {
+            self.definition(origin.source)?;
+            let captures = self.captures(Declaration::Definition(origin.source));
+            let ambient = self.raw.definition_context(id.module).len();
+            if ambient > depth {
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::DefinitionLocalContextIsOutsideReferenceScope,
+                ));
+            }
+            // Translation depends on binder depth. Classifiers are checked in
+            // the caller's kernel context, after applying this telescope.
+            let mut context = self.raw.definition_context(id.module);
+            context.resize_with(self.scope.logical_base + depth, || ExpContextEntry {
+                var: SymbolId::ANONYMOUS,
+                ty: self.raw.arena().sort(RawSort::Set(0)),
+            });
+            let mut arguments = Vec::new();
+            for parameter in captures {
+                if let Some((_, raw::environment::ModuleArgument::Pts(term))) =
+                    origin.arguments.iter().find(|(id, _)| *id == parameter)
+                {
+                    let term = crate::kernel_bridge::shift_bound_indices(
+                        self.raw.arena(),
+                        *term,
+                        depth - ambient,
+                        0,
+                    );
+                    arguments.push(self.set(term, &mut context, id.module)?);
+                } else {
+                    arguments.extend(self.capture_arguments(&[parameter], depth, program)?);
+                }
+            }
+            arguments.extend_from_slice(parameters);
+            let native = self.raw.kernel_definitions.borrow()[&origin.source];
+            return self
+                .kernel
+                .reference(native, arguments)
+                .map_err(crate::error::Error::Kernel);
+        }
         self.definition(id)?;
         let captures = self.captures(Declaration::Definition(id));
         let mut arguments = self.capture_arguments(&captures, depth, true)?;

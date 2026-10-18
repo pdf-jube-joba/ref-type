@@ -22,6 +22,8 @@ pub struct CheckOptions {
     /// One-shot checking can rebuild independent prefixes after errors instead
     /// of serializing recovery environments during every successful check.
     pub skip_environment_cache: bool,
+    /// Rebuild precisely the requested environment after a broader prefix exceeded resources.
+    pub narrow_environment: bool,
     /// Recheck entry packages (including workspace members), reusing dependency checkpoints.
     pub force_local: bool,
     /// Select only the named module and its dependencies, excluding unrelated children.
@@ -54,6 +56,7 @@ pub struct Database {
     environments: EnvironmentCache,
     package_environments: EnvironmentCache,
     package_results: crate::memory::GenerationCache<Fingerprint, packages::MemoryPackage>,
+    prefixes: crate::memory::GenerationCache<Fingerprint, packages::native::Metadata>,
     disk: Option<DiskCache>,
     stats: QueryStats,
     verification_statistics: Vec<String>,
@@ -115,6 +118,7 @@ impl Database {
         self.environments.clear();
         self.package_environments.clear();
         self.package_results.clear();
+        self.prefixes.clear();
     }
 
     pub fn parse(
@@ -279,6 +283,7 @@ impl Database {
         self.checked.next_generation();
         self.queries.next_generation();
         self.package_results.next_generation();
+        self.prefixes.next_generation();
         let _cost_session = timing::costs::Session::start();
         let _cost = timing::costs::Scope::enter("query.total");
         let _timing = timing::Session::start(options.progress.is_some());

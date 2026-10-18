@@ -8,7 +8,7 @@ pub type ArtifactOwner = [u8; 32];
 /// Source allocation ordinals have exact compact identities; structural values
 /// retain full SHA-256 labels. The variant separates the two identity domains.
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
 enum Label {
     Digest([u8; 32]),
@@ -17,7 +17,7 @@ enum Label {
 }
 
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
 struct Reference {
     owner: ArtifactOwner,
@@ -28,41 +28,182 @@ struct Reference {
 /// Saving it with a checkpoint preserves the same ownership boundary on resume.
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct ArtifactCatalog {
-    runtime: BTreeMap<Identity, BTreeSet<Reference>>,
-    portable: BTreeMap<Reference, Identity>,
+    runtime: rustc_hash::FxHashMap<CatalogIdentity, u32>,
+    portable: rustc_hash::FxHashMap<CatalogReference, u32>,
+    entries: Vec<CatalogEntry>,
+    spaces: Vec<String>,
+    space_ids: rustc_hash::FxHashMap<String, u16>,
+    owners: Vec<ArtifactOwner>,
+    owner_ids: rustc_hash::FxHashMap<ArtifactOwner, u32>,
     packages: BTreeSet<ArtifactOwner>,
     dependencies: BTreeMap<ArtifactOwner, BTreeSet<ArtifactOwner>>,
-    sources: BTreeMap<Reference, ArtifactOwner>,
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+struct CatalogIdentity {
+    first: u64,
+    second: u64,
+    space: u16,
+    pair: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+struct CatalogReference {
+    owner: u32,
+    local: Label,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct CatalogEntry {
+    reference: CatalogReference,
+    identity: CatalogIdentity,
+    source: u32,
+    next: u32,
+}
+
+const NO_ENTRY: u32 = u32::MAX;
+
 impl ArtifactCatalog {
     pub fn contains(&self, owner: &ArtifactOwner) -> bool {
         self.packages.contains(owner)
     }
+    fn identity_key(&self, identity: &Identity) -> Option<CatalogIdentity> {
+        let space = *self.space_ids.get(identity.space())?;
+        Some(match identity {
+            Identity::Scalar { value, .. } => CatalogIdentity {
+                first: *value,
+                second: 0,
+                space,
+                pair: false,
+            },
+            Identity::Pair { arena, index, .. } => CatalogIdentity {
+                first: *arena,
+                second: u64::from(*index),
+                space,
+                pair: true,
+            },
+        })
+    }
+
+    fn wire_reference(&self, reference: CatalogReference) -> Reference {
+        Reference {
+            owner: self.owners[reference.owner as usize],
+            local: reference.local,
+        }
+    }
+
+    fn reference_key(&self, reference: &Reference) -> Option<CatalogReference> {
+        Some(CatalogReference {
+            owner: *self.owner_ids.get(&reference.owner)?,
+            local: reference.local,
+        })
+    }
+
+    fn entry(&self, reference: &Reference) -> Option<&CatalogEntry> {
+        self.entries
+            .get(*self.portable.get(&self.reference_key(reference)?)? as usize)
+    }
+
+    fn lookup(&self, reference: &Reference) -> Option<Identity> {
+        let identity = self.entry(reference)?.identity;
+        let space = self.spaces[identity.space as usize].clone();
+        Some(if identity.pair {
+            Identity::Pair {
+                space,
+                arena: identity.first,
+                index: identity.second as u32,
+            }
+        } else {
+            Identity::Scalar {
+                space,
+                value: identity.first,
+            }
+        })
+    }
+
+    fn agrees(&self, reference: &Reference, identity: &Identity) -> Option<bool> {
+        Some(Some(self.entry(reference)?.identity) == self.identity_key(identity))
+    }
+
+    fn source(&self, reference: &Reference) -> Option<ArtifactOwner> {
+        let source = self.entry(reference)?.source;
+        (source != NO_ENTRY).then(|| self.owners[source as usize])
+    }
+
+    fn references<'a>(&'a self, identity: &Identity) -> impl Iterator<Item = Reference> + use<'a> {
+        let head = self
+            .identity_key(identity)
+            .and_then(|key| self.runtime.get(&key).copied())
+            .unwrap_or(NO_ENTRY);
+        std::iter::successors((head != NO_ENTRY).then_some(head), |&index| {
+            let next = self.entries[index as usize].next;
+            (next != NO_ENTRY).then_some(next)
+        })
+        .map(|index| self.wire_reference(self.entries[index as usize].reference))
+    }
+
     fn reference(
         &self,
         identity: &Identity,
         owners: &BTreeSet<ArtifactOwner>,
-    ) -> Option<&Reference> {
-        self.runtime
-            .get(identity)?
-            .iter()
-            .find(|reference| owners.contains(&reference.owner))
+    ) -> Option<Reference> {
+        self.references(identity)
+            .filter(|reference| owners.contains(&reference.owner))
+            .min()
     }
-    fn register(&mut self, reference: Reference, runtime: Identity) -> artifact::Result<()> {
-        if self
-            .portable
-            .get(&reference)
-            .is_some_and(|old| old != &runtime)
-        {
+
+    fn owner_id(&mut self, owner: ArtifactOwner) -> artifact::Result<u32> {
+        if let Some(&id) = self.owner_ids.get(&owner) {
+            return Ok(id);
+        }
+        let id = u32::try_from(self.owners.len())
+            .map_err(|_| Error("too many artifact owners".into()))?;
+        self.owners.push(owner);
+        self.owner_ids.insert(owner, id);
+        Ok(id)
+    }
+
+    fn register(
+        &mut self,
+        reference: Reference,
+        runtime: Identity,
+        source: Option<ArtifactOwner>,
+    ) -> artifact::Result<()> {
+        if self.agrees(&reference, &runtime) == Some(false) {
             return Err(Error(
                 "package identity registered with conflicting runtime ID".into(),
             ));
         }
-        self.runtime
-            .entry(runtime.clone())
-            .or_default()
-            .insert(reference);
-        self.portable.insert(reference, runtime);
+        let source = source.map(|owner| self.owner_id(owner)).transpose()?;
+        let reference = CatalogReference {
+            owner: self.owner_id(reference.owner)?,
+            local: reference.local,
+        };
+        if let Some(&index) = self.portable.get(&reference) {
+            if let Some(source) = source {
+                self.entries[index as usize].source = source;
+            }
+            return Ok(());
+        }
+        if !self.space_ids.contains_key(runtime.space()) {
+            let id = u16::try_from(self.spaces.len())
+                .map_err(|_| Error("too many artifact identity spaces".into()))?;
+            self.spaces.push(runtime.space().to_owned());
+            self.space_ids.insert(runtime.space().to_owned(), id);
+        }
+        let identity = self
+            .identity_key(&runtime)
+            .expect("registered identity space");
+        let index = u32::try_from(self.entries.len())
+            .map_err(|_| Error("too many artifact references".into()))?;
+        let next = self.runtime.insert(identity, index).unwrap_or(NO_ENTRY);
+        self.entries.push(CatalogEntry {
+            reference,
+            identity,
+            source: source.unwrap_or(NO_ENTRY),
+            next,
+        });
+        self.portable.insert(reference, index);
         Ok(())
     }
 }
@@ -328,10 +469,12 @@ impl PackageChecker {
             if !seen.insert(identity.clone()) {
                 return Err(Error("duplicate portable identity".into()));
             }
-            if let Some(runtime) = catalog.portable.get(reference) {
-                relocation.insert_identity(identity.clone(), runtime.clone())?;
+            if let Some(runtime) = catalog.lookup(reference) {
+                relocation.insert_identity(identity.clone(), runtime)?;
             } else if reference.owner != resolver.input {
-                return Err(Error("missing dependency artifact identity".into()));
+                return Err(Error(format!(
+                    "missing dependency artifact identity: {identity:?}, {reference:?}"
+                )));
             }
         }
         let mut own_order = resolver.resolver.order().to_vec();
@@ -346,14 +489,15 @@ impl PackageChecker {
         self.resolution
             .restore_sources(&sources)
             .ok_or_else(|| Error("artifact source missing from snapshot".into()))?;
-        let project = self.resolution.project();
-        self.workspace.restore_artifact_analysis(&project);
-        let end = project.order.len();
+        self.workspace
+            .restore_artifact_analysis(&self.resolution.references());
+        let order = self.resolution.order();
+        let end = order.len();
         let start = own_order
             .first()
-            .and_then(|first| project.order.iter().position(|step| step == first))
+            .and_then(|first| order.iter().position(|step| step == first))
             .unwrap_or(end);
-        if project.order.get(start..start + own_order.len()) != Some(own_order.as_slice()) {
+        if order.get(start..start + own_order.len()) != Some(own_order.as_slice()) {
             return Err(Error(
                 "package checking order does not match imported resolver".into(),
             ));
@@ -384,13 +528,10 @@ impl PackageChecker {
         for (identity, reference) in resolver.references {
             let runtime = relocation
                 .lookup(&identity)
-                .ok_or_else(|| Error(format!("unreserved exported identity {identity:?}")))?
-                .clone();
+                .ok_or_else(|| Error(format!("unreserved exported identity {identity:?}")))?;
             if !resume {
-                if reference.owner == resolver.input {
-                    catalog.sources.insert(reference, resolver.owner);
-                }
-                catalog.register(reference, runtime)?;
+                let source = (reference.owner == resolver.input).then_some(resolver.owner);
+                catalog.register(reference, runtime, source)?;
             }
         }
         if !resume {
@@ -431,10 +572,7 @@ impl State<'_> {
             .into_iter()
             .flat_map(|identity| {
                 catalog
-                    .runtime
-                    .get(&identity)
-                    .into_iter()
-                    .flatten()
+                    .references(&identity)
                     .map(|reference| reference.owner)
             })
             .collect();
@@ -448,8 +586,20 @@ impl State<'_> {
             }
         }
         let workspace_phase = crate::profiling::Phase::start("artifact.export-workspace");
+        let source_modules = resolver
+            .owned_ids()
+            .into_iter()
+            .filter_map(|id| match id {
+                Identity::Scalar { space, value } if space == "resolve.module" => {
+                    Some(resolve::hir::ModuleId(value as u32))
+                }
+                _ => None,
+            })
+            .collect();
         let mut workspace = self.workspace.export_artifact(
             &boundary.workspace,
+            &source_modules,
+            |binding| resolver.owns_binding(binding),
             |expression| {
                 catalog
                     .reference(&identity_of_expression(expression), &dependencies)
@@ -518,7 +668,7 @@ impl State<'_> {
         let exact_dependencies: Vec<_> = references
             .iter()
             .filter(|(_, reference)| reference.owner != input)
-            .filter_map(|(_, reference)| catalog.sources.get(reference).copied())
+            .filter_map(|(_, reference)| catalog.source(reference))
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect();
@@ -583,8 +733,7 @@ impl State<'_> {
                 (
                     relocation
                         .lookup(identity)
-                        .expect("all exported IDs normalized")
-                        .clone(),
+                        .expect("all exported IDs normalized"),
                     *reference,
                 )
             })
@@ -621,13 +770,12 @@ impl State<'_> {
         if !self.pending {
             // Validate the delta before publication. Cloning the catalog copies
             // the identities of every dependency at each package boundary.
-            let mut additions = BTreeMap::new();
+            let mut additions = rustc_hash::FxHashMap::default();
             for (runtime, reference) in &references {
-                let previous = catalog
-                    .portable
-                    .get(reference)
-                    .or_else(|| additions.insert(*reference, runtime));
-                if previous.is_some_and(|old| old != runtime) {
+                let previous = additions.insert(*reference, runtime);
+                if catalog.agrees(reference, runtime) == Some(false)
+                    || previous.is_some_and(|old| old != runtime)
+                {
                     return Err(Error(
                         "package identity registered with conflicting runtime ID".into(),
                     ));
@@ -635,10 +783,8 @@ impl State<'_> {
             }
             drop(additions);
             for (runtime, reference) in references {
-                if reference.owner == input {
-                    catalog.sources.insert(reference, owner);
-                }
-                catalog.register(reference, runtime)?;
+                let source = (reference.owner == input).then_some(owner);
+                catalog.register(reference, runtime, source)?;
             }
             catalog.packages.insert(owner);
             catalog.dependencies.insert(input, dependencies);
@@ -678,7 +824,11 @@ mod tests {
                 .iter()
                 .map(|(_, reference)| *reference)
                 .collect::<BTreeSet<_>>(),
-            catalog.portable.keys().copied().collect(),
+            catalog
+                .entries
+                .iter()
+                .map(|entry| catalog.wire_reference(entry.reference))
+                .collect(),
         );
         // A duplicate graph entry must not silently change the catalog.
         let mut graph = workspace.graph;

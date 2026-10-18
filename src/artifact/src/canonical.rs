@@ -117,7 +117,7 @@ pub fn to_vec_detailed<T: Serialize + ?Sized>(
     value: &T,
     limit: usize,
 ) -> std::result::Result<Vec<u8>, EncodingError> {
-    encode_with_limits(value, limit, MAX_ITEMS)
+    encode_with_limits(value, limit, MAX_ITEMS.max(limit))
 }
 
 fn encode_with_limits<T: Serialize + ?Sized>(

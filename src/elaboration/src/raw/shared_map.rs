@@ -3,6 +3,7 @@
 pub(crate) mod exports;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeMap};
+use sha2::{Digest, Sha256};
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 pub trait IdLookup<K> {
@@ -23,6 +24,85 @@ impl<K: Eq + Hash> IdLookup<K> for HashMap<K, K> {
 pub(crate) struct SharedMap<K> {
     entries: Arc<FxHashMap<K, K>>,
     base: Option<(Arc<Self>, Arc<Self>)>,
+}
+
+pub(crate) struct Fingerprints<K> {
+    values: FxHashMap<K, [u8; 32]>,
+    tables: FxHashMap<usize, [u8; 32]>,
+    nodes: FxHashMap<usize, [u8; 32]>,
+}
+
+impl<K> Default for Fingerprints<K> {
+    fn default() -> Self {
+        Self {
+            values: Default::default(),
+            tables: Default::default(),
+            nodes: Default::default(),
+        }
+    }
+}
+
+impl<K: Copy + Eq + Hash> SharedMap<K> {
+    /// Hash each immutable physical table and composition node once per export.
+    /// The addresses only memoize work; the digest contains semantic values.
+    pub(crate) fn fingerprint(
+        &self,
+        memo: &mut Fingerprints<K>,
+        label: impl Fn(&K) -> artifact::Result<[u8; 32]>,
+    ) -> artifact::Result<[u8; 32]> {
+        let mut pending = vec![(self, false)];
+        while let Some((map, expanded)) = pending.pop() {
+            let address = map as *const Self as usize;
+            if memo.nodes.contains_key(&address) {
+                continue;
+            }
+            if !expanded {
+                pending.push((map, true));
+                if let Some((next, previous)) = &map.base {
+                    pending.push((previous, false));
+                    pending.push((next, false));
+                }
+                continue;
+            }
+            let table = Arc::as_ptr(&map.entries) as usize;
+            if let std::collections::hash_map::Entry::Vacant(table_entry) = memo.tables.entry(table)
+            {
+                let mut entries = Vec::with_capacity(map.entries.len());
+                for (&key, &value) in map.entries.iter() {
+                    for id in [key, value] {
+                        if let std::collections::hash_map::Entry::Vacant(entry) =
+                            memo.values.entry(id)
+                        {
+                            entry.insert(label(&id)?);
+                        }
+                    }
+                    entries.push((memo.values[&key], memo.values[&value]));
+                }
+                entries.sort_unstable();
+                let mut hash = Sha256::new();
+                hash.update(b"namespace-map-table");
+                hash.update((entries.len() as u64).to_le_bytes());
+                for (key, value) in entries {
+                    hash.update(key);
+                    hash.update(value);
+                }
+                table_entry.insert(hash.finalize().into());
+            }
+            let mut hash = Sha256::new();
+            hash.update(b"namespace-map-node");
+            hash.update(memo.tables[&table]);
+            match &map.base {
+                Some((next, previous)) => {
+                    hash.update([1]);
+                    hash.update(memo.nodes[&(next.as_ref() as *const Self as usize)]);
+                    hash.update(memo.nodes[&(previous.as_ref() as *const Self as usize)]);
+                }
+                None => hash.update([0]),
+            }
+            memo.nodes.insert(address, hash.finalize().into());
+        }
+        Ok(memo.nodes[&(self as *const Self as usize)])
+    }
 }
 
 impl<K: artifact::Relocate + Copy + Eq + Hash + 'static> artifact::Relocate for SharedMap<K> {
@@ -114,14 +194,17 @@ impl<K: Copy + Eq + Hash> IdLookup<K> for SharedMap<K> {
 
 impl<K: Copy + Eq + Hash> SharedMap<K> {
     /// Merge another verified range without flattening inherited map tables.
-    pub(crate) fn merge_compatible(&mut self, incoming: &Self) -> artifact::Result<()> {
+    pub(crate) fn merge_compatible(&mut self, incoming: &Self) -> artifact::Result<()>
+    where
+        K: std::fmt::Debug,
+    {
         let mut additions = FxHashMap::default();
         for (&key, &value) in incoming.iter() {
             match self.get(&key) {
                 Some(previous) if *previous != value => {
-                    return Err(artifact::Error(
-                        "overlapping shared map entries disagree".into(),
-                    ));
+                    return Err(artifact::Error(format!(
+                        "overlapping shared map entries disagree for {key:?}: {previous:?} versus {value:?}"
+                    )));
                 }
                 Some(_) => {}
                 None => {

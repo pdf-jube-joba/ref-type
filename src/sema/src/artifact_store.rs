@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
-pub const DEFAULT_CACHE_BUDGET: u64 = 8 * 1024 * 1024 * 1024;
+pub const DEFAULT_CACHE_BUDGET: u64 = u64::MAX;
 const MAX_OBJECT: u64 = 512 * 1024 * 1024;
 const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
 const HEADER: usize = 60;
@@ -239,32 +239,6 @@ pub fn serialize<T: Serialize>(value: &T) -> Result<Vec<u8>, CacheError> {
 }
 pub fn deserialize<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, CacheError> {
     postcard::from_bytes(bytes).map_err(|e| CacheError::Codec(e.to_string()))
-}
-
-pub(crate) fn encode_memory(payload: &[u8]) -> Result<Vec<u8>, CacheError> {
-    if payload.len() as u64 > MAX_OBJECT {
-        return Err(invalid(MissReason::SizeLimit));
-    }
-    let (codec, compressed) = compress(payload)?;
-    let mut bytes = vec![codec];
-    bytes.extend((payload.len() as u64).to_le_bytes());
-    bytes.extend(fingerprint(payload));
-    bytes.extend(compressed);
-    Ok(bytes)
-}
-pub(crate) fn decode_memory(bytes: &[u8]) -> Result<Vec<u8>, CacheError> {
-    if bytes.len() < 41 {
-        return Err(invalid(MissReason::Format));
-    }
-    let length = u64::from_le_bytes(bytes[1..9].try_into().unwrap());
-    if length > MAX_OBJECT {
-        return Err(invalid(MissReason::SizeLimit));
-    }
-    let payload = decompress(bytes[0], &bytes[41..], length)?;
-    if payload.len() as u64 != length || fingerprint(&payload) != bytes[9..41] {
-        return Err(invalid(MissReason::Corrupt));
-    }
-    Ok(payload)
 }
 
 impl ArtifactStore {

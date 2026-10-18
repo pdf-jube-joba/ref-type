@@ -73,9 +73,34 @@ fn serialize_workspace<S: serde::Serializer>(
 }
 
 impl PackageChecker {
+    pub fn has_resolution(&self, name: &str) -> bool {
+        self.resolution.contains_package(name)
+    }
+
+    /// Resolve declarations without marking any type-checking step complete.
+    pub fn append_resolution(&mut self, module: &Module) -> Result<(), crate::Diagnostic> {
+        let project = self
+            .resolution
+            .append(module)
+            .map_err(crate::Diagnostic::resolution)?;
+        self.steps = project.order.len();
+        Ok(())
+    }
+
     /// Live shared syntax retained by this checker, excluding source snapshots.
     pub fn expression_count(&self) -> usize {
         self.workspace.crate_env.arena().core.len()
+    }
+
+    /// Live syntax and namespace entries, before portable export scratch tables.
+    pub fn artifact_entry_count(&self) -> usize {
+        self.expression_count() + self.workspace.crate_env.namespace_entry_count()
+    }
+
+    pub fn prepare_export(&mut self) {
+        if self.artifact_entry_count() > 500_000 {
+            self.workspace.crate_env.clear_caches();
+        }
     }
 
     pub fn append(
@@ -145,14 +170,8 @@ impl PackageChecker {
         mut artifact_checkpoint: Option<ArtifactCheckpoint<'_>>,
         mut progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
-        let existing = self.resolution.project();
-        let project = if self.pending
-            || existing
-                .modules
-                .iter()
-                .any(|root| root.name.as_str() == module.name.as_str())
-        {
-            existing
+        let project = if self.pending || self.resolution.contains_package(module.name.as_str()) {
+            self.resolution.project()
         } else {
             self.resolution
                 .append(module)
@@ -258,6 +277,12 @@ impl PackageChecker {
                     let _time = timing::Scope::shared();
                     progress.borrow_mut()(PackageProgress::Saving);
                     let started = Instant::now();
+                    if workspace.crate_env.arena().core.len()
+                        + workspace.crate_env.namespace_entry_count()
+                        > 500_000
+                    {
+                        workspace.crate_env.clear_judgements();
+                    }
                     let failed = if let Some(checkpoint) = artifact_checkpoint.as_mut() {
                         let artifact = artifacts::State {
                             resolution: &self.resolution,
@@ -337,10 +362,19 @@ impl PackageChecker {
         if bytes.len() > MAX_PACKAGE_BYTES {
             return None;
         }
+        let inflate = crate::profiling::Phase::start("package.inflate");
         let decoded = crate::checkpoint::decompress::<MAX_PACKAGE_BYTES>(bytes)?;
+        drop(inflate);
+        let deserialize = crate::profiling::Phase::start("package.deserialize");
         let mut saved: Self = postcard::from_bytes(&decoded).ok()?;
+        drop(decoded);
+        drop(deserialize);
+        let _reconnect = crate::profiling::Phase::start("package.reconnect");
         saved.resolution.restore_sources(sources)?;
         saved.workspace.crate_env.restore_shared_arena();
+        saved
+            .workspace
+            .restore_artifact_analysis(&saved.resolution.references());
         Some(saved)
     }
 }

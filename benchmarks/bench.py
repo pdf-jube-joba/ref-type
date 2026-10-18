@@ -263,7 +263,9 @@ class Measurements:
         command = [*self.command, str(path)]
         if not self.args.command:
             command += ["--diagnostics", "compact", "--no-progress", "--memory-mib", str(self.args.memory_mib),
-                        "--cache-budget-mib", str(self.args.cache_mib), "--report-json", str(checker_report)]
+                        "--report-json", str(checker_report)]
+            if self.args.cache_mib is not None:
+                command += ["--cache-budget-mib", str(self.args.cache_mib)]
             command += ["--cache-dir", str(cache)] if cache is not None else ["--no-cache"]
             if self.args.module:
                 command += ["--module", self.args.module]
@@ -493,7 +495,7 @@ def main(argv=None):
         command.add_argument("--module")
         command.add_argument("--seconds", type=float, default=None if action == "case" else 300)
         command.add_argument("--memory-mib", type=int, default=None if action == "case" else 3072)
-        command.add_argument("--cache-mib", type=int, default=8192)
+        command.add_argument("--cache-mib", type=int)
         command.add_argument("--output-mib", type=int, default=8)
         command.add_argument("--batch-seconds", type=int)
         command.add_argument("--progress-seconds", type=float, default=30)
@@ -537,7 +539,8 @@ def main(argv=None):
     if args.output is None:
         args.output = BENCHMARKS / "runs" / getattr(args, "name", args.action) / "report.json"
     if (not math.isfinite(args.seconds) or args.seconds <= 0 or args.memory_mib < 1
-            or args.cache_mib < 1 or args.output_mib < 1 or args.progress_seconds < 0
+            or (args.cache_mib is not None and args.cache_mib < 1)
+            or args.output_mib < 1 or args.progress_seconds < 0
             or not math.isfinite(args.progress_seconds) or args.batch_seconds is not None and args.batch_seconds < 1
             or getattr(args, "runs", 1) < 1 or getattr(args, "depth", 0) < 0):
         parser.error("resource limits and runs must be positive; depth and progress interval must be nonnegative")

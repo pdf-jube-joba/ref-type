@@ -21,6 +21,8 @@ use crate::{
 };
 use std::collections::HashMap;
 
+type SourceNames<'a> = HashMap<resolve::hir::ModuleId, Vec<(resolve::hir::BindingId, &'a str)>>;
+
 pub mod analysis;
 mod declarations;
 pub(crate) mod module_manager;
@@ -816,10 +818,12 @@ impl GlobalEnvironment {
         &mut self,
         parent: ModuleId,
         module: &Module,
+        names: &SourceNames<'_>,
     ) -> Result<(), ElaborationError> {
         let child = self
             .crate_env
             .reserve_child_module(parent, module.name.0.clone());
+        self.crate_env.record_source_module(child, module);
         let _time = timing::Scope::module(|| analysis::module_path(&self.crate_env, child));
         self.crate_env.publish_child_module(child)?;
         self.predeclared_modules.insert(module, child);
@@ -827,11 +831,8 @@ impl GlobalEnvironment {
         if let Some(id) = module.name.1 {
             self.module_manager.hir_module_bindings.insert(id, child);
         }
-        for (id, binding) in &self.module_manager.hir_bindings {
-            if binding.module == module.id && binding.parameter.is_none() {
-                self.crate_env
-                    .register_hir_name(child, *id, binding.name.clone());
-            }
+        for &(id, name) in names.get(&module.id).into_iter().flatten() {
+            self.crate_env.register_hir_name(child, id, name.to_owned());
         }
         let ModuleBody::Inline(items) = &module.body else {
             return Err(crate::error::Error::UnresolvedExternalModule {
@@ -841,7 +842,7 @@ impl GlobalEnvironment {
         };
         for item in items {
             if let ModuleItem::ChildModule { module } = item {
-                self.predeclare_module_tree(child, module)?;
+                self.predeclare_module_tree(child, module, names)?;
             }
         }
         Ok(())
@@ -914,6 +915,15 @@ impl GlobalEnvironment {
     ) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
         let modules = &project.modules;
+        let mut names = SourceNames::new();
+        for (&id, binding) in &project.bindings {
+            if binding.parameter.is_none() {
+                names
+                    .entry(binding.module)
+                    .or_default()
+                    .push((id, &binding.name));
+            }
+        }
         fn collect<'a>(
             module: &'a Module,
             scheduled: &mut HashMap<resolve::hir::ModuleId, &'a Module>,
@@ -963,13 +973,13 @@ impl GlobalEnvironment {
         self.predeclared_modules.clear();
         if start == 0 {
             for module in modules {
-                self.predeclare_module_tree(self.crate_env.root_module(), module)?;
+                self.predeclare_module_tree(self.crate_env.root_module(), module, &names)?;
             }
         } else {
             // Package sessions append roots after restoring the dependency environment.
             for module in modules {
                 if !self.module_manager.hir_modules.contains_key(&module.id) {
-                    self.predeclare_module_tree(self.crate_env.root_module(), module)?;
+                    self.predeclare_module_tree(self.crate_env.root_module(), module, &names)?;
                 }
             }
             self.module_manager.hir_module_bindings.clear();

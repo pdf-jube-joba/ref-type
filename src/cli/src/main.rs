@@ -39,6 +39,12 @@ struct Args {
     #[arg(skip)]
     #[serde(default)]
     cache_probe: bool,
+    #[arg(skip)]
+    #[serde(default)]
+    worker_progress: bool,
+    #[arg(skip)]
+    #[serde(default)]
+    narrow_environment: bool,
     /// 指定した module・子 module と、その参照先だけを検証する（例: std.Data.Nat）
     #[arg(long, conflicts_with = "parse_only")]
     module: Option<String>,
@@ -78,9 +84,9 @@ struct Args {
     /// チェック済み semantic result の保存先（既定: workspace または入力先の refcache/）
     #[arg(long)]
     cache_dir: Option<PathBuf>,
-    /// ディスクキャッシュの容量上限 MiB（利用中の成果物は保護する）
-    #[arg(long, default_value_t = 8192)]
-    cache_budget_mib: u64,
+    /// ディスクキャッシュの容量上限 MiB（省略時は無制限、利用中の成果物は保護する）
+    #[arg(long)]
+    cache_budget_mib: Option<u64>,
     /// parse・チェック・キャッシュ再利用の件数を表示する
     #[arg(long)]
     cache_stats: bool,
@@ -296,7 +302,9 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
     } else {
         sema::Database::with_cache(cache_directory)
     };
-    database.set_cache_budget(args.cache_budget_mib.saturating_mul(1024 * 1024));
+    if let Some(budget) = args.cache_budget_mib {
+        database.set_cache_budget(budget.saturating_mul(1024 * 1024));
+    }
     #[cfg(target_os = "linux")]
     let snapshot = if let Some(directory) = &args.worker {
         Some(supervisor::read_snapshot(directory)?)
@@ -348,6 +356,7 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
         let options = sema::CheckOptions {
             force: args.trace || args.no_cache || args.full_check,
             skip_environment_cache: args.no_cache,
+            narrow_environment: args.narrow_environment,
             force_local: args.full_check_local,
             progress: (!args.no_progress).then_some(show_progress),
             progress_events: display.enabled().then_some(progress::receive),
@@ -366,8 +375,10 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
             sema::CheckOptions {
                 progress_events: if args.cache_probe {
                     Some(supervisor::send_cache_probe_event)
+                } else if args.worker_progress {
+                    Some(supervisor::send_event)
                 } else {
-                    (!args.no_progress).then_some(supervisor::send_event)
+                    Some(supervisor::send_environment_event)
                 },
                 ..options
             }

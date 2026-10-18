@@ -72,7 +72,7 @@ pub(super) fn labels(
             catalog
                 .reference(id, dependencies)
                 .filter(|reference| reference.owner != input)
-                .map(|reference| (id.clone(), *reference))
+                .map(|reference| (id.clone(), reference))
         })
         .collect();
     let mut labels = BTreeMap::new();
@@ -144,7 +144,7 @@ pub(super) fn labels(
         let ordinal = generated.entry(owner_label).or_default();
         put!(
             identity(id),
-            hash(&("generated-module", owner_label, *ordinal))?,
+            hash(&("generated-module", artifact, owner_label, *ordinal))?,
             &mut labels
         )?;
         *ordinal += 1;
@@ -238,8 +238,12 @@ pub(super) fn labels(
             put!(id, structural(atom, &labels)?, &mut labels)?;
         }
     }
-    // A remapping names an immutable creation site or composition. Its current
-    // attachment set and incrementally populated contents are not its identity.
+    // A namespace remapping identifies its completed substitution table.
+    // Compositions identify their already labelled parents.
+    let mut module_maps = crate::raw::shared_map::Fingerprints::default();
+    let mut definition_maps = crate::raw::shared_map::Fingerprints::default();
+    let mut inductive_maps = crate::raw::shared_map::Fingerprints::default();
+    let mut datatype_maps = crate::raw::shared_map::Fingerprints::default();
     let mut visiting = BTreeSet::new();
     for root in workspace.raw.remapping_origins.keys() {
         let mut pending = vec![(*root, false)];
@@ -254,11 +258,41 @@ pub(super) fn labels(
                 .get(&id)
                 .ok_or_else(|| Error("remapping creation origin missing".into()))?;
             if expanded {
-                put!(
-                    runtime,
-                    structural(&("remapping-origin".to_string(), origin.clone()), &labels)?,
-                    &mut labels
-                )?;
+                // The same import site can retain different canonical namespace
+                // views in two coverage artifacts. Its completed substitution
+                // table, rather than the creation site alone, identifies that
+                // immutable environment. Compositions already include the
+                // content identities of both parents.
+                let local = match origin {
+                    crate::raw::environment::RemappingOrigin::Namespace(_) => {
+                        let map = environment.crate_env.remapping(id);
+                        macro_rules! fingerprint {
+                            ($field:ident, $memo:ident) => {
+                                map.$field.fingerprint(&mut $memo, |value| {
+                                    let Label::Digest(digest) = structural(value, &labels)? else {
+                                        unreachable!()
+                                    };
+                                    Ok(digest)
+                                })?
+                            };
+                        }
+                        structural(
+                            &(
+                                "namespace-remapping",
+                                origin.clone(),
+                                [
+                                    fingerprint!(module_ids, module_maps),
+                                    fingerprint!(definition_ids, definition_maps),
+                                    fingerprint!(inductive_ids, inductive_maps),
+                                    fingerprint!(program_inductive_ids, datatype_maps),
+                                ],
+                            ),
+                            &labels,
+                        )?
+                    }
+                    _ => structural(&("remapping-origin", origin.clone()), &labels)?,
+                };
+                put!(runtime, local, &mut labels)?;
                 visiting.remove(&id.0);
                 continue;
             }
@@ -301,8 +335,8 @@ pub(super) fn labels(
             continue;
         }
         if let Some(reference) = catalog.reference(id, &own_input) {
-            labels.insert(id.clone(), hash(reference)?);
-            references.insert(id.clone(), *reference);
+            labels.insert(id.clone(), hash(&reference)?);
+            references.insert(id.clone(), reference);
             continue;
         }
         let next = ordinal.entry(id.space().into()).or_default();

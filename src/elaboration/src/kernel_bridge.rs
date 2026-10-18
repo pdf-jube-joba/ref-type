@@ -154,7 +154,20 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), crate::error::E
             && definitions.insert(id)
             && !env.kernel_definitions.borrow().contains_key(&id)
         {
-            match env.resolve_definition(id)?.clone() {
+            let definition = env.resolve_definition(id)?;
+            if let Some(origin) = env.generic_definition_specialization(id) {
+                pending.push(Term::Logical(
+                    env.arena().alloc(ExpNode::DefinedConstant(origin.source)),
+                ));
+                pending.extend(origin.arguments.iter().map(|(_, argument)| {
+                    let crate::raw::environment::ModuleArgument::Pts(e) = argument else {
+                        unreachable!()
+                    };
+                    Term::Logical(*e)
+                }));
+                continue;
+            }
+            match definition.clone() {
                 DefinedConstant::Contextual {
                     parameters,
                     ty,

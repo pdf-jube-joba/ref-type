@@ -38,25 +38,34 @@ source cache は64 MiB・16,384件、parse・module・query cache は現在と�
 呼出側の `Arc` と live arena は別管理である。
 
 package 入力キーは処理系・設定・identity・ソース・manifest・名前付き直接依存から作り、成果物キーに検査範囲を加える。
-依存の訪問順や利用側のパスから独立し、共通依存は一度だけ import する。
-`force_local` は入口 package または workspace member を再検査し、外部依存は内容の一致する成果物を使う。
+依存の訪問順や利用側のパスから独立するため、別の利用側でも同じ package の検証結果を再利用する。
+`force_local` は入口 package または workspace member を再検査し、外部依存は内容の一致する結果を使う。
 LSP の未保存編集も同じ判定を通る。
 
-`artifacts/` の manifest は module 結果、resolver、raw/kernel を別々の `objects/` に参照する。
-結果だけで足りる検査では環境を展開せず、後続検査では必要な依存閉包を import する。
-全体検査でも、各 package の環境には利用側が参照する module だけを復元する。
-小さい依存環境は共有し、大きい成果物だけが保存されている場合は必要な範囲の成果物を作る。
-検査済みの小さい依存チェーンは live checker を引き継ぎ、大きい環境と無関係な分岐は解放する。
-object は postcard データと種類・codec・長さ・checksum を持ち、native は zstd、WebAssembly は deflate を使う。
-破損した環境は再構築し、環境を保存できない場合も結果は保存できる。
+`artifacts/` の manifest は module ごとの検証結果を `objects/` に参照する。
+結果だけで足りる問い合わせでは型検査環境を展開せずに回答する。
+検査の続きには、resolver・raw/kernel・完了ステップを一緒に保持した prefix を使う。
+一つの環境を丸ごと復元することで、その環境の内部 ID と共有 DAG を保持する。
+prefix の保存バイト列には実行時のハッシュ表の列挙順が反映され、検証結果の object と入力キーは別に保持する。
+prefix は読み込んだ package 入力・名前解決したソース範囲・検査済み範囲・追加順を記録し、現在の入力と必要範囲に合うものを選ぶ。
+利用側で必要になる宣言が名前解決済みの範囲を超える場合は、その選択で環境を構築する。
+環境の構築時は名前解決と型検査を必要な依存閉包に絞り、同じ環境で処理できる依存先と利用側をまとめる。
+小さい保存状態は、必要範囲より広い検査済み範囲を含んでいても共有する。
+広い環境を使った worker がメモリ上限に達した場合は、必要範囲だけの環境で再試行し、その選択を分割のヒントとともに保存する。
+共通依存までの prefix と利用側の検証結果を別々に保存する。
 
-`checkpoints/` は依存参照・現在の package の状態・検査順と再開位置を保持する。
+object は postcard データと種類・codec・長さ・checksum を持ち、native は zstd、WebAssembly は deflate を使う。
+prefix の検査ステップと入力を照合し、破損した環境は再構築する。
+環境を保存できない場合も検証結果を保存できる。
+
+`checkpoints/` は検査中の prefix を保持する。
 `checkpoint_interval` は module 完了時の保存間隔で、既定30秒、ゼロは各境界を対象とする。
-保存コストの約10倍以上の検査時間を空け、環境成果物を公開できたら checkpoint を回収する。
+保存コストの約10倍以上の検査時間を空け、検証結果を公開したら checkpoint を回収する。
+再開時も強制検査の指定を確認し、検査途中の状態は checkpoint として扱う。
 
 公開・pin・GC は store lock と lease で調停し、利用中の成果物と依存閉包を保護する。
 supervisor は worker 間で lease を共有し、終了プロセスの lease は OS lock で判定する。
-budget は既定8 GiB、`set_cache_budget` で変更できる。
+保存量は既定では制限せず、必要な場合は `set_cache_budget` で上限を指定できる。
 古い未使用 manifest・checkpoint と参照のない object を回収する。
 
 `cache_store_stats` は I/O、再利用・再開、保存失敗、圧縮・展開、回収量を返す。

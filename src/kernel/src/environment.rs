@@ -132,6 +132,18 @@ impl Environment {
             ("validated contexts", self.validated_contexts.borrow().len()),
         ]
     }
+
+    /// Release recomputable judgements before constructing a portable export.
+    pub fn clear_caches(&mut self) {
+        *self.contexts.get_mut() = Default::default();
+        *self.inferred.get_mut() = Default::default();
+        *self.conversions.get_mut() = Default::default();
+        *self.checked.get_mut() = Default::default();
+        *self.validated_contexts.get_mut() = Default::default();
+        *self.heads.get_mut() = Default::default();
+        *self.shifted.get_mut() = Default::default();
+        *self.instantiations.get_mut() = Default::default();
+    }
     pub fn declaration_node_count(&self) -> usize {
         let mut seen = rustc_hash::FxHashSet::default();
         let mut pending = vec![];

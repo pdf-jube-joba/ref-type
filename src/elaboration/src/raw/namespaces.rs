@@ -105,17 +105,6 @@ pub(crate) struct ArgumentCache {
     classes: Vec<Vec<usize>>,
     arguments: Vec<std::sync::Arc<[(ModuleParamId, ModuleArgument)]>>,
     shared_arguments: Vec<SharedArguments>,
-    module_sets: rustc_hash::FxHashMap<ModuleId, Vec<usize>>,
-    registered: rustc_hash::FxHashSet<(ModuleId, usize)>,
-    searches: rustc_hash::FxHashMap<(ModuleId, usize), CandidateSearch>,
-}
-
-/// A stable inequality removes a candidate permanently. Only unresolved pairs
-/// remain pending; new telescopes are visited once as the source module grows.
-#[derive(Default, Debug)]
-struct CandidateSearch {
-    seen: usize,
-    pending: Vec<usize>,
 }
 
 impl ArgumentCache {
@@ -171,12 +160,6 @@ impl ArgumentCache {
         self.parents[right] = left;
         let members = std::mem::take(&mut self.classes[right]);
         self.classes[left].extend(members);
-    }
-
-    pub(crate) fn register(&mut self, module: ModuleId, id: usize) {
-        if self.registered.insert((module, id)) {
-            self.module_sets.entry(module).or_default().push(id);
-        }
     }
 
     pub(crate) fn share(
@@ -300,45 +283,6 @@ impl Comparisons {
 }
 
 impl CrateEnv {
-    pub(crate) fn discover_namespace_equivalents(
-        &self,
-        module: ModuleId,
-        arguments: &[(ModuleParamId, ModuleArgument)],
-        comparisons: &mut Comparisons,
-    ) {
-        let (id, mut search) = {
-            let mut cache = self.namespace_argument_cache.borrow_mut();
-            let id = cache.intern(arguments);
-            let mut search = cache.searches.remove(&(module, id)).unwrap_or_default();
-            if let Some(sets) = cache.module_sets.get(&module) {
-                search.pending.extend_from_slice(&sets[search.seen..]);
-                search.seen = sets.len();
-            }
-            (id, search)
-        };
-        search.pending.retain(|&candidate| {
-            let values = {
-                let cache = self.namespace_argument_cache.borrow();
-                if cache.root(id) == cache.root(candidate) {
-                    return false;
-                }
-                cache.arguments[candidate].clone()
-            };
-            timing::costs::count("namespace.telescope-candidates", || 1);
-            if self.namespace_arguments_equal_with(arguments, &values, comparisons) {
-                return false;
-            }
-            // Failed translation is provisional. Retry it on the next request,
-            // after any declaration or remapping may have been materialized.
-            let key = (id.min(candidate), id.max(candidate));
-            self.namespace_argument_cache.borrow().comparisons.get(&key) != Some(&false)
-        });
-        self.namespace_argument_cache
-            .borrow_mut()
-            .searches
-            .insert((module, id), search);
-    }
-
     fn namespace_term_is_rigid(&self, term: Exp) -> bool {
         matches!(
             self.arena().core.read(term.0).as_ref(),
@@ -1186,52 +1130,6 @@ impl<'a> NamespaceStability<'a> {
 mod tests {
     use super::*;
     use crate::raw::exp::ExpNode;
-
-    #[test]
-    fn module_candidate_search_remembers_stable_rejections_and_retries_unknowns() {
-        let env = CrateEnv::new();
-        let module = env.root_module();
-        let parameter = ModuleParamId {
-            module,
-            position: 0,
-        };
-        let arguments = |e| vec![(parameter, ModuleArgument::Pts(e))];
-        let first = arguments(env.arena().exp_bound(0));
-        let second = arguments(env.arena().exp_bound(1));
-        let first_id = env.namespace_argument_cache.borrow_mut().intern(&first);
-        env.namespace_argument_cache
-            .borrow_mut()
-            .register(module, first_id);
-        env.discover_namespace_equivalents(module, &second, &mut Comparisons::default());
-        let second_id = env.namespace_argument_cache.borrow_mut().intern(&second);
-        assert!(
-            env.namespace_argument_cache.borrow().searches[&(module, second_id)]
-                .pending
-                .is_empty()
-        );
-        env.namespace_argument_cache
-            .borrow_mut()
-            .comparisons
-            .clear();
-        env.discover_namespace_equivalents(module, &second, &mut Comparisons::default());
-        assert!(env.namespace_argument_cache.borrow().comparisons.is_empty());
-
-        let unknown = arguments(env.arena().exp_bound(100_001));
-        let unknown_id = env.namespace_argument_cache.borrow_mut().intern(&unknown);
-        env.namespace_argument_cache
-            .borrow_mut()
-            .register(module, unknown_id);
-        let set = arguments(env.arena().sort(crate::raw::sort::Sort::Set(0)));
-        let set_id = env.namespace_argument_cache.borrow_mut().intern(&set);
-        for _ in 0..2 {
-            env.discover_namespace_equivalents(module, &set, &mut Comparisons::default());
-            assert!(
-                env.namespace_argument_cache.borrow().searches[&(module, set_id)]
-                    .pending
-                    .contains(&unknown_id)
-            );
-        }
-    }
 
     #[test]
     fn telescope_equivalence_classes_preserve_all_prior_specialization_keys() {

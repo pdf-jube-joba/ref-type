@@ -3,6 +3,8 @@
 mod declaration_checkpoint;
 #[path = "exports.rs"]
 pub(crate) mod exports;
+#[path = "module_checkpoint.rs"]
+mod module_checkpoint;
 #[path = "shared_vectors.rs"]
 mod shared_vectors;
 use super::definition_map::DefinitionMap;
@@ -245,8 +247,24 @@ pub struct MaterializationStats {
 }
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
+struct SourceModule {
+    package: String,
+    file: Option<syntax::syntax::SourceId>,
+    root: resolve::hir::ModuleId,
+    ordinal: i64,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ParameterOrder<'a> {
+    source: Option<(&'a str, Option<&'a std::path::Path>, i64)>,
+    module: u32,
+    position: u32,
+}
+
+#[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ModuleEnv {
     name: String,
+    source: Option<Arc<SourceModule>>,
     parent: Option<ModuleId>,
     children: Vec<ModuleId>,
     parameters: Vec<ModuleParameter>,
@@ -268,6 +286,7 @@ impl ModuleEnv {
     fn new(name: String, parent: Option<ModuleId>, parameters: Vec<ModuleParameter>) -> Self {
         Self {
             name,
+            source: None,
             parent,
             children: Vec::new(),
             parameters,
@@ -385,6 +404,7 @@ pub struct CrateEnv {
     // Import graphs can contain millions of namespaces. Growing their index
     // must not transiently duplicate every large module record.
     #[allow(clippy::vec_box)]
+    #[serde(deserialize_with = "module_checkpoint::deserialize")]
     modules: Vec<Box<ModuleEnv>>,
     namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
     #[serde(skip)]
@@ -445,6 +465,31 @@ impl Default for CrateEnv {
 }
 
 impl CrateEnv {
+    pub(crate) fn clear_judgements(&self) {
+        self.kernel.borrow_mut().clear_caches();
+        *self.inference_cache.borrow_mut() = Default::default();
+        *self.contexts.borrow_mut() = Default::default();
+        *self.whnf_cache.borrow_mut() = Default::default();
+        *self.structural_expressions.borrow_mut() = Default::default();
+        *self.namespace_shareability.borrow_mut() = Default::default();
+        *self.namespace_conversion_cache.borrow_mut() = Default::default();
+        *self.namespace_substitution_cache.borrow_mut() = Default::default();
+        *self.namespace_alias_cache.borrow_mut() = Default::default();
+    }
+
+    pub(crate) fn clear_caches(&mut self) {
+        self.clear_judgements();
+        *self.namespace_argument_cache.get_mut() = Default::default();
+        self.exact_definition_specializations = Default::default();
+        self.exact_inductive_specializations = Default::default();
+        self.exact_datatype_specializations = Default::default();
+        self.specializations_indexed = false;
+        self.namespace_instances.clear();
+        self.namespace_instances.shrink_to_fit();
+        self.closed_namespace_routes.clear();
+        self.closed_namespace_routes.shrink_to_fit();
+    }
+
     /// Retained cache entries and distinct shared context extensions.
     pub fn cache_counts(&self) -> [(&'static str, usize); 4] {
         let inference = self.inference_cache.borrow();
@@ -619,6 +664,49 @@ impl CrateEnv {
 
     pub fn reserve_child_module(&mut self, parent: ModuleId, name: String) -> ModuleId {
         self.add_module_entry(name, Some(parent), vec![])
+    }
+
+    pub(crate) fn record_source_module(&mut self, id: ModuleId, module: &resolve::hir::Module) {
+        let parent = self.module(id).parent.unwrap_or(ModuleId(0));
+        let inherited = self.module(parent).source.as_deref().or_else(|| {
+            self.checking_scopes
+                .get(&parent)
+                .and_then(|owner| self.module(*owner).source.as_deref())
+        });
+        let source = match inherited {
+            Some(parent) => SourceModule {
+                package: parent.package.clone(),
+                file: parent.file.clone(),
+                root: parent.root,
+                ordinal: i64::from(module.id.0) - i64::from(parent.root.0),
+            },
+            None => SourceModule {
+                package: module.name.0.clone(),
+                file: module
+                    .header_source
+                    .as_ref()
+                    .or(module.source.as_ref())
+                    .map(|s| s.id.clone()),
+                root: module.id,
+                ordinal: 0,
+            },
+        };
+        self.module_mut(id).source = Some(Arc::new(source));
+    }
+
+    pub(crate) fn parameter_sort_key(&self, id: ModuleParamId) -> ParameterOrder<'_> {
+        let source = self.module(id.module).source.as_deref();
+        ParameterOrder {
+            source: source.map(|s| {
+                (
+                    s.package.as_str(),
+                    s.file.as_ref().map(|f| f.0.as_path()),
+                    s.ordinal,
+                )
+            }),
+            module: if source.is_some() { 0 } else { id.module.0 },
+            position: id.position,
+        }
     }
 
     pub fn add_module_parameter(&mut self, module: ModuleId, parameter: ModuleParameter) {
@@ -1062,9 +1150,6 @@ impl CrateEnv {
                     let scope = self.specialization_scope(id.module, shareable);
                     let mut cache = self.namespace_argument_cache.borrow_mut();
                     let arguments = cache.intern(&specialization.arguments);
-                    if shareable {
-                        cache.register(specialization.source.module, arguments);
-                    }
                     self.$exact
                         .insert((specialization.source, arguments, scope), id);
                 }
@@ -1183,32 +1268,6 @@ impl CrateEnv {
             timing::costs::count("namespace.definition-origin-hit", || 1);
             return (source, origin.source, false);
         }
-        if shareable {
-            self.discover_namespace_equivalents(origin.source.module, &arguments, &mut comparisons);
-            let canonical = self
-                .namespace_argument_cache
-                .borrow()
-                .equivalents(exact_key.1)
-                .iter()
-                .find_map(|&arguments| {
-                    self.exact_definition_specializations
-                        .get(&(
-                            origin.source,
-                            arguments,
-                            super::namespaces::NamespaceScopeId::CLOSED,
-                        ))
-                        .copied()
-                });
-            if let Some(canonical) = canonical {
-                self.exact_definition_specializations
-                    .insert(exact_key, canonical);
-                timing::costs::count("namespace.definition-candidate-hit", || 1);
-                return (source, canonical, false);
-            }
-            self.namespace_argument_cache
-                .borrow_mut()
-                .register(origin.source.module, exact_key.1);
-        }
         self.exact_definition_specializations.insert(exact_key, id);
         self.nominal_definitions.insert(
             id,
@@ -1311,6 +1370,33 @@ impl CrateEnv {
             || self.namespace_arguments(id.module).into(),
             |origin| std::borrow::Cow::Borrowed(origin.arguments.as_ref()),
         )
+    }
+
+    pub(crate) fn definition_specialization(
+        &self,
+        id: DefId,
+    ) -> Option<&super::namespaces::Specialization<DefId>> {
+        self.nominal_definitions.get(&id)
+    }
+
+    pub(crate) fn generic_definition_specialization(
+        &self,
+        id: DefId,
+    ) -> Option<&super::namespaces::Specialization<DefId>> {
+        let origin = self.definition_specialization(id)?;
+        (!self.namespace_has_local_context(origin.source.module)
+            && !self
+                .checking_program_contexts
+                .contains_key(&origin.source.module)
+            && matches!(
+                self.materialized_definition(origin.source)?,
+                DefinedConstant::Pts { .. } | DefinedConstant::Contextual { .. }
+            )
+            && origin
+                .arguments
+                .iter()
+                .all(|(_, a)| matches!(a, ModuleArgument::Pts(_))))
+        .then_some(origin)
     }
 
     pub(crate) fn definition_specialization_source(&self, id: DefId) -> DefId {
@@ -1488,32 +1574,6 @@ impl CrateEnv {
             timing::costs::count("namespace.inductive-origin-hit", || 1);
             return (source, origin.source, false);
         }
-        if shareable {
-            self.discover_namespace_equivalents(origin.source.module, &arguments, &mut comparisons);
-            let canonical = self
-                .namespace_argument_cache
-                .borrow()
-                .equivalents(exact_key.1)
-                .iter()
-                .find_map(|&arguments| {
-                    self.exact_inductive_specializations
-                        .get(&(
-                            origin.source,
-                            arguments,
-                            super::namespaces::NamespaceScopeId::CLOSED,
-                        ))
-                        .copied()
-                });
-            if let Some(canonical) = canonical {
-                self.exact_inductive_specializations
-                    .insert(exact_key, canonical);
-                timing::costs::count("namespace.inductive-candidate-hit", || 1);
-                return (source, canonical, false);
-            }
-            self.namespace_argument_cache
-                .borrow_mut()
-                .register(origin.source.module, exact_key.1);
-        }
         self.exact_inductive_specializations.insert(exact_key, id);
         self.nominal_inductives.insert(
             id,
@@ -1679,32 +1739,6 @@ impl CrateEnv {
             }
             timing::costs::count("namespace.datatype-origin-hit", || 1);
             return (source, origin.source, false);
-        }
-        if shareable {
-            self.discover_namespace_equivalents(origin.source.module, &arguments, &mut comparisons);
-            let canonical = self
-                .namespace_argument_cache
-                .borrow()
-                .equivalents(exact_key.1)
-                .iter()
-                .find_map(|&arguments| {
-                    self.exact_datatype_specializations
-                        .get(&(
-                            origin.source,
-                            arguments,
-                            super::namespaces::NamespaceScopeId::CLOSED,
-                        ))
-                        .copied()
-                });
-            if let Some(canonical) = canonical {
-                self.exact_datatype_specializations
-                    .insert(exact_key, canonical);
-                timing::costs::count("namespace.datatype-candidate-hit", || 1);
-                return (source, canonical, false);
-            }
-            self.namespace_argument_cache
-                .borrow_mut()
-                .register(origin.source.module, exact_key.1);
         }
         self.exact_datatype_specializations.insert(exact_key, id);
         self.nominal_datatypes.insert(
@@ -1963,6 +1997,16 @@ impl CrateEnv {
             inductives: self.materialized_inductives.get(),
             datatypes: self.materialized_datatypes.get(),
         }
+    }
+
+    pub(crate) fn namespace_entry_count(&self) -> usize {
+        self.modules.len()
+            + self.lazy_definitions.len()
+            + self.lazy_inductives.len()
+            + self.lazy_program_inductives.len()
+            + self.nominal_definitions.len()
+            + self.nominal_inductives.len()
+            + self.nominal_datatypes.len()
     }
 
     #[cfg(test)]

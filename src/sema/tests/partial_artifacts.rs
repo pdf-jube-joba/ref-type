@@ -33,7 +33,7 @@ fn snapshot() -> SourceSnapshot {
     snapshot
 }
 #[test]
-fn overlapping_partial_artifacts_combine_in_both_orders_and_feed_a_consumer() {
+fn overlapping_partial_results_combine_in_both_orders_and_feed_a_consumer() {
     for order in [["Left", "Right"], ["Right", "Left"]] {
         let cache = Cache::new();
         let snapshot = snapshot();
@@ -68,9 +68,8 @@ fn overlapping_partial_artifacts_combine_in_both_orders_and_feed_a_consumer() {
                 }
             )
         );
-        assert_eq!(
-            consumer.stats().checked_modules,
-            2,
+        assert!(
+            consumer.stats().reused_modules >= 4,
             "{:?}",
             consumer.stats()
         );

@@ -67,7 +67,7 @@ wall time、user time、system time、最大 RSS、終了状態、ソースの d
 | --- | --- |
 | `--seconds` | 300秒。各実行の時間上限 |
 | `--memory-mib` | 3072 MiB。各プロセスの仮想メモリ上限 |
-| `--cache-mib` | 8192 MiB。CLI のキャッシュ容量設定 |
+| `--cache-mib` | 省略時は無制限。CLI のキャッシュ容量設定 |
 | `--output-mib` | 8 MiB。各実行のログ容量上限 |
 | `--batch-seconds` | CLI が検査範囲を分割するまでの秒数 |
 | `--progress-seconds` | 30秒。実行中の経過時間を表示する間隔 |

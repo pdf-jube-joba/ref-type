@@ -113,7 +113,7 @@ impl State {
                 }
             }
             ProgressEvent::Finished { success } => self.success = Some(*success),
-            ProgressEvent::CheckpointSaved { .. } => {}
+            ProgressEvent::CheckpointSaved { .. } | ProgressEvent::EnvironmentReused { .. } => {}
         }
         None
     }
@@ -195,6 +195,9 @@ impl State {
             ProgressEvent::Finished { success } => format!("event=finished success={success}"),
             ProgressEvent::CheckpointSaved { steps } => {
                 format!("event=checkpoint-saved steps={steps}")
+            }
+            ProgressEvent::EnvironmentReused { extra_modules } => {
+                format!("event=environment-reused extra_modules={extra_modules}")
             }
         };
         format!(

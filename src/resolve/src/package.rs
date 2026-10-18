@@ -98,9 +98,30 @@ impl PackageExport {
     pub fn order(&self) -> &[CheckStep] {
         &self.data.order
     }
+
+    pub fn owns_binding(&self, binding: BindingId) -> bool {
+        let (space, value) = if binding.0 & (1 << 63) == 0 {
+            (1, binding.0)
+        } else {
+            (3, (binding.0 >> 32) & 0x7fff_ffff)
+        };
+        self.allocations.0[space].binary_search(&value).is_ok()
+    }
 }
 
 impl Session {
+    pub fn contains_package(&self, name: &str) -> bool {
+        self.roots.iter().any(|module| module.name.as_str() == name)
+    }
+
+    pub fn order(&self) -> &[CheckStep] {
+        &self.resolver.order
+    }
+
+    pub fn references(&self) -> std::cell::Ref<'_, Vec<Reference>> {
+        self.resolver.references.borrow()
+    }
+
     fn counters(&self) -> [u64; 5] {
         let r = &self.resolver;
         [
@@ -589,9 +610,9 @@ mod tests {
     fn remap_dependencies(source: &Relocation, target: &Relocation) -> Relocation {
         let mut result = Relocation::default();
         for (canonical, source_runtime) in source.mappings() {
-            let target_runtime = target.lookup(canonical).unwrap();
+            let target_runtime = target.lookup(&canonical).unwrap();
             result
-                .insert_identity(source_runtime.clone(), target_runtime.clone())
+                .insert_identity(source_runtime, target_runtime)
                 .unwrap();
         }
         result
