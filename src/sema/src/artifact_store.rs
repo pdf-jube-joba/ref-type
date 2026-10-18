@@ -111,10 +111,10 @@ impl CollectionIndex {
         for dependency in &manifest.dependencies {
             let count = self.dependencies.get_mut(dependency).unwrap();
             *count -= 1;
-            if *count == 0 {
-                if let Some(rank) = self.ranks.get(&(*dependency, false)) {
-                    self.eligible.insert(*rank);
-                }
+            if *count == 0
+                && let Some(rank) = self.ranks.get(&(*dependency, false))
+            {
+                self.eligible.insert(*rank);
             }
         }
         let mut orphaned = BTreeSet::new();

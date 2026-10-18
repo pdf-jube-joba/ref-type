@@ -19,7 +19,7 @@ use crate::{
         remapping::{exp_subst_map, remap_all_global_ids},
     },
 };
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub(crate) enum ItemAccessResult {
@@ -775,7 +775,7 @@ impl ModuleManager {
         // argument environment; retain it once rather than copying every tuple.
         let shared_substitutions: Arc<[_]> = substitutions.clone().into();
         let shared_reflected_substitutions: Arc<[_]> = reflected_substitutions.clone().into();
-        let shared_definition_environment = Arc::new(DefinitionEnvironment {
+        let shared_definition_environment = Rc::new(DefinitionEnvironment {
             substitutions: shared_substitutions.clone(),
             reflected_substitutions: shared_reflected_substitutions.clone(),
             remapping: std::cell::Cell::new(RemappingId(0)),

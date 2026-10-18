@@ -20,6 +20,7 @@ use std::{
     cell::{Cell, OnceCell, RefCell},
     collections::{HashMap, HashSet},
     hash::{Hash, Hasher},
+    rc::Rc,
     sync::Arc,
 };
 
@@ -202,7 +203,7 @@ pub(crate) struct DefinitionEnvironment {
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyDefinition {
     source: DefId,
-    environment: Arc<DefinitionEnvironment>,
+    environment: Rc<DefinitionEnvironment>,
 }
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -1039,7 +1040,7 @@ impl CrateEnv {
         self.reserve_lazy_definition_shared(
             module,
             source,
-            Arc::new(DefinitionEnvironment {
+            Rc::new(DefinitionEnvironment {
                 substitutions: substitutions.into(),
                 reflected_substitutions: reflected_substitutions.into(),
                 remapping: Cell::new(RemappingId(0)),
@@ -1051,7 +1052,7 @@ impl CrateEnv {
         &mut self,
         module: ModuleId,
         source: DefId,
-        environment: Arc<DefinitionEnvironment>,
+        environment: Rc<DefinitionEnvironment>,
     ) -> DefId {
         let parameters = self.definition_parameters.get(&source).cloned();
         let index = self.module(module).definitions.len() as u32;

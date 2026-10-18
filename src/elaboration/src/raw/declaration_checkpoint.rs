@@ -90,7 +90,7 @@ pub(super) mod definitions {
             Vec<(DefId, DefId, usize, usize, RemappingId)>,
         );
         let (arguments, reflected, entries): Data = Deserialize::deserialize(deserializer)?;
-        let mut environments: HashMap<(usize, usize, RemappingId), Arc<DefinitionEnvironment>> =
+        let mut environments: HashMap<(usize, usize, RemappingId), Rc<DefinitionEnvironment>> =
             HashMap::new();
         entries
             .into_iter()
@@ -98,7 +98,7 @@ pub(super) mod definitions {
                 let environment = match environments.entry((a, r, remapping)) {
                     std::collections::hash_map::Entry::Occupied(entry) => entry.get().clone(),
                     std::collections::hash_map::Entry::Vacant(entry) => entry
-                        .insert(Arc::new(DefinitionEnvironment {
+                        .insert(Rc::new(DefinitionEnvironment {
                             substitutions: get(&arguments, a)?,
                             reflected_substitutions: get(&reflected, r)?,
                             remapping: Cell::new(remapping),
@@ -300,7 +300,7 @@ mod tests {
                 (id, value)
             })
             .collect();
-        let environment = Arc::new(DefinitionEnvironment {
+        let environment = Rc::new(DefinitionEnvironment {
             substitutions: arguments.clone(),
             reflected_substitutions: reflected.clone(),
             remapping: Cell::new(RemappingId(0)),
@@ -326,14 +326,14 @@ mod tests {
         assert_eq!(chunked.entries.len(), saved.entries.len());
         let shared = &chunked.entries[&DefId { module, index: 0 }].environment;
         for (_, value) in &chunked.entries {
-            assert!(Arc::ptr_eq(shared, &value.environment));
+            assert!(Rc::ptr_eq(shared, &value.environment));
         }
         let restored: Saved = postcard::from_bytes(&bytes).unwrap();
         let first = &restored.entries[&DefId { module, index: 0 }];
         for value in restored.entries.values() {
             assert_eq!(value.environment.substitutions, arguments);
             assert_eq!(value.environment.reflected_substitutions, reflected);
-            assert!(Arc::ptr_eq(&first.environment, &value.environment));
+            assert!(Rc::ptr_eq(&first.environment, &value.environment));
             assert!(Arc::ptr_eq(
                 &first.environment.substitutions,
                 &value.environment.substitutions
@@ -361,8 +361,8 @@ mod tests {
         let first = &restored.entries[&DefId { module, index: 0 }].environment;
         let other = &restored.entries[&DefId { module, index: 1 }].environment;
         let shared = &restored.entries[&DefId { module, index: 2 }].environment;
-        assert!(Arc::ptr_eq(first, shared));
-        assert!(!Arc::ptr_eq(first, other));
+        assert!(Rc::ptr_eq(first, shared));
+        assert!(!Rc::ptr_eq(first, other));
         first.remapping.set(RemappingId(2));
         assert_eq!(shared.remapping.get(), RemappingId(2));
         assert_eq!(other.remapping.get(), RemappingId(1));
@@ -395,7 +395,7 @@ mod tests {
                             id,
                             LazyDefinition {
                                 source: id,
-                                environment: Arc::new(DefinitionEnvironment {
+                                environment: Rc::new(DefinitionEnvironment {
                                     substitutions: if share {
                                         arguments.clone()
                                     } else {
