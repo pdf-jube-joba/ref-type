@@ -7,9 +7,9 @@
 \import calculus.Real[].Multivariable[n := n].Open[] \as Open;
 \import Open.Smooth[] \as Smooth;
 \import Open.Restriction[] \as Restriction;
-\definition OriginalChart: \Set := \Cast[Original.Chart] #charts{M.atlas};
-\definition restricted(chart: OriginalChart): Charts.Chart := Restricted.Of[chart := chart].value;
-\definition Member(chart: Charts.Chart): \Prop := \exists { original: OriginalChart \where restricted original = chart };
+\definition OriginalChart: \Set := \Cast[Original.Chart] M.atlas.charts;
+\definition restricted[chart: OriginalChart]: Charts.Chart := Restricted.Of[chart := chart].value;
+\definition Member[chart: Charts.Chart]: \Prop := \exists ( original: OriginalChart \where restricted original = chart );
 \definition charts: \Pow Charts.Chart := { chart: Charts.Chart \where Member chart };
 \module Pair(left, right: OriginalChart);
 \definition compatible: \forall (left, right: Charts.Chart) -> Member left -> Member right -> Atlases.Compatible left right := \block {
@@ -24,18 +24,18 @@
     }, equality: leftEqual
   }
 };
-\definition covers: \forall (x: Point) -> \exists { chart: Charts.Chart \where Logic.And[Member chart, Charts.Contains chart x] } := \block {
+\definition covers: \forall (x: Point) -> \exists ( chart: Charts.Chart \where Logic.And[Member chart, Charts.Contains chart x] ) := \block {
   \fun (x: Point) \then
   \takefrom original: \Cast[Original.Chart] ({ c: Original.Chart \where Logic.And[OriginalAtlas.Member M.atlas c, Original.Contains c x] })
-    \by #covers{M.atlas} x \then
+    \by M.atlas.covers x \then
   \let witness: Logic.And[OriginalAtlas.Member M.atlas original, Original.Contains original x] :=
     \bysub(Original.Chart, { c: Original.Chart \where Logic.And[OriginalAtlas.Member M.atlas c, Original.Contains c x] }, original) \then
-  \let chosen: OriginalChart := \into[Original.Chart](original, #charts{M.atlas}) \by { #left{witness} } \then
+  \let chosen: OriginalChart := \into[Original.Chart](original, M.atlas.charts) \by { witness.left } \then
   \return Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Logic.And[Member c, Charts.Contains c x] }] (restricted chosen)
     (Logic.And[_, _]::#
       (Logic.existsIntro[OriginalChart, { c: OriginalChart \where restricted c = restricted chosen }] chosen
         (\refl(restricted chosen)))
-      (#right{witness}))
+      (witness.right))
 };
 \definition atlas: Atlases.Atlas := Atlases.Atlas { charts := charts, covers := covers, compatible := compatible };
 \import topology.Topology[Carrier := M.Point].Subspace[S := U].Properties[] \as Topological;

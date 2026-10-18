@@ -63,7 +63,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = \( a / b \)) -> FALSE := {
   } where {
     - l1: (x, y, z: int) -> (\( x * y \) = \( 2 * z \)) -> (\exists x': int, x = \( 2 * m \)) \/ (\exists y': int, y = \(2 * y' \)) := { ... };
   } proof {
-    - goal: \exists { y: int | \( x * x \) = \( 2 * y \) } := \exact h;
+    - goal: \exists ( y: int | \( x * x \) = \( 2 * y \) ) := \exact h;
   }
 
   have h2: (\exists a': int, a = \( 2 * a \)) := reasoning! {
@@ -111,7 +111,7 @@ theorem sqrt-irrational: (a, b: int) -> (sqrt 2 = \( a / b \)) -> FALSE := {
   }
 } proof {
   // take を使ったので、存在証明が goal に入っている。
-  - goal: \exists { a': int | a = \( 2 * a' \)} := \exact h2;
-  - goal: \exists { b': int | b = \( 2 * b' \)} := \exact h3;
+  - goal: \exists ( a': int | a = \( 2 * a' \)) := \exact h2;
+  - goal: \exists ( b': int | b = \( 2 * b' \)) := \exact h3;
 }
 ```

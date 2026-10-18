@@ -1,41 +1,41 @@
 \definition degree: I.Int^ := I.Int^::ofNat n;
-\definition to(h: Source.Carrier degree): Target.Carrier degree := Target.At[z := degree].Carrier {
-  apply := \fun (x: ChainExtension.Carrier degree) => #apply{h} x,
-  addition := \fun (x, y: ChainExtension.Carrier degree) => #addition{h} x y,
-  scalar := \fun (a: R)(x: ChainExtension.Carrier degree) => #scalar{h} a x,
+\definition to[h: Source.Carrier degree]: Target.Carrier degree := Target.At[z := degree].Carrier {
+  apply := \fun (x: ChainExtension.Carrier degree) => (h).apply x,
+  addition := \fun (x, y: ChainExtension.Carrier degree) => (h).addition x y,
+  scalar := \fun (a: R)(x: ChainExtension.Carrier degree) => (h).scalar a x,
 };
-\definition from(h: Target.Carrier degree): Natural.Carrier n := Natural.At[n := n].Carrier {
-  apply := \fun (x: P.family.Carrier n) => #apply{h} (ChainExtension.Positive[n := n].intro x),
-  addition := \fun (x, y: P.family.Carrier n) => #addition{h} (ChainExtension.Positive[n := n].intro x) (ChainExtension.Positive[n := n].intro y),
-  scalar := \fun (a: R)(x: P.family.Carrier n) => #scalar{h} a (ChainExtension.Positive[n := n].intro x),
+\definition from[h: Target.Carrier degree]: Natural.Carrier n := Natural.At[n := n].Carrier {
+  apply := \fun (x: P.family.Carrier n) => (h).apply (ChainExtension.Positive[n := n].intro x),
+  addition := \fun (x, y: P.family.Carrier n) => (h).addition (ChainExtension.Positive[n := n].intro x) (ChainExtension.Positive[n := n].intro y),
+  scalar := \fun (a: R)(x: P.family.Carrier n) => (h).scalar a (ChainExtension.Positive[n := n].intro x),
 };
 \import Modules.Hom[V := Source.Carrier degree, W := Target.Carrier degree, source := Source.space degree, target := Target.space degree] \as Forward;
 \definition forward: Forward.Map := Forward.Map {
   apply := to,
-  addition := \fun (h, j: Source.Carrier degree) => Target.At[z := degree].ext (to (#add{(Source.space degree)} h j)) (#add{(Target.space degree)} (to h) (to j))
-    (\fun (x: ChainExtension.Carrier degree) => \refl(#add{N.space} (#apply{h} x) (#apply{j} x))),
-  scalar := \fun (a: R)(h: Source.Carrier degree) => Target.At[z := degree].ext (to (#smul{(Source.space degree)} a h)) (#smul{(Target.space degree)} a (to h))
-    (\fun (x: ChainExtension.Carrier degree) => \refl(#smul{N.space} a (#apply{h} x))),
+  addition := \fun (h, j: Source.Carrier degree) => Target.At[z := degree].ext (to ((Source.space degree).add h j)) ((Target.space degree).add (to h) (to j))
+    (\fun (x: ChainExtension.Carrier degree) => \refl((N.space).add ((h).apply x) ((j).apply x))),
+  scalar := \fun (a: R)(h: Source.Carrier degree) => Target.At[z := degree].ext (to ((Source.space degree).smul a h)) ((Target.space degree).smul a (to h))
+    (\fun (x: ChainExtension.Carrier degree) => \refl((N.space).smul a ((h).apply x))),
 };
 \import Modules.Hom[V := Target.Carrier degree, W := Natural.Carrier n, source := Target.space degree, target := Natural.space n] \as Back;
 \definition backwardRaw: Back.Map := Back.Map {
   apply := from,
-  addition := \fun (h, j: Target.Carrier degree) => Natural.At[n := n].ext (from (#add{(Target.space degree)} h j)) (#add{(Natural.space n)} (from h) (from j))
-    (\fun (x: P.family.Carrier n) => \refl(#add{N.space} (#apply{h} (ChainExtension.Positive[n := n].intro x)) (#apply{j} (ChainExtension.Positive[n := n].intro x)))),
-  scalar := \fun (a: R)(h: Target.Carrier degree) => Natural.At[n := n].ext (from (#smul{(Target.space degree)} a h)) (#smul{(Natural.space n)} a (from h))
-    (\fun (x: P.family.Carrier n) => \refl(#smul{N.space} a (#apply{h} (ChainExtension.Positive[n := n].intro x)))),
+  addition := \fun (h, j: Target.Carrier degree) => Natural.At[n := n].ext (from ((Target.space degree).add h j)) ((Natural.space n).add (from h) (from j))
+    (\fun (x: P.family.Carrier n) => \refl((N.space).add ((h).apply (ChainExtension.Positive[n := n].intro x)) ((j).apply (ChainExtension.Positive[n := n].intro x)))),
+  scalar := \fun (a: R)(h: Target.Carrier degree) => Natural.At[n := n].ext (from ((Target.space degree).smul a h)) ((Natural.space n).smul a (from h))
+    (\fun (x: P.family.Carrier n) => \refl((N.space).smul a ((h).apply (ChainExtension.Positive[n := n].intro x)))),
 };
 \import Modules.Hom[V := Natural.Carrier n, W := Source.Carrier degree, source := Natural.space n, target := Source.space degree]
   .Composition[U := Target.Carrier degree, domain := Target.space degree] \as Composition;
 \definition backward: Modules.Hom[V := Target.Carrier degree, W := Source.Carrier degree, source := Target.space degree, target := Source.space degree].Map :=
   Composition.compose Source.Positive[n := n].forward backwardRaw;
-\definition leftInverse: \forall (h: Source.Carrier degree) -> #apply{backward} (#apply{forward} h) = h :=
+\definition leftInverse: \forall (h: Source.Carrier degree) -> (backward).apply ((forward).apply h) = h :=
   \fun (h: Source.Carrier degree) => trans!{{Source.Carrier degree}} _ _ _
     (congr!{{Natural.Carrier n} {Source.Carrier degree}} (Source.Positive[n := n].intro) (from (to h)) h
-      (Natural.At[n := n].ext (from (to h)) h (\fun (x: P.family.Carrier n) => \refl(#apply{h} x))))
-    (#rightInverse{Source.Positive[n := n].isomorphism} h);
-\definition rightInverse: \forall (h: Target.Carrier degree) -> #apply{forward} (#apply{backward} h) = h :=
-  \fun (h: Target.Carrier degree) => Target.At[z := degree].ext (to (#apply{backward} h)) h (\fun (x: ChainExtension.Carrier degree) => \refl(#apply{h} x));
+      (Natural.At[n := n].ext (from (to h)) h (\fun (x: P.family.Carrier n) => \refl((h).apply x))))
+    ((Source.Positive[n := n].isomorphism).rightInverse h);
+\definition rightInverse: \forall (h: Target.Carrier degree) -> (forward).apply ((backward).apply h) = h :=
+  \fun (h: Target.Carrier degree) => Target.At[z := degree].ext (to ((backward).apply h)) h (\fun (x: ChainExtension.Carrier degree) => \refl((h).apply x));
 \definition isomorphism: DegreeIso degree := Modules.Isomorphism[V := Source.Carrier degree, W := Target.Carrier degree, source := Source.space degree, target := Target.space degree].Isomorphism {
   forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
 };

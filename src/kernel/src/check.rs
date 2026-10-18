@@ -333,8 +333,7 @@ impl<'a> Checker<'a> {
         let _cost = timing::costs::Scope::enter("kernel.check_open");
         let closed = self.arena().max_loose_bound(term).is_none()
             && self.arena().max_loose_bound(expected).is_none();
-        let complete = !self.solving
-            && !self.arena().contains_meta(term)
+        let complete = !self.arena().contains_meta(term)
             && !self.arena().contains_meta(expected)
             && (closed || !self.context_state().1);
         let key = complete.then(|| {
@@ -350,7 +349,14 @@ impl<'a> Checker<'a> {
         {
             return Ok(());
         }
+        // A complete judgement cannot solve any metavariables. Validate it
+        // immediately and share the result with the later verification pass.
+        let solving = self.solving;
+        if complete {
+            self.solving = false;
+        }
         let result = self.check_uncached(term, expected);
+        self.solving = solving;
         if result.is_ok()
             && let Some(key) = key
         {
@@ -577,39 +583,19 @@ impl<'a> Checker<'a> {
             }
             return result;
         }
-        let unused = if closed {
-            0
-        } else {
-            self.env
-                .minimum_loose_bound(term)
-                .unwrap_or(0)
-                .min(self.context.len())
-        };
         let context = if closed {
             crate::sharing::ContextId::default()
-        } else if unused > 0 {
-            self.context_state();
-            self.context
-                .len()
-                .checked_sub(unused + 1)
-                .and_then(|index| self.context_states.get(index))
-                .map_or(crate::sharing::ContextId::default(), |state| state.0)
         } else {
             self.context_state().0
         };
-        let canonical = self.env.trim_unused(term, unused)?;
-        if let Some(&ty) = self.env.inferred.borrow().get(&(context, canonical)) {
-            return self.env.shifted(ty, unused);
+        if let Some(&ty) = self.env.inferred.borrow().get(&(context, term)) {
+            return Ok(ty);
         }
         let solving = std::mem::replace(&mut self.solving, false);
         let result = self.infer_framed(term);
         self.solving = solving;
         if let Ok(ty) = result {
-            let canonical_ty = self.env.trim_unused(ty, unused)?;
-            self.env
-                .inferred
-                .borrow_mut()
-                .insert((context, canonical), canonical_ty);
+            self.env.inferred.borrow_mut().insert((context, term), ty);
         }
         result
     }
@@ -1424,26 +1410,20 @@ impl<'a> Checker<'a> {
                 Ok(computation_ty)
             }
             Node::BoxType { program_ty } => {
-                let i = self.closed_program_type(program_ty)?;
+                let i = self.program_type(program_ty, true)?;
                 Ok(self.base(BaseSort::Set(i)))
             }
             Node::BoxProgram {
                 program_ty,
                 program,
             } => {
-                self.closed_program_type(program_ty)?;
-                if max_loose_bound(self.arena(), program).is_some()
-                    || self.env.contains_parameter(program)
-                {
-                    return Err(crate::error::Error::BoxPayloadMustBeClosed);
-                }
-                let mut closed = Checker::new(self.env, self.metas, vec![]);
-                closed.check_open(program, program_ty)?;
-                closed.check_open(closed.reflect(program), closed.reflect(program_ty))?;
+                self.program_type(program_ty, true)?;
+                self.check_open(program, program_ty)?;
+                self.check_open(self.reflect(program), self.reflect(program_ty))?;
                 Ok(self.alloc(Node::BoxType { program_ty }))
             }
             Node::ForceBox { program_ty, boxed } => {
-                self.closed_program_type(program_ty)?;
+                self.program_type(program_ty, true)?;
                 self.check_open(boxed, self.alloc(Node::BoxType { program_ty }))?;
                 Ok(self.reflect(program_ty))
             }
@@ -1452,7 +1432,7 @@ impl<'a> Checker<'a> {
                 let Node::BoxType { program_ty } = self.arena().get(self.head(ty)?) else {
                     return Err(crate::error::Error::BoxedApplicationRequiresBoxAB);
                 };
-                self.closed_program_type(program_ty)?;
+                self.program_type(program_ty, true)?;
                 let (domain, body) = self.product(program_ty)?;
                 self.program_type(domain, false)?;
                 let input = self.alloc(Node::ReturnType { value_ty: domain });
@@ -1462,7 +1442,7 @@ impl<'a> Checker<'a> {
                     self.alloc(Node::BoxType { program_ty: input }),
                 )?;
                 let codomain = self.env.instantiate(body, &[argument])?;
-                self.closed_program_type(codomain)?;
+                self.program_type(codomain, true)?;
                 Ok(self.alloc(Node::BoxType {
                     program_ty: codomain,
                 }))
@@ -1474,16 +1454,13 @@ impl<'a> Checker<'a> {
                         crate::error::Error::BoxedTypeApplicationRequiresABoxedTypeAbstraction,
                     );
                 };
-                self.closed_program_type(program_ty)?;
+                self.program_type(program_ty, true)?;
                 let (domain, codomain) = self.product(program_ty)?;
                 if !matches!(
                     self.formation(domain)?,
                     Sort::Upper(BaseSort::Value(_) | BaseSort::Computation(_))
                 ) {
                     return Err(crate::error::Error::BoxTypeBinderRequiresProgramKind);
-                }
-                if max_loose_bound(self.arena(), argument).is_some() {
-                    return Err(crate::error::Error::BoxedTypeArgumentMustBeClosed);
                 }
                 self.check_at("check argument type for application", argument, domain)?;
                 let program_ty = self.env.instantiate(codomain, &[argument])?;
@@ -1624,12 +1601,6 @@ impl<'a> Checker<'a> {
             domain,
             body,
         }))
-    }
-    fn closed_program_type(&mut self, ty: Expression) -> Result<usize, Error> {
-        if max_loose_bound(self.arena(), ty).is_some() || self.env.contains_parameter(ty) {
-            return Err(crate::error::Error::BoxRequiresAClosedComputationType);
-        }
-        Checker::new(self.env, self.metas, vec![]).program_type(ty, true)
     }
     fn check_run(
         &mut self,

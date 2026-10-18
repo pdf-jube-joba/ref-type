@@ -3,15 +3,15 @@
 \import Lists.Membership[A := Index] \as Membership;
 \import std.Logic[].Proposition[] \as Logic;
 \definition indices: Lists.List[Index] := Enumeration.list (N.Nat^::succ n) (Double.fromFinite n);
-\definition covers(i: Index): Membership.Occurs i indices :=
+\definition covers[i: Index]: Membership.Occurs i indices :=
   \idelim Double.fromFinite n (Double.finiteIndex n i) = i \with j: Index => Membership.Occurs j indices \by {
     base: Enumeration.occurs (N.Nat^::succ n) (Double.fromFinite n) (Double.finiteIndex n i),
     equality: Double.finiteIndexLeftInverse n i
   };
-\definition supported(v: Product.Carrier): Supported.Finite v :=
+\definition supported[v: Product.Carrier]: Supported.Finite v :=
   Logic.existsIntro[Lists.List[Index], { xs: Lists.List[Index] \where Supported.Supports xs v }] indices
-    (\fun (i: Index)(outside: Logic.Not (Membership.Occurs i indices)) => Logic.falseElim (v i = #zero{(dualFamily.space i)}) (outside (covers i)));
-\definition lift(v: Product.Carrier): Supported.Carrier := \into[Product.Carrier](v, Supported.Carrier) \by { supported v };
+    (\fun (i: Index)(outside: Logic.Not (Membership.Occurs i indices)) => Logic.falseElim (v i = (dualFamily.space i).zero) (outside (covers i)));
+\definition lift[v: Product.Carrier]: Supported.Carrier := \into[Product.Carrier](v, Supported.Carrier) \by { supported v };
 \import Modules.Hom[V := Product.Carrier, W := Supported.Carrier, source := Product.space, target := Supported.space] \as Lifts;
 \definition inclusion: Lifts.Map := Lifts.Map {
   apply := lift,
@@ -19,6 +19,6 @@
   scalar := \fun (a: R)(v: Product.Carrier) => \refl(lift (Product.scale a v)),
 };
 \import Modules.Hom[V := Supported.Carrier, W := Source.Carrier, source := Supported.space, target := Source.space].Composition[U := Product.Carrier, domain := Product.space] \as After;
-\definition fromProduct: Modules.Hom[V := Product.Carrier, W := Source.Carrier, source := Product.space, target := Source.space].Map := After.compose #backward{SourceCoordinates.isomorphism} inclusion;
-\definition coordinate(v: Product.Carrier)(i: Index): (#apply{SourceCoordinates.forward} (#apply{fromProduct} v)) i = v i :=
-  congr!{Supported.Carrier {dualFamily.Carrier i}} (\fun (w: Supported.Carrier) => w i) _ _ (#rightInverse{SourceCoordinates.isomorphism} (lift v));
+\definition fromProduct: Modules.Hom[V := Product.Carrier, W := Source.Carrier, source := Product.space, target := Source.space].Map := After.compose (SourceCoordinates.isomorphism).backward inclusion;
+\definition coordinate[v: Product.Carrier][i: Index]: ((SourceCoordinates.forward).apply ((fromProduct).apply v)) i = v i :=
+  congr!{Supported.Carrier {dualFamily.Carrier i}} (\fun (w: Supported.Carrier) => w i) _ _ ((SourceCoordinates.isomorphism).rightInverse (lift v));

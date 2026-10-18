@@ -36,7 +36,7 @@ expect = "accept"
 ```
 
 ```ref
-\definition identity(P: \Prop)(p: P): P := p;
+\definition identity[P: \Prop][p: P]: P := p;
 ```
 ````
 

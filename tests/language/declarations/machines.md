@@ -1,52 +1,56 @@
 # declarations / machines
 
-## machine box closedness
+## machine box parameters
 
-Box の computation type が局所変数に依存して閉じていない。
+Box の computation type と payload に module parameter を使える。
 
 ```toml case
-id = "reject-declarations.machine_box_closedness"
+id = "accept-declarations.machine_box_parameters"
 scope = "package"
-expect = "reject"
+expect = "accept"
 ```
 
 ```ref file=src/root.ref
 \module BundleSignatures {
 /* Program implementations, specifications, and terminating transitions. */
-\structure Correspondence {
+\structure Correspondence := {
   T: \VType,
   program: T,
   specification: T^,
   coherence: program^ = specification,
-}
+};
 
-\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+\definition Ready[State, Output: \Set][P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
   \step-match t: \RunStep[State, Output] \return \Prop \with {
     | \continue s: P s
     | \finish result: \forall (Q: \Prop) -> Q -> Q
   };
 
-\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+\definition Terminates[State, Output: \Set][step: State -> \RunStep[State, Output]][s: State]: \Prop :=
   \forall (P: State -> \Prop) ->
     (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
 
-\structure Machine {
+\structure Machine := {
   State: \VType,
   Output: \VType,
   step: \U(State ~> \F(\RunStep[State, Output])),
   terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
   run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
     \run[State, Output](step, s) \by { terminates s }),
+};
+\definition runBox[machine: Machine]: \Box[machine.State ~> \F(machine.Output)] :=
+  \box[_](\force machine.run);
 }
-}
-\module Open(A: \VType) {
+\module Open(A: \VType, a: A) {
   \import \root.BundleSignatures[] \as Signatures;
   \definition echo: Signatures.Machine := Signatures.Machine {
     State := A, Output := A,
     step := \thunk(\cfun(s: A) => \return(\finish[A, A](s))),
     terminates := \fun(s: A^)(P: _)(h: _) => h s (\fun(Q: \Prop)(q: Q) => q),
   };
-  \definition runbox: \Box[A ~> \F(A)] := \box[A ~> \F(A)](\force echo.run);
+  \definition runbox: \Box[A ~> \F(A)] := Signatures.runBox echo;
+  \definition agrees:
+    \squash[_](\boxapp(runbox, \box[_](\return a))) = a^ := \refl(a^);
 }
 ```
 
@@ -63,31 +67,31 @@ expect = "reject"
 ```ref file=src/root.ref
 \module BundleSignatures {
 /* Program implementations, specifications, and terminating transitions. */
-\structure Correspondence {
+\structure Correspondence := {
   T: \VType,
   program: T,
   specification: T^,
   coherence: program^ = specification,
-}
+};
 
-\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+\definition Ready[State, Output: \Set][P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
   \step-match t: \RunStep[State, Output] \return \Prop \with {
     | \continue s: P s
     | \finish result: \forall (Q: \Prop) -> Q -> Q
   };
 
-\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+\definition Terminates[State, Output: \Set][step: State -> \RunStep[State, Output]][s: State]: \Prop :=
   \forall (P: State -> \Prop) ->
     (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
 
-\structure Machine {
+\structure Machine := {
   State: \VType,
   Output: \VType,
   step: \U(State ~> \F(\RunStep[State, Output])),
   terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
   run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
     \run[State, Output](step, s) \by { terminates s }),
-}
+};
 }
 \module WrongStep {
   \import \root.BundleSignatures[] \as Signatures;
@@ -113,39 +117,39 @@ expect = "accept"
 ```ref file=src/root.ref
 \module BundleSignatures {
 /* Program implementations, specifications, and terminating transitions. */
-\structure Correspondence {
+\structure Correspondence := {
   T: \VType,
   program: T,
   specification: T^,
   coherence: program^ = specification,
-}
+};
 
-\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+\definition Ready[State, Output: \Set][P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
   \step-match t: \RunStep[State, Output] \return \Prop \with {
     | \continue s: P s
     | \finish result: \forall (Q: \Prop) -> Q -> Q
   };
 
-\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+\definition Terminates[State, Output: \Set][step: State -> \RunStep[State, Output]][s: State]: \Prop :=
   \forall (P: State -> \Prop) ->
     (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
 
-\structure Machine {
+\structure Machine := {
   State: \VType,
   Output: \VType,
   step: \U(State ~> \F(\RunStep[State, Output])),
   terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
   run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
     \run[State, Output](step, s) \by { terminates s }),
-}
+};
 }
 \module Bundles {
   \import \root.BundleSignatures[] \as Signatures;
   \inductive Unit: \VType := | unit: Unit;
-  \structure Fixed: \Set { value: Unit^, fixed: value = Unit^::unit }
+  \structure Fixed: \Set := { value: Unit^, fixed: value = Unit^::unit };
   \definition fixed: Fixed := Fixed { value := Unit^::unit, fixed := \refl(Unit^::unit) };
-  \definition value(s: Fixed): Unit^ := s.value;
-  \definition law(s: Fixed): s.value = Unit^::unit := s.fixed;
+  \definition value[s: Fixed]: Unit^ := s.value;
+  \definition law[s: Fixed]: s.value = Unit^::unit := s.fixed;
   \check law fixed: Unit^::unit = Unit^::unit;
   \definition computation: value fixed = Unit^::unit := \refl(Unit^::unit);
 
@@ -165,7 +169,7 @@ expect = "accept"
     step := \thunk(\cfun(s: Unit) => \return(\finish[Unit, Unit](s))),
     terminates := \fun(s: Unit^) (P: _) (h: _) => h s (\fun(Q: \Prop)(q: Q) => q),
   };
-  \structure Nested { machine: Signatures.Machine, correspondence: Signatures.Correspondence }
+  \structure Nested := { machine: Signatures.Machine, correspondence: Signatures.Correspondence };
   \definition wrapped: Nested := Nested {
     machine := echo,
     correspondence := Signatures.Correspondence {
@@ -201,7 +205,7 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Generic(A: \VType) {
-  \structure Correspondence { T: \VType, program: T, specification: T^, coherence: program^ = specification }
+  \structure Correspondence := { T: \VType, program: T, specification: T^, coherence: program^ = specification };
 
   \module Identity {
     \definition T: \VType := \U(A ~> \F(A));
@@ -217,7 +221,7 @@ expect = "accept"
   \import \root.Generic[A := Unit] \as G;
   \definition program: \U(Unit ~> Unit ~> Unit ~> \F(Unit)) :=
     \thunk(\cfun(x: Unit)(y: Unit)(z: Unit) => (\force G.boxed.program) x);
-  \definition read(x: Unit^): Unit^ := G.boxed.program^ x;
+  \definition read[x: Unit^]: Unit^ := G.boxed.program^ x;
   \definition identity: read Unit^::unit = Unit^::unit := \refl(Unit^::unit);
 }
 ```
@@ -235,31 +239,31 @@ expect = "accept"
 ```ref file=src/root.ref
 \module BundleSignatures {
 /* Program implementations, specifications, and terminating transitions. */
-\structure Correspondence {
+\structure Correspondence := {
   T: \VType,
   program: T,
   specification: T^,
   coherence: program^ = specification,
-}
+};
 
-\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+\definition Ready[State, Output: \Set][P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
   \step-match t: \RunStep[State, Output] \return \Prop \with {
     | \continue s: P s
     | \finish result: \forall (Q: \Prop) -> Q -> Q
   };
 
-\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+\definition Terminates[State, Output: \Set][step: State -> \RunStep[State, Output]][s: State]: \Prop :=
   \forall (P: State -> \Prop) ->
     (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
 
-\structure Machine {
+\structure Machine := {
   State: \VType,
   Output: \VType,
   step: \U(State ~> \F(\RunStep[State, Output])),
   terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
   run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
     \run[State, Output](step, s) \by { terminates s }),
-}
+};
 }
 \module Machines {
   \import \root.BundleSignatures[] \as Signatures;
@@ -269,7 +273,7 @@ expect = "accept"
       | first: \return(\continue[State, State](State::last))
       | last: \return(\finish[State, State](State::last))
     });
-  \definition Terminates(s: State^): \Prop := Signatures.Terminates State^ State^ step^ s;
+  \definition Terminates[s: State^]: \Prop := Signatures.Terminates State^ State^ step^ s;
   \definition lastTerminates: Terminates State^::last :=
     \fun(predicate: State^ -> \Prop)(h: _) => h State^::last (\fun(Q: \Prop)(q: Q) => q);
   \definition certificate: \forall(s: State^) -> Terminates s :=

@@ -1,42 +1,42 @@
 \import std.Data[].FinSet[] \as Fin;
 \import Fin.Tuples[A := Real.Real] \as Tuples;
 \import \root.ProjectivePlane[].Geometry[].Hemisphere[].Fundamental[] \as Fundamental;
-\definition negativeCoordinate(x: Lower.Coordinate): Lower.Coordinate := LowerContraction.scale (Real.neg Real.one) x;
-\definition negativeNorm(x: Lower.Coordinate): Lower.normSquared (negativeCoordinate x) = Lower.normSquared x :=
+\definition negativeCoordinate[x: Lower.Coordinate]: Lower.Coordinate := LowerContraction.scale (Real.neg Real.one) x;
+\definition negativeNorm[x: Lower.Coordinate]: Lower.normSquared (negativeCoordinate x) = Lower.normSquared x :=
   trans!{Real.Real} _ _ _ (LowerContraction.normScale (Real.neg Real.one) x)
     (trans!{Real.Real} _ _ _
       (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Lower.normSquared x)) _ _ Antipodal.minusOneSquared)
       (Laws.fieldMulOneLeft (Lower.normSquared x)));
-\definition negative(x: Lower.Disk): Lower.Disk := \into[Lower.Coordinate](negativeCoordinate x, Lower.ClosedBall) \by {
+\definition negative[x: Lower.Disk]: Lower.Disk := \into[Lower.Coordinate](negativeCoordinate x, Lower.ClosedBall) \by {
   R.leReplaceLeft (Lower.normSquared x) (Lower.normSquared (negativeCoordinate x)) Real.one
     (sym!{Real.Real} _ _ (negativeNorm x)) (\bysub(Lower.Coordinate, Lower.ClosedBall, x))
 };
-\definition antipodalTail(x: Lower.Disk): Split.tail (Antipodal.apply (sphereLift x)) = negative x :=
+\definition antipodalTail[x: Lower.Disk]: Split.tail (Antipodal.apply (sphereLift x)) = negative x :=
   \axiom:funext(Split.tail (Antipodal.apply (sphereLift x)), negative x, \fun (i: Lower.Index) =>
     congr!{Real.Real Real.Real} (Real.mul (Real.neg Real.one)) _ _ (Tuples.atSuccessor two (height x) x i));
-\definition antipodalHead(x: Lower.Disk): Split.head (Antipodal.apply (sphereLift x)) = Real.neg (height x) :=
+\definition antipodalHead[x: Lower.Disk]: Split.head (Antipodal.apply (sphereLift x)) = Real.neg (height x) :=
   trans!{Real.Real} _ _ _ (Fundamental.antipodalHeight (sphereLift x))
     (congr!{Real.Real Real.Real} Real.neg _ _ (Split.headJoin (height x) x));
-\definition boundaryHeight(x: Lower.Disk)(boundary: Lower.normSquared x = Real.one): height x = Real.zero :=
+\definition boundaryHeight[x: Lower.Disk][boundary: Lower.normSquared x = Real.one]: height x = Real.zero :=
   trans!{Real.Real} _ _ _
     (congr!{Real.Real Real.Real} Root.sqrt _ _
       (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ boundary) (Laws.subSelf Real.one))) Root.sqrtZero;
-\definition heightBoundary(x: Lower.Disk)(zero: height x = Real.zero): Lower.normSquared x = Real.one :=
+\definition heightBoundary[x: Lower.Disk][zero: height x = Real.zero]: Lower.normSquared x = Real.one :=
   sym!{Real.Real} _ _ (Distance.subZeroEq Real.one (Lower.normSquared x)
     (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (heightSquared x))
       (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ zero zero) (Laws.fieldMulZeroLeft Real.zero))));
-\definition oppositeHeights(x, y: Lower.Disk)(equal: sphereLift x = Antipodal.apply (sphereLift y)): height x = Real.neg (height y) :=
+\definition oppositeHeights[x, y: Lower.Disk][equal: sphereLift x = Antipodal.apply (sphereLift y)]: height x = Real.neg (height y) :=
   trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.headJoin (height x) x))
     (trans!{Real.Real} _ _ _ (congr!{Sphere Real.Real} (\fun (p: Sphere) => Split.head p) _ _ equal) (antipodalHead y));
-\definition antipodalBoundary(x, y: Lower.Disk)(equal: sphereLift x = Antipodal.apply (sphereLift y)): Lower.normSquared x = Real.one :=
+\definition antipodalBoundary[x, y: Lower.Disk][equal: sphereLift x = Antipodal.apply (sphereLift y)]: Lower.normSquared x = Real.one :=
   heightBoundary x (R.leAntisym (height x) Real.zero
     (R.leReplace (Real.neg (height y)) (height x) (Real.neg Real.zero) Real.zero
       (sym!{Real.Real} _ _ (oppositeHeights x y equal)) Laws.negZero (Laws.negAntitone Real.zero (height y) (heightNonnegative y)))
     (heightNonnegative x));
-\definition antipodalPoints(x, y: Lower.Disk)(equal: sphereLift x = Antipodal.apply (sphereLift y)): x = negative y :=
+\definition antipodalPoints[x, y: Lower.Disk][equal: sphereLift x = Antipodal.apply (sphereLift y)]: x = negative y :=
   trans!{Lower.Coordinate} _ _ _ (sym!{Lower.Coordinate} _ _ (Split.tailJoin (height x) x))
     (trans!{Lower.Coordinate} _ _ _ (congr!{Sphere Lower.Coordinate} (\fun (p: Sphere) => Split.tail p) _ _ equal) (antipodalTail y));
-\definition boundaryRelated(x, y: Lower.Disk)(boundary: Lower.normSquared x = Real.one)(opposite: x = negative y):
+\definition boundaryRelated[x, y: Lower.Disk][boundary: Lower.normSquared x = Real.one][opposite: x = negative y]:
   sphereLift x = Antipodal.apply (sphereLift y) := \block {
     \let boundaryY: Lower.normSquared y = Real.one := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (negativeNorm y))
       (trans!{Real.Real} _ _ _ (congr!{Lower.Disk Real.Real} (\fun (p: Lower.Disk) => Lower.normSquared p) _ _ (sym!{Lower.Disk} _ _ opposite)) boundary) \then
@@ -48,8 +48,8 @@
       (trans!{Lower.Coordinate} _ _ _ (Split.tailJoin (height x) x)
         (trans!{Lower.Coordinate} _ _ _ opposite (sym!{Lower.Coordinate} _ _ (antipodalTail y))))
 };
-\definition BoundaryRelated(x, y: Lower.Disk): \Prop := Logic.Or[x = y, Logic.And[Lower.normSquared x = Real.one, x = negative y]];
-\definition characterizes(x, y: Lower.Disk): Logic.PropEquiv[Equivalent x y, BoundaryRelated x y] := Logic.PropEquiv[_, _] {
+\definition BoundaryRelated[x, y: Lower.Disk]: \Prop := Logic.Or[x = y, Logic.And[Lower.normSquared x = Real.one, x = negative y]];
+\definition characterizes[x, y: Lower.Disk]: Logic.PropEquiv[Equivalent x y, BoundaryRelated x y] := Logic.PropEquiv[_, _] {
   ltr := \fun (related: Equivalent x y) => Logic.orElim (sphereLift x = sphereLift y) (sphereLift x = Antipodal.apply (sphereLift y)) (BoundaryRelated x y) related
     (\fun (equal: sphereLift x = sphereLift y) => Logic.Or[_, _]::left
       (trans!{Lower.Coordinate} _ _ _ (sym!{Lower.Coordinate} _ _ (Split.tailJoin (height x) x))
@@ -59,5 +59,5 @@
   rtl := \fun (related: BoundaryRelated x y) => Logic.orElim (x = y) (Logic.And[Lower.normSquared x = Real.one, x = negative y]) (Equivalent x y) related
     (\fun (same: x = y) => Logic.Or[_, _]::left (congr!{Lower.Disk Sphere} sphereLift _ _ same))
     (\fun (boundary: Logic.And[Lower.normSquared x = Real.one, x = negative y]) => Logic.Or[_, _]::right
-      (boundaryRelated x y (#left{boundary}) (#right{boundary}))),
+      (boundaryRelated x y ((boundary).left) ((boundary).right))),
 };

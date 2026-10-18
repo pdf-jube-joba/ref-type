@@ -1,21 +1,21 @@
 \import \parent.Estimates[] \as E;
 
-\definition Control(s: N.Nat^ -> Real) (epsilon: Real) (threshold: N.Nat^): \Prop :=
+\definition Control[s: N.Nat^ -> Real] [epsilon: Real] [threshold: N.Nat^]: \Prop :=
   \forall (m, n: N.Nat^) -> Nat.Le threshold m -> Nat.Le threshold n -> R.Lt (distance (s m) (s n)) epsilon;
 
-\definition Cauchy(s: N.Nat^ -> Real): \Prop :=
-  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { threshold: N.Nat^ \where Control s epsilon threshold };
+\definition Cauchy[s: N.Nat^ -> Real]: \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists ( threshold: N.Nat^ \where Control s epsilon threshold );
 
-\definition LimitControl(s: N.Nat^ -> Real) (value, epsilon: Real) (threshold: N.Nat^): \Prop :=
+\definition LimitControl[s: N.Nat^ -> Real] [value, epsilon: Real] [threshold: N.Nat^]: \Prop :=
   \forall (n: N.Nat^) -> Nat.Le threshold n -> R.Lt (distance (s n) value) epsilon;
 
-\definition Converges(s: N.Nat^ -> Real) (value: Real): \Prop :=
-  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { threshold: N.Nat^ \where LimitControl s value epsilon threshold };
+\definition Converges[s: N.Nat^ -> Real] [value: Real]: \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists ( threshold: N.Nat^ \where LimitControl s value epsilon threshold );
 
-\definition EventuallyLower(s: N.Nat^ -> Real) (lower: Real): \Prop :=
-  \exists { threshold: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le threshold n -> R.Le lower (s n) };
+\definition EventuallyLower[s: N.Nat^ -> Real] [lower: Real]: \Prop :=
+  \exists ( threshold: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le threshold n -> R.Le lower (s n) );
 
-\definition LowerValues(s: N.Nat^ -> Real): \Pow Real := { lower: Real \where EventuallyLower s lower };
+\definition LowerValues[s: N.Nat^ -> Real]: \Pow Real := { lower: Real \where EventuallyLower s lower };
 
 \definition tailLower: \forall (s: N.Nat^ -> Real) -> \forall (epsilon: Real) -> \forall (threshold, n: N.Nat^) ->
   Control s epsilon threshold -> Nat.Le threshold n -> EventuallyLower s (sub (s n) epsilon) :=
@@ -37,7 +37,7 @@
 \definition onePositive: R.Lt zero Op.one := Order.ltOfLeNotEq zero Op.one Laws.oneNonnegative Laws.zeroNeOne;
 
 \definition CauchySequence: \Set := \Cast[N.Nat^ -> Real] ({ s: N.Nat^ -> Real \where Cauchy s });
-\definition cauchyLaw(s: CauchySequence): Cauchy s := \bysub(N.Nat^ -> Real, { t: N.Nat^ -> Real \where Cauchy t }, s);
+\definition cauchyLaw[s: CauchySequence]: Cauchy s := \bysub(N.Nat^ -> Real, { t: N.Nat^ -> Real \where Cauchy t }, s);
 
 \definition lowerNonempty: \forall (s: CauchySequence) -> Complete.Nonempty (LowerValues s) :=
   \fun (s: CauchySequence) => \block {
@@ -53,20 +53,20 @@
       (lowerUpper s Op.one k k (\bysub(N.Nat^, { n: N.Nat^ \where Control s Op.one n }, k)) (Nat.leRefl k))
   };
 
-\definition lowerFamily(s: CauchySequence): Complete.Family :=
+\definition lowerFamily[s: CauchySequence]: Complete.Family :=
   \into[\Pow Real](LowerValues s, Complete.FamilySet) \by { Logic.And[_, _]::# (lowerNonempty s) (lowerBounded s) };
 
-\definition lowerMember(s: CauchySequence) (lower: Real): EventuallyLower s lower -> Complete.Member (lowerFamily s) lower :=
+\definition lowerMember[s: CauchySequence] [lower: Real]: EventuallyLower s lower -> Complete.Member (lowerFamily s) lower :=
   \fun (law: EventuallyLower s lower) =>
     \idelim LowerValues s = lowerFamily s \with family: \Pow Real => Complete.Member family lower
       \by { base: law, equality: \refl(LowerValues s) };
 
-\definition lowerMemberLaw(s: CauchySequence) (lower: Real): Complete.Member (lowerFamily s) lower -> EventuallyLower s lower :=
+\definition lowerMemberLaw[s: CauchySequence] [lower: Real]: Complete.Member (lowerFamily s) lower -> EventuallyLower s lower :=
   \fun (law: Complete.Member (lowerFamily s) lower) =>
     \idelim lowerFamily s = LowerValues s \with family: \Pow Real => Complete.Member family lower
       \by { base: law, equality: \refl(LowerValues s) };
 
-\definition limit(s: CauchySequence): Real := Complete.supremum (lowerFamily s);
+\definition limit[s: CauchySequence]: Real := Complete.supremum (lowerFamily s);
 
 \definition limitLaw: \forall (s: CauchySequence) -> Converges s (limit s) :=
   \fun (s: CauchySequence) (epsilon: _) (positive: _) => \block {

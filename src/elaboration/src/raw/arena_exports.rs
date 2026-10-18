@@ -272,6 +272,7 @@ mod tests {
                 }),
                 contextual: false,
                 captures: vec![],
+                capture_kinds: vec![],
                 body: arena.core.bound(0),
             },
         ));

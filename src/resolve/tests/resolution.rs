@@ -49,8 +49,8 @@ fn child_selection_specializes_only_the_selected_route() {
 fn deeply_nested_projections_preserve_the_resolved_base() {
     let depth = 64;
     let source = format!(
-        "\\module M {{ \\definition f(x: _): _ := x{}; }}",
-        " #field".repeat(depth)
+        "\\module M {{ \\definition f[x: _]: _ := x{}; }}",
+        ".field".repeat(depth)
     );
     let modules = syntax::parse::str_parse_modules(&source).unwrap();
     let project = resolve(&modules).unwrap();
@@ -83,7 +83,7 @@ fn deeply_nested_projections_preserve_the_resolved_base() {
 fn long_lambda_application_spines_preserve_arguments() {
     let depth = 64;
     let source = format!(
-        "\\module M {{ \\definition f(x: _): _ := (\\fun (y: _) => y){}; }}",
+        "\\module M {{ \\definition f[x: _]: _ := (\\fun (y: _) => y){}; }}",
         " x".repeat(depth)
     );
     let modules = syntax::parse::str_parse_modules(&source).unwrap();
@@ -297,7 +297,7 @@ fn macro_value_let_uses_callers_type_and_its_own_binder() {
 fn normalization_records_each_source_occurrence_once() {
     use std::{collections::HashSet, sync::Arc};
     let text = r"\module M(A: \Set, a: A) {
-        \definition identity(x: A): A := x;
+        \definition identity[x: A]: A := x;
         \definition value: A := identity a;
         \definition bound: A := (\fun (x: A) => identity x) a;
     }";

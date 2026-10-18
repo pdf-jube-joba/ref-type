@@ -1,43 +1,43 @@
 \import \parent.Linear[V := V, W := V, source := space, target := space] \as End;
 \import \parent.Laws[V := V, space := space] \as SpaceLaws;
 \import \parent.Subspace[V := V, space := space] \as Subspaces;
-\definition scalar(a: K): End.Map := End.Map {
-  apply := #smul{space} a,
-  preservesAdd := #vectorAdd{space} a,
+\definition scalar[a: K]: End.Map := End.Map {
+  apply := space.smul a,
+  preservesAdd := space.vectorAdd a,
   preservesScale := \fun (c: _) (x: _) => SpaceLaws.scaleComm a c x,
 };
 \definition identity: End.Map := End.Map {
   apply := \fun (x: _) => x,
-  preservesAdd := \fun (x, y: _) => \refl(#add{space} x y),
-  preservesScale := \fun (a: _) (x: _) => \refl(#smul{space} a x),
+  preservesAdd := \fun (x, y: _) => \refl(space.add x y),
+  preservesScale := \fun (a: _) (x: _) => \refl(space.smul a x),
 };
-\definition Eigenspace(f: End.Map) (lambda: K): \Pow V :=
-  { x: V \where #apply{f} x = #smul{space} lambda x };
-\definition EigenEquation(f: End.Map) (lambda: K) (x: V): \Prop := \In[V] (Eigenspace f lambda) x;
-\structure Eigenvector[f: End.Map, lambda: K, x: V]: \Prop {
-  nonzero: Logic.Not (x = #zero{space}),
+\definition Eigenspace[f: End.Map] [lambda: K]: \Pow V :=
+  { x: V \where f.apply x = space.smul lambda x };
+\definition EigenEquation[f: End.Map] [lambda: K] [x: V]: \Prop := \In[V] (Eigenspace f lambda) x;
+\structure Eigenvector[f: End.Map, lambda: K, x: V]: \Prop := {
+  nonzero: Logic.Not (x = space.zero),
   equation: EigenEquation f lambda x,
-}
-\definition Eigenvalue(f: End.Map) (lambda: K): \Prop :=
-  \exists { x: V \where Eigenvector[f, lambda, x] };
+};
+\definition Eigenvalue[f: End.Map] [lambda: K]: \Prop :=
+  \exists ( x: V \where Eigenvector[f, lambda, x] );
 \definition eigenvalueOfEigenvector: \forall (f: End.Map) -> \forall (lambda: K) -> \forall (x: V) ->
   Eigenvector[f, lambda, x] -> Eigenvalue f lambda :=
   \fun (f: _) (lambda: _) (x: _) (e: Eigenvector[f, lambda, x]) =>
     Logic.existsIntro[V, { x: V \where Eigenvector[f, lambda, x] }] x e;
-\definition identityEigenvector: \forall (x: V) -> Logic.Not (x = #zero{space}) -> Eigenvector[identity, one, x] :=
+\definition identityEigenvector: \forall (x: V) -> Logic.Not (x = space.zero) -> Eigenvector[identity, one, x] :=
   \fun (x: _) (nonzero: _) => Eigenvector[identity, one, x] {
-    nonzero := nonzero, equation := sym!{V} _ _ (#scalarOne{space} x),
+    nonzero := nonzero, equation := sym!{V} _ _ (space.scalarOne x),
   };
 
-\definition scalarEigenvector: \forall (a: K) -> \forall (x: V) -> Logic.Not (x = #zero{space}) -> Eigenvector[scalar a, a, x] :=
+\definition scalarEigenvector: \forall (a: K) -> \forall (x: V) -> Logic.Not (x = space.zero) -> Eigenvector[scalar a, a, x] :=
   \fun (a: _) (x: _) (nonzero: _) => Eigenvector[scalar a, a, x] {
-    nonzero := nonzero, equation := \refl(#smul{space} a x),
+    nonzero := nonzero, equation := \refl(space.smul a x),
   };
-\definition eigenspace(f: End.Map) (lambda: K): Subspaces.Subspace := Subspaces.Subspace {
+\definition eigenspace[f: End.Map] [lambda: K]: Subspaces.Subspace := Subspaces.Subspace {
   carrier := Eigenspace f lambda,
-  containsZero := trans!{V} _ _ _ (#preservesZero{f}) (sym!{V} _ _ (SpaceLaws.scaleZero lambda)),
-  closedAdd := \fun (x, y: _) (hx: _) (hy: _) => trans!{V} _ _ _ (#preservesAdd{f} x y)
-    (trans!{V} _ _ _ (congr2!{V V V} (#add{space}) _ _ _ _ hx hy) (sym!{V} _ _ (#vectorAdd{space} lambda x y))),
-  closedScale := \fun (a: _) (x: _) (hx: _) => trans!{V} _ _ _ (#preservesScale{f} a x)
-    (trans!{V} _ _ _ (congr!{V V} (#smul{space} a) _ _ hx) (SpaceLaws.scaleComm a lambda x)),
+  containsZero := trans!{V} _ _ _ (f.preservesZero) (sym!{V} _ _ (SpaceLaws.scaleZero lambda)),
+  closedAdd := \fun (x, y: _) (hx: _) (hy: _) => trans!{V} _ _ _ (f.preservesAdd x y)
+    (trans!{V} _ _ _ (congr2!{V V V} (space.add) _ _ _ _ hx hy) (sym!{V} _ _ (space.vectorAdd lambda x y))),
+  closedScale := \fun (a: _) (x: _) (hx: _) => trans!{V} _ _ _ (f.preservesScale a x)
+    (trans!{V} _ _ _ (congr!{V V} (space.smul a) _ _ hx) (SpaceLaws.scaleComm a lambda x)),
 };

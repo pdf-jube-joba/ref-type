@@ -5,24 +5,24 @@
 \import singular_cohomology.SimplicialChains[].On[X := Model.object] \as Target;
 \definition targetFamily: Native.Family := Native.Family { Carrier := Target.Carrier, space := Target.space };
 \definition targetDifferential: Native.DifferentialData[targetFamily] := Native.DifferentialData[targetFamily] {
-  apply := \fun (n: N.Nat^) => #apply{(Target.boundary n)},
+  apply := \fun (n: N.Nat^) => (Target.boundary n).apply,
 };
 \definition targetComplex: Native.Complex := Native.Complex {
   family := targetFamily, differential := targetDifferential,
   laws := Native.DifferentialLaws[targetFamily, targetDifferential] {
-    addition := \fun (n: N.Nat^) => #addition{(Target.boundary n)},
-    scalar := \fun (n: N.Nat^) => #scalar{(Target.boundary n)},
+    addition := \fun (n: N.Nat^) => (Target.boundary n).addition,
+    scalar := \fun (n: N.Nat^) => (Target.boundary n).scalar,
     squareZero := \fun (n: N.Nat^) => Target.SquareZero[n := n].all,
   },
 };
-\definition vertex(v: Vertex): Target.Carrier zero := Target.generator zero (Model.vertex v);
-\definition edge(e: Edge): Target.Carrier one := Target.generator one (Model.edge e);
-\definition triangle(t: Triangle): Target.Carrier two := Target.generator two (Model.triangle t);
-\definition sourceBundle(n: N.Nat^): Modules.Bundle := Modules.Bundle { Carrier := native.family.Carrier n, space := native.family.space n };
-\definition targetBundle(n: N.Nat^): Modules.Bundle := Modules.Bundle { Carrier := targetComplex.family.Carrier n, space := targetComplex.family.space n };
-\definition Forward(n: N.Nat^): \Set := Modules.MapBetween (sourceBundle n) (targetBundle n);
-\definition Backward(n: N.Nat^): \Set := Modules.MapBetween (targetBundle n) (sourceBundle n);
-\definition Homotopy(n: N.Nat^): \Set := Modules.MapBetween (targetBundle n) (targetBundle (N.Nat^::succ n));
+\definition vertex[v: Vertex]: Target.Carrier zero := Target.generator zero (Model.vertex v);
+\definition edge[e: Edge]: Target.Carrier one := Target.generator one (Model.edge e);
+\definition triangle[t: Triangle]: Target.Carrier two := Target.generator two (Model.triangle t);
+\definition sourceBundle[n: N.Nat^]: Modules.Bundle := Modules.Bundle { Carrier := native.family.Carrier n, space := native.family.space n };
+\definition targetBundle[n: N.Nat^]: Modules.Bundle := Modules.Bundle { Carrier := targetComplex.family.Carrier n, space := targetComplex.family.space n };
+\definition Forward[n: N.Nat^]: \Set := Modules.MapBetween (sourceBundle n) (targetBundle n);
+\definition Backward[n: N.Nat^]: \Set := Modules.MapBetween (targetBundle n) (sourceBundle n);
+\definition Homotopy[n: N.Nat^]: \Set := Modules.MapBetween (targetBundle n) (targetBundle (N.Nat^::succ n));
 \module Zero;
 \module One;
 \module Two;
@@ -66,31 +66,31 @@
 \module CheckHigher(n: N.Nat^);
 \module ForwardEquation(n: N.Nat^);
 \definition forward: Native.Map[C := native, D := targetComplex].Map := Native.Map[C := native, D := targetComplex].Map {
-  apply := \fun (n: N.Nat^) => #apply{(forwardDegree n)},
-  addition := \fun (n: N.Nat^) => #addition{(forwardDegree n)},
-  scalar := \fun (n: N.Nat^) => #scalar{(forwardDegree n)},
+  apply := \fun (n: N.Nat^) => (forwardDegree n).apply,
+  addition := \fun (n: N.Nat^) => (forwardDegree n).addition,
+  scalar := \fun (n: N.Nat^) => (forwardDegree n).scalar,
   commutes := \fun (n: N.Nat^) => ForwardEquation[n := n].law,
 };
 \module LeftInverse(n: N.Nat^);
-\definition leftInverse: \forall (n: N.Nat^)(x: native.family.Carrier n) -> #apply{(backwardDegree n)} (#apply{forward} n x) = x :=
+\definition leftInverse: \forall (n: N.Nat^)(x: native.family.Carrier n) -> (backwardDegree n).apply ((forward).apply n x) = x :=
   \fun (n: N.Nat^) => LeftInverse[n := n].law;
 \import Native.Homotopy[C := targetComplex, D := targetComplex] \as Homotopies;
 \definition homotopyData: Homotopies.LinearData := \into[Homotopies.Data]
-  (Homotopies.Data { apply := \fun (n: N.Nat^) => #apply{(homotopyDegree n)} }, Homotopies.LinearData) \by {
-    Homotopies.LinearLaws[Homotopies.Data { apply := \fun (n: N.Nat^) => #apply{(homotopyDegree n)} }] {
-      addition := \fun (n: N.Nat^) => #addition{(homotopyDegree n)},
-      scalar := \fun (n: N.Nat^) => #scalar{(homotopyDegree n)},
+  (Homotopies.Data { apply := \fun (n: N.Nat^) => (homotopyDegree n).apply }, Homotopies.LinearData) \by {
+    Homotopies.LinearLaws[Homotopies.Data { apply := \fun (n: N.Nat^) => (homotopyDegree n).apply }] {
+      addition := \fun (n: N.Nat^) => (homotopyDegree n).addition,
+      scalar := \fun (n: N.Nat^) => (homotopyDegree n).scalar,
     }
   };
 \import Homotopies.Boundary[h := homotopyData].Correct[f := Native.End[C := targetComplex].identity] \as Corrected;
 \module Projection(n: N.Nat^);
 \definition projectionEquation: \forall (n: N.Nat^)(y: Target.Carrier n) ->
-  #apply{forward} n (#apply{(backwardDegree n)} y) = #apply{Corrected.map} n y := \fun (n: N.Nat^) => Projection[n := n].law;
+  (forward).apply n ((backwardDegree n).apply y) = (Corrected.map).apply n y := \fun (n: N.Nat^) => Projection[n := n].law;
 \module BackwardEquation(n: N.Nat^);
 \definition backward: Native.Map[C := targetComplex, D := native].Map := Native.Map[C := targetComplex, D := native].Map {
-  apply := \fun (n: N.Nat^) => #apply{(backwardDegree n)},
-  addition := \fun (n: N.Nat^) => #addition{(backwardDegree n)},
-  scalar := \fun (n: N.Nat^) => #scalar{(backwardDegree n)},
+  apply := \fun (n: N.Nat^) => (backwardDegree n).apply,
+  addition := \fun (n: N.Nat^) => (backwardDegree n).addition,
+  scalar := \fun (n: N.Nat^) => (backwardDegree n).scalar,
   commutes := \fun (n: N.Nat^) => BackwardEquation[n := n].law,
 };
 \module Equivalence;

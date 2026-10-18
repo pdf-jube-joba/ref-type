@@ -610,7 +610,7 @@ mod tests {
         \definition c: _ := A.T;
     }";
     const NOISE: &str = r"\module Noise {
-        \definition unrelated(x: \Set): \Set := x;
+        \definition unrelated[x: \Set]: \Set := x;
         \macro m($x) := (\fun (z: \Set) => $x);
     }";
 

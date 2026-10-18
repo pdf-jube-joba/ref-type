@@ -1,17 +1,17 @@
 \definition True: \Prop := \forall (P: \Prop) -> P -> P;
 \definition trivial: True := \fun (P: \Prop) (p: _) => p;
 
-\definition ready(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+\definition ready[P: State -> \Prop]: \RunStep[State, Output] -> \Prop :=
   \step-match t: \RunStep[State, Output] \return \Prop \with {
     | \continue s: P s
     | \finish result: True
   };
 
-\definition Holds(s: State): \Prop :=
+\definition Holds[s: State]: \Prop :=
   \forall (P: State -> \Prop) ->
     (\forall (x: State) -> ready P (step x) -> P x) -> P s;
 
-\definition map(P, Q: State -> \Prop):
+\definition map[P, Q: State -> \Prop]:
   (\forall (s: State) -> P s -> Q s) ->
   \forall (t: \RunStep[State, Output]) -> ready P t -> ready Q t :=
   \fun (f: \forall (s: State) -> P s -> Q s) =>
@@ -20,14 +20,14 @@
       | \finish result: \fun (p: True) => p
     };
 
-\definition intro(s: State):
+\definition intro[s: State]:
   ready Holds (step s) ->
   Holds s :=
   \fun (certificate: ready Holds (step s)) =>
     \fun (P: State -> \Prop) (h: \forall (x: State) -> ready P (step x) -> P x) =>
       h s (map Holds P (\fun (x: State) (p: Holds x) => p P h) (step s) certificate);
 
-\definition descent(a, b: State):
+\definition descent[a, b: State]:
   Holds a -> step a = \continue[State, Output](b) ->
   Holds b :=
   \fun (certificate: Holds a) (edge: step a = \continue[State, Output](b)) (P: State -> \Prop)
@@ -39,7 +39,7 @@
             (\fun (x: State) => map (\fun (y: State) => ready P (step y)) P h (step x)),
           equality: edge
         };
-\definition stateOf(fallback: State): \RunStep[State, Output] -> State := \step-match t: \RunStep[State, Output] \return State \with {
+\definition stateOf[fallback: State]: \RunStep[State, Output] -> State := \step-match t: \RunStep[State, Output] \return State \with {
   | \continue current: current
   | \finish result: fallback
 };

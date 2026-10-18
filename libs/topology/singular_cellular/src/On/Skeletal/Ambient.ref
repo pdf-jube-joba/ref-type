@@ -1,7 +1,7 @@
 \import N.Basic[].Def[] \as Op;
 \definition degree: I.Int^ := I.Int^::ofNat k;
 \definition base: N.Nat^ := N.Nat^::succ (N.Nat^::succ k);
-\definition limit(extra: N.Nat^): N.Nat^ := Op.add base extra;
+\definition limit[extra: N.Nat^]: N.Nat^ := Op.add base extra;
 \import \parent.\parent.Filtration[].Stage[limit := base] \as Initial;
 \import singular_cohomology.Chains[A := Initial.Carrier, source := Initial.topology] \as InitialChains;
 \import singular_cohomology.Chains[A := A, source := source] \as AmbientChains;
@@ -9,7 +9,7 @@
 \import Nonnegative.ZeroExtension[C := AmbientChains.complex] \as AmbientExtension;
 \import Complexes.At[C := InitialExtension.complex, z := degree] \as InitialHomology;
 \import Complexes.At[C := AmbientExtension.complex, z := degree] \as AmbientHomology;
-\definition above(extra: N.Nat^): Nat.Lt (N.Nat^::succ k) (limit extra) :=
+\definition above[extra: N.Nat^]: Nat.Lt (N.Nat^::succ k) (limit extra) :=
   Nat.ltLeTrans (N.Nat^::succ k) base (limit extra)
     (Nat.ltOfSuccLe base (N.Nat^::succ k) (Nat.leRefl base)) (Nat.leAddRight base extra);
 \module Reach(extra: N.Nat^);
@@ -20,9 +20,9 @@
       Reach[extra := extra].extend previous
   };
 \definition telescopeEquation: \forall (extra: N.Nat^)(q: InitialHomology.Homology) ->
-  #apply{#forward{(telescope extra)}} q = #apply{Reach[extra := extra].map} q :=
+  ((telescope extra).forward).apply q = (Reach[extra := extra].map).apply q :=
   \induction (extra: N.Nat^) \return \forall (q: InitialHomology.Homology) ->
-    #apply{#forward{(telescope extra)}} q = #apply{Reach[extra := extra].map} q \with {
+    ((telescope extra).forward).apply q = (Reach[extra := extra].map).apply q \with {
     | zero: Reach[extra := N.Nat^::zero].identityEquation
     | succ: \fun (extra: N.Nat^)(previous: _) => Reach[extra := extra].extendEquation (telescope extra) previous
   };
@@ -60,27 +60,27 @@
   .Composition[B := InitialExtension.complex].compose
     (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous) Final.chainMap = chainMap :=
   Functor.law (FinalInclusion.apply Final.bound) (FinalInclusion.continuous Final.bound) FinalStage.inclusion FinalStage.continuous;
-\definition compositeEquation: \forall (q: InitialHomology.Homology) -> #apply{#forward{composite}} q = #apply{map} q :=
+\definition compositeEquation: \forall (q: InitialHomology.Homology) -> ((composite).forward).apply q = (map).apply q :=
   \fun (q: InitialHomology.Homology) => trans!{AmbientHomology.Homology} _ _ _
     (congr!{{FinalHomology.Homology} {AmbientHomology.Homology}}
-      (#apply{(FinalInduced.induced (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous))}) _ _ (telescopeEquation height q))
+      ((FinalInduced.induced (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous)).apply) _ _ (telescopeEquation height q))
     (trans!{AmbientHomology.Homology} _ _ _
       (sym!{AmbientHomology.Homology} _ _ (ChainComposition.compositionOnHomology
         (FinalMaps.integerPush FinalStage.inclusion FinalStage.continuous) Final.chainMap q))
       (congr!{{Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map} {AmbientHomology.Homology}}
-        (\fun (f: Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map) => #apply{(Induced.induced f)} q) _ _ factorization));
+        (\fun (f: Complexes.Map[C := InitialExtension.complex, D := AmbientExtension.complex].Map) => (Induced.induced f).apply q) _ _ factorization));
 \definition bijective: Induced.Bijective[chainMap] := Induced.Bijective[chainMap] {
   injective := \fun (q, r: InitialHomology.Homology)(same: _) => trans!{InitialHomology.Homology} _ _ _
-    (sym!{InitialHomology.Homology} _ _ (#leftInverse{composite} q))
+    (sym!{InitialHomology.Homology} _ _ ((composite).leftInverse q))
     (trans!{InitialHomology.Homology} _ _ _
-      (congr!{AmbientHomology.Homology InitialHomology.Homology} (#apply{#backward{composite}}) _ _
+      (congr!{AmbientHomology.Homology InitialHomology.Homology} (((composite).backward).apply) _ _
         (trans!{AmbientHomology.Homology} _ _ _ (compositeEquation q)
           (trans!{AmbientHomology.Homology} _ _ _ same (sym!{AmbientHomology.Homology} _ _ (compositeEquation r)))))
-      (#leftInverse{composite} r)),
+      ((composite).leftInverse r)),
   onto := \fun (q: AmbientHomology.Homology) => Logic.existsIntro[InitialHomology.Homology,
-    { x: InitialHomology.Homology \where #apply{map} x = q }] (#apply{#backward{composite}} q)
-      (trans!{AmbientHomology.Homology} _ _ _ (sym!{AmbientHomology.Homology} _ _ (compositeEquation (#apply{#backward{composite}} q)))
-        (#rightInverse{composite} q)),
+    { x: InitialHomology.Homology \where (map).apply x = q }] (((composite).backward).apply q)
+      (trans!{AmbientHomology.Homology} _ _ _ (sym!{AmbientHomology.Homology} _ _ (compositeEquation (((composite).backward).apply q)))
+        ((composite).rightInverse q)),
 };
 \definition isomorphism: Modules.Isomorphism[V := InitialHomology.Homology, W := AmbientHomology.Homology,
   source := InitialHomology.homologySpace, target := AmbientHomology.homologySpace].Isomorphism :=

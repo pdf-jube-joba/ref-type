@@ -1,39 +1,39 @@
-\definition Compatible: \Prop := \forall (x: A.Carrier) -> #apply{b} (#apply{f} x) = #apply{c} (#apply{g} x);
+\definition Compatible: \Prop := \forall (x: A.Carrier) -> b.apply (f.apply x) = c.apply (g.apply x);
 \import Sum.Copair[U := U.Carrier, target := U.space] \as Copair;
 \definition copair: Modules.Hom[V := Sum.Carrier, W := U.Carrier, source := Sum.space, target := U.space].Map := Copair.copair b c;
 \import Modules.Hom[V := C.Carrier, W := U.Carrier, source := C.space, target := U.space] \as RightMaps;
 \import Modules.Laws[V := U.Carrier, space := U.space] \as Target;
 \import algebra.Group[].Of[Carrier := U.Carrier, group := Target.additive] \as TargetGroup;
-\definition killsRelation: Compatible -> \forall (x: A.Carrier) -> #apply{copair} (#apply{relation} x) = #zero{U.space} :=
+\definition killsRelation: Compatible -> \forall (x: A.Carrier) -> copair.apply (relation.apply x) = U.space.zero :=
   \fun (compatible: Compatible)(x: A.Carrier) => trans!{U.Carrier} _ _ _
-    (congr!{U.Carrier U.Carrier} (#add{U.space} (#apply{b} (#apply{f} x))) _ _ (RightMaps.negativePreserved c (#apply{g} x)))
+    (congr!{U.Carrier U.Carrier} (U.space.add (b.apply (f.apply x))) _ _ (RightMaps.negativePreserved c (g.apply x)))
     (trans!{U.Carrier} _ _ _
-      (congr!{U.Carrier U.Carrier} (\fun (u: U.Carrier) => #add{U.space} u (#neg{U.space} (#apply{c} (#apply{g} x)))) _ _ (compatible x))
-      (TargetGroup.inverseRight (#apply{c} (#apply{g} x))));
+      (congr!{U.Carrier U.Carrier} (\fun (u: U.Carrier) => U.space.add u (U.space.neg (c.apply (g.apply x)))) _ _ (compatible x))
+      (TargetGroup.inverseRight (c.apply (g.apply x))));
 \import Quotient.To[W := U.Carrier, target := U.space] \as Descent;
 \definition vanishes: Compatible -> Descent.Vanishes copair :=
-  \fun (compatible: Compatible)(x: Sum.Carrier) => Images.eliminate relation x (#apply{copair} x = #zero{U.space})
-    (\fun (a: A.Carrier)(equal: #apply{relation} a = x) => trans!{U.Carrier} _ _ _
-      (congr!{Sum.Carrier U.Carrier} (#apply{copair}) x (#apply{relation} a) (sym!{Sum.Carrier} _ _ equal)) (killsRelation compatible a));
-\definition map(compatible: Compatible): Modules.Hom[V := Carrier, W := U.Carrier, source := space, target := U.space].Map := Descent.descend copair (vanishes compatible);
-\definition onClass: \forall (compatible: Compatible)(x: Sum.Carrier) -> #apply{(map compatible)} (class x) = #apply{copair} x :=
+  \fun (compatible: Compatible)(x: Sum.Carrier) => Images.eliminate relation x (copair.apply x = U.space.zero)
+    (\fun (a: A.Carrier)(equal: relation.apply a = x) => trans!{U.Carrier} _ _ _
+      (congr!{Sum.Carrier U.Carrier} (copair.apply) x (relation.apply a) (sym!{Sum.Carrier} _ _ equal)) (killsRelation compatible a));
+\definition map[compatible: Compatible]: Modules.Hom[V := Carrier, W := U.Carrier, source := space, target := U.space].Map := Descent.descend copair (vanishes compatible);
+\definition onClass: \forall (compatible: Compatible)(x: Sum.Carrier) -> (map compatible).apply (class x) = copair.apply x :=
   \fun (compatible: Compatible) => Descent.onClass copair (vanishes compatible);
-\definition onLeft: \forall (compatible: Compatible)(x: B.Carrier) -> #apply{(map compatible)} (#apply{left} x) = #apply{b} x :=
+\definition onLeft: \forall (compatible: Compatible)(x: B.Carrier) -> (map compatible).apply (left.apply x) = b.apply x :=
   \fun (compatible: Compatible)(x: B.Carrier) => trans!{U.Carrier} _ _ _
-    (Descent.onClass copair (vanishes compatible) (#apply{Sum.firstInjection} x)) (Copair.onLeft b c x);
-\definition onRight: \forall (compatible: Compatible)(x: C.Carrier) -> #apply{(map compatible)} (#apply{right} x) = #apply{c} x :=
+    (Descent.onClass copair (vanishes compatible) (Sum.firstInjection.apply x)) (Copair.onLeft b c x);
+\definition onRight: \forall (compatible: Compatible)(x: C.Carrier) -> (map compatible).apply (right.apply x) = c.apply x :=
   \fun (compatible: Compatible)(x: C.Carrier) => trans!{U.Carrier} _ _ _
-    (Descent.onClass copair (vanishes compatible) (#apply{Sum.secondInjection} x)) (Copair.onRight b c x);
+    (Descent.onClass copair (vanishes compatible) (Sum.secondInjection.apply x)) (Copair.onRight b c x);
 \import Modules.Hom[V := Carrier, W := U.Carrier, source := space, target := U.space] \as Maps;
 \import Modules.Hom[V := Carrier, W := U.Carrier, source := space, target := U.space].Composition[U := Sum.Carrier, domain := Sum.space] \as Composition;
 \definition unique: \forall (compatible: Compatible)(h: Maps.Map) ->
-  (\forall (x: B.Carrier) -> #apply{h} (#apply{left} x) = #apply{b} x) ->
-  (\forall (x: C.Carrier) -> #apply{h} (#apply{right} x) = #apply{c} x) -> h = map compatible := \block {
+  (\forall (x: B.Carrier) -> h.apply (left.apply x) = b.apply x) ->
+  (\forall (x: C.Carrier) -> h.apply (right.apply x) = c.apply x) -> h = map compatible := \block {
   \fun (compatible: Compatible)(h: Maps.Map)(onLeft: _)(onRight: _) \then
   \let equal: Composition.compose h Quotient.projection = copair := Copair.unique b c (Composition.compose h Quotient.projection) onLeft onRight \then
-  \let onClasses: \forall (x: Sum.Carrier) -> #apply{h} (Quotient.class x) = #apply{copair} x :=
+  \let onClasses: \forall (x: Sum.Carrier) -> h.apply (Quotient.class x) = copair.apply x :=
     \fun (x: Sum.Carrier) => congr!{Modules.Hom[V := Sum.Carrier, W := U.Carrier, source := Sum.space, target := U.space].Map U.Carrier}
-      (\fun (m: Modules.Hom[V := Sum.Carrier, W := U.Carrier, source := Sum.space, target := U.space].Map) => #apply{m} x) _ _ equal \then
+      (\fun (m: Modules.Hom[V := Sum.Carrier, W := U.Carrier, source := Sum.space, target := U.space].Map) => m.apply x) _ _ equal \then
   \return Maps.ext h (map compatible) (\fun (q: Carrier) =>
-    congr!{{Carrier -> U.Carrier} U.Carrier} (\fun (m: Carrier -> U.Carrier) => m q) _ _ (Descent.unique copair (vanishes compatible) (#apply{h}) onClasses))
+    congr!{{Carrier -> U.Carrier} U.Carrier} (\fun (m: Carrier -> U.Carrier) => m q) _ _ (Descent.unique copair (vanishes compatible) (h.apply) onClasses))
 };

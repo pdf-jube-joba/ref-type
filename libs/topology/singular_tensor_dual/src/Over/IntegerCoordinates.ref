@@ -11,49 +11,49 @@
 \definition space: Modules.Space Carrier := Hom.space;
 \import Modules.Hom[V := Carrier, W := Target.Carrier, source := space, target := Target.space] \as Maps;
 \definition evaluation: Maps.Map := Maps.Map {
-  apply := \fun (f: Carrier)(i: Fin.Fin rank) => #apply{f} (Source.basis i),
+  apply := \fun (f: Carrier)(i: Fin.Fin rank) => (f).apply (Source.basis i),
   addition := \fun (f, g: Carrier) => \axiom:funext(
-    \fun (i: Fin.Fin rank) => #apply{(#add{space} f g)} (Source.basis i),
-    #add{Target.space} (\fun (i: Fin.Fin rank) => #apply{f} (Source.basis i)) (\fun (i: Fin.Fin rank) => #apply{g} (Source.basis i)),
-    \fun (i: Fin.Fin rank) => \refl(add (#apply{f} (Source.basis i)) (#apply{g} (Source.basis i)))),
+    \fun (i: Fin.Fin rank) => ((space).add f g).apply (Source.basis i),
+    (Target.space).add (\fun (i: Fin.Fin rank) => (f).apply (Source.basis i)) (\fun (i: Fin.Fin rank) => (g).apply (Source.basis i)),
+    \fun (i: Fin.Fin rank) => \refl(add ((f).apply (Source.basis i)) ((g).apply (Source.basis i)))),
   scalar := \fun (a: R)(f: Carrier) => \axiom:funext(
-    \fun (i: Fin.Fin rank) => #apply{(#smul{space} a f)} (Source.basis i),
-    #smul{Target.space} a (\fun (i: Fin.Fin rank) => #apply{f} (Source.basis i)),
-    \fun (i: Fin.Fin rank) => \refl(mul a (#apply{f} (Source.basis i)))),
+    \fun (i: Fin.Fin rank) => ((space).smul a f).apply (Source.basis i),
+    (Target.space).smul a (\fun (i: Fin.Fin rank) => (f).apply (Source.basis i)),
+    \fun (i: Fin.Fin rank) => \refl(mul a ((f).apply (Source.basis i)))),
 };
 \import Free.To[W := R, target := Coefficients.coefficients.space] \as Universal;
 \import IntegerModules.Hom[V := Free.Carrier, W := R, source := Free.space, target := Coefficients.coefficients.space] \as FreeMaps;
 \import IntegerModules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Coefficients.coefficients.space] \as IntegerHom;
 \import IntegerHom.Composition[U := Free.Carrier, domain := Free.space] \as Precompose;
 \import IntegerModules.Hom[V := Free.Carrier, W := R, source := Free.space, target := Coefficients.coefficients.space].Composition[U := Source.Carrier, domain := Source.space] \as Extend;
-\definition extension(values: Target.Carrier): Carrier := Extend.compose (Universal.extension values) #backward{SourceFree.isomorphism};
-\definition onFree(f: Carrier)(i: Fin.Fin rank):
-  #apply{f} (#apply{SourceFree.forward} (Free.generator i)) = #apply{f} (Source.basis i) :=
-  congr!{Source.Carrier R} (#apply{f}) _ _ (SourceFree.onGenerator i);
-\definition injective: \forall (f, g: Carrier) -> #apply{evaluation} f = #apply{evaluation} g -> f = g :=
+\definition extension[values: Target.Carrier]: Carrier := Extend.compose (Universal.extension values) (SourceFree.isomorphism).backward;
+\definition onFree[f: Carrier][i: Fin.Fin rank]:
+  (f).apply ((SourceFree.forward).apply (Free.generator i)) = (f).apply (Source.basis i) :=
+  congr!{Source.Carrier R} ((f).apply) _ _ (SourceFree.onGenerator i);
+\definition injective: \forall (f, g: Carrier) -> (evaluation).apply f = (evaluation).apply g -> f = g :=
   \fun (f, g: Carrier)(equal: _) => Hom.ext f g (\fun (x: Source.Carrier) => \block {
     \let same: Precompose.compose f SourceFree.forward = Precompose.compose g SourceFree.forward :=
       Universal.ext (Precompose.compose f SourceFree.forward) (Precompose.compose g SourceFree.forward)
         (\fun (i: Fin.Fin rank) => trans!{R} _ _ _ (onFree f i)
           (trans!{R} _ _ _ (congr!{Target.Carrier R} (\fun (v: Target.Carrier) => v i) _ _ equal) (sym!{R} _ _ (onFree g i)))) \then
     \return trans!{R} _ _ _
-      (sym!{R} _ _ (congr!{Source.Carrier R} (#apply{f}) _ _ (#rightInverse{SourceFree.isomorphism} x)))
+      (sym!{R} _ _ (congr!{Source.Carrier R} ((f).apply) _ _ ((SourceFree.isomorphism).rightInverse x)))
       (trans!{R} _ _ _
-        (congr!{{FreeMaps.Map} R} (\fun (h: FreeMaps.Map) => #apply{h} (#apply{#backward{SourceFree.isomorphism}} x)) _ _ same)
-        (congr!{Source.Carrier R} (#apply{g}) _ _ (#rightInverse{SourceFree.isomorphism} x)))
+        (congr!{{FreeMaps.Map} R} (\fun (h: FreeMaps.Map) => (h).apply (((SourceFree.isomorphism).backward).apply x)) _ _ same)
+        (congr!{Source.Carrier R} ((g).apply) _ _ ((SourceFree.isomorphism).rightInverse x)))
   });
-\definition extensionBasis(values: Target.Carrier)(i: Fin.Fin rank): #apply{(extension values)} (Source.basis i) = values i :=
+\definition extensionBasis[values: Target.Carrier][i: Fin.Fin rank]: (extension values).apply (Source.basis i) = values i :=
   trans!{R} _ _ _
-    (congr!{Free.Carrier R} (#apply{(Universal.extension values)}) _ _
+    (congr!{Free.Carrier R} ((Universal.extension values).apply) _ _
       (trans!{Free.Carrier} _ _ _
-        (sym!{Free.Carrier} _ _ (congr!{Source.Carrier Free.Carrier} (#apply{#backward{SourceFree.isomorphism}}) _ _ (SourceFree.onGenerator i)))
-        (#leftInverse{SourceFree.isomorphism} (Free.generator i))))
+        (sym!{Free.Carrier} _ _ (congr!{Source.Carrier Free.Carrier} (((SourceFree.isomorphism).backward).apply) _ _ (SourceFree.onGenerator i)))
+        ((SourceFree.isomorphism).leftInverse (Free.generator i))))
     (Universal.onGenerator values i);
 \import std.Logic[].Proposition[] \as Logic;
-\definition onto: \forall (values: Target.Carrier) -> \exists { f: Carrier \where #apply{evaluation} f = values } :=
-  \fun (values: Target.Carrier) => Logic.existsIntro[Carrier, { f: Carrier \where #apply{evaluation} f = values }] (extension values)
-    (\axiom:funext(#apply{evaluation} (extension values), values, extensionBasis values));
+\definition onto: \forall (values: Target.Carrier) -> \exists ( f: Carrier \where (evaluation).apply f = values ) :=
+  \fun (values: Target.Carrier) => Logic.existsIntro[Carrier, { f: Carrier \where (evaluation).apply f = values }] (extension values)
+    (\axiom:funext((evaluation).apply (extension values), values, extensionBasis values));
 \import Modules.Isomorphism[V := Carrier, W := Target.Carrier, source := space, target := Target.space] \as Iso;
 \import Iso.OfBijective[f := evaluation] \as Bijective;
 \definition isomorphism: Iso.Isomorphism := Bijective.isomorphism injective onto;
-\definition onBasis(f: Carrier)(i: Fin.Fin rank): #apply{#forward{isomorphism}} f i = #apply{f} (Source.basis i) := \refl(#apply{f} (Source.basis i));
+\definition onBasis[f: Carrier][i: Fin.Fin rank]: ((isomorphism).forward).apply f i = (f).apply (Source.basis i) := \refl((f).apply (Source.basis i));

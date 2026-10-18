@@ -2,7 +2,7 @@
 \import algebra.Group[].Of[Carrier := F.Carrier, group := Values.additive] \as Group;
 \definition cycles: Modules.Bundle := Modules.Bundle { Carrier := H2.CycleCarrier, space := H2.cycleSpace };
 \import \root.Integral[].Maps[A := cycles, B := coefficients] \as TotalLinear;
-\definition totalAdd(f, g: H2.CycleCarrier): Model.total (#add{H2.cycleSpace} f g) = F.add (Model.total f) (Model.total g) :=
+\definition totalAdd[f, g: H2.CycleCarrier]: Model.total ((H2.cycleSpace).add f g) = F.add (Model.total f) (Model.total g) :=
   Group.four (f Triangle::upper) (g Triangle::upper) (f Triangle::lower) (g Triangle::lower);
 \definition evaluate: Modules.Hom[V := H2.CycleCarrier, W := F.Carrier, source := H2.cycleSpace, target := F.integerSpace].Map :=
   TotalLinear.fromAdditive (\fun (f: H2.CycleCarrier) => Model.total f) totalAdd;
@@ -16,28 +16,28 @@
 };
 \definition forward: Modules.Hom[V := H2.Cohomology, W := F.Carrier, source := H2.cohomologySpace, target := F.integerSpace].Map := Descent.descend evaluate kills;
 \import Modules.Hom[V := F.Carrier, W := H2.CycleCarrier, source := F.integerSpace, target := H2.cycleSpace] \as Representatives;
-\definition representative(x: F.Carrier): Model.Triangles := Model.triangle F.zero x;
+\definition representative[x: F.Carrier]: Model.Triangles := Model.triangle F.zero x;
 \definition represent: Representatives.Map := Representatives.Map {
   apply := \fun (x: F.Carrier) => H2.cycle (representative x) (\refl(Zero.Carrier::zero)),
   addition := \fun (x, y: F.Carrier) => Model.trianglesExt (representative (F.add x y))
     (\fun (t: Triangle) => F.add (representative x t) (representative y t)) (sym!{F.Carrier} _ _ (F.addZeroLeft F.zero)) (\refl(F.add x y)),
   scalar := \fun (a: I.Int^)(x: F.Carrier) => Model.trianglesExt (representative (Values.scale a x))
-    (\fun (t: Triangle) => Values.scale a (representative x t)) (sym!{F.Carrier} _ _ (Values.scaleZero a)) (\refl(#smul{F.integerSpace} a x)),
+    (\fun (t: Triangle) => Values.scale a (representative x t)) (sym!{F.Carrier} _ _ (Values.scaleZero a)) (\refl((F.integerSpace).smul a x)),
 };
 \import Modules.Hom[V := H2.CycleCarrier, W := H2.Cohomology, source := H2.cycleSpace, target := H2.cohomologySpace].Composition[U := F.Carrier, domain := F.integerSpace] \as Composition;
 \definition backward: Modules.Hom[V := F.Carrier, W := H2.Cohomology, source := F.integerSpace, target := H2.cohomologySpace].Map := Composition.compose H2.classLinear represent;
-\definition rightInverse(x: F.Carrier): #apply{forward} (#apply{backward} x) = x :=
-  trans!{F.Carrier} _ _ _ (Descent.onClass evaluate kills (#apply{represent} x)) (F.addZeroLeft x);
-\definition leftInverse: \forall (h: H2.Cohomology) -> #apply{backward} (#apply{forward} h) = h :=
-  H2.classInduction (\fun (h: H2.Cohomology) => #apply{backward} (#apply{forward} h) = h)
+\definition rightInverse[x: F.Carrier]: (forward).apply ((backward).apply x) = x :=
+  trans!{F.Carrier} _ _ _ (Descent.onClass evaluate kills ((represent).apply x)) (F.addZeroLeft x);
+\definition leftInverse: \forall (h: H2.Cohomology) -> (backward).apply ((forward).apply h) = h :=
+  H2.classInduction (\fun (h: H2.Cohomology) => (backward).apply ((forward).apply h) = h)
     (\fun (f: H2.CycleCarrier) => trans!{H2.Cohomology} _ _ _
-      (congr!{F.Carrier H2.Cohomology} (#apply{backward}) _ _ (Descent.onClass evaluate kills f))
-      (sym!{H2.Cohomology} _ _ (H2.classEqual f (#apply{represent} (Model.total f))
+      (congr!{F.Carrier H2.Cohomology} ((backward).apply) _ _ (Descent.onClass evaluate kills f))
+      (sym!{H2.Cohomology} _ _ (H2.classEqual f ((represent).apply (Model.total f))
         (Logic.existsIntro[Model.Edges, { g: Model.Edges \where Model.deltaOne g =
-          #add{(Raw.second.space)} f (#neg{(Raw.second.space)} (representative (Model.total f))) }]
+          (Raw.second.space).add f ((Raw.second.space).neg (representative (Model.total f))) }]
           (Model.edge F.zero (f Triangle::upper) F.zero) (Model.boundaryDifference f)))));
 \definition isomorphism: Modules.Isomorphism[V := H2.Cohomology, W := F.Carrier, source := H2.cohomologySpace, target := F.integerSpace].Isomorphism :=
   Modules.Isomorphism[V := H2.Cohomology, W := F.Carrier, source := H2.cohomologySpace, target := F.integerSpace].Isomorphism {
     forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
   };
-\definition generatorCoordinate: #apply{forward} topGenerator = F.one := Descent.onClass evaluate kills vCycle;
+\definition generatorCoordinate: (forward).apply topGenerator = F.one := Descent.onClass evaluate kills vCycle;

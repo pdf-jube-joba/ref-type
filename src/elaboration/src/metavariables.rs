@@ -664,7 +664,7 @@ impl MetaStore {
                     .map(|e| e.0);
                 let mut pending = roots.collect::<Vec<_>>();
                 while let Some(e) = pending.pop() {
-                    if !seen.insert(e) {
+                    if !env.arena().core.contains_meta(e) || !seen.insert(e) {
                         continue;
                     }
                     if let Node::Meta { id, .. } = env.arena().core.get(e)
@@ -903,25 +903,23 @@ fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
     let mut seen = HashSet::new();
     let mut pending = vec![exp];
     while let Some(exp) = pending.pop() {
-        if !seen.insert(exp) {
+        if !env.arena().core.contains_meta(exp.0) || !seen.insert(exp) {
             continue;
         }
         // Checked definitions are closed over their explicit arguments.
         // A frontend view of a specialized reference unfolds its body, which
         // would expand unrelated proofs merely to attach a source location.
         // Holes can only occur in the reference's actual arguments.
-        if matches!(env.arena().core.get(exp.0), Node::Meta { .. })
+        if matches!(*env.arena().core.read(exp.0), Node::Meta { .. })
             && let ExpNode::Meta { metavariable, .. } = env.arena().get(exp)
         {
             result.insert(metavariable);
         }
-        pending.extend(
-            env.arena()
-                .core
-                .children(exp.0)
-                .into_iter()
-                .map(|(child, _)| Exp(child)),
-        );
+        let _: Result<(), std::convert::Infallible> =
+            env.arena().core.try_for_each_child(exp.0, |child, _| {
+                pending.push(Exp(child));
+                Ok(())
+            });
     }
     result
 }

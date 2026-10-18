@@ -4,7 +4,7 @@
 \import topology.Homeomorphism[A := Carrier, B := B] \as Homeomorphisms;
 \definition Respects: \Prop := Descent.Respects q;
 \definition Separates: \Prop := \forall (x, y: A) -> q x = q y -> relation x y;
-\definition apply(laws: Laws)(respects: Respects): Carrier -> B := Descent.apply laws q respects;
+\definition apply[laws: Laws][respects: Respects]: Carrier -> B := Descent.apply laws q respects;
 
 \definition injective: \forall (laws: Laws)(respects: Respects) -> Separates -> \forall (x, y: Carrier) -> apply laws respects x = apply laws respects y -> x = y :=
   \fun (laws: Laws)(respects: Respects)(separates: Separates) => induction
@@ -13,7 +13,7 @@
       (\fun (y: A)(equal: apply laws respects (class x) = apply laws respects (class y)) => relatedEqual laws x y
         (separates x y (trans!{B} _ _ _ (sym!{B} _ _ (Descent.onClass laws q respects x))
           (trans!{B} _ _ _ equal (Descent.onClass laws q respects y))))));
-\definition onto: \forall (laws: Laws)(respects: Respects) -> Quotient.Surjective q -> \forall (y: B) -> \exists { x: Carrier \where apply laws respects x = y } := \block {
+\definition onto: \forall (laws: Laws)(respects: Respects) -> Quotient.Surjective q -> \forall (y: B) -> \exists ( x: Carrier \where apply laws respects x = y ) := \block {
   \fun (laws: Laws)(respects: Respects)(surjective: Quotient.Surjective q)(y: B) \then
   \takefrom x: \Cast[A] ({ x: A \where q x = y }) \by surjective y \then
   \return Logic.existsIntro[Carrier, { x: Carrier \where apply laws respects x = y }] (class x)
@@ -31,11 +31,11 @@
         \by { base: member, equality: sym!{B} _ _ (Descent.onClass laws q respects x) });
 \definition reflectsOpen: \forall (source: Source.Topology)(target: Target.Topology)(laws: Laws)(respects: Respects) -> Quotient.IsQuotientMap[source, target, q] ->
   \forall (V: \Pow B) -> Space.IsOpenIn (topology source) ({ x: Carrier \where Target.Member V (apply laws respects x) }) -> Target.IsOpenIn target V :=
-  \fun (source: _)(target: _)(laws: Laws)(respects: Respects)(quotient: _)(V: _)(open: _) => #reflectsOpen{quotient} V
+  \fun (source: _)(target: _)(laws: Laws)(respects: Respects)(quotient: _)(V: _)(open: _) => (quotient).reflectsOpen V
     (\idelim { x: A \where Target.Member V (apply laws respects (class x)) } = { x: A \where Target.Member V (q x) }
       \with U: \Pow A => Source.IsOpenIn source U \by { base: open, equality: classPreimage laws respects V });
-\definition homeomorphism(source: Source.Topology)(target: Target.Topology)(laws: Laws)(respects: Respects)(separates: Separates)
-  (quotient: Quotient.IsQuotientMap[source, target, q]): Homeomorphisms.Homeomorphism[topology source, target] :=
+\definition homeomorphism[source: Source.Topology][target: Target.Topology][laws: Laws][respects: Respects][separates: Separates]
+  [quotient: Quotient.IsQuotientMap[source, target, q]]: Homeomorphisms.Homeomorphism[topology source, target] :=
   Homeomorphisms.OfQuotient[f := apply laws respects].homeomorphism (topology source) target
-    (injective laws respects separates) (onto laws respects #onto{quotient})
-    (Descent.continuous source target laws q respects #continuous{quotient}) (reflectsOpen source target laws respects quotient);
+    (injective laws respects separates) (onto laws respects (quotient).onto)
+    (Descent.continuous source target laws q respects (quotient).continuous) (reflectsOpen source target laws respects quotient);

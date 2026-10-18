@@ -6,8 +6,8 @@
   \import Submodules.Of[S := submodule] \as Induced;
   \definition Carrier: \Set := Induced.Carrier;
   \definition space: Modules.Space Carrier := Induced.moduleSpace;
-  \definition killed: \forall (x: Carrier) -> #apply{f} k x = #zero{(D.family.space k)} :=
-    \fun (x: Carrier) => \bysub(C.family.Carrier k, #carrier{submodule}, x);
+  \definition killed: \forall (x: Carrier) -> f.apply k x = (D.family.space k).zero :=
+    \fun (x: Carrier) => \bysub(C.family.Carrier k, submodule.carrier, x);
 }
 \definition family: Family := Family {
   Carrier := \fun (k: Degree) => At[k := k].Carrier,
@@ -19,14 +19,14 @@
   \import \parent.\parent.At[k := previous k] \as Original;
   \import \parent.\parent.\parent.At[C := D, z := k] \as TargetDifferential;
   \import Modules.Hom[V := D.family.Carrier k, W := D.family.Carrier (previous k), source := D.family.space k, target := D.family.space (previous k)] \as Maps;
-  \definition closed: \forall (x: Source.Carrier) -> #apply{f} (previous k) (#apply{C.differential} k x) = #zero{(D.family.space (previous k))} :=
+  \definition closed: \forall (x: Source.Carrier) -> f.apply (previous k) (C.differential.apply k x) = (D.family.space (previous k)).zero :=
     \fun (x: Source.Carrier) => trans!{{D.family.Carrier (previous k)}} _ _ _
-      (sym!{{D.family.Carrier (previous k)}} _ _ (#commutes{f} k x))
+      (sym!{{D.family.Carrier (previous k)}} _ _ (f.commutes k x))
       (trans!{{D.family.Carrier (previous k)}} _ _ _
-        (congr!{{D.family.Carrier k} {D.family.Carrier (previous k)}} (#apply{D.differential} k) _ _ (Source.killed x))
+        (congr!{{D.family.Carrier k} {D.family.Carrier (previous k)}} (D.differential.apply k) _ _ (Source.killed x))
         (Maps.zeroPreserved TargetDifferential.differential));
-  \definition apply(x: Source.Carrier): Target.Carrier :=
-    \into[C.family.Carrier (previous k)](#apply{C.differential} k x, #carrier{Target.submodule}) \by { closed x };
+  \definition apply[x: Source.Carrier]: Target.Carrier :=
+    \into[C.family.Carrier (previous k)](C.differential.apply k x, Target.submodule.carrier) \by { closed x };
 }
 \definition differential: DifferentialData[family] := DifferentialData[family] {
   apply := \fun (k: Degree) => Differential[k := k].apply,
@@ -34,36 +34,36 @@
 \definition complex: Complex := Complex {
   family := family, differential := differential,
   laws := DifferentialLaws[family, differential] {
-    addition := \fun (k: Degree)(x, y: At[k := k].Carrier) => #addition{C.laws} k x y,
-    scalar := \fun (k: Degree)(a: R)(x: At[k := k].Carrier) => #scalar{C.laws} k a x,
-    squareZero := \fun (k: Degree)(x: At[k := k].Carrier) => #squareZero{C.laws} k x,
+    addition := \fun (k: Degree)(x, y: At[k := k].Carrier) => C.laws.addition k x y,
+    scalar := \fun (k: Degree)(a: R)(x: At[k := k].Carrier) => C.laws.scalar k a x,
+    squareZero := \fun (k: Degree)(x: At[k := k].Carrier) => C.laws.squareZero k x,
   },
 };
 \import \parent.\parent.Map[C := complex, D := C] \as Inclusion;
 \definition inclusion: Inclusion.Map := Inclusion.Map {
   apply := \fun (k: Degree)(x: At[k := k].Carrier) => x,
-  addition := \fun (k: Degree)(x, y: At[k := k].Carrier) => \refl(#add{(C.family.space k)} x y),
-  scalar := \fun (k: Degree)(a: R)(x: At[k := k].Carrier) => \refl(#smul{(C.family.space k)} a x),
-  commutes := \fun (k: Degree)(x: At[k := k].Carrier) => \refl(#apply{C.differential} k x),
+  addition := \fun (k: Degree)(x, y: At[k := k].Carrier) => \refl((C.family.space k).add x y),
+  scalar := \fun (k: Degree)(a: R)(x: At[k := k].Carrier) => \refl((C.family.space k).smul a x),
+  commutes := \fun (k: Degree)(x: At[k := k].Carrier) => \refl(C.differential.apply k x),
 };
-\definition Onto: \Prop := \forall (k: Degree)(y: D.family.Carrier k) -> \exists { x: C.family.Carrier k \where #apply{f} k x = y };
+\definition Onto: \Prop := \forall (k: Degree)(y: D.family.Carrier k) -> \exists ( x: C.family.Carrier k \where f.apply k x = y );
 \import \parent.\parent.ShortExact[A := complex, B := C, C := D] \as Exact;
-\definition sequence(onto: Onto): Exact.Sequence := Exact.Sequence {
+\definition sequence[onto: Onto]: Exact.Sequence := Exact.Sequence {
   inclusion := inclusion, projection := f,
   injective := \fun (k: Degree)(x, y: At[k := k].Carrier)(same: x = y) => same,
   onto := onto,
   zero := \fun (k: Degree) => At[k := k].killed,
-  kernelImage := \fun (k: Degree)(x: C.family.Carrier k)(killed: #apply{f} k x = #zero{(D.family.space k)}) =>
-    Logic.existsIntro[At[k := k].Carrier, { y: At[k := k].Carrier \where #apply{inclusion} k y = x }]
-      (\into[C.family.Carrier k](x, #carrier{At[k := k].submodule}) \by { killed }) (\refl(x)),
+  kernelImage := \fun (k: Degree)(x: C.family.Carrier k)(killed: f.apply k x = (D.family.space k).zero) =>
+    Logic.existsIntro[At[k := k].Carrier, { y: At[k := k].Carrier \where inclusion.apply k y = x }]
+      (\into[C.family.Carrier k](x, (At[k := k].submodule).carrier) \by { killed }) (\refl(x)),
 };
 \definition Acyclic: \Prop := \forall (k: Degree)(q: \parent.\parent.At[C := complex, z := k].Homology) -> q = \parent.\parent.At[C := complex, z := k].zeroClass;
 \definition quasiIsomorphism: Onto -> Acyclic -> QuasiIsomorphism f :=
   \fun (onto: Onto)(acyclic: Acyclic) => Exact.quasiProjection (sequence onto) acyclic;
 \import \parent.\parent.Prior[C := complex] \as Prior;
 \definition ExactCycles: \Prop := \forall (k: Degree)(x: At[k := k].Carrier) ->
-  #apply{differential} k x = #zero{(At[k := previous k].space)} ->
-  \exists { y: At[k := next k].Carrier \where Prior.value k y = x };
+  differential.apply k x = (At[k := previous k].space).zero ->
+  \exists ( y: At[k := next k].Carrier \where Prior.value k y = x );
 \module Homology(k: Degree) {
   \import \parent.\parent.\parent.At[C := complex, z := k] \as H;
   \import Modules.Of[V := \parent.At[k := k].Carrier, space := \parent.At[k := k].space].Submodule[] \as Submodules;
@@ -71,7 +71,7 @@
   \definition cycleBoundary: ExactCycles -> \forall (x: H.Cycle) -> Submodules.Member H.boundaries x := \block {
     \fun (exact: ExactCycles)(x: H.Cycle) \then
     \takefrom y: \Cast[\parent.At[k := next k].Carrier] ({ y: \parent.At[k := next k].Carrier \where Prior.value k y = x }) \by
-      exact k x (\bysub(\parent.At[k := k].Carrier, #carrier{H.cycles}, x)) \then
+      exact k x (\bysub(\parent.At[k := k].Carrier, H.cycles.carrier, x)) \then
     \return \idelim Prior.value k y = x \with v: \parent.At[k := k].Carrier => Submodules.Member H.boundaries v \by {
       base: Images.member H.prior y,
       equality: \bysub(\parent.At[k := next k].Carrier, { y: \parent.At[k := next k].Carrier \where Prior.value k y = x }, y)
@@ -85,21 +85,21 @@
 \definition quasiOfExactCycles: Onto -> ExactCycles -> QuasiIsomorphism f :=
   \fun (onto: Onto)(exact: ExactCycles) => quasiIsomorphism onto (acyclic exact);
 \import \parent.\parent.Prior[C := C] \as OriginalPrior;
-\structure BoundaryAt[k: Degree, x: C.family.Carrier k]: \Set {
+\structure BoundaryAt[k: Degree, x: C.family.Carrier k]: \Set := {
   value: C.family.Carrier (next k),
-  killed: #apply{f} (next k) value = #zero{(D.family.space (next k))},
+  killed: f.apply (next k) value = (D.family.space (next k)).zero,
   boundary: OriginalPrior.value k value = x,
-}
+};
 \definition OriginalExactCycles: \Prop := \forall (k: Degree)(x: C.family.Carrier k) ->
-  #apply{f} k x = #zero{(D.family.space k)} ->
-  #apply{C.differential} k x = #zero{(C.family.space (previous k))} -> \exists BoundaryAt[k, x];
+  f.apply k x = (D.family.space k).zero ->
+  C.differential.apply k x = (C.family.space (previous k)).zero -> \exists BoundaryAt[k, x];
 \definition exactCycles: OriginalExactCycles -> ExactCycles := \block {
-  \fun (exact: OriginalExactCycles)(k: Degree)(x: At[k := k].Carrier)(closed: #apply{differential} k x = #zero{(At[k := previous k].space)}) \then
+  \fun (exact: OriginalExactCycles)(k: Degree)(x: At[k := k].Carrier)(closed: differential.apply k x = (At[k := previous k].space).zero) \then
   \takefrom witness: BoundaryAt[k, x] \by exact k x (At[k := k].killed x) closed \then
-  \let y: At[k := next k].Carrier := \into[C.family.Carrier (next k)](#value{witness}, #carrier{At[k := next k].submodule}) \by { #killed{witness} } \then
+  \let y: At[k := next k].Carrier := \into[C.family.Carrier (next k)](witness.value, (At[k := next k].submodule).carrier) \by { witness.killed } \then
   \return Logic.existsIntro[At[k := next k].Carrier, { y: At[k := next k].Carrier \where Prior.value k y = x }] y
     (trans!{{C.family.Carrier k}} _ _ _
-      (sym!{{C.family.Carrier k}} _ _ (Inclusion.priorCommutes k inclusion y)) (#boundary{witness}))
+      (sym!{{C.family.Carrier k}} _ _ (Inclusion.priorCommutes k inclusion y)) (witness.boundary))
 };
 \definition quasiOfOriginalExactCycles: Onto -> OriginalExactCycles -> QuasiIsomorphism f :=
   \fun (onto: Onto)(exact: OriginalExactCycles) => quasiOfExactCycles onto (exactCycles exact);

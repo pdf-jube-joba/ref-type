@@ -1,33 +1,33 @@
 \import \parent.\parent.Laws[V := W, space := target] \as Laws;
 \definition zeroMap: Map := Map {
-  apply := \fun (x: _) => #zero{target},
-  preservesAdd := \fun (x, y: _) => sym!{W} _ _ (Laws.zeroLeft (#zero{target})),
+  apply := \fun (x: _) => target.zero,
+  preservesAdd := \fun (x, y: _) => sym!{W} _ _ (Laws.zeroLeft (target.zero)),
   preservesScale := \fun (a: _) (x: _) => sym!{W} _ _ (Laws.scaleZero a),
 };
-\definition plus(f, g: Map): Map := Map {
-  apply := \fun (x: _) => #add{target} (#apply{f} x) (#apply{g} x),
+\definition plus[f, g: Map]: Map := Map {
+  apply := \fun (x: _) => target.add (f.apply x) (g.apply x),
   preservesAdd := \fun (x, y: _) => trans!{W} _ _ _
-    (congr2!{W W W} (#add{target}) _ _ _ _ (#preservesAdd{f} x y) (#preservesAdd{g} x y))
-    (Laws.shuffle (#apply{f} x) (#apply{f} y) (#apply{g} x) (#apply{g} y)),
+    (congr2!{W W W} (target.add) _ _ _ _ (f.preservesAdd x y) (g.preservesAdd x y))
+    (Laws.shuffle (f.apply x) (f.apply y) (g.apply x) (g.apply y)),
   preservesScale := \fun (a: _) (x: _) => trans!{W} _ _ _
-    (congr2!{W W W} (#add{target}) _ _ _ _ (#preservesScale{f} a x) (#preservesScale{g} a x))
-    (sym!{W} _ _ (#vectorAdd{target} a (#apply{f} x) (#apply{g} x))),
+    (congr2!{W W W} (target.add) _ _ _ _ (f.preservesScale a x) (g.preservesScale a x))
+    (sym!{W} _ _ (target.vectorAdd a (f.apply x) (g.apply x))),
 };
-\definition scale(a: K) (f: Map): Map := Map {
-  apply := \fun (x: _) => #smul{target} a (#apply{f} x),
+\definition scale[a: K] [f: Map]: Map := Map {
+  apply := \fun (x: _) => target.smul a (f.apply x),
   preservesAdd := \fun (x, y: _) => trans!{W} _ _ _
-    (congr!{W W} (#smul{target} a) _ _ (#preservesAdd{f} x y)) (#vectorAdd{target} a (#apply{f} x) (#apply{f} y)),
+    (congr!{W W} (target.smul a) _ _ (f.preservesAdd x y)) (target.vectorAdd a (f.apply x) (f.apply y)),
   preservesScale := \fun (c: _) (x: _) => trans!{W} _ _ _
-    (congr!{W W} (#smul{target} a) _ _ (#preservesScale{f} c x)) (Laws.scaleComm a c (#apply{f} x)),
+    (congr!{W W} (target.smul a) _ _ (f.preservesScale c x)) (Laws.scaleComm a c (f.apply x)),
 };
-\definition negative(f: Map): Map := scale (neg one) f;
-\definition preservesNeg: \forall (f: Map) (x: V) -> #apply{f} (#neg{source} x) = #neg{target} (#apply{f} x) :=
-  \fun (f: Map) (x: V) => Laws.cancelLeft (#apply{f} x) _ _ (eq_reason!{
-    {#add{target} (#apply{f} x) (#apply{f} (#neg{source} x))}
-    "=" {#add{target} (#apply{f} (#neg{source} x)) (#apply{f} x)} "by" {Laws.comm _ _}
-    "=" {#apply{f} (#add{source} (#neg{source} x) x)} "by" {sym!{W} _ _ (#preservesAdd{f} (#neg{source} x) x)}
-    "=" {#apply{f} (#zero{source})} "by" {congr!{V W} (#apply{f}) _ _ (SourceLaws.inverseLeft x)}
-    "=" {#zero{target}} "by" {#preservesZero{f}}
-    "=" {#add{target} (#neg{target} (#apply{f} x)) (#apply{f} x)} "by" {sym!{W} _ _ (Laws.inverseLeft (#apply{f} x))}
-    "=" {#add{target} (#apply{f} x) (#neg{target} (#apply{f} x))} "by" {Laws.comm _ _}
+\definition negative[f: Map]: Map := scale (neg one) f;
+\definition preservesNeg: \forall (f: Map) (x: V) -> f.apply (source.neg x) = target.neg (f.apply x) :=
+  \fun (f: Map) (x: V) => Laws.cancelLeft (f.apply x) _ _ (eq_reason!{
+    {target.add (f.apply x) (f.apply (source.neg x))}
+    "=" {target.add (f.apply (source.neg x)) (f.apply x)} "by" {Laws.comm _ _}
+    "=" {f.apply (source.add (source.neg x) x)} "by" {sym!{W} _ _ (f.preservesAdd (source.neg x) x)}
+    "=" {f.apply (source.zero)} "by" {congr!{V W} (f.apply) _ _ (SourceLaws.inverseLeft x)}
+    "=" {target.zero} "by" {f.preservesZero}
+    "=" {target.add (target.neg (f.apply x)) (f.apply x)} "by" {sym!{W} _ _ (Laws.inverseLeft (f.apply x))}
+    "=" {target.add (f.apply x) (target.neg (f.apply x))} "by" {Laws.comm _ _}
   });

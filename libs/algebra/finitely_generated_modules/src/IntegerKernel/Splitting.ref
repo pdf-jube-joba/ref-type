@@ -6,32 +6,32 @@
 \import Modules.Hom[V := Carrier, W := Matrices.Vector, source := kernelSpace, target := Matrices.domain] \as Inclusions;
 \definition inclusion: Inclusions.Map := Inclusions.Map {
   apply := \fun (x: Carrier) => x,
-  addition := \fun (x, y: Carrier) => \refl(#add{Matrices.domain} x y),
-  scalar := \fun (a: I.Int^)(x: Carrier) => \refl(#smul{Matrices.domain} a x),
+  addition := \fun (x, y: Carrier) => \refl(Matrices.domain.add x y),
+  scalar := \fun (a: I.Int^)(x: Carrier) => \refl(Matrices.domain.smul a x),
 };
 \import Modules.Of[V := Matrices.Output, space := Matrices.codomain].Submodule[] \as OutputSubmodules;
 \import OutputSubmodules.Image[U := Matrices.Vector, source := Matrices.domain] \as Images;
 \import Modules.Hom[V := Matrices.Vector, W := Boundary.Carrier, source := Matrices.domain, target := Boundary.space] \as Projections;
 \definition projection: Projections.Map := Projections.Map {
-  apply := \fun (x: Matrices.Vector) => \into[Matrices.Output](Base.apply (Matrices.reflect original) x, #carrier{Boundary.submodule}) \by {
+  apply := \fun (x: Matrices.Vector) => \into[Matrices.Output](Base.apply (Matrices.reflect original) x, Boundary.submodule.carrier) \by {
     Images.member (Base.linear (Matrices.reflect original)) x
   },
-  addition := \fun (x, y: Matrices.Vector) => #addition{(Base.linear (Matrices.reflect original))} x y,
-  scalar := \fun (a: I.Int^)(x: Matrices.Vector) => #scalar{(Base.linear (Matrices.reflect original))} a x,
+  addition := \fun (x, y: Matrices.Vector) => (Base.linear (Matrices.reflect original)).addition x y,
+  scalar := \fun (a: I.Int^)(x: Matrices.Vector) => (Base.linear (Matrices.reflect original)).scalar a x,
 };
 \import Modules.ShortExact[A := kernelBundle, B := domainBundle, C := imageBundle] \as Sequences;
-\definition onto: \forall (y: Boundary.Carrier) -> \exists { x: Matrices.Vector \where #apply{projection} x = y } := \block {
+\definition onto: \forall (y: Boundary.Carrier) -> \exists ( x: Matrices.Vector \where projection.apply x = y ) := \block {
   \fun (y: Boundary.Carrier) \then
   \takefrom x: \Cast[Matrices.Vector] ({ x: Matrices.Vector \where Base.apply (Matrices.reflect original) x = y })
-    \by \bysub(Matrices.Output, #carrier{Boundary.submodule}, y) \then
-  \return Existential.existsIntro[Matrices.Vector, { x: Matrices.Vector \where #apply{projection} x = y }] x
+    \by \bysub(Matrices.Output, Boundary.submodule.carrier, y) \then
+  \return Existential.existsIntro[Matrices.Vector, { x: Matrices.Vector \where projection.apply x = y }] x
     (\bysub(Matrices.Vector, { x: Matrices.Vector \where Base.apply (Matrices.reflect original) x = y }, x))
 };
-\definition zero: \forall (x: Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{Boundary.space} :=
-  \fun (x: Carrier) => \bysub(Matrices.Vector, #carrier{Transport.targetKernel}, x);
-\definition kernelImage: \forall (x: Matrices.Vector) -> #apply{projection} x = #zero{Boundary.space} ->
-  \exists { y: Carrier \where #apply{inclusion} y = x } :=
-  \fun (x: Matrices.Vector)(closed: _) => Existential.existsIntro[Carrier, { y: Carrier \where #apply{inclusion} y = x }] (\into[Matrices.Vector](x, #carrier{Transport.targetKernel}) \by { closed })
+\definition zero: \forall (x: Carrier) -> projection.apply (inclusion.apply x) = Boundary.space.zero :=
+  \fun (x: Carrier) => \bysub(Matrices.Vector, Transport.targetKernel.carrier, x);
+\definition kernelImage: \forall (x: Matrices.Vector) -> projection.apply x = Boundary.space.zero ->
+  \exists ( y: Carrier \where inclusion.apply y = x ) :=
+  \fun (x: Matrices.Vector)(closed: _) => Existential.existsIntro[Carrier, { y: Carrier \where inclusion.apply y = x }] (\into[Matrices.Vector](x, Transport.targetKernel.carrier) \by { closed })
     (\refl(x));
 \definition data: Sequences.Data := Sequences.Data { inclusion := inclusion, projection := projection };
 \definition laws: Sequences.Laws[data] := Sequences.Laws[data] {
@@ -47,15 +47,15 @@
   apply := \fun (x: HeadCoordinates.Carrier) => Right.apply right (Head.extension x),
   addition := \fun (x, y: HeadCoordinates.Carrier) => trans!{Matrices.Vector} _ _ _
     (congr!{Matrices.Vector Matrices.Vector} (Right.apply right) _ _ (HeadLaws.extensionAddition x y))
-    (#addition{#forward{rightIso}} (Head.extension x) (Head.extension y)),
+    (rightIso.forward.addition (Head.extension x) (Head.extension y)),
   scalar := \fun (a: I.Int^)(x: HeadCoordinates.Carrier) => trans!{Matrices.Vector} _ _ _
     (congr!{Matrices.Vector Matrices.Vector} (Right.apply right) _ _ (HeadLaws.extensionScalar a x))
-    (#scalar{#forward{rightIso}} a (Head.extension x)),
+    (rightIso.forward.scalar a (Head.extension x)),
 };
 \import Extensions.Composition[U := Boundary.Carrier, domain := Boundary.space] \as Composition;
 \definition section: Modules.Hom[V := Boundary.Carrier, W := Matrices.Vector, source := Boundary.space, target := Matrices.domain].Map :=
-  Composition.compose extension #backward{Boundary.isomorphism};
-\definition sectionLaw: \forall (y: Boundary.Carrier) -> #apply{projection} (#apply{section} y) = y := Boundary.reconstruction;
+  Composition.compose extension Boundary.isomorphism.backward;
+\definition sectionLaw: \forall (y: Boundary.Carrier) -> projection.apply (section.apply y) = y := Boundary.reconstruction;
 \import Sequences.Splitting[sequence := sequence].With[s := section] \as Split;
 \import Modules.Biproduct[V := Carrier, W := Boundary.Carrier, left := kernelSpace, right := Boundary.space] \as Sum;
 \definition isomorphism: Modules.Isomorphism[V := Sum.Carrier, W := Matrices.Vector, source := Sum.space, target := Matrices.domain].Isomorphism := Split.isomorphism sectionLaw;

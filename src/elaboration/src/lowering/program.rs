@@ -178,7 +178,10 @@ impl Lowerer<'_> {
         ctx: &mut raw::program::ProgramContext,
     ) -> Result<s::Expression, crate::error::Error> {
         let previous_mode = std::mem::replace(&mut self.scope.program_context, true);
-        let depth = std::mem::replace(&mut self.scope.program_depth, ctx.len());
+        let depth = std::mem::replace(
+            &mut self.scope.program_depth,
+            self.scope.program_offset + ctx.len(),
+        );
         let result = self.value_term_inner(v, ctx);
         self.scope.program_depth = depth;
         self.scope.program_context = previous_mode;
@@ -214,7 +217,8 @@ impl Lowerer<'_> {
             } => {
                 self.definition(definition)?;
                 let captures = self.captures(Declaration::Definition(definition));
-                let mut arguments = self.capture_arguments(&captures, ctx.len(), true)?;
+                let mut arguments =
+                    self.capture_arguments(&captures, self.scope.program_depth, true)?;
                 for parameter in parameters {
                     arguments.push(self.value_type(parameter)?);
                 }
@@ -304,7 +308,10 @@ impl Lowerer<'_> {
         ctx: &mut raw::program::ProgramContext,
     ) -> Result<s::Expression, crate::error::Error> {
         let previous_mode = std::mem::replace(&mut self.scope.program_context, true);
-        let depth = std::mem::replace(&mut self.scope.program_depth, ctx.len());
+        let depth = std::mem::replace(
+            &mut self.scope.program_depth,
+            self.scope.program_offset + ctx.len(),
+        );
         let result = self.computation_term_inner(e, ctx);
         self.scope.program_depth = depth;
         self.scope.program_context = previous_mode;
@@ -333,7 +340,8 @@ impl Lowerer<'_> {
             } => {
                 self.definition(definition)?;
                 let captures = self.captures(Declaration::Definition(definition));
-                let mut arguments = self.capture_arguments(&captures, ctx.len(), true)?;
+                let mut arguments =
+                    self.capture_arguments(&captures, self.scope.program_depth, true)?;
                 for parameter in parameters {
                     arguments.push(self.value_type(parameter)?);
                 }

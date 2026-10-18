@@ -1,30 +1,30 @@
 \import std.Logic[].Classical[] \as Classical;
 \import Space.Compactness[] \as Compact;
 \import \parent.Closed[] \as Closed;
-\definition piece(cell: Cells.CellData): \Pow A := Closed.selected cell limit;
+\definition piece[cell: Cells.CellData]: \Pow A := Closed.selected cell limit;
 \import \root.FiniteUnion[A := A, C := Cells.CellData, source := source, pieces := piece] \as Union;
 \definition same: Union.union cells = subset limit :=
   \axiom:setext(Union.union cells, subset limit,
     \fun (x: A)(inside: _) => Union.eliminate cells x (Space.Member (subset limit) x)
       (\fun (cell: Cells.CellData)(member: _)(contains: Space.Member (piece cell) x) =>
-        include cells limit cell member (#left{contains}) x (#right{contains})) inside,
+        include cells limit cell member ((contains).left) x ((contains).right)) inside,
     \fun (x: A)(inside: _) => eliminate cells limit x (Space.Member (Union.union cells) x)
       (\fun (cell: Cells.CellData)(member: _)(below: _)(contains: _) =>
         Union.include cells cell member x (Logic.And[_, _]::# below contains)) inside);
 \definition selectedCompact: \forall (cell: Cells.CellData) -> Cells.CellMember cells cell -> Space.IsCompactIn source (piece cell) :=
-  \fun (cell: Cells.CellData)(member: _) => either!{{(Classical.excludedMiddle (Nat.Lt (#dimension{cell}) limit))}
+  \fun (cell: Cells.CellData)(member: _) => either!{{(Classical.excludedMiddle (Nat.Lt ((cell).dimension) limit))}
     {Space.IsCompactIn source (piece cell)}
     {\fun (below: _) => \idelim Cells.ClosedImage cell = piece cell \with F: \Pow A => Space.IsCompactIn source F \by {
       base: \root.On[A := A, source := source, complex := complex].CellProperties[cell := cell, member := member].compactImage,
       equality: \axiom:setext(Cells.ClosedImage cell, piece cell,
         \fun (x: A)(contains: _) => Logic.And[_, _]::# below contains,
-        \fun (x: A)(contains: Space.Member (piece cell) x) => #right{contains})
+        \fun (x: A)(contains: Space.Member (piece cell) x) => (contains).right)
     }}
     {\fun (outside: _) => \idelim Space.Empty = piece cell \with F: \Pow A => Space.IsCompactIn source F \by {
       base: Compact.emptyCompact source,
       equality: \axiom:setext(Space.Empty, piece cell,
         \fun (x: A)(impossible: Logic.False) => Logic.falseElim _ impossible,
-        \fun (x: A)(contains: Space.Member (piece cell) x) => outside (#left{contains}))
+        \fun (x: A)(contains: Space.Member (piece cell) x) => outside ((contains).left))
     }}
   };
 \definition compactIn: Space.IsCompactIn source (subset limit) :=

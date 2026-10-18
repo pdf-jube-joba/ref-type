@@ -3,35 +3,35 @@
 
 \module Point(i: Index) {
   \import \parent.\parent.CochainView[C := terms i] \as Native;
-  \definition Carrier(z: I.Int^): \Set := Native.Carrier z;
-  \definition space(z: I.Int^): Modules.Space (Carrier z) := Native.space z;
-  \definition apply(z: I.Int^): Carrier z -> Carrier (Degrees.next z) := Native.apply z;
+  \definition Carrier[z: I.Int^]: \Set := Native.Carrier z;
+  \definition space[z: I.Int^]: Modules.Space (Carrier z) := Native.space z;
+  \definition apply[z: I.Int^]: Carrier z -> Carrier (Degrees.next z) := Native.apply z;
   \definition addition: _ := Native.addition;
   \definition scalar: _ := Native.scalar;
   \definition squareZero: _ := Native.squareZero;
 }
-\definition pointCarrier(i: Index)(z: I.Int^): \Set := Point[i := i].Carrier z;
-\definition pointSpace(i: Index)(z: I.Int^): Modules.Space (pointCarrier i z) := Point[i := i].space z;
-\definition pointApply(i: Index)(z: I.Int^): pointCarrier i z -> pointCarrier i (Degrees.next z) := Point[i := i].apply z;
+\definition pointCarrier[i: Index][z: I.Int^]: \Set := Point[i := i].Carrier z;
+\definition pointSpace[i: Index][z: I.Int^]: Modules.Space (pointCarrier i z) := Point[i := i].space z;
+\definition pointApply[i: Index][z: I.Int^]: pointCarrier i z -> pointCarrier i (Degrees.next z) := Point[i := i].apply z;
 \module Term(z: I.Int^);
 \definition family: Cochains.Family := Cochains.Family {
   Carrier := \fun (z: I.Int^) => Term[z := z].Carrier,
   space := \fun (z: I.Int^) => Term[z := z].space,
 };
-\definition apply(z: I.Int^)(x: Term[z := z].Carrier): Term[z := Degrees.next z].Carrier :=
+\definition apply[z: I.Int^][x: Term[z := z].Carrier]: Term[z := Degrees.next z].Carrier :=
   \fun (i: Index) => pointApply i z (x i);
 \definition differential: Cochains.DifferentialData[family] := Cochains.DifferentialData[family] { apply := apply };
 \definition complex: Cochains.Complex := Cochains.Complex {
   family := family, differential := differential,
   laws := Cochains.DifferentialLaws[family, differential] {
     addition := \fun (z: I.Int^)(x, y: Term[z := z].Carrier) =>
-      \axiom:funext(apply z (#add{Term[z := z].space} x y), #add{Term[z := Degrees.next z].space} (apply z x) (apply z y),
+      \axiom:funext(apply z ((Term[z := z].space).add x y), (Term[z := Degrees.next z].space).add (apply z x) (apply z y),
         \fun (i: Index) => Point[i := i].addition z (x i) (y i)),
     scalar := \fun (z: I.Int^)(a: I.Int^)(x: Term[z := z].Carrier) =>
-      \axiom:funext(apply z (#smul{Term[z := z].space} a x), #smul{Term[z := Degrees.next z].space} a (apply z x),
+      \axiom:funext(apply z ((Term[z := z].space).smul a x), (Term[z := Degrees.next z].space).smul a (apply z x),
         \fun (i: Index) => Point[i := i].scalar z a (x i)),
     squareZero := \fun (z: I.Int^)(x: Term[z := z].Carrier) =>
-      \axiom:funext(apply (Degrees.next z) (apply z x), #zero{Term[z := Degrees.next (Degrees.next z)].space},
+      \axiom:funext(apply (Degrees.next z) (apply z x), (Term[z := Degrees.next (Degrees.next z)].space).zero,
         \fun (i: Index) => Point[i := i].squareZero z (x i)),
   },
 };

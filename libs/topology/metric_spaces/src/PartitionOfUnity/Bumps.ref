@@ -1,38 +1,38 @@
 \definition localBump: \forall (source: Space.Topology) -> Space.IsCompact source -> Space.IsT2 source ->
   \forall (family: \Pow (\Pow A)) -> Space.IsOpenCover[source, family, Space.Whole] ->
-  \forall (x: A) -> \exists { f: Bump[source, family] \where Space.Member (#oneRegion{f}) x } := \block {
+  \forall (x: A) -> \exists ( f: Bump[source, family] \where Space.Member (f.oneRegion) x ) := \block {
   \fun (source: Space.Topology) (compact: Space.IsCompact source) (hausdorff: Space.IsT2 source)
     (family: \Pow (\Pow A)) (cover: Space.IsOpenCover[source, family, Space.Whole]) (x: A) \then
   \let normal: Space.IsNormal source := Compactness.compactHausdorffNormal source compact hausdorff \then
   \let t1: Space.IsT1 source := Compactness.hausdorffT1 source hausdorff \then
-  \return Space.unionMemberElim family x (\exists { f: Bump[source, family] \where Space.Member (#oneRegion{f}) x })
+  \return Space.unionMemberElim family x (\exists ( f: Bump[source, family] \where Space.Member (f.oneRegion) x ))
     (\block {
       \fun (U: \Pow A) (inFamily: Space.FamilyMember family U) (inU: Space.Member U x) \then
       \let included: Space.Subset (Space.Singleton x) U := \fun (y: A) (equal: y = x) =>
         \idelim x = y \with z: A => Space.Member U z \by { base: inU, equality: sym!{A} _ _ equal } \then
       \takefrom first: Urysohn.ShrinkData[source, Space.Singleton x, U]
-        \by Urysohn.shrink source normal (Space.Singleton x) U (t1 x) (#open{cover} U inFamily) included \then
-      \let V: \Pow A := #inner{first} \then
-      \let F: \Pow A := #envelope{first} \then
+        \by Urysohn.shrink source normal (Space.Singleton x) U (t1 x) (cover.open U inFamily) included \then
+      \let V: \Pow A := first.inner \then
+      \let F: \Pow A := first.envelope \then
       \takefrom second: Urysohn.ShrinkData[source, Space.Singleton x, V]
-        \by Urysohn.shrink source normal (Space.Singleton x) V (t1 x) (#innerOpen{first}) (#contains{first}) \then
-      \let W: \Pow A := #inner{second} \then
-      \let E: \Pow A := #envelope{second} \then
+        \by Urysohn.shrink source normal (Space.Singleton x) V (t1 x) (first.innerOpen) (first.contains) \then
+      \let W: \Pow A := second.inner \then
+      \let E: \Pow A := second.envelope \then
       \takefrom f: Urysohn.UrysohnFunction[source, Space.Complement V, E]
         \by Urysohn.normalUrysohn source normal (Space.Complement V) E
-          (FiniteSets.openComplementClosed source V (#innerOpen{first})) (#envelopeClosed{second})
-          (\fun (y: A) (outside: Space.Member (Space.Complement V) y) (inE: Space.Member E y) => outside (#within{second} y inE)) \then
+          (FiniteSets.openComplementClosed source V (first.innerOpen)) (second.envelopeClosed)
+          (\fun (y: A) (outside: Space.Member (Space.Complement V) y) (inE: Space.Member E y) => outside (second.within y inE)) \then
       \let value: Bounded.Function[source] := UrysohnFunctions.bounded source (Space.Complement V) E f \then
       \let inF: Space.Subset (Nonzero value) F := \fun (y: A) (nonzero: Space.Member (Nonzero value) y) =>
-        #enclosed{first} y (FiniteSets.doubleNegElim (Space.Member V y)
-          (\fun (outside: Logic.Not (Space.Member V y)) => nonzero (#zeroOn{f} y outside))) \then
+        first.enclosed y (FiniteSets.doubleNegElim (Space.Member V y)
+          (\fun (outside: Logic.Not (Space.Member V y)) => nonzero (f.zeroOn y outside))) \then
       \let bump: Bump[source, family] := Bump[source, family] {
-        openSet := U, value := value, oneRegion := W, inCover := inFamily, regionOpen := #innerOpen{second},
-        oneOn := \fun (y: A) (inW: Space.Member W y) => #oneOn{f} y (#enclosed{second} y inW),
+        openSet := U, value := value, oneRegion := W, inCover := inFamily, regionOpen := second.innerOpen,
+        oneOn := \fun (y: A) (inW: Space.Member W y) => f.oneOn y (second.enclosed y inW),
         supportWithin := Space.subsetTrans (support source value) F U
-          (Closure.least source (Nonzero value) F (#envelopeClosed{first}) inF) (#within{first}),
+          (Closure.least source (Nonzero value) F (first.envelopeClosed) inF) (first.within),
       } \then
-      \return Logic.existsIntro[Bump[source, family], { f: Bump[source, family] \where Space.Member (#oneRegion{f}) x }] bump
-        (#contains{second} x (\refl(x)))
-    }) (#covers{cover} x (\refl(x)))
+      \return Logic.existsIntro[Bump[source, family], { f: Bump[source, family] \where Space.Member (f.oneRegion) x }] bump
+        (second.contains x (\refl(x)))
+    }) (cover.covers x (\refl(x)))
 };

@@ -10,9 +10,9 @@
       \into[I.Int^ -> B](\fun (a: I.Int^) => f (action a x), Target.IntegerMap) \by {
         Scalars.MonoidLaws[Target.integerDomain, Target.target, \fun (a: I.Int^) => f (action a x)] {
           unit := trans!{B} _ _ _ (congr!{Carrier B} f _ _ (scalarZero x))
-            (#unit{(Underlying.monoidLaws Groups.domain Groups.codomain f)}),
+            ((Underlying.monoidLaws Groups.domain Groups.codomain f).unit),
           operation := \fun (a, b: I.Int^) => trans!{B} _ _ _ (congr!{Carrier B} f _ _ (scalarAdd a b x))
-            (#operation{(Underlying.monoidLaws Groups.domain Groups.codomain f)} (action a x) (action b x)),
+            ((Underlying.monoidLaws Groups.domain Groups.codomain f).operation (action a x) (action b x)),
         }
       };
     \definition same: composed = Target.integerMap (f x) := Target.generatorExt composed (Target.integerMap (f x))
@@ -22,20 +22,20 @@
   }
   \definition map: Linear.Map := Linear.Map {
     apply := f,
-    addition := #operation{(Underlying.monoidLaws Groups.domain Groups.codomain f)},
+    addition := (Underlying.monoidLaws Groups.domain Groups.codomain f).operation,
     scalar := \fun (a: I.Int^)(x: Carrier) => At[x := x].law a,
   };
 }
-\definition fromGroup(f: Groups.Map): Linear.Map := On[f := f].map;
-\definition toGroup(f: Linear.Map): Groups.Map :=
-  \into[Carrier -> B](#apply{f}, Groups.Map) \by {
-    Underlying.MonoidLaws[Groups.domain, Groups.codomain, #apply{f}] {
-      unit := Linear.zeroPreserved f, operation := #addition{f},
+\definition fromGroup[f: Groups.Map]: Linear.Map := On[f := f].map;
+\definition toGroup[f: Linear.Map]: Groups.Map :=
+  \into[Carrier -> B](f.apply, Groups.Map) \by {
+    Underlying.MonoidLaws[Groups.domain, Groups.codomain, f.apply] {
+      unit := Linear.zeroPreserved f, operation := f.addition,
     }
   };
 \definition fromTo: \forall (f: Linear.Map) -> fromGroup (toGroup f) = f :=
-  \fun (f: Linear.Map) => Linear.ext (fromGroup (toGroup f)) f (\fun (x: Carrier) => \refl(#apply{f} x));
+  \fun (f: Linear.Map) => Linear.ext (fromGroup (toGroup f)) f (\fun (x: Carrier) => \refl(f.apply x));
 \definition toFrom: \forall (f: Groups.Map) -> toGroup (fromGroup f) = f :=
   \fun (f: Groups.Map) => \axiom:funext(toGroup (fromGroup f), f, \fun (x: Carrier) => \refl(f x));
 \definition kernelCompatible: \forall (f: Groups.Map)(x: Carrier) ->
-  #apply{(fromGroup f)} x = #zero{Target.space} -> f x = H.zero := \fun (f: Groups.Map)(x: Carrier)(zero: _) => zero;
+  (fromGroup f).apply x = Target.space.zero -> f x = H.zero := \fun (f: Groups.Map)(x: Carrier)(zero: _) => zero;

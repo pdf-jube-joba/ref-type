@@ -2,25 +2,25 @@
 \import \parent.CompactIntervals[] \as Intervals;
 \import MetricTopology.Hausdorff[] \as Hausdorff;
 \definition RayFamily: \Pow (\Pow Real.Real) :=
-  { U: \Pow Real.Real \where \exists { b: Real.Real \where U = Rays.Below b } };
-\definition RayBound(U: \Pow Real.Real)(b: Real.Real): \Prop := Space.Subset U (Rays.Below b);
-\definition FamilyBound(family: \Pow (\Pow Real.Real))(b: Real.Real): \Prop :=
+  { U: \Pow Real.Real \where \exists ( b: Real.Real \where U = Rays.Below b ) };
+\definition RayBound[U: \Pow Real.Real][b: Real.Real]: \Prop := Space.Subset U (Rays.Below b);
+\definition FamilyBound[family: \Pow (\Pow Real.Real)][b: Real.Real]: \Prop :=
   \forall (U: \Pow Real.Real) -> Space.FamilyMember family U -> RayBound U b;
 \definition rayMonotone: \forall (a, b: Real.Real) -> R.Le a b -> Space.Subset (Rays.Below a) (Rays.Below b) :=
   \fun (a, b: _)(less: _)(x: _)(member: _) => R.ltLeTrans x a b member less;
 \definition finiteBound: \forall (F: Finite.FiniteSubset) ->
-  (\forall (U: \Pow Real.Real) -> Finite.Member F U -> \exists { b: Real.Real \where RayBound U b }) ->
-  \exists { b: Real.Real \where FamilyBound F b } :=
+  (\forall (U: \Pow Real.Real) -> Finite.Member F U -> \exists ( b: Real.Real \where RayBound U b )) ->
+  \exists ( b: Real.Real \where FamilyBound F b ) :=
   Finite.induction ({ F: \Pow (\Pow Real.Real) \where
-    (\forall (U: \Pow Real.Real) -> Space.FamilyMember F U -> \exists { b: Real.Real \where RayBound U b }) ->
-    \exists { b: Real.Real \where FamilyBound F b } })
+    (\forall (U: \Pow Real.Real) -> Space.FamilyMember F U -> \exists ( b: Real.Real \where RayBound U b )) ->
+    \exists ( b: Real.Real \where FamilyBound F b ) })
     (\fun (bounds: _) => Logic.existsIntro[Real.Real, { b: Real.Real \where FamilyBound Finite.Empty b }] Real.zero
       (\fun (U: _)(empty: Logic.False)(x: _)(member: _) => Logic.falseElim (R.Lt x Real.zero) empty))
     (\block {
       \fun (F: \Pow (\Pow Real.Real))
-        (previous: (\forall (V: \Pow Real.Real) -> Space.FamilyMember F V -> \exists { b: Real.Real \where RayBound V b }) -> \exists { b: Real.Real \where FamilyBound F b })
+        (previous: (\forall (V: \Pow Real.Real) -> Space.FamilyMember F V -> \exists ( b: Real.Real \where RayBound V b )) -> \exists ( b: Real.Real \where FamilyBound F b ))
         (U: \Pow Real.Real)
-        (bounds: \forall (V: \Pow Real.Real) -> Space.FamilyMember (Finite.Insert U F) V -> \exists { b: Real.Real \where RayBound V b }) \then
+        (bounds: \forall (V: \Pow Real.Real) -> Space.FamilyMember (Finite.Insert U F) V -> \exists ( b: Real.Real \where RayBound V b )) \then
       \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where RayBound U a }) \by bounds U (Finite.inInsertNew U F) \then
       \let ua: RayBound U a := \bysub(Real.Real, { a: Real.Real \where RayBound U a }, a) \then
       \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where FamilyBound F b })
@@ -57,7 +57,7 @@
     { F: Finite.FiniteSubset \where Space.FiniteSubcover[RayFamily, S, F] }, F) \then
   \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where FamilyBound F b }) \by finiteBound F (\block {
     \fun (U: _)(inF: _) \then
-    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where U = Rays.Below a }) \by #included{cover} U inF \then
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where U = Rays.Below a }) \by cover.included U inF \then
     \let equal: U = Rays.Below a := \bysub(Real.Real, { a: Real.Real \where U = Rays.Below a }, a) \then
     \return Logic.existsIntro[Real.Real, { a: Real.Real \where RayBound U a }] a
       (\fun (x: Real.Real)(member: Space.Member U x) => \idelim U = Rays.Below a
@@ -66,7 +66,7 @@
   \let bound: FamilyBound F b := \bysub(Real.Real, { b: Real.Real \where FamilyBound F b }, b) \then
   \return Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound S b }] b
     (\fun (x: Real.Real)(member: Space.Member S x) => Space.unionMemberElim F x (R.Le x b)
-      (\fun (U: _)(inF: _)(inside: _) => Order.leOfLt x b (bound U inF x inside)) (#covers{cover} x member))
+      (\fun (U: _)(inF: _)(inside: _) => Order.leOfLt x b (bound U inF x inside)) (cover.covers x member))
 };
 \definition supremumMember: \forall (S: Complete.Family) -> Space.IsClosedIn topology S -> Space.Member S (Complete.supremum S) :=
   \fun (S: _)(closed: _) => Order.byContradiction (Space.Member S (Complete.supremum S)) (\block {
@@ -76,24 +76,24 @@
     \let radius: Logic.And[R.Lt Real.zero r, Space.Subset (MetricSpace.Ball Metric.metric a r) (Space.Complement S)] :=
       \bysub(Real.Real, MetricSpace.NeighborhoodRadius Metric.metric (Space.Complement S) a, r) \then
     \let h: Real.Real := Real.mul Real.half r \then
-    \let positive: R.Lt Real.zero h := Estimates.halfOfPositive r (#left{radius}) \then
+    \let positive: R.Lt Real.zero h := Estimates.halfOfPositive r (radius.left) \then
     \takefrom x: \Cast[Real.Real] ({ x: Real.Real \where Logic.And[Complete.Member S x, R.Lt (Real.sub a h) x] })
       \by Intervals.belowSupremum S (Real.sub a h) (Intervals.subPositive a h positive) \then
     \let data: Logic.And[Complete.Member S x, R.Lt (Real.sub a h) x] :=
       \bysub(Real.Real, { x: Real.Real \where Logic.And[Complete.Member S x, R.Lt (Real.sub a h) x] }, x) \then
     \let near: R.Lt (Real.distance a x) r := R.leLtTrans _ h r
-      (Estimates.distanceLeOfInterval a x h (Order.leOfLt _ _ (#right{data}))
-        (R.leTrans x a (Real.add a h) (Complete.supremumUpper S x (#left{data}))
+      (Estimates.distanceLeOfInterval a x h (Order.leOfLt _ _ (data.right))
+        (R.leTrans x a (Real.add a h) (Complete.supremumUpper S x (data.left))
           (Order.leOfLt _ _ (Intervals.addPositive a h positive))))
-      (Estimates.halfStrict r (#left{radius})) \then
-    \return #right{radius} x near (#left{data})
+      (Estimates.halfStrict r (radius.left)) \then
+    \return radius.right x near (data.left)
   });
-\structure Maximum[S: \Pow Real.Real, a: Real.Real]: \Prop {
+\structure Maximum[S: \Pow Real.Real, a: Real.Real]: \Prop := {
   member: Space.Member S a,
   upper: Complete.UpperBound S a,
-}
+};
 \definition compactMaximum: \forall (S: \Pow Real.Real) -> Complete.Nonempty S -> Space.IsCompactIn topology S ->
-  \exists { a: Real.Real \where Maximum[S, a] } := \block {
+  \exists ( a: Real.Real \where Maximum[S, a] ) := \block {
   \fun (S: _)(nonempty: _)(compact: _) \then
   \let family: Complete.Family := \into[\Pow Real.Real](S, Complete.FamilySet) \by {
     Logic.And[_, _]::# nonempty (compactBounded S compact)

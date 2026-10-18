@@ -1,12 +1,12 @@
 \import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
-\definition families(i: Index): Complexes.Family := Complexes.Family {
+\definition families[i: Index]: Complexes.Family := Complexes.Family {
   Carrier := \parent.Component[i := i].Carrier,
   space := \parent.Component[i := i].space,
 };
-\definition differentials(i: Index): Complexes.DifferentialData[families i] := Complexes.DifferentialData[families i] {
+\definition differentials[i: Index]: Complexes.DifferentialData[families i] := Complexes.DifferentialData[families i] {
   apply := \parent.Component[i := i].apply,
 };
-\definition laws(i: Index): Complexes.DifferentialLaws[families i, differentials i] := Complexes.DifferentialLaws[families i, differentials i] {
+\definition laws[i: Index]: Complexes.DifferentialLaws[families i, differentials i] := Complexes.DifferentialLaws[families i, differentials i] {
   addition := \parent.Component[i := i].addition,
   scalar := \parent.Component[i := i].scalar,
   squareZero := \parent.Component[i := i].squareZero,
@@ -16,10 +16,10 @@
 };
 \definition maps: \forall (i: Index) -> Complexes.Map[C := terms i, D := SmallExtension.complex].Map :=
   \fun (i: Index) => Complexes.Map[C := terms i, D := SmallExtension.complex].Map {
-    apply := #apply{\parent.Component[i := i].map},
-    addition := #addition{\parent.Component[i := i].map},
-    scalar := #scalar{\parent.Component[i := i].map},
-    commutes := #commutes{\parent.Component[i := i].map},
+    apply := (\parent.Component[i := i].map).apply,
+    addition := (\parent.Component[i := i].map).addition,
+    scalar := (\parent.Component[i := i].map).scalar,
+    commutes := (\parent.Component[i := i].map).commutes,
   };
 \import singular_cellular_algebra.Algebra[].SumTo[Index := Index, terms := terms, target := SmallExtension.complex, maps := maps] \as Native;
 \import homological_algebra.Kunneth[].Integer[].ChainSum[Index := Index, terms := terms] \as Sum;
@@ -27,35 +27,35 @@
 \module Positive(n: N.Nat^);
 
 \module Negative(n: N.Nat^);
-\definition Backward(z: I.Int^): \Set := Modules.Hom[V := SmallExtension.Carrier z, W := Sum.Term[z := z].Carrier,
+\definition Backward[z: I.Int^]: \Set := Modules.Hom[V := SmallExtension.Carrier z, W := Sum.Term[z := z].Carrier,
   source := SmallExtension.space z, target := Sum.Term[z := z].space].Map;
 \definition backwardLinear: \forall (z: I.Int^) -> Backward z := \induction (z: I.Int^) \return Backward z \with {
   | ofNat: \fun (n: N.Nat^) => Positive[n := n].backward
   | negSucc: \fun (n: N.Nat^) => Negative[n := n].backward
 };
-\definition leftInverse: \forall (z: I.Int^)(x: Sum.Term[z := z].Carrier) -> #apply{(backwardLinear z)} (#apply{forward} z x) = x :=
-  \induction (z: I.Int^) \return \forall (x: Sum.Term[z := z].Carrier) -> #apply{(backwardLinear z)} (#apply{forward} z x) = x \with {
+\definition leftInverse: \forall (z: I.Int^)(x: Sum.Term[z := z].Carrier) -> (backwardLinear z).apply ((forward).apply z x) = x :=
+  \induction (z: I.Int^) \return \forall (x: Sum.Term[z := z].Carrier) -> (backwardLinear z).apply ((forward).apply z x) = x \with {
     | ofNat: \fun (n: N.Nat^) => Positive[n := n].Left[].law
     | negSucc: \fun (n: N.Nat^) => Negative[n := n].left
   };
-\definition rightInverse: \forall (z: I.Int^)(x: SmallExtension.Carrier z) -> #apply{forward} z (#apply{(backwardLinear z)} x) = x :=
-  \induction (z: I.Int^) \return \forall (x: SmallExtension.Carrier z) -> #apply{forward} z (#apply{(backwardLinear z)} x) = x \with {
+\definition rightInverse: \forall (z: I.Int^)(x: SmallExtension.Carrier z) -> (forward).apply z ((backwardLinear z).apply x) = x :=
+  \induction (z: I.Int^) \return \forall (x: SmallExtension.Carrier z) -> (forward).apply z ((backwardLinear z).apply x) = x \with {
     | ofNat: \fun (n: N.Nat^) => Positive[n := n].Right[].law
     | negSucc: \fun (n: N.Nat^) => Negative[n := n].right
   };
-\definition injective: \forall (z: I.Int^)(x, y: Sum.Term[z := z].Carrier) -> #apply{forward} z x = #apply{forward} z y -> x = y :=
+\definition injective: \forall (z: I.Int^)(x, y: Sum.Term[z := z].Carrier) -> (forward).apply z x = (forward).apply z y -> x = y :=
   \fun (z: I.Int^)(x, y: Sum.Term[z := z].Carrier)(same: _) => trans!{{Sum.Term[z := z].Carrier}} _ _ _ (sym!{{Sum.Term[z := z].Carrier}} _ _ (leftInverse z x))
-    (trans!{{Sum.Term[z := z].Carrier}} _ _ _ (congr!{{SmallExtension.Carrier z} {Sum.Term[z := z].Carrier}} (#apply{(backwardLinear z)}) _ _ same) (leftInverse z y));
+    (trans!{{Sum.Term[z := z].Carrier}} _ _ _ (congr!{{SmallExtension.Carrier z} {Sum.Term[z := z].Carrier}} ((backwardLinear z).apply) _ _ same) (leftInverse z y));
 \import chain_complexes.Chain[] \as Degrees;
 \definition backward: Complexes.Map[C := SmallExtension.complex, D := Sum.complex].Map := Complexes.Map[C := SmallExtension.complex, D := Sum.complex].Map {
-  apply := \fun (z: I.Int^) => #apply{(backwardLinear z)},
-  addition := \fun (z: I.Int^) => #addition{(backwardLinear z)},
-  scalar := \fun (z: I.Int^) => #scalar{(backwardLinear z)},
+  apply := \fun (z: I.Int^) => (backwardLinear z).apply,
+  addition := \fun (z: I.Int^) => (backwardLinear z).addition,
+  scalar := \fun (z: I.Int^) => (backwardLinear z).scalar,
   commutes := \fun (z: I.Int^)(y: SmallExtension.Carrier z) => injective (Degrees.previous z) _ _
-    (trans!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ _ (sym!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ (#commutes{forward} z (#apply{(backwardLinear z)} y)))
+    (trans!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ _ (sym!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ ((forward).commutes z ((backwardLinear z).apply y)))
       (trans!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ _
-        (congr!{{SmallExtension.Carrier z} {SmallExtension.Carrier (Degrees.previous z)}} (#apply{SmallExtension.complex.differential} z) _ _ (rightInverse z y))
-        (sym!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ (rightInverse (Degrees.previous z) (#apply{SmallExtension.complex.differential} z y))))),
+        (congr!{{SmallExtension.Carrier z} {SmallExtension.Carrier (Degrees.previous z)}} ((SmallExtension.complex.differential).apply z) _ _ (rightInverse z y))
+        (sym!{{SmallExtension.Carrier (Degrees.previous z)}} _ _ (rightInverse (Degrees.previous z) ((SmallExtension.complex.differential).apply z y))))),
 };
 \definition isomorphism: Complexes.Isomorphism[C := Sum.complex, D := SmallExtension.complex].Isomorphism :=
   Complexes.Isomorphism[C := Sum.complex, D := SmallExtension.complex].Isomorphism {

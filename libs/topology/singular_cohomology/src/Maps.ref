@@ -14,38 +14,38 @@
 \import \root.Chains[A := B, source := target] \as Codomain;
 \import algebraic_topology.Simplex[] \as Simplex;
 \import topology.Continuity[A := A, B := B] \as Maps;
-\definition Continuous(f: A -> B): \Prop := Maps.Continuous source target f;
+\definition Continuous[f: A -> B]: \Prop := Maps.Continuous source target f;
 \module At(n: N.Nat^) {
   \import Simplex.At[n := n] \as SimplexSpace;
   \import topology.Composition[A := Simplex.Carrier n, B := A, C := B] \as Composition;
-  \definition postcompose(f: A -> B)(continuous: Continuous f)(sigma: Source.Carrier n): Target.Carrier n :=
+  \definition postcompose[f: A -> B][continuous: Continuous f][sigma: Source.Carrier n]: Target.Carrier n :=
     \into[Target.At[n := n].Function]((\fun (x: Simplex.Carrier n) => f (sigma x)), Target.Carrier n) \by {
       Composition.composeContinuous SimplexSpace.topology source target sigma f (Source.At[n := n].continuous sigma) continuous
     };
   \import Modules.Free[Generators := Source.Carrier n].Reindex[TargetGenerators := Target.Carrier n] \as Reindex;
   \import Modules.Hom[V := Domain.Carrier n, W := Codomain.Carrier n, source := Domain.space n, target := Codomain.space n] \as Hom;
-  \definition push(f: A -> B)(continuous: Continuous f): Hom.Map := Reindex.push (postcompose f continuous);
+  \definition push[f: A -> B][continuous: Continuous f]: Hom.Map := Reindex.push (postcompose f continuous);
   \definition onGenerator: \forall (f: A -> B)(continuous: Continuous f)(sigma: Source.Carrier n) ->
-    #apply{(push f continuous)} (Domain.generator n sigma) = Codomain.generator n (postcompose f continuous sigma) :=
+    (push f continuous).apply (Domain.generator n sigma) = Codomain.generator n (postcompose f continuous sigma) :=
     \fun (f: A -> B)(continuous: Continuous f) => Reindex.onGenerator (postcompose f continuous);
 }
-\definition postcompose(n: N.Nat^)(f: A -> B)(continuous: Continuous f): Source.Carrier n -> Target.Carrier n := At[n := n].postcompose f continuous;
+\definition postcompose[n: N.Nat^][f: A -> B][continuous: Continuous f]: Source.Carrier n -> Target.Carrier n := At[n := n].postcompose f continuous;
 \definition faceNaturality: \forall (n: N.Nat^)(f: A -> B)(continuous: Continuous f)
   (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Source.Carrier (N.Nat^::succ n)) ->
   postcompose n f continuous (Source.face n i sigma) = Target.face n i (postcompose (N.Nat^::succ n) f continuous sigma) :=
   \fun (n: N.Nat^)(f: A -> B)(continuous: Continuous f)(i: _)(sigma: _) => \refl(postcompose n f continuous (Source.face n i sigma));
 \module Differential(n: N.Nat^);
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].Map[C := Domain.complex, D := Codomain.complex] \as ChainMaps;
-\definition push(f: A -> B)(continuous: Continuous f): ChainMaps.Map := ChainMaps.Map {
-  apply := \fun (n: N.Nat^) => #apply{(At[n := n].push f continuous)},
-  addition := \fun (n: N.Nat^) => #addition{(At[n := n].push f continuous)},
-  scalar := \fun (n: N.Nat^) => #scalar{(At[n := n].push f continuous)},
+\definition push[f: A -> B][continuous: Continuous f]: ChainMaps.Map := ChainMaps.Map {
+  apply := \fun (n: N.Nat^) => (At[n := n].push f continuous).apply,
+  addition := \fun (n: N.Nat^) => (At[n := n].push f continuous).addition,
+  scalar := \fun (n: N.Nat^) => (At[n := n].push f continuous).scalar,
   commutes := \fun (n: N.Nat^) => Differential[n := n].commutes f continuous,
 };
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Domain.complex] \as SourceExtension;
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Codomain.complex] \as TargetExtension;
 \import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring].Map[C := SourceExtension.complex, D := TargetExtension.complex] \as IntegerMaps;
-\definition integerPush(f: A -> B)(continuous: Continuous f): IntegerMaps.Map := ChainMaps.ZeroExtension[f := push f continuous].map;
+\definition integerPush[f: A -> B][continuous: Continuous f]: IntegerMaps.Map := ChainMaps.ZeroExtension[f := push f continuous].map;
 \module Coefficients(M, L: Modules.Bundle);
 \module Composition(C: \Set, final: topology.Topology[Carrier := C].Topology);
 

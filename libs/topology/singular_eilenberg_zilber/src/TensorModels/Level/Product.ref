@@ -6,15 +6,15 @@
 \import Fin.FromList[A := Double.Index n] \as Enumeration;
 \import Lists.Membership[A := Double.Index n] \as Membership;
 \definition indices: Lists.List[Double.Index n] := Enumeration.list (N.Nat^::succ n) (Double.fromFinite n);
-\definition covers(i: Double.Index n): Membership.Occurs i indices :=
+\definition covers[i: Double.Index n]: Membership.Occurs i indices :=
   \idelim Double.fromFinite n (Double.finiteIndex n i) = i \with j: Double.Index n => Membership.Occurs j indices \by {
     base: Enumeration.occurs (N.Nat^::succ n) (Double.fromFinite n) (Double.finiteIndex n i),
     equality: Double.finiteIndexLeftInverse n i
   };
-\definition supported(v: Product.Carrier): Supported.Finite v :=
+\definition supported[v: Product.Carrier]: Supported.Finite v :=
   Logic.existsIntro[Lists.List[Double.Index n], { xs: Lists.List[Double.Index n] \where Supported.Supports xs v }] indices
-    (\fun (i: Double.Index n)(outside: Logic.Not (Membership.Occurs i indices)) => Logic.falseElim (v i = #zero{(family.space i)}) (outside (covers i)));
-\definition lift(v: Product.Carrier): Supported.Carrier := \into[Product.Carrier](v, Supported.Carrier) \by { supported v };
+    (\fun (i: Double.Index n)(outside: Logic.Not (Membership.Occurs i indices)) => Logic.falseElim (v i = (family.space i).zero) (outside (covers i)));
+\definition lift[v: Product.Carrier]: Supported.Carrier := \into[Product.Carrier](v, Supported.Carrier) \by { supported v };
 \import Modules.Hom[V := Product.Carrier, W := Supported.Carrier, source := Product.space, target := Supported.space] \as Lifts;
 \definition inclusion: Lifts.Map := Lifts.Map {
   apply := lift,
@@ -23,7 +23,7 @@
 };
 \import Modules.Hom[V := Supported.Carrier, W := Carrier, source := Supported.space, target := space].Composition[U := Product.Carrier, domain := Product.space] \as After;
 \definition fromProduct: Modules.Hom[V := Product.Carrier, W := Carrier, source := Product.space, target := space].Map :=
-  After.compose #backward{Native.isomorphism} inclusion;
-\definition coordinate: \forall (v: Product.Carrier)(i: Double.Index n) -> Coordinates.coordinate i (#apply{fromProduct} v) = v i :=
+  After.compose (Native.isomorphism).backward inclusion;
+\definition coordinate: \forall (v: Product.Carrier)(i: Double.Index n) -> Coordinates.coordinate i ((fromProduct).apply v) = v i :=
   \fun (v: Product.Carrier)(i: Double.Index n) =>
-    congr!{Supported.Carrier {family.Carrier i}} (\fun (w: Supported.Carrier) => w i) _ _ (#rightInverse{Native.isomorphism} (lift v));
+    congr!{Supported.Carrier {family.Carrier i}} (\fun (w: Supported.Carrier) => w i) _ _ ((Native.isomorphism).rightInverse (lift v));

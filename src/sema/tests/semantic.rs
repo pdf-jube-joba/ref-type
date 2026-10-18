@@ -136,16 +136,16 @@ fn cached_temporary_modules_preserve_local_contexts() {
     snapshot.insert(
         "/virtual/Library.ref",
         r"
-        \module Family(A: \Set) { \structure Box: \Set { value: A, } }
-        \definition get(A: \Set)(x: Family[A := A].Box): A := x.value;
+        \module Family(A: \Set) { \structure Box: \Set := { value: A, }; }
+        \definition get[A: \Set][x: Family[A := A].Box]: A := x.value;
         \inductive Unit: \VType := | unit: Unit;
         \module Value(x: Unit) { \definition value: Unit := x; }
-        \definition identity(x: Unit): \F(Unit) := \return Value[x := x].value;
+        \definition identity[x: Unit]: \F(Unit) := \return Value[x := x].value;
     ",
     );
     let user = r"\import \root.Library[] \as L;
-        \definition beta(x: L.Unit^): L.identity^ x = x := \refl(x);
-        \definition get(A: \Set)(x: L.Family[A := A].Box): A := L.get A x;
+        \definition beta[x: L.Unit^]: L.identity^ x = x := \refl(x);
+        \definition get[A: \Set][x: L.Family[A := A].Box]: A := L.get A x;
     ";
     snapshot.insert("/virtual/Use.ref", user);
     let cache = Cache::new();
@@ -605,8 +605,8 @@ fn structure_members_preserve_source_identity_and_invalidate_users() {
     snapshot.insert(
         "/virtual/Shapes.ref",
         r"\inductive Unit: \Set := | unit: Unit;
-\structure Relation { A: \Set, R: A -> A -> \Prop, }
-\definition Equality(A: \Set): Relation := Relation { A := A, R := \fun(x,y:A) => x = y, };",
+\structure Relation := { A: \Set, R: A -> A -> \Prop, };
+\definition Equality[A: \Set]: Relation := Relation { A := A, R := \fun(x,y:A) => x = y, };",
     );
     snapshot.insert(
         "/virtual/Use.ref",
@@ -936,7 +936,7 @@ fn module_timings_include_preparation_and_keep_generated_scopes_with_the_source(
     snapshot.insert(
         "/virtual/root.ref",
         r"\module Parent(C: \Set, x: C) {
-        \structure Box[Carrier: \Set] { value: Carrier }
+        \structure Box[Carrier: \Set] := { value: Carrier };
         \definition make[Carrier: \Set]: Carrier -> Box[Carrier] :=
             \fun (value: Carrier) => Box[Carrier] { value := value };
         \definition box: Box[C] := make[C] x;
@@ -1179,7 +1179,7 @@ fn structured_causes_survive_semantic_queries_and_serialization() {
             "syntax.ExpectedAtom",
         ),
         (
-            r"\module M { \structure Packed[F: \Set -> \SetKind] { Cr: \Set, data: F Cr } }",
+            r"\module M { \structure Packed[F: \Set -> \SetKind] := { Cr: \Set, data: F Cr }; }",
             "elaboration.Parameter",
         ),
     ] {

@@ -21,7 +21,7 @@
   \import Algebra.EigenCoordinates[V := K, I := Unit, space := Algebra.scalarSpace] \as EigenCoordinates;
   \import Algebra.Sums[I := Unit] \as Sums;
   \definition indices: Lists.List[Unit] := Lists.List[Unit]::cons Unit::unit Lists.List[Unit]::nil;
-  \definition constant(x: K): Coordinates.Vector := \fun (i: _) => x;
+  \definition constant[x: K]: Coordinates.Vector := \fun (i: _) => x;
   \definition encode: Encode.Map := Encode.Map {
     apply := constant,
     preservesAdd := \fun (x, y: _) => \refl(constant (Algebra.add x y)),
@@ -30,7 +30,7 @@
   \definition raw: Finite.BasisData := Finite.BasisData {
     indices := indices, vectors := \fun (i: _) => Algebra.one, coordinates := encode,
   };
-  \definition expand(x: Coordinates.Vector): Finite.synthesize raw x = x Unit::unit :=
+  \definition expand[x: Coordinates.Vector]: Finite.synthesize raw x = x Unit::unit :=
     trans!{K} _ _ _ (Algebra.addZeroRight _) (Algebra.mulOneRight (x Unit::unit));
   \definition basis: Finite.Basis := Finite.Basis {
     indices := indices, vectors := \fun (i: _) => Algebra.one, coordinates := encode,
@@ -51,17 +51,17 @@
   \definition matrixScalar: \forall (a: K) -> Representation.toMatrix basis basis (Eigen.scalar a) Unit::unit Unit::unit = a :=
     \fun (a: _) => Algebra.mulOneRight a;
   \definition roundTrip: \forall (a: K) -> \forall (x: K) ->
-    #apply{(Representation.fromMatrix basis basis (Representation.toMatrix basis basis (Eigen.scalar a)))} x = Algebra.mul a x :=
+    (Representation.fromMatrix basis basis (Representation.toMatrix basis basis (Eigen.scalar a))).apply x = Algebra.mul a x :=
     \fun (a: _) (x: _) => Representation.mapRoundTrip basis basis (Eigen.scalar a) x;
   \definition eigenvector: \forall (a: K) -> Eigen.Eigenvector[Eigen.scalar a, a, Algebra.one] :=
-    \fun (a: _) => Eigen.scalarEigenvector a Algebra.one (\fun (equal: _) => #nontrivial{field} (sym!{K} _ _ equal));
+    \fun (a: _) => Eigen.scalarEigenvector a Algebra.one (\fun (equal: _) => field.nontrivial (sym!{K} _ _ equal));
   \definition eigenvalue: \forall (a: K) -> Eigen.Eigenvalue (Eigen.scalar a) a :=
     \fun (a: _) => Eigen.eigenvalueOfEigenvector (Eigen.scalar a) a Algebra.one (eigenvector a);
   \import Algebra.Coordinates[I := Unit] \as CoordinateSpace;
   \import Algebra.Eigen[V := CoordinateSpace.Vector, space := CoordinateSpace.space] \as CoordinateEigen;
   \definition coordinateEigenvector: \forall (a: K) ->
     CoordinateEigen.Eigenvector[EigenCoordinates.represented basis (Eigen.scalar a), a, Finite.coordinates basis Algebra.one] :=
-    \fun (a: _) => #ltr{(EigenCoordinates.eigenvectorCorrespondence basis (Eigen.scalar a) a Algebra.one)} (eigenvector a);
+    \fun (a: _) => (EigenCoordinates.eigenvectorCorrespondence basis (Eigen.scalar a) a Algebra.one).ltr (eigenvector a);
   \definition basisIndependence: \forall (b: Finite.Basis) -> \forall (f: End.Map) -> Finite.trace basis f = Finite.trace b f :=
     \fun (b: Finite.Basis) (f: End.Map) => Rebase.traceIndependent basis b f;
 }
@@ -108,7 +108,7 @@
     \block {
       \fun (f: End.Map) (lambda: _) (exists: Eigen.Eigenvalue f lambda) \then
       \takefrom x: \Cast[Coordinates.Vector] ({ x: Coordinates.Vector \where Eigen.Eigenvector[f, lambda, x] }) \by exists \then
-      \return #nonzero{(\bysub(Coordinates.Vector, { x: Coordinates.Vector \where Eigen.Eigenvector[f, lambda, x] }, x))}
+      \return (\bysub(Coordinates.Vector, { x: Coordinates.Vector \where Eigen.Eigenvector[f, lambda, x] }, x)).nonzero
         (sym!{Coordinates.Vector} _ _ (allZero x))
     };
 }
@@ -143,11 +143,11 @@
   };
   \definition realScalarSelfAdjoint: \forall (a: R.Real) -> Inner.SelfAdjoint inner (Eigen.scalar (D.ofReal a)) :=
     \fun (a: _) (x, y: _) => eq_reason!{
-      {#inner{inner} (D.mul (D.ofReal a) x) y}
-      "=" {D.mul (D.conj (D.ofReal a)) (#inner{inner} x y)} "by" {Inner.scaleLeft inner (D.ofReal a) x y}
-      "=" {D.mul (D.ofReal a) (#inner{inner} x y)} "by" {
-        congr!{C.Complex C.Complex} (\fun (z: _) => D.mul z (#inner{inner} x y)) _ _ (P.conjOfReal a)}
-      "=" {#inner{inner} x (D.mul (D.ofReal a) y)} "by" {sym!{C.Complex} _ _ (#scaleRight{inner} (D.ofReal a) x y)}
+      {inner.inner (D.mul (D.ofReal a) x) y}
+      "=" {D.mul (D.conj (D.ofReal a)) (inner.inner x y)} "by" {Inner.scaleLeft inner (D.ofReal a) x y}
+      "=" {D.mul (D.ofReal a) (inner.inner x y)} "by" {
+        congr!{C.Complex C.Complex} (\fun (z: _) => D.mul z (inner.inner x y)) _ _ (P.conjOfReal a)}
+      "=" {inner.inner x (D.mul (D.ofReal a) y)} "by" {sym!{C.Complex} _ _ (inner.scaleRight (D.ofReal a) x y)}
     };
   \definition selfAdjointSpectrum: \forall (a: R.Real) ->
     D.ofReal a = D.ofReal (C.re (D.ofReal a)) :=
@@ -165,7 +165,7 @@
   \import Algebra.Eigen[V := Coordinates.Vector, space := Coordinates.space] \as Eigen;
   \definition indices: Lists.List[Bool.Bool^] :=
     Lists.List[Bool.Bool^]::cons Bool.Bool^::false (Lists.List[Bool.Bool^]::cons Bool.Bool^::true Lists.List[Bool.Bool^]::nil);
-  \definition upper(a, b, c: K): Matrices.Matrix :=
+  \definition upper[a, b, c: K]: Matrices.Matrix :=
     \fun (i: _) (j: _) => Bool.ite K i (Bool.ite K j c Algebra.zero) (Bool.ite K j b a);
   \definition traceUpper: \forall (a, b, c: K) -> Square.trace indices (upper a b c) = Algebra.add a c :=
     \fun (a, b, c: _) => congr!{K K} (Algebra.add a) _ _ (Algebra.addZeroRight c);
@@ -175,7 +175,7 @@
     \fun (a, b, c, d, e, f: _) => congr!{K K} (Algebra.add (Algebra.mul a e)) _ _ (Algebra.addZeroRight (Algebra.mul b f));
   \definition first: Coordinates.Vector := \fun (i: _) => Bool.ite K i Algebra.zero Algebra.one;
   \definition firstNonzero: Logic.Not (first = Coordinates.origin) :=
-    \fun (equal: _) => #nontrivial{field} (sym!{K} _ _
+    \fun (equal: _) => field.nontrivial (sym!{K} _ _
       (congr!{Coordinates.Vector K} (\fun (x: _) => x Bool.Bool^::false) _ _ equal));
   \definition firstEigenvector: \forall (a, b, c: K) ->
     Square.Eigenvector indices (upper a b c) a first :=

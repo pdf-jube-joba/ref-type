@@ -9,16 +9,16 @@
 \import Analysis.Estimates[] \as Estimates;
 \import Estimates.Product[] \as Product;
 \import R.Order[] \as Order;
-\structure MaximumControl[f: Real -> Real, a, radius: Real]: \Prop {
+\structure MaximumControl[f: Real -> Real, a, radius: Real]: \Prop := {
   positive: R.Lt zero radius,
   upper: \forall (x: Real) -> R.Lt (distance x a) radius -> R.Le (f x) (f a),
-}
-\definition LocalMaximum(f: Real -> Real)(a: Real): \Prop := \exists { radius: Real \where MaximumControl[f, a, radius] };
-\structure MinimumControl[f: Real -> Real, a, radius: Real]: \Prop {
+};
+\definition LocalMaximum[f: Real -> Real][a: Real]: \Prop := \exists ( radius: Real \where MaximumControl[f, a, radius] );
+\structure MinimumControl[f: Real -> Real, a, radius: Real]: \Prop := {
   positive: R.Lt zero radius,
   lower: \forall (x: Real) -> R.Lt (distance x a) radius -> R.Le (f a) (f x),
-}
-\definition LocalMinimum(f: Real -> Real)(a: Real): \Prop := \exists { radius: Real \where MinimumControl[f, a, radius] };
+};
+\definition LocalMinimum[f: Real -> Real][a: Real]: \Prop := \exists ( radius: Real \where MinimumControl[f, a, radius] );
 \definition subNonpositive: \forall (x, y: Real) -> R.Le x y -> R.Le (sub x y) zero :=
   \fun (x, y: _)(less: _) => R.leReplaceRight (sub x y) (sub y y) zero (Laws.subSelf y)
     (Laws.addMonotoneRight x y (Arithmetic.neg y) less);
@@ -39,7 +39,7 @@
           (R.ltReplaceLeft (Arithmetic.neg zero) zero _ Laws.negZero (Laws.negStrictAntitone (Def.slope f a x) zero negative))
           (R.ltReplaceRight zero (sub a x) (Arithmetic.neg (sub x a)) (sym!{Real} _ _ (Algebra.negSub x a)) (Rays.subPositive a x less))))
       (subNonpositive (f x) (f a) upper));
-\definition leftPoint(a, radius: Real): Real := sub a (mul Analysis.half radius);
+\definition leftPoint[a, radius: Real]: Real := sub a (mul Analysis.half radius);
 \definition leftLess: \forall (a, radius: Real) -> R.Lt zero radius -> R.Lt (leftPoint a radius) a :=
   \fun (a, radius: _)(positive: _) => Intervals.subPositive a (mul Analysis.half radius) (Estimates.halfOfPositive radius positive);
 \definition leftClose: \forall (a, radius: Real) -> R.Lt zero radius -> R.Lt (distance (leftPoint a radius) a) radius :=
@@ -57,7 +57,7 @@
   \let upper: R.Le derivative zero := LimitOrder.upper (Def.slope f a) a derivative zero differentiable (\block {
     \fun (radius: Real)(positive: _) \then
     \let r: Real := Metric.min rho radius \then
-    \let rp: R.Lt zero r := Product.minPositive rho radius (#positive{control}) positive \then
+    \let rp: R.Lt zero r := Product.minPositive rho radius (control.positive) positive \then
     \let x: Real := Limits.nearby a r \then
     \let near: R.Lt (distance x a) r := Limits.nearbyClose a r rp \then
     \let less: R.Lt a x := Intervals.addPositive a (mul Analysis.half r) (Estimates.halfOfPositive r rp) \then
@@ -65,13 +65,13 @@
       (LimitOrder.UpperSample[Def.slope f a, a, zero, radius, x] {
         different := Limits.nearbyDifferent a r rp,
         near := R.ltLeTrans _ _ _ near (Metric.minRight rho radius),
-        upper := slopeRight f a x less (#upper{control} x (R.ltLeTrans _ _ _ near (Metric.minLeft rho radius))),
+        upper := slopeRight f a x less (control.upper x (R.ltLeTrans _ _ _ near (Metric.minLeft rho radius))),
       })
   }) \then
   \let lower: R.Le zero derivative := LimitOrder.lower (Def.slope f a) a derivative zero differentiable (\block {
     \fun (radius: Real)(positive: _) \then
     \let r: Real := Metric.min rho radius \then
-    \let rp: R.Lt zero r := Product.minPositive rho radius (#positive{control}) positive \then
+    \let rp: R.Lt zero r := Product.minPositive rho radius (control.positive) positive \then
     \let x: Real := leftPoint a r \then
     \let near: R.Lt (distance x a) r := leftClose a r rp \then
     \let less: R.Lt x a := leftLess a r rp \then
@@ -79,7 +79,7 @@
       (LimitOrder.LowerSample[Def.slope f a, a, zero, radius, x] {
         different := Order.ltNotEq x a less,
         near := R.ltLeTrans _ _ _ near (Metric.minRight rho radius),
-        lower := slopeLeft f a x less (#upper{control} x (R.ltLeTrans _ _ _ near (Metric.minLeft rho radius))),
+        lower := slopeLeft f a x less (control.upper x (R.ltLeTrans _ _ _ near (Metric.minLeft rho radius))),
       })
   }) \then
   \return R.leAntisym derivative zero upper lower
@@ -92,8 +92,8 @@
   \let negative: LocalMaximum (\fun (x: Real) => Arithmetic.neg (f x)) a :=
     Logic.existsIntro[Real, { r: Real \where MaximumControl[(\fun (x: Real) => Arithmetic.neg (f x)), a, r] }] rho
     (MaximumControl[(\fun (x: Real) => Arithmetic.neg (f x)), a, rho] {
-        positive := #positive{control},
-        upper := \fun (x: Real)(near: _) => Laws.negAntitone (f a) (f x) (#lower{control} x near),
+        positive := control.positive,
+        upper := \fun (x: Real)(near: _) => Laws.negAntitone (f a) (f x) (control.lower x near),
       }) \then
   \let vanishes: Arithmetic.neg derivative = zero := maximum (\fun (x: Real) => Arithmetic.neg (f x)) a (Arithmetic.neg derivative)
     negative (Operations.negDerivative f a derivative differentiable) \then

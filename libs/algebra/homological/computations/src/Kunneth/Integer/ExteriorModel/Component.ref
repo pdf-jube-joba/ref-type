@@ -8,7 +8,7 @@
 \import Modules.DirectSum[Index := Degree, family := Terms.tensorFamily] \as Output;
 \import CycleIso.Generator[p := p] \as Generator;
 \definition index: Grading.Index n := \into[Grading.Pair](Grading.Pair { first := p, second := q },
-  { i: Grading.Pair \where Grading.add #first{i} #second{i} = n }) \by { Grading.complementSum n p };
+  { i: Grading.Pair \where Grading.add i.first i.second = n }) \by { Grading.complementSum n p };
 \import Tensors.IndexedCycleProduct[C := Decomposition.cyclesComplex, D := Other.chain, n := n].At[i := index] \as SourceExterior;
 \import Tensors.IndexedCycleProduct[C := Original.chain, D := Other.chain, n := n].At[i := index] \as TargetExterior;
 \import Chains.ZeroDifferential[family := Decomposition.cyclesFamily].At[k := p] \as Constant;
@@ -23,49 +23,49 @@
 \import Tensors.Tensor[C := Decomposition.cyclesComplex, D := Other.chain].Term[p := p, q := q] \as SourceTerm;
 \import Tensors.Map[C := Tensors.Tensor[C := Decomposition.cyclesComplex, D := Other.chain].complex, D := Product.complex].Total[f := Included.map].Term[n := n] \as TotalMap;
 \definition mappedValue: \forall (x: HC.Cycle)(y: HD.Cycle) ->
-  #apply{Included.total} n (SourceExterior.value (#apply{Constant.cycles} x) y) = TargetExterior.value x y :=
+  Included.total.apply n (SourceExterior.value (Constant.cycles.apply x) y) = TargetExterior.value x y :=
   \fun (x: HC.Cycle)(y: HD.Cycle) => trans!{Current.Carrier} _ _ _
     (TotalMap.onInjection index (SourceTerm.tensor x y))
     (congr!{ProductTerm.Carrier Current.Carrier}
-      (\fun (t: ProductTerm.Carrier) => #apply{TargetInjection.injection} t) _ _ (Included.Term[p := p, q := q].onTensor x y));
+      (\fun (t: ProductTerm.Carrier) => TargetInjection.injection.apply t) _ _ (Included.Term[p := p, q := q].onTensor x y));
 \definition mappedClass: \forall (x: HC.Cycle)(y: HD.Cycle) ->
-  #apply{(Induced.induced Included.total)} (SourceExterior.classOf (#apply{Constant.cycles} x) y) = TargetExterior.classOf x y :=
+  (Induced.induced Included.total).apply (SourceExterior.classOf (Constant.cycles.apply x) y) = TargetExterior.classOf x y :=
   \fun (x: HC.Cycle)(y: HD.Cycle) => trans!{MiddleH.Homology} _ _ _
-    (Induced.onClass Included.total (SourceExterior.cycle (#apply{Constant.cycles} x) y))
+    (Induced.onClass Included.total (SourceExterior.cycle (Constant.cycles.apply x) y))
     (HomologyEquality.equalClass
-      (#apply{(Induced.cyclesMap Included.total)} (SourceExterior.cycle (#apply{Constant.cycles} x) y))
+      ((Induced.cyclesMap Included.total).apply (SourceExterior.cycle (Constant.cycles.apply x) y))
       (TargetExterior.cycle x y) (mappedValue x y));
 \import Modules.Tensor[V := HC.Cycle, W := HD.Homology, left := HC.cycleSpace, right := HD.homologySpace].Mapping[
   U := HC.Homology, Z := HD.Homology, targetLeft := HC.homologySpace, targetRight := HD.homologySpace] \as ClassTensor;
 \import Modules.End[V := HD.Homology, space := HD.homologySpace] \as HomologyIdentity;
 \definition projectionTensor: \forall (x: HC.Cycle)(y: HD.Homology) ->
-  #apply{ModelComponent.projection} (ModelComponent.targetTensor x y) = Term.tensor (HC.classOf x) y :=
+  ModelComponent.projection.apply (ModelComponent.targetTensor x y) = Term.tensor (HC.classOf x) y :=
   ClassTensor.onTensor HC.classLinear HomologyIdentity.identity;
 \import Tensors.ExteriorTransport[C := Original.chain, D := Other.chain, p := p, q := q] \as GradeTransport;
 \definition pure: \forall (x: HC.Cycle)(y: HD.Cycle) ->
-  #apply{after} (#apply{Input.Injection[i := p].map} (ModelComponent.targetTensor x (HD.classOf y))) =
-  #apply{before} (#apply{Input.Injection[i := p].map} (ModelComponent.targetTensor x (HD.classOf y))) :=
+  after.apply ((Input.Injection[i := p].map).apply (ModelComponent.targetTensor x (HD.classOf y))) =
+  before.apply ((Input.Injection[i := p].map).apply (ModelComponent.targetTensor x (HD.classOf y))) :=
   \fun (x: HC.Cycle)(y: HD.Cycle) => trans!{MiddleH.Homology} _ _ _
     (trans!{MiddleH.Homology} _ _ _
-      (congr!{LeftH.Homology MiddleH.Homology} (#apply{(Induced.induced Included.total)}) _ _ (Generator.classEquation x y))
+      (congr!{LeftH.Homology MiddleH.Homology} ((Induced.induced Included.total).apply) _ _ (Generator.classEquation x y))
       (mappedClass x y))
     (sym!{MiddleH.Homology} _ _ (trans!{MiddleH.Homology} _ _ _
-      (congr!{{Terms.tensorBundle.Carrier} MiddleH.Homology} (#apply{Terms.exterior}) _ _
+      (congr!{{Terms.tensorBundle.Carrier} MiddleH.Homology} (Terms.exterior.apply) _ _
         (trans!{{Terms.tensorBundle.Carrier}} _ _ _ (Model.onClass p (ModelComponent.targetTensor x (HD.classOf y)))
-          (congr!{Term.tensorCarrier {Terms.tensorBundle.Carrier}} (#apply{Output.Injection[i := p].map}) _ _ (projectionTensor x (HD.classOf y)))))
+          (congr!{Term.tensorCarrier {Terms.tensorBundle.Carrier}} ((Output.Injection[i := p].map).apply) _ _ (projectionTensor x (HD.classOf y)))))
       (trans!{MiddleH.Homology} _ _ _ (Terms.exteriorOnInjection p (Term.tensor (HC.classOf x) (HD.classOf y)))
         (trans!{MiddleH.Homology} _ _ _ (Exterior.onClass x y)
           (GradeTransport.onClass n (Grading.complementSum n p) x y)))));
 \definition onTensor: \forall (x: HC.Cycle)(y: HD.Homology) ->
-  #apply{after} (#apply{Input.Injection[i := p].map} (ModelComponent.targetTensor x y)) =
-  #apply{before} (#apply{Input.Injection[i := p].map} (ModelComponent.targetTensor x y)) :=
+  after.apply ((Input.Injection[i := p].map).apply (ModelComponent.targetTensor x y)) =
+  before.apply ((Input.Injection[i := p].map).apply (ModelComponent.targetTensor x y)) :=
   \fun (x: HC.Cycle) => HD.classInduction (\fun (y: HD.Homology) =>
-    #apply{after} (#apply{Input.Injection[i := p].map} (ModelComponent.targetTensor x y)) =
-    #apply{before} (#apply{Input.Injection[i := p].map} (ModelComponent.targetTensor x y))) (pure x);
+    after.apply ((Input.Injection[i := p].map).apply (ModelComponent.targetTensor x y)) =
+    before.apply ((Input.Injection[i := p].map).apply (ModelComponent.targetTensor x y))) (pure x);
 \import Modules.Hom[V := Input.Carrier, W := MiddleH.Homology, source := Input.space, target := MiddleH.homologySpace].Composition[
   U := Model.target.Carrier p, domain := Model.target.space p] \as Compose;
 \import Modules.Tensor[V := HC.Cycle, W := HD.Homology, left := HC.cycleSpace, right := HD.homologySpace].Universal[U := MiddleH.Homology, target := MiddleH.homologySpace] \as Universal;
 \definition equality: Compose.compose after Input.Injection[i := p].map = Compose.compose before Input.Injection[i := p].map := Universal.ext _ _ onTensor;
-\definition point: \forall (x: Model.target.Carrier p) -> #apply{after} (#apply{Input.Injection[i := p].map} x) = #apply{before} (#apply{Input.Injection[i := p].map} x) :=
+\definition point: \forall (x: Model.target.Carrier p) -> after.apply ((Input.Injection[i := p].map).apply x) = before.apply ((Input.Injection[i := p].map).apply x) :=
   \fun (x: Model.target.Carrier p) => congr!{{Modules.MapBetween ModelComponent.targetBundle Terms.homologyBundle} MiddleH.Homology}
-    (\fun (f: Modules.MapBetween ModelComponent.targetBundle Terms.homologyBundle) => #apply{f} x) _ _ equality;
+    (\fun (f: Modules.MapBetween ModelComponent.targetBundle Terms.homologyBundle) => f.apply x) _ _ equality;

@@ -8,11 +8,11 @@
   \import Chains.At[C := terms i, z := z] \as H;
   \definition inclusion: Inclusions.Component[i := i].Map := Inclusions.Component[i := i].Map {
     apply := \fun (x: H.Cycle) => x,
-    addition := \fun (x, y: H.Cycle) => \refl(#add{(termSpace i z)} x y),
-    scalar := \fun (a: Integers.Int^)(x: H.Cycle) => \refl(#smul{(termSpace i z)} a x),
+    addition := \fun (x, y: H.Cycle) => \refl((termSpace i z).add x y),
+    scalar := \fun (a: Integers.Int^)(x: H.Cycle) => \refl((termSpace i z).smul a x),
   };
-  \definition closed: \forall (x: H.Cycle) -> termApply i z x = #zero{(termSpace i (Bounded.previous z))} :=
-    \fun (x: H.Cycle) => \bysub(termCarrier i z, #carrier{H.cycles}, x);
+  \definition closed: \forall (x: H.Cycle) -> termApply i z x = (termSpace i (Bounded.previous z)).zero :=
+    \fun (x: H.Cycle) => \bysub(termCarrier i z, H.cycles.carrier, x);
 }
 \definition inclusions: Inclusions.Components := \fun (i: Index) => Component[i := i].inclusion;
 \import Inclusions.On[f := inclusions] \as Inclusion;
@@ -23,42 +23,42 @@
 \module Zero(i: Index) {
   \import Modules.Hom[V := termCarrier i (Bounded.previous z), W := Target.Carrier,
     source := termSpace i (Bounded.previous z), target := Target.space] \as Maps;
-  \definition preserved: #apply{Target.Component[i := i].injection} #zero{(termSpace i (Bounded.previous z))} = #zero{Target.space} :=
+  \definition preserved: (Target.Component[i := i].injection).apply (termSpace i (Bounded.previous z)).zero = Target.space.zero :=
     Maps.zeroPreserved Target.Component[i := i].injection;
 }
 \definition closedMap: Compose.compose Differential.map Inclusion.map = ClosedMaps.zeroMap :=
   ClosedUniversal.ext _ _ (\fun (i: Index)(x: \parent.Component[i := i].Cycle) =>
     trans!{Target.Carrier} _ _ _
-      (congr!{Source.Carrier Target.Carrier} (#apply{Differential.map}) _ _ (Inclusion.onInjection i x))
+      (congr!{Source.Carrier Target.Carrier} (Differential.map.apply) _ _ (Inclusion.onInjection i x))
       (trans!{Target.Carrier} _ _ _ (Differential.onInjection i x)
         (trans!{Target.Carrier} _ _ _
-          (congr!{{termCarrier i (Bounded.previous z)} Target.Carrier} (#apply{Target.Component[i := i].injection}) _ _ (Component[i := i].closed x))
+          (congr!{{termCarrier i (Bounded.previous z)} Target.Carrier} ((Target.Component[i := i].injection).apply) _ _ (Component[i := i].closed x))
           Zero[i := i].preserved)));
-\definition closed: \forall (x: CyclesSum.Carrier) -> #apply{Differential.map} (#apply{Inclusion.map} x) = #zero{Target.space} :=
-  \fun (x: CyclesSum.Carrier) => congr!{ClosedMaps.Map Target.Carrier} (\fun (f: ClosedMaps.Map) => #apply{f} x) _ _ closedMap;
+\definition closed: \forall (x: CyclesSum.Carrier) -> Differential.map.apply (Inclusion.map.apply x) = Target.space.zero :=
+  \fun (x: CyclesSum.Carrier) => congr!{ClosedMaps.Map Target.Carrier} (\fun (f: ClosedMaps.Map) => f.apply x) _ _ closedMap;
 \import Modules.Hom[V := CyclesSum.Carrier, W := TotalHomology.Cycle,
   source := CyclesSum.space, target := TotalHomology.cycleSpace] \as Forwards;
 \definition forward: Forwards.Map := Forwards.Map {
-  apply := \fun (x: CyclesSum.Carrier) => TotalHomology.cycle (#apply{Inclusion.map} x) (closed x),
-  addition := \fun (x, y: CyclesSum.Carrier) => #addition{Inclusion.map} x y,
-  scalar := \fun (a: Integers.Int^)(x: CyclesSum.Carrier) => #scalar{Inclusion.map} a x,
+  apply := \fun (x: CyclesSum.Carrier) => TotalHomology.cycle (Inclusion.map.apply x) (closed x),
+  addition := \fun (x, y: CyclesSum.Carrier) => Inclusion.map.addition x y,
+  scalar := \fun (a: Integers.Int^)(x: CyclesSum.Carrier) => Inclusion.map.scalar a x,
 };
 \import Modules.Product[Index := Index, family := Target.family] \as TargetProduct;
 \definition coordinateClosed: \forall (x: TotalHomology.Cycle)(i: Index) ->
-  termApply i z (SourceCoordinates.coordinates x i) = #zero{(termSpace i (Bounded.previous z))} :=
+  termApply i z (SourceCoordinates.coordinates x i) = (termSpace i (Bounded.previous z)).zero :=
   \fun (x: TotalHomology.Cycle)(i: Index) => trans!{{termCarrier i (Bounded.previous z)}} _ _ _
     (sym!{{termCarrier i (Bounded.previous z)}} _ _ (Differential.coordinatesNatural x i))
     (trans!{{termCarrier i (Bounded.previous z)}} _ _ _
       (congr!{Target.Carrier {termCarrier i (Bounded.previous z)}} (\fun (v: Target.Carrier) => TargetCoordinates.coordinates v i) _ _
-        (\bysub(Source.Carrier, #carrier{TotalHomology.cycles}, x)))
+        (\bysub(Source.Carrier, TotalHomology.cycles.carrier, x)))
       (congr!{TargetProduct.Carrier {termCarrier i (Bounded.previous z)}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero));
 \module Point(i: Index) {
   \import Chains.At[C := terms i, z := z] \as H;
-  \definition value(x: TotalHomology.Cycle): H.Cycle := H.cycle (SourceCoordinates.coordinates x i) (coordinateClosed x i);
+  \definition value[x: TotalHomology.Cycle]: H.Cycle := H.cycle (SourceCoordinates.coordinates x i) (coordinateClosed x i);
 }
 \import Modules.Product[Index := Index, family := cyclesFamily] \as CycleProduct;
 \import Modules.Product[Index := Index, family := Source.family] \as SourceProduct;
-\definition coordinates(x: TotalHomology.Cycle): CycleProduct.Carrier := \fun (i: Index) => Point[i := i].value x;
+\definition coordinates[x: TotalHomology.Cycle]: CycleProduct.Carrier := \fun (i: Index) => Point[i := i].value x;
 \import Modules.FinitelySupported[Index := Index, family := Source.family] \as SourceSupported;
 \import Modules.FinitelySupported[Index := Index, family := cyclesFamily] \as CycleSupported;
 \import std.Data[].List[] \as Lists;
@@ -66,40 +66,40 @@
 \definition finite: \forall (x: TotalHomology.Cycle) -> CycleSupported.Finite (coordinates x) := \block {
   \fun (x: TotalHomology.Cycle) \then
   \takefrom xs: \Cast[Lists.List[Index]] ({ xs: Lists.List[Index] \where SourceSupported.Supports xs (SourceCoordinates.coordinates x) })
-    \by SourceSupported.finite (#apply{SourceCoordinates.forward} x) \then
+    \by SourceSupported.finite (SourceCoordinates.forward.apply x) \then
   \let supports: SourceSupported.Supports xs (SourceCoordinates.coordinates x) :=
     \bysub(Lists.List[Index], { xs: Lists.List[Index] \where SourceSupported.Supports xs (SourceCoordinates.coordinates x) }, xs) \then
   \return Logic.existsIntro[Lists.List[Index], { xs: Lists.List[Index] \where CycleSupported.Supports xs (coordinates x) }] xs
     (\fun (i: Index)(outside: _) => supports i outside)
 };
-\definition supported(x: TotalHomology.Cycle): CycleSupported.Carrier :=
-  \into[CycleProduct.Carrier](coordinates x, #carrier{CycleSupported.submodule}) \by { finite x };
+\definition supported[x: TotalHomology.Cycle]: CycleSupported.Carrier :=
+  \into[CycleProduct.Carrier](coordinates x, CycleSupported.submodule.carrier) \by { finite x };
 \import Modules.Hom[V := TotalHomology.Cycle, W := CycleSupported.Carrier,
   source := TotalHomology.cycleSpace, target := CycleSupported.space] \as SupportedMaps;
 \definition toSupported: SupportedMaps.Map := SupportedMaps.Map {
   apply := supported,
-  addition := \fun (x, y: TotalHomology.Cycle) => \axiom:funext(coordinates (#add{TotalHomology.cycleSpace} x y), CycleProduct.add (coordinates x) (coordinates y),
+  addition := \fun (x, y: TotalHomology.Cycle) => \axiom:funext(coordinates (TotalHomology.cycleSpace.add x y), CycleProduct.add (coordinates x) (coordinates y),
     \fun (i: Index) => congr!{SourceProduct.Carrier {termCarrier i z}} (\fun (v: SourceProduct.Carrier) => v i) _ _ (SourceCoordinates.coordinatesAddition x y)),
-  scalar := \fun (a: Integers.Int^)(x: TotalHomology.Cycle) => \axiom:funext(coordinates (#smul{TotalHomology.cycleSpace} a x), CycleProduct.scale a (coordinates x),
+  scalar := \fun (a: Integers.Int^)(x: TotalHomology.Cycle) => \axiom:funext(coordinates (TotalHomology.cycleSpace.smul a x), CycleProduct.scale a (coordinates x),
     \fun (i: Index) => congr!{SourceProduct.Carrier {termCarrier i z}} (\fun (v: SourceProduct.Carrier) => v i) _ _ (SourceCoordinates.coordinatesScalar a x)),
 };
 \import CyclesSum.FiniteSupport[] \as CycleCoordinates;
 \import Modules.Hom[V := CycleSupported.Carrier, W := CyclesSum.Carrier,
   source := CycleSupported.space, target := CyclesSum.space].Composition[U := TotalHomology.Cycle, domain := TotalHomology.cycleSpace] \as Backwards;
 \definition backward: Modules.Hom[V := TotalHomology.Cycle, W := CyclesSum.Carrier,
-  source := TotalHomology.cycleSpace, target := CyclesSum.space].Map := Backwards.compose #backward{CycleCoordinates.isomorphism} toSupported;
-\definition backwardCoordinates: \forall (x: TotalHomology.Cycle) -> CycleCoordinates.coordinates (#apply{backward} x) = coordinates x :=
-  \fun (x: TotalHomology.Cycle) => #rightInverse{CycleCoordinates.isomorphism} (supported x);
-\definition leftInverse: \forall (x: CyclesSum.Carrier) -> #apply{backward} (#apply{forward} x) = x :=
-  \fun (x: CyclesSum.Carrier) => CycleCoordinates.injective (#apply{backward} (#apply{forward} x)) x
-    (trans!{CycleProduct.Carrier} _ _ _ (backwardCoordinates (#apply{forward} x))
-      (\axiom:funext(coordinates (#apply{forward} x), CycleCoordinates.coordinates x,
+  source := TotalHomology.cycleSpace, target := CyclesSum.space].Map := Backwards.compose CycleCoordinates.isomorphism.backward toSupported;
+\definition backwardCoordinates: \forall (x: TotalHomology.Cycle) -> CycleCoordinates.coordinates (backward.apply x) = coordinates x :=
+  \fun (x: TotalHomology.Cycle) => CycleCoordinates.isomorphism.rightInverse (supported x);
+\definition leftInverse: \forall (x: CyclesSum.Carrier) -> backward.apply (forward.apply x) = x :=
+  \fun (x: CyclesSum.Carrier) => CycleCoordinates.injective (backward.apply (forward.apply x)) x
+    (trans!{CycleProduct.Carrier} _ _ _ (backwardCoordinates (forward.apply x))
+      (\axiom:funext(coordinates (forward.apply x), CycleCoordinates.coordinates x,
         \fun (i: Index) => Inclusion.coordinatesNatural x i)));
-\definition rightInverse: \forall (x: TotalHomology.Cycle) -> #apply{forward} (#apply{backward} x) = x :=
-  \fun (x: TotalHomology.Cycle) => SourceCoordinates.injective (#apply{forward} (#apply{backward} x)) x
-    (\axiom:funext(SourceCoordinates.coordinates (#apply{forward} (#apply{backward} x)), SourceCoordinates.coordinates x,
+\definition rightInverse: \forall (x: TotalHomology.Cycle) -> forward.apply (backward.apply x) = x :=
+  \fun (x: TotalHomology.Cycle) => SourceCoordinates.injective (forward.apply (backward.apply x)) x
+    (\axiom:funext(SourceCoordinates.coordinates (forward.apply (backward.apply x)), SourceCoordinates.coordinates x,
       \fun (i: Index) => trans!{{termCarrier i z}} _ _ _
-        (Inclusion.coordinatesNatural (#apply{backward} x) i)
+        (Inclusion.coordinatesNatural (backward.apply x) i)
         (congr!{CycleProduct.Carrier {termCarrier i z}} (\fun (v: CycleProduct.Carrier) => v i) _ _ (backwardCoordinates x))));
 \definition isomorphism: Modules.Isomorphism[V := CyclesSum.Carrier, W := TotalHomology.Cycle,
   source := CyclesSum.space, target := TotalHomology.cycleSpace].Isomorphism :=
@@ -107,9 +107,9 @@
     forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
   };
 \definition onInjection: \forall (i: Index)(x: \parent.Component[i := i].Cycle) ->
-  #apply{forward} (#apply{CyclesSum.Injection[i := i].map} x) =
-  TotalHomology.cycle (#apply{Source.Component[i := i].injection} x)
+  forward.apply ((CyclesSum.Injection[i := i].map).apply x) =
+  TotalHomology.cycle ((Source.Component[i := i].injection).apply x)
     (trans!{Target.Carrier} _ _ _ (Differential.onInjection i x)
       (trans!{Target.Carrier} _ _ _
-        (congr!{{termCarrier i (Bounded.previous z)} Target.Carrier} (#apply{Target.Component[i := i].injection}) _ _ (Component[i := i].closed x))
+        (congr!{{termCarrier i (Bounded.previous z)} Target.Carrier} ((Target.Component[i := i].injection).apply) _ _ (Component[i := i].closed x))
         Zero[i := i].preserved)) := Inclusion.onInjection;

@@ -1,21 +1,21 @@
 \import \parent.Invariants[m := m, n := n, original := original] \as Computation;
 \import \parent.\parent.Prefix[m := m, n := n] \as Prefix;
 \import \parent.\parent.Bounds[] \as Indices;
-\structure StateLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop {
+\structure StateLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop := {
   computation: Computation.Laws[k, a, history],
   prefix: Prefix.Holds k a,
-}
-\definition invariant(current: State^): \Prop :=
+};
+\definition invariant[current: State^]: \Prop :=
   \forall (P: State^ -> \Prop) -> (\forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> P (State^::active m n k a history)) -> P current;
 \definition introduce: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> invariant (State^::active m n k a history) :=
   \fun (k: N.Nat^)(a: Runtime^)(history: History^)(law: _)(P: State^ -> \Prop)(into: _) => into k a history law;
-\definition TrailingZero(k: N.Nat^)(a: Runtime^): \Prop :=
+\definition TrailingZero[k: N.Nat^][a: Runtime^]: \Prop :=
   \forall (i, j: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt j n -> Bounds.Le k i -> Bounds.Le k j -> a i j = Arithmetic.zero;
-\structure OutputLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop {
+\structure OutputLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop := {
   computation: Computation.Laws[k, a, history],
   prefix: Prefix.Holds k a,
   trailing: TrailingZero k a,
-}
+};
 \definition result: Output^ -> \Prop := \induction (output: Output^) \return \Prop \with {
   | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) => OutputLaw[rank, a, history]
 };
@@ -73,14 +73,14 @@
     Bounds.Lt k m -> Bounds.Lt k n -> StateLaw[k, a, history] -> Pivot.Laws m n k a history selection ->
     Pivot.prepare m n k a history = selection -> Results.Post (selected m n k a history selection) \with {
     | missing: \fun (k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(law: StateLaw[k, a, history])(empty: _)(selected: _) =>
-        OutputLaw[k, a, history] { computation := #computation{law}, prefix := #prefix{law}, trailing := empty }
+        OutputLaw[k, a, history] { computation := law.computation, prefix := law.prefix, trailing := empty }
     | ready: \fun (current: Attempt^)(k: N.Nat^)(a: Runtime^)(history: History^) => \parent.Diagonalization[m := m, n := n, original := original].Ready[k := k, a := a, history := history, current := current].law
   };
 \definition activePost: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> Results.Post (step (State^::active m n k a history)) :=
   \fun (k: N.Nat^)(a: Runtime^)(history: History^)(law: StateLaw[k, a, history]) => B.cases
     (\fun (test: B.Bool^) => within m n k = test -> Results.Post (B.ite (\RunStep[State^, Output^]) test
       (selected m n k a history (Pivot.prepare m n k a history)) (\finish[State^, Output^](Output^::result k a history))))
-    (\fun (test: _) => OutputLaw[k, a, history] { computation := #computation{law}, prefix := #prefix{law}, trailing := outside k a test })
+    (\fun (test: _) => OutputLaw[k, a, history] { computation := law.computation, prefix := law.prefix, trailing := outside k a test })
     (\fun (test: _) => selections (Pivot.prepare m n k a history) k a history
       (BoolLaws.andTrueLeft (Nat.ltb k m) (Nat.ltb k n) test) (BoolLaws.andTrueRight (Nat.ltb k m) (Nat.ltb k n) test) law
       (Pivot.prepared m n k a history (BoolLaws.andTrueLeft (Nat.ltb k m) (Nat.ltb k n) test) (BoolLaws.andTrueRight (Nat.ltb k m) (Nat.ltb k n) test))

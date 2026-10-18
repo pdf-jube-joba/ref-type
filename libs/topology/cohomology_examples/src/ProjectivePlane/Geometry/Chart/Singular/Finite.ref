@@ -59,14 +59,14 @@
         | inl: edges | inr: triangles
       }
   };
-\definition apply(n: N.Nat^)(sigma: Model.Carrier n): Simplices.Carrier n :=
+\definition apply[n: N.Nat^][sigma: Model.Carrier n]: Simplices.Carrier n :=
   Transport.cast Simplices.Carrier (Model.degree sigma) n (\bysub(Model.Base, { tau: Model.Base \where Model.degree tau = n }, sigma)) (raw sigma);
-\definition onVertex(v: Vertex): apply zero (Model.vertex v) = vertices v := Transport.castRefl Simplices.Carrier zero (vertices v);
-\definition onEdge(e: Edge): apply one (Model.edge e) = edges e := Transport.castRefl Simplices.Carrier one (edges e);
-\definition onTriangle(t: Triangle): apply two (Model.triangle t) = triangles t := Transport.castRefl Simplices.Carrier two (triangles t);
-\definition FaceEquation(n: N.Nat^)(sigma: Model.Carrier (N.Nat^::succ n)): \Prop :=
+\definition onVertex[v: Vertex]: apply zero (Model.vertex v) = vertices v := Transport.castRefl Simplices.Carrier zero (vertices v);
+\definition onEdge[e: Edge]: apply one (Model.edge e) = edges e := Transport.castRefl Simplices.Carrier one (edges e);
+\definition onTriangle[t: Triangle]: apply two (Model.triangle t) = triangles t := Transport.castRefl Simplices.Carrier two (triangles t);
+\definition FaceEquation[n: N.Nat^][sigma: Model.Carrier (N.Nat^::succ n)]: \Prop :=
   \forall (i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n))) -> apply n (Model.face n i sigma) = Simplices.face n i (apply (N.Nat^::succ n) sigma);
-\definition edgeFace(e: Edge): FaceEquation zero (Model.edge e) := Model.twoCases
+\definition edgeFace[e: Edge]: FaceEquation zero (Model.edge e) := Model.twoCases
   (\fun (i: Fin.Fin two) => apply zero (Model.face zero i (Model.edge e)) = Simplices.face zero i (apply one (Model.edge e)))
   (trans!{{Simplices.Carrier zero}} _ _ _ (onVertex (target e))
     (trans!{{Simplices.Carrier zero}} _ _ _ (sym!{{Simplices.Carrier zero}} _ _ (targetLaw e))
@@ -74,7 +74,7 @@
   (trans!{{Simplices.Carrier zero}} _ _ _ (onVertex (source e))
     (trans!{{Simplices.Carrier zero}} _ _ _ (sym!{{Simplices.Carrier zero}} _ _ (sourceLaw e))
       (congr!{{Simplices.Carrier one} {Simplices.Carrier zero}} (Simplices.face zero lastIndex) _ _ (sym!{{Simplices.Carrier one}} _ _ (onEdge e)))));
-\definition triangleFace(t: Triangle): FaceEquation one (Model.triangle t) := Fin.cases two
+\definition triangleFace[t: Triangle]: FaceEquation one (Model.triangle t) := Fin.cases two
   (\fun (i: Fin.Fin (N.Nat^::succ two)) => apply one (Model.face one i (Model.triangle t)) = Simplices.face one i (apply two (Model.triangle t)))
   (trans!{{Simplices.Carrier one}} _ _ _ (onEdge (back t))
     (trans!{{Simplices.Carrier one}} _ _ _ (sym!{{Simplices.Carrier one}} _ _ (backLaw t))
@@ -94,11 +94,11 @@
 \import singular_cohomology.Chains[A := Projective.Carrier, source := Projective.topology] \as SingularChains;
 \import singular_cohomology.SimplicialChains[].On[X := Model.object] \as ModelChains;
 \definition comparison: NativeChains.Map[C := Model.chainComplex, D := SingularChains.complex].Map := NativeChains.Map[C := Model.chainComplex, D := SingularChains.complex].Map {
-  apply := \fun (n: N.Nat^) => #apply{(Chains.At[n := n].push mapping)},
-  addition := \fun (n: N.Nat^) => #addition{(Chains.At[n := n].push mapping)},
-  scalar := \fun (n: N.Nat^) => #scalar{(Chains.At[n := n].push mapping)},
+  apply := \fun (n: N.Nat^) => (Chains.At[n := n].push mapping).apply,
+  addition := \fun (n: N.Nat^) => (Chains.At[n := n].push mapping).addition,
+  scalar := \fun (n: N.Nat^) => (Chains.At[n := n].push mapping).scalar,
   commutes := \fun (n: N.Nat^) => Chains.Differential[n := n].commutes mapping,
 };
-\definition onGenerator(n: N.Nat^)(sigma: Model.Carrier n):
-  #apply{comparison} n (ModelChains.generator n sigma) = SingularChains.generator n (apply n sigma) :=
+\definition onGenerator[n: N.Nat^][sigma: Model.Carrier n]:
+  (comparison).apply n (ModelChains.generator n sigma) = SingularChains.generator n (apply n sigma) :=
   Chains.At[n := n].onGenerator mapping sigma;

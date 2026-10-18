@@ -8,58 +8,58 @@
 \definition delta: Linear.Map := Linear.plus (Maps.At[n := n].linear f) (Linear.negative (Maps.At[n := n].linear g));
 \definition nextDelta: NextLinear.Map := NextLinear.plus (Maps.At[n := Nat.Nat^::succ n].linear f) (NextLinear.negative (Maps.At[n := Nat.Nat^::succ n].linear g));
 \definition differential: Differential.Map := Differential.Map {
-  apply := #apply{Q.differential} n, addition := #addition{Q.laws} n, scalar := #scalar{Q.laws} n,
+  apply := Q.differential.apply n, addition := Q.laws.addition n, scalar := Q.laws.scalar n,
 };
 \definition deltaCommutes: \forall (x: P.family.Carrier (Nat.Nat^::succ n)) ->
-  #apply{Q.differential} n (#apply{nextDelta} x) = #apply{delta} (#apply{P.differential} n x) :=
+  Q.differential.apply n (nextDelta.apply x) = delta.apply (P.differential.apply n x) :=
   \fun (x: P.family.Carrier (Nat.Nat^::succ n)) => trans!{{Q.family.Carrier n}} _ _ _
-    (Differential.differencePreserved differential (#apply{f} (Nat.Nat^::succ n) x) (#apply{g} (Nat.Nat^::succ n) x))
-    (congr2!{{Q.family.Carrier n} {Q.family.Carrier n} {Q.family.Carrier n}} Group.difference _ _ _ _ (#commutes{f} n x) (#commutes{g} n x));
-\definition Invariant(h: Map): \Prop := \forall (x: P.family.Carrier (Nat.Nat^::succ n)) ->
-  #apply{Q.differential} n (#apply{h} (#apply{P.differential} n x)) = #apply{delta} (#apply{P.differential} n x);
+    (Differential.differencePreserved differential (f.apply (Nat.Nat^::succ n) x) (g.apply (Nat.Nat^::succ n) x))
+    (congr2!{{Q.family.Carrier n} {Q.family.Carrier n} {Q.family.Carrier n}} Group.difference _ _ _ _ (f.commutes n x) (g.commutes n x));
+\definition Invariant[h: Map]: \Prop := \forall (x: P.family.Carrier (Nat.Nat^::succ n)) ->
+  Q.differential.apply n (h.apply (P.differential.apply n x)) = delta.apply (P.differential.apply n x);
 \import HomotopyMaps.Composition[U := P.family.Carrier (Nat.Nat^::succ n), domain := P.family.space (Nat.Nat^::succ n)] \as Composition;
 \import Modules.Hom[V := P.family.Carrier (Nat.Nat^::succ n), W := P.family.Carrier n, source := P.family.space (Nat.Nat^::succ n), target := P.family.space n] \as SourceDifferential;
 \definition sourceDifferential: SourceDifferential.Map := SourceDifferential.Map {
-  apply := #apply{P.differential} n, addition := #addition{P.laws} n, scalar := #scalar{P.laws} n,
+  apply := P.differential.apply n, addition := P.laws.addition n, scalar := P.laws.scalar n,
 };
-\definition residual(h: Map): NextLinear.Map := NextLinear.plus nextDelta (NextLinear.negative (Composition.compose h sourceDifferential));
+\definition residual[h: Map]: NextLinear.Map := NextLinear.plus nextDelta (NextLinear.negative (Composition.compose h sourceDifferential));
 \definition residualClosed: \forall (h: Map) -> Invariant h -> \forall (x: P.family.Carrier (Nat.Nat^::succ n)) ->
-  #apply{Q.differential} n (#apply{(residual h)} x) = #zero{(Q.family.space n)} :=
+  Q.differential.apply n ((residual h).apply x) = (Q.family.space n).zero :=
   \fun (h: Map)(invariant: Invariant h)(x: P.family.Carrier (Nat.Nat^::succ n)) => trans!{{Q.family.Carrier n}} _ _ _
-    (Differential.differencePreserved differential (#apply{nextDelta} x) (#apply{h} (#apply{P.differential} n x)))
+    (Differential.differencePreserved differential (nextDelta.apply x) (h.apply (P.differential.apply n x)))
     (trans!{{Q.family.Carrier n}} _ _ _
       (congr2!{{Q.family.Carrier n} {Q.family.Carrier n} {Q.family.Carrier n}} Group.difference _ _ _ _ (deltaCommutes x) (invariant x))
-      (Group.inverseRight (#apply{delta} (#apply{P.differential} n x))));
+      (Group.inverseRight (delta.apply (P.differential.apply n x))));
 \import Target.Syzygy[n := Nat.Nat^::succ n, resolution := q] \as Cycles;
 \import Modules.Hom[V := P.family.Carrier (Nat.Nat^::succ n), W := Cycles.Carrier, source := P.family.space (Nat.Nat^::succ n), target := Cycles.space] \as Restricted;
-\definition factor(h: Map)(invariant: Invariant h): Restricted.Map := Restricted.Map {
+\definition factor[h: Map][invariant: Invariant h]: Restricted.Map := Restricted.Map {
   apply := \fun (x: P.family.Carrier (Nat.Nat^::succ n)) => \into[Q.family.Carrier (Nat.Nat^::succ n)]
-    (#apply{(residual h)} x, #carrier{(Target.kernel q (Nat.Nat^::succ n))}) \by { residualClosed h invariant x },
-  addition := #addition{(residual h)}, scalar := #scalar{(residual h)},
+    ((residual h).apply x, (Target.kernel q (Nat.Nat^::succ n)).carrier) \by { residualClosed h invariant x },
+  addition := (residual h).addition, scalar := (residual h).scalar,
 };
-\definition Lift(h: Map)(next: \parent.At[n := Nat.Nat^::succ n].Map): \Prop :=
-  \forall (x: P.family.Carrier (Nat.Nat^::succ n)) -> #apply{Q.differential} (Nat.Nat^::succ n) (#apply{next} x) = #apply{(residual h)} x;
-\definition existence: \forall (h: Map) -> Invariant h -> \exists { next: \parent.At[n := Nat.Nat^::succ n].Map \where Lift h next } :=
-  \fun (h: Map)(invariant: Invariant h) => #projective{p} (Nat.Nat^::succ n)
+\definition Lift[h: Map][next: \parent.At[n := Nat.Nat^::succ n].Map]: \Prop :=
+  \forall (x: P.family.Carrier (Nat.Nat^::succ n)) -> Q.differential.apply (Nat.Nat^::succ n) (next.apply x) = (residual h).apply x;
+\definition existence: \forall (h: Map) -> Invariant h -> \exists ( next: \parent.At[n := Nat.Nat^::succ n].Map \where Lift h next ) :=
+  \fun (h: Map)(invariant: Invariant h) => p.projective (Nat.Nat^::succ n)
     (Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) (Q.family.space (Nat.Nat^::succ (Nat.Nat^::succ n)))
     Cycles.Carrier Cycles.space Cycles.projection Cycles.onto (factor h invariant);
 \definition successorInvariant: \forall (h: Map)(next: \parent.At[n := Nat.Nat^::succ n].Map) -> Lift h next -> \parent.At[n := Nat.Nat^::succ n].Invariant next :=
   \fun (h: Map)(next: \parent.At[n := Nat.Nat^::succ n].Map)(lift: Lift h next)(x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) =>
-    trans!{{Q.family.Carrier (Nat.Nat^::succ n)}} _ _ _ (lift (#apply{P.differential} (Nat.Nat^::succ n) x))
+    trans!{{Q.family.Carrier (Nat.Nat^::succ n)}} _ _ _ (lift (P.differential.apply (Nat.Nat^::succ n) x))
       (trans!{{Q.family.Carrier (Nat.Nat^::succ n)}} _ _ _
         (congr!{{Q.family.Carrier (Nat.Nat^::succ n)} {Q.family.Carrier (Nat.Nat^::succ n)}}
-          (NextGroup.difference (#apply{nextDelta} (#apply{P.differential} (Nat.Nat^::succ n) x))) _ _
+          (NextGroup.difference (nextDelta.apply (P.differential.apply (Nat.Nat^::succ n) x))) _ _
           (trans!{{Q.family.Carrier (Nat.Nat^::succ n)}} _ _ _
-            (congr!{{P.family.Carrier n} {Q.family.Carrier (Nat.Nat^::succ n)}} (#apply{h}) _ _ (#squareZero{P.laws} n x)) (HomotopyMaps.zeroPreserved h)))
+            (congr!{{P.family.Carrier n} {Q.family.Carrier (Nat.Nat^::succ n)}} (h.apply) _ _ (P.laws.squareZero n x)) (HomotopyMaps.zeroPreserved h)))
         (trans!{{Q.family.Carrier (Nat.Nat^::succ n)}} _ _ _
           (congr!{{Q.family.Carrier (Nat.Nat^::succ n)} {Q.family.Carrier (Nat.Nat^::succ n)}}
-            (NextGroup.add (#apply{nextDelta} (#apply{P.differential} (Nat.Nat^::succ n) x))) _ _ NextGroup.negZero)
-          (NextGroup.zeroRight (#apply{nextDelta} (#apply{P.differential} (Nat.Nat^::succ n) x)))));
+            (NextGroup.add (nextDelta.apply (P.differential.apply (Nat.Nat^::succ n) x))) _ _ NextGroup.negZero)
+          (NextGroup.zeroRight (nextDelta.apply (P.differential.apply (Nat.Nat^::succ n) x)))));
 \definition equation: \forall (h: Map)(next: \parent.At[n := Nat.Nat^::succ n].Map) -> Lift h next ->
-  \forall (x: P.family.Carrier (Nat.Nat^::succ n)) -> #apply{nextDelta} x =
-    NextGroup.add (#apply{Q.differential} (Nat.Nat^::succ n) (#apply{next} x)) (#apply{h} (#apply{P.differential} n x)) :=
+  \forall (x: P.family.Carrier (Nat.Nat^::succ n)) -> nextDelta.apply x =
+    NextGroup.add (Q.differential.apply (Nat.Nat^::succ n) (next.apply x)) (h.apply (P.differential.apply n x)) :=
   \fun (h: Map)(next: \parent.At[n := Nat.Nat^::succ n].Map)(lift: Lift h next)(x: P.family.Carrier (Nat.Nat^::succ n)) =>
     sym!{{Q.family.Carrier (Nat.Nat^::succ n)}} _ _ (trans!{{Q.family.Carrier (Nat.Nat^::succ n)}} _ _ _
       (congr!{{Q.family.Carrier (Nat.Nat^::succ n)} {Q.family.Carrier (Nat.Nat^::succ n)}}
-        (\fun (y: Q.family.Carrier (Nat.Nat^::succ n)) => NextGroup.add y (#apply{h} (#apply{P.differential} n x))) _ _ (lift x))
-      (NextGroup.addDifference (#apply{nextDelta} x) (#apply{h} (#apply{P.differential} n x))));
+        (\fun (y: Q.family.Carrier (Nat.Nat^::succ n)) => NextGroup.add y (h.apply (P.differential.apply n x))) _ _ (lift x))
+      (NextGroup.addDifference (nextDelta.apply x) (h.apply (P.differential.apply n x))));

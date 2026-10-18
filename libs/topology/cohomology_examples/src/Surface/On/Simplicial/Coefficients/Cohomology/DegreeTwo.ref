@@ -4,28 +4,28 @@
 \import \root.Surface[V := V, E := E, T := T].On[surface := surface].Simplicial[].Coefficients[A := A].DegreeOne[] \as OneCoordinates;
 \import \root.Surface[V := V, E := E, T := T].On[surface := surface].Simplicial[].Coefficients[A := A].DegreeTwo[] \as TwoCoordinates;
 \import Modules.Zero[] \as Zero;
-\definition forwardValue(phi: Source.CycleCarrier): Target.CycleCarrier := Target.cycle (TwoCoordinates.evaluate phi) (\refl(Zero.Carrier::zero));
-\definition backwardValue(f: Target.CycleCarrier): Source.CycleCarrier := Source.cycle (TwoCoordinates.extend f) (Differentials.second (TwoCoordinates.extend f));
+\definition forwardValue[phi: Source.CycleCarrier]: Target.CycleCarrier := Target.cycle (TwoCoordinates.evaluate phi) (\refl(Zero.Carrier::zero));
+\definition backwardValue[f: Target.CycleCarrier]: Source.CycleCarrier := Source.cycle (TwoCoordinates.extend f) (Differentials.second (TwoCoordinates.extend f));
 \definition sourceCycles: Modules.Bundle := Modules.Bundle { Carrier := Source.CycleCarrier, space := Source.cycleSpace };
 \definition targetCycles: Modules.Bundle := Modules.Bundle { Carrier := Target.CycleCarrier, space := Target.cycleSpace };
 \import Modules.Hom[V := Source.CycleCarrier, W := Target.CycleCarrier, source := Source.cycleSpace, target := Target.cycleSpace] \as Forward;
 \import Modules.Hom[V := Target.CycleCarrier, W := Source.CycleCarrier, source := Target.cycleSpace, target := Source.cycleSpace] \as Backward;
 \definition forward: Forward.Map := Forward.Map {
   apply := forwardValue,
-  addition := \fun (phi, psi: Source.CycleCarrier) => #addition{TwoCoordinates.forward} phi psi,
-  scalar := \fun (a: I.Int^)(phi: Source.CycleCarrier) => #scalar{TwoCoordinates.forward} a phi,
+  addition := \fun (phi, psi: Source.CycleCarrier) => (TwoCoordinates.forward).addition phi psi,
+  scalar := \fun (a: I.Int^)(phi: Source.CycleCarrier) => (TwoCoordinates.forward).scalar a phi,
 };
 \definition backward: Backward.Map := Backward.Map {
   apply := backwardValue,
-  addition := \fun (f, g: Target.CycleCarrier) => #addition{TwoCoordinates.backward} f g,
-  scalar := \fun (a: I.Int^)(f: Target.CycleCarrier) => #scalar{TwoCoordinates.backward} a f,
+  addition := \fun (f, g: Target.CycleCarrier) => (TwoCoordinates.backward).addition f g,
+  scalar := \fun (a: I.Int^)(f: Target.CycleCarrier) => (TwoCoordinates.backward).scalar a f,
 };
 \import Modules.QuotientMapping[A := sourceCycles, B := targetCycles].On[S := Source.boundariesInside, T := Target.boundariesInside, f := forward] \as Quotient;
 \definition compatible: Quotient.Compatible := \block {
   \fun (phi: Source.CycleCarrier)(boundary: _) \then
   \takefrom f: \Cast[Native.Carrier one] ({ f: Native.Carrier one \where Native.apply one f = phi }) \by boundary \then
   \return \idelim Matrix.deltaOne (OneCoordinates.evaluate f) = TwoCoordinates.evaluate phi
-    \with y: Matrix.second.Carrier => \In[Matrix.second.Carrier] (#carrier{Target.boundaries}) y \by {
+    \with y: Matrix.second.Carrier => \In[Matrix.second.Carrier] ((Target.boundaries).carrier) y \by {
       base: BoundaryImages.member Matrix.differentialOne (OneCoordinates.evaluate f),
       equality: trans!{TwoCoordinates.FunctionCarrier} _ _ _ (sym!{TwoCoordinates.FunctionCarrier} _ _ (Differentials.first f))
         (congr!{{Native.Carrier two} TwoCoordinates.FunctionCarrier} TwoCoordinates.evaluate _ _ (\bysub(Native.Carrier one, { f: Native.Carrier one \where Native.apply one f = phi }, f)))
@@ -39,4 +39,4 @@
         (trans!{{Native.Carrier two}} _ _ _ (Differentials.inverseFirst f) (congr!{TwoCoordinates.FunctionCarrier {Native.Carrier two}} TwoCoordinates.extend _ _ represented))) boundary;
 \definition isomorphism: Modules.Isomorphism[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace].Isomorphism :=
   Inverse.isomorphism compatible compatibleBack (\fun (phi: Source.CycleCarrier) => TwoCoordinates.leftInverse phi) (\fun (f: Target.CycleCarrier) => TwoCoordinates.rightInverse f);
-\definition onClass(phi: Source.CycleCarrier): #apply{#forward{isomorphism}} (Source.classOf phi) = Target.classOf (forwardValue phi) := Quotient.onClass compatible phi;
+\definition onClass[phi: Source.CycleCarrier]: ((isomorphism).forward).apply (Source.classOf phi) = Target.classOf (forwardValue phi) := Quotient.onClass compatible phi;

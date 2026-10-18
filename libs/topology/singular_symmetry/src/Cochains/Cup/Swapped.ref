@@ -9,27 +9,27 @@
 \import Tensor.Term[p := q, q := p] \as ReverseTerm;
 \import Double.Sign[V := R, space := integerCoefficients.space] \as Sign;
 \import Double.Sign[V := Tensor.Term[p := p, q := q].Carrier, space := Tensor.Term[p := p, q := q].space].Mapping[W := R, target := integerCoefficients.space] \as SignNaturality;
-\definition reversed(alpha: Carrier p)(beta: Carrier q): Carrier n := Transport.cast Carrier reverseDegree n same (ReverseProduct.apply beta alpha);
-\definition signed(alpha: Carrier p)(beta: Carrier q): Carrier n := Products.Signs[n := n].apply exponent (reversed alpha beta);
+\definition reversed[alpha: Carrier p][beta: Carrier q]: Carrier n := Transport.cast Carrier reverseDegree n same (ReverseProduct.apply beta alpha);
+\definition signed[alpha: Carrier p][beta: Carrier q]: Carrier n := Products.Signs[n := n].apply exponent (reversed alpha beta);
 \module Coefficient(alpha: Carrier p, beta: Carrier q);
 \definition reverseIndex: Double.Index n := ReverseCup.Regrading[k := n].index same;
-\definition swapPairing(alpha: Carrier p)(beta: Carrier q)(x: Total.Carrier n): #apply{(Pairing.total alpha beta)} (#apply{Double.TensorSwap[C := Chains.complex, D := Chains.complex].forward} n x) = #apply{(Sign.map exponent)} (#apply{(ReversePairing.map beta alpha)} (Coordinates.Degree[n := n].coordinate reverseIndex x)) :=
+\definition swapPairing[alpha: Carrier p][beta: Carrier q][x: Total.Carrier n]: (Pairing.total alpha beta).apply ((Double.TensorSwap[C := Chains.complex, D := Chains.complex].forward).apply n x) = (Sign.map exponent).apply ((ReversePairing.map beta alpha).apply (Coordinates.Degree[n := n].coordinate reverseIndex x)) :=
   trans!{R} _ _ _
-    (congr!{{Tensor.Term[p := p, q := q].Carrier} R} (#apply{(Pairing.map alpha beta)}) _ _ (Exchange.SwapCoordinates[n := n, i := reverseIndex].law x))
+    (congr!{{Tensor.Term[p := p, q := q].Carrier} R} ((Pairing.map alpha beta).apply) _ _ (Exchange.SwapCoordinates[n := n, i := reverseIndex].law x))
     (Coefficient[alpha := alpha, beta := beta].law (Coordinates.Degree[n := n].coordinate reverseIndex x));
-\definition signValue: \forall (t: N.Nat^)(x: R) -> #apply{(Sign.map t)} x = Modules.Alternating[V := R, space := Modules.scalarModule].Concatenation[].twist t x :=
-  \induction (t: N.Nat^) \return \forall (x: R) -> #apply{(Sign.map t)} x = Modules.Alternating[V := R, space := Modules.scalarModule].Concatenation[].twist t x \with {
+\definition signValue: \forall (t: N.Nat^)(x: R) -> (Sign.map t).apply x = Modules.Alternating[V := R, space := Modules.scalarModule].Concatenation[].twist t x :=
+  \induction (t: N.Nat^) \return \forall (x: R) -> (Sign.map t).apply x = Modules.Alternating[V := R, space := Modules.scalarModule].Concatenation[].twist t x \with {
     | zero: \fun (x: R) => \refl(x)
-    | succ: \fun (t: N.Nat^)(previous: _)(x: R) => congr!{R R} (#neg{baseRing}) _ _ (previous x)
+    | succ: \fun (t: N.Nat^)(previous: _)(x: R) => congr!{R R} ((baseRing).neg) _ _ (previous x)
   };
-\definition law(alpha: Carrier p)(beta: Carrier q)(sigma: Simplices.Carrier n): #apply{(Pairing.total alpha beta)} (#apply{Exchange.backward} n (Chains.generator n sigma)) = #apply{(signed alpha beta)} (Chains.generator n sigma) :=
-  trans!{R} _ _ _ (swapPairing alpha beta (#apply{Exchange.forward} n (Chains.generator n sigma)))
+\definition law[alpha: Carrier p][beta: Carrier q][sigma: Simplices.Carrier n]: (Pairing.total alpha beta).apply ((Exchange.backward).apply n (Chains.generator n sigma)) = (signed alpha beta).apply (Chains.generator n sigma) :=
+  trans!{R} _ _ _ (swapPairing alpha beta ((Exchange.forward).apply n (Chains.generator n sigma)))
     (trans!{R} _ _ _
-      (congr!{R R} (#apply{(Sign.map exponent)}) _ _ (ReverseCup.Regrading[k := n].law same beta alpha (Chains.generator n sigma)))
-      (trans!{R} _ _ _ (signValue exponent (#apply{(reversed alpha beta)} (Chains.generator n sigma)))
+      (congr!{R R} ((Sign.map exponent).apply) _ _ (ReverseCup.Regrading[k := n].law same beta alpha (Chains.generator n sigma)))
+      (trans!{R} _ _ _ (signValue exponent ((reversed alpha beta).apply (Chains.generator n sigma)))
         (sym!{R} _ _ (Products.Signs[n := n].onSimplex exponent (reversed alpha beta) sigma))));
 \import IntegerModules.Hom[V := Total.Carrier n, W := R, source := Total.space n, target := integerCoefficients.space].Composition[U := Chains.Carrier n, domain := Chains.space n] \as Compose;
 \import Native.Map[C := Chains.complex, D := Total.complex].At[n := n] \as Degree;
-\definition pullback(alpha: Carrier p)(beta: Carrier q): Carrier n := Compose.compose (Pairing.total alpha beta) (Degree.linear Exchange.backward);
+\definition pullback[alpha: Carrier p][beta: Carrier q]: Carrier n := Compose.compose (Pairing.total alpha beta) (Degree.linear Exchange.backward);
 \import IntegerModules.Free[Generators := Simplices.Carrier n].To[W := R, target := integerCoefficients.space] \as Free;
-\definition equation(alpha: Carrier p)(beta: Carrier q): pullback alpha beta = signed alpha beta := Free.ext (pullback alpha beta) (signed alpha beta) (law alpha beta);
+\definition equation[alpha: Carrier p][beta: Carrier q]: pullback alpha beta = signed alpha beta := Free.ext (pullback alpha beta) (signed alpha beta) (law alpha beta);

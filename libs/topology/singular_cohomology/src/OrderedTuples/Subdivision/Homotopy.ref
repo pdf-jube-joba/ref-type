@@ -13,24 +13,24 @@
 \module Extension(n: N.Nat^) {
   \import Modules.Free[Generators := Tuple n].To[W := Carrier (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Free;
   \definition extend: (Tuple n -> Carrier (N.Nat^::succ n)) -> Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)].Map := Free.extension;
-  \definition onGenerator: \forall (f: Tuple n -> Carrier (N.Nat^::succ n))(v: Tuple n) -> #apply{(extend f)} (generator n v) = f v := Free.onGenerator;
+  \definition onGenerator: \forall (f: Tuple n -> Carrier (N.Nat^::succ n))(v: Tuple n) -> (extend f).apply (generator n v) = f v := Free.onGenerator;
 }
 \definition value: \forall (n: N.Nat^) -> Tuple n -> Carrier (N.Nat^::succ n) :=
   \induction (n: N.Nat^) \return Tuple n -> Carrier (N.Nat^::succ n) \with {
-    | zero: \fun (_: Tuple N.Nat^::zero) => #zero{(space (N.Nat^::succ N.Nat^::zero))}
+    | zero: \fun (_: Tuple N.Nat^::zero) => (space (N.Nat^::succ N.Nat^::zero)).zero
     | succ: \fun (n: N.Nat^)(previous: Tuple n -> Carrier (N.Nat^::succ n))(v: Tuple (N.Nat^::succ n)) =>
-        #apply{(cone (N.Nat^::succ n) (v (Fin.zero n)))}
+        (cone (N.Nat^::succ n) (v (Fin.zero n))).apply
           (Values[n := N.Nat^::succ n].difference
-            (Values[n := N.Nat^::succ n].difference (#apply{(Subdivision.map (N.Nat^::succ n))} (generator (N.Nat^::succ n) v)) (generator (N.Nat^::succ n) v))
-            (#apply{(Extension[n := n].extend previous)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v))))
+            (Values[n := N.Nat^::succ n].difference ((Subdivision.map (N.Nat^::succ n)).apply (generator (N.Nat^::succ n) v)) (generator (N.Nat^::succ n) v))
+            ((Extension[n := n].extend previous).apply ((boundary n).apply (generator (N.Nat^::succ n) v))))
   };
-\definition map(n: N.Nat^): Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)].Map := Extension[n := n].extend (value n);
-\definition onGenerator: \forall (n: N.Nat^)(v: Tuple n) -> #apply{(map n)} (generator n v) = value n v :=
+\definition map[n: N.Nat^]: Modules.Hom[V := Carrier n, W := Carrier (N.Nat^::succ n), source := space n, target := space (N.Nat^::succ n)].Map := Extension[n := n].extend (value n);
+\definition onGenerator: \forall (n: N.Nat^)(v: Tuple n) -> (map n).apply (generator n v) = value n v :=
   \fun (n: N.Nat^) => Extension[n := n].onGenerator (value n);
-\definition Property(n: N.Nat^): \Prop := \forall (x: Carrier (N.Nat^::succ n)) ->
-  #apply{(boundary (N.Nat^::succ n))} (#apply{(map (N.Nat^::succ n))} x) =
-    Values[n := N.Nat^::succ n].difference (Values[n := N.Nat^::succ n].difference (#apply{(Subdivision.map (N.Nat^::succ n))} x) x)
-      (#apply{(map n)} (#apply{(boundary n)} x));
+\definition Property[n: N.Nat^]: \Prop := \forall (x: Carrier (N.Nat^::succ n)) ->
+  (boundary (N.Nat^::succ n)).apply ((map (N.Nat^::succ n)).apply x) =
+    Values[n := N.Nat^::succ n].difference (Values[n := N.Nat^::succ n].difference ((Subdivision.map (N.Nat^::succ n)).apply x) x)
+      ((map n).apply ((boundary n).apply x));
 \module At(n: N.Nat^) {
   \import \parent.Values[n := N.Nat^::succ n] \as Values;
   \import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier (N.Nat^::succ n), source := space (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as End;
@@ -41,16 +41,16 @@
     .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as Second;
   \import Modules.Free[Generators := Tuple (N.Nat^::succ n)].To[W := Carrier (N.Nat^::succ n), target := space (N.Nat^::succ n)] \as Free;
   \definition OnGenerators: \Prop := \forall (v: Tuple (N.Nat^::succ n)) ->
-    #apply{(boundary (N.Nat^::succ n))} (value (N.Nat^::succ n) v) =
-      Values.difference (Values.difference (#apply{(Subdivision.map (N.Nat^::succ n))} (generator (N.Nat^::succ n) v)) (generator (N.Nat^::succ n) v))
-        (#apply{(map n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v)));
+    (boundary (N.Nat^::succ n)).apply (value (N.Nat^::succ n) v) =
+      Values.difference (Values.difference ((Subdivision.map (N.Nat^::succ n)).apply (generator (N.Nat^::succ n) v)) (generator (N.Nat^::succ n) v))
+        ((map n).apply ((boundary n).apply (generator (N.Nat^::succ n) v)));
   \definition extend: OnGenerators -> Property n := \block {
     \fun (generators: OnGenerators) \then
     \let same: First.compose (boundary (N.Nat^::succ n)) (map (N.Nat^::succ n)) =
       End.plus (End.plus (Subdivision.map (N.Nat^::succ n)) (End.negative Identity.identity)) (End.negative (Second.compose (map n) (boundary n))) :=
       Free.ext _ _ (\fun (v: Tuple (N.Nat^::succ n)) => trans!{{Carrier (N.Nat^::succ n)}} _ _ _
-        (congr!{{Carrier (N.Nat^::succ (N.Nat^::succ n))} {Carrier (N.Nat^::succ n)}} (#apply{(boundary (N.Nat^::succ n))}) _ _ (onGenerator (N.Nat^::succ n) v)) (generators v)) \then
-    \return \fun (x: Carrier (N.Nat^::succ n)) => congr!{End.Map {Carrier (N.Nat^::succ n)}} (\fun (f: End.Map) => #apply{f} x) _ _ same
+        (congr!{{Carrier (N.Nat^::succ (N.Nat^::succ n))} {Carrier (N.Nat^::succ n)}} ((boundary (N.Nat^::succ n)).apply) _ _ (onGenerator (N.Nat^::succ n) v)) (generators v)) \then
+    \return \fun (x: Carrier (N.Nat^::succ n)) => congr!{End.Map {Carrier (N.Nat^::succ n)}} (\fun (f: End.Map) => (f).apply x) _ _ same
   };
 }
 \module Empty;

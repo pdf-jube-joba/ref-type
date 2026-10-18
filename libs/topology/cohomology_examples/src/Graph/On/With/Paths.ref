@@ -1,8 +1,8 @@
-\definition sum(f: ForestEdge -> A.Carrier): Walk -> A.Carrier := \induction (w: Walk) \return A.Carrier \with {
+\definition sum[f: ForestEdge -> A.Carrier]: Walk -> A.Carrier := \induction (w: Walk) \return A.Carrier \with {
   | root: \fun (i: Fin.Fin components) => Group.zero
   | step: \fun (w: Walk)(previous: A.Carrier)(e: ForestEdge) => Group.add previous (f e)
 };
-\definition addition(f, g: ForestEdge -> A.Carrier): \forall (w: Walk) ->
+\definition addition[f, g: ForestEdge -> A.Carrier]: \forall (w: Walk) ->
   sum (\fun (e: ForestEdge) => Group.add (f e) (g e)) w = Group.add (sum f w) (sum g w) :=
   \induction (w: Walk) \return sum (\fun (e: ForestEdge) => Group.add (f e) (g e)) w = Group.add (sum f w) (sum g w) \with {
     | root: \fun (i: Fin.Fin components) => sym!{A.Carrier} _ _ (Group.zeroLeft Group.zero)
@@ -11,7 +11,7 @@
           (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.add (f e) (g e))) _ _ previous)
           (Group.four (sum f w) (sum g w) (f e) (g e))
   };
-\definition gradient(f: Vertex -> A.Carrier): \forall (w: Walk) -> Valid graph.parent w ->
+\definition gradient[f: Vertex -> A.Carrier]: \forall (w: Walk) -> Valid graph.parent w ->
   sum (\fun (e: ForestEdge) => Group.difference (f (treeTarget e)) (f (graph.parent e))) w =
   Group.difference (f (endpoint w)) (f (root (start w))) :=
   \induction (w: Walk) \return Valid graph.parent w ->
@@ -23,15 +23,15 @@
         (e: ForestEdge)(valid: Logic.And[Valid graph.parent w, endpoint w = graph.parent e]) => \block {
           \let old: A.Carrier := f (root (start w)) \then
           \let first: sum (\fun (k: ForestEdge) => Group.difference (f (treeTarget k)) (f (graph.parent k))) w = Group.difference (f (graph.parent e)) old :=
-            trans!{A.Carrier} _ _ _ (previous #left{valid})
-              (congr!{Vertex A.Carrier} (\fun (v: Vertex) => Group.difference (f v) old) _ _ #right{valid}) \then
+            trans!{A.Carrier} _ _ _ (previous (valid).left)
+              (congr!{Vertex A.Carrier} (\fun (v: Vertex) => Group.difference (f v) old) _ _ (valid).right) \then
           \return trans!{A.Carrier} _ _ _
             (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Group.difference (f (treeTarget e)) (f (graph.parent e)))) _ _ first)
             (trans!{A.Carrier} _ _ _ (Group.comm (Group.difference (f (graph.parent e)) old) (Group.difference (f (treeTarget e)) (f (graph.parent e))))
               (Group.composeDifferences (f (treeTarget e)) (f (graph.parent e)) old))
         }
   };
-\definition zero(f: ForestEdge -> A.Carrier)(vanishes: \forall (e: ForestEdge) -> f e = Group.zero): \forall (w: Walk) -> sum f w = Group.zero :=
+\definition zero[f: ForestEdge -> A.Carrier][vanishes: \forall (e: ForestEdge) -> f e = Group.zero]: \forall (w: Walk) -> sum f w = Group.zero :=
   \induction (w: Walk) \return sum f w = Group.zero \with {
     | root: \fun (i: Fin.Fin components) => \refl(Group.zero)
     | step: \fun (w: Walk)(previous: sum f w = Group.zero)(e: ForestEdge) =>

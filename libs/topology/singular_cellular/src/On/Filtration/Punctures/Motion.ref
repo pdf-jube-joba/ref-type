@@ -1,46 +1,46 @@
 \import algebraic_topology.Interval[] \as Interval;
 \import algebraic_topology.Cylinder[A := Carrier] \as Cylinder;
-\structure Representation[x: Carrier]: \Set {
+\structure Representation[x: Carrier]: \Set := {
   cell: Cells.CellData,
   member: Cells.CellMember cells cell,
-  below: Nat.Lt (#dimension{cell}) (N.Nat^::succ n),
-  point: Euclidean.Disk (#dimension{cell}),
-  image: #characteristic{cell} point = x,
-}
+  below: Nat.Lt ((cell).dimension) (N.Nat^::succ n),
+  point: Euclidean.Disk ((cell).dimension),
+  image: (cell).characteristic point = x,
+};
 \module On(x: Carrier, w: Representation[x]);
-\structure LowerLaws[t: Interval.Carrier, x, y: Carrier, w: Representation[x]]: \Prop {
-  below: Nat.Lt (#dimension{(#cell{w})}) n,
+\structure LowerLaws[t: Interval.Carrier, x, y: Carrier, w: Representation[x]]: \Prop := {
+  below: Nat.Lt (((w).cell).dimension) n,
   same: y = x,
-}
-\structure TopLaws[t: Interval.Carrier, x, y: Carrier, w: Representation[x]]: \Prop {
-  dimension: #dimension{(#cell{w})} = n,
+};
+\structure TopLaws[t: Interval.Carrier, x, y: Carrier, w: Representation[x]]: \Prop := {
+  dimension: ((w).cell).dimension = n,
   same: y = On[x := x, w := w].Top[dimension := dimension].value t,
-}
-\structure Witness[t: Interval.Carrier, x, y: Carrier]: \Set {
+};
+\structure Witness[t: Interval.Carrier, x, y: Carrier]: \Set := {
   representation: Representation[x],
   result: Logic.Or[LowerLaws[t, x, y, representation], TopLaws[t, x, y, representation]],
-}
-\definition Values(t: Interval.Carrier)(x: Carrier): \Pow Carrier := { y: Carrier \where \exists Witness[t, x, y] };
-\definition Value(t: Interval.Carrier)(x: Carrier): \Set := \Cast[Carrier] (Values t x);
-\definition representationFromCell(x: Carrier)(cell: Cells.CellData)(member: Cells.CellMember cells cell)
-  (below: Nat.Lt (#dimension{cell}) (N.Nat^::succ n))(point: Euclidean.Disk (#dimension{cell}))
-  (image: #characteristic{cell} point = x): Representation[x] := Representation[x] {
+};
+\definition Values[t: Interval.Carrier][x: Carrier]: \Pow Carrier := { y: Carrier \where \exists Witness[t, x, y] };
+\definition Value[t: Interval.Carrier][x: Carrier]: \Set := \Cast[Carrier] (Values t x);
+\definition representationFromCell[x: Carrier][cell: Cells.CellData][member: Cells.CellMember cells cell]
+  [below: Nat.Lt ((cell).dimension) (N.Nat^::succ n)][point: Euclidean.Disk ((cell).dimension)]
+  [image: (cell).characteristic point = x]: Representation[x] := Representation[x] {
     cell := cell, member := member, below := below, point := point, image := image,
   };
 \definition representationExists: \forall (x: Carrier) -> \exists Representation[x] :=
   \fun (x: Carrier) => eliminate cells (N.Nat^::succ n) x (\exists Representation[x])
     (\block {
       \fun (cell: Cells.CellData)(member: Cells.CellMember cells cell)
-        (below: Nat.Lt (#dimension{cell}) (N.Nat^::succ n))(contains: Space.Member (Cells.ClosedImage cell) x) \then
-      \takefrom p: \Cast[Euclidean.Disk (#dimension{cell})]
-        ({ p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }) \by contains \then
+        (below: Nat.Lt ((cell).dimension) (N.Nat^::succ n))(contains: Space.Member (Cells.ClosedImage cell) x) \then
+      \takefrom p: \Cast[Euclidean.Disk ((cell).dimension)]
+        ({ p: Euclidean.Disk ((cell).dimension) \where (cell).characteristic p = x }) \by contains \then
       \return \exact(representationFromCell x cell member below p
-        (\bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, p)), Representation[x])
+        (\bysub(Euclidean.Disk ((cell).dimension), { p: Euclidean.Disk ((cell).dimension) \where (cell).characteristic p = x }, p)), Representation[x])
     }) (\bysub(A, subset (N.Nat^::succ n), x));
 \definition existence: \forall (t: Interval.Carrier)(x: Carrier) -> \exists Value t x := \block {
   \fun (t: Interval.Carrier)(x: Carrier) \then
   \takefrom w: Representation[x] \by representationExists x \then
-  \return either!{{(Classical.excludedMiddle (#dimension{(#cell{w})} = n))} {\exists Value t x}
+  \return either!{{(Classical.excludedMiddle (((w).cell).dimension = n))} {\exists Value t x}
     {\fun (dimension: _) => Logic.existsIntro[Carrier, Values t x] (On[x := x, w := w].Top[dimension := dimension].value t)
       (\exact(Witness[t, x, On[x := x, w := w].Top[dimension := dimension].value t] {
         representation := w,
@@ -52,64 +52,64 @@
       (\exact(Witness[t, x, x] {
         representation := w,
         result := Logic.Or[_, _]::left (LowerLaws[t, x, x, w] {
-          below := Nat.ltOfLeDifferent (#dimension{(#cell{w})}) n
-            (Nat.leOfSuccSucc (#dimension{(#cell{w})}) n (Nat.succLeOfLt (N.Nat^::succ n) (#dimension{(#cell{w})}) (#below{w}))) different,
+          below := Nat.ltOfLeDifferent (((w).cell).dimension) n
+            (Nat.leOfSuccSucc (((w).cell).dimension) n (Nat.succLeOfLt (N.Nat^::succ n) (((w).cell).dimension) ((w).below))) different,
           same := \refl(x),
         }),
       }, Witness[t, x, x]))}
   }
 };
-\module CellEquality(cell: Cells.CellData, member: Cells.CellMember cells cell, dimension: #dimension{cell} = n);
+\module CellEquality(cell: Cells.CellData, member: Cells.CellMember cells cell, dimension: (cell).dimension = n);
 \definition topRespects: \forall (cell, other: Cells.CellData)(member: Cells.CellMember cells cell)(otherMember: Cells.CellMember cells other)
-  (dimension: #dimension{cell} = n)(otherDimension: #dimension{other} = n)(same: cell = other)(t: Interval.Carrier)
-  (p: \root.DiskCollar[n := #dimension{cell}].Carrier)(q: \root.DiskCollar[n := #dimension{other}].Carrier) ->
-  R.Lt (Euclidean.normSquaredAt (#dimension{cell}) p) Real.one -> R.Lt (Euclidean.normSquaredAt (#dimension{other}) q) Real.one ->
-  #characteristic{cell} p = #characteristic{other} q ->
+  (dimension: (cell).dimension = n)(otherDimension: (other).dimension = n)(same: cell = other)(t: Interval.Carrier)
+  (p: \root.DiskCollar[n := (cell).dimension].Carrier)(q: \root.DiskCollar[n := (other).dimension].Carrier) ->
+  R.Lt (Euclidean.normSquaredAt ((cell).dimension) p) Real.one -> R.Lt (Euclidean.normSquaredAt ((other).dimension) q) Real.one ->
+  (cell).characteristic p = (other).characteristic q ->
   \parent.Cell[cell := cell, member := member, dimension := dimension].motion t p = \parent.Cell[cell := other, member := otherMember, dimension := otherDimension].motion t q :=
   \fun (cell, other: Cells.CellData)(member: Cells.CellMember cells cell)(otherMember: Cells.CellMember cells other)
-    (dimension: #dimension{cell} = n)(otherDimension: #dimension{other} = n)(same: cell = other)(t: Interval.Carrier)
-    (p: \root.DiskCollar[n := #dimension{cell}].Carrier)(q: \root.DiskCollar[n := #dimension{other}].Carrier)
-    (pi: R.Lt (Euclidean.normSquaredAt (#dimension{cell}) p) Real.one)
-    (qi: R.Lt (Euclidean.normSquaredAt (#dimension{other}) q) Real.one)
-    (images: #characteristic{cell} p = #characteristic{other} q) =>
-    (\idelim cell = other \with c: Cells.CellData => \forall (mc: Cells.CellMember cells c)(dc: #dimension{c} = n)
-      (point: \root.DiskCollar[n := #dimension{c}].Carrier) -> R.Lt (Euclidean.normSquaredAt (#dimension{c}) point) Real.one ->
-      #characteristic{cell} p = #characteristic{c} point ->
+    (dimension: (cell).dimension = n)(otherDimension: (other).dimension = n)(same: cell = other)(t: Interval.Carrier)
+    (p: \root.DiskCollar[n := (cell).dimension].Carrier)(q: \root.DiskCollar[n := (other).dimension].Carrier)
+    (pi: R.Lt (Euclidean.normSquaredAt ((cell).dimension) p) Real.one)
+    (qi: R.Lt (Euclidean.normSquaredAt ((other).dimension) q) Real.one)
+    (images: (cell).characteristic p = (other).characteristic q) =>
+    (\idelim cell = other \with c: Cells.CellData => \forall (mc: Cells.CellMember cells c)(dc: (c).dimension = n)
+      (point: \root.DiskCollar[n := (c).dimension].Carrier) -> R.Lt (Euclidean.normSquaredAt ((c).dimension) point) Real.one ->
+      (cell).characteristic p = (c).characteristic point ->
       \parent.Cell[cell := cell, member := member, dimension := dimension].motion t p = \parent.Cell[cell := c, member := mc, dimension := dc].motion t point \by {
-        base: \fun (mc: Cells.CellMember cells cell)(dc: #dimension{cell} = n)
-          (point: \root.DiskCollar[n := #dimension{cell}].Carrier)
-          (inside: R.Lt (Euclidean.normSquaredAt (#dimension{cell}) point) Real.one)
-          (equal: #characteristic{cell} p = #characteristic{cell} point) =>
+        base: \fun (mc: Cells.CellMember cells cell)(dc: (cell).dimension = n)
+          (point: \root.DiskCollar[n := (cell).dimension].Carrier)
+          (inside: R.Lt (Euclidean.normSquaredAt ((cell).dimension) point) Real.one)
+          (equal: (cell).characteristic p = (cell).characteristic point) =>
           CellEquality[cell := cell, member := member, dimension := dimension].law t p point pi inside equal,
         equality: same
       }) otherMember otherDimension q qi images;
-\module Comparison(x: Carrier, w, v: Representation[x], wd: #dimension{(#cell{w})} = n, vd: #dimension{(#cell{v})} = n);
-\definition lowerOf: \forall (x: Carrier)(w: Representation[x]) -> Nat.Lt (#dimension{(#cell{w})}) n -> Space.Member (subset n) x :=
-  \fun (x: Carrier)(w: Representation[x])(below: _) => \idelim #characteristic{(#cell{w})} (#point{w}) = x
+\module Comparison(x: Carrier, w, v: Representation[x], wd: ((w).cell).dimension = n, vd: ((v).cell).dimension = n);
+\definition lowerOf: \forall (x: Carrier)(w: Representation[x]) -> Nat.Lt (((w).cell).dimension) n -> Space.Member (subset n) x :=
+  \fun (x: Carrier)(w: Representation[x])(below: _) => \idelim ((w).cell).characteristic ((w).point) = x
     \with a: A => Space.Member (subset n) a \by {
-      base: include cells n (#cell{w}) (#member{w}) below (#characteristic{(#cell{w})} (#point{w}))
-        (Logic.existsIntro[Euclidean.Disk (#dimension{(#cell{w})}),
-          { p: Euclidean.Disk (#dimension{(#cell{w})}) \where #characteristic{(#cell{w})} p = #characteristic{(#cell{w})} (#point{w}) }]
-          (#point{w}) (\refl(#characteristic{(#cell{w})} (#point{w})))),
-      equality: #image{w}
+      base: include cells n ((w).cell) ((w).member) below (((w).cell).characteristic ((w).point))
+        (Logic.existsIntro[Euclidean.Disk (((w).cell).dimension),
+          { p: Euclidean.Disk (((w).cell).dimension) \where ((w).cell).characteristic p = ((w).cell).characteristic ((w).point) }]
+          ((w).point) (\refl(((w).cell).characteristic ((w).point)))),
+      equality: (w).image
     };
 \definition witnessesEqual: \forall (t: Interval.Carrier)(x, left, right: Carrier)(l: Witness[t, x, left])(r: Witness[t, x, right]) -> left = right :=
-  \fun (t: _)(x, left, right: Carrier)(l: _)(r: _) => either!{{(#result{l})} {left = right}
-    {\fun (ll: LowerLaws[t, x, left, #representation{l}]) => either!{{(#result{r})} {left = right}
-      {\fun (rl: LowerLaws[t, x, right, #representation{r}]) => trans!{Carrier} _ _ _ (#same{ll}) (sym!{Carrier} _ _ (#same{rl}))}
-      {\fun (rt: TopLaws[t, x, right, #representation{r}]) => trans!{Carrier} _ _ _ (#same{ll})
-        (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ (#same{rt})
-          (On[x := x, w := #representation{r}].Top[dimension := #dimension{rt}].fixesLower (lowerOf x (#representation{l}) (#below{ll})) t)))}
+  \fun (t: _)(x, left, right: Carrier)(l: _)(r: _) => either!{{((l).result)} {left = right}
+    {\fun (ll: LowerLaws[t, x, left, (l).representation]) => either!{{((r).result)} {left = right}
+      {\fun (rl: LowerLaws[t, x, right, (r).representation]) => trans!{Carrier} _ _ _ ((ll).same) (sym!{Carrier} _ _ ((rl).same))}
+      {\fun (rt: TopLaws[t, x, right, (r).representation]) => trans!{Carrier} _ _ _ ((ll).same)
+        (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ ((rt).same)
+          (On[x := x, w := (r).representation].Top[dimension := (rt).dimension].fixesLower (lowerOf x ((l).representation) ((ll).below)) t)))}
     }}
-    {\fun (lt: TopLaws[t, x, left, #representation{l}]) => either!{{(#result{r})} {left = right}
-      {\fun (rl: LowerLaws[t, x, right, #representation{r}]) => trans!{Carrier} _ _ _ (#same{lt})
+    {\fun (lt: TopLaws[t, x, left, (l).representation]) => either!{{((r).result)} {left = right}
+      {\fun (rl: LowerLaws[t, x, right, (r).representation]) => trans!{Carrier} _ _ _ ((lt).same)
         (trans!{Carrier} _ _ _
-          (On[x := x, w := #representation{l}].Top[dimension := #dimension{lt}].fixesLower (lowerOf x (#representation{r}) (#below{rl})) t)
-          (sym!{Carrier} _ _ (#same{rl})))}
-      {\fun (rt: TopLaws[t, x, right, #representation{r}]) => trans!{Carrier} _ _ _ (#same{lt})
+          (On[x := x, w := (l).representation].Top[dimension := (lt).dimension].fixesLower (lowerOf x ((r).representation) ((rl).below)) t)
+          (sym!{Carrier} _ _ ((rl).same)))}
+      {\fun (rt: TopLaws[t, x, right, (r).representation]) => trans!{Carrier} _ _ _ ((lt).same)
         (trans!{Carrier} _ _ _
-          (Comparison[x := x, w := #representation{l}, v := #representation{r}, wd := #dimension{lt}, vd := #dimension{rt}].law t)
-          (sym!{Carrier} _ _ (#same{rt})))}
+          (Comparison[x := x, w := (l).representation, v := (r).representation, wd := (lt).dimension, vd := (rt).dimension].law t)
+          (sym!{Carrier} _ _ ((rt).same)))}
     }}
   };
 \definition uniqueness: \forall (t: Interval.Carrier)(x: Carrier)(left, right: Value t x) -> left = right := \block {
@@ -118,15 +118,15 @@
   \takefrom r: Witness[t, x, right] \by \bysub(Carrier, Values t x, right) \then
   \return witnessesEqual t x left right l r
 };
-\definition value(t: Interval.Carrier)(x: Carrier): Carrier := \choice Value t x \by { existence: existence t x, uniqueness: uniqueness t x };
-\definition lowerValue(t: Interval.Carrier)(x: Carrier)(w: Representation[x])(below: Nat.Lt (#dimension{(#cell{w})}) n): Value t x :=
+\definition value[t: Interval.Carrier][x: Carrier]: Carrier := \choice Value t x \by { existence: existence t x, uniqueness: uniqueness t x };
+\definition lowerValue[t: Interval.Carrier][x: Carrier][w: Representation[x]][below: Nat.Lt (((w).cell).dimension) n]: Value t x :=
   \into[Carrier](x, Values t x) \by {
     \exact(Witness[t, x, x] {
       representation := w,
       result := Logic.Or[_, _]::left (LowerLaws[t, x, x, w] { below := below, same := \refl(x) }),
     }, Witness[t, x, x])
   };
-\definition topValue(t: Interval.Carrier)(x: Carrier)(w: Representation[x])(dimension: #dimension{(#cell{w})} = n): Value t x :=
+\definition topValue[t: Interval.Carrier][x: Carrier][w: Representation[x]][dimension: ((w).cell).dimension = n]: Value t x :=
   \into[Carrier](On[x := x, w := w].Top[dimension := dimension].value t, Values t x) \by {
     \exact(Witness[t, x, On[x := x, w := w].Top[dimension := dimension].value t] {
       representation := w,
@@ -135,48 +135,48 @@
       }),
     }, Witness[t, x, On[x := x, w := w].Top[dimension := dimension].value t])
   };
-\definition onLower: \forall (t: Interval.Carrier)(x: Carrier)(w: Representation[x])(below: Nat.Lt (#dimension{(#cell{w})}) n) -> value t x = x :=
+\definition onLower: \forall (t: Interval.Carrier)(x: Carrier)(w: Representation[x])(below: Nat.Lt (((w).cell).dimension) n) -> value t x = x :=
   \fun (t: _)(x: _)(w: _)(below: _) => sym!{Carrier} _ _
     (\choiceeq lowerValue t x w below \of Value t x \by { existence: existence t x, uniqueness: uniqueness t x });
-\definition onTop: \forall (t: Interval.Carrier)(x: Carrier)(w: Representation[x])(dimension: #dimension{(#cell{w})} = n) ->
+\definition onTop: \forall (t: Interval.Carrier)(x: Carrier)(w: Representation[x])(dimension: ((w).cell).dimension = n) ->
   value t x = On[x := x, w := w].Top[dimension := dimension].value t :=
   \fun (t: _)(x: _)(w: _)(dimension: _) => sym!{Carrier} _ _
     (\choiceeq topValue t x w dimension \of Value t x \by { existence: existence t x, uniqueness: uniqueness t x });
-\definition witness(t: Interval.Carrier)(x: Carrier): \exists Witness[t, x, value t x] :=
+\definition witness[t: Interval.Carrier][x: Carrier]: \exists Witness[t, x, value t x] :=
   \bysub(Carrier, Values t x, \choice Value t x \by { existence: existence t x, uniqueness: uniqueness t x });
 \definition atStart: \forall (x: Carrier) -> value Interval.start x = x := \block {
   \fun (x: Carrier) \then
   \takefrom w: Witness[Interval.start, x, value Interval.start x] \by witness Interval.start x \then
-  \return either!{{(#result{w})} {value Interval.start x = x}
-    {\fun (lower: LowerLaws[Interval.start, x, value Interval.start x, #representation{w}]) => #same{lower}}
-    {\fun (top: TopLaws[Interval.start, x, value Interval.start x, #representation{w}]) => trans!{Carrier} _ _ _ (#same{top})
-      (On[x := x, w := #representation{w}].Top[dimension := #dimension{top}].atStart)}
+  \return either!{{((w).result)} {value Interval.start x = x}
+    {\fun (lower: LowerLaws[Interval.start, x, value Interval.start x, (w).representation]) => (lower).same}
+    {\fun (top: TopLaws[Interval.start, x, value Interval.start x, (w).representation]) => trans!{Carrier} _ _ _ ((top).same)
+      (On[x := x, w := (w).representation].Top[dimension := (top).dimension].atStart)}
   }
 };
 \definition endLower: \forall (x: Carrier) -> Space.Member (subset n) (value Interval.end x) := \block {
   \fun (x: Carrier) \then
   \takefrom w: Witness[Interval.end, x, value Interval.end x] \by witness Interval.end x \then
-  \return either!{{(#result{w})} {Space.Member (subset n) (value Interval.end x)}
-    {\fun (lower: LowerLaws[Interval.end, x, value Interval.end x, #representation{w}]) =>
+  \return either!{{((w).result)} {Space.Member (subset n) (value Interval.end x)}
+    {\fun (lower: LowerLaws[Interval.end, x, value Interval.end x, (w).representation]) =>
       \idelim x = value Interval.end x \with a: Carrier => Space.Member (subset n) a \by {
-        base: lowerOf x (#representation{w}) (#below{lower}), equality: sym!{Carrier} _ _ (#same{lower})
+        base: lowerOf x ((w).representation) ((lower).below), equality: sym!{Carrier} _ _ ((lower).same)
       }}
-    {\fun (top: TopLaws[Interval.end, x, value Interval.end x, #representation{w}]) =>
-      \idelim On[x := x, w := #representation{w}].Top[dimension := #dimension{top}].value Interval.end = value Interval.end x
+    {\fun (top: TopLaws[Interval.end, x, value Interval.end x, (w).representation]) =>
+      \idelim On[x := x, w := (w).representation].Top[dimension := (top).dimension].value Interval.end = value Interval.end x
         \with a: Carrier => Space.Member (subset n) a \by {
-          base: On[x := x, w := #representation{w}].Top[dimension := #dimension{top}].endLower,
-          equality: sym!{Carrier} _ _ (#same{top})
+          base: On[x := x, w := (w).representation].Top[dimension := (top).dimension].endLower,
+          equality: sym!{Carrier} _ _ ((top).same)
         }}
   }
 };
 \definition fixesLower: \forall (t: Interval.Carrier)(x: Carrier) -> Space.Member (subset n) x -> value t x = x := \block {
   \fun (t: _)(x: _)(lower: _) \then
   \takefrom w: Witness[t, x, value t x] \by witness t x \then
-  \return either!{{(#result{w})} {value t x = x}
-    {\fun (result: LowerLaws[t, x, value t x, #representation{w}]) => #same{result}}
-    {\fun (result: TopLaws[t, x, value t x, #representation{w}]) => trans!{Carrier} _ _ _ (#same{result})
-      (On[x := x, w := #representation{w}].Top[dimension := #dimension{result}].fixesLower lower t)}
+  \return either!{{((w).result)} {value t x = x}
+    {\fun (result: LowerLaws[t, x, value t x, (w).representation]) => (result).same}
+    {\fun (result: TopLaws[t, x, value t x, (w).representation]) => trans!{Carrier} _ _ _ ((result).same)
+      (On[x := x, w := (w).representation].Top[dimension := (result).dimension].fixesLower lower t)}
   }
 };
-\definition family(p: Cylinder.Carrier): Carrier := value (Cylinder.time p) (Cylinder.point p);
+\definition family[p: Cylinder.Carrier]: Carrier := value (Cylinder.time p) (Cylinder.point p);
 \module Continuity;

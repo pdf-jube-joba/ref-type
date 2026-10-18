@@ -11,33 +11,33 @@
   \block {
     \fun (b: Basis) (c: Other.Basis) (f: End.Map) \then
     \let coefficient: I -> J -> K := \fun (i: _) (j: _) =>
-      mul (Other.coordinates c (#vectors{b} i) j) (coordinates b (#apply{f} (#vectors{c} j)) i) \then
+      mul (Other.coordinates c (b.vectors i) j) (coordinates b (f.apply (c.vectors j)) i) \then
     \return eq_reason!{
       {trace b f}
-      "=" {Sums.sum (#indices{b}) (\fun (i: _) => OtherSums.sum (#indices{c}) (coefficient i))} "by" {
-        SumLaws.congruent (#indices{b})
-          (\fun (i: _) => coordinates b (#apply{f} (#vectors{b} i)) i)
-          (\fun (i: _) => OtherSums.sum (#indices{c}) (coefficient i))
+      "=" {Sums.sum (b.indices) (\fun (i: _) => OtherSums.sum (c.indices) (coefficient i))} "by" {
+        SumLaws.congruent (b.indices)
+          (\fun (i: _) => coordinates b (f.apply (b.vectors i)) i)
+          (\fun (i: _) => OtherSums.sum (c.indices) (coefficient i))
           (\fun (i: _) =>
-          OtherLaws.functionalExpansion c (Compose.compose (coordinate b i) f) (#vectors{b} i))}
-      "=" {OtherSums.sum (#indices{c}) (\fun (j: _) => Sums.sum (#indices{b}) (\fun (i: _) => coefficient i j))} "by" {
-        Exchange.exchange (#indices{b}) (#indices{c}) coefficient}
+          OtherLaws.functionalExpansion c (Compose.compose (coordinate b i) f) (b.vectors i))}
+      "=" {OtherSums.sum (c.indices) (\fun (j: _) => Sums.sum (b.indices) (\fun (i: _) => coefficient i j))} "by" {
+        Exchange.exchange (b.indices) (c.indices) coefficient}
       "=" {Other.trace c f} "by" {
-        OtherSumLaws.congruent (#indices{c})
-          (\fun (j: _) => Sums.sum (#indices{b}) (\fun (i: _) => coefficient i j))
-          (\fun (j: _) => Other.coordinates c (#apply{f} (#vectors{c} j)) j)
+        OtherSumLaws.congruent (c.indices)
+          (\fun (j: _) => Sums.sum (b.indices) (\fun (i: _) => coefficient i j))
+          (\fun (j: _) => Other.coordinates c (f.apply (c.vectors j)) j)
           (\fun (j: _) => trans!{K} _ _ _
-          (SumLaws.congruent (#indices{b}) (\fun (i: _) => coefficient i j)
-            (\fun (i: _) => mul (coordinates b (#apply{f} (#vectors{c} j)) i) (Other.coordinates c (#vectors{b} i) j))
+          (SumLaws.congruent (b.indices) (\fun (i: _) => coefficient i j)
+            (\fun (i: _) => mul (coordinates b (f.apply (c.vectors j)) i) (Other.coordinates c (b.vectors i) j))
             (\fun (i: _) =>
-            mulComm (Other.coordinates c (#vectors{b} i) j) (coordinates b (#apply{f} (#vectors{c} j)) i)))
-          (sym!{K} _ _ (Laws.functionalExpansion b (Other.coordinate c j) (#apply{f} (#vectors{c} j))))) }
+            mulComm (Other.coordinates c (b.vectors i) j) (coordinates b (f.apply (c.vectors j)) i)))
+          (sym!{K} _ _ (Laws.functionalExpansion b (Other.coordinate c j) (f.apply (c.vectors j))))) }
     }
   };
 \import \parent.Representation[W := V, J := J, target := space] \as Representation;
 \import \parent.\parent.Eigen[V := V, space := space] \as Eigen;
-\definition transition(b: Basis) (c: Other.Basis): J -> I -> K := Representation.toMatrix b c Eigen.identity;
+\definition transition[b: Basis] [c: Other.Basis]: J -> I -> K := Representation.toMatrix b c Eigen.identity;
 \import \parent.\parent.Matrix[I := J, J := I] \as Matrices;
 \definition transitionAction: \forall (b: Basis) -> \forall (c: Other.Basis) -> \forall (x: V) ->
-  Other.coordinates c x = Matrices.action (#indices{b}) (transition b c) (coordinates b x) :=
+  Other.coordinates c x = Matrices.action (b.indices) (transition b c) (coordinates b x) :=
   \fun (b: Basis) (c: Other.Basis) (x: _) => Representation.actionLaw b c Eigen.identity x;

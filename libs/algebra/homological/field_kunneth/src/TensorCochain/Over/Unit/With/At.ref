@@ -3,17 +3,17 @@
 \import Modules.DirectSum[Index := Total.Index n, family := Diagonal.family] \as Sum;
 \definition point: Total.Index n :=
   \into[Degrees.Pair](Degrees.Pair { first := Nat.Nat^::zero, second := n },
-    { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { Natural.addZeroLeft n };
+    { i: Degrees.Pair \where Arithmetic.add i.first i.second = n }) \by { Natural.addZeroLeft n };
 \import Sum.Single[point := point] \as Single;
-\definition topIndex(i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = n): Total.Index n :=
-  \into[Degrees.Pair](i, { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { closed };
-\definition Vanishes(i: Degrees.Pair): \Prop :=
-  \forall (closed: Arithmetic.add #first{i} #second{i} = n) -> Logic.Not (topIndex i closed = point) ->
-  \forall (x: Product.family.Carrier #first{i} #second{i}) -> x = #zero{(Product.family.space #first{i} #second{i})};
+\definition topIndex[i: Degrees.Pair][closed: Arithmetic.add i.first i.second = n]: Total.Index n :=
+  \into[Degrees.Pair](i, { i: Degrees.Pair \where Arithmetic.add i.first i.second = n }) \by { closed };
+\definition Vanishes[i: Degrees.Pair]: \Prop :=
+  \forall (closed: Arithmetic.add i.first i.second = n) -> Logic.Not (topIndex i closed = point) ->
+  \forall (x: Product.family.Carrier i.first i.second) -> x = (Product.family.space i.first i.second).zero;
 \module ZeroCase(q: Nat.Nat^) {
   \definition vanishes: Vanishes (Degrees.Pair::# Nat.Nat^::zero q) :=
     \fun (closed: Arithmetic.add Nat.Nat^::zero q = n)(different: Logic.Not (topIndex (Degrees.Pair::# Nat.Nat^::zero q) closed = point)) =>
-      Logic.falseElim (\forall (x: Product.family.Carrier Nat.Nat^::zero q) -> x = #zero{(Product.family.space Nat.Nat^::zero q)})
+      Logic.falseElim (\forall (x: Product.family.Carrier Nat.Nat^::zero q) -> x = (Product.family.space Nat.Nat^::zero q).zero)
         (different (congr!{Nat.Nat^ Degrees.Pair} (\fun (k: Nat.Nat^) => Degrees.Pair::# Nat.Nat^::zero k)
           _ _ (trans!{Nat.Nat^} _ _ _ (sym!{Nat.Nat^} _ _ (Natural.addZeroLeft q)) closed)));
 }
@@ -27,11 +27,11 @@
   \import Modules.Hom[V := T.Carrier, W := T.Carrier, source := T.space, target := T.space] \as Linear;
   \definition equality: Identity.identity = Linear.zeroMap := Universal.ext Identity.identity Linear.zeroMap
     (\fun (x: Empty.Carrier)(y: C.family.Carrier q) => trans!{T.Carrier} _ _ _
-      (congr!{Empty.Carrier T.Carrier} (\fun (v: Empty.Carrier) => T.tensor v y) _ _ (\axiom:funext(x, (#zero{(Empty.space)}), \fun (i: Finite.Fin Nat.Nat^::zero) => Logic.falseElim _ (Finite.zeroImpossible i (Finite.bound Nat.Nat^::zero i)))))
+      (congr!{Empty.Carrier T.Carrier} (\fun (v: Empty.Carrier) => T.tensor v y) _ _ (\axiom:funext(x, ((Empty.space).zero), \fun (i: Finite.Fin Nat.Nat^::zero) => Logic.falseElim _ (Finite.zeroImpossible i (Finite.bound Nat.Nat^::zero i)))))
       (T.tensorZeroLeft y));
   \definition vanishes: Vanishes (Degrees.Pair::# (Nat.Nat^::succ p) q) :=
     \fun (closed: Arithmetic.add (Nat.Nat^::succ p) q = n)(different: _) (x: T.Carrier) =>
-      congr!{Linear.Map T.Carrier} (\fun (f: Linear.Map) => #apply{f} x) _ _ equality;
+      congr!{Linear.Map T.Carrier} (\fun (f: Linear.Map) => f.apply x) _ _ equality;
 }
 \definition byDegree: \forall (p, q: Nat.Nat^) -> Vanishes (Degrees.Pair::# p q) :=
   \induction (p: Nat.Nat^) \return \forall (q: Nat.Nat^) -> Vanishes (Degrees.Pair::# p q) \with {
@@ -52,9 +52,9 @@
 \definition isomorphism: Modules.Isomorphism[V := Diagonal.Carrier, W := C.family.Carrier n,
   source := Diagonal.space, target := C.family.space n].Isomorphism :=
   Compose.compose Scalar.isomorphism (Single.isomorphism otherTrivial);
-\definition forward: _ := #forward{isomorphism};
-\definition backward: _ := #backward{isomorphism};
+\definition forward: _ := isomorphism.forward;
+\definition backward: _ := isomorphism.backward;
 \import Product.Term[p := Nat.Nat^::zero, q := n] \as Tensor;
 \definition onUnit: \forall (x: C.family.Carrier n) ->
-  #apply{backward} x = #apply{(Diagonal.Component[i := point].injection)} (Tensor.tensor one x) :=
-  \fun (x: C.family.Carrier n) => \refl(#apply{backward} x);
+  backward.apply x = (Diagonal.Component[i := point].injection).apply (Tensor.tensor one x) :=
+  \fun (x: C.family.Carrier n) => \refl(backward.apply x);

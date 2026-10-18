@@ -10,24 +10,24 @@
 \definition sumTwo: \forall (x: Coordinate count) -> Sums.sum count x = Real.add (x first) (x last) :=
   \fun (x: Coordinate count) => congr!{Real.Real Real.Real} (Real.add (x first)) _ _ (Laws.addZeroRight (x last));
 \definition total: \forall (x: Carrier dimension) -> Real.add (x first) (x last) = Real.one :=
-  \fun (x: Carrier dimension) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (sumTwo x)) #total{(barycentric dimension x)};
-\definition projection(x: Carrier dimension): Interval.Carrier :=
+  \fun (x: Carrier dimension) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (sumTwo x)) (barycentric dimension x).total;
+\definition projection[x: Carrier dimension]: Interval.Carrier :=
   \into[Real.Real](x last, Line.ClosedInterval Real.zero Real.one) \by {
-    Logic.And[_, _]::# (#nonnegative{(barycentric dimension x)} last)
+    Logic.And[_, _]::# ((barycentric dimension x).nonnegative last)
       (R.leReplaceRight (x last) (Real.add (x last) (x first)) Real.one
         (trans!{Real.Real} _ _ _ (Laws.addComm (x last) (x first)) (total x))
-        (Algebra.leAddRight (x last) (x first) (#nonnegative{(barycentric dimension x)} first)))
+        (Algebra.leAddRight (x last) (x first) ((barycentric dimension x).nonnegative first)))
   };
-\definition coordinates(t: Interval.Carrier): Coordinate count :=
+\definition coordinates[t: Interval.Carrier]: Coordinate count :=
   Tuples.extend dimension (Interval.reverse t) (\fun (_: Fin.Fin dimension) => t);
 \definition coordinatesPositive: \forall (t: Interval.Carrier)(i: Fin.Fin count) -> R.Le Real.zero (coordinates t i) :=
   \fun (t: Interval.Carrier) => extendNonnegative dimension (Interval.reverse t) (\fun (_: Fin.Fin dimension) => t)
-    (#left{(Interval.bounds (Interval.reverse t))}) (\fun (_: Fin.Fin dimension) => #left{(Interval.bounds t)});
+    ((Interval.bounds (Interval.reverse t)).left) (\fun (_: Fin.Fin dimension) => (Interval.bounds t).left);
 \definition coordinatesTotal: \forall (t: Interval.Carrier) -> Sums.sum count (coordinates t) = Real.one :=
   \fun (t: Interval.Carrier) => trans!{Real.Real} _ _ _
     (extendSum dimension (Interval.reverse t) (\fun (_: Fin.Fin dimension) => t))
     (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (Interval.reverse t)) _ _ (Laws.addZeroRight t)) (Distance.subAddCancel Real.one t));
-\definition embedding(t: Interval.Carrier): Carrier dimension := \into[Coordinate count](coordinates t, Points dimension) \by {
+\definition embedding[t: Interval.Carrier]: Carrier dimension := \into[Coordinate count](coordinates t, Points dimension) \by {
   Barycentric[count, coordinates t] { nonnegative := coordinatesPositive t, total := coordinatesTotal t }
 };
 \definition firstCoordinate: \forall (t: Interval.Carrier) -> embedding t first = Interval.reverse t :=

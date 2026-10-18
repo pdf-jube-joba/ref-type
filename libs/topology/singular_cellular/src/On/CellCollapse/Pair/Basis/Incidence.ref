@@ -5,19 +5,19 @@
 \import SourceBasis.Characteristic[cell := sourceCell] \as SourceCharacteristic;
 \import SourceCharacteristic.Oriented[] \as CharacteristicBasis;
 \import SourceLayer.Relative[] \as SourceRelative;
-\import Euclidean.Dimension[n := #dimension{sourceCell}] \as SourceModel;
+\import Euclidean.Dimension[n := (sourceCell).dimension] \as SourceModel;
 \definition sourceBoundary: \Pow SourceModel.Disk := { p: SourceModel.Disk \where SourceModel.normSquared p = Real.one };
 \import singular_cohomology.Relative[A := SourceModel.Disk, source := SourceModel.diskTopology, subset := sourceBoundary] \as SourceDiskPair;
 \import SourceDiskPair.Maps[B := Filtration.Stage[limit := N.Nat^::succ (N.Nat^::succ dimension)].Carrier]
   .Over[target := Filtration.Stage[limit := N.Nat^::succ (N.Nat^::succ dimension)].topology, targetSubset := SourceRelative.subset]
   .On[f := SourceCharacteristic.map] \as CharacteristicMap;
 \import CharacteristicMap.Integer[] \as CharacteristicAction;
-\definition diskGenerator: SourceDiskPair.Homology[z := upperDegree].Carrier := #apply{#forward{SourceOrientation.orientedDisk}} I.One.specification;
+\definition diskGenerator: SourceDiskPair.Homology[z := upperDegree].Carrier := ((SourceOrientation.orientedDisk).forward).apply I.One.specification;
 \import topology.Topology[Carrier := SourceModel.Disk].Subspace[S := sourceBoundary] \as SourceBoundary;
 \import singular_cohomology.Chains[A := SourceDiskPair.SubspaceCarrier, source := SourceBoundary.topology SourceModel.diskTopology] \as BoundaryChains;
 \import Nonnegative.ZeroExtension[C := BoundaryChains.complex] \as BoundaryExtension;
 \import Complexes.At[C := BoundaryExtension.complex, z := degree] \as BoundaryH;
-\definition boundaryGenerator: BoundaryH.Homology := #apply{SourceDiskPair.LongExact[z := upperDegree].connecting} diskGenerator;
+\definition boundaryGenerator: BoundaryH.Homology := (SourceDiskPair.LongExact[z := upperDegree].connecting).apply diskGenerator;
 \import Filtration.Stage[limit := N.Nat^::succ (N.Nat^::succ dimension)] \as Upper;
 \import topology.Topology[Carrier := Upper.Carrier].Subspace[S := SourceRelative.subset] \as Nested;
 \import Space.Subspace[S := Filtration.subset (N.Nat^::succ dimension)]
@@ -34,14 +34,14 @@
 \import Complexes.At[C := SkeletonExtension.complex, z := degree] \as SkeletonH;
 \definition lowerIsomorphism: Modules.Isomorphism[V := SkeletonH.Homology, W := NestedH.Homology, source := SkeletonH.homologySpace, target := NestedH.homologySpace].Isomorphism :=
   Complexes.Isomorphism[C := SkeletonExtension.complex, D := NestedExtension.complex].At[z := degree].isomorphism Left.isomorphism;
-\definition attaching(p: SourceDiskPair.SubspaceCarrier): Skeleton.Carrier := Left.backward (CharacteristicMap.restriction p);
+\definition attaching[p: SourceDiskPair.SubspaceCarrier]: Skeleton.Carrier := Left.backward (CharacteristicMap.restriction p);
 \import topology.Composition[A := SourceDiskPair.SubspaceCarrier, B := Nested.CarrierSet, C := Skeleton.Carrier] \as AttachTopology;
 \definition attachingContinuous: topology.Continuity[A := SourceDiskPair.SubspaceCarrier, B := Skeleton.Carrier].Continuous
   (SourceBoundary.topology SourceModel.diskTopology) Skeleton.topology attaching :=
   AttachTopology.composeContinuous (SourceBoundary.topology SourceModel.diskTopology) (Nested.topology Upper.topology) Skeleton.topology
-    CharacteristicMap.restriction Left.backward CharacteristicMap.restrictionContinuous (#backwardContinuous{Left.laws});
-\definition underlying(x: Skeleton.Carrier): A := x;
-\definition attachingValue(p: SourceDiskPair.SubspaceCarrier): underlying (attaching p) = #characteristic{sourceCell} p := \refl(#characteristic{sourceCell} p);
+    CharacteristicMap.restriction Left.backward CharacteristicMap.restrictionContinuous ((Left.laws).backwardContinuous);
+\definition underlying[x: Skeleton.Carrier]: A := x;
+\definition attachingValue[p: SourceDiskPair.SubspaceCarrier]: underlying (attaching p) = (sourceCell).characteristic p := \refl((sourceCell).characteristic p);
 \import singular_cohomology.Maps[A := SourceDiskPair.SubspaceCarrier, B := Skeleton.Carrier,
   source := SourceBoundary.topology SourceModel.diskTopology, target := Skeleton.topology] \as AttachingMaps;
 \definition attachingMap: Complexes.Map[C := BoundaryExtension.complex, D := SkeletonExtension.complex].Map := AttachingMaps.integerPush attaching attachingContinuous;
@@ -56,12 +56,12 @@
 \import RestrictionMaps.Composition[C := Skeleton.Carrier, final := Skeleton.topology].Integer[] \as AttachComposition;
 \import Complexes.Map[C := NestedExtension.complex, D := SkeletonExtension.complex].Composition[B := BoundaryExtension.complex] \as AttachChains;
 \import Complexes.Map[C := BoundaryExtension.complex, D := SkeletonExtension.complex].At[k := degree] \as AttachInduced;
-\definition attachingOnHomology(q: BoundaryH.Homology): #apply{attachingAction} q = #apply{#backward{lowerIsomorphism}} (#apply{restrictionAction} q) :=
+\definition attachingOnHomology[q: BoundaryH.Homology]: (attachingAction).apply q = ((lowerIsomorphism).backward).apply ((restrictionAction).apply q) :=
   trans!{SkeletonH.Homology} _ _ _
     (congr!{{Complexes.Map[C := BoundaryExtension.complex, D := SkeletonExtension.complex].Map} SkeletonH.Homology}
-      (\fun (f: Complexes.Map[C := BoundaryExtension.complex, D := SkeletonExtension.complex].Map) => #apply{(AttachInduced.induced f)} q) _ _
+      (\fun (f: Complexes.Map[C := BoundaryExtension.complex, D := SkeletonExtension.complex].Map) => (AttachInduced.induced f).apply q) _ _
       (sym!{{Complexes.Map[C := BoundaryExtension.complex, D := SkeletonExtension.complex].Map}} _ _
-        (AttachComposition.law CharacteristicMap.restriction CharacteristicMap.restrictionContinuous Left.backward (#backwardContinuous{Left.laws}))))
+        (AttachComposition.law CharacteristicMap.restriction CharacteristicMap.restrictionContinuous Left.backward ((Left.laws).backwardContinuous))))
     (AttachChains.At[k := degree].compositionOnHomology Left.backwardMap restrictionMap q);
 \module Connecting;
 \module Degree;

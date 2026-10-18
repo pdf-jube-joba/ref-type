@@ -1,21 +1,21 @@
-\structure Transposition: \Set {
+\structure Transposition: \Set := {
   first: Fin.Fin k,
   second: Fin.Fin k,
   different: Logic.Not (first = second),
-}
+};
 \definition Word: \Set := Lists.List[Transposition];
-\definition transpose(swap: Transposition)(arguments: Arguments k): Arguments k :=
-  update k (update k arguments #first{swap} (arguments #second{swap})) #second{swap} (arguments #first{swap});
-\definition action(word: Word): Arguments k -> Arguments k :=
+\definition transpose[swap: Transposition][arguments: Arguments k]: Arguments k :=
+  update k (update k arguments swap.first (arguments swap.second)) swap.second (arguments swap.first);
+\definition action[word: Word]: Arguments k -> Arguments k :=
   Lists.foldr Transposition (Arguments k -> Arguments k)
     (\fun (swap: Transposition)(tail: Arguments k -> Arguments k)(arguments: Arguments k) => transpose swap (tail arguments))
     (\fun (arguments: Arguments k) => arguments) word;
-\definition signed(word: Word): K -> K := Lists.foldr Transposition (K -> K)
+\definition signed[word: Word]: K -> K := Lists.foldr Transposition (K -> K)
   (\fun (swap: Transposition)(tail: K -> K)(value: K) => neg (tail value)) (\fun (value: K) => value) word;
-\definition sign(word: Word): K := signed word one;
+\definition sign[word: Word]: K := signed word one;
 \definition onTransposition: \forall (f: Form k)(swap: Transposition)(arguments: Arguments k) -> f (transpose swap arguments) = neg (f arguments) :=
   \fun (f: Form k)(swap: Transposition)(arguments: Arguments k) =>
-    \parent.TwoSlots[k := k, i := #first{swap}, j := #second{swap}].onSwap f arguments #different{swap};
+    \parent.TwoSlots[k := k, i := swap.first, j := swap.second].onSwap f arguments swap.different;
 \definition onWord: \forall (word: Word)(f: Form k)(arguments: Arguments k) -> f (action word arguments) = signed word (f arguments) :=
   \induction (word: Word) \return \forall (f: Form k)(arguments: Arguments k) -> f (action word arguments) = signed word (f arguments) \with {
     | nil: \fun (f: Form k)(arguments: Arguments k) => \refl(f arguments)

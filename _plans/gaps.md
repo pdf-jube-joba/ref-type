@@ -1,6 +1,6 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05・G08・G09・G11・G13〜G16 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+G02〜G05・G08・G09・G11・G13〜G17 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 これらのサンプルを個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -8,7 +8,7 @@ cargo build --locked --offline -p cli
 target/debug/cli _plans/gaps/05-01-record-eta.ref --no-cache --diagnostics compact
 ```
 
-Box の検討は [Box の parameter](features/box-parameters.md#g04) に分けている。
+Box の仕様と実装結果は [Box の除去とプログラム実行](../doc/book/src/props/box_elimination.md) にまとめている。
 
 ## 依存ライブラリを使う再現例
 
@@ -102,10 +102,10 @@ Machine を引数に取り、その実行を Box にする共通の定義を書�
 
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
-| [04-01-box-machine.ref](gaps/04-01-box-machine.ref) | `machine` は定義の引数。 | 失敗：`Box requires a closed computation type`。 |
+| [04-01-box-machine.ref](gaps/04-01-box-machine.ref) | `machine` は定義の引数。 | 成功。 |
 | [04-02-box-concrete.ref](gaps/04-02-box-concrete.ref) | `machine` は既に定義した具体値。 | 成功。 |
 
-parameter と評価開始条件の検討は [Box の parameter](features/box-parameters.md#g04) にまとめる。
+parameter と残余項の reflection は [Box の除去とプログラム実行](../doc/book/src/props/box_elimination.md) にまとめる。
 
 > [!note]
 > 既知の問題のため、今は対処せず。
@@ -124,6 +124,9 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 法則を含む `\Set` の structure はデータ・法則・部分集合型へ展開されるため、公開された型に直接 `\induction` を適用してデータの constructor を指定することはできない。
 [実数値線形写像](../libs/analysis/calculus/src/Real/Multivariable/Differential/Def.ref)は `LinearData` と `LinearLaws` を明示的に分け、通常のデータ record の帰納法から再構成の等式を示す。
 
+> [!note]
+> 対応しません。
+
 <a id="g06"></a>
 
 ## G06: signature の族に対する台集合の束ね直し
@@ -132,8 +135,8 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 たとえば、次の二つの構造の対応を、各構造の field を列挙せずに記述したい。
 
 ```text
-\structure A[Carrier: \Set] { op1: Carrier, }
-\structure ASet { Carrier: \Set, op1: Carrier, }
+\structure A[Carrier: \Set] := { op1: Carrier, };
+\structure ASet := { Carrier: \Set, op1: Carrier, };
 ```
 
 現在の signature は宣言された field の依存文脈へ展開され、signature の族そのものを parameter に取る仕組みがない。
@@ -154,7 +157,7 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 
 ```text
 \module Example(A: \Set, a: A) {
-  \definition singleton: \exists { x: A \where x = a } :=
+  \definition singleton: \exists ( x: A \where x = a ) :=
     \exact(\into[A](a, { x: A \where x = a }) \by { \refl(a) }, _);
 }
 ```
@@ -163,13 +166,18 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 
 ```text
 \module Example(A: \Set, a: A) {
-  \definition singleton: \exists { x: A \where x = a } :=
+  \definition singleton: \exists ( x: A \where x = a ) :=
     \exact(\into[A](a, { x: A \where x = a }) \by { \refl(a) },
       \Cast[A] ({ x: A \where x = a }));
 }
 ```
 
 ライブラリでは [Proposition.existsIntro](../libs/std/src/Logic/Proposition.ref) に部分集合への埋め込みと存在導入をまとめ、部分集合の条件を一度だけ指定している。
+
+> [!note]
+> 対応しません。
+> それやろうとするのは Coq の auto とかっぽい。
+> ある型に対して特定の項を持ってくるような推論は、証明支援系としてコードが大きくなりそうで嫌です。
 
 <a id="g08"></a>
 
@@ -186,17 +194,22 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 `Tor.Over.ProjectiveSecond` から `resolutions.ResolutionTensor.Over.Of` を具体化した際、一般の可換環上の加群に対して、`Ring.commutativeRingAsRing R ring` と `ResolutionTensor.Over.ordinaryRing` の照合が同じ診断で停止した。
 [ResolutionTensor.ref](../libs/algebra/homological/resolutions/src/ResolutionTensor.ref) では、依存 module の具体化へ変換式を直接渡すことで回避している。
 
+> [!note]
+> 対応したい。
+
 <a id="g09"></a>
 
 ## G09: 構造を返す関数の結果からの入れ子の射影
 
 構造の族 `terms: Index -> Complex` に対して `(terms i).family.Carrier` と書きたい。
 [`09-01-structure-family-result.ref`](gaps/09-01-structure-family-result.ref) は、`Item '<result>.family.Carrier' was not found` になる。
-`#Carrier{#family{(terms i)}}` で明示的に射影しても同じ診断になる。
 
 現在は対象の構造を parameter とする `View` module に射影を定義し、`View[C := terms i]` を import している。
 [`09-02-structure-family-view.ref`](gaps/09-02-structure-family-view.ref) でこの回避を再現する。
 整数複体の直和では [`Chains.View`](../libs/algebra/homological/chain_complexes/src/Chain/Over/View.ref) を介して各複体の台集合・加群・微分を取り出す。
+
+> [!note]
+> 対応したい。
 
 <a id="g10"></a>
 
@@ -247,14 +260,11 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 
 <a id="g14"></a>
 
-## G14: 部分集合の束縛変数から dot 記法で構造の field を読む
+## G14: 部分集合の束縛変数から dot 記法で構造の field を読む（解消済み）
 
 存在命題の部分集合 `{ s: Objects A \where s.value = a }` で、束縛変数 `s` の構造 field を dot 記法で参照したい。
-[14-01-function-field.ref](gaps/14-01-function-field.ref) は `Module import 's' was not found` になる。
-台を直接 `Object[A]` にしても再現する。
-
-[14-02-explicit-projection.ref](gaps/14-02-explicit-projection.ref) は明示的な field projection `#value{s}` を使うと型検査が通る。
-整数 Künneth の `Assertions.Exact` は `#inclusion{s}` を使って、外積が左端の写像である短完全列の存在を公開する。
+[14-01-function-field.ref](gaps/14-01-function-field.ref) と [14-02-explicit-projection.ref](gaps/14-02-explicit-projection.ref) は、どちらも `s.value` で型検査が通る。
+整数 Künneth の `Assertions.Exact` は `s.inclusion` を使って、外積が左端の写像である短完全列の存在を公開する。
 
 <a id="g15"></a>
 
@@ -275,3 +285,10 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 
 [16-02-imported-signature.ref](gaps/16-02-imported-signature.ref) は、本文で `Types` を import し、parameter を `On(X: Types.Object)` に移す回避例である。
 `singular_cohomology.SimplicialChains.On` はこの方法で面写像を持つ単体の族を受け取る。
+
+<a id="g17"></a>
+
+## G17: 等式消去の束縛変数から構造の field を読む（解消済み）
+
+`\idelim` の族で、束縛変数の field を `entry.value` と書きたい。
+[17-01-idelim-field.ref](gaps/17-01-idelim-field.ref) と [17-02-idelim-predicate.ref](gaps/17-02-idelim-predicate.ref) は、どちらも型検査が通る。

@@ -203,12 +203,19 @@ impl Drop for ArtifactStore {
             .unwrap()
             .take()
             .is_some_and(|lease| lease.owner);
+        let usage = self.root.join("usage");
         let collection_needed = self.pending_bytes.load(Ordering::Relaxed) != 0
-            || read_bounded(&self.root.join("usage"), 8)
+            || read_bounded(&usage, 8)
                 .ok()
                 .and_then(|bytes| bytes.try_into().ok())
                 .map(u64::from_le_bytes)
-                .is_none_or(|usage| usage > self.budget.load(Ordering::Relaxed));
+                .is_none_or(|usage| usage > self.budget.load(Ordering::Relaxed))
+            // Periodically reclaim abandoned publications left by killed writers.
+            || fs::metadata(&usage)
+                .and_then(|metadata| metadata.modified())
+                .ok()
+                .and_then(|modified| modified.elapsed().ok())
+                .is_none_or(|age| age >= Duration::from_secs(60));
         if ended_session && collection_needed && self.root.is_dir() {
             let _ = self.collect();
         }

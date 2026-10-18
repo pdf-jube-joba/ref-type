@@ -5,34 +5,34 @@
 \import Complexes.DegreeZero[C := Theory.complex] \as Cycles;
 \definition Carrier: \Set := H.Cohomology;
 \definition space: Modules.Space Carrier := H.cohomologySpace;
-\definition evaluate(q: Carrier)(a: Sphere): coefficients.Carrier := Zero.value (#apply{#backward{Cycles.kernelIso}} q) a;
+\definition evaluate[q: Carrier][a: Sphere]: coefficients.Carrier := Zero.value (((Cycles.kernelIso).backward).apply q) a;
 \definition onClass: \forall (h: H.CycleCarrier)(a: Sphere) -> evaluate (H.classOf h) a = Zero.value h a :=
-  \fun (h: H.CycleCarrier)(a: Sphere) => congr!{H.CycleCarrier coefficients.Carrier} (\fun (g: H.CycleCarrier) => Zero.value g a) _ _ (#leftInverse{Cycles.kernelIso} h);
+  \fun (h: H.CycleCarrier)(a: Sphere) => congr!{H.CycleCarrier coefficients.Carrier} (\fun (g: H.CycleCarrier) => Zero.value g a) _ _ ((Cycles.kernelIso).leftInverse h);
 \import singular_cohomology.Maps[A := Sphere, B := Sphere, source := topology, target := topology].Coefficients[M := coefficients, L := coefficients] \as Pull;
 \import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficient;
 \definition action: Modules.Hom[V := Carrier, W := Carrier, source := space, target := space].Map := Pull.At[n := N.Nat^::zero].induced Antipodal.apply Antipodal.continuous Coefficient.identity;
 \import Complexes.Map[C := Theory.complex, D := Theory.complex].At[k := N.Nat^::zero] \as Action;
-\definition valueOnClass: \forall (h: H.CycleCarrier)(a: Sphere) -> evaluate (#apply{action} (H.classOf h)) a = Zero.value h (Antipodal.apply a) :=
+\definition valueOnClass: \forall (h: H.CycleCarrier)(a: Sphere) -> evaluate ((action).apply (H.classOf h)) a = Zero.value h (Antipodal.apply a) :=
   \fun (h: H.CycleCarrier)(a: Sphere) => trans!{coefficients.Carrier} _ _ _
     (congr!{Carrier coefficients.Carrier} (\fun (q: Carrier) => evaluate q a) _ _ (Action.onClass (Pull.map Antipodal.apply Antipodal.continuous Coefficient.identity) h))
     (trans!{coefficients.Carrier} _ _ _
-      (onClass (#apply{(Action.cyclesMap (Pull.map Antipodal.apply Antipodal.continuous Coefficient.identity))} h) a)
+      (onClass ((Action.cyclesMap (Pull.map Antipodal.apply Antipodal.continuous Coefficient.identity)).apply h) a)
       (Pull.At[n := N.Nat^::zero].onCochain Antipodal.apply Antipodal.continuous Coefficient.identity h (Zero.constant a)));
-\definition value: \forall (q: Carrier)(a: Sphere) -> evaluate (#apply{action} q) a = evaluate q (Antipodal.apply a) :=
-  H.classInduction (\fun (q: Carrier) => \forall (a: Sphere) -> evaluate (#apply{action} q) a = evaluate q (Antipodal.apply a))
+\definition value: \forall (q: Carrier)(a: Sphere) -> evaluate ((action).apply q) a = evaluate q (Antipodal.apply a) :=
+  H.classInduction (\fun (q: Carrier) => \forall (a: Sphere) -> evaluate ((action).apply q) a = evaluate q (Antipodal.apply a))
     (\fun (h: H.CycleCarrier)(a: Sphere) => trans!{coefficients.Carrier} _ _ _ (valueOnClass h a) (sym!{coefficients.Carrier} _ _ (onClass h (Antipodal.apply a))));
-\definition atNorth: \forall (q: Carrier) -> evaluate (#apply{action} q) Model.north = evaluate q Model.south :=
+\definition atNorth: \forall (q: Carrier) -> evaluate ((action).apply q) Model.north = evaluate q Model.south :=
   \fun (q: Carrier) => trans!{coefficients.Carrier} _ _ _ (value q Model.north) (congr!{Sphere coefficients.Carrier} (evaluate q) _ _ north);
-\definition atSouth: \forall (q: Carrier) -> evaluate (#apply{action} q) Model.south = evaluate q Model.north :=
+\definition atSouth: \forall (q: Carrier) -> evaluate ((action).apply q) Model.south = evaluate q Model.north :=
   \fun (q: Carrier) => trans!{coefficients.Carrier} _ _ _ (value q Model.south) (congr!{Sphere coefficients.Carrier} (evaluate q) _ _ south);
 \import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
 \import algebra.Group[].Of[Carrier := coefficients.Carrier, group := Values.additive] \as Group;
-\definition orientedValue(q: Carrier): coefficients.Carrier := Group.difference (evaluate q Model.north) (evaluate q Model.south);
+\definition orientedValue[q: Carrier]: coefficients.Carrier := Group.difference (evaluate q Model.north) (evaluate q Model.south);
 \definition reverseDifference: \forall (a, b: coefficients.Carrier) -> Group.difference b a = Group.neg (Group.difference a b) :=
   \fun (a, b: coefficients.Carrier) => sym!{coefficients.Carrier} _ _
     (trans!{coefficients.Carrier} _ _ _ (Group.negAdd a (Group.neg b))
       (trans!{coefficients.Carrier} _ _ _ (congr!{coefficients.Carrier coefficients.Carrier} (Group.add (Group.neg a)) _ _ (Group.negNeg b)) (Group.comm (Group.neg a) b)));
-\definition orientedAction: \forall (q: Carrier) -> orientedValue (#apply{action} q) = Group.neg (orientedValue q) :=
+\definition orientedAction: \forall (q: Carrier) -> orientedValue ((action).apply q) = Group.neg (orientedValue q) :=
   \fun (q: Carrier) => trans!{coefficients.Carrier} _ _ _
     (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.difference _ _ _ _ (atNorth q) (atSouth q))
     (reverseDifference (evaluate q Model.north) (evaluate q Model.south));
@@ -48,9 +48,9 @@
     (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _ (Zero.valueOnSimplex h sigma)
       (trans!{coefficients.Carrier} _ _ _ (sameValues h g north south (Zero.point sigma)) (sym!{coefficients.Carrier} _ _ (Zero.valueOnSimplex g sigma))));
 \definition detectsEqual: \forall (q, r: Carrier) -> evaluate q Model.north = evaluate r Model.north -> evaluate q Model.south = evaluate r Model.south -> q = r :=
-  \fun (q, r: Carrier)(north: _)(south: _) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (#rightInverse{Cycles.kernelIso} q))
+  \fun (q, r: Carrier)(north: _)(south: _) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ ((Cycles.kernelIso).rightInverse q))
     (trans!{Carrier} _ _ _
-      (H.equalClass (#apply{#backward{Cycles.kernelIso}} q) (#apply{#backward{Cycles.kernelIso}} r)
-        (cochainsEqual (#apply{#backward{Cycles.kernelIso}} q) (#apply{#backward{Cycles.kernelIso}} r) north south))
-      (#rightInverse{Cycles.kernelIso} r));
+      (H.equalClass (((Cycles.kernelIso).backward).apply q) (((Cycles.kernelIso).backward).apply r)
+        (cochainsEqual (((Cycles.kernelIso).backward).apply q) (((Cycles.kernelIso).backward).apply r) north south))
+      ((Cycles.kernelIso).rightInverse r));
 \module Reduced;

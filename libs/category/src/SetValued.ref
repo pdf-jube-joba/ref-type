@@ -6,30 +6,30 @@
 
 /* A Set-valued functor is represented by an indexed family of carriers. */
 \module On(C: Cat.Category) {
-  \structure Action[Carrier: C.Object -> \Set]: \Set {
+  \structure Action[Carrier: C.Object -> \Set]: \Set := {
     map: \forall (u, v: C.Object) -> C.Hom u v -> Carrier u -> Carrier v,
-  }
+  };
 
-  \structure ActionLaws[Carrier: C.Object -> \Set, action: Action[Carrier]]: \Prop {
+  \structure ActionLaws[Carrier: C.Object -> \Set, action: Action[Carrier]]: \Prop := {
     mapIdentity: \forall (u: C.Object) -> \forall (p: Carrier u) -> action.map u u (C.structure.identity u) p = p,
     mapCompose: \forall (u, v, w: C.Object) -> \forall (g: C.Hom v w) -> \forall (f: C.Hom u v) ->
       \forall (p: Carrier u) -> action.map u w (C.structure.compose u v w g f) p =
         action.map v w g (action.map u v f p),
-  }
+  };
 
-  \structure Diagram {
+  \structure Diagram := {
     Carrier: C.Object -> \Set,
     action: Action[Carrier],
     laws: ActionLaws[Carrier, action],
-  }
+  };
 
-  \definition HomCarrier(u: C.Object): C.Object -> \Set := \fun (v: C.Object) => C.Hom u v;
+  \definition HomCarrier[u: C.Object]: C.Object -> \Set := \fun (v: C.Object) => C.Hom u v;
 
-  \definition homAction(u: C.Object): Action[HomCarrier u] := Action[HomCarrier u] {
+  \definition homAction[u: C.Object]: Action[HomCarrier u] := Action[HomCarrier u] {
     map := \fun (v, w: C.Object) (f: C.Hom v w) (h: C.Hom u v) => C.structure.compose u v w f h,
   };
 
-  \definition hom(u: C.Object): Diagram := Diagram {
+  \definition hom[u: C.Object]: Diagram := Diagram {
     Carrier := HomCarrier u,
     action := homAction u,
     laws := ActionLaws[HomCarrier u, homAction u] {
@@ -44,7 +44,7 @@
   \module Transformations(P, Q: Diagram) {
     \definition Family: \Set := \forall (u: C.Object) -> P.Carrier u -> Q.Carrier u;
 
-    \definition Naturality(a: Family): \Prop := \forall (u, v: C.Object) ->
+    \definition Naturality[a: Family]: \Prop := \forall (u, v: C.Object) ->
       \forall (f: C.Hom u v) -> \forall (p: P.Carrier u) ->
       Q.action.map u v f (a u p) = a v (P.action.map u v f p);
 
@@ -53,15 +53,15 @@
 
   \module Yoneda(P: Diagram, u: C.Object) {
     \definition Family: \Set := \forall (v: C.Object) -> C.Hom u v -> P.Carrier v;
-    \definition Naturality(a: Family): \Prop := \forall (v, w: C.Object) ->
+    \definition Naturality[a: Family]: \Prop := \forall (v, w: C.Object) ->
       \forall (f: C.Hom v w) -> \forall (h: C.Hom u v) ->
       P.action.map v w f (a v h) = a w (C.structure.compose u v w f h);
     \definition Transformation: \Set := \Cast[Family] ({ a: Family \where Naturality a });
     \import std.Data[].Bijection[A := Transformation, B := P.Carrier u] \as Bijections;
 
-    \definition evaluate(a: Transformation): P.Carrier u := a u (C.structure.identity u);
+    \definition evaluate[a: Transformation]: P.Carrier u := a u (C.structure.identity u);
 
-    \definition fromElement(p: P.Carrier u): Transformation :=
+    \definition fromElement[p: P.Carrier u]: Transformation :=
       \into[Family](\fun (v: C.Object) (f: C.Hom u v) => P.action.map u v f p,
         Transformation) \by {
         \fun (v, w: C.Object) (f: C.Hom v w) (h: C.Hom u v) =>

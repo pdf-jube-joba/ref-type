@@ -18,7 +18,7 @@ impl EnvironmentPlan {
     pub fn new(
         project: &resolve::Project,
         graph: &ModuleGraph<'_>,
-        settings: &Fingerprint,
+        settings: Option<&Fingerprint>,
     ) -> Self {
         let _phase = elaboration::profiling::Phase::start("query.environment-plan");
         let _cost = timing::costs::Scope::enter("query.environment-plan");
@@ -49,6 +49,34 @@ impl EnvironmentPlan {
         for module in &project.modules {
             collect(module, &[], &mut modules, &mut paths);
         }
+        // Execution/progress needs the source unit of each resolved step even
+        // when no checkpoints will be read or written. Only caching needs HIR hashes.
+        let units: HashMap<_, _> = modules
+            .iter()
+            .map(|(module, path)| {
+                let index = (1..=path.len())
+                    .rev()
+                    .find_map(|length| graph.indices.get(&path[..length]))
+                    .copied()
+                    .expect("resolved module has a source scope");
+                (module.id, index)
+            })
+            .collect();
+        let module_of = |step: &CheckStep| -> ModuleId {
+            match step {
+                CheckStep::Parameters(id) | CheckStep::Declaration { module: id, .. } => *id,
+            }
+        };
+        let Some(settings) = settings else {
+            return Self {
+                steps: project
+                    .order
+                    .iter()
+                    .map(|step| units[&module_of(step)])
+                    .collect(),
+                checkpoints: Vec::new(),
+            };
+        };
         let mut bindings_by_module: HashMap<_, Vec<_>> = HashMap::new();
         for (id, binding) in &project.bindings {
             bindings_by_module
@@ -63,7 +91,6 @@ impl EnvironmentPlan {
                 .or_default()
                 .push((id, import));
         }
-        let mut units = HashMap::new();
         let mut module_keys = HashMap::new();
         let mut parameter_keys = HashMap::new();
         let mut layout = settings.to_vec();
@@ -72,16 +99,11 @@ impl EnvironmentPlan {
         for (module, path) in &modules {
             layout.extend(format!("{:?}:{:?};", module.id, (&module.name.0, path)).as_bytes());
         }
-        for (module, path) in &modules {
+        for (module, _) in &modules {
             // Resolution expands structures into synthetic child modules.
             // Their declarations belong to the enclosing source unit.
-            let index = (1..=path.len())
-                .rev()
-                .find_map(|length| graph.indices.get(&path[..length]))
-                .copied()
-                .expect("resolved module has a source scope");
+            let index = units[&module.id];
             let _time = timing::Scope::module(|| graph.units[index].path.clone());
-            units.insert(module.id, index);
             let mut bytes = graph.units[index].local_key.to_vec();
             bytes
                 .extend(format!("{:?}{:?}", module.parameters, module.parameter_checks).as_bytes());
@@ -128,11 +150,6 @@ impl EnvironmentPlan {
             }
             module_keys.insert(module.id, fingerprint(&bytes));
         }
-        let module_of = |step: &CheckStep| -> ModuleId {
-            match step {
-                CheckStep::Parameters(id) | CheckStep::Declaration { module: id, .. } => *id,
-            }
-        };
         let mut last = HashMap::new();
         for (index, step) in project.order.iter().enumerate() {
             last.insert(units[&module_of(step)], index + 1);

@@ -7,16 +7,16 @@
 \import Charts.Cocycle[left := left, middle := middle, right := right] \as Geometry;
 \import \root.Dimension[n := n].Atlas[M := M.Point, space := M.space] \as SmoothAtlas;
 \import SmoothAtlas.Geometry[atlas := M.atlas] \as AtlasGeometry;
-\definition atlasChart(chart: Chart): AtlasGeometry.Chart := \into[Charts.Chart](chart, AtlasGeometry.Chart) \by { member chart };
+\definition atlasChart[chart: Chart]: AtlasGeometry.Chart := \into[Charts.Chart](chart, AtlasGeometry.Chart) \by { member chart };
 \import AtlasGeometry.Triple[left := atlasChart left, middle := atlasChart middle, right := atlasChart right] \as Triple;
-\definition point: Open.Carrier Geometry.domain := \into[Coordinates.Point](coordinate left, #points{Geometry.domain}) \by {
-  Logic.And[\In[Coordinates.Point] (#points{FirstDomain.domain}) (coordinate left), \In[Coordinates.Point] (#points{DirectDomain.domain}) (coordinate left)]::#
-    (\bysub(Coordinates.Point, #points{FirstDomain.domain}, First.point))
-    (\bysub(Coordinates.Point, #points{DirectDomain.domain}, Direct.point))
+\definition point: Open.Carrier Geometry.domain := \into[Coordinates.Point](coordinate left, Geometry.domain.points) \by {
+  Logic.And[\In[Coordinates.Point] (FirstDomain.domain.points) (coordinate left), \In[Coordinates.Point] (DirectDomain.domain.points) (coordinate left)]::#
+    (\bysub(Coordinates.Point, FirstDomain.domain.points, First.point))
+    (\bysub(Coordinates.Point, DirectDomain.domain.points, Direct.point))
 };
 \import Triple.At[a := point] \as Jacobians;
 \definition intermediate: Maps.apply Geometry.domain SecondDomain.domain Triple.first point = Second.point := First.coordinateAgreement;
-\definition localSecond: Linear.Map := Maps.Differential[U := SecondDomain.domain, V := #image{right}, f := Triple.second, a := Maps.apply Geometry.domain SecondDomain.domain Triple.first point].value;
+\definition localSecond: Linear.Map := Maps.Differential[U := SecondDomain.domain, V := right.image, f := Triple.second, a := Maps.apply Geometry.domain SecondDomain.domain Triple.first point].value;
 \definition secondAgreement: localSecond = jacobian middle right :=
   congr!{{Open.Carrier SecondDomain.domain} {Linear.Map}} Second.valueAt (Maps.apply Geometry.domain SecondDomain.domain Triple.first point) Second.point intermediate;
 \definition cocycle: jacobian left right = Composition.compose (jacobian middle right) (jacobian left middle) :=
@@ -24,4 +24,4 @@
     Jacobians.cocycle
     (congr!{{Linear.Map} {Linear.Map}} (\fun (d: Linear.Map) => Composition.compose d (jacobian left middle)) localSecond (jacobian middle right) secondAgreement);
 \definition apply: \forall (v: Vectors.Vector) -> transform left right v = transform middle right (transform left middle v) :=
-  \fun (v: Vectors.Vector) => congr!{{Linear.Map} {Vectors.Vector}} (\fun (d: Linear.Map) => #apply{d} v) _ _ cocycle;
+  \fun (v: Vectors.Vector) => congr!{{Linear.Map} {Vectors.Vector}} (\fun (d: Linear.Map) => d.apply v) _ _ cocycle;

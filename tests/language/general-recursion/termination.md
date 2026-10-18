@@ -128,7 +128,7 @@ parameters = '''A: \Set, B: \Set, step: A -> \RunStep[A, B], a, b: A,
     | \continue s: P s
     | \finish result: \forall (Q: \Prop) -> Q -> Q
   };
-\definition bad (certificate: ready (step a)): P b :=
+\definition bad [certificate: ready (step a)]: P b :=
   \idelim step a = \continue[A, B](b) \with t: \RunStep[A, B] => ready t
     \by { base: certificate, equality: wrongEdge };
 ```
@@ -169,7 +169,7 @@ parameters = '''A: \Set, B: \Set, step: A -> \RunStep[A, B], a: A'''
 ```
 
 ```ref
-\definition ready(P: A -> \Prop): \RunStep[A, B] -> \Prop :=
+\definition ready[P: A -> \Prop]: \RunStep[A, B] -> \Prop :=
   \step-match t: \RunStep[A, B] \return \Prop \with {
     | \continue s: P s
     | \finish result: \forall (Q: \Prop) -> Q -> Q
@@ -232,8 +232,8 @@ total: \forall (s: A^) -> (\forall (P: A^ -> \Prop) ->
   | \continue next: P next
   | \finish output: \forall (Q: \Prop) -> Q -> Q
 }) (step^ s) -> P s) -> P s)) {
-  \definition run(x: A): \F(A) := \run[A, A](step, x) \by { total x };
-  \definition runCase(x: A): \F(A) :=
+  \definition run[x: A]: \F(A) := \run[A, A](step, x) \by { total x };
+  \definition runCase[x: A]: \F(A) :=
     (\let y: A := x \in
   \runCase[A, A](step, y, (\force(step)) y) \by { accessibility: total y, equality: \refl(step^ y) });
 }

@@ -5,7 +5,7 @@
 \import Analysis.Estimates[] \as Estimates;
 \import Estimates.Product[] \as Product;
 
-\definition nearby(a, radius: Real): Real := add a (mul Analysis.half radius);
+\definition nearby[a, radius: Real]: Real := add a (mul Analysis.half radius);
 
 \definition nearbyDifferent: \forall (a, radius: Real) -> R.Lt zero radius ->
   Logic.Not (nearby a radius = a) :=
@@ -49,15 +49,15 @@
     \let cr: Def.Control[f, a, m, mul Analysis.half epsilon, dr] :=
       \bysub(Real, { d: Real \where Def.Control[f, a, m, mul Analysis.half epsilon, d] }, dr) \then
     \let radius: Real := Metric.min dl dr \then
-    \let rp: R.Lt zero radius := Product.minPositive dl dr (#positive{cl}) (#positive{cr}) \then
+    \let rp: R.Lt zero radius := Product.minPositive dl dr (cl.positive) (cr.positive) \then
     \let x: Real := nearby a radius \then
     \let different: Logic.Not (x = a) := nearbyDifferent a radius rp \then
     \let near: R.Lt (distance x a) radius := nearbyClose a radius rp \then
     \let first: R.Lt (distance l (f x)) (mul Analysis.half epsilon) :=
       R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric (f x) l)
-        (#estimate{cl} x different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr))) \then
+        (cl.estimate x different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr))) \then
     \let second: R.Lt (distance (f x) m) (mul Analysis.half epsilon) :=
-      #estimate{cr} x different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)) \then
+      cr.estimate x different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)) \then
     \let bound: R.Le (distance l m) epsilon := Order.leOfLt _ _
       (R.ltReplaceRight _ _ _ (Estimates.halfTwice epsilon)
         (R.leLtTrans _ _ _ (Metric.distanceTriangle l (f x) m)
@@ -81,13 +81,13 @@
     \bysub(Real, { d: Real \where Def.Control[g, a, m, mul Analysis.half epsilon, d] }, dr) \then
   \return Logic.existsIntro[Real, { d: Real \where Def.Control[\fun (x: Real) => add (f x) (g x), a, add l m, epsilon, d] }] (Metric.min dl dr)
     (Def.Control[\fun (x: Real) => add (f x) (g x), a, add l m, epsilon, Metric.min dl dr] {
-        positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
+        positive := Product.minPositive dl dr (cl.positive) (cr.positive),
         estimate := \fun (x: Real)(different: Logic.Not (x = a))(near: _) =>
           R.ltReplaceRight _ _ _ (Estimates.halfTwice epsilon)
             (R.leLtTrans _ _ _ (Estimates.distanceAdd (f x) (g x) l m)
               (Estimates.addLt _ _ _ _
-                (#estimate{cl} x different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
-                (#estimate{cr} x different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr))))),
+                (cl.estimate x different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
+                (cr.estimate x different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr))))),
       })
 };
 
@@ -107,7 +107,7 @@
     \bysub(Real, { d: Real \where Def.Control[g, a, m, radius, d] }, dr) \then
   \return Logic.existsIntro[Real, { d: Real \where Def.Control[\fun (x: Real) => mul (f x) (g x), a, mul l m, epsilon, d] }] (Metric.min dl dr)
     (Def.Control[\fun (x: Real) => mul (f x) (g x), a, mul l m, epsilon, Metric.min dl dr] {
-        positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
+        positive := Product.minPositive dl dr (cl.positive) (cr.positive),
         estimate := \fun (x: Real)(different: Logic.Not (x = a))(near: _) =>
           R.ltReplaceLeft (distance (mul l m) (mul (f x) (g x))) (distance (mul (f x) (g x)) (mul l m)) epsilon
             (Metric.distanceSymmetric (mul l m) (mul (f x) (g x)))
@@ -115,9 +115,9 @@
               (Product.localProductDistance l m (f x) (g x) radius
                 (Order.leOfLt _ _ rp) (Product.radiusBelowOne coefficient epsilon)
                 (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric (f x) l)
-                  (#estimate{cl} x different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr))))
+                  (cl.estimate x different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr))))
                 (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric (g x) m)
-                  (#estimate{cr} x different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))
+                  (cr.estimate x different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))
               (Product.radiusSmall coefficient epsilon cp positive)),
       })
 };
@@ -136,7 +136,7 @@
             (sym!{Real} _ _ (Metric.distanceSelf (f a))) positive,
           equality: sym!{Real} _ _ same
         }}
-      {\fun (different: _) => #estimate{control} x different near}
+      {\fun (different: _) => control.estimate x different near}
     };
 
 \definition composeLimit: \forall (f, g: Real -> Real)(a, l: Real) ->
@@ -148,14 +148,14 @@
   \let cg: Def.Control[g, l, g l, epsilon, dg] :=
     \bysub(Real, { d: Real \where Def.Control[g, l, g l, epsilon, d] }, dg) \then
   \takefrom df: \Cast[Real] ({ d: Real \where Def.Control[f, a, l, dg, d] })
-    \by inner dg (#positive{cg}) \then
+    \by inner dg (cg.positive) \then
   \let cf: Def.Control[f, a, l, dg, df] :=
     \bysub(Real, { d: Real \where Def.Control[f, a, l, dg, d] }, df) \then
   \return Logic.existsIntro[Real, { d: Real \where Def.Control[\fun (x: Real) => g (f x), a, g l, epsilon, d] }] df
     (Def.Control[\fun (x: Real) => g (f x), a, g l, epsilon, df] {
-        positive := #positive{cf},
+        positive := cf.positive,
         estimate := \fun (x: _)(different: _)(near: _) =>
-          continuityEstimate g l epsilon dg positive cg (f x) (#estimate{cf} x different near),
+          continuityEstimate g l epsilon dg positive cg (f x) (cf.estimate x different near),
       })
 };
 

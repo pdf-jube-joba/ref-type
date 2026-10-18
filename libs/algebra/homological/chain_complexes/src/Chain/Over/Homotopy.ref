@@ -1,21 +1,21 @@
 \import \parent.Map[C := C, D := D] \as Maps;
 \import \parent.Prior[C := D] \as TargetPrior;
 \import std.Logic[].Equality[].Transport[A := Degree] \as Transport;
-\structure Data: \Set {
+\structure Data: \Set := {
   apply: \forall (k: Degree) -> C.family.Carrier k -> D.family.Carrier (next k),
-}
-\definition shifted(data: Data)(k: Degree)(x: C.family.Carrier (previous k)): D.family.Carrier k :=
-  Transport.cast D.family.Carrier (next (previous k)) k (nextPrevious k) (#apply{data} (previous k) x);
-\structure Laws[f, g: Maps.Map, data: Data]: \Prop {
+};
+\definition shifted[data: Data][k: Degree][x: C.family.Carrier (previous k)]: D.family.Carrier k :=
+  Transport.cast D.family.Carrier (next (previous k)) k (nextPrevious k) ((data).apply (previous k) x);
+\structure Laws[f, g: Maps.Map, data: Data]: \Prop := {
   addition: \forall (k: Degree)(x, y: C.family.Carrier k) ->
-    data.apply k (#add{(C.family.space k)} x y) = #add{(D.family.space (next k))} (data.apply k x) (data.apply k y),
+    data.apply k ((C.family.space k).add x y) = (D.family.space (next k)).add (data.apply k x) (data.apply k y),
   scalar: \forall (k: Degree)(a: R)(x: C.family.Carrier k) ->
-    data.apply k (#smul{(C.family.space k)} a x) = #smul{(D.family.space (next k))} a (data.apply k x),
+    data.apply k ((C.family.space k).smul a x) = (D.family.space (next k)).smul a (data.apply k x),
   equation: \forall (k: Degree)(x: C.family.Carrier k) ->
-    #add{(D.family.space k)} (#apply{f} k x) (#neg{(D.family.space k)} (#apply{g} k x)) =
-    #add{(D.family.space k)} (TargetPrior.value k (data.apply k x)) (shifted data k (#apply{C.differential} k x)),
-}
-\definition Homotopy(f, g: Maps.Map): \Set := \Cast[Data] ({ data: Data \where Laws[f, g, data] });
+    (D.family.space k).add ((f).apply k x) ((D.family.space k).neg ((g).apply k x)) =
+    (D.family.space k).add (TargetPrior.value k (data.apply k x)) (shifted data k ((C.differential).apply k x)),
+};
+\definition Homotopy[f, g: Maps.Map]: \Set := \Cast[Data] ({ data: Data \where Laws[f, g, data] });
 \use Equality.transport;
 \definition replacementLaws: \forall (f, g, f1, g1: Maps.Map)(data: Data) ->
   f = f1 -> g = g1 -> Laws[f, g, data] -> Laws[f1, g1, data] :=

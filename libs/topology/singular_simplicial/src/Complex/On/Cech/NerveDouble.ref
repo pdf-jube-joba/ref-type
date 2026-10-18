@@ -6,25 +6,25 @@
 \import singular_cohomology.SimplicialChains[].On[X := HorizontalObject.object].Mapping[Y := object] \as NerveMapping;
 \import singular_cech.Algebra[R := I.Int^, ring := Integers.ring].Concentrated[C := Nerve.complex] \as Target;
 \import Doubles.Map[C := Source.complex, D := Target.complex] \as Maps;
-\definition data(p: N.Nat^): \forall (q: N.Nat^) ->
+\definition data[p: N.Nat^]: \forall (q: N.Nat^) ->
   Modules.Hom[V := Carrier p q, W := Target.family.Carrier p q, source := space p q, target := Target.family.space p q].Map :=
   \induction (q: N.Nat^) \return Modules.Hom[V := Carrier p q, W := Target.family.Carrier p q, source := space p q, target := Target.family.space p q].Map \with {
     | zero: NerveMapping.At[n := p].push Augmentation.simplicial
     | succ: \fun (q: N.Nat^)(previous: _) =>
         Modules.Hom[V := Carrier p (N.Nat^::succ q), W := Target.family.Carrier p (N.Nat^::succ q), source := space p (N.Nat^::succ q), target := Target.family.space p (N.Nat^::succ q)].zeroMap
   };
-\definition horizontal(p: N.Nat^): \forall (q: N.Nat^)(x: Carrier (N.Nat^::succ p) q) ->
-  #apply{(Target.horizontal p q)} (#apply{(data (N.Nat^::succ p) q)} x) = #apply{(data p q)} (#apply{(Source.horizontal p q)} x) :=
+\definition horizontal[p: N.Nat^]: \forall (q: N.Nat^)(x: Carrier (N.Nat^::succ p) q) ->
+  (Target.horizontal p q).apply ((data (N.Nat^::succ p) q).apply x) = (data p q).apply ((Source.horizontal p q).apply x) :=
   \induction (q: N.Nat^) \return \forall (x: Carrier (N.Nat^::succ p) q) ->
-    #apply{(Target.horizontal p q)} (#apply{(data (N.Nat^::succ p) q)} x) = #apply{(data p q)} (#apply{(Source.horizontal p q)} x) \with {
-      | zero: #commutes{Augmentation.map} p
+    (Target.horizontal p q).apply ((data (N.Nat^::succ p) q).apply x) = (data p q).apply ((Source.horizontal p q).apply x) \with {
+      | zero: (Augmentation.map).commutes p
       | succ: \fun (q: N.Nat^)(previous: _)(x: Carrier (N.Nat^::succ p) (N.Nat^::succ q)) => \refl(Zero.Carrier::zero)
     };
 \module Vertical(p: N.Nat^);
-\definition vertical(p: N.Nat^): \forall (q: N.Nat^)(x: Carrier p (N.Nat^::succ q)) ->
-  #apply{(Target.vertical p q)} (#apply{(data p (N.Nat^::succ q))} x) = #apply{(data p q)} (#apply{(Source.vertical p q)} x) :=
+\definition vertical[p: N.Nat^]: \forall (q: N.Nat^)(x: Carrier p (N.Nat^::succ q)) ->
+  (Target.vertical p q).apply ((data p (N.Nat^::succ q)).apply x) = (data p q).apply ((Source.vertical p q).apply x) :=
   \induction (q: N.Nat^) \return \forall (x: Carrier p (N.Nat^::succ q)) ->
-    #apply{(Target.vertical p q)} (#apply{(data p (N.Nat^::succ q))} x) = #apply{(data p q)} (#apply{(Source.vertical p q)} x) \with {
+    (Target.vertical p q).apply ((data p (N.Nat^::succ q)).apply x) = (data p q).apply ((Source.vertical p q).apply x) \with {
       | zero: \fun (x: Carrier p (N.Nat^::succ N.Nat^::zero)) => sym!{{Nerve.Carrier p}} _ _ (Vertical[p := p].all x)
       | succ: \fun (q: N.Nat^)(previous: _)(x: Carrier p (N.Nat^::succ (N.Nat^::succ q))) => \refl(Zero.Carrier::zero)
     };
@@ -33,8 +33,8 @@
 \import Doubles.Total[C := Target.complex] \as TargetTotal;
 \import Maps.Total[f := mapping] \as Induced;
 \import Doubles.Concentrated[C := Target.complex] \as Concentrated;
-\definition point(n: N.Nat^): Doubles.Index n := Concentrated.point n;
-\definition zeroIndex: \forall (n: N.Nat^)(i: Doubles.Index n) -> #second{i} = N.Nat^::zero -> i = point n := Concentrated.zeroIndex;
+\definition point[n: N.Nat^]: Doubles.Index n := Concentrated.point n;
+\definition zeroIndex: \forall (n: N.Nat^)(i: Doubles.Index n) -> (i).second = N.Nat^::zero -> i = point n := Concentrated.zeroIndex;
 \import Doubles.Column[C := Target.complex, q := N.Nat^::zero] \as TargetColumn;
 \import Target.Comparison[] \as Identification;
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
@@ -45,15 +45,15 @@
 \module Exact;
 \module Generators(n: N.Nat^);
 \module ProjectionIso;
-\definition equivalenceExists: \exists { e: Chains.Equivalence[C := Total.complex, D := Nerve.complex].Equivalence \where #forward{e} = comparison } := \block {
+\definition equivalenceExists: \exists ( e: Chains.Equivalence[C := Total.complex, D := Nerve.complex].Equivalence \where (e).forward = comparison ) := \block {
   \takefrom e: \Cast[Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence]
-    ({ e: Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence \where #forward{e} = Induced.map })
+    ({ e: Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence \where (e).forward = Induced.map })
     \by Exact[].Equivalence[].existence \then
   \let result: Chains.Equivalence[C := Total.complex, D := Nerve.complex].Equivalence :=
     Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Composition[E := Nerve.complex].compose e ProjectionIso[].equivalence \then
   \return Logic.existsIntro[Chains.Equivalence[C := Total.complex, D := Nerve.complex].Equivalence,
-    { e: Chains.Equivalence[C := Total.complex, D := Nerve.complex].Equivalence \where #forward{e} = comparison }] result
+    { e: Chains.Equivalence[C := Total.complex, D := Nerve.complex].Equivalence \where (e).forward = comparison }] result
     (congr!{{Chains.Map[C := Total.complex, D := TargetTotal.complex].Map} {Chains.Map[C := Total.complex, D := Nerve.complex].Map}}
       (Composition.compose projection) _ _ (\bysub(Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence,
-        { e: Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence \where #forward{e} = Induced.map }, e)))
+        { e: Chains.Equivalence[C := Total.complex, D := TargetTotal.complex].Equivalence \where (e).forward = Induced.map }, e)))
 };

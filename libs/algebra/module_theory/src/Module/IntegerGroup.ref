@@ -9,7 +9,7 @@
 \import algebra.Hom[A := N.Nat^, B := Carrier] \as NatMaps;
 \import algebra.Hom[A := Completion.Carrier, B := Carrier] \as CompletedMaps;
 \definition target: Monoid.Monoid[Carrier] := Monoid.asMonoid Carrier Group.additive;
-\definition repeat(n: N.Nat^)(x: Carrier): Carrier :=
+\definition repeat[n: N.Nat^][x: Carrier]: Carrier :=
   (\induction (n: N.Nat^) \return Carrier \with {
     | zero: Group.zero
     | succ: \fun (n: N.Nat^)(previous: Carrier) => Group.add x previous
@@ -30,18 +30,18 @@
       trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Group.add (Group.add x y)) _ _ (previous x y))
         (Group.four x y (repeat n x) (repeat n y))
   };
-\definition naturalMap(x: Carrier): Universal.Map := \into[N.Nat^ -> Carrier](\fun (n: N.Nat^) => repeat n x, Universal.Map) \by {
+\definition naturalMap[x: Carrier]: Universal.Map := \into[N.Nat^ -> Carrier](\fun (n: N.Nat^) => repeat n x, Universal.Map) \by {
   NatMaps.MonoidLaws[Universal.domain, Universal.codomain, \fun (n: N.Nat^) => repeat n x] {
     unit := \refl(Group.zero), operation := \fun (m, n: N.Nat^) => repeatAdd m n x,
   }
 };
-\definition extension(x: Carrier): CompletedMaps.MonoidMap Completion.asMonoid target := Universal.extension (naturalMap x);
-\definition action(a: I.Int^)(x: Carrier): Carrier := extension x (Natural.fromInt a);
+\definition extension[x: Carrier]: CompletedMaps.MonoidMap Completion.asMonoid target := Universal.extension (naturalMap x);
+\definition action[a: I.Int^][x: Carrier]: Carrier := extension x (Natural.fromInt a);
 \definition onNatural: \forall (n: N.Nat^)(x: Carrier) -> action (I.Int^::ofNat n) x = repeat n x :=
   \fun (n: N.Nat^)(x: Carrier) => Universal.extendIncludes (naturalMap x) n;
 \definition scalarAdd: \forall (a, b: I.Int^)(x: Carrier) -> action (I.Add.specification a b) x = Group.add (action a x) (action b x) :=
   \fun (a, b: I.Int^)(x: Carrier) => trans!{Carrier} _ _ _ (congr!{Completion.Carrier Carrier} (extension x) _ _ (Natural.fromIntAdd a b))
-    (#operation{(CompletedMaps.monoidLaws Completion.asMonoid target (extension x))} (Natural.fromInt a) (Natural.fromInt b));
+    ((CompletedMaps.monoidLaws Completion.asMonoid target (extension x)).operation (Natural.fromInt a) (Natural.fromInt b));
 \definition scalarOne: \forall (x: Carrier) -> action I.One.specification x = x :=
   \fun (x: Carrier) => trans!{Carrier} _ _ _ (onNatural (N.Nat^::succ N.Nat^::zero) x) (Group.zeroRight x);
 \definition scalarZero: \forall (x: Carrier) -> action I.Zero.specification x = Group.zero := onNatural N.Nat^::zero;
@@ -56,7 +56,7 @@
 \import algebra.Hom[A := I.Int^, B := Carrier] \as IntegerMaps;
 \definition integerDomain: Monoid.Monoid[I.Int^] := Monoid.asMonoid I.Int^ IntegerGroup.additive;
 \definition IntegerMap: \Set := IntegerMaps.MonoidMap integerDomain target;
-\definition integerMap(x: Carrier): IntegerMap :=
+\definition integerMap[x: Carrier]: IntegerMap :=
   \into[I.Int^ -> Carrier](\fun (a: I.Int^) => action a x, IntegerMap) \by {
     IntegerMaps.MonoidLaws[integerDomain, target, \fun (a: I.Int^) => action a x] {
       unit := scalarZero x, operation := \fun (a, b: I.Int^) => scalarAdd a b x,
@@ -65,19 +65,19 @@
 \definition preservesNegative: \forall (f: IntegerMap)(a: I.Int^) -> f (I.Neg.specification a) = Group.neg (f a) :=
   \fun (f: IntegerMap)(a: I.Int^) => Group.inverseUnique (f a) (f (I.Neg.specification a))
     (trans!{Carrier} _ _ _
-      (sym!{Carrier} _ _ (#operation{(IntegerMaps.monoidLaws integerDomain target f)} (I.Neg.specification a) a))
+      (sym!{Carrier} _ _ ((IntegerMaps.monoidLaws integerDomain target f).operation (I.Neg.specification a) a))
       (trans!{Carrier} _ _ _ (congr!{I.Int^ Carrier} f _ _ (IntegerGroup.inverseLeft a))
-        (#unit{(IntegerMaps.monoidLaws integerDomain target f)})));
+        ((IntegerMaps.monoidLaws integerDomain target f).unit)));
 \definition agreesOnNaturals: \forall (f, g: IntegerMap) -> f I.One.specification = g I.One.specification ->
   \forall (n: N.Nat^) -> f (I.Int^::ofNat n) = g (I.Int^::ofNat n) :=
   \fun (f, g: IntegerMap)(one: f I.One.specification = g I.One.specification) =>
     \induction (n: N.Nat^) \return f (I.Int^::ofNat n) = g (I.Int^::ofNat n) \with {
-      | zero: trans!{Carrier} _ _ _ (#unit{(IntegerMaps.monoidLaws integerDomain target f)})
-          (sym!{Carrier} _ _ (#unit{(IntegerMaps.monoidLaws integerDomain target g)}))
+      | zero: trans!{Carrier} _ _ _ ((IntegerMaps.monoidLaws integerDomain target f).unit)
+          (sym!{Carrier} _ _ ((IntegerMaps.monoidLaws integerDomain target g).unit))
       | succ: \fun (n: N.Nat^)(previous: f (I.Int^::ofNat n) = g (I.Int^::ofNat n)) =>
-          trans!{Carrier} _ _ _ (#operation{(IntegerMaps.monoidLaws integerDomain target f)} (I.Int^::ofNat n) I.One.specification)
+          trans!{Carrier} _ _ _ ((IntegerMaps.monoidLaws integerDomain target f).operation (I.Int^::ofNat n) I.One.specification)
             (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Group.add _ _ _ _ previous one)
-              (sym!{Carrier} _ _ (#operation{(IntegerMaps.monoidLaws integerDomain target g)} (I.Int^::ofNat n) I.One.specification)))
+              (sym!{Carrier} _ _ ((IntegerMaps.monoidLaws integerDomain target g).operation (I.Int^::ofNat n) I.One.specification)))
     };
 \definition generatorExt: \forall (f, g: IntegerMap) -> f I.One.specification = g I.One.specification -> f = g :=
   \fun (f, g: IntegerMap)(one: f I.One.specification = g I.One.specification) => \axiom:funext(f, g,

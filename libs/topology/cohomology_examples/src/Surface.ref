@@ -3,18 +3,18 @@
 \use Equality.sym;
 \use Equality.congr;
 \use Equality.congr2;
-\structure Data: \Set {
+\structure Data: \Set := {
   source: E -> V,
   target: E -> V,
   front: T -> E,
   diagonal: T -> E,
   back: T -> E,
-}
-\structure Laws[data: Data]: \Prop {
+};
+\structure Laws[data: Data]: \Prop := {
   first: \forall (t: T) -> data.source (data.front t) = data.source (data.diagonal t),
   middle: \forall (t: T) -> data.target (data.front t) = data.source (data.back t),
   last: \forall (t: T) -> data.target (data.diagonal t) = data.target (data.back t),
-}
+};
 \definition Object: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
 \module On(surface: Object) {
   \import std.Arithmetic[].Int[] \as I;
@@ -30,9 +30,9 @@
     \definition zeroth: Modules.Bundle := Modules.Bundle { Carrier := Vertices.Carrier, space := Vertices.space };
     \definition first: Modules.Bundle := Modules.Bundle { Carrier := Edges.Carrier, space := Edges.space };
     \definition second: Modules.Bundle := Modules.Bundle { Carrier := Triangles.Carrier, space := Triangles.space };
-    \definition deltaZero(f: Vertices.Carrier): Edges.Carrier :=
+    \definition deltaZero[f: Vertices.Carrier]: Edges.Carrier :=
       \fun (e: E) => Group.difference (f (surface.target e)) (f (surface.source e));
-    \definition deltaOne(f: Edges.Carrier): Triangles.Carrier :=
+    \definition deltaOne[f: Edges.Carrier]: Triangles.Carrier :=
       \fun (t: T) => Group.add (Group.difference (f (surface.back t)) (f (surface.diagonal t))) (f (surface.front t));
     \import Modules.Hom[V := Vertices.Carrier, W := Edges.Carrier, source := Vertices.space, target := Edges.space] \as ZeroMaps;
     \definition differentialZero: ZeroMaps.Map := ZeroMaps.Map {
@@ -54,10 +54,10 @@
         (\fun (t: T) => trans!{A.Carrier} _ _ _
           (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.add x (Values.scale a (f (surface.front t)))) _ _
             (sym!{A.Carrier} _ _ (Values.scaleDifference a (f (surface.back t)) (f (surface.diagonal t)))))
-          (sym!{A.Carrier} _ _ (#vectorAdd{A.space} a (Group.difference (f (surface.back t)) (f (surface.diagonal t))) (f (surface.front t))))),
+          (sym!{A.Carrier} _ _ ((A.space).vectorAdd a (Group.difference (f (surface.back t)) (f (surface.diagonal t))) (f (surface.front t))))),
     };
     \definition laws: Laws[surface] := \bysub(Data, Object, surface);
-    \definition endpoints(f: Vertices.Carrier)(t: T):
+    \definition endpoints[f: Vertices.Carrier][t: T]:
       deltaOne (deltaZero f) t =
       Group.add (Group.difference
         (Group.difference (f (surface.target (surface.back t))) (f (surface.target (surface.front t))))
@@ -65,12 +65,12 @@
         (Group.difference (f (surface.target (surface.front t))) (f (surface.source (surface.front t)))) :=
       congr2!{A.Carrier A.Carrier A.Carrier} Group.add _ _ _ _
         (congr2!{A.Carrier A.Carrier A.Carrier} Group.difference _ _ _ _
-          (congr!{V A.Carrier} (\fun (v: V) => Group.difference (f (surface.target (surface.back t))) (f v)) _ _ (sym!{V} _ _ (#middle{laws} t)))
+          (congr!{V A.Carrier} (\fun (v: V) => Group.difference (f (surface.target (surface.back t))) (f v)) _ _ (sym!{V} _ _ ((laws).middle t)))
           (congr2!{A.Carrier A.Carrier A.Carrier} Group.difference _ _ _ _
-            (congr!{V A.Carrier} f _ _ (#last{laws} t))
-            (congr!{V A.Carrier} f _ _ (sym!{V} _ _ (#first{laws} t)))))
+            (congr!{V A.Carrier} f _ _ ((laws).last t))
+            (congr!{V A.Carrier} f _ _ (sym!{V} _ _ ((laws).first t)))))
         (\refl(deltaZero f (surface.front t)));
-    \definition squareZero(f: Vertices.Carrier): deltaOne (deltaZero f) = Triangles.zero :=
+    \definition squareZero[f: Vertices.Carrier]: deltaOne (deltaZero f) = Triangles.zero :=
       Triangles.ext (deltaOne (deltaZero f)) Triangles.zero (\fun (t: T) => \block {
         \let firstVertex: A.Carrier := f (surface.source (surface.front t)) \then
         \let middleVertex: A.Carrier := f (surface.target (surface.front t)) \then

@@ -1,36 +1,36 @@
 \module Extension(n: N.Nat^) {
   \import Modules.Free[Generators := Tuple n].To[W := Carrier n, target := space n] \as Free;
   \definition extend: (Tuple n -> Carrier n) -> Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n].Map := Free.extension;
-  \definition onGenerator: \forall (f: Tuple n -> Carrier n)(v: Tuple n) -> #apply{(extend f)} (generator n v) = f v := Free.onGenerator;
+  \definition onGenerator: \forall (f: Tuple n -> Carrier n)(v: Tuple n) -> (extend f).apply (generator n v) = f v := Free.onGenerator;
 }
 \definition value: \forall (n: N.Nat^) -> Tuple n -> Carrier n :=
   \induction (n: N.Nat^) \return Tuple n -> Carrier n \with {
     | zero: generator N.Nat^::zero
     | succ: \fun (n: N.Nat^)(previous: Tuple n -> Carrier n)(v: Tuple (N.Nat^::succ n)) =>
-        #apply{(cone n (centres n v))} (#apply{(Extension[n := n].extend previous)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v)))
+        (cone n (centres n v)).apply ((Extension[n := n].extend previous).apply ((boundary n).apply (generator (N.Nat^::succ n) v)))
   };
-\definition map(n: N.Nat^): Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n].Map := Extension[n := n].extend (value n);
-\definition onGenerator: \forall (n: N.Nat^)(v: Tuple n) -> #apply{(map n)} (generator n v) = value n v :=
+\definition map[n: N.Nat^]: Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n].Map := Extension[n := n].extend (value n);
+\definition onGenerator: \forall (n: N.Nat^)(v: Tuple n) -> (map n).apply (generator n v) = value n v :=
   \fun (n: N.Nat^) => Extension[n := n].onGenerator (value n);
-\definition Property(n: N.Nat^): \Prop := \forall (x: Carrier (N.Nat^::succ n)) ->
-  #apply{(boundary n)} (#apply{(map (N.Nat^::succ n))} x) = #apply{(map n)} (#apply{(boundary n)} x);
+\definition Property[n: N.Nat^]: \Prop := \forall (x: Carrier (N.Nat^::succ n)) ->
+  (boundary n).apply ((map (N.Nat^::succ n)).apply x) = (map n).apply ((boundary n).apply x);
 \module At(n: N.Nat^) {
   \import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n].Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as First;
   \import Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n].Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as Second;
   \import Modules.Free[Generators := Tuple (N.Nat^::succ n)].To[W := Carrier n, target := space n] \as Free;
   \import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n] \as Linear;
   \definition OnGenerators: \Prop := \forall (v: Tuple (N.Nat^::succ n)) ->
-    #apply{(boundary n)} (#apply{(map (N.Nat^::succ n))} (generator (N.Nat^::succ n) v)) = #apply{(map n)} (#apply{(boundary n)} (generator (N.Nat^::succ n) v));
+    (boundary n).apply ((map (N.Nat^::succ n)).apply (generator (N.Nat^::succ n) v)) = (map n).apply ((boundary n).apply (generator (N.Nat^::succ n) v));
   \definition extend: OnGenerators -> Property n := \block {
     \fun (generators: OnGenerators) \then
     \let same: First.compose (boundary n) (map (N.Nat^::succ n)) = Second.compose (map n) (boundary n) := Free.ext _ _ generators \then
-    \return \fun (x: Carrier (N.Nat^::succ n)) => congr!{Linear.Map {Carrier n}} (\fun (f: Linear.Map) => #apply{f} x) _ _ same
+    \return \fun (x: Carrier (N.Nat^::succ n)) => congr!{Linear.Map {Carrier n}} (\fun (f: Linear.Map) => (f).apply x) _ _ same
   };
 }
 \definition zero: Property N.Nat^::zero := At[n := N.Nat^::zero].extend
   (\fun (v: Tuple (N.Nat^::succ N.Nat^::zero)) => trans!{{Carrier N.Nat^::zero}} _ _ _
-    (congr!{{Carrier (N.Nat^::succ N.Nat^::zero)} {Carrier N.Nat^::zero}} (#apply{(boundary N.Nat^::zero)}) _ _ (onGenerator (N.Nat^::succ N.Nat^::zero) v))
-    (\parent.Empty[].coneBoundary (centres N.Nat^::zero v) (#apply{(map N.Nat^::zero)} (#apply{(boundary N.Nat^::zero)} (generator (N.Nat^::succ N.Nat^::zero) v)))));
+    (congr!{{Carrier (N.Nat^::succ N.Nat^::zero)} {Carrier N.Nat^::zero}} ((boundary N.Nat^::zero).apply) _ _ (onGenerator (N.Nat^::succ N.Nat^::zero) v))
+    (\parent.Empty[].coneBoundary (centres N.Nat^::zero v) ((map N.Nat^::zero).apply ((boundary N.Nat^::zero).apply (generator (N.Nat^::succ N.Nat^::zero) v)))));
 \module Step(n: N.Nat^);
 \definition commutes: \forall (n: N.Nat^) -> Property n :=
   \induction (n: N.Nat^) \return Property n \with {
@@ -38,9 +38,9 @@
     | succ: \fun (n: N.Nat^)(previous: Property n) => Step[n := n].law previous
   };
 \definition chainMap: Complexes.Map[C := complex, D := complex].Map := Complexes.Map[C := complex, D := complex].Map {
-  apply := \fun (n: N.Nat^) => #apply{(map (N.Nat^::succ n))},
-  addition := \fun (n: N.Nat^) => #addition{(map (N.Nat^::succ n))},
-  scalar := \fun (n: N.Nat^) => #scalar{(map (N.Nat^::succ n))},
+  apply := \fun (n: N.Nat^) => (map (N.Nat^::succ n)).apply,
+  addition := \fun (n: N.Nat^) => (map (N.Nat^::succ n)).addition,
+  scalar := \fun (n: N.Nat^) => (map (N.Nat^::succ n)).scalar,
   commutes := \fun (n: N.Nat^) => commutes (N.Nat^::succ n),
 };
 \module Natural(W: \Set, targetCentres: \root.OrderedTuples[V := W].Centres);

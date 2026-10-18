@@ -1,15 +1,15 @@
 \import std.Logic[].Order[] \as O;
-\definition FractionTrichotomy(x, y: Fraction): \Prop :=
+\definition FractionTrichotomy[x, y: Fraction]: \Prop :=
   Logic.Or[lt x y, Logic.Or[FractionEq x y, lt y x]];
-\definition trichotomy(x, y: Fraction): FractionTrichotomy x y :=
+\definition trichotomy[x, y: Fraction]: FractionTrichotomy x y :=
   O.trichotomyOr I.Integer I.IntegerLt
-    (I.mulInteger (#numerator{x}) (denominator y))
-    (I.mulInteger (#numerator{y}) (denominator x))
+    (I.mulInteger (x.numerator) (denominator y))
+    (I.mulInteger (y.numerator) (denominator x))
     (IntegerOrder.trichotomy
-      (I.mulInteger (#numerator{x}) (denominator y))
-      (I.mulInteger (#numerator{y}) (denominator x)));
-\definition ltIrrefl(x: Fraction): Logic.Not (lt x x) :=
-  IntegerOrder.ltIrrefl (I.mulInteger (#numerator{x}) (denominator x));
+      (I.mulInteger (x.numerator) (denominator y))
+      (I.mulInteger (y.numerator) (denominator x)));
+\definition ltIrrefl[x: Fraction]: Logic.Not (lt x x) :=
+  IntegerOrder.ltIrrefl (I.mulInteger (x.numerator) (denominator x));
 
 \definition zeroLtOne: lt zero one :=
   IntegerOrder.ltRespects
@@ -19,7 +19,7 @@
     (sym!{I.Integer} _ _ (I.mulIntegerOneLeft I.oneInteger))
     IntegerOrder.zeroLtOne;
 
-\definition mulSwapRight(a, b, c: I.Integer):
+\definition mulSwapRight[a, b, c: I.Integer]:
   I.mulInteger (I.mulInteger a b) c =
     I.mulInteger (I.mulInteger a c) b :=
   equiv_reason!{trans!{I.Integer}
@@ -28,7 +28,7 @@
       (\refl(a)) (I.mulIntegerComm b c) }
     "by" { sym!{I.Integer} _ _ (I.mulIntegerAssoc a c b) }};
 
-\definition ltMulDenominator(x, y: I.Integer) (d: I.Nat):
+\definition ltMulDenominator[x, y: I.Integer] [d: I.Nat]:
   I.IntegerLt x y ->
   I.IntegerLt
     (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
@@ -43,7 +43,7 @@
       (sym!{I.Integer} _ _ (I.mulIntegerNatural y (I.natSucc d)))
       (IntegerOrder.ltScaleSucc x y d xy);
 
-\definition ltCancelDenominator(x, y: I.Integer) (d: I.Nat):
+\definition ltCancelDenominator[x, y: I.Integer] [d: I.Nat]:
   I.IntegerLt
     (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
     (I.mulInteger y (I.integer (I.natSucc d) I.zeroNat)) ->
@@ -58,137 +58,137 @@
         (I.mulIntegerNatural x (I.natSucc d))
         (I.mulIntegerNatural y (I.natSucc d)) xy);
 
-\definition ltTrans(x, y, z: Fraction):
+\definition ltTrans[x, y, z: Fraction]:
   lt x y -> lt y z ->
   lt x z :=
   \block {
     \fun (xy: lt x y) (yz: lt y z) \then
     \let leftScaled: I.IntegerLt
       (I.mulInteger
-        (I.mulInteger (#numerator{x}) (denominator y)) (denominator z))
+        (I.mulInteger (x.numerator) (denominator y)) (denominator z))
       (I.mulInteger
-        (I.mulInteger (#numerator{y}) (denominator x)) (denominator z)) :=
+        (I.mulInteger (y.numerator) (denominator x)) (denominator z)) :=
       ltMulDenominator
-        (I.mulInteger (#numerator{x}) (denominator y))
-        (I.mulInteger (#numerator{y}) (denominator x))
-        (#denominatorIndex{z}) xy \then
+        (I.mulInteger (x.numerator) (denominator y))
+        (I.mulInteger (y.numerator) (denominator x))
+        (z.denominatorIndex) xy \then
     \let rightScaled: I.IntegerLt
       (I.mulInteger
-        (I.mulInteger (#numerator{y}) (denominator z)) (denominator x))
+        (I.mulInteger (y.numerator) (denominator z)) (denominator x))
       (I.mulInteger
-        (I.mulInteger (#numerator{z}) (denominator y)) (denominator x)) :=
+        (I.mulInteger (z.numerator) (denominator y)) (denominator x)) :=
       ltMulDenominator
-        (I.mulInteger (#numerator{y}) (denominator z))
-        (I.mulInteger (#numerator{z}) (denominator y))
-        (#denominatorIndex{x}) yz \then
+        (I.mulInteger (y.numerator) (denominator z))
+        (I.mulInteger (z.numerator) (denominator y))
+        (x.denominatorIndex) yz \then
     \let combined: I.IntegerLt
       (I.mulInteger
-        (I.mulInteger (#numerator{x}) (denominator y)) (denominator z))
+        (I.mulInteger (x.numerator) (denominator y)) (denominator z))
       (I.mulInteger
-        (I.mulInteger (#numerator{z}) (denominator y)) (denominator x)) :=
+        (I.mulInteger (z.numerator) (denominator y)) (denominator x)) :=
       IntegerOrder.ltTrans _ _ _ leftScaled
         (IntegerOrder.ltRespects
           (I.mulInteger
-            (I.mulInteger (#numerator{y}) (denominator z)) (denominator x))
+            (I.mulInteger (y.numerator) (denominator z)) (denominator x))
           (I.mulInteger
-            (I.mulInteger (#numerator{y}) (denominator x)) (denominator z))
+            (I.mulInteger (y.numerator) (denominator x)) (denominator z))
           (I.mulInteger
-            (I.mulInteger (#numerator{z}) (denominator y)) (denominator x))
+            (I.mulInteger (z.numerator) (denominator y)) (denominator x))
           (I.mulInteger
-            (I.mulInteger (#numerator{z}) (denominator y)) (denominator x))
-          (mulSwapRight (#numerator{y}) (denominator z) (denominator x))
+            (I.mulInteger (z.numerator) (denominator y)) (denominator x))
+          (mulSwapRight (y.numerator) (denominator z) (denominator x))
           (\refl(_))
           rightScaled) \then
     \let aligned: I.IntegerLt
       (I.mulInteger
-        (I.mulInteger (#numerator{x}) (denominator z)) (denominator y))
+        (I.mulInteger (x.numerator) (denominator z)) (denominator y))
       (I.mulInteger
-        (I.mulInteger (#numerator{z}) (denominator x)) (denominator y)) :=
+        (I.mulInteger (z.numerator) (denominator x)) (denominator y)) :=
       IntegerOrder.ltRespects _ _ _ _
-        (mulSwapRight (#numerator{x}) (denominator y) (denominator z))
-        (mulSwapRight (#numerator{z}) (denominator y) (denominator x))
+        (mulSwapRight (x.numerator) (denominator y) (denominator z))
+        (mulSwapRight (z.numerator) (denominator y) (denominator x))
         combined \then
     \return ltCancelDenominator
-      (I.mulInteger (#numerator{x}) (denominator z))
-      (I.mulInteger (#numerator{z}) (denominator x))
-      (#denominatorIndex{y}) aligned
+      (I.mulInteger (x.numerator) (denominator z))
+      (I.mulInteger (z.numerator) (denominator x))
+      (y.denominatorIndex) aligned
   };
 
-\definition ltReplaceLeft(x, x2, y: Fraction):
+\definition ltReplaceLeft[x, x2, y: Fraction]:
   FractionEq x x2 -> lt x y ->
   lt x2 y :=
   \block {
     \fun (xx: FractionEq x x2) (xy: lt x y) \then
     \let scaled: I.IntegerLt
       (I.mulInteger
-        (I.mulInteger (#numerator{x}) (denominator y)) (denominator x2))
+        (I.mulInteger (x.numerator) (denominator y)) (denominator x2))
       (I.mulInteger
-        (I.mulInteger (#numerator{y}) (denominator x)) (denominator x2)) :=
+        (I.mulInteger (y.numerator) (denominator x)) (denominator x2)) :=
       ltMulDenominator
-        (I.mulInteger (#numerator{x}) (denominator y))
-        (I.mulInteger (#numerator{y}) (denominator x))
-        (#denominatorIndex{x2}) xy \then
+        (I.mulInteger (x.numerator) (denominator y))
+        (I.mulInteger (y.numerator) (denominator x))
+        (x2.denominatorIndex) xy \then
     \let lowerEq: I.mulInteger
-        (I.mulInteger (#numerator{x}) (denominator y)) (denominator x2) =
+        (I.mulInteger (x.numerator) (denominator y)) (denominator x2) =
       I.mulInteger
-        (I.mulInteger (#numerator{x2}) (denominator y)) (denominator x) :=
+        (I.mulInteger (x2.numerator) (denominator y)) (denominator x) :=
       equiv_reason!{trans!{I.Integer}
-        "by" { mulSwapRight (#numerator{x}) (denominator y) (denominator x2) }
+        "by" { mulSwapRight (x.numerator) (denominator y) (denominator x2) }
         "by" { I.mulIntegerRespects
-          (I.mulInteger (#numerator{x}) (denominator x2))
-          (I.mulInteger (#numerator{x2}) (denominator x))
+          (I.mulInteger (x.numerator) (denominator x2))
+          (I.mulInteger (x2.numerator) (denominator x))
           (denominator y) (denominator y) xx (\refl(_)) }
-        "by" { mulSwapRight (#numerator{x2}) (denominator x) (denominator y) }} \then
+        "by" { mulSwapRight (x2.numerator) (denominator x) (denominator y) }} \then
     \let upperEq: I.mulInteger
-        (I.mulInteger (#numerator{y}) (denominator x)) (denominator x2) =
+        (I.mulInteger (y.numerator) (denominator x)) (denominator x2) =
       I.mulInteger
-        (I.mulInteger (#numerator{y}) (denominator x2)) (denominator x) :=
-      mulSwapRight (#numerator{y}) (denominator x) (denominator x2) \then
+        (I.mulInteger (y.numerator) (denominator x2)) (denominator x) :=
+      mulSwapRight (y.numerator) (denominator x) (denominator x2) \then
     \return ltCancelDenominator
-      (I.mulInteger (#numerator{x2}) (denominator y))
-      (I.mulInteger (#numerator{y}) (denominator x2))
-      (#denominatorIndex{x})
+      (I.mulInteger (x2.numerator) (denominator y))
+      (I.mulInteger (y.numerator) (denominator x2))
+      (x.denominatorIndex)
       (IntegerOrder.ltRespects _ _ _ _ lowerEq upperEq scaled)
   };
 
-\definition ltReplaceRight(x, y, y2: Fraction):
+\definition ltReplaceRight[x, y, y2: Fraction]:
   FractionEq y y2 -> lt x y ->
   lt x y2 :=
   \block {
     \fun (yy: FractionEq y y2) (xy: lt x y) \then
     \let scaled: I.IntegerLt
       (I.mulInteger
-        (I.mulInteger (#numerator{x}) (denominator y)) (denominator y2))
+        (I.mulInteger (x.numerator) (denominator y)) (denominator y2))
       (I.mulInteger
-        (I.mulInteger (#numerator{y}) (denominator x)) (denominator y2)) :=
+        (I.mulInteger (y.numerator) (denominator x)) (denominator y2)) :=
       ltMulDenominator
-        (I.mulInteger (#numerator{x}) (denominator y))
-        (I.mulInteger (#numerator{y}) (denominator x))
-        (#denominatorIndex{y2}) xy \then
+        (I.mulInteger (x.numerator) (denominator y))
+        (I.mulInteger (y.numerator) (denominator x))
+        (y2.denominatorIndex) xy \then
     \let lowerEq: I.mulInteger
-        (I.mulInteger (#numerator{x}) (denominator y)) (denominator y2) =
+        (I.mulInteger (x.numerator) (denominator y)) (denominator y2) =
       I.mulInteger
-        (I.mulInteger (#numerator{x}) (denominator y2)) (denominator y) :=
-      mulSwapRight (#numerator{x}) (denominator y) (denominator y2) \then
+        (I.mulInteger (x.numerator) (denominator y2)) (denominator y) :=
+      mulSwapRight (x.numerator) (denominator y) (denominator y2) \then
     \let upperEq: I.mulInteger
-        (I.mulInteger (#numerator{y}) (denominator x)) (denominator y2) =
+        (I.mulInteger (y.numerator) (denominator x)) (denominator y2) =
       I.mulInteger
-        (I.mulInteger (#numerator{y2}) (denominator x)) (denominator y) :=
+        (I.mulInteger (y2.numerator) (denominator x)) (denominator y) :=
       equiv_reason!{trans!{I.Integer}
-        "by" { mulSwapRight (#numerator{y}) (denominator x) (denominator y2) }
+        "by" { mulSwapRight (y.numerator) (denominator x) (denominator y2) }
         "by" { I.mulIntegerRespects
-          (I.mulInteger (#numerator{y}) (denominator y2))
-          (I.mulInteger (#numerator{y2}) (denominator y))
+          (I.mulInteger (y.numerator) (denominator y2))
+          (I.mulInteger (y2.numerator) (denominator y))
           (denominator x) (denominator x) yy (\refl(_)) }
-        "by" { mulSwapRight (#numerator{y2}) (denominator y) (denominator x) }} \then
+        "by" { mulSwapRight (y2.numerator) (denominator y) (denominator x) }} \then
     \return ltCancelDenominator
-      (I.mulInteger (#numerator{x}) (denominator y2))
-      (I.mulInteger (#numerator{y2}) (denominator x))
-      (#denominatorIndex{y})
+      (I.mulInteger (x.numerator) (denominator y2))
+      (I.mulInteger (y2.numerator) (denominator x))
+      (y.denominatorIndex)
       (IntegerOrder.ltRespects _ _ _ _ lowerEq upperEq scaled)
   };
 
-\definition ltRespects(x, x2, y, y2: Fraction):
+\definition ltRespects[x, x2, y, y2: Fraction]:
   FractionEq x x2 -> FractionEq y y2 -> lt x y ->
   lt x2 y2 :=
   \fun (xx: _) (yy: _) (xy: _) =>

@@ -3,14 +3,14 @@
 \import \parent.\parent.Chains[] \as Nerve;
 \import Semisimplicial.Maps[X := Horizontal.object, Y := object] \as Simplicial;
 \definition simplicial: Simplicial.Map := Simplicial.Map {
-  apply := \fun (p: N.Nat^)(s: Generator p N.Nat^::zero) => #vertices{s},
+  apply := \fun (p: N.Nat^)(s: Generator p N.Nat^::zero) => (s).vertices,
   faces := \fun (p: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p)))(s: Generator (N.Nat^::succ p) N.Nat^::zero) =>
-    \refl(Faces.apply p i #vertices{s}),
+    \refl(Faces.apply p i (s).vertices),
 };
 \import HorizontalChains.Mapping[Y := object] \as Mapping;
 \definition map: _ := Mapping.map simplicial;
 \definition onGenerator: \forall (p: N.Nat^)(s: Generator p N.Nat^::zero) ->
-  #apply{map} p (generator p N.Nat^::zero s) = Nerve.generator p #vertices{s} :=
+  (map).apply p (generator p N.Nat^::zero s) = Nerve.generator p (s).vertices :=
   \fun (p: N.Nat^) => Mapping.At[n := p].onGenerator simplicial;
 \module Degree(p: N.Nat^) {
   \module At(vertices: Simplex p) {
@@ -22,7 +22,7 @@
   }
   \import Modules.Free[Generators := Simplex p].To[W := Carrier p N.Nat^::zero, target := space p N.Nat^::zero] \as Extend;
   \definition section: _ := Extend.extension (\fun (vertices: Simplex p) => generator p N.Nat^::zero (At[vertices := vertices].simplex));
-  \definition sectionOnGenerator: \forall (vertices: Simplex p) -> #apply{section} (Nerve.generator p vertices) =
+  \definition sectionOnGenerator: \forall (vertices: Simplex p) -> (section).apply (Nerve.generator p vertices) =
     generator p N.Nat^::zero (At[vertices := vertices].simplex) :=
     Extend.onGenerator (\fun (vertices: Simplex p) => generator p N.Nat^::zero (At[vertices := vertices].simplex));
   \import Modules.Hom[V := Carrier p N.Nat^::zero, W := Nerve.Carrier p, source := space p N.Nat^::zero, target := Nerve.space p]
@@ -31,12 +31,12 @@
   \import Modules.Free[Generators := Simplex p].To[W := Nerve.Carrier p, target := Nerve.space p] \as Free;
   \definition equation: Compose.compose (Mapping.At[n := p].push simplicial) section = End.identity :=
     Free.ext _ _ (\fun (vertices: Simplex p) => trans!{{Nerve.Carrier p}} _ _ _
-      (congr!{{Carrier p N.Nat^::zero} {Nerve.Carrier p}} (#apply{map} p) _ _ (Extend.onGenerator _ vertices))
+      (congr!{{Carrier p N.Nat^::zero} {Nerve.Carrier p}} ((map).apply p) _ _ (Extend.onGenerator _ vertices))
       (onGenerator p (At[vertices := vertices].simplex)));
-  \definition rightInverse: \forall (y: Nerve.Carrier p) -> #apply{map} p (#apply{section} y) = y :=
+  \definition rightInverse: \forall (y: Nerve.Carrier p) -> (map).apply p ((section).apply y) = y :=
     \fun (y: Nerve.Carrier p) => congr!{{Modules.Hom[V := Nerve.Carrier p, W := Nerve.Carrier p, source := Nerve.space p, target := Nerve.space p].Map} {Nerve.Carrier p}}
-      (\fun (f: Modules.Hom[V := Nerve.Carrier p, W := Nerve.Carrier p, source := Nerve.space p, target := Nerve.space p].Map) => #apply{f} y) _ _ equation;
-  \definition onto: \forall (y: Nerve.Carrier p) -> \exists { x: Carrier p N.Nat^::zero \where #apply{map} p x = y } :=
-    \fun (y: Nerve.Carrier p) => Logic.existsIntro[Carrier p N.Nat^::zero, { x: Carrier p N.Nat^::zero \where #apply{map} p x = y }]
-      (#apply{section} y) (rightInverse y);
+      (\fun (f: Modules.Hom[V := Nerve.Carrier p, W := Nerve.Carrier p, source := Nerve.space p, target := Nerve.space p].Map) => (f).apply y) _ _ equation;
+  \definition onto: \forall (y: Nerve.Carrier p) -> \exists ( x: Carrier p N.Nat^::zero \where (map).apply p x = y ) :=
+    \fun (y: Nerve.Carrier p) => Logic.existsIntro[Carrier p N.Nat^::zero, { x: Carrier p N.Nat^::zero \where (map).apply p x = y }]
+      ((section).apply y) (rightInverse y);
 }

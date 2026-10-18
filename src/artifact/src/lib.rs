@@ -2,6 +2,7 @@
 pub use artifact_derive::Relocate;
 pub mod canonical;
 mod names;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     hash::{BuildHasher, Hash},
@@ -50,14 +51,37 @@ impl Identity {
             Self::Scalar { space, .. } | Self::Pair { space, .. } => space,
         }
     }
+    fn value(&self) -> IdentityValue {
+        match self {
+            Self::Scalar { value, .. } => IdentityValue::Scalar(*value),
+            Self::Pair { arena, index, .. } => IdentityValue::Pair(*arena, *index),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum IdentityValue {
+    Scalar(u64),
+    Pair(u64, u32),
+}
+impl IdentityValue {
+    fn in_space(self, space: &str) -> Identity {
+        match self {
+            Self::Scalar(value) => Identity::scalar(space, value),
+            Self::Pair(arena, index) => Identity::pair(space, (arena, index)),
+        }
+    }
 }
 
 #[derive(Default, Clone)]
 pub struct Relocation {
-    mappings: HashMap<Identity, Identity>,
-    collected: BTreeSet<Identity>,
+    // Traversal repeatedly visits the same small set of identity spaces.
+    // Numeric lookups avoid allocating and hashing an owned space per edge.
+    mappings: FxHashMap<String, FxHashMap<IdentityValue, (Identity, Identity)>>,
+    collected: FxHashMap<String, FxHashSet<IdentityValue>>,
+    ordered: std::cell::OnceCell<BTreeSet<Identity>>,
     collecting: bool,
-    shared: HashMap<(std::any::TypeId, usize), std::rc::Rc<dyn std::any::Any>>,
+    shared: FxHashMap<(std::any::TypeId, usize), std::rc::Rc<dyn std::any::Any>>,
 }
 impl Relocation {
     pub fn collecting() -> Self {
@@ -70,42 +94,75 @@ impl Relocation {
         self.collecting
     }
     pub fn identities(&self) -> impl Iterator<Item = &Identity> {
-        self.collected.iter()
+        self.ordered
+            .get_or_init(|| self.ordered_identities())
+            .iter()
     }
     /// Finish collection and release the memoized shared payloads.
-    pub fn into_identities(self) -> BTreeSet<Identity> {
-        self.collected
+    pub fn into_identities(mut self) -> BTreeSet<Identity> {
+        self.ordered
+            .take()
+            .unwrap_or_else(|| self.ordered_identities())
     }
     pub fn mappings(&self) -> impl Iterator<Item = (&Identity, &Identity)> {
-        self.mappings.iter()
+        self.mappings
+            .values()
+            .flat_map(|space| space.values().map(|(old, new)| (old, new)))
+    }
+    fn ordered_identities(&self) -> BTreeSet<Identity> {
+        self.collected
+            .iter()
+            .flat_map(|(space, values)| values.iter().map(|value| value.in_space(space)))
+            .collect()
+    }
+    fn collect(&mut self, space: &str, value: IdentityValue) {
+        if !self.collected.contains_key(space) {
+            self.collected
+                .insert(space.to_owned(), FxHashSet::default());
+        }
+        if self.collected.get_mut(space).unwrap().insert(value) {
+            self.ordered.take();
+        }
     }
     pub fn insert_identity(&mut self, old: Identity, new: Identity) -> Result<()> {
         if old.space() != new.space() {
             return Err(Error("identity space mismatch".into()));
         }
-        if let Some(previous) = self.mappings.get(&old)
-            && previous != &new
-        {
-            return Err(Error(format!("conflicting identity {old:?}")));
+        if !self.mappings.contains_key(old.space()) {
+            self.mappings
+                .insert(old.space().to_owned(), FxHashMap::default());
         }
-        self.mappings.insert(old, new);
+        let space = self.mappings.get_mut(old.space()).unwrap();
+        match space.entry(old.value()) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                if entry.get().1 != new {
+                    return Err(Error(format!("conflicting identity {old:?}")));
+                }
+            }
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert((old, new));
+            }
+        }
         Ok(())
     }
     pub fn lookup(&self, old: &Identity) -> Option<&Identity> {
-        self.mappings.get(old)
+        self.lookup_value(old.space(), old.value())
+    }
+    fn lookup_value(&self, space: &str, value: IdentityValue) -> Option<&Identity> {
+        self.mappings.get(space)?.get(&value).map(|(_, new)| new)
     }
     pub fn insert_pair(&mut self, space: &str, old: (u64, u32), new: (u64, u32)) -> Result<()> {
         self.insert_identity(Identity::pair(space, old), Identity::pair(space, new))
     }
     pub fn get_pair(&self, space: &str, old: (u64, u32)) -> Option<(u64, u32)> {
-        match self.lookup(&Identity::pair(space, old))? {
+        match self.lookup_value(space, IdentityValue::Pair(old.0, old.1))? {
             Identity::Pair { arena, index, .. } => Some((*arena, *index)),
             _ => None,
         }
     }
     pub fn pair(&mut self, space: &str, old: (u64, u32)) -> Result<(u64, u32)> {
         if self.collecting {
-            self.collected.insert(Identity::pair(space, old));
+            self.collect(space, IdentityValue::Pair(old.0, old.1));
             return Ok(old);
         }
         self.get_pair(space, old)
@@ -115,14 +172,14 @@ impl Relocation {
         self.insert_identity(Identity::scalar(space, old), Identity::scalar(space, new))
     }
     pub fn get(&self, space: &str, old: u64) -> Option<u64> {
-        match self.lookup(&Identity::scalar(space, old))? {
+        match self.lookup_value(space, IdentityValue::Scalar(old))? {
             Identity::Scalar { value, .. } => Some(*value),
             _ => None,
         }
     }
     pub fn id(&mut self, space: &str, old: u64) -> Result<u64> {
         if self.collecting {
-            self.collected.insert(Identity::scalar(space, old));
+            self.collect(space, IdentityValue::Scalar(old));
             return Ok(old);
         }
         self.get(space, old)

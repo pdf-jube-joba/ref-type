@@ -15,10 +15,10 @@
 \import metric_spaces.RealLine[] \as Line;
 \definition first: Fin.Fin (N.Nat^::succ one) := Segment.first;
 \definition last: Fin.Fin (N.Nat^::succ one) := Segment.last;
-\definition u(x: Simplex.Carrier one): Real.Real := x first;
-\definition v(x: Simplex.Carrier one): Real.Real := x last;
-\definition position(x: Simplex.Carrier one): Real.Real := Real.sub (v x) (u x);
-\definition coordinates(x: Simplex.Carrier one): Model.Coordinate := \fun (_: Model.Index) => position x;
+\definition u[x: Simplex.Carrier one]: Real.Real := x first;
+\definition v[x: Simplex.Carrier one]: Real.Real := x last;
+\definition position[x: Simplex.Carrier one]: Real.Real := Real.sub (v x) (u x);
+\definition coordinates[x: Simplex.Carrier one]: Model.Coordinate := \fun (_: Model.Index) => position x;
 \definition norm: \forall (x: Simplex.Carrier one) -> Model.normSquared (coordinates x) = Real.mul (position x) (position x) :=
   \fun (x: Simplex.Carrier one) => ZeroSphere.normValue (coordinates x);
 \definition differenceBound: \forall (a, b: Real.Real) -> R.Le Real.zero b -> Real.add a b = Real.one -> R.Le (Real.sub a b) Real.one :=
@@ -29,12 +29,12 @@
         (R.leReplaceRight (Real.neg b) (Real.neg Real.zero) Real.zero Laws.negZero
           (Laws.negAntitone Real.zero b nonnegative)) nonnegative));
 \definition positiveBound: \forall (x: Simplex.Carrier one) -> R.Le (position x) Real.one :=
-  \fun (x: Simplex.Carrier one) => differenceBound (v x) (u x) (#nonnegative{(Simplex.barycentric one x)} first)
+  \fun (x: Simplex.Carrier one) => differenceBound (v x) (u x) ((Simplex.barycentric one x).nonnegative first)
     (trans!{Real.Real} _ _ _ (Laws.addComm (v x) (u x)) (Segment.total x));
 \definition negativeBound: \forall (x: Simplex.Carrier one) -> R.Le (Real.neg (position x)) Real.one :=
   \fun (x: Simplex.Carrier one) => R.leReplaceLeft (Real.sub (u x) (v x)) (Real.neg (position x)) Real.one
     (sym!{Real.Real} _ _ (Algebra.negSub (v x) (u x)))
-    (differenceBound (u x) (v x) (#nonnegative{(Simplex.barycentric one x)} last) (Segment.total x));
+    (differenceBound (u x) (v x) ((Simplex.barycentric one x).nonnegative last) (Segment.total x));
 \definition squareBound: \forall (x: Simplex.Carrier one) -> R.Le (Real.mul (position x) (position x)) Real.one :=
   \fun (x: Simplex.Carrier one) => Logic.orElim (R.Le Real.zero (position x)) (R.Le (position x) Real.zero)
     (R.Le (Real.mul (position x) (position x)) Real.one) (Order.leTotal Real.zero (position x))
@@ -52,7 +52,7 @@
 \definition bound: \forall (x: Simplex.Carrier one) -> R.Le (Model.normSquared (coordinates x)) Real.one :=
   \fun (x: Simplex.Carrier one) => R.leReplaceLeft (Real.mul (position x) (position x)) (Model.normSquared (coordinates x)) Real.one
     (sym!{Real.Real} _ _ (norm x)) (squareBound x);
-\definition line(x: Simplex.Carrier one): Model.Disk := \into[Model.Coordinate](coordinates x, Model.ClosedBall) \by { bound x };
+\definition line[x: Simplex.Carrier one]: Model.Disk := \into[Model.Coordinate](coordinates x, Model.ClosedBall) \by { bound x };
 \import metric_spaces.RealFunctions[A := Simplex.Carrier one] \as Functions;
 \import topological_algebra.Coordinates[K := Real.Real, I := Model.Index].Universal[A := Simplex.Carrier one] \as Universal;
 \import topology.Continuity[A := Simplex.Carrier one, B := Model.Coordinate].Corestriction[S := Model.ClosedBall] \as Into;
@@ -63,8 +63,8 @@
 \import singular_cohomology.Simplices[A := Model.Disk, source := Model.diskTopology] \as Simplices;
 \import singular_cohomology.Chains[A := Model.Disk, source := Model.diskTopology] \as Chains;
 \definition simplex: Simplices.Carrier one := \into[Simplices.At[n := one].Function](line, Simplices.Carrier one) \by { continuous };
-\definition north: Pair.SubspaceCarrier := #forward{Relative.homeomorphism} ZeroSphere.north;
-\definition south: Pair.SubspaceCarrier := #forward{Relative.homeomorphism} ZeroSphere.south;
+\definition north: Pair.SubspaceCarrier := (Relative.homeomorphism).forward ZeroSphere.north;
+\definition south: Pair.SubspaceCarrier := (Relative.homeomorphism).forward ZeroSphere.south;
 \definition startV: \forall (x: Simplex.Carrier zero) -> v (Simplex.face zero last x) = Real.zero := Segment.faceLastStart;
 \definition startU: \forall (x: Simplex.Carrier zero) -> u (Simplex.face zero last x) = Real.one :=
   \fun (x: Simplex.Carrier zero) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroRight (u (Simplex.face zero last x))))
@@ -87,7 +87,7 @@
 \definition minusZero: \forall (x: Chains.Carrier zero) -> Group.difference x Group.zero = x :=
   \fun (x: Chains.Carrier zero) => trans!{{Chains.Carrier zero}} _ _ _ (congr!{{Chains.Carrier zero} {Chains.Carrier zero}} (Group.add x) _ _ Group.negZero) (Group.zeroRight x);
 \definition edge: Chains.Carrier one := Chains.generator one simplex;
-\definition boundary: #apply{(Chains.boundary zero)} edge = Group.difference
+\definition boundary: (Chains.boundary zero).apply edge = Group.difference
   (Chains.generator zero (Simplices.At[n := zero].constant north)) (Chains.generator zero (Simplices.At[n := zero].constant south)) :=
   trans!{{Chains.Carrier zero}} _ _ _ (Chains.Boundary[n := zero].onGenerator simplex)
     (trans!{{Chains.Carrier zero}} _ _ _

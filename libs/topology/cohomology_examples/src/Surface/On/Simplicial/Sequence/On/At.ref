@@ -1,37 +1,37 @@
 \import Modules.Hom[V := Chains.Carrier n, W := L.Carrier, source := Chains.space n, target := L.space] \as LeftMaps;
 \import Modules.Hom[V := Chains.Carrier n, W := M.Carrier, source := Chains.space n, target := M.space] \as MiddleMaps;
 \import Modules.Hom[V := Chains.Carrier n, W := R.Carrier, source := Chains.space n, target := R.space] \as RightMaps;
-\definition injective: \forall (h, k: Left.Carrier n) -> #apply{inclusion} n h = #apply{inclusion} n k -> h = k :=
+\definition injective: \forall (h, k: Left.Carrier n) -> (inclusion).apply n h = (inclusion).apply n k -> h = k :=
   \fun (h, k: Left.Carrier n)(equal: _) => LeftMaps.ext h k
-    (\fun (x: Chains.Carrier n) => #injective{s} (#apply{h} x) (#apply{k} x)
-      (congr!{{Middle.Carrier n} M.Carrier} (\fun (u: Middle.Carrier n) => #apply{u} x) _ _ equal));
-\definition zero: \forall (h: Left.Carrier n) -> #apply{projection} n (#apply{inclusion} n h) = #zero{(Right.space n)} :=
-  \fun (h: Left.Carrier n) => RightMaps.ext (#apply{projection} n (#apply{inclusion} n h)) (#zero{(Right.space n)})
-    (\fun (x: Chains.Carrier n) => #zero{s} (#apply{h} x));
+    (\fun (x: Chains.Carrier n) => (s).injective ((h).apply x) ((k).apply x)
+      (congr!{{Middle.Carrier n} M.Carrier} (\fun (u: Middle.Carrier n) => (u).apply x) _ _ equal));
+\definition zero: \forall (h: Left.Carrier n) -> (projection).apply n ((inclusion).apply n h) = (Right.space n).zero :=
+  \fun (h: Left.Carrier n) => RightMaps.ext ((projection).apply n ((inclusion).apply n h)) ((Right.space n).zero)
+    (\fun (x: Chains.Carrier n) => (s).zero ((h).apply x));
 \import Modules.Free[Generators := Carrier n] \as Free;
-\definition onto: \forall (h: Right.Carrier n) -> \exists { k: Middle.Carrier n \where #apply{projection} n k = h } := \block {
+\definition onto: \forall (h: Right.Carrier n) -> \exists ( k: Middle.Carrier n \where (projection).apply n k = h ) := \block {
   \fun (h: Right.Carrier n) \then
-  \takefrom k: \Cast[Middle.Carrier n] ({ k: Middle.Carrier n \where \forall (x: Chains.Carrier n) -> #apply{s.projection} (#apply{k} x) = #apply{h} x })
-    \by Free.Lifting[A := M, B := R, q := s.projection, f := h].existence (#onto{s}) \then
-  \return Logic.existsIntro[Middle.Carrier n, { k: Middle.Carrier n \where #apply{projection} n k = h }] k
-    (RightMaps.ext (#apply{projection} n k) h (\bysub(Middle.Carrier n,
-      { k: Middle.Carrier n \where \forall (x: Chains.Carrier n) -> #apply{s.projection} (#apply{k} x) = #apply{h} x }, k)))
+  \takefrom k: \Cast[Middle.Carrier n] ({ k: Middle.Carrier n \where \forall (x: Chains.Carrier n) -> (s.projection).apply ((k).apply x) = (h).apply x })
+    \by Free.Lifting[A := M, B := R, q := s.projection, f := h].existence ((s).onto) \then
+  \return Logic.existsIntro[Middle.Carrier n, { k: Middle.Carrier n \where (projection).apply n k = h }] k
+    (RightMaps.ext ((projection).apply n k) h (\bysub(Middle.Carrier n,
+      { k: Middle.Carrier n \where \forall (x: Chains.Carrier n) -> (s.projection).apply ((k).apply x) = (h).apply x }, k)))
 };
 \import CoefficientExact.Kernel[sequence := s] \as Kernel;
-\definition Vanishes(h: Middle.Carrier n): \Prop := \forall (x: Chains.Carrier n) -> #apply{s.projection} (#apply{h} x) = #zero{R.space};
+\definition Vanishes[h: Middle.Carrier n]: \Prop := \forall (x: Chains.Carrier n) -> (s.projection).apply ((h).apply x) = (R.space).zero;
 \import Modules.Hom[V := Chains.Carrier n, W := Kernel.Carrier, source := Chains.space n, target := Kernel.space] \as KernelMaps;
-\definition intoKernel(h: Middle.Carrier n)(vanishes: Vanishes h): KernelMaps.Map := KernelMaps.Map {
-  apply := \fun (x: Chains.Carrier n) => \into[M.Carrier](#apply{h} x, #carrier{Kernel.kernel}) \by { vanishes x },
-  addition := #addition{h}, scalar := #scalar{h},
+\definition intoKernel[h: Middle.Carrier n][vanishes: Vanishes h]: KernelMaps.Map := KernelMaps.Map {
+  apply := \fun (x: Chains.Carrier n) => \into[M.Carrier]((h).apply x, (Kernel.kernel).carrier) \by { vanishes x },
+  addition := (h).addition, scalar := (h).scalar,
 };
 \import Modules.Hom[V := Kernel.Carrier, W := L.Carrier, source := Kernel.space, target := L.space]
   .Composition[U := Chains.Carrier n, domain := Chains.space n] \as Descent;
-\definition kernelImage: \forall (h: Middle.Carrier n) -> #apply{projection} n h = #zero{(Right.space n)} ->
-  \exists { k: Left.Carrier n \where #apply{inclusion} n k = h } := \block {
+\definition kernelImage: \forall (h: Middle.Carrier n) -> (projection).apply n h = (Right.space n).zero ->
+  \exists ( k: Left.Carrier n \where (inclusion).apply n k = h ) := \block {
   \fun (h: Middle.Carrier n)(zero: _) \then
   \let vanishes: Vanishes h := \fun (x: Chains.Carrier n) => congr!{{Right.Carrier n} R.Carrier}
-    (\fun (u: Right.Carrier n) => #apply{u} x) _ _ zero \then
+    (\fun (u: Right.Carrier n) => (u).apply x) _ _ zero \then
   \let k: Left.Carrier n := Descent.compose Kernel.backward (intoKernel h vanishes) \then
-  \return Logic.existsIntro[Left.Carrier n, { k: Left.Carrier n \where #apply{inclusion} n k = h }] k
-    (MiddleMaps.ext (#apply{inclusion} n k) h (\fun (x: Chains.Carrier n) => Kernel.onKernel (#apply{(intoKernel h vanishes)} x)))
+  \return Logic.existsIntro[Left.Carrier n, { k: Left.Carrier n \where (inclusion).apply n k = h }] k
+    (MiddleMaps.ext ((inclusion).apply n k) h (\fun (x: Chains.Carrier n) => Kernel.onKernel ((intoKernel h vanishes).apply x)))
 };

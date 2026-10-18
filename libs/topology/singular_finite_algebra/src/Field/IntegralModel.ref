@@ -9,7 +9,7 @@
 \import singular_cech.Algebra[R := I.Int^, ring := Integers.ring].Restriction[C := IntegerModel.chain] \as Restriction;
 \definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := K, space := Modules.scalarModule };
 \import resolutions.HomComplex[].Over[R := K, ring := commutativeRing].Abelian[N := coefficients].Native[P := Restriction.complex] \as Native;
-\definition ranks(n: N.Nat^): N.Nat^ := model.ranks (I.Int^::ofNat n);
+\definition ranks[n: N.Nat^]: N.Nat^ := model.ranks (I.Int^::ofNat n);
 \module At(n: N.Nat^) {
   \import Dual.IntegerCoordinates[rank := ranks n] \as Coordinates;
   \definition isomorphism: Modules.Isomorphism[V := Native.Carrier n, W := Finite.Carrier (ranks n),
@@ -22,7 +22,7 @@
 \definition laws: Finite.Laws[data] := Finite.Laws[data] {
   squareZero := \fun (n: N.Nat^) => Step[n := n].squareZero,
   bounded := \fun (n: N.Nat^)(outside: Bounds.Lt model.bound n) =>
-    #bounded{(\bysub(IntegerModels.Data, { data: IntegerModels.Data \where IntegerModels.Laws[data] }, model))} (I.Int^::ofNat n) (Bounds.succLeOfLt n model.bound outside),
+    (\bysub(IntegerModels.Data, { data: IntegerModels.Data \where IntegerModels.Laws[data] }, model)).bounded (I.Int^::ofNat n) (Bounds.succLeOfLt n model.bound outside),
 };
 \definition finite: Finite.Complex := \into[Finite.Data](data, Finite.Complex) \by { laws };
 \import Finite.Of[C := finite] \as Model;
@@ -30,25 +30,25 @@
 \import Cochains.Map[C := complex, D := Native.complex] \as Forward;
 \import Cochains.Map[C := Native.complex, D := complex] \as Backward;
 \definition forward: Forward.Map := Forward.Map {
-  apply := \fun (n: N.Nat^) => #apply{#backward{At[n := n].isomorphism}},
-  addition := \fun (n: N.Nat^) => #addition{#backward{At[n := n].isomorphism}},
-  scalar := \fun (n: N.Nat^) => #scalar{#backward{At[n := n].isomorphism}},
+  apply := \fun (n: N.Nat^) => ((At[n := n].isomorphism).backward).apply,
+  addition := \fun (n: N.Nat^) => ((At[n := n].isomorphism).backward).addition,
+  scalar := \fun (n: N.Nat^) => ((At[n := n].isomorphism).backward).scalar,
   commutes := \fun (n: N.Nat^)(x: Finite.Carrier (ranks n)) =>
     sym!{{Native.Carrier (N.Nat^::succ n)}} _ _
-      (#leftInverse{At[n := N.Nat^::succ n].isomorphism} (Native.apply n (#apply{#backward{At[n := n].isomorphism}} x))),
+      ((At[n := N.Nat^::succ n].isomorphism).leftInverse (Native.apply n (((At[n := n].isomorphism).backward).apply x))),
 };
 \definition backward: Backward.Map := Backward.Map {
-  apply := \fun (n: N.Nat^) => #apply{#forward{At[n := n].isomorphism}},
-  addition := \fun (n: N.Nat^) => #addition{#forward{At[n := n].isomorphism}},
-  scalar := \fun (n: N.Nat^) => #scalar{#forward{At[n := n].isomorphism}},
+  apply := \fun (n: N.Nat^) => ((At[n := n].isomorphism).forward).apply,
+  addition := \fun (n: N.Nat^) => ((At[n := n].isomorphism).forward).addition,
+  scalar := \fun (n: N.Nat^) => ((At[n := n].isomorphism).forward).scalar,
   commutes := \fun (n: N.Nat^)(f: Native.Carrier n) =>
     congr!{{Native.Carrier n} {Finite.Carrier (ranks (N.Nat^::succ n))}}
-      (\fun (g: Native.Carrier n) => #apply{#forward{At[n := N.Nat^::succ n].isomorphism}} (Native.apply n g)) _ _
-      (#leftInverse{At[n := n].isomorphism} f),
+      (\fun (g: Native.Carrier n) => ((At[n := N.Nat^::succ n].isomorphism).forward).apply (Native.apply n g)) _ _
+      ((At[n := n].isomorphism).leftInverse f),
 };
 \import Dual.CochainIsomorphism[C := complex, D := Native.complex, forward := forward, backward := backward,
-  left := \fun (n: N.Nat^) => #rightInverse{At[n := n].isomorphism},
-  right := \fun (n: N.Nat^) => #leftInverse{At[n := n].isomorphism}] \as Compared;
+  left := \fun (n: N.Nat^) => (At[n := n].isomorphism).rightInverse,
+  right := \fun (n: N.Nat^) => (At[n := n].isomorphism).leftInverse] \as Compared;
 \definition equivalence: chain_complexes.CochainEquivalence[].Over[R := K, ring := Rings.commutativeRingAsRing K commutativeRing].Of[C := complex, D := Native.complex].Equivalence := Compared.equivalence;
 \module Degree(n: N.Nat^);
 

@@ -1,39 +1,39 @@
-\definition Selected: \Pow Cells.CellData := { cell: Cells.CellData \where Logic.And[Cells.CellMember cells cell, Nat.Lt (#dimension{cell}) limit] };
+\definition Selected: \Pow Cells.CellData := { cell: Cells.CellData \where Logic.And[Cells.CellMember cells cell, Nat.Lt ((cell).dimension) limit] };
 \definition Index: \Set := \Cast[Cells.CellData] Selected;
-\definition member(cell: Index): Cells.CellMember cells cell := #left{(\bysub(Cells.CellData, Selected, cell))};
-\definition below(cell: Index): Nat.Lt (#dimension{cell}) limit := #right{(\bysub(Cells.CellData, Selected, cell))};
+\definition member[cell: Index]: Cells.CellMember cells cell := (\bysub(Cells.CellData, Selected, cell)).left;
+\definition below[cell: Index]: Nat.Lt ((cell).dimension) limit := (\bysub(Cells.CellData, Selected, cell)).right;
 \import \root.Coproduct[Index := Index,
-  fibers := (\fun (cell: Index) => Euclidean.Disk (#dimension{cell})),
-  spaces := (\fun (cell: Index) => Euclidean.Dimension[n := #dimension{cell}].diskTopology)] \as Disks;
+  fibers := (\fun (cell: Index) => Euclidean.Disk ((cell).dimension)),
+  spaces := (\fun (cell: Index) => Euclidean.Dimension[n := (cell).dimension].diskTopology)] \as Disks;
 \definition Carrier: \Set := Disks.Carrier;
 \definition topology: topology.Topology[Carrier := Carrier].Topology := Disks.topology;
 \import \parent.\parent.Stage[limit := limit] \as Target;
-\definition map(chart: Carrier): Target.Carrier :=
-  \parent.Open[].lift (#index{chart}) (member (#index{chart})) (below (#index{chart})) (#point{chart});
+\definition map[chart: Carrier]: Target.Carrier :=
+  \parent.Open[].lift ((chart).index) (member ((chart).index)) (below ((chart).index)) ((chart).point);
 \import topological_constructions.Quotient[A := Carrier, B := Target.Carrier] \as Quotient;
 \import topology.Continuity[A := Carrier, B := Target.Carrier] \as Maps;
-\definition indexOf(cell: Cells.CellData)(member: Cells.CellMember cells cell)(below: Nat.Lt (#dimension{cell}) limit): Index :=
+\definition indexOf[cell: Cells.CellData][member: Cells.CellMember cells cell][below: Nat.Lt ((cell).dimension) limit]: Index :=
   \into[Cells.CellData](cell, Selected) \by { Logic.And[_, _]::# member below };
-\definition chartOf(cell: Cells.CellData)(member: Cells.CellMember cells cell)(below: Nat.Lt (#dimension{cell}) limit)
-  (point: Euclidean.Disk (#dimension{cell})): Carrier := Disks.injection (indexOf cell member below) point;
+\definition chartOf[cell: Cells.CellData][member: Cells.CellMember cells cell][below: Nat.Lt ((cell).dimension) limit]
+  [point: Euclidean.Disk ((cell).dimension)]: Carrier := Disks.injection (indexOf cell member below) point;
 \import singular_cellular_algebra.Algebra[].Refinement[A := A, S := subset limit] \as TargetRefinement;
 \definition onto: Quotient.Surjective map :=
-  \fun (x: Target.Carrier) => eliminate cells limit x (\exists { chart: Carrier \where map chart = x })
+  \fun (x: Target.Carrier) => eliminate cells limit x (\exists ( chart: Carrier \where map chart = x ))
     (\block {
       \fun (cell: Cells.CellData)(member: _)(below: _)(contains: _) \then
-      \takefrom point: \Cast[Euclidean.Disk (#dimension{cell})]
-        ({ p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }) \by contains \then
+      \takefrom point: \Cast[Euclidean.Disk ((cell).dimension)]
+        ({ p: Euclidean.Disk ((cell).dimension) \where (cell).characteristic p = x }) \by contains \then
       \return Logic.existsIntro[Carrier, { chart: Carrier \where map chart = x }] (chartOf cell member below point)
         (TargetRefinement.ext (map (chartOf cell member below point)) x
-          (\bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, point)))
+          (\bysub(Euclidean.Disk ((cell).dimension), { p: Euclidean.Disk ((cell).dimension) \where (cell).characteristic p = x }, point)))
     }) (\bysub(A, subset limit, x));
 \definition continuous: Maps.Continuous topology Target.topology map :=
-  \fun (W: \Pow Target.Carrier)(open: _) => #rtl{(Disks.openCriterion (Maps.Preimage map W))}
+  \fun (W: \Pow Target.Carrier)(open: _) => (Disks.openCriterion (Maps.Preimage map W)).rtl
     (\fun (cell: Index) => \parent.Open[].liftContinuous cell (member cell) (below cell) W open);
 \definition reflectsOpen: \forall (W: \Pow Target.Carrier) ->
   topology.Topology[Carrier := Carrier].IsOpenIn topology (Maps.Preimage map W) -> StageSpace.IsOpenIn Target.topology W :=
-  \fun (W: _)(open: _) => #rtl{(\parent.Open[].criterion W)}
-    (\fun (cell: Cells.CellData)(present: _)(lower: _) => #ltr{(Disks.openCriterion (Maps.Preimage map W))} open
+  \fun (W: _)(open: _) => (\parent.Open[].criterion W).rtl
+    (\fun (cell: Cells.CellData)(present: _)(lower: _) => (Disks.openCriterion (Maps.Preimage map W)).ltr open
       (\into[Cells.CellData](cell, Selected) \by { Logic.And[_, _]::# present lower }));
 \definition quotientMap: Quotient.IsQuotientMap[topology, Target.topology, map] := Quotient.IsQuotientMap[_, _, map] {
   onto := onto, continuous := continuous, reflectsOpen := reflectsOpen,

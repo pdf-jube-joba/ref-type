@@ -1,31 +1,31 @@
 \import Modules.Hom[V := A.Carrier, W := C.Carrier, source := A.space, target := C.space] \as LeftMaps;
 \import Left.To[W := C.Carrier, target := C.space] \as LeftDescent;
 \import Modules.Hom[V := Left.Carrier, W := C.Carrier, source := Left.moduleSpace, target := C.space] \as LeftQuotientMaps;
-\definition leftAt(y: B.Carrier): LeftMaps.Map := LeftMaps.Map {
-  apply := \fun (x: A.Carrier) => #apply{f} x y,
-  addition := \fun (x, z: A.Carrier) => #addLeft{(laws f)} x z y,
-  scalar := \fun (a: R)(x: A.Carrier) => #scaleLeft{(laws f)} a x y,
+\definition leftAt[y: B.Carrier]: LeftMaps.Map := LeftMaps.Map {
+  apply := \fun (x: A.Carrier) => (f).apply x y,
+  addition := \fun (x, z: A.Carrier) => (laws f).addLeft x z y,
+  scalar := \fun (a: R)(x: A.Carrier) => (laws f).scaleLeft a x y,
 };
-\definition leftVanishes(vanishes: VanishesLeft f)(y: B.Carrier): LeftDescent.Vanishes (leftAt y) :=
+\definition leftVanishes[vanishes: VanishesLeft f][y: B.Carrier]: LeftDescent.Vanishes (leftAt y) :=
   \fun (x: A.Carrier)(member: LeftSubmodules.Member S x) => vanishes x y member;
-\definition leftDescend(vanishes: VanishesLeft f)(y: B.Carrier): LeftQuotientMaps.Map := LeftDescent.descend (leftAt y) (leftVanishes vanishes y);
-\definition leftOnClass: \forall (vanishes: VanishesLeft f)(x: A.Carrier)(y: B.Carrier) -> #apply{(leftDescend vanishes y)} (Left.class x) = #apply{f} x y :=
+\definition leftDescend[vanishes: VanishesLeft f][y: B.Carrier]: LeftQuotientMaps.Map := LeftDescent.descend (leftAt y) (leftVanishes vanishes y);
+\definition leftOnClass: \forall (vanishes: VanishesLeft f)(x: A.Carrier)(y: B.Carrier) -> (leftDescend vanishes y).apply (Left.class x) = (f).apply x y :=
   \fun (vanishes: VanishesLeft f)(x: A.Carrier)(y: B.Carrier) => LeftDescent.onClass (leftAt y) (leftVanishes vanishes y) x;
 \import \parent.\parent.\parent.HomSpace[V := Left.Carrier, W := C.Carrier, source := Left.moduleSpace, target := C.space] \as Functions;
 \import Modules.Hom[V := B.Carrier, W := Functions.Carrier, source := B.space, target := Functions.space] \as RightMaps;
 \import Right.To[W := Functions.Carrier, target := Functions.space] \as RightDescent;
 \module RightLinear;
-\definition curried(leftZero: VanishesLeft f)(rightZero: VanishesRight f): Modules.Hom[V := Right.Carrier, W := Functions.Carrier, source := Right.moduleSpace, target := Functions.space].Map :=
+\definition curried[leftZero: VanishesLeft f][rightZero: VanishesRight f]: Modules.Hom[V := Right.Carrier, W := Functions.Carrier, source := Right.moduleSpace, target := Functions.space].Map :=
   RightDescent.descend (RightLinear[].map leftZero) (RightLinear[].vanishes leftZero rightZero);
-\definition map(leftZero: VanishesLeft f)(rightZero: VanishesRight f): Result.Map := Result.Map {
-  apply := \fun (x: Left.Carrier)(y: Right.Carrier) => #apply{(#apply{(curried leftZero rightZero)} y)} x,
-  addLeft := \fun (x, y: Left.Carrier)(z: Right.Carrier) => #addition{(#apply{(curried leftZero rightZero)} z)} x y,
-  addRight := \fun (x: Left.Carrier)(y, z: Right.Carrier) => congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => #apply{h} x) _ _ (#addition{(curried leftZero rightZero)} y z),
-  scaleLeft := \fun (a: R)(x: Left.Carrier)(y: Right.Carrier) => #scalar{(#apply{(curried leftZero rightZero)} y)} a x,
-  scaleRight := \fun (a: R)(x: Left.Carrier)(y: Right.Carrier) => congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => #apply{h} x) _ _ (#scalar{(curried leftZero rightZero)} a y),
+\definition map[leftZero: VanishesLeft f][rightZero: VanishesRight f]: Result.Map := Result.Map {
+  apply := \fun (x: Left.Carrier)(y: Right.Carrier) => ((curried leftZero rightZero).apply y).apply x,
+  addLeft := \fun (x, y: Left.Carrier)(z: Right.Carrier) => ((curried leftZero rightZero).apply z).addition x y,
+  addRight := \fun (x: Left.Carrier)(y, z: Right.Carrier) => congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => (h).apply x) _ _ ((curried leftZero rightZero).addition y z),
+  scaleLeft := \fun (a: R)(x: Left.Carrier)(y: Right.Carrier) => ((curried leftZero rightZero).apply y).scalar a x,
+  scaleRight := \fun (a: R)(x: Left.Carrier)(y: Right.Carrier) => congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => (h).apply x) _ _ ((curried leftZero rightZero).scalar a y),
 };
 \definition onClasses: \forall (leftZero: VanishesLeft f)(rightZero: VanishesRight f)(x: A.Carrier)(y: B.Carrier) ->
-  #apply{(map leftZero rightZero)} (Left.class x) (Right.class y) = #apply{f} x y :=
+  (map leftZero rightZero).apply (Left.class x) (Right.class y) = (f).apply x y :=
   \fun (leftZero: VanishesLeft f)(rightZero: VanishesRight f)(x: A.Carrier)(y: B.Carrier) => trans!{C.Carrier} _ _ _
-    (congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => #apply{h} (Left.class x)) _ _ (RightDescent.onClass (RightLinear[].map leftZero) (RightLinear[].vanishes leftZero rightZero) y))
+    (congr!{Functions.Carrier C.Carrier} (\fun (h: Functions.Carrier) => (h).apply (Left.class x)) _ _ (RightDescent.onClass (RightLinear[].map leftZero) (RightLinear[].vanishes leftZero rightZero) y))
     (leftOnClass leftZero x y);

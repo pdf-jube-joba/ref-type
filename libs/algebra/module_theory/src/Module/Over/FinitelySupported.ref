@@ -2,16 +2,16 @@
 \import Lists.Distinct[A := Index] \as Enumeration;
 \import Lists.Membership[A := Index].Append[] \as Membership;
 \import \parent.Product[Index := Index, family := family] \as Product;
-\definition Supports(xs: Lists.List[Index])(x: Product.Carrier): \Prop :=
-  \forall (i: Index) -> Logic.Not (\In[Index] (Enumeration.keys xs) i) -> x i = #zero{(family.space i)};
-\definition Finite(x: Product.Carrier): \Prop := \exists { xs: Lists.List[Index] \where Supports xs x };
+\definition Supports[xs: Lists.List[Index]][x: Product.Carrier]: \Prop :=
+  \forall (i: Index) -> Logic.Not (\In[Index] (Enumeration.keys xs) i) -> x i = (family.space i).zero;
+\definition Finite[x: Product.Carrier]: \Prop := \exists ( xs: Lists.List[Index] \where Supports xs x );
 \definition zeroFinite: Finite Product.zero := Logic.existsIntro[Lists.List[Index], { xs: Lists.List[Index] \where Supports xs Product.zero }] (Lists.List[Index]::nil)
-  (\fun (i: Index)(outside: Logic.Not (\In[Index] (Enumeration.keys Lists.List[Index]::nil) i)) => \refl(#zero{(family.space i)}));
+  (\fun (i: Index)(outside: Logic.Not (\In[Index] (Enumeration.keys Lists.List[Index]::nil) i)) => \refl((family.space i).zero));
 \module At(i: Index) {
   \import \parent.\parent.Laws[V := family.Carrier i, space := family.space i] \as Laws;
   \import algebra.Group[].Of[Carrier := family.Carrier i, group := Laws.additive] \as Group;
-  \definition addZero: #add{(family.space i)} #zero{(family.space i)} #zero{(family.space i)} = #zero{(family.space i)} := Group.zeroLeft #zero{(family.space i)};
-  \definition scaleZero: \forall (a: R) -> #smul{(family.space i)} a #zero{(family.space i)} = #zero{(family.space i)} := Laws.scaleZero;
+  \definition addZero: (family.space i).add (family.space i).zero (family.space i).zero = (family.space i).zero := Group.zeroLeft (family.space i).zero;
+  \definition scaleZero: \forall (a: R) -> (family.space i).smul a (family.space i).zero = (family.space i).zero := Laws.scaleZero;
 }
 \definition additionFinite: \forall (x, y: Product.Carrier) -> Finite x -> Finite y -> Finite (Product.add x y) := \block {
   \fun (x, y: Product.Carrier)(fx: Finite x)(fy: Finite y) \then
@@ -21,7 +21,7 @@
   \let sy: Supports ys y := \bysub(Lists.List[Index], { ys: Lists.List[Index] \where Supports ys y }, ys) \then
   \return Logic.existsIntro[Lists.List[Index], { zs: Lists.List[Index] \where Supports zs (Product.add x y) }] (Lists.append Index xs ys)
     (\fun (i: Index)(outside: Logic.Not (\In[Index] (Enumeration.keys (Lists.append Index xs ys)) i)) => trans!{{family.Carrier i}} _ _ _
-      (congr2!{{family.Carrier i} {family.Carrier i} {family.Carrier i}} (#add{(family.space i)}) _ _ _ _
+      (congr2!{{family.Carrier i} {family.Carrier i} {family.Carrier i}} ((family.space i).add) _ _ _ _
         (sx i (\fun (member: _) => outside (Membership.left xs ys i member)))
         (sy i (\fun (member: _) => outside (Membership.right xs ys i member)))) (At[i := i].addZero))
 };
@@ -31,7 +31,7 @@
   \let supports: Supports xs x := \bysub(Lists.List[Index], { xs: Lists.List[Index] \where Supports xs x }, xs) \then
   \return Logic.existsIntro[Lists.List[Index], { xs: Lists.List[Index] \where Supports xs (Product.scale a x) }] xs
     (\fun (i: Index)(outside: Logic.Not (\In[Index] (Enumeration.keys xs) i)) => trans!{{family.Carrier i}} _ _ _
-      (congr!{{family.Carrier i} {family.Carrier i}} (#smul{(family.space i)} a) _ _ (supports i outside)) (At[i := i].scaleZero a))
+      (congr!{{family.Carrier i} {family.Carrier i}} ((family.space i).smul a) _ _ (supports i outside)) (At[i := i].scaleZero a))
 };
 \import \parent.Of[V := Product.Carrier, space := Product.space].Submodule[] \as Submodules;
 \definition submodule: Submodules.Submodule := Submodules.Submodule {
@@ -41,6 +41,6 @@
 \definition Carrier: \Set := Inside.Carrier;
 \definition space: Space Carrier := Inside.moduleSpace;
 \definition bundle: Bundle := Bundle { Carrier := Carrier, space := space };
-\definition finite: \forall (x: Carrier) -> Finite x := \fun (x: Carrier) => \bysub(Product.Carrier, #carrier{submodule}, x);
+\definition finite: \forall (x: Carrier) -> Finite x := \fun (x: Carrier) => \bysub(Product.Carrier, submodule.carrier, x);
 
 \module Injection(i: Index);

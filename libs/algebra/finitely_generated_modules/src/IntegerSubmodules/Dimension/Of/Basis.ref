@@ -3,9 +3,9 @@
 \import Native.Extension[] \as Extension;
 \import Modules.Hom[V := Vector, W := Vector, source := space, target := space] \as AmbientMaps;
 \definition ambient: AmbientMaps.Map := AmbientMaps.Map {
-  apply := \fun (v: Vector) => #apply{f} v,
-  addition := \fun (v, w: Vector) => #addition{f} v w,
-  scalar := \fun (a: I.Int^)(v: Vector) => #scalar{f} a v,
+  apply := \fun (v: Vector) => f.apply v,
+  addition := \fun (v, w: Vector) => f.addition v w,
+  scalar := \fun (a: I.Int^)(v: Vector) => f.scalar a v,
 };
 \definition matrix: Matrices.Matrix := Matrices.entries ambient;
 \definition runtime: Native.Runtime^ := Extension.extend matrix;
@@ -13,43 +13,43 @@
   trans!{AmbientMaps.Map} (Matrices.linear (Native.reflect runtime)) (Matrices.linear matrix) ambient
     (congr!{Matrices.Matrix AmbientMaps.Map} Matrices.linear (Native.reflect runtime) matrix (Extension.correspondence matrix))
     (Matrices.Representation[].mapRoundtrip ambient);
-\definition action: \forall (v: Vector) -> Matrices.apply (Native.reflect runtime) v = #apply{f} v :=
-  \fun (v: Vector) => congr!{AmbientMaps.Map Vector} (\fun (map: AmbientMaps.Map) => #apply{map} v)
+\definition action: \forall (v: Vector) -> Matrices.apply (Native.reflect runtime) v = f.apply v :=
+  \fun (v: Vector) => congr!{AmbientMaps.Map Vector} (\fun (map: AmbientMaps.Map) => map.apply v)
     (Matrices.linear (Native.reflect runtime)) ambient representation;
 \import finitely_generated_modules.IntegerKernel[m := n, n := n, original := runtime] \as Smith;
 \import Smith.Image[] \as Image;
 \import Modules.Of[V := Vector, space := space].Submodule[] \as AmbientSubmodules;
 \import AmbientSubmodules.Image[U := Vector, source := space] \as Images;
-\definition fromImage(v: Image.Carrier): Carrier := \into[Vector](v, #carrier{S}) \by {
+\definition fromImage[v: Image.Carrier]: Carrier := \into[Vector](v, S.carrier) \by {
   Images.eliminate (Matrices.linear (Native.reflect runtime)) v (AmbientSubmodules.Member S v)
     (\fun (x: Vector)(equal: Matrices.apply (Native.reflect runtime) x = v) =>
-      \idelim #apply{f} x = v \with y: Vector => AmbientSubmodules.Member S y \by {
-        base: \bysub(Vector, #carrier{S}, #apply{f} x),
-        equality: trans!{Vector} (#apply{f} x) (Matrices.apply (Native.reflect runtime) x) v
-          (sym!{Vector} (Matrices.apply (Native.reflect runtime) x) (#apply{f} x) (action x)) equal
+      \idelim f.apply x = v \with y: Vector => AmbientSubmodules.Member S y \by {
+        base: \bysub(Vector, S.carrier, f.apply x),
+        equality: trans!{Vector} (f.apply x) (Matrices.apply (Native.reflect runtime) x) v
+          (sym!{Vector} (Matrices.apply (Native.reflect runtime) x) (f.apply x) (action x)) equal
       })
-    (\bysub(Vector, #carrier{Image.submodule}, v))
+    (\bysub(Vector, Image.submodule.carrier, v))
 };
 \definition inImage: \forall (v: Carrier) -> AmbientSubmodules.Member Image.submodule v := \block {
   \fun (v: Carrier) \then
-  \takefrom x: \Cast[Vector] ({ x: Vector \where #apply{f} x = v })
+  \takefrom x: \Cast[Vector] ({ x: Vector \where f.apply x = v })
     \by (\bysub(Map, { map: Map \where Onto map }, f)) v \then
   \return Images.introduce (Matrices.linear (Native.reflect runtime)) v x
-    (trans!{Vector} (Matrices.apply (Native.reflect runtime) x) (#apply{f} x) v (action x)
-      (\bysub(Vector, { x: Vector \where #apply{f} x = v }, x)))
+    (trans!{Vector} (Matrices.apply (Native.reflect runtime) x) (f.apply x) v (action x)
+      (\bysub(Vector, { x: Vector \where f.apply x = v }, x)))
 };
-\definition toImage(v: Carrier): Image.Carrier := \into[Vector](v, #carrier{Image.submodule}) \by { inImage v };
+\definition toImage[v: Carrier]: Image.Carrier := \into[Vector](v, Image.submodule.carrier) \by { inImage v };
 \import Modules.Hom[V := Image.Carrier, W := Carrier, source := Image.space, target := moduleSpace] \as Forward;
 \import Modules.Hom[V := Carrier, W := Image.Carrier, source := moduleSpace, target := Image.space] \as Backward;
 \definition forward: Forward.Map := Forward.Map {
   apply := fromImage,
-  addition := \fun (v, w: Image.Carrier) => \refl(#add{space} v w),
-  scalar := \fun (a: I.Int^)(v: Image.Carrier) => \refl(#smul{space} a v),
+  addition := \fun (v, w: Image.Carrier) => \refl(space.add v w),
+  scalar := \fun (a: I.Int^)(v: Image.Carrier) => \refl(space.smul a v),
 };
 \definition backward: Backward.Map := Backward.Map {
   apply := toImage,
-  addition := \fun (v, w: Carrier) => \refl(#add{space} v w),
-  scalar := \fun (a: I.Int^)(v: Carrier) => \refl(#smul{space} a v),
+  addition := \fun (v, w: Carrier) => \refl(space.add v w),
+  scalar := \fun (a: I.Int^)(v: Carrier) => \refl(space.smul a v),
 };
 \import Modules.Isomorphism[V := Image.Carrier, W := Carrier, source := Image.space, target := moduleSpace] \as Iso;
 \definition comparison: Iso.Isomorphism := Iso.Isomorphism {

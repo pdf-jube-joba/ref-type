@@ -236,6 +236,7 @@ impl GlobalEnvironment {
             .map(|base| self.crate_env.binding(base).arguments.to_vec())
             .unwrap_or_default();
         let base_remapping = base.map(|base| self.crate_env.binding(base).remapping);
+        let mut program_substitutions = inherited_arguments.clone();
         let mut substitutions = inherited_arguments
             .into_iter()
             .map(|(parameter, argument)| {
@@ -308,8 +309,12 @@ impl GlobalEnvironment {
                                 &remapping.program_inductive_ids,
                             );
                         }
-                        let expected =
-                            exp_subst_map(self.crate_env.arena(), expected, &substitutions);
+                        let expected = crate::raw::remapping::subst_exp_module_params(
+                            self.crate_env.arena(),
+                            expected,
+                            &program_substitutions,
+                            &substitutions,
+                        );
                         self.metavariables
                             .check_pts(
                                 &self.crate_env,
@@ -362,6 +367,13 @@ impl GlobalEnvironment {
                         ))
                     })?,
                 };
+                program_substitutions.push((
+                    ModuleParamId {
+                        module: child,
+                        position: position as u32,
+                    },
+                    *argument,
+                ));
                 substitutions.push((
                     ModuleParamId {
                         module: child,

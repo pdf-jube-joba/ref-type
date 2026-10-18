@@ -11,17 +11,17 @@
 \definition right: Modules.Hom[V := Total.Carrier, W := I.Int^, source := Total.space, target := Modules.scalarModule].Map := RightScalar.compose TensorScalars.forward RightCoordinate.map;
 \definition firstIndex: Vectors.Index := Fin.zero one;
 \definition lastIndex: Vectors.Index := Fin.succ one (Fin.zero zero);
-\definition vectorCases(P: Vectors.Index -> \Prop)(first: P firstIndex)(last: P lastIndex): \forall (i: Vectors.Index) -> P i :=
+\definition vectorCases[P: Vectors.Index -> \Prop][first: P firstIndex][last: P lastIndex]: \forall (i: Vectors.Index) -> P i :=
   Fin.cases one P first (\fun (i: Fin.Fin one) => \idelim Fin.zero zero = i \with j: Fin.Fin one => P (Fin.succ one j)
     \by { base: last, equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i) });
-\definition value(x: Total.Carrier): Vectors.Carrier := \fun (i: Vectors.Index) => B.ite I.Int^ (NaturalArithmetic.isZero i) (#apply{left} x) (#apply{right} x);
+\definition value[x: Total.Carrier]: Vectors.Carrier := \fun (i: Vectors.Index) => B.ite I.Int^ (NaturalArithmetic.isZero i) ((left).apply x) ((right).apply x);
 \definition forward: Modules.Hom[V := Total.Carrier, W := Vectors.Carrier, source := Total.space, target := Vectors.space].Map :=
   Modules.Hom[V := Total.Carrier, W := Vectors.Carrier, source := Total.space, target := Vectors.space].Map {
     apply := value,
-    addition := \fun (x, y: Total.Carrier) => \axiom:funext(value (#add{Total.space} x y), #add{Vectors.space} (value x) (value y),
-      vectorCases (\fun (i: Vectors.Index) => value (#add{Total.space} x y) i = #add{Integers.ring} (value x i) (value y i)) (#addition{left} x y) (#addition{right} x y)),
-    scalar := \fun (a: I.Int^)(x: Total.Carrier) => \axiom:funext(value (#smul{Total.space} a x), #smul{Vectors.space} a (value x),
-      vectorCases (\fun (i: Vectors.Index) => value (#smul{Total.space} a x) i = #mul{Integers.ring} a (value x i)) (#scalar{left} a x) (#scalar{right} a x)),
+    addition := \fun (x, y: Total.Carrier) => \axiom:funext(value ((Total.space).add x y), (Vectors.space).add (value x) (value y),
+      vectorCases (\fun (i: Vectors.Index) => value ((Total.space).add x y) i = (Integers.ring).add (value x i) (value y i)) ((left).addition x y) ((right).addition x y)),
+    scalar := \fun (a: I.Int^)(x: Total.Carrier) => \axiom:funext(value ((Total.space).smul a x), (Vectors.space).smul a (value x),
+      vectorCases (\fun (i: Vectors.Index) => value ((Total.space).smul a x) i = (Integers.ring).mul a (value x i)) ((left).scalar a x) ((right).scalar a x)),
   };
 \import Modules.Hom[V := I.Int^, W := LeftTerm.Carrier, source := Modules.scalarModule, target := LeftTerm.space].Composition[U := Vectors.Carrier, domain := Vectors.space] \as LeftBack;
 \import Modules.Hom[V := I.Int^, W := RightTerm.Carrier, source := Modules.scalarModule, target := RightTerm.space].Composition[U := Vectors.Carrier, domain := Vectors.space] \as RightBack;
@@ -31,30 +31,30 @@
 \import Modules.Hom[V := RightTerm.Carrier, W := Total.Carrier, source := RightTerm.space, target := Total.space].Composition[U := Vectors.Carrier, domain := Vectors.space] \as RightLift;
 \import Modules.Hom[V := Vectors.Carrier, W := Total.Carrier, source := Vectors.space, target := Total.space] \as Backward;
 \definition backward: Backward.Map := Backward.plus (LeftLift.compose (Total.Component[i := i01].injection) leftBack) (RightLift.compose (Total.Component[i := i10].injection) rightBack);
-\definition differentLeft(equal: i01 = i10): Logic.False := Natural.zeroNeSucc zero (congr!{Doubles.Pair N.Nat^} (\fun (i: Doubles.Pair) => #first{i}) _ _ equal);
-\definition differentRight(equal: i10 = i01): Logic.False := Natural.succNeZero zero (congr!{Doubles.Pair N.Nat^} (\fun (i: Doubles.Pair) => #first{i}) _ _ equal);
+\definition differentLeft[equal: i01 = i10]: Logic.False := Natural.zeroNeSucc zero (congr!{Doubles.Pair N.Nat^} (\fun (i: Doubles.Pair) => (i).first) _ _ equal);
+\definition differentRight[equal: i10 = i01]: Logic.False := Natural.succNeZero zero (congr!{Doubles.Pair N.Nat^} (\fun (i: Doubles.Pair) => (i).first) _ _ equal);
 \import Modules.Laws[V := LeftTerm.Carrier, space := LeftTerm.space] \as Values;
 \import algebra.Group[].Of[Carrier := LeftTerm.Carrier, group := Values.additive] \as Group;
-\definition backwardLeft(v: Vectors.Carrier): Coordinates.Degree[n := one].coordinate i01 (#apply{backward} v) = #apply{TensorScalars.backward} (v firstIndex) :=
-  trans!{LeftTerm.Carrier} _ _ _ (#addition{LeftCoordinate.map} (#apply{(Total.Component[i := i01].injection)} (#apply{leftBack} v)) (#apply{(Total.Component[i := i10].injection)} (#apply{rightBack} v)))
+\definition backwardLeft[v: Vectors.Carrier]: Coordinates.Degree[n := one].coordinate i01 ((backward).apply v) = (TensorScalars.backward).apply (v firstIndex) :=
+  trans!{LeftTerm.Carrier} _ _ _ ((LeftCoordinate.map).addition ((Total.Component[i := i01].injection).apply ((leftBack).apply v)) ((Total.Component[i := i10].injection).apply ((rightBack).apply v)))
     (trans!{LeftTerm.Carrier} _ _ _ (congr2!{LeftTerm.Carrier LeftTerm.Carrier LeftTerm.Carrier} Values.add _ _ _ _
-      (Coordinates.Degree[n := one].own i01 (#apply{leftBack} v)) (Coordinates.Degree[n := one].other i10 i01 (#apply{rightBack} v) differentRight))
-      (Group.zeroRight (#apply{leftBack} v)));
+      (Coordinates.Degree[n := one].own i01 ((leftBack).apply v)) (Coordinates.Degree[n := one].other i10 i01 ((rightBack).apply v) differentRight))
+      (Group.zeroRight ((leftBack).apply v)));
 \import Modules.Laws[V := RightTerm.Carrier, space := RightTerm.space] \as RightValues;
 \import algebra.Group[].Of[Carrier := RightTerm.Carrier, group := RightValues.additive] \as RightGroup;
-\definition backwardRight(v: Vectors.Carrier): Coordinates.Degree[n := one].coordinate i10 (#apply{backward} v) = #apply{TensorScalars.backward} (v lastIndex) :=
-  trans!{RightTerm.Carrier} _ _ _ (#addition{RightCoordinate.map} (#apply{(Total.Component[i := i01].injection)} (#apply{leftBack} v)) (#apply{(Total.Component[i := i10].injection)} (#apply{rightBack} v)))
+\definition backwardRight[v: Vectors.Carrier]: Coordinates.Degree[n := one].coordinate i10 ((backward).apply v) = (TensorScalars.backward).apply (v lastIndex) :=
+  trans!{RightTerm.Carrier} _ _ _ ((RightCoordinate.map).addition ((Total.Component[i := i01].injection).apply ((leftBack).apply v)) ((Total.Component[i := i10].injection).apply ((rightBack).apply v)))
     (trans!{RightTerm.Carrier} _ _ _ (congr2!{RightTerm.Carrier RightTerm.Carrier RightTerm.Carrier} RightValues.add _ _ _ _
-      (Coordinates.Degree[n := one].other i01 i10 (#apply{leftBack} v) differentLeft) (Coordinates.Degree[n := one].own i10 (#apply{rightBack} v)))
-      (RightGroup.zeroLeft (#apply{rightBack} v)));
-\definition leftInverse(x: Total.Carrier): #apply{backward} (#apply{forward} x) = x := Coordinates.Degree[n := one].ext (#apply{backward} (#apply{forward} x)) x
-  (oneCases (\fun (i: Doubles.Index one) => Coordinates.Degree[n := one].coordinate i (#apply{backward} (#apply{forward} x)) = Coordinates.Degree[n := one].coordinate i x)
+      (Coordinates.Degree[n := one].other i01 i10 ((leftBack).apply v) differentLeft) (Coordinates.Degree[n := one].own i10 ((rightBack).apply v)))
+      (RightGroup.zeroLeft ((rightBack).apply v)));
+\definition leftInverse[x: Total.Carrier]: (backward).apply ((forward).apply x) = x := Coordinates.Degree[n := one].ext ((backward).apply ((forward).apply x)) x
+  (oneCases (\fun (i: Doubles.Index one) => Coordinates.Degree[n := one].coordinate i ((backward).apply ((forward).apply x)) = Coordinates.Degree[n := one].coordinate i x)
     (trans!{LeftTerm.Carrier} _ _ _ (backwardLeft (value x)) (TensorScalars.leftInverse (Coordinates.Degree[n := one].coordinate i01 x)))
     (trans!{RightTerm.Carrier} _ _ _ (backwardRight (value x)) (TensorScalars.leftInverse (Coordinates.Degree[n := one].coordinate i10 x))));
-\definition rightInverse(v: Vectors.Carrier): #apply{forward} (#apply{backward} v) = v := \axiom:funext(value (#apply{backward} v), v,
-  vectorCases (\fun (i: Vectors.Index) => value (#apply{backward} v) i = v i)
-    (trans!{I.Int^} _ _ _ (congr!{LeftTerm.Carrier I.Int^} (#apply{TensorScalars.forward}) _ _ (backwardLeft v)) (TensorScalars.rightInverse (v firstIndex)))
-    (trans!{I.Int^} _ _ _ (congr!{RightTerm.Carrier I.Int^} (#apply{TensorScalars.forward}) _ _ (backwardRight v)) (TensorScalars.rightInverse (v lastIndex))));
+\definition rightInverse[v: Vectors.Carrier]: (forward).apply ((backward).apply v) = v := \axiom:funext(value ((backward).apply v), v,
+  vectorCases (\fun (i: Vectors.Index) => value ((backward).apply v) i = v i)
+    (trans!{I.Int^} _ _ _ (congr!{LeftTerm.Carrier I.Int^} ((TensorScalars.forward).apply) _ _ (backwardLeft v)) (TensorScalars.rightInverse (v firstIndex)))
+    (trans!{I.Int^} _ _ _ (congr!{RightTerm.Carrier I.Int^} ((TensorScalars.forward).apply) _ _ (backwardRight v)) (TensorScalars.rightInverse (v lastIndex))));
 \definition isomorphism: Modules.Isomorphism[V := Total.Carrier, W := Vectors.Carrier, source := Total.space, target := Vectors.space].Isomorphism :=
   Modules.Isomorphism[V := Total.Carrier, W := Vectors.Carrier, source := Total.space, target := Vectors.space].Isomorphism {
     forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,

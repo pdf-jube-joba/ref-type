@@ -12,29 +12,29 @@
 \import euclidean_forms.Euclidean[n := m].Evaluation[m := n, U := U] \as Evaluation;
 \import Smooth.Derivative[] \as Partials;
 \import Smooth.Sums[] \as Sums;
-\definition jacobian(x: Open.Carrier U): Linear.Map := Maps.Differential[U := U, V := V, f := f, a := x].value;
-\definition coordinate(j: Fin.Fin m): Partials.Function U := Maps.coordinateFunction U V f j;
-\definition matrix(j: Fin.Fin m)(i: Fin.Fin n): Partials.Function U := Partials.derivative U (coordinate j) i;
-\definition vectorTerm(v: Vectors.Vector)(j: Fin.Fin m)(i: Fin.Fin n): Open.ScalarFunction U :=
+\definition jacobian[x: Open.Carrier U]: Linear.Map := Maps.Differential[U := U, V := V, f := f, a := x].value;
+\definition coordinate[j: Fin.Fin m]: Partials.Function U := Maps.coordinateFunction U V f j;
+\definition matrix[j: Fin.Fin m][i: Fin.Fin n]: Partials.Function U := Partials.derivative U (coordinate j) i;
+\definition vectorTerm[v: Vectors.Vector][j: Fin.Fin m][i: Fin.Fin n]: Open.ScalarFunction U :=
   \fun (x: Open.Carrier U) => Spaces.mul (matrix j i x) (v i);
-\definition vectorSmooth: \forall (v: Vectors.Vector)(j: Fin.Fin m) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => #apply{(jacobian x)} v j) :=
+\definition vectorSmooth: \forall (v: Vectors.Vector)(j: Fin.Fin m) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (jacobian x).apply v j) :=
   \fun (v: Vectors.Vector)(j: Fin.Fin m) => SourceForms.smoothOfEqual (Sums.sum U n (vectorTerm v j))
-    (\fun (x: Open.Carrier U) => #apply{(jacobian x)} v j)
-    (\fun (x: Open.Carrier U) => \refl(#apply{(jacobian x)} v j))
+    (\fun (x: Open.Carrier U) => (jacobian x).apply v j)
+    (\fun (x: Open.Carrier U) => \refl((jacobian x).apply v j))
     (Sums.smooth U n (vectorTerm v j) (\fun (i: Fin.Fin n) => Operations.mulSmooth U (matrix j i)
       (\fun (x: Open.Carrier U) => v i)
       (\bysub(Open.ScalarFunction U, { h: Open.ScalarFunction U \where Smooth.SmoothOn U h }, matrix j i))
       (Operations.constantSmooth U (v i))));
-\definition family(k: N.Nat^)(omega: TargetForms.Form k): SourceForms.Family k :=
+\definition family[k: N.Nat^][omega: TargetForms.Form k]: SourceForms.Family k :=
   \fun (x: Open.Carrier U) => Precomposition.precompose k (jacobian x) (omega (Maps.apply U V f x));
 \definition regular: \forall (k: N.Nat^)(omega: TargetForms.Form k) -> SourceForms.SmoothFamily k (family k omega) :=
   \fun (k: N.Nat^)(omega: TargetForms.Form k)(arguments: Multilinear.Arguments k) =>
     Evaluation.law k (\fun (x: Open.Carrier U) => TargetAlternating.asMultilinear k (omega (Maps.apply U V f x)))
-      (\fun (x: Open.Carrier U)(i: Fin.Fin k) => #apply{(jacobian x)} (arguments i))
+      (\fun (x: Open.Carrier U)(i: Fin.Fin k) => (jacobian x).apply (arguments i))
       (\fun (indices: Fin.Fin k -> Fin.Fin m) => Composition.smooth
         (TargetForms.evaluate k omega (\fun (i: Fin.Fin k) => TargetBasis.vectors (indices i))))
       (\fun (i: Fin.Fin k)(j: Fin.Fin m) => vectorSmooth (arguments i) j);
-\definition apply(k: N.Nat^)(omega: TargetForms.Form k): SourceForms.Form k :=
+\definition apply[k: N.Nat^][omega: TargetForms.Form k]: SourceForms.Form k :=
   \into[SourceForms.Family k](family k omega, { value: SourceForms.Family k \where SourceForms.SmoothFamily k value }) \by { regular k omega };
 \module At(k: N.Nat^) {
   \import SourceForms.At[k := k] \as Source;
@@ -76,7 +76,7 @@
       apply l (TargetDegree.cast omega same), \fun (x: Open.Carrier U) => \block {
         \let a: TargetShuffle.Function := TargetExterior.component k (omega (Maps.apply U V f x)) \then
         \let b: TargetShuffle.Function := TargetExterior.component l (TargetDegree.cast omega same (Maps.apply U V f x)) \then
-        \let mapped: TargetShuffle.Function -> Shuffle.Function := Mapping.mapSeries (#apply{(jacobian x)}) \then
+        \let mapped: TargetShuffle.Function -> Shuffle.Function := Mapping.mapSeries ((jacobian x).apply) \then
         \return Components.ext (SourceDegree.cast (apply k omega) same x) (apply l (TargetDegree.cast omega same) x) (eq_reason!{
           {Exterior.component l (SourceDegree.cast (apply k omega) same x)}
           "=" {Exterior.component k (apply k omega x)} "by" {SourceDegree.series (apply k omega) same x}
@@ -105,7 +105,7 @@
           (Components.law (jacobian x) (omega (Maps.apply U V f x))))
         (congr!{{Lists.List[TargetVectors.Vector]} {Reals.Real}} (TargetExterior.component k (omega (Maps.apply U V f x)))
           _ _
-          (sym!{{Lists.List[TargetVectors.Vector]}} _ _ (TupleMapping.listMap l (#apply{(jacobian x)}) arguments))));
+          (sym!{{Lists.List[TargetVectors.Vector]}} _ _ (TupleMapping.listMap l ((jacobian x).apply) arguments))));
 }
 
 \module JacobianDifferentiation;

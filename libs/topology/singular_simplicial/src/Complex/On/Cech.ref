@@ -4,36 +4,36 @@
 \import dedekind_reals.DedekindReal[] \as Reals;
 \import real.Analysis[] \as Real;
 \import \parent.Faces[] \as Faces;
-\structure Data[p, q: N.Nat^]: \Set {
+\structure Data[p, q: N.Nat^]: \Set := {
   vertices: Simplex p,
   singular: Simplices.Carrier q,
-}
-\definition Common(p, q: N.Nat^)(s: Data[p, q]): \Prop :=
-  \forall (x: Geometric.Carrier q)(i: Fin.Fin (N.Nat^::succ p)) -> Reals.Lt Real.zero (#singular{s} x (#vertices{s} i));
-\definition Generator(p, q: N.Nat^): \Set := \Cast[Data[p, q]] ({ s: Data[p, q] \where Common p q s });
-\definition common(p, q: N.Nat^)(s: Generator p q): Common p q s := \bysub(Data[p, q], Generator p q, s);
-\definition dataExt: \forall (p, q: N.Nat^)(s, t: Data[p, q]) -> #vertices{s} = #vertices{t} -> #singular{s} = #singular{t} -> s = t :=
-  \fun (p, q: N.Nat^) => \induction (s: Data[p, q]) \return \forall (t: Data[p, q]) -> #vertices{s} = #vertices{t} -> #singular{s} = #singular{t} -> s = t \with {
+};
+\definition Common[p, q: N.Nat^][s: Data[p, q]]: \Prop :=
+  \forall (x: Geometric.Carrier q)(i: Fin.Fin (N.Nat^::succ p)) -> Reals.Lt Real.zero ((s).singular x ((s).vertices i));
+\definition Generator[p, q: N.Nat^]: \Set := \Cast[Data[p, q]] ({ s: Data[p, q] \where Common p q s });
+\definition common[p, q: N.Nat^][s: Generator p q]: Common p q s := \bysub(Data[p, q], Generator p q, s);
+\definition dataExt: \forall (p, q: N.Nat^)(s, t: Data[p, q]) -> (s).vertices = (t).vertices -> (s).singular = (t).singular -> s = t :=
+  \fun (p, q: N.Nat^) => \induction (s: Data[p, q]) \return \forall (t: Data[p, q]) -> (s).vertices = (t).vertices -> (s).singular = (t).singular -> s = t \with {
     | # : \fun (a: Simplex p)(sigma: Simplices.Carrier q) =>
-      \induction (t: Data[p, q]) \return a = #vertices{t} -> sigma = #singular{t} -> Data[p, q]::# a sigma = t \with {
+      \induction (t: Data[p, q]) \return a = (t).vertices -> sigma = (t).singular -> Data[p, q]::# a sigma = t \with {
         | # : \fun (b: Simplex p)(tau: Simplices.Carrier q)(ab: a = b)(st: sigma = tau) =>
           trans!{{Data[p, q]}} _ _ _
             (congr!{{Simplex p} {Data[p, q]}} (\fun (c: Simplex p) => Data[p, q]::# c sigma) a b ab)
             (congr!{{Simplices.Carrier q} {Data[p, q]}} (Data[p, q]::# b) sigma tau st)
       }
   };
-\definition horizontal(p, q: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p)))(s: Generator (N.Nat^::succ p) q): Generator p q :=
-  \into[Data[p, q]](Data[p, q] { vertices := Faces.apply p i #vertices{s}, singular := #singular{s} }, Generator p q) \by {
+\definition horizontal[p, q: N.Nat^][i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p))][s: Generator (N.Nat^::succ p) q]: Generator p q :=
+  \into[Data[p, q]](Data[p, q] { vertices := Faces.apply p i (s).vertices, singular := (s).singular }, Generator p q) \by {
     \fun (x: Geometric.Carrier q)(j: Fin.Fin (N.Nat^::succ p)) => common (N.Nat^::succ p) q s x (Fin.Skipping[].apply (N.Nat^::succ p) i j)
   };
-\definition vertical(p, q: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ q)))(s: Generator p (N.Nat^::succ q)): Generator p q :=
-  \into[Data[p, q]](Data[p, q] { vertices := #vertices{s}, singular := Simplices.face q i #singular{s} }, Generator p q) \by {
+\definition vertical[p, q: N.Nat^][i: Fin.Fin (N.Nat^::succ (N.Nat^::succ q))][s: Generator p (N.Nat^::succ q)]: Generator p q :=
+  \into[Data[p, q]](Data[p, q] { vertices := (s).vertices, singular := Simplices.face q i (s).singular }, Generator p q) \by {
     \fun (x: Geometric.Carrier q)(j: Fin.Fin (N.Nat^::succ p)) => common p (N.Nat^::succ q) s (Geometric.face q i x) j
   };
 \definition commute: \forall (p, q: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p)))(j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q)))(s: Generator (N.Nat^::succ p) (N.Nat^::succ q)) ->
   horizontal p q i (vertical (N.Nat^::succ p) q j s) = vertical p q j (horizontal p (N.Nat^::succ q) i s) :=
   \fun (p, q: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ p)))(j: Fin.Fin (N.Nat^::succ (N.Nat^::succ q)))(s: Generator (N.Nat^::succ p) (N.Nat^::succ q)) =>
-    \refl(Data[p, q] { vertices := Faces.apply p i #vertices{s}, singular := Simplices.face q j #singular{s} });
+    \refl(Data[p, q] { vertices := Faces.apply p i (s).vertices, singular := Simplices.face q j (s).singular });
 \module Horizontal(q: N.Nat^);
 \module Vertical(p: N.Nat^);
 \import std.Arithmetic[].Int[] \as I;
@@ -46,9 +46,9 @@
   \definition space: Modules.Space Carrier := Free.space;
   \definition generator: Generator p q -> Carrier := Free.generator;
 }
-\definition Carrier(p, q: N.Nat^): \Set := At[p := p, q := q].Carrier;
-\definition space(p, q: N.Nat^): Modules.Space (Carrier p q) := At[p := p, q := q].space;
-\definition generator(p, q: N.Nat^): Generator p q -> Carrier p q := At[p := p, q := q].generator;
+\definition Carrier[p, q: N.Nat^]: \Set := At[p := p, q := q].Carrier;
+\definition space[p, q: N.Nat^]: Modules.Space (Carrier p q) := At[p := p, q := q].space;
+\definition generator[p, q: N.Nat^]: Generator p q -> Carrier p q := At[p := p, q := q].generator;
 \module Bicomplex;
 \module Fibre(p: N.Nat^, vertices: Simplex p);
 \module SmallAugmentation;

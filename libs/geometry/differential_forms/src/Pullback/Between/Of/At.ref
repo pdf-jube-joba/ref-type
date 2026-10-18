@@ -5,14 +5,14 @@
 \module Coordinates(chart: SourceForms.Chart);
 \definition regular: \forall (omega: TargetForms.Form k) -> SourcePointwise.SmoothPointFamily (pointwise k omega) :=
   \fun (omega: TargetForms.Form k)(chart: SourceForms.Chart) => Coordinates[chart := chart].regular omega;
-\definition apply(omega: TargetForms.Form k): SourceForms.Form k :=
+\definition apply[omega: TargetForms.Form k]: SourceForms.Form k :=
   SourcePointwise.fromPointwise (\into[SourceForms.PointFamily k](pointwise k omega, SourcePointwise.RegularPointFamily) \by { regular omega });
 \definition evaluation: \forall (omega: TargetForms.Form k) -> SourcePointwise.value (apply omega) = pointwise k omega :=
   \fun (omega: TargetForms.Form k) => SourcePointwise.rightInverse
     (\into[SourceForms.PointFamily k](pointwise k omega, SourcePointwise.RegularPointFamily) \by { regular omega });
 \definition formula: \forall (omega: TargetForms.Form k)(x: M.Point)(arguments: Fin.Fin k -> SourceTangent.Vector x) ->
   SourcePointwise.value (apply omega) x arguments = TargetPointwise.value omega (Maps.apply f x)
-    (\fun (i: Fin.Fin k) => #apply{(manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x].value)} (arguments i)) :=
+    (\fun (i: Fin.Fin k) => (manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x].value).apply (arguments i)) :=
       \fun (omega: TargetForms.Form k)(x: M.Point)(arguments: Fin.Fin k -> SourceTangent.Vector x) =>
         congr!{{SourceForms.PointFamily k} {Reals.Real}} (\fun (family: SourceForms.PointFamily k) => family x arguments)
           (SourcePointwise.value (apply omega)) (pointwise k omega) (evaluation omega);
@@ -22,7 +22,7 @@
       \fun (x: M.Point) => \axiom:funext(SourcePointwise.value (apply (Target.plus omega eta)) x, SourcePointwise.value (Source.plus (apply omega) (apply eta)) x,
         \fun (arguments: Fin.Fin k -> SourceTangent.Vector x) => \block {
           \let mapped: Fin.Fin k -> TargetTangent.Vector (Maps.apply f x) :=
-            \fun (i: Fin.Fin k) => #apply{(manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x].value)} (arguments i) \then
+            \fun (i: Fin.Fin k) => (manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x].value).apply (arguments i) \then
           \let eval: SourceForms.PointFamily k -> Reals.Real := \fun (family: SourceForms.PointFamily k) => family x arguments \then
           \return trans!{{Reals.Real}} _ _ _
             (trans!{{Reals.Real}} _ (pointwise k (Target.plus omega eta) x arguments) _
@@ -40,7 +40,7 @@
       \fun (x: M.Point) => \axiom:funext(SourcePointwise.value (apply (Target.scale a omega)) x, SourcePointwise.value (Source.scale a (apply omega)) x,
         \fun (arguments: Fin.Fin k -> SourceTangent.Vector x) => \block {
           \let mapped: Fin.Fin k -> TargetTangent.Vector (Maps.apply f x) :=
-            \fun (i: Fin.Fin k) => #apply{(manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x].value)} (arguments i) \then
+            \fun (i: Fin.Fin k) => (manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x].value).apply (arguments i) \then
           \let eval: SourceForms.PointFamily k -> Reals.Real := \fun (family: SourceForms.PointFamily k) => family x arguments \then
           \return trans!{{Reals.Real}} _ _ _
             (trans!{{Reals.Real}} _ (pointwise k (Target.scale a omega) x arguments) _
@@ -56,19 +56,19 @@
 \module Local(chart: SourceForms.Chart, right: TargetForms.Chart);
 \definition localExt: \forall (omega, eta: SourceForms.Form k) ->
   (\forall (chart: SourceForms.Chart)(right: TargetForms.Chart) ->
-    euclidean_forms.Euclidean[n := n].Restriction[U := Coordinates[chart := chart].domains right, V := #image{chart}].apply k
+    euclidean_forms.Euclidean[n := n].Restriction[U := Coordinates[chart := chart].domains right, V := chart.image].apply k
       (Coordinates[chart := chart].included right) (omega chart) =
-    euclidean_forms.Euclidean[n := n].Restriction[U := Coordinates[chart := chart].domains right, V := #image{chart}].apply k
+    euclidean_forms.Euclidean[n := n].Restriction[U := Coordinates[chart := chart].domains right, V := chart.image].apply k
       (Coordinates[chart := chart].included right) (eta chart)) -> omega = eta :=
     \fun (omega, eta: SourceForms.Form k)(same: _) => SourceForms.ext k omega eta
-      (\fun (chart: SourceForms.Chart) => euclidean_forms.Euclidean[n := n].On[U := #image{chart}].ext k (omega chart) (eta chart) (\block {
-        \fun (a: Open.Carrier #image{chart})(arguments: SourceMultilinear.Arguments k) \then
+      (\fun (chart: SourceForms.Chart) => euclidean_forms.Euclidean[n := n].On[U := chart.image].ext k (omega chart) (eta chart) (\block {
+        \fun (a: Open.Carrier chart.image)(arguments: SourceMultilinear.Arguments k) \then
         \takefrom right: \Cast[TargetForms.Chart] ({ c: TargetForms.Chart \where
-          \In[SourceVectors.Vector] (#points{(Coordinates[chart := chart].domains c)}) a }) \by Coordinates[chart := chart].covers a \then
+          \In[SourceVectors.Vector] ((Coordinates[chart := chart].domains c).points) a }) \by Coordinates[chart := chart].covers a \then
         \let local: Open.Carrier (Coordinates[chart := chart].domains right) :=
-          \into[SourceVectors.Vector](a, #points{(Coordinates[chart := chart].domains right)}) \by {
+          \into[SourceVectors.Vector](a, (Coordinates[chart := chart].domains right).points) \by {
             \bysub(TargetForms.Chart, { c: TargetForms.Chart \where
-              \In[SourceVectors.Vector] (#points{(Coordinates[chart := chart].domains c)}) a }, right)
+              \In[SourceVectors.Vector] ((Coordinates[chart := chart].domains c).points) a }, right)
           } \then
         \let result: omega chart a arguments = eta chart a arguments :=
           congr!{{euclidean_forms.Euclidean[n := n].On[U := Coordinates[chart := chart].domains right].Form k} {Reals.Real}}

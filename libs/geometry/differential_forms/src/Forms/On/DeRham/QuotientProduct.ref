@@ -8,11 +8,11 @@
 \import Complexes.At[C := complex, k := p] \as Left;
 \import Complexes.At[C := complex, k := q] \as Right;
 \import Complexes.At[C := complex, k := total] \as Result;
-\definition leftClosed(omega: Left.CycleCarrier): Closed p omega := \bysub(Form p, Left.CycleCarrier, omega);
-\definition rightClosed(eta: Right.CycleCarrier): Closed q eta := \bysub(Form q, Right.CycleCarrier, eta);
-\definition cycle(omega: Left.CycleCarrier)(eta: Right.CycleCarrier): Result.CycleCarrier :=
+\definition leftClosed[omega: Left.CycleCarrier]: Closed p omega := \bysub(Form p, Left.CycleCarrier, omega);
+\definition rightClosed[eta: Right.CycleCarrier]: Closed q eta := \bysub(Form q, Right.CycleCarrier, eta);
+\definition cycle[omega: Left.CycleCarrier][eta: Right.CycleCarrier]: Result.CycleCarrier :=
   Result.cycle (Wedge.apply omega eta) (ClosedProduct.closed omega eta (leftClosed omega) (rightClosed eta));
-\definition representatives(omega: Left.CycleCarrier)(eta: Right.CycleCarrier): Result.Cohomology := Result.classOf (cycle omega eta);
+\definition representatives[omega: Left.CycleCarrier][eta: Right.CycleCarrier]: Result.Cohomology := Result.classOf (cycle omega eta);
 \import module_theory.Module[].Over[R := Reals.Real, ring := Spaces.ring] \as Modules;
 \import Modules.Of[V := Left.CycleCarrier, space := Left.cycleSpace].Submodule[].Quotient[S := Left.boundariesInside] \as LeftQuotient;
 \import Modules.Of[V := Right.CycleCarrier, space := Right.cycleSpace].Submodule[].Quotient[S := Right.boundariesInside] \as RightQuotient;
@@ -20,23 +20,23 @@
   C := Right.CycleCarrier, B := Result.Cohomology, OtherEquivalent := RightQuotient.Equivalent] \as Descent;
 \import Modules.Hom[V := Form p, W := Form total, source := LeftForms.space, target := ResultForms.space] \as LeftMaps;
 \import Modules.Hom[V := Form q, W := Form total, source := RightForms.space, target := ResultForms.space] \as RightMaps;
-\definition leftMap(eta: Form q): LeftMaps.Map := LeftMaps.Map {
+\definition leftMap[eta: Form q]: LeftMaps.Map := LeftMaps.Map {
   apply := \fun (omega: Form p) => Wedge.apply omega eta,
   addition := \fun (omega, omega2: Form p) => Wedge.additiveLeft omega omega2 eta,
   scalar := \fun (a: Reals.Real)(omega: Form p) => Wedge.scalarLeft a omega eta,
 };
-\definition rightMap(omega: Form p): RightMaps.Map := RightMaps.Map {
+\definition rightMap[omega: Form p]: RightMaps.Map := RightMaps.Map {
   apply := Wedge.apply omega, addition := Wedge.additiveRight omega,
   scalar := \fun (a: Reals.Real)(eta: Form q) => Wedge.scalarRight a omega eta,
 };
 \definition leftRespects: \forall (omega, omega2: Left.CycleCarrier)(eta: Right.CycleCarrier) ->
   LeftQuotient.Equivalent omega omega2 -> representatives omega eta = representatives omega2 eta := \block {
   \fun (omega, omega2: Left.CycleCarrier)(eta: Right.CycleCarrier)(related: LeftQuotient.Equivalent omega omega2) \then
-  \let difference: Form p := #add{LeftForms.space} omega (#neg{LeftForms.space} omega2) \then
+  \let difference: Form p := LeftForms.space.add omega (LeftForms.space.neg omega2) \then
   \let exactDifference: Exact p difference := related \then
   \let exactProduct: Exact total (Wedge.apply difference eta) := Ideals.left p q difference eta exactDifference (rightClosed eta) \then
-  \let desired: Exact total (#add{ResultForms.space} (Wedge.apply omega eta) (#neg{ResultForms.space} (Wedge.apply omega2 eta))) :=
-    \idelim Wedge.apply difference eta = #add{ResultForms.space} (Wedge.apply omega eta) (#neg{ResultForms.space} (Wedge.apply omega2 eta))
+  \let desired: Exact total (ResultForms.space.add (Wedge.apply omega eta) (ResultForms.space.neg (Wedge.apply omega2 eta))) :=
+    \idelim Wedge.apply difference eta = ResultForms.space.add (Wedge.apply omega eta) (ResultForms.space.neg (Wedge.apply omega2 eta))
       \with phi: Form total => Exact total phi \by {
         base: exactProduct,
         equality: LeftMaps.differencePreserved (leftMap eta) omega omega2
@@ -46,11 +46,11 @@
 \definition rightRespects: \forall (omega: Left.CycleCarrier)(eta, eta2: Right.CycleCarrier) ->
   RightQuotient.Equivalent eta eta2 -> representatives omega eta = representatives omega eta2 := \block {
   \fun (omega: Left.CycleCarrier)(eta, eta2: Right.CycleCarrier)(related: RightQuotient.Equivalent eta eta2) \then
-  \let difference: Form q := #add{RightForms.space} eta (#neg{RightForms.space} eta2) \then
+  \let difference: Form q := RightForms.space.add eta (RightForms.space.neg eta2) \then
   \let exactDifference: Exact q difference := related \then
   \let exactProduct: Exact total (Wedge.apply omega difference) := Ideals.right q p omega difference (leftClosed omega) exactDifference \then
-  \let desired: Exact total (#add{ResultForms.space} (Wedge.apply omega eta) (#neg{ResultForms.space} (Wedge.apply omega eta2))) :=
-    \idelim Wedge.apply omega difference = #add{ResultForms.space} (Wedge.apply omega eta) (#neg{ResultForms.space} (Wedge.apply omega eta2))
+  \let desired: Exact total (ResultForms.space.add (Wedge.apply omega eta) (ResultForms.space.neg (Wedge.apply omega eta2))) :=
+    \idelim Wedge.apply omega difference = ResultForms.space.add (Wedge.apply omega eta) (ResultForms.space.neg (Wedge.apply omega eta2))
       \with phi: Form total => Exact total phi \by {
         base: exactProduct,
         equality: RightMaps.differencePreserved (rightMap omega) eta eta2
@@ -62,7 +62,7 @@
     (left: LeftQuotient.Equivalent omega omega2)(right: RightQuotient.Equivalent eta eta2) =>
       trans!{{Result.Cohomology}} (representatives omega eta) (representatives omega2 eta) (representatives omega2 eta2)
         (leftRespects omega omega2 eta left) (rightRespects omega2 eta eta2 right);
-\definition apply(left: Left.Cohomology)(right: Right.Cohomology): Result.Cohomology :=
+\definition apply[left: Left.Cohomology][right: Right.Cohomology]: Result.Cohomology :=
   Descent.value LeftQuotient.equivalence RightQuotient.equivalence representatives respects left right;
 \definition onClass: \forall (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) ->
   apply (Left.classOf omega) (Right.classOf eta) = Result.classOf (cycle omega eta) :=

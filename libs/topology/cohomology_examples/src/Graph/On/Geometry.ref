@@ -19,9 +19,9 @@
 \definition edgeCode: Edge -> Fin.Fin edgeCount := \induction (e: Edge) \return Fin.Fin edgeCount \with {
   | inl: EdgeCode.left | inr: EdgeCode.right
 };
-\definition original(v: Vertex): Complex.Vertex := Fin.widen ambientDimension (Blocks.left (vertexCode v));
-\definition firstMidpoint(e: Edge): Complex.Vertex := Fin.widen ambientDimension (Blocks.right (MidpointCode.left (edgeCode e)));
-\definition secondMidpoint(e: Edge): Complex.Vertex := Fin.widen ambientDimension (Blocks.right (MidpointCode.right (edgeCode e)));
+\definition original[v: Vertex]: Complex.Vertex := Fin.widen ambientDimension (Blocks.left (vertexCode v));
+\definition firstMidpoint[e: Edge]: Complex.Vertex := Fin.widen ambientDimension (Blocks.right (MidpointCode.left (edgeCode e)));
+\definition secondMidpoint[e: Edge]: Complex.Vertex := Fin.widen ambientDimension (Blocks.right (MidpointCode.right (edgeCode e)));
 \module Indexing;
 \inductive MaximalFace: \Set :=
   | vertex: Vertex -> MaximalFace
@@ -34,7 +34,7 @@
   | middle: \fun (e: Edge) => { w: Complex.Vertex \where Logic.Or[w = firstMidpoint e, w = secondMidpoint e] }
   | terminal: \fun (e: Edge) => { w: Complex.Vertex \where Logic.Or[w = original (target e), w = secondMidpoint e] }
 };
-\definition faces: \Pow (\Pow Complex.Vertex) := { S: \Pow Complex.Vertex \where \exists { f: MaximalFace \where Complex.Included S (support f) } };
+\definition faces: \Pow (\Pow Complex.Vertex) := { S: \Pow Complex.Vertex \where \exists ( f: MaximalFace \where Complex.Included S (support f) ) };
 \definition object: Complex.Object := Indexing[].complex;
 \import Complex.On[K := object] \as Subdivision;
 \import Subdivision.Realization[] \as Realization;
@@ -48,25 +48,25 @@
 \import NativeSimplicial.Mapping[Y := SingularSimplices.object] \as AffineMapping;
 \definition chainFamily: NativeChains.Family := NativeChains.Family { Carrier := NativeSimplicial.Carrier, space := NativeSimplicial.space };
 \definition chainDifferential: NativeChains.DifferentialData[chainFamily] := NativeChains.DifferentialData[chainFamily] {
-  apply := \fun (n: N.Nat^) => #apply{(NativeSimplicial.boundary n)},
+  apply := \fun (n: N.Nat^) => (NativeSimplicial.boundary n).apply,
 };
 \definition chainComplex: NativeChains.Complex := NativeChains.Complex {
   family := chainFamily, differential := chainDifferential,
   laws := NativeChains.DifferentialLaws[chainFamily, chainDifferential] {
-    addition := \fun (n: N.Nat^) => #addition{(NativeSimplicial.boundary n)},
-    scalar := \fun (n: N.Nat^) => #scalar{(NativeSimplicial.boundary n)},
+    addition := \fun (n: N.Nat^) => (NativeSimplicial.boundary n).addition,
+    scalar := \fun (n: N.Nat^) => (NativeSimplicial.boundary n).scalar,
     squareZero := \fun (n: N.Nat^) => NativeSimplicial.SquareZero[n := n].all,
   },
 };
 \definition singularComparison: NativeChains.Map[C := chainComplex, D := SingularChains.complex].Map := NativeChains.Map[C := chainComplex, D := SingularChains.complex].Map {
-  apply := \fun (n: N.Nat^) => #apply{(AffineMapping.At[n := n].push Realization.mapping)},
-  addition := \fun (n: N.Nat^) => #addition{(AffineMapping.At[n := n].push Realization.mapping)},
-  scalar := \fun (n: N.Nat^) => #scalar{(AffineMapping.At[n := n].push Realization.mapping)},
+  apply := \fun (n: N.Nat^) => (AffineMapping.At[n := n].push Realization.mapping).apply,
+  addition := \fun (n: N.Nat^) => (AffineMapping.At[n := n].push Realization.mapping).addition,
+  scalar := \fun (n: N.Nat^) => (AffineMapping.At[n := n].push Realization.mapping).scalar,
   commutes := \fun (n: N.Nat^) => AffineMapping.Differential[n := n].commutes Realization.mapping,
 };
 \import algebraic_topology.Simplex[] \as Simplex;
 \import Simplex.Vertices[] \as Vertices;
-\definition vertexMember(v: Vertex): \In[\Pow Complex.Vertex] object.faces ({ w: Complex.Vertex \where w = original v }) :=
+\definition vertexMember[v: Vertex]: \In[\Pow Complex.Vertex] object.faces ({ w: Complex.Vertex \where w = original v }) :=
   Indexing[].pointFace (Indexing[].vertex v);
 \module Segments;
 \module Coefficients(A: Modules.Bundle);

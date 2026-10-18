@@ -4,17 +4,17 @@
 \import Modules.Laws[V := coefficients.Carrier, space := coefficients.space] \as Values;
 \import algebra.Group[].Of[Carrier := coefficients.Carrier, group := Values.additive] \as Group;
 \import Modules.Of[V := WholeHom.Carrier z, space := WholeHom.space z].Submodule[] \as Submodules;
-\definition Vanishes(h: WholeHom.Carrier z): \Prop :=
-  \forall (x: subcomplex.family.Carrier z) -> #apply{h} (#apply{inclusionMap} z x) = #zero{coefficients.space};
+\definition Vanishes[h: WholeHom.Carrier z]: \Prop :=
+  \forall (x: subcomplex.family.Carrier z) -> (h).apply ((inclusionMap).apply z x) = (coefficients.space).zero;
 \definition submodule: Submodules.Submodule := Submodules.Submodule {
   carrier := { h: WholeHom.Carrier z \where Vanishes h },
-  zero := \fun (x: subcomplex.family.Carrier z) => \refl(#zero{coefficients.space}),
+  zero := \fun (x: subcomplex.family.Carrier z) => \refl((coefficients.space).zero),
   addition := \fun (h, k: WholeHom.Carrier z)(hz: Vanishes h)(kz: Vanishes k)(x: subcomplex.family.Carrier z) =>
     trans!{coefficients.Carrier} _ _ _
-      (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} (#add{coefficients.space}) _ _ _ _ (hz x) (kz x))
-      (Group.zeroLeft #zero{coefficients.space}),
+      (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} ((coefficients.space).add) _ _ _ _ (hz x) (kz x))
+      (Group.zeroLeft (coefficients.space).zero),
   scalar := \fun (a: R)(h: WholeHom.Carrier z)(hz: Vanishes h)(x: subcomplex.family.Carrier z) =>
-    trans!{coefficients.Carrier} _ _ _ (congr!{coefficients.Carrier coefficients.Carrier} (#smul{coefficients.space} a) _ _ (hz x)) (Values.scaleZero a),
+    trans!{coefficients.Carrier} _ _ _ (congr!{coefficients.Carrier coefficients.Carrier} ((coefficients.space).smul a) _ _ (hz x)) (Values.scaleZero a),
 };
 \import Submodules.Of[S := submodule] \as Null;
 \definition NullCochain: \Set := Null.Carrier;
@@ -27,22 +27,22 @@
 \import Inclusions.At[k := z] \as InclusionAt;
 \definition imageVanishing: \forall (h: NullCochain) -> Descent.Vanishes h :=
   \fun (h: NullCochain)(y: wholecomplex.family.Carrier z)(member: ChainSubmodules.Member Q.image y) =>
-    Images.eliminate (InclusionAt.linear inclusionMap) y (#apply{h} y = #zero{coefficients.space})
-      (\fun (x: subcomplex.family.Carrier z)(equal: #apply{inclusionMap} z x = y) =>
-        trans!{coefficients.Carrier} _ _ _ (congr!{{wholecomplex.family.Carrier z} coefficients.Carrier} (#apply{h}) _ _ (sym!{{wholecomplex.family.Carrier z}} _ _ equal))
-          ((\bysub(WholeHom.Carrier z, #carrier{submodule}, h)) x)) member;
-\definition descend(h: NullCochain): Carrier z := Descent.descend h (imageVanishing h);
+    Images.eliminate (InclusionAt.linear inclusionMap) y ((h).apply y = (coefficients.space).zero)
+      (\fun (x: subcomplex.family.Carrier z)(equal: (inclusionMap).apply z x = y) =>
+        trans!{coefficients.Carrier} _ _ _ (congr!{{wholecomplex.family.Carrier z} coefficients.Carrier} ((h).apply) _ _ (sym!{{wholecomplex.family.Carrier z}} _ _ equal))
+          ((\bysub(WholeHom.Carrier z, (submodule).carrier, h)) x)) member;
+\definition descend[h: NullCochain]: Carrier z := Descent.descend h (imageVanishing h);
 \import Modules.Hom[V := Q.Carrier, W := coefficients.Carrier, source := Q.space, target := coefficients.space] \as RelativeMaps;
 \import RelativeMaps.Composition[U := wholecomplex.family.Carrier z, domain := wholecomplex.family.space z] \as Composition;
-\definition precompose(h: Carrier z): WholeHom.Carrier z := Composition.compose h Q.projection;
+\definition precompose[h: Carrier z]: WholeHom.Carrier z := Composition.compose h Q.projection;
 \definition precomposeVanishes: \forall (h: Carrier z) -> Vanishes (precompose h) :=
   \fun (h: Carrier z)(x: subcomplex.family.Carrier z) => trans!{coefficients.Carrier} _ _ _
-    (congr!{Q.Carrier coefficients.Carrier} (#apply{h}) _ _ (Q.onImage x)) (RelativeMaps.zeroPreserved h);
-\definition restrict(h: Carrier z): NullCochain :=
-  \into[WholeHom.Carrier z](precompose h, #carrier{submodule}) \by { precomposeVanishes h };
+    (congr!{Q.Carrier coefficients.Carrier} ((h).apply) _ _ (Q.onImage x)) (RelativeMaps.zeroPreserved h);
+\definition restrict[h: Carrier z]: NullCochain :=
+  \into[WholeHom.Carrier z](precompose h, (submodule).carrier) \by { precomposeVanishes h };
 \definition leftInverse: \forall (h: Carrier z) -> descend (restrict h) = h :=
   \fun (h: Carrier z) => RelativeMaps.ext (descend (restrict h)) h
-    (ChainQuotient.induction (\fun (q: Q.Carrier) => #apply{(descend (restrict h))} q = #apply{h} q)
+    (ChainQuotient.induction (\fun (q: Q.Carrier) => (descend (restrict h)).apply q = (h).apply q)
       (\fun (x: wholecomplex.family.Carrier z) => Descent.onClass (restrict h) (imageVanishing (restrict h)) x));
 \definition rightInverse: \forall (h: NullCochain) -> restrict (descend h) = h :=
   \fun (h: NullCochain) => WholeMaps.ext (restrict (descend h)) h
@@ -50,15 +50,15 @@
 \import Modules.Hom[V := Carrier z, W := NullCochain, source := space z, target := nullSpace] \as Forward;
 \definition forward: Forward.Map := Forward.Map {
   apply := restrict,
-  addition := \fun (h, k: Carrier z) => WholeMaps.ext (restrict (#add{(space z)} h k)) (#add{nullSpace} (restrict h) (restrict k))
-    (\fun (x: wholecomplex.family.Carrier z) => \refl(#add{coefficients.space} (#apply{h} (Q.class x)) (#apply{k} (Q.class x)))),
-  scalar := \fun (a: R)(h: Carrier z) => WholeMaps.ext (restrict (#smul{(space z)} a h)) (#smul{nullSpace} a (restrict h))
-    (\fun (x: wholecomplex.family.Carrier z) => \refl(#smul{coefficients.space} a (#apply{h} (Q.class x)))),
+  addition := \fun (h, k: Carrier z) => WholeMaps.ext (restrict ((space z).add h k)) ((nullSpace).add (restrict h) (restrict k))
+    (\fun (x: wholecomplex.family.Carrier z) => \refl((coefficients.space).add ((h).apply (Q.class x)) ((k).apply (Q.class x)))),
+  scalar := \fun (a: R)(h: Carrier z) => WholeMaps.ext (restrict ((space z).smul a h)) ((nullSpace).smul a (restrict h))
+    (\fun (x: wholecomplex.family.Carrier z) => \refl((coefficients.space).smul a ((h).apply (Q.class x)))),
 };
 \definition injective: \forall (h, k: Carrier z) -> restrict h = restrict k -> h = k :=
   \fun (h, k: Carrier z)(same: _) => trans!{{Carrier z}} _ _ _ (sym!{{Carrier z}} _ _ (leftInverse h))
     (trans!{{Carrier z}} _ _ _ (congr!{NullCochain {Carrier z}} descend _ _ same) (leftInverse k));
-\definition onto: \forall (h: NullCochain) -> \exists { k: Carrier z \where restrict k = h } :=
+\definition onto: \forall (h: NullCochain) -> \exists ( k: Carrier z \where restrict k = h ) :=
   \fun (h: NullCochain) => Logic.existsIntro[Carrier z, { k: Carrier z \where restrict k = h }] (descend h) (rightInverse h);
 \import Modules.Isomorphism[V := Carrier z, W := NullCochain, source := space z, target := nullSpace] \as Iso;
 \import Iso.OfBijective[f := forward] \as Bijective;

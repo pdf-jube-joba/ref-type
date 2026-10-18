@@ -1,4 +1,4 @@
-\definition original: OriginalChart := \into[Original.Chart](chart, #charts{M.atlas}) \by { Target.member chart };
+\definition original: OriginalChart := \into[Original.Chart](chart, M.atlas.charts) \by { Target.member chart };
 \definition sourceChart: Source.Chart := \into[Charts.Chart](restricted original, Source.Chart) \by {
   Source.ChartLaws[restricted original] {
     member := Atlases.includedInSaturation atlas (restricted original)
@@ -12,28 +12,28 @@
 \import Original.Of[chart := chart] \as Geometry;
 \import calculus.Identity[n := n] \as Identity;
 \definition identity: \forall (a: Open.Carrier Local.domain) ->
-  Identity.Between[U := Local.domain, V := #image{chart}].rawApply Coordinates.coordinateMap a = #apply{Identity.linear} a :=
+  Identity.Between[U := Local.domain, V := chart.image].rawApply Coordinates.coordinateMap a = Identity.linear.apply a :=
     \fun (a: Open.Carrier Local.domain) => Geometry.coordinatePoint
       (Restricted.Of[chart := chart].oldCoordinate (Local.leftCoordinate a));
 \definition jacobian: Coordinates.jacobian = Identity.linear :=
-  Identity.Between[U := Local.domain, V := #image{chart}].vectorIdentity Coordinates.coordinateMap Coordinates.point identity;
+  Identity.Between[U := Local.domain, V := chart.image].vectorIdentity Coordinates.coordinateMap Coordinates.point identity;
 \import Source.Coordinate[chart := sourceChart] \as SourceCoordinates;
 \import Target.Coordinate[chart := chart] \as TargetCoordinates;
-\definition coordinates: \forall (v: Source.Vector) -> TargetCoordinates.decode (#apply{Differential.value} v) = SourceCoordinates.decode v :=
+\definition coordinates: \forall (v: Source.Vector) -> TargetCoordinates.decode (Differential.value.apply v) = SourceCoordinates.decode v :=
   \fun (v: Source.Vector) => trans!{{Vectors.Vector}}
-    (TargetCoordinates.decode (#apply{Differential.value} v)) (#apply{Coordinates.jacobian} (SourceCoordinates.decode v)) (SourceCoordinates.decode v)
+    (TargetCoordinates.decode (Differential.value.apply v)) (Coordinates.jacobian.apply (SourceCoordinates.decode v)) (SourceCoordinates.decode v)
     (Differential.coordinates sourceChart chart v)
     (congr!{{Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space].Map} {Vectors.Vector}}
-      (\fun (d: Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space].Map) => #apply{d} (SourceCoordinates.decode v))
+      (\fun (d: Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space].Map) => d.apply (SourceCoordinates.decode v))
       Coordinates.jacobian Identity.linear jacobian);
 \import Source.ChartIsomorphism[chart := sourceChart] \as SourceIsomorphism;
 \import Target.ChartIsomorphism[chart := chart] \as TargetIsomorphism;
 \import Spaces.Linear[V := Vectors.Vector, W := Source.Vector, source := Vectors.space, target := Source.space].Composition[U := Target.Vector, domain := Target.space] \as Composition;
 \definition inverse: Backward.Map := Composition.compose SourceIsomorphism.backward TargetIsomorphism.forward;
-\definition leftInverse: \forall (v: Source.Vector) -> #apply{inverse} (#apply{Differential.value} v) = v :=
+\definition leftInverse: \forall (v: Source.Vector) -> inverse.apply (Differential.value.apply v) = v :=
   \fun (v: Source.Vector) => trans!{{Source.Vector}} _ (SourceCoordinates.encode (SourceCoordinates.decode v)) v
     (congr!{{Vectors.Vector} {Source.Vector}} SourceCoordinates.encode _ _ (coordinates v)) (SourceCoordinates.encodeDecode v);
-\definition rightInverse: \forall (w: Target.Vector) -> #apply{Differential.value} (#apply{inverse} w) = w :=
+\definition rightInverse: \forall (w: Target.Vector) -> Differential.value.apply (inverse.apply w) = w :=
   \fun (w: Target.Vector) => TargetCoordinates.injective _ w
-    (trans!{{Vectors.Vector}} _ (SourceCoordinates.decode (#apply{inverse} w)) (TargetCoordinates.decode w)
-      (coordinates (#apply{inverse} w)) (SourceCoordinates.decodeEncode (TargetCoordinates.decode w)));
+    (trans!{{Vectors.Vector}} _ (SourceCoordinates.decode (inverse.apply w)) (TargetCoordinates.decode w)
+      (coordinates (inverse.apply w)) (SourceCoordinates.decodeEncode (TargetCoordinates.decode w)));

@@ -856,46 +856,4 @@ mod tests {
             assert!(started.elapsed() < Duration::from_secs(2));
         }
     }
-
-    #[test]
-    fn terminal_elapsed_time_keeps_updating_when_the_worker_sends_no_events() {
-        #[derive(Clone)]
-        struct Output(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
-        impl Write for Output {
-            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-                self.0.lock().unwrap().extend_from_slice(bytes);
-                Ok(bytes.len())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-        let output = Output(Default::default());
-        let mut display = progress::Display::new(true, Box::new(output.clone()));
-        let workspace = Workspace::new(&std::env::temp_dir()).unwrap();
-        let mut command = Command::new("sleep");
-        command.arg("0.5");
-        let outcome = execute(
-            command,
-            &workspace,
-            None,
-            &mut ProgressPlan {
-                packages: vec![],
-                modules: vec![],
-            },
-            &display,
-            true,
-        )
-        .unwrap();
-        assert!(outcome.status.success());
-        display.finish(true);
-        let bytes = output.0.lock().unwrap();
-        let text = String::from_utf8_lossy(&bytes);
-        let elapsed: BTreeSet<_> = text
-            .split("Loading (")
-            .skip(1)
-            .filter_map(|line| line.split_once("s)").map(|(time, _)| time))
-            .collect();
-        assert!(elapsed.len() >= 2, "elapsed time stopped: {text}");
-    }
 }

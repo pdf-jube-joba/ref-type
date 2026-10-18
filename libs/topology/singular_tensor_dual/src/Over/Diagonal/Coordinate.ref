@@ -2,42 +2,42 @@
 \import std.Logic[].Classical[] \as Classical;
 \use Logic.either;
 \module Pair(i, j: Index, f: dualFamily.Carrier i) {
-  \definition Goal: \Prop := \parent.\parent.At[i := j].restrict (#apply{\parent.\parent.At[i := i].forward} f) = (#apply{SourceCoordinates.forward} (#apply{Source.Injection[i := i].map} f)) j;
-  \definition same(equal: i = j): Goal :=
-    \idelim i = j \with k: Index => \parent.\parent.At[i := k].restrict (#apply{\parent.\parent.At[i := i].forward} f) = (#apply{SourceCoordinates.forward} (#apply{Source.Injection[i := i].map} f)) k \by {
+  \definition Goal: \Prop := \parent.\parent.At[i := j].restrict ((\parent.\parent.At[i := i].forward).apply f) = ((SourceCoordinates.forward).apply ((Source.Injection[i := i].map).apply f)) j;
+  \definition same[equal: i = j]: Goal :=
+    \idelim i = j \with k: Index => \parent.\parent.At[i := k].restrict ((\parent.\parent.At[i := i].forward).apply f) = ((SourceCoordinates.forward).apply ((Source.Injection[i := i].map).apply f)) k \by {
       base: trans!{{dualFamily.Carrier i}} _ _ _
-        (\parent.\parent.At[i := i].ext (\parent.\parent.At[i := i].restrict (#apply{\parent.\parent.At[i := i].forward} f)) f
-          (\fun (x: family.Carrier i) => congr!{{family.Carrier i} R} (#apply{f}) _ _ (PrimalCoordinates.atOwn i x)))
+        (\parent.\parent.At[i := i].ext (\parent.\parent.At[i := i].restrict ((\parent.\parent.At[i := i].forward).apply f)) f
+          (\fun (x: family.Carrier i) => congr!{{family.Carrier i} R} ((f).apply) _ _ (PrimalCoordinates.atOwn i x)))
         (sym!{{dualFamily.Carrier i}} _ _ (SourceCoordinates.atOwn i f)),
       equality: equal
     };
-  \definition other(different: Logic.Not (i = j)): Goal :=
+  \definition other[different: Logic.Not (i = j)]: Goal :=
     trans!{{dualFamily.Carrier j}} _ _ _
-      (\parent.\parent.At[i := j].ext (\parent.\parent.At[i := j].restrict (#apply{\parent.\parent.At[i := i].forward} f)) (#zero{(dualFamily.space j)})
+      (\parent.\parent.At[i := j].ext (\parent.\parent.At[i := j].restrict ((\parent.\parent.At[i := i].forward).apply f)) ((dualFamily.space j).zero)
         (\fun (x: family.Carrier j) => trans!{R} _ _ _
-          (congr!{{family.Carrier i} R} (#apply{f}) _ _ (PrimalCoordinates.atOther j i x (\fun (equal: j = i) => different (sym!{Index} _ _ equal))))
+          (congr!{{family.Carrier i} R} ((f).apply) _ _ (PrimalCoordinates.atOther j i x (\fun (equal: j = i) => different (sym!{Index} _ _ equal))))
           (Modules.Hom[V := family.Carrier i, W := R, source := family.space i, target := Modules.scalarModule].zeroPreserved f)))
       (sym!{{dualFamily.Carrier j}} _ _ (SourceCoordinates.atOther i j f different));
   \definition law: Goal := Logic.orElim (i = j) (Logic.Not (i = j)) Goal (Classical.excludedMiddle (i = j)) same other;
 }
-\definition evaluation(i: Index)(x: family.Carrier i): Modules.Hom[V := Target.Carrier, W := R, source := Target.space, target := Modules.scalarModule].Map := Modules.Hom[V := Target.Carrier, W := R, source := Target.space, target := Modules.scalarModule].Map {
-  apply := \fun (h: Target.Carrier) => #apply{h} (#apply{Primal.Injection[i := i].map} x),
-  addition := \fun (h, k: Target.Carrier) => \refl(add (#apply{h} (#apply{Primal.Injection[i := i].map} x)) (#apply{k} (#apply{Primal.Injection[i := i].map} x))),
-  scalar := \fun (a: R)(h: Target.Carrier) => \refl(mul a (#apply{h} (#apply{Primal.Injection[i := i].map} x))),
+\definition evaluation[i: Index][x: family.Carrier i]: Modules.Hom[V := Target.Carrier, W := R, source := Target.space, target := Modules.scalarModule].Map := Modules.Hom[V := Target.Carrier, W := R, source := Target.space, target := Modules.scalarModule].Map {
+  apply := \fun (h: Target.Carrier) => (h).apply ((Primal.Injection[i := i].map).apply x),
+  addition := \fun (h, k: Target.Carrier) => \refl(add ((h).apply ((Primal.Injection[i := i].map).apply x)) ((k).apply ((Primal.Injection[i := i].map).apply x))),
+  scalar := \fun (a: R)(h: Target.Carrier) => \refl(mul a ((h).apply ((Primal.Injection[i := i].map).apply x))),
 };
 \module Evaluation(i: Index, x: family.Carrier i) {
   \import Modules.Hom[V := Target.Carrier, W := R, source := Target.space, target := Modules.scalarModule].Composition[U := Source.Carrier, domain := Source.space] \as Compose;
   \definition first: Modules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Modules.scalarModule].Map := Compose.compose (evaluation i x) forward;
   \definition second: Modules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Modules.scalarModule].Map := Modules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Modules.scalarModule].Map {
-    apply := \fun (s: Source.Carrier) => #apply{((#apply{SourceCoordinates.forward} s) i)} x,
-    addition := \fun (s, t: Source.Carrier) => congr!{{dualFamily.Carrier i} R} (\fun (f: dualFamily.Carrier i) => #apply{f} x) _ _ (#addition{SourceCoordinates.At[i := i].evaluate} s t),
-    scalar := \fun (a: R)(s: Source.Carrier) => congr!{{dualFamily.Carrier i} R} (\fun (f: dualFamily.Carrier i) => #apply{f} x) _ _ (#scalar{SourceCoordinates.At[i := i].evaluate} a s),
+    apply := \fun (s: Source.Carrier) => (((SourceCoordinates.forward).apply s) i).apply x,
+    addition := \fun (s, t: Source.Carrier) => congr!{{dualFamily.Carrier i} R} (\fun (f: dualFamily.Carrier i) => (f).apply x) _ _ ((SourceCoordinates.At[i := i].evaluate).addition s t),
+    scalar := \fun (a: R)(s: Source.Carrier) => congr!{{dualFamily.Carrier i} R} (\fun (f: dualFamily.Carrier i) => (f).apply x) _ _ ((SourceCoordinates.At[i := i].evaluate).scalar a s),
   };
   \import Source.To[W := R, target := Modules.scalarModule] \as Universal;
   \definition equality: first = second := Universal.ext first second
     (\fun (j: Index)(f: dualFamily.Carrier j) => trans!{R} _ _ _
-      (congr!{Target.Carrier R} (\fun (h: Target.Carrier) => #apply{h} (#apply{Primal.Injection[i := i].map} x)) _ _ (onInjection j f))
-      (congr!{{dualFamily.Carrier i} R} (\fun (g: dualFamily.Carrier i) => #apply{g} x) _ _ (\parent.Pair[i := j, j := i, f := f].law)));
-  \definition law(s: Source.Carrier): #apply{(#apply{forward} s)} (#apply{Primal.Injection[i := i].map} x) = #apply{((#apply{SourceCoordinates.forward} s) i)} x :=
-    congr!{{Modules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Modules.scalarModule].Map} R} (\fun (h: Modules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Modules.scalarModule].Map) => #apply{h} s) _ _ equality;
+      (congr!{Target.Carrier R} (\fun (h: Target.Carrier) => (h).apply ((Primal.Injection[i := i].map).apply x)) _ _ (onInjection j f))
+      (congr!{{dualFamily.Carrier i} R} (\fun (g: dualFamily.Carrier i) => (g).apply x) _ _ (\parent.Pair[i := j, j := i, f := f].law)));
+  \definition law[s: Source.Carrier]: ((forward).apply s).apply ((Primal.Injection[i := i].map).apply x) = (((SourceCoordinates.forward).apply s) i).apply x :=
+    congr!{{Modules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Modules.scalarModule].Map} R} (\fun (h: Modules.Hom[V := Source.Carrier, W := R, source := Source.space, target := Modules.scalarModule].Map) => (h).apply s) _ _ equality;
 }

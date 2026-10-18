@@ -585,14 +585,17 @@ impl<'a> TermParser<'a> {
         }
         // r"\exists" <binding>
         if self.bump_if_keyword("\\exists") {
-            let bind = if self.peek() == Some(&Token::LBrace) {
-                self.parse_binding(Token::LBrace, Token::RBrace)?
-            } else if self.peek() == Some(&Token::LParen)
+            if self.peek() == Some(&Token::LBrace) {
+                return Err(self.error(ParseErrorKind::Expected {
+                    expected: Expected::Token(Token::LParen.owned()),
+                    found: Some(Token::LBrace.owned()),
+                }));
+            }
+            let bind = if self.peek() == Some(&Token::LParen)
                 && matches!(
                     self.tokens.get(self.pos + 2).map(|token| token.kind),
                     Some(Token::Colon | Token::Comma)
-                )
-            {
+                ) {
                 self.parse_binding(Token::LParen, Token::RParen)?
             } else {
                 Bind::Named(RightBind {
@@ -1228,19 +1231,6 @@ impl<'a> TermParser<'a> {
 
                 Ok(SExp::AccessPath { access, parameters })
             }
-            Some(Token::Macro("#")) => {
-                self.next();
-                let field = self.expect_ident()?;
-                let span = self.span_at(self.position() - 1);
-                self.expect_token(Token::LBrace)?;
-                let value = self.parse_sexp()?;
-                self.expect_token(Token::RBrace)?;
-                Ok(SExp::InferredProjection {
-                    value: Box::new(value),
-                    field,
-                    span,
-                })
-            }
             Some(Token::LBrace) => {
                 let bind = self.parse_binding(Token::LBrace, Token::RBrace)?;
                 let Bind::Subset { var, ty, predicate } = bind else {
@@ -1293,7 +1283,7 @@ impl<'a> TermParser<'a> {
         }
     }
 
-    // <atom> (("::" Ident) | "::#" | "#" Ident)*
+    // <atom> (("::" Ident) | "::#" | "." Ident)*
     fn parse_postfix(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
         loop {
@@ -1308,24 +1298,6 @@ impl<'a> TermParser<'a> {
                     base: Box::new(expr),
                     field,
                     parameters,
-                    span,
-                };
-                continue;
-            }
-            if self.peek() == Some(&Token::Macro("#")) {
-                // #field{value} starts a separate atom and is applied to expr.
-                if matches!(
-                    self.tokens.get(self.pos + 2).map(|token| token.kind),
-                    Some(Token::LBrace)
-                ) {
-                    break;
-                }
-                self.next();
-                let field = self.expect_ident()?;
-                let span = self.span_at(self.position() - 1);
-                expr = SExp::InferredProjection {
-                    value: Box::new(expr),
-                    field,
                     span,
                 };
                 continue;
@@ -1495,7 +1467,6 @@ impl<'a> TermParser<'a> {
                 | Token::LParen
                 | Token::MathLParen,
             ) => true,
-            Some(Token::Macro("#")) => true,
             Some(Token::KeyWord(k)) => {
                 SORT_KEYWORDS.contains(k)
                     || EXPRESSION_ATOM_KEYWORDS.contains(k)
@@ -1909,7 +1880,7 @@ mod tests {
         assert_eq!(proof_var.0, "h");
         assert!(matches!(*body, SExp::Lam { .. }));
         assert!(matches!(
-            complete(r"\exists {x: A \where P x}"),
+            complete(r"\exists (x: A \where P x)"),
             SExp::Exists {
                 bind: Bind::Subset { .. }
             }
@@ -1984,7 +1955,7 @@ mod tests {
         assert_eq!(field.0, "first");
         assert!(matches!(*base, SExp::App { .. }));
 
-        let SExp::App { func, arg } = complete(r"x y #field z") else {
+        let SExp::App { func, arg } = complete(r"x (y).field z") else {
             panic!("expected application to z");
         };
         assert!(matches!(*arg, SExp::AccessPath { .. }));
@@ -1993,25 +1964,30 @@ mod tests {
         };
         assert!(matches!(*func, SExp::AccessPath { .. }));
         assert!(
-            matches!(*arg, SExp::InferredProjection { field, value, .. } if field.0 == "field" && matches!(*value, SExp::AccessPath { .. }))
+            matches!(*arg, SExp::MemberAccess { field, base: value, .. } if field.0 == "field" && matches!(*value, SExp::AccessPath { .. }))
         );
 
-        let SExp::InferredProjection { value, field, .. } = complete(r"(x y) #first #second")
+        let SExp::MemberAccess {
+            base: value, field, ..
+        } = complete(r"(x y).first.second")
         else {
             panic!("expected chained projection");
         };
         assert_eq!(field.0, "second");
-        let SExp::InferredProjection { value, field, .. } = *value else {
+        let SExp::MemberAccess {
+            base: value, field, ..
+        } = *value
+        else {
             panic!("expected inner projection");
         };
         assert_eq!(field.0, "first");
         assert!(matches!(*value, SExp::App { .. }));
 
-        let SExp::App { func, arg } = complete(r"x #field{y}") else {
-            panic!("expected application of the existing projection atom");
+        let SExp::App { func, arg } = complete(r"x (y).field") else {
+            panic!("expected application of the projected argument");
         };
         assert!(matches!(*func, SExp::AccessPath { .. }));
-        assert!(matches!(*arg, SExp::InferredProjection { field, .. } if field.0 == "field"));
+        assert!(matches!(*arg, SExp::MemberAccess { field, .. } if field.0 == "field"));
 
         let SExp::AssociatedAccess { field, .. } = complete(r"Pair[A]::first^") else {
             panic!("expected reflected associated access");

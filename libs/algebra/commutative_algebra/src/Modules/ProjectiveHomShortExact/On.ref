@@ -12,43 +12,43 @@
 \import Modules.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space].Composition[U := P.Carrier, domain := P.space] \as Project;
 \definition inclusion: Modules.MapBetween left middle := Modules.Hom[V := left.Carrier, W := middle.Carrier, source := left.space, target := middle.space].Map {
   apply := \fun (f: HA.Carrier) => Include.compose sequence.inclusion f,
-  addition := \fun (f, g: HA.Carrier) => BMaps.ext (Include.compose sequence.inclusion (#add{HA.space} f g)) (#add{HB.space} (Include.compose sequence.inclusion f) (Include.compose sequence.inclusion g))
-    (\fun (x: P.Carrier) => #addition{sequence.inclusion} (#apply{f} x) (#apply{g} x)),
-  scalar := \fun (a: R)(f: HA.Carrier) => BMaps.ext (Include.compose sequence.inclusion (#smul{HA.space} a f)) (#smul{HB.space} a (Include.compose sequence.inclusion f))
-    (\fun (x: P.Carrier) => #scalar{sequence.inclusion} a (#apply{f} x)),
+  addition := \fun (f, g: HA.Carrier) => BMaps.ext (Include.compose sequence.inclusion (HA.space.add f g)) (HB.space.add (Include.compose sequence.inclusion f) (Include.compose sequence.inclusion g))
+    (\fun (x: P.Carrier) => sequence.inclusion.addition (f.apply x) (g.apply x)),
+  scalar := \fun (a: R)(f: HA.Carrier) => BMaps.ext (Include.compose sequence.inclusion (HA.space.smul a f)) (HB.space.smul a (Include.compose sequence.inclusion f))
+    (\fun (x: P.Carrier) => sequence.inclusion.scalar a (f.apply x)),
 };
 \definition projection: Modules.MapBetween middle right := Modules.Hom[V := middle.Carrier, W := right.Carrier, source := middle.space, target := right.space].Map {
   apply := \fun (f: HB.Carrier) => Project.compose sequence.projection f,
-  addition := \fun (f, g: HB.Carrier) => CMaps.ext (Project.compose sequence.projection (#add{HB.space} f g)) (#add{HC.space} (Project.compose sequence.projection f) (Project.compose sequence.projection g))
-    (\fun (x: P.Carrier) => #addition{sequence.projection} (#apply{f} x) (#apply{g} x)),
-  scalar := \fun (a: R)(f: HB.Carrier) => CMaps.ext (Project.compose sequence.projection (#smul{HB.space} a f)) (#smul{HC.space} a (Project.compose sequence.projection f))
-    (\fun (x: P.Carrier) => #scalar{sequence.projection} a (#apply{f} x)),
+  addition := \fun (f, g: HB.Carrier) => CMaps.ext (Project.compose sequence.projection (HB.space.add f g)) (HC.space.add (Project.compose sequence.projection f) (Project.compose sequence.projection g))
+    (\fun (x: P.Carrier) => sequence.projection.addition (f.apply x) (g.apply x)),
+  scalar := \fun (a: R)(f: HB.Carrier) => CMaps.ext (Project.compose sequence.projection (HB.space.smul a f)) (HC.space.smul a (Project.compose sequence.projection f))
+    (\fun (x: P.Carrier) => sequence.projection.scalar a (f.apply x)),
 };
-\definition injective: \forall (f, g: HA.Carrier) -> #apply{inclusion} f = #apply{inclusion} g -> f = g :=
-  \fun (f, g: HA.Carrier)(equal: _) => AMaps.ext f g (\fun (x: P.Carrier) => #injective{sequence} (#apply{f} x) (#apply{g} x)
-    (congr!{HB.Carrier B.Carrier} (\fun (h: HB.Carrier) => #apply{h} x) (#apply{inclusion} f) (#apply{inclusion} g) equal));
-\definition onto: Modules.Projective P -> \forall (f: HC.Carrier) -> \exists { g: HB.Carrier \where #apply{projection} g = f } := \block {
+\definition injective: \forall (f, g: HA.Carrier) -> inclusion.apply f = inclusion.apply g -> f = g :=
+  \fun (f, g: HA.Carrier)(equal: _) => AMaps.ext f g (\fun (x: P.Carrier) => sequence.injective (f.apply x) (g.apply x)
+    (congr!{HB.Carrier B.Carrier} (\fun (h: HB.Carrier) => h.apply x) (inclusion.apply f) (inclusion.apply g) equal));
+\definition onto: Modules.Projective P -> \forall (f: HC.Carrier) -> \exists ( g: HB.Carrier \where projection.apply g = f ) := \block {
   \fun (projective: Modules.Projective P)(f: HC.Carrier) \then
-  \takefrom g: \Cast[HB.Carrier] ({ g: HB.Carrier \where \forall (x: P.Carrier) -> #apply{sequence.projection} (#apply{g} x) = #apply{f} x })
-    \by projective B.Carrier B.space C.Carrier C.space sequence.projection (#onto{sequence}) f \then
-  \return Logic.existsIntro[HB.Carrier, { g: HB.Carrier \where #apply{projection} g = f }] g
-    (CMaps.ext (#apply{projection} g) f (\bysub(HB.Carrier, { g: HB.Carrier \where \forall (x: P.Carrier) -> #apply{sequence.projection} (#apply{g} x) = #apply{f} x }, g)))
+  \takefrom g: \Cast[HB.Carrier] ({ g: HB.Carrier \where \forall (x: P.Carrier) -> sequence.projection.apply (g.apply x) = f.apply x })
+    \by projective B.Carrier B.space C.Carrier C.space sequence.projection (sequence.onto) f \then
+  \return Logic.existsIntro[HB.Carrier, { g: HB.Carrier \where projection.apply g = f }] g
+    (CMaps.ext (projection.apply g) f (\bysub(HB.Carrier, { g: HB.Carrier \where \forall (x: P.Carrier) -> sequence.projection.apply (g.apply x) = f.apply x }, g)))
 };
-\definition zero: \forall (f: HA.Carrier) -> #apply{projection} (#apply{inclusion} f) = #zero{HC.space} :=
-  \fun (f: HA.Carrier) => CMaps.ext (#apply{projection} (#apply{inclusion} f)) (#zero{HC.space}) (\fun (x: P.Carrier) => #zero{sequence} (#apply{f} x));
+\definition zero: \forall (f: HA.Carrier) -> projection.apply (inclusion.apply f) = HC.space.zero :=
+  \fun (f: HA.Carrier) => CMaps.ext (projection.apply (inclusion.apply f)) (HC.space.zero) (\fun (x: P.Carrier) => sequence.zero (f.apply x));
 \import Given.Kernel[sequence := sequence] \as Kernel;
-\definition Closed(f: HB.Carrier): \Prop := #apply{projection} f = #zero{HC.space};
-\definition closedAt: \forall (f: HB.Carrier) -> Closed f -> \forall (x: P.Carrier) -> #apply{sequence.projection} (#apply{f} x) = #zero{C.space} :=
-  \fun (f: HB.Carrier)(closed: Closed f)(x: P.Carrier) => congr!{HC.Carrier C.Carrier} (\fun (g: HC.Carrier) => #apply{g} x) (#apply{projection} f) (#zero{HC.space}) closed;
-\definition factor(f: HB.Carrier)(closed: Closed f): Modules.MapBetween P Kernel.bundle := Modules.Hom[V := P.Carrier, W := Kernel.Carrier, source := P.space, target := Kernel.space].Map {
-  apply := \fun (x: P.Carrier) => \into[B.Carrier](#apply{f} x, #carrier{Kernel.kernel}) \by { closedAt f closed x },
-  addition := #addition{f}, scalar := #scalar{f},
+\definition Closed[f: HB.Carrier]: \Prop := projection.apply f = HC.space.zero;
+\definition closedAt: \forall (f: HB.Carrier) -> Closed f -> \forall (x: P.Carrier) -> sequence.projection.apply (f.apply x) = C.space.zero :=
+  \fun (f: HB.Carrier)(closed: Closed f)(x: P.Carrier) => congr!{HC.Carrier C.Carrier} (\fun (g: HC.Carrier) => g.apply x) (projection.apply f) (HC.space.zero) closed;
+\definition factor[f: HB.Carrier][closed: Closed f]: Modules.MapBetween P Kernel.bundle := Modules.Hom[V := P.Carrier, W := Kernel.Carrier, source := P.space, target := Kernel.space].Map {
+  apply := \fun (x: P.Carrier) => \into[B.Carrier](f.apply x, Kernel.kernel.carrier) \by { closedAt f closed x },
+  addition := f.addition, scalar := f.scalar,
 };
 \import Modules.Hom[V := Kernel.Carrier, W := A.Carrier, source := Kernel.space, target := A.space].Composition[U := P.Carrier, domain := P.space] \as Back;
-\definition kernelImage: \forall (f: HB.Carrier) -> Closed f -> \exists { g: HA.Carrier \where #apply{inclusion} g = f } :=
-  \fun (f: HB.Carrier)(closed: Closed f) => Logic.existsIntro[HA.Carrier, { g: HA.Carrier \where #apply{inclusion} g = f }] (Back.compose Kernel.backward (factor f closed))
-    (BMaps.ext (#apply{inclusion} (Back.compose Kernel.backward (factor f closed))) f (\fun (x: P.Carrier) => Kernel.onKernel (#apply{(factor f closed)} x)));
-\definition shortExact(projective: Modules.Projective P): Result.Sequence := Result.Sequence {
+\definition kernelImage: \forall (f: HB.Carrier) -> Closed f -> \exists ( g: HA.Carrier \where inclusion.apply g = f ) :=
+  \fun (f: HB.Carrier)(closed: Closed f) => Logic.existsIntro[HA.Carrier, { g: HA.Carrier \where inclusion.apply g = f }] (Back.compose Kernel.backward (factor f closed))
+    (BMaps.ext (inclusion.apply (Back.compose Kernel.backward (factor f closed))) f (\fun (x: P.Carrier) => Kernel.onKernel ((factor f closed).apply x)));
+\definition shortExact[projective: Modules.Projective P]: Result.Sequence := Result.Sequence {
   inclusion := inclusion, projection := projection,
   injective := injective, onto := onto projective, zero := zero, kernelImage := kernelImage,
 };

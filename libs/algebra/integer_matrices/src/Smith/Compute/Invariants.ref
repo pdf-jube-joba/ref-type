@@ -1,11 +1,11 @@
 \import \parent.\parent.Bounds[] \as Indices;
-\structure Laws[k: N.Nat^, a: Runtime^, history: History^]: \Prop {
+\structure Laws[k: N.Nat^, a: Runtime^, history: History^]: \Prop := {
   rowRank: Bounds.Le k m,
   columnRank: Bounds.Le k n,
   bounded: Indices.HistoryLaws m n history,
   traced: a = applyHistory history original,
-}
-\definition invariant(current: State^): \Prop :=
+};
+\definition invariant[current: State^]: \Prop :=
   \forall (P: State^ -> \Prop) -> (\forall (k: N.Nat^)(a: Runtime^)(history: History^) -> Laws[k, a, history] -> P (State^::active m n k a history)) -> P current;
 \definition introduce: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> Laws[k, a, history] -> invariant (State^::active m n k a history) :=
   \fun (k: N.Nat^)(a: Runtime^)(history: History^)(laws: _)(P: State^ -> \Prop)(into: _) => into k a history laws;
@@ -40,8 +40,8 @@
     | ready: \fun (current: Attempt^)(k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(laws: Laws[k, a, history])
         (selectionLaws: Pivot.Ready[m, n, k, a, history, current]) =>
         after k (Round.round m n k (attemptMatrix current) (attemptHistory current)) rowBound columnBound
-          (Round.bounded m n k (attemptMatrix current) (attemptHistory current) rowBound columnBound (#bounded{selectionLaws} #bounded{laws}))
-          (Round.traced m n k original (attemptMatrix current) (attemptHistory current) (#traced{selectionLaws} original #traced{laws}))
+          (Round.bounded m n k (attemptMatrix current) (attemptHistory current) rowBound columnBound (selectionLaws.bounded laws.bounded))
+          (Round.traced m n k original (attemptMatrix current) (attemptHistory current) (selectionLaws.traced original laws.traced))
   };
 \definition activePost: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> Laws[k, a, history] -> Results.Post (step (State^::active m n k a history)) :=
   \fun (k: N.Nat^)(a: Runtime^)(history: History^)(laws: _) => B.cases

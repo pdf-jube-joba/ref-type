@@ -6,26 +6,26 @@
 \import Original.Composition[C := B] \as Before;
 \import \root.Homotopy[A := B, B := A].Composition[C := B] \as After;
 \import \root.Homotopy[A := B, B := B] \as TargetHomotopies;
-\definition forward: A -> B := #forward{homeomorphism};
-\definition backward: B -> A := #backward{homeomorphism};
+\definition forward: A -> B := (homeomorphism).forward;
+\definition backward: B -> A := (homeomorphism).backward;
 \definition homeomorphismLaws: Homeomorphisms.Laws[source, target, homeomorphism] := Homeomorphisms.laws source target homeomorphism;
 \module On(contraction: Data) {
-  \definition original: Original.Homotopy[source, source, (\fun (x: A) => x), (\fun (_: A) => #centre{contraction})] := #homotopy{contraction};
-  \definition precomposed: Middle.Homotopy[target, source, (\fun (x: B) => backward x), (\fun (_: B) => #centre{contraction})] :=
-    Before.precompose target source source (\fun (x: A) => x) (\fun (_: A) => #centre{contraction}) original backward #backwardContinuous{homeomorphismLaws};
-  \definition postcomposed: TargetHomotopies.Homotopy[target, target, (\fun (x: B) => forward (backward x)), (\fun (_: B) => forward #centre{contraction})] :=
-    After.postcompose target source target (\fun (x: B) => backward x) (\fun (_: B) => #centre{contraction}) precomposed forward #forwardContinuous{homeomorphismLaws};
+  \definition original: Original.Homotopy[source, source, (\fun (x: A) => x), (\fun (_: A) => (contraction).centre)] := (contraction).homotopy;
+  \definition precomposed: Middle.Homotopy[target, source, (\fun (x: B) => backward x), (\fun (_: B) => (contraction).centre)] :=
+    Before.precompose target source source (\fun (x: A) => x) (\fun (_: A) => (contraction).centre) original backward (homeomorphismLaws).backwardContinuous;
+  \definition postcomposed: TargetHomotopies.Homotopy[target, target, (\fun (x: B) => forward (backward x)), (\fun (_: B) => forward (contraction).centre)] :=
+    After.postcompose target source target (\fun (x: B) => backward x) (\fun (_: B) => (contraction).centre) precomposed forward (homeomorphismLaws).forwardContinuous;
   \definition result: Result.Data := Result.Data {
-    centre := forward #centre{contraction},
-    homotopy := \into[TargetHomotopies.Family](postcomposed, TargetHomotopies.Homotopy[target, target, (\fun (x: B) => x), (\fun (_: B) => forward #centre{contraction})]) \by {
+    centre := forward (contraction).centre,
+    homotopy := \into[TargetHomotopies.Family](postcomposed, TargetHomotopies.Homotopy[target, target, (\fun (x: B) => x), (\fun (_: B) => forward (contraction).centre)]) \by {
       TargetHomotopies.Laws[_, _, _, _, postcomposed] {
-        continuous := #continuous{(TargetHomotopies.laws target target (\fun (x: B) => forward (backward x)) (\fun (_: B) => forward #centre{contraction}) postcomposed)},
+        continuous := (TargetHomotopies.laws target target (\fun (x: B) => forward (backward x)) (\fun (_: B) => forward (contraction).centre) postcomposed).continuous,
         start := \fun (x: B) => trans!{B} _ _ _
-          (#start{(TargetHomotopies.laws target target (\fun (x: B) => forward (backward x)) (\fun (_: B) => forward #centre{contraction}) postcomposed)} x)
-          (#rightInverse{homeomorphismLaws} x),
-        end := #end{(TargetHomotopies.laws target target (\fun (x: B) => forward (backward x)) (\fun (_: B) => forward #centre{contraction}) postcomposed)},
+          ((TargetHomotopies.laws target target (\fun (x: B) => forward (backward x)) (\fun (_: B) => forward (contraction).centre) postcomposed).start x)
+          ((homeomorphismLaws).rightInverse x),
+        end := (TargetHomotopies.laws target target (\fun (x: B) => forward (backward x)) (\fun (_: B) => forward (contraction).centre) postcomposed).end,
       }
     },
   };
 }
-\definition apply(contraction: Data): Result.Data := On[contraction := contraction].result;
+\definition apply[contraction: Data]: Result.Data := On[contraction := contraction].result;

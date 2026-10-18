@@ -3,8 +3,8 @@
 \import std.Data[].Nat[] \as N;
 \import std.Logic[].Proposition[] \as Logic;
 \definition Vertex: \Set := Sums.Sum[Fin.Fin components, Fin.Fin forestEdges];
-\definition rootVertex(i: Fin.Fin components): Vertex := Sums.Sum[Fin.Fin components, Fin.Fin forestEdges]::inl i;
-\definition treeTarget(e: Fin.Fin forestEdges): Vertex := Sums.Sum[Fin.Fin components, Fin.Fin forestEdges]::inr e;
+\definition rootVertex[i: Fin.Fin components]: Vertex := Sums.Sum[Fin.Fin components, Fin.Fin forestEdges]::inl i;
+\definition treeTarget[e: Fin.Fin forestEdges]: Vertex := Sums.Sum[Fin.Fin components, Fin.Fin forestEdges]::inr e;
 \inductive Walk: \Set := | root: Fin.Fin components -> Walk | step: Walk -> Fin.Fin forestEdges -> Walk;
 \definition endpoint: Walk -> Vertex := \induction (w: Walk) \return Vertex \with {
   | root: rootVertex
@@ -14,23 +14,23 @@
   | root: \fun (i: Fin.Fin components) => i
   | step: \fun (w: Walk)(previous: Fin.Fin components)(e: Fin.Fin forestEdges) => previous
 };
-\definition Valid(parent: Fin.Fin forestEdges -> Vertex): Walk -> \Prop := \induction (w: Walk) \return \Prop \with {
+\definition Valid[parent: Fin.Fin forestEdges -> Vertex]: Walk -> \Prop := \induction (w: Walk) \return \Prop \with {
   | root: \fun (i: Fin.Fin components) => Logic.True
   | step: \fun (w: Walk)(previous: \Prop)(e: Fin.Fin forestEdges) => Logic.And[previous, endpoint w = parent e]
 };
-\structure Data: \Set {
+\structure Data: \Set := {
   parent: Fin.Fin forestEdges -> Vertex,
   path: Vertex -> Walk,
   chordSource: Fin.Fin chords -> Vertex,
   chordTarget: Fin.Fin chords -> Vertex,
-}
-\structure Laws[data: Data]: \Prop {
+};
+\structure Laws[data: Data]: \Prop := {
   root: \forall (i: Fin.Fin components) -> data.path (rootVertex i) = Walk::root i,
   endpoint: \forall (v: Vertex) -> endpoint (data.path v) = v,
   valid: \forall (v: Vertex) -> Valid data.parent (data.path v),
   tree: \forall (e: Fin.Fin forestEdges) -> data.path (treeTarget e) = Walk::step (data.path (data.parent e)) e,
   chord: \forall (j: Fin.Fin chords) -> start (data.path (data.chordSource j)) = start (data.path (data.chordTarget j)),
-}
+};
 \definition Object: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
 \module Counting;
 \module On(graph: Object) {
@@ -45,9 +45,9 @@
     | inr: graph.chordTarget
   };
   \definition root: Fin.Fin components -> Vertex := rootVertex;
-  \definition component(v: Vertex): Fin.Fin components := start (graph.path v);
-  \definition forestEdge(e: ForestEdge): Edge := Sums.Sum[ForestEdge, Fin.Fin chords]::inl e;
-  \definition chord(j: Fin.Fin chords): Edge := Sums.Sum[ForestEdge, Fin.Fin chords]::inr j;
+  \definition component[v: Vertex]: Fin.Fin components := start (graph.path v);
+  \definition forestEdge[e: ForestEdge]: Edge := Sums.Sum[ForestEdge, Fin.Fin chords]::inl e;
+  \definition chord[j: Fin.Fin chords]: Edge := Sums.Sum[ForestEdge, Fin.Fin chords]::inr j;
   \import std.Arithmetic[].Int[] \as I;
   \import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
   \import module_theory.Module[].Over[R := I.Int^, ring := IntegerRing.ring] \as Modules;

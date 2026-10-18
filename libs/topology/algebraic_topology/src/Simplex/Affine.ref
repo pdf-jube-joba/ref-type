@@ -4,22 +4,22 @@
 \import real.Analysis[].Algebra[] \as Algebra;
 \import topology.Continuity[A := Carrier m, B := Carrier n] \as Maps;
 \definition Vertices: \Set := Fin.Fin (N.Nat^::succ m) -> Carrier n;
-\definition coordinates(vertices: Vertices)(x: Carrier m): Coordinate (N.Nat^::succ n) :=
+\definition coordinates[vertices: Vertices][x: Carrier m]: Coordinate (N.Nat^::succ n) :=
   \fun (j: Fin.Fin (N.Nat^::succ n)) => Sums.sum (N.Nat^::succ m)
     (\fun (i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) (vertices i j));
 \definition positive: \forall (vertices: Vertices)(x: Carrier m)(j: Fin.Fin (N.Nat^::succ n)) -> R.Le Real.zero (coordinates vertices x j) :=
   \fun (vertices: Vertices)(x: Carrier m)(j: _) => Sums.nonnegative (N.Nat^::succ m) _
     (\fun (i: Fin.Fin (N.Nat^::succ m)) => Laws.fieldMulNonnegative (x i) (vertices i j)
-      (#nonnegative{(barycentric m x)} i) (#nonnegative{(barycentric n (vertices i))} j));
+      ((barycentric m x).nonnegative i) ((barycentric n (vertices i)).nonnegative j));
 \definition total: \forall (vertices: Vertices)(x: Carrier m) -> Sums.sum (N.Nat^::succ n) (coordinates vertices x) = Real.one :=
   \fun (vertices: Vertices)(x: Carrier m) => trans!{Real.Real} _ _ _
     (Sums.exchange (N.Nat^::succ n) (N.Nat^::succ m) (\fun (j: Fin.Fin (N.Nat^::succ n))(i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) (vertices i j)))
     (trans!{Real.Real} _ _ _
       (Sums.congruent (N.Nat^::succ m) _ x (\fun (i: Fin.Fin (N.Nat^::succ m)) => trans!{Real.Real} _ _ _
         (Sums.scalar (N.Nat^::succ n) (x i) (vertices i))
-        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (x i)) _ _ (#total{(barycentric n (vertices i))})) (Algebra.mulOneRight (x i)))))
-      (#total{(barycentric m x)}));
-\definition apply(vertices: Vertices)(x: Carrier m): Carrier n :=
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (x i)) _ _ ((barycentric n (vertices i)).total)) (Algebra.mulOneRight (x i)))))
+      ((barycentric m x).total));
+\definition apply[vertices: Vertices][x: Carrier m]: Carrier n :=
   \into[Coordinate (N.Nat^::succ n)](coordinates vertices x, Points n) \by {
     Barycentric[N.Nat^::succ n, coordinates vertices x] { nonnegative := positive vertices x, total := total vertices x }
   };

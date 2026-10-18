@@ -20,26 +20,26 @@
 \definition oneIsomorphism: Modules.Isomorphism[V := OneTensor.Carrier, W := A.Carrier, source := OneTensor.space, target := A.space].Isomorphism := OneCompose.compose Scalar.isomorphism OneMapping.isomorphism;
 \import ZeroTensor.Mapping[U := Int.Int^, Z := A.Carrier, targetLeft := Modules.scalarModule, targetRight := A.space] \as ZeroForward;
 \import OneTensor.Mapping[U := Int.Int^, Z := A.Carrier, targetLeft := Modules.scalarModule, targetRight := A.space] \as OneForward;
-\definition zeroOnTensor: \forall (r: family.Carrier Nat.Nat^::zero)(a: A.Carrier) -> #apply{#forward{zeroIsomorphism}} (ZeroTensor.tensor r a) = #smul{A.space} r a :=
+\definition zeroOnTensor: \forall (r: family.Carrier Nat.Nat^::zero)(a: A.Carrier) -> zeroIsomorphism.forward.apply (ZeroTensor.tensor r a) = A.space.smul r a :=
   \fun (r: family.Carrier Nat.Nat^::zero)(a: A.Carrier) => trans!{A.Carrier} _ _ _
-    (congr!{ScalarTensor.Carrier A.Carrier} (#apply{Scalar.forward}) _ _ (ZeroForward.onTensor (#forward{(\parent.Projectivity[].Zero[].isomorphism)}) CoefficientEnd.identity r a)) (Scalar.onTensor r a);
-\definition oneOnTensor: \forall (r: family.Carrier one)(a: A.Carrier) -> #apply{#forward{oneIsomorphism}} (OneTensor.tensor r a) = #smul{A.space} r a :=
+    (congr!{ScalarTensor.Carrier A.Carrier} (Scalar.forward.apply) _ _ (ZeroForward.onTensor ((\parent.Projectivity[].Zero[].isomorphism).forward) CoefficientEnd.identity r a)) (Scalar.onTensor r a);
+\definition oneOnTensor: \forall (r: family.Carrier one)(a: A.Carrier) -> oneIsomorphism.forward.apply (OneTensor.tensor r a) = A.space.smul r a :=
   \fun (r: family.Carrier one)(a: A.Carrier) => trans!{A.Carrier} _ _ _
-    (congr!{ScalarTensor.Carrier A.Carrier} (#apply{Scalar.forward}) _ _ (OneForward.onTensor (#forward{(\parent.Projectivity[].One[].isomorphism)}) CoefficientEnd.identity r a)) (Scalar.onTensor r a);
+    (congr!{ScalarTensor.Carrier A.Carrier} (Scalar.forward.apply) _ _ (OneForward.onTensor ((\parent.Projectivity[].One[].isomorphism).forward) CoefficientEnd.identity r a)) (Scalar.onTensor r a);
 \import \parent.Cohomology[A := A] \as Coefficient;
 \import Modules.Hom[V := OneTensor.Carrier, W := A.Carrier, source := OneTensor.space, target := A.space] \as Maps;
 \import Modules.Hom[V := ZeroTensor.Carrier, W := A.Carrier, source := ZeroTensor.space, target := A.space].Composition[U := OneTensor.Carrier, domain := OneTensor.space] \as After;
 \import Modules.Hom[V := A.Carrier, W := A.Carrier, source := A.space, target := A.space].Composition[U := OneTensor.Carrier, domain := OneTensor.space] \as Before;
 \import OneTensor.Universal[U := A.Carrier, target := A.space] \as Equality;
-\definition differentialLaw: After.compose (#forward{zeroIsomorphism}) (Tensor.At[n := Nat.Nat^::zero].differential) = Before.compose Coefficient.multiplication (#forward{oneIsomorphism}) :=
-  Equality.ext (After.compose (#forward{zeroIsomorphism}) (Tensor.At[n := Nat.Nat^::zero].differential)) (Before.compose Coefficient.multiplication (#forward{oneIsomorphism}))
+\definition differentialLaw: After.compose (zeroIsomorphism.forward) (Tensor.At[n := Nat.Nat^::zero].differential) = Before.compose Coefficient.multiplication (oneIsomorphism.forward) :=
+  Equality.ext (After.compose (zeroIsomorphism.forward) (Tensor.At[n := Nat.Nat^::zero].differential)) (Before.compose Coefficient.multiplication (oneIsomorphism.forward))
     (\fun (r: family.Carrier one)(a: A.Carrier) => trans!{A.Carrier} _ _ _
-      (congr!{ZeroTensor.Carrier A.Carrier} (#apply{#forward{zeroIsomorphism}}) _ _ (Tensor.At[n := Nat.Nat^::zero].onTensor r a))
+      (congr!{ZeroTensor.Carrier A.Carrier} (zeroIsomorphism.forward.apply) _ _ (Tensor.At[n := Nat.Nat^::zero].onTensor r a))
       (trans!{A.Carrier} _ _ _ (zeroOnTensor (zeroIntro (Arithmetic.mul multiplier r)) a)
-        (trans!{A.Carrier} _ _ _ (#scalarAssoc{A.space} multiplier r a)
-          (sym!{A.Carrier} _ _ (congr!{A.Carrier A.Carrier} (#apply{Coefficient.multiplication}) _ _ (oneOnTensor r a))))));
-\definition differentialCommutes: \forall (x: OneTensor.Carrier) -> #apply{Coefficient.multiplication} (#apply{#forward{oneIsomorphism}} x) = #apply{#forward{zeroIsomorphism}} (Tensor.apply Nat.Nat^::zero x) :=
-  \fun (x: OneTensor.Carrier) => sym!{A.Carrier} _ _ (congr!{Maps.Map A.Carrier} (\fun (f: Maps.Map) => #apply{f} x) _ _ differentialLaw);
+        (trans!{A.Carrier} _ _ _ (A.space.scalarAssoc multiplier r a)
+          (sym!{A.Carrier} _ _ (congr!{A.Carrier A.Carrier} (Coefficient.multiplication.apply) _ _ (oneOnTensor r a))))));
+\definition differentialCommutes: \forall (x: OneTensor.Carrier) -> Coefficient.multiplication.apply (oneIsomorphism.forward.apply x) = zeroIsomorphism.forward.apply (Tensor.apply Nat.Nat^::zero x) :=
+  \fun (x: OneTensor.Carrier) => sym!{A.Carrier} _ _ (congr!{Maps.Map A.Carrier} (\fun (f: Maps.Map) => f.apply x) _ _ differentialLaw);
 \import Modules.KernelTransport[V := OneTensor.Carrier, W := ZeroTensor.Carrier, X := A.Carrier, Y := A.Carrier,
   vSpace := OneTensor.space, wSpace := ZeroTensor.space, xSpace := A.space, ySpace := A.space,
   f := Tensor.At[n := Nat.Nat^::zero].differential, g := Coefficient.multiplication, domainIso := oneIsomorphism, codomainIso := zeroIsomorphism] \as Kernel;
@@ -52,14 +52,14 @@
 \definition boundaryMapZero: Tensor.At[n := one].differential = BoundaryMaps.zeroMap :=
   BoundaryEquality.ext (Tensor.At[n := one].differential) BoundaryMaps.zeroMap
     (\fun (r: family.Carrier two)(a: A.Carrier) => trans!{OneTensor.Carrier} _ _ _ (Tensor.At[n := one].onTensor r a) (OneTensor.tensorZeroLeft a));
-\definition boundaryZero: \forall (x: TwoTensor.Carrier) -> Tensor.apply one x = #zero{OneTensor.space} :=
-  \fun (x: TwoTensor.Carrier) => congr!{BoundaryMaps.Map OneTensor.Carrier} (\fun (f: BoundaryMaps.Map) => #apply{f} x) _ _ boundaryMapZero;
+\definition boundaryZero: \forall (x: TwoTensor.Carrier) -> Tensor.apply one x = OneTensor.space.zero :=
+  \fun (x: TwoTensor.Carrier) => congr!{BoundaryMaps.Map OneTensor.Carrier} (\fun (f: BoundaryMaps.Map) => f.apply x) _ _ boundaryMapZero;
 \import Modules.Of[V := H.Cycle, space := H.cycleSpace].Submodule[].Quotient[S := H.boundariesInside] \as Quotient;
 \import Quotient.ZeroQuotient[] \as ZeroQuotient;
 \definition boundariesZero: ZeroQuotient.IsZero := \block {
   \fun (x: H.Cycle)(member: _) \then
   \takefrom y: \Cast[TwoTensor.Carrier] ({ y: TwoTensor.Carrier \where Tensor.apply one y = x }) \by member \then
-  \return trans!{OneTensor.Carrier} x (Tensor.apply one y) (#zero{OneTensor.space})
+  \return trans!{OneTensor.Carrier} x (Tensor.apply one y) (OneTensor.space.zero)
     (sym!{OneTensor.Carrier} _ _ (\bysub(TwoTensor.Carrier, { y: TwoTensor.Carrier \where Tensor.apply one y = x }, y))) (boundaryZero y)
 };
 \definition quotientIsomorphism: Modules.Isomorphism[V := H.Carrier, W := H.Cycle, source := H.space, target := H.cycleSpace].Isomorphism := Modules.Isomorphism[V := H.Carrier, W := H.Cycle, source := H.space, target := H.cycleSpace].Isomorphism {
@@ -68,9 +68,9 @@
 };
 \import Modules.Isomorphism[V := H.Carrier, W := H.Cycle, source := H.space, target := H.cycleSpace].Composition[U := Annihilator.Carrier, final := Annihilator.moduleSpace] \as HomologyCompose;
 \definition isomorphism: Modules.Isomorphism[V := H.Carrier, W := Annihilator.Carrier, source := H.space, target := Annihilator.moduleSpace].Isomorphism := HomologyCompose.compose cycleIsomorphism quotientIsomorphism;
-\definition onClass: \forall (x: H.Cycle) -> #apply{#forward{isomorphism}} (H.classOf x) = #apply{#forward{cycleIsomorphism}} x :=
-  \fun (x: H.Cycle) => congr!{H.Cycle Annihilator.Carrier} (#apply{#forward{cycleIsomorphism}})
-    (#apply{(ZeroQuotient.inverse boundariesZero)} (H.classOf x)) x (ZeroQuotient.inverseClass boundariesZero x);
+\definition onClass: \forall (x: H.Cycle) -> isomorphism.forward.apply (H.classOf x) = cycleIsomorphism.forward.apply x :=
+  \fun (x: H.Cycle) => congr!{H.Cycle Annihilator.Carrier} (cycleIsomorphism.forward.apply)
+    ((ZeroQuotient.inverse boundariesZero).apply (H.classOf x)) x (ZeroQuotient.inverseClass boundariesZero x);
 \definition annihilator: Modules.Bundle := Modules.Bundle { Carrier := Annihilator.Carrier, space := Annihilator.moduleSpace };
 \module Higher(n: Nat.Nat^);
 \module Mapping(B: Modules.Bundle, u: Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map);

@@ -5,33 +5,33 @@
   (\forall (xs: Lists.List[I]) -> f xs = f2 xs) -> (\forall (xs: Lists.List[I]) -> g xs = g2 xs) ->
   \forall (xs: Lists.List[I]) -> product f g xs = product f2 g2 xs :=
   \fun (f, f2, g, g2: Function)(left: \forall (xs: Lists.List[I]) -> f xs = f2 xs)(right: \forall (xs: Lists.List[I]) -> g xs = g2 xs)(xs: Lists.List[I]) =>
-    SumLaws.congruent (partitions xs) (term f g) (term f2 g2) (\fun (split: Split) => congr!{K K} (mul #weight{split})
-      (mul (f #left{split}) (g #right{split})) (mul (f2 #left{split}) (g2 #right{split}))
-      (congr2!{K K K} mul (f #left{split}) (f2 #left{split}) (g #right{split}) (g2 #right{split}) (left #left{split}) (right #right{split})));
+    SumLaws.congruent (partitions xs) (term f g) (term f2 g2) (\fun (split: Split) => congr!{K K} (mul split.weight)
+      (mul (f split.left) (g split.right)) (mul (f2 split.left) (g2 split.right))
+      (congr2!{K K K} mul (f split.left) (f2 split.left) (g split.right) (g2 split.right) (left split.left) (right split.right)));
 \definition additiveLeft: \forall (f, f2, g: Function)(xs: Lists.List[I]) ->
   product (plus f f2) g xs = add (product f g xs) (product f2 g xs) :=
   \fun (f, f2, g: Function)(xs: Lists.List[I]) => trans!{K} _ _ _
       (SumLaws.congruent (partitions xs) (term (plus f f2) g) (\fun (split: Split) => add (term f g split) (term f2 g split))
         (\fun (split: Split) => trans!{K} _ _ _
-            (congr!{K K} (mul #weight{split}) _ _ (addMul (f #left{split}) (f2 #left{split}) (g #right{split})))
-            (mulAdd #weight{split} (mul (f #left{split}) (g #right{split})) (mul (f2 #left{split}) (g #right{split})))))
+            (congr!{K K} (mul split.weight) _ _ (addMul (f split.left) (f2 split.left) (g split.right)))
+            (mulAdd split.weight (mul (f split.left) (g split.right)) (mul (f2 split.left) (g split.right)))))
       (SumLaws.additive (partitions xs) (term f g) (term f2 g));
 \definition additiveRight: \forall (f, g, g2: Function)(xs: Lists.List[I]) ->
   product f (plus g g2) xs = add (product f g xs) (product f g2 xs) :=
   \fun (f, g, g2: Function)(xs: Lists.List[I]) => trans!{K} _ _ _
       (SumLaws.congruent (partitions xs) (term f (plus g g2)) (\fun (split: Split) => add (term f g split) (term f g2 split))
         (\fun (split: Split) => trans!{K} _ _ _
-            (congr!{K K} (mul #weight{split}) _ _ (mulAdd (f #left{split}) (g #right{split}) (g2 #right{split})))
-            (mulAdd #weight{split} (mul (f #left{split}) (g #right{split})) (mul (f #left{split}) (g2 #right{split})))))
+            (congr!{K K} (mul split.weight) _ _ (mulAdd (f split.left) (g split.right) (g2 split.right)))
+            (mulAdd split.weight (mul (f split.left) (g split.right)) (mul (f split.left) (g2 split.right)))))
       (SumLaws.additive (partitions xs) (term f g) (term f g2));
 \definition scalarLeftTerm: \forall (a: K)(f, g: Function)(split: Split) -> term (scale a f) g split = mul a (term f g split) :=
   \fun (a: K)(f, g: Function)(split: Split) => trans!{K} _ _ _
-      (congr!{K K} (mul #weight{split}) _ _ (mulAssoc a (f #left{split}) (g #right{split})))
-      (Scalars.scaleComm #weight{split} a (mul (f #left{split}) (g #right{split})));
+      (congr!{K K} (mul split.weight) _ _ (mulAssoc a (f split.left) (g split.right)))
+      (Scalars.scaleComm split.weight a (mul (f split.left) (g split.right)));
 \definition scalarRightTerm: \forall (a: K)(f, g: Function)(split: Split) -> term f (scale a g) split = mul a (term f g split) :=
   \fun (a: K)(f, g: Function)(split: Split) => trans!{K} _ _ _
-      (congr!{K K} (mul #weight{split}) _ _ (Scalars.scaleComm (f #left{split}) a (g #right{split})))
-      (Scalars.scaleComm #weight{split} a (mul (f #left{split}) (g #right{split})));
+      (congr!{K K} (mul split.weight) _ _ (Scalars.scaleComm (f split.left) a (g split.right)))
+      (Scalars.scaleComm split.weight a (mul (f split.left) (g split.right)));
 \definition scalarLeft: \forall (a: K)(f, g: Function)(xs: Lists.List[I]) -> product (scale a f) g xs = mul a (product f g xs) :=
   \fun (a: K)(f, g: Function)(xs: Lists.List[I]) => trans!{K} _ _ _
       (SumLaws.congruent (partitions xs) (term (scale a f) g) (\fun (split: Split) => mul a (term f g split)) (scalarLeftTerm a f g))
@@ -43,15 +43,15 @@
 \definition twistTerm: \forall (f, g: Function)(k: N.Nat^)(split: Split) -> Partitions.Length k split ->
   term (twist f) (twist g) split = mul (Sign.value k) (term f g split) := \block {
   \fun (f, g: Function)(k: N.Nat^)(split: Split)(length: Partitions.Length k split) \then
-  \let a: K := Sign.value (Lists.length I #left{split}) \then
-  \let b: K := Sign.value (Lists.length I #right{split}) \then
-  \let left: K := f #left{split} \then
-  \let right: K := g #right{split} \then
-  \let weight: K := #weight{split} \then
+  \let a: K := Sign.value (Lists.length I split.left) \then
+  \let b: K := Sign.value (Lists.length I split.right) \then
+  \let left: K := f split.left \then
+  \let right: K := g split.right \then
+  \let weight: K := split.weight \then
   \let sign: mul a b = Sign.value k := trans!{K} _ _ _
-      (sym!{K} (Sign.value (Nat.add (Lists.length I #left{split}) (Lists.length I #right{split}))) (mul a b)
-        (Sign.addition (Lists.length I #left{split}) (Lists.length I #right{split})))
-      (congr!{{N.Nat^} K} Sign.value (Nat.add (Lists.length I #left{split}) (Lists.length I #right{split})) k length) \then
+      (sym!{K} (Sign.value (Nat.add (Lists.length I split.left) (Lists.length I split.right))) (mul a b)
+        (Sign.addition (Lists.length I split.left) (Lists.length I split.right)))
+      (congr!{{N.Nat^} K} Sign.value (Nat.add (Lists.length I split.left) (Lists.length I split.right)) k length) \then
   \return trans!{K} (term (twist f) (twist g) split) (mul weight (mul (mul a b) (mul left right))) (mul (Sign.value k) (term f g split))
     (congr!{K K} (mul weight) (mul (mul a left) (mul b right)) (mul (mul a b) (mul left right)) (Sign.productShuffle a left b right))
     (trans!{K} (mul weight (mul (mul a b) (mul left right))) (mul (mul a b) (mul weight (mul left right))) (mul (Sign.value k) (term f g split))
@@ -96,14 +96,14 @@
 \definition zeroLeft: \forall (f: Function)(xs: Lists.List[I]) -> product origin f xs = zero :=
   \fun (f: Function)(xs: Lists.List[I]) => trans!{K} (product origin f xs) (Sums.sum (partitions xs) (\fun (split: Split) => zero)) zero
     (SumLaws.congruent (partitions xs) (term origin f) (\fun (split: Split) => zero) (\fun (split: Split) =>
-      trans!{K} (term origin f split) (mul #weight{split} zero) zero
-        (congr!{K K} (mul #weight{split}) (mul zero (f #right{split})) zero (mulZeroLeft (f #right{split}))) (mulZeroRight #weight{split})))
+      trans!{K} (term origin f split) (mul split.weight zero) zero
+        (congr!{K K} (mul split.weight) (mul zero (f split.right)) zero (mulZeroLeft (f split.right))) (mulZeroRight split.weight)))
     (SumLaws.zeroSum (partitions xs));
 \definition zeroRight: \forall (f: Function)(xs: Lists.List[I]) -> product f origin xs = zero :=
   \fun (f: Function)(xs: Lists.List[I]) => trans!{K} (product f origin xs) (Sums.sum (partitions xs) (\fun (split: Split) => zero)) zero
     (SumLaws.congruent (partitions xs) (term f origin) (\fun (split: Split) => zero) (\fun (split: Split) =>
-      trans!{K} (term f origin split) (mul #weight{split} zero) zero
-        (congr!{K K} (mul #weight{split}) (mul (f #left{split}) zero) zero (mulZeroRight (f #left{split}))) (mulZeroRight #weight{split})))
+      trans!{K} (term f origin split) (mul split.weight zero) zero
+        (congr!{K K} (mul split.weight) (mul (f split.left) zero) zero (mulZeroRight (f split.left))) (mulZeroRight split.weight)))
     (SumLaws.zeroSum (partitions xs));
 \definition shiftUnit: \forall (i: I)(xs: Lists.List[I]) -> shift i unit xs = origin xs :=
   \fun (i: I)(xs: Lists.List[I]) => \refl(zero);

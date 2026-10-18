@@ -25,7 +25,7 @@ module 引数も名前解決し、型検査と typed な具体化を elaboration
 選択した namespace 経路だけを構築し、子は親の引数環境を引き継ぐ。
 構造値の field 参照と準備用 import は同じ module ID に更新する。
 Program parameter の反映は `Reflect` に元の ID と引数式を保持する。
-`#field{x}` は field 名を持つ射影として残す。
+`x.field` は field 名を持つ射影として残す。
 
 ## Package 成果物
 

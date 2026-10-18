@@ -86,12 +86,12 @@ expect = "accept"
   \definition Truth: \Prop := \forall (P: \Prop) -> P -> P;
   \definition Constant[A: \Set, x, y: A]: _ := \fun (z: A) => x;
 
-  \definition reflexive(A: \Set)(r: Relation[A]): \Prop :=
+  \definition reflexive[A: \Set][r: Relation[A]]: \Prop :=
     \forall (x: A) -> r x x;
-  \definition atSelf(A: \Set)(x: A): At[_, x, \fun (y: A) => x = y] :=
+  \definition atSelf[A: \Set][x: A]: At[_, x, \fun (y: A) => x = y] :=
     \refl(x);
-  \definition identity(A: \Set)(x: A): Identity[A, x] = x := \refl(x);
-  \definition capture(A: \Set)(x, y: A): Constant[A, x, y] y = x := \refl(x);
+  \definition identity[A: \Set][x: A]: Identity[A, x] = x := \refl(x);
+  \definition capture[A: \Set][x, y: A]: Constant[A, x, y] y = x := \refl(x);
   \definition truth: Truth[] := \fun (P: \Prop) => \fun (p: P) => p;
   \check Relation[Unit]: \PropKind;
 }
@@ -112,7 +112,7 @@ expect = "accept"
   \definition applied: L.Applied[A, x, \fun (a, b: A) => a = b] := \refl(x);
   \definition value: L.Element := L.Value;
   \definition nominal: value = L.Unit::unit := \refl(value);
-  \definition relation(B: \Set)(r: L.Relation[B])(y: B): \Prop := r x y;
+  \definition relation[B: \Set][r: L.Relation[B]][y: B]: \Prop := r x y;
 }
 
 \module AliasUse {
@@ -136,23 +136,23 @@ parameters = '''A: \Set, P: A -> \Prop'''
 ```
 
 ```ref
-\structure Pair: \Set { first: A, second: A }
+\structure Pair: \Set := { first: A, second: A };
 \definition first: Pair -> A := \block {
   \fun (pair: _) \then
-  \let project: Pair -> A := \fun (p: _) => p #first \then
+  \let project: Pair -> A := \fun (p: _) => p.first \then
   \return project pair
 };
 \definition grouped: Pair -> Pair -> A :=
-  \fun (left, right: _) => left #first;
-\definition dependent: \forall (p: Pair) -> p #first = p #first :=
-  \fun (p: _) => \refl(p #first);
+  \fun (left, right: _) => left.first;
+\definition dependent: \forall (p: Pair) -> p.first = p.first :=
+  \fun (p: _) => \refl(p.first);
 \definition nested: \forall (X: \Set) -> X -> X -> X :=
   \fun (X: _) (x, y: _) => x;
 \definition ascribed: Pair -> A :=
-  (\fun (p: _) => p #first) \of Pair -> A;
-\structure Maps: \Set { get: Pair -> A }
+  (\fun (p: _) => p.first) \of Pair -> A;
+\structure Maps: \Set := { get: Pair -> A };
 \definition maps: Maps := Maps { get := \block {
-    \fun (p: _) \then \return p #second
+    \fun (p: _) \then \return p.second
   } };
 \definition Sub: \Set := \Cast[A] ({ x: A \where P x });
 \definition property: \forall (x: Sub) -> P x :=
@@ -174,7 +174,7 @@ expect = "accept"
   \inductive List[B: \Set]: \Set := | nil: List | cons: B -> List -> List;
   \definition Values: \Set := List[A];
   \definition Alias: \Set := Values;
-  \definition Generic(B: \Set): \Set := List[B];
+  \definition Generic[B: \Set]: \Set := List[B];
   \definition empty: Values := Alias::nil;
   \definition generic: Values := Generic[A]::nil;
   \definition copy: Alias -> Alias :=
@@ -207,12 +207,12 @@ parameters = '''A: \Set'''
 
 ```ref
 \inductive Family[B: \Set]: \forall (x: B) -> \Set := | intro: \forall (x: B) -> Family x;
-\definition Alias(x: A): \Set := Family[A] x;
+\definition Alias[x: A]: \Set := Family[A] x;
 \definition copy: \forall (x: A) -> Alias x -> Alias x :=
   \induction (x: A) (value: Alias x) \return Alias x \with {
   | intro: \fun (x: A) => Family[A]::intro x
 };
-\definition law(x: A): copy x (Family[A]::intro x) = Family[A]::intro x :=
+\definition law[x: A]: copy x (Family[A]::intro x) = Family[A]::intro x :=
   \refl(Family[A]::intro x);
 ```
 
@@ -363,7 +363,7 @@ name = "Negative"
 ```
 
 ```ref
-\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition Discard(x: Unit): \Set := List[Bit];
+\inductive Unit: \Set := | unit: Unit; \inductive Bit: \Set := | zero: Bit | one: Bit; \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List; \definition Alias: \Set := List[Bit]; \definition Discard[x: Unit]: \Set := List[Bit];
 \definition bad: Alias := Discard[Bit::zero]::nil;
 ```
 

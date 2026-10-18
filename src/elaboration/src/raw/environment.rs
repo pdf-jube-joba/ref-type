@@ -95,6 +95,17 @@ pub enum ModuleArgument {
     ProgramValue(ValueTerm),
 }
 
+impl ModuleArgument {
+    fn shifted(self, arena: &Arena, amount: usize) -> Self {
+        let shift = |e| kernel::calculus::shift(&arena.core, e, amount, 0).expect("valid shift");
+        match self {
+            Self::Pts(e) => Self::Pts(Exp(shift(e.0))),
+            Self::ProgramType(t) => Self::ProgramType(ValueType(shift(t.0))),
+            Self::ProgramValue(v) => Self::ProgramValue(ValueTerm(shift(v.0))),
+        }
+    }
+}
+
 impl From<Exp> for ModuleArgument {
     fn from(value: Exp) -> Self {
         Self::Pts(value)
@@ -847,34 +858,7 @@ impl CrateEnv {
                 .environment
                 .substitutions
                 .iter()
-                .map(|(p, a)| {
-                    use super::traversal::Term;
-                    let a = match *a {
-                        ModuleArgument::Pts(e) => {
-                            let Term::Logical(e) = Term::Logical(e).shift(self.arena(), count, 0)
-                            else {
-                                unreachable!()
-                            };
-                            ModuleArgument::Pts(e)
-                        }
-                        ModuleArgument::ProgramType(t) => {
-                            let Term::ValueType(t) =
-                                Term::ValueType(t).shift(self.arena(), count, 0)
-                            else {
-                                unreachable!()
-                            };
-                            ModuleArgument::ProgramType(t)
-                        }
-                        ModuleArgument::ProgramValue(v) => {
-                            let Term::Value(v) = Term::Value(v).shift(self.arena(), count, 0)
-                            else {
-                                unreachable!()
-                            };
-                            ModuleArgument::ProgramValue(v)
-                        }
-                    };
-                    (*p, a)
-                })
+                .map(|(p, a)| (*p, a.shifted(self.arena(), count)))
                 .collect::<Vec<_>>();
             let reflected = lazy
                 .environment
@@ -889,38 +873,33 @@ impl CrateEnv {
                 .collect::<Vec<_>>();
             let remap = self.remapping(lazy.environment.remapping.get());
             let logical_at = |e, depth| {
-                let shifted;
-                let substitutions = if depth == 0 {
-                    &reflected
-                } else {
-                    // Alias parameters bind outside each stored expression.
-                    shifted = reflected
-                        .iter()
-                        .map(|&(p, value)| {
-                            (
-                                p,
-                                crate::kernel_bridge::shift_bound_indices(
-                                    self.arena(),
-                                    value,
-                                    depth,
-                                    0,
-                                ),
-                            )
-                        })
-                        .collect::<Vec<_>>();
-                    &shifted
-                };
-                crate::raw::remapping::exp_subst_map(
+                use crate::raw::traversal::Term;
+                let substitutions = shifted_substitutions
+                    .iter()
+                    .map(|(id, argument)| (*id, argument.shifted(self.arena(), depth)))
+                    .collect::<Vec<_>>();
+                let reflected = reflected
+                    .iter()
+                    .map(|&(id, e)| {
+                        (
+                            id,
+                            crate::kernel_bridge::shift_bound_indices(self.arena(), e, depth, 0),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let e = crate::raw::remapping::remap_all_global_ids(
                     self.arena(),
-                    crate::raw::remapping::remap_all_global_ids(
-                        self.arena(),
-                        e,
-                        &remap.definition_ids,
-                        &remap.inductive_ids,
-                        &remap.program_inductive_ids,
-                    ),
-                    substitutions,
-                )
+                    e,
+                    &remap.definition_ids,
+                    &remap.inductive_ids,
+                    &remap.program_inductive_ids,
+                );
+                let Term::Logical(e) =
+                    Term::Logical(e).substitute(self.arena(), &substitutions, &reflected)
+                else {
+                    unreachable!()
+                };
+                e
             };
             let logical = |e| logical_at(e, 0);
             let value_ty = |t| {

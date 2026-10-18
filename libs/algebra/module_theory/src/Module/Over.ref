@@ -1,20 +1,20 @@
-\definition Space(V: \Set): \Set := Ring.RingModule[R, V, ring];
-\structure Bundle {
+\definition Space[V: \Set]: \Set := Ring.RingModule[R, V, ring];
+\structure Bundle := {
   Carrier: \Set,
   space: Space Carrier,
-}
-\structure Family[Index: \Set] {
+};
+\structure Family[Index: \Set] := {
   Carrier: Index -> \Set,
   space: \forall (i: Index) -> Space (Carrier i),
-}
+};
 \definition scalarGroup: Alg.CommutativeGroup[R] := Alg.CommutativeGroup[R] {
-  base := Alg.GroupData[R]::# (#zero{ring}) (#add{ring}) (#neg{ring}),
-  group := Alg.GroupLaws[R, Alg.GroupData[R]::# (#zero{ring}) (#add{ring}) (#neg{ring})] {
-    monoid := #monoid{(#additive{(#semiring{ring})})},
-    leftInverse := #additiveInverse{ring},
-    rightInverse := \fun (a: R) => trans!{R} _ _ _ (#commutative{(#additive{(#semiring{ring})})} a (#neg{ring} a)) (#additiveInverse{ring} a),
+  base := Alg.GroupData[R]::# (ring.zero) (ring.add) (ring.neg),
+  group := Alg.GroupLaws[R, Alg.GroupData[R]::# (ring.zero) (ring.add) (ring.neg)] {
+    monoid := ((ring.semiring).additive).monoid,
+    leftInverse := ring.additiveInverse,
+    rightInverse := \fun (a: R) => trans!{R} _ _ _ (((ring.semiring).additive).commutative a (ring.neg a)) (ring.additiveInverse a),
   },
-  commutative := #commutative{(#additive{(#semiring{ring})})},
+  commutative := ((ring.semiring).additive).commutative,
 };
 \import algebra.Group[].Of[Carrier := R, group := scalarGroup] \as Scalars;
 \module Laws(V: \Set, space: Space V);
@@ -25,29 +25,29 @@
   \import \parent.Hom[V := V, W := V, source := space, target := space] \as Maps;
   \definition identity: Maps.Map := Maps.Map {
     apply := \fun (x: V) => x,
-    addition := \fun (x, y: V) => \refl(#add{space} x y),
-    scalar := \fun (a: R)(x: V) => \refl(#smul{space} a x),
+    addition := \fun (x, y: V) => \refl(space.add x y),
+    scalar := \fun (a: R)(x: V) => \refl(space.smul a x),
   };
 }
 \module Zero;
 \definition scalarModule: Space R := Ring.RingModule[R, R, ring] {
-  zero := #zero{ring}, add := #add{ring}, neg := #neg{ring}, smul := #mul{ring},
-  additive := Alg.CommutativeGroupLaws[R, Alg.CommutativeGroupData[R]::# (Alg.GroupData[R]::# (#zero{ring}) (#add{ring}) (#neg{ring}))] {
-    group := #group{scalarGroup}, commutative := #commutative{scalarGroup},
+  zero := ring.zero, add := ring.add, neg := ring.neg, smul := ring.mul,
+  additive := Alg.CommutativeGroupLaws[R, Alg.CommutativeGroupData[R]::# (Alg.GroupData[R]::# (ring.zero) (ring.add) (ring.neg))] {
+    group := scalarGroup.group, commutative := scalarGroup.commutative,
   },
-  scalarOne := #leftIdentity{(#multiplicative{(#semiring{ring})})},
-  scalarAssoc := #associative{(#multiplicative{(#semiring{ring})})},
-  scalarAdd := #rightDistributive{(#semiring{ring})},
-  vectorAdd := #leftDistributive{(#semiring{ring})},
+  scalarOne := ((ring.semiring).multiplicative).leftIdentity,
+  scalarAssoc := ((ring.semiring).multiplicative).associative,
+  scalarAdd := (ring.semiring).rightDistributive,
+  vectorAdd := (ring.semiring).leftDistributive,
 };
 \module Isomorphism(V, W: \Set, source: Space V, target: Space W);
 \module Functions(X, V: \Set, target: Space V);
-\definition MapBetween(A, B: Bundle): \Set := Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map;
-\definition Surjective(A, B: Bundle)(f: MapBetween A B): \Prop := \forall (y: B.Carrier) -> \exists { x: A.Carrier \where #apply{f} x = y };
-\definition Injective(A, B: Bundle)(f: MapBetween A B): \Prop := \forall (x, y: A.Carrier) -> #apply{f} x = #apply{f} y -> x = y;
-\definition Projective(P: Bundle): \Prop :=
+\definition MapBetween[A, B: Bundle]: \Set := Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map;
+\definition Surjective[A, B: Bundle][f: MapBetween A B]: \Prop := \forall (y: B.Carrier) -> \exists ( x: A.Carrier \where f.apply x = y );
+\definition Injective[A, B: Bundle][f: MapBetween A B]: \Prop := \forall (x, y: A.Carrier) -> f.apply x = f.apply y -> x = y;
+\definition Projective[P: Bundle]: \Prop :=
   \forall (A, B: Bundle)(q: MapBetween A B) -> Surjective A B q -> \forall (f: MapBetween P B) ->
-    \exists { g: MapBetween P A \where \forall (x: P.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x };
+    \exists ( g: MapBetween P A \where \forall (x: P.Carrier) -> q.apply (g.apply x) = f.apply x );
 \module Presentation(Generators: \Set);
 \module Free(Generators: \Set);
 \module CanonicalFree(M: Bundle);
@@ -101,11 +101,11 @@
   \import \parent.Isomorphism[V := D.Carrier, W := B.Carrier, source := D.space, target := B.space] \as ReverseTargetIso;
   \module Incoming(a: ReverseSourceIso.Isomorphism, b: ReverseTargetIso.Isomorphism, c: TopIso.Isomorphism, f: Maps.Map);
   \import \parent.Isomorphism[V := C.Carrier, W := D.Carrier, source := C.space, target := D.space] \as Result;
-  \definition transport(a: SourceIso.Isomorphism)(b: TargetIso.Isomorphism)(c: TopIso.Isomorphism)(f: Maps.Map)
-    (commutes: \forall (x: A.Carrier) -> #apply{f} (#apply{#forward{a}} x) = #apply{#forward{b}} (#apply{#forward{c}} x)): Result.Isomorphism :=
+  \definition transport[a: SourceIso.Isomorphism][b: TargetIso.Isomorphism][c: TopIso.Isomorphism][f: Maps.Map]
+    [commutes: \forall (x: A.Carrier) -> (f).apply (((a).forward).apply x) = ((b).forward).apply (((c).forward).apply x)]: Result.Isomorphism :=
       On[a := a, b := b, c := c, f := f].isomorphism commutes;
-  \definition incoming(a: ReverseSourceIso.Isomorphism)(b: ReverseTargetIso.Isomorphism)(c: TopIso.Isomorphism)(f: Maps.Map)
-    (commutes: \forall (x: C.Carrier) -> #apply{#forward{b}} (#apply{f} x) = #apply{#forward{c}} (#apply{#forward{a}} x)): Result.Isomorphism :=
+  \definition incoming[a: ReverseSourceIso.Isomorphism][b: ReverseTargetIso.Isomorphism][c: TopIso.Isomorphism][f: Maps.Map]
+    [commutes: \forall (x: C.Carrier) -> ((b).forward).apply ((f).apply x) = ((c).forward).apply (((a).forward).apply x)]: Result.Isomorphism :=
       Incoming[a := a, b := b, c := c, f := f].isomorphism commutes;
 }
 \module FreePullback(Left, Right, Overlap, Whole: \Set);

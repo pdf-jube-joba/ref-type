@@ -1,36 +1,36 @@
 \import Maps.Coordinates[f := f, left := left, right := right] \as Direct;
-\definition domains(p: Patch): Open.OpenSet := Open.intersection
-  (Open.intersection Direct.domain SourceCharts.Transition[left := left, right := #left{p}].domain)
-  Maps.Coordinates[f := f, left := left, right := #right{p}].domain;
-\definition included(p: Patch): Open.Included (domains p) Direct.domain :=
-  \fun (a: calculus.Real[].Multivariable[n := n].Point)(member: \In[calculus.Real[].Multivariable[n := n].Point] (#points{(domains p)}) a) => #left{(#left{member})};
+\definition domains[p: Patch]: Open.OpenSet := Open.intersection
+  (Open.intersection Direct.domain SourceCharts.Transition[left := left, right := p.left].domain)
+  Maps.Coordinates[f := f, left := left, right := p.right].domain;
+\definition included[p: Patch]: Open.Included (domains p) Direct.domain :=
+  \fun (a: calculus.Real[].Multivariable[n := n].Point)(member: \In[calculus.Real[].Multivariable[n := n].Point] ((domains p).points) a) => (member.left).left;
 \module InPatch(p: Patch);
 \definition Covers: \Prop := \forall (a: Open.Carrier Direct.domain) ->
-  \exists { p: Patch \where \In[calculus.Real[].Multivariable[n := n].Point] (#points{(domains p)}) a };
+  \exists ( p: Patch \where \In[calculus.Real[].Multivariable[n := n].Point] ((domains p).points) a );
 \definition covers: Covers := \block {
   \fun (a: Open.Carrier Direct.domain) \then
   \let x: M.Point := SourceCharts.point left (Direct.leftCoordinate a) \then
-  \takefrom s: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Logic.And[SourceAtlases.Member source c, SourceCharts.Contains c x] }) \by #covers{source} x \then
-  \takefrom t: \Cast[TargetCharts.Chart] ({ c: TargetCharts.Chart \where Logic.And[TargetAtlases.Member target c, TargetCharts.Contains c (#apply{f} x)] }) \by #covers{target} (#apply{f} x) \then
+  \takefrom s: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Logic.And[SourceAtlases.Member source c, SourceCharts.Contains c x] }) \by source.covers x \then
+  \takefrom t: \Cast[TargetCharts.Chart] ({ c: TargetCharts.Chart \where Logic.And[TargetAtlases.Member target c, TargetCharts.Contains c (f.apply x)] }) \by target.covers (f.apply x) \then
   \let slaw: Logic.And[SourceAtlases.Member source s, SourceCharts.Contains s x] := \bysub(SourceCharts.Chart,
     { c: SourceCharts.Chart \where Logic.And[SourceAtlases.Member source c, SourceCharts.Contains c x] }, s) \then
-  \let tlaw: Logic.And[TargetAtlases.Member target t, TargetCharts.Contains t (#apply{f} x)] := \bysub(TargetCharts.Chart,
-    { c: TargetCharts.Chart \where Logic.And[TargetAtlases.Member target c, TargetCharts.Contains c (#apply{f} x)] }, t) \then
-  \let p: Patch := Patch { left := \into[SourceCharts.Chart](s, #charts{source}) \by { #left{slaw} },
-    right := \into[TargetCharts.Chart](t, #charts{target}) \by { #left{tlaw} } } \then
-  \let directMember: \In[calculus.Real[].Multivariable[n := n].Point] (#points{Direct.domain}) a :=
-    \bysub(calculus.Real[].Multivariable[n := n].Point, #points{Direct.domain}, a) \then
-  \let sourceMember: \In[calculus.Real[].Multivariable[n := n].Point] (#points{SourceCharts.Transition[left := left, right := #left{p}].domain}) a :=
-    SourceCharts.Transition[left := left, right := #left{p}].intro (Direct.leftCoordinate a) (#right{slaw}) \then
-  \let targetMember: \In[calculus.Real[].Multivariable[n := n].Point] (#points{Maps.Coordinates[f := f, left := left, right := #right{p}].domain}) a :=
-    Maps.Coordinates[f := f, left := left, right := #right{p}].intro (Direct.leftCoordinate a) (#right{tlaw}) \then
-  \return Logic.existsIntro[Patch, { p: Patch \where \In[calculus.Real[].Multivariable[n := n].Point] (#points{(domains p)}) a }] p
+  \let tlaw: Logic.And[TargetAtlases.Member target t, TargetCharts.Contains t (f.apply x)] := \bysub(TargetCharts.Chart,
+    { c: TargetCharts.Chart \where Logic.And[TargetAtlases.Member target c, TargetCharts.Contains c (f.apply x)] }, t) \then
+  \let p: Patch := Patch { left := \into[SourceCharts.Chart](s, source.charts) \by { slaw.left },
+    right := \into[TargetCharts.Chart](t, target.charts) \by { tlaw.left } } \then
+  \let directMember: \In[calculus.Real[].Multivariable[n := n].Point] (Direct.domain.points) a :=
+    \bysub(calculus.Real[].Multivariable[n := n].Point, Direct.domain.points, a) \then
+  \let sourceMember: \In[calculus.Real[].Multivariable[n := n].Point] ((SourceCharts.Transition[left := left, right := p.left].domain).points) a :=
+    SourceCharts.Transition[left := left, right := p.left].intro (Direct.leftCoordinate a) (slaw.right) \then
+  \let targetMember: \In[calculus.Real[].Multivariable[n := n].Point] ((Maps.Coordinates[f := f, left := left, right := p.right].domain).points) a :=
+    Maps.Coordinates[f := f, left := left, right := p.right].intro (Direct.leftCoordinate a) (tlaw.right) \then
+  \return Logic.existsIntro[Patch, { p: Patch \where \In[calculus.Real[].Multivariable[n := n].Point] ((domains p).points) a }] p
     (Logic.And[
-      Logic.And[\In[calculus.Real[].Multivariable[n := n].Point] (#points{Direct.domain}) a,
-        \In[calculus.Real[].Multivariable[n := n].Point] (#points{SourceCharts.Transition[left := left, right := #left{p}].domain}) a],
-      \In[calculus.Real[].Multivariable[n := n].Point] (#points{Maps.Coordinates[f := f, left := left, right := #right{p}].domain}) a]::#
-      (Logic.And[\In[calculus.Real[].Multivariable[n := n].Point] (#points{Direct.domain}) a,
-        \In[calculus.Real[].Multivariable[n := n].Point] (#points{SourceCharts.Transition[left := left, right := #left{p}].domain}) a]::# directMember sourceMember)
+      Logic.And[\In[calculus.Real[].Multivariable[n := n].Point] (Direct.domain.points) a,
+        \In[calculus.Real[].Multivariable[n := n].Point] ((SourceCharts.Transition[left := left, right := p.left].domain).points) a],
+      \In[calculus.Real[].Multivariable[n := n].Point] ((Maps.Coordinates[f := f, left := left, right := p.right].domain).points) a]::#
+      (Logic.And[\In[calculus.Real[].Multivariable[n := n].Point] (Direct.domain.points) a,
+        \In[calculus.Real[].Multivariable[n := n].Point] ((SourceCharts.Transition[left := left, right := p.left].domain).points) a]::# directMember sourceMember)
       targetMember)
 };
 \module Component(i: Fin.Fin m) {

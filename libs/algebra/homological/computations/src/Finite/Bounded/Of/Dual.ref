@@ -1,15 +1,15 @@
 \import chain_complexes.Integer[] \as IntegerDegrees;
 \import IntegerDegrees.Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Cochains;
 \definition family: Cochains.Family := Cochains.Family { Carrier := Carrier C, space := space C };
-\definition boundary(z: Degree): Runtime^ := nativeTranspose^ (C.boundary (next z));
-\definition apply(z: Degree)(v: Carrier C z): Carrier C (next z) :=
+\definition boundary[z: Degree]: Runtime^ := nativeTranspose^ (C.boundary (next z));
+\definition apply[z: Degree][v: Carrier C z]: Carrier C (next z) :=
   Commutative.Matrix[m := C.ranks (next z), n := C.ranks z].apply
     (\fun (i: Indices.Fin (C.ranks (next z)))(j: Indices.Fin (C.ranks z)) => boundary z i j) v;
-\definition linear(z: Degree): Modules.Hom[V := Carrier C z, W := Carrier C (next z), source := space C z, target := space C (next z)].Map :=
+\definition linear[z: Degree]: Modules.Hom[V := Carrier C z, W := Carrier C (next z), source := space C z, target := space C (next z)].Map :=
   Commutative.Matrix[m := C.ranks (next z), n := C.ranks z].linear
     (\fun (i: Indices.Fin (C.ranks (next z)))(j: Indices.Fin (C.ranks z)) => boundary z i j);
 \definition squareZero: \forall (z: Degree)(v: Carrier C z) ->
-  apply (next z) (apply z v) = #zero{(space C (next (next z)))} :=
+  apply (next z) (apply z v) = (space C (next (next z))).zero :=
   \fun (z: Degree) =>
     \idelim previous (next z) = z \with u: Degree =>
       \forall (v: Carrier C u) ->
@@ -17,26 +17,26 @@
           (\fun (i: Indices.Fin (C.ranks (next (next z))))(j: Indices.Fin (C.ranks (next z))) => C.boundary (next (next z)) j i)
           (Commutative.Matrix[m := C.ranks (next z), n := C.ranks u].apply
             (\fun (i: Indices.Fin (C.ranks (next z)))(j: Indices.Fin (C.ranks u)) => C.boundary (next z) j i) v)
-          = #zero{(space C (next (next z)))}
+          = (space C (next (next z))).zero
     \by {
-      base: #squareZero{(\bysub(
+      base: (\bysub(
         \root.Finite[].Pair[m := C.ranks (next (next z)), n := C.ranks (next z), p := C.ranks (previous (next z))].Data,
         { data: \root.Finite[].Pair[m := C.ranks (next (next z)), n := C.ranks (next z), p := C.ranks (previous (next z))].Data \where
           \root.Finite[].Pair[m := C.ranks (next (next z)), n := C.ranks (next z), p := C.ranks (previous (next z))].Laws[data] },
         \root.Finite[].Dual[m := C.ranks (previous (next z)), n := C.ranks (next z), p := C.ranks (next (next z)),
-          C := \parent.At[z := next z].complex].complex))},
+          C := \parent.At[z := next z].complex].complex)).squareZero,
       equality: Degrees.previousNext z
     };
 \definition differential: Cochains.DifferentialData[family] := Cochains.DifferentialData[family] { apply := apply };
 \definition complex: Cochains.Complex := Cochains.Complex {
   family := family, differential := differential,
   laws := Cochains.DifferentialLaws[family, differential] {
-    addition := \fun (z: Degree) => #addition{(linear z)},
-    scalar := \fun (z: Degree) => #scalar{(linear z)},
+    addition := \fun (z: Degree) => (linear z).addition,
+    scalar := \fun (z: Degree) => (linear z).scalar,
     squareZero := squareZero,
   },
 };
-\definition calculate(z: Degree): Calculation^ :=
+\definition calculate[z: Degree]: Calculation^ :=
   Computation.Run.program^ (Input^::pair (C.ranks (next z)) (C.ranks z) (C.ranks (previous z))
     (boundary z)
     (nativeTranspose^ (C.boundary z)));

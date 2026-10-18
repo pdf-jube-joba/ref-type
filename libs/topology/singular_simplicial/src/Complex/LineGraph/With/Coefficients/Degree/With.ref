@@ -1,35 +1,35 @@
-\definition generator(l: L): Chains.Carrier n := #apply{#forward{basis}} (Free.generator l);
-\definition coordinates(f: Carrier n): Coordinates := \fun (l: L) => #apply{f} (generator l);
+\definition generator[l: L]: Chains.Carrier n := ((basis).forward).apply (Free.generator l);
+\definition coordinates[f: Carrier n]: Coordinates := \fun (l: L) => (f).apply (generator l);
 \import Modules.Hom[V := Carrier n, W := Coordinates, source := space n, target := coordinateSpace] \as Maps;
 \definition forward: Maps.Map := Maps.Map {
   apply := coordinates,
-  addition := \fun (f, g: Carrier n) => Functions.ext (coordinates (#add{(space n)} f g)) (#add{coordinateSpace} (coordinates f) (coordinates g))
-    (\fun (l: L) => \refl(#add{A.space} (#apply{f} (generator l)) (#apply{g} (generator l)))),
-  scalar := \fun (a: I.Int^)(f: Carrier n) => Functions.ext (coordinates (#smul{(space n)} a f)) (#smul{coordinateSpace} a (coordinates f))
-    (\fun (l: L) => \refl(#smul{A.space} a (#apply{f} (generator l)))),
+  addition := \fun (f, g: Carrier n) => Functions.ext (coordinates ((space n).add f g)) ((coordinateSpace).add (coordinates f) (coordinates g))
+    (\fun (l: L) => \refl((A.space).add ((f).apply (generator l)) ((g).apply (generator l)))),
+  scalar := \fun (a: I.Int^)(f: Carrier n) => Functions.ext (coordinates ((space n).smul a f)) ((coordinateSpace).smul a (coordinates f))
+    (\fun (l: L) => \refl((A.space).smul a ((f).apply (generator l)))),
 };
 \import Modules.Hom[V := Chains.Carrier n, W := A.Carrier, source := Chains.space n, target := A.space].Composition[U := Free.Carrier, domain := Free.space] \as Before;
 \import Free.To[W := A.Carrier, target := A.space] \as Universal;
-\definition restricted(f: Carrier n): Modules.Hom[V := Free.Carrier, W := A.Carrier, source := Free.space, target := A.space].Map := Before.compose f #forward{basis};
+\definition restricted[f: Carrier n]: Modules.Hom[V := Free.Carrier, W := A.Carrier, source := Free.space, target := A.space].Map := Before.compose f (basis).forward;
 \definition equalOnFree: \forall (f, g: Carrier n) -> coordinates f = coordinates g -> restricted f = restricted g :=
   \fun (f, g: Carrier n)(equal: coordinates f = coordinates g) => Universal.ext (restricted f) (restricted g)
     (\fun (l: L) => congr!{{Coordinates} {A.Carrier}} (\fun (values: Coordinates) => values l) _ _ equal);
-\definition injective: \forall (f, g: Carrier n) -> #apply{forward} f = #apply{forward} g -> f = g :=
+\definition injective: \forall (f, g: Carrier n) -> (forward).apply f = (forward).apply g -> f = g :=
   \fun (f, g: Carrier n)(equal: coordinates f = coordinates g) => Native.At[n := n].ext f g
     (\fun (x: Chains.Carrier n) => trans!{{A.Carrier}} _ _ _
-      (sym!{{A.Carrier}} _ _ (congr!{{Chains.Carrier n} {A.Carrier}} (#apply{f}) _ _ (#rightInverse{basis} x)))
+      (sym!{{A.Carrier}} _ _ (congr!{{Chains.Carrier n} {A.Carrier}} ((f).apply) _ _ ((basis).rightInverse x)))
       (trans!{{A.Carrier}} _ _ _
         (congr!{{Modules.Hom[V := Free.Carrier, W := A.Carrier, source := Free.space, target := A.space].Map} {A.Carrier}}
-          (\fun (h: Modules.Hom[V := Free.Carrier, W := A.Carrier, source := Free.space, target := A.space].Map) => #apply{h} (#apply{#backward{basis}} x)) _ _ (equalOnFree f g equal))
-        (congr!{{Chains.Carrier n} {A.Carrier}} (#apply{g}) _ _ (#rightInverse{basis} x))));
+          (\fun (h: Modules.Hom[V := Free.Carrier, W := A.Carrier, source := Free.space, target := A.space].Map) => (h).apply (((basis).backward).apply x)) _ _ (equalOnFree f g equal))
+        (congr!{{Chains.Carrier n} {A.Carrier}} ((g).apply) _ _ ((basis).rightInverse x))));
 \import Modules.Hom[V := Free.Carrier, W := A.Carrier, source := Free.space, target := A.space].Composition[U := Chains.Carrier n, domain := Chains.space n] \as After;
-\definition extension(values: Coordinates): Carrier n := After.compose (Universal.extension values) #backward{basis};
+\definition extension[values: Coordinates]: Carrier n := After.compose (Universal.extension values) (basis).backward;
 \definition onGenerator: \forall (values: Coordinates)(l: L) -> coordinates (extension values) l = values l :=
   \fun (values: Coordinates)(l: L) => trans!{{A.Carrier}} _ _ _
-    (congr!{{Free.Carrier} {A.Carrier}} (#apply{(Universal.extension values)}) _ _ (#leftInverse{basis} (Free.generator l)))
+    (congr!{{Free.Carrier} {A.Carrier}} ((Universal.extension values).apply) _ _ ((basis).leftInverse (Free.generator l)))
     (Universal.onGenerator values l);
-\definition onto: \forall (values: Coordinates) -> \exists { f: Carrier n \where #apply{forward} f = values } :=
-  \fun (values: Coordinates) => Logic.existsIntro[Carrier n, { f: Carrier n \where #apply{forward} f = values }]
+\definition onto: \forall (values: Coordinates) -> \exists ( f: Carrier n \where (forward).apply f = values ) :=
+  \fun (values: Coordinates) => Logic.existsIntro[Carrier n, { f: Carrier n \where (forward).apply f = values }]
     (extension values) (Functions.ext (coordinates (extension values)) values (onGenerator values));
 \import Modules.Isomorphism[V := Carrier n, W := Coordinates, source := space n, target := coordinateSpace].OfBijective[f := forward] \as Inverse;
 \definition isomorphism: Modules.Isomorphism[V := Carrier n, W := Coordinates, source := space n, target := coordinateSpace].Isomorphism := Inverse.isomorphism injective onto;

@@ -13,8 +13,8 @@ expect = "accept"
 ```ref
 /* 外側 /* 内側 */ 外側 */
 \definition identity
-  (P: \Prop)
-  (p: P)
+  [P: \Prop]
+  [p: P]
   : P
   := /* コメントの中の { [ ; */ p;
 ```
@@ -46,7 +46,7 @@ parameters = '''P: \Prop, p: P'''
 ```
 
 ```ref
-\definition identity(Q: \Prop)(q: Q): Q := q;
+\definition identity[Q: \Prop][q: Q]: Q := q;
 \definition applied: P := ((identity P) p);
 ```
 

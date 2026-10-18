@@ -484,8 +484,8 @@ mod tests {
     #[test]
     fn field_projection_errors_highlight_the_field() {
         for (projection, field) in [
-            (r"\Set #missing", "missing"),
-            (r"#missing{\Set}", "missing"),
+            (r"\Set.missing", "missing"),
+            (r"(\Set).missing", "missing"),
             (r"\Set::missing", "missing"),
         ] {
             let text = format!(r"\module M {{ \definition bad: \Set := {projection}; }}");

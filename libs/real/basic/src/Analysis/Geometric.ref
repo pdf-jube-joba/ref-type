@@ -13,8 +13,8 @@
     | zero: Laws.oneNonnegative
     | succ: \fun (n: N.Nat^)(previous: R.Le zero (value n)) => Laws.fieldMulNonnegative q (value n) positive previous
   };
-\definition Values: \Pow Real := { x: Real \where \exists { n: N.Nat^ \where value n = x } };
-\definition member(n: N.Nat^): \In[Real] Values (value n) := Logic.existsIntro[N.Nat^, { k: N.Nat^ \where value k = value n }] n (\refl(value n));
+\definition Values: \Pow Real := { x: Real \where \exists ( n: N.Nat^ \where value n = x ) };
+\definition member[n: N.Nat^]: \In[Real] Values (value n) := Logic.existsIntro[N.Nat^, { k: N.Nat^ \where value k = value n }] n (\refl(value n));
 \definition nonempty: Complete.Nonempty Values := Logic.existsIntro[Real, Values] one (member N.Nat^::zero);
 \definition lower: \forall (l: Real) -> (\forall (n: N.Nat^) -> R.Le l (value n)) -> Complete.LowerBound Values l := \block {
   \fun (l: Real)(bounds: \forall (n: N.Nat^) -> R.Le l (value n))(x: Real)(member: \In[Real] Values x) \then
@@ -26,7 +26,7 @@
     (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => mul s x) _ _ (Laws.fieldInverseNonzero q (Inverse.positiveNonzero q positive))) (Laws.fieldMulOneLeft x));
 \definition cancelInverse: \forall (x: Real) -> R.Lt zero q -> mul q (mul (Laws.fieldInv q) x) = x :=
   \fun (x: Real)(positive: R.Lt zero q) => trans!{Real} _ _ _ (Algebra.mulSwap q (Laws.fieldInv q) x) (inverseCancel x positive);
-\definition eventualPositive: R.Lt zero q -> R.Lt q one -> \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { n: N.Nat^ \where R.Lt (value n) epsilon } := \block {
+\definition eventualPositive: R.Lt zero q -> R.Lt q one -> \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists ( n: N.Nat^ \where R.Lt (value n) epsilon ) := \block {
   \fun (positive: R.Lt zero q)(below: R.Lt q one)(epsilon: Real)(radius: R.Lt zero epsilon) \then
   \let nonnegativeQ: R.Le zero q := Order.leOfLt zero q positive \then
   \takefrom l: \Cast[Real] ({ l: Real \where Complete.GreatestLowerBound Values l }) \by Complete.completeBelow Values nonempty
@@ -34,21 +34,21 @@
   \let laws: Complete.GreatestLowerBound Values l := \bysub(Real, { l: Real \where Complete.GreatestLowerBound Values l }, l) \then
   \let scaled: Complete.LowerBound Values (mul (Laws.fieldInv q) l) := lower (mul (Laws.fieldInv q) l)
     (\fun (n: N.Nat^) => R.leReplaceRight _ _ _ (inverseCancel (value n) positive)
-      (Estimates.mulMonotone (Laws.fieldInv q) l (value (N.Nat^::succ n)) (Order.leOfLt _ _ (Product.invPositive q positive)) (#left{laws} (value (N.Nat^::succ n)) (member (N.Nat^::succ n))))) \then
+      (Estimates.mulMonotone (Laws.fieldInv q) l (value (N.Nat^::succ n)) (Order.leOfLt _ _ (Product.invPositive q positive)) ((laws).left (value (N.Nat^::succ n)) (member (N.Nat^::succ n))))) \then
   \let self: R.Le l (mul q l) := R.leReplaceLeft _ _ _ (cancelInverse l positive)
-    (Estimates.mulMonotone q (mul (Laws.fieldInv q) l) l nonnegativeQ (#right{laws} (mul (Laws.fieldInv q) l) scaled)) \then
+    (Estimates.mulMonotone q (mul (Laws.fieldInv q) l) l nonnegativeQ ((laws).right (mul (Laws.fieldInv q) l) scaled)) \then
   \let atMostZero: R.Le l zero := Order.leOfNotLtReverse l zero (\fun (lp: R.Lt zero l) => R.ltNotLeReverse (mul q l) l
     (R.ltReplaceRight (mul q l) (mul l one) l (Algebra.mulOneRight l)
       (R.ltReplaceLeft (mul l q) (mul q l) (mul l one) (Laws.fieldMulComm l q) (Product.mulStrict l q one lp below))) self) \then
-  \enough _ \by { Order.byContradiction (\exists { n: N.Nat^ \where R.Lt (value n) epsilon }) } \then
-  \fun (none: Logic.Not (\exists { n: N.Nat^ \where R.Lt (value n) epsilon })) \then
+  \enough _ \by { Order.byContradiction (\exists ( n: N.Nat^ \where R.Lt (value n) epsilon )) } \then
+  \fun (none: Logic.Not (\exists ( n: N.Nat^ \where R.Lt (value n) epsilon ))) \then
   \let lowerEpsilon: Complete.LowerBound Values epsilon := lower epsilon (\fun (n: N.Nat^) => Order.leOfNotLtReverse epsilon (value n)
     (\fun (less: R.Lt (value n) epsilon) => none (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where R.Lt (value k) epsilon }] n less))) \then
-  \return R.ltNotLeReverse zero epsilon radius (R.leTrans epsilon l zero (#right{laws} epsilon lowerEpsilon) atMostZero)
+  \return R.ltNotLeReverse zero epsilon radius (R.leTrans epsilon l zero ((laws).right epsilon lowerEpsilon) atMostZero)
 };
-\definition eventual: R.Le zero q -> R.Lt q one -> \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { n: N.Nat^ \where R.Lt (value n) epsilon } :=
+\definition eventual: R.Le zero q -> R.Lt q one -> \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists ( n: N.Nat^ \where R.Lt (value n) epsilon ) :=
   \fun (positive: R.Le zero q)(below: R.Lt q one)(epsilon: Real)(radius: R.Lt zero epsilon) =>
-    either!{{(Classical.excludedMiddle (q = zero))} {\exists { n: N.Nat^ \where R.Lt (value n) epsilon }}
+    either!{{(Classical.excludedMiddle (q = zero))} {\exists ( n: N.Nat^ \where R.Lt (value n) epsilon )}
       {\fun (same: q = zero) => Logic.existsIntro[N.Nat^, { n: N.Nat^ \where R.Lt (value n) epsilon }] (N.Nat^::succ N.Nat^::zero)
         (R.ltReplaceLeft zero (mul q one) epsilon (sym!{Real} _ _ (trans!{Real} _ _ _ (Algebra.mulOneRight q) same)) radius)}
       {\fun (different: Logic.Not (q = zero)) => eventualPositive (Order.ltOfLeNotEq zero q positive (\fun (same: zero = q) => different (sym!{Real} _ _ same))) below epsilon radius}

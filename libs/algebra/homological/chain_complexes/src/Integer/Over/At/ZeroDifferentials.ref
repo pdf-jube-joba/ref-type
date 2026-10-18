@@ -1,41 +1,41 @@
-\definition CurrentZero: \Prop := \forall (x: C.family.Carrier z) -> #apply{differential} x = #zero{(C.family.space (next z))};
-\definition PriorZero: \Prop := \forall (x: C.family.Carrier (previous z)) -> #apply{prior} x = #zero{(C.family.space z)};
-\definition boundaryZero: PriorZero -> \forall (x: C.family.Carrier z) -> Submodules.Member boundaries x -> x = #zero{(C.family.space z)} :=
+\definition CurrentZero: \Prop := \forall (x: C.family.Carrier z) -> (differential).apply x = (C.family.space (next z)).zero;
+\definition PriorZero: \Prop := \forall (x: C.family.Carrier (previous z)) -> (prior).apply x = (C.family.space z).zero;
+\definition boundaryZero: PriorZero -> \forall (x: C.family.Carrier z) -> Submodules.Member boundaries x -> x = (C.family.space z).zero :=
   \fun (vanishes: PriorZero)(x: C.family.Carrier z)(member: Submodules.Member boundaries x) =>
-    Images.eliminate prior x (x = #zero{(C.family.space z)})
-      (\fun (y: C.family.Carrier (previous z))(equal: #apply{prior} y = x) =>
+    Images.eliminate prior x (x = (C.family.space z).zero)
+      (\fun (y: C.family.Carrier (previous z))(equal: (prior).apply y = x) =>
         trans!{{C.family.Carrier z}} _ _ _ (sym!{{C.family.Carrier z}} _ _ equal) (vanishes y)) member;
 \import Modules.Hom[V := C.family.Carrier z, W := Closed, source := C.family.space z, target := cycleSpace] \as IntoCycles;
-\definition cyclesMap(vanishes: CurrentZero): IntoCycles.Map := IntoCycles.Map {
+\definition cyclesMap[vanishes: CurrentZero]: IntoCycles.Map := IntoCycles.Map {
   apply := \fun (x: C.family.Carrier z) => cycle x (vanishes x),
-  addition := \fun (x, y: C.family.Carrier z) => \refl(#add{(C.family.space z)} x y),
-  scalar := \fun (a: R)(x: C.family.Carrier z) => \refl(#smul{(C.family.space z)} a x),
+  addition := \fun (x, y: C.family.Carrier z) => \refl((C.family.space z).add x y),
+  scalar := \fun (a: R)(x: C.family.Carrier z) => \refl((C.family.space z).smul a x),
 };
 \import Classes.Composition[U := C.family.Carrier z, domain := C.family.space z] \as Composition;
 \import Modules.Hom[V := C.family.Carrier z, W := Cohomology, source := C.family.space z, target := cohomologySpace] \as Forward;
-\definition forward(vanishes: CurrentZero): Forward.Map := Composition.compose classLinear (cyclesMap vanishes);
+\definition forward[vanishes: CurrentZero]: Forward.Map := Composition.compose classLinear (cyclesMap vanishes);
 \import Modules.Hom[V := Closed, W := C.family.Carrier z, source := cycleSpace, target := C.family.space z] \as Forget;
 \definition forget: Forget.Map := Forget.Map {
   apply := \fun (x: Closed) => x,
-  addition := \fun (x, y: Closed) => \refl(#add{(C.family.space z)} x y),
-  scalar := \fun (a: R)(x: Closed) => \refl(#smul{(C.family.space z)} a x),
+  addition := \fun (x, y: Closed) => \refl((C.family.space z).add x y),
+  scalar := \fun (a: R)(x: Closed) => \refl((C.family.space z).smul a x),
 };
 \import Quotient.To[W := C.family.Carrier z, target := C.family.space z] \as Descent;
 \definition vanishes: PriorZero -> Descent.Vanishes forget :=
   \fun (zero: PriorZero)(x: Closed)(member: _) => boundaryZero zero x member;
 \import Modules.Hom[V := Cohomology, W := C.family.Carrier z, source := cohomologySpace, target := C.family.space z] \as Backward;
-\definition backward(zero: PriorZero): Backward.Map := Descent.descend forget (vanishes zero);
+\definition backward[zero: PriorZero]: Backward.Map := Descent.descend forget (vanishes zero);
 \definition leftInverse: \forall (current: CurrentZero)(before: PriorZero)(x: C.family.Carrier z) ->
-  #apply{(backward before)} (#apply{(forward current)} x) = x :=
+  (backward before).apply ((forward current).apply x) = x :=
   \fun (current: CurrentZero)(before: PriorZero)(x: C.family.Carrier z) =>
-    Descent.onClass forget (vanishes before) (#apply{(cyclesMap current)} x);
+    Descent.onClass forget (vanishes before) ((cyclesMap current).apply x);
 \definition rightInverse: \forall (current: CurrentZero)(before: PriorZero)(q: Cohomology) ->
-  #apply{(forward current)} (#apply{(backward before)} q) = q :=
+  (forward current).apply ((backward before).apply q) = q :=
   \fun (current: CurrentZero)(before: PriorZero) =>
-    classInduction (\fun (q: Cohomology) => #apply{(forward current)} (#apply{(backward before)} q) = q)
-      (\fun (x: Closed) => congr!{{C.family.Carrier z} Cohomology} (#apply{(forward current)}) _ _ (Descent.onClass forget (vanishes before) x));
+    classInduction (\fun (q: Cohomology) => (forward current).apply ((backward before).apply q) = q)
+      (\fun (x: Closed) => congr!{{C.family.Carrier z} Cohomology} ((forward current).apply) _ _ (Descent.onClass forget (vanishes before) x));
 \import Modules.Isomorphism[V := C.family.Carrier z, W := Cohomology, source := C.family.space z, target := cohomologySpace] \as Iso;
-\definition isomorphism(current: CurrentZero)(before: PriorZero): Iso.Isomorphism := Iso.Isomorphism {
+\definition isomorphism[current: CurrentZero][before: PriorZero]: Iso.Isomorphism := Iso.Isomorphism {
   forward := forward current, backward := backward before,
   leftInverse := leftInverse current before, rightInverse := rightInverse current before,
 };

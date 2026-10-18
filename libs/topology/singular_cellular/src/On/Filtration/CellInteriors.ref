@@ -8,71 +8,71 @@
 \import UpperSpace.Subspace[S := UpperSpace.Complement lower] \as Remaining;
 \definition Carrier: \Set := Remaining.CarrierSet;
 \definition topology: topology.Topology[Carrier := Carrier].Topology := Remaining.topology Upper.topology;
-\definition Selected: \Pow Cells.CellData := { cell: Cells.CellData \where Logic.And[Cells.CellMember cells cell, #dimension{cell} = n] };
+\definition Selected: \Pow Cells.CellData := { cell: Cells.CellData \where Logic.And[Cells.CellMember cells cell, (cell).dimension = n] };
 \definition Index: \Set := \Cast[Cells.CellData] Selected;
-\definition member(cell: Index): Cells.CellMember cells cell := #left{(\bysub(Cells.CellData, Selected, cell))};
-\definition dimension(cell: Index): #dimension{cell} = n := #right{(\bysub(Cells.CellData, Selected, cell))};
-\definition piece(cell: Cells.CellData): \Pow Carrier :=
-  { x: Carrier \where Logic.And[#dimension{cell} = n, Space.Member (Cells.ClosedImage cell) x] };
+\definition member[cell: Index]: Cells.CellMember cells cell := (\bysub(Cells.CellData, Selected, cell)).left;
+\definition dimension[cell: Index]: (cell).dimension = n := (\bysub(Cells.CellData, Selected, cell)).right;
+\definition piece[cell: Cells.CellData]: \Pow Carrier :=
+  { x: Carrier \where Logic.And[(cell).dimension = n, Space.Member (Cells.ClosedImage cell) x] };
 \import topology.Topology[Carrier := Carrier] \as RemainingSpace;
-\module Cell(cell: Cells.CellData, member: Cells.CellMember cells cell, dimension: #dimension{cell} = n);
+\module Cell(cell: Cells.CellData, member: Cells.CellMember cells cell, dimension: (cell).dimension = n);
 \import \root.FiniteUnion[A := Carrier, C := Cells.CellData, source := topology, pieces := piece] \as Union;
 \definition pieceClosed: \forall (cell: Cells.CellData) -> Cells.CellMember cells cell -> RemainingSpace.IsClosedIn topology (piece cell) :=
-  \fun (cell: Cells.CellData)(present: _) => either!{{(Classical.excludedMiddle (#dimension{cell} = n))}
+  \fun (cell: Cells.CellData)(present: _) => either!{{(Classical.excludedMiddle ((cell).dimension = n))}
     {RemainingSpace.IsClosedIn topology (piece cell)}
     {\fun (dimension: _) => \idelim
       Remaining.Trace (Space.Subspace[S := subset (N.Nat^::succ n)].Trace (Cells.ClosedImage cell)) = piece cell
       \with S: \Pow Carrier => RemainingSpace.IsClosedIn topology S \by {
         base: Remaining.traceOpen Upper.topology (UpperSpace.Complement ({ x: Upper.Carrier \where Space.Member (Cells.ClosedImage cell) x }))
           (Space.Subspace[S := subset (N.Nat^::succ n)].traceOpen source (Space.Complement (Cells.ClosedImage cell))
-            (#closed{(#cellLaws{laws} cell present)})),
+            (((laws).cellLaws cell present).closed)),
         equality: \axiom:setext(
           Remaining.Trace ({ x: Upper.Carrier \where Space.Member (Cells.ClosedImage cell) x }), piece cell,
           \fun (x: Carrier)(inside: Space.Member (Cells.ClosedImage cell) x) => Logic.And[_, _]::# dimension inside,
-          \fun (x: Carrier)(inside: RemainingSpace.Member (piece cell) x) => #right{inside})
+          \fun (x: Carrier)(inside: RemainingSpace.Member (piece cell) x) => (inside).right)
       }}
     {\fun (different: _) => \idelim RemainingSpace.Empty = piece cell \with S: \Pow Carrier => RemainingSpace.IsClosedIn topology S \by {
       base: Union.emptyClosed,
       equality: \axiom:setext(RemainingSpace.Empty, piece cell,
         \fun (x: Carrier)(impossible: Logic.False) => Logic.falseElim _ impossible,
-        \fun (x: Carrier)(inside: RemainingSpace.Member (piece cell) x) => different (#left{inside}))
+        \fun (x: Carrier)(inside: RemainingSpace.Member (piece cell) x) => different ((inside).left))
     }}
   };
-\structure Representation[x: Carrier]: \Set {
+\structure Representation[x: Carrier]: \Set := {
   cell: Cells.CellData,
   member: Cells.CellMember cells cell,
-  dimension: #dimension{cell} = n,
+  dimension: (cell).dimension = n,
   contains: Space.Member (Cells.InteriorImage cell) x,
-}
+};
 \definition representation: \forall (x: Carrier) -> \exists Representation[x] := \block {
   \fun (x: Carrier) \then
   \takefrom w: \parent.Interiors[].Witness[N.Nat^::succ n, x] \by \parent.Interiors[].cover (N.Nat^::succ n) x (\bysub(A, subset (N.Nat^::succ n), x)) \then
-  \let dimension: #dimension{(#cell{w})} = n := either!{{(Classical.excludedMiddle (#dimension{(#cell{w})} = n))}
-    {#dimension{(#cell{w})} = n}
+  \let dimension: ((w).cell).dimension = n := either!{{(Classical.excludedMiddle (((w).cell).dimension = n))}
+    {((w).cell).dimension = n}
     {\fun (same: _) => same}
     {\fun (different: _) => Logic.falseElim _ ((\bysub(Upper.Carrier, UpperSpace.Complement lower, x))
-      (include cells n (#cell{w}) (#member{w})
-        (Nat.ltOfLeDifferent (#dimension{(#cell{w})}) n
-          (Nat.leOfSuccSucc (#dimension{(#cell{w})}) n (Nat.succLeOfLt (N.Nat^::succ n) (#dimension{(#cell{w})}) (#below{w}))) different)
-        x (\parent.Exhaustion[].interiorClosed (#cell{w}) x (#contains{w}))))}
+      (include cells n ((w).cell) ((w).member)
+        (Nat.ltOfLeDifferent (((w).cell).dimension) n
+          (Nat.leOfSuccSucc (((w).cell).dimension) n (Nat.succLeOfLt (N.Nat^::succ n) (((w).cell).dimension) ((w).below))) different)
+        x (\parent.Exhaustion[].interiorClosed ((w).cell) x ((w).contains))))}
   } \then
-  \return \exact(Representation[x] { cell := #cell{w}, member := #member{w}, dimension := dimension, contains := #contains{w} }, Representation[x])
+  \return \exact(Representation[x] { cell := (w).cell, member := (w).member, dimension := dimension, contains := (w).contains }, Representation[x])
 };
 \definition partition: Union.PartitionLaws[cells] := Union.PartitionLaws[cells] {
   closed := pieceClosed,
   covers := \block {
     \fun (x: Carrier)(whole: _) \then
     \takefrom w: Representation[x] \by representation x \then
-    \return Union.include cells (#cell{w}) (#member{w}) x (Logic.And[_, _]::# (#dimension{w})
-      (\parent.Exhaustion[].interiorClosed (#cell{w}) x (#contains{w})))
+    \return Union.include cells ((w).cell) ((w).member) x (Logic.And[_, _]::# ((w).dimension)
+      (\parent.Exhaustion[].interiorClosed ((w).cell) x ((w).contains)))
   },
   disjoint := \fun (cell, other: Cells.CellData)(present: _)(otherPresent: _)(different: _)(x: Carrier)
     (here: RemainingSpace.Member (piece cell) x)(there: RemainingSpace.Member (piece other) x) =>
-      different (#disjoint{laws} cell other present otherPresent x
-        (Cell[cell := cell, member := present, dimension := #left{here}].interiorImage x (#right{here}))
-        (Cell[cell := other, member := otherPresent, dimension := #left{there}].interiorImage x (#right{there}))),
+      different ((laws).disjoint cell other present otherPresent x
+        (Cell[cell := cell, member := present, dimension := (here).left].interiorImage x ((here).right))
+        (Cell[cell := other, member := otherPresent, dimension := (there).left].interiorImage x ((there).right))),
 };
-\definition componentOpen(cell: Index): RemainingSpace.IsOpenIn topology (piece cell) :=
+\definition componentOpen[cell: Index]: RemainingSpace.IsOpenIn topology (piece cell) :=
   Union.Partition[family := cells, laws := partition].At[c := cell, member := member cell].open;
 
 \module Charts;

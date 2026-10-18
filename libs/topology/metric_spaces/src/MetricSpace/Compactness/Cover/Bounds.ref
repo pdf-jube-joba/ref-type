@@ -1,10 +1,10 @@
 \definition existsBound: \forall (F: Finite.FiniteSubset) -> (\forall (V: \Pow Carrier) -> Finite.Member F V -> \exists Witness[V]) ->
-  \exists { delta: R.Real \where Bound[F, delta] } :=
-  Finite.induction ({ F: \Pow (\Pow Carrier) \where (\forall (V: \Pow Carrier) -> T.FamilyMember F V -> \exists Witness[V]) -> \exists { delta: R.Real \where Bound[F, delta] } })
+  \exists ( delta: R.Real \where Bound[F, delta] ) :=
+  Finite.induction ({ F: \Pow (\Pow Carrier) \where (\forall (V: \Pow Carrier) -> T.FamilyMember F V -> \exists Witness[V]) -> \exists ( delta: R.Real \where Bound[F, delta] ) })
     (\fun (all: _) => Logic.existsIntro[R.Real, { delta: R.Real \where Bound[Finite.Empty, delta] }] Real.one
       (Bound[Finite.Empty, Real.one] {
         positive := Product.onePositive,
-        lower := \fun (V: \Pow Carrier)(empty: Logic.False) => Logic.falseElim (\exists { w: Witness[V] \where R.Le Real.one #radius{w} }) empty,
+        lower := \fun (V: \Pow Carrier)(empty: Logic.False) => Logic.falseElim (\exists ( w: Witness[V] \where R.Le Real.one (w).radius )) empty,
       }))
     (\block {
       \fun (F: \Pow (\Pow Carrier))(previous: _)(U: \Pow Carrier)(all: \forall (V: \Pow Carrier) -> T.FamilyMember (Finite.Insert U F) V -> \exists Witness[V]) \then
@@ -12,20 +12,20 @@
         (\fun (V: \Pow Carrier)(member: T.FamilyMember F V) => all V (Finite.inInsertOld U F V member)) \then
       \let prior: Bound[F, old] := \bysub(R.Real, { delta: R.Real \where Bound[F, delta] }, old) \then
       \takefrom head: Witness[U] \by all U (Finite.inInsertNew U F) \then
-      \let delta: R.Real := Distance.min old #radius{head} \then
+      \let delta: R.Real := Distance.min old (head).radius \then
       \return Logic.existsIntro[R.Real, { delta: R.Real \where Bound[Finite.Insert U F, delta] }] delta
         (Bound[Finite.Insert U F, delta] {
-          positive := Product.minPositive old #radius{head} #positive{prior} #positive{head},
-          lower := \fun (V: \Pow Carrier)(member: T.FamilyMember (Finite.Insert U F) V) => either!{member {\exists { w: Witness[V] \where R.Le delta #radius{w} }}
-            {\fun (equal: V = U) => \idelim U = V \with W: \Pow Carrier => \exists { w: Witness[W] \where R.Le delta #radius{w} } \by {
-              base: Logic.existsIntro[Witness[U], { w: Witness[U] \where R.Le delta #radius{w} }] head (Distance.minRight old #radius{head}),
+          positive := Product.minPositive old (head).radius (prior).positive (head).positive,
+          lower := \fun (V: \Pow Carrier)(member: T.FamilyMember (Finite.Insert U F) V) => either!{member {\exists ( w: Witness[V] \where R.Le delta (w).radius )}
+            {\fun (equal: V = U) => \idelim U = V \with W: \Pow Carrier => \exists ( w: Witness[W] \where R.Le delta (w).radius ) \by {
+              base: Logic.existsIntro[Witness[U], { w: Witness[U] \where R.Le delta (w).radius }] head (Distance.minRight old (head).radius),
               equality: sym!{\Pow Carrier} _ _ equal
             }}
             {\block {
               \fun (oldMember: T.FamilyMember F V) \then
-              \takefrom w: \Cast[Witness[V]] ({ w: Witness[V] \where R.Le old #radius{w} }) \by #lower{prior} V oldMember \then
-              \return Logic.existsIntro[Witness[V], { w: Witness[V] \where R.Le delta #radius{w} }] w
-                (R.leTrans delta old #radius{w} (Distance.minLeft old #radius{head}) (\bysub(Witness[V], { w: Witness[V] \where R.Le old #radius{w} }, w)))
+              \takefrom w: \Cast[Witness[V]] ({ w: Witness[V] \where R.Le old (w).radius }) \by (prior).lower V oldMember \then
+              \return Logic.existsIntro[Witness[V], { w: Witness[V] \where R.Le delta (w).radius }] w
+                (R.leTrans delta old (w).radius (Distance.minLeft old (head).radius) (\bysub(Witness[V], { w: Witness[V] \where R.Le old (w).radius }, w)))
             }}
           },
         })

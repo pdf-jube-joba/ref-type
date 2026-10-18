@@ -1,15 +1,15 @@
 \import \parent.Map[C := C, D := D] \as Maps;
-\structure Data: \Set {
+\structure Data: \Set := {
   inclusion: Maps.Map,
   retraction: \forall (n: N.Nat^) -> Modules.Hom[V := D.family.Carrier n, W := C.family.Carrier n, source := D.family.space n, target := C.family.space n].Map,
-}
-\structure Laws[data: Data]: \Prop {
-  leftInverse: \forall (n: N.Nat^)(x: C.family.Carrier n) -> #apply{(data.retraction n)} (#apply{data.inclusion} n x) = x,
-}
+};
+\structure Laws[data: Data]: \Prop := {
+  leftInverse: \forall (n: N.Nat^)(x: C.family.Carrier n) -> (data.retraction n).apply ((data.inclusion).apply n x) = x,
+};
 \definition SplitInjection: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
-\definition laws(pair: SplitInjection): Laws[pair] := \bysub(Data, { data: Data \where Laws[data] }, pair);
-\definition injective: \forall (pair: SplitInjection)(n: N.Nat^)(x, y: C.family.Carrier n) -> #apply{pair.inclusion} n x = #apply{pair.inclusion} n y -> x = y :=
-  \fun (pair: SplitInjection)(n: N.Nat^)(x, y: C.family.Carrier n)(same: #apply{pair.inclusion} n x = #apply{pair.inclusion} n y) =>
-    trans!{{C.family.Carrier n}} _ _ _ (sym!{{C.family.Carrier n}} _ _ (#leftInverse{(laws pair)} n x))
-      (trans!{{C.family.Carrier n}} _ _ _ (congr!{{D.family.Carrier n} {C.family.Carrier n}} (#apply{(pair.retraction n)}) _ _ same) (#leftInverse{(laws pair)} n y));
+\definition laws[pair: SplitInjection]: Laws[pair] := \bysub(Data, { data: Data \where Laws[data] }, pair);
+\definition injective: \forall (pair: SplitInjection)(n: N.Nat^)(x, y: C.family.Carrier n) -> (pair.inclusion).apply n x = (pair.inclusion).apply n y -> x = y :=
+  \fun (pair: SplitInjection)(n: N.Nat^)(x, y: C.family.Carrier n)(same: (pair.inclusion).apply n x = (pair.inclusion).apply n y) =>
+    trans!{{C.family.Carrier n}} _ _ _ (sym!{{C.family.Carrier n}} _ _ ((laws pair).leftInverse n x))
+      (trans!{{C.family.Carrier n}} _ _ _ (congr!{{D.family.Carrier n} {C.family.Carrier n}} ((pair.retraction n).apply) _ _ same) ((laws pair).leftInverse n y));
 \module On(pair: SplitInjection);

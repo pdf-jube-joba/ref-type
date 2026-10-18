@@ -15,7 +15,7 @@
 \use Equality.eq_reason;
 \definition Matrix: \Set := Base.Matrix;
 \definition Runtime: \VType := \U(N.Nat -> N.Nat -> I.Int);
-\definition reflect(a: Runtime^): Matrix := \fun (i: Finite.Fin m)(j: Finite.Fin n) => a i j;
+\definition reflect[a: Runtime^]: Matrix := \fun (i: Finite.Fin m)(j: Finite.Fin n) => a i j;
 \definition Vector: \Set := Modules.FiniteCoordinates[n := n].Carrier;
 \definition Output: \Set := Modules.FiniteCoordinates[n := m].Carrier;
 \definition domain: Modules.Space Vector := Modules.FiniteCoordinates[n := n].space;
@@ -34,7 +34,7 @@
 \import Sums.Prop[] \as SumLaws;
 \import Sums.Single[] \as Single;
 \import std.Arithmetic[].IntAlgebra[].IntegralDomain[] \as Domain;
-\definition column(i: N.Nat^)(bound: Bounds.Lt i n): Finite.Fin n := \into[N.Nat^](i, { j: N.Nat^ \where Bounds.Lt j n }) \by { bound };
+\definition column[i: N.Nat^][bound: Bounds.Lt i n]: Finite.Fin n := \into[N.Nat^](i, { j: N.Nat^ \where Bounds.Lt j n }) \by { bound };
 \definition term: \forall (a: Runtime^)(v: Vector)(i: Finite.Fin m)(bound: Bounds.Lt i n) ->
   Properties.Diagonal a -> \forall (j: Finite.Fin n) ->
   Arithmetic.mul (a i j) (v j) = Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j)) :=
@@ -47,16 +47,16 @@
           (sym!{I.Int^} (Arithmetic.mul (Delta.delta (column i bound) j) (Arithmetic.mul (a i i) (v j))) (Arithmetic.mul (a i i) (v j))
             (trans!{I.Int^} _ _ _
               (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (Arithmetic.mul (a i i) (v j))) _ _ (Delta.equal (column i bound) j same))
-              (#leftIdentity{(#multiplicative{(#semiring{Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})})} (Arithmetic.mul (a i i) (v j)))))}
+              ((((Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing).semiring).multiplicative).leftIdentity (Arithmetic.mul (a i i) (v j)))))}
       {\fun (different: _) =>
         trans!{I.Int^} _ _ _
           (trans!{I.Int^} _ _ _
             (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (v j)) _ _
               (diagonal i j (Finite.bound m i) (Finite.bound n j) different))
-            (#zeroAbsorbsLeft{(#semiring{Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})} (v j)))
+            (((Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing).semiring).zeroAbsorbsLeft (v j)))
           (sym!{I.Int^} _ _ (trans!{I.Int^} _ _ _
             (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (Arithmetic.mul (a i i) (v j))) _ _ (Delta.different (column i bound) j different))
-            (#zeroAbsorbsLeft{(#semiring{Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})} (Arithmetic.mul (a i i) (v j)))))}
+            (((Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing).semiring).zeroAbsorbsLeft (Arithmetic.mul (a i i) (v j)))))}
     };
 \definition row: \forall (a: Runtime^)(v: Vector)(i: Finite.Fin m)(bound: Bounds.Lt i n) ->
   Properties.Diagonal a -> apply (reflect a) v i = Arithmetic.mul (a i i) (v (column i bound)) :=
@@ -81,24 +81,24 @@
         (\fun (j: Finite.Fin n) => Arithmetic.zero)
         (\fun (j: Finite.Fin n) => trans!{I.Int^} (Arithmetic.mul (a i j) (v j)) (Arithmetic.mul Arithmetic.zero (v j)) Arithmetic.zero
           (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (v j)) (a i j) Arithmetic.zero (zeroEntry a i j diagonal trailing lower))
-          (#zeroAbsorbsLeft{(#semiring{Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})} (v j))))
+          (((Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing).semiring).zeroAbsorbsLeft (v j))))
       (SumLaws.zeroSum (Finite.elements n));
 \definition kernelToEarly: \forall (a: Runtime^)(v: Vector) ->
   Bounds.Le rank m -> Properties.Diagonal a -> Properties.Nonzero a ->
-  apply (reflect a) v = #zero{codomain} -> Tail.EarlyZero v :=
+  apply (reflect a) v = codomain.zero -> Tail.EarlyZero v :=
   \fun (a: Runtime^)(v: Vector)(rowRank: _)(diagonal: Properties.Diagonal a)(nonzero: Properties.Nonzero a)(killed: _)(j: Finite.Fin n)(early: Bounds.Lt j rank) => \block {
     \let i: Finite.Fin m := \into[N.Nat^](j, { i: N.Nat^ \where Bounds.Lt i m }) \by { Bounds.ltLeTrans j rank m early rowRank } \then
     \return Domain.zeroFactor (a j j) (v j) (nonzero j early)
       (trans!{I.Int^} (Arithmetic.mul (a j j) (v j)) (apply (reflect a) v i) Arithmetic.zero
         (sym!{I.Int^} (apply (reflect a) v i) (Arithmetic.mul (a j j) (v j)) (row a v i (Finite.bound n j) diagonal))
-        (congr!{Output I.Int^} (\fun (value: Output) => value i) (apply (reflect a) v) #zero{codomain} killed))
+        (congr!{Output I.Int^} (\fun (value: Output) => value i) (apply (reflect a) v) codomain.zero killed))
   };
 \import std.Data[].Bool[] \as B;
 \definition earlyToKernel: \forall (a: Runtime^)(v: Vector) ->
   Bounds.Le rank n -> Properties.Diagonal a -> Properties.TrailingZero a -> Tail.EarlyZero v ->
-  apply (reflect a) v = #zero{codomain} :=
+  apply (reflect a) v = codomain.zero :=
   \fun (a: Runtime^)(v: Vector)(columnRank: _)(diagonal: Properties.Diagonal a)(trailing: Properties.TrailingZero a)(earlyZero: Tail.EarlyZero v) =>
-    \axiom:funext(apply (reflect a) v, #zero{codomain}, \fun (i: Finite.Fin m) =>
+    \axiom:funext(apply (reflect a) v, codomain.zero, \fun (i: Finite.Fin m) =>
       (\induction (test: B.Bool^) \return Nat.ltb i rank = test -> apply (reflect a) v i = Arithmetic.zero \with {
         | false: \fun (outside: _) => lateRow a v i diagonal trailing (Bounds.leOfLtbFalse i rank outside)
         | true: \fun (early: _) => \block {
@@ -107,15 +107,15 @@
             (row a v i within diagonal)
             (trans!{I.Int^} (Arithmetic.mul (a i i) (v (column i within))) (Arithmetic.mul (a i i) Arithmetic.zero) Arithmetic.zero
               (congr!{I.Int^ I.Int^} (Arithmetic.mul (a i i)) (v (column i within)) Arithmetic.zero (earlyZero (column i within) early))
-              (#zeroAbsorbsRight{(#semiring{Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})} (a i i)))
+              (((Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing).semiring).zeroAbsorbsRight (a i i)))
         }
       }) (Nat.ltb i rank) (\refl(Nat.ltb i rank)));
-\structure Laws[a: Runtime^]: \Prop {
+\structure Laws[a: Runtime^]: \Prop := {
   rowRank: Bounds.Le rank m,
   columnRank: Bounds.Le rank n,
   diagonal: Properties.Diagonal a,
   trailing: Properties.TrailingZero a,
   nonzero: Properties.Nonzero a,
-}
+};
 \module Kernel(a: Runtime^);
 \module Cokernel(a: Runtime^);

@@ -3,7 +3,7 @@
 \import \parent.Horizontal[q := q] \as Horizontal;
 \import singular_cohomology.SimplicialChains[].On[X := Horizontal.object] \as Native;
 \module FibreObject(sigma: SmallSimplices.Carrier q);
-\definition objects(sigma: SmallSimplices.Carrier q): Semisimplicial.Object := Semisimplicial.Object {
+\definition objects[sigma: SmallSimplices.Carrier q]: Semisimplicial.Object := Semisimplicial.Object {
   family := Semisimplicial.Family { Carrier := FibreObject[sigma := sigma].Carrier },
   faces := Semisimplicial.Faces[Semisimplicial.Family { Carrier := FibreObject[sigma := sigma].Carrier }] {
     apply := FibreObject[sigma := sigma].face,
@@ -19,23 +19,23 @@
 };
 \import singular_cech.Coproduct[].On[Index := SmallSimplices.Carrier q, objects := objects] \as Coproduct;
 \import singular_cohomology.SimplicialChains[].On[X := Coproduct.object] \as CoproductNative;
-\definition label(n: N.Nat^)(s: Generator n q): SmallSimplices.Carrier q :=
-  \into[Simplices.Carrier q](#singular{s}, SmallSimplices.Small q) \by {
-    \exact(SmallSimplices.Witness[q, #singular{s}] {
-      element := Stars.star (#vertices{s} (Fin.zero n)), member := Stars.member (#vertices{s} (Fin.zero n)),
+\definition label[n: N.Nat^][s: Generator n q]: SmallSimplices.Carrier q :=
+  \into[Simplices.Carrier q]((s).singular, SmallSimplices.Small q) \by {
+    \exact(SmallSimplices.Witness[q, (s).singular] {
+      element := Stars.star ((s).vertices (Fin.zero n)), member := Stars.member ((s).vertices (Fin.zero n)),
       contained := \fun (x: Geometric.Carrier q) => common n q s x (Fin.zero n),
-    }, SmallSimplices.Witness[q, #singular{s}])
+    }, SmallSimplices.Witness[q, (s).singular])
   };
-\definition vertices(n: N.Nat^)(s: Generator n q): \parent.Row[q := q, sigma := label n s].Carrier n :=
-  \into[Simplex n](#vertices{s}, \parent.Row[q := q, sigma := label n s].Carrier n) \by {
+\definition vertices[n: N.Nat^][s: Generator n q]: \parent.Row[q := q, sigma := label n s].Carrier n :=
+  \into[Simplex n]((s).vertices, \parent.Row[q := q, sigma := label n s].Carrier n) \by {
     \fun (i: Fin.Fin (N.Nat^::succ n))(x: Geometric.Carrier q) => common n q s x i
   };
-\definition encode(n: N.Nat^)(s: Generator n q): Coproduct.Generator[n] :=
+\definition encode[n: N.Nat^][s: Generator n q]: Coproduct.Generator[n] :=
   Coproduct.Generator[n] { index := label n s, simplex := vertices n s };
-\definition decode(n: N.Nat^)(s: Coproduct.Generator[n]): Generator n q :=
-  \parent.Row[q := q, sigma := #index{s}].encode n #simplex{s};
+\definition decode[n: N.Nat^][s: Coproduct.Generator[n]]: Generator n q :=
+  \parent.Row[q := q, sigma := (s).index].encode n (s).simplex;
 \definition decodeEncode: \forall (n: N.Nat^)(s: Generator n q) -> decode n (encode n s) = s :=
-  \fun (n: N.Nat^)(s: Generator n q) => dataExt n q (decode n (encode n s)) s (\refl(#vertices{s})) (\refl(#singular{s}));
+  \fun (n: N.Nat^)(s: Generator n q) => dataExt n q (decode n (encode n s)) s (\refl((s).vertices)) (\refl((s).singular));
 \definition encodeDecode: \forall (n: N.Nat^)(s: Coproduct.Generator[n]) -> encode n (decode n s) = s :=
   \fun (n: N.Nat^) => \induction (s: Coproduct.Generator[n]) \return encode n (decode n s) = s \with {
     | # : \fun (sigma: SmallSimplices.Carrier q)(s: \parent.Row[q := q, sigma := sigma].Carrier n) =>
@@ -51,7 +51,7 @@
 \definition backward: Backward.Map := Backward.Map {
   apply := decode,
   faces := \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(s: Coproduct.Generator[N.Nat^::succ n]) =>
-    dataExt n q (decode n (Coproduct.face n i s)) (horizontal n q i (decode (N.Nat^::succ n) s)) (\refl(Faces.apply n i #simplex{s})) (\refl(#index{s})),
+    dataExt n q (decode n (Coproduct.face n i s)) (horizontal n q i (decode (N.Nat^::succ n) s)) (\refl(Faces.apply n i (s).simplex)) (\refl((s).index)),
 };
 \import Native.Mapping[Y := Coproduct.object] \as Encode;
 \import singular_cohomology.SimplicialChains[].On[X := Coproduct.object].Mapping[Y := Horizontal.object] \as Decode;

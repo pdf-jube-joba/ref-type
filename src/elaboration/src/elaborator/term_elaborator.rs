@@ -519,6 +519,23 @@ impl LocalScope {
         handler.infer(&mut self.typing_binds, exp)
     }
 
+    fn elab_index_type(
+        &mut self,
+        annotation: &SExp,
+        index: Exp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ElaborationError> {
+        let ty = self.elab_exp_rec(annotation, handler)?;
+        if matches!(annotation, SExp::Meta { .. }) {
+            // A family may project fields from its index before the enclosing
+            // transport is checked. Resolve an omitted index type first.
+            handler.check(&mut self.typing_binds, index, ty)?;
+            Ok(handler.zonk(ty))
+        } else {
+            Ok(ty)
+        }
+    }
+
     fn get_var(&self, arena: &Arena, name: &Identifier, handler: &impl Handler) -> Option<Exp> {
         let binding = self
             .bindings
@@ -1028,7 +1045,7 @@ impl LocalScope {
                 }
             }
             // this includes accessing constructor of the inductive type, accessing field of record type
-            // `List[Nat]#nil` or `some_group#unit`
+            // `List[Nat]::nil` or `some_group.unit`
             SExp::AssociatedAccess { base, field, span } => {
                 // 1. if base is local access, try to get constructor (parameter is allowed)
                 if let SExp::AccessPath { access, parameters } = base.as_ref() {
@@ -2051,8 +2068,8 @@ impl LocalScope {
                 family,
                 base,
             } => {
-                let ty = self.elab_exp_rec(ty, handler)?;
                 let index = self.elab_exp_rec(index, handler)?;
+                let ty = self.elab_index_type(ty, index, handler)?;
                 let var = handler.intern_name(var);
                 self.push_binded_var(var, ty);
                 let family = self.elab_exp_rec(family, handler)?;
@@ -2077,7 +2094,7 @@ impl LocalScope {
             } => {
                 let left = self.elab_exp_rec(left, handler)?;
                 let right = self.elab_exp_rec(right, handler)?;
-                let ty = self.elab_exp_rec(ty, handler)?;
+                let ty = self.elab_index_type(ty, left, handler)?;
                 let var = handler.intern_name(var);
                 self.push_binded_var(var, ty);
                 let family = self.elab_exp_rec(family, handler)?;

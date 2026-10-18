@@ -1,21 +1,21 @@
 \import \parent.Total[C := C] \as Total;
 \import \parent.Row[C := C, p := Nat.Nat^::zero] \as Row;
-\definition Vanishes: \Prop := \forall (p, q: Nat.Nat^)(x: C.family.Carrier (Nat.Nat^::succ q) p) -> x = #zero{(C.family.space (Nat.Nat^::succ q) p)};
-\definition point(n: Nat.Nat^): Index n := \into[Pair](Pair { first := Nat.Nat^::zero, second := n },
-  { i: Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { Natural.addZeroLeft n };
-\definition zeroIndex: \forall (n: Nat.Nat^)(i: Index n) -> #first{i} = Nat.Nat^::zero -> i = point n :=
-  \fun (n: Nat.Nat^)(i: Index n)(zero: #first{i} = Nat.Nat^::zero) =>
+\definition Vanishes: \Prop := \forall (p, q: Nat.Nat^)(x: C.family.Carrier (Nat.Nat^::succ q) p) -> x = (C.family.space (Nat.Nat^::succ q) p).zero;
+\definition point[n: Nat.Nat^]: Index n := \into[Pair](Pair { first := Nat.Nat^::zero, second := n },
+  { i: Pair \where Arithmetic.add i.first i.second = n }) \by { Natural.addZeroLeft n };
+\definition zeroIndex: \forall (n: Nat.Nat^)(i: Index n) -> i.first = Nat.Nat^::zero -> i = point n :=
+  \fun (n: Nat.Nat^)(i: Index n)(zero: i.first = Nat.Nat^::zero) =>
     trans!{Pair} _ _ _ (sym!{Pair} _ _ (pairRebuild i))
       (congr2!{Nat.Nat^ Nat.Nat^ Pair} (\fun (p, q: Nat.Nat^) => Pair { first := p, second := q }) _ _ _ _ zero
-        (trans!{Nat.Nat^} _ _ _ (sym!{Nat.Nat^} _ _ (Natural.addZeroLeft #second{i}))
+        (trans!{Nat.Nat^} _ _ _ (sym!{Nat.Nat^} _ _ (Natural.addZeroLeft i.second))
           (trans!{Nat.Nat^} _ _ _
-            (congr!{Nat.Nat^ Nat.Nat^} (\fun (p: Nat.Nat^) => Arithmetic.add p #second{i}) _ _ (sym!{Nat.Nat^} _ _ zero)) (degree n i))));
+            (congr!{Nat.Nat^ Nat.Nat^} (\fun (p: Nat.Nat^) => Arithmetic.add p i.second) _ _ (sym!{Nat.Nat^} _ _ zero)) (degree n i))));
 \definition positive: Vanishes -> \forall (q, p: Nat.Nat^) -> Logic.Not (q = Nat.Nat^::zero) ->
-  \forall (x: C.family.Carrier q p) -> x = #zero{(C.family.space q p)} :=
+  \forall (x: C.family.Carrier q p) -> x = (C.family.space q p).zero :=
   \fun (vanishes: Vanishes) => \induction (q: Nat.Nat^) \return \forall (p: Nat.Nat^) -> Logic.Not (q = Nat.Nat^::zero) ->
-    \forall (x: C.family.Carrier q p) -> x = #zero{(C.family.space q p)} \with {
+    \forall (x: C.family.Carrier q p) -> x = (C.family.space q p).zero \with {
       | zero: \fun (p: Nat.Nat^)(different: Logic.Not (Nat.Nat^::zero = Nat.Nat^::zero))(x: C.family.Carrier Nat.Nat^::zero p) =>
-          Logic.falseElim (x = #zero{(C.family.space Nat.Nat^::zero p)}) (different (\refl(Nat.Nat^::zero)))
+          Logic.falseElim (x = (C.family.space Nat.Nat^::zero p).zero) (different (\refl(Nat.Nat^::zero)))
       | succ: \fun (q: Nat.Nat^)(previous: _)(p: Nat.Nat^)(different: Logic.Not (Nat.Nat^::succ q = Nat.Nat^::zero)) => vanishes p q
     };
 \module Degree(n: Nat.Nat^) {
@@ -23,33 +23,33 @@
   \import Modules.DirectSum[Index := Index n, family := Term.family].Single[point := point n] \as Single;
   \definition otherTrivial: Vanishes -> Single.OtherTrivial :=
     \fun (vanishes: Vanishes)(i: Index n)(different: Logic.Not (i = point n)) =>
-      positive vanishes #first{i} #second{i} (\fun (zero: #first{i} = Nat.Nat^::zero) => different (zeroIndex n i zero));
+      positive vanishes i.first i.second (\fun (zero: i.first = Nat.Nat^::zero) => different (zeroIndex n i zero));
   \definition forward: Modules.Hom[V := Term.Carrier, W := C.family.Carrier Nat.Nat^::zero n,
     source := Term.space, target := C.family.space Nat.Nat^::zero n].Map := Single.forward;
   \definition backward: Modules.Hom[V := C.family.Carrier Nat.Nat^::zero n, W := Term.Carrier,
     source := C.family.space Nat.Nat^::zero n, target := Term.space].Map := Single.backward;
-  \definition leftInverse: Vanishes -> \forall (x: Term.Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \definition leftInverse: Vanishes -> \forall (x: Term.Carrier) -> backward.apply (forward.apply x) = x :=
     \fun (vanishes: Vanishes) => Single.leftInverse (otherTrivial vanishes);
-  \definition rightInverse: \forall (x: C.family.Carrier Nat.Nat^::zero n) -> #apply{forward} (#apply{backward} x) = x := Single.rightInverse;
+  \definition rightInverse: \forall (x: C.family.Carrier Nat.Nat^::zero n) -> forward.apply (backward.apply x) = x := Single.rightInverse;
 }
 \module Step(n: Nat.Nat^);
 \import Chains.Map[C := Row.complex, D := Total.complex] \as Backward;
 \definition backward: Backward.Map := Backward.Map {
-  apply := \fun (n: Nat.Nat^) => #apply{(Degree[n := n].backward)},
-  addition := \fun (n: Nat.Nat^) => #addition{(Degree[n := n].backward)},
-  scalar := \fun (n: Nat.Nat^) => #scalar{(Degree[n := n].backward)},
+  apply := \fun (n: Nat.Nat^) => (Degree[n := n].backward).apply,
+  addition := \fun (n: Nat.Nat^) => (Degree[n := n].backward).addition,
+  scalar := \fun (n: Nat.Nat^) => (Degree[n := n].backward).scalar,
   commutes := \fun (n: Nat.Nat^) => Step[n := n].backward,
 };
 \import Chains.Map[C := Total.complex, D := Row.complex] \as Forward;
-\definition forward(vanishes: Vanishes): Forward.Map := Forward.Map {
-  apply := \fun (n: Nat.Nat^) => #apply{(Degree[n := n].forward)},
-  addition := \fun (n: Nat.Nat^) => #addition{(Degree[n := n].forward)},
-  scalar := \fun (n: Nat.Nat^) => #scalar{(Degree[n := n].forward)},
+\definition forward[vanishes: Vanishes]: Forward.Map := Forward.Map {
+  apply := \fun (n: Nat.Nat^) => (Degree[n := n].forward).apply,
+  addition := \fun (n: Nat.Nat^) => (Degree[n := n].forward).addition,
+  scalar := \fun (n: Nat.Nat^) => (Degree[n := n].forward).scalar,
   commutes := \fun (n: Nat.Nat^) => Step[n := n].forward vanishes,
 };
 \definition leftInverse: \forall (vanishes: Vanishes)(n: Nat.Nat^)(x: Total.Carrier n) ->
-  #apply{backward} n (#apply{(forward vanishes)} n x) = x :=
+  backward.apply n ((forward vanishes).apply n x) = x :=
   \fun (vanishes: Vanishes)(n: Nat.Nat^) => Degree[n := n].leftInverse vanishes;
 \definition rightInverse: \forall (vanishes: Vanishes)(n: Nat.Nat^)(x: C.family.Carrier Nat.Nat^::zero n) ->
-  #apply{(forward vanishes)} n (#apply{backward} n x) = x :=
+  (forward vanishes).apply n (backward.apply n x) = x :=
   \fun (vanishes: Vanishes)(n: Nat.Nat^) => Degree[n := n].rightInverse;

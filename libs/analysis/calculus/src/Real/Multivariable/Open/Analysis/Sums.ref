@@ -1,7 +1,7 @@
 \import real.Analysis[].Sums[T := T] \as FiniteSum;
 \import \parent.Operations[] \as Operations;
 \import std.Data[].List[].All[A := T] \as All;
-\definition sum(U: OpenSet)(xs: Lists.List[T])(f: T -> ScalarFunction U): ScalarFunction U :=
+\definition sum[U: OpenSet][xs: Lists.List[T]][f: T -> ScalarFunction U]: ScalarFunction U :=
   \fun (a: Carrier U) => FiniteSum.sum xs (\fun (t: T) => f t a);
 \definition continuous: \forall (U: OpenSet)(xs: Lists.List[T])(f: T -> ScalarFunction U) ->
   All.Holds (\fun (t: T) => ContinuousOn U (f t)) xs -> ContinuousOn U (sum U xs f) :=
@@ -9,7 +9,7 @@
     All.Holds (\fun (t: T) => ContinuousOn U (f t)) xs -> ContinuousOn U (sum U xs f) \with {
       | nil: \fun (f: _)(proof: _) => Operations.constantContinuous U zero
       | cons: \fun (head: T)(tail: Lists.List[T])(previous: _)(f: _)(proof: Logic.And[ContinuousOn U (f head), All.Holds (\fun (t: T) => ContinuousOn U (f t)) tail]) =>
-        Operations.addContinuous U (f head) (sum U tail f) (#left{proof}) (previous f (#right{proof}))
+        Operations.addContinuous U (f head) (sum U tail f) (proof.left) (previous f (proof.right))
     };
 \definition partial: \forall (U: OpenSet)(xs: Lists.List[T])(f, df: T -> ScalarFunction U)(i: Coordinate) ->
   All.Holds (\fun (t: T) => HasPartialDerivative U (f t) i (df t)) xs -> HasPartialDerivative U (sum U xs f) i (sum U xs df) :=
@@ -18,7 +18,7 @@
       | nil: \fun (f, df: _)(i: _)(proof: _) => Operations.constantPartial U zero i
       | cons: \fun (head: T)(tail: Lists.List[T])(previous: _)(f, df: _)(i: _)
         (proof: Logic.And[HasPartialDerivative U (f head) i (df head), All.Holds (\fun (t: T) => HasPartialDerivative U (f t) i (df t)) tail]) =>
-          Operations.addPartial U (f head) (sum U tail f) (df head) (sum U tail df) i (#left{proof}) (previous f df i (#right{proof}))
+          Operations.addPartial U (f head) (sum U tail f) (df head) (sum U tail df) i (proof.left) (previous f df i (proof.right))
     };
 \definition append: \forall (U: OpenSet)(xs, ys: Lists.List[T])(f: T -> ScalarFunction U) ->
   sum U (Lists.append T xs ys) f = Operations.plus U (sum U xs f) (sum U ys f) :=

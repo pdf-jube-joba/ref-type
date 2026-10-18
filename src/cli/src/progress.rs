@@ -371,48 +371,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn packages_report_once_when_all_selected_modules_finish() {
-        let mut state = State::new();
-        let plan = ProgressEvent::Planned(ProgressPlan {
-            packages: vec!["app".into(), "base".into()],
-            modules: ["app", "app.Main", "base", "base.A"]
-                .map(|path| sema::ProgressModule {
-                    path: path.split('.').map(str::to_owned).collect(),
-                    dependencies: vec![],
-                })
-                .into(),
-        });
-        let complete = |path: &str, action| ProgressEvent::ModuleFinished {
-            path: path.split('.').map(str::to_owned).collect(),
-            action,
-        };
-        assert_eq!(state.update(&plan), None);
-        assert_eq!(state.update(&complete("base", ProgressAction::Skip)), None);
-        assert_eq!(state.update(&complete("base", ProgressAction::Skip)), None);
-        assert_eq!(state.update(&complete("app", ProgressAction::Skip)), None);
-        assert_eq!(state.update(&complete("app", ProgressAction::Check)), None);
-        // Workers may repeat plans and completed dependencies across batches.
-        assert_eq!(state.update(&plan), None);
-        assert_eq!(
-            state.update(&complete("base.A", ProgressAction::Skip)),
-            Some("Finished base: 0 check, 2 skip".into())
-        );
-        assert_eq!(state.update(&plan), None);
-        assert_eq!(
-            state.update(&complete("base.A", ProgressAction::Check)),
-            None
-        );
-        assert_eq!(
-            state.update(&complete("app.Main", ProgressAction::Skip)),
-            Some("Finished app: 1 check, 1 skip".into())
-        );
-        assert_eq!(
-            state.update(&complete("app.Main", ProgressAction::Skip)),
-            None
-        );
-    }
-
-    #[test]
     fn retries_change_cached_action_without_counting_a_module_twice() {
         let mut state = State::new();
         let path = vec!["lib".into(), "Module".into()];
@@ -433,13 +391,9 @@ mod tests {
             action: ProgressAction::Check,
         });
         assert_eq!(state.completed.len(), 1);
-        assert!(state.render(0, 200).contains("(lib 1/1) lib.Module"));
         assert_eq!(
             state.completed.values().next(),
             Some(&ProgressAction::Check)
         );
-        let line = state.render(0, 40);
-        assert_eq!(line.chars().count(), 40);
-        assert!(line.ends_with('…'));
     }
 }

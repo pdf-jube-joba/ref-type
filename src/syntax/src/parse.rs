@@ -401,20 +401,14 @@ impl<'a> Parser<'a> {
     fn parse_definition(&mut self) -> Result<ModuleItem, ParseError> {
         let first_name = self.expect_ident()?;
         let mut first_binders = Vec::new();
-        while matches!(self.peek(), Some(Token::LParen | Token::LBracket)) {
-            let binders = if self.peek() == Some(&Token::LBracket) {
-                self.parse_bracketed_rightbinds()?
-            } else {
-                self.parse_rightbinds()?
-            };
-            first_binders.extend(binders);
+        while self.peek() == Some(&Token::LBracket) {
+            first_binders.extend(self.parse_bracketed_rightbinds()?);
         }
         let (owner, name, binders) = if self.bump_if_token(Token::DoubleColon) {
             let name = self.expect_ident()?;
             let mut binders = Vec::new();
-            while self.peek() == Some(&Token::LParen) {
-                let parsed = self.parse_rightbinds()?;
-                binders.extend(parsed);
+            while self.peek() == Some(&Token::LBracket) {
+                binders.extend(self.parse_bracketed_rightbinds()?);
             }
             (
                 Some(AssociatedOwner {
@@ -447,7 +441,7 @@ impl<'a> Parser<'a> {
         while self.peek() == Some(&Token::LBracket) {
             parameters.extend(self.parse_bracketed_rightbinds()?);
         }
-        let kind = if self.peek() == Some(&Token::LBrace) {
+        let kind = if self.peek() == Some(&Token::Assign) {
             None
         } else {
             self.expect_token(Token::Colon)?;
@@ -456,9 +450,9 @@ impl<'a> Parser<'a> {
                 SExp::ValueType => InductiveKind::Program,
                 _ => return Err(self.eof_error(Expected::StructureSort)),
             };
-            self.bump_if_token(Token::Assign);
             Some(kind)
         };
+        self.expect_token(Token::Assign)?;
         let mut field_spans = Vec::new();
         let fields = self.parse_structure_fields(&mut field_spans)?;
         let mut names = std::collections::HashSet::new();
@@ -474,7 +468,7 @@ impl<'a> Parser<'a> {
                 });
             }
         }
-        self.bump_if_token(Token::Semicolon);
+        self.expect_token(Token::Semicolon)?;
         Ok(ModuleItem::Structure {
             name,
             parameters,
@@ -1002,7 +996,7 @@ mod tests {
     #[test]
     fn malformed_declarations_do_not_end_optional_lists() {
         for input in [
-            r"\definition f(x: A, y): A := x;",
+            r"\definition f[x: A, y]: A := x;",
             r"\module M(x: A, y) {}",
             r"\inductive T: \Set := | ctor: ;",
             r"\import M[x := ] \as Alias;",

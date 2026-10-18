@@ -10,10 +10,10 @@
 \definition differential: Differential.Map := Differential.Map {
   apply := \fun (f: Functions.Function) => D.apply (FunctionsToForms.apply f),
   preservesAdd := \fun (f, g: Functions.Function) => trans!{{Form one}} _ _ _
-    (congr!{{Form zero} {Form one}} D.apply _ _ (#preservesAdd{FunctionsToForms.forward} f g))
+    (congr!{{Form zero} {Form one}} D.apply _ _ (FunctionsToForms.forward.preservesAdd f g))
     (D.addition (FunctionsToForms.apply f) (FunctionsToForms.apply g)),
   preservesScale := \fun (a: Reals.Real)(f: Functions.Function) => trans!{{Form one}} _ _ _
-    (congr!{{Form zero} {Form one}} D.apply _ _ (#preservesScale{FunctionsToForms.forward} a f))
+    (congr!{{Form zero} {Form one}} D.apply _ _ (FunctionsToForms.forward.preservesScale a f))
     (D.scalar a (FunctionsToForms.apply f)),
 };
 \import Spaces.Subspace[V := Functions.Function, space := Functions.vectorSpace] \as Subspaces;
@@ -22,37 +22,37 @@
 \import Subspaces.Of[subspace := kernel] \as Flat;
 \definition Function: \Set := Flat.Carrier;
 \definition vectorSpace: Spaces.VectorSpace Function := Flat.induced;
-\definition toCycle(f: Function): H.CycleCarrier := \into[Form zero](FunctionsToForms.apply f, H.CycleCarrier) \by {
-  \bysub(Functions.Function, #carrier{kernel}, f)
+\definition toCycle[f: Function]: H.CycleCarrier := \into[Form zero](FunctionsToForms.apply f, H.CycleCarrier) \by {
+  \bysub(Functions.Function, kernel.carrier, f)
 };
-\definition toFunction(omega: H.CycleCarrier): Function := \into[Functions.Function](FunctionsToForms.function omega, #carrier{kernel}) \by {
+\definition toFunction[omega: H.CycleCarrier]: Function := \into[Functions.Function](FunctionsToForms.function omega, kernel.carrier) \by {
   trans!{{Form one}} (D.apply (FunctionsToForms.apply (FunctionsToForms.function omega))) (D.apply omega) OneForms.zero
-    (congr!{{Form zero} {Form one}} D.apply (FunctionsToForms.apply (FunctionsToForms.function omega)) omega (#rightInverse{FunctionsToForms.isomorphism} omega))
+    (congr!{{Form zero} {Form one}} D.apply (FunctionsToForms.apply (FunctionsToForms.function omega)) omega (FunctionsToForms.isomorphism.rightInverse omega))
     (\bysub(Form zero, H.CycleCarrier, omega))
 };
 \import Spaces.Linear[V := Function, W := H.CycleCarrier, source := vectorSpace, target := H.cycleSpace] \as ToCycles;
 \import Spaces.Linear[V := H.CycleCarrier, W := Function, source := H.cycleSpace, target := vectorSpace] \as FromCycles;
 \definition toCycles: ToCycles.Map := ToCycles.Map {
   apply := toCycle,
-  preservesAdd := \fun (f, g: Function) => #preservesAdd{FunctionsToForms.forward} f g,
-  preservesScale := \fun (a: Reals.Real)(f: Function) => #preservesScale{FunctionsToForms.forward} a f,
+  preservesAdd := \fun (f, g: Function) => FunctionsToForms.forward.preservesAdd f g,
+  preservesScale := \fun (a: Reals.Real)(f: Function) => FunctionsToForms.forward.preservesScale a f,
 };
 \definition fromCycles: FromCycles.Map := FromCycles.Map {
   apply := toFunction,
-  preservesAdd := \fun (omega, eta: H.CycleCarrier) => #preservesAdd{FunctionsToForms.backward} omega eta,
-  preservesScale := \fun (a: Reals.Real)(omega: H.CycleCarrier) => #preservesScale{FunctionsToForms.backward} a omega,
+  preservesAdd := \fun (omega, eta: H.CycleCarrier) => FunctionsToForms.backward.preservesAdd omega eta,
+  preservesScale := \fun (a: Reals.Real)(omega: H.CycleCarrier) => FunctionsToForms.backward.preservesScale a omega,
 };
 \definition functionsInverse: \forall (f: Function) -> toFunction (toCycle f) = f :=
-  \fun (f: Function) => #leftInverse{FunctionsToForms.isomorphism} f;
+  \fun (f: Function) => FunctionsToForms.isomorphism.leftInverse f;
 \definition cyclesInverse: \forall (omega: H.CycleCarrier) -> toCycle (toFunction omega) = omega :=
-  \fun (omega: H.CycleCarrier) => #rightInverse{FunctionsToForms.isomorphism} omega;
+  \fun (omega: H.CycleCarrier) => FunctionsToForms.isomorphism.rightInverse omega;
 \import Spaces.Linear[V := H.CycleCarrier, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace] \as Classes;
 \import Spaces.Linear[V := H.Cohomology, W := H.CycleCarrier, source := H.cohomologySpace, target := H.cycleSpace] \as Representatives;
 \definition classes: Classes.Map := Classes.Map {
-  apply := #apply{(#forward{Comparison.kernelIso})}, preservesAdd := #addition{(#forward{Comparison.kernelIso})}, preservesScale := #scalar{(#forward{Comparison.kernelIso})},
+  apply := (Comparison.kernelIso.forward).apply, preservesAdd := (Comparison.kernelIso.forward).addition, preservesScale := (Comparison.kernelIso.forward).scalar,
 };
 \definition representatives: Representatives.Map := Representatives.Map {
-  apply := #apply{(#backward{Comparison.kernelIso})}, preservesAdd := #addition{(#backward{Comparison.kernelIso})}, preservesScale := #scalar{(#backward{Comparison.kernelIso})},
+  apply := (Comparison.kernelIso.backward).apply, preservesAdd := (Comparison.kernelIso.backward).addition, preservesScale := (Comparison.kernelIso.backward).scalar,
 };
 \definition forward: Spaces.Linear[V := Function, W := H.Cohomology, source := vectorSpace, target := H.cohomologySpace].Map :=
   Classes.Composition[U := Function, domain := vectorSpace].compose classes toCycles;
@@ -61,10 +61,10 @@
 \import Spaces.Isomorphism[V := Function, W := H.Cohomology, source := vectorSpace, target := H.cohomologySpace] \as Iso;
 \definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
   forward := forward, backward := backward,
-  leftInverse := \fun (f: Function) => trans!{Function} (#apply{backward} (#apply{forward} f)) (toFunction (toCycle f)) f
-    (congr!{{H.CycleCarrier} Function} toFunction (#apply{representatives} (#apply{classes} (toCycle f))) (toCycle f) (#leftInverse{Comparison.kernelIso} (toCycle f)))
+  leftInverse := \fun (f: Function) => trans!{Function} (backward.apply (forward.apply f)) (toFunction (toCycle f)) f
+    (congr!{{H.CycleCarrier} Function} toFunction (representatives.apply (classes.apply (toCycle f))) (toCycle f) (Comparison.kernelIso.leftInverse (toCycle f)))
     (functionsInverse f),
-  rightInverse := \fun (h: H.Cohomology) => trans!{{H.Cohomology}} (#apply{forward} (#apply{backward} h)) (#apply{classes} (#apply{representatives} h)) h
-    (congr!{{H.CycleCarrier} {H.Cohomology}} #apply{classes} (toCycle (toFunction (#apply{representatives} h))) (#apply{representatives} h) (cyclesInverse (#apply{representatives} h)))
-    (#rightInverse{Comparison.kernelIso} h),
+  rightInverse := \fun (h: H.Cohomology) => trans!{{H.Cohomology}} (forward.apply (backward.apply h)) (classes.apply (representatives.apply h)) h
+    (congr!{{H.CycleCarrier} {H.Cohomology}} classes.apply (toCycle (toFunction (representatives.apply h))) (representatives.apply h) (cyclesInverse (representatives.apply h)))
+    (Comparison.kernelIso.rightInverse h),
 };

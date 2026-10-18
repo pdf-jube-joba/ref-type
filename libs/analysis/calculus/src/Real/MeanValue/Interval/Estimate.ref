@@ -10,7 +10,7 @@
   \let control: Limits.Control[f, x, f x, epsilon, delta] := \bysub(Real, { r: Real \where Limits.Control[f, x, f x, epsilon, r] }, delta) \then
   \return Logic.existsIntro[Real, { r: Real \where Local.Control[f, x, epsilon, r] }] delta
     (Local.Control[f, x, epsilon, delta] {
-      positive := #positive{control},
+      positive := control.positive,
       estimate := \fun (y: Local.Carrier)(near: _) => LimitLaws.continuityEstimate f x epsilon delta positive control y near,
     })
 };
@@ -21,13 +21,13 @@
   \fun (f, d: Real -> Real)(c, theta: Real)(ab: _)(derivatives: _)(bounded: _) \then
   \let continuous: Local.ContinuousOn f := \fun (x: Local.Carrier) => continuousAt f d x (derivatives x) \then
   \let differentiable: DifferentiableOn f := \fun (x: Real)(inside: Interior x) => Logic.existsIntro[Real, { e: Real \where Derivative.HasDerivativeAt f x e }] (d x)
-    (derivatives (\into[Real](x, Line.ClosedInterval a b) \by { Logic.And[_, _]::# (Order.leOfLt a x (#left{inside})) (Order.leOfLt x b (#right{inside})) })) \then
+    (derivatives (\into[Real](x, Line.ClosedInterval a b) \by { Logic.And[_, _]::# (Order.leOfLt a x (inside.left)) (Order.leOfLt x b (inside.right)) })) \then
   \takefrom x: \Cast[Real] ({ x: Real \where MeanValueResult[f, x] }) \by meanValue f ab continuous differentiable \then
   \let witness: MeanValueResult[f, x] := \bysub(Real, { x: Real \where MeanValueResult[f, x] }, x) \then
   \let closed: Local.Carrier := \into[Real](x, Line.ClosedInterval a b) \by {
-    Logic.And[_, _]::# (Order.leOfLt a x (#left{(#interior{witness})})) (Order.leOfLt x b (#right{(#interior{witness})}))
+    Logic.And[_, _]::# (Order.leOfLt a x ((witness.interior).left)) (Order.leOfLt x b ((witness.interior).right))
   } \then
-  \let slope: secant f = d x := Derivatives.unique f x (secant f) (d x) (#derivative{witness}) (derivatives closed) \then
+  \let slope: secant f = d x := Derivatives.unique f x (secant f) (d x) (witness.derivative) (derivatives closed) \then
   \let increment: sub (f b) (f a) = mul (d x) (sub b a) := trans!{Real} _ _ _
     (sym!{Real} _ _ (Derivatives.slopeIncrement f a b (\fun (equal: b = a) => Order.ltNotEq a b ab (sym!{Real} _ _ equal))))
     (congr!{Real Real} (\fun (s: Real) => mul s (sub b a)) _ _ slope) \then
@@ -42,5 +42,5 @@
   \return R.leReplaceLeft (mul (distance (d x) c) (distance b a)) (distance (sub (sub (f b) (f a)) (mul c (sub b a))) zero) (mul theta (distance b a))
     (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => distance s zero) _ _ remainder) magnitude))
     (R.leReplace _ _ _ _ (Laws.fieldMulComm (distance b a) (distance (d x) c)) (Laws.fieldMulComm (distance b a) theta)
-      (Estimates.mulMonotone (distance b a) _ _ (Metric.distanceNonnegative b a) (bounded x (#interior{witness}))))
+      (Estimates.mulMonotone (distance b a) _ _ (Metric.distanceNonnegative b a) (bounded x (witness.interior))))
 };

@@ -1,21 +1,21 @@
 \import std.Logic[].Classical[] \as Classical;
 \import Space.Finite[] \as Finite;
-\structure Witness[cell: Cells.CellData, x: A]: \Set {
+\structure Witness[cell: Cells.CellData, x: A]: \Set := {
   member: Cells.CellMember cells cell,
-  below: Nat.Lt (#dimension{cell}) limit,
-  point: Euclidean.Disk (#dimension{cell}),
-  image: #characteristic{cell} point = x,
+  below: Nat.Lt ((cell).dimension) limit,
+  point: Euclidean.Disk ((cell).dimension),
+  image: (cell).characteristic point = x,
   outside: Logic.Not (StageSpace.Member W (lift cell member below point)),
-}
-\definition piece(cell: Cells.CellData): \Pow A := { x: A \where \exists Witness[cell, x] };
-\definition Selected(cell: Cells.CellData): \Prop := Logic.And[Cells.CellMember cells cell, Nat.Lt (#dimension{cell}) limit];
+};
+\definition piece[cell: Cells.CellData]: \Pow A := { x: A \where \exists Witness[cell, x] };
+\definition Selected[cell: Cells.CellData]: \Prop := Logic.And[Cells.CellMember cells cell, Nat.Lt ((cell).dimension) limit];
 \module SelectedPiece(cell: Cells.CellData, selected: Selected cell);
 \definition unselectedEmpty: \forall (cell: Cells.CellData) -> Logic.Not (Selected cell) -> piece cell = Space.Empty :=
   \fun (cell: Cells.CellData)(unselected: _) => \axiom:setext(piece cell, Space.Empty,
     \block {
       \fun (x: A)(inside: _) \then
       \takefrom witness: Witness[cell, x] \by inside \then
-      \return unselected (Logic.And[_, _]::# (#member{witness}) (#below{witness}))
+      \return unselected (Logic.And[_, _]::# ((witness).member) ((witness).below))
     },
     \fun (x: A)(impossible: Logic.False) => Logic.falseElim _ impossible);
 \definition pieceClosed: \forall (cell: Cells.CellData) -> Space.IsClosedIn source (piece cell) :=
@@ -32,10 +32,10 @@
   \fun (x: Carrier)(outside: _) => eliminate cells limit x (Space.Member bad x)
     (\block {
       \fun (cell: Cells.CellData)(member: _)(below: _)(contains: _) \then
-      \takefrom point: \Cast[Euclidean.Disk (#dimension{cell})]
-        ({ p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }) \by contains \then
-      \let same: #characteristic{cell} point = x :=
-        \bysub(Euclidean.Disk (#dimension{cell}), { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x }, point) \then
+      \takefrom point: \Cast[Euclidean.Disk ((cell).dimension)]
+        ({ p: Euclidean.Disk ((cell).dimension) \where (cell).characteristic p = x }) \by contains \then
+      \let same: (cell).characteristic point = x :=
+        \bysub(Euclidean.Disk ((cell).dimension), { p: Euclidean.Disk ((cell).dimension) \where (cell).characteristic p = x }, point) \then
       \return Union.include cells cell member x
         (\exact(Witness[cell, x] {
           member := member, below := below, point := point, image := same,
@@ -49,9 +49,9 @@
     (\block {
       \fun (cell: Cells.CellData)(present: _)(inside: _) \then
       \takefrom witness: Witness[cell, x] \by inside \then
-      \return \idelim lift cell (#member{witness}) (#below{witness}) (#point{witness}) = x
+      \return \idelim lift cell ((witness).member) ((witness).below) ((witness).point) = x
         \with p: Carrier => Logic.Not (StageSpace.Member W p) \by {
-          base: #outside{witness}, equality: #image{witness}
+          base: (witness).outside, equality: (witness).image
         }
     }) member;
 \definition open: StageSpace.IsOpenIn topology W :=

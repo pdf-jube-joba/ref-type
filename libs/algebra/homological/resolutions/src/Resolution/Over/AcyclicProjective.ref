@@ -2,35 +2,35 @@
 \definition zero: Modules.Bundle := Modules.Bundle { Carrier := Point.Carrier, space := Point.moduleSpace };
 \definition Projective: \Prop := \forall (n: Nat.Nat^) ->
   Modules.Projective (Modules.Bundle { Carrier := P.family.Carrier n, space := P.family.space n });
-\structure Exact: \Prop {
+\structure Exact: \Prop := {
   zero: \forall (x: P.family.Carrier Nat.Nat^::zero) ->
-    \exists { y: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{P.differential} Nat.Nat^::zero y = x },
+    \exists ( y: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where (P.differential).apply Nat.Nat^::zero y = x ),
   positive: \forall (n: Nat.Nat^)(x: P.family.Carrier (Nat.Nat^::succ n)) ->
-    #apply{P.differential} n x = #zero{(P.family.space n)} ->
-    \exists { y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{P.differential} (Nat.Nat^::succ n) y = x },
-}
+    (P.differential).apply n x = (P.family.space n).zero ->
+    \exists ( y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where (P.differential).apply (Nat.Nat^::succ n) y = x ),
+};
 \import \parent.Of[M := zero, P := P] \as Resolution;
 \import Modules.Hom[V := P.family.Carrier Nat.Nat^::zero, W := Point.Carrier,
   source := P.family.space Nat.Nat^::zero, target := Point.moduleSpace] \as Augmentations;
 \definition augmentation: Augmentations.Map := Augmentations.zeroMap;
 \definition data: Resolution.Data := Resolution.Data { augmentation := augmentation };
-\definition resolution(projective: Projective)(exact: Exact): Resolution.Resolution :=
+\definition resolution[projective: Projective][exact: Exact]: Resolution.Resolution :=
   \into[Resolution.Data](data, { data: Resolution.Data \where Resolution.Laws[data] }) \by {
     Resolution.Laws[data] {
       projective := projective,
       onto := \fun (x: Point.Carrier) => Logic.existsIntro[P.family.Carrier Nat.Nat^::zero,
-        { y: P.family.Carrier Nat.Nat^::zero \where #apply{augmentation} y = x }]
-        #zero{(P.family.space Nat.Nat^::zero)} (Point.unique Point.Carrier::zero x),
+        { y: P.family.Carrier Nat.Nat^::zero \where (augmentation).apply y = x }]
+        (P.family.space Nat.Nat^::zero).zero (Point.unique Point.Carrier::zero x),
       killed := \fun (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => \refl(Point.Carrier::zero),
-      augmentationExact := \fun (x: P.family.Carrier Nat.Nat^::zero)(killed: _) => #zero{exact} x,
-      exact := #positive{exact},
+      augmentationExact := \fun (x: P.family.Carrier Nat.Nat^::zero)(killed: _) => (exact).zero x,
+      exact := (exact).positive,
     }
   };
 \import Chains.End[C := P] \as End;
 \import Chains.Map[C := P, D := P].Additive[] \as Additive;
 \import Chains.Homotopy[C := P, D := P] \as Homotopies;
 \import \parent.Uniqueness[M := zero, N := zero, P := P, Q := P] \as Uniqueness;
-\definition contractible(projective: Projective)(exact: Exact):
+\definition contractible[projective: Projective][exact: Exact]:
   \exists Homotopies.Homotopy End.identity Additive.zero :=
   Uniqueness.existence (resolution projective exact) (resolution projective exact) End.identity Additive.zero
     (\fun (x: P.family.Carrier Nat.Nat^::zero) => \refl(Point.Carrier::zero));

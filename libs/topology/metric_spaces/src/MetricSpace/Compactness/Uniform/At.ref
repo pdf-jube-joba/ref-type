@@ -1,6 +1,6 @@
 \definition half: R.Real := Analysis.mul Analysis.half epsilon;
-\definition Preimage(centre: B): \Pow Carrier := Maps.Preimage f (Other.Ball other centre half);
-\definition Family: \Pow (\Pow Carrier) := { U: \Pow Carrier \where \exists { centre: B \where U = Preimage centre } };
+\definition Preimage[centre: B]: \Pow Carrier := Maps.Preimage f (Other.Ball other centre half);
+\definition Family: \Pow (\Pow Carrier) := { U: \Pow Carrier \where \exists ( centre: B \where U = Preimage centre ) };
 \definition cover: Maps.Continuous (Topology.topology metric) (OtherTopology.topology other) f -> R.Lt Real.zero epsilon ->
   T.IsOpenCover[Topology.topology metric, Family, T.Whole] :=
   \fun (continuous: Maps.Continuous (Topology.topology metric) (OtherTopology.topology other) f)(positive: R.Lt Real.zero epsilon) => T.IsOpenCover[Topology.topology metric, Family, T.Whole] {
@@ -17,30 +17,30 @@
       (Other.ballCenter other (f x) half (Estimates.halfOfPositive epsilon positive)),
   };
 \definition estimate: \forall (centre: B)(x, y: Carrier) -> T.Member (Preimage centre) x -> T.Member (Preimage centre) y ->
-  R.Lt (#distance{other} (f x) (f y)) epsilon :=
+  R.Lt ((other).distance (f x) (f y)) epsilon :=
   \fun (centre: B)(x, y: Carrier)(first: T.Member (Preimage centre) x)(second: T.Member (Preimage centre) y) =>
-    R.leLtTrans (#distance{other} (f x) (f y)) (Real.add (#distance{other} (f x) centre) (#distance{other} centre (f y))) epsilon
-      (#triangle{other} (f x) centre (f y))
+    R.leLtTrans ((other).distance (f x) (f y)) (Real.add ((other).distance (f x) centre) ((other).distance centre (f y))) epsilon
+      ((other).triangle (f x) centre (f y))
       (R.ltReplaceRight _ (Real.add half half) epsilon (Estimates.halfTwice epsilon)
         (Estimates.addLt _ _ _ _
-          (R.ltReplaceLeft (#distance{other} centre (f x)) (#distance{other} (f x) centre) half (#symmetric{other} centre (f x)) first) second));
+          (R.ltReplaceLeft ((other).distance centre (f x)) ((other).distance (f x) centre) half ((other).symmetric centre (f x)) first) second));
 \definition existsRadius: T.IsCompact (Topology.topology metric) -> Maps.Continuous (Topology.topology metric) (OtherTopology.topology other) f -> R.Lt Real.zero epsilon ->
-  \exists { delta: R.Real \where Radius[metric, other, f, epsilon, delta] } := \block {
+  \exists ( delta: R.Real \where Radius[metric, other, f, epsilon, delta] ) := \block {
   \fun (compact: T.IsCompact (Topology.topology metric))(continuous: Maps.Continuous (Topology.topology metric) (OtherTopology.topology other) f)(positive: R.Lt Real.zero epsilon) \then
   \takefrom delta: \Cast[R.Real] ({ delta: R.Real \where LebesgueRadius[metric, Family, delta] }) \by lebesgue metric compact Family (cover continuous positive) \then
   \let small: LebesgueRadius[metric, Family, delta] := \bysub(R.Real, { delta: R.Real \where LebesgueRadius[metric, Family, delta] }, delta) \then
   \return Logic.existsIntro[R.Real, { delta: R.Real \where Radius[metric, other, f, epsilon, delta] }] delta (Radius[metric, other, f, epsilon, delta] {
-    positive := #positive{small},
+    positive := (small).positive,
     close := \block {
-      \fun (x, y: Carrier)(near: R.Lt (#distance{metric} x y) delta) \then
-      \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Logic.And[T.FamilyMember Family U, T.Subset (Ball metric x delta) U] }) \by #smallBalls{small} x \then
+      \fun (x, y: Carrier)(near: R.Lt ((metric).distance x y) delta) \then
+      \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Logic.And[T.FamilyMember Family U, T.Subset (Ball metric x delta) U] }) \by (small).smallBalls x \then
       \let data: Logic.And[T.FamilyMember Family U, T.Subset (Ball metric x delta) U] := \bysub(\Pow Carrier,
         { U: \Pow Carrier \where Logic.And[T.FamilyMember Family U, T.Subset (Ball metric x delta) U] }, U) \then
-      \takefrom centre: \Cast[B] ({ centre: B \where U = Preimage centre }) \by #left{data} \then
+      \takefrom centre: \Cast[B] ({ centre: B \where U = Preimage centre }) \by (data).left \then
       \let same: U = Preimage centre := \bysub(B, { centre: B \where U = Preimage centre }, centre) \then
       \return estimate centre x y
-        (\idelim U = Preimage centre \with V: \Pow Carrier => T.Member V x \by { base: #right{data} x (ballCenter metric x delta #positive{small}), equality: same })
-        (\idelim U = Preimage centre \with V: \Pow Carrier => T.Member V y \by { base: #right{data} y near, equality: same })
+        (\idelim U = Preimage centre \with V: \Pow Carrier => T.Member V x \by { base: (data).right x (ballCenter metric x delta (small).positive), equality: same })
+        (\idelim U = Preimage centre \with V: \Pow Carrier => T.Member V y \by { base: (data).right y near, equality: same })
     },
   })
 };

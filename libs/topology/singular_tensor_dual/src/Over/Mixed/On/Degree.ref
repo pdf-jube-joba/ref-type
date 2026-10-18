@@ -11,43 +11,43 @@
   \import Modules.Hom[V := Diagonal.dualFamily.Carrier (Indices.toInteger i), W := DualSum.Carrier,
     source := Diagonal.dualFamily.space (Indices.toInteger i), target := DualSum.space].Composition[
     U := SourceTerm.family.Carrier i, domain := SourceTerm.family.space i] \as Compose;
-  \definition map: ForwardUniversal.At[i := i].Map := Compose.compose (DualSum.Injection[i := Indices.toInteger i].map) #forward{\parent.Component[i := i].isomorphism};
+  \definition map: ForwardUniversal.At[i := i].Map := Compose.compose (DualSum.Injection[i := Indices.toInteger i].map) (\parent.Component[i := i].isomorphism).forward;
 }
 \module BackwardAt(i: Double.Index n) {
   \import Modules.Hom[V := SourceTerm.family.Carrier (Indices.toScalar i), W := SourceTerm.Carrier,
     source := SourceTerm.family.space (Indices.toScalar i), target := SourceTerm.space].Composition[
     U := Diagonal.dualFamily.Carrier i, domain := Diagonal.dualFamily.space i] \as Compose;
-  \definition map: BackwardUniversal.At[i := i].Map := Compose.compose (SourceSum.Injection[i := Indices.toScalar i].map) #backward{\parent.Component[i := Indices.toScalar i].isomorphism};
+  \definition map: BackwardUniversal.At[i := i].Map := Compose.compose (SourceSum.Injection[i := Indices.toScalar i].map) (\parent.Component[i := Indices.toScalar i].isomorphism).backward;
 }
 \definition forwards: ForwardUniversal.Components := \fun (i: ScalarDouble.Index n) => ForwardAt[i := i].map;
 \definition backwards: BackwardUniversal.Components := \fun (i: Double.Index n) => BackwardAt[i := i].map;
 \definition toDual: Modules.Hom[V := SourceTerm.Carrier, W := DualSum.Carrier, source := SourceTerm.space, target := DualSum.space].Map := ForwardUniversal.extension forwards;
 \definition fromDual: Modules.Hom[V := DualSum.Carrier, W := SourceTerm.Carrier, source := DualSum.space, target := SourceTerm.space].Map := BackwardUniversal.extension backwards;
-\definition forwardInjection(i: ScalarDouble.Index n)(x: SourceTerm.family.Carrier i):
-  #apply{toDual} (#apply{SourceSum.Injection[i := i].map} x) =
-    #apply{DualSum.Injection[i := Indices.toInteger i].map} (#apply{#forward{Component[i := i].isomorphism}} x) := ForwardUniversal.onInjection forwards i x;
-\definition backwardInjection(i: Double.Index n)(x: Diagonal.dualFamily.Carrier i):
-  #apply{fromDual} (#apply{DualSum.Injection[i := i].map} x) =
-    #apply{SourceSum.Injection[i := Indices.toScalar i].map} (#apply{#backward{Component[i := Indices.toScalar i].isomorphism}} x) := BackwardUniversal.onInjection backwards i x;
+\definition forwardInjection[i: ScalarDouble.Index n][x: SourceTerm.family.Carrier i]:
+  (toDual).apply ((SourceSum.Injection[i := i].map).apply x) =
+    (DualSum.Injection[i := Indices.toInteger i].map).apply (((Component[i := i].isomorphism).forward).apply x) := ForwardUniversal.onInjection forwards i x;
+\definition backwardInjection[i: Double.Index n][x: Diagonal.dualFamily.Carrier i]:
+  (fromDual).apply ((DualSum.Injection[i := i].map).apply x) =
+    (SourceSum.Injection[i := Indices.toScalar i].map).apply (((Component[i := Indices.toScalar i].isomorphism).backward).apply x) := BackwardUniversal.onInjection backwards i x;
 \module Inverses;
 \definition components: Modules.Isomorphism[V := SourceTerm.Carrier, W := DualSum.Carrier, source := SourceTerm.space, target := DualSum.space].Isomorphism := Modules.Isomorphism[V := SourceTerm.Carrier, W := DualSum.Carrier, source := SourceTerm.space, target := DualSum.space].Isomorphism {
   forward := toDual, backward := fromDual, leftInverse := Inverses[].left, rightInverse := Inverses[].right,
 };
 \import Modules.Isomorphism[V := SourceTerm.Carrier, W := DualSum.Carrier, source := SourceTerm.space, target := DualSum.space].Composition[U := Target.Carrier n, final := Target.space n] \as Compose;
 \definition isomorphism: Modules.Isomorphism[V := SourceTerm.Carrier, W := Target.Carrier n, source := SourceTerm.space, target := Target.space n].Isomorphism := Compose.compose Diagonal.isomorphism components;
-\definition forward: Modules.Hom[V := SourceCarrier n, W := Target.Carrier n, source := SourceSpace n, target := Target.space n].Map := #forward{isomorphism};
-\definition backward: Modules.Hom[V := Target.Carrier n, W := SourceCarrier n, source := Target.space n, target := SourceSpace n].Map := #backward{isomorphism};
-\definition onInjection(i: ScalarDouble.Index n)(z: SourceTerm.family.Carrier i): #apply{forward} (#apply{SourceTerm.Component[i := i].injection} z) = Diagonal.At[i := Indices.toInteger i].extend (#apply{#forward{Component[i := i].isomorphism}} z) :=
+\definition forward: Modules.Hom[V := SourceCarrier n, W := Target.Carrier n, source := SourceSpace n, target := Target.space n].Map := (isomorphism).forward;
+\definition backward: Modules.Hom[V := Target.Carrier n, W := SourceCarrier n, source := Target.space n, target := SourceSpace n].Map := (isomorphism).backward;
+\definition onInjection[i: ScalarDouble.Index n][z: SourceTerm.family.Carrier i]: (forward).apply ((SourceTerm.Component[i := i].injection).apply z) = Diagonal.At[i := Indices.toInteger i].extend (((Component[i := i].isomorphism).forward).apply z) :=
   trans!{{Target.Carrier n}} _ _ _
-    (congr!{DualSum.Carrier {Target.Carrier n}} (#apply{Diagonal.forward}) _ _ (forwardInjection i z))
-    (Diagonal.onInjection (Indices.toInteger i) (#apply{#forward{Component[i := i].isomorphism}} z));
+    (congr!{DualSum.Carrier {Target.Carrier n}} ((Diagonal.forward).apply) _ _ (forwardInjection i z))
+    (Diagonal.onInjection (Indices.toInteger i) (((Component[i := i].isomorphism).forward).apply z));
 \import Double.Coordinates[C := TargetTensor.complex].Degree[n := n] \as Coordinates;
-\definition evaluation(i: ScalarDouble.Index n)(z: SourceTerm.family.Carrier i)(x: TargetTotal.Carrier n):
-  #apply{(#apply{forward} (#apply{SourceTerm.Component[i := i].injection} z))} x = #apply{(#apply{#forward{Component[i := i].isomorphism}} z)} (Coordinates.coordinate (Indices.toInteger i) x) :=
-  congr!{{Target.Carrier n} R} (\fun (f: Target.Carrier n) => #apply{f} x) _ _ (onInjection i z);
+\definition evaluation[i: ScalarDouble.Index n][z: SourceTerm.family.Carrier i][x: TargetTotal.Carrier n]:
+  ((forward).apply ((SourceTerm.Component[i := i].injection).apply z)).apply x = (((Component[i := i].isomorphism).forward).apply z).apply (Coordinates.coordinate (Indices.toInteger i) x) :=
+  congr!{{Target.Carrier n} R} (\fun (f: Target.Carrier n) => (f).apply x) _ _ (onInjection i z);
 
-\definition pure(i: ScalarDouble.Index n)(alpha: Left.Carrier #first{i})(beta: Right.Carrier #second{i})(x: TargetTotal.Carrier n):
-  #apply{(#apply{forward} (#apply{SourceTerm.Component[i := i].injection} (Component[i := i].tensor alpha beta)))} x =
-  #apply{(Component[i := i].comparison alpha beta)} (Coordinates.coordinate (Indices.toInteger i) x) :=
+\definition pure[i: ScalarDouble.Index n][alpha: Left.Carrier (i).first][beta: Right.Carrier (i).second][x: TargetTotal.Carrier n]:
+  ((forward).apply ((SourceTerm.Component[i := i].injection).apply (Component[i := i].tensor alpha beta))).apply x =
+  (Component[i := i].comparison alpha beta).apply (Coordinates.coordinate (Indices.toInteger i) x) :=
   trans!{R} _ _ _ (evaluation i (Component[i := i].tensor alpha beta) x)
-    (congr!{{Diagonal.dualFamily.Carrier (Indices.toInteger i)} R} (\fun (f: Diagonal.dualFamily.Carrier (Indices.toInteger i)) => #apply{f} (Coordinates.coordinate (Indices.toInteger i) x)) _ _ (Component[i := i].onTensor alpha beta));
+    (congr!{{Diagonal.dualFamily.Carrier (Indices.toInteger i)} R} (\fun (f: Diagonal.dualFamily.Carrier (Indices.toInteger i)) => (f).apply (Coordinates.coordinate (Indices.toInteger i) x)) _ _ (Component[i := i].onTensor alpha beta));

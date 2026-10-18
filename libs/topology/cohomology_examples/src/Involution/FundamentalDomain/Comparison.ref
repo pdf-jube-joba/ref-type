@@ -1,26 +1,26 @@
 \import RestrictedQuotient.Descent[C := Carrier] \as Forward;
-\definition originalClass(x: Point): Carrier := class x;
+\definition originalClass[x: Point]: Carrier := class x;
 \definition forwardRespects: Forward.Respects originalClass :=
   \fun (x, y: Point)(related: Restricted x y) => Quotient.relatedEqual laws x y related;
 \definition forward: QuotientPoint -> Carrier := Forward.apply restrictedLaws originalClass forwardRespects;
-\definition forwardOnPoint(x: Point): forward (RestrictedQuotient.class x) = class x :=
+\definition forwardOnPoint[x: Point]: forward (RestrictedQuotient.class x) = class x :=
   Forward.onClass restrictedLaws originalClass forwardRespects x;
 \import Quotient.Descent[C := QuotientPoint] \as Backward;
 \definition backward: Carrier -> QuotientPoint := Backward.apply laws fold relatedFold;
-\definition backwardOnClass(x: A): backward (class x) = fold x := Backward.onClass laws fold relatedFold x;
-\definition leftOnPoint(x: Point): backward (forward (RestrictedQuotient.class x)) = RestrictedQuotient.class x :=
+\definition backwardOnClass[x: A]: backward (class x) = fold x := Backward.onClass laws fold relatedFold x;
+\definition leftOnPoint[x: Point]: backward (forward (RestrictedQuotient.class x)) = RestrictedQuotient.class x :=
   trans!{QuotientPoint} _ _ _ (congr!{Carrier QuotientPoint} backward _ _ (forwardOnPoint x))
     (trans!{QuotientPoint} _ _ _ (backwardOnClass x) (onPoint x));
 \definition leftInverse: \forall (q: QuotientPoint) -> backward (forward q) = q := RestrictedQuotient.induction
   (\fun (q: QuotientPoint) => backward (forward q) = q) leftOnPoint;
-\definition foldProjects(x: A): forward (fold x) = class x := \block {
+\definition foldProjects[x: A]: forward (fold x) = class x := \block {
   \takefrom y: \Cast[Point] ({ y: Point \where Logic.And[Equivalent x y, RestrictedQuotient.class y = fold x] })
     \by \bysub(QuotientPoint, Values x, selected x) \then
   \let yp: Logic.And[Equivalent x y, RestrictedQuotient.class y = fold x] :=
     \bysub(Point, { y: Point \where Logic.And[Equivalent x y, RestrictedQuotient.class y = fold x] }, y) \then
   \return trans!{Carrier} _ _ _
-    (congr!{QuotientPoint Carrier} forward _ _ (sym!{QuotientPoint} _ _ (#right{yp})))
-    (trans!{Carrier} _ _ _ (forwardOnPoint y) (Quotient.relatedEqual laws y x (symmetric x y (#left{yp}))))
+    (congr!{QuotientPoint Carrier} forward _ _ (sym!{QuotientPoint} _ _ ((yp).right)))
+    (trans!{Carrier} _ _ _ (forwardOnPoint y) (Quotient.relatedEqual laws y x (symmetric x y ((yp).left))))
 };
 \definition rightInverse: \forall (q: Carrier) -> forward (backward q) = q := Quotient.induction
   (\fun (q: Carrier) => forward (backward q) = q)

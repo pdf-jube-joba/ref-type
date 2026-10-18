@@ -37,7 +37,7 @@ impl Export {
             .iter()
             .map(|(id, module)| (*id, module))
             .collect();
-        let module_order: HashMap<_, _> = source_modules
+        let module_order: rustc_hash::FxHashMap<_, _> = source_modules
             .iter()
             .enumerate()
             .map(|(index, id)| {
@@ -106,28 +106,27 @@ fn deduplicate_references(references: &mut Vec<crate::analysis::Reference>) {
 
 fn source_order<T: AnalysisOrder>(
     values: &mut [T],
-    modules: &HashMap<Vec<String>, usize>,
+    modules: &rustc_hash::FxHashMap<Vec<String>, usize>,
     location: impl for<'a> Fn(&'a T) -> (&'a Vec<String>, &'a syntax::syntax::SourceLocation),
 ) {
     values.sort_by(|left, right| {
-        let semantic = left.semantic_order(right);
-        let (lm, left) = location(left);
-        let (rm, right) = location(right);
+        let (lm, ll) = location(left);
+        let (rm, rl) = location(right);
         (
             modules.get(lm).copied().unwrap_or(usize::MAX),
             lm,
-            &left.source.id.0,
-            left.span.start,
-            left.span.end,
+            &ll.source.id.0,
+            ll.span.start,
+            ll.span.end,
         )
             .cmp(&(
                 modules.get(rm).copied().unwrap_or(usize::MAX),
                 rm,
-                &right.source.id.0,
-                right.span.start,
-                right.span.end,
+                &rl.source.id.0,
+                rl.span.start,
+                rl.span.end,
             ))
-            .then(semantic)
+            .then_with(|| left.semantic_order(right))
     });
 }
 

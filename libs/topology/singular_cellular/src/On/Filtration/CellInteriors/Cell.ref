@@ -1,20 +1,20 @@
-\import Euclidean.Dimension[n := #dimension{cell}] \as Model;
+\import Euclidean.Dimension[n := (cell).dimension] \as Model;
 \import \parent.\parent.Characteristic[cell := cell, member := member] \as Characteristic;
-\definition boundaryLower: \forall (p: Model.Disk) -> Model.normSquared p = Real.one -> Space.Member (subset n) (#characteristic{cell} p) :=
-  \fun (p: Model.Disk)(boundary: _) => \idelim #dimension{cell} = n \with d: N.Nat^ => Space.Member (subset d) (#characteristic{cell} p) \by {
+\definition boundaryLower: \forall (p: Model.Disk) -> Model.normSquared p = Real.one -> Space.Member (subset n) ((cell).characteristic p) :=
+  \fun (p: Model.Disk)(boundary: _) => \idelim (cell).dimension = n \with d: N.Nat^ => Space.Member (subset d) ((cell).characteristic p) \by {
     base: Characteristic.boundaryImage (\into[Model.Coordinate](p, Model.Boundary) \by { boundary }), equality: dimension
   };
-\definition interiorPoint: \forall (p: Model.Disk) -> Logic.Not (Space.Member (subset n) (#characteristic{cell} p)) -> R.Lt (Model.normSquared p) Real.one :=
+\definition interiorPoint: \forall (p: Model.Disk) -> Logic.Not (Space.Member (subset n) ((cell).characteristic p)) -> R.Lt (Model.normSquared p) Real.one :=
   \fun (p: Model.Disk)(outside: _) => Order.ltOfLeNotEq (Model.normSquared p) Real.one
     (\bysub(Model.Coordinate, Model.ClosedBall, p)) (\fun (boundary: _) => outside (boundaryLower p boundary));
 \definition interiorImage: \forall (x: Carrier) -> Space.Member (Cells.ClosedImage cell) x -> Space.Member (Cells.InteriorImage cell) x := \block {
   \fun (x: Carrier)(inside: _) \then
-  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where #characteristic{cell} p = x }) \by inside \then
-  \let image: #characteristic{cell} p = x := \bysub(Model.Disk, { p: Model.Disk \where #characteristic{cell} p = x }, p) \then
-  \let outside: Logic.Not (Space.Member (subset n) (#characteristic{cell} p)) :=
+  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where (cell).characteristic p = x }) \by inside \then
+  \let image: (cell).characteristic p = x := \bysub(Model.Disk, { p: Model.Disk \where (cell).characteristic p = x }, p) \then
+  \let outside: Logic.Not (Space.Member (subset n) ((cell).characteristic p)) :=
     \fun (lowerMember: _) => (\bysub(Upper.Carrier, UpperSpace.Complement lower, x))
-      (\idelim #characteristic{cell} p = x \with a: A => Space.Member (subset n) a \by { base: lowerMember, equality: image }) \then
-  \return Logic.existsIntro[Model.Disk, { p: Model.Disk \where Logic.And[R.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] }] p
+      (\idelim (cell).characteristic p = x \with a: A => Space.Member (subset n) a \by { base: lowerMember, equality: image }) \then
+  \return Logic.existsIntro[Model.Disk, { p: Model.Disk \where Logic.And[R.Lt (Model.normSquared p) Real.one, (cell).characteristic p = x] }] p
     (Logic.And[_, _]::# (interiorPoint p outside) image)
 };
 \import Space.Subspace[S := Cells.InteriorImage cell] \as Image;
@@ -23,27 +23,27 @@
 \definition componentTopology: topology.Topology[Carrier := Component.CarrierSet].Topology := Component.topology topology;
 \definition inStage: \forall (x: Image.CarrierSet) -> Space.Member (subset (N.Nat^::succ n)) x :=
   \fun (x: Image.CarrierSet) => include cells (N.Nat^::succ n) cell member
-    (\idelim n = #dimension{cell} \with d: N.Nat^ => Nat.Lt d (N.Nat^::succ n) \by {
+    (\idelim n = (cell).dimension \with d: N.Nat^ => Nat.Lt d (N.Nat^::succ n) \by {
       base: Nat.ltOfSuccLe (N.Nat^::succ n) n (Nat.leRefl (N.Nat^::succ n)), equality: sym!{N.Nat^} _ _ dimension })
     x (\parent.\parent.Exhaustion[].interiorClosed cell x (\bysub(A, Cells.InteriorImage cell, x)));
 \definition outsideLower: \forall (x: Image.CarrierSet) -> Logic.Not (Space.Member (subset n) x) := \block {
   \fun (x: Image.CarrierSet)(lowerMember: _) \then
-  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[R.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] })
+  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[R.Lt (Model.normSquared p) Real.one, (cell).characteristic p = x] })
     \by \bysub(A, Cells.InteriorImage cell, x) \then
-  \let data: Logic.And[R.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] :=
-    \bysub(Model.Disk, { p: Model.Disk \where Logic.And[R.Lt (Model.normSquared p) Real.one, #characteristic{cell} p = x] }, p) \then
-  \return Order.ltNotEq (Model.normSquared p) Real.one (#left{data})
+  \let data: Logic.And[R.Lt (Model.normSquared p) Real.one, (cell).characteristic p = x] :=
+    \bysub(Model.Disk, { p: Model.Disk \where Logic.And[R.Lt (Model.normSquared p) Real.one, (cell).characteristic p = x] }, p) \then
+  \return Order.ltNotEq (Model.normSquared p) Real.one ((data).left)
     (\parent.\parent.Interiors[].topBoundary n cell member dimension p
-      (\idelim x = #characteristic{cell} p \with a: A => Space.Member (subset n) a \by {
-        base: lowerMember, equality: sym!{A} _ _ (#right{data}) }))
+      (\idelim x = (cell).characteristic p \with a: A => Space.Member (subset n) a \by {
+        base: lowerMember, equality: sym!{A} _ _ ((data).right) }))
 };
-\definition toUpper(x: Image.CarrierSet): Upper.Carrier := \into[A](x, subset (N.Nat^::succ n)) \by { inStage x };
-\definition toRemaining(x: Image.CarrierSet): Carrier := \into[Upper.Carrier](toUpper x, UpperSpace.Complement lower) \by { outsideLower x };
-\definition toComponent(x: Image.CarrierSet): Component.CarrierSet := \into[Carrier](toRemaining x, piece cell) \by {
+\definition toUpper[x: Image.CarrierSet]: Upper.Carrier := \into[A](x, subset (N.Nat^::succ n)) \by { inStage x };
+\definition toRemaining[x: Image.CarrierSet]: Carrier := \into[Upper.Carrier](toUpper x, UpperSpace.Complement lower) \by { outsideLower x };
+\definition toComponent[x: Image.CarrierSet]: Component.CarrierSet := \into[Carrier](toRemaining x, piece cell) \by {
   Logic.And[_, _]::# dimension (\parent.\parent.Exhaustion[].interiorClosed cell x (\bysub(A, Cells.InteriorImage cell, x)))
 };
-\definition fromComponent(x: Component.CarrierSet): Image.CarrierSet := \into[A](x, Cells.InteriorImage cell) \by {
-  interiorImage x (#right{(\bysub(Carrier, piece cell, x))})
+\definition fromComponent[x: Component.CarrierSet]: Image.CarrierSet := \into[A](x, Cells.InteriorImage cell) \by {
+  interiorImage x ((\bysub(Carrier, piece cell, x)).right)
 };
 \import topology.Continuity[A := Image.CarrierSet, B := A].Corestriction[S := subset (N.Nat^::succ n)] \as IntoUpper;
 \import topology.Continuity[A := Image.CarrierSet, B := A].Corestriction[S := Cells.InteriorImage cell] \as ImageInclusion;
@@ -74,15 +74,15 @@
 \import topology.Homeomorphism[A := Chart.Carrier, B := Component.CarrierSet] \as ChartHomeomorphisms;
 \definition homeomorphismLaws: ChartHomeomorphisms.Laws[Chart.topology, componentTopology, homeomorphism] :=
   ChartHomeomorphisms.laws Chart.topology componentTopology homeomorphism;
-\definition embed(p: Chart.Carrier): Carrier := #forward{homeomorphism} p;
-\definition contains(p: Chart.Carrier): Space.Member (Cells.InteriorImage cell) (embed p) :=
+\definition embed[p: Chart.Carrier]: Carrier := (homeomorphism).forward p;
+\definition contains[p: Chart.Carrier]: Space.Member (Cells.InteriorImage cell) (embed p) :=
   \bysub(A, Cells.InteriorImage cell, Chart.map p);
 \definition embedContinuous: topology.Continuity[A := Chart.Carrier, B := Carrier].Continuous Chart.topology topology embed :=
   \fun (U: \Pow Carrier)(open: RemainingSpace.IsOpenIn topology U) =>
-    #forwardContinuous{homeomorphismLaws} (Component.Trace U) (Component.traceOpen topology U open);
+    (homeomorphismLaws).forwardContinuous (Component.Trace U) (Component.traceOpen topology U open);
 \import singular_cellular_algebra.Algebra[].Refinement[A := Carrier, S := piece cell] \as ComponentRefinement;
 \definition embedInjective: \forall (p, q: Chart.Carrier) -> embed p = embed q -> p = q :=
-  \fun (p, q: Chart.Carrier)(same: _) => trans!{Chart.Carrier} _ _ _ (sym!{Chart.Carrier} _ _ (#leftInverse{homeomorphismLaws} p))
-    (trans!{Chart.Carrier} _ _ _ (congr!{Component.CarrierSet Chart.Carrier} (#backward{homeomorphism}) _ _
-      (ComponentRefinement.ext (#forward{homeomorphism} p) (#forward{homeomorphism} q) same))
-      (#leftInverse{homeomorphismLaws} q));
+  \fun (p, q: Chart.Carrier)(same: _) => trans!{Chart.Carrier} _ _ _ (sym!{Chart.Carrier} _ _ ((homeomorphismLaws).leftInverse p))
+    (trans!{Chart.Carrier} _ _ _ (congr!{Component.CarrierSet Chart.Carrier} ((homeomorphism).backward) _ _
+      (ComponentRefinement.ext ((homeomorphism).forward p) ((homeomorphism).forward q) same))
+      ((homeomorphismLaws).leftInverse q));

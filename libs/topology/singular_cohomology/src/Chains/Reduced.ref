@@ -2,13 +2,13 @@
 \import Modules.Zero[] \as Zero;
 \import chain_complexes.Chain[] \as Degrees;
 \import Degrees.Over[R := I.Int^, ring := Integers.ring] \as Complexes;
-\definition ChainCarrier(n: N.Nat^): \Set := Carrier n;
-\definition chainSpace(n: N.Nat^): Modules.Space (ChainCarrier n) := space n;
-\definition positiveBoundary(n: N.Nat^): _ := boundary n;
-\structure Packed: \Set(1) {
+\definition ChainCarrier[n: N.Nat^]: \Set := Carrier n;
+\definition chainSpace[n: N.Nat^]: Modules.Space (ChainCarrier n) := space n;
+\definition positiveBoundary[n: N.Nat^]: _ := boundary n;
+\structure Packed: \Set(1) := {
   Carrier: \Set,
   spaceLift: \forall (X: \Set) -> (Modules.Space Carrier -> X) -> X,
-}
+};
 \definition scalar: Packed := Packed {
   Carrier := I.Int^,
   spaceLift := \fun (X: \Set)(f: Modules.Space I.Int^ -> X) => f Modules.scalarModule,
@@ -27,8 +27,8 @@
       | succ: \fun (n: N.Nat^)(previous: Packed) => zero
     }
 };
-\definition Carrier(z: I.Int^): \Set := (terms z).Carrier;
-\definition space(z: I.Int^): Modules.Space (Carrier z) := (terms z).spaceLift (Modules.Space (Carrier z)) (\fun (s: Modules.Space (Carrier z)) => s);
+\definition Carrier[z: I.Int^]: \Set := (terms z).Carrier;
+\definition space[z: I.Int^]: Modules.Space (Carrier z) := (terms z).spaceLift (Modules.Space (Carrier z)) (\fun (s: Modules.Space (Carrier z)) => s);
 \definition family: Complexes.Family := Complexes.Family { Carrier := Carrier, space := space };
 \import Modules.Hom[V := I.Int^, W := Zero.Carrier, source := Modules.scalarModule, target := Zero.moduleSpace] \as ScalarZero;
 \import Modules.Hom[V := Zero.Carrier, W := Zero.Carrier, source := Zero.moduleSpace, target := Zero.moduleSpace] \as ZeroEnd;
@@ -43,26 +43,26 @@
         | succ: \fun (n: N.Nat^)(previous: _) => ZeroEnd.zeroMap
       }
   };
-\definition squareZero: \forall (z: I.Int^)(x: Carrier z) -> #apply{(boundary (Degrees.previous z))} (#apply{(boundary z)} x) = #zero{(space (Degrees.previous (Degrees.previous z)))} :=
-  \induction (z: I.Int^) \return \forall (x: Carrier z) -> #apply{(boundary (Degrees.previous z))} (#apply{(boundary z)} x) = #zero{(space (Degrees.previous (Degrees.previous z)))} \with {
+\definition squareZero: \forall (z: I.Int^)(x: Carrier z) -> (boundary (Degrees.previous z)).apply ((boundary z).apply x) = (space (Degrees.previous (Degrees.previous z))).zero :=
+  \induction (z: I.Int^) \return \forall (x: Carrier z) -> (boundary (Degrees.previous z)).apply ((boundary z).apply x) = (space (Degrees.previous (Degrees.previous z))).zero \with {
     | ofNat: \induction (n: N.Nat^) \return \forall (x: Carrier (I.Int^::ofNat n)) ->
-        #apply{(boundary (Degrees.previous (I.Int^::ofNat n)))} (#apply{(boundary (I.Int^::ofNat n))} x) = #zero{(space (Degrees.previous (Degrees.previous (I.Int^::ofNat n))))} \with {
+        (boundary (Degrees.previous (I.Int^::ofNat n))).apply ((boundary (I.Int^::ofNat n)).apply x) = (space (Degrees.previous (Degrees.previous (I.Int^::ofNat n)))).zero \with {
         | zero: \fun (x: _) => \refl(Zero.Carrier::zero)
         | succ: \fun (n: N.Nat^)(previous: _) =>
             (\induction (k: N.Nat^) \return \forall (x: Carrier (I.Int^::ofNat (N.Nat^::succ k))) ->
-              #apply{(boundary (I.Int^::ofNat k))} (#apply{(boundary (I.Int^::ofNat (N.Nat^::succ k)))} x) = #zero{(space (Degrees.previous (I.Int^::ofNat k)))} \with {
+              (boundary (I.Int^::ofNat k)).apply ((boundary (I.Int^::ofNat (N.Nat^::succ k))).apply x) = (space (Degrees.previous (I.Int^::ofNat k))).zero \with {
               | zero: Augmentation.killsBoundary
               | succ: \fun (k: N.Nat^)(previous: _) => \parent.SquareZero[n := k].all
             }) n
       }
     | negSucc: \fun (n: N.Nat^)(x: _) => \refl(Zero.Carrier::zero)
   };
-\definition differential: Complexes.DifferentialData[family] := Complexes.DifferentialData[family] { apply := \fun (z: I.Int^) => #apply{(boundary z)} };
+\definition differential: Complexes.DifferentialData[family] := Complexes.DifferentialData[family] { apply := \fun (z: I.Int^) => (boundary z).apply };
 \definition complex: Complexes.Complex := Complexes.Complex {
   family := family, differential := differential,
   laws := Complexes.DifferentialLaws[family, differential] {
-    addition := \fun (z: I.Int^) => #addition{(boundary z)},
-    scalar := \fun (z: I.Int^) => #scalar{(boundary z)},
+    addition := \fun (z: I.Int^) => (boundary z).addition,
+    scalar := \fun (z: I.Int^) => (boundary z).scalar,
     squareZero := squareZero,
   },
 };

@@ -9,8 +9,8 @@
     source := Derived.tensorSpace n, target := Reversed.Term[n := n].space].Map := Swap.forward;
   \definition backward: Modules.Hom[V := Reversed.Term[n := n].Carrier, W := Derived.tensorCarrier n,
     source := Reversed.Term[n := n].space, target := Derived.tensorSpace n].Map := Swap.backward;
-  \definition leftInverse: \forall (x: Derived.tensorCarrier n) -> #apply{backward} (#apply{forward} x) = x := Swap.leftInverse;
-  \definition rightInverse: \forall (x: Reversed.Term[n := n].Carrier) -> #apply{forward} (#apply{backward} x) = x := Swap.rightInverse;
+  \definition leftInverse: \forall (x: Derived.tensorCarrier n) -> backward.apply (forward.apply x) = x := Swap.leftInverse;
+  \definition rightInverse: \forall (x: Reversed.Term[n := n].Carrier) -> forward.apply (backward.apply x) = x := Swap.rightInverse;
 }
 \module Step(n: Nat.Nat^) {
   \import Derived.TensorTerm[n := n] \as Differential;
@@ -20,32 +20,32 @@
     left := P.family.space (Nat.Nat^::succ n), right := N.space].Symmetry[].Mapping[
     U := P.family.Carrier n, Z := N.Carrier, targetLeft := P.family.space n, targetRight := N.space] \as Naturality;
   \definition forwardCommutes: \forall (x: Derived.tensorCarrier (Nat.Nat^::succ n)) ->
-    #apply{Reversed.complex.differential} n (#apply{Next.forward} x) = #apply{Current.forward} (#apply{Derived.tensorComplex.differential} n x) :=
+    Reversed.complex.differential.apply n (Next.forward.apply x) = Current.forward.apply (Derived.tensorComplex.differential.apply n x) :=
     \fun (x: Derived.tensorCarrier (Nat.Nat^::succ n)) => sym!{{Reversed.Term[n := n].Carrier}} _ _
       (Naturality.commutes Differential.original Coefficient.identity x);
   \definition backwardCommutes: \forall (x: Reversed.Term[n := Nat.Nat^::succ n].Carrier) ->
-    #apply{Derived.tensorComplex.differential} n (#apply{Next.backward} x) = #apply{Current.backward} (#apply{Reversed.complex.differential} n x) :=
+    Derived.tensorComplex.differential.apply n (Next.backward.apply x) = Current.backward.apply (Reversed.complex.differential.apply n x) :=
     \fun (x: Reversed.Term[n := Nat.Nat^::succ n].Carrier) => trans!{{Derived.tensorCarrier n}} _ _ _
-      (sym!{{Derived.tensorCarrier n}} _ _ (Current.leftInverse (#apply{Derived.tensorComplex.differential} n (#apply{Next.backward} x))))
+      (sym!{{Derived.tensorCarrier n}} _ _ (Current.leftInverse (Derived.tensorComplex.differential.apply n (Next.backward.apply x))))
       (trans!{{Derived.tensorCarrier n}} _ _ _
-        (congr!{{Reversed.Term[n := n].Carrier} {Derived.tensorCarrier n}} (#apply{Current.backward}) _ _
-          (sym!{{Reversed.Term[n := n].Carrier}} _ _ (forwardCommutes (#apply{Next.backward} x))))
+        (congr!{{Reversed.Term[n := n].Carrier} {Derived.tensorCarrier n}} (Current.backward.apply) _ _
+          (sym!{{Reversed.Term[n := n].Carrier}} _ _ (forwardCommutes (Next.backward.apply x))))
         (congr!{{Reversed.Term[n := Nat.Nat^::succ n].Carrier} {Derived.tensorCarrier n}}
-          (\fun (y: Reversed.Term[n := Nat.Nat^::succ n].Carrier) => #apply{Current.backward} (#apply{Reversed.complex.differential} n y)) _ _
+          (\fun (y: Reversed.Term[n := Nat.Nat^::succ n].Carrier) => Current.backward.apply (Reversed.complex.differential.apply n y)) _ _
           (Next.rightInverse x)));
 }
 \import Chains.Map[C := Derived.tensorComplex, D := Reversed.complex] \as Forward;
 \definition forward: Forward.Map := Forward.Map {
-  apply := \fun (n: Nat.Nat^) => #apply{Degree[n := n].forward},
-  addition := \fun (n: Nat.Nat^) => #addition{Degree[n := n].forward},
-  scalar := \fun (n: Nat.Nat^) => #scalar{Degree[n := n].forward},
+  apply := \fun (n: Nat.Nat^) => (Degree[n := n].forward).apply,
+  addition := \fun (n: Nat.Nat^) => (Degree[n := n].forward).addition,
+  scalar := \fun (n: Nat.Nat^) => (Degree[n := n].forward).scalar,
   commutes := \fun (n: Nat.Nat^) => Step[n := n].forwardCommutes,
 };
 \import Chains.Map[C := Reversed.complex, D := Derived.tensorComplex] \as Backward;
 \definition backward: Backward.Map := Backward.Map {
-  apply := \fun (n: Nat.Nat^) => #apply{Degree[n := n].backward},
-  addition := \fun (n: Nat.Nat^) => #addition{Degree[n := n].backward},
-  scalar := \fun (n: Nat.Nat^) => #scalar{Degree[n := n].backward},
+  apply := \fun (n: Nat.Nat^) => (Degree[n := n].backward).apply,
+  addition := \fun (n: Nat.Nat^) => (Degree[n := n].backward).addition,
+  scalar := \fun (n: Nat.Nat^) => (Degree[n := n].backward).scalar,
   commutes := \fun (n: Nat.Nat^) => Step[n := n].backwardCommutes,
 };
 \module Positive(n: Nat.Nat^) {
@@ -60,26 +60,26 @@
     U := Derived.tensorCarrier (Nat.Nat^::succ (Nat.Nat^::succ n)), source := Derived.tensorSpace (Nat.Nat^::succ (Nat.Nat^::succ n))] \as Boundaries;
   \module With(resolution: Derived.Resolution) {
     \import Reversed.With[q := resolution] \as TensorResolution;
-    \definition vanishing: Modules.Projective N -> \forall (q: H.Carrier) -> q = #zero{H.space} :=
-      \fun (projective: Modules.Projective N) => H.classInduction (\fun (q: H.Carrier) => q = #zero{H.space}) (\block {
+    \definition vanishing: Modules.Projective N -> \forall (q: H.Carrier) -> q = H.space.zero :=
+      \fun (projective: Modules.Projective N) => H.classInduction (\fun (q: H.Carrier) => q = H.space.zero) (\block {
         \fun (x: H.Cycle) \then
-        \let y: Target.Cycle := #apply{(Cycles.cyclesMap forward)} x \then
+        \let y: Target.Cycle := (Cycles.cyclesMap forward).apply x \then
         \takefrom z: \Cast[Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier]
-          ({ z: Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier \where #apply{Reversed.complex.differential} (Nat.Nat^::succ n) z = y })
+          ({ z: Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier \where Reversed.complex.differential.apply (Nat.Nat^::succ n) z = y })
           \by TensorResolution.exact projective n y
-            (\bysub(Reversed.Term[n := Nat.Nat^::succ n].Carrier, #carrier{Target.cycles}, y)) \then
+            (\bysub(Reversed.Term[n := Nat.Nat^::succ n].Carrier, Target.cycles.carrier, y)) \then
         \return Native.boundaryClassZero x (Boundaries.introduce Native.prior x
-          (#apply{Next.backward} z)
+          (Next.backward.apply z)
           (trans!{{Derived.tensorCarrier (Nat.Nat^::succ n)}} _ _ _
             (BoundaryStep.backwardCommutes z)
             (trans!{{Derived.tensorCarrier (Nat.Nat^::succ n)}} _ _ _
               (congr!{{Reversed.Term[n := Nat.Nat^::succ n].Carrier} {Derived.tensorCarrier (Nat.Nat^::succ n)}}
-                (#apply{Current.backward}) _ _
+                (Current.backward.apply) _ _
                 (\bysub(Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier,
-                  { z: Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier \where #apply{Reversed.complex.differential} (Nat.Nat^::succ n) z = y }, z)))
+                  { z: Reversed.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)].Carrier \where Reversed.complex.differential.apply (Nat.Nat^::succ n) z = y }, z)))
               (Current.leftInverse x))))
       });
   }
-  \definition vanishing: Modules.Projective N -> \forall (resolution: Derived.Resolution)(q: H.Carrier) -> q = #zero{H.space} :=
+  \definition vanishing: Modules.Projective N -> \forall (resolution: Derived.Resolution)(q: H.Carrier) -> q = H.space.zero :=
     \fun (projective: Modules.Projective N)(resolution: Derived.Resolution) => With[resolution := resolution].vanishing projective;
 }

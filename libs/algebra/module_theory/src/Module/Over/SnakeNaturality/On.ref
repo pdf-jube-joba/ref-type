@@ -2,29 +2,29 @@
 \import \parent.\parent.Snake[A := A2, B := B2, C := C2, A1 := A3, B1 := B3, C1 := C3].Diagram[s := s1, t := t1, f := f1, g := g1, h := h1] \as Target;
 \import \parent.\parent.ShortExactComparison[A := A, B := B, C := C, A1 := A2, B1 := B2, C1 := C2].Diagram[s := s, t := s1, a := a, b := b, c := c] \as Top;
 \import \parent.\parent.ShortExactComparison[A := A1, B := B1, C := C1, A1 := A3, B1 := B3, C1 := C3].Diagram[s := t, t := t1, a := a1, b := b1, c := c1] \as Bottom;
-\structure Laws: \Prop {
+\structure Laws: \Prop := {
   source: Source.Commutative,
   target: Target.Commutative,
   top: Top.Commutative,
   bottom: Bottom.Commutative,
-  left: \forall (x: A.Carrier) -> #apply{f1} (#apply{a} x) = #apply{a1} (#apply{f} x),
-  middle: \forall (x: B.Carrier) -> #apply{g1} (#apply{b} x) = #apply{b1} (#apply{g} x),
-  right: \forall (x: C.Carrier) -> #apply{h1} (#apply{c} x) = #apply{c1} (#apply{h} x),
-}
+  left: \forall (x: A.Carrier) -> f1.apply (a.apply x) = a1.apply (f.apply x),
+  middle: \forall (x: B.Carrier) -> g1.apply (b.apply x) = b1.apply (g.apply x),
+  right: \forall (x: C.Carrier) -> h1.apply (c.apply x) = c1.apply (h.apply x),
+};
 \import \parent.\parent.Hom[V := C1.Carrier, W := C3.Carrier, source := C1.space, target := C3.space] \as RightMaps;
 \import \parent.\parent.Of[V := C.Carrier, space := C.space].Submodule[] \as SourceSub;
 \import \parent.\parent.Of[V := C2.Carrier, space := C2.space].Submodule[] \as TargetSub;
 \definition closed: Laws -> \forall (x: Source.KernelCarrier) ->
-  #apply{h1} (#apply{c} x) = #zero{C3.space} :=
-  \fun (laws: Laws)(x: Source.KernelCarrier) => trans!{C3.Carrier} _ _ _ (#right{laws} x)
+  h1.apply (c.apply x) = C3.space.zero :=
+  \fun (laws: Laws)(x: Source.KernelCarrier) => trans!{C3.Carrier} _ _ _ (laws.right x)
     (trans!{C3.Carrier} _ _ _
-      (congr!{C1.Carrier C3.Carrier} (#apply{c1}) _ _ (\bysub(C.Carrier, #carrier{Source.kernel}, x)))
+      (congr!{C1.Carrier C3.Carrier} (c1.apply) _ _ (\bysub(C.Carrier, Source.kernel.carrier, x)))
       (RightMaps.zeroPreserved c1));
 \import \parent.\parent.Hom[V := Source.KernelCarrier, W := Target.KernelCarrier, source := Source.kernelSpace, target := Target.kernelSpace] \as KernelMaps;
-\definition kernelMap(laws: Laws): KernelMaps.Map := KernelMaps.Map {
-  apply := \fun (x: Source.KernelCarrier) => \into[C2.Carrier](#apply{c} x, #carrier{Target.kernel}) \by { closed laws x },
-  addition := \fun (x, y: Source.KernelCarrier) => #addition{c} x y,
-  scalar := \fun (u: R)(x: Source.KernelCarrier) => #scalar{c} u x,
+\definition kernelMap[laws: Laws]: KernelMaps.Map := KernelMaps.Map {
+  apply := \fun (x: Source.KernelCarrier) => \into[C2.Carrier](c.apply x, Target.kernel.carrier) \by { closed laws x },
+  addition := \fun (x, y: Source.KernelCarrier) => c.addition x y,
+  scalar := \fun (u: R)(x: Source.KernelCarrier) => c.scalar u x,
 };
 \import \parent.\parent.Of[V := A1.Carrier, space := A1.space].Submodule[] \as SourceImages;
 \import SourceImages.Image[U := A.Carrier, source := A.space] \as ImageSource;
@@ -32,32 +32,32 @@
 \import TargetImages.Image[U := A2.Carrier, source := A2.space] \as ImageTarget;
 \import \parent.\parent.QuotientMapping[A := A1, B := A3].On[S := Source.image, T := Target.image, f := a1] \as Cokernel;
 \definition compatible: Laws -> Cokernel.Compatible := \fun (laws: Laws)(x: A1.Carrier)(member: _) =>
-  ImageSource.eliminate f x (TargetImages.Member Target.image (#apply{a1} x))
-    (\fun (y: A.Carrier)(equal: #apply{f} y = x) =>
-      ImageTarget.introduce f1 (#apply{a1} x) (#apply{a} y)
-        (trans!{A3.Carrier} _ _ _ (#left{laws} y) (congr!{A1.Carrier A3.Carrier} (#apply{a1}) _ _ equal))) member;
-\definition cokernelMap(laws: Laws): \parent.\parent.Hom[V := Source.CokernelCarrier, W := Target.CokernelCarrier,
+  ImageSource.eliminate f x (TargetImages.Member Target.image (a1.apply x))
+    (\fun (y: A.Carrier)(equal: f.apply y = x) =>
+      ImageTarget.introduce f1 (a1.apply x) (a.apply y)
+        (trans!{A3.Carrier} _ _ _ (laws.left y) (congr!{A1.Carrier A3.Carrier} (a1.apply) _ _ equal))) member;
+\definition cokernelMap[laws: Laws]: \parent.\parent.Hom[V := Source.CokernelCarrier, W := Target.CokernelCarrier,
   source := Source.cokernelSpace, target := Target.cokernelSpace].Map := Cokernel.map (compatible laws);
 \import SourceImages.Quotient[S := Source.image] \as SourceQuotient;
 \import TargetImages.Quotient[S := Target.image] \as TargetQuotient;
 \definition naturality: \forall (laws: Laws)(x: Source.KernelCarrier) ->
-  Target.delta #target{laws} (#apply{(kernelMap laws)} x) =
-    #apply{(cokernelMap laws)} (Source.delta #source{laws} x) := \block {
+  Target.delta laws.target ((kernelMap laws).apply x) =
+    (cokernelMap laws).apply (Source.delta laws.source x) := \block {
   \fun (laws: Laws)(x: Source.KernelCarrier) \then
-  \takefrom w: \Cast[Source.Witness] ({ w: Source.Witness \where Source.WitnessLaws[x, Source.delta #source{laws} x, w] })
-    \by \bysub(Source.CokernelCarrier, Source.Values x, Source.delta #source{laws} x) \then
-  \let witness: Source.WitnessLaws[x, Source.delta #source{laws} x, w] :=
-    \bysub(Source.Witness, { w: Source.Witness \where Source.WitnessLaws[x, Source.delta #source{laws} x, w] }, w) \then
-  \let lifted: #apply{s1.projection} (#apply{b} #lift{w}) = #apply{c} x :=
-    trans!{C2.Carrier} _ _ _ (#right{#top{laws}} #lift{w})
-      (congr!{C.Carrier C2.Carrier} (#apply{c}) _ _ #lifted{witness}) \then
-  \let differential: #apply{t1.inclusion} (#apply{a1} #lower{w}) = #apply{g1} (#apply{b} #lift{w}) :=
-    trans!{B3.Carrier} _ _ _ (sym!{B3.Carrier} _ _ (#left{#bottom{laws}} #lower{w}))
+  \takefrom w: \Cast[Source.Witness] ({ w: Source.Witness \where Source.WitnessLaws[x, Source.delta laws.source x, w] })
+    \by \bysub(Source.CokernelCarrier, Source.Values x, Source.delta laws.source x) \then
+  \let witness: Source.WitnessLaws[x, Source.delta laws.source x, w] :=
+    \bysub(Source.Witness, { w: Source.Witness \where Source.WitnessLaws[x, Source.delta laws.source x, w] }, w) \then
+  \let lifted: s1.projection.apply (b.apply w.lift) = c.apply x :=
+    trans!{C2.Carrier} _ _ _ (laws.top.right w.lift)
+      (congr!{C.Carrier C2.Carrier} (c.apply) _ _ witness.lifted) \then
+  \let differential: t1.inclusion.apply (a1.apply w.lower) = g1.apply (b.apply w.lift) :=
+    trans!{B3.Carrier} _ _ _ (sym!{B3.Carrier} _ _ (laws.bottom.left w.lower))
       (trans!{B3.Carrier} _ _ _
-        (congr!{B1.Carrier B3.Carrier} (#apply{b1}) _ _ #differential{witness})
-        (sym!{B3.Carrier} _ _ (#middle{laws} #lift{w}))) \then
+        (congr!{B1.Carrier B3.Carrier} (b1.apply) _ _ witness.differential)
+        (sym!{B3.Carrier} _ _ (laws.middle w.lift))) \then
   \return trans!{Target.CokernelCarrier} _ _ _
-    (Target.onLift #target{laws} (#apply{(kernelMap laws)} x) (#apply{b} #lift{w}) (#apply{a1} #lower{w}) lifted differential)
-    (trans!{Target.CokernelCarrier} _ _ _ (sym!{Target.CokernelCarrier} _ _ (Cokernel.onClass (compatible laws) #lower{w}))
-      (congr!{Source.CokernelCarrier Target.CokernelCarrier} (#apply{(cokernelMap laws)}) _ _ #classValue{witness}))
+    (Target.onLift laws.target ((kernelMap laws).apply x) (b.apply w.lift) (a1.apply w.lower) lifted differential)
+    (trans!{Target.CokernelCarrier} _ _ _ (sym!{Target.CokernelCarrier} _ _ (Cokernel.onClass (compatible laws) w.lower))
+      (congr!{Source.CokernelCarrier Target.CokernelCarrier} ((cokernelMap laws).apply) _ _ witness.classValue))
 };

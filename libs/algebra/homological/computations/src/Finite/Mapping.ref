@@ -19,34 +19,34 @@
 \import Commutative.Matrix[m := n, n := p] \as SourceIncoming;
 \import Commutative.Matrix[m := r, n := s] \as TargetOutgoing;
 \import Commutative.Matrix[m := s, n := t] \as TargetIncoming;
-\structure Data: \Set { lower: Runtime^, middle: Runtime^, upper: Runtime^ }
-\definition lower(data: Data): LowerMaps.Map := Lower.linear (\fun (i: Indices.Fin r)(j: Indices.Fin m) => data.lower i j);
-\definition middle(data: Data): MiddleMaps.Map := Middle.linear (\fun (i: Indices.Fin s)(j: Indices.Fin n) => data.middle i j);
-\definition upper(data: Data): UpperMaps.Map := Upper.linear (\fun (i: Indices.Fin t)(j: Indices.Fin p) => data.upper i j);
+\structure Data: \Set := { lower: Runtime^, middle: Runtime^, upper: Runtime^ };
+\definition lower[data: Data]: LowerMaps.Map := Lower.linear (\fun (i: Indices.Fin r)(j: Indices.Fin m) => data.lower i j);
+\definition middle[data: Data]: MiddleMaps.Map := Middle.linear (\fun (i: Indices.Fin s)(j: Indices.Fin n) => data.middle i j);
+\definition upper[data: Data]: UpperMaps.Map := Upper.linear (\fun (i: Indices.Fin t)(j: Indices.Fin p) => data.upper i j);
 \definition sourceOutgoing: OutgoingMaps.Map := SourceOutgoing.linear (\fun (i: Indices.Fin m)(j: Indices.Fin n) => C.outgoing i j);
 \definition targetOutgoing: OutgoingTargetMaps.Map := TargetOutgoing.linear (\fun (i: Indices.Fin r)(j: Indices.Fin s) => D.outgoing i j);
-\structure Laws[data: Data]: \Prop {
+\structure Laws[data: Data]: \Prop := {
   outgoing: \forall (x: Modules.FiniteCoordinates[n := n].Carrier) ->
-    #apply{targetOutgoing} (#apply{(middle data)} x) = #apply{(lower data)} (#apply{sourceOutgoing} x),
+    targetOutgoing.apply ((middle data).apply x) = (lower data).apply (sourceOutgoing.apply x),
   incoming: \forall (x: Modules.FiniteCoordinates[n := p].Carrier) ->
-    #apply{(middle data)} (SourceIncoming.apply (\fun (i: Indices.Fin n)(j: Indices.Fin p) => C.incoming i j) x) =
-    TargetIncoming.apply (\fun (i: Indices.Fin s)(j: Indices.Fin t) => D.incoming i j) (#apply{(upper data)} x),
-}
+    (middle data).apply (SourceIncoming.apply (\fun (i: Indices.Fin n)(j: Indices.Fin p) => C.incoming i j) x) =
+    TargetIncoming.apply (\fun (i: Indices.Fin s)(j: Indices.Fin t) => D.incoming i j) ((upper data).apply x),
+};
 \definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
-\definition closed: \forall (f: Map)(x: Source.Cycle) -> #apply{targetOutgoing} (#apply{(middle f)} x) = #zero{TargetLower.space} :=
+\definition closed: \forall (f: Map)(x: Source.Cycle) -> targetOutgoing.apply ((middle f).apply x) = TargetLower.space.zero :=
   \fun (f: Map)(x: Source.Cycle) => trans!{{TargetLower.Carrier}}
-    (#apply{targetOutgoing} (#apply{(middle f)} x)) (#apply{(lower f)} (#apply{sourceOutgoing} x)) #zero{TargetLower.space}
-    (#outgoing{(\bysub(Data, { data: Data \where Laws[data] }, f))} x)
+    (targetOutgoing.apply ((middle f).apply x)) ((lower f).apply (sourceOutgoing.apply x)) TargetLower.space.zero
+    ((\bysub(Data, { data: Data \where Laws[data] }, f)).outgoing x)
     (trans!{{TargetLower.Carrier}} _ _ _
-      (congr!{{SourceLower.Carrier} {TargetLower.Carrier}} (#apply{(lower f)})
-        (#apply{sourceOutgoing} x) #zero{SourceLower.space}
-        (\bysub(SourceMiddle.Carrier, #carrier{Source.originalKernel}, x)))
+      (congr!{{SourceLower.Carrier} {TargetLower.Carrier}} ((lower f).apply)
+        (sourceOutgoing.apply x) SourceLower.space.zero
+        (\bysub(SourceMiddle.Carrier, Source.originalKernel.carrier, x)))
       (LowerMaps.zeroPreserved (lower f)));
 \import Modules.Hom[V := Source.Cycle, W := Target.Cycle, source := Source.cycleSpace, target := Target.cycleSpace] \as Cycles;
-\definition cycles(f: Map): Cycles.Map := Cycles.Map {
-  apply := \fun (x: Source.Cycle) => \into[TargetMiddle.Carrier](#apply{(middle f)} x, #carrier{Target.originalKernel}) \by { closed f x },
-  addition := \fun (x, y: Source.Cycle) => #addition{(middle f)} x y,
-  scalar := \fun (a: I.Int^)(x: Source.Cycle) => #scalar{(middle f)} a x,
+\definition cycles[f: Map]: Cycles.Map := Cycles.Map {
+  apply := \fun (x: Source.Cycle) => \into[TargetMiddle.Carrier]((middle f).apply x, Target.originalKernel.carrier) \by { closed f x },
+  addition := \fun (x, y: Source.Cycle) => (middle f).addition x y,
+  scalar := \fun (a: I.Int^)(x: Source.Cycle) => (middle f).scalar a x,
 };
 \definition sourceBundle: Modules.Bundle := Modules.Bundle { Carrier := Source.Cycle, space := Source.cycleSpace };
 \definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := Target.Cycle, space := Target.cycleSpace };

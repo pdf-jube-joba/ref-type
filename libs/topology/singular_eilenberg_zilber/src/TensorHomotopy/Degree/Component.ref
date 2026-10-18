@@ -1,5 +1,5 @@
-\definition p: N.Nat^ := #first{i};
-\definition q: N.Nat^ := #second{i};
+\definition p: N.Nat^ := (i).first;
+\definition q: N.Nat^ := (i).second;
 \import \root.TensorModels[].At[p := p, q := q] \as Model;
 \import \root.TensorModels[].Level[n := n, z := I.Int^::ofNat (N.Nat^::succ n)] \as Level;
 \definition modelValue: Model.Carrier (I.Int^::ofNat (N.Nat^::succ n)) := Level.Coordinates[].coordinate i (Models.homotopy n);
@@ -11,26 +11,26 @@
 \import Double.Total[C := ModelTensor.complex] \as ModelTotal;
 \import singular_cohomology.Maps[A := Simplex.Carrier p, B := A, source := LeftDomain.topology, target := left] \as LeftMaps;
 \import singular_cohomology.Maps[A := Simplex.Carrier q, B := B, source := RightDomain.topology, target := right] \as RightMaps;
-\definition leftPush(sigma: LeftSimplices.Carrier p): Native.Map[C := ModelLeft.complex, D := Left.complex].Map := LeftMaps.push sigma (LeftSimplices.At[n := p].continuous sigma);
-\definition rightPush(tau: RightSimplices.Carrier q): Native.Map[C := ModelRight.complex, D := Right.complex].Map := RightMaps.push tau (RightSimplices.At[n := q].continuous tau);
-\definition evaluation(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Native.Map[C := ModelTotal.complex, D := Total.complex].Map := Evaluation.At[p := p, q := q].map sigma tau;
-\definition evaluationLinear(k: N.Nat^)(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Modules.Hom[V := Model.Carrier (I.Int^::ofNat k), W := Total.Carrier k, source := Model.space (I.Int^::ofNat k), target := Total.space k].Map :=
+\definition leftPush[sigma: LeftSimplices.Carrier p]: Native.Map[C := ModelLeft.complex, D := Left.complex].Map := LeftMaps.push sigma (LeftSimplices.At[n := p].continuous sigma);
+\definition rightPush[tau: RightSimplices.Carrier q]: Native.Map[C := ModelRight.complex, D := Right.complex].Map := RightMaps.push tau (RightSimplices.At[n := q].continuous tau);
+\definition evaluation[sigma: LeftSimplices.Carrier p][tau: RightSimplices.Carrier q]: Native.Map[C := ModelTotal.complex, D := Total.complex].Map := Evaluation.At[p := p, q := q].map sigma tau;
+\definition evaluationLinear[k: N.Nat^][sigma: LeftSimplices.Carrier p][tau: RightSimplices.Carrier q]: Modules.Hom[V := Model.Carrier (I.Int^::ofNat k), W := Total.Carrier k, source := Model.space (I.Int^::ofNat k), target := Total.space k].Map :=
   Modules.Hom[V := Model.Carrier (I.Int^::ofNat k), W := Total.Carrier k, source := Model.space (I.Int^::ofNat k), target := Total.space k].Map {
-    apply := \fun (x: Model.Carrier (I.Int^::ofNat k)) => #apply{(evaluation sigma tau)} k x,
-    addition := \fun (x, y: Model.Carrier (I.Int^::ofNat k)) => #addition{(evaluation sigma tau)} k x y,
-    scalar := \fun (a: I.Int^)(x: Model.Carrier (I.Int^::ofNat k)) => #scalar{(evaluation sigma tau)} k a x,
+    apply := \fun (x: Model.Carrier (I.Int^::ofNat k)) => (evaluation sigma tau).apply k x,
+    addition := \fun (x, y: Model.Carrier (I.Int^::ofNat k)) => (evaluation sigma tau).addition k x y,
+    scalar := \fun (a: I.Int^)(x: Model.Carrier (I.Int^::ofNat k)) => (evaluation sigma tau).scalar k a x,
   };
-\definition onGenerators(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): Target.Carrier := #apply{(evaluation sigma tau)} (N.Nat^::succ n) modelValue;
+\definition onGenerators[sigma: LeftSimplices.Carrier p][tau: RightSimplices.Carrier q]: Target.Carrier := (evaluation sigma tau).apply (N.Nat^::succ n) modelValue;
 \import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
 \definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := Target.Carrier, space := Target.space };
 \import Commutative.FreeBilinear[X := LeftSimplices.Carrier p, Y := RightSimplices.Carrier q, C := targetBundle] \as Free;
 \definition bilinear: Commutative.Bilinear[A := Modules.Bundle { Carrier := Left.Carrier p, space := Left.space p }, B := Modules.Bundle { Carrier := Right.Carrier q, space := Right.space q }, C := targetBundle].Map := Free.extend onGenerators;
 \import Modules.Tensor[V := Left.Carrier p, W := Right.Carrier q, left := Left.space p, right := Right.space q] \as Pure;
-\definition laws: Pure.BilinearLaws[Target.Carrier, Target.space, #apply{bilinear}] := Pure.BilinearLaws[Target.Carrier, Target.space, #apply{bilinear}] {
-  addLeft := #addLeft{bilinear}, addRight := #addRight{bilinear}, scaleLeft := #scaleLeft{bilinear}, scaleRight := #scaleRight{bilinear},
+\definition laws: Pure.BilinearLaws[Target.Carrier, Target.space, (bilinear).apply] := Pure.BilinearLaws[Target.Carrier, Target.space, (bilinear).apply] {
+  addLeft := (bilinear).addLeft, addRight := (bilinear).addRight, scaleLeft := (bilinear).scaleLeft, scaleRight := (bilinear).scaleRight,
 };
 \import Pure.Universal[U := Target.Carrier, target := Target.space] \as Universal;
-\definition map: Modules.Hom[V := Pure.Carrier, W := Target.Carrier, source := Pure.space, target := Target.space].Map := Universal.map #apply{bilinear} laws;
-\definition generatorLaw(sigma: LeftSimplices.Carrier p)(tau: RightSimplices.Carrier q): #apply{map} (Pure.tensor (Left.generator p sigma) (Right.generator q tau)) = onGenerators sigma tau :=
-  trans!{Target.Carrier} _ _ _ (Universal.onTensor #apply{bilinear} laws (Left.generator p sigma) (Right.generator q tau)) (Free.onGenerators onGenerators sigma tau);
+\definition map: Modules.Hom[V := Pure.Carrier, W := Target.Carrier, source := Pure.space, target := Target.space].Map := Universal.map (bilinear).apply laws;
+\definition generatorLaw[sigma: LeftSimplices.Carrier p][tau: RightSimplices.Carrier q]: (map).apply (Pure.tensor (Left.generator p sigma) (Right.generator q tau)) = onGenerators sigma tau :=
+  trans!{Target.Carrier} _ _ _ (Universal.onTensor (bilinear).apply laws (Left.generator p sigma) (Right.generator q tau)) (Free.onGenerators onGenerators sigma tau);
 \module Boundary;

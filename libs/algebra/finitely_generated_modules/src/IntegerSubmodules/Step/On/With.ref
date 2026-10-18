@@ -1,12 +1,12 @@
 \definition principalLaws: Ideals.PrincipalLaws[image, d] := \bysub(N.Nat^, { d: N.Nat^ \where Ideals.PrincipalLaws[image, d] }, d);
 \definition generatorHead: Split.head v = Ideals.natural d :=
-  \bysub(Inside.Carrier, { v: Inside.Carrier \where #apply{projection} v = Ideals.natural d }, v);
-\definition generatorMember: \In[Upper.Vector] (#carrier{S}) v := \bysub(Upper.Vector, #carrier{S}, v);
+  \bysub(Inside.Carrier, { v: Inside.Carrier \where projection.apply v = Ideals.natural d }, v);
+\definition generatorMember: \In[Upper.Vector] (S.carrier) v := \bysub(Upper.Vector, S.carrier, v);
 \import Modules.Hom[V := Upper.Vector, W := Inside.Carrier, source := Upper.space, target := Inside.moduleSpace] \as Maps;
 \definition first: Maps.Map := Maps.Map {
-  apply := \fun (w: Upper.Vector) => #smul{Inside.moduleSpace} (Split.head w) v,
-  addition := \fun (w, z: Upper.Vector) => #scalarAdd{Inside.moduleSpace} (Split.head w) (Split.head z) v,
-  scalar := \fun (a: I.Int^)(w: Upper.Vector) => #scalarAssoc{Inside.moduleSpace} a (Split.head w) v,
+  apply := \fun (w: Upper.Vector) => Inside.moduleSpace.smul (Split.head w) v,
+  addition := \fun (w, z: Upper.Vector) => Inside.moduleSpace.scalarAdd (Split.head w) (Split.head z) v,
+  scalar := \fun (a: I.Int^)(w: Upper.Vector) => Inside.moduleSpace.scalarAssoc a (Split.head w) v,
 };
 \import Modules.Hom[V := Lower.Vector, W := Kernel.Carrier, source := Lower.space, target := Kernel.moduleSpace].Composition[U := Upper.Vector, domain := Upper.space] \as TailComposition;
 \import Modules.Hom[V := Kernel.Carrier, W := Inside.Carrier, source := Kernel.moduleSpace, target := Inside.moduleSpace].Composition[U := Upper.Vector, domain := Upper.space] \as InclusionComposition;
@@ -16,10 +16,10 @@
 \import algebra.Group[].Of[Carrier := Upper.Vector, group := UpperLaws.additive] \as Group;
 \import Modules.Submodule[V := Upper.Vector, space := Upper.space] \as Submodules;
 \import I.Math[].Specification[].Prop[] \as IntegerLaws;
-\definition residual(q: I.Int^)(x: Inside.Carrier): Upper.Vector := Group.difference x (#smul{Upper.space} q v);
+\definition residual[q: I.Int^][x: Inside.Carrier]: Upper.Vector := Group.difference x (Upper.space.smul q v);
 \definition residualMember: \forall (q: I.Int^)(x: Inside.Carrier) -> Submodules.Member S (residual q x) :=
-  \fun (q: I.Int^)(x: Inside.Carrier) => Submodules.differenceClosed S x (#smul{Upper.space} q v)
-    (\bysub(Upper.Vector, #carrier{S}, x)) (#scalar{S} q v generatorMember);
+  \fun (q: I.Int^)(x: Inside.Carrier) => Submodules.differenceClosed S x (Upper.space.smul q v)
+    (\bysub(Upper.Vector, S.carrier, x)) (S.scalar q v generatorMember);
 \definition residualHead: \forall (q: I.Int^)(x: Inside.Carrier) -> Split.head x = Arithmetic.mul (Ideals.natural d) q -> Split.head (residual q x) = Arithmetic.zero :=
   \fun (q: I.Int^)(x: Inside.Carrier)(equal: _) => trans!{I.Int^} _ _ _
     (congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.difference _ _ _ _ equal
@@ -29,8 +29,8 @@
   \fun (q: I.Int^)(x: Inside.Carrier)(equal: _) => trans!{Upper.Vector} _ _ _
     (congr!{I.Int^ Upper.Vector} (\fun (a: I.Int^) => Split.cons a (Split.tail (residual q x))) _ _ (sym!{I.Int^} _ _ (residualHead q x equal)))
     (Split.recover (residual q x));
-\definition point(q: I.Int^)(x: Inside.Carrier)(equal: Split.head x = Arithmetic.mul (Ideals.natural d) q): Kernel.Carrier :=
-  \into[Lower.Vector](Split.tail (residual q x), #carrier{kernel}) \by {
+\definition point[q: I.Int^][x: Inside.Carrier][equal: Split.head x = Arithmetic.mul (Ideals.natural d) q]: Kernel.Carrier :=
+  \into[Lower.Vector](Split.tail (residual q x), kernel.carrier) \by {
     \idelim residual q x = Split.zeroExtend (Split.tail (residual q x)) \with y: Upper.Vector => Submodules.Member S y \by {
       base: residualMember q x, equality: sym!{Upper.Vector} _ _ (reconstruction q x equal)
     }
@@ -38,24 +38,24 @@
 \definition onto: Inside.Onto map := \block {
   \fun (x: Inside.Carrier) \then
   \takefrom q: \Cast[I.Int^] ({ q: I.Int^ \where Split.head x = Arithmetic.mul (Ideals.natural d) q }) \by
-    #contains{principalLaws} (Split.head x) (Images.member projection x) \then
+    principalLaws.contains (Split.head x) (Images.member projection x) \then
   \let equal: Split.head x = Arithmetic.mul (Ideals.natural d) q := \bysub(I.Int^, { q: I.Int^ \where Split.head x = Arithmetic.mul (Ideals.natural d) q }, q) \then
   \let y: Kernel.Carrier := point q x equal \then
   \let ontoF: Kernel.Onto f := \bysub(Kernel.Map, { f: Kernel.Map \where Kernel.Onto f }, f) \then
-  \takefrom c: \Cast[Lower.Vector] ({ c: Lower.Vector \where #apply{f} c = y }) \by ontoF y \then
-  \let represented: #apply{f} c = y := \bysub(Lower.Vector, { c: Lower.Vector \where #apply{f} c = y }, c) \then
+  \takefrom c: \Cast[Lower.Vector] ({ c: Lower.Vector \where f.apply c = y }) \by ontoF y \then
+  \let represented: f.apply c = y := \bysub(Lower.Vector, { c: Lower.Vector \where f.apply c = y }, c) \then
   \let w: Upper.Vector := Split.cons q c \then
-  \return Logic.existsIntro[Upper.Vector, { w: Upper.Vector \where #apply{map} w = x }] w
-    (eq_reason!{{#apply{map} w}
-      "=" {#add{Upper.space} (#smul{Upper.space} q v) (#apply{inclusion} (#apply{f} c))} "by" {
-        congr2!{Upper.Vector Upper.Vector Upper.Vector} (#add{Upper.space}) _ _ _ _
-          (congr!{I.Int^ Upper.Vector} (\fun (a: I.Int^) => #smul{Upper.space} a v) _ _ (Split.headCons q c))
-          (congr!{Lower.Vector Upper.Vector} (\fun (c: Lower.Vector) => #apply{inclusion} (#apply{f} c)) _ _ (Split.tailCons q c))}
-      "=" {#add{Upper.space} (#smul{Upper.space} q v) (Split.zeroExtend (Split.tail (residual q x)))} "by" {
-        congr!{Kernel.Carrier Upper.Vector} (\fun (z: Kernel.Carrier) => #add{Upper.space} (#smul{Upper.space} q v) (#apply{inclusion} z)) _ _ represented}
-      "=" {#add{Upper.space} (#smul{Upper.space} q v) (residual q x)} "by" {
-        congr!{Upper.Vector Upper.Vector} (#add{Upper.space} (#smul{Upper.space} q v)) _ _ (reconstruction q x equal)}
-      "=" {#add{Upper.space} (residual q x) (#smul{Upper.space} q v)} "by" {Group.comm (#smul{Upper.space} q v) (residual q x)}
-      "=" {x} "by" {Group.addDifference x (#smul{Upper.space} q v)}})
+  \return Logic.existsIntro[Upper.Vector, { w: Upper.Vector \where map.apply w = x }] w
+    (eq_reason!{{map.apply w}
+      "=" {Upper.space.add (Upper.space.smul q v) (inclusion.apply (f.apply c))} "by" {
+        congr2!{Upper.Vector Upper.Vector Upper.Vector} (Upper.space.add) _ _ _ _
+          (congr!{I.Int^ Upper.Vector} (\fun (a: I.Int^) => Upper.space.smul a v) _ _ (Split.headCons q c))
+          (congr!{Lower.Vector Upper.Vector} (\fun (c: Lower.Vector) => inclusion.apply (f.apply c)) _ _ (Split.tailCons q c))}
+      "=" {Upper.space.add (Upper.space.smul q v) (Split.zeroExtend (Split.tail (residual q x)))} "by" {
+        congr!{Kernel.Carrier Upper.Vector} (\fun (z: Kernel.Carrier) => Upper.space.add (Upper.space.smul q v) (inclusion.apply z)) _ _ represented}
+      "=" {Upper.space.add (Upper.space.smul q v) (residual q x)} "by" {
+        congr!{Upper.Vector Upper.Vector} (Upper.space.add (Upper.space.smul q v)) _ _ (reconstruction q x equal)}
+      "=" {Upper.space.add (residual q x) (Upper.space.smul q v)} "by" {Group.comm (Upper.space.smul q v) (residual q x)}
+      "=" {x} "by" {Group.addDifference x (Upper.space.smul q v)}})
 };
 \definition existence: Inside.Generated := \exact(\into[Inside.Map](map, { f: Inside.Map \where Inside.Onto f }) \by { onto }, Inside.Generator);

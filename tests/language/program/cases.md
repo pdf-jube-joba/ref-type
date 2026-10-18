@@ -29,7 +29,7 @@ parameters = '''A: \VType, a: A'''
 ```
 
 ```ref
-\definition bad(f: _): _ := f a;
+\definition bad[f: _]: _ := f a;
 ```
 
 ## program cbv computation argument
@@ -131,7 +131,7 @@ name = "ProgramImplicitForce"
 
 ```ref
 \inductive Bool: \VType := | false: Bool | true: Bool;
-\definition apply(f: \U(Bool ~> \F(Bool)), x: Bool): \F(Bool) := f x;
+\definition apply[f: \U(Bool ~> \F(Bool)), x: Bool]: \F(Bool) := f x;
 ```
 
 ## program module parameter wrong category
@@ -216,10 +216,10 @@ expect = "accept"
   \definition identity: \U(Bool -> Bool) :=
     \thunk(\fun (x: Bool) => \return(x));
   \definition holder: Holder := Holder::hold (\fun (x: Bool) => \return(x));
-  \definition apply(f: Bool -> Bool, x: Bool): \F(Bool) := (\force f) x;
-  \definition applyExplicit(f: \U(Bool ~> \F(Bool)), x: Bool): \F(Bool) :=
+  \definition apply[f: Bool -> Bool, x: Bool]: \F(Bool) := (\force f) x;
+  \definition applyExplicit[f: \U(Bool ~> \F(Bool)), x: Bool]: \F(Bool) :=
     (\force f) x;
-  \definition shadow(and: Bool -> Bool, x: Bool): \F(Bool) := (\force and) x;
+  \definition shadow[and: Bool -> Bool, x: Bool]: \F(Bool) := (\force and) x;
 
   /* Curried CBV application spells out sequencing and forcing. */
   \definition falseAndTrue: \F(Bool) :=
@@ -280,7 +280,7 @@ expect = "accept"
 \module ProgramCbvSyntaxSugarGeneric(A: \VType, a: A) {
   \definition identity: A -> A := \fun (x: A) => \return(x);
   \definition inferred: \F(A) := identity a;
-  \definition inferFunctionType(f: A -> A, x: A): \F(A) := (\force f) x;
+  \definition inferFunctionType[f: A -> A, x: A]: \F(A) := (\force f) x;
 }
 ```
 

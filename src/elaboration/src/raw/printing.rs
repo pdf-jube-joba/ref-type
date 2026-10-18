@@ -391,7 +391,19 @@ impl<'a> Printer<'a> {
                 format!("\\Cast[{}] ({})", child(superset), child(subset))
             }
             ExpNode::Equal { left, right } => format!("{} = {}", child(left), child(right)),
-            ExpNode::Exists { set } => format!("\\exists {}", child(set)),
+            ExpNode::Exists { set } => match arena.get(set) {
+                ExpNode::SubSet {
+                    var,
+                    set,
+                    predicate,
+                } => format!(
+                    "\\exists ({}: {} \\where {})",
+                    self.format_named_var(var),
+                    child(set),
+                    child(predicate)
+                ),
+                _ => format!("\\exists ({})", child(set)),
+            },
             ExpNode::Choice {
                 set,
                 existence,

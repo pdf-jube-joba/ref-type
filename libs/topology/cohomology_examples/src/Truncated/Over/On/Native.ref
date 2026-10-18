@@ -6,42 +6,42 @@
 \import std.Data[].Pair[].Prop[A := first.Carrier, B := second.Carrier] \as TailPairs;
 \definition Base: \Set := Product.Carrier;
 \definition baseSpace: Modules.Space Base := Product.space;
-\definition firstCoordinate(x: Base): zeroth.Carrier := Product.first x;
-\definition secondCoordinate(x: Base): first.Carrier := Tail.first (Product.second x);
-\definition thirdCoordinate(x: Base): second.Carrier := Tail.second (Product.second x);
+\definition firstCoordinate[x: Base]: zeroth.Carrier := Product.first x;
+\definition secondCoordinate[x: Base]: first.Carrier := Tail.first (Product.second x);
+\definition thirdCoordinate[x: Base]: second.Carrier := Tail.second (Product.second x);
 \import Modules.Laws[V := zeroth.Carrier, space := zeroth.space] \as Zeroth;
 \import Modules.Laws[V := first.Carrier, space := first.space] \as First;
 \import Modules.Laws[V := second.Carrier, space := second.space] \as Second;
 \import algebra.Group[].Of[Carrier := zeroth.Carrier, group := Zeroth.additive] \as ZerothGroup;
 \import algebra.Group[].Of[Carrier := first.Carrier, group := First.additive] \as FirstGroup;
 \import algebra.Group[].Of[Carrier := second.Carrier, group := Second.additive] \as SecondGroup;
-\definition rawDifferential(x: Base): Base := Product.make Zeroth.zero (Tail.make (#apply{deltaZero} (firstCoordinate x)) (#apply{deltaOne} (secondCoordinate x)));
+\definition rawDifferential[x: Base]: Base := Product.make Zeroth.zero (Tail.make ((deltaZero).apply (firstCoordinate x)) ((deltaOne).apply (secondCoordinate x)));
 \import Modules.Hom[V := Base, W := Base, source := baseSpace, target := baseSpace] \as Differentials;
 \definition rawMap: Differentials.Map := Differentials.Map {
   apply := rawDifferential,
   addition := \fun (x, y: Base) => ProductPairs.ext _ _ (sym!{zeroth.Carrier} _ _ (ZerothGroup.zeroLeft Zeroth.zero))
-    (TailPairs.ext _ _ (#addition{deltaZero} (firstCoordinate x) (firstCoordinate y)) (#addition{deltaOne} (secondCoordinate x) (secondCoordinate y))),
+    (TailPairs.ext _ _ ((deltaZero).addition (firstCoordinate x) (firstCoordinate y)) ((deltaOne).addition (secondCoordinate x) (secondCoordinate y))),
   scalar := \fun (a: I.Int^)(x: Base) => ProductPairs.ext _ _ (sym!{zeroth.Carrier} _ _ (Zeroth.scaleZero a))
-    (TailPairs.ext _ _ (#scalar{deltaZero} a (firstCoordinate x)) (#scalar{deltaOne} a (secondCoordinate x))),
+    (TailPairs.ext _ _ ((deltaZero).scalar a (firstCoordinate x)) ((deltaOne).scalar a (secondCoordinate x))),
 };
-\definition rawSquare(x: Base): rawDifferential (rawDifferential x) = Product.origin :=
+\definition rawSquare[x: Base]: rawDifferential (rawDifferential x) = Product.origin :=
   ProductPairs.ext _ _ (\refl(Zeroth.zero))
     (TailPairs.ext _ _ (Modules.Hom[V := zeroth.Carrier, W := first.Carrier, source := zeroth.space, target := first.space].zeroPreserved deltaZero)
       (square (firstCoordinate x)));
 \module Restriction;
 \module At(n: N.Nat^);
-\definition Carrier(n: N.Nat^): \Set := At[n := n].Carrier;
-\definition space(n: N.Nat^): Modules.Space (Carrier n) := At[n := n].space;
+\definition Carrier[n: N.Nat^]: \Set := At[n := n].Carrier;
+\definition space[n: N.Nat^]: Modules.Space (Carrier n) := At[n := n].space;
 \module Differential(n: N.Nat^);
 \definition family: Cochains.Family := Cochains.Family { Carrier := Carrier, space := space };
 \definition differential: Cochains.DifferentialData[family] := Cochains.DifferentialData[family] {
-  apply := \fun (n: N.Nat^) => #apply{(Differential[n := n].map)},
+  apply := \fun (n: N.Nat^) => (Differential[n := n].map).apply,
 };
 \definition complex: Cochains.Complex := Cochains.Complex {
   family := family, differential := differential,
   laws := Cochains.DifferentialLaws[family, differential] {
-    addition := \fun (n: N.Nat^) => #addition{(Differential[n := n].map)},
-    scalar := \fun (n: N.Nat^) => #scalar{(Differential[n := n].map)},
+    addition := \fun (n: N.Nat^) => (Differential[n := n].map).addition,
+    scalar := \fun (n: N.Nat^) => (Differential[n := n].map).scalar,
     squareZero := \fun (n: N.Nat^)(x: Carrier n) => rawSquare x,
   },
 };

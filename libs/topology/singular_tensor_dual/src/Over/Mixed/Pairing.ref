@@ -6,24 +6,24 @@
 \import Modules.Tensor[V := Left.Carrier, W := Right.Carrier, left := Left.space, right := Right.space] \as Source;
 \import Primal.Universal[U := R, target := Coefficients.coefficients.space] \as Extend;
 \import IntegerModules.Hom[V := Primal.Carrier, W := R, source := Primal.space, target := Coefficients.coefficients.space] \as TargetMaps;
-\definition value(alpha: Left.Carrier)(beta: Right.Carrier)(x: V.Carrier)(y: W.Carrier): R := mul (#apply{alpha} x) (#apply{beta} y);
-\definition valueLaws(alpha: Left.Carrier)(beta: Right.Carrier): Primal.BilinearLaws[R, Coefficients.coefficients.space, value alpha beta] := Primal.BilinearLaws[R, Coefficients.coefficients.space, value alpha beta] {
-  addLeft := \fun (x, z: V.Carrier)(y: W.Carrier) => trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a (#apply{beta} y)) _ _ (#addition{alpha} x z)) (distributeRight (#apply{alpha} x) (#apply{alpha} z) (#apply{beta} y)),
-  addRight := \fun (x: V.Carrier)(y, z: W.Carrier) => trans!{R} _ _ _ (congr!{R R} (mul (#apply{alpha} x)) _ _ (#addition{beta} y z)) (distributeLeft (#apply{alpha} x) (#apply{beta} y) (#apply{beta} z)),
+\definition value[alpha: Left.Carrier][beta: Right.Carrier][x: V.Carrier][y: W.Carrier]: R := mul ((alpha).apply x) ((beta).apply y);
+\definition valueLaws[alpha: Left.Carrier][beta: Right.Carrier]: Primal.BilinearLaws[R, Coefficients.coefficients.space, value alpha beta] := Primal.BilinearLaws[R, Coefficients.coefficients.space, value alpha beta] {
+  addLeft := \fun (x, z: V.Carrier)(y: W.Carrier) => trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a ((beta).apply y)) _ _ ((alpha).addition x z)) (distributeRight ((alpha).apply x) ((alpha).apply z) ((beta).apply y)),
+  addRight := \fun (x: V.Carrier)(y, z: W.Carrier) => trans!{R} _ _ _ (congr!{R R} (mul ((alpha).apply x)) _ _ ((beta).addition y z)) (distributeLeft ((alpha).apply x) ((beta).apply y) ((beta).apply z)),
   scaleLeft := \fun (a: I.Int^)(x: V.Carrier)(y: W.Carrier) => trans!{R} _ _ _
-    (congr!{R R} (\fun (b: R) => mul b (#apply{beta} y)) _ _ (#scalar{alpha} a x))
-    (trans!{R} _ _ _ (#mulCommutative{ring} (#smul{Coefficients.coefficients.space} a (#apply{alpha} x)) (#apply{beta} y))
-      (trans!{R} _ _ _ (#scalar{Coefficients.Scalar[a := #apply{beta} y].map} a (#apply{alpha} x))
-        (congr!{R R} (#smul{Coefficients.coefficients.space} a) _ _ (#mulCommutative{ring} (#apply{beta} y) (#apply{alpha} x))))),
+    (congr!{R R} (\fun (b: R) => mul b ((beta).apply y)) _ _ ((alpha).scalar a x))
+    (trans!{R} _ _ _ ((ring).mulCommutative ((Coefficients.coefficients.space).smul a ((alpha).apply x)) ((beta).apply y))
+      (trans!{R} _ _ _ ((Coefficients.Scalar[a := (beta).apply y].map).scalar a ((alpha).apply x))
+        (congr!{R R} ((Coefficients.coefficients.space).smul a) _ _ ((ring).mulCommutative ((beta).apply y) ((alpha).apply x))))),
   scaleRight := \fun (a: I.Int^)(x: V.Carrier)(y: W.Carrier) => trans!{R} _ _ _
-    (congr!{R R} (mul (#apply{alpha} x)) _ _ (#scalar{beta} a y))
-    (#scalar{Coefficients.Scalar[a := #apply{alpha} x].map} a (#apply{beta} y)),
+    (congr!{R R} (mul ((alpha).apply x)) _ _ ((beta).scalar a y))
+    ((Coefficients.Scalar[a := (alpha).apply x].map).scalar a ((beta).apply y)),
 };
-\definition comparison(alpha: Left.Carrier)(beta: Right.Carrier): Target.Carrier := Extend.map (value alpha beta) (valueLaws alpha beta);
-\definition evaluation(alpha: Left.Carrier)(beta: Right.Carrier)(x: V.Carrier)(y: W.Carrier): #apply{(comparison alpha beta)} (Primal.tensor x y) = value alpha beta x y := Extend.onTensor (value alpha beta) (valueLaws alpha beta) x y;
+\definition comparison[alpha: Left.Carrier][beta: Right.Carrier]: Target.Carrier := Extend.map (value alpha beta) (valueLaws alpha beta);
+\definition evaluation[alpha: Left.Carrier][beta: Right.Carrier][x: V.Carrier][y: W.Carrier]: (comparison alpha beta).apply (Primal.tensor x y) = value alpha beta x y := Extend.onTensor (value alpha beta) (valueLaws alpha beta) x y;
 \module Laws;
 \import Source.Universal[U := Target.Carrier, target := Target.space] \as Universal;
 \definition forward: Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Map := Universal.map comparison Laws[].laws;
-\definition onTensor(alpha: Left.Carrier)(beta: Right.Carrier): #apply{forward} (Source.tensor alpha beta) = comparison alpha beta := Universal.onTensor comparison Laws[].laws alpha beta;
-\definition onPure(alpha: Left.Carrier)(beta: Right.Carrier)(x: V.Carrier)(y: W.Carrier): #apply{(#apply{forward} (Source.tensor alpha beta))} (Primal.tensor x y) = mul (#apply{alpha} x) (#apply{beta} y) :=
-  trans!{R} _ _ _ (congr!{Target.Carrier R} (\fun (f: Target.Carrier) => #apply{f} (Primal.tensor x y)) _ _ (onTensor alpha beta)) (evaluation alpha beta x y);
+\definition onTensor[alpha: Left.Carrier][beta: Right.Carrier]: (forward).apply (Source.tensor alpha beta) = comparison alpha beta := Universal.onTensor comparison Laws[].laws alpha beta;
+\definition onPure[alpha: Left.Carrier][beta: Right.Carrier][x: V.Carrier][y: W.Carrier]: ((forward).apply (Source.tensor alpha beta)).apply (Primal.tensor x y) = mul ((alpha).apply x) ((beta).apply y) :=
+  trans!{R} _ _ _ (congr!{Target.Carrier R} (\fun (f: Target.Carrier) => (f).apply (Primal.tensor x y)) _ _ (onTensor alpha beta)) (evaluation alpha beta x y);

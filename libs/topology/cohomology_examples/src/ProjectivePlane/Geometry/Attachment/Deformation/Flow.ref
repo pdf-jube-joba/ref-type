@@ -1,29 +1,29 @@
-\structure Witness[t: Interval.Carrier, p, y: Region]: \Set {
+\structure Witness[t: Interval.Carrier, p, y: Region]: \Set := {
   preimage: Collar.Carrier,
   projects: project preimage = p,
   flowed: project (Collar.value t preimage) = y,
-}
-\definition Values(t: Interval.Carrier)(p: Region): \Pow Region := { y: Region \where \exists Witness[t, p, y] };
-\definition Value(t: Interval.Carrier)(p: Region): \Set := \Cast[Region] (Values t p);
-\definition witness(t: Interval.Carrier)(x: Collar.Carrier): Value t (project x) :=
+};
+\definition Values[t: Interval.Carrier][p: Region]: \Pow Region := { y: Region \where \exists Witness[t, p, y] };
+\definition Value[t: Interval.Carrier][p: Region]: \Set := \Cast[Region] (Values t p);
+\definition witness[t: Interval.Carrier][x: Collar.Carrier]: Value t (project x) :=
   \into[Region](project (Collar.value t x), Values t (project x)) \by {
     \exact(Witness[t, project x, project (Collar.value t x)] { preimage := x, projects := \refl(project x), flowed := \refl(project (Collar.value t x)) }, Witness[t, project x, project (Collar.value t x)])
   };
-\definition existence(t: Interval.Carrier)(p: Region): \exists Value t p := \block {
-  \takefrom x: \Cast[Collar.Carrier] ({ x: Collar.Carrier \where project x = p }) \by #onto{regionQuotient} p \then
+\definition existence[t: Interval.Carrier][p: Region]: \exists Value t p := \block {
+  \takefrom x: \Cast[Collar.Carrier] ({ x: Collar.Carrier \where project x = p }) \by (regionQuotient).onto p \then
   \return \idelim project x = p \with q: Region => \exists Value t q \by {
     base: \exact(witness t x, Value t (project x)), equality: \bysub(Collar.Carrier, { x: Collar.Carrier \where project x = p }, x)
   }
 };
-\definition uniqueness(t: Interval.Carrier)(p: Region)(y, z: Value t p): y = z := \block {
+\definition uniqueness[t: Interval.Carrier][p: Region][y, z: Value t p]: y = z := \block {
   \takefrom u: Witness[t, p, y] \by \bysub(Region, Values t p, y) \then
   \takefrom v: Witness[t, p, z] \by \bysub(Region, Values t p, z) \then
-  \return trans!{Region} _ _ _ (sym!{Region} _ _ (#flowed{u}))
+  \return trans!{Region} _ _ _ (sym!{Region} _ _ ((u).flowed))
     (trans!{Region} _ _ _
-      (flowRespects t (#preimage{u}) (#preimage{v}) (trans!{Region} _ _ _ (#projects{u}) (sym!{Region} _ _ (#projects{v})))) (#flowed{v}))
+      (flowRespects t ((u).preimage) ((v).preimage) (trans!{Region} _ _ _ ((u).projects) (sym!{Region} _ _ ((v).projects)))) ((v).flowed))
 };
-\definition apply(t: Interval.Carrier)(p: Region): Region := \choice Value t p \by { existence: existence t p, uniqueness: uniqueness t p };
-\definition onProject(t: Interval.Carrier)(x: Collar.Carrier): apply t (project x) = project (Collar.value t x) :=
+\definition apply[t: Interval.Carrier][p: Region]: Region := \choice Value t p \by { existence: existence t p, uniqueness: uniqueness t p };
+\definition onProject[t: Interval.Carrier][x: Collar.Carrier]: apply t (project x) = project (Collar.value t x) :=
   sym!{Region} _ _ (\choiceeq witness t x \of Value t (project x) \by { existence: existence t (project x), uniqueness: uniqueness t (project x) });
 \definition start: \forall (p: Region) -> apply Interval.start p = p := induction
   (\fun (p: Region) => apply Interval.start p = p)
@@ -35,7 +35,7 @@
     \with p: Region => \In[Region] Base p \by {
       base: Fibers.boundaryInBase (Collar.value Interval.end x) (Endpoints.endOnSphere x), equality: sym!{Region} _ _ (onProject Interval.end x)
     });
-\definition fixed(t: Interval.Carrier): \forall (p: Region) -> \In[Region] Base p -> apply t p = p := induction
+\definition fixed[t: Interval.Carrier]: \forall (p: Region) -> \In[Region] Base p -> apply t p = p := induction
   (\fun (p: Region) => \In[Region] Base p -> apply t p = p)
   (\fun (x: Collar.Carrier)(member: \In[Region] Base (project x)) => trans!{Region} _ _ _ (onProject t x)
     (congr!{Collar.Carrier Region} project _ _ (Endpoints.fixesBoundary t x (Fibers.baseOnlyBoundary x member))));

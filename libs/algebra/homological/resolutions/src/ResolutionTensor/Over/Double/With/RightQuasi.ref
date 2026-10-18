@@ -14,9 +14,9 @@
     \definition reverseTensor: Q.family.Carrier n -> P.family.Carrier k -> ReverseCarrier := Reverse.tensor;
     \definition forward: Modules.Hom[V := Carrier, W := ReverseCarrier, source := space, target := reverseSpace].Map := Swap.forward;
     \definition backward: Modules.Hom[V := ReverseCarrier, W := Carrier, source := reverseSpace, target := space].Map := Swap.backward;
-    \definition leftInverse: \forall (x: Carrier) -> #apply{backward} (#apply{forward} x) = x := Swap.leftInverse;
-    \definition rightInverse: \forall (x: ReverseCarrier) -> #apply{forward} (#apply{backward} x) = x := Swap.rightInverse;
-    \definition onTensor: \forall (x: P.family.Carrier k)(y: Q.family.Carrier n) -> #apply{forward} (tensor x y) = reverseTensor y x := Swap.onTensor;
+    \definition leftInverse: \forall (x: Carrier) -> backward.apply (forward.apply x) = x := Swap.leftInverse;
+    \definition rightInverse: \forall (x: ReverseCarrier) -> forward.apply (backward.apply x) = x := Swap.rightInverse;
+    \definition onTensor: \forall (x: P.family.Carrier k)(y: Q.family.Carrier n) -> forward.apply (tensor x y) = reverseTensor y x := Swap.onTensor;
   }
   \module Step(k: Nat.Nat^) {
     \import \parent.Term[k := k] \as Current;
@@ -27,14 +27,14 @@
     \import Modules.Tensor[V := Q.family.Carrier n, W := P.family.Carrier (Nat.Nat^::succ k), left := Q.family.space n, right := P.family.space (Nat.Nat^::succ k)].Mapping[
       U := Q.family.Carrier n, Z := P.family.Carrier k, targetLeft := Q.family.space n, targetRight := P.family.space k] \as Reverse;
     \definition differential: Modules.Hom[V := Next.ReverseCarrier, W := Current.ReverseCarrier, source := Next.reverseSpace, target := Current.reverseSpace].Map := Reverse.map Identity.identity Original.dh;
-    \definition forward: \forall (x: Next.Carrier) -> #apply{differential} (#apply{Next.forward} x) = #apply{Current.forward} (#apply{Original.horizontal} x) :=
+    \definition forward: \forall (x: Next.Carrier) -> differential.apply (Next.forward.apply x) = Current.forward.apply (Original.horizontal.apply x) :=
       \fun (x: Next.Carrier) => sym!{Current.ReverseCarrier} _ _ (Naturality.commutes Original.dh Identity.identity x);
-    \definition backward: \forall (x: Next.ReverseCarrier) -> #apply{Original.horizontal} (#apply{Next.backward} x) = #apply{Current.backward} (#apply{differential} x) :=
+    \definition backward: \forall (x: Next.ReverseCarrier) -> Original.horizontal.apply (Next.backward.apply x) = Current.backward.apply (differential.apply x) :=
       \fun (x: Next.ReverseCarrier) => trans!{Current.Carrier} _ _ _
-        (sym!{Current.Carrier} _ _ (Current.leftInverse (#apply{Original.horizontal} (#apply{Next.backward} x))))
-        (congr!{Current.ReverseCarrier Current.Carrier} (#apply{Current.backward}) _ _
-          (trans!{Current.ReverseCarrier} _ _ _ (sym!{Current.ReverseCarrier} _ _ (forward (#apply{Next.backward} x)))
-            (congr!{Next.ReverseCarrier Current.ReverseCarrier} (#apply{differential}) _ _ (Next.rightInverse x))));
+        (sym!{Current.Carrier} _ _ (Current.leftInverse (Original.horizontal.apply (Next.backward.apply x))))
+        (congr!{Current.ReverseCarrier Current.Carrier} (Current.backward.apply) _ _
+          (trans!{Current.ReverseCarrier} _ _ _ (sym!{Current.ReverseCarrier} _ _ (forward (Next.backward.apply x)))
+            (congr!{Next.ReverseCarrier Current.ReverseCarrier} (differential.apply) _ _ (Next.rightInverse x))));
   }
   \module Positive(k: Nat.Nat^) {
     \import \parent.Term[k := k] \as Lower;
@@ -44,20 +44,20 @@
     \import \parent.Step[k := Nat.Nat^::succ k] \as NextStep;
     \import Modules.Hom[V := Current.Carrier, W := Lower.ReverseCarrier, source := Current.space, target := Lower.reverseSpace] \as CurrentMaps;
     \import Modules.Hom[V := Lower.Carrier, W := Lower.ReverseCarrier, source := Lower.space, target := Lower.reverseSpace] \as SwapMaps;
-    \definition exact: \forall (x: Current.Carrier) -> #apply{(Tensor.complex.differential.horizontal k n)} x = #zero{(Tensor.space k n)} ->
-      \exists { y: Next.Carrier \where #apply{(Tensor.complex.differential.horizontal (Nat.Nat^::succ k) n)} y = x } := \block {
+    \definition exact: \forall (x: Current.Carrier) -> (Tensor.complex.differential.horizontal k n).apply x = (Tensor.space k n).zero ->
+      \exists ( y: Next.Carrier \where (Tensor.complex.differential.horizontal (Nat.Nat^::succ k) n).apply y = x ) := \block {
       \fun (x: Current.Carrier)(closed: _) \then
-      \let cycle: #apply{CurrentStep.differential} (#apply{Current.forward} x) = #zero{(Lower.reverseSpace)} :=
+      \let cycle: CurrentStep.differential.apply (Current.forward.apply x) = (Lower.reverseSpace).zero :=
         trans!{{Lower.ReverseCarrier}} _ _ _ (CurrentStep.forward x)
           (trans!{{Lower.ReverseCarrier}} _ _ _
-            (congr!{{Lower.Carrier} {Lower.ReverseCarrier}} (#apply{(Lower.forward)}) _ _ closed)
+            (congr!{{Lower.Carrier} {Lower.ReverseCarrier}} ((Lower.forward).apply) _ _ closed)
             (SwapMaps.zeroPreserved (Lower.forward))) \then
-      \takefrom y: \Cast[Next.ReverseCarrier] ({ y: Next.ReverseCarrier \where #apply{NextStep.differential} y = #apply{Current.forward} x }) \by #exact{Resolution.resolution} k (#apply{Current.forward} x) cycle \then
-      \return Logic.existsIntro[Next.Carrier, { y: Next.Carrier \where #apply{(Tensor.complex.differential.horizontal (Nat.Nat^::succ k) n)} y = x }] (#apply{Next.backward} y)
+      \takefrom y: \Cast[Next.ReverseCarrier] ({ y: Next.ReverseCarrier \where NextStep.differential.apply y = Current.forward.apply x }) \by Resolution.resolution.exact k (Current.forward.apply x) cycle \then
+      \return Logic.existsIntro[Next.Carrier, { y: Next.Carrier \where (Tensor.complex.differential.horizontal (Nat.Nat^::succ k) n).apply y = x }] (Next.backward.apply y)
         (trans!{Current.Carrier} _ _ _ (NextStep.backward y)
           (trans!{Current.Carrier} _ _ _
-            (congr!{Current.ReverseCarrier Current.Carrier} (#apply{Current.backward}) _ _
-              (\bysub(Next.ReverseCarrier, { y: Next.ReverseCarrier \where #apply{NextStep.differential} y = #apply{Current.forward} x }, y)))
+            (congr!{Current.ReverseCarrier Current.Carrier} (Current.backward.apply) _ _
+              (\bysub(Next.ReverseCarrier, { y: Next.ReverseCarrier \where NextStep.differential.apply y = Current.forward.apply x }, y)))
             (Current.leftInverse x)))
     };
   }
@@ -68,17 +68,17 @@
   \import Modules.Tensor[V := Q.family.Carrier n, W := LeftModule.Carrier Nat.Nat^::zero, left := Q.family.space n, right := LeftModule.space Nat.Nat^::zero] \as SwappedMiddle;
   \import Modules.Tensor[V := Q.family.Carrier n, W := P.family.Carrier Nat.Nat^::zero, left := Q.family.space n, right := P.family.space Nat.Nat^::zero].Mapping[
     U := Q.family.Carrier n, Z := M.Carrier, targetLeft := Q.family.space n, targetRight := M.space] \as Augmentation;
-  \definition augmentation: Modules.Hom[V := First.ReverseCarrier, W := Target.Carrier, source := First.reverseSpace, target := Target.space].Map := Augmentation.map Identity.identity (#augmentation{p});
+  \definition augmentation: Modules.Hom[V := First.ReverseCarrier, W := Target.Carrier, source := First.reverseSpace, target := Target.space].Map := Augmentation.map Identity.identity (p.augmentation);
   \import SwappedMiddle.Mapping[U := Q.family.Carrier n, Z := M.Carrier, targetLeft := Q.family.space n, targetRight := M.space] \as Projection;
   \definition normalization: Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Map := Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Map {
-    apply := #apply{Normalization.rowForward} n,
-    addition := #addition{Normalization.rowForward} n,
-    scalar := #scalar{Normalization.rowForward} n,
+    apply := Normalization.rowForward.apply n,
+    addition := Normalization.rowForward.addition n,
+    scalar := Normalization.rowForward.scalar n,
   };
   \definition normalizationOnTensor: \forall (a: LeftModule.Carrier Nat.Nat^::zero)(b: Q.family.Carrier n) ->
-    #apply{normalization} (Middle.tensor a b) = Target.tensor b (#apply{LeftModule.augmentation} a) :=
+    normalization.apply (Middle.tensor a b) = Target.tensor b (LeftModule.augmentation.apply a) :=
     \fun (a: LeftModule.Carrier Nat.Nat^::zero)(b: Q.family.Carrier n) => trans!{Target.Carrier} _ _ _
-      (congr!{SwappedMiddle.Carrier Target.Carrier} (#apply{(Normalization.Degree[n := n].forward)}) _ _ (Normalization.Swap[].Degree[n := n].onTensor a b))
+      (congr!{SwappedMiddle.Carrier Target.Carrier} ((Normalization.Degree[n := n].forward).apply) _ _ (Normalization.Swap[].Degree[n := n].onTensor a b))
       (Projection.onTensor Identity.identity LeftModule.augmentation b a);
   \import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Composition[U := First.Carrier, domain := First.space] \as OriginalComposition;
   \import Modules.Hom[V := First.ReverseCarrier, W := Target.Carrier, source := First.reverseSpace, target := Target.space].Composition[U := First.Carrier, domain := First.space] \as ReverseComposition;
@@ -86,37 +86,37 @@
   \definition factorMaps: OriginalComposition.compose normalization (RightComparison.Degree[p := Nat.Nat^::zero, q := n].map) = ReverseComposition.compose augmentation First.forward :=
     Universal.ext (OriginalComposition.compose normalization (RightComparison.Degree[p := Nat.Nat^::zero, q := n].map)) (ReverseComposition.compose augmentation First.forward)
       (\fun (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier n) => trans!{Target.Carrier} _ _ _
-        (congr!{Middle.Carrier Target.Carrier} (#apply{normalization}) _ _ (RightComparison.Degree[p := Nat.Nat^::zero, q := n].onTensor x y))
-        (trans!{Target.Carrier} _ _ _ (normalizationOnTensor (#apply{LeftAugmentation.map} Nat.Nat^::zero x) y)
+        (congr!{Middle.Carrier Target.Carrier} (normalization.apply) _ _ (RightComparison.Degree[p := Nat.Nat^::zero, q := n].onTensor x y))
+        (trans!{Target.Carrier} _ _ _ (normalizationOnTensor (LeftAugmentation.map.apply Nat.Nat^::zero x) y)
           (sym!{Target.Carrier} _ _ (trans!{Target.Carrier} _ _ _
-            (congr!{First.ReverseCarrier Target.Carrier} (#apply{augmentation}) _ _ (First.onTensor x y))
-            (Augmentation.onTensor Identity.identity (#augmentation{p}) y x)))));
-  \definition factor: \forall (x: First.Carrier) -> #apply{normalization} (#apply{(RightComparison.Degree[p := Nat.Nat^::zero, q := n].map)} x) = #apply{augmentation} (#apply{First.forward} x) :=
+            (congr!{First.ReverseCarrier Target.Carrier} (augmentation.apply) _ _ (First.onTensor x y))
+            (Augmentation.onTensor Identity.identity (p.augmentation) y x)))));
+  \definition factor: \forall (x: First.Carrier) -> normalization.apply ((RightComparison.Degree[p := Nat.Nat^::zero, q := n].map).apply x) = augmentation.apply (First.forward.apply x) :=
     \fun (x: First.Carrier) => congr!{{Modules.Hom[V := First.Carrier, W := Target.Carrier, source := First.space, target := Target.space].Map} Target.Carrier}
-      (\fun (g: Modules.Hom[V := First.Carrier, W := Target.Carrier, source := First.space, target := Target.space].Map) => #apply{g} x) _ _ factorMaps;
+      (\fun (g: Modules.Hom[V := First.Carrier, W := Target.Carrier, source := First.space, target := Target.space].Map) => g.apply x) _ _ factorMaps;
   \import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space] \as NormalizationMaps;
-  \definition exact: \forall (x: First.Carrier) -> #apply{(RightComparison.Degree[p := Nat.Nat^::zero, q := n].map)} x = #zero{Middle.space} ->
-    \exists { y: Second.Carrier \where #apply{(Tensor.complex.differential.horizontal Nat.Nat^::zero n)} y = x } := \block {
+  \definition exact: \forall (x: First.Carrier) -> (RightComparison.Degree[p := Nat.Nat^::zero, q := n].map).apply x = Middle.space.zero ->
+    \exists ( y: Second.Carrier \where (Tensor.complex.differential.horizontal Nat.Nat^::zero n).apply y = x ) := \block {
     \fun (x: First.Carrier)(killed: _) \then
-    \let zero: #apply{augmentation} (#apply{First.forward} x) = #zero{Target.space} := trans!{Target.Carrier} _ _ _ (sym!{Target.Carrier} _ _ (factor x))
-      (trans!{Target.Carrier} _ _ _ (congr!{Middle.Carrier Target.Carrier} (#apply{normalization}) _ _ killed) (NormalizationMaps.zeroPreserved normalization)) \then
-    \takefrom y: \Cast[Second.ReverseCarrier] ({ y: Second.ReverseCarrier \where #apply{(Step[k := Nat.Nat^::zero].differential)} y = #apply{First.forward} x }) \by #augmentationExact{Resolution.resolution} (#apply{First.forward} x) zero \then
-    \return Logic.existsIntro[Second.Carrier, { y: Second.Carrier \where #apply{(Tensor.complex.differential.horizontal Nat.Nat^::zero n)} y = x }] (#apply{Second.backward} y)
+    \let zero: augmentation.apply (First.forward.apply x) = Target.space.zero := trans!{Target.Carrier} _ _ _ (sym!{Target.Carrier} _ _ (factor x))
+      (trans!{Target.Carrier} _ _ _ (congr!{Middle.Carrier Target.Carrier} (normalization.apply) _ _ killed) (NormalizationMaps.zeroPreserved normalization)) \then
+    \takefrom y: \Cast[Second.ReverseCarrier] ({ y: Second.ReverseCarrier \where (Step[k := Nat.Nat^::zero].differential).apply y = First.forward.apply x }) \by Resolution.resolution.augmentationExact (First.forward.apply x) zero \then
+    \return Logic.existsIntro[Second.Carrier, { y: Second.Carrier \where (Tensor.complex.differential.horizontal Nat.Nat^::zero n).apply y = x }] (Second.backward.apply y)
       (trans!{First.Carrier} _ _ _ (Step[k := Nat.Nat^::zero].backward y)
-        (trans!{First.Carrier} _ _ _ (congr!{First.ReverseCarrier First.Carrier} (#apply{First.backward}) _ _
-          (\bysub(Second.ReverseCarrier, { y: Second.ReverseCarrier \where #apply{(Step[k := Nat.Nat^::zero].differential)} y = #apply{First.forward} x }, y))) (First.leftInverse x)))
+        (trans!{First.Carrier} _ _ _ (congr!{First.ReverseCarrier First.Carrier} (First.backward.apply) _ _
+          (\bysub(Second.ReverseCarrier, { y: Second.ReverseCarrier \where (Step[k := Nat.Nat^::zero].differential).apply y = First.forward.apply x }, y))) (First.leftInverse x)))
   };
-  \definition onto: \forall (x: Middle.Carrier) -> \exists { y: First.Carrier \where #apply{(RightComparison.Degree[p := Nat.Nat^::zero, q := n].map)} y = x } := \block {
+  \definition onto: \forall (x: Middle.Carrier) -> \exists ( y: First.Carrier \where (RightComparison.Degree[p := Nat.Nat^::zero, q := n].map).apply y = x ) := \block {
     \fun (x: Middle.Carrier) \then
-    \takefrom z: \Cast[First.ReverseCarrier] ({ z: First.ReverseCarrier \where #apply{augmentation} z = #apply{normalization} x }) \by #onto{Resolution.resolution} (#apply{normalization} x) \then
-    \let y: First.Carrier := #apply{First.backward} z \then
-    \return Logic.existsIntro[First.Carrier, { y: First.Carrier \where #apply{(RightComparison.Degree[p := Nat.Nat^::zero, q := n].map)} y = x }] y
-      (trans!{Middle.Carrier} _ _ _ (sym!{Middle.Carrier} _ _ (Normalization.rowLeftInverse n (#apply{(RightComparison.Degree[p := Nat.Nat^::zero, q := n].map)} y)))
+    \takefrom z: \Cast[First.ReverseCarrier] ({ z: First.ReverseCarrier \where augmentation.apply z = normalization.apply x }) \by Resolution.resolution.onto (normalization.apply x) \then
+    \let y: First.Carrier := First.backward.apply z \then
+    \return Logic.existsIntro[First.Carrier, { y: First.Carrier \where (RightComparison.Degree[p := Nat.Nat^::zero, q := n].map).apply y = x }] y
+      (trans!{Middle.Carrier} _ _ _ (sym!{Middle.Carrier} _ _ (Normalization.rowLeftInverse n ((RightComparison.Degree[p := Nat.Nat^::zero, q := n].map).apply y)))
         (trans!{Middle.Carrier} _ _ _
-          (congr!{Target.Carrier Middle.Carrier} (#apply{Normalization.rowBackward} n) _ _
+          (congr!{Target.Carrier Middle.Carrier} (Normalization.rowBackward.apply n) _ _
             (trans!{Target.Carrier} _ _ _ (factor y)
-              (trans!{Target.Carrier} _ _ _ (congr!{First.ReverseCarrier Target.Carrier} (#apply{augmentation}) _ _ (First.rightInverse z))
-                (\bysub(First.ReverseCarrier, { z: First.ReverseCarrier \where #apply{augmentation} z = #apply{normalization} x }, z)))))
+              (trans!{Target.Carrier} _ _ _ (congr!{First.ReverseCarrier Target.Carrier} (augmentation.apply) _ _ (First.rightInverse z))
+                (\bysub(First.ReverseCarrier, { z: First.ReverseCarrier \where augmentation.apply z = normalization.apply x }, z)))))
           (Normalization.rowLeftInverse n x)))
   };
 }
@@ -135,7 +135,7 @@
   \import Chains.Homology[C := RightTotal.complex].At[n := n] \as Target;
   \definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism :=
     Quasi.At[n := n].isomorphism onto exact;
-  \definition forward: \forall (x: Source.Carrier) -> #apply{#forward{isomorphism}} x =
-    #apply{(Chains.Map[C := complex, D := RightTotal.complex].HomologyAt[n := n].induced right)} x :=
+  \definition forward: \forall (x: Source.Carrier) -> isomorphism.forward.apply x =
+    (Chains.Map[C := complex, D := RightTotal.complex].HomologyAt[n := n].induced right).apply x :=
     Quasi.At[n := n].forward onto exact;
 }

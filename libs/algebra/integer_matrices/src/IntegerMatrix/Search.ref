@@ -5,7 +5,7 @@
 \import N.Basic[].Def[] \as Nat;
 \import N.Basic[].Prop[] \as Bounds;
 \import std.Logic[].Proposition[] \as Logic;
-\definition probe(k: N.Nat^)(a: Runtime^)(i, j: N.Nat^): B.Bool^ :=
+\definition probe[k: N.Nat^][a: Runtime^][i, j: N.Nat^]: B.Bool^ :=
   B.And.specification (Nat.leb k i) (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j))));
 \definition zeroOfTrue: \forall (a: I.Int^) -> I.IsZero.specification a = B.Bool^::true -> a = Arithmetic.zero :=
   \induction (a: I.Int^) \return I.IsZero.specification a = B.Bool^::true -> a = Arithmetic.zero \with {
@@ -26,11 +26,11 @@
     (\fun (equal: I.IsZero.specification a = B.Bool^::false) => \refl(B.Bool^::false))
     (\fun (equal: I.IsZero.specification a = B.Bool^::true) => Logic.falseElim _ (nonzero (zeroOfTrue a equal)))
     (I.IsZero.specification a) (\refl(I.IsZero.specification a));
-\structure Hit[k: N.Nat^, a: Runtime^, i, j: N.Nat^]: \Prop {
+\structure Hit[k: N.Nat^, a: Runtime^, i, j: N.Nat^]: \Prop := {
   rowLower: Bounds.Le k i,
   columnLower: Bounds.Le k j,
   nonzero: Logic.Not (a i j = Arithmetic.zero),
-}
+};
 \definition hit: \forall (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> probe k a i j = B.Bool^::true -> Hit[k, a, i, j] :=
   \fun (k: N.Nat^)(a: Runtime^)(i, j: N.Nat^)(test: probe k a i j = B.Bool^::true) => Hit[k, a, i, j] {
     rowLower := BoolLaws.andTrueLeft (Nat.leb k i) (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))) test,
@@ -40,7 +40,7 @@
       (BoolLaws.andTrueRight (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))
         (BoolLaws.andTrueRight (Nat.leb k i) (B.And.specification (Nat.leb k j) (B.Neg.specification (I.IsZero.specification (a i j)))) test))),
   };
-\definition search(rows, cols, k: N.Nat^)(a: Runtime^): Grid.Position^ := Grid.grid rows cols (probe k a);
+\definition search[rows, cols, k: N.Nat^][a: Runtime^]: Grid.Position^ := Grid.grid rows cols (probe k a);
 \definition bounded: \forall (rows, cols, k: N.Nat^)(a: Runtime^) -> Grid.PositionLaws (probe k a) rows cols (search rows cols k a) :=
   \fun (rows, cols, k: N.Nat^)(a: Runtime^) => Grid.correctness rows cols (probe k a);
 

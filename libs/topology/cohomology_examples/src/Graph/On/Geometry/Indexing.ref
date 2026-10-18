@@ -1,12 +1,12 @@
 \use Logic.either;
 \definition Vertices: \Set := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]];
 \definition Edges: \Set := Sums.Sum[Edge, Sums.Sum[Edge, Edge]];
-\definition vertex(v: Vertex): Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inl v;
-\definition firstVertex(e: Edge): Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inl e);
-\definition secondVertex(e: Edge): Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inr e);
-\definition initialEdge(e: Edge): Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inl e;
-\definition middleEdge(e: Edge): Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inl e);
-\definition terminalEdge(e: Edge): Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inr e);
+\definition vertex[v: Vertex]: Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inl v;
+\definition firstVertex[e: Edge]: Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inl e);
+\definition secondVertex[e: Edge]: Vertices := Sums.Sum[Vertex, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inr e);
+\definition initialEdge[e: Edge]: Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inl e;
+\definition middleEdge[e: Edge]: Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inl e);
+\definition terminalEdge[e: Edge]: Edges := Sums.Sum[Edge, Sums.Sum[Edge, Edge]]::inr (Sums.Sum[Edge, Edge]::inr e);
 \definition label: Vertices -> Complex.Vertex := \induction (v: Vertices) \return Complex.Vertex \with {
   | inl: original
   | inr: \induction (v: Sums.Sum[Edge, Edge]) \return Complex.Vertex \with {
@@ -25,14 +25,14 @@
       | inl: secondVertex | inr: secondVertex
     }
 };
-\definition vertexCodeInjective(v, w: Vertex)(same: vertexCode v = vertexCode w): v = w := VertexCode.encodeInjective v w same;
-\definition edgeCodeInjective(e, f: Edge)(same: edgeCode e = edgeCode f): e = f := EdgeCode.encodeInjective e f same;
-\definition originalInjective(v, w: Vertex)(same: original v = original w): v = w := vertexCodeInjective v w (Blocks.leftInjective _ _ same);
-\definition firstInjective(e, f: Edge)(same: firstMidpoint e = firstMidpoint f): e = f := edgeCodeInjective e f (MidpointCode.leftInjective _ _ (Blocks.rightInjective _ _ same));
-\definition secondInjective(e, f: Edge)(same: secondMidpoint e = secondMidpoint f): e = f := edgeCodeInjective e f (MidpointCode.rightInjective _ _ (Blocks.rightInjective _ _ same));
-\definition originalFirst(v: Vertex)(e: Edge)(same: original v = firstMidpoint e): Logic.False := Blocks.disjoint (vertexCode v) (MidpointCode.left (edgeCode e)) same;
-\definition originalSecond(v: Vertex)(e: Edge)(same: original v = secondMidpoint e): Logic.False := Blocks.disjoint (vertexCode v) (MidpointCode.right (edgeCode e)) same;
-\definition firstSecond(e, f: Edge)(same: firstMidpoint e = secondMidpoint f): Logic.False := MidpointCode.disjoint (edgeCode e) (edgeCode f) (Blocks.rightInjective _ _ same);
+\definition vertexCodeInjective[v, w: Vertex][same: vertexCode v = vertexCode w]: v = w := VertexCode.encodeInjective v w same;
+\definition edgeCodeInjective[e, f: Edge][same: edgeCode e = edgeCode f]: e = f := EdgeCode.encodeInjective e f same;
+\definition originalInjective[v, w: Vertex][same: original v = original w]: v = w := vertexCodeInjective v w (Blocks.leftInjective _ _ same);
+\definition firstInjective[e, f: Edge][same: firstMidpoint e = firstMidpoint f]: e = f := edgeCodeInjective e f (MidpointCode.leftInjective _ _ (Blocks.rightInjective _ _ same));
+\definition secondInjective[e, f: Edge][same: secondMidpoint e = secondMidpoint f]: e = f := edgeCodeInjective e f (MidpointCode.rightInjective _ _ (Blocks.rightInjective _ _ same));
+\definition originalFirst[v: Vertex][e: Edge][same: original v = firstMidpoint e]: Logic.False := Blocks.disjoint (vertexCode v) (MidpointCode.left (edgeCode e)) same;
+\definition originalSecond[v: Vertex][e: Edge][same: original v = secondMidpoint e]: Logic.False := Blocks.disjoint (vertexCode v) (MidpointCode.right (edgeCode e)) same;
+\definition firstSecond[e, f: Edge][same: firstMidpoint e = secondMidpoint f]: Logic.False := MidpointCode.disjoint (edgeCode e) (edgeCode f) (Blocks.rightInjective _ _ same);
 \definition injective: \forall (v, w: Vertices) -> label v = label w -> v = w :=
   \induction (v: Vertices) \return \forall (w: Vertices) -> label v = label w -> v = w \with {
     | inl: \fun (x: Vertex) =>
@@ -106,12 +106,12 @@
 };
 \import LineGraph.With[graph := indexedGraph] \as Ordered;
 \definition complex: Complex.Object := Ordered.complex;
-\definition pointFace(v: Vertices): \In[\Pow Complex.Vertex] complex.faces ({ w: Complex.Vertex \where w = label v }) :=
+\definition pointFace[v: Vertices]: \In[\Pow Complex.Vertex] complex.faces ({ w: Complex.Vertex \where w = label v }) :=
   Logic.Or[_, _]::left (\exact(Ordered.Singleton[{ w: Complex.Vertex \where w = label v }] {
     vertex := v, included := \fun (w: Complex.Vertex)(same: w = label v) => sym!{Complex.Vertex} _ _ same,
   }, Ordered.Singleton[{ w: Complex.Vertex \where w = label v }]));
-\definition segmentMember(e: Edges)(S: \Pow Complex.Vertex)
-  (included: \forall (w: Complex.Vertex) -> \In[Complex.Vertex] S w -> Logic.Or[w = label (first e), w = label (last e)]):
+\definition segmentMember[e: Edges][S: \Pow Complex.Vertex]
+  [included: \forall (w: Complex.Vertex) -> \In[Complex.Vertex] S w -> Logic.Or[w = label (first e), w = label (last e)]]:
   \In[\Pow Complex.Vertex] complex.faces S :=
   Logic.Or[_, _]::right (\exact(Ordered.Segment[S] {
     edge := e, included := \fun (w: Complex.Vertex)(member: \In[Complex.Vertex] S w) =>

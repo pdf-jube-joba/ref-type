@@ -3,19 +3,19 @@
 \import N.Basic[].Def[] \as Nat;
 \import N.Basic[].Prop[] \as Bounds;
 \import std.Logic[].Proposition[] \as Logic;
-\definition rowCoefficient(k, i: N.Nat^)(a: Runtime^): I.Int^ := Arithmetic.neg (Division.quotient (a i k) (a k k));
-\definition rowMatrix(k, i: N.Nat^)(a: Runtime^): Runtime^ := Rows.add a i k (rowCoefficient k i a);
-\definition rowHistory(k, i: N.Nat^)(a: Runtime^)(history: History^): History^ := History^::prepend (Operation^::rowAdd i k (rowCoefficient k i a)) history;
-\definition rowSwapped(k, i: N.Nat^)(a: Runtime^): Runtime^ := Rows.swap (rowMatrix k i a) k i;
-\definition row(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+\definition rowCoefficient[k, i: N.Nat^][a: Runtime^]: I.Int^ := Arithmetic.neg (Division.quotient (a i k) (a k k));
+\definition rowMatrix[k, i: N.Nat^][a: Runtime^]: Runtime^ := Rows.add a i k (rowCoefficient k i a);
+\definition rowHistory[k, i: N.Nat^][a: Runtime^][history: History^]: History^ := History^::prepend (Operation^::rowAdd i k (rowCoefficient k i a)) history;
+\definition rowSwapped[k, i: N.Nat^][a: Runtime^]: Runtime^ := Rows.swap (rowMatrix k i a) k i;
+\definition row[k, i: N.Nat^][a: Runtime^][history: History^]: Attempt^ :=
   B.ite Attempt^ (I.IsZero.specification (Division.remainder (a i k) (a k k)))
     (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false)
     (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true);
-\definition columnCoefficient(k, j: N.Nat^)(a: Runtime^): I.Int^ := Arithmetic.neg (Division.quotient (a k j) (a k k));
-\definition columnMatrix(k, j: N.Nat^)(a: Runtime^): Runtime^ := Columns.add a j k (columnCoefficient k j a);
-\definition columnHistory(k, j: N.Nat^)(a: Runtime^)(history: History^): History^ := History^::prepend (Operation^::columnAdd j k (columnCoefficient k j a)) history;
-\definition columnSwapped(k, j: N.Nat^)(a: Runtime^): Runtime^ := Columns.swap (columnMatrix k j a) k j;
-\definition column(k, j: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+\definition columnCoefficient[k, j: N.Nat^][a: Runtime^]: I.Int^ := Arithmetic.neg (Division.quotient (a k j) (a k k));
+\definition columnMatrix[k, j: N.Nat^][a: Runtime^]: Runtime^ := Columns.add a j k (columnCoefficient k j a);
+\definition columnHistory[k, j: N.Nat^][a: Runtime^][history: History^]: History^ := History^::prepend (Operation^::columnAdd j k (columnCoefficient k j a)) history;
+\definition columnSwapped[k, j: N.Nat^][a: Runtime^]: Runtime^ := Columns.swap (columnMatrix k j a) k j;
+\definition column[k, j: N.Nat^][a: Runtime^][history: History^]: Attempt^ :=
   B.ite Attempt^ (I.IsZero.specification (Division.remainder (a k j) (a k k)))
     (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false)
     (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true);
@@ -51,7 +51,7 @@
   \fun (k, j: N.Nat^)(a: Runtime^) => rowDecreases k j (Transpose.transpose a);
 
 \import B.Prop[] \as BoolLaws;
-\definition Smaller(k: N.Nat^)(a: Runtime^)(attempt: Attempt^): \Prop :=
+\definition Smaller[k: N.Nat^][a: Runtime^][attempt: Attempt^]: \Prop :=
   attemptReduced attempt = B.Bool^::true -> Bounds.Lt (Signed.absolute (attemptMatrix attempt k k)) (Signed.absolute (a k k));
 \definition rowChanged: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Smaller k a (row k i a history) :=
   \fun (k, i: N.Nat^)(a: Runtime^)(history: History^)(nonzero: Logic.Not (a k k = Arithmetic.zero)) => B.cases

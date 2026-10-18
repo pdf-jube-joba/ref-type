@@ -1,32 +1,32 @@
-\structure Bijective: \Prop {
-  injective: \forall (z: Degree)(x, y: C.family.Carrier z) -> #apply{f} z x = #apply{f} z y -> x = y,
-  onto: \forall (z: Degree)(y: D.family.Carrier z) -> \exists { x: C.family.Carrier z \where #apply{f} z x = y },
-}
+\structure Bijective: \Prop := {
+  injective: \forall (z: Degree)(x, y: C.family.Carrier z) -> (f).apply z x = (f).apply z y -> x = y,
+  onto: \forall (z: Degree)(y: D.family.Carrier z) -> \exists ( x: C.family.Carrier z \where (f).apply z x = y ),
+};
 \module At(z: Degree) {
   \import \parent.\parent.At[k := z] \as Linear;
   \import Modules.Isomorphism[V := C.family.Carrier z, W := D.family.Carrier z, source := C.family.space z, target := D.family.space z].OfBijective[f := Linear.linear f] \as Inverse;
-  \definition isomorphism(bijective: Bijective): Modules.Isomorphism[V := C.family.Carrier z, W := D.family.Carrier z, source := C.family.space z, target := D.family.space z].Isomorphism :=
+  \definition isomorphism[bijective: Bijective]: Modules.Isomorphism[V := C.family.Carrier z, W := D.family.Carrier z, source := C.family.space z, target := D.family.space z].Isomorphism :=
     Inverse.isomorphism (bijective.injective z) (bijective.onto z);
 }
 \import \parent.\parent.Map[C := D, D := C] \as Backward;
 \definition commutes: \forall (bijective: Bijective)(z: Degree)(y: D.family.Carrier z) ->
-  #apply{C.differential} z (#apply{#backward{(At[z := z].isomorphism bijective)}} y) =
-  #apply{#backward{(At[z := previous z].isomorphism bijective)}} (#apply{D.differential} z y) :=
+  (C.differential).apply z (((At[z := z].isomorphism bijective).backward).apply y) =
+  ((At[z := previous z].isomorphism bijective).backward).apply ((D.differential).apply z y) :=
   \fun (bijective: Bijective)(z: Degree)(y: D.family.Carrier z) => bijective.injective (previous z) _ _
     (trans!{{D.family.Carrier (previous z)}} _ _ _
-      (sym!{{D.family.Carrier (previous z)}} _ _ (#commutes{f} z (#apply{#backward{(At[z := z].isomorphism bijective)}} y)))
+      (sym!{{D.family.Carrier (previous z)}} _ _ ((f).commutes z (((At[z := z].isomorphism bijective).backward).apply y)))
       (trans!{{D.family.Carrier (previous z)}} _ _ _
-        (congr!{{D.family.Carrier z} {D.family.Carrier (previous z)}} (#apply{D.differential} z) _ _ (#rightInverse{(At[z := z].isomorphism bijective)} y))
-        (sym!{{D.family.Carrier (previous z)}} _ _ (#rightInverse{(At[z := previous z].isomorphism bijective)} (#apply{D.differential} z y)))));
-\definition backward(bijective: Bijective): Backward.Map := Backward.Map {
-  apply := \fun (z: Degree) => #apply{#backward{(At[z := z].isomorphism bijective)}},
-  addition := \fun (z: Degree) => #addition{#backward{(At[z := z].isomorphism bijective)}},
-  scalar := \fun (z: Degree) => #scalar{#backward{(At[z := z].isomorphism bijective)}},
+        (congr!{{D.family.Carrier z} {D.family.Carrier (previous z)}} ((D.differential).apply z) _ _ ((At[z := z].isomorphism bijective).rightInverse y))
+        (sym!{{D.family.Carrier (previous z)}} _ _ ((At[z := previous z].isomorphism bijective).rightInverse ((D.differential).apply z y)))));
+\definition backward[bijective: Bijective]: Backward.Map := Backward.Map {
+  apply := \fun (z: Degree) => ((At[z := z].isomorphism bijective).backward).apply,
+  addition := \fun (z: Degree) => ((At[z := z].isomorphism bijective).backward).addition,
+  scalar := \fun (z: Degree) => ((At[z := z].isomorphism bijective).backward).scalar,
   commutes := commutes bijective,
 };
 \import \parent.\parent.Isomorphism[C := C, D := D] \as Iso;
-\definition isomorphism(bijective: Bijective): Iso.Isomorphism := Iso.Isomorphism {
+\definition isomorphism[bijective: Bijective]: Iso.Isomorphism := Iso.Isomorphism {
   forward := f, backward := backward bijective,
-  leftInverse := \fun (z: Degree) => #leftInverse{(At[z := z].isomorphism bijective)},
-  rightInverse := \fun (z: Degree) => #rightInverse{(At[z := z].isomorphism bijective)},
+  leftInverse := \fun (z: Degree) => (At[z := z].isomorphism bijective).leftInverse,
+  rightInverse := \fun (z: Degree) => (At[z := z].isomorphism bijective).rightInverse,
 };

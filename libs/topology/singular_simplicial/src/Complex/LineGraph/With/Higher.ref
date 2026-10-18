@@ -4,28 +4,28 @@
 \definition middle: Fin.Fin (N.Nat^::succ degree) := Fin.succ degree (Fin.zero (N.Nat^::succ n));
 \definition tail: Fin.Fin (N.Nat^::succ degree) := Fin.succ degree (Fin.succ (N.Nat^::succ n) (Fin.zero n));
 \module At(s: Simplicial.Simplex degree) {
-  \definition firstLess: Bounds.Lt (s head) (s middle) := #increasing{(Simplicial.admissible degree s)} head middle (\refl(B.Bool^::true));
-  \definition lastLess: Bounds.Lt (s middle) (s tail) := #increasing{(Simplicial.admissible degree s)} middle tail (\refl(B.Bool^::true));
-  \definition impossible: Logic.False := (Logic.orElim _ _ (Logic.False) ((#face{(Simplicial.admissible degree s)}))
+  \definition firstLess: Bounds.Lt (s head) (s middle) := (Simplicial.admissible degree s).increasing head middle (\refl(B.Bool^::true));
+  \definition lastLess: Bounds.Lt (s middle) (s tail) := (Simplicial.admissible degree s).increasing middle tail (\refl(B.Bool^::true));
+  \definition impossible: Logic.False := (Logic.orElim _ _ (Logic.False) (((Simplicial.admissible degree s).face))
       (\block {
       \fun (found: \exists Singleton[Simplicial.Image degree s]) \then
       \takefrom w: Singleton[Simplicial.Image degree s] \by found \then
       \return Bounds.ltNe (s head) (s middle) firstLess (trans!{{Vertex}} _ _ _
-        (sym!{{Vertex}} _ _ (#included{w} (s head) (Simplicial.imageMember degree s head)))
-        (#included{w} (s middle) (Simplicial.imageMember degree s middle)))
+        (sym!{{Vertex}} _ _ ((w).included (s head) (Simplicial.imageMember degree s head)))
+        ((w).included (s middle) (Simplicial.imageMember degree s middle)))
     })
       (\block {
       \fun (found: \exists Segment[Simplicial.Image degree s]) \then
       \takefrom w: Segment[Simplicial.Image degree s] \by found \then
-      \let firstMatch: PairMatch[label (first #edge{w}), label (last #edge{w}), s head, s middle] :=
-        \parent.\parent.Pair[a := label (first #edge{w}), b := label (last #edge{w}), x := s head, y := s middle].match
-          (#ordered{laws} #edge{w}) firstLess
-          (#included{w} (s head) (Simplicial.imageMember degree s head)) (#included{w} (s middle) (Simplicial.imageMember degree s middle)) \then
-      \let lastMatch: PairMatch[label (first #edge{w}), label (last #edge{w}), s middle, s tail] :=
-        \parent.\parent.Pair[a := label (first #edge{w}), b := label (last #edge{w}), x := s middle, y := s tail].match
-          (#ordered{laws} #edge{w}) lastLess
-          (#included{w} (s middle) (Simplicial.imageMember degree s middle)) (#included{w} (s tail) (Simplicial.imageMember degree s tail)) \then
-      \return Bounds.ltNe (s head) (s middle) firstLess (trans!{{Vertex}} _ _ _ (sym!{{Vertex}} _ _ #first{firstMatch}) #first{lastMatch})
+      \let firstMatch: PairMatch[label (first (w).edge), label (last (w).edge), s head, s middle] :=
+        \parent.\parent.Pair[a := label (first (w).edge), b := label (last (w).edge), x := s head, y := s middle].match
+          ((laws).ordered (w).edge) firstLess
+          ((w).included (s head) (Simplicial.imageMember degree s head)) ((w).included (s middle) (Simplicial.imageMember degree s middle)) \then
+      \let lastMatch: PairMatch[label (first (w).edge), label (last (w).edge), s middle, s tail] :=
+        \parent.\parent.Pair[a := label (first (w).edge), b := label (last (w).edge), x := s middle, y := s tail].match
+          ((laws).ordered (w).edge) lastLess
+          ((w).included (s middle) (Simplicial.imageMember degree s middle)) ((w).included (s tail) (Simplicial.imageMember degree s tail)) \then
+      \return Bounds.ltNe (s head) (s middle) firstLess (trans!{{Vertex}} _ _ _ (sym!{{Vertex}} _ _ (firstMatch).first) (lastMatch).first)
     }));
 }
 \definition impossible: \forall (s: Simplicial.Simplex degree) -> Logic.False := \fun (s: Simplicial.Simplex degree) => At[s := s].impossible;

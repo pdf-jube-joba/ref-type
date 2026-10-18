@@ -1,10 +1,10 @@
 \import \parent.OfExtension[E := E].With[s := s] \as Source;
 \import \parent.OfExtension[E := F].With[s := t] \as Target;
 \import Modules.Isomorphism[V := E.Carrier, W := F.Carrier, source := E.space, target := F.space] \as Iso;
-\structure Laws[e: Iso.Isomorphism]: \Prop {
-  left: \forall (n: N.Carrier) -> #apply{#forward{e}} (#apply{s.inclusion} n) = #apply{t.inclusion} n,
-  right: \forall (x: E.Carrier) -> #apply{t.projection} (#apply{#forward{e}} x) = #apply{s.projection} x,
-}
+\structure Laws[e: Iso.Isomorphism]: \Prop := {
+  left: \forall (n: N.Carrier) -> e.forward.apply (s.inclusion.apply n) = t.inclusion.apply n,
+  right: \forall (x: E.Carrier) -> t.projection.apply (e.forward.apply x) = s.projection.apply x,
+};
 \definition Equivalence: \Set := \Cast[Iso.Isomorphism] ({ e: Iso.Isomorphism \where Laws[e] });
 \module Selected(first: Source.Lift, second: Target.Lift);
 \definition equivalentOfClassEqual: Source.class = Target.class -> \exists Equivalence := \block {
@@ -26,18 +26,18 @@
   \return From[e := e].classEqual
 };
 \definition extEqualOfEquivalent: (\exists Equivalence) -> Source.extClass = Target.extClass :=
-  \fun (exists: \exists Equivalence) => congr!{Quotient.Carrier H.Carrier} (#apply{#backward{isomorphism}})
+  \fun (exists: \exists Equivalence) => congr!{Quotient.Carrier H.Carrier} (isomorphism.backward.apply)
     Source.class Target.class (classEqualOfEquivalent exists);
 \definition equivalentOfExtEqual: Source.extClass = Target.extClass -> \exists Equivalence :=
   \fun (equal: Source.extClass = Target.extClass) => equivalentOfClassEqual
-    (trans!{Quotient.Carrier} Source.class (#apply{#forward{isomorphism}} Source.extClass) Target.class
-      (sym!{Quotient.Carrier} (#apply{#forward{isomorphism}} Source.extClass) Source.class Source.classFromExt)
-      (trans!{Quotient.Carrier} (#apply{#forward{isomorphism}} Source.extClass) (#apply{#forward{isomorphism}} Target.extClass) Target.class
-        (congr!{H.Carrier Quotient.Carrier} (#apply{#forward{isomorphism}}) Source.extClass Target.extClass equal) Target.classFromExt));
-\structure Correspondence: \Prop {
+    (trans!{Quotient.Carrier} Source.class (isomorphism.forward.apply Source.extClass) Target.class
+      (sym!{Quotient.Carrier} (isomorphism.forward.apply Source.extClass) Source.class Source.classFromExt)
+      (trans!{Quotient.Carrier} (isomorphism.forward.apply Source.extClass) (isomorphism.forward.apply Target.extClass) Target.class
+        (congr!{H.Carrier Quotient.Carrier} (isomorphism.forward.apply) Source.extClass Target.extClass equal) Target.classFromExt));
+\structure Correspondence: \Prop := {
   classify: (\exists Equivalence) -> Source.extClass = Target.extClass,
   reconstruct: Source.extClass = Target.extClass -> \exists Equivalence,
-}
+};
 \definition correspondence: Correspondence := Correspondence {
   classify := extEqualOfEquivalent, reconstruct := equivalentOfExtEqual,
 };

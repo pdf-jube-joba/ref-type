@@ -5,28 +5,28 @@
 \definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := integerSpace };
 \import Modules.Hom[V := I.Int^, W := Carrier, source := Modules.scalarModule, target := integerSpace] \as Reduction;
 \definition reduction: Reduction.Map := Reduction.Map {
-  apply := \fun (x: I.Int^) => #smul{integerSpace} x one,
-  addition := \fun (x, y: I.Int^) => #scalarAdd{integerSpace} x y one,
-  scalar := \fun (a, x: I.Int^) => #scalarAssoc{integerSpace} a x one,
+  apply := \fun (x: I.Int^) => (integerSpace).smul x one,
+  addition := \fun (x, y: I.Int^) => (integerSpace).scalarAdd x y one,
+  scalar := \fun (a, x: I.Int^) => (integerSpace).scalarAssoc a x one,
 };
 \import Modules.Of[V := I.Int^, space := Modules.scalarModule].Submodule[] \as Submodules;
 \import Submodules.Image[U := I.Int^, source := Modules.scalarModule] \as Images;
 \import Submodules.Quotient[S := Z2.multiples].To[W := Carrier, target := integerSpace] \as Descent;
 \definition vanishes: Descent.Vanishes reduction := \fun (x: I.Int^)(member: _) =>
-  Images.eliminate Z2.multiplication x (#apply{reduction} x = zero)
+  Images.eliminate Z2.multiplication x ((reduction).apply x = zero)
     (\fun (q: I.Int^)(equal: Arithmetic.mul two q = x) =>
-      trans!{Carrier} _ _ _ (congr!{I.Int^ Carrier} (#apply{reduction}) _ _ (sym!{I.Int^} _ _ equal))
-        (trans!{Carrier} _ _ _ (#scalar{reduction} two q) (doubleZero (#apply{reduction} q)))) member;
+      trans!{Carrier} _ _ _ (congr!{I.Int^ Carrier} ((reduction).apply) _ _ (sym!{I.Int^} _ _ equal))
+        (trans!{Carrier} _ _ _ ((reduction).scalar two q) (doubleZero ((reduction).apply q)))) member;
 \definition forward: Modules.Hom[V := Z2.Carrier, W := Carrier, source := Z2.space, target := integerSpace].Map :=
   Descent.descend reduction vanishes;
-\definition onClass(x: I.Int^): #apply{forward} (Z2.class x) = #smul{integerSpace} x one := Descent.onClass reduction vanishes x;
+\definition onClass[x: I.Int^]: (forward).apply (Z2.class x) = (integerSpace).smul x one := Descent.onClass reduction vanishes x;
 \definition decode: Carrier -> Z2.Carrier := \induction (x: Carrier) \return Z2.Carrier \with {
   | false: Z2.class Arithmetic.zero
   | true: Z2.class Arithmetic.one
 };
-\definition decodeZero: decode zero = #zero{Z2.space} := \refl(#zero{Z2.space});
-\definition decodeAdd: \forall (x, y: Carrier) -> decode (add x y) = #add{Z2.space} (decode x) (decode y) :=
-  B.cases2 (\fun (x, y: Carrier) => decode (add x y) = #add{Z2.space} (decode x) (decode y))
+\definition decodeZero: decode zero = (Z2.space).zero := \refl((Z2.space).zero);
+\definition decodeAdd: \forall (x, y: Carrier) -> decode (add x y) = (Z2.space).add (decode x) (decode y) :=
+  B.cases2 (\fun (x, y: Carrier) => decode (add x y) = (Z2.space).add (decode x) (decode y))
     (sym!{Z2.Carrier} _ _ (Z2.onAdd Arithmetic.zero Arithmetic.zero))
     (sym!{Z2.Carrier} _ _ (Z2.onAdd Arithmetic.zero Arithmetic.one))
     (sym!{Z2.Carrier} _ _ (Z2.onAdd Arithmetic.one Arithmetic.zero))
@@ -41,27 +41,27 @@
   GroupMaps.MonoidLaws[Groups.domain, Groups.codomain, decode] { unit := decodeZero, operation := decodeAdd }
 };
 \definition backward: Modules.Hom[V := Carrier, W := Z2.Carrier, source := integerSpace, target := Z2.space].Map := IntegralMaps.fromGroup additive;
-\definition rightInverse: \forall (x: Carrier) -> #apply{forward} (#apply{backward} x) = x :=
-  B.cases (\fun (x: Carrier) => #apply{forward} (#apply{backward} x) = x)
+\definition rightInverse: \forall (x: Carrier) -> (forward).apply ((backward).apply x) = x :=
+  B.cases (\fun (x: Carrier) => (forward).apply ((backward).apply x) = x)
     (trans!{Carrier} _ _ _ (onClass Arithmetic.zero) (Integral.scalarZero one))
     (trans!{Carrier} _ _ _ (onClass Arithmetic.one) (Integral.scalarOne one));
 \import Modules.Hom[V := Carrier, W := Z2.Carrier, source := integerSpace, target := Z2.space] \as BackwardMaps;
-\definition leftInverseOnClass(x: I.Int^): #apply{backward} (#apply{forward} (Z2.class x)) = Z2.class x :=
-  trans!{Z2.Carrier} _ _ _ (congr!{Carrier Z2.Carrier} (#apply{backward}) _ _ (onClass x))
-    (trans!{Z2.Carrier} _ _ _ (#scalar{backward} x one)
+\definition leftInverseOnClass[x: I.Int^]: (backward).apply ((forward).apply (Z2.class x)) = Z2.class x :=
+  trans!{Z2.Carrier} _ _ _ (congr!{Carrier Z2.Carrier} ((backward).apply) _ _ (onClass x))
+    (trans!{Z2.Carrier} _ _ _ ((backward).scalar x one)
       (trans!{Z2.Carrier} _ _ _ (Z2.onScalar x Arithmetic.one)
-        (congr!{I.Int^ Z2.Carrier} Z2.class _ _ (#rightIdentity{(#multiplicative{(#semiring{IntegerRing.ring})})} x))));
-\definition leftInverse: \forall (q: Z2.Carrier) -> #apply{backward} (#apply{forward} q) = q :=
-  Z2.induction (\fun (q: Z2.Carrier) => #apply{backward} (#apply{forward} q) = q) leftInverseOnClass;
+        (congr!{I.Int^ Z2.Carrier} Z2.class _ _ ((((IntegerRing.ring).semiring).multiplicative).rightIdentity x))));
+\definition leftInverse: \forall (q: Z2.Carrier) -> (backward).apply ((forward).apply q) = q :=
+  Z2.induction (\fun (q: Z2.Carrier) => (backward).apply ((forward).apply q) = q) leftInverseOnClass;
 \import Modules.Isomorphism[V := Z2.Carrier, W := Carrier, source := Z2.space, target := integerSpace] \as Isomorphisms;
 \definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
   forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
 };
-\definition generatorNonzero: Z2.class Arithmetic.one = #zero{Z2.space} -> Logic.False :=
-  \fun (same: Z2.class Arithmetic.one = #zero{Z2.space}) => nontrivial
+\definition generatorNonzero: Z2.class Arithmetic.one = (Z2.space).zero -> Logic.False :=
+  \fun (same: Z2.class Arithmetic.one = (Z2.space).zero) => nontrivial
     (sym!{Carrier} _ _ (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (rightInverse one))
-      (trans!{Carrier} _ _ _ (congr!{Z2.Carrier Carrier} (#apply{forward}) _ _ same)
+      (trans!{Carrier} _ _ _ (congr!{Z2.Carrier Carrier} ((forward).apply) _ _ same)
         (Modules.Hom[V := Z2.Carrier, W := Carrier, source := Z2.space, target := integerSpace].zeroPreserved forward))));
-\definition reductionMultiplication(x, y: I.Int^): #apply{reduction} (Arithmetic.mul x y) = mul (#apply{reduction} x) (#apply{reduction} y) :=
-  trans!{Carrier} _ _ _ (#scalarAssoc{integerSpace} x y one) (scaleMultiply x (#apply{reduction} y));
+\definition reductionMultiplication[x, y: I.Int^]: (reduction).apply (Arithmetic.mul x y) = mul ((reduction).apply x) ((reduction).apply y) :=
+  trans!{Carrier} _ _ _ ((integerSpace).scalarAssoc x y one) (scaleMultiply x ((reduction).apply y));
 \module Sequence;

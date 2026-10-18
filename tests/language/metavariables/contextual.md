@@ -12,8 +12,8 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Repro {
-  \structure Carrier { A: \Set, }
-  \definition identity(C: Carrier): C.A -> C.A := \fun (x: _) => x;
+  \structure Carrier := { A: \Set, };
+  \definition identity[C: Carrier]: C.A -> C.A := \fun (x: _) => x;
   \module Pass(A: \Set, f: A -> A) { \definition value: A -> A := f; }
   \inductive Unit: \Set := | unit: Unit;
   \definition C: Carrier := Carrier { A := Unit };
@@ -34,8 +34,8 @@ expect = "accept"
 
 ```ref file=src/root.ref
 \module Repro {
-  \structure Carrier { A: \Set, }
-  \definition identity(C: Carrier): C.A -> C.A := \fun (x: _) => x;
+  \structure Carrier := { A: \Set, };
+  \definition identity[C: Carrier]: C.A -> C.A := \fun (x: _) => x;
   \module Pass(A: \Set, f: A -> A) { \definition value: A -> A := f; }
   \inductive Unit: \Set := | unit: Unit;
   \definition C: Carrier := Carrier { A := Unit };
@@ -63,10 +63,10 @@ parameters = '''A: \Set'''
 (\fun (f: $A -> $B) => \fun (a, b: $A) => \fun (e: a = b) =>
 \idelim a = b \with x: $A => f a = f x \by { base: \refl(f a), equality: e });
 
-\definition identity(n: A): A := n;
+\definition identity[n: A]: A := n;
 \definition mapping: A -> A := \fun (n: A) => n;
 \definition End: \Set := A -> A;
-\definition matches(n: A): identity (mapping n) = identity (mapping n) :=
+\definition matches[n: A]: identity (mapping n) = identity (mapping n) :=
   congr!{End A} (\fun (f: _) => identity (f n)) _ _ (\refl(mapping));
 ```
 
@@ -82,9 +82,9 @@ name = "Repro"
 ```
 
 ```ref
-\structure And[P, Q: \Prop]: \Prop { left: P, right: Q, }
-\definition andElim(P, Q, R: \Prop): (P -> Q -> R) -> And[P, Q] -> R :=
-  \fun (curried: _) (value: _) => curried (value #left) (value #right);
+\structure And[P, Q: \Prop]: \Prop := { left: P, right: Q, };
+\definition andElim[P, Q, R: \Prop]: (P -> Q -> R) -> And[P, Q] -> R :=
+  \fun (curried: _) (value: _) => curried (value.left) (value.right);
 ```
 
 ## infer take continuation
@@ -143,10 +143,10 @@ parameters = '''A: \Set'''
   (\fun (law: \forall (f: $A -> $B) -> \forall (a, b: $A) -> a = b -> f a = f b) => law)
 (\fun (f: $A -> $B) => \fun (a, b: $A) => \fun (e: a = b) =>
 \idelim a = b \with x: $A => f a = f x \by { base: \refl(f a), equality: e });
-\definition identity(n: A): A := n;
+\definition identity[n: A]: A := n;
 \definition mapping: A -> A -> A := \fun (n, m: A) => n;
 \definition Binary: \Set := A -> A -> A;
-\definition matches(n: A): identity (mapping n n) = identity (mapping n n) :=
+\definition matches[n: A]: identity (mapping n n) = identity (mapping n n) :=
   congr!{Binary A} (\fun (f: _) => identity (f n n)) _ _ (\refl(mapping));
 ```
 
@@ -162,8 +162,8 @@ expect = "reject"
 
 ```ref file=src/root.ref
 \module Repro {
-  \structure Carrier { A: \Set, }
-  \definition identity(C: Carrier): C.A -> C.A := \fun (x: _) => x;
+  \structure Carrier := { A: \Set, };
+  \definition identity[C: Carrier]: C.A -> C.A := \fun (x: _) => x;
   \inductive Unit: \Set := | unit: Unit;
   \inductive Other: \Set := | other: Other;
   \definition C: Carrier := Carrier { A := Unit };

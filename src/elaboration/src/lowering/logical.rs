@@ -141,16 +141,45 @@ impl Lowerer<'_> {
             && self.scope.proof_base.is_none()
             && !self.scope.program_context
             && self.scope.program_depth == 0;
+        let shared = nominal && self.scope.logical_base == 0;
         if nominal && self.raw.arena().lowered_definitions.borrow().contains(&e.0) {
             return Ok(e.0);
         }
-        let result = self.set_unresolved(e, ctx, m)?;
-        if nominal && matches!(self.kernel.arena().get(result), s::Node::Definition { .. }) {
+        let shared_key = (e, ctx.len(), m);
+        if shared && let Some(&result) = self.raw.arena().nominal_logical.borrow().get(&shared_key)
+        {
+            return Ok(result);
+        }
+        let offset = std::mem::replace(
+            &mut self.scope.program_offset,
+            ctx.len() - self.scope.logical_base,
+        );
+        let depth = std::mem::replace(&mut self.scope.program_depth, self.scope.program_offset);
+        let result = self.set_unresolved(e, ctx, m);
+        self.scope.program_depth = depth;
+        self.scope.program_offset = offset;
+        let result = result?;
+        // Cache translations by their source expression and scope. Only nominal
+        // definitions have an unambiguous kernel-only representation in the
+        // shared arena; other output nodes can also denote frontend syntax.
+        if nominal
+            && matches!(
+                *self.kernel.arena().read(result),
+                s::Node::Definition { .. }
+            )
+        {
             self.raw
                 .arena()
                 .lowered_definitions
                 .borrow_mut()
                 .insert(result);
+        }
+        if shared && !self.kernel.arena().contains_meta(result) {
+            self.raw
+                .arena()
+                .nominal_logical
+                .borrow_mut()
+                .insert(shared_key, result);
         }
         Ok(result)
     }
@@ -161,14 +190,25 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, crate::error::Error> {
-        if let s::Node::Definition { id, arguments } = self.kernel.arena().get(e.0) {
+        if let s::Node::Definition { id, arguments } = &*self.kernel.arena().read(e.0) {
+            let id = *id;
             let key = self.logical_key(e, ctx.len(), m);
             if let Some(&result) = self.cache.get(&key) {
                 return Ok(result);
             }
             let arguments = arguments
-                .into_iter()
-                .map(|argument| self.set(Exp(argument), ctx, m))
+                .iter()
+                .copied()
+                .enumerate()
+                .map(|(index, argument)| {
+                    match self.raw.arena().definition_capture_kind(id, index) {
+                        Some(true) => self.value_type(raw::program::ValueType(argument)),
+                        Some(false) => {
+                            self.value_term(raw::program::ValueTerm(argument), &mut vec![])
+                        }
+                        None => self.set(Exp(argument), ctx, m),
+                    }
+                })
                 .collect::<Result<Vec<_>, _>>()?;
             let result = self
                 .kernel

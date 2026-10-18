@@ -6,26 +6,26 @@
   Modules.Projective (Modules.Bundle { Carrier := D.family.Carrier n, space := D.family.space n });
 \definition Sections: \Set := \forall (n: N.Nat^) ->
   Modules.Hom[V := D.family.Carrier n, W := C.family.Carrier n, source := D.family.space n, target := C.family.space n].Map;
-\definition Splits(s: Sections): \Prop := \forall (n: N.Nat^)(x: D.family.Carrier n) ->
-  #apply{f} n (#apply{(s n)} x) = x;
+\definition Splits[s: Sections]: \Prop := \forall (n: N.Nat^)(x: D.family.Carrier n) ->
+  (f).apply n ((s n).apply x) = x;
 \module Degree(n: N.Nat^) {
   \import Modules.Hom[V := D.family.Carrier n, W := C.family.Carrier n, source := D.family.space n, target := C.family.space n] \as Backward;
   \import Modules.End[V := D.family.Carrier n, space := D.family.space n] \as End;
   \definition Map: \Set := Backward.Map;
-  \definition Splitting: \Set := \Cast[Map] ({ s: Map \where \forall (x: D.family.Carrier n) -> #apply{f} n (#apply{s} x) = x });
+  \definition Splitting: \Set := \Cast[Map] ({ s: Map \where \forall (x: D.family.Carrier n) -> (f).apply n ((s).apply x) = x });
   \definition existence: TargetProjective -> Criterion.Onto -> \exists Splitting :=
     \fun (projective: TargetProjective)(onto: Criterion.Onto) => projective n
       (C.family.Carrier n) (C.family.space n) (D.family.Carrier n) (D.family.space n)
       (Maps.At[n := n].linear f) (onto n) End.identity;
 }
-\definition sectionsExist: TargetProjective -> Criterion.Onto -> \exists { s: Sections \where Splits s } := \block {
+\definition sectionsExist: TargetProjective -> Criterion.Onto -> \exists ( s: Sections \where Splits s ) := \block {
   \fun (projective: TargetProjective)(onto: Criterion.Onto) \then
   \takefrom selected: \forall (n: N.Nat^) -> Degree[n := n].Splitting
     \by \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (n: N.Nat^) => Degree[n := n].Splitting), (\fun (n: N.Nat^) => Degree[n := n].existence projective onto)) \then
   \return Logic.existsIntro[Sections, { s: Sections \where Splits s }]
     (\fun (n: N.Nat^) => selected n)
     (\fun (n: N.Nat^) => \bysub(Degree[n := n].Map,
-      { s: Degree[n := n].Map \where \forall (x: D.family.Carrier n) -> #apply{f} n (#apply{s} x) = x }, selected n))
+      { s: Degree[n := n].Map \where \forall (x: D.family.Carrier n) -> (f).apply n ((s).apply x) = x }, selected n))
 };
 \module Kernel;
 \import Kernel[] \as Kernels;
@@ -34,12 +34,12 @@
 \import Chains.Homotopy[C := Kernels.complex, D := Kernels.complex] \as KernelHomotopies;
 \module Contracted(s: Sections, splits: Splits s, h: KernelHomotopies.Homotopy KernelEnd.identity KernelAdditive.zero);
 \import Chains.Equivalence[C := C, D := D] \as Equivalences;
-\definition equivalenceExists(sourceProjective: SourceProjective)(targetProjective: TargetProjective)(onto: Criterion.Onto)(exact: Criterion.ExactCycles):
-  \exists { e: Equivalences.Equivalence \where #forward{e} = f } := \block {
+\definition equivalenceExists[sourceProjective: SourceProjective][targetProjective: TargetProjective][onto: Criterion.Onto][exact: Criterion.ExactCycles]:
+  \exists ( e: Equivalences.Equivalence \where (e).forward = f ) := \block {
   \takefrom s: \Cast[Sections] ({ s: Sections \where Splits s }) \by sectionsExist targetProjective onto \then
   \let splits: Splits s := \bysub(Sections, { s: Sections \where Splits s }, s) \then
   \takefrom h: KernelHomotopies.Homotopy KernelEnd.identity KernelAdditive.zero
     \by Kernels.Resolution[s := s, splits := splits].contractible sourceProjective exact \then
-  \return Logic.existsIntro[Equivalences.Equivalence, { e: Equivalences.Equivalence \where #forward{e} = f }]
+  \return Logic.existsIntro[Equivalences.Equivalence, { e: Equivalences.Equivalence \where (e).forward = f }]
     (Contracted[s := s, splits := splits, h := h].Equivalence[].value) (\refl(f))
 };

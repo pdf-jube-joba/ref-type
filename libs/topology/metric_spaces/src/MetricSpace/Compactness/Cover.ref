@@ -1,4 +1,4 @@
-\structure Witness[V: \Pow Carrier]: \Set {
+\structure Witness[V: \Pow Carrier]: \Set := {
   centre: Carrier,
   radius: R.Real,
   element: \Pow Carrier,
@@ -6,13 +6,13 @@
   member: T.FamilyMember family element,
   same: V = Ball metric centre radius,
   contained: T.Subset (Ball metric centre (Real.add radius radius)) element,
-}
+};
 \definition Small: \Pow (\Pow Carrier) := { V: \Pow Carrier \where \exists Witness[V] };
 \definition open: \forall (V: \Pow Carrier) -> T.FamilyMember Small V -> T.IsOpenIn (Topology.topology metric) V := \block {
   \fun (V: \Pow Carrier)(member: T.FamilyMember Small V) \then
   \takefrom w: Witness[V] \by member \then
-  \return \idelim Ball metric #centre{w} #radius{w} = V \with U: \Pow Carrier => T.IsOpenIn (Topology.topology metric) U
-    \by { base: Topology.ballOpen metric #centre{w} #radius{w}, equality: sym!{\Pow Carrier} _ _ #same{w} }
+  \return \idelim Ball metric (w).centre (w).radius = V \with U: \Pow Carrier => T.IsOpenIn (Topology.topology metric) U
+    \by { base: Topology.ballOpen metric (w).centre (w).radius, equality: sym!{\Pow Carrier} _ _ (w).same }
 };
 \definition cover: T.IsOpenCover[Topology.topology metric, family, T.Whole] -> T.IsOpenCover[Topology.topology metric, Small, T.Whole] :=
   \fun (cover: T.IsOpenCover[Topology.topology metric, family, T.Whole]) => T.IsOpenCover[Topology.topology metric, Small, T.Whole] {
@@ -20,49 +20,49 @@
     covers := \fun (x: Carrier)(_ : T.Member T.Whole x) => T.unionMemberElim family x (T.Member (T.Union Small) x)
       (\block {
         \fun (U: \Pow Carrier)(member: T.FamilyMember family U)(inside: T.Member U x) \then
-        \takefrom r: \Cast[R.Real] (NeighborhoodRadius metric U x) \by #open{cover} U member x inside \then
+        \takefrom r: \Cast[R.Real] (NeighborhoodRadius metric U x) \by (cover).open U member x inside \then
         \let laws: Logic.And[R.Lt Real.zero r, T.Subset (Ball metric x r) U] := \bysub(R.Real, NeighborhoodRadius metric U x, r) \then
         \let h: R.Real := Analysis.mul Analysis.half r \then
-        \let positive: R.Lt Real.zero h := Estimates.halfOfPositive r #left{laws} \then
+        \let positive: R.Lt Real.zero h := Estimates.halfOfPositive r (laws).left \then
         \return T.unionMemberOf Small (Ball metric x h) x
           (\exact(Witness[Ball metric x h] {
             centre := x, radius := h, element := U, positive := positive, member := member, same := \refl(Ball metric x h),
-            contained := \fun (y: Carrier)(near: T.Member (Ball metric x (Real.add h h)) y) => #right{laws} y
-              (R.ltReplaceRight (#distance{metric} x y) (Real.add h h) r (Estimates.halfTwice r) near),
+            contained := \fun (y: Carrier)(near: T.Member (Ball metric x (Real.add h h)) y) => (laws).right y
+              (R.ltReplaceRight ((metric).distance x y) (Real.add h h) r (Estimates.halfTwice r) near),
           }, Witness[Ball metric x h]))
           (ballCenter metric x h positive)
-      }) (#covers{cover} x (\refl(x))),
+      }) ((cover).covers x (\refl(x))),
   };
-\structure Bound[F: \Pow (\Pow Carrier), delta: R.Real]: \Prop {
+\structure Bound[F: \Pow (\Pow Carrier), delta: R.Real]: \Prop := {
   positive: R.Lt Real.zero delta,
-  lower: \forall (V: \Pow Carrier) -> T.FamilyMember F V -> \exists { w: Witness[V] \where R.Le delta #radius{w} },
-}
+  lower: \forall (V: \Pow Carrier) -> T.FamilyMember F V -> \exists ( w: Witness[V] \where R.Le delta (w).radius ),
+};
 \module Bounds;
 \definition ballContained: \forall (V: \Pow Carrier)(w: Witness[V])(delta: R.Real)(x: Carrier) ->
-  R.Le delta #radius{w} -> T.Member V x -> T.Subset (Ball metric x delta) #element{w} :=
-  \fun (V: \Pow Carrier)(w: Witness[V])(delta: R.Real)(x: Carrier)(bound: R.Le delta #radius{w})(inside: T.Member V x)(y: Carrier)(near: T.Member (Ball metric x delta) y) =>
-    #contained{w} y (R.leLtTrans (#distance{metric} #centre{w} y) (Real.add (#distance{metric} #centre{w} x) (#distance{metric} x y)) (Real.add #radius{w} #radius{w})
-      (#triangle{metric} #centre{w} x y)
+  R.Le delta (w).radius -> T.Member V x -> T.Subset (Ball metric x delta) (w).element :=
+  \fun (V: \Pow Carrier)(w: Witness[V])(delta: R.Real)(x: Carrier)(bound: R.Le delta (w).radius)(inside: T.Member V x)(y: Carrier)(near: T.Member (Ball metric x delta) y) =>
+    (w).contained y (R.leLtTrans ((metric).distance (w).centre y) (Real.add ((metric).distance (w).centre x) ((metric).distance x y)) (Real.add (w).radius (w).radius)
+      ((metric).triangle (w).centre x y)
       (Estimates.addLt _ _ _ _
-        (\idelim V = Ball metric #centre{w} #radius{w} \with U: \Pow Carrier => T.Member U x \by { base: inside, equality: #same{w} })
-        (R.ltLeTrans (#distance{metric} x y) delta #radius{w} near bound)));
+        (\idelim V = Ball metric (w).centre (w).radius \with U: \Pow Carrier => T.Member U x \by { base: inside, equality: (w).same })
+        (R.ltLeTrans ((metric).distance x y) delta (w).radius near bound)));
 \definition lebesgue: T.IsCompact (Topology.topology metric) -> T.IsOpenCover[Topology.topology metric, family, T.Whole] ->
-  \exists { radius: R.Real \where LebesgueRadius[metric, family, radius] } := \block {
+  \exists ( radius: R.Real \where LebesgueRadius[metric, family, radius] ) := \block {
   \fun (compact: T.IsCompact (Topology.topology metric))(original: T.IsOpenCover[Topology.topology metric, family, T.Whole]) \then
   \takefrom F: \Cast[Finite.FiniteSubset] ({ F: Finite.FiniteSubset \where T.FiniteSubcover[Small, T.Whole, F] }) \by compact Small (cover original) \then
   \let finite: T.FiniteSubcover[Small, T.Whole, F] := \bysub(Finite.FiniteSubset, { F: Finite.FiniteSubset \where T.FiniteSubcover[Small, T.Whole, F] }, F) \then
-  \takefrom delta: \Cast[R.Real] ({ delta: R.Real \where Bound[F, delta] }) \by Bounds[].existsBound F (#included{finite}) \then
+  \takefrom delta: \Cast[R.Real] ({ delta: R.Real \where Bound[F, delta] }) \by Bounds[].existsBound F ((finite).included) \then
   \let bound: Bound[F, delta] := \bysub(R.Real, { delta: R.Real \where Bound[F, delta] }, delta) \then
   \return Logic.existsIntro[R.Real, { radius: R.Real \where LebesgueRadius[metric, family, radius] }] delta
     (LebesgueRadius[metric, family, delta] {
-      positive := #positive{bound},
+      positive := (bound).positive,
       smallBalls := \fun (x: Carrier) => T.unionMemberElim F x
-        (\exists { U: \Pow Carrier \where Logic.And[T.FamilyMember family U, T.Subset (Ball metric x delta) U] })
+        (\exists ( U: \Pow Carrier \where Logic.And[T.FamilyMember family U, T.Subset (Ball metric x delta) U] ))
         (\block {
           \fun (V: \Pow Carrier)(member: Finite.Member F V)(inside: T.Member V x) \then
-          \takefrom w: \Cast[Witness[V]] ({ w: Witness[V] \where R.Le delta #radius{w} }) \by #lower{bound} V member \then
-          \return Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where Logic.And[T.FamilyMember family U, T.Subset (Ball metric x delta) U] }] #element{w}
-            (Logic.And[_, _]::# #member{w} (ballContained V w delta x (\bysub(Witness[V], { w: Witness[V] \where R.Le delta #radius{w} }, w)) inside))
-        }) (#covers{finite} x (\refl(x))),
+          \takefrom w: \Cast[Witness[V]] ({ w: Witness[V] \where R.Le delta (w).radius }) \by (bound).lower V member \then
+          \return Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where Logic.And[T.FamilyMember family U, T.Subset (Ball metric x delta) U] }] (w).element
+            (Logic.And[_, _]::# (w).member (ballContained V w delta x (\bysub(Witness[V], { w: Witness[V] \where R.Le delta (w).radius }, w)) inside))
+        }) ((finite).covers x (\refl(x))),
     })
 };

@@ -4,59 +4,59 @@
 \import std.Logic[].Algebra[].Def[] \as Law;
 \use Logic.not;
 
-\structure GroupData[Carrier: \Set]: \Set {
+\structure GroupData[Carrier: \Set]: \Set := {
   unit: Carrier,
   op: Carrier -> Carrier -> Carrier,
   inv: Carrier -> Carrier,
-}
+};
 
-\structure GroupLaws[Carrier: \Set, data: GroupData[Carrier]]: \Prop {
+\structure GroupLaws[Carrier: \Set, data: GroupData[Carrier]]: \Prop := {
   monoid: M.MonoidLaws[Carrier, (M.MonoidData[Carrier]::# data.unit data.op)],
   leftInverse: Law.LeftInvertible Carrier data.op data.unit data.inv,
   rightInverse: Law.RightInvertible Carrier data.op data.unit data.inv,
-}
+};
 
 \definition Group[Carrier: \Set]: \Set :=
   \Cast[GroupData[Carrier]] ({ data: GroupData[Carrier] \where GroupLaws[Carrier, data] });
 
-\definition groupMonoid (Carrier: \Set) (s: GroupData[Carrier]): M.MonoidData[Carrier] :=
-  M.MonoidData[Carrier]::# (#unit{s}) (#op{s});
+\definition groupMonoid [Carrier: \Set] [s: GroupData[Carrier]]: M.MonoidData[Carrier] :=
+  M.MonoidData[Carrier]::# (s.unit) (s.op);
 
-\structure CommutativeGroupData[Carrier: \Set]: \Set {
+\structure CommutativeGroupData[Carrier: \Set]: \Set := {
   base: GroupData[Carrier],
-}
+};
 
-\structure CommutativeGroupLaws[Carrier: \Set, data: CommutativeGroupData[Carrier]]: \Prop {
+\structure CommutativeGroupLaws[Carrier: \Set, data: CommutativeGroupData[Carrier]]: \Prop := {
   group: GroupLaws[Carrier, data.base],
-  commutative: Law.Commutative Carrier (#op{data.base}),
-}
+  commutative: Law.Commutative Carrier (data.base.op),
+};
 
 \definition CommutativeGroup[Carrier: \Set]: \Set :=
   \Cast[CommutativeGroupData[Carrier]] ({ data: CommutativeGroupData[Carrier] \where CommutativeGroupLaws[Carrier, data] });
 
-\structure SemiringData[Carrier: \Set]: \Set {
+\structure SemiringData[Carrier: \Set]: \Set := {
   zero: Carrier,
   one: Carrier,
   add: Carrier -> Carrier -> Carrier,
   mul: Carrier -> Carrier -> Carrier,
-}
+};
 
-\structure SemiringLaws[Carrier: \Set, data: SemiringData[Carrier]]: \Prop {
+\structure SemiringLaws[Carrier: \Set, data: SemiringData[Carrier]]: \Prop := {
   additive: M.CommutativeMonoidLaws[Carrier, M.CommutativeMonoidData[Carrier]::# (M.MonoidData[Carrier]::# data.zero data.add)],
   multiplicative: M.MonoidLaws[Carrier, (M.MonoidData[Carrier]::# data.one data.mul)],
   leftDistributive: Law.LeftDistributive Carrier data.mul data.add,
   rightDistributive: Law.RightDistributive Carrier data.mul data.add,
   zeroAbsorbsLeft: \forall (x: Carrier) -> data.mul data.zero x = data.zero,
   zeroAbsorbsRight: \forall (x: Carrier) -> data.mul x data.zero = data.zero,
-}
+};
 
 \definition Semiring[Carrier: \Set]: \Set :=
   \Cast[SemiringData[Carrier]] ({ data: SemiringData[Carrier] \where SemiringLaws[Carrier, data] });
 
-\definition additiveMonoid (Carrier: \Set) (s: SemiringData[Carrier]): M.MonoidData[Carrier] :=
-  M.MonoidData[Carrier]::# (#zero{s}) (#add{s});
-\definition multiplicativeMonoid (Carrier: \Set) (s: SemiringData[Carrier]): M.MonoidData[Carrier] :=
-  M.MonoidData[Carrier]::# (#one{s}) (#mul{s});
+\definition additiveMonoid [Carrier: \Set] [s: SemiringData[Carrier]]: M.MonoidData[Carrier] :=
+  M.MonoidData[Carrier]::# (s.zero) (s.add);
+\definition multiplicativeMonoid [Carrier: \Set] [s: SemiringData[Carrier]]: M.MonoidData[Carrier] :=
+  M.MonoidData[Carrier]::# (s.one) (s.mul);
 
-\definition asGroup (Carrier: \Set) (s: CommutativeGroup[Carrier]): Group[Carrier] :=
-  \into[GroupData[Carrier]](#base{s}, Group[Carrier]) \by { #group{s} };
+\definition asGroup [Carrier: \Set] [s: CommutativeGroup[Carrier]]: Group[Carrier] :=
+  \into[GroupData[Carrier]](s.base, Group[Carrier]) \by { s.group };

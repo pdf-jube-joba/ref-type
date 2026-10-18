@@ -2,12 +2,12 @@
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Logic.either;
-\structure Laws[original, selected: List[A]]: \Prop {
+\structure Laws[original, selected: List[A]]: \Prop := {
   distinct: Distinct selected,
   toSelected: \forall (x: A) -> \In[A] (keys original) x -> \In[A] (keys selected) x,
   toOriginal: \forall (x: A) -> \In[A] (keys selected) x -> \In[A] (keys original) x,
-}
-\definition Choice(original: List[A]): \Set := \Cast[List[A]] ({ selected: List[A] \where Laws[original, selected] });
+};
+\definition Choice[original: List[A]]: \Set := \Cast[List[A]] ({ selected: List[A] \where Laws[original, selected] });
 \definition empty: Choice List[A]::nil := \into[List[A]](List[A]::nil, Choice List[A]::nil) \by {
   Laws[List[A]::nil, List[A]::nil] {
     distinct := nil,
@@ -17,33 +17,33 @@
 };
 \module Step(head: A, tail: List[A], selected: Choice tail) {
   \definition law: Laws[tail, selected] := \bysub(List[A], { xs: List[A] \where Laws[tail, xs] }, selected);
-  \definition containsHead(x: A)(same: x = head)(member: \In[A] (keys selected) head): \In[A] (keys selected) x :=
+  \definition containsHead[x: A][same: x = head][member: \In[A] (keys selected) head]: \In[A] (keys selected) x :=
     \idelim head = x \with y: A => \In[A] (keys selected) y \by { base: member, equality: sym!{A} x head same };
-  \definition present(member: \In[A] (keys selected) head): Choice (List[A]::cons head tail) :=
+  \definition present[member: \In[A] (keys selected) head]: Choice (List[A]::cons head tail) :=
     \into[List[A]](selected, Choice (List[A]::cons head tail)) \by {
       Laws[List[A]::cons head tail, selected] {
-        distinct := #distinct{law},
+        distinct := law.distinct,
         toSelected := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys tail) x]) =>
           either!{old {\In[A] (keys selected) x}
             {\fun (same: x = head) => containsHead x same member}
-            {\fun (inTail: \In[A] (keys tail) x) => #toSelected{law} x inTail}
+            {\fun (inTail: \In[A] (keys tail) x) => law.toSelected x inTail}
           },
-        toOriginal := \fun (x: A)(old: \In[A] (keys selected) x) => Logic.Or[_, _]::right (#toOriginal{law} x old),
+        toOriginal := \fun (x: A)(old: \In[A] (keys selected) x) => Logic.Or[_, _]::right (law.toOriginal x old),
       }
     };
-  \definition absent(outside: Logic.Not (\In[A] (keys selected) head)): Choice (List[A]::cons head tail) :=
+  \definition absent[outside: Logic.Not (\In[A] (keys selected) head)]: Choice (List[A]::cons head tail) :=
     \into[List[A]](List[A]::cons head selected, Choice (List[A]::cons head tail)) \by {
       Laws[List[A]::cons head tail, List[A]::cons head selected] {
-        distinct := cons head selected outside (#distinct{law}),
+        distinct := cons head selected outside (law.distinct),
         toSelected := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys tail) x]) =>
           either!{old {Logic.Or[x = head, \In[A] (keys selected) x]}
             {\fun (same: x = head) => Logic.Or[_, _]::left same}
-            {\fun (inTail: \In[A] (keys tail) x) => Logic.Or[_, _]::right (#toSelected{law} x inTail)}
+            {\fun (inTail: \In[A] (keys tail) x) => Logic.Or[_, _]::right (law.toSelected x inTail)}
           },
         toOriginal := \fun (x: A)(old: Logic.Or[x = head, \In[A] (keys selected) x]) =>
           either!{old {Logic.Or[x = head, \In[A] (keys tail) x]}
             {\fun (same: x = head) => Logic.Or[_, _]::left same}
-            {\fun (inSelected: \In[A] (keys selected) x) => Logic.Or[_, _]::right (#toOriginal{law} x inSelected)}
+            {\fun (inSelected: \In[A] (keys selected) x) => Logic.Or[_, _]::right (law.toOriginal x inSelected)}
           },
       }
     };

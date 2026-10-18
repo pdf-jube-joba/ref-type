@@ -1,20 +1,20 @@
 \import Double.TensorMapping[C := InitialLeft.complex, D := FinalLeft.complex, E := InitialRight.complex, F := FinalRight.complex].With[f := leftPush f, g := rightPush f] \as TensorAction;
 \import Double.Map[C := SourceTensor.complex, D := TargetTensor.complex].Total[f := TensorAction.map] \as TotalAction;
-\definition sourceValue(x: InitialLeft.Carrier #first{i})(y: InitialRight.Carrier #second{i}): SourceTotal.Carrier n :=
-  #apply{SourceTotal.Degree[n := n].Component[i := i].injection} (SourceTensor.Term[p := #first{i}, q := #second{i}].tensor x y);
-\definition targetValue(x: FinalLeft.Carrier #first{i})(y: FinalRight.Carrier #second{i}): TargetTotal.Carrier n :=
-  #apply{TargetTotal.Degree[n := n].Component[i := i].injection} (TargetTensor.Term[p := #first{i}, q := #second{i}].tensor x y);
-\definition law(x: InitialLeft.Carrier #first{i})(y: InitialRight.Carrier #second{i}): #apply{(native f)} n (sourceValue x y) = targetValue (#apply{(leftPush f)} #first{i} x) (#apply{(rightPush f)} #second{i} y) :=
-  trans!{{TargetTotal.Carrier n}} _ _ _ (TotalAction.Degree[n := n].onInjection i (SourceTensor.Term[p := #first{i}, q := #second{i}].tensor x y))
-    (congr!{{TargetTensor.Term[p := #first{i}, q := #second{i}].Carrier} {TargetTotal.Carrier n}} (#apply{TargetTotal.Degree[n := n].Component[i := i].injection}) _ _ (TensorAction.Degree[p := #first{i}, q := #second{i}].onTensor x y));
-\definition signedLaw(x: InitialLeft.Carrier #first{i})(y: InitialRight.Carrier #second{i}): #apply{\parent.Degree[z := I.Int^::ofNat n].map} (SourceSigned.Positive[n := n].intro (sourceValue x y)) = TargetSigned.Positive[n := n].intro (targetValue (#apply{(leftPush f)} #first{i} x) (#apply{(rightPush f)} #second{i} y)) :=
+\definition sourceValue[x: InitialLeft.Carrier (i).first][y: InitialRight.Carrier (i).second]: SourceTotal.Carrier n :=
+  (SourceTotal.Degree[n := n].Component[i := i].injection).apply (SourceTensor.Term[p := (i).first, q := (i).second].tensor x y);
+\definition targetValue[x: FinalLeft.Carrier (i).first][y: FinalRight.Carrier (i).second]: TargetTotal.Carrier n :=
+  (TargetTotal.Degree[n := n].Component[i := i].injection).apply (TargetTensor.Term[p := (i).first, q := (i).second].tensor x y);
+\definition law[x: InitialLeft.Carrier (i).first][y: InitialRight.Carrier (i).second]: (native f).apply n (sourceValue x y) = targetValue ((leftPush f).apply (i).first x) ((rightPush f).apply (i).second y) :=
+  trans!{{TargetTotal.Carrier n}} _ _ _ (TotalAction.Degree[n := n].onInjection i (SourceTensor.Term[p := (i).first, q := (i).second].tensor x y))
+    (congr!{{TargetTensor.Term[p := (i).first, q := (i).second].Carrier} {TargetTotal.Carrier n}} ((TargetTotal.Degree[n := n].Component[i := i].injection).apply) _ _ (TensorAction.Degree[p := (i).first, q := (i).second].onTensor x y));
+\definition signedLaw[x: InitialLeft.Carrier (i).first][y: InitialRight.Carrier (i).second]: (\parent.Degree[z := I.Int^::ofNat n].map).apply (SourceSigned.Positive[n := n].intro (sourceValue x y)) = TargetSigned.Positive[n := n].intro (targetValue ((leftPush f).apply (i).first x) ((rightPush f).apply (i).second y)) :=
   congr!{{TargetTotal.Carrier n} {Target.Carrier (I.Int^::ofNat n)}} (TargetSigned.Positive[n := n].intro) _ _ (law x y);
 \import singular_cohomology.Simplices[A := Simplex.Carrier p, source := LeftSource.topology] \as LeftSimplices;
 \import singular_cohomology.Simplices[A := Simplex.Carrier q, source := RightSource.topology] \as RightSimplices;
-\definition onGenerators(sigma: LeftSimplices.Carrier #first{i})(tau: RightSimplices.Carrier #second{i}):
-  #apply{(native f)} n (sourceValue (InitialLeft.generator #first{i} sigma) (InitialRight.generator #second{i} tau)) =
-  targetValue (FinalLeft.generator #first{i} (LeftMaps.postcompose #first{i} f.leftFunction f.leftContinuous sigma)) (FinalRight.generator #second{i} (RightMaps.postcompose #second{i} f.rightFunction f.rightContinuous tau)) :=
-  trans!{{TargetTotal.Carrier n}} _ _ _ (law (InitialLeft.generator #first{i} sigma) (InitialRight.generator #second{i} tau))
-    (congr2!{{FinalLeft.Carrier #first{i}} {FinalRight.Carrier #second{i}} {TargetTotal.Carrier n}} targetValue _ _ _ _
-      (LeftMaps.At[n := #first{i}].onGenerator f.leftFunction f.leftContinuous sigma)
-      (RightMaps.At[n := #second{i}].onGenerator f.rightFunction f.rightContinuous tau));
+\definition onGenerators[sigma: LeftSimplices.Carrier (i).first][tau: RightSimplices.Carrier (i).second]:
+  (native f).apply n (sourceValue (InitialLeft.generator (i).first sigma) (InitialRight.generator (i).second tau)) =
+  targetValue (FinalLeft.generator (i).first (LeftMaps.postcompose (i).first f.leftFunction f.leftContinuous sigma)) (FinalRight.generator (i).second (RightMaps.postcompose (i).second f.rightFunction f.rightContinuous tau)) :=
+  trans!{{TargetTotal.Carrier n}} _ _ _ (law (InitialLeft.generator (i).first sigma) (InitialRight.generator (i).second tau))
+    (congr2!{{FinalLeft.Carrier (i).first} {FinalRight.Carrier (i).second} {TargetTotal.Carrier n}} targetValue _ _ _ _
+      (LeftMaps.At[n := (i).first].onGenerator f.leftFunction f.leftContinuous sigma)
+      (RightMaps.At[n := (i).second].onGenerator f.rightFunction f.rightContinuous tau));

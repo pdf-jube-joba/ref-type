@@ -1,6 +1,6 @@
 \import Covers.On[cover := cover].Chains[] \as Chains;
-\definition function: A -> A := #function{mapping};
-\definition continuous: Maps.Continuous source source function := #continuous{mapping};
+\definition function: A -> A := (mapping).function;
+\definition continuous: Maps.Continuous source source function := (mapping).continuous;
 \import Space.Subspace[S := left] \as LeftSubspace;
 \import Space.Subspace[S := right] \as RightSubspace;
 \definition Left: \Set := LeftSubspace.CarrierSet;
@@ -11,11 +11,11 @@
 \import topology.Topology[Carrier := Left].Subspace[S := intersection] \as IntersectionSubspace;
 \definition Intersection: \Set := IntersectionSubspace.CarrierSet;
 \definition intersectionTopology: topology.Topology[Carrier := Intersection].Topology := IntersectionSubspace.topology leftTopology;
-\definition leftFunction(x: Left): Right := \into[A](function x, right) \by { #toRight{mapping} x (\bysub(A, left, x)) };
-\definition rightFunction(x: Right): Left := \into[A](function x, left) \by { #toLeft{mapping} x (\bysub(A, right, x)) };
-\definition intersectionFunction(x: Intersection): Intersection :=
-  \into[Left](\into[A](function x, left) \by { #toLeft{mapping} x (\bysub(Left, intersection, x)) }, intersection) \by {
-    #toRight{mapping} x (\bysub(A, left, x))
+\definition leftFunction[x: Left]: Right := \into[A](function x, right) \by { (mapping).toRight x (\bysub(A, left, x)) };
+\definition rightFunction[x: Right]: Left := \into[A](function x, left) \by { (mapping).toLeft x (\bysub(A, right, x)) };
+\definition intersectionFunction[x: Intersection]: Intersection :=
+  \into[Left](\into[A](function x, left) \by { (mapping).toLeft x (\bysub(Left, intersection, x)) }, intersection) \by {
+    (mapping).toRight x (\bysub(A, left, x))
   };
 \import topology.Continuity[A := A, B := A].Restriction[S := left] \as LeftRestriction;
 \import topology.Continuity[A := A, B := A].Restriction[S := right] \as RightRestriction;
@@ -50,33 +50,33 @@
 \import Native.Map[C := RightChains.complex, D := Sum.complex].Composition[B := LeftChains.complex] \as First;
 \import Native.Map[C := LeftChains.complex, D := Sum.complex].Composition[B := RightChains.complex] \as Second;
 \definition middleMap: Native.Map[C := Sum.complex, D := Sum.complex].Map := Native.Map[C := Sum.complex, D := Sum.complex].Map {
-  apply := \fun (n: N.Nat^)(x: Sum.Carrier n) => Sum.At[n := n].make (#apply{rightMap} n (Sum.At[n := n].second x)) (#apply{leftMap} n (Sum.At[n := n].first x)),
+  apply := \fun (n: N.Nat^)(x: Sum.Carrier n) => Sum.At[n := n].make ((rightMap).apply n (Sum.At[n := n].second x)) ((leftMap).apply n (Sum.At[n := n].first x)),
   addition := \fun (n: N.Nat^)(x, y: Sum.Carrier n) => Sum.At[n := n].ext _ _
-    (#addition{rightMap} n (Sum.At[n := n].second x) (Sum.At[n := n].second y))
-    (#addition{leftMap} n (Sum.At[n := n].first x) (Sum.At[n := n].first y)),
+    ((rightMap).addition n (Sum.At[n := n].second x) (Sum.At[n := n].second y))
+    ((leftMap).addition n (Sum.At[n := n].first x) (Sum.At[n := n].first y)),
   scalar := \fun (n: N.Nat^)(a: I.Int^)(x: Sum.Carrier n) => Sum.At[n := n].ext _ _
-    (#scalar{rightMap} n a (Sum.At[n := n].second x))
-    (#scalar{leftMap} n a (Sum.At[n := n].first x)),
+    ((rightMap).scalar n a (Sum.At[n := n].second x))
+    ((leftMap).scalar n a (Sum.At[n := n].first x)),
   commutes := \fun (n: N.Nat^)(x: Sum.Carrier (N.Nat^::succ n)) => Sum.At[n := n].ext _ _
-    (#commutes{rightMap} n (Sum.At[n := N.Nat^::succ n].second x))
-    (#commutes{leftMap} n (Sum.At[n := N.Nat^::succ n].first x)),
+    ((rightMap).commutes n (Sum.At[n := N.Nat^::succ n].second x))
+    ((leftMap).commutes n (Sum.At[n := N.Nat^::succ n].first x)),
 };
 \import singular_cohomology.Small[A := A, source := source, family := { U: \Pow A \where Logic.Or[U = left, U = right] }] \as Small;
 \import Small.Simplices[] \as SmallSimplices;
 \import algebraic_topology.Simplex[] \as Simplex;
-\definition smallness(n: N.Nat^)(sigma: SmallSimplices.Carrier n): \exists SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] := \block {
+\definition smallness[n: N.Nat^][sigma: SmallSimplices.Carrier n]: \exists SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] := \block {
   \takefrom w: SmallSimplices.Witness[n, sigma] \by SmallSimplices.witness n sigma \then
-  \return (Logic.orElim _ _ (\exists SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma]) ((#member{w})) (\fun (equal: #element{w} = left) => \exact(SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] {
+  \return (Logic.orElim _ _ (\exists SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma]) (((w).member)) (\fun (equal: (w).element = left) => \exact(SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] {
       element := right, member := Logic.Or[_, _]::right (\refl(right)),
-      contained := \fun (x: Simplex.Carrier n) => #toRight{mapping} (sigma x)
-        (\idelim #element{w} = left \with U: \Pow A => Space.Member U (sigma x) \by { base: #contained{w} x, equality: equal }),
-    }, SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma])) (\fun (equal: #element{w} = right) => \exact(SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] {
+      contained := \fun (x: Simplex.Carrier n) => (mapping).toRight (sigma x)
+        (\idelim (w).element = left \with U: \Pow A => Space.Member U (sigma x) \by { base: (w).contained x, equality: equal }),
+    }, SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma])) (\fun (equal: (w).element = right) => \exact(SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma] {
       element := left, member := Logic.Or[_, _]::left (\refl(left)),
-      contained := \fun (x: Simplex.Carrier n) => #toLeft{mapping} (sigma x)
-        (\idelim #element{w} = right \with U: \Pow A => Space.Member U (sigma x) \by { base: #contained{w} x, equality: equal }),
+      contained := \fun (x: Simplex.Carrier n) => (mapping).toLeft (sigma x)
+        (\idelim (w).element = right \with U: \Pow A => Space.Member U (sigma x) \by { base: (w).contained x, equality: equal }),
     }, SmallSimplices.Witness[n, WholeMaps.postcompose n function continuous sigma])))
 };
-\definition smallSimplex(n: N.Nat^)(sigma: SmallSimplices.Carrier n): SmallSimplices.Carrier n :=
+\definition smallSimplex[n: N.Nat^][sigma: SmallSimplices.Carrier n]: SmallSimplices.Carrier n :=
   \into[singular_cohomology.Simplices[A := A, source := source].Carrier n](WholeMaps.postcompose n function continuous sigma, SmallSimplices.Small n) \by { smallness n sigma };
 \import algebraic_topology.Semisimplicial[].Maps[X := SmallSimplices.object, Y := SmallSimplices.object] \as SmallMaps;
 \definition smallSimplicialMap: SmallMaps.Map := SmallMaps.Map {

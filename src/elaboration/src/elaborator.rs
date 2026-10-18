@@ -14,7 +14,7 @@ use crate::{
         inductive::{CtorBinder, InductiveTypeSpecs},
         program_derivation::ProgramCheckSession,
         program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
-        remapping::{exp_subst_map, remap_all_global_ids},
+        remapping::remap_all_global_ids,
         sort::Sort,
         traversal::exp_contains_inductive,
     },

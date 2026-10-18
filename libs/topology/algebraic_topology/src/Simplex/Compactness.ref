@@ -7,7 +7,7 @@
 \import topology.Continuity[A := Coordinate (N.Nat^::succ n), B := Real.Real] \as Maps;
 \import metric_spaces.RealLine[].Rays[] \as Rays;
 \import metric_spaces.RealFunctions[A := Coordinate (N.Nat^::succ n)].FiniteSums[] \as SumFunctions;
-\definition Nonnegative(i: Fin.Fin (N.Nat^::succ n)): \Pow (Coordinate (N.Nat^::succ n)) :=
+\definition Nonnegative[i: Fin.Fin (N.Nat^::succ n)]: \Pow (Coordinate (N.Nat^::succ n)) :=
   { x: Coordinate (N.Nat^::succ n) \where R.Le Real.zero (x i) };
 \definition nonnegativeClosed: \forall (i: Fin.Fin (N.Nat^::succ n)) -> AmbientSpace.IsClosedIn Simplex.ambientTopology (Nonnegative i) :=
   \fun (i: Fin.Fin (N.Nat^::succ n)) => Maps.closedPreimage Simplex.ambientTopology Line.topology (Coordinates.evaluate i)
@@ -25,7 +25,7 @@
   \let below: \Pow (Coordinate (N.Nat^::succ n)) := Maps.Preimage (Sums.sum (N.Nat^::succ n)) (Rays.AtMost Real.one) \then
   \let above: \Pow (Coordinate (N.Nat^::succ n)) := Maps.Preimage (Sums.sum (N.Nat^::succ n)) (Rays.AtLeast Real.one) \then
   \let same: AmbientSpace.Intersection below above = Total := \axiom:setext(AmbientSpace.Intersection below above, Total,
-    (\fun (x: Coordinate (N.Nat^::succ n))(both: AmbientSpace.Member (AmbientSpace.Intersection below above) x) => R.leAntisym _ _ #left{both} #right{both}),
+    (\fun (x: Coordinate (N.Nat^::succ n))(both: AmbientSpace.Member (AmbientSpace.Intersection below above) x) => R.leAntisym _ _ (both).left (both).right),
     (\fun (x: Coordinate (N.Nat^::succ n))(equal: AmbientSpace.Member Total x) => Logic.And[_, _]::#
       (R.leReplaceLeft Real.one (Sums.sum (N.Nat^::succ n) x) Real.one (sym!{Real.Real} _ _ equal) (R.leRefl Real.one))
       (R.leReplaceRight Real.one Real.one (Sums.sum (N.Nat^::succ n) x) (sym!{Real.Real} _ _ equal) (R.leRefl Real.one)))) \then
@@ -39,16 +39,16 @@
 \definition closed: AmbientSpace.IsClosedIn Simplex.ambientTopology (Points n) := \block {
   \let all: \Pow (Coordinate (N.Nat^::succ n)) := Intersection.All (N.Nat^::succ n) Nonnegative \then
   \let same: AmbientSpace.Intersection all Total = Points n := \axiom:setext(AmbientSpace.Intersection all Total, Points n,
-    (\fun (x: Coordinate (N.Nat^::succ n))(both: AmbientSpace.Member (AmbientSpace.Intersection all Total) x) => Barycentric[N.Nat^::succ n, x] { nonnegative := #left{both}, total := #right{both} }),
-    (\fun (x: Coordinate (N.Nat^::succ n))(laws: Barycentric[N.Nat^::succ n, x]) => Logic.And[_, _]::# #nonnegative{laws} #total{laws})) \then
+    (\fun (x: Coordinate (N.Nat^::succ n))(both: AmbientSpace.Member (AmbientSpace.Intersection all Total) x) => Barycentric[N.Nat^::succ n, x] { nonnegative := (both).left, total := (both).right }),
+    (\fun (x: Coordinate (N.Nat^::succ n))(laws: Barycentric[N.Nat^::succ n, x]) => Logic.And[_, _]::# (laws).nonnegative (laws).total)) \then
   \return \idelim AmbientSpace.Intersection all Total = Points n \with S: \Pow (Coordinate (N.Nat^::succ n)) => AmbientSpace.IsClosedIn Simplex.ambientTopology S \by {
     base: Finite.intersectionClosed Simplex.ambientTopology all Total (Intersection.closed Simplex.ambientTopology (N.Nat^::succ n) Nonnegative nonnegativeClosed) totalClosed,
     equality: same
   }
 };
 \definition coordinateBound: \forall (x: Carrier n)(i: Fin.Fin (N.Nat^::succ n)) -> R.Le (x i) Real.one :=
-  \fun (x: Carrier n)(i: Fin.Fin (N.Nat^::succ n)) => R.leReplaceRight (x i) (Sums.sum (N.Nat^::succ n) x) Real.one #total{(barycentric n x)}
-    (Sums.coordinateUpper (N.Nat^::succ n) x #nonnegative{(barycentric n x)} i);
+  \fun (x: Carrier n)(i: Fin.Fin (N.Nat^::succ n)) => R.leReplaceRight (x i) (Sums.sum (N.Nat^::succ n) x) Real.one (barycentric n x).total
+    (Sums.coordinateUpper (N.Nat^::succ n) x (barycentric n x).nonnegative i);
 \import \root.Interval[] \as Interval;
 \import topological_algebra.FinitePower[K := Interval.Carrier] \as Power;
 \import Power.At[n := N.Nat^::succ n] \as Cube;
@@ -58,7 +58,7 @@
 \import topology.Composition[A := Power.Carrier (N.Nat^::succ n), B := Interval.Carrier, C := Real.Real] \as Composition;
 \import topology.Compactness[A := Power.Carrier (N.Nat^::succ n), B := Coordinate (N.Nat^::succ n)] \as Images;
 \import topology.Maps[A := Power.Carrier (N.Nat^::succ n), B := Coordinate (N.Nat^::succ n)] \as Image;
-\definition inclusion(x: Power.Carrier (N.Nat^::succ n)): Coordinate (N.Nat^::succ n) := \fun (i: Fin.Fin (N.Nat^::succ n)) => x i;
+\definition inclusion[x: Power.Carrier (N.Nat^::succ n)]: Coordinate (N.Nat^::succ n) := \fun (i: Fin.Fin (N.Nat^::succ n)) => x i;
 \definition inclusionContinuous: topology.Continuity[A := Power.Carrier (N.Nat^::succ n), B := Coordinate (N.Nat^::succ n)].Continuous
   (Cube.topology Interval.topology) Simplex.ambientTopology inclusion :=
   IntoCoordinates.continuous (Cube.topology Interval.topology) Line.topology inclusion
@@ -72,7 +72,7 @@
   \fun (x: Coordinate (N.Nat^::succ n))(laws: Barycentric[N.Nat^::succ n, x]) \then
   \let point: Carrier n := \into[Coordinate (N.Nat^::succ n)](x, Points n) \by { laws } \then
   \let v: Power.Carrier (N.Nat^::succ n) := \fun (i: Fin.Fin (N.Nat^::succ n)) =>
-    \into[Real.Real](x i, Line.ClosedInterval Real.zero Real.one) \by { Logic.And[_, _]::# (#nonnegative{laws} i) (coordinateBound point i) } \then
+    \into[Real.Real](x i, Line.ClosedInterval Real.zero Real.one) \by { Logic.And[_, _]::# ((laws).nonnegative i) (coordinateBound point i) } \then
   \return Logic.existsIntro[Power.Carrier (N.Nat^::succ n), { v: Power.Carrier (N.Nat^::succ n) \where Logic.And[CubeSpace.Member CubeSpace.Whole v, inclusion v = x] }] v
     (Logic.And[_, _]::# (\refl(v)) (\axiom:funext(inclusion v, x, \fun (i: Fin.Fin (N.Nat^::succ n)) => \refl(x i))))
 };

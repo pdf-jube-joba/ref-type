@@ -1,27 +1,27 @@
-\structure Witness[family: Cells.Cells, limit: N.Nat^, x: A]: \Set {
+\structure Witness[family: Cells.Cells, limit: N.Nat^, x: A]: \Set := {
   cell: Cells.CellData,
   member: Cells.CellMember family cell,
-  below: Nat.Lt (#dimension{cell}) limit,
+  below: Nat.Lt ((cell).dimension) limit,
   contains: \In[A] (Cells.ClosedImage cell) x,
-}
-\definition union(family: Cells.Cells)(limit: N.Nat^): \Pow A :=
+};
+\definition union[family: Cells.Cells][limit: N.Nat^]: \Pow A :=
   { x: A \where \exists Witness[family, limit, x] };
-\definition subset(limit: N.Nat^): \Pow A := union cells limit;
-\definition include(family: Cells.Cells)(limit: N.Nat^)(cell: Cells.CellData)
-  (member: Cells.CellMember family cell)(below: Nat.Lt (#dimension{cell}) limit)
-  (x: A)(contains: \In[A] (Cells.ClosedImage cell) x): \In[A] (union family limit) x :=
+\definition subset[limit: N.Nat^]: \Pow A := union cells limit;
+\definition include[family: Cells.Cells][limit: N.Nat^][cell: Cells.CellData]
+  [member: Cells.CellMember family cell][below: Nat.Lt ((cell).dimension) limit]
+  [x: A][contains: \In[A] (Cells.ClosedImage cell) x]: \In[A] (union family limit) x :=
   \exact(Witness[family, limit, x] { cell := cell, member := member, below := below, contains := contains }, Witness[family, limit, x]);
-\definition eliminate(family: Cells.Cells)(limit: N.Nat^)(x: A)(P: \Prop):
-  (\forall (cell: Cells.CellData) -> Cells.CellMember family cell -> Nat.Lt (#dimension{cell}) limit ->
+\definition eliminate[family: Cells.Cells][limit: N.Nat^][x: A][P: \Prop]:
+  (\forall (cell: Cells.CellData) -> Cells.CellMember family cell -> Nat.Lt ((cell).dimension) limit ->
     \In[A] (Cells.ClosedImage cell) x -> P) -> \In[A] (union family limit) x -> P := \block {
   \fun (step: _)(member: _) \then
   \takefrom witness: Witness[family, limit, x] \by member \then
-  \return step (#cell{witness}) (#member{witness}) (#below{witness}) (#contains{witness})
+  \return step ((witness).cell) ((witness).member) ((witness).below) ((witness).contains)
 };
 \definition monotone: \forall (m, n: N.Nat^) -> Nat.Le m n -> Space.Subset (subset m) (subset n) :=
   \fun (m, n: _)(bound: _)(x: A)(member: _) => eliminate cells m x (\In[A] (subset n) x)
     (\fun (cell: Cells.CellData)(present: _)(below: _)(contains: _) =>
-      include cells n cell present (Nat.ltLeTrans (#dimension{cell}) m n below bound) x contains) member;
+      include cells n cell present (Nat.ltLeTrans ((cell).dimension) m n below bound) x contains) member;
 \definition empty: subset N.Nat^::zero = Space.Empty :=
   \axiom:setext(subset N.Nat^::zero, Space.Empty,
     \fun (x: A)(member: _) => eliminate cells N.Nat^::zero x Logic.False

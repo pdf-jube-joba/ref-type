@@ -15,7 +15,7 @@
 \definition zero: Modules.Bundle := Modules.Bundle { Carrier := Zero.Carrier, space := Zero.moduleSpace };
 \definition componentValues: Modules.Bundle := Modules.Bundle { Carrier := Components.Carrier, space := Components.space };
 \definition chordValues: Modules.Bundle := Modules.Bundle { Carrier := Chords.Carrier, space := Chords.space };
-\definition delta(f: Vertices.Carrier): Edges.Carrier := \fun (e: Edge) => Group.difference (f (target e)) (f (source e));
+\definition delta[f: Vertices.Carrier]: Edges.Carrier := \fun (e: Edge) => Group.difference (f (target e)) (f (source e));
 \import Modules.Hom[V := Vertices.Carrier, W := Edges.Carrier, source := Vertices.space, target := Edges.space] \as Differentials;
 \definition differential: Differentials.Map := Differentials.Map {
   apply := delta,
@@ -26,35 +26,35 @@
 };
 \module Paths;
 \import Paths[] \as ForestPaths;
-\definition potential(f: Edges.Carrier): Vertices.Carrier := \fun (v: Vertex) => ForestPaths.sum (\fun (e: ForestEdge) => f (forestEdge e)) (graph.path v);
-\definition potentialAdd(f, g: Edges.Carrier): potential (Edges.add f g) = Vertices.add (potential f) (potential g) :=
+\definition potential[f: Edges.Carrier]: Vertices.Carrier := \fun (v: Vertex) => ForestPaths.sum (\fun (e: ForestEdge) => f (forestEdge e)) (graph.path v);
+\definition potentialAdd[f, g: Edges.Carrier]: potential (Edges.add f g) = Vertices.add (potential f) (potential g) :=
   Vertices.ext (potential (Edges.add f g)) (Vertices.add (potential f) (potential g)) (\fun (v: Vertex) =>
     ForestPaths.addition (\fun (e: ForestEdge) => f (forestEdge e)) (\fun (e: ForestEdge) => g (forestEdge e)) (graph.path v));
 \import \root.Integral[].Maps[A := first, B := zeroth] \as Integrals;
 \definition primitive: Modules.Hom[V := Edges.Carrier, W := Vertices.Carrier, source := Edges.space, target := Vertices.space].Map :=
   Integrals.fromAdditive potential potentialAdd;
-\definition evaluateRoot(f: Vertices.Carrier): Components.Carrier := \fun (i: Fin.Fin components) => f (root i);
-\definition constant(f: Components.Carrier): Vertices.Carrier := \fun (v: Vertex) => f (component v);
-\definition evaluateChord(f: Edges.Carrier): Chords.Carrier := \fun (j: Fin.Fin chords) =>
+\definition evaluateRoot[f: Vertices.Carrier]: Components.Carrier := \fun (i: Fin.Fin components) => f (root i);
+\definition constant[f: Components.Carrier]: Vertices.Carrier := \fun (v: Vertex) => f (component v);
+\definition evaluateChord[f: Edges.Carrier]: Chords.Carrier := \fun (j: Fin.Fin chords) =>
   Group.difference (f (chord j)) (delta (potential f) (chord j));
-\definition extendChord(f: Chords.Carrier): Edges.Carrier := \induction (e: Edge) \return A.Carrier \with {
+\definition extendChord[f: Chords.Carrier]: Edges.Carrier := \induction (e: Edge) \return A.Carrier \with {
   | inl: \fun (e: ForestEdge) => Group.zero
   | inr: f
 };
-\definition primitiveGradient(f: Vertices.Carrier): potential (delta f) = Vertices.add f (Vertices.neg (constant (evaluateRoot f))) :=
+\definition primitiveGradient[f: Vertices.Carrier]: potential (delta f) = Vertices.add f (Vertices.neg (constant (evaluateRoot f))) :=
   Vertices.ext (potential (delta f)) (Vertices.add f (Vertices.neg (constant (evaluateRoot f)))) (\fun (v: Vertex) =>
-    trans!{A.Carrier} _ _ _ (ForestPaths.gradient f (graph.path v) (#valid{(\bysub(Data, Object, graph))} v))
-      (congr!{Vertex A.Carrier} (\fun (u: Vertex) => Group.difference (f u) (f (root (component v)))) _ _ (#endpoint{(\bysub(Data, Object, graph))} v)));
-\definition primitiveRoot(f: Edges.Carrier)(i: Fin.Fin components): potential f (root i) = Group.zero :=
-  congr!{Walk A.Carrier} (ForestPaths.sum (\fun (e: ForestEdge) => f (forestEdge e))) _ _ (#root{(\bysub(Data, Object, graph))} i);
-\definition primitiveForest(f: Edges.Carrier)(e: ForestEdge): delta (potential f) (forestEdge e) = f (forestEdge e) :=
+    trans!{A.Carrier} _ _ _ (ForestPaths.gradient f (graph.path v) ((\bysub(Data, Object, graph)).valid v))
+      (congr!{Vertex A.Carrier} (\fun (u: Vertex) => Group.difference (f u) (f (root (component v)))) _ _ ((\bysub(Data, Object, graph)).endpoint v)));
+\definition primitiveRoot[f: Edges.Carrier][i: Fin.Fin components]: potential f (root i) = Group.zero :=
+  congr!{Walk A.Carrier} (ForestPaths.sum (\fun (e: ForestEdge) => f (forestEdge e))) _ _ ((\bysub(Data, Object, graph)).root i);
+\definition primitiveForest[f: Edges.Carrier][e: ForestEdge]: delta (potential f) (forestEdge e) = f (forestEdge e) :=
   trans!{A.Carrier} _ _ _
-    (congr!{Walk A.Carrier} (\fun (w: Walk) => Group.difference (ForestPaths.sum (\fun (k: ForestEdge) => f (forestEdge k)) w) (potential f (graph.parent e))) _ _ (#tree{(\bysub(Data, Object, graph))} e))
+    (congr!{Walk A.Carrier} (\fun (w: Walk) => Group.difference (ForestPaths.sum (\fun (k: ForestEdge) => f (forestEdge k)) w) (potential f (graph.parent e))) _ _ ((\bysub(Data, Object, graph)).tree e))
     (trans!{A.Carrier} _ _ _
       (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference x (potential f (graph.parent e))) _ _ (Group.comm (potential f (graph.parent e)) (f (forestEdge e))))
       (trans!{A.Carrier} _ _ _ (Group.assoc (f (forestEdge e)) (potential f (graph.parent e)) (Group.neg (potential f (graph.parent e))))
         (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Group.add (f (forestEdge e))) _ _ (Group.inverseRight (potential f (graph.parent e)))) (Group.zeroRight (f (forestEdge e))))));
-\definition reductionEquation(f: Edges.Carrier): Edges.add f (Edges.neg (extendChord (evaluateChord f))) = delta (potential f) :=
+\definition reductionEquation[f: Edges.Carrier]: Edges.add f (Edges.neg (extendChord (evaluateChord f))) = delta (potential f) :=
   Edges.ext (Edges.add f (Edges.neg (extendChord (evaluateChord f)))) (delta (potential f))
     (\induction (e: Edge) \return Group.difference (f e) (extendChord (evaluateChord f) e) = delta (potential f) e \with {
       | inl: \fun (e: ForestEdge) => trans!{A.Carrier} _ _ _
@@ -66,44 +66,44 @@
 \import \root.Truncated[].Over[zeroth := zeroth, first := first, second := zero] \as Truncated;
 \definition upperDifferential: Modules.Hom[V := Edges.Carrier, W := Zero.Carrier, source := Edges.space, target := Zero.moduleSpace].Map :=
   Modules.Hom[V := Edges.Carrier, W := Zero.Carrier, source := Edges.space, target := Zero.moduleSpace].zeroMap;
-\definition squareZero(f: Vertices.Carrier): #apply{upperDifferential} (#apply{differential} f) = Zero.Carrier::zero := \refl(Zero.Carrier::zero);
+\definition squareZero[f: Vertices.Carrier]: (upperDifferential).apply ((differential).apply f) = Zero.Carrier::zero := \refl(Zero.Carrier::zero);
 \import Truncated.On[deltaZero := differential, deltaOne := upperDifferential, square := squareZero] \as Complex;
 
-\definition constantClosed(f: Components.Carrier): delta (constant f) = Edges.zero :=
+\definition constantClosed[f: Components.Carrier]: delta (constant f) = Edges.zero :=
   Edges.ext (delta (constant f)) Edges.zero
     (\induction (e: Edge) \return delta (constant f) e = Group.zero \with {
       | inl: \fun (e: ForestEdge) => trans!{A.Carrier} _ _ _
-          (congr!{Walk A.Carrier} (\fun (w: Walk) => Group.difference (f (start w)) (f (component (graph.parent e)))) _ _ (#tree{(\bysub(Data, Object, graph))} e))
+          (congr!{Walk A.Carrier} (\fun (w: Walk) => Group.difference (f (start w)) (f (component (graph.parent e)))) _ _ ((\bysub(Data, Object, graph)).tree e))
           (Group.inverseRight (f (component (graph.parent e))))
       | inr: \fun (j: Fin.Fin chords) => trans!{A.Carrier} _ _ _
-          (congr!{{Fin.Fin components} A.Carrier} (\fun (i: Fin.Fin components) => Group.difference (f (component (graph.chordTarget j))) (f i)) _ _ (#chord{(\bysub(Data, Object, graph))} j))
+          (congr!{{Fin.Fin components} A.Carrier} (\fun (i: Fin.Fin components) => Group.difference (f (component (graph.chordTarget j))) (f i)) _ _ ((\bysub(Data, Object, graph)).chord j))
           (Group.inverseRight (f (component (graph.chordTarget j))))
     });
-\definition primitiveGradientBoundary(f: Vertices.Carrier): delta (potential (delta f)) = delta f :=
+\definition primitiveGradientBoundary[f: Vertices.Carrier]: delta (potential (delta f)) = delta f :=
   trans!{Edges.Carrier} _ _ _ (congr!{Vertices.Carrier Edges.Carrier} delta _ _ (primitiveGradient f))
     (trans!{Edges.Carrier} _ _ _ (Differentials.differencePreserved differential f (constant (evaluateRoot f)))
       (trans!{Edges.Carrier} _ _ _
         (congr!{Edges.Carrier Edges.Carrier} (\fun (x: Edges.Carrier) => Edges.add (delta f) (Edges.neg x)) _ _ (constantClosed (evaluateRoot f)))
         (Edges.ext _ _ (\fun (e: Edge) => trans!{A.Carrier} _ _ _
           (congr!{A.Carrier A.Carrier} (Group.add (delta f e)) _ _ Group.negZero) (Group.zeroRight (delta f e))))));
-\definition evaluateChordBoundary(f: Vertices.Carrier): evaluateChord (delta f) = Chords.zero :=
+\definition evaluateChordBoundary[f: Vertices.Carrier]: evaluateChord (delta f) = Chords.zero :=
   Chords.ext (evaluateChord (delta f)) Chords.zero (\fun (j: Fin.Fin chords) =>
     trans!{A.Carrier} _ _ _
       (congr!{Edges.Carrier A.Carrier} (\fun (x: Edges.Carrier) => Group.difference (delta f (chord j)) (x (chord j))) _ _ (primitiveGradientBoundary f))
       (Group.inverseRight (delta f (chord j))));
-\definition evaluateChordAdd(f, g: Edges.Carrier): evaluateChord (Edges.add f g) = Chords.add (evaluateChord f) (evaluateChord g) :=
+\definition evaluateChordAdd[f, g: Edges.Carrier]: evaluateChord (Edges.add f g) = Chords.add (evaluateChord f) (evaluateChord g) :=
   Chords.ext (evaluateChord (Edges.add f g)) (Chords.add (evaluateChord f) (evaluateChord g)) (\fun (j: Fin.Fin chords) =>
     trans!{A.Carrier} _ _ _
       (congr!{Edges.Carrier A.Carrier} (\fun (x: Edges.Carrier) => Group.difference (Group.add (f (chord j)) (g (chord j))) (x (chord j))) _ _
-        (trans!{Edges.Carrier} _ _ _ (congr!{Vertices.Carrier Edges.Carrier} delta _ _ (potentialAdd f g)) (#addition{differential} (potential f) (potential g))))
+        (trans!{Edges.Carrier} _ _ _ (congr!{Vertices.Carrier Edges.Carrier} delta _ _ (potentialAdd f g)) ((differential).addition (potential f) (potential g))))
       (Group.differenceAdd (f (chord j)) (g (chord j)) (delta (potential f) (chord j)) (delta (potential g) (chord j))));
 \import \root.Integral[].Maps[A := first, B := chordValues] \as ChordReduction;
 \definition chordProjection: Modules.Hom[V := Edges.Carrier, W := Chords.Carrier, source := Edges.space, target := Chords.space].Map :=
   ChordReduction.fromAdditive evaluateChord evaluateChordAdd;
-\definition primitiveChord(f: Chords.Carrier): potential (extendChord f) = Vertices.zero :=
+\definition primitiveChord[f: Chords.Carrier]: potential (extendChord f) = Vertices.zero :=
   Vertices.ext (potential (extendChord f)) Vertices.zero (\fun (v: Vertex) =>
     ForestPaths.zero (\fun (e: ForestEdge) => extendChord f (forestEdge e)) (\fun (e: ForestEdge) => \refl(Group.zero)) (graph.path v));
-\definition chordRoundtrip(f: Chords.Carrier): evaluateChord (extendChord f) = f :=
+\definition chordRoundtrip[f: Chords.Carrier]: evaluateChord (extendChord f) = f :=
   Chords.ext (evaluateChord (extendChord f)) f (\fun (j: Fin.Fin chords) =>
     trans!{A.Carrier} _ _ _
       (congr!{Vertices.Carrier A.Carrier} (\fun (x: Vertices.Carrier) => Group.difference (f j) (delta x (chord j))) _ _ (primitiveChord f))

@@ -1,25 +1,25 @@
 \import Maps.Additive[] \as Additive;
 \module Degree(n: N.Nat^) {
   \import Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier (N.Nat^::succ n), source := C.family.space n, target := D.family.space (N.Nat^::succ n)] \as HomotopyMaps;
-  \definition homotopy: HomotopyMaps.Map := HomotopyMaps.Map { apply := #apply{h} n, addition := #addition{h} n, scalar := #scalar{h} n };
-  \definition homotopyZero: #apply{h} n #zero{(C.family.space n)} = #zero{(D.family.space (N.Nat^::succ n))} := HomotopyMaps.zeroPreserved homotopy;
+  \definition homotopy: HomotopyMaps.Map := HomotopyMaps.Map { apply := h.apply n, addition := h.addition n, scalar := h.scalar n };
+  \definition homotopyZero: h.apply n (C.family.space n).zero = (D.family.space (N.Nat^::succ n)).zero := HomotopyMaps.zeroPreserved homotopy;
   \import Modules.Hom[V := D.family.Carrier (N.Nat^::succ n), W := D.family.Carrier n, source := D.family.space (N.Nat^::succ n), target := D.family.space n] \as After;
-  \definition after: After.Map := After.Map { apply := #apply{D.differential} n, addition := #addition{D.laws} n, scalar := #scalar{D.laws} n };
+  \definition after: After.Map := After.Map { apply := D.differential.apply n, addition := D.laws.addition n, scalar := D.laws.scalar n };
   \import After.Composition[U := C.family.Carrier n, domain := C.family.space n] \as Horizontal;
   \definition horizontal: Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier n, source := C.family.space n, target := D.family.space n].Map := Horizontal.compose after homotopy;
   \import Modules.Hom[V := C.family.Carrier (N.Nat^::succ n), W := C.family.Carrier n, source := C.family.space (N.Nat^::succ n), target := C.family.space n] \as Before;
-  \definition before: Before.Map := Before.Map { apply := #apply{C.differential} n, addition := #addition{C.laws} n, scalar := #scalar{C.laws} n };
+  \definition before: Before.Map := Before.Map { apply := C.differential.apply n, addition := C.laws.addition n, scalar := C.laws.scalar n };
   \import HomotopyMaps.Composition[U := C.family.Carrier (N.Nat^::succ n), domain := C.family.space (N.Nat^::succ n)] \as Vertical;
   \definition vertical: Modules.Hom[V := C.family.Carrier (N.Nat^::succ n), W := D.family.Carrier (N.Nat^::succ n), source := C.family.space (N.Nat^::succ n), target := D.family.space (N.Nat^::succ n)].Map := Vertical.compose homotopy before;
   \import Modules.Laws[V := D.family.Carrier n, space := D.family.space n] \as Target;
   \import algebra.Group[].Of[Carrier := D.family.Carrier n, group := Target.additive] \as Group;
-  \definition zeroRight: \forall (x: D.family.Carrier n) -> #add{(D.family.space n)} x #zero{(D.family.space n)} = x := Group.zeroRight;
-  \definition zeroLeft: \forall (x: D.family.Carrier n) -> #add{(D.family.space n)} #zero{(D.family.space n)} x = x := Group.zeroLeft;
-  \definition negZero: #neg{(D.family.space n)} #zero{(D.family.space n)} = #zero{(D.family.space n)} := Group.negZero;
+  \definition zeroRight: \forall (x: D.family.Carrier n) -> (D.family.space n).add x (D.family.space n).zero = x := Group.zeroRight;
+  \definition zeroLeft: \forall (x: D.family.Carrier n) -> (D.family.space n).add (D.family.space n).zero x = x := Group.zeroLeft;
+  \definition negZero: (D.family.space n).neg (D.family.space n).zero = (D.family.space n).zero := Group.negZero;
   \definition subtractDifference: \forall (x, y: D.family.Carrier n) ->
-    #add{(D.family.space n)} x (#neg{(D.family.space n)} (#add{(D.family.space n)} x (#neg{(D.family.space n)} y))) = y := Group.subtractDifference;
+    (D.family.space n).add x ((D.family.space n).neg ((D.family.space n).add x ((D.family.space n).neg y))) = y := Group.subtractDifference;
 }
-\definition successor(n: N.Nat^): Modules.Hom[V := C.family.Carrier (N.Nat^::succ n), W := D.family.Carrier (N.Nat^::succ n), source := C.family.space (N.Nat^::succ n), target := D.family.space (N.Nat^::succ n)].Map :=
+\definition successor[n: N.Nat^]: Modules.Hom[V := C.family.Carrier (N.Nat^::succ n), W := D.family.Carrier (N.Nat^::succ n), source := C.family.space (N.Nat^::succ n), target := D.family.space (N.Nat^::succ n)].Map :=
   Modules.Hom[V := C.family.Carrier (N.Nat^::succ n), W := D.family.Carrier (N.Nat^::succ n), source := C.family.space (N.Nat^::succ n), target := D.family.space (N.Nat^::succ n)].plus
     (Degree[n := N.Nat^::succ n].horizontal) (Degree[n := n].vertical);
 \definition linear: \forall (n: N.Nat^) -> Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier n, source := C.family.space n, target := D.family.space n].Map :=
@@ -28,42 +28,42 @@
     | succ: \fun (n: N.Nat^)(unused: _) => successor n
   };
 \definition onIncoming: \forall (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) ->
-  #apply{(linear n)} (#apply{C.differential} n x) = #apply{D.differential} n (#apply{h} n (#apply{C.differential} n x)) :=
+  (linear n).apply (C.differential.apply n x) = D.differential.apply n (h.apply n (C.differential.apply n x)) :=
   \induction (n: N.Nat^) \return \forall (x: C.family.Carrier (N.Nat^::succ n)) ->
-    #apply{(linear n)} (#apply{C.differential} n x) = #apply{D.differential} n (#apply{h} n (#apply{C.differential} n x)) \with {
-    | zero: \fun (x: C.family.Carrier (N.Nat^::succ N.Nat^::zero)) => \refl(#apply{(linear N.Nat^::zero)} (#apply{C.differential} N.Nat^::zero x))
+    (linear n).apply (C.differential.apply n x) = D.differential.apply n (h.apply n (C.differential.apply n x)) \with {
+    | zero: \fun (x: C.family.Carrier (N.Nat^::succ N.Nat^::zero)) => \refl((linear N.Nat^::zero).apply (C.differential.apply N.Nat^::zero x))
     | succ: \fun (n: N.Nat^)(unused: _)(x: C.family.Carrier (N.Nat^::succ (N.Nat^::succ n))) => trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _
       (congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)}}
-        (#add{(D.family.space (N.Nat^::succ n))} (#apply{D.differential} (N.Nat^::succ n) (#apply{h} (N.Nat^::succ n) (#apply{C.differential} (N.Nat^::succ n) x)))) _ _
+        ((D.family.space (N.Nat^::succ n)).add (D.differential.apply (N.Nat^::succ n) (h.apply (N.Nat^::succ n) (C.differential.apply (N.Nat^::succ n) x)))) _ _
         (trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _
-          (congr!{{C.family.Carrier n} {D.family.Carrier (N.Nat^::succ n)}} (#apply{h} n) _ _ (#squareZero{C.laws} n x))
+          (congr!{{C.family.Carrier n} {D.family.Carrier (N.Nat^::succ n)}} (h.apply n) _ _ (C.laws.squareZero n x))
           (Degree[n := n].homotopyZero)))
       (Degree[n := N.Nat^::succ n].zeroRight _)
   };
 \definition commutes: \forall (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) ->
-  #apply{D.differential} n (#apply{(linear (N.Nat^::succ n))} x) = #apply{(linear n)} (#apply{C.differential} n x) :=
+  D.differential.apply n ((linear (N.Nat^::succ n)).apply x) = (linear n).apply (C.differential.apply n x) :=
   \fun (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) => trans!{{D.family.Carrier n}} _ _ _
-    (#addition{D.laws} n (#apply{D.differential} (N.Nat^::succ n) (#apply{h} (N.Nat^::succ n) x)) (#apply{h} n (#apply{C.differential} n x)))
+    (D.laws.addition n (D.differential.apply (N.Nat^::succ n) (h.apply (N.Nat^::succ n) x)) (h.apply n (C.differential.apply n x)))
     (trans!{{D.family.Carrier n}} _ _ _
       (congr!{{D.family.Carrier n} {D.family.Carrier n}}
-        (\fun (v: D.family.Carrier n) => #add{(D.family.space n)} v (#apply{D.differential} n (#apply{h} n (#apply{C.differential} n x)))) _ _
-        (#squareZero{D.laws} n (#apply{h} (N.Nat^::succ n) x)))
+        (\fun (v: D.family.Carrier n) => (D.family.space n).add v (D.differential.apply n (h.apply n (C.differential.apply n x)))) _ _
+        (D.laws.squareZero n (h.apply (N.Nat^::succ n) x)))
       (trans!{{D.family.Carrier n}} _ _ _ (Degree[n := n].zeroLeft _) (sym!{{D.family.Carrier n}} _ _ (onIncoming n x))));
 \definition map: Maps.Map := Maps.Map {
-  apply := \fun (n: N.Nat^) => #apply{(linear n)},
-  addition := \fun (n: N.Nat^) => #addition{(linear n)},
-  scalar := \fun (n: N.Nat^) => #scalar{(linear n)}, commutes := commutes,
+  apply := \fun (n: N.Nat^) => (linear n).apply,
+  addition := \fun (n: N.Nat^) => (linear n).addition,
+  scalar := \fun (n: N.Nat^) => (linear n).scalar, commutes := commutes,
 };
 \definition homotopy: Homotopy map Additive.zero := \into[Data](h, { data: Data \where Laws[map, Additive.zero, data] }) \by {
   Laws[map, Additive.zero, h] {
-    addition := #addition{h}, scalar := #scalar{h},
+    addition := h.addition, scalar := h.scalar,
     zeroEquation := \fun (x: C.family.Carrier N.Nat^::zero) => trans!{{D.family.Carrier N.Nat^::zero}} _ _ _
       (congr!{{D.family.Carrier N.Nat^::zero} {D.family.Carrier N.Nat^::zero}}
-        (#add{(D.family.space N.Nat^::zero)} (#apply{map} N.Nat^::zero x)) _ _ (Degree[n := N.Nat^::zero].negZero))
+        ((D.family.space N.Nat^::zero).add (map.apply N.Nat^::zero x)) _ _ (Degree[n := N.Nat^::zero].negZero))
       (Degree[n := N.Nat^::zero].zeroRight _),
     successorEquation := \fun (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) => trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _
       (congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)}}
-        (#add{(D.family.space (N.Nat^::succ n))} (#apply{map} (N.Nat^::succ n) x)) _ _ (Degree[n := N.Nat^::succ n].negZero))
+        ((D.family.space (N.Nat^::succ n)).add (map.apply (N.Nat^::succ n) x)) _ _ (Degree[n := N.Nat^::succ n].negZero))
       (Degree[n := N.Nat^::succ n].zeroRight _),
   }
 };

@@ -8,8 +8,8 @@
 \definition zeroDegree: I.Int^ := I.Int^::ofNat N.Nat^::zero;
 \import Complexes.At[C := complex, z := degree] \as H;
 \import Modules.Of[V := Carrier degree, space := space degree].Submodule[].Image[U := Carrier zeroDegree, source := space zeroDegree] \as Images;
-\definition priorValue: \forall (x: Carrier zeroDegree) -> #apply{H.prior} x = #apply{Augmentation.map} x :=
-  \fun (x: Carrier zeroDegree) => Transport.castRefl Carrier degree (#apply{Augmentation.map} x);
+\definition priorValue: \forall (x: Carrier zeroDegree) -> (H.prior).apply x = (Augmentation.map).apply x :=
+  \fun (x: Carrier zeroDegree) => Transport.castRefl Carrier degree ((Augmentation.map).apply x);
 \definition onCycle: \forall (point: A)(x: H.Cycle) -> H.classOf x = H.zeroClass :=
   \fun (point: A)(x: H.Cycle) => H.boundaryClassZero x
     (Images.introduce H.prior x (Augmentation.section point x)
@@ -22,30 +22,30 @@
 \definition emptyAugmentation: Empty -> Augmentation.map = AugmentationMaps.zeroMap :=
   \fun (empty: Empty) => Free.ext Augmentation.map AugmentationMaps.zeroMap
     (\fun (sigma: Simplices.Carrier N.Nat^::zero) => Logic.falseElim _ (empty (sigma (algebraic_topology.Simplex[].zeroPoint))));
-\definition emptyPrior: Empty -> \forall (x: Carrier zeroDegree) -> #apply{H.prior} x = I.Zero.specification :=
+\definition emptyPrior: Empty -> \forall (x: Carrier zeroDegree) -> (H.prior).apply x = I.Zero.specification :=
   \fun (empty: Empty)(x: Carrier zeroDegree) => trans!{I.Int^} _ _ _ (priorValue x)
-    (congr!{AugmentationMaps.Map I.Int^} (\fun (f: AugmentationMaps.Map) => #apply{f} x) _ _ (emptyAugmentation empty));
+    (congr!{AugmentationMaps.Map I.Int^} (\fun (f: AugmentationMaps.Map) => (f).apply x) _ _ (emptyAugmentation empty));
 \import Modules.Of[V := Carrier degree, space := space degree].Submodule[] \as Submodules;
 \definition emptyBoundary: Empty -> \forall (v: Carrier degree) -> Submodules.Member H.boundaries v -> v = I.Zero.specification :=
   \fun (empty: Empty)(v: Carrier degree)(member: _) => Images.eliminate H.prior v (v = I.Zero.specification)
-    (\fun (x: Carrier zeroDegree)(equal: #apply{H.prior} x = v) => trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ equal) (emptyPrior empty x)) member;
-\definition cycle(v: I.Int^): H.Cycle := H.cycle v (\refl(Zero.Carrier::zero));
-\definition class(v: I.Int^): H.Homology := H.classOf (cycle v);
+    (\fun (x: Carrier zeroDegree)(equal: (H.prior).apply x = v) => trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ equal) (emptyPrior empty x)) member;
+\definition cycle[v: I.Int^]: H.Cycle := H.cycle v (\refl(Zero.Carrier::zero));
+\definition class[v: I.Int^]: H.Homology := H.classOf (cycle v);
 \import algebra.Group[].Of[Carrier := I.Int^, group := Modules.scalarGroup] \as Group;
 \definition injective: Empty -> \forall (v, w: I.Int^) -> class v = class w -> v = w :=
   \fun (empty: Empty)(v, w: I.Int^)(equal: _) => trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (Group.addDifference v w))
     (trans!{I.Int^} _ _ _
       (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Group.add x w) _ _ (emptyBoundary empty (Group.difference v w) (H.classRelated (cycle v) (cycle w) equal)))
       (Group.zeroLeft w));
-\definition onto: \forall (q: H.Homology) -> \exists { v: I.Int^ \where class v = q } :=
-  H.classInduction (\fun (q: H.Homology) => \exists { v: I.Int^ \where class v = q })
+\definition onto: \forall (q: H.Homology) -> \exists ( v: I.Int^ \where class v = q ) :=
+  H.classInduction (\fun (q: H.Homology) => \exists ( v: I.Int^ \where class v = q ))
     (\fun (x: H.Cycle) => Logic.existsIntro[I.Int^, { v: I.Int^ \where class v = H.classOf x }] x (\refl(H.classOf x)));
 \import Modules.Hom[V := I.Int^, W := H.Homology, source := Modules.scalarModule, target := H.homologySpace] \as Forward;
 \definition forward: Forward.Map := Forward.Map {
   apply := class,
-  addition := \fun (v, w: I.Int^) => #addition{H.classLinear} (cycle v) (cycle w),
-  scalar := \fun (a, v: I.Int^) => #scalar{H.classLinear} a (cycle v),
+  addition := \fun (v, w: I.Int^) => (H.classLinear).addition (cycle v) (cycle w),
+  scalar := \fun (a, v: I.Int^) => (H.classLinear).scalar a (cycle v),
 };
 \import Modules.Isomorphism[V := I.Int^, W := H.Homology, source := Modules.scalarModule, target := H.homologySpace] \as Iso;
 \import Iso.OfBijective[f := forward] \as Bijection;
-\definition emptyIsomorphism(empty: Empty): Iso.Isomorphism := Bijection.isomorphism (injective empty) onto;
+\definition emptyIsomorphism[empty: Empty]: Iso.Isomorphism := Bijection.isomorphism (injective empty) onto;

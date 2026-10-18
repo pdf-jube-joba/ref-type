@@ -23,7 +23,7 @@
 \import DiskSpace.Subspace[S := punctured] \as Subspace;
 \definition Carrier: \Set := Subspace.CarrierSet;
 \definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Model.diskTopology;
-\definition squared(p: Carrier): Interval.Carrier :=
+\definition squared[p: Carrier]: Interval.Carrier :=
   \into[Real.Real](Model.normSquared p, metric_spaces.RealLine[].ClosedInterval Real.zero Real.one) \by {
     Logic.And[_, _]::# (Geometry.normSquaredNonnegative p) (\bysub(Model.Coordinate, Model.ClosedBall, p))
   };
@@ -37,20 +37,20 @@
       (Real.mul (Interval.reverse s) Real.one) (Interval.reverse s)
       (Laws.fieldMulComm (Interval.reverse s) (Interval.reverse t)) (Algebra.mulOneRight (Interval.reverse s))
       (Estimates.mulMonotone (Interval.reverse s) (Interval.reverse t) Real.one
-        (#left{(Interval.bounds (Interval.reverse s))}) (#right{(Interval.bounds (Interval.reverse t))})) \then
+        ((Interval.bounds (Interval.reverse s)).left) ((Interval.bounds (Interval.reverse t)).right)) \then
   \return R.leReplaceLeft (Interval.reverse (Interval.reverse s)) s (Time.advance t s) (Interval.reverseInvolutive s)
     (Laws.addMonotoneLeft (Real.neg (Interval.reverse s))
       (Real.neg (Time.multiply (Interval.reverse t) (Interval.reverse s))) Real.one
       (Laws.negAntitone (Time.multiply (Interval.reverse t) (Interval.reverse s)) (Interval.reverse s) product))
 };
-\definition level(t: Interval.Carrier)(p: Carrier): Interval.Carrier := Time.advance t (squared p);
+\definition level[t: Interval.Carrier][p: Carrier]: Interval.Carrier := Time.advance t (squared p);
 \definition levelPositive: \forall (t: Interval.Carrier)(p: Carrier) -> R.Lt Real.zero (level t p) :=
   \fun (t: Interval.Carrier)(p: Carrier) => R.ltLeTrans Real.zero (squared p) (level t p) (squaredPositive p) (advanceLower t (squared p));
-\definition radicand(t: Interval.Carrier)(p: Carrier): Real.Real := Real.mul (level t p) (Laws.fieldInv (squared p));
+\definition radicand[t: Interval.Carrier][p: Carrier]: Real.Real := Real.mul (level t p) (Laws.fieldInv (squared p));
 \definition radicandPositive: \forall (t: Interval.Carrier)(p: Carrier) -> R.Lt Real.zero (radicand t p) :=
   \fun (t: Interval.Carrier)(p: Carrier) => Products.mulPositive (level t p) (Laws.fieldInv (squared p))
     (levelPositive t p) (Products.invPositive (squared p) (squaredPositive p));
-\definition coefficient(t: Interval.Carrier)(p: Carrier): Real.Real := Root.sqrt (radicand t p);
+\definition coefficient[t: Interval.Carrier][p: Carrier]: Real.Real := Root.sqrt (radicand t p);
 \definition normFormula: \forall (t: Interval.Carrier)(p: Carrier) ->
   Model.normSquared (Scaling.scale (coefficient t p) p) = level t p :=
   \fun (t: Interval.Carrier)(p: Carrier) => trans!{Real.Real} _ _ _ (Scaling.normScale (coefficient t p) p)
@@ -61,12 +61,12 @@
         (trans!{Real.Real} _ _ _
           (congr!{Real.Real Real.Real} (Real.mul (level t p)) _ _
             (Laws.fieldInverseNonzero (squared p) (\bysub(Model.Disk, punctured, p)))) (Algebra.mulOneRight (level t p)))));
-\definition diskValue(t: Interval.Carrier)(p: Carrier): Model.Disk :=
+\definition diskValue[t: Interval.Carrier][p: Carrier]: Model.Disk :=
   \into[Model.Coordinate](Scaling.scale (coefficient t p) p, Model.ClosedBall) \by {
     R.leReplaceLeft (level t p) (Model.normSquared (Scaling.scale (coefficient t p) p)) Real.one
-      (sym!{Real.Real} _ _ (normFormula t p)) (#right{(Interval.bounds (level t p))})
+      (sym!{Real.Real} _ _ (normFormula t p)) ((Interval.bounds (level t p)).right)
   };
-\definition value(t: Interval.Carrier)(p: Carrier): Carrier := \into[Model.Disk](diskValue t p, punctured) \by {
+\definition value[t: Interval.Carrier][p: Carrier]: Carrier := \into[Model.Disk](diskValue t p, punctured) \by {
   \fun (same: Model.normSquared (diskValue t p) = Real.zero) => Order.ltNotEq Real.zero (level t p) (levelPositive t p)
     (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ same) (normFormula t p))
 };

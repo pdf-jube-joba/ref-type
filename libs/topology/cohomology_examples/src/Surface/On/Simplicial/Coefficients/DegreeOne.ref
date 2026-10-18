@@ -4,16 +4,16 @@
 \definition FunctionCarrier: \Set := Functions.Carrier;
 \definition functionSpace: Modules.Space FunctionCarrier := Functions.space;
 \import \root.Coordinates[].On[Generators := Carrier index, coefficients := A] \as Coordinate;
-\definition evaluate(phi: Native.Carrier index): Functions.Carrier := \fun (x: Labels) => Coordinate.evaluate phi (edge x);
-\definition value(f: Functions.Carrier): Base -> A.Carrier := \induction (sigma: Base) \return A.Carrier \with {
+\definition evaluate[phi: Native.Carrier index]: Functions.Carrier := \fun (x: Labels) => Coordinate.evaluate phi (edge x);
+\definition value[f: Functions.Carrier]: Base -> A.Carrier := \induction (sigma: Base) \return A.Carrier \with {
     | inl: \fun (v: V) => Values.zero
     | inr: \induction (sigma: Sums.Sum[E, T]) \return A.Carrier \with {
         | inl: \fun (e: E) => f e
         | inr: \fun (t: T) => Values.zero
       }
   };
-\definition assignment(f: Functions.Carrier): Coordinate.Values := \fun (sigma: Carrier index) => value f sigma;
-\definition valueAddition(f, g: Functions.Carrier): \forall (sigma: Base) ->
+\definition assignment[f: Functions.Carrier]: Coordinate.Values := \fun (sigma: Carrier index) => value f sigma;
+\definition valueAddition[f, g: Functions.Carrier]: \forall (sigma: Base) ->
   value (Functions.add f g) sigma = Values.add (value f sigma) (value g sigma) :=
   \induction (sigma: Base) \return value (Functions.add f g) sigma = Values.add (value f sigma) (value g sigma) \with {
     | inl: \fun (v: V) => sym!{A.Carrier} _ _ (Group.zeroLeft Values.zero)
@@ -22,27 +22,27 @@
         | inr: \fun (t: T) => sym!{A.Carrier} _ _ (Group.zeroLeft Values.zero)
       }
   };
-\definition valueScalar(a: I.Int^)(f: Functions.Carrier): \forall (sigma: Base) ->
+\definition valueScalar[a: I.Int^][f: Functions.Carrier]: \forall (sigma: Base) ->
   value (Functions.scale a f) sigma = Values.scale a (value f sigma) :=
   \induction (sigma: Base) \return value (Functions.scale a f) sigma = Values.scale a (value f sigma) \with {
     | inl: \fun (v: V) => sym!{A.Carrier} _ _ (Values.scaleZero a)
     | inr: \induction (sigma: Sums.Sum[E, T]) \return value (Functions.scale a f) (Sums.Sum[V, Sums.Sum[E, T]]::inr sigma) = Values.scale a (value f (Sums.Sum[V, Sums.Sum[E, T]]::inr sigma)) \with {
-        | inl: \fun (e: E) => \refl(#smul{A.space} a (f e))
+        | inl: \fun (e: E) => \refl((A.space).smul a (f e))
         | inr: \fun (t: T) => sym!{A.Carrier} _ _ (Values.scaleZero a)
       }
   };
 \import Modules.Hom[V := Functions.Carrier, W := Coordinate.Values, source := Functions.space, target := Coordinate.valuesSpace] \as Assignments;
 \definition assign: Assignments.Map := Assignments.Map {
   apply := assignment,
-  addition := \fun (f, g: Functions.Carrier) => \axiom:funext(assignment (Functions.add f g), #add{Coordinate.valuesSpace} (assignment f) (assignment g), \fun (sigma: Carrier index) => valueAddition f g sigma),
-  scalar := \fun (a: I.Int^)(f: Functions.Carrier) => \axiom:funext(assignment (Functions.scale a f), #smul{Coordinate.valuesSpace} a (assignment f), \fun (sigma: Carrier index) => valueScalar a f sigma),
+  addition := \fun (f, g: Functions.Carrier) => \axiom:funext(assignment (Functions.add f g), (Coordinate.valuesSpace).add (assignment f) (assignment g), \fun (sigma: Carrier index) => valueAddition f g sigma),
+  scalar := \fun (a: I.Int^)(f: Functions.Carrier) => \axiom:funext(assignment (Functions.scale a f), (Coordinate.valuesSpace).smul a (assignment f), \fun (sigma: Carrier index) => valueScalar a f sigma),
 };
 \import Modules.Hom[V := Coordinate.Values, W := Coordinate.Carrier, source := Coordinate.valuesSpace, target := Coordinate.space].Composition[U := Functions.Carrier, domain := Functions.space] \as Composition;
 \definition backward: Modules.Hom[V := Functions.Carrier, W := Native.Carrier index, source := Functions.space, target := Native.space index].Map := Composition.compose Coordinate.extension assign;
-\definition extend(f: Functions.Carrier): Native.Carrier index := #apply{backward} f;
-\definition onGenerator(f: Functions.Carrier)(x: Labels): evaluate (extend f) x = f x := Coordinate.onGenerator (assignment f) (edge x);
-\definition rightInverse(f: Functions.Carrier): evaluate (extend f) = f := \axiom:funext(evaluate (extend f), f, onGenerator f);
-\definition inverseOnBase(phi: Native.Carrier index): \forall (sigma: Base)(eligible: degree sigma = index) ->
+\definition extend[f: Functions.Carrier]: Native.Carrier index := (backward).apply f;
+\definition onGenerator[f: Functions.Carrier][x: Labels]: evaluate (extend f) x = f x := Coordinate.onGenerator (assignment f) (edge x);
+\definition rightInverse[f: Functions.Carrier]: evaluate (extend f) = f := \axiom:funext(evaluate (extend f), f, onGenerator f);
+\definition inverseOnBase[phi: Native.Carrier index]: \forall (sigma: Base)(eligible: degree sigma = index) ->
   value (evaluate phi) sigma = Coordinate.evaluate phi (\into[Base](sigma, { tau: Base \where degree tau = index }) \by { eligible }) :=
   \induction (sigma: Base) \return \forall (eligible: degree sigma = index) -> value (evaluate phi) sigma = Coordinate.evaluate phi (\into[Base](sigma, { tau: Base \where degree tau = index }) \by { eligible }) \with {
     | inl: \fun (v: V) => \fun (eligible: degree (Sums.Sum[V, Sums.Sum[E, T]]::inl v) = one) => Logic.falseElim (value (evaluate phi) (Sums.Sum[V, Sums.Sum[E, T]]::inl v) = Coordinate.evaluate phi (\into[Base](Sums.Sum[V, Sums.Sum[E, T]]::inl v, { tau: Base \where degree tau = one }) \by { eligible })) (Bounds.zeroNeSucc N.Nat^::zero eligible)
@@ -51,12 +51,12 @@
         | inr: \fun (t: T) => \fun (eligible: degree (Sums.Sum[V, Sums.Sum[E, T]]::inr (Sums.Sum[E, T]::inr t)) = one) => Logic.falseElim (value (evaluate phi) (Sums.Sum[V, Sums.Sum[E, T]]::inr (Sums.Sum[E, T]::inr t)) = Coordinate.evaluate phi (\into[Base](Sums.Sum[V, Sums.Sum[E, T]]::inr (Sums.Sum[E, T]::inr t), { tau: Base \where degree tau = one }) \by { eligible })) (Bounds.succNeZero N.Nat^::zero (Bounds.succInjective one N.Nat^::zero eligible))
       }
   };
-\definition assignmentInverse(phi: Native.Carrier index): assignment (evaluate phi) = Coordinate.evaluate phi :=
+\definition assignmentInverse[phi: Native.Carrier index]: assignment (evaluate phi) = Coordinate.evaluate phi :=
   \axiom:funext(assignment (evaluate phi), Coordinate.evaluate phi, \fun (sigma: Carrier index) =>
     inverseOnBase phi sigma (\bysub(Base, { tau: Base \where degree tau = index }, sigma)));
-\definition leftInverse(phi: Native.Carrier index): extend (evaluate phi) = phi :=
+\definition leftInverse[phi: Native.Carrier index]: extend (evaluate phi) = phi :=
   trans!{{Native.Carrier index}} _ _ _ (congr!{Coordinate.Values Coordinate.Carrier} Coordinate.extend _ _ (assignmentInverse phi)) (Coordinate.cochainInverse phi);
-\definition injective(phi, psi: Native.Carrier index)(same: evaluate phi = evaluate psi): phi = psi :=
+\definition injective[phi, psi: Native.Carrier index][same: evaluate phi = evaluate psi]: phi = psi :=
   trans!{{Native.Carrier index}} _ _ _ (sym!{{Native.Carrier index}} _ _ (leftInverse phi))
     (trans!{{Native.Carrier index}} _ _ _ (congr!{FunctionCarrier {Native.Carrier index}} extend _ _ same) (leftInverse psi));
 \definition forward: Modules.Hom[V := Native.Carrier index, W := Functions.Carrier, source := Native.space index, target := Functions.space].Map :=

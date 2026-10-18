@@ -4,28 +4,28 @@
 \import Alternating.Precomposition[W := Vectors.Vector, target := Vectors.space] \as Precomposition;
 \definition LocalChart: \Set := \Cast[Tangent.Chart] ({ chart: Tangent.Chart \where Atlases.Member atlas chart });
 \definition chartExists: \exists LocalChart := \block {
-  \takefrom chart: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[Atlases.Member atlas c, Charts.Contains c x] }) \by #covers{atlas} x \then
+  \takefrom chart: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[Atlases.Member atlas c, Charts.Contains c x] }) \by atlas.covers x \then
   \let witness: Logic.And[Atlases.Member atlas chart, Charts.Contains chart x] :=
     \bysub(Charts.Chart, { c: Charts.Chart \where Logic.And[Atlases.Member atlas c, Charts.Contains c x] }, chart) \then
   \let ambient: Tangent.Chart := \into[Charts.Chart](chart, Tangent.Chart) \by {
-    Tangent.ChartLaws[chart] { member := included chart (#left{witness}), contains := #right{witness} }
+    Tangent.ChartLaws[chart] { member := included chart (witness.left), contains := witness.right }
   } \then
-  \return \exact(\into[Tangent.Chart](ambient, LocalChart) \by { #left{witness} }, LocalChart)
+  \return \exact(\into[Tangent.Chart](ambient, LocalChart) \by { witness.left }, LocalChart)
 };
-\definition globalChart(chart: LocalChart): Chart := \into[Charts.Chart](chart, #charts{atlas}) \by {
+\definition globalChart[chart: LocalChart]: Chart := \into[Charts.Chart](chart, atlas.charts) \by {
   \bysub(Tangent.Chart, LocalChart, chart)
 };
-\definition coordinateMap(chart: LocalChart): Spaces.Linear[V := Tangent.Vector, W := Vectors.Vector, source := Tangent.space, target := Vectors.space].Map :=
+\definition coordinateMap[chart: LocalChart]: Spaces.Linear[V := Tangent.Vector, W := Vectors.Vector, source := Tangent.space, target := Vectors.space].Map :=
   Tangent.ChartIsomorphism[chart := chart].forward;
-\definition ofChart(omega: Form k)(chart: LocalChart): Global.PointForm k x := Precomposition.precompose k (coordinateMap chart) (omega (globalChart chart) (Tangent.coordinate chart));
-\definition pointCoordinates(phi: Global.PointFamily k)(chart: LocalChart): Multilinear.Alternating[].Form k :=
+\definition ofChart[omega: Form k][chart: LocalChart]: Global.PointForm k x := Precomposition.precompose k (coordinateMap chart) (omega (globalChart chart) (Tangent.coordinate chart));
+\definition pointCoordinates[phi: Global.PointFamily k][chart: LocalChart]: Multilinear.Alternating[].Form k :=
   Multilinear.Alternating[].Precomposition[W := Tangent.Vector, target := Tangent.space].precompose k
     (Tangent.ChartIsomorphism[chart := chart].backward) (phi x);
 \module Pair(left, right: LocalChart);
 \definition independent: \forall (omega: Form k)(left, right: LocalChart) -> ofChart omega left = ofChart omega right :=
   \fun (omega: Form k)(left, right: LocalChart) => Pair[left := left, right := right].law omega;
-\definition Values(omega: Form k): \Pow (Global.PointForm k x) := { f: Global.PointForm k x \where \forall (chart: LocalChart) -> f = ofChart omega chart };
-\definition ValueType(omega: Form k): \Set := \Cast[Global.PointForm k x] (Values omega);
+\definition Values[omega: Form k]: \Pow (Global.PointForm k x) := { f: Global.PointForm k x \where \forall (chart: LocalChart) -> f = ofChart omega chart };
+\definition ValueType[omega: Form k]: \Set := \Cast[Global.PointForm k x] (Values omega);
 \definition exists: \forall (omega: Form k) -> \exists ValueType omega := \block {
   \fun (omega: Form k) \then
   \takefrom chart: LocalChart \by chartExists \then
@@ -40,11 +40,11 @@
     ((\bysub(Global.PointForm k x, Values omega, f)) chart)
     (sym!{{Global.PointForm k x}} g (ofChart omega chart) ((\bysub(Global.PointForm k x, Values omega, g)) chart))
 };
-\definition value(omega: Form k): Global.PointForm k x := \choice ValueType omega \by { existence: exists omega, uniqueness: unique omega };
+\definition value[omega: Form k]: Global.PointForm k x := \choice ValueType omega \by { existence: exists omega, uniqueness: unique omega };
 \definition inChart: \forall (omega: Form k)(chart: LocalChart) -> value omega = ofChart omega chart :=
   \fun (omega: Form k)(chart: LocalChart) => (\bysub(Global.PointForm k x, Values omega, (\choice ValueType omega \by { existence: exists omega, uniqueness: unique omega }))) chart;
 
-\definition roundtrip(chart: LocalChart)(arguments: Multilinear.Arguments k): Multilinear.Arguments k :=
+\definition roundtrip[chart: LocalChart][arguments: Multilinear.Arguments k]: Multilinear.Arguments k :=
   \fun (slot: Fin.Fin k) => Tangent.Coordinate[chart := chart].decode (Tangent.Coordinate[chart := chart].encode (arguments slot));
 \definition roundtripLaw: \forall (chart: LocalChart)(arguments: Multilinear.Arguments k) -> roundtrip chart arguments = arguments :=
   \fun (chart: LocalChart)(arguments: Multilinear.Arguments k) => \axiom:funext(roundtrip chart arguments, arguments,

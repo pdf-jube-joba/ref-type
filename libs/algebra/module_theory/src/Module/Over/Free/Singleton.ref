@@ -3,17 +3,17 @@
 \import \parent.\parent.Hom[V := R, W := Carrier, source := scalarModule, target := space] \as Forward;
 \import \parent.\parent.Hom[V := Carrier, W := R, source := space, target := scalarModule] \as Backward;
 \definition forward: Forward.Map := Forward.Map {
-  apply := \fun (a: R) => #smul{space} a (generator point),
-  addition := \fun (a, b: R) => #scalarAdd{space} a b (generator point),
-  scalar := \fun (a, b: R) => #scalarAssoc{space} a b (generator point),
+  apply := \fun (a: R) => (space).smul a (generator point),
+  addition := \fun (a, b: R) => (space).scalarAdd a b (generator point),
+  scalar := \fun (a, b: R) => (space).scalarAssoc a b (generator point),
 };
-\definition backward: Backward.Map := Augmentation.extension (\fun (x: Generators) => #one{ring});
-\definition onOne: #apply{forward} #one{ring} = generator point := #scalarOne{space} (generator point);
-\definition leftInverse: \forall (a: R) -> #apply{backward} (#apply{forward} a) = a :=
-  \fun (a: R) => trans!{R} _ _ _ (#scalar{backward} a (generator point))
+\definition backward: Backward.Map := Augmentation.extension (\fun (x: Generators) => (ring).one);
+\definition onOne: (forward).apply (ring).one = generator point := (space).scalarOne (generator point);
+\definition leftInverse: \forall (a: R) -> (backward).apply ((forward).apply a) = a :=
+  \fun (a: R) => trans!{R} _ _ _ ((backward).scalar a (generator point))
     (trans!{R} _ _ _
-      (congr!{R R} (#mul{ring} a) _ _ (Augmentation.onGenerator (\fun (x: Generators) => #one{ring}) point))
-      (#rightIdentity{(#multiplicative{(#semiring{ring})})} a));
+      (congr!{R R} ((ring).mul a) _ _ (Augmentation.onGenerator (\fun (x: Generators) => (ring).one) point))
+      ((((ring).semiring).multiplicative).rightIdentity a));
 \import Forward.Composition[U := Carrier, domain := space] \as Composition;
 \import \parent.\parent.End[V := Carrier, space := space] \as End;
 \import \parent.\parent.Hom[V := Carrier, W := Carrier, source := space, target := space] \as EndMaps;
@@ -21,11 +21,11 @@
 \definition composite: Unique -> Composition.compose forward backward = End.identity :=
   \fun (unique: Unique) => Linear.ext (Composition.compose forward backward) End.identity
     (\fun (x: Generators) => trans!{Carrier} _ _ _
-      (congr!{R Carrier} (#apply{forward}) _ _ (Augmentation.onGenerator (\fun (x: Generators) => #one{ring}) x))
+      (congr!{R Carrier} ((forward).apply) _ _ (Augmentation.onGenerator (\fun (x: Generators) => (ring).one) x))
       (trans!{Carrier} _ _ _ onOne (congr!{Generators Carrier} generator _ _ (sym!{Generators} _ _ (unique x)))));
-\definition rightInverse: Unique -> \forall (x: Carrier) -> #apply{forward} (#apply{backward} x) = x :=
-  \fun (unique: Unique)(x: Carrier) => congr!{EndMaps.Map Carrier} (\fun (f: EndMaps.Map) => #apply{f} x) _ _ (composite unique);
+\definition rightInverse: Unique -> \forall (x: Carrier) -> (forward).apply ((backward).apply x) = x :=
+  \fun (unique: Unique)(x: Carrier) => congr!{EndMaps.Map Carrier} (\fun (f: EndMaps.Map) => (f).apply x) _ _ (composite unique);
 \import \parent.\parent.Isomorphism[V := R, W := Carrier, source := scalarModule, target := space] \as Iso;
-\definition isomorphism(unique: Unique): Iso.Isomorphism := Iso.Isomorphism {
+\definition isomorphism[unique: Unique]: Iso.Isomorphism := Iso.Isomorphism {
   forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse unique,
 };

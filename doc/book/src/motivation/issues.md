@@ -117,7 +117,7 @@ subsingleton (\(\text{SS}(X)\)): \((x: X) \to (y: X) \to *\) := \((x: X) \Righta
 これはほぼ funext だったらしい。
 
 ## Carrier 上の Relation 全体が書けない
-`\definition Relation(Carrier: \Set): _ := Carrier -> Carrier -> \Prop;`
+`\definition Relation[Carrier: \Set]: _ := Carrier -> Carrier -> \Prop;`
 これは定義できない。
 `Carrier: \Set |- Carrier -> Carrier -> \Prop: \PropKind` なので、 module parameter みたいに context に push するものはうまくいく。
 ただしここから pop しようとするとだめで、
@@ -133,7 +133,7 @@ AI の提案の `\alias Relation[Carrier: \Set]: _ := Carrier -> Carrier -> \Pro
 
 ## Relation と RelationAsPowerSet の変換ができない
 ```
-\definition RelToPair(A: \Set) (R: Relation[A]): RelPair A := { x: Pair.Times^[A, A] \where R (fst A x) (snd A x) };
+\definition RelToPair[A: \Set] [R: Relation[A]]: RelPair A := { x: Pair.Times^[A, A] \where R (fst A x) (snd A x) };
 ```
 `A: Set, R: A -> A -> Prop |- { x: A times A | R (fst x) (snd x) }: Pow(A times A): Set` はできる。
 これを pop する場合 `|- (A: Set) => (R: A -> A -> Prop) => { x: A times A | ... }: (A: Set) -> (R: A -> A -> Prop) -> Pow(A times A)` となって `(A: Set) -> (R: A -> A -> Prop) -> Pow(A times A)` の sort が問題になる。
@@ -148,7 +148,7 @@ AI の提案の `\alias Relation[Carrier: \Set]: _ := Carrier -> Carrier -> \Pro
     | \continue s: \Acc[AddState^, Nat^](AddLoop::[step]^, s)
     | \finish result: L.True
   };
-\definition accIntro (s: AddState^) (certificate: ready (AddLoop::[step]^ s)):
+\definition accIntro [s: AddState^] [certificate: ready (AddLoop::[step]^ s)]:
   \Acc[AddState^, Nat^](AddLoop::[step]^, s) :=
   \accintro[AddState^, Nat^](AddLoop::[step]^, s,
     \fun (next: _) (edge: _) =>

@@ -186,12 +186,12 @@ name = "Records"
 ```
 
 ```ref
-\structure Pair[A, B: \Set]: \Set {
+\structure Pair[A, B: \Set]: \Set := {
   left: A,
   right: B,
-}
-\definition eta: \forall (A, B: \Set)(p: Pair[A, B]) -> Pair[A, B]::# (#left{p}) (#right{p}) = p :=
-  \fun (A, B: \Set) => \induction (p: Pair[A, B]) \return Pair[A, B]::# (#left{p}) (#right{p}) = p \with {
+};
+\definition eta: \forall (A, B: \Set)(p: Pair[A, B]) -> Pair[A, B]::# (p.left) (p.right) = p :=
+  \fun (A, B: \Set) => \induction (p: Pair[A, B]) \return Pair[A, B]::# (p.left) (p.right) = p \with {
     | # : \fun (left: A)(right: B) => \refl(Pair[A, B]::# left right)
   };
 ```

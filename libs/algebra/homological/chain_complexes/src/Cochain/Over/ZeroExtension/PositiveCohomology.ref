@@ -2,19 +2,19 @@
 \import Internal.At[C := complex, z := index] \as H;
 \import \parent.\parent.At[C := C, k := n] \as Natural;
 \import \parent.Positive[n := n] \as Positive;
-\definition toNatural(x: H.Closed): Natural.CycleCarrier := Natural.cycle x (\bysub(Carrier index, #carrier{H.cycles}, x));
-\definition toInteger(x: Natural.CycleCarrier): H.Closed := H.cycle (Positive.intro x) (\bysub(C.family.Carrier n, #carrier{Natural.cycles}, x));
+\definition toNatural[x: H.Closed]: Natural.CycleCarrier := Natural.cycle x (\bysub(Carrier index, H.cycles.carrier, x));
+\definition toInteger[x: Natural.CycleCarrier]: H.Closed := H.cycle (Positive.intro x) (\bysub(C.family.Carrier n, Natural.cycles.carrier, x));
 \import Modules.Hom[V := H.Closed, W := Natural.CycleCarrier, source := H.cycleSpace, target := Natural.cycleSpace] \as ForwardCycles;
 \import Modules.Hom[V := Natural.CycleCarrier, W := H.Closed, source := Natural.cycleSpace, target := H.cycleSpace] \as BackwardCycles;
 \definition forwardCycles: ForwardCycles.Map := ForwardCycles.Map {
   apply := toNatural,
-  addition := \fun (x, y: H.Closed) => \refl(#add{Natural.cycleSpace} (toNatural x) (toNatural y)),
-  scalar := \fun (a: R)(x: H.Closed) => \refl(#smul{Natural.cycleSpace} a (toNatural x)),
+  addition := \fun (x, y: H.Closed) => \refl(Natural.cycleSpace.add (toNatural x) (toNatural y)),
+  scalar := \fun (a: R)(x: H.Closed) => \refl(Natural.cycleSpace.smul a (toNatural x)),
 };
 \definition backwardCycles: BackwardCycles.Map := BackwardCycles.Map {
   apply := toInteger,
-  addition := \fun (x, y: Natural.CycleCarrier) => \refl(#add{H.cycleSpace} (toInteger x) (toInteger y)),
-  scalar := \fun (a: R)(x: Natural.CycleCarrier) => \refl(#smul{H.cycleSpace} a (toInteger x)),
+  addition := \fun (x, y: Natural.CycleCarrier) => \refl(H.cycleSpace.add (toInteger x) (toInteger y)),
+  scalar := \fun (a: R)(x: Natural.CycleCarrier) => \refl(H.cycleSpace.smul a (toInteger x)),
 };
 \import Modules.Of[V := H.Closed, space := H.cycleSpace].Submodule[].Quotient[S := H.boundariesInside] \as IntegerQuotient;
 \import IntegerQuotient.To[W := Natural.Cohomology, target := Natural.cohomologySpace] \as Forward;
@@ -25,21 +25,21 @@
 \definition forwardRaw: _ := ForwardCompose.compose Natural.classLinear forwardCycles;
 \definition backwardRaw: _ := BackwardCompose.compose H.classLinear backwardCycles;
 \definition forwardVanishes: Forward.Vanishes forwardRaw :=
-  \fun (x: H.Closed)(boundary: \In[H.Closed] (#carrier{H.boundariesInside}) x) => Natural.boundaryClassZero (toNatural x) (boundaryForward n x boundary);
+  \fun (x: H.Closed)(boundary: \In[H.Closed] (H.boundariesInside.carrier) x) => Natural.boundaryClassZero (toNatural x) (boundaryForward n x boundary);
 \definition backwardVanishes: Backward.Vanishes backwardRaw :=
-  \fun (x: Natural.CycleCarrier)(boundary: \In[Natural.CycleCarrier] (#carrier{Natural.boundariesInside}) x) => H.boundaryClassZero (toInteger x) (boundaryBackward n (Positive.intro x) boundary);
+  \fun (x: Natural.CycleCarrier)(boundary: \In[Natural.CycleCarrier] (Natural.boundariesInside.carrier) x) => H.boundaryClassZero (toInteger x) (boundaryBackward n (Positive.intro x) boundary);
 \definition forward: _ := Forward.descend forwardRaw forwardVanishes;
 \definition backward: _ := Backward.descend backwardRaw backwardVanishes;
-\definition onIntegerClass: \forall (x: H.Closed) -> #apply{forward} (H.classOf x) = Natural.classOf (toNatural x) := Forward.onClass forwardRaw forwardVanishes;
-\definition onNaturalClass: \forall (x: Natural.CycleCarrier) -> #apply{backward} (Natural.classOf x) = H.classOf (toInteger x) := Backward.onClass backwardRaw backwardVanishes;
-\definition leftInverse: \forall (h: H.Cohomology) -> #apply{backward} (#apply{forward} h) = h :=
-  H.classInduction (\fun (h: H.Cohomology) => #apply{backward} (#apply{forward} h) = h)
+\definition onIntegerClass: \forall (x: H.Closed) -> forward.apply (H.classOf x) = Natural.classOf (toNatural x) := Forward.onClass forwardRaw forwardVanishes;
+\definition onNaturalClass: \forall (x: Natural.CycleCarrier) -> backward.apply (Natural.classOf x) = H.classOf (toInteger x) := Backward.onClass backwardRaw backwardVanishes;
+\definition leftInverse: \forall (h: H.Cohomology) -> backward.apply (forward.apply h) = h :=
+  H.classInduction (\fun (h: H.Cohomology) => backward.apply (forward.apply h) = h)
     (\fun (x: H.Closed) => trans!{{H.Cohomology}} _ _ _
-      (congr!{{Natural.Cohomology} {H.Cohomology}} (#apply{backward}) _ _ (onIntegerClass x)) (onNaturalClass (toNatural x)));
-\definition rightInverse: \forall (h: Natural.Cohomology) -> #apply{forward} (#apply{backward} h) = h :=
-  Natural.classInduction (\fun (h: Natural.Cohomology) => #apply{forward} (#apply{backward} h) = h)
+      (congr!{{Natural.Cohomology} {H.Cohomology}} (backward.apply) _ _ (onIntegerClass x)) (onNaturalClass (toNatural x)));
+\definition rightInverse: \forall (h: Natural.Cohomology) -> forward.apply (backward.apply h) = h :=
+  Natural.classInduction (\fun (h: Natural.Cohomology) => forward.apply (backward.apply h) = h)
     (\fun (x: Natural.CycleCarrier) => trans!{{Natural.Cohomology}} _ _ _
-      (congr!{{H.Cohomology} {Natural.Cohomology}} (#apply{forward}) _ _ (onNaturalClass x)) (onIntegerClass (toInteger x)));
+      (congr!{{H.Cohomology} {Natural.Cohomology}} (forward.apply) _ _ (onNaturalClass x)) (onIntegerClass (toInteger x)));
 \import Modules.Isomorphism[V := H.Cohomology, W := Natural.Cohomology, source := H.cohomologySpace, target := Natural.cohomologySpace] \as Iso;
 \definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
   forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,

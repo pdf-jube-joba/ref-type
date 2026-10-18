@@ -4,11 +4,11 @@
 \import \root.Over[R := I.Int^, ring := Integers.commutativeRing] \as TensorDual;
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Native;
 \definition nativeFamily: Native.Family := Native.Family { Carrier := Singular.Carrier, space := Singular.space };
-\definition nativeDifferential: Native.DifferentialData[nativeFamily] := Native.DifferentialData[nativeFamily] { apply := #apply{Singular.differential} };
+\definition nativeDifferential: Native.DifferentialData[nativeFamily] := Native.DifferentialData[nativeFamily] { apply := (Singular.differential).apply };
 \definition nativeComplex: Native.Complex := Native.Complex {
   family := nativeFamily, differential := nativeDifferential,
   laws := Native.DifferentialLaws[nativeFamily, nativeDifferential] {
-    addition := #addition{Singular.complex.laws}, scalar := #scalar{Singular.complex.laws}, squareZero := #squareZero{Singular.complex.laws},
+    addition := (Singular.complex.laws).addition, scalar := (Singular.complex.laws).scalar, squareZero := (Singular.complex.laws).squareZero,
   },
 };
 \import \root.Over[R := I.Int^, ring := Integers.commutativeRing].Selected[P := nativeComplex, Q := nativeComplex, p := p, q := q] \as Selected;
@@ -19,20 +19,20 @@
 \import Double.Total[C := Product.complex] \as Total;
 \import Product.Term[p := p, q := q] \as Term;
 \import \parent.Convert[P := Total.complex] \as TotalCochains;
-\definition native(n: N.Nat^)(alpha: Ordinary.Carrier n): Standard.Carrier n := Cochains.apply n alpha;
+\definition native[n: N.Nat^][alpha: Ordinary.Carrier n]: Standard.Carrier n := Cochains.apply n alpha;
 \import Modules.Hom[V := I.Int^, W := I.Int^, source := canonical.space, target := standard.space].Composition[U := Term.Carrier, domain := Term.space] \as Compose;
 \import Modules.Tensor[V := Singular.Carrier p, W := Singular.Carrier q, left := Singular.space p, right := Singular.space q].Universal[U := I.Int^, target := standard.space] \as Universal;
-\definition local(alpha: Ordinary.Carrier p)(beta: Ordinary.Carrier q): Selected.comparison (native p alpha) (native q beta) = Compose.compose toStandard (Original.map alpha beta) :=
+\definition local[alpha: Ordinary.Carrier p][beta: Ordinary.Carrier q]: Selected.comparison (native p alpha) (native q beta) = Compose.compose toStandard (Original.map alpha beta) :=
   Universal.ext (Selected.comparison (native p alpha) (native q beta)) (Compose.compose toStandard (Original.map alpha beta))
     (\fun (x: Singular.Carrier p)(y: Singular.Carrier q) => trans!{I.Int^} _ _ _
       (Selected.onTensor (native p alpha) (native q beta) x y)
       (sym!{I.Int^} _ _ (Original.onTensor alpha beta x y)));
 \import Double.Coordinates[C := Product.complex].Degree[n := Selected.n] \as Coordinates;
 \import Modules.Hom[V := Term.Carrier, W := I.Int^, source := Term.space, target := standard.space] \as Maps;
-\definition law(alpha: Ordinary.Carrier p)(beta: Ordinary.Carrier q)(x: Total.Carrier Selected.n):
-  #apply{(Selected.total (native p alpha) (native q beta))} x = #apply{(Original.total alpha beta)} x :=
-  congr!{Maps.Map I.Int^} (\fun (f: Maps.Map) => #apply{f} (Coordinates.coordinate Selected.index x)) _ _ (local alpha beta);
-\definition equation(alpha: Ordinary.Carrier p)(beta: Ordinary.Carrier q):
+\definition law[alpha: Ordinary.Carrier p][beta: Ordinary.Carrier q][x: Total.Carrier Selected.n]:
+  (Selected.total (native p alpha) (native q beta)).apply x = (Original.total alpha beta).apply x :=
+  congr!{Maps.Map I.Int^} (\fun (f: Maps.Map) => (f).apply (Coordinates.coordinate Selected.index x)) _ _ (local alpha beta);
+\definition equation[alpha: Ordinary.Carrier p][beta: Ordinary.Carrier q]:
   Selected.total (native p alpha) (native q beta) = TotalCochains.apply Selected.n (Original.total alpha beta) :=
   Modules.Hom[V := Total.Carrier Selected.n, W := I.Int^, source := Total.space Selected.n, target := standard.space].ext
     (Selected.total (native p alpha) (native q beta)) (TotalCochains.apply Selected.n (Original.total alpha beta)) (law alpha beta);

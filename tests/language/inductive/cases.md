@@ -210,7 +210,7 @@ name = "OpenMotives"
   };
 \definition propositionStep: proposition (Nat::succ Nat::zero) := \refl(Nat::zero);
 
-\definition predicate(Q: \Prop): Nat -> Nat -> \Prop :=
+\definition predicate[Q: \Prop]: Nat -> Nat -> \Prop :=
   \induction (n: Nat) \return Nat -> \Prop \with {
     | zero: \fun (m: _) => Q
     | succ: \fun (n: _) (previous: Nat -> \Prop) (m: _) => previous m
@@ -221,14 +221,14 @@ name = "OpenMotives"
 \inductive Family[A: \Set]: \forall (x: A) -> \Set :=
   | leaf: \forall (x: A) -> Family x
   | next: \forall (x: A) -> Family x -> Family x;
-\definition indexed(A: \Set): \forall (x: A) -> Family[A] x -> \Prop :=
+\definition indexed[A: \Set]: \forall (x: A) -> Family[A] x -> \Prop :=
   \induction (x: A) (value: Family[A] x) \return \Prop \with {
     | leaf: \fun (x: _) => x = x
     | next: \fun (x: _) (value: _) (previous: \Prop) => previous
   };
 \definition indexedStep: indexed Nat Nat::zero
   (Family[Nat]::next Nat::zero (Family[Nat]::leaf Nat::zero)) := \refl(Nat::zero);
-\definition indexedIdentity(A: \Set): \forall (x: A) -> Family[A] x -> Family[A] x :=
+\definition indexedIdentity[A: \Set]: \forall (x: A) -> Family[A] x -> Family[A] x :=
   \induction (x: A) (value: Family[A] x) \return Family[A] x \with {
     | leaf: \fun (x: _) => Family[A]::leaf x
     | next: \fun (x: _) (value: _) (previous: _) => Family[A]::next x previous
@@ -279,12 +279,12 @@ expect = "accept"
 ```ref file=src/root.ref
 \module M {
   \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
-  \structure Bundle { Carrier: \Set, point: Carrier }
+  \structure Bundle := { Carrier: \Set, point: Carrier };
   \module At(n: Nat) {
     \definition point: Nat := n;
   }
-  \definition term(n: Nat): Bundle := Bundle { Carrier := Nat, point := At[n := n].point };
-  \definition Property(B: Bundle): \Prop := B.point = B.point;
+  \definition term[n: Nat]: Bundle := Bundle { Carrier := Nat, point := At[n := n].point };
+  \definition Property[B: Bundle]: \Prop := B.point = B.point;
   \definition proof: \forall (n: Nat) -> Property (term n) :=
     \induction (n: Nat) \return Property (term n) \with {
       | zero: \refl(Nat::zero)
@@ -362,16 +362,16 @@ parameters = '''A: \Set, a: A'''
 ```ref
 \inductive Family[B: \Set]: \forall (x: B) -> \Set :=
   | member: \forall (x: B) -> Family x;
-\definition value(x: A) (h: Family[A] x): A :=
+\definition value[x: A] [h: Family[A] x]: A :=
   \match h \in Family \return A \with { | member y: y };
-\definition same(x: A) (h: Family[A] x): x = x :=
+\definition same[x: A] [h: Family[A] x]: x = x :=
   \match h \in Family \return x = x \with { | member y: \refl(x) };
-\definition dependent(x: A) (h: Family[A] x): Family[A] x :=
+\definition dependent[x: A] [h: Family[A] x]: Family[A] x :=
   \match h \in Family
 \return (\fun (y: A) (_: Family[A] y) => Family[A] y)
 \with { | member y: Family[A]::member y };
 \definition computes: value a (Family[A]::member a) = a := \refl(a);
-\definition function(x: A) (h: Family[A] x): A -> A :=
+\definition function[x: A] [h: Family[A] x]: A -> A :=
   \match h \in Family \return A -> A \with {
   | member y: \fun (z: A) => z
 };
@@ -379,13 +379,13 @@ parameters = '''A: \Set, a: A'''
   function a (Family[A]::member a) a = a := \refl(a);
 \inductive Witness[B: \Set]: \forall (x, y: B) -> \Set :=
   | witness: \forall (x, y: B) -> Witness x y;
-\definition witnessValue(x, y: A) (h: Witness[A] x y): A :=
+\definition witnessValue[x, y: A] [h: Witness[A] x y]: A :=
   \match h \in Witness \return A \with { | witness y q: y };
 \definition witnessComputes:
   witnessValue a a (Witness[A]::witness a a) = a :=
   \refl(a);
 \inductive Pair[B, C: \Set]: \Set := | pair: B -> C -> Pair;
-\definition first (p: Pair[A, A]): A :=
+\definition first [p: Pair[A, A]]: A :=
   \match p \in Pair \return A \with { | pair x y: x };
 \definition firstComputes: first (Pair[A, A]::pair a a) = a := \refl(a);
 ```
@@ -404,6 +404,6 @@ parameters = '''A, B: \Set, a: A, b: B'''
 
 ```ref
 \inductive Choice: \Set := | left: Choice | right: Choice;
-\definition choose(c: Choice): A :=
+\definition choose[c: Choice]: A :=
   \match c \in Choice \return A \with { | left: a | right: b };
 ```

@@ -87,19 +87,19 @@ expect = "accept"
 \module LocalTake(X: \Set, existsX: \exists X) {
     \definition local_prop: \forall (p: \Prop) -> p -> p :=
         \fun (p: \Prop) (hp: p) => \take (x: X) => hp \by { existsX };
-    \definition Singleton (T: \Set) (t: T): \Set :=
+    \definition Singleton [T: \Set] [t: T]: \Set :=
         \Cast[T] ({ x : T \where x = t });
-    \definition witness (T: \Set) (t: T): Singleton T t :=
+    \definition witness [T: \Set] [t: T]: Singleton T t :=
         \into[T](t, { x : T \where x = t }) \by { \refl t };
-    \definition unique (T: \Set) (t: T) (a, b: Singleton T t): a = b :=
+    \definition unique [T: \Set] [t: T] [a, b: Singleton T t]: a = b :=
         \idelim t = b \with x: T => a = x
           \by { base: \bysub(T, { x : T \where x = t }, a),
             equality: \idelim b = t \with x: T => x = b
               \by { base: \refl b, equality: \bysub(T, { x : T \where x = t }, b) } };
-    \definition local_set (T: \Set) (t: T): T :=
+    \definition local_set [T: \Set] [t: T]: T :=
         \choice Singleton T t
           \by { existence: \exact(witness T t, Singleton T t), uniqueness: unique T t };
-    \definition local_equality (T: \Set) (t: T): t = local_set T t :=
+    \definition local_equality [T: \Set] [t: T]: t = local_set T t :=
         \choiceeq witness T t \of Singleton T t
           \by { existence: \exact(witness T t, Singleton T t), uniqueness: unique T t };
 }
@@ -171,7 +171,7 @@ parameters = '''A: \Set'''
 ```
 
 ```ref
-\definition reflexive(x: A): x = x :=
+\definition reflexive[x: A]: x = x :=
   \refl(x);
 ```
 

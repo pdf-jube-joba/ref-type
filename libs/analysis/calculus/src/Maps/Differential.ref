@@ -8,18 +8,18 @@
 \import Source.Smooth[].Differential[] \as Scalars;
 \import Reals.Multivariable[n := n].Differential[].Def[] \as ScalarMaps;
 \definition laws: Laws[U, V, f] := \bysub(Data[U, V], { data: Data[U, V] \where Laws[U, V, data] }, f);
-\definition component(j: Fin.Fin m): Partials.Function U := coordinateFunction U V f j;
-\definition row(j: Fin.Fin m): ScalarMaps.LinearMap := Scalars.value U (component j) a;
+\definition component[j: Fin.Fin m]: Partials.Function U := coordinateFunction U V f j;
+\definition row[j: Fin.Fin m]: ScalarMaps.LinearMap := Scalars.value U (component j) a;
 \definition value: Linear.Map := Linear.Map {
-  apply := \fun (v: Domain.Vector)(j: Fin.Fin m) => #apply{(row j)} v,
-  preservesAdd := \fun (v, w: Domain.Vector) => \axiom:funext((\fun (j: Fin.Fin m) => #apply{(row j)} (Domain.plus v w)),
-    (\fun (j: Fin.Fin m) => Reals.add (#apply{(row j)} v) (#apply{(row j)} w)),
-    \fun (j: Fin.Fin m) => #additive{(row j)} v w),
-  preservesScale := \fun (c: Reals.Real)(v: Domain.Vector) => \axiom:funext((\fun (j: Fin.Fin m) => #apply{(row j)} (Domain.scale c v)),
-    (\fun (j: Fin.Fin m) => Reals.mul c (#apply{(row j)} v)),
-    \fun (j: Fin.Fin m) => #homogeneous{(row j)} c v),
+  apply := \fun (v: Domain.Vector)(j: Fin.Fin m) => (row j).apply v,
+  preservesAdd := \fun (v, w: Domain.Vector) => \axiom:funext((\fun (j: Fin.Fin m) => (row j).apply (Domain.plus v w)),
+    (\fun (j: Fin.Fin m) => Reals.add ((row j).apply v) ((row j).apply w)),
+    \fun (j: Fin.Fin m) => (row j).additive v w),
+  preservesScale := \fun (c: Reals.Real)(v: Domain.Vector) => \axiom:funext((\fun (j: Fin.Fin m) => (row j).apply (Domain.scale c v)),
+    (\fun (j: Fin.Fin m) => Reals.mul c ((row j).apply v)),
+    \fun (j: Fin.Fin m) => (row j).homogeneous c v),
 };
-\definition matrixEntry(j: Fin.Fin m)(i: Fin.Fin n): Partials.Function U := Partials.derivative U (component j) i;
+\definition matrixEntry[j: Fin.Fin m][i: Fin.Fin n]: Partials.Function U := Partials.derivative U (component j) i;
 \definition componentLaw: \forall (j: Fin.Fin m) -> Source.Analysis[].HasDifferentialAt U (component j) a (row j) :=
   \fun (j: Fin.Fin m) => Scalars.law U (component j) a;
 \import \parent.\parent.Vector[n := n, m := m] \as Vector;
@@ -29,6 +29,6 @@
     Source.Analysis[].HasDifferentialAt U (component j) a d \by {
       base: componentLaw j,
       equality: SourceLinear.ext (row j) (Vector.row value j)
-        (\axiom:funext((#apply{(row j)}), (#apply{(Vector.row value j)}), \fun (v: Domain.Vector) => \refl(#apply{(row j)} v)))
+        (\axiom:funext(((row j).apply), ((Vector.row value j).apply), \fun (v: Domain.Vector) => \refl((row j).apply v)))
     };
 \module Compare(W: TargetOpen, g: Map U W);

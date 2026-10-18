@@ -1,5 +1,5 @@
 \import \parent.\parent.Laws[V := V, space := space] \as Values;
-\definition sum(xs: Lists.List[I])(f: I -> V): V :=
+\definition sum[xs: Lists.List[I]][f: I -> V]: V :=
   Lists.foldr I V (\fun (i: I)(tail: V) => Values.add (f i) tail) Values.zero xs;
 \definition congruent: \forall (xs: Lists.List[I])(f, g: I -> V) -> (\forall (i: I) -> f i = g i) -> sum xs f = sum xs g :=
   \induction (xs: Lists.List[I]) \return \forall (f, g: I -> V) -> (\forall (i: I) -> f i = g i) -> sum xs f = sum xs g \with {
@@ -28,7 +28,7 @@
     | nil: \fun (a: R)(f: I -> V) => sym!{V} _ _ (Values.scaleZero a)
     | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (a: R)(f: I -> V) -> sum tail (\fun (i: I) => Values.scale a (f i)) = Values.scale a (sum tail f))
       (a: R)(f: I -> V) => trans!{V} _ _ _ (congr!{V V} (Values.add (Values.scale a (f head))) _ _ (previous a f))
-        (sym!{V} _ _ (#vectorAdd{space} a (f head) (sum tail f)))
+        (sym!{V} _ _ (space.vectorAdd a (f head) (sum tail f)))
   };
 \definition exchange: \forall (xs, ys: Lists.List[I])(f: I -> I -> V) ->
   sum xs (\fun (i: I) => sum ys (f i)) = sum ys (\fun (j: I) => sum xs (\fun (i: I) => f i j)) :=
@@ -43,12 +43,12 @@
 \module Mapping(W: \Set, target: Space W) {
   \import \parent.\parent.\parent.Hom[V := V, W := W, source := space, target := target] \as Maps;
   \import \parent.\parent.\parent.Sums[I := I].Vector[V := W, space := target] \as Target;
-  \definition law: \forall (map: Maps.Map)(xs: Lists.List[I])(f: I -> V) -> #apply{map} (sum xs f) = Target.sum xs (\fun (i: I) => #apply{map} (f i)) :=
-    \fun (map: Maps.Map) => \induction (xs: Lists.List[I]) \return \forall (f: I -> V) -> #apply{map} (sum xs f) = Target.sum xs (\fun (i: I) => #apply{map} (f i)) \with {
+  \definition law: \forall (map: Maps.Map)(xs: Lists.List[I])(f: I -> V) -> map.apply (sum xs f) = Target.sum xs (\fun (i: I) => map.apply (f i)) :=
+    \fun (map: Maps.Map) => \induction (xs: Lists.List[I]) \return \forall (f: I -> V) -> map.apply (sum xs f) = Target.sum xs (\fun (i: I) => map.apply (f i)) \with {
       | nil: \fun (f: I -> V) => Maps.zeroPreserved map
-      | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (f: I -> V) -> #apply{map} (sum tail f) = Target.sum tail (\fun (i: I) => #apply{map} (f i)))
-        (f: I -> V) => trans!{W} _ _ _ (#addition{map} (f head) (sum tail f))
-          (congr!{W W} (#add{target} (#apply{map} (f head))) _ _ (previous f))
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (f: I -> V) -> map.apply (sum tail f) = Target.sum tail (\fun (i: I) => map.apply (f i)))
+        (f: I -> V) => trans!{W} _ _ _ (map.addition (f head) (sum tail f))
+          (congr!{W W} (target.add (map.apply (f head))) _ _ (previous f))
     };
 }
 \definition negative: \forall (xs: Lists.List[I])(f: I -> V) -> sum xs (\fun (i: I) => Values.neg (f i)) = Values.neg (sum xs f) :=

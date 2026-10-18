@@ -2,38 +2,38 @@
 \import std.Logic[].Classical[] \as Classical;
 \definition emptyClosed: Space.IsClosedIn source Space.Empty :=
   \idelim Space.Whole = Space.Complement Space.Empty \with U: \Pow A => Space.IsOpenIn source U \by {
-    base: #wholeOpen{(Space.topologyLaws source)},
+    base: (Space.topologyLaws source).wholeOpen,
     equality: \axiom:setext(Space.Whole, Space.Complement Space.Empty,
       \fun (x: A)(whole: _)(empty: Logic.False) => empty,
       \fun (x: A)(outside: _) => \refl(x))
   };
-\definition selected(cell: Cells.CellData)(limit: N.Nat^): \Pow A :=
-  { x: A \where Logic.And[Nat.Lt (#dimension{cell}) limit, \In[A] (Cells.ClosedImage cell) x] };
+\definition selected[cell: Cells.CellData][limit: N.Nat^]: \Pow A :=
+  { x: A \where Logic.And[Nat.Lt ((cell).dimension) limit, \In[A] (Cells.ClosedImage cell) x] };
 \definition selectedClosed: \forall (cell: Cells.CellData)(limit: N.Nat^) ->
   Space.IsClosedIn source (Cells.ClosedImage cell) -> Space.IsClosedIn source (selected cell limit) :=
-  \fun (cell: Cells.CellData)(limit: _)(closed: _) => either!{{(Classical.excludedMiddle (Nat.Lt (#dimension{cell}) limit))}
+  \fun (cell: Cells.CellData)(limit: _)(closed: _) => either!{{(Classical.excludedMiddle (Nat.Lt ((cell).dimension) limit))}
     {Space.IsClosedIn source (selected cell limit)}
     {\fun (below: _) => \idelim Cells.ClosedImage cell = selected cell limit
       \with U: \Pow A => Space.IsClosedIn source U \by {
         base: closed,
         equality: \axiom:setext(Cells.ClosedImage cell, selected cell limit,
           \fun (x: A)(contains: _) => Logic.And[_, _]::# below contains,
-          \fun (x: A)(member: \In[A] (selected cell limit) x) => #right{member})
+          \fun (x: A)(member: \In[A] (selected cell limit) x) => (member).right)
       }}
     {\fun (outside: _) => \idelim Space.Empty = selected cell limit
       \with U: \Pow A => Space.IsClosedIn source U \by {
         base: emptyClosed,
         equality: \axiom:setext(Space.Empty, selected cell limit,
           \fun (x: A)(impossible: Logic.False) => Logic.falseElim _ impossible,
-          \fun (x: A)(member: \In[A] (selected cell limit) x) => outside (#left{member}))
+          \fun (x: A)(member: \In[A] (selected cell limit) x) => outside ((member).left))
       }}
   };
-\definition unionNil(limit: N.Nat^): union Lists.List[Cells.CellData]::nil limit = Space.Empty :=
+\definition unionNil[limit: N.Nat^]: union Lists.List[Cells.CellData]::nil limit = Space.Empty :=
   \axiom:setext(union Lists.List[Cells.CellData]::nil limit, Space.Empty,
     \fun (x: A)(member: _) => eliminate Lists.List[Cells.CellData]::nil limit x Logic.False
       (\fun (cell: Cells.CellData)(impossible: Logic.False)(below: _)(contains: _) => impossible) member,
     \fun (x: A)(impossible: Logic.False) => Logic.falseElim _ impossible);
-\definition unionCons(cell: Cells.CellData)(family: Cells.Cells)(limit: N.Nat^):
+\definition unionCons[cell: Cells.CellData][family: Cells.Cells][limit: N.Nat^]:
   union (Lists.List[Cells.CellData]::cons cell family) limit = Finite.Join (selected cell limit) (union family limit) :=
   \axiom:setext(union (Lists.List[Cells.CellData]::cons cell family) limit, Finite.Join (selected cell limit) (union family limit),
     \fun (x: A)(member: _) => eliminate (Lists.List[Cells.CellData]::cons cell family) limit x
@@ -48,7 +48,7 @@
     \fun (x: A)(member: _) => either!{member
       {\In[A] (union (Lists.List[Cells.CellData]::cons cell family) limit) x}
       {\fun (here: \In[A] (selected cell limit) x) => include (Lists.List[Cells.CellData]::cons cell family) limit cell
-        (Logic.Or[_, _]::left (\refl(cell))) (#left{here}) x (#right{here})}
+        (Logic.Or[_, _]::left (\refl(cell))) ((here).left) x ((here).right)}
       {\fun (old: _) => eliminate family limit x
         (\In[A] (union (Lists.List[Cells.CellData]::cons cell family) limit) x)
         (\fun (other: Cells.CellData)(present: _)(below: _)(contains: _) =>
@@ -72,5 +72,5 @@
             equality: sym!{{\Pow A}} _ _ (unionCons cell family limit)
           }
     };
-\definition closed(limit: N.Nat^): Space.IsClosedIn source (subset limit) :=
-  finiteUnion cells limit (\fun (cell: Cells.CellData)(member: _) => #closed{(#cellLaws{laws} cell member)});
+\definition closed[limit: N.Nat^]: Space.IsClosedIn source (subset limit) :=
+  finiteUnion cells limit (\fun (cell: Cells.CellData)(member: _) => ((laws).cellLaws cell member).closed);

@@ -229,7 +229,7 @@ expect = "accept"
   \structure Box: \Set := {
     value: A,
   };
-  \definition Box::get(box: Box): A := Box::value box;
+  \definition Box::get[box: Box]: A := Box::value box;
   \definition boxed: Box := Box { value := a };
 }
 

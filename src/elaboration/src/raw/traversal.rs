@@ -62,7 +62,7 @@ pub(crate) enum Term {
 impl Term {
     /// Visit immediate children with their local binder depths.
     pub(crate) fn visit_children(self, arena: &Arena, mut visit: impl FnMut(Term, usize)) {
-        self.map_children(arena, |term, depth| {
+        self.transform_children::<false>(arena, |term, depth| {
             visit(term, depth);
             term
         });
@@ -91,13 +91,21 @@ impl Term {
     /// Only source view families are classified here. Child order and binder
     /// depths come from the kernel, including the binder in Program products.
     fn map_children(self, arena: &Arena, mut visit: impl FnMut(Term, usize) -> Term) -> Term {
+        self.transform_children::<true>(arena, &mut visit)
+    }
+
+    fn transform_children<const REWRITE: bool>(
+        self,
+        arena: &Arena,
+        mut visit: impl FnMut(Term, usize) -> Term,
+    ) -> Term {
         use kernel::syntax::Node as N;
         let mut expression = self.expression();
-        if let N::Definition { id, arguments } = arena.core.get(expression)
-            && !matches!(self, Self::Logical(_))
+        if !matches!(self, Self::Logical(_))
+            && let N::Definition { id, arguments } = &*arena.core.read(expression)
         {
             // Program views may expose a source template or an instantiated body.
-            expression = arena.reference_view(id, arguments, true);
+            expression = arena.reference_view(*id, arguments.clone(), true);
         }
         let node = arena.core.read(expression);
         // A reflected module parameter is one source identity.
@@ -118,71 +126,80 @@ impl Term {
         let value = |e| Self::Value(ValueTerm(e));
         let computation = |e| Self::Computation(ComputationTerm(e));
         let mut index = 0;
-        let result = arena
-            .core
-            .map_children(expression, |child, depth| {
-                let i = index;
-                index += 1;
-                let family = match (&*node, self, i) {
-                    (N::Meta { .. }, Self::Logical(_), _) => logical,
-                    (N::Meta { .. }, _, _) => {
-                        if kinds.as_ref().is_none_or(|k| k[i]) {
-                            value_type
-                        } else {
-                            value
-                        }
+        let mut child = |child, depth| {
+            let i = index;
+            index += 1;
+            let family = match (&*node, self, i) {
+                (N::Definition { id, .. }, Self::Logical(_), _) => {
+                    match arena.definition_capture_kind(*id, i) {
+                        Some(true) => value_type,
+                        Some(false) => value,
+                        None => logical,
                     }
-                    (N::BoxType { .. }, _, _)
-                    | (N::BoxProgram { .. } | N::ForceBox { .. }, _, 0) => computation_type,
-                    (N::BoxProgram { .. }, _, _) => computation,
-                    (N::ForceBox { .. }, _, _) | (_, Self::Logical(_), _) => logical,
-                    (N::Ascribe { .. }, Self::Value(_), 0) => value,
-                    (N::Ascribe { .. }, Self::Value(_), _) => value_type,
-                    (N::Ascribe { .. }, Self::Computation(_), 0) => computation,
-                    (N::Ascribe { .. }, Self::Computation(_), _) => computation_type,
-                    (N::Thunk { .. }, _, _) => computation_type,
-                    (N::ThunkValue { .. }, _, _) => computation,
-                    (
-                        N::Product { .. }
-                        | N::Lambda { .. }
-                        | N::Sequence { .. }
-                        | N::ValueLet { .. },
-                        _,
-                        0,
-                    ) => value_type,
-                    (N::Product { .. }, _, _) => computation_type,
-                    (N::Lambda { .. } | N::Sequence { .. }, _, _) => computation,
-                    (N::App { .. }, _, 0) => computation,
-                    (N::App { .. } | N::Return { .. } | N::Force { .. }, _, _) => value,
-                    (N::ReturnType { .. }, _, _) => value_type,
-                    (N::ValueLet { .. }, _, 1) => value,
-                    (N::ValueLet { .. }, _, _) => computation,
-                    (N::ProgramContinue { .. } | N::ProgramFinish { .. }, _, 0 | 1) => value_type,
-                    (N::ProgramContinue { .. } | N::ProgramFinish { .. }, _, _) => value,
-                    (N::ProgramRunStep { .. } | N::Inductive { .. }, _, _) => value_type,
-                    (N::InductiveConstructor { parameters, .. }, _, _) => {
-                        if i < parameters.len() {
-                            value_type
-                        } else {
-                            value
-                        }
-                    }
-                    (N::ProgramCase { .. }, _, 0) => value,
-                    (N::ProgramCase { .. }, _, _) => computation,
-                    (N::ProgramStepMatch { .. } | N::Run { .. } | N::RunCase { .. }, _, 0 | 1) => {
+                }
+                (N::Meta { .. }, Self::Logical(_), _) => logical,
+                (N::Meta { .. }, _, _) => {
+                    if kinds.as_ref().is_none_or(|k| k[i]) {
                         value_type
+                    } else {
+                        value
                     }
-                    (N::ProgramStepMatch { .. }, _, 2) => computation_type,
-                    (N::ProgramStepMatch { .. }, _, 5) => value,
-                    (N::ProgramStepMatch { .. }, _, _) => computation,
-                    (N::Run { .. } | N::RunCase { .. }, _, 2 | 3) => value,
-                    (N::RunCase { .. }, _, 4) => computation,
-                    (N::Run { .. } | N::RunCase { .. }, _, _) => logical,
-                    _ => unreachable!("source child family: {node:?}"),
-                };
-                Ok::<_, std::convert::Infallible>(visit(family(child), depth).expression())
-            })
-            .unwrap();
+                }
+                (N::BoxType { .. }, _, _) | (N::BoxProgram { .. } | N::ForceBox { .. }, _, 0) => {
+                    computation_type
+                }
+                (N::BoxProgram { .. }, _, _) => computation,
+                (N::ForceBox { .. }, _, _) | (_, Self::Logical(_), _) => logical,
+                (N::Ascribe { .. }, Self::Value(_), 0) => value,
+                (N::Ascribe { .. }, Self::Value(_), _) => value_type,
+                (N::Ascribe { .. }, Self::Computation(_), 0) => computation,
+                (N::Ascribe { .. }, Self::Computation(_), _) => computation_type,
+                (N::Thunk { .. }, _, _) => computation_type,
+                (N::ThunkValue { .. }, _, _) => computation,
+                (
+                    N::Product { .. } | N::Lambda { .. } | N::Sequence { .. } | N::ValueLet { .. },
+                    _,
+                    0,
+                ) => value_type,
+                (N::Product { .. }, _, _) => computation_type,
+                (N::Lambda { .. } | N::Sequence { .. }, _, _) => computation,
+                (N::App { .. }, _, 0) => computation,
+                (N::App { .. } | N::Return { .. } | N::Force { .. }, _, _) => value,
+                (N::ReturnType { .. }, _, _) => value_type,
+                (N::ValueLet { .. }, _, 1) => value,
+                (N::ValueLet { .. }, _, _) => computation,
+                (N::ProgramContinue { .. } | N::ProgramFinish { .. }, _, 0 | 1) => value_type,
+                (N::ProgramContinue { .. } | N::ProgramFinish { .. }, _, _) => value,
+                (N::ProgramRunStep { .. } | N::Inductive { .. }, _, _) => value_type,
+                (N::InductiveConstructor { parameters, .. }, _, _) => {
+                    if i < parameters.len() {
+                        value_type
+                    } else {
+                        value
+                    }
+                }
+                (N::ProgramCase { .. }, _, 0) => value,
+                (N::ProgramCase { .. }, _, _) => computation,
+                (N::ProgramStepMatch { .. } | N::Run { .. } | N::RunCase { .. }, _, 0 | 1) => {
+                    value_type
+                }
+                (N::ProgramStepMatch { .. }, _, 2) => computation_type,
+                (N::ProgramStepMatch { .. }, _, 5) => value,
+                (N::ProgramStepMatch { .. }, _, _) => computation,
+                (N::Run { .. } | N::RunCase { .. }, _, 2 | 3) => value,
+                (N::RunCase { .. }, _, 4) => computation,
+                (N::Run { .. } | N::RunCase { .. }, _, _) => logical,
+                _ => unreachable!("source child family: {node:?}"),
+            };
+            Ok::<_, std::convert::Infallible>(visit(family(child), depth).expression())
+        };
+        let result = if REWRITE {
+            arena.core.map_children(expression, child).unwrap()
+        } else {
+            node.try_for_each_child(|e, depth| child(e, depth).map(|_| ()))
+                .unwrap();
+            expression
+        };
         self.with_expression(result)
     }
 
@@ -225,7 +242,21 @@ impl Term {
                         None
                     }
                     Term::Logical(e) => match arena.get(e) {
-                        ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => reflected
+                        ExpNode::ModuleParam(id) => substitutions
+                            .iter()
+                            .find_map(|(p, argument)| {
+                                (*p == id).then_some(Term::Logical(match *argument {
+                                    ModuleArgument::Pts(e) => e,
+                                    ModuleArgument::ProgramType(t) => Exp(t.0),
+                                    ModuleArgument::ProgramValue(v) => Exp(v.0),
+                                }))
+                            })
+                            .or_else(|| {
+                                reflected
+                                    .iter()
+                                    .find_map(|(p, e)| (*p == id).then_some(Term::Logical(*e)))
+                            }),
+                        ExpNode::ReflectedProgramParam(id) => reflected
                             .iter()
                             .find_map(|(p, e)| (*p == id).then_some(Term::Logical(*e))),
                         _ => None,

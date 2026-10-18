@@ -1,32 +1,32 @@
-\structure Carrier: \Set {
+\structure Carrier: \Set := {
   index: Index,
   point: fibers index,
-}
-\definition injection(i: Index)(x: fibers i): Carrier := Carrier { index := i, point := x };
+};
+\definition injection[i: Index][x: fibers i]: Carrier := Carrier { index := i, point := x };
 \import topology.Topology[Carrier := Carrier] \as Space;
-\definition fiberTopology(i: Index): Space.Topology :=
+\definition fiberTopology[i: Index]: Space.Topology :=
   topological_constructions.Quotient[A := fibers i, B := Carrier].topology (spaces i) (injection i);
 \definition raw: Space.TopologyData := Space.TopologyData {
   openSets := { U: \Pow Carrier \where \forall (i: Index) -> Space.IsOpenIn (fiberTopology i) U },
 };
 \definition laws: Space.TopologyLaws[raw] := Space.TopologyLaws[raw] {
-  emptyOpen := \fun (i: Index) => #emptyOpen{(Space.topologyLaws (fiberTopology i))},
-  wholeOpen := \fun (i: Index) => #wholeOpen{(Space.topologyLaws (fiberTopology i))},
+  emptyOpen := \fun (i: Index) => (Space.topologyLaws (fiberTopology i)).emptyOpen,
+  wholeOpen := \fun (i: Index) => (Space.topologyLaws (fiberTopology i)).wholeOpen,
   unionOpen := \fun (family: \Pow (\Pow Carrier))(open: _)(i: Index) =>
-    #unionOpen{(Space.topologyLaws (fiberTopology i))} family (\fun (U: _)(member: _) => open U member i),
+    (Space.topologyLaws (fiberTopology i)).unionOpen family (\fun (U: _)(member: _) => open U member i),
   intersectionOpen := \fun (U, V: \Pow Carrier)(uo: _)(vo: _)(i: Index) =>
-    #intersectionOpen{(Space.topologyLaws (fiberTopology i))} U V (uo i) (vo i),
+    (Space.topologyLaws (fiberTopology i)).intersectionOpen U V (uo i) (vo i),
 };
 \definition topology: Space.Topology := \into[Space.TopologyData](raw, Space.Topology) \by { laws };
-\definition openCriterion(U: \Pow Carrier): std.Logic[].Proposition[].PropEquiv[Space.IsOpenIn topology U,
+\definition openCriterion[U: \Pow Carrier]: std.Logic[].Proposition[].PropEquiv[Space.IsOpenIn topology U,
   \forall (i: Index) -> topology.Topology[Carrier := fibers i].IsOpenIn (spaces i)
     ({ x: fibers i \where Space.Member U (injection i x) })] :=
   std.Logic[].Proposition[].PropEquiv[_, _] {
     ltr := \fun (open: _) => open,
     rtl := \fun (open: _) => open,
   };
-\definition eta: \forall (chart: Carrier) -> injection (#index{chart}) (#point{chart}) = chart :=
-  \induction (chart: Carrier) \return injection (#index{chart}) (#point{chart}) = chart \with {
+\definition eta: \forall (chart: Carrier) -> injection ((chart).index) ((chart).point) = chart :=
+  \induction (chart: Carrier) \return injection ((chart).index) ((chart).point) = chart \with {
     | # : \fun (i: Index)(x: fibers i) => \refl(injection i x)
   };
 \module At(i: Index);

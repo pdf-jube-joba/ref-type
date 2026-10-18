@@ -1,26 +1,26 @@
 \import \parent.Inverse[] \as Inverse;
 \import real.Analysis[] \as Real;
 \import dedekind_reals.DedekindReal[] \as R;
-\definition characteristic(x, y: Disk.Disk): Logic.PropEquiv[Attached.characteristic x = Attached.characteristic y, Boundary.BoundaryRelated x y] := Logic.PropEquiv[_, _] {
-  ltr := \fun (same: Attached.characteristic x = Attached.characteristic y) => #ltr{(Boundary.characterizes x y)}
+\definition characteristic[x, y: Disk.Disk]: Logic.PropEquiv[Attached.characteristic x = Attached.characteristic y, Boundary.BoundaryRelated x y] := Logic.PropEquiv[_, _] {
+  ltr := \fun (same: Attached.characteristic x = Attached.characteristic y) => (Boundary.characterizes x y).ltr
     (DiskClasses.equalRelated DiskQuotient.laws x y
       (trans!{DiskQuotient.Point} _ _ _ (sym!{DiskQuotient.Point} _ _ (forwardOnRight x))
         (trans!{DiskQuotient.Point} _ _ _ (congr!{Point DiskQuotient.Point} forward _ _ same) (forwardOnRight y)))),
-  rtl := \fun (related: Boundary.BoundaryRelated x y) => Inverse.respects x y (#rtl{(Boundary.characterizes x y)} related),
+  rtl := \fun (related: Boundary.BoundaryRelated x y) => Inverse.respects x y ((Boundary.characterizes x y).rtl related),
 };
-\definition interiorInjective(x, y: Disk.Disk)(interior: R.Lt (Disk.normSquared x) Real.one)
-  (same: Attached.characteristic x = Attached.characteristic y): x = y :=
-  Logic.orElim (x = y) (Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y]) (x = y) (#ltr{(characteristic x y)} same)
+\definition interiorInjective[x, y: Disk.Disk][interior: R.Lt (Disk.normSquared x) Real.one]
+  [same: Attached.characteristic x = Attached.characteristic y]: x = y :=
+  Logic.orElim (x = y) (Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y]) (x = y) ((characteristic x y).ltr same)
     (\fun (equal: x = y) => equal)
     (\fun (boundary: Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y]) => Logic.falseElim (x = y)
-      (R.ltIrrefl Real.one (R.ltReplaceLeft (Disk.normSquared x) Real.one Real.one (#left{boundary}) interior)));
+      (R.ltIrrefl Real.one (R.ltReplaceLeft (Disk.normSquared x) Real.one Real.one ((boundary).left) interior)));
 \import topological_constructions.RelationQuotient[A := Circle.Sphere, relation := Circle.Equivalent] \as CircleClasses;
-\definition boundarySeparates(x, y: Circle.Sphere)(same: boundaryProjection x = boundaryProjection y): Circle.Equivalent x y :=
+\definition boundarySeparates[x, y: Circle.Sphere][same: boundaryProjection x = boundaryProjection y]: Circle.Equivalent x y :=
   Logic.orElim (boundary x = boundary y)
     (Logic.And[Disk.normSquared (boundary x) = Real.one, boundary x = Boundary.negative (boundary y)]) (Circle.Equivalent x y)
-    (#ltr{(Boundary.characterizes (boundary x) (boundary y))} (DiskClasses.equalRelated DiskQuotient.laws (boundary x) (boundary y) same))
+    ((Boundary.characterizes (boundary x) (boundary y)).ltr (DiskClasses.equalRelated DiskQuotient.laws (boundary x) (boundary y) same))
     (\fun (equal: boundary x = boundary y) => Logic.Or[x = y, x = CircleAntipodal.apply y]::left equal)
-    (\fun (opposite: Logic.And[Disk.normSquared (boundary x) = Real.one, boundary x = Boundary.negative (boundary y)]) => Logic.Or[x = y, x = CircleAntipodal.apply y]::right (#right{opposite}));
+    (\fun (opposite: Logic.And[Disk.normSquared (boundary x) = Real.one, boundary x = Boundary.negative (boundary y)]) => Logic.Or[x = y, x = CircleAntipodal.apply y]::right ((opposite).right));
 \definition leftInjective: \forall (x, y: Circle.Carrier) -> left x = left y -> x = y := CircleClasses.induction
   (\fun (x: Circle.Carrier) => \forall (y: Circle.Carrier) -> left x = left y -> x = y)
   (\fun (x: Circle.Sphere) => CircleClasses.induction
@@ -28,24 +28,24 @@
     (\fun (y: Circle.Sphere)(same: left (Circle.class x) = left (Circle.class y)) => CircleClasses.relatedEqual Circle.laws x y
       (boundarySeparates x y (trans!{DiskQuotient.Point} _ _ _ (sym!{DiskQuotient.Point} _ _ (onCircleClass x))
         (trans!{DiskQuotient.Point} _ _ _ same (onCircleClass y))))));
-\definition baseInjective(x, y: Circle.Carrier)(same: Attached.inclusion x = Attached.inclusion y): x = y :=
+\definition baseInjective[x, y: Circle.Carrier][same: Attached.inclusion x = Attached.inclusion y]: x = y :=
   leftInjective x y (trans!{DiskQuotient.Point} _ _ _ (sym!{DiskQuotient.Point} _ _ (forwardOnLeft x))
     (trans!{DiskQuotient.Point} _ _ _ (congr!{Point DiskQuotient.Point} forward _ _ same) (forwardOnLeft y)));
-\definition BaseImage: \Pow Point := { p: Point \where \exists { x: Circle.Carrier \where Attached.inclusion x = p } };
-\definition baseMember(x: Circle.Carrier): \In[Point] BaseImage (Attached.inclusion x) :=
+\definition BaseImage: \Pow Point := { p: Point \where \exists ( x: Circle.Carrier \where Attached.inclusion x = p ) };
+\definition baseMember[x: Circle.Carrier]: \In[Point] BaseImage (Attached.inclusion x) :=
   Logic.existsIntro[Circle.Carrier, { y: Circle.Carrier \where Attached.inclusion y = Attached.inclusion x }] x (\refl(Attached.inclusion x));
-\definition boundaryInBase(x: Disk.Disk)(onBoundary: Disk.normSquared x = Real.one): \In[Point] BaseImage (Attached.characteristic x) := \block {
+\definition boundaryInBase[x: Disk.Disk][onBoundary: Disk.normSquared x = Real.one]: \In[Point] BaseImage (Attached.characteristic x) := \block {
   \let p: Circle.Sphere := \into[Disk.Coordinate](x, Disk.Boundary) \by { onBoundary } \then
   \return Logic.existsIntro[Circle.Carrier, { y: Circle.Carrier \where Attached.inclusion y = Attached.characteristic x }] (Circle.class p) (Attached.attached p)
 };
-\definition meetsBoundary(x: Disk.Disk)(y: Circle.Sphere)(same: Attached.characteristic x = Attached.inclusion (Circle.class y)): Disk.normSquared x = Real.one :=
+\definition meetsBoundary[x: Disk.Disk][y: Circle.Sphere][same: Attached.characteristic x = Attached.inclusion (Circle.class y)]: Disk.normSquared x = Real.one :=
   Logic.orElim (x = boundary y) (Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative (boundary y)]) (Disk.normSquared x = Real.one)
-    (#ltr{(characteristic x (boundary y))} (trans!{Point} _ _ _ same (Attached.attached y)))
+    ((characteristic x (boundary y)).ltr (trans!{Point} _ _ _ same (Attached.attached y)))
     (\fun (equal: x = boundary y) => trans!{Real.Real} _ _ _ (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ equal) (\bysub(Disk.Coordinate, Disk.Boundary, y)))
-    (\fun (opposite: Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative (boundary y)]) => #left{opposite});
-\definition meetsBase(x: Disk.Disk): \forall (q: Circle.Carrier) -> Attached.characteristic x = Attached.inclusion q -> Disk.normSquared x = Real.one := CircleClasses.induction
+    (\fun (opposite: Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative (boundary y)]) => (opposite).left);
+\definition meetsBase[x: Disk.Disk]: \forall (q: Circle.Carrier) -> Attached.characteristic x = Attached.inclusion q -> Disk.normSquared x = Real.one := CircleClasses.induction
   (\fun (q: Circle.Carrier) => Attached.characteristic x = Attached.inclusion q -> Disk.normSquared x = Real.one) (meetsBoundary x);
-\definition baseOnlyBoundary(x: Disk.Disk)(member: \In[Point] BaseImage (Attached.characteristic x)): Disk.normSquared x = Real.one := \block {
+\definition baseOnlyBoundary[x: Disk.Disk][member: \In[Point] BaseImage (Attached.characteristic x)]: Disk.normSquared x = Real.one := \block {
   \takefrom q: \Cast[Circle.Carrier] ({ q: Circle.Carrier \where Attached.inclusion q = Attached.characteristic x }) \by member \then
   \return meetsBase x q (sym!{Point} _ _ (\bysub(Circle.Carrier, { q: Circle.Carrier \where Attached.inclusion q = Attached.characteristic x }, q)))
 };

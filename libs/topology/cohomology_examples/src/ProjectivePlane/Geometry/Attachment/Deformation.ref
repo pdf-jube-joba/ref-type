@@ -21,14 +21,14 @@
     (trans!{Point} _ _ _ (sym!{Point} _ _ (Inverse.onDiskClass x))
       (trans!{Point} _ _ _ (congr!{DiskQuotient.Point Point} Inverse.backward _ _ (\bysub(Disk.Disk, { x: Disk.Disk \where DiskQuotient.projection x = forward p }, x))) (Inverse.leftInverse p)))
 };
-\definition diskPreimage(U: \Pow Point):
+\definition diskPreimage[U: \Pow Point]:
   { x: Disk.Disk \where \In[Point] U (Inverse.backward (DiskQuotient.projection x)) } = Characteristic.Preimage Attached.characteristic U :=
   \axiom:setext({ x: Disk.Disk \where \In[Point] U (Inverse.backward (DiskQuotient.projection x)) }, Characteristic.Preimage Attached.characteristic U,
     \fun (x: Disk.Disk)(member: \In[Point] U (Inverse.backward (DiskQuotient.projection x))) =>
       \idelim Inverse.backward (DiskQuotient.projection x) = Attached.characteristic x \with p: Point => \In[Point] U p \by { base: member, equality: Inverse.onDiskClass x },
     \fun (x: Disk.Disk)(member: \In[Point] U (Attached.characteristic x)) =>
       \idelim Attached.characteristic x = Inverse.backward (DiskQuotient.projection x) \with p: Point => \In[Point] U p \by { base: member, equality: sym!{Point} _ _ (Inverse.onDiskClass x) });
-\definition inversePreimage(U: \Pow Point):
+\definition inversePreimage[U: \Pow Point]:
   ForwardMaps.Preimage forward (BackwardMaps.Preimage Inverse.backward U) = U :=
   \axiom:setext(ForwardMaps.Preimage forward (BackwardMaps.Preimage Inverse.backward U), U,
     \fun (p: Point)(member: \In[Point] U (Inverse.backward (forward p))) =>
@@ -46,46 +46,46 @@
       equality: inversePreimage U
     },
 };
-\definition normOnFiber(x, y: Disk.Disk)(same: Attached.characteristic x = Attached.characteristic y): Disk.normSquared x = Disk.normSquared y :=
+\definition normOnFiber[x, y: Disk.Disk][same: Attached.characteristic x = Attached.characteristic y]: Disk.normSquared x = Disk.normSquared y :=
   Logic.orElim (x = y) (Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y])
-    (Disk.normSquared x = Disk.normSquared y) (#ltr{(Fibers.characteristic x y)} same)
+    (Disk.normSquared x = Disk.normSquared y) ((Fibers.characteristic x y).ltr same)
     (congr!{Disk.Disk Real.Real} (\fun (p: Disk.Disk) => Disk.normSquared p) x y)
     (\fun (opposite: Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y]) =>
-      trans!{Real.Real} _ _ _ (congr!{Disk.Disk Real.Real} (\fun (p: Disk.Disk) => Disk.normSquared p) _ _ (#right{opposite})) (Boundary.negativeNorm y));
-\definition RegionSet: \Pow Point := { p: Point \where \exists { x: Collar.Carrier \where Attached.characteristic x = p } };
-\definition toRegion(x: Disk.Disk)(member: DiskSpace.Member Collar.punctured x): \In[Point] RegionSet (Attached.characteristic x) :=
+      trans!{Real.Real} _ _ _ (congr!{Disk.Disk Real.Real} (\fun (p: Disk.Disk) => Disk.normSquared p) _ _ ((opposite).right)) (Boundary.negativeNorm y));
+\definition RegionSet: \Pow Point := { p: Point \where \exists ( x: Collar.Carrier \where Attached.characteristic x = p ) };
+\definition toRegion[x: Disk.Disk][member: DiskSpace.Member Collar.punctured x]: \In[Point] RegionSet (Attached.characteristic x) :=
   Logic.existsIntro[Collar.Carrier, { y: Collar.Carrier \where Attached.characteristic y = Attached.characteristic x }]
     (\into[Disk.Disk](x, Collar.punctured) \by { member }) (\refl(Attached.characteristic x));
-\definition fromRegion(x: Disk.Disk)(member: \In[Point] RegionSet (Attached.characteristic x)): DiskSpace.Member Collar.punctured x := \block {
+\definition fromRegion[x: Disk.Disk][member: \In[Point] RegionSet (Attached.characteristic x)]: DiskSpace.Member Collar.punctured x := \block {
   \takefrom y: \Cast[Collar.Carrier] ({ y: Collar.Carrier \where Attached.characteristic y = Attached.characteristic x }) \by member \then
   \return \fun (zero: Disk.normSquared x = Real.zero) => (\bysub(Disk.Disk, Collar.punctured, y))
     (trans!{Real.Real} _ _ _ (normOnFiber y x (\bysub(Collar.Carrier, { y: Collar.Carrier \where Attached.characteristic y = Attached.characteristic x }, y))) zero)
 };
 \definition regionPreimage: Characteristic.Preimage Attached.characteristic RegionSet = Collar.punctured :=
   \axiom:setext(Characteristic.Preimage Attached.characteristic RegionSet, Collar.punctured, fromRegion, toRegion);
-\definition regionOpen: Space.IsOpenIn pointTopology RegionSet := #reflectsOpen{quotientMap} RegionSet
+\definition regionOpen: Space.IsOpenIn pointTopology RegionSet := (quotientMap).reflectsOpen RegionSet
   (\idelim Collar.punctured = Characteristic.Preimage Attached.characteristic RegionSet \with U: \Pow Disk.Disk => DiskSpace.IsOpenIn Disk.diskTopology U
     \by { base: LocalDisk.puncturedOpen, equality: sym!{\Pow Disk.Disk} _ _ regionPreimage });
 \import Space.Subspace[S := RegionSet] \as RegionSpace;
 \definition Region: \Set := RegionSpace.CarrierSet;
 \definition regionTopology: topology.Topology[Carrier := Region].Topology := RegionSpace.topology pointTopology;
 \import Quotient.Restriction[q := Attached.characteristic, U := RegionSet].From[S := Collar.punctured] \as Cut;
-\definition project(x: Collar.Carrier): Region := Cut.map toRegion x;
+\definition project[x: Collar.Carrier]: Region := Cut.map toRegion x;
 \import topological_constructions.Quotient[A := Collar.Carrier, B := Region] \as RegionQuotient;
 \definition regionQuotient: RegionQuotient.IsQuotientMap[Collar.topology, regionTopology, project] :=
   Cut.quotientMap Disk.diskTopology pointTopology toRegion fromRegion quotientMap regionOpen;
-\definition induction(P: Region -> \Prop)(onDisk: \forall (x: Collar.Carrier) -> P (project x))(p: Region): P p := \block {
-  \takefrom x: \Cast[Collar.Carrier] ({ x: Collar.Carrier \where project x = p }) \by #onto{regionQuotient} p \then
+\definition induction[P: Region -> \Prop][onDisk: \forall (x: Collar.Carrier) -> P (project x)][p: Region]: P p := \block {
+  \takefrom x: \Cast[Collar.Carrier] ({ x: Collar.Carrier \where project x = p }) \by (regionQuotient).onto p \then
   \return \idelim project x = p \with q: Region => P q \by { base: onDisk x, equality: \bysub(Collar.Carrier, { x: Collar.Carrier \where project x = p }, x) }
 };
-\definition flowRespects(t: Interval.Carrier)(x, y: Collar.Carrier)(same: project x = project y): project (Collar.value t x) = project (Collar.value t y) :=
+\definition flowRespects[t: Interval.Carrier][x, y: Collar.Carrier][same: project x = project y]: project (Collar.value t x) = project (Collar.value t y) :=
   Logic.orElim (x = y) (Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y])
-    (project (Collar.value t x) = project (Collar.value t y)) (#ltr{(Fibers.characteristic x y)} same)
+    (project (Collar.value t x) = project (Collar.value t y)) ((Fibers.characteristic x y).ltr same)
     (congr!{Collar.Carrier Region} (\fun (p: Collar.Carrier) => project (Collar.value t p)) x y)
     (\fun (opposite: Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y]) =>
-      trans!{Region} _ _ _ (congr!{Collar.Carrier Region} project _ _ (Endpoints.fixesBoundary t x (#left{opposite})))
+      trans!{Region} _ _ _ (congr!{Collar.Carrier Region} project _ _ (Endpoints.fixesBoundary t x ((opposite).left)))
         (trans!{Region} _ _ _ same (sym!{Region} _ _ (congr!{Collar.Carrier Region} project _ _
-          (Endpoints.fixesBoundary t y (Inverse.oppositeBoundary x y (#left{opposite}) (#right{opposite})))))));
+          (Endpoints.fixesBoundary t y (Inverse.oppositeBoundary x y ((opposite).left) ((opposite).right)))))));
 \module Flow;
 \module Continuity;
 \module Retract;

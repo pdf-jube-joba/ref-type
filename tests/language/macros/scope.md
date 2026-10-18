@@ -358,7 +358,7 @@ expect = "accept"
 ```
 
 ```ref file=src/root.ref
-\module Playground { \structure Point[Carrier: \Set] { value: Carrier }
+\module Playground { \structure Point[Carrier: \Set] := { value: Carrier };
   \module T(A: \Set, point: Point[A]) { \macro value() := point.value; }
   \module M(A: \Set, a: A) {
     \definition law: a = a := \refl(value!{});

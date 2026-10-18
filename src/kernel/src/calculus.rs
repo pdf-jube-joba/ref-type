@@ -24,8 +24,18 @@ impl Instantiations {
         if arguments.is_empty() || arena.max_loose_bound(term).is_none() {
             return Ok(term);
         }
-        let id = self.arguments.intern(arguments.iter().copied());
-        substitute(arena, term, arguments, 0, id, &mut self.results)
+        // Inner arguments are shared prefixes: a subterm that does not mention
+        // the outer telescope can reuse its substitution across larger scopes.
+        let id = self.arguments.intern(arguments.iter().rev().copied());
+        substitute(
+            arena,
+            term,
+            arguments,
+            0,
+            id,
+            Some(&self.arguments),
+            &mut self.results,
+        )
     }
 
     pub fn len(&self) -> usize {
@@ -38,7 +48,7 @@ impl Instantiations {
     }
 
     pub fn finish_scratch(&mut self, arena: &Arena, mark: usize) {
-        self.arguments.truncate(mark);
+        let mark = self.arguments.finish_scratch(mark, |e| arena.is_live(*e));
         self.results.finish_scratch(|(term, arguments, _), result| {
             arguments.within(mark) && arena.is_live(*term) && arena.is_live(*result)
         });
@@ -111,6 +121,7 @@ pub fn instantiate_at(
         arguments,
         inner,
         ContextId::default(),
+        None,
         &mut Cache::default(),
     )
 }
@@ -121,18 +132,29 @@ fn substitute(
     arguments: &[Expression],
     inner: usize,
     id: ContextId,
+    contexts: Option<&ContextInterner<Expression>>,
     cache: &mut SubstitutionResults,
 ) -> Result<Expression, crate::error::Error> {
     fn walk(
         arena: &Arena,
         e: Expression,
-        arguments: &[Expression],
+        mut arguments: &[Expression],
         depth: usize,
-        id: ContextId,
+        mut id: ContextId,
+        contexts: Option<&ContextInterner<Expression>>,
         cache: &mut SubstitutionResults,
     ) -> Result<Expression, crate::error::Error> {
-        if arena.max_loose_bound(e).is_none_or(|i| i < depth) {
+        let Some(bound) = arena.max_loose_bound(e).filter(|&i| i >= depth) else {
             return Ok(e);
+        };
+        if let Some(contexts) = contexts
+            && bound - depth < arguments.len()
+        {
+            let unused = arguments.len() - (bound - depth + 1);
+            arguments = &arguments[unused..];
+            for _ in 0..unused {
+                id = contexts.parent(id);
+            }
         }
         if let Some(&e) = cache.get(&(e, id, depth)) {
             return Ok(e);
@@ -155,6 +177,7 @@ fn substitute(
                         .checked_add(bound)
                         .ok_or(crate::error::Error::BinderDepthOverflow)?,
                     id,
+                    contexts,
                     cache,
                 )
             })?,
@@ -178,7 +201,7 @@ fn substitute(
     {
         return Ok(e);
     }
-    walk(arena, e, arguments, inner, id, cache)
+    walk(arena, e, arguments, inner, id, contexts, cache)
 }
 
 /// Abstract an occurrence's distinct variable arguments into its declaration telescope.

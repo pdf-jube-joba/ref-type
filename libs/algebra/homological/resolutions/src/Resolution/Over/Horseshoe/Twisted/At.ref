@@ -6,86 +6,86 @@
 \import algebra.Group[].Of[Carrier := P.family.Carrier n, group := Left.additive] \as LeftGroup;
 \import Modules.Hom[V := P.family.Carrier (Nat.Nat^::succ n), W := P.family.Carrier n, source := P.family.space (Nat.Nat^::succ n), target := P.family.space n] \as LeftMaps;
 \definition leftDifferential: LeftMaps.Map := LeftMaps.Map {
-  apply := #apply{P.differential} n, addition := #addition{P.laws} n, scalar := #scalar{P.laws} n,
+  apply := P.differential.apply n, addition := P.laws.addition n, scalar := P.laws.scalar n,
 };
 \import Modules.Hom[V := Q.family.Carrier (Nat.Nat^::succ n), W := P.family.Carrier n, source := Q.family.space (Nat.Nat^::succ n), target := P.family.space n] \as TwistMaps;
 \definition twist: TwistMaps.Map := TwistMaps.Map {
-  apply := #apply{t} n, addition := #addition{t} n, scalar := #scalar{t} n,
+  apply := t.apply n, addition := t.addition n, scalar := t.scalar n,
 };
-\definition apply(x: Source.Carrier): Target.Carrier := Target.make
-  (#add{(P.family.space n)} (#apply{P.differential} n (Source.first x)) (#apply{t} n (Source.second x)))
-  (#apply{Q.differential} n (Source.second x));
-\definition addition: \forall (x, y: Source.Carrier) -> apply (#add{Source.space} x y) = #add{Target.space} (apply x) (apply y) :=
+\definition apply[x: Source.Carrier]: Target.Carrier := Target.make
+  ((P.family.space n).add (P.differential.apply n (Source.first x)) (t.apply n (Source.second x)))
+  (Q.differential.apply n (Source.second x));
+\definition addition: \forall (x, y: Source.Carrier) -> apply (Source.space.add x y) = Target.space.add (apply x) (apply y) :=
   \fun (x, y: Source.Carrier) => Pairs.ext _ _
     (trans!{{P.family.Carrier n}} _ _ _
-      (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} (#add{(P.family.space n)}) _ _ _ _
-        (#addition{P.laws} n (Source.first x) (Source.first y)) (#addition{t} n (Source.second x) (Source.second y)))
-      (LeftGroup.four (#apply{P.differential} n (Source.first x)) (#apply{P.differential} n (Source.first y)) (#apply{t} n (Source.second x)) (#apply{t} n (Source.second y))))
-    (#addition{Q.laws} n (Source.second x) (Source.second y));
-\definition scalar: \forall (a: R)(x: Source.Carrier) -> apply (#smul{Source.space} a x) = #smul{Target.space} a (apply x) :=
+      (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
+        (P.laws.addition n (Source.first x) (Source.first y)) (t.addition n (Source.second x) (Source.second y)))
+      (LeftGroup.four (P.differential.apply n (Source.first x)) (P.differential.apply n (Source.first y)) (t.apply n (Source.second x)) (t.apply n (Source.second y))))
+    (Q.laws.addition n (Source.second x) (Source.second y));
+\definition scalar: \forall (a: R)(x: Source.Carrier) -> apply (Source.space.smul a x) = Target.space.smul a (apply x) :=
   \fun (a: R)(x: Source.Carrier) => Pairs.ext _ _
     (trans!{{P.family.Carrier n}} _ _ _
-      (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} (#add{(P.family.space n)}) _ _ _ _
-        (#scalar{P.laws} n a (Source.first x)) (#scalar{t} n a (Source.second x)))
-      (sym!{{P.family.Carrier n}} _ _ (#vectorAdd{(P.family.space n)} a (#apply{P.differential} n (Source.first x)) (#apply{t} n (Source.second x)))))
-    (#scalar{Q.laws} n a (Source.second x));
+      (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
+        (P.laws.scalar n a (Source.first x)) (t.scalar n a (Source.second x)))
+      (sym!{{P.family.Carrier n}} _ _ ((P.family.space n).vectorAdd a (P.differential.apply n (Source.first x)) (t.apply n (Source.second x)))))
+    (Q.laws.scalar n a (Source.second x));
 \definition anticommuting: \forall (x: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
-  #apply{P.differential} n (#apply{t} (Nat.Nat^::succ n) x) = #neg{(P.family.space n)} (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) x)) :=
+  P.differential.apply n (t.apply (Nat.Nat^::succ n) x) = (P.family.space n).neg (t.apply n (Q.differential.apply (Nat.Nat^::succ n) x)) :=
   \fun (x: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => trans!{{P.family.Carrier n}} _ _ _
-    (#commutes{t} n x) (TwistMaps.negativePreserved twist (#apply{Q.differential} (Nat.Nat^::succ n) x));
+    (t.commutes n x) (TwistMaps.negativePreserved twist (Q.differential.apply (Nat.Nat^::succ n) x));
 \definition squareLeft: \forall (p: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)))(q: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
-  #add{(P.family.space n)}
-    (#apply{P.differential} n (#add{(P.family.space (Nat.Nat^::succ n))} (#apply{P.differential} (Nat.Nat^::succ n) p) (#apply{t} (Nat.Nat^::succ n) q)))
-    (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) q)) = #zero{(P.family.space n)} :=
+  (P.family.space n).add
+    (P.differential.apply n ((P.family.space (Nat.Nat^::succ n)).add (P.differential.apply (Nat.Nat^::succ n) p) (t.apply (Nat.Nat^::succ n) q)))
+    (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q)) = (P.family.space n).zero :=
   \fun (p: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)))(q: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) =>
     trans!{{P.family.Carrier n}} _ _ _
       (congr!{{P.family.Carrier n} {P.family.Carrier n}}
-        (\fun (z: P.family.Carrier n) => #add{(P.family.space n)} z (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) q))) _ _
-        (#addition{P.laws} n (#apply{P.differential} (Nat.Nat^::succ n) p) (#apply{t} (Nat.Nat^::succ n) q)))
+        (\fun (z: P.family.Carrier n) => (P.family.space n).add z (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q))) _ _
+        (P.laws.addition n (P.differential.apply (Nat.Nat^::succ n) p) (t.apply (Nat.Nat^::succ n) q)))
       (trans!{{P.family.Carrier n}} _ _ _
         (congr!{{P.family.Carrier n} {P.family.Carrier n}}
-          (\fun (z: P.family.Carrier n) => #add{(P.family.space n)} z (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) q))) _ _
-          (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} (#add{(P.family.space n)}) _ _ _ _
-            (#squareZero{P.laws} n p) (anticommuting q)))
+          (\fun (z: P.family.Carrier n) => (P.family.space n).add z (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q))) _ _
+          (congr2!{{P.family.Carrier n} {P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add) _ _ _ _
+            (P.laws.squareZero n p) (anticommuting q)))
         (trans!{{P.family.Carrier n}} _ _ _
           (congr!{{P.family.Carrier n} {P.family.Carrier n}}
-            (\fun (z: P.family.Carrier n) => #add{(P.family.space n)} z (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) q))) _ _
-            (LeftGroup.zeroLeft (#neg{(P.family.space n)} (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) q)))))
-          (LeftGroup.inverseLeft (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) q)))));
+            (\fun (z: P.family.Carrier n) => (P.family.space n).add z (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q))) _ _
+            (LeftGroup.zeroLeft ((P.family.space n).neg (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q)))))
+          (LeftGroup.inverseLeft (t.apply n (Q.differential.apply (Nat.Nat^::succ n) q)))));
 \definition squareZero: \forall (x: Before.Carrier) ->
   apply (Source.make
-    (#add{(P.family.space (Nat.Nat^::succ n))} (#apply{P.differential} (Nat.Nat^::succ n) (Before.first x)) (#apply{t} (Nat.Nat^::succ n) (Before.second x)))
-    (#apply{Q.differential} (Nat.Nat^::succ n) (Before.second x))) = #zero{Target.space} :=
-  \fun (x: Before.Carrier) => Pairs.ext _ _ (squareLeft (Before.first x) (Before.second x)) (#squareZero{Q.laws} n (Before.second x));
+    ((P.family.space (Nat.Nat^::succ n)).add (P.differential.apply (Nat.Nat^::succ n) (Before.first x)) (t.apply (Nat.Nat^::succ n) (Before.second x)))
+    (Q.differential.apply (Nat.Nat^::succ n) (Before.second x))) = Target.space.zero :=
+  \fun (x: Before.Carrier) => Pairs.ext _ _ (squareLeft (Before.first x) (Before.second x)) (Q.laws.squareZero n (Before.second x));
 
 \import Modules.Hom[V := Q.family.Carrier (Nat.Nat^::succ n), W := Q.family.Carrier n, source := Q.family.space (Nat.Nat^::succ n), target := Q.family.space n] \as RightMaps;
 \definition rightDifferential: RightMaps.Map := RightMaps.Map {
-  apply := #apply{Q.differential} n, addition := #addition{Q.laws} n, scalar := #scalar{Q.laws} n,
+  apply := Q.differential.apply n, addition := Q.laws.addition n, scalar := Q.laws.scalar n,
 };
 \definition inclusion: Modules.Hom[V := P.family.Carrier n, W := Target.Carrier, source := P.family.space n, target := Target.space].Map := Target.firstInjection;
 \definition projection: Modules.Hom[V := Target.Carrier, W := Q.family.Carrier n, source := Target.space, target := Q.family.space n].Map := Target.secondProjection;
 \definition inclusionCommutes: \forall (x: P.family.Carrier (Nat.Nat^::succ n)) ->
-  apply (#apply{Source.firstInjection} x) = #apply{Target.firstInjection} (#apply{P.differential} n x) :=
+  apply (Source.firstInjection.apply x) = Target.firstInjection.apply (P.differential.apply n x) :=
   \fun (x: P.family.Carrier (Nat.Nat^::succ n)) => Pairs.ext _ _
     (trans!{{P.family.Carrier n}} _ _ _
-      (congr!{{P.family.Carrier n} {P.family.Carrier n}} (#add{(P.family.space n)} (#apply{P.differential} n x)) _ _ (TwistMaps.zeroPreserved twist))
-      (LeftGroup.zeroRight (#apply{P.differential} n x))) (RightMaps.zeroPreserved rightDifferential);
+      (congr!{{P.family.Carrier n} {P.family.Carrier n}} ((P.family.space n).add (P.differential.apply n x)) _ _ (TwistMaps.zeroPreserved twist))
+      (LeftGroup.zeroRight (P.differential.apply n x))) (RightMaps.zeroPreserved rightDifferential);
 \definition projectionCommutes: \forall (x: Source.Carrier) ->
-  #apply{Q.differential} n (Source.second x) = Target.second (apply x) := \fun (x: Source.Carrier) => \refl(#apply{Q.differential} n (Source.second x));
-\definition injective: \forall (x, y: P.family.Carrier n) -> #apply{inclusion} x = #apply{inclusion} y -> x = y :=
+  Q.differential.apply n (Source.second x) = Target.second (apply x) := \fun (x: Source.Carrier) => \refl(Q.differential.apply n (Source.second x));
+\definition injective: \forall (x, y: P.family.Carrier n) -> inclusion.apply x = inclusion.apply y -> x = y :=
   \fun (x, y: P.family.Carrier n)(equal: _) => congr!{Target.Carrier {P.family.Carrier n}} Target.first _ _ equal;
-\definition onto: \forall (z: Q.family.Carrier n) -> \exists { y: Target.Carrier \where #apply{projection} y = z } :=
-  \fun (z: Q.family.Carrier n) => Logic.existsIntro[Target.Carrier, { y: Target.Carrier \where #apply{projection} y = z }] (#apply{Target.secondInjection} z)
+\definition onto: \forall (z: Q.family.Carrier n) -> \exists ( y: Target.Carrier \where projection.apply y = z ) :=
+  \fun (z: Q.family.Carrier n) => Logic.existsIntro[Target.Carrier, { y: Target.Carrier \where projection.apply y = z }] (Target.secondInjection.apply z)
     (\refl(z));
-\definition kernelImage: \forall (y: Target.Carrier) -> #apply{projection} y = #zero{(Q.family.space n)} ->
-  \exists { x: P.family.Carrier n \where #apply{inclusion} x = y } :=
-  \fun (y: Target.Carrier)(closed: _) => Logic.existsIntro[P.family.Carrier n, { x: P.family.Carrier n \where #apply{inclusion} x = y }] (Target.first y)
-    (Pairs.ext (#apply{inclusion} (Target.first y)) y (\refl(Target.first y)) (sym!{{Q.family.Carrier n}} _ _ closed));
+\definition kernelImage: \forall (y: Target.Carrier) -> projection.apply y = (Q.family.space n).zero ->
+  \exists ( x: P.family.Carrier n \where inclusion.apply x = y ) :=
+  \fun (y: Target.Carrier)(closed: _) => Logic.existsIntro[P.family.Carrier n, { x: P.family.Carrier n \where inclusion.apply x = y }] (Target.first y)
+    (Pairs.ext (inclusion.apply (Target.first y)) y (\refl(Target.first y)) (sym!{{Q.family.Carrier n}} _ _ closed));
 \import Modules.ShortExact[A := LeftResolution.term n, B := \parent.\parent.At[n := n].bundle, C := RightResolution.term n] \as Sequences;
 \definition sequenceData: Sequences.Data := Sequences.Data { inclusion := inclusion, projection := projection };
 \definition sequenceLaws: Sequences.Laws[sequenceData] := Sequences.Laws[sequenceData] {
-  injective := injective, onto := onto, kernelImage := kernelImage, zero := \fun (x: P.family.Carrier n) => \refl(#zero{(Q.family.space n)}),
+  injective := injective, onto := onto, kernelImage := kernelImage, zero := \fun (x: P.family.Carrier n) => \refl((Q.family.space n).zero),
 };
 \definition sequence: Sequences.Sequence := \into[Sequences.Data](sequenceData, { data: Sequences.Data \where Sequences.Laws[data] }) \by { sequenceLaws };
 \definition section: Modules.Hom[V := Q.family.Carrier n, W := Target.Carrier, source := Q.family.space n, target := Target.space].Map := Target.secondInjection;
-\definition splitting: \forall (x: Q.family.Carrier n) -> #apply{projection} (#apply{section} x) = x := \fun (x: Q.family.Carrier n) => \refl(x);
+\definition splitting: \forall (x: Q.family.Carrier n) -> projection.apply (section.apply x) = x := \fun (x: Q.family.Carrier n) => \refl(x);

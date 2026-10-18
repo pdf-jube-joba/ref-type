@@ -58,8 +58,6 @@ pub struct Environment {
     shifted: RefCell<Cache<(Expression, usize), Expression>>,
     #[serde(skip)]
     instantiations: RefCell<Instantiations>,
-    #[serde(skip)]
-    minimum_bounds: RefCell<Cache<(Expression, usize), Option<usize>>>,
 }
 impl Default for Environment {
     fn default() -> Self {
@@ -80,7 +78,6 @@ impl Default for Environment {
             heads: RefCell::default(),
             shifted: RefCell::default(),
             instantiations: RefCell::default(),
-            minimum_bounds: RefCell::default(),
         }
     }
 }
@@ -123,7 +120,7 @@ impl Environment {
     pub fn datatype(&self, id: ProgramInductiveId) -> Option<&Datatype> {
         self.datatypes.get(&id)
     }
-    pub fn cache_counts(&self) -> [(&'static str, usize); 9] {
+    pub fn cache_counts(&self) -> [(&'static str, usize); 8] {
         [
             ("heads", self.heads.borrow().len()),
             ("inferred", self.inferred.borrow().len()),
@@ -133,7 +130,6 @@ impl Environment {
             ("instantiations", self.instantiations.borrow().len()),
             ("checked", self.checked.borrow().len()),
             ("validated contexts", self.validated_contexts.borrow().len()),
-            ("minimum bounds", self.minimum_bounds.borrow().len()),
         ]
     }
     pub fn declaration_node_count(&self) -> usize {
@@ -173,62 +169,6 @@ impl Environment {
             .borrow_mut()
             .apply(&self.arena, term, arguments)
     }
-    /// The nearest ambient binder used by a term, including its certificates.
-    pub(crate) fn minimum_loose_bound(&self, term: Expression) -> Option<usize> {
-        fn walk(
-            arena: &Arena,
-            term: Expression,
-            depth: usize,
-            cache: &mut Cache<(Expression, usize), Option<usize>>,
-        ) -> Option<usize> {
-            if arena
-                .max_loose_bound(term)
-                .is_none_or(|index| index < depth)
-            {
-                return None;
-            }
-            if let Some(&bound) = cache.get(&(term, depth)) {
-                return bound;
-            }
-            let result = if let Node::Bound(index) = arena.get(term) {
-                (index >= depth).then(|| index - depth)
-            } else {
-                let mut result = None;
-                for (child, binders) in arena.children(term) {
-                    if let Some(bound) = walk(arena, child, depth + binders, cache) {
-                        result = Some(result.map_or(bound, |old: usize| old.min(bound)));
-                        if result == Some(0) {
-                            break;
-                        }
-                    }
-                }
-                result
-            };
-            cache.insert((term, depth), result);
-            result
-        }
-        walk(&self.arena, term, 0, &mut self.minimum_bounds.borrow_mut())
-    }
-    /// Remove unused newest bindings through the shared substitution cache.
-    pub(crate) fn trim_unused(
-        &self,
-        term: Expression,
-        count: usize,
-    ) -> Result<Expression, crate::error::Error> {
-        if count == 0 {
-            return Ok(term);
-        }
-        if self
-            .minimum_loose_bound(term)
-            .is_some_and(|bound| bound < count)
-        {
-            return Err(crate::error::Error::ExpressionDependsOnRemovedBinder);
-        }
-        self.instantiate(
-            term,
-            &vec![self.arena.sort(Sort::Base(BaseSort::Set(0))); count],
-        )
-    }
     pub(crate) fn shifted(
         &self,
         ty: Expression,
@@ -266,18 +206,7 @@ impl Environment {
         Ok(())
     }
     pub fn contains_parameter(&self, expression: Expression) -> bool {
-        let mut pending = vec![expression];
-        let mut seen = rustc_hash::FxHashSet::default();
-        while let Some(e) = pending.pop() {
-            if !seen.insert(e) {
-                continue;
-            }
-            if matches!(self.arena.get(e), Node::Parameter(_)) {
-                return true;
-            }
-            pending.extend(self.arena.children(e).into_iter().map(|(e, _)| e));
-        }
-        false
+        self.arena.contains_parameter(expression)
     }
     pub fn definition(&self, id: DefinitionId) -> Result<&Definition, crate::error::Error> {
         if id.arena != self.identity {
@@ -330,7 +259,7 @@ impl Environment {
     pub fn erased_head(&self, mut e: Expression) -> Result<Expression, crate::error::Error> {
         loop {
             e = self.whnf(e)?;
-            if let Node::SubsetIntro { element, .. } = self.arena.get(e) {
+            if let Node::SubsetIntro { element, .. } = *self.arena.read(e) {
                 e = element;
             } else {
                 return Ok(e);
@@ -554,7 +483,6 @@ impl Environment {
         self.conversions.borrow_mut().begin_scratch();
         self.checked.borrow_mut().begin_scratch();
         self.validated_contexts.borrow_mut().begin_scratch();
-        self.minimum_bounds.borrow_mut().begin_scratch();
         self.shifted.borrow_mut().begin_scratch();
         let substitutions = self.instantiations.borrow_mut().begin_scratch();
         let result = self.register_definition_inner(metas, definition);
@@ -564,14 +492,15 @@ impl Environment {
             roots.extend([definition.ty, definition.body]);
             roots.extend(definition.context.iter().map(|b| b.ty));
         }
-        // Contexts interned during registration are temporary inference keys.
-        // Discard them with their cache entries instead of retaining their entire DAGs.
-        self.contexts.borrow_mut().truncate(contexts);
         if let Err(crate::metavariables::Error::TypeMismatch(error)) = &result {
             roots.extend([error.term, error.inferred, error.expected]);
             roots.extend(error.context.iter().map(|b| b.ty));
         }
         let removed = self.arena.finish_scratch(mark, roots) > 0;
+        let contexts = self
+            .contexts
+            .borrow_mut()
+            .finish_scratch(contexts, |ty| !removed || self.arena.is_live(*ty));
         self.heads.borrow_mut().finish_scratch(|key, value| {
             !removed || self.arena.is_live(*key) && self.arena.is_live(*value)
         });
@@ -595,9 +524,6 @@ impl Environment {
         self.validated_contexts
             .borrow_mut()
             .finish_scratch(|context, _| context.within(contexts));
-        self.minimum_bounds
-            .borrow_mut()
-            .finish_scratch(|(term, _), _| !removed || self.arena.is_live(*term));
         self.shifted.borrow_mut().finish_scratch(|(ty, _), result| {
             !removed || self.arena.is_live(*ty) && self.arena.is_live(*result)
         });
@@ -808,6 +734,28 @@ impl Environment {
 impl crate::reflection::Resolver for Environment {
     fn arena(&self) -> &Arena {
         &self.arena
+    }
+    fn context_replacement(
+        &self,
+        term: Expression,
+    ) -> Result<Option<Expression>, crate::error::Error> {
+        let Node::Definition { id, arguments } = self.arena.get(term) else {
+            return Ok(None);
+        };
+        let definition = self.definition(id)?;
+        let mut metas = crate::metavariables::MetaContext::new();
+        let mut context = vec![];
+        for binding in &definition.context {
+            if crate::check::Checker::new(self, &mut metas, context.clone())
+                .formation(binding.ty)?
+                .base()
+                .is_program()
+            {
+                return self.instantiate(definition.body, &arguments).map(Some);
+            }
+            context.push(binding.clone());
+        }
+        Ok(None)
     }
     fn definition(
         &self,

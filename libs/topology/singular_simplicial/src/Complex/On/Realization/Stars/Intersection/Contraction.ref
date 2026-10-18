@@ -4,30 +4,30 @@
 \import Real.Distance[] \as Distance;
 \import Real.Estimates[] \as Estimates;
 \import Estimates.Product[] \as Positive;
-\definition ambient(t: Interval.Carrier)(y: Carrier): Geometric.Carrier d := Convex.blend t y centre;
+\definition ambient[t: Interval.Carrier][y: Carrier]: Geometric.Carrier d := Convex.blend t y centre;
 \definition realized: \forall (t: Interval.Carrier)(y: Carrier) -> \In[Geometric.Carrier d] Realization.Points (ambient t y) := \block {
   \fun (t: Interval.Carrier)(y: Carrier) \then
   \takefrom w: Realization.Witness[y] \by Realization.witness y \then
-  \let contained: \parent.InHull[m := #dimension{w}, vertices := #vertices{w}].Contained :=
+  \let contained: \parent.InHull[m := (w).dimension, vertices := (w).vertices].Contained :=
     \fun (i: Fin.Fin (N.Nat^::succ n)) => Realization.Support[].witnessContains y w (sigma i)
       (\fun (zero: y (sigma i) = Real.zero) => Reals.ltIrrefl Real.zero
         (\idelim y (sigma i) = Real.zero \with r: Real.Real => Reals.Lt Real.zero r \by {
           base: (\bysub(Realization.Carrier, Points, y)) i, equality: zero
         })) \then
   \let inHull: \In[Geometric.Carrier d]
-    (Geometric.Affine[m := #dimension{w}, n := d].Hull[vertices := Geometric.Reindex[m := #dimension{w}, n := d].vertices #vertices{w}].Points) (ambient t y) :=
-    \idelim Geometric.Reindex[m := #dimension{w}, n := d].apply #vertices{w} #point{w} = y
+    (Geometric.Affine[m := (w).dimension, n := d].Hull[vertices := Geometric.Reindex[m := (w).dimension, n := d].vertices (w).vertices].Points) (ambient t y) :=
+    \idelim Geometric.Reindex[m := (w).dimension, n := d].apply (w).vertices (w).point = y
       \with z: Geometric.Carrier d => \In[Geometric.Carrier d]
-        (Geometric.Affine[m := #dimension{w}, n := d].Hull[vertices := Geometric.Reindex[m := #dimension{w}, n := d].vertices #vertices{w}].Points)
+        (Geometric.Affine[m := (w).dimension, n := d].Hull[vertices := Geometric.Reindex[m := (w).dimension, n := d].vertices (w).vertices].Points)
         (Convex.blend t z centre) \by {
-          base: \parent.InHull[m := #dimension{w}, vertices := #vertices{w}].blend contained #point{w} t, equality: #equation{w}
+          base: \parent.InHull[m := (w).dimension, vertices := (w).vertices].blend contained (w).point t, equality: (w).equation
         } \then
-  \takefrom x: \Cast[Geometric.Carrier #dimension{w}] ({ x: Geometric.Carrier #dimension{w} \where
-    Geometric.Reindex[m := #dimension{w}, n := d].apply #vertices{w} x = ambient t y }) \by inHull \then
+  \takefrom x: \Cast[Geometric.Carrier (w).dimension] ({ x: Geometric.Carrier (w).dimension \where
+    Geometric.Reindex[m := (w).dimension, n := d].apply (w).vertices x = ambient t y }) \by inHull \then
   \return \exact(Realization.Witness[ambient t y] {
-    dimension := #dimension{w}, vertices := #vertices{w}, face := #face{w}, point := x,
-    equation := \bysub(Geometric.Carrier #dimension{w}, { x: Geometric.Carrier #dimension{w} \where
-      Geometric.Reindex[m := #dimension{w}, n := d].apply #vertices{w} x = ambient t y }, x),
+    dimension := (w).dimension, vertices := (w).vertices, face := (w).face, point := x,
+    equation := \bysub(Geometric.Carrier (w).dimension, { x: Geometric.Carrier (w).dimension \where
+      Geometric.Reindex[m := (w).dimension, n := d].apply (w).vertices x = ambient t y }, x),
   }, Realization.Witness[ambient t y])
 };
 \definition scalarPositive: \forall (t: Interval.Carrier)(a, b: Real.Real) -> Reals.Lt Real.zero a -> Reals.Lt Real.zero b ->
@@ -41,17 +41,17 @@
   \let lower: Reals.Le u (Real.add (Real.mul (Interval.reverse t) a) (Real.mul t b)) :=
     Reals.leReplaceLeft (Real.add (Real.mul (Interval.reverse t) u) (Real.mul t u)) u _ equal
       (Estimates.addLe _ _ _ _
-        (Estimates.mulMonotone (Interval.reverse t) u a (#left{(Interval.bounds (Interval.reverse t))}) (Distance.minLeft a b))
-        (Estimates.mulMonotone t u b (#left{(Interval.bounds t)}) (Distance.minRight a b))) \then
+        (Estimates.mulMonotone (Interval.reverse t) u a ((Interval.bounds (Interval.reverse t)).left) (Distance.minLeft a b))
+        (Estimates.mulMonotone t u b ((Interval.bounds t).left) (Distance.minRight a b))) \then
   \return Reals.ltLeTrans Real.zero u _ (Positive.minPositive a b left right) lower
 };
 \definition positive: \forall (t: Interval.Carrier)(y: Carrier)(i: Fin.Fin (N.Nat^::succ n)) ->
   Reals.Lt Real.zero (ambient t y (sigma i)) :=
   \fun (t: Interval.Carrier)(y: Carrier)(i: Fin.Fin (N.Nat^::succ n)) => scalarPositive t (y (sigma i)) (centre (sigma i))
     ((\bysub(Realization.Carrier, Points, y)) i) (Intersection.positive i);
-\definition apply(t: Interval.Carrier)(y: Carrier): Carrier :=
+\definition apply[t: Interval.Carrier][y: Carrier]: Carrier :=
   \into[Realization.Carrier](\into[Geometric.Carrier d](ambient t y, Realization.Points) \by { realized t y }, Points) \by { positive t y };
-\definition inclusion(y: Carrier): Geometric.Carrier d := y;
+\definition inclusion[y: Carrier]: Geometric.Carrier d := y;
 \import topology.Continuity[A := Carrier, B := Realization.Carrier].Corestriction[S := Points] \as IntoRealization;
 \import topology.Continuity[A := Realization.Carrier, B := Geometric.Carrier d].Corestriction[S := Realization.Points] \as IntoAmbient;
 \import topology.Composition[A := Carrier, B := Realization.Carrier, C := Geometric.Carrier d] \as Composition;
@@ -66,13 +66,13 @@
     (\fun (y: Geometric.Carrier d) => y) (\fun (_: Geometric.Carrier d) => centre) (Geometric.Contraction[n := d].homotopy centre)
     inclusion inclusionContinuous;
 \import algebraic_topology.Cylinder[A := Carrier] \as Cylinder;
-\definition family(p: Cylinder.Carrier): Carrier := apply (Cylinder.time p) (Cylinder.point p);
+\definition family[p: Cylinder.Carrier]: Carrier := apply (Cylinder.time p) (Cylinder.point p);
 \import topology.Continuity[A := Cylinder.Carrier, B := Geometric.Carrier d].Corestriction[S := Realization.Points] \as First;
 \import topology.Continuity[A := Cylinder.Carrier, B := Realization.Carrier].Corestriction[S := Points] \as Second;
 \definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous (Cylinder.topology topology) topology family :=
   Second.corestrictContinuous (Cylinder.topology topology) Realization.topology family
     (First.corestrictContinuous (Cylinder.topology topology) (Geometric.At[n := d].topology) (\fun (p: Cylinder.Carrier) => family p)
-      (#continuous{(AmbientHomotopy.laws topology (Geometric.At[n := d].topology) inclusion (\fun (_: Carrier) => centre) ambientHomotopy)}));
+      ((AmbientHomotopy.laws topology (Geometric.At[n := d].topology) inclusion (\fun (_: Carrier) => centre) ambientHomotopy).continuous));
 \import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Homotopy;
 \definition homotopy: Homotopy.Homotopy[topology, topology, (\fun (y: Carrier) => y), (\fun (_: Carrier) => point)] :=
   \into[Homotopy.Family](family, Homotopy.Homotopy[topology, topology, (\fun (y: Carrier) => y), (\fun (_: Carrier) => point)]) \by {

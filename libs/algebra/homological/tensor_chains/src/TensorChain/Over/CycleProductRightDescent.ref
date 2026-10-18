@@ -18,21 +18,21 @@
 \definition input: Modules.Hom[V := Reversed.Carrier, W := H.Homology,
   source := Reversed.space, target := H.homologySpace].Map := Input.compose Exterior.map InputSwap.forward;
 \definition onInput: \forall (y: Right.Cycle)(x: Left.Cycle) ->
-  #apply{input} (Reversed.tensor y x) = Exterior.classOf x y :=
+  input.apply (Reversed.tensor y x) = Exterior.classOf x y :=
   \fun (y: Right.Cycle)(x: Left.Cycle) => trans!{H.Homology}
-    (#apply{input} (Reversed.tensor y x)) (#apply{Exterior.map} (Cycles.tensor x y)) (Exterior.classOf x y)
-    (congr!{Cycles.Carrier H.Homology} (#apply{Exterior.map}) _ _ (InputSwap.onTensor y x))
+    (input.apply (Reversed.tensor y x)) (Exterior.map.apply (Cycles.tensor x y)) (Exterior.classOf x y)
+    (congr!{Cycles.Carrier H.Homology} (Exterior.map.apply) _ _ (InputSwap.onTensor y x))
     (Exterior.onTensor x y);
 \import Modules.TensorDescent[B := rightCycles, C := rightHomology, N := leftCycles, U := target].On[
   q := Right.classLinear, f := input] \as Descent;
 \definition onto: Descent.Onto :=
   Right.classInduction
-    (\fun (h: Right.Homology) => \exists { y: Right.Cycle \where Right.classOf y = h })
+    (\fun (h: Right.Homology) => \exists ( y: Right.Cycle \where Right.classOf y = h ))
     (\fun (y: Right.Cycle) => Existential.existsIntro[Right.Cycle, { z: Right.Cycle \where Right.classOf z = Right.classOf y }] y
       (\refl(Right.classOf y)));
 \definition kills: Descent.Kills :=
-  \fun (y: Right.Cycle)(zero: Right.classOf y = #zero{Right.homologySpace})(x: Left.Cycle) =>
-    trans!{H.Homology} (#apply{input} (Reversed.tensor y x)) (Exterior.classOf x y) #zero{H.homologySpace}
+  \fun (y: Right.Cycle)(zero: Right.classOf y = Right.homologySpace.zero)(x: Left.Cycle) =>
+    trans!{H.Homology} (input.apply (Reversed.tensor y x)) (Exterior.classOf x y) H.homologySpace.zero
       (onInput y x) (Boundaries.vanishes (Grading.add p q) q (\refl(Grading.add p q)) x y (Right.zeroClassBoundary y zero));
 \import Modules.Tensor[V := Right.Homology, W := Left.Cycle,
   left := Right.homologySpace, right := Left.cycleSpace] \as ReversedTarget;
@@ -45,9 +45,9 @@
 \definition map: Modules.Hom[V := Source.Carrier, W := H.Homology,
   source := Source.space, target := H.homologySpace].Map := Output.compose (Descent.map onto kills) OutputSwap.forward;
 \definition onTensor: \forall (x: Left.Cycle)(y: Right.Cycle) ->
-  #apply{map} (Source.tensor x (Right.classOf y)) = Exterior.classOf x y :=
+  map.apply (Source.tensor x (Right.classOf y)) = Exterior.classOf x y :=
   \fun (x: Left.Cycle)(y: Right.Cycle) => trans!{H.Homology}
     _ _ _
-    (congr!{ReversedTarget.Carrier H.Homology} (#apply{(Descent.map onto kills)}) _ _ (OutputSwap.onTensor x (Right.classOf y)))
+    (congr!{ReversedTarget.Carrier H.Homology} ((Descent.map onto kills).apply) _ _ (OutputSwap.onTensor x (Right.classOf y)))
     (trans!{H.Homology} _ _ _ (Descent.onTensor onto kills (Right.classOf y) x)
       (trans!{H.Homology} _ _ _ (Descent.At[y := x].onImage onto kills y) (onInput y x)));

@@ -9,30 +9,30 @@
   source := Diagonal.space, target := H.cohomologySpace] \as Maps;
 \definition exterior: Maps.Map := Universal.extension components;
 \definition onInjection: \forall (i: HomologyTotal.Index n)(x: Diagonal.family.Carrier i) ->
-  #apply{exterior} (#apply{(Diagonal.Component[i := i].injection)} x) =
-  #apply{(Exterior.At[i := i].map)} x := Universal.onInjection components;
+  exterior.apply ((Diagonal.Component[i := i].injection).apply x) =
+  (Exterior.At[i := i].map).apply x := Universal.onInjection components;
 \definition unique: \forall (f: Maps.Map) ->
   (\forall (i: HomologyTotal.Index n)(x: Diagonal.family.Carrier i) ->
-    #apply{f} (#apply{(Diagonal.Component[i := i].injection)} x) =
-    #apply{(Exterior.At[i := i].map)} x) -> f = exterior :=
+    f.apply ((Diagonal.Component[i := i].injection).apply x) =
+    (Exterior.At[i := i].map).apply x) -> f = exterior :=
   \fun (f: Maps.Map)(on: \forall (i: HomologyTotal.Index n)(x: Diagonal.family.Carrier i) ->
-    #apply{f} (#apply{(Diagonal.Component[i := i].injection)} x) =
-    #apply{(Exterior.At[i := i].map)} x) =>
+    f.apply ((Diagonal.Component[i := i].injection).apply x) =
+    (Exterior.At[i := i].map).apply x) =>
     Universal.ext f exterior (\fun (i: HomologyTotal.Index n)(x: Diagonal.family.Carrier i) =>
       trans!{H.Cohomology} _ _ _ (on i x) (sym!{H.Cohomology} _ _ (onInjection i x)));
 \module Component(i: HomologyTotal.Index n) {
-  \import Cochains.At[C := Left.complex, k := #first{i}] \as LH;
-  \import Cochains.At[C := Right.complex, k := #second{i}] \as RH;
+  \import Cochains.At[C := Left.complex, k := i.first] \as LH;
+  \import Cochains.At[C := Right.complex, k := i.second] \as RH;
   \import Modules.Tensor[V := LH.Cohomology, W := RH.Cohomology,
     left := LH.cohomologySpace, right := RH.cohomologySpace] \as Tensor;
-  \definition product(x: LH.CycleCarrier)(y: RH.CycleCarrier): Diagonal.Carrier :=
-    #apply{(Diagonal.Component[i := i].injection)} (Tensor.tensor (LH.classOf x) (RH.classOf y));
+  \definition product[x: LH.CycleCarrier][y: RH.CycleCarrier]: Diagonal.Carrier :=
+    (Diagonal.Component[i := i].injection).apply (Tensor.tensor (LH.classOf x) (RH.classOf y));
   \import Exterior.At[i := i] \as E;
-  \import Exterior.Pair[p := #first{i}, q := #second{i}].Formula[m := n] \as Formula;
+  \import Exterior.Pair[p := i.first, q := i.second].Formula[m := n] \as Formula;
   \import Tensors.IndexedCycleProduct[C := Left.complex, D := Right.complex, n := n].At[
     i := Formula.index (Degrees.degree n i)] \as Cycles;
   \definition onClass: \forall (x: LH.CycleCarrier)(y: RH.CycleCarrier) ->
-    #apply{exterior} (product x y) = Cycles.classOf x y :=
+    exterior.apply (product x y) = Cycles.classOf x y :=
     \fun (x: LH.CycleCarrier)(y: RH.CycleCarrier) => trans!{H.Cohomology} _ _ _
       (onInjection i (Tensor.tensor (LH.classOf x) (RH.classOf y))) (E.onClass x y);
   \import Modules.Hom[V := Diagonal.family.Carrier i, W := H.Cohomology,
@@ -42,21 +42,21 @@
     source := Diagonal.space, target := H.cohomologySpace].Composition[
     U := Diagonal.family.Carrier i, domain := Diagonal.family.space i] \as Restrict;
   \definition ComponentMap: \Set := ComponentMaps.Map;
-  \definition Characterizes(f: Maps.Map): \Prop :=
-    \forall (x: LH.CycleCarrier)(y: RH.CycleCarrier) -> #apply{f} (product x y) = Cycles.classOf x y;
+  \definition Characterizes[f: Maps.Map]: \Prop :=
+    \forall (x: LH.CycleCarrier)(y: RH.CycleCarrier) -> f.apply (product x y) = Cycles.classOf x y;
   \definition determines: \forall (f: Maps.Map) ->
-    (\forall (x: LH.CycleCarrier)(y: RH.CycleCarrier) -> #apply{f} (product x y) = Cycles.classOf x y) ->
+    (\forall (x: LH.CycleCarrier)(y: RH.CycleCarrier) -> f.apply (product x y) = Cycles.classOf x y) ->
     Restrict.compose f (Diagonal.Component[i := i].injection) = E.map :=
     \fun (f: Maps.Map)(same: _) => TensorUniversal.ext
       (Restrict.compose f (Diagonal.Component[i := i].injection)) E.map
       (LH.classInduction
         (\fun (x: LH.Cohomology) => \forall (y: RH.Cohomology) ->
-          #apply{f} (#apply{(Diagonal.Component[i := i].injection)} (Tensor.tensor x y)) =
-          #apply{E.map} (Tensor.tensor x y))
+          f.apply ((Diagonal.Component[i := i].injection).apply (Tensor.tensor x y)) =
+          E.map.apply (Tensor.tensor x y))
         (\fun (x: LH.CycleCarrier) => RH.classInduction
           (\fun (y: RH.Cohomology) =>
-            #apply{f} (#apply{(Diagonal.Component[i := i].injection)} (Tensor.tensor (LH.classOf x) y)) =
-            #apply{E.map} (Tensor.tensor (LH.classOf x) y))
+            f.apply ((Diagonal.Component[i := i].injection).apply (Tensor.tensor (LH.classOf x) y)) =
+            E.map.apply (Tensor.tensor (LH.classOf x) y))
           (\fun (y: RH.CycleCarrier) => trans!{H.Cohomology} _ _ _ (same x y)
             (sym!{H.Cohomology} _ _ (E.onClass x y)))));
 }
@@ -65,7 +65,7 @@
   \fun (f: Maps.Map)(same: _) => unique f
     (\fun (i: HomologyTotal.Index n)(x: Diagonal.family.Carrier i) =>
       congr!{{Component[i := i].ComponentMap} H.Cohomology}
-        (\fun (h: Component[i := i].ComponentMap) => #apply{h} x)
+        (\fun (h: Component[i := i].ComponentMap) => h.apply x)
         _ _ (Component[i := i].determines f (same i)));
 \import std.Logic[].Proposition[] \as Existential;
 \module Chosen(s: Splittings) {
@@ -73,47 +73,47 @@
   \import Selected.ExteriorComparison[] \as Comparison;
   \import Modules.Hom[V := H.Cohomology, W := Diagonal.Carrier,
     source := H.cohomologySpace, target := Diagonal.space] \as ForwardMaps;
-  \definition forward: ForwardMaps.Map := #forward{Selected.isomorphism};
-  \definition backward: Maps.Map := #backward{Selected.isomorphism};
+  \definition forward: ForwardMaps.Map := Selected.isomorphism.forward;
+  \definition backward: Maps.Map := Selected.isomorphism.backward;
   \definition isomorphism: _ := Selected.isomorphism;
   \definition exteriorEquality: backward = exterior := Comparison.backwardExterior;
   \definition rightInverse: \forall (x: Diagonal.Carrier) ->
-    #apply{forward} (#apply{exterior} x) = x :=
+    forward.apply (exterior.apply x) = x :=
     \fun (x: Diagonal.Carrier) => trans!{Diagonal.Carrier} _ _ _
-      (congr!{H.Cohomology Diagonal.Carrier} (#apply{forward}) _ _
-        (sym!{H.Cohomology} _ _ (congr!{Maps.Map H.Cohomology} (\fun (f: Maps.Map) => #apply{f} x) _ _ exteriorEquality)))
-      (#rightInverse{Selected.isomorphism} x);
+      (congr!{H.Cohomology Diagonal.Carrier} (forward.apply) _ _
+        (sym!{H.Cohomology} _ _ (congr!{Maps.Map H.Cohomology} (\fun (f: Maps.Map) => f.apply x) _ _ exteriorEquality)))
+      (Selected.isomorphism.rightInverse x);
   \definition leftInverse: \forall (h: H.Cohomology) ->
-    #apply{exterior} (#apply{forward} h) = h :=
+    exterior.apply (forward.apply h) = h :=
     \fun (h: H.Cohomology) => trans!{H.Cohomology} _ _ _
       (sym!{H.Cohomology} _ _
         (congr!{Maps.Map H.Cohomology}
-          (\fun (f: Maps.Map) => #apply{f} (#apply{forward} h)) _ _ exteriorEquality))
-      (#leftInverse{Selected.isomorphism} h);
+          (\fun (f: Maps.Map) => f.apply (forward.apply h)) _ _ exteriorEquality))
+      (Selected.isomorphism.leftInverse h);
 }
 \import Modules.Isomorphism[V := Diagonal.Carrier, W := H.Cohomology,
   source := Diagonal.space, target := H.cohomologySpace].OfBijective[f := exterior] \as Bijective;
 \definition injective: Bijective.Injective := \block {
-  \fun (x, y: Diagonal.Carrier)(same: #apply{exterior} x = #apply{exterior} y) \then
+  \fun (x, y: Diagonal.Carrier)(same: exterior.apply x = exterior.apply y) \then
   \takefrom s: Splittings \by splittingExistence \then
   \return trans!{Diagonal.Carrier} _ _ _ (sym!{Diagonal.Carrier} _ _ (Chosen[s := s].rightInverse x))
     (trans!{Diagonal.Carrier} _ _ _
-      (congr!{H.Cohomology Diagonal.Carrier} (#apply{Chosen[s := s].forward}) _ _ same)
+      (congr!{H.Cohomology Diagonal.Carrier} ((Chosen[s := s].forward).apply) _ _ same)
       (Chosen[s := s].rightInverse y))
 };
 \definition onto: Bijective.Onto := \block {
   \fun (h: H.Cohomology) \then
   \takefrom s: Splittings \by splittingExistence \then
-  \return Existential.existsIntro[Diagonal.Carrier, { x: Diagonal.Carrier \where #apply{exterior} x = h }]
-    (#apply{Chosen[s := s].forward} h) (Chosen[s := s].leftInverse h)
+  \return Existential.existsIntro[Diagonal.Carrier, { x: Diagonal.Carrier \where exterior.apply x = h }]
+    ((Chosen[s := s].forward).apply h) (Chosen[s := s].leftInverse h)
 };
 \definition isomorphism: Modules.Isomorphism[V := Diagonal.Carrier, W := H.Cohomology,
   source := Diagonal.space, target := H.cohomologySpace].Isomorphism := Bijective.isomorphism injective onto;
 \import Modules.Hom[V := H.Cohomology, W := Diagonal.Carrier,
   source := H.cohomologySpace, target := Diagonal.space] \as InverseMaps;
-\definition inverse: InverseMaps.Map := #backward{isomorphism};
-\definition inverseOnExterior: \forall (x: Diagonal.Carrier) -> #apply{inverse} (#apply{exterior} x) = x := #leftInverse{isomorphism};
-\definition exteriorOnInverse: \forall (h: H.Cohomology) -> #apply{exterior} (#apply{inverse} h) = h := #rightInverse{isomorphism};
+\definition inverse: InverseMaps.Map := isomorphism.backward;
+\definition inverseOnExterior: \forall (x: Diagonal.Carrier) -> inverse.apply (exterior.apply x) = x := isomorphism.leftInverse;
+\definition exteriorOnInverse: \forall (h: H.Cohomology) -> exterior.apply (inverse.apply h) = h := isomorphism.rightInverse;
 \module Splitting(s: Splittings) {
   \import \parent.Chosen[s := s] \as Old;
   \import Modules.Hom[V := H.Cohomology, W := Diagonal.Carrier,
@@ -122,14 +122,14 @@
   \definition forwardEquality: Old.forward = inverse :=
     Forwards.ext Old.forward inverse
       (\fun (h: H.Cohomology) => trans!{Diagonal.Carrier} _ _ _
-        (congr!{H.Cohomology Diagonal.Carrier} (#apply{Old.forward}) _ _
+        (congr!{H.Cohomology Diagonal.Carrier} (Old.forward.apply) _ _
           (sym!{H.Cohomology} _ _ (exteriorOnInverse h)))
-        (Old.rightInverse (#apply{inverse} h)));
+        (Old.rightInverse (inverse.apply h)));
 }
 \import Modules.Hom[V := H.Cohomology, W := Diagonal.Carrier,
   source := H.cohomologySpace, target := Diagonal.space] \as SelectedMaps;
-\definition selectedForward(s: Splittings): SelectedMaps.Map := Chosen[s := s].forward;
-\definition selectedBackward(s: Splittings): Maps.Map := Chosen[s := s].backward;
+\definition selectedForward[s: Splittings]: SelectedMaps.Map := Chosen[s := s].forward;
+\definition selectedBackward[s: Splittings]: Maps.Map := Chosen[s := s].backward;
 \definition selectedForwardCanonical: \forall (s: Splittings) -> selectedForward s = inverse :=
   \fun (s: Splittings) => Splitting[s := s].forwardEquality;
 \definition selectedBackwardCanonical: \forall (s: Splittings) -> selectedBackward s = exterior :=

@@ -678,12 +678,12 @@ mod tests {
 
     const A: &str = r"\module A {
         \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
-        \definition identity(x: Nat): Nat := x;
+        \definition identity[x: Nat]: Nat := x;
         \macro identity($x) := $x;
-        \module Box(T: \Set) { \definition apply(x: T): T := x; }
+        \module Box(T: \Set) { \definition apply[x: T]: T := x; }
     }";
     const NOISE: &str = r"\module Noise {
-        \definition proof(P: \Prop)(p: P): P := p;
+        \definition proof[P: \Prop][p: P]: P := p;
     }";
     const B: &str = r"\module B {
         \import \root.A[] \as A;
@@ -1021,7 +1021,7 @@ mod tests {
     fn partial_artifacts_merge_in_both_orders_and_keep_missing_scopes_pending() {
         let source = r"\module Parts {
             \inductive T: \Set := | zero: T;
-            \module Box(A: \Set) { \definition apply(x: A): A := x; }
+            \module Box(A: \Set) { \definition apply[x: A]: A := x; }
             \import Box[A := T] \as Common;
             \module Left { \definition left: T := Common.apply T::zero; }
             \module Right {

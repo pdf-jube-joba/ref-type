@@ -29,8 +29,6 @@ pub enum Error {
         ty: Option<Box<Node>>,
         sort: Option<BaseSort>,
     },
-    BoxPayloadMustBeClosed,
-    BoxRequiresAClosedComputationType,
     BoxTypeBinderRequiresProgramKind,
     ProgramDatatypeMirrorDoesNotMatchItsDeclaration,
     ProgramTypeDependsOnAValueParameter,
@@ -45,7 +43,6 @@ pub enum Error {
     BoxedApplicationRequiresBoxAB,
     BoxedFunctionTypeMustBeProduct,
     BoxedTypeApplicationRequiresABoxedTypeAbstraction,
-    BoxedTypeArgumentMustBeClosed,
     CaseBranchBinderCountMismatch,
     CaseBranchCountMismatch,
     CaseResultTypeDependsOnFields,
@@ -203,10 +200,6 @@ impl std::fmt::Display for Error {
                 }
                 Ok(())
             }
-            Self::BoxPayloadMustBeClosed => f.write_str("Box payload must be closed"),
-            Self::BoxRequiresAClosedComputationType => {
-                f.write_str("Box requires a closed computation type")
-            }
             Self::BoxTypeBinderRequiresProgramKind => {
                 f.write_str("Box type binder requires Program kind")
             }
@@ -236,9 +229,6 @@ impl std::fmt::Display for Error {
             }
             Self::BoxedTypeApplicationRequiresABoxedTypeAbstraction => {
                 f.write_str("boxed type application requires a boxed type abstraction")
-            }
-            Self::BoxedTypeArgumentMustBeClosed => {
-                f.write_str("boxed type argument must be closed")
             }
             Self::CaseBranchBinderCountMismatch => f.write_str("case branch binder count mismatch"),
             Self::CaseBranchCountMismatch => f.write_str("case branch count mismatch"),

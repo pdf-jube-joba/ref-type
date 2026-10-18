@@ -2,7 +2,7 @@
 \import Modules.Free[Generators := TargetGenerators] \as Ambient;
 \import Modules.Free[Generators := Generators] \as Original;
 \import Original.Reindex[TargetGenerators := TargetGenerators] \as Reindex;
-\definition Fiber(t: TargetGenerators): \Set := \Cast[Generators] ({ s: Generators \where f s = t });
+\definition Fiber[t: TargetGenerators]: \Set := \Cast[Generators] ({ s: Generators \where f s = t });
 \definition Complement: \Pow TargetGenerators := { t: TargetGenerators \where Logic.Not (\exists Fiber t) };
 \import Ambient.Subset[S := Complement] \as Outside;
 \import Outside.Projection[] \as Projection;
@@ -14,13 +14,13 @@
 \import Sub.Image[U := Original.Carrier, source := Original.space] \as Image;
 \definition image: Sub.Submodule := Image.image inclusion;
 \import Sub.Quotient[S := image] \as Quotient;
-\definition onImage: \forall (s: Generators) -> Quotient.class (Ambient.generator (f s)) = #zero{Quotient.moduleSpace} :=
+\definition onImage: \forall (s: Generators) -> Quotient.class (Ambient.generator (f s)) = (Quotient.moduleSpace).zero :=
   \fun (s: Generators) => Quotient.classZero (Ambient.generator (f s)) (Image.introduce inclusion (Ambient.generator (f s)) (Original.generator s) (Reindex.onGenerator f s));
 \import Modules.Hom[V := Carrier, W := Quotient.Carrier, source := space, target := Quotient.moduleSpace] \as Forward;
 \import Modules.Hom[V := Ambient.Carrier, W := Quotient.Carrier, source := Ambient.space, target := Quotient.moduleSpace]
   .Composition[U := Carrier, domain := space] \as ForwardComposition;
 \definition forward: Forward.Map := ForwardComposition.compose Quotient.projection Outside.inclusion;
-\definition forwardOnGenerator: \forall (s: Outside.Selected) -> #apply{forward} (generator s) = Quotient.class (Ambient.generator s) :=
+\definition forwardOnGenerator: \forall (s: Outside.Selected) -> (forward).apply (generator s) = Quotient.class (Ambient.generator s) :=
   \fun (s: Outside.Selected) => congr!{Ambient.Carrier Quotient.Carrier} Quotient.class _ _ (Outside.onGenerator s);
 \import Modules.Hom[V := Ambient.Carrier, W := Carrier, source := Ambient.space, target := space]
   .Composition[U := Original.Carrier, domain := Original.space] \as IntoComplement;
@@ -28,20 +28,20 @@
 \definition zeroOnImage: IntoComplement.compose Projection.map inclusion = OriginalMaps.zeroMap :=
   Original.To[W := Carrier, target := space].ext _ _
     (\fun (s: Generators) => trans!{Carrier} _ _ _
-      (congr!{Ambient.Carrier Carrier} (#apply{Projection.map}) _ _ (Reindex.onGenerator f s))
+      (congr!{Ambient.Carrier Carrier} ((Projection.map).apply) _ _ (Reindex.onGenerator f s))
       (Projection.outside (f s) (\fun (outside: \In[TargetGenerators] Complement (f s)) =>
         outside (Logic.existsIntro[Generators, { a: Generators \where f a = f s }] s (\refl(f s))))));
 \import Quotient.To[W := Carrier, target := space] \as Descent;
 \definition vanishes: Descent.Vanishes Projection.map :=
-  \fun (x: Ambient.Carrier)(member: _) => Image.eliminate inclusion x (#apply{Projection.map} x = #zero{space})
-    (\fun (y: Original.Carrier)(same: #apply{inclusion} y = x) => trans!{Carrier} _ _ _
-      (congr!{Ambient.Carrier Carrier} (#apply{Projection.map}) _ _ (sym!{Ambient.Carrier} _ _ same))
-      (congr!{OriginalMaps.Map Carrier} (\fun (g: OriginalMaps.Map) => #apply{g} y) _ _ zeroOnImage)) member;
+  \fun (x: Ambient.Carrier)(member: _) => Image.eliminate inclusion x ((Projection.map).apply x = (space).zero)
+    (\fun (y: Original.Carrier)(same: (inclusion).apply y = x) => trans!{Carrier} _ _ _
+      (congr!{Ambient.Carrier Carrier} ((Projection.map).apply) _ _ (sym!{Ambient.Carrier} _ _ same))
+      (congr!{OriginalMaps.Map Carrier} (\fun (g: OriginalMaps.Map) => (g).apply y) _ _ zeroOnImage)) member;
 \definition backward: Modules.Hom[V := Quotient.Carrier, W := Carrier, source := Quotient.moduleSpace, target := space].Map := Descent.descend Projection.map vanishes;
-\definition backwardOnClass: \forall (x: Ambient.Carrier) -> #apply{backward} (Quotient.class x) = #apply{Projection.map} x := Descent.onClass Projection.map vanishes;
+\definition backwardOnClass: \forall (x: Ambient.Carrier) -> (backward).apply (Quotient.class x) = (Projection.map).apply x := Descent.onClass Projection.map vanishes;
 \module Left;
 \module Right;
-\definition leftInverse: \forall (x: Carrier) -> #apply{backward} (#apply{forward} x) = x := Left[].law;
-\definition rightInverse: \forall (q: Quotient.Carrier) -> #apply{forward} (#apply{backward} q) = q := Right[].law;
+\definition leftInverse: \forall (x: Carrier) -> (backward).apply ((forward).apply x) = x := Left[].law;
+\definition rightInverse: \forall (q: Quotient.Carrier) -> (forward).apply ((backward).apply q) = q := Right[].law;
 \import Modules.Isomorphism[V := Carrier, W := Quotient.Carrier, source := space, target := Quotient.moduleSpace] \as Iso;
 \definition isomorphism: Iso.Isomorphism := Iso.Isomorphism { forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };

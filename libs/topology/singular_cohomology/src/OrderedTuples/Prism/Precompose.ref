@@ -1,12 +1,12 @@
 \import \root.OrderedTuples[V := U] \as Source;
 \import Source.Mapping[W := V] \as Before;
 \import Source.Prism[W := W] \as Other;
-\definition Property(n: N.Nat^): \Prop := \forall (f, g: V -> W)(k: U -> V)(v: Source.Tuple n) ->
+\definition Property[n: N.Nat^]: \Prop := \forall (f, g: V -> W)(k: U -> V)(v: Source.Tuple n) ->
   value n f g (Before.onTuple n k v) = Other.value n (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x)) v;
 \module Step(n: N.Nat^);
 \definition valueLaw: \forall (n: N.Nat^) -> Property n :=
   \induction (n: N.Nat^) \return Property n \with {
-    | zero: \fun (f, g: V -> W)(k: U -> V)(v: Source.Tuple N.Nat^::zero) => \refl(#zero{(Codomain.space (N.Nat^::succ N.Nat^::zero))})
+    | zero: \fun (f, g: V -> W)(k: U -> V)(v: Source.Tuple N.Nat^::zero) => \refl((Codomain.space (N.Nat^::succ N.Nat^::zero)).zero)
     | succ: \fun (n: N.Nat^)(previous: Property n) => Step[n := n].law previous
   };
 \module At(n: N.Nat^) {
@@ -16,11 +16,11 @@
   \import Modules.Hom[V := Source.Carrier n, W := Codomain.Carrier (N.Nat^::succ n), source := Source.space n, target := Codomain.space (N.Nat^::succ n)] \as Maps;
   \definition equation: \forall (f, g: V -> W)(k: U -> V) -> Composition.compose (map n f g) (Before.push n k) = Other.map n (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x)) :=
     \fun (f, g: V -> W)(k: U -> V) => Free.ext _ _ (\fun (v: Source.Tuple n) => trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
-      (congr!{{Domain.Carrier n} {Codomain.Carrier (N.Nat^::succ n)}} (#apply{(map n f g)}) _ _ (Before.At[n := n].onGenerator k v))
+      (congr!{{Domain.Carrier n} {Codomain.Carrier (N.Nat^::succ n)}} ((map n f g).apply) _ _ (Before.At[n := n].onGenerator k v))
       (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (\parent.\parent.At[n := n].onGenerator f g (Before.onTuple n k v))
         (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (valueLaw n f g k v)
           (sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ (Other.At[n := n].onGenerator (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x)) v)))));
   \definition law: \forall (f, g: V -> W)(k: U -> V)(x: Source.Carrier n) ->
-    #apply{(map n f g)} (#apply{(Before.push n k)} x) = #apply{(Other.map n (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x)))} x :=
-    \fun (f, g: V -> W)(k: U -> V)(x: Source.Carrier n) => congr!{Maps.Map {Codomain.Carrier (N.Nat^::succ n)}} (\fun (h: Maps.Map) => #apply{h} x) _ _ (equation f g k);
+    (map n f g).apply ((Before.push n k).apply x) = (Other.map n (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x))).apply x :=
+    \fun (f, g: V -> W)(k: U -> V)(x: Source.Carrier n) => congr!{Maps.Map {Codomain.Carrier (N.Nat^::succ n)}} (\fun (h: Maps.Map) => (h).apply x) _ _ (equation f g k);
 }

@@ -178,7 +178,7 @@ impl<'a> Lowerer<'a> {
         m: ModuleId,
     ) -> Result<ke::Context, crate::error::Error> {
         let mut prefix = ctx[..self.scope.logical_base].to_vec();
-        let mut result = self.capture_context(false)?;
+        let mut result = self.capture_context(self.scope.program_context)?;
         for b in &ctx[self.scope.logical_base..] {
             let classifier = self.set(b.ty, &mut prefix, m)?;
             result.push(ke::Binding {

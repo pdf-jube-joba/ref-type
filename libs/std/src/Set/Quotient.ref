@@ -7,7 +7,7 @@
 \use QuotientEquality.trans;
 
 /* The equivalence class represented by x. */
-\definition ClassOf(x: A): \Pow A :=
+\definition ClassOf[x: A]: \Pow A :=
   { y: A \where Equivalent x y };
 
 /* Equivalent representatives determine the same subset. */
@@ -18,18 +18,18 @@
   ClassOf x = ClassOf y :=
   \fun (laws: EquivalenceLaws) (x, y: A) (xy: Equivalent x y) =>
     \axiom:setext(ClassOf x, ClassOf y,
-      \fun (z: A)(xz: _) => #trans{laws} y x z (#sym{laws} x y xy) xz,
-      \fun (z: A)(yz: _) => #trans{laws} x y z xy yz);
+      \fun (z: A)(xz: _) => laws.trans y x z (laws.sym x y xy) xz,
+      \fun (z: A)(yz: _) => laws.trans x y z xy yz);
 
-\definition Representative(C: \Pow A): \Set :=
+\definition Representative[C: \Pow A]: \Set :=
   \Cast[A] ({ x: A \where C = ClassOf x });
 
-\definition represents(C: \Pow A)(x: Representative C): C = ClassOf x :=
+\definition represents[C: \Pow A][x: Representative C]: C = ClassOf x :=
   \bysub(A, Representative C, x);
 
-\definition IsClass(C: \Pow A): \Prop := \exists Representative C;
+\definition IsClass[C: \Pow A]: \Prop := \exists Representative C;
 
-\definition isClassOf(C: \Pow A)(x: A): C = ClassOf x -> IsClass C :=
+\definition isClassOf[C: \Pow A][x: A]: C = ClassOf x -> IsClass C :=
   \fun (same: _) => \exact(\into[A](x, Representative C) \by { same }, Representative C);
 
 \definition ClassSet: \Pow (\Pow A) :=
@@ -39,43 +39,43 @@
 \definition Carrier: \Set :=
   \Cast[\Pow A] ClassSet;
 
-\definition mem(C: Carrier)(x: A): \Prop := \In[A] C x;
+\definition mem[C: Carrier][x: A]: \Prop := \In[A] C x;
 
-\definition underlying(x: Carrier): \Pow A := x;
+\definition underlying[x: Carrier]: \Pow A := x;
 
 /* Equality on the quotient is equality of its subsets. */
-\definition Eq(x, y: Carrier): \Prop := x = y;
+\definition Eq[x, y: Carrier]: \Prop := x = y;
 
-\definition eqByExt(x, y: Carrier):
+\definition eqByExt[x, y: Carrier]:
   (\forall (z: A) -> mem x z -> mem y z) ->
   (\forall (z: A) -> mem y z -> mem x z) ->
   Eq x y := \fun (xy: _) (yx: _) =>
     \axiom:setext(underlying x, underlying y, xy, yx);
 
 /* Every representative gives a genuine member of the quotient. */
-\definition classIsClass(x: A): IsClass (ClassOf x) :=
+\definition classIsClass[x: A]: IsClass (ClassOf x) :=
   isClassOf (ClassOf x) x (\refl(ClassOf x));
 
-\definition class(x: A): Carrier :=
+\definition class[x: A]: Carrier :=
   \into[\Pow A](ClassOf x, ClassSet) \by { classIsClass x };
 
-\definition classMem(x, y: A):
+\definition classMem[x, y: A]:
   Equivalent x y -> mem (class x) y := \fun (xy: _) => xy;
 
-\definition relatedOfClassMem(x, y: A):
+\definition relatedOfClassMem[x, y: A]:
   mem (class x) y -> Equivalent x y := \fun (xy: _) => xy;
 
-\definition classProperty(C: Carrier): IsClass C := \bysub(\Pow A, ClassSet, C);
+\definition classProperty[C: Carrier]: IsClass C := \bysub(\Pow A, ClassSet, C);
 
 /* Propositions on the quotient are proved on representatives. */
-\definition induction(P: Carrier -> \Prop):
+\definition induction[P: Carrier -> \Prop]:
   (\forall (x: A) -> P (class x)) -> \forall (C: Carrier) -> P C := \block {
     \fun (step: \forall (x: A) -> P (class x))(C: Carrier) \then
     \takefrom x: Representative C \by classProperty C \then
     \return \idelim class x = C \with D: Carrier => P D
       \by { base: step x, equality: sym!{Carrier} C (class x) (represents C x) }
   };
-\definition induction2(P: Carrier -> Carrier -> \Prop): (\forall (x, y: A) -> P (class x) (class y)) -> \forall (C, D: Carrier) -> P C D :=
+\definition induction2[P: Carrier -> Carrier -> \Prop]: (\forall (x, y: A) -> P (class x) (class y)) -> \forall (C, D: Carrier) -> P C D :=
   \fun (step: \forall (x, y: A) -> P (class x) (class y)) => induction (\fun (C: Carrier) => \forall (D: Carrier) -> P C D)
     (\fun (x: A) => induction (P (class x)) (step x));
 
@@ -86,7 +86,7 @@
   Equivalent x y :=
   \fun (laws: EquivalenceLaws) (x, y: A) (e: ClassOf x = ClassOf y) =>
     \idelim ClassOf y = ClassOf x \with C: \Pow A => \In[A] C y
-      \by { base: #refl{laws} y, equality: sym!{\Pow A} (ClassOf x) (ClassOf y) e };
+      \by { base: laws.refl y, equality: sym!{\Pow A} (ClassOf x) (ClassOf y) e };
 
 \definition sameClassRelated:
   EquivalenceLaws ->
@@ -100,15 +100,15 @@
         (sym!{\Pow A} C (ClassOf x) cx) cy);
 
 /* Relational images lift representative-independent operations to the quotient. */
-\definition UnaryRespects(f: A -> A): \Prop :=
+\definition UnaryRespects[f: A -> A]: \Prop :=
   \forall (x, y: A) -> Equivalent x y -> Equivalent (f x) (f y);
 
-\structure UnaryWitness[f: A -> A, C: \Pow A, z: A]: \Set {
+\structure UnaryWitness[f: A -> A, C: \Pow A, z: A]: \Set := {
   representative: Representative C,
   related: Equivalent (f representative) z,
-}
+};
 
-\definition UnaryImage(f: A -> A)(C: \Pow A): \Pow A :=
+\definition UnaryImage[f: A -> A][C: \Pow A]: \Pow A :=
   { z: A \where \exists UnaryWitness[f, C, z] };
 
 \definition unaryImageClass:
@@ -121,9 +121,9 @@
       \block {
         \fun (z: A)(member: \In[A] (UnaryImage f C) z) \then
         \takefrom witness: UnaryWitness[f, C, z] \by member \then
-        \let y: Representative C := #representative{witness} \then
-        \return #trans{laws} (f x) (f y) z
-          (respects x y (sameClassRelated laws C x y cx (represents C y))) #related{witness}
+        \let y: Representative C := witness.representative \then
+        \return laws.trans (f x) (f y) z
+          (respects x y (sameClassRelated laws C x y cx (represents C y))) witness.related
       },
       \fun (z: A)(related: _) => \exact(UnaryWitness[f, C, z] {
         representative := \into[A](x, Representative C) \by { cx },
@@ -140,17 +140,17 @@
       (unaryImageClass laws f respects C x (represents C x))
   };
 
-\definition BinaryRespects(f: A -> A -> A): \Prop :=
+\definition BinaryRespects[f: A -> A -> A]: \Prop :=
   \forall (x, y, u, v: A) ->
     Equivalent x y -> Equivalent u v -> Equivalent (f x u) (f y v);
 
-\structure BinaryWitness[f: A -> A -> A, C, D: \Pow A, z: A]: \Set {
+\structure BinaryWitness[f: A -> A -> A, C, D: \Pow A, z: A]: \Set := {
   left: Representative C,
   right: Representative D,
   related: Equivalent (f left right) z,
-}
+};
 
-\definition BinaryImage(f: A -> A -> A)(C, D: \Pow A): \Pow A :=
+\definition BinaryImage[f: A -> A -> A][C, D: \Pow A]: \Pow A :=
   { z: A \where \exists BinaryWitness[f, C, D, z] };
 
 \definition binaryImageClass:
@@ -163,12 +163,12 @@
       \block {
         \fun (z: A)(member: \In[A] (BinaryImage f C D) z) \then
         \takefrom witness: BinaryWitness[f, C, D, z] \by member \then
-        \let u: Representative C := #left{witness} \then
-        \let v: Representative D := #right{witness} \then
-        \return #trans{laws} (f x y) (f u v) z
+        \let u: Representative C := witness.left \then
+        \let v: Representative D := witness.right \then
+        \return laws.trans (f x y) (f u v) z
           (respects x u y v
             (sameClassRelated laws C x u cx (represents C u))
-            (sameClassRelated laws D y v dy (represents D v))) #related{witness}
+            (sameClassRelated laws D y v dy (represents D v))) witness.related
       },
       \fun (z: A)(related: _) => \exact(BinaryWitness[f, C, D, z] {
         left := \into[A](x, Representative C) \by { cx },

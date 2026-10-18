@@ -100,7 +100,9 @@ Set/Prop の通常の constructor と rule label には準同型に作用し、�
  &=\lfloor f\rfloor @_{\overline{r^{q;i,j}_{tc}}}\operatorname{RfType}(P).
 \end{aligned}
 \]
-context 内の型・kind も消去する。
+parameter 文脈 \(\Delta\) に対する論理文脈を \(\Gamma=\operatorname{RfCtx}(\Delta),\Sigma\) とする。
+消去後にはこの \(\Gamma\) を通常の論理文脈として使い、context 内の型・kind も消去する。
+Box 内の自由な Program parameter は、対応する \(\operatorname{RfCtx}(\Delta)\) の変数に写る。
 三構文の構造帰納法と Rf-subst によって、消去は構文 family と Set/Prop 代入を保存する。
 
 **補題。**
@@ -116,6 +118,9 @@ box step は Rf-step、force box は定義から反映後に同じ項になる�
 bapp の両辺は反映した値 application に一致する。
 btapp の両辺は反映した型 application に一致する。
 後者の消去では、結果型に Rf-subst を使う。
+parameter で停止した payload の force box も、両辺の消去が同じ reflection になる。
+具体化で Program step が再び可能になった場合は、Rf-step と Rf-subst により同じ Box-free conversion に移る。
+従って「次の Program step がない」という側条件自体の代入保存は用いない。
 compatible position が消去後も残ればそこで閉包を取り、
 消去される注釈の位置なら両辺が同じになる。有限 zigzag の連結で後半を得る。
 force box の停止性・typing の側条件を逆向きに証明する必要はない。□
@@ -134,18 +139,19 @@ force box の停止性・typing の側条件を逆向きに証明する必要は
 通常の規則は premise に帰納法を適用して同じ規則を再構成する。
 conversion の側条件は Clear-conversion、代入を含む結論は消去と代入の可換性を使う。
 
-- box type：空 context での Rf-formation を得て、消去した context へ weakening する。
+- box type：\(\Theta=\operatorname{TyCtx}(\Delta)\) での Rf-formation を得て、\(\operatorname{RfCtx}(\Delta)\) と消去した \(\Sigma\) へ weakening する。
 - box intro：well-termination の Set typing の導出
-  \(\varnothing\vdash_\Box\operatorname{RfTerm}(p):\operatorname{RfType}(P)\)
-  は真部分木である。それに帰納法を適用し、消去した context へ weakening する。
+  \(\Gamma\vdash_\Box\operatorname{RfTerm}(p):\operatorname{RfType}(P)\)
+  は真部分木である。
+  それに帰納法を適用すると、消去後の結論が得られる。
 - force box：帰納法で得た premise が、消去後の結論そのものである。
 - bapp：明示された \(A,\underline B\) の formation premise に Rf-formation を使う。
   二つの項 typing premise の帰納法と、反映した formation に dep elim を適用する。
 - btapp：Rf-formation により
   \[
-  \varnothing\vdash_0\operatorname{RfKind}(K):\square^s_i,\qquad
-  \bar X:\operatorname{RfKind}(K)\vdash_0\operatorname{RfType}(\underline B):*^s_j,\qquad
-  \varnothing\vdash_0\operatorname{RfType}(P):\operatorname{RfKind}(K).
+  \operatorname{RfCtx}(\Theta)\vdash_0\operatorname{RfKind}(K):\square^s_i,\qquad
+  \operatorname{RfCtx}(\Theta),\bar X:\operatorname{RfKind}(K)\vdash_0\operatorname{RfType}(\underline B):*^s_j,\qquad
+  \operatorname{RfCtx}(\Theta)\vdash_0\operatorname{RfType}(P):\operatorname{RfKind}(K).
   \]
   これらを消去後の context へ weakening する。
   \(f\) の typing の帰納法に dep elim を適用すると、結果型は

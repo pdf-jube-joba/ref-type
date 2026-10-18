@@ -108,15 +108,55 @@ parameters = '''A: \Set, F: A -> \Set, a, b: A'''
 ```
 
 ```ref
-\definition cast(value: F a)(same: a = b): F b :=
+\definition cast[value: F a][same: a = b]: F b :=
   \idelim a = b \with x: _ => F x \by { base: value, equality: same };
-\definition selfCast(value: F a)(same: a = a): F a :=
+\definition selfCast[value: F a][same: a = a]: F a :=
   \idelim a = a \with x: _ => F x \by { base: value, equality: same };
 \definition identity: \forall (value: F a)(same: a = a) -> selfCast value same = value :=
   \fun (value: F a)(same: a = a) =>
     \transporteq a \with x: _ => F x \by { base: value };
 ```
 
+
+## transport families resolve record fields
+
+等式の移送とその反射則の family で、束縛した record の field を参照できる。
+
+```toml case
+id = "transport_families_resolve_record_fields"
+scope = "module"
+expect = "accept"
+```
+
+```ref
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+\structure Entry: \Set := { value: Bit, same: value = value };
+\structure Marker: \Set := { marker: Bit };
+\definition projected[a, b: Entry][same: a = b]: a.value = b.value :=
+  \idelim a = b \with entry: Entry => a.value = entry.value
+    \by { base: \refl(a.value), equality: same };
+\definition inferred[a, b: Entry][same: a = b]: a.value = b.value :=
+  \idelim a = b \with entry: _ => a.value = entry.value
+    \by { base: \refl(a.value), equality: same };
+\definition shadow[a, b: Entry][entry: Marker][same: a = b]: a.value = b.value :=
+  \idelim a = b \with entry: Entry => a.value = entry.value
+    \by { base: (\fun (marker: Bit) => \refl(a.value)) entry.marker, equality: same };
+\module Read(entry: Entry) {
+  \definition value: Bit := entry.value;
+}
+\definition instantiated[a, b: Entry][same: a = b]: a.value = b.value :=
+  \idelim a = b \with entry: Entry => a.value = Read[entry := entry].value
+    \by { base: \refl(a.value), equality: same };
+\definition Family[entry: Entry]: \Set := \Cast[Bit] ({ x: Bit \where x = entry.value });
+\definition cast[a, b: Entry][value: Family a][same: a = b]: Family b :=
+  \idelim a = b \with entry: Entry => \Cast[Bit] ({ x: Bit \where x = entry.value })
+    \by { base: value, equality: same };
+\definition identity[a: Entry][value: Family a]:
+  (\idelim a = a \with entry: _ => \Cast[Bit] ({ x: Bit \where x = entry.value })
+    \by { base: value, equality: \refl(a) }) = value :=
+  \transporteq a \with entry: _ => \Cast[Bit] ({ x: Bit \where x = entry.value })
+    \by { base: value };
+```
 
 ## transport specialization and macro binders
 
@@ -155,19 +195,19 @@ parameters = '''A: \Set, a, b: A'''
 
 ```ref
 \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
-\structure Pair: \Set { first: Nat, second: Nat }
-\definition moveNat(value: Nat)(same: a = b): Nat :=
+\structure Pair: \Set := { first: Nat, second: Nat };
+\definition moveNat[value: Nat][same: a = b]: Nat :=
   \idelim a = b \with x: _ => Nat \by { base: value, equality: same };
 \definition count: Nat -> Nat := \induction (n: Nat) \return Nat \with {
   | zero: Nat::zero | succ: \fun (n, previous: Nat) => Nat::succ previous
 };
-\definition countMoved(value: Nat)(same: a = b): Nat := count (moveNat value same);
-\definition apply(f: Nat -> Nat)(same: a = b): Nat :=
+\definition countMoved[value: Nat][same: a = b]: Nat := count (moveNat value same);
+\definition apply[f: Nat -> Nat][same: a = b]: Nat :=
   (\idelim a = b \with x: _ => Nat -> Nat \by { base: f, equality: same }) Nat::zero;
-\definition project(p: Pair)(same: a = b): Nat :=
-  (\idelim a = b \with x: _ => Pair \by { base: p, equality: same }) #first;
+\definition project[p: Pair][same: a = b]: Nat :=
+  (\idelim a = b \with x: _ => Pair \by { base: p, equality: same }).first;
 \definition Sub: \Set := \Cast[Nat] ({ n: Nat \where n = n });
-\definition subset(value: Sub)(same: a = b): Sub :=
+\definition subset[value: Sub][same: a = b]: Sub :=
   \idelim a = b \with x: _ => Sub \by { base: value, equality: same };
 \definition law: \forall (value: Sub) ->
   (\idelim a = a \with x: _ => Sub \by { base: value, equality: \refl a }) = value :=
@@ -187,7 +227,7 @@ parameters = '''A: \Set(1), F: A -> A -> \Set, a, b: A'''
 ```
 
 ```ref
-\definition cast(value: \forall (y: A) -> F a y)(same: a = b): \forall (y: A) -> F b y :=
+\definition cast[value: \forall (y: A) -> F a y][same: a = b]: \forall (y: A) -> F b y :=
   \idelim a = b \with x: _ => \forall (y: A) -> F x y \by { base: value, equality: same };
 \definition identity: \forall (value: \forall (y: A) -> F a y) ->
   (\idelim a = a \with x: _ => \forall (y: A) -> F x y \by { base: value, equality: \refl a }) = value :=

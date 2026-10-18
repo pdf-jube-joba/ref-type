@@ -1,9 +1,9 @@
-\definition Fiber(t: TargetGenerators): \Set := \Cast[Generators] ({ s: Generators \where f s = t });
-\structure ValueLaws[t: TargetGenerators, y: Carrier]: \Prop {
+\definition Fiber[t: TargetGenerators]: \Set := \Cast[Generators] ({ s: Generators \where f s = t });
+\structure ValueLaws[t: TargetGenerators, y: Carrier]: \Prop := {
   onImage: \forall (s: Generators) -> f s = t -> y = generator s,
-  outside: Logic.Not (\exists Fiber t) -> y = #zero{space},
-}
-\definition Value(t: TargetGenerators): \Set := \Cast[Carrier] ({ y: Carrier \where ValueLaws[t, y] });
+  outside: Logic.Not (\exists Fiber t) -> y = (space).zero,
+};
+\definition Value[t: TargetGenerators]: \Set := \Cast[Carrier] ({ y: Carrier \where ValueLaws[t, y] });
 \definition existence: Injective -> \forall (t: TargetGenerators) -> \exists Value t :=
   \fun (injective: Injective)(t: TargetGenerators) => either!{{(Classical.excludedMiddle (\exists Fiber t))} {\exists Value t}
     {\block {
@@ -16,11 +16,11 @@
           outside := \fun (empty: Logic.Not (\exists Fiber t)) => Logic.falseElim _ (empty exists),
         })
     }}
-    {\fun (empty: Logic.Not (\exists Fiber t)) => Logic.existsIntro[Carrier, { y: Carrier \where ValueLaws[t, y] }] #zero{space}
-      (ValueLaws[t, #zero{space}] {
+    {\fun (empty: Logic.Not (\exists Fiber t)) => Logic.existsIntro[Carrier, { y: Carrier \where ValueLaws[t, y] }] (space).zero
+      (ValueLaws[t, (space).zero] {
         onImage := \fun (s: Generators)(equal: f s = t) => Logic.falseElim _
           (empty (Logic.existsIntro[Generators, { s: Generators \where f s = t }] s equal)),
-        outside := \fun (_: Logic.Not (\exists Fiber t)) => \refl(#zero{space}),
+        outside := \fun (_: Logic.Not (\exists Fiber t)) => \refl((space).zero),
       })}
   };
 \definition uniqueness: \forall (t: TargetGenerators)(x, y: Value t) -> x = y :=
@@ -28,22 +28,22 @@
     {\block {
       \fun (exists: \exists Fiber t) \then
       \takefrom s: Fiber t \by exists \then
-      \return trans!{Carrier} _ _ _ (#onImage{(\bysub(Carrier, Value t, x))} s (\bysub(Generators, Fiber t, s)))
-        (sym!{Carrier} _ _ (#onImage{(\bysub(Carrier, Value t, y))} s (\bysub(Generators, Fiber t, s))))
+      \return trans!{Carrier} _ _ _ ((\bysub(Carrier, Value t, x)).onImage s (\bysub(Generators, Fiber t, s)))
+        (sym!{Carrier} _ _ ((\bysub(Carrier, Value t, y)).onImage s (\bysub(Generators, Fiber t, s))))
     }}
     {\fun (empty: Logic.Not (\exists Fiber t)) => trans!{Carrier} _ _ _
-      (#outside{(\bysub(Carrier, Value t, x))} empty) (sym!{Carrier} _ _ (#outside{(\bysub(Carrier, Value t, y))} empty))}
+      ((\bysub(Carrier, Value t, x)).outside empty) (sym!{Carrier} _ _ ((\bysub(Carrier, Value t, y)).outside empty))}
   };
-\definition value(injective: Injective)(t: TargetGenerators): Value t :=
+\definition value[injective: Injective][t: TargetGenerators]: Value t :=
   \choice Value t \by { existence: existence injective t, uniqueness: uniqueness t };
 \definition onImage: \forall (injective: Injective)(s: Generators) -> value injective (f s) = generator s :=
-  \fun (injective: Injective)(s: Generators) => #onImage{(\bysub(Carrier, Value (f s), value injective (f s)))} s (\refl(f s));
+  \fun (injective: Injective)(s: Generators) => (\bysub(Carrier, Value (f s), value injective (f s))).onImage s (\refl(f s));
 \import Destination.To[W := Carrier, target := space] \as ExtendBack;
 \import \parent.\parent.\parent.\parent.Hom[V := Destination.Carrier, W := Carrier, source := Destination.space, target := space] \as Back;
-\definition retraction(injective: Injective): Back.Map :=
+\definition retraction[injective: Injective]: Back.Map :=
   ExtendBack.extension (value injective);
 \definition generatorLaw: \forall (injective: Injective)(s: Generators) ->
-  #apply{(retraction injective)} (Destination.generator (f s)) = generator s :=
+  (retraction injective).apply (Destination.generator (f s)) = generator s :=
   \fun (injective: Injective)(s: Generators) => trans!{Carrier} _ _ _ (ExtendBack.onGenerator (value injective) (f s)) (onImage injective s);
 \import \parent.\parent.\parent.To[W := Carrier, target := space] \as ExtendSource;
 \import \parent.\parent.\parent.\parent.Hom[V := Carrier, W := Carrier, source := space, target := space] \as End;
@@ -52,11 +52,11 @@
 \definition leftInverse: \forall (injective: Injective) -> BackComposition.compose (retraction injective) (push f) = Identity.identity :=
   \fun (injective: Injective) => ExtendSource.ext (BackComposition.compose (retraction injective) (push f)) Identity.identity
     (\fun (s: Generators) => trans!{Carrier} _ _ _
-      (congr!{Destination.Carrier Carrier} (#apply{(retraction injective)}) _ _ (onGenerator f s)) (generatorLaw injective s));
-\definition outside: \forall (injective: Injective)(t: TargetGenerators) -> Logic.Not (\exists Fiber t) -> value injective t = #zero{space} :=
-  \fun (injective: Injective)(t: TargetGenerators)(empty: Logic.Not (\exists Fiber t)) => #outside{(\bysub(Carrier, Value t, value injective t))} empty;
+      (congr!{Destination.Carrier Carrier} ((retraction injective).apply) _ _ (onGenerator f s)) (generatorLaw injective s));
+\definition outside: \forall (injective: Injective)(t: TargetGenerators) -> Logic.Not (\exists Fiber t) -> value injective t = (space).zero :=
+  \fun (injective: Injective)(t: TargetGenerators)(empty: Logic.Not (\exists Fiber t)) => (\bysub(Carrier, Value t, value injective t)).outside empty;
 \definition generatorOutside: \forall (injective: Injective)(t: TargetGenerators) -> Logic.Not (\exists Fiber t) ->
-  #apply{(retraction injective)} (Destination.generator t) = #zero{space} :=
+  (retraction injective).apply (Destination.generator t) = (space).zero :=
   \fun (injective: Injective)(t: TargetGenerators)(empty: Logic.Not (\exists Fiber t)) => trans!{Carrier} _ _ _
     (ExtendBack.onGenerator (value injective) t) (outside injective t empty);
 \definition Onto: \Prop := \forall (t: TargetGenerators) -> \exists Fiber t;
@@ -65,20 +65,20 @@
 \import \parent.\parent.\parent.\parent.End[V := Destination.Carrier, space := Destination.space] \as TargetIdentity;
 \import \parent.\parent.\parent.\parent.Hom[V := Destination.Carrier, W := Destination.Carrier, source := Destination.space, target := Destination.space] \as TargetEnd;
 \definition rightGenerator: \forall (injective: Injective) -> Onto -> \forall (t: TargetGenerators) ->
-  #apply{(push f)} (#apply{(retraction injective)} (Destination.generator t)) = Destination.generator t := \block {
+  (push f).apply ((retraction injective).apply (Destination.generator t)) = Destination.generator t := \block {
   \fun (injective: Injective)(onto: Onto)(t: TargetGenerators) \then
   \takefrom s: Fiber t \by onto t \then
   \let same: f s = t := \bysub(Generators, Fiber t, s) \then
   \return trans!{Destination.Carrier} _ _ _
-    (congr!{TargetGenerators Destination.Carrier} (\fun (b: TargetGenerators) => #apply{(push f)} (#apply{(retraction injective)} (Destination.generator b))) _ _ (sym!{TargetGenerators} _ _ same))
-    (trans!{Destination.Carrier} _ _ _ (congr!{Carrier Destination.Carrier} (#apply{(push f)}) _ _ (generatorLaw injective s))
+    (congr!{TargetGenerators Destination.Carrier} (\fun (b: TargetGenerators) => (push f).apply ((retraction injective).apply (Destination.generator b))) _ _ (sym!{TargetGenerators} _ _ same))
+    (trans!{Destination.Carrier} _ _ _ (congr!{Carrier Destination.Carrier} ((push f).apply) _ _ (generatorLaw injective s))
       (trans!{Destination.Carrier} _ _ _ (onGenerator f s) (congr!{TargetGenerators Destination.Carrier} Destination.generator _ _ same)))
 };
 \definition rightInverse: \forall (injective: Injective) -> Onto -> ForwardComposition.compose (push f) (retraction injective) = TargetIdentity.identity :=
   \fun (injective: Injective)(onto: Onto) => Destination.To[W := Destination.Carrier, target := Destination.space].ext _ _ (rightGenerator injective onto);
 \import \parent.\parent.\parent.\parent.Isomorphism[V := Carrier, W := Destination.Carrier, source := space, target := Destination.space] \as Iso;
-\definition isomorphism(injective: Injective)(onto: Onto): Iso.Isomorphism := Iso.Isomorphism {
+\definition isomorphism[injective: Injective][onto: Onto]: Iso.Isomorphism := Iso.Isomorphism {
   forward := push f, backward := retraction injective,
-  leftInverse := \fun (x: Carrier) => congr!{End.Map Carrier} (\fun (g: End.Map) => #apply{g} x) _ _ (leftInverse injective),
-  rightInverse := \fun (x: Destination.Carrier) => congr!{TargetEnd.Map Destination.Carrier} (\fun (g: TargetEnd.Map) => #apply{g} x) _ _ (rightInverse injective onto),
+  leftInverse := \fun (x: Carrier) => congr!{End.Map Carrier} (\fun (g: End.Map) => (g).apply x) _ _ (leftInverse injective),
+  rightInverse := \fun (x: Destination.Carrier) => congr!{TargetEnd.Map Destination.Carrier} (\fun (g: TargetEnd.Map) => (g).apply x) _ _ (rightInverse injective onto),
 };

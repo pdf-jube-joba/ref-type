@@ -7,29 +7,29 @@
 \import Modules.Alternating[V := Product.Carrier lower, space := Product.space lower].Concatenation[] \as Signs;
 \import Modules.Alternating[V := TargetProduct.Carrier lower, space := TargetProduct.space lower].Concatenation[] \as TargetSigns;
 \import Signs.Mapping[W := TargetProduct.Carrier lower, target := TargetProduct.space lower] \as SignMapping;
-\definition sourceLeft(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)): Product.Carrier lower := onTuples r q (leftTail p x) y;
-\definition sourceRight(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)): Product.Carrier other := onTuples p s x (rightTail q y);
-\definition targetLeft(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)): TargetProduct.Carrier lower :=
+\definition sourceLeft[x: Left.Tuple (N.Nat^::succ p)][y: Right.Tuple (N.Nat^::succ q)]: Product.Carrier lower := onTuples r q (leftTail p x) y;
+\definition sourceRight[x: Left.Tuple (N.Nat^::succ p)][y: Right.Tuple (N.Nat^::succ q)]: Product.Carrier other := onTuples p s x (rightTail q y);
+\definition targetLeft[x: Left.Tuple (N.Nat^::succ p)][y: Right.Tuple (N.Nat^::succ q)]: TargetProduct.Carrier lower :=
   Target.onTuples r q (LeftMap.onTuple p leftMap (leftTail p x)) (RightMap.onTuple (N.Nat^::succ q) rightMap y);
-\definition targetRight(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)): TargetProduct.Carrier other :=
+\definition targetRight[x: Left.Tuple (N.Nat^::succ p)][y: Right.Tuple (N.Nat^::succ q)]: TargetProduct.Carrier other :=
   Target.onTuples p s (LeftMap.onTuple (N.Nat^::succ p) leftMap x) (RightMap.onTuple q rightMap (rightTail q y));
-\definition sourceInside(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)): Product.Carrier lower :=
-  #add{(Product.space lower)} (sourceLeft x y) (Signs.twist p (SourceStep.castRight (sourceRight x y)));
-\definition targetInside(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)): TargetProduct.Carrier lower :=
-  #add{(TargetProduct.space lower)} (targetLeft x y) (TargetSigns.twist p (TargetStep.castRight (targetRight x y)));
-\definition head(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)): Pair := Pair { left := leftHead p x, right := rightHead q y };
+\definition sourceInside[x: Left.Tuple (N.Nat^::succ p)][y: Right.Tuple (N.Nat^::succ q)]: Product.Carrier lower :=
+  (Product.space lower).add (sourceLeft x y) (Signs.twist p (SourceStep.castRight (sourceRight x y)));
+\definition targetInside[x: Left.Tuple (N.Nat^::succ p)][y: Right.Tuple (N.Nat^::succ q)]: TargetProduct.Carrier lower :=
+  (TargetProduct.space lower).add (targetLeft x y) (TargetSigns.twist p (TargetStep.castRight (targetRight x y)));
+\definition head[x: Left.Tuple (N.Nat^::succ p)][y: Right.Tuple (N.Nat^::succ q)]: Pair := Pair { left := leftHead p x, right := rightHead q y };
 \definition rightCast: Statement p s -> \forall (x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)) ->
-  #apply{(Points.push lower pair)} (SourceStep.castRight (sourceRight x y)) = TargetStep.castRight (targetRight x y) :=
+  (Points.push lower pair).apply (SourceStep.castRight (sourceRight x y)) = TargetStep.castRight (targetRight x y) :=
   \fun (previous: Statement p s)(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)) =>
     trans!{{TargetProduct.Carrier lower}} _ _ _
       (sym!{{TargetProduct.Carrier lower}} _ _ (Points.DegreeTransport[].law other lower SourceStep.same pair (sourceRight x y)))
       (congr!{{TargetProduct.Carrier other} {TargetProduct.Carrier lower}} TargetStep.castRight _ _ (previous x (rightTail q y)));
 \definition inside: Statement r q -> Statement p s -> \forall (x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)) ->
-  #apply{(Points.push lower pair)} (sourceInside x y) = targetInside x y :=
+  (Points.push lower pair).apply (sourceInside x y) = targetInside x y :=
   \fun (previousLeft: Statement r q)(previousRight: Statement p s)(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)) =>
     trans!{{TargetProduct.Carrier lower}} _ _ _
-      (#addition{(Points.push lower pair)} (sourceLeft x y) (Signs.twist p (SourceStep.castRight (sourceRight x y))))
-      (congr2!{{TargetProduct.Carrier lower} {TargetProduct.Carrier lower} {TargetProduct.Carrier lower}} (#add{(TargetProduct.space lower)}) _ _ _ _
+      ((Points.push lower pair).addition (sourceLeft x y) (Signs.twist p (SourceStep.castRight (sourceRight x y))))
+      (congr2!{{TargetProduct.Carrier lower} {TargetProduct.Carrier lower} {TargetProduct.Carrier lower}} ((TargetProduct.space lower).add) _ _ _ _
         (previousLeft (leftTail p x) y)
         (trans!{{TargetProduct.Carrier lower}} _ _ _
           (SignMapping.law (Points.push lower pair) p (SourceStep.castRight (sourceRight x y)))
@@ -37,5 +37,5 @@
 \definition law: Statement r q -> Statement p s -> Statement p q :=
   \fun (previousLeft: Statement r q)(previousRight: Statement p s)(x: Left.Tuple (N.Nat^::succ p))(y: Right.Tuple (N.Nat^::succ q)) =>
     trans!{{TargetProduct.Carrier (length p q)}} _ _ _ (Points.Cone[n := lower].law pair (head x y) (sourceInside x y))
-      (congr!{{TargetProduct.Carrier lower} {TargetProduct.Carrier (length p q)}} (#apply{(TargetProduct.cone lower (pair (head x y)))}) _ _
+      (congr!{{TargetProduct.Carrier lower} {TargetProduct.Carrier (length p q)}} ((TargetProduct.cone lower (pair (head x y))).apply) _ _
         (inside previousLeft previousRight x y));

@@ -6,7 +6,7 @@
 \import Bounds.Product[] \as Product;
 \import real.Analysis[].Algebra[] \as Algebra;
 \use Equality.congr2;
-\definition pairing(coefficients, x: Point): Real := Sums.sum n (\fun (i: Coordinate) => mul (coefficients i) (x i));
+\definition pairing[coefficients, x: Point]: Real := Sums.sum n (\fun (i: Coordinate) => mul (coefficients i) (x i));
 \definition additive: \forall (coefficients, x, y: Point) ->
   pairing coefficients (Coordinates.addPoint x y) = add (pairing coefficients x) (pairing coefficients y) :=
   \fun (coefficients, x, y: Point) => trans!{Real} _ _ _
@@ -20,12 +20,12 @@
       (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => mul s (x i)) _ _ (Laws.fieldMulComm (coefficients i) c))
         (Laws.fieldMulAssoc c (coefficients i) (x i)))))
     (Sums.scalar n c (\fun (i: Coordinate) => mul (coefficients i) (x i)));
-\definition functional(coefficients: Point): Differentials.LinearMap := Differentials.LinearMap {
+\definition functional[coefficients: Point]: Differentials.LinearMap := Differentials.LinearMap {
   apply := pairing coefficients,
   additive := additive coefficients,
   homogeneous := homogeneous coefficients,
 };
-\definition coefficient(coefficients: Point): Real := Sums.sum n (\fun (i: Coordinate) => Product.abs (coefficients i));
+\definition coefficient[coefficients: Point]: Real := Sums.sum n (\fun (i: Coordinate) => Product.abs (coefficients i));
 \definition coefficientNonnegative: \forall (coefficients: Point) -> R.Le zero (coefficient coefficients) :=
   \fun (coefficients: Point) => Sums.nonnegative n (\fun (i: Coordinate) => Product.abs (coefficients i))
     (\fun (i: Coordinate) => Product.absNonnegative (coefficients i));
@@ -51,35 +51,35 @@
   \return R.leReplaceRight _ _ _ factors (R.leTrans _ _ _ absolute compared)
 };
 \import Sums.Linear[] \as Finite;
-\definition adapt(d: Differentials.LinearMap): Finite.Map n := Finite.Data[n] {
-  apply := #apply{d}, additive := #additive{d}, homogeneous := #homogeneous{d},
+\definition adapt[d: Differentials.LinearMap]: Finite.Map n := Finite.Data[n] {
+  apply := d.apply, additive := d.additive, homogeneous := d.homogeneous,
 };
-\definition coefficients(d: Differentials.LinearMap): Point := \fun (i: Coordinate) => #apply{d} (Coordinates.basis i);
-\definition representation: \forall (d: Differentials.LinearMap)(x: Point) -> #apply{d} x = pairing (coefficients d) x :=
+\definition coefficients[d: Differentials.LinearMap]: Point := \fun (i: Coordinate) => d.apply (Coordinates.basis i);
+\definition representation: \forall (d: Differentials.LinearMap)(x: Point) -> d.apply x = pairing (coefficients d) x :=
   \fun (d: Differentials.LinearMap)(x: Point) => trans!{Real} _ _ _ (Finite.expansion n (adapt d) x)
-    (Sums.congruent n _ _ (\fun (i: Coordinate) => Laws.fieldMulComm (x i) (#apply{d} (Coordinates.basis i))));
+    (Sums.congruent n _ _ (\fun (i: Coordinate) => Laws.fieldMulComm (x i) (d.apply (Coordinates.basis i))));
 \definition normBound: \forall (d: Differentials.LinearMap)(x: Point) ->
-  R.Le (distance (#apply{d} x) zero) (mul (coefficient (coefficients d)) (Coordinates.norm x)) :=
-  \fun (d: Differentials.LinearMap)(x: Point) => R.leReplaceLeft (distance (pairing (coefficients d) x) zero) (distance (#apply{d} x) zero) _
+  R.Le (distance (d.apply x) zero) (mul (coefficient (coefficients d)) (Coordinates.norm x)) :=
+  \fun (d: Differentials.LinearMap)(x: Point) => R.leReplaceLeft (distance (pairing (coefficients d) x) zero) (distance (d.apply x) zero) _
     (sym!{Real} _ _ (congr!{Real Real} (\fun (s: Real) => distance s zero) _ _ (representation d x))) (bounded (coefficients d) x);
 \definition subtract: \forall (d: Differentials.LinearMap)(x, a: Point) ->
-  #apply{d} (Coordinates.subPoint x a) = sub (#apply{d} x) (#apply{d} a) := \block {
+  d.apply (Coordinates.subPoint x a) = sub (d.apply x) (d.apply a) := \block {
   \fun (d: Differentials.LinearMap)(x, a: Point) \then
   \let cancellation: Coordinates.addPoint (Coordinates.subPoint x a) a = x :=
     \axiom:funext(Coordinates.addPoint (Coordinates.subPoint x a) a, x, \fun (i: Coordinate) => Metric.subAddCancel (x i) (a i)) \then
-  \return Laws.addCancelRight (#apply{d} (Coordinates.subPoint x a)) (sub (#apply{d} x) (#apply{d} a)) (#apply{d} a)
-    (trans!{Real} _ _ _ (sym!{Real} _ _ (#additive{d} (Coordinates.subPoint x a) a))
-      (trans!{Real} _ _ _ (congr!{Point Real} (#apply{d}) _ _ cancellation) (sym!{Real} _ _ (Metric.subAddCancel (#apply{d} x) (#apply{d} a)))))
+  \return Laws.addCancelRight (d.apply (Coordinates.subPoint x a)) (sub (d.apply x) (d.apply a)) (d.apply a)
+    (trans!{Real} _ _ _ (sym!{Real} _ _ (d.additive (Coordinates.subPoint x a) a))
+      (trans!{Real} _ _ _ (congr!{Point Real} (d.apply) _ _ cancellation) (sym!{Real} _ _ (Metric.subAddCancel (d.apply x) (d.apply a)))))
 };
 \definition distanceBound: \forall (d: Differentials.LinearMap)(x, a: Point) ->
-  R.Le (distance (#apply{d} x) (#apply{d} a)) (mul (coefficient (coefficients d)) (Coordinates.pointDistance x a)) :=
+  R.Le (distance (d.apply x) (d.apply a)) (mul (coefficient (coefficients d)) (Coordinates.pointDistance x a)) :=
   \fun (d: Differentials.LinearMap)(x, a: Point) => R.leReplaceLeft
-    (distance (#apply{d} (Coordinates.subPoint x a)) zero) (distance (#apply{d} x) (#apply{d} a))
+    (distance (d.apply (Coordinates.subPoint x a)) zero) (distance (d.apply x) (d.apply a))
     (mul (coefficient (coefficients d)) (Coordinates.pointDistance x a))
-    (trans!{Real} (distance (#apply{d} (Coordinates.subPoint x a)) zero) (distance (sub (#apply{d} x) (#apply{d} a)) zero) (distance (#apply{d} x) (#apply{d} a))
-      (congr!{Real Real} (\fun (r: Real) => distance r zero) (#apply{d} (Coordinates.subPoint x a)) (sub (#apply{d} x) (#apply{d} a)) (subtract d x a))
-      (Norm.distanceDifference (#apply{d} x) (#apply{d} a))) (normBound d (Coordinates.subPoint x a));
-\definition continuous: \forall (d: Differentials.LinearMap) -> Coordinates.Continuous (#apply{d}) := \block {
+    (trans!{Real} (distance (d.apply (Coordinates.subPoint x a)) zero) (distance (sub (d.apply x) (d.apply a)) zero) (distance (d.apply x) (d.apply a))
+      (congr!{Real Real} (\fun (r: Real) => distance r zero) (d.apply (Coordinates.subPoint x a)) (sub (d.apply x) (d.apply a)) (subtract d x a))
+      (Norm.distanceDifference (d.apply x) (d.apply a))) (normBound d (Coordinates.subPoint x a));
+\definition continuous: \forall (d: Differentials.LinearMap) -> Coordinates.Continuous (d.apply) := \block {
   \fun (d: Differentials.LinearMap)(a: Point)(epsilon: Real)(positive: _) \then
   \let c: Real := Product.coefficient (coefficient (coefficients d)) zero \then
   \let cp: R.Lt zero c := Product.coefficientPositive (coefficient (coefficients d)) zero \then
@@ -87,12 +87,12 @@
     (R.leReplaceRight (coefficient (coefficients d)) (coefficient (coefficients d)) (Product.abs (coefficient (coefficients d))) (sym!{Real} (Product.abs (coefficient (coefficients d))) (coefficient (coefficients d)) (Product.absOfNonnegative (coefficient (coefficients d)) (coefficientNonnegative (coefficients d)))) (R.leRefl (coefficient (coefficients d))))
     (Metric.leAddOfNonnegative (Product.abs (coefficient (coefficients d))) (add (Product.abs zero) one)
       (Laws.addNonnegative (Product.abs zero) one (Product.absNonnegative zero) (R.Order[].leOfLt zero one Product.onePositive))) \then
-  \return Logic.existsIntro[Real, { delta: Real \where Coordinates.ContinuityControl[#apply{d}, a, epsilon, delta] }] (Product.radius c epsilon)
-    (Coordinates.ContinuityControl[#apply{d}, a, epsilon, Product.radius c epsilon] {
+  \return Logic.existsIntro[Real, { delta: Real \where Coordinates.ContinuityControl[d.apply, a, epsilon, delta] }] (Product.radius c epsilon)
+    (Coordinates.ContinuityControl[d.apply, a, epsilon, Product.radius c epsilon] {
         positive := Product.radiusPositive c epsilon cp positive,
         estimate := \block {
           \fun (x: Point)(near: R.Lt (Coordinates.pointDistance x a) (Product.radius c epsilon)) \then
-          \let magnitude: Real := distance (#apply{d} x) (#apply{d} a) \then
+          \let magnitude: Real := distance (d.apply x) (d.apply a) \then
           \let r: Real := Coordinates.pointDistance x a \then
           \let k: Real := coefficient (coefficients d) \then
           \let compared: R.Le (mul k r) (mul c r) := R.leReplace (mul r k) (mul k r) (mul r c) (mul c r)
@@ -106,37 +106,37 @@
         },
       })
 };
-\definition dataEta: \forall (d: Differentials.LinearData) -> Differentials.LinearData::# (#apply{d}) = d :=
-  \induction (d: Differentials.LinearData) \return Differentials.LinearData::# (#apply{d}) = d \with {
+\definition dataEta: \forall (d: Differentials.LinearData) -> Differentials.LinearData::# (d.apply) = d :=
+  \induction (d: Differentials.LinearData) \return Differentials.LinearData::# (d.apply) = d \with {
     | # : \fun (f: Point -> Real) => \refl(Differentials.LinearData::# f)
   };
-\definition ext: \forall (d, e: Differentials.LinearMap) -> #apply{d} = #apply{e} -> d = e :=
-  \fun (d, e: Differentials.LinearMap)(equal: #apply{d} = #apply{e}) => trans!{Differentials.LinearData} d (Differentials.LinearData::# (#apply{d})) e
+\definition ext: \forall (d, e: Differentials.LinearMap) -> d.apply = e.apply -> d = e :=
+  \fun (d, e: Differentials.LinearMap)(equal: d.apply = e.apply) => trans!{Differentials.LinearData} d (Differentials.LinearData::# (d.apply)) e
     (sym!{Differentials.LinearData} _ _ (dataEta d))
-    (trans!{Differentials.LinearData} (Differentials.LinearData::# (#apply{d})) (Differentials.LinearData::# (#apply{e})) e
-      (congr!{{Point -> Real} Differentials.LinearData} Differentials.LinearData::# (#apply{d}) (#apply{e}) equal) (dataEta e));
+    (trans!{Differentials.LinearData} (Differentials.LinearData::# (d.apply)) (Differentials.LinearData::# (e.apply)) e
+      (congr!{{Point -> Real} Differentials.LinearData} Differentials.LinearData::# (d.apply) (e.apply) equal) (dataEta e));
 \import linear_algebra.Field[].Space[K := Real, field := Algebra.field] \as VectorSpaces;
 \import VectorSpaces.Coordinates[I := Coordinate] \as Points;
 \import VectorSpaces.Linear[V := Point, W := Real, source := Points.space, target := VectorSpaces.scalarSpace] \as General;
-\definition toGeneral(d: Differentials.LinearMap): General.Map := General.Map {
-  apply := #apply{d}, preservesAdd := #additive{d}, preservesScale := #homogeneous{d},
+\definition toGeneral[d: Differentials.LinearMap]: General.Map := General.Map {
+  apply := d.apply, preservesAdd := d.additive, preservesScale := d.homogeneous,
 };
-\definition fromGeneral(d: General.Map): Differentials.LinearMap := Differentials.LinearMap {
-  apply := #apply{d}, additive := #preservesAdd{d}, homogeneous := #preservesScale{d},
+\definition fromGeneral[d: General.Map]: Differentials.LinearMap := Differentials.LinearMap {
+  apply := d.apply, additive := d.preservesAdd, homogeneous := d.preservesScale,
 };
 \definition roundTrip: \forall (d: Differentials.LinearMap) -> fromGeneral (toGeneral d) = d :=
-  \fun (d: Differentials.LinearMap) => ext (fromGeneral (toGeneral d)) d (\refl(#apply{d}));
-\definition zeroImage: \forall (d: Differentials.LinearMap) -> #apply{d} Coordinates.origin = zero :=
+  \fun (d: Differentials.LinearMap) => ext (fromGeneral (toGeneral d)) d (\refl(d.apply));
+\definition zeroImage: \forall (d: Differentials.LinearMap) -> d.apply Coordinates.origin = zero :=
   \fun (d: Differentials.LinearMap) => Finite.zeroImage n (adapt d);
-\definition positiveCoefficient(d: Differentials.LinearMap): Real := Product.coefficient (coefficient (coefficients d)) zero;
+\definition positiveCoefficient[d: Differentials.LinearMap]: Real := Product.coefficient (coefficient (coefficients d)) zero;
 \definition positiveCoefficientPositive: \forall (d: Differentials.LinearMap) -> R.Lt zero (positiveCoefficient d) :=
   \fun (d: Differentials.LinearMap) => Product.coefficientPositive (coefficient (coefficients d)) zero;
 \definition coefficientDominated: \forall (d: Differentials.LinearMap) -> R.Le (coefficient (coefficients d)) (positiveCoefficient d) :=
   \fun (d: Differentials.LinearMap) => R.leReplaceLeft (Product.abs (coefficient (coefficients d))) (coefficient (coefficients d)) (positiveCoefficient d)
     (Product.absOfNonnegative (coefficient (coefficients d)) (coefficientNonnegative (coefficients d)))
     (Product.coefficientFirst (coefficient (coefficients d)) zero);
-\definition positiveBound: \forall (d: Differentials.LinearMap)(v: Point) -> R.Le (distance (#apply{d} v) zero) (mul (positiveCoefficient d) (Coordinates.norm v)) :=
-  \fun (d: Differentials.LinearMap)(v: Point) => R.leTrans (distance (#apply{d} v) zero) (mul (coefficient (coefficients d)) (Coordinates.norm v)) (mul (positiveCoefficient d) (Coordinates.norm v))
+\definition positiveBound: \forall (d: Differentials.LinearMap)(v: Point) -> R.Le (distance (d.apply v) zero) (mul (positiveCoefficient d) (Coordinates.norm v)) :=
+  \fun (d: Differentials.LinearMap)(v: Point) => R.leTrans (distance (d.apply v) zero) (mul (coefficient (coefficients d)) (Coordinates.norm v)) (mul (positiveCoefficient d) (Coordinates.norm v))
     (normBound d v)
     (R.leReplace (mul (Coordinates.norm v) (coefficient (coefficients d))) (mul (coefficient (coefficients d)) (Coordinates.norm v))
       (mul (Coordinates.norm v) (positiveCoefficient d)) (mul (positiveCoefficient d) (Coordinates.norm v))

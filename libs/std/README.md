@@ -54,7 +54,7 @@ Laws.congr3[B, C, D] f a b c d e g ab cd eg
 \import std.Logic[].Proposition[] \as Logic;
 \use Logic.either;
 
-\definition fold(P, Q, R: \Prop):
+\definition fold[P, Q, R: \Prop]:
   (P -> R) -> (Q -> R) -> Logic.Or[P, Q] -> R :=
   \fun (left: _) (right: _) (value: _) => either!{value R left right};
 ```
@@ -62,8 +62,8 @@ Laws.congr3[B, C, D] f a b c d e g ab cd eg
 `Logic.existsIntro[A, S] x member` は `x: A` と `member: \In[A] S x` から `\exists \Cast[A] S` を証明する。
 
 ```text
-\definition singletonInhabited(A: \Set)(a: A):
-  \exists { x: A \where x = a } :=
+\definition singletonInhabited[A: \Set][a: A]:
+  \exists ( x: A \where x = a ) :=
   Logic.existsIntro[A, { x: A \where x = a }] a (\refl(a));
 ```
 
@@ -99,7 +99,7 @@ Program 側の型関連操作は計算を返すので、結果を `\bind` で受
 
 ```text
 \import std.Data[].Pair[] \as P;
-\definition swap(A, B: \VType)(p: P.Times[A, B]): \F(P.Times[B, A]) :=
+\definition swap[A, B: \VType][p: P.Times[A, B]]: \F(P.Times[B, A]) :=
   \program {
     \bind a: A <- P.Times::first p \then
     \bind b: B <- P.Times::second p \then

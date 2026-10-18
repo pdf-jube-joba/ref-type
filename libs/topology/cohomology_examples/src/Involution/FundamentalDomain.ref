@@ -1,7 +1,7 @@
 \import Source.Subspace[S := F] \as Domain;
 \definition Point: \Set := Domain.CarrierSet;
 \definition pointTopology: topology.Topology[Carrier := Point].Topology := Domain.topology source;
-\definition Restricted(x, y: Point): \Prop := Equivalent x y;
+\definition Restricted[x, y: Point]: \Prop := Equivalent x y;
 \import topological_constructions.RelationQuotient[A := Point, relation := Restricted] \as RestrictedQuotient;
 \definition restrictedLaws: RestrictedQuotient.Laws := RestrictedQuotient.Laws {
   refl := \fun (x: Point) => reflexive x,
@@ -10,21 +10,21 @@
 };
 \definition QuotientPoint: \Set := RestrictedQuotient.Carrier;
 \definition quotientTopology: topology.Topology[Carrier := QuotientPoint].Topology := RestrictedQuotient.topology pointTopology;
-\definition Admissible(x: A)(q: QuotientPoint): \Prop :=
-  \exists { y: Point \where Logic.And[Equivalent x y, RestrictedQuotient.class y = q] };
-\definition Values(x: A): \Pow QuotientPoint := { q: QuotientPoint \where Admissible x q };
-\definition Value(x: A): \Set := \Cast[QuotientPoint] (Values x);
-\definition valueWitness(x: A)(y: Point)(related: Equivalent x y): Value x :=
+\definition Admissible[x: A][q: QuotientPoint]: \Prop :=
+  \exists ( y: Point \where Logic.And[Equivalent x y, RestrictedQuotient.class y = q] );
+\definition Values[x: A]: \Pow QuotientPoint := { q: QuotientPoint \where Admissible x q };
+\definition Value[x: A]: \Set := \Cast[QuotientPoint] (Values x);
+\definition valueWitness[x: A][y: Point][related: Equivalent x y]: Value x :=
   \into[QuotientPoint](RestrictedQuotient.class y, Values x) \by {
     Logic.existsIntro[Point, { z: Point \where Logic.And[Equivalent x z, RestrictedQuotient.class z = RestrictedQuotient.class y] }] y
       (Logic.And[_, _]::# related (\refl(RestrictedQuotient.class y)))
   };
-\definition existence(x: A): \exists Value x :=
+\definition existence[x: A]: \exists Value x :=
   Logic.orElim (Source.Member F x) (Source.Member F (flip x)) (\exists Value x) (covers x)
     (\fun (member: Source.Member F x) => \exact(valueWitness x (\into[A](x, F) \by { member }) (reflexive x), Value x))
     (\fun (member: Source.Member F (flip x)) => \exact(valueWitness x (\into[A](flip x, F) \by { member })
       (Logic.Or[x = flip x, x = flip (flip x)]::right (sym!{A} _ _ (square x))), Value x));
-\definition uniqueness(x: A)(q, r: Value x): q = r := \block {
+\definition uniqueness[x: A][q, r: Value x]: q = r := \block {
   \takefrom y: \Cast[Point] ({ y: Point \where Logic.And[Equivalent x y, RestrictedQuotient.class y = q] })
     \by \bysub(QuotientPoint, Values x, q) \then
   \takefrom z: \Cast[Point] ({ z: Point \where Logic.And[Equivalent x z, RestrictedQuotient.class z = r] })
@@ -33,24 +33,24 @@
     \bysub(Point, { y: Point \where Logic.And[Equivalent x y, RestrictedQuotient.class y = q] }, y) \then
   \let zp: Logic.And[Equivalent x z, RestrictedQuotient.class z = r] :=
     \bysub(Point, { z: Point \where Logic.And[Equivalent x z, RestrictedQuotient.class z = r] }, z) \then
-  \return trans!{QuotientPoint} _ _ _ (sym!{QuotientPoint} _ _ (#right{yp}))
+  \return trans!{QuotientPoint} _ _ _ (sym!{QuotientPoint} _ _ ((yp).right))
     (trans!{QuotientPoint} _ _ _
-      (RestrictedQuotient.relatedEqual restrictedLaws y z (transitive y x z (symmetric x y (#left{yp})) (#left{zp}))) (#right{zp}))
+      (RestrictedQuotient.relatedEqual restrictedLaws y z (transitive y x z (symmetric x y ((yp).left)) ((zp).left))) ((zp).right))
 };
-\definition selected(x: A): Value x := \choice Value x \by { existence: existence x, uniqueness: uniqueness x };
-\definition fold(x: A): QuotientPoint := selected x;
-\definition onPoint(x: Point): fold x = RestrictedQuotient.class x :=
+\definition selected[x: A]: Value x := \choice Value x \by { existence: existence x, uniqueness: uniqueness x };
+\definition fold[x: A]: QuotientPoint := selected x;
+\definition onPoint[x: Point]: fold x = RestrictedQuotient.class x :=
   sym!{QuotientPoint} _ _ (\choiceeq valueWitness x x (reflexive x) \of Value x \by { existence: existence x, uniqueness: uniqueness x });
-\definition relatedFold(x, y: A)(related: Equivalent x y): fold x = fold y := \block {
+\definition relatedFold[x, y: A][related: Equivalent x y]: fold x = fold y := \block {
   \takefrom z: \Cast[Point] ({ z: Point \where Logic.And[Equivalent y z, RestrictedQuotient.class z = fold y] })
     \by \bysub(QuotientPoint, Values y, selected y) \then
   \let zp: Logic.And[Equivalent y z, RestrictedQuotient.class z = fold y] :=
     \bysub(Point, { z: Point \where Logic.And[Equivalent y z, RestrictedQuotient.class z = fold y] }, z) \then
   \return trans!{QuotientPoint} _ _ _
-    (sym!{QuotientPoint} _ _ (\choiceeq valueWitness x z (transitive x y z related (#left{zp})) \of Value x
-      \by { existence: existence x, uniqueness: uniqueness x })) (#right{zp})
+    (sym!{QuotientPoint} _ _ (\choiceeq valueWitness x z (transitive x y z related ((zp).left)) \of Value x
+      \by { existence: existence x, uniqueness: uniqueness x })) ((zp).right)
 };
-\definition onFlip(x: A): fold (flip x) = fold x := relatedFold (flip x) x
+\definition onFlip[x: A]: fold (flip x) = fold x := relatedFold (flip x) x
   (Logic.Or[flip x = x, flip x = flip x]::right (\refl(flip x)));
 \module Continuity;
 \module Comparison;

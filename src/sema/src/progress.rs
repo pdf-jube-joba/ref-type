@@ -63,6 +63,59 @@ pub enum ProgressEvent {
     },
 }
 
+pub(crate) fn reused_result(
+    snapshot: &crate::SourceSnapshot,
+    result: &crate::SemanticResult,
+    options: &crate::CheckOptions,
+) {
+    let package = !snapshot.entry().extension().is_some_and(|ext| ext == "ref");
+    let notify = |event| {
+        if let Some(receive) = options.progress_events {
+            receive(&event);
+        }
+    };
+    notify(ProgressEvent::Phase(ProgressPhase::Cache));
+    if options.progress_events.is_some() {
+        notify(ProgressEvent::Planned(ProgressPlan {
+            packages: if !package {
+                Vec::new()
+            } else {
+                result
+                    .modules
+                    .iter()
+                    .filter_map(|m| m.path.first().cloned())
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect()
+            },
+            modules: result
+                .modules
+                .iter()
+                .map(|m| ProgressModule {
+                    path: m.path.clone(),
+                    dependencies: m.dependencies.clone(),
+                })
+                .collect(),
+        }));
+    }
+    for module in &result.modules {
+        notify(ProgressEvent::ModuleFinished {
+            path: module.path.clone(),
+            action: ProgressAction::Skip,
+        });
+        if let Some(receive) = options.progress
+            && (!package || module.path.len() > 1)
+        {
+            receive(&ModuleProgress {
+                path: module.path.clone(),
+                action: ProgressAction::Skip,
+                elapsed: Duration::ZERO,
+            });
+        }
+    }
+    notify(ProgressEvent::Finished { success: true });
+}
+
 struct State {
     path: Vec<String>,
     cached: bool,

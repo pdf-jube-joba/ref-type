@@ -53,7 +53,12 @@ enum Reference {
     ProgramInductive(ProgramInductiveId),
 }
 
-type SubstitutionResult = (Vec<Reference>, Vec<(ModuleParamId, Exp)>, Exp);
+type SubstitutionResult = (
+    Vec<Reference>,
+    Vec<(ModuleParamId, Exp)>,
+    Vec<(ModuleParamId, ModuleArgument)>,
+    Exp,
+);
 
 #[derive(Default, Debug)]
 struct ExpressionDependencies {
@@ -638,9 +643,14 @@ impl CrateEnv {
                 // Remap the source graph first. Inserted caller arguments must not
                 // themselves be remapped or substituted a second time.
                 let argument = match *argument {
-                    ModuleArgument::Pts(e) => ModuleArgument::Pts(
-                        self.substitute_namespace_expression(e, reflected, remapping),
-                    ),
+                    ModuleArgument::Pts(e) => {
+                        ModuleArgument::Pts(self.substitute_namespace_expression(
+                            e,
+                            substitutions,
+                            reflected,
+                            remapping,
+                        ))
+                    }
                     ModuleArgument::ProgramType(t) => ModuleArgument::ProgramType(
                         crate::raw::remapping::subst_value_type_module_params(
                             self.arena(),
@@ -676,6 +686,7 @@ impl CrateEnv {
     fn substitute_namespace_expression(
         &self,
         expression: Exp,
+        substitutions: &[(ModuleParamId, ModuleArgument)],
         reflected: &[(ModuleParamId, Exp)],
         remapping: &DeclarationRemapping,
     ) -> Exp {
@@ -711,12 +722,20 @@ impl CrateEnv {
                             _ => None,
                         },
                         Term::ValueType(t) => match self.arena().get(t) {
+                            ValueTypeNode::ModuleParam(id) => {
+                                parameters.insert(id);
+                                None
+                            }
                             ValueTypeNode::Inductive { indspec, .. } => {
                                 Some(Reference::ProgramInductive(indspec))
                             }
                             _ => None,
                         },
                         Term::Value(v) => match self.arena().get(v) {
+                            ValueTermNode::ModuleParam(id) => {
+                                parameters.insert(id);
+                                None
+                            }
                             ValueTermNode::DefinedConstant(id)
                             | ValueTermNode::DefinitionInstance { definition: id, .. } => {
                                 Some(Reference::Definition(id))
@@ -749,6 +768,11 @@ impl CrateEnv {
                 parameters,
             }
         });
+        let substitutions: Vec<_> = substitutions
+            .iter()
+            .copied()
+            .filter(|(id, _)| dependencies.parameters.contains(id))
+            .collect();
         let reflected: Vec<_> = reflected
             .iter()
             .copied()
@@ -773,28 +797,31 @@ impl CrateEnv {
                 ),
             })
             .collect();
-        if let Some((old_images, old_reflected, result)) = cache.results.get(&expression)
+        if let Some((old_images, old_reflected, old_substitutions, result)) =
+            cache.results.get(&expression)
             && *old_images == images
             && *old_reflected == reflected
+            && *old_substitutions == substitutions
         {
             timing::costs::count("namespace.substitution-cache-hits", || 1);
             return *result;
         }
         timing::costs::count("namespace.substitution-cache-misses", || 1);
-        let result = crate::raw::remapping::exp_subst_map(
+        let remapped = crate::raw::remapping::remap_all_global_ids(
             self.arena(),
-            crate::raw::remapping::remap_all_global_ids(
-                self.arena(),
-                expression,
-                &remapping.definition_ids,
-                &remapping.inductive_ids,
-                &remapping.program_inductive_ids,
-            ),
-            &reflected,
+            expression,
+            &remapping.definition_ids,
+            &remapping.inductive_ids,
+            &remapping.program_inductive_ids,
         );
+        let Term::Logical(result) =
+            Term::Logical(remapped).substitute(self.arena(), &substitutions, &reflected)
+        else {
+            unreachable!()
+        };
         cache
             .results
-            .insert(expression, (images, reflected, result));
+            .insert(expression, (images, reflected, substitutions, result));
         result
     }
 
@@ -1770,7 +1797,12 @@ mod substitution_tests {
         let b = env.arena().exp_bound(1);
         let mut remapping = DeclarationRemapping::default();
         let apply = |argument, remapping: &DeclarationRemapping| {
-            env.substitute_namespace_expression(expression, &[(parameter, argument)], remapping)
+            env.substitute_namespace_expression(
+                expression,
+                &[],
+                &[(parameter, argument)],
+                remapping,
+            )
         };
         let assert_image = |result, definition, argument| {
             let function = env.arena().alloc(ExpNode::DefinedConstant(definition));
@@ -1796,6 +1828,7 @@ mod substitution_tests {
         };
         let result = env.substitute_namespace_expression(
             expression,
+            &[],
             &[(unused, b), (parameter, a)],
             &remapping,
         );
@@ -1815,7 +1848,12 @@ mod substitution_tests {
         });
         for argument in [a, b] {
             assert_eq!(
-                env.substitute_namespace_expression(lambda, &[(parameter, argument)], &remapping),
+                env.substitute_namespace_expression(
+                    lambda,
+                    &[],
+                    &[(parameter, argument)],
+                    &remapping
+                ),
                 super::super::remapping::exp_subst_map(
                     env.arena(),
                     lambda,

@@ -1,8 +1,8 @@
 \import Modules.DirectSumMapping[Index := Degree, sourceFamily := inputFamily, targetFamily := Rows.homologyFamily] \as ToRows;
-\definition forwardComponents: ToRows.Components := \fun (p: Degree) => #forward{\parent.Component[p := p].isomorphism (projective p)};
+\definition forwardComponents: ToRows.Components := \fun (p: Degree) => (\parent.Component[p := p].isomorphism (projective p)).forward;
 \import ToRows.On[f := forwardComponents] \as ForwardSum;
 \import Modules.DirectSumMapping[Index := Degree, sourceFamily := Rows.homologyFamily, targetFamily := inputFamily] \as FromRows;
-\definition backwardComponents: FromRows.Components := \fun (p: Degree) => #backward{\parent.Component[p := p].isomorphism (projective p)};
+\definition backwardComponents: FromRows.Components := \fun (p: Degree) => (\parent.Component[p := p].isomorphism (projective p)).backward;
 \import FromRows.On[f := backwardComponents] \as BackwardSum;
 \import Modules.Hom[V := Output.Carrier, W := Input.Carrier, source := Output.space, target := Input.space].Composition[
   U := Input.Carrier, domain := Input.space] \as LeftComposition;
@@ -14,21 +14,21 @@
 \import Output.To[W := Output.Carrier, target := Output.space] \as OutputUniversal;
 \definition leftMap: LeftComposition.compose BackwardSum.map ForwardSum.map = InputEnd.identity := InputUniversal.ext _ _
   (\fun (p: Degree)(x: \parent.Component[p := p].Carrier) => trans!{Input.Carrier} _ _ _
-    (congr!{Output.Carrier Input.Carrier} (#apply{BackwardSum.map}) _ _ (ForwardSum.onInjection p x))
-    (trans!{Input.Carrier} _ _ _ (BackwardSum.onInjection p (#apply{#forward{\parent.Component[p := p].isomorphism (projective p)}} x))
-      (congr!{{\parent.Component[p := p].Carrier} Input.Carrier} (#apply{Input.Injection[i := p].map}) _ _ (#leftInverse{\parent.Component[p := p].isomorphism (projective p)} x))));
+    (congr!{Output.Carrier Input.Carrier} (BackwardSum.map.apply) _ _ (ForwardSum.onInjection p x))
+    (trans!{Input.Carrier} _ _ _ (BackwardSum.onInjection p (((\parent.Component[p := p].isomorphism (projective p)).forward).apply x))
+      (congr!{{\parent.Component[p := p].Carrier} Input.Carrier} ((Input.Injection[i := p].map).apply) _ _ ((\parent.Component[p := p].isomorphism (projective p)).leftInverse x))));
 \definition rightMap: RightComposition.compose ForwardSum.map BackwardSum.map = OutputEnd.identity := OutputUniversal.ext _ _
   (\fun (p: Degree)(x: Rows.Component[i := p].Carrier) => trans!{Output.Carrier} _ _ _
-    (congr!{Input.Carrier Output.Carrier} (#apply{ForwardSum.map}) _ _ (BackwardSum.onInjection p x))
-    (trans!{Output.Carrier} _ _ _ (ForwardSum.onInjection p (#apply{#backward{\parent.Component[p := p].isomorphism (projective p)}} x))
-      (congr!{{Rows.Component[i := p].Carrier} Output.Carrier} (#apply{Output.Injection[i := p].map}) _ _ (#rightInverse{\parent.Component[p := p].isomorphism (projective p)} x))));
+    (congr!{Input.Carrier Output.Carrier} (ForwardSum.map.apply) _ _ (BackwardSum.onInjection p x))
+    (trans!{Output.Carrier} _ _ _ (ForwardSum.onInjection p (((\parent.Component[p := p].isomorphism (projective p)).backward).apply x))
+      (congr!{{Rows.Component[i := p].Carrier} Output.Carrier} ((Output.Injection[i := p].map).apply) _ _ ((\parent.Component[p := p].isomorphism (projective p)).rightInverse x))));
 \definition diagonal: Modules.Isomorphism[V := Input.Carrier, W := Output.Carrier, source := Input.space, target := Output.space].Isomorphism :=
   Modules.Isomorphism[V := Input.Carrier, W := Output.Carrier, source := Input.space, target := Output.space].Isomorphism {
     forward := ForwardSum.map, backward := BackwardSum.map,
     leftInverse := \fun (x: Input.Carrier) => congr!{{Modules.Hom[V := Input.Carrier, W := Input.Carrier, source := Input.space, target := Input.space].Map} Input.Carrier}
-      (\fun (f: Modules.Hom[V := Input.Carrier, W := Input.Carrier, source := Input.space, target := Input.space].Map) => #apply{f} x) _ _ leftMap,
+      (\fun (f: Modules.Hom[V := Input.Carrier, W := Input.Carrier, source := Input.space, target := Input.space].Map) => f.apply x) _ _ leftMap,
     rightInverse := \fun (x: Output.Carrier) => congr!{{Modules.Hom[V := Output.Carrier, W := Output.Carrier, source := Output.space, target := Output.space].Map} Output.Carrier}
-      (\fun (f: Modules.Hom[V := Output.Carrier, W := Output.Carrier, source := Output.space, target := Output.space].Map) => #apply{f} x) _ _ rightMap,
+      (\fun (f: Modules.Hom[V := Output.Carrier, W := Output.Carrier, source := Output.space, target := Output.space].Map) => f.apply x) _ _ rightMap,
   };
 \import Chains.At[C := Sum.complex, z := n] \as SumH;
 \import Chains.At[C := Total.complex, z := n] \as TotalH;
@@ -53,16 +53,16 @@
 \import Modules.Isomorphism[V := Input.Carrier, W := TotalH.Homology, source := Input.space, target := TotalH.homologySpace] \as Result;
 \definition isomorphism: Result.Isomorphism := Result.Isomorphism {
   forward := forwardMap,
-  backward := #backward{nativeIsomorphism},
-  leftInverse := \fun (x: Input.Carrier) => #leftInverse{nativeIsomorphism} x,
-  rightInverse := \fun (x: TotalH.Homology) => #rightInverse{nativeIsomorphism} x,
+  backward := nativeIsomorphism.backward,
+  leftInverse := \fun (x: Input.Carrier) => nativeIsomorphism.leftInverse x,
+  rightInverse := \fun (x: TotalH.Homology) => nativeIsomorphism.rightInverse x,
 };
 \definition onInjection: \forall (p: Degree)(x: \parent.Component[p := p].Carrier) ->
-  #apply{#forward{isomorphism}} (#apply{Input.Injection[i := p].map} x) =
-    #apply{#forward{Induced.isomorphism chainIsomorphism}}
-      (#apply{HomologySum.forward} (#apply{Output.Injection[i := p].map} (#apply{#forward{\parent.Component[p := p].isomorphism (projective p)}} x))) :=
+  isomorphism.forward.apply ((Input.Injection[i := p].map).apply x) =
+    ((Induced.isomorphism chainIsomorphism).forward).apply
+      (HomologySum.forward.apply ((Output.Injection[i := p].map).apply (((\parent.Component[p := p].isomorphism (projective p)).forward).apply x))) :=
   \fun (p: Degree)(x: \parent.Component[p := p].Carrier) =>
     congr!{Output.Carrier TotalH.Homology}
-      (\fun (v: Output.Carrier) => #apply{#forward{Induced.isomorphism chainIsomorphism}} (#apply{HomologySum.forward} v)) _ _ (ForwardSum.onInjection p x);
+      (\fun (v: Output.Carrier) => ((Induced.isomorphism chainIsomorphism).forward).apply (HomologySum.forward.apply v)) _ _ (ForwardSum.onInjection p x);
 
 \module Generator(p: Degree);

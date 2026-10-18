@@ -10,52 +10,52 @@
 \definition Closed: \forall (n: N.Nat^) -> C.family.Carrier n -> \Prop :=
   \induction (n: N.Nat^) \return C.family.Carrier n -> \Prop \with {
     | zero: \fun (x: C.family.Carrier N.Nat^::zero) => Logic.True
-    | succ: \fun (n: N.Nat^)(previous: _)(x: C.family.Carrier (N.Nat^::succ n)) => #apply{C.differential} n x = #zero{(C.family.space n)}
+    | succ: \fun (n: N.Nat^)(previous: _)(x: C.family.Carrier (N.Nat^::succ n)) => C.differential.apply n x = (C.family.space n).zero
   };
-\structure BoundaryAt[n: N.Nat^, x: C.family.Carrier n]: \Set {
+\structure BoundaryAt[n: N.Nat^, x: C.family.Carrier n]: \Set := {
   value: C.family.Carrier (N.Nat^::succ n),
-  killed: #apply{f} (N.Nat^::succ n) value = #zero{(D.family.space (N.Nat^::succ n))},
-  boundary: #apply{C.differential} n value = x,
-}
+  killed: f.apply (N.Nat^::succ n) value = (D.family.space (N.Nat^::succ n)).zero,
+  boundary: C.differential.apply n value = x,
+};
 \definition ExactCycles: \Prop := \forall (n: N.Nat^)(x: C.family.Carrier n) -> Closed n x ->
-  #apply{f} n x = #zero{(D.family.space n)} -> \exists BoundaryAt[n, x];
-\definition Onto: \Prop := \forall (n: N.Nat^)(x: D.family.Carrier n) -> \exists { y: C.family.Carrier n \where #apply{f} n y = x };
+  f.apply n x = (D.family.space n).zero -> \exists BoundaryAt[n, x];
+\definition Onto: \Prop := \forall (n: N.Nat^)(x: D.family.Carrier n) -> \exists ( y: C.family.Carrier n \where f.apply n y = x );
 \definition integerOnto: Onto -> Kernel.Onto := \fun (onto: Onto) =>
-  \induction (k: Signed.Int^) \return \forall (x: Target.Carrier k) -> \exists { y: Source.Carrier k \where #apply{Extension.map} k y = x } \with {
+  \induction (k: Signed.Int^) \return \forall (x: Target.Carrier k) -> \exists ( y: Source.Carrier k \where Extension.map.apply k y = x ) \with {
     | ofNat: \block {
       \fun (n: N.Nat^)(x: Target.Carrier (Signed.Int^::ofNat n)) \then
-      \takefrom y: \Cast[C.family.Carrier n] ({ y: C.family.Carrier n \where #apply{f} n y = x }) \by onto n x \then
-      \return Logic.existsIntro[Source.Carrier (Signed.Int^::ofNat n), { y: Source.Carrier (Signed.Int^::ofNat n) \where #apply{Extension.map} (Signed.Int^::ofNat n) y = x }]
-        (Source.Positive[n := n].intro y) (\bysub(C.family.Carrier n, { y: C.family.Carrier n \where #apply{f} n y = x }, y))
+      \takefrom y: \Cast[C.family.Carrier n] ({ y: C.family.Carrier n \where f.apply n y = x }) \by onto n x \then
+      \return Logic.existsIntro[Source.Carrier (Signed.Int^::ofNat n), { y: Source.Carrier (Signed.Int^::ofNat n) \where Extension.map.apply (Signed.Int^::ofNat n) y = x }]
+        (Source.Positive[n := n].intro y) (\bysub(C.family.Carrier n, { y: C.family.Carrier n \where f.apply n y = x }, y))
     }
     | negSucc: \fun (n: N.Nat^)(x: Target.Carrier (Signed.Int^::negSucc n)) =>
-      Logic.existsIntro[Source.Carrier (Signed.Int^::negSucc n), { y: Source.Carrier (Signed.Int^::negSucc n) \where #apply{Extension.map} (Signed.Int^::negSucc n) y = x }]
-        #zero{(Source.space (Signed.Int^::negSucc n))} (sym!{{Target.Carrier (Signed.Int^::negSucc n)}} _ _ (Target.Negative[n := n].zero x))
+      Logic.existsIntro[Source.Carrier (Signed.Int^::negSucc n), { y: Source.Carrier (Signed.Int^::negSucc n) \where Extension.map.apply (Signed.Int^::negSucc n) y = x }]
+        (Source.space (Signed.Int^::negSucc n)).zero (sym!{{Target.Carrier (Signed.Int^::negSucc n)}} _ _ (Target.Negative[n := n].zero x))
   };
 \definition closed: \forall (n: N.Nat^)(x: Source.Carrier (Signed.Int^::ofNat n)) ->
-  #apply{Source.differential} (Signed.Int^::ofNat n) x = #zero{(Source.space (Indices.previous (Signed.Int^::ofNat n)))} -> Closed n x :=
+  Source.differential.apply (Signed.Int^::ofNat n) x = (Source.space (Indices.previous (Signed.Int^::ofNat n))).zero -> Closed n x :=
   \induction (n: N.Nat^) \return \forall (x: Source.Carrier (Signed.Int^::ofNat n)) ->
-    #apply{Source.differential} (Signed.Int^::ofNat n) x = #zero{(Source.space (Indices.previous (Signed.Int^::ofNat n)))} -> Closed n x \with {
+    Source.differential.apply (Signed.Int^::ofNat n) x = (Source.space (Indices.previous (Signed.Int^::ofNat n))).zero -> Closed n x \with {
       | zero: \fun (x: Source.Carrier (Signed.Int^::ofNat N.Nat^::zero))(condition: _) => Logic.True::intro
       | succ: \fun (n: N.Nat^)(previous: _)(x: Source.Carrier (Signed.Int^::ofNat (N.Nat^::succ n)))(condition: _) => condition
     };
 \import Integer.Prior[C := Source.complex] \as Prior;
 \module Positive(n: N.Nat^) {
   \definition prior: \forall (y: Source.Carrier (Indices.next (Signed.Int^::ofNat n))) ->
-    Prior.value (Signed.Int^::ofNat n) y = Source.Positive[n := n].intro (#apply{C.differential} n y) :=
+    Prior.value (Signed.Int^::ofNat n) y = Source.Positive[n := n].intro (C.differential.apply n y) :=
     \fun (y: Source.Carrier (Indices.next (Signed.Int^::ofNat n))) =>
-      Transport.castRefl Source.Carrier (Signed.Int^::ofNat n) (Source.Positive[n := n].intro (#apply{C.differential} n y));
+      Transport.castRefl Source.Carrier (Signed.Int^::ofNat n) (Source.Positive[n := n].intro (C.differential.apply n y));
   \definition exact: ExactCycles -> \forall (x: Source.Carrier (Signed.Int^::ofNat n)) ->
-    #apply{Extension.map} (Signed.Int^::ofNat n) x = #zero{(Target.space (Signed.Int^::ofNat n))} ->
-    #apply{Source.differential} (Signed.Int^::ofNat n) x = #zero{(Source.space (Indices.previous (Signed.Int^::ofNat n)))} ->
+    Extension.map.apply (Signed.Int^::ofNat n) x = (Target.space (Signed.Int^::ofNat n)).zero ->
+    Source.differential.apply (Signed.Int^::ofNat n) x = (Source.space (Indices.previous (Signed.Int^::ofNat n))).zero ->
     \exists Kernel.BoundaryAt[Signed.Int^::ofNat n, x] := \block {
       \fun (exact: ExactCycles)(x: Source.Carrier (Signed.Int^::ofNat n))(killed: _)(cycle: _) \then
       \takefrom y: BoundaryAt[n, x] \by exact n x (closed n x cycle) killed \then
       \return \exact(Kernel.BoundaryAt[Signed.Int^::ofNat n, x] {
-          value := Source.Positive[n := N.Nat^::succ n].intro #value{y},
-          killed := #killed{y},
+          value := Source.Positive[n := N.Nat^::succ n].intro y.value,
+          killed := y.killed,
           boundary := trans!{{Source.Carrier (Signed.Int^::ofNat n)}} _ _ _
-            (prior (Source.Positive[n := N.Nat^::succ n].intro #value{y})) (#boundary{y}),
+            (prior (Source.Positive[n := N.Nat^::succ n].intro y.value)) (y.boundary),
         }, Kernel.BoundaryAt[Signed.Int^::ofNat n, x])
     };
 }
@@ -66,15 +66,15 @@
     source := Source.space (Indices.next index), target := Source.space index] \as PriorMaps;
   \definition exact: \forall (x: Source.Carrier index) -> \exists Kernel.BoundaryAt[index, x] :=
     \fun (x: Source.Carrier index) => \exact(Kernel.BoundaryAt[index, x] {
-        value := #zero{(Source.space (Indices.next index))},
+        value := (Source.space (Indices.next index)).zero,
         killed := Maps.At[k := Indices.next index].zeroPreserved Extension.map,
         boundary := trans!{{Source.Carrier index}} _ _ _ (PriorMaps.zeroPreserved H.prior) (sym!{{Source.Carrier index}} _ _ (Source.Negative[n := n].zero x)),
       }, Kernel.BoundaryAt[index, x]);
 }
 \definition integerExact: ExactCycles -> Kernel.OriginalExactCycles := \fun (exact: ExactCycles) =>
   \induction (k: Signed.Int^) \return \forall (x: Source.Carrier k) ->
-    #apply{Extension.map} k x = #zero{(Target.space k)} ->
-    #apply{Source.differential} k x = #zero{(Source.space (Indices.previous k))} -> \exists Kernel.BoundaryAt[k, x] \with {
+    Extension.map.apply k x = (Target.space k).zero ->
+    Source.differential.apply k x = (Source.space (Indices.previous k)).zero -> \exists Kernel.BoundaryAt[k, x] \with {
       | ofNat: \fun (n: N.Nat^) => Positive[n := n].exact exact
       | negSucc: \fun (n: N.Nat^)(x: Source.Carrier (Signed.Int^::negSucc n))(killed: _)(cycle: _) => Negative[n := n].exact x
     };
@@ -92,14 +92,14 @@
   \import Modules.Isomorphism[V := HTarget.Carrier, W := ITarget.Homology, source := HTarget.space, target := ITarget.homologySpace].Inverse[] \as ReverseTarget;
   \import Modules.Isomorphism[V := HSource.Carrier, W := ISource.Homology, source := HSource.space, target := ISource.homologySpace].Composition[
     U := ITarget.Homology, final := ITarget.homologySpace] \as First;
-  \definition middle(onto: Onto)(exact: ExactCycles): Modules.Isomorphism[V := HSource.Carrier, W := ITarget.Homology, source := HSource.space, target := ITarget.homologySpace].Isomorphism :=
+  \definition middle[onto: Onto][exact: ExactCycles]: Modules.Isomorphism[V := HSource.Carrier, W := ITarget.Homology, source := HSource.space, target := ITarget.homologySpace].Isomorphism :=
     First.compose (Maps.At[k := index].Invert[f := Extension.map].isomorphism (quasiIsomorphism onto exact index)) SourceComparison.isomorphism;
   \import Modules.Isomorphism[V := HSource.Carrier, W := ITarget.Homology, source := HSource.space, target := ITarget.homologySpace].Composition[
     U := HTarget.Carrier, final := HTarget.space] \as Last;
-  \definition isomorphism(onto: Onto)(exact: ExactCycles): Modules.Isomorphism[V := HSource.Carrier, W := HTarget.Carrier, source := HSource.space, target := HTarget.space].Isomorphism :=
+  \definition isomorphism[onto: Onto][exact: ExactCycles]: Modules.Isomorphism[V := HSource.Carrier, W := HTarget.Carrier, source := HSource.space, target := HTarget.space].Isomorphism :=
     Last.compose (ReverseTarget.inverse TargetComparison.isomorphism) (middle onto exact);
   \import \parent.\parent.HomologyAt[n := n] \as Natural;
   \definition forward: \forall (onto: Onto)(exact: ExactCycles)(x: HSource.Carrier) ->
-    #apply{#forward{(isomorphism onto exact)}} x = #apply{(Natural.induced f)} x :=
-    \fun (onto: Onto)(exact: ExactCycles)(x: HSource.Carrier) => \refl(#apply{(Natural.induced f)} x);
+    ((isomorphism onto exact).forward).apply x = (Natural.induced f).apply x :=
+    \fun (onto: Onto)(exact: ExactCycles)(x: HSource.Carrier) => \refl((Natural.induced f).apply x);
 }

@@ -1,6 +1,6 @@
 \use Equality.congr2;
 \import \parent.\parent.Analysis[].Operations[] \as Operations;
-\definition plusFamily(U: OpenSet)(left, right: PartialFamily U): PartialFamily U :=
+\definition plusFamily[U: OpenSet][left, right: PartialFamily U]: PartialFamily U :=
   \fun (directions: Directions) => Operations.plus U (left directions) (right directions);
 \definition addContDiff: \forall (U: OpenSet)(k: N.Nat^)(f, g: ScalarFunction U) -> ContDiffOn U k f -> ContDiffOn U k g ->
   ContDiffOn U k (Operations.plus U f g) := \block {
@@ -13,13 +13,13 @@
     (ContDiffLaws[U, Operations.plus U f g, k, plusFamily U df dg] {
         partials := PartialFamilyLaws[U, Operations.plus U f g, k, plusFamily U df dg] {
           function := congr2!{{ScalarFunction U} {ScalarFunction U} {ScalarFunction U}} (Operations.plus U)
-            (df Directions::nil) f (dg Directions::nil) g (#function{(#partials{lf})}) (#function{(#partials{lg})}),
+            (df Directions::nil) f (dg Directions::nil) g ((lf.partials).function) ((lg.partials).function),
           derivative := \fun (directions: Directions)(bound: _)(i: Coordinate) =>
             Operations.addPartial U (df directions) (dg directions) (df (Directions::cons i directions)) (dg (Directions::cons i directions)) i
-              (#derivative{(#partials{lf})} directions bound i) (#derivative{(#partials{lg})} directions bound i),
+              ((lf.partials).derivative directions bound i) ((lg.partials).derivative directions bound i),
         },
         continuous := \fun (directions: Directions)(bound: _) => Operations.addContinuous U (df directions) (dg directions)
-          (#continuous{lf} directions bound) (#continuous{lg} directions bound),
+          (lf.continuous directions bound) (lg.continuous directions bound),
       })
 };
 \definition addSmooth: \forall (U: OpenSet)(f, g: ScalarFunction U) -> SmoothOn U f -> SmoothOn U g -> SmoothOn U (Operations.plus U f g) :=
@@ -38,7 +38,7 @@
 \definition mulSmooth: \forall (U: OpenSet)(f, g: ScalarFunction U) -> SmoothOn U f -> SmoothOn U g -> SmoothOn U (Operations.times U f g) :=
   \fun (U: _)(f, g: _)(left: _)(right: _)(k: _) => mulContDiff U k f g (left k) (right k);
 
-\definition constantFamily(U: OpenSet)(c: Real): PartialFamily U :=
+\definition constantFamily[U: OpenSet][c: Real]: PartialFamily U :=
   \induction (directions: Directions) \return ScalarFunction U \with {
     | nil: \fun (x: Carrier U) => c
     | cons: \fun (i: Coordinate)(tail: Directions)(rest: ScalarFunction U) => \fun (x: Carrier U) => zero
