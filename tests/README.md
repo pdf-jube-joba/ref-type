@@ -10,7 +10,6 @@ python3 tests/tests.py tests/cli --keep-failed
 python3 tests/tests.py --filter application_inference
 python3 tests/tests.py --list
 python3 tests/tests.py --command '/path/to/checker'
-python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 `--command` は引数を含むコマンドを指定できる。
@@ -168,4 +167,3 @@ interrupt = { terminal = "\u001b[2K", stderr = "checking " }
 [端末の例](cli/terminal.md)を参照。
 
 数学の定義・証明は [libs](../libs/README.md)、内部状態・保存形式・プロセス管理は Rust のテストで検査する。
-[test_runner.py](test_runner.py) は共通ランナーの動作を検査する。

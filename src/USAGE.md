@@ -164,7 +164,6 @@ REF_TYPE_PROFILE_PROGRESS=1 REF_TYPE_PROFILE_DECLARATIONS=1 \
 cargo build -p cli --locked
 python3 tests/tests.py
 cargo test --workspace --locked
-python3 -m unittest discover -s tests -p 'test_*.py'
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
