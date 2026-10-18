@@ -1,14 +1,12 @@
 # 言語で書きたい構成と比較例
 
-G02〜G05・G08・G09・G11・G13〜G17 の比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
+依存ライブラリを使わない比較サンプルは、全文を [playground](../extensions/playground/README.md) に貼り付けて単独で検査できる。
 これらのサンプルを個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
 cargo build --locked --offline -p cli
 target/debug/cli _plans/gaps/05-01-record-eta.ref --no-cache --diagnostics compact
 ```
-
-Box の仕様と実装結果は [Box の除去とプログラム実行](../doc/book/src/props/box_elimination.md) にまとめている。
 
 ## 依存ライブラリを使う再現例
 
@@ -72,7 +70,7 @@ target/debug/cli "$sample_dir" --module docgaps.Repro --cache-dir "$PWD/libs/ref
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
 | [02-01-proof-function.ref](gaps/02-01-proof-function.ref) | `choose: P -> A := \fun (h: P) => a`。 | 失敗：`no product rule for domain \Prop and body \Set(0)`。 |
-| [02-02-proof-contextual.ref](gaps/02-02-proof-contextual.ref) | `choose(h: P): A := a`。 | 成功。 |
+| [02-02-proof-contextual.ref](gaps/02-02-proof-contextual.ref) | `choose[h: P]: A := a`。 | 成功。 |
 
 <a id="g03"></a>
 
@@ -93,22 +91,6 @@ target/debug/cli "$sample_dir" --module docgaps.Repro --cache-dir "$PWD/libs/ref
 > [!note]
 > 保留します。
 > 内容を見る限り G02 と同じ、 Prop をとって Set を返しているため。
-
-<a id="g04"></a>
-
-## G04: Machine の実行を Box にする定義
-
-Machine を引数に取り、その実行を Box にする共通の定義を書きたい。
-
-| サンプル | 条件 | 結果 |
-| --- | --- | --- |
-| [04-01-box-machine.ref](gaps/04-01-box-machine.ref) | `machine` は定義の引数。 | 成功。 |
-| [04-02-box-concrete.ref](gaps/04-02-box-concrete.ref) | `machine` は既に定義した具体値。 | 成功。 |
-
-parameter と残余項の reflection は [Box の除去とプログラム実行](../doc/book/src/props/box_elimination.md) にまとめる。
-
-> [!note]
-> 既知の問題のため、今は対処せず。
 
 <a id="g05"></a>
 
@@ -258,14 +240,6 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 [13-04-function-reader.ref](gaps/13-04-function-reader.ref) は処理を `Read` の本文へ移す回避例である。
 整数 Künneth の `Theorem.SequenceAt` は次数ごとの短完全列の型を本文で組み立て、`Sequences(n)` はその公開型だけを読む。
 
-<a id="g14"></a>
-
-## G14: 部分集合の束縛変数から dot 記法で構造の field を読む（解消済み）
-
-存在命題の部分集合 `{ s: Objects A \where s.value = a }` で、束縛変数 `s` の構造 field を dot 記法で参照したい。
-[14-01-function-field.ref](gaps/14-01-function-field.ref) と [14-02-explicit-projection.ref](gaps/14-02-explicit-projection.ref) は、どちらも `s.value` で型検査が通る。
-整数 Künneth の `Assertions.Exact` は `s.inclusion` を使って、外積が左端の写像である短完全列の存在を公開する。
-
 <a id="g15"></a>
 
 ## G15: 複体を変換した結果を別名で再公開する
@@ -285,10 +259,3 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 
 [16-02-imported-signature.ref](gaps/16-02-imported-signature.ref) は、本文で `Types` を import し、parameter を `On(X: Types.Object)` に移す回避例である。
 `singular_cohomology.SimplicialChains.On` はこの方法で面写像を持つ単体の族を受け取る。
-
-<a id="g17"></a>
-
-## G17: 等式消去の束縛変数から構造の field を読む（解消済み）
-
-`\idelim` の族で、束縛変数の field を `entry.value` と書きたい。
-[17-01-idelim-field.ref](gaps/17-01-idelim-field.ref) と [17-02-idelim-predicate.ref](gaps/17-02-idelim-predicate.ref) は、どちらも型検査が通る。
