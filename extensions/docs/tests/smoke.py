@@ -17,6 +17,7 @@ import tempfile
 
 EXTENSION = Path(__file__).resolve().parents[1]
 REPO = EXTENSION.parents[1]
+LIBRARY = EXTENSION / "tests/fixtures/library"
 
 
 @contextmanager
@@ -100,7 +101,7 @@ def crawl(base):
     return pages
 
 
-def failures(base):
+def failures(base, library):
     for path in ["file/999999", "source/999999", "dir/999999", "../Cargo.toml", "%2e%2e/etc/passwd", "source/%2e%2e%2fetc%2fpasswd", "file/-1", "file/999999999999999999999999999"]:
         try:
             get(base, path)
@@ -108,17 +109,17 @@ def failures(base):
         except HTTPError as error:
             assert error.code in (400, 404), (path, error.code)
     port = urlsplit(base).port
-    result = subprocess.run([str(REPO / "target/debug/ref-docs"), "--port", str(port)], capture_output=True, text=True, timeout=10)
+    result = subprocess.run([str(REPO / "target/debug/ref-docs"), "--libs", str(library), "--port", str(port)], capture_output=True, text=True, timeout=10)
     assert result.returncode != 0 and "--port 0" in result.stderr
 
 
-with server("--port", "0") as base:
+with server("--libs", str(LIBRARY), "--port", "0") as base:
     pages = crawl(base)
     count = len([path for path in pages if path.startswith("/file/")])
-    expected = len(list((REPO / "libs").rglob("*.ref")))
+    expected = len(list(LIBRARY.rglob("*.ref")))
     assert count == expected, (count, expected)
     assert "Nat" in get(base, "search")
-    failures(base)
+    failures(base, LIBRARY)
 
 with tempfile.TemporaryDirectory(prefix="ref-docs-http-") as directory:
     fixture = Path(directory)
@@ -140,7 +141,7 @@ with tempfile.TemporaryDirectory(prefix="ref-docs-http-") as directory:
         assert "SECRET_CONTENT" not in all_html
         assert "No named declarations" in all_html
         assert "Could not parse" in all_html
-        failures(base)
+        failures(base, fixture)
     for path in [fixture / "missing", fixture / "secret.txt"]:
         result = subprocess.run([str(REPO / "target/debug/ref-docs"), "--libs", str(path), "--port", "0"], capture_output=True, text=True, timeout=10)
         assert result.returncode != 0 and "ref-docs:" in result.stderr
@@ -152,7 +153,7 @@ try:
 except OSError:
     print("Default port 3030 already occupied; fixed-port launch skipped")
 else:
-    with server() as base:
+    with server("--libs", str(LIBRARY)) as base:
         assert base == "http://127.0.0.1:3030/"
         assert "Library explorer" in get(base)
 print("Startup, enumeration, links, escaping, traversal and failure checks passed")

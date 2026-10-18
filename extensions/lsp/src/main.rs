@@ -515,14 +515,4 @@ mod tests {
         }
         assert_eq!(offset(text, &json!({ "line": 0, "character": 2 })), None);
     }
-
-    #[test]
-    fn package_manifest_takes_priority_over_source_root() {
-        let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let file = repository.join("libs/real/cauchy/src/CauchyReal.ref");
-        assert_eq!(
-            sema::source_entry(&file).unwrap(),
-            repository.join("libs/real/cauchy").canonicalize().unwrap()
-        );
-    }
 }

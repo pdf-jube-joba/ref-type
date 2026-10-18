@@ -42,7 +42,13 @@ cargo test -p ref-docs -p syntax --locked
 python3 extensions/docs/tests/smoke.py
 ```
 
-サーバーを起動し、Playwright と Chromium が使える環境では browser test も実行できる。
+Playwright と Chromium が使える環境では、専用のサンプルを配信して browser test も実行できる。
+
+```sh
+cargo run -p ref-docs -- --libs extensions/docs/tests/fixtures/library
+```
+
+別のターミナルで実行する。
 
 ```sh
 DOCS_URL=http://127.0.0.1:3030/ node extensions/docs/tests/browser.cjs

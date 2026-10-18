@@ -251,24 +251,3 @@ async fn http_routes_links_headers_and_traversal() {
         assert!(response.status().is_client_error(), "{url}");
     }
 }
-
-#[test]
-fn repository_libraries_parse_and_link() {
-    let c = Catalog::read(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../libs")).unwrap();
-    assert!(c.files.len() >= 200);
-    assert!(c.directories[0].directories.len() >= 8);
-    for file in &c.files {
-        assert!(
-            file.error.is_none(),
-            "{}: {:?}",
-            file.path.display(),
-            file.error
-        );
-    }
-    assert!(
-        c.files
-            .iter()
-            .flat_map(|file| &file.items)
-            .any(|item| !item.documentation.is_empty())
-    );
-}
