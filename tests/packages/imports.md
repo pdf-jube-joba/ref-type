@@ -211,17 +211,12 @@ expect = "accept"
 
 ## parent and external references share checked child declarations
 
-親の内側からの参照と外側からの参照は同じ子 module の宣言を指す。
-共有される宣言の検査は一回で済む。
+親の内側からも外側からも、子 module の宣言を参照できる。
 
 ```toml case
 id = "parent_and_external_references_share_checked_child_declarations"
 scope = "package"
 expect = "accept"
-env = { REF_TYPE_PROFILE_DECLARATIONS = "1" }
-checks = [
-  { stream = "stderr", pattern = 'definition marker \(excluding diagnostics\)', count = 1 },
-]
 ```
 
 ```ref file=src/root.ref

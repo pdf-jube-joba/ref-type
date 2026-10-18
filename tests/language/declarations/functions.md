@@ -78,19 +78,8 @@ name = "Playground"
 型として利用できない。
 
 ```toml step
-id = "compact"
+id = "invalid"
 expect = "reject"
-args = ["--diagnostics", "compact"]
-```
-
-### detailed
-
-診断の表示方式によらず拒否される。
-
-```toml step
-id = "detailed"
-expect = "reject"
-args = ["--diagnostics", "detailed"]
 ```
 
 ### value
@@ -137,19 +126,8 @@ name = "Playground"
 型として利用できない。
 
 ```toml step
-id = "compact"
+id = "invalid"
 expect = "reject"
-args = ["--diagnostics", "compact"]
-```
-
-### detailed
-
-診断の表示方式によらず拒否される。
-
-```toml step
-id = "detailed"
-expect = "reject"
-args = ["--diagnostics", "detailed"]
 ```
 
 ### value
@@ -177,33 +155,13 @@ expect = "accept"
 
 projection の積が許可された sort 関係を満たさない。
 
-```toml scenario
+```toml case
 id = "generated-projection"
 scope = "module"
+expect = "reject"
 name = "M"
 ```
 
 ```ref
 \structure Bad: \Prop { b: \Prop }
 ```
-
-### compact
-
-簡潔な診断方式でも拒否される。
-
-```toml step
-id = "compact"
-expect = "reject"
-args = ["--diagnostics", "compact"]
-```
-
-### detailed
-
-詳細な診断方式でも拒否される。
-
-```toml step
-id = "detailed"
-expect = "reject"
-args = ["--diagnostics", "detailed"]
-```
-

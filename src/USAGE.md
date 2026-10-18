@@ -167,7 +167,5 @@ cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
-[受け入れテスト](../tests/README.md) は Markdown のソースと編集手順を CLI で実行する。
-`--report-json` の `outcome` と終了コードは `accepted` / 0、`rejected` / 1、`internal-error` / 2。
-`cache.verification_reused` は永続的な検証結果による検査省略を表す。
+[受け入れテスト](../tests/README.md) は Markdown のソースと編集手順について、受理・拒否を終了コードで検査する。
 依存取得済みなら Cargo に `--offline` を追加できる。

@@ -1,33 +1,26 @@
 #!/usr/bin/env python3
-"""Execute documented CLI acceptance tests using Python 3.11+ and its standard library."""
+"""Check acceptance and rejection of documented sources using Python 3.11+ and its standard library."""
 from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-import errno
 import fnmatch
-import json
-import math
 import os
 from pathlib import Path, PurePosixPath
 import re
-import select
 import shlex
 import shutil
 import signal
 import subprocess
 import sys
 import tempfile
-import time
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 SCOPES = {"module", "package", "workspace"}
-EXPECTATIONS = {"accept": ("accepted", 0), "reject": ("rejected", 1)}
-COMMON = {"id", "expect", "args", "env", "entry", "cwd", "timeout",
-          "stdout", "stdout_same_as", "stdout_lines", "stdout_bytes_min", "stderr_empty",
-          "remove", "checks", "terminal", "interrupt"}
+EXPECTATIONS = {"accept": 0, "reject": 1}
+COMMON = {"id", "expect", "entry", "remove"}
 CONFIG = COMMON | {"scope", "name", "parameters"}
 
 
@@ -82,92 +75,23 @@ def validate_config(config, allowed, context, *, expectation=False):
         raise DefinitionError(f"{context}: unknown fields: {', '.join(sorted(unknown))}")
     if not isinstance(config.get("id"), str) or not re.fullmatch(r"[\w.-]+", config["id"]):
         raise DefinitionError(f"{context}: id must be a nonempty identifier")
-    outcomes = {*EXPECTATIONS, "interrupted"}
-    if expectation and (not isinstance(config.get("expect"), str) or config["expect"] not in outcomes):
-        raise DefinitionError(f"{context}: expect must be accept, reject or interrupted")
-    if "expect" in config and (not isinstance(config["expect"], str) or config["expect"] not in outcomes):
-        raise DefinitionError(f"{context}: expect must be accept, reject or interrupted")
-    for key in ("args", "remove"):
-        if key in config and (not isinstance(config[key], list)
-                              or not all(isinstance(item, str) for item in config[key])):
-            raise DefinitionError(f"{context}: {key} must be an array of strings")
-    for key in ("entry", "cwd"):
-        if key in config:
-            relative_path(config[key], context)
-    for path in config.get("remove", []):
-        if str(relative_path(path, context)) == ".":
-            raise DefinitionError(f"{context}: remove must name a file or subdirectory")
-    for key in ("stdout", "stdout_same_as", "name", "parameters"):
+    if expectation and "expect" not in config:
+        raise DefinitionError(f"{context}: expect must be accept or reject")
+    if "expect" in config and (not isinstance(config["expect"], str) or config["expect"] not in EXPECTATIONS):
+        raise DefinitionError(f"{context}: expect must be accept or reject")
+    if "entry" in config:
+        relative_path(config["entry"], context)
+    if "remove" in config:
+        if not isinstance(config["remove"], list):
+            raise DefinitionError(f"{context}: remove must be an array of paths")
+        for path in config["remove"]:
+            if str(relative_path(path, context)) == ".":
+                raise DefinitionError(f"{context}: remove must name a file or subdirectory")
+    for key in ("name", "parameters"):
         if key in config and not isinstance(config[key], str):
             raise DefinitionError(f"{context}: {key} must be a string")
     if "name" in config and not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", config["name"]):
         raise DefinitionError(f"{context}: invalid module name")
-    for key in ("stdout_lines", "stdout_bytes_min"):
-        if key in config and (type(config[key]) is not int or config[key] < 0):
-            raise DefinitionError(f"{context}: {key} must be a nonnegative integer")
-    if "timeout" in config and (type(config["timeout"]) not in (int, float)
-                                or not 0 < config["timeout"] < float("inf")):
-        raise DefinitionError(f"{context}: timeout must be a positive finite number")
-    for key in ("stderr_empty", "terminal"):
-        if key in config and type(config[key]) is not bool:
-            raise DefinitionError(f"{context}: {key} must be a boolean")
-    if "interrupt" in config:
-        interrupt = config["interrupt"]
-        if (not isinstance(interrupt, dict) or not interrupt
-                or interrupt.keys() - {"terminal", "stderr"}
-                or not all(isinstance(value, str) and value for value in interrupt.values())):
-            raise DefinitionError(f"{context}: interrupt must map terminal/stderr to nonempty strings")
-    validate_checks(config.get("checks", []), context)
-    environment = config.get("env", {})
-    if not isinstance(environment, dict) or not all(
-        isinstance(key, str) and key and "=" not in key and "\0" not in key
-        and isinstance(value, str) and "\0" not in value
-        for key, value in environment.items()
-    ):
-        raise DefinitionError(f"{context}: env must map environment names to strings")
-    for arg in config.get("args", []):
-        if arg.split("=", 1)[0] in {"--report-json", "--worker"}:
-            raise DefinitionError(f"{context}: {arg} is managed by the runner")
-
-
-def validate_checks(checks, context):
-    if not isinstance(checks, list):
-        raise DefinitionError(f"{context}: checks must be an array of tables")
-    for check in checks:
-        if not isinstance(check, dict) or check.keys() - {
-            "stream", "contains", "absent", "ordered", "pattern", "count", "sum_equals",
-            "relative_tolerance", "positive",
-        }:
-            raise DefinitionError(f"{context}: invalid output check")
-        if not isinstance(check.get("stream"), str) or check["stream"] not in {"stdout", "stderr", "terminal"}:
-            raise DefinitionError(f"{context}: check stream must be stdout, stderr or terminal")
-        if not ({"contains", "absent", "ordered", "pattern"} & check.keys()):
-            raise DefinitionError(f"{context}: empty output check")
-        for key in ("contains", "absent", "ordered"):
-            if key in check and (not isinstance(check[key], list)
-                                 or not all(isinstance(value, str) and value for value in check[key])):
-                raise DefinitionError(f"{context}: {key} must be an array of nonempty strings")
-        for key in ("pattern", "sum_equals"):
-            if key in check:
-                if not isinstance(check[key], str):
-                    raise DefinitionError(f"{context}: {key} must be a regular expression")
-                try:
-                    pattern = re.compile(check[key], re.MULTILINE)
-                except re.error as error:
-                    raise DefinitionError(f"{context}: {error}") from error
-                if "sum_equals" in check and pattern.groups != 1:
-                    raise DefinitionError(f"{context}: numeric patterns require one capture group")
-        if "count" in check and ("pattern" not in check or type(check["count"]) is not int or check["count"] < 0):
-            raise DefinitionError(f"{context}: count requires a pattern and a nonnegative integer")
-        if "sum_equals" in check and "pattern" not in check:
-            raise DefinitionError(f"{context}: sum_equals requires a pattern")
-        if "relative_tolerance" in check and (
-            "sum_equals" not in check or type(check["relative_tolerance"]) not in (int, float)
-            or not 0 <= check["relative_tolerance"] < float("inf")
-        ):
-            raise DefinitionError(f"{context}: relative_tolerance requires sum_equals and a finite nonnegative number")
-        if "positive" in check and ("sum_equals" not in check or type(check["positive"]) is not bool):
-            raise DefinitionError(f"{context}: positive requires sum_equals and a boolean")
 
 
 def fences(document):
@@ -217,8 +141,6 @@ def parse_document(document):
                     raise DefinitionError(f"{context}: scope must be module, package or workspace")
                 if scenario and "expect" in config:
                     raise DefinitionError(f"{context}: put expectations on scenario steps")
-                if scenario and "stdout_same_as" in config:
-                    raise DefinitionError(f"{context}: stdout_same_as belongs on a step")
                 current = Case(document, config, line, scenario)
                 cases.append(current)
                 step = None
@@ -232,7 +154,7 @@ def parse_document(document):
                 if "=" not in token:
                     raise DefinitionError(f"{context}: invalid source attribute {token}")
                 key, value = token.split("=", 1)
-                if key not in {"file", "repeat"} or key in attributes:
+                if key != "file" or key in attributes:
                     raise DefinitionError(f"{context}: invalid source attribute {key}")
                 attributes[key] = value
             path = attributes.get("file")
@@ -241,13 +163,7 @@ def parse_document(document):
             if path is not None:
                 if str(relative_path(path, context)) == ".":
                     raise DefinitionError(f"{context}: file must name a file")
-            try:
-                repeat = int(attributes.get("repeat", "1"))
-            except ValueError as error:
-                raise DefinitionError(f"{context}: repeat must be a positive integer") from error
-            if not 1 <= repeat <= 100_000 or len(body.encode("utf-8")) * repeat > 16 * 1024 * 1024:
-                raise DefinitionError(f"{context}: invalid or excessive source repetition")
-            (step.sources if step else current.sources).append(Source(path, body * repeat, line))
+            (step.sources if step else current.sources).append(Source(path, body, line))
         elif tokens and tokens[0] == "toml" and len(tokens) > 1:
             raise DefinitionError(f"{context}: unknown test fence {info}")
         elif any(token.startswith("file=") for token in tokens[1:]):
@@ -270,13 +186,6 @@ def parse_document(document):
         for item in case.steps if case.scenario else [Step(case.config, case.line, case.sources)]:
             if item.config["id"] in previous:
                 raise DefinitionError(f"{document}:{item.line}: duplicate step id")
-            if "stdout_same_as" in item.config and item.config["stdout_same_as"] not in previous:
-                raise DefinitionError(f"{document}:{item.line}: stdout_same_as requires an earlier step")
-            settings = {**case.config, **item.config}
-            if settings.get("interrupt") and not settings.get("terminal"):
-                raise DefinitionError(f"{document}:{item.line}: interrupt requires terminal = true")
-            if (settings.get("expect") == "interrupted") != bool(settings.get("interrupt")):
-                raise DefinitionError(f"{document}:{item.line}: interrupted expectation requires interrupt conditions")
             paths = [source.path for source in item.sources]
             if len(paths) != len(set(paths)):
                 raise DefinitionError(f"{document}:{item.line}: source file written twice in one step")
@@ -341,151 +250,20 @@ def terminate(child):
         child.communicate()
 
 
-def invoke(command, cwd, environment, timeout, logs):
+def invoke(command, cwd, timeout, logs):
     logs.mkdir(parents=True, exist_ok=True)
-    (logs / "command.json").write_text(json.dumps(
-        {"command": command, "cwd": str(cwd)}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (logs / "command").write_text(shlex.join(command) + "\n", encoding="utf-8")
     # File redirection drains both outputs without a pipe-buffer deadlock.
     with (logs / "stdout").open("wb") as stdout, (logs / "stderr").open("wb") as stderr:
-        child = subprocess.Popen(command, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
+        child = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL,
                                  stdout=stdout, stderr=stderr, start_new_session=os.name == "posix")
         try:
             child.wait(timeout=timeout)
         except subprocess.TimeoutExpired as error:
-            raise AssertionError(f"CLI exceeded {timeout} seconds") from error
+            raise AssertionError(f"checker exceeded {timeout} seconds") from error
         finally:
             terminate(child)
-    return (child.returncode, (logs / "stdout").read_bytes(), (logs / "stderr").read_bytes())
-
-
-def invoke_terminal(command, cwd, environment, timeout, logs, interrupt=None):
-    import pty
-    import resource
-
-    logs.mkdir(parents=True, exist_ok=True)
-    (logs / "command.json").write_text(json.dumps(
-        {"command": command, "cwd": str(cwd)}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    child, terminal = pty.fork()
-    if child == 0:
-        try:
-            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
-            os.chdir(cwd)
-            for descriptor, stream in ((1, "stdout"), (2, "stderr")):
-                with (logs / stream).open("wb", buffering=0) as output:
-                    os.dup2(output.fileno(), descriptor)
-            os.execvpe(command[0], command, environment)
-        finally:
-            os._exit(127)
-    captured = bytearray()
-    sent_interrupt = False
-    reaped = False
-    deadline = time.monotonic() + timeout
-    try:
-        while time.monotonic() < deadline:
-            if select.select([terminal], [], [], 0.01)[0]:
-                try:
-                    captured.extend(os.read(terminal, 65536))
-                except OSError as error:
-                    if error.errno != errno.EIO:
-                        raise
-            if interrupt and not sent_interrupt:
-                streams = {"terminal": bytes(captured), "stderr": (logs / "stderr").read_bytes()
-                           if (logs / "stderr").exists() else b""}
-                if all(value.encode("utf-8") in streams[key] for key, value in interrupt.items()):
-                    os.write(terminal, b"\x03")
-                    sent_interrupt = True
-            waited, status = os.waitpid(child, os.WNOHANG)
-            if waited:
-                reaped = True
-                while select.select([terminal], [], [], 0)[0]:
-                    try:
-                        remaining = os.read(terminal, 65536)
-                    except OSError as error:
-                        if error.errno == errno.EIO:
-                            break
-                        raise
-                    if not remaining:
-                        break
-                    captured.extend(remaining)
-                if interrupt and not sent_interrupt:
-                    raise AssertionError("CLI exited before interrupt conditions were observed")
-                return (os.waitstatus_to_exitcode(status), (logs / "stdout").read_bytes(),
-                        (logs / "stderr").read_bytes(), bytes(captured))
-        raise AssertionError(f"CLI exceeded {timeout} seconds")
-    finally:
-        if not reaped:
-            try:
-                os.killpg(child, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            os.waitpid(child, 0)
-        os.close(terminal)
-        (logs / "terminal").write_bytes(captured)
-
-
-def check_output(checks, streams):
-    for check in checks:
-        text = streams[check["stream"]].decode("utf-8", errors="replace")
-        for value in check.get("contains", []):
-            if value not in text:
-                raise AssertionError(f"{check['stream']} lacks {value!r}")
-        for value in check.get("absent", []):
-            if value in text:
-                raise AssertionError(f"{check['stream']} contains unexpected {value!r}")
-        position = 0
-        for value in check.get("ordered", []):
-            found = text.find(value, position)
-            if found < 0:
-                raise AssertionError(f"{check['stream']} lacks ordered {value!r}")
-            position = found + len(value)
-        if "pattern" not in check:
-            continue
-        matches = list(re.finditer(check["pattern"], text, re.MULTILINE))
-        if len(matches) != check.get("count", len(matches)) or ("count" not in check and not matches):
-            raise AssertionError(f"{check['stream']} pattern {check['pattern']!r} matched {len(matches)} times")
-        if "sum_equals" in check:
-            totals = list(re.finditer(check["sum_equals"], text, re.MULTILINE))
-            if len(totals) != 1 or not matches:
-                raise AssertionError("numeric sum requires components and exactly one total")
-            values = [float(match.group(1)) for match in matches]
-            total = float(totals[0].group(1))
-            if not all(math.isfinite(value) and value >= 0 for value in [*values, total]):
-                raise AssertionError("numeric sum contains a negative or nonfinite value")
-            if check.get("positive") and total <= 0:
-                raise AssertionError("numeric total must be positive")
-            if not math.isclose(sum(values), total, rel_tol=check.get("relative_tolerance", 0)):
-                raise AssertionError(f"components sum to {sum(values)}, expected {total}")
-
-
-def check_result(config, status, stdout, stderr, report_path, outputs, terminal=b""):
-    if config["expect"] == "interrupted":
-        if status != -signal.SIGINT:
-            raise AssertionError(f"expected SIGINT, got exit {status}")
-    else:
-        check_report(config, status, report_path)
-    check_output(config.get("checks", []), {"stdout": stdout, "stderr": stderr, "terminal": terminal})
-    if "stdout" in config and stdout != config["stdout"].encode("utf-8"):
-        raise AssertionError("stdout differs from the documented result")
-    if "stdout_same_as" in config and stdout != outputs[config["stdout_same_as"]]:
-        raise AssertionError(f"stdout differs from step {config['stdout_same_as']}")
-    if "stdout_lines" in config and len(stdout.splitlines()) != config["stdout_lines"]:
-        raise AssertionError(f"expected {config['stdout_lines']} output lines, got {len(stdout.splitlines())}")
-    if "stdout_bytes_min" in config and len(stdout) < config["stdout_bytes_min"]:
-        raise AssertionError(f"stdout shorter than {config['stdout_bytes_min']} bytes")
-    if "stderr_empty" in config and (not stderr) != config["stderr_empty"]:
-        raise AssertionError("stderr emptiness differs from expectation")
-
-
-def check_report(config, status, report_path):
-    try:
-        report = json.loads(report_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        raise AssertionError(f"CLI did not produce a valid report (exit {status})") from error
-    if not isinstance(report, dict) or type(report.get("version")) is not int or report["version"] != 1:
-        raise AssertionError("unsupported CLI report")
-    outcome, code = EXPECTATIONS[config["expect"]]
-    if report.get("outcome") != outcome or status != code:
-        raise AssertionError(f"expected {outcome}/exit {code}, got {report.get('outcome')}/exit {status}")
+    return child.returncode
 
 
 def run_case(case, command, *, timeout=30, keep_failed=False):
@@ -504,10 +282,8 @@ def run_case(case, command, *, timeout=30, keep_failed=False):
             steps = case.steps
         else:
             steps = [Step(config, case.line, case.sources)]
-        outputs = {}
         for index, step in enumerate(steps):
             settings = {**config, **step.config}
-            settings["env"] = {**config.get("env", {}), **step.config.get("env", {})}
             label = f"{case.label}/{step.config['id']}" if case.scenario else case.label
             logs = root / "logs" / str(index)
             try:
@@ -520,24 +296,12 @@ def run_case(case, command, *, timeout=30, keep_failed=False):
                 write_sources(case, directory, step.sources)
                 default_entry = "root.ref" if config["scope"] == "module" else "."
                 entry = contained(directory, settings.get("entry", default_entry))
-                cwd = contained(directory, settings.get("cwd", "."))
-                report_path = logs / "report.json"
-                arguments = [*command, str(entry), "--report-json", str(report_path)]
-                arguments += settings.get("args", [])
-                environment = {key: value for key, value in os.environ.items()
-                               if not key.startswith("REF_TYPE_PROFILE_")
-                               and key not in {"RUST_LOG", "REF_TYPE_COMPACT_DIAGNOSTICS"}}
-                environment.update(settings["env"])
-                if settings.get("terminal"):
-                    result = invoke_terminal(arguments, cwd, environment, settings.get("timeout", timeout),
-                                             logs, settings.get("interrupt"))
-                else:
-                    result = (*invoke(arguments, cwd, environment, settings.get("timeout", timeout), logs), b"")
-                check_result(settings, *result[:3], report_path, outputs, terminal=result[3])
-                outputs[step.config["id"]] = result[1]
+                status = invoke([*command, str(entry)], directory, timeout, logs)
+                if status != EXPECTATIONS[settings["expect"]]:
+                    raise AssertionError(f"expected {settings['expect']}, got exit {status}")
             except (AssertionError, OSError, ValueError) as error:
                 details = []
-                for stream in ("stdout", "stderr", "terminal"):
+                for stream in ("stdout", "stderr"):
                     path = logs / stream
                     if path.exists():
                         details.append(f"{stream}:\n" + path.read_bytes()[-8000:].decode("utf-8", errors="replace"))

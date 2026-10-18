@@ -37,7 +37,6 @@ parameters = '''A: \Set(0)'''
 ```
 
 ```ref
-/* The reported goal should retain x in its local context. */
 \definition pending: A -> A := \fun (x: A) => ?;
 ```
 

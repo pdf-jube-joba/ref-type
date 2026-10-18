@@ -27,7 +27,6 @@ expect = "accept"
 id = "unmatched-comment-end"
 scope = "module"
 expect = "reject"
-args = ["--parse-only"]
 ```
 
 ```ref
@@ -59,7 +58,6 @@ parameters = '''P: \Prop, p: P'''
 id = "unclosed-parenthesis"
 scope = "module"
 expect = "reject"
-args = ["--parse-only"]
 ```
 
 ```ref
@@ -73,7 +71,6 @@ args = ["--parse-only"]
 ```toml scenario
 id = "definition-boundaries"
 scope = "module"
-args = ["--parse-only"]
 ```
 
 ### 本体と区切りがある

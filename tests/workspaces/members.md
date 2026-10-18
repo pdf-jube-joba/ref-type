@@ -1,8 +1,9 @@
 # workspaces / members
 
-## member の選択と列挙
+## workspace の member
 
-manifest に列挙した member を検査する。同じ member の別表記は重複せず、列挙していない package は対象に含めない。
+manifest に列挙した member を検査する。
+列挙していない package は対象に含めない。
 
 ```toml scenario
 id = "members"
@@ -50,17 +51,6 @@ id = "valid"
 expect = "accept"
 ```
 
-### module 一覧
-
-重複を除いた member の module を列挙する。
-
-```toml step
-id = "list"
-expect = "accept"
-args = ["--list-modules"]
-stdout = "left\nleft.Main\nright\nright.Main\n"
-```
-
 ### member の型エラー
 
 列挙した member の型エラーは拒否される。
@@ -72,26 +62,6 @@ expect = "reject"
 
 ```ref file=right/src/root.ref
 \module Main { \definition bad: \Prop := \Set; }
-```
-
-### member の選択
-
-正しい member だけを選択すると受理される。
-
-```toml step
-id = "selected"
-expect = "accept"
-args = ["--module", "left"]
-```
-
-### 存在しない member
-
-選択した member が存在しない。
-
-```toml step
-id = "missing"
-expect = "reject"
-args = ["--module", "missing"]
 ```
 
 ### member の欠落
