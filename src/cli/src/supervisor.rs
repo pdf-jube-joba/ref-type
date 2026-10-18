@@ -100,6 +100,17 @@ pub fn send_event(event: &ProgressEvent) {
     };
     send(Message::Event(event.clone(), elapsed));
 }
+
+const CACHE_MISS: i32 = 75;
+
+/// A saved partition describes checking cost, not the cost of reading results.
+/// Stop a cache probe before its first actual checking step and use that partition.
+pub fn send_cache_probe_event(event: &ProgressEvent) {
+    if matches!(event, ProgressEvent::ModuleStarted { .. }) {
+        std::process::exit(CACHE_MISS);
+    }
+    send_event(event);
+}
 pub fn send_timing(timing: ModuleProgress) {
     send(Message::Timing(timing));
 }
@@ -560,12 +571,15 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             bail!("検査を中断しました");
         }
         let mut smaller = batch.split(&paths);
-        if !smaller.is_empty() && splits.contains(&batch.key()) {
+        let partitioned = !smaller.is_empty() && splits.contains(&batch.key());
+        let cache_probe = partitioned && !fresh && !args.full_check_local && !args.stats;
+        if partitioned && !cache_probe {
             pending.extend(smaller.into_iter().rev());
             continue;
         }
         let mut request = args.clone();
         request.worker = Some(workspace.directory.clone());
+        request.cache_probe = cache_probe;
         request.module = batch.module.as_ref().map(|m| m.join("."));
         request.module_only = batch.exact;
         request.full_check = false;
@@ -600,6 +614,10 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             display,
             args.no_progress,
         )?;
+        if cache_probe && outcome.status.code() == Some(CACHE_MISS) {
+            pending.extend(smaller.into_iter().rev());
+            continue;
+        }
         if outcome.limited && paths.is_empty() {
             let snapshot = read_snapshot(&workspace.directory)?;
             paths = match sema::Database::new().module_paths(&snapshot) {

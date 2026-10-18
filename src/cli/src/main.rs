@@ -36,6 +36,9 @@ struct Args {
     batch_seconds: u64,
     #[arg(long, hide = true)]
     worker: Option<PathBuf>,
+    #[arg(skip)]
+    #[serde(default)]
+    cache_probe: bool,
     /// 指定した module・子 module と、その参照先だけを検証する（例: std.Data.Nat）
     #[arg(long, conflicts_with = "parse_only")]
     module: Option<String>,
@@ -361,7 +364,11 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
         #[cfg(target_os = "linux")]
         let options = if args.worker.is_some() {
             sema::CheckOptions {
-                progress_events: (!args.no_progress).then_some(supervisor::send_event),
+                progress_events: if args.cache_probe {
+                    Some(supervisor::send_cache_probe_event)
+                } else {
+                    (!args.no_progress).then_some(supervisor::send_event)
+                },
                 ..options
             }
         } else {

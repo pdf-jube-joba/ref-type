@@ -1115,12 +1115,11 @@ impl ModuleManager {
                 &reflected_substitutions,
                 env.remapping(remapping),
             );
-            // Unchanged imports need no new namespace metadata. Require exact
-            // canonical declaration identities as well as identical, closed
-            // arguments: neither conversion alone nor an unchanged telescope
-            // is enough to establish that the whole imported graph is shared.
+            // Canonical declaration identities, arguments and checking scope
+            // jointly determine whether this namespace view can be shared.
             if !group.path_component
-                && env.namespace_arguments_shareable(&arguments)
+                && (env.namespace_arguments_shareable(&arguments)
+                    || env.same_namespace_scope(group.item_source, group.namespace))
                 && group.items == env.module(group.item_source).items()
                 && arguments.as_slice() == env.binding(group.item_source).arguments.as_ref()
             {

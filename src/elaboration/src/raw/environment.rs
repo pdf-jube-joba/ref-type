@@ -324,7 +324,7 @@ impl ModuleEnv {
 
 type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 // ArgumentCache owns each telescope once, across all declaration kinds.
-type ExactSpecializations<I> = HashMap<(I, usize), I>;
+type ExactSpecializations<I> = HashMap<(I, usize, super::namespaces::NamespaceScopeId), I>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct NamespaceInstanceKey {
@@ -1058,12 +1058,15 @@ impl CrateEnv {
         macro_rules! index {
             ($entries:expr, $exact:ident) => {
                 for (id, specialization) in $entries {
-                    if self.namespace_arguments_shareable(&specialization.arguments) {
-                        let mut cache = self.namespace_argument_cache.borrow_mut();
-                        let arguments = cache.intern(&specialization.arguments);
+                    let shareable = self.namespace_arguments_shareable(&specialization.arguments);
+                    let scope = self.specialization_scope(id.module, shareable);
+                    let mut cache = self.namespace_argument_cache.borrow_mut();
+                    let arguments = cache.intern(&specialization.arguments);
+                    if shareable {
                         cache.register(specialization.source.module, arguments);
-                        self.$exact.insert((specialization.source, arguments), id);
                     }
+                    self.$exact
+                        .insert((specialization.source, arguments, scope), id);
                 }
             };
         }
@@ -1083,6 +1086,26 @@ impl CrateEnv {
                 .map(|(&id, value)| (id, value)),
             exact_datatype_specializations
         );
+    }
+
+    fn specialization_scope(
+        &self,
+        module: ModuleId,
+        closed: bool,
+    ) -> super::namespaces::NamespaceScopeId {
+        if closed {
+            return super::namespaces::NamespaceScopeId::CLOSED;
+        }
+        let owner = self.checking_scopes.get(&module).copied().unwrap_or(module);
+        let logical = self.checking_contexts.get(&module).cloned();
+        let program = self.checking_program_contexts.get(&module).cloned();
+        self.namespace_argument_cache
+            .borrow_mut()
+            .scope(owner, logical, program)
+    }
+
+    pub(crate) fn same_namespace_scope(&self, left: ModuleId, right: ModuleId) -> bool {
+        self.specialization_scope(left, false) == self.specialization_scope(right, false)
     }
 
     pub(crate) fn reuse_lazy_definition(
@@ -1114,14 +1137,15 @@ impl CrateEnv {
         );
         self.index_specializations();
         let shareable = self.namespace_arguments_shareable(&arguments);
+        let scope = self.specialization_scope(id.module, shareable);
         let exact_key = (
             origin.source,
             self.namespace_argument_cache
                 .borrow_mut()
                 .intern(&arguments),
+            scope,
         );
-        if shareable && let Some(&canonical) = self.exact_definition_specializations.get(&exact_key)
-        {
+        if let Some(&canonical) = self.exact_definition_specializations.get(&exact_key) {
             timing::costs::count("namespace.definition-exact-hit", || 1);
             return (source, canonical, false);
         }
@@ -1133,7 +1157,11 @@ impl CrateEnv {
                 .iter()
                 .find_map(|&arguments| {
                     self.exact_definition_specializations
-                        .get(&(origin.source, arguments))
+                        .get(&(
+                            origin.source,
+                            arguments,
+                            super::namespaces::NamespaceScopeId::CLOSED,
+                        ))
                         .copied()
                 });
             if let Some(canonical) = canonical {
@@ -1164,7 +1192,11 @@ impl CrateEnv {
                 .iter()
                 .find_map(|&arguments| {
                     self.exact_definition_specializations
-                        .get(&(origin.source, arguments))
+                        .get(&(
+                            origin.source,
+                            arguments,
+                            super::namespaces::NamespaceScopeId::CLOSED,
+                        ))
                         .copied()
                 });
             if let Some(canonical) = canonical {
@@ -1177,9 +1209,7 @@ impl CrateEnv {
                 .borrow_mut()
                 .register(origin.source.module, exact_key.1);
         }
-        if shareable {
-            self.exact_definition_specializations.insert(exact_key, id);
-        }
+        self.exact_definition_specializations.insert(exact_key, id);
         self.nominal_definitions.insert(
             id,
             super::namespaces::Specialization {
@@ -1412,14 +1442,15 @@ impl CrateEnv {
         );
         self.index_specializations();
         let shareable = self.namespace_arguments_shareable(&arguments);
+        let scope = self.specialization_scope(id.module, shareable);
         let exact_key = (
             origin.source,
             self.namespace_argument_cache
                 .borrow_mut()
                 .intern(&arguments),
+            scope,
         );
-        if shareable && let Some(&canonical) = self.exact_inductive_specializations.get(&exact_key)
-        {
+        if let Some(&canonical) = self.exact_inductive_specializations.get(&exact_key) {
             timing::costs::count("namespace.inductive-exact-hit", || 1);
             return (source, canonical, false);
         }
@@ -1431,7 +1462,11 @@ impl CrateEnv {
                 .iter()
                 .find_map(|&arguments| {
                     self.exact_inductive_specializations
-                        .get(&(origin.source, arguments))
+                        .get(&(
+                            origin.source,
+                            arguments,
+                            super::namespaces::NamespaceScopeId::CLOSED,
+                        ))
                         .copied()
                 });
             if let Some(canonical) = canonical {
@@ -1462,7 +1497,11 @@ impl CrateEnv {
                 .iter()
                 .find_map(|&arguments| {
                     self.exact_inductive_specializations
-                        .get(&(origin.source, arguments))
+                        .get(&(
+                            origin.source,
+                            arguments,
+                            super::namespaces::NamespaceScopeId::CLOSED,
+                        ))
                         .copied()
                 });
             if let Some(canonical) = canonical {
@@ -1475,9 +1514,7 @@ impl CrateEnv {
                 .borrow_mut()
                 .register(origin.source.module, exact_key.1);
         }
-        if shareable {
-            self.exact_inductive_specializations.insert(exact_key, id);
-        }
+        self.exact_inductive_specializations.insert(exact_key, id);
         self.nominal_inductives.insert(
             id,
             super::namespaces::Specialization {
@@ -1597,13 +1634,15 @@ impl CrateEnv {
         );
         self.index_specializations();
         let shareable = self.namespace_arguments_shareable(&arguments);
+        let scope = self.specialization_scope(id.module, shareable);
         let exact_key = (
             origin.source,
             self.namespace_argument_cache
                 .borrow_mut()
                 .intern(&arguments),
+            scope,
         );
-        if shareable && let Some(&canonical) = self.exact_datatype_specializations.get(&exact_key) {
+        if let Some(&canonical) = self.exact_datatype_specializations.get(&exact_key) {
             timing::costs::count("namespace.datatype-exact-hit", || 1);
             return (source, canonical, false);
         }
@@ -1615,7 +1654,11 @@ impl CrateEnv {
                 .iter()
                 .find_map(|&arguments| {
                     self.exact_datatype_specializations
-                        .get(&(origin.source, arguments))
+                        .get(&(
+                            origin.source,
+                            arguments,
+                            super::namespaces::NamespaceScopeId::CLOSED,
+                        ))
                         .copied()
                 });
             if let Some(canonical) = canonical {
@@ -1646,7 +1689,11 @@ impl CrateEnv {
                 .iter()
                 .find_map(|&arguments| {
                     self.exact_datatype_specializations
-                        .get(&(origin.source, arguments))
+                        .get(&(
+                            origin.source,
+                            arguments,
+                            super::namespaces::NamespaceScopeId::CLOSED,
+                        ))
                         .copied()
                 });
             if let Some(canonical) = canonical {
@@ -1659,9 +1706,7 @@ impl CrateEnv {
                 .borrow_mut()
                 .register(origin.source.module, exact_key.1);
         }
-        if shareable {
-            self.exact_datatype_specializations.insert(exact_key, id);
-        }
+        self.exact_datatype_specializations.insert(exact_key, id);
         self.nominal_datatypes.insert(
             id,
             super::namespaces::Specialization {

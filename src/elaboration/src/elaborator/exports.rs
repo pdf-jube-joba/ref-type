@@ -313,9 +313,19 @@ impl GlobalEnvironment {
 
     pub(crate) fn import_artifact(&mut self, mut export: Export, r: &mut Relocation) -> Result<()> {
         let graph = std::mem::replace(&mut export.graph, ExpressionGraph { nodes: Vec::new() });
+        let mut atoms: Vec<_> = graph
+            .nodes
+            .iter()
+            .filter_map(|(_, node)| match node {
+                kernel::syntax::Node::Meta { id, .. } => Some(*id),
+                _ => None,
+            })
+            .collect();
+        atoms.relocate(r)?;
         self.crate_env.arena().core.import_graph(graph, r)?;
         export.relocate(r)?;
         self.crate_env.import_export(export.raw)?;
+        self.crate_env.arena().validate_atoms(&atoms)?;
         self.module_manager.hir_modules.extend(export.modules);
         self.module_manager
             .hir_module_bindings

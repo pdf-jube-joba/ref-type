@@ -39,6 +39,8 @@ module parameter は名前付き ID で保持し、kernel へ渡す際に参照�
 `ArtifactCatalog` は入力キー・保存用 identity と実行時 ID を対応付ける。
 raw/kernel は共有 DAG とし、依存の式・macro・置換 map は所有成果物への参照にする。
 依存 map の immutable snapshot を保ち、部分成果物の統合で map が成長しても既存の参照を維持する。
+frontend atom のメタデータは生成時期にかかわらず、保存する式からの到達可能性で選ぶ。
+局所変数を含む import は、呼び出し元と論理・Program の検査文脈をキーに特殊化宣言と namespace を共有する。
 
 `import_artifact` は ID 予約・再配置・検証後に環境と catalog を公開する。
 `import_artifact_owned` は checker と catalog を消費し、失敗時は両方を破棄する。

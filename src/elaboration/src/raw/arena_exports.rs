@@ -3,7 +3,6 @@ use artifact::{Relocate, Result};
 use std::collections::HashSet;
 
 pub(crate) struct Boundary {
-    atoms: HashSet<kernel::syntax::MetaId>,
     reflections: HashSet<kernel::ids::ProgramInductiveId>,
     captures: HashSet<kernel::ids::InductiveId>,
     definitions: HashSet<kernel::ids::DefinitionId>,
@@ -56,7 +55,6 @@ impl Reachability<'_> {
 impl Arena {
     pub(crate) fn boundary(&self) -> Boundary {
         Boundary {
-            atoms: self.atoms.borrow().keys.keys().copied().collect(),
             reflections: self.datatype_reflections.borrow().keys().copied().collect(),
             captures: self.inductive_captures.borrow().keys().copied().collect(),
             definitions: self.definitions.borrow().keys().copied().collect(),
@@ -64,12 +62,13 @@ impl Arena {
     }
     pub(crate) fn export_since(&self, base: &Boundary) -> Export {
         Export {
+            // Interning can precede a package's first retained use of an atom.
+            // Reachability, rather than allocation time, selects its metadata.
             atoms: self
                 .atoms
                 .borrow()
                 .keys
                 .iter()
-                .filter(|(k, _)| !base.atoms.contains(k))
                 .map(|(k, v)| (*k, v.clone()))
                 .collect(),
             reflections: self
@@ -112,6 +111,18 @@ impl Arena {
             .extend(export.reflections);
         self.inductive_captures.get_mut().extend(export.captures);
         self.definitions.get_mut().extend(export.definitions);
+        Ok(())
+    }
+
+    pub(crate) fn validate_atoms(&self, ids: &[kernel::syntax::MetaId]) -> Result<()> {
+        let atoms = self.atoms.borrow();
+        for id in ids {
+            if !atoms.keys.contains_key(id) {
+                return Err(artifact::Error(format!(
+                    "missing imported frontend atom {id:?}"
+                )));
+            }
+        }
         Ok(())
     }
 }

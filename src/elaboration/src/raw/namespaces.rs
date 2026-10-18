@@ -80,10 +80,24 @@ pub(crate) struct AliasHead {
 
 pub(crate) type AliasCache = kernel::sharing::Cache<Exp, AliasHead, { 1 << 16 }>;
 
-// Thousands of declarations in an import share one argument telescope.
-// Intern it once so conversion results can be reused across declarations.
+// Open imports share identities within one owner and exact checking telescopes.
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct NamespaceScope {
+    owner: ModuleId,
+    logical: Option<std::sync::Arc<super::exp::ExpContext>>,
+    program: Option<std::sync::Arc<ProgramContext>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct NamespaceScopeId(usize);
+
+impl NamespaceScopeId {
+    pub(crate) const CLOSED: Self = Self(0);
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct ArgumentCache {
+    scopes: rustc_hash::FxHashMap<NamespaceScope, NamespaceScopeId>,
     sets: rustc_hash::FxHashMap<std::sync::Arc<[(ModuleParamId, ModuleArgument)]>, usize>,
     comparisons: kernel::sharing::Cache<(usize, usize), bool, { 1 << 18 }>,
     shareability: rustc_hash::FxHashMap<usize, bool>,
@@ -105,6 +119,23 @@ struct CandidateSearch {
 }
 
 impl ArgumentCache {
+    pub(crate) fn scope(
+        &mut self,
+        owner: ModuleId,
+        logical: Option<std::sync::Arc<super::exp::ExpContext>>,
+        program: Option<std::sync::Arc<ProgramContext>>,
+    ) -> NamespaceScopeId {
+        let next = NamespaceScopeId(self.scopes.len() + 1);
+        *self
+            .scopes
+            .entry(NamespaceScope {
+                owner,
+                logical,
+                program,
+            })
+            .or_insert(next)
+    }
+
     fn root(&self, mut id: usize) -> usize {
         while self.parents[id] != id {
             id = self.parents[id];

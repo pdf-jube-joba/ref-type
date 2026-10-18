@@ -919,6 +919,62 @@ mod tests {
         );
         assert_eq!(target.resolution.project().modules.len(), 4);
     }
+
+    #[test]
+    fn package_roundtrip_preserves_preexisting_frontend_atoms() {
+        let mut origin = PackageChecker::default();
+        let mut catalog = ArtifactCatalog::default();
+        let a = export(
+            &mut origin,
+            &mut catalog,
+            r"\module A { \definition Alias[T: \Set]: \Set := T; }",
+            1,
+        );
+        let env = &origin.workspace.crate_env;
+        let alias = env.definition_ids().into_iter().next().unwrap();
+        // A source view can be interned by diagnostics or namespace lookup
+        // before the next package starts, without being part of A's export.
+        env.arena()
+            .alloc(crate::raw::exp::ExpNode::DefinitionInstance {
+                definition: alias,
+                arguments: vec![],
+            });
+        let b = export(
+            &mut origin,
+            &mut catalog,
+            r"\module B {
+                \import \root.A[] \as A;
+                \module With(T: \Set, x: A.Alias[T]) {}
+            }",
+            2,
+        );
+        let mut target = PackageChecker::default();
+        let mut target_catalog = ArtifactCatalog::default();
+        target
+            .import_artifact(&a, &mut target_catalog, |_| None)
+            .unwrap();
+        let mut damaged = b.clone();
+        let mut workspace: crate::elaborator::exports::Export =
+            postcard::from_bytes(&damaged.environment).unwrap();
+        workspace.raw.arena.atoms.clear();
+        damaged.environment = postcard::to_allocvec(&workspace).unwrap();
+        assert!(
+            target
+                .import_artifact(&damaged, &mut target_catalog, |_| None)
+                .is_err()
+        );
+        let (mut target, _) = target
+            .import_artifact_owned(&b, target_catalog, |_| None)
+            .unwrap();
+        append(
+            &mut target,
+            r"\module C {
+                \inductive Nat: \Set := | zero: Nat;
+                \import \root.B[].With[T := Nat, x := Nat::zero] \as Value;
+            }",
+        );
+    }
+
     #[test]
     fn exports_are_identical_after_unrelated_package_allocations() {
         let mut direct = PackageChecker::default();
