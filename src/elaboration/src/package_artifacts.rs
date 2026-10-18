@@ -280,6 +280,7 @@ impl PackageChecker {
         sources: impl Fn(&SourceId) -> Option<Arc<SourceFile>>,
         resume: bool,
     ) -> artifact::Result<(Self, ArtifactCatalog)> {
+        let _phase = crate::profiling::Phase::start("artifact.import");
         if self.pending {
             return Err(Error("cannot import into an unfinished package".into()));
         }
@@ -288,6 +289,7 @@ impl PackageChecker {
         {
             return Err(Error("package object size limit exceeded".into()));
         }
+        let decoding = crate::profiling::Phase::start("artifact.decode");
         let mut resolver: ResolverObject =
             postcard::from_bytes(&package.resolver).map_err(error)?;
         if resolver.version != 3 {
@@ -301,6 +303,7 @@ impl PackageChecker {
         }
         let mut workspace: crate::elaborator::exports::Export =
             postcard::from_bytes(&package.environment).map_err(error)?;
+        drop(decoding);
         // Owned expression labels are a pure function of the topological graph
         // and its external references. Reconstruct them instead of persisting a
         // random 32-byte digest alongside every already stored expression node.
@@ -616,16 +619,29 @@ impl State<'_> {
         drop(workspace);
         drop(serialization_phase);
         if !self.pending {
-            let mut updated = catalog.clone();
+            // Validate the delta before publication. Cloning the catalog copies
+            // the identities of every dependency at each package boundary.
+            let mut additions = BTreeMap::new();
+            for (runtime, reference) in &references {
+                let previous = catalog
+                    .portable
+                    .get(reference)
+                    .or_else(|| additions.insert(*reference, runtime));
+                if previous.is_some_and(|old| old != runtime) {
+                    return Err(Error(
+                        "package identity registered with conflicting runtime ID".into(),
+                    ));
+                }
+            }
+            drop(additions);
             for (runtime, reference) in references {
                 if reference.owner == input {
-                    updated.sources.insert(reference, owner);
+                    catalog.sources.insert(reference, owner);
                 }
-                updated.register(reference, runtime)?;
+                catalog.register(reference, runtime)?;
             }
-            updated.packages.insert(owner);
-            updated.dependencies.insert(input, dependencies);
-            *catalog = updated;
+            catalog.packages.insert(owner);
+            catalog.dependencies.insert(input, dependencies);
             snapshots.commit();
         }
         Ok(PackageArtifact {

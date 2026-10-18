@@ -86,6 +86,27 @@ impl Export {
                 .iter()
                 .map(|id| Identity::scalar("raw.module", id.0 as u64)),
         );
+        // A shared expression may already name a raw nominal whose kernel
+        // declaration was first registered in this package. Its expression is
+        // external, but the newly registered classifier must still be exported.
+        reachable.extend(
+            self.kernel
+                .parameters
+                .iter()
+                .map(|(id, _)| Identity::scalar("parameter", id.0)),
+        );
+        reachable.extend(
+            self.kernel
+                .inductives
+                .iter()
+                .map(|(id, _)| Identity::scalar("inductive", id.0)),
+        );
+        reachable.extend(
+            self.kernel
+                .datatypes
+                .iter()
+                .map(|(id, _)| Identity::scalar("datatype", id.0)),
+        );
         let mut modules = HashSet::new();
         let mut remappings = HashSet::new();
         let mut arena_reachability = self.arena.reachability()?;

@@ -31,6 +31,7 @@ python3 benchmarks/tests.py
 python3 benchmarks/bench.py cache --binary target/release/cli --depth 8
 python3 benchmarks/bench.py run benchmarks/inputs/shared-bodies.ref --runs 3
 python3 benchmarks/bench.py libraries libs/category --binary target/release/cli
+python3 benchmarks/scaling.py --binary target/release/cli --depths 8 16 32 64
 ```
 
 `libraries` の入力を省略すると、`libs/ref.toml` の package とその依存先を列挙する。
@@ -38,6 +39,9 @@ python3 benchmarks/bench.py libraries libs/category --binary target/release/cli
 
 `cache` は無変更検査、別の利用側、入口編集、推移依存編集、依存順変更、独立した依存の追加を順に計測する。
 `--checkpoint` は CLI が checkpoint の保存を報告した時点で中断し、同じ保存先からの再開と再検査を追加する。
+
+`scaling.py` は各 package の宣言数を固定し、依存チェーンの深さだけを変えて空のキャッシュから計測する。
+`--width` は各 package の宣言数、`--force` は `--full-check` を指定する。
 
 ## 出力とキャッシュ
 

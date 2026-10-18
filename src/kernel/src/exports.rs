@@ -570,9 +570,9 @@ impl EnvironmentExport {
                 _ => true,
             };
             if !valid {
-                return Err(Error(
-                    "invalid imported kernel declaration reference".into(),
-                ));
+                return Err(Error(format!(
+                    "invalid imported kernel declaration reference: {node:?}"
+                )));
             }
             node.try_for_each_child(|child, _| {
                 pending.push(child);

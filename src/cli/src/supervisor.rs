@@ -549,6 +549,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     let mut timings: BTreeMap<Vec<String>, ModuleProgress> = BTreeMap::new();
     let mut outputs = BTreeSet::new();
     let mut success = true;
+    let mut internal_error = false;
     let mut verification_reused = false;
     // A successful uncached batch needs no portable artifacts. If it exceeds
     // a resource limit, enable the session's temporary cache for the smaller
@@ -659,9 +660,16 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             &mut File::open(workspace.path("stdout"))?,
             &mut std::io::stdout(),
         )?;
-        let summary: report::Report = serde_json::from_slice(
-            &fs::read(workspace.path("report.json")).context("worker did not finish its report")?,
-        )?;
+        let summary = match fs::read(workspace.path("report.json")) {
+            Ok(bytes) => serde_json::from_slice::<report::Report>(&bytes)?,
+            Err(_) if !outcome.status.success() => {
+                // An aborted worker cannot write its final report. Still publish
+                // the verified prefixes below so a retry can use completed work.
+                internal_error = true;
+                break;
+            }
+            Err(error) => return Err(error).context("worker did not finish its report"),
+        };
         if summary.outcome == report::Outcome::InternalError {
             bail!("verification worker failed internally");
         }
@@ -717,7 +725,11 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             "検査が完了していない範囲があります。"
         });
     }
-    Ok(report::Report::checked(success, verification_reused))
+    Ok(if internal_error {
+        report::Report::internal_error()
+    } else {
+        report::Report::checked(success, verification_reused)
+    })
 }
 
 #[cfg(test)]

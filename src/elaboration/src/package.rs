@@ -73,6 +73,11 @@ fn serialize_workspace<S: serde::Serializer>(
 }
 
 impl PackageChecker {
+    /// Live shared syntax retained by this checker, excluding source snapshots.
+    pub fn expression_count(&self) -> usize {
+        self.workspace.crate_env.arena().core.len()
+    }
+
     pub fn append(
         &mut self,
         module: &Module,

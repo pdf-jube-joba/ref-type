@@ -73,10 +73,34 @@ impl<K: Copy + Eq + Hash> IdLookup<K> for SharedMap<K> {
             return Some(value);
         }
         let (next, previous) = self.base.as_ref()?;
-        if let Some(intermediate) = previous.get(key) {
-            next.get(intermediate).or(Some(intermediate))
-        } else {
-            next.get(key)
+        // Composition is a DAG. The operands often share ancestors, so a
+        // recursive tree walk can revisit the same absent key exponentially.
+        // Memoize each (map, key) for this lookup, including misses. Returned
+        // references still point into the immutable operand tables.
+        fn lookup<'a, K: Copy + Eq + Hash>(
+            map: &'a SharedMap<K>,
+            key: K,
+            memo: &mut FxHashMap<(*const SharedMap<K>, K), Option<&'a K>>,
+        ) -> Option<&'a K> {
+            if let Some(value) = map.entries.get(&key) {
+                return Some(value);
+            }
+            let (next, previous) = map.base.as_ref()?;
+            let address = (map as *const _, key);
+            if let Some(&result) = memo.get(&address) {
+                return result;
+            }
+            let result = match lookup(previous, key, memo) {
+                Some(intermediate) => lookup(next, *intermediate, memo).or(Some(intermediate)),
+                None => lookup(next, key, memo),
+            };
+            memo.insert(address, result);
+            result
+        }
+        let mut memo = FxHashMap::default();
+        match lookup(previous, *key, &mut memo) {
+            Some(intermediate) => lookup(next, *intermediate, &mut memo).or(Some(intermediate)),
+            None => lookup(next, *key, &mut memo),
         }
     }
     fn is_empty(&self) -> bool {

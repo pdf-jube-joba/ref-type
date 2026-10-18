@@ -20,6 +20,7 @@ struct PackageState<'a> {
     manifest: Option<StoreManifest>,
     force: bool,
     tried_disk_environment: bool,
+    tried_checkpoint: bool,
 }
 
 struct PackageRun<'a, 'g> {
@@ -30,6 +31,20 @@ struct PackageRun<'a, 'g> {
     keys: &'a [Fingerprint],
     valid_inputs: BTreeSet<Fingerprint>,
     progress: &'a mut crate::progress::Reporter,
+    active: Option<(usize, PackageChecker, ArtifactCatalog)>,
+}
+
+fn small_environment(manifest: &StoreManifest) -> bool {
+    manifest
+        .resolver
+        .as_ref()
+        .zip(manifest.environment.as_ref())
+        .is_some_and(|(resolver, environment)| {
+            resolver
+                .decoded_bytes
+                .saturating_add(environment.decoded_bytes)
+                <= 256 * 1024
+        })
 }
 
 impl PackageRun<'_, '_> {
@@ -44,11 +59,130 @@ impl PackageRun<'_, '_> {
         result
     }
 
+    fn dependency_states<'s>(
+        &self,
+        states: &[PackageState<'s>],
+        needed: &BTreeSet<usize>,
+    ) -> Vec<PackageState<'s>> {
+        let mut scoped: Vec<_> = states
+            .iter()
+            .map(|state| {
+                let selected: BTreeSet<_> = state.indices.intersection(needed).copied().collect();
+                let shared = !selected.is_empty()
+                    && (state.manifest.as_ref().is_some_and(small_environment)
+                        || self
+                            .active
+                            .as_ref()
+                            .is_some_and(|(_, _, catalog)| catalog.contains(&state.key)));
+                let indices: BTreeSet<_> = if shared {
+                    state.indices.clone()
+                } else {
+                    selected
+                };
+                let key = if shared {
+                    state.key
+                } else {
+                    crate::package_inputs::artifact_key(
+                        &state.input,
+                        indices.iter().map(|&i| self.graph.units[i].path.clone()),
+                    )
+                };
+                let manifest = if indices.is_empty() {
+                    None
+                } else {
+                    self.database
+                        .package_results
+                        .get(&key)
+                        .map(|saved| saved.manifest.clone())
+                        .or_else(|| {
+                            state
+                                .manifest
+                                .as_ref()
+                                .filter(|saved| saved.key == key)
+                                .cloned()
+                        })
+                        .or_else(|| {
+                            self.database
+                                .disk
+                                .as_ref()?
+                                .store()
+                                .read_manifest(&key)
+                                .ok()
+                        })
+                };
+                let results = state.results.as_ref().map(|results| {
+                    results
+                        .iter()
+                        .filter(|result| {
+                            self.graph
+                                .indices
+                                .get(&result.path)
+                                .is_some_and(|i| indices.contains(i))
+                        })
+                        .cloned()
+                        .collect()
+                });
+                let partials = if indices == state.indices {
+                    state.partials.clone()
+                } else {
+                    Vec::new()
+                };
+                PackageState {
+                    module: state.module,
+                    input: state.input,
+                    key,
+                    indices,
+                    dependencies: Vec::new(),
+                    partials,
+                    results,
+                    artifact: None,
+                    manifest,
+                    force: state.force && state.results.is_none(),
+                    tried_disk_environment: false,
+                    tried_checkpoint: false,
+                }
+            })
+            .collect();
+        // Contract packages whose declarations are absent from this consumer's
+        // closure, while preserving paths to their selected dependencies.
+        for index in 0..states.len() {
+            let mut pending = states[index].dependencies.clone();
+            let mut visited = BTreeSet::new();
+            let mut dependencies = BTreeSet::new();
+            while let Some(dependency) = pending.pop() {
+                if !visited.insert(dependency) {
+                    continue;
+                }
+                if scoped[dependency].indices.is_empty() {
+                    pending.extend(&states[dependency].dependencies);
+                } else {
+                    dependencies.insert(dependency);
+                }
+            }
+            scoped[index].dependencies = dependencies.into_iter().collect();
+        }
+        scoped
+    }
+
     fn load_environment(&mut self, state: &mut PackageState<'_>) {
-        if state.tried_disk_environment || state.force {
+        if state.tried_disk_environment || (state.force && state.results.is_none()) {
             return;
         }
         state.tried_disk_environment = true;
+        // Broad artifacts can answer result queries, but importing their whole
+        // environment defeats resource-limit splitting. Rebuild precisely the
+        // requested dependency scopes when only a broader environment exists.
+        if state.manifest.as_ref().is_some_and(|manifest| {
+            !small_environment(manifest)
+                && manifest.coverage.iter().any(|path| {
+                    self.graph
+                        .indices
+                        .get(path)
+                        .is_none_or(|i| !state.indices.contains(i))
+                })
+        }) {
+            return;
+        }
         state.artifact = self.memory_environment(&state.key);
         if state.artifact.is_some() {
             return;
@@ -78,7 +212,6 @@ impl PackageRun<'_, '_> {
         checker: &mut PackageChecker,
         catalog: &mut ArtifactCatalog,
         visiting: &mut BTreeSet<Fingerprint>,
-        transactional: bool,
     ) -> Option<()> {
         if catalog.contains(&key) {
             return Some(());
@@ -101,15 +234,24 @@ impl PackageRun<'_, '_> {
         if !self.valid_inputs.contains(&manifest.input) {
             return None;
         }
+        // Portable declaration identities belong to package inputs, independent
+        // of coverage. Prefer the precise environment prepared for this query
+        // over a broader dependency recorded by an older artifact. If a saved
+        // consumer needs extra declarations, its failed import rebuilds it from
+        // the current selection below.
+        if let Some(replacement) = states.iter().find(|state| {
+            state.input == manifest.input
+                && state.key != key
+                && state
+                    .manifest
+                    .as_ref()
+                    .is_some_and(|saved| saved.key == state.key && saved.environment.is_some())
+        }) {
+            visiting.remove(&key);
+            return self.import_saved(replacement.key, states, checker, catalog, visiting);
+        }
         for dependency in manifest.dependencies {
-            self.import_saved(
-                dependency,
-                states,
-                checker,
-                catalog,
-                visiting,
-                transactional,
-            )?;
+            self.import_saved(dependency, states, checker, catalog, visiting)?;
         }
         let cached = current.and_then(|state| state.artifact.as_ref());
         let loaded = if cached.is_none() {
@@ -125,18 +267,14 @@ impl PackageRun<'_, '_> {
         };
         let artifact = cached.or(loaded.as_ref())?;
         let started = std::time::Instant::now();
-        let imported = if transactional {
-            checker.import_artifact(artifact, catalog, |id| self.snapshot.source(&id.0).cloned())
-        } else {
-            std::mem::take(checker)
-                .import_artifact_owned(artifact, std::mem::take(catalog), |id| {
-                    self.snapshot.source(&id.0).cloned()
-                })
-                .map(|(imported, identities)| {
-                    *checker = imported;
-                    *catalog = identities;
-                })
-        };
+        let imported = std::mem::take(checker)
+            .import_artifact_owned(artifact, std::mem::take(catalog), |id| {
+                self.snapshot.source(&id.0).cloned()
+            })
+            .map(|(imported, identities)| {
+                *checker = imported;
+                *catalog = identities;
+            });
         if let Some(disk) = &self.database.disk {
             disk.store().record_relocation(started.elapsed());
         }
@@ -164,6 +302,13 @@ impl PackageRun<'_, '_> {
     }
 
     fn ensure(&mut self, index: usize, states: &mut [PackageState<'_>]) -> Option<()> {
+        if self
+            .active
+            .as_ref()
+            .is_some_and(|(_, _, catalog)| catalog.contains(&states[index].key))
+        {
+            return Some(());
+        }
         self.load_environment(&mut states[index]);
         if states[index].artifact.is_some() {
             return Some(());
@@ -177,38 +322,51 @@ impl PackageRun<'_, '_> {
                 .iter()
                 .map(|&i| self.graph.units[i].path.clone()),
         );
-        let dependencies = Self::closure(states, index);
-        let mut checker = PackageChecker::default();
-        let mut catalog = ArtifactCatalog::default();
+        // A full-project request selects every dependency's source modules, but
+        // each consumer needs only its own reference closure in memory.
+        let needed = self.graph.closure(states[index].indices.iter().copied());
+        let mut dependency_states = self.dependency_states(states, &needed);
+        let dependencies = Self::closure(&dependency_states, index);
+        for &dependency in &dependencies {
+            self.ensure(dependency, &mut dependency_states)?;
+            self.release_environment(&mut dependency_states[dependency]);
+        }
+        // Small dependency chains can keep their checked prefix live. Release
+        // large closures and unrelated branches rather than retaining every
+        // package's inference caches for the duration of the whole project.
+        let (mut checker, mut catalog) = self
+            .active
+            .take()
+            .filter(|(previous, _, _)| dependencies.contains(previous))
+            .map(|(_, checker, catalog)| (checker, catalog))
+            .unwrap_or_default();
         // A damaged environment is rebuilt once from its own current inputs.
         for attempt in 0..2 {
             let mut failed = None;
             for &dependency in &dependencies {
-                self.ensure(dependency, states)?;
                 if self
                     .import_saved(
-                        states[dependency].key,
-                        states,
+                        dependency_states[dependency].key,
+                        &dependency_states,
                         &mut checker,
                         &mut catalog,
                         &mut BTreeSet::new(),
-                        false,
                     )
                     .is_none()
                 {
                     failed = Some(dependency);
                     break;
                 }
-                self.release_environment(&mut states[dependency]);
+                self.release_environment(&mut dependency_states[dependency]);
             }
             match failed {
                 None => break,
                 Some(dependency) if attempt == 0 => {
-                    states[dependency].artifact = None;
-                    states[dependency].tried_disk_environment = true;
-                    self.ensure(dependency, states)?;
+                    dependency_states[dependency].artifact = None;
+                    dependency_states[dependency].tried_disk_environment = true;
                     checker = PackageChecker::default();
                     catalog = ArtifactCatalog::default();
+                    self.ensure(dependency, &mut dependency_states)?;
                 }
                 Some(_) => return None,
             }
@@ -216,14 +374,24 @@ impl PackageRun<'_, '_> {
         let boundary = checker.artifact_boundary();
         if !states[index].force {
             for partial in states[index].partials.clone() {
-                let _ = self.import_saved(
-                    partial,
-                    states,
-                    &mut checker,
-                    &mut catalog,
-                    &mut BTreeSet::new(),
-                    true,
-                );
+                if self
+                    .import_saved(
+                        partial,
+                        &dependency_states,
+                        &mut checker,
+                        &mut catalog,
+                        &mut BTreeSet::new(),
+                    )
+                    .is_none()
+                {
+                    // Imports consume a disposable checker. A corrupt partial
+                    // retries from verified dependencies instead of cloning the
+                    // entire live environment before every partial import.
+                    states[index].partials.clear();
+                    drop(checker);
+                    drop(catalog);
+                    return self.ensure(index, states);
+                }
             }
         }
         let key = states[index].key;
@@ -231,13 +399,14 @@ impl PackageRun<'_, '_> {
         let indices = states[index].indices.clone();
         let dependency_keys = dependencies
             .iter()
-            .map(|&i| states[i].key)
+            .map(|&i| dependency_states[i].key)
             .collect::<Vec<_>>();
         let coverage = indices
             .iter()
             .map(|&i| self.graph.units[i].path.clone())
             .collect::<Vec<_>>();
-        if !states[index].force {
+        if !states[index].force && !states[index].tried_checkpoint {
+            states[index].tried_checkpoint = true;
             let resume = self.database.disk.as_ref().and_then(|disk| {
                 let manifest = disk.store().read_checkpoint(&key).ok()?;
                 Some(PackageArtifact {
@@ -248,14 +417,17 @@ impl PackageRun<'_, '_> {
                         .ok()?,
                 })
             });
-            if let Some(resume) = resume
-                && checker
-                    .import_resume(&resume, &mut catalog, |id| {
-                        self.snapshot.source(&id.0).cloned()
-                    })
-                    .is_ok()
-            {
-                self.database.stats.checkpoint_hits += 1;
+            if let Some(resume) = resume {
+                match checker.import_resume_owned(&resume, catalog, |id| {
+                    self.snapshot.source(&id.0).cloned()
+                }) {
+                    Ok((restored, identities)) => {
+                        checker = restored;
+                        catalog = identities;
+                        self.database.stats.checkpoint_hits += 1;
+                    }
+                    Err(_) => return self.ensure(index, states),
+                }
             }
         }
         let mut reused = BTreeSet::new();
@@ -408,8 +580,9 @@ impl PackageRun<'_, '_> {
                 }
             })
             .ok();
-        drop(checker);
-        drop(catalog);
+        if artifact.is_some() && checker.expression_count() <= 16_384 {
+            self.active = Some((index, checker, catalog));
+        }
         drop(boundary);
         if artifact.is_none() {
             self.database.stats.package_skips += 1;
@@ -546,22 +719,26 @@ impl Database {
                 manifest: None,
                 force,
                 tried_disk_environment: false,
+                tried_checkpoint: false,
             };
             let mut pending = inputs[package]
                 .dependencies
                 .iter()
                 .map(|d| d.index)
                 .collect::<Vec<_>>();
-            let mut all = BTreeSet::new();
+            let mut visited = BTreeSet::new();
+            let mut dependencies = BTreeSet::new();
             while let Some(p) = pending.pop() {
-                if all.insert(p) {
+                if !visited.insert(p) {
+                    continue;
+                }
+                if let Some(&dependency) = selected.get(packages[p].name.as_str()) {
+                    dependencies.insert(dependency);
+                } else {
                     pending.extend(inputs[p].dependencies.iter().map(|d| d.index));
                 }
             }
-            state.dependencies = all
-                .iter()
-                .filter_map(|&p| selected.get(packages[p].name.as_str()).copied())
-                .collect();
+            state.dependencies = dependencies.into_iter().collect();
             if !force {
                 let mut available = BTreeMap::new();
                 let memory = self.package_results.get(&key).or_else(|| {
@@ -728,6 +905,7 @@ impl Database {
             keys: module_keys,
             valid_inputs: inputs.iter().map(|input| input.key).collect(),
             progress,
+            active: None,
         };
         for index in 0..states.len() {
             if states[index].results.is_none() {

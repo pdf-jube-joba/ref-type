@@ -44,6 +44,9 @@ LSP の未保存編集も同じ判定を通る。
 
 `artifacts/` の manifest は module 結果、resolver、raw/kernel を別々の `objects/` に参照する。
 結果だけで足りる検査では環境を展開せず、後続検査では必要な依存閉包を import する。
+全体検査でも、各 package の環境には利用側が参照する module だけを復元する。
+小さい依存環境は共有し、大きい成果物だけが保存されている場合は必要な範囲の成果物を作る。
+検査済みの小さい依存チェーンは live checker を引き継ぎ、大きい環境と無関係な分岐は解放する。
 object は postcard データと種類・codec・長さ・checksum を持ち、native は zstd、WebAssembly は deflate を使う。
 破損した環境は再構築し、環境を保存できない場合も結果は保存できる。
 
