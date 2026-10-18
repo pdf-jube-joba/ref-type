@@ -4,25 +4,13 @@
 
 親と子の開始・完了イベントを出力し、全体の完了後に各 module の所要時間を出力する。
 module と共有処理の時間の合計は、丸め誤差の範囲で全体の所要時間に一致する。
+パイプに出力するログには端末用の復帰文字を含めない。
 
-```toml scenario
+```toml case
 id = "progress-and-timings"
 scope = "module"
 name = "Parent"
 env = { REF_TYPE_PROFILE_PROGRESS = "1" }
-```
-
-```ref
-\module Child { \infer \Set; }
-```
-
-### 初回
-
-親と子の検査を開始してから完了する。
-パイプに出力するログには端末用の復帰文字を含めない。
-
-```toml step
-id = "cold"
 expect = "accept"
 checks = [
   { stream = "stderr", contains = ["event=planned", "event=finished success=true"], absent = ["\r"] },
@@ -35,20 +23,8 @@ checks = [
 ]
 ```
 
-### 再利用
-
-検査済みの module はスキップとして記録する。
-
-```toml step
-id = "warm"
-expect = "accept"
-checks = [
-  { stream = "stderr", contains = ["event=planned", "event=finished success=true", "event=complete action=Skip module=Parent module_seconds=", "event=complete action=Skip module=Parent.Child module_seconds="], absent = ["\r"] },
-  { stream = "stderr", ordered = ["event=finished", "skip Parent ("] },
-  { stream = "stderr", pattern = '^skip Parent \([\d.]+s\)$', count = 1 },
-  { stream = "stderr", pattern = '^skip Parent\.Child \([\d.]+s\)$', count = 1 },
-  { stream = "stderr", pattern = '^(?:skip Parent(?:\.Child)?|shared) \(([\d.]+)s\)$', count = 3, sum_equals = '^total \(([\d.]+)s\)$', relative_tolerance = 0.01, positive = true },
-]
+```ref
+\module Child { \infer \Set; }
 ```
 
 ## 成功・失敗時の処理時間の内訳
@@ -60,7 +36,7 @@ checks = [
 id = "cost-profiles"
 scope = "module"
 name = "Root"
-args = ["--no-cache", "--no-progress", "--diagnostics", "compact"]
+args = ["--no-progress", "--diagnostics", "compact"]
 env = { REF_TYPE_PROFILE_COSTS = "resolve.total,kernel." }
 checks = [
   { stream = "stderr", contains = ["cost=resolve.total calls=1", "cost_group=kernel exclusive_us="], absent = ["cost=resolve.front-binding"] },

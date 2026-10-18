@@ -25,9 +25,9 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 SCOPES = {"module", "package", "workspace"}
 EXPECTATIONS = {"accept": ("accepted", 0), "reject": ("rejected", 1)}
-COMMON = {"id", "expect", "cache", "args", "env", "entry", "cwd", "timeout",
+COMMON = {"id", "expect", "args", "env", "entry", "cwd", "timeout",
           "stdout", "stdout_same_as", "stdout_lines", "stdout_bytes_min", "stderr_empty",
-          "remove", "cache_dir", "checks", "files", "terminal", "interrupt"}
+          "remove", "checks", "terminal", "interrupt"}
 CONFIG = COMMON | {"scope", "name", "parameters"}
 
 
@@ -87,8 +87,6 @@ def validate_config(config, allowed, context, *, expectation=False):
         raise DefinitionError(f"{context}: expect must be accept, reject or interrupted")
     if "expect" in config and (not isinstance(config["expect"], str) or config["expect"] not in outcomes):
         raise DefinitionError(f"{context}: expect must be accept, reject or interrupted")
-    if "cache" in config and (not isinstance(config["cache"], str) or config["cache"] not in {"reused", "unused"}):
-        raise DefinitionError(f"{context}: cache must be reused or unused")
     for key in ("args", "remove"):
         if key in config and (not isinstance(config[key], list)
                               or not all(isinstance(item, str) for item in config[key])):
@@ -96,8 +94,6 @@ def validate_config(config, allowed, context, *, expectation=False):
     for key in ("entry", "cwd"):
         if key in config:
             relative_path(config[key], context)
-    if "cache_dir" in config and config["cache_dir"] != "default":
-        relative_path(config["cache_dir"], context)
     for path in config.get("remove", []):
         if str(relative_path(path, context)) == ".":
             raise DefinitionError(f"{context}: remove must name a file or subdirectory")
@@ -122,17 +118,6 @@ def validate_config(config, allowed, context, *, expectation=False):
                 or not all(isinstance(value, str) and value for value in interrupt.values())):
             raise DefinitionError(f"{context}: interrupt must map terminal/stderr to nonempty strings")
     validate_checks(config.get("checks", []), context)
-    files = config.get("files", [])
-    if not isinstance(files, list):
-        raise DefinitionError(f"{context}: files must be an array of tables")
-    for item in files:
-        if not isinstance(item, dict) or item.keys() - {"path", "same_as", "nonempty"}:
-            raise DefinitionError(f"{context}: invalid file expectation")
-        relative_path(item.get("path"), context)
-        if "same_as" in item and not isinstance(item["same_as"], str):
-            raise DefinitionError(f"{context}: same_as must name an earlier step")
-        if "nonempty" in item and type(item["nonempty"]) is not bool:
-            raise DefinitionError(f"{context}: nonempty must be a boolean")
     environment = config.get("env", {})
     if not isinstance(environment, dict) or not all(
         isinstance(key, str) and key and "=" not in key and "\0" not in key
@@ -141,7 +126,7 @@ def validate_config(config, allowed, context, *, expectation=False):
     ):
         raise DefinitionError(f"{context}: env must map environment names to strings")
     for arg in config.get("args", []):
-        if arg.split("=", 1)[0] in {"--report-json", "--cache-dir", "--worker"}:
+        if arg.split("=", 1)[0] in {"--report-json", "--worker"}:
             raise DefinitionError(f"{context}: {arg} is managed by the runner")
 
 
@@ -230,7 +215,7 @@ def parse_document(document):
                 validate_config(config, CONFIG, context, expectation=not scenario)
                 if not isinstance(config.get("scope"), str) or config["scope"] not in SCOPES:
                     raise DefinitionError(f"{context}: scope must be module, package or workspace")
-                if scenario and ("expect" in config or "cache" in config):
+                if scenario and "expect" in config:
                     raise DefinitionError(f"{context}: put expectations on scenario steps")
                 if scenario and "stdout_same_as" in config:
                     raise DefinitionError(f"{context}: stdout_same_as belongs on a step")
@@ -282,7 +267,6 @@ def parse_document(document):
         if case.config["scope"] != "module" and ({"name", "parameters"} & case.config.keys()):
             raise DefinitionError(f"{context}: name and parameters require module scope")
         previous = set()
-        snapshots = {}
         for item in case.steps if case.scenario else [Step(case.config, case.line, case.sources)]:
             if item.config["id"] in previous:
                 raise DefinitionError(f"{document}:{item.line}: duplicate step id")
@@ -293,10 +277,6 @@ def parse_document(document):
                 raise DefinitionError(f"{document}:{item.line}: interrupt requires terminal = true")
             if (settings.get("expect") == "interrupted") != bool(settings.get("interrupt")):
                 raise DefinitionError(f"{document}:{item.line}: interrupted expectation requires interrupt conditions")
-            for entry in settings.get("files", []):
-                if "same_as" in entry and entry["path"] not in snapshots.get(entry["same_as"], set()):
-                    raise DefinitionError(f"{document}:{item.line}: same_as requires an earlier snapshot of the path")
-            snapshots[item.config["id"]] = {entry["path"] for entry in settings.get("files", [])}
             paths = [source.path for source in item.sources]
             if len(paths) != len(set(paths)):
                 raise DefinitionError(f"{document}:{item.line}: source file written twice in one step")
@@ -503,30 +483,9 @@ def check_report(config, status, report_path):
         raise AssertionError(f"CLI did not produce a valid report (exit {status})") from error
     if not isinstance(report, dict) or type(report.get("version")) is not int or report["version"] != 1:
         raise AssertionError("unsupported CLI report")
-    cache = report.get("cache")
-    if not isinstance(cache, dict) or type(cache.get("verification_reused")) is not bool:
-        raise AssertionError("CLI report lacks boolean cache.verification_reused")
     outcome, code = EXPECTATIONS[config["expect"]]
     if report.get("outcome") != outcome or status != code:
         raise AssertionError(f"expected {outcome}/exit {code}, got {report.get('outcome')}/exit {status}")
-    if "cache" in config and cache["verification_reused"] != (config["cache"] == "reused"):
-        raise AssertionError(f"expected cache {config['cache']}, got {cache}")
-
-
-def check_files(expectations, directory, snapshots):
-    current = {}
-    for item in expectations:
-        path = contained(directory, item["path"])
-        if not path.exists():
-            raise AssertionError(f"snapshot path does not exist: {item['path']}")
-        contents = {str(file.relative_to(path)): file.read_bytes()
-                    for file in path.rglob("*") if file.is_file()} if path.is_dir() else {".": path.read_bytes()}
-        if "nonempty" in item and bool(contents) != item["nonempty"]:
-            raise AssertionError(f"snapshot has unexpected file count: {item['path']}")
-        if "same_as" in item and contents != snapshots[item["same_as"]][item["path"]]:
-            raise AssertionError(f"files at {item['path']} differ from step {item['same_as']}")
-        current[item["path"]] = contents
-    return current
 
 
 def run_case(case, command, *, timeout=30, keep_failed=False):
@@ -546,7 +505,6 @@ def run_case(case, command, *, timeout=30, keep_failed=False):
         else:
             steps = [Step(config, case.line, case.sources)]
         outputs = {}
-        snapshots = {}
         for index, step in enumerate(steps):
             settings = {**config, **step.config}
             settings["env"] = {**config.get("env", {}), **step.config.get("env", {})}
@@ -565,14 +523,10 @@ def run_case(case, command, *, timeout=30, keep_failed=False):
                 cwd = contained(directory, settings.get("cwd", "."))
                 report_path = logs / "report.json"
                 arguments = [*command, str(entry), "--report-json", str(report_path)]
-                cache = settings.get("cache_dir", "cache")
-                if cache != "default":
-                    cache_path = contained(root, cache)
-                    arguments += ["--cache-dir", str(cache_path)]
                 arguments += settings.get("args", [])
                 environment = {key: value for key, value in os.environ.items()
                                if not key.startswith("REF_TYPE_PROFILE_")
-                               and key not in {"RUST_LOG", "REF_TYPE_COMPACT_DIAGNOSTICS", "REF_TYPE_CACHE_SESSION"}}
+                               and key not in {"RUST_LOG", "REF_TYPE_COMPACT_DIAGNOSTICS"}}
                 environment.update(settings["env"])
                 if settings.get("terminal"):
                     result = invoke_terminal(arguments, cwd, environment, settings.get("timeout", timeout),
@@ -580,7 +534,6 @@ def run_case(case, command, *, timeout=30, keep_failed=False):
                 else:
                     result = (*invoke(arguments, cwd, environment, settings.get("timeout", timeout), logs), b"")
                 check_result(settings, *result[:3], report_path, outputs, terminal=result[3])
-                snapshots[step.config["id"]] = check_files(settings.get("files", []), directory, snapshots)
                 outputs[step.config["id"]] = result[1]
             except (AssertionError, OSError, ValueError) as error:
                 details = []

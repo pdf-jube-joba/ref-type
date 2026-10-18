@@ -28,7 +28,6 @@ class RunnerTests(unittest.TestCase):
         malformed = [
             valid.replace('expect="accept"', 'expect=["accept"]'),
             valid.replace('scope="module"', 'scope=["module"]'),
-            valid.replace('expect="accept"', 'expect="accept"\ncache=["reused"]'),
             valid.replace('expect="accept"', 'expect="accept"\nexepct="accept"'),
             valid.replace('toml case', 'toml caes'),
             valid.replace('```ref', '```ref file=../escaped.ref'),
@@ -46,8 +45,6 @@ class RunnerTests(unittest.TestCase):
             valid.replace('expect="accept"', 'expect="accept"\nchecks=[{stream="stderr", contains=["x"], typo=1}]'),
             valid.replace('expect="accept"', 'expect="interrupted"'),
             valid.replace('expect="accept"', 'expect="accept"\ninterrupt={stderr="ready"}'),
-            valid.replace('expect="accept"', 'expect="accept"\nfiles=[{path="../escape"}]'),
-            valid.replace('expect="accept"', 'expect="accept"\nfiles=[{path="cache", same_as="missing"}]'),
         ]
         with tempfile.TemporaryDirectory() as directory:
             for text in malformed:
@@ -70,7 +67,6 @@ class RunnerTests(unittest.TestCase):
                 (1, None), (1, "malformed"), (-11, {"outcome": "rejected"}),
                 (2, {"outcome": "internal-error"}), (0, {"outcome": "rejected"}),
                 (1, {"outcome": "accepted"}),
-                (1, {"outcome": "rejected", "cache": {"verification_reused": 0}}),
             ]:
                 with self.subTest(status=status, report=report):
                     if report is None:
@@ -78,8 +74,7 @@ class RunnerTests(unittest.TestCase):
                     elif isinstance(report, str):
                         path.write_text(report)
                     else:
-                        complete = {"version": 1, "cache": {"verification_reused": False}, **report}
-                        path.write_text(json.dumps(complete))
+                        path.write_text(json.dumps({"version": 1, **report}))
                     with self.assertRaises(AssertionError):
                         runner.check_result(config, status, b"", b"", path, {})
 
@@ -89,7 +84,7 @@ id="sequence"
 scope="module"
 ```
 ```toml step
-id="cold"
+id="first"
 expect="accept"
 stdout="first\\n"
 ```
@@ -97,9 +92,9 @@ stdout="first\\n"
 first
 ```
 ```toml step
-id="warm"
+id="repeat"
 expect="accept"
-stdout_same_as="cold"
+stdout_same_as="first"
 ```
 ```toml step
 id="edit"
@@ -121,7 +116,7 @@ with Path(sys.argv[1]).open("a") as file:
     file.write(str(os.getpid()) + "\\n")
 sys.stdout.write(source.read_text())
 report = Path(sys.argv[sys.argv.index("--report-json") + 1])
-report.write_text(json.dumps({"version":1,"outcome":"accepted","cache":{"verification_reused":False}}))
+report.write_text(json.dumps({"version": 1, "outcome": "accepted"}))
 ''')
             case, = runner.parse_document(self.document(directory, document))
             runner.run_case(case, [sys.executable, str(checker), str(pids)])
@@ -146,31 +141,6 @@ report.write_text(json.dumps({"version":1,"outcome":"accepted","cache":{"verific
         for check in failures:
             with self.subTest(check=check), self.assertRaises(AssertionError):
                 runner.check_output([{"stream": "stderr", **check}], streams)
-
-    def test_file_snapshots_detect_changes_additions_and_removals(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            cache = root / "cache"
-            cache.mkdir()
-            entry = cache / "entry"
-            entry.write_bytes(b"original")
-            saved = runner.check_files([{"path": "cache", "nonempty": True}], root, {})
-            checks = [{"path": "cache", "same_as": "saved"}]
-            runner.check_files(checks, root, {"saved": saved})
-            entry.write_bytes(b"changed")
-            with self.assertRaises(AssertionError):
-                runner.check_files(checks, root, {"saved": saved})
-            entry.write_bytes(b"original")
-            extra = cache / "extra"
-            extra.write_bytes(b"extra")
-            with self.assertRaises(AssertionError):
-                runner.check_files(checks, root, {"saved": saved})
-            extra.unlink()
-            entry.unlink()
-            with self.assertRaises(AssertionError):
-                runner.check_files(checks, root, {"saved": saved})
-            with self.assertRaises(AssertionError):
-                runner.check_files([{"path": "cache", "nonempty": True}], root, {})
 
     def test_timeout_stops_the_checker_and_retains_logs(self):
         with tempfile.TemporaryDirectory() as directory:

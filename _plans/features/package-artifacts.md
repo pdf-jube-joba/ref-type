@@ -23,6 +23,6 @@ resolver・raw・kernel の import/export API が保存用 ID と実行時 ID �
 
 ## 検証
 
-[キャッシュの受け入れテスト](../../tests/cache) と [内部テスト](../../src/sema/tests) は、入力変更、別利用側、diamond、依存順、部分検査、途中再開、破損、並行公開と GC を確認する。
+[内部テスト](../../src/sema/tests) は、入力変更、別利用側、diamond、依存順、部分検査、途中再開、破損、並行公開と GC を確認する。
 [計測ツール](../../benchmarks/README.md) では chain・diamond と実ライブラリについて cold・warm・編集・別利用側・中断再開を比較する。
 保存量、I/O、検査数、時間、peak RSS を同じ入力・ビルド・実行列で測る。

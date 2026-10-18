@@ -2,7 +2,7 @@
 
 ## パッケージごとの完了表示
 
-依存元と依存先のそれぞれについて、検査・スキップの件数を制御端末へ一回ずつ表示する。
+依存元と依存先のそれぞれについて、検査した module の件数を制御端末へ一回ずつ表示する。
 各パッケージの完了表示は全体の完了表示より先に出る。
 
 ```toml scenario
@@ -38,29 +38,13 @@ name = "base"
 両パッケージの二つの module を検査する。
 
 ```toml step
-id = "cold"
+id = "checked"
 expect = "accept"
 checks = [
-  { stream = "terminal", pattern = 'Finished app: 2 check, 0 skip', count = 1 },
-  { stream = "terminal", pattern = 'Finished base: 2 check, 0 skip', count = 1 },
-  { stream = "terminal", ordered = ["Finished app: 2 check, 0 skip", "Finished 4/4 modules"] },
-  { stream = "terminal", ordered = ["Finished base: 2 check, 0 skip", "Finished 4/4 modules"] },
-  { stream = "stderr", absent = ["Finished app:", "Finished base:"] },
-]
-```
-
-### 再利用
-
-両パッケージの二つの module をスキップする。
-
-```toml step
-id = "warm"
-expect = "accept"
-checks = [
-  { stream = "terminal", pattern = 'Finished app: 0 check, 2 skip', count = 1 },
-  { stream = "terminal", pattern = 'Finished base: 0 check, 2 skip', count = 1 },
-  { stream = "terminal", ordered = ["Finished app: 0 check, 2 skip", "Finished 4/4 modules"] },
-  { stream = "terminal", ordered = ["Finished base: 0 check, 2 skip", "Finished 4/4 modules"] },
+  { stream = "terminal", pattern = 'Finished app: 2 check,', count = 1 },
+  { stream = "terminal", pattern = 'Finished base: 2 check,', count = 1 },
+  { stream = "terminal", ordered = ["Finished app: 2 check,", "Finished 4/4 modules"] },
+  { stream = "terminal", ordered = ["Finished base: 2 check,", "Finished 4/4 modules"] },
   { stream = "stderr", absent = ["Finished app:", "Finished base:"] },
 ]
 ```
@@ -89,7 +73,7 @@ name = "Test"
 parameters = 'A: \Set'
 expect = "accept"
 terminal = true
-args = ["--no-cache", "--progress-tty"]
+args = ["--progress-tty"]
 env = { REF_TYPE_PROFILE_PROGRESS = "1", REF_TYPE_PROFILE_DECLARATIONS = "1" }
 checks = [
   { stream = "terminal", contains = ["\u001b[2K", "Finished"], absent = ["checking ", "progress elapsed_seconds="] },
@@ -113,7 +97,7 @@ name = "Slow"
 expect = "interrupted"
 terminal = true
 timeout = 15
-args = ["--no-cache", "--progress-tty"]
+args = ["--progress-tty"]
 env = { REF_TYPE_PROFILE_PROGRESS = "1", REF_TYPE_PROFILE_DECLARATIONS = "1" }
 interrupt = { terminal = "\u001b[2K", stderr = "checking " }
 checks = [

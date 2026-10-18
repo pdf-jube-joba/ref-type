@@ -6,7 +6,7 @@ Python 3.11 以降の標準ライブラリを使う。
 ```sh
 cargo build -p cli --locked
 python3 tests/tests.py
-python3 tests/tests.py tests/cache --keep-failed
+python3 tests/tests.py tests/cli --keep-failed
 python3 tests/tests.py --filter application_inference
 python3 tests/tests.py --list
 python3 tests/tests.py --command '/path/to/checker'
@@ -23,7 +23,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 ## ケース
 
 同じ論点の受理・拒否条件を一つの文書で比較し、本文に理由を書く。
-ケースは独立したソースディレクトリと空のキャッシュで実行する。
+ケースは独立したソースディレクトリで実行する。
 
 ````markdown
 ## 恒等関数
@@ -62,7 +62,7 @@ manifest は `toml file=ref.toml`、その他の内容は `text file=...` で記
 
 ## シナリオ
 
-シナリオはソースディレクトリとキャッシュを維持し、各手順を別プロセスで実行する。
+シナリオはソースディレクトリを維持し、各手順を別プロセスで実行する。
 `scenario` の直後に書いたファイルを初期状態とし、各 `step` のファイルはその実行前に置き換える。
 各手順の設定はシナリオの設定を引き継ぎ、その手順で上書きできる。
 `args` は配列全体を置き換え、`env` は変数ごとに上書きする。
@@ -75,9 +75,8 @@ scope = "module"
 ```
 
 ```toml step
-id = "cold"
+id = "before"
 expect = "accept"
-cache = "unused"
 ```
 
 ```ref
@@ -85,19 +84,16 @@ cache = "unused"
 ```
 
 ```toml step
-id = "warm"
+id = "after"
 expect = "accept"
-cache = "reused"
+```
+
+```ref
+\definition P: \Prop := \forall (P: \Prop) -> P;
 ```
 ````
 
 `remove = ["src/Base.ref"]` は指定したファイルやディレクトリを実行前に削除する。
-`cache_dir` は一時ディレクトリからのキャッシュ保存先で、既定値は `cache` である。
-`cache_dir = "default"` は CLI の既定の保存先を使う。
-
-`cache = "reused"` と `cache = "unused"` は JSON レポートの `cache.verification_reused` を検査する。
-永続化された検証結果による検査の省略を表し、構文解析だけの再利用は含まない。
-`--no-cache`、`--full-check`、`--trace` では以前の検証結果を利用しない。
 
 ## 観測する結果
 
@@ -152,19 +148,6 @@ checks = [
 `sum_equals` を使う場合、両方の正規表現に数値を取り出すキャプチャを一つずつ設ける。
 比較先は一回だけ一致し、各数値は有限の非負数である必要がある。
 [計測の例](cli/profiling.md)を参照。
-
-### 保存ファイルの比較
-
-`files` はソースディレクトリからの相対パスにあるファイルの構成と内容を記録する。
-ディレクトリを指定すると、その配下のファイルを再帰的に記録する。
-
-```toml
-files = [{ path = "refcache", same_as = "saved", nonempty = true }]
-```
-
-`same_as` は同じパスを記録した先行手順との一致を検査する。
-`nonempty` はファイルが一つ以上あるかを検査する。
-[ファイル比較の例](cache/files.md)を参照。
 
 ### 制御端末と割り込み
 
