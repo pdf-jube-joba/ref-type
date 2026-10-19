@@ -279,11 +279,16 @@ impl<K: Copy + Eq + Hash> SharedMap<K> {
     pub(crate) fn values_mut(&mut self) -> impl Iterator<Item = &mut K> {
         self.make_mut().values_mut()
     }
-    pub(crate) fn retain(&mut self, f: impl FnMut(&K, &mut K) -> bool) {
-        self.make_mut().retain(f);
-    }
-    pub(crate) fn shrink_to_fit(&mut self) {
-        self.make_mut().shrink_to_fit();
+    /// Compact the local table without flattening the inherited composition.
+    /// An explicit identity can override an inherited redirect, so only a
+    /// table without a base may discard those entries.
+    pub(crate) fn compact(&mut self) {
+        if self.base.is_none() && self.entries.iter().any(|(source, target)| source == target) {
+            Arc::make_mut(&mut self.entries).retain(|source, target| source != target);
+        }
+        if let Some(entries) = Arc::get_mut(&mut self.entries) {
+            entries.shrink_to_fit();
+        }
     }
 
     pub(crate) fn after(&self, previous: &Self) -> Self {

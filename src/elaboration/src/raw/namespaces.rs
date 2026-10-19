@@ -97,6 +97,7 @@ impl NamespaceScopeId {
 
 #[derive(Default, Debug)]
 pub(crate) struct ArgumentCache {
+    pub(crate) originals: rustc_hash::FxHashMap<ModuleId, SharedArguments>,
     scopes: rustc_hash::FxHashMap<NamespaceScope, NamespaceScopeId>,
     sets: rustc_hash::FxHashMap<std::sync::Arc<[(ModuleParamId, ModuleArgument)]>, usize>,
     comparisons: kernel::sharing::Cache<(usize, usize), bool, { 1 << 18 }>,
@@ -567,6 +568,18 @@ impl CrateEnv {
         &self,
         module: ModuleId,
     ) -> Vec<(ModuleParamId, ModuleArgument)> {
+        self.namespace_arguments_shared(module).to_vec()
+    }
+
+    pub(crate) fn namespace_arguments_shared(&self, module: ModuleId) -> SharedArguments {
+        if let Some(arguments) = self
+            .namespace_argument_cache
+            .borrow()
+            .originals
+            .get(&module)
+        {
+            return arguments.clone();
+        }
         let _cost = timing::costs::Scope::enter("namespace.collect-arguments");
         let mut ancestors = Vec::new();
         let mut current = Some(module);
@@ -575,7 +588,7 @@ impl CrateEnv {
             current = self.module(id).parent();
         }
         ancestors.reverse();
-        ancestors
+        let arguments: Vec<_> = ancestors
             .into_iter()
             .flat_map(|module| {
                 self.module(module).parameters().iter().enumerate().map(
@@ -601,7 +614,11 @@ impl CrateEnv {
                     },
                 )
             })
-            .collect()
+            .collect();
+        let mut cache = self.namespace_argument_cache.borrow_mut();
+        let arguments = cache.share_compact(&arguments);
+        cache.originals.insert(module, arguments.clone());
+        arguments
     }
 
     pub(crate) fn substitute_namespace_arguments(
@@ -1005,10 +1022,10 @@ impl CrateEnv {
 pub(crate) struct NamespaceStability<'a> {
     env: &'a CrateEnv,
     reflected: &'a [(ModuleParamId, Exp)],
-    argument_sets: std::collections::HashMap<Vec<(ModuleParamId, ModuleArgument)>, bool>,
-    definitions: std::collections::HashMap<DefId, bool>,
-    inductives: std::collections::HashMap<InductiveId, bool>,
-    datatypes: std::collections::HashMap<ProgramInductiveId, bool>,
+    argument_sets: rustc_hash::FxHashMap<Vec<(ModuleParamId, ModuleArgument)>, bool>,
+    definitions: rustc_hash::FxHashMap<DefId, bool>,
+    inductives: rustc_hash::FxHashMap<InductiveId, bool>,
+    datatypes: rustc_hash::FxHashMap<ProgramInductiveId, bool>,
 }
 
 impl<'a> NamespaceStability<'a> {

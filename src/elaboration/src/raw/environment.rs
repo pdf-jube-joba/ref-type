@@ -339,11 +339,15 @@ impl ModuleEnv {
     pub fn import(&self, name: &str) -> Option<ModuleId> {
         self.imports.get(name).copied()
     }
+
+    pub(crate) fn names_binding(&self, binding: ModuleId) -> bool {
+        self.imports.values().any(|&id| id == binding)
+    }
 }
 
 type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 // ArgumentCache owns each telescope once, across all declaration kinds.
-type ExactSpecializations<I> = HashMap<(I, usize, super::namespaces::NamespaceScopeId), I>;
+type ExactSpecializations<I> = FxHashMap<(I, usize, super::namespaces::NamespaceScopeId), I>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct NamespaceInstanceKey {
@@ -554,11 +558,11 @@ impl CrateEnv {
             nominal_datatypes: HashMap::new(),
 
             specializations_indexed: false,
-            exact_definition_specializations: HashMap::new(),
+            exact_definition_specializations: FxHashMap::default(),
 
-            exact_inductive_specializations: HashMap::new(),
+            exact_inductive_specializations: FxHashMap::default(),
 
-            exact_datatype_specializations: HashMap::new(),
+            exact_datatype_specializations: FxHashMap::default(),
             lazy_program_inductives: HashMap::new(),
             materializing_definitions: RefCell::new(HashSet::new()),
             failed_definitions: RefCell::new(HashMap::new()),
@@ -711,6 +715,8 @@ impl CrateEnv {
 
     pub fn add_module_parameter(&mut self, module: ModuleId, parameter: ModuleParameter) {
         self.module_mut(module).parameters.push(parameter);
+        // A parent's telescope is also part of every descendant's arguments.
+        self.namespace_argument_cache.get_mut().originals.clear();
     }
 
     pub fn publish_child_module(&mut self, child: ModuleId) -> Result<(), crate::error::Error> {
@@ -1209,10 +1215,7 @@ impl CrateEnv {
             .cloned()
             .unwrap_or_else(|| super::namespaces::Specialization {
                 source,
-                arguments: self
-                    .namespace_argument_cache
-                    .borrow_mut()
-                    .share_compact(&self.namespace_arguments(source.module)),
+                arguments: self.namespace_arguments_shared(source.module),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1258,7 +1261,7 @@ impl CrateEnv {
         }
         if self.namespace_arguments_equal_with(
             &arguments,
-            &self.namespace_arguments(origin.source.module),
+            &self.namespace_arguments_shared(origin.source.module),
             &mut comparisons,
         ) {
             if shareable {
@@ -1399,6 +1402,36 @@ impl CrateEnv {
         .then_some(origin)
     }
 
+    /// Logical declarations are lowered from their source once, with explicit
+    /// captures. Anonymous imports under their local binders belong to that
+    /// source body, rather than to the caller's public namespace.
+    pub(crate) fn namespace_uses_generic_declarations(&self, module: ModuleId) -> bool {
+        let logical = |id| {
+            matches!(
+                self.materialized_definition(id),
+                Some(DefinedConstant::Pts { .. } | DefinedConstant::Contextual { .. })
+            )
+        };
+        !self.namespace_has_local_context(module)
+            && !self.checking_program_contexts.contains_key(&module)
+            && self
+                .namespace_arguments_shared(module)
+                .iter()
+                .all(|(_, argument)| matches!(argument, ModuleArgument::Pts(_)))
+            && self.module(module).items().iter().all(|item| match item {
+                ModuleItem::Definition { definition, .. } => logical(*definition),
+                ModuleItem::Inductive {
+                    associated_definitions,
+                    ..
+                }
+                | ModuleItem::Record {
+                    associated_definitions,
+                    ..
+                } => associated_definitions.iter().all(|(_, id)| logical(*id)),
+                ModuleItem::ProgramInductive { .. } => false,
+            })
+    }
+
     pub(crate) fn definition_specialization_source(&self, id: DefId) -> DefId {
         self.nominal_definitions.get(&id).map_or_else(
             || {
@@ -1466,10 +1499,7 @@ impl CrateEnv {
             .cloned()
             .unwrap_or_else(|| super::namespaces::Specialization {
                 source,
-                arguments: self
-                    .namespace_argument_cache
-                    .borrow_mut()
-                    .share_compact(&self.namespace_arguments(source.module)),
+                arguments: self.namespace_arguments_shared(source.module),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1505,10 +1535,7 @@ impl CrateEnv {
             .cloned()
             .unwrap_or_else(|| super::namespaces::Specialization {
                 source,
-                arguments: self
-                    .namespace_argument_cache
-                    .borrow_mut()
-                    .share_compact(&self.namespace_arguments(source.module)),
+                arguments: self.namespace_arguments_shared(source.module),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1564,7 +1591,7 @@ impl CrateEnv {
         }
         if self.namespace_arguments_equal_with(
             &arguments,
-            &self.namespace_arguments(origin.source.module),
+            &self.namespace_arguments_shared(origin.source.module),
             &mut comparisons,
         ) {
             if shareable {
@@ -1681,10 +1708,7 @@ impl CrateEnv {
             .cloned()
             .unwrap_or_else(|| super::namespaces::Specialization {
                 source,
-                arguments: self
-                    .namespace_argument_cache
-                    .borrow_mut()
-                    .share_compact(&self.namespace_arguments(source.module)),
+                arguments: self.namespace_arguments_shared(source.module),
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
@@ -1730,7 +1754,7 @@ impl CrateEnv {
         }
         if self.namespace_arguments_equal_with(
             &arguments,
-            &self.namespace_arguments(origin.source.module),
+            &self.namespace_arguments_shared(origin.source.module),
             &mut comparisons,
         ) {
             if shareable {
@@ -2270,23 +2294,13 @@ impl CrateEnv {
         &mut self.remappings[id.0]
     }
 
-    /// An absent declaration mapping already means the original ID. Keep all
-    /// redirects from provisional IDs, but discard redundant identity entries
-    /// after canonicalization has finished.
+    /// Keep inherited tables shared when finalizing a namespace. Flattening
+    /// each child duplicates the complete parent substitution graph.
     pub(crate) fn compact_remapping(&mut self, id: RemappingId) {
         let remapping = &mut self.remappings[id.0];
-        remapping
-            .definition_ids
-            .retain(|source, target| source != target);
-        remapping
-            .inductive_ids
-            .retain(|source, target| source != target);
-        remapping
-            .program_inductive_ids
-            .retain(|source, target| source != target);
-        remapping.definition_ids.shrink_to_fit();
-        remapping.inductive_ids.shrink_to_fit();
-        remapping.program_inductive_ids.shrink_to_fit();
+        remapping.definition_ids.compact();
+        remapping.inductive_ids.compact();
+        remapping.program_inductive_ids.compact();
     }
 
     pub(crate) fn remapping(&self, id: RemappingId) -> &DeclarationRemapping {

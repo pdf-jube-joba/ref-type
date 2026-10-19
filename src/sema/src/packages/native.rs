@@ -352,7 +352,20 @@ impl PackageRun<'_, '_> {
         index: usize,
         states: &mut [PackageState<'_>],
     ) -> Option<()> {
-        let wanted = self.graph.closure(states[index].indices.iter().copied());
+        let mut wanted = self.graph.closure(states[index].indices.iter().copied());
+        if let Some((_, metadata)) = &self.native_active {
+            // Keep the already checked part of this request in the live
+            // environment. Rebuilding a narrower dependency selection loses
+            // shared declarations between independently selected packages.
+            // Coverage outside the request still follows the prefix size and
+            // narrow-environment limits below.
+            wanted.extend(
+                states
+                    .iter()
+                    .flat_map(|state| state.indices.iter().copied())
+                    .filter(|&i| metadata.coverage.contains(&self.graph.units[i].path)),
+            );
+        }
         let forced = states
             .iter()
             .filter(|state| state.force && state.results.is_none())

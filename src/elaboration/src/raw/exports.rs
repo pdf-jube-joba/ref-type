@@ -537,6 +537,7 @@ impl CrateEnv {
     }
     pub(crate) fn import_export(&mut self, export: Export) -> Result<()> {
         // The package caller stages an import in a disposable checker until all layers succeed.
+        self.namespace_argument_cache.get_mut().originals.clear();
         self.kernel.get_mut().import_export(export.kernel)?;
         self.arena.import_export(export.arena)?;
         for (id, name, interned) in export.symbols {

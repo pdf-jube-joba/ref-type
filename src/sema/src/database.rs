@@ -326,7 +326,7 @@ impl Database {
                 });
             if let Some(result) = cached {
                 self.stats.reused_modules = result.modules.len();
-                if !snapshot.entry().extension().is_some_and(|ext| ext == "ref") {
+                if snapshot.entry().extension().is_none_or(|ext| ext != "ref") {
                     self.stats.package_hits =
                         result.modules.iter().filter(|m| m.path.len() == 1).count();
                 }
@@ -364,7 +364,7 @@ impl Database {
             let _cost = timing::costs::Scope::enter("query.graph");
             ModuleGraph::new(&modules)
         };
-        let package_input = !snapshot.entry().extension().is_some_and(|ext| ext == "ref");
+        let package_input = snapshot.entry().extension().is_none_or(|ext| ext != "ref");
         let forced = |index: usize| {
             options.force
                 || options.collect_statistics

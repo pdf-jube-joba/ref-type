@@ -599,7 +599,10 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         request.worker = Some(workspace.directory.clone());
         request.cache_probe = cache_probe;
         request.worker_progress = display.enabled();
-        request.narrow_environment = narrow.contains(&batch.key());
+        // A full check rebuilds dependencies in this session. Start with the
+        // requested closure instead of first importing a broader prefix and
+        // discovering its memory cost through a failed worker.
+        request.narrow_environment = args.full_check || narrow.contains(&batch.key());
         request.module = batch.module.as_ref().map(|m| m.join("."));
         request.module_only = batch.exact;
         request.full_check = false;
