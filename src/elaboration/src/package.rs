@@ -270,7 +270,7 @@ impl PackageChecker {
                     completed.insert(steps - 1);
                     if steps == end
                         || !boundaries.contains(&steps)
-                        || !interval.is_some_and(|period| saved_at.elapsed() >= period)
+                        || interval.is_none_or(|period| saved_at.elapsed() < period)
                     {
                         return;
                     }

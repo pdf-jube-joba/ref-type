@@ -71,7 +71,7 @@ pub(crate) fn reused_result(
     result: &crate::SemanticResult,
     options: &crate::CheckOptions,
 ) {
-    let package = !snapshot.entry().extension().is_some_and(|ext| ext == "ref");
+    let package = snapshot.entry().extension().is_none_or(|ext| ext != "ref");
     let notify = |event| {
         if let Some(receive) = options.progress_events {
             receive(&event);

@@ -91,6 +91,7 @@ cargo run -p cli -- libs/std --source-snapshot work/std.json --module std.Data.N
 無変更なら結果を再利用し、後続 package の検査には依存環境を復元する。
 module 完了境界の checkpoint から途中再開でき、保存コストの約10倍以上を空けて次を保存する。
 `--full-check` と入口の `--full-check-local` は再開を省いて再検査する。
+`--full-check` は検査範囲に合う依存環境から開始し、同じ要求内の検査済み範囲を引き継いで再構築を減らす。
 budget 超過時は利用中の成果物と依存を保護し、未使用の成果物を回収する。
 保存形式と API は [sema](sema/README.md#再利用) を参照。
 

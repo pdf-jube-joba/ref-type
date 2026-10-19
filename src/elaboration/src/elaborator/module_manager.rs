@@ -665,11 +665,23 @@ impl ModuleManager {
         // enclosing route. Finalize those IDs before consulting the import cache.
         let mut materialization_sources: Vec<_> =
             route.iter().map(|&module| (module, module, true)).collect();
+        let mut generic_sources = rustc_hash::FxHashMap::default();
         for &source_module in &route {
-            materialization_sources.extend(env.module(source_module).bindings().iter().map(|id| {
+            let generic = env.namespace_uses_generic_declarations(source_module);
+            for id in env.module(source_module).bindings() {
                 let binding = env.binding(*id);
-                (binding.source, binding.materialized, false)
-            }));
+                if generic
+                    && env.namespace_has_local_context(binding.materialized)
+                    && !env.module(source_module).names_binding(*id)
+                    && *generic_sources
+                        .entry(binding.source)
+                        .or_insert_with(|| env.namespace_uses_generic_declarations(binding.source))
+                {
+                    timing::costs::count("namespace.omitted-local-imports", || 1);
+                    continue;
+                }
+                materialization_sources.push((binding.source, binding.materialized, false));
+            }
         }
 
         // Repeated imports retain separate namespace metadata, even when their
@@ -677,18 +689,14 @@ impl ModuleManager {
         // makes an import chain grow exponentially. Coalesce only namespaces
         // with the same source, declaration identities, and argument environment;
         // distinct specializations and path components remain separate.
-        let mut seen = HashMap::new();
+        let mut seen = rustc_hash::FxHashMap::default();
         let mut unique_sources = Vec::new();
         let mut aliases = Vec::new();
         for (source_module, item_source, path_component) in materialization_sources {
             let arguments = env
                 .namespace_binding_id(item_source)
                 .map(|id| env.binding(id).arguments.clone());
-            let key = (
-                source_module,
-                env.module(item_source).items().to_vec(),
-                arguments,
-            );
+            let key = (source_module, env.module(item_source).items(), arguments);
             if !path_component && let Some(&index) = seen.get(&key) {
                 aliases.push((item_source, index));
                 continue;
@@ -744,7 +752,7 @@ impl ModuleManager {
                     !path_component
                         && (*unchanged
                             || (env.binding(*item_source).arguments.is_empty()
-                                && env.namespace_arguments(*source_module).is_empty()))
+                                && env.namespace_arguments_shared(*source_module).is_empty()))
                 },
             )
             .collect::<Vec<_>>();
@@ -962,7 +970,7 @@ impl ModuleManager {
         // Parameter-free namespaces always reuse their original declarations.
         // Finalize them before conversion can materialize a dependent definition:
         // otherwise that definition permanently retains a provisional nominal ID.
-        groups.sort_by_key(|group| !env.namespace_arguments(group.source).is_empty());
+        groups.sort_by_key(|group| !env.namespace_arguments_shared(group.source).is_empty());
 
         // Enclosing declarations precede imports; imports retain their dependency order.
         // Replace reserved IDs with canonical IDs as each specialization is resolved.
@@ -1104,6 +1112,9 @@ impl ModuleManager {
                 remapping.program_inductive_ids.len(),
             );
         }
+        // Release the mutable staging tables before compacting the published
+        // mapping; keeping this clone forces another copy-on-write allocation.
+        drop(remapping);
         let remapping = shared_remapping;
 
         let mut last_binding = None;
@@ -1154,8 +1165,8 @@ impl ModuleManager {
             }
         }
 
-        env.inherit_namespace_remappings(remapping, &inherited_bindings);
         env.compact_remapping(remapping);
+        env.inherit_namespace_remappings(remapping, &inherited_bindings);
         let binding = last_binding.expect("non-empty route was checked above");
         if let Some(key) = namespace_key {
             env.remember_namespace_instance(key, (binding, result_bindings));

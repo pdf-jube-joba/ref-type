@@ -144,7 +144,7 @@ fn main() -> anyhow::Result<()> {
     let supervised = args.worker.is_none()
         && !args.parse_only
         && !args.list_modules
-        && !args.path.extension().is_some_and(|ext| ext == "ref");
+        && args.path.extension().is_none_or(|ext| ext != "ref");
     #[cfg(target_os = "linux")]
     let result = if supervised {
         supervisor::run(&args, &mut display)

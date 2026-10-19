@@ -1,7 +1,8 @@
 //! Sparse declaration slots keep stable IDs without storing each key or growing
 //! a hash table containing every payload. Only small chunk pointers are rehashed.
 use super::ids::{DefId, ModuleId};
-use std::{collections::HashMap, ops::Index};
+use rustc_hash::FxHashMap;
+use std::ops::Index;
 
 const CHUNK: usize = 8;
 type ChunkKey = (ModuleId, u32);
@@ -9,14 +10,14 @@ type Slots<V> = Box<[Option<V>; CHUNK]>;
 
 #[derive(Debug)]
 pub(crate) struct DefinitionMap<V> {
-    chunks: HashMap<ChunkKey, Slots<V>>,
+    chunks: FxHashMap<ChunkKey, Slots<V>>,
     len: usize,
 }
 
 impl<V> Default for DefinitionMap<V> {
     fn default() -> Self {
         Self {
-            chunks: HashMap::new(),
+            chunks: FxHashMap::default(),
             len: 0,
         }
     }
@@ -153,6 +154,7 @@ impl<V: artifact::Relocate> artifact::Relocate for DefinitionMap<V> {
 mod tests {
     use super::*;
     use artifact::Relocate;
+    use std::collections::HashMap;
 
     #[test]
     fn sparse_slots_match_hash_map_for_growth_replacement_and_iteration() {

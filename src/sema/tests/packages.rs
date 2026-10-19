@@ -138,10 +138,11 @@ thread_local! {
 
 fn interrupt_checkpoint(event: &sema::ProgressEvent) {
     match event {
-        sema::ProgressEvent::ModuleFinished { path, .. } => {
-            if INTERRUPT_MODULE.with_borrow(|target| target.as_deref() == Some(&path.join("."))) {
-                READY_TO_INTERRUPT.set(true);
-            }
+        sema::ProgressEvent::ModuleFinished { path, .. }
+            if INTERRUPT_MODULE
+                .with_borrow(|target| target.as_deref() == Some(&path.join("."))) =>
+        {
+            READY_TO_INTERRUPT.set(true);
         }
         sema::ProgressEvent::CheckpointSaved { .. } if READY_TO_INTERRUPT.replace(false) => {
             panic!("simulate termination after a durable checkpoint");
