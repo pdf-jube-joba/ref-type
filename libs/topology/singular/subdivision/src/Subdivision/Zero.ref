@@ -1,0 +1,41 @@
+\import \parent.At[n := N.Nat^::zero] \as Degree;
+\import Simplex.At[n := N.Nat^::zero] \as Space;
+\import \root.SimplexChains[n := N.Nat^::zero] \as Geometry;
+\import Geometry.Subdivision[] \as Subdivision;
+\import Geometry.Fundamental[] \as Fundamental;
+\import Geometry.At[m := N.Nat^::zero] \as Evaluation;
+\import singular_cohomology.OrderedTuples[V := Geometry.Points] \as Tuples;
+\import Tuples.Subdivision[centres := Geometry.centres].Homotopy[].Empty[] \as Empty;
+\import singular_cohomology.Chains[A := Geometry.Points, source := Space.topology] \as GeometricChains;
+\import singular_cohomology.Maps[A := Geometry.Points, B := A, source := Space.topology, target := source] \as Push;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ N.Nat^::zero), W := GeometricChains.Carrier N.Nat^::zero, source := Tuples.space (N.Nat^::succ N.Nat^::zero), target := GeometricChains.space N.Nat^::zero] \as EvalMaps;
+\definition geometricPrior: Subdivision.prior = (GeometricChains.space N.Nat^::zero).zero := trans!{{GeometricChains.Carrier N.Nat^::zero}} _ _ _
+  (congr!{{Tuples.Carrier (N.Nat^::succ N.Nat^::zero)} {GeometricChains.Carrier N.Nat^::zero}} ((Evaluation.map).apply) _ _ (Empty.zero ((Tuples.boundary N.Nat^::zero).apply Fundamental.base)))
+  (EvalMaps.zeroPreserved Evaluation.map);
+\import Modules.Hom[V := GeometricChains.Carrier N.Nat^::zero, W := Chains.Carrier N.Nat^::zero, source := GeometricChains.space N.Nat^::zero, target := Chains.space N.Nat^::zero] \as PushMaps;
+\definition priorZero: \forall (sigma: Simplices.Carrier N.Nat^::zero) -> Degree.Boundary[].prior sigma = (Chains.space N.Nat^::zero).zero :=
+  \fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+    (congr!{{GeometricChains.Carrier N.Nat^::zero} {Chains.Carrier N.Nat^::zero}} ((Push.At[n := N.Nat^::zero].push sigma (Degree.continuous sigma)).apply) _ _ geometricPrior)
+    (PushMaps.zeroPreserved (Push.At[n := N.Nat^::zero].push sigma (Degree.continuous sigma)));
+\import Modules.Laws[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero] \as Values;
+\import algebra.Group[].Of[Carrier := Chains.Carrier N.Nat^::zero, group := Values.additive] \as Group;
+\definition onSimplex: \forall (sigma: Simplices.Carrier N.Nat^::zero) -> (Chains.boundary N.Nat^::zero).apply (Degree.homotopyOnSimplex sigma) = Group.difference (Degree.onSimplex sigma) (Chains.generator N.Nat^::zero sigma) :=
+  \fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{{Chains.Carrier N.Nat^::zero}} _ _ _ (Degree.Boundary[].law sigma)
+    (trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+      (congr!{{Chains.Carrier N.Nat^::zero} {Chains.Carrier N.Nat^::zero}} (Group.difference (Group.difference (Degree.onSimplex sigma) (Chains.generator N.Nat^::zero sigma))) _ _ (priorZero sigma))
+      (trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+        (congr!{{Chains.Carrier N.Nat^::zero} {Chains.Carrier N.Nat^::zero}} (Values.add (Group.difference (Degree.onSimplex sigma) (Chains.generator N.Nat^::zero sigma))) _ _ Group.negZero)
+        (Group.zeroRight _)));
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ N.Nat^::zero), W := Chains.Carrier N.Nat^::zero, source := Chains.space (N.Nat^::succ N.Nat^::zero), target := Chains.space N.Nat^::zero]
+  .Composition[U := Chains.Carrier N.Nat^::zero, domain := Chains.space N.Nat^::zero] \as Compose;
+\import Modules.Hom[V := Chains.Carrier N.Nat^::zero, W := Chains.Carrier N.Nat^::zero, source := Chains.space N.Nat^::zero, target := Chains.space N.Nat^::zero] \as Linear;
+\import Modules.End[V := Chains.Carrier N.Nat^::zero, space := Chains.space N.Nat^::zero] \as Identity;
+\import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := Chains.Carrier N.Nat^::zero, target := Chains.space N.Nat^::zero] \as Free;
+\definition equation: Compose.compose (Chains.boundary N.Nat^::zero) Degree.homotopyMap = Linear.plus Degree.map (Linear.negative Identity.identity) :=
+  Free.ext _ _ (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{{Chains.Carrier N.Nat^::zero}} _ _ _
+    (congr!{{Chains.Carrier (N.Nat^::succ N.Nat^::zero)} {Chains.Carrier N.Nat^::zero}} ((Chains.boundary N.Nat^::zero).apply) _ _ (Degree.homotopyOnGenerator sigma))
+    (trans!{{Chains.Carrier N.Nat^::zero}} _ _ _ (onSimplex sigma)
+      (congr!{{Chains.Carrier N.Nat^::zero} {Chains.Carrier N.Nat^::zero}} (\fun (x: Chains.Carrier N.Nat^::zero) => Group.difference x (Chains.generator N.Nat^::zero sigma)) _ _
+        (sym!{{Chains.Carrier N.Nat^::zero}} _ _ (Degree.onGenerator sigma)))));
+\definition law: \forall (x: Chains.Carrier N.Nat^::zero) -> Group.difference ((Degree.map).apply x) x = (Chains.boundary N.Nat^::zero).apply ((Degree.homotopyMap).apply x) :=
+  \fun (x: Chains.Carrier N.Nat^::zero) => sym!{{Chains.Carrier N.Nat^::zero}} _ _ (congr!{Linear.Map {Chains.Carrier N.Nat^::zero}} (\fun (f: Linear.Map) => (f).apply x) _ _ equation);

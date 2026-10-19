@@ -1,0 +1,46 @@
+\import \parent.\parent.\parent.\parent.Layer[n := N.Nat^::succ n] \as NextLayer;
+\import \parent.\parent.At[n := N.Nat^::succ n] \as Next;
+\import \parent.\parent.\parent.\parent.Filtration[].Stage[limit := N.Nat^::succ (N.Nat^::succ n)] \as NextSpace;
+\import singular_cohomology.Chains[A := NextSpace.Carrier, source := NextSpace.topology] \as NextChains;
+\import Nonnegative.ZeroExtension[C := NextChains.complex] \as NextExtension;
+\import Complexes.At[C := integerComplex, z := I.Int^::ofNat (N.Nat^::succ n)] \as NextCell;
+\import Complexes.Quotient[C := LowerExtension.complex, D := UpperExtension.complex].On[f := Layer.inclusion] \as Quotient;
+\import singular_cellular_algebra.Algebra[].CellLiftStep[A := UpperExtension.complex, B := NextExtension.complex, C := NextLayer.complex, sequence := NextLayer.sequence, n := n] \as Step;
+\import Complexes.At[C := Layer.complex, z := degree] \as RelativeHomology;
+\import Complexes.Map[C := UpperExtension.complex, D := Layer.complex].At[k := degree] \as Projected;
+\import Nonnegative.ZeroExtension[C := complex].Positive[n := n] \as CellDegree;
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n] \as Boundaries;
+\import Modules.Hom[V := Carrier n, W := UpperExtension.Carrier degree, source := space n, target := UpperExtension.space degree]
+  .Composition[U := Carrier (N.Nat^::succ n), domain := space (N.Nat^::succ n)] \as Compose;
+\definition desiredValue: Modules.Hom[V := Carrier (N.Nat^::succ n), W := UpperExtension.Carrier degree, source := space (N.Nat^::succ n), target := UpperExtension.space degree].Map :=
+  Compose.compose previous.relative.map (boundary n);
+\definition boundaryCycle: \forall (q: Carrier (N.Nat^::succ n)) ->
+  (integerComplex.differential).apply degree (CellDegree.intro ((boundary n).apply q)) = (Extension.space (Degrees.previous degree)).zero :=
+  (\induction (k: N.Nat^) \return \forall (q: Carrier (N.Nat^::succ k)) ->
+    (integerComplex.differential).apply (I.Int^::ofNat k) (Extension.Positive[n := k].intro ((boundary k).apply q)) = (Extension.space (Degrees.previous (I.Int^::ofNat k))).zero \with {
+    | zero: \fun (q: Carrier (N.Nat^::succ N.Nat^::zero)) => \refl((Extension.space (I.Int^::negSucc N.Nat^::zero)).zero)
+    | succ: \fun (n: N.Nat^)(unused: _)(q: Carrier (N.Nat^::succ (N.Nat^::succ n))) => squareZero n q
+  }) n;
+\definition desiredClosed: \forall (q: Carrier (N.Nat^::succ n)) ->
+  (UpperExtension.complex.differential).apply degree ((desiredValue).apply q) = (UpperExtension.space (Degrees.previous degree)).zero :=
+  \fun (q: Carrier (N.Nat^::succ n)) => previous.onCycle (CellHomology.cycle (CellDegree.intro ((boundary n).apply q)) (boundaryCycle q));
+\import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Whole.Cycle, source := space (N.Nat^::succ n), target := Whole.cycleSpace] \as DesiredMaps;
+\definition desiredMap: DesiredMaps.Map := DesiredMaps.Map {
+  apply := \fun (q: Carrier (N.Nat^::succ n)) => Whole.cycle ((desiredValue).apply q) (desiredClosed q),
+  addition := (desiredValue).addition, scalar := (desiredValue).scalar,
+};
+\definition projectedClass: \forall (q: Carrier (N.Nat^::succ n)) ->
+  (Layer.Homology[z := degree].projection).apply (Whole.classOf ((desiredMap).apply q)) = (boundary n).apply q :=
+  \fun (q: Carrier (N.Nat^::succ n)) => trans!{{Carrier n}} _ _ _
+    (Projected.onClass Quotient.projection ((desiredMap).apply q))
+    (previous.relative.section ((boundary n).apply q));
+\definition compatible: \forall (q: Carrier (N.Nat^::succ n)) -> Whole.classOf ((desiredMap).apply q) = (NextLayer.Homology[z := I.Int^::ofNat (N.Nat^::succ n)].connecting).apply q :=
+  \fun (q: Carrier (N.Nat^::succ n)) => \parent.\parent.\parent.\parent.Skeletal[].Top[n := n].projectionInjective _ _ (projectedClass q);
+\definition desired: Step.Desired := Step.Desired { map := desiredMap, compatible := compatible };
+\definition retraction: Step.Retraction := Step.Retraction {
+  map := NextLayer.Retraction[].map degree,
+  retracts := NextLayer.Retraction[].retracts degree,
+};
+\definition Result: \Set := Step.Result[desired];
+\module Corrected(result: Result);
+\definition existence: \exists Result := Step.existence (\parent.\parent.\parent.Projectivity[n := N.Nat^::succ n].projective) retraction desired;

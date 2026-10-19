@@ -1,0 +1,37 @@
+\import chain_complexes.Integer[] \as Degrees;
+\import Degrees.Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import singular_cohomology.Chains[A := A, source := source] \as Whole;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := openCover] \as Covered;
+\import Complexes.ZeroExtension[C := Small.complex] \as SmallExtension;
+\import Complexes.ZeroExtension[C := Whole.complex] \as WholeExtension;
+\import Complexes.ZeroExtension[C := Sum.complex] \as SumExtension;
+\import Complexes.ZeroExtension[C := IntersectionChains.complex] \as IntersectionExtension;
+\import Complexes.Equivalence[C := Small.complex, D := Whole.complex].ZeroExtension[e := Covered.equivalence] \as ChainComparison;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.Integer[P := SmallExtension.complex, N := coefficients] \as SmallHom;
+\import Hom.Integer[P := WholeExtension.complex, N := coefficients] \as WholeHom;
+\import Hom.Integer[P := SumExtension.complex, N := coefficients] \as SumHom;
+\import Hom.Integer[P := IntersectionExtension.complex, N := coefficients] \as IntersectionHom;
+\import Hom.IntegerEquivalence[P := SmallExtension.complex, Q := WholeExtension.complex, N := coefficients] \as Comparison;
+\import Cochains.ShortExact[A := SmallHom.complex, B := SumHom.complex, C := IntersectionHom.complex] \as Exact;
+\import \parent.With[coefficients := coefficients] \as SmallSequence;
+\import Hom.Biproduct[P := LeftChains.complex, Q := RightChains.complex, N := coefficients] \as SumComparison;
+\module Degree(z: I.Int^) {
+  \import Cochains.At[C := SmallHom.complex, z := z] \as SmallH;
+  \import Cochains.At[C := WholeHom.complex, z := z] \as WholeH;
+  \import Cochains.At[C := SumHom.complex, z := z] \as SumH;
+  \import Cochains.At[C := IntersectionHom.complex, z := z] \as IntersectionH;
+  \definition small: Modules.Bundle := Modules.Bundle { Carrier := SmallH.Cohomology, space := SmallH.cohomologySpace };
+  \definition whole: Modules.Bundle := Modules.Bundle { Carrier := WholeH.Cohomology, space := WholeH.cohomologySpace };
+  \definition sum: Modules.Bundle := Modules.Bundle { Carrier := SumH.Cohomology, space := SumH.cohomologySpace };
+  \definition intersection: Modules.Bundle := Modules.Bundle { Carrier := IntersectionH.Cohomology, space := IntersectionH.cohomologySpace };
+  \definition comparison: Modules.Isomorphism[V := small.Carrier, W := whole.Carrier, source := small.space, target := whole.space].Isomorphism := Comparison.At[k := z].isomorphism ChainComparison.equivalence;
+  \definition directSum: Modules.Bundle := Modules.Bundle { Carrier := SumComparison.At[z := z].Carrier, space := SumComparison.At[z := z].space };
+  \definition sumComparison: Modules.Isomorphism[V := sum.Carrier, W := directSum.Carrier, source := sum.space, target := directSum.space].Isomorphism := SumComparison.At[z := z].isomorphism;
+  \definition intersectionIdentity: _ := Modules.Identity[V := intersection.Carrier, space := intersection.space].isomorphism;
+  \import Cochains.Map[C := SmallHom.complex, D := SumHom.complex].At[k := z] \as Inclusion;
+  \import Cochains.Map[C := SumHom.complex, D := IntersectionHom.complex].At[k := z] \as Projection;
+  \definition inclusion: Modules.MapBetween small sum := Inclusion.induced SmallSequence.sequence.inclusion;
+  \definition projection: Modules.MapBetween sum intersection := Projection.induced SmallSequence.sequence.projection;
+}
+\module At(z: I.Int^);

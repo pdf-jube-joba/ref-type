@@ -1,0 +1,67 @@
+\import singular_cohomology.Chains[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)] \as WholeChains;
+\import Native.ZeroExtension[C := WholeChains.complex] \as ExtendedWhole;
+\import Hom.Integer[P := ExtendedWhole.complex, N := coefficients] \as WholeHom;
+\import singular_cohomology.Maps[A := Geometry.Sphere, B := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n), target := Spheres.topology (N.Nat^::succ n)] \as Maps;
+\import Native.Map[C := SmallChains.complex, D := WholeChains.complex].ZeroExtension[f := SmallChains.inclusion] \as Inclusion;
+\definition nativeReflection: Native.Map[C := WholeChains.complex, D := WholeChains.complex].Map := Maps.push Reflection.head Reflection.headContinuous;
+\definition wholeReflection: Chains.Map[C := ExtendedWhole.complex, D := ExtendedWhole.complex].Map := Maps.integerPush Reflection.head Reflection.headContinuous;
+\import Chains.Map[C := ExtendedWhole.complex, D := ExtendedWhole.complex].Composition[B := Small.complex] \as ReflectAfterInclude;
+\import Chains.Map[C := Small.complex, D := ExtendedWhole.complex].Composition[B := Small.complex] \as IncludeAfterReflect;
+\module Degree(k: N.Nat^);
+\import Chains.Map[C := Small.complex, D := ExtendedWhole.complex] \as ChainMaps;
+\definition square: ReflectAfterInclude.compose wholeReflection Inclusion.map = IncludeAfterReflect.compose Inclusion.map SmallReflection.map := ChainMaps.ext
+  (ReflectAfterInclude.compose wholeReflection Inclusion.map) (IncludeAfterReflect.compose Inclusion.map SmallReflection.map)
+  (\induction (z: I.Int^) \return \forall (x: Small.Carrier z) ->
+    (wholeReflection).apply z ((Inclusion.map).apply z x) = (Inclusion.map).apply z ((SmallReflection.map).apply z x) \with {
+    | ofNat: \fun (k: N.Nat^) => Degree[k := k].signedSquare
+    | negSucc: \fun (k: N.Nat^)(x: Small.Carrier (I.Int^::negSucc k)) => \refl((ExtendedWhole.space (I.Int^::negSucc k)).zero)
+  });
+\import Hom.IntegerMapping[P := ExtendedWhole.complex, Q := ExtendedWhole.complex, N := coefficients, L := coefficients].On[f := wholeReflection, u := Coefficient.identity] \as WholePull;
+\import Hom.IntegerMapping[P := Small.complex, Q := ExtendedWhole.complex, N := coefficients, L := coefficients] \as Restriction;
+\definition restriction: Cochains.Map[C := WholeHom.complex, D := SmallHom.complex].Map := Restriction.On[f := Inclusion.map, u := Coefficient.identity].map;
+\import Cochains.At[C := WholeHom.complex, z := upper] \as WholeH;
+\import Cochains.Map[C := WholeHom.complex, D := SmallHom.complex].At[k := upper] \as Restrict;
+\import Cochains.Map[C := WholeHom.complex, D := WholeHom.complex].At[k := upper] \as WholeAction;
+\import Hom.IntegerComposition[P := Small.complex, Q := ExtendedWhole.complex, T := ExtendedWhole.complex, N := coefficients] \as LeftComposition;
+\import Hom.IntegerComposition[P := Small.complex, Q := Small.complex, T := ExtendedWhole.complex, N := coefficients] \as RightComposition;
+\definition restrictionSquare: \forall (q: WholeH.Cohomology) ->
+  (Restrict.induced restriction).apply ((WholeAction.induced WholePull.map).apply q) =
+    (SmallAction.induced SmallPull.map).apply ((Restrict.induced restriction).apply q) :=
+  \fun (q: WholeH.Cohomology) => trans!{SmallH.Cohomology} _ _ _
+    (sym!{SmallH.Cohomology} _ _ (LeftComposition.At[k := upper].onCohomology Inclusion.map wholeReflection q))
+    (trans!{SmallH.Cohomology} _ _ _
+      (congr!{ChainMaps.Map SmallH.Cohomology}
+        (\fun (f: ChainMaps.Map) => (Restrict.induced Restriction.On[f := f, u := Coefficient.identity].map).apply q) _ _ square)
+      (RightComposition.At[k := upper].onCohomology SmallReflection.map Inclusion.map q));
+\import singular_excision.MayerVietoris[A := Geometry.Sphere].Over[source := Spheres.topology (N.Nat^::succ n)].On[cover := Cover.cover] \as CoverData;
+\import singular_subdivision.OpenCover[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].On[cover := CoverData.openCover] \as Covered;
+\import Native.Equivalence[C := SmallChains.complex, D := WholeChains.complex].ZeroExtension[e := Covered.equivalence] \as ChainComparison;
+\import Hom.IntegerEquivalence[P := Small.complex, Q := ExtendedWhole.complex, N := coefficients].At[k := upper] \as Comparison;
+\import Modules.Hom[V := WholeH.Cohomology, W := SmallH.Cohomology, source := WholeH.cohomologySpace, target := SmallH.cohomologySpace] \as LinearRestriction;
+\definition integerAction: \forall (q: WholeH.Cohomology) -> (WholeAction.induced WholePull.map).apply q = (WholeH.cohomologySpace).neg q :=
+  \fun (q: WholeH.Cohomology) => (Comparison.backwardBijective ChainComparison.equivalence).injective _ _
+    (trans!{SmallH.Cohomology} _ _ _ (restrictionSquare q)
+      (trans!{SmallH.Cohomology} _ _ _ (smallAction ((Restrict.induced restriction).apply q))
+        (sym!{SmallH.Cohomology} _ _ (LinearRestriction.negativePreserved (Restrict.induced restriction) q))));
+\import singular_cohomology.Cochains[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].With[coefficients := coefficients] \as NaturalTheory;
+\import \root.NaturalComparison[].For[C := WholeChains.complex, D := WholeChains.complex, coefficients := coefficients].On[f := nativeReflection].At[n := N.Nat^::succ n] \as NaturalComparison;
+\import Maps.Coefficients[M := coefficients, L := coefficients] \as NaturalPull;
+\definition Carrier: \Set := NaturalTheory.cohomology (N.Nat^::succ n);
+\definition space: Modules.Space Carrier := NaturalTheory.cohomologySpace (N.Nat^::succ n);
+\definition action: Modules.Hom[V := Carrier, W := Carrier, source := space, target := space].Map :=
+  NaturalPull.At[n := N.Nat^::succ n].induced Reflection.head Reflection.headContinuous Coefficient.identity;
+\import Modules.Hom[V := WholeH.Cohomology, W := Carrier, source := WholeH.cohomologySpace, target := space] \as ToNatural;
+\import Modules.Isomorphism[V := WholeH.Cohomology, W := Carrier, source := WholeH.cohomologySpace, target := space] \as NaturalIsomorphisms;
+\definition comparison: NaturalIsomorphisms.Isomorphism := NaturalTheory.Integer[].At[n := N.Nat^::succ n].isomorphism;
+\definition naturalAction: \forall (q: Carrier) -> (action).apply q = (space).neg q :=
+  \fun (q: Carrier) => \block {
+    \let integer: WholeH.Cohomology := ((comparison).backward).apply q \then
+    \return trans!{Carrier} _ _ _
+      (sym!{Carrier} _ _ (congr!{Carrier Carrier} ((action).apply) _ _ ((comparison).rightInverse q)))
+      (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (NaturalComparison.law integer))
+        (trans!{Carrier} _ _ _
+          (congr!{WholeH.Cohomology Carrier} (((comparison).forward).apply) _ _ (integerAction integer))
+          (trans!{Carrier} _ _ _
+            (ToNatural.negativePreserved (comparison).forward integer)
+            (congr!{Carrier Carrier} ((space).neg) _ _ ((comparison).rightInverse q)))))
+  };

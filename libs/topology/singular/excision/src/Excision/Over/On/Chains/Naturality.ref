@@ -1,0 +1,30 @@
+\import singular_cohomology.Relative[A := Remaining.Carrier, source := RemainingTopology.topology source, subset := intersection] \as SourceRelative;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as TargetRelative;
+\import \parent.Mapping[] \as Mapping;
+\import \parent.Ordinary[] \as Ordinary;
+\import RemainingPair.Relative[] \as SourceComparison;
+\import CoveredSubset.Relative[] \as TargetComparison;
+\import singular_cohomology.Chains[A := Remaining.Carrier, source := RemainingTopology.topology source] \as SourceWhole;
+\import singular_cohomology.Chains[A := A, source := source] \as TargetWhole;
+\import Nonnegative.ZeroExtension[C := SourceWhole.complex] \as SourceExtension;
+\import Nonnegative.ZeroExtension[C := TargetWhole.complex] \as TargetExtension;
+\import Nonnegative.Map[C := SourceSmall.complex, D := SourceWhole.complex].ZeroExtension[f := SourceSmall.inclusion] \as SourceInclusion;
+\import Nonnegative.Map[C := TargetSmall.complex, D := TargetWhole.complex].ZeroExtension[f := TargetSmall.inclusion] \as TargetInclusion;
+\import singular_cohomology.Maps[A := Remaining.Carrier, B := A, source := RemainingTopology.topology source, target := source] \as WholeMaps;
+\import singular_subdivision.Small[A := A, source := source, family := family].Pullback[B := Remaining.Carrier]
+  .Over[topology := RemainingTopology.topology source, f := Remaining.inclusion] \as Pullback;
+\definition Square[z: I.Int^]: \Prop := \forall (x: SourceSpace.Carrier z) ->
+  (TargetInclusion.map).apply z ((Ambient.map).apply z x) = (WholeMaps.integerPush Remaining.inclusion Remaining.continuous).apply z ((SourceInclusion.map).apply z x);
+\module Positive(n: N.Nat^);
+\definition square: \forall (z: I.Int^) -> Square z := \induction (z: I.Int^) \return Square z \with {
+  | ofNat: \fun (n: N.Nat^) => Positive[n := n].law
+  | negSucc: \fun (n: N.Nat^)(x: SourceSpace.Carrier (I.Int^::negSucc n)) => \refl((TargetExtension.space (I.Int^::negSucc n)).zero)
+};
+\module At(z: I.Int^);
+\import Complexes.Map[C := SourceRelative.complex, D := TargetRelative.complex].Composition[B := SourceQuotient.complex] \as Left;
+\import Complexes.Map[C := TargetQuotient.complex, D := TargetRelative.complex].Composition[B := SourceQuotient.complex] \as Right;
+\import Complexes.Map[C := SourceQuotient.complex, D := TargetRelative.complex] \as Maps;
+\definition equation: Left.compose Ordinary.map SourceComparison.comparison = Right.compose TargetComparison.comparison Mapping.map :=
+  Maps.ext _ _ (\fun (z: I.Int^) => At[z := z].law);
+\module Homology(z: I.Int^);
+\module With(coefficients: Modules.Bundle);

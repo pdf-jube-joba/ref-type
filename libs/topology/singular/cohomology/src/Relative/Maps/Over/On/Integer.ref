@@ -1,0 +1,25 @@
+\import Nonnegative.ZeroExtension[C := TargetSubspaceChains.complex] \as TargetSubspaceExtension;
+\import Nonnegative.ZeroExtension[C := TargetWholeChains.complex] \as TargetWholeExtension;
+\import Nonnegative.Map[C := SubspaceChains.complex, D := TargetSubspaceChains.complex].ZeroExtension[f := subspaceMap] \as SubspaceMap;
+\import Nonnegative.Map[C := WholeChains.complex, D := TargetWholeChains.complex].ZeroExtension[f := ambientMap] \as WholeMap;
+\module Square(n: N.Nat^);
+\definition Compatible: \Prop := \forall (z: I.Int^)(x: SubspaceExtension.Carrier z) ->
+  (WholeMap.map).apply z ((inclusionMap).apply z x) = (TargetPair.inclusionMap).apply z ((SubspaceMap.map).apply z x);
+\definition compatible: Compatible := \induction (z: I.Int^) \return \forall (x: SubspaceExtension.Carrier z) ->
+  (WholeMap.map).apply z ((inclusionMap).apply z x) = (TargetPair.inclusionMap).apply z ((SubspaceMap.map).apply z x) \with {
+    | ofNat: \fun (n: N.Nat^) => Square[n := n].law
+    | negSucc: \fun (n: N.Nat^)(x: SubspaceExtension.Carrier (I.Int^::negSucc n)) => \refl((TargetWholeExtension.space (I.Int^::negSucc n)).zero)
+  };
+\import Complexes.QuotientMapping[C := SubspaceExtension.complex, D := WholeExtension.complex,
+  C1 := TargetSubspaceExtension.complex, D1 := TargetWholeExtension.complex]
+  .On[f := inclusionMap, g := TargetPair.inclusionMap, a := SubspaceMap.map, b := WholeMap.map] \as QuotientMap;
+\definition map: Complexes.Map[C := complex, D := TargetPair.complex].Map := QuotientMap.map compatible;
+\module At(z: I.Int^) {
+  \import Complexes.Map[C := complex, D := TargetPair.complex].At[k := z] \as Actions;
+  \definition induced: _ := Actions.induced map;
+  \definition quotientOnClass: _ := QuotientMap.At[k := z].onClass compatible;
+  \definition onClass: _ := Actions.onClass map;
+}
+\module With(coefficients: Modules.Bundle);
+
+\module Naturality;

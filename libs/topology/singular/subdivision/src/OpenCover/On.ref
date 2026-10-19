@@ -1,0 +1,67 @@
+\import \root.Small[A := A, source := source, family := Covers.family cover] \as Small;
+\import singular_cohomology.Chains[A := A, source := source] \as Whole;
+\import singular_cohomology.Simplices[A := A, source := source] \as Simplices;
+\import \root.Subdivision[A := A, source := source] \as Subdivision;
+\import N.Induction[] \as Induction;
+\import N.Basic[].Prop[] \as Bounds;
+\module Selection(n: N.Nat^);
+\module Terms(n: N.Nat^);
+\module Zero;
+\module Step(n: N.Nat^);
+\definition homotopyMap: \forall (n: N.Nat^) -> Terms[n := n].Map := \induction (n: N.Nat^) \return Terms[n := n].Map \with {
+  | zero: Zero[].map
+  | succ: \fun (n: N.Nat^)(previous: Terms[n := n].Map) => Step[n := n].map previous
+};
+\module CandidateZero;
+\module CandidateStep(n: N.Nat^);
+\definition candidateMap: \forall (n: N.Nat^) -> Terms[n := n].EndMap := \induction (n: N.Nat^) \return Terms[n := n].EndMap \with {
+  | zero: CandidateZero[].map
+  | succ: \fun (n: N.Nat^)(previous: Terms[n := n].EndMap) => CandidateStep[n := n].map
+};
+\module Degree(n: N.Nat^);
+\module ImageZero;
+\module Boundaries;
+\definition ImageProperty[n: N.Nat^]: \Prop := \forall (x: Whole.Carrier n) -> Small.At[n := n].Image ((candidateMap n).apply x);
+\module ImageStep(n: N.Nat^);
+\definition image: \forall (n: N.Nat^) -> ImageProperty n := \induction (n: N.Nat^) \return ImageProperty n \with {
+  | zero: ImageZero[].law
+  | succ: \fun (n: N.Nat^)(previous: ImageProperty n) => ImageStep[n := n].law previous
+};
+\module CandidateBoundary(n: N.Nat^);
+\module Compared(n: N.Nat^);
+\module RetractionBoundary(n: N.Nat^);
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\definition retraction: Complexes.Map[C := Whole.complex, D := Small.complex].Map := Complexes.Map[C := Whole.complex, D := Small.complex].Map {
+  apply := \fun (n: N.Nat^) => (Degree[n := n].retraction).apply,
+  addition := \fun (n: N.Nat^) => (Degree[n := n].retraction).addition,
+  scalar := \fun (n: N.Nat^) => (Degree[n := n].retraction).scalar,
+  commutes := \fun (n: N.Nat^) => RetractionBoundary[n := n].law,
+};
+\definition SmallZeroProperty[n: N.Nat^]: \Prop := \forall (x: Small.Carrier n) -> (homotopyMap n).apply ((Small.At[n := n].inclusion).apply x) = (Whole.space (N.Nat^::succ n)).zero;
+\module SmallZeroExtend(n: N.Nat^);
+\module SmallZero;
+\module SmallZeroStep(n: N.Nat^);
+\definition smallZero: \forall (n: N.Nat^) -> SmallZeroProperty n := \induction (n: N.Nat^) \return SmallZeroProperty n \with {
+  | zero: SmallZero[].law
+  | succ: \fun (n: N.Nat^)(previous: SmallZeroProperty n) => SmallZeroStep[n := n].law previous
+};
+\module CandidateSmall;
+\module LeftInverse(n: N.Nat^);
+\import Complexes.Map[C := Small.complex, D := Small.complex] \as SmallMaps;
+\import Complexes.Map[C := Whole.complex, D := Small.complex].Composition[B := Small.complex] \as LeftComposition;
+\import Complexes.End[C := Small.complex] \as SmallIdentity;
+\definition leftInverse: LeftComposition.compose retraction Small.inclusion = SmallIdentity.identity := SmallMaps.ext _ _ (\fun (n: N.Nat^) => LeftInverse[n := n].law);
+\module Right;
+\import Complexes.Equivalence[C := Small.complex, D := Whole.complex] \as Equivalences;
+\import Complexes.Homotopy[C := Small.complex, D := Small.complex] \as SmallHomotopy;
+\import SmallHomotopy.Reflexive[] \as Reflexive;
+\definition comparison: Equivalences.Data := Equivalences.Data { forward := Small.inclusion, backward := retraction, left := Reflexive.data, right := Right[].data };
+\definition equivalence: Equivalences.Equivalence := \into[Equivalences.Data](comparison, Equivalences.Equivalence) \by {
+  Equivalences.Laws[comparison] {
+    left := SmallHomotopy.replacementLaws SmallIdentity.identity SmallIdentity.identity (LeftComposition.compose retraction Small.inclusion) SmallIdentity.identity Reflexive.data
+      (sym!{SmallMaps.Map} _ _ leftInverse) (\refl(SmallIdentity.identity)) (Reflexive.laws SmallIdentity.identity),
+    right := Right[].laws,
+  }
+};
+\module With(coefficients: Modules.Bundle);
+\module Subspace(subset: \Pow A);
