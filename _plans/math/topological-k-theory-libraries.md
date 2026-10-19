@@ -87,7 +87,7 @@ K^0(X)[u]/(u^2)\cong K^0(X\times S^2)
 \]
 
 を計算し、反復 Bott 積と偶数次の生成元を対応させる。
-[cell_spaces](../../libs/topology/cell_spaces/src/root.ref) に引き戻し・補束・Hopf 線束・相対群・球面、空空間・零ランク・非連結空間の利用例を置く。
+[cell_spaces](../../libs/topology/examples/cells/src/root.ref) に引き戻し・補束・Hopf 線束・相対群・球面、空空間・零ランク・非連結空間の利用例を置く。
 
 ## 公開と検査
 

@@ -1,0 +1,81 @@
+\definition degree: I.Int^ := I.Int^::ofNat n;
+\definition upper: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
+\import \parent.At[z := degree] \as LowerAction;
+\import \root.CoverAction[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n)].On[cover := Cover.cover].With[mapping := Action.Integer[].action].Coefficients[coefficients := coefficients] \as Sequence;
+\import singular_excision.MayerVietoris[A := Geometry.Sphere].Over[source := Spheres.topology (N.Nat^::succ n)].On[cover := Cover.cover].Chains[] \as CoverChains;
+\import singular_cohomology.Chains[A := Geometry.Left, source := Geometry.leftTopology] \as LeftChains;
+\import singular_cohomology.Chains[A := Geometry.Right, source := Geometry.rightTopology] \as RightChains;
+\import Native.Biproduct[C := LeftChains.complex, D := RightChains.complex] \as Sum;
+\import singular_subdivision.Small[A := Geometry.Sphere, source := Spheres.topology (N.Nat^::succ n), family := { U: \Pow Geometry.Sphere \where std.Logic[].Proposition[].Or[U = Geometry.left, U = Geometry.right] }] \as SmallChains;
+\import Native.ZeroExtension[C := SmallChains.complex] \as Small;
+\import Native.ZeroExtension[C := Sum.complex] \as Middle;
+\import Hom.Integer[P := Small.complex, N := coefficients] \as SmallHom;
+\import Hom.Integer[P := Middle.complex, N := coefficients] \as MiddleHom;
+\import Cochains.ShortExact[A := SmallHom.complex, B := MiddleHom.complex, C := IntersectionHom.complex] \as Exact;
+\import Exact.At[s := Sequence.sequence, k := degree] \as Connecting;
+\import Connecting.Exactness[] \as Exactness;
+\import Cochains.At[C := IntersectionHom.complex, z := degree] \as IntersectionH;
+\import Cochains.At[C := SmallHom.complex, z := upper] \as SmallH;
+\import Cochains.At[C := MiddleHom.complex, z := upper] \as MiddleH;
+\import Native.Map[C := IntersectionChains.complex, D := IntersectionChains.complex].ZeroExtension[f := Action.signedIntersectionMap] \as SignedReflection;
+\import Hom.IntegerMapping[P := Intersection.complex, Q := Intersection.complex, N := coefficients, L := coefficients].On[f := SignedReflection.map, u := Coefficient.identity] \as SignedPull;
+\import Cochains.Map[C := IntersectionHom.complex, D := IntersectionHom.complex].At[k := degree] \as IntersectionPull;
+\import Modules.Hom[V := Intersection.Carrier degree, W := coefficients.Carrier, source := Intersection.space degree, target := coefficients.space] \as Evaluation;
+\definition signedOnCochain: \forall (h: IntersectionHom.Carrier degree) -> (SignedPull.map).apply degree h = (IntersectionHom.space degree).neg ((reflectionPull).apply degree h) :=
+  \fun (h: IntersectionHom.Carrier degree) => IntersectionHom.At[z := degree].ext
+    ((SignedPull.map).apply degree h) ((IntersectionHom.space degree).neg ((reflectionPull).apply degree h))
+    (\fun (x: Intersection.Carrier degree) => Evaluation.negativePreserved h ((reflection).apply degree x));
+\definition forgetIntersection[h: IntersectionH.Closed]: IntersectionHom.Carrier degree := h;
+\definition signedCycle[h: IntersectionH.Closed]:
+  (IntersectionPull.cyclesMap SignedPull.map).apply h =
+    (IntersectionH.cycleSpace).neg ((IntersectionPull.cyclesMap reflectionPull).apply h) := \block {
+  \let left: IntersectionH.Closed := (IntersectionPull.cyclesMap SignedPull.map).apply h \then
+  \let right: IntersectionH.Closed := (IntersectionH.cycleSpace).neg ((IntersectionPull.cyclesMap reflectionPull).apply h) \then
+  \return (\idelim forgetIntersection left = forgetIntersection right
+    \with value: IntersectionHom.Carrier degree =>
+      \forall (closed: (IntersectionH.differential).apply value = (IntersectionHom.space (chain_complexes.Integer[].next degree)).zero) ->
+        left = IntersectionH.cycle value closed \by {
+      base: \fun (closed: _) => \refl(left),
+      equality: signedOnCochain h
+    }) (\bysub(IntersectionHom.Carrier degree, (IntersectionH.cycles).carrier, right))
+};
+\import Modules.Hom[V := IntersectionH.Closed, W := IntersectionH.Cohomology, source := IntersectionH.cycleSpace, target := IntersectionH.cohomologySpace] \as IntersectionClasses;
+\definition signedOnClass: \forall (h: IntersectionH.Closed) ->
+  (IntersectionPull.induced SignedPull.map).apply (IntersectionH.classOf h) = (IntersectionH.cohomologySpace).neg ((IntersectionPull.induced reflectionPull).apply (IntersectionH.classOf h)) :=
+  \fun (h: IntersectionH.Closed) => trans!{IntersectionH.Cohomology} _ _ _ (IntersectionPull.onClass SignedPull.map h)
+    (trans!{IntersectionH.Cohomology} _ _ _
+      (congr!{IntersectionH.Closed IntersectionH.Cohomology} IntersectionH.classOf _ _ (signedCycle h))
+      (trans!{IntersectionH.Cohomology} _ _ _
+        (IntersectionClasses.negativePreserved IntersectionH.classLinear ((IntersectionPull.cyclesMap reflectionPull).apply h))
+        (congr!{IntersectionH.Cohomology IntersectionH.Cohomology} ((IntersectionH.cohomologySpace).neg) _ _
+          (sym!{IntersectionH.Cohomology} _ _ (IntersectionPull.onClass reflectionPull h)))));
+\definition signedAction: \forall (q: IntersectionH.Cohomology) -> (IntersectionPull.induced SignedPull.map).apply q = (IntersectionH.cohomologySpace).neg q :=
+  IntersectionH.classInduction (\fun (q: IntersectionH.Cohomology) => (IntersectionPull.induced SignedPull.map).apply q = (IntersectionH.cohomologySpace).neg q)
+    (\fun (h: IntersectionH.Closed) => trans!{IntersectionH.Cohomology} _ _ _ (signedOnClass h)
+      (congr!{IntersectionH.Cohomology IntersectionH.Cohomology} ((IntersectionH.cohomologySpace).neg) _ _ (LowerAction.intersectionAction (IntersectionH.classOf h))));
+\import Native.Map[C := SmallChains.complex, D := SmallChains.complex].ZeroExtension[f := Action.smallMap] \as SmallReflection;
+\import Hom.IntegerMapping[P := Small.complex, Q := Small.complex, N := coefficients, L := coefficients].On[f := SmallReflection.map, u := Coefficient.identity] \as SmallPull;
+\import Cochains.Map[C := SmallHom.complex, D := SmallHom.complex].At[k := upper] \as SmallAction;
+\import Modules.Hom[V := IntersectionH.Cohomology, W := SmallH.Cohomology, source := IntersectionH.cohomologySpace, target := SmallH.cohomologySpace] \as ConnectingLinear;
+\definition onConnecting: \forall (q: IntersectionH.Cohomology) ->
+  (SmallAction.induced SmallPull.map).apply ((Connecting.connecting).apply q) = (SmallH.cohomologySpace).neg ((Connecting.connecting).apply q) :=
+  \fun (q: IntersectionH.Cohomology) => trans!{SmallH.Cohomology} _ _ _
+    (sym!{SmallH.Cohomology} _ _ (Sequence.At[z := degree].connectingNaturality q))
+    (trans!{SmallH.Cohomology} _ _ _
+      (congr!{IntersectionH.Cohomology SmallH.Cohomology} ((Connecting.connecting).apply) _ _ (signedAction q))
+      (ConnectingLinear.negativePreserved Connecting.connecting q));
+\import \root.Hemispheres[n := n].With[coefficients := coefficients].Vanishing[] \as Vanishing;
+\import std.Logic[].Proposition[] \as Logic;
+\definition connectingOnto: \forall (q: SmallH.Cohomology) -> \exists ( p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q ) :=
+  \fun (q: SmallH.Cohomology) => Exactness.exactAtALower q
+    (Vanishing.middleZero ((Cochains.Map[C := SmallHom.complex, D := MiddleHom.complex].At[k := upper].induced Sequence.inclusion).apply q));
+\definition smallAction: \forall (q: SmallH.Cohomology) -> (SmallAction.induced SmallPull.map).apply q = (SmallH.cohomologySpace).neg q := \block {
+  \fun (q: SmallH.Cohomology) \then
+  \takefrom p: \Cast[IntersectionH.Cohomology] ({ p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q }) \by connectingOnto q \then
+  \let equal: (Connecting.connecting).apply p = q := \bysub(IntersectionH.Cohomology, { p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q }, p) \then
+  \return trans!{SmallH.Cohomology} _ _ _
+    (sym!{SmallH.Cohomology} _ _ (congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallAction.induced SmallPull.map).apply) _ _ equal))
+    (trans!{SmallH.Cohomology} _ _ _ (onConnecting p)
+      (congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallH.cohomologySpace).neg) _ _ equal))
+};
+\module Whole;

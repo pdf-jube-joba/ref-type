@@ -23,4 +23,4 @@
   Distance.distanceSelf;
 ```
 
-[利用例](../../../libs/analysis/scalar_compatibility/src/Compatibility.ref) は定数列の極限と他分野との演算の共有を検査する。
+[利用例](../../analysis/scalar_compatibility/src/Compatibility.ref) は定数列の極限と他分野との演算の共有を検査する。

@@ -1,0 +1,65 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Data[].Nat[] \as N;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import algebraic_topology.Simplex[] \as Simplex;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.sym;
+\import Top.Subspace[S := left] \as LeftTopology;
+\import Top.Subspace[S := right] \as RightTopology;
+\definition Left: \Set := LeftTopology.CarrierSet;
+\definition Right: \Set := RightTopology.CarrierSet;
+\definition intersection: \Pow Left := { x: Left \where Top.Member right x };
+\import topology.Topology[Carrier := Left].Subspace[S := intersection] \as IntersectionTopology;
+\definition Intersection: \Set := IntersectionTopology.CarrierSet;
+\import singular_cohomology.Chains[A := Left, source := LeftTopology.topology source] \as LeftChains;
+\import singular_cohomology.Chains[A := Right, source := RightTopology.topology source] \as RightChains;
+\import singular_cohomology.Chains[A := Intersection, source := IntersectionTopology.topology (LeftTopology.topology source)] \as IntersectionChains;
+\import singular_cohomology.Relative[A := Left, source := LeftTopology.topology source, subset := intersection] \as IntersectionPair;
+\import singular_subdivision.Small[A := A, source := source, family := family] \as Small;
+\definition leftMember: \In[\Pow A] family left := Logic.Or[_, _]::left (\refl(left));
+\definition rightMember: \In[\Pow A] family right := Logic.Or[_, _]::right (\refl(right));
+\definition leftElement: \Cast[\Pow A] family := \into[\Pow A](left, family) \by { leftMember };
+\definition rightElement: \Cast[\Pow A] family := \into[\Pow A](right, family) \by { rightMember };
+\import Small.FromSubset[U := leftElement] \as LeftSmall;
+\import Small.FromSubset[U := rightElement] \as RightSmall;
+\import Complexes.Biproduct[C := LeftChains.complex, D := RightChains.complex] \as Sum;
+\definition middle: Complexes.Complex := Sum.complex;
+\definition toLeft[x: Intersection]: Left := x;
+\definition toRight[x: Intersection]: Right := \into[A](x, right) \by { \bysub(Left, intersection, x) };
+\import topology.Continuity[A := Intersection, B := Left].Corestriction[S := intersection] \as IntoLeft;
+\definition leftContinuous: topology.Continuity[A := Intersection, B := Left].Continuous
+  (IntersectionTopology.topology (LeftTopology.topology source)) (LeftTopology.topology source) toLeft := IntoLeft.inclusionContinuous (LeftTopology.topology source);
+\import topology.Continuity[A := Left, B := A].Corestriction[S := left] \as LeftInclusion;
+\import topology.Composition[A := Intersection, B := Left, C := A] \as Composite;
+\import topology.Continuity[A := Intersection, B := A].Corestriction[S := right] \as IntoRight;
+\definition rightContinuous: topology.Continuity[A := Intersection, B := Right].Continuous
+  (IntersectionTopology.topology (LeftTopology.topology source)) (RightTopology.topology source) toRight :=
+  IntoRight.corestrictContinuous (IntersectionTopology.topology (LeftTopology.topology source)) source toRight
+    (Composite.composeContinuous (IntersectionTopology.topology (LeftTopology.topology source)) (LeftTopology.topology source) source toLeft
+      (\fun (x: Left) => x) leftContinuous (LeftInclusion.inclusionContinuous source));
+\import singular_cohomology.Maps[A := Intersection, B := Left, source := IntersectionTopology.topology (LeftTopology.topology source), target := LeftTopology.topology source] \as LeftMaps;
+\import singular_cohomology.Maps[A := Intersection, B := Right, source := IntersectionTopology.topology (LeftTopology.topology source), target := RightTopology.topology source] \as RightMaps;
+\definition leftMap: Complexes.Map[C := IntersectionChains.complex, D := LeftChains.complex].Map := LeftMaps.push toLeft leftContinuous;
+\definition rightMap: Complexes.Map[C := IntersectionChains.complex, D := RightChains.complex].Map := RightMaps.push toRight rightContinuous;
+\import Complexes.Map[C := IntersectionChains.complex, D := RightChains.complex].Additive[] \as RightAdditive;
+\definition inclusion: Complexes.Map[C := IntersectionChains.complex, D := Sum.complex].Map := Sum.Pairing[E := IntersectionChains.complex].On[f := leftMap, g := RightAdditive.negative rightMap].map;
+\definition projection: Complexes.Map[C := Sum.complex, D := Small.complex].Map := Sum.Copairing[E := Small.complex].On[f := LeftSmall.map, g := RightSmall.map].map;
+\module Degree(n: N.Nat^);
+
+\import Complexes.SplitInjection[C := IntersectionChains.complex, D := Sum.complex] \as Split;
+\definition pair: Split.SplitInjection := \into[Split.Data](Split.Data {
+  inclusion := inclusion, retraction := \fun (n: N.Nat^) => Degree[n := n].retraction,
+}, Split.SplitInjection) \by {
+  Split.Laws[Split.Data { inclusion := inclusion, retraction := \fun (n: N.Nat^) => Degree[n := n].retraction }] {
+    leftInverse := \fun (n: N.Nat^) => Degree[n := n].leftInverse,
+  }
+};
+\import Split.On[pair := pair] \as Quotient;
+\module Sequence;
+\module With(coefficients: Modules.Bundle);
+\module Homology;
+\module Cohomology(coefficients: Modules.Bundle);
+\module Disjoint;

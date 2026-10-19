@@ -3,15 +3,30 @@
 依存先は各 `ref.toml`、公開 module は `src/root.ref` にある。
 `std` 以外は約5,000行を目安に、共有基盤から応用へ依存する単位で分ける。
 
+## 基礎
+
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [std](std/README.md) | `std` | 論理、データ、整数・有理数、商、代数構造 |
 | [category](category/README.md) | `category` | 圏、関手、自然変換、普遍性、随伴、加法圏・アーベル圏 |
+
+## 数系
+
+| 配置 | パッケージ | 内容 |
+| --- | --- | --- |
 | [real/axiomatic](real/axiomatic/README.md) | `ordered_fields` | 順序体と上限完備性の共通構造 |
 | [real/dedekind](real/dedekind/README.md) | `dedekind_reals` | 有理数の切断による実数、演算・順序・完備性 |
 | [real/cauchy](real/cauchy/README.md) | `cauchy_reals` | 有理数 Cauchy 列の商による実数、演算・順序・完備性 |
 | [real/basic](real/basic/README.md) | `real` | 構成済みの実数の演算、距離評価、数列、平方根、有限和 |
 | [complex](complex/README.md) | `complex` | 実数対による複素数と体の構造 |
+
+標準の実数は `dedekind_reals` から `real` に渡す。
+共通の数値補題は `real.Analysis`、演算と法則の分離には `Def` / `Prop`、等式連鎖には [eq_reason!](std/README.md#等式と合同則) を使う。
+
+## 代数
+
+| 配置 | パッケージ | 内容 |
+| --- | --- | --- |
 | [algebra/basic](algebra/basic/README.md) | `algebra` | 準同型、群完成、商、多項式環 |
 | [algebra/module_theory](algebra/module_theory/README.md) | `module_theory` | 環上の加群、自由加群、直和、テンソル積、完全列 |
 | [algebra/commutative_algebra](algebra/commutative_algebra/README.md) | `commutative_algebra` | Hom とテンソル積、射影性、有限自由加群の行列 |
@@ -25,35 +40,50 @@
 | [algebra/homological/derived_functors](algebra/homological/derived_functors/README.md) | `derived_functors` | Ext・Tor、分解からの独立性と自然性、巡回加群の分解、普遍係数 |
 | [algebra/homological/field_kunneth](algebra/homological/field_kunneth/README.md) | `field_kunneth` | 有限自由体係数余鎖複体、標準外積同型、自然性・交換符号・単位 |
 | [algebra/homological/computations](algebra/homological/computations/README.md) | `homological_algebra` | 有限整数複体のホモロジー計算、普遍係数・整数 Künneth の自然な短完全列 |
+
+## 解析
+
+| 配置 | パッケージ | 内容 |
+| --- | --- | --- |
 | [analysis/calculus](analysis/calculus/README.md) | `calculus` | 極限、平均値定理、多変数微分、滑らかな写像 |
 | [analysis/integration](analysis/integration/README.md) | `integration` | リーマン積分、L¹ 完備化によるルベーグ積分 |
+
+## 幾何
+
+| 配置 | パッケージ | 内容 |
+| --- | --- | --- |
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 |
 | [geometry/euclidean_forms](geometry/euclidean_forms/README.md) | `euclidean_forms` | 局所微分形式、外積・外微分、座標表示、引き戻し |
 | [geometry/differential_forms](geometry/differential_forms/README.md) | `differential_forms` | 大域微分形式、貼り合わせ、引き戻し、De Rham コホモロジー |
-| [topology/basic](topology/basic/README.md) | `topology` | 位相・部分空間、連続写像、コンパクト性、分離性 |
-| [topology/metric_spaces](topology/metric_spaces/README.md) | `metric_spaces` | 距離位相、距離化、実数直線、実数値関数、有限従属分割 |
-| [topology/topological_constructions](topology/topological_constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 |
-| [topology/topological_algebra](topology/topological_algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
-| [topology/algebraic_topology](topology/algebraic_topology/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |
-| [topology/singular_cohomology](topology/singular_cohomology/README.md) | `singular_cohomology` | 特異鎖・余鎖、相対・被約理論、ホモトピー不変性、道成分と可縮空間 |
-| [topology/singular_products](topology/singular_products/README.md) | `singular_products` | 特異余鎖とコホモロジーのカップ積、Leibniz 則、単位・結合・自然性 |
-| [topology/singular_excision](topology/singular_excision/README.md) | `singular_excision` | 切除、Mayer–Vietoris、良い対と商空間の比較 |
-| [topology/singular_eilenberg_zilber](topology/singular_eilenberg_zilber/README.md) | `singular_eilenberg_zilber` | Alexander–Whitney と shuffle の鎖ホモトピー同値 |
-| [topology/singular_symmetry](topology/singular_symmetry/README.md) | `singular_symmetry` | カップ積の交換ホモトピーと次数付き可換性 |
-| [topology/singular_cech](topology/singular_cech/README.md) | `singular_cech` | 被覆の二重複体と射影的複体の比較 |
-| [topology/singular_simplicial](topology/singular_simplicial/README.md) | `singular_simplicial` | 有限単体複体の実現、アフィン特異鎖と積の比較 |
-| [topology/singular_cellular](topology/singular_cellular/README.md) | `singular_cellular` | 有限 CW 複体のセル基底・付着次数、任意係数の比較と自然性 |
-| [topology/singular_cellular_algebra](topology/singular_cellular_algebra/README.md) | `singular_cellular_algebra` | 相対鎖の直和、Hom と比較写像の補題 |
-| [topology/singular_finite_algebra](topology/singular_finite_algebra/README.md) | `singular_finite_algebra` | 有限モデルとの係数比較、普遍係数と Künneth |
-| [topology/singular_tensor_dual](topology/singular_tensor_dual/README.md) | `singular_tensor_dual` | 有限双対基底によるテンソル積と Hom の比較 |
-| [topology/singular_tensor_bridge](topology/singular_tensor_bridge/README.md) | `singular_tensor_bridge` | 整数次数と非負次数のテンソル複体の比較 |
-| [topology/singular_low_degree](topology/singular_low_degree/README.md) | `singular_low_degree` | 道の選択による鎖の正規化と積空間の一次コホモロジー |
-| [topology/sphere_maps](topology/sphere_maps/README.md) | `sphere_maps` | 球面の向き、反転と円周の整数べき写像の次数 |
-| [topology/cohomology_models](topology/cohomology_models/README.md) | `cohomology_models` | 空空間・可縮空間・球面の計算と相対理論の利用例 |
-| [topology/cohomology_examples](topology/cohomology_examples/README.md) | `cohomology_examples` | 有限グラフ、トーラス、実射影平面の群・積・誘導写像 |
 
-標準の実数は `dedekind_reals` から `real` に渡す。
-共通の数値補題は `real.Analysis`、演算と法則の分離には `Def` / `Prop`、等式連鎖には [eq_reason!](std/README.md#等式と合同則) を使う。
+## 位相幾何
+
+[分野内の配置と依存の案内](topology/README.md)。
+
+| 配置 | パッケージ | 内容 |
+| --- | --- | --- |
+| [topology/basic](topology/basic/README.md) | `topology` | 位相・部分空間、連続写像、コンパクト性、分離性 |
+| [topology/metric](topology/metric/README.md) | `metric_spaces` | 距離位相、距離化、実数直線、実数値関数、有限従属分割 |
+| [topology/constructions](topology/constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 |
+| [topology/algebra](topology/algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
+| [topology/homotopy](topology/homotopy/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |
+| [topology/singular/cohomology](topology/singular/cohomology/README.md) | `singular_cohomology` | 特異鎖・余鎖、相対・被約理論、ホモトピー不変性、道成分と可縮空間 |
+| [topology/singular/subdivision](topology/singular/subdivision/README.md) | `singular_subdivision` | 重心細分、小鎖、開被覆と部分空間の比較 |
+| [topology/singular/products](topology/singular/products/README.md) | `singular_products` | 特異余鎖とコホモロジーのカップ積、Leibniz 則、単位・結合・自然性 |
+| [topology/singular/excision](topology/singular/excision/README.md) | `singular_excision` | 切除、Mayer–Vietoris、良い対と商空間の比較 |
+| [topology/singular/eilenberg_zilber](topology/singular/eilenberg_zilber/README.md) | `singular_eilenberg_zilber` | Alexander–Whitney と shuffle の鎖ホモトピー同値 |
+| [topology/singular/symmetry](topology/singular/symmetry/README.md) | `singular_symmetry` | カップ積の交換ホモトピーと次数付き可換性 |
+| [topology/singular/cech](topology/singular/cech/README.md) | `singular_cech` | 被覆の二重複体と射影的複体の比較 |
+| [topology/singular/simplicial](topology/singular/simplicial/README.md) | `singular_simplicial` | 有限単体複体の実現、アフィン特異鎖と積の比較 |
+| [topology/singular/cellular](topology/singular/cellular/README.md) | `singular_cellular` | 有限 CW 複体のセル基底・付着次数、任意係数の比較と自然性 |
+| [topology/singular/cellular_algebra](topology/singular/cellular_algebra/README.md) | `singular_cellular_algebra` | 相対鎖の直和、Hom と比較写像の補題 |
+| [topology/singular/finite_algebra](topology/singular/finite_algebra/README.md) | `singular_finite_algebra` | 有限モデルとの係数比較、普遍係数と Künneth |
+| [topology/singular/tensor_dual](topology/singular/tensor_dual/README.md) | `singular_tensor_dual` | 有限双対基底によるテンソル積と Hom の比較 |
+| [topology/singular/tensor_bridge](topology/singular/tensor_bridge/README.md) | `singular_tensor_bridge` | 整数次数と非負次数のテンソル複体の比較 |
+| [topology/singular/low_degree](topology/singular/low_degree/README.md) | `singular_low_degree` | 道の選択による鎖の正規化と積空間の一次コホモロジー |
+| [topology/spheres](topology/spheres/README.md) | `sphere_maps` | 球面の向き、反転と円周の整数べき写像の次数 |
+| [topology/examples/cohomology](topology/examples/cohomology/README.md) | `cohomology_models` | 空空間・可縮空間・球面の計算と相対理論の利用例 |
+| [topology/examples/finite_models](topology/examples/finite_models/README.md) | `cohomology_examples` | 有限グラフ、トーラス、実射影平面の群・積・誘導写像 |
 
 ## 型検査
 
@@ -65,7 +95,7 @@ cargo run -p cli -- libs/std --module std.Data.Nat
 `libs/ref.toml` の workspace 全体で `libs/refcache/` を共有する。
 再検査・資源制限・進捗は [利用方法](../src/USAGE.md#検査とキャッシュ) を参照。
 
-具体例は [複体](algebra/homological/concrete_complexes/README.md)、[座標計算](geometry/coordinate_calculus/README.md)、[cell_spaces](topology/cell_spaces/src/root.ref)、[スカラーの互換性](analysis/scalar_compatibility/README.md)、[小さい圏](category/src/SmallCategories.ref) と [終対象の圏の極限](category/src/TerminalLimits.ref) にある。
+具体例は [複体](algebra/homological/concrete_complexes/README.md)、[座標計算](geometry/coordinate_calculus/README.md)、[cell_spaces](topology/examples/cells/src/root.ref)、[スカラーの互換性](analysis/scalar_compatibility/README.md)、[小さい圏](category/src/SmallCategories.ref) と [終対象の圏の極限](category/src/TerminalLimits.ref) にある。
 
-[特異コホモロジーの利用例](topology/cohomology_models/README.md)は代表余鎖、相対接続、係数付き誘導写像、道成分と空空間・一点・区間の計算を検査する。
-[有限モデルの利用例](topology/cohomology_examples/README.md)は空間との比較写像を使って群とコホモロジーの積を計算する。
+[特異コホモロジーの利用例](topology/examples/cohomology/README.md)は代表余鎖、相対接続、係数付き誘導写像、道成分と空空間・一点・区間の計算を検査する。
+[有限モデルの利用例](topology/examples/finite_models/README.md)は空間との比較写像を使って群とコホモロジーの積を計算する。

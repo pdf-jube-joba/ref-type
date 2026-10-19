@@ -1,0 +1,17 @@
+\definition degree: I.Int^ := I.Int^::ofNat k;
+\import singular_cohomology.Simplices[A := Lower.Carrier, source := Lower.topology] \as LowerSimplices;
+\import singular_cohomology.Simplices[A := Upper.Carrier, source := Upper.topology] \as UpperSimplices;
+\import \parent.\parent.Injection[k := k] \as Injection;
+\import Modules.Free[Generators := LowerSimplices.Carrier k].Reindex[TargetGenerators := UpperSimplices.Carrier k]
+  .Injection[f := Inclusion.postcompose k Lower.Next[].inclusion Lower.Next[].continuous].Retraction[] \as Native;
+\import Modules.Hom[V := UpperChains.Carrier k, W := LowerChains.Carrier k, source := UpperChains.space k, target := LowerChains.space k] \as Raw;
+\definition raw: Raw.Map := Native.retraction Injection.simplexInjective;
+\definition map: Modules.Hom[V := UpperExtension.Carrier degree, W := LowerExtension.Carrier degree, source := UpperExtension.space degree, target := LowerExtension.space degree].Map :=
+  Modules.Hom[V := UpperExtension.Carrier degree, W := LowerExtension.Carrier degree, source := UpperExtension.space degree, target := LowerExtension.space degree].Map {
+    apply := \fun (x: UpperExtension.Carrier degree) => LowerExtension.Positive[n := k].intro ((raw).apply x),
+    addition := \fun (x, y: UpperExtension.Carrier degree) => (raw).addition x y,
+    scalar := \fun (a: I.Int^)(x: UpperExtension.Carrier degree) => (raw).scalar a x,
+  };
+\import Modules.Hom[V := LowerChains.Carrier k, W := LowerChains.Carrier k, source := LowerChains.space k, target := LowerChains.space k] \as End;
+\definition retracts: \forall (x: LowerExtension.Carrier degree) -> (map).apply ((inclusion).apply degree x) = x :=
+  \fun (x: LowerExtension.Carrier degree) => congr!{End.Map {LowerChains.Carrier k}} (\fun (f: End.Map) => (f).apply x) _ _ (Native.leftInverse Injection.simplexInjective);

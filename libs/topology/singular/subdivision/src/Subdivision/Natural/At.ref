@@ -1,0 +1,44 @@
+\import \parent.\parent.At[n := n] \as Source;
+\import Other.At[n := n] \as Target;
+\import \root.SimplexChains[n := n] \as Geometry;
+\import Geometry.Subdivision[] \as Subdivision;
+\import Simplex.At[n := n] \as Space;
+\import singular_cohomology.Chains[A := Geometry.Points, source := Space.topology] \as GeometricChains;
+\import singular_cohomology.Maps[A := Geometry.Points, B := A, source := Space.topology, target := source] \as Before;
+\import Before.Composition[C := B, final := target] \as Composition;
+\import Modules.Hom[V := GeometricChains.Carrier n, W := TargetChains.Carrier n, source := GeometricChains.space n, target := TargetChains.space n] \as GeometricMaps;
+\import Modules.Hom[V := GeometricChains.Carrier (N.Nat^::succ n), W := TargetChains.Carrier (N.Nat^::succ n), source := GeometricChains.space (N.Nat^::succ n), target := TargetChains.space (N.Nat^::succ n)] \as GeometricShifts;
+\definition onSimplex: \forall (f: A -> B)(continuous: Maps.Continuous f)(sigma: Simplices.Carrier n) ->
+  (Maps.At[n := n].push f continuous).apply (Source.onSimplex sigma) = Target.onSimplex (Maps.postcompose n f continuous sigma) :=
+  \fun (f: A -> B)(continuous: Maps.Continuous f)(sigma: Simplices.Carrier n) =>
+    congr!{GeometricMaps.Map {TargetChains.Carrier n}} (\fun (g: GeometricMaps.Map) => (g).apply Subdivision.chain) _ _
+      (Composition.At[n := n].law sigma (Source.continuous sigma) f continuous);
+\definition homotopyOnSimplex: \forall (f: A -> B)(continuous: Maps.Continuous f)(sigma: Simplices.Carrier n) ->
+  (Maps.At[n := N.Nat^::succ n].push f continuous).apply (Source.homotopyOnSimplex sigma) = Target.homotopyOnSimplex (Maps.postcompose n f continuous sigma) :=
+  \fun (f: A -> B)(continuous: Maps.Continuous f)(sigma: Simplices.Carrier n) =>
+    congr!{GeometricShifts.Map {TargetChains.Carrier (N.Nat^::succ n)}} (\fun (g: GeometricShifts.Map) => (g).apply Subdivision.homotopy) _ _
+      (Composition.At[n := N.Nat^::succ n].law sigma (Source.continuous sigma) f continuous);
+\import Modules.Hom[V := Chains.Carrier n, W := TargetChains.Carrier n, source := Chains.space n, target := TargetChains.space n].Composition[U := Chains.Carrier n, domain := Chains.space n] \as First;
+\import Modules.Hom[V := TargetChains.Carrier n, W := TargetChains.Carrier n, source := TargetChains.space n, target := TargetChains.space n].Composition[U := Chains.Carrier n, domain := Chains.space n] \as Second;
+\import Modules.Free[Generators := Simplices.Carrier n].To[W := TargetChains.Carrier n, target := TargetChains.space n] \as Free;
+\import Modules.Hom[V := Chains.Carrier n, W := TargetChains.Carrier n, source := Chains.space n, target := TargetChains.space n] \as Linear;
+\definition equation: \forall (f: A -> B)(continuous: Maps.Continuous f) -> First.compose (Maps.At[n := n].push f continuous) Source.map = Second.compose Target.map (Maps.At[n := n].push f continuous) :=
+  \fun (f: A -> B)(continuous: Maps.Continuous f) => Free.ext _ _ (\fun (sigma: Simplices.Carrier n) => trans!{{TargetChains.Carrier n}} _ _ _
+    (congr!{{Chains.Carrier n} {TargetChains.Carrier n}} ((Maps.At[n := n].push f continuous).apply) _ _ (Source.onGenerator sigma))
+    (trans!{{TargetChains.Carrier n}} _ _ _ (onSimplex f continuous sigma)
+      (trans!{{TargetChains.Carrier n}} _ _ _ (sym!{{TargetChains.Carrier n}} _ _ (Target.onGenerator (Maps.postcompose n f continuous sigma)))
+        (congr!{{TargetChains.Carrier n} {TargetChains.Carrier n}} ((Target.map).apply) _ _ (sym!{{TargetChains.Carrier n}} _ _ (Maps.At[n := n].onGenerator f continuous sigma))))));
+\definition law: \forall (f: A -> B)(continuous: Maps.Continuous f)(x: Chains.Carrier n) -> (Maps.At[n := n].push f continuous).apply ((Source.map).apply x) = (Target.map).apply ((Maps.At[n := n].push f continuous).apply x) :=
+  \fun (f: A -> B)(continuous: Maps.Continuous f)(x: Chains.Carrier n) => congr!{Linear.Map {TargetChains.Carrier n}} (\fun (g: Linear.Map) => (g).apply x) _ _ (equation f continuous);
+\import Modules.Hom[V := Chains.Carrier (N.Nat^::succ n), W := TargetChains.Carrier (N.Nat^::succ n), source := Chains.space (N.Nat^::succ n), target := TargetChains.space (N.Nat^::succ n)].Composition[U := Chains.Carrier n, domain := Chains.space n] \as ShiftFirst;
+\import Modules.Hom[V := TargetChains.Carrier n, W := TargetChains.Carrier (N.Nat^::succ n), source := TargetChains.space n, target := TargetChains.space (N.Nat^::succ n)].Composition[U := Chains.Carrier n, domain := Chains.space n] \as ShiftSecond;
+\import Modules.Free[Generators := Simplices.Carrier n].To[W := TargetChains.Carrier (N.Nat^::succ n), target := TargetChains.space (N.Nat^::succ n)] \as ShiftFree;
+\import Modules.Hom[V := Chains.Carrier n, W := TargetChains.Carrier (N.Nat^::succ n), source := Chains.space n, target := TargetChains.space (N.Nat^::succ n)] \as Shift;
+\definition homotopyEquation: \forall (f: A -> B)(continuous: Maps.Continuous f) -> ShiftFirst.compose (Maps.At[n := N.Nat^::succ n].push f continuous) Source.homotopyMap = ShiftSecond.compose Target.homotopyMap (Maps.At[n := n].push f continuous) :=
+  \fun (f: A -> B)(continuous: Maps.Continuous f) => ShiftFree.ext _ _ (\fun (sigma: Simplices.Carrier n) => trans!{{TargetChains.Carrier (N.Nat^::succ n)}} _ _ _
+    (congr!{{Chains.Carrier (N.Nat^::succ n)} {TargetChains.Carrier (N.Nat^::succ n)}} ((Maps.At[n := N.Nat^::succ n].push f continuous).apply) _ _ (Source.homotopyOnGenerator sigma))
+    (trans!{{TargetChains.Carrier (N.Nat^::succ n)}} _ _ _ (homotopyOnSimplex f continuous sigma)
+      (trans!{{TargetChains.Carrier (N.Nat^::succ n)}} _ _ _ (sym!{{TargetChains.Carrier (N.Nat^::succ n)}} _ _ (Target.homotopyOnGenerator (Maps.postcompose n f continuous sigma)))
+        (congr!{{TargetChains.Carrier n} {TargetChains.Carrier (N.Nat^::succ n)}} ((Target.homotopyMap).apply) _ _ (sym!{{TargetChains.Carrier n}} _ _ (Maps.At[n := n].onGenerator f continuous sigma))))));
+\definition homotopyLaw: \forall (f: A -> B)(continuous: Maps.Continuous f)(x: Chains.Carrier n) -> (Maps.At[n := N.Nat^::succ n].push f continuous).apply ((Source.homotopyMap).apply x) = (Target.homotopyMap).apply ((Maps.At[n := n].push f continuous).apply x) :=
+  \fun (f: A -> B)(continuous: Maps.Continuous f)(x: Chains.Carrier n) => congr!{Shift.Map {TargetChains.Carrier (N.Nat^::succ n)}} (\fun (g: Shift.Map) => (g).apply x) _ _ (homotopyEquation f continuous);

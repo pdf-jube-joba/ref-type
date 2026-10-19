@@ -1,0 +1,42 @@
+\import std.Data[].List[] \as Lists;
+\import \parent.Eventually[] \as Selection;
+\import \root.SubdivisionCells[].Words[n := n] \as Words;
+\import Words.Evaluation[k := n] \as WordEvaluation;
+\import Cells.At[n := n].Iterated[k := n] \as Iteration;
+\import Geometry.At[m := n] \as Evaluation;
+\import singular_cohomology.Simplices[A := Simplex.Carrier n, source := Domain.topology] \as GeometricSimplices;
+\import \parent.\parent.\parent.At[n := n] \as SmallDegree;
+\import singular_cohomology.OrderedTuples[V := Simplex.Carrier n] \as Tuples;
+\import singular_cohomology.Chains[A := Simplex.Carrier n, source := Domain.topology] \as GeometricChains;
+\import \root.Subdivision[A := Simplex.Carrier n, source := Domain.topology] \as GeometricSubdivision;
+\import \root.Subdivision[A := A, source := source] \as WholeSubdivision;
+\import WholeSubdivision.At[n := n] \as WholeDegree;
+\import WholeSubdivision.Iterated[].At[n := n] \as Powers;
+\import GeometricSubdivision.Natural[B := A, target := source].At[n := n] \as Natural;
+\import Modules.Hom[V := Tuples.Carrier (N.Nat^::succ n), W := GeometricChains.Carrier n, source := Tuples.space (N.Nat^::succ n), target := GeometricChains.space n].Composition[U := Words.Carrier, domain := Words.space] \as First;
+\import Modules.Hom[V := GeometricChains.Carrier n, W := Whole.Carrier n, source := GeometricChains.space n, target := Whole.space n].Composition[U := Words.Carrier, domain := Words.space] \as Second;
+\definition geometric: Modules.Hom[V := Words.Carrier, W := GeometricChains.Carrier n, source := Words.space, target := GeometricChains.space n].Map := First.compose Evaluation.map (WordEvaluation.map Selection.basis);
+\definition map: Modules.Hom[V := Words.Carrier, W := Whole.Carrier n, source := Words.space, target := Whole.space n].Map := Second.compose (Push.At[n := n].push sigma continuous) geometric;
+\definition onGenerator: \forall (word: Words.Word) -> (map).apply (Words.generator word) = Whole.generator n (simplex (Iteration.vertices Selection.basis word)) :=
+  \fun (word: Words.Word) => trans!{{Whole.Carrier n}} _ _ _
+    (congr!{{Tuples.Carrier (N.Nat^::succ n)} {Whole.Carrier n}} (\fun (x: Tuples.Carrier (N.Nat^::succ n)) => (Push.At[n := n].push sigma continuous).apply ((Evaluation.map).apply x)) _ _ (WordEvaluation.onGenerator Selection.basis word))
+    (trans!{{Whole.Carrier n}} _ _ _ (congr!{{GeometricChains.Carrier n} {Whole.Carrier n}} ((Push.At[n := n].push sigma continuous).apply) _ _ (Evaluation.onGenerator (Iteration.vertices Selection.basis word)))
+      (Push.At[n := n].onGenerator sigma continuous (Evaluation.onTuple (Iteration.vertices Selection.basis word))));
+\definition commutes: \forall (x: Words.Carrier) -> (map).apply ((Words.step).apply x) = (WholeDegree.map).apply ((map).apply x) :=
+  \fun (x: Words.Carrier) => trans!{{Whole.Carrier n}} _ _ _
+    (congr!{{Tuples.Carrier (N.Nat^::succ n)} {Whole.Carrier n}} (\fun (y: Tuples.Carrier (N.Nat^::succ n)) => (Push.At[n := n].push sigma continuous).apply ((Evaluation.map).apply y)) _ _ (WordEvaluation.Comparison[].law Selection.basis x))
+    (trans!{{Whole.Carrier n}} _ _ _
+      (congr!{{GeometricChains.Carrier n} {Whole.Carrier n}} ((Push.At[n := n].push sigma continuous).apply) _ _ (Geometry.SubdivisionCompare[m := n].law ((WordEvaluation.map Selection.basis).apply x)))
+      (Natural.law sigma continuous ((geometric).apply x)));
+\import Geometry.Fundamental[] \as Fundamental;
+\definition identitySimplex: simplex Selection.basis = sigma := trans!{{WholeSimplices.Carrier n}} _ _ _
+  (congr!{{GeometricSimplices.Carrier n} {WholeSimplices.Carrier n}} (Push.postcompose n sigma continuous) _ _ Fundamental.onTuple) (WholeDegree.originalSimplex sigma);
+\definition zero: (map).apply (Words.wordChain N.Nat^::zero) = Whole.generator n sigma :=
+  trans!{{Whole.Carrier n}} _ _ _ (onGenerator Lists.List[Cells.Cell n]::nil) (congr!{{WholeSimplices.Carrier n} {Whole.Carrier n}} (Whole.generator n) _ _ identitySimplex);
+\definition law: \forall (r: N.Nat^) -> (map).apply (Words.wordChain r) = Powers.apply r (Whole.generator n sigma) :=
+  \induction (r: N.Nat^) \return (map).apply (Words.wordChain r) = Powers.apply r (Whole.generator n sigma) \with {
+    | zero: zero
+    | succ: \fun (r: N.Nat^)(previous: (map).apply (Words.wordChain r) = Powers.apply r (Whole.generator n sigma)) => trans!{{Whole.Carrier n}} _ _ _ (commutes (Words.wordChain r))
+        (congr!{{Whole.Carrier n} {Whole.Carrier n}} ((WholeDegree.map).apply) _ _ previous)
+  };
+\module Support;

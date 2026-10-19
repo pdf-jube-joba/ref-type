@@ -1,0 +1,59 @@
+\use Equality.congr2;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition upperDegree: I.Int^ := I.Int^::ofNat one;
+\import \parent.\parent.\parent.Layer[n := one] \as SourceLayer;
+\import SourceLayer.Basis[] \as SourceBasis;
+\import SourceBasis.Cell[cell := sourceCell] \as SourceOrientation;
+\import SourceBasis.Characteristic[cell := sourceCell].Connecting[] \as Attaching;
+\import Euclidean.Dimension[n := (sourceCell).dimension] \as Model;
+\import \root.Disks[].At[n := (sourceCell).dimension] \as Disk;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := Disk.boundary] \as Pair;
+\import \parent.\parent.\parent.Filtration[].CellInteriors[n := one] \as SourceCells;
+\import \root.Disks[].OneEdge[n := (sourceCell).dimension] \as OrientedEdge;
+\definition edgeData: OrientedEdge.At[d := (sourceCell).dimension].Data :=
+  OrientedEdge.value (SourceCells.dimension sourceCell);
+\import topology.Topology[Carrier := Model.Disk].Subspace[S := Disk.boundary] \as Boundary;
+\import singular_cohomology.Chains[A := Pair.SubspaceCarrier, source := Boundary.topology Model.diskTopology] \as BoundaryChains;
+\import singular_cohomology.Simplices[A := Pair.SubspaceCarrier, source := Boundary.topology Model.diskTopology] \as BoundarySimplices;
+\import Nonnegative.ZeroExtension[C := BoundaryChains.complex] \as BoundaryExtension;
+\import Complexes.At[C := BoundaryExtension.complex, z := degree] \as BoundaryH;
+\import singular_cohomology.Chains[A := Model.Disk, source := Model.diskTopology] \as Whole;
+\import singular_cohomology.Simplices[A := Model.Disk, source := Model.diskTopology] \as WholeSimplices;
+\import Nonnegative.ZeroExtension[C := Whole.complex] \as WholeExtension;
+\definition north: Pair.SubspaceCarrier := ((edgeData).sphere).forward Sphere.north;
+\definition south: Pair.SubspaceCarrier := ((edgeData).sphere).forward Sphere.south;
+\import Modules.Laws[V := BoundaryChains.Carrier zero, space := BoundaryChains.space zero] \as BoundaryValues;
+\import algebra.Group[].Of[Carrier := BoundaryChains.Carrier zero, group := BoundaryValues.additive] \as BoundaryGroup;
+\definition lower: BoundaryChains.Carrier zero := BoundaryGroup.difference
+  (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant north))
+  (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant south));
+\definition lowerCycle: BoundaryH.Cycle := BoundaryH.cycle (BoundaryExtension.Positive[n := zero].intro lower) (\refl((BoundaryExtension.space (I.Int^::negSucc zero)).zero));
+\definition boundaryClass: BoundaryH.Homology := BoundaryH.classOf lowerCycle;
+\definition northImage: Skeleton.Carrier := Attaching.attaching north;
+\definition southImage: Skeleton.Carrier := Attaching.attaching south;
+\definition sphereMap[x: Spheres.Carrier zero]: Skeleton.Carrier := Attaching.attaching (((edgeData).sphere).forward x);
+\import topology.Composition[A := Spheres.Carrier zero, B := Pair.SubspaceCarrier, C := Skeleton.Carrier] \as SphereTopology;
+\definition sphereContinuous: topology.Continuity[A := Spheres.Carrier zero, B := Skeleton.Carrier].Continuous
+  (Spheres.topology zero) Skeleton.topology sphereMap :=
+  SphereTopology.composeContinuous (Spheres.topology zero) (Boundary.topology Model.diskTopology) Skeleton.topology
+    ((edgeData).sphere).forward Attaching.attaching (((edgeData).sphere).forwardContinuous) Attaching.attachingContinuous;
+\module Connecting;
+\definition weight[x: Skeleton.Carrier]: I.Int^ := (sphere_maps.ZeroHomology[].Sphere[].cochain).apply
+  (singular_cohomology.Chains[A := Spheres.Carrier zero, source := Spheres.topology zero].generator zero
+    (singular_cohomology.Simplices[A := Spheres.Carrier zero, source := Spheres.topology zero].At[n := zero].constant (map x)));
+\import algebra.Group[].Of[Carrier := I.Int^, group := Modules.scalarGroup] \as ScalarGroup;
+\definition endpointDifference: I.Int^ := ScalarGroup.difference (weight northImage) (weight southImage);
+\definition matrixCoefficient: I.Int^ := coefficient
+  ((\parent.\parent.\parent.Cellular[].boundary zero).apply (SourceBasis.generator sourceCell));
+\import Modules.Hom[V := Points.Carrier, W := I.Int^, source := Points.space, target := Modules.scalarModule] \as FunctionalLinear;
+\definition endpoints: matrixCoefficient = endpointDifference :=
+  trans!{I.Int^} _ _ _
+    (sym!{I.Int^} _ _ (coefficientLaw ((\parent.\parent.\parent.Cellular[].boundary zero).apply (SourceBasis.generator sourceCell))))
+    (trans!{I.Int^} _ _ _
+      (Functional.onProjection ((SourceLayer.Homology[z := upperDegree].connecting).apply (SourceBasis.generator sourceCell)))
+      (trans!{I.Int^} _ _ _
+        (congr!{Points.Carrier I.Int^} ((Functional.homology).apply) _ _ Connecting[].law)
+        (trans!{I.Int^} _ _ _
+          (FunctionalLinear.differencePreserved Functional.homology (Points.class northImage) (Points.class southImage))
+          (congr2!{I.Int^ I.Int^ I.Int^} ScalarGroup.difference _ _ _ _ (Functional.onPoint northImage) (Functional.onPoint southImage)))));
+\module Degree;

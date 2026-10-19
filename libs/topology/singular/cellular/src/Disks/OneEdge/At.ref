@@ -1,0 +1,35 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition degree: I.Int^ := I.Int^::ofNat one;
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Model;
+\import \parent.\parent.At[n := d] \as Disk;
+\import singular_cohomology.Relative[A := Model.Disk, source := Model.diskTopology, subset := Disk.boundary] \as Pair;
+\import singular_cohomology.Chains[A := Model.Disk, source := Model.diskTopology] \as Whole;
+\import singular_cohomology.Simplices[A := Model.Disk, source := Model.diskTopology] \as Simplices;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Whole.complex] \as Extension;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Signed;
+\import Signed.At[C := Pair.complex, z := degree] \as H;
+\import topology.Topology[Carrier := Model.Disk].Subspace[S := Disk.boundary] \as Boundary;
+\import algebraic_topology.Spheres[] \as Spheres;
+\import algebraic_topology.Spheres[].Zero[] \as SpherePoints;
+\import Modules.Laws[V := Whole.Carrier zero, space := Whole.space zero] \as Values;
+\import algebra.Group[].Of[Carrier := Whole.Carrier zero, group := Values.additive] \as Group;
+\definition Iso: \Set := Modules.Isomorphism[V := I.Int^, W := H.Homology, source := Modules.scalarModule, target := H.homologySpace].Isomorphism;
+\definition diagonal: Modules.Isomorphism[V := I.Int^, W := Disk.Homology[z := I.Int^::ofNat d].Carrier,
+  source := Modules.scalarModule, target := Disk.Homology[z := I.Int^::ofNat d].space].Isomorphism := orientation d;
+\definition orientation[same: d = one]: Iso :=
+  \idelim d = one \with k: N.Nat^ => Modules.Isomorphism[V := I.Int^, W := Disk.Homology[z := I.Int^::ofNat k].Carrier,
+    source := Modules.scalarModule, target := Disk.Homology[z := I.Int^::ofNat k].space].Isomorphism \by {
+      base: diagonal, equality: same
+    };
+\structure Data: \Set := {
+  edge: Whole.Carrier one,
+  sphere: topology.Homeomorphism[A := Spheres.Carrier zero, B := Pair.SubspaceCarrier]
+    .Homeomorphism[Spheres.topology zero, Boundary.topology Model.diskTopology],
+  boundary: (Whole.boundary zero).apply edge = Group.difference
+    (Whole.generator zero (Simplices.At[n := zero].constant ((sphere).forward SpherePoints.north)))
+    (Whole.generator zero (Simplices.At[n := zero].constant ((sphere).forward SpherePoints.south))),
+  cycle: H.Cycle,
+  lifted: H.forget cycle = Pair.class degree (Extension.Positive[n := one].intro edge),
+  fundamental: \forall (same: d = one) -> H.classOf cycle = ((orientation same).forward).apply I.One.specification,
+};
