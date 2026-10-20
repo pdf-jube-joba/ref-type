@@ -76,6 +76,8 @@
 | [topology/constructions](topology/constructions/README.md) | `topological_constructions` | 積、商、直和、貼り合わせ、compact-open 位相 |
 | [topology/algebra](topology/algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
 | [topology/homotopy](topology/homotopy/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |
+| [topology/fundamental](topology/fundamental/README.md) | `fundamental_groups` | 基本亜群・基本群、融合積の van Kampen の定理、単連結性 |
+| [topology/coverings](topology/coverings/README.md) | `covering_spaces` | 被覆の持ち上げ、部分群・共役類による分類、普遍被覆と deck 変換 |
 | [topology/singular/cohomology](topology/singular/cohomology/README.md) | `singular_cohomology` | 特異鎖・余鎖、相対・被約理論、ホモトピー不変性、道成分と可縮空間 |
 | [topology/singular/subdivision](topology/singular/subdivision/README.md) | `singular_subdivision` | 重心細分、小鎖、開被覆と部分空間の比較 |
 | [topology/singular/products](topology/singular/products/README.md) | `singular_products` | 特異余鎖とコホモロジーのカップ積、Leibniz 則、単位・結合・自然性 |

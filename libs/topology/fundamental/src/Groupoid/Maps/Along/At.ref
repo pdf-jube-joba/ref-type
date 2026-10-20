@@ -1,0 +1,46 @@
+\import Paths.Between[x := x, y := y] \as XY;
+\import Paths.Between[x := y, y := z] \as YZ;
+\import Paths.Concatenation[] \as Join;
+\import Join.Classes[x := x, y := y, z := z] \as JoinClasses;
+\import Paths.ReverseHomotopy[].Between[x := x, y := y] \as Inverses;
+\import \root.Paths[A := B, source := target] \as TargetPaths;
+\import TargetPaths.Concatenation[] \as TargetJoin;
+\import TargetJoin.Classes[x := f x, y := f y, z := f z] \as TargetJoinClasses;
+\import TargetPaths.ReverseHomotopy[].Between[x := f x, y := f y] \as TargetInverses;
+\use Equality.congr2;
+\definition identityLaw: map f continuous x x (identity x) = Target.identity (f x) :=
+  trans!{{Target.Arrow (f x) (f x)}} _ _ _ (onClass f continuous x x (Paths.constant x))
+    (congr!{{TargetPaths.Path (f x) (f x)} {Target.Arrow (f x) (f x)}} (Target.class (f x) (f x)) _ _ (PathMaps.mapConstant f continuous x));
+\definition composition: \forall (p: Arrow x y)(q: Arrow y z) ->
+  map f continuous x z (compose x y z p q) = Target.compose (f x) (f y) (f z) (map f continuous x y p) (map f continuous y z q) :=
+  XY.induction (\fun (p: Arrow x y) => \forall (q: Arrow y z) ->
+    map f continuous x z (compose x y z p q) = Target.compose (f x) (f y) (f z) (map f continuous x y p) (map f continuous y z q))
+    (\fun (p: Paths.Path x y) => YZ.induction (\fun (q: Arrow y z) =>
+      map f continuous x z (compose x y z (class x y p) q) = Target.compose (f x) (f y) (f z) (map f continuous x y (class x y p)) (map f continuous y z q))
+      (\fun (q: Paths.Path y z) => eq_reason!{
+        {map f continuous x z (compose x y z (class x y p) (class y z q))}
+        "=" {map f continuous x z (class x z (Join.concatenate x y z p q))} "by" {
+          congr!{{Arrow x z} {Target.Arrow (f x) (f z)}} (map f continuous x z) _ _ (JoinClasses.onClass p q)}
+        "=" {Target.class (f x) (f z) (PathMaps.apply f continuous x z (Join.concatenate x y z p q))} "by" {onClass f continuous x z (Join.concatenate x y z p q)}
+        "=" {Target.class (f x) (f z) (TargetJoin.concatenate (f x) (f y) (f z) (PathMaps.apply f continuous x y p) (PathMaps.apply f continuous y z q))} "by" {
+          congr!{{TargetPaths.Path (f x) (f z)} {Target.Arrow (f x) (f z)}} (Target.class (f x) (f z)) _ _ (PathMaps.mapConcatenate f continuous x y z p q)}
+        "=" {Target.compose (f x) (f y) (f z) (Target.class (f x) (f y) (PathMaps.apply f continuous x y p)) (Target.class (f y) (f z) (PathMaps.apply f continuous y z q))} "by" {
+          sym!{{Target.Arrow (f x) (f z)}} _ _ (TargetJoinClasses.onClass (PathMaps.apply f continuous x y p) (PathMaps.apply f continuous y z q))}
+        "=" {Target.compose (f x) (f y) (f z) (map f continuous x y (class x y p)) (map f continuous y z (class y z q))} "by" {
+          congr2!{{Target.Arrow (f x) (f y)} {Target.Arrow (f y) (f z)} {Target.Arrow (f x) (f z)}} (Target.compose (f x) (f y) (f z)) _ _ _ _
+            (sym!{{Target.Arrow (f x) (f y)}} _ _ (onClass f continuous x y p))
+            (sym!{{Target.Arrow (f y) (f z)}} _ _ (onClass f continuous y z q))}}));
+\definition inverseLaw: \forall (p: Arrow x y) ->
+  map f continuous y x (inverse x y p) = Target.inverse (f x) (f y) (map f continuous x y p) :=
+  XY.induction (\fun (p: Arrow x y) => map f continuous y x (inverse x y p) = Target.inverse (f x) (f y) (map f continuous x y p))
+    (\fun (p: Paths.Path x y) => eq_reason!{
+      {map f continuous y x (inverse x y (class x y p))}
+      "=" {map f continuous y x (class y x (Paths.reverse x y p))} "by" {
+        congr!{{Arrow y x} {Target.Arrow (f y) (f x)}} (map f continuous y x) _ _ (Inverses.onClass p)}
+      "=" {Target.class (f y) (f x) (PathMaps.apply f continuous y x (Paths.reverse x y p))} "by" {onClass f continuous y x (Paths.reverse x y p)}
+      "=" {Target.class (f y) (f x) (TargetPaths.reverse (f x) (f y) (PathMaps.apply f continuous x y p))} "by" {
+        congr!{{TargetPaths.Path (f y) (f x)} {Target.Arrow (f y) (f x)}} (Target.class (f y) (f x)) _ _ (PathMaps.mapReverse f continuous x y p)}
+      "=" {Target.inverse (f x) (f y) (Target.class (f x) (f y) (PathMaps.apply f continuous x y p))} "by" {
+        sym!{{Target.Arrow (f y) (f x)}} _ _ (TargetInverses.onClass (PathMaps.apply f continuous x y p))}
+      "=" {Target.inverse (f x) (f y) (map f continuous x y (class x y p))} "by" {
+        congr!{{Target.Arrow (f x) (f y)} {Target.Arrow (f y) (f x)}} (Target.inverse (f x) (f y)) _ _ (sym!{{Target.Arrow (f x) (f y)}} _ _ (onClass f continuous x y p))}});

@@ -1,0 +1,29 @@
+\import BasePaths.Concatenation[] \as BaseJoin;
+\import TotalPaths.Concatenation[] \as TotalJoin;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition lift[x, y, z: B][p: BasePaths.Path x y][q: BasePaths.Path y z][start: Fiber x]
+  [left: PathLift x y p start][right: PathLift y z q (endpoint x y p start left)]:
+  PathLift x z (BaseJoin.concatenate x y z p q) start := \block {
+  \let first: TotalPaths.Path start (endpoint x y p start left) := asPath x y p start left \then
+  \let second: TotalPaths.Path (endpoint x y p start left) (endpoint y z q (endpoint x y p start left) right) :=
+    asPath y z q (endpoint x y p start left) right \then
+  \let combined: TotalPaths.Path start (endpoint y z q (endpoint x y p start left) right) :=
+    TotalJoin.concatenate start (endpoint x y p start left) (endpoint y z q (endpoint x y p start left) right) first second \then
+  \return \into[Interval.Carrier -> E](combined, PathLift x z (BaseJoin.concatenate x y z p q) start) \by {
+    PathLiftLaws[x, z, BaseJoin.concatenate x y z p q, start, combined] {
+      continuous := (TotalPaths.laws start (endpoint y z q (endpoint x y p start left) right) combined).continuous,
+      starts := (TotalPaths.laws start (endpoint y z q (endpoint x y p start left) right) combined).start,
+      projects := \fun (t: Interval.Carrier) => either!{{(BaseJoin.covered t)}
+        {projection (combined t) = BaseJoin.concatenate x y z p q t}
+        {\fun (member: BaseJoin.Left t) => trans!{B} _ _ _
+          (congr!{E B} projection _ _ (TotalJoin.onLeft start (endpoint x y p start left) (endpoint y z q (endpoint x y p start left) right) first second t member))
+          (trans!{B} _ _ _ ((pathLaws x y p start left).projects (BaseJoin.leftTime t member))
+            (sym!{B} _ _ (BaseJoin.onLeft x y z p q t member)))}
+        {\fun (member: BaseJoin.Right t) => trans!{B} _ _ _
+          (congr!{E B} projection _ _ (TotalJoin.onRight start (endpoint x y p start left) (endpoint y z q (endpoint x y p start left) right) first second t member))
+          (trans!{B} _ _ _ ((pathLaws y z q (endpoint x y p start left) right).projects (BaseJoin.rightTime t member))
+            (sym!{B} _ _ (BaseJoin.onRight x y z p q t member))) }},
+    }
+  }
+};

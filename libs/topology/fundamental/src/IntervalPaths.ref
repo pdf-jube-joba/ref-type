@@ -1,0 +1,83 @@
+\import algebraic_topology.Interval[] \as I;
+\import I.Convex[] \as Convex;
+\import algebraic_topology.Cylinder[A := I.Carrier] \as Square;
+\import Convex.Functions[A := Square.Carrier] \as Functions;
+\import \root.Paths[A := I.Carrier, source := I.topology] \as Paths;
+\import algebraic_topology.Homotopy[A := I.Carrier, B := I.Carrier] \as H;
+\import topology.Composition[A := Square.Carrier, B := I.Carrier, C := I.Carrier] \as Compose;
+\import topology.Maps[A := I.Carrier, B := I.Carrier].Identity[] \as Identity;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.sym;
+\use Logic.either;
+\definition identity: Paths.Path I.start I.end := \into[Paths.Function](\fun (t: I.Carrier) => t, Paths.Path I.start I.end) \by {
+  Paths.Laws[I.start, I.end, \fun (t: I.Carrier) => t] {
+    continuous := Identity.continuous I.topology, start := \refl(I.start), end := \refl(I.end),
+  }
+};
+\definition family[x, y: I.Carrier][p, q: Paths.Path x y][r: Square.Carrier]: I.Carrier :=
+  Convex.blend (Square.time r) (p (Square.point r)) (q (Square.point r));
+\definition boundaryValue: \forall (x, y: I.Carrier)(p, q: Paths.Path x y)(t: I.Carrier) ->
+  \In[I.Carrier] Paths.Boundary t -> p t = q t :=
+  \fun (x, y: I.Carrier)(p, q: _)(t: _)(boundary: _) => either!{{boundary} {_}
+    {\fun (atStart: _) => trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} p _ _ atStart)
+      (trans!{I.Carrier} _ _ _ (Paths.laws x y p).start
+        (sym!{I.Carrier} _ _ (trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} q _ _ atStart) (Paths.laws x y q).start)))}
+    {\fun (atEnd: _) => trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} p _ _ atEnd)
+      (trans!{I.Carrier} _ _ _ (Paths.laws x y p).end
+        (sym!{I.Carrier} _ _ (trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} q _ _ atEnd) (Paths.laws x y q).end)))}};
+\definition homotopy[x, y: I.Carrier][p, q: Paths.Path x y]: H.RelativeHomotopy[I.topology, I.topology, Paths.Boundary, p, q] :=
+  \into[H.Family](family x y p q, H.RelativeHomotopy[I.topology, I.topology, Paths.Boundary, p, q]) \by {
+    H.RelativeLaws[I.topology, I.topology, Paths.Boundary, p, q, family x y p q] {
+      homotopy := H.Laws[I.topology, I.topology, p, q, family x y p q] {
+        continuous := Functions.continuous (Square.topology I.topology) Square.time
+          (\fun (r: Square.Carrier) => p (Square.point r)) (\fun (r: Square.Carrier) => q (Square.point r))
+          (Square.timeContinuous I.topology)
+          (Compose.composeContinuous (Square.topology I.topology) I.topology I.topology Square.point p
+            (Square.pointContinuous I.topology) (Paths.laws x y p).continuous)
+          (Compose.composeContinuous (Square.topology I.topology) I.topology I.topology Square.point q
+            (Square.pointContinuous I.topology) (Paths.laws x y q).continuous),
+        start := \fun (t: I.Carrier) => Convex.atStart (p t) (q t),
+        end := \fun (t: I.Carrier) => Convex.atEnd (p t) (q t),
+      },
+      fixed := \fun (s, t: I.Carrier)(boundary: _) => trans!{I.Carrier} _ _ _
+        (congr!{I.Carrier I.Carrier} (Convex.blend s (p t)) _ _ (sym!{I.Carrier} _ _ (boundaryValue x y p q t boundary)))
+        (Convex.fixed s (p t)),
+    }
+  };
+\definition homotopic: \forall (x, y: I.Carrier)(p, q: Paths.Path x y) -> Paths.Homotopic x y p q :=
+  \fun (x, y: _)(p, q: _) => \exact(homotopy x y p q, H.RelativeHomotopy[I.topology, I.topology, Paths.Boundary, p, q]);
+\import I.Halves[] \as Halves;
+\definition quarter: I.Carrier := Halves.lower I.middle;
+\definition lower: Paths.Path I.start I.middle := \into[Paths.Function](Halves.lower, Paths.Path I.start I.middle) \by {
+  Paths.Laws[I.start, I.middle, Halves.lower] {
+    continuous := Halves.lowerContinuous, start := Halves.lowerStart, end := Halves.lowerEnd,
+  }
+};
+\definition upper: Paths.Path I.middle I.end := \into[Paths.Function](Halves.upper, Paths.Path I.middle I.end) \by {
+  Paths.Laws[I.middle, I.end, Halves.upper] {
+    continuous := Halves.upperContinuous, start := Halves.upperStart, end := Halves.upperEnd,
+  }
+};
+\import topology.Composition[A := I.Carrier, B := I.Carrier, C := I.Carrier] \as FunctionsComposition;
+\definition lowerLower: Paths.Path I.start quarter :=
+  \into[Paths.Function](\fun (t: I.Carrier) => Halves.lower (Halves.lower t), Paths.Path I.start quarter) \by {
+    Paths.Laws[I.start, quarter, \fun (t: I.Carrier) => Halves.lower (Halves.lower t)] {
+      continuous := FunctionsComposition.composeContinuous I.topology I.topology I.topology Halves.lower Halves.lower Halves.lowerContinuous Halves.lowerContinuous,
+      start := trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} Halves.lower _ _ Halves.lowerStart) Halves.lowerStart,
+      end := congr!{I.Carrier I.Carrier} Halves.lower _ _ Halves.lowerEnd,
+    }
+  };
+\definition lowerUpper: Paths.Path quarter I.middle :=
+  \into[Paths.Function](\fun (t: I.Carrier) => Halves.lower (Halves.upper t), Paths.Path quarter I.middle) \by {
+    Paths.Laws[quarter, I.middle, \fun (t: I.Carrier) => Halves.lower (Halves.upper t)] {
+      continuous := FunctionsComposition.composeContinuous I.topology I.topology I.topology Halves.upper Halves.lower Halves.upperContinuous Halves.lowerContinuous,
+      start := congr!{I.Carrier I.Carrier} Halves.lower _ _ Halves.upperStart,
+      end := trans!{I.Carrier} _ _ _ (congr!{I.Carrier I.Carrier} Halves.lower _ _ Halves.upperEnd) Halves.lowerEnd,
+    }
+  };
+\import Paths.Concatenation[] \as Join;
+\definition associator: Paths.Path I.start I.end := Join.concatenate I.start quarter I.end lowerLower
+  (Join.concatenate quarter I.middle I.end lowerUpper upper);

@@ -1,0 +1,22 @@
+\import \root.Paths[A := A, source := source] \as Paths;
+\import \root.Groupoid[A := A, source := source] \as G;
+\import \root.FundamentalGroup[A := A, source := source, basepoint := b] \as Fundamental;
+\import \root.Bridges[A := A, source := source, basepoint := b] \as Bridges;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\definition Trivial: \Prop := \forall (a: Fundamental.Carrier) -> a = Fundamental.unit;
+\definition ofTrivial: Paths.PathConnected -> Trivial -> Paths.SimplyConnected := \block {
+  \fun (connected: _)(trivial: _) \then
+  \takefrom bridges: Bridges.Family \by Bridges.existsFamily connected \then
+  \return Paths.SimplyConnected { connected := connected,
+    unique := \fun (x, y: A)(p, q: Paths.Path x y) => Paths.Between[x := x, y := y].homotopicOfSameClass p q
+      (Bridges.Along[bridges := bridges].loopInjective x y (G.class x y p) (G.class x y q)
+        (trans!{Fundamental.Carrier} _ _ _ (trivial (Bridges.Along[bridges := bridges].loop x y (G.class x y p)))
+          (sym!{Fundamental.Carrier} _ _ (trivial (Bridges.Along[bridges := bridges].loop x y (G.class x y q)))))),
+  }
+};
+\definition trivial: Paths.SimplyConnected -> Trivial :=
+  \fun (simple: Paths.SimplyConnected) => Paths.Between[x := b, y := b].induction
+    (\fun (a: Fundamental.Carrier) => a = Fundamental.unit)
+    (\fun (p: Paths.Path b b) => Paths.Between[x := b, y := b].sameClass p (Paths.constant b) (simple.unique b b p (Paths.constant b)));

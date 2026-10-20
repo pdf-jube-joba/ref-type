@@ -1,0 +1,66 @@
+\import \root.Paths[A := B, source := target] \as Target;
+\import topology.Continuity[A := A, B := B] \as Continuous;
+\import topology.Composition[A := Interval.Carrier, B := A, C := B] \as Compose;
+\import algebraic_topology.Homotopy[A := Interval.Carrier, B := B] \as TargetHomotopy;
+\import Homotopy.Composition[C := B] \as Postcompose;
+\definition apply[f: A -> B][continuous: Continuous.Continuous source target f][x, y: A][p: Path x y]:
+  Target.Path (f x) (f y) := \into[Target.Function](\fun (t: Interval.Carrier) => f (p t), Target.Path (f x) (f y)) \by {
+    Target.Laws[f x, f y, \fun (t: Interval.Carrier) => f (p t)] {
+      continuous := Compose.composeContinuous Interval.topology source target p f (laws x y p).continuous continuous,
+      start := congr!{A B} f _ _ (laws x y p).start,
+      end := congr!{A B} f _ _ (laws x y p).end,
+    }
+  };
+\definition homotopy[f: A -> B][continuous: Continuous.Continuous source target f][x, y: A][p, q: Path x y]
+  [h: Homotopy.RelativeHomotopy[Interval.topology, source, Boundary, p, q]]:
+  TargetHomotopy.RelativeHomotopy[Interval.topology, target, Boundary, apply f continuous x y p, apply f continuous x y q] := \block {
+  \let mapped: TargetHomotopy.Homotopy[Interval.topology, target, apply f continuous x y p, apply f continuous x y q] :=
+    Postcompose.postcompose Interval.topology source target p q
+      (Homotopy.forgetRelative Interval.topology source Boundary p q h) f continuous \then
+  \return \into[TargetHomotopy.Family](mapped,
+    TargetHomotopy.RelativeHomotopy[Interval.topology, target, Boundary, apply f continuous x y p, apply f continuous x y q]) \by {
+    TargetHomotopy.RelativeLaws[Interval.topology, target, Boundary, apply f continuous x y p, apply f continuous x y q, mapped] {
+      homotopy := TargetHomotopy.laws Interval.topology target (apply f continuous x y p) (apply f continuous x y q) mapped,
+      fixed := \fun (s, t: Interval.Carrier)(member: \In[Interval.Carrier] Boundary t) =>
+        congr!{A B} f _ _ ((Homotopy.relativeLaws Interval.topology source Boundary p q h).fixed s t member),
+    }
+  }
+};
+\definition respects: \forall (f: A -> B)(continuous: Continuous.Continuous source target f)(x, y: A)(p, q: Path x y) ->
+  Homotopic x y p q -> Target.Homotopic (f x) (f y) (apply f continuous x y p) (apply f continuous x y q) := \block {
+  \fun (f: _)(continuous: _)(x, y: A)(p, q: _)(related: _) \then
+  \takefrom h: Homotopy.RelativeHomotopy[Interval.topology, source, Boundary, p, q] \by related \then
+  \return \exact(homotopy f continuous x y p q h,
+    TargetHomotopy.RelativeHomotopy[Interval.topology, target, Boundary, apply f continuous x y p, apply f continuous x y q])
+};
+\definition mapConstant: \forall (f: A -> B)(continuous: Continuous.Continuous source target f)(x: A) ->
+  apply f continuous x x (constant x) = Target.constant (f x) :=
+  \fun (f: _)(continuous: _)(x: A) => \refl(Target.constant (f x));
+\definition mapReverse: \forall (f: A -> B)(continuous: Continuous.Continuous source target f)(x, y: A)(p: Path x y) ->
+  apply f continuous y x (reverse x y p) = Target.reverse (f x) (f y) (apply f continuous x y p) :=
+  \fun (f: _)(continuous: _)(x, y: A)(p: _) => \refl(Target.reverse (f x) (f y) (apply f continuous x y p));
+\module Between(f: A -> B, continuous: Continuous.Continuous source target f, x, y: A);
+\module Composition(C: \Set, final: topology.Topology[Carrier := C].Topology) {
+  \import \root.Paths[A := C, source := final] \as Final;
+  \import Target.Maps[B := C, target := final] \as Next;
+  \import \root.Paths[A := A, source := source].Maps[B := C, target := final] \as Result;
+  \import topology.Continuity[A := B, B := C] \as After;
+  \import topology.Composition[A := A, B := B, C := C] \as ComposeMaps;
+  \definition continuous[f: A -> B][g: B -> C][fc: Continuous.Continuous source target f][gc: After.Continuous target final g]:
+    topology.Continuity[A := A, B := C].Continuous source final (\fun (x: A) => g (f x)) :=
+    ComposeMaps.composeContinuous source target final f g fc gc;
+  \definition paths: \forall (f: A -> B)(g: B -> C)(fc: Continuous.Continuous source target f)(gc: After.Continuous target final g)
+    (x, y: A)(p: Path x y) -> Next.apply g gc (f x) (f y) (apply f fc x y p) =
+    Result.apply (\fun (x: A) => g (f x)) (continuous f g fc gc) x y p :=
+    \fun (f: _)(g: _)(fc: _)(gc: _)(x, y: A)(p: _) =>
+      \refl(Result.apply (\fun (x: A) => g (f x)) (continuous f g fc gc) x y p);
+}
+\import \parent.Concatenation[] \as SourceJoin;
+\import Target.Concatenation[] \as TargetJoin;
+\definition mapConcatenate: \forall (f: A -> B)(continuous: Continuous.Continuous source target f)(x, y, z: A)(p: Path x y)(q: Path y z) ->
+  apply f continuous x z (SourceJoin.concatenate x y z p q) =
+    TargetJoin.concatenate (f x) (f y) (f z) (apply f continuous x y p) (apply f continuous y z q) :=
+  \fun (f: _)(continuous: _)(x, y, z: A)(p: _)(q: _) => TargetJoin.extensional (f x) (f y) (f z)
+    (apply f continuous x y p) (apply f continuous y z q) (apply f continuous x z (SourceJoin.concatenate x y z p q))
+    (\fun (t: Interval.Carrier)(member: TargetJoin.Left t) => congr!{A B} f _ _ (SourceJoin.onLeft x y z p q t member))
+    (\fun (t: Interval.Carrier)(member: TargetJoin.Right t) => congr!{A B} f _ _ (SourceJoin.onRight x y z p q t member));

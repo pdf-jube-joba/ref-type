@@ -1,0 +1,78 @@
+\definition arrow[x: A]: G.Arrow basepoint x := G.class basepoint x (bridges x);
+\definition normalized: arrow basepoint = G.identity basepoint :=
+  congr!{{Paths.Path basepoint basepoint} {G.Arrow basepoint basepoint}} (G.class basepoint basepoint) _ _
+    (\axiom:funext(bridges basepoint, (\into[Paths.Path basepoint basepoint](Paths.constant basepoint, Bridge basepoint) \by { \fun (t: I.Carrier)(_: _) => \refl(basepoint) }),
+      \fun (t: I.Carrier) => \bysub(Paths.Path basepoint basepoint, Bridge basepoint, bridges basepoint) t (\refl(basepoint))));
+\definition loop[x, y: A][p: G.Arrow x y]: G.Arrow basepoint basepoint :=
+  G.compose basepoint y basepoint (G.compose basepoint x y (arrow x) p) (G.inverse basepoint y (arrow y));
+\definition identity: \forall (x: A) -> loop x x (G.identity x) = G.identity basepoint :=
+  \fun (x: A) => trans!{{G.Arrow basepoint basepoint}} _ _ _
+    (congr!{{G.Arrow basepoint x} {G.Arrow basepoint basepoint}} (\fun (a: G.Arrow basepoint x) => G.compose basepoint x basepoint a (G.inverse basepoint x (arrow x))) _ _
+      (G.rightIdentity basepoint x (arrow x))) (G.rightInverse basepoint x (arrow x));
+\definition compose: \forall (x, y, z: A)(p: G.Arrow x y)(q: G.Arrow y z) ->
+  loop x z (G.compose x y z p q) = G.compose basepoint basepoint basepoint (loop x y p) (loop y z q) :=
+  \fun (x, y, z: A)(p: _)(q: _) => eq_reason!{
+    {loop x z (G.compose x y z p q)}
+    "=" {G.compose basepoint z basepoint (G.compose basepoint y z (G.compose basepoint x y (arrow x) p) q) (G.inverse basepoint z (arrow z))} "by" {
+      congr!{{G.Arrow basepoint z} {G.Arrow basepoint basepoint}}
+        (\fun (r: G.Arrow basepoint z) => G.compose basepoint z basepoint r (G.inverse basepoint z (arrow z))) _ _
+        (sym!{{G.Arrow basepoint z}} _ _ (G.associative basepoint x y z (arrow x) p q))}
+    "=" {G.compose basepoint y basepoint (G.compose basepoint x y (arrow x) p) (G.compose y z basepoint q (G.inverse basepoint z (arrow z)))} "by" {
+      G.associative basepoint y z basepoint (G.compose basepoint x y (arrow x) p) q (G.inverse basepoint z (arrow z))}
+    "=" {G.compose basepoint basepoint basepoint (loop x y p)
+      (G.compose basepoint y basepoint (arrow y) (G.compose y z basepoint q (G.inverse basepoint z (arrow z))))} "by" {
+      sym!{{G.Arrow basepoint basepoint}} _ _ (G.cancelMiddle basepoint y basepoint basepoint (G.compose basepoint x y (arrow x) p) (arrow y)
+        (G.compose y z basepoint q (G.inverse basepoint z (arrow z))))}
+    "=" {G.compose basepoint basepoint basepoint (loop x y p) (loop y z q)} "by" {
+      congr!{{G.Arrow basepoint basepoint} {G.Arrow basepoint basepoint}} (G.compose basepoint basepoint basepoint (loop x y p)) _ _
+        (sym!{{G.Arrow basepoint basepoint}} _ _ (G.associative basepoint y z basepoint (arrow y) q (G.inverse basepoint z (arrow z))))}};
+\definition atBasepoint: \forall (p: G.Arrow basepoint basepoint) -> loop basepoint basepoint p = p :=
+  \fun (p: _) => eq_reason!{{loop basepoint basepoint p}
+    "=" {G.compose basepoint basepoint basepoint (G.compose basepoint basepoint basepoint (G.identity basepoint) p) (G.inverse basepoint basepoint (G.identity basepoint))} "by" {
+      congr!{{G.Arrow basepoint basepoint} {G.Arrow basepoint basepoint}}
+        (\fun (a: G.Arrow basepoint basepoint) => G.compose basepoint basepoint basepoint (G.compose basepoint basepoint basepoint a p) (G.inverse basepoint basepoint a)) _ _ normalized}
+    "=" {G.compose basepoint basepoint basepoint p (G.identity basepoint)} "by" {
+      congr2!{{G.Arrow basepoint basepoint} {G.Arrow basepoint basepoint} {G.Arrow basepoint basepoint}}
+        (G.compose basepoint basepoint basepoint) _ _ _ _ (G.leftIdentity basepoint basepoint p) (G.inverseIdentity basepoint)}
+    "=" p "by" {G.rightIdentity basepoint basepoint p}};
+\definition unloop[x, y: A][p: G.Arrow basepoint basepoint]: G.Arrow x y :=
+  G.compose x basepoint y (G.inverse basepoint x (arrow x)) (G.compose basepoint basepoint y p (arrow y));
+\definition loopUnloop: \forall (x, y: A)(p: G.Arrow basepoint basepoint) -> loop x y (unloop x y p) = p :=
+  \fun (x, y: A)(p: _) => eq_reason!{{loop x y (unloop x y p)}
+    "=" {G.compose basepoint y basepoint
+      (G.compose basepoint basepoint y (G.compose basepoint x basepoint (arrow x) (G.inverse basepoint x (arrow x))) (G.compose basepoint basepoint y p (arrow y)))
+      (G.inverse basepoint y (arrow y))} "by" {
+      congr!{{G.Arrow basepoint y} {G.Arrow basepoint basepoint}} (\fun (r: G.Arrow basepoint y) => G.compose basepoint y basepoint r (G.inverse basepoint y (arrow y))) _ _
+        (sym!{{G.Arrow basepoint y}} _ _ (G.associative basepoint x basepoint y (arrow x) (G.inverse basepoint x (arrow x)) (G.compose basepoint basepoint y p (arrow y))))}
+    "=" {G.compose basepoint y basepoint (G.compose basepoint basepoint y p (arrow y)) (G.inverse basepoint y (arrow y))} "by" {
+      trans!{{G.Arrow basepoint basepoint}} _ _ _
+        (congr!{{G.Arrow basepoint basepoint} {G.Arrow basepoint basepoint}}
+          (\fun (r: G.Arrow basepoint basepoint) => G.compose basepoint y basepoint
+            (G.compose basepoint basepoint y r (G.compose basepoint basepoint y p (arrow y))) (G.inverse basepoint y (arrow y))) _ _ (G.rightInverse basepoint x (arrow x)))
+        (congr!{{G.Arrow basepoint y} {G.Arrow basepoint basepoint}}
+          (\fun (r: G.Arrow basepoint y) => G.compose basepoint y basepoint r (G.inverse basepoint y (arrow y))) _ _
+          (G.leftIdentity basepoint y (G.compose basepoint basepoint y p (arrow y))))}
+    "=" {G.compose basepoint basepoint basepoint p (G.compose basepoint y basepoint (arrow y) (G.inverse basepoint y (arrow y)))} "by" {
+      G.associative basepoint basepoint y basepoint p (arrow y) (G.inverse basepoint y (arrow y))}
+    "=" {G.compose basepoint basepoint basepoint p (G.identity basepoint)} "by" {
+      congr!{{G.Arrow basepoint basepoint} {G.Arrow basepoint basepoint}} (G.compose basepoint basepoint basepoint p) _ _ (G.rightInverse basepoint y (arrow y))}
+    "=" p "by" {G.rightIdentity basepoint basepoint p}};
+\definition slide: \forall (x, y: A)(p: G.Arrow x y) ->
+  G.compose x basepoint basepoint (G.inverse basepoint x (arrow x)) (loop x y p) =
+    G.compose x y basepoint p (G.inverse basepoint y (arrow y)) :=
+  \fun (x, y: A)(p: _) => eq_reason!{
+    {G.compose x basepoint basepoint (G.inverse basepoint x (arrow x)) (loop x y p)}
+    "=" {G.compose x y basepoint (G.compose x basepoint y (G.inverse basepoint x (arrow x)) (G.compose basepoint x y (arrow x) p)) (G.inverse basepoint y (arrow y))} "by" {
+      sym!{{G.Arrow x basepoint}} _ _ (G.associative x basepoint y basepoint (G.inverse basepoint x (arrow x)) (G.compose basepoint x y (arrow x) p) (G.inverse basepoint y (arrow y)))}
+    "=" {G.compose x y basepoint (G.compose x x y (G.compose x basepoint x (G.inverse basepoint x (arrow x)) (arrow x)) p) (G.inverse basepoint y (arrow y))} "by" {
+      congr!{{G.Arrow x y} {G.Arrow x basepoint}} (\fun (r: G.Arrow x y) => G.compose x y basepoint r (G.inverse basepoint y (arrow y))) _ _
+        (sym!{{G.Arrow x y}} _ _ (G.associative x basepoint x y (G.inverse basepoint x (arrow x)) (arrow x) p))}
+    "=" {G.compose x y basepoint (G.compose x x y (G.identity x) p) (G.inverse basepoint y (arrow y))} "by" {
+      congr!{{G.Arrow x x} {G.Arrow x basepoint}}
+        (\fun (r: G.Arrow x x) => G.compose x y basepoint (G.compose x x y r p) (G.inverse basepoint y (arrow y))) _ _ (G.leftInverse basepoint x (arrow x))}
+    "=" {G.compose x y basepoint p (G.inverse basepoint y (arrow y))} "by" {
+      congr!{{G.Arrow x y} {G.Arrow x basepoint}} (\fun (r: G.Arrow x y) => G.compose x y basepoint r (G.inverse basepoint y (arrow y))) _ _ (G.leftIdentity x y p)}};
+\definition loopInjective: \forall (x, y: A)(p, q: G.Arrow x y) -> loop x y p = loop x y q -> p = q :=
+  \fun (x, y: A)(p, q: _)(same: _) => G.cancelLeft basepoint x y (arrow x) p q
+    (G.cancelRight basepoint y basepoint (G.inverse basepoint y (arrow y))
+      (G.compose basepoint x y (arrow x) p) (G.compose basepoint x y (arrow x) q) same);

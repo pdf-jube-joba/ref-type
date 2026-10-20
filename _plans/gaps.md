@@ -298,3 +298,21 @@ module 引数は検査時に確定した捕捉引数を明示した式で保持�
 [20-01-proof-dependent-data.ref](gaps/20-01-proof-dependent-data.ref) は `included` を後続のデータ field の型へ渡すが、`Item 'included' was not found` になる。
 [20-02-nested-neighborhood.ref](gaps/20-02-nested-neighborhood.ref) は、開集合と包含証明を `Neighborhood` にまとめ、後続の型からその field を射影する回避例である。
 `calculus.ProjectionFrames.Local` はこの形で、元の射影の制限に対する正規直交枠を保持する。
+
+<a id="g21"></a>
+
+## G21: 条件付きの値を structure の関数 field にする
+
+[21-01-partial-field.ref](gaps/21-01-partial-field.ref) のように、条件を満たす引数で値を返す field を書きたい。
+現在は `no product rule for domain Prop and body Set(0)` になる。
+[21-02-refined-field.ref](gaps/21-02-refined-field.ref) は、定義域を条件付き部分集合にする回避例である。
+`fundamental_groups.VanKampen.Cover.LocalData` は `SmallPath`、有限細分の評価は `Integral.Part` を使う。
+
+<a id="g22"></a>
+
+## G22: 等式計算の途中に部分集合の値を置く
+
+[22-01-refined-equality-chain.ref](gaps/22-01-refined-equality-chain.ref) は、等式計算の中間値だけが部分集合の型を持つ例である。
+`eq_reason` と同じ省略された carrier の推論では、最後の通常の集合の値に部分集合の型が要求される。
+[22-02-ambient-equality-chain.ref](gaps/22-02-ambient-equality-chain.ref) は carrier を明示する回避例である。
+`std.Logic.Equality.eq_reason_in` と被覆間の写像の一意性の証明にこの形を使う。

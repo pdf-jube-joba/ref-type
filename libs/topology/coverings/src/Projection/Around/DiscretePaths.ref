@@ -1,0 +1,25 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import Interval.DiscreteMaps[B := Fiber b] \as Discrete;
+\import topology.Continuity[A := Interval.Carrier, B := E] \as Continuous;
+\import topology.Continuity[A := Interval.Carrier, B := E].Corestriction[S := Maps.Preimage projection U] \as Into;
+\import topology.Composition[A := Interval.Carrier, B := Over.CarrierSet, C := Fiber b] \as Compose;
+\definition Within[f: Interval.Carrier -> E]: \Prop := \forall (t: Interval.Carrier) -> \In[B] U (projection (f t));
+\definition corestrict[f: Interval.Carrier -> E][within: Within f][t: Interval.Carrier]: Over.CarrierSet :=
+  \into[E](f t, Maps.Preimage projection U) \by { within t };
+\definition indicesConstant: \forall (chart: Chart)(f: Interval.Carrier -> E) -> Continuous.Continuous Interval.topology total f ->
+  \forall (within: Within f) -> index chart (corestrict f within Interval.start) = index chart (corestrict f within Interval.end) :=
+  \fun (chart: Chart)(f: _)(continuous: _)(within: _) => Discrete.endpoints
+    (\fun (t: Interval.Carrier) => index chart (corestrict f within t))
+    (Compose.composeContinuous Interval.topology (Over.topology total) FiberSpace.Discrete (corestrict f within) (index chart)
+      (Into.corestrictContinuous Interval.topology total (corestrict f within) continuous) (indexContinuous chart));
+\definition endpointUnique: \forall (chart: Chart)(f, g: Interval.Carrier -> E) ->
+  Continuous.Continuous Interval.topology total f -> Continuous.Continuous Interval.topology total g ->
+  \forall (fw: Within f)(gw: Within g) ->
+  (\forall (t: Interval.Carrier) -> projection (f t) = projection (g t)) ->
+  f Interval.start = g Interval.start -> f Interval.end = g Interval.end :=
+  \fun (chart: Chart)(f, g: _)(fc: _)(gc: _)(fw: _)(gw: _)(projects: _)(starts: _) =>
+    separate chart (corestrict f fw Interval.end) (corestrict g gw Interval.end) (projects Interval.end)
+      (trans!{{Fiber b}} _ _ _ (sym!{{Fiber b}} _ _ (indicesConstant chart f fc fw))
+        (trans!{{Fiber b}} _ _ _
+          (congr!{{Over.CarrierSet} {Fiber b}} (index chart) (corestrict f fw Interval.start) (corestrict g gw Interval.start) starts)
+          (indicesConstant chart g gc gw)));

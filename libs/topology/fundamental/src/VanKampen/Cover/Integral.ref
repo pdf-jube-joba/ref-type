@@ -1,0 +1,109 @@
+\import \root.VanKampen[A := A, source := source, G := G, group := group].Cover[family := family] \as Cover;
+\definition Part[tree: Tree]: \Set := \Cast[Paths.Carrier] ({ p: Paths.Carrier \where Fine tree p });
+\definition asPart[tree: Tree][p: Paths.Carrier][fine: Fine tree p]: Part tree := \into[Paths.Carrier](p, Part tree) \by { fine };
+\definition partFirst[l, r: Tree][p: Part (Tree::branch l r)]: Part l := asPart l (Paths.first p) (\bysub(Paths.Carrier, Part (Tree::branch l r), p)).left;
+\definition partSecond[l, r: Tree][p: Part (Tree::branch l r)]: Part r := asPart r (Paths.second p) (\bysub(Paths.Carrier, Part (Tree::branch l r), p)).right;
+\definition evaluate: \forall (tree: Tree) -> Part tree -> G :=
+  \induction (tree: Tree) \return (Part tree -> G) \with {
+    | leaf: data.value
+    | branch: \fun (l: Tree)(left: Part l -> G)(r: Tree)(right: Part r -> G)(p: Part (Tree::branch l r)) =>
+      Group.mul (left (partFirst l r p)) (right (partSecond l r p))
+  };
+\definition at[tree: Tree][p: Paths.Carrier][fine: Fine tree p]: G := evaluate tree (asPart tree p fine);
+\definition localValue[p: Paths.Carrier][small: Small p]: G := data.value (asSmall p small);
+\definition localSplit[p: Paths.Carrier][small: Small p]: localValue p small = Group.mul
+  (localValue (Paths.first p) (firstSmall p small)) (localValue (Paths.second p) (secondSmall p small)) := data.split (asSmall p small);
+\definition onSmall: \forall (tree: Tree)(p: Paths.Carrier)(small: Small p)(fine: Fine tree p) -> at tree p fine = localValue p small :=
+  \induction (tree: Tree) \return (\forall (p: Paths.Carrier)(small: Small p)(fine: Fine tree p) -> at tree p fine = localValue p small) \with {
+    | leaf: \fun (p: Paths.Carrier)(small: Small p)(fine: Fine Tree::leaf p) => \refl(localValue p small)
+    | branch: \fun (l: Tree)
+      (left: \forall (p: Paths.Carrier)(small: Small p)(fine: Fine l p) -> at l p fine = localValue p small)(r: Tree)
+      (right: \forall (p: Paths.Carrier)(small: Small p)(fine: Fine r p) -> at r p fine = localValue p small)
+      (p: Paths.Carrier)(small: Small p)(fine: Fine (Tree::branch l r) p) => trans!{G} _ _ _
+        (congr2!{G G G} Group.mul _ _ _ _ (left (Paths.first p) (firstSmall p small) fine.left) (right (Paths.second p) (secondSmall p small) fine.right))
+        (sym!{G} _ _ (localSplit p small))
+  };
+\definition independent: \forall (l, r: Tree)(p: Paths.Carrier)(lf: Fine l p)(rf: Fine r p) -> at l p lf = at r p rf :=
+  \induction (l: Tree) \return (\forall (r: Tree)(p: Paths.Carrier)(lf: Fine l p)(rf: Fine r p) -> at l p lf = at r p rf) \with {
+    | leaf: \fun (r: Tree)(p: Paths.Carrier)(small: Fine Tree::leaf p)(fine: Fine r p) => sym!{G} _ _ (onSmall r p small fine)
+    | branch: \fun (l1: Tree)
+      (left: \forall (r: Tree)(p: Paths.Carrier)(lf: Fine l1 p)(rf: Fine r p) -> at l1 p lf = at r p rf)(l2: Tree)
+      (right: \forall (r: Tree)(p: Paths.Carrier)(lf: Fine l2 p)(rf: Fine r p) -> at l2 p lf = at r p rf) =>
+      \induction (r: Tree) \return (\forall (p: Paths.Carrier)(lf: Fine (Tree::branch l1 l2) p)(rf: Fine r p) -> at (Tree::branch l1 l2) p lf = at r p rf) \with {
+        | leaf: \fun (p: Paths.Carrier)(lf: Fine (Tree::branch l1 l2) p)(small: Fine Tree::leaf p) => onSmall (Tree::branch l1 l2) p small lf
+        | branch: \fun (r1: Tree)
+          (prior1: \forall (p: Paths.Carrier)(lf: Fine (Tree::branch l1 l2) p)(rf: Fine r1 p) -> at (Tree::branch l1 l2) p lf = at r1 p rf)(r2: Tree)
+          (prior2: \forall (p: Paths.Carrier)(lf: Fine (Tree::branch l1 l2) p)(rf: Fine r2 p) -> at (Tree::branch l1 l2) p lf = at r2 p rf)
+          (p: Paths.Carrier)(lf: Fine (Tree::branch l1 l2) p)(rf: Fine (Tree::branch r1 r2) p) =>
+          congr2!{G G G} Group.mul _ _ _ _ (left r1 (Paths.first p) lf.left rf.left) (right r2 (Paths.second p) lf.right rf.right)
+      }
+  };
+\definition Value[p: Paths.Carrier]: \Set := \Cast[G] ({ g: G \where \forall (tree: Tree)(fine: Fine tree p) -> g = at tree p fine });
+\definition existsValue: Space.IsOpenCover[source, family, Space.Whole] -> \forall (p: Paths.Carrier) -> \exists Value p := \block {
+  \fun (cover: _)(p: Paths.Carrier) \then
+  \takefrom tree: Partition p \by Cover.Partitions[p := p].existsPartition cover \then
+  \let fine: Fine tree p := \bysub(Tree, Partition p, tree) \then
+  \return \exact(\into[G](at tree p fine, Value p) \by { \fun (other: Tree)(of: Fine other p) => independent tree other p fine of }, Value p)
+};
+\definition uniqueValue: Space.IsOpenCover[source, family, Space.Whole] -> \forall (p: Paths.Carrier)(a, b: Value p) -> a = b := \block {
+  \fun (cover: _)(p: Paths.Carrier)(a, b: Value p) \then
+  \takefrom tree: Partition p \by Cover.Partitions[p := p].existsPartition cover \then
+  \let fine: Fine tree p := \bysub(Tree, Partition p, tree) \then
+  \return trans!{G} _ _ _ ((\bysub(G, Value p, a)) tree fine) (sym!{G} _ _ ((\bysub(G, Value p, b)) tree fine))
+};
+\definition value[cover: Space.IsOpenCover[source, family, Space.Whole]][p: Paths.Carrier]: Value p :=
+  \choice Value p \by { existence: existsValue cover p, uniqueness: uniqueValue cover p };
+\definition onPartition: \forall (cover: Space.IsOpenCover[source, family, Space.Whole])(p: Paths.Carrier)(tree: Tree)(fine: Fine tree p) ->
+  value cover p = at tree p fine :=
+  \fun (cover: _)(p: _)(tree: _)(fine: _) => (\bysub(G, Value p, value cover p)) tree fine;
+\definition onLocal: \forall (cover: Space.IsOpenCover[source, family, Space.Whole])(p: Paths.Carrier)(small: Small p) -> value cover p = localValue p small :=
+  \fun (cover: _)(p: _)(small: _) => onPartition cover p Tree::leaf small;
+\definition split: \forall (cover: Space.IsOpenCover[source, family, Space.Whole])(p: Paths.Carrier) ->
+  value cover p = Group.mul (value cover (Paths.first p)) (value cover (Paths.second p)) := \block {
+  \fun (cover: _)(p: Paths.Carrier) \then
+  \takefrom l: Partition (Paths.first p) \by Cover.Partitions[p := Paths.first p].existsPartition cover \then
+  \takefrom r: Partition (Paths.second p) \by Cover.Partitions[p := Paths.second p].existsPartition cover \then
+  \let lf: Fine l (Paths.first p) := \bysub(Tree, Partition (Paths.first p), l) \then
+  \let rf: Fine r (Paths.second p) := \bysub(Tree, Partition (Paths.second p), r) \then
+  \return trans!{G} _ _ _ (onPartition cover p (Tree::branch l r) (Logic.And[_, _]::# lf rf))
+    (congr2!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (onPartition cover (Paths.first p) l lf)) (sym!{G} _ _ (onPartition cover (Paths.second p) r rf)))
+};
+\definition uniqueOnPartition: \forall (candidate: Paths.Carrier -> G) ->
+  (\forall (p: Paths.Carrier)(small: Small p) -> candidate p = localValue p small) ->
+  (\forall (p: Paths.Carrier) -> candidate p = Group.mul (candidate (Paths.first p)) (candidate (Paths.second p))) ->
+  \forall (tree: Tree)(p: Paths.Carrier)(fine: Fine tree p) -> candidate p = at tree p fine :=
+  \fun (candidate: _)(local: _)(split: _) => \induction (tree: Tree) \return
+    (\forall (p: Paths.Carrier)(fine: Fine tree p) -> candidate p = at tree p fine) \with {
+    | leaf: local
+    | branch: \fun (l: Tree)(left: \forall (p: Paths.Carrier)(fine: Fine l p) -> candidate p = at l p fine)
+      (r: Tree)(right: \forall (p: Paths.Carrier)(fine: Fine r p) -> candidate p = at r p fine)
+      (p: Paths.Carrier)(fine: Fine (Tree::branch l r) p) => trans!{G} _ _ _ (split p)
+        (congr2!{G G G} Group.mul _ _ _ _ (left (Paths.first p) fine.left) (right (Paths.second p) fine.right))
+  };
+\definition unique: \forall (cover: Space.IsOpenCover[source, family, Space.Whole])(candidate: Paths.Carrier -> G) ->
+  (\forall (p: Paths.Carrier)(small: Small p) -> candidate p = localValue p small) ->
+  (\forall (p: Paths.Carrier) -> candidate p = Group.mul (candidate (Paths.first p)) (candidate (Paths.second p))) ->
+  \forall (p: Paths.Carrier) -> candidate p = value cover p := \block {
+  \fun (cover: _)(candidate: _)(local: _)(split: _)(p: Paths.Carrier) \then
+  \takefrom tree: Partition p \by Cover.Partitions[p := p].existsPartition cover \then
+  \let fine: Fine tree p := \bysub(Tree, Partition p, tree) \then
+  \return trans!{G} _ _ _ (uniqueOnPartition candidate local split tree p fine) (sym!{G} _ _ (onPartition cover p tree fine))
+};
+\import \root.Paths[A := A, source := source] \as Based;
+\import Based.Concatenation[] \as Join;
+\definition composition: \forall (cover: Space.IsOpenCover[source, family, Space.Whole])(x, y, z: A)(p: Based.Path x y)(q: Based.Path y z) ->
+  value cover (Paths.forget x z (Join.concatenate x y z p q)) = Group.mul (value cover (Paths.forget x y p)) (value cover (Paths.forget y z q)) :=
+  \fun (cover: _)(x, y, z: A)(p: _)(q: _) => trans!{G} _ _ _ (split cover (Paths.forget x z (Join.concatenate x y z p q)))
+    (congr2!{G G G} Group.mul _ _ _ _
+      (congr!{{Paths.Carrier} G} (\fun (r: Paths.Carrier) => value cover r) _ _ (Paths.firstJoin x y z p q))
+      (congr!{{Paths.Carrier} G} (\fun (r: Paths.Carrier) => value cover r) _ _ (Paths.secondJoin x y z p q)));
+\module Squares;
+\definition ConstantLaw: \Prop := \forall (x: A)(small: Small (Paths.forget x x (Based.constant x))) -> localValue (Paths.forget x x (Based.constant x)) small = Group.one;
+\definition constantValue: \forall (cover: Space.IsOpenCover[source, family, Space.Whole]) -> ConstantLaw -> \forall (x: A) -> value cover (Paths.forget x x (Based.constant x)) = Group.one :=
+  \fun (cover: _)(local: _)(x: A) => Space.unionMemberElim family x (value cover (Paths.forget x x (Based.constant x)) = Group.one)
+    (\fun (U: \Pow A)(member: _)(inside: _) => trans!{G} _ _ _
+      (onLocal cover (Paths.forget x x (Based.constant x)) (Logic.existsIntro[\Pow A, { V: \Pow A \where Logic.And[\In[\Pow A] family V, Within (Paths.forget x x (Based.constant x)) V] }] U
+        (Logic.And[_, _]::# member (\fun (_: I.Carrier) => inside))))
+      (local x (Logic.existsIntro[\Pow A, { V: \Pow A \where Logic.And[\In[\Pow A] family V, Within (Paths.forget x x (Based.constant x)) V] }] U
+        (Logic.And[_, _]::# member (\fun (_: I.Carrier) => inside))))) (cover.covers x (\refl(x)));
+\module Homotopy;

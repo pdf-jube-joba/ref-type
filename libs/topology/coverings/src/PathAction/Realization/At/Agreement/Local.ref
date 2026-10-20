@@ -1,0 +1,27 @@
+\import \root.PathAction[E := E, B := B, base := base, projection := projection].Local[action := action, U := U, good := good] \as Local;
+\import topology.Topology[Carrier := B].Subspace[S := U] \as Under;
+\import topology.Continuity[A := I.Carrier, B := B].Corestriction[S := U] \as Into;
+\import topology.Composition[A := I.Carrier, B := Under.CarrierSet, C := E] \as Compose;
+\definition agrees: \forall (p: Raw.Carrier) -> (\forall (t: I.Carrier) -> Base.Member U (p t)) -> Agrees p := \block {
+  \fun (p: Raw.Carrier)(within: \forall (t: I.Carrier) -> Base.Member U (p t))(x, y: B)(q: Paths.Path x y)(same: p = q)(e: Fiber x) \then
+  \let contained: Neighborhoods.Within U x y q := \fun (t: I.Carrier) => \idelim p t = q t \with b: B => Base.Member U b
+    \by { base: within t, equality: congr!{{I.Carrier -> B} B} (\fun (r: I.Carrier -> B) => r t) p q same } \then
+  \let inX: Base.Member U x := \idelim q I.start = x \with b: B => Base.Member U b \by { base: contained I.start, equality: (Paths.laws x y q).start } \then
+  \let inY: Base.Member U y := \idelim q I.end = y \with b: B => Base.Member U b \by { base: contained I.end, equality: (Paths.laws x y q).end } \then
+  \let into: I.Carrier -> Under.CarrierSet := \fun (t: I.Carrier) => \into[B](q t, U) \by { contained t } \then
+  \let section: Under.CarrierSet -> E := \fun (z: Under.CarrierSet) => Local.move x z inX (\bysub(B, U, z)) e \then
+  \let lift: Lifting.PathLift x y q e := \into[I.Carrier -> E](\fun (t: I.Carrier) => section (into t), Lifting.PathLift x y q e) \by {
+    Lifting.PathLiftLaws[x, y, q, e, \fun (t: I.Carrier) => section (into t)] {
+      continuous := Compose.composeContinuous I.topology (Under.topology base) (Top.topology basis) into section
+        (Into.corestrictContinuous I.topology base into (Paths.laws x y q).continuous)
+        (Construction.Sections[U := U, good := good, x := x, inX := inX, e := e].continuous basis),
+      projects := \fun (t: I.Carrier) => projectsTo (q t) (Local.move x (q t) inX (contained t) e),
+      starts := trans!{E} _ _ _ (Local.changeTarget x (q I.start) x inX (contained I.start) inX e (Paths.laws x y q).start)
+        (Local.identity x inX e),
+    }
+  } \then
+  \return trans!{E} _ _ _
+    (congr!{{I.Carrier -> E} E} (\fun (r: I.Carrier -> E) => r I.end) _ _ (Unique.pathLiftUnique covering x y q e (Transport.lift covering x y q e) lift))
+    (trans!{E} _ _ _ (Local.changeTarget x (q I.end) y inX (contained I.end) inY e (Paths.laws x y q).end)
+      (Local.onPath x y inX inY e (\into[Paths.Path x y](q, Neighborhoods.Path U x y) \by { contained })))
+};

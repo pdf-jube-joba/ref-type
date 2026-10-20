@@ -1,0 +1,38 @@
+\import \parent.Groupoid[covering := covering] \as Transport;
+\import fundamental_groups.FundamentalGroup[A := B, source := base, basepoint := b] \as Fundamental;
+\import algebra.Noncommutative[G := Fundamental.Carrier, group := Fundamental.group] \as Group;
+\import Group.Actions[S := Fiber b] \as Actions;
+\definition move: Fundamental.Carrier -> Fiber b -> Fiber b := Transport.move b b;
+\definition action: Actions.Action := \into[Fundamental.Carrier -> Fiber b -> Fiber b](move, Actions.Action) \by {
+  Actions.Laws[move] { identity := Transport.identityLaw b, compose := Transport.compositionLaw b b b }
+};
+\definition stabilizer[e: Fiber b]: Group.Subgroup := Actions.stabilizer action e;
+\module At(e: Fiber b);
+\import fundamental_groups.Paths[A := E, source := total] \as RawTotal;
+\import fundamental_groups.Paths[A := B, source := base] \as RawBase;
+\import topology.Composition[A := Interval.Carrier, B := E, C := B] \as ProjectPaths;
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Lifting[] \as Lifting;
+\import Lifting.Uniqueness[] \as Unique;
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Transport[] \as Raw;
+\import std.Logic[].Proposition[] \as Logic;
+\definition connectedTransitive: RawTotal.PathConnected -> Actions.Transitive action := \block {
+  \fun (connected: RawTotal.PathConnected)(u, v: Fiber b) \then
+  \takefrom f: RawTotal.Path u v \by connected u v \then
+  \let p: RawBase.Path b b := \into[RawBase.Function](\fun (t: Interval.Carrier) => projection (f t), RawBase.Path b b) \by {
+    RawBase.Laws[b, b, \fun (t: Interval.Carrier) => projection (f t)] {
+      continuous := ProjectPaths.composeContinuous Interval.topology total base f projection (RawTotal.laws u v f).continuous covering.continuous,
+      start := trans!{B} _ _ _ (congr!{E B} projection _ _ (RawTotal.laws u v f).start) (projectsTo b u),
+      end := trans!{B} _ _ _ (congr!{E B} projection _ _ (RawTotal.laws u v f).end) (projectsTo b v),
+    }
+  } \then
+  \let lifted: Lifting.PathLift b b p u := \into[Interval.Carrier -> E](f, Lifting.PathLift b b p u) \by {
+    Lifting.PathLiftLaws[b, b, p, u, f] {
+      continuous := (RawTotal.laws u v f).continuous,
+      projects := \fun (t: Interval.Carrier) => \refl(projection (f t)), starts := (RawTotal.laws u v f).start,
+    }
+  } \then
+  \return Logic.existsIntro[Fundamental.Carrier, { a: Fundamental.Carrier \where move a u = v }] (Fundamental.class p)
+    (trans!{E} _ _ _ (Transport.onClass b b p u)
+      (trans!{E} _ _ _ (congr!{{Interval.Carrier -> E} E} (\fun (h: Interval.Carrier -> E) => h Interval.end) _ _
+        (Unique.pathLiftUnique covering b b p u (Raw.lift covering b b p u) lifted)) (RawTotal.laws u v f).end))
+};

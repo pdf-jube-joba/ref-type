@@ -1,0 +1,104 @@
+\import \parent.Concatenation[] \as Join;
+\import \parent.Reparametrization[] \as Reparam;
+\import \root.IntervalPaths[] \as IntervalPaths;
+\import \root.Paths[A := Interval.Carrier, source := Interval.topology] \as Parameters;
+\import Parameters.Concatenation[] \as ParameterJoin;
+\import Parameters.Maps[B := A, target := source] \as Mapping;
+\import Interval.Halves[] \as Halves;
+\definition rightUnitParameter: Parameters.Path Interval.start Interval.end :=
+  ParameterJoin.concatenate Interval.start Interval.end Interval.end IntervalPaths.identity (Parameters.constant Interval.end);
+\definition leftUnitParameter: Parameters.Path Interval.start Interval.end :=
+  ParameterJoin.concatenate Interval.start Interval.start Interval.end (Parameters.constant Interval.start) IntervalPaths.identity;
+\definition rightUnitEquality: \forall (x, y: A)(p: Path x y) -> Reparam.apply x y p rightUnitParameter = Join.concatenate x y y p (constant y) :=
+  \fun (x, y: A)(p: _) => Join.extensional x y y p (constant y) (Reparam.apply x y p rightUnitParameter)
+    (\fun (t: Interval.Carrier)(member: _) => congr!{Interval.Carrier A} p _ _
+      (ParameterJoin.onLeft Interval.start Interval.end Interval.end IntervalPaths.identity (Parameters.constant Interval.end) t member))
+    (\fun (t: Interval.Carrier)(member: _) => trans!{A} _ _ _
+      (congr!{Interval.Carrier A} p _ _
+        (ParameterJoin.onRight Interval.start Interval.end Interval.end IntervalPaths.identity (Parameters.constant Interval.end) t member))
+      (laws x y p).end);
+\definition leftUnitEquality: \forall (x, y: A)(p: Path x y) -> Reparam.apply x y p leftUnitParameter = Join.concatenate x x y (constant x) p :=
+  \fun (x, y: A)(p: _) => Join.extensional x x y (constant x) p (Reparam.apply x y p leftUnitParameter)
+    (\fun (t: Interval.Carrier)(member: _) => trans!{A} _ _ _
+      (congr!{Interval.Carrier A} p _ _
+        (ParameterJoin.onLeft Interval.start Interval.start Interval.end (Parameters.constant Interval.start) IntervalPaths.identity t member))
+      (laws x y p).start)
+    (\fun (t: Interval.Carrier)(member: _) => congr!{Interval.Carrier A} p _ _
+      (ParameterJoin.onRight Interval.start Interval.start Interval.end (Parameters.constant Interval.start) IntervalPaths.identity t member));
+\definition rightUnit: \forall (x, y: A)(p: Path x y) -> Homotopic x y (Join.concatenate x y y p (constant y)) p :=
+  \fun (x, y: A)(p: _) => homotopyCongruent (Reparam.apply x y p rightUnitParameter) p
+    (Join.concatenate x y y p (constant y)) p (rightUnitEquality x y p) (\refl(p))
+    (Reparam.invariant x y p rightUnitParameter);
+\definition leftUnit: \forall (x, y: A)(p: Path x y) -> Homotopic x y (Join.concatenate x x y (constant x) p) p :=
+  \fun (x, y: A)(p: _) => homotopyCongruent (Reparam.apply x y p leftUnitParameter) p
+    (Join.concatenate x x y (constant x) p) p (leftUnitEquality x y p) (\refl(p))
+    (Reparam.invariant x y p leftUnitParameter);
+\definition inverseParameter: Parameters.Path Interval.start Interval.start :=
+  ParameterJoin.concatenate Interval.start Interval.end Interval.start IntervalPaths.identity (Parameters.reverse Interval.start Interval.end IntervalPaths.identity);
+\definition inverseEquality: \forall (x, y: A)(p: Path x y) ->
+  Mapping.apply p (laws x y p).continuous Interval.start Interval.start inverseParameter = Join.concatenate x y x p (reverse x y p) :=
+  \fun (x, y: A)(p: _) => Join.extensional x y x p (reverse x y p)
+    (Mapping.apply p (laws x y p).continuous Interval.start Interval.start inverseParameter)
+    (\fun (t: Interval.Carrier)(member: _) => congr!{Interval.Carrier A} p _ _
+      (ParameterJoin.onLeft Interval.start Interval.end Interval.start IntervalPaths.identity (Parameters.reverse Interval.start Interval.end IntervalPaths.identity) t member))
+    (\fun (t: Interval.Carrier)(member: _) => congr!{Interval.Carrier A} p _ _
+      (ParameterJoin.onRight Interval.start Interval.end Interval.start IntervalPaths.identity (Parameters.reverse Interval.start Interval.end IntervalPaths.identity) t member));
+\definition rightInverse: \forall (x, y: A)(p: Path x y) -> Homotopic x x (Join.concatenate x y x p (reverse x y p)) (constant x) :=
+  \fun (x, y: A)(p: _) => homotopyCongruent
+    (Mapping.apply p (laws x y p).continuous Interval.start Interval.start inverseParameter)
+    (Mapping.apply p (laws x y p).continuous Interval.start Interval.start (Parameters.constant Interval.start))
+    (Join.concatenate x y x p (reverse x y p)) (constant x) (inverseEquality x y p)
+    (\axiom:funext((\fun (_: Interval.Carrier) => p Interval.start), (\fun (_: Interval.Carrier) => x),
+      \fun (_: Interval.Carrier) => (laws x y p).start))
+    (Mapping.respects p (laws x y p).continuous Interval.start Interval.start inverseParameter (Parameters.constant Interval.start)
+      (IntervalPaths.homotopic Interval.start Interval.start inverseParameter (Parameters.constant Interval.start)));
+\definition leftInverse: \forall (x, y: A)(p: Path x y) -> Homotopic y y (Join.concatenate y x y (reverse x y p) p) (constant y) :=
+  \fun (x, y: A)(p: _) => homotopyCongruent
+    (Join.concatenate y x y (reverse x y p) (reverse y x (reverse x y p))) (constant y)
+    (Join.concatenate y x y (reverse x y p) p) (constant y)
+    (congr!{{Path x y} Function} (Join.concatenate y x y (reverse x y p)) _ _ (reverseTwice x y p)) (\refl(constant y))
+    (rightInverse y x (reverse x y p));
+\definition triple[x, y, z, w: A][p: Path x y][q: Path y z][r: Path z w]: Path x w :=
+  Join.concatenate x z w (Join.concatenate x y z p q) r;
+\definition innerEquality: \forall (x, y, z, w: A)(p: Path x y)(q: Path y z)(r: Path z w) ->
+  (\fun (t: Interval.Carrier) => triple x y z w p q r
+    (ParameterJoin.concatenate IntervalPaths.quarter Interval.middle Interval.end IntervalPaths.lowerUpper IntervalPaths.upper t)) =
+  Join.concatenate y z w q r :=
+  \fun (x, y, z, w: A)(p: _)(q: _)(r: _) => Join.extensional y z w q r
+    (\fun (t: Interval.Carrier) => triple x y z w p q r
+      (ParameterJoin.concatenate IntervalPaths.quarter Interval.middle Interval.end IntervalPaths.lowerUpper IntervalPaths.upper t))
+    (\fun (t: Interval.Carrier)(member: _) => eq_reason!{
+      {triple x y z w p q r (ParameterJoin.concatenate IntervalPaths.quarter Interval.middle Interval.end IntervalPaths.lowerUpper IntervalPaths.upper t)}
+      "=" {triple x y z w p q r (Halves.lower (Halves.upper (Join.leftTime t member)))} "by" {
+        congr!{Interval.Carrier A} (triple x y z w p q r) _ _
+          (ParameterJoin.onLeft IntervalPaths.quarter Interval.middle Interval.end IntervalPaths.lowerUpper IntervalPaths.upper t member)}
+      "=" {Join.concatenate x y z p q (Halves.upper (Join.leftTime t member))} "by" {
+        Join.onLower x z w (Join.concatenate x y z p q) r (Halves.upper (Join.leftTime t member))}
+      "=" {q (Join.leftTime t member)} "by" {Join.onUpper x y z p q (Join.leftTime t member)}})
+    (\fun (t: Interval.Carrier)(member: _) => trans!{A} _ _ _
+      (congr!{Interval.Carrier A} (triple x y z w p q r) _ _
+        (ParameterJoin.onRight IntervalPaths.quarter Interval.middle Interval.end IntervalPaths.lowerUpper IntervalPaths.upper t member))
+      (Join.onUpper x z w (Join.concatenate x y z p q) r (Join.rightTime t member)));
+\definition associativityEquality: \forall (x, y, z, w: A)(p: Path x y)(q: Path y z)(r: Path z w) ->
+  Reparam.apply x w (triple x y z w p q r) IntervalPaths.associator = Join.concatenate x y w p (Join.concatenate y z w q r) :=
+  \fun (x, y, z, w: A)(p: _)(q: _)(r: _) => Join.extensional x y w p (Join.concatenate y z w q r)
+    (Reparam.apply x w (triple x y z w p q r) IntervalPaths.associator)
+    (\fun (t: Interval.Carrier)(member: _) => eq_reason!{
+      {triple x y z w p q r (IntervalPaths.associator t)}
+      "=" {triple x y z w p q r (Halves.lower (Halves.lower (Join.leftTime t member)))} "by" {
+        congr!{Interval.Carrier A} (triple x y z w p q r) _ _ (ParameterJoin.onLeft Interval.start IntervalPaths.quarter Interval.end
+          IntervalPaths.lowerLower (ParameterJoin.concatenate IntervalPaths.quarter Interval.middle Interval.end IntervalPaths.lowerUpper IntervalPaths.upper) t member)}
+      "=" {Join.concatenate x y z p q (Halves.lower (Join.leftTime t member))} "by" {
+        Join.onLower x z w (Join.concatenate x y z p q) r (Halves.lower (Join.leftTime t member))}
+      "=" {p (Join.leftTime t member)} "by" {Join.onLower x y z p q (Join.leftTime t member)}})
+    (\fun (t: Interval.Carrier)(member: _) => trans!{A} _ _ _
+      (congr!{Interval.Carrier A} (triple x y z w p q r) _ _ (ParameterJoin.onRight Interval.start IntervalPaths.quarter Interval.end
+        IntervalPaths.lowerLower (ParameterJoin.concatenate IntervalPaths.quarter Interval.middle Interval.end IntervalPaths.lowerUpper IntervalPaths.upper) t member))
+      (congr!{Function A} (\fun (f: Function) => f (Join.rightTime t member)) _ _ (innerEquality x y z w p q r)));
+\definition associative: \forall (x, y, z, w: A)(p: Path x y)(q: Path y z)(r: Path z w) ->
+  Homotopic x w (Join.concatenate x z w (Join.concatenate x y z p q) r) (Join.concatenate x y w p (Join.concatenate y z w q r)) :=
+  \fun (x, y, z, w: A)(p: _)(q: _)(r: _) => symmetric x w _ _
+    (homotopyCongruent (Reparam.apply x w (triple x y z w p q r) IntervalPaths.associator) (triple x y z w p q r)
+      (Join.concatenate x y w p (Join.concatenate y z w q r)) (triple x y z w p q r)
+      (associativityEquality x y z w p q r) (\refl(triple x y z w p q r))
+      (Reparam.invariant x w (triple x y z w p q r) IntervalPaths.associator));

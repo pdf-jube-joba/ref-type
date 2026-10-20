@@ -1,0 +1,44 @@
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Around[b := b, U := (charts b).neighborhood] \as Chart;
+\import Base.Subspace[S := (charts b).neighborhood] \as Under;
+\import Total.Subspace[S := Maps.Preimage projection (charts b).neighborhood] \as Over;
+\import topology.Topology[Carrier := Fiber b] \as FiberSpace;
+\import topology.Continuity[A := Square.Carrier, B := B].Corestriction[S := (charts b).neighborhood] \as IntoBase;
+\import topology.Continuity[A := Interval.Carrier, B := E].Corestriction[S := Maps.Preimage projection (charts b).neighborhood] \as IntoTotal;
+\import topology.Composition[A := Interval.Carrier, B := Over.CarrierSet, C := Fiber b] \as Indices;
+\import topology.Composition[A := Square.Carrier, B := Interval.Carrier, C := Fiber b] \as PullIndices;
+\import topological_constructions.Product[A := Under.CarrierSet, B := Fiber b].Universal[X := Square.Carrier] \as Pairing;
+\import std.Data[].Pair[] \as Pair;
+\import topology.Composition[A := Square.Carrier, B := Chart.FiberProduct, C := Over.CarrierSet] \as Backward;
+\import topology.Composition[A := Square.Carrier, B := Over.CarrierSet, C := E] \as Include;
+\import topology.Continuity[A := E, B := E].Corestriction[S := Maps.Preimage projection (charts b).neighborhood] \as Inclusion;
+\definition existence: \forall (f, g: Interval.Carrier -> Interval.Carrier) ->
+  (\forall (q: Square.Carrier) -> \In[B] (charts b).neighborhood (trace f g q)) -> Property f g := \block {
+  \fun (f, g: _)(contained: _)(fc: _)(gc: _)(initial: _)(ic: _)(ip: _) \then
+  \let inBase: Square.Carrier -> Under.CarrierSet := \fun (q: Square.Carrier) => \into[B](trace f g q, (charts b).neighborhood) \by { contained q } \then
+  \let overInitial: Interval.Carrier -> Over.CarrierSet := \fun (s: Interval.Carrier) => \into[E](initial s, Maps.Preimage projection (charts b).neighborhood) \by {
+    \idelim trace f g (Square.at Interval.start s) = projection (initial s) \with v: B => \In[B] (charts b).neighborhood v
+      \by { base: contained (Square.at Interval.start s), equality: sym!{B} _ _ (ip s) }
+  } \then
+  \let sheet: Interval.Carrier -> Fiber b := \fun (s: Interval.Carrier) => Chart.index (charts b).chart (overInitial s) \then
+  \let sheetContinuous: topology.Continuity[A := Interval.Carrier, B := Fiber b].Continuous Interval.topology FiberSpace.Discrete sheet :=
+    Indices.composeContinuous Interval.topology (Over.topology total) FiberSpace.Discrete overInitial (Chart.index (charts b).chart)
+      (IntoTotal.corestrictContinuous Interval.topology total overInitial ic) (Chart.indexContinuous (charts b).chart) \then
+  \let coordinates: Square.Carrier -> Chart.FiberProduct := \fun (q: Square.Carrier) => Pair.pair Under.CarrierSet (Fiber b) (inBase q) (sheet (Square.point q)) \then
+  \let coordinatesContinuous: topology.Continuity[A := Square.Carrier, B := Chart.FiberProduct].Continuous (Square.topology Interval.topology) Chart.productTopology coordinates :=
+    Pairing.pairContinuous (Square.topology Interval.topology) (Under.topology base) FiberSpace.Discrete inBase (\fun (q: Square.Carrier) => sheet (Square.point q))
+      (IntoBase.corestrictContinuous (Square.topology Interval.topology) base inBase (traceContinuous f g fc gc))
+      (PullIndices.composeContinuous (Square.topology Interval.topology) Interval.topology FiberSpace.Discrete Square.point sheet (Square.pointContinuous Interval.topology) sheetContinuous) \then
+  \let lifted: Square.Carrier -> E := \fun (q: Square.Carrier) => ((charts b).chart).backward (coordinates q) \then
+  \let result: Lift (trace f g) initial := \into[Square.Carrier -> E](lifted, Lift (trace f g) initial) \by {
+    Laws[trace f g, initial, lifted] {
+      continuous := Include.composeContinuous (Square.topology Interval.topology) (Over.topology total) total
+        (\fun (q: Square.Carrier) => ((charts b).chart).backward (coordinates q)) (\fun (e: Over.CarrierSet) => e)
+        (Backward.composeContinuous (Square.topology Interval.topology) Chart.productTopology (Over.topology total) coordinates ((charts b).chart).backward
+          coordinatesContinuous ((Chart.laws (charts b).chart).homeomorphism).backwardContinuous)
+        (Inclusion.inclusionContinuous total),
+      projects := \fun (q: Square.Carrier) => Chart.sectionProjects (charts b).chart (sheet (Square.point q)) (inBase q),
+      starts := \fun (s: Interval.Carrier) => Chart.reconstruct (charts b).chart (overInitial s) (inBase (Square.at Interval.start s)) (ip s),
+    }
+  } \then
+  \return \exact(result, Lift (trace f g) initial)
+};

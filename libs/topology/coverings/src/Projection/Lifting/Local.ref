@@ -1,0 +1,30 @@
+\import \parent.\parent.Around[b := b, U := U] \as Chart;
+\import Base.Subspace[S := U] \as Under;
+\import Total.Subspace[S := Maps.Preimage projection U] \as Over;
+\import topology.Continuity[A := Interval.Carrier, B := B].Corestriction[S := U] \as Into;
+\import topology.Composition[A := Interval.Carrier, B := Under.CarrierSet, C := E] \as Compose;
+\definition Contained[x, y: B][path: BasePaths.Path x y]: \Prop := \forall (t: Interval.Carrier) -> \In[B] U (path t);
+\definition inNeighborhood[x, y: B][path: BasePaths.Path x y][contained: Contained x y path][t: Interval.Carrier]: Under.CarrierSet :=
+  \into[B](path t, U) \by { contained t };
+\definition overStart[x, y: B][path: BasePaths.Path x y][contained: Contained x y path][start: Fiber x]: Over.CarrierSet :=
+  \into[E](start, Maps.Preimage projection U) \by {
+    \idelim path Interval.start = projection start \with v: B => \In[B] U v \by {
+      base: contained Interval.start,
+      equality: trans!{B} _ _ _ (BasePaths.laws x y path).start (sym!{B} _ _ (projectsTo x start))
+    }
+  };
+\definition lift[x, y: B][path: BasePaths.Path x y][contained: Contained x y path][start: Fiber x][chart: Chart.Chart]: PathLift x y path start := \block {
+  \let e: Over.CarrierSet := overStart x y path contained start \then
+  \let sheet: Fiber b := Chart.index chart e \then
+  \let family: Interval.Carrier -> E := \fun (t: Interval.Carrier) => Chart.section chart sheet (inNeighborhood x y path contained t) \then
+  \return \into[Interval.Carrier -> E](family, PathLift x y path start) \by {
+    PathLiftLaws[x, y, path, start, family] {
+      continuous := Compose.composeContinuous Interval.topology (Under.topology base) total (inNeighborhood x y path contained) (Chart.section chart sheet)
+        (Into.corestrictContinuous Interval.topology base (inNeighborhood x y path contained) (BasePaths.laws x y path).continuous)
+        (Chart.sectionContinuous chart sheet),
+      projects := \fun (t: Interval.Carrier) => Chart.sectionProjects chart sheet (inNeighborhood x y path contained t),
+      starts := Chart.reconstruct chart e (inNeighborhood x y path contained Interval.start)
+        (trans!{B} _ _ _ (projectsTo x start) (sym!{B} _ _ (BasePaths.laws x y path).start)),
+    }
+  }
+};

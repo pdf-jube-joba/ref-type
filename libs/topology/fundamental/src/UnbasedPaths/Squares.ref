@@ -1,0 +1,40 @@
+\import \root.UnbasedPaths[A := A, source := source] \as Paths;
+\import algebraic_topology.Cylinder[A := I.Carrier] \as Square;
+\import topology.Continuity[A := Square.Carrier, B := A] \as ContinuousSquares;
+\import topology.Composition[A := I.Carrier, B := Square.Carrier, C := A] \as Slices;
+\import topology.Maps[A := I.Carrier, B := I.Carrier] \as Parameters;
+\import Parameters.Identity[] \as Identity;
+\import topological_constructions.Product[A := I.Carrier, B := I.Carrier].Universal[X := I.Carrier] \as SlicePair;
+\definition Family: \Set := \Cast[Square.Carrier -> A] ({ f: Square.Carrier -> A \where ContinuousSquares.Continuous (Square.topology I.topology) source f });
+\definition continuous[F: Family]: ContinuousSquares.Continuous (Square.topology I.topology) source F := \bysub(Square.Carrier -> A, Family, F);
+\definition pointSlice[u, t: I.Carrier]: Square.Carrier := Square.at t u;
+\definition pointSliceContinuous: \forall (u: I.Carrier) -> topology.Continuity[A := I.Carrier, B := Square.Carrier].Continuous I.topology (Square.topology I.topology) (pointSlice u) :=
+  \fun (u: I.Carrier) => SlicePair.pairContinuous I.topology I.topology I.topology (\fun (t: I.Carrier) => t) (\fun (_: I.Carrier) => u)
+    (Identity.continuous I.topology) (Parameters.constantContinuous I.topology I.topology u);
+\definition bottom[F: Family]: Paths.Carrier := \into[I.Carrier -> A](\fun (t: I.Carrier) => F (Square.at t I.start), Paths.Carrier) \by {
+  Slices.composeContinuous I.topology (Square.topology I.topology) source (pointSlice I.start) F (pointSliceContinuous I.start) (continuous F)
+};
+\definition top[F: Family]: Paths.Carrier := \into[I.Carrier -> A](\fun (t: I.Carrier) => F (Square.at t I.end), Paths.Carrier) \by {
+  Slices.composeContinuous I.topology (Square.topology I.topology) source (pointSlice I.end) F (pointSliceContinuous I.end) (continuous F)
+};
+\definition left[F: Family]: Paths.Carrier := \into[I.Carrier -> A](\fun (t: I.Carrier) => F (Square.at I.start t), Paths.Carrier) \by {
+  Slices.composeContinuous I.topology (Square.topology I.topology) source (\fun (t: I.Carrier) => Square.at I.start t) F (Square.atContinuous I.topology I.start) (continuous F)
+};
+\definition right[F: Family]: Paths.Carrier := \into[I.Carrier -> A](\fun (t: I.Carrier) => F (Square.at I.end t), Paths.Carrier) \by {
+  Slices.composeContinuous I.topology (Square.topology I.topology) source (\fun (t: I.Carrier) => Square.at I.end t) F (Square.atContinuous I.topology I.end) (continuous F)
+};
+\import topological_constructions.Product[A := I.Carrier, B := I.Carrier].Universal[X := Square.Carrier] \as Pair;
+\import topology.Composition[A := Square.Carrier, B := I.Carrier, C := I.Carrier] \as ComposeParameters;
+\import topology.Composition[A := Square.Carrier, B := Square.Carrier, C := A] \as ComposeSquares;
+\import topology.Continuity[A := I.Carrier, B := I.Carrier] \as ParameterMaps;
+\definition parameter[f, g: I.Carrier -> I.Carrier][q: Square.Carrier]: Square.Carrier := Square.at (f (Square.time q)) (g (Square.point q));
+\definition parameterContinuous: \forall (f, g: I.Carrier -> I.Carrier) -> ParameterMaps.Continuous I.topology I.topology f -> ParameterMaps.Continuous I.topology I.topology g ->
+  topology.Continuity[A := Square.Carrier, B := Square.Carrier].Continuous (Square.topology I.topology) (Square.topology I.topology) (parameter f g) :=
+  \fun (f, g: _)(fc: _)(gc: _) => Pair.pairContinuous (Square.topology I.topology) I.topology I.topology
+    (\fun (q: Square.Carrier) => f (Square.time q)) (\fun (q: Square.Carrier) => g (Square.point q))
+    (ComposeParameters.composeContinuous (Square.topology I.topology) I.topology I.topology Square.time f (Square.timeContinuous I.topology) fc)
+    (ComposeParameters.composeContinuous (Square.topology I.topology) I.topology I.topology Square.point g (Square.pointContinuous I.topology) gc);
+\definition reparam[F: Family][f, g: I.Carrier -> I.Carrier][fc: ParameterMaps.Continuous I.topology I.topology f][gc: ParameterMaps.Continuous I.topology I.topology g]: Family :=
+  \into[Square.Carrier -> A](\fun (q: Square.Carrier) => F (parameter f g q), Family) \by {
+    ComposeSquares.composeContinuous (Square.topology I.topology) (Square.topology I.topology) source (parameter f g) F (parameterContinuous f g fc gc) (continuous F)
+  };

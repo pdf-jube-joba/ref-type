@@ -1,0 +1,39 @@
+\import \root.Paths[A := A, source := source].ReverseHomotopy[] \as Reverse;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition uniqueOnNeighborhood: \forall (x: A)(V, U: \Pow A) -> SemilocalNeighborhood[x, V] -> ConnectedNeighborhood[x, V, U] ->
+  \forall (y, z: A)(p, q: Path U y z) -> Groupoid.class y z p = Groupoid.class y z q := \block {
+  \fun (x: A)(V, U: \Pow A)(semi: SemilocalNeighborhood[x, V])(local: ConnectedNeighborhood[x, V, U])(y, z: A)(p, q: Path U y z) \then
+  \let inY: Space.Member U y := \idelim p I.start = y \with a: A => Space.Member U a \by { base: within U y z p I.start, equality: (Paths.laws y z p).start } \then
+  \takefrom r: Path U x y \by local.connected x y local.contains inY \then
+  \let rv: Path V x y := restrict U V local.subset x y r \then
+  \let pv: Path V y z := restrict U V local.subset y z p \then
+  \let qv: Path V y z := restrict U V local.subset y z q \then
+  \let a: Path V x z := concatenate V x y z rv pv \then
+  \let b: Path V x z := concatenate V x y z rv qv \then
+  \let loop: Path V x x := concatenate V x z x a (reverse V x z b) \then
+  \let cancel: Groupoid.compose x z x (Groupoid.class x z a) (Groupoid.inverse x z (Groupoid.class x z b)) = Groupoid.identity x :=
+    trans!{{Groupoid.Arrow x x}} _ _ _
+      (trans!{{Groupoid.Arrow x x}} _ _ _
+        (congr!{{Groupoid.Arrow z x} {Groupoid.Arrow x x}} (Groupoid.compose x z x (Groupoid.class x z a)) _ _ (Reverse.Between[x := x, y := z].onClass b))
+        (Join.Classes[x := x, y := z, z := x].onClass a (Paths.reverse x z b))) (semi.null loop) \then
+  \let equal: Groupoid.class x z a = Groupoid.class x z b := Groupoid.equalOfLoop x z (Groupoid.class x z a) (Groupoid.class x z b) cancel \then
+  \return Groupoid.cancelLeft x y z (Groupoid.class x y r) (Groupoid.class y z p) (Groupoid.class y z q)
+    (trans!{{Groupoid.Arrow x z}} _ _ _ (Join.Classes[x := x, y := y, z := z].onClass r p)
+      (trans!{{Groupoid.Arrow x z}} _ _ _ equal (sym!{{Groupoid.Arrow x z}} _ _ (Join.Classes[x := x, y := y, z := z].onClass r q))))
+};
+\definition refine: LocallyPathConnected -> SemilocallySimplyConnected -> GoodBasis := \block {
+  \fun (lpc: _)(semi: _)(W: \Pow A)(wo: _)(x: A)(inW: _) \then
+  \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where SemilocalNeighborhood[x, V] }) \by semi x \then
+  \let v: SemilocalNeighborhood[x, V] := \bysub(\Pow A, { V: \Pow A \where SemilocalNeighborhood[x, V] }, V) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where ConnectedNeighborhood[x, Space.Intersection W V, U] }) \by
+    lpc (Space.Intersection W V) ((Space.topologyLaws source).intersectionOpen W V wo v.open) x (Logic.And[_, _]::# inW v.contains) \then
+  \let u: ConnectedNeighborhood[x, Space.Intersection W V, U] := \bysub(\Pow A, { U: \Pow A \where ConnectedNeighborhood[x, Space.Intersection W V, U] }, U) \then
+  \let inside: ConnectedNeighborhood[x, V, U] := ConnectedNeighborhood[x, V, U] { open := u.open, contains := u.contains,
+    subset := \fun (a: A)(member: _) => (u.subset a member).right, connected := u.connected } \then
+  \return Logic.existsIntro[\Pow A, { U: \Pow A \where Refinement[x, W, U] }] U (Refinement[x, W, U] {
+    contains := u.contains, subset := \fun (a: A)(member: _) => (u.subset a member).left,
+    good := Good[U] { open := u.open, connected := u.connected, unique := uniqueOnNeighborhood x V U v inside },
+  })
+};

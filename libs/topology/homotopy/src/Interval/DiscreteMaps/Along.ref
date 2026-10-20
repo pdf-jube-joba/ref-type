@@ -1,0 +1,34 @@
+\definition Preimage[t: Carrier]: \Pow Carrier := { s: Carrier \where f s = f t };
+\definition family: \Pow (\Pow Carrier) := { V: \Pow Carrier \where \exists ( t: Carrier \where V = Preimage t ) };
+\definition cover: Space.IsOpenCover[topology, family, Space.Whole] := Space.IsOpenCover[topology, family, Space.Whole] {
+  open := \block {
+    \fun (V: \Pow Carrier)(member: \In[\Pow Carrier] family V) \then
+    \takefrom t: \Cast[Carrier] ({ t: Carrier \where V = Preimage t }) \by member \then
+    \return \idelim Preimage t = V \with W: \Pow Carrier => Space.IsOpenIn topology W \by {
+      base: continuous (Target.Singleton (f t)) (Target.discreteOpen (Target.Singleton (f t))),
+      equality: sym!{\Pow Carrier} _ _ (\bysub(Carrier, { t: Carrier \where V = Preimage t }, t))
+    }
+  },
+  covers := \fun (t: Carrier)(_ : t = t) => Space.unionMemberOf family (Preimage t) t
+    (Logic.existsIntro[Carrier, { s: Carrier \where Preimage t = Preimage s }] t (\refl(Preimage t))) (\refl(f t)),
+};
+\import Subdivision.Cover[family := family] \as Fine;
+\definition Property[g: Carrier -> Carrier]: \Prop := f (g start) = f (g end);
+\definition combine: \forall (g: Carrier -> Carrier) -> Property (Subdivision.left g) -> Property (Subdivision.right g) -> Property g :=
+  \fun (g: Carrier -> Carrier)(left: _)(right: _) => trans!{B} _ _ _
+    (congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ (sym!{Carrier} _ _ Halves.lowerStart))
+    (trans!{B} _ _ _ left (trans!{B} _ _ _
+      (congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ (trans!{Carrier} _ _ _ Halves.lowerEnd (sym!{Carrier} _ _ Halves.upperStart)))
+      (trans!{B} _ _ _ right (congr!{Carrier B} (\fun (t: Carrier) => f (g t)) _ _ Halves.upperEnd))));
+\definition local: \forall (g: Carrier -> Carrier) -> Maps.Continuous topology topology g ->
+  \forall (V: \Pow Carrier) -> \In[\Pow Carrier] family V -> Fine.Within g V -> Property g := \block {
+  \fun (g: Carrier -> Carrier)(gc: _)(V: _)(member: _)(within: _) \then
+  \takefrom t: \Cast[Carrier] ({ t: Carrier \where V = Preimage t }) \by member \then
+  \let same: V = Preimage t := \bysub(Carrier, { t: Carrier \where V = Preimage t }, t) \then
+  \let atStart: f (g start) = f t := \idelim V = Preimage t \with W: \Pow Carrier => \In[Carrier] W (g start)
+    \by { base: within start, equality: same } \then
+  \let atEnd: f (g end) = f t := \idelim V = Preimage t \with W: \Pow Carrier => \In[Carrier] W (g end)
+    \by { base: within end, equality: same } \then
+  \return trans!{B} _ _ _ atStart (sym!{B} _ _ atEnd)
+};
+\definition endpoints: f start = f end := Fine.localToGlobal cover Property combine local;

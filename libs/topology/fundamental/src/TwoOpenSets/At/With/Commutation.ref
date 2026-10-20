@@ -1,0 +1,20 @@
+\import \root.Paths[A := Overlap.CarrierSet, source := Overlap.topology source] \as OverlapBased;
+\import OverlapBased.Maps[B := Left.CarrierSet, target := Left.topology source] \as ToLeft;
+\import OverlapBased.Maps[B := Right.CarrierSet, target := Right.topology source] \as ToRight;
+\import \root.Paths[A := Left.CarrierSet, source := Left.topology source].Maps[B := A, target := source] \as FromLeft;
+\import \root.Paths[A := Right.CarrierSet, source := Right.topology source].Maps[B := A, target := source] \as FromRight;
+\import \root.Groupoid[A := Overlap.CarrierSet, source := Overlap.topology source].Maps[B := Left.CarrierSet, target := Left.topology source] \as LeftNative;
+\import \root.Groupoid[A := Overlap.CarrierSet, source := Overlap.topology source].Maps[B := Right.CarrierSet, target := Right.topology source] \as RightNative;
+\import \root.Groupoid[A := Left.CarrierSet, source := Left.topology source].Maps[B := A, target := source] \as AmbientLeft;
+\import \root.Groupoid[A := Right.CarrierSet, source := Right.topology source].Maps[B := A, target := source] \as AmbientRight;
+\definition onClass: \forall (p: OverlapBased.Path overlapBase overlapBase) -> leftInduced (OverlapLeftGroup.induced (OverlapGroup.class p)) = rightInduced (OverlapRightGroup.induced (OverlapGroup.class p)) :=
+  \fun (p: _) => trans!{Fundamental.Carrier} _ _ _
+    (congr!{LeftGroup.Carrier Fundamental.Carrier} leftInduced _ _ (LeftNative.onClass OverlapLeft.inclusion OverlapLeft.continuous overlapBase overlapBase p))
+    (trans!{Fundamental.Carrier} _ _ _
+      (AmbientLeft.onClass leftInclusion (LeftInclusion.inclusionContinuous source) leftBase leftBase (ToLeft.apply OverlapLeft.inclusion OverlapLeft.continuous overlapBase overlapBase p))
+      (trans!{Fundamental.Carrier} _ _ _
+        (sym!{Fundamental.Carrier} _ _ (AmbientRight.onClass rightInclusion (RightInclusion.inclusionContinuous source) rightBase rightBase (ToRight.apply OverlapRight.inclusion OverlapRight.continuous overlapBase overlapBase p)))
+        (congr!{RightGroup.Carrier Fundamental.Carrier} rightInduced _ _ (sym!{RightGroup.Carrier} _ _ (RightNative.onClass OverlapRight.inclusion OverlapRight.continuous overlapBase overlapBase p)))));
+\definition commutes: \forall (a: OverlapGroup.Carrier) -> leftInduced (OverlapLeftGroup.induced a) = rightInduced (OverlapRightGroup.induced a) :=
+  OverlapBased.Between[x := overlapBase, y := overlapBase].induction
+    (\fun (a: OverlapGroup.Carrier) => leftInduced (OverlapLeftGroup.induced a) = rightInduced (OverlapRightGroup.induced a)) onClass;

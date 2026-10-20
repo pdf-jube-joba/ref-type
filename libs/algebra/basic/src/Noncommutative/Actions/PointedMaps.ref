@@ -1,0 +1,25 @@
+\import \parent.\parent.Actions[S := T] \as Target;
+\import \parent.At[act := act, point := point] \as Source;
+\import \parent.\parent.Cosets[H := Source.subgroup] \as Cosets;
+\import Cosets.Mapping[S := T] \as Descent;
+\structure Map: \Set := {
+  apply: S -> T,
+  commutes: \forall (a: G)(s: S) -> apply (act a s) = target a (apply s),
+  pointed: apply point = targetPoint,
+};
+\definition Compatible: \Prop := \forall (a: G) -> act a point = point -> target a targetPoint = targetPoint;
+\module Along(compatible: Compatible, transitive: Transitive act);
+\definition unique: Transitive act -> \forall (f, g: Map)(s: S) -> f.apply s = g.apply s := \block {
+  \fun (transitive: _)(f, g: Map)(s: S) \then
+  \takefrom a: \Cast[G] ({ a: G \where act a point = s }) \by transitive point s \then
+  \let same: act a point = s := \bysub(G, { a: G \where act a point = s }, a) \then
+  \return eq_reason!{{f.apply s}
+    "=" {f.apply (act a point)} "by" {congr!{S T} f.apply _ _ (sym!{S} _ _ same)}
+    "=" {target a (f.apply point)} "by" {f.commutes a point}
+    "=" {target a targetPoint} "by" {congr!{T T} (target a) _ _ f.pointed}
+    "=" {target a (g.apply point)} "by" {congr!{T T} (target a) _ _ (sym!{T} _ _ g.pointed)}
+    "=" {g.apply (act a point)} "by" {sym!{T} _ _ (g.commutes a point)}
+    "=" {g.apply s} "by" {congr!{S T} g.apply _ _ same}}
+};
+\definition existsMap: Transitive act -> Compatible -> \exists Map :=
+  \fun (transitive: _)(compatible: _) => \exact(Along[compatible := compatible, transitive := transitive].map, Map);

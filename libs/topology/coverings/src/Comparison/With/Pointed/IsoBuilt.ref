@@ -1,0 +1,45 @@
+\import \root.Comparison[E := E, F := F, B := B, total := total, other := other, base := base, projection := projection, otherProjection := otherProjection].With[c := c, d := d].Pointed[point := point, targetPoint := targetPoint] \as Pointed;
+\import Pointed.Built[basis := basis, bridges := bridges, connected := connected, compatible := \fun (g: Fundamental.Carrier) => (same g).ltr] \as Forward;
+\import \root.Comparison[E := F, F := E, B := B, total := other, other := total, base := base, projection := otherProjection, otherProjection := projection] \as Reverse;
+\import Reverse.With[c := d, d := c] \as ReverseComparison;
+\import ReverseComparison.Rebasing[b := b, bridges := bridges] \as ReverseRebase;
+\import BackMaps.Along[compatible := \fun (g: Fundamental.Carrier) => (same g).rtl, transitive := TargetFiber.connectedTransitive otherConnected] \as BackFiber;
+\definition backwardBase: ReverseRebase.FiberMap := ReverseRebase.FiberMap { apply := BackFiber.map.apply, commutes := BackFiber.map.commutes };
+\import ReverseRebase.Extend[map := backwardBase] \as Backward;
+\definition backwardContinuous: topology.Continuity[A := F, B := E].Continuous other total Backward.data.apply :=
+  ReverseComparison.Along[m := Backward.data, equivariant := Backward.equivariant, basis := basis].continuous;
+\definition backwardPointed: Backward.data.apply targetPoint = point := trans!{E} _ _ _ (Backward.atBase targetPoint) BackFiber.map.pointed;
+\import \root.Comparison[E := E, F := E, B := B, total := total, other := total, base := base, projection := projection, otherProjection := projection] \as SourceSelf;
+\import \root.Comparison[E := F, F := F, B := B, total := other, other := other, base := base, projection := otherProjection, otherProjection := otherProjection] \as TargetSelf;
+\definition sourceComposite: SourceSelf.OverMap := SourceSelf.OverMap {
+  apply := \fun (e: E) => Backward.data.apply (Forward.map.map.apply e),
+  over := \fun (e: E) => trans!{B} _ _ _ (Backward.data.over (Forward.map.map.apply e)) (Forward.map.map.over e),
+};
+\definition targetComposite: TargetSelf.OverMap := TargetSelf.OverMap {
+  apply := \fun (f: F) => Forward.map.map.apply (Backward.data.apply f),
+  over := \fun (f: F) => trans!{B} _ _ _ (Forward.map.map.over (Backward.data.apply f)) (Backward.data.over f),
+};
+\definition sourceIdentity: SourceSelf.OverMap := SourceSelf.OverMap { apply := \fun (e: E) => e, over := \fun (e: E) => \refl(projection e) };
+\definition targetIdentity: TargetSelf.OverMap := TargetSelf.OverMap { apply := \fun (f: F) => f, over := \fun (f: F) => \refl(otherProjection f) };
+\import topology.Composition[A := E, B := F, C := E] \as SourceComposition;
+\import topology.Composition[A := F, B := E, C := F] \as TargetComposition;
+\import topology.Maps[A := E, B := E].Identity[] \as SourceIdentity;
+\import topology.Maps[A := F, B := F].Identity[] \as TargetIdentity;
+\definition leftInverse: \forall (e: E) -> Backward.data.apply (Forward.map.map.apply e) = e :=
+  SourceSelf.With[c := c, d := c].unique connected sourceComposite sourceIdentity
+    (SourceComposition.composeContinuous total other total Forward.map.map.apply Backward.data.apply Forward.map.continuous backwardContinuous)
+    (SourceIdentity.continuous total) point
+    (trans!{E} _ _ _ (congr!{F E} Backward.data.apply _ _ Forward.map.pointed) backwardPointed);
+\definition rightInverse: \forall (f: F) -> Forward.map.map.apply (Backward.data.apply f) = f :=
+  TargetSelf.With[c := d, d := d].unique otherConnected targetComposite targetIdentity
+    (TargetComposition.composeContinuous other total other Backward.data.apply Forward.map.map.apply backwardContinuous Forward.map.continuous)
+    (TargetIdentity.continuous other) targetPoint
+    (trans!{F} _ _ _ (congr!{E F} Forward.map.map.apply _ _ backwardPointed) Forward.map.pointed);
+\definition data: Homeomorphism.Data := Homeomorphism.Data { forward := Forward.map.map.apply, backward := Backward.data.apply };
+\definition isomorphism: Isomorphism := Isomorphism {
+  data := data,
+  laws := Homeomorphism.Laws[total, other, data] { leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Forward.map.continuous, backwardContinuous := backwardContinuous },
+  over := Forward.map.map.over,
+  pointed := Forward.map.pointed,
+};

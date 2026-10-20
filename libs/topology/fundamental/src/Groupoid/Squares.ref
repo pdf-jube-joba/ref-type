@@ -1,0 +1,49 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := I.Carrier] \as Square;
+\import \root.Paths[A := Square.Carrier, source := Square.topology I.topology] \as Parameters;
+\import Parameters.Concatenation[] \as ParameterJoin;
+\import Parameters.Maps[B := A, target := source] \as Map;
+\import Paths.Concatenation[] \as Join;
+\import \root.UnbasedPaths[A := A, source := source] \as Raw;
+\import Raw.Squares[] \as Edges;
+\import \root.UnbasedPaths[A := Square.Carrier, source := Square.topology I.topology].Squares[] \as Slices;
+\import \root.SquarePaths[] \as Convex;
+\definition lowerLeft: Square.Carrier := Square.at I.start I.start;
+\definition lowerRight: Square.Carrier := Square.at I.end I.start;
+\definition upperLeft: Square.Carrier := Square.at I.start I.end;
+\definition upperRight: Square.Carrier := Square.at I.end I.end;
+\definition bottom: Parameters.Path lowerLeft lowerRight := \into[Parameters.Function](\fun (t: I.Carrier) => Square.at t I.start, Parameters.Path lowerLeft lowerRight) \by {
+  Parameters.Laws[lowerLeft, lowerRight, \fun (t: I.Carrier) => Square.at t I.start] {
+    continuous := Slices.pointSliceContinuous I.start, start := \refl(lowerLeft), end := \refl(lowerRight) }
+};
+\definition right: Parameters.Path lowerRight upperRight := \into[Parameters.Function](\fun (t: I.Carrier) => Square.at I.end t, Parameters.Path lowerRight upperRight) \by {
+  Parameters.Laws[lowerRight, upperRight, \fun (t: I.Carrier) => Square.at I.end t] {
+    continuous := Square.atContinuous I.topology I.end, start := \refl(lowerRight), end := \refl(upperRight) }
+};
+\definition left: Parameters.Path lowerLeft upperLeft := \into[Parameters.Function](\fun (t: I.Carrier) => Square.at I.start t, Parameters.Path lowerLeft upperLeft) \by {
+  Parameters.Laws[lowerLeft, upperLeft, \fun (t: I.Carrier) => Square.at I.start t] {
+    continuous := Square.atContinuous I.topology I.start, start := \refl(lowerLeft), end := \refl(upperLeft) }
+};
+\definition top: Parameters.Path upperLeft upperRight := \into[Parameters.Function](\fun (t: I.Carrier) => Square.at t I.end, Parameters.Path upperLeft upperRight) \by {
+  Parameters.Laws[upperLeft, upperRight, \fun (t: I.Carrier) => Square.at t I.end] {
+    continuous := Slices.pointSliceContinuous I.end, start := \refl(upperLeft), end := \refl(upperRight) }
+};
+\definition boundaryHomotopy: \forall (F: Edges.Family) -> Paths.Homotopic (F lowerLeft) (F upperRight)
+  (Join.concatenate (F lowerLeft) (F lowerRight) (F upperRight) (Raw.asPath (Edges.bottom F)) (Raw.asPath (Edges.right F)))
+  (Join.concatenate (F lowerLeft) (F upperLeft) (F upperRight) (Raw.asPath (Edges.left F)) (Raw.asPath (Edges.top F))) :=
+  \fun (F: Edges.Family) => Paths.homotopyCongruent _ _ _ _
+    (Map.mapConcatenate F (Edges.continuous F) lowerLeft lowerRight upperRight bottom right)
+    (Map.mapConcatenate F (Edges.continuous F) lowerLeft upperLeft upperRight left top)
+    (Map.respects F (Edges.continuous F) lowerLeft upperRight
+      (ParameterJoin.concatenate lowerLeft lowerRight upperRight bottom right)
+      (ParameterJoin.concatenate lowerLeft upperLeft upperRight left top)
+      (Convex.homotopic lowerLeft upperRight _ _));
+\definition boundary: \forall (F: Edges.Family) ->
+  compose (F lowerLeft) (F lowerRight) (F upperRight) (class _ _ (Raw.asPath (Edges.bottom F))) (class _ _ (Raw.asPath (Edges.right F))) =
+  compose (F lowerLeft) (F upperLeft) (F upperRight) (class _ _ (Raw.asPath (Edges.left F))) (class _ _ (Raw.asPath (Edges.top F))) :=
+  \fun (F: Edges.Family) => trans!{{Arrow (F lowerLeft) (F upperRight)}} _ _ _
+    (Join.Classes[x := F lowerLeft, y := F lowerRight, z := F upperRight].onClass (Raw.asPath (Edges.bottom F)) (Raw.asPath (Edges.right F)))
+    (trans!{{Arrow (F lowerLeft) (F upperRight)}} _ _ _
+      (Paths.Between[x := F lowerLeft, y := F upperRight].sameClass _ _ (boundaryHomotopy F))
+      (sym!{{Arrow (F lowerLeft) (F upperRight)}} _ _
+        (Join.Classes[x := F lowerLeft, y := F upperLeft, z := F upperRight].onClass (Raw.asPath (Edges.left F)) (Raw.asPath (Edges.top F)))));

@@ -1,0 +1,30 @@
+\import \root.Paths[A := A, source := source] \as Paths;
+\import \root.Groupoid[A := A, source := source] \as G;
+\import algebraic_topology.Interval[] \as I;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\use Logic.either;
+\definition Bridge[x: A]: \Set := \Cast[Paths.Path basepoint x]
+  ({ p: Paths.Path basepoint x \where \forall (t: I.Carrier) -> x = basepoint -> p t = basepoint });
+\definition Family: \Set := \forall (x: A) -> Bridge x;
+\definition existsBridge: Paths.PathConnected -> \forall (x: A) -> \exists Bridge x :=
+  \fun (connected: _)(x: _) => either!{{(Classical.excludedMiddle (x = basepoint))} {\exists Bridge x}
+    {\fun (same: x = basepoint) => \idelim basepoint = x \with y: A => \exists Bridge y \by {
+      base: \exact(\into[Paths.Path basepoint basepoint](Paths.constant basepoint, Bridge basepoint) \by { \fun (t: I.Carrier)(_: _) => \refl(basepoint) }, Bridge basepoint),
+      equality: sym!{A} _ _ same }}
+    {\block {
+      \fun (different: Logic.Not (x = basepoint)) \then
+      \takefrom p: Paths.Path basepoint x \by connected basepoint x \then
+      \return \exact(\into[Paths.Path basepoint x](p, Bridge x) \by {
+        \fun (t: I.Carrier)(same: x = basepoint) => Logic.falseElim (p t = basepoint) (different same)
+      }, Bridge x)
+    }}};
+\definition existsFamily: Paths.PathConnected -> \exists Family :=
+  \fun (connected: _) => \axiom:classicalIndefiniteChoice(A, (\fun (x: A) => Bridge x), existsBridge connected);
+\module Along(bridges: Family);

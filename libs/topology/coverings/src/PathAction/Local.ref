@@ -1,0 +1,51 @@
+\definition Value[x, y: B][e: Fiber x]: \Set := \Cast[Fiber y]
+  ({ f: Fiber y \where \forall (p: Neighborhoods.Path U x y) -> action.move x y (G.class x y p) e = f });
+\definition existsValue: \forall (x, y: B) -> Base.Member U x -> Base.Member U y -> \forall (e: Fiber x) -> \exists Value x y e := \block {
+  \fun (x, y: B)(inX: _)(inY: _)(e: Fiber x) \then
+  \takefrom p: Neighborhoods.Path U x y \by good.connected x y inX inY \then
+  \return \exact(\into[Fiber y](action.move x y (G.class x y p) e, Value x y e) \by {
+    \fun (q: Neighborhoods.Path U x y) => congr!{{G.Arrow x y} E} (\fun (r: G.Arrow x y) => action.move x y r e) _ _ (good.unique x y q p)
+  }, Value x y e)
+};
+\definition uniqueValue: \forall (x, y: B) -> Base.Member U x -> Base.Member U y -> \forall (e: Fiber x)(f, h: Value x y e) -> f = h := \block {
+  \fun (x, y: B)(inX: _)(inY: _)(e: Fiber x)(f, h: Value x y e) \then
+  \takefrom p: Neighborhoods.Path U x y \by good.connected x y inX inY \then
+  \return trans!{E} _ _ _ (sym!{E} _ _ (\bysub(Fiber y, Value x y e, f) p)) (\bysub(Fiber y, Value x y e, h) p)
+};
+\definition move[x, y: B][inX: Base.Member U x][inY: Base.Member U y][e: Fiber x]: Value x y e :=
+  \choice Value x y e \by { existence: existsValue x y inX inY e, uniqueness: uniqueValue x y inX inY e };
+\definition onPath: \forall (x, y: B)(inX: Base.Member U x)(inY: Base.Member U y)(e: Fiber x)(p: Neighborhoods.Path U x y) ->
+  move x y inX inY e = action.move x y (G.class x y p) e :=
+  \fun (x, y: B)(inX: _)(inY: _)(e: _)(p: _) => sym!{E} _ _ (\bysub(Fiber y, Value x y e, move x y inX inY e) p);
+\definition identity: \forall (x: B)(inX: Base.Member U x)(e: Fiber x) -> move x x inX inX e = e :=
+  \fun (x: B)(inX: _)(e: _) => trans!{E} _ _ _ (onPath x x inX inX e (Neighborhoods.constant U x inX)) (action.identity x e);
+\import fundamental_groups.Paths[A := B, source := base].Concatenation[] \as Join;
+\definition compose: \forall (x, y, z: B)(inX: Base.Member U x)(inY: Base.Member U y)(inZ: Base.Member U z)(e: Fiber x) ->
+  move x z inX inZ e = move y z inY inZ (move x y inX inY e) := \block {
+  \fun (x, y, z: B)(inX: _)(inY: _)(inZ: _)(e: _) \then
+  \takefrom p: Neighborhoods.Path U x y \by good.connected x y inX inY \then
+  \takefrom q: Neighborhoods.Path U y z \by good.connected y z inY inZ \then
+  \return eq_reason!{{move x z inX inZ e}
+    "=" {action.move x z (G.class x z (Neighborhoods.concatenate U x y z p q)) e} "by" {onPath x z inX inZ e (Neighborhoods.concatenate U x y z p q)}
+    "=" {action.move x z (G.compose x y z (G.class x y p) (G.class y z q)) e} "by" {
+      congr!{{G.Arrow x z} E} (\fun (r: G.Arrow x z) => action.move x z r e) _ _
+        (sym!{{G.Arrow x z}} _ _ (Join.Classes[x := x, y := y, z := z].onClass p q))}
+    "=" {action.move y z (G.class y z q) (action.move x y (G.class x y p) e)} "by" {action.compose x y z (G.class x y p) (G.class y z q) e}
+    "=" {action.move y z (G.class y z q) (move x y inX inY e)} "by" {
+      congr!{{Fiber y} E} (action.move y z (G.class y z q)) _ _ (sym!{E} _ _ (onPath x y inX inY e p))}
+    "=" {move y z inY inZ (move x y inX inY e)} "by" {sym!{E} _ _ (onPath y z inY inZ (move x y inX inY e) q)}}
+};
+\definition inverse: \forall (x, y: B)(inX: Base.Member U x)(inY: Base.Member U y)(e: Fiber x) ->
+  move y x inY inX (move x y inX inY e) = e :=
+  \fun (x, y: B)(inX: _)(inY: _)(e: _) => trans!{E} _ _ _ (sym!{E} _ _ (compose x y x inX inY inX e)) (identity x inX e);
+\definition changeSource: \forall (x, z, y: B)(inX: Base.Member U x)(inZ: Base.Member U z)(inY: Base.Member U y)(e: Fiber x)(f: Fiber z) ->
+  x = z -> e = f -> move x y inX inY e = move z y inZ inY f :=
+  \fun (x, z, y: B)(inX: _)(inZ: _)(inY: _)(e: _)(f: _)(same: x = z) =>
+    (\idelim x = z \with a: B => \forall (inside: Base.Member U a)(h: Fiber a) -> e = h -> move x y inX inY e = move a y inside inY h
+      \by { base: \fun (inside: _)(h: Fiber x)(equal: e = h) => congr!{{Fiber x} E} (move x y inX inY) e h equal, equality: same }) inZ f;
+\definition changeTarget: \forall (x, y, z: B)(inX: Base.Member U x)(inY: Base.Member U y)(inZ: Base.Member U z)(e: Fiber x) ->
+  y = z -> move x y inX inY e = move x z inX inZ e :=
+  \fun (x, y, z: B)(inX: _)(inY: _)(inZ: _)(e: _)(same: y = z) =>
+    (\idelim y = z \with a: B => \forall (inside: Base.Member U a) -> move x y inX inY e = move x a inX inside e
+      \by { base: \fun (inside: _) => \refl(move x y inX inY e), equality: same }) inZ;
+\module Restriction(V: \Pow B, smaller: Neighborhoods.Good[V], subset: Base.Subset V U);

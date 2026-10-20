@@ -1,0 +1,52 @@
+\import Current.To[T := Q, target := q, left := left, right := right] \as Forward;
+\import Other.To[T := P, target := p, left := fromLeft, right := fromRight] \as Backward;
+\definition forward: Forward.Extension := \choice Forward.Extension \by {
+  existence: current.exists Q q left right other.commutes, uniqueness: current.unique Q q left right };
+\definition backward: Backward.Extension := \choice Backward.Extension \by {
+  existence: other.exists P p fromLeft fromRight current.commutes, uniqueness: other.unique P p fromLeft fromRight };
+\definition forwardLaws: Forward.Extends[forward] := \bysub(\root.Hom[A := P, B := Q].GroupMap p q, Forward.Extension, forward);
+\definition backwardLaws: Backward.Extends[backward] := \bysub(\root.Hom[A := Q, B := P].GroupMap q p, Backward.Extension, backward);
+\import Current.To[T := P, target := p, left := fromLeft, right := fromRight] \as SourceEnd;
+\import Other.To[T := Q, target := q, left := left, right := right] \as TargetEnd;
+\import \root.Hom[A := P, B := Q].Composition[C := P] \as SourceComposition;
+\import \root.Hom[A := Q, B := P].Composition[C := Q] \as TargetComposition;
+\definition sourceComposite: SourceEnd.Extension :=
+  \into[\root.Hom[A := P, B := P].GroupMap p p](SourceComposition.groupMap p q p forward backward, SourceEnd.Extension) \by {
+    SourceEnd.Extends[SourceComposition.groupMap p q p forward backward] {
+      left := \fun (x: A) => trans!{P} _ _ _ (congr!{Q P} backward _ _ (forwardLaws.left x)) (backwardLaws.left x),
+      right := \fun (x: B) => trans!{P} _ _ _ (congr!{Q P} backward _ _ (forwardLaws.right x)) (backwardLaws.right x),
+    }
+  };
+\definition targetComposite: TargetEnd.Extension :=
+  \into[\root.Hom[A := Q, B := Q].GroupMap q q](TargetComposition.groupMap q p q backward forward, TargetEnd.Extension) \by {
+    TargetEnd.Extends[TargetComposition.groupMap q p q backward forward] {
+      left := \fun (x: A) => trans!{Q} _ _ _ (congr!{P Q} forward _ _ (backwardLaws.left x)) (forwardLaws.left x),
+      right := \fun (x: B) => trans!{Q} _ _ _ (congr!{P Q} forward _ _ (backwardLaws.right x)) (forwardLaws.right x),
+    }
+  };
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Alg[].Alg[] \as Alg;
+\import \root.Hom[A := P, B := P] \as SourceHom;
+\import \root.Hom[A := Q, B := Q] \as TargetHom;
+\definition sourceMonoid: Monoid.Monoid[P] := \into[Monoid.MonoidData[P]](Alg.groupMonoid P p, Monoid.Monoid[P]) \by { p.monoid };
+\definition targetMonoid: Monoid.Monoid[Q] := \into[Monoid.MonoidData[Q]](Alg.groupMonoid Q q, Monoid.Monoid[Q]) \by { q.monoid };
+\definition sourceIdentityHom: SourceHom.GroupMap p p := \into[P -> P](\fun (x: P) => x, SourceHom.GroupMap p p) \by {
+  SourceHom.MonoidLaws[sourceMonoid, sourceMonoid, \fun (x: P) => x] { unit := \refl(p.unit), operation := \fun (x, y: P) => \refl(p.op x y) }
+};
+\definition targetIdentityHom: TargetHom.GroupMap q q := \into[Q -> Q](\fun (x: Q) => x, TargetHom.GroupMap q q) \by {
+  TargetHom.MonoidLaws[targetMonoid, targetMonoid, \fun (x: Q) => x] { unit := \refl(q.unit), operation := \fun (x, y: Q) => \refl(q.op x y) }
+};
+\definition sourceIdentity: SourceEnd.Extension := \into[SourceHom.GroupMap p p](sourceIdentityHom, SourceEnd.Extension) \by {
+  SourceEnd.Extends[sourceIdentityHom] { left := \fun (x: A) => \refl(fromLeft x), right := \fun (x: B) => \refl(fromRight x) }
+};
+\definition targetIdentity: TargetEnd.Extension := \into[TargetHom.GroupMap q q](targetIdentityHom, TargetEnd.Extension) \by {
+  TargetEnd.Extends[targetIdentityHom] { left := \fun (x: A) => \refl(left x), right := \fun (x: B) => \refl(right x) }
+};
+\definition isomorphism: Isomorphism := Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (x: P) => congr!{{P -> P} P} (\fun (f: P -> P) => f x) sourceComposite sourceIdentity
+    (current.unique P p fromLeft fromRight sourceComposite sourceIdentity),
+  rightInverse := \fun (x: Q) => congr!{{Q -> Q} Q} (\fun (f: Q -> Q) => f x) targetComposite targetIdentity
+    (other.unique Q q left right targetComposite targetIdentity),
+  left := forwardLaws.left, right := forwardLaws.right,
+};

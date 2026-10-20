@@ -1,0 +1,49 @@
+\import topology.Topology[Carrier := A] \as Space;
+\import Space.Subspace[S := U] \as Under;
+\import \root.Paths[A := A, source := source] \as Paths;
+\import \root.Paths[A := Under.CarrierSet, source := Under.topology source] \as Subpaths;
+\import \root.UnbasedPaths[A := A, source := source] \as Raw;
+\import \root.UnbasedPaths[A := Under.CarrierSet, source := Under.topology source] \as Subraw;
+\import \root.Neighborhoods[A := A, source := source] \as Neighborhoods;
+\import algebraic_topology.Interval[] \as I;
+\import topology.Continuity[A := I.Carrier, B := A].Corestriction[S := U] \as Into;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\definition Within[p: Raw.Carrier]: \Prop := \forall (t: I.Carrier) -> Space.Member U (p t);
+\definition raw[p: Raw.Carrier][within: Within p]: Subraw.Carrier := \into[I.Carrier -> Under.CarrierSet]
+  (\fun (t: I.Carrier) => \into[A](p t, U) \by { within t }, Subraw.Carrier) \by {
+    Into.corestrictContinuous I.topology source (\fun (t: I.Carrier) => \into[A](p t, U) \by { within t }) (Raw.continuous p)
+  };
+\definition path[x, y: Under.CarrierSet][p: Paths.Path x y][within: Neighborhoods.Within U x y p]: Subpaths.Path x y :=
+  \into[Subpaths.Function](raw (Raw.forget x y p) within, Subpaths.Path x y) \by {
+    Subpaths.Laws[x, y, raw (Raw.forget x y p) within] {
+      continuous := Subraw.continuous (raw (Raw.forget x y p) within), start := (Paths.laws x y p).start, end := (Paths.laws x y p).end,
+    }
+  };
+\import Paths.Concatenation[] \as Join;
+\import Subpaths.Concatenation[] \as Subjoin;
+\definition concatenate: \forall (x, y, z: Under.CarrierSet)(p: Neighborhoods.Path U x y)(q: Neighborhoods.Path U y z) ->
+  path x z (Neighborhoods.concatenate U x y z p q) (Neighborhoods.within U x z (Neighborhoods.concatenate U x y z p q)) =
+    Subjoin.concatenate x y z (path x y p (Neighborhoods.within U x y p)) (path y z q (Neighborhoods.within U y z q)) :=
+  \fun (x, y, z: Under.CarrierSet)(p: _)(q: _) => Subjoin.extensional x y z
+    (path x y p (Neighborhoods.within U x y p)) (path y z q (Neighborhoods.within U y z q))
+    (path x z (Neighborhoods.concatenate U x y z p q) (Neighborhoods.within U x z (Neighborhoods.concatenate U x y z p q)))
+    (\fun (t: I.Carrier)(left: _) => Join.onLeft x y z p q t left)
+    (\fun (t: I.Carrier)(right: _) => Join.onRight x y z p q t right);
+\definition reverse: \forall (x, y: Under.CarrierSet)(p: Neighborhoods.Path U x y) ->
+  path y x (Neighborhoods.reverse U x y p) (Neighborhoods.within U y x (Neighborhoods.reverse U x y p)) =
+    Subpaths.reverse x y (path x y p (Neighborhoods.within U x y p)) :=
+  \fun (x, y: Under.CarrierSet)(p: _) => \refl(Subpaths.reverse x y (path x y p (Neighborhoods.within U x y p)));
+\import Raw.Squares[] \as Squares;
+\import Subraw.Squares[] \as Subsquares;
+\import algebraic_topology.Cylinder[A := I.Carrier] \as Square;
+\import topology.Continuity[A := Square.Carrier, B := A].Corestriction[S := U] \as IntoSquares;
+\definition square[F: Squares.Family][within: \forall (q: Square.Carrier) -> Space.Member U (F q)]: Subsquares.Family :=
+  \into[Square.Carrier -> Under.CarrierSet](\fun (q: Square.Carrier) => \into[A](F q, U) \by { within q }, Subsquares.Family) \by {
+    IntoSquares.corestrictContinuous (Square.topology I.topology) source
+      (\fun (q: Square.Carrier) => \into[A](F q, U) \by { within q }) (Squares.continuous F)
+  };
+\module Inside(V: \Pow A, subset: Space.Subset U V);

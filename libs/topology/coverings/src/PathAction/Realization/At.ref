@@ -1,0 +1,42 @@
+\import \parent.Topology[] \as Top;
+\import \root.Projection[E := E, B := B, total := Top.topology basis, base := base, projection := projection] \as Cover;
+\import \root.PathAction[E := E, B := B, base := base, projection := projection].Realization[action := action] \as Construction;
+\definition covering: Cover.Covering := Cover.Covering {
+  continuous := Top.projectionContinuous basis,
+  surjective := inhabited,
+  local := \block {
+    \fun (x: B) \then
+    \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Neighborhoods.Refinement[x, Base.Whole, U] }) \by
+      basis Base.Whole (Base.topologyLaws base).wholeOpen x (\refl(x)) \then
+    \let data: Neighborhoods.Refinement[x, Base.Whole, U] := \bysub(\Pow B, { U: \Pow B \where Neighborhoods.Refinement[x, Base.Whole, U] }, U) \then
+    \return \exact(Cover.LocalChart[x] { neighborhood := U, open := data.good.open, contains := data.contains,
+      chart := Construction.Charts[basis := basis, U := U, good := data.good, x := x, inX := data.contains].chart }, Cover.LocalChart[x])
+  },
+};
+\module Agreement;
+\import fundamental_groups.Paths[A := E, source := Top.topology basis] \as TotalPaths;
+\import Cover.Transport[] \as Transport;
+\import Cover.Lifting[] \as Lifting;
+\import algebraic_topology.Interval[] \as Interval;
+\definition pathFromArrow: \forall (x, y: B)(e: Fiber x)(f: Fiber y)(p: G.Arrow x y) -> action.move x y p e = f -> \exists TotalPaths.Path e f :=
+  \fun (x, y: B)(e: _)(f: _) => Paths.Between[x := x, y := y].induction
+    (\fun (p: G.Arrow x y) => action.move x y p e = f -> \exists TotalPaths.Path e f) (\block {
+      \fun (p: Paths.Path x y)(same: _) \then
+      \let lift: Lifting.PathLift x y p e := Transport.lift covering x y p e \then
+      \return \exact(\into[TotalPaths.Function](lift, TotalPaths.Path e f) \by {
+        TotalPaths.Laws[e, f, lift] {
+          continuous := (Lifting.pathLaws x y p e lift).continuous,
+          start := (Lifting.pathLaws x y p e lift).starts,
+          end := trans!{E} _ _ _ (Agreement[].along x y p e) same,
+        }
+      }, TotalPaths.Path e f)
+    });
+\definition connected: Transitive action -> TotalPaths.PathConnected := \block {
+  \fun (transitive: _)(e, f: E) \then
+  \takefrom p: \Cast[G.Arrow (projection e) (projection f)]
+    ({ p: G.Arrow (projection e) (projection f) \where action.move (projection e) (projection f) p (point e) = f })
+    \by transitive (projection e) (projection f) (point e) (point f) \then
+  \return pathFromArrow (projection e) (projection f) (point e) (point f) p
+    (\bysub(G.Arrow (projection e) (projection f),
+      { p: G.Arrow (projection e) (projection f) \where action.move (projection e) (projection f) p (point e) = f }, p))
+};

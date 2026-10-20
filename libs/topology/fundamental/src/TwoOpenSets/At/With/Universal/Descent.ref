@@ -1,0 +1,39 @@
+\structure Agrees[p: Cover.SmallPath, g: G]: \Prop := {
+  left: \forall (within: LeftPaths.Within p) -> leftValue p within = g,
+  right: \forall (within: RightPaths.Within p) -> rightValue p within = g,
+};
+\definition Value[p: Cover.SmallPath]: \Set := \Cast[G] ({ g: G \where Agrees[p, g] });
+\definition existsValue: \forall (p: Cover.SmallPath) -> \exists Value p :=
+  \fun (p: Cover.SmallPath) => either!{{(cases p)} {\exists Value p}
+    {\fun (inU: _) => \exact(\into[G](leftValue p inU, Value p) \by { Agrees[p, leftValue p inU] {
+      left := \fun (_: _) => \refl(leftValue p inU), right := \fun (inV: _) => sym!{G} _ _ (onOverlap compatible p inU inV) } }, Value p)}
+    {\fun (inV: _) => \exact(\into[G](rightValue p inV, Value p) \by { Agrees[p, rightValue p inV] {
+      left := \fun (inU: _) => onOverlap compatible p inU inV, right := \fun (_: _) => \refl(rightValue p inV) } }, Value p)}};
+\definition uniqueValue: \forall (p: Cover.SmallPath)(g, h: Value p) -> g = h :=
+  \fun (p: Cover.SmallPath)(g, h: Value p) => either!{{(cases p)} {g = h}
+    {\fun (inU: _) => trans!{G} _ _ _ (sym!{G} _ _ ((\bysub(G, Value p, g)).left inU)) ((\bysub(G, Value p, h)).left inU)}
+    {\fun (inV: _) => trans!{G} _ _ _ (sym!{G} _ _ ((\bysub(G, Value p, g)).right inV)) ((\bysub(G, Value p, h)).right inV)}};
+\definition value[p: Cover.SmallPath]: Value p := \choice Value p \by { existence: existsValue p, uniqueness: uniqueValue p };
+\definition agrees[p: Cover.SmallPath]: Agrees[p, value p] := \bysub(G, Value p, value p);
+\definition leftSplit: \forall (p: Cover.SmallPath) -> LeftPaths.Within p -> value p = Group.mul (value (Cover.firstSmallPath p)) (value (Cover.secondSmallPath p)) :=
+  \fun (p: Cover.SmallPath)(within: _) => trans!{G} _ _ _ (sym!{G} _ _ ((agrees p).left within))
+    (trans!{G} _ _ _ (LeftHolonomy.split (LeftPaths.raw p within))
+      (congr2!{G G G} Group.mul _ _ _ _ ((agrees (Cover.firstSmallPath p)).left (\fun (t: I.Carrier) => within (I.Halves[].lower t)))
+        ((agrees (Cover.secondSmallPath p)).left (\fun (t: I.Carrier) => within (I.Halves[].upper t)))));
+\definition rightSplit: \forall (p: Cover.SmallPath) -> RightPaths.Within p -> value p = Group.mul (value (Cover.firstSmallPath p)) (value (Cover.secondSmallPath p)) :=
+  \fun (p: Cover.SmallPath)(within: _) => trans!{G} _ _ _ (sym!{G} _ _ ((agrees p).right within))
+    (trans!{G} _ _ _ (RightHolonomy.split (RightPaths.raw p within))
+      (congr2!{G G G} Group.mul _ _ _ _ ((agrees (Cover.firstSmallPath p)).right (\fun (t: I.Carrier) => within (I.Halves[].lower t)))
+        ((agrees (Cover.secondSmallPath p)).right (\fun (t: I.Carrier) => within (I.Halves[].upper t)))));
+\definition data: Cover.LocalData := Cover.LocalData { value := value,
+  split := \fun (p: Cover.SmallPath) => either!{{(cases p)} {value p = Group.mul (value (Cover.firstSmallPath p)) (value (Cover.secondSmallPath p))} {leftSplit p} {rightSplit p}} };
+\module Laws;
+\import Laws[] \as FunctorLaws;
+\import Cover.Descent[local := FunctorLaws.local] \as Global;
+\import Global.AtPoint[cover := cover, point := b] \as Based;
+\definition homomorphism: Hom.GroupMap Fundamental.group group := Based.homomorphism;
+\module Restrictions;
+\module Uniqueness;
+\definition extension: Extension := \into[Hom.GroupMap Fundamental.group group](homomorphism, Extension) \by {
+  ExtensionLaws[homomorphism] { left := Restrictions[].restrictsLeft, right := Restrictions[].restrictsRight }
+};

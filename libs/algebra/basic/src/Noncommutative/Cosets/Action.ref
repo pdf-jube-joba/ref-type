@@ -1,0 +1,49 @@
+\import \parent.Mapping[S := Carrier] \as Descent;
+\import \parent.\parent.Actions[S := Carrier] \as Actions;
+\definition onRepresentative[a: G][g: G]: Carrier := class (mul g a);
+\definition respects[a: G]: Descent.Respects (onRepresentative a) := \block {
+  \fun (g, k: G)(related: Related g k) \then
+  \takefrom h: \Cast[\Cast[G] H] ({ h: \Cast[G] H \where mul h g = k }) \by related \then
+  \let same: mul h g = k := \bysub(\Cast[G] H, { h: \Cast[G] H \where mul h g = k }, h) \then
+  \return Quotient.classOfEq equivalence (mul g a) (mul k a)
+    (Logic.existsIntro[\Cast[G] H, { u: \Cast[G] H \where mul u (mul g a) = mul k a }] h
+      (trans!{G} _ _ _ (sym!{G} _ _ (associative h g a)) (congr!{G G} (\fun (v: G) => mul v a) _ _ same)))
+};
+\definition apply[a: G]: Carrier -> Carrier := Descent.descend (onRepresentative a) (respects a);
+\definition onClass: \forall (a, g: G) -> apply a (class g) = class (mul g a) :=
+  \fun (a: G) => Descent.onClass (onRepresentative a) (respects a);
+\definition identity: \forall (q: Carrier) -> apply one q = q := induction (\fun (q: Carrier) => apply one q = q)
+  (\fun (g: G) => trans!{Carrier} _ _ _ (onClass one g) (congr!{G Carrier} class _ _ (rightIdentity g)));
+\definition compose: \forall (a, b: G)(q: Carrier) -> apply (mul a b) q = apply b (apply a q) :=
+  \fun (a, b: G) => induction (\fun (q: Carrier) => apply (mul a b) q = apply b (apply a q))
+    (\fun (g: G) => eq_reason!{{apply (mul a b) (class g)}
+      "=" {class (mul g (mul a b))} "by" {onClass (mul a b) g}
+      "=" {class (mul (mul g a) b)} "by" {congr!{G Carrier} class _ _ (sym!{G} _ _ (associative g a b))}
+      "=" {apply b (class (mul g a))} "by" {sym!{Carrier} _ _ (onClass b (mul g a))}
+      "=" {apply b (apply a (class g))} "by" {congr!{Carrier Carrier} (apply b) _ _ (sym!{Carrier} _ _ (onClass a g))}});
+\definition action: Actions.Action := \into[G -> Carrier -> Carrier](apply, Actions.Action) \by { Actions.Laws[apply] { identity := identity, compose := compose } };
+\definition fromBase: \forall (a: G) -> apply a (class one) = class a :=
+  \fun (a: G) => trans!{Carrier} _ _ _ (onClass a one) (congr!{G Carrier} class _ _ (leftIdentity a));
+\definition transitive: Actions.Transitive action := induction (\fun (u: Carrier) => \forall (v: Carrier) -> \exists ( a: G \where apply a u = v ))
+  (\fun (g: G) => induction (\fun (v: Carrier) => \exists ( a: G \where apply a (class g) = v ))
+    (\fun (k: G) => Logic.existsIntro[G, { a: G \where apply a (class g) = class k }] (mul (inv g) k)
+      (trans!{Carrier} _ _ _ (onClass (mul (inv g) k) g)
+        (congr!{G Carrier} class _ _ (trans!{G} _ _ _ (sym!{G} _ _ (associative g (inv g) k))
+          (trans!{G} _ _ _ (congr!{G G} (\fun (v: G) => mul v k) _ _ (rightInverse g)) (leftIdentity k)))))));
+\definition fixesOfMember: \forall (a: G) -> \In[G] H a -> apply a (class one) = class one :=
+  \fun (a: G)(member: _) => trans!{Carrier} _ _ _ (fromBase a) (sameClass a one
+    (Logic.existsIntro[\Cast[G] H, { u: \Cast[G] H \where mul u a = one }]
+      (\into[G](inv a, H) \by { (subgroupLaws H).inverse a member }) (leftInverse a)));
+\definition memberOfFixes: \forall (a: G) -> apply a (class one) = class one -> \In[G] H a := \block {
+  \fun (a: G)(fixes: _) \then
+  \takefrom h: \Cast[\Cast[G] H] ({ h: \Cast[G] H \where mul h a = one }) \by relatedOfSameClass a one
+    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (fromBase a)) fixes) \then
+  \let same: mul h a = one := \bysub(\Cast[G] H, { h: \Cast[G] H \where mul h a = one }, h) \then
+  \let inverseH: \In[G] H (inv h) := (subgroupLaws H).inverse h (\bysub(G, H, h)) \then
+  \return \idelim inv h = a \with g: G => \In[G] H g \by {
+    base: inverseH,
+    equality: sym!{G} _ _ (cancelLeft h a (inv h) (trans!{G} _ _ _ same (sym!{G} _ _ (rightInverse h))))
+  }
+};
+\definition stabilizer: Actions.Stabilizer action (class one) = H :=
+  \axiom:setext(Actions.Stabilizer action (class one), H, memberOfFixes, fixesOfMember);

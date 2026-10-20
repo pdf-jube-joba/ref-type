@@ -1,0 +1,29 @@
+\import \parent.Integral[data := local.data] \as Native;
+\import Native.Homotopy[] \as Homotopy;
+\import \root.Paths[A := A, source := source] \as Based;
+\import Based.Concatenation[] \as Join;
+\structure GlobalLaws[f: Paths.Carrier -> G]: \Prop := {
+  constant: \forall (x: A) -> f (Paths.forget x x (Based.constant x)) = Group.one,
+  split: \forall (p: Paths.Carrier) -> f p = Group.mul (f (Paths.first p)) (f (Paths.second p)),
+  composition: \forall (x, y, z: A)(p: Based.Path x y)(q: Based.Path y z) ->
+    f (Paths.forget x z (Join.concatenate x y z p q)) = Group.mul (f (Paths.forget x y p)) (f (Paths.forget y z q)),
+  homotopy: \forall (x, y: A)(p, q: Based.Path x y) -> Based.Homotopic x y p q -> f (Paths.forget x y p) = f (Paths.forget x y q),
+};
+\definition GlobalFunctor: \Set := \Cast[Paths.Carrier -> G] ({ f: Paths.Carrier -> G \where GlobalLaws[f] });
+\definition laws[f: GlobalFunctor]: GlobalLaws[f] := \bysub(Paths.Carrier -> G, GlobalFunctor, f);
+\definition extend[cover: Space.IsOpenCover[source, family, Space.Whole]]: GlobalFunctor :=
+  \into[Paths.Carrier -> G](\fun (p: Paths.Carrier) => Native.value cover p, GlobalFunctor) \by {
+    GlobalLaws[\fun (p: Paths.Carrier) => Native.value cover p] {
+      constant := Native.constantValue cover local.constant,
+      split := Native.split cover,
+      composition := Native.composition cover,
+      homotopy := Homotopy.respects cover local.constant local.square,
+    }
+  };
+\definition restricts: \forall (cover: Space.IsOpenCover[source, family, Space.Whole])(p: SmallPath) -> extend cover p = local.data.value p :=
+  \fun (cover: _)(p: SmallPath) => Native.onLocal cover p (\bysub(Paths.Carrier, SmallPath, p));
+\definition unique: \forall (cover: Space.IsOpenCover[source, family, Space.Whole])(candidate: GlobalFunctor) ->
+  (\forall (p: SmallPath) -> candidate p = local.data.value p) -> candidate = extend cover :=
+  \fun (cover: _)(candidate: _)(agrees: _) => \axiom:funext(candidate, extend cover,
+    Native.unique cover candidate (\fun (p: Paths.Carrier)(small: Small p) => agrees (asSmall p small)) (laws candidate).split);
+\module AtPoint(cover: Space.IsOpenCover[source, family, Space.Whole], point: A);

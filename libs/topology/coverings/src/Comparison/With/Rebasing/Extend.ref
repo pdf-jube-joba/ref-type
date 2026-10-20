@@ -1,0 +1,34 @@
+\import fundamental_groups.Bridges[A := B, source := base, basepoint := b].Along[bridges := bridges] \as Bridge;
+\definition component[x: B][e: Source.Fiber x]: Target.Fiber x := TargetRebase.fromBase x (map.apply (SourceRebase.toBase x e));
+\definition apply[e: E]: F := component (projection e) (\into[E](e, Source.Fiber (projection e)) \by { \refl(projection e) });
+\definition over: \forall (e: E) -> otherProjection (apply e) = projection e :=
+  \fun (e: E) => Target.projectsTo (projection e) (component (projection e) (\into[E](e, Source.Fiber (projection e)) \by { \refl(projection e) }));
+\definition data: OverMap := OverMap { apply := apply, over := over };
+\definition changeFiber: \forall (x, y: B)(e: Source.Fiber x)(f: Source.Fiber y) -> x = y -> e = f -> component x e = component y f :=
+  \fun (x, y: B)(e: _)(f: _)(same: x = y) =>
+    (\idelim x = y \with z: B => \forall (h: Source.Fiber z) -> e = h -> component x e = component z h
+      \by { base: \fun (h: Source.Fiber x)(equal: _) => congr!{{Source.Fiber x} F} (component x) e h equal, equality: same }) f;
+\definition formula: \forall (x: B)(e: Source.Fiber x) -> apply e = component x e :=
+  \fun (x: _)(e: _) => changeFiber (projection e) x (\into[E](e, Source.Fiber (projection e)) \by { \refl(projection e) }) e (Source.projectsTo x e) (\refl(e));
+\definition baseFormula: \forall (x: B)(e: Source.Fiber x) -> TargetRebase.toBase x (fiber data x e) = map.apply (SourceRebase.toBase x e) :=
+  \fun (x: B)(e: _) => trans!{F} _ _ _
+    (congr!{{Target.Fiber x} F} (TargetRebase.toBase x) (fiber data x e) (component x e) (formula x e))
+    (TargetRebase.rightInverse x (map.apply (SourceRebase.toBase x e)));
+\definition equivariant: Equivariant[c, d, data] := Equivariant[c, d, data] {
+  commutes := \fun (x, y: B)(p: G.Arrow x y)(e: Source.Fiber x) =>
+    TargetRebase.injective y (fiber data y (SourceAction.move x y p e)) (TargetAction.move x y p (fiber data x e))
+      (eq_reason!{{TargetRebase.toBase y (fiber data y (SourceAction.move x y p e))}
+        "=" {map.apply (SourceRebase.toBase y (SourceAction.move x y p e))} "by" {baseFormula y (SourceAction.move x y p e)}
+        "=" {map.apply (SourceAction.move b b (Bridge.loop x y p) (SourceRebase.toBase x e))} "by" {
+          congr!{{Source.Fiber b} F} map.apply _ _ (SourceRebase.naturality x y p e)}
+        "=" {TargetAction.move b b (Bridge.loop x y p) (map.apply (SourceRebase.toBase x e))} "by" {
+          map.commutes (Bridge.loop x y p) (SourceRebase.toBase x e)}
+        "=" {TargetAction.move b b (Bridge.loop x y p) (TargetRebase.toBase x (fiber data x e))} "by" {
+          congr!{{Target.Fiber b} F} (TargetAction.move b b (Bridge.loop x y p)) _ _ (sym!{F} _ _ (baseFormula x e))}
+        "=" {TargetRebase.toBase y (TargetAction.move x y p (fiber data x e))} "by" {sym!{F} _ _ (TargetRebase.naturality x y p (fiber data x e))}}),
+};
+\definition atBase: \forall (e: Source.Fiber b) -> apply e = map.apply e :=
+  \fun (e: _) => trans!{F} _ _ _ (formula b e)
+    (trans!{F} _ _ _
+      (congr!{{Source.Fiber b} F} (\fun (h: Source.Fiber b) => TargetRebase.fromBase b (map.apply h)) _ _ (SourceRebase.baseTo e))
+      (TargetRebase.baseFrom (map.apply e)));

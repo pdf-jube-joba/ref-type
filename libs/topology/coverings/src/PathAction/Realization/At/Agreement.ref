@@ -1,0 +1,44 @@
+\import Cover.Transport[] \as Transport;
+\import Cover.Lifting[] \as Lifting;
+\import Lifting.Uniqueness[] \as Unique;
+\import fundamental_groups.UnbasedPaths[A := B, source := base] \as Raw;
+\import fundamental_groups.Paths[A := B, source := base].Concatenation[] \as Join;
+\import Join.Splitting[] \as Split;
+\import algebraic_topology.Interval[] \as I;
+\import I.Halves[] \as Halves;
+\definition Agrees[p: Raw.Carrier]: \Prop := \forall (x, y: B)(q: Paths.Path x y) -> p = q -> \forall (e: Fiber x) ->
+  Transport.along covering x y q e = action.move x y (G.class x y q) e;
+\definition combine: \forall (p: Raw.Carrier) -> Agrees (Raw.first p) -> Agrees (Raw.second p) -> Agrees p := \block {
+  \fun (p: _)(left: _)(right: _)(x, y: B)(q: Paths.Path x y)(same: p = q)(e: Fiber x) \then
+  \let m: B := q I.middle \then
+  \let a: Paths.Path x m := Split.first x y q \then
+  \let b: Paths.Path m y := Split.second x y q \then
+  \let first: Transport.along covering x m a e = action.move x m (G.class x m a) e := left x m a
+    (\axiom:funext(Raw.first p, Raw.forget x m a, \fun (t: I.Carrier) => congr!{{I.Carrier -> B} B} (\fun (f: I.Carrier -> B) => f (Halves.lower t)) p q same)) e \then
+  \let second: Transport.along covering m y b (Transport.along covering x m a e) =
+    action.move m y (G.class m y b) (Transport.along covering x m a e) := right m y b
+    (\axiom:funext(Raw.second p, Raw.forget m y b, \fun (t: I.Carrier) => congr!{{I.Carrier -> B} B} (\fun (f: I.Carrier -> B) => f (Halves.upper t)) p q same))
+    (Transport.along covering x m a e) \then
+  \return eq_reason!{{Transport.along covering x y q e}
+    "=" {Transport.along covering x y (Join.concatenate x m y a b) e} "by" {
+      congr!{{Paths.Path x y} E} (\fun (r: Paths.Path x y) => Transport.along covering x y r e) _ _ (sym!{{Paths.Path x y}} _ _ (Split.equality x y q))}
+    "=" {Transport.along covering m y b (Transport.along covering x m a e)} "by" {Transport.composition covering x m y a b e}
+    "=" {action.move m y (G.class m y b) (Transport.along covering x m a e)} "by" {second}
+    "=" {action.move m y (G.class m y b) (action.move x m (G.class x m a) e)} "by" {
+      congr!{{Fiber m} E} (action.move m y (G.class m y b)) _ _ first}
+    "=" {action.move x y (G.compose x m y (G.class x m a) (G.class m y b)) e} "by" {sym!{E} _ _ (action.compose x m y (G.class x m a) (G.class m y b) e)}
+    "=" {action.move x y (G.class x y (Join.concatenate x m y a b)) e} "by" {
+      congr!{{G.Arrow x y} E} (\fun (r: G.Arrow x y) => action.move x y r e) _ _ (Join.Classes[x := x, y := m, z := y].onClass a b)}
+    "=" {action.move x y (G.class x y q) e} "by" {
+      congr!{{Paths.Path x y} E} (\fun (r: Paths.Path x y) => action.move x y (G.class x y r) e) _ _ (Split.equality x y q)}}
+};
+\module Local(U: \Pow B, good: Neighborhoods.Good[U]);
+\module Along(p: Raw.Carrier);
+\definition along: \forall (x, y: B)(p: Paths.Path x y)(e: Fiber x) ->
+  Transport.along covering x y p e = action.move x y (G.class x y p) e :=
+  \fun (x, y: B)(p: _)(e: _) => Along[p := Raw.forget x y p].agrees x y p (\refl(p)) e;
+\import Transport.Groupoid[covering := covering] \as Monodromy;
+\definition classes: \forall (x, y: B)(p: G.Arrow x y)(e: Fiber x) -> Monodromy.move x y p e = action.move x y p e :=
+  \fun (x, y: B) => Paths.Between[x := x, y := y].induction
+    (\fun (p: G.Arrow x y) => \forall (e: Fiber x) -> Monodromy.move x y p e = action.move x y p e)
+    (\fun (p: Paths.Path x y)(e: _) => trans!{E} _ _ _ (Monodromy.onClass x y p e) (along x y p e));

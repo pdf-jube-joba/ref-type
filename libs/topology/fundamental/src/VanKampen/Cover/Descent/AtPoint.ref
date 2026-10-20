@@ -1,0 +1,22 @@
+\import \root.FundamentalGroup[A := A, source := source, basepoint := point] \as Fundamental;
+\import Based.Between[x := point, y := point] \as Quotient;
+\import Quotient.Functions[B := G] \as Descent;
+\import Based.Concatenation[].Classes[x := point, y := point, z := point] \as Product;
+\import algebra.Hom[A := Fundamental.Carrier, B := G] \as Hom;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition onLoop[p: Based.Path point point]: G := extend cover (Paths.forget point point p);
+\definition respects: Descent.Respects onLoop := (laws (extend cover)).homotopy point point;
+\definition apply: Fundamental.Carrier -> G := Descent.descend onLoop respects;
+\definition onClass: \forall (p: Based.Path point point) -> apply (Fundamental.class p) = onLoop p := Descent.onClass onLoop respects;
+\definition identityLaw: apply Fundamental.unit = group.unit := trans!{G} _ _ _ (onClass (Based.constant point)) ((laws (extend cover)).constant point);
+\definition operationLaw: \forall (a, b: Fundamental.Carrier) -> apply (Fundamental.multiply a b) = group.op (apply a) (apply b) :=
+  Quotient.induction (\fun (a: Fundamental.Carrier) => \forall (b: Fundamental.Carrier) -> apply (Fundamental.multiply a b) = group.op (apply a) (apply b))
+    (\fun (p: Based.Path point point) => Quotient.induction (\fun (b: Fundamental.Carrier) => apply (Fundamental.multiply (Fundamental.class p) b) = group.op (apply (Fundamental.class p)) (apply b))
+      (\fun (q: Based.Path point point) => trans!{G} _ _ _ (congr!{{Fundamental.Carrier} G} apply _ _ (Product.onClass p q))
+        (trans!{G} _ _ _ (onClass (Join.concatenate point point point p q))
+          (trans!{G} _ _ _ ((laws (extend cover)).composition point point point p q)
+            (congr2!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (onClass p)) (sym!{G} _ _ (onClass q)))))));
+\definition targetMonoid: Monoid.Monoid[G] := \into[Monoid.MonoidData[G]](Monoid.MonoidData[G]::# group.unit group.op, Monoid.Monoid[G]) \by { group.monoid };
+\definition homomorphism: Hom.GroupMap Fundamental.group group := \into[Fundamental.Carrier -> G](apply, Hom.GroupMap Fundamental.group group) \by {
+  Hom.MonoidLaws[Fundamental.monoid, targetMonoid, apply] { unit := identityLaw, operation := operationLaw }
+};
