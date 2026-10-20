@@ -1,6 +1,6 @@
-# 体拡大とガロア理論の基礎
+# 体拡大とガロア理論
 
-部分体、体の埋め込み、自己同型、固定体、根号による生成、作図可能数を扱う。
+部分体、体の埋め込み、多項式除法、最小多項式、自己同型の延長、固定体、根号による生成、作図可能数を扱う。
 パッケージ名は `galois`。
 
 | module | 内容 |
@@ -12,6 +12,11 @@
 | `Field.Over.Automorphism` | 自己同型、逆、合成。 |
 | `Field.Over.Correspondence` | 固定体、安定化群、ガロア群、反変なガロア接続、三重適用の恒等式。 |
 | `Field.Over.Polynomial` | 係数列とモニック多項式、評価、既存の多項式環への変換、分解、代数性、根号可解性。 |
+| `Field.Over.Polynomial.Raw` | 係数列の加法・積・正規化、モニック多項式による除法と次数の上界。 |
+| `Field.Over.Polynomial.Extension.At` | 最小多項式の存在、零化多項式の可除性、根への埋め込みの延長。 |
+| `Field.Over.Polynomial.Splitting` | 根での一次式による除法、代数的閉性からの完全分解、1の根の包含。 |
+| `Field.Over.Partial.Countable` | 部分体の同型を可算な代数閉拡大の自己同型へ延長する。 |
+| `Field.Over.Automorphism.Kummer` / `RadicalAction` | 1の根を固定する自己同型の交換子と根号、根号閉包の元を交換子列のある段階で固定すること。 |
 | `Field.Over.Generation` | 根号閉包と平方根閉包、部分体としての閉性、作図可能なら根号で表せること。 |
 | `Field.Over.Generation.Construction` | 有限の体演算と平方根の式、式の妥当性、作図可能性との同値性。 |
 | `Field.Over.Generation.RadicalExpression` | 有限の体演算と根号の式、根号閉包との同値性。 |
@@ -63,7 +68,8 @@ galois = { path = "../galois" }
 `Permutation.Obstruction.persists` がこの議論の一般形である。
 
 `Correspondence.galoisConnection` は固定体と安定化群の順序に関する接続を述べる。
-`Quintic.symmetricFiveNotSolvable` が述べる対象は置換群であり、多項式の根号非可解性への翻訳には分解体と根号拡大に関する別の議論が必要になる。
+`Quintic.Field.Over.threeLiftsObstruction` は、この群の障害と根号に対する作用を結び付け、根が根号閉包に属さないことを導く。
+[quintic](../quintic/README.md) は独立な5つの根から自己同型を構成し、一般5次方程式の根号非可解性と作図不可能性を証明する。
 
 ## 有理数の代数閉包
 

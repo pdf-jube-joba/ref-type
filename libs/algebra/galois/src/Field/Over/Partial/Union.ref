@@ -1,0 +1,156 @@
+\import std.Data[].Nat[].Basic[].Def[] \as NatOp;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import \parent.\parent.Automorphism[] \as Automorphisms;
+\import galois.Field[].Over[K := K, field := field].Morphism[L := K, target := field] \as Maps;
+\definition Chain: \Prop := \forall (n: N.Nat^) -> Extends[sequence n, sequence (N.Nat^::succ n)];
+\definition later: Chain -> \forall (n, k: N.Nat^) -> Extends[sequence n, sequence (NatOp.add n k)] :=
+  \fun (chain: Chain)(n: N.Nat^) => \induction (k: N.Nat^) \return Extends[sequence n, sequence (NatOp.add n k)] \with {
+    | zero: extendsRefl (sequence n)
+    | succ: \fun (k: N.Nat^)(previous: _) => extendsTrans _ _ _ previous (chain (NatOp.add n k))
+  };
+\definition laterOther: Chain -> \forall (n, k: N.Nat^) -> Extends[sequence k, sequence (NatOp.add n k)] :=
+  \fun (chain: Chain)(n, k: N.Nat^) => \idelim NatOp.add k n = NatOp.add n k
+    \with m: N.Nat^ => Extends[sequence k, sequence m] \by { base: later chain k n, equality: Nat.addComm k n };
+\structure Witness[x, y: K]: \Set := {
+  stage: N.Nat^,
+  member: Subfields.Member (sequence stage).domain x,
+  action: (sequence stage).forward x = y,
+};
+\definition Related[x, y: K]: \Prop := \exists Witness[x, y];
+\definition targetUnique: Chain -> \forall (x, y, z: K) -> Related x y -> Related x z -> y = z := \block {
+  \fun (chain: Chain)(x, y, z: K)(left: _)(right: _) \then
+  \takefrom first: Witness[x, y] \by left \then
+  \takefrom second: Witness[x, z] \by right \then
+  \return eq_reason!{y
+    "=" {(sequence first.stage).forward x} "by" {sym!{K} _ _ first.action}
+    "=" {(sequence (NatOp.add first.stage second.stage)).forward x}
+    "by" {(later chain first.stage second.stage).forward x first.member}
+    "=" {(sequence second.stage).forward x}
+    "by" {sym!{K} _ _ ((laterOther chain first.stage second.stage).forward x second.member)}
+    "=" z "by" {second.action}}
+};
+\definition sourceUnique: Chain -> \forall (x, y, z: K) -> Related x z -> Related y z -> x = y := \block {
+  \fun (chain: Chain)(x, y, z: K)(left: _)(right: _) \then
+  \takefrom first: Witness[x, z] \by left \then
+  \takefrom second: Witness[y, z] \by right \then
+  \let common: N.Nat^ := NatOp.add first.stage second.stage \then
+  \let firstMember: Subfields.Member (sequence common).domain x := (later chain first.stage second.stage).domain x first.member \then
+  \let secondMember: Subfields.Member (sequence common).domain y := (laterOther chain first.stage second.stage).domain y second.member \then
+  \return eq_reason!{x
+    "=" {(sequence common).backward ((sequence common).forward x)} "by" {sym!{K} _ _ ((sequence common).left x firstMember)}
+    "=" {(sequence common).backward z}
+    "by" {congr!{K K} (sequence common).backward _ _
+      (trans!{K} _ _ _ (sym!{K} _ _ ((later chain first.stage second.stage).forward x first.member)) first.action)}
+    "=" {(sequence common).backward ((sequence common).forward y)}
+    "by" {congr!{K K} (sequence common).backward _ _
+      (sym!{K} _ _ (trans!{K} _ _ _ (sym!{K} _ _ ((laterOther chain first.stage second.stage).forward y second.member)) second.action))}
+    "=" y "by" {(sequence common).left y secondMember}}
+};
+\definition zeroRelated: Related zero zero := \exact(Witness[zero, zero] {
+  stage := N.Nat^::zero, member := (Subfields.laws (sequence N.Nat^::zero).domain).zero, action := (sequence N.Nat^::zero).hom.zero,
+}, Witness[zero, zero]);
+\definition oneRelated: Related one one := \exact(Witness[one, one] {
+  stage := N.Nat^::zero, member := (Subfields.laws (sequence N.Nat^::zero).domain).one, action := (sequence N.Nat^::zero).hom.one,
+}, Witness[one, one]);
+\definition addRelated: Chain -> \forall (x, y, z, w: K) -> Related x y -> Related z w -> Related (add x z) (add y w) := \block {
+  \fun (chain: Chain)(x, y, z, w: K)(left: _)(right: _) \then
+  \takefrom first: Witness[x, y] \by left \then
+  \takefrom second: Witness[z, w] \by right \then
+  \let common: N.Nat^ := NatOp.add first.stage second.stage \then
+  \let firstMember: Subfields.Member (sequence common).domain x := (later chain first.stage second.stage).domain x first.member \then
+  \let secondMember: Subfields.Member (sequence common).domain z := (laterOther chain first.stage second.stage).domain z second.member \then
+  \return \exact(Witness[add x z, add y w] {
+    stage := common, member := (Subfields.laws (sequence common).domain).add x z firstMember secondMember,
+    action := trans!{K} _ _ _ ((sequence common).hom.add x z firstMember secondMember)
+      (congr2!{K K K} add _ _ _ _
+        (trans!{K} _ _ _ (sym!{K} _ _ ((later chain first.stage second.stage).forward x first.member)) first.action)
+        (trans!{K} _ _ _ (sym!{K} _ _ ((laterOther chain first.stage second.stage).forward z second.member)) second.action)),
+  }, Witness[add x z, add y w])
+};
+\definition mulRelated: Chain -> \forall (x, y, z, w: K) -> Related x y -> Related z w -> Related (mul x z) (mul y w) := \block {
+  \fun (chain: Chain)(x, y, z, w: K)(left: _)(right: _) \then
+  \takefrom first: Witness[x, y] \by left \then
+  \takefrom second: Witness[z, w] \by right \then
+  \let common: N.Nat^ := NatOp.add first.stage second.stage \then
+  \let firstMember: Subfields.Member (sequence common).domain x := (later chain first.stage second.stage).domain x first.member \then
+  \let secondMember: Subfields.Member (sequence common).domain z := (laterOther chain first.stage second.stage).domain z second.member \then
+  \return \exact(Witness[mul x z, mul y w] {
+    stage := common, member := (Subfields.laws (sequence common).domain).mul x z firstMember secondMember,
+    action := trans!{K} _ _ _ ((sequence common).hom.mul x z firstMember secondMember)
+      (congr2!{K K K} mul _ _ _ _
+        (trans!{K} _ _ _ (sym!{K} _ _ ((later chain first.stage second.stage).forward x first.member)) first.action)
+        (trans!{K} _ _ _ (sym!{K} _ _ ((laterOther chain first.stage second.stage).forward z second.member)) second.action)),
+  }, Witness[mul x z, mul y w])
+};
+\definition negRelated: \forall (x, y: K) -> Related x y -> Related (neg x) (neg y) := \block {
+  \fun (x, y: K)(related: _) \then
+  \takefrom witness: Witness[x, y] \by related \then
+  \return \exact(Witness[neg x, neg y] {
+    stage := witness.stage, member := (Subfields.laws (sequence witness.stage).domain).neg x witness.member,
+    action := trans!{K} _ _ _ ((sequence witness.stage).hom.neg x witness.member) (congr!{K K} neg _ _ witness.action),
+  }, Witness[neg x, neg y])
+};
+\definition invRelated: \forall (x, y: K) -> Related x y -> Related (inv x) (inv y) := \block {
+  \fun (x, y: K)(related: _) \then
+  \takefrom witness: Witness[x, y] \by related \then
+  \return \exact(Witness[inv x, inv y] {
+    stage := witness.stage, member := (Subfields.laws (sequence witness.stage).domain).inv x witness.member,
+    action := trans!{K} _ _ _ ((sequence witness.stage).hom.inv x witness.member) (congr!{K K} inv _ _ witness.action),
+  }, Witness[inv x, inv y])
+};
+\definition DomainTotal: \Prop := \forall (x: K) -> \exists ( n: N.Nat^ \where Subfields.Member (sequence n).domain x );
+\definition RangeTotal: \Prop := \forall (y: K) -> \exists ( n: N.Nat^ \where Subfields.Member (sequence n).range y );
+\definition Value[x: K]: \Set := \Cast[K] ({ y: K \where Related x y });
+\definition BackValue[y: K]: \Set := \Cast[K] ({ x: K \where Related x y });
+\definition valueExists: DomainTotal -> \forall (x: K) -> \exists Value x := \block {
+  \fun (total: DomainTotal)(x: K) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Subfields.Member (sequence n).domain x }) \by total x \then
+  \return Logic.existsIntro[K, { y: K \where Related x y }] ((sequence n).forward x)
+    (\exact(Witness[x, (sequence n).forward x] {
+      stage := n, member := \bysub(N.Nat^, { n: N.Nat^ \where Subfields.Member (sequence n).domain x }, n), action := \refl((sequence n).forward x),
+    }, Witness[x, (sequence n).forward x]))
+};
+\definition backValueExists: RangeTotal -> \forall (y: K) -> \exists BackValue y := \block {
+  \fun (total: RangeTotal)(y: K) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Subfields.Member (sequence n).range y }) \by total y \then
+  \let member: Subfields.Member (sequence n).range y := \bysub(N.Nat^, { n: N.Nat^ \where Subfields.Member (sequence n).range y }, n) \then
+  \return Logic.existsIntro[K, { x: K \where Related x y }] ((sequence n).backward y)
+    (\exact(Witness[(sequence n).backward y, y] {
+      stage := n, member := (sequence n).preimage y member, action := (sequence n).right y member,
+    }, Witness[(sequence n).backward y, y]))
+};
+\structure Result: \Set := {
+  automorphism: Automorphisms.Automorphism,
+  forward: \forall (n: N.Nat^)(x: K) -> Subfields.Member (sequence n).domain x -> automorphism.map.apply x = (sequence n).forward x,
+  backward: \forall (n: N.Nat^)(y: K) -> Subfields.Member (sequence n).range y -> automorphism.backward y = (sequence n).backward y,
+};
+\definition exists: Chain -> DomainTotal -> RangeTotal -> \exists Result := \block {
+  \fun (chain: Chain)(domain: DomainTotal)(range: RangeTotal) \then
+  \takefrom forward: (\forall (x: K) -> Value x) \by \axiom:classicalIndefiniteChoice(K, (\fun (x: K) => Value x), valueExists domain) \then
+  \takefrom backward: (\forall (y: K) -> BackValue y) \by \axiom:classicalIndefiniteChoice(K, (\fun (y: K) => BackValue y), backValueExists range) \then
+  \let f: K -> K := \fun (x: K) => forward x \then
+  \let b: K -> K := \fun (y: K) => backward y \then
+  \let forwardLaw: \forall (x: K) -> Related x (f x) := \fun (x: K) => \bysub(K, { y: K \where Related x y }, forward x) \then
+  \let backwardLaw: \forall (y: K) -> Related (b y) y := \fun (y: K) => \bysub(K, { x: K \where Related x y }, backward y) \then
+  \let automorphism: Automorphisms.Automorphism := Automorphisms.Automorphism {
+    map := Maps.Map {
+      apply := f,
+      preservesZero := targetUnique chain zero (f zero) zero (forwardLaw zero) zeroRelated,
+      preservesOne := targetUnique chain one (f one) one (forwardLaw one) oneRelated,
+      preservesAdd := \fun (x, y: K) => targetUnique chain (add x y) _ _ (forwardLaw (add x y)) (addRelated chain x (f x) y (f y) (forwardLaw x) (forwardLaw y)),
+      preservesNeg := \fun (x: K) => targetUnique chain (neg x) _ _ (forwardLaw (neg x)) (negRelated x (f x) (forwardLaw x)),
+      preservesMul := \fun (x, y: K) => targetUnique chain (mul x y) _ _ (forwardLaw (mul x y)) (mulRelated chain x (f x) y (f y) (forwardLaw x) (forwardLaw y)),
+      preservesInv := \fun (x: K) => targetUnique chain (inv x) _ _ (forwardLaw (inv x)) (invRelated x (f x) (forwardLaw x)),
+    },
+    backward := b,
+    leftInverse := \fun (x: K) => sourceUnique chain (b (f x)) x (f x) (backwardLaw (f x)) (forwardLaw x),
+    rightInverse := \fun (y: K) => targetUnique chain (b y) (f (b y)) y (forwardLaw (b y)) (backwardLaw y),
+  } \then
+  \return \exact(Result {
+    automorphism := automorphism,
+    forward := \fun (n: N.Nat^)(x: K)(member: _) => targetUnique chain x _ _ (forwardLaw x)
+      (\exact(Witness[x, (sequence n).forward x] { stage := n, member := member, action := \refl((sequence n).forward x) }, Witness[x, (sequence n).forward x])),
+    backward := \fun (n: N.Nat^)(y: K)(member: _) => sourceUnique chain _ _ y (backwardLaw y)
+      (\exact(Witness[(sequence n).backward y, y] { stage := n, member := (sequence n).preimage y member, action := (sequence n).right y member }, Witness[(sequence n).backward y, y])),
+  }, Result)
+};

@@ -1,0 +1,71 @@
+\import \parent.Raw[].Deflation[] \as Deflation;
+\import \parent.AbstractEvaluation[] \as Evaluation;
+\import galois.Field[].Over[K := K, field := field].Polynomial[].Splitting[] \as Factorization;
+\import galois.Field[].Over[K := K, field := field].Arithmetic[] \as Arithmetic;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import std.Data[].Nat[].Induction[] \as Induction;
+\import Lists.Membership[A := K] \as Membership;
+\import std.Logic[].Classical[] \as Classical;
+\structure Cover[p: Coefficients]: \Set := {
+  roots: Coefficients,
+  covers: \forall (x: K) -> monicEvaluate p x = zero -> Membership.Occurs x roots,
+};
+\definition exists: \forall (p: Coefficients) -> \exists Cover[p] := \block {
+  \let byDegree: \forall (n: N.Nat^)(p: Coefficients) -> degree p = n -> \exists Cover[p] :=
+    Induction.strong (\fun (n: N.Nat^) => \forall (p: Coefficients) -> degree p = n -> \exists Cover[p])
+      (\fun (n: N.Nat^)(previous: _) =>
+        \induction (p: Coefficients) \return degree p = n -> \exists Cover[p] \with {
+          | nil: \fun (same: _) => \exact(Cover[Lists.List[K]::nil] {
+            roots := Lists.List[K]::nil,
+            covers := \fun (x: K)(impossible: _) => Arithmetic.oneNonzero impossible,
+          }, Cover[Lists.List[K]::nil])
+          | cons: \fun (b: K)(tail: Coefficients)(unused: _)(same: _) =>
+            Logic.orElim _ _ _ (Classical.excludedMiddle (\exists ( a: K \where monicEvaluate (Lists.List[K]::cons b tail) a = zero )))
+              (\block {
+                \fun (someRoot: _) \then
+                \let p: Coefficients := Lists.List[K]::cons b tail \then
+                \takefrom a: \Cast[K] ({ a: K \where monicEvaluate p a = zero }) \by someRoot \then
+                \let aRoot: monicEvaluate p a = zero := \bysub(K, { a: K \where monicEvaluate p a = zero }, a) \then
+                \let positive: Positive p := Nat.succNeZero (degree tail) \then
+                \let smaller: Nat.Lt (degree (Deflation.synthetic a p)) n :=
+                  \idelim degree p = n \with m: N.Nat^ => Nat.Lt (degree (Deflation.synthetic a p)) m
+                    \by { base: Deflation.smaller a p positive, equality: same } \then
+                \takefrom rest: Cover[Deflation.synthetic a p] \by previous (degree (Deflation.synthetic a p)) smaller (Deflation.synthetic a p) (\refl(degree (Deflation.synthetic a p))) \then
+                \return \exact(Cover[p] {
+                  roots := Lists.List[K]::cons a rest.roots,
+                  covers := \fun (x: K)(root: _) => Logic.orElim (add x (neg a) = zero) (monicEvaluate (Deflation.synthetic a p) x = zero)
+                    (Membership.Occurs x (Lists.List[K]::cons a rest.roots))
+                    (Arithmetic.zeroProduct (add x (neg a)) (monicEvaluate (Deflation.synthetic a p) x)
+                      (eq_reason!{{mul (add x (neg a)) (monicEvaluate (Deflation.synthetic a p) x)}
+                        "=" {mul (Evaluation.apply x (linearFactor a)) (Evaluation.apply x (asPolynomial (Deflation.synthetic a p)))}
+                        "by" {congr2!{K K K} mul _ _ _ _ (sym!{K} _ _ (Factorization.linearValue a x))
+                          (sym!{K} _ _ (Evaluation.agrees (Deflation.synthetic a p) x))}
+                        "=" {Evaluation.apply x (Abstract.mul (linearFactor a) (asPolynomial (Deflation.synthetic a p)))}
+                        "by" {sym!{K} _ _ ((Evaluation.homomorphism x).mul (linearFactor a) (asPolynomial (Deflation.synthetic a p)))}
+                        "=" {Evaluation.apply x (asPolynomial p)}
+                        "by" {congr!{Abstract.Carrier K} (Evaluation.apply x) _ _ (sym!{Abstract.Carrier} _ _ (Deflation.factorAtRoot a p positive aRoot))}
+                        "=" {monicEvaluate p x} "by" {Evaluation.agrees p x}
+                        "=" zero "by" root}))
+                    (\fun (same: _) => Logic.Or[_, _]::left (Arithmetic.differenceZero x a same))
+                    (\fun (other: _) => Logic.Or[_, _]::right (rest.covers x other)),
+                }, Cover[p])
+              })
+              (\fun (noRoot: _) => \exact(Cover[Lists.List[K]::cons b tail] {
+                roots := Lists.List[K]::nil,
+                covers := \fun (x: K)(root: _) => noRoot
+                  (Logic.existsIntro[K, { a: K \where monicEvaluate (Lists.List[K]::cons b tail) a = zero }] x root),
+              }, Cover[Lists.List[K]::cons b tail]))
+        }) \then
+  \return \fun (p: Coefficients) => byDegree (degree p) p (\refl(degree p))
+};
+\import std.Set[].Infinite[A := K] \as Infinite;
+\definition monicNonzero: Infinite.Infinite -> \forall (p: Coefficients) -> Logic.Not (asPolynomial p = Abstract.zero) := \block {
+  \fun (infinite: Infinite.Infinite)(p: Coefficients)(same: _) \then
+  \takefrom cover: Cover[p] \by exists p \then
+  \takefrom x: \Cast[K] ({ x: K \where Logic.Not (Membership.Occurs x cover.roots) }) \by infinite cover.roots \then
+  \return (\bysub(K, { x: K \where Logic.Not (Membership.Occurs x cover.roots) }, x))
+    (cover.covers x (eq_reason!{{monicEvaluate p x}
+      "=" {Evaluation.apply x (asPolynomial p)} "by" {sym!{K} _ _ (Evaluation.agrees p x)}
+      "=" {Evaluation.apply x Abstract.zero} "by" {congr!{Abstract.Carrier K} (Evaluation.apply x) _ _ same}
+      "=" zero "by" {(Evaluation.homomorphism x).zero}}))
+};

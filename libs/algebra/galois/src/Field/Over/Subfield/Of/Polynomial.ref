@@ -1,0 +1,44 @@
+\import galois.Field[].Over[K := K, field := field].Polynomial[] \as Ambient;
+\import Operations.Polynomial[] \as Base;
+\import Base.Extension[L := K, target := field] \as Extension;
+\import std.Data[].List[].Mapping[A := Carrier, B := K].Prop[] \as Mapping;
+\structure Lifted[p: Ambient.Coefficients]: \Set := {
+  coefficients: Base.Coefficients,
+  image: Lists.map Carrier K forget coefficients = p,
+};
+\definition lift: \forall (p: Ambient.Coefficients) -> Ambient.Over (Member S) p -> \exists Lifted[p] :=
+  \induction (p: Ambient.Coefficients) \return Ambient.Over (Member S) p -> \exists Lifted[p] \with {
+    | nil: \fun (over: _) => \exact(Lifted[Lists.List[K]::nil] {
+      coefficients := Lists.List[Carrier]::nil, image := \refl(Lists.List[K]::nil),
+    }, Lifted[Lists.List[K]::nil])
+    | cons: \block {
+      \fun (a: K)(tail: Ambient.Coefficients)(previous: _)(over: Logic.And[Member S a, Ambient.Over (Member S) tail]) \then
+      \takefrom rest: Lifted[tail] \by previous over.right \then
+      \return \exact(Lifted[Lists.List[K]::cons a tail] {
+        coefficients := Lists.List[Carrier]::cons (\into[K](a, S) \by { over.left }) rest.coefficients,
+        image := congr!{Ambient.Coefficients Ambient.Coefficients} (Lists.List[K]::cons a) _ _ rest.image,
+      }, Lifted[Lists.List[K]::cons a tail])
+    }
+  };
+\definition agrees: \forall (p: Base.Coefficients)(a: K) ->
+  Extension.At[embedding := inclusion, x := a].monicValue p = Ambient.monicEvaluate (Lists.map Carrier K forget p) a :=
+  \induction (p: Base.Coefficients) \return \forall (a: K) ->
+    Extension.At[embedding := inclusion, x := a].monicValue p = Ambient.monicEvaluate (Lists.map Carrier K forget p) a \with {
+    | nil: \fun (a: K) => \refl(one)
+    | cons: \fun (b: Carrier)(tail: Base.Coefficients)(previous: _)(a: K) => congr!{K K}
+      (\fun (v: K) => add b (mul a v)) _ _ (previous a)
+  };
+\definition algebraic: \forall (a: K) -> Ambient.Algebraic (Member S) a -> Extension.At[embedding := inclusion, x := a].Algebraic := \block {
+  \fun (a: K)(algebraic: _) \then
+  \takefrom witness: Ambient.AlgebraicWitness[Member S, a] \by algebraic \then
+  \takefrom lifted: Lifted[witness.coefficients] \by lift witness.coefficients witness.over \then
+  \let degree: Base.degree lifted.coefficients = Ambient.degree witness.coefficients :=
+    trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _ (Mapping.lengthMap forget lifted.coefficients))
+      (congr!{Ambient.Coefficients N.Nat^} Ambient.degree _ _ lifted.image) \then
+  \return \exact(Extension.At[embedding := inclusion, x := a].Root {
+    coefficients := lifted.coefficients,
+    positive := \fun (same: _) => witness.positive (trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _ degree) same),
+    root := trans!{K} _ _ _ (agrees lifted.coefficients a)
+      (trans!{K} _ _ _ (congr!{Ambient.Coefficients K} (\fun (p: Ambient.Coefficients) => Ambient.monicEvaluate p a) _ _ lifted.image) witness.root),
+  }, Extension.At[embedding := inclusion, x := a].Root)
+};

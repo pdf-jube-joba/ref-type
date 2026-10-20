@@ -1,0 +1,89 @@
+\import Comparison.With[otherEmbedding := baseForward, y := extension.root].Isomorphism[] \as Simple;
+\import std.Set[].Extension[A := K, B := K, domain := Simple.sourceField] \as Forward;
+\import std.Set[].Extension[A := K, B := K, domain := Simple.rangeField] \as Backward;
+\import Subfields.Of[S := Simple.sourceField] \as Source;
+\import Subfields.Of[S := Simple.rangeField] \as Range;
+\definition restrictedForward[z: Source.Carrier]: K := extension.isomorphism.forward z;
+\definition restrictedBackward[w: Range.Carrier]: K := extension.isomorphism.backward w;
+\definition forward: K -> K := Forward.extend restrictedForward zero;
+\definition backward: K -> K := Backward.extend restrictedBackward zero;
+\definition forwardLaw: \forall (z: Source.Carrier) -> forward z = restrictedForward z := Forward.inside restrictedForward zero;
+\definition backwardLaw: \forall (w: Range.Carrier) -> backward w = restrictedBackward w := Backward.inside restrictedBackward zero;
+\definition asIsomorphism: Isomorphism := Isomorphism {
+  domain := Simple.sourceField, range := Simple.rangeField, forward := forward, backward := backward,
+  image := \fun (z: K)(member: _) => \idelim restrictedForward (\into[K](z, Simple.sourceField) \by { member }) = forward z
+    \with w: K => Subfields.Member Simple.rangeField w \by {
+      base: Range.member (extension.isomorphism.forward (\into[K](z, Simple.sourceField) \by { member })),
+      equality: sym!{K} _ _ (forwardLaw (\into[K](z, Simple.sourceField) \by { member }))
+    },
+  preimage := \fun (w: K)(member: _) => \idelim restrictedBackward (\into[K](w, Simple.rangeField) \by { member }) = backward w
+    \with z: K => Subfields.Member Simple.sourceField z \by {
+      base: Source.member (extension.isomorphism.backward (\into[K](w, Simple.rangeField) \by { member })),
+      equality: sym!{K} _ _ (backwardLaw (\into[K](w, Simple.rangeField) \by { member }))
+    },
+  left := \fun (z: K)(member: _) => eq_reason!{{backward (forward z)}
+    "=" {backward (restrictedForward (\into[K](z, Simple.sourceField) \by { member }))}
+    "by" {congr!{K K} backward _ _ (forwardLaw (\into[K](z, Simple.sourceField) \by { member }))}
+    "=" {restrictedBackward (extension.isomorphism.forward (\into[K](z, Simple.sourceField) \by { member }))}
+    "by" {backwardLaw (extension.isomorphism.forward (\into[K](z, Simple.sourceField) \by { member }))}
+    "=" z "by" {congr!{Source.Carrier K} Source.forget _ _ (Simple.leftInverse extension.kernels extension.isomorphism (\into[K](z, Simple.sourceField) \by { member }))}},
+  right := \fun (w: K)(member: _) => eq_reason!{{forward (backward w)}
+    "=" {forward (restrictedBackward (\into[K](w, Simple.rangeField) \by { member }))}
+    "by" {congr!{K K} forward _ _ (backwardLaw (\into[K](w, Simple.rangeField) \by { member }))}
+    "=" {restrictedForward (extension.isomorphism.backward (\into[K](w, Simple.rangeField) \by { member }))}
+    "by" {forwardLaw (extension.isomorphism.backward (\into[K](w, Simple.rangeField) \by { member }))}
+    "=" w "by" {congr!{Range.Carrier K} Range.forget _ _ (Simple.rightInverse extension.kernels extension.isomorphism (\into[K](w, Simple.rangeField) \by { member }))}},
+  hom := Hom[Simple.sourceField, forward] {
+    zero := trans!{K} _ _ _ (forwardLaw Source.subZero)
+      (congr!{Range.Carrier K} Range.forget _ _ (Simple.preservesZero extension.kernels extension.isomorphism)),
+    one := trans!{K} _ _ _ (forwardLaw Source.subOne)
+      (congr!{Range.Carrier K} Range.forget _ _ (Simple.preservesOne extension.kernels extension.isomorphism)),
+    add := \fun (z, v: K)(hz: _)(hv: _) => eq_reason!{{forward (add z v)}
+      "=" {restrictedForward (Source.subAdd (\into[K](z, Simple.sourceField) \by { hz }) (\into[K](v, Simple.sourceField) \by { hv }))}
+      "by" {forwardLaw (Source.subAdd (\into[K](z, Simple.sourceField) \by { hz }) (\into[K](v, Simple.sourceField) \by { hv }))}
+      "=" {add (restrictedForward (\into[K](z, Simple.sourceField) \by { hz })) (restrictedForward (\into[K](v, Simple.sourceField) \by { hv }))}
+      "by" {congr!{Range.Carrier K} Range.forget _ _ (Simple.preservesAdd extension.kernels extension.isomorphism (\into[K](z, Simple.sourceField) \by { hz }) (\into[K](v, Simple.sourceField) \by { hv }))}
+      "=" {add (forward z) (forward v)} "by" {congr2!{K K K} add _ _ _ _
+        (sym!{K} _ _ (forwardLaw (\into[K](z, Simple.sourceField) \by { hz }))) (sym!{K} _ _ (forwardLaw (\into[K](v, Simple.sourceField) \by { hv })))}},
+    neg := \fun (z: K)(hz: _) => eq_reason!{{forward (neg z)}
+      "=" {restrictedForward (Source.subNeg (\into[K](z, Simple.sourceField) \by { hz }))}
+      "by" {forwardLaw (Source.subNeg (\into[K](z, Simple.sourceField) \by { hz }))}
+      "=" {neg (restrictedForward (\into[K](z, Simple.sourceField) \by { hz }))}
+      "by" {congr!{Range.Carrier K} Range.forget _ _ (Simple.preservesNeg extension.kernels extension.isomorphism (\into[K](z, Simple.sourceField) \by { hz }))}
+      "=" {neg (forward z)} "by" {congr!{K K} neg _ _ (sym!{K} _ _ (forwardLaw (\into[K](z, Simple.sourceField) \by { hz })))}},
+    mul := \fun (z, v: K)(hz: _)(hv: _) => eq_reason!{{forward (mul z v)}
+      "=" {restrictedForward (Source.subMul (\into[K](z, Simple.sourceField) \by { hz }) (\into[K](v, Simple.sourceField) \by { hv }))}
+      "by" {forwardLaw (Source.subMul (\into[K](z, Simple.sourceField) \by { hz }) (\into[K](v, Simple.sourceField) \by { hv }))}
+      "=" {mul (restrictedForward (\into[K](z, Simple.sourceField) \by { hz })) (restrictedForward (\into[K](v, Simple.sourceField) \by { hv }))}
+      "by" {congr!{Range.Carrier K} Range.forget _ _ (Simple.preservesMul extension.kernels extension.isomorphism (\into[K](z, Simple.sourceField) \by { hz }) (\into[K](v, Simple.sourceField) \by { hv }))}
+      "=" {mul (forward z) (forward v)} "by" {congr2!{K K K} mul _ _ _ _
+        (sym!{K} _ _ (forwardLaw (\into[K](z, Simple.sourceField) \by { hz }))) (sym!{K} _ _ (forwardLaw (\into[K](v, Simple.sourceField) \by { hv })))}},
+    inv := \fun (z: K)(hz: _) => eq_reason!{{forward (inv z)}
+      "=" {restrictedForward (Source.subInv (\into[K](z, Simple.sourceField) \by { hz }))}
+      "by" {forwardLaw (Source.subInv (\into[K](z, Simple.sourceField) \by { hz }))}
+      "=" {inv (restrictedForward (\into[K](z, Simple.sourceField) \by { hz }))}
+      "by" {congr!{Range.Carrier K} Range.forget _ _ (Simple.preservesInv extension.kernels extension.isomorphism (\into[K](z, Simple.sourceField) \by { hz }))}
+      "=" {inv (forward z)} "by" {congr!{K K} inv _ _ (sym!{K} _ _ (forwardLaw (\into[K](z, Simple.sourceField) \by { hz })))}},
+  },
+};
+\definition oldDomain: Subfields.Included (Subfields.Member p.domain) (Subfields.Member Simple.sourceField) :=
+  \fun (z: K)(member: _) => Source.member (Simple.sourceConstant (\into[K](z, p.domain) \by { member }));
+\definition oldRange: Subfields.Included (Subfields.Member p.range) (Subfields.Member Simple.rangeField) :=
+  \fun (w: K)(member: _) => \idelim p.forward (p.backward w) = w \with z: K => Subfields.Member Simple.rangeField z \by {
+    base: Range.member (Simple.rangeConstant (\into[K](p.backward w, p.domain) \by { p.preimage w member })),
+    equality: p.right w member
+  };
+\definition onOldDomain: \forall (z: K) -> Subfields.Member p.domain z -> forward z = p.forward z :=
+  \fun (z: K)(member: _) => trans!{K} _ _ _ (forwardLaw (Simple.sourceConstant (\into[K](z, p.domain) \by { member })))
+    (congr!{Range.Carrier K} Range.forget _ _ (Simple.onConstants extension.kernels extension.isomorphism (\into[K](z, p.domain) \by { member })));
+\definition onOldRange: \forall (w: K) -> Subfields.Member p.range w -> backward w = p.backward w :=
+  \fun (w: K)(member: _) => eq_reason!{{backward w}
+    "=" {backward (p.forward (p.backward w))} "by" {congr!{K K} backward _ _ (sym!{K} _ _ (p.right w member))}
+    "=" {backward (forward (p.backward w))} "by" {congr!{K K} backward _ _ (sym!{K} _ _ (onOldDomain (p.backward w) (p.preimage w member)))}
+    "=" {p.backward w} "by" {asIsomorphism.left (p.backward w) (oldDomain (p.backward w) (p.preimage w member))}};
+\definition extends: Extends[p, asIsomorphism] := Extends[p, asIsomorphism] {
+  domain := oldDomain, range := oldRange,
+  forward := \fun (z: K)(member: _) => sym!{K} _ _ (onOldDomain z member),
+  backward := \fun (w: K)(member: _) => sym!{K} _ _ (onOldRange w member),
+};
+\definition contains: Subfields.Member asIsomorphism.domain a := Source.member Simple.sourceVariable;

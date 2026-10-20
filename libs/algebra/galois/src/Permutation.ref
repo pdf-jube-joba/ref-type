@@ -38,6 +38,14 @@
   \fun (first: _)(second: _)(x: X) => trans!{X} _ _ _ (first x) (second x);
 \definition multiplyCongruent[p, q, r, s: Permutation]: Equal p r -> Equal q s -> Equal (multiply p q) (multiply r s) :=
   \fun (first: _)(second: _)(x: X) => trans!{X} _ _ _ (first (q.apply x)) (congr!{X X} r.apply _ _ (second x));
+\definition inverseCongruent[p, q: Permutation]: Equal p q -> Equal (inverse p) (inverse q) :=
+  \fun (same: _)(x: X) => trans!{X} _ _ _
+    (congr!{X X} p.backward _ _ (sym!{X} _ _ (q.rightInverse x)))
+    (trans!{X} _ _ _ (congr!{X X} p.backward _ _ (sym!{X} _ _ (same (q.backward x)))) (p.leftInverse (q.backward x)));
+\definition commutatorCongruent[p, q, r, s: Permutation]: Equal p r -> Equal q s -> Equal (commutator p q) (commutator r s) :=
+  \fun (first: _)(second: _) => multiplyCongruent _ _ _ _
+    (multiplyCongruent _ _ _ _ (multiplyCongruent _ _ _ _ first second) (inverseCongruent p r first))
+    (inverseCongruent q s second);
 \definition conjugateIdentity[p: Permutation]: Equal (conjugate p identity) identity := p.rightInverse;
 \definition conjugateMultiply[p, a, b: Permutation]: Equal (conjugate p (multiply a b)) (multiply (conjugate p a) (conjugate p b)) :=
   \fun (x: X) => sym!{X} _ _ (congr!{X X} (\fun (y: X) => p.apply (a.apply y)) _ _ (p.leftInverse (b.apply (p.backward x))));
@@ -192,3 +200,4 @@
       \fun (p: Permutation)(hp: _) => series.ends p (derivedInSeries series series.length p hp)
     }, \Cast[N.Nat^] ({ n: N.Nat^ \where Terminates n }));
 \module Obstruction;
+\module Relative(H: Permutation -> \Prop);

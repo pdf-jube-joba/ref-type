@@ -271,3 +271,12 @@ module 引数は検査時に確定した捕捉引数を明示した式で保持�
 
 [17-02-imports-first.ref](gaps/17-02-imports-first.ref) は、共通の module と型を先に具体化してから、証明の中で比較写像を使う回避例である。
 `cohomology_examples.Circle.Geometry.UniversalCoefficient` は、両方の短完全列の型と import を揃えた後に、比較写像を取り出して存在証明を構成する。
+
+<a id="g18"></a>
+
+## G18: 関数の引数に module の関数値を渡す
+
+局所変数を捕捉した module の関数を、高階関数の引数にそのまま渡したい。
+[18-01-module-function-value.ref](gaps/18-01-module-function-value.ref) は `apply Family[j := j].value` を使うが、捕捉した `j` が `Set` として扱われ、`inferred: Set, expected: Point` になる。
+[18-02-module-function-eta.ref](gaps/18-02-module-function-eta.ref) は `apply (\fun (i: Point) => Family[j := j].value i)` と明示的に eta 展開して型検査を通す。
+`quintic.Generic.Field.Over.Distinctness.independentImpliesDistinct` は、多項式の評価に渡す指示関数を局所 lambda で定義している。

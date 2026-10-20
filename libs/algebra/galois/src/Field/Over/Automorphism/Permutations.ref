@@ -1,0 +1,59 @@
+\import galois.Permutation[X := K] \as Perm;
+\definition permutation[f: Automorphism]: Perm.Permutation := Perm.Permutation {
+  apply := f.map.apply, backward := f.backward, leftInverse := f.leftInverse, rightInverse := f.rightInverse,
+};
+\structure Realization[S: K -> \Prop, p: Perm.Permutation] := {
+  automorphism: Automorphism,
+  fixes: Fixes S automorphism,
+  action: \forall (x: K) -> automorphism.map.apply x = p.apply x,
+};
+\definition Over[S: K -> \Prop][p: Perm.Permutation]: \Prop := \exists Realization[S, p];
+\definition realizes: \forall (S: K -> \Prop)(f: Automorphism) -> Fixes S f -> Over S (permutation f) :=
+  \fun (S: _)(f: Automorphism)(fixes: _) => \exact(Realization[S, permutation f] {
+    automorphism := f, fixes := fixes, action := \fun (x: K) => \refl(f.map.apply x),
+  }, Realization[S, permutation f]);
+\definition backwardAction: \forall (p: Perm.Permutation)(f: Automorphism) ->
+  (\forall (y: K) -> f.map.apply y = p.apply y) -> \forall (x: K) -> f.backward x = p.backward x :=
+  \fun (p: Perm.Permutation)(f: Automorphism)(action: _)(x: K) => eq_reason!{{f.backward x}
+    "=" {p.backward (p.apply (f.backward x))} "by" {sym!{K} _ _ (p.leftInverse (f.backward x))}
+    "=" {p.backward (f.map.apply (f.backward x))} "by" {congr!{K K} p.backward _ _ (sym!{K} _ _ (action (f.backward x)))}
+    "=" {p.backward x} "by" {congr!{K K} p.backward _ _ (f.rightInverse x)}};
+\definition subgroup: \forall (S: K -> \Prop) -> Perm.Subgroup[Over S] :=
+  \fun (S: _) => Perm.Subgroup[Over S] {
+    identity := realizes S identity (\fun (x: K)(hx: _) => \refl(x)),
+    multiply := \block {
+      \fun (p, q: Perm.Permutation)(hp: _)(hq: _) \then
+      \takefrom f: Realization[S, p] \by hp \then
+      \takefrom g: Realization[S, q] \by hq \then
+      \return \exact(Realization[S, Perm.multiply p q] {
+        automorphism := compose g.automorphism f.automorphism,
+        fixes := \fun (x: K)(hx: _) => trans!{K} _ _ _
+          (congr!{K K} f.automorphism.map.apply _ _ (g.fixes x hx)) (f.fixes x hx),
+        action := \fun (x: K) => trans!{K} _ _ _ (f.action (g.automorphism.map.apply x)) (congr!{K K} p.apply _ _ (g.action x)),
+      }, Realization[S, Perm.multiply p q])
+    },
+    inverse := \block {
+      \fun (p: Perm.Permutation)(hp: _) \then
+      \takefrom f: Realization[S, p] \by hp \then
+      \return \exact(Realization[S, Perm.inverse p] {
+        automorphism := inverse f.automorphism,
+        fixes := \fun (x: K)(hx: _) => trans!{K} _ _ _
+          (congr!{K K} f.automorphism.backward _ _ (sym!{K} _ _ (f.fixes x hx))) (f.automorphism.leftInverse x),
+        action := backwardAction p f.automorphism f.action,
+      }, Realization[S, Perm.inverse p])
+    },
+    extensional := \block {
+      \fun (p, q: Perm.Permutation)(same: _)(hp: _) \then
+      \takefrom f: Realization[S, p] \by hp \then
+      \return \exact(Realization[S, q] {
+        automorphism := f.automorphism, fixes := f.fixes,
+        action := \fun (x: K) => trans!{K} _ _ _ (f.action x) (same x),
+      }, Realization[S, q])
+    },
+  };
+\module Derived(S: K -> \Prop) {
+  \import Perm.Relative[H := Over S] \as Relative;
+  \definition stage: N.Nat^ -> Perm.Permutation -> \Prop := Relative.Derived;
+  \definition closed[n: N.Nat^]: Perm.Subgroup[stage n] := Relative.derivedSubgroup (subgroup S) n;
+  \definition inGroup: \forall (n: N.Nat^)(p: Perm.Permutation) -> stage n p -> Over S p := Relative.contained (subgroup S);
+}

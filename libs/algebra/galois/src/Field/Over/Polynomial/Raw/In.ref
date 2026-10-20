@@ -1,0 +1,36 @@
+\import Abstract.Universal[K := L, target := target] \as Evaluation;
+\import algebra.Hom[A := Abstract.Carrier, B := L] \as Output;
+\definition targetRing: Rings.Ring[L] := Rings.commutativeRingAsRing L target;
+\module At(coefficients: Evaluation.CoefficientMap, x: L) {
+  \definition value[p: Coefficients]: L := Lists.foldr K L
+    (\fun (a: K)(tail: L) => targetRing.add (coefficients a) (targetRing.mul x tail)) targetRing.zero p;
+  \definition monicValue[p: Coefficients]: L := Lists.foldr K L
+    (\fun (a: K)(tail: L) => targetRing.add (coefficients a) (targetRing.mul x tail)) targetRing.one p;
+  \definition apply: Abstract.Carrier -> L := Evaluation.evaluate coefficients x;
+  \definition laws: Output.SemiringLaws[Rings.ringAsSemiring Abstract.Carrier ring, Rings.ringAsSemiring L targetRing, apply] :=
+    Output.semiringLaws _ _ (Evaluation.extension coefficients x);
+  \definition rawAgrees: \forall (p: Coefficients) -> apply (asPolynomial p) = value p :=
+    \induction (p: Coefficients) \return apply (asPolynomial p) = value p \with {
+      | nil: laws.zero
+      | cons: \fun (a: K)(tail: Coefficients)(previous: _) =>
+        eq_reason!{{apply (asPolynomial (Lists.List[K]::cons a tail))}
+          "=" {targetRing.add (apply (Abstract.constant a)) (apply (Abstract.mul Abstract.X (asPolynomial tail)))}
+          "by" {laws.add (Abstract.constant a) (Abstract.mul Abstract.X (asPolynomial tail))}
+          "=" {targetRing.add (coefficients a) (targetRing.mul (apply Abstract.X) (apply (asPolynomial tail)))}
+          "by" {congr2!{L L L} targetRing.add _ _ _ _ (Evaluation.constants coefficients x a) (laws.mul Abstract.X (asPolynomial tail))}
+          "=" {value (Lists.List[K]::cons a tail)}
+          "by" {congr!{L L} (targetRing.add (coefficients a)) _ _ (congr2!{L L L} targetRing.mul _ _ _ _ (Evaluation.variable coefficients x) previous)}}
+    };
+  \definition monicAgrees: \forall (p: Coefficients) -> apply (Monic.asPolynomial p) = monicValue p :=
+    \induction (p: Coefficients) \return apply (Monic.asPolynomial p) = monicValue p \with {
+      | nil: laws.one
+      | cons: \fun (a: K)(tail: Coefficients)(previous: _) =>
+        eq_reason!{{apply (Monic.asPolynomial (Lists.List[K]::cons a tail))}
+          "=" {targetRing.add (apply (Abstract.constant a)) (apply (Abstract.mul Abstract.X (Monic.asPolynomial tail)))}
+          "by" {laws.add (Abstract.constant a) (Abstract.mul Abstract.X (Monic.asPolynomial tail))}
+          "=" {targetRing.add (coefficients a) (targetRing.mul (apply Abstract.X) (apply (Monic.asPolynomial tail)))}
+          "by" {congr2!{L L L} targetRing.add _ _ _ _ (Evaluation.constants coefficients x a) (laws.mul Abstract.X (Monic.asPolynomial tail))}
+          "=" {monicValue (Lists.List[K]::cons a tail)}
+          "by" {congr!{L L} (targetRing.add (coefficients a)) _ _ (congr2!{L L L} targetRing.mul _ _ _ _ (Evaluation.variable coefficients x) previous)}}
+    };
+}

@@ -52,3 +52,23 @@
     inverse := \fun (x: Carrier)(nonzero: _) => inverseLaw x nonzero,
   }
 };
+\import galois.Field[].Over[K := Carrier, field := subfield] \as Operations;
+\import Operations.Morphism[L := K, target := field] \as Into;
+\import std.Logic[].Classical[] \as Classical;
+\definition forget[x: Carrier]: K := x;
+\definition normalizedInverse: \forall (x: Carrier) -> forget (Operations.inv x) = inv x :=
+  \fun (x: Carrier) => Logic.orElim _ _ _ (Classical.excludedMiddle (x = subZero))
+    (\fun (same: x = subZero) => eq_reason!{{forget (Operations.inv x)}
+      "=" {zero} "by" {congr!{Carrier K} forget _ _ (Operations.InverseAt[x := x].atZero same)}
+      "=" {inv zero} "by" {sym!{K} _ _ invZero}
+      "=" {inv x} "by" {congr!{K K} inv _ _ (sym!{K} _ _ (congr!{Carrier K} forget _ _ same))}})
+    (\fun (nonzero: _) => congr!{Carrier K} forget _ _ (Operations.InverseAt[x := x].atNonzero nonzero));
+\definition inclusion: Into.Map := Into.Map {
+  apply := \fun (x: Carrier) => x,
+  preservesZero := \refl(zero), preservesOne := \refl(one),
+  preservesAdd := \fun (x, y: Carrier) => \refl(add x y),
+  preservesNeg := \fun (x: Carrier) => \refl(neg x),
+  preservesMul := \fun (x, y: Carrier) => \refl(mul x y),
+  preservesInv := normalizedInverse,
+};
+\module Polynomial;
