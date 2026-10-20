@@ -1,0 +1,26 @@
+\definition value[t: Reals.Real]: Vectors.Point := solution.value (Reals.add s t);
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\import calculus.Real[].Derivative[].Prop[] \as Basic;
+\import calculus.Real[].Derivative[].Operations[] \as DerivativeOperations;
+\import calculus.Real[].Derivative[].Chain[] \as Chain;
+\import real.Analysis[].Algebra[] \as Algebra;
+\definition initialValue: value Reals.zero = solution.value s :=
+  congr!{Reals.Real Vectors.Point} solution.value _ _ (ArithmeticLaws.addZeroRight s);
+\definition derivative: \forall (t: Time)(i: std.Data[].FinSet[].Fin n) ->
+  Derivatives.HasDerivativeAt (\fun (x: Reals.Real) => value x i) t (Extension.apply (value t) i) := \block {
+  \fun (t: Time)(i: std.Data[].FinSet[].Fin n) \then
+  \let inner: Derivatives.HasDerivativeAt (Reals.add s) t Reals.one :=
+    \idelim Reals.add Reals.zero Reals.one = Reals.one \with d: Reals.Real => Derivatives.HasDerivativeAt (Reals.add s) t d \by {
+      base: DerivativeOperations.addDerivative (\fun (x: Reals.Real) => s) (\fun (x: Reals.Real) => x) t Reals.zero Reals.one
+        (Basic.constantDerivative s t) (Basic.identityDerivative t),
+      equality: ArithmeticLaws.addZeroLeft Reals.one
+    } \then
+  \let outer: Derivatives.HasDerivativeAt (\fun (x: Reals.Real) => solution.value x i) (Reals.add s t)
+    (ODE.extended (value t) i) := solution.derivative (Reals.add s t) (sumLower s t) (sumUpper s t) i \then
+  \return \idelim Reals.mul (ODE.extended (value t) i) Reals.one = Extension.apply (value t) i
+    \with d: Reals.Real => Derivatives.HasDerivativeAt (\fun (x: Reals.Real) => value x i) t d \by {
+      base: Chain.derivative (Reals.add s) (\fun (x: Reals.Real) => solution.value x i) t Reals.one (ODE.extended (value t) i) inner outer,
+      equality: trans!{Reals.Real} _ _ _ (Algebra.mulOneRight (ODE.extended (value t) i))
+        (sym!{Reals.Real} _ _ (congr!{Vectors.Point Reals.Real} (\fun (v: Vectors.Point) => v i) _ _ (Extension.agreesUncut (value t) (sumNear s t))))
+    }
+};

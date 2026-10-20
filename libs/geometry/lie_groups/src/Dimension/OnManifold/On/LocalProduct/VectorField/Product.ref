@@ -1,0 +1,25 @@
+\definition leftCoordinate: Open.Carrier chart.image := Open.inclusion domain chart.image inChart g;
+\definition rightCoordinate: Open.Carrier chart.image := Open.inclusion domain chart.image inChart h;
+\definition productCoordinate: Open.Carrier chart.image := Open.inclusion domain chart.image inChart k;
+\import \parent.\parent.Translation[g := leftCoordinate] \as Left;
+\definition contains: \In[Vectors.Point] Left.domain.points h := Left.contains rightCoordinate
+  (\idelim Charts.point chart productCoordinate = mul (Charts.point chart leftCoordinate) (Charts.point chart rightCoordinate)
+    \with p: Point => Charts.Contains chart p \by {
+      base: \bysub(Point, chart.domain, Charts.point chart productCoordinate), equality: law
+    });
+\definition rightPoint: Open.Carrier Left.domain := \into[Vectors.Point](h, Left.domain.points) \by { contains };
+\import Left.At[a := rightPoint] \as Derivative;
+\import Left.Composition[h := rightPoint] \as Composition;
+\import \parent.At[x := h] \as AtRight;
+\import \parent.At[x := k] \as AtProduct;
+\import calculus.Maps[n := n, m := n] \as CoordinateMaps;
+\definition productEquality: CoordinateMaps.apply Left.domain chart.image Left.map rightPoint = productCoordinate := ChartLaws.pointInjective _ _
+  (trans!{Point} _ _ _ (Left.formula rightPoint) (sym!{Point} _ _ law));
+\definition equivariance: Derivative.linear.apply (velocity h) = velocity k := \block {
+  \let w: Vectors.Point := TangentCoordinates.decode v \then
+  \return trans!{Vectors.Point} _ _ _ (congr!{Vectors.Point Vectors.Point} Derivative.linear.apply _ _ AtRight.value)
+    (trans!{Vectors.Point} _ _ _ (Composition.pointwise w)
+      (trans!{Vectors.Point} _ _ _
+        (congr!{{Open.Carrier chart.image} Vectors.Point} (\fun (c: Open.Carrier chart.image) => (translationDifferential c).apply w) _ _ productEquality)
+        (sym!{Vectors.Point} _ _ AtProduct.value)))
+};

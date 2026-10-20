@@ -13,6 +13,7 @@
 | `Classical.On.Orthogonal.Special` | 指定次数の全交代形式を保つ部分群 |
 | `Classical.On.Orthogonal.LieAlgebra` | 反対称な線形自己写像の部分リー代数 |
 | `Euclidean[n]` | 標準内積、O(n)・SO(n)・\(\mathfrak{so}(n)\)、クリフォード代数と Pin・Spin・複素拡張の具体化 |
+| `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |
 
 `Ad g` は共役写像 \(x\mapsto gxg^{-1}\) の単位元での微分である。
 微分の値域となる接空間を、共役写像が単位元を固定する等式で単位元の接空間に移している。
@@ -20,6 +21,14 @@
 `LocalProduct.VectorField` は、指定した接ベクトルと積のヤコビアンから座標ベクトル場を構成する。
 `Initial.atInitial` は、その単位元での値が指定した接ベクトルの座標に一致することを示す。
 `LocalCurve` は局所微分方程式の解から、単位元を通る滑らかな群上の曲線を構成する。
+`Translation.Composition` は、結合則から局所平行移動の合成と微分の合成則を示す。
+`VectorField.Product.equivariance` はベクトル場の左不変性を表す。
+`LocalCurve.Uniform.On.Comparison.addition` は、平行移動した曲線と時刻をずらした曲線を同じ Picard 解と比較して局所加法則を証明する。
+`Homomorphism` はその局所加法則を実数全体の群準同型へ延長する。
+
+`LocalHom.On` は十分小さい \(t/2^k\) に対して \(f(t/2^k)^{2^k}\) を用いる。
+`At.independent` は許される分割次数によらないことを、`Addition.law` は大域加法則を証明する。
+`Uniqueness.equal` は局所準同型と一致する大域準同型の一意性を示す。
 
 `OneParameter.Integration` は、各接ベクトルをその零での速度に持つ一径数部分群の族である。
 `OneParameter.exp integration v` は、その一径数部分群の時刻 \(1\) の値を返す。

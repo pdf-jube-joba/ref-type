@@ -1,0 +1,39 @@
+\import \root.LocalHom[G := Point, group := group] \as Local;
+\import std.Set[].Extension[A := Vectors.Point, B := Point, domain := chart.image.points] \as ChartExtension;
+\import algebra.Groups[].On[G := Point, group := group] \as Group;
+\definition total[t: Reals.Real]: Point := ChartExtension.extend (\fun (x: Open.Carrier chart.image) => Charts.point chart x) one (solution.value t);
+\definition agrees: \forall (t: Time) -> total t = Charts.point chart (coordinate t) :=
+  \fun (t: Time) => ChartExtension.inside (\fun (x: Open.Carrier chart.image) => Charts.point chart x) one (coordinate t);
+\definition timeOf[t: Reals.Real][small: R.Lt (ProductBounds.abs t) ComparisonStep.edge]: Time :=
+  \into[Reals.Real](t, { t: Reals.Real \where R.Lt (Reals.distance t Reals.zero) radius }) \by {
+    R.Order[].ltTrans _ ComparisonStep.edge radius
+      (R.ltReplaceLeft (ProductBounds.abs t) (Reals.distance t Reals.zero) ComparisonStep.edge (Distance.distanceSymmetric Reals.zero t) small) comparisonEdge
+  };
+\import metric_spaces.RealLine[] \as Line;
+\definition closed[t: Reals.Real][small: R.Lt (ProductBounds.abs t) ComparisonStep.edge]: ComparisonStep.Time :=
+  \into[Reals.Real](t, Line.ClosedInterval ComparisonStep.left ComparisonStep.right) \by {
+    Logic.And[_, _]::#
+      (R.Order[].leOfLt _ _ (R.ltReplaceLeft (Reals.sub Reals.zero ComparisonStep.edge) (Reals.neg ComparisonStep.edge) t
+        (ArithmeticLaws.addZeroLeft (Reals.neg ComparisonStep.edge)) (Distance.distanceLtLower Reals.zero t ComparisonStep.edge small)))
+      (R.Order[].leOfLt _ _ (R.ltReplaceRight t (Reals.add Reals.zero ComparisonStep.edge) ComparisonStep.edge
+        (ArithmeticLaws.addZeroLeft ComparisonStep.edge) (Distance.distanceLtUpper Reals.zero t ComparisonStep.edge small)))
+  };
+\definition local: Local.LocalHom := Local.LocalHom {
+  radius := \into[Reals.Real](ComparisonStep.edge, { r: Reals.Real \where R.Lt Reals.zero r }) \by { ComparisonStep.edgePositive },
+  value := total,
+  atZero := trans!{Point} _ _ _ (agrees zeroTime) atZero,
+  addition := \fun (s, t: Reals.Real)(smallS: _)(smallT: _)(smallSum: _) => \block {
+    \let left: Time := timeOf s smallS \then
+    \let right: Time := timeOf t smallT \then
+    \let sum: Time := timeOf (Reals.add s t) smallSum \then
+    \let point: ComparisonStep.Time := closed t smallT \then
+    \return trans!{Point} _ _ _ (agrees sum)
+      (trans!{Point} _ _ _ (\parent.Comparison[s := left].addition point)
+        (congr2!{Point Point Point} mul _ _ _ _ (sym!{Point} _ _ (agrees left)) (sym!{Point} _ _ (agrees right))))
+  },
+};
+\import Local.On[f := local] \as Global;
+\definition value: Reals.Real -> Point := Global.value;
+\definition addition: \forall (s, t: Reals.Real) -> value (Reals.add s t) = mul (value s) (value t) := Global.addition;
+\definition atZero: value Reals.zero = one := Global.atZero;
+\definition localAgreement: \forall (t: Reals.Real) -> R.Lt (ProductBounds.abs t) ComparisonStep.edge -> value t = total t := Global.agrees;

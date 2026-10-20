@@ -1,0 +1,66 @@
+\definition Eligible[n: N.Nat^]: \Prop := R.Lt (Bounds.abs (scale t n)) f.radius;
+\definition Index: \Set := \Cast[N.Nat^] ({ n: N.Nat^ \where Eligible n });
+\definition eligibleExists: \exists Index := \block {
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt (Reals.mul (Bounds.abs t) (Geometric.value n)) f.radius }) \by
+    Geometric.scaledEventual halfNonnegative halfBelow (Bounds.abs t) f.radius (Bounds.absNonnegative t) positive \then
+  \return \exact(\into[N.Nat^](n, { n: N.Nat^ \where Eligible n }) \by {
+    R.ltReplaceLeft (Reals.mul (Bounds.abs t) (Geometric.value n)) (Bounds.abs (scale t n)) f.radius
+      (sym!{Reals.Real} _ _ (scaleAbsolute t n)) (\bysub(N.Nat^,
+        { n: N.Nat^ \where R.Lt (Reals.mul (Bounds.abs t) (Geometric.value n)) f.radius }, n))
+  }, Index)
+};
+\definition monotone: \forall (n, m: N.Nat^) -> Nat.Le n m -> Eligible n -> Eligible m :=
+  \fun (n, m: N.Nat^)(ordered: _)(eligible: _) => R.leLtTrans _ (Bounds.abs (scale t n)) f.radius
+    (R.leReplace _ _ _ _ (sym!{Reals.Real} _ _ (scaleAbsolute t m)) (sym!{Reals.Real} _ _ (scaleAbsolute t n))
+      (Estimates.mulMonotone (Bounds.abs t) (Geometric.value m) (Geometric.value n) (Bounds.absNonnegative t)
+        (Geometric.antitone halfNonnegative (R.Order[].leOfLt _ _ halfBelow) m n ordered))) eligible;
+\definition approximate[n: N.Nat^]: G := Powers.value n (f.value (scale t n));
+\definition adjacent: \forall (n: N.Nat^) -> Eligible n -> approximate n = approximate (N.Nat^::succ n) := \block {
+  \fun (n: N.Nat^)(eligible: _) \then
+  \let next: Eligible (N.Nat^::succ n) := monotone n (N.Nat^::succ n) (Nat.leStep n n (Nat.leRefl n)) eligible \then
+  \let sumInside: R.Lt (Bounds.abs (Reals.add (scale t (N.Nat^::succ n)) (scale t (N.Nat^::succ n)))) f.radius :=
+    R.ltReplaceLeft (Bounds.abs (scale t n)) _ f.radius (sym!{Reals.Real} _ _ (congr!{Reals.Real Reals.Real} Bounds.abs _ _ (doubleScale t n))) eligible \then
+  \let square: f.value (scale t n) = Operations.mul (f.value (scale t (N.Nat^::succ n))) (f.value (scale t (N.Nat^::succ n))) :=
+    trans!{G} _ _ _ (congr!{Reals.Real G} f.value _ _ (sym!{Reals.Real} _ _ (doubleScale t n)))
+      (f.addition (scale t (N.Nat^::succ n)) (scale t (N.Nat^::succ n)) next next sumInside) \then
+  \return congr!{G G} (Powers.value n) _ _ square
+};
+\definition advance: \forall (n, k: N.Nat^) -> Eligible n -> approximate n = approximate (NatOp.add n k) :=
+  \fun (n: N.Nat^) => \induction (k: N.Nat^) \return Eligible n -> approximate n = approximate (NatOp.add n k) \with {
+    | zero: \fun (eligible: _) => \refl(approximate n)
+    | succ: \fun (k: N.Nat^)(previous: Eligible n -> approximate n = approximate (NatOp.add n k))(eligible: _) =>
+      trans!{G} _ _ _ (previous eligible) (adjacent (NatOp.add n k) (monotone n (NatOp.add n k) (Nat.leAddRight n k) eligible))
+  };
+\definition ordered: \forall (n, m: N.Nat^) -> Nat.Le n m -> Eligible n -> approximate n = approximate m :=
+  \fun (n, m: N.Nat^)(le: _)(eligible: _) => trans!{G} _ _ _ (advance n (NatOp.sub m n) eligible)
+    (congr!{N.Nat^ G} approximate _ _ (Nat.addSubOfLe n m le));
+\definition independent: \forall (n, m: N.Nat^) -> Eligible n -> Eligible m -> approximate n = approximate m :=
+  \fun (n, m: N.Nat^)(left: _)(right: _) => trans!{G} _ _ _
+    (ordered n (NatOrder.commonBound n m) (NatOrder.leftLeCommonBound n m) left)
+    (sym!{G} _ _ (ordered m (NatOrder.commonBound n m) (NatOrder.rightLeCommonBound n m) right));
+\definition Candidate: \Set := \Cast[G] ({ x: G \where \exists ( n: Index \where approximate n = x ) });
+\definition candidateExists: \exists Candidate := \block {
+  \takefrom n: Index \by eligibleExists \then
+  \return \exact(\into[G](approximate n, { x: G \where \exists ( k: Index \where approximate k = x ) }) \by {
+    Logic.existsIntro[Index, { k: Index \where approximate k = approximate n }] n (\refl(approximate n))
+  }, Candidate)
+};
+\definition uniqueness: \forall (x, y: Candidate) -> x = y := \block {
+  \fun (x, y: Candidate) \then
+  \takefrom n: \Cast[Index] ({ n: Index \where approximate n = x }) \by \bysub(G,
+    { x: G \where \exists ( n: Index \where approximate n = x ) }, x) \then
+  \takefrom m: \Cast[Index] ({ m: Index \where approximate m = y }) \by \bysub(G,
+    { y: G \where \exists ( m: Index \where approximate m = y ) }, y) \then
+  \return trans!{G} _ _ _ (sym!{G} _ _ (\bysub(Index, { n: Index \where approximate n = x }, n)))
+    (trans!{G} _ _ _ (independent n m (\bysub(N.Nat^, { n: N.Nat^ \where Eligible n }, n)) (\bysub(N.Nat^, { n: N.Nat^ \where Eligible n }, m)))
+      (\bysub(Index, { m: Index \where approximate m = y }, m)))
+};
+\definition chosen: Candidate := \choice Candidate \by { existence: candidateExists, uniqueness: uniqueness };
+\definition value: G := chosen;
+\definition computes: \forall (n: N.Nat^) -> Eligible n -> value = approximate n := \block {
+  \fun (n: N.Nat^)(eligible: _) \then
+  \takefrom m: \Cast[Index] ({ m: Index \where approximate m = value }) \by \bysub(G,
+    { x: G \where \exists ( m: Index \where approximate m = x ) }, chosen) \then
+  \return trans!{G} _ _ _ (sym!{G} _ _ (\bysub(Index, { m: Index \where approximate m = value }, m)))
+    (independent m n (\bysub(N.Nat^, { m: N.Nat^ \where Eligible m }, m)) eligible)
+};

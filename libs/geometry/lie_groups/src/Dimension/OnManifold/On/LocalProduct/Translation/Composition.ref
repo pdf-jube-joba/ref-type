@@ -1,0 +1,76 @@
+/* Associativity of coordinate translations on their common open domain. */
+\import \parent.\parent.Translation[g := input h] \as Right;
+\definition gh: Open.Carrier chart.image := CoordinateMaps.apply domain chart.image map h;
+\import \parent.\parent.Translation[g := gh] \as ProductTranslation;
+\import CoordinateMaps.Preimage[U := Right.domain, W := chart.image, V := domain, f := Right.map] \as Restricted;
+\import CoordinateMaps.Composition[U := Restricted.domain, V := domain, f := Restricted.map].After[l := n, W := chart.image, g := map] \as Composite;
+\definition source: Open.OpenSet := Restricted.domain;
+\definition composed: CoordinateMaps.Map source chart.image := Composite.compose;
+\definition rightInput[x: Open.Carrier source]: Open.Carrier Right.domain := Restricted.input x;
+\definition productInput[x: Open.Carrier source]: Open.Carrier chart.image := Right.input (rightInput x);
+\definition composedFormula: \forall (x: Open.Carrier source) -> Charts.point chart (CoordinateMaps.apply source chart.image composed x) =
+  mul (Charts.point chart gh) (Charts.point chart (productInput x)) := \block {
+  \fun (x: Open.Carrier source) \then
+  \let second: Open.Carrier domain := Restricted.output x \then
+  \let outer: Charts.point chart (CoordinateMaps.apply source chart.image composed x) =
+    mul (Charts.point chart g) (Charts.point chart (input second)) := formula second \then
+  \let inner: Charts.point chart (input second) = mul (Charts.point chart (input h)) (Charts.point chart (productInput x)) := Right.formula (rightInput x) \then
+  \return trans!{Point} _ _ _ outer (trans!{Point} _ _ _
+    (congr!{Point Point} (mul (Charts.point chart g)) _ _ inner)
+    (trans!{Point} _ _ _ (sym!{Point} _ _ (Operations.assoc (Charts.point chart g) (Charts.point chart (input h)) (Charts.point chart (productInput x))))
+      (congr!{Point Point} (\fun (p: Point) => mul p (Charts.point chart (productInput x))) _ _ (sym!{Point} _ _ (formula h)))))
+};
+\definition included: Open.Included source ProductTranslation.domain := \fun (x: Vectors.Point)(member: _) => \block {
+  \let p: Open.Carrier source := \into[Vectors.Point](x, source.points) \by { member } \then
+  \let inside: Charts.Contains chart (mul (Charts.point chart gh) (Charts.point chart (productInput p))) :=
+    \idelim Charts.point chart (CoordinateMaps.apply source chart.image composed p) = mul (Charts.point chart gh) (Charts.point chart (productInput p))
+    \with q: Point => Charts.Contains chart q \by {
+      base: \bysub(Point, chart.domain, Charts.point chart (CoordinateMaps.apply source chart.image composed p)), equality: composedFormula p
+    } \then
+  \return ProductTranslation.contains (productInput p) inside
+};
+\import CoordinateMaps.Restriction[U := source, V := ProductTranslation.domain, W := chart.image] \as Restriction;
+\definition restricted: CoordinateMaps.Map source chart.image := Restriction.input included ProductTranslation.map;
+\definition equal: composed = restricted := CoordinateMaps.ext source chart.image composed restricted
+  (\axiom:funext(CoordinateMaps.apply source chart.image composed, CoordinateMaps.apply source chart.image restricted,
+    \fun (x: Open.Carrier source) => ChartLaws.pointInjective _ _ (trans!{Point} _ _ _ (composedFormula x)
+      (sym!{Point} _ _ (ProductTranslation.formula (Open.inclusion source ProductTranslation.domain included x))))));
+\definition containsOrigin: \In[Vectors.Point] source.points origin := Restricted.intro Right.initial
+  (\idelim input h = CoordinateMaps.apply Right.domain chart.image Right.map Right.initial \with p: Open.Carrier chart.image =>
+    \In[Vectors.Point] domain.points p \by {
+      base: \bysub(Vectors.Point, domain.points, h), equality: sym!{{Open.Carrier chart.image}} _ _ Right.atOrigin
+    });
+\definition initial: Open.Carrier source := \into[Vectors.Point](origin, source.points) \by { containsOrigin };
+\import calculus.Vector[n := n, m := n] \as Linear;
+\import Composite.At[a := initial] \as Chain;
+\import CoordinateMaps.Differential[U := source, V := chart.image, f := composed, a := initial] \as CompositeD;
+\import CoordinateMaps.Differential[U := source, V := chart.image, f := restricted, a := initial] \as RestrictedD;
+\import CoordinateMaps.Differential[U := domain, V := chart.image, f := map, a := h] \as LeftD;
+\import CoordinateMaps.Differential[U := Right.domain, V := chart.image, f := Right.map, a := Right.initial] \as RightD;
+\import CoordinateMaps.Differential[U := ProductTranslation.domain, V := chart.image, f := ProductTranslation.map, a := ProductTranslation.initial] \as ProductD;
+\import CoordinateMaps.Differential[U := domain, V := chart.image, f := map, a := Restricted.output initial] \as OuterD;
+\import CoordinateMaps.Differential[U := source, V := domain, f := Restricted.map, a := initial] \as InnerD;
+\definition outerPoint: Restricted.output initial = h := Right.atOrigin;
+\definition outerDerivative: OuterD.value = LeftD.value :=
+  \idelim h = Restricted.output initial \with a: Open.Carrier domain =>
+    CoordinateMaps.Differential[U := domain, V := chart.image, f := map, a := a].value = LeftD.value \by {
+      base: \refl(LeftD.value), equality: sym!{{Open.Carrier domain}} _ _ outerPoint
+    };
+\definition innerDerivative: InnerD.value = RightD.value := Restricted.differential initial;
+\definition equalDerivatives: CompositeD.value = RestrictedD.value :=
+  congr!{{CoordinateMaps.Map source chart.image} Linear.LinearMap}
+    (\fun (f: CoordinateMaps.Map source chart.image) => CoordinateMaps.Differential[U := source, V := chart.image, f := f, a := initial].value) _ _ equal;
+\definition candidate: Chain.candidate = ProductD.value := trans!{Linear.LinearMap} _ _ _ (sym!{Linear.LinearMap} _ _ Chain.jacobian)
+  (trans!{Linear.LinearMap} _ _ _ equalDerivatives (Restriction.differential included ProductTranslation.map initial));
+\definition pointwise: \forall (w: Vectors.Point) -> LeftD.value.apply (RightD.value.apply w) = ProductD.value.apply w := \block {
+  \fun (w: Vectors.Point) \then
+  \let outer: OuterD.value.apply = LeftD.value.apply := congr!{Linear.LinearMap {Vectors.Point -> Vectors.Point}}
+    (\fun (d: Linear.LinearMap) => d.apply) _ _ outerDerivative \then
+  \let inner: InnerD.value.apply w = RightD.value.apply w := congr!{Linear.LinearMap Vectors.Point}
+    (\fun (d: Linear.LinearMap) => d.apply w) _ _ innerDerivative \then
+  \let expansion: Chain.candidate.apply w = LeftD.value.apply (RightD.value.apply w) := trans!{Vectors.Point} _ _ _
+    (congr!{{Vectors.Point -> Vectors.Point} Vectors.Point} (\fun (f: Vectors.Point -> Vectors.Point) => f (InnerD.value.apply w)) _ _ outer)
+    (congr!{Vectors.Point Vectors.Point} LeftD.value.apply _ _ inner) \then
+  \return trans!{Vectors.Point} _ _ _ (sym!{Vectors.Point} _ _ expansion)
+    (congr!{Linear.LinearMap Vectors.Point} (\fun (d: Linear.LinearMap) => d.apply w) _ _ candidate)
+};
