@@ -1,0 +1,16 @@
+\import \root.Smooth[n := d, m := n].Between[M := S, N := submanifold] \as LocalRegularity;
+\import \root.Smooth[n := d, m := n].Between[M := S, N := manifold] \as AmbientRegularity;
+\import manifolds.SmoothMap[n := d, m := n].Between[M := S, N := submanifold] \as LocalMaps;
+\import manifolds.SmoothMap[n := d, m := n].Between[M := S, N := manifold] \as AmbientMaps;
+\import \root.SmoothComposition[n := d, m := n, l := n].Between[M := S, N := submanifold, P := manifold] \as Composition;
+\definition Function: \Set := S.Point -> Carrier;
+\definition underlying[f: Function][x: S.Point]: Point := f x;
+\definition ambient: \forall (f: Function) -> LocalRegularity.IsSmooth f -> AmbientRegularity.IsSmooth (underlying f) :=
+  \fun (f: Function)(smooth: _) => Composition.smooth f inclusion smooth inclusionSmooth;
+\module Restrict(f: Function, regular: AmbientRegularity.IsSmooth (underlying f));
+\definition restrict: \forall (f: Function) -> AmbientRegularity.IsSmooth (underlying f) -> LocalRegularity.IsSmooth f :=
+  \fun (f: Function)(regular: _) => Restrict[f := f, regular := regular].smooth;
+\definition product: \forall (f, g: Function) -> LocalRegularity.IsSmooth f -> LocalRegularity.IsSmooth g ->
+  LocalRegularity.IsSmooth (\fun (x: S.Point) => Subgroup.product (f x) (g x)) :=
+  \fun (f, g: Function)(left: _)(right: _) => restrict (\fun (x: S.Point) => Subgroup.product (f x) (g x))
+    (G.multiplication d S.Point S.space S.atlas S.hausdorff S.secondCountable (underlying f) (underlying g) (ambient f left) (ambient g right));
