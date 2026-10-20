@@ -1,0 +1,48 @@
+\import \root.Euclidean[n := n].On[field := extension, initial := a] \as ODE;
+\import ODE.Solution[] \as Global;
+\definition coefficient: Real := Product.coefficient bound Scalars.zero;
+\definition coefficientPositive: R.Lt Scalars.zero coefficient := Product.coefficientPositive bound Scalars.zero;
+\definition coefficientBound: R.Le bound coefficient := R.leReplaceLeft (Product.abs bound) bound coefficient
+  (Product.absOfNonnegative bound boundNonnegative) (Product.coefficientFirst bound Scalars.zero);
+\definition reach: Real := Product.radius coefficient radius;
+\definition reachPositive: R.Lt Scalars.zero reach := Product.radiusPositive coefficient radius coefficientPositive radiusPositive;
+\definition reachSmall: R.Lt (Scalars.mul coefficient reach) radius := Product.radiusSmall coefficient radius coefficientPositive radiusPositive;
+\definition radius: Real := Distance.min ODE.edge reach;
+\definition positive: R.Lt Scalars.zero radius := Product.minPositive ODE.edge reach ODE.edgePositive reachPositive;
+\definition value: Real -> Vector := Global.value;
+\definition initialValue: value Scalars.zero = a := Global.initialValue;
+\definition distanceSmall[t: Real]: R.Lt (Scalars.neg radius) t -> R.Lt t radius -> R.Lt (Scalars.distance t Scalars.zero) radius :=
+  \fun (lower: _)(upper: _) => R.ltReplaceLeft (Scalars.distance Scalars.zero t) (Scalars.distance t Scalars.zero) radius (Distance.distanceSymmetric Scalars.zero t)
+    (Distance.distanceLtOfInterval Scalars.zero t radius
+      (R.ltReplaceLeft (Scalars.neg radius) (Scalars.sub Scalars.zero radius) t (sym!{Real} _ _ (Laws.addZeroLeft (Scalars.neg radius))) lower)
+      (R.ltReplaceRight t radius (Scalars.add Scalars.zero radius) (sym!{Real} _ _ (Laws.addZeroLeft radius)) upper));
+\definition lower[t: Real]: R.Lt (Scalars.neg radius) t -> R.Lt ODE.left t :=
+  \fun (inside: _) => R.leLtTrans ODE.left (Scalars.neg radius) t (Laws.negAntitone radius ODE.edge (Distance.minLeft ODE.edge reach)) inside;
+\definition upper[t: Real]: R.Lt t radius -> R.Lt t ODE.right :=
+  \fun (inside: _) => R.ltLeTrans t radius ODE.right inside (Distance.minLeft ODE.edge reach);
+\definition near[t: Real]: R.Lt (Scalars.neg radius) t -> R.Lt t radius -> R.Lt (Norm.metric.distance (value t) a) (Scalars.mul Scalars.half neighborhood.radius) := \block {
+  \fun (lo: _)(hi: _) \then
+  \let point: ODE.Time := \into[Real](t, metric_spaces.RealLine[].ClosedInterval ODE.left ODE.right) \by {
+    Logic.And[_, _]::# (Order.leOfLt _ _ (lower t lo)) (Order.leOfLt _ _ (upper t hi))
+  } \then
+  \let timeBound: R.Le (Scalars.distance t Scalars.zero) reach := Order.leOfLt _ _ (R.ltLeTrans _ radius reach (distanceSmall t lo hi) (Distance.minRight ODE.edge reach)) \then
+  \return R.leLtTrans _ (Scalars.mul coefficient reach) (Scalars.mul Scalars.half neighborhood.radius)
+    (R.leTrans _ _ _
+      (R.leReplaceLeft (Norm.metric.distance a (value t)) (Norm.metric.distance (value t) a) (Scalars.mul (Scalars.distance t Scalars.zero) bound)
+        (Norm.metric.symmetric a (value t)) (Global.distanceBound point))
+      (R.leTrans _ _ _
+        (Estimates.mulMonotone (Scalars.distance t Scalars.zero) bound coefficient (Distance.distanceNonnegative t Scalars.zero) coefficientBound)
+        (R.leReplaceLeft (Scalars.mul coefficient (Scalars.distance t Scalars.zero)) (Scalars.mul (Scalars.distance t Scalars.zero) coefficient) (Scalars.mul coefficient reach)
+          (Laws.fieldMulComm coefficient (Scalars.distance t Scalars.zero))
+          (Estimates.mulMonotone coefficient (Scalars.distance t Scalars.zero) reach (Order.leOfLt _ _ coefficientPositive) timeBound))))
+    reachSmall
+};
+\definition inside: \forall (t: Real) -> R.Lt (Scalars.neg radius) t -> R.Lt t radius -> \In[Vector] U.points (value t) :=
+  \fun (t: Real)(lo: _)(hi: _) => neighborhood.included.included (value t) (Order.ltTrans _ _ neighborhood.radius (near t lo hi) radiusBelow);
+\definition derivative: \forall (t: Real) -> R.Lt (Scalars.neg radius) t -> R.Lt t radius -> \forall (i: Euclidean.Coordinate) ->
+  Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t (extended (value t) i) :=
+  \fun (t: Real)(lo: _)(hi: _)(i: Euclidean.Coordinate) => \idelim apply (value t) i = extended (value t) i \with d: Real =>
+    Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t d \by {
+      base: Global.derivative t (lower t lo) (upper t hi) i,
+      equality: congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (agreesUncut (value t) (Order.leOfLt _ _ (near t lo hi)))
+    };

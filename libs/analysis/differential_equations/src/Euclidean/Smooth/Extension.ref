@@ -1,0 +1,50 @@
+\import Euclidean.Clipping[] \as Clipping;
+\import std.Set[].Extension[A := Vector, B := Vector, domain := U.points] \as DomainExtension;
+\definition function[x: Open.Carrier U]: Vector := SmoothMaps.apply U Open.whole field x;
+\definition uncut[x: Vector]: Vector := DomainExtension.extend function Coordinates.origin x;
+\definition radius: Real := Scalars.mul Scalars.half neighborhood.radius;
+\definition radiusPositive: R.Lt Scalars.zero radius := Estimates.halfOfPositive neighborhood.radius neighborhood.positive;
+\definition radiusBelow: R.Lt radius neighborhood.radius := Estimates.halfStrict neighborhood.radius neighborhood.positive;
+\definition point[x: Vector]: Open.Carrier U := \into[Vector](Clipping.value a radius x, U.points) \by {
+  neighborhood.included.included (Clipping.value a radius x) (R.leLtTrans _ radius neighborhood.radius
+    (Clipping.bounded a radius x (Order.leOfLt _ _ radiusPositive)) radiusBelow)
+};
+\definition apply[x: Vector]: Vector := SmoothMaps.apply U Open.whole field (point x);
+\definition coefficientNonnegative: R.Le Scalars.zero neighborhood.coefficient := \bysub(Real, { c: Real \where R.Le Scalars.zero c }, neighborhood.coefficient);
+\definition bound: Real := Scalars.add (Scalars.mul neighborhood.coefficient radius) (Norm.metric.distance (SmoothMaps.apply U Open.whole field a) Coordinates.origin);
+\definition boundNonnegative: R.Le Scalars.zero bound := Laws.addNonnegative _ _
+  (Laws.fieldMulNonnegative neighborhood.coefficient radius coefficientNonnegative (Order.leOfLt _ _ radiusPositive))
+  (Norm.metric.nonnegative (SmoothMaps.apply U Open.whole field a) Coordinates.origin);
+\definition near[x: Vector]: R.Lt (Norm.metric.distance (point x) a) neighborhood.radius := R.leLtTrans _ radius neighborhood.radius
+  (Clipping.bounded a radius x (Order.leOfLt _ _ radiusPositive)) radiusBelow;
+\definition anchorNear: R.Lt (Norm.metric.distance a a) neighborhood.radius := R.ltReplaceLeft Scalars.zero (Norm.metric.distance a a) neighborhood.radius
+  (sym!{Real} _ _ (Norm.metric.self a)) neighborhood.positive;
+\definition bounded: \forall (x: Vector) -> R.Le (Norm.metric.distance (apply x) Coordinates.origin) bound := \fun (x: Vector) =>
+  R.leTrans _ _ bound (Norm.metric.triangle (apply x) (SmoothMaps.apply U Open.whole field a) Coordinates.origin)
+    (Laws.addMonotoneRight _ _ (Norm.metric.distance (SmoothMaps.apply U Open.whole field a) Coordinates.origin)
+      (R.leTrans _ _ _ (neighborhood.estimate (point x) a (near x) anchorNear)
+        (Estimates.mulMonotone neighborhood.coefficient (Norm.metric.distance (point x) a) radius coefficientNonnegative (Clipping.bounded a radius x (Order.leOfLt _ _ radiusPositive)))));
+\definition lipschitz: \forall (x, y: Vector) -> R.Le (Norm.metric.distance (apply x) (apply y)) (Scalars.mul neighborhood.coefficient (Norm.metric.distance x y)) :=
+  \fun (x, y: Vector) => R.leTrans _ _ _ (neighborhood.estimate (point x) (point y) (near x) (near y))
+    (Estimates.mulMonotone neighborhood.coefficient (Norm.metric.distance (point x) (point y)) (Norm.metric.distance x y) coefficientNonnegative (Clipping.nonexpansive a radius x y));
+\definition extension: BoundedLipschitzField := BoundedLipschitzField {
+  apply := apply,
+  bound := \into[Real](bound, { x: Real \where R.Le Scalars.zero x }) \by { boundNonnegative },
+  coefficient := neighborhood.coefficient,
+  bounded := bounded, lipschitz := lipschitz,
+};
+\definition agrees: \forall (x: Open.Carrier U) -> R.Le (Norm.metric.distance x a) radius -> apply x = SmoothMaps.apply U Open.whole field x :=
+  \fun (x: Open.Carrier U)(near: _) => trans!{Vector} _ _ _ (sym!{Vector} _ _ (DomainExtension.inside function Coordinates.origin (point x)))
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} uncut _ _ (Clipping.inside a radius x near)) (DomainExtension.inside function Coordinates.origin x));
+\definition agreesUncut: \forall (x: Vector) -> R.Le (Norm.metric.distance x a) radius -> apply x = uncut x :=
+  \fun (x: Vector)(near: _) => trans!{Vector} _ _ _ (sym!{Vector} _ _ (DomainExtension.inside function Coordinates.origin (point x)))
+    (congr!{Vector Vector} uncut _ _ (Clipping.inside a radius x near));
+\module Solution;
+\import Solution[] \as Solved;
+\definition localSolution: LocalSolution := LocalSolution {
+  radius := \into[Real](Solved.radius, { r: Real \where R.Lt Scalars.zero r }) \by { Solved.positive },
+  value := Solved.value,
+  initialValue := Solved.initialValue,
+  inside := Solved.inside,
+  derivative := Solved.derivative,
+};
