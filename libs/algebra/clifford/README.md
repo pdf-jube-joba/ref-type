@@ -18,6 +18,8 @@
 | `ComplexExtension.By` | 中心的な位数 \(2\) の元を使う \((G\times U(1))/\langle(-1,-1)\rangle\) |
 | `Field.Block` | 係数代数上の Clifford ブロック作用素、その線形性と二乗公式 |
 | `Euclidean[n]` / `Euclidean.Successor` | 標準内積の Clifford 代数と、直前の代数の二つのコピーへの作用 |
+| `EuclideanCoordinates` | 全次元の忠実な実係数座標、スカラー部分とベクトル部分の射影 |
+| `ComplexRepresentation.By` | Pin 部分群の複素拡張の忠実な二成分表示、積・逆元・位相の二乗の多項式表示 |
 | `EuclideanFaithfulness.faithful` | 全次元におけるスカラーと生成ベクトルの標準写像の単射性 |
 
 `Of.injection` は標準写像の線形写像としての名前である。
@@ -58,3 +60,6 @@ Spin は単位ベクトルの偶数個の積と \(-1\) から生成する。
 ```sh
 cargo run -p cli -- libs/algebra/clifford --module clifford
 ```
+
+標準内積では \(\iota(v)^2=\lVert v\rVert^2\) の符号規約を用いる。
+`geometry/lie_groups` の `PinAtlas.Dimension[n]`、`SpinGroup[n]`、`PinC[n]`、`SpinC[n]` が、これらの群の実際の滑らかな多様体とリー群構造を構成する。

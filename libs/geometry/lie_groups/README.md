@@ -7,6 +7,8 @@
 | --- | --- |
 | `Smooth.Between` | 関数の滑らかさ、同じ関数を表す滑らかな写像の一意性、定数写像 |
 | `Dimension.OnManifold.On` | 単位元の接空間、随伴線形写像 `Ad`、指数写像 `exp` と一径数部分群 `flow` |
+| `Dimension.OnManifold.On.SmoothFunctions` | 滑らかな実数値関数のベクトル空間、積、滑らかな写像による引き戻し |
+| `Dimension.OnManifold.On.LieAlgebra` | 左不変な導分の交換子リー代数、括弧積と `ad` |
 | `Dimension.OnManifold.On.LocalProduct` | 単位元付近の積の滑らかな座標表示と、その微分から得る局所ベクトル場 |
 | `Dimension.OnManifold.On.OneParameter` | 滑らかな一径数部分群、零での速度、積分データから得る `exp` |
 | `Dimension.OnManifold.On.Integration` | 各接ベクトルを零での速度とする滑らかな一径数部分群の存在 |
@@ -27,6 +29,9 @@
 | `PinFrame[n]` | Pin の再帰的な局所積表示と、座標・逆座標の滑らかさ |
 | `SpinGroup[n]` | 次数自己同型の固定部分としての Spin(n) の多様体とリー群 |
 | `PinAtlas.Dimension[n]` | Pin(n) の多様体 `manifold` とリー群 `lieGroup` |
+| `CircleGeometry` | 単位円の立体射影座標と滑らかな平方根の局所断面 |
+| `ComplexGroup.Over.Base.On` | 忠実な複素係数表示と位相の局所断面から複素拡張のアトラスを構成 |
+| `PinC[n]` / `SpinC[n]` | Pin^c(n)・Spin^c(n) の多様体 `manifold` とリー群 `lieGroup` |
 | `PinSurjectivity` | 任意の直交変換の Pin への持ち上げ |
 | `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |
 
@@ -79,7 +84,17 @@ SO(n) は次数 \(n\) の全交代形式を保つ条件を用いる。
 `SpinGroup[n]` は Pin の偶数部分が開部分群であることを証明し、制限した多様体構造で Spin をリー群にする。
 開性の証明では、次数自己同型が元を固定する場合と符号を変える場合を係数関数で分離する。
 
-\(\mathfrak{so}(n)\) と単位元の接空間との同定と、複素拡張の多様体構造は引き続き構成中である。
+`PinC[n]` と `SpinC[n]` は、対角の符号を割った既存の群の台集合上に多様体構造を与える。
+`ComplexRepresentation` の実部・虚部の係数は商の点を分離し、位相の二乗はそれらの二次式になる。
+単位円上の位相の平方根を局所的に選ぶと、商の元は位相の一つの実座標と元の Pin・Spin の元に一意に分解できる。
+この分解で可算アトラスを構成し、係数表示で積・逆元の共同での滑らかさを示す。
+次元は O(n)・SO(n)・Pin(n)・Spin(n) で \(n(n-1)/2\)、複素拡張でそれに \(1\) を加えた値で、零次元も含む。
+
+`On.SmoothFunctions.Function` は、すべての滑らかな Euclidean plot との合成が滑らかになる実数値関数を台集合とする。
+`On.LieAlgebra.Carrier` は、その関数空間の線形自己写像のうち Leibniz 則を満たし、左平行移動による引き戻しと可換なものからなる。
+導分と左不変性が交換子で保たれることを証明し、自己写像の交換子リー代数の部分リー代数として `lie` を構成する。
+`bracket` と `ad` はこのリー代数上の演算である。
+`TangentAtOne` は `Ad` と `exp` の接空間による API、`Euclidean.soLieAlgebra` は反対称な行列による具体的なリー代数の API である。
 
 ```sh
 cargo run -p cli -- libs/geometry/lie_groups --module lie_groups
