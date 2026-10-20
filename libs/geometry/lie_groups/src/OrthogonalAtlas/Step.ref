@@ -1,0 +1,42 @@
+\import \root.Euclidean[n := n] \as E;
+\import \root.Euclidean[n := N.Nat^::succ n] \as Next;
+\import E.Atlas[] \as Lower;
+\import Next.Atlas[] \as Upper;
+\import E.SuccessorGeometry[] \as Geometry;
+\import real.Analysis[] \as R;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].FinSet[] \as Fin;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import algebra.Groups[].On[G := Next.O, group := Next.orthogonalGroup] \as Group;
+\import calculus.Blocks[n := n, m := Lower.dimension] \as Blocks;
+\import calculus.Real[].Multivariable[n := n].Open[] \as LeftOpen;
+\import calculus.Real[].Multivariable[n := Lower.dimension].Open[] \as RightOpen;
+\import calculus.Real[].Multivariable[n := Upper.dimension].Open[] \as SourceOpen;
+\definition LowerVector: \Set := Fin.Fin Lower.dimension -> R.Real;
+\definition FullVector: \Set := Fin.Fin Upper.dimension -> R.Real;
+\import manifolds.ParametrizedAtlas[n := Lower.dimension, A := E.O] \as LowerCoordinates;
+\import manifolds.ParametrizedAtlas[n := Upper.dimension, A := Next.O] \as UpperCoordinates;
+\definition first: Next.Vector := Geometry.first;
+\definition height[g: Next.O]: R.Real := R.add R.one (Geometry.head (g.value.apply first));
+\definition Admissible: \Pow Next.O := { g: Next.O \where Logic.Not (height g = R.zero) };
+\definition Parts: \Set := \Cast[Next.O] Admissible;
+\definition asPart[g: Next.O][nonzero: Logic.Not (height g = R.zero)]: Parts := \into[Next.O](g, Admissible) \by { nonzero };
+\definition nonzero[g: Parts]: Logic.Not (height g = R.zero) := \bysub(Next.O, Admissible, g);
+\definition parameter[g: Parts]: E.Vector := Geometry.FirstColumn[g := g, nonzero := nonzero g].parameter;
+\definition fiber[g: Parts]: E.O := Geometry.FirstColumn[g := g, nonzero := nonzero g].fiber;
+\definition assemble[s: E.Vector][h: E.O]: Next.O := Geometry.SphereProduct[s := s, h := h].value;
+\definition reconstruct[g: Parts]: assemble (parameter g) (fiber g) = g := Geometry.FirstColumn[g := g, nonzero := nonzero g].reconstruct;
+\definition translate[q, g: Next.O]: Next.O := Group.mul q g;
+\definition untranslate[q, g: Next.O]: Next.O := Group.mul (Group.inv q) g;
+\definition undoTranslation: \forall (q, g: Next.O) -> untranslate q (translate q g) = g := \fun (q, g: Next.O) =>
+  trans!{{Next.O}} _ _ _ (sym!{{Next.O}} _ _ (Group.assoc (Group.inv q) q g))
+    (trans!{{Next.O}} _ _ _ (congr!{{Next.O} {Next.O}} (\fun (x: Next.O) => Group.mul x g) _ _ (Group.invLeft q)) (Group.oneLeft g));
+\definition translationUndo: \forall (q, g: Next.O) -> translate q (untranslate q g) = g := \fun (q, g: Next.O) =>
+  trans!{{Next.O}} _ _ _ (sym!{{Next.O}} _ _ (Group.assoc q (Group.inv q) g))
+    (trans!{{Next.O}} _ _ _ (congr!{{Next.O} {Next.O}} (\fun (x: Next.O) => Group.mul x g) _ _ (Group.invRight q)) (Group.oneLeft g));
+\module Reflection;
+\module On(previous: Lower.Data);
