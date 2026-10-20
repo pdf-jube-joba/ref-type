@@ -1,0 +1,18 @@
+\import calculus.Real[].Multivariable[n := d].Open[] \as Source;
+\import calculus.Maps[n := d, m := N.Nat^::zero] \as Maps;
+\import Atlas.Tests[d := d] \as Tests;
+\definition included[U: Source.OpenSet]: Source.Included U U := \fun (x: calculus.Real[].Multivariable[n := d].Point)(member: _) => member;
+\definition lift[U: Source.OpenSet]: Maps.Map U Open.whole := \into[Maps.Data[U, Open.whole]](
+  Maps.Data[U, Open.whole] { apply := \fun (x: Source.Carrier U) => empty },
+  { f: Maps.Data[U, Open.whole] \where Maps.Laws[U, Open.whole, f] }) \by {
+    Maps.Laws[U, Open.whole, Maps.Data[U, Open.whole]::# (\fun (x: Source.Carrier U) => empty)] {
+      smooth := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+    }
+  };
+\definition regular: Tests.Regular family := \fun (U: Source.OpenSet)(f: Source.Carrier U -> E.O)(smooth: _)(i: N.Nat^)(a: Source.Carrier U)(inside: _) =>
+  \exact(Coordinates.Read[d := d].On[p := patch, U := U, f := f, a := a].Witness {
+    domain := U, included := included U,
+    contains := \bysub(calculus.Real[].Multivariable[n := d].Point, U.points, a),
+    lift := lift U,
+    agrees := \fun (x: Source.Carrier U) => unique E.orthogonalGroup.unit (f (Source.inclusion U U (included U) x)),
+  }, Coordinates.Read[d := d].On[p := patch, U := U, f := f, a := a].Witness);
