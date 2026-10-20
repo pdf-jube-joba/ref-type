@@ -1,0 +1,74 @@
+\import std.Alg[].Ring[] \as Rings;
+\import std.Alg[].Alg[] \as Algebra;
+\import std.Alg[].Monoid[] \as Monoids;
+\definition Carrier: \Set := \Cast[K] S;
+\definition member[x: Carrier]: Member S x := \bysub(K, S, x);
+\definition subZero: Carrier := \into[K](zero, S) \by { (laws S).zero };
+\definition subOne: Carrier := \into[K](one, S) \by { (laws S).one };
+\definition subAdd[x, y: Carrier]: Carrier := \into[K](add x y, S) \by { (laws S).add x y (member x) (member y) };
+\definition subNeg[x: Carrier]: Carrier := \into[K](neg x, S) \by { (laws S).neg x (member x) };
+\definition subMul[x, y: Carrier]: Carrier := \into[K](mul x y, S) \by { (laws S).mul x y (member x) (member y) };
+\definition subInv[x: Carrier]: Carrier := \into[K](inv x, S) \by { (laws S).inv x (member x) };
+\definition ringData: Rings.RingData[Carrier] := Rings.RingData[Carrier] {
+  zero := subZero, one := subOne, add := subAdd, neg := subNeg, mul := subMul,
+};
+\definition semiringData: Algebra.SemiringData[Carrier] := Algebra.SemiringData[Carrier] {
+  zero := subZero, one := subOne, add := subAdd, mul := subMul,
+};
+\definition ringLaws: Rings.CommutativeRingLaws[Carrier, Rings.CommutativeRingData[Carrier]::# ringData] :=
+  Rings.CommutativeRingLaws[Carrier, Rings.CommutativeRingData[Carrier]::# ringData] {
+    ring := Rings.RingLaws[Carrier, ringData] {
+      semiring := Algebra.SemiringLaws[Carrier, semiringData] {
+        additive := Monoids.CommutativeMonoidLaws[Carrier,
+          Monoids.CommutativeMonoidData[Carrier]::# (Monoids.MonoidData[Carrier]::# subZero subAdd)] {
+          monoid := Monoids.MonoidLaws[Carrier, Monoids.MonoidData[Carrier]::# subZero subAdd] {
+            leftIdentity := \fun (x: Carrier) => field.ring.ring.semiring.additive.monoid.leftIdentity x,
+            rightIdentity := \fun (x: Carrier) => field.ring.ring.semiring.additive.monoid.rightIdentity x,
+            associative := \fun (x, y, z: Carrier) => field.ring.ring.semiring.additive.monoid.associative x y z,
+          },
+          commutative := \fun (x, y: Carrier) => field.ring.ring.semiring.additive.commutative x y,
+        },
+        multiplicative := Monoids.MonoidLaws[Carrier, Monoids.MonoidData[Carrier]::# subOne subMul] {
+          leftIdentity := \fun (x: Carrier) => field.ring.ring.semiring.multiplicative.leftIdentity x,
+          rightIdentity := \fun (x: Carrier) => field.ring.ring.semiring.multiplicative.rightIdentity x,
+          associative := \fun (x, y, z: Carrier) => field.ring.ring.semiring.multiplicative.associative x y z,
+        },
+        leftDistributive := \fun (x, y, z: Carrier) => field.ring.ring.semiring.leftDistributive x y z,
+        rightDistributive := \fun (x, y, z: Carrier) => field.ring.ring.semiring.rightDistributive x y z,
+        zeroAbsorbsLeft := \fun (x: Carrier) => field.ring.ring.semiring.zeroAbsorbsLeft x,
+        zeroAbsorbsRight := \fun (x: Carrier) => field.ring.ring.semiring.zeroAbsorbsRight x,
+      },
+      additiveInverse := \fun (x: Carrier) => field.ring.ring.additiveInverse x,
+    },
+    mulCommutative := \fun (x, y: Carrier) => field.ring.mulCommutative x y,
+  };
+\definition fieldData: Fields.FieldData[Carrier] := Fields.FieldData[Carrier] {
+  zero := subZero, one := subOne, add := subAdd, neg := subNeg, mul := subMul, inv := subInv,
+};
+\definition subfield: Fields.Field[Carrier] := \into[Fields.FieldData[Carrier]](fieldData, Fields.Field[Carrier]) \by {
+  Fields.FieldLaws[Carrier, fieldData] {
+    ring := ringLaws,
+    nontrivial := \fun (same: subZero = subOne) => field.nontrivial same,
+    inverse := \fun (x: Carrier)(nonzero: _) => inverseLaw x nonzero,
+  }
+};
+\import galois.Field[].Over[K := Carrier, field := subfield] \as Operations;
+\import Operations.Morphism[L := K, target := field] \as Into;
+\import std.Logic[].Classical[] \as Classical;
+\definition forget[x: Carrier]: K := x;
+\definition normalizedInverse: \forall (x: Carrier) -> forget (Operations.inv x) = inv x :=
+  \fun (x: Carrier) => Logic.orElim _ _ _ (Classical.excludedMiddle (x = subZero))
+    (\fun (same: x = subZero) => eq_reason!{{forget (Operations.inv x)}
+      "=" {zero} "by" {congr!{Carrier K} forget _ _ (Operations.InverseAt[x := x].atZero same)}
+      "=" {inv zero} "by" {sym!{K} _ _ invZero}
+      "=" {inv x} "by" {congr!{K K} inv _ _ (sym!{K} _ _ (congr!{Carrier K} forget _ _ same))}})
+    (\fun (nonzero: _) => congr!{Carrier K} forget _ _ (Operations.InverseAt[x := x].atNonzero nonzero));
+\definition inclusion: Into.Map := Into.Map {
+  apply := \fun (x: Carrier) => x,
+  preservesZero := \refl(zero), preservesOne := \refl(one),
+  preservesAdd := \fun (x, y: Carrier) => \refl(add x y),
+  preservesNeg := \fun (x: Carrier) => \refl(neg x),
+  preservesMul := \fun (x, y: Carrier) => \refl(mul x y),
+  preservesInv := normalizedInverse,
+};
+\module Polynomial;

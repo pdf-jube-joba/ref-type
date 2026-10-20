@@ -28,6 +28,8 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [algebra/basic](algebra/basic/README.md) | `algebra` | 準同型、群完成、商、多項式環 |
+| [algebra/galois](algebra/galois/README.md) | `galois` | 体拡大、最小多項式、自己同型の延長、ガロア接続、根号・作図可能性、有理数の代数閉包の定義 |
+| [algebra/quintic](algebra/quintic/README.md) | `quintic` | 一般5次方程式の根号非可解性と作図不可能性 |
 | [algebra/module_theory](algebra/module_theory/README.md) | `module_theory` | 環上の加群、自由加群、直和、テンソル積、完全列 |
 | [algebra/commutative_algebra](algebra/commutative_algebra/README.md) | `commutative_algebra` | Hom とテンソル積、射影性、有限自由加群の行列 |
 | [algebra/integer_matrices](algebra/integer_matrices/README.md) | `integer_matrices` | 整数行列の演算、Smith 標準形と変換行列 |
@@ -55,7 +57,7 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 |
-| [geometry/lie_groups](geometry/lie_groups/README.md) | `lie_groups` | リー群の定義、随伴微分、直交群の代数的構成、一径数部分群 |
+| [geometry/lie_groups](geometry/lie_groups/README.md) | `lie_groups` | リー群・リー代数、随伴微分・指数写像、O・SO・Pin・Spin と複素拡張のリー群構造 |
 | [geometry/euclidean_forms](geometry/euclidean_forms/README.md) | `euclidean_forms` | 局所微分形式、外積・外微分、座標表示、引き戻し |
 | [geometry/differential_forms](geometry/differential_forms/README.md) | `differential_forms` | 大域微分形式、貼り合わせ、引き戻し、De Rham コホモロジー |
 

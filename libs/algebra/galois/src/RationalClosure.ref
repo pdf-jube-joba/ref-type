@@ -1,0 +1,32 @@
+\import std.Alg[].Field[] \as Fields;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Arithmetic[].Rat[].Fractions[].Quotient[] \as Q;
+
+\structure RationalEmbedding[K: \Set, field: Fields.Field[K]]: \Set := {
+  apply: Q.Rat -> K,
+  zero: apply Q.zeroRat = field.zero,
+  one: apply Q.oneRat = field.one,
+  add: \forall (x, y: Q.Rat) -> apply (Q.addRat x y) = field.add (apply x) (apply y),
+  neg: \forall (x: Q.Rat) -> apply (Q.neg x) = field.neg (apply x),
+  mul: \forall (x, y: Q.Rat) -> apply (Q.mulRat x y) = field.mul (apply x) (apply y),
+  injective: \forall (x, y: Q.Rat) -> apply x = apply y -> x = y,
+};
+\module In(K: \Set, field: Fields.Field[K], rational: RationalEmbedding[K, field]) {
+  \import galois.Field[].Over[K := K, field := field].Polynomial[] \as Polynomials;
+  \import galois.Field[].Over[K := K, field := field].Automorphism[] \as Aut;
+  \definition Rational[x: K]: \Prop := \exists \Cast[Q.Rat] ({ q: Q.Rat \where rational.apply q = x });
+  \definition Algebraic[x: K]: \Prop := Polynomials.Algebraic Rational x;
+  \definition AlgebraicNumbers: \Set := \Cast[K] ({ x: K \where Algebraic x });
+  \definition AlgebraicallyClosed: \Prop := Polynomials.AlgebraicallyClosed (\fun (x: K) => Logic.True);
+  \definition AlgebraicOverQ: \Prop := \forall (x: K) -> Algebraic x;
+  \definition AbsoluteGaloisAutomorphism[f: Aut.Automorphism]: \Prop := Aut.Fixes Rational f;
+}
+/* An algebraic closure is an algebraic, algebraically closed extension of Q.
+ * The carrier is part of the structure; this definition chooses no model. */
+\structure AlgebraicClosureOfQ := {
+  Carrier: \Set,
+  field: Fields.Field[Carrier],
+  rational: RationalEmbedding[Carrier, field],
+  algebraic: galois.RationalClosure[].In[K := Carrier, field := field, rational := rational].AlgebraicOverQ,
+  closed: galois.RationalClosure[].In[K := Carrier, field := field, rational := rational].AlgebraicallyClosed,
+};

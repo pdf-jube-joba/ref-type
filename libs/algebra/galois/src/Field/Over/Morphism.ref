@@ -1,0 +1,61 @@
+\definition targetInv: L -> L := galois.Field[].Over[K := L, field := target].inv;
+\structure Map: \Set := {
+  apply: K -> L,
+  preservesZero: apply zero = target.zero,
+  preservesOne: apply one = target.one,
+  preservesAdd: \forall (x, y: K) -> apply (add x y) = target.add (apply x) (apply y),
+  preservesNeg: \forall (x: K) -> apply (neg x) = target.neg (apply x),
+  preservesMul: \forall (x, y: K) -> apply (mul x y) = target.mul (apply x) (apply y),
+  preservesInv: \forall (x: K) -> apply (inv x) = targetInv (apply x),
+};
+\structure Embedding: \Set := {
+  map: Map,
+  injective: \forall (x, y: K) -> map.apply x = map.apply y -> x = y,
+};
+\import std.Logic[].Classical[] \as Classical;
+\definition nonzeroImage: \forall (f: Map)(x: K) -> Logic.Not (x = zero) -> Logic.Not (f.apply x = target.zero) :=
+  \fun (f: Map)(x: K)(nonzero: _)(imageZero: _) => target.nontrivial
+    (sym!{L} _ _ (eq_reason!{{target.one}
+      "=" {f.apply one} "by" {sym!{L} _ _ f.preservesOne}
+      "=" {f.apply (mul (inv x) x)} "by" {congr!{K L} f.apply _ _ (sym!{K} _ _ (inverseLaw x nonzero))}
+      "=" {target.mul (f.apply (inv x)) (f.apply x)} "by" {f.preservesMul (inv x) x}
+      "=" {target.mul (f.apply (inv x)) target.zero} "by" {congr!{L L} (target.mul (f.apply (inv x))) _ _ imageZero}
+      "=" {target.zero} "by" {target.ring.ring.semiring.zeroAbsorbsRight (f.apply (inv x))}}));
+\definition reflectsZero: \forall (f: Map)(x: K) -> f.apply x = target.zero -> x = zero :=
+  \fun (f: Map)(x: K)(imageZero: _) => Logic.orElim _ _ (x = zero) (Classical.excludedMiddle (x = zero))
+    (\fun (equal: _) => equal) (\fun (nonzero: _) => Logic.falseElim (x = zero) (nonzeroImage f x nonzero imageZero));
+\import std.Alg[].Ring[] \as Rings;
+\definition sourceRing: Rings.Ring[K] := Rings.commutativeRingAsRing K (Fields.fieldAsCommutativeRing K field);
+\definition targetRing: Rings.Ring[L] := Rings.commutativeRingAsRing L (Fields.fieldAsCommutativeRing L target);
+\import algebra.Hom[A := K, B := L] \as RingHom;
+\definition ringMap[f: Map]: RingHom.RingMap sourceRing targetRing :=
+  \into[K -> L](f.apply, RingHom.RingMap sourceRing targetRing) \by {
+    RingHom.SemiringLaws[Rings.ringAsSemiring K sourceRing, Rings.ringAsSemiring L targetRing, f.apply] {
+      zero := f.preservesZero, one := f.preservesOne, add := f.preservesAdd, mul := f.preservesMul,
+    }
+  };
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K sourceRing] \as SourceAdditive;
+\import algebra.Group[].Of[Carrier := L, group := Rings.additiveGroup L targetRing] \as TargetAdditive;
+\definition injective: \forall (f: Map)(x, y: K) -> f.apply x = f.apply y -> x = y :=
+  \fun (f: Map)(x, y: K)(same: _) => \block {
+    \let differenceZero: add x (neg y) = zero := reflectsZero f (add x (neg y))
+      (eq_reason!{{f.apply (add x (neg y))}
+        "=" {target.add (f.apply x) (f.apply (neg y))} "by" {f.preservesAdd x (neg y)}
+        "=" {target.add (f.apply y) (target.neg (f.apply y))}
+        "by" {congr2!{L L L} target.add _ _ _ _ same (f.preservesNeg y)}
+        "=" {target.zero} "by" {TargetAdditive.inverseRight (f.apply y)}}) \then
+    \return eq_reason!{x
+      "=" {add (add x (neg y)) y} "by" {sym!{K} _ _ (SourceAdditive.addDifference x y)}
+      "=" {add zero y} "by" {congr!{K K} (\fun (a: K) => add a y) _ _ differenceZero}
+      "=" y "by" {SourceAdditive.zeroLeft y}}
+  };
+\definition asEmbedding[f: Map]: Embedding := Embedding { map := f, injective := injective f };
+\definition preservesPower: \forall (f: Map)(x: K)(n: N.Nat^) ->
+  f.apply (power x n) = galois.Field[].Over[K := L, field := target].power (f.apply x) n :=
+  \fun (f: Map)(x: K) => \induction (n: N.Nat^) \return
+    f.apply (power x n) = galois.Field[].Over[K := L, field := target].power (f.apply x) n \with {
+    | zero: f.preservesOne
+    | succ: \fun (n: N.Nat^)(ih: _) => trans!{L} _ _ _ (f.preservesMul x (power x n))
+      (congr!{L L} (target.mul (f.apply x)) _ _ ih)
+  };
+\module Composition(M: \Set, output: Fields.Field[M]);

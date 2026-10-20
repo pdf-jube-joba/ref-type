@@ -274,9 +274,18 @@ module 引数は検査時に確定した捕捉引数を明示した式で保持�
 
 <a id="g18"></a>
 
-## G18: 別名で与えた命題の field に宣言構造を渡す
+## G18: 関数の引数に module の関数値を渡す
+
+局所変数を捕捉した module の関数を、高階関数の引数にそのまま渡したい。
+[18-01-module-function-value.ref](gaps/18-01-module-function-value.ref) は `apply Family[j := j].value` を使うが、捕捉した `j` が `Set` として扱われ、`inferred: Set, expected: Point` になる。
+[18-02-module-function-eta.ref](gaps/18-02-module-function-eta.ref) は `apply (\fun (i: Point) => Family[j := j].value i)` と明示的に eta 展開して型検査を通す。
+`quintic.Generic.Field.Over.Distinctness.independentImpliesDistinct` は、多項式の評価に渡す指示関数を局所 lambda で定義している。
+
+<a id="g19"></a>
+
+## G19: 別名で与えた命題の field に宣言構造を渡す
 
 構造を量化する命題を別名にして field の型に使い、その field に構造を一つの引数として渡したい。
-[18-01-aliased-field-signature.ref](gaps/18-01-aliased-field-signature.ref) は `Item 'M' was not found` になる。
-[18-02-explicit-field-arguments.ref](gaps/18-02-explicit-field-arguments.ref) は構造の各 field を明示する回避例である。
+[19-01-aliased-field-signature.ref](gaps/19-01-aliased-field-signature.ref) は `Item 'M' was not found` になる。
+[19-02-explicit-field-arguments.ref](gaps/19-02-explicit-field-arguments.ref) は構造の各 field を明示する回避例である。
 `lie_groups.Dimension.OnManifold.On.productSmooth` はこの形で、多様体の台集合・位相・アトラス・分離性・第二可算性を渡す。

@@ -1,0 +1,62 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\definition Derived: N.Nat^ -> Permutation -> \Prop :=
+  \induction (n: N.Nat^) \return Permutation -> \Prop \with {
+    | zero: H
+    | succ: \fun (n: N.Nat^)(previous: Permutation -> \Prop) => Generated (Commutators previous)
+  };
+\definition commutatorClosed: \forall (J: Permutation -> \Prop) -> Subgroup[J] ->
+  \forall (p, q: Permutation) -> J p -> J q -> J (commutator p q) :=
+  \fun (J: _)(closed: Subgroup[J])(p, q: Permutation)(hp: _)(hq: _) =>
+    closed.multiply _ _ (closed.multiply _ _ (closed.multiply p q hp hq) (closed.inverse p hp)) (closed.inverse q hq);
+\definition derivedSubgroup: Subgroup[H] -> \forall (n: N.Nat^) -> Subgroup[Derived n] :=
+  \fun (closed: Subgroup[H]) => \induction (n: N.Nat^) \return Subgroup[Derived n] \with {
+    | zero: closed
+    | succ: \fun (n: N.Nat^)(previous: _) => generatedSubgroup (Commutators (Derived n))
+  };
+\definition decreasing: Subgroup[H] -> \forall (n: N.Nat^)(p: Permutation) -> Derived (N.Nat^::succ n) p -> Derived n p :=
+  \fun (closed: Subgroup[H])(n: N.Nat^)(p: Permutation)(hp: _) => hp (Derived n) (derivedSubgroup closed n)
+    (\block {
+      \fun (q: Permutation)(hq: Commutators (Derived n) q) \then
+      \takefrom witness: CommutatorWitness[Derived n, q] \by hq \then
+      \return (derivedSubgroup closed n).extensional _ q witness.value
+        (commutatorClosed (Derived n) (derivedSubgroup closed n) witness.left witness.right witness.leftMember witness.rightMember)
+    });
+\definition contained: Subgroup[H] -> \forall (n: N.Nat^)(p: Permutation) -> Derived n p -> H p :=
+  \fun (closed: Subgroup[H]) => \induction (n: N.Nat^) \return \forall (p: Permutation) -> Derived n p -> H p \with {
+    | zero: \fun (p: Permutation)(hp: _) => hp
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Permutation)(hp: _) => previous p (decreasing closed n p hp)
+  };
+\definition atAddLeft: Subgroup[H] -> \forall (n, k: N.Nat^)(p: Permutation) -> Derived (Nat.add n k) p -> Derived n p :=
+  \fun (closed: Subgroup[H])(n: N.Nat^) => \induction (k: N.Nat^) \return
+    \forall (p: Permutation) -> Derived (Nat.add n k) p -> Derived n p \with {
+    | zero: \fun (p: Permutation)(hp: _) => hp
+    | succ: \fun (k: N.Nat^)(previous: _)(p: Permutation)(hp: _) => previous p (decreasing closed (Nat.add n k) p hp)
+  };
+\definition atAddRight: Subgroup[H] -> \forall (n, k: N.Nat^)(p: Permutation) -> Derived (Nat.add n k) p -> Derived k p :=
+  \fun (closed: Subgroup[H])(n, k: N.Nat^)(p: Permutation)(hp: _) => atAddLeft closed k n p
+    (\idelim Nat.add n k = Nat.add k n \with j: N.Nat^ => Derived j p \by { base: hp, equality: NatLaws.addComm n k });
+\definition FixesPoint[x: X][p: Permutation]: \Prop := p.apply x = x;
+\definition stabilizer: \forall (x: X) -> Subgroup[FixesPoint x] :=
+  \fun (x: X) => Subgroup[FixesPoint x] {
+    identity := \refl(x),
+    multiply := \fun (p, q: Permutation)(hp: _)(hq: _) => trans!{X} _ _ _ (congr!{X X} p.apply _ _ hq) hp,
+    inverse := \fun (p: Permutation)(hp: _) => trans!{X} _ _ _ (congr!{X X} p.backward _ _ (sym!{X} _ _ hp)) (p.leftInverse x),
+    extensional := \fun (p, q: Permutation)(same: _)(hp: _) => trans!{X} _ _ _ (sym!{X} _ _ (same x)) hp,
+  };
+\definition conjugateStage: Subgroup[H] -> \forall (n: N.Nat^)(p, q: Permutation) -> H p -> Derived n q -> Derived n (conjugate p q) :=
+  \fun (closed: Subgroup[H]) => \induction (n: N.Nat^) \return
+    \forall (p, q: Permutation) -> H p -> Derived n q -> Derived n (conjugate p q) \with {
+    | zero: \fun (p, q: Permutation)(hp: _)(hq: _) => closed.multiply _ _ (closed.multiply p q hp hq) (closed.inverse p hp)
+    | succ: \fun (n: N.Nat^)(previous: _)(p, q: Permutation)(hp: _)(hq: _) =>
+      hq (\fun (r: Permutation) => Derived (N.Nat^::succ n) (conjugate p r))
+        (conjugationPreimage p (Derived (N.Nat^::succ n)) (derivedSubgroup closed (N.Nat^::succ n)))
+        (\block {
+          \fun (r: Permutation)(hr: Commutators (Derived n) r) \then
+          \takefrom witness: CommutatorWitness[Derived n, r] \by hr \then
+          \return (derivedSubgroup closed (N.Nat^::succ n)).extensional _ _
+            (equalTrans _ _ _ (equalSym _ _ (conjugateCommutator p witness.left witness.right)) (conjugateCongruent p _ r witness.value))
+            (generatedCommutator (Derived n) (conjugate p witness.left) (conjugate p witness.right)
+              (previous p witness.left hp witness.leftMember) (previous p witness.right hp witness.rightMember))
+        })
+  };

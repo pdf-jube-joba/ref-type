@@ -1,0 +1,122 @@
+/* Finite radical expressions, with an explicitly chosen root at each step. */
+\inductive Expression: \Set :=
+  | zero: Expression
+  | one: Expression
+  | constant: K -> Expression
+  | sum: Expression -> Expression -> Expression
+  | negative: Expression -> Expression
+  | product: Expression -> Expression -> Expression
+  | reciprocal: Expression -> Expression
+  | root: N.Nat^ -> K -> Expression -> Expression;
+\definition evaluate: Expression -> K := \induction (e: Expression) \return K \with {
+  | zero: zero
+  | one: one
+  | constant: \fun (x: K) => x
+  | sum: \fun (left: Expression)(x: K)(right: Expression)(y: K) => add x y
+  | negative: \fun (child: Expression)(x: K) => neg x
+  | product: \fun (left: Expression)(x: K)(right: Expression)(y: K) => mul x y
+  | reciprocal: \fun (child: Expression)(x: K) => inv x
+  | root: \fun (n: N.Nat^)(root: K)(radicand: Expression)(x: K) => root
+};
+\definition Valid[S: K -> \Prop]: Expression -> \Prop := \induction (e: Expression) \return \Prop \with {
+  | zero: Logic.True
+  | one: Logic.True
+  | constant: \fun (x: K) => S x
+  | sum: \fun (left: Expression)(hx: \Prop)(right: Expression)(hy: \Prop) => Logic.And[hx, hy]
+  | negative: \fun (child: Expression)(hx: \Prop) => hx
+  | product: \fun (left: Expression)(hx: \Prop)(right: Expression)(hy: \Prop) => Logic.And[hx, hy]
+  | reciprocal: \fun (child: Expression)(hx: \Prop) => hx
+  | root: \fun (n: N.Nat^)(root: K)(radicand: Expression)(hx: \Prop) => Logic.And[hx, power root (N.Nat^::succ (N.Nat^::succ n)) = evaluate radicand]
+};
+\structure Representation[S: K -> \Prop, x: K] := {
+  expression: Expression,
+  valid: Valid S expression,
+  value: evaluate expression = x,
+};
+\definition Representable[S: K -> \Prop][x: K]: \Prop := \exists Representation[S, x];
+\definition sound: \forall (S: K -> \Prop)(e: Expression) -> Valid S e -> Radical S (evaluate e) :=
+  \fun (S: _) => \induction (e: Expression) \return Valid S e -> Radical S (evaluate e) \with {
+    | zero: \fun (valid: _) => (Subfields.laws (radicalSubfield S)).zero
+    | one: \fun (valid: _) => (Subfields.laws (radicalSubfield S)).one
+    | constant: \fun (x: K)(valid: _) => radicalContains S x valid
+    | sum: \fun (left: Expression)(hl: _)(right: Expression)(hr: _)(valid: Logic.And[Valid S left, Valid S right]) =>
+      (Subfields.laws (radicalSubfield S)).add _ _ (hl valid.left) (hr valid.right)
+    | negative: \fun (child: Expression)(previous: _)(valid: _) => (Subfields.laws (radicalSubfield S)).neg _ (previous valid)
+    | product: \fun (left: Expression)(hl: _)(right: Expression)(hr: _)(valid: Logic.And[Valid S left, Valid S right]) =>
+      (Subfields.laws (radicalSubfield S)).mul _ _ (hl valid.left) (hr valid.right)
+    | reciprocal: \fun (child: Expression)(previous: _)(valid: _) => (Subfields.laws (radicalSubfield S)).inv _ (previous valid)
+    | root: \fun (n: N.Nat^)(root: K)(radicand: Expression)(previous: _)(valid: Logic.And[Valid S radicand, power root (N.Nat^::succ (N.Nat^::succ n)) = evaluate radicand]) => radicalRoot S n root
+      (\idelim evaluate radicand = power root (N.Nat^::succ (N.Nat^::succ n)) \with x: K => Radical S x
+        \by { base: previous valid.left, equality: sym!{K} _ _ valid.right })
+  };
+\definition representableClosed: \forall (S: K -> \Prop) -> RadicalClosed[Representable S] :=
+  \fun (S: _) => RadicalClosed[Representable S] {
+    subfield := Subfields.Closed[Representable S] {
+      zero := \exact(Representation[S, zero] {
+        expression := Expression::zero, valid := Logic.True::intro, value := \refl(zero),
+      }, Representation[S, zero]),
+      one := \exact(Representation[S, one] {
+        expression := Expression::one, valid := Logic.True::intro, value := \refl(one),
+      }, Representation[S, one]),
+      add := \block {
+        \fun (x, y: K)(hx: _)(hy: _) \then
+        \takefrom left: Representation[S, x] \by hx \then
+        \takefrom right: Representation[S, y] \by hy \then
+        \return \exact(Representation[S, add x y] {
+          expression := Expression::sum left.expression right.expression,
+          valid := Logic.And[_, _]::# left.valid right.valid,
+          value := congr2!{K K K} add _ _ _ _ left.value right.value,
+        }, Representation[S, add x y])
+      },
+      neg := \block {
+        \fun (x: K)(hx: _) \then
+        \takefrom child: Representation[S, x] \by hx \then
+        \return \exact(Representation[S, neg x] {
+          expression := Expression::negative child.expression, valid := child.valid,
+          value := congr!{K K} neg _ _ child.value,
+        }, Representation[S, neg x])
+      },
+      mul := \block {
+        \fun (x, y: K)(hx: _)(hy: _) \then
+        \takefrom left: Representation[S, x] \by hx \then
+        \takefrom right: Representation[S, y] \by hy \then
+        \return \exact(Representation[S, mul x y] {
+          expression := Expression::product left.expression right.expression,
+          valid := Logic.And[_, _]::# left.valid right.valid,
+          value := congr2!{K K K} mul _ _ _ _ left.value right.value,
+        }, Representation[S, mul x y])
+      },
+      inv := \block {
+        \fun (x: K)(hx: _) \then
+        \takefrom child: Representation[S, x] \by hx \then
+        \return \exact(Representation[S, inv x] {
+          expression := Expression::reciprocal child.expression, valid := child.valid,
+          value := congr!{K K} inv _ _ child.value,
+        }, Representation[S, inv x])
+      },
+    },
+    root := \block {
+      \fun (n: N.Nat^)(x: K)(hx: _) \then
+      \takefrom radicand: Representation[S, power x (N.Nat^::succ (N.Nat^::succ n))] \by hx \then
+      \return \exact(Representation[S, x] {
+        expression := Expression::root n x radicand.expression,
+        valid := Logic.And[_, _]::# radicand.valid (sym!{K} _ _ radicand.value),
+        value := \refl(x),
+      }, Representation[S, x])
+    },
+  };
+\definition complete: \forall (S: K -> \Prop)(x: K) -> Radical S x -> Representable S x :=
+  \fun (S: _)(x: K)(radical: _) => radical (Representable S) (representableClosed S)
+    (\fun (a: K)(ha: _) => \exact(Representation[S, a] {
+      expression := Expression::constant a, valid := ha, value := \refl(a),
+    }, Representation[S, a]));
+\definition characterization: \forall (S: K -> \Prop)(x: K) -> Logic.PropEquiv[Radical S x, Representable S x] :=
+  \fun (S: _)(x: K) => Logic.PropEquiv[_, _] {
+    ltr := complete S x,
+    rtl := \block {
+      \fun (representable: _) \then
+      \takefrom witness: Representation[S, x] \by representable \then
+      \return \idelim evaluate witness.expression = x \with y: K => Radical S y
+        \by { base: sound S witness.expression witness.valid, equality: witness.value }
+    },
+  };

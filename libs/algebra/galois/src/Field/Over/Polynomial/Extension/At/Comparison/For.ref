@@ -1,0 +1,34 @@
+\import galois.Field[].Over[K := K, field := field].Polynomial[].Extension[L := L, target := target].At[embedding := embedding, x := x].Comparison[M := M, output := output] \as Comparison;
+\import galois.Field[].Over[K := K, field := field].Polynomial[].Extension[L := M, target := output] \as OtherExtension;
+\definition mapped[p: Coefficients]: OutputPolynomials.Coefficients := Lists.map K M otherEmbedding.apply p;
+\definition mappedDegree: \forall (p: Coefficients) -> OutputPolynomials.degree (mapped p) = degree p := Mapping.lengthMap otherEmbedding.apply;
+\definition agrees: \forall (p: Coefficients)(y: M) ->
+  OtherExtension.At[embedding := otherEmbedding, x := y].monicValue p = OutputPolynomials.monicEvaluate (mapped p) y :=
+  \induction (p: Coefficients) \return \forall (y: M) ->
+    OtherExtension.At[embedding := otherEmbedding, x := y].monicValue p = OutputPolynomials.monicEvaluate (mapped p) y \with {
+    | nil: \fun (y: M) => \refl(Output.one)
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _)(y: M) => congr!{M M}
+      (\fun (t: M) => Output.add (otherEmbedding.apply a) (Output.mul y t)) _ _ (previous y)
+  };
+\structure Extension: \Set := {
+  root: M,
+  kernels: Comparison.With[otherEmbedding := otherEmbedding, y := root].EquivalentKernels,
+  isomorphism: Comparison.With[otherEmbedding := otherEmbedding, y := root].Isomorphism[].Map,
+};
+\definition exists: OutputPolynomials.AlgebraicallyClosed (\fun (z: M) => Logic.True) -> Infinite.Infinite -> Algebraic -> \exists Extension := \block {
+  \fun (closed: OutputPolynomials.AlgebraicallyClosed (\fun (z: M) => Logic.True))(infinite: Infinite.Infinite)(algebraic: Algebraic) \then
+  \takefrom minimal: Minimal \by minimalExists algebraic \then
+  \let positive: OutputPolynomials.Positive (mapped minimal.polynomial.coefficients) :=
+    \fun (zeroDegree: _) => minimal.polynomial.positive
+      (trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _ (mappedDegree minimal.polynomial.coefficients)) zeroDegree) \then
+  \takefrom root: \Cast[M] ({ z: M \where Logic.And[Logic.True, OutputPolynomials.monicEvaluate (mapped minimal.polynomial.coefficients) z = Output.zero] })
+    \by closed (mapped minimal.polynomial.coefficients) (OutputNonzero.allCoefficients (mapped minimal.polynomial.coefficients)) positive \then
+  \let rootLaw: OtherExtension.At[embedding := otherEmbedding, x := root].monicValue minimal.polynomial.coefficients = Output.zero :=
+    trans!{M} _ _ _ (agrees minimal.polynomial.coefficients root)
+      ((\bysub(M, { z: M \where Logic.And[Logic.True, OutputPolynomials.monicEvaluate (mapped minimal.polynomial.coefficients) z = Output.zero] }, root)).right) \then
+  \let kernels: Comparison.With[otherEmbedding := otherEmbedding, y := root].EquivalentKernels :=
+    Comparison.With[otherEmbedding := otherEmbedding, y := root].kernelEquivalence infinite minimal rootLaw \then
+  \takefrom map: Comparison.With[otherEmbedding := otherEmbedding, y := root].Isomorphism[].Map
+    \by Comparison.With[otherEmbedding := otherEmbedding, y := root].Isomorphism[].existsMap kernels \then
+  \return \exact(Extension { root := root, kernels := kernels, isomorphism := map }, Extension)
+};

@@ -1,0 +1,90 @@
+\import \parent.Raw[] \as Raw;
+\import Raw.Laws[] \as Laws;
+\import galois.Field[].Over[K := K, field := field].Arithmetic[] \as Arithmetic;
+\import algebra.Group[].Of[Carrier := Abstract.Carrier, group := Rings.additiveGroup Abstract.Carrier Raw.ring] \as Sum;
+\import algebra.Monoid[].Of[Carrier := Abstract.Carrier, monoid := Raw.multiplicative] \as Product;
+\structure PositiveCoefficients: \Set := { head: K, tail: Coefficients };
+\definition list[p: PositiveCoefficients]: Coefficients := Lists.List[K]::cons p.head p.tail;
+\definition linear[a: K]: Coefficients -> PositiveCoefficients :=
+  \induction (p: Coefficients) \return PositiveCoefficients \with {
+    | nil: PositiveCoefficients { head := neg a, tail := Lists.List[K]::nil }
+    | cons: \fun (b: K)(tail: Coefficients)(previous: PositiveCoefficients) => PositiveCoefficients {
+      head := neg (mul a b), tail := Lists.List[K]::cons (add b previous.head) previous.tail,
+    }
+  };
+\definition linearDegree: \forall (a: K)(p: Coefficients) -> degree (linear a p).tail = degree p :=
+  \fun (a: K) => \induction (p: Coefficients) \return degree (linear a p).tail = degree p \with {
+    | nil: \refl(N.Nat^::zero)
+    | cons: \fun (b: K)(tail: Coefficients)(previous: _) => congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ previous
+  };
+\definition linearLaw: \forall (a: K)(p: Coefficients) -> asPolynomial (list (linear a p)) = Abstract.mul (linearFactor a) (asPolynomial p) :=
+  \fun (a: K) => \induction (p: Coefficients) \return asPolynomial (list (linear a p)) = Abstract.mul (linearFactor a) (asPolynomial p) \with {
+    | nil: eq_reason!{{asPolynomial (list (linear a Lists.List[K]::nil))}
+      "=" {Abstract.add (Abstract.constant (neg a)) Abstract.X}
+      "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.constant (neg a))) _ _ (Product.zeroRight Abstract.X)}
+      "=" {linearFactor a} "by" {Sum.comm (Abstract.constant (neg a)) Abstract.X}
+      "=" {Abstract.mul (linearFactor a) Abstract.one} "by" {sym!{Abstract.Carrier} _ _ (Product.zeroRight (linearFactor a))}}
+    | cons: \fun (b: K)(tail: Coefficients)(previous: _) => sym!{Abstract.Carrier} _ _ (eq_reason!{
+      {Abstract.mul (linearFactor a) (asPolynomial (Lists.List[K]::cons b tail))}
+      "=" {Abstract.mul (Abstract.add Abstract.X (Abstract.constant (neg a)))
+        (Abstract.add (Abstract.constant b) (Abstract.mul Abstract.X (asPolynomial tail)))} "by" {\refl(_)}
+      "=" {Abstract.add (Abstract.mul (Abstract.constant (neg a)) (Abstract.constant b))
+        (Abstract.mul Abstract.X (Abstract.add (Abstract.constant b) (Abstract.mul (linearFactor a) (asPolynomial tail))))}
+      "by" {Laws.linearProduct Abstract.X (Abstract.constant (neg a)) (Abstract.constant b) (asPolynomial tail)}
+      "=" {Abstract.add (Abstract.constant (neg (mul a b)))
+        (Abstract.mul Abstract.X (Abstract.add (Abstract.constant b) (asPolynomial (list (linear a tail)))))}
+      "by" {congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+        (trans!{Abstract.Carrier} _ _ _ (sym!{Abstract.Carrier} _ _ (Raw.coefficientLaws.mul (neg a) b))
+          (congr!{K Abstract.Carrier} Abstract.constant _ _ (Arithmetic.mulNegLeft a b)))
+        (congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.mul Abstract.X (Abstract.add (Abstract.constant b) u)) _ _ (sym!{Abstract.Carrier} _ _ previous))}
+      "=" {Abstract.add (Abstract.constant (neg (mul a b)))
+        (Abstract.mul Abstract.X (Abstract.add (Abstract.add (Abstract.constant b) (Abstract.constant (linear a tail).head))
+          (Abstract.mul Abstract.X (asPolynomial (linear a tail).tail))))}
+      "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add (Abstract.constant (neg (mul a b))) (Abstract.mul Abstract.X u)) _ _
+        (sym!{Abstract.Carrier} _ _ (Sum.assoc (Abstract.constant b) (Abstract.constant (linear a tail).head) (Abstract.mul Abstract.X (asPolynomial (linear a tail).tail))))}
+      "=" {asPolynomial (list (linear a (Lists.List[K]::cons b tail)))}
+      "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add (Abstract.constant (neg (mul a b)))
+        (Abstract.mul Abstract.X (Abstract.add u (Abstract.mul Abstract.X (asPolynomial (linear a tail).tail))))) _ _
+        (sym!{Abstract.Carrier} _ _ (Raw.coefficientLaws.add b (linear a tail).head))}})
+  };
+\definition coefficients: Coefficients -> Coefficients :=
+  \induction (roots: Coefficients) \return Coefficients \with {
+    | nil: Lists.List[K]::nil
+    | cons: \fun (a: K)(tail: Coefficients)(previous: Coefficients) => list (linear a previous)
+  };
+\definition degreeLaw: \forall (roots: Coefficients) -> degree (coefficients roots) = Lists.length K roots :=
+  \induction (roots: Coefficients) \return degree (coefficients roots) = Lists.length K roots \with {
+    | nil: \refl(N.Nat^::zero)
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _) => congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _
+      (trans!{N.Nat^} _ _ _ (linearDegree a (coefficients tail)) previous)
+  };
+\definition factorization: \forall (roots: Coefficients) -> asPolynomial (coefficients roots) = factors roots :=
+  \induction (roots: Coefficients) \return asPolynomial (coefficients roots) = factors roots \with {
+    | nil: \refl(Abstract.one)
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _) => trans!{Abstract.Carrier} _ _ _ (linearLaw a (coefficients tail))
+      (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (linearFactor a)) _ _ previous)
+  };
+\structure Naturality[f: Aut.Automorphism, a: K, p: Coefficients]: \Prop := {
+  head: f.map.apply (linear a p).head = (linear (f.map.apply a) (Lists.map K K f.map.apply p)).head,
+  tail: Lists.map K K f.map.apply (linear a p).tail = (linear (f.map.apply a) (Lists.map K K f.map.apply p)).tail,
+};
+\definition linearNatural: \forall (f: Aut.Automorphism)(a: K)(p: Coefficients) -> Naturality[f, a, p] :=
+  \fun (f: Aut.Automorphism)(a: K) => \induction (p: Coefficients) \return Naturality[f, a, p] \with {
+    | nil: Naturality[f, a, Lists.List[K]::nil] { head := f.map.preservesNeg a, tail := \refl(Lists.List[K]::nil) }
+    | cons: \fun (b: K)(tail: Coefficients)(previous: Naturality[f, a, tail]) => Naturality[f, a, Lists.List[K]::cons b tail] {
+      head := trans!{K} _ _ _ (f.map.preservesNeg (mul a b)) (congr!{K K} neg _ _ (f.map.preservesMul a b)),
+      tail := congr2!{K Coefficients Coefficients} Lists.List[K]::cons _ _ _ _
+        (trans!{K} _ _ _ (f.map.preservesAdd b (linear a tail).head) (congr!{K K} (add (f.map.apply b)) _ _ previous.head)) previous.tail,
+    }
+  };
+\definition listNatural: \forall (f: Aut.Automorphism)(a: K)(p: Coefficients) ->
+  Lists.map K K f.map.apply (list (linear a p)) = list (linear (f.map.apply a) (Lists.map K K f.map.apply p)) :=
+  \fun (f: Aut.Automorphism)(a: K)(p: Coefficients) => congr2!{K Coefficients Coefficients} Lists.List[K]::cons _ _ _ _ (linearNatural f a p).head (linearNatural f a p).tail;
+\definition natural: \forall (f: Aut.Automorphism)(roots: Coefficients) ->
+  Lists.map K K f.map.apply (coefficients roots) = coefficients (Lists.map K K f.map.apply roots) :=
+  \fun (f: Aut.Automorphism) => \induction (roots: Coefficients) \return
+    Lists.map K K f.map.apply (coefficients roots) = coefficients (Lists.map K K f.map.apply roots) \with {
+    | nil: \refl(Lists.List[K]::nil)
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _) => trans!{Coefficients} _ _ _ (listNatural f a (coefficients tail))
+      (congr!{Coefficients Coefficients} (\fun (q: Coefficients) => list (linear (f.map.apply a) q)) _ _ previous)
+  };

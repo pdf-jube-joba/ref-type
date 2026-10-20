@@ -1,0 +1,160 @@
+\import \parent.Normalization[] \as Normalization;
+\import \parent.Difference[] \as Difference;
+\import \parent.Operations[] \as Operations;
+\import std.Data[].Nat[].Basic[].Def[] \as NatOp;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import std.Data[].Nat[].Order[].Prop[] \as Order;
+\import std.Data[].Nat[].Induction[] \as Induction;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Data[].Bool[] \as Bool;
+\definition notTrueFalse: \forall (b: Bool.Bool^) -> Logic.Not (b = Bool.Bool^::true) -> b = Bool.Bool^::false :=
+  \induction (b: Bool.Bool^) \return Logic.Not (b = Bool.Bool^::true) -> b = Bool.Bool^::false \with {
+    | false: \fun (unused: _) => \refl(Bool.Bool^::false)
+    | true: \fun (impossible: _) => Logic.falseElim (Bool.Bool^::true = Bool.Bool^::false) (impossible (\refl(Bool.Bool^::true)))
+  };
+\structure Result[S: K -> \Prop, p, divisor: Coefficients] := {
+  quotient: Coefficients,
+  quotientOver: Over S quotient,
+  quotientBound: Nat.Le (Lists.length K quotient) (NatOp.sub (Lists.length K p) (degree divisor)),
+  remainder: Coefficients,
+  remainderOver: Over S remainder,
+  bound: Nat.Le (Lists.length K remainder) (degree divisor),
+  equation: asPolynomial p = Abstract.add
+    (Abstract.mul (Monic.asPolynomial divisor) (asPolynomial quotient)) (asPolynomial remainder),
+};
+\definition rearrange: \forall (b, u, q, t, r: Abstract.Carrier) ->
+  Abstract.mul b (Abstract.add (Abstract.mul u q) (Abstract.add (Abstract.mul q t) r)) =
+  Abstract.add (Abstract.mul q (Abstract.mul b (Abstract.add u t))) (Abstract.mul b r) :=
+  \fun (b, u, q, t, r: Abstract.Carrier) => eq_reason!{
+    {Abstract.mul b (Abstract.add (Abstract.mul u q) (Abstract.add (Abstract.mul q t) r))}
+    "=" {Abstract.mul b (Abstract.add (Abstract.add (Abstract.mul q u) (Abstract.mul q t)) r)}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul b) _ _
+      (trans!{Abstract.Carrier} _ _ _
+        (congr!{Abstract.Carrier Abstract.Carrier} (\fun (v: Abstract.Carrier) => Abstract.add v (Abstract.add (Abstract.mul q t) r)) _ _ (Product.comm u q))
+        (sym!{Abstract.Carrier} _ _ (Sum.assoc (Abstract.mul q u) (Abstract.mul q t) r)))}
+    "=" {Abstract.mul b (Abstract.add (Abstract.mul q (Abstract.add u t)) r)}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (v: Abstract.Carrier) => Abstract.mul b (Abstract.add v r)) _ _
+      (sym!{Abstract.Carrier} _ _ (ring.semiring.leftDistributive q u t))}
+    "=" {Abstract.add (Abstract.mul b (Abstract.mul q (Abstract.add u t))) (Abstract.mul b r)}
+    "by" {ring.semiring.leftDistributive b (Abstract.mul q (Abstract.add u t)) r}
+    "=" {Abstract.add (Abstract.mul q (Abstract.mul b (Abstract.add u t))) (Abstract.mul b r)}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (v: Abstract.Carrier) => Abstract.add v (Abstract.mul b r)) _ _ (Product.swap b q (Abstract.add u t))}
+  };
+\definition exists: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> \forall (divisor: Coefficients) -> Over S divisor ->
+  \forall (p: Coefficients) -> Over S p -> \exists Result[S, p, divisor] := \block {
+  \fun (S: _)(closed: Subfields.Closed[S])(divisor: Coefficients)(divisorOver: _) \then
+  \let byLength: \forall (n: N.Nat^)(p: Coefficients) -> Lists.length K p = n -> Over S p -> \exists Result[S, p, divisor] :=
+    Induction.strong (\fun (n: N.Nat^) => \forall (p: Coefficients) -> Lists.length K p = n -> Over S p -> \exists Result[S, p, divisor])
+      (\fun (n: N.Nat^)(previous: _)(p: Coefficients)(length: _)(over: _) =>
+        Logic.orElim (Normalization.AllZero p) (\exists Normalization.NonzeroForm[S, p]) (\exists Result[S, p, divisor])
+          (Normalization.normalize S closed p over)
+          (\fun (allZero: _) => \exact(Result[S, p, divisor] {
+            quotient := Lists.List[K]::nil, quotientOver := Logic.True::intro,
+            quotientBound := Nat.zeroLe _,
+            remainder := Lists.List[K]::nil, remainderOver := Logic.True::intro,
+            bound := Nat.zeroLe (degree divisor),
+            equation := trans!{Abstract.Carrier} _ _ _ (Normalization.zeroLaw p allZero)
+              (sym!{Abstract.Carrier} _ _ (trans!{Abstract.Carrier} _ _ _
+                (congr!{Abstract.Carrier Abstract.Carrier} (\fun (v: Abstract.Carrier) => Abstract.add v Abstract.zero) _ _
+                  (ring.semiring.zeroAbsorbsRight (Monic.asPolynomial divisor))) (Sum.zeroRight Abstract.zero))),
+          }, Result[S, p, divisor]))
+          (\block {
+            \fun (nonzero: _) \then
+            \takefrom f: Normalization.NonzeroForm[S, p] \by nonzero \then
+            \return Logic.orElim _ _ _ (Classical.excludedMiddle (Nat.Lt (degree f.coefficients) (degree divisor)))
+              (\fun (small: _) => \exact(Result[S, p, divisor] {
+                quotient := Lists.List[K]::nil, quotientOver := Logic.True::intro,
+            quotientBound := Nat.zeroLe _,
+                remainder := scale f.leading (monic f.coefficients),
+                remainderOver := Operations.scaleOver S closed f.leading f.leadingMember _
+                  (Operations.monicOver S closed.one f.coefficients f.over),
+                bound := \idelim N.Nat^::succ (degree f.coefficients) = Lists.length K (scale f.leading (monic f.coefficients))
+                  \with m: N.Nat^ => Nat.Le m (degree divisor) \by {
+                    base: Nat.succLeOfLt (degree divisor) (degree f.coefficients) small,
+                    equality: sym!{N.Nat^} _ _ (trans!{N.Nat^} _ _ _ (Operations.scaleLength f.leading (monic f.coefficients)) (Operations.monicLength f.coefficients))
+                  },
+                equation := eq_reason!{{asPolynomial p}
+                  "=" {Abstract.mul (Abstract.constant f.leading) (Monic.asPolynomial f.coefficients)} "by" {f.factorization}
+                  "=" {asPolynomial (scale f.leading (monic f.coefficients))}
+                  "by" {sym!{Abstract.Carrier} _ _ (trans!{Abstract.Carrier} _ _ _ (scaleLaw f.leading (monic f.coefficients))
+                    (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (Abstract.constant f.leading)) _ _ (monicLaw f.coefficients)))}
+                  "=" {Abstract.add (Abstract.mul (Monic.asPolynomial divisor) Abstract.zero) (asPolynomial (scale f.leading (monic f.coefficients)))}
+                  "by" {sym!{Abstract.Carrier} _ _ (trans!{Abstract.Carrier} _ _ _
+                    (congr!{Abstract.Carrier Abstract.Carrier} (\fun (v: Abstract.Carrier) => Abstract.add v (asPolynomial (scale f.leading (monic f.coefficients)))) _ _
+                      (ring.semiring.zeroAbsorbsRight (Monic.asPolynomial divisor))) (Sum.zeroLeft _))}},
+              }, Result[S, p, divisor]))
+              (\block {
+                \fun (large: Logic.Not (Nat.Lt (degree f.coefficients) (degree divisor))) \then
+                \let ordered: Nat.Le (degree divisor) (degree f.coefficients) :=
+                  Nat.leOfLtbFalse (degree f.coefficients) (degree divisor)
+                    (notTrueFalse (NatOp.ltb (degree f.coefficients) (degree divisor)) large) \then
+                \let shift: N.Nat^ := NatOp.sub (degree f.coefficients) (degree divisor) \then
+                \let shifted: Coefficients := Operations.shiftMonic shift divisor \then
+                \let sameDegree: degree f.coefficients = degree shifted := sym!{N.Nat^} _ _
+                  (trans!{N.Nat^} _ _ _ (Operations.shiftMonicDegree shift divisor) (Nat.addSubOfLe (degree divisor) (degree f.coefficients) ordered)) \then
+                \takefrom difference: Difference.Result[S, f.coefficients, shifted] \by
+                  Difference.exists S closed f.coefficients shifted f.over
+                    (Operations.shiftMonicOver S closed.zero shift divisor divisorOver) sameDegree \then
+                \let smaller: Nat.Lt (Lists.length K difference.coefficients) n :=
+                  \idelim Lists.length K p = n \with m: N.Nat^ => Nat.Lt (Lists.length K difference.coefficients) m \by {
+                    base: \idelim degree f.coefficients = Lists.length K difference.coefficients
+                      \with m: N.Nat^ => Nat.Lt m (Lists.length K p) \by { base: f.bound, equality: sym!{N.Nat^} _ _ difference.length },
+                    equality: length
+                  } \then
+                \takefrom divided: Result[S, difference.coefficients, divisor] \by
+                  previous (Lists.length K difference.coefficients) smaller difference.coefficients (\refl(Lists.length K difference.coefficients)) difference.over \then
+                \let quotient: Coefficients := scale f.leading (plus (Operations.powerCoefficients shift) divided.quotient) \then
+                \let remainder: Coefficients := scale f.leading divided.remainder \then
+                \let oldBound: Nat.Le (Lists.length K divided.quotient) shift :=
+                  \idelim Lists.length K difference.coefficients = degree f.coefficients
+                    \with m: N.Nat^ => Nat.Le (Lists.length K divided.quotient) (NatOp.sub m (degree divisor))
+                    \by { base: divided.quotientBound, equality: difference.length } \then
+                \let powerBound: Nat.Le (Lists.length K divided.quotient) (Lists.length K (Operations.powerCoefficients shift)) :=
+                  \idelim N.Nat^::succ shift = Lists.length K (Operations.powerCoefficients shift)
+                    \with m: N.Nat^ => Nat.Le (Lists.length K divided.quotient) m \by {
+                      base: Nat.leTrans _ _ _ oldBound (Nat.leSelfSucc shift), equality: sym!{N.Nat^} _ _ (Operations.powerLength shift)
+                    } \then
+                \let quotientLength: Lists.length K quotient = N.Nat^::succ shift :=
+                  trans!{N.Nat^} _ _ _ (Operations.scaleLength f.leading (plus (Operations.powerCoefficients shift) divided.quotient))
+                    (trans!{N.Nat^} _ _ _ (Operations.plusLengthLeft (Operations.powerCoefficients shift) divided.quotient powerBound) (Operations.powerLength shift)) \then
+                \let quotientValue: asPolynomial quotient = Abstract.mul (Abstract.constant f.leading)
+                  (Abstract.add (Operations.variablePower shift) (asPolynomial divided.quotient)) :=
+                  trans!{Abstract.Carrier} _ _ _ (scaleLaw f.leading (plus (Operations.powerCoefficients shift) divided.quotient))
+                    (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (Abstract.constant f.leading)) _ _
+                      (trans!{Abstract.Carrier} _ _ _ (plusLaw (Operations.powerCoefficients shift) divided.quotient)
+                        (congr!{Abstract.Carrier Abstract.Carrier} (\fun (v: Abstract.Carrier) => Abstract.add v (asPolynomial divided.quotient)) _ _ (Operations.powerLaw shift)))) \then
+                \return \exact(Result[S, p, divisor] {
+                  quotient := quotient,
+                  quotientBound := \idelim N.Nat^::succ shift = Lists.length K quotient
+                    \with m: N.Nat^ => Nat.Le m (NatOp.sub (Lists.length K p) (degree divisor)) \by {
+                      base: Nat.succLeOfLt _ _ (Nat.subLtOfLe (degree divisor) (degree f.coefficients) (Lists.length K p) ordered f.bound),
+                      equality: sym!{N.Nat^} _ _ quotientLength
+                    },
+                  quotientOver := Operations.scaleOver S closed f.leading f.leadingMember _
+                    (Operations.plusOver S closed _ _ (Operations.powerOver S closed shift) divided.quotientOver),
+                  remainder := remainder,
+                  remainderOver := Operations.scaleOver S closed f.leading f.leadingMember divided.remainder divided.remainderOver,
+                  bound := \idelim Lists.length K divided.remainder = Lists.length K remainder \with m: N.Nat^ => Nat.Le m (degree divisor)
+                    \by { base: divided.bound, equality: sym!{N.Nat^} _ _ (Operations.scaleLength f.leading divided.remainder) },
+                  equation := eq_reason!{{asPolynomial p}
+                    "=" {Abstract.mul (Abstract.constant f.leading) (Monic.asPolynomial f.coefficients)} "by" {f.factorization}
+                    "=" {Abstract.mul (Abstract.constant f.leading) (Abstract.add (Monic.asPolynomial shifted) (asPolynomial difference.coefficients))}
+                    "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (Abstract.constant f.leading)) _ _ difference.equation}
+                    "=" {Abstract.mul (Abstract.constant f.leading)
+                      (Abstract.add (Abstract.mul (Operations.variablePower shift) (Monic.asPolynomial divisor))
+                        (Abstract.add (Abstract.mul (Monic.asPolynomial divisor) (asPolynomial divided.quotient)) (asPolynomial divided.remainder)))}
+                    "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (Abstract.constant f.leading)) _ _
+                      (congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _ (Operations.shiftMonicLaw shift divisor) divided.equation)}
+                    "=" {Abstract.add (Abstract.mul (Monic.asPolynomial divisor)
+                      (Abstract.mul (Abstract.constant f.leading) (Abstract.add (Operations.variablePower shift) (asPolynomial divided.quotient))))
+                      (Abstract.mul (Abstract.constant f.leading) (asPolynomial divided.remainder))}
+                    "by" {rearrange (Abstract.constant f.leading) (Operations.variablePower shift) (Monic.asPolynomial divisor) (asPolynomial divided.quotient) (asPolynomial divided.remainder)}
+                    "=" {Abstract.add (Abstract.mul (Monic.asPolynomial divisor) (asPolynomial quotient)) (asPolynomial remainder)}
+                    "by" {congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+                      (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (Monic.asPolynomial divisor)) _ _ (sym!{Abstract.Carrier} _ _ quotientValue))
+                      (sym!{Abstract.Carrier} _ _ (scaleLaw f.leading divided.remainder))}},
+                }, Result[S, p, divisor])
+              })
+          })) \then
+  \return \fun (p: Coefficients) => byLength (Lists.length K p) p (\refl(Lists.length K p))
+};

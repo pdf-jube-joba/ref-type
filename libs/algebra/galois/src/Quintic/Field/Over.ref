@@ -1,0 +1,157 @@
+\import galois.Field[].Over[K := K, field := field] \as F;
+\import F.Automorphism[].Permutations[] \as Actions;
+\import Actions.Derived[S := S] \as Group;
+\import F.Automorphism[].RadicalAction[S := S] \as RadicalAction;
+\import F.Generation[] \as Generation;
+\import F.Polynomial[] \as Polynomial;
+\import galois.Permutation[X := K] \as Source;
+\import std.Data[].Nat[] \as N;
+\use Equality.sym;
+\use Equality.trans;
+\definition Acts[p: Source.Permutation][q: S5.Permutation]: \Prop :=
+  \forall (i: Five) -> p.apply (roots i) = roots (q.apply i);
+\definition multiplyActs: \forall (p, q: Source.Permutation)(r, s: S5.Permutation) ->
+  Acts p r -> Acts q s -> Acts (Source.multiply p q) (S5.multiply r s) :=
+  \fun (p, q: Source.Permutation)(r, s: S5.Permutation)(hp: _)(hq: _)(i: Five) =>
+    trans!{K} _ _ _ (congr!{K K} p.apply _ _ (hq i)) (hp (s.apply i));
+\definition inverseActs: \forall (p: Source.Permutation)(q: S5.Permutation) -> Acts p q -> Acts (Source.inverse p) (S5.inverse q) :=
+  \fun (p: Source.Permutation)(q: S5.Permutation)(action: _)(i: Five) =>
+    trans!{K} _ _ _
+      (congr!{K K} p.backward _ _ (sym!{K} _ _ (congr!{Five K} roots _ _ (q.rightInverse i))))
+      (trans!{K} _ _ _ (congr!{K K} p.backward _ _ (sym!{K} _ _ (action (q.backward i)))) (p.leftInverse (roots (q.backward i))));
+\definition commutatorActs: \forall (p, q: Source.Permutation)(r, s: S5.Permutation) ->
+  Acts p r -> Acts q s -> Acts (Source.commutator p q) (S5.commutator r s) :=
+  \fun (p, q: Source.Permutation)(r, s: S5.Permutation)(hp: _)(hq: _) =>
+    multiplyActs _ _ _ _
+      (multiplyActs _ _ _ _ (multiplyActs p q r s hp hq) (inverseActs p r hp)) (inverseActs q s hq);
+\structure Lift[p: S5.Permutation] := {
+  permutation: Source.Permutation,
+  member: Actions.Over S permutation,
+  action: Acts permutation p,
+};
+\definition FullAction: \Prop := \forall (p: S5.Permutation) -> \exists Lift[p];
+\structure LiftAt[n: N.Nat^, p: S5.Permutation] := {
+  permutation: Source.Permutation,
+  member: Group.stage n permutation,
+  action: Acts permutation p,
+};
+\definition Image[n: N.Nat^][p: S5.Permutation]: \Prop := \exists LiftAt[n, p];
+\definition imageSubgroup: \forall (n: N.Nat^) -> S5.Subgroup[Image n] :=
+  \fun (n: N.Nat^) => S5.Subgroup[Image n] {
+    identity := \exact(LiftAt[n, S5.identity] {
+      permutation := Source.identity, member := (Group.closed n).identity, action := \fun (i: Five) => \refl(roots i),
+    }, LiftAt[n, S5.identity]),
+    multiply := \block {
+      \fun (p, q: S5.Permutation)(hp: _)(hq: _) \then
+      \takefrom f: LiftAt[n, p] \by hp \then
+      \takefrom g: LiftAt[n, q] \by hq \then
+      \return \exact(LiftAt[n, S5.multiply p q] {
+        permutation := Source.multiply f.permutation g.permutation,
+        member := (Group.closed n).multiply _ _ f.member g.member,
+        action := multiplyActs f.permutation g.permutation p q f.action g.action,
+      }, LiftAt[n, S5.multiply p q])
+    },
+    inverse := \block {
+      \fun (p: S5.Permutation)(hp: _) \then
+      \takefrom f: LiftAt[n, p] \by hp \then
+      \return \exact(LiftAt[n, S5.inverse p] {
+        permutation := Source.inverse f.permutation,
+        member := (Group.closed n).inverse _ f.member,
+        action := inverseActs f.permutation p f.action,
+      }, LiftAt[n, S5.inverse p])
+    },
+    extensional := \block {
+      \fun (p, q: S5.Permutation)(same: _)(hp: _) \then
+      \takefrom f: LiftAt[n, p] \by hp \then
+      \return \exact(LiftAt[n, q] {
+        permutation := f.permutation, member := f.member,
+        action := \fun (i: Five) => trans!{K} _ _ _ (f.action i) (congr!{Five K} roots _ _ (same i)),
+      }, LiftAt[n, q])
+    },
+  };
+\definition liftDerived: FullAction -> \forall (n: N.Nat^)(p: S5.Permutation) -> S5.Derived n p -> Image n p :=
+  \fun (full: FullAction) => \induction (n: N.Nat^) \return \forall (p: S5.Permutation) -> S5.Derived n p -> Image n p \with {
+    | zero: \block {
+      \fun (p: S5.Permutation)(hp: _) \then
+      \takefrom lift: Lift[p] \by full p \then
+      \return \exact(LiftAt[N.Nat^::zero, p] {
+        permutation := lift.permutation, member := lift.member, action := lift.action,
+      }, LiftAt[N.Nat^::zero, p])
+    }
+    | succ: \fun (n: N.Nat^)(previous: _)(p: S5.Permutation)(hp: _) =>
+      hp (Image (N.Nat^::succ n)) (imageSubgroup (N.Nat^::succ n)) (\block {
+        \fun (q: S5.Permutation)(hq: S5.Commutators (S5.Derived n) q) \then
+        \takefrom comm: S5.CommutatorWitness[S5.Derived n, q] \by hq \then
+        \takefrom f: LiftAt[n, comm.left] \by previous comm.left comm.leftMember \then
+        \takefrom g: LiftAt[n, comm.right] \by previous comm.right comm.rightMember \then
+        \return \exact(LiftAt[N.Nat^::succ n, q] {
+          permutation := Source.commutator f.permutation g.permutation,
+          member := Source.generatedCommutator (Group.stage n) f.permutation g.permutation f.member g.member,
+          action := \fun (i: Five) => trans!{K} _ _ _
+            (commutatorActs f.permutation g.permutation comm.left comm.right f.action g.action i)
+            (congr!{Five K} roots _ _ (comm.value i)),
+        }, LiftAt[N.Nat^::succ n, q])
+      })
+  };
+\definition firstRootNotRadical: FullAction -> RadicalAction.UnityInBase -> Logic.Not (roots Five::a = roots Five::b) ->
+  Logic.Not (Generation.Radical S (roots Five::a)) := \block {
+    \fun (full: FullAction)(unity: _)(different: _)(radical: _) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where RadicalAction.Fixed n (roots Five::a) })
+      \by RadicalAction.radicalEventuallyFixed unity (roots Five::a) radical \then
+    \takefrom lift: LiftAt[n, cycle] \by liftDerived full n cycle
+      (S5.Obstruction[].persists cycle leftConjugator rightConjugator commutatorIdentity n) \then
+    \return different (trans!{K} _ _ _
+      (sym!{K} _ _ ((\bysub(N.Nat^, { n: N.Nat^ \where RadicalAction.Fixed n (roots Five::a) }, n)) lift.permutation lift.member))
+      (lift.action Five::a))
+  };
+\definition polynomialNotSolvable: FullAction -> RadicalAction.UnityInBase -> Logic.Not (roots Five::a = roots Five::b) ->
+  \forall (p: Polynomial.Coefficients) -> Polynomial.monicEvaluate p (roots Five::a) = F.zero ->
+    Logic.Not Polynomial.SolvableByRadicals[S, p] :=
+  \fun (full: _)(unity: _)(different: _)(p: Polynomial.Coefficients)(root: _)(solvable: Polynomial.SolvableByRadicals[S, p]) =>
+    firstRootNotRadical full unity different (solvable.roots (roots Five::a) root);
+\definition conjugateActs: \forall (p, q: Source.Permutation)(r, s: S5.Permutation) ->
+  Acts p r -> Acts q s -> Acts (Source.conjugate p q) (S5.conjugate r s) :=
+  \fun (p, q: Source.Permutation)(r, s: S5.Permutation)(hp: _)(hq: _) =>
+    multiplyActs _ _ _ _ (multiplyActs p q r s hp hq) (inverseActs p r hp);
+\structure ThreeLifts := {
+  cycle: Lift[cycle],
+  left: Lift[leftConjugator],
+  right: Lift[rightConjugator],
+};
+\import Source.Relative[H := Actions.Over S] \as Relative;
+\definition cyclePersists: (\exists ThreeLifts) -> \forall (n: N.Nat^) -> Image n cycle := \block {
+  \fun (generators: \exists ThreeLifts) \then
+  \takefrom lifts: ThreeLifts \by generators \then
+  \return \induction (n: N.Nat^) \return Image n cycle \with {
+    | zero: \exact(LiftAt[N.Nat^::zero, cycle] {
+      permutation := lifts.cycle.permutation, member := lifts.cycle.member, action := lifts.cycle.action,
+    }, LiftAt[N.Nat^::zero, cycle])
+    | succ: \block {
+      \fun (n: N.Nat^)(previous: Image n cycle) \then
+      \takefrom old: LiftAt[n, cycle] \by previous \then
+      \let left: Source.Permutation := Source.conjugate lifts.left.permutation old.permutation \then
+      \let right: Source.Permutation := Source.conjugate lifts.right.permutation old.permutation \then
+      \return \exact(LiftAt[N.Nat^::succ n, cycle] {
+        permutation := Source.commutator left right,
+        member := Source.generatedCommutator (Group.stage n) left right
+          (Relative.conjugateStage (Actions.subgroup S) n lifts.left.permutation old.permutation lifts.left.member old.member)
+          (Relative.conjugateStage (Actions.subgroup S) n lifts.right.permutation old.permutation lifts.right.member old.member),
+        action := \fun (i: Five) => trans!{K} _ _ _
+          (commutatorActs left right (S5.conjugate leftConjugator cycle) (S5.conjugate rightConjugator cycle)
+            (conjugateActs lifts.left.permutation old.permutation leftConjugator cycle lifts.left.action old.action)
+            (conjugateActs lifts.right.permutation old.permutation rightConjugator cycle lifts.right.action old.action) i)
+          (congr!{Five K} roots _ _ (commutatorIdentity i)),
+      }, LiftAt[N.Nat^::succ n, cycle])
+    }
+  }
+};
+\definition threeLiftsObstruction: (\exists ThreeLifts) -> RadicalAction.UnityInBase -> Logic.Not (roots Five::a = roots Five::b) ->
+  Logic.Not (Generation.Radical S (roots Five::a)) := \block {
+  \fun (lifts: \exists ThreeLifts)(unity: _)(different: _)(radical: _) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where RadicalAction.Fixed n (roots Five::a) })
+    \by RadicalAction.radicalEventuallyFixed unity (roots Five::a) radical \then
+  \takefrom lift: LiftAt[n, cycle] \by cyclePersists lifts n \then
+  \return different (trans!{K} _ _ _
+    (sym!{K} _ _ ((\bysub(N.Nat^, { n: N.Nat^ \where RadicalAction.Fixed n (roots Five::a) }, n)) lift.permutation lift.member))
+    (lift.action Five::a))
+};

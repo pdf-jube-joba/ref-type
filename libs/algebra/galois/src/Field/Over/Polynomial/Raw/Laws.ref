@@ -1,0 +1,64 @@
+\definition constantNeg: \forall (a: K) -> Abstract.constant (neg a) = Abstract.neg (Abstract.constant a) :=
+  \fun (a: K) => Sum.inverseUnique (Abstract.constant a) (Abstract.constant (neg a))
+    (eq_reason!{{Abstract.add (Abstract.constant (neg a)) (Abstract.constant a)}
+      "=" {Abstract.constant (add (neg a) a)} "by" {sym!{Abstract.Carrier} _ _ (coefficientLaws.add (neg a) a)}
+      "=" {Abstract.zero} "by" {congr!{K Abstract.Carrier} Abstract.constant _ _ (field.ring.ring.additiveInverse a)}});
+\definition linearSum: \forall (a: K) -> Abstract.add (linearFactor a) (Abstract.constant a) = Abstract.X :=
+  \fun (a: K) => trans!{Abstract.Carrier} _ _ _
+    (congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add (Abstract.add Abstract.X u) (Abstract.constant a)) _ _ (constantNeg a))
+    (Sum.addDifference Abstract.X (Abstract.constant a));
+\definition reorder[b, u, v, w: Abstract.Carrier]: Abstract.add b (Abstract.add u (Abstract.add v w)) =
+  Abstract.add (Abstract.add u v) (Abstract.add b w) :=
+  eq_reason!{{Abstract.add b (Abstract.add u (Abstract.add v w))}
+    "=" {Abstract.add (Abstract.add b u) (Abstract.add v w)} "by" {sym!{Abstract.Carrier} _ _ (Sum.assoc b u (Abstract.add v w))}
+    "=" {Abstract.add (Abstract.add u b) (Abstract.add v w)} "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (t: Abstract.Carrier) => Abstract.add t (Abstract.add v w)) _ _ (Sum.comm b u)}
+    "=" {Abstract.add (Abstract.add u v) (Abstract.add b w)} "by" {Sum.four u b v w}};
+\definition horner[b, l, a, q, c: Abstract.Carrier]:
+  Abstract.add b (Abstract.mul (Abstract.add l a) (Abstract.add (Abstract.mul l q) c)) =
+    Abstract.add (Abstract.mul l (Abstract.add (Abstract.mul (Abstract.add l a) q) c)) (Abstract.add b (Abstract.mul a c)) :=
+  eq_reason!{{Abstract.add b (Abstract.mul (Abstract.add l a) (Abstract.add (Abstract.mul l q) c))}
+    "=" {Abstract.add b (Abstract.add (Abstract.mul (Abstract.add l a) (Abstract.mul l q)) (Abstract.mul (Abstract.add l a) c))}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add b) _ _ (ring.semiring.leftDistributive (Abstract.add l a) (Abstract.mul l q) c)}
+    "=" {Abstract.add b (Abstract.add (Abstract.mul l (Abstract.mul (Abstract.add l a) q)) (Abstract.add (Abstract.mul l c) (Abstract.mul a c)))}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add b) _ _
+      (congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+        (Product.swap (Abstract.add l a) l q) (ring.semiring.rightDistributive l a c))}
+    "=" {Abstract.add (Abstract.add (Abstract.mul l (Abstract.mul (Abstract.add l a) q)) (Abstract.mul l c)) (Abstract.add b (Abstract.mul a c))}
+    "by" {reorder b (Abstract.mul l (Abstract.mul (Abstract.add l a) q)) (Abstract.mul l c) (Abstract.mul a c)}
+    "=" {Abstract.add (Abstract.mul l (Abstract.add (Abstract.mul (Abstract.add l a) q) c)) (Abstract.add b (Abstract.mul a c))}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add u (Abstract.add b (Abstract.mul a c))) _ _
+      (sym!{Abstract.Carrier} _ _ (ring.semiring.leftDistributive l (Abstract.mul (Abstract.add l a) q) c))}};
+\definition constantHorner: \forall (a, b, c: K) -> Abstract.constant (add b (mul a c)) = Abstract.add (Abstract.constant b) (Abstract.mul (Abstract.constant a) (Abstract.constant c)) :=
+  \fun (a, b, c: K) => trans!{Abstract.Carrier} _ _ _ (coefficientLaws.add b (mul a c))
+    (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.constant b)) _ _ (coefficientLaws.mul a c));
+\definition deflationStep[a, b, c: K][q: Abstract.Carrier]:
+  Abstract.add (Abstract.constant b) (Abstract.mul Abstract.X (Abstract.add (Abstract.mul (linearFactor a) q) (Abstract.constant c))) =
+    Abstract.add (Abstract.mul (linearFactor a) (Abstract.add (Abstract.mul Abstract.X q) (Abstract.constant c))) (Abstract.constant (add b (mul a c))) :=
+  eq_reason!{{Abstract.add (Abstract.constant b) (Abstract.mul Abstract.X (Abstract.add (Abstract.mul (linearFactor a) q) (Abstract.constant c)))}
+    "=" {Abstract.add (Abstract.constant b) (Abstract.mul (Abstract.add (linearFactor a) (Abstract.constant a)) (Abstract.add (Abstract.mul (linearFactor a) q) (Abstract.constant c)))}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (\fun (x: Abstract.Carrier) => Abstract.add (Abstract.constant b) (Abstract.mul x (Abstract.add (Abstract.mul (linearFactor a) q) (Abstract.constant c)))) _ _ (sym!{Abstract.Carrier} _ _ (linearSum a))}
+    "=" {Abstract.add (Abstract.mul (linearFactor a) (Abstract.add (Abstract.mul (Abstract.add (linearFactor a) (Abstract.constant a)) q) (Abstract.constant c)))
+      (Abstract.add (Abstract.constant b) (Abstract.mul (Abstract.constant a) (Abstract.constant c)))}
+    "by" {horner (Abstract.constant b) (linearFactor a) (Abstract.constant a) q (Abstract.constant c)}
+    "=" {Abstract.add (Abstract.mul (linearFactor a) (Abstract.add (Abstract.mul Abstract.X q) (Abstract.constant c))) (Abstract.constant (add b (mul a c)))}
+    "by" {congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+      (congr!{Abstract.Carrier Abstract.Carrier} (\fun (x: Abstract.Carrier) => Abstract.mul (linearFactor a) (Abstract.add (Abstract.mul x q) (Abstract.constant c))) _ _ (linearSum a))
+      (sym!{Abstract.Carrier} _ _ (constantHorner a b c))}};
+\definition linearProduct: \forall (l, a, b, q: Abstract.Carrier) ->
+  Abstract.mul (Abstract.add l a) (Abstract.add b (Abstract.mul l q)) =
+  Abstract.add (Abstract.mul a b) (Abstract.mul l (Abstract.add b (Abstract.mul (Abstract.add l a) q))) :=
+  \fun (l, a, b, q: Abstract.Carrier) => eq_reason!{
+    {Abstract.mul (Abstract.add l a) (Abstract.add b (Abstract.mul l q))}
+    "=" {Abstract.add (Abstract.mul (Abstract.add l a) b) (Abstract.mul (Abstract.add l a) (Abstract.mul l q))}
+    "by" {ring.semiring.leftDistributive (Abstract.add l a) b (Abstract.mul l q)}
+    "=" {Abstract.add (Abstract.add (Abstract.mul l b) (Abstract.mul a b)) (Abstract.mul l (Abstract.mul (Abstract.add l a) q))}
+    "by" {congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+      (ring.semiring.rightDistributive l a b) (Product.swap (Abstract.add l a) l q)}
+    "=" {Abstract.add (Abstract.mul a b) (Abstract.add (Abstract.mul l b) (Abstract.mul l (Abstract.mul (Abstract.add l a) q)))}
+    "by" {trans!{Abstract.Carrier} _ _ _
+      (congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add u (Abstract.mul l (Abstract.mul (Abstract.add l a) q))) _ _ (Sum.comm (Abstract.mul l b) (Abstract.mul a b)))
+      (Sum.assoc (Abstract.mul a b) (Abstract.mul l b) (Abstract.mul l (Abstract.mul (Abstract.add l a) q)))}
+    "=" {Abstract.add (Abstract.mul a b) (Abstract.mul l (Abstract.add b (Abstract.mul (Abstract.add l a) q)))}
+    "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.add (Abstract.mul a b)) _ _
+      (sym!{Abstract.Carrier} _ _ (ring.semiring.leftDistributive l b (Abstract.mul (Abstract.add l a) q)))}
+  };

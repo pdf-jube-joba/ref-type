@@ -1,0 +1,168 @@
+\import F.Arithmetic[] \as Arithmetic;
+\import algebra.Monoid[].Of[Carrier := K, monoid := Arithmetic.multiplicative] \as Product;
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K Arithmetic.underlyingRing] \as Sum;
+\definition value: Free.Expression -> K := evaluate roots;
+\definition otherValue: Free.Expression -> K := evaluate permuted;
+\definition plusValue: \forall (a, b: Free.Expression) -> value (Free.Expression::sum a b) = F.add (value a) (value b) := \fun (a, b: Free.Expression) => \refl(F.add (value a) (value b));
+\definition timesValue: \forall (a, b: Free.Expression) -> value (Free.Expression::product a b) = F.mul (value a) (value b) := \fun (a, b: Free.Expression) => \refl(F.mul (value a) (value b));
+\definition negativeValue: \forall (a: Free.Expression) -> value (Free.Expression::negative a) = F.neg (value a) := \fun (a: Free.Expression) => \refl(F.neg (value a));
+\definition otherPlusValue: \forall (a, b: Free.Expression) -> otherValue (Free.Expression::sum a b) = F.add (otherValue a) (otherValue b) := \fun (a, b: Free.Expression) => \refl(F.add (otherValue a) (otherValue b));
+\definition otherTimesValue: \forall (a, b: Free.Expression) -> otherValue (Free.Expression::product a b) = F.mul (otherValue a) (otherValue b) := \fun (a, b: Free.Expression) => \refl(F.mul (otherValue a) (otherValue b));
+\definition otherNegativeValue: \forall (a: Free.Expression) -> otherValue (Free.Expression::negative a) = F.neg (otherValue a) := \fun (a: Free.Expression) => \refl(F.neg (otherValue a));
+\structure Witness[z: K, w: K]: \Set := {
+  numerator: Free.Expression,
+  denominator: Free.Expression,
+  nonzero: Logic.Not (value denominator = F.zero),
+  source: F.mul z (value denominator) = value numerator,
+  target: F.mul w (otherValue denominator) = otherValue numerator,
+};
+\definition Related[z: K][w: K]: \Prop := \exists Witness[z, w];
+\definition denominatorNonzero: EquivalentKernels -> \forall (z: K)(w: K)(witness: Witness[z, w]) -> Logic.Not (otherValue witness.denominator = F.zero) :=
+  \fun (kernels: EquivalentKernels)(z: K)(w: K)(witness: Witness[z, w])(impossible: _) =>
+    witness.nonzero ((kernels witness.denominator).rtl impossible);
+\definition crossCoefficients[a, b, c, d: Free.Expression]: Free.Expression :=
+  Free.Expression::sum (Free.Expression::product a d) (Free.Expression::negative (Free.Expression::product c b));
+\definition crossValue: \forall (a, b, c, d: Free.Expression) -> value (crossCoefficients a b c d) =
+  F.add (F.mul (value a) (value d)) (F.neg (F.mul (value c) (value b))) :=
+  \fun (a, b, c, d: Free.Expression) => trans!{K} _ _ _ (plusValue (Free.Expression::product a d) (Free.Expression::negative (Free.Expression::product c b)))
+    (congr2!{K K K} F.add _ _ _ _ (timesValue a d)
+      (trans!{K} _ _ _ (negativeValue (Free.Expression::product c b)) (congr!{K K} F.neg _ _ (timesValue c b))));
+\definition otherCrossValue: \forall (a, b, c, d: Free.Expression) -> otherValue (crossCoefficients a b c d) =
+  F.add (F.mul (otherValue a) (otherValue d)) (F.neg (F.mul (otherValue c) (otherValue b))) :=
+  \fun (a, b, c, d: Free.Expression) => trans!{K} _ _ _ (otherPlusValue (Free.Expression::product a d) (Free.Expression::negative (Free.Expression::product c b)))
+    (congr2!{K K K} F.add _ _ _ _ (otherTimesValue a d)
+      (trans!{K} _ _ _ (otherNegativeValue (Free.Expression::product c b)) (congr!{K K} F.neg _ _ (otherTimesValue c b))));
+\definition targetUnique: EquivalentKernels -> \forall (z: K)(w, v: K) -> Related z w -> Related z v -> w = v := \block {
+  \fun (kernels: EquivalentKernels)(z: K)(w, v: K)(left: _)(right: _) \then
+  \takefrom first: Witness[z, w] \by left \then
+  \takefrom second: Witness[z, v] \by right \then
+  \let cross: F.mul (value first.numerator) (value second.denominator) = F.mul (value second.numerator) (value first.denominator) :=
+    Arithmetic.crossProducts z _ _ _ _ first.source second.source \then
+  \let polynomial: Free.Expression := crossCoefficients first.numerator first.denominator second.numerator second.denominator \then
+  \let vanished: value polynomial = F.zero := trans!{K} _ _ _
+    (crossValue first.numerator first.denominator second.numerator second.denominator)
+    (trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => F.add a (F.neg (F.mul (value second.numerator) (value first.denominator)))) _ _ cross)
+      (Sum.inverseRight _)) \then
+  \let transferred: F.add (F.mul (otherValue first.numerator) (otherValue second.denominator))
+    (F.neg (F.mul (otherValue second.numerator) (otherValue first.denominator))) = F.zero :=
+    trans!{K} _ _ _ (sym!{K} _ _ (otherCrossValue first.numerator first.denominator second.numerator second.denominator)) ((kernels polynomial).ltr vanished) \then
+  \return Arithmetic.crossCancel w v _ _ _ _ (denominatorNonzero kernels z w first) (denominatorNonzero kernels z v second) first.target second.target
+    (Arithmetic.differenceZero _ _ transferred)
+};
+\definition sourceUnique: EquivalentKernels -> \forall (z, v: K)(w: K) -> Related z w -> Related v w -> z = v := \block {
+  \fun (kernels: EquivalentKernels)(z, v: K)(w: K)(left: _)(right: _) \then
+  \takefrom first: Witness[z, w] \by left \then
+  \takefrom second: Witness[v, w] \by right \then
+  \let cross: F.mul (otherValue first.numerator) (otherValue second.denominator) = F.mul (otherValue second.numerator) (otherValue first.denominator) :=
+    Arithmetic.crossProducts w _ _ _ _ first.target second.target \then
+  \let polynomial: Free.Expression := crossCoefficients first.numerator first.denominator second.numerator second.denominator \then
+  \let vanished: otherValue polynomial = F.zero := trans!{K} _ _ _
+    (otherCrossValue first.numerator first.denominator second.numerator second.denominator)
+    (trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => F.add a (F.neg (F.mul (otherValue second.numerator) (otherValue first.denominator)))) _ _ cross)
+      (Sum.inverseRight _)) \then
+  \let transferred: F.add (F.mul (value first.numerator) (value second.denominator))
+    (F.neg (F.mul (value second.numerator) (value first.denominator))) = F.zero :=
+    trans!{K} _ _ _ (sym!{K} _ _ (crossValue first.numerator first.denominator second.numerator second.denominator)) ((kernels polynomial).rtl vanished) \then
+  \return Arithmetic.crossCancel z v _ _ _ _ (first.nonzero) (second.nonzero) first.source second.source
+    (Arithmetic.differenceZero _ _ transferred)
+};
+\definition expressionRelated: \forall (e: Free.Expression) -> Related (value e) (otherValue e) :=
+  \fun (e: Free.Expression) => \exact(Witness[value e, otherValue e] {
+    numerator := e, denominator := Free.oneExpr,
+    nonzero := \fun (same: _) => Arithmetic.oneNonzero (trans!{K} _ _ _ (sym!{K} _ _ (oneValue roots)) same),
+    source := trans!{K} _ _ _ (congr!{K K} (F.mul (value e)) _ _ (oneValue roots)) (Product.zeroRight (value e)),
+    target := trans!{K} _ _ _ (congr!{K K} (F.mul (otherValue e)) _ _ (oneValue permuted)) (Product.zeroRight (otherValue e)),
+  }, Witness[value e, otherValue e]);
+\definition zeroRelated: Related F.zero F.zero :=
+  \idelim value Free.zeroExpr = F.zero \with x: K => Related x F.zero \by {
+    base: \idelim otherValue Free.zeroExpr = F.zero \with y: K => Related (value Free.zeroExpr) y
+      \by { base: expressionRelated Free.zeroExpr, equality: zeroValue permuted },
+    equality: zeroValue roots
+  };
+\definition oneRelated: Related F.one F.one :=
+  \idelim value Free.oneExpr = F.one \with x: K => Related x F.one \by {
+    base: \idelim otherValue Free.oneExpr = F.one \with y: K => Related (value Free.oneExpr) y
+      \by { base: expressionRelated Free.oneExpr, equality: oneValue permuted },
+    equality: oneValue roots
+  };
+\definition addRelated: \forall (z, v: K)(w, t: K) -> Related z w -> Related v t -> Related (F.add z v) (F.add w t) := \block {
+  \fun (z, v: K)(w, t: K)(left: _)(right: _) \then
+  \takefrom first: Witness[z, w] \by left \then
+  \takefrom second: Witness[v, t] \by right \then
+  \return \exact(Witness[F.add z v, F.add w t] {
+    numerator := Free.Expression::sum (Free.Expression::product first.numerator second.denominator) (Free.Expression::product second.numerator first.denominator),
+    denominator := Free.Expression::product first.denominator second.denominator,
+    nonzero := \fun (same: _) => Arithmetic.nonzeroProduct _ _ first.nonzero second.nonzero
+      (trans!{K} _ _ _ (sym!{K} _ _ (timesValue first.denominator second.denominator)) same),
+    source := trans!{K} _ _ _
+      (congr!{K K} (F.mul (F.add z v)) _ _ (timesValue first.denominator second.denominator))
+      (trans!{K} _ _ _ (Arithmetic.sumCross z v _ _ _ _ first.source second.source)
+        (sym!{K} _ _ (trans!{K} _ _ _ (plusValue (Free.Expression::product first.numerator second.denominator) (Free.Expression::product second.numerator first.denominator))
+          (congr2!{K K K} F.add _ _ _ _ (timesValue first.numerator second.denominator) (timesValue second.numerator first.denominator))))),
+    target := trans!{K} _ _ _
+      (congr!{K K} (F.mul (F.add w t)) _ _ (otherTimesValue first.denominator second.denominator))
+      (trans!{K} _ _ _ (Arithmetic.sumCross w t _ _ _ _ first.target second.target)
+        (sym!{K} _ _ (trans!{K} _ _ _ (otherPlusValue (Free.Expression::product first.numerator second.denominator) (Free.Expression::product second.numerator first.denominator))
+          (congr2!{K K K} F.add _ _ _ _ (otherTimesValue first.numerator second.denominator) (otherTimesValue second.numerator first.denominator))))),
+  }, Witness[F.add z v, F.add w t])
+};
+\definition mulRelated: \forall (z, v: K)(w, t: K) -> Related z w -> Related v t -> Related (F.mul z v) (F.mul w t) := \block {
+  \fun (z, v: K)(w, t: K)(left: _)(right: _) \then
+  \takefrom first: Witness[z, w] \by left \then
+  \takefrom second: Witness[v, t] \by right \then
+  \return \exact(Witness[F.mul z v, F.mul w t] {
+    numerator := Free.Expression::product first.numerator second.numerator,
+    denominator := Free.Expression::product first.denominator second.denominator,
+    nonzero := \fun (same: _) => Arithmetic.nonzeroProduct _ _ first.nonzero second.nonzero
+      (trans!{K} _ _ _ (sym!{K} _ _ (timesValue first.denominator second.denominator)) same),
+    source := trans!{K} _ _ _
+      (congr!{K K} (F.mul (F.mul z v)) _ _ (timesValue first.denominator second.denominator))
+      (trans!{K} _ _ _ (Arithmetic.productCross z v _ _ _ _ first.source second.source)
+        (sym!{K} _ _ (timesValue first.numerator second.numerator))),
+    target := trans!{K} _ _ _
+      (congr!{K K} (F.mul (F.mul w t)) _ _ (otherTimesValue first.denominator second.denominator))
+      (trans!{K} _ _ _ (Arithmetic.productCross w t _ _ _ _ first.target second.target)
+        (sym!{K} _ _ (otherTimesValue first.numerator second.numerator))),
+  }, Witness[F.mul z v, F.mul w t])
+};
+\definition negRelated: \forall (z: K)(w: K) -> Related z w -> Related (F.neg z) (F.neg w) := \block {
+  \fun (z: K)(w: K)(related: _) \then
+  \takefrom first: Witness[z, w] \by related \then
+  \return \exact(Witness[F.neg z, F.neg w] {
+    numerator := Free.Expression::negative first.numerator, denominator := first.denominator, nonzero := first.nonzero,
+    source := trans!{K} _ _ _ (Arithmetic.mulNegLeft z (value first.denominator))
+      (trans!{K} _ _ _ (congr!{K K} F.neg _ _ first.source) (sym!{K} _ _ (negativeValue first.numerator))),
+    target := trans!{K} _ _ _ (Arithmetic.mulNegLeft w (otherValue first.denominator))
+      (trans!{K} _ _ _ (congr!{K K} F.neg _ _ first.target) (sym!{K} _ _ (otherNegativeValue first.numerator))),
+  }, Witness[F.neg z, F.neg w])
+};
+\definition zeroEquivalence: EquivalentKernels -> \forall (z: K)(w: K) -> Related z w -> Logic.PropEquiv[z = F.zero, w = F.zero] :=
+  \fun (kernels: EquivalentKernels)(z: K)(w: K)(related: _) => Logic.PropEquiv[_, _] {
+    ltr := \fun (same: z = F.zero) => targetUnique kernels F.zero w F.zero
+      (\idelim z = F.zero \with a: K => Related a w \by { base: related, equality: same }) zeroRelated,
+    rtl := \fun (same: w = F.zero) => sourceUnique kernels z F.zero F.zero
+      (\idelim w = F.zero \with a: K => Related z a \by { base: related, equality: same }) zeroRelated,
+  };
+\import std.Logic[].Classical[] \as Classical;
+\definition invRelated: EquivalentKernels -> \forall (z: K)(w: K) -> Related z w -> Related (F.inv z) (F.inv w) :=
+  \fun (kernels: EquivalentKernels)(z: K)(w: K)(related: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (z = F.zero))
+    (\fun (sourceZero: _) =>
+      \idelim F.zero = F.inv z \with a: K => Related a (F.inv w) \by {
+        base: \idelim F.zero = F.inv w \with b: K => Related F.zero b \by {
+          base: zeroRelated,
+          equality: sym!{K} _ _ (trans!{K} _ _ _ (congr!{K K} F.inv _ _ ((zeroEquivalence kernels z w related).ltr sourceZero)) F.invZero)
+        },
+        equality: sym!{K} _ _ (trans!{K} _ _ _ (congr!{K K} F.inv _ _ sourceZero) F.invZero)
+      })
+    (\block {
+      \fun (nonzero: Logic.Not (z = F.zero)) \then
+      \takefrom first: Witness[z, w] \by related \then
+      \let targetNonzero: Logic.Not (w = F.zero) := \fun (same: _) => nonzero ((zeroEquivalence kernels z w related).rtl same) \then
+      \return \exact(Witness[F.inv z, F.inv w] {
+        numerator := first.denominator, denominator := first.numerator,
+        nonzero := \fun (same: _) => Arithmetic.nonzeroProduct z (value first.denominator) nonzero first.nonzero
+          (trans!{K} _ _ _ first.source same),
+        source := Arithmetic.inverseCross z (value first.numerator) (value first.denominator) nonzero first.source,
+        target := Arithmetic.inverseCross w (otherValue first.numerator) (otherValue first.denominator) targetNonzero first.target,
+      }, Witness[F.inv z, F.inv w])
+    });

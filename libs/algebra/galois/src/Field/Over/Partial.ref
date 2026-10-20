@@ -1,0 +1,87 @@
+\import \parent.Subfield[] \as Subfields;
+\structure Hom[S: Subfields.Subfield, f: K -> K]: \Prop := {
+  zero: f zero = zero,
+  one: f one = one,
+  add: \forall (x, y: K) -> Subfields.Member S x -> Subfields.Member S y -> f (add x y) = add (f x) (f y),
+  neg: \forall (x: K) -> Subfields.Member S x -> f (neg x) = neg (f x),
+  mul: \forall (x, y: K) -> Subfields.Member S x -> Subfields.Member S y -> f (mul x y) = mul (f x) (f y),
+  inv: \forall (x: K) -> Subfields.Member S x -> f (inv x) = inv (f x),
+};
+\structure Isomorphism: \Set := {
+  domain: Subfields.Subfield,
+  range: Subfields.Subfield,
+  forward: K -> K,
+  backward: K -> K,
+  image: \forall (x: K) -> Subfields.Member domain x -> Subfields.Member range (forward x),
+  preimage: \forall (y: K) -> Subfields.Member range y -> Subfields.Member domain (backward y),
+  left: \forall (x: K) -> Subfields.Member domain x -> backward (forward x) = x,
+  right: \forall (y: K) -> Subfields.Member range y -> forward (backward y) = y,
+  hom: Hom[domain, forward],
+};
+\definition identity[S: Subfields.Subfield]: Isomorphism := Isomorphism {
+  domain := S, range := S, forward := \fun (x: K) => x, backward := \fun (x: K) => x,
+  image := \fun (x: K)(member: _) => member, preimage := \fun (x: K)(member: _) => member,
+  left := \fun (x: K)(member: _) => \refl(x), right := \fun (x: K)(member: _) => \refl(x),
+  hom := Hom[S, \fun (x: K) => x] {
+    zero := \refl(zero), one := \refl(one), add := \fun (x, y: K)(hx: _)(hy: _) => \refl(add x y),
+    neg := \fun (x: K)(hx: _) => \refl(neg x), mul := \fun (x, y: K)(hx: _)(hy: _) => \refl(mul x y), inv := \fun (x: K)(hx: _) => \refl(inv x),
+  },
+};
+\definition backwardHom: \forall (p: Isomorphism) -> Hom[p.range, p.backward] :=
+  \fun (p: Isomorphism) => Hom[p.range, p.backward] {
+    zero := trans!{K} _ _ _ (congr!{K K} p.backward _ _ (sym!{K} _ _ p.hom.zero)) (p.left zero (Subfields.laws p.domain).zero),
+    one := trans!{K} _ _ _ (congr!{K K} p.backward _ _ (sym!{K} _ _ p.hom.one)) (p.left one (Subfields.laws p.domain).one),
+    add := \fun (x, y: K)(hx: _)(hy: _) => eq_reason!{{p.backward (add x y)}
+      "=" {p.backward (add (p.forward (p.backward x)) (p.forward (p.backward y)))}
+      "by" {congr!{K K} p.backward _ _ (congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (p.right x hx)) (sym!{K} _ _ (p.right y hy)))}
+      "=" {p.backward (p.forward (add (p.backward x) (p.backward y)))}
+      "by" {congr!{K K} p.backward _ _ (sym!{K} _ _ (p.hom.add (p.backward x) (p.backward y) (p.preimage x hx) (p.preimage y hy)))}
+      "=" {add (p.backward x) (p.backward y)} "by" {p.left _ ((Subfields.laws p.domain).add _ _ (p.preimage x hx) (p.preimage y hy))}},
+    neg := \fun (x: K)(hx: _) => eq_reason!{{p.backward (neg x)}
+      "=" {p.backward (neg (p.forward (p.backward x)))} "by" {congr!{K K} (\fun (a: K) => p.backward (neg a)) _ _ (sym!{K} _ _ (p.right x hx))}
+      "=" {p.backward (p.forward (neg (p.backward x)))} "by" {congr!{K K} p.backward _ _ (sym!{K} _ _ (p.hom.neg (p.backward x) (p.preimage x hx)))}
+      "=" {neg (p.backward x)} "by" {p.left _ ((Subfields.laws p.domain).neg _ (p.preimage x hx))}},
+    mul := \fun (x, y: K)(hx: _)(hy: _) => eq_reason!{{p.backward (mul x y)}
+      "=" {p.backward (mul (p.forward (p.backward x)) (p.forward (p.backward y)))}
+      "by" {congr!{K K} p.backward _ _ (congr2!{K K K} mul _ _ _ _ (sym!{K} _ _ (p.right x hx)) (sym!{K} _ _ (p.right y hy)))}
+      "=" {p.backward (p.forward (mul (p.backward x) (p.backward y)))}
+      "by" {congr!{K K} p.backward _ _ (sym!{K} _ _ (p.hom.mul (p.backward x) (p.backward y) (p.preimage x hx) (p.preimage y hy)))}
+      "=" {mul (p.backward x) (p.backward y)} "by" {p.left _ ((Subfields.laws p.domain).mul _ _ (p.preimage x hx) (p.preimage y hy))}},
+    inv := \fun (x: K)(hx: _) => eq_reason!{{p.backward (inv x)}
+      "=" {p.backward (inv (p.forward (p.backward x)))} "by" {congr!{K K} (\fun (a: K) => p.backward (inv a)) _ _ (sym!{K} _ _ (p.right x hx))}
+      "=" {p.backward (p.forward (inv (p.backward x)))} "by" {congr!{K K} p.backward _ _ (sym!{K} _ _ (p.hom.inv (p.backward x) (p.preimage x hx)))}
+      "=" {inv (p.backward x)} "by" {p.left _ ((Subfields.laws p.domain).inv _ (p.preimage x hx))}},
+  };
+\definition inverse[p: Isomorphism]: Isomorphism := Isomorphism {
+  domain := p.range, range := p.domain, forward := p.backward, backward := p.forward,
+  image := p.preimage, preimage := p.image, left := p.right, right := p.left, hom := backwardHom p,
+};
+\structure Extends[old, new: Isomorphism]: \Prop := {
+  domain: Subfields.Included (Subfields.Member old.domain) (Subfields.Member new.domain),
+  range: Subfields.Included (Subfields.Member old.range) (Subfields.Member new.range),
+  forward: \forall (x: K) -> Subfields.Member old.domain x -> old.forward x = new.forward x,
+  backward: \forall (y: K) -> Subfields.Member old.range y -> old.backward y = new.backward y,
+};
+\definition extendsRefl: \forall (p: Isomorphism) -> Extends[p, p] := \fun (p: Isomorphism) => Extends[p, p] {
+  domain := \fun (x: K)(hx: _) => hx, range := \fun (x: K)(hx: _) => hx,
+  forward := \fun (x: K)(hx: _) => \refl(p.forward x), backward := \fun (x: K)(hx: _) => \refl(p.backward x),
+};
+\definition extendsTrans: \forall (p, q, r: Isomorphism) -> Extends[p, q] -> Extends[q, r] -> Extends[p, r] :=
+  \fun (p, q, r: Isomorphism)(pq: Extends[p, q])(qr: Extends[q, r]) => Extends[p, r] {
+    domain := \fun (x: K)(hx: _) => qr.domain x (pq.domain x hx),
+    range := \fun (x: K)(hx: _) => qr.range x (pq.range x hx),
+    forward := \fun (x: K)(hx: _) => trans!{K} _ _ _ (pq.forward x hx) (qr.forward x (pq.domain x hx)),
+    backward := \fun (x: K)(hx: _) => trans!{K} _ _ _ (pq.backward x hx) (qr.backward x (pq.range x hx)),
+  };
+\definition inverseExtends: \forall (p, q: Isomorphism) -> Extends[p, q] -> Extends[inverse p, inverse q] :=
+  \fun (p, q: Isomorphism)(extension: Extends[p, q]) => Extends[inverse p, inverse q] {
+    domain := extension.range, range := extension.domain, forward := extension.backward, backward := extension.forward,
+  };
+\module Over(p: Isomorphism);
+\module Union(sequence: N.Nat^ -> Isomorphism);
+\definition restoreExtends: \forall (p, q: Isomorphism) -> Extends[inverse p, q] -> Extends[p, inverse q] :=
+  \fun (p, q: Isomorphism)(extension: Extends[inverse p, q]) => Extends[p, inverse q] {
+    domain := extension.range, range := extension.domain, forward := extension.backward, backward := extension.forward,
+  };
+\import std.Set[].Countability[A := K] \as Countability;
+\module Countable(initial: Isomorphism, enumeration: Countability.Enumerator, index: N.Nat^ -> K);

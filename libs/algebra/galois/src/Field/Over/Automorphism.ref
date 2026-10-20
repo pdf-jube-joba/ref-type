@@ -1,0 +1,78 @@
+\import \parent.Morphism[L := K, target := field] \as Maps;
+\structure Automorphism: \Set := {
+  map: Maps.Map,
+  backward: K -> K,
+  leftInverse: \forall (x: K) -> backward (map.apply x) = x,
+  rightInverse: \forall (x: K) -> map.apply (backward x) = x,
+};
+\definition identityMap: Maps.Map := Maps.Map {
+  apply := \fun (x: K) => x,
+  preservesZero := \refl(zero), preservesOne := \refl(one),
+  preservesAdd := \fun (x, y: K) => \refl(add x y),
+  preservesNeg := \fun (x: K) => \refl(neg x),
+  preservesMul := \fun (x, y: K) => \refl(mul x y),
+  preservesInv := \fun (x: K) => \refl(inv x),
+};
+\definition identity: Automorphism := Automorphism {
+  map := identityMap, backward := \fun (x: K) => x,
+  leftInverse := \fun (x: K) => \refl(x), rightInverse := \fun (x: K) => \refl(x),
+};
+\definition embedding[f: Automorphism]: Maps.Embedding := Maps.Embedding {
+  map := f.map,
+  injective := \fun (x, y: K)(same: _) => eq_reason!{x
+    "=" {f.backward (f.map.apply x)} "by" {sym!{K} _ _ (f.leftInverse x)}
+    "=" {f.backward (f.map.apply y)} "by" {congr!{K K} f.backward _ _ same}
+    "=" y "by" {f.leftInverse y}},
+};
+\definition Fixes[S: K -> \Prop][f: Automorphism]: \Prop := \forall (x: K) -> S x -> f.map.apply x = x;
+\definition inverseMap[f: Automorphism]: Maps.Map := Maps.Map {
+  apply := f.backward,
+  preservesZero := eq_reason!{{f.backward zero}
+    "=" {f.backward (f.map.apply zero)} "by" {congr!{K K} f.backward _ _ (sym!{K} _ _ f.map.preservesZero)}
+    "=" zero "by" {f.leftInverse zero}},
+  preservesOne := eq_reason!{{f.backward one}
+    "=" {f.backward (f.map.apply one)} "by" {congr!{K K} f.backward _ _ (sym!{K} _ _ f.map.preservesOne)}
+    "=" one "by" {f.leftInverse one}},
+  preservesAdd := \fun (x, y: K) => eq_reason!{{f.backward (add x y)}
+    "=" {f.backward (add (f.map.apply (f.backward x)) (f.map.apply (f.backward y)))}
+    "by" {congr!{K K} f.backward _ _ (congr2!{K K K} add _ _ _ _
+      (sym!{K} _ _ (f.rightInverse x)) (sym!{K} _ _ (f.rightInverse y)))}
+    "=" {f.backward (f.map.apply (add (f.backward x) (f.backward y)))}
+    "by" {congr!{K K} f.backward _ _ (sym!{K} _ _ (f.map.preservesAdd (f.backward x) (f.backward y)))}
+    "=" {add (f.backward x) (f.backward y)} "by" {f.leftInverse (add (f.backward x) (f.backward y))}},
+  preservesNeg := \fun (x: K) => eq_reason!{{f.backward (neg x)}
+    "=" {f.backward (neg (f.map.apply (f.backward x)))}
+    "by" {congr!{K K} (\fun (y: K) => f.backward (neg y)) _ _ (sym!{K} _ _ (f.rightInverse x))}
+    "=" {f.backward (f.map.apply (neg (f.backward x)))}
+    "by" {congr!{K K} f.backward _ _ (sym!{K} _ _ (f.map.preservesNeg (f.backward x)))}
+    "=" {neg (f.backward x)} "by" {f.leftInverse (neg (f.backward x))}},
+  preservesMul := \fun (x, y: K) => eq_reason!{{f.backward (mul x y)}
+    "=" {f.backward (mul (f.map.apply (f.backward x)) (f.map.apply (f.backward y)))}
+    "by" {congr!{K K} f.backward _ _ (congr2!{K K K} mul _ _ _ _
+      (sym!{K} _ _ (f.rightInverse x)) (sym!{K} _ _ (f.rightInverse y)))}
+    "=" {f.backward (f.map.apply (mul (f.backward x) (f.backward y)))}
+    "by" {congr!{K K} f.backward _ _ (sym!{K} _ _ (f.map.preservesMul (f.backward x) (f.backward y)))}
+    "=" {mul (f.backward x) (f.backward y)} "by" {f.leftInverse (mul (f.backward x) (f.backward y))}},
+  preservesInv := \fun (x: K) => eq_reason!{{f.backward (inv x)}
+    "=" {f.backward (inv (f.map.apply (f.backward x)))}
+    "by" {congr!{K K} (\fun (y: K) => f.backward (inv y)) _ _ (sym!{K} _ _ (f.rightInverse x))}
+    "=" {f.backward (f.map.apply (inv (f.backward x)))}
+    "by" {congr!{K K} f.backward _ _ (sym!{K} _ _ (f.map.preservesInv (f.backward x)))}
+    "=" {inv (f.backward x)} "by" {f.leftInverse (inv (f.backward x))}},
+};
+\definition inverse[f: Automorphism]: Automorphism := Automorphism {
+  map := inverseMap f, backward := f.map.apply,
+  leftInverse := f.rightInverse, rightInverse := f.leftInverse,
+};
+\import Maps.Composition[M := K, output := field] \as Composition;
+\definition compose[f, g: Automorphism]: Automorphism := Automorphism {
+  map := Composition.compose f.map g.map,
+  backward := \fun (x: K) => f.backward (g.backward x),
+  leftInverse := \fun (x: K) => trans!{K} _ _ _
+    (congr!{K K} f.backward _ _ (g.leftInverse (f.map.apply x))) (f.leftInverse x),
+  rightInverse := \fun (x: K) => trans!{K} _ _ _
+    (congr!{K K} g.map.apply _ _ (f.rightInverse (g.backward x))) (g.rightInverse x),
+};
+\module Permutations;
+\module Kummer;
+\module RadicalAction(S: K -> \Prop);
