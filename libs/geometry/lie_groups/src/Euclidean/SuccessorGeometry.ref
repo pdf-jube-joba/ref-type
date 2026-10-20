@@ -30,6 +30,14 @@
 \definition firstNorm: Next.dot first first = R.one := trans!{R.Real} _ _ _ (firstDot first) firstHead;
 \definition recover[x: Next.Vector]: head x = R.zero -> embed (tail x) = x := \fun (zero: _) => Tuples.extensionality n (embed (tail x)) x
   (trans!{R.Real} _ _ _ (embedHead (tail x)) (sym!{R.Real} _ _ zero)) (\fun (i: Fin.Fin n) => Tuples.atSuccessor n R.zero (tail x) i);
+\definition decompose[x: Next.Vector]: Next.space.add (Next.space.smul (head x) first) (embed (tail x)) = x :=
+  Tuples.extensionality n (Next.space.add (Next.space.smul (head x) first) (embed (tail x))) x
+    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (head x)) _ _ firstHead) (Scalars.mulOneRight (head x))) (embedHead (tail x)))
+      (Arithmetic.addZeroRight (head x)))
+    (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (head x)) _ _ (Tuples.atSuccessor n R.one space.zero i)) (Arithmetic.fieldMulZeroRight (head x)))
+      (Tuples.atSuccessor n R.zero (tail x) i)) (Arithmetic.addZeroLeft (x (Fin.succ n i))));
 \definition projection: Projections.Map := Projections.Map {
   apply := tail,
   preservesAdd := \fun (x, y: Next.Vector) => \refl(tail (Next.space.add x y)),
@@ -43,3 +51,14 @@
     (trans!{R.Real} _ _ _ (congr!{Next.Vector R.Real} (\fun (y: Next.Vector) => Next.dot y (NextOrthogonal.action g x)) _ _ (sym!{Next.Vector} _ _ fixes))
       (trans!{R.Real} _ _ _ (NextOrthogonal.preserves g first x) (firstDot x)));
 \module Stabilizer(g: Next.O, fixes: NextOrthogonal.action g first = first);
+\import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Vector, space := space] \as End;
+\import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Next.Vector, space := Next.space] \as NextEnd;
+\module Block(f: End.Carrier);
+\module Extension(h: O);
+\module SphereSection(s: Vector);
+\definition Sphere: \Set := \Cast[Next.Vector] ({ v: Next.Vector \where Next.dot v v = R.one });
+\module SphereCoordinates(v: Sphere, nonzero: std.Logic[].Proposition[].Not (R.add R.one (head v) = R.zero));
+\module StabilizerExtension(g: Next.O, fixes: NextOrthogonal.action g first = first);
+\module ExtensionRestriction(h: O);
+\module FirstColumn(g: Next.O, nonzero: std.Logic[].Proposition[].Not (R.add R.one (head (NextOrthogonal.action g first)) = R.zero));
+\module SphereProduct(s: Vector, h: O);
