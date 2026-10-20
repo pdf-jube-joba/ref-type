@@ -34,3 +34,27 @@
       positive := control.positive, estimate := \fun (x: Carrier)(near: _) => Operations.continuityEstimate f a epsilon delta positive control x near,
     })
 };
+\definition continuousOfTopological: \forall (f: Real -> Real) -> LocalFunctions.Continuous topology (restrict f) -> ContinuousOn f := \block {
+  \fun (f: Real -> Real)(continuous: _)(a: Carrier)(epsilon: Real)(positive: _) \then
+  \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Sub.OpenNeighborhood[topology, a, LocalFunctions.Small (restrict f) a epsilon, U] })
+    \by LocalFunctions.localOfContinuous topology (restrict f) continuous a epsilon positive \then
+  \let neighborhood: Sub.OpenNeighborhood[topology, a, LocalFunctions.Small (restrict f) a epsilon, U] :=
+    \bysub(\Pow Carrier, { U: \Pow Carrier \where Sub.OpenNeighborhood[topology, a, LocalFunctions.Small (restrict f) a epsilon, U] }, U) \then
+  \takefrom V: \Cast[\Pow Real] ({ V: \Pow Real \where Logic.And[Space.IsOpenIn Line.topology V, U = Subspace.Trace V] })
+    \by Subspace.openRepresentation Line.topology U neighborhood.open \then
+  \let trace: Logic.And[Space.IsOpenIn Line.topology V, U = Subspace.Trace V] :=
+    \bysub(\Pow Real, { V: \Pow Real \where Logic.And[Space.IsOpenIn Line.topology V, U = Subspace.Trace V] }, V) \then
+  \let contains: Space.Member V a := \idelim U = Subspace.Trace V \with W: \Pow Carrier => Sub.Member W a \by {
+    base: neighborhood.contains, equality: trace.right
+  } \then
+  \takefrom delta: \Cast[Real] (Metrics.NeighborhoodRadius RealMetric.metric V a) \by trace.left a contains \then
+  \let radius: Logic.And[R.Lt zero delta, Space.Subset (Metrics.Ball RealMetric.metric a delta) V] := \bysub(Real, Metrics.NeighborhoodRadius RealMetric.metric V a, delta) \then
+  \return Logic.existsIntro[Real, { delta: Real \where Control[f, a, epsilon, delta] }] delta (Control[f, a, epsilon, delta] {
+    positive := radius.left,
+    estimate := \fun (x: Carrier)(near: _) => R.ltReplaceLeft (distance (f a) (f x)) (distance (f x) (f a)) epsilon (Metric.distanceSymmetric (f a) (f x))
+      (neighborhood.within x (\idelim Subspace.Trace V = U \with W: \Pow Carrier => Sub.Member W x \by {
+        base: radius.right x (R.ltReplaceLeft (distance x a) (distance a x) delta (Metric.distanceSymmetric x a) near), equality: sym!{\Pow Carrier} _ _ trace.right
+      })),
+  })
+};
+\module Restriction(U: \Pow Real);

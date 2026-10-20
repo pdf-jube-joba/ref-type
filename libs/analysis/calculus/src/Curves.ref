@@ -1,0 +1,37 @@
+/* A smooth map from an open real interval, with a total real representative. */
+\import \root.Real[] \as Reals;
+\import Reals.OneDimension[] \as One;
+\import Reals.Multivariable[n := One.dimension] \as Line;
+\import Line.Open[] \as Source;
+\import Source.Analysis[] \as Analysis;
+\import Line.Space[].Def[] \as Coordinates;
+\import Line.Space[].Prop[] \as CoordinateLaws;
+\import Source.Smooth[].Derivative[] \as Partials;
+\import \root.Maps[n := One.dimension, m := n] \as Maps;
+\import \root.Vector[n := One.dimension, m := n] \as Vector;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Target;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition unit: Line.Point := Coordinates.basis One.index;
+\definition replaced[x: Source.Carrier U]: x = Coordinates.replace Coordinates.origin One.index (x One.index) := \block {
+  \let point: Line.Point := x \then
+  \return \axiom:funext(point, Coordinates.replace Coordinates.origin One.index (x One.index), \fun (j: One.Index) => trans!{Reals.Real} _ _ _
+    (congr!{One.Index Reals.Real} x _ _ (Fin.singletonValue j))
+    (sym!{Reals.Real} _ _ (trans!{Reals.Real} _ _ _
+      (congr!{One.Index Reals.Real} (Coordinates.replace Coordinates.origin One.index (x One.index)) _ _ (Fin.singletonValue j))
+      (CoordinateLaws.replaceSame Coordinates.origin One.index (x One.index)))))
+};
+\module Component(i: Fin.Fin n);
+\definition value[t: Reals.Real][i: Fin.Fin n]: Reals.Real := Component[i := i].value t;
+\definition atPoint: \forall (x: Source.Carrier U) -> value (x One.index) = Maps.apply U V f x :=
+  \fun (x: Source.Carrier U) => \axiom:funext(value (x One.index), Maps.apply U V f x,
+    \fun (i: Fin.Fin n) => Component[i := i].atPoint x);
+\definition derivativeAt: \forall (x: Source.Carrier U)(i: Fin.Fin n) ->
+  Reals.Derivative[].Def[].HasDerivativeAt (\fun (t: Reals.Real) => value t i) (x One.index)
+    (Maps.Differential[U := U, V := V, f := f, a := x].value.apply unit i) :=
+  \fun (x: Source.Carrier U)(i: Fin.Fin n) => Component[i := i].derivativeAt x;
+\module Representative(g: Reals.Real -> Target.Point,
+  agrees: \forall (x: Source.Carrier U) -> g (x One.index) = Maps.apply U V f x);

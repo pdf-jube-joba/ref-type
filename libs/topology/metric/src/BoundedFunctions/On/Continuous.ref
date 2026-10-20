@@ -1,0 +1,41 @@
+\import Base.Functions[X := I, metric := base] \as Functions;
+\import Uniform.Complete[metric := complete] \as CompleteUniform;
+\definition uniformLimit: \forall (s: N.Nat^ -> Carrier)(f: Carrier) -> UniformSequences.Converges s f ->
+  (\forall (n: N.Nat^) -> Functions.Continuous source (s n)) -> Functions.Continuous source f := \block {
+  \fun (s: N.Nat^ -> Carrier)(f: Carrier)(converges: UniformSequences.Converges s f)(continuous: _) \then
+  \enough _ \by { Functions.continuousOfLocal source f } \then
+  \fun (x: I)(epsilon: R.Real)(positive: Real.Lt R.zero epsilon) \then
+  \let h: R.Real := R.mul R.half epsilon \then
+  \let r: R.Real := R.mul R.half h \then
+  \let hPositive: Real.Lt R.zero h := Estimates.halfOfPositive epsilon positive \then
+  \let rPositive: Real.Lt R.zero r := Estimates.halfOfPositive h hPositive \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where UniformSequences.Near s f r k }) \by converges r rPositive \then
+  \let near: Real.Lt (metric.distance (s k) f) r := (\bysub(N.Nat^, { k: N.Nat^ \where UniformSequences.Near s f r k }, k)) k (Nat.leRefl k) \then
+  \let coordinateNear: \forall (i: I) -> Real.Lt (base.distance (s k i) (f i)) r :=
+    \fun (i: I) => Real.leLtTrans _ _ _ (pointwiseLe (s k) f i) near \then
+  \takefrom U: \Cast[\Pow I] ({ U: \Pow I \where Source.OpenNeighborhood[source, x, Functions.Small (s k) x h, U] })
+    \by Functions.localOfContinuous source (s k) (continuous k) x h hPositive \then
+  \let neighborhood: Source.OpenNeighborhood[source, x, Functions.Small (s k) x h, U] :=
+    \bysub(\Pow I, { U: \Pow I \where Source.OpenNeighborhood[source, x, Functions.Small (s k) x h, U] }, U) \then
+  \let radii: R.add r (R.add h r) = epsilon := trans!{R.Real} _ _ _ (Algebra.addSwap r h r)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add h) _ _ (Estimates.halfTwice h)) (Estimates.halfTwice epsilon)) \then
+  \return Logic.existsIntro[\Pow I, { U: \Pow I \where Source.OpenNeighborhood[source, x, Functions.Small f x epsilon, U] }] U
+    (Source.OpenNeighborhood[source, x, Functions.Small f x epsilon, U] {
+      open := neighborhood.open, contains := neighborhood.contains,
+      within := \fun (y: I)(inside: Source.Member U y) => Real.leLtTrans _ _ _
+        (Real.leTrans _ _ _ (base.triangle (f x) (s k x) (f y))
+          (Estimates.addLe _ _ _ _ (Real.leRefl (base.distance (f x) (s k x))) (base.triangle (s k x) (s k y) (f y))))
+        (Real.ltReplaceRight _ (R.add r (R.add h r)) epsilon radii
+          (Estimates.addLt _ _ _ _
+            (Real.ltReplaceLeft (base.distance (s k x) (f x)) (base.distance (f x) (s k x)) r (base.symmetric (s k x) (f x)) (coordinateNear x))
+            (Estimates.addLt _ _ _ _ (neighborhood.within y inside) (coordinateNear y)))),
+    })
+};
+\definition predicate: \Pow Carrier := { f: Carrier \where Functions.Continuous source f };
+\definition closed: CompleteUniform.ClosedSubset := \into[\Pow Carrier](predicate,
+  { S: \Pow Carrier \where CompleteUniform.SequentiallyClosed S }) \by {
+    \fun (s: N.Nat^ -> Carrier)(f: Carrier)(converges: UniformSequences.Converges s f)(all: _) => uniformLimit s f converges all
+  };
+\definition Function: \Set := \Cast[Carrier] predicate;
+\import CompleteUniform.Closed[S := closed] \as Subspace;
+\definition complete: \root.MetricSpace[Carrier := Function].CompleteMetric := Subspace.complete;

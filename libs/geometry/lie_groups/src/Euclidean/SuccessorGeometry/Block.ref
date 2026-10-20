@@ -1,0 +1,19 @@
+\definition value[x: Next.Vector]: Next.Vector := Tuples.extend n (head x) (f.apply (tail x));
+\definition headValue: \forall (x: Next.Vector) -> head (value x) = head x := \fun (x: Next.Vector) => Tuples.atZero n (head x) (f.apply (tail x));
+\definition tailValue: \forall (x: Next.Vector) -> tail (value x) = f.apply (tail x) := \fun (x: Next.Vector) =>
+  \axiom:funext(tail (value x), f.apply (tail x), \fun (i: Fin.Fin n) => Tuples.atSuccessor n (head x) (f.apply (tail x)) i);
+\definition addition: \forall (x, y: Next.Vector) -> value (Next.space.add x y) = Next.space.add (value x) (value y) :=
+  \fun (x, y: Next.Vector) => Tuples.extensionality n (value (Next.space.add x y)) (Next.space.add (value x) (value y))
+    (trans!{R.Real} _ _ _ (headValue (Next.space.add x y)) (sym!{R.Real} _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (headValue x) (headValue y))))
+    (\fun (i: Fin.Fin n) => congr!{Vector R.Real} (\fun (v: Vector) => v i) _ _
+      (trans!{Vector} _ _ _ (tailValue (Next.space.add x y))
+        (trans!{Vector} _ _ _ (f.preservesAdd (tail x) (tail y))
+          (sym!{Vector} _ _ (congr2!{Vector Vector Vector} space.add _ _ _ _ (tailValue x) (tailValue y))))));
+\definition scalar: \forall (a: R.Real)(x: Next.Vector) -> value (Next.space.smul a x) = Next.space.smul a (value x) :=
+  \fun (a: R.Real)(x: Next.Vector) => Tuples.extensionality n (value (Next.space.smul a x)) (Next.space.smul a (value x))
+    (trans!{R.Real} _ _ _ (headValue (Next.space.smul a x)) (sym!{R.Real} _ _ (congr!{R.Real R.Real} (R.mul a) _ _ (headValue x))))
+    (\fun (i: Fin.Fin n) => congr!{Vector R.Real} (\fun (v: Vector) => v i) _ _
+      (trans!{Vector} _ _ _ (tailValue (Next.space.smul a x))
+        (trans!{Vector} _ _ _ (f.preservesScale a (tail x))
+          (congr!{Vector Vector} (space.smul a) _ _ (sym!{Vector} _ _ (tailValue x))))));
+\definition map: NextEnd.Carrier := NextEnd.Carrier { apply := value, preservesAdd := addition, preservesScale := scalar };

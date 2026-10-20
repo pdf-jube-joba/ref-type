@@ -1,0 +1,23 @@
+\definition operations: Plots.Laws[U] := Calculus.operations n U;
+\definition value[x: Open.Carrier U]: CliffordAlgebra := Clifford.mul
+  (Clifford.mul (Grade.map (values U f x)) (Clifford.iota v)) (Reverse.map (values U f x));
+\definition plot: Plots.Plot U value := operations.multiplication
+  (\fun (x: Open.Carrier U) => Clifford.mul (Grade.map (values U f x)) (Clifford.iota v))
+  (\fun (x: Open.Carrier U) => Reverse.map (values U f x))
+  (operations.multiplication (\fun (x: Open.Carrier U) => Grade.map (values U f x)) (\fun (x: Open.Carrier U) => Clifford.iota v)
+    (operations.grading (values U f) regular) (operations.constant (Clifford.iota v)))
+  (operations.reversion (values U f) regular);
+\definition onVector: \forall (x: Open.Carrier U) -> value x = Clifford.iota ((Representation.map (f x)).value.apply v) :=
+  \fun (x: Open.Carrier U) => trans!{CliffordAlgebra} _ _ _
+    (congr!{CliffordAlgebra CliffordAlgebra} (Clifford.mul (Clifford.mul (Grade.map (values U f x)) (Clifford.iota v))) _ _ (Norm.norm (f x)))
+    (Representation.onVector (f x) v);
+\definition image: \forall (x: Open.Carrier U) -> (Coordinates.Projection[].value n).read (value x) = (Representation.map (f x)).value.apply v :=
+  \fun (x: Open.Carrier U) => trans!{Vector} _ _ _
+    (congr!{CliffordAlgebra Vector} (Coordinates.Projection[].value n).read _ _ (onVector x))
+    ((Coordinates.Projection[].value n).onVector ((Representation.map (f x)).value.apply v));
+\definition smooth: \forall (i: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (Representation.map (f x)).value.apply v i) :=
+  \fun (i: Fin.Fin n) => Calculus.smoothEqual U
+    (\fun (x: Open.Carrier U) => (Coordinates.Projection[].value n).read (value x) i)
+    (\fun (x: Open.Carrier U) => (Representation.map (f x)).value.apply v i)
+    (\fun (x: Open.Carrier U) => congr!{Vector R.Real} (\fun (v: Vector) => v i) _ _ (image x))
+    (Calculus.VectorProjection[].law n U value plot i);

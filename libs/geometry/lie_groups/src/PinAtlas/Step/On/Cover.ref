@@ -1,0 +1,21 @@
+\import Geometry.Cover[g := g] \as Selection;
+\definition Candidate: \Set := Selection.Candidate;
+\definition candidateExists: \exists Candidate := Selection.exists;
+\definition exists: \exists ( k: N.Nat^ \where \In[Next.Pin] (patches k).domain g ) := \block {
+  \takefrom candidate: Candidate \by candidateExists \then
+  \let p: Parts := asPart (untranslate (Reflection.choice candidate.tag) g) candidate.admissible \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where \In[E.Pin] (previous.family.patch j).domain (fiber p) }) \by previous.family.covers (fiber p) \then
+  \let condition: \parent.Patch[i := j].Condition[untranslate (Reflection.choice candidate.tag) g] :=
+    \parent.Patch[i := j].Condition[untranslate (Reflection.choice candidate.tag) g] {
+      nonzero := candidate.admissible,
+      contained := \bysub(N.Nat^, { j: N.Nat^ \where \In[E.Pin] (previous.family.patch j).domain (fiber p) }, j),
+    } \then
+  \let member: \In[Next.Pin] (charts (Pair.natPair candidate.tag j)).domain g := condition \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair candidate.tag j }) \by Pairs.exhaustive candidate.tag j \then
+  \let code: Pairs.enumerate k = Pair.natPair candidate.tag j := \bysub(N.Nat^, { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair candidate.tag j }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \In[Next.Pin] (patches k).domain g }] k
+    (\idelim (charts (Pair.natPair candidate.tag j)).domain = (patches k).domain \with W: \Pow Next.Pin => \In[Next.Pin] W g \by {
+      base: member,
+      equality: sym!{\Pow Next.Pin} _ _ (congr!{Pair.NatPair {\Pow Next.Pin}} (\fun (c: Pair.NatPair) => (charts c).domain) _ _ code)
+    })
+};

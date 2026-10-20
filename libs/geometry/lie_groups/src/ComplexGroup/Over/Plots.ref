@@ -1,0 +1,41 @@
+
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Functions;
+\import std.Data[].Sum[] \as Either;
+\import \root.CliffordPlots[d := d] \as Calculus;
+\import Calculus.Dimension[n := n] \as CliffordPlots;
+\import Clifford.Reversion[] \as Reverse;
+\import Rep.Algebra[] \as Algebra;
+\import calculus.Real[].Multivariable[n := d].Open[].Restriction[] \as Local;
+\definition BasePlot[U: Open.OpenSet][f: Open.Carrier U -> G]: \Prop := CliffordPlots.Plot U (\fun (x: Open.Carrier U) => Rep.value (f x));
+\definition Plot[U: Open.OpenSet][f: Open.Carrier U -> Carrier]: \Prop := \forall (i: ComplexCoefficients.Index) ->
+  Smooth.SmoothOn U (\fun (x: Open.Carrier U) => ComplexCoefficients.coefficient i (f x));
+\definition real[U: Open.OpenSet][f: Open.Carrier U -> Carrier][regular: Plot U f]: CliffordPlots.Plot U
+  (\fun (x: Open.Carrier U) => Representation.first (Rep.image (f x))) := \fun (i: Coefficients.Index n) => regular (ComplexCoefficients.real i);
+\definition imaginary[U: Open.OpenSet][f: Open.Carrier U -> Carrier][regular: Plot U f]: CliffordPlots.Plot U
+  (\fun (x: Open.Carrier U) => Representation.second (Rep.image (f x))) := \fun (i: Coefficients.Index n) => regular (ComplexCoefficients.imaginary i);
+\definition fromComponents[U: Open.OpenSet][f: Open.Carrier U -> Carrier]
+  [left: CliffordPlots.Plot U (\fun (x: Open.Carrier U) => Representation.first (Rep.image (f x))) ]
+  [right: CliffordPlots.Plot U (\fun (x: Open.Carrier U) => Representation.second (Rep.image (f x))) ]: Plot U f :=
+  \induction (i: ComplexCoefficients.Index) \return Smooth.SmoothOn U (\fun (x: Open.Carrier U) => ComplexCoefficients.coefficient i (f x)) \with {
+    | inl: \fun (i: Coefficients.Index n) => left i
+    | inr: \fun (i: Coefficients.Index n) => right i
+  };
+\definition constant: \forall (U: Open.OpenSet)(q: Carrier) -> Plot U (\fun (x: Open.Carrier U) => q) :=
+  \fun (U: Open.OpenSet)(q: Carrier)(i: ComplexCoefficients.Index) => Functions.constantSmooth U (ComplexCoefficients.coefficient i q);
+\module Product(U: Open.OpenSet, f, g: Open.Carrier U -> Carrier, left: Plot U f, right: Plot U g);
+\definition multiplication: \forall (U: Open.OpenSet)(f, g: Open.Carrier U -> Carrier) -> Plot U f -> Plot U g -> Plot U (\fun (x: Open.Carrier U) => Group.mul (f x) (g x)) :=
+  \fun (U: Open.OpenSet)(f, g: Open.Carrier U -> Carrier)(left: Plot U f)(right: Plot U g) => Product[U := U, f := f, g := g, left := left, right := right].plot;
+\module Inverse(U: Open.OpenSet, f: Open.Carrier U -> Carrier, regular: Plot U f);
+\definition inverse: \forall (U: Open.OpenSet)(f: Open.Carrier U -> Carrier) -> Plot U f -> Plot U (\fun (x: Open.Carrier U) => Group.inv (f x)) :=
+  \fun (U: Open.OpenSet)(f: Open.Carrier U -> Carrier)(regular: Plot U f) => Inverse[U := U, f := f, regular := regular].plot;
+\definition scale[U: Open.OpenSet][a: Open.ScalarFunction U][f: Open.Carrier U -> E.Carrier]
+  [sa: Smooth.SmoothOn U a][sf: CliffordPlots.Plot U f]: CliffordPlots.Plot U (\fun (x: Open.Carrier U) => Clifford.scale (a x) (f x)) :=
+  (Calculus.operations n U).multiplication (\fun (x: Open.Carrier U) => Clifford.scalar (a x)) f ((Calculus.operations n U).scalar a sa) sf;
+\module Square(U: Open.OpenSet, f: Open.Carrier U -> Carrier, regular: Plot U f);
+\module Read(U: Open.OpenSet, f: Open.Carrier U -> Parts, regular: Plot U (\fun (x: Open.Carrier U) => f x));
+\module Assemble(U: Open.OpenSet, s: Open.Carrier U -> (Fin.Fin Phase.one -> R.Real), g: Open.Carrier U -> G,
+  parameters: \forall (i: Fin.Fin Phase.one) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => s x i), regular: BasePlot U g);
+\module Precomposition(e: N.Nat^);
+\module Restriction(U, V: Open.OpenSet, included: Open.Included U V, f: Open.Carrier V -> Carrier, regular: Plot V f);

@@ -1,0 +1,22 @@
+\import \root.Maps[n := m, m := dimension] \as Maps;
+\import RightOpen.Smooth[] \as Smooth;
+\import RightOpen.Examples[] \as Examples;
+\definition Included: \Prop := \forall (x: RightOpen.Carrier U) -> \In[Source.Point] V.points (join c x);
+\definition apply[included: Included][x: RightOpen.Carrier U]: SourceOpen.Carrier V := \into[Source.Point](join c x, V.points) \by { included x };
+\definition smooth[k: Fin.Fin dimension]: Smooth.SmoothOn U (\fun (x: RightOpen.Carrier U) => join c x k) :=
+  (\induction (s: Indices.Index) \return Smooth.SmoothOn U (\fun (x: RightOpen.Carrier U) => Tuples.evaluate c x s) \with {
+    | inl: \fun (i: Fin.Fin n) => Examples.constantSmooth U (c i)
+    | inr: \fun (i: Fin.Fin m) => Examples.projectionSmooth U i
+  }) (Indices.split k);
+\definition map[included: Included]: Maps.Map U V := \into[Maps.Data[U, V]](Maps.Data[U, V] { apply := apply included },
+  { data: Maps.Data[U, V] \where Maps.Laws[U, V, data] }) \by {
+    Maps.Laws[U, V, Maps.Data[U, V]::# (apply included)] { smooth := smooth }
+  };
+\definition differential[a: RightOpen.Carrier U]: RightVectors.HasDifferentialAt U (\fun (x: RightOpen.Carrier U) => join c x) a rightLinear :=
+  \idelim RightVectors.affine U (join c RightCoordinates.origin) rightLinear = (\fun (x: RightOpen.Carrier U) => join c x)
+    \with f: RightVectors.Function U => RightVectors.HasDifferentialAt U f a rightLinear \by {
+      base: RightVectors.affineDifferential U (join c RightCoordinates.origin) rightLinear a,
+      equality: \axiom:funext(RightVectors.affine U (join c RightCoordinates.origin) rightLinear, (\fun (x: RightOpen.Carrier U) => join c x),
+        \fun (x: RightOpen.Carrier U) => sym!{Source.Point} _ _ (fixedLeftAffine c x))
+    };
+\module At(included: Included, a: RightOpen.Carrier U);

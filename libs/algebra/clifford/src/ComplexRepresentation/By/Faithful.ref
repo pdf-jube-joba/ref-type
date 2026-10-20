@@ -1,0 +1,32 @@
+/* The two complexified components distinguish diagonal sign classes. */
+\definition dot[z, w: Circle.Circle]: R.Real := R.add (R.mul (C.re z) (C.re w)) (R.mul (C.im z) (C.im w));
+\definition projection[z: Circle.Circle][p: CarrierPair]: E.Carrier := Clifford.add (Clifford.scale (C.re z) (first p)) (Clifford.scale (C.im z) (second p));
+\definition resolve: \forall (z: Circle.Circle)(g: G)(w: Circle.Circle) -> projection z (raw g w) = Clifford.scale (dot z w) (value g) :=
+  \fun (z: Circle.Circle)(g: G)(w: Circle.Circle) => trans!{E.Carrier} _ _ _
+    (congr2!{E.Carrier E.Carrier E.Carrier} Clifford.add _ _ _ _
+      (sym!{E.Carrier} _ _ (Clifford.vectorSpace.scalarAssoc (C.re z) (C.re w) (value g)))
+      (sym!{E.Carrier} _ _ (Clifford.vectorSpace.scalarAssoc (C.im z) (C.im w) (value g))))
+    (sym!{E.Carrier} _ _ (Clifford.vectorSpace.scalarAdd (R.mul (C.re z) (C.re w)) (R.mul (C.im z) (C.im w)) (value g)));
+\definition recover: \forall (g: G)(z: Circle.Circle) -> projection z (raw g z) = value g := \fun (g: G)(z: Circle.Circle) =>
+  trans!{E.Carrier} _ _ _ (resolve z g z)
+    (trans!{E.Carrier} _ _ _ (congr!{R.Real E.Carrier} (\fun (a: R.Real) => Clifford.scale a (value g)) _ _ (\bysub(C.Complex, Circle.predicate, z)))
+      (Clifford.vectorSpace.scalarOne (value g)));
+\definition phaseInjective: \forall (g: G)(z, w: Circle.Circle) -> raw g z = raw g w -> z = w :=
+  \fun (g: G)(z, w: Circle.Circle)(same: _) => ComplexLaws.ext z w
+    (scaleInjective (embedding g) (C.re z) (C.re w) (congr!{CarrierPair E.Carrier} first _ _ same))
+    (scaleInjective (embedding g) (C.im z) (C.im w) (congr!{CarrierPair E.Carrier} second _ _ same));
+\definition rawFlip: \forall (g: G)(z: Circle.Circle) -> raw (Operations.mul sign.element g) z = raw g (Circle.negate z) :=
+  \fun (g: G)(z: Circle.Circle) => trans!{CarrierPair} _ _ _
+    (congr!{{Circle.Circle} CarrierPair} (raw (Operations.mul sign.element g)) _ _ (sym!{{Circle.Circle}} _ _ (Circle.minusNegate z)))
+    (invariant g (Circle.negate z));
+\definition classFlip: \forall (g: G)(z: Circle.Circle) -> Extension.class (Operations.mul sign.element g) z = Extension.class g (Circle.negate z) :=
+  \fun (g: G)(z: Circle.Circle) => trans!{{Extension.Carrier}} _ _ _
+    (congr!{{Circle.Circle} {Extension.Carrier}} (Extension.class (Operations.mul sign.element g)) _ _ (sym!{{Circle.Circle}} _ _ (Circle.minusNegate z)))
+    (Extension.identify g (Circle.negate z));
+\module Equal(g: G, z: Circle.Circle, h: G, w: Circle.Circle, same: raw g z = raw h w);
+\definition rawInjective: \forall (g: G)(z: Circle.Circle)(h: G)(w: Circle.Circle) -> raw g z = raw h w -> Extension.class g z = Extension.class h w :=
+  \fun (g: G)(z: Circle.Circle)(h: G)(w: Circle.Circle)(same: _) => Equal[g := g, z := z, h := h, w := w, same := same].equal;
+\definition imageInjective: \forall (x, y: Extension.Carrier) -> image x = image y -> x = y := Extension.induction2
+  (\fun (x, y: Extension.Carrier) => image x = image y -> x = y)
+  (\fun (g: G)(z: Circle.Circle)(h: G)(w: Circle.Circle)(same: _) => rawInjective g z h w
+    (trans!{CarrierPair} _ _ _ (sym!{CarrierPair} _ _ (onClass g z)) (trans!{CarrierPair} _ _ _ same (onClass h w))));

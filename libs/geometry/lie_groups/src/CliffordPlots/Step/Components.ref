@@ -1,0 +1,35 @@
+\definition left[x: Open.Carrier U]: E.Carrier := Recovery.left (f x);
+\definition right[x: Open.Carrier U]: E.Carrier := Recovery.right (f x);
+\definition leftEquation: \forall (x: Open.Carrier U)(i: Coordinates.Index n) ->
+  (Coordinates.coordinates (N.Nat^::succ n)).read (f x) (Indices.left i) = (Coordinates.coordinates n).read (left x) i :=
+  \fun (x: Open.Carrier U)(i: Coordinates.Index n) => Coefficients.atLeft (f x) i;
+\definition rightEquation: \forall (x: Open.Carrier U)(i: Coordinates.Index n) ->
+  (Coordinates.coordinates (N.Nat^::succ n)).read (f x) (Indices.right i) = (Coordinates.coordinates n).read (right x) i :=
+  \fun (x: Open.Carrier U)(i: Coordinates.Index n) => Coefficients.atRight (f x) i;
+\definition leftPlot: Upper.Plot U f -> Lower.Plot U left := \fun (regular: Upper.Plot U f)(i: Coordinates.Index n) =>
+  smoothEqual U (\fun (x: Open.Carrier U) => (Coordinates.coordinates (N.Nat^::succ n)).read (f x) (Indices.left i))
+    (\fun (x: Open.Carrier U) => (Coordinates.coordinates n).read (left x) i)
+    (\fun (x: Open.Carrier U) => leftEquation x i) (regular (Indices.left i));
+\definition rightPlot: Upper.Plot U f -> Lower.Plot U right := \fun (regular: Upper.Plot U f)(i: Coordinates.Index n) =>
+  smoothEqual U (\fun (x: Open.Carrier U) => (Coordinates.coordinates (N.Nat^::succ n)).read (f x) (Indices.right i))
+    (\fun (x: Open.Carrier U) => (Coordinates.coordinates n).read (right x) i)
+    (\fun (x: Open.Carrier U) => rightEquation x i) (regular (Indices.right i));
+\definition Property[i: Coordinates.Index (N.Nat^::succ n)]: \Prop :=
+  Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (Coordinates.coordinates (N.Nat^::succ n)).read (f x) i);
+\definition inflated: Lower.Plot U left -> Lower.Plot U right -> \forall (j: Indices.Index) -> Property (Indices.inflate j) :=
+  \fun (regularLeft: Lower.Plot U left)(regularRight: Lower.Plot U right) =>
+    \induction (j: Indices.Index) \return Property (Indices.inflate j) \with {
+      | inl: \fun (i: Coordinates.Index n) => smoothEqual U
+        (\fun (x: Open.Carrier U) => (Coordinates.coordinates n).read (left x) i)
+        (\fun (x: Open.Carrier U) => (Coordinates.coordinates (N.Nat^::succ n)).read (f x) (Indices.left i))
+        (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (leftEquation x i)) (regularLeft i)
+      | inr: \fun (i: Coordinates.Index n) => smoothEqual U
+        (\fun (x: Open.Carrier U) => (Coordinates.coordinates n).read (right x) i)
+        (\fun (x: Open.Carrier U) => (Coordinates.coordinates (N.Nat^::succ n)).read (f x) (Indices.right i))
+        (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (rightEquation x i)) (regularRight i)
+    };
+\definition join: Lower.Plot U left -> Lower.Plot U right -> Upper.Plot U f :=
+  \fun (regularLeft: Lower.Plot U left)(regularRight: Lower.Plot U right)(i: Coordinates.Index (N.Nat^::succ n)) =>
+    \idelim Indices.inflate (Indices.split i) = i \with j: Coordinates.Index (N.Nat^::succ n) => Property j \by {
+      base: inflated regularLeft regularRight (Indices.split i), equality: Indices.inflateSplit i
+    };

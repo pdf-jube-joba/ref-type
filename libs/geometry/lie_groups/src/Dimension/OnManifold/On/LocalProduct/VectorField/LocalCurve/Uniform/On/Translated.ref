@@ -1,0 +1,27 @@
+\import \parent.\parent.\parent.\parent.\parent.Translation[g := coordinate s] \as Left;
+\definition inTranslation: \forall (x: TimeOpen.Carrier Interval.domain) -> \In[Vectors.Point] Left.domain.points (CurveMaps.apply Interval.domain domain curveMap x) :=
+  \fun (x: TimeOpen.Carrier Interval.domain) => Left.contains (coordinate (time x))
+    (\idelim Charts.point chart (Open.inclusion domain chart.image inChart (product s (time x))) =
+      mul (Charts.point chart (coordinate s)) (Charts.point chart (coordinate (time x))) \with p: Point => Charts.Contains chart p \by {
+        base: \bysub(Point, chart.domain, Charts.point chart (Open.inclusion domain chart.image inChart (product s (time x)))),
+        equality: productLaw s (time x)
+      });
+\import CurveMaps.Corestriction[U := Interval.domain, V := domain, W := Left.domain, f := curveMap, inside := inTranslation] \as Input;
+\import CurveMaps.Composition[U := Interval.domain, V := Left.domain, f := Input.map].After[l := n, W := chart.image, g := Left.map] \as Composition;
+\definition chartMap: CurveMaps.Map Interval.domain chart.image := Composition.compose;
+\definition atPoint: \forall (x: TimeOpen.Carrier Interval.domain) -> CurveMaps.apply Interval.domain chart.image chartMap x =
+  Open.inclusion domain chart.image inChart (product s (time x)) :=
+  \fun (x: TimeOpen.Carrier Interval.domain) => ChartLaws.pointInjective _ _
+    (trans!{Point} _ _ _ (Left.formula (Input.value x)) (sym!{Point} _ _ (productLaw s (time x))));
+\definition inDomain: \forall (x: TimeOpen.Carrier Interval.domain) -> \In[Vectors.Point] domain.points (CurveMaps.apply Interval.domain chart.image chartMap x) :=
+  \fun (x: TimeOpen.Carrier Interval.domain) => \idelim Open.inclusion domain chart.image inChart (product s (time x)) =
+    CurveMaps.apply Interval.domain chart.image chartMap x \with p: Vectors.Point => \In[Vectors.Point] domain.points p \by {
+      base: \bysub(Vectors.Point, domain.points, product s (time x)), equality: sym!{Vectors.Point} _ _ (atPoint x)
+    };
+\import CurveMaps.Corestriction[U := Interval.domain, V := chart.image, W := domain, f := chartMap, inside := inDomain] \as Output;
+\definition map: CurveMaps.Map Interval.domain domain := Output.map;
+\import calculus.Curves[n := n, U := Interval.domain, V := domain, f := map] \as CalculusCurve;
+\definition value: Reals.Real -> Vectors.Point := CalculusCurve.value;
+\definition valueAtPoint: \forall (x: TimeOpen.Carrier Interval.domain) -> value (x One.index) = product s (time x) :=
+  \fun (x: TimeOpen.Carrier Interval.domain) => trans!{Vectors.Point} _ _ _ (CalculusCurve.atPoint x) (atPoint x);
+\module Differential(x: TimeOpen.Carrier Interval.domain);

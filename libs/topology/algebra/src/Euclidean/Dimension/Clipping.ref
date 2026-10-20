@@ -1,0 +1,34 @@
+\import \parent.Def[] \as Def;
+\import \parent.Norm[] \as Norm;
+\import real.Analysis[].Clipping[] \as Clipping;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\definition lower[c: Point][radius: Real][i: Coordinate]: Real := sub (c i) radius;
+\definition upper[c: Point][radius: Real][i: Coordinate]: Real := add (c i) radius;
+\definition ordered[c: Point][radius: Real][i: Coordinate]: R.Le zero radius -> R.Le (lower c radius i) (upper c radius i) :=
+  \fun (nonnegative: _) => Laws.addMonotoneLeft (Arithmetic.neg radius) radius (c i)
+    (R.leTrans (Arithmetic.neg radius) zero radius (Product.negNonnegative radius nonnegative) nonnegative);
+\definition value[c: Point][radius: Real][x: Point][i: Coordinate]: Real := Clipping.value (lower c radius i) (upper c radius i) (x i);
+\definition bounded[c: Point][radius: Real][x: Point]: R.Le zero radius -> R.Le (Norm.metric.distance (value c radius x) c) radius :=
+  \fun (nonnegative: _) => Norm.finiteUpper n (Def.subPoint (value c radius x) c) radius nonnegative (\fun (i: Coordinate) =>
+    R.leReplaceLeft (distance (value c radius x i) (c i)) (distance (sub (value c radius x i) (c i)) zero) radius
+      (sym!{Real} _ _ (Estimates.distanceDifference (value c radius x i) (c i)))
+      (R.leReplaceLeft (distance (c i) (value c radius x i)) (distance (value c radius x i) (c i)) radius
+        (Metric.distanceSymmetric (c i) (value c radius x i))
+        (Estimates.distanceLeOfInterval (c i) (value c radius x i) radius
+          (Clipping.lower (lower c radius i) (upper c radius i) (x i) (ordered c radius i nonnegative))
+          (Clipping.upper (lower c radius i) (upper c radius i) (x i)))));
+\definition inside[c: Point][radius: Real][x: Point]: R.Le (Norm.metric.distance x c) radius -> value c radius x = x :=
+  \fun (within: _) => \axiom:funext(value c radius x, x, \fun (i: Coordinate) => Clipping.inside (lower c radius i) (upper c radius i) (x i)
+    (Estimates.distanceLeLower (c i) (x i) radius
+      (R.leReplaceLeft (distance (x i) (c i)) (distance (c i) (x i)) radius (Metric.distanceSymmetric (x i) (c i))
+        (R.leTrans _ _ _ (Norm.coordinateDistance x c i) within)))
+    (Estimates.distanceLeUpper (c i) (x i) radius
+      (R.leReplaceLeft (distance (x i) (c i)) (distance (c i) (x i)) radius (Metric.distanceSymmetric (x i) (c i))
+        (R.leTrans _ _ _ (Norm.coordinateDistance x c i) within))));
+\definition nonexpansive[c: Point][radius: Real][x, y: Point]: R.Le (Norm.metric.distance (value c radius x) (value c radius y)) (Norm.metric.distance x y) :=
+  Norm.finiteUpper n (Def.subPoint (value c radius x) (value c radius y)) (Norm.metric.distance x y) (Norm.metric.nonnegative x y)
+    (\fun (i: Coordinate) => R.leReplaceLeft (distance (value c radius x i) (value c radius y i))
+      (distance (sub (value c radius x i) (value c radius y i)) zero) (Norm.metric.distance x y)
+      (sym!{Real} _ _ (Estimates.distanceDifference (value c radius x i) (value c radius y i)))
+      (R.leTrans _ _ _ (Clipping.nonexpansive (lower c radius i) (upper c radius i) (x i) (y i)) (Norm.coordinateDistance x y i)));

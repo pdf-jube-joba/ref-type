@@ -1,0 +1,41 @@
+/* Reversion fixes scalars and vectors and reverses multiplication. */
+\import algebra.OppositeRing[A := Carrier, ring := ring] \as Opposite;
+\import \parent.Relations[] \as Relations;
+\import \parent.Universal[A := Carrier, target := Opposite.value] \as Universal;
+\import algebra.Hom[A := K, B := Carrier] \as Coefficients;
+\import algebra.Hom[A := Carrier, B := Carrier] \as Hom;
+\import algebra.Groups[].Units[A := Carrier, ring := ring] \as Units;
+\import algebra.Group[].Of[Carrier := Carrier, group := Ring.additiveGroup Carrier ring] \as Sum;
+\definition coefficients: Coefficients.RingMap Linear.ring Opposite.value :=
+  \into[K -> Carrier](scalar, Coefficients.RingMap Linear.ring Opposite.value) \by {
+    Coefficients.SemiringLaws[Ring.ringAsSemiring K Linear.ring, Ring.ringAsSemiring Carrier Opposite.value, scalar] {
+      zero := Relations.coefficientLaws.zero, one := Relations.coefficientLaws.one, add := Relations.scalarAdd,
+      mul := \fun (a, b: K) => trans!{Carrier} _ _ _ (Relations.scalarMul a b) (Presented.central a (scalar b)),
+    }
+  };
+\definition central: \forall (a: K)(x: Carrier) -> Opposite.value.mul (coefficients a) x = Opposite.value.mul x (coefficients a) :=
+  \fun (a: K)(x: Carrier) => sym!{Carrier} _ _ (Presented.central a x);
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := \into[Coefficients.RingMap Linear.ring Opposite.value](coefficients,
+    { f: Coefficients.RingMap Linear.ring Opposite.value \where \forall (a: K)(x: Carrier) -> Opposite.value.mul (f a) x = Opposite.value.mul x (f a) }) \by { central },
+  vectors := iota, zero := injection.preservesZero, addition := injection.preservesAdd,
+  scalar := \fun (a: K)(v: V) => trans!{Carrier} _ _ _ (injection.preservesScale a v) (Presented.central a (iota v)),
+  square := cliffordRelation,
+};
+\definition map: Hom.RingMap ring Opposite.value := Universal.extension representation;
+\definition onScalar: \forall (a: K) -> map (scalar a) = scalar a := Universal.onScalar representation;
+\definition onVector: \forall (v: V) -> map (iota v) = iota v := Universal.onVector representation;
+\definition laws: Hom.SemiringLaws[Ring.ringAsSemiring Carrier ring, Ring.ringAsSemiring Carrier Opposite.value, map] :=
+  Hom.semiringLaws (Ring.ringAsSemiring Carrier ring) (Ring.ringAsSemiring Carrier Opposite.value) map;
+\import \parent.HomExt[A := Carrier, target := Opposite.value] \as Negative;
+\definition onNegative: \forall (x: Carrier) -> map (neg x) = neg (map x) := Negative.onNegative map;
+\definition onScale: \forall (a: K)(x: Carrier) -> map (scale a x) = scale a (map x) :=
+  \fun (a: K)(x: Carrier) => trans!{Carrier} _ _ _ (laws.mul (scalar a) x)
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (mul (map x)) _ _ (onScalar a)) (sym!{Carrier} _ _ (Presented.central a (map x))));
+\definition unit[g: Units.Unit]: Units.Unit := Units.Unit {
+  value := map g.value, inverse := map g.inverse,
+  left := trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (laws.mul g.value g.inverse))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ g.right) laws.one),
+  right := trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (laws.mul g.inverse g.value))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ g.left) laws.one),
+};

@@ -1,0 +1,51 @@
+\import \parent.Topology[U := U, V := W] \as Topology;
+\import Source.Topology[] \as SourceTopology;
+\import Target.Topology[] \as TargetTopology;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Euclidean;
+\import topological_algebra.Euclidean[].Dimension[n := m].Topology[] \as TargetEuclidean;
+\import topology.Topology[Carrier := Source.Carrier U] \as Local;
+\import topology.Topology[Carrier := Reals.Multivariable[n := n].Point] \as Ambient;
+\import Ambient.Subspace[S := U.points] \as Subspace;
+\import Subspace.Open[] \as OpenSubspace;
+\import topology.Topology[Carrier := Reals.Multivariable[n := m].Point] \as TargetAmbient;
+\import TargetAmbient.Subspace[S := W.points] \as TargetSubspace;
+\definition preimage: \Pow (Source.Carrier U) := { x: Source.Carrier U \where \In[Reals.Multivariable[n := m].Point] V.points (apply U W f x) };
+\definition preimageOpen: Local.IsOpenIn (SourceTopology.Of[U := U].topology) preimage :=
+  Topology.continuous f (TargetSubspace.Trace V.points) (TargetSubspace.traceOpen TargetEuclidean.topology V.points (TargetTopology.open V));
+\definition points: \Pow (Reals.Multivariable[n := n].Point) := OpenSubspace.image preimage;
+\definition pointsOpen: Ambient.IsOpenIn Euclidean.topology points := OpenSubspace.imageOpen Euclidean.topology (SourceTopology.open U) preimage preimageOpen;
+\definition domain: Source.OpenSet := SourceTopology.ofOpen points pointsOpen;
+\definition included: Source.Included domain U := \fun (x: Reals.Multivariable[n := n].Point)(member: _) => OpenSubspace.imageIncluded preimage x member;
+\definition input[x: Source.Carrier domain]: Source.Carrier U := Source.inclusion domain U included x;
+\definition inTarget: \forall (x: Source.Carrier domain) -> \In[Reals.Multivariable[n := m].Point] V.points (apply U W f (input x)) :=
+  \fun (x: Source.Carrier domain) => OpenSubspace.imageElim preimage x
+    (\In[Reals.Multivariable[n := m].Point] V.points (apply U W f (input x)))
+    (\fun (y: Source.Carrier U)(member: Local.Member preimage y)(same: y = x) =>
+      \idelim y = input x \with p: Source.Carrier U => \In[Reals.Multivariable[n := m].Point] V.points (apply U W f p) \by {
+        base: member, equality: same
+      }) (\bysub(Reals.Multivariable[n := n].Point, points, x));
+\definition output[x: Source.Carrier domain]: Target.Carrier V := \into[Reals.Multivariable[n := m].Point](apply U W f (input x), V.points) \by { inTarget x };
+\import Source.Restriction[] \as Restriction;
+\definition map: Map domain V := \into[Data[domain, V]](Data[domain, V] { apply := output },
+  { data: Data[domain, V] \where Laws[domain, V, data] }) \by {
+    Laws[domain, V, Data[domain, V]::# output] {
+      smooth := \fun (i: std.Data[].FinSet[].Fin m) => Restriction.localSmooth domain U included
+        (\fun (x: Source.Carrier U) => apply U W f x i) (f.smooth i),
+    }
+  };
+\definition intro[x: Source.Carrier U]: \In[Reals.Multivariable[n := m].Point] V.points (apply U W f x) ->
+  \In[Reals.Multivariable[n := n].Point] domain.points x := \fun (inside: _) => OpenSubspace.imageMember preimage x inside;
+\import \parent.Restriction[U := domain, V := U, W := W] \as Restrict;
+\definition restricted: Map domain W := Restrict.input included f;
+\definition differential: \forall (a: Source.Carrier domain) ->
+  \parent.Differential[U := domain, V := V, f := map, a := a].value =
+  \parent.Differential[U := U, V := W, f := f, a := input a].value :=
+  \block {
+    \fun (a: Source.Carrier domain) \then
+    \let first: Source.Carrier domain -> Reals.Multivariable[n := m].Point := \fun (x: Source.Carrier domain) => apply domain V map x \then
+    \let second: Source.Carrier domain -> Reals.Multivariable[n := m].Point := \fun (x: Source.Carrier domain) => apply domain W restricted x \then
+    \return trans!{{\root.Vector[n := n, m := m].LinearMap}} _ _ _
+      (\parent.Differential[U := domain, V := V, f := map, a := a].Compare[W := W, g := restricted].equal
+        (\axiom:funext(first, second, \fun (x: Source.Carrier domain) => \refl(apply U W f (input x)))))
+      (Restrict.differential included f a)
+  };

@@ -1,0 +1,48 @@
+\import Linear.Laws[V := V, space := space] \as Vectors;
+\import algebra.Group[].Of[Carrier := V, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup K V Linear.ring space] \as Additive;
+\definition bracket: V -> V -> V := lie.bracket;
+\definition skew: \forall (x, y: V) -> bracket x y = space.neg (bracket y x) := \block {
+  \fun (x, y: V) \then
+  \let sumZero: space.add (bracket x y) (bracket y x) = space.zero := eq_reason!{
+    {space.add (bracket x y) (bracket y x)}
+    "=" {space.add (space.add space.zero (bracket x y)) (space.add (bracket y x) space.zero)} "by" {
+      congr2!{V V V} space.add _ _ _ _ (sym!{V} _ _ (Vectors.zeroLeft _)) (sym!{V} _ _ (Vectors.zeroRight _))}
+    "=" {space.add (space.add (bracket x x) (bracket x y)) (space.add (bracket y x) (bracket y y))} "by" {
+      congr2!{V V V} space.add _ _ _ _
+        (congr!{V V} (\fun (v: V) => space.add v (bracket x y)) _ _ (sym!{V} _ _ (lie.alternating x)))
+        (congr!{V V} (space.add (bracket y x)) _ _ (sym!{V} _ _ (lie.alternating y)))}
+    "=" {space.add (bracket x (space.add x y)) (bracket y (space.add x y))} "by" {
+      congr2!{V V V} space.add _ _ _ _ (sym!{V} _ _ (lie.addRight x x y)) (sym!{V} _ _ (lie.addRight y x y))}
+    "=" {bracket (space.add x y) (space.add x y)} "by" {sym!{V} _ _ (lie.addLeft x y (space.add x y))}
+    "=" space.zero "by" {lie.alternating (space.add x y)}
+  } \then
+  \return Additive.inverseUnique (bracket y x) (bracket x y) sumZero
+};
+\import Linear.Linear[V := V, W := V, source := space, target := space] \as End;
+\definition ad[x: V]: End.Map := End.Map {
+  apply := bracket x,
+  preservesAdd := lie.addRight x,
+  preservesScale := \fun (a: K)(y: V) => lie.scaleRight a x y,
+};
+\definition zeroRight: \forall (x: V) -> bracket x space.zero = space.zero := \fun (x: V) => (ad x).preservesZero;
+\definition zeroLeft: \forall (x: V) -> bracket space.zero x = space.zero :=
+  \fun (x: V) => trans!{V} _ _ _ (skew space.zero x)
+    (trans!{V} _ _ _ (congr!{V V} space.neg _ _ (zeroRight x)) Additive.negZero);
+\definition adDerivation: \forall (x, y, z: V) -> (ad x).apply (bracket y z) =
+  space.add (bracket ((ad x).apply y) z) (bracket y ((ad x).apply z)) := lie.jacobi;
+\definition adRepresentation: \forall (x, y, z: V) -> (ad (bracket x y)).apply z =
+  Additive.difference ((ad x).apply ((ad y).apply z)) ((ad y).apply ((ad x).apply z)) :=
+  \fun (x, y, z: V) => eq_reason!{
+    {(ad (bracket x y)).apply z}
+    "=" {Additive.difference (space.add (bracket (bracket x y) z) (bracket y (bracket x z))) (bracket y (bracket x z))} "by" {
+      sym!{V} _ _ (trans!{V} _ _ _ (Vectors.assoc _ _ _)
+        (trans!{V} _ _ _ (congr!{V V} (space.add (bracket (bracket x y) z)) _ _ (Additive.inverseRight _)) (Vectors.zeroRight _)))}
+    "=" {Additive.difference (bracket x (bracket y z)) (bracket y (bracket x z))} "by" {
+      congr!{V V} (\fun (v: V) => Additive.difference v (bracket y (bracket x z))) _ _ (sym!{V} _ _ (lie.jacobi x y z))}
+  };
+\import Linear.Subspace[V := V, space := space] \as Subspaces;
+\structure Subalgebra: \Set := {
+  subspace: Subspaces.Subspace,
+  closedBracket: \forall (x, y: V) -> \In[V] subspace.carrier x -> \In[V] subspace.carrier y -> \In[V] subspace.carrier (bracket x y),
+};
+\module Of(subalgebra: Subalgebra);

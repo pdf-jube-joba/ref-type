@@ -1,0 +1,74 @@
+\import \root.Euclidean[n := N.Nat^::zero] \as E;
+\import E.PinAtlas[] \as Atlas;
+\import E.PinCoordinates[] \as Coefficients;
+\import E.PinRepresentation[] \as Representation;
+\import clifford.EuclideanCoordinates[] \as CliffordCoordinates;
+\import \root.CoefficientAtlas[G := E.Pin, I := Coefficients.Index, n := N.Nat^::zero, coefficient := Coefficients.coefficient, ext := Coefficients.ext] \as Frontend;
+\import manifolds.ParametrizedAtlas[n := N.Nat^::zero, A := E.Pin] \as Coordinates;
+\import calculus.Real[].Multivariable[n := N.Nat^::zero].Open[] \as Open;
+\import Open.Smooth[].Operations[] \as Functions;
+\import real.Analysis[] \as R;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Arithmetic;
+\import algebra.Groups[].On[G := E.Pin, group := E.pinGroup] \as Group;
+\import clifford.Field[K := R.Real, field := R.Algebra[].field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Clifford;
+\import Clifford.Pin[] \as Pin;
+\definition scalar[g: E.Pin]: R.Real := Coefficients.coefficient (Fin.zero N.Nat^::zero) g;
+\definition scalarOne: scalar Group.one = R.one := CliffordCoordinates.ScalarPart[].onScalar N.Nat^::zero R.one;
+\definition scalarSign: scalar Pin.sign = R.neg R.one := trans!{R.Real} _ _ _
+  (congr!{E.CliffordAlgebra R.Real} (CliffordCoordinates.ScalarPart[].read N.Nat^::zero) _ _ (sym!{E.CliffordAlgebra} _ _ (Clifford.Relations[].scalarNeg R.one)))
+  (CliffordCoordinates.ScalarPart[].onScalar N.Nat^::zero (R.neg R.one));
+\definition oneNotNegative: Logic.Not (R.one = R.neg R.one) := \fun (same: _) =>
+  Order.ltNotLeReverse (R.neg R.one) R.zero (Arithmetic.negativeNegOfPositive R.one R.Estimates[].Product[].onePositive)
+    (Order.leReplaceRight R.zero R.one (R.neg R.one) same Arithmetic.oneNonnegative);
+\definition different: Logic.Not (scalar Group.one = scalar Pin.sign) := \fun (same: _) => oneNotNegative
+  (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ scalarOne) (trans!{R.Real} _ _ _ same scalarSign));
+\definition covers: \forall (g: E.Pin) -> Logic.Or[g = Group.one, g = Pin.sign] := \fun (g: E.Pin) =>
+  Representation.Kernel[].signs g (\root.OrthogonalAtlas[].Zero[].unique (Representation.map g) E.orthogonalGroup.unit);
+\definition center: N.Nat^ -> E.Pin := \induction (k: N.Nat^) \return E.Pin \with {
+  | zero: Group.one
+  | succ: \fun (k: N.Nat^)(previous: E.Pin) => Pin.sign
+};
+\definition opposite: N.Nat^ -> E.Pin := \induction (k: N.Nat^) \return E.Pin \with {
+  | zero: Pin.sign
+  | succ: \fun (k: N.Nat^)(previous: E.Pin) => Group.one
+};
+\definition differentAt: \forall (k: N.Nat^) -> Logic.Not (scalar (center k) = scalar (opposite k)) :=
+  \induction (k: N.Nat^) \return Logic.Not (scalar (center k) = scalar (opposite k)) \with {
+    | zero: different
+    | succ: \fun (k: N.Nat^)(previous: _) => \fun (same: _) => different (sym!{R.Real} _ _ same)
+  };
+\definition coversAt: \forall (k: N.Nat^)(g: E.Pin) -> Logic.Or[g = center k, g = opposite k] :=
+  \induction (k: N.Nat^) \return \forall (g: E.Pin) -> Logic.Or[g = center k, g = opposite k] \with {
+    | zero: covers
+    | succ: \fun (k: N.Nat^)(previous: _)(g: E.Pin) => either!{{(covers g)} {Logic.Or[g = Pin.sign, g = Group.one]}
+      {\fun (one: _) => Logic.Or[_, _]::right one} {\fun (sign: _) => Logic.Or[_, _]::left sign}
+    }
+  };
+\definition empty: Open.Carrier Open.whole := \into[E.Vector]((\fun (i: Fin.Fin N.Nat^::zero) => R.zero), Open.whole.points) \by { \refl(\fun (i: Fin.Fin N.Nat^::zero) => R.zero) };
+\definition emptyUnique: \forall (x: Open.Carrier Open.whole) -> empty = x := \fun (x: Open.Carrier Open.whole) => \block {
+  \let raw: E.Vector := x \then
+  \let zero: E.Vector := empty \then
+  \return \axiom:funext(zero, raw, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))
+};
+\module Patch(k: N.Nat^);
+\definition family: Coordinates.Family := Coordinates.Family {
+  patch := \fun (k: N.Nat^) => Patch[k := k].patch,
+  covers := \fun (g: E.Pin) => either!{{(covers g)} {\exists ( k: N.Nat^ \where \In[E.Pin] (Patch[k := k].patch).domain g )}
+    {\fun (one: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \In[E.Pin] (Patch[k := k].patch).domain g }] N.Nat^::zero one}
+    {\fun (sign: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \In[E.Pin] (Patch[k := k].patch).domain g }] (N.Nat^::succ N.Nat^::zero) sign}
+  },
+};
+\module Reads(d: N.Nat^);
+\definition data: Atlas.Data := Frontend.Data {
+  family := family,
+  parametrizations := \fun (k: N.Nat^)(i: Coefficients.Index) => Functions.constantSmooth Open.whole (Coefficients.coefficient i (center k)),
+  readings := \fun (d: N.Nat^) => Reads[d := d].regular,
+};

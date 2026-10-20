@@ -1,0 +1,38 @@
+\definition old: Coordinates.Patch := data.family.patch k;
+\definition preimage: \Pow (Open.Carrier old.image) := { x: Open.Carrier old.image \where \In[G] U (Coordinates.value old x) };
+\import topology.Topology[Carrier := Open.Carrier old.image] \as Local;
+\definition preimageOpen: Local.IsOpenIn (OpenTopology.Of[U := old.image].topology) preimage := (\bysub(\Pow G, Charts.OpenSubset, U)) k;
+\import Points.Subspace[S := old.image.points] \as Subspace;
+\import Subspace.Open[] \as Image;
+\definition imagePoints: \Pow calculus.Real[].Multivariable[n := dimension].Point := Image.image preimage;
+\definition image: Open.OpenSet := OpenTopology.ofOpen imagePoints (Image.imageOpen Euclidean.topology (OpenTopology.open old.image) preimage preimageOpen);
+\definition included: Open.Included image old.image := Image.imageIncluded preimage;
+\definition input[x: Open.Carrier image]: Open.Carrier old.image := Open.inclusion image old.image included x;
+\definition inside: \forall (x: Open.Carrier image) -> \In[G] U (Coordinates.value old (input x)) := \fun (x: Open.Carrier image) =>
+  Image.imageElim preimage x (\In[G] U (Coordinates.value old (input x)))
+    (\fun (y: Open.Carrier old.image)(member: _)(same: y = x) => \idelim y = input x
+      \with z: Open.Carrier old.image => \In[G] U (Coordinates.value old z) \by { base: member, equality: same })
+    (\bysub(calculus.Real[].Multivariable[n := dimension].Point, imagePoints, x));
+\definition intro[x: Open.Carrier old.image]: \In[G] U (Coordinates.value old x) -> \In[calculus.Real[].Multivariable[n := dimension].Point] image.points x :=
+  Image.imageMember preimage x;
+\definition domain: \Pow Carrier := { g: Carrier \where \In[G] old.domain g };
+\definition Point: \Set := TargetCoordinates.Domain domain;
+\definition point[x: Open.Carrier image]: Point := \into[Carrier](\into[G](Coordinates.value old (input x), U) \by { inside x }, domain) \by {
+  \bysub(G, old.domain, old.point (input x))
+};
+\definition oldPoint[g: Point]: Coordinates.Domain old.domain := \into[G](g, old.domain) \by { \bysub(Carrier, domain, g) };
+\definition coordinate[g: Point]: Open.Carrier image := \into[calculus.Real[].Multivariable[n := dimension].Point](old.coordinate (oldPoint g), image.points) \by {
+  intro (old.coordinate (oldPoint g)) (\idelim g = Coordinates.value old (old.coordinate (oldPoint g))
+    \with h: G => \In[G] U h \by {
+      base: \bysub(G, U, g), equality: sym!{G} _ _ (old.pointCoordinate (oldPoint g))
+    })
+};
+\definition patch: TargetCoordinates.Patch := TargetCoordinates.Patch {
+  domain := domain, image := image, point := point, coordinate := coordinate,
+  pointCoordinate := \fun (g: Point) => old.pointCoordinate (oldPoint g),
+  coordinatePoint := \fun (x: Open.Carrier image) => old.coordinatePoint (input x),
+};
+\import calculus.Identity[n := dimension].Between[U := image, V := old.image] \as Inclusion;
+\import \root.CoefficientAtlas[G := G, I := I, n := n, coefficient := coefficient, ext := ext].Plots[d := dimension].Precomposition[e := dimension].On[
+  U := image, V := old.image, f := Coordinates.value old, h := Inclusion.map included, regular := data.parametrizations k] \as Pullback;
+\definition plot: Target.Plots[d := dimension].Plot image (TargetCoordinates.value patch) := Pullback.plot;

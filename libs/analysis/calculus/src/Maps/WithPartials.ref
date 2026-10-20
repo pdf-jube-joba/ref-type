@@ -1,0 +1,42 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[] \as N;
+\import Source.Analysis[] \as Analysis;
+\import Source.Analysis[].Operations[] \as Operations;
+\import Source.Smooth[] \as SourceSmooth;
+\import SourceSmooth.Properties[] \as SourceProperties;
+\import SourceSmooth.Operations[] \as SmoothOperations;
+\import SourceSmooth.Sums[] \as Sums;
+\import Source.C1[] \as C1;
+\import Target.Smooth[] \as TargetSmooth;
+\import TargetSmooth.Derivative[] \as TargetPartials;
+\import TargetSmooth.Properties[] \as TargetProperties;
+\import Source.Topology[].Of[U := U] \as SourceTopology;
+\import Target.Topology[].Of[U := V] \as TargetTopology;
+\import SourceTopology.Continuity[] \as SourceContinuity;
+\import TargetTopology.Continuity[] \as TargetContinuity;
+\import topology.Continuity[A := Source.Carrier U, B := Target.Carrier V] \as Maps;
+\import metric_spaces.RealLine[] \as Line;
+\import topology.Composition[A := Source.Carrier U, B := Target.Carrier V, C := Reals.Real] \as Topology;
+\definition component[j: Fin.Fin m]: Source.ScalarFunction U := \fun (x: Source.Carrier U) => f x j;
+\definition PartialLaws: \Prop := \forall (j: Fin.Fin m)(i: Fin.Fin n) -> Analysis.HasPartialDerivative U (component j) i (p j i);
+\definition ContinuousPartials: \Prop := \forall (j: Fin.Fin m)(i: Fin.Fin n) -> Analysis.ContinuousOn U (p j i);
+\definition Continuous: \Prop := Maps.Continuous SourceTopology.topology TargetTopology.topology f;
+\definition scalar[h: TargetPartials.Function V]: Source.ScalarFunction U := \fun (x: Source.Carrier U) => h (f x);
+\definition term[h: TargetPartials.Function V][i: Fin.Fin n][j: Fin.Fin m]: Source.ScalarFunction U :=
+  Operations.times U (scalar (TargetPartials.derivative V h j)) (p j i);
+\definition gradient[h: TargetPartials.Function V][i: Fin.Fin n]: Source.ScalarFunction U := Sums.sum U m (term h i);
+\definition continuous[h: TargetPartials.Function V]: Continuous -> Analysis.ContinuousOn U (scalar h) :=
+  \fun (continuous: _) => SourceContinuity.analytic (scalar h)
+    (Topology.composeContinuous SourceTopology.topology TargetTopology.topology Line.topology f h continuous
+      (TargetContinuity.topological h (TargetProperties.continuous V h
+        (\bysub(Target.ScalarFunction V, { h: Target.ScalarFunction V \where TargetSmooth.SmoothOn V h }, h)))));
+\module At(a: Source.Carrier U);
+\definition partials[h: TargetPartials.Function V]: PartialLaws -> ContinuousPartials -> \forall (i: Fin.Fin n) -> Analysis.HasPartialDerivative U (scalar h) i (gradient h i) :=
+  \fun (derivatives: _)(continuous: _)(i: Fin.Fin n)(a: Source.Carrier U) => At[a := a].Composition[h := h].partial i derivatives continuous;
+\definition contDiffStep[k: N.Nat^][h: TargetPartials.Function V]: Continuous -> PartialLaws -> ContinuousPartials ->
+  (\forall (outer: TargetPartials.Function V) -> SourceSmooth.ContDiffOn U k (scalar outer)) ->
+  (\forall (j: Fin.Fin m)(i: Fin.Fin n) -> SourceSmooth.ContDiffOn U k (p j i)) -> SourceSmooth.ContDiffOn U (N.Nat^::succ k) (scalar h) :=
+  \fun (mapContinuous: _)(derivatives: _)(partialContinuity: _)(previous: _)(innerPartials: _) =>
+    SourceSmooth.Successor[U := U, f := scalar h, g := gradient h, k := k].contDiff (continuous h mapContinuous) (partials h derivatives partialContinuity)
+      (\fun (i: Fin.Fin n) => Sums.contDiff U k m (term h i) (\fun (j: Fin.Fin m) => SmoothOperations.mulContDiff U k
+        (scalar (TargetPartials.derivative V h j)) (p j i) (previous (TargetPartials.derivative V h j)) (innerPartials j i)));

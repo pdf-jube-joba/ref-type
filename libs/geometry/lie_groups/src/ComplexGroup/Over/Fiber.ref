@@ -1,0 +1,21 @@
+
+\definition Predicate: \Pow G := { g: G \where Extension.class g (root q) = q };
+\definition existsFor: \forall (x: Carrier) -> \forall (nonzero: Logic.Not (height x = R.zero)) -> \exists (g: G \where Extension.class g (root (asPart x nonzero)) = x) := Extension.induction
+  (\fun (x: Carrier) => \forall (nonzero: Logic.Not (height x = R.zero)) -> \exists (g: G \where Extension.class g (root (asPart x nonzero)) = x))
+  (\fun (g: G)(z: Circle.Circle)(nz: _) => \block {
+    \let p: Parts := asPart (Extension.class g z) nz \then
+    \let squared: Circle.square z = Circle.square (root p) := trans!{{Circle.Circle}} _ _ _
+      (sym!{{Circle.Circle}} _ _ (Squared.onSquareClass g z)) (sym!{{Circle.Circle}} _ _ (rootSquare p)) \then
+    \return either!{{(Circle.sameSquare z (root p) squared)} {\exists (h: G \where Extension.class h (root p) = Extension.class g z)}
+      {\fun (same: z = root p) => Logic.existsIntro[G, { h: G \where Extension.class h (root p) = Extension.class g z }] g
+        (congr!{{Circle.Circle} Carrier} (Extension.class g) _ _ (sym!{{Circle.Circle}} _ _ same))}
+      {\fun (negative: z = Circle.negate (root p)) => Logic.existsIntro[G, { h: G \where Extension.class h (root p) = Extension.class g z }] (BaseGroup.mul sign.element g)
+        (trans!{Carrier} _ _ _ (Faithful.classFlip g (root p)) (congr!{{Circle.Circle} Carrier} (Extension.class g) _ _ (sym!{{Circle.Circle}} _ _ negative)))}
+    }
+  });
+
+\definition unique: \forall (g, h: \Cast[G] Predicate) -> g = h := \fun (g, h: \Cast[G] Predicate) => fixedPhaseInjective g h (root q)
+  (trans!{Carrier} _ _ _ (\bysub(G, Predicate, g)) (sym!{Carrier} _ _ (\bysub(G, Predicate, h))));
+\definition chosen: \Cast[G] Predicate := \choice \Cast[G] Predicate \by { existence: existsFor q (nonzero q), uniqueness: unique };
+\definition value: G := chosen;
+\definition equation: \In[G] Predicate value := \bysub(G, Predicate, chosen);

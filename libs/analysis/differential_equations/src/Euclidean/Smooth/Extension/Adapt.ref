@@ -1,0 +1,27 @@
+\import \parent.\parent.NearZero[solution := solution] \as NearZero;
+\definition solutionPositive: R.Lt Scalars.zero solution.radius := \bysub(Real, { r: Real \where R.Lt Scalars.zero r }, solution.radius);
+\definition existsAdaptation: \exists Adaptation[solution] := \block {
+  \takefrom delta: \Cast[Real] ({ delta: Real \where NearZero.Radius[radius, delta] }) \by NearZero.existsRadius radius radiusPositive \then
+  \let control: NearZero.Radius[radius, delta] := \bysub(Real, { delta: Real \where NearZero.Radius[radius, delta] }, delta) \then
+  \let r: Real := Distance.min solution.radius delta \then
+  \let positive: R.Lt Scalars.zero r := Product.minPositive solution.radius delta solutionPositive control.positive \then
+  \return \exact(Adaptation[solution] {
+    adapted := \root.Euclidean[n := n].LocalSolution[extension, a] {
+      radius := \into[Real](r, { r: Real \where R.Lt Scalars.zero r }) \by { positive },
+      value := solution.value, initialValue := solution.initialValue,
+      derivative := \fun (t: Real)(lower: _)(upper: _)(i: Euclidean.Coordinate) => \block {
+        \let lo: R.Lt (Scalars.neg solution.radius) t := R.leLtTrans _ (Scalars.neg r) t
+          (Laws.negAntitone r solution.radius (Distance.minLeft solution.radius delta)) lower \then
+        \let hi: R.Lt t solution.radius := R.ltLeTrans t r solution.radius upper (Distance.minLeft solution.radius delta) \then
+        \let near: R.Le (Norm.metric.distance (solution.value t) a) radius := Order.leOfLt _ _ (control.estimate t
+          (R.ltLeTrans _ r delta (insideDistance t r lower upper) (Distance.minRight solution.radius delta))) \then
+        \return \idelim extended (solution.value t) i = apply (solution.value t) i \with d: Real =>
+          Derivatives.HasDerivativeAt (\fun (s: Real) => solution.value s i) t d \by {
+            base: solution.derivative t lo hi i,
+            equality: sym!{Real} _ _ (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (agreesUncut (solution.value t) near))
+          }
+      },
+    },
+    same := \refl(solution.value),
+  }, Adaptation[solution])
+};

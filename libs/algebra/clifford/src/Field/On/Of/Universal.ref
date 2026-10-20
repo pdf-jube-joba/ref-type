@@ -1,0 +1,27 @@
+\import Presented.Universal[K := A, target := target] \as Extension;
+\import algebra.Hom[A := Carrier, B := A] \as Hom;
+\structure Representation: \Set := {
+  coefficients: Extension.CoefficientMap,
+  vectors: V -> A,
+  zero: vectors space.zero = target.zero,
+  addition: \forall (x, y: V) -> vectors (space.add x y) = target.add (vectors x) (vectors y),
+  scalar: \forall (a: K)(x: V) -> vectors (space.smul a x) = target.mul (coefficients a) (vectors x),
+  square: \forall (x: V) -> target.mul (vectors x) (vectors x) = coefficients (quadratic x),
+};
+\definition respects[r: Representation]: Extension.RespectsRelations r.coefficients r.vectors :=
+  \induction (x, y: Free.Expression)(relation: Relation x y)
+    \return Extension.EvaluationRelation r.coefficients r.vectors x y \with {
+    | zero: trans!{A} _ _ _ r.zero (sym!{A} _ _ (Extension.coefficientLaws r.coefficients).zero)
+    | addition: r.addition
+    | scalar: r.scalar
+    | square: r.square
+  };
+\definition extension[r: Representation]: Hom.RingMap ring target := Extension.extension r.coefficients r.vectors (respects r);
+\definition onVector: \forall (r: Representation)(v: V) -> extension r (iota v) = r.vectors v :=
+  \fun (r: Representation)(v: V) => Extension.onClass r.coefficients r.vectors (respects r) (Free.Expression::variable v);
+\definition onScalar: \forall (r: Representation)(a: K) -> extension r (scalar a) = r.coefficients a :=
+  \fun (r: Representation)(a: K) => Extension.onClass r.coefficients r.vectors (respects r) (Free.Expression::constant a);
+\definition unique: \forall (r: Representation)(h: Hom.RingMap ring target) ->
+  (\forall (a: K) -> h (scalar a) = r.coefficients a) ->
+  (\forall (v: V) -> h (iota v) = r.vectors v) -> h = extension r :=
+  \fun (r: Representation)(h: Hom.RingMap ring target) => Extension.unique r.coefficients r.vectors (respects r) h;

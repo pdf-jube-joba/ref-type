@@ -1,0 +1,23 @@
+\import Times.Of[f := Integral.component i] \as ScalarIntegral;
+\import ScalarIntegral.Uniqueness[g := (\fun (s: Real) => extend y s i)] \as Primitive;
+\definition agrees: y zeroTime = initial -> Equation y -> \forall (t: Time) -> Picard.curve t i = y t i := \block {
+  \fun (initialValue: _)(derivatives: Equation y)(t: Time) \then
+  \let continuous: Times.IsContinuous (\fun (s: Real) => extend y s i) := Integrals.coordinateContinuous extended i \then
+  \let derivatives: Primitive.DerivativeLaw := \fun (s: Real)(lower: _)(upper: _) => derivatives s lower upper i \then
+  \let bounds: Logic.And[R.Le left t, R.Le t right] := \bysub(Real, Line.ClosedInterval left right, t) \then
+  \let atTime: extend y t i = Scalars.add (extend y left i) (ScalarIntegral.primitive t) := Primitive.agrees continuous derivatives t bounds.left bounds.right \then
+  \let atZero: extend y Scalars.zero i = Scalars.add (extend y left i) (ScalarIntegral.primitive Scalars.zero) := Primitive.agrees continuous derivatives Scalars.zero leftNonpositive rightNonnegative \then
+  \let initialEquality: extend y Scalars.zero i = initial i := trans!{Real} _ _ _ (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (extendIdentity y zeroTime))
+    (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ initialValue) \then
+  \let equation: extend y t i = Picard.curve t i := eq_reason!{
+    {extend y t i} "=" {Scalars.add (extend y left i) (ScalarIntegral.primitive t)} "by" {atTime}
+    "=" {Scalars.add (extend y left i) (Scalars.add (ScalarIntegral.primitive Scalars.zero) (Scalars.sub (ScalarIntegral.primitive t) (ScalarIntegral.primitive Scalars.zero)))} "by" {
+      congr!{Real Real} (Scalars.add (extend y left i)) _ _ (sym!{Real} _ _ (Estimates.addSubCancel (ScalarIntegral.primitive t) (ScalarIntegral.primitive Scalars.zero)))}
+    "=" {Scalars.add (Scalars.add (extend y left i) (ScalarIntegral.primitive Scalars.zero)) (Scalars.sub (ScalarIntegral.primitive t) (ScalarIntegral.primitive Scalars.zero))} "by" {
+      sym!{Real} _ _ (Laws.addAssoc (extend y left i) (ScalarIntegral.primitive Scalars.zero) (Scalars.sub (ScalarIntegral.primitive t) (ScalarIntegral.primitive Scalars.zero)))}
+    "=" {Scalars.add (initial i) (Scalars.sub (ScalarIntegral.primitive t) (ScalarIntegral.primitive Scalars.zero))} "by" {
+      congr!{Real Real} (\fun (x: Real) => Scalars.add x (Scalars.sub (ScalarIntegral.primitive t) (ScalarIntegral.primitive Scalars.zero))) _ _
+        (trans!{Real} _ _ _ (sym!{Real} _ _ atZero) initialEquality)}
+  } \then
+  \return trans!{Real} _ _ _ (sym!{Real} _ _ equation) (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (extendIdentity y t))
+};

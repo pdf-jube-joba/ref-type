@@ -1,0 +1,129 @@
+\import D.Prefix[] \as Prefix;
+\import Prefix.Increment[] \as Increment;
+\import Sequence.Operations[] \as SequenceOperations;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\import calculus.Real[].Limit[].Def[] \as Limits;
+\import Product.Quotient[] \as Quotient;
+\definition limitEstimate[s, t, c, bound: Real][threshold: N.Nat^]: R.Le a s -> R.Le s t -> R.Le t b -> R.Le zero bound ->
+  (\forall (n: N.Nat^) -> Nat.Le threshold n -> Increment.Slopes f.function c bound (D.leftTags n a b) s t a b) ->
+  R.Le (distance (sub (primitive t) (primitive s)) (mul (sub t s) c)) (mul (sub t s) bound) := \block {
+  \fun (as: _)(st: _)(tb: _)(positive: _)(slopes: _) \then
+  \return SequenceOperations.distanceBoundLimit
+    (\fun (n: N.Nat^) => sub (primitiveSums t n) (primitiveSums s n))
+    (\fun (n: N.Nat^) => mul (sub t s) c)
+    (sub (primitive t) (primitive s)) (mul (sub t s) c) (mul (sub t s) bound) threshold
+    (SequenceOperations.subConverges (primitiveSums t) (primitiveSums s) (primitive t) (primitive s)
+      (primitiveConverges t) (primitiveConverges s)) (Sequence.constantConverges (mul (sub t s) c))
+    (\fun (n: N.Nat^)(later: _) => R.leReplace
+      (distance (Increment.sum f.function (D.leftTags n a b) s t a b) (mul (Increment.delta s t a b) c))
+      (distance (sub (primitiveSums t n) (primitiveSums s n)) (mul (sub t s) c))
+      (mul (Increment.delta s t a b) bound) (mul (sub t s) bound)
+      (congr2!{Real Real Real} distance _ _ _ _ (Increment.difference f.function (D.leftTags n a b) s t a b)
+        (congr!{Real Real} (\fun (w: Real) => mul w c) _ _ (Increment.inside s t a b as st tb)))
+      (congr!{Real Real} (\fun (w: Real) => mul w bound) _ _ (Increment.inside s t a b as st tb))
+      (Increment.estimate f.function (D.leftTags n a b) s t a b c bound interval.ordered st positive (slopes n later)))
+};
+\definition orderedEstimate: \forall (x, s, t, radius, bound: Real) -> R.Le a s -> R.Le s t -> R.Le t b -> R.Lt zero radius -> R.Le zero bound ->
+  R.Lt (distance s x) radius -> R.Lt (distance t x) radius ->
+  (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Lt (distance z x) (add radius radius) -> R.Le (distance (f.function z) (f.function x)) bound) ->
+  R.Le (distance (sub (primitive t) (primitive s)) (mul (sub t s) (f.function x))) (mul (sub t s) bound) := \block {
+  \fun (x, s, t, radius, bound: Real)(as: _)(st: _)(tb: _)(radiusPositive: _)(positive: _)(sx: _)(tx: _)(near: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> Mesh.Fine (D.leftTags n a b) a b radius })
+    \by Mesh.fineEventually a b radius interval.ordered radiusPositive \then
+  \return limitEstimate s t (f.function x) bound k as st tb positive
+    (\fun (n: N.Nat^)(later: _) => Increment.nearSlopes f.function (D.leftTags n a b) x s t a b radius bound interval.ordered
+      (D.leftTagsValid n a b interval.ordered)
+      ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> Mesh.Fine (D.leftTags n a b) a b radius }, k)) n later) sx tx near)
+};
+\definition orderedDistance[s, t: Real]: R.Le s t -> distance t s = sub t s :=
+  \fun (ordered: _) => Metric.maxOfGe (sub t s) (sub s t)
+    (R.leTrans (sub s t) zero (sub t s) (Prefix.differenceNonpositive s t ordered) (Metric.subNonnegative t s ordered));
+\definition errorSymmetric[u, v, s, t, c: Real]: distance (sub u v) (mul (sub t s) c) = distance (sub v u) (mul (sub s t) c) :=
+  trans!{Real} _ _ _
+    (congr2!{Real Real Real} distance _ _ _ _
+      (sym!{Real} _ _ (Algebra.negSub v u))
+      (sym!{Real} _ _ (trans!{Real} _ _ _ (sym!{Real} _ _ (Laws.fieldMulNegLeft (sub s t) c))
+        (congr!{Real Real} (\fun (w: Real) => mul w c) _ _ (Algebra.negSub s t)))))
+    (Product.distanceNeg (sub v u) (mul (sub s t) c));
+\use Logic.either;
+\definition globalError[s, t, c, bound: Real]: R.Le a s -> R.Le s b -> R.Le a t -> R.Le t b -> R.Le zero bound ->
+  (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Le (distance (f.function z) c) bound) ->
+  R.Le (distance (sub (primitive t) (primitive s)) (mul (sub t s) c)) (mul (distance t s) bound) :=
+  \fun (as: _)(sb: _)(at: _)(tb: _)(nonnegative: _)(pointwise: _) =>
+    either!{{(Order.leTotal s t)} {R.Le (distance (sub (primitive t) (primitive s)) (mul (sub t s) c)) (mul (distance t s) bound)}
+      {\fun (st: _) => R.leReplaceRight _ (mul (sub t s) bound) (mul (distance t s) bound)
+        (congr!{Real Real} (\fun (w: Real) => mul w bound) _ _ (sym!{Real} _ _ (orderedDistance s t st)))
+        (limitEstimate s t c bound N.Nat^::zero as st tb nonnegative
+          (\fun (n: N.Nat^)(unused: _) => Increment.globalSlopes f.function (D.leftTags n a b) s t a b c bound interval.ordered
+            (D.leftTagsValid n a b interval.ordered) pointwise))}
+      {\fun (ts: _) => R.leReplace
+        (distance (sub (primitive s) (primitive t)) (mul (sub s t) c)) (distance (sub (primitive t) (primitive s)) (mul (sub t s) c))
+        (mul (sub s t) bound) (mul (distance t s) bound)
+        (errorSymmetric (primitive s) (primitive t) t s c)
+        (congr!{Real Real} (\fun (w: Real) => mul w bound) _ _
+          (trans!{Real} _ _ _ (sym!{Real} _ _ (orderedDistance t s ts)) (Metric.distanceSymmetric s t)))
+        (limitEstimate t s c bound N.Nat^::zero at ts sb nonnegative
+          (\fun (n: N.Nat^)(unused: _) => Increment.globalSlopes f.function (D.leftTags n a b) t s a b c bound interval.ordered
+            (D.leftTagsValid n a b interval.ordered) pointwise))}
+    };
+\definition lipschitz[s, t, bound: Real]: R.Le a s -> R.Le s b -> R.Le a t -> R.Le t b -> R.Le zero bound ->
+  (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Le (distance (f.function z) zero) bound) ->
+  R.Le (distance (primitive t) (primitive s)) (mul (distance t s) bound) :=
+  \fun (as: _)(sb: _)(at: _)(tb: _)(nonnegative: _)(pointwise: _) => R.leReplaceLeft
+    (distance (sub (primitive t) (primitive s)) (mul (sub t s) zero)) (distance (primitive t) (primitive s)) (mul (distance t s) bound)
+    (trans!{Real} _ _ _ (congr!{Real Real} (distance (sub (primitive t) (primitive s))) _ _ (Laws.fieldMulZeroRight (sub t s)))
+      (E.distanceDifference (primitive t) (primitive s))) (globalError s t zero bound as sb at tb nonnegative pointwise);
+\definition estimate: \forall (x, s, t, radius, bound: Real) -> R.Le a s -> R.Le s b -> R.Le a t -> R.Le t b -> R.Lt zero radius -> R.Le zero bound ->
+  R.Lt (distance s x) radius -> R.Lt (distance t x) radius ->
+  (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Lt (distance z x) (add radius radius) -> R.Le (distance (f.function z) (f.function x)) bound) ->
+  R.Le (distance (sub (primitive t) (primitive s)) (mul (sub t s) (f.function x))) (mul (distance t s) bound) :=
+  \fun (x, s, t, radius, bound: Real)(as: _)(sb: _)(at: _)(tb: _)(rp: _)(nonnegative: _)(sx: _)(tx: _)(near: _) =>
+    either!{{(Order.leTotal s t)} {R.Le (distance (sub (primitive t) (primitive s)) (mul (sub t s) (f.function x))) (mul (distance t s) bound)}
+      {\fun (st: _) => R.leReplaceRight _ (mul (sub t s) bound) (mul (distance t s) bound)
+        (congr!{Real Real} (\fun (w: Real) => mul w bound) _ _ (sym!{Real} _ _ (orderedDistance s t st)))
+        (orderedEstimate x s t radius bound as st tb rp nonnegative sx tx near)}
+      {\fun (ts: _) => R.leReplace
+        (distance (sub (primitive s) (primitive t)) (mul (sub s t) (f.function x)))
+        (distance (sub (primitive t) (primitive s)) (mul (sub t s) (f.function x)))
+        (mul (sub s t) bound) (mul (distance t s) bound)
+        (errorSymmetric (primitive s) (primitive t) t s (f.function x))
+        (congr!{Real Real} (\fun (w: Real) => mul w bound) _ _
+          (trans!{Real} _ _ _ (sym!{Real} _ _ (orderedDistance t s ts)) (Metric.distanceSymmetric s t)))
+        (orderedEstimate x t s radius bound at ts sb rp nonnegative tx sx near)}
+    };
+\definition derivative: \forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivatives.HasDerivativeAt primitive x (f.function x) := \block {
+  \fun (x: Real)(ax: _)(xb: _)(epsilon: Real)(positive: _) \then
+  \let error: Real := mul half epsilon \then
+  \let ep: R.Lt zero error := E.halfOfPositive epsilon positive \then
+  \takefrom delta: \Cast[Real] ({ delta: Real \where Radius[f.function, error, delta] }) \by f.uniform error ep \then
+  \let modulus: Radius[f.function, error, delta] := \bysub(Real, { delta: Real \where Radius[f.function, error, delta] }, delta) \then
+  \let radius: Real := mul half delta \then
+  \let rp: R.Lt zero radius := E.halfOfPositive delta modulus.positive \then
+  \let domain: Real := Metric.min (sub x a) (sub b x) \then
+  \let domainPositive: R.Lt zero domain := Product.minPositive (sub x a) (sub b x) (Product.subPositive x a ax) (Product.subPositive b x xb) \then
+  \let small: Real := Metric.min radius domain \then
+  \return Logic.existsIntro[Real, { small: Real \where Limits.Control[Derivatives.slope primitive x, x, f.function x, epsilon, small] }] small
+    (Limits.Control[Derivatives.slope primitive x, x, f.function x, epsilon, small] {
+      positive := Product.minPositive radius domain rp domainPositive,
+      estimate := \fun (y: Real)(different: _)(near: _) => \block {
+        \let yr: R.Lt (distance y x) radius := R.ltLeTrans _ small radius near (Metric.minLeft radius domain) \then
+        \let yd: R.Lt (distance x y) domain := R.ltReplaceLeft (distance y x) (distance x y) domain (Metric.distanceSymmetric y x)
+          (R.ltLeTrans _ small domain near (Metric.minRight radius domain)) \then
+        \let ay: R.Le a y := Order.leOfLt a y (R.ltReplaceLeft (sub x (sub x a)) a y (Algebra.subSub x a)
+          (Metric.distanceLtLower x y (sub x a) (R.ltLeTrans _ domain (sub x a) yd (Metric.minLeft (sub x a) (sub b x))))) \then
+        \let yb: R.Le y b := Order.leOfLt y b (R.ltReplaceRight y (add x (sub b x)) b (E.addSubCancel b x)
+          (Metric.distanceLtUpper x y (sub b x) (R.ltLeTrans _ domain (sub b x) yd (Metric.minRight (sub x a) (sub b x))))) \then
+        \let increment: R.Le (distance (sub (primitive y) (primitive x)) (mul (sub y x) (f.function x))) (mul (distance y x) error) :=
+          estimate x x y radius error (Order.leOfLt a x ax) (Order.leOfLt x b xb) ay yb rp (Order.leOfLt zero error ep)
+            (R.ltReplaceLeft zero (distance x x) radius (sym!{Real} _ _ (Metric.distanceSelf x)) rp) yr
+            (\fun (z: Real)(az: _)(zb: _)(zx: _) => modulus.oscillation z x az zb (Order.leOfLt a x ax) (Order.leOfLt x b xb)
+              (R.ltReplaceRight (distance z x) (add radius radius) delta (E.halfTwice delta) zx)) \then
+        \let h: Real := sub y x \then
+        \let nonzero: Logic.Not (h = zero) := \fun (same: h = zero) => different (Metric.subZeroEq y x same) \then
+        \return Quotient.remainderBound (sub (primitive y) (primitive x)) h (f.function x) epsilon nonzero positive
+          (R.leReplaceRight _ (mul (distance y x) error) (mul (distance h zero) error)
+            (congr!{Real Real} (\fun (w: Real) => mul w error) _ _ (sym!{Real} _ _ (E.distanceDifference y x))) increment)
+      },
+    })
+};

@@ -1,0 +1,89 @@
+/* The canonical automorphism which negates generating vectors. */
+\import \parent.Relations[] \as Relations;
+\import \parent.Universal[A := Carrier, target := ring] \as Universal;
+\import Presented.Universal[K := Carrier, target := ring] \as CoefficientMaps;
+\import algebra.Hom[A := K, B := Carrier] \as Coefficients;
+\import algebra.Hom[A := Carrier, B := Carrier] \as Hom;
+\import algebra.Group[].Of[Carrier := Carrier, group := Ring.additiveGroup Carrier ring] \as Sum;
+\import algebra.Groups[].Units[A := Carrier, ring := ring] \as Units;
+\definition coefficientMap: CoefficientMaps.CoefficientMap := \into[Coefficients.RingMap Linear.ring ring](Presented.coefficientMap, CoefficientMaps.CoefficientMap) \by { Presented.central };
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := coefficientMap,
+  vectors := \fun (v: V) => neg (iota v),
+  zero := trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ injection.preservesZero) Sum.negZero,
+  addition := \fun (u, v: V) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (injection.preservesAdd u v)) (Sum.negAdd (iota u) (iota v)),
+  scalar := \fun (a: K)(v: V) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (injection.preservesScale a v))
+    (sym!{Carrier} _ _ (Units.mulNeg (scalar a) (iota v))),
+  square := \fun (v: V) => trans!{Carrier} _ _ _ (Units.negMul (iota v) (neg (iota v)))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (Units.mulNeg (iota v) (iota v)))
+      (trans!{Carrier} _ _ _ (Sum.negNeg (mul (iota v) (iota v))) (cliffordRelation v))),
+};
+\definition map: Hom.RingMap ring ring := Universal.extension representation;
+\definition onVector: \forall (v: V) -> map (iota v) = neg (iota v) := Universal.onVector representation;
+\definition onScalar: \forall (a: K) -> map (scalar a) = scalar a := Universal.onScalar representation;
+\definition laws: Hom.SemiringLaws[Ring.ringAsSemiring Carrier ring, Ring.ringAsSemiring Carrier ring, map] :=
+  Hom.semiringLaws (Ring.ringAsSemiring Carrier ring) (Ring.ringAsSemiring Carrier ring) map;
+\definition onNegative: \forall (x: Carrier) -> map (neg x) = neg (map x) := \fun (x: Carrier) => Sum.inverseUnique (map x) (map (neg x))
+  (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (laws.add (neg x) x))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ (Sum.inverseLeft x)) laws.zero));
+\definition identityRepresentation: Universal.Representation := Universal.Representation {
+  coefficients := coefficientMap, vectors := iota,
+  zero := injection.preservesZero, addition := injection.preservesAdd,
+  scalar := injection.preservesScale, square := cliffordRelation,
+};
+\definition identity: Hom.RingMap ring ring := \into[Carrier -> Carrier]((\fun (x: Carrier) => x), Hom.RingMap ring ring) \by {
+  Hom.SemiringLaws[Ring.ringAsSemiring Carrier ring, Ring.ringAsSemiring Carrier ring, (\fun (x: Carrier) => x)] {
+    zero := \refl(zero), one := \refl(one), add := \fun (x, y: Carrier) => \refl(add x y), mul := \fun (x, y: Carrier) => \refl(mul x y),
+  }
+};
+\definition double: Hom.RingMap ring ring := \into[Carrier -> Carrier]((\fun (x: Carrier) => map (map x)), Hom.RingMap ring ring) \by {
+  Hom.SemiringLaws[Ring.ringAsSemiring Carrier ring, Ring.ringAsSemiring Carrier ring, (\fun (x: Carrier) => map (map x))] {
+    zero := trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ laws.zero) laws.zero,
+    one := trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ laws.one) laws.one,
+    add := \fun (x, y: Carrier) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ (laws.add x y)) (laws.add (map x) (map y)),
+    mul := \fun (x, y: Carrier) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ (laws.mul x y)) (laws.mul (map x) (map y)),
+  }
+};
+\definition doubleScalar: \forall (a: K) -> double (scalar a) = scalar a := \fun (a: K) =>
+  trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ (onScalar a)) (onScalar a);
+\definition doubleVector: \forall (v: V) -> double (iota v) = iota v := \fun (v: V) =>
+  trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ (onVector v))
+    (trans!{Carrier} _ _ _ (onNegative (iota v)) (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} neg _ _ (onVector v)) (Sum.negNeg (iota v))));
+\definition doubleIdentity: double = identity := trans!{{Hom.RingMap ring ring}} _ _ _ (Universal.unique identityRepresentation double doubleScalar doubleVector)
+  (sym!{{Hom.RingMap ring ring}} _ _ (Universal.unique identityRepresentation identity (\fun (a: K) => \refl(scalar a)) (\fun (v: V) => \refl(iota v))));
+\definition involutive: \forall (x: Carrier) -> map (map x) = x := \fun (x: Carrier) =>
+  congr!{{Hom.RingMap ring ring} Carrier} (\fun (h: Hom.RingMap ring ring) => h x) _ _ doubleIdentity;
+\definition injective: \forall (x, y: Carrier) -> map x = map y -> x = y := \fun (x, y: Carrier)(same: _) => trans!{Carrier} _ _ _
+  (sym!{Carrier} _ _ (involutive x)) (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} map _ _ same) (involutive y));
+\import Units.Mapping[B := Carrier, target := ring, f := map] \as UnitsMap;
+\definition onUnit: Units.Unit -> Units.Unit := UnitsMap.apply;
+\definition unitOne: onUnit Units.unit = Units.unit := UnitsMap.atOne;
+\definition unitProduct: \forall (x, y: Units.Unit) -> onUnit (Units.product x y) = Units.product (onUnit x) (onUnit y) := UnitsMap.preservesProduct;
+\definition unitInverse: \forall (x: Units.Unit) -> onUnit (Units.inverse x) = Units.inverse (onUnit x) := UnitsMap.preservesInverse;
+\definition unitInvolutive: \forall (x: Units.Unit) -> onUnit (onUnit x) = x := \fun (x: Units.Unit) => Units.ext _ _ (involutive x.value);
+\definition unitSign: onUnit Units.minusOne = Units.minusOne := Units.ext _ _
+  (trans!{Carrier} _ _ _ (onNegative one) (congr!{Carrier Carrier} neg _ _ laws.one));
+\definition action[g: Units.Unit][x: Carrier]: Carrier := mul (mul (map g.value) x) g.inverse;
+\definition actionAdd: \forall (g: Units.Unit)(x, y: Carrier) -> action g (add x y) = add (action g x) (action g y) :=
+  \fun (g: Units.Unit)(x, y: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} (\fun (a: Carrier) => mul a g.inverse) _ _ (Presented.mulAdd (map g.value) x y))
+    (Presented.addMul (mul (map g.value) x) (mul (map g.value) y) g.inverse);
+\definition actionScale: \forall (g: Units.Unit)(a: K)(x: Carrier) -> action g (scale a x) = scale a (action g x) :=
+  \fun (g: Units.Unit)(a: K)(x: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} (\fun (b: Carrier) => mul b g.inverse) _ _ (sym!{Carrier} _ _ (algebra.scalarMulRight a (map g.value) x)))
+    (sym!{Carrier} _ _ (algebra.scalarMulLeft a (mul (map g.value) x) g.inverse));
+\definition actionOne: \forall (x: Carrier) -> action Units.unit x = x := \fun (x: Carrier) => trans!{Carrier} _ _ _
+  (congr!{Carrier Carrier} (\fun (a: Carrier) => mul (mul a x) one) _ _ laws.one)
+  (trans!{Carrier} _ _ _ (Presented.oneRight (mul one x)) (Presented.oneLeft x));
+\definition actionProduct: \forall (g, h: Units.Unit)(x: Carrier) -> action (Units.product g h) x = action g (action h x) :=
+  \fun (g, h: Units.Unit)(x: Carrier) => eq_reason!{
+    {action (Units.product g h) x}
+    "=" {mul (mul (mul (map g.value) (map h.value)) x) (mul h.inverse g.inverse)}
+    "by" {congr!{Carrier Carrier} (\fun (a: Carrier) => mul (mul a x) (mul h.inverse g.inverse)) _ _ (laws.mul g.value h.value)}
+    "=" {mul (mul (map g.value) (mul (map h.value) x)) (mul h.inverse g.inverse)}
+    "by" {congr!{Carrier Carrier} (\fun (a: Carrier) => mul a (mul h.inverse g.inverse)) _ _ (Presented.mulAssoc (map g.value) (map h.value) x)}
+    "=" {mul (mul (mul (map g.value) (mul (map h.value) x)) h.inverse) g.inverse}
+    "by" {sym!{Carrier} _ _ (Presented.mulAssoc (mul (map g.value) (mul (map h.value) x)) h.inverse g.inverse)}
+    "=" {action g (action h x)}
+    "by" {congr!{Carrier Carrier} (\fun (a: Carrier) => mul a g.inverse) _ _ (Presented.mulAssoc (map g.value) (mul (map h.value) x) h.inverse)}
+  };

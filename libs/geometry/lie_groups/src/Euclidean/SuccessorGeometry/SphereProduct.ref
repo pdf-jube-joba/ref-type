@@ -1,0 +1,27 @@
+\import \parent.SphereSection[s := s] \as Section;
+\import Section.Column[] \as Column;
+\import \parent.Extension[h := h] \as Extended;
+\import \parent.ExtensionRestriction[h := h] \as Restriction;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\definition value: Next.O := NextOperations.mul Section.value Extended.orthogonal;
+\definition firstColumn: NextOrthogonal.action value first = Section.firstColumn :=
+  congr!{Next.Vector Next.Vector} Section.value.value.apply _ _ Extended.fixes;
+\definition height: R.add R.one (head (NextOrthogonal.action value first)) = Column.coefficient := trans!{R.Real} _ _ _
+  (congr!{Next.Vector R.Real} (\fun (v: Next.Vector) => R.add R.one (head v)) _ _ firstColumn) Column.height;
+\definition nonzero: std.Logic[].Proposition[].Not (R.add R.one (head (NextOrthogonal.action value first)) = R.zero) :=
+  \fun (zero: _) => Column.coefficientNonzero (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ height) zero);
+\import \parent.FirstColumn[g := value, nonzero := nonzero] \as Coordinates;
+\definition recoversParameter: Coordinates.parameter = s := trans!{Vector} _ _ _
+  (congr!{Next.Vector Vector} (\fun (v: Next.Vector) => space.smul (Arithmetic.fieldInv (R.add R.one (head v))) (tail v)) _ _ firstColumn)
+  Column.recoverParameter;
+\definition sectionEquality: \parent.SphereSection[s := Coordinates.parameter].value = Section.value :=
+  congr!{Vector Next.O} (\fun (t: Vector) => \parent.SphereSection[s := t].value) _ _ recoversParameter;
+\definition correctionEquality: Coordinates.correction = Extended.orthogonal := trans!{Next.O} _ _ _
+  (congr!{Next.O Next.O} (\fun (a: Next.O) => NextOperations.mul (NextOperations.inv a) value) _ _ sectionEquality)
+  (trans!{Next.O} _ _ _ (sym!{Next.O} _ _ (NextOperations.assoc (NextOperations.inv Section.value) Section.value Extended.orthogonal))
+    (trans!{Next.O} _ _ _ (congr!{Next.O Next.O} (\fun (a: Next.O) => NextOperations.mul a Extended.orthogonal) _ _ (NextOperations.invLeft Section.value))
+      (NextOperations.oneLeft Extended.orthogonal)));
+\definition pointwise: \forall (x: Vector) -> Coordinates.fiber.value.apply x = h.value.apply x := \fun (x: Vector) => trans!{Vector} _ _ _
+  (congr!{Next.O Vector} (\fun (a: Next.O) => tail (a.value.apply (embed x))) _ _ correctionEquality)
+  (congr!{O Vector} (\fun (a: O) => a.value.apply x) _ _ Restriction.equal);
+\definition recoversFiber: Coordinates.fiber = h := Units.ext _ _ (End.ext Coordinates.fiber.value h.value pointwise);

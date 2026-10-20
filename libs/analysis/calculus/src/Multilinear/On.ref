@@ -1,0 +1,16 @@
+\definition Arguments[k: N.Nat^]: \Set := Open.Carrier U -> Forms.Arguments k;
+\definition Regular[k: N.Nat^][arguments: Arguments k]: \Prop := \forall (slot: Fin.Fin k)(coordinate: Fin.Fin n) ->
+  Smooth.SmoothOn U (\fun (x: Open.Carrier U) => arguments x slot coordinate);
+\definition Law[k: N.Nat^]: \Prop := \forall (f: Forms.Form k)(arguments: Arguments k) -> Regular k arguments ->
+  Smooth.SmoothOn U (\fun (x: Open.Carrier U) => f (arguments x));
+\module Step(k: N.Nat^);
+\definition evaluation: \forall (k: N.Nat^) -> Law k := \induction (k: N.Nat^) \return Law k \with {
+  | zero: \fun (f: Forms.Form N.Nat^::zero)(arguments: Arguments N.Nat^::zero)(regular: _) => \idelim
+    (\fun (x: Open.Carrier U) => f Empty.function) = (\fun (x: Open.Carrier U) => f (arguments x))
+    \with h: Open.ScalarFunction U => Smooth.SmoothOn U h \by {
+      base: Operations.constantSmooth U (f Empty.function),
+      equality: \axiom:funext((\fun (x: Open.Carrier U) => f Empty.function), (\fun (x: Open.Carrier U) => f (arguments x)),
+        \fun (x: Open.Carrier U) => congr!{{Forms.Arguments N.Nat^::zero} R.Real} f _ _ (Empty.unique Empty.function (arguments x)))
+    }
+  | succ: \fun (k: N.Nat^)(previous: Law k) => Step[k := k].law previous
+};

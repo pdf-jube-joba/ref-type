@@ -1,0 +1,102 @@
+\definition time: Real := step.time;
+\definition timePositive: R.Lt Scalars.zero time := \bysub(Real, { t: Real \where R.Lt Scalars.zero t }, step.time);
+\definition contractionBound: R.Le (Scalars.mul time field.coefficient) Scalars.half := step.contractionBound;
+\definition ballBound: R.Le (Scalars.mul time field.bound) Scalars.one := step.ballBound;
+\definition edge: Real := Scalars.mul Scalars.half (Scalars.mul Scalars.half time);
+\definition edgePositive: R.Lt Scalars.zero edge := Estimates.halfOfPositive (Scalars.mul Scalars.half time) (Estimates.halfOfPositive time timePositive);
+\definition left: Real := Scalars.neg edge;
+\definition right: Real := edge;
+\definition leftNonpositive: R.Le left Scalars.zero := Product.negNonnegative edge (Order.leOfLt _ _ edgePositive);
+\definition rightNonnegative: R.Le Scalars.zero right := Order.leOfLt _ _ edgePositive;
+\definition leftNegative: R.Lt left Scalars.zero := R.ltReplaceRight left (Scalars.add left edge) Scalars.zero (Laws.addNegLeft edge)
+  (R.ltReplaceLeft (Scalars.add left Scalars.zero) left (Scalars.add left edge) (Laws.addZeroRight left) (Laws.ltAddLeft left Scalars.zero edge edgePositive));
+\definition length: Real := Scalars.sub right left;
+\definition lengthHalf: length = Scalars.mul Scalars.half time := trans!{Real} _ _ _ (Algebra.subNeg edge edge) (Estimates.halfTwice (Scalars.mul Scalars.half time));
+\definition lengthNonnegative: R.Le Scalars.zero length := Distance.subNonnegative right left (R.leTrans left Scalars.zero right leftNonpositive rightNonnegative);
+\definition lengthBound: R.Le length time := R.leReplaceLeft (Scalars.mul Scalars.half time) length time (sym!{Real} _ _ lengthHalf)
+  (Estimates.halfBelow time (Order.leOfLt _ _ timePositive));
+\definition twiceLength: Scalars.add length length = time := trans!{Real} _ _ _
+  (congr2!{Real Real Real} Scalars.add _ _ _ _ lengthHalf lengthHalf) (Estimates.halfTwice time);
+\import integration.Real[] \as Integration;
+\definition interval: Integration.Interval := Integration.Interval {
+  left := left, right := right, ordered := R.leTrans left Scalars.zero right leftNonpositive rightNonnegative,
+};
+\import Integration.Riemann[interval := interval].Continuous[] \as Times;
+\import integration.Vector[n := n, interval := interval] \as Integrals;
+\definition Time: \Set := Times.Point;
+\import metric_spaces.RealLine[] \as Line;
+\definition zeroTime: Time := \into[Real](Scalars.zero, Line.ClosedInterval left right) \by {
+  Logic.And[_, _]::# leftNonpositive rightNonnegative
+};
+\import Integration.Division[].Prefix[] \as Prefix;
+\import Integration.Division[].Bounds[] \as IntervalBounds;
+\definition cut[t: Real]: Real := Scalars.add left (Prefix.weight t left right);
+\definition cutLower[t: Real]: R.Le left (cut t) := Distance.leAddOfNonnegative left (Prefix.weight t left right) (Prefix.weightNonnegative t left right interval.ordered);
+\definition cutBound[t: Real]: R.Le (cut t) right := R.leReplaceRight (cut t) (Scalars.add left length) right (Estimates.addSubCancel right left)
+  (Laws.addMonotoneLeft (Prefix.weight t left right) length left (Prefix.weightBound t left right interval.ordered));
+\definition cutTime[t: Real]: Time := \into[Real](cut t, Line.ClosedInterval left right) \by {
+  Logic.And[_, _]::# (cutLower t) (cutBound t)
+};
+\definition cutIdentity: \forall (t: Time) -> cutTime t = t := \fun (t: Time) => \block {
+  \let bounds: Logic.And[R.Le left t, R.Le t right] := \bysub(Real, Line.ClosedInterval left right, t) \then
+  \return trans!{Real} _ _ _ (congr!{Real Real} (Scalars.add left) _ _ (Prefix.weightInside t left right bounds.left bounds.right)) (Estimates.addSubCancel t left)
+};
+\definition timeDistance: \forall (t: Time) -> R.Le (Scalars.distance t Scalars.zero) time := \fun (t: Time) => \block {
+  \let bounds: Logic.And[R.Le left t, R.Le t right] := \bysub(Real, Line.ClosedInterval left right, t) \then
+  \return R.leTrans _ length time (IntervalBounds.intervalDistance left right t Scalars.zero bounds.left bounds.right leftNonpositive rightNonnegative) lengthBound
+};
+\import metric_spaces.BoundedFunctions[A := Vector, I := Time] \as Bounded;
+\definition radius: Bounded.Radius := \into[Real](Scalars.one, { x: Real \where R.Le Scalars.zero x }) \by { Laws.oneNonnegative };
+\import Bounded.On[base := Completeness.metric, anchor := zeroTime, center := (\fun (t: Time) => initial), radius := radius] \as Ball;
+\import Ball.Continuous[source := Times.topology] \as Curves;
+\definition Curve: \Set := Curves.Function;
+\definition seed: Curve := \into[Ball.Carrier](Ball.origin, Curves.predicate) \by {
+  \bysub(Real -> Vector, { f: Real -> Vector \where Integrals.IsContinuous f }, Integrals.constant initial)
+};
+\definition extend[y: Curve][t: Real]: Vector := y (cutTime t);
+\definition extendIdentity[y: Curve][t: Time]: extend y t = y t := congr!{Time Vector} y _ _ (cutIdentity t);
+\import metric_spaces.MetricSpace[Carrier := Vector] \as VectorMetric;
+\import VectorMetric.Lipschitz[B := Vector].Between[metric := Norm.metric, other := Norm.metric] \as Lipschitz;
+\definition fieldContinuous: topology.Continuity[A := Vector, B := Vector].Continuous EuclideanTopology.topology EuclideanTopology.topology field.apply :=
+  Lipschitz.continuous field.apply field.coefficient field.lipschitz;
+\import topology.Continuity[A := Time, B := Vector] \as Maps;
+\definition extendedContinuous[y: Curve]: Maps.Continuous Times.topology EuclideanTopology.topology (\fun (t: Time) => extend y t) :=
+  \idelim (\fun (t: Time) => y t) = (\fun (t: Time) => extend y t) \with f: (Time -> Vector) => Maps.Continuous Times.topology EuclideanTopology.topology f \by {
+    base: \bysub(Ball.Carrier, Curves.predicate, y),
+    equality: \axiom:funext((\fun (t: Time) => y t), (\fun (t: Time) => extend y t), \fun (t: Time) => sym!{Vector} _ _ (extendIdentity y t))
+  };
+\module Picard(y: Curve);
+\definition picard[y: Curve]: Curve := Picard[y := y].curve;
+\module Comparison(y, z: Curve);
+\import metric_spaces.MetricSpace[Carrier := Curve] \as CurveMetric;
+\import CurveMetric.Complete[metric := Curves.complete] \as Contractions;
+\definition contraction: Contractions.Contraction := Contractions.Contraction {
+  apply := picard,
+  bound := \fun (y, z: Curve) => Comparison[y := y, z := z].bound,
+};
+\definition fixed: Contractions.Fixed contraction := Contractions.fixedPoint contraction seed;
+\definition curve: Curve := fixed;
+\definition fixedLaw: picard curve = curve := \bysub(Curve, { x: Curve \where contraction.apply x = x }, fixed);
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\definition Equation[y: Curve]: \Prop := \forall (t: Real) -> R.Lt left t -> R.Lt t right -> \forall (i: Euclidean.Coordinate) ->
+  Derivatives.HasDerivativeAt (\fun (s: Real) => extend y s i) t (field.apply (extend y t) i);
+\structure Candidate: \Set := {
+  value: Real -> Vector,
+  initialValue: value Scalars.zero = initial,
+  derivative: \forall (t: Time)(i: Euclidean.Coordinate) -> Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t (field.apply (value t) i),
+};
+\module Uniqueness(y: Curve);
+\module Solution;
+\import Solution[] \as Solved;
+\definition localSolution: LocalSolution[field, initial] := LocalSolution[field, initial] {
+  radius := \into[Real](edge, { x: Real \where R.Lt Scalars.zero x }) \by { edgePositive },
+  value := Solved.value,
+  initialValue := Solved.initialValue,
+  derivative := Solved.derivative,
+};
+\definition solutionUnique: \forall (y: Curve) -> y zeroTime = initial -> Equation y -> y = curve :=
+  \fun (y: Curve) => Uniqueness[y := y].unique;
+
+\module ForCandidate(candidate: Candidate);
+\definition candidateUnique: \forall (candidate: Candidate)(t: Time) -> candidate.value t = curve t :=
+  \fun (candidate: Candidate)(t: Time) => ForCandidate[candidate := candidate].agrees t;

@@ -1,0 +1,18 @@
+\import \parent.Of[f := f] \as Left;
+\import \parent.Of[f := g] \as Right;
+\import D.Prefix[] \as Prefix;
+\import Sequence.Operations[] \as Operations;
+\definition primitiveBound[t, bound: Real]:
+  (\forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f.function x) (g.function x)) bound) ->
+  R.Le (distance (Left.primitive t) (Right.primitive t)) (mul (Prefix.weight t a b) bound) :=
+  \fun (pointwise: _) => Operations.distanceBoundLimit (Left.primitiveSums t) (Right.primitiveSums t)
+    (Left.primitive t) (Right.primitive t) (mul (Prefix.weight t a b) bound) N.Nat^::zero (Left.primitiveConverges t) (Right.primitiveConverges t)
+    (\fun (n: N.Nat^)(unused: _) => Prefix.distanceUniform f.function g.function (D.leftTags n a b) t a b bound interval.ordered
+      (D.leftTagsValid n a b interval.ordered) pointwise);
+\definition integralBound[bound: Real]:
+  (\forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f.function x) (g.function x)) bound) ->
+  R.Le (distance Left.value Right.value) (mul (sub b a) bound) :=
+  \fun (pointwise: _) => Operations.distanceBoundLimit Left.sums Right.sums Left.value Right.value (mul (sub b a) bound) N.Nat^::zero
+    (Sequence.limitLaw Left.sequence) (Sequence.limitLaw Right.sequence)
+    (\fun (n: N.Nat^)(unused: _) => Bounds.sumDistanceUniform f.function g.function (D.leftTags n a b) a b bound interval.ordered
+      (D.leftTagsValid n a b interval.ordered) pointwise);

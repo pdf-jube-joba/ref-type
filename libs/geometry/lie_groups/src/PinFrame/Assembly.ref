@@ -1,0 +1,14 @@
+/* The local assembly and readings are mutually inverse. */
+\definition value: Next.Pin := assemble s h;
+\import Geometry.SphereProduct[s := s, h := Representation.map h] \as OrthogonalProduct;
+\definition image: HigherRepresentation.map value = OrthogonalProduct.value := assemblyImage s h;
+\definition nonzeroHeight: Logic.Not (height value = R.zero) := \fun (zero: _) => OrthogonalProduct.nonzero
+  (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (congr!{{Next.O} R.Real} Orthogonal.height _ _ image)) zero);
+\definition part: Parts := asPart value nonzeroHeight;
+\definition parameterEquation: parameter part = s := trans!{E.Vector} _ _ _
+  (congr!{{Next.O} E.Vector} parameterValue _ _ image) OrthogonalProduct.recoversParameter;
+\definition correctionEquation: \parent.On[g := part].corrected = Inclusion.pin h :=
+  trans!{{Next.Pin}} _ _ _ (congr!{E.Vector {Next.Pin}} (\fun (t: E.Vector) => untranslate (section t) value) _ _ parameterEquation)
+    (undoTranslation (section s) (Inclusion.pin h));
+\definition fiberEquation: fiber part = h := inclusionInjective (fiber part) h
+  (trans!{{Next.Pin}} _ _ _ \parent.On[g := part].embeddedFiber correctionEquation);

@@ -1,0 +1,23 @@
+\import Maps.Coordinates[f := continuous, left := left, right := right] \as Coordinates;
+\definition regular: Coordinates.Smooth := \fun (i: Fin.Fin m) =>
+  Logic.orElim (TargetCharts.Contains right c) (Logic.Not (TargetCharts.Contains right c))
+    (Analysis.SmoothOn Coordinates.domain (\fun (x: Open.Carrier Coordinates.domain) => Coordinates.apply x i))
+    (Classical.excludedMiddle (TargetCharts.Contains right c))
+    (\fun (contains: TargetCharts.Contains right c) => \block {
+      \let point: TargetCharts.LocalPoint right := \into[N.Point](c, right.domain) \by { contains } \then
+      \return \idelim (\fun (x: Open.Carrier Coordinates.domain) => TargetCharts.coordinate right point i) =
+          (\fun (x: Open.Carrier Coordinates.domain) => Coordinates.apply x i)
+        \with f: Open.ScalarFunction Coordinates.domain => Analysis.SmoothOn Coordinates.domain f \by {
+          base: Operations.constantSmooth Coordinates.domain (TargetCharts.coordinate right point i),
+          equality: \axiom:funext((\fun (x: Open.Carrier Coordinates.domain) => TargetCharts.coordinate right point i),
+            (\fun (x: Open.Carrier Coordinates.domain) => Coordinates.apply x i), \fun (x: Open.Carrier Coordinates.domain) => \refl(Coordinates.apply x i))
+        }
+    })
+    (\fun (outside: Logic.Not (TargetCharts.Contains right c)) =>
+      \idelim (\fun (x: Open.Carrier Coordinates.domain) => Reals.zero) = (\fun (x: Open.Carrier Coordinates.domain) => Coordinates.apply x i)
+      \with f: Open.ScalarFunction Coordinates.domain => Analysis.SmoothOn Coordinates.domain f \by {
+        base: Operations.constantSmooth Coordinates.domain Reals.zero,
+        equality: \axiom:funext((\fun (x: Open.Carrier Coordinates.domain) => Reals.zero),
+          (\fun (x: Open.Carrier Coordinates.domain) => Coordinates.apply x i), \fun (x: Open.Carrier Coordinates.domain) =>
+            Logic.falseElim (Reals.zero = Coordinates.apply x i) (outside (Coordinates.inRightDomain x)))
+      });

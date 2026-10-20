@@ -1,0 +1,28 @@
+/* Stereographic coordinates and the remaining orthogonal block of a plot. */
+\definition heightFunction[x: Open.Carrier U]: R.Real := height (f x);
+\definition heightSmooth: Smooth.SmoothOn U heightFunction := Functions.addSmooth U (\fun (x: Open.Carrier U) => R.one)
+  (\fun (x: Open.Carrier U) => (f x).value.apply first (Fin.zero n)) (Functions.constantSmooth U R.one) (regular first (Fin.zero n));
+\definition heightData: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](heightFunction,
+  { h: Open.ScalarFunction U \where Smooth.SmoothOn U h }) \by { heightSmooth };
+\import Smooth.Nonvanishing[U := U, f := heightData] \as Region;
+\definition D: Open.OpenSet := Region.domain;
+\definition center: Open.Carrier D := \into[calculus.Real[].Multivariable[n := d].Point](a, D.points) \by { Region.intro a condition.nonzero };
+\import NextPlots.Restriction[U := D, V := U, included := Region.included, f := f, regular := regular] \as Restricted;
+\definition parts[x: Open.Carrier D]: Parts := asPart (Restricted.value x) (Region.nonzero x);
+\definition parameters[x: Open.Carrier D]: E.Vector := parameter (parts x);
+\definition parameterSmooth: BasePlots.Values D parameters := \fun (j: Fin.Fin n) => Functions.mulSmooth D Region.inverse
+  (\fun (x: Open.Carrier D) => (Restricted.value x).value.apply first (Fin.succ n j)) Region.inverseSmooth (Restricted.plot first (Fin.succ n j));
+\import GeometryPlots.Section[U := D, s := parameters, regular := parameterSmooth] \as Section;
+\definition correction[x: Open.Carrier D]: Next.O := Group.mul (Group.inv (Section.value x)) (Restricted.value x);
+\definition correctionPlot: NextPlots.Plot D correction := NextPlots.multiplication D (\fun (x: Open.Carrier D) => Group.inv (Section.value x))
+  Restricted.value (NextPlots.inverse D Section.value Section.plot) Restricted.plot;
+\definition fixes: \forall (x: Open.Carrier D) -> (correction x).value.apply first = first := \fun (x: Open.Carrier D) =>
+  Geometry.FirstColumn[g := Restricted.value x, nonzero := Region.nonzero x].fixes;
+\import GeometryPlots.Restriction[U := D, f := correction, regular := correctionPlot, fixes := fixes] \as Fiber;
+\import LowerCoordinates.Read[d := d].On[p := lower, U := D, f := Fiber.value, a := center] \as Reads;
+\import UpperCoordinates.Read[d := d].On[p := patch, U := U, f := f, a := a] \as Result;
+\module From(witness: Reads.Witness);
+\definition exists: \exists Result.Witness := \block {
+  \takefrom witness: Reads.Witness \by previous.readings d D Fiber.value Fiber.plot i center condition.contained \then
+  \return \exact(From[witness := witness].value, Result.Witness)
+};

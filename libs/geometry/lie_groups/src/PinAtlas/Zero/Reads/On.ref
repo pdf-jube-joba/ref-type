@@ -1,0 +1,27 @@
+\definition difference[x: Source.Carrier U]: R.Real := R.sub (scalar (f x)) (scalar (opposite k));
+\definition differenceSmooth: Smooth.SmoothOn U difference := Functions.subSmooth U (\fun (x: Source.Carrier U) => scalar (f x))
+  (\fun (x: Source.Carrier U) => scalar (opposite k)) (regular (Fin.zero N.Nat^::zero)) (Functions.constantSmooth U (scalar (opposite k)));
+\definition differenceData: Smooth.SmoothFunction U := \into[Source.ScalarFunction U](difference, Smooth.SmoothFunction U) \by { differenceSmooth };
+\definition centerNonzero: Logic.Not (difference a = R.zero) := \fun (zero: _) => differentAt k
+  (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (congr!{{E.Pin} R.Real} scalar _ _ inside)) (R.Distance[].subZeroEq (scalar (f a)) (scalar (opposite k)) zero));
+\import Smooth.Nonvanishing[U := U, f := differenceData] \as Region;
+\definition at[x: Source.Carrier Region.domain]: E.Pin := f (Region.input x);
+\definition same: \forall (x: Source.Carrier Region.domain) -> at x = center k := \fun (x: Source.Carrier Region.domain) =>
+  either!{{(coversAt k (at x))} {at x = center k}
+    {\fun (equal: _) => equal}
+    {\fun (other: at x = opposite k) => Logic.falseElim (at x = center k) (Region.nonzero x
+      (trans!{R.Real} _ _ _ (congr!{{E.Pin} R.Real} (\fun (g: E.Pin) => R.sub (scalar g) (scalar (opposite k))) _ _ other)
+        (Arithmetic.subSelf (scalar (opposite k)))))}
+  };
+\import calculus.Maps[n := d, m := N.Nat^::zero] \as Maps;
+\definition lift: Maps.Map Region.domain Open.whole := \into[Maps.Data[Region.domain, Open.whole]](
+  Maps.Data[Region.domain, Open.whole] { apply := \fun (x: Source.Carrier Region.domain) => empty }, Maps.Map Region.domain Open.whole) \by {
+    Maps.Laws[Region.domain, Open.whole, Maps.Data[Region.domain, Open.whole]::# (\fun (x: Source.Carrier Region.domain) => empty)] {
+      smooth := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    }
+  };
+\import Coordinates.Read[d := d].On[p := \parent.\parent.Patch[k := k].patch, U := U, f := f, a := a] \as Result;
+\definition witness: Result.Witness := Result.Witness {
+  domain := Region.domain, included := Region.included, contains := Region.intro a centerNonzero, lift := lift,
+  agrees := \fun (x: Source.Carrier Region.domain) => sym!{{E.Pin}} _ _ (same x),
+};

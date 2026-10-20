@@ -1,0 +1,132 @@
+\definition productBall: JointOpen.BallInside[ProductDomain.domain.points, basePoint, parameters.productRadius] :=
+  \bysub(Reals.Real, { r: Reals.Real \where JointOpen.BallInside[ProductDomain.domain.points, basePoint, r] }, parameters.productRadius);
+\definition curveControl: NearZero.Radius[bound parameters.productRadius, parameters.curveRadius] :=
+  \bysub(Reals.Real, { r: Reals.Real \where NearZero.Radius[bound parameters.productRadius, r] }, parameters.curveRadius);
+\definition available: Reals.Real := Distance.min solution.radius parameters.curveRadius;
+\definition availablePositive: R.Lt Reals.zero available := ProductBounds.minPositive _ _ positive curveControl.positive;
+\definition radius: Reals.Real := Reals.mul Reals.half (Reals.mul Reals.half available);
+\definition radiusPositive: R.Lt Reals.zero radius := Estimates.halfOfPositive _ (Estimates.halfOfPositive available availablePositive);
+\definition radiusBelow: R.Lt radius available := R.leLtTrans _ _ _
+  (Estimates.halfBelow (Reals.mul Reals.half available) (R.Order[].leOfLt _ _ (Estimates.halfOfPositive available availablePositive)))
+  (Estimates.halfStrict available availablePositive);
+\definition Time: \Set := \Cast[Reals.Real] ({ t: Reals.Real \where R.Lt (Reals.distance t Reals.zero) radius });
+\definition timeBound[t: Time]: R.Lt (Reals.distance t Reals.zero) radius := \bysub(Reals.Real,
+  { t: Reals.Real \where R.Lt (Reals.distance t Reals.zero) radius }, t);
+\definition availableBound[t: Time]: R.Lt (Reals.distance t Reals.zero) available := R.Order[].ltTrans _ _ _ (timeBound t) radiusBelow;
+\definition lower[t: Time]: R.Lt (Reals.neg solution.radius) t := R.ltReplaceLeft (Reals.sub Reals.zero solution.radius) (Reals.neg solution.radius) t
+  (ArithmeticLaws.addZeroLeft (Reals.neg solution.radius)) (Distance.distanceLtLower Reals.zero t solution.radius
+    (R.ltReplaceLeft (Reals.distance t Reals.zero) (Reals.distance Reals.zero t) solution.radius (Distance.distanceSymmetric t Reals.zero)
+      (R.ltLeTrans _ _ _ (availableBound t) (Distance.minLeft solution.radius parameters.curveRadius))));
+\definition upper[t: Time]: R.Lt t solution.radius := R.ltReplaceRight t (Reals.add Reals.zero solution.radius) solution.radius
+  (ArithmeticLaws.addZeroLeft solution.radius) (Distance.distanceLtUpper Reals.zero t solution.radius
+    (R.ltReplaceLeft (Reals.distance t Reals.zero) (Reals.distance Reals.zero t) solution.radius (Distance.distanceSymmetric t Reals.zero)
+      (R.ltLeTrans _ _ _ (availableBound t) (Distance.minLeft solution.radius parameters.curveRadius))));
+\definition curve[t: Time]: Open.Carrier domain := \into[Vectors.Point](solution.value t, domain.points) \by { solution.inside t (lower t) (upper t) };
+\definition coordinate[t: Time]: Open.Carrier chart.image := Open.inclusion domain chart.image inChart (curve t);
+\definition curveNear[t: Time]: R.Lt (Norm.metric.distance (curve t) origin) (bound parameters.productRadius) :=
+  curveControl.estimate t (R.ltLeTrans _ _ _ (availableBound t) (Distance.minRight solution.radius parameters.curveRadius));
+\definition productNear[s, t: Time]: R.Lt (ParametersNorm.metric.distance (Blocks.join (curve s) (curve t)) basePoint) parameters.productRadius :=
+  R.leLtTrans _ _ _ (Blocks.joinDistance (curve s) origin (curve t) origin)
+    (R.ltReplaceRight _ (Reals.add (Reals.mul Reals.half parameters.productRadius) (Reals.mul Reals.half parameters.productRadius)) parameters.productRadius
+      (Estimates.halfTwice parameters.productRadius)
+      (Estimates.addLt _ _ _ _
+        (R.ltLeTrans _ _ _ (curveNear s) (Distance.minLeft (Reals.mul Reals.half parameters.productRadius) Extension.radius))
+        (R.ltLeTrans _ _ _ (curveNear t) (Distance.minLeft (Reals.mul Reals.half parameters.productRadius) Extension.radius))));
+\definition parametersPoint[s, t: Time]: JointOpen.Carrier ProductDomain.domain :=
+  \into[ParametersSpace.Point](Blocks.join (curve s) (curve t), ProductDomain.domain.points) \by {
+    productBall.included (Blocks.join (curve s) (curve t)) (productNear s t)
+  };
+\definition productCoordinate[s, t: Time]: Open.Carrier chart.image := Joint.apply (ProductDomain.input (parametersPoint s t));
+\definition productBound[s, t: Time]: R.Lt (Norm.metric.distance origin (productCoordinate s t)) Extension.radius :=
+  ProductDomain.inTarget (parametersPoint s t);
+\definition productInDomain[s, t: Time]: \In[Vectors.Point] domain.points (productCoordinate s t) := regularity.included.included (productCoordinate s t)
+  (R.Order[].ltTrans _ Extension.radius regularity.radius
+    (R.ltReplaceLeft (Norm.metric.distance origin (productCoordinate s t)) (Norm.metric.distance (productCoordinate s t) origin) Extension.radius
+      (Norm.metric.symmetric origin (productCoordinate s t)) (productBound s t)) Extension.radiusBelow);
+\definition product[s, t: Time]: Open.Carrier domain := \into[Vectors.Point](productCoordinate s t, domain.points) \by { productInDomain s t };
+\import Blocks.On[U := chart.image, V := chart.image] \as ProductCoordinates;
+\definition productLaw: \forall (s, t: Time) -> Charts.point chart (Open.inclusion domain chart.image inChart (product s t)) =
+  mul (Charts.point chart (coordinate s)) (Charts.point chart (coordinate t)) := \block {
+  \fun (s, t: Time) \then
+  \let p: JointOpen.Carrier Joint.domain := ProductDomain.input (parametersPoint s t) \then
+  \let leftCoordinate: ProductCoordinates.leftPoint (Joint.leftCoordinate p) = coordinate s := Blocks.leftJoin (coordinate s) (coordinate t) \then
+  \let rightCoordinate: ProductCoordinates.rightPoint (Joint.leftCoordinate p) = coordinate t := Blocks.rightJoin (coordinate s) (coordinate t) \then
+  \return trans!{Point} _ _ _ (productPoint p)
+    (congr2!{Point Point Point} mul _ _ _ _
+      (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ leftCoordinate)
+      (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ rightCoordinate))
+};
+\import One.Interval[left := Reals.neg radius, right := radius] \as Interval;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as TimeOpen;
+\import differential_equations.Euclidean[n := n] \as Equations;
+\definition time[x: TimeOpen.Carrier Interval.domain]: Time := \into[Reals.Real](x One.index,
+  { t: Reals.Real \where R.Lt (Reals.distance t Reals.zero) radius }) \by {
+    Equations.insideDistance (x One.index) radius (Interval.bounds x).left (Interval.bounds x).right
+  };
+\definition parameter[t: Time]: TimeOpen.Carrier Interval.domain := \into[TimeVectors.Point]((\fun (i: One.Index) => t), Interval.domain.points) \by {
+  Logic.And[_, _]::#
+    (R.ltReplaceLeft (Reals.sub Reals.zero radius) (Reals.neg radius) t (ArithmeticLaws.addZeroLeft (Reals.neg radius))
+      (Distance.distanceLtLower Reals.zero t radius (R.ltReplaceLeft (Reals.distance t Reals.zero) (Reals.distance Reals.zero t) radius
+        (Distance.distanceSymmetric t Reals.zero) (timeBound t))))
+    (R.ltReplaceRight t (Reals.add Reals.zero radius) radius (ArithmeticLaws.addZeroLeft radius)
+      (Distance.distanceLtUpper Reals.zero t radius (R.ltReplaceLeft (Reals.distance t Reals.zero) (Reals.distance Reals.zero t) radius
+        (Distance.distanceSymmetric t Reals.zero) (timeBound t))))
+};
+\definition intervalIncluded: TimeOpen.Included Interval.domain One.Interval[left := Reals.neg solution.radius, right := solution.radius].domain :=
+  \fun (x: TimeVectors.Point)(member: _) => \block {
+    \let p: TimeOpen.Carrier Interval.domain := \into[TimeVectors.Point](x, Interval.domain.points) \by { member } \then
+    \return Logic.And[_, _]::# (lower (time p)) (upper (time p))
+  };
+\import calculus.Maps[n := One.dimension, m := n] \as CurveMaps;
+\import CurveMaps.Restriction[U := Interval.domain, V := One.Interval[left := Reals.neg solution.radius, right := solution.radius].domain, W := domain] \as CurveRestriction;
+\definition curveMap: CurveMaps.Map Interval.domain domain := CurveRestriction.input intervalIncluded Curve.map;
+\definition zeroTime: Time := \into[Reals.Real](Reals.zero, { t: Reals.Real \where R.Lt (Reals.distance t Reals.zero) radius }) \by {
+  R.ltReplaceLeft Reals.zero (Reals.distance Reals.zero Reals.zero) radius (sym!{Reals.Real} _ _ (Distance.distanceSelf Reals.zero)) radiusPositive
+};
+\module Translated(s: Time);
+\definition sumAvailable[s, t: Time]: R.Lt (Reals.distance (Reals.add s t) Reals.zero) available := \block {
+  \let sumDistance: R.Le (Reals.distance (Reals.add s t) Reals.zero) (Reals.add (Reals.distance s Reals.zero) (Reals.distance t Reals.zero)) :=
+    R.leReplaceLeft (Reals.distance (Reals.add s t) (Reals.add Reals.zero Reals.zero)) (Reals.distance (Reals.add s t) Reals.zero) _
+      (congr!{Reals.Real Reals.Real} (Reals.distance (Reals.add s t)) _ _ (ArithmeticLaws.addZeroLeft Reals.zero))
+      (Estimates.distanceAdd s t Reals.zero Reals.zero) \then
+  \return R.leLtTrans _ _ _ sumDistance (R.ltLeTrans _ _ _ (Estimates.addLt _ _ _ _ (timeBound s) (timeBound t))
+    (R.leReplaceLeft (Reals.mul Reals.half available) (Reals.add radius radius) available
+      (sym!{Reals.Real} _ _ (Estimates.halfTwice (Reals.mul Reals.half available)))
+      (Estimates.halfBelow available (R.Order[].leOfLt _ _ availablePositive))))
+};
+\definition sumLower[s, t: Time]: R.Lt (Reals.neg solution.radius) (Reals.add s t) :=
+  R.ltReplaceLeft (Reals.sub Reals.zero solution.radius) (Reals.neg solution.radius) _ (ArithmeticLaws.addZeroLeft (Reals.neg solution.radius))
+    (Distance.distanceLtLower Reals.zero (Reals.add s t) solution.radius
+      (R.ltReplaceLeft (Reals.distance (Reals.add s t) Reals.zero) (Reals.distance Reals.zero (Reals.add s t)) solution.radius
+        (Distance.distanceSymmetric (Reals.add s t) Reals.zero)
+        (R.ltLeTrans _ _ _ (sumAvailable s t) (Distance.minLeft solution.radius parameters.curveRadius))));
+\definition sumUpper[s, t: Time]: R.Lt (Reals.add s t) solution.radius :=
+  R.ltReplaceRight _ (Reals.add Reals.zero solution.radius) solution.radius (ArithmeticLaws.addZeroLeft solution.radius)
+    (Distance.distanceLtUpper Reals.zero (Reals.add s t) solution.radius
+      (R.ltReplaceLeft (Reals.distance (Reals.add s t) Reals.zero) (Reals.distance Reals.zero (Reals.add s t)) solution.radius
+        (Distance.distanceSymmetric (Reals.add s t) Reals.zero)
+        (R.ltLeTrans _ _ _ (sumAvailable s t) (Distance.minLeft solution.radius parameters.curveRadius))));
+\definition sumNear[s, t: Time]: R.Le (Norm.metric.distance (solution.value (Reals.add s t)) origin) Extension.radius :=
+  R.leTrans _ _ _ (R.Order[].leOfLt _ _ (curveControl.estimate (Reals.add s t)
+    (R.ltLeTrans _ _ _ (sumAvailable s t) (Distance.minRight solution.radius parameters.curveRadius))))
+    (Distance.minRight (Reals.mul Reals.half parameters.productRadius) Extension.radius);
+\module Shifted(s: Time);
+\import Equations.On[field := Extension.extension, initial := origin] \as Choice;
+\definition comparisonTime: Reals.Real := Distance.min Choice.time radius;
+\definition comparisonPositive: R.Lt Reals.zero comparisonTime := ProductBounds.minPositive _ _ Choice.timePositive radiusPositive;
+\definition comparisonStep: Equations.Step[Extension.extension] := Equations.Step[Extension.extension] {
+  time := \into[Reals.Real](comparisonTime, { t: Reals.Real \where R.Lt Reals.zero t }) \by { comparisonPositive },
+  contractionBound := R.leTrans _ _ _
+    (R.leReplace _ _ _ _ (ArithmeticLaws.fieldMulComm Extension.extension.coefficient comparisonTime) (ArithmeticLaws.fieldMulComm Extension.extension.coefficient Choice.time)
+      (Estimates.mulMonotone Extension.extension.coefficient comparisonTime Choice.time Choice.coefficientNonnegative (Distance.minLeft Choice.time radius))) Choice.contractionBound,
+  ballBound := R.leTrans _ _ _
+    (R.leReplace _ _ _ _ (ArithmeticLaws.fieldMulComm Extension.extension.bound comparisonTime) (ArithmeticLaws.fieldMulComm Extension.extension.bound Choice.time)
+      (Estimates.mulMonotone Extension.extension.bound comparisonTime Choice.time Choice.boundNonnegative (Distance.minLeft Choice.time radius))) Choice.ballBound,
+};
+\import Choice.Step[step := comparisonStep] \as ComparisonStep;
+\definition comparisonEdge: R.Lt ComparisonStep.edge radius := R.ltLeTrans _ comparisonTime radius
+  (R.leLtTrans _ (Reals.mul Reals.half comparisonTime) comparisonTime
+    (Estimates.halfBelow _ (R.Order[].leOfLt _ _ (Estimates.halfOfPositive comparisonTime comparisonPositive)))
+    (Estimates.halfStrict comparisonTime comparisonPositive)) (Distance.minRight Choice.time radius);
+\module Comparison(s: Time);
+\module Homomorphism;

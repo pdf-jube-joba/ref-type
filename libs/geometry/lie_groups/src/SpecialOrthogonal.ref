@@ -1,0 +1,46 @@
+/* The orientation-preserving orthogonal group is an open Lie subgroup. */
+\import \root.Euclidean[n := n] \as E;
+\import E.Orientation[] \as Orientation;
+\import E.Atlas[] \as Atlas;
+\import \root.OrthogonalAtlas[] \as Orthogonal;
+\import \root.OrthogonalOrientation[].Dimension[n := n] \as Signs;
+\import real.Analysis[] \as R;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition dimension: std.Data[].Nat[].Nat^ := Atlas.dimension;
+\definition data: Atlas.Data := Orthogonal.atlasData n;
+\import Atlas.On[data := data] \as Geometry;
+\import manifolds.ParametrizedAtlas[n := dimension, A := E.O] \as Parameters;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import Open.Topology[] \as OpenTopology;
+\import Open.Smooth[].Properties[] \as Properties;
+\import topology.Topology[Carrier := E.O] \as Space;
+\import topology.Continuity[A := E.O, B := R.Real] \as Continuity;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import \root.Classical[].On[V := E.Vector, space := E.space].Orthogonal[form := E.form].Special[n := n] \as Special;
+\definition determinantContinuous: Continuity.Continuous Geometry.topology Line.topology Orientation.determinant :=
+  \fun (W: \Pow R.Real)(open: _)(i: std.Data[].Nat[].Nat^) =>
+    OpenTopology.Of[U := (data.family.patch i).image].Continuity[].topological
+      (\fun (x: Open.Carrier (data.family.patch i).image) => Orientation.determinant (Parameters.value (data.family.patch i) x))
+      (Properties.continuous (data.family.patch i).image
+        (\fun (x: Open.Carrier (data.family.patch i).image) => Orientation.determinant (Parameters.value (data.family.patch i) x))
+        (Orientation.Plots[d := dimension].On[U := (data.family.patch i).image, f := Parameters.value (data.family.patch i), regular := data.parametrizations i].smooth)) W open;
+\definition positive: \Pow E.O := { g: E.O \where dedekind_reals.DedekindReal[].Lt R.zero (Orientation.determinant g) };
+\definition sameSubset: Special.subset = positive := \axiom:setext(Special.subset, positive,
+  \fun (g: E.O)(volume: _) => (Signs.positiveIff g).rtl ((Orientation.preservesIff g).ltr volume),
+  \fun (g: E.O)(positive: _) => (Orientation.preservesIff g).rtl ((Signs.positiveIff g).ltr positive));
+\definition openSubset: Space.IsOpenIn Geometry.topology Special.subset := \idelim positive = Special.subset
+  \with U: \Pow E.O => Space.IsOpenIn Geometry.topology U \by {
+    base: determinantContinuous (Rays.Above R.zero) (Rays.aboveOpen R.zero), equality: sym!{\Pow E.O} _ _ sameSubset
+  };
+\import manifolds.Dimension[n := dimension].Chart[M := E.O, space := Geometry.topology] \as Charts;
+\definition subset: Charts.OpenSubset := \into[\Pow E.O](Special.subset, Charts.OpenSubset) \by { openSubset };
+\import \root.Dimension[n := dimension].OnManifold[M := Geometry.manifold].On[G := Geometry.Lie[].group] \as Ambient;
+\import Ambient.OpenSubgroup[U := subset, closed := Special.subsetClosed] \as Construction;
+\import manifolds.Dimension[n := dimension].Smooth[] \as Model;
+\definition manifold: Model.Manifold := Construction.submanifold;
+\import \root.Dimension[n := dimension].OnManifold[M := manifold] \as Groups;
+\definition lieGroup: Groups.LieGroup := Construction.lieGroup;
+\definition underlyingGroup: std.Alg[].Alg[].Group[E.SO] := lieGroup;

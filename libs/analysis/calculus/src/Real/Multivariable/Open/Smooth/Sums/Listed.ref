@@ -1,0 +1,12 @@
+\import std.Data[].List[] \as List;
+\import linear_algebra.Field[].Space[K := Real, field := real.Analysis[].Algebra[].field].Sums[I := I] \as Values;
+\definition sum[U: OpenSet][indices: List.List[I]][functions: I -> ScalarFunction U]: ScalarFunction U :=
+  \fun (x: Carrier U) => Values.sum indices (\fun (i: I) => functions i x);
+\definition smooth: \forall (U: OpenSet)(indices: List.List[I])(functions: I -> ScalarFunction U) ->
+  (\forall (i: I) -> SmoothOn U (functions i)) -> SmoothOn U (sum U indices functions) :=
+  \fun (U: OpenSet) => \induction (indices: List.List[I]) \return \forall (functions: I -> ScalarFunction U) ->
+    (\forall (i: I) -> SmoothOn U (functions i)) -> SmoothOn U (sum U indices functions) \with {
+      | nil: \fun (functions: _)(regular: _) => Operations.constantSmooth U zero
+      | cons: \fun (head: I)(tail: List.List[I])(previous: _)(functions: _)(regular: _) =>
+        Operations.addSmooth U (functions head) (sum U tail functions) (regular head) (previous functions regular)
+    };

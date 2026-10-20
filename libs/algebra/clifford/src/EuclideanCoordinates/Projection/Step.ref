@@ -1,0 +1,23 @@
+\import \root.Euclidean[n := n] \as E;
+\import \root.Euclidean[n := N.Nat^::succ n] \as Next;
+\import E.Successor[].NormalForm[] \as Normal;
+\import Normal.Representation[] \as Recovery;
+\import Normal.Operations[] \as Operations;
+\import Fin.Tuples[A := R.Real] \as Tuples;
+\module On(previous: Data[n]) {
+  \definition read[x: Next.Carrier]: Next.Vector := Tuples.extend n (ScalarPart.read n (Recovery.right x)) (previous.read (Recovery.left x));
+  \definition leftVector: \forall (v: Next.Vector) -> Recovery.left (Next.iota v) = E.iota (E.Successor[].tail v) := \fun (v: Next.Vector) =>
+    trans!{E.Carrier} _ _ _ (congr!{Next.Carrier E.Carrier} Recovery.left _ _ (sym!{Next.Carrier} _ _ (Operations.vector v)))
+      (Recovery.leftValue (E.iota (E.Successor[].tail v)) (E.scalar (E.Successor[].head v)));
+  \definition rightVector: \forall (v: Next.Vector) -> Recovery.right (Next.iota v) = E.scalar (E.Successor[].head v) := \fun (v: Next.Vector) =>
+    trans!{E.Carrier} _ _ _ (congr!{Next.Carrier E.Carrier} Recovery.right _ _ (sym!{Next.Carrier} _ _ (Operations.vector v)))
+      (Recovery.rightValue (E.iota (E.Successor[].tail v)) (E.scalar (E.Successor[].head v)));
+  \definition onVector: \forall (v: Next.Vector) -> read (Next.iota v) = v := \fun (v: Next.Vector) =>
+    Tuples.extensionality n (read (Next.iota v)) v
+      (trans!{R.Real} _ _ _ (Tuples.atZero n (ScalarPart.read n (Recovery.right (Next.iota v))) (previous.read (Recovery.left (Next.iota v))))
+        (trans!{R.Real} _ _ _ (congr!{E.Carrier R.Real} (ScalarPart.read n) _ _ (rightVector v)) (ScalarPart.onScalar n (E.Successor[].head v))))
+      (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _ (Tuples.atSuccessor n (ScalarPart.read n (Recovery.right (Next.iota v))) (previous.read (Recovery.left (Next.iota v))) i)
+        (congr!{E.Vector R.Real} (\fun (x: E.Vector) => x i) _ _
+          (trans!{E.Vector} _ _ _ (congr!{E.Carrier E.Vector} previous.read _ _ (leftVector v)) (previous.onVector (E.Successor[].tail v)))));
+  \definition value: Data[N.Nat^::succ n] := Data[N.Nat^::succ n] { read := read, onVector := onVector };
+}

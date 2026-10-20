@@ -1,0 +1,66 @@
+\definition patch[i: N.Nat^]: Patch := family.patch i;
+\definition Parameter[i: N.Nat^]: \Set := Open.Carrier ((patch i).image);
+\definition point[i: N.Nat^][x: Parameter i]: A := (patch i).point x;
+\definition parameterTopology[i: N.Nat^]: topology.Structures[].Topology[Parameter i] := OpenTopology.Of[U := (patch i).image].topology;
+\definition Pullback[i: N.Nat^][S: \Pow A]: \Pow (Parameter i) := { x: Parameter i \where \In[A] S (point i x) };
+\definition IsOpen[S: \Pow A]: \Prop := \forall (i: N.Nat^) -> topology.Topology[Carrier := Parameter i].IsOpenIn (parameterTopology i) (Pullback i S);
+\definition data: Space.TopologyData := Space.TopologyData {
+  openSets := { S: \Pow A \where IsOpen S },
+};
+\definition pullbackUnion[i: N.Nat^][sets: \Pow (\Pow A)]: \Pow (\Pow (Parameter i)) :=
+  { W: \Pow (Parameter i) \where \exists ( S: \Pow A \where Logic.And[\In[\Pow A] sets S, W = Pullback i S] ) };
+\definition unionEquality: \forall (i: N.Nat^)(sets: \Pow (\Pow A)) -> Pullback i (Space.Union sets) =
+  topology.Topology[Carrier := Parameter i].Union (pullbackUnion i sets) := \fun (i: N.Nat^)(sets: _) =>
+  \axiom:setext(Pullback i (Space.Union sets), topology.Topology[Carrier := Parameter i].Union (pullbackUnion i sets),
+    \fun (x: Parameter i)(member: _) => Space.unionMemberElim sets (point i x)
+      (\In[Parameter i] (topology.Topology[Carrier := Parameter i].Union (pullbackUnion i sets)) x)
+      (\fun (S: \Pow A)(selected: _)(inside: _) => topology.Topology[Carrier := Parameter i].unionMemberOf
+        (pullbackUnion i sets) (Pullback i S) x
+        (Logic.existsIntro[\Pow A, { T: \Pow A \where Logic.And[\In[\Pow A] sets T, Pullback i S = Pullback i T] }] S
+          (Logic.And[_, _]::# selected (\refl(Pullback i S)))) inside) member,
+    \fun (x: Parameter i)(member: _) => topology.Topology[Carrier := Parameter i].unionMemberElim
+      (pullbackUnion i sets) x (\In[A] (Space.Union sets) (point i x)) (\block {
+        \fun (W: \Pow (Parameter i))(selected: _)(inside: _) \then
+        \takefrom S: \Cast[\Pow A] ({ S: \Pow A \where Logic.And[\In[\Pow A] sets S, W = Pullback i S] }) \by selected \then
+        \let evidence: Logic.And[\In[\Pow A] sets S, W = Pullback i S] := \bysub(\Pow A,
+          { S: \Pow A \where Logic.And[\In[\Pow A] sets S, W = Pullback i S] }, S) \then
+        \return Space.unionMemberOf sets S (point i x) evidence.left
+          (\idelim W = Pullback i S \with V: \Pow (Parameter i) => \In[Parameter i] V x \by {
+            base: inside, equality: evidence.right
+          })
+      }) member);
+\definition laws: Space.TopologyLaws[data] := Space.TopologyLaws[data] {
+  emptyOpen := \fun (i: N.Nat^) => (topology.Topology[Carrier := Parameter i].topologyLaws (parameterTopology i)).emptyOpen,
+  wholeOpen := \fun (i: N.Nat^) => \idelim topology.Topology[Carrier := Parameter i].Whole = Pullback i Space.Whole
+    \with W: \Pow (Parameter i) => topology.Topology[Carrier := Parameter i].IsOpenIn (parameterTopology i) W \by {
+      base: (topology.Topology[Carrier := Parameter i].topologyLaws (parameterTopology i)).wholeOpen,
+      equality: \axiom:setext(topology.Topology[Carrier := Parameter i].Whole, Pullback i Space.Whole,
+        \fun (x: Parameter i)(_: _) => \refl(point i x), \fun (x: Parameter i)(_: _) => \refl(x))
+    },
+  intersectionOpen := \fun (S, T: \Pow A)(openS: IsOpen S)(openT: IsOpen T)(i: N.Nat^) =>
+    (topology.Topology[Carrier := Parameter i].topologyLaws (parameterTopology i)).intersectionOpen
+      (Pullback i S) (Pullback i T) (openS i) (openT i),
+  unionOpen := \fun (sets: \Pow (\Pow A))(allOpen: _)(i: N.Nat^) => \idelim
+    topology.Topology[Carrier := Parameter i].Union (pullbackUnion i sets) = Pullback i (Space.Union sets)
+    \with W: \Pow (Parameter i) => topology.Topology[Carrier := Parameter i].IsOpenIn (parameterTopology i) W \by {
+      base: (topology.Topology[Carrier := Parameter i].topologyLaws (parameterTopology i)).unionOpen (pullbackUnion i sets) (\block {
+        \fun (W: \Pow (Parameter i))(selected: _) \then
+        \takefrom S: \Cast[\Pow A] ({ S: \Pow A \where Logic.And[\In[\Pow A] sets S, W = Pullback i S] }) \by selected \then
+        \let evidence: Logic.And[\In[\Pow A] sets S, W = Pullback i S] := \bysub(\Pow A,
+          { S: \Pow A \where Logic.And[\In[\Pow A] sets S, W = Pullback i S] }, S) \then
+        \return \idelim Pullback i S = W \with V: \Pow (Parameter i) => topology.Topology[Carrier := Parameter i].IsOpenIn (parameterTopology i) V \by {
+          base: allOpen S evidence.left i, equality: sym!{\Pow (Parameter i)} _ _ evidence.right
+        }
+      }),
+      equality: sym!{\Pow (Parameter i)} _ _ (unionEquality i sets)
+    },
+};
+\definition topology: Space.Topology := \into[Space.TopologyData](data, Space.Topology) \by { laws };
+\definition Image[i: N.Nat^][W: \Pow (Parameter i)]: \Pow A :=
+  { a: A \where \exists ( x: Parameter i \where Logic.And[\In[Parameter i] W x, point i x = a] ) };
+\definition OpenEmbeddings: \Prop := \forall (i: N.Nat^)(W: \Pow (Parameter i)) ->
+  topology.Topology[Carrier := Parameter i].IsOpenIn (parameterTopology i) W -> Space.IsOpenIn topology (Image i W);
+\module Of(openEmbeddings: OpenEmbeddings);
+\definition Transitions: \Prop := \forall (i, j: N.Nat^)(a: Parameter j) -> \In[A] ((patch i).domain) (point j a) ->
+  \exists \parent.Read[d := n].On[p := patch i, U := (patch j).image, f := point j, a := a].Witness;
+\module Refined(transitions: Transitions);

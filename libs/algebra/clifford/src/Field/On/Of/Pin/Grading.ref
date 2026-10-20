@@ -1,0 +1,58 @@
+\import \parent.\parent.Grading[] \as Grade;
+\definition vectorValue: \forall (x: Units.Unit) -> VectorGenerator x -> Grade.map x.value = neg x.value :=
+  \induction (x: Units.Unit)(generator: VectorGenerator x) \return Grade.map x.value = neg x.value \with {
+    | positive: \fun (v: Positive) => Grade.onVector v
+    | negative: \fun (v: Negative) => Grade.onVector v
+  };
+\definition minusValue[x: Units.Unit]: (Units.product Units.minusOne x).value = neg x.value :=
+  trans!{Carrier} _ _ _ (Units.negMul one x.value) (congr!{Carrier Carrier} neg _ _ (Presented.oneLeft x.value));
+\definition vectorSign: \forall (x: Units.Unit) -> VectorGenerator x -> Grade.onUnit x = Units.product Units.minusOne x :=
+  \fun (x: Units.Unit)(generator: _) => Units.ext _ _ (trans!{Carrier} _ _ _ (vectorValue x generator) (sym!{Carrier} _ _ (minusValue x)));
+\definition preimage: \Pow Units.Unit := { x: Units.Unit \where \In[Units.Unit] predicate (Grade.onUnit x) };
+\definition preimageClosed: Ambient.Closed[preimage] := Ambient.Closed[preimage] {
+  one := \idelim Units.unit = Grade.onUnit Units.unit \with x: Units.Unit => \In[Units.Unit] predicate x \by {
+    base: closed.one, equality: sym!{{Units.Unit}} _ _ Grade.unitOne
+  },
+  mul := \fun (x, y: Units.Unit)(left: _)(right: _) =>
+    \idelim Units.product (Grade.onUnit x) (Grade.onUnit y) = Grade.onUnit (Units.product x y)
+    \with z: Units.Unit => \In[Units.Unit] predicate z \by {
+      base: closed.mul (Grade.onUnit x) (Grade.onUnit y) left right, equality: sym!{{Units.Unit}} _ _ (Grade.unitProduct x y)
+    },
+  inv := \fun (x: Units.Unit)(member: _) => \idelim Units.inverse (Grade.onUnit x) = Grade.onUnit (Units.inverse x)
+    \with z: Units.Unit => \In[Units.Unit] predicate z \by {
+      base: closed.inv (Grade.onUnit x) member, equality: sym!{{Units.Unit}} _ _ (Grade.unitInverse x)
+    },
+};
+\definition onGenerator: \forall (x: Units.Unit) -> Generator x -> \In[Units.Unit] preimage x :=
+  \induction (x: Units.Unit)(generator: Generator x) \return \In[Units.Unit] preimage x \with {
+    | sign: \idelim Units.minusOne = Grade.onUnit Units.minusOne \with y: Units.Unit => \In[Units.Unit] predicate y \by {
+      base: generatorInPin Units.minusOne Generator::sign, equality: sym!{{Units.Unit}} _ _ Grade.unitSign
+    }
+    | vector: \fun (x: Units.Unit)(generator: VectorGenerator x) =>
+      \idelim Units.product Units.minusOne x = Grade.onUnit x \with y: Units.Unit => \In[Units.Unit] predicate y \by {
+        base: closed.mul Units.minusOne x (generatorInPin Units.minusOne Generator::sign) (vectorInPin x generator),
+        equality: sym!{{Units.Unit}} _ _ (vectorSign x generator)
+      }
+  };
+\definition preserves: \forall (x: Pin) -> \In[Units.Unit] predicate (Grade.onUnit x) := \fun (x: Pin) =>
+  (\bysub(Units.Unit, predicate, x)) preimage preimageClosed onGenerator;
+\definition map[x: Pin]: Pin := \into[Units.Unit](Grade.onUnit x, predicate) \by { preserves x };
+\definition involutive: \forall (x: Pin) -> map (map x) = x := \fun (x: Pin) => Grade.unitInvolutive x;
+\definition fixed: \Pow Units.Unit := { x: Units.Unit \where Grade.onUnit x = x };
+\definition fixedClosed: Ambient.Closed[fixed] := Ambient.Closed[fixed] {
+  one := Grade.unitOne,
+  mul := \fun (x, y: Units.Unit)(left: Grade.onUnit x = x)(right: Grade.onUnit y = y) => trans!{{Units.Unit}} _ _ _
+    (Grade.unitProduct x y) (congr2!{{Units.Unit} {Units.Unit} {Units.Unit}} Units.product _ _ _ _ left right),
+  inv := \fun (x: Units.Unit)(member: Grade.onUnit x = x) => trans!{{Units.Unit}} _ _ _
+    (Grade.unitInverse x) (congr!{{Units.Unit} {Units.Unit}} Units.inverse _ _ member),
+};
+\definition pairFixed: \forall (x, y: Units.Unit) -> VectorGenerator x -> VectorGenerator y -> Grade.onUnit (Units.product x y) = Units.product x y :=
+  \fun (x, y: Units.Unit)(left: _)(right: _) => Units.ext _ _ (trans!{Carrier} _ _ _ (Grade.laws.mul x.value y.value)
+    (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} mul _ _ _ _ (vectorValue x left) (vectorValue y right)) (Units.negNegMul x.value y.value)));
+\definition evenGeneratorFixed: \forall (x: Units.Unit) -> EvenGenerator x -> \In[Units.Unit] fixed x :=
+  \induction (x: Units.Unit)(generator: EvenGenerator x) \return \In[Units.Unit] fixed x \with {
+    | sign: Grade.unitSign
+    | pair: pairFixed
+  };
+\definition spinFixed: \forall (x: Spin) -> Grade.onUnit x = x := \fun (x: Spin) =>
+  (evenMembership x) fixed fixedClosed evenGeneratorFixed;

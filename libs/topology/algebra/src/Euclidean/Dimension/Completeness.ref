@@ -1,0 +1,41 @@
+\import \parent.Norm[] \as Norm;
+\import \parent.Def[] \as Def;
+\import metric_spaces.MetricSpace[Carrier := Point] \as Metrics;
+\import Metrics.Sequences[metric := Norm.metric] \as Sequences;
+\import real.Analysis[].Sequence[] \as RealSequences;
+\import Fin.Thresholds[] \as Thresholds;
+\definition CauchySequence: \Set := \Cast[N.Nat^ -> Point] ({ s: N.Nat^ -> Point \where Sequences.Cauchy s });
+\definition pointwiseCauchy: \forall (s: CauchySequence)(i: Coordinate) -> RealSequences.Cauchy (\fun (m: N.Nat^) => s m i) := \block {
+  \fun (s: CauchySequence)(i: Coordinate)(epsilon: Real)(positive: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequences.Control s epsilon k })
+    \by (\bysub(N.Nat^ -> Point, { s: N.Nat^ -> Point \where Sequences.Cauchy s }, s)) epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where RealSequences.Control (\fun (m: N.Nat^) => s m i) epsilon k }] k
+    (\fun (m, l: N.Nat^)(hm: _)(hl: _) => R.leLtTrans _ _ _ (Norm.coordinateDistance (s m) (s l) i)
+      ((\bysub(N.Nat^, { k: N.Nat^ \where Sequences.Control s epsilon k }, k)) m l hm hl))
+};
+\definition component[s: CauchySequence][i: Coordinate]: RealSequences.CauchySequence := \into[N.Nat^ -> Real]((\fun (m: N.Nat^) => s m i),
+  { s: N.Nat^ -> Real \where RealSequences.Cauchy s }) \by { pointwiseCauchy s i };
+\definition limit[s: CauchySequence]: Point := \fun (i: Coordinate) => RealSequences.limit (component s i);
+\definition convergesOfCoordinates: \forall (s: N.Nat^ -> Point)(x: Point) ->
+  (\forall (i: Coordinate) -> RealSequences.Converges (\fun (m: N.Nat^) => s m i) (x i)) -> Sequences.Converges s x := \block {
+  \fun (s: N.Nat^ -> Point)(x: Point)(coordinates: _)(epsilon: Real)(positive: _) \then
+  \let P: Coordinate -> N.Nat^ -> \Prop := \fun (i: Coordinate)(m: N.Nat^) => R.Lt (distance (s m i) (x i)) epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Thresholds.Uniform n P k })
+    \by Thresholds.finite n P (\fun (i: Coordinate) => coordinates i epsilon positive) \then
+  \let all: Thresholds.Uniform n P k := \bysub(N.Nat^, { k: N.Nat^ \where Thresholds.Uniform n P k }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequences.Near s x epsilon k }] k
+    (\fun (m: N.Nat^)(later: _) => Norm.finiteStrictUpper n (Def.subPoint (s m) x) epsilon positive
+      (\fun (i: Coordinate) => R.ltReplaceLeft (distance (s m i) (x i)) (distance (sub (s m i) (x i)) zero) epsilon
+        (sym!{Real} _ _ (Norm.distanceDifference (s m i) (x i))) (all i m later)))
+};
+\definition limitLaw: \forall (s: CauchySequence) -> Sequences.Converges s (limit s) :=
+  \fun (s: CauchySequence) => convergesOfCoordinates s (limit s) (\fun (i: Coordinate) => RealSequences.limitLaw (component s i));
+\definition metric: Metrics.CompleteMetric := \into[Metrics.Metric](Norm.metric,
+  { metric: Metrics.Metric \where Metrics.Completeness[metric] }) \by {
+    Metrics.Completeness[Norm.metric] {
+      converges := \fun (s: N.Nat^ -> Point)(cauchy: Sequences.Cauchy s) => \block {
+        \let sequence: CauchySequence := \into[N.Nat^ -> Point](s, { s: N.Nat^ -> Point \where Sequences.Cauchy s }) \by { cauchy } \then
+        \return Logic.existsIntro[Point, { x: Point \where Sequences.Converges s x }] (limit sequence) (limitLaw sequence)
+      },
+    }
+  };

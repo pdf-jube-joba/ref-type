@@ -1,0 +1,26 @@
+\import \root.Real[] \as Reals;
+\import Reals.Multivariable[n := n].Open[] \as Open;
+\import Open.Whole[] \as Whole;
+\import Open.Examples[] \as Examples;
+\import Open.Smooth[].Operations[] \as Operations;
+\import \root.Maps[n := n, m := n] \as Maps;
+\import \root.Vector[n := n, m := n] \as Vector;
+\import \root.Identity[n := n] \as Identity;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Coordinates;
+\import Coordinates.Def[] \as Def;
+\import std.Data[].FinSet[] \as Fin;
+\definition map[U: Open.OpenSet][c: Coordinates.Point]: Maps.Map U Open.whole := \into[Maps.Data[U, Open.whole]](Maps.Data[U, Open.whole] {
+  apply := \fun (x: Open.Carrier U) => Whole.point (Def.addPoint c x),
+}, { data: Maps.Data[U, Open.whole] \where Maps.Laws[U, Open.whole, data] }) \by {
+  Maps.Laws[U, Open.whole, Maps.Data[U, Open.whole]::# (\fun (x: Open.Carrier U) => Whole.point (Def.addPoint c x))] {
+    smooth := \fun (i: Fin.Fin n) => Operations.addSmooth U (\fun (x: Open.Carrier U) => c i) (\fun (x: Open.Carrier U) => x i)
+      (Examples.constantSmooth U (c i)) (Examples.projectionSmooth U i),
+  }
+};
+\definition differential: \forall (U: Open.OpenSet)(c: Coordinates.Point)(a: Open.Carrier U) ->
+  Maps.Differential[U := U, V := Open.whole, f := map U c, a := a].value = Identity.linear :=
+  \fun (U: Open.OpenSet)(c: Coordinates.Point)(a: Open.Carrier U) =>
+    Vector.Differential[U := U, f := (\fun (x: Open.Carrier U) => Maps.apply U Open.whole (map U c) x), a := a,
+      d := Maps.Differential[U := U, V := Open.whole, f := map U c, a := a].value].uniqueness Identity.linear
+        (Maps.Differential[U := U, V := Open.whole, f := map U c, a := a].vectorLaw)
+        (Vector.affineDifferential U c Identity.linear a);

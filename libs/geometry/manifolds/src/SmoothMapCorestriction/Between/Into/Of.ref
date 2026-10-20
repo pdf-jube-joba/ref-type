@@ -1,0 +1,26 @@
+\import topology.Continuity[A := M.Point, B := N.Point].Corestriction[S := U] \as Topology;
+\definition value[x: M.Point]: manifold.Point := \into[N.Point](OriginalMaps.apply f x, U) \by { inside x };
+\definition data: Maps.Data := Maps.Data { apply := value };
+\definition continuous: Maps.ContinuousMap := \into[Maps.Data](data, { h: Maps.Data \where Maps.Continuous h }) \by {
+  Topology.corestrictContinuous M.space N.space value (\bysub(OriginalMaps.Data, { h: OriginalMaps.Data \where OriginalMaps.Continuous h }, f))
+};
+\definition sourceAtlas: Small.SourceAtlas := \into[SourceAtlases.Atlas](M.atlas, Small.SourceAtlas) \by {
+  \fun (c: SourceCharts.Chart)(member: _) => member
+};
+\definition targetAtlas: Small.TargetAtlas := \into[Atlases.Atlas](Restricted.atlas, Small.TargetAtlas) \by {
+  \fun (c: Charts.Chart)(member: _) => Atlases.includedInSaturation Restricted.atlas c member
+};
+\import Small.On[source := sourceAtlas, target := targetAtlas] \as SmallAtlas;
+\import SmallAtlas.Of[f := continuous] \as Check;
+\module InChart(left: SmallAtlas.SourceChart, right: Restricted.OriginalChart);
+\definition small: Check.InSmallAtlas := \block {
+  \fun (left: SmallAtlas.SourceChart)(right: SmallAtlas.TargetChart) \then
+  \takefrom original: \Cast[Restricted.OriginalChart] ({ c: Restricted.OriginalChart \where Restricted.restricted c = right })
+    \by \bysub(Charts.Chart, targetAtlas.charts, right) \then
+  \return \idelim Restricted.restricted original = right \with c: Charts.Chart => Maps.Coordinates[f := continuous, left := left, right := c].Smooth \by {
+    base: InChart[left := left, right := original].smooth,
+    equality: \bysub(Restricted.OriginalChart, { c: Restricted.OriginalChart \where Restricted.restricted c = right }, original)
+  }
+};
+\definition map: Maps.Map := Check.value small;
+\definition apply: Maps.apply map = value := \refl(value);

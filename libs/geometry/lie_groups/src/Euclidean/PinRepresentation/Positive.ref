@@ -1,0 +1,53 @@
+\import CoveringGroups.Reflection[].Positive[v := v] \as Reflection;
+\definition value: Vector -> Vector := Reflection.value;
+\definition generator: Units.Unit := CoveringGroups.positive v;
+\definition linear: End.Carrier := End.Carrier {
+  apply := value,
+  preservesAdd := \fun (x, y: Vector) => cliffordVectorInjective (value (space.add x y)) (space.add (value x) (value y))
+    (trans!{CliffordAlgebra} _ _ _ (sym!{CliffordAlgebra} _ _ (Reflection.action (space.add x y)))
+      (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} (Grade.action generator) _ _ (Clifford.injection.preservesAdd x y))
+        (trans!{CliffordAlgebra} _ _ _ (Grade.actionAdd generator (Clifford.iota x) (Clifford.iota y))
+          (trans!{CliffordAlgebra} _ _ _ (congr2!{CliffordAlgebra CliffordAlgebra CliffordAlgebra} Clifford.add _ _ _ _ (Reflection.action x) (Reflection.action y))
+            (sym!{CliffordAlgebra} _ _ (Clifford.injection.preservesAdd (value x) (value y))))))),
+  preservesScale := \fun (a: R.Real)(x: Vector) => cliffordVectorInjective (value (space.smul a x)) (space.smul a (value x))
+    (trans!{CliffordAlgebra} _ _ _ (sym!{CliffordAlgebra} _ _ (Reflection.action (space.smul a x)))
+      (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} (Grade.action generator) _ _ (Clifford.injection.preservesScale a x))
+        (trans!{CliffordAlgebra} _ _ _ (Grade.actionScale generator a (Clifford.iota x))
+          (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} (Clifford.scale a) _ _ (Reflection.action x))
+            (sym!{CliffordAlgebra} _ _ (Clifford.injection.preservesScale a (value x))))))),
+};
+\definition generatorSquare: Units.product generator generator = Units.unit := Units.ext _ _ generator.right;
+\definition involutive: \forall (x: Vector) -> value (value x) = x := \fun (x: Vector) => cliffordVectorInjective _ _
+  (trans!{CliffordAlgebra} _ _ _ (sym!{CliffordAlgebra} _ _ (Reflection.action (value x)))
+    (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} (Grade.action generator) _ _ (sym!{CliffordAlgebra} _ _ (Reflection.action x)))
+      (trans!{CliffordAlgebra} _ _ _ (sym!{CliffordAlgebra} _ _ (Grade.actionProduct generator generator (Clifford.iota x)))
+        (trans!{CliffordAlgebra} _ _ _ (congr!{{Units.Unit} CliffordAlgebra} (\fun (g: Units.Unit) => Grade.action g (Clifford.iota x)) _ _ generatorSquare)
+          (Grade.actionOne (Clifford.iota x))))));
+\definition halfDouble[x: R.Real]: R.mul R.half (R.add x x) = x := trans!{R.Real} _ _ _ (Arithmetic.fieldMulAdd R.half x x) (Estimates.halfTwice x);
+\definition preserves: \forall (x, y: Vector) -> dot (value x) (value y) = dot x y := \block {
+  \fun (x, y: Vector) \then
+  \let a: R.Real := dot (value x) (value y) \then
+  \let b: R.Real := dot x y \then
+  \let polar: Relations.polar (value x) (value y) = Relations.polar x y := cliffordScalarInjective _ _ (Reflection.preservesPolar x y) \then
+  \let doubled: R.add a a = R.add b b := trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.add a) _ _ (symmetric (value x) (value y)))
+    (trans!{R.Real} _ _ _ polar (congr!{R.Real R.Real} (R.add b) _ _ (sym!{R.Real} _ _ (symmetric x y)))) \then
+  \return trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (halfDouble a))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul R.half) _ _ doubled) (halfDouble b))
+};
+\definition unit: Isometries.Unit := Isometries.Unit {
+  value := linear, inverse := linear,
+  left := End.ext (End.mul linear linear) End.one involutive,
+  right := End.ext (End.mul linear linear) End.one involutive,
+};
+\definition orthogonal: O := \into[Isometries.Unit](unit, Orthogonal.predicate) \by { preserves };
+\definition existsLift: \exists Lifts generator := \exact(\into[O](orthogonal, Lifts generator) \by { Reflection.action }, Lifts generator);
+\import Spaces.Linear[V := Vector, W := CliffordAlgebra, source := space, target := Clifford.vectorSpace].Operations[] \as InjectionLaws;
+\definition selfNegative: value v = space.neg v := cliffordVectorInjective _ _ (trans!{CliffordAlgebra} _ _ _
+  (sym!{CliffordAlgebra} _ _ (Reflection.action v))
+  (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} (\fun (a: CliffordAlgebra) => Clifford.mul (Clifford.mul a (Clifford.iota v)) (Clifford.iota v)) _ _ (Grade.onVector v))
+    (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} (\fun (a: CliffordAlgebra) => Clifford.mul a (Clifford.iota v)) _ _
+      (trans!{CliffordAlgebra} _ _ _ (Units.negMul (Clifford.iota v) (Clifford.iota v)) (congr!{CliffordAlgebra CliffordAlgebra} Clifford.neg _ _ generator.right)))
+      (trans!{CliffordAlgebra} _ _ _ (Units.negMul Clifford.one (Clifford.iota v))
+        (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} Clifford.neg _ _ (Clifford.ring.semiring.multiplicative.leftIdentity (Clifford.iota v)))
+          (sym!{CliffordAlgebra} _ _ (InjectionLaws.preservesNeg Clifford.injection v)))))));

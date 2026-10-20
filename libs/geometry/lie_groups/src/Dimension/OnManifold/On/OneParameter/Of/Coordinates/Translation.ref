@@ -1,0 +1,55 @@
+/* Differentiating f(a+t)=f(a)f(t) in a common coordinate neighborhood. */
+\import \root.Dimension[n := n].OnManifold[M := manifold].On[G := G].LocalProduct[chart := chart] \as Product;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as TimeArithmetic;
+\definition coordinate: calculus.Real[].Multivariable[n := n].Open[].Carrier chart.image := Maps.apply domain chart.image map a;
+\import Product.Translation[g := coordinate] \as Left;
+\import calculus.Maps[n := lineDimension, m := lineDimension] \as TimeMaps;
+\import calculus.Translation[n := lineDimension] \as TimeTranslations;
+\definition shift: TimeMaps.Map LineOpen.whole LineOpen.whole := TimeTranslations.map LineOpen.whole a;
+\import TimeMaps.Preimage[U := LineOpen.whole, W := LineOpen.whole, V := domain, f := shift] \as ShiftDomain;
+\import Maps.Preimage[U := domain, W := chart.image, V := Left.domain, f := map] \as ProductDomain;
+\definition common: LineOpen.OpenSet := LineOpen.intersection ShiftDomain.domain ProductDomain.domain;
+\definition inShift: LineOpen.Included common ShiftDomain.domain := LineOpen.intersectionLeft ShiftDomain.domain ProductDomain.domain;
+\definition inProduct: LineOpen.Included common ProductDomain.domain := LineOpen.intersectionRight ShiftDomain.domain ProductDomain.domain;
+\definition shiftPoint[x: LineOpen.Carrier common]: LineOpen.Carrier ShiftDomain.domain := LineOpen.inclusion common ShiftDomain.domain inShift x;
+\definition productPoint[x: LineOpen.Carrier common]: LineOpen.Carrier ProductDomain.domain := LineOpen.inclusion common ProductDomain.domain inProduct x;
+\import TimeMaps.Restriction[U := common, V := ShiftDomain.domain, W := domain] \as ShiftRestriction;
+\import Maps.Restriction[U := common, V := ProductDomain.domain, W := Left.domain] \as ProductRestriction;
+\definition shifted: TimeMaps.Map common domain := ShiftRestriction.input inShift ShiftDomain.map;
+\definition input: Maps.Map common Left.domain := ProductRestriction.input inProduct ProductDomain.map;
+\import TimeMaps.Composition[U := common, V := domain, f := shifted].After[l := n, W := chart.image, g := map] \as Shifted;
+\import Maps.Composition[U := common, V := Left.domain, f := input].After[l := n, W := chart.image, g := Left.map] \as Translated;
+\definition pointwise: \forall (x: LineOpen.Carrier common) -> Maps.apply common chart.image Shifted.compose x = Maps.apply common chart.image Translated.compose x := \block {
+  \fun (x: LineOpen.Carrier common) \then
+  \let shiftedPoint: LineOpen.Carrier domain := TimeMaps.apply common domain shifted x \then
+  \let inputPoint: calculus.Real[].Multivariable[n := n].Open[].Carrier Left.domain := Maps.apply common Left.domain input x \then
+  \let first: TargetCharts.point chart (Maps.apply common chart.image Shifted.compose x) =
+    mul (Curves.apply f.map (time (a (Fin.zero N.Nat^::zero)))) (Curves.apply f.map (time (x (Fin.zero N.Nat^::zero)))) :=
+    trans!{Point} _ _ _ (returnsPoint shiftedPoint) (f.addition (a (Fin.zero N.Nat^::zero)) (x (Fin.zero N.Nat^::zero))) \then
+  \let second: TargetCharts.point chart (Maps.apply common chart.image Translated.compose x) =
+    mul (Curves.apply f.map (time (a (Fin.zero N.Nat^::zero)))) (Curves.apply f.map (time (x (Fin.zero N.Nat^::zero)))) :=
+    trans!{Point} _ _ _ (Left.formula inputPoint) (congr2!{Point Point Point} mul _ _ _ _ (returnsPoint a) (returnsPoint (ProductDomain.input (productPoint x)))) \then
+  \return ChartLaws.pointInjective _ _ (trans!{Point} _ _ _ first (sym!{Point} _ _ second))
+};
+\definition equal: Shifted.compose = Translated.compose := Maps.ext common chart.image Shifted.compose Translated.compose
+  (\axiom:funext(Maps.apply common chart.image Shifted.compose, Maps.apply common chart.image Translated.compose, pointwise));
+\definition shiftedZero: TimeMaps.apply LineOpen.whole LineOpen.whole shift (time Reals.zero) = a := \block {
+  \let left: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point := TimeMaps.apply LineOpen.whole LineOpen.whole shift (time Reals.zero) \then
+  \let right: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point := a \then
+  \return \axiom:funext(left, right, \fun (j: Fin.Fin lineDimension) => TimeArithmetic.addZeroRight (a j))
+};
+\definition inShiftAtZero: \In[topological_algebra.Euclidean[].Dimension[n := lineDimension].Point] ShiftDomain.domain.points zero := ShiftDomain.intro (time Reals.zero)
+  (\idelim a = TimeMaps.apply LineOpen.whole LineOpen.whole shift (time Reals.zero) \with p: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point =>
+    \In[topological_algebra.Euclidean[].Dimension[n := lineDimension].Point] domain.points p \by {
+      base: \bysub(topological_algebra.Euclidean[].Dimension[n := lineDimension].Point, domain.points, a),
+      equality: sym!{{topological_algebra.Euclidean[].Dimension[n := lineDimension].Point}} _ _ shiftedZero
+    });
+\definition inProductAtZero: \In[topological_algebra.Euclidean[].Dimension[n := lineDimension].Point] ProductDomain.domain.points zero := ProductDomain.intro zero
+  (\idelim AtOne.coordinate chart = Maps.apply domain chart.image map zero \with p: topological_algebra.Euclidean[].Dimension[n := n].Point =>
+    \In[topological_algebra.Euclidean[].Dimension[n := n].Point] Left.domain.points p \by {
+      base: Left.containsOrigin, equality: sym!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ atZero
+    });
+\definition initial: LineOpen.Carrier common := \into[topological_algebra.Euclidean[].Dimension[n := lineDimension].Point](zero, common.points) \by {
+  Logic.And[_, _]::# inShiftAtZero inProductAtZero
+};
+\module Differential;

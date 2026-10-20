@@ -35,6 +35,8 @@
 | [algebra/integer_matrices](algebra/integer_matrices/README.md) | `integer_matrices` | 整数行列の演算、Smith 標準形と変換行列 |
 | [algebra/finitely_generated_modules](algebra/finitely_generated_modules/README.md) | `finitely_generated_modules` | 整数の核・像・部分加群の基底、巡回加群、体上の有限次元部分空間 |
 | [algebra/linear_algebra](algebra/linear_algebra/README.md) | `linear_algebra` | 体上の線形代数、多重線形・外代数、実数・複素数への具体化 |
+| [algebra/lie_algebras](algebra/lie_algebras/README.md) | `lie_algebras` | リー代数、随伴表現、交換子、部分リー代数、自己準同型代数 |
+| [algebra/clifford](algebra/clifford/README.md) | `clifford` | クリフォード代数の商構成と普遍性、Pin・Spin と複素拡張の群構造 |
 | [algebra/homological/chain_complexes](algebra/homological/chain_complexes/README.md) | `chain_complexes` | 自然数・整数次数の複体、ホモロジー、写像・ホモトピー・複体の圏 |
 | [algebra/homological/double_complexes](algebra/homological/double_complexes/README.md) | `double_complexes` | 非負鎖複体、二重複体、total、比較の完全性と符号付き交換 |
 | [algebra/homological/resolutions](algebra/homological/resolutions/README.md) | `resolutions` | 射影分解、比較定理、Hom・テンソル複体、二重 total による分解比較 |
@@ -56,6 +58,7 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 |
+| [geometry/lie_groups](geometry/lie_groups/README.md) | `lie_groups` | リー群・リー代数、随伴微分・指数写像、O・SO・Pin・Spin と複素拡張のリー群構造 |
 | [geometry/euclidean_forms](geometry/euclidean_forms/README.md) | `euclidean_forms` | 局所微分形式、外積・外微分、座標表示、引き戻し |
 | [geometry/differential_forms](geometry/differential_forms/README.md) | `differential_forms` | 大域微分形式、貼り合わせ、引き戻し、De Rham コホモロジー |
 

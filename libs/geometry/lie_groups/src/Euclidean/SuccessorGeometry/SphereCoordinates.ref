@@ -1,0 +1,56 @@
+/* Inverting stereographic coordinates on the unit sphere away from -e_0. */
+\import R.Inverse[] \as Inverse;
+\import R.SquareRoot[] \as Root;
+\import R.Estimates[] \as Estimates;
+\import algebra.Group[].Of[Carrier := R.Real, group := std.Alg[].Ring[].additiveGroup R.Real Spaces.ring] \as Sum;
+\import dedekind_reals.DedekindReal[] \as Order;
+\definition height: R.Real := R.add R.one (head v);
+\definition inverse: R.Real := Arithmetic.fieldInv height;
+\definition parameter: Vector := space.smul inverse (tail v);
+\import \parent.SphereSection[s := parameter] \as Section;
+\import Section.Column[] \as Column;
+\definition unitNorm: Next.dot v v = R.one := \bysub(Next.Vector, { v: Next.Vector \where Next.dot v v = R.one }, v);
+\definition normRelation: R.add (R.mul (head v) (head v)) (dot (tail v) (tail v)) = R.one := trans!{R.Real} _ _ _
+  (sym!{R.Real} _ _ (splitDot v v)) unitNorm;
+\definition tailSquared: dot (tail v) (tail v) = R.sub R.one (R.mul (head v) (head v)) := Sum.cancelLeft (R.mul (head v) (head v)) _ _
+  (trans!{R.Real} _ _ _ normRelation (sym!{R.Real} _ _ (Estimates.addSubCancel R.one (R.mul (head v) (head v)))));
+\definition factored: dot (tail v) (tail v) = R.mul (R.sub R.one (head v)) height := trans!{R.Real} _ _ _ tailSquared
+  (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (Root.differenceOfSquares (head v) R.one)
+    (congr!{R.Real R.Real} (\fun (a: R.Real) => R.sub a (R.mul (head v) (head v))) _ _ (Arithmetic.fieldMulOneLeft R.one))));
+\definition parameterSquared: dot parameter parameter = R.mul (R.mul inverse inverse) (dot (tail v) (tail v)) :=
+  trans!{R.Real} _ _ _ (form.scaleLeft inverse (tail v) parameter)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul inverse) _ _ (form.scaleRight inverse (tail v) (tail v)))
+      (sym!{R.Real} _ _ (Arithmetic.fieldMulAssoc inverse inverse (dot (tail v) (tail v)))));
+\definition parameterReduced: dot parameter parameter = R.mul inverse (R.sub R.one (head v)) := trans!{R.Real} _ _ _ parameterSquared
+  (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (R.mul inverse inverse)) _ _ factored)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (R.mul inverse inverse)) _ _ (Arithmetic.fieldMulComm (R.sub R.one (head v)) height))
+      (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.fieldMulAssoc (R.mul inverse inverse) height (R.sub R.one (head v))))
+        (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (R.sub R.one (head v))) _ _ (Inverse.inverseProduct height height nonzero)))));
+\definition inverseHeight: R.mul height inverse = R.one := trans!{R.Real} _ _ _ (Arithmetic.fieldMulComm height inverse) (Arithmetic.fieldInverseNonzero height nonzero);
+\definition heightParameter: R.mul height (dot parameter parameter) = R.sub R.one (head v) := trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real} (R.mul height) _ _ parameterReduced)
+  (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.fieldMulAssoc height inverse (R.sub R.one (head v))))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (R.sub R.one (head v))) _ _ inverseHeight)
+      (Arithmetic.fieldMulOneLeft (R.sub R.one (head v)))));
+\definition denominatorProduct: R.mul height Section.denominator = R.add R.one R.one := trans!{R.Real} _ _ _ (Arithmetic.fieldMulAdd height R.one (dot parameter parameter))
+  (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (Scalars.mulOneRight height) heightParameter)
+    (trans!{R.Real} _ _ _ (Scalars.addFour R.one (head v) R.one (R.neg (head v)))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.add R.one R.one)) _ _ (Arithmetic.addNegRight (head v)))
+        (Arithmetic.addZeroRight (R.add R.one R.one)))));
+\definition coefficientHeight: Column.coefficient = height := Spaces.mulCancelRight Column.coefficient height Section.denominator
+  (Inverse.positiveNonzero Section.denominator Section.denominatorPositive)
+  (trans!{R.Real} _ _ _ (Scalars.mulAddRight Column.inverse Column.inverse Section.denominator)
+    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+      (Arithmetic.fieldInverseNonzero Section.denominator (Inverse.positiveNonzero Section.denominator Section.denominatorPositive))
+      (Arithmetic.fieldInverseNonzero Section.denominator (Inverse.positiveNonzero Section.denominator Section.denominatorPositive)))
+      (sym!{R.Real} _ _ denominatorProduct)));
+\definition headRecovered: head Section.firstColumn = head v := trans!{R.Real} _ _ _ Column.headValue
+  (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.neg R.one)) _ _ coefficientHeight)
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.addAssoc (R.neg R.one) R.one (head v)))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.add a (head v)) _ _ (Arithmetic.addNegLeft R.one)) (Arithmetic.addZeroLeft (head v)))));
+\definition tailRecovered: tail Section.firstColumn = tail v := trans!{Vector} _ _ _ Column.tailValue
+  (trans!{Vector} _ _ _ (congr!{R.Real Vector} (\fun (a: R.Real) => space.smul a parameter) _ _ coefficientHeight)
+    (trans!{Vector} _ _ _ (sym!{Vector} _ _ (space.scalarAssoc height inverse (tail v)))
+      (trans!{Vector} _ _ _ (congr!{R.Real Vector} (\fun (a: R.Real) => space.smul a (tail v)) _ _ inverseHeight) (space.scalarOne (tail v)))));
+\definition recovers: Section.firstColumn = v := Tuples.extensionality n Section.firstColumn v headRecovered
+  (\fun (i: Fin.Fin n) => congr!{Vector R.Real} (\fun (x: Vector) => x i) _ _ tailRecovered);

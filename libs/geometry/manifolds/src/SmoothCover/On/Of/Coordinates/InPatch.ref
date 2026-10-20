@@ -1,0 +1,38 @@
+\import \root.Dimension[n := n].Examples[].Euclidean[].Subspace[U := domains i] \as LocalSource;
+\import \root.SmoothMap[n := n, m := m].Between[M := localManifold i, N := N] \as LocalMaps;
+\import LocalMaps.Coordinates[f := maps i, left := LocalSource.standard, right := right] \as Local;
+\import \root.Dimension[n := n].Atlas[M := (localManifold i).Point, space := (localManifold i).space] \as LocalAtlases;
+\import \root.Dimension[n := m].Chart[M := N.Point, space := N.space].Of[chart := right] \as ChartLaws;
+\definition localSmooth: Local.Smooth := (\bysub(LocalMaps.ContinuousMap, { f: LocalMaps.ContinuousMap \where LocalMaps.Chartwise f }, maps i))
+  LocalSource.standard right (LocalAtlases.includedInSaturation LocalSource.atlas LocalSource.standard (\refl(LocalSource.standard))) rightMember;
+\definition domain: Open.OpenSet := Open.intersection Global.domain (domains i);
+\definition inGlobal: Open.Included domain Global.domain := Open.intersectionLeft Global.domain (domains i);
+\definition inDomain: Open.Included domain (domains i) := Open.intersectionRight Global.domain (domains i);
+\definition globalInput[x: Open.Carrier domain]: Open.Carrier Global.domain := Open.inclusion domain Global.domain inGlobal x;
+\definition localInput[x: Open.Carrier domain]: Open.Carrier (domains i) := Open.inclusion domain (domains i) inDomain x;
+\definition inLocal: Open.Included domain Local.domain := \fun (x: Reals.Multivariable[n := n].Point)(member: _) => \block {
+  \let point: Open.Carrier domain := \into[Reals.Multivariable[n := n].Point](x, domain.points) \by { member } \then
+  \let local: Open.Carrier (domains i) := localInput point \then
+  \let same: f (Open.inclusion (domains i) U (included i) local) = LocalMaps.apply (maps i) local := agrees i local \then
+  \let inRight: TargetCharts.Contains right (LocalMaps.apply (maps i) local) :=
+    \idelim f (Open.inclusion (domains i) U (included i) local) = LocalMaps.apply (maps i) local
+    \with y: N.Point => TargetCharts.Contains right y \by { base: Global.inRightDomain (globalInput point), equality: same } \then
+  \return Local.intro local inRight
+};
+\definition localCoordinate[x: Open.Carrier domain]: Open.Carrier Local.domain := Open.inclusion domain Local.domain inLocal x;
+\definition pointwise: \forall (x: Open.Carrier domain) -> Global.apply (globalInput x) = Local.apply (localCoordinate x) :=
+  \fun (x: Open.Carrier domain) => ChartLaws.pointInjective _ _ (trans!{N.Point} _ _ _ (Global.returnsPoint (globalInput x))
+    (trans!{N.Point} _ _ _ (agrees i (localInput x)) (sym!{N.Point} _ _ (Local.returnsPoint (localCoordinate x)))));
+\import Open.Restriction[] \as Restriction;
+\definition smooth: \forall (j: std.Data[].FinSet[].Fin m) -> Smooth.SmoothOn domain
+  (Open.restrict domain Global.domain inGlobal (\fun (x: Open.Carrier Global.domain) => Global.apply x j)) :=
+  \fun (j: std.Data[].FinSet[].Fin m) => \idelim
+    Open.restrict domain Local.domain inLocal (\fun (x: Open.Carrier Local.domain) => Local.apply x j) =
+    Open.restrict domain Global.domain inGlobal (\fun (x: Open.Carrier Global.domain) => Global.apply x j)
+    \with h: Open.ScalarFunction domain => Smooth.SmoothOn domain h \by {
+      base: Restriction.localSmooth domain Local.domain inLocal (\fun (x: Open.Carrier Local.domain) => Local.apply x j) (localSmooth j),
+      equality: \axiom:funext(Open.restrict domain Local.domain inLocal (\fun (x: Open.Carrier Local.domain) => Local.apply x j),
+        Open.restrict domain Global.domain inGlobal (\fun (x: Open.Carrier Global.domain) => Global.apply x j),
+        \fun (x: Open.Carrier domain) => sym!{Reals.Real} _ _
+          (congr!{{Reals.Multivariable[n := m].Point} Reals.Real} (\fun (p: Reals.Multivariable[n := m].Point) => p j) _ _ (pointwise x)))
+    };

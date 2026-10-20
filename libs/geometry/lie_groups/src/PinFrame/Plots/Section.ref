@@ -1,0 +1,27 @@
+\import Fin.Tuples[A := R.Real] \as Tuples;
+\definition direction[x: Open.Carrier U]: Next.Vector := Geometry.SphereSection[s := s x].direction;
+\definition directionRegular: Matrices.Values U direction := Fin.cases n
+  (\fun (i: Fin.Fin (N.Nat^::succ n)) => Smooth.SmoothOn U (\fun (x: Open.Carrier U) => direction x i))
+  (Calculus.smoothEqual U (\fun (x: Open.Carrier U) => R.one) (\fun (x: Open.Carrier U) => direction x (Fin.zero n))
+    (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ Geometry.SphereSection[s := s x].directionHead) (Functions.constantSmooth U R.one))
+  (\fun (i: Fin.Fin n) => Calculus.smoothEqual U (\fun (x: Open.Carrier U) => s x i) (\fun (x: Open.Carrier U) => direction x (Fin.succ n i))
+    (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Tuples.atSuccessor n R.one (s x) i)) (regular i));
+\definition nonzero[x: Open.Carrier U]: InnerProduct.Nonzero := Geometry.SphereSection[s := s x].nonzero;
+\definition quadratic[x: Open.Carrier U]: R.Real := Next.dot (direction x) (direction x);
+\definition quadraticSmooth: Smooth.SmoothOn U quadratic := Matrices.dotSmooth U direction direction directionRegular directionRegular;
+\definition quadraticData: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](quadratic, Smooth.SmoothFunction U) \by { quadraticSmooth };
+\definition quadraticPositive: \forall (x: Open.Carrier U) -> dedekind_reals.DedekindReal[].Lt R.zero (quadratic x) :=
+  \fun (x: Open.Carrier U) => \bysub(Next.Vector, InnerProduct.Nonzero, nonzero x);
+\import Smooth.SquareRoot[U := U, f := quadraticData, positive := quadraticPositive] \as Root;
+\definition rootData: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](Root.value, Smooth.SmoothFunction U) \by { Root.smooth };
+\definition rootNonzero: \forall (x: Open.Carrier U) -> Logic.Not (Root.value x = R.zero) :=
+  \fun (x: Open.Carrier U) => InnerProduct.Normalization[v := nonzero x].lengthNonzero;
+\import Smooth.Reciprocal[U := U, f := rootData, nonzero := rootNonzero] \as Inverse;
+\definition unit[x: Open.Carrier U]: Next.Vector := InnerProduct.Normalization[v := nonzero x].unit;
+\definition unitRegular: Matrices.Values U unit := \fun (i: Fin.Fin (N.Nat^::succ n)) => Functions.mulSmooth U Inverse.value
+  (\fun (x: Open.Carrier U) => direction x i) Inverse.smooth (directionRegular i);
+\definition value[x: Open.Carrier U]: Next.Pin := section (s x);
+\definition plot: Higher.Plot U value := (Calculus.operations (N.Nat^::succ n) U).multiplication
+  (\fun (x: Open.Carrier U) => HigherClifford.iota (unit x)) (\fun (x: Open.Carrier U) => HigherClifford.iota Geometry.first)
+  ((Calculus.operations (N.Nat^::succ n) U).vector unit unitRegular)
+  ((Calculus.operations (N.Nat^::succ n) U).constant (HigherClifford.iota Geometry.first));

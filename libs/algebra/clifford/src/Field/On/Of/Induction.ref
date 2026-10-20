@@ -1,0 +1,30 @@
+/* Structural induction on the presented Clifford algebra. */
+\import std.Set[].Quotient[A := Free.Expression, Equivalent := Presented.Equivalent] \as Q;
+\structure Closed: \Prop := {
+  scalar: \forall (a: K) -> P (scalar a),
+  vector: \forall (v: V) -> P (iota v),
+  addition: \forall (x, y: Carrier) -> P x -> P y -> P (add x y),
+  negative: \forall (x: Carrier) -> P x -> P (neg x),
+  multiplication: \forall (x, y: Carrier) -> P x -> P y -> P (mul x y),
+};
+\definition onExpression: Closed -> \forall (x: Free.Expression) -> P (Presented.class x) :=
+  \fun (closed: Closed) => \induction (x: Free.Expression) \return P (Presented.class x) \with {
+    | constant: closed.scalar
+    | variable: closed.vector
+    | sum: \fun (x: Free.Expression)(left: P (Presented.class x))(y: Free.Expression)(right: P (Presented.class y)) =>
+      \idelim add (Presented.class x) (Presented.class y) = Presented.class (Free.Expression::sum x y)
+        \with z: Carrier => P z \by {
+          base: closed.addition (Presented.class x) (Presented.class y) left right,
+          equality: Presented.addClass x y
+        }
+    | negative: \fun (x: Free.Expression)(previous: P (Presented.class x)) =>
+      \idelim neg (Presented.class x) = Presented.class (Free.Expression::negative x)
+        \with z: Carrier => P z \by { base: closed.negative (Presented.class x) previous, equality: Presented.negClass x }
+    | product: \fun (x: Free.Expression)(left: P (Presented.class x))(y: Free.Expression)(right: P (Presented.class y)) =>
+      \idelim mul (Presented.class x) (Presented.class y) = Presented.class (Free.Expression::product x y)
+        \with z: Carrier => P z \by {
+          base: closed.multiplication (Presented.class x) (Presented.class y) left right,
+          equality: Presented.mulClass x y
+        }
+  };
+\definition all: Closed -> \forall (x: Carrier) -> P x := \fun (closed: Closed) => Q.induction P (onExpression closed);

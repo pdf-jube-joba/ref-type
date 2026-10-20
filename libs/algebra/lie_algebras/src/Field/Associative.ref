@@ -1,0 +1,84 @@
+\import std.Alg[].Ring[] \as Ring;
+\definition space: Linear.VectorSpace A := Ring.ringAlgebraAsModule K A coefficients algebra;
+\import Linear.Laws[V := A, space := space] \as Vectors;
+\import algebra.Group[].Of[Carrier := A, group := Ring.ringModuleAsCommutativeGroup K A Linear.ring space] \as Sum;
+\import Linear.Linear[V := A, W := A, source := space, target := space] \as End;
+\import End.Operations[] \as Maps;
+\definition mul: A -> A -> A := algebra.mul;
+\definition associative: \forall (x, y, z: A) -> mul (mul x y) z = mul x (mul y z) := ((algebra.ring).semiring).multiplicative.associative;
+\definition left[x: A]: End.Map := End.Map {
+  apply := mul x,
+  preservesAdd := ((algebra.ring).semiring).leftDistributive x,
+  preservesScale := \fun (a: K)(y: A) => sym!{A} _ _ (algebra.scalarMulRight a x y),
+};
+\definition right[y: A]: End.Map := End.Map {
+  apply := \fun (x: A) => mul x y,
+  preservesAdd := \fun (x, z: A) => ((algebra.ring).semiring).rightDistributive x z y,
+  preservesScale := \fun (a: K)(x: A) => sym!{A} _ _ (algebra.scalarMulLeft a x y),
+};
+\definition mapDifference: \forall (f: End.Map)(x, y: A) -> f.apply (Sum.difference x y) = Sum.difference (f.apply x) (f.apply y) :=
+  \fun (f: End.Map)(x, y: A) => trans!{A} _ _ _ (f.preservesAdd x (space.neg y))
+    (congr!{A A} (space.add (f.apply x)) _ _ (Maps.preservesNeg f y));
+\definition bracket[x, y: A]: A := Sum.difference (mul x y) (mul y x);
+\definition addLeft: \forall (x, y, z: A) -> bracket (space.add x y) z = space.add (bracket x z) (bracket y z) :=
+  \fun (x, y, z: A) => trans!{A} _ _ _
+    (congr2!{A A A} Sum.difference _ _ _ _ ((right z).preservesAdd x y) ((left z).preservesAdd x y))
+    (Sum.differenceAdd _ _ _ _);
+\definition addRight: \forall (x, y, z: A) -> bracket x (space.add y z) = space.add (bracket x y) (bracket x z) :=
+  \fun (x, y, z: A) => trans!{A} _ _ _
+    (congr2!{A A A} Sum.difference _ _ _ _ ((left x).preservesAdd y z) ((right x).preservesAdd y z))
+    (Sum.differenceAdd _ _ _ _);
+\definition scaleDifference: \forall (a: K)(x, y: A) -> Sum.difference (space.smul a x) (space.smul a y) = space.smul a (Sum.difference x y) :=
+  \fun (a: K)(x, y: A) => trans!{A} _ _ _
+    (congr!{A A} (space.add (space.smul a x)) _ _ (sym!{A} _ _ (Vectors.scaleNegative a y)))
+    (sym!{A} _ _ (space.vectorAdd a x (space.neg y)));
+\definition scaleLeft: \forall (a: K)(x, y: A) -> bracket (space.smul a x) y = space.smul a (bracket x y) :=
+  \fun (a: K)(x, y: A) => trans!{A} _ _ _
+    (congr2!{A A A} Sum.difference _ _ _ _ ((right y).preservesScale a x) ((left y).preservesScale a x))
+    (scaleDifference a _ _);
+\definition scaleRight: \forall (a: K)(x, y: A) -> bracket x (space.smul a y) = space.smul a (bracket x y) :=
+  \fun (a: K)(x, y: A) => trans!{A} _ _ _
+    (congr2!{A A A} Sum.difference _ _ _ _ ((left x).preservesScale a y) ((right x).preservesScale a y))
+    (scaleDifference a _ _);
+\definition adjoint[x: A]: End.Map := End.Map {
+  apply := bracket x,
+  preservesAdd := addRight x,
+  preservesScale := \fun (a: K)(y: A) => scaleRight a x y,
+};
+\definition derivation: \forall (x, y, z: A) -> bracket x (mul y z) =
+  space.add (mul (bracket x y) z) (mul y (bracket x z)) :=
+  \fun (x, y, z: A) => eq_reason!{
+    {bracket x (mul y z)}
+    "=" {Sum.difference (mul (mul x y) z) (mul y (mul z x))} "by" {
+      congr2!{A A A} Sum.difference _ _ _ _ (sym!{A} _ _ (associative x y z)) (associative y z x)}
+    "=" {space.add (Sum.difference (mul (mul x y) z) (mul y (mul x z)))
+        (Sum.difference (mul y (mul x z)) (mul y (mul z x)))} "by" {sym!{A} _ _ (Sum.composeDifferences _ _ _)}
+    "=" {space.add (Sum.difference (mul (mul x y) z) (mul (mul y x) z))
+        (Sum.difference (mul y (mul x z)) (mul y (mul z x)))} "by" {
+      congr!{A A} (\fun (v: A) => space.add (Sum.difference (mul (mul x y) z) v)
+        (Sum.difference (mul y (mul x z)) (mul y (mul z x)))) _ _ (sym!{A} _ _ (associative y x z))}
+    "=" {space.add (mul (bracket x y) z) (mul y (bracket x z))} "by" {
+      congr2!{A A A} space.add _ _ _ _
+        (sym!{A} _ _ (mapDifference (right z) (mul x y) (mul y x)))
+        (sym!{A} _ _ (mapDifference (left y) (mul x z) (mul z x)))}
+  };
+\definition jacobi: \forall (x, y, z: A) -> bracket x (bracket y z) =
+  space.add (bracket (bracket x y) z) (bracket y (bracket x z)) :=
+  \fun (x, y, z: A) => eq_reason!{
+    {bracket x (bracket y z)}
+    "=" {Sum.difference (bracket x (mul y z)) (bracket x (mul z y))} "by" {mapDifference (adjoint x) (mul y z) (mul z y)}
+    "=" {Sum.difference (space.add (mul (bracket x y) z) (mul y (bracket x z)))
+        (space.add (mul (bracket x z) y) (mul z (bracket x y)))} "by" {
+      congr2!{A A A} Sum.difference _ _ _ _ (derivation x y z) (derivation x z y)}
+    "=" {Sum.difference (space.add (mul (bracket x y) z) (mul y (bracket x z)))
+        (space.add (mul z (bracket x y)) (mul (bracket x z) y))} "by" {
+      congr!{A A} (Sum.difference (space.add (mul (bracket x y) z) (mul y (bracket x z)))) _ _ (Vectors.comm _ _)}
+    "=" {space.add (bracket (bracket x y) z) (bracket y (bracket x z))} "by" {Sum.differenceAdd _ _ _ _}
+  };
+\definition lie: LieAlgebra A space := LieAlgebra[A, space] {
+  bracket := bracket,
+  addLeft := addLeft, addRight := addRight,
+  scaleLeft := scaleLeft, scaleRight := scaleRight,
+  alternating := \fun (x: A) => Sum.inverseRight (mul x x),
+  jacobi := jacobi,
+};

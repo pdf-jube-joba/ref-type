@@ -1,0 +1,45 @@
+/* Faithfulness of scalars and generating vectors, by dimension induction. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import linear_algebra.Field[].Space[K := R.Real, field := Scalars.field] \as Spaces;
+\import std.Alg[].Ring[] \as Ring;
+\import \root.Euclidean[n := N.Nat^::zero] \as Zero;
+\import \root.Field[K := R.Real, field := Scalars.field].On[V := Zero.Vector, space := Zero.space].Of[form := Zero.form] \as ZeroAlgebra;
+\import ZeroAlgebra.Universal[A := R.Real, target := Spaces.ring] \as Universal;
+\import algebra.Hom[A := R.Real, B := R.Real] \as Coefficients;
+\definition identity: Coefficients.RingMap Spaces.ring Spaces.ring := \into[R.Real -> R.Real]((\fun (a: R.Real) => a), Coefficients.RingMap Spaces.ring Spaces.ring) \by {
+  Coefficients.SemiringLaws[Ring.ringAsSemiring R.Real Spaces.ring, Ring.ringAsSemiring R.Real Spaces.ring, (\fun (a: R.Real) => a)] {
+    zero := \refl(R.zero), one := \refl(R.one), add := \fun (a, b: R.Real) => \refl(R.add a b), mul := \fun (a, b: R.Real) => \refl(R.mul a b),
+  }
+};
+\definition coefficientMap: \Cast[Coefficients.RingMap Spaces.ring Spaces.ring]
+  ({ f: Coefficients.RingMap Spaces.ring Spaces.ring \where \forall (a, b: R.Real) -> R.mul (f a) b = R.mul b (f a) }) :=
+  \into[Coefficients.RingMap Spaces.ring Spaces.ring](identity,
+    { f: Coefficients.RingMap Spaces.ring Spaces.ring \where \forall (a, b: R.Real) -> R.mul (f a) b = R.mul b (f a) }) \by { Spaces.mulComm };
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := coefficientMap, vectors := \fun (v: Zero.Vector) => R.zero,
+  zero := \refl(R.zero),
+  addition := \fun (v, w: Zero.Vector) => sym!{R.Real} _ _ (Spaces.addZeroLeft R.zero),
+  scalar := \fun (a: R.Real)(v: Zero.Vector) => sym!{R.Real} _ _ (Spaces.mulZeroRight a),
+  square := \fun (v: Zero.Vector) => Spaces.mulZeroLeft R.zero,
+};
+\definition base: Zero.Faithful := Zero.Faithful {
+  scalarInjective := \fun (a, b: R.Real)(same: Zero.scalar a = Zero.scalar b) => trans!{R.Real} _ _ _
+    (sym!{R.Real} _ _ (Universal.onScalar representation a))
+    (trans!{R.Real} _ _ _ (congr!{Zero.Carrier R.Real} (Universal.extension representation) _ _ same) (Universal.onScalar representation b)),
+  vectorInjective := \fun (v, w: Zero.Vector)(same: Zero.iota v = Zero.iota w) => \axiom:funext(v, w,
+    \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim (v i = w i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))),
+};
+\definition faithful: \forall (n: N.Nat^) -> \root.Euclidean[n := n].Faithful :=
+  \induction (n: N.Nat^) \return \root.Euclidean[n := n].Faithful \with {
+    | zero: base
+    | succ: \fun (n: N.Nat^)(previous: \root.Euclidean[n := n].Faithful) =>
+      \root.Euclidean[n := n].Successor[].Faithfulness[previous := previous].faithful
+  };

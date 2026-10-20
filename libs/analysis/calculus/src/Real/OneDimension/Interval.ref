@@ -1,0 +1,26 @@
+\import Model.Space[].Def[] \as Coordinates;
+\definition Inside[x: Model.Point]: \Prop := Logic.And[R.Lt left (x index), R.Lt (x index) right];
+\definition points: \Pow Model.Point := { x: Model.Point \where Inside x };
+\definition domain: Open.OpenSet := Open.OpenSet {
+  points := points,
+  open := \fun (a: Model.Point)(bounds: Inside a) => \block {
+    \let radius: Real := Metric.min (sub (a index) left) (sub right (a index)) \then
+    \let positive: R.Lt zero radius := Product.minPositive (sub (a index) left) (sub right (a index))
+      (Product.subPositive (a index) left bounds.left) (Product.subPositive right (a index) bounds.right) \then
+    \return Logic.existsIntro[Real, { radius: Real \where Open.BallInside[points, a, radius] }] radius (Open.BallInside[points, a, radius] {
+      positive := positive,
+      included := \fun (x: Model.Point)(near: _) => \block {
+        \let close: R.Lt (distance (a index) (x index)) radius := R.ltReplaceLeft (distance (x index) (a index)) (distance (a index) (x index)) radius
+          (Metric.distanceSymmetric (x index) (a index)) (R.leLtTrans _ _ _ (MetricLaws.coordinateDistance x a index) near) \then
+        \return Logic.And[_, _]::#
+          (R.ltReplaceLeft (sub (a index) (sub (a index) left)) left (x index) (Algebra.subSub (a index) left)
+            (Metric.distanceLtLower (a index) (x index) (sub (a index) left)
+              (R.ltLeTrans _ radius (sub (a index) left) close (Metric.minLeft (sub (a index) left) (sub right (a index))))))
+          (R.ltReplaceRight (x index) (add (a index) (sub right (a index))) right (Estimates.addSubCancel right (a index))
+            (Metric.distanceLtUpper (a index) (x index) (sub right (a index))
+              (R.ltLeTrans _ radius (sub right (a index)) close (Metric.minRight (sub (a index) left) (sub right (a index))))))
+      },
+    })
+  },
+};
+\definition bounds[x: Open.Carrier domain]: Inside x := \bysub(Model.Point, points, x);

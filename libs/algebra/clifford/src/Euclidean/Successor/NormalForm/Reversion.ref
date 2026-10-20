@@ -1,0 +1,26 @@
+/* Reversion in normal-form coordinates. */
+\import Clifford.Reversion[] \as Reverse;
+\import NextAlgebra.Reversion[] \as HigherReverse;
+\import algebra.OppositeRing[A := Carrier, ring := ring] \as Opposite;
+\import algebra.OppositeRing[A := Next.Carrier, ring := Next.ring] \as HigherOpposite;
+\import Opposite.Mapping[B := Next.Carrier, target := Next.ring, f := Inclusion.map] \as OppositeInclusion;
+\import algebra.Hom[A := Carrier, B := Next.Carrier] \as Maps;
+\import algebra.Hom[A := Carrier, B := Carrier] \as LowerMaps;
+\definition after: Maps.RingMap ring HigherOpposite.value := Maps.Composition[C := Next.Carrier].ring ring Next.ring HigherOpposite.value Inclusion.map HigherReverse.map;
+\definition before: Maps.RingMap ring HigherOpposite.value := LowerMaps.Composition[C := Next.Carrier].ring ring Opposite.value HigherOpposite.value Reverse.map OppositeInclusion.map;
+\import Clifford.HomExt[A := Next.Carrier, target := HigherOpposite.value].Between[h := after, k := before] \as Ext;
+\definition same: after = before := Ext.ext
+  (\fun (a: R.Real) => trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} HigherReverse.map _ _ (Inclusion.onScalar a))
+    (trans!{Next.Carrier} _ _ _ (HigherReverse.onScalar a)
+      (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Reverse.onScalar a)) (Inclusion.onScalar a)))))
+  (\fun (v: Vector) => trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} HigherReverse.map _ _ (Inclusion.onVector v))
+    (trans!{Next.Carrier} _ _ _ (HigherReverse.onVector (Coordinates.embed v))
+      (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Reverse.onVector v)) (Inclusion.onVector v)))));
+\definition onLower: \forall (a: Carrier) -> HigherReverse.map (Inclusion.map a) = Inclusion.map (Reverse.map a) :=
+  \fun (a: Carrier) => congr!{{Maps.RingMap ring HigherOpposite.value} Next.Carrier} (\fun (h: Maps.RingMap ring HigherOpposite.value) => h a) _ _ same;
+\definition onValue: \forall (a, b: Carrier) -> HigherReverse.map (value a b) = value (Reverse.map a) (Grade.map (Reverse.map b)) :=
+  \fun (a, b: Carrier) => trans!{Next.Carrier} _ _ _ (HigherReverse.laws.add (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma))
+    (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _ (onLower a)
+      (trans!{Next.Carrier} _ _ _ (HigherReverse.laws.mul (Inclusion.map b) gamma)
+        (trans!{Next.Carrier} _ _ _ (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.mul _ _ _ _
+          (HigherReverse.onVector Coordinates.first) (onLower b)) (\parent.Commutation[].all (Reverse.map b)))));

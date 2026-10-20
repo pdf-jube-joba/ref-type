@@ -1,0 +1,26 @@
+\definition scalarInjective: \forall (a, b: R.Real) -> Next.scalar a = Next.scalar b -> a = b := \block {
+  \fun (a, b: R.Real)(same: _) \then
+  \let operators: Block.scalarMap a = Block.scalarMap b := trans!{Block.Operator} _ _ _ (sym!{Block.Operator} _ _ (onScalar a))
+    (trans!{Block.Operator} _ _ _ (congr!{Next.Carrier Block.Operator} extension _ _ same) (onScalar b)) \then
+  \let first: algebra.smul a algebra.one = algebra.smul b algebra.one :=
+    congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Block.first.apply (f.apply Block.anchor)) _ _ operators \then
+  \return previous.scalarInjective a b (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (scalarUnit a)) (trans!{Carrier} _ _ _ first (scalarUnit b)))
+};
+\import Fin.Tuples[A := R.Real] \as Tuples;
+\definition vectorInjective: \forall (v, w: Next.Vector) -> Next.iota v = Next.iota w -> v = w := \block {
+  \fun (v, w: Next.Vector)(same: _) \then
+  \let operators: vectors v = vectors w := trans!{Block.Operator} _ _ _ (sym!{Block.Operator} _ _ (onVector v))
+    (trans!{Block.Operator} _ _ _ (congr!{Next.Carrier Block.Operator} extension _ _ same) (onVector w)) \then
+  \let first: iota (tail v) = iota (tail w) := trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Block.firstAnchor (iota (tail v)) (head v)))
+    (trans!{Carrier} _ _ _ (congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Block.first.apply (f.apply Block.anchor)) _ _ operators)
+      (Block.firstAnchor (iota (tail w)) (head w))) \then
+  \let second: algebra.smul (head v) algebra.one = algebra.smul (head w) algebra.one :=
+    trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Block.secondAnchor (iota (tail v)) (head v)))
+      (trans!{Carrier} _ _ _ (congr!{Block.Operator Carrier} (\fun (f: Block.Operator) => Block.second.apply (f.apply Block.anchor)) _ _ operators)
+        (Block.secondAnchor (iota (tail w)) (head w))) \then
+  \let heads: head v = head w := previous.scalarInjective (head v) (head w)
+    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (scalarUnit (head v))) (trans!{Carrier} _ _ _ second (scalarUnit (head w)))) \then
+  \let tails: tail v = tail w := previous.vectorInjective (tail v) (tail w) first \then
+  \return Tuples.extensionality n v w heads (\fun (j: Fin.Fin n) => congr!{Vector R.Real} (\fun (x: Vector) => x j) _ _ tails)
+};
+\definition faithful: Next.Faithful := Next.Faithful { scalarInjective := scalarInjective, vectorInjective := vectorInjective };

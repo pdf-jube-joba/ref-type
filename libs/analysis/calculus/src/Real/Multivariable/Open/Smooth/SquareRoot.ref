@@ -1,0 +1,25 @@
+/* The positive square root of a positive smooth function is smooth. */
+\import Analysis.SquareRoot[U := U, f := f, positive := positive] \as Root;
+\import \parent.Properties[] \as Properties;
+\import \parent.Operations[] \as Operations;
+\import \parent.Derivative[] \as Partials;
+\import real.Analysis[] \as RealAnalysis;
+\import RealAnalysis.Inverse[] \as Inverse;
+\definition smoothF: SmoothOn U f := \bysub(ScalarFunction U, { f: ScalarFunction U \where SmoothOn U f }, f);
+\definition nonzero: \forall (x: Carrier U) -> Logic.Not (f x = zero) := \fun (x: Carrier U) => Inverse.positiveNonzero (f x) (positive x);
+\import \parent.Reciprocal[U := U, f := f, nonzero := nonzero] \as Reciprocal;
+\definition value: ScalarFunction U := Root.value;
+\definition continuous: Analysis.ContinuousOn U value := Root.continuous (Properties.continuous U f smoothF);
+\definition derivative[i: Coordinate]: ScalarFunction U := Root.differential (Partials.partial U f i);
+\definition partial: \forall (i: Coordinate) -> Analysis.HasPartialDerivative U value i (derivative i) :=
+  \fun (i: Coordinate) => Root.partial i (Partials.partial U f i) (Partials.partialLaw U f i);
+\definition contDiff: \forall (k: N.Nat^) -> ContDiffOn U k value := \induction (k: N.Nat^) \return ContDiffOn U k value \with {
+  | zero: Properties.zeroOfContinuous U value continuous
+  | succ: \fun (k: N.Nat^)(previous: ContDiffOn U k value) => \parent.Successor[U := U, f := value, g := derivative, k := k].contDiff continuous partial
+    (\fun (i: Coordinate) => Operations.mulContDiff U k
+      (\fun (x: Carrier U) => mul (mul RealAnalysis.half (value x)) (Reciprocal.value x)) (Partials.partial U f i)
+      (Operations.mulContDiff U k (\fun (x: Carrier U) => mul RealAnalysis.half (value x)) Reciprocal.value
+        (Operations.mulContDiff U k (\fun (x: Carrier U) => RealAnalysis.half) value (Operations.constantContDiff U k RealAnalysis.half) previous)
+        (Reciprocal.smooth k)) (Partials.partialSmooth U f i k))
+};
+\definition smooth: SmoothOn U value := contDiff;

@@ -1,0 +1,15 @@
+\import \parent.\parent.Section[U := U, f := f, a := a, i := i] \as Section;
+\import std.Set[].Extension[A := Point, B := Real, domain := U.points] \as Extension;
+\import \parent.\parent.\parent.\parent.\parent.Derivative[].Reciprocal[] \as DerivativeReciprocal;
+\import \parent.\parent.\parent.\parent.\parent.Derivative[].Def[] \as Derivatives;
+\definition sectionNonzero: \forall (t: Real) -> Logic.Not (Section.value t = zero) := \fun (t: Real) =>
+  Extension.preserves ({ y: Real \where Logic.Not (y = zero) }) f (f a) nonzero (nonzero a) (Coordinates.replace a i t);
+\definition partial: \forall (df: Real) -> HasPartialDerivativeAt U f i a df -> HasPartialDerivativeAt U value i a (mul (factor a) df) :=
+  \fun (df: Real)(law: _) => Operations.sectionPartial U value a i (\fun (t: Real) => inv (Section.value t)) (mul (factor a) df)
+    (congr!{Real Real} inv _ _ Section.center)
+    (\fun (t: Real)(x: Carrier U)(replaced: _) => congr!{Real Real} inv _ _ (Section.agreement t x replaced))
+    (\idelim mul (DerivativeReciprocal.factor Section.value (a i) (a i)) df = mul (factor a) df
+      \with e: Real => Derivatives.HasDerivativeAt (\fun (t: Real) => inv (Section.value t)) (a i) e \by {
+        base: DerivativeReciprocal.derivative Section.value sectionNonzero (a i) df (Section.derivative df law),
+        equality: congr!{Real Real} (\fun (c: Real) => mul (Arithmetic.neg (mul (inv c) (inv c))) df) _ _ Section.center
+      });

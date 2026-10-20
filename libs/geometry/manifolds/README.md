@@ -13,6 +13,8 @@
 | `DifferentialIdentity` / `DifferentialComposition` / `DiffeomorphismDifferential` | 恒等・合成・微分同相の法則 |
 | `OpenSubmanifold.On.In` | 開部分多様体、包含とその微分 |
 | `SmallAtlasSmoothMap` / `Presentation` | アトラスによる滑らかさ判定、表示間の恒等微分同相 |
+| `SmoothCover` / `Tangent.On.Transport` | ユークリッド開集合の開被覆上での滑らかな写像の貼り合わせ、等しい底点間の接ベクトルと座標の移送 |
 | `Dimension.Examples` | Euclid 空間、開部分集合、一点・空多様体 |
+| `EuclideanMap.Between` / `ChartMap.On.At` | 開集合間の写像の多様体上の写像への変換、チャートによる滑らかなパラメータ表示 |
 
 [Geometry.ref](../coordinate_calculus/src/Geometry.ref) に利用例がある。

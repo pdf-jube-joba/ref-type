@@ -1,0 +1,46 @@
+
+\import Representation.By[G := G, group := group, embedding := embedding, injective := injective, sign := sign, compatible := compatible] \as Rep;
+\import Rep.Faithful[] \as Faithful;
+\import Rep.Phase[] \as Squared;
+\import Rep.BaseCoordinates[] \as BaseCoefficients;
+\import Rep.Coefficients[] \as ComplexCoefficients;
+\import clifford.ComplexExtension[G := G, group := group].By[sign := sign] \as Extension;
+\import algebra.Groups[].On[G := G, group := group] \as BaseGroup;
+\import algebra.Groups[].On[G := Extension.Carrier, group := Extension.group] \as Group;
+\import algebra.Groups[].Units[A := E.Carrier, ring := E.ring] \as Units;
+\definition Carrier: \Set := Extension.Carrier;
+\definition height[q: Carrier]: R.Real := Phase.height (Squared.base q);
+\definition Parts: \Set := \Cast[Carrier] ({ q: Carrier \where Logic.Not (height q = R.zero) });
+\definition asPart[q: Carrier][nonzero: Logic.Not (height q = R.zero)]: Parts := \into[Carrier](q, Parts) \by { nonzero };
+\definition nonzero[q: Parts]: Logic.Not (height q = R.zero) := \bysub(Carrier, Parts, q);
+\definition parameter[q: Parts]: (Fin.Fin Phase.one -> R.Real) := Phase.parameter (Squared.base q);
+\definition root[q: Parts]: Circle.Circle := Phase.phase (parameter q);
+\definition rootSquare[q: Parts]: Circle.square (root q) = Squared.base q := Phase.halfSquare (Squared.base q) (nonzero q);
+\definition fixedPhaseInjective: \forall (g, h: G)(z: Circle.Circle) -> Extension.class g z = Extension.class h z -> g = h := \block {
+  \fun (g, h: G)(z: Circle.Circle)(same: _) \then
+  \let imageSame: Rep.raw g z = Rep.raw h z := trans!{Representation.CarrierPair} _ _ _ (sym!{Representation.CarrierPair} _ _ (Rep.onClass g z))
+    (trans!{Representation.CarrierPair} _ _ _ (congr!{Carrier Representation.CarrierPair} Rep.image _ _ same) (Rep.onClass h z)) \then
+  \return injective g h (Units.ext (embedding g) (embedding h) (trans!{E.Carrier} _ _ _ (sym!{E.Carrier} _ _ (Faithful.recover g z))
+    (trans!{E.Carrier} _ _ _ (congr!{Representation.CarrierPair E.Carrier} (Faithful.projection z) _ _ imageSame) (Faithful.recover h z))))
+};
+\module Fiber(q: Parts);
+\definition fiber[q: Parts]: G := Fiber[q := q].value;
+\definition reconstruct[q: Parts]: Extension.class (fiber q) (root q) = q := Fiber[q := q].equation;
+\definition fiberValue[q: Parts]: Rep.value (fiber q) = Faithful.projection (root q) (Rep.image q) := sym!{E.Carrier} _ _
+  (trans!{E.Carrier} _ _ _ (congr!{Representation.CarrierPair E.Carrier} (Faithful.projection (root q)) _ _
+    (trans!{Representation.CarrierPair} _ _ _ (congr!{Carrier Representation.CarrierPair} Rep.image _ _ (sym!{Carrier} _ _ (reconstruct q))) (Rep.onClass (fiber q) (root q))))
+    (Faithful.recover (fiber q) (root q)));
+\definition assemble[s: (Fin.Fin Phase.one -> R.Real)][g: G]: Carrier := Extension.class g (Phase.phase s);
+\module Assembly(s: (Fin.Fin Phase.one -> R.Real), h: G);
+\definition translate[q, g: Carrier]: Carrier := Group.mul q g;
+\definition untranslate[q, g: Carrier]: Carrier := Group.mul (Group.inv q) g;
+\definition undoTranslation: \forall (q, g: Carrier) -> untranslate q (translate q g) = g :=
+  \fun (q, g: Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Group.assoc (Group.inv q) q g))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (h: Carrier) => Group.mul h g) _ _ (Group.invLeft q)) (Group.oneLeft g));
+\definition translationUndo: \forall (q, g: Carrier) -> translate q (untranslate q g) = g :=
+  \fun (q, g: Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Group.assoc q (Group.inv q) g))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (h: Carrier) => Group.mul h g) _ _ (Group.invRight q)) (Group.oneLeft g));
+\module Plots(d: N.Nat^);
+\module Shifts;
+\module Cover(g: Carrier);
+\module Base(dimension: N.Nat^);

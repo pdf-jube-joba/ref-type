@@ -1,0 +1,29 @@
+\module Patch(c: SourceChart);
+\definition continuous: Maps.Continuous (Maps.Data { apply := f }) := \fun (W: \Pow N.Point)(openW: _) =>
+  SourceTopology.openOfNeighborhoods M.space (Continuity.Preimage f W) (\block {
+    \fun (x: M.Point)(inside: _) \then
+    \takefrom c: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Logic.And[\In[SourceCharts.Chart] M.atlas.charts c, SourceCharts.Contains c x] })
+      \by M.atlas.covers x \then
+    \let law: Logic.And[\In[SourceCharts.Chart] M.atlas.charts c, SourceCharts.Contains c x] := \bysub(SourceCharts.Chart,
+      { c: SourceCharts.Chart \where Logic.And[\In[SourceCharts.Chart] M.atlas.charts c, SourceCharts.Contains c x] }, c) \then
+    \let active: SourceChart := \into[SourceCharts.Chart](c, M.atlas.charts) \by { law.left } \then
+    \return Logic.existsIntro[\Pow M.Point, { U: \Pow M.Point \where SourceTopology.OpenNeighborhood[M.space, x, Continuity.Preimage f W, U] }]
+      (Patch[c := active].neighborhood W) (SourceTopology.OpenNeighborhood[M.space, x, Continuity.Preimage f W, Patch[c := active].neighborhood W] {
+        open := Patch[c := active].open W openW,
+        contains := Patch[c := active].contains W x law.right inside,
+        within := Patch[c := active].within W,
+      })
+  });
+\definition continuousMap: Maps.ContinuousMap := \into[Maps.Data](Maps.Data { apply := f }, { g: Maps.Data \where Maps.Continuous g }) \by { continuous };
+\definition sourceAtlas: Small.SourceAtlas := \into[SourceAtlases.Atlas](M.atlas, Small.SourceAtlas) \by {
+  \fun (c: SourceCharts.Chart)(member: _) => member
+};
+\definition targetAtlas: Small.TargetAtlas := \into[TargetAtlases.Atlas](N.atlas, Small.TargetAtlas) \by {
+  \fun (c: TargetCharts.Chart)(member: _) => member
+};
+\import Small.On[source := sourceAtlas, target := targetAtlas] \as SmallAtlas;
+\import SmallAtlas.Of[f := continuousMap] \as Check;
+\module Coordinates(left: SourceChart, right: SmallAtlas.TargetChart);
+\definition small: Check.InSmallAtlas := \fun (left: SmallAtlas.SourceChart)(right: SmallAtlas.TargetChart) => Coordinates[left := left, right := right].smooth;
+\definition value: Maps.Map := Check.value small;
+\definition apply: Maps.apply value = f := \refl(f);

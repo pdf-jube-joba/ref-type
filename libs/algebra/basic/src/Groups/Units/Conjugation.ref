@@ -1,0 +1,27 @@
+/* Inner automorphisms of a ring by one of its units. */
+\definition value[x: A]: A := mul (mul g.value x) g.inverse;
+\definition atOne: value one = one := trans!{A} _ _ _
+  (congr!{A A} (\fun (x: A) => mul x g.inverse) _ _ (oneRight g.value)) g.right;
+\definition addition: \forall (x, y: A) -> value (ring.add x y) = ring.add (value x) (value y) := \fun (x, y: A) =>
+  trans!{A} _ _ _ (congr!{A A} (\fun (a: A) => mul a g.inverse) _ _ (ring.semiring.leftDistributive g.value x y))
+    (ring.semiring.rightDistributive (mul g.value x) (mul g.value y) g.inverse);
+\definition multiplication: \forall (x, y: A) -> value (mul x y) = mul (value x) (value y) := \fun (x, y: A) => sym!{A} _ _ (eq_reason!{
+  {mul (value x) (value y)}
+  "=" {mul (mul g.value x) (mul g.inverse (mul (mul g.value y) g.inverse))} "by" {assoc (mul g.value x) g.inverse (value y)}
+  "=" {mul (mul g.value x) (mul (mul g.inverse (mul g.value y)) g.inverse)}
+  "by" {congr!{A A} (mul (mul g.value x)) _ _ (sym!{A} _ _ (assoc g.inverse (mul g.value y) g.inverse))}
+  "=" {mul (mul g.value x) (mul (mul (mul g.inverse g.value) y) g.inverse)}
+  "by" {congr!{A A} (\fun (a: A) => mul (mul g.value x) (mul a g.inverse)) _ _ (sym!{A} _ _ (assoc g.inverse g.value y))}
+  "=" {mul (mul g.value x) (mul (mul one y) g.inverse)}
+  "by" {congr!{A A} (\fun (a: A) => mul (mul g.value x) (mul (mul a y) g.inverse)) _ _ g.left}
+  "=" {mul (mul g.value x) (mul y g.inverse)}
+  "by" {congr!{A A} (\fun (a: A) => mul (mul g.value x) (mul a g.inverse)) _ _ (oneLeft y)}
+  "=" {mul (mul (mul g.value x) y) g.inverse} "by" {sym!{A} _ _ (assoc (mul g.value x) y g.inverse)}
+  "=" {value (mul x y)} "by" {congr!{A A} (\fun (a: A) => mul a g.inverse) _ _ (assoc g.value x y)}
+});
+\definition central[x: A]: (\forall (y: A) -> mul x y = mul y x) -> value x = x := \fun (commutes: _) => eq_reason!{
+  {value x} "=" {mul (mul x g.value) g.inverse} "by" {congr!{A A} (\fun (a: A) => mul a g.inverse) _ _ (sym!{A} _ _ (commutes g.value))}
+  "=" {mul x (mul g.value g.inverse)} "by" {assoc x g.value g.inverse}
+  "=" {mul x one} "by" {congr!{A A} (mul x) _ _ g.right}
+  "=" x "by" {oneRight x}
+};

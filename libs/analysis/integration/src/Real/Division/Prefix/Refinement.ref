@@ -1,0 +1,33 @@
+\import \parent.\parent.Refinement[] \as Refinement;
+\import \parent.\parent.Bounds[] \as Bounds;
+\import \parent.\parent.Mesh[] \as Mesh;
+\definition comparison: \forall (coarse, fine: Tags) -> Refinement.Relation coarse fine -> \forall (f: Real -> Real)(t, a, b, delta, bound: Real) ->
+  R.Le a b -> Valid coarse a b -> Valid fine a b -> Mesh.Fine coarse a b delta -> Bounds.Oscillation f a b delta bound ->
+  R.Le (distance (value f coarse t a b) (value f fine t a b)) (mul (weight t a b) bound) :=
+  \induction (coarse, fine: Tags)(refines: Refinement.Relation coarse fine) \return \forall (f: Real -> Real)(t, a, b, delta, bound: Real) ->
+    R.Le a b -> Valid coarse a b -> Valid fine a b -> Mesh.Fine coarse a b delta -> Bounds.Oscillation f a b delta bound ->
+    R.Le (distance (value f coarse t a b) (value f fine t a b)) (mul (weight t a b) bound) \with {
+    | leaf: \fun (x: Real)(fine: Tags)(f: Real -> Real)(t, a, b, delta, bound: Real)(ordered: _)
+        (validCoarse: Logic.And[R.Le a x, R.Le x b])(validFine: Valid fine a b)(small: R.Lt (sub b a) delta)(oscillation: _) =>
+      R.leReplaceLeft (distance (value f fine t a b) (value (\fun (y: Real) => f x) fine t a b))
+        (distance (mul (weight t a b) (f x)) (value f fine t a b)) (mul (weight t a b) bound)
+        (trans!{Real} _ _ _ (congr!{Real Real} (distance (value f fine t a b)) _ _ (constant (f x) fine t a b))
+          (Metric.distanceSymmetric (value f fine t a b) (mul (weight t a b) (f x))))
+        (distanceUniform f (\fun (y: Real) => f x) fine t a b bound ordered validFine
+          (\fun (y: Real)(ay: _)(yb: _) => oscillation y x ay yb validCoarse.left validCoarse.right
+            (R.leLtTrans _ _ _ (Bounds.intervalDistance a b y x ay yb validCoarse.left validCoarse.right) small)))
+    | split: \fun (left, right, fineLeft, fineRight: Tags)(refinesLeft: _)(leftBound: _)(refinesRight: _)(rightBound: _)
+        (f: Real -> Real)(t, a, b, delta, bound: Real)(ordered: _)
+        (validCoarse: Logic.And[Valid left a (midpoint a b), Valid right (midpoint a b) b])
+        (validFine: Logic.And[Valid fineLeft a (midpoint a b), Valid fineRight (midpoint a b) b])
+        (small: Logic.And[Mesh.Fine left a (midpoint a b) delta, Mesh.Fine right (midpoint a b) b delta])(oscillation: _) =>
+      R.leTrans _ _ _ (E.distanceAdd (value f left t a (midpoint a b)) (value f right t (midpoint a b) b)
+        (value f fineLeft t a (midpoint a b)) (value f fineRight t (midpoint a b) b))
+        (R.leReplaceRight _ (add (mul (weight t a (midpoint a b)) bound) (mul (weight t (midpoint a b) b) bound)) (mul (weight t a b) bound)
+          (constant bound (Tags::split (Tags::tag a) (Tags::tag b)) t a b)
+          (E.addLe _ _ _ _
+            (leftBound f t a (midpoint a b) delta bound (E.midpointLeft a b ordered) validCoarse.left validFine.left small.left
+              (Bounds.oscillationLeft f a b delta bound ordered oscillation))
+            (rightBound f t (midpoint a b) b delta bound (E.midpointRight a b ordered) validCoarse.right validFine.right small.right
+              (Bounds.oscillationRight f a b delta bound ordered oscillation))))
+  };

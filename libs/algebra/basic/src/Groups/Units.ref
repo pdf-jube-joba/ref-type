@@ -1,0 +1,94 @@
+\definition one: A := ring.one;
+\definition mul: A -> A -> A := ring.mul;
+\definition assoc: \forall (x, y, z: A) -> mul (mul x y) z = mul x (mul y z) := ring.semiring.multiplicative.associative;
+\definition oneLeft: \forall (x: A) -> mul one x = x := ring.semiring.multiplicative.leftIdentity;
+\definition oneRight: \forall (x: A) -> mul x one = x := ring.semiring.multiplicative.rightIdentity;
+\structure Data: \Set := {
+  value: A,
+  inverse: A,
+};
+\structure Laws[data: Data]: \Prop := {
+  left: mul data.inverse data.value = one,
+  right: mul data.value data.inverse = one,
+};
+\definition Unit: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition dataEta: \forall (data: Data) -> Data::# data.value data.inverse = data :=
+  \induction (data: Data) \return Data::# data.value data.inverse = data \with {
+    | # : \fun (a, b: A) => \refl(Data::# a b)
+  };
+\definition inverseEqual: \forall (x, y: Unit) -> x.value = y.value -> x.inverse = y.inverse :=
+  \fun (x, y: Unit)(same: _) => eq_reason!{
+    x.inverse "=" {mul x.inverse one} "by" {sym!{A} _ _ (oneRight x.inverse)}
+    "=" {mul x.inverse (mul y.value y.inverse)} "by" {congr!{A A} (mul x.inverse) _ _ (sym!{A} _ _ y.right)}
+    "=" {mul x.inverse (mul x.value y.inverse)} "by" {congr!{A A} (\fun (a: A) => mul x.inverse (mul a y.inverse)) _ _ (sym!{A} _ _ same)}
+    "=" {mul (mul x.inverse x.value) y.inverse} "by" {sym!{A} _ _ (assoc x.inverse x.value y.inverse)}
+    "=" {mul one y.inverse} "by" {congr!{A A} (\fun (a: A) => mul a y.inverse) _ _ x.left}
+    "=" y.inverse "by" {oneLeft y.inverse}
+  };
+\definition ext: \forall (x, y: Unit) -> x.value = y.value -> x = y :=
+  \fun (x, y: Unit)(same: _) => eq_reason!{
+    x "=" {Data::# x.value x.inverse} "by" {sym!{Data} _ _ (dataEta x)}
+    "=" {Data::# y.value y.inverse} "by" {congr2!{A A Data} Data::# _ _ _ _ same (inverseEqual x y same)}
+    "=" y "by" {dataEta y}
+  };
+\definition unit: Unit := Unit {
+  value := one, inverse := one, left := oneLeft one, right := oneLeft one,
+};
+\definition product[x, y: Unit]: Unit := Unit {
+  value := mul x.value y.value,
+  inverse := mul y.inverse x.inverse,
+  left := eq_reason!{
+    {mul (mul y.inverse x.inverse) (mul x.value y.value)}
+    "=" {mul y.inverse (mul x.inverse (mul x.value y.value))} "by" {assoc y.inverse x.inverse _}
+    "=" {mul y.inverse (mul (mul x.inverse x.value) y.value)} "by" {congr!{A A} (mul y.inverse) _ _ (sym!{A} _ _ (assoc x.inverse x.value y.value))}
+    "=" {mul y.inverse (mul one y.value)} "by" {congr!{A A} (\fun (a: A) => mul y.inverse (mul a y.value)) _ _ x.left}
+    "=" {mul y.inverse y.value} "by" {congr!{A A} (mul y.inverse) _ _ (oneLeft y.value)}
+    "=" one "by" {y.left}
+  },
+  right := eq_reason!{
+    {mul (mul x.value y.value) (mul y.inverse x.inverse)}
+    "=" {mul x.value (mul y.value (mul y.inverse x.inverse))} "by" {assoc x.value y.value _}
+    "=" {mul x.value (mul (mul y.value y.inverse) x.inverse)} "by" {congr!{A A} (mul x.value) _ _ (sym!{A} _ _ (assoc y.value y.inverse x.inverse))}
+    "=" {mul x.value (mul one x.inverse)} "by" {congr!{A A} (\fun (a: A) => mul x.value (mul a x.inverse)) _ _ y.right}
+    "=" {mul x.value x.inverse} "by" {congr!{A A} (mul x.value) _ _ (oneLeft x.inverse)}
+    "=" one "by" {x.right}
+  },
+};
+\definition inverse[x: Unit]: Unit := Unit {
+  value := x.inverse, inverse := x.value, left := x.right, right := x.left,
+};
+\definition group: Alg.Group[Unit] := Alg.Group[Unit] {
+  unit := unit, op := product, inv := inverse,
+  monoid := Monoid.MonoidLaws[Unit, Monoid.MonoidData[Unit]::# unit product] {
+    leftIdentity := \fun (x: Unit) => ext (product unit x) x (oneLeft x.value),
+    rightIdentity := \fun (x: Unit) => ext (product x unit) x (oneRight x.value),
+    associative := \fun (x, y, z: Unit) => ext (product (product x y) z) (product x (product y z)) (assoc x.value y.value z.value),
+  },
+  leftInverse := \fun (x: Unit) => ext (product (inverse x) x) unit x.left,
+  rightInverse := \fun (x: Unit) => ext (product x (inverse x)) unit x.right,
+};
+\import algebra.Group[].Of[Carrier := A, group := std.Alg[].Ring[].additiveGroup A ring] \as Additive;
+\definition mulNeg: \forall (x, y: A) -> mul x (ring.neg y) = ring.neg (mul x y) :=
+  \fun (x, y: A) => Additive.inverseUnique (mul x y) (mul x (ring.neg y)) (eq_reason!{
+    {ring.add (mul x (ring.neg y)) (mul x y)}
+    "=" {mul x (ring.add (ring.neg y) y)} "by" {sym!{A} _ _ (ring.semiring.leftDistributive x (ring.neg y) y)}
+    "=" {mul x ring.zero} "by" {congr!{A A} (mul x) _ _ (ring.additiveInverse y)}
+    "=" ring.zero "by" {ring.semiring.zeroAbsorbsRight x}
+  });
+\definition negMul: \forall (x, y: A) -> mul (ring.neg x) y = ring.neg (mul x y) :=
+  \fun (x, y: A) => Additive.inverseUnique (mul x y) (mul (ring.neg x) y) (eq_reason!{
+    {ring.add (mul (ring.neg x) y) (mul x y)}
+    "=" {mul (ring.add (ring.neg x) x) y} "by" {sym!{A} _ _ (ring.semiring.rightDistributive (ring.neg x) x y)}
+    "=" {mul ring.zero y} "by" {congr!{A A} (\fun (a: A) => mul a y) _ _ (ring.additiveInverse x)}
+    "=" ring.zero "by" {ring.semiring.zeroAbsorbsLeft y}
+  });
+\definition negNegMul: \forall (x, y: A) -> mul (ring.neg x) (ring.neg y) = mul x y :=
+  \fun (x, y: A) => trans!{A} _ _ _ (negMul x (ring.neg y))
+    (trans!{A} _ _ _ (congr!{A A} ring.neg _ _ (mulNeg x y)) (Additive.negNeg (mul x y)));
+\definition minusOne: Unit := Unit {
+  value := ring.neg one, inverse := ring.neg one,
+  left := trans!{A} _ _ _ (negNegMul one one) (oneLeft one),
+  right := trans!{A} _ _ _ (negNegMul one one) (oneLeft one),
+};
+\module Mapping(B: \Set, target: std.Alg[].Ring[].Ring[B], f: algebra.Hom[A := A, B := B].RingMap ring target);
+\module Conjugation(g: Unit);

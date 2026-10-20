@@ -1,0 +1,23 @@
+/* Stereographic and lower Pin readings of a coefficient plot. */
+\definition projected[x: Open.Carrier U]: Next.O := Next.PinRepresentation[].map (f x);
+\import Next.Plots[d := d] \as Matrices;
+\definition projectedPlot: Matrices.Plot U projected := NextPlots.projection U f regular;
+\definition heightFunction[x: Open.Carrier U]: R.Real := height (f x);
+\definition heightSmooth: Smooth.SmoothOn U heightFunction := Functions.addSmooth U (\fun (x: Open.Carrier U) => R.one)
+  (\fun (x: Open.Carrier U) => (projected x).value.apply first (Fin.zero n)) (Functions.constantSmooth U R.one) (projectedPlot first (Fin.zero n));
+\definition heightData: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](heightFunction, Smooth.SmoothFunction U) \by { heightSmooth };
+\import Smooth.Nonvanishing[U := U, f := heightData] \as Region;
+\definition D: Open.OpenSet := Region.domain;
+\definition center: Open.Carrier D := \into[calculus.Real[].Multivariable[n := d].Point](a, D.points) \by { Region.intro a condition.nonzero };
+\import NextPlots.Restriction[U := D, V := U, included := Region.included, f := f, regular := regular] \as Restricted;
+\definition parts[x: Open.Carrier D]: Parts := asPart (Restricted.value x) (Region.nonzero x);
+\import GeometryPlots.Read[U := D, f := parts, regular := Restricted.plot] \as Fiber;
+\definition parameters[x: Open.Carrier D]: E.Vector := Fiber.parameters x;
+\definition parameterSmooth: \forall (j: Fin.Fin n) -> Smooth.SmoothOn D (\fun (x: Open.Carrier D) => parameters x j) := Fiber.parameterSmooth;
+\import LowerCoordinates.Read[d := d].On[p := lower, U := D, f := Fiber.value, a := center] \as Reads;
+\import UpperCoordinates.Read[d := d].On[p := patch, U := U, f := f, a := a] \as Result;
+\module From(witness: Reads.Witness);
+\definition exists: \exists Result.Witness := \block {
+  \takefrom witness: Reads.Witness \by previous.readings d D Fiber.value Fiber.plot i center condition.contained \then
+  \return \exact(From[witness := witness].value, Result.Witness)
+};

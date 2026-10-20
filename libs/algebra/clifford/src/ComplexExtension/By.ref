@@ -1,0 +1,32 @@
+\import Operations.Product[H := Circle.Circle, other := Circle.group] \as Product;
+\import algebra.Groups[].On[G := Product.Pair, group := Product.group] \as ProductOperations;
+\definition diagonal: ProductOperations.CentralInvolution := ProductOperations.CentralInvolution {
+  element := Product.Pair::# sign.element Circle.minusOne,
+  central := \fun (p: Product.Pair) => Product.ext _ _ (sign.central p.first)
+    (\root.Circle[].sign.central p.second),
+  square := Product.ext _ _ sign.square (\root.Circle[].sign.square),
+};
+\import ProductOperations.Diagonal[sign := diagonal] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition group: std.Alg[].Alg[].Group[Carrier] := Quotient.group;
+\definition class[g: G][z: Circle.Circle]: Carrier := Quotient.class (Product.Pair::# g z);
+\definition multiplication: \forall (g, h: G)(z, w: Circle.Circle) -> group.op (class g z) (class h w) = class (Operations.mul g h) (Circle.product z w) :=
+  \fun (g, h: G)(z, w: Circle.Circle) => Quotient.classMul (Product.Pair::# g z) (Product.Pair::# h w);
+\definition identify: \forall (g: G)(z: Circle.Circle) -> class (Operations.mul sign.element g) (Circle.product Circle.minusOne z) = class g z :=
+  \fun (g: G)(z: Circle.Circle) => Quotient.identifySign (Product.Pair::# g z);
+\import std.Set[].Quotient[A := Product.Pair, Equivalent := Quotient.Equivalent] \as Classes;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition induction: \forall (P: Carrier -> \Prop) -> (\forall (g: G)(z: Circle.Circle) -> P (class g z)) -> \forall (x: Carrier) -> P x :=
+  \fun (P: Carrier -> \Prop)(cases: _) => Classes.induction P (\fun (p: Product.Pair) =>
+    \idelim class p.first p.second = Quotient.class p \with x: Carrier => P x \by {
+      base: cases p.first p.second, equality: congr!{{Product.Pair} Carrier} Quotient.class _ _ (Product.eta p)
+    });
+\definition induction2: \forall (P: Carrier -> Carrier -> \Prop) ->
+  (\forall (g: G)(z: Circle.Circle)(h: G)(w: Circle.Circle) -> P (class g z) (class h w)) -> \forall (x, y: Carrier) -> P x y :=
+  \fun (P: Carrier -> Carrier -> \Prop)(cases: _) => induction (\fun (x: Carrier) => \forall (y: Carrier) -> P x y)
+    (\fun (g: G)(z: Circle.Circle) => induction (\fun (y: Carrier) => P (class g z) y) (cases g z));
+\definition inversion: \forall (g: G)(z: Circle.Circle) -> group.inv (class g z) = class (Operations.inv g) (Circle.inverse z) :=
+  \fun (g: G)(z: Circle.Circle) => Quotient.classInv (Product.Pair::# g z);
+\module Lift(B: \Set, values: G -> Circle.Circle -> B,
+  invariant: \forall (g: G)(z: Circle.Circle) -> values (Operations.mul sign.element g) (Circle.product Circle.minusOne z) = values g z);

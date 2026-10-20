@@ -1,0 +1,55 @@
+\import Shifted.At[a := initial] \as ShiftChain;
+\import Translated.At[a := initial] \as ProductChain;
+\import Maps.Differential[U := domain, V := chart.image, f := map, a := a] \as AtPoint;
+\import Maps.Differential[U := domain, V := chart.image, f := map, a := zero] \as AtZero;
+\import Maps.Differential[U := common, V := chart.image, f := Shifted.compose, a := initial] \as ShiftD;
+\import Maps.Differential[U := common, V := chart.image, f := Translated.compose, a := initial] \as ProductD;
+\import TimeMaps.Differential[U := common, V := domain, f := shifted, a := initial] \as ShiftInner;
+\import Maps.Differential[U := domain, V := chart.image, f := map, a := TimeMaps.apply common domain shifted initial] \as ShiftOuter;
+\import Maps.Differential[U := common, V := Left.domain, f := input, a := initial] \as ProductInner;
+\import calculus.Maps[n := n, m := n].Differential[U := Left.domain, V := chart.image, f := Left.map, a := Maps.apply common Left.domain input initial] \as ProductOuter;
+\import calculus.Maps[n := n, m := n].Differential[U := Left.domain, V := chart.image, f := Left.map, a := Left.initial] \as LeftOrigin;
+\import calculus.Vector[n := lineDimension, m := lineDimension] \as TimeVectors;
+\import calculus.Vector[n := lineDimension, m := n] \as CurveVectors;
+\import calculus.Vector[n := n, m := n] \as TargetVectors;
+\import calculus.Identity[n := lineDimension] \as Identity;
+\definition shiftAtZero: TimeMaps.apply common domain shifted initial = a := shiftedZero;
+\definition productAtZero: Maps.apply common Left.domain input initial = Left.initial := atZero;
+\definition shiftInner: ShiftInner.value = Identity.linear := trans!{TimeVectors.LinearMap} _ _ _
+  (ShiftRestriction.differential inShift ShiftDomain.map initial)
+  (trans!{TimeVectors.LinearMap} _ _ _ (ShiftDomain.differential (shiftPoint initial))
+    (TimeTranslations.differential LineOpen.whole a (time Reals.zero)));
+\definition shiftOuter: ShiftOuter.value = AtPoint.value :=
+  \idelim a = TimeMaps.apply common domain shifted initial \with p: LineOpen.Carrier domain =>
+    Maps.Differential[U := domain, V := chart.image, f := map, a := p].value = AtPoint.value \by {
+      base: \refl(AtPoint.value), equality: sym!{{LineOpen.Carrier domain}} _ _ shiftAtZero
+    };
+\definition productInner: ProductInner.value = AtZero.value := trans!{CurveVectors.LinearMap} _ _ _
+  (ProductRestriction.differential inProduct ProductDomain.map initial) (ProductDomain.differential (productPoint initial));
+\definition productOuter: ProductOuter.value = LeftOrigin.value :=
+  \idelim Left.initial = Maps.apply common Left.domain input initial
+    \with p: calculus.Real[].Multivariable[n := n].Open[].Carrier Left.domain =>
+      calculus.Maps[n := n, m := n].Differential[U := Left.domain, V := chart.image, f := Left.map, a := p].value = LeftOrigin.value \by {
+        base: \refl(LeftOrigin.value), equality: sym!{{calculus.Real[].Multivariable[n := n].Open[].Carrier Left.domain}} _ _ productAtZero
+      };
+\definition candidates: ShiftChain.candidate = ProductChain.candidate := trans!{CurveVectors.LinearMap} _ _ _
+  (sym!{CurveVectors.LinearMap} _ _ ShiftChain.jacobian)
+  (trans!{CurveVectors.LinearMap} _ _ _
+    (congr!{{Maps.Map common chart.image} CurveVectors.LinearMap}
+      (\fun (h: Maps.Map common chart.image) => Maps.Differential[U := common, V := chart.image, f := h, a := initial].value) _ _ equal) ProductChain.jacobian);
+\definition SourceVector: \Set := topological_algebra.Euclidean[].Dimension[n := lineDimension].Point;
+\definition TargetVector: \Set := topological_algebra.Euclidean[].Dimension[n := n].Point;
+\definition shiftedExpansion: \forall (w: SourceVector) -> ShiftChain.candidate.apply w = AtPoint.value.apply w :=
+  \fun (w: SourceVector) => trans!{TargetVector} _ _ _
+    (congr!{CurveVectors.LinearMap TargetVector} (\fun (d: CurveVectors.LinearMap) => d.apply (ShiftInner.value.apply w)) _ _ shiftOuter)
+    (congr!{SourceVector TargetVector} AtPoint.value.apply _ _
+      (congr!{TimeVectors.LinearMap SourceVector} (\fun (d: TimeVectors.LinearMap) => d.apply w) _ _ shiftInner));
+\definition translatedExpansion: \forall (w: SourceVector) -> ProductChain.candidate.apply w = LeftOrigin.value.apply (AtZero.value.apply w) :=
+  \fun (w: SourceVector) => trans!{TargetVector} _ _ _
+    (congr!{TargetVectors.LinearMap TargetVector} (\fun (d: TargetVectors.LinearMap) => d.apply (ProductInner.value.apply w)) _ _ productOuter)
+    (congr!{TargetVector TargetVector} LeftOrigin.value.apply _ _
+      (congr!{CurveVectors.LinearMap TargetVector} (\fun (d: CurveVectors.LinearMap) => d.apply w) _ _ productInner));
+\definition law: AtPoint.value.apply unitVector = LeftOrigin.value.apply (AtZero.value.apply unitVector) :=
+  trans!{TargetVector} _ _ _ (sym!{TargetVector} _ _ (shiftedExpansion unitVector))
+    (trans!{TargetVector} _ _ _ (congr!{CurveVectors.LinearMap TargetVector} (\fun (d: CurveVectors.LinearMap) => d.apply unitVector) _ _ candidates)
+      (translatedExpansion unitVector));

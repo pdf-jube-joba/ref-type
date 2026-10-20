@@ -1,0 +1,27 @@
+\import Next.InnerProduct[] \as InnerProduct;
+\import Next.PinRepresentation[] \as Representation;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := Next.Vector, space := Next.space].Of[form := Next.form].Pin[] \as NextPin;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import R.Estimates[] \as Estimates;
+\definition direction: Next.Vector := Tuples.extend n R.one s;
+\definition directionHead: head direction = R.one := Tuples.atZero n R.one s;
+\definition directionTail: tail direction = s := \axiom:funext(tail direction, s, \fun (i: Fin.Fin n) => Tuples.atSuccessor n R.one s i);
+\definition denominator: R.Real := R.add R.one (dot s s);
+\definition squaredDirection: Next.dot direction direction = denominator := trans!{R.Real} _ _ _ (splitDot direction direction)
+  (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ directionHead directionHead) (Arithmetic.fieldMulOneLeft R.one))
+    (congr2!{Vector Vector R.Real} dot _ _ _ _ directionTail directionTail));
+\definition denominatorPositive: Order.Lt R.zero denominator := Order.ltLeTrans R.zero R.one denominator Estimates.Product[].onePositive
+  (Scalars.leAddRight R.one (dot s s) (Sums.nonnegative n (\fun (i: Fin.Fin n) => R.mul (s i) (s i))
+    (\fun (i: Fin.Fin n) => Scalars.squareNonnegative (s i))));
+\definition nonzero: InnerProduct.Nonzero := \into[Next.Vector](direction, { v: Next.Vector \where Order.Lt R.zero (Next.dot v v) }) \by {
+  Order.ltReplaceRight R.zero denominator (Next.dot direction direction) (sym!{R.Real} _ _ squaredDirection) denominatorPositive
+};
+\import InnerProduct.Normalization[v := nonzero] \as Reflection;
+\definition firstUnit: NextPin.Positive := \into[Next.Vector](first, { v: Next.Vector \where Next.dot v v = R.one }) \by { firstNorm };
+\import Representation.Positive[v := firstUnit] \as FirstReflection;
+\definition value: Next.O := NextOperations.mul Reflection.reflection FirstReflection.orthogonal;
+\definition firstNegative: NextOrthogonal.action FirstReflection.orthogonal first = Next.space.neg first := FirstReflection.selfNegative;
+\definition firstColumn: Next.Vector := NextOrthogonal.action value first;
+\definition firstUnitLength: Next.dot firstColumn firstColumn = R.one := trans!{R.Real} _ _ _ (NextOrthogonal.preserves value first first) firstNorm;
+\module Column;

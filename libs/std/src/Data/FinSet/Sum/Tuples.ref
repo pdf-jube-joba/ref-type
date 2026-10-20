@@ -1,0 +1,15 @@
+\definition evaluate[f: Fin m -> A][g: Fin n -> A]: Index -> A := \induction (i: Index) \return A \with {
+  | inl: f
+  | inr: g
+};
+\definition join[f: Fin m -> A][g: Fin n -> A][i: Fin total]: A := evaluate f g (split i);
+\definition atLeft[f: Fin m -> A][g: Fin n -> A][i: Fin m]: join f g (left i) = f i :=
+  congr!{Index A} (evaluate f g) _ _ (splitInflate (Sums.Sum[Fin m, Fin n]::inl i));
+\definition atRight[f: Fin m -> A][g: Fin n -> A][i: Fin n]: join f g (right i) = g i :=
+  congr!{Index A} (evaluate f g) _ _ (splitInflate (Sums.Sum[Fin m, Fin n]::inr i));
+\definition recover[h: Fin total -> A]: join (\fun (i: Fin m) => h (left i)) (\fun (j: Fin n) => h (right j)) = h :=
+  \axiom:funext(join (\fun (i: Fin m) => h (left i)) (\fun (j: Fin n) => h (right j)), h, \fun (i: Fin total) => trans!{A} _ _ _
+    ((\induction (j: Index) \return evaluate (\fun (i: Fin m) => h (left i)) (\fun (j: Fin n) => h (right j)) j = h (inflate j) \with {
+      | inl: \fun (i: Fin m) => \refl(h (left i))
+      | inr: \fun (j: Fin n) => \refl(h (right j))
+    }) (split i)) (congr!{{Fin total} A} h _ _ (inflateSplit i)));

@@ -1,0 +1,54 @@
+\import \parent.Bounds[] \as Bounds;
+\import \parent.Mesh[] \as Mesh;
+\import std.Data[].Bool[].Prop[] \as Bool;
+\inductive Relation: \forall (coarse, fine: Tags) -> \Prop :=
+  | leaf: \forall (x: Real)(fine: Tags) -> Relation (Tags::tag x) fine
+  | split: \forall (left, right, fineLeft, fineRight: Tags) -> Relation left fineLeft -> Relation right fineRight ->
+      Relation (Tags::split left right) (Tags::split fineLeft fineRight);
+\definition canonicalRefines: \forall (n: N.Nat^)(fine: Tags)(m: N.Nat^)(a, b: Real) -> Level fine m -> Nat.Le n m -> Relation (leftTags n a b) fine :=
+  \induction (n: N.Nat^) \return \forall (fine: Tags)(m: N.Nat^)(a, b: Real) -> Level fine m -> Nat.Le n m -> Relation (leftTags n a b) fine \with {
+    | zero: \fun (fine: Tags)(m: N.Nat^)(a, b: Real)(level: _)(later: _) => Relation::leaf a fine
+    | succ: \fun (n: N.Nat^)(previous: \forall (fine: Tags)(m: N.Nat^)(a, b: Real) -> Level fine m -> Nat.Le n m -> Relation (leftTags n a b) fine) =>
+      \induction (fine: Tags) \return \forall (m: N.Nat^)(a, b: Real) -> Level fine m -> Nat.Le (N.Nat^::succ n) m -> Relation (leftTags (N.Nat^::succ n) a b) fine \with {
+        | tag: \fun (x: Real)(m: N.Nat^)(a, b: Real)(level: m = N.Nat^::zero)(later: _) => Logic.falseElim _
+          (Bool.falseNeTrue (\idelim m = N.Nat^::zero \with k: N.Nat^ => Nat.Le (N.Nat^::succ n) k \by { base: later, equality: level }))
+        | split: \block {
+          \fun (left: Tags)(unusedLeft: _)(right: Tags)(unusedRight: _)(m: N.Nat^)(a, b: Real)(level: Level (Tags::split left right) m)(later: Nat.Le (N.Nat^::succ n) m) \then
+          \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where SplitLevel[m, levelSet left, levelSet right, k] }) \by level \then
+          \let levels: SplitLevel[m, levelSet left, levelSet right, k] := \bysub(N.Nat^, { k: N.Nat^ \where SplitLevel[m, levelSet left, levelSet right, k] }, k) \then
+          \let lower: Nat.Le n k := Nat.leOfSuccSucc n k (\idelim m = N.Nat^::succ k \with t: N.Nat^ => Nat.Le (N.Nat^::succ n) t \by { base: later, equality: levels.successor }) \then
+          \return Relation::split (leftTags n a (midpoint a b)) (leftTags n (midpoint a b) b) left right
+            (previous left k a (midpoint a b) levels.left lower) (previous right k (midpoint a b) b levels.right lower)
+        }
+      }
+  };
+\definition comparison: \forall (coarse, fine: Tags) -> Relation coarse fine -> \forall (f: Real -> Real)(a, b, delta, bound: Real) ->
+  R.Le a b -> Valid coarse a b -> Valid fine a b -> Mesh.Fine coarse a b delta -> Bounds.Oscillation f a b delta bound ->
+  R.Le (distance (sum f coarse a b) (sum f fine a b)) (mul (sub b a) bound) :=
+  \induction (coarse, fine: Tags)(refines: Relation coarse fine) \return \forall (f: Real -> Real)(a, b, delta, bound: Real) ->
+    R.Le a b -> Valid coarse a b -> Valid fine a b -> Mesh.Fine coarse a b delta -> Bounds.Oscillation f a b delta bound ->
+    R.Le (distance (sum f coarse a b) (sum f fine a b)) (mul (sub b a) bound) \with {
+    | leaf: \fun (x: Real)(fine: Tags)(f: Real -> Real)(a, b, delta, bound: Real)(ordered: _)
+        (validCoarse: Logic.And[R.Le a x, R.Le x b])(validFine: Valid fine a b)(small: R.Lt (sub b a) delta)(oscillation: _) =>
+      R.leReplaceLeft (distance (sum f fine a b) (sum (\fun (y: Real) => f x) fine a b))
+        (distance (mul (sub b a) (f x)) (sum f fine a b)) (mul (sub b a) bound)
+        (trans!{Real} _ _ _ (congr!{Real Real} (distance (sum f fine a b)) _ _ (sumConstant (f x) fine a b))
+          (Metric.distanceSymmetric (sum f fine a b) (mul (sub b a) (f x))))
+        (Bounds.sumDistanceUniform f (\fun (y: Real) => f x) fine a b bound ordered validFine
+          (\fun (y: Real)(ay: _)(yb: _) => oscillation y x ay yb validCoarse.left validCoarse.right
+            (R.leLtTrans _ _ _ (Bounds.intervalDistance a b y x ay yb validCoarse.left validCoarse.right) small)))
+    | split: \fun (left, right, fineLeft, fineRight: Tags)(refinesLeft: _)(leftBound: _)(refinesRight: _)(rightBound: _)
+        (f: Real -> Real)(a, b, delta, bound: Real)(ordered: _)
+        (validCoarse: Logic.And[Valid left a (midpoint a b), Valid right (midpoint a b) b])
+        (validFine: Logic.And[Valid fineLeft a (midpoint a b), Valid fineRight (midpoint a b) b])
+        (small: Logic.And[Mesh.Fine left a (midpoint a b) delta, Mesh.Fine right (midpoint a b) b delta])(oscillation: _) =>
+      R.leTrans _ _ _ (E.distanceAdd (sum f left a (midpoint a b)) (sum f right (midpoint a b) b)
+        (sum f fineLeft a (midpoint a b)) (sum f fineRight (midpoint a b) b))
+        (R.leReplaceRight _ (add (mul (sub (midpoint a b) a) bound) (mul (sub b (midpoint a b)) bound)) (mul (sub b a) bound)
+          (sumConstant bound (Tags::split (Tags::tag a) (Tags::tag b)) a b)
+          (E.addLe _ _ _ _
+            (leftBound f a (midpoint a b) delta bound (E.midpointLeft a b ordered) validCoarse.left validFine.left small.left
+              (Bounds.oscillationLeft f a b delta bound ordered oscillation))
+            (rightBound f (midpoint a b) b delta bound (E.midpointRight a b ordered) validCoarse.right validFine.right small.right
+              (Bounds.oscillationRight f a b delta bound ordered oscillation))))
+  };
