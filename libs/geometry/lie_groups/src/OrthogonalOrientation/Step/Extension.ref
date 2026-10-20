@@ -1,0 +1,21 @@
+\import Geometry.Extension[h := h] \as Extended;
+\import Spaces.Multilinear[V := E.Vector, space := E.space].Alternating[] \as LowerAlternating;
+\import LowerAlternating.Precomposition[W := Next.Vector, target := Next.space] \as Pullback;
+\import Alternating.Contraction[k := n] \as Contract;
+\definition restrictedVolume: LowerTop.Form := Pullback.precompose n Geometry.Embedding[].map (Contract.apply Top.volume Geometry.first);
+\definition normalized: restrictedVolume LowerTop.basisArguments = R.one := trans!{R.Real} _ _ _
+  (congr!{Top.Arguments R.Real} Top.volume _ _ Basis.basisArguments) Top.normalized;
+\definition restrictedEquals: restrictedVolume = LowerTop.volume := LowerTop.ext restrictedVolume LowerTop.volume
+  (trans!{R.Real} _ _ _ normalized (sym!{R.Real} _ _ LowerTop.normalized));
+\definition arguments: Top.transformed Extended.orthogonal.value Top.basisArguments = Tuples.extend n Geometry.first
+  (\fun (i: Fin.Fin n) => Geometry.embed (h.value.apply (Base.vectors i))) := Tuples.extensionality n _ _
+    (trans!{Next.Vector} _ _ _ (congr!{Next.Vector Next.Vector} Extended.orthogonal.value.apply _ _ Basis.firstBasis)
+      (trans!{Next.Vector} _ _ _ Extended.fixes
+        (sym!{Next.Vector} _ _ (Tuples.atZero n Geometry.first (\fun (i: Fin.Fin n) => Geometry.embed (h.value.apply (Base.vectors i)))))))
+    (\fun (i: Fin.Fin n) => trans!{Next.Vector} _ _ _
+      (congr!{Next.Vector Next.Vector} Extended.orthogonal.value.apply _ _ (sym!{Next.Vector} _ _ (Basis.embeddedBasis i)))
+      (trans!{Next.Vector} _ _ _ (Extended.onEmbed (Base.vectors i))
+        (sym!{Next.Vector} _ _ (Tuples.atSuccessor n Geometry.first (\fun (i: Fin.Fin n) => Geometry.embed (h.value.apply (Base.vectors i))) i))));
+\definition determinant: Orientation.determinant Extended.orthogonal = LowerOrientation.determinant h := trans!{R.Real} _ _ _
+  (congr!{Top.Arguments R.Real} Top.volume _ _ arguments)
+  (congr!{LowerTop.Form R.Real} (\fun (omega: LowerTop.Form) => omega (LowerTop.transformed h.value LowerTop.basisArguments)) _ _ restrictedEquals);

@@ -1,0 +1,44 @@
+\import topology.Topology[Carrier := A] \as T;
+\import T.Closure[] \as Closure;
+\import T.Compactness[] \as Compact;
+\import T.Finite[] \as Finite;
+\import real.Analysis[] \as Real;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+
+\definition Nonzero[f: A -> Real.Real]: \Pow A :=
+  { x: A \where Logic.Not (f x = Real.zero) };
+\definition support[topology: T.Topology] [f: A -> Real.Real]: \Pow A :=
+  Closure.closure topology (Nonzero f);
+\definition HasCompactSupport[topology: T.Topology] [f: A -> Real.Real]: \Prop :=
+  T.IsCompactIn topology (support topology f);
+\definition SupportedIn[topology: T.Topology] [f: A -> Real.Real] [S: \Pow A]: \Prop :=
+  T.Subset (support topology f) S;
+
+\definition supportClosed: \forall (topology: T.Topology) (f: A -> Real.Real) ->
+  T.IsClosedIn topology (support topology f) :=
+  \fun (topology: _) (f: _) => Closure.closed topology (Nonzero f);
+\definition nonzeroInSupport: \forall (topology: T.Topology) (f: A -> Real.Real) (x: A) ->
+  Logic.Not (f x = Real.zero) -> T.Member (support topology f) x :=
+  \fun (topology: _) (f: _) => Closure.contains topology (Nonzero f);
+\definition zeroOutsideSupport: \forall (topology: T.Topology) (f: A -> Real.Real) (x: A) ->
+  Logic.Not (T.Member (support topology f) x) -> f x = Real.zero :=
+  \fun (topology: _) (f: _) (x: _) (outside: _) =>
+    Finite.doubleNegElim (f x = Real.zero) (\fun (nonzero: _) => outside (nonzeroInSupport topology f x nonzero));
+\definition supportWithinClosed: \forall (topology: T.Topology) (f: A -> Real.Real) (F: \Pow A) ->
+  T.IsClosedIn topology F -> (\forall (x: A) -> Logic.Not (T.Member F x) -> f x = Real.zero) ->
+  SupportedIn topology f F :=
+  \fun (topology: _) (f: _) (F: _) (closed: _) (vanishes: _) =>
+    Closure.least topology (Nonzero f) F closed
+      (\fun (x: _) (nonzero: _) => Finite.doubleNegElim (T.Member F x)
+        (\fun (outside: _) => nonzero (vanishes x outside)));
+\definition compactSupportWithin: \forall (topology: T.Topology) (f: A -> Real.Real) (K: \Pow A) ->
+  T.IsCompactIn topology K -> SupportedIn topology f K -> HasCompactSupport topology f :=
+  \fun (topology: _) (f: _) (K: _) (compact: _) (included: _) =>
+    Compact.closedSubset topology K (support topology f) compact (supportClosed topology f) included;
+\definition compactDomain: \forall (topology: T.Topology) -> T.IsCompact topology ->
+  \forall (f: A -> Real.Real) -> HasCompactSupport topology f :=
+  \fun (topology: _) (compact: _) (f: _) => compactSupportWithin topology f T.Whole compact
+    (\fun (x: _) (member: _) => \refl(x));

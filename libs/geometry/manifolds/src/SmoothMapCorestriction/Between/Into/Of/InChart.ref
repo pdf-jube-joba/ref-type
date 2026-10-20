@@ -1,0 +1,19 @@
+\import Maps.Coordinates[f := continuous, left := left, right := Restricted.restricted right] \as Direct;
+\import OriginalMaps.Coordinates[f := f, left := left, right := right] \as Local;
+\definition included: Open.Included Direct.domain Local.domain := \fun (x: calculus.Real[].Multivariable[n := n].Point)(member: _) => \block {
+  \let a: Open.Carrier Direct.domain := \into[calculus.Real[].Multivariable[n := n].Point](x, Direct.domain.points) \by { member } \then
+  \return Local.intro (Direct.leftCoordinate a) (Direct.inRightDomain a)
+};
+\definition Vector: \Set := std.Data[].FinSet[].Fin m -> real.Analysis[].Real;
+\definition directVector[x: Open.Carrier Direct.domain]: Vector := Direct.apply x;
+\definition localVector[x: Open.Carrier Direct.domain]: Vector := Local.apply (Open.inclusion Direct.domain Local.domain included x);
+\definition same: \forall (x: Open.Carrier Direct.domain) -> directVector x = localVector x := \fun (x: Open.Carrier Direct.domain) => \refl(directVector x);
+\definition localSmooth: Local.Smooth := (\bysub(OriginalMaps.ContinuousMap, { h: OriginalMaps.ContinuousMap \where OriginalMaps.Chartwise h }, f)) left right
+  (\bysub(SourceCharts.Chart, sourceAtlas.charts, left)) (\bysub(TargetCharts.Chart, N.atlas.charts, right));
+\definition smooth: Direct.Smooth := \fun (i: std.Data[].FinSet[].Fin m) => \idelim
+  (\fun (x: Open.Carrier Direct.domain) => localVector x i) = (\fun (x: Open.Carrier Direct.domain) => directVector x i)
+  \with h: Open.ScalarFunction Direct.domain => Smooth.SmoothOn Direct.domain h \by {
+    base: Restriction.localSmooth Direct.domain Local.domain included (\fun (x: Open.Carrier Local.domain) => Local.apply x i) (localSmooth i),
+    equality: \axiom:funext((\fun (x: Open.Carrier Direct.domain) => localVector x i), (\fun (x: Open.Carrier Direct.domain) => directVector x i),
+      \fun (x: Open.Carrier Direct.domain) => sym!{real.Analysis[].Real} _ _ (congr!{Vector {real.Analysis[].Real}} (\fun (v: Vector) => v i) _ _ (same x)))
+  };

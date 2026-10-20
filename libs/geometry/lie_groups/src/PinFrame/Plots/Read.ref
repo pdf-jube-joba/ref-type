@@ -1,0 +1,19 @@
+\definition projected[x: Open.Carrier U]: Next.O := HigherRepresentation.map (f x);
+\definition projectedPlot: Matrices.Plot U projected := Higher.projection U (\fun (x: Open.Carrier U) => f x) regular;
+\definition heightFunction[x: Open.Carrier U]: R.Real := height (f x);
+\definition heightSmooth: Smooth.SmoothOn U heightFunction := Functions.addSmooth U (\fun (x: Open.Carrier U) => R.one)
+  (\fun (x: Open.Carrier U) => (projected x).value.apply Geometry.first (Fin.zero n)) (Functions.constantSmooth U R.one) (projectedPlot Geometry.first (Fin.zero n));
+\definition heightData: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](heightFunction, Smooth.SmoothFunction U) \by { heightSmooth };
+\definition heightNonzero: \forall (x: Open.Carrier U) -> Logic.Not (heightFunction x = R.zero) := \fun (x: Open.Carrier U) => nonzero (f x);
+\import Smooth.Reciprocal[U := U, f := heightData, nonzero := heightNonzero] \as InverseHeight;
+\definition parameters[x: Open.Carrier U]: E.Vector := parameter (f x);
+\definition parameterSmooth: Vectors.Values U parameters := \fun (i: Fin.Fin n) => Functions.mulSmooth U InverseHeight.value
+  (\fun (x: Open.Carrier U) => (projected x).value.apply Geometry.first (Fin.succ n i)) InverseHeight.smooth (projectedPlot Geometry.first (Fin.succ n i));
+\import \parent.Section[U := U, s := parameters, regular := parameterSmooth] \as Section;
+\definition correction[x: Open.Carrier U]: Next.Pin := Group.mul (Group.inv (Section.value x)) (f x);
+\definition correctionPlot: Higher.Plot U correction := Higher.multiplication U (\fun (x: Open.Carrier U) => Group.inv (Section.value x))
+  (\fun (x: Open.Carrier U) => f x) (Higher.inverse U Section.value Section.plot) regular;
+\import Calculus.Step[n := n].Components[U := U, f := \fun (x: Open.Carrier U) => (correction x).value] \as Components;
+\definition value[x: Open.Carrier U]: E.Pin := fiber (f x);
+\definition plot: Lower.Plot U value := LowerAlgebra.congruent U Components.left (\fun (x: Open.Carrier U) => (value x).value)
+  (\fun (x: Open.Carrier U) => \parent.\parent.On[g := f x].fiberValue) (Components.leftPlot correctionPlot);

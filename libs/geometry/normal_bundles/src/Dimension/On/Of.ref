@@ -1,0 +1,94 @@
+\import real.Analysis[] \as R;
+\import linear_algebra.Euclidean[n := ambientDimension] \as E;
+\import linear_algebra.Field[].Space[K := R.Real, field := R.Algebra[].field] \as Spaces;
+\import Spaces.Subspace[V := E.Vector, space := E.space] \as Subspaces;
+\import manifolds.Tangent[n := n].On[M := M] \as Tangent;
+\import manifolds.Tangent[n := ambientDimension].On[M := ambient] \as AmbientTangent;
+\import manifolds.SmoothMap[n := n, m := ambientDimension].Between[M := M, N := ambient] \as Maps;
+\import manifolds.Differential[n := n, m := ambientDimension].Between[M := M, N := ambient] \as Differential;
+\import manifolds.Dimension[n := ambientDimension].Chart[M := ambient.Point, space := ambient.space] \as AmbientCharts;
+\import manifolds.Dimension[n := ambientDimension].Atlas[M := ambient.Point, space := ambient.space] \as AmbientAtlases;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\module At(x: M.Point);
+\definition Fiber[x: M.Point]: \Set := At[x := x].Fiber;
+\definition fiberSpace[x: M.Point]: Spaces.VectorSpace (Fiber x) := At[x := x].space;
+\import tangent_bundles.FrameBundle[n := n, r := k].Over[M := M].Family[F := Fiber, space := fiberSpace] \as Family;
+\definition Point: \Set := Family.Point;
+\definition projection: Point -> M.Point := Family.projection;
+\definition include[x: M.Point][w: Fiber x]: Point := Family.include x w;
+\definition ambientVector[p: Point]: E.Vector := p.vector;
+\definition orthogonal: \forall (p: Point)(v: Tangent.Vector p.base) -> E.dot (ambientVector p) (At[x := p.base].differential.apply v) = R.zero :=
+  \fun (p: Point) => \bysub(E.Vector, (At[x := p.base].subspace).carrier, p.vector);
+\import std.Data[].FinSet[] \as Fin;
+\import linear_algebra.Euclidean[n := n] \as SourceVectors;
+\import linear_algebra.Euclidean[n := k] \as NormalVectors;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import calculus.Real[].Multivariable[n := n] \as BaseCoordinates;
+\import BaseCoordinates.Open[] \as Open;
+\import calculus.MatrixFamily[d := n, p := k, q := ambientDimension] \as DecodeMatrix;
+\import calculus.MatrixFamily[d := n, p := ambientDimension, q := k] \as EncodeMatrix;
+\import Spaces.Linear[V := NormalVectors.Vector, W := E.Vector, source := NormalVectors.space, target := E.space] \as Decoders;
+\import Spaces.Linear[V := E.Vector, W := NormalVectors.Vector, source := E.space, target := NormalVectors.space] \as Encoders;
+\definition Chart: \Set := \Cast[Charts.Chart] M.atlas.charts;
+\structure Local: \Set := {
+  chart: Chart,
+  decode: \forall (x: Charts.LocalPoint chart) -> Decoders.Map,
+  encode: \forall (x: Charts.LocalPoint chart) -> Encoders.Map,
+  isometry: \forall (x: Charts.LocalPoint chart)(v, w: NormalVectors.Vector) -> E.dot ((decode x).apply v) ((decode x).apply w) = NormalVectors.dot v w,
+  leftInverse: \forall (x: Charts.LocalPoint chart)(v: NormalVectors.Vector) -> (encode x).apply ((decode x).apply v) = v,
+  image: \forall (x: Charts.LocalPoint chart)(v: NormalVectors.Vector)(t: Tangent.Vector x) -> E.dot ((decode x).apply v) (At[x := x].differential.apply t) = R.zero,
+  reconstruction: \forall (x: Charts.LocalPoint chart)(w: Fiber x) -> (decode x).apply ((encode x).apply w) = w,
+  decodeSmooth: DecodeMatrix.Regular chart.image (\fun (u: Open.Carrier chart.image) => decode (Charts.point chart u)),
+  encodeSmooth: EncodeMatrix.Regular chart.image (\fun (u: Open.Carrier chart.image) => encode (Charts.point chart u)),
+};
+\module LocalFrame(local: Local);
+\definition local[patch: Local]: Family.Local := Family.Local { chart := patch.chart, frame := \fun (x: Charts.LocalPoint patch.chart) => LocalFrame[local := patch].At[x := x].isomorphism };
+\module InChart(c: Chart);
+\module Cover(x: M.Point, c: Chart, inside: Charts.Contains c x);
+\definition covers: \forall (x: M.Point) -> \exists ( patch: Local \where Charts.Contains patch.chart x ) := \block {
+  \fun (x: M.Point) \then
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }) \by M.atlas.covers x \then
+  \let law: Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] := \bysub(Charts.Chart,
+    { c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }, c) \then
+  \return Cover[x := x, c := \into[Charts.Chart](c, M.atlas.charts) \by { law.left }, inside := law.right].exists
+};
+\definition framesData: Family.Data[Local] := Family.Data[Local] { local := local, covers := covers };
+\import Family.Using[I := Local, data := framesData] \as Atlas;
+\module Change(first, second: Local);
+\definition changes: Atlas.Changes := \fun (first, second: Local)(a, b: Fin.Fin k) => Change[first := first, second := second].smooth a b;
+\import Atlas.Build[changes := changes] \as Construct;
+\definition manifold: AmbientModels.Manifold := Construct.manifold;
+\definition topology: topology.Structures[].Topology[Point] := Construct.topology;
+\definition totalDimension: N.Nat^ := Construct.totalDimension;
+\definition normalManifold: AmbientModels.Manifold := manifold;
+\module Splitting;
+\module Projection;
+\module Zero;
+\module Addition;
+\module Scaling;
+\module SubspaceTopology;
+\module FromAmbient(p: N.Nat^);
+\module Vector;
+\import manifolds.Dimension[n := ambientDimension].Chart[M := Point, space := topology] \as TotalCharts;
+\definition totalChart[patch: Local]: \Cast[TotalCharts.Chart] manifold.atlas.charts := Construct.chart patch;
+\definition chartCover: \forall (p: Point) -> \exists ( patch: Local \where TotalCharts.Contains (totalChart patch) p ) := \fun (p: Point) => covers p.base;
+\definition frameExists: \forall (x: M.Point) -> \exists Family.FrameAt x := \block {
+  \fun (x: M.Point) \then
+  \takefrom patch: \Cast[Local] ({ patch: Local \where Charts.Contains patch.chart x }) \by covers x \then
+  \let localPoint: Charts.LocalPoint patch.chart := \into[M.Point](x, patch.chart.domain) \by { \bysub(Local, { patch: Local \where Charts.Contains patch.chart x }, patch) } \then
+  \return \exact(LocalFrame[local := patch].At[x := localPoint].isomorphism, Family.FrameAt x)
+};
+\module FiberBasis(x: M.Point);
+\definition fiberDimension: \forall (x: M.Point) -> \exists ( b: FiberBasis[x := x].Basis \where FiberBasis[x := x].dimension b = k ) := \block {
+  \fun (x: M.Point) \then
+  \takefrom frame: Family.FrameAt x \by frameExists x \then
+  \return Logic.existsIntro[FiberBasis[x := x].Basis, { b: FiberBasis[x := x].Basis \where FiberBasis[x := x].dimension b = k }]
+    (Spaces.CoordinateBasis[V := Fiber x, space := fiberSpace x, n := k].Of[iso := frame].basis)
+    (Spaces.CoordinateBasis[V := Fiber x, space := fiberSpace x, n := k].Of[iso := frame].dimension)
+};
+\module ProjectionFiber(x: M.Point);

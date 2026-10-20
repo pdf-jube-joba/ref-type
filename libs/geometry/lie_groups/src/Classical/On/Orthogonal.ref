@@ -1,0 +1,22 @@
+\definition Isometry[g: Units.Unit]: \Prop := \forall (x, y: V) -> form.form (g.value.apply x) (g.value.apply y) = form.form x y;
+\definition predicate: \Pow Units.Unit := { g: Units.Unit \where Isometry g };
+\definition rightInverse: \forall (g: Units.Unit)(x: V) -> g.value.apply (g.inverse.apply x) = x :=
+  \fun (g: Units.Unit)(x: V) => congr!{End.Carrier V} (\fun (a: End.Carrier) => a.apply x) _ _ g.right;
+\definition leftInverse: \forall (g: Units.Unit)(x: V) -> g.inverse.apply (g.value.apply x) = x :=
+  \fun (g: Units.Unit)(x: V) => congr!{End.Carrier V} (\fun (a: End.Carrier) => a.apply x) _ _ g.left;
+\definition closed: GeneralLinear.Closed[predicate] := GeneralLinear.Closed[predicate] {
+  one := \fun (x, y: V) => \refl(form.form x y),
+  mul := \fun (g, h: Units.Unit)(hg: Isometry g)(hh: Isometry h)(x, y: V) =>
+    trans!{R.Real} _ _ _ (hg (h.value.apply x) (h.value.apply y)) (hh x y),
+  inv := \fun (g: Units.Unit)(hg: Isometry g)(x, y: V) => trans!{R.Real} _ _ _
+    (sym!{R.Real} _ _ (hg (g.inverse.apply x) (g.inverse.apply y)))
+    (congr2!{V V R.Real} form.form _ _ _ _ (rightInverse g x) (rightInverse g y)),
+};
+\import GeneralLinear.Subgroup[S := predicate, closed := closed] \as Subgroup;
+\definition O: \Set := Subgroup.Carrier;
+\definition group: std.Alg[].Alg[].Group[O] := Subgroup.group;
+\definition action[g: O][v: V]: V := g.value.apply v;
+\definition preserves: \forall (g: O)(x, y: V) -> form.form (action g x) (action g y) = form.form x y :=
+  \fun (g: O) => \bysub(Units.Unit, predicate, g);
+\module Special(n: std.Data[].Nat[].Nat^);
+\module LieAlgebra;

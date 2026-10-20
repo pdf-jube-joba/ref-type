@@ -1,0 +1,36 @@
+/* Picard integral operator. */
+\definition integrand[t: Real]: Vector := field.apply (extend y t);
+\definition integrandContinuous: Integrals.IsContinuous integrand := \fun (U: \Pow Vector)(open: _) =>
+  extendedContinuous y ({ v: Vector \where \In[Vector] U (field.apply v) }) (fieldContinuous U open);
+\definition asFunction: Integrals.Function := \into[Real -> Vector](integrand, { f: Real -> Vector \where Integrals.IsContinuous f }) \by { integrandContinuous };
+\import Integrals.Of[f := asFunction] \as Integral;
+\definition primitive: Real -> Vector := Integral.primitive;
+\definition increment[t: Real]: Vector := Coordinates.subPoint (primitive t) (primitive Scalars.zero);
+\definition value[t: Real]: Vector := Coordinates.addPoint initial (increment t);
+\definition initialPlusZero: Coordinates.addPoint initial Coordinates.origin = initial := \axiom:funext(Coordinates.addPoint initial Coordinates.origin, initial,
+  \fun (i: Euclidean.Coordinate) => Laws.addZeroRight (initial i));
+\definition distanceFromInitial[t: Real]: Norm.metric.distance initial (value t) = Norm.metric.distance (primitive t) (primitive Scalars.zero) :=
+  trans!{Real} _ _ _ (Norm.metric.symmetric initial (value t))
+    (trans!{Real} _ _ _ (congr!{Vector Real} (Norm.metric.distance (value t)) _ _ (sym!{Vector} _ _ initialPlusZero))
+      (trans!{Real} _ _ _ (Norm.translated initial (increment t) Coordinates.origin) (Norm.difference (primitive t) (primitive Scalars.zero))));
+\definition distanceBound: \forall (t: Time) -> R.Le (Norm.metric.distance initial (value t)) (Scalars.mul (Scalars.distance t Scalars.zero) field.bound) := \fun (t: Time) => \block {
+  \let bounds: Logic.And[R.Le left t, R.Le t right] := \bysub(Real, Line.ClosedInterval left right, t) \then
+  \return R.leReplaceLeft (Norm.metric.distance (primitive t) (primitive Scalars.zero)) (Norm.metric.distance initial (value t)) (Scalars.mul (Scalars.distance t Scalars.zero) field.bound)
+      (sym!{Real} _ _ (distanceFromInitial t)) (Integral.lipschitz Scalars.zero t field.bound leftNonpositive rightNonnegative bounds.left bounds.right boundNonnegative
+        (\fun (s: Real)(lower: _)(upper: _) => field.bounded (extend y s)))
+};
+\definition within: Ball.Within (\fun (t: Time) => value t) := \fun (t: Time) => R.leTrans _ _ _ (distanceBound t)
+    (R.leTrans _ (Scalars.mul time field.bound) Scalars.one
+      (R.leReplace (Scalars.mul field.bound (Scalars.distance t Scalars.zero)) (Scalars.mul (Scalars.distance t Scalars.zero) field.bound)
+        (Scalars.mul field.bound time) (Scalars.mul time field.bound)
+        (Laws.fieldMulComm field.bound (Scalars.distance t Scalars.zero)) (Laws.fieldMulComm field.bound time)
+        (Estimates.mulMonotone field.bound (Scalars.distance t Scalars.zero) time boundNonnegative (timeDistance t))) ballBound);
+\import metric_spaces.RealFunctions[A := Time] \as ContinuousScalars;
+\definition continuous: Integrals.IsContinuous value := Integrals.continuousOfCoordinates value
+  (\fun (i: Euclidean.Coordinate) => ContinuousScalars.sumContinuous Times.topology (\fun (t: Time) => initial i) (\fun (t: Time) => increment t i)
+    (ContinuousScalars.constantContinuous Times.topology (initial i))
+    (ContinuousScalars.subContinuous Times.topology (\fun (t: Time) => primitive t i) (\fun (t: Time) => primitive Scalars.zero i)
+      (Integral.Coordinate[i := i].primitiveContinuous) (ContinuousScalars.constantContinuous Times.topology (primitive Scalars.zero i))));
+\definition curve: Curve := \into[Ball.Carrier](\into[Time -> Vector]((\fun (t: Time) => value t), { f: Time -> Vector \where Ball.Within f }) \by { within }, Curves.predicate) \by {
+  continuous
+};

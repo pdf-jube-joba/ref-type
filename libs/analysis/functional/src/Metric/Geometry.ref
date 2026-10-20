@@ -1,0 +1,111 @@
+\import topology.Topology[Carrier := Carrier] \as T;
+\import M.Topology[] \as Topology;
+\import real.Analysis[].Distance[] \as Distance;
+\import Real.Estimates[].Product[] \as Product;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import \root.ScalarLimits[] \as Limits;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import std.Logic[].Classical[] \as Classical;
+\use Equality.congr;
+\use Equality.trans;
+\definition topology: T.Topology := Topology.topology d;
+\definition ClosedBall[x: Carrier] [r: Real.Real]: \Pow Carrier := { y: Carrier \where R.Le (d.distance x y) r };
+\definition ltOfNotLe[a, b: Real.Real]: Logic.Not (R.Le b a) -> R.Lt a b :=
+  \fun (notLe: Logic.Not (R.Le b a)) => Order.ltOfLeNotEq a b
+    (Order.leOfNotLtReverse a b (\fun (less: R.Lt b a) => notLe (Order.leOfLt b a less)))
+    (\fun (same: a = b) => notLe (R.leReplaceRight b b a (sym!{Real.Real} _ _ same) (R.leRefl b)));
+\definition subPositive[a, b: Real.Real]: R.Lt a b -> R.Lt Real.zero (Real.sub b a) :=
+  \fun (less: R.Lt a b) => R.ltReplaceLeft (Real.sub a a) Real.zero (Real.sub b a) (Laws.subSelf a)
+    (Laws.ltAddRight a b (Real.neg a) less);
+\definition closedBallClosed: \forall (x: Carrier) (r: Real.Real) -> T.IsClosedIn topology (ClosedBall x r) :=
+  \fun (x: Carrier) (r: Real.Real) => (Topology.openIff d (T.Complement (ClosedBall x r))).rtl (\block {
+    \fun (y: Carrier) (outside: Logic.Not (R.Le (d.distance x y) r)) \then
+    \let gap: Real.Real := Real.sub (d.distance x y) r \then
+    \return Topology.openOfRadius d (T.Complement (ClosedBall x r)) y gap (subPositive r (d.distance x y) (ltOfNotLe r (d.distance x y) outside))
+      (\fun (z: Carrier) (near: R.Lt (d.distance y z) gap) (inside: R.Le (d.distance x z) r) =>
+        R.ltIrrefl (d.distance x y) (R.leLtTrans _ (Real.add r (d.distance z y)) _
+          (R.leTrans _ (Real.add (d.distance x z) (d.distance z y)) _ (d.triangle x z y)
+            (Laws.addMonotoneRight (d.distance x z) r (d.distance z y) inside))
+          (R.ltReplaceRight _ (Real.add r gap) (d.distance x y) (E.addSubCancel (d.distance x y) r)
+            (Laws.ltAddLeft r (d.distance z y) gap (R.ltReplaceLeft _ _ gap (d.symmetric y z) near)))))
+  });
+\structure SmallBall[U: \Pow Carrier, x: Carrier, epsilon, r: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero r,
+  small: R.Le r epsilon,
+  included: T.Subset (ClosedBall x r) U,
+};
+\definition shrink: \forall (U: \Pow Carrier) -> T.IsOpenIn topology U -> \forall (x: Carrier) -> T.Member U x ->
+  \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( r: Real.Real \where SmallBall[U, x, epsilon, r] ) := \block {
+  \fun (U: \Pow Carrier) (open: T.IsOpenIn topology U) (x: Carrier) (member: T.Member U x) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \takefrom radius: \Cast[Real.Real] (M.NeighborhoodRadius d U x) \by (Topology.openIff d U).ltr open x member \then
+  \let data: Logic.And[R.Lt Real.zero radius, T.Subset (M.Ball d x radius) U] := \bysub(Real.Real, M.NeighborhoodRadius d U x, radius) \then
+  \let base: Real.Real := Distance.min radius epsilon \then
+  \let bp: R.Lt Real.zero base := Product.minPositive radius epsilon (data.left) positive \then
+  \let r: Real.Real := Real.mul Real.half base \then
+  \return Logic.existsIntro[Real.Real, { r: Real.Real \where SmallBall[U, x, epsilon, r] }] r (SmallBall[U, x, epsilon, r] {
+    positive := E.halfOfPositive base bp,
+    small := R.leTrans r base epsilon (E.halfBelow base (Order.leOfLt _ _ bp)) (Distance.minRight radius epsilon),
+    included := \fun (y: Carrier) (near: R.Le (d.distance x y) r) => data.right y
+      (R.leLtTrans _ r radius near (R.ltLeTrans r base radius (E.halfStrict base bp) (Distance.minLeft radius epsilon))),
+  })
+};
+\definition closedOfLimit: \forall (S: \Pow Carrier) -> T.IsClosedIn topology S -> \forall (s: N.Nat^ -> Carrier) (x: Carrier) (k: N.Nat^) ->
+  (\forall (n: N.Nat^) -> Nat.Le k n -> T.Member S (s n)) -> Converges d s x -> T.Member S x := \block {
+  \fun (S: \Pow Carrier) (closed: T.IsClosedIn topology S) (s: N.Nat^ -> Carrier) (x: Carrier) (k: N.Nat^)
+    (members: \forall (n: N.Nat^) -> Nat.Le k n -> T.Member S (s n)) (converges: Converges d s x) \then
+  \enough _ \by { Order.byContradiction (T.Member S x) } \then
+  \fun (outside: Logic.Not (T.Member S x)) \then
+  \takefrom radius: \Cast[Real.Real] (M.NeighborhoodRadius d (T.Complement S) x)
+    \by (Topology.openIff d (T.Complement S)).ltr closed x outside \then
+  \let data: Logic.And[R.Lt Real.zero radius, T.Subset (M.Ball d x radius) (T.Complement S)] := \bysub(Real.Real, M.NeighborhoodRadius d (T.Complement S) x, radius) \then
+  \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where LimitControl d s x radius l }) \by converges radius (data.left) \then
+  \let n: N.Nat^ := Bounds.commonBound k l \then
+  \return data.right (s n)
+    (R.ltReplaceLeft _ _ radius (d.symmetric (s n) x)
+      ((\bysub(N.Nat^, { l: N.Nat^ \where LimitControl d s x radius l }, l)) n (Bounds.rightLeCommonBound k l)))
+    (members n (Bounds.leftLeCommonBound k l))
+};
+\structure Nested[sets: N.Nat^ -> \Pow Carrier]: \Prop := {
+  inhabited: \forall (n: N.Nat^) -> \exists \Cast[Carrier] (sets n),
+  closed: \forall (n: N.Nat^) -> T.IsClosedIn topology (sets n),
+  descending: \forall (m, n: N.Nat^) -> Nat.Le m n -> T.Subset (sets n) (sets m),
+  diameter: \forall (n: N.Nat^) (x, y: Carrier) -> T.Member (sets n) x -> T.Member (sets n) y -> R.Le (d.distance x y) (Dyadic.value n),
+};
+\definition cantor: Complete d -> \forall (sets: N.Nat^ -> \Pow Carrier) -> Nested[sets] ->
+  \exists ( x: Carrier \where \forall (n: N.Nat^) -> T.Member (sets n) x ) := \block {
+  \fun (complete: Complete d) (sets: N.Nat^ -> \Pow Carrier) (nested: Nested[sets]) \then
+  \takefrom choose: \forall (n: N.Nat^) -> \Cast[Carrier] (sets n)
+    \by \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (n: N.Nat^) => \Cast[Carrier] (sets n)), nested.inhabited) \then
+  \let s: N.Nat^ -> Carrier := \fun (n: N.Nat^) => choose n \then
+  \let member: \forall (n: N.Nat^) -> T.Member (sets n) (s n) := \fun (n: N.Nat^) => \bysub(Carrier, sets n, choose n) \then
+  \let cauchy: Cauchy d s := \block {
+    \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }) \by Limits.dyadicSmall epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where CauchyControl d s epsilon k }] k
+      (\fun (m, n: N.Nat^) (km: Nat.Le k m) (kn: Nat.Le k n) => R.leLtTrans _ (Dyadic.value k) epsilon
+        (nested.diameter k (s m) (s n) (nested.descending k m km (s m) (member m)) (nested.descending k n kn (s n) (member n)))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }, k)) k (Nat.leRefl k)))
+  } \then
+  \takefrom x: \Cast[Carrier] ({ x: Carrier \where Converges d s x }) \by complete s cauchy \then
+  \let converges: Converges d s x := \bysub(Carrier, { x: Carrier \where Converges d s x }, x) \then
+  \return Logic.existsIntro[Carrier, { x: Carrier \where \forall (n: N.Nat^) -> T.Member (sets n) x }] x
+    (\fun (n: N.Nat^) => closedOfLimit (sets n) (nested.closed n) s x n
+      (\fun (m: N.Nat^) (later: Nat.Le n m) => nested.descending n m later (s m) (member m)) converges)
+};
+\import N.Induction[] \as Induction;
+\definition descendingOfStep[sets: N.Nat^ -> \Pow Carrier]:
+  (\forall (n: N.Nat^) -> T.Subset (sets (N.Nat^::succ n)) (sets n)) ->
+  \forall (n, m: N.Nat^) -> Nat.Le m n -> T.Subset (sets n) (sets m) :=
+  \fun (step: \forall (n: N.Nat^) -> T.Subset (sets (N.Nat^::succ n)) (sets n)) =>
+    \induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Le m n -> T.Subset (sets n) (sets m) \with {
+      | zero: \fun (m: N.Nat^) (bound: Nat.Le m N.Nat^::zero) =>
+        \idelim N.Nat^::zero = m \with k: N.Nat^ => T.Subset (sets N.Nat^::zero) (sets k)
+          \by { base: \fun (x: Carrier) (member: T.Member (sets N.Nat^::zero) x) => member, equality: sym!{N.Nat^} _ _ (Nat.leZeroEq m bound) }
+      | succ: \fun (n: N.Nat^) (previous: _) (m: N.Nat^) (bound: _) =>
+        Logic.orElim _ _ _ (Induction.leCases m (N.Nat^::succ n) bound)
+          (\fun (less: Nat.Lt m (N.Nat^::succ n)) => T.subsetTrans _ _ _ (step n) (previous m (Induction.belowSuccessor m n less)))
+          (\fun (same: m = N.Nat^::succ n) =>
+            \idelim N.Nat^::succ n = m \with k: N.Nat^ => T.Subset (sets (N.Nat^::succ n)) (sets k)
+              \by { base: \fun (x: Carrier) (member: T.Member (sets (N.Nat^::succ n)) x) => member, equality: sym!{N.Nat^} _ _ same })
+    };
+\module Baire;

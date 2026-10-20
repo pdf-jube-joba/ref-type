@@ -1,0 +1,33 @@
+\definition coefficient: R.Real := dot z w;
+\definition valueEquation: value g = Clifford.scale coefficient (value h) := trans!{E.Carrier} _ _ _
+  (sym!{E.Carrier} _ _ (recover g z)) (trans!{E.Carrier} _ _ _ (congr!{CarrierPair E.Carrier} (projection z) _ _ same) (resolve z h w));
+\definition ratio: G := Operations.mul g (Operations.inv h);
+\definition ratioValue: value ratio = Clifford.scalar coefficient := trans!{E.Carrier} _ _ _
+  (congr!{{Pins.Pin} E.Carrier} (\fun (k: Pins.Pin) => k.value) _ _ (embeddingProduct g (Operations.inv h)))
+  (trans!{E.Carrier} _ _ _ (congr!{{Pins.Pin} E.Carrier} (\fun (k: Pins.Pin) => Clifford.mul (value g) k.value) _ _ (embeddingInverse h))
+    (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (\fun (x: E.Carrier) => Clifford.mul x (embedding h).inverse) _ _ valueEquation)
+      (scaleUnit coefficient (embedding h))));
+\definition positive: coefficient = R.one -> g = h := \fun (one: _) => injective g h (Units.ext (embedding g) (embedding h)
+  (trans!{E.Carrier} _ _ _ valueEquation
+    (trans!{E.Carrier} _ _ _ (congr!{R.Real E.Carrier} (\fun (a: R.Real) => Clifford.scale a (value h)) _ _ one) (Clifford.vectorSpace.scalarOne (value h)))));
+\definition negative: coefficient = R.neg R.one -> g = Operations.mul sign.element h := \fun (minus: _) => injective g (Operations.mul sign.element h)
+  (Units.ext (embedding g) (embedding (Operations.mul sign.element h))
+    (trans!{E.Carrier} _ _ _ valueEquation
+      (trans!{E.Carrier} _ _ _ (congr!{R.Real E.Carrier} (\fun (a: R.Real) => Clifford.scale a (value h)) _ _ minus)
+        (trans!{E.Carrier} _ _ _ (Vectors.minusOneScale (value h)) (sym!{E.Carrier} _ _ (signedValue h))))));
+\definition equal: Extension.class g z = Extension.class h w := either!{{(\root.Euclidean[n := n].PinNorm[].scalarSign (embedding ratio) coefficient (sym!{E.Carrier} _ _ ratioValue))} {Extension.class g z = Extension.class h w}
+  {\fun (one: coefficient = R.one) => \block {
+    \let sameG: g = h := positive one \then
+    \let samePhase: z = w := phaseInjective h z w (trans!{CarrierPair} _ _ _
+      (congr!{G CarrierPair} (\fun (k: G) => raw k z) _ _ (sym!{G} _ _ sameG)) same) \then
+    \return congr2!{G {Circle.Circle} {Extension.Carrier}} Extension.class _ _ _ _ sameG samePhase
+  }}
+  {\fun (minus: coefficient = R.neg R.one) => \block {
+    \let sameG: g = Operations.mul sign.element h := negative minus \then
+    \let samePhase: Circle.negate z = w := phaseInjective h (Circle.negate z) w
+      (trans!{CarrierPair} _ _ _ (sym!{CarrierPair} _ _ (rawFlip h z))
+        (trans!{CarrierPair} _ _ _ (congr!{G CarrierPair} (\fun (k: G) => raw k z) _ _ (sym!{G} _ _ sameG)) same)) \then
+    \return trans!{{Extension.Carrier}} _ _ _ (congr!{G {Extension.Carrier}} (\fun (k: G) => Extension.class k z) _ _ sameG)
+      (trans!{{Extension.Carrier}} _ _ _ (classFlip h z) (congr!{{Circle.Circle} {Extension.Carrier}} (Extension.class h) _ _ samePhase))
+  }}
+};

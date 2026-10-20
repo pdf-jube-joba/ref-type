@@ -1,0 +1,91 @@
+\import \parent.\parent.Estimates[].Product[] \as Product;
+\import \parent.\parent.Algebra[] \as Algebra;
+\definition congruent: \forall (s, t: N.Nat^ -> Real)(x: Real) -> (\forall (n: N.Nat^) -> s n = t n) -> Converges s x -> Converges t x := \block {
+  \fun (s, t: _)(x: Real)(same: _)(converges: Converges s x)(epsilon: Real)(positive: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s x epsilon k }) \by converges epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where LimitControl t x epsilon k }] k
+    (\fun (n: N.Nat^)(later: _) => R.ltReplaceLeft (distance (s n) x) (distance (t n) x) epsilon
+      (congr!{Real Real} (\fun (z: Real) => distance z x) _ _ (same n))
+      ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s x epsilon k }, k)) n later))
+};
+\definition distanceBoundLimit: \forall (s, t: N.Nat^ -> Real)(x, y, bound: Real)(threshold: N.Nat^) -> Converges s x -> Converges t y ->
+  (\forall (n: N.Nat^) -> Nat.Le threshold n -> R.Le (distance (s n) (t n)) bound) -> R.Le (distance x y) bound := \block {
+  \fun (s, t: _)(x, y, bound: Real)(threshold: N.Nat^)(hs: Converges s x)(ht: Converges t y)(bounded: _) \then
+  \enough _ \by { E.leOfSmall (distance x y) bound } \then
+  \fun (epsilon: Real)(positive: _) \then
+  \let r: Real := mul half epsilon \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where LimitControl s x r i }) \by hs r (E.halfOfPositive epsilon positive) \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where LimitControl t y r j }) \by ht r (E.halfOfPositive epsilon positive) \then
+  \let n: N.Nat^ := NatOrder.commonBound threshold (NatOrder.commonBound i j) \then
+  \let ij: Nat.Le (NatOrder.commonBound i j) n := NatOrder.rightLeCommonBound threshold (NatOrder.commonBound i j) \then
+  \let sx: R.Le (distance x (s n)) r := R.leReplaceLeft (distance (s n) x) (distance x (s n)) r
+    (Metric.distanceSymmetric (s n) x) (Order.leOfLt _ _
+      ((\bysub(N.Nat^, { i: N.Nat^ \where LimitControl s x r i }, i)) n (Nat.leTrans i (NatOrder.commonBound i j) n (NatOrder.leftLeCommonBound i j) ij))) \then
+  \let ty: R.Le (distance (t n) y) r := Order.leOfLt _ _
+    ((\bysub(N.Nat^, { j: N.Nat^ \where LimitControl t y r j }, j)) n (Nat.leTrans j (NatOrder.commonBound i j) n (NatOrder.rightLeCommonBound i j) ij)) \then
+  \return R.leTrans _ _ _ (E.distanceBridge x (s n) (t n) y)
+    (R.leReplaceRight _ (add r (add bound r)) (add bound epsilon)
+      (trans!{Real} _ _ _ (Algebra.addSwap r bound r) (congr!{Real Real} (add bound) _ _ (E.halfTwice epsilon)))
+      (E.addLe _ _ _ _ sx (E.addLe _ _ _ _ (bounded n (NatOrder.leftLeCommonBound threshold (NatOrder.commonBound i j))) ty)))
+};
+\definition addConverges: \forall (s, t: N.Nat^ -> Real)(x, y: Real) -> Converges s x -> Converges t y ->
+  Converges (\fun (n: N.Nat^) => add (s n) (t n)) (add x y) := \block {
+  \fun (s, t: _)(x, y: Real)(hs: Converges s x)(ht: Converges t y)(epsilon: Real)(positive: _) \then
+  \let r: Real := mul half epsilon \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where LimitControl s x r i }) \by hs r (E.halfOfPositive epsilon positive) \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where LimitControl t y r j }) \by ht r (E.halfOfPositive epsilon positive) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => add (s n) (t n)) (add x y) epsilon k }] (NatOrder.commonBound i j)
+    (\fun (n: N.Nat^)(later: _) => R.leLtTrans _ _ _ (E.distanceAdd (s n) (t n) x y)
+      (R.ltReplaceRight _ (add r r) epsilon (E.halfTwice epsilon)
+        (E.addLt _ _ _ _
+          ((\bysub(N.Nat^, { i: N.Nat^ \where LimitControl s x r i }, i)) n (Nat.leTrans i (NatOrder.commonBound i j) n (NatOrder.leftLeCommonBound i j) later))
+          ((\bysub(N.Nat^, { j: N.Nat^ \where LimitControl t y r j }, j)) n (Nat.leTrans j (NatOrder.commonBound i j) n (NatOrder.rightLeCommonBound i j) later)))))
+};
+\definition negConverges: \forall (s: N.Nat^ -> Real)(x: Real) -> Converges s x -> Converges (\fun (n: N.Nat^) => neg (s n)) (neg x) := \block {
+  \fun (s: _)(x: Real)(converges: Converges s x)(epsilon: Real)(positive: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s x epsilon k }) \by converges epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => neg (s n)) (neg x) epsilon k }] k
+    (\fun (n: N.Nat^)(later: _) => R.ltReplaceLeft (distance (s n) x) (distance (neg (s n)) (neg x)) epsilon
+      (sym!{Real} _ _ (Product.distanceNeg (s n) x)) ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s x epsilon k }, k)) n later))
+};
+\definition subConverges: \forall (s, t: N.Nat^ -> Real)(x, y: Real) -> Converges s x -> Converges t y ->
+  Converges (\fun (n: N.Nat^) => sub (s n) (t n)) (sub x y) :=
+  \fun (s, t: _)(x, y: Real)(hs: _)(ht: _) => addConverges s (\fun (n: N.Nat^) => neg (t n)) x (neg y) hs (negConverges t y ht);
+\definition scaleConverges: \forall (c: Real)(s: N.Nat^ -> Real)(x: Real) -> Converges s x ->
+  Converges (\fun (n: N.Nat^) => mul c (s n)) (mul c x) := \block {
+  \fun (c: Real)(s: _)(x: Real)(converges: Converges s x)(epsilon: Real)(positive: _) \then
+  \let coefficient: Real := Product.coefficient c zero \then
+  \let cp: R.Lt zero coefficient := Product.coefficientPositive c zero \then
+  \let r: Real := Product.radius coefficient epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s x r k }) \by converges r (Product.radiusPositive coefficient epsilon cp positive) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => mul c (s n)) (mul c x) epsilon k }] k
+    (\fun (n: N.Nat^)(later: _) => R.leLtTrans _ _ _
+      (R.leTrans _ _ _ (Product.scalarDistance c (s n) x)
+        (R.leTrans _ _ _
+          (R.leReplace (mul (distance (s n) x) (Product.abs c)) (mul (Product.abs c) (distance (s n) x))
+            (mul (distance (s n) x) coefficient) (mul coefficient (distance (s n) x))
+            (Laws.fieldMulComm (distance (s n) x) (Product.abs c)) (Laws.fieldMulComm (distance (s n) x) coefficient)
+            (E.mulMonotone (distance (s n) x) (Product.abs c) coefficient (Metric.distanceNonnegative (s n) x) (Product.coefficientFirst c zero)))
+          (E.mulMonotone coefficient (distance (s n) x) r (Order.leOfLt _ _ cp)
+            (Order.leOfLt _ _ ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s x r k }, k)) n later)))))
+      (Product.radiusSmall coefficient epsilon cp positive))
+};
+\definition upperBoundLimit: \forall (s: N.Nat^ -> Real)(x, bound: Real)(threshold: N.Nat^) -> Converges s x ->
+  (\forall (n: N.Nat^) -> Nat.Le threshold n -> R.Le (s n) bound) -> R.Le x bound := \block {
+  \fun (s: _)(x, bound: Real)(threshold: N.Nat^)(converges: Converges s x)(bounded: _) \then
+  \enough _ \by { E.leOfSmall x bound } \then
+  \fun (epsilon: Real)(positive: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s x epsilon k }) \by converges epsilon positive \then
+  \let n: N.Nat^ := NatOrder.commonBound k threshold \then
+  \return R.leTrans x (add (s n) epsilon) (add bound epsilon)
+    (Order.leOfLt _ _ (Metric.distanceLtUpper (s n) x epsilon
+      ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s x epsilon k }, k)) n (NatOrder.leftLeCommonBound k threshold))))
+    (Laws.addMonotoneRight (s n) bound epsilon (bounded n (NatOrder.rightLeCommonBound k threshold)))
+};
+\definition lowerBoundLimit: \forall (s: N.Nat^ -> Real)(x, bound: Real)(threshold: N.Nat^) -> Converges s x ->
+  (\forall (n: N.Nat^) -> Nat.Le threshold n -> R.Le bound (s n)) -> R.Le bound x :=
+  \fun (s: _)(x, bound: Real)(threshold: N.Nat^)(converges: _)(bounded: _) =>
+    R.leReplace (neg (neg bound)) bound (neg (neg x)) x (Laws.negInvolutive bound) (Laws.negInvolutive x)
+      (Laws.negAntitone (neg x) (neg bound)
+        (upperBoundLimit (\fun (n: N.Nat^) => neg (s n)) (neg x) (neg bound) threshold (negConverges s x converges)
+          (\fun (n: N.Nat^)(later: _) => Laws.negAntitone bound (s n) (bounded n later))));

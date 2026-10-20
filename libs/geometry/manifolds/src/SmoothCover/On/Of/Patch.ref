@@ -1,0 +1,29 @@
+\import \root.SmoothMap[n := n, m := m].Between[M := localManifold i, N := N] \as LocalMaps;
+\import topology.Topology[Carrier := Open.Carrier (domains i)] \as LocalTopology;
+\import Ambient.Subspace[S := (domains i).points] \as LocalSubspace;
+\import LocalSubspace.Open[] \as Images;
+\import topology.Continuity[A := Open.Carrier (domains i), B := N.Point] \as LocalContinuity;
+\definition input[x: Open.Carrier (domains i)]: Open.Carrier U := Open.inclusion (domains i) U (included i) x;
+\definition preimage[W: \Pow N.Point]: \Pow (Open.Carrier (domains i)) := LocalContinuity.Preimage (LocalMaps.apply (maps i)) W;
+\definition neighborhood[W: \Pow N.Point]: \Pow (Open.Carrier U) := Subspace.Trace (Images.image (preimage W));
+\definition open: \forall (W: \Pow N.Point) -> TargetTopology.IsOpenIn N.space W -> SourceTopology.IsOpenIn source.space (neighborhood W) :=
+  \fun (W: \Pow N.Point)(openW: _) => Subspace.traceOpen Euclidean.topology (Images.image (preimage W))
+    (Images.imageOpen Euclidean.topology (OpenTopology.open (domains i)) (preimage W)
+      ((\bysub(LocalMaps.Data, { data: LocalMaps.Data \where LocalMaps.Continuous data }, maps i)) W openW));
+\definition contains: \forall (W: \Pow N.Point)(a: Open.Carrier U) -> \In[Reals.Multivariable[n := n].Point] ((domains i).points) a ->
+  \In[N.Point] W (f a) -> SourceTopology.Member (neighborhood W) a := \block {
+  \fun (W: \Pow N.Point)(a: Open.Carrier U)(inDomain: _)(member: _) \then
+  \let local: Open.Carrier (domains i) := \into[Reals.Multivariable[n := n].Point](a, (domains i).points) \by { inDomain } \then
+  \return Images.imageMember (preimage W) local
+    (\idelim f (input local) = LocalMaps.apply (maps i) local \with p: N.Point => \In[N.Point] W p \by {
+      base: member, equality: agrees i local
+    })
+};
+\definition within: \forall (W: \Pow N.Point) -> SourceTopology.Subset (neighborhood W) (Continuity.Preimage f W) :=
+  \fun (W: \Pow N.Point)(x: Open.Carrier U)(member: _) => Images.imageElim (preimage W) x (\In[N.Point] W (f x))
+    (\fun (y: Open.Carrier (domains i))(inW: \In[N.Point] W (LocalMaps.apply (maps i) y))(same: y = x) =>
+      \idelim LocalMaps.apply (maps i) y = f x \with p: N.Point => \In[N.Point] W p \by {
+        base: inW,
+        equality: trans!{N.Point} _ _ _ (sym!{N.Point} _ _ (agrees i y))
+          (congr!{{Open.Carrier U} N.Point} f (input y) x same)
+      }) member;

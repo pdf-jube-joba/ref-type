@@ -1,0 +1,35 @@
+/* The open region on which a smooth scalar function has a reciprocal. */
+\import \parent.Properties[] \as Properties;
+\import \parent.\parent.Topology[] \as OpenTopology;
+\import OpenTopology.Of[U := U].Continuity[] \as Continuity;
+\import topology.Topology[Carrier := Point] \as Ambient;
+\import Ambient.Subspace[S := U.points] \as Subspace;
+\import Subspace.Open[] \as OpenSubspace;
+\import topology.Topology[Carrier := Carrier U] \as Local;
+\import topology.Topology[Carrier := Real] \as Scalars;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealMetric[] \as Metric;
+\import metric_spaces.MetricSpace[Carrier := Real].Topology[] \as ScalarTopology;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Euclidean;
+\definition preimage: \Pow (Carrier U) := { x: Carrier U \where Logic.Not (f x = zero) };
+\definition preimageOpen: Local.IsOpenIn (OpenTopology.Of[U := U].topology) preimage :=
+  Continuity.topological f (Properties.continuous U f (\bysub(ScalarFunction U, { f: ScalarFunction U \where SmoothOn U f }, f)))
+    (Scalars.Complement (Scalars.Singleton zero)) (ScalarTopology.singletonClosed Metric.metric zero);
+\definition points: \Pow Point := OpenSubspace.image preimage;
+\definition pointsOpen: Ambient.IsOpenIn Euclidean.topology points := OpenSubspace.imageOpen Euclidean.topology (OpenTopology.open U) preimage preimageOpen;
+\definition domain: OpenSet := OpenTopology.ofOpen points pointsOpen;
+\definition included: Included domain U := \fun (x: Point)(member: _) => OpenSubspace.imageIncluded preimage x member;
+\definition input[x: Carrier domain]: Carrier U := inclusion domain U included x;
+\definition nonzero: \forall (x: Carrier domain) -> Logic.Not (f (input x) = zero) := \fun (x: Carrier domain) =>
+  OpenSubspace.imageElim preimage x (Logic.Not (f (input x) = zero))
+    (\fun (y: Carrier U)(member: Logic.Not (f y = zero))(same: y = x) => \idelim y = input x
+      \with z: Carrier U => Logic.Not (f z = zero) \by { base: member, equality: same }) (\bysub(Point, points, x));
+\definition intro[x: Carrier U]: Logic.Not (f x = zero) -> \In[Point] domain.points x := OpenSubspace.imageMember preimage x;
+\import \parent.\parent.Restriction[] \as Restriction;
+\definition restricted: SmoothFunction domain := \into[ScalarFunction domain]((\fun (x: Carrier domain) => f (input x)),
+  { g: ScalarFunction domain \where SmoothOn domain g }) \by {
+    Restriction.localSmooth domain U included f (\bysub(ScalarFunction U, { f: ScalarFunction U \where SmoothOn U f }, f))
+  };
+\import \parent.Reciprocal[U := domain, f := restricted, nonzero := nonzero] \as Reciprocal;
+\definition inverse: ScalarFunction domain := Reciprocal.value;
+\definition inverseSmooth: SmoothOn domain inverse := Reciprocal.smooth;

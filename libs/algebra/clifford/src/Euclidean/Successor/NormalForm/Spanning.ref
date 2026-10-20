@@ -1,0 +1,57 @@
+/* Every successor element has exactly two lower-dimensional coefficients. */
+\import \parent.Operations[] \as Operations;
+\import \parent.Representation[] \as Recovery;
+\import Spaces.DirectSum[V := Carrier, W := Carrier, left := Clifford.vectorSpace, right := Clifford.vectorSpace] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\definition Representatives[x: Next.Carrier]: \Set := \Cast[Pair.Carrier]
+  ({ p: Pair.Carrier \where value (Pair.first p) (Pair.second p) = x });
+\definition Property[x: Next.Carrier]: \Prop := \exists Representatives x;
+\import NextAlgebra.Induction[P := Property] \as Induction;
+\definition witness[a, b: Carrier]: Property (value a b) :=
+  \exact(\into[Pair.Carrier](Pair.make a b, Representatives (value a b)) \by { \refl(value a b) }, Representatives (value a b));
+\definition transport: \forall (a, b: Carrier)(x: Next.Carrier) -> value a b = x -> Property x :=
+  \fun (a, b: Carrier)(x: Next.Carrier)(same: value a b = x) => \idelim value a b = x
+    \with y: Next.Carrier => Property y \by { base: witness a b, equality: same };
+\definition represented[x: Next.Carrier][p: Representatives x]: value (Pair.first p) (Pair.second p) = x :=
+  \bysub(Pair.Carrier, { p: Pair.Carrier \where value (Pair.first p) (Pair.second p) = x }, p);
+\definition closed: Induction.Closed := Induction.Closed {
+  scalar := \fun (a: R.Real) => transport (Clifford.scalar a) Clifford.zero (Next.scalar a) (Operations.scalar a),
+  vector := \fun (v: Next.Vector) => transport (Clifford.iota (tail v)) (Clifford.scalar (head v)) (Next.iota v) (Operations.vector v),
+  addition := \block {
+    \fun (x, y: Next.Carrier)(left: Property x)(right: Property y) \then
+    \takefrom p: Representatives x \by left \then
+    \takefrom q: Representatives y \by right \then
+    \return transport (Clifford.add (Pair.first p) (Pair.first q)) (Clifford.add (Pair.second p) (Pair.second q)) (NextAlgebra.add x y)
+      (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Operations.addition (Pair.first p) (Pair.second p) (Pair.first q) (Pair.second q)))
+        (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _ (represented x p) (represented y q)))
+  },
+  negative := \block {
+    \fun (x: Next.Carrier)(previous: Property x) \then
+    \takefrom p: Representatives x \by previous \then
+    \return transport (Clifford.neg (Pair.first p)) (Clifford.neg (Pair.second p)) (NextAlgebra.neg x)
+      (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Operations.negative (Pair.first p) (Pair.second p)))
+        (congr!{Next.Carrier Next.Carrier} NextAlgebra.neg _ _ (represented x p)))
+  },
+  multiplication := \block {
+    \fun (x, y: Next.Carrier)(left: Property x)(right: Property y) \then
+    \takefrom p: Representatives x \by left \then
+    \takefrom q: Representatives y \by right \then
+    \return transport
+      (Clifford.add (Clifford.mul (Pair.first p) (Pair.first q)) (Clifford.mul (Pair.second p) (Grade.map (Pair.second q))))
+      (Clifford.add (Clifford.mul (Pair.first p) (Pair.second q)) (Clifford.mul (Pair.second p) (Grade.map (Pair.first q))))
+      (NextAlgebra.mul x y)
+      (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Operations.multiplication (Pair.first p) (Pair.second p) (Pair.first q) (Pair.second q)))
+        (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.mul _ _ _ _ (represented x p) (represented y q)))
+  },
+};
+\definition all: \forall (x: Next.Carrier) -> Property x := Induction.all closed;
+\definition recover: \forall (x: Next.Carrier) -> value (Recovery.left x) (Recovery.right x) = x := \block {
+  \fun (x: Next.Carrier) \then
+  \takefrom p: Representatives x \by all x \then
+  \let same: value (Pair.first p) (Pair.second p) = x := represented x p \then
+  \let left: Recovery.left x = Pair.first p := trans!{Carrier} _ _ _
+    (congr!{Next.Carrier Carrier} Recovery.left _ _ (sym!{Next.Carrier} _ _ same)) (Recovery.leftValue (Pair.first p) (Pair.second p)) \then
+  \let right: Recovery.right x = Pair.second p := trans!{Carrier} _ _ _
+    (congr!{Next.Carrier Carrier} Recovery.right _ _ (sym!{Next.Carrier} _ _ same)) (Recovery.rightValue (Pair.first p) (Pair.second p)) \then
+  \return trans!{Next.Carrier} _ _ _ (congr2!{Carrier Carrier Next.Carrier} value _ _ _ _ left right) same
+};

@@ -1,0 +1,58 @@
+/* Stereographic phase coordinates on the unit complex circle. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import complex.Complex[] \as C;
+\import C.Def[] \as Complex;
+\import C.Prop[] \as ComplexLaws;
+\import clifford.Circle[] \as Circle;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import \root.Euclidean[n := one] \as E;
+\import \root.Euclidean[n := two] \as Next;
+\import E.SuccessorGeometry[] \as Geometry;
+\import Fin.Tuples[A := R.Real] \as Tuples;
+\definition coordinates[z: C.Complex]: Next.Vector := Tuples.extend one (C.re z) (\fun (i: Fin.Fin one) => C.im z);
+\definition complex[v: Next.Vector]: C.Complex := C.make (Geometry.head v) (Geometry.tail v (Fin.zero N.Nat^::zero));
+\definition headCoordinates[z: C.Complex]: Geometry.head (coordinates z) = C.re z := Tuples.atZero one (C.re z) (\fun (i: Fin.Fin one) => C.im z);
+\definition tailCoordinates[z: C.Complex][i: Fin.Fin one]: Geometry.tail (coordinates z) i = C.im z :=
+  Tuples.atSuccessor one (C.re z) (\fun (j: Fin.Fin one) => C.im z) i;
+\definition complexCoordinates: \forall (z: C.Complex) -> complex (coordinates z) = z := \fun (z: C.Complex) => ComplexLaws.ext _ _ (headCoordinates z) (tailCoordinates z (Fin.zero N.Nat^::zero));
+\definition coordinatesComplex: \forall (v: Next.Vector) -> coordinates (complex v) = v := \fun (v: Next.Vector) =>
+  Tuples.extensionality one (coordinates (complex v)) v (headCoordinates (complex v))
+    (\fun (i: Fin.Fin one) => trans!{R.Real} _ _ _ (tailCoordinates (complex v) i)
+      (congr!{{Fin.Fin one} R.Real} (Geometry.tail v) _ _ (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i))));
+\definition normFormula[v: Next.Vector]: Complex.normSq (complex v) = Next.dot v v := sym!{R.Real} _ _
+  (congr!{R.Real R.Real} (R.add (R.mul (Geometry.head v) (Geometry.head v))) _ _
+    (Arithmetic.addZeroRight (R.mul (Geometry.tail v (Fin.zero N.Nat^::zero)) (Geometry.tail v (Fin.zero N.Nat^::zero)))));
+\definition sphere[z: Circle.Circle]: Geometry.Sphere := \into[Next.Vector](coordinates z, Geometry.Sphere) \by {
+  trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (normFormula (coordinates z)))
+    (trans!{R.Real} _ _ _ (congr!{C.Complex R.Real} Complex.normSq _ _ (complexCoordinates z)) (\bysub(C.Complex, Circle.predicate, z)))
+};
+\definition ofSphere[v: Geometry.Sphere]: Circle.Circle := \into[C.Complex](complex v, Circle.predicate) \by {
+  trans!{R.Real} _ _ _ (normFormula v) (\bysub(Next.Vector, Geometry.Sphere, v))
+};
+\definition leftInverse: \forall (v: Geometry.Sphere) -> sphere (ofSphere v) = v := \fun (v: Geometry.Sphere) => coordinatesComplex v;
+\definition rightInverse: \forall (z: Circle.Circle) -> ofSphere (sphere z) = z := \fun (z: Circle.Circle) => complexCoordinates z;
+\definition height[z: Circle.Circle]: R.Real := R.add R.one (C.re z);
+\definition parameter[z: Circle.Circle]: E.Vector := \fun (i: Fin.Fin one) => R.mul (Arithmetic.fieldInv (height z)) (C.im z);
+\module Section(s: E.Vector);
+\definition phase[s: E.Vector]: Circle.Circle := Section[s := s].phase;
+\definition base[s: E.Vector]: Circle.Circle := Section[s := s].base;
+\definition phaseSquared: \forall (s: E.Vector) -> Circle.square (phase s) = base s := \fun (s: E.Vector) => Section[s := s].square;
+\definition nonzeroBase: \forall (s: E.Vector) -> Logic.Not (height (base s) = R.zero) := \fun (s: E.Vector) => Section[s := s].nonzero;
+\definition parameterBase: \forall (s: E.Vector) -> parameter (base s) = s := \fun (s: E.Vector) => Section[s := s].recoversParameter;
+\module Recover(z: Circle.Circle, nonzero: Logic.Not (height z = R.zero));
+\definition reconstruct: \forall (z: Circle.Circle) -> Logic.Not (height z = R.zero) -> base (parameter z) = z :=
+  \fun (z: Circle.Circle)(nonzero: _) => Recover[z := z, nonzero := nonzero].law;
+\definition halfSquare: \forall (z: Circle.Circle) -> Logic.Not (height z = R.zero) -> Circle.square (phase (parameter z)) = z :=
+  \fun (z: Circle.Circle)(nonzero: _) => trans!{{Circle.Circle}} _ _ _ (phaseSquared (parameter z)) (reconstruct z nonzero);
+\module Plots(d: N.Nat^);

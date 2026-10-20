@@ -1,0 +1,35 @@
+\import Spaces.FiniteCoordinates[n := n] \as Base;
+\import Spaces.FiniteCoordinates[n := N.Nat^::succ n] \as Higher;
+\import Higher.Top[] \as Top;
+\import Spaces.Coordinates[I := Fin.Fin n].Kronecker[] \as Delta;
+\import Spaces.Coordinates[I := Fin.Fin (N.Nat^::succ n)].Kronecker[] \as NextDelta;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import N.Basic[].Prop[] \as Natural;
+\use Logic.either;
+\definition firstBasis: Higher.vectors (Fin.zero n) = first := Tuples.extensionality n (Higher.vectors (Fin.zero n)) first
+  (trans!{R.Real} _ _ _ (NextDelta.self (Fin.zero n)) (sym!{R.Real} _ _ firstHead))
+  (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _ (NextDelta.different (Fin.zero n) (Fin.succ n i)
+    (\fun (same: Fin.zero n = Fin.succ n i) => Natural.zeroNeSucc i same))
+    (sym!{R.Real} _ _ (Tuples.atSuccessor n R.one space.zero i)));
+\definition successorHead: \forall (i: Fin.Fin n) -> head (Higher.vectors (Fin.succ n i)) = R.zero := \fun (i: Fin.Fin n) =>
+  NextDelta.different (Fin.succ n i) (Fin.zero n) (\fun (same: Fin.succ n i = Fin.zero n) => Natural.succNeZero i same);
+\definition deltaSuccessor: \forall (i, j: Fin.Fin n) -> NextDelta.delta (Fin.succ n i) (Fin.succ n j) = Delta.delta i j :=
+  \fun (i, j: Fin.Fin n) => either!{{(Classical.excludedMiddle (i = j))} {NextDelta.delta (Fin.succ n i) (Fin.succ n j) = Delta.delta i j}
+    {\fun (same: i = j) => trans!{R.Real} _ _ _
+      (NextDelta.equal (Fin.succ n i) (Fin.succ n j) (congr!{{Fin.Fin n} {Fin.Fin (N.Nat^::succ n)}} (Fin.succ n) _ _ same))
+      (sym!{R.Real} _ _ (Delta.equal i j same))}
+    {\fun (different: Logic.Not (i = j)) => trans!{R.Real} _ _ _
+      (NextDelta.different (Fin.succ n i) (Fin.succ n j) (\fun (same: _) => different (Natural.succInjective i j same)))
+      (sym!{R.Real} _ _ (Delta.different i j different))}
+  };
+\definition successorTail: \forall (i: Fin.Fin n) -> tail (Higher.vectors (Fin.succ n i)) = Base.vectors i := \fun (i: Fin.Fin n) =>
+  \axiom:funext(tail (Higher.vectors (Fin.succ n i)), Base.vectors i, \fun (j: Fin.Fin n) => deltaSuccessor i j);
+\definition embeddedBasis: \forall (i: Fin.Fin n) -> embed (Base.vectors i) = Higher.vectors (Fin.succ n i) := \fun (i: Fin.Fin n) =>
+  trans!{Next.Vector} _ _ _ (congr!{Vector Next.Vector} embed _ _ (sym!{Vector} _ _ (successorTail i)))
+    (recover (Higher.vectors (Fin.succ n i)) (successorHead i));
+\import Fin.Tuples[A := Next.Vector] \as ArgumentTuples;
+\definition basisArguments: ArgumentTuples.extend n first (\fun (i: Fin.Fin n) => embed (Base.vectors i)) = Top.basisArguments :=
+  ArgumentTuples.extensionality n _ _
+    (trans!{Next.Vector} _ _ _ (ArgumentTuples.atZero n first (\fun (i: Fin.Fin n) => embed (Base.vectors i))) (sym!{Next.Vector} _ _ firstBasis))
+    (\fun (i: Fin.Fin n) => trans!{Next.Vector} _ _ _ (ArgumentTuples.atSuccessor n first (\fun (i: Fin.Fin n) => embed (Base.vectors i)) i) (embeddedBasis i));

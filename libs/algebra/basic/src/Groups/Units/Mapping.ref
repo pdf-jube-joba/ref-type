@@ -1,0 +1,18 @@
+\import \parent.\parent.Units[A := B, ring := target] \as Target;
+\import algebra.Hom[A := A, B := B] \as Rings;
+\import std.Alg[].Ring[] \as Ring;
+\definition laws: Rings.SemiringLaws[Ring.ringAsSemiring A ring, Ring.ringAsSemiring B target, f] :=
+  Rings.semiringLaws (Ring.ringAsSemiring A ring) (Ring.ringAsSemiring B target) f;
+\definition apply[x: Unit]: Target.Unit := Target.Unit {
+  value := f x.value, inverse := f x.inverse,
+  left := trans!{B} _ _ _ (sym!{B} _ _ (laws.mul x.inverse x.value)) (trans!{B} _ _ _ (congr!{A B} f _ _ x.left) laws.one),
+  right := trans!{B} _ _ _ (sym!{B} _ _ (laws.mul x.value x.inverse)) (trans!{B} _ _ _ (congr!{A B} f _ _ x.right) laws.one),
+};
+\definition atOne: apply unit = Target.unit := Target.ext _ _ laws.one;
+\definition preservesProduct: \forall (x, y: Unit) -> apply (product x y) = Target.product (apply x) (apply y) :=
+  \fun (x, y: Unit) => Target.ext _ _ (laws.mul x.value y.value);
+\definition preservesInverse: \forall (x: Unit) -> apply (inverse x) = Target.inverse (apply x) := \fun (x: Unit) => Target.ext _ _ (\refl(f x.inverse));
+\import algebra.Hom[A := Unit, B := Target.Unit] \as Groups;
+\definition homomorphism: Groups.GroupMap group Target.group := \into[Unit -> Target.Unit](apply, Groups.GroupMap group Target.group) \by {
+  Groups.MonoidLaws[_, _, apply] { unit := atOne, operation := preservesProduct }
+};

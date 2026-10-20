@@ -1,0 +1,46 @@
+\definition rectangle[i, j: N.Nat^]: \Pow A := Image i (bases i j);
+\definition rectanglePair[p: Pair.NatPair]: \Pow A := rectangle (Pair.natPairFirst p) (Pair.natPairSecond p);
+\definition basis[k: N.Nat^]: \Pow A := rectanglePair (Pairs.enumerate k);
+\definition localLaws[i: N.Nat^]: topology.Topology[Carrier := Parameter i].IsCountableBasis[parameterTopology i, bases i] :=
+  \bysub(N.Nat^ -> \Pow (Parameter i),
+    { b: N.Nat^ -> \Pow (Parameter i) \where topology.Topology[Carrier := Parameter i].IsCountableBasis[parameterTopology i, b] }, bases i);
+\definition open: \forall (k: N.Nat^) -> Space.IsOpenIn topology (basis k) := \fun (k: N.Nat^) =>
+  openEmbeddings (Pair.natPairFirst (Pairs.enumerate k)) (bases (Pair.natPairFirst (Pairs.enumerate k)) (Pair.natPairSecond (Pairs.enumerate k)))
+    ((localLaws (Pair.natPairFirst (Pairs.enumerate k))).open (Pair.natPairSecond (Pairs.enumerate k)));
+\definition refines: \forall (U: \Pow A) -> Space.IsOpenIn topology U -> \forall (x: A) -> \In[A] U x ->
+  \exists ( k: N.Nat^ \where Logic.And[\In[A] (basis k) x, Space.Subset (basis k) U] ) := \block {
+  \fun (U: _)(openU: _)(x: _)(inside: _) \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where \In[A] ((patch i).domain) x }) \by family.covers x \then
+  \let localPoint: Domain (patch i).domain := \into[A](x, (patch i).domain) \by {
+    \bysub(N.Nat^, { i: N.Nat^ \where \In[A] ((patch i).domain) x }, i)
+  } \then
+  \let parameter: Parameter i := (patch i).coordinate localPoint \then
+  \let same: point i parameter = x := (patch i).pointCoordinate localPoint \then
+  \let localMember: \In[Parameter i] (Pullback i U) parameter := \idelim x = point i parameter
+    \with a: A => \In[A] U a \by { base: inside, equality: sym!{A} _ _ same } \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Logic.And[\In[Parameter i] (bases i j) parameter,
+    topology.Topology[Carrier := Parameter i].Subset (bases i j) (Pullback i U)] })
+    \by (localLaws i).refines (Pullback i U) (openU i) parameter localMember \then
+  \let refinement: Logic.And[\In[Parameter i] (bases i j) parameter,
+    topology.Topology[Carrier := Parameter i].Subset (bases i j) (Pullback i U)] := \bysub(N.Nat^,
+      { j: N.Nat^ \where Logic.And[\In[Parameter i] (bases i j) parameter,
+        topology.Topology[Carrier := Parameter i].Subset (bases i j) (Pullback i U)] }, j) \then
+  \let contains: \In[A] (rectangle i j) x := \idelim point i parameter = x \with a: A => \In[A] (rectangle i j) a \by {
+    base: \parent.At[i := i].imageMember (bases i j) parameter refinement.left, equality: same
+  } \then
+  \let within: Space.Subset (rectangle i j) U := \fun (a: A)(member: _) =>
+    \parent.At[i := i].imageElim (bases i j) a (\In[A] U a)
+      (\fun (y: Parameter i)(inBasis: _)(equal: _) => \idelim point i y = a \with b: A => \In[A] U b \by {
+        base: refinement.right y inBasis, equality: equal
+      }) member \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair i j }) \by Pairs.exhaustive i j \then
+  \let code: Pairs.enumerate k = Pair.natPair i j := \bysub(N.Nat^, { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair i j }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Logic.And[\In[A] (basis k) x, Space.Subset (basis k) U] }] k
+    (\idelim rectangle i j = basis k \with W: \Pow A => Logic.And[\In[A] W x, Space.Subset W U] \by {
+      base: Logic.And[_, _]::# contains within,
+      equality: sym!{\Pow A} _ _ (congr!{Pair.NatPair {\Pow A}} rectanglePair _ _ code)
+    })
+};
+\definition secondCountable: Space.IsSecondCountable topology := Logic.existsIntro[N.Nat^ -> \Pow A,
+  { b: N.Nat^ -> \Pow A \where Space.IsCountableBasis[topology, b] }] basis
+    (Space.IsCountableBasis[topology, basis] { open := open, refines := refines });

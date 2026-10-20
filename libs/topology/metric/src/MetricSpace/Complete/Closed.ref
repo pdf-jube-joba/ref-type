@@ -1,0 +1,19 @@
+\definition Point: \Set := \Cast[Carrier] S;
+\import \parent.\parent.Subspace[S := S] \as Restriction;
+\import \root.MetricSpace[Carrier := Point] \as Subspace;
+\definition restricted: Subspace.Metric := Restriction.restrict metric;
+\import Subspace.Sequences[metric := restricted] \as Subsequence;
+\definition complete: Subspace.CompleteMetric := \into[Subspace.Metric](restricted,
+  { metric: Subspace.Metric \where Subspace.Completeness[metric] }) \by {
+    Subspace.Completeness[restricted] {
+      converges := \fun (s: N.Nat^ -> Point)(cauchy: Subsequence.Cauchy s) => \block {
+        \let sequence: CauchySequence := \into[N.Nat^ -> Carrier]((\fun (n: N.Nat^) => s n),
+          { s: N.Nat^ -> Carrier \where Sequences.Cauchy s }) \by { cauchy } \then
+        \let x: Carrier := limit sequence \then
+        \let inSubset: \In[Carrier] S x := (\bysub(\Pow Carrier, { S: \Pow Carrier \where SequentiallyClosed S }, S))
+          sequence x (limitLaw sequence) (\fun (n: N.Nat^) => \bysub(Carrier, S, s n)) \then
+        \let point: Point := \into[Carrier](x, S) \by { inSubset } \then
+        \return Logic.existsIntro[Point, { x: Point \where Subsequence.Converges s x }] point (limitLaw sequence)
+      },
+    }
+  };

@@ -1,0 +1,17 @@
+\module InTarget(i: I);
+\definition domains[i: I]: SourceOpen.OpenSet := InTarget[i := i].domain;
+\import manifolds.SmoothCover[n := p, m := dimension].On[U := c.image, N := manifold, I := I, domains := domains] \as Cover;
+\definition maps: Cover.Family := \fun (i: I) => InTarget[i := i].map;
+\definition included: Cover.Inclusions := \fun (i: I) => InTarget[i := i].included;
+\definition localAgrees: Cover.Agreement (\fun (u: SourceOpen.Carrier c.image) => apply (SourceCharts.point c u)) maps included :=
+  \fun (i: I)(u: SourceOpen.Carrier (domains i)) => sym!{Point} _ _ (InTarget[i := i].agrees u);
+\definition cover: Cover.Covers := \block {
+  \fun (u: SourceOpen.Carrier c.image) \then
+  \takefrom i: \Cast[I] ({ i: I \where Charts.Contains (chart i) (First.apply f (SourceCharts.point c u)) }) \by covers (First.apply f (SourceCharts.point c u)) \then
+  \return Logic.existsIntro[I, { i: I \where \In[calculus.Real[].Multivariable[n := p].Point] (domains i).points u }] i
+    (InTarget[i := i].contains u (\bysub(I, { i: I \where Charts.Contains (chart i) (First.apply f (SourceCharts.point c u)) }, i)))
+};
+\import Cover.Of[f := \fun (u: SourceOpen.Carrier c.image) => apply (SourceCharts.point c u), maps := maps, included := included, agrees := localAgrees, covers := cover] \as Glue;
+\definition map: Plots.LocalMap c := Glue.value;
+\definition agrees: \forall (u: SourceOpen.Carrier c.image) -> manifolds.SmoothMap[n := p, m := dimension].Between[M := Plots.parameterManifold c, N := manifold].apply map u = apply (SourceCharts.point c u) :=
+  \fun (u: SourceOpen.Carrier c.image) => \refl(apply (SourceCharts.point c u));

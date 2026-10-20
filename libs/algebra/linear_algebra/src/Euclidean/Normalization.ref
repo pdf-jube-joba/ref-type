@@ -1,0 +1,20 @@
+\import R.SquareRoot[] \as Root;
+\import R.Inverse[] \as Inverse;
+\definition positive: Order.Lt R.zero (squared v) := \bysub(Vector, { v: Vector \where Order.Lt R.zero (squared v) }, v);
+\definition length: R.Real := Root.sqrt (squared v);
+\definition lengthSquared: R.mul length length = squared v := Root.squareOfNonnegative (squared v) (nonnegative v);
+\definition lengthNonzero: Logic.Not (length = R.zero) := \fun (same: _) => Order.Order[].ltNotEq R.zero (squared v) positive
+  (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ lengthSquared)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (x: R.Real) => R.mul x length) _ _ same) (Arithmetic.fieldMulZeroLeft length))));
+\definition factor: R.Real := Arithmetic.fieldInv length;
+\definition normalized: Vector := space.smul factor v;
+\definition inverseLength: R.mul factor length = R.one := Arithmetic.fieldInverseNonzero length lengthNonzero;
+\definition inverseSquared: R.mul (R.mul factor factor) (squared v) = R.one := trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real} (R.mul (R.mul factor factor)) _ _ (sym!{R.Real} _ _ lengthSquared))
+  (trans!{R.Real} _ _ _ (Scalars.mulFour factor factor length length)
+    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ inverseLength inverseLength) (Arithmetic.fieldMulOneLeft R.one)));
+\definition unitNorm: squared normalized = R.one := trans!{R.Real} _ _ _ (form.scaleLeft factor v normalized)
+  (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul factor) _ _ (form.scaleRight factor v v))
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.fieldMulAssoc factor factor (squared v))) inverseSquared));
+\definition inverseSquare: R.mul factor factor = Arithmetic.fieldInv (squared v) := Inverse.inverseUnique (squared v) (R.mul factor factor)
+  (Inverse.positiveNonzero (squared v) positive) inverseSquared;

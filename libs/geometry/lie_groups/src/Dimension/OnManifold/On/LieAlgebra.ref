@@ -1,0 +1,54 @@
+/* The associated Lie algebra as left invariant derivations of C-infinity(G). */
+\import \parent.SmoothFunctions[] \as Functions;
+\import lie_algebras.Field[K := Reals.Real, field := Scalars.field] \as Lie;
+\import Lie.Endomorphisms[V := Functions.Function, space := Functions.space] \as End;
+\import Lie.On[V := End.Carrier, space := End.vectorSpace, lie := End.lie] \as Ambient;
+\import Lie.Associative[A := End.Carrier, algebra := End.algebra] \as Commutator;
+\import Spaces.Laws[V := Functions.Function, space := Functions.space] \as FunctionLaws;
+\import algebra.Group[].Of[Carrier := Functions.Function, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup Reals.Real Functions.Function Spaces.ring Functions.space] \as Sum;
+\import algebra.Group[].Of[Carrier := Reals.Real, group := std.Alg[].Ring[].ringModuleAsCommutativeGroup Reals.Real Reals.Real Spaces.ring Spaces.scalarSpace] \as RealSum;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\use Equality.congr2;
+\use Equality.sym;
+\use Equality.eq_reason;
+\structure Condition[D: End.Carrier]: \Prop := {
+  leibniz: \forall (f, g: Functions.Function) -> D.apply (Functions.product f g) = Functions.space.add
+    (Functions.product (D.apply f) g) (Functions.product f (D.apply g)),
+  invariant: \forall (g: Point)(f: Functions.Function) -> D.apply (Functions.pull g f) = Functions.pull g (D.apply f),
+};
+\definition bracketApply: \forall (D, E: End.Carrier)(f: Functions.Function) -> (Commutator.bracket D E).apply f =
+  Sum.difference (D.apply (E.apply f)) (E.apply (D.apply f)) :=
+  \fun (D, E: End.Carrier)(f: Functions.Function) => congr!{{Functions.Function} {Functions.Function}} (Functions.space.add (D.apply (E.apply f))) _ _
+    (FunctionLaws.minusOneScale (E.apply (D.apply f)));
+\definition pullAdd: \forall (g: Point)(f, h: Functions.Function) -> Functions.pull g (Functions.space.add f h) = Functions.space.add (Functions.pull g f) (Functions.pull g h) :=
+  \fun (g: Point)(f, h: Functions.Function) => Functions.ext _ _ (\fun (x: Point) => \refl(Reals.add (Functions.pull g f x) (Functions.pull g h x)));
+\definition pullScale: \forall (g: Point)(a: Reals.Real)(f: Functions.Function) -> Functions.pull g (Functions.space.smul a f) = Functions.space.smul a (Functions.pull g f) :=
+  \fun (g: Point)(a: Reals.Real)(f: Functions.Function) => Functions.ext _ _ (\fun (x: Point) => \refl(Reals.mul a (Functions.pull g f x)));
+\definition pullDifference: \forall (g: Point)(f, h: Functions.Function) -> Functions.pull g (Sum.difference f h) = Sum.difference (Functions.pull g f) (Functions.pull g h) :=
+  \fun (g: Point)(f, h: Functions.Function) => Functions.ext _ _ (\fun (x: Point) => \refl(Reals.sub (Functions.pull g f x) (Functions.pull g h x)));
+\module Zero;
+\module Addition(D, E: End.Carrier, left: Condition[D], right: Condition[E]);
+\module Scalar(a: Reals.Real, D: End.Carrier, regular: Condition[D]);
+\module Bracket(D, E: End.Carrier, left: Condition[D], right: Condition[E]);
+\import Spaces.Subspace[V := End.Carrier, space := End.vectorSpace] \as Subspaces;
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { D: End.Carrier \where Condition[D] },
+  containsZero := Zero[].laws,
+  closedAdd := \fun (D, E: End.Carrier)(left: Condition[D])(right: Condition[E]) => Addition[D := D, E := E, left := left, right := right].laws,
+  closedScale := \fun (a: Reals.Real)(D: End.Carrier)(regular: Condition[D]) => Scalar[a := a, D := D, regular := regular].laws,
+};
+\definition subalgebra: Ambient.Subalgebra := Ambient.Subalgebra {
+  subspace := subspace,
+  closedBracket := \fun (D, E: End.Carrier)(left: Condition[D])(right: Condition[E]) => Bracket[D := D, E := E, left := left, right := right].laws,
+};
+\import Ambient.Of[subalgebra := subalgebra] \as Restricted;
+\definition Carrier: \Set := Restricted.Carrier;
+\definition space: Spaces.VectorSpace Carrier := Restricted.vectorSpace;
+\definition lie: Lie.LieAlgebra Carrier space := Restricted.algebra;
+\import Lie.On[V := Carrier, space := space, lie := lie] \as Algebra;
+\definition bracket: Carrier -> Carrier -> Carrier := Algebra.bracket;
+\definition ad: Carrier -> Spaces.Linear[V := Carrier, W := Carrier, source := space, target := space].Map := Algebra.ad;
+\definition leibniz[D: Carrier]: \forall (f, g: Functions.Function) -> D.apply (Functions.product f g) = Functions.space.add
+  (Functions.product (D.apply f) g) (Functions.product f (D.apply g)) := (\bysub(End.Carrier, subspace.carrier, D)).leibniz;
+\definition invariant[D: Carrier]: \forall (g: Point)(f: Functions.Function) -> D.apply (Functions.pull g f) = Functions.pull g (D.apply f) :=
+  (\bysub(End.Carrier, subspace.carrier, D)).invariant;

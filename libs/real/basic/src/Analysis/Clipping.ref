@@ -1,0 +1,23 @@
+\import \parent.Distance[] \as Metric;
+\import \parent.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\definition value[a, b, x: Real]: Real := Metric.min (Metric.max x a) b;
+\definition lower[a, b, x: Real]: R.Le a b -> R.Le a (value a b x) :=
+  \fun (ordered: _) => Metric.minGreatest (Metric.max x a) b a (Metric.maxRight x a) ordered;
+\definition upper[a, b, x: Real]: R.Le (value a b x) b := Metric.minRight (Metric.max x a) b;
+\definition inside[a, b, x: Real]: R.Le a x -> R.Le x b -> value a b x = x :=
+  \fun (left: _)(right: _) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (y: Real) => Metric.min y b) _ _ (Metric.maxOfGe x a left)) (Metric.minOfLe x b right);
+\definition minDistance[a, b, c, d, radius: Real]: R.Le (distance a c) radius -> R.Le (distance b d) radius ->
+  R.Le (distance (Metric.min a b) (Metric.min c d)) radius :=
+  \fun (ac: _)(bd: _) => R.leReplaceLeft
+    (distance (Metric.max (neg a) (neg b)) (Metric.max (neg c) (neg d))) (distance (Metric.min a b) (Metric.min c d)) radius
+    (sym!{Real} _ _ (Product.distanceNeg (Metric.max (neg a) (neg b)) (Metric.max (neg c) (neg d))))
+    (Estimates.maxDistance (neg a) (neg b) (neg c) (neg d) radius
+      (R.leReplaceLeft (distance a c) (distance (neg a) (neg c)) radius (sym!{Real} _ _ (Product.distanceNeg a c)) ac)
+      (R.leReplaceLeft (distance b d) (distance (neg b) (neg d)) radius (sym!{Real} _ _ (Product.distanceNeg b d)) bd));
+\definition nonexpansive[a, b, x, y: Real]: R.Le (distance (value a b x) (value a b y)) (distance x y) :=
+  minDistance (Metric.max x a) b (Metric.max y a) b (distance x y)
+    (Estimates.maxDistance x a y a (distance x y) (R.leRefl (distance x y))
+      (R.leReplaceLeft zero (distance a a) (distance x y) (sym!{Real} _ _ (Metric.distanceSelf a)) (Metric.distanceNonnegative x y)))
+    (R.leReplaceLeft zero (distance b b) (distance x y) (sym!{Real} _ _ (Metric.distanceSelf b)) (Metric.distanceNonnegative x y));

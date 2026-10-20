@@ -1,0 +1,63 @@
+\import algebra.Groups[].On[G := Point, group := group] \as GroupOperations;
+\import \parent.Translated[s := s] \as Translated;
+\import \parent.Shifted[s := s] \as Shifted;
+\import Equations.On[field := Extension.extension, initial := solution.value s].Step[step := comparisonStep] \as Uniqueness;
+\import metric_spaces.RealLine[] \as Line;
+\definition smallTime[t: ComparisonStep.Time]: Time := \into[Reals.Real](t,
+  { t: Reals.Real \where R.Lt (Reals.distance t Reals.zero) radius }) \by { \block {
+    \let bounds: Logic.And[R.Le ComparisonStep.left t, R.Le t ComparisonStep.right] :=
+      \bysub(Reals.Real, Line.ClosedInterval ComparisonStep.left ComparisonStep.right, t) \then
+    \let estimate: R.Le (Reals.distance Reals.zero t) ComparisonStep.edge := Estimates.distanceLeOfInterval Reals.zero t ComparisonStep.edge
+      (R.leReplaceLeft (Reals.neg ComparisonStep.edge) (Reals.sub Reals.zero ComparisonStep.edge) t
+        (sym!{Reals.Real} _ _ (ArithmeticLaws.addZeroLeft (Reals.neg ComparisonStep.edge))) bounds.left)
+      (R.leReplaceRight t ComparisonStep.edge (Reals.add Reals.zero ComparisonStep.edge)
+        (sym!{Reals.Real} _ _ (ArithmeticLaws.addZeroLeft ComparisonStep.edge)) bounds.right) \then
+    \return R.leLtTrans _ ComparisonStep.edge radius
+      (R.leReplaceLeft (Reals.distance Reals.zero t) (Reals.distance t Reals.zero) ComparisonStep.edge (Distance.distanceSymmetric Reals.zero t) estimate) comparisonEdge
+  } };
+\definition productAtZero: product s zeroTime = curve s := \block {
+  \let zeroPoint: Charts.point chart (coordinate zeroTime) = one := atZero \then
+  \let same: Open.inclusion domain chart.image inChart (product s zeroTime) = coordinate s := ChartLaws.pointInjective _ _
+    (trans!{Point} _ _ _ (productLaw s zeroTime) (trans!{Point} _ _ _
+      (congr!{Point Point} (mul (Charts.point chart (coordinate s))) _ _ zeroPoint) (GroupOperations.oneRight (Charts.point chart (coordinate s))))) \then
+  \return same
+};
+\definition initialValue: Translated.value Reals.zero = solution.value s := trans!{Vectors.Point} _ _ _
+  (Translated.valueAtPoint (parameter zeroTime)) productAtZero;
+\definition shifted: Uniqueness.Candidate := Uniqueness.Candidate {
+  value := Shifted.value, initialValue := Shifted.initialValue,
+  derivative := \fun (t: Uniqueness.Time)(i: std.Data[].FinSet[].Fin n) => Shifted.derivative (smallTime t) i,
+};
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\definition translated: Uniqueness.Candidate := Uniqueness.Candidate {
+  value := Translated.value, initialValue := initialValue,
+  derivative := \fun (t: Uniqueness.Time)(i: std.Data[].FinSet[].Fin n) => \block {
+    \let small: Time := smallTime t \then
+    \let point: TimeOpen.Carrier Interval.domain := parameter small \then
+    \let near: R.Le (Norm.metric.distance (product s small) origin) Extension.radius := R.Order[].leOfLt _ _
+      (R.ltReplaceLeft (Norm.metric.distance origin (product s small)) (Norm.metric.distance (product s small) origin) Extension.radius
+        (Norm.metric.symmetric origin (product s small)) (productBound s small)) \then
+    \let agrees: Extension.apply (Translated.value t) = velocity (product s small) := trans!{Vectors.Point} _ _ _
+      (congr!{Vectors.Point Vectors.Point} Extension.apply _ _ (Translated.valueAtPoint point)) (Extension.agrees (product s small) near) \then
+    \return \idelim velocity (product s small) i = Extension.apply (Translated.value t) i \with d: Reals.Real =>
+      Derivatives.HasDerivativeAt (\fun (x: Reals.Real) => Translated.value x i) t d \by {
+        base: Translated.Differential[x := point].derivative i,
+        equality: sym!{Reals.Real} _ _ (congr!{Vectors.Point Reals.Real} (\fun (v: Vectors.Point) => v i) _ _ agrees)
+      }
+  },
+};
+\definition equal: \forall (t: ComparisonStep.Time) -> solution.value (Reals.add s t) = Translated.value t :=
+  \fun (t: ComparisonStep.Time) => trans!{Vectors.Point} _ _ _ (Uniqueness.candidateUnique shifted t)
+    (sym!{Vectors.Point} _ _ (Uniqueness.candidateUnique translated t));
+\definition sumCoordinate[t: ComparisonStep.Time]: Open.Carrier chart.image :=
+  Open.inclusion domain chart.image inChart (\into[Vectors.Point](solution.value (Reals.add s t), domain.points) \by {
+    solution.inside (Reals.add s t) (sumLower s (smallTime t)) (sumUpper s (smallTime t))
+  });
+\definition addition: \forall (t: ComparisonStep.Time) -> Charts.point chart (sumCoordinate t) =
+  mul (Charts.point chart (coordinate s)) (Charts.point chart (coordinate (smallTime t))) := \block {
+  \fun (t: ComparisonStep.Time) \then
+  \let same: sumCoordinate t = Open.inclusion domain chart.image inChart (product s (smallTime t)) :=
+    trans!{Vectors.Point} _ _ _ (equal t) (Translated.valueAtPoint (parameter (smallTime t))) \then
+  \return trans!{Point} _ _ _ (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ same)
+    (productLaw s (smallTime t))
+};

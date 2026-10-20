@@ -1,0 +1,33 @@
+\definition component[i: Index]: ScalarFunctions.Function := \into[Real -> Real]((\fun (t: Real) => f t i),
+  { h: Real -> Real \where ScalarFunctions.IsContinuous h }) \by { coordinateContinuous f i };
+\module Coordinate(i: Index);
+\definition primitive[t: Real][i: Index]: Real := Coordinate[i := i].primitive t;
+\definition value: Vector := primitive b;
+\definition primitiveLeft: primitive a = Coordinates.origin := \axiom:funext(primitive a, Coordinates.origin,
+  \fun (i: Index) => Coordinate[i := i].primitiveLeft);
+\definition primitiveContinuous: IsContinuous primitive := continuousOfCoordinates primitive
+  (\fun (i: Index) => Coordinate[i := i].primitiveContinuous);
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\definition fundamentalTheorem: \forall (t: Real) -> R.Lt a t -> R.Lt t b -> \forall (i: Index) -> Derivatives.HasDerivativeAt (\fun (s: Real) => primitive s i) t (f t i) :=
+  \fun (t: Real)(left: _)(right: _)(i: Index) => Coordinate[i := i].fundamentalTheorem t left right;
+\import Scalars.Division[].Prefix[] \as Prefix;
+\definition bound[t, bound: Real]: R.Le Scalars.zero bound ->
+  (\forall (s: Real) -> R.Le a s -> R.Le s b -> R.Le (Norm.metric.distance (f s) Coordinates.origin) bound) ->
+  R.Le (Norm.metric.distance (primitive t) Coordinates.origin) (Scalars.mul (Prefix.weight t a b) bound) :=
+  \fun (nonnegative: _)(pointwise: _) => Norm.finiteUpper n (Coordinates.subPoint (primitive t) Coordinates.origin)
+    (Scalars.mul (Prefix.weight t a b) bound) (Laws.fieldMulNonnegative (Prefix.weight t a b) bound (Prefix.weightNonnegative t a b interval.ordered) nonnegative)
+    (\fun (i: Index) => R.leReplaceLeft (Scalars.distance (primitive t i) Scalars.zero)
+      (Scalars.distance (Scalars.sub (primitive t i) Scalars.zero) Scalars.zero) (Scalars.mul (Prefix.weight t a b) bound)
+      (sym!{Real} _ _ (Estimates.distanceDifference (primitive t i) Scalars.zero))
+      (Coordinate[i := i].bound t bound (\fun (s: Real)(as: _)(sb: _) => R.leTrans _ _ _
+        (Norm.coordinateDistance (f s) Coordinates.origin i) (pointwise s as sb))));
+\definition lipschitz[s, t, bound: Real]: R.Le a s -> R.Le s b -> R.Le a t -> R.Le t b -> R.Le Scalars.zero bound ->
+  (\forall (u: Real) -> R.Le a u -> R.Le u b -> R.Le (Norm.metric.distance (f u) Coordinates.origin) bound) ->
+  R.Le (Norm.metric.distance (primitive t) (primitive s)) (Scalars.mul (Scalars.distance t s) bound) :=
+  \fun (as: _)(sb: _)(at: _)(tb: _)(nonnegative: _)(pointwise: _) => Norm.finiteUpper n (Coordinates.subPoint (primitive t) (primitive s))
+    (Scalars.mul (Scalars.distance t s) bound) (Laws.fieldMulNonnegative (Scalars.distance t s) bound (Distance.distanceNonnegative t s) nonnegative)
+    (\fun (i: Index) => R.leReplaceLeft (Scalars.distance (primitive t i) (primitive s i))
+      (Scalars.distance (Scalars.sub (primitive t i) (primitive s i)) Scalars.zero) (Scalars.mul (Scalars.distance t s) bound)
+      (sym!{Real} _ _ (Estimates.distanceDifference (primitive t i) (primitive s i)))
+      (Coordinate[i := i].lipschitz s t bound as sb at tb nonnegative (\fun (u: Real)(au: _)(ub: _) => R.leTrans _ _ _
+        (Norm.coordinateDistance (f u) Coordinates.origin i) (pointwise u au ub))));

@@ -1,0 +1,28 @@
+\import \parent.\parent.\parent.Bounded[U := U, f := f, g := g, a := x, x := y] \as MeanValue;
+\definition distanceSmall: R.Lt (Coordinates.pointDistance x a) radius -> R.Lt (Coordinates.pointDistance y a) radius -> R.Lt (Coordinates.pointDistance y x) halfDelta :=
+  \fun (xa: _)(ya: _) => R.leLtTrans _ _ _ (MetricLaws.distanceTriangle y a x)
+    (R.ltReplaceRight _ (add radius radius) halfDelta twiceRadius
+      (Bounds.addLt _ _ _ _ ya (R.ltReplaceLeft (Coordinates.pointDistance x a) (Coordinates.pointDistance a x) radius (MetricLaws.distanceSymmetric x a) xa)));
+\definition triangleSmall[p: Point]: BallInside[U.points, a, rho] -> R.Lt (Coordinates.pointDistance x a) radius ->
+  R.Lt (Coordinates.pointDistance p x) halfDelta -> R.Lt (Coordinates.pointDistance p a) delta :=
+  \fun (ball: _)(xa: _)(px: _) => Order.ltTrans _ _ delta
+    (R.leLtTrans _ _ _ (MetricLaws.distanceTriangle p x a) (Bounds.addLt _ _ _ _ px xa)) (threeSmall ball);
+\definition ballAtX: BallInside[U.points, a, rho] -> R.Lt (Coordinates.pointDistance x a) radius -> BallInside[U.points, x, halfDelta] :=
+  \fun (ball: BallInside[U.points, a, rho])(xa: _) => BallInside[U.points, x, halfDelta] {
+    positive := halfPositive ball,
+    included := \fun (p: Point)(near: _) => ball.included p (R.ltLeTrans _ delta rho (triangleSmall p ball xa near) (Metric.minLeft rho smallest)),
+  };
+\definition partialBound: BallInside[U.points, a, rho] -> R.Lt (Coordinates.pointDistance x a) radius -> R.Lt (Coordinates.pointDistance y a) radius ->
+  \forall (p: Carrier U)(i: Coordinate) -> R.Le (Coordinates.pointDistance p x) (Coordinates.pointDistance y x) -> R.Le (distance (g i p) zero) theta := \block {
+  \fun (ball: _)(xa: _)(ya: _)(p: Carrier U)(i: Coordinate)(near: _) \then
+  \let pa: R.Lt (Coordinates.pointDistance p a) delta := triangleSmall p ball xa (R.leLtTrans _ _ _ near (distanceSmall xa ya)) \then
+  \let control: Analysis.ContinuityControl[U, g i, a, one, controls i] := \bysub(Real, { delta: Real \where Analysis.ContinuityControl[U, g i, a, one, delta] }, controls i) \then
+  \let small: R.Lt (distance (g i p) (g i a)) one := control.estimate p
+    (R.ltLeTrans _ smallest (controls i) (R.ltLeTrans _ delta smallest pa (Metric.minRight rho smallest)) (Sums.Bounds[].coordinate n (\fun (i: Coordinate) => controls i) i)) \then
+  \return R.leTrans _ _ theta (Metric.distanceTriangle (g i p) (g i a) zero)
+    (Bounds.addLe _ _ _ _ (Order.leOfLt _ _ small) (Norm.coordinate coefficients i))
+};
+\definition estimate: BallInside[U.points, a, rho] -> (\forall (i: Coordinate) -> Analysis.HasPartialDerivative U f i (g i)) ->
+  R.Lt (Coordinates.pointDistance x a) radius -> R.Lt (Coordinates.pointDistance y a) radius ->
+  R.Le (distance (f y) (f x)) (mul coefficient (Coordinates.pointDistance y x)) :=
+  \fun (ball: _)(partials: _)(xa: _)(ya: _) => MeanValue.estimate halfDelta theta (ballAtX ball xa) (distanceSmall xa ya) thetaNonnegative partials (partialBound ball xa ya);

@@ -1,0 +1,92 @@
+\definition sums[n: N.Nat^]: Real := D.sum f.function (D.leftTags n a b) a b;
+\definition length: Real := sub b a;
+\definition lengthNonnegative: R.Le zero length := Metric.subNonnegative b a interval.ordered;
+\definition coefficient: Real := Product.coefficient length zero;
+\definition coefficientPositive: R.Lt zero coefficient := Product.coefficientPositive length zero;
+\definition coefficientBound: R.Le length coefficient := R.leReplaceLeft (Product.abs length) length coefficient
+  (Product.absOfNonnegative length lengthNonnegative) (Product.coefficientFirst length zero);
+\definition error[tolerance: Real]: Real := mul length tolerance;
+\definition tolerance[epsilon: Real]: Real := Product.radius coefficient epsilon;
+\definition tolerancePositive: \forall (epsilon: Real) -> R.Lt zero epsilon -> R.Lt zero (tolerance epsilon) :=
+  \fun (epsilon: Real)(positive: _) => Product.radiusPositive coefficient epsilon coefficientPositive positive;
+\definition errorSmall: \forall (epsilon: Real) -> R.Lt zero epsilon -> R.Lt (error (tolerance epsilon)) epsilon :=
+  \fun (epsilon: Real)(positive: _) => R.leLtTrans _ _ _
+    (R.leReplace (mul (tolerance epsilon) length) (mul length (tolerance epsilon)) (mul (tolerance epsilon) coefficient) (mul coefficient (tolerance epsilon))
+      (Laws.fieldMulComm (tolerance epsilon) length) (Laws.fieldMulComm (tolerance epsilon) coefficient)
+      (E.mulMonotone (tolerance epsilon) length coefficient (Order.leOfLt _ _ (tolerancePositive epsilon positive)) coefficientBound))
+    (Product.radiusSmall coefficient epsilon coefficientPositive positive);
+\structure Tail[tolerance: Real, k: N.Nat^]: \Prop := {
+  compare: \forall (m: N.Nat^)(tags: D.Tags) -> Nat.Le k m -> D.Level tags m -> D.Valid tags a b ->
+    R.Le (distance (sums k) (D.sum f.function tags a b)) (error tolerance),
+};
+\definition tailExists: \forall (tolerance: Real) -> R.Lt zero tolerance -> \exists ( k: N.Nat^ \where Tail[tolerance, k] ) := \block {
+  \fun (tolerance: Real)(positive: R.Lt zero tolerance) \then
+  \takefrom delta: \Cast[Real] ({ delta: Real \where Radius[f.function, tolerance, delta] }) \by f.uniform tolerance positive \then
+  \let radius: Radius[f.function, tolerance, delta] := \bysub(Real, { delta: Real \where Radius[f.function, tolerance, delta] }, delta) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (Mesh.width k a b) delta }) \by Mesh.arbitrarilyFine a b delta interval.ordered radius.positive \then
+  \let mesh: Mesh.Fine (D.leftTags k a b) a b delta := Mesh.canonicalFine k a b delta (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt (Mesh.width k a b) delta }, k)) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Tail[tolerance, k] }] k (Tail[tolerance, k] {
+    compare := \fun (m: N.Nat^)(tags: D.Tags)(later: _)(level: _)(valid: _) =>
+      Refinement.comparison (D.leftTags k a b) tags (Refinement.canonicalRefines k tags m a b level later) f.function a b delta tolerance
+        interval.ordered (D.leftTagsValid k a b interval.ordered) valid mesh radius.oscillation,
+  })
+};
+\definition pairBound: \forall (tolerance: Real)(k: N.Nat^) -> Tail[tolerance, k] -> \forall (m, n: N.Nat^)(left, right: D.Tags) ->
+  Nat.Le k m -> Nat.Le k n -> D.Level left m -> D.Level right n -> D.Valid left a b -> D.Valid right a b ->
+  R.Le (distance (D.sum f.function left a b) (D.sum f.function right a b)) (add (error tolerance) (error tolerance)) :=
+  \fun (tolerance: Real)(k: N.Nat^)(tail: Tail[tolerance, k])(m, n: N.Nat^)(left, right: D.Tags)(hm: _)(hn: _)(lm: _)(ln: _)(vm: _)(vn: _) =>
+    R.leTrans _ _ _ (Metric.distanceTriangle (D.sum f.function left a b) (sums k) (D.sum f.function right a b))
+      (E.addLe _ _ _ _
+        (R.leReplaceLeft (distance (sums k) (D.sum f.function left a b)) (distance (D.sum f.function left a b) (sums k)) (error tolerance)
+          (Metric.distanceSymmetric (sums k) (D.sum f.function left a b)) (tail.compare m left hm lm vm))
+        (tail.compare n right hn ln vn));
+\definition cauchy: Sequence.Cauchy sums := \block {
+  \fun (epsilon: Real)(positive: R.Lt zero epsilon) \then
+  \let r: Real := mul half epsilon \then
+  \let rp: R.Lt zero r := E.halfOfPositive epsilon positive \then
+  \let t: Real := tolerance r \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Tail[t, k] }) \by tailExists t (tolerancePositive r rp) \then
+  \let tail: Tail[t, k] := \bysub(N.Nat^, { k: N.Nat^ \where Tail[t, k] }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.Control sums epsilon k }] k
+    (\fun (m, n: N.Nat^)(hm: _)(hn: _) => R.leLtTrans _ _ _
+      (pairBound t k tail m n (D.leftTags m a b) (D.leftTags n a b) hm hn (D.leftTagsLevel m a b) (D.leftTagsLevel n a b)
+        (D.leftTagsValid m a b interval.ordered) (D.leftTagsValid n a b interval.ordered))
+      (R.ltReplaceRight _ (add r r) epsilon (E.halfTwice epsilon) (E.addLt _ _ _ _ (errorSmall r rp) (errorSmall r rp))))
+};
+\definition sequence: Sequence.CauchySequence := \into[N.Nat^ -> Real](sums, { s: N.Nat^ -> Real \where Sequence.Cauchy s }) \by { cauchy };
+\definition value: Real := Sequence.limit sequence;
+\definition approximation: Integral.Approximates f.function value := \block {
+  \fun (epsilon: Real)(positive: R.Lt zero epsilon) \then
+  \let h: Real := mul half epsilon \then
+  \let hPositive: R.Lt zero h := E.halfOfPositive epsilon positive \then
+  \let r: Real := mul half h \then
+  \let rPositive: R.Lt zero r := E.halfOfPositive h hPositive \then
+  \let t: Real := tolerance r \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Tail[t, k] }) \by tailExists t (tolerancePositive r rPositive) \then
+  \let tail: Tail[t, k] := \bysub(N.Nat^, { k: N.Nat^ \where Tail[t, k] }, k) \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sequence.LimitControl sums value h j }) \by Sequence.limitLaw sequence h hPositive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Integral.Control f.function value epsilon k }] (NatOrder.commonBound k j)
+    (\fun (m: N.Nat^)(later: _)(tags: D.Tags)(level: _)(valid: _) => \block {
+      \let hm: Nat.Le k m := Nat.leTrans k (NatOrder.commonBound k j) m (NatOrder.leftLeCommonBound k j) later \then
+      \let jm: Nat.Le j m := Nat.leTrans j (NatOrder.commonBound k j) m (NatOrder.rightLeCommonBound k j) later \then
+      \let sumNear: R.Lt (distance (D.sum f.function tags a b) (sums m)) h := R.leLtTrans _ _ _
+        (pairBound t k tail m m tags (D.leftTags m a b) hm hm level (D.leftTagsLevel m a b) valid (D.leftTagsValid m a b interval.ordered))
+        (R.ltReplaceRight _ (add r r) h (E.halfTwice h) (E.addLt _ _ _ _ (errorSmall r rPositive) (errorSmall r rPositive))) \then
+      \return R.leLtTrans _ _ _ (Metric.distanceTriangle (D.sum f.function tags a b) (sums m) value)
+        (R.ltReplaceRight _ (add h h) epsilon (E.halfTwice epsilon)
+          (E.addLt _ _ _ _ sumNear ((\bysub(N.Nat^, { j: N.Nat^ \where Sequence.LimitControl sums value h j }, j)) m jm)))
+    })
+};
+\definition hasIntegral: Integral.HasIntegral[f.function, value] := Integral.HasIntegral[f.function, value] {
+  bounded := f.bounded, approximation := approximation,
+};
+\definition integral: Integral.Function := Integral.Function { function := f.function, integral := value, hasIntegral := hasIntegral };
+
+\module Primitive(t: Real);
+\import D.Prefix[] \as Prefix;
+\definition primitiveSums[t: Real][n: N.Nat^]: Real := Prefix.value f.function (D.leftTags n a b) t a b;
+\definition primitive[t: Real]: Real := Primitive[t := t].primitive;
+\definition primitiveConverges[t: Real]: Sequence.Converges (primitiveSums t) (primitive t) := Primitive[t := t].converges;
+\definition primitiveLeft: primitive a = zero := Primitive[t := a].leftEndpoint (\refl(a));
+\definition primitiveRight: primitive b = value := Primitive[t := b].rightEndpoint (\refl(b));
+\module Fundamental;

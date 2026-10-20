@@ -1,0 +1,42 @@
+\import \root.IndexedAtlas[n := n, A := A, I := I].On[family := family].Of[openEmbeddings := openEmbeddings] \as TotalCoordinates;
+\import BaseTopology.Countability[] \as Lindelof;
+\import std.Data[].Option[] \as Options;
+\definition domainFamily: \Pow (\Pow B) := { U: \Pow B \where \exists ( i: I \where U = domains i ) };
+\definition openCover: BaseTopology.IsOpenCover[baseSpace, domainFamily, BaseTopology.Whole] :=
+  BaseTopology.IsOpenCover[baseSpace, domainFamily, BaseTopology.Whole] {
+    open := \block {
+      \fun (U: \Pow B)(member: _) \then
+      \takefrom i: \Cast[I] ({ i: I \where U = domains i }) \by member \then
+      \return \idelim domains i = U \with W: \Pow B => BaseTopology.IsOpenIn baseSpace W \by {
+        base: laws.open i, equality: sym!{\Pow B} _ _ (\bysub(I, { i: I \where U = domains i }, i))
+      }
+    },
+    covers := \block {
+      \fun (x: B)(_: _) \then
+      \takefrom i: \Cast[I] ({ i: I \where \In[B] (domains i) x }) \by laws.covers x \then
+      \return BaseTopology.unionMemberOf domainFamily (domains i) x
+        (Logic.existsIntro[I, { j: I \where domains i = domains j }] i (\refl(domains i)))
+        (\bysub(I, { i: I \where \In[B] (domains i) x }, i))
+    },
+  };
+\definition optionalDomain: Options.Option[I] -> \Pow B :=
+  \induction (o: Options.Option[I]) \return \Pow B \with {
+    | none: BaseTopology.Empty
+    | some: \fun (c: I) => domains c
+  };
+\definition liftDomain: \forall (o: Options.Option[I])(p: A) ->
+  \In[B] (optionalDomain o) (projection p) -> \In[A] (TotalCoordinates.optionalDomain o) p :=
+  \induction (o: Options.Option[I]) \return \forall (p: A) ->
+    \In[B] (optionalDomain o) (projection p) -> \In[A] (TotalCoordinates.optionalDomain o) p \with {
+    | none: \fun (p: A)(impossible: Logic.False) => impossible
+    | some: \fun (c: I)(p: A)(inside: _) => laws.fiber c p inside
+  };
+\definition Selected: \Set := \Cast[N.Nat^ -> \Pow B] ({ selected: N.Nat^ -> \Pow B \where Logic.And[
+  \forall (j: N.Nat^) -> Logic.Or[BaseTopology.FamilyMember domainFamily (selected j), selected j = BaseTopology.Empty],
+  BaseTopology.Subset BaseTopology.Whole (Lindelof.IndexedUnion selected)] });
+\module From(selected: Selected);
+\definition secondCountable: BaseTopology.IsSecondCountable baseSpace -> Space.IsSecondCountable topology := \block {
+  \fun (second: BaseTopology.IsSecondCountable baseSpace) \then
+  \takefrom selected: Selected \by Lindelof.secondCountableLindelof baseSpace second domainFamily BaseTopology.Whole openCover \then
+  \return From[selected := selected].secondCountable
+};

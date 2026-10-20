@@ -1,0 +1,54 @@
+/* The normalized top exterior form and the determinant of a linear map. */
+\import \parent.Exterior[] \as Exterior;
+\import \parent.\parent.Multilinear[V := Coordinates.Vector, space := Coordinates.space] \as Multilinear;
+\import Multilinear.Alternating[] \as Alternating;
+\import Alternating.At[k := n] \as Forms;
+\import Alternating.Dimension[n := n, b := basis].Increasing[k := n] \as Increasing;
+\import Alternating.Precomposition[W := Coordinates.Vector, target := Coordinates.space] \as Pullback;
+\import Fin.Ordering[] \as Ordering;
+\import Ordering.Rigidity[] \as Rigidity;
+\definition Form: \Set := Alternating.Form n;
+\definition Arguments: \Set := Fin.Fin n -> Coordinates.Vector;
+\definition identityTuple[i: Fin.Fin n]: Fin.Fin n := i;
+\definition identityIncreasing: Ordering.Increasing n n identityTuple := \fun (i, j: Fin.Fin n)(less: _) => less;
+\definition basisArguments[i: Fin.Fin n]: Coordinates.Vector := vectors i;
+\definition basisTuple[indices: Fin.Fin n -> Fin.Fin n][i: Fin.Fin n]: Coordinates.Vector := vectors (indices i);
+\definition volume: Form := Exterior.word n identityTuple;
+\definition normalized: volume basisArguments = one := Exterior.diagonal n identityTuple identityIncreasing;
+\definition ext: \forall (f, g: Form) -> f basisArguments = g basisArguments -> f = g := \fun (f, g: Form)(same: _) =>
+  Increasing.ext f g (\block {
+    \fun (indices: Increasing.Index) \then
+    \let raw: Fin.Fin n -> Fin.Fin n := indices \then
+    \let map: Rigidity.Endomorphism n := \into[Fin.Fin n -> Fin.Fin n](raw,
+      { h: Fin.Fin n -> Fin.Fin n \where Ordering.Increasing n n h }) \by {
+        \bysub(Fin.Fin n -> Fin.Fin n, Increasing.Index, indices)
+      } \then
+    \let identity: raw = identityTuple := Rigidity.rigid n map \then
+    \return trans!{K} _ _ _ (congr!{{Fin.Fin n -> Fin.Fin n} K} (\fun (t: Fin.Fin n -> Fin.Fin n) => f (basisTuple t)) _ _ identity)
+      (trans!{K} _ _ _ same (sym!{K} _ _ (congr!{{Fin.Fin n -> Fin.Fin n} K} (\fun (t: Fin.Fin n -> Fin.Fin n) => g (basisTuple t)) _ _ identity)))
+  });
+\definition reconstruction: \forall (omega: Form) -> omega = Forms.scale (omega basisArguments) volume := \fun (omega: Form) => ext omega _
+  (sym!{K} _ _ (trans!{K} _ _ _ (congr!{K K} (mul (omega basisArguments)) _ _ normalized) (mulOneRight (omega basisArguments))));
+\definition transformed[f: Linear.Map][arguments: Arguments]: Arguments := Pullback.arguments n f arguments;
+\definition determinant[f: Linear.Map]: K := volume (transformed f basisArguments);
+\definition eigen: \forall (f: Linear.Map)(omega: Form) -> Pullback.precompose n f omega = Forms.scale (determinant f) omega :=
+  \fun (f: Linear.Map)(omega: Form) => \block {
+    \let evaluation: omega (transformed f basisArguments) = mul (omega basisArguments) (determinant f) :=
+      congr!{Form K} (\fun (eta: Form) => eta (transformed f basisArguments)) omega (Forms.scale (omega basisArguments) volume) (reconstruction omega) \then
+    \return ext (Pullback.precompose n f omega) (Forms.scale (determinant f) omega)
+      (trans!{K} (omega (transformed f basisArguments)) (mul (omega basisArguments) (determinant f))
+        (mul (determinant f) (omega basisArguments)) evaluation (mulComm (omega basisArguments) (determinant f)))
+  };
+\definition action: \forall (f: Linear.Map)(omega: Form)(arguments: Arguments) ->
+  omega (transformed f arguments) = mul (determinant f) (omega arguments) := \fun (f: Linear.Map)(omega: Form)(arguments: Arguments) =>
+    congr!{Form K} (\fun (eta: Form) => eta arguments) _ _ (eigen f omega);
+\import Linear.Composition[U := Coordinates.Vector, domain := Coordinates.space] \as Composition;
+\definition multiplicative: \forall (f, g: Linear.Map) -> determinant (Composition.compose f g) = mul (determinant f) (determinant g) :=
+  \fun (f, g: Linear.Map) => action f volume (transformed g basisArguments);
+\definition atIdentity: determinant identity = one := normalized;
+\definition PreservesVolume[f: Linear.Map]: \Prop := \forall (omega: Form)(arguments: Arguments) -> omega (transformed f arguments) = omega arguments;
+\definition preservesIff: \forall (f: Linear.Map) -> Logic.PropEquiv[PreservesVolume f, determinant f = one] := \fun (f: Linear.Map) => Logic.PropEquiv[_, _] {
+  ltr := \fun (preserves: PreservesVolume f) => trans!{K} _ _ _ (preserves volume basisArguments) normalized,
+  rtl := \fun (special: determinant f = one)(omega: Form)(arguments: Arguments) => trans!{K} _ _ _ (action f omega arguments)
+    (trans!{K} _ _ _ (congr!{K K} (\fun (c: K) => mul c (omega arguments)) _ _ special) (mulOneLeft (omega arguments))),
+};

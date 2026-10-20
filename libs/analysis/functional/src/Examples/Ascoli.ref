@@ -1,0 +1,33 @@
+\import \root.Continuous[A := A, topology := topology] \as Continuous;
+\import Continuous.ArzelaAscoli[] \as Ascoli;
+\import topology.Topology[Carrier := A] \as Source;
+\import metric_spaces.RealFunctions[A := A] \as Functions;
+\structure Constant[f: Continuous.Function]: \Prop := {
+  constant: \forall (x, y: A) -> f x = f y,
+  bounded: \forall (x: A) -> R.Le (Product.abs (f x)) Real.one,
+};
+\definition family: \Pow Continuous.Function := { f: Continuous.Function \where Constant[f] };
+\definition pointwiseBounded: Continuous.PointwiseBounded family :=
+  \fun (x: A) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (f: Continuous.Function) -> \In[Continuous.Function] family f -> R.Le (Product.abs (f x)) b }] Real.one
+    (\fun (f: Continuous.Function) (member: Constant[f]) => member.bounded x);
+\definition equicontinuous: Continuous.Equicontinuous family :=
+  \fun (x: A) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) =>
+    Logic.existsIntro[\Pow A, { U: \Pow A \where Continuous.EquicontinuousNeighborhood[family, x, epsilon, U] }] Source.Whole
+      (Continuous.EquicontinuousNeighborhood[family, x, epsilon, Source.Whole] {
+        open := (Source.topologyLaws topology).wholeOpen, contains := \refl(x),
+        estimate := \fun (f: Continuous.Function) (member: Constant[f]) (y: A) (inWhole: y = y) =>
+          R.ltReplaceLeft Real.zero (Real.distance (f x) (f y)) epsilon
+            (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+              (congr!{Real.Real Real.Real} (Real.distance (f x)) _ _ (sym!{Real.Real} _ _ (member.constant x y)))
+              (Distance.distanceSelf (f x)))) positive,
+      });
+\definition relativelyCompact: Source.IsCompact topology -> Ascoli.RelativelyCompact family :=
+  \fun (compact: Source.IsCompact topology) => Ascoli.arzelaAscoliClosure compact family equicontinuous pointwiseBounded;
+\definition zero: Continuous.Function := \into[A -> Real.Real](\fun (x: A) => Real.zero, { f: A -> Real.Real \where Functions.Continuous topology f }) \by {
+  Functions.constantContinuous topology Real.zero
+};
+\definition zeroMember: \In[Continuous.Function] family zero := Constant[zero] {
+  constant := \fun (x, y: A) => \refl(Real.zero),
+  bounded := \fun (x: A) => R.leReplaceLeft Real.zero (Product.abs Real.zero) Real.one
+    (sym!{Real.Real} _ _ (Distance.distanceSelf Real.zero)) Laws.oneNonnegative,
+};

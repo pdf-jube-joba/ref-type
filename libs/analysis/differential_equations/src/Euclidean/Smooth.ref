@@ -1,0 +1,47 @@
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Derivative[] \as Partials;
+\import Smooth.Properties[] \as Properties;
+\import Open.Analysis[] \as Analysis;
+\import Open.C1[] \as C1;
+\import std.Data[].FinSet[] \as Fin;
+\import Scalars.FiniteSums[].Bounds[] \as FiniteBounds;
+\definition component[i: Euclidean.Coordinate]: Partials.Function U := SmoothMaps.coordinateFunction U Open.whole field i;
+\import std.Set[].Extension[A := Vector, B := Vector, domain := U.points] \as DomainExtension;
+\definition function[x: Open.Carrier U]: Vector := SmoothMaps.apply U Open.whole field x;
+\definition extended[x: Vector]: Vector := DomainExtension.extend function Coordinates.origin x;
+\structure LocalSolution: \Set := {
+  radius: Positive,
+  value: Real -> Vector,
+  initialValue: value Scalars.zero = a,
+  inside: \forall (t: Real) -> R.Lt (Scalars.neg radius) t -> R.Lt t radius -> \In[Vector] U.points (value t),
+  derivative: \forall (t: Real) -> R.Lt (Scalars.neg radius) t -> R.Lt t radius -> \forall (i: Euclidean.Coordinate) ->
+    Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t (extended (value t) i),
+};
+\module NearZero(solution: LocalSolution);
+\definition Neighborhoods: \Set := \forall (i: Euclidean.Coordinate) -> C1.LipschitzNeighborhood[U, component i, a];
+\module Coordinate(i: Euclidean.Coordinate);
+\definition neighborhoodsExist: \exists Neighborhoods := \axiom:classicalIndefiniteChoice(Euclidean.Coordinate,
+  (\fun (i: Euclidean.Coordinate) => C1.LipschitzNeighborhood[U, component i, a]), \fun (i: Euclidean.Coordinate) => Coordinate[i := i].neighborhoodExists);
+\structure Neighborhood: \Set := {
+  radius: Real,
+  positive: R.Lt Scalars.zero radius,
+  included: Open.BallInside[U.points, a, radius],
+  coefficient: Nonnegative,
+  estimate: \forall (x, y: Open.Carrier U) -> R.Lt (Norm.metric.distance x a) radius -> R.Lt (Norm.metric.distance y a) radius ->
+    R.Le (Norm.metric.distance (SmoothMaps.apply U Open.whole field x) (SmoothMaps.apply U Open.whole field y)) (Scalars.mul coefficient (Norm.metric.distance x y)),
+};
+\module Bounds(neighborhoods: Neighborhoods, rho: Real);
+\definition neighborhoodExists: \exists Neighborhood := \block {
+  \takefrom neighborhoods: Neighborhoods \by neighborhoodsExist \then
+  \takefrom rho: \Cast[Real] ({ rho: Real \where Open.BallInside[U.points, a, rho] }) \by U.open a (\bysub(Vector, U.points, a)) \then
+  \return Bounds[neighborhoods := neighborhoods, rho := rho].neighborhoodExists (\bysub(Real, { rho: Real \where Open.BallInside[U.points, a, rho] }, rho))
+};
+\module Extension(neighborhood: Neighborhood);
+\definition localExistence: \exists LocalSolution := \block {
+  \takefrom neighborhood: Neighborhood \by neighborhoodExists \then
+  \return \exact(Extension[neighborhood := neighborhood].localSolution, LocalSolution)
+};
+\module Uniqueness(left, right: LocalSolution);
+\definition localUniqueness: \forall (left, right: LocalSolution) -> \exists LocalAgreement[left.value, right.value] :=
+  \fun (left, right: LocalSolution) => Uniqueness[left := left, right := right].agreementExists;
+\module Regularity(solution: LocalSolution);

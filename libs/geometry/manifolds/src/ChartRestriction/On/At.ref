@@ -1,0 +1,50 @@
+\import topology.Topology[Carrier := M.Point] \as Source;
+\import Source.Subspace[S := c.domain] \as OldDomain;
+\import OldDomain.Open[] \as OpenDomain;
+\import topology.Topology[Carrier := Charts.LocalPoint c] \as Local;
+\import topology.Topology[Carrier := Coordinates.Point] \as Ambient;
+\import Ambient.Subspace[S := (c.image).points] \as OldImage;
+\import topology.Continuity[A := Charts.LocalPoint c, B := Open.Carrier c.image] \as Forward;
+\import topology.Homeomorphism[A := Charts.LocalPoint c, B := Open.Carrier c.image] \as Original;
+\import Charts.Of[chart := c] \as Geometry;
+\definition preimage: \Pow (Charts.LocalPoint c) := Forward.Preimage (Charts.coordinate c) (OldImage.Trace U.points);
+\definition preimageOpen: Local.IsOpenIn (Charts.domainTopology c.domain) preimage :=
+  (Original.laws (Charts.domainTopology c.domain) (Charts.imageTopology c.image) c.coordinates).forwardContinuous
+    (OldImage.Trace U.points) (OldImage.traceOpen Euclidean.topology U.points (OpenTopology.open U));
+\definition domain: \Pow M.Point := OpenDomain.image preimage;
+\definition domainOpen: Source.IsOpenIn M.space domain := OpenDomain.imageOpen M.space c.open preimage preimageOpen;
+\definition Domain: \Set := Charts.Domain domain;
+\definition oldPoint[x: Domain]: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { OpenDomain.imageIncluded preimage x (\bysub(M.Point, domain, x)) };
+\definition coordinateMember: \forall (x: Domain) -> \In[Coordinates.Point] U.points (Charts.coordinate c (oldPoint x)) :=
+  \fun (x: Domain) => OpenDomain.imageElim preimage x (\In[Coordinates.Point] U.points (Charts.coordinate c (oldPoint x)))
+    (\fun (y: Charts.LocalPoint c)(member: Local.Member preimage y)(same: y = x) =>
+      \idelim y = oldPoint x \with z: Charts.LocalPoint c => \In[Coordinates.Point] U.points (Charts.coordinate c z)
+        \by { base: member, equality: same }) (\bysub(M.Point, domain, x));
+\definition forward[x: Domain]: Open.Carrier U := \into[Coordinates.Point](Charts.coordinate c (oldPoint x), U.points) \by { coordinateMember x };
+\definition originalCoordinate[x: Open.Carrier U]: Open.Carrier c.image := Open.inclusion U c.image included x;
+\definition pointMember: \forall (u: Open.Carrier U) -> \In[M.Point] domain (Charts.point c (originalCoordinate u)) :=
+  \fun (u: Open.Carrier U) => OpenDomain.imageMember preimage (Charts.point c (originalCoordinate u))
+    (\idelim originalCoordinate u = Charts.coordinate c (Charts.point c (originalCoordinate u))
+      \with x: Open.Carrier c.image => \In[Coordinates.Point] U.points x \by {
+        base: \bysub(Coordinates.Point, U.points, u), equality: sym!{{Open.Carrier c.image}} _ _ (Geometry.coordinatePoint (originalCoordinate u))
+      });
+\definition backward[u: Open.Carrier U]: Domain := \into[M.Point](Charts.point c (originalCoordinate u), domain) \by { pointMember u };
+\definition leftInverse: \forall (x: Domain) -> backward (forward x) = x := \fun (x: Domain) => Geometry.pointCoordinate (oldPoint x);
+\definition rightInverse: \forall (u: Open.Carrier U) -> forward (backward u) = u := \fun (u: Open.Carrier U) => Geometry.coordinatePoint (originalCoordinate u);
+\module Continuity;
+\definition value: Charts.Chart := Charts.Chart {
+  domain := domain, image := U,
+  coordinates := topology.Homeomorphism[A := Domain, B := Open.Carrier U].Homeomorphism[Charts.domainTopology domain, Charts.imageTopology U] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuity[].forwardContinuous, backwardContinuous := Continuity[].backwardContinuous,
+  },
+  open := domainOpen,
+};
+\module Change(other: Chart);
+\definition compatibility: Atlas.Compatibility[M.atlas, value] := Atlas.Compatibility[M.atlas, value] {
+  forward := \fun (other: Charts.Chart)(member: _) => Change[other := \into[Charts.Chart](other, M.atlas.charts) \by { member }].forward,
+  backward := \fun (other: Charts.Chart)(member: _) => Change[other := \into[Charts.Chart](other, M.atlas.charts) \by { member }].backward,
+};
+\definition chart: Chart := \into[Charts.Chart](value, M.atlas.charts) \by {
+  (\bysub(Atlas.Atlas, { atlas: Atlas.Atlas \where Atlas.IsMaximal atlas }, M.atlas)) value compatibility
+};

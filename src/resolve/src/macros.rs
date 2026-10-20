@@ -441,7 +441,30 @@ pub fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) {
 
 /// Visit a node before its children; returning false skips that subtree.
 pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> bool) {
-    if !action(exp) {
+    walk_sexp_order(exp, action, WalkOrder::Pre);
+}
+
+/// Transform only the original children before transforming their parent.
+/// Arguments introduced by the transformation are not revisited.
+pub fn walk_sexp_postorder(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) {
+    walk_sexp_order(
+        exp,
+        &mut |node| {
+            action(node);
+            true
+        },
+        WalkOrder::Post,
+    );
+}
+
+#[derive(Clone, Copy)]
+enum WalkOrder {
+    Pre,
+    Post,
+}
+
+fn walk_sexp_order(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> bool, order: WalkOrder) {
+    if matches!(order, WalkOrder::Pre) && !action(exp) {
         return;
     }
     let access = match exp {
@@ -461,7 +484,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         };
         for (_, arguments) in calls {
             for (_, argument) in arguments {
-                walk_sexp_control(argument, action);
+                walk_sexp_order(argument, action, order);
             }
         }
     }
@@ -475,30 +498,30 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             };
             for (_, arguments) in calls {
                 for (_, argument) in arguments {
-                    walk_sexp_control(argument, action);
+                    walk_sexp_order(argument, action, order);
                 }
             }
         }
         SExp::MemberAccess {
             base, parameters, ..
         } => {
-            walk_sexp_control(base, action);
+            walk_sexp_order(base, action, order);
             for parameter in parameters {
-                walk_sexp_control(parameter, action);
+                walk_sexp_order(parameter, action, order);
             }
         }
         SExp::MemberLiteral { ty, fields } => {
-            walk_sexp_control(ty, action);
+            walk_sexp_order(ty, action, order);
             for (_, value) in fields {
-                walk_sexp_control(value, action);
+                walk_sexp_order(value, action, order);
             }
         }
         SExp::Checked { checks, body } => {
             for (value, ty) in checks {
-                walk_sexp_control(value, action);
-                walk_sexp_control(ty, action);
+                walk_sexp_order(value, action, order);
+                walk_sexp_order(ty, action, order);
             }
-            walk_sexp_control(body, action);
+            walk_sexp_order(body, action, order);
         }
         SExp::Meta { .. }
         | SExp::Sort(_)
@@ -507,7 +530,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         | SExp::ProgramValueReference { .. } => {}
         SExp::AccessPath { parameters, .. } => {
             for parameter in parameters {
-                walk_sexp_control(parameter, action);
+                walk_sexp_order(parameter, action, order);
             }
         }
         SExp::Assign { value: base, .. }
@@ -527,20 +550,20 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         | SExp::Force { value: base }
         | SExp::PowerSet { set: base }
         | SExp::BoxType { program_ty: base }
-        | SExp::IdRefl { element: base } => walk_sexp_control(base, action),
+        | SExp::IdRefl { element: base } => walk_sexp_order(base, action, order),
         SExp::MathMacro { tokens, .. } | SExp::NamedMacro { tokens, .. } => {
-            walk_macro_exps_mut(tokens, action);
+            walk_macro_exps_mut(tokens, action, order);
         }
         SExp::TokenMatch { branches, .. } => {
             for (_, body) in branches {
-                walk_sexp_control(body, action);
+                walk_sexp_order(body, action, order);
             }
         }
         SExp::Where { exp, clauses, .. } => {
-            walk_sexp_control(exp, action);
+            walk_sexp_order(exp, action, order);
             for (_, ty, body) in clauses {
-                walk_sexp_control(ty, action);
-                walk_sexp_control(body, action);
+                walk_sexp_order(ty, action, order);
+                walk_sexp_order(body, action, order);
             }
         }
         SExp::Prod { bind, body }
@@ -550,13 +573,13 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             body,
             existence: _,
         } => {
-            walk_bind_mut(bind, action);
-            walk_sexp_control(body, action);
+            walk_bind_mut(bind, action, order);
+            walk_sexp_order(body, action, order);
             if let SExp::TakeProp { existence, .. } = exp {
-                walk_sexp_control(existence, action);
+                walk_sexp_order(existence, action, order);
             }
         }
-        SExp::Exists { bind } => walk_bind_mut(bind, action),
+        SExp::Exists { bind } => walk_bind_mut(bind, action, order),
         SExp::Ascribe {
             term: func,
             ty: arg,
@@ -586,25 +609,25 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             function: func,
             argument: arg,
         } => {
-            walk_sexp_control(func, action);
-            walk_sexp_control(arg, action);
+            walk_sexp_order(func, action, order);
+            walk_sexp_order(arg, action, order);
         }
         SExp::SubsetIntro {
             superset,
             subset,
             element,
             proof,
-        } => walk_many_mut([superset, subset, element, proof], action),
+        } => walk_many_mut([superset, subset, element, proof], action, order),
         SExp::IndCase {
             scrutinee,
             return_type,
             branches,
             ..
         } => {
-            walk_sexp_control(scrutinee, action);
-            walk_sexp_control(return_type, action);
+            walk_sexp_order(scrutinee, action, order);
+            walk_sexp_order(return_type, action, order);
             for (_, _, branch) in branches {
-                walk_sexp_control(branch, action);
+                walk_sexp_order(branch, action, order);
             }
         }
         SExp::Induction {
@@ -613,11 +636,11 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             cases,
         } => {
             for binder in binders {
-                walk_sexp_control(&mut binder.ty, action);
+                walk_sexp_order(&mut binder.ty, action, order);
             }
-            walk_sexp_control(return_type, action);
+            walk_sexp_order(return_type, action, order);
             for (_, case) in cases {
-                walk_sexp_control(case, action);
+                walk_sexp_order(case, action, order);
             }
         }
         SExp::ValueLet {
@@ -626,26 +649,26 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             body,
             ..
         } => {
-            walk_many_mut([value_ty, value, body], action);
+            walk_many_mut([value_ty, value, body], action, order);
         }
         SExp::ComputationLam { value_ty, body, .. } => {
-            walk_sexp_control(value_ty, action);
-            walk_sexp_control(body, action);
+            walk_sexp_order(value_ty, action, order);
+            walk_sexp_order(body, action, order);
         }
         SExp::Sequence {
             computation,
             value_ty,
             body,
             ..
-        } => walk_many_mut([computation, value_ty, body], action),
+        } => walk_many_mut([computation, value_ty, body], action, order),
         SExp::ProgramCase {
             scrutinee,
             branches,
             ..
         } => {
-            walk_sexp_control(scrutinee, action);
+            walk_sexp_order(scrutinee, action, order);
             for (_, _, body) in branches {
-                walk_sexp_control(body, action);
+                walk_sexp_order(body, action, order);
             }
         }
         SExp::RunStep {
@@ -666,11 +689,11 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             subset: result_ty,
             superset: _,
         } => {
-            walk_sexp_control(state_ty, action);
-            walk_sexp_control(result_ty, action);
+            walk_sexp_order(state_ty, action, order);
+            walk_sexp_order(result_ty, action, order);
             match exp {
-                SExp::Pred { element, .. } => walk_sexp_control(element, action),
-                SExp::SubsetElim { superset, .. } => walk_sexp_control(superset, action),
+                SExp::Pred { element, .. } => walk_sexp_order(element, action, order),
+                SExp::SubsetElim { superset, .. } => walk_sexp_order(superset, action, order),
                 _ => {}
             }
         }
@@ -683,14 +706,18 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             state_ty,
             result_ty,
             output: next,
-        } => walk_many_mut([state_ty, result_ty, next], action),
+        } => walk_many_mut([state_ty, result_ty, next], action, order),
         SExp::Run {
             state_ty,
             result_ty,
             step,
             initial,
             accessibility,
-        } => walk_many_mut([state_ty, result_ty, step, initial, accessibility], action),
+        } => walk_many_mut(
+            [state_ty, result_ty, step, initial, accessibility],
+            action,
+            order,
+        ),
         SExp::RunCase {
             state_ty,
             result_ty,
@@ -710,6 +737,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
                 transition_equality,
             ],
             action,
+            order,
         ),
         SExp::SetStepMatch {
             state_ty,
@@ -720,6 +748,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         } => walk_many_mut(
             [state_ty, result_ty, motive, on_continue, on_finish],
             action,
+            order,
         ),
         SExp::ProgramStepMatch {
             state_ty,
@@ -738,33 +767,34 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
                 scrutinee,
             ],
             action,
+            order,
         ),
         SExp::RecordTypeCtor {
             parameters, fields, ..
         } => {
             for parameter in parameters {
-                walk_sexp_control(parameter, action);
+                walk_sexp_order(parameter, action, order);
             }
             for (_, field) in fields {
-                walk_sexp_control(field, action);
+                walk_sexp_order(field, action, order);
             }
         }
         SExp::SubSet { set, predicate, .. } => {
-            walk_sexp_control(set, action);
-            walk_sexp_control(predicate, action);
+            walk_sexp_order(set, action, order);
+            walk_sexp_order(predicate, action, order);
         }
         SExp::Choice {
             set,
             existence,
             uniqueness,
-        } => walk_many_mut([set, existence, uniqueness], action),
+        } => walk_many_mut([set, existence, uniqueness], action, order),
         SExp::TransportEq {
             ty,
             index,
             family,
             base,
             ..
-        } => walk_many_mut([ty, index, family, base], action),
+        } => walk_many_mut([ty, index, family, base], action, order),
         SExp::IdElim {
             left,
             right,
@@ -773,52 +803,60 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             base,
             equality,
             ..
-        } => walk_many_mut([left, right, ty, family, base, equality], action),
+        } => walk_many_mut([left, right, ty, family, base, equality], action, order),
         SExp::AxiomSetExt {
             left,
             right,
             left_to_right,
             right_to_left,
-        } => walk_many_mut([left, right, left_to_right, right_to_left], action),
+        } => walk_many_mut([left, right, left_to_right, right_to_left], action, order),
         SExp::AxiomFunExt {
             left,
             right,
             pointwise,
-        } => walk_many_mut([left, right, pointwise], action),
+        } => walk_many_mut([left, right, pointwise], action, order),
         SExp::AxiomClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
-        } => walk_many_mut([domain, family, inhabited], action),
+        } => walk_many_mut([domain, family, inhabited], action, order),
         SExp::ChoiceEq {
             set,
             element,
             existence,
             uniqueness,
-        } => walk_many_mut([set, element, existence, uniqueness], action),
+        } => walk_many_mut([set, element, existence, uniqueness], action, order),
         SExp::Block(block) | SExp::Program(block) => {
             for statement in &mut block.statements {
-                walk_statement_mut(statement, action);
+                walk_statement_mut(statement, action, order);
             }
-            walk_sexp_control(&mut block.result, action);
+            walk_sexp_order(&mut block.result, action, order);
         }
+    }
+    if matches!(order, WalkOrder::Post) {
+        action(exp);
     }
 }
 
 fn walk_many_mut<const N: usize>(
     exps: [&mut Box<SExp>; N],
     action: &mut impl FnMut(&mut SExp) -> bool,
+    order: WalkOrder,
 ) {
     for exp in exps {
-        walk_sexp_control(exp, action);
+        walk_sexp_order(exp, action, order);
     }
 }
 
-fn walk_macro_exps_mut(tokens: &mut [MacroExp], action: &mut impl FnMut(&mut SExp) -> bool) {
+fn walk_macro_exps_mut(
+    tokens: &mut [MacroExp],
+    action: &mut impl FnMut(&mut SExp) -> bool,
+    order: WalkOrder,
+) {
     for token in tokens {
         match token {
-            MacroExp::RawExp(exp) => walk_sexp_control(exp, action),
-            MacroExp::Seq(tokens) => walk_macro_exps_mut(tokens, action),
+            MacroExp::RawExp(exp) => walk_sexp_order(exp, action, order),
+            MacroExp::Seq(tokens) => walk_macro_exps_mut(tokens, action, order),
             MacroExp::Tok(_)
             | MacroExp::Quoted(_)
             | MacroExp::TemplateName(_)
@@ -828,40 +866,44 @@ fn walk_macro_exps_mut(tokens: &mut [MacroExp], action: &mut impl FnMut(&mut SEx
     }
 }
 
-fn walk_bind_mut(bind: &mut Bind, action: &mut impl FnMut(&mut SExp) -> bool) {
+fn walk_bind_mut(bind: &mut Bind, action: &mut impl FnMut(&mut SExp) -> bool, order: WalkOrder) {
     match bind {
-        Bind::Named(bind) => walk_sexp_control(&mut bind.ty, action),
+        Bind::Named(bind) => walk_sexp_order(&mut bind.ty, action, order),
         Bind::Subset { ty, predicate, .. } | Bind::SubsetWithProof { ty, predicate, .. } => {
-            walk_sexp_control(ty, action);
-            walk_sexp_control(predicate, action);
+            walk_sexp_order(ty, action, order);
+            walk_sexp_order(predicate, action, order);
         }
     }
 }
 
-fn walk_statement_mut(statement: &mut Statement, action: &mut impl FnMut(&mut SExp) -> bool) {
+fn walk_statement_mut(
+    statement: &mut Statement,
+    action: &mut impl FnMut(&mut SExp) -> bool,
+    order: WalkOrder,
+) {
     match statement {
         Statement::Fun(binds) => {
             for bind in binds {
-                walk_sexp_control(&mut bind.ty, action);
+                walk_sexp_order(&mut bind.ty, action, order);
             }
         }
         Statement::Let { ty, body, .. } => {
-            walk_sexp_control(ty, action);
-            walk_sexp_control(body, action);
+            walk_sexp_order(ty, action, order);
+            walk_sexp_order(body, action, order);
         }
         Statement::Bind {
             ty, computation, ..
         } => {
-            walk_sexp_control(ty, action);
-            walk_sexp_control(computation, action);
+            walk_sexp_order(ty, action, order);
+            walk_sexp_order(computation, action, order);
         }
         Statement::Sufficient { map, map_ty } => {
-            walk_sexp_control(map, action);
-            walk_sexp_control(map_ty, action);
+            walk_sexp_order(map, action, order);
+            walk_sexp_order(map_ty, action, order);
         }
         Statement::TakeFrom { ty, existence, .. } => {
-            walk_sexp_control(ty, action);
-            walk_sexp_control(existence, action);
+            walk_sexp_order(ty, action, order);
+            walk_sexp_order(existence, action, order);
         }
     }
 }

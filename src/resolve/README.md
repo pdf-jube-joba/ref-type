@@ -35,3 +35,8 @@ Program parameter の反映は `Reflect` に元の ID と引数式を保持す�
 本文は `restore_sources` で現在の snapshot に接続する。
 
 計測は [benchmarks](../../benchmarks/README.md)、展開規則は [マクロ](../../doc/book/src/language/macro.md) と [structure](../../doc/book/src/language/structure.md) を参照。
+
+構造の namespace 引数の置換・具体化は、元の構文木の子を処理してから参照先を特殊化する。
+特殊化が挿入した namespace 引数を同じ走査で再び処理すると、その引数に含まれる同じ参照を繰り返し展開して停止しなくなる。
+`walk_sexp_postorder` は元の子だけを一度ずつ処理し、通常の macro 走査の順序は `walk_sexp_control` に残す。
+接束の加法のように、ファイバーの直和を入れ子の構造引数へ渡す場合にも、この順序で有限の具体化を行う。

@@ -1,0 +1,22 @@
+\import \root.Immersion[n := n, m := n].Between[M := M, N := M] \as Immersions;
+\import \root.SelfMap[n := n].Identity[M := M] \as Identity;
+\import \root.DifferentialIdentity[n := n].On[M := M] \as Differential;
+\import \root.Tangent[n := n].On[M := M] \as Tangent;
+\import topology.Topology[Carrier := M.Point] \as Topology;
+\import topology.Continuity[A := M.Point, B := M.Point] \as Continuous;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\definition immersion: Immersions.IsImmersion Identity.map := \fun (x: M.Point)(u, v: Tangent.Vector x)(same: _) =>
+  trans!{{Tangent.Vector x}} _ _ _ (sym!{{Tangent.Vector x}} _ _ (Differential.At[x := x].pointwise u))
+    (trans!{{Tangent.Vector x}} _ _ _ same (Differential.At[x := x].pointwise v));
+\definition laws: Immersions.EmbeddingLaws[Identity.map] := Immersions.EmbeddingLaws[Identity.map] {
+  immersion := immersion,
+  injective := \fun (x, y: M.Point)(same: x = y) => same,
+  openLift := \fun (S: \Pow M.Point)(open: _) => Logic.existsIntro[\Pow M.Point,
+    { U: \Pow M.Point \where Logic.And[Topology.IsOpenIn M.space U, Continuous.Preimage (\fun (x: M.Point) => x) U = S] }] S
+    (Logic.And[_, _]::# open (\axiom:setext(Continuous.Preimage (\fun (x: M.Point) => x) S, S,
+      \fun (x: M.Point)(inside: _) => inside, \fun (x: M.Point)(inside: _) => inside))),
+};
+\definition embedding: Immersions.Embedding := \into[\root.SmoothMap[n := n, m := n].Between[M := M, N := M].Map](Identity.map, Immersions.Embedding) \by { laws };

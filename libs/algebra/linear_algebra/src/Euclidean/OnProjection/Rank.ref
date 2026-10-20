@@ -1,0 +1,19 @@
+\import \root.Euclidean[n := k] \as Domain;
+\import Spaces.Linear[V := Domain.Vector, W := Vector, source := Domain.space, target := space] \as Forward;
+\import Spaces.Linear[V := Vector, W := Domain.Vector, source := space, target := Domain.space] \as Backward;
+\structure Frame: \Set := {
+  value: Forward.Map,
+  coordinate: Backward.Map,
+  leftInverse: \forall (v: Domain.Vector) -> coordinate.apply (value.apply v) = v,
+  reconstruction: \forall (v: Vector) -> value.apply (coordinate.apply v) = P.map.apply v,
+  adjoint: \forall (v: Domain.Vector)(w: Vector) -> dot (value.apply v) w = Domain.dot v (coordinate.apply w),
+};
+\definition isometry: \forall (frame: Frame)(v, w: Domain.Vector) -> dot (frame.value.apply v) (frame.value.apply w) = Domain.dot v w :=
+  \fun (frame: Frame)(v, w: Domain.Vector) => trans!{{R.Real}} _ _ _ (frame.adjoint v (frame.value.apply w))
+    (congr!{{Domain.Vector} {R.Real}} (Domain.dot v) _ _ (frame.leftInverse w));
+\definition fixed: \forall (frame: Frame)(v: Domain.Vector) -> P.map.apply (frame.value.apply v) = frame.value.apply v :=
+  \fun (frame: Frame)(v: Domain.Vector) => trans!{Vector} _ _ _ (sym!{Vector} _ _ (frame.reconstruction (frame.value.apply v)))
+    (congr!{{Domain.Vector} Vector} frame.value.apply _ _ (frame.leftInverse v));
+\definition injective: \forall (frame: Frame)(v, w: Domain.Vector) -> frame.value.apply v = frame.value.apply w -> v = w :=
+  \fun (frame: Frame)(v, w: Domain.Vector)(same: _) => trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (frame.leftInverse v))
+    (trans!{{Domain.Vector}} _ _ _ (congr!{Vector {Domain.Vector}} frame.coordinate.apply _ _ same) (frame.leftInverse w));

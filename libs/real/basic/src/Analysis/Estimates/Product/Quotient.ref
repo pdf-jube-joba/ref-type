@@ -16,3 +16,24 @@
       (sym!{Real} _ _ magnitude)
       (mulStrict (abs (Laws.fieldInv h)) (distance r zero) (mul epsilon (distance h zero)) (inverseAbsPositive h nonzero) bound))
 };
+\definition remainderBound: \forall (u, h, d, epsilon: Real) -> Logic.Not (h = zero) -> R.Lt zero epsilon ->
+  R.Le (distance u (mul h d)) (mul (distance h zero) (mul half epsilon)) ->
+  R.Lt (distance (mul u (Laws.fieldInv h)) d) epsilon := \block {
+  \fun (u, h, d, epsilon: Real)(nonzero: _)(positive: _)(bound: _) \then
+  \let inverse: Real := Laws.fieldInv h \then
+  \let cancellation: mul inverse (mul h d) = d := trans!{Real} _ _ _ (sym!{Real} _ _ (Laws.fieldMulAssoc inverse h d))
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (w: Real) => mul w d) _ _ (Laws.fieldInverseNonzero h nonzero)) (Laws.fieldMulOneLeft d)) \then
+  \let radius: Real := mul half epsilon \then
+  \let cancelRadius: mul (abs inverse) (mul (distance h zero) radius) = radius := trans!{Real} _ _ _
+    (sym!{Real} _ _ (Laws.fieldMulAssoc (abs inverse) (distance h zero) radius))
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (w: Real) => mul w radius) _ _
+      (trans!{Real} _ _ _ (congr!{Real Real} (mul (abs inverse)) _ _ (Metric.distanceSymmetric h zero)) (inverseAbsCancellation h nonzero)))
+      (Laws.fieldMulOneLeft radius)) \then
+  \return R.leLtTrans _ radius epsilon
+    (R.leReplace (distance (mul inverse u) (mul inverse (mul h d))) (distance (mul u inverse) d)
+      (mul (abs inverse) (mul (distance h zero) radius)) radius
+      (congr2!{Real Real Real} distance _ _ _ _ (Laws.fieldMulComm inverse u) cancellation) cancelRadius
+      (R.leTrans _ _ _ (scalarDistance inverse u (mul h d))
+        (mulMonotone (abs inverse) (distance u (mul h d)) (mul (distance h zero) radius) (absNonnegative inverse) bound)))
+    (halfStrict epsilon positive)
+};

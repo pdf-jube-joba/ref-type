@@ -1,0 +1,20 @@
+\import Forms.Contraction[k := k] \as Contract;
+\import Forms.Finite[I := Fin.Fin n, b := Coordinates.basis].At[k := k] \as Expansion;
+\definition evaluate[f: Forms.Form k][arguments: Forms.Arguments k]: R.Real := f arguments;
+\definition term[f: Forms.Form (N.Nat^::succ k)][arguments: Arguments (N.Nat^::succ k)][i: Fin.Fin n][x: Open.Carrier U]: R.Real :=
+  R.mul (arguments x (Fin.zero k) i) (Contract.apply f (Coordinates.vectors i) (\fun (j: Fin.Fin k) => arguments x (Fin.succ k j)));
+\definition termSmooth: Law k -> \forall (f: Forms.Form (N.Nat^::succ k))(arguments: Arguments (N.Nat^::succ k)) -> Regular (N.Nat^::succ k) arguments ->
+  \forall (i: Fin.Fin n) -> Smooth.SmoothOn U (term f arguments i) :=
+  \fun (previous: Law k)(f: _)(arguments: _)(regular: _)(i: _) => Operations.mulSmooth U
+    (\fun (x: Open.Carrier U) => arguments x (Fin.zero k) i)
+    (\fun (x: Open.Carrier U) => Contract.apply f (Coordinates.vectors i) (\fun (j: Fin.Fin k) => arguments x (Fin.succ k j)))
+    (regular (Fin.zero k) i)
+    (previous (Contract.apply f (Coordinates.vectors i)) (\fun (x: Open.Carrier U)(j: Fin.Fin k) => arguments x (Fin.succ k j))
+      (\fun (slot: Fin.Fin k)(coordinate: Fin.Fin n) => regular (Fin.succ k slot) coordinate));
+\definition law: Law k -> Law (N.Nat^::succ k) := \fun (previous: Law k)(f: _)(arguments: _)(regular: _) => \idelim
+  Sums.sum U (Fin.elements n) (term f arguments) = (\fun (x: Open.Carrier U) => f (arguments x))
+  \with h: Open.ScalarFunction U => Smooth.SmoothOn U h \by {
+    base: Sums.smooth U (Fin.elements n) (term f arguments) (termSmooth previous f arguments regular),
+    equality: \axiom:funext(Sums.sum U (Fin.elements n) (term f arguments), (\fun (x: Open.Carrier U) => f (arguments x)),
+      \fun (x: Open.Carrier U) => Expansion.expandLaw evaluate (\fun (g: Forms.Form k)(a: Forms.Arguments k) => \refl(g a)) f (arguments x))
+  };

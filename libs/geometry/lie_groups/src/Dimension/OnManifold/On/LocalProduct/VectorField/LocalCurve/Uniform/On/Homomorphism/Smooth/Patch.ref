@@ -1,0 +1,27 @@
+\definition scaling: TimeMaps.Map TimeOpen.whole TimeOpen.whole := Scaling.map TimeOpen.whole (Geometric.value k);
+\import TimeMaps.Preimage[U := TimeOpen.whole, W := TimeOpen.whole, V := SmallTime.domain, f := scaling] \as Preimage;
+\definition domain: TimeOpen.OpenSet := Preimage.domain;
+\definition eligible[x: TimeOpen.Carrier domain]: Global.At[t := x One.index].Eligible k :=
+  R.ltReplaceLeft (Reals.distance (Global.scale (x One.index) k) Reals.zero) (ProductBounds.abs (Global.scale (x One.index) k)) ComparisonStep.edge
+    (Distance.distanceSymmetric (Global.scale (x One.index) k) Reals.zero)
+    (Equations.insideDistance (Global.scale (x One.index) k) ComparisonStep.edge
+      (SmallTime.bounds (Preimage.output x)).left (SmallTime.bounds (Preimage.output x)).right);
+\definition intro[x: TimeOpen.Carrier TimeOpen.whole]: Global.At[t := x One.index].Eligible k -> \In[TimeVectors.Point] domain.points x :=
+  \fun (small: _) => Preimage.intro x (Logic.And[_, _]::#
+    (R.ltReplaceLeft (Reals.sub Reals.zero ComparisonStep.edge) (Reals.neg ComparisonStep.edge) _
+      (ArithmeticLaws.addZeroLeft (Reals.neg ComparisonStep.edge)) (Distance.distanceLtLower Reals.zero (Global.scale (x One.index) k) ComparisonStep.edge small))
+    (R.ltReplaceRight _ (Reals.add Reals.zero ComparisonStep.edge) ComparisonStep.edge
+      (ArithmeticLaws.addZeroLeft ComparisonStep.edge) (Distance.distanceLtUpper Reals.zero (Global.scale (x One.index) k) ComparisonStep.edge small)));
+\definition time[x: TimeOpen.Carrier domain]: Time := timeOf (Global.scale (x One.index) k) (eligible x);
+\definition inOriginal: \forall (x: TimeOpen.Carrier domain) -> \In[TimeVectors.Point] OriginalTime.domain.points (TimeMaps.apply domain SmallTime.domain Preimage.map x) :=
+  \fun (x: TimeOpen.Carrier domain) => Logic.And[_, _]::# (lower (time x)) (upper (time x));
+\import TimeMaps.Corestriction[U := domain, V := SmallTime.domain, W := OriginalTime.domain, f := Preimage.map, inside := inOriginal] \as Range;
+\import manifolds.EuclideanMap[n := One.dimension, m := One.dimension].Between[U := domain, V := OriginalTime.domain] \as EuclideanMap;
+\import manifolds.Composition[n := One.dimension, m := One.dimension, l := n].Between[M := EuclideanMap.source, N := timeManifold, P := manifold] \as Compose;
+\import manifolds.SmoothMap[n := One.dimension, m := n].Between[M := EuclideanMap.source, N := manifold] \as LocalMaps;
+\definition curve: LocalMaps.Map := Compose.compose (EuclideanMap.map Range.map) map;
+\import \root.Dimension[n := n].OnManifold[M := manifold].On[G := G].PlotPowers[d := One.dimension].On[S := EuclideanMap.source] \as Powers;
+\definition map: LocalMaps.Map := Powers.map k curve;
+\definition apply: \forall (x: TimeOpen.Carrier domain) -> LocalMaps.apply map x = Group.DyadicPower[].value k (total (Global.scale (x One.index) k)) :=
+  \fun (x: TimeOpen.Carrier domain) => trans!{Point} _ _ _ (Powers.apply k curve x)
+    (congr!{Point Point} (Group.DyadicPower[].value k) _ _ (sym!{Point} _ _ (agrees (time x))));

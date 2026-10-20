@@ -1,0 +1,28 @@
+\import Analysis.Reciprocal[U := U, f := f, nonzero := nonzero] \as Reciprocal;
+\import \parent.Properties[] \as Properties;
+\import \parent.Operations[] \as Operations;
+\import \parent.Derivative[] \as Partials;
+\definition smoothF: SmoothOn U f := \bysub(ScalarFunction U, { f: ScalarFunction U \where SmoothOn U f }, f);
+\definition value: ScalarFunction U := Reciprocal.value;
+\definition continuous: Analysis.ContinuousOn U value := Reciprocal.continuous (Properties.continuous U f smoothF);
+\definition derivative[i: Coordinate]: ScalarFunction U := Reciprocal.differential (Partials.partial U f i);
+\definition partial: \forall (i: Coordinate) -> Analysis.HasPartialDerivative U value i (derivative i) :=
+  \fun (i: Coordinate) => Reciprocal.partial i (Partials.partial U f i) (Partials.partialLaw U f i);
+\definition contDiff: \forall (k: N.Nat^) -> ContDiffOn U k value := \induction (k: N.Nat^) \return ContDiffOn U k value \with {
+  | zero: Properties.zeroOfContinuous U value continuous
+  | succ: \fun (k: N.Nat^)(previous: ContDiffOn U k value) => \parent.Successor[U := U, f := value, g := derivative, k := k].contDiff continuous partial
+    (\fun (i: Coordinate) => \idelim
+      (\fun (x: Carrier U) => mul (mul (Arithmetic.neg one) (mul (value x) (value x))) (Partials.partial U f i x)) = derivative i
+      \with h: ScalarFunction U => ContDiffOn U k h \by {
+        base: Operations.mulContDiff U k
+          (\fun (x: Carrier U) => mul (Arithmetic.neg one) (mul (value x) (value x))) (Partials.partial U f i)
+          (Operations.mulContDiff U k (\fun (x: Carrier U) => Arithmetic.neg one) (\fun (x: Carrier U) => mul (value x) (value x))
+            (Operations.constantContDiff U k (Arithmetic.neg one)) (Operations.mulContDiff U k value value previous previous))
+          (Partials.partialSmooth U f i k),
+        equality: \axiom:funext(
+          (\fun (x: Carrier U) => mul (mul (Arithmetic.neg one) (mul (value x) (value x))) (Partials.partial U f i x)), derivative i,
+          \fun (x: Carrier U) => congr!{Real Real} (\fun (c: Real) => mul c (Partials.partial U f i x)) _ _
+            (calculus.Real[].Derivative[].Operations[].negativeScale (mul (value x) (value x))))
+      })
+};
+\definition smooth: SmoothOn U value := contDiff;

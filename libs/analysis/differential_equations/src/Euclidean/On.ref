@@ -1,0 +1,31 @@
+\definition boundNonnegative: R.Le Scalars.zero field.bound := \bysub(Real, { x: Real \where R.Le Scalars.zero x }, field.bound);
+\definition coefficientNonnegative: R.Le Scalars.zero field.coefficient := \bysub(Real, { x: Real \where R.Le Scalars.zero x }, field.coefficient);
+\definition total: Real := Scalars.add field.bound field.coefficient;
+\definition totalNonnegative: R.Le Scalars.zero total := Laws.addNonnegative field.bound field.coefficient boundNonnegative coefficientNonnegative;
+\definition coefficient: Real := Product.coefficient total Scalars.zero;
+\definition coefficientPositive: R.Lt Scalars.zero coefficient := Product.coefficientPositive total Scalars.zero;
+\definition totalBound: R.Le total coefficient := R.leReplaceLeft (Product.abs total) total coefficient
+  (Product.absOfNonnegative total totalNonnegative) (Product.coefficientFirst total Scalars.zero);
+\definition boundBelow: R.Le field.bound coefficient := R.leTrans _ total coefficient (Distance.leAddOfNonnegative field.bound field.coefficient coefficientNonnegative) totalBound;
+\definition lipschitzBelow: R.Le field.coefficient coefficient := R.leTrans _ total coefficient
+  (R.leReplaceRight _ (Scalars.add field.coefficient field.bound) total (Laws.addComm field.coefficient field.bound)
+    (Distance.leAddOfNonnegative field.coefficient field.bound boundNonnegative)) totalBound;
+\definition time: Real := Product.radius coefficient Scalars.half;
+\definition halfPositive: R.Lt Scalars.zero Scalars.half := R.ltReplaceRight Scalars.zero (Scalars.mul Scalars.half Scalars.one) Scalars.half
+  (Algebra.mulOneRight Scalars.half) (Estimates.halfOfPositive Scalars.one Product.onePositive);
+\definition timePositive: R.Lt Scalars.zero time := Product.radiusPositive coefficient Scalars.half coefficientPositive
+  halfPositive;
+\definition small: R.Lt (Scalars.mul time coefficient) Scalars.half := R.ltReplaceLeft (Scalars.mul coefficient time) (Scalars.mul time coefficient) Scalars.half
+  (Laws.fieldMulComm coefficient time) (Product.radiusSmall coefficient Scalars.half coefficientPositive halfPositive);
+\definition contractionBound: R.Le (Scalars.mul time field.coefficient) Scalars.half := Order.leOfLt _ _
+  (R.leLtTrans _ _ _ (Estimates.mulMonotone time field.coefficient coefficient (Order.leOfLt _ _ timePositive) lipschitzBelow) small);
+\definition ballBound: R.Le (Scalars.mul time field.bound) Scalars.one := R.leTrans _ Scalars.half Scalars.one
+  (Order.leOfLt _ _ (R.leLtTrans _ _ _ (Estimates.mulMonotone time field.bound coefficient (Order.leOfLt _ _ timePositive) boundBelow) small))
+  (R.leReplaceLeft (Scalars.mul Scalars.half Scalars.one) Scalars.half Scalars.one (Algebra.mulOneRight Scalars.half) (Estimates.halfBelow Scalars.one Laws.oneNonnegative));
+\definition step: Step[field] := Step[field] {
+  time := \into[Real](time, { t: Real \where R.Lt Scalars.zero t }) \by { timePositive },
+  contractionBound := contractionBound, ballBound := ballBound,
+};
+\module Step(step: Step[field]);
+\import Step[step := step] \as Default;
+\definition localSolution: LocalSolution[field, initial] := Default.localSolution;

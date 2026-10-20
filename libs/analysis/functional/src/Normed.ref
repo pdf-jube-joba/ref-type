@@ -1,0 +1,175 @@
+\import linear_algebra.Real[] \as Scalars;
+\import real.Analysis[].Algebra[] \as ScalarAlgebra;
+\import linear_algebra.Field[].Space[K := dedekind_reals.DedekindReal[].Real, field := ScalarAlgebra.field] \as Linear;
+\import Linear.Laws[V := V, space := space] \as Vectors;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import metric_spaces.MetricSpace[Carrier := V] \as Metrics;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+
+\import Real.Estimates[].Product[] \as Product;
+\definition ltReplace[a, b, c, d: Real.Real]: a = b -> c = d -> R.Lt a c -> R.Lt b d :=
+  \fun (ab: a = b) (cd: c = d) (less: R.Lt a c) => R.ltReplaceRight b c d cd (R.ltReplaceLeft a b c ab less);
+\definition abs[a: Real.Real]: Real.Real := Product.abs a;
+\structure NormData: \Set := {
+  norm: V -> Real.Real,
+};
+\structure NormLaws[data: NormData]: \Prop := {
+  nonnegative: \forall (x: V) -> R.Le Real.zero (data.norm x),
+  zero: data.norm (space.zero) = Real.zero,
+  definite: \forall (x: V) -> data.norm x = Real.zero -> x = space.zero,
+  triangle: \forall (x, y: V) -> R.Le (data.norm (space.add x y)) (Real.add (data.norm x) (data.norm y)),
+  homogeneous: \forall (a: Real.Real) (x: V) -> data.norm (space.smul a x) = Real.mul (abs a) (data.norm x),
+};
+\definition Norm: \Set := \Cast[NormData] ({ data: NormData \where NormLaws[data] });
+\definition sub[x, y: V]: V := space.add x (space.neg y);
+\definition subSelf: \forall (x: V) -> sub x x = space.zero :=
+  \fun (x: _) => trans!{V} _ _ _ (Vectors.comm x (space.neg x)) (Vectors.inverseLeft x);
+\definition subZero: \forall (x, y: V) -> sub x y = space.zero -> x = y :=
+  \fun (x, y: _) (zero: _) => Vectors.cancelLeft (space.neg y) x y
+    (trans!{V} _ _ _ (trans!{V} _ _ _ (Vectors.comm (space.neg y) x) zero) (sym!{V} _ _ (Vectors.inverseLeft y)));
+\definition subBridge: \forall (x, y, z: V) -> space.add (sub x y) (sub y z) = sub x z :=
+  \fun (x, y, z: _) => eq_reason!{
+    {space.add (sub x y) (sub y z)}
+    "=" {space.add x (space.add (space.neg y) (space.add y (space.neg z)))} "by" {Vectors.assoc x (space.neg y) (sub y z)}
+    "=" {space.add x (space.add (space.add (space.neg y) y) (space.neg z))} "by" {
+      congr!{V V} (space.add x) _ _ (sym!{V} _ _ (Vectors.assoc (space.neg y) y (space.neg z)))}
+    "=" {space.add x (space.add (space.zero) (space.neg z))} "by" {
+      congr!{V V} (\fun (v: V) => space.add x (space.add v (space.neg z))) _ _ (Vectors.inverseLeft y)}
+    "=" {sub x z} "by" {congr!{V V} (space.add x) _ _ (Vectors.zeroLeft (space.neg z))}
+  };
+
+
+\definition normNegative: \forall (norm: Norm) (x: V) -> norm.norm (space.neg x) = norm.norm x :=
+  \fun (norm: _) (x: _) => eq_reason!{
+    {norm.norm (space.neg x)} "=" {norm.norm (space.smul (Real.neg Real.one) x)} "by" {
+      congr!{V Real.Real} (norm.norm) _ _ (sym!{V} _ _ (Vectors.minusOneScale x))}
+    "=" {Real.mul (abs (Real.neg Real.one)) (norm.norm x)} "by" {norm.homogeneous (Real.neg Real.one) x}
+    "=" {Real.mul Real.one (norm.norm x)} "by" {congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (norm.norm x)) _ _
+      (trans!{Real.Real} _ _ _ (Product.absNeg Real.one) (Product.absOfNonnegative Real.one Laws.oneNonnegative))}
+    "=" {norm.norm x} "by" {Laws.fieldMulOneLeft (norm.norm x)}
+  };
+\definition negativeSub: \forall (x, y: V) -> space.neg (sub x y) = sub y x :=
+  \fun (x, y: _) => Vectors.cancelLeft (sub x y) (space.neg (sub x y)) (sub y x)
+    (trans!{V} _ _ _ (subSelf (sub x y))
+      (sym!{V} _ _ (trans!{V} _ _ _ (subBridge x y x) (subSelf x))));
+\definition metric[norm: Norm]: Metrics.Metric := Metrics.Metric {
+  distance := \fun (x, y: V) => norm.norm (sub x y),
+  nonnegative := \fun (x, y: V) => norm.nonnegative (sub x y),
+  self := \fun (x: V) => trans!{Real.Real} _ _ _ (congr!{V Real.Real} (norm.norm) _ _ (subSelf x)) (norm.zero),
+  separated := \fun (x, y: V) (zero: _) => subZero x y (norm.definite (sub x y) zero),
+  symmetric := \fun (x, y: V) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normNegative norm (sub x y)))
+    (congr!{V Real.Real} (norm.norm) _ _ (negativeSub x y)),
+  triangle := \fun (x, y, z: V) => R.leReplaceLeft (norm.norm (space.add (sub x y) (sub y z))) (norm.norm (sub x z)) _
+    (congr!{V Real.Real} (norm.norm) _ _ (subBridge x y z)) (norm.triangle (sub x y) (sub y z)),
+};
+\import \root.Metric[Carrier := V] \as Sequences;
+\definition IsBanach[norm: Norm]: \Prop := Sequences.Complete (metric norm);
+\definition negativeZero: space.neg (space.zero) = space.zero :=
+  trans!{V} _ _ _ (sym!{V} _ _ (Vectors.minusOneScale (space.zero))) (Vectors.scaleZero (Real.neg Real.one));
+\definition subZeroRight: \forall (x: V) -> sub x (space.zero) = x :=
+  \fun (x: V) => trans!{V} _ _ _ (congr!{V V} (space.add x) _ _ negativeZero) (Vectors.zeroRight x);
+\definition subAddCancel: \forall (x, y: V) -> space.add (sub x y) y = x :=
+  \fun (x, y: V) => trans!{V} _ _ _ (Vectors.assoc x (space.neg y) y)
+    (trans!{V} _ _ _ (congr!{V V} (space.add x) _ _ (Vectors.inverseLeft y)) (Vectors.zeroRight x));
+\definition normDistance: \forall (norm: Norm) (x, y: V) ->
+  R.Le (Real.distance (norm.norm x) (norm.norm y)) ((metric norm).distance x y) := \block {
+  \fun (norm: Norm) (x, y: V) \then
+  \let d: Real.Real := (metric norm).distance x y \then
+  \let upper: R.Le (norm.norm y) (Real.add (norm.norm x) d) :=
+    R.leReplaceLeft (norm.norm (space.add (sub y x) x)) (norm.norm y) (Real.add (norm.norm x) d)
+      (congr!{V Real.Real} (norm.norm) _ _ (subAddCancel y x))
+      (R.leReplaceRight _ (Real.add ((metric norm).distance y x) (norm.norm x)) _
+        (trans!{Real.Real} _ _ _ (Laws.addComm ((metric norm).distance y x) (norm.norm x))
+          (congr!{Real.Real Real.Real} (Real.add (norm.norm x)) _ _ ((metric norm).symmetric y x)))
+        (norm.triangle (sub y x) x)) \then
+  \let reverse: R.Le (norm.norm x) (Real.add (norm.norm y) d) :=
+    R.leReplaceLeft (norm.norm (space.add (sub x y) y)) (norm.norm x) (Real.add (norm.norm y) d)
+      (congr!{V Real.Real} (norm.norm) _ _ (subAddCancel x y))
+      (R.leReplaceRight _ (Real.add d (norm.norm y)) _ (Laws.addComm d (norm.norm y)) (norm.triangle (sub x y) y)) \then
+  \let lower: R.Le (Real.sub (norm.norm x) d) (norm.norm y) :=
+    Laws.leAddCancelRight (Real.sub (norm.norm x) d) (norm.norm y) d
+      (R.leReplaceLeft (norm.norm x) (Real.add (Real.sub (norm.norm x) d) d) _
+        (sym!{Real.Real} _ _ (Distance.subAddCancel (norm.norm x) d)) reverse) \then
+  \return Estimates.distanceLeOfInterval (norm.norm x) (norm.norm y) d lower upper
+};
+\import std.Data[].Nat[] \as N;
+\import Real.Sequence[] \as ScalarSequences;
+\definition normConverges: \forall (norm: Norm) (s: N.Nat^ -> V) (x: V) ->
+  Sequences.Converges (metric norm) s x -> ScalarSequences.Converges (\fun (n: N.Nat^) => norm.norm (s n)) (norm.norm x) := \block {
+  \fun (norm: Norm) (s: N.Nat^ -> V) (x: V) (converges: Sequences.Converges (metric norm) s x) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequences.LimitControl (metric norm) s x epsilon k }) \by converges epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where ScalarSequences.LimitControl (\fun (n: N.Nat^) => norm.norm (s n)) (norm.norm x) epsilon k }] k
+    (\fun (n: N.Nat^) (later: N.Basic[].Prop[].Le k n) => R.leLtTrans _ _ _ (normDistance norm (s n) x)
+      ((\bysub(N.Nat^, { k: N.Nat^ \where Sequences.LimitControl (metric norm) s x epsilon k }, k)) n later))
+};
+\definition scaleNorm: \forall (norm: Norm) (a: Real.Real) (x: V) -> R.Le Real.zero a ->
+  norm.norm (space.smul a x) = Real.mul a (norm.norm x) :=
+  \fun (norm: Norm) (a: Real.Real) (x: V) (nonnegative: R.Le Real.zero a) => trans!{Real.Real} _ _ _
+    (norm.homogeneous a x) (congr!{Real.Real Real.Real} (\fun (b: Real.Real) => Real.mul b (norm.norm x)) _ _ (Product.absOfNonnegative a nonnegative));
+\definition scaleSub: \forall (a: Real.Real) (x, y: V) -> space.smul a (sub x y) = sub (space.smul a x) (space.smul a y) :=
+  \fun (a: Real.Real) (x, y: V) => trans!{V} _ _ _ (space.vectorAdd a x (space.neg y))
+    (congr!{V V} (space.add (space.smul a x)) _ _ (Vectors.scaleNegative a y));
+\definition scaleDistance: \forall (norm: Norm) (a: Real.Real) (x, y: V) -> R.Le Real.zero a ->
+  (metric norm).distance (space.smul a x) (space.smul a y) = Real.mul a ((metric norm).distance x y) :=
+  \fun (norm: Norm) (a: Real.Real) (x, y: V) (nonnegative: R.Le Real.zero a) => trans!{Real.Real} _ _ _
+    (congr!{V Real.Real} (norm.norm) _ _ (sym!{V} _ _ (scaleSub a x y))) (scaleNorm norm a (sub x y) nonnegative);
+\definition negInvolutive: \forall (x: V) -> space.neg (space.neg x) = x :=
+  \fun (x: V) => Vectors.cancelLeft (space.neg x) (space.neg (space.neg x)) x
+    (trans!{V} _ _ _ (subSelf (space.neg x)) (sym!{V} _ _ (Vectors.inverseLeft x)));
+\definition negativeAdd: \forall (x, y: V) -> space.neg (space.add x y) = space.add (space.neg x) (space.neg y) :=
+  \fun (x, y: V) => trans!{V} _ _ _ (sym!{V} _ _ (Vectors.minusOneScale (space.add x y)))
+    (trans!{V} _ _ _ (space.vectorAdd (Real.neg Real.one) x y)
+      (congr2!{V V V} (space.add) _ _ _ _ (Vectors.minusOneScale x) (Vectors.minusOneScale y)));
+\definition addSub: \forall (a, b, c, e: V) -> sub (space.add a b) (space.add c e) = space.add (sub a c) (sub b e) :=
+  \fun (a, b, c, e: V) => trans!{V} _ _ _ (congr!{V V} (space.add (space.add a b)) _ _ (negativeAdd c e))
+    (Vectors.shuffle a b (space.neg c) (space.neg e));
+\definition subtractDistance: \forall (norm: Norm) (a, b, c, e: V) ->
+  R.Le ((metric norm).distance (sub a b) (sub c e))
+    (Real.add ((metric norm).distance a c) ((metric norm).distance b e)) :=
+  \fun (norm: Norm) (a, b, c, e: V) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (congr!{V Real.Real} (norm.norm) _ _ (addSub a (space.neg b) c (space.neg e))))
+    (R.leReplaceRight _ _ _
+      (congr!{Real.Real Real.Real} (Real.add ((metric norm).distance a c)) _ _
+        (trans!{Real.Real} _ _ _
+          (congr!{V Real.Real} (norm.norm) _ _
+            (trans!{V} _ _ _ (congr!{V V} (space.add (space.neg b)) _ _ (negInvolutive e))
+              (Vectors.comm (space.neg b) e)))
+          ((metric norm).symmetric e b)))
+      (norm.triangle (sub a c) (sub (space.neg b) (space.neg e))));
+\definition translateDistance: \forall (norm: Norm) (x, y, z: V) ->
+  (metric norm).distance (space.add x z) (space.add y z) = (metric norm).distance x y :=
+  \fun (norm: Norm) (x, y, z: V) => congr!{V Real.Real} (norm.norm) _ _
+    (trans!{V} _ _ _ (addSub x z y z)
+      (trans!{V} _ _ _ (congr!{V V} (space.add (sub x y)) _ _ (subSelf z)) (Vectors.zeroRight (sub x y))));
+\definition scaleInverse: \forall (a: Real.Real) (x: V) -> R.Lt Real.zero a ->
+  space.smul a (space.smul (Laws.fieldInv a) x) = x :=
+  \fun (a: Real.Real) (x: V) (positive: R.Lt Real.zero a) => trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAssoc a (Laws.fieldInv a) x))
+    (trans!{V} _ _ _ (congr!{Real.Real V} (\fun (b: Real.Real) => space.smul b x) _ _
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulComm a (Laws.fieldInv a))
+        (Laws.fieldInverseNonzero a (\fun (zero: a = Real.zero) => Order.ltNotEq Real.zero a positive (sym!{Real.Real} _ _ zero)))))
+      (space.scalarOne x));
+\definition addDistance: \forall (norm: Norm) (x, h: V) -> (metric norm).distance x (space.add x h) = norm.norm h :=
+  \fun (norm: Norm) (x, h: V) => eq_reason!{
+    {(metric norm).distance x (space.add x h)}
+    "=" {(metric norm).distance (space.add x h) x} "by" {(metric norm).symmetric x (space.add x h)}
+    "=" {(metric norm).distance (space.add h x) (space.add (space.zero) x)} "by" {
+      congr2!{V V Real.Real} ((metric norm).distance) _ _ _ _ (Vectors.comm x h) (sym!{V} _ _ (Vectors.zeroLeft x))}
+    "=" {(metric norm).distance h (space.zero)} "by" {translateDistance norm h (space.zero) x}
+    "=" {norm.norm h} "by" {congr!{V Real.Real} (norm.norm) _ _ (subZeroRight h)}
+  };
+\module Hilbert(norm: Norm);
+\module Operators(W: \Set, target: Linear.VectorSpace W, norm: Norm,
+  targetNorm: \root.Normed[V := W, space := target].Norm);
+\module HahnBanach(p: V -> Real.Real);

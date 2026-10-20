@@ -1,0 +1,27 @@
+\definition t: BaseOpen.Carrier Base.domain := Overlap.leftPoint z;
+\definition w: Vectors.Vector := Blocks.right z;
+\definition a: Charts.LocalPoint (chart j) := y t;
+\definition b: Charts.LocalPoint (chart j) := Charts.point (chart j) (Base.apply t);
+\definition same: a = b := sym!{{M.Point}} _ _ (Base.returnsPoint t);
+\definition v: F a := Source.encode (x t) w;
+\definition moved: F b := Transport.cast F a b same v;
+\module Row(k: Fin.Fin r) {
+  \definition row: Finite.Map r := Finite.Data[r] {
+    apply := \fun (v: Vectors.Vector) => (linear t).apply v k,
+    additive := \fun (u, v: Vectors.Vector) => congr!{{Vectors.Vector} {Real.Real}} (\fun (x: Vectors.Vector) => x k) _ _ ((linear t).preservesAdd u v),
+    homogeneous := \fun (c: Real.Real)(v: Vectors.Vector) => congr!{{Vectors.Vector} {Real.Real}} (\fun (x: Vectors.Vector) => x k) _ _ ((linear t).preservesScale c v),
+  };
+  \definition value: (linear t).apply w k = Action.action z k := trans!{{Real.Real}} _ _ _
+    (Finite.expansion r row w) (Real.FiniteSums[].congruent r _ _
+      (\fun (l: Fin.Fin r) => Spaces.mulComm (w l) (coefficient k l t)));
+}
+\definition actionLaw: (linear t).apply w = Action.action z :=
+  \axiom:funext(((linear t).apply w), (Action.action z), \fun (k: Fin.Fin r) => Row[k := k].value);
+\definition coordinates: Target.decode b moved = Action.action z := trans!{{Vectors.Vector}} _ _ _
+  (Target.Move[x := a, y := b, same := same].coordinates v) actionLaw;
+\definition vector: Target.encode b (Action.action z) = moved := trans!{{F b}} _ _ _
+  (congr!{{Vectors.Vector} {F b}} (Target.encode b) _ _ (sym!{{Vectors.Vector}} _ _ coordinates)) (Target.At[x := b].encodeDecode moved);
+\definition expansion: Target.point (Action.point z) = include b (Target.encode b (Action.action z)) :=
+  Target.pointJoined (Base.apply t) (\into[Vectors.Vector](Action.action z, FiberOpen.whole.points) \by { \refl(Action.action z) });
+\definition agrees: Target.point (Action.point z) = Source.point (source z) := trans!{Point} _ _ _ expansion
+  (trans!{Point} _ _ _ (congr!{{F b} Point} (include b) _ _ vector) (includeTransport a b same v));

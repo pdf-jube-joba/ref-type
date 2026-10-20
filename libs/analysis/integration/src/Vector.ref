@@ -1,0 +1,43 @@
+\import \root.Real[] \as Scalars;
+\import Scalars.Riemann[interval := interval].Continuous[] \as ScalarFunctions;
+\import Scalars.Riemann[interval := interval].Uniform[] \as UniformScalars;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Euclidean;
+\import Euclidean.Def[] \as Coordinates;
+\import Euclidean.Norm[] \as Norm;
+\import Euclidean.Topology[] \as EuclideanTopology;
+\import topological_algebra.Coordinates[K := Scalars.Real, I := Euclidean.Coordinate] \as Product;
+\import Product.Universal[A := ScalarFunctions.Point] \as Universal;
+\import topology.Continuity[A := ScalarFunctions.Point, B := Euclidean.Point] \as Maps;
+\import topology.Continuity[A := ScalarFunctions.Point, B := Scalars.Real] \as ScalarMaps;
+\import metric_spaces.RealLine[] \as Line;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import real.Analysis[].Distance[] \as Distance;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition Time: \Set := ScalarFunctions.Point;
+\definition Vector: \Set := Euclidean.Point;
+\definition Index: \Set := Euclidean.Coordinate;
+\definition Real: \Set := Scalars.Real;
+\definition a: Real := interval.left;
+\definition b: Real := interval.right;
+\definition restrict[f: Real -> Vector]: Time -> Vector := \fun (t: Time) => f t;
+\definition IsContinuous[f: Real -> Vector]: \Prop := Maps.Continuous ScalarFunctions.topology EuclideanTopology.topology (restrict f);
+\definition Function: \Set := \Cast[Real -> Vector] ({ f: Real -> Vector \where IsContinuous f });
+\definition coordinateContinuous[f: Function][i: Index]: ScalarFunctions.IsContinuous (\fun (t: Real) => f t i) :=
+  \fun (U: \Pow Real)(open: _) => (\bysub(Real -> Vector, { f: Real -> Vector \where IsContinuous f }, f))
+    ({ v: Vector \where \In[Real] U (v i) }) (EuclideanTopology.coordinateContinuous i U open);
+\definition continuousOfCoordinates[f: Real -> Vector]:
+  (\forall (i: Index) -> ScalarFunctions.IsContinuous (\fun (t: Real) => f t i)) -> IsContinuous f :=
+  \fun (continuous: _)(U: \Pow Vector)(open: _) => Universal.continuous ScalarFunctions.topology Line.topology (restrict f) continuous U
+    (EuclideanTopology.metricOpen U open);
+\import metric_spaces.RealFunctions[A := Time] \as ContinuousScalars;
+\definition constant[v: Vector]: Function := \into[Real -> Vector]((\fun (t: Real) => v), { f: Real -> Vector \where IsContinuous f }) \by {
+  continuousOfCoordinates (\fun (t: Real) => v) (\fun (i: Index) => ContinuousScalars.constantContinuous ScalarFunctions.topology (v i))
+};
+\module Of(f: Function);
+\module Comparison(f, g: Function);

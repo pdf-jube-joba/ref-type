@@ -1,0 +1,37 @@
+\import \root.SmoothCoordinates[d := d, q := q].On[U := U] \as Vectors;
+\definition column[x: Open.Carrier U]: E.Vector := (P x).map.apply (E.basis c.index);
+\definition columnRegular: Vectors.Regular column := Matrix.evaluate U (\fun (x: Open.Carrier U) => (P x).map) regular (E.basis c.index);
+\definition squared[x: Open.Carrier U]: R.Real := E.squared (column x);
+\definition squaredSmooth: Smooth.SmoothOn U squared := Vectors.dot column column columnRegular columnRegular;
+\definition squaredFunction: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](squared, Smooth.SmoothFunction U) \by { squaredSmooth };
+\definition nonzeroCenter: Logic.Not (squared a = R.zero) := \fun (same: _) => c.nonzero (E.separated (column a) same);
+\import Smooth.Nonvanishing[U := U, f := squaredFunction] \as Region;
+\definition center: Open.Carrier Region.domain := \into[Coordinates.Point](a, Region.domain.points) \by { Region.intro a nonzeroCenter };
+\definition input: Open.Carrier Region.domain -> Open.Carrier U := Region.input;
+\definition positive: \forall (x: Open.Carrier Region.domain) -> Order.Lt R.zero (squared (input x)) := \fun (x: Open.Carrier Region.domain) =>
+  Order.Order[].ltOfLeNotEq R.zero (squared (input x)) (E.nonnegative (column (input x)))
+    (\fun (same: R.zero = squared (input x)) => Region.nonzero x (sym!{{R.Real}} _ _ same));
+\import \root.SmoothCoordinates[d := d, q := q].On[U := Region.domain] \as LocalVectors;
+\definition restrictedColumn: LocalVectors.Regular (\fun (x: Open.Carrier Region.domain) => column (input x)) :=
+  \fun (i: Fin.Fin q) => Open.Restriction[].localSmooth Region.domain U Region.included (\fun (x: Open.Carrier U) => column x i) (columnRegular i);
+\import Smooth.SquareRoot[U := Region.domain, f := Region.restricted, positive := positive] \as Root;
+\module At(x: Open.Carrier Region.domain);
+\definition rootFunction: Smooth.SmoothFunction Region.domain := \into[Open.ScalarFunction Region.domain](Root.value, Smooth.SmoothFunction Region.domain) \by { Root.smooth };
+\definition rootNonzero: \forall (x: Open.Carrier Region.domain) -> Logic.Not (rootFunction x = R.zero) := \fun (x: Open.Carrier Region.domain) => At[x := x].rootNonzero;
+\import Smooth.Reciprocal[U := Region.domain, f := rootFunction, nonzero := rootNonzero] \as Inverse;
+\definition unit[x: Open.Carrier Region.domain]: E.Vector := At[x := x].unit.vector;
+\definition unitRegular: LocalVectors.Regular unit := \fun (i: Fin.Fin q) => Operations.mulSmooth Region.domain Inverse.value
+  (\fun (x: Open.Carrier Region.domain) => column (input x) i) Inverse.smooth (restrictedColumn i);
+\definition reduced: Family Region.domain := \fun (x: Open.Carrier Region.domain) => At[x := x].reduced;
+\definition restricted: Matrix.Regular Region.domain (\fun (x: Open.Carrier Region.domain) => (P (input x)).map) := Matrix.restrict Region.domain U Region.included (\fun (x: Open.Carrier U) => (P x).map) regular;
+\definition reducedRegular: Regular Region.domain reduced := \fun (i, j: Fin.Fin q) => Operations.subSmooth Region.domain
+  (\fun (x: Open.Carrier Region.domain) => (P (input x)).map.apply (E.basis j) i)
+  (\fun (x: Open.Carrier Region.domain) => R.mul (E.dot (unit x) (E.basis j)) (unit x i)) (restricted i j)
+  (Operations.mulSmooth Region.domain (\fun (x: Open.Carrier Region.domain) => E.dot (unit x) (E.basis j))
+    (\fun (x: Open.Carrier Region.domain) => unit x i) (LocalVectors.dot unit (\fun (x: Open.Carrier Region.domain) => E.basis j) unitRegular (LocalVectors.constant (E.basis j))) (unitRegular i));
+\definition reducedRank: \forall (x: Open.Carrier Region.domain) -> E.trace (reduced x) = E.naturalCount k := \fun (x: Open.Carrier Region.domain) => At[x := x].rank;
+\module With(prior: Local[k, Region.domain, reduced, center]);
+\definition exists: \exists Local[N.Nat^::succ k, U, P, a] := \block {
+  \takefrom prior: Local[k, Region.domain, reduced, center] \by previous Region.domain reduced reducedRegular reducedRank center \then
+  \return \exact(With[prior := prior].local, Local[N.Nat^::succ k, U, P, a])
+};

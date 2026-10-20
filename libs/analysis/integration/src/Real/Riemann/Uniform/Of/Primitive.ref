@@ -1,0 +1,75 @@
+\import D.Prefix[] \as Prefix;
+\import Prefix.Refinement[] \as PrefixRefinement;
+\import Sequence.Operations[] \as SequenceOperations;
+\definition prefixSums[n: N.Nat^]: Real := Prefix.value f.function (D.leftTags n a b) t a b;
+\structure PrefixTail[tolerance: Real, k: N.Nat^]: \Prop := {
+  compare: \forall (m: N.Nat^)(tags: D.Tags) -> Nat.Le k m -> D.Level tags m -> D.Valid tags a b ->
+    R.Le (distance (prefixSums k) (Prefix.value f.function tags t a b)) (error tolerance),
+};
+\definition prefixTailExists: \forall (tolerance: Real) -> R.Lt zero tolerance -> \exists ( k: N.Nat^ \where PrefixTail[tolerance, k] ) := \block {
+  \fun (tolerance: Real)(positive: R.Lt zero tolerance) \then
+  \takefrom delta: \Cast[Real] ({ delta: Real \where Radius[f.function, tolerance, delta] }) \by f.uniform tolerance positive \then
+  \let radius: Radius[f.function, tolerance, delta] := \bysub(Real, { delta: Real \where Radius[f.function, tolerance, delta] }, delta) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (Mesh.width k a b) delta }) \by Mesh.arbitrarilyFine a b delta interval.ordered radius.positive \then
+  \let mesh: Mesh.Fine (D.leftTags k a b) a b delta := Mesh.canonicalFine k a b delta (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt (Mesh.width k a b) delta }, k)) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where PrefixTail[tolerance, k] }] k (PrefixTail[tolerance, k] {
+    compare := \fun (m: N.Nat^)(tags: D.Tags)(later: _)(level: _)(valid: _) => R.leTrans _ _ _
+      (PrefixRefinement.comparison (D.leftTags k a b) tags (Refinement.canonicalRefines k tags m a b level later) f.function t a b delta tolerance
+        interval.ordered (D.leftTagsValid k a b interval.ordered) valid mesh radius.oscillation)
+      (R.leReplace (mul tolerance (Prefix.weight t a b)) (mul (Prefix.weight t a b) tolerance) (mul tolerance length) (mul length tolerance)
+        (Laws.fieldMulComm tolerance (Prefix.weight t a b)) (Laws.fieldMulComm tolerance length)
+        (E.mulMonotone tolerance (Prefix.weight t a b) length (Order.leOfLt zero tolerance positive) (Prefix.weightBound t a b interval.ordered))),
+  })
+};
+\definition prefixPairBound: \forall (tolerance: Real)(k: N.Nat^) -> PrefixTail[tolerance, k] -> \forall (m, n: N.Nat^)(left, right: D.Tags) ->
+  Nat.Le k m -> Nat.Le k n -> D.Level left m -> D.Level right n -> D.Valid left a b -> D.Valid right a b ->
+  R.Le (distance (Prefix.value f.function left t a b) (Prefix.value f.function right t a b)) (add (error tolerance) (error tolerance)) :=
+  \fun (tolerance: Real)(k: N.Nat^)(tail: PrefixTail[tolerance, k])(m, n: N.Nat^)(left, right: D.Tags)(hm: _)(hn: _)(lm: _)(ln: _)(vm: _)(vn: _) =>
+    R.leTrans _ _ _ (Metric.distanceTriangle (Prefix.value f.function left t a b) (prefixSums k) (Prefix.value f.function right t a b))
+      (E.addLe _ _ _ _
+        (R.leReplaceLeft (distance (prefixSums k) (Prefix.value f.function left t a b)) (distance (Prefix.value f.function left t a b) (prefixSums k)) (error tolerance)
+          (Metric.distanceSymmetric (prefixSums k) (Prefix.value f.function left t a b)) (tail.compare m left hm lm vm))
+        (tail.compare n right hn ln vn));
+\definition prefixCauchy: Sequence.Cauchy prefixSums := \block {
+  \fun (epsilon: Real)(positive: R.Lt zero epsilon) \then
+  \let r: Real := mul half epsilon \then
+  \let rp: R.Lt zero r := E.halfOfPositive epsilon positive \then
+  \let t: Real := tolerance r \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where PrefixTail[t, k] }) \by prefixTailExists t (tolerancePositive r rp) \then
+  \let tail: PrefixTail[t, k] := \bysub(N.Nat^, { k: N.Nat^ \where PrefixTail[t, k] }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.Control prefixSums epsilon k }] k
+    (\fun (m, n: N.Nat^)(hm: _)(hn: _) => R.leLtTrans _ _ _
+      (prefixPairBound t k tail m n (D.leftTags m a b) (D.leftTags n a b) hm hn (D.leftTagsLevel m a b) (D.leftTagsLevel n a b)
+        (D.leftTagsValid m a b interval.ordered) (D.leftTagsValid n a b interval.ordered))
+      (R.ltReplaceRight _ (add r r) epsilon (E.halfTwice epsilon) (E.addLt _ _ _ _ (errorSmall r rp) (errorSmall r rp))))
+};
+\definition prefixSequence: Sequence.CauchySequence := \into[N.Nat^ -> Real](prefixSums, { s: N.Nat^ -> Real \where Sequence.Cauchy s }) \by { prefixCauchy };
+\definition primitive: Real := Sequence.limit prefixSequence;
+\definition converges: Sequence.Converges prefixSums primitive := Sequence.limitLaw prefixSequence;
+\definition leftEndpoint: t = a -> primitive = zero := \block {
+  \fun (endpoint: _) \then
+  \let early: R.Le t a := R.leReplaceLeft a t a (sym!{Real} _ _ endpoint) (R.leRefl a) \then
+  \return Sequence.limitUnique prefixSums primitive zero converges
+    (SequenceOperations.congruent (\fun (n: N.Nat^) => zero) prefixSums zero
+      (\fun (n: N.Nat^) => sym!{Real} _ _ (Prefix.before f.function (D.leftTags n a b) t a b interval.ordered early))
+      (Sequence.constantConverges zero))
+};
+\definition rightEndpoint: t = b -> primitive = value := \block {
+  \fun (endpoint: _) \then
+  \let late: R.Le b t := R.leReplaceRight b b t (sym!{Real} _ _ endpoint) (R.leRefl b) \then
+  \return Sequence.limitUnique prefixSums primitive value converges
+    (SequenceOperations.congruent sums prefixSums value
+      (\fun (n: N.Nat^) => sym!{Real} _ _ (Prefix.after f.function (D.leftTags n a b) t a b interval.ordered late))
+      (Sequence.limitLaw sequence))
+};
+\definition bound: \forall (bound: Real) ->
+  (\forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f.function x) zero) bound) ->
+  R.Le (distance primitive zero) (mul (Prefix.weight t a b) bound) :=
+  \fun (bound: Real)(pointwise: _) => SequenceOperations.distanceBoundLimit prefixSums (\fun (n: N.Nat^) => zero)
+    primitive zero (mul (Prefix.weight t a b) bound) N.Nat^::zero converges (Sequence.constantConverges zero)
+    (\fun (n: N.Nat^)(unused: _) => R.leReplaceLeft
+      (distance (prefixSums n) (Prefix.value (\fun (x: Real) => zero) (D.leftTags n a b) t a b)) (distance (prefixSums n) zero) _
+      (congr!{Real Real} (distance (prefixSums n)) _ _ (trans!{Real} _ _ _
+        (Prefix.constant zero (D.leftTags n a b) t a b) (Laws.fieldMulZeroRight (Prefix.weight t a b))))
+      (Prefix.distanceUniform f.function (\fun (x: Real) => zero) (D.leftTags n a b) t a b bound interval.ordered
+        (D.leftTagsValid n a b interval.ordered) pointwise));

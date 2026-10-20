@@ -1,0 +1,19 @@
+\import \root.Smooth[n := d, m := n].Between[M := S, N := manifold] \as Smooth;
+\import manifolds.SmoothMap[n := d, m := n].Between[M := S, N := manifold] \as Maps;
+\import Operations.DyadicPower[] \as Powers;
+\definition Function: \Set := S.Point -> Point;
+\definition productSmooth: \forall (f, g: Function) -> Smooth.IsSmooth f -> Smooth.IsSmooth g ->
+  Smooth.IsSmooth (\fun (x: S.Point) => mul (f x) (g x)) := G.multiplication d S.Point S.space S.atlas S.hausdorff S.secondCountable;
+\definition smooth: \forall (k: N.Nat^)(f: Function) -> Smooth.IsSmooth f -> Smooth.IsSmooth (\fun (x: S.Point) => Powers.value k (f x)) :=
+  \induction (k: N.Nat^) \return \forall (f: Function) -> Smooth.IsSmooth f -> Smooth.IsSmooth (\fun (x: S.Point) => Powers.value k (f x)) \with {
+    | zero: \fun (f: Function)(regular: _) => \idelim f = (\fun (x: S.Point) => f x) \with g: Function => Smooth.IsSmooth g \by {
+      base: regular, equality: \axiom:funext(f, (\fun (x: S.Point) => f x), \fun (x: S.Point) => \refl(f x))
+    }
+    | succ: \fun (k: N.Nat^)(previous: \forall (f: Function) -> Smooth.IsSmooth f -> Smooth.IsSmooth (\fun (x: S.Point) => Powers.value k (f x)))
+      (f: Function)(regular: _) => previous (\fun (x: S.Point) => mul (f x) (f x)) (productSmooth f f regular regular)
+  };
+\definition map[k: N.Nat^][f: Maps.Map]: Maps.Map := Smooth.map (\fun (x: S.Point) => Powers.value k (Maps.apply f x))
+  (smooth k (Maps.apply f) (Smooth.ofMap f));
+\definition apply: \forall (k: N.Nat^)(f: Maps.Map)(x: S.Point) -> Maps.apply (map k f) x = Powers.value k (Maps.apply f x) :=
+  \fun (k: N.Nat^)(f: Maps.Map)(x: S.Point) => congr!{{S.Point -> Point} Point} (\fun (g: S.Point -> Point) => g x) _ _
+    (Smooth.applyChosen (\fun (x: S.Point) => Powers.value k (Maps.apply f x)) (smooth k (Maps.apply f) (Smooth.ofMap f)));

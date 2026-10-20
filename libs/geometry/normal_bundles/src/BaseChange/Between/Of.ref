@@ -1,0 +1,40 @@
+\import manifolds.Composition[n := n, m := n, l := ambientDimension].Between[M := Mprime, N := M, P := ambient] \as Compose;
+\definition composite: CompositeMaps.Map := Compose.compose h.forward i;
+\definition immersion: CompositeImmersions.Immersion := \into[CompositeMaps.Map](composite, CompositeImmersions.Immersion) \by {
+  manifolds.ImmersionComposition[n := n, m := n, l := ambientDimension].Between[M := Mprime, N := M, P := ambient].immersion h.forward i
+    (manifolds.DiffeomorphismImmersion[n := n, m := n].Between[M := Mprime, N := M].Of[d := h].immersion) (Immersions.immersionLaws i)
+};
+\import Dimension.On[M := Mprime].Of[i := immersion] \as Source;
+\import Dimension.On[M := M].Of[i := i] \as Target;
+\import manifolds.Tangent[n := n].On[M := Mprime] \as SourceTangent;
+\import manifolds.Tangent[n := n].On[M := M] \as TargetTangent;
+\module At(x: Mprime.Point);
+\module Backward(p: Target.Point);
+\import Source.Projection[] \as SourceProjection;
+\import Target.Projection[] \as TargetProjection;
+\import Source.Vector[] \as SourceVector;
+\import Target.Vector[] \as TargetVector;
+\import manifolds.Composition[n := ambientDimension, m := n, l := n].Between[M := Source.manifold, N := Mprime, P := M] \as ForwardBase;
+\import manifolds.Composition[n := ambientDimension, m := n, l := n].Between[M := Target.manifold, N := M, P := Mprime] \as BackwardBase;
+\definition forwardBase: manifolds.SmoothMap[n := ambientDimension, m := n].Between[M := Source.manifold, N := M].Map := ForwardBase.compose SourceProjection.map h.forward;
+\definition backwardBase: manifolds.SmoothMap[n := ambientDimension, m := n].Between[M := Target.manifold, N := Mprime].Map := BackwardBase.compose TargetProjection.map h.backward;
+\import Target.FromAmbient[p := ambientDimension].From[X := Source.manifold] \as ForwardConstruction;
+\definition forwardNormal: ForwardConstruction.Normal forwardBase SourceVector.map := \fun (p: Source.Point) =>
+  \bysub(E.Vector, (Target.At[x := BaseMaps.apply h.forward p.base].subspace).carrier, At[x := p.base].push p.vector);
+\import ForwardConstruction.Of[f := forwardBase, g := SourceVector.map, normal := forwardNormal] \as Forward;
+\import Source.FromAmbient[p := ambientDimension].From[X := Target.manifold] \as BackwardConstruction;
+\definition backwardNormal: BackwardConstruction.Normal backwardBase TargetVector.map := \fun (p: Target.Point) =>
+  \bysub(E.Vector, (Source.At[x := manifolds.SmoothMap[n := n, m := n].Between[M := M, N := Mprime].apply h.backward p.base].subspace).carrier, Backward[p := p].value);
+\import BackwardConstruction.Of[f := backwardBase, g := TargetVector.map, normal := backwardNormal] \as Reverse;
+\definition forward: manifolds.SmoothMap[n := ambientDimension, m := ambientDimension].Between[M := Source.manifold, N := Target.manifold].Map := Forward.map;
+\definition backward: manifolds.SmoothMap[n := ambientDimension, m := ambientDimension].Between[M := Target.manifold, N := Source.manifold].Map := Reverse.map;
+\definition diffeomorphism: manifolds.Diffeomorphism[n := ambientDimension, m := ambientDimension].Between[M := Source.manifold, N := Target.manifold].Diffeomorphism :=
+  manifolds.Diffeomorphism[n := ambientDimension, m := ambientDimension].Between[M := Source.manifold, N := Target.manifold].Diffeomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (p: Source.Point) => Source.SubspaceTopology[].ext (Reverse.apply (Forward.apply p)) p ((Diffeomorphisms.laws h).leftInverse p.base) (\refl(p.vector)),
+    rightInverse := \fun (p: Target.Point) => Target.SubspaceTopology[].ext (Forward.apply (Reverse.apply p)) p ((Diffeomorphisms.laws h).rightInverse p.base) (\refl(p.vector)),
+  };
+\definition projection: \forall (p: Source.Point) -> (manifolds.SmoothMap[n := ambientDimension, m := ambientDimension].Between[M := Source.manifold, N := Target.manifold].apply forward p).base = BaseMaps.apply h.forward p.base :=
+  \fun (p: Source.Point) => \refl(BaseMaps.apply h.forward p.base);
+\definition vector: \forall (p: Source.Point) -> Target.ambientVector (manifolds.SmoothMap[n := ambientDimension, m := ambientDimension].Between[M := Source.manifold, N := Target.manifold].apply forward p) = Source.ambientVector p :=
+  \fun (p: Source.Point) => \refl(Source.ambientVector p);

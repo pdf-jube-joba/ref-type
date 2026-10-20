@@ -1,0 +1,34 @@
+\import Spaces.Linear[V := Next.Vector, W := Next.Vector, source := Next.space, target := Next.space] \as TotalMaps;
+\import Spaces.Isomorphism[V := Next.Vector, W := Next.Vector, source := Next.space, target := Next.space] \as TotalIsomorphisms;
+\import Rows.Operations[] \as RowOperations;
+\import Coefficients.Composition[U := Next.Vector, domain := Next.space] \as RestrictRow;
+\import Spaces.Linear[V := Vector, W := Vector, source := space, target := space].Composition[U := Next.Vector, domain := Next.space] \as RestrictLower;
+\definition lowerForward: Restrictions.Map := RestrictLower.compose lower.forward tailMap;
+\definition lowerBackward: Restrictions.Map := RestrictLower.compose lower.backward tailMap;
+\definition forwardRow: Rows.Map := RowOperations.plus (RowOperations.scale l headMap) (RestrictRow.compose row tailMap);
+\definition backwardRow: Rows.Map := RowOperations.scale (Arithmetic.fieldInv l)
+  (RowOperations.plus headMap (RowOperations.negative (RestrictRow.compose row lowerBackward)));
+\definition forward: TotalMaps.Map := \parent.Joining[V := Next.Vector, source := Next.space, first := forwardRow, rest := lowerForward].map;
+\definition backward: TotalMaps.Map := \parent.Joining[V := Next.Vector, source := Next.space, first := backwardRow, rest := lowerBackward].map;
+\definition subtract[b, a: R.Real]: R.Real := R.sub b a;
+\definition undo: \forall (a, b: R.Real) -> R.mul (Arithmetic.fieldInv l) (R.sub (R.add (R.mul l a) b) b) = a :=
+  \fun (a, b: R.Real) => trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real}} (R.mul (Arithmetic.fieldInv l)) _ _
+      (trans!{{R.Real}} _ _ _ (Arithmetic.addAssoc (R.mul l a) b (R.neg b))
+        (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.add (R.mul l a)) _ _ (Arithmetic.addNegRight b)) (Arithmetic.addZeroRight (R.mul l a)))))
+    (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc (Arithmetic.fieldInv l) l a))
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (c: R.Real) => R.mul c a) _ _ (Arithmetic.fieldInverseNonzero l nonzero)) (Spaces.mulOneLeft a)));
+\definition redo: \forall (a, b: R.Real) -> R.add (R.mul l (R.mul (Arithmetic.fieldInv l) (R.sub a b))) b = a :=
+  \fun (a, b: R.Real) => trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real}} (\fun (c: R.Real) => R.add c b) _ _
+      (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc l (Arithmetic.fieldInv l) (R.sub a b)))
+        (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (c: R.Real) => R.mul c (R.sub a b)) _ _
+          (trans!{{R.Real}} _ _ _ (Spaces.mulComm l (Arithmetic.fieldInv l)) (Arithmetic.fieldInverseNonzero l nonzero))) (Spaces.mulOneLeft (R.sub a b)))))
+    (R.Distance[].subAddCancel a b);
+\module At(v: Next.Vector);
+\definition leftInverse: \forall (v: Next.Vector) -> backward.apply (forward.apply v) = v := \fun (v: Next.Vector) => At[v := v].leftInverse;
+\definition rightInverse: \forall (v: Next.Vector) -> forward.apply (backward.apply v) = v := \fun (v: Next.Vector) => At[v := v].rightInverse;
+\definition isomorphism: TotalIsomorphisms.Isomorphism :=
+  TotalIsomorphisms.Isomorphism {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  };

@@ -1,0 +1,25 @@
+/* Grading in the complementary algebra agrees with the ambient grading. */
+\import algebra.Hom[A := Carrier, B := Next.Carrier] \as Maps;
+\import algebra.Hom[A := Next.Carrier, B := Next.Carrier] \as NextMaps;
+\import algebra.Hom[A := Carrier, B := Carrier] \as LowerMaps;
+\definition after: Maps.RingMap ring Next.ring := Maps.Composition[C := Next.Carrier].ring ring Next.ring Next.ring Inclusion.map NextGrade.map;
+\definition before: Maps.RingMap ring Next.ring := LowerMaps.Composition[C := Next.Carrier].ring ring ring Next.ring Grade.map Inclusion.map;
+\import Clifford.HomExt[A := Next.Carrier, target := Next.ring].Between[h := after, k := before] \as Ext;
+\definition same: after = before := Ext.ext
+  (\fun (a: R.Real) => trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} NextGrade.map _ _ (Inclusion.onScalar a))
+    (trans!{Next.Carrier} _ _ _ (NextGrade.onScalar a)
+      (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Grade.onScalar a)) (Inclusion.onScalar a)))))
+  (\fun (v: Vector) => trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} NextGrade.map _ _ (Inclusion.onVector v))
+    (trans!{Next.Carrier} _ _ _ (NextGrade.onVector (Coordinates.embed v))
+      (sym!{Next.Carrier} _ _ (trans!{Next.Carrier} _ _ _ (congr!{Carrier Next.Carrier} Inclusion.map _ _ (Grade.onVector v))
+        (trans!{Next.Carrier} _ _ _ (Inclusion.onNegative (iota v)) (congr!{Next.Carrier Next.Carrier} NextAlgebra.neg _ _ (Inclusion.onVector v)))))));
+\definition onLower: \forall (a: Carrier) -> NextGrade.map (Inclusion.map a) = Inclusion.map (Grade.map a) :=
+  \fun (a: Carrier) => congr!{{Maps.RingMap ring Next.ring} Next.Carrier} (\fun (h: Maps.RingMap ring Next.ring) => h a) _ _ same;
+\definition onValue: \forall (a, b: Carrier) -> NextGrade.map (value a b) = value (Grade.map a) (Clifford.neg (Grade.map b)) :=
+  \fun (a, b: Carrier) => trans!{Next.Carrier} _ _ _ (NextGrade.laws.add (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma))
+    (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _ (onLower a)
+      (trans!{Next.Carrier} _ _ _ (NextGrade.laws.mul (Inclusion.map b) gamma)
+        (trans!{Next.Carrier} _ _ _ (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.mul _ _ _ _ (onLower b) (NextGrade.onVector Coordinates.first))
+          (trans!{Next.Carrier} _ _ _ (Units.mulNeg (Inclusion.map (Grade.map b)) gamma)
+            (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Units.negMul (Inclusion.map (Grade.map b)) gamma))
+              (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (sym!{Next.Carrier} _ _ (Inclusion.onNegative (Grade.map b)))))))));

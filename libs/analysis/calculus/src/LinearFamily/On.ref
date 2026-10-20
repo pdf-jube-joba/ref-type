@@ -1,0 +1,41 @@
+\import \root.Blocks[n := n, m := p] \as SourceBlocks;
+\import \root.Blocks[n := m, m := q] \as TargetBlocks;
+\import SourceBlocks.On[U := U, V := Input.whole] \as SourceProduct;
+\import TargetBlocks.On[U := V, V := Output.whole] \as TargetProduct;
+\definition sourceDimension: N.Nat^ := SourceBlocks.dimension;
+\definition targetDimension: N.Nat^ := TargetBlocks.dimension;
+\import Reals.Multivariable[n := sourceDimension].Open[] \as Domain;
+\import Domain.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Operations;
+\import Smooth.Sums[] \as Sums;
+\import Domain.Examples[] \as Examples;
+\import \root.Maps[n := sourceDimension, m := n] \as Projection;
+\import \root.Maps[n := sourceDimension, m := m] \as BaseMaps;
+\import \root.Maps[n := sourceDimension, m := q] \as FiberMaps;
+\import Projection.Composition[U := SourceProduct.domain, V := U, f := SourceProduct.leftMap] \as AlongBase;
+\definition first: BaseMaps.Map SourceProduct.domain V := AlongBase.After[l := m, W := V, g := f].compose;
+\definition term[j: Fin.Fin q][i: Fin.Fin p]: Domain.ScalarFunction SourceProduct.domain :=
+  \fun (z: Domain.Carrier SourceProduct.domain) => Reals.mul (matrix j i (SourceProduct.leftPoint z)) (SourceBlocks.right z i);
+\definition termSmooth: \forall (j: Fin.Fin q)(i: Fin.Fin p) -> Smooth.SmoothOn SourceProduct.domain (term j i) :=
+  \fun (j: Fin.Fin q)(i: Fin.Fin p) => Operations.mulSmooth SourceProduct.domain
+    (\fun (z: Domain.Carrier SourceProduct.domain) => matrix j i (SourceProduct.leftPoint z))
+    (\fun (z: Domain.Carrier SourceProduct.domain) => SourceBlocks.right z i)
+    (AlongBase.smooth (matrix j i))
+    (Examples.projectionSmooth SourceProduct.domain (std.Data[].FinSet[].Sum[m := n, n := p].right i));
+\definition action[z: Domain.Carrier SourceProduct.domain]: Reals.Multivariable[n := q].Point :=
+  \fun (j: Fin.Fin q) => Sums.sum SourceProduct.domain p (term j) z;
+\definition second[z: Domain.Carrier SourceProduct.domain]: Output.Carrier Output.whole :=
+  \into[Reals.Multivariable[n := q].Point](action z, Output.whole.points) \by { \refl(action z) };
+\definition secondData: FiberMaps.Data[SourceProduct.domain, Output.whole] := FiberMaps.Data[SourceProduct.domain, Output.whole] { apply := second };
+\definition secondMap: FiberMaps.Map SourceProduct.domain Output.whole :=
+  \into[FiberMaps.Data[SourceProduct.domain, Output.whole]](secondData,
+    { data: FiberMaps.Data[SourceProduct.domain, Output.whole] \where FiberMaps.Laws[SourceProduct.domain, Output.whole, data] }) \by {
+    FiberMaps.Laws[SourceProduct.domain, Output.whole, secondData] {
+      smooth := \fun (j: Fin.Fin q) => Sums.smooth SourceProduct.domain p (term j) (termSmooth j),
+    }
+  };
+\import TargetBlocks.Pair[d := sourceDimension].On[U := SourceProduct.domain, V := V, W := Output.whole, f := first, g := secondMap] \as Pair;
+\import \root.Maps[n := sourceDimension, m := targetDimension] \as Result;
+\definition map: Result.Map SourceProduct.domain TargetProduct.domain := Pair.map;
+\definition point[z: Domain.Carrier SourceProduct.domain]: Reals.Multivariable[n := targetDimension].Open[].Carrier TargetProduct.domain := Result.apply SourceProduct.domain TargetProduct.domain map z;
+\definition value[z: Domain.Carrier SourceProduct.domain]: Reals.Multivariable[n := targetDimension].Point := point z;

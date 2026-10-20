@@ -1,0 +1,67 @@
+\import std.Set[].FiniteSubset[A := \Pow A] \as Finite;
+\definition Limit[F: Filter, x: A]: \Prop := \forall (U: \Pow A) -> T.IsOpenIn topology U -> T.Member U x -> Member F U;
+\structure LimitIn[F: Filter, S: \Pow A, x: A]: \Prop := {
+  member: T.Member S x,
+  limit: Limit[F, x],
+};
+\definition finiteAvoidance: \forall (F: Ultrafilter) (finite: Finite.FiniteSubset) ->
+  (\forall (U: \Pow A) -> Finite.Member finite U -> Logic.Not (Member F U)) -> Member F (T.Complement (T.Union finite)) :=
+  \fun (F: Ultrafilter) => Finite.induction
+    ({ family: Family \where (\forall (U: \Pow A) -> T.FamilyMember family U -> Logic.Not (Member F U)) -> Member F (T.Complement (T.Union family)) })
+    (\fun (absent: _) => (laws F).upward T.Whole (T.Complement (T.Union Finite.Empty)) (laws F).whole
+      (\fun (x: A) (member: x = x) (union: T.Member (T.Union Finite.Empty) x) => T.unionMemberElim Finite.Empty x Logic.False
+        (\fun (U: \Pow A) (empty: Logic.False) (inU: T.Member U x) => empty) union))
+    (\fun (family: Family) (ih: _) (U: \Pow A) (absent: _) =>
+      (laws F).upward (T.Intersection (T.Complement U) (T.Complement (T.Union family))) (T.Complement (T.Union (Finite.Insert U family)))
+        ((laws F).intersection (T.Complement U) (T.Complement (T.Union family))
+          (complementMember F U (absent U (Finite.inInsertNew U family)))
+          (ih (\fun (V: \Pow A) (member: T.FamilyMember family V) => absent V (Finite.inInsertOld U family V member))))
+        (\fun (x: A) (both: T.Member (T.Intersection (T.Complement U) (T.Complement (T.Union family))) x)
+          (union: T.Member (T.Union (Finite.Insert U family)) x) => T.unionMemberElim (Finite.Insert U family) x Logic.False
+            (\fun (V: \Pow A) (member: T.FamilyMember (Finite.Insert U family) V) (inV: T.Member V x) => either!{member {Logic.False}
+              {\fun (same: V = U) => both.left (\idelim V = U \with W: \Pow A => T.Member W x \by { base: inV, equality: same })}
+              {\fun (old: T.FamilyMember family V) => both.right (T.unionMemberOf family V x old inV)}
+            }) union));
+\definition compactLimit: \forall (S: \Pow A) -> T.IsCompactIn topology S -> \forall (F: Ultrafilter) -> Member F S ->
+  \exists ( x: A \where LimitIn[F, S, x] ) := \block {
+  \fun (S: \Pow A) (compact: T.IsCompactIn topology S) (F: Ultrafilter) (member: Member F S) \then
+  \enough _ \by { byContradiction (\exists ( x: A \where LimitIn[F, S, x] )) } \then
+  \fun (none: Logic.Not (\exists ( x: A \where LimitIn[F, S, x] ))) \then
+  \let family: Family := { U: \Pow A \where Logic.And[T.IsOpenIn topology U, Logic.Not (Member F U)] } \then
+  \let cover: T.IsOpenCover[topology, family, S] := T.IsOpenCover[topology, family, S] {
+    open := \fun (U: \Pow A) (member: T.FamilyMember family U) => member.left,
+    covers := \block {
+      \fun (x: A) (inS: T.Member S x) \then
+      \enough _ \by { byContradiction (T.Member (T.Union family) x) } \then
+      \fun (uncovered: Logic.Not (T.Member (T.Union family) x)) \then
+      \return none (Logic.existsIntro[A, { x: A \where LimitIn[F, S, x] }] x (LimitIn[F, S, x] {
+        member := inS,
+        limit := \fun (U: \Pow A) (open: T.IsOpenIn topology U) (inU: T.Member U x) => byContradiction (Member F U)
+          (\fun (absent: Logic.Not (Member F U)) => uncovered (T.unionMemberOf family U x (Logic.And[_, _]::# open absent) inU)),
+      }))
+    },
+  } \then
+  \takefrom finite: \Cast[Finite.FiniteSubset] ({ finite: Finite.FiniteSubset \where T.FiniteSubcover[family, S, finite] }) \by compact family cover \then
+  \let subcover: T.FiniteSubcover[family, S, finite] := \bysub(Finite.FiniteSubset, { finite: Finite.FiniteSubset \where T.FiniteSubcover[family, S, finite] }, finite) \then
+  \let avoid: Member F (T.Complement (T.Union finite)) := finiteAvoidance F finite
+    (\fun (U: \Pow A) (member: Finite.Member finite U) => (subcover.included U member).right) \then
+  \takefrom x: \Cast[A] (T.Intersection S (T.Complement (T.Union finite))) \by (laws F).proper _ ((laws F).intersection _ _ member avoid) \then
+  \let both: T.Member (T.Intersection S (T.Complement (T.Union finite))) x := \bysub(A, T.Intersection S (T.Complement (T.Union finite)), x) \then
+  \return both.right (subcover.covers x (both.left))
+};
+\module Cover(S: \Pow A, family: Family);
+\definition compactOfLimits: \forall (S: \Pow A) ->
+  (\forall (F: Ultrafilter) -> Member F S -> \exists ( x: A \where LimitIn[F, S, x] )) -> T.IsCompactIn topology S := \block {
+  \fun (S: \Pow A) (limits: \forall (F: Ultrafilter) -> Member F S -> \exists ( x: A \where LimitIn[F, S, x] )) (family: Family) (cover: T.IsOpenCover[topology, family, S]) \then
+  \enough _ \by { byContradiction (\exists ( finite: Finite.FiniteSubset \where T.FiniteSubcover[family, S, finite] )) } \then
+  \fun (none: Cover[S := S, family := family].NoFinite) \then
+  \let seed: Filter := \into[Family](Cover[S := S, family := family].Seed, { F: Family \where FilterLaws[F] }) \by { Cover[S := S, family := family].seedLaws none } \then
+  \takefrom F: \Cast[Ultrafilter] ({ F: Ultrafilter \where Included seed F }) \by ultrafilterExtension seed \then
+  \let included: Included seed F := \bysub(Ultrafilter, { F: Ultrafilter \where Included seed F }, F) \then
+  \takefrom x: \Cast[A] ({ x: A \where LimitIn[F, S, x] }) \by limits F (included S (Cover[S := S, family := family].contains)) \then
+  \let limit: LimitIn[F, S, x] := \bysub(A, { x: A \where LimitIn[F, S, x] }, x) \then
+  \return T.unionMemberElim family x Logic.False
+    (\fun (U: \Pow A) (inFamily: T.FamilyMember family U) (inU: T.Member U x) => incompatible F U (limit.limit U (cover.open U inFamily) inU)
+      (included (T.Complement U) (Cover[S := S, family := family].avoids U inFamily)))
+    (cover.covers x (limit.member))
+};

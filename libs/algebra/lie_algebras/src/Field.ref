@@ -1,0 +1,28 @@
+\import linear_algebra.Field[].Space[K := K, field := field] \as Linear;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\structure Data[V: \Set, space: Linear.VectorSpace V]: \Set := {
+  bracket: V -> V -> V,
+};
+\structure Laws[V: \Set, space: Linear.VectorSpace V, data: Data[V, space]]: \Prop := {
+  addLeft: \forall (x, y, z: V) -> data.bracket (space.add x y) z = space.add (data.bracket x z) (data.bracket y z),
+  addRight: \forall (x, y, z: V) -> data.bracket x (space.add y z) = space.add (data.bracket x y) (data.bracket x z),
+  scaleLeft: \forall (a: K)(x, y: V) -> data.bracket (space.smul a x) y = space.smul a (data.bracket x y),
+  scaleRight: \forall (a: K)(x, y: V) -> data.bracket x (space.smul a y) = space.smul a (data.bracket x y),
+  alternating: \forall (x: V) -> data.bracket x x = space.zero,
+  jacobi: \forall (x, y, z: V) -> data.bracket x (data.bracket y z) =
+    space.add (data.bracket (data.bracket x y) z) (data.bracket y (data.bracket x z)),
+};
+\definition LieAlgebra[V: \Set][space: Linear.VectorSpace V]: \Set :=
+  \Cast[Data[V, space]] ({ data: Data[V, space] \where Laws[V, space, data] });
+\module On(V: \Set, space: Linear.VectorSpace V, lie: LieAlgebra V space);
+\module Abelian(V: \Set, space: Linear.VectorSpace V);
+\module Hom(V, W: \Set, source: Linear.VectorSpace V, target: Linear.VectorSpace W,
+  left: LieAlgebra V source, right: LieAlgebra W target);
+\definition coefficients: std.Alg[].Ring[].CommutativeRing[K] := std.Alg[].Field[].fieldAsCommutativeRing K field;
+\module Associative(A: \Set, algebra: std.Alg[].Ring[].RingAlgebra[K, A, coefficients]);
+\module Endomorphisms(V: \Set, space: Linear.VectorSpace V);

@@ -1,0 +1,52 @@
+/* A two-by-two Clifford operator over an arbitrary coefficient algebra. */
+\import lie_algebras.Field[K := K, field := field].Associative[A := A, algebra := algebra] \as Source;
+\import Linear.DirectSum[V := A, W := A, left := Source.space, right := Source.space] \as Pair;
+\import std.Data[].Pair[].Prop[A := A, B := A] \as Pairs;
+\import Linear.Linear[V := Pair.Carrier, W := A, source := Pair.space, target := Source.space] \as Rows;
+\import Rows.Operations[] \as RowOperations;
+\import Linear.Linear[V := A, W := A, source := Source.space, target := Source.space].Composition[U := Pair.Carrier, domain := Pair.space] \as Compose;
+\import Pair.Universal[U := Pair.Carrier, domain := Pair.space] \as Assemble;
+\import lie_algebras.Field[K := K, field := field].Endomorphisms[V := Pair.Carrier, space := Pair.space] \as End;
+\definition Carrier: \Set := Pair.Carrier;
+\definition space: Linear.VectorSpace Carrier := Pair.space;
+\definition Operator: \Set := End.Carrier;
+\definition operatorRing: Ring.Ring[Operator] := End.ring;
+\import algebra.Hom[A := K, B := Operator] \as Coefficients;
+\definition scalarMap: Coefficients.RingMap Linear.ring operatorRing := End.scalarMap;
+\definition scalarCentral: \forall (a: K)(f: Operator) -> operatorRing.mul (scalarMap a) f = operatorRing.mul f (scalarMap a) := End.scalarCentral;
+\import Linear.Laws[V := A, space := Source.space] \as Vectors;
+\definition sourceRing: Ring.Ring[A] := Ring.ringAlgebraAsRing K A coefficients algebra;
+\import algebra.Group[].Of[Carrier := A, group := Ring.additiveGroup A sourceRing] \as Sum;
+\definition first: Rows.Map := Rows.Map {
+  apply := Pair.first,
+  preservesAdd := \fun (x, y: Pair.Carrier) => \refl(algebra.add (Pair.first x) (Pair.first y)),
+  preservesScale := \fun (c: K)(x: Pair.Carrier) => \refl(algebra.smul c (Pair.first x)),
+};
+\definition second: Rows.Map := Rows.Map {
+  apply := Pair.second,
+  preservesAdd := \fun (x, y: Pair.Carrier) => \refl(algebra.add (Pair.second x) (Pair.second y)),
+  preservesScale := \fun (c: K)(x: Pair.Carrier) => \refl(algebra.smul c (Pair.second x)),
+};
+\definition leftRow[a: A][c: K]: Rows.Map := RowOperations.plus (Compose.compose (Source.left a) first) (RowOperations.scale c second);
+\definition rightRow[a: A][c: K]: Rows.Map := RowOperations.plus (RowOperations.scale c first) (RowOperations.negative (Compose.compose (Source.left a) second));
+\definition map[a: A][c: K]: End.Carrier := Assemble.pair (leftRow a c) (rightRow a c);
+\definition firstApply: \forall (a: A)(c: K)(x: Pair.Carrier) -> Pair.first ((map a c).apply x) =
+  algebra.add (algebra.mul a (Pair.first x)) (algebra.smul c (Pair.second x)) := \fun (a: A)(c: K)(x: Pair.Carrier) => \refl(Pair.first ((map a c).apply x));
+\definition secondApply: \forall (a: A)(c: K)(x: Pair.Carrier) -> Pair.second ((map a c).apply x) =
+  algebra.add (algebra.smul c (Pair.first x)) (algebra.neg (algebra.mul a (Pair.second x))) := \fun (a: A)(c: K)(x: Pair.Carrier) =>
+    congr!{A A} (algebra.add (algebra.smul c (Pair.first x))) _ _ (Vectors.minusOneScale (algebra.mul a (Pair.second x)));
+\definition anchor: Pair.Carrier := Pair.make algebra.one algebra.zero;
+\definition onAnchor: \forall (a: A)(c: K) -> (map a c).apply anchor = Pair.make a (algebra.smul c algebra.one) :=
+  \fun (a: A)(c: K) => Pairs.ext _ _
+    (trans!{A} _ _ _ (congr2!{A A A} algebra.add _ _ _ _ (sourceRing.semiring.multiplicative.rightIdentity a) (Vectors.scaleZero c)) (Vectors.zeroRight a))
+    (trans!{A} _ _ _ (secondApply a c anchor)
+      (trans!{A} _ _ _ (congr!{A A} (algebra.add (algebra.smul c algebra.one)) _ _
+        (trans!{A} _ _ _ (congr!{A A} algebra.neg _ _ (sourceRing.semiring.zeroAbsorbsRight a)) Sum.negZero)) (Vectors.zeroRight (algebra.smul c algebra.one))));
+\definition firstAnchor: \forall (a: A)(c: K) -> first.apply ((map a c).apply anchor) = a :=
+  \fun (a: A)(c: K) => congr!{Pair.Carrier A} Pair.first _ _ (onAnchor a c);
+\definition secondAnchor: \forall (a: A)(c: K) -> second.apply ((map a c).apply anchor) = algebra.smul c algebra.one :=
+  \fun (a: A)(c: K) => congr!{Pair.Carrier A} Pair.second _ _ (onAnchor a c);
+\definition scalarAnchor: \forall (c: K) -> first.apply ((scalarMap c).apply anchor) = algebra.smul c algebra.one :=
+  \fun (c: K) => \refl(algebra.smul c algebra.one);
+\module Square(a: A, c, q: K, law: algebra.mul a a = algebra.smul q algebra.one);
+\module Linearity;

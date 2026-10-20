@@ -1,0 +1,46 @@
+\import tangent_bundles.Dimension[n := n].On[M := M] \as TangentBundle;
+\import tangent_bundles.FrameBundle[n := n, r := n].Over[M := M].Family[F := Tangent.Vector, space := \fun (x: M.Point) => Tangent.space x] \as TangentFamily;
+\definition tangentLocal[patch: Local]: TangentFamily.Local := TangentBundle.Frames[].local patch.chart;
+\definition tangentData: TangentFamily.Data[Local] := TangentFamily.Data[Local] { local := tangentLocal, covers := covers };
+\import TangentFamily.Using[I := Local, data := tangentData] \as TangentAtlas;
+\definition tangentChanges: TangentAtlas.Changes := \fun (first, second: Local)(a, b: Fin.Fin n) => TangentBundle.Frames[].Change[c := first.chart, d := second.chart].smooth a b;
+\definition normalFrame[patch: Local][x: Charts.LocalPoint patch.chart]: Family.FrameAt x := \parent.LocalFrame[local := patch].At[x := x].isomorphism;
+\import TangentAtlas.Sum[s := k, G := Fiber, otherSpace := fiberSpace, otherFrame := normalFrame] \as Sum;
+\import Sum.Build[firstChanges := tangentChanges, secondChanges := changes] \as SumConstruction;
+\import tangent_bundles.FrameBundle[n := n, r := ambientDimension].Over[M := M].Family[F := Sum.Fiber, space := Sum.fiberSpace] \as SumFamily;
+\import SumFamily.Using[I := Local, data := Sum.sumData] \as SumAtlas;
+\definition Point: \Set := SumFamily.Point;
+\definition dimension: N.Nat^ := calculus.Blocks[n := n, m := ambientDimension].dimension;
+\import manifolds.Dimension[n := dimension].Smooth[] \as TotalModels;
+\definition manifold: TotalModels.Manifold := SumConstruction.manifold;
+\import Spaces.Eigen[V := E.Vector, space := E.space] \as Identity;
+\import Spaces.Isomorphism[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as IdentityIsomorphisms;
+\definition identity: IdentityIsomorphisms.Isomorphism := IdentityIsomorphisms.Isomorphism {
+  forward := Identity.identity, backward := Identity.identity, leftInverse := \fun (v: E.Vector) => \refl(v), rightInverse := \fun (v: E.Vector) => \refl(v),
+};
+\definition field[x: M.Point]: Spaces.Linear[V := Sum.Fiber x, W := E.Vector, source := Sum.fiberSpace x, target := E.space].Map := \parent.At[x := x].Splitting[].isomorphism.forward;
+\definition backward[x: M.Point]: Spaces.Linear[V := E.Vector, W := Sum.Fiber x, source := E.space, target := Sum.fiberSpace x].Map := \parent.At[x := x].Splitting[].isomorphism.backward;
+\import SumAtlas.Morphism[s := ambientDimension, G := \fun (x: M.Point) => E.Vector, otherSpace := \fun (x: M.Point) => E.space,
+  otherFrame := \fun (patch: Local)(x: Charts.LocalPoint patch.chart) => identity, field := field] \as Morphism;
+\import tangent_bundles.FrameBundle[n := n, r := ambientDimension].Over[M := M].Family[F := \fun (x: M.Point) => E.Vector, space := \fun (x: M.Point) => E.space] \as Product;
+\import Product.Using[I := Local, data := Morphism.otherData] \as ProductAtlas;
+\definition productChanges: ProductAtlas.Changes := \fun (first, second: Local)(a, b: Fin.Fin ambientDimension) =>
+  Open.Smooth[].Operations[].constantSmooth Charts.Transition[left := first.chart, right := second.chart].domain (E.basis b a);
+\module Regular(patch: Local, a, b: Fin.Fin ambientDimension);
+\definition regular: Morphism.Regular := \fun (patch: Local)(a, b: Fin.Fin ambientDimension) => Regular[patch := patch, a := a, b := b].smooth;
+\import Morphism.Reverse[backward := backward] \as Backward;
+\definition left: Backward.Left := \fun (x: M.Point)(v: Sum.Fiber x) => (Spaces.Isomorphism[V := Sum.Fiber x, W := E.Vector, source := Sum.fiberSpace x, target := E.space].laws (\parent.At[x := x].Splitting[].isomorphism)).leftInverse v;
+\definition right: Backward.Right := \fun (x: M.Point)(v: E.Vector) => (Spaces.Isomorphism[V := Sum.Fiber x, W := E.Vector, source := Sum.fiberSpace x, target := E.space].laws (\parent.At[x := x].Splitting[].isomorphism)).rightInverse v;
+\definition inverseRegular: Backward.Regular := \fun (patch: Local) => calculus.InverseFamily[d := n, r := ambientDimension].regular patch.chart.image
+  (Morphism.matrix patch) (Backward.matrix patch) (Backward.left left patch) (Backward.right right patch) (regular patch);
+\import Morphism.Build[firstChanges := SumConstruction.changes, secondChanges := productChanges, regular := regular] \as Construct;
+\import Construct.Inverse[backward := backward, inverseRegular := inverseRegular, left := left, right := right] \as Inverse;
+\definition productManifold: TotalModels.Manifold := Construct.targetManifold;
+\definition ProductPoint: \Set := Product.Point;
+\definition include[x: M.Point][t: Tangent.Vector x][w: Fiber x]: Point := SumFamily.include x (std.Data[].Pair[].pair (Tangent.Vector x) (Fiber x) t w);
+\definition forward: Point -> ProductPoint := Construct.apply;
+\definition inverse: ProductPoint -> Point := Inverse.apply;
+\definition diffeomorphism: manifolds.Diffeomorphism[n := dimension, m := dimension].Between[M := manifold, N := productManifold].Diffeomorphism := Inverse.diffeomorphism;
+\module NormalProjection;
+\module NormalInclusion;
+\module Retraction;

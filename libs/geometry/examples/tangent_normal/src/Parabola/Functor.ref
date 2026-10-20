@@ -1,0 +1,20 @@
+\import tangent_bundles.Map[n := one, m := two].Between[M := M, N := ambient] \as First;
+\import tangent_bundles.Map[n := two, m := one].Between[M := ambient, N := M] \as Second;
+\import tangent_bundles.Map[n := one, m := one].Between[M := M, N := M] \as Composite;
+\import manifolds.Composition[n := one, m := two, l := one].Between[M := M, N := ambient, P := M] \as Compose;
+\definition composition: Composite.apply (Compose.compose map Projection.map) = (\fun (p: Tangent.Point) => Second.apply Projection.map (First.apply map p)) :=
+  tangent_bundles.Composition[n := one, m := two, l := one].Between[M := M, N := ambient, P := M].Of[f := map, g := Projection.map].law;
+\definition retract: \forall (p: Tangent.Point) -> Second.apply Projection.map (First.apply map p) = p :=
+  \fun (p: Tangent.Point) => trans!{{Tangent.Point}} _ _ _
+    (sym!{{Tangent.Point}} _ _ (tangent_bundles.Composition[n := one, m := two, l := one].Between[M := M, N := ambient, P := M].Of[f := map, g := Projection.map].pointwise p))
+    (trans!{{Tangent.Point}} _ _ _ (congr!{{manifolds.SmoothMap[n := one, m := one].Between[M := M, N := M].Map} {Tangent.Point}}
+      (\fun (f: manifolds.SmoothMap[n := one, m := one].Between[M := M, N := M].Map) => Composite.apply f p) _ _ Embedded.composite)
+      (tangent_bundles.Identity[n := one].On[M := M].pointwise p));
+\import Normal.Splitting[] \as Split;
+\definition splitting: \forall (x: M.Point)(v: manifolds.Tangent[n := one].On[M := M].Vector x)(w: Normal.Fiber x) ->
+  (Split.forward (Split.include x v w)).vector = A.space.add (Normal.At[x := x].differential.apply v) w :=
+  \fun (x: M.Point)(v: manifolds.Tangent[n := one].On[M := M].Vector x)(w: Normal.Fiber x) => \refl(A.space.add (Normal.At[x := x].differential.apply v) w);
+\import normal_bundles.Stabilization[n := one, k := one].On[M := M].Of[i := immersion] \as Stable;
+\import normal_bundles.Dimension[n := one, k := N.Nat^::succ one].On[M := M].Of[i := Stable.immersion].Splitting[] \as NewSplit;
+\definition stabilization: \forall (x: M.Point)(v: manifolds.Tangent[n := one].On[M := M].Vector x)(w: Normal.Fiber x)(a: R.Real) ->
+  NewSplit.forward (NewSplit.include x v (Stable.At[x := x].newNormal w a)) = Stable.stabilizeProduct (Split.forward (Split.include x v w)) a := Stable.splittingCompatibility;

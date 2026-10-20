@@ -1,0 +1,24 @@
+\definition domain: Open.OpenSet := Open.intersection Transition.domain witness.domain;
+\definition input[x: Open.Carrier domain]: Open.Carrier witness.domain := Open.inclusion domain witness.domain
+  (Open.intersectionRight Transition.domain witness.domain) x;
+\definition read[x: Open.Carrier domain]: Parameter i := Maps.apply witness.domain (patch i).image witness.lift (input x);
+\definition source[x: Open.Carrier domain]: Open.Carrier Transition.domain := Open.inclusion domain Transition.domain
+  (Open.intersectionLeft Transition.domain witness.domain) x;
+\definition same: \forall (x: Open.Carrier domain) -> read x = Transition.apply (source x) := \fun (x: Open.Carrier domain) =>
+  pointInjective (patch i) (read x) (Transition.apply (source x))
+    (trans!{A} _ _ _ (witness.agrees (input x)) (sym!{A} _ _ (Transition.returnsPoint (source x))));
+\module Component(k: std.Data[].FinSet[].Fin n) {
+  \import Open.LocalSmooth[U := Transition.domain, f := \fun (x: Open.Carrier Transition.domain) => Transition.apply x k] \as Local;
+  \definition regular: Smooth.SmoothOn domain (Open.restrict domain Transition.domain (Open.intersectionLeft Transition.domain witness.domain)
+    (\fun (x: Open.Carrier Transition.domain) => Transition.apply x k)) := \idelim
+      (\fun (x: Open.Carrier domain) => read x k) = (\fun (x: Open.Carrier domain) => Transition.apply (source x) k)
+      \with h: Open.ScalarFunction domain => Smooth.SmoothOn domain h \by {
+        base: Restriction.localSmooth domain witness.domain (Open.intersectionRight Transition.domain witness.domain)
+          (\fun (x: Open.Carrier witness.domain) => Maps.apply witness.domain (patch i).image witness.lift x k) (witness.lift.smooth k),
+        equality: \axiom:funext((\fun (x: Open.Carrier domain) => read x k), (\fun (x: Open.Carrier domain) => Transition.apply (source x) k),
+          \fun (x: Open.Carrier domain) => congr!{{Parameter i} {real.Analysis[].Real}} (\fun (v: Parameter i) => v k) _ _ (same x))
+      };
+  \definition patch: Local.Patch := Local.Patch {
+    domain := domain, included := Open.intersectionLeft Transition.domain witness.domain, smooth := regular,
+  };
+}

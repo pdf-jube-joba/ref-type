@@ -1,0 +1,20 @@
+\definition laws: Composite.EmbeddingLaws[Compose.compose f g] := Composite.EmbeddingLaws[Compose.compose f g] {
+  immersion := immersion f g (First.embeddingLaws f).immersion (Second.embeddingLaws g).immersion,
+  injective := \fun (x, y: M.Point)(same: _) => (First.embeddingLaws f).injective x y
+    ((Second.embeddingLaws g).injective (FirstMaps.apply f x) (FirstMaps.apply f y) same),
+  openLift := \block {
+    \fun (S: \Pow M.Point)(openS: _) \then
+    \takefrom U: \Cast[\Pow N.Point] ({ U: \Pow N.Point \where Logic.And[MiddleTopology.IsOpenIn N.space U, F.Preimage (FirstMaps.apply f) U = S] })
+      \by (First.embeddingLaws f).openLift S openS \then
+    \let first: Logic.And[MiddleTopology.IsOpenIn N.space U, F.Preimage (FirstMaps.apply f) U = S] :=
+      \bysub(\Pow N.Point, { U: \Pow N.Point \where Logic.And[MiddleTopology.IsOpenIn N.space U, F.Preimage (FirstMaps.apply f) U = S] }, U) \then
+    \takefrom V: \Cast[\Pow P.Point] ({ V: \Pow P.Point \where Logic.And[TargetTopology.IsOpenIn P.space V, G.Preimage (SecondMaps.apply g) V = U] })
+      \by (Second.embeddingLaws g).openLift U first.left \then
+    \let second: Logic.And[TargetTopology.IsOpenIn P.space V, G.Preimage (SecondMaps.apply g) V = U] :=
+      \bysub(\Pow P.Point, { V: \Pow P.Point \where Logic.And[TargetTopology.IsOpenIn P.space V, G.Preimage (SecondMaps.apply g) V = U] }, V) \then
+    \return Logic.existsIntro[\Pow P.Point, { V: \Pow P.Point \where Logic.And[TargetTopology.IsOpenIn P.space V,
+      GF.Preimage (\root.SmoothMap[n := n, m := l].Between[M := M, N := P].apply (Compose.compose f g)) V = S] }] V
+      (Logic.And[_, _]::# second.left (trans!{{\Pow M.Point}} _ _ _
+        (congr!{{\Pow N.Point} {\Pow M.Point}} (F.Preimage (FirstMaps.apply f)) _ _ second.right) first.right))
+  },
+};

@@ -1,0 +1,27 @@
+\import \parent.\parent.On[U := V, V := W] \as Product;
+\definition value[x: DomainOpen.Carrier U]: SourceOpen.Carrier Product.domain :=
+  Product.joinPoint (LeftMaps.apply U V f x) (RightMaps.apply U W g x);
+\definition smoothByIndex: \forall (s: Indices.Index) -> Smooth.SmoothOn U (\fun (x: DomainOpen.Carrier U) => value x (Indices.inflate s)) :=
+  \induction (s: Indices.Index) \return Smooth.SmoothOn U (\fun (x: DomainOpen.Carrier U) => value x (Indices.inflate s)) \with {
+    | inl: \fun (i: Fin.Fin n) => \idelim (\fun (x: DomainOpen.Carrier U) => LeftMaps.apply U V f x i) =
+      (\fun (x: DomainOpen.Carrier U) => value x (Indices.left i)) \with h: DomainOpen.ScalarFunction U => Smooth.SmoothOn U h \by {
+        base: f.smooth i,
+        equality: \axiom:funext((\fun (x: DomainOpen.Carrier U) => LeftMaps.apply U V f x i), (\fun (x: DomainOpen.Carrier U) => value x (Indices.left i)),
+          \fun (x: DomainOpen.Carrier U) => sym!{Scalars.Real} _ _ (Tuples.atLeft (LeftMaps.apply U V f x) (RightMaps.apply U W g x) i))
+      }
+    | inr: \fun (i: Fin.Fin m) => \idelim (\fun (x: DomainOpen.Carrier U) => RightMaps.apply U W g x i) =
+      (\fun (x: DomainOpen.Carrier U) => value x (Indices.right i)) \with h: DomainOpen.ScalarFunction U => Smooth.SmoothOn U h \by {
+        base: g.smooth i,
+        equality: \axiom:funext((\fun (x: DomainOpen.Carrier U) => RightMaps.apply U W g x i), (\fun (x: DomainOpen.Carrier U) => value x (Indices.right i)),
+          \fun (x: DomainOpen.Carrier U) => sym!{Scalars.Real} _ _ (Tuples.atRight (LeftMaps.apply U V f x) (RightMaps.apply U W g x) i))
+      }
+  };
+\definition smooth: \forall (i: Fin.Fin dimension) -> Smooth.SmoothOn U (\fun (x: DomainOpen.Carrier U) => value x i) :=
+  \fun (i: Fin.Fin dimension) => \idelim Indices.inflate (Indices.split i) = i
+    \with j: Fin.Fin dimension => Smooth.SmoothOn U (\fun (x: DomainOpen.Carrier U) => value x j) \by {
+      base: smoothByIndex (Indices.split i), equality: Indices.inflateSplit i
+    };
+\definition map: Result.Map U Product.domain := \into[Result.Data[U, Product.domain]](Result.Data[U, Product.domain] { apply := value },
+  { h: Result.Data[U, Product.domain] \where Result.Laws[U, Product.domain, h] }) \by {
+    Result.Laws[U, Product.domain, Result.Data[U, Product.domain]::# value] { smooth := smooth }
+  };

@@ -1,0 +1,76 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as NatOrder;
+\import real.Analysis[] \as Analysis;
+\import Analysis.Estimates[] \as Estimates;
+\import Analysis.Estimates[].Product[] \as Product;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\definition Control[s: N.Nat^ -> Carrier][epsilon: R.Real][threshold: N.Nat^]: \Prop :=
+  \forall (m, n: N.Nat^) -> Nat.Le threshold m -> Nat.Le threshold n -> R.Lt (metric.distance (s m) (s n)) epsilon;
+\definition Cauchy[s: N.Nat^ -> Carrier]: \Prop := \forall (epsilon: R.Real) -> R.Lt Analysis.zero epsilon ->
+  \exists ( threshold: N.Nat^ \where Control s epsilon threshold );
+\definition Near[s: N.Nat^ -> Carrier][x: Carrier][epsilon: R.Real][threshold: N.Nat^]: \Prop :=
+  \forall (n: N.Nat^) -> Nat.Le threshold n -> R.Lt (metric.distance (s n) x) epsilon;
+\definition Converges[s: N.Nat^ -> Carrier][x: Carrier]: \Prop := \forall (epsilon: R.Real) -> R.Lt Analysis.zero epsilon ->
+  \exists ( threshold: N.Nat^ \where Near s x epsilon threshold );
+\definition smallDistance: \forall (x, y: Carrier) ->
+  (\forall (epsilon: R.Real) -> R.Lt Analysis.zero epsilon -> R.Le (metric.distance x y) epsilon) -> x = y :=
+  \fun (x, y: Carrier)(small: _) => metric.separated x y (R.leAntisym _ _
+    (Order.leOfNotLtReverse (metric.distance x y) Analysis.zero (\fun (positive: R.Lt Analysis.zero (metric.distance x y)) =>
+      R.ltNotLeReverse (Analysis.mul Analysis.half (metric.distance x y)) (metric.distance x y)
+        (Estimates.halfStrict (metric.distance x y) positive)
+        (small (Analysis.mul Analysis.half (metric.distance x y)) (Estimates.halfOfPositive (metric.distance x y) positive))))
+    (metric.nonnegative x y));
+\definition limitUnique: \forall (s: N.Nat^ -> Carrier)(x, y: Carrier) -> Converges s x -> Converges s y -> x = y := \block {
+  \fun (s: _)(x, y: Carrier)(hx: Converges s x)(hy: Converges s y) \then
+  \enough _ \by { smallDistance x y } \then
+  \fun (epsilon: R.Real)(positive: R.Lt Analysis.zero epsilon) \then
+  \let radius: R.Real := Analysis.mul Analysis.half epsilon \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Near s x radius i }) \by hx radius (Estimates.halfOfPositive epsilon positive) \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Near s y radius j }) \by hy radius (Estimates.halfOfPositive epsilon positive) \then
+  \let k: N.Nat^ := NatOrder.commonBound i j \then
+  \return R.leReplaceRight (metric.distance x y) (Analysis.add radius radius) epsilon (Estimates.halfTwice epsilon)
+    (R.leTrans _ _ _ (metric.triangle x (s k) y)
+      (Estimates.addLe _ _ _ _
+        (Order.leOfLt _ _ (R.ltReplaceLeft _ _ _ (metric.symmetric (s k) x)
+          ((\bysub(N.Nat^, { i: N.Nat^ \where Near s x radius i }, i)) k (NatOrder.leftLeCommonBound i j))))
+        (Order.leOfLt _ _ ((\bysub(N.Nat^, { j: N.Nat^ \where Near s y radius j }, j)) k (NatOrder.rightLeCommonBound i j)))))
+};
+\definition convergesShift: \forall (s: N.Nat^ -> Carrier)(x: Carrier) -> Converges s x ->
+  Converges (\fun (n: N.Nat^) => s (N.Nat^::succ n)) x := \block {
+  \fun (s: _)(x: Carrier)(converges: Converges s x)(epsilon: R.Real)(positive: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Near s x epsilon k }) \by converges epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Near (\fun (n: N.Nat^) => s (N.Nat^::succ n)) x epsilon k }] k
+    (\fun (n: N.Nat^)(later: Nat.Le k n) => (\bysub(N.Nat^, { k: N.Nat^ \where Near s x epsilon k }, k))
+      (N.Nat^::succ n) (Nat.leTrans k n (N.Nat^::succ n) later (Nat.leSelfSucc n)))
+};
+\definition convergesCauchy: \forall (s: N.Nat^ -> Carrier)(x: Carrier) -> Converges s x -> Cauchy s := \block {
+  \fun (s: _)(x: Carrier)(converges: Converges s x)(epsilon: R.Real)(positive: _) \then
+  \let radius: R.Real := Analysis.mul Analysis.half epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Near s x radius k }) \by converges radius (Estimates.halfOfPositive epsilon positive) \then
+  \let near: Near s x radius k := \bysub(N.Nat^, { k: N.Nat^ \where Near s x radius k }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Control s epsilon k }] k
+    (\fun (m, n: N.Nat^)(hm: Nat.Le k m)(hn: Nat.Le k n) => R.leLtTrans _ _ _ (metric.triangle (s m) x (s n))
+      (R.ltReplaceRight _ (Analysis.add radius radius) epsilon (Estimates.halfTwice epsilon)
+        (Estimates.addLt _ _ _ _ (near m hm)
+          (R.ltReplaceLeft _ _ _ (metric.symmetric (s n) x) (near n hn)))))
+};
+\definition eventuallyBoundedLimit: \forall (s: N.Nat^ -> Carrier)(x, y: Carrier)(bound: R.Real)(threshold: N.Nat^) -> Converges s x ->
+  (\forall (n: N.Nat^) -> Nat.Le threshold n -> R.Le (metric.distance (s n) y) bound) -> R.Le (metric.distance x y) bound := \block {
+  \fun (s: _)(x, y: Carrier)(bound: R.Real)(threshold: N.Nat^)(converges: Converges s x)(bounded: _) \then
+  \enough _ \by { Order.leOfNotLtReverse (metric.distance x y) bound } \then
+  \fun (tooFar: R.Lt bound (metric.distance x y)) \then
+  \let gap: R.Real := Analysis.sub (metric.distance x y) bound \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Near s x gap k }) \by converges gap (Product.subPositive (metric.distance x y) bound tooFar) \then
+  \let n: N.Nat^ := NatOrder.commonBound k threshold \then
+  \let near: R.Lt (metric.distance x (s n)) gap := R.ltReplaceLeft (metric.distance (s n) x) (metric.distance x (s n)) gap (metric.symmetric (s n) x)
+    ((\bysub(N.Nat^, { k: N.Nat^ \where Near s x gap k }, k)) n (NatOrder.leftLeCommonBound k threshold)) \then
+  \return R.ltNotLeReverse (Analysis.add (metric.distance x (s n)) bound) (metric.distance x y)
+    (R.ltReplaceRight _ (Analysis.add gap bound) (metric.distance x y)
+      (Analysis.Distance[].subAddCancel (metric.distance x y) bound)
+      (RealLaws.ltAddRight (metric.distance x (s n)) gap bound near))
+    (R.leTrans _ _ _ (metric.triangle x (s n) y)
+      (Estimates.addLe _ _ _ _ (R.leRefl (metric.distance x (s n))) (bounded n (NatOrder.rightLeCommonBound k threshold))))
+};

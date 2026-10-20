@@ -1,0 +1,34 @@
+\use Logic.either;
+\structure Candidate: \Set := {
+  tag: N.Nat^,
+  admissible: Logic.Not (height (untranslate (Reflection.choice tag) g) = R.zero),
+};
+\definition identity: untranslate (Reflection.choice N.Nat^::zero) g = g := trans!{{Next.O}} _ _ _
+  (congr!{{Next.O} {Next.O}} (\fun (x: Next.O) => Group.mul x g) _ _ Group.invOne) (Group.oneLeft g);
+\definition candidateExists: \exists Candidate := either!{{(Reflection.eitherHeight g)} {\exists Candidate}
+  {\fun (available: Logic.Not (height g = R.zero)) => \exact(Candidate {
+    tag := N.Nat^::zero,
+    admissible := \fun (zero: _) => available (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (congr!{{Next.O} R.Real} height _ _ identity)) zero),
+  }, Candidate)}
+  {\fun (available: Logic.Not (height (untranslate Reflection.flip g) = R.zero)) => \exact(Candidate {
+    tag := N.Nat^::succ N.Nat^::zero, admissible := available,
+  }, Candidate)}
+};
+\definition exists: \exists ( k: N.Nat^ \where \In[Next.O] (patches k).domain g ) := \block {
+  \takefrom candidate: Candidate \by candidateExists \then
+  \let p: Parts := asPart (untranslate (Reflection.choice candidate.tag) g) candidate.admissible \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where \In[E.O] (previous.family.patch j).domain (fiber p) }) \by previous.family.covers (fiber p) \then
+  \let condition: \parent.Patch[i := j].Condition[untranslate (Reflection.choice candidate.tag) g] :=
+    \parent.Patch[i := j].Condition[untranslate (Reflection.choice candidate.tag) g] {
+      nonzero := candidate.admissible,
+      contained := \bysub(N.Nat^, { j: N.Nat^ \where \In[E.O] (previous.family.patch j).domain (fiber p) }, j),
+    } \then
+  \let member: \In[Next.O] (charts (Pair.natPair candidate.tag j)).domain g := condition \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair candidate.tag j }) \by Pairs.exhaustive candidate.tag j \then
+  \let code: Pairs.enumerate k = Pair.natPair candidate.tag j := \bysub(N.Nat^, { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair candidate.tag j }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \In[Next.O] (patches k).domain g }] k
+    (\idelim (charts (Pair.natPair candidate.tag j)).domain = (patches k).domain \with W: \Pow Next.O => \In[Next.O] W g \by {
+      base: member,
+      equality: sym!{\Pow Next.O} _ _ (congr!{Pair.NatPair {\Pow Next.O}} (\fun (c: Pair.NatPair) => (charts c).domain) _ _ code)
+    })
+};

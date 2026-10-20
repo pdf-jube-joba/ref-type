@@ -1,0 +1,33 @@
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := M.Point, B := E.Vector] \as Product;
+\import Product.Maps[] \as ProductMaps;
+\import Product.Universal[X := Point] \as Pairing;
+\import topological_algebra.Euclidean[].Dimension[n := r].Topology[] \as EuclideanTopology;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as BaseTopology;
+\definition ProductPoint: \Set := Product.CarrierSet;
+\definition productTopology: topology.Structures[].Topology[ProductPoint] := Product.topology M.space EuclideanTopology.topology;
+\definition forward[p: Point]: ProductPoint := Pair.pair M.Point E.Vector p.base p.vector;
+\definition backward[p: ProductPoint]: Point := include (Pair.first M.Point E.Vector p) (Pair.second M.Point E.Vector p);
+\import Construct.Projection[] \as Projection;
+\import \parent.Vector[] \as Vector;
+\import manifolds.SmoothMap[n := dimension, m := n].Between[M := manifold, N := M] \as BaseMaps;
+\import manifolds.SmoothMap[n := dimension, m := r].Between[M := manifold, N := euclidean] \as FiberMaps;
+\definition forwardContinuous: topology.Continuity[A := Point, B := ProductPoint].Continuous manifold.space productTopology forward :=
+  Pairing.pairContinuous manifold.space M.space EuclideanTopology.topology projection vector
+    (\bysub(BaseMaps.Data, { f: BaseMaps.Data \where BaseMaps.Continuous f }, Projection.map))
+    (\bysub(FiberMaps.Data, { f: FiberMaps.Data \where FiberMaps.Continuous f }, Vector.map));
+\definition domains[i: I]: \Pow ProductPoint := { p: ProductPoint \where Charts.Contains (chart i) (Pair.first M.Point E.Vector p) };
+\definition open: \forall (i: I) -> topology.Topology[Carrier := ProductPoint].IsOpenIn productTopology (domains i) :=
+  \fun (i: I) => ProductMaps.firstContinuous M.space EuclideanTopology.topology (chart i).domain (chart i).open;
+\definition cover: \forall (p: ProductPoint) -> \exists ( i: I \where \In[ProductPoint] (domains i) p ) :=
+  \fun (p: ProductPoint) => covers (Pair.first M.Point E.Vector p);
+\module Local(i: I);
+\import topology.Continuity[A := ProductPoint, B := Point].Covered[I := I, domains := domains] \as Gluing;
+\definition backwardContinuous: topology.Continuity[A := ProductPoint, B := Point].Continuous productTopology manifold.space backward :=
+  Gluing.continuous productTopology manifold.space backward open cover (\fun (i: I) => Local[i := i].continuous);
+\definition homeomorphism: topology.Homeomorphism[A := Point, B := ProductPoint].Homeomorphism[manifold.space, productTopology] :=
+  topology.Homeomorphism[A := Point, B := ProductPoint].Homeomorphism[manifold.space, productTopology] {
+    forward := forward, backward := backward,
+    leftInverse := Family.eta, rightInverse := Pair.Prop[A := M.Point, B := E.Vector].eta,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };

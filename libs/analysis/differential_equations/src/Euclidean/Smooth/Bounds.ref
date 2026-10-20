@@ -1,0 +1,37 @@
+\definition radii[i: Euclidean.Coordinate]: Real := (neighborhoods i).radius;
+\definition smallest: Real := FiniteBounds.minimum n radii;
+\definition radius: Real := Distance.min rho smallest;
+\definition coefficientValues[i: Euclidean.Coordinate]: Real := (neighborhoods i).coefficient;
+\definition coefficient: Real := Coordinates.norm coefficientValues;
+\definition coefficientNonnegative: R.Le Scalars.zero coefficient := Norm.nonnegative coefficientValues;
+\definition coefficientBound[i: Euclidean.Coordinate]: R.Le (coefficientValues i) coefficient :=
+  R.leReplaceLeft (Scalars.distance (coefficientValues i) Scalars.zero) (coefficientValues i) coefficient
+    (trans!{Real} _ _ _ (Distance.distanceSymmetric (coefficientValues i) Scalars.zero)
+      (Product.absOfNonnegative (coefficientValues i) (neighborhoods i).nonnegative)) (Norm.coordinate coefficientValues i);
+\definition radiusBound[i: Euclidean.Coordinate]: R.Le radius (radii i) :=
+  R.leTrans radius smallest (radii i) (Distance.minRight rho smallest) (FiniteBounds.coordinate n radii i);
+\definition estimate: \forall (x, y: Open.Carrier U) -> R.Lt (Norm.metric.distance x a) radius -> R.Lt (Norm.metric.distance y a) radius ->
+  R.Le (Norm.metric.distance (SmoothMaps.apply U Open.whole field x) (SmoothMaps.apply U Open.whole field y)) (Scalars.mul coefficient (Norm.metric.distance x y)) :=
+  \fun (x, y: Open.Carrier U)(xa: _)(ya: _) => Norm.finiteUpper n
+    (Coordinates.subPoint (SmoothMaps.apply U Open.whole field x) (SmoothMaps.apply U Open.whole field y))
+    (Scalars.mul coefficient (Norm.metric.distance x y)) (Laws.fieldMulNonnegative coefficient (Norm.metric.distance x y) coefficientNonnegative (Norm.metric.nonnegative x y))
+    (\fun (i: Euclidean.Coordinate) => R.leReplaceLeft
+      (Scalars.distance (component i x) (component i y)) (Scalars.distance (Scalars.sub (component i x) (component i y)) Scalars.zero)
+      (Scalars.mul coefficient (Norm.metric.distance x y)) (sym!{Real} _ _ (Estimates.distanceDifference (component i x) (component i y)))
+      (R.leTrans _ _ _ ((neighborhoods i).estimate y x (R.ltLeTrans _ radius (radii i) ya (radiusBound i)) (R.ltLeTrans _ radius (radii i) xa (radiusBound i)))
+        (R.leReplace (Scalars.mul (Norm.metric.distance x y) (coefficientValues i)) (Scalars.mul (coefficientValues i) (Norm.metric.distance x y))
+          (Scalars.mul (Norm.metric.distance x y) coefficient) (Scalars.mul coefficient (Norm.metric.distance x y))
+          (Laws.fieldMulComm (Norm.metric.distance x y) (coefficientValues i)) (Laws.fieldMulComm (Norm.metric.distance x y) coefficient)
+          (Estimates.mulMonotone (Norm.metric.distance x y) (coefficientValues i) coefficient (Norm.metric.nonnegative x y) (coefficientBound i)))));
+\definition neighborhoodExists: Open.BallInside[U.points, a, rho] -> \exists Neighborhood := \fun (ball: Open.BallInside[U.points, a, rho]) => \block {
+  \let positive: R.Lt Scalars.zero radius := Product.minPositive rho smallest ball.positive (FiniteBounds.positive n radii (\fun (i: Euclidean.Coordinate) => (neighborhoods i).positive)) \then
+  \return \exact(Neighborhood {
+    radius := radius, positive := positive,
+    included := Open.BallInside[U.points, a, radius] {
+      positive := positive,
+      included := \fun (x: Vector)(near: _) => ball.included x (R.ltLeTrans _ radius rho near (Distance.minLeft rho smallest)),
+    },
+    coefficient := \into[Real](coefficient, { c: Real \where R.Le Scalars.zero c }) \by { coefficientNonnegative },
+    estimate := estimate,
+  }, Neighborhood)
+};

@@ -1,0 +1,21 @@
+/* The coordinate formula (u,w) -> (f(u), Df(u)w). */
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[] \as N;
+\import \root.Blocks[n := n, m := n] \as SourceBlocks;
+\import \root.Blocks[n := m, m := m] \as TargetBlocks;
+\import SourceBlocks.On[U := U, V := Source.whole] \as SourceProduct;
+\import TargetBlocks.On[U := V, V := Target.whole] \as TargetProduct;
+\definition sourceDimension: N.Nat^ := SourceBlocks.dimension;
+\definition targetDimension: N.Nat^ := TargetBlocks.dimension;
+\import \root.Real[].Multivariable[n := sourceDimension].Open[] \as Domain;
+\import Source.Smooth[].Derivative[] \as Partials;
+\definition matrix[j: Fin.Fin m][i: Fin.Fin n]: Partials.Function U := Partials.derivative U (coordinateFunction U V f j) i;
+\import \root.LinearFamily[n := n, m := m, p := n, q := m].On[U := U, V := V, f := f, matrix := matrix] \as Action;
+\import \root.Maps[n := sourceDimension, m := targetDimension] \as Result;
+\definition map: Result.Map SourceProduct.domain TargetProduct.domain := Action.map;
+\definition point[z: Domain.Carrier SourceProduct.domain]: Reals.Multivariable[n := targetDimension].Open[].Carrier TargetProduct.domain := Action.point z;
+\definition value[z: Domain.Carrier SourceProduct.domain]: Reals.Multivariable[n := targetDimension].Point := point z;
+\definition formula: \forall (z: Domain.Carrier SourceProduct.domain) -> value z =
+  TargetBlocks.join (apply U V f (SourceProduct.leftPoint z))
+    (\parent.Differential[U := U, V := V, f := f, a := SourceProduct.leftPoint z].value.apply (SourceBlocks.right z)) :=
+  \fun (z: Domain.Carrier SourceProduct.domain) => \refl(value z);

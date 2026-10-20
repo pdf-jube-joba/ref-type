@@ -1,0 +1,33 @@
+\import \parent.At[t := s] \as Left;
+\import \parent.At[t := t] \as Right;
+\import \parent.At[t := Reals.add s t] \as Sum;
+\definition law: value (Reals.add s t) = Operations.mul (value s) (value t) := \block {
+  \takefrom left: Left.Index \by Left.eligibleExists \then
+  \takefrom right: Right.Index \by Right.eligibleExists \then
+  \takefrom sum: Sum.Index \by Sum.eligibleExists \then
+  \let middle: N.Nat^ := NatOrder.commonBound right sum \then
+  \let n: N.Nat^ := NatOrder.commonBound left middle \then
+  \let eligibleLeft: Left.Eligible n := Left.monotone left n (NatOrder.leftLeCommonBound left middle)
+    (\bysub(N.Nat^, { n: N.Nat^ \where Left.Eligible n }, left)) \then
+  \let eligibleRight: Right.Eligible n := Right.monotone right n
+    (Nat.leTrans right middle n (NatOrder.leftLeCommonBound right sum) (NatOrder.rightLeCommonBound left middle))
+    (\bysub(N.Nat^, { n: N.Nat^ \where Right.Eligible n }, right)) \then
+  \let eligibleSum: Sum.Eligible n := Sum.monotone sum n
+    (Nat.leTrans sum middle n (NatOrder.rightLeCommonBound right sum) (NatOrder.rightLeCommonBound left middle))
+    (\bysub(N.Nat^, { n: N.Nat^ \where Sum.Eligible n }, sum)) \then
+  \let a: Reals.Real := scale s n \then
+  \let b: Reals.Real := scale t n \then
+  \let sumInside: R.Lt (Bounds.abs (Reals.add a b)) f.radius := R.ltReplaceLeft (Bounds.abs (scale (Reals.add s t) n)) _ f.radius
+    (congr!{Reals.Real Reals.Real} Bounds.abs _ _ (scaleAddition s t n)) eligibleSum \then
+  \let swappedInside: R.Lt (Bounds.abs (Reals.add b a)) f.radius := R.ltReplaceLeft (Bounds.abs (Reals.add a b)) _ f.radius
+    (congr!{Reals.Real Reals.Real} Bounds.abs _ _ (Laws.addComm a b)) sumInside \then
+  \let commutes: Operations.mul (f.value a) (f.value b) = Operations.mul (f.value b) (f.value a) := trans!{G} _ _ _
+    (sym!{G} _ _ (f.addition a b eligibleLeft eligibleRight sumInside))
+    (trans!{G} _ _ _ (congr!{Reals.Real G} f.value _ _ (Laws.addComm a b)) (f.addition b a eligibleRight eligibleLeft swappedInside)) \then
+  \let localProduct: f.value (scale (Reals.add s t) n) = Operations.mul (f.value a) (f.value b) := trans!{G} _ _ _
+    (congr!{Reals.Real G} f.value _ _ (scaleAddition s t n)) (f.addition a b eligibleLeft eligibleRight sumInside) \then
+  \return trans!{G} _ _ _ (Sum.computes n eligibleSum)
+    (trans!{G} _ _ _ (congr!{G G} (Powers.value n) _ _ localProduct)
+      (trans!{G} _ _ _ (Powers.multiplicative n (f.value a) (f.value b) commutes)
+        (congr2!{G G G} Operations.mul _ _ _ _ (sym!{G} _ _ (Left.computes n eligibleLeft)) (sym!{G} _ _ (Right.computes n eligibleRight)))))
+};

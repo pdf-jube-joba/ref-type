@@ -1,0 +1,33 @@
+/* Raising a group element to 2^n, without assuming commutativity. */
+\import std.Data[].Nat[] \as N;
+\definition square[x: G]: G := mul x x;
+\definition value: N.Nat^ -> G -> G := \induction (n: N.Nat^) \return G -> G \with {
+  | zero: \fun (x: G) => x
+  | succ: \fun (n: N.Nat^)(previous: G -> G)(x: G) => previous (square x)
+};
+\definition shuffle[a, b, c, d: G]: mul b c = mul c b -> mul (mul a b) (mul c d) = mul (mul a c) (mul b d) :=
+  \fun (commutes: _) => eq_reason!{
+    {mul (mul a b) (mul c d)} "=" {mul a (mul b (mul c d))} "by" {assoc a b (mul c d)}
+    "=" {mul a (mul (mul b c) d)} "by" {congr!{G G} (mul a) _ _ (sym!{G} _ _ (assoc b c d))}
+    "=" {mul a (mul (mul c b) d)} "by" {congr!{G G} (\fun (x: G) => mul a (mul x d)) _ _ commutes}
+    "=" {mul a (mul c (mul b d))} "by" {congr!{G G} (mul a) _ _ (assoc c b d)}
+    "=" {mul (mul a c) (mul b d)} "by" {sym!{G} _ _ (assoc a c (mul b d))}
+  };
+\definition squareProduct[a, b: G]: mul a b = mul b a -> square (mul a b) = mul (square a) (square b) :=
+  \fun (commutes: _) => shuffle a b a b (sym!{G} _ _ commutes);
+\definition commuteSquares[a, b: G]: mul a b = mul b a -> mul (square a) (square b) = mul (square b) (square a) :=
+  \fun (commutes: _) => trans!{G} _ _ _ (sym!{G} _ _ (squareProduct a b commutes))
+    (trans!{G} _ _ _ (congr!{G G} square _ _ commutes) (squareProduct b a (sym!{G} _ _ commutes)));
+\definition multiplicative: \forall (n: N.Nat^)(a, b: G) -> mul a b = mul b a -> value n (mul a b) = mul (value n a) (value n b) :=
+  \induction (n: N.Nat^) \return \forall (a, b: G) -> mul a b = mul b a -> value n (mul a b) = mul (value n a) (value n b) \with {
+    | zero: \fun (a, b: G)(commutes: _) => \refl(mul a b)
+    | succ: \fun (n: N.Nat^)(previous: \forall (a, b: G) -> mul a b = mul b a -> value n (mul a b) = mul (value n a) (value n b))
+      (a, b: G)(commutes: _) => trans!{G} _ _ _ (congr!{G G} (value n) _ _ (squareProduct a b commutes))
+        (previous (square a) (square b) (commuteSquares a b commutes))
+  };
+\definition atOne: \forall (n: N.Nat^) -> value n one = one := \induction (n: N.Nat^) \return value n one = one \with {
+  | zero: \refl(one)
+  | succ: \fun (n: N.Nat^)(previous: value n one = one) => trans!{G} _ _ _ (congr!{G G} (value n) _ _ (oneLeft one)) previous
+};
+\definition successor: \forall (n: N.Nat^)(x: G) -> value (N.Nat^::succ n) x = square (value n x) :=
+  \fun (n: N.Nat^)(x: G) => multiplicative n x x (\refl(mul x x));

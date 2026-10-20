@@ -1,0 +1,86 @@
+\definition dimension: N.Nat^ := Blocks.dimension;
+\import manifolds.Tangent[n := n].On[M := M] \as Tangent;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import manifolds.Dimension[n := n].AtlasData[M := M.Point, space := M.space] \as Atlas;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as TotalOpen;
+\definition Vector: \Set := calculus.Real[].Multivariable[n := n].Point;
+\definition TotalVector: \Set := calculus.Real[].Multivariable[n := dimension].Point;
+\import \root.FrameBundle[n := n, r := n].Over[M := M].Family[F := Tangent.Vector, space := \fun (x: M.Point) => Tangent.space x] \as Total;
+\definition Point: \Set := Total.Point;
+\definition projection[p: Point]: M.Point := p.base;
+\definition include[x: M.Point][v: Tangent.Vector x]: Point := Point { base := x, vector := v };
+\definition zero[x: M.Point]: Point := include x (Tangent.space x).zero;
+\definition Chart: \Set := \Cast[Charts.Chart] M.atlas.charts;
+\definition eta: \forall (p: Point) -> include p.base p.vector = p :=
+  \induction (p: Point) \return include p.base p.vector = p \with {
+    | # : \fun (x: M.Point)(v: Tangent.Vector x) => \refl(include x v)
+  };
+\import std.Logic[].Equality[].Transport[A := M.Point] \as Transport;
+\definition includeTransport: \forall (x, y: M.Point)(same: x = y)(v: Tangent.Vector x) ->
+  include y (Transport.cast Tangent.Vector x y same v) = include x v :=
+  \fun (x, y: M.Point)(same: x = y) =>
+    (\idelim x = y \with z: M.Point => \forall (equal: x = z)(v: Tangent.Vector x) ->
+      include z (Transport.cast Tangent.Vector x z equal v) = include x v \by {
+      base: \fun (equal: x = x)(v: Tangent.Vector x) => congr!{{Tangent.Vector x} Point} (include x) _ _ (Transport.castRefl Tangent.Vector x v),
+      equality: same
+    }) same;
+\module InChart(chart: Chart);
+
+\import manifolds.IndexedAtlas[n := dimension, A := Point, I := Chart] \as Parametrizations;
+\import manifolds.BundleAtlas[n := n, r := n, A := Point, I := Chart].Over[M := M, projection := projection] \as Bundle;
+\definition local[c: Chart]: Bundle.Local := Bundle.Local {
+  baseChart := c, point := InChart[chart := c].point, coordinate := InChart[chart := c].coordinate,
+  pointCoordinate := InChart[chart := c].pointCoordinate, coordinatePoint := InChart[chart := c].coordinatePoint,
+  projectionFormula := \fun (u: TotalOpen.Carrier InChart[chart := c].image) => \refl(projection (InChart[chart := c].point u)),
+};
+\definition data: Bundle.Data := Bundle.Data {
+  local := local,
+  covers := \block {
+    \fun (x: M.Point) \then
+    \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[Atlas.Member M.atlas c, Charts.Contains c x] }) \by M.atlas.covers x \then
+    \let law: Logic.And[Atlas.Member M.atlas c, Charts.Contains c x] := \bysub(Charts.Chart,
+      { c: Charts.Chart \where Logic.And[Atlas.Member M.atlas c, Charts.Contains c x] }, c) \then
+    \let active: Chart := \into[Charts.Chart](c, M.atlas.charts) \by { law.left } \then
+    \return Logic.existsIntro[Chart, { c: Chart \where Charts.Contains c x }] active law.right
+  },
+};
+\import Bundle.Using[data := data] \as LocalProducts;
+\definition family: Parametrizations.Family := LocalProducts.family;
+\import Parametrizations.On[family := family] \as Topology;
+\definition topology: topology.Structures[].Topology[Point] := Topology.topology;
+\module Change(left, right: Chart);
+\definition transitions: Topology.Transitions := \fun (left, right: Chart)(a: Topology.Parameter right)(inside: _) =>
+  \exact(Change[left := left, right := right].Read[a := a, inside := inside].witness,
+    Parametrizations.Read[d := dimension].On[p := InChart[chart := left].patch,
+      U := InChart[chart := right].image, f := \fun (u: TotalOpen.Carrier InChart[chart := right].image) => InChart[chart := right].point u, a := a].Witness);
+\import Topology.Refined[transitions := transitions] \as AtlasConstruction;
+\import Topology.Of[openEmbeddings := AtlasConstruction.openEmbeddings] \as BasicCharts;
+\import LocalProducts.Build[transitions := transitions] \as Construction;
+\definition secondCountable: topology.Topology[Carrier := Point].IsSecondCountable topology := Construction.secondCountable;
+\definition hausdorff: topology.Topology[Carrier := Point].IsT2 topology := Construction.hausdorff;
+\import manifolds.Dimension[n := dimension].Smooth[] \as TotalModel;
+\definition manifold: TotalModel.Manifold := Construction.manifold;
+\module Plots(m: N.Nat^);
+\module SmoothProjection;
+
+\import manifolds.Dimension[n := dimension].Chart[M := Point, space := topology] \as TotalCharts;
+\import manifolds.Dimension[n := dimension].Atlas[M := Point, space := topology] \as TotalAtlases;
+\import BasicCharts.Smooth[changes := AtlasConstruction.smoothChanges] \as SmallAtlas;
+\definition chart[c: Chart]: \Cast[TotalCharts.Chart] manifold.atlas.charts :=
+  \into[TotalCharts.Chart](BasicCharts.chart c, manifold.atlas.charts) \by {
+    TotalAtlases.includedInSaturation SmallAtlas.atlas (BasicCharts.chart c)
+      (Logic.existsIntro[Chart, { d: Chart \where BasicCharts.chart c = BasicCharts.chart d }] c (\refl(BasicCharts.chart c)))
+  };
+\module SmoothZero;
+\module Frames;
+\module FrameComparison;
+\module Addition;
+\definition Pair: \Set := Addition[].Domain;
+\definition pair[x: M.Point][v, w: Tangent.Vector x]: Pair := Addition[].make x v w;
+\definition add[p: Pair]: Point := Addition[].apply p;
+\module Scaling;
+\definition Scalar: \Set := Scaling[].Domain;
+\definition scalarInput[a: Real.Real][p: Point]: Scalar := Scaling[].make a p.base p.vector;
+\definition scale[p: Scalar]: Point := Scaling[].apply p;
+\module Fiber(x: M.Point);

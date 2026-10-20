@@ -1,0 +1,28 @@
+\definition smallest: Real := Sums.Bounds[].minimum n (\fun (i: Coordinate) => controls i);
+\definition smallestPositive: R.Lt zero smallest := Sums.Bounds[].positive n (\fun (i: Coordinate) => controls i)
+  (\fun (i: Coordinate) => (\bysub(Real, { delta: Real \where Analysis.ContinuityControl[U, g i, a, one, delta] }, controls i)).positive);
+\definition delta: Real := Metric.min rho smallest;
+\definition halfDelta: Real := mul half delta;
+\definition radius: Real := mul half halfDelta;
+\definition positive: BallInside[U.points, a, rho] -> R.Lt zero radius :=
+  \fun (ball: BallInside[U.points, a, rho]) => Bounds.halfOfPositive halfDelta (Bounds.halfOfPositive delta (Product.minPositive rho smallest ball.positive smallestPositive));
+\definition halfPositive: BallInside[U.points, a, rho] -> R.Lt zero halfDelta :=
+  \fun (ball: BallInside[U.points, a, rho]) => Bounds.halfOfPositive delta (Product.minPositive rho smallest ball.positive smallestPositive);
+\definition twiceRadius: add radius radius = halfDelta := Bounds.halfTwice halfDelta;
+\definition threeSmall: BallInside[U.points, a, rho] -> R.Lt (add halfDelta radius) delta :=
+  \fun (ball: _) => R.ltReplaceRight _ (add halfDelta halfDelta) delta (Bounds.halfTwice delta)
+    (Laws.ltAddLeft halfDelta radius halfDelta (Bounds.halfStrict halfDelta (halfPositive ball)));
+\definition coefficients: Point := \fun (i: Coordinate) => g i a;
+\definition theta: Real := add one (Coordinates.norm coefficients);
+\definition thetaNonnegative: R.Le zero theta := Laws.addNonnegative one (Coordinates.norm coefficients) Laws.oneNonnegative (Norm.nonnegative coefficients);
+\definition count: Real := Sums.sum n (\fun (i: Coordinate) => one);
+\definition coefficient: Real := mul count theta;
+\definition coefficientNonnegative: R.Le zero coefficient := Laws.fieldMulNonnegative count theta
+  (Sums.nonnegative n (\fun (i: Coordinate) => one) (\fun (i: Coordinate) => Laws.oneNonnegative)) thetaNonnegative;
+\module Pair(x, y: Carrier U);
+\definition neighborhood: BallInside[U.points, a, rho] -> (\forall (i: Coordinate) -> Analysis.HasPartialDerivative U f i (g i)) -> \exists LipschitzNeighborhood[U, f, a] :=
+  \fun (ball: _)(partials: _) => \exact(LipschitzNeighborhood[U, f, a] {
+    radius := radius, positive := positive ball,
+    coefficient := coefficient, nonnegative := coefficientNonnegative,
+    estimate := \fun (x, y: Carrier U) => Pair[x := x, y := y].estimate ball partials,
+  }, LipschitzNeighborhood[U, f, a]);

@@ -1,0 +1,28 @@
+\definition continuous: Equicontinuous family -> Filters.Member F family -> Pointwise[F, f] -> Functions.Continuous topology f :=
+  \fun (equicontinuous: Equicontinuous family) (member: Filters.Member F family) (pointwise: Pointwise[F, f]) => Functions.continuousOfLocal topology f (\block {
+    \fun (x: A) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+    \let delta: Real.Real := Real.mul Real.half (Real.mul Real.half epsilon) \then
+    \let dp: R.Lt Real.zero delta := E.halfOfPositive _ (E.halfOfPositive epsilon positive) \then
+    \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where EquicontinuousNeighborhood[family, x, delta, U] }) \by equicontinuous x delta dp \then
+    \let neighborhood: EquicontinuousNeighborhood[family, x, delta, U] := \bysub(\Pow A, { U: \Pow A \where EquicontinuousNeighborhood[family, x, delta, U] }, U) \then
+    \return Logic.existsIntro[\Pow A, { U: \Pow A \where Source.OpenNeighborhood[topology, x, Functions.Small f x epsilon, U] }] U
+      (Source.OpenNeighborhood[topology, x, Functions.Small f x epsilon, U] {
+        open := neighborhood.open, contains := neighborhood.contains,
+        within := \block {
+          \fun (y: A) (inU: Source.Member U y) \then
+          \let selected: \Pow Function := Space.Intersection family (Space.Intersection (At x (f x) delta) (At y (f y) delta)) \then
+          \takefrom g: \Cast[Function] selected \by (Filters.laws F).proper selected
+            ((Filters.laws F).intersection family (Space.Intersection (At x (f x) delta) (At y (f y) delta)) member
+              ((Filters.laws F).intersection (At x (f x) delta) (At y (f y) delta) (pointwise x delta dp) (pointwise y delta dp))) \then
+          \let data: Space.Member selected g := \bysub(Function, selected, g) \then
+          \return R.leLtTrans _ (Real.add (Real.distance (f x) (g x)) (Real.add (Real.distance (g x) (g y)) (Real.distance (g y) (f y)))) epsilon
+            (E.distanceBridge (f x) (g x) (g y) (f y))
+            (R.ltLeTrans _ (Real.add delta (Real.add delta delta)) epsilon
+              (E.addLt _ _ delta (Real.add delta delta) (data.right.left)
+                (E.addLt _ _ delta delta (neighborhood.estimate g (data.left) y inU)
+                  (R.ltReplaceLeft _ _ delta (Distance.distanceSymmetric (f y) (g y)) (data.right.right))))
+              (E.threeQuarterLe epsilon (Order.leOfLt _ _ positive)))
+        },
+      })
+  });
+\module Uniformization(epsilon: Real.Real);

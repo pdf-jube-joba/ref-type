@@ -1,0 +1,36 @@
+/* Orientation characters of the standard real orthogonal groups. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import real.Analysis[] \as R;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\use Logic.either;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import R.Algebra[] \as Algebra;
+\definition Sign[x: R.Real]: \Prop := Logic.Or[x = R.one, x = R.neg R.one];
+\definition negativeSquare: R.mul (R.neg R.one) (R.neg R.one) = R.one := trans!{R.Real} _ _ _
+  (Arithmetic.fieldMulNegBoth R.one R.one) (Arithmetic.fieldMulOneLeft R.one);
+\definition signProduct: \forall (x, y: R.Real) -> Sign x -> Sign y -> Sign (R.mul x y) := \fun (x, y: R.Real)(left: Sign x)(right: Sign y) =>
+  either!{left {Sign (R.mul x y)}
+    {\fun (one: x = R.one) => \idelim y = R.mul x y \with z: R.Real => Sign z \by {
+      base: right, equality: sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a y) _ _ one) (Arithmetic.fieldMulOneLeft y))
+    }}
+    {\fun (negative: x = R.neg R.one) => either!{right {Sign (R.mul x y)}
+      {\fun (one: y = R.one) => Logic.Or[_, _]::right (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ negative one) (Algebra.mulOneRight (R.neg R.one)))}
+      {\fun (other: y = R.neg R.one) => Logic.Or[_, _]::left (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ negative other) negativeSquare)}
+    }}
+  };
+\definition All[n: N.Nat^]: \Prop := \forall (g: \root.Euclidean[n := n].O) -> Sign (\root.Euclidean[n := n].Orientation[].determinant g);
+\module Zero;
+\module Step(n: N.Nat^);
+
+\definition determinantSign: \forall (n: N.Nat^) -> All n := \induction (n: N.Nat^) \return All n \with {
+  | zero: Zero[].law
+  | succ: \fun (n: N.Nat^)(previous: All n) => Step[n := n].On[previous := previous].law
+};
+\module Dimension(n: N.Nat^);

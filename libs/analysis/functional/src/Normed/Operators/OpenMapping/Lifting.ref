@@ -1,0 +1,132 @@
+\import topology.Topology[Carrier := V] \as SourceTopology;
+\import \parent.ApproximateAlgebra[] \as Approx;
+\definition radius[n: N.Nat^]: Real.Real := Dyadic.value (N.Nat^::succ n);
+\definition budget[n: N.Nat^]: Real.Real := Dyadic.value (N.Nat^::succ (N.Nat^::succ n));
+\definition tolerance[n: N.Nat^]: Real.Real := Real.mul (budget n) delta;
+\definition State[n: N.Nat^]: \Set := \Cast[V] ({ x: V \where R.Lt (distance (f.apply x) y) (tolerance n) });
+\structure Input: \Set := {
+  index: N.Nat^,
+  point: State index,
+};
+\structure Step[i: Input, x: State (N.Nat^::succ (i.index))]: \Prop := {
+  movement: R.Le (sourceDistance (i.point) x) (budget (i.index)),
+};
+\definition Next[i: Input]: \Set := \Cast[State (N.Nat^::succ (i.index))]
+  ({ x: State (N.Nat^::succ (i.index)) \where Step[i, x] });
+\definition nextExists: Approx.Neighborhood[Real.one, delta] -> \forall (i: Input) -> \exists (Next i) := \block {
+  \fun (neighborhood: Approx.Neighborhood[Real.one, delta]) (i: Input) \then
+  \let residual: W := Target.sub y (f.apply (i.point)) \then
+  \let small: R.Lt (targetNorm.norm residual) (tolerance (i.index)) := R.ltReplaceLeft _ _ _
+    ((Target.metric targetNorm).symmetric (f.apply (i.point)) y)
+    (\bysub(V, { x: V \where R.Lt (distance (f.apply x) y) (tolerance (i.index)) }, i.point)) \then
+  \let scaled: Approx.Neighborhood[Real.mul (budget (i.index)) Real.one, tolerance (i.index)] :=
+    Approx.scaledNeighborhood Real.one delta (budget (i.index)) neighborhood (Limits.dyadicPositive (N.Nat^::succ (N.Nat^::succ (i.index)))) \then
+  \takefrom h: \Cast[V] ({ h: V \where Approximation[Real.mul (budget (i.index)) Real.one, residual, tolerance (N.Nat^::succ (i.index)), h] })
+    \by scaled.approximate residual small (tolerance (N.Nat^::succ (i.index)))
+      (Product.mulPositive (budget (N.Nat^::succ (i.index))) delta
+        (Limits.dyadicPositive (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (i.index))))) (neighborhood.positiveDelta)) \then
+  \let approximation: Approximation[Real.mul (budget (i.index)) Real.one, residual, tolerance (N.Nat^::succ (i.index)), h] :=
+    \bysub(V, { h: V \where Approximation[Real.mul (budget (i.index)) Real.one, residual, tolerance (N.Nat^::succ (i.index)), h] }, h) \then
+  \let x: V := space.add (i.point) h \then
+  \let errorEquality: distance (f.apply x) y = distance (f.apply h) residual := eq_reason!{
+    {distance (f.apply x) y}
+    "=" {distance (target.add (f.apply h) (f.apply (i.point))) (target.add residual (f.apply (i.point)))} "by" {
+      congr2!{W W Real.Real} distance _ _ _ _
+        (trans!{W} _ _ _ (f.preservesAdd (i.point) h) (TargetVectors.comm (f.apply (i.point)) (f.apply h)))
+        (sym!{W} _ _ (Target.subAddCancel y (f.apply (i.point))))}
+    "=" {distance (f.apply h) residual} "by" {Target.translateDistance targetNorm (f.apply h) residual (f.apply (i.point))}
+  } \then
+  \let state: State (N.Nat^::succ (i.index)) := \into[V](x, { x: V \where R.Lt (distance (f.apply x) y) (tolerance (N.Nat^::succ (i.index))) }) \by {
+    R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ errorEquality) (approximation.error)
+  } \then
+  \return Logic.existsIntro[State (N.Nat^::succ (i.index)), { x: State (N.Nat^::succ (i.index)) \where Step[i, x] }] state
+    (Step[i, state] { movement := R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (addDistance norm (i.point) h))
+      (Algebra.mulOneRight (budget (i.index))) (approximation.bound) })
+};
+\module Sequence(initial: State N.Nat^::zero, select: \forall (i: Input) -> Next i) {
+  \definition sequence: \forall (n: N.Nat^) -> State n := \induction (n: N.Nat^) \return State n \with {
+    | zero: initial
+    | succ: \fun (n: N.Nat^) (previous: State n) => select (Input::# n previous)
+  };
+  \definition sets[n: N.Nat^]: \Pow V := SourceGeometry.ClosedBall (sequence n) (radius n);
+  \definition step: \forall (n: N.Nat^) -> SourceTopology.Subset (sets (N.Nat^::succ n)) (sets n) :=
+    \fun (n: N.Nat^) (x: V) (member: SourceTopology.Member (sets (N.Nat^::succ n)) x) =>
+      R.leTrans _ (Real.add (sourceDistance (sequence n) (sequence (N.Nat^::succ n))) (sourceDistance (sequence (N.Nat^::succ n)) x)) _
+        ((metric norm).triangle (sequence n) (sequence (N.Nat^::succ n)) x)
+        (R.leReplaceRight _ (Real.add (budget n) (budget n)) (radius n) (Estimates.halfTwice (radius n))
+          (Estimates.addLe _ _ (budget n) (budget n)
+            ((\bysub(State (N.Nat^::succ n), { x: State (N.Nat^::succ n) \where Step[Input::# n (sequence n), x] }, select (Input::# n (sequence n)))).movement) member));
+  \definition nested: SourceGeometry.Nested[sets] := SourceGeometry.Nested[sets] {
+    inhabited := \fun (n: N.Nat^) => Logic.existsIntro[V, sets n] (sequence n)
+      (R.leReplaceLeft Real.zero (sourceDistance (sequence n) (sequence n)) (radius n) (sym!{Real.Real} _ _ ((metric norm).self (sequence n)))
+        (Order.leOfLt _ _ (Limits.dyadicPositive (N.Nat^::succ n)))),
+    closed := \fun (n: N.Nat^) => SourceGeometry.closedBallClosed (sequence n) (radius n),
+    descending := \fun (m, n: N.Nat^) (bound: Nat.Le m n) => SourceGeometry.descendingOfStep sets step n m bound,
+    diameter := \fun (n: N.Nat^) (x, z: V) (inX: SourceTopology.Member (sets n) x) (inZ: SourceTopology.Member (sets n) z) =>
+      R.leTrans _ (Real.add (sourceDistance x (sequence n)) (sourceDistance (sequence n) z)) _ ((metric norm).triangle x (sequence n) z)
+        (R.leReplaceRight _ (Real.add (radius n) (radius n)) (Dyadic.value n) (Estimates.halfTwice (Dyadic.value n))
+          (Estimates.addLe _ _ (radius n) (radius n) (R.leReplaceLeft _ _ _ ((metric norm).symmetric (sequence n) x) inX) inZ)),
+  };
+  \definition converges: \forall (x: V) -> (\forall (n: N.Nat^) -> SourceTopology.Member (sets n) x) ->
+    Sequences.Converges (metric norm) (\fun (n: N.Nat^) => sequence n) x := \block {
+    \fun (x: V) (member: \forall (n: N.Nat^) -> SourceTopology.Member (sets n) x) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }) \by Limits.dyadicSmall epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequences.LimitControl (metric norm) (\fun (n: N.Nat^) => sequence n) x epsilon k }] k
+      (\fun (n: N.Nat^) (later: Nat.Le k n) => R.leLtTrans _ (radius n) epsilon (member n)
+        (R.leLtTrans _ (Dyadic.value n) epsilon (Estimates.halfBelow (Dyadic.value n) (Order.leOfLt _ _ (Limits.dyadicPositive n)))
+          ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }, k)) n later)))
+  };
+  \definition imageConverges: R.Lt Real.zero delta -> TargetSequences.Converges (Target.metric targetNorm) (\fun (n: N.Nat^) => f.apply (sequence n)) y := \block {
+    \fun (positive: R.Lt Real.zero delta) (epsilon: Real.Real) (ep: R.Lt Real.zero epsilon) \then
+    \let small: Real.Real := Product.radius delta epsilon \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) small })
+      \by Limits.dyadicSmall small (Product.radiusPositive delta epsilon positive ep) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where TargetSequences.LimitControl (Target.metric targetNorm) (\fun (n: N.Nat^) => f.apply (sequence n)) y epsilon k }] k
+      (\block {
+        \fun (n: N.Nat^) (later: Nat.Le k n) \then
+        \let smallBudget: R.Lt (budget n) small := R.leLtTrans _ (Dyadic.value n) small
+          (Limits.dyadicDecreasing (N.Nat^::succ (N.Nat^::succ n)) n (Nat.leTrans _ _ _ (Nat.leSelfSucc n) (Nat.leSelfSucc (N.Nat^::succ n))))
+          ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) small }, k)) n later) \then
+        \return Order.ltTrans _ (tolerance n) epsilon
+          (\bysub(V, { x: V \where R.Lt (distance (f.apply x) y) (tolerance n) }, sequence n))
+          (Order.ltTrans _ (Real.mul delta small) epsilon
+            (R.ltReplaceLeft _ _ _ (Laws.fieldMulComm delta (budget n)) (Product.mulStrict delta (budget n) small positive smallBudget))
+            (Product.radiusSmall delta epsilon positive ep))
+      })
+  };
+}
+\structure Solution[x: V]: \Prop := {
+  bound: R.Lt (norm.norm x) Real.one,
+  equation: f.apply x = y,
+};
+\definition lift: IsBanach norm -> Approx.Neighborhood[Real.one, delta] -> R.Lt (targetNorm.norm y) (tolerance N.Nat^::zero) ->
+  \exists ( x: V \where Solution[x] ) := \block {
+  \fun (complete: IsBanach norm) (neighborhood: Approx.Neighborhood[Real.one, delta]) (small: R.Lt (targetNorm.norm y) (tolerance N.Nat^::zero)) \then
+  \let zeroDistance: distance (f.apply (space.zero)) y = targetNorm.norm y := trans!{Real.Real} _ _ _
+    (congr!{W Real.Real} (\fun (z: W) => distance z y) _ _ (f.preservesZero))
+    (trans!{Real.Real} _ _ _ ((Target.metric targetNorm).symmetric (target.zero) y)
+      (congr!{W Real.Real} (targetNorm.norm) _ _ (Target.subZeroRight y))) \then
+  \let initial: State N.Nat^::zero := \into[V](space.zero, { x: V \where R.Lt (distance (f.apply x) y) (tolerance N.Nat^::zero) }) \by {
+    R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ zeroDistance) small
+  } \then
+  \takefrom select: \forall (i: Input) -> Next i
+    \by \axiom:classicalIndefiniteChoice(Input, (\fun (i: Input) => Next i), nextExists neighborhood) \then
+  \takefrom x: \Cast[V] ({ x: V \where \forall (n: N.Nat^) -> SourceTopology.Member (Sequence[initial := initial, select := select].sets n) x })
+    \by SourceGeometry.cantor complete (\fun (n: N.Nat^) => Sequence[initial := initial, select := select].sets n)
+      (Sequence[initial := initial, select := select].nested) \then
+  \let member: \forall (n: N.Nat^) -> SourceTopology.Member (Sequence[initial := initial, select := select].sets n) x :=
+    \bysub(V, { x: V \where \forall (n: N.Nat^) -> SourceTopology.Member (Sequence[initial := initial, select := select].sets n) x }, x) \then
+  \let converges: Sequences.Converges (metric norm) (\fun (n: N.Nat^) => Sequence[initial := initial, select := select].sequence n) x :=
+    Sequence[initial := initial, select := select].converges x member \then
+  \return Logic.existsIntro[V, { x: V \where Solution[x] }] x (Solution[x] {
+    bound := R.leLtTrans _ (radius N.Nat^::zero) Real.one
+      (R.leReplaceLeft _ _ _
+        (trans!{Real.Real} _ _ _ ((metric norm).symmetric (space.zero) x)
+          (congr!{V Real.Real} (norm.norm) _ _ (subZeroRight x))) (member N.Nat^::zero))
+      (Estimates.halfStrict Real.one Product.onePositive),
+    equation := TargetSequences.limitUnique (Target.metric targetNorm)
+      (\fun (n: N.Nat^) => f.apply (Sequence[initial := initial, select := select].sequence n)) (f.apply x) y
+      (mapsConvergent f (\fun (n: N.Nat^) => Sequence[initial := initial, select := select].sequence n) x converges)
+      (Sequence[initial := initial, select := select].imageConverges (neighborhood.positiveDelta)),
+  })
+};

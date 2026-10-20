@@ -1,0 +1,45 @@
+\import \parent.Dimension[n := N.Nat^::zero] \as D;
+\import clifford.Euclidean[n := N.Nat^::zero] \as E;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := E.Vector, space := E.space].Of[form := E.form] \as Algebra;
+\import Algebra.Grading[] \as Grade;
+\import Algebra.Reversion[] \as Reverse;
+\import linear_algebra.Field[].Space[K := R.Real, field := Scalars.field] \as Spaces;
+\import Algebra.Universal[A := R.Real, target := Spaces.ring] \as Universal;
+\import clifford.EuclideanFaithfulness[] \as Faithfulness;
+\import algebra.Hom[A := E.Carrier, B := R.Real] \as Maps;
+\import std.Alg[].Ring[] \as Ring;
+\definition read: Maps.RingMap E.ring Spaces.ring := Universal.extension Faithfulness.representation;
+\definition lawsRead: Maps.SemiringLaws[Ring.ringAsSemiring E.Carrier E.ring, Ring.ringAsSemiring R.Real Spaces.ring, read] :=
+  Maps.semiringLaws (Ring.ringAsSemiring E.Carrier E.ring) (Ring.ringAsSemiring R.Real Spaces.ring) read;
+\import Algebra.HomExt[A := R.Real, target := Spaces.ring] \as Negative;
+\definition readNegative: \forall (x: E.Carrier) -> read (Algebra.neg x) = R.neg (read x) := Negative.onNegative read;
+\definition gradeIdentity: \forall (x: E.Carrier) -> Grade.map x = x := \fun (x: E.Carrier) =>
+  trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} Grade.map _ _ (sym!{E.Carrier} _ _ (Coordinates.Zero[].recover x)))
+    (trans!{E.Carrier} _ _ _ (Grade.onScalar (read x)) (Coordinates.Zero[].recover x));
+\definition reverseIdentity: \forall (x: E.Carrier) -> Reverse.map x = x := \fun (x: E.Carrier) =>
+  trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} Reverse.map _ _ (sym!{E.Carrier} _ _ (Coordinates.Zero[].recover x)))
+    (trans!{E.Carrier} _ _ _ (Reverse.onScalar (read x)) (Coordinates.Zero[].recover x));
+\definition laws: \forall (U: Open.OpenSet) -> D.Laws[U] := \fun (U: Open.OpenSet) => D.Laws[U] {
+  constant := \fun (a: E.Carrier)(i: Coordinates.Index N.Nat^::zero) => Functions.constantSmooth U (read a),
+  addition := \fun (f, g: Open.Carrier U -> E.Carrier)(left: D.Plot U f)(right: D.Plot U g)(i: Coordinates.Index N.Nat^::zero) =>
+    smoothEqual U (\fun (x: Open.Carrier U) => R.add (read (f x)) (read (g x))) (\fun (x: Open.Carrier U) => read (Algebra.add (f x) (g x)))
+      (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (lawsRead.add (f x) (g x)))
+      (Functions.addSmooth U (\fun (x: Open.Carrier U) => read (f x)) (\fun (x: Open.Carrier U) => read (g x)) (left i) (right i)),
+  negative := \fun (f: Open.Carrier U -> E.Carrier)(regular: D.Plot U f)(i: Coordinates.Index N.Nat^::zero) =>
+    smoothEqual U (\fun (x: Open.Carrier U) => R.neg (read (f x))) (\fun (x: Open.Carrier U) => read (Algebra.neg (f x)))
+      (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (readNegative (f x)))
+      (Functions.negSmooth U (\fun (x: Open.Carrier U) => read (f x)) (regular i)),
+  multiplication := \fun (f, g: Open.Carrier U -> E.Carrier)(left: D.Plot U f)(right: D.Plot U g)(i: Coordinates.Index N.Nat^::zero) =>
+    smoothEqual U (\fun (x: Open.Carrier U) => R.mul (read (f x)) (read (g x))) (\fun (x: Open.Carrier U) => read (Algebra.mul (f x) (g x)))
+      (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (lawsRead.mul (f x) (g x)))
+      (Functions.mulSmooth U (\fun (x: Open.Carrier U) => read (f x)) (\fun (x: Open.Carrier U) => read (g x)) (left i) (right i)),
+  grading := \fun (f: Open.Carrier U -> E.Carrier)(regular: D.Plot U f) => D.congruent U f (\fun (x: Open.Carrier U) => Grade.map (f x))
+    (\fun (x: Open.Carrier U) => sym!{E.Carrier} _ _ (gradeIdentity (f x))) regular,
+  reversion := \fun (f: Open.Carrier U -> E.Carrier)(regular: D.Plot U f) => D.congruent U f (\fun (x: Open.Carrier U) => Reverse.map (f x))
+    (\fun (x: Open.Carrier U) => sym!{E.Carrier} _ _ (reverseIdentity (f x))) regular,
+  scalar := \fun (f: Open.ScalarFunction U)(regular: Smooth.SmoothOn U f)(i: Coordinates.Index N.Nat^::zero) =>
+    smoothEqual U f (\fun (x: Open.Carrier U) => read (E.scalar (f x))) (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Coordinates.Zero[].onScalar (f x))) regular,
+  vector := \fun (f: Open.Carrier U -> E.Vector)(regular: D.Values U f)(i: Coordinates.Index N.Nat^::zero) =>
+    smoothEqual U (\fun (x: Open.Carrier U) => R.zero) (\fun (x: Open.Carrier U) => read (E.iota (f x)))
+      (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Universal.onVector Faithfulness.representation (f x))) (Functions.constantSmooth U R.zero),
+};

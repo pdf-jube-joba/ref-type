@@ -24,3 +24,6 @@
 ```
 
 [利用例](../../analysis/scalar_compatibility/src/Compatibility.ref) は定数列の極限と他分野との演算の共有を検査する。
+
+
+`Analysis.FiniteSums.blocks` は連続する二つの有限添字ブロック上の和を分離し、直和座標の内積の公式に使う。

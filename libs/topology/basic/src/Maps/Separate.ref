@@ -1,0 +1,23 @@
+\use Equality.congr;
+\import topology.Continuity[A := A, B := B] \as Continuous;
+\definition neighborhood: \forall (g, h: A) -> std.Logic[].Proposition[].Not (f g = f h) -> \exists ( U: \Pow A \where Source.RegularChoice[source, Source.Singleton h, g, U] ) := \block {
+  \fun (g, h: A)(different: _) \then
+  \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Target.RegularChoice[target, Target.Singleton (f h), f g, U] })
+    \by hausdorff (f g) (f h) different \then
+  \let left: Target.RegularChoice[target, Target.Singleton (f h), f g, U] := \bysub(\Pow B,
+    { U: \Pow B \where Target.RegularChoice[target, Target.Singleton (f h), f g, U] }, U) \then
+  \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where Target.NormalPartner[target, Target.Singleton (f h), U, V] }) \by left.partner \then
+  \let right: Target.NormalPartner[target, Target.Singleton (f h), U, V] := \bysub(\Pow B,
+    { V: \Pow B \where Target.NormalPartner[target, Target.Singleton (f h), U, V] }, V) \then
+  \return Logic.existsIntro[\Pow A, { W: \Pow A \where Source.RegularChoice[source, Source.Singleton h, g, W] }] (Continuous.Preimage f U)
+    (Source.RegularChoice[source, Source.Singleton h, g, Continuous.Preimage f U] {
+      open := continuous U left.open,
+      contains := left.contains,
+      partner := Logic.existsIntro[\Pow A, { W: \Pow A \where Source.NormalPartner[source, Source.Singleton h, Continuous.Preimage f U, W] }]
+        (Continuous.Preimage f V) (Source.NormalPartner[source, Source.Singleton h, Continuous.Preimage f U, Continuous.Preimage f V] {
+          open := continuous V right.open,
+          covers := \fun (x: A)(same: x = h) => right.covers (f x) (congr!{A B} f _ _ same),
+          disjoint := \fun (x: A)(inU: _)(inV: _) => right.disjoint (f x) inU inV,
+        }),
+    })
+};

@@ -1,0 +1,42 @@
+\import Open.Topology[].Of[U := U] \as Topology;
+\import \root.Support[A := Open.Carrier U] \as Support;
+\import \root.Powers[] \as Powers;
+\definition Functions: \Set := Open.ScalarFunction U;
+/* A compactly supported smooth test function, with all of its partials. */
+\structure Test: \Set := {
+  function: Functions,
+  partials: Directions -> Functions,
+  value: partials Directions::nil = function,
+  derivative: \forall (directions: Directions) (i: Calculus.Coordinate) ->
+    Analysis.HasPartialDerivative U (partials directions) i (partials (Directions::cons i directions)),
+  continuous: \forall (directions: Directions) -> Analysis.ContinuousOn U (partials directions),
+  compactSupport: Support.HasCompactSupport Topology.topology function,
+};
+\module WithMeasure(mu: \root.Measure[A := Open.Carrier U].Measure) {
+  \import \root.Measure[A := Open.Carrier U] \as Measures;
+  \import Measures.Integral[mu := mu] \as Integral;
+  \import Measures.Lp[mu := mu] \as Lp;
+  \structure WeakPairing[u, g: Functions, directions: Directions, test: Test, left, right: Real.Real]: \Prop := {
+    source: Integral.HasIntegral[\fun (x: Open.Carrier U) => Real.mul (u x) (test.partials directions x), left],
+    derivative: Integral.HasIntegral[\fun (x: Open.Carrier U) => Real.mul (g x) (test.function x), right],
+    integrationByParts: left = Real.mul (sign (order directions)) right,
+  };
+  \definition WeakDerivative[u, g: Functions] [directions: Directions]: \Prop :=
+    \forall (test: Test) -> \exists ( left: Real.Real \where \exists ( right: Real.Real \where
+      WeakPairing[u, g, directions, test, left, right] ) );
+  \structure Derivatives[u: Functions, k: N.Nat^, p: Powers.Exponent, derivatives: Directions -> Functions]: \Prop := {
+    function: derivatives Directions::nil = u,
+    integrable: \forall (directions: Directions) -> Nat.Le (order directions) k -> Lp.HasFiniteMoment[derivatives directions, p],
+    weak: \forall (directions: Directions) -> Nat.Le (order directions) k -> WeakDerivative u (derivatives directions) directions,
+  };
+  \definition HasWeakDerivatives[u: Functions] [k: N.Nat^] [p: Powers.Exponent]: \Prop :=
+    \exists ( derivatives: Directions -> Functions \where Derivatives[u, k, p, derivatives] );
+  \definition Representatives[k: N.Nat^] [p: Powers.Exponent]: \Set :=
+    \Cast[Functions] ({ u: Functions \where HasWeakDerivatives u k p });
+  \module Space(k: N.Nat^, p: Powers.Exponent) {
+    \import std.Set[].Quotient[A := Representatives k p, Equivalent :=
+      \fun (u, v: Representatives k p) => Measures.AlmostEqual mu u v] \as Quotient;
+    \definition Wkp: \Set := Quotient.Carrier;
+    \definition ofFunction[u: Representatives k p]: Wkp := Quotient.class u;
+  }
+}

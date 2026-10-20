@@ -1,0 +1,29 @@
+\definition c: BaseChart := (data.local i).baseChart;
+\import Blocks.On[U := c.image, V := FiberOpen.whole] \as Product;
+\import calculus.Maps[n := dimension, m := n].Topology[U := Product.domain, V := c.image] \as ProjectionTopology;
+\import BaseOpen.Topology[].Of[U := c.image] \as CoordinateTopology;
+\import Open.Topology[].Of[U := Product.domain] \as ParameterTopology;
+\import topology.Topology[Carrier := M.Point].Subspace[S := c.domain] \as BaseDomain;
+\import topology.Homeomorphism[A := BaseCharts.LocalPoint c, B := BaseOpen.Carrier c.image] \as Homeomorphisms;
+\import topology.Composition[A := Open.Carrier Product.domain, B := BaseOpen.Carrier c.image, C := BaseCharts.LocalPoint c] \as Compose;
+\import topology.Continuity[A := Open.Carrier Product.domain, B := BaseCharts.LocalPoint c] \as IntoDomain;
+\definition intoDomain: IntoDomain.Continuous ParameterTopology.topology (BaseCharts.domainTopology c.domain)
+  (\fun (u: Open.Carrier Product.domain) => BaseCharts.point c (Product.leftPoint u)) :=
+  Compose.composeContinuous ParameterTopology.topology CoordinateTopology.topology (BaseCharts.domainTopology c.domain)
+    Product.leftPoint (BaseCharts.point c) (ProjectionTopology.continuous Product.leftMap)
+    ((Homeomorphisms.laws (BaseCharts.domainTopology c.domain) (BaseCharts.imageTopology c.image) c.coordinates).backwardContinuous);
+\definition continuous: topology.Continuity[A := Open.Carrier Product.domain, B := M.Point].Continuous
+  ParameterTopology.topology M.space (\fun (u: Open.Carrier Product.domain) => projection ((data.local i).point u)) :=
+  \fun (W: \Pow M.Point)(openW: _) => \idelim
+    { u: Open.Carrier Product.domain \where \In[M.Point] W (BaseCharts.point c (Product.leftPoint u)) } =
+    { u: Open.Carrier Product.domain \where \In[M.Point] W (projection ((data.local i).point u)) }
+    \with V: \Pow (Open.Carrier Product.domain) => topology.Topology[Carrier := Open.Carrier Product.domain].IsOpenIn ParameterTopology.topology V \by {
+      base: intoDomain (BaseDomain.Trace W) (BaseDomain.traceOpen M.space W openW),
+      equality: \axiom:setext(
+        { u: Open.Carrier Product.domain \where \In[M.Point] W (BaseCharts.point c (Product.leftPoint u)) },
+        { u: Open.Carrier Product.domain \where \In[M.Point] W (projection ((data.local i).point u)) },
+        \fun (u: Open.Carrier Product.domain)(inside: _) => \idelim BaseCharts.point c (Product.leftPoint u) = projection ((data.local i).point u)
+          \with x: M.Point => \In[M.Point] W x \by { base: inside, equality: sym!{{M.Point}} _ _ ((data.local i).projectionFormula u) },
+        \fun (u: Open.Carrier Product.domain)(inside: _) => \idelim projection ((data.local i).point u) = BaseCharts.point c (Product.leftPoint u)
+          \with x: M.Point => \In[M.Point] W x \by { base: inside, equality: (data.local i).projectionFormula u })
+    };

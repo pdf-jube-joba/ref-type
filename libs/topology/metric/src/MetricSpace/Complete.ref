@@ -1,0 +1,57 @@
+\import \parent.Sequences[metric := metric] \as Sequences;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import real.Analysis[] \as Analysis;
+\import Analysis.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import Analysis.Algebra[] \as Algebra;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition CauchySequence: \Set := \Cast[N.Nat^ -> Carrier] ({ s: N.Nat^ -> Carrier \where Sequences.Cauchy s });
+\definition Values[s: CauchySequence]: \Set := \Cast[Carrier] ({ x: Carrier \where Sequences.Converges s x });
+\definition existence: \forall (s: CauchySequence) -> \exists Values s :=
+  \fun (s: CauchySequence) => metric.converges s (\bysub(N.Nat^ -> Carrier, { s: N.Nat^ -> Carrier \where Sequences.Cauchy s }, s));
+\definition uniqueness: \forall (s: CauchySequence)(x, y: Values s) -> x = y :=
+  \fun (s: CauchySequence)(x, y: Values s) => Sequences.limitUnique s x y
+    (\bysub(Carrier, { x: Carrier \where Sequences.Converges s x }, x)) (\bysub(Carrier, { y: Carrier \where Sequences.Converges s y }, y));
+\definition limit[s: CauchySequence]: Values s := \choice Values s \by { existence: existence s, uniqueness: uniqueness s };
+\definition limitLaw[s: CauchySequence]: Sequences.Converges s (limit s) := \bysub(Carrier, { x: Carrier \where Sequences.Converges s x }, limit s);
+\structure Contraction: \Set := {
+  apply: Carrier -> Carrier,
+  bound: \forall (x, y: Carrier) -> R.Le (metric.distance (apply x) (apply y)) (Analysis.mul Analysis.half (metric.distance x y)),
+};
+\definition contractionConverges: \forall (f: Contraction)(s: N.Nat^ -> Carrier)(x: Carrier) -> Sequences.Converges s x ->
+  Sequences.Converges (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) := \block {
+  \fun (f: Contraction)(s: _)(x: Carrier)(converges: Sequences.Converges s x)(epsilon: R.Real)(positive: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequences.Near s x epsilon k }) \by converges epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequences.Near (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) epsilon k }] k
+    (\fun (n: N.Nat^)(later: Nat.Le k n) => R.leLtTrans _ _ _
+      (R.leTrans _ _ _ (f.bound (s n) x) (Estimates.halfBelow (metric.distance (s n) x) (metric.nonnegative (s n) x)))
+      ((\bysub(N.Nat^, { k: N.Nat^ \where Sequences.Near s x epsilon k }, k)) n later))
+};
+\definition Fixed[f: Contraction]: \Set := \Cast[Carrier] ({ x: Carrier \where f.apply x = x });
+\definition fixedUnique: \forall (f: Contraction)(x, y: Fixed f) -> x = y := \block {
+  \fun (f: Contraction)(x, y: Fixed f) \then
+  \let bound: R.Le (metric.distance x y) (Analysis.mul Analysis.half (metric.distance x y)) :=
+    R.leReplaceLeft (metric.distance (f.apply x) (f.apply y)) (metric.distance x y) _
+      (congr2!{Carrier Carrier R.Real} metric.distance _ _ _ _
+        (\bysub(Carrier, { x: Carrier \where f.apply x = x }, x)) (\bysub(Carrier, { y: Carrier \where f.apply y = y }, y))) (f.bound x y) \then
+  \return metric.separated x y (R.leAntisym _ _
+    (Order.leOfNotLtReverse (metric.distance x y) Analysis.zero (\fun (positive: R.Lt Analysis.zero (metric.distance x y)) =>
+      R.ltNotLeReverse _ _ (Estimates.halfStrict (metric.distance x y) positive) bound)) (metric.nonnegative x y))
+};
+\module Iteration(f: Contraction, seed: Carrier);
+\definition fixedExists: \forall (f: Contraction)(seed: Carrier) -> \exists Fixed f :=
+  \fun (f: Contraction)(seed: Carrier) => \exact(Iteration[f := f, seed := seed].fixed, Fixed f);
+\definition fixedPoint[f: Contraction][seed: Carrier]: Fixed f := \choice Fixed f \by {
+  existence: fixedExists f seed, uniqueness: fixedUnique f
+};
+\definition seedIndependent: \forall (f: Contraction)(x, y: Carrier) -> fixedPoint f x = fixedPoint f y :=
+  \fun (f: Contraction)(x, y: Carrier) => fixedUnique f (fixedPoint f x) (fixedPoint f y);
+\definition SequentiallyClosed[S: \Pow Carrier]: \Prop := \forall (s: N.Nat^ -> Carrier)(x: Carrier) ->
+  Sequences.Converges s x -> (\forall (n: N.Nat^) -> \In[Carrier] S (s n)) -> \In[Carrier] S x;
+\definition ClosedSubset: \Set := \Cast[\Pow Carrier] ({ S: \Pow Carrier \where SequentiallyClosed S });
+\module Closed(S: ClosedSubset);

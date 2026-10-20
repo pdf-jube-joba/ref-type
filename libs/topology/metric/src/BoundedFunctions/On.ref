@@ -1,0 +1,53 @@
+\definition Within[f: I -> A]: \Prop := \forall (i: I) -> Real.Le (base.distance (center i) (f i)) radius;
+\definition Carrier: \Set := \Cast[I -> A] ({ f: I -> A \where Within f });
+\definition containsCenter: Within center := \fun (i: I) => Real.leReplaceLeft R.zero (base.distance (center i) (center i)) radius
+  (sym!{R.Real} _ _ (base.self (center i))) (\bysub(R.Real, { r: R.Real \where Real.Le R.zero r }, radius));
+\definition origin: Carrier := \into[I -> A](center, { f: I -> A \where Within f }) \by { containsCenter };
+\definition diameter: R.Real := R.add radius radius;
+\definition diameterNonnegative: Real.Le R.zero diameter := Arithmetic.addNonnegative radius radius
+  (\bysub(R.Real, { r: R.Real \where Real.Le R.zero r }, radius)) (\bysub(R.Real, { r: R.Real \where Real.Le R.zero r }, radius));
+\definition pointwiseBound: \forall (f, g: Carrier)(i: I) -> Real.Le (base.distance (f i) (g i)) diameter :=
+  \fun (f, g: Carrier)(i: I) => Real.leTrans _ _ _ (base.triangle (f i) (center i) (g i))
+    (Estimates.addLe _ _ _ _
+      (Real.leReplaceLeft (base.distance (center i) (f i)) (base.distance (f i) (center i)) radius (base.symmetric (center i) (f i))
+        ((\bysub(I -> A, { f: I -> A \where Within f }, f)) i))
+      ((\bysub(I -> A, { g: I -> A \where Within g }, g)) i));
+\definition capEq: \forall (f, g: Carrier)(i: I) -> Distance.min diameter (base.distance (f i) (g i)) = base.distance (f i) (g i) :=
+  \fun (f, g: Carrier)(i: I) => Distance.minOfGe diameter (base.distance (f i) (g i)) (pointwiseBound f g i);
+\import \root.SupremumMetric[Carrier := Carrier, Index := I] \as Sup;
+\definition coordinates: Sup.CappedCoordinates := Sup.CappedCoordinates {
+  anchor := anchor, ceiling := diameter,
+  weight := \fun (i: I) => diameter,
+  component := \fun (i: I)(f, g: Carrier) => base.distance (f i) (g i),
+  weightNonnegative := \fun (i: I) => diameterNonnegative,
+  weightBounded := \fun (i: I) => Real.leRefl diameter,
+  componentNonnegative := \fun (i: I)(f, g: Carrier) => base.nonnegative (f i) (g i),
+  componentSelf := \fun (i: I)(f: Carrier) => base.self (f i),
+  componentSymmetric := \fun (i: I)(f, g: Carrier) => base.symmetric (f i) (g i),
+  componentTriangle := \fun (i: I)(f, g, h: Carrier) => base.triangle (f i) (g i) (h i),
+  separated := \fun (f, g: Carrier)(all: _) => \axiom:funext(f, g, \fun (i: I) => base.separated (f i) (g i)
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (capEq f g i)) (all i))),
+};
+\import \root.MetricSpace[Carrier := Carrier] \as Uniform;
+\definition metric: Uniform.Metric := Sup.metric coordinates;
+\definition pointwiseLe: \forall (f, g: Carrier)(i: I) -> Real.Le (base.distance (f i) (g i)) (metric.distance f g) :=
+  \fun (f, g: Carrier)(i: I) => Real.leReplaceLeft _ _ _ (capEq f g i) (Sup.cappedUpper coordinates i f g);
+\definition distanceLe: \forall (f, g: Carrier)(bound: R.Real) ->
+  (\forall (i: I) -> Real.Le (base.distance (f i) (g i)) bound) -> Real.Le (metric.distance f g) bound :=
+  \fun (f, g: Carrier)(bound: R.Real)(all: _) => Supremum.supremumLeast (Sup.familyAsComplete coordinates f g) bound
+    (Sup.familyUpperBoundOf coordinates f g bound (\fun (i: I) => Real.leReplaceLeft _ _ _ (sym!{R.Real} _ _ (capEq f g i)) (all i)));
+\import Base.Complete[metric := base] \as CompleteBase;
+\import Base.Sequences[metric := base] \as BaseSequences;
+\import Uniform.Sequences[metric := metric] \as UniformSequences;
+\definition CauchySequence: \Set := \Cast[N.Nat^ -> Carrier] ({ s: N.Nat^ -> Carrier \where UniformSequences.Cauchy s });
+\module Limit(s: CauchySequence);
+\definition complete: Uniform.CompleteMetric := \into[Uniform.Metric](metric,
+  { metric: Uniform.Metric \where Uniform.Completeness[metric] }) \by {
+    Uniform.Completeness[metric] {
+      converges := \fun (s: N.Nat^ -> Carrier)(cauchy: UniformSequences.Cauchy s) => \block {
+        \let sequence: CauchySequence := \into[N.Nat^ -> Carrier](s, { s: N.Nat^ -> Carrier \where UniformSequences.Cauchy s }) \by { cauchy } \then
+        \return Logic.existsIntro[Carrier, { x: Carrier \where UniformSequences.Converges s x }] (Limit[s := sequence].value) (Limit[s := sequence].converges)
+      },
+    }
+  };
+\module Continuous(source: Source.Topology);

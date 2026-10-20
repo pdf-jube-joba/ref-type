@@ -1,0 +1,255 @@
+\import std.Logic[].Rel[] \as Relations;
+\import std.Logic[].Classical[] \as Classical;
+\structure Sublinear: \Prop := {
+  zero: p (space.zero) = Real.zero,
+  triangle: \forall (x, y: V) -> R.Le (p (space.add x y)) (Real.add (p x) (p y)),
+  homogeneous: \forall (a: Real.Real) (x: V) -> R.Le Real.zero a -> p (space.smul a x) = Real.mul a (p x),
+};
+\structure Point: \Set := {
+  vector: V,
+  value: Real.Real,
+};
+\definition Graph: \Set := \Pow Point;
+\definition Member[G: Graph] [t: Point]: \Prop := \In[Point] G t;
+\definition HasValue[G: Graph] [x: V] [r: Real.Real]: \Prop := Member G (Point::# x r);
+\definition Included[G, H: Graph]: \Prop := \forall (t: Point) -> Member G t -> Member H t;
+\definition plus[t, u: Point]: Point := Point::# (space.add (t.vector) (u.vector)) (Real.add (t.value) (u.value));
+\definition scale[a: Real.Real] [t: Point]: Point := Point::# (space.smul a (t.vector)) (Real.mul a (t.value));
+\structure LinearGraph[G: Graph]: \Prop := {
+  zero: HasValue G (space.zero) Real.zero,
+  addition: \forall (t, u: Point) -> Member G t -> Member G u -> Member G (plus t u),
+  scalar: \forall (a: Real.Real) (t: Point) -> Member G t -> Member G (scale a t),
+  functional: \forall (t, u: Point) -> Member G t -> Member G u -> t.vector = u.vector -> t.value = u.value,
+  dominated: \forall (t: Point) -> Member G t -> R.Le (t.value) (p (t.vector)),
+};
+\definition Partial: \Set := \Cast[Graph] ({ G: Graph \where LinearGraph[G] });
+\definition laws[G: Partial]: LinearGraph[G] := \bysub(Graph, { G: Graph \where LinearGraph[G] }, G);
+\definition Domain[G: Graph]: \Pow V := { x: V \where \exists ( r: Real.Real \where HasValue G x r ) };
+\module Extensions(initial: Partial);
+
+\import R.Completeness[] \as Complete;
+\import Real.Inverse[] \as Inverse;
+\definition crossCancel[a, b, c, d: Real.Real]:
+  Real.add (Real.sub a c) (Real.add c b) = Real.add a b := eq_reason!{
+    {Real.add (Real.sub a c) (Real.add c b)}
+    "=" {Real.add a (Real.add (Real.neg c) (Real.add c b))} "by" {Laws.addAssoc a (Real.neg c) (Real.add c b)}
+    "=" {Real.add a b} "by" {congr!{Real.Real Real.Real} (Real.add a) _ _ (Laws.addNegCancelLeft c b)}
+  };
+\definition crossSubLe: \forall (a, b, c, d: Real.Real) ->
+  R.Le (Real.add a b) (Real.add c d) -> R.Le (Real.sub a c) (Real.sub d b) :=
+  \fun (a, b, c, d: Real.Real) (bound: _) => Laws.leAddCancelRight (Real.sub a c) (Real.sub d b) (Real.add c b)
+    (R.leReplace (Real.add a b) (Real.add (Real.sub a c) (Real.add c b))
+      (Real.add c d) (Real.add (Real.sub d b) (Real.add c b))
+      (sym!{Real.Real} _ _ (crossCancel a b c d))
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (Real.add (Real.sub d b)) _ _ (Laws.addComm c b))
+        (trans!{Real.Real} _ _ _ (crossCancel d c b a) (Laws.addComm d c)))) bound);
+\definition vectorCross[x, y, z: V]:
+  space.add (sub x z) (space.add y z) = space.add x y :=
+  trans!{V} _ _ _ (Vectors.shuffle x (space.neg z) y z)
+    (trans!{V} _ _ _ (congr!{V V} (space.add (space.add x y)) _ _ (Vectors.inverseLeft z))
+      (Vectors.zeroRight (space.add x y)));
+\structure Interval[G: Graph, x: V, c: Real.Real]: \Prop := {
+  upper: \forall (t: Point) -> Member G t -> R.Le (Real.add (t.value) c) (p (space.add (t.vector) x)),
+  lower: \forall (t: Point) -> Member G t -> R.Le (Real.sub (t.value) c) (p (sub (t.vector) x)),
+};
+\definition UpperValues[G: Graph] [x: V]: \Pow Real.Real := { r: Real.Real \where
+  \exists ( t: Point \where Logic.And[Member G t, r = Real.sub (p (space.add (t.vector) x)) (t.value)] ) };
+\definition lowerValue[t: Point] [x: V]: Real.Real := Real.sub (t.value) (p (sub (t.vector) x));
+\definition crossBound: Sublinear -> \forall (G: Partial) (x: V) (t, u: Point) -> Member G t -> Member G u ->
+  R.Le (lowerValue t x) (Real.sub (p (space.add (u.vector) x)) (u.value)) := \block {
+  \fun (sublinear: Sublinear) (G: Partial) (x: V) (t, u: Point) (inT: Member G t) (inU: Member G u) \then
+  \let sum: R.Le (Real.add (t.value) (u.value))
+    (Real.add (p (sub (t.vector) x)) (p (space.add (u.vector) x))) :=
+    R.leTrans _ (p (space.add (t.vector) (u.vector))) _ ((laws G).dominated (plus t u) ((laws G).addition t u inT inU))
+      (R.leReplaceLeft (p (space.add (sub (t.vector) x) (space.add (u.vector) x))) (p (space.add (t.vector) (u.vector))) _
+        (congr!{V Real.Real} p _ _ (vectorCross (t.vector) (u.vector) x))
+        (sublinear.triangle (sub (t.vector) x) (space.add (u.vector) x))) \then
+  \return crossSubLe (t.value) (u.value) (p (sub (t.vector) x)) (p (space.add (u.vector) x)) sum
+};
+\definition lowerBound: Sublinear -> \forall (G: Partial) (x: V) (t: Point) -> Member G t ->
+  Complete.LowerBound (UpperValues G x) (lowerValue t x) := \block {
+  \fun (sublinear: Sublinear) (G: Partial) (x: V) (t: Point) (inT: Member G t)
+    (r: Real.Real) (member: \In[Real.Real] (UpperValues G x) r) \then
+  \takefrom u: \Cast[Point] ({ u: Point \where Logic.And[Member G u, r = Real.sub (p (space.add (u.vector) x)) (u.value)] }) \by member \then
+  \let data: Logic.And[Member G u, r = Real.sub (p (space.add (u.vector) x)) (u.value)] :=
+    \bysub(Point, { u: Point \where Logic.And[Member G u, r = Real.sub (p (space.add (u.vector) x)) (u.value)] }, u) \then
+  \return R.leReplaceRight _ _ r (sym!{Real.Real} _ _ (data.right)) (crossBound sublinear G x t u inT (data.left))
+};
+\definition upperMember[G: Partial] [x: V] [t: Point]: Member G t ->
+  \In[Real.Real] (UpperValues G x) (Real.sub (p (space.add (t.vector) x)) (t.value)) :=
+  \fun (member: Member G t) => Logic.existsIntro[Point, { u: Point \where
+    Logic.And[Member G u, Real.sub (p (space.add (t.vector) x)) (t.value) = Real.sub (p (space.add (u.vector) x)) (u.value)] }] t
+      (Logic.And[_, _]::# member (\refl(Real.sub (p (space.add (t.vector) x)) (t.value))));
+\definition intervalExists: Sublinear -> \forall (G: Partial) (x: V) -> \exists ( c: Real.Real \where Interval[G, x, c] ) := \block {
+  \fun (sublinear: Sublinear) (G: Partial) (x: V) \then
+  \let origin: Point := Point::# (space.zero) Real.zero \then
+  \let inhabited: Complete.Nonempty (UpperValues G x) :=
+    Logic.existsIntro[Real.Real, UpperValues G x] (Real.sub (p (space.add (space.zero) x)) Real.zero)
+      (upperMember G x origin (laws G).zero) \then
+  \takefrom c: \Cast[Real.Real] ({ c: Real.Real \where Complete.GreatestLowerBound (UpperValues G x) c })
+    \by Complete.completeBelow (UpperValues G x) inhabited
+      (Logic.existsIntro[Real.Real, { r: Real.Real \where Complete.LowerBound (UpperValues G x) r }] (lowerValue origin x)
+        (lowerBound sublinear G x origin (laws G).zero)) \then
+  \let infimum: Complete.GreatestLowerBound (UpperValues G x) c :=
+    \bysub(Real.Real, { c: Real.Real \where Complete.GreatestLowerBound (UpperValues G x) c }, c) \then
+  \return Logic.existsIntro[Real.Real, { c: Real.Real \where Interval[G, x, c] }] c (Interval[G, x, c] {
+    upper := \fun (t: Point) (member: Member G t) =>
+      R.leReplaceLeft (Real.add c (t.value)) (Real.add (t.value) c) _ (Laws.addComm c (t.value))
+        (R.leReplaceRight _ (Real.add (Real.sub (p (space.add (t.vector) x)) (t.value)) (t.value)) _
+          (Distance.subAddCancel (p (space.add (t.vector) x)) (t.value))
+          (Laws.addMonotoneRight c (Real.sub (p (space.add (t.vector) x)) (t.value)) (t.value)
+            (infimum.left _ (upperMember G x t member)))),
+    lower := \fun (t: Point) (member: Member G t) =>
+      Laws.leAddCancelRight (Real.sub (t.value) c) (p (sub (t.vector) x)) c
+        (R.leReplaceLeft (t.value) (Real.add (Real.sub (t.value) c) c) _ (sym!{Real.Real} _ _ (Distance.subAddCancel (t.value) c))
+          (R.leReplaceLeft (Real.add (Real.sub (t.value) (p (sub (t.vector) x))) (p (sub (t.vector) x))) (t.value) _
+            (Distance.subAddCancel (t.value) (p (sub (t.vector) x)))
+            (R.leReplaceRight _ (Real.add c (p (sub (t.vector) x))) (Real.add (p (sub (t.vector) x)) c)
+              (Laws.addComm c (p (sub (t.vector) x)))
+              (Laws.addMonotoneRight (lowerValue t x) c (p (sub (t.vector) x))
+                (infimum.right (lowerValue t x) (lowerBound sublinear G x t member)))))),
+  })
+};
+
+\definition inverseProduct: \forall (a: Real.Real) -> R.Lt Real.zero a -> Real.mul a (Laws.fieldInv a) = Real.one :=
+  \fun (a: Real.Real) (positive: _) => trans!{Real.Real} _ _ _ (Laws.fieldMulComm a (Laws.fieldInv a))
+    (Laws.fieldInverseNonzero a (Inverse.positiveNonzero a positive));
+\definition cancelVector: \forall (a: Real.Real) (v: V) -> R.Lt Real.zero a ->
+  space.smul a (space.smul (Laws.fieldInv a) v) = v :=
+  \fun (a: Real.Real) (v: V) (positive: _) => trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAssoc a (Laws.fieldInv a) v))
+    (trans!{V} _ _ _ (congr!{Real.Real V} (\fun (r: Real.Real) => space.smul r v) _ _ (inverseProduct a positive)) (space.scalarOne v));
+\definition rescaleVector: \forall (a: Real.Real) (v, z: V) -> R.Lt Real.zero a ->
+  space.smul a (space.add (space.smul (Laws.fieldInv a) v) z) = space.add v (space.smul a z) :=
+  \fun (a: Real.Real) (v, z: V) (positive: _) => trans!{V} _ _ _ (space.vectorAdd a (space.smul (Laws.fieldInv a) v) z)
+    (congr!{V V} (\fun (w: V) => space.add w (space.smul a z)) _ _ (cancelVector a v positive));
+\definition rescaleValue: \forall (a, r, d: Real.Real) -> R.Lt Real.zero a ->
+  Real.mul a (Real.add (Real.mul (Laws.fieldInv a) r) d) = Real.add r (Real.mul a d) :=
+  \fun (a, r, d: Real.Real) (positive: _) => eq_reason!{
+    {Real.mul a (Real.add (Real.mul (Laws.fieldInv a) r) d)}
+    "=" {Real.add (Real.mul a (Real.mul (Laws.fieldInv a) r)) (Real.mul a d)} "by" {Laws.fieldMulAdd a (Real.mul (Laws.fieldInv a) r) d}
+    "=" {Real.add (Real.mul (Real.mul a (Laws.fieldInv a)) r) (Real.mul a d)} "by" {
+      congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.add s (Real.mul a d)) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc a (Laws.fieldInv a) r))}
+    "=" {Real.add (Real.mul Real.one r) (Real.mul a d)} "by" {
+      congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.add (Real.mul s r) (Real.mul a d)) _ _ (inverseProduct a positive)}
+    "=" {Real.add r (Real.mul a d)} "by" {congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.add s (Real.mul a d)) _ _ (Laws.fieldMulOneLeft r)}
+  };
+\definition scaleNegBoth: \forall (a: Real.Real) (v: V) -> space.smul (Real.neg a) (space.neg v) = space.smul a v :=
+  \fun (a: Real.Real) (v: V) => eq_reason!{
+    {space.smul (Real.neg a) (space.neg v)}
+    "=" {space.smul (Real.neg a) (space.smul (Real.neg Real.one) v)} "by" {
+      congr!{V V} (space.smul (Real.neg a)) _ _ (sym!{V} _ _ (Vectors.minusOneScale v))}
+    "=" {space.smul (Real.mul (Real.neg a) (Real.neg Real.one)) v} "by" {sym!{V} _ _ (space.scalarAssoc (Real.neg a) (Real.neg Real.one) v)}
+    "=" {space.smul (Real.mul a Real.one) v} "by" {congr!{Real.Real V} (\fun (r: Real.Real) => space.smul r v) _ _ (Laws.fieldMulNegBoth a Real.one)}
+    "=" {space.smul a v} "by" {congr!{Real.Real V} (\fun (r: Real.Real) => space.smul r v) _ _ (Algebra.mulOneRight a)}
+  };
+\definition positiveBound: Sublinear -> \forall (G: Partial) (z: V) (d: Real.Real) ->
+  (\forall (t: Point) -> Member G t -> R.Le (Real.add (t.value) d) (p (space.add (t.vector) z))) ->
+  \forall (t: Point) (a: Real.Real) -> Member G t -> R.Lt Real.zero a ->
+  R.Le (Real.add (t.value) (Real.mul a d)) (p (space.add (t.vector) (space.smul a z))) := \block {
+  \fun (sublinear: Sublinear) (G: Partial) (z: V) (d: Real.Real)
+    (bound: \forall (t: Point) -> Member G t -> R.Le (Real.add (t.value) d) (p (space.add (t.vector) z)))
+    (t: Point) (a: Real.Real) (member: Member G t) (positive: R.Lt Real.zero a) \then
+  \let s: Point := scale (Laws.fieldInv a) t \then
+  \let estimate: R.Le (Real.mul a (Real.add (s.value) d)) (Real.mul a (p (space.add (s.vector) z))) :=
+    Estimates.mulMonotone a _ _ (Order.leOfLt _ _ positive) (bound s ((laws G).scalar (Laws.fieldInv a) t member)) \then
+  \let scalarLaw: Real.mul a (p (space.add (s.vector) z)) = p (space.add (t.vector) (space.smul a z)) :=
+    trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (sublinear.homogeneous a (space.add (s.vector) z) (Order.leOfLt _ _ positive)))
+      (congr!{V Real.Real} p _ _ (rescaleVector a (t.vector) z positive)) \then
+  \return R.leReplace _ _ _ _ (rescaleValue a (t.value) d positive) scalarLaw estimate
+};
+\definition coefficientBound: Sublinear -> \forall (G: Partial) (x: V) (c: Real.Real) -> Interval[G, x, c] ->
+  \forall (t: Point) (a: Real.Real) -> Member G t ->
+  R.Le (Real.add (t.value) (Real.mul a c)) (p (space.add (t.vector) (space.smul a x))) :=
+  \fun (sublinear: Sublinear) (G: Partial) (x: V) (c: Real.Real) (interval: Interval[G, x, c]) (t: Point) (a: Real.Real) (member: Member G t) =>
+    Logic.orElim _ _ _ (Laws.nonnegativeOrNegativeReal a)
+      (\fun (nonnegative: R.Le Real.zero a) => Logic.orElim _ _ _ (Classical.excludedMiddle (Real.zero = a))
+        (\fun (same: Real.zero = a) => R.leReplace _ _ _ _
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add (t.value) (Real.mul r c)) _ _ (sym!{Real.Real} _ _ same))
+            (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (t.value)) _ _ (Laws.fieldMulZeroLeft c)) (Laws.addZeroRight (t.value)))))
+          (sym!{Real.Real} _ _ (congr!{V Real.Real} p _ _ (trans!{V} _ _ _
+            (congr!{Real.Real V} (\fun (r: Real.Real) => space.add (t.vector) (space.smul r x)) _ _ (sym!{Real.Real} _ _ same))
+            (trans!{V} _ _ _ (congr!{V V} (space.add (t.vector)) _ _ (Vectors.zeroScale x)) (Vectors.zeroRight (t.vector))))))
+          ((laws G).dominated t member))
+        (\fun (unequal: Logic.Not (Real.zero = a)) => positiveBound sublinear G x c (interval.upper) t a member (Order.ltOfLeNotEq Real.zero a nonnegative unequal)))
+      (\block {
+        \fun (negative: R.Lt a Real.zero) \then
+        \let positive: R.Lt Real.zero (Real.neg a) := Order.ltOfLeNotEq Real.zero (Real.neg a)
+          (Laws.nonnegativeNegOfNegative a negative)
+          (\fun (same: Real.zero = Real.neg a) => Inverse.negNonzero a (Order.ltNotEq a Real.zero negative) (sym!{Real.Real} _ _ same)) \then
+        \return R.leReplace _ _ _ _
+          (congr!{Real.Real Real.Real} (Real.add (t.value)) _ _ (Laws.fieldMulNegBoth a c))
+          (congr!{V Real.Real} p _ _ (congr!{V V} (space.add (t.vector)) _ _ (scaleNegBoth a x)))
+          (positiveBound sublinear G (space.neg x) (Real.neg c) (interval.lower) t (Real.neg a) member positive)
+      });
+\module Adjoin(G: Partial, x: V, c: Real.Real);
+
+\definition Total[G: Graph]: \Prop := \forall (x: V) -> \exists ( r: Real.Real \where HasValue G x r );
+\structure GlobalExtension[G: Graph, f: V -> Real.Real]: \Prop := {
+  agrees: \forall (t: Point) -> Member G t -> f (t.vector) = t.value,
+  addition: \forall (x, y: V) -> f (space.add x y) = Real.add (f x) (f y),
+  scalar: \forall (a: Real.Real) (x: V) -> f (space.smul a x) = Real.mul a (f x),
+  dominated: \forall (x: V) -> R.Le (f x) (p x),
+};
+\definition functionExists: \forall (G: Partial) -> Total G ->
+  \exists ( f: V -> Real.Real \where GlobalExtension[G, f] ) := \block {
+  \fun (G: Partial) (total: Total G) \then
+  \takefrom choose: \forall (x: V) -> \Cast[Real.Real] ({ r: Real.Real \where HasValue G x r })
+    \by \axiom:classicalIndefiniteChoice(V, (\fun (x: V) => \Cast[Real.Real] ({ r: Real.Real \where HasValue G x r })), total) \then
+  \let f: V -> Real.Real := \fun (x: V) => choose x \then
+  \let member: \forall (x: V) -> HasValue G x (f x) :=
+    \fun (x: V) => \bysub(Real.Real, { r: Real.Real \where HasValue G x r }, choose x) \then
+  \return Logic.existsIntro[V -> Real.Real, { f: V -> Real.Real \where GlobalExtension[G, f] }] f (GlobalExtension[G, f] {
+    agrees := \fun (t: Point) (inG: Member G t) =>
+      (laws G).functional (Point::# (t.vector) (f (t.vector))) t (member (t.vector)) inG (\refl(t.vector)),
+    addition := \fun (x, y: V) => (laws G).functional
+      (Point::# (space.add x y) (f (space.add x y))) (plus (Point::# x (f x)) (Point::# y (f y)))
+      (member (space.add x y)) ((laws G).addition _ _ (member x) (member y)) (\refl(space.add x y)),
+    scalar := \fun (a: Real.Real) (x: V) => (laws G).functional
+      (Point::# (space.smul a x) (f (space.smul a x))) (scale a (Point::# x (f x)))
+      (member (space.smul a x)) ((laws G).scalar a _ (member x)) (\refl(space.smul a x)),
+    dominated := \fun (x: V) => (laws G).dominated (Point::# x (f x)) (member x),
+  })
+};
+\module Maximal(initial: Partial) {
+  \import \parent.Extensions[initial := initial] \as Extensions;
+  \definition total: Sublinear -> \forall (G: Extensions.PartialExtension) -> Extensions.Maximal G -> Total G := \block {
+    \fun (sublinear: Sublinear) (G: Extensions.PartialExtension) (maximal: Extensions.Maximal G) (x: V) \then
+    \let partial: Partial := \into[Graph](G, { H: Graph \where LinearGraph[H] }) \by { (Extensions.extension G).linear } \then
+    \takefrom c: \Cast[Real.Real] ({ c: Real.Real \where Interval[partial, x, c] }) \by intervalExists sublinear partial x \then
+    \let interval: Interval[partial, x, c] := \bysub(Real.Real, { c: Real.Real \where Interval[partial, x, c] }, c) \then
+    \let H: Extensions.PartialExtension := \into[Graph](\parent.Adjoin[G := partial, x := x, c := c].adjoin,
+      { H: Graph \where Extensions.Extends[H] }) \by {
+        Extensions.Extends[\parent.Adjoin[G := partial, x := x, c := c].adjoin] {
+          linear := \parent.Adjoin[G := partial, x := x, c := c].linear sublinear interval,
+          initial := \fun (t: Point) (member: Member initial t) =>
+            \parent.Adjoin[G := partial, x := x, c := c].includes t ((Extensions.extension G).initial t member),
+        }
+      } \then
+    \let same: G = H := maximal H (\parent.Adjoin[G := partial, x := x, c := c].includes) \then
+    \return Logic.existsIntro[Real.Real, { r: Real.Real \where HasValue G x r }] c
+      (\idelim H = G \with K: Extensions.PartialExtension => HasValue K x c
+        \by { base: \parent.Adjoin[G := partial, x := x, c := c].newPoint, equality: sym!{Extensions.PartialExtension} _ _ same })
+  };
+}
+\definition hahnBanach: Sublinear -> \forall (initial: Partial) ->
+  \exists ( f: V -> Real.Real \where GlobalExtension[initial, f] ) := \block {
+  \fun (sublinear: Sublinear) (initial: Partial) \then
+  \takefrom G: \Cast[Extensions[initial := initial].PartialExtension]
+    ({ G: Extensions[initial := initial].PartialExtension \where Extensions[initial := initial].Maximal G })
+    \by Extensions[initial := initial].maximalExtensionExists \then
+  \let maximal: Extensions[initial := initial].Maximal G :=
+    \bysub(Extensions[initial := initial].PartialExtension,
+      { G: Extensions[initial := initial].PartialExtension \where Extensions[initial := initial].Maximal G }, G) \then
+  \let partial: Partial := \into[Graph](G, { H: Graph \where LinearGraph[H] }) \by {
+    (Extensions[initial := initial].extension G).linear } \then
+  \takefrom f: \Cast[V -> Real.Real] ({ f: V -> Real.Real \where GlobalExtension[partial, f] })
+    \by functionExists partial (Maximal[initial := initial].total sublinear G maximal) \then
+  \let data: GlobalExtension[partial, f] := \bysub(V -> Real.Real, { f: V -> Real.Real \where GlobalExtension[partial, f] }, f) \then
+  \return Logic.existsIntro[V -> Real.Real, { f: V -> Real.Real \where GlobalExtension[initial, f] }] f (GlobalExtension[initial, f] {
+    agrees := \fun (t: Point) (member: Member initial t) => data.agrees t ((Extensions[initial := initial].extension G).initial t member),
+    addition := data.addition, scalar := data.scalar, dominated := data.dominated,
+  })
+};
+\module OnSubspace(subspace: Linear.Subspace[V := V, space := space].Subspace);
