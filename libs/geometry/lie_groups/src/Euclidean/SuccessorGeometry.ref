@@ -1,0 +1,45 @@
+/* Head and orthogonal-complement coordinates in the next dimension. */
+\import std.Data[].Nat[] \as N;
+\import \root.Euclidean[n := N.Nat^::succ n] \as Next;
+\import Fin.Tuples[A := R.Real] \as Tuples;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import Spaces.Linear[V := Vector, W := Next.Vector, source := space, target := Next.space] \as Embeddings;
+\import Spaces.Linear[V := Next.Vector, W := Vector, source := Next.space, target := space] \as Projections;
+\definition head[x: Next.Vector]: R.Real := x (Fin.zero n);
+\definition tail[x: Next.Vector][i: Fin.Fin n]: R.Real := x (Fin.succ n i);
+\definition embed[x: Vector]: Next.Vector := Tuples.extend n R.zero x;
+\definition first: Next.Vector := Tuples.extend n R.one space.zero;
+\definition embedHead[x: Vector]: head (embed x) = R.zero := Tuples.atZero n R.zero x;
+\definition embedTail[x: Vector]: tail (embed x) = x := \axiom:funext(tail (embed x), x,
+  \fun (i: Fin.Fin n) => Tuples.atSuccessor n R.zero x i);
+\definition firstHead: head first = R.one := Tuples.atZero n R.one space.zero;
+\definition firstTail: tail first = space.zero := \axiom:funext(tail first, space.zero,
+  \fun (i: Fin.Fin n) => Tuples.atSuccessor n R.one space.zero i);
+\definition splitDot: \forall (x, y: Next.Vector) -> Next.dot x y = R.add (R.mul (head x) (head y)) (dot (tail x) (tail y)) :=
+  \fun (x, y: Next.Vector) => \refl(Next.dot x y);
+\definition embeddedDot: \forall (x, y: Vector) -> Next.dot (embed x) (embed y) = dot x y := \fun (x, y: Vector) =>
+  trans!{R.Real} _ _ _ (splitDot (embed x) (embed y))
+    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+      (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ (embedHead x) (embedHead y)) (Arithmetic.fieldMulZeroLeft R.zero))
+      (congr2!{Vector Vector R.Real} dot _ _ _ _ (embedTail x) (embedTail y))) (Arithmetic.addZeroLeft (dot x y)));
+\definition firstDot: \forall (x: Next.Vector) -> Next.dot first x = head x := \fun (x: Next.Vector) =>
+  trans!{R.Real} _ _ _ (splitDot first x)
+    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (head x)) _ _ firstHead) (Arithmetic.fieldMulOneLeft (head x)))
+      (trans!{R.Real} _ _ _ (congr!{Vector R.Real} (\fun (y: Vector) => dot y (tail x)) _ _ firstTail) (form.zeroLeft (tail x)))) (Arithmetic.addZeroRight (head x)));
+\definition firstNorm: Next.dot first first = R.one := trans!{R.Real} _ _ _ (firstDot first) firstHead;
+\definition recover[x: Next.Vector]: head x = R.zero -> embed (tail x) = x := \fun (zero: _) => Tuples.extensionality n (embed (tail x)) x
+  (trans!{R.Real} _ _ _ (embedHead (tail x)) (sym!{R.Real} _ _ zero)) (\fun (i: Fin.Fin n) => Tuples.atSuccessor n R.zero (tail x) i);
+\definition projection: Projections.Map := Projections.Map {
+  apply := tail,
+  preservesAdd := \fun (x, y: Next.Vector) => \refl(tail (Next.space.add x y)),
+  preservesScale := \fun (a: R.Real)(x: Next.Vector) => \refl(tail (Next.space.smul a x)),
+};
+\module Embedding;
+\import \root.Classical[].On[V := Next.Vector, space := Next.space].Orthogonal[form := Next.form] \as NextOrthogonal;
+\import algebra.Groups[].On[G := Next.O, group := Next.orthogonalGroup] \as NextOperations;
+\definition headInvariant: \forall (g: Next.O) -> NextOrthogonal.action g first = first -> \forall (x: Next.Vector) -> head (NextOrthogonal.action g x) = head x :=
+  \fun (g: Next.O)(fixes: _)(x: Next.Vector) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (firstDot (NextOrthogonal.action g x)))
+    (trans!{R.Real} _ _ _ (congr!{Next.Vector R.Real} (\fun (y: Next.Vector) => Next.dot y (NextOrthogonal.action g x)) _ _ (sym!{Next.Vector} _ _ fixes))
+      (trans!{R.Real} _ _ _ (NextOrthogonal.preserves g first x) (firstDot x)));
+\module Stabilizer(g: Next.O, fixes: NextOrthogonal.action g first = first);

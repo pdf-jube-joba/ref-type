@@ -1,0 +1,14 @@
+\import Clifford.Relations[] \as Relations;
+\definition coefficient[w: Vector]: R.Real := R.mul (Arithmetic.fieldInv (squared v)) (Relations.polar v w);
+\definition polar[w: Vector]: Relations.polar normalized w = R.mul factor (Relations.polar v w) :=
+  trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (form.scaleLeft factor v w) (form.scaleRight factor w v))
+    (sym!{R.Real} _ _ (Arithmetic.fieldMulAdd factor (dot v w) (dot w v)));
+\definition rescaled[w: Vector]: R.mul (Relations.polar normalized w) factor = coefficient w := trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real} (\fun (x: R.Real) => R.mul x factor) _ _ (polar w))
+  (trans!{R.Real} _ _ _ (Arithmetic.fieldMulComm (R.mul factor (Relations.polar v w)) factor)
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.fieldMulAssoc factor factor (Relations.polar v w)))
+      (congr!{R.Real R.Real} (\fun (x: R.Real) => R.mul x (Relations.polar v w)) _ _ inverseSquare)));
+\definition value: \forall (w: Vector) -> Orthogonal.action reflection w = space.add w (space.neg (space.smul (coefficient w) v)) :=
+  \fun (w: Vector) => congr!{Vector Vector} (\fun (x: Vector) => space.add w (space.neg x)) _ _
+    (trans!{Vector} _ _ _ (sym!{Vector} _ _ (space.scalarAssoc (Relations.polar normalized w) factor v))
+      (congr!{R.Real Vector} (\fun (x: R.Real) => space.smul x v) _ _ (rescaled w)));

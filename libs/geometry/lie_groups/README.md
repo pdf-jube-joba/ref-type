@@ -16,6 +16,8 @@
 | `Classical.On.Orthogonal.LieAlgebra` | 反対称な線形自己写像の部分リー代数 |
 | `Euclidean[n]` | 標準内積、O(n)・SO(n)・\(\mathfrak{so}(n)\)、クリフォード代数と Pin・Spin・複素拡張の具体化 |
 | `Euclidean.PinRepresentation` | twisted adjoint による Pin から O(n) への準同型と、Spin への制限 |
+| `Euclidean.InnerProduct` | 内積の正定値性、非零ベクトルの正規化、反射の有理式による表示 |
+| `Euclidean.SuccessorGeometry` | 次元を一つ増やした空間の直交補空間、最初の基底ベクトルを固定する変換の低次元への制限 |
 | `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |
 
 `Ad g` は共役写像 \(x\mapsto gxg^{-1}\) の単位元での微分である。
