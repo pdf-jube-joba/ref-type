@@ -1,0 +1,24 @@
+\import real.Analysis[].Inverse[] \as Inverse;
+\import \parent.Operations[] \as Operations;
+\definition value[x: Carrier U]: Real := inv (f x);
+\definition factor[x: Carrier U]: Real := Arithmetic.neg (mul (value x) (value x));
+\definition differential[df: ScalarFunction U][x: Carrier U]: Real := mul (factor x) (df x);
+\definition continuous: ContinuousOn U f -> ContinuousOn U value := \block {
+  \fun (continuousF: _)(a: Carrier U)(epsilon: Real)(ep: _) \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where Inverse.ContinuityRadius[f a, epsilon, r] }) \by Inverse.continuity (f a) epsilon (nonzero a) ep \then
+  \let inverseControl: Inverse.ContinuityRadius[f a, epsilon, rho] := \bysub(Real, { r: Real \where Inverse.ContinuityRadius[f a, epsilon, r] }, rho) \then
+  \let rp: R.Lt zero rho := inverseControl.positive \then
+  \takefrom delta: \Cast[Real] ({ d: Real \where ContinuityControl[U, f, a, rho, d] }) \by continuousF a rho rp \then
+  \let control: ContinuityControl[U, f, a, rho, delta] := \bysub(Real, { d: Real \where ContinuityControl[U, f, a, rho, d] }, delta) \then
+  \return Logic.existsIntro[Real, { d: Real \where ContinuityControl[U, value, a, epsilon, d] }] delta
+    (ContinuityControl[U, value, a, epsilon, delta] {
+      positive := control.positive,
+      estimate := \fun (x: Carrier U)(near: _) => R.ltReplaceLeft (distance (inv (f a)) (inv (f x))) (distance (inv (f x)) (inv (f a))) epsilon
+        (Metric.distanceSymmetric (inv (f a)) (inv (f x)))
+        (inverseControl.estimate (f x) (nonzero x)
+          (R.ltReplaceLeft (distance (f x) (f a)) (distance (f a) (f x)) rho (Metric.distanceSymmetric (f x) (f a)) (control.estimate x near))),
+    })
+};
+\module At(a: Carrier U, i: Coordinate);
+\definition partial: \forall (i: Coordinate)(df: ScalarFunction U) -> HasPartialDerivative U f i df -> HasPartialDerivative U value i (differential df) :=
+  \fun (i: Coordinate)(df: _)(law: _)(a: Carrier U) => At[a := a, i := i].partial (df a) (law a);
