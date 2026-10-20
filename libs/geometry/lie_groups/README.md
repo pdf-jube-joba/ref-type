@@ -24,6 +24,8 @@
 | `CliffordPlots` | 再帰的な係数座標による、代数演算・次数自己同型・反自己同型の滑らかさ |
 | `Euclidean.PinPlots` | Pin の積・逆元と直交群への写像の係数による滑らかさ |
 | `CoefficientAtlas` | 点を分離する係数関数と局所座標から多様体・リー群を構成する一般のインターフェース |
+| `PinFrame[n]` | Pin の再帰的な局所積表示と、座標・逆座標の滑らかさ |
+| `PinAtlas.Dimension[n]` | Pin(n) の多様体 `manifold` とリー群 `lieGroup` |
 | `PinSurjectivity` | 任意の直交変換の Pin への持ち上げ |
 | `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |
 
@@ -70,7 +72,10 @@ SO(n) は次数 \(n\) の全交代形式を保つ条件を用いる。
 行列式は多重線形形式の滑らかな評価として扱い、`SpecialOrthogonal[n]` はその正の部分を開部分群として構成する。
 `SpecialOrthogonal[n].lieGroup` が SO(n) のリー群構造である。
 
-\(\mathfrak{so}(n)\) と単位元の接空間との同定、Pin・Spin の被覆に沿う多様体構造、有限中心商の多様体構造は引き続き構成中である。
+`PinFrame[n]` は Pin の元を球面方向の局所断面と低次元の Pin の元の積に分解し、分解の存在・一意性と両方向の滑らかさを証明する。
+`PinAtlas.atlasData` は零次元の二点のアトラスから帰納的に全次元のアトラスを構成し、`PinAtlas.Dimension[n].lieGroup` が実際のリー群構造を与える。
+
+\(\mathfrak{so}(n)\) と単位元の接空間との同定、Spin の開部分群構造、複素拡張の多様体構造は引き続き構成中である。
 
 ```sh
 cargo run -p cli -- libs/geometry/lie_groups --module lie_groups

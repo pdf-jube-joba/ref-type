@@ -1,0 +1,41 @@
+\definition orthogonal: Orthogonal.Parts := Orthogonal.asPart (HigherRepresentation.map g) (nonzero g);
+\definition parameter: E.Vector := Orthogonal.parameter orthogonal;
+\definition lowerOrthogonal: E.O := Orthogonal.fiber orthogonal;
+\definition corrected: Next.Pin := untranslate (section parameter) g;
+\definition correctedImage: HigherRepresentation.map corrected = Geometry.Extension[h := lowerOrthogonal].orthogonal :=
+  trans!{{Next.O}} _ _ _ (HigherRepresentation.multiplication (Group.inv (section parameter)) g)
+    (trans!{{Next.O}} _ _ _ (congr!{{Next.O} {Next.O}} (\fun (q: Next.O) => Isometries.mul q (HigherRepresentation.map g)) _ _
+      (trans!{{Next.O}} _ _ _ (HigherRepresentation.inverseImage (section parameter)) (congr!{{Next.O} {Next.O}} Isometries.inv _ _ (sectionImage parameter))))
+      (trans!{{Next.O}} _ _ _ (congr!{{Next.O} {Next.O}} (Orthogonal.untranslate Geometry.SphereSection[s := parameter].value) _ _
+        (sym!{{Next.O}} _ _ (Orthogonal.reconstruct orthogonal)))
+        (Orthogonal.undoTranslation Geometry.SphereSection[s := parameter].value Geometry.Extension[h := lowerOrthogonal].orthogonal)));
+\definition Fibers: \Set := \Cast[E.Pin] ({ h: E.Pin \where Inclusion.pin h = corrected });
+\definition represents[h: Fibers]: Inclusion.pin h = corrected := \bysub(E.Pin, { h: E.Pin \where Inclusion.pin h = corrected }, h);
+\definition fiberExists: \exists Fibers := \block {
+  \takefrom h: \root.PinSurjectivity[].Dimension[n := n].Lifts lowerOrthogonal \by \root.PinSurjectivity[].surjective n lowerOrthogonal \then
+  \let image: Representation.map h = lowerOrthogonal := \bysub(E.Pin, { h: E.Pin \where Representation.map h = lowerOrthogonal }, h) \then
+  \let embeddedImage: HigherRepresentation.map (Inclusion.pin h) = Geometry.Extension[h := lowerOrthogonal].orthogonal :=
+    trans!{{Next.O}} _ _ _ (Geometry.PinExtension[g := h].law)
+      (congr!{{E.O} {Next.O}} (\fun (k: E.O) => Geometry.Extension[h := k].orthogonal) _ _ image) \then
+  \let same: HigherRepresentation.map corrected = HigherRepresentation.map (Inclusion.pin h) := trans!{{Next.O}} _ _ _ correctedImage (sym!{{Next.O}} _ _ embeddedImage) \then
+  \return either!{{(HigherRepresentation.Kernel[].fibers corrected (Inclusion.pin h) same)} {\exists Fibers}
+    {\fun (equal: corrected = Inclusion.pin h) => \exact(\into[E.Pin](h, Fibers) \by { sym!{{Next.Pin}} _ _ equal }, Fibers)}
+    {\fun (negative: corrected = Group.mul HigherPin.sign (Inclusion.pin h)) =>
+      \exact(\into[E.Pin](LowerGroup.mul LowerPin.sign h, Fibers) \by {
+        trans!{{Next.Pin}} _ _ _ (Inclusion.pinProduct LowerPin.sign h)
+          (trans!{{Next.Pin}} _ _ _ (congr!{{Next.Pin} {Next.Pin}} (\fun (p: Next.Pin) => Group.mul p (Inclusion.pin h)) _ _ Inclusion.pinSign)
+            (sym!{{Next.Pin}} _ _ negative))
+      }, Fibers)}
+  }
+};
+\definition fiberUnique: \forall (h, k: Fibers) -> h = k := \fun (h, k: Fibers) => inclusionInjective h k
+  (trans!{{Next.Pin}} _ _ _ (represents h) (sym!{{Next.Pin}} _ _ (represents k)));
+\definition fiber: E.Pin := \choice Fibers \by { existence: fiberExists, uniqueness: fiberUnique };
+\definition embeddedFiber: Inclusion.pin fiber = corrected := \bysub(E.Pin, { h: E.Pin \where Inclusion.pin h = corrected },
+  (\choice Fibers \by { existence: fiberExists, uniqueness: fiberUnique }));
+\definition reconstruct: assemble parameter fiber = g := trans!{{Next.Pin}} _ _ _
+  (congr!{{Next.Pin} {Next.Pin}} (Group.mul (section parameter)) _ _ embeddedFiber) (translationUndo (section parameter) g);
+\definition fiberValue: Recovery.left corrected.value = fiber.value := trans!{E.CliffordAlgebra} _ _ _
+  (congr!{Next.CliffordAlgebra E.CliffordAlgebra} Recovery.left _ _
+    (congr!{{Next.Pin} Next.CliffordAlgebra} (\fun (p: Next.Pin) => p.value) _ _ (sym!{{Next.Pin}} _ _ embeddedFiber)))
+  (Recovery.firstLower fiber.value);

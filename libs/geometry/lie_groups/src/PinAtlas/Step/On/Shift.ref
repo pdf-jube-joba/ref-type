@@ -1,0 +1,28 @@
+/* Left-translated versions of the stereographic block chart. */
+\import \parent.Patch[i := i] \as Base;
+\definition image: SourceOpen.OpenSet := Base.image;
+\definition Parameter: \Set := Base.Parameter;
+\definition domain: \Pow Next.Pin := { g: Next.Pin \where \In[Next.Pin] Base.domain (untranslate q g) };
+\definition Point: \Set := UpperCoordinates.Domain domain;
+\definition value[x: Parameter]: Next.Pin := translate q (Base.value x);
+\definition point[x: Parameter]: Point := \into[Next.Pin](value x, domain) \by {
+  \idelim Base.value x = untranslate q (value x) \with g: Next.Pin => \In[Next.Pin] Base.domain g \by {
+    base: \bysub(Next.Pin, Base.domain, Base.point x), equality: sym!{{Next.Pin}} _ _ (undoTranslation q (Base.value x))
+  }
+};
+\definition source[g: Point]: Base.Point := \into[Next.Pin](untranslate q g, Base.domain) \by { \bysub(Next.Pin, domain, g) };
+\definition coordinate[g: Point]: Parameter := Base.coordinate (source g);
+\definition pointCoordinate: \forall (g: Point) -> point (coordinate g) = g := \fun (g: Point) =>
+  trans!{{Next.Pin}} _ _ _ (congr!{{Next.Pin} {Next.Pin}} (translate q) _ _ (Base.pointCoordinate (source g))) (translationUndo q g);
+\definition coordinatePoint: \forall (x: Parameter) -> coordinate (point x) = x := \block {
+  \fun (x: Parameter) \then
+  \let same: source (point x) = Base.point x := undoTranslation q (Base.value x) \then
+  \return trans!{Parameter} _ _ _ (congr!{{Base.Point} Parameter} Base.coordinate _ _ same) (Base.coordinatePoint x)
+};
+\definition patch: UpperCoordinates.Patch := UpperCoordinates.Patch {
+  domain := domain, image := image, point := point, coordinate := coordinate,
+  pointCoordinate := pointCoordinate, coordinatePoint := coordinatePoint,
+};
+\import Next.PinPlots[d := Upper.dimension] \as Plots;
+\definition plot: Plots.Plot image value := Plots.multiplication image (\fun (x: Parameter) => q) Base.value (Plots.constant image q) Base.Smooth[].plot;
+\module Reader(d: N.Nat^);

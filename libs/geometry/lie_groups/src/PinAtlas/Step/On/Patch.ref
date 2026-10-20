@@ -1,0 +1,65 @@
+/* The first-column patch over a fixed lower-dimensional coordinate chart. */
+\definition lower: LowerCoordinates.Patch := previous.family.patch i;
+\import Blocks.On[U := LeftOpen.whole, V := lower.image] \as Product;
+\definition image: SourceOpen.OpenSet := Product.domain;
+\definition Parameter: \Set := SourceOpen.Carrier image;
+\structure Condition[g: Next.Pin]: \Prop := {
+  nonzero: Logic.Not (height g = R.zero),
+  contained: \In[E.Pin] lower.domain (fiber (asPart g nonzero)),
+};
+\definition domain: \Pow Next.Pin := { g: Next.Pin \where Condition[g] };
+\definition Point: \Set := UpperCoordinates.Domain domain;
+\definition parameterValue[x: Parameter]: E.Vector := Product.leftPoint x;
+\definition lowerValue[x: Parameter]: E.Pin := lower.point (Product.rightPoint x);
+\definition value[x: Parameter]: Next.Pin := assemble (parameterValue x) (lowerValue x);
+\definition valueNonzero[x: Parameter]: Logic.Not (height (value x) = R.zero) := Geometry.Assembly[s := parameterValue x, h := lowerValue x].nonzeroHeight;
+\definition recoveredParameter[x: Parameter]: parameter (asPart (value x) (valueNonzero x)) = parameterValue x :=
+  Geometry.Assembly[s := parameterValue x, h := lowerValue x].parameterEquation;
+\definition recoveredFiber[x: Parameter]: fiber (asPart (value x) (valueNonzero x)) = lowerValue x :=
+  Geometry.Assembly[s := parameterValue x, h := lowerValue x].fiberEquation;
+\definition point[x: Parameter]: Point := \into[Next.Pin](value x, domain) \by {
+  Condition[value x] {
+    nonzero := valueNonzero x,
+    contained := \idelim lowerValue x = fiber (asPart (value x) (valueNonzero x)) \with g: E.Pin => \In[E.Pin] lower.domain g \by {
+      base: \bysub(E.Pin, lower.domain, lower.point (Product.rightPoint x)),
+      equality: sym!{{E.Pin}} _ _ (recoveredFiber x)
+    },
+  }
+};
+\definition part[g: Point]: Parts := asPart g (\bysub(Next.Pin, domain, g)).nonzero;
+\definition lowerPoint[g: Point]: LowerCoordinates.Domain lower.domain := \into[E.Pin](fiber (part g), lower.domain) \by {
+  (\bysub(Next.Pin, domain, g)).contained
+};
+\definition firstCoordinate[g: Point]: LeftOpen.Carrier LeftOpen.whole := \into[E.Vector](parameter (part g), LeftOpen.whole.points) \by {
+  \refl(parameter (part g))
+};
+\definition coordinate[g: Point]: Parameter := Product.joinPoint (firstCoordinate g) (lower.coordinate (lowerPoint g));
+\definition valueOnJoined: \forall (s: LeftOpen.Carrier LeftOpen.whole)(t: RightOpen.Carrier lower.image) ->
+  value (Product.joinPoint s t) = assemble s (lower.point t) := \block {
+  \fun (s: _)(t: _) \then
+  \let headSame: parameterValue (Product.joinPoint s t) = s := Blocks.leftJoin s t \then
+  \let tailSame: Product.rightPoint (Product.joinPoint s t) = t := Blocks.rightJoin s t \then
+  \return congr2!{{E.Vector} {E.Pin} {Next.Pin}} assemble _ _ _ _ headSame
+    (congr!{{RightOpen.Carrier lower.image} {LowerCoordinates.Domain lower.domain}} lower.point _ _ tailSame)
+};
+\definition pointCoordinate: \forall (g: Point) -> point (coordinate g) = g := \block {
+  \fun (g: Point) \then
+  \let lowerSame: lower.point (lower.coordinate (lowerPoint g)) = lowerPoint g := lower.pointCoordinate (lowerPoint g) \then
+  \return trans!{{Next.Pin}} _ _ _ (valueOnJoined (firstCoordinate g) (lower.coordinate (lowerPoint g)))
+    (trans!{{Next.Pin}} _ _ _ (congr!{{E.Pin} {Next.Pin}} (assemble (parameter (part g))) _ _ lowerSame) (reconstruct (part g)))
+};
+\definition coordinatePoint: \forall (x: Parameter) -> coordinate (point x) = x := \block {
+  \fun (x: Parameter) \then
+  \let lowerSame: lowerPoint (point x) = lower.point (Product.rightPoint x) := recoveredFiber x \then
+  \let tailSame: lower.coordinate (lowerPoint (point x)) = Product.rightPoint x := trans!{{RightOpen.Carrier lower.image}} _ _ _
+    (congr!{{LowerCoordinates.Domain lower.domain} {RightOpen.Carrier lower.image}} lower.coordinate _ _ lowerSame)
+    (lower.coordinatePoint (Product.rightPoint x)) \then
+  \return trans!{{FullVector}} _ _ _
+    (congr2!{{E.Vector} {LowerVector} {FullVector}} Blocks.join _ _ _ _ (recoveredParameter x) tailSame) (Blocks.recover x)
+};
+\definition patch: UpperCoordinates.Patch := UpperCoordinates.Patch {
+  domain := domain, image := image, point := point, coordinate := coordinate,
+  pointCoordinate := pointCoordinate, coordinatePoint := coordinatePoint,
+};
+\module Smooth;
+\module Reader(d: N.Nat^);

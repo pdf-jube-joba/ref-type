@@ -37,3 +37,18 @@
       {\fun (negative: g = CoveringGroups.sign) => trans!{O} _ _ _ (congr!{Pin O} map _ _ negative) atSign}
     },
   };
+\definition recover: \forall (g, h: Pin) -> PinOperations.mul (PinOperations.mul g (PinOperations.inv h)) h = g :=
+  \fun (g, h: Pin) => trans!{Pin} _ _ _ (PinOperations.assoc g (PinOperations.inv h) h)
+    (trans!{Pin} _ _ _ (congr!{Pin Pin} (PinOperations.mul g) _ _ (PinOperations.invLeft h)) (PinOperations.oneRight g));
+\definition fibers: \forall (g, h: Pin) -> map g = map h -> Logic.Or[g = h, g = PinOperations.mul CoveringGroups.sign h] := \block {
+  \fun (g, h: Pin)(same: map g = map h) \then
+  \let kernel: map (PinOperations.mul g (PinOperations.inv h)) = OrthogonalOperations.one :=
+    trans!{O} _ _ _ (multiplication g (PinOperations.inv h))
+      (trans!{O} _ _ _ (congr2!{O O O} OrthogonalOperations.mul _ _ _ _ same (inverseImage h)) (OrthogonalOperations.invRight (map h))) \then
+  \return either!{{(signs (PinOperations.mul g (PinOperations.inv h)) kernel)} {Logic.Or[g = h, g = PinOperations.mul CoveringGroups.sign h]}
+    {\fun (positive: _) => Logic.Or[_, _]::left (trans!{Pin} _ _ _ (sym!{Pin} _ _ (recover g h))
+      (trans!{Pin} _ _ _ (congr!{Pin Pin} (\fun (p: Pin) => PinOperations.mul p h) _ _ positive) (PinOperations.oneLeft h)))}
+    {\fun (negative: _) => Logic.Or[_, _]::right (trans!{Pin} _ _ _ (sym!{Pin} _ _ (recover g h))
+      (congr!{Pin Pin} (\fun (p: Pin) => PinOperations.mul p h) _ _ negative))}
+  }
+};
