@@ -1,0 +1,35 @@
+\import std.Alg[].Field[] \as Fields;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.sym;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as Lists;
+\module InField(K: \Set, field: Fields.Field[K]) {
+  \import galois.Field[].Over[K := K, field := field] \as F;
+  \import F.Generation[] \as Generation;
+  \import F.Generation[].Construction[] \as Construction;
+  \import F.Subfield[] \as Subfields;
+  \import F.Polynomial[] \as Polynomial;
+  \definition two: K := F.add F.one F.one;
+  \definition sqrtTwoConstructible: \forall (S: K -> \Prop)(x: K) -> F.square x = two -> Generation.Constructible S x :=
+    \fun (S: _)(x: K)(equation: _) => Generation.constructibleRoot S x
+      (\idelim two = F.square x \with y: K => Generation.Constructible S y \by {
+        base: (Subfields.laws (Generation.constructibleSubfield S)).add F.one F.one
+          (Subfields.laws (Generation.constructibleSubfield S)).one
+          (Subfields.laws (Generation.constructibleSubfield S)).one,
+        equality: sym!{K} _ _ equation
+      });
+  \definition sqrtTwoExpression: \forall (S: K -> \Prop)(x: K) -> F.square x = two -> Construction.Representable S x :=
+    \fun (S: _)(x: K)(equation: _) => \exact(Construction.Representation[S, x] {
+      expression := Construction.Expression::squareRoot x (Construction.Expression::sum Construction.Expression::one Construction.Expression::one),
+      valid := Logic.And[_, _]::# (Logic.And[_, _]::# Logic.True::intro Logic.True::intro) equation,
+      value := \refl(x),
+    }, Construction.Representation[S, x]);
+  /* Coefficients below the leading 1 of X^5 - X - 1. */
+  \definition quintic: Polynomial.Coefficients :=
+    Lists.List[K]::cons (F.neg F.one) (Lists.List[K]::cons (F.neg F.one)
+      (Lists.List[K]::cons F.zero (Lists.List[K]::cons F.zero (Lists.List[K]::cons F.zero Lists.List[K]::nil))));
+  \definition quinticDegree: Polynomial.degree quintic =
+    N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)))) :=
+    \refl(N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ N.Nat^::zero)))));
+}

@@ -1,0 +1,194 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Data[].Nat[] \as N;
+
+\structure Permutation: \Set := {
+  apply: X -> X,
+  backward: X -> X,
+  leftInverse: \forall (x: X) -> backward (apply x) = x,
+  rightInverse: \forall (x: X) -> apply (backward x) = x,
+};
+\definition Equal[p, q: Permutation]: \Prop := \forall (x: X) -> p.apply x = q.apply x;
+\definition identity: Permutation := Permutation {
+  apply := \fun (x: X) => x, backward := \fun (x: X) => x,
+  leftInverse := \fun (x: X) => \refl(x), rightInverse := \fun (x: X) => \refl(x),
+};
+\definition inverse[p: Permutation]: Permutation := Permutation {
+  apply := p.backward, backward := p.apply,
+  leftInverse := p.rightInverse, rightInverse := p.leftInverse,
+};
+/* multiply p q acts first by q, then by p. */
+\definition multiply[p, q: Permutation]: Permutation := Permutation {
+  apply := \fun (x: X) => p.apply (q.apply x),
+  backward := \fun (x: X) => q.backward (p.backward x),
+  leftInverse := \fun (x: X) => trans!{X} _ _ _
+    (congr!{X X} q.backward _ _ (p.leftInverse (q.apply x))) (q.leftInverse x),
+  rightInverse := \fun (x: X) => trans!{X} _ _ _
+    (congr!{X X} p.apply _ _ (q.rightInverse (p.backward x))) (p.rightInverse x),
+};
+\definition conjugate[p, q: Permutation]: Permutation := multiply (multiply p q) (inverse p);
+\definition commutator[p, q: Permutation]: Permutation := multiply (multiply (multiply p q) (inverse p)) (inverse q);
+\definition equalRefl[p: Permutation]: Equal p p := \fun (x: X) => \refl(p.apply x);
+\definition equalSym[p, q: Permutation]: Equal p q -> Equal q p :=
+  \fun (same: _)(x: X) => sym!{X} _ _ (same x);
+\definition equalTrans[p, q, r: Permutation]: Equal p q -> Equal q r -> Equal p r :=
+  \fun (first: _)(second: _)(x: X) => trans!{X} _ _ _ (first x) (second x);
+\definition multiplyCongruent[p, q, r, s: Permutation]: Equal p r -> Equal q s -> Equal (multiply p q) (multiply r s) :=
+  \fun (first: _)(second: _)(x: X) => trans!{X} _ _ _ (first (q.apply x)) (congr!{X X} r.apply _ _ (second x));
+\definition conjugateIdentity[p: Permutation]: Equal (conjugate p identity) identity := p.rightInverse;
+\definition conjugateMultiply[p, a, b: Permutation]: Equal (conjugate p (multiply a b)) (multiply (conjugate p a) (conjugate p b)) :=
+  \fun (x: X) => sym!{X} _ _ (congr!{X X} (\fun (y: X) => p.apply (a.apply y)) _ _ (p.leftInverse (b.apply (p.backward x))));
+\definition conjugateInverse[p, a: Permutation]: Equal (conjugate p (inverse a)) (inverse (conjugate p a)) :=
+  \fun (x: X) => \refl(p.apply (a.backward (p.backward x)));
+\definition conjugateCongruent[p, a, b: Permutation]: Equal a b -> Equal (conjugate p a) (conjugate p b) :=
+  \fun (same: _)(x: X) => congr!{X X} p.apply _ _ (same (p.backward x));
+\definition conjugateCommutator[p, a, b: Permutation]:
+  Equal (conjugate p (commutator a b)) (commutator (conjugate p a) (conjugate p b)) :=
+  equalTrans _ _ _ (conjugateMultiply p (multiply (multiply a b) (inverse a)) (inverse b))
+    (equalTrans _ _ _
+      (multiplyCongruent _ _ _ _ (conjugateMultiply p (multiply a b) (inverse a)) (equalRefl _))
+      (multiplyCongruent _ _ _ _
+        (multiplyCongruent _ _ _ _ (conjugateMultiply p a b) (equalRefl _)) (equalRefl _)));
+\structure Subgroup[H: Permutation -> \Prop]: \Prop := {
+  identity: H identity,
+  multiply: \forall (p, q: Permutation) -> H p -> H q -> H (multiply p q),
+  inverse: \forall (p: Permutation) -> H p -> H (inverse p),
+  extensional: \forall (p, q: Permutation) -> Equal p q -> H p -> H q,
+};
+\structure Normal[H: Permutation -> \Prop]: \Prop := {
+  subgroup: Subgroup[H],
+  conjugate: \forall (p, q: Permutation) -> H q -> H (conjugate p q),
+};
+\definition Generated[S: Permutation -> \Prop][p: Permutation]: \Prop :=
+  \forall (H: Permutation -> \Prop) -> Subgroup[H] ->
+    (\forall (q: Permutation) -> S q -> H q) -> H p;
+\definition generatedContains: \forall (S: Permutation -> \Prop)(p: Permutation) -> S p -> Generated S p :=
+  \fun (S: _)(p: _)(hp: _)(H: _)(subgroup: _)(included: _) => included p hp;
+\definition generatedSubgroup: \forall (S: Permutation -> \Prop) -> Subgroup[Generated S] :=
+  \fun (S: _) => Subgroup[Generated S] {
+    identity := \fun (H: _)(subgroup: _)(included: _) => subgroup.identity,
+    multiply := \fun (p, q: _)(hp: _)(hq: _)(H: _)(subgroup: _)(included: _) =>
+      subgroup.multiply p q (hp H subgroup included) (hq H subgroup included),
+    inverse := \fun (p: _)(hp: _)(H: _)(subgroup: _)(included: _) => subgroup.inverse p (hp H subgroup included),
+    extensional := \fun (p, q: _)(same: _)(hp: _)(H: _)(subgroup: _)(included: _) => subgroup.extensional p q same (hp H subgroup included),
+  };
+\definition conjugationPreimage: \forall (p: Permutation)(H: Permutation -> \Prop) -> Subgroup[H] ->
+  Subgroup[\fun (q: Permutation) => H (conjugate p q)] :=
+  \fun (p: Permutation)(H: Permutation -> \Prop)(subgroup: Subgroup[H]) =>
+    Subgroup[\fun (q: Permutation) => H (conjugate p q)] {
+      identity := subgroup.extensional identity (conjugate p identity) (equalSym _ _ (conjugateIdentity p)) subgroup.identity,
+      multiply := \fun (a, b: Permutation)(ha: _)(hb: _) => subgroup.extensional _ _
+        (equalSym _ _ (conjugateMultiply p a b)) (subgroup.multiply (conjugate p a) (conjugate p b) ha hb),
+      inverse := \fun (a: Permutation)(ha: _) => subgroup.extensional _ _
+        (equalSym _ _ (conjugateInverse p a)) (subgroup.inverse (conjugate p a) ha),
+      extensional := \fun (a, b: Permutation)(same: _)(ha: _) => subgroup.extensional _ _ (conjugateCongruent p a b same) ha,
+    };
+\definition NormalClosure[S: Permutation -> \Prop][p: Permutation]: \Prop :=
+  \forall (H: Permutation -> \Prop) -> Normal[H] ->
+    (\forall (q: Permutation) -> S q -> H q) -> H p;
+\definition normalContains: \forall (S: Permutation -> \Prop)(p: Permutation) -> S p -> NormalClosure S p :=
+  \fun (S: _)(p: _)(hp: _)(H: _)(normal: _)(included: _) => included p hp;
+\definition normalClosureNormal: \forall (S: Permutation -> \Prop) -> Normal[NormalClosure S] :=
+  \fun (S: _) => Normal[NormalClosure S] {
+    subgroup := Subgroup[NormalClosure S] {
+      identity := \fun (H: _)(normal: _)(included: _) => normal.subgroup.identity,
+      multiply := \fun (p, q: _)(hp: _)(hq: _)(H: _)(normal: _)(included: _) =>
+        normal.subgroup.multiply p q (hp H normal included) (hq H normal included),
+      inverse := \fun (p: _)(hp: _)(H: _)(normal: _)(included: _) => normal.subgroup.inverse p (hp H normal included),
+      extensional := \fun (p, q: _)(same: _)(hp: _)(H: _)(normal: _)(included: _) =>
+        normal.subgroup.extensional p q same (hp H normal included),
+    },
+    conjugate := \fun (p, q: _)(hq: _)(H: _)(normal: _)(included: _) => normal.conjugate p q (hq H normal included),
+  };
+\structure CommutatorWitness[H: Permutation -> \Prop, p: Permutation] := {
+  left: Permutation,
+  right: Permutation,
+  leftMember: H left,
+  rightMember: H right,
+  value: Equal (commutator left right) p,
+};
+\definition Commutators[H: Permutation -> \Prop][p: Permutation]: \Prop := \exists CommutatorWitness[H, p];
+\definition generatedCommutator: \forall (H: Permutation -> \Prop)(p, q: Permutation) -> H p -> H q ->
+  Generated (Commutators H) (commutator p q) :=
+  \fun (H: _)(p, q: _)(hp: _)(hq: _) => generatedContains (Commutators H) (commutator p q)
+    (\exact(CommutatorWitness[H, commutator p q] {
+      left := p, right := q, leftMember := hp, rightMember := hq, value := equalRefl _,
+    }, CommutatorWitness[H, commutator p q]));
+\definition commutatorsNormal: \forall (H: Permutation -> \Prop) -> Normal[H] -> Normal[Generated (Commutators H)] :=
+  \fun (H: Permutation -> \Prop)(normal: Normal[H]) => Normal[Generated (Commutators H)] {
+    subgroup := generatedSubgroup (Commutators H),
+    conjugate := \fun (p, q: Permutation)(hq: Generated (Commutators H) q) =>
+      hq (\fun (r: Permutation) => Generated (Commutators H) (conjugate p r))
+        (conjugationPreimage p (Generated (Commutators H)) (generatedSubgroup (Commutators H)))
+        (\block {
+          \fun (r: Permutation)(commutator: Commutators H r) \then
+          \takefrom witness: CommutatorWitness[H, r] \by commutator \then
+          \return (generatedSubgroup (Commutators H)).extensional _ _
+            (equalTrans _ _ _ (equalSym _ _ (conjugateCommutator p witness.left witness.right))
+              (conjugateCongruent p _ r witness.value))
+            (generatedCommutator H (conjugate p witness.left) (conjugate p witness.right)
+              (normal.conjugate p witness.left witness.leftMember)
+              (normal.conjugate p witness.right witness.rightMember))
+        }),
+  };
+\definition Derived: N.Nat^ -> Permutation -> \Prop :=
+  \induction (n: N.Nat^) \return Permutation -> \Prop \with {
+    | zero: \fun (p: Permutation) => Logic.True
+    | succ: \fun (n: N.Nat^)(previous: Permutation -> \Prop) => Generated (Commutators previous)
+  };
+\definition derivedNormal: \forall (n: N.Nat^) -> Normal[Derived n] :=
+  \induction (n: N.Nat^) \return Normal[Derived n] \with {
+    | zero: Normal[Derived N.Nat^::zero] {
+      subgroup := Subgroup[Derived N.Nat^::zero] {
+        identity := Logic.True::intro,
+        multiply := \fun (p, q: _)(hp: _)(hq: _) => Logic.True::intro,
+        inverse := \fun (p: _)(hp: _) => Logic.True::intro,
+        extensional := \fun (p, q: _)(same: _)(hp: _) => Logic.True::intro,
+      },
+      conjugate := \fun (p, q: _)(hq: _) => Logic.True::intro,
+    }
+    | succ: \fun (n: N.Nat^)(previous: _) => commutatorsNormal (Derived n) previous
+  };
+\definition commutatorInDerived: \forall (n: N.Nat^)(p, q: Permutation) -> Derived n p -> Derived n q ->
+  Derived (N.Nat^::succ n) (commutator p q) :=
+  \fun (n: N.Nat^) => generatedCommutator (Derived n);
+\definition Terminates[n: N.Nat^]: \Prop := \forall (p: Permutation) -> Derived n p -> Equal p identity;
+\definition Solvable: \Prop := \exists \Cast[N.Nat^] ({ n: N.Nat^ \where Terminates n });
+/* Finite subgroup filtrations with abelian successive quotients. */
+\structure AbelianSeries: \Set := {
+  length: N.Nat^,
+  stage: N.Nat^ -> \Pow Permutation,
+  starts: \forall (p: Permutation) -> \In[Permutation] (stage N.Nat^::zero) p,
+  subgroups: \forall (n: N.Nat^) -> Subgroup[\fun (p: Permutation) => \In[Permutation] (stage n) p],
+  decreasing: \forall (n: N.Nat^)(p: Permutation) ->
+    \In[Permutation] (stage (N.Nat^::succ n)) p -> \In[Permutation] (stage n) p,
+  commutators: \forall (n: N.Nat^)(p, q: Permutation) ->
+    \In[Permutation] (stage n) p -> \In[Permutation] (stage n) q ->
+    \In[Permutation] (stage (N.Nat^::succ n)) (commutator p q),
+  ends: \forall (p: Permutation) -> \In[Permutation] (stage length) p -> Equal p identity,
+};
+\definition derivedInSeries: \forall (series: AbelianSeries)(n: N.Nat^)(p: Permutation) ->
+  Derived n p -> \In[Permutation] (series.stage n) p :=
+  \fun (series: AbelianSeries) => \induction (n: N.Nat^) \return \forall (p: Permutation) ->
+    Derived n p -> \In[Permutation] (series.stage n) p \with {
+    | zero: \fun (p: Permutation)(hp: _) => series.starts p
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Permutation)(hp: _) =>
+      hp (\fun (q: Permutation) => \In[Permutation] (series.stage (N.Nat^::succ n)) q)
+        (series.subgroups (N.Nat^::succ n))
+        (\block {
+          \fun (q: Permutation)(hq: Commutators (Derived n) q) \then
+          \takefrom witness: CommutatorWitness[Derived n, q] \by hq \then
+          \return (series.subgroups (N.Nat^::succ n)).extensional _ q witness.value
+            (series.commutators n witness.left witness.right
+              (previous witness.left witness.leftMember) (previous witness.right witness.rightMember))
+        })
+  };
+\definition seriesImpliesSolvable: \forall (series: AbelianSeries) -> Solvable :=
+  \fun (series: AbelianSeries) => \exact(
+    \into[N.Nat^](series.length, { n: N.Nat^ \where Terminates n }) \by {
+      \fun (p: Permutation)(hp: _) => series.ends p (derivedInSeries series series.length p hp)
+    }, \Cast[N.Nat^] ({ n: N.Nat^ \where Terminates n }));
+\module Obstruction;

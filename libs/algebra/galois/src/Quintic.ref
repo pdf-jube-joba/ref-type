@@ -1,0 +1,126 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.sym;
+\inductive Five: \Set := | a: Five | b: Five | c: Five | d: Five | e: Five;
+\import galois.Permutation[X := Five] \as S5;
+\definition cycleApply: Five -> Five := \induction (x: Five) \return Five \with {
+  | a: Five::b
+  | b: Five::c
+  | c: Five::a
+  | d: Five::d
+  | e: Five::e
+};
+\definition cycleBackward: Five -> Five := \induction (x: Five) \return Five \with {
+  | a: Five::c
+  | b: Five::a
+  | c: Five::b
+  | d: Five::d
+  | e: Five::e
+};
+\definition cycle: S5.Permutation := S5.Permutation {
+  apply := cycleApply, backward := cycleBackward,
+  leftInverse := \induction (x: Five) \return cycleBackward (cycleApply x) = x \with {
+    | a: \refl(Five::a)
+    | b: \refl(Five::b)
+    | c: \refl(Five::c)
+    | d: \refl(Five::d)
+    | e: \refl(Five::e)
+  },
+  rightInverse := \induction (x: Five) \return cycleApply (cycleBackward x) = x \with {
+    | a: \refl(Five::a)
+    | b: \refl(Five::b)
+    | c: \refl(Five::c)
+    | d: \refl(Five::d)
+    | e: \refl(Five::e)
+  },
+};
+\definition leftConjugatorApply: Five -> Five := \induction (x: Five) \return Five \with {
+  | a: Five::a
+  | b: Five::b
+  | c: Five::d
+  | d: Five::c
+  | e: Five::e
+};
+\definition leftConjugatorBackward: Five -> Five := \induction (x: Five) \return Five \with {
+  | a: Five::a
+  | b: Five::b
+  | c: Five::d
+  | d: Five::c
+  | e: Five::e
+};
+\definition leftConjugator: S5.Permutation := S5.Permutation {
+  apply := leftConjugatorApply, backward := leftConjugatorBackward,
+  leftInverse := \induction (x: Five) \return leftConjugatorBackward (leftConjugatorApply x) = x \with {
+    | a: \refl(Five::a)
+    | b: \refl(Five::b)
+    | c: \refl(Five::c)
+    | d: \refl(Five::d)
+    | e: \refl(Five::e)
+  },
+  rightInverse := \induction (x: Five) \return leftConjugatorApply (leftConjugatorBackward x) = x \with {
+    | a: \refl(Five::a)
+    | b: \refl(Five::b)
+    | c: \refl(Five::c)
+    | d: \refl(Five::d)
+    | e: \refl(Five::e)
+  },
+};
+\definition rightConjugatorApply: Five -> Five := \induction (x: Five) \return Five \with {
+  | a: Five::a
+  | b: Five::c
+  | c: Five::e
+  | d: Five::b
+  | e: Five::d
+};
+\definition rightConjugatorBackward: Five -> Five := \induction (x: Five) \return Five \with {
+  | a: Five::a
+  | b: Five::d
+  | c: Five::b
+  | d: Five::e
+  | e: Five::c
+};
+\definition rightConjugator: S5.Permutation := S5.Permutation {
+  apply := rightConjugatorApply, backward := rightConjugatorBackward,
+  leftInverse := \induction (x: Five) \return rightConjugatorBackward (rightConjugatorApply x) = x \with {
+    | a: \refl(Five::a)
+    | b: \refl(Five::b)
+    | c: \refl(Five::c)
+    | d: \refl(Five::d)
+    | e: \refl(Five::e)
+  },
+  rightInverse := \induction (x: Five) \return rightConjugatorApply (rightConjugatorBackward x) = x \with {
+    | a: \refl(Five::a)
+    | b: \refl(Five::b)
+    | c: \refl(Five::c)
+    | d: \refl(Five::d)
+    | e: \refl(Five::e)
+  },
+};
+\definition commutatorIdentity:
+  S5.Equal (S5.commutator (S5.conjugate leftConjugator cycle) (S5.conjugate rightConjugator cycle)) cycle :=
+  \induction (x: Five) \return
+    (S5.commutator (S5.conjugate leftConjugator cycle) (S5.conjugate rightConjugator cycle)).apply x = cycle.apply x \with {
+    | a: \refl(Five::b)
+    | b: \refl(Five::c)
+    | c: \refl(Five::a)
+    | d: \refl(Five::d)
+    | e: \refl(Five::e)
+  };
+\definition distinguish: Five -> \Prop := \induction (x: Five) \return \Prop \with {
+  | a: Logic.True
+  | b: Logic.False
+  | c: Logic.True
+  | d: Logic.True
+  | e: Logic.True
+};
+\definition cycleNontrivial: Logic.Not (S5.Equal cycle S5.identity) :=
+  \fun (same: _) => \idelim Five::a = Five::b \with x: Five => distinguish x
+    \by { base: Logic.True::intro, equality: sym!{Five} _ _ (same Five::a) };
+\definition symmetricFiveNotSolvable: Logic.Not S5.Solvable :=
+  S5.Obstruction[].notSolvable cycle leftConjugator rightConjugator commutatorIdentity cycleNontrivial;
+\definition symmetricFiveNoAbelianSeries: Logic.Not (\exists S5.AbelianSeries) := \block {
+  \fun (exists: \exists S5.AbelianSeries) \then
+  \takefrom series: S5.AbelianSeries \by exists \then
+  \return symmetricFiveNotSolvable (S5.seriesImpliesSolvable series)
+};

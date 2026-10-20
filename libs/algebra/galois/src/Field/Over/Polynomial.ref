@@ -1,0 +1,130 @@
+\import \parent.Subfield[] \as Subfields;
+\import \parent.Generation[] \as Generation;
+
+/* Ascending coefficients; Horner evaluation also accepts trailing zeroes. */
+\definition Coefficients: \Set := Lists.List[K];
+\definition evaluate[p: Coefficients][x: K]: K :=
+  Lists.foldr K K (\fun (a, tail: K) => add a (mul x tail)) zero p;
+/* A monic polynomial stores the coefficients strictly below its leading 1. */
+\definition monicEvaluate[p: Coefficients][x: K]: K :=
+  Lists.foldr K K (\fun (a, tail: K) => add a (mul x tail)) one p;
+\definition degree[p: Coefficients]: N.Nat^ := Lists.length K p;
+\definition Over[S: K -> \Prop]: Coefficients -> \Prop :=
+  \induction (p: Coefficients) \return \Prop \with {
+    | nil: Logic.True
+    | cons: \fun (a: K)(tail: Coefficients)(previous: \Prop) => Logic.And[S a, previous]
+  };
+\definition Positive[p: Coefficients]: \Prop := Logic.Not (degree p = N.Nat^::zero);
+\structure AlgebraicWitness[S: K -> \Prop, x: K] := {
+  coefficients: Coefficients,
+  over: Over S coefficients,
+  positive: Positive coefficients,
+  root: monicEvaluate coefficients x = zero,
+};
+\definition Algebraic[S: K -> \Prop][x: K]: \Prop := \exists AlgebraicWitness[S, x];
+\definition AlgebraicExtension[S, T: K -> \Prop]: \Prop :=
+  \forall (x: K) -> T x -> Algebraic S x;
+\definition AlgebraicallyClosed[S: K -> \Prop]: \Prop :=
+  \forall (p: Coefficients) -> Over S p -> Positive p ->
+    \exists \Cast[K] ({ x: K \where Logic.And[S x, monicEvaluate p x = zero] });
+\import std.Alg[].Ring[] \as Rings;
+\definition coefficientRing: Rings.CommutativeRing[K] := Fields.fieldAsCommutativeRing K field;
+\import algebra.Polynomial[].Over[R := K, coefficients := coefficientRing] \as Abstract;
+\definition asPolynomial[p: Coefficients]: Abstract.Carrier :=
+  Lists.foldr K Abstract.Carrier
+    (\fun (a: K)(tail: Abstract.Carrier) => Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X tail)) Abstract.one p;
+\definition linearFactor[x: K]: Abstract.Carrier := Abstract.add Abstract.X (Abstract.constant (neg x));
+\definition factors[roots: Coefficients]: Abstract.Carrier :=
+  Lists.foldr K Abstract.Carrier (\fun (x: K)(tail: Abstract.Carrier) => Abstract.mul (linearFactor x) tail) Abstract.one roots;
+\structure Splitting[S: K -> \Prop, p: Coefficients] := {
+  roots: Coefficients,
+  over: Over S roots,
+  degree: Lists.length K roots = degree p,
+  factorization: asPolynomial p = factors roots,
+};
+\definition Splits[S: K -> \Prop][p: Coefficients]: \Prop := \exists Splitting[S, p];
+\import std.Data[].List[].Distinct[A := K] \as Distinct;
+\structure SeparableSplitting[S: K -> \Prop, p: Coefficients] := {
+  splitting: Splitting[S, p],
+  distinct: Distinct.Distinct splitting.roots,
+};
+\definition SeparablySplits[S: K -> \Prop][p: Coefficients]: \Prop := \exists SeparableSplitting[S, p];
+\structure AlgebraicClosure[S, T: K -> \Prop]: \Prop := {
+  baseIncluded: Subfields.Included S T,
+  subfield: Subfields.Closed[T],
+  algebraic: AlgebraicExtension S T,
+  closed: AlgebraicallyClosed T,
+};
+\structure SolvableByRadicals[S: K -> \Prop, p: Coefficients]: \Prop := {
+  splits: Splits (Generation.Radical S) p,
+  roots: \forall (x: K) -> monicEvaluate p x = zero -> Generation.Radical S x,
+};
+\structure RootConstructible[S: K -> \Prop, p: Coefficients]: \Prop := {
+  splits: Splits (Generation.Constructible S) p,
+  roots: \forall (x: K) -> monicEvaluate p x = zero -> Generation.Constructible S x,
+};
+\definition overMonotone: \forall (S, T: K -> \Prop) -> Subfields.Included S T ->
+  \forall (p: Coefficients) -> Over S p -> Over T p :=
+  \fun (S, T: _)(included: _) => \induction (p: Coefficients) \return Over S p -> Over T p \with {
+    | nil: \fun (h: _) => Logic.True::intro
+    | cons: \fun (a: K)(tail: Coefficients)(previous: Over S tail -> Over T tail)(h: Logic.And[S a, Over S tail]) =>
+      Logic.And[_, _]::# (included a h.left) (previous h.right)
+  };
+\definition splittingMonotone: \forall (S, T: K -> \Prop) -> Subfields.Included S T ->
+  \forall (p: Coefficients) -> Splits S p -> Splits T p := \block {
+    \fun (S, T: _)(included: _)(p: Coefficients)(splits: _) \then
+    \takefrom splitting: Splitting[S, p] \by splits \then
+    \return \exact(Splitting[T, p] {
+      roots := splitting.roots,
+      over := overMonotone S T included splitting.roots splitting.over,
+      degree := splitting.degree, factorization := splitting.factorization,
+    }, Splitting[T, p])
+  };
+\definition constructibleRootsAreRadical: \forall (S: K -> \Prop)(p: Coefficients) ->
+  RootConstructible[S, p] -> SolvableByRadicals[S, p] :=
+  \fun (S: _)(p: Coefficients)(all: _) => SolvableByRadicals[S, p] {
+    splits := splittingMonotone (Generation.Constructible S) (Generation.Radical S) (Generation.constructibleIsRadical S) p all.splits,
+    roots := \fun (x: K)(root: _) => Generation.constructibleIsRadical S x (all.roots x root),
+  };
+\definition algebraicMonotone: \forall (S, T: K -> \Prop) -> Subfields.Included S T ->
+  \forall (x: K) -> Algebraic S x -> Algebraic T x := \block {
+  \fun (S, T: _)(included: _)(x: K)(algebraic: _) \then
+  \takefrom witness: AlgebraicWitness[S, x] \by algebraic \then
+  \return \exact(AlgebraicWitness[T, x] {
+    coefficients := witness.coefficients,
+    over := overMonotone S T included witness.coefficients witness.over,
+    positive := witness.positive, root := witness.root,
+  }, AlgebraicWitness[T, x])
+};
+\import \parent.Automorphism[] \as Aut;
+\definition monicEquivariant: \forall (f: Aut.Automorphism)(p: Coefficients)(x: K) ->
+  f.map.apply (monicEvaluate p x) = monicEvaluate (Lists.map K K f.map.apply p) (f.map.apply x) :=
+  \fun (f: Aut.Automorphism) => \induction (p: Coefficients) \return \forall (x: K) ->
+    f.map.apply (monicEvaluate p x) = monicEvaluate (Lists.map K K f.map.apply p) (f.map.apply x) \with {
+    | nil: \fun (x: K) => f.map.preservesOne
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _)(x: K) => eq_reason!{{f.map.apply (monicEvaluate (Lists.List[K]::cons a tail) x)}
+      "=" {add (f.map.apply a) (f.map.apply (mul x (monicEvaluate tail x)))} "by" {f.map.preservesAdd a (mul x (monicEvaluate tail x))}
+      "=" {add (f.map.apply a) (mul (f.map.apply x) (f.map.apply (monicEvaluate tail x)))}
+      "by" {congr!{K K} (add (f.map.apply a)) _ _ (f.map.preservesMul x (monicEvaluate tail x))}
+      "=" {monicEvaluate (Lists.map K K f.map.apply (Lists.List[K]::cons a tail)) (f.map.apply x)}
+      "by" {congr!{K K} (\fun (y: K) => add (f.map.apply a) (mul (f.map.apply x) y)) _ _ (previous x)}}
+  };
+\definition coefficientsFixed: \forall (S: K -> \Prop)(f: Aut.Automorphism) -> Aut.Fixes S f ->
+  \forall (p: Coefficients) -> Over S p -> Lists.map K K f.map.apply p = p :=
+  \fun (S: _)(f: Aut.Automorphism)(fixes: _) => \induction (p: Coefficients) \return
+    Over S p -> Lists.map K K f.map.apply p = p \with {
+    | nil: \fun (over: _) => \refl(Lists.List[K]::nil)
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _)(over: Logic.And[S a, Over S tail]) =>
+      congr2!{K Coefficients Coefficients} (Lists.List[K]::cons) _ _ _ _ (fixes a over.left) (previous over.right)
+  };
+\definition rootPreserved: \forall (S: K -> \Prop)(f: Aut.Automorphism) -> Aut.Fixes S f ->
+  \forall (p: Coefficients) -> Over S p -> \forall (x: K) -> monicEvaluate p x = zero -> monicEvaluate p (f.map.apply x) = zero :=
+  \fun (S: _)(f: Aut.Automorphism)(fixes: _)(p: Coefficients)(over: _)(x: K)(root: _) =>
+    eq_reason!{{monicEvaluate p (f.map.apply x)}
+      "=" {monicEvaluate (Lists.map K K f.map.apply p) (f.map.apply x)}
+      "by" {congr!{Coefficients K} (\fun (q: Coefficients) => monicEvaluate q (f.map.apply x)) _ _
+        (sym!{Coefficients} _ _ (coefficientsFixed S f fixes p over))}
+      "=" {f.map.apply (monicEvaluate p x)} "by" {sym!{K} _ _ (monicEquivariant f p x)}
+      "=" {f.map.apply zero} "by" {congr!{K K} f.map.apply _ _ root}
+      "=" zero "by" {f.map.preservesZero}};
+\module AbstractEvaluation;
