@@ -1,0 +1,88 @@
+/* Every word is even, or a positive vector times an even word. */
+\use Logic.either;
+\import Clifford.Grading[] \as Grade;
+\import Pin.Grading[] \as Grading;
+\import \root.EuclideanFaithfulness[] \as Faithfulness;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import Spaces.Laws[V := Carrier, space := Clifford.vectorSpace] \as Vectors;
+\definition Even[g: Units.Unit]: \Prop := \In[Units.Unit] Pin.evenPredicate g;
+\structure Odd[g: Units.Unit]: \Set := {
+  vector: Pin.Positive,
+  tail: Pin.Spin,
+  same: g = Units.product (Pin.positive vector) tail,
+};
+\definition Property[g: Units.Unit]: \Prop := Logic.Or[Even g, \exists Odd[g]];
+\definition evenSign: Even Units.minusOne := Operations.generatorIncluded Pin.evenGenerators Units.minusOne Pin.EvenGenerator::sign;
+\definition signOdd[g: Units.Unit][w: Odd[g]]: Odd[Units.product Units.minusOne g] := Odd[Units.product Units.minusOne g] {
+  vector := w.vector,
+  tail := Pin.spinGroup.op Pin.spinSign w.tail,
+  same := trans!{{Units.Unit}} _ _ _ (congr!{{Units.Unit} {Units.Unit}} (Units.product Units.minusOne) _ _ w.same)
+    (trans!{{Units.Unit}} _ _ _ (sym!{{Units.Unit}} _ _ (Operations.assoc Units.minusOne (Pin.positive w.vector) w.tail))
+      (trans!{{Units.Unit}} _ _ _ (congr!{{Units.Unit} {Units.Unit}} (\fun (g: Units.Unit) => Units.product g w.tail) _ _ (Pin.centralSign (Pin.positive w.vector)))
+        (Operations.assoc (Pin.positive w.vector) Units.minusOne w.tail))),
+};
+\definition vectorEven[v: Pin.Positive][g: Units.Unit][even: Even g]: Odd[Units.product (Pin.positive v) g] := Odd[Units.product (Pin.positive v) g] {
+  vector := v, tail := \into[Units.Unit](g, Pin.evenPredicate) \by { even }, same := \refl(Units.product (Pin.positive v) g)
+};
+\definition vectorOdd[v: Pin.Positive][g: Units.Unit][w: Odd[g]]: Even (Units.product (Pin.positive v) g) := \block {
+  \let pair: Units.Unit := Units.product (Pin.positive v) (Pin.positive w.vector) \then
+  \let evenPair: Even pair := Operations.generatorIncluded Pin.evenGenerators pair
+    (Pin.EvenGenerator::pair (Pin.positive v) (Pin.positive w.vector) (Pin.VectorGenerator::positive v) (Pin.VectorGenerator::positive w.vector)) \then
+  \let same: Units.product pair w.tail = Units.product (Pin.positive v) g :=
+    trans!{{Units.Unit}} _ _ _ (Operations.assoc (Pin.positive v) (Pin.positive w.vector) w.tail)
+      (congr!{{Units.Unit} {Units.Unit}} (Units.product (Pin.positive v)) _ _ (sym!{{Units.Unit}} _ _ w.same)) \then
+  \return \idelim Units.product pair w.tail = Units.product (Pin.positive v) g \with h: Units.Unit => Even h \by {
+    base: Pin.evenClosed.mul pair w.tail evenPair (\bysub(Units.Unit, Pin.evenPredicate, w.tail)), equality: same
+  }
+};
+\definition signStep: \forall (g: Units.Unit) -> Property g -> Property (Units.product Units.minusOne g) :=
+  \fun (g: Units.Unit)(previous: Property g) => either!{previous {Property (Units.product Units.minusOne g)}
+    {\fun (even: Even g) => Logic.Or[Even (Units.product Units.minusOne g), \exists Odd[Units.product Units.minusOne g]]::left (Pin.evenClosed.mul Units.minusOne g evenSign even)}
+    {\fun (odd: \exists Odd[g]) => \block {
+      \takefrom w: Odd[g] \by odd \then
+      \return Logic.Or[Even (Units.product Units.minusOne g), \exists Odd[Units.product Units.minusOne g]]::right
+        (\exact(signOdd g w, Odd[Units.product Units.minusOne g]))
+    }}
+  };
+\definition vectorStep: \forall (v: Pin.Positive)(g: Units.Unit) -> Property g -> Property (Units.product (Pin.positive v) g) :=
+  \fun (v: Pin.Positive)(g: Units.Unit)(previous: Property g) => either!{previous {Property (Units.product (Pin.positive v) g)}
+    {\fun (even: Even g) => Logic.Or[Even (Units.product (Pin.positive v) g), \exists Odd[Units.product (Pin.positive v) g]]::right (\exact(vectorEven v g even, Odd[Units.product (Pin.positive v) g]))}
+    {\fun (odd: \exists Odd[g]) => \block {
+      \takefrom w: Odd[g] \by odd \then
+      \return Logic.Or[Even (Units.product (Pin.positive v) g), \exists Odd[Units.product (Pin.positive v) g]]::left (vectorOdd v g w)
+    }}
+  };
+\definition parity: \forall (g: Units.Unit) -> Word g -> Property g := \induction (g: Units.Unit)(word: Word g) \return Property g \with {
+  | one: Logic.Or[Even Units.unit, \exists Odd[Units.unit]]::left Pin.evenClosed.one
+  | sign: \fun (g: Units.Unit)(word: Word g)(previous: Property g) => signStep g previous
+  | vector: \fun (v: Pin.Positive)(g: Units.Unit)(word: Word g)(previous: Property g) => vectorStep v g previous
+};
+\definition oddNegative[g: Units.Unit][w: Odd[g]]: Grade.map g.value = Clifford.neg g.value := \block {
+  \let same: g.value = Clifford.mul (Clifford.iota w.vector) w.tail.value :=
+    congr!{{Units.Unit} Carrier} (\fun (g: Units.Unit) => g.value) _ _ w.same \then
+  \let even: Grade.map w.tail.value = w.tail.value := congr!{{Units.Unit} Carrier} (\fun (h: Units.Unit) => h.value) _ _ (Grading.spinFixed w.tail) \then
+  \return trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Grade.map _ _ same)
+    (trans!{Carrier} _ _ _ (Grade.laws.mul (Clifford.iota w.vector) w.tail.value)
+      (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Clifford.mul _ _ _ _ (Grade.onVector w.vector) even)
+        (trans!{Carrier} _ _ _ (Units.negMul (Clifford.iota w.vector) w.tail.value)
+          (congr!{Carrier Carrier} Clifford.neg _ _ (sym!{Carrier} _ _ same)))))
+};
+\definition unitNonzero: \forall (g: Units.Unit) -> Logic.Not (g.value = Clifford.zero) := \fun (g: Units.Unit)(zero: _) => Arithmetic.zeroNeOne
+  (sym!{R.Real} _ _ ((Faithfulness.faithful n).scalarInjective R.one R.zero
+    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ g.left)
+      (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Clifford.mul g.inverse) _ _ zero) (ring.semiring.zeroAbsorbsRight g.inverse)))));
+\definition evenWhenFixed: \forall (g: Pin.Pin) -> Grade.onUnit g = g -> Even g := \fun (g: Pin.Pin)(fixed: _) =>
+  either!{{(parity g (all g))} {Even g}
+    {\fun (even: Even g) => even}
+    {\fun (odd: \exists Odd[g]) => \block {
+      \takefrom w: Odd[g] \by odd \then
+      \let same: g.value = Clifford.neg g.value := trans!{Carrier} _ _ _
+        (sym!{Carrier} _ _ (congr!{{Units.Unit} Carrier} (\fun (h: Units.Unit) => h.value) _ _ fixed)) (oddNegative g w) \then
+      \return Logic.falseElim (Even g) (unitNonzero g (Vectors.oppositeSelfZero R.half g.value R.Estimates[].halfDouble same))
+    }}
+  };
+\definition fixedWhenEven: \forall (g: Units.Unit) -> Even g -> Grade.onUnit g = g := \fun (g: Units.Unit)(even: Even g) =>
+  Grading.spinFixed (\into[Units.Unit](g, Pin.evenPredicate) \by { even });
+\definition fixedIff: \forall (g: Pin.Pin) -> Logic.PropEquiv[Grade.onUnit g = g, Even g] := \fun (g: Pin.Pin) => Logic.PropEquiv[_, _] {
+  ltr := evenWhenFixed g, rtl := fixedWhenEven g
+};
