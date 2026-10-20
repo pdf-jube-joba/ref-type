@@ -5,6 +5,7 @@
 \import real.Analysis[] \as R;
 \import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Scalars;
 \import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
@@ -69,3 +70,28 @@
         (trans!{Circle} _ _ _ (congr!{Circle Circle} (product z) _ _ (Operations.assoc z w w))
           (sym!{Circle} _ _ (Operations.assoc z z (square w))))));
 \definition squareInverse: \forall (z: Circle) -> square (inverse z) = inverse (square z) := \fun (z: Circle) => sym!{Circle} _ _ (Operations.invMul z z);
+\import algebra.Field[K := R.Real, field := R.Algebra[].field] \as Reals;
+\import algebra.Group[].Of[Carrier := R.Real, group := std.Alg[].Ring[].additiveGroup R.Real Reals.ring] \as RealSum;
+\definition squaredReal: \forall (z: Circle) -> C.re (square z) = R.add (R.neg R.one) (R.add (R.mul (C.re z) (C.re z)) (R.mul (C.re z) (C.re z))) := \block {
+  \fun (z: Circle) \then
+  \let a: R.Real := R.mul (C.re z) (C.re z) \then
+  \let b: R.Real := R.mul (C.im z) (C.im z) \then
+  \let reduced: R.sub (R.add a a) (R.add a b) = R.sub a b := trans!{R.Real} _ _ _ (RealSum.differenceAdd a a a b)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (x: R.Real) => R.add x (R.sub a b)) _ _ (Scalars.subSelf a)) (Scalars.addZeroLeft (R.sub a b))) \then
+  \return trans!{R.Real} _ _ _ (sym!{R.Real} _ _ reduced)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.sub (R.add a a)) _ _ (\bysub(C.Complex, predicate, z))) (Scalars.addComm (R.add a a) (R.neg R.one)))
+};
+\import algebra.Field[K := C.Complex, field := Algebra.field] \as ComplexField;
+\definition sameSquare: \forall (z, w: Circle) -> square z = square w -> Logic.Or[z = w, z = negate w] :=
+  \fun (z, w: Circle)(same: _) => Logic.orElim _ _ (Logic.Or[z = w, z = negate w]) (ComplexField.sameSquares z w same)
+    (\fun (same: _) => Logic.Or[z = w, z = negate w]::left same)
+    (\fun (negative: _) => Logic.Or[z = w, z = negate w]::right negative);
+
+\definition imaginaryUnit: Circle := \into[C.Complex](D.i, predicate) \by {
+  trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (Scalars.fieldMulZeroLeft R.zero) (Scalars.fieldMulOneLeft R.one)) (Scalars.addZeroLeft R.one)
+};
+\definition imaginarySquare: square imaginaryUnit = minusOne := P.ext _ _
+  (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.sub _ _ _ _ (Scalars.fieldMulZeroLeft R.zero) (Scalars.fieldMulOneLeft R.one)) (Scalars.addZeroLeft (R.neg R.one)))
+  (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (Scalars.fieldMulZeroLeft R.one) (Scalars.fieldMulOneLeft R.zero))
+    (trans!{R.Real} _ _ _ (Scalars.addZeroLeft R.zero) (sym!{R.Real} _ _ Scalars.negZero)));
+\definition inverseMinusOne: inverse minusOne = minusOne := sym!{Circle} _ _ (Operations.inverseUnique minusOne minusOne sign.square);

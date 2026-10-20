@@ -1,0 +1,27 @@
+
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import \root.OrthogonalAtlas[].Step[n := Phase.one].Reflection[] \as Numeric;
+\definition flip: Carrier := Extension.class BaseGroup.one Circle.imaginaryUnit;
+\definition squaredFlip: Squared.base flip = Circle.minusOne := trans!{{Circle.Circle}} _ _ _ (Squared.onSquareClass BaseGroup.one Circle.imaginaryUnit) Circle.imaginarySquare;
+\definition inverseFlip: Squared.base (Group.inv flip) = Circle.minusOne := trans!{{Circle.Circle}} _ _ _ (Squared.baseInverse flip)
+  (trans!{{Circle.Circle}} _ _ _ (congr!{{Circle.Circle} {Circle.Circle}} Circle.inverse _ _ squaredFlip) Circle.inverseMinusOne);
+\definition flipped: \forall (q: Carrier) -> Squared.base (untranslate flip q) = Circle.negate (Squared.base q) := \fun (q: Carrier) =>
+  trans!{{Circle.Circle}} _ _ _ (Squared.baseProduct (Group.inv flip) q)
+    (trans!{{Circle.Circle}} _ _ _ (congr!{{Circle.Circle} {Circle.Circle}} (\fun (z: Circle.Circle) => Circle.product z (Squared.base q)) _ _ inverseFlip)
+      (Circle.minusProduct (Squared.base q)));
+\definition realFlipped: \forall (q: Carrier) -> C.re (Squared.base (untranslate flip q)) = R.neg (C.re (Squared.base q)) :=
+  \fun (q: Carrier) => congr!{{Circle.Circle} R.Real} (\fun (z: Circle.Circle) => C.re z) _ _ (flipped q);
+\definition complement: \forall (q: Carrier) -> R.add (height q) (height (untranslate flip q)) = R.add R.one R.one := \fun (q: Carrier) =>
+  trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.add (height q) (R.add R.one a)) _ _ (realFlipped q))
+    (trans!{R.Real} _ _ _ (Scalars.addFour R.one (C.re (Squared.base q)) R.one (R.neg (C.re (Squared.base q))))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.add R.one R.one)) _ _ (Arithmetic.addNegRight (C.re (Squared.base q))))
+        (Arithmetic.addZeroRight (R.add R.one R.one))));
+\definition cannotBoth[q: Carrier][left: height q = R.zero][right: height (untranslate flip q) = R.zero]: Logic.False := Numeric.twoNonzero
+  (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (complement q))
+    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ left right) (Arithmetic.addZeroLeft R.zero)));
+\definition untranslateOne: \forall (q: Carrier) -> untranslate Group.one q = q := \fun (q: Carrier) => trans!{Carrier} _ _ _
+  (congr!{Carrier Carrier} (\fun (g: Carrier) => Group.mul g q) _ _ Group.invOne) (Group.oneLeft q);
+\definition choice: N.Nat^ -> Carrier := \induction (k: N.Nat^) \return Carrier \with {
+  | zero: Group.one
+  | succ: \fun (k: N.Nat^)(previous: Carrier) => flip
+};
