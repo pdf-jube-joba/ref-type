@@ -21,6 +21,8 @@
 | `OrthogonalAtlas.Dimension[n]` | O(n) の滑らかな多様体 `manifold` とリー群 `lieGroup` |
 | `OrthogonalOrientation` | 行列式の滑らかさと、直交変換の行列式が \(\pm1\) になること |
 | `SpecialOrthogonal[n]` | SO(n) の開部分群としての多様体 `manifold` とリー群 `lieGroup` |
+| `CliffordPlots` | 再帰的な係数座標による、代数演算・次数自己同型・反自己同型の滑らかさ |
+| `Euclidean.PinPlots` | Pin の積・逆元と直交群への写像の係数による滑らかさ |
 | `CoefficientAtlas` | 点を分離する係数関数と局所座標から多様体・リー群を構成する一般のインターフェース |
 | `PinSurjectivity` | 任意の直交変換の Pin への持ち上げ |
 | `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |

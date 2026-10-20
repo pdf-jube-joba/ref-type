@@ -1,0 +1,27 @@
+/* Pin-valued smooth families and the smooth twisted adjoint projection. */
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import \root.CliffordPlots[d := d] \as Calculus;
+\import Calculus.Dimension[n := n] \as Plots;
+\import \parent.Plots[d := d] \as OrthogonalPlots;
+\import Clifford.Reversion[] \as Reverse;
+\import Clifford.Grading[] \as Grade;
+\import clifford.Euclidean[n := n].PinNorm[] \as Norm;
+\import clifford.EuclideanCoordinates[] \as Coordinates;
+\import \parent.PinRepresentation[] \as Representation;
+\import algebra.Groups[].On[G := Pin, group := pinGroup] \as Group;
+\definition values[U: Open.OpenSet][f: Open.Carrier U -> Pin][x: Open.Carrier U]: CliffordAlgebra := (f x).value;
+\definition Plot[U: Open.OpenSet][f: Open.Carrier U -> Pin]: \Prop := Plots.Plot U (values U f);
+\definition constant: \forall (U: Open.OpenSet)(g: Pin) -> Plot U (\fun (x: Open.Carrier U) => g) :=
+  \fun (U: Open.OpenSet)(g: Pin) => (Calculus.operations n U).constant g.value;
+\definition multiplication: \forall (U: Open.OpenSet)(f, g: Open.Carrier U -> Pin) -> Plot U f -> Plot U g ->
+  Plot U (\fun (x: Open.Carrier U) => Group.mul (f x) (g x)) :=
+  \fun (U: Open.OpenSet)(f, g: Open.Carrier U -> Pin)(left: Plot U f)(right: Plot U g) =>
+    (Calculus.operations n U).multiplication (values U f) (values U g) left right;
+\definition inverse: \forall (U: Open.OpenSet)(f: Open.Carrier U -> Pin) -> Plot U f -> Plot U (\fun (x: Open.Carrier U) => Group.inv (f x)) :=
+  \fun (U: Open.OpenSet)(f: Open.Carrier U -> Pin)(regular: Plot U f) => Plots.congruent U
+    (\fun (x: Open.Carrier U) => Reverse.map (values U f x)) (\fun (x: Open.Carrier U) => (Group.inv (f x)).value)
+    (\fun (x: Open.Carrier U) => Norm.norm (f x)) ((Calculus.operations n U).reversion (values U f) regular);
+\module Action(U: Open.OpenSet, f: Open.Carrier U -> Pin, regular: Plot U f, v: Vector);
+\definition projection: \forall (U: Open.OpenSet)(f: Open.Carrier U -> Pin) -> Plot U f -> OrthogonalPlots.Plot U (\fun (x: Open.Carrier U) => Representation.map (f x)) :=
+  \fun (U: Open.OpenSet)(f: Open.Carrier U -> Pin)(regular: Plot U f)(v: Vector) => Action[U := U, f := f, regular := regular, v := v].smooth;

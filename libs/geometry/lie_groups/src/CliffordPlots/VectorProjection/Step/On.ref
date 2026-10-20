@@ -1,0 +1,13 @@
+\import \parent.\parent.\parent.Step[n := n].Components[U := U, f := f] \as Parts;
+\definition value[x: Open.Carrier U]: Next.Vector := (Coordinates.Projection[].value (N.Nat^::succ n)).read (f x);
+\definition headSmooth: Smooth.SmoothOn U (\fun (x: Open.Carrier U) => value x (Fin.zero n)) :=
+  smoothEqual U (\fun (x: Open.Carrier U) => ScalarPart.read n (Parts.right x)) (\fun (x: Open.Carrier U) => value x (Fin.zero n))
+    (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Tuples.atZero n (ScalarPart.read n (Recovery.right (f x))) ((Coordinates.Projection[].value n).read (Recovery.left (f x)))))
+    (Parts.rightPlot regular (ScalarPart.first n));
+\definition tailSmooth: \forall (i: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => value x (Fin.succ n i)) :=
+  \fun (i: Fin.Fin n) => smoothEqual U (\fun (x: Open.Carrier U) => (Coordinates.Projection[].value n).read (Parts.left x) i)
+    (\fun (x: Open.Carrier U) => value x (Fin.succ n i))
+    (\fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Tuples.atSuccessor n (ScalarPart.read n (Recovery.right (f x))) ((Coordinates.Projection[].value n).read (Recovery.left (f x))) i))
+    (previous U Parts.left (Parts.leftPlot regular) i);
+\definition law: Upper.Values U value := Fin.cases n
+  (\fun (i: Fin.Fin (N.Nat^::succ n)) => Smooth.SmoothOn U (\fun (x: Open.Carrier U) => value x i)) headSmooth tailSmooth;
