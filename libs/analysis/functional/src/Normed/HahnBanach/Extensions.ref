@@ -1,0 +1,98 @@
+\import std.Logic[].Equality[] \as Equalities;
+\use Equalities.congr;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\structure Extends[G: Graph]: \Prop := {
+  linear: LinearGraph[G],
+  initial: Included initial G,
+};
+\definition PartialExtension: \Set := \Cast[Graph] ({ G: Graph \where Extends[G] });
+\definition extension[G: PartialExtension]: Extends[G] := \bysub(Graph, { G: Graph \where Extends[G] }, G);
+\definition le[G, H: PartialExtension]: \Prop := Included G H;
+\import \root.Order[].Maximality[A := PartialExtension, le := le] \as Order;
+\definition underlying[G: PartialExtension]: Graph := G;
+\definition ordering: Relations.Ordering[PartialExtension, le] := Relations.Ordering[PartialExtension, le] {
+  refl := \fun (G: PartialExtension) (t: Point) (member: Member G t) => member,
+  antisym := \fun (G, H: PartialExtension) (gh: _) (hg: _) => \axiom:setext(underlying G, underlying H, gh, hg),
+  trans := \fun (G, H, K: PartialExtension) (gh: _) (hk: _) (t: Point) (member: Member G t) => hk t (gh t member),
+};
+\definition Union[C: \Pow PartialExtension]: Graph := { t: Point \where
+  Logic.Or[Member initial t, \exists ( G: PartialExtension \where Logic.And[\In[PartialExtension] C G, Member G t] )] };
+\definition unionInitial[C: \Pow PartialExtension]: Included initial (Union C) :=
+  \fun (t: Point) (member: Member initial t) => Logic.Or[_, _]::left member;
+\definition unionMember[C: \Pow PartialExtension] [G: PartialExtension]: \In[PartialExtension] C G -> Included G (Union C) :=
+  \fun (inC: _) (t: Point) (member: Member G t) => Logic.Or[_, _]::right
+    (Logic.existsIntro[PartialExtension, { H: PartialExtension \where Logic.And[\In[PartialExtension] C H, Member H t] }] G
+      (Logic.And[_, _]::# inC member));
+\definition unionElim[C: \Pow PartialExtension] [t: Point] [P: \Prop]:
+  (Member initial t -> P) -> (\forall (G: PartialExtension) -> \In[PartialExtension] C G -> Member G t -> P) ->
+  Member (Union C) t -> P :=
+  \fun (initialCase: _) (extensionCase: _) (member: _) => either!{member P {initialCase}
+    {\block {
+      \fun (exists: \exists ( G: PartialExtension \where Logic.And[\In[PartialExtension] C G, Member G t] )) \then
+      \takefrom G: \Cast[PartialExtension] ({ G: PartialExtension \where Logic.And[\In[PartialExtension] C G, Member G t] }) \by exists \then
+      \let data: Logic.And[\In[PartialExtension] C G, Member G t] :=
+        \bysub(PartialExtension, { G: PartialExtension \where Logic.And[\In[PartialExtension] C G, Member G t] }, G) \then
+      \return extensionCase G (data.left) (data.right)
+    }}
+  };
+\structure Joint[C: \Pow PartialExtension, t, u: Point, G: Graph]: \Prop := {
+  first: Member G t,
+  second: Member G u,
+  linear: LinearGraph[G],
+  included: Included G (Union C),
+};
+\definition jointExists: \forall (C: \Pow PartialExtension) -> Order.Chain C -> \forall (t, u: Point) ->
+  Member (Union C) t -> Member (Union C) u -> \exists ( G: Graph \where Joint[C, t, u, G] ) :=
+  \fun (C: \Pow PartialExtension) (chain: Order.Chain C) (t, u: Point) (inT: Member (Union C) t) (inU: Member (Union C) u) =>
+    unionElim C t (\exists ( G: Graph \where Joint[C, t, u, G] ))
+      (\fun (it: Member initial t) => unionElim C u (\exists ( G: Graph \where Joint[C, t, u, G] ))
+        (\fun (iu: Member initial u) => Logic.existsIntro[Graph, { G: Graph \where Joint[C, t, u, G] }] initial
+          (Joint[C, t, u, initial] { first := it, second := iu, linear := laws initial, included := unionInitial C }))
+        (\fun (G: PartialExtension) (inG: \In[PartialExtension] C G) (gu: Member G u) =>
+          Logic.existsIntro[Graph, { H: Graph \where Joint[C, t, u, H] }] G (Joint[C, t, u, G] {
+            first := (extension G).initial t it, second := gu, linear := (extension G).linear, included := unionMember C G inG,
+          })) inU)
+      (\fun (G: PartialExtension) (inG: \In[PartialExtension] C G) (gt: Member G t) =>
+        unionElim C u (\exists ( H: Graph \where Joint[C, t, u, H] ))
+          (\fun (iu: Member initial u) => Logic.existsIntro[Graph, { H: Graph \where Joint[C, t, u, H] }] G
+            (Joint[C, t, u, G] { first := gt, second := (extension G).initial u iu, linear := (extension G).linear, included := unionMember C G inG }))
+          (\fun (H: PartialExtension) (inH: \In[PartialExtension] C H) (hu: Member H u) =>
+            either!{{(chain G H inG inH)} {\exists ( K: Graph \where Joint[C, t, u, K] )}
+              {\fun (gh: Included G H) => Logic.existsIntro[Graph, { K: Graph \where Joint[C, t, u, K] }] H
+                (Joint[C, t, u, H] { first := gh t gt, second := hu, linear := (extension H).linear, included := unionMember C H inH })}
+              {\fun (hg: Included H G) => Logic.existsIntro[Graph, { K: Graph \where Joint[C, t, u, K] }] G
+                (Joint[C, t, u, G] { first := gt, second := hg u hu, linear := (extension G).linear, included := unionMember C G inG })}
+            }) inU) inT;
+\definition unionLinear: \forall (C: \Pow PartialExtension) -> Order.Chain C -> LinearGraph[Union C] :=
+  \fun (C: \Pow PartialExtension) (chain: Order.Chain C) => LinearGraph[Union C] {
+    zero := unionInitial C (Point::# (space.zero) Real.zero) (laws initial).zero,
+    addition := \block {
+      \fun (t, u: Point) (inT: Member (Union C) t) (inU: Member (Union C) u) \then
+      \takefrom G: \Cast[Graph] ({ G: Graph \where Joint[C, t, u, G] }) \by jointExists C chain t u inT inU \then
+      \let data: Joint[C, t, u, G] := \bysub(Graph, { G: Graph \where Joint[C, t, u, G] }, G) \then
+      \return data.included (plus t u) (data.linear.addition t u (data.first) (data.second))
+    },
+    scalar := \fun (a: Real.Real) (t: Point) => unionElim C t (Member (Union C) (scale a t))
+      (\fun (member: Member initial t) => unionInitial C (scale a t) ((laws initial).scalar a t member))
+      (\fun (G: PartialExtension) (inG: \In[PartialExtension] C G) (member: Member G t) =>
+        unionMember C G inG (scale a t) ((extension G).linear.scalar a t member)),
+    functional := \block {
+      \fun (t, u: Point) (inT: Member (Union C) t) (inU: Member (Union C) u) (same: t.vector = u.vector) \then
+      \takefrom G: \Cast[Graph] ({ G: Graph \where Joint[C, t, u, G] }) \by jointExists C chain t u inT inU \then
+      \let data: Joint[C, t, u, G] := \bysub(Graph, { G: Graph \where Joint[C, t, u, G] }, G) \then
+      \return data.linear.functional t u (data.first) (data.second) same
+    },
+    dominated := \fun (t: Point) => unionElim C t (R.Le (t.value) (p (t.vector))) ((laws initial).dominated t)
+      (\fun (G: PartialExtension) (inG: \In[PartialExtension] C G) => (extension G).linear.dominated t),
+  };
+\definition upperBoundExists: \forall (C: \Pow PartialExtension) -> Order.Chain C ->
+  \exists ( G: PartialExtension \where Order.UpperBound C G ) := \block {
+  \fun (C: \Pow PartialExtension) (chain: Order.Chain C) \then
+  \let G: PartialExtension := \into[Graph](Union C, { G: Graph \where Extends[G] }) \by {
+    Extends[Union C] { linear := unionLinear C chain, initial := unionInitial C }
+  } \then
+  \return Logic.existsIntro[PartialExtension, { H: PartialExtension \where Order.UpperBound C H }] G (unionMember C)
+};
+\definition maximalExtensionExists: \exists ( G: PartialExtension \where Order.Maximal G ) := Order.zorn ordering upperBoundExists;
+\definition Maximal[G: PartialExtension]: \Prop := Order.Maximal G;

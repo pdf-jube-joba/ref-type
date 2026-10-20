@@ -1,0 +1,132 @@
+\import \parent.Uniform[] \as Uniform;
+\import \root.Filters[A := Function] \as Filters;
+\import Filters.Compactness[topology := Uniform.topology] \as Compact;
+\import topology.Topology[Carrier := Function] \as Space;
+\import topology.Topology[Carrier := Real.Real] \as LineSpace;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.CompactIntervals[] \as Intervals;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import metric_spaces.MetricSpace[Carrier := Real.Real] \as RealMetrics;
+\import RealMetrics.Topology[] \as RealTopology;
+\import \root.Filters[A := Real.Real] \as ScalarFilters;
+\import ScalarFilters.Compactness[topology := Line.topology] \as ScalarCompact;
+\import std.Set[].FiniteSubset[A := \Pow A] \as Finite;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\definition At[x: A, a, epsilon: Real.Real]: \Pow Function := { g: Function \where R.Lt (Real.distance a (g x)) epsilon };
+\definition Pointwise[F: Filters.Filter, f: A -> Real.Real]: \Prop := \forall (x: A) (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> Filters.Member F (At x (f x) epsilon);
+\definition ValueLimit[F: Filters.Filter, x: A, a: Real.Real]: \Prop := \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> Filters.Member F (At x a epsilon);
+\module Evaluation(x: A) {
+  \import Filters.Mapping[B := Real.Real, map := \fun (g: Function) => g x] \as Image;
+  \definition valueExists: \forall (family: \Pow Function) -> PointwiseBounded family -> \forall (F: Filters.Ultrafilter) -> Filters.Member F family ->
+    \exists ( a: Real.Real \where ValueLimit[F, x, a] ) := \block {
+    \fun (family: \Pow Function) (bounded: PointwiseBounded family) (F: Filters.Ultrafilter) (member: Filters.Member F family) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (g: Function) -> Space.Member family g -> R.Le (Product.abs (g x)) b }) \by bounded x \then
+    \let bound: \forall (g: Function) -> Space.Member family g -> R.Le (Product.abs (g x)) b :=
+      \bysub(Real.Real, { b: Real.Real \where \forall (g: Function) -> Space.Member family g -> R.Le (Product.abs (g x)) b }, b) \then
+    \let interval: \Pow Real.Real := Line.ClosedInterval (Real.neg b) b \then
+    \let included: Space.Subset family (Image.preimage interval) := \block {
+      \fun (g: Function) (inFamily: Space.Member family g) \then
+      \return Logic.And[_, _]::#
+        (R.leReplaceLeft (Real.sub Real.zero b) (Real.neg b) (g x) (Laws.addZeroLeft (Real.neg b)) (E.distanceLeLower Real.zero (g x) b (bound g inFamily)))
+        (R.leReplaceRight (g x) (Real.add Real.zero b) b (Laws.addZeroLeft b) (E.distanceLeUpper Real.zero (g x) b (bound g inFamily)))
+    } \then
+    \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where ScalarCompact.LimitIn[Image.ultrafilter F, interval, a] })
+      \by ScalarCompact.compactLimit interval (Intervals.intervalCompact (Real.neg b) b) (Image.ultrafilter F)
+        ((Filters.laws F).upward family (Image.preimage interval) member included) \then
+    \let limit: ScalarCompact.LimitIn[Image.ultrafilter F, interval, a] :=
+      \bysub(Real.Real, { a: Real.Real \where ScalarCompact.LimitIn[Image.ultrafilter F, interval, a] }, a) \then
+    \return Logic.existsIntro[Real.Real, { a: Real.Real \where ValueLimit[F, x, a] }] a
+      (\fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => limit.limit (RealMetrics.Ball RealMetric.metric a epsilon)
+        (RealTopology.ballOpenIn RealMetric.metric a epsilon) (RealMetrics.ballCenter RealMetric.metric a epsilon positive))
+  };
+}
+\definition pointwiseExists: \forall (family: \Pow Function) -> PointwiseBounded family -> \forall (F: Filters.Ultrafilter) -> Filters.Member F family ->
+  \exists ( f: A -> Real.Real \where Pointwise[F, f] ) := \block {
+  \fun (family: \Pow Function) (bounded: PointwiseBounded family) (F: Filters.Ultrafilter) (member: Filters.Member F family) \then
+  \takefrom values: \forall (x: A) -> \Cast[Real.Real] ({ a: Real.Real \where ValueLimit[F, x, a] })
+    \by \axiom:classicalIndefiniteChoice(A, (\fun (x: A) => \Cast[Real.Real] ({ a: Real.Real \where ValueLimit[F, x, a] })),
+      \fun (x: A) => Evaluation[x := x].valueExists family bounded F member) \then
+  \return Logic.existsIntro[A -> Real.Real, { f: A -> Real.Real \where Pointwise[F, f] }] (\fun (x: A) => values x)
+    (\fun (x: A) => \bysub(Real.Real, { a: Real.Real \where ValueLimit[F, x, a] }, values x))
+};
+\module Limit(family: \Pow Function, F: Filters.Ultrafilter, f: A -> Real.Real);
+\definition arzelaAscoli: Source.IsCompact topology -> \forall (family: \Pow Function) ->
+  Equicontinuous family -> PointwiseBounded family -> Space.IsClosedIn (Uniform.topology) family -> Space.IsCompactIn (Uniform.topology) family := \block {
+  \fun (compact: Source.IsCompact topology) (family: \Pow Function) (equicontinuous: Equicontinuous family) (bounded: PointwiseBounded family)
+    (closed: Space.IsClosedIn (Uniform.topology) family) \then
+  \return Compact.compactOfLimits family (\block {
+    \fun (F: Filters.Ultrafilter) (member: Filters.Member F family) \then
+    \takefrom f: \Cast[A -> Real.Real] ({ f: A -> Real.Real \where Pointwise[F, f] }) \by pointwiseExists family bounded F member \then
+    \let pointwise: Pointwise[F, f] := \bysub(A -> Real.Real, { f: A -> Real.Real \where Pointwise[F, f] }, f) \then
+    \let fc: Functions.Continuous topology f := Limit[family := family, F := F, f := f].continuous equicontinuous member pointwise \then
+    \let g: Function := \into[A -> Real.Real](f, { f: A -> Real.Real \where Functions.Continuous topology f }) \by { fc } \then
+    \let limit: Compact.Limit[F, g] := \block {
+      \fun (U: \Pow Function) (open: Space.IsOpenIn (Uniform.topology) U) (inU: Space.Member U g) \then
+      \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where Uniform.Neighborhood[U, g, r] }) \by open g inU \then
+      \let neighborhood: Uniform.Neighborhood[U, g, r] := \bysub(Real.Real, { r: Real.Real \where Uniform.Neighborhood[U, g, r] }, r) \then
+      \return (Filters.laws F).upward ({ h: Function \where Uniform.Near g h r }) U
+        (Limit[family := family, F := F, f := f].Uniformization[epsilon := r].uniform compact (neighborhood.positive) equicontinuous member pointwise fc)
+        (neighborhood.included)
+    } \then
+    \let inFamily: Space.Member family g := Filters.byContradiction (Space.Member family g)
+      (\fun (outside: Logic.Not (Space.Member family g)) => Filters.incompatible F family member (limit (Space.Complement family) closed outside)) \then
+    \return Logic.existsIntro[Function, { g: Function \where Compact.LimitIn[F, family, g] }] g
+      (Compact.LimitIn[F, family, g] { member := inFamily, limit := limit })
+  })
+};
+\import Space.Closure[] \as Closure;
+\definition closureNear: \forall (family: \Pow Function) (f: Function) -> Space.Member (Closure.closure (Uniform.topology) family) f ->
+  \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \exists ( g: Function \where Logic.And[Space.Member family g, Uniform.Near f g epsilon] ) := \block {
+  \fun (family: \Pow Function) (f: Function) (member: Space.Member (Closure.closure (Uniform.topology) family) f) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \enough _ \by { Filters.byContradiction (\exists ( g: Function \where Logic.And[Space.Member family g, Uniform.Near f g epsilon] )) } \then
+  \fun (none: Logic.Not (\exists ( g: Function \where Logic.And[Space.Member family g, Uniform.Near f g epsilon] ))) \then
+  \let ball: \Pow Function := Uniform.Ball f epsilon \then
+  \let avoiding: Space.FamilyMember (Closure.Avoiding (Uniform.topology) family) ball := Logic.And[_, _]::# (Uniform.ballOpen f epsilon)
+    (\fun (g: Function) (inBall: Space.Member ball g) (inFamily: Space.Member family g) => none
+      (Logic.existsIntro[Function, { g: Function \where Logic.And[Space.Member family g, Uniform.Near f g epsilon] }] g
+        (Logic.And[_, _]::# inFamily (Uniform.ballNear f g epsilon inBall)))) \then
+  \return member (Space.unionMemberOf (Closure.Avoiding (Uniform.topology) family) ball f avoiding (Uniform.ballCenter f epsilon positive))
+};
+\definition closurePointwiseBounded: \forall (family: \Pow Function) -> PointwiseBounded family -> PointwiseBounded (Closure.closure (Uniform.topology) family) := \block {
+  \fun (family: \Pow Function) (bounded: PointwiseBounded family) (x: A) \then
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (f: Function) -> Space.Member family f -> R.Le (Product.abs (f x)) b }) \by bounded x \then
+  \let bound: \forall (f: Function) -> Space.Member family f -> R.Le (Product.abs (f x)) b := \bysub(Real.Real, { b: Real.Real \where \forall (f: Function) -> Space.Member family f -> R.Le (Product.abs (f x)) b }, b) \then
+  \return Logic.existsIntro[Real.Real, { c: Real.Real \where \forall (f: Function) -> Space.Member (Closure.closure (Uniform.topology) family) f -> R.Le (Product.abs (f x)) c }] (Real.add b Real.one) (\block {
+    \fun (f: Function) (member: Space.Member (Closure.closure (Uniform.topology) family) f) \then
+    \takefrom g: \Cast[Function] ({ g: Function \where Logic.And[Space.Member family g, Uniform.Near f g Real.one] }) \by closureNear family f member Real.one Product.onePositive \then
+    \let data: Logic.And[Space.Member family g, Uniform.Near f g Real.one] := \bysub(Function, { g: Function \where Logic.And[Space.Member family g, Uniform.Near f g Real.one] }, g) \then
+    \return R.leTrans _ (Real.add (Product.abs (g x)) (Real.distance (g x) (f x))) _ (Distance.distanceTriangle Real.zero (g x) (f x))
+      (E.addLe _ _ b Real.one (bound g (data.left)) (Order.leOfLt _ _ (R.ltReplaceLeft _ _ Real.one (Distance.distanceSymmetric (f x) (g x)) (data.right x))))
+  })
+};
+\definition closureEquicontinuous: \forall (family: \Pow Function) -> Equicontinuous family -> Equicontinuous (Closure.closure (Uniform.topology) family) := \block {
+  \fun (family: \Pow Function) (equicontinuous: Equicontinuous family) (x: A) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \let delta: Real.Real := Real.mul Real.half (Real.mul Real.half epsilon) \then
+  \let dp: R.Lt Real.zero delta := E.halfOfPositive _ (E.halfOfPositive epsilon positive) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where EquicontinuousNeighborhood[family, x, delta, U] }) \by equicontinuous x delta dp \then
+  \let neighborhood: EquicontinuousNeighborhood[family, x, delta, U] := \bysub(\Pow A, { U: \Pow A \where EquicontinuousNeighborhood[family, x, delta, U] }, U) \then
+  \return Logic.existsIntro[\Pow A, { U: \Pow A \where EquicontinuousNeighborhood[Closure.closure (Uniform.topology) family, x, epsilon, U] }] U
+    (EquicontinuousNeighborhood[Closure.closure (Uniform.topology) family, x, epsilon, U] {
+      open := neighborhood.open, contains := neighborhood.contains,
+      estimate := \block {
+        \fun (f: Function) (member: Space.Member (Closure.closure (Uniform.topology) family) f) (y: A) (inU: Source.Member U y) \then
+        \takefrom g: \Cast[Function] ({ g: Function \where Logic.And[Space.Member family g, Uniform.Near f g delta] }) \by closureNear family f member delta dp \then
+        \let data: Logic.And[Space.Member family g, Uniform.Near f g delta] := \bysub(Function, { g: Function \where Logic.And[Space.Member family g, Uniform.Near f g delta] }, g) \then
+        \return R.leLtTrans _ _ epsilon (E.distanceBridge (f x) (g x) (g y) (f y))
+          (R.ltLeTrans _ (Real.add delta (Real.add delta delta)) epsilon
+            (E.addLt _ _ delta (Real.add delta delta) (data.right x)
+              (E.addLt _ _ delta delta (neighborhood.estimate g (data.left) y inU)
+                (R.ltReplaceLeft _ _ delta (Distance.distanceSymmetric (f y) (g y)) (data.right y))))
+            (E.threeQuarterLe epsilon (Order.leOfLt _ _ positive)))
+      },
+    })
+};
+\definition RelativelyCompact[family: \Pow Function]: \Prop := Space.IsCompactIn (Uniform.topology) (Closure.closure (Uniform.topology) family);
+\definition arzelaAscoliClosure: Source.IsCompact topology -> \forall (family: \Pow Function) -> Equicontinuous family -> PointwiseBounded family -> RelativelyCompact family :=
+  \fun (compact: Source.IsCompact topology) (family: \Pow Function) (equicontinuous: Equicontinuous family) (bounded: PointwiseBounded family) =>
+    arzelaAscoli compact (Closure.closure (Uniform.topology) family) (closureEquicontinuous family equicontinuous)
+      (closurePointwiseBounded family bounded) (Closure.closed (Uniform.topology) family);

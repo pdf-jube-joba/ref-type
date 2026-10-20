@@ -1,0 +1,144 @@
+\definition inverseCancel[a: Real.Real] [x: Real.Real]: R.Lt Real.zero a -> Real.mul (Laws.fieldInv a) (Real.mul a x) = x :=
+  Real.Geometric[q := a].inverseCancel x;
+\definition cancelInverse[a: Real.Real] [x: Real.Real]: R.Lt Real.zero a -> Real.mul a (Real.mul (Laws.fieldInv a) x) = x :=
+  Real.Geometric[q := a].cancelInverse x;
+\definition inverseLe[a, b: Real.Real]: R.Lt Real.zero a -> R.Le (Real.mul a b) Real.one -> R.Le b (Laws.fieldInv a) :=
+  \fun (positive: R.Lt Real.zero a) (bound: R.Le (Real.mul a b) Real.one) =>
+    R.leReplace _ _ _ _ (inverseCancel a b positive) (Algebra.mulOneRight (Laws.fieldInv a))
+      (Estimates.mulMonotone (Laws.fieldInv a) (Real.mul a b) Real.one (Order.leOfLt _ _ (Product.invPositive a positive)) bound);
+\definition radius[n: N.Nat^]: Real.Real := Laws.fieldInv (Dyadic.value n);
+\definition cover: Surjective -> \forall (y: W) -> \exists ( n: N.Nat^ \where T.Member (Approximate (radius n)) y ) := \block {
+  \fun (surjective: Surjective) (y: W) \then
+  \takefrom x: \Cast[V] ({ x: V \where f.apply x = y }) \by surjective y \then
+  \let c: Real.Real := Real.add (norm.norm x) Real.one \then
+  \let cp: R.Lt Real.zero c := R.ltLeTrans Real.zero Real.one c Product.onePositive
+    (Distance.leAddRightOfNonnegative (norm.norm x) Real.one (norm.nonnegative x)) \then
+  \let epsilon: Real.Real := Product.radius c Real.one \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \forall (k: N.Nat^) -> Nat.Le n k -> R.Lt (Dyadic.value k) epsilon })
+    \by Limits.dyadicSmall epsilon (Product.radiusPositive c Real.one cp Product.onePositive) \then
+  \let small: R.Lt (Dyadic.value n) epsilon := (\bysub(N.Nat^,
+    { n: N.Nat^ \where \forall (k: N.Nat^) -> Nat.Le n k -> R.Lt (Dyadic.value k) epsilon }, n)) n (Nat.leRefl n) \then
+  \let bound: R.Le (norm.norm x) (radius n) := inverseLe (Dyadic.value n) (norm.norm x) (Limits.dyadicPositive n)
+    (R.leReplaceLeft _ _ Real.one (Laws.fieldMulComm (norm.norm x) (Dyadic.value n))
+      (R.leTrans _ (Real.mul c (Dyadic.value n)) Real.one
+        (R.leReplace _ _ _ _ (Laws.fieldMulComm (Dyadic.value n) (norm.norm x)) (Laws.fieldMulComm (Dyadic.value n) c)
+          (Estimates.mulMonotone (Dyadic.value n) (norm.norm x) c (Order.leOfLt _ _ (Limits.dyadicPositive n))
+            (Algebra.leAddRight (norm.norm x) Real.one Laws.oneNonnegative)))
+        (Order.leOfLt _ _ (Order.ltTrans _ (Real.mul c epsilon) Real.one (Product.mulStrict c _ epsilon cp small)
+          (Product.radiusSmall c Real.one cp Product.onePositive))))) \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where T.Member (Approximate (radius n)) y }] n
+    (\idelim f.apply x = y \with z: W => T.Member (Approximate (radius n)) z
+      \by { base: approximateMember (radius n) x bound, equality: \bysub(V, { x: V \where f.apply x = y }, x) })
+};
+\definition difference: \forall (r: Real.Real) (y, z: W) -> T.Member (Approximate r) y -> T.Member (Approximate r) z ->
+  T.Member (Approximate (Real.add r r)) (Target.sub y z) := \block {
+  \fun (r: Real.Real) (y, z: W) (ay: T.Member (Approximate r) y) (az: T.Member (Approximate r) z)
+    (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \let delta: Real.Real := Real.mul Real.half epsilon \then
+  \let dp: R.Lt Real.zero delta := Estimates.halfOfPositive epsilon positive \then
+  \takefrom x: \Cast[V] ({ x: V \where Approximation[r, y, delta, x] }) \by ay delta dp \then
+  \takefrom w: \Cast[V] ({ w: V \where Approximation[r, z, delta, w] }) \by az delta dp \then
+  \let a: Approximation[r, y, delta, x] := \bysub(V, { x: V \where Approximation[r, y, delta, x] }, x) \then
+  \let b: Approximation[r, z, delta, w] := \bysub(V, { w: V \where Approximation[r, z, delta, w] }, w) \then
+  \return Logic.existsIntro[V, { x: V \where Approximation[Real.add r r, Target.sub y z, epsilon, x] }] (sub x w)
+    (Approximation[Real.add r r, Target.sub y z, epsilon, sub x w] {
+      bound := R.leTrans _ (Real.add (norm.norm x) (norm.norm (space.neg w))) _ (norm.triangle x (space.neg w))
+        (Estimates.addLe _ _ r r (a.bound) (R.leReplaceLeft _ _ r (sym!{Real.Real} _ _ (normNegative norm w)) (b.bound))),
+      error := R.ltReplaceLeft _ _ epsilon
+        (congr!{W Real.Real} (\fun (v: W) => distance v (Target.sub y z)) _ _ (sym!{W} _ _ (preservesSub f x w)))
+        (R.leLtTrans _ (Real.add (distance (f.apply x) y) (distance (f.apply w) z)) epsilon
+          (Target.subtractDistance targetNorm (f.apply x) (f.apply w) y z)
+          (R.ltReplaceRight _ (Real.add delta delta) epsilon (Estimates.halfTwice epsilon)
+            (Estimates.addLt _ _ delta delta (a.error) (b.error)))),
+    })
+};
+\definition scale: \forall (r, a: Real.Real) -> R.Lt Real.zero a -> \forall (y: W) -> T.Member (Approximate r) y ->
+  T.Member (Approximate (Real.mul a r)) (target.smul a y) := \block {
+  \fun (r, a: Real.Real) (positive: R.Lt Real.zero a) (y: W) (approximate: T.Member (Approximate r) y)
+    (epsilon: Real.Real) (ep: R.Lt Real.zero epsilon) \then
+  \let delta: Real.Real := Product.radius a epsilon \then
+  \takefrom x: \Cast[V] ({ x: V \where Approximation[r, y, delta, x] }) \by approximate delta (Product.radiusPositive a epsilon positive ep) \then
+  \let data: Approximation[r, y, delta, x] := \bysub(V, { x: V \where Approximation[r, y, delta, x] }, x) \then
+  \return Logic.existsIntro[V, { x: V \where Approximation[Real.mul a r, target.smul a y, epsilon, x] }] (space.smul a x)
+    (Approximation[Real.mul a r, target.smul a y, epsilon, space.smul a x] {
+      bound := R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (scaleNorm norm a x (Order.leOfLt _ _ positive)))
+        (Estimates.mulMonotone a (norm.norm x) r (Order.leOfLt _ _ positive) (data.bound)),
+      error := R.ltReplaceLeft _ _ epsilon
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr!{W Real.Real} (\fun (v: W) => distance v (target.smul a y)) _ _ (f.preservesScale a x))
+          (Target.scaleDistance targetNorm a (f.apply x) y (Order.leOfLt _ _ positive))))
+        (Order.ltTrans _ (Real.mul a delta) epsilon (Product.mulStrict a _ delta positive (data.error)) (Product.radiusSmall a epsilon positive ep)),
+    })
+};
+\structure Neighborhood[r, delta: Real.Real]: \Prop := {
+  positiveRadius: R.Lt Real.zero r,
+  positiveDelta: R.Lt Real.zero delta,
+  approximate: \forall (y: W) -> R.Lt (targetNorm.norm y) delta -> T.Member (Approximate r) y,
+};
+\definition interiorAtZero: Target.IsBanach targetNorm -> Surjective ->
+  \exists ( r: Real.Real \where \exists ( delta: Real.Real \where Neighborhood[r, delta] ) ) := \block {
+  \fun (complete: Target.IsBanach targetNorm) (surjective: Surjective) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Baire.HasInterior (Approximate (radius n)) })
+    \by Baire.closedCover complete (target.zero) (\fun (n: N.Nat^) => Approximate (radius n))
+      (\fun (n: N.Nat^) => approximateClosed (radius n)) (cover surjective) \then
+  \takefrom z: \Cast[W] ({ z: W \where \exists ( delta: Real.Real \where Baire.Interior[Approximate (radius n), z, delta] ) })
+    \by \bysub(N.Nat^, { n: N.Nat^ \where Baire.HasInterior (Approximate (radius n)) }, n) \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Baire.Interior[Approximate (radius n), z, delta] })
+    \by \bysub(W, { z: W \where \exists ( delta: Real.Real \where Baire.Interior[Approximate (radius n), z, delta] ) }, z) \then
+  \let interior: Baire.Interior[Approximate (radius n), z, delta] := \bysub(Real.Real,
+    { delta: Real.Real \where Baire.Interior[Approximate (radius n), z, delta] }, delta) \then
+  \let center: T.Member (Approximate (radius n)) z := interior.included z (TargetMetrics.ballCenter _ z delta (interior.positive)) \then
+  \let r: Real.Real := Real.add (radius n) (radius n) \then
+  \return Logic.existsIntro[Real.Real, { r: Real.Real \where \exists ( delta: Real.Real \where Neighborhood[r, delta] ) }] r
+    (Logic.existsIntro[Real.Real, { delta: Real.Real \where Neighborhood[r, delta] }] delta (Neighborhood[r, delta] {
+      positiveRadius := R.ltLeTrans Real.zero (radius n) r (Product.invPositive (Dyadic.value n) (Limits.dyadicPositive n))
+        (Algebra.leAddRight (radius n) (radius n) (Order.leOfLt _ _ (Product.invPositive (Dyadic.value n) (Limits.dyadicPositive n)))),
+      positiveDelta := interior.positive,
+      approximate := \fun (y: W) (small: R.Lt (targetNorm.norm y) delta) =>
+        \idelim Target.sub (target.add y z) z = y \with w: W => T.Member (Approximate r) w \by {
+          base: difference (radius n) (target.add y z) z
+            (interior.included (target.add y z)
+              (R.ltReplaceLeft _ _ delta
+                (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ ((Target.metric targetNorm).symmetric z (target.add y z))
+                  (trans!{Real.Real} _ _ _
+                    (congr!{W Real.Real} (\fun (w: W) => distance (target.add y z) w) _ _ (sym!{W} _ _ (TargetVectors.zeroLeft z)))
+                    (trans!{Real.Real} _ _ _ (Target.translateDistance targetNorm y (target.zero) z)
+                      (congr!{W Real.Real} (targetNorm.norm) _ _ (Target.subZeroRight y)))))) small)) center,
+          equality: trans!{W} _ _ _ (TargetVectors.assoc y z (target.neg z))
+            (trans!{W} _ _ _ (congr!{W W} (target.add y) _ _ (Target.subSelf z)) (TargetVectors.zeroRight y))
+        },
+    }))
+};
+\definition scaledNeighborhood: \forall (r, delta, a: Real.Real) -> Neighborhood[r, delta] -> R.Lt Real.zero a ->
+  Neighborhood[Real.mul a r, Real.mul a delta] := \block {
+  \fun (r, delta, a: Real.Real) (neighborhood: Neighborhood[r, delta]) (positive: R.Lt Real.zero a) \then
+  \return Neighborhood[Real.mul a r, Real.mul a delta] {
+    positiveRadius := Product.mulPositive a r positive (neighborhood.positiveRadius),
+    positiveDelta := Product.mulPositive a delta positive (neighborhood.positiveDelta),
+    approximate := \block {
+      \fun (y: W) (small: R.Lt (targetNorm.norm y) (Real.mul a delta)) \then
+      \let inversePositive: R.Lt Real.zero (Laws.fieldInv a) := Product.invPositive a positive \then
+      \let divided: R.Lt (targetNorm.norm (target.smul (Laws.fieldInv a) y)) delta :=
+        ltReplace _ _ _ _ (sym!{Real.Real} _ _ (Target.scaleNorm targetNorm (Laws.fieldInv a) y (Order.leOfLt _ _ inversePositive)))
+          (inverseCancel a delta positive)
+          (Product.mulStrict (Laws.fieldInv a) (targetNorm.norm y) (Real.mul a delta) inversePositive small) \then
+      \return \idelim target.smul a (target.smul (Laws.fieldInv a) y) = y \with z: W => T.Member (Approximate (Real.mul a r)) z \by {
+        base: scale r a positive (target.smul (Laws.fieldInv a) y) (neighborhood.approximate (target.smul (Laws.fieldInv a) y) divided),
+        equality: Target.scaleInverse a y positive
+      }
+    },
+  }
+};
+\definition unitNeighborhood: Target.IsBanach targetNorm -> Surjective ->
+  \exists ( delta: Real.Real \where Neighborhood[Real.one, delta] ) := \block {
+  \fun (complete: Target.IsBanach targetNorm) (surjective: Surjective) \then
+  \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where \exists ( delta: Real.Real \where Neighborhood[r, delta] ) }) \by interiorAtZero complete surjective \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Neighborhood[r, delta] })
+    \by \bysub(Real.Real, { r: Real.Real \where \exists ( delta: Real.Real \where Neighborhood[r, delta] ) }, r) \then
+  \let neighborhood: Neighborhood[r, delta] := \bysub(Real.Real, { delta: Real.Real \where Neighborhood[r, delta] }, delta) \then
+  \return Logic.existsIntro[Real.Real, { epsilon: Real.Real \where Neighborhood[Real.one, epsilon] }] (Real.mul (Laws.fieldInv r) delta)
+    (\idelim Real.mul (Laws.fieldInv r) r = Real.one \with radius: Real.Real => Neighborhood[radius, Real.mul (Laws.fieldInv r) delta] \by {
+      base: scaledNeighborhood r delta (Laws.fieldInv r) neighborhood (Product.invPositive r (neighborhood.positiveRadius)),
+      equality: Laws.fieldInverseNonzero r (\fun (zero: r = Real.zero) => Order.ltNotEq Real.zero r (neighborhood.positiveRadius) (sym!{Real.Real} _ _ zero))
+    })
+};

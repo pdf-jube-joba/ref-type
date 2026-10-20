@@ -1,0 +1,113 @@
+\structure Representation[t, u: Point, a: Real.Real]: \Prop := {
+  old: Member G u,
+  vector: t.vector = space.add (u.vector) (space.smul a x),
+  value: t.value = Real.add (u.value) (Real.mul a c),
+};
+\definition adjoin: Graph := { t: Point \where \exists ( u: Point \where \exists ( a: Real.Real \where Representation[t, u, a] ) ) };
+\definition member[t, u: Point] [a: Real.Real]: Representation[t, u, a] -> Member adjoin t :=
+  \fun (data: Representation[t, u, a]) => Logic.existsIntro[Point, { u: Point \where \exists ( a: Real.Real \where Representation[t, u, a] ) }] u
+    (Logic.existsIntro[Real.Real, { a: Real.Real \where Representation[t, u, a] }] a data);
+\definition eliminate[t: Point] [P: \Prop]:
+  (\forall (u: Point) (a: Real.Real) -> Representation[t, u, a] -> P) -> Member adjoin t -> P := \block {
+  \fun (step: \forall (u: Point) (a: Real.Real) -> Representation[t, u, a] -> P) (exists: Member adjoin t) \then
+  \takefrom u: \Cast[Point] ({ u: Point \where \exists ( a: Real.Real \where Representation[t, u, a] ) }) \by exists \then
+  \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Representation[t, u, a] })
+    \by \bysub(Point, { u: Point \where \exists ( a: Real.Real \where Representation[t, u, a] ) }, u) \then
+  \return step u a (\bysub(Real.Real, { a: Real.Real \where Representation[t, u, a] }, a))
+};
+\definition includes: Included G adjoin := \fun (t: Point) (old: Member G t) => member t t Real.zero (Representation[t, t, Real.zero] {
+  old := old,
+  vector := sym!{V} _ _ (trans!{V} _ _ _
+    (congr!{V V} (space.add (t.vector)) _ _ (Vectors.zeroScale x)) (Vectors.zeroRight (t.vector))),
+  value := sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.add (t.value)) _ _ (Laws.fieldMulZeroLeft c)) (Laws.addZeroRight (t.value))),
+});
+\definition newPoint: HasValue adjoin x c := member (Point::# x c) (Point::# (space.zero) Real.zero) Real.one
+  (Representation[Point::# x c, Point::# (space.zero) Real.zero, Real.one] {
+    old := (laws G).zero,
+    vector := sym!{V} _ _ (trans!{V} _ _ _ (Vectors.zeroLeft (space.smul Real.one x)) (space.scalarOne x)),
+    value := sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.addZeroLeft (Real.mul Real.one c)) (Laws.fieldMulOneLeft c)),
+  });
+\definition addRepresentations[t, u, s, v: Point] [a, b: Real.Real]:
+  Representation[t, s, a] -> Representation[u, v, b] -> Representation[plus t u, plus s v, Real.add a b] :=
+  \fun (left: Representation[t, s, a]) (right: Representation[u, v, b]) => Representation[plus t u, plus s v, Real.add a b] {
+    old := (laws G).addition s v (left.old) (right.old),
+    vector := eq_reason!{
+      {space.add (t.vector) (u.vector)}
+      "=" {space.add (space.add (s.vector) (space.smul a x)) (space.add (v.vector) (space.smul b x))} "by" {
+        congr2!{V V V} (space.add) _ _ _ _ (left.vector) (right.vector)}
+      "=" {space.add (space.add (s.vector) (v.vector)) (space.add (space.smul a x) (space.smul b x))} "by" {Vectors.shuffle (s.vector) (space.smul a x) (v.vector) (space.smul b x)}
+      "=" {space.add (space.add (s.vector) (v.vector)) (space.smul (Real.add a b) x)} "by" {
+        congr!{V V} (space.add (space.add (s.vector) (v.vector))) _ _ (sym!{V} _ _ (space.scalarAdd a b x))}
+    },
+    value := eq_reason!{
+      {Real.add (t.value) (u.value)}
+      "=" {Real.add (Real.add (s.value) (Real.mul a c)) (Real.add (v.value) (Real.mul b c))} "by" {
+        congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (left.value) (right.value)}
+      "=" {Real.add (Real.add (s.value) (v.value)) (Real.add (Real.mul a c) (Real.mul b c))} "by" {Algebra.addFour (s.value) (Real.mul a c) (v.value) (Real.mul b c)}
+      "=" {Real.add (Real.add (s.value) (v.value)) (Real.mul (Real.add a b) c)} "by" {
+        congr!{Real.Real Real.Real} (Real.add (Real.add (s.value) (v.value))) _ _ (sym!{Real.Real} _ _ (Algebra.mulAddRight a b c))}
+    },
+  };
+\definition addition: \forall (t, u: Point) -> Member adjoin t -> Member adjoin u -> Member adjoin (plus t u) :=
+  \fun (t, u: Point) (inT: Member adjoin t) (inU: Member adjoin u) =>
+    eliminate t (Member adjoin (plus t u))
+      (\fun (s: Point) (a: Real.Real) (left: Representation[t, s, a]) =>
+        eliminate u (Member adjoin (plus t u))
+          (\fun (v: Point) (b: Real.Real) (right: Representation[u, v, b]) =>
+            member (plus t u) (plus s v) (Real.add a b) (addRepresentations t u s v a b left right)) inU) inT;
+\definition scalarRepresentation[t, s: Point] [a, b: Real.Real]: Representation[t, s, a] ->
+  Representation[scale b t, scale b s, Real.mul b a] :=
+  \fun (data: Representation[t, s, a]) => Representation[scale b t, scale b s, Real.mul b a] {
+    old := (laws G).scalar b s (data.old),
+    vector := eq_reason!{
+      {space.smul b (t.vector)}
+      "=" {space.smul b (space.add (s.vector) (space.smul a x))} "by" {congr!{V V} (space.smul b) _ _ (data.vector)}
+      "=" {space.add (space.smul b (s.vector)) (space.smul b (space.smul a x))} "by" {space.vectorAdd b (s.vector) (space.smul a x)}
+      "=" {space.add (space.smul b (s.vector)) (space.smul (Real.mul b a) x)} "by" {
+        congr!{V V} (space.add (space.smul b (s.vector))) _ _ (sym!{V} _ _ (space.scalarAssoc b a x))}
+    },
+    value := eq_reason!{
+      {Real.mul b (t.value)}
+      "=" {Real.mul b (Real.add (s.value) (Real.mul a c))} "by" {congr!{Real.Real Real.Real} (Real.mul b) _ _ (data.value)}
+      "=" {Real.add (Real.mul b (s.value)) (Real.mul b (Real.mul a c))} "by" {Laws.fieldMulAdd b (s.value) (Real.mul a c)}
+      "=" {Real.add (Real.mul b (s.value)) (Real.mul (Real.mul b a) c)} "by" {
+        congr!{Real.Real Real.Real} (Real.add (Real.mul b (s.value))) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc b a c))}
+    },
+  };
+\definition scalar: \forall (b: Real.Real) (t: Point) -> Member adjoin t -> Member adjoin (scale b t) :=
+  \fun (b: Real.Real) (t: Point) => eliminate t (Member adjoin (scale b t))
+    (\fun (s: Point) (a: Real.Real) (data: Representation[t, s, a]) =>
+      member (scale b t) (scale b s) (Real.mul b a) (scalarRepresentation t s a b data));
+\definition dominated: Sublinear -> Interval[G, x, c] -> \forall (t: Point) -> Member adjoin t -> R.Le (t.value) (p (t.vector)) :=
+  \fun (sublinear: Sublinear) (interval: Interval[G, x, c]) (t: Point) => eliminate t (R.Le (t.value) (p (t.vector)))
+    (\fun (s: Point) (a: Real.Real) (data: Representation[t, s, a]) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (data.value)) (sym!{Real.Real} _ _ (congr!{V Real.Real} p _ _ (data.vector)))
+      (coefficientBound sublinear G x c interval s a (data.old)));
+\definition negativeOne[a: Real.Real]: Real.mul (Real.neg Real.one) a = Real.neg a :=
+  trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one a) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft a));
+\definition leAtSameVector: Sublinear -> Interval[G, x, c] -> \forall (t, u: Point) ->
+  Member adjoin t -> Member adjoin u -> t.vector = u.vector -> R.Le (t.value) (u.value) := \block {
+  \fun (sublinear: Sublinear) (interval: Interval[G, x, c]) (t, u: Point) (inT: Member adjoin t) (inU: Member adjoin u) (same: t.vector = u.vector) \then
+  \let diff: Point := plus t (scale (Real.neg Real.one) u) \then
+  \let vector: diff.vector = space.zero := eq_reason!{
+    {diff.vector} "=" {sub (t.vector) (u.vector)} "by" {congr!{V V} (space.add (t.vector)) _ _ (Vectors.minusOneScale (u.vector))}
+    "=" {sub (u.vector) (u.vector)} "by" {congr!{V V} (\fun (v: V) => sub v (u.vector)) _ _ same}
+    "=" {space.zero} "by" {subSelf (u.vector)}
+  } \then
+  \let estimate: R.Le (Real.sub (t.value) (u.value)) Real.zero := R.leReplace _ _ _ _
+    (congr!{Real.Real Real.Real} (Real.add (t.value)) _ _ (negativeOne (u.value)))
+    (trans!{Real.Real} _ _ _ (congr!{V Real.Real} p _ _ vector) (sublinear.zero))
+    (dominated sublinear interval diff (addition t (scale (Real.neg Real.one) u) inT (scalar (Real.neg Real.one) u inU))) \then
+  \return Laws.leAddCancelRight (t.value) (u.value) (Real.neg (u.value))
+    (R.leReplaceRight _ Real.zero (Real.sub (u.value) (u.value)) (sym!{Real.Real} _ _ (Laws.subSelf (u.value))) estimate)
+};
+\definition linear: Sublinear -> Interval[G, x, c] -> LinearGraph[adjoin] :=
+  \fun (sublinear: Sublinear) (interval: Interval[G, x, c]) => LinearGraph[adjoin] {
+    zero := includes (Point::# (space.zero) Real.zero) (laws G).zero,
+    addition := addition, scalar := scalar,
+    functional := \fun (t, u: Point) (inT: Member adjoin t) (inU: Member adjoin u) (same: t.vector = u.vector) =>
+      R.leAntisym _ _ (leAtSameVector sublinear interval t u inT inU same)
+        (leAtSameVector sublinear interval u t inU inT (sym!{V} _ _ same)),
+    dominated := dominated sublinear interval,
+  };

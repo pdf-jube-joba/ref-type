@@ -1,0 +1,68 @@
+\definition Tail[finite: Finite.FiniteSubset]: \Pow A := T.Intersection S (T.Complement (T.Union finite));
+\definition NoFinite: \Prop := Logic.Not (\exists ( finite: Finite.FiniteSubset \where T.FiniteSubcover[family, S, finite] ));
+\structure Witness[U: \Pow A, finite: Finite.FiniteSubset]: \Prop := {
+  included: Included finite family,
+  remaining: T.Subset (Tail finite) U,
+};
+\definition Seed: Family := { U: \Pow A \where \exists ( finite: Finite.FiniteSubset \where Witness[U, finite] ) };
+\definition seedMember[U: \Pow A, finite: Finite.FiniteSubset]: Witness[U, finite] -> Member Seed U :=
+  Logic.existsIntro[Finite.FiniteSubset, { finite: Finite.FiniteSubset \where Witness[U, finite] }] finite;
+\definition tailInhabited: NoFinite -> \forall (finite: Finite.FiniteSubset) -> Included finite family -> \exists \Cast[A] (Tail finite) := \block {
+  \fun (none: NoFinite) (finite: Finite.FiniteSubset) (included: Included finite family) \then
+  \enough _ \by { byContradiction (\exists \Cast[A] (Tail finite)) } \then
+  \fun (empty: Logic.Not (\exists \Cast[A] (Tail finite))) \then
+  \return none (Logic.existsIntro[Finite.FiniteSubset, { finite: Finite.FiniteSubset \where T.FiniteSubcover[family, S, finite] }] finite
+    (T.FiniteSubcover[family, S, finite] { included := included,
+      covers := \fun (x: A) (inS: T.Member S x) => byContradiction (T.Member (T.Union finite) x)
+        (\fun (outside: Logic.Not (T.Member (T.Union finite) x)) => empty (Logic.existsIntro[A, Tail finite] x (Logic.And[_, _]::# inS outside))),
+    }))
+};
+\definition seedLaws: NoFinite -> FilterLaws[Seed] := \fun (none: NoFinite) => FilterLaws[Seed] {
+  whole := seedMember T.Whole Finite.empty (Witness[T.Whole, Finite.empty] {
+    included := \fun (U: \Pow A) (empty: Logic.False) => Logic.falseElim (T.FamilyMember family U) empty,
+    remaining := \fun (x: A) (member: T.Member (Tail Finite.empty) x) => \refl(x),
+  }),
+  intersection := \block {
+    \fun (U, V: \Pow A) (mu: Member Seed U) (mv: Member Seed V) \then
+    \takefrom finite: \Cast[Finite.FiniteSubset] ({ finite: Finite.FiniteSubset \where Witness[U, finite] }) \by mu \then
+    \takefrom other: \Cast[Finite.FiniteSubset] ({ other: Finite.FiniteSubset \where Witness[V, other] }) \by mv \then
+    \let u: Witness[U, finite] := \bysub(Finite.FiniteSubset, { finite: Finite.FiniteSubset \where Witness[U, finite] }, finite) \then
+    \let v: Witness[V, other] := \bysub(Finite.FiniteSubset, { other: Finite.FiniteSubset \where Witness[V, other] }, other) \then
+    \return seedMember (T.Intersection U V) (Finite.union finite other) (Witness[T.Intersection U V, Finite.union finite other] {
+      included := \fun (W: \Pow A) (member: T.FamilyMember (Finite.union finite other) W) => either!{member {T.FamilyMember family W} {u.included W} {v.included W}},
+      remaining := \fun (x: A) (member: T.Member (Tail (Finite.union finite other)) x) => Logic.And[_, _]::#
+        (u.remaining x (Logic.And[_, _]::# (member.left) (\fun (inUnion: T.Member (T.Union finite) x) => member.right
+          (T.unionMemberElim finite x (T.Member (T.Union (Finite.union finite other)) x)
+            (\fun (W: \Pow A) (inFinite: Finite.Member finite W) (inW: T.Member W x) => T.unionMemberOf (Finite.union finite other) W x (Logic.Or[_, _]::left inFinite) inW) inUnion))))
+        (v.remaining x (Logic.And[_, _]::# (member.left) (\fun (inUnion: T.Member (T.Union other) x) => member.right
+          (T.unionMemberElim other x (T.Member (T.Union (Finite.union finite other)) x)
+            (\fun (W: \Pow A) (inOther: Finite.Member other W) (inW: T.Member W x) => T.unionMemberOf (Finite.union finite other) W x (Logic.Or[_, _]::right inOther) inW) inUnion)))),
+    })
+  },
+  upward := \block {
+    \fun (U, V: \Pow A) (member: Member Seed U) (subset: T.Subset U V) \then
+    \takefrom finite: \Cast[Finite.FiniteSubset] ({ finite: Finite.FiniteSubset \where Witness[U, finite] }) \by member \then
+    \let witness: Witness[U, finite] := \bysub(Finite.FiniteSubset, { finite: Finite.FiniteSubset \where Witness[U, finite] }, finite) \then
+    \return seedMember V finite (Witness[V, finite] { included := witness.included, remaining := T.subsetTrans _ U V (witness.remaining) subset })
+  },
+  proper := \block {
+    \fun (U: \Pow A) (member: Member Seed U) \then
+    \takefrom finite: \Cast[Finite.FiniteSubset] ({ finite: Finite.FiniteSubset \where Witness[U, finite] }) \by member \then
+    \let witness: Witness[U, finite] := \bysub(Finite.FiniteSubset, { finite: Finite.FiniteSubset \where Witness[U, finite] }, finite) \then
+    \takefrom x: \Cast[A] (Tail finite) \by tailInhabited none finite (witness.included) \then
+    \return Logic.existsIntro[A, U] x (witness.remaining x (\bysub(A, Tail finite, x)))
+  },
+};
+\definition contains: Member Seed S := seedMember S Finite.empty (Witness[S, Finite.empty] {
+  included := \fun (U: \Pow A) (empty: Logic.False) => Logic.falseElim (T.FamilyMember family U) empty,
+  remaining := \fun (x: A) (member: T.Member (Tail Finite.empty) x) => member.left,
+});
+\definition avoids: \forall (U: \Pow A) -> T.FamilyMember family U -> Member Seed (T.Complement U) :=
+  \fun (U: \Pow A) (inFamily: T.FamilyMember family U) => seedMember (T.Complement U) (Finite.singleton U)
+    (Witness[T.Complement U, Finite.singleton U] {
+      included := \fun (V: \Pow A) (member: Finite.Member (Finite.singleton U) V) => either!{member {T.FamilyMember family V}
+        {\fun (same: V = U) => \idelim U = V \with W: \Pow A => T.FamilyMember family W \by { base: inFamily, equality: sym!{\Pow A} _ _ same }}
+        {\fun (empty: Logic.False) => Logic.falseElim _ empty}},
+      remaining := \fun (x: A) (member: T.Member (Tail (Finite.singleton U)) x) (inU: T.Member U x) => member.right
+        (T.unionMemberOf (Finite.singleton U) U x (Finite.inSingleton U) inU),
+    });
