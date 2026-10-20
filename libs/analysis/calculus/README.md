@@ -17,6 +17,7 @@ Dedekind 実数上の極限と微分を扱う。
 | `Maps.WithPartials` / `Maps.Preimage` | 連続な偏微分を持つ写像の連鎖律、開集合の逆像への制限 |
 | `Real.OneDimension` / `Blocks[n, m]` | 実変数の微分と一次元偏微分の対応、座標ブロックの積と射影・切片 |
 | `Curves[n]` / `Maps.Corestriction` | 滑らかな実変数曲線の全域代表と微分、値域を開集合に制限した写像の微分 |
+| `Scaling[n]` / `Translation[n]` | 滑らかな拡大写像と平行移動、平行移動の微分 |
 | `Identity[n]` / `Diffeomorphism[n, m]` | 恒等写像、微分同相の逆・合成と誘導同相 |
 
 `ContDiff k f` は k 階までの微分の仕様と連続性を持つ族の存在、`Smooth f` はすべての k に対する `ContDiff k f` である。

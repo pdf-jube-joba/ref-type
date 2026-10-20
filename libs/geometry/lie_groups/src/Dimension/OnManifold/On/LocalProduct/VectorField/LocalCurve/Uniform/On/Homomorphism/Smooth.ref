@@ -1,0 +1,33 @@
+/* Smoothness of the global dyadic extension on its open time cover. */
+\import Reals.Geometric[q := Reals.half] \as Geometric;
+\import One.Interval[left := Reals.neg ComparisonStep.edge, right := ComparisonStep.edge] \as SmallTime;
+\import One.Interval[left := Reals.neg solution.radius, right := solution.radius] \as OriginalTime;
+\import calculus.Maps[n := One.dimension, m := One.dimension] \as TimeMaps;
+\import calculus.Scaling[n := One.dimension] \as Scaling;
+\module Patch(k: N.Nat^);
+\definition domains[k: N.Nat^]: TimeOpen.OpenSet := Patch[k := k].domain;
+\import manifolds.SmoothCover[n := One.dimension, m := n].On[U := TimeOpen.whole, N := manifold, I := N.Nat^, domains := domains] \as Cover;
+\definition family[k: N.Nat^]: Cover.LocalMap k := Patch[k := k].map;
+\definition function[x: TimeOpen.Carrier TimeOpen.whole]: Point := value (x One.index);
+\definition included: Cover.Inclusions := \fun (k: N.Nat^)(x: TimeVectors.Point)(member: _) => \refl(x);
+\definition covers: Cover.Covers := \block {
+  \fun (x: TimeOpen.Carrier TimeOpen.whole) \then
+  \takefrom k: Global.At[t := x One.index].Index \by Global.At[t := x One.index].eligibleExists \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \In[TimeVectors.Point] ((domains k).points) x }] k
+    (Patch[k := k].intro x (\bysub(N.Nat^, { k: N.Nat^ \where Global.At[t := x One.index].Eligible k }, k)))
+};
+\definition agrees: Cover.Agreement function family included := \fun (k: N.Nat^)(x: TimeOpen.Carrier (domains k)) =>
+  trans!{Point} _ _ _ (Global.At[t := x One.index].computes k (Patch[k := k].eligible x)) (sym!{Point} _ _ (Patch[k := k].apply x));
+\import Cover.Of[f := function, maps := family, included := included, agrees := agrees, covers := covers] \as Glued;
+\import manifolds.SmoothMap[n := One.dimension, m := n].Between[M := Cover.source, N := manifold] \as GlobalMaps;
+\definition map: GlobalMaps.Map := Glued.value;
+\definition apply: GlobalMaps.apply map = function := Glued.apply;
+\import \root.Dimension[n := n].OnManifold[M := manifold].On[G := G].OneParameter[] \as OneParameter;
+\definition oneParameter: OneParameter.OneParameter := \into[OneParameter.Data](OneParameter.Data { map := map },
+  { data: OneParameter.Data \where OneParameter.Laws[data] }) \by {
+    OneParameter.Laws[OneParameter.Data::# map] {
+      atZero := atZero,
+      addition := addition,
+    }
+  };
+\module Generator;

@@ -1,0 +1,40 @@
+/* Coordinate curve and the velocity of an arbitrary one-parameter subgroup. */
+\import manifolds.Dimension[n := n].Chart[M := manifold.Point, space := manifold.space] \as TargetCharts;
+\import Tangent.At[x := Curves.apply f.map (time Reals.zero)] \as Target;
+\definition targetChart: Target.Chart := \into[TargetCharts.Chart](chart, Target.Chart) \by {
+  Target.ChartLaws[chart] {
+    member := AtOne.member chart,
+    contains := \idelim one = Curves.apply f.map (time Reals.zero) \with p: Point => TargetCharts.Contains chart p \by {
+      base: AtOne.contains chart, equality: sym!{Point} _ _ f.atZero
+    },
+  }
+};
+\import Curves.Coordinates[f := f.map, left := sourceChart, right := targetChart] \as Local;
+\import Differential.InCharts[left := sourceChart, right := targetChart] \as InCharts;
+\definition domain: LineOpen.OpenSet := Local.domain;
+\definition zero: LineOpen.Carrier domain := InCharts.point;
+\import calculus.Maps[n := lineDimension, m := n] \as Maps;
+\definition map: Maps.Map domain chart.image := InCharts.coordinateMap;
+\import calculus.Curves[n := n, U := domain, V := chart.image, f := map] \as RealCurve;
+\definition value: Reals.Real -> topological_algebra.Euclidean[].Dimension[n := n].Point := RealCurve.value;
+\import TargetCharts.Of[chart := chart] \as ChartLaws;
+\import AtOne.Coordinate[chart := chart] \as TangentCoordinates;
+\import Target.Coordinate[chart := targetChart] \as TargetCoordinates;
+\definition atZero: Maps.apply domain chart.image map zero = AtOne.coordinate chart := ChartLaws.pointInjective _ _
+  (trans!{Point} _ _ _ (Local.returnsPoint zero) (trans!{Point} _ _ _ f.atZero (sym!{Point} _ _ (ChartLaws.pointCoordinate (AtOne.localPoint chart)))));
+\definition returnsPoint: \forall (x: LineOpen.Carrier domain) -> TargetCharts.point chart (Maps.apply domain chart.image map x) = Curves.apply f.map (time (x (Fin.zero N.Nat^::zero))) :=
+  \fun (x: LineOpen.Carrier domain) => trans!{Point} _ _ _ (Local.returnsPoint x)
+    (congr!{{line.Point} Point} (Curves.apply f.map) _ _ (sym!{{line.Point}} _ _ (timeCoordinates (Whole.point x))));
+\import Tangent.Transport[x := Curves.apply f.map (time Reals.zero), y := one, same := f.atZero] \as Transport;
+\definition chartEquality: Transport.chart targetChart = chart := Transport.underlying targetChart;
+\definition generatorCoordinates: TangentCoordinates.decode velocity = InCharts.jacobian.apply unitVector := \block {
+  \let actual: Tangent.Vector (Curves.apply f.map (time Reals.zero)) := Differential.value.apply unitVelocity \then
+  \let transported: AtOne.Coordinate[chart := Transport.chart targetChart].decode (Transport.vector actual) = TangentCoordinates.decode velocity :=
+    congr!{{AtOne.Chart} {topological_algebra.Euclidean[].Dimension[n := n].Point}}
+      (\fun (c: AtOne.Chart) => AtOne.Coordinate[chart := c].decode (Transport.vector actual)) _ _ chartEquality \then
+  \return trans!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ _ (sym!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ transported)
+    (trans!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ _ (Transport.coordinates targetChart actual)
+      (trans!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ _ (Differential.coordinates sourceChart targetChart unitVelocity)
+        (congr!{{topological_algebra.Euclidean[].Dimension[n := lineDimension].Point} {topological_algebra.Euclidean[].Dimension[n := n].Point}}
+          InCharts.jacobian.apply _ _ unitCoordinates)))
+};

@@ -1,0 +1,92 @@
+\import manifolds.Differential[n := One.dimension, m := n].Between[M := OneParameter.line, N := manifold].At[f := map, x := OneParameter.time Reals.zero] \as Differential;
+\import Tangent.At[x := GlobalMaps.apply map (OneParameter.time Reals.zero)] \as Target;
+\definition targetChart: Target.Chart := \into[Charts.Chart](chart, Target.Chart) \by {
+  Target.ChartLaws[chart] {
+    member := AtOne.member chart,
+    contains := \idelim one = GlobalMaps.apply map (OneParameter.time Reals.zero) \with p: Point => Charts.Contains chart p \by {
+      base: AtOne.contains chart, equality: sym!{Point} _ _ atZero
+    },
+  }
+};
+\import Differential.InCharts[left := OneParameter.chart, right := targetChart] \as Coordinates;
+\import GlobalMaps.Coordinates[f := map, left := OneParameter.chart, right := targetChart] \as ChartMap;
+\definition common: TimeOpen.OpenSet := TimeOpen.intersection ChartMap.domain SmallTime.domain;
+\definition inCoordinates: TimeOpen.Included common ChartMap.domain := TimeOpen.intersectionLeft ChartMap.domain SmallTime.domain;
+\definition inSmall: TimeOpen.Included common SmallTime.domain := TimeOpen.intersectionRight ChartMap.domain SmallTime.domain;
+\definition smallPoint[x: TimeOpen.Carrier common]: TimeOpen.Carrier SmallTime.domain := TimeOpen.inclusion common SmallTime.domain inSmall x;
+\definition smallBound[x: TimeOpen.Carrier common]: R.Lt (ProductBounds.abs (x One.index)) ComparisonStep.edge :=
+  R.ltReplaceLeft (Reals.distance (x One.index) Reals.zero) (ProductBounds.abs (x One.index)) ComparisonStep.edge
+    (Distance.distanceSymmetric (x One.index) Reals.zero)
+    (Equations.insideDistance (x One.index) ComparisonStep.edge (SmallTime.bounds (smallPoint x)).left (SmallTime.bounds (smallPoint x)).right);
+\definition localTime[x: TimeOpen.Carrier common]: Time := timeOf (x One.index) (smallBound x);
+\definition inOriginal: TimeOpen.Included common OriginalTime.domain := \fun (x: TimeVectors.Point)(member: _) => \block {
+  \let point: TimeOpen.Carrier common := \into[TimeVectors.Point](x, common.points) \by { member } \then
+  \return Logic.And[_, _]::# (lower (localTime point)) (upper (localTime point))
+};
+\import CurveMaps.Restriction[U := common, V := ChartMap.domain, W := chart.image] \as ChartRestriction;
+\import CurveMaps.Restriction[U := common, V := OriginalTime.domain, W := domain] \as CurveRestriction;
+\definition chartMap: CurveMaps.Map common chart.image := ChartRestriction.input inCoordinates Coordinates.coordinateMap;
+\definition curveMap: CurveMaps.Map common domain := CurveRestriction.input inOriginal Curve.map;
+\definition equal: \forall (x: TimeOpen.Carrier common) -> CurveMaps.apply common chart.image chartMap x =
+  Open.inclusion domain chart.image inChart (curve (localTime x)) := \block {
+  \fun (x: TimeOpen.Carrier common) \then
+  \let point: TimeOpen.Carrier ChartMap.domain := TimeOpen.inclusion common ChartMap.domain inCoordinates x \then
+  \return ChartLaws.pointInjective _ _ (trans!{Point} _ _ _ (ChartMap.returnsPoint point)
+    (trans!{Point} _ _ _ (localAgreement (x One.index) (smallBound x)) (chartAgreement (localTime x))))
+};
+\definition atZeroInSmall: \In[TimeVectors.Point] SmallTime.domain.points Coordinates.point := Logic.And[_, _]::#
+  (ArithmeticLaws.negativeNegOfPositive ComparisonStep.edge ComparisonStep.edgePositive) ComparisonStep.edgePositive;
+\definition zero: TimeOpen.Carrier common := \into[TimeVectors.Point](Coordinates.point, common.points) \by {
+  Logic.And[_, _]::# (\bysub(TimeVectors.Point, ChartMap.domain.points, Coordinates.point)) atZeroInSmall
+};
+\import CurveMaps.Differential[U := common, V := chart.image, f := chartMap, a := zero] \as ChartDerivative;
+\import CurveMaps.Differential[U := common, V := domain, f := curveMap, a := zero] \as CurveDerivative;
+\definition sameDerivatives: ChartDerivative.value = CurveDerivative.value := \block {
+  \let first: TimeOpen.Carrier common -> Vectors.Point := \fun (x: TimeOpen.Carrier common) => CurveMaps.apply common chart.image chartMap x \then
+  \let second: TimeOpen.Carrier common -> Vectors.Point := \fun (x: TimeOpen.Carrier common) => CurveMaps.apply common domain curveMap x \then
+  \return ChartDerivative.Compare[W := domain, g := curveMap].equal
+    (\axiom:funext(first, second, \fun (x: TimeOpen.Carrier common) => equal x))
+};
+\import calculus.Vector[n := One.dimension, m := n] \as CurveVectors;
+\import calculus.Curves[n := n, U := OriginalTime.domain, V := domain, f := Curve.map] \as OriginalCurve;
+\definition originalZero: TimeOpen.Carrier OriginalTime.domain := TimeOpen.inclusion common OriginalTime.domain inOriginal zero;
+\import \root.Dimension[n := n].OnManifold[M := manifold].On[G := G].LocalProduct[chart := chart].VectorField[v := v, neighborhood := neighborhood].Initial[] \as InitialValue;
+\definition velocityAtZero: Coordinates.jacobian.apply OriginalCurve.unit = TangentCoordinates.decode v := \block {
+  \let same: Curve.curve originalZero = initial := solution.initialValue \then
+  \return trans!{Vectors.Point} _ _ _
+    (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _
+      (sym!{CurveVectors.LinearMap} _ _ (ChartRestriction.differential inCoordinates Coordinates.coordinateMap zero)))
+    (trans!{Vectors.Point} _ _ _
+      (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _ sameDerivatives)
+      (trans!{Vectors.Point} _ _ _
+        (congr!{CurveVectors.LinearMap Vectors.Point} (\fun (d: CurveVectors.LinearMap) => d.apply OriginalCurve.unit) _ _
+          (CurveRestriction.differential inOriginal Curve.map zero))
+        (trans!{Vectors.Point} _ _ _ (Curve.velocityLaw originalZero)
+          (trans!{Vectors.Point} _ _ _ (congr!{{Open.Carrier domain} Vectors.Point} velocity _ _ same) InitialValue.atInitial))))
+};
+\import manifolds.Tangent[n := One.dimension].On[M := OneParameter.line].At[x := OneParameter.time Reals.zero] \as Source;
+\import Source.Coordinate[chart := OneParameter.chart] \as SourceCoordinates;
+\import Target.Coordinate[chart := targetChart] \as TargetCoordinates;
+\import calculus.Real[].Multivariable[n := One.dimension].Space[].Def[] \as TimeCoordinates;
+\import calculus.Real[].Multivariable[n := One.dimension].Space[].Prop[] \as TimeLaws;
+\import std.Data[].FinSet[] \as Fin;
+\definition unitCoordinates: SourceCoordinates.decode OneParameter.unitVelocity = OriginalCurve.unit := \block {
+  \let unit: TimeVectors.Point := OneParameter.time Reals.one \then
+  \let basis: unit = OriginalCurve.unit := \axiom:funext(unit, OriginalCurve.unit, \fun (j: One.Index) => sym!{Reals.Real} _ _
+    (trans!{Reals.Real} _ _ _ (congr!{One.Index Reals.Real} OriginalCurve.unit _ _ (Fin.singletonValue j))
+      (TimeLaws.replaceSame TimeCoordinates.origin One.index Reals.one))) \then
+  \return trans!{TimeVectors.Point} _ _ _ (SourceCoordinates.decodeEncode unit) basis
+};
+\definition coordinateVelocity: TargetCoordinates.decode (Differential.value.apply OneParameter.unitVelocity) = TangentCoordinates.decode v :=
+  trans!{Vectors.Point} _ _ _ (Differential.coordinates OneParameter.chart targetChart OneParameter.unitVelocity)
+    (trans!{Vectors.Point} _ _ _ (congr!{TimeVectors.Point Vectors.Point} Coordinates.jacobian.apply _ _ unitCoordinates) velocityAtZero);
+\import Tangent.Transport[x := GlobalMaps.apply map (OneParameter.time Reals.zero), y := one, same := atZero] \as Transport;
+\definition chartEquality: Transport.chart targetChart = chart := Transport.underlying targetChart;
+\definition generatorCoordinates: TangentCoordinates.decode (OneParameter.generator oneParameter) = TangentCoordinates.decode v := \block {
+  \let velocity: Tangent.Vector (GlobalMaps.apply map (OneParameter.time Reals.zero)) := Differential.value.apply OneParameter.unitVelocity \then
+  \let same: AtOne.Coordinate[chart := Transport.chart targetChart].decode (Transport.vector velocity) = TangentCoordinates.decode (OneParameter.generator oneParameter) :=
+    congr!{{AtOne.Chart} Vectors.Point} (\fun (c: AtOne.Chart) => AtOne.Coordinate[chart := c].decode (Transport.vector velocity)) _ _ chartEquality \then
+  \return trans!{Vectors.Point} _ _ _ (sym!{Vectors.Point} _ _ same)
+    (trans!{Vectors.Point} _ _ _ (Transport.coordinates targetChart velocity) coordinateVelocity)
+};
+\definition generates: OneParameter.generator oneParameter = v := TangentCoordinates.injective _ _ generatorCoordinates;

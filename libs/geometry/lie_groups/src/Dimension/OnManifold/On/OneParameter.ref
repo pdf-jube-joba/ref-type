@@ -1,9 +1,18 @@
 \import std.Data[].FinSet[] \as Fin;
 \definition lineDimension: N.Nat^ := N.Nat^::succ N.Nat^::zero;
-\import manifolds.Dimension[n := lineDimension].Examples[].Euclidean[] \as Euclidean;
+\import calculus.Real[].Multivariable[n := lineDimension].Open[] \as LineOpen;
+\import LineOpen.Whole[] \as Whole;
+\import manifolds.Dimension[n := lineDimension].Examples[].Euclidean[].Subspace[U := LineOpen.whole] \as Euclidean;
 \import manifolds.Dimension[n := lineDimension].Smooth[] \as LineModel;
 \definition line: LineModel.Manifold := Euclidean.smoothManifold;
-\definition time[t: Reals.Real]: line.Point := \fun (i: Fin.Fin lineDimension) => t;
+\definition time[t: Reals.Real]: line.Point := Whole.point (\fun (i: Fin.Fin lineDimension) => t);
+\definition timeCoordinates: \forall (x: line.Point) -> time (x (Fin.zero N.Nat^::zero)) = x := \block {
+  \fun (x: line.Point) \then
+  \let point: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point := x \then
+  \let constant: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point := time (x (Fin.zero N.Nat^::zero)) \then
+  \return \axiom:funext(constant, point, \fun (j: Fin.Fin lineDimension) => sym!{Reals.Real} _ _
+    (congr!{{Fin.Fin lineDimension} Reals.Real} point _ _ (Fin.singletonValue j)))
+};
 \import manifolds.SmoothMap[n := lineDimension, m := n].Between[M := line, N := manifold] \as Curves;
 \structure Data: \Set := {
   map: Curves.Map,
@@ -24,8 +33,21 @@
   }
 };
 \definition unitVelocity: Source.Vector := Source.classOf chart (time Reals.one);
+\definition sourceChart: Source.Chart := chart;
+\import calculus.Real[].Multivariable[n := lineDimension].Space[].Def[] \as TimeCoordinates;
+\import calculus.Real[].Multivariable[n := lineDimension].Space[].Prop[] \as TimeLaws;
+\import Source.Coordinate[chart := chart] \as SourceCoordinates;
+\definition unitVector: line.Point := Whole.point (TimeCoordinates.basis (Fin.zero N.Nat^::zero));
+\definition unitCoordinates: SourceCoordinates.decode unitVelocity = unitVector := \block {
+  \let unit: topological_algebra.Euclidean[].Dimension[n := lineDimension].Point := time Reals.one \then
+  \let basis: unit = unitVector := \axiom:funext(unit, TimeCoordinates.basis (Fin.zero N.Nat^::zero), \fun (j: Fin.Fin lineDimension) => sym!{Reals.Real} _ _
+    (trans!{Reals.Real} _ _ _ (congr!{{Fin.Fin lineDimension} Reals.Real} (TimeCoordinates.basis (Fin.zero N.Nat^::zero)) _ _ (Fin.singletonValue j))
+      (TimeLaws.replaceSame TimeCoordinates.origin (Fin.zero N.Nat^::zero) Reals.one))) \then
+  \return trans!{{topological_algebra.Euclidean[].Dimension[n := lineDimension].Point}} _ _ _ (SourceCoordinates.decodeEncode unit) basis
+};
 \module Of(f: OneParameter);
 \definition generator[f: OneParameter]: TangentAtOne := Of[f := f].velocity;
+\definition WithGenerator[v: TangentAtOne]: \Set := \Cast[OneParameter] ({ f: OneParameter \where generator f = v });
 \structure Integration: \Set := {
   flow: TangentAtOne -> OneParameter,
   generates: \forall (v: TangentAtOne) -> generator (flow v) = v,

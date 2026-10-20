@@ -9,6 +9,7 @@
 | `Dimension.OnManifold.On` | 単位元の接空間、滑らかな共役写像、随伴線形写像 `Ad` |
 | `Dimension.OnManifold.On.LocalProduct` | 単位元付近の積の滑らかな座標表示と、その微分から得る局所ベクトル場 |
 | `Dimension.OnManifold.On.OneParameter` | 滑らかな一径数部分群、零での速度、積分データから得る `exp` |
+| `Dimension.OnManifold.On.Integration` | 各接ベクトルを零での速度とする滑らかな一径数部分群の存在 |
 | `Classical.On.Orthogonal` | 双線形形式を保つ可逆線形写像の群 |
 | `Classical.On.Orthogonal.Special` | 指定次数の全交代形式を保つ部分群 |
 | `Classical.On.Orthogonal.LieAlgebra` | 反対称な線形自己写像の部分リー代数 |
@@ -25,6 +26,9 @@
 `VectorField.Product.equivariance` はベクトル場の左不変性を表す。
 `LocalCurve.Uniform.On.Comparison.addition` は、平行移動した曲線と時刻をずらした曲線を同じ Picard 解と比較して局所加法則を証明する。
 `Homomorphism` はその局所加法則を実数全体の群準同型へ延長する。
+`Homomorphism.Smooth` は、二進分割ごとの開時間領域で滑らかな曲線を構成し、開被覆上で貼り合わせる。
+`Generator.generates` は、その零での微分が元の接ベクトルに一致することを示す。
+`On.integralExists` はチャートと局所微分方程式の解を選ぶ存在証明をまとめ、任意の接ベクトルに適用する。
 
 `LocalHom.On` は十分小さい \(t/2^k\) に対して \(f(t/2^k)^{2^k}\) を用いる。
 `At.independent` は許される分割次数によらないことを、`Addition.law` は大域加法則を証明する。
