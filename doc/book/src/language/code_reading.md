@@ -33,11 +33,3 @@
 #### `calculus.rs`
 - shift を外部に公開してる。パッと見はやばいね。
 - ベータ簡約してないのでは？普通に subst してる？
-
-### 直してよさそうなところ
-- `.md` に古いところが残っているかも: `\machine` に関数する記述とか。
-
-## libs
-- trans! の入れ子があったので、 eq_reason を使う。
-- congr! のマクロで f a1 a2 a3 = f b1 b2 b3 を `congr!{A f a1 "=" b1 "in" A1 "by" p1 "and" a2 "=" b2 "in" A2 "\by p2 ...}` みたいに書きたい。
-- Equality は parameter を渡したほうがよかった気がしてきた。
