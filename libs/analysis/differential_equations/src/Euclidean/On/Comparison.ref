@@ -8,21 +8,33 @@
 \definition integrandsBound: \forall (t: Real) -> R.Le (Norm.metric.distance (Left.integrand t) (Right.integrand t)) fieldSeparation :=
   \fun (t: Real) => R.leTrans _ _ _ (field.lipschitz (extend y t) (extend z t))
     (Estimates.mulMonotone field.coefficient (Norm.metric.distance (extend y t) (extend z t)) separation coefficientNonnegative (Ball.pointwiseLe y z (cutTime t)));
+\definition primitiveBound[t: Real]: R.Le (Norm.metric.distance (Left.primitive t) (Right.primitive t)) (Scalars.mul (Prefix.weight t left right) fieldSeparation) :=
+  IntegralsComparison.primitiveBound t fieldSeparation fieldSeparationNonnegative (\fun (s: Real)(lower: _)(upper: _) => integrandsBound s);
+\definition weightsBound[t: Real]: R.Le (Scalars.add (Prefix.weight t left right) (Prefix.weight Scalars.zero left right)) time :=
+  R.leReplaceRight _ (Scalars.add length length) time twiceLength (Estimates.addLe _ _ _ _
+    (Prefix.weightBound t left right interval.ordered) (Prefix.weightBound Scalars.zero left right interval.ordered));
+\definition incrementsBound[t: Real]: R.Le (Norm.metric.distance (Left.increment t) (Right.increment t)) (Scalars.mul time fieldSeparation) :=
+  R.leTrans _ _ _ (Norm.distanceSub (Left.primitive t) (Left.primitive Scalars.zero) (Right.primitive t) (Right.primitive Scalars.zero))
+    (R.leTrans _ (Scalars.add (Scalars.mul (Prefix.weight t left right) fieldSeparation) (Scalars.mul (Prefix.weight Scalars.zero left right) fieldSeparation))
+      (Scalars.mul time fieldSeparation)
+      (Estimates.addLe _ _ _ _ (primitiveBound t) (primitiveBound Scalars.zero))
+      (R.leReplaceLeft (Scalars.mul (Scalars.add (Prefix.weight t left right) (Prefix.weight Scalars.zero left right)) fieldSeparation)
+        (Scalars.add (Scalars.mul (Prefix.weight t left right) fieldSeparation) (Scalars.mul (Prefix.weight Scalars.zero left right) fieldSeparation)) (Scalars.mul time fieldSeparation)
+        (Algebra.mulAddRight (Prefix.weight t left right) (Prefix.weight Scalars.zero left right) fieldSeparation)
+        (R.leReplace (Scalars.mul fieldSeparation (Scalars.add (Prefix.weight t left right) (Prefix.weight Scalars.zero left right)))
+          (Scalars.mul (Scalars.add (Prefix.weight t left right) (Prefix.weight Scalars.zero left right)) fieldSeparation)
+          (Scalars.mul fieldSeparation time) (Scalars.mul time fieldSeparation)
+          (Laws.fieldMulComm fieldSeparation (Scalars.add (Prefix.weight t left right) (Prefix.weight Scalars.zero left right))) (Laws.fieldMulComm fieldSeparation time)
+          (Estimates.mulMonotone fieldSeparation (Scalars.add (Prefix.weight t left right) (Prefix.weight Scalars.zero left right)) time fieldSeparationNonnegative (weightsBound t)))));
 \definition pointwiseBound: \forall (t: Time) ->
   R.Le (Norm.metric.distance (Left.curve t) (Right.curve t)) (Scalars.mul Scalars.half separation) := \fun (t: Time) => R.leTrans _ _ _
-  (R.leReplaceLeft (Norm.metric.distance (Left.primitive t) (Right.primitive t)) (Norm.metric.distance (Left.curve t) (Right.curve t))
-    (Scalars.mul (Prefix.weight t Scalars.zero time) fieldSeparation)
-    (sym!{Real} _ _ (Norm.translated initial (Left.primitive t) (Right.primitive t)))
-    (IntegralsComparison.primitiveBound t fieldSeparation fieldSeparationNonnegative (\fun (s: Real)(left: _)(right: _) => integrandsBound s)))
-  (R.leTrans _ (Scalars.mul time fieldSeparation) (Scalars.mul Scalars.half separation)
-    (R.leReplace (Scalars.mul fieldSeparation (Prefix.weight t Scalars.zero time)) (Scalars.mul (Prefix.weight t Scalars.zero time) fieldSeparation)
-      (Scalars.mul fieldSeparation time) (Scalars.mul time fieldSeparation)
-      (Laws.fieldMulComm fieldSeparation (Prefix.weight t Scalars.zero time)) (Laws.fieldMulComm fieldSeparation time)
-      (Estimates.mulMonotone fieldSeparation (Prefix.weight t Scalars.zero time) time fieldSeparationNonnegative (cutBound t)))
+  (R.leReplaceLeft (Norm.metric.distance (Left.increment t) (Right.increment t)) (Norm.metric.distance (Left.curve t) (Right.curve t))
+    (Scalars.mul time fieldSeparation)
+    (sym!{Real} _ _ (Norm.translated initial (Left.increment t) (Right.increment t))) (incrementsBound t))
     (R.leReplace (Scalars.mul separation (Scalars.mul time field.coefficient)) (Scalars.mul time fieldSeparation)
       (Scalars.mul separation Scalars.half) (Scalars.mul Scalars.half separation)
       (trans!{Real} _ _ _ (Laws.fieldMulComm separation (Scalars.mul time field.coefficient)) (Laws.fieldMulAssoc time field.coefficient separation))
       (Laws.fieldMulComm separation Scalars.half)
-      (Estimates.mulMonotone separation (Scalars.mul time field.coefficient) Scalars.half separationNonnegative contractionBound)));
+      (Estimates.mulMonotone separation (Scalars.mul time field.coefficient) Scalars.half separationNonnegative contractionBound));
 \definition bound: R.Le (Ball.metric.distance Left.curve Right.curve) (Scalars.mul Scalars.half separation) :=
   Ball.distanceLe Left.curve Right.curve (Scalars.mul Scalars.half separation) pointwiseBound;

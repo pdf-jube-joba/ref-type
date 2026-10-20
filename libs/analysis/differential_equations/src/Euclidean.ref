@@ -28,4 +28,15 @@
   bounded: \forall (x: Vector) -> R.Le (Norm.metric.distance (apply x) Coordinates.origin) bound,
   lipschitz: \forall (x, y: Vector) -> R.Le (Norm.metric.distance (apply x) (apply y)) (Scalars.mul coefficient (Norm.metric.distance x y)),
 };
+\definition Positive: \Set := \Cast[Real] ({ x: Real \where R.Lt Scalars.zero x });
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\structure LocalSolution[field: BoundedLipschitzField, initial: Vector]: \Set := {
+  radius: Positive,
+  value: Real -> Vector,
+  initialValue: value Scalars.zero = initial,
+  derivative: \forall (t: Real) -> R.Lt (Scalars.neg radius) t -> R.Lt t radius -> \forall (i: Euclidean.Coordinate) ->
+    Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t (field.apply (value t) i),
+};
 \module On(field: BoundedLipschitzField, initial: Vector);
+\definition localExistence: \forall (field: BoundedLipschitzField)(initial: Vector) -> \exists LocalSolution[field, initial] :=
+  \fun (field: BoundedLipschitzField)(initial: Vector) => \exact(On[field := field, initial := initial].localSolution, LocalSolution[field, initial]);

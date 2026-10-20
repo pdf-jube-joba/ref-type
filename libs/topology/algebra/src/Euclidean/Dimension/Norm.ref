@@ -152,6 +152,26 @@
   \fun (z, x, y: Point) => congr!{Point Real} Def.norm _ _ (\axiom:funext(Def.subPoint (Def.addPoint z x) (Def.addPoint z y), Def.subPoint x y,
     \fun (i: Coordinate) => trans!{Real} _ _ _ (Algebra.subAdd (z i) (x i) (z i) (y i))
       (trans!{Real} _ _ _ (congr!{Real Real} (\fun (r: Real) => add r (sub (x i) (y i))) _ _ (Laws.subSelf (z i))) (Laws.addZeroLeft (sub (x i) (y i))))));
+\definition distanceAdd: \forall (x, y, z, w: Point) ->
+  R.Le (metric.distance (Def.addPoint x y) (Def.addPoint z w)) (add (metric.distance x z) (metric.distance y w)) :=
+  \fun (x, y, z, w: Point) => R.leReplaceLeft
+    (Def.norm (Def.addPoint (Def.subPoint x z) (Def.subPoint y w))) (metric.distance (Def.addPoint x y) (Def.addPoint z w)) _
+    (congr!{Point Real} Def.norm _ _ (sym!{Point} _ _
+      (\axiom:funext(Def.subPoint (Def.addPoint x y) (Def.addPoint z w), Def.addPoint (Def.subPoint x z) (Def.subPoint y w),
+        \fun (i: Coordinate) => Algebra.subAdd (x i) (y i) (z i) (w i)))))
+    (triangle (Def.subPoint x z) (Def.subPoint y w));
+\definition distanceNeg: \forall (x, y: Point) -> metric.distance (Def.negPoint x) (Def.negPoint y) = metric.distance x y :=
+  \fun (x, y: Point) => trans!{Real} _ _ _
+    (congr!{Point Real} Def.norm _ _ (\axiom:funext(Def.subPoint (Def.negPoint x) (Def.negPoint y), Def.subPoint y x,
+      \fun (i: Coordinate) => Product.subNegBoth (x i) (y i)))) (metric.symmetric y x);
+\definition distanceSub: \forall (x, y, z, w: Point) ->
+  R.Le (metric.distance (Def.subPoint x y) (Def.subPoint z w)) (add (metric.distance x z) (metric.distance y w)) :=
+  \fun (x, y, z, w: Point) => R.leReplaceRight _ (add (metric.distance x z) (metric.distance (Def.negPoint y) (Def.negPoint w)))
+    (add (metric.distance x z) (metric.distance y w)) (congr!{Real Real} (add (metric.distance x z)) _ _ (distanceNeg y w))
+    (distanceAdd x (Def.negPoint y) z (Def.negPoint w));
+\definition difference: \forall (x, y: Point) -> metric.distance (Def.subPoint x y) Def.origin = metric.distance x y :=
+  \fun (x, y: Point) => congr!{Point Real} Def.norm _ _ (\axiom:funext(Def.subPoint (Def.subPoint x y) Def.origin, Def.subPoint x y,
+    \fun (i: Coordinate) => Laws.subZeroRight (sub (x i) (y i))));
 \definition maxStrict: \forall (a, b, r: Real) -> R.Lt a r -> R.Lt b r -> R.Lt (Metric.max a b) r :=
   \fun (a, b, r: Real)(ar: _)(br: _) => either!{{(R.Order[].leTotal a b)} {R.Lt (Metric.max a b) r}
     {\fun (ab: R.Le a b) => R.ltReplaceLeft b (Metric.max a b) r (sym!{Real} (Metric.max a b) b (Metric.maxOfLe a b ab)) br}

@@ -3,27 +3,37 @@
 \definition agrees: \forall (t: Time) -> value t = curve t := \fun (t: Time) => congr!{Curve Vector} (\fun (y: Curve) => y t) _ _ fixedLaw;
 \import Integrals.Of[f := Picard.asFunction] \as Integral;
 \definition initialValue: value Scalars.zero = initial := trans!{Vector} _ _ _
-  (congr!{Vector Vector} (Coordinates.addPoint initial) _ _ (Integral.primitiveLeft)) Picard.initialPlusZero;
+  (congr!{Vector Vector} (Coordinates.addPoint initial) _ _
+    (\axiom:funext(Picard.increment Scalars.zero, Coordinates.origin, \fun (i: Euclidean.Coordinate) => Laws.subSelf (Picard.primitive Scalars.zero i)))) Picard.initialPlusZero;
 \definition continuous: Integrals.IsContinuous value := Picard.continuous;
 \definition within: \forall (t: Time) -> R.Le (Norm.metric.distance initial (value t)) Scalars.one := Picard.within;
-\definition fieldValue[t: Real]: R.Le Scalars.zero t -> R.Le t time -> Picard.integrand t = field.apply (value t) :=
-  \fun (left: _)(right: _) => \block {
-    \let point: Time := \into[Real](t, metric_spaces.RealLine[].ClosedInterval Scalars.zero time) \by { Logic.And[_, _]::# left right } \then
+\definition fieldValue[t: Real]: R.Le left t -> R.Le t right -> Picard.integrand t = field.apply (value t) :=
+  \fun (lower: _)(upper: _) => \block {
+    \let point: Time := \into[Real](t, Line.ClosedInterval left right) \by { Logic.And[_, _]::# lower upper } \then
     \return congr!{Vector Vector} field.apply _ _ (trans!{Vector} _ _ _ (extendIdentity curve point) (sym!{Vector} _ _ (agrees point)))
   };
 \import calculus.Real[].Derivative[].Def[] \as Derivatives;
 \import calculus.Real[].Derivative[].Prop[] \as Basic;
 \import calculus.Real[].Derivative[].Operations[] \as Operations;
-\definition derivative: \forall (t: Real) -> R.Lt Scalars.zero t -> R.Lt t time -> \forall (i: Euclidean.Coordinate) ->
+\definition derivative: \forall (t: Real) -> R.Lt left t -> R.Lt t right -> \forall (i: Euclidean.Coordinate) ->
   Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t (field.apply (value t) i) :=
-  \fun (t: Real)(left: _)(right: _)(i: Euclidean.Coordinate) =>
-    \idelim Scalars.add Scalars.zero (Picard.integrand t i) = field.apply (value t) i \with d: Real =>
+  \fun (t: Real)(lower: _)(upper: _)(i: Euclidean.Coordinate) =>
+    \idelim Scalars.add Scalars.zero (Scalars.sub (Picard.integrand t i) Scalars.zero) = field.apply (value t) i \with d: Real =>
       Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t d \by {
-        base: Operations.addDerivative (\fun (s: Real) => initial i) (\fun (s: Real) => Integral.primitive s i) t Scalars.zero (Picard.integrand t i)
-          (Basic.constantDerivative (initial i) t) (Integral.fundamentalTheorem t left right i),
-        equality: trans!{Real} _ _ _ (Laws.addZeroLeft (Picard.integrand t i))
-          (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (fieldValue t (Order.leOfLt _ _ left) (Order.leOfLt _ _ right)))
+        base: Operations.addDerivative (\fun (s: Real) => initial i) (\fun (s: Real) => Picard.increment s i) t Scalars.zero (Scalars.sub (Picard.integrand t i) Scalars.zero)
+          (Basic.constantDerivative (initial i) t)
+          (Operations.subDerivative (\fun (s: Real) => Integral.primitive s i) (\fun (s: Real) => Integral.primitive Scalars.zero i) t (Picard.integrand t i) Scalars.zero
+            (Integral.fundamentalTheorem t lower upper i) (Basic.constantDerivative (Integral.primitive Scalars.zero i) t)),
+        equality: trans!{Real} _ _ _ (Laws.addZeroLeft (Scalars.sub (Picard.integrand t i) Scalars.zero))
+          (trans!{Real} _ _ _ (Laws.subZeroRight (Picard.integrand t i))
+            (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (fieldValue t (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper))))
       };
+\definition initialDerivative: \forall (i: Euclidean.Coordinate) -> Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) Scalars.zero (field.apply initial i) :=
+  \fun (i: Euclidean.Coordinate) => \idelim field.apply (value Scalars.zero) i = field.apply initial i \with d: Real =>
+    Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) Scalars.zero d \by {
+      base: derivative Scalars.zero leftNegative edgePositive i,
+      equality: congr!{Vector Real} (\fun (v: Vector) => field.apply v i) _ _ initialValue
+    };
 \definition integralEquationUnique: \forall (y: Curve) -> picard y = y -> y = curve :=
   \fun (y: Curve)(equation: _) => Contractions.fixedUnique contraction
     (\into[Curve](y, { x: Curve \where contraction.apply x = x }) \by { equation }) fixed;
