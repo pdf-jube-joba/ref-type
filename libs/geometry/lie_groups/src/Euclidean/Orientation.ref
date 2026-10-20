@@ -1,0 +1,28 @@
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Basis.Top[] \as Top;
+\import Spaces.Multilinear[V := Vector, space := space].Alternating[] \as Alternating;
+\import algebra.Groups[].On[G := O, group := orthogonalGroup] \as Group;
+\import std.Logic[].Proposition[] \as Logic;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\definition determinant[g: O]: R.Real := Top.determinant g.value;
+\definition atOne: determinant Group.one = R.one := Top.atIdentity;
+\definition multiplication: \forall (g, h: O) -> determinant (Group.mul g h) = R.mul (determinant g) (determinant h) :=
+  \fun (g, h: O) => Top.multiplicative g.value h.value;
+\definition inverseProduct: \forall (g: O) -> R.mul (determinant g) (determinant (Group.inv g)) = R.one := \fun (g: O) =>
+  trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (multiplication g (Group.inv g)))
+    (trans!{R.Real} _ _ _ (congr!{O R.Real} determinant _ _ (Group.invRight g)) atOne);
+\definition nonzero: \forall (g: O) -> Logic.Not (determinant g = R.zero) := \fun (g: O)(zero: _) =>
+  R.Inverse[].positiveNonzero R.one R.Estimates[].Product[].onePositive (trans!{R.Real} _ _ _
+    (sym!{R.Real} _ _ (inverseProduct g))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.mul c (determinant (Group.inv g))) _ _ zero)
+      (Arithmetic.fieldMulZeroLeft (determinant (Group.inv g)))));
+\definition preservesIff: \forall (g: O) -> Logic.PropEquiv[Special.PreservesVolume g, determinant g = R.one] :=
+  \fun (g: O) => Top.preservesIff g.value;
+\definition conjugation: \forall (q, g: O) -> determinant (Group.conjugate q g) = determinant g := \fun (q, g: O) =>
+  trans!{R.Real} _ _ _ (multiplication (Group.mul q g) (Group.inv q))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.mul c (determinant (Group.inv q))) _ _ (multiplication q g))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.mul c (determinant (Group.inv q))) _ _
+        (Arithmetic.fieldMulComm (determinant q) (determinant g)))
+        (trans!{R.Real} _ _ _ (Arithmetic.fieldMulAssoc (determinant g) (determinant q) (determinant (Group.inv q)))
+          (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (determinant g)) _ _ (inverseProduct q)) (Scalars.mulOneRight (determinant g))))));
+\module Plots(d: std.Data[].Nat[].Nat^);

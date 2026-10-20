@@ -16,22 +16,15 @@
       (congr!{Arguments R.Real} omega _ _ (\axiom:funext(transformed g (transformed (Units.inverse g) v), v,
         \fun (i: Fin.Fin n) => rightInverse g (v i)))),
 };
-\structure SpecialLaws[g: Units.Unit]: \Prop := {
-  isometry: Isometry g,
-  volume: PreservesVolume g,
+\import algebra.Groups[].On[G := O, group := group] \as OrthogonalGroup;
+\definition subset: \Pow O := { g: O \where PreservesVolume g };
+\definition subsetClosed: OrthogonalGroup.Closed[subset] := OrthogonalGroup.Closed[subset] {
+  one := volumeClosed.one,
+  mul := \fun (g, h: O)(left: PreservesVolume g)(right: PreservesVolume h) => volumeClosed.mul g h left right,
+  inv := \fun (g: O)(preserves: PreservesVolume g) => volumeClosed.inv g preserves,
 };
-\definition specialPredicate: \Pow Units.Unit := { g: Units.Unit \where SpecialLaws[g] };
-\definition specialClosed: GeneralLinear.Closed[specialPredicate] := GeneralLinear.Closed[specialPredicate] {
-  one := SpecialLaws[Units.unit] { isometry := closed.one, volume := volumeClosed.one },
-  mul := \fun (g, h: Units.Unit)(hg: SpecialLaws[g])(hh: SpecialLaws[h]) => SpecialLaws[Units.product g h] {
-    isometry := closed.mul g h hg.isometry hh.isometry,
-    volume := volumeClosed.mul g h hg.volume hh.volume,
-  },
-  inv := \fun (g: Units.Unit)(hg: SpecialLaws[g]) => SpecialLaws[Units.inverse g] {
-    isometry := closed.inv g hg.isometry, volume := volumeClosed.inv g hg.volume,
-  },
-};
-\import GeneralLinear.Subgroup[S := specialPredicate, closed := specialClosed] \as Special;
+\import OrthogonalGroup.Subgroup[S := subset, closed := subsetClosed] \as Special;
 \definition SO: \Set := Special.Carrier;
 \definition group: std.Alg[].Alg[].Group[SO] := Special.group;
-\definition inclusion[g: SO]: O := \into[Units.Unit](g, predicate) \by { (\bysub(Units.Unit, specialPredicate, g)).isometry };
+\definition inclusion[g: SO]: O := g;
+\definition preservesVolume: \forall (g: SO) -> PreservesVolume g := \fun (g: SO) => \bysub(O, subset, g);

@@ -18,27 +18,31 @@
           (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.addAssoc (Geometry.head x) (R.neg (Geometry.head x)) (R.neg (Geometry.head x))))
             (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.add c (R.neg (Geometry.head x))) _ _ (Arithmetic.addNegRight (Geometry.head x)))
               (Arithmetic.addZeroLeft (R.neg (Geometry.head x))))))));
-\definition complementary: \forall (g: Next.O) -> R.add (height g) (height (untranslate flip g)) = R.add R.one R.one := \fun (g: Next.O) =>
-  trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (height g)) _ _
-    (congr!{R.Real R.Real} (R.add R.one) _ _ (head (g.value.apply first))))
-    (trans!{R.Real} _ _ _ (Algebra.addFour R.one (Geometry.head (g.value.apply first)) R.one (R.neg (Geometry.head (g.value.apply first))))
-      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.add R.one R.one)) _ _ (Arithmetic.addNegRight (Geometry.head (g.value.apply first))))
+\definition vectorHeight[x: Next.Vector]: R.Real := R.add R.one (Geometry.head x);
+\definition vectorComplement: \forall (x: Next.Vector) -> R.add (vectorHeight x) (vectorHeight (flip.value.apply x)) = R.add R.one R.one := \fun (x: Next.Vector) =>
+  trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (vectorHeight x)) _ _ (congr!{R.Real R.Real} (R.add R.one) _ _ (head x)))
+    (trans!{R.Real} _ _ _ (Algebra.addFour R.one (Geometry.head x) R.one (R.neg (Geometry.head x)))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.add R.one R.one)) _ _ (Arithmetic.addNegRight (Geometry.head x)))
         (Arithmetic.addZeroRight (R.add R.one R.one))));
+\definition complementary: \forall (g: Next.O) -> R.add (height g) (height (untranslate flip g)) = R.add R.one R.one :=
+  \fun (g: Next.O) => vectorComplement (g.value.apply first);
 \definition twoPositive: Order.Lt R.zero (R.add R.one R.one) := Order.ltLeTrans R.zero R.one (R.add R.one R.one) R.Estimates[].Product[].onePositive
   (Algebra.leAddRight R.one R.one (Order.Order[].leOfLt _ _ R.Estimates[].Product[].onePositive));
 \definition twoNonzero: Logic.Not (R.add R.one R.one = R.zero) := R.Inverse[].positiveNonzero _ twoPositive;
-\definition cannotBoth[g: Next.O][left: height g = R.zero][right: height (untranslate flip g) = R.zero]: Logic.False :=
-  twoNonzero (trans!{R.Real} (R.add R.one R.one) (R.add (height g) (height (untranslate flip g))) R.zero
-    (sym!{R.Real} _ _ (complementary g))
+\definition vectorCannotBoth[x: Next.Vector][left: vectorHeight x = R.zero][right: vectorHeight (flip.value.apply x) = R.zero]: Logic.False :=
+  twoNonzero (trans!{R.Real} (R.add R.one R.one) (R.add (vectorHeight x) (vectorHeight (flip.value.apply x))) R.zero
+    (sym!{R.Real} _ _ (vectorComplement x))
     (trans!{R.Real} _ (R.add R.zero R.zero) R.zero
-      (congr2!{R.Real R.Real R.Real} R.add (height g) R.zero (height (untranslate flip g)) R.zero left right)
+      (congr2!{R.Real R.Real R.Real} R.add (vectorHeight x) R.zero (vectorHeight (flip.value.apply x)) R.zero left right)
       (Arithmetic.addZeroLeft R.zero)));
-\definition eitherHeight: \forall (g: Next.O) -> Logic.Or[Logic.Not (height g = R.zero), Logic.Not (height (untranslate flip g) = R.zero)] :=
-  \fun (g: Next.O) => either!{{(std.Logic[].Classical[].excludedMiddle (height g = R.zero))}
-    {Logic.Or[Logic.Not (height g = R.zero), Logic.Not (height (untranslate flip g) = R.zero)]}
-    {\fun (zero: height g = R.zero) => Logic.Or[_, _]::right (\fun (other: height (untranslate flip g) = R.zero) => cannotBoth g zero other)}
-    {\fun (nonzero: Logic.Not (height g = R.zero)) => Logic.Or[_, _]::left nonzero}
+\definition eitherVector: \forall (x: Next.Vector) -> Logic.Or[Logic.Not (vectorHeight x = R.zero), Logic.Not (vectorHeight (flip.value.apply x) = R.zero)] :=
+  \fun (x: Next.Vector) => either!{{(std.Logic[].Classical[].excludedMiddle (vectorHeight x = R.zero))}
+    {Logic.Or[Logic.Not (vectorHeight x = R.zero), Logic.Not (vectorHeight (flip.value.apply x) = R.zero)]}
+    {\fun (zero: vectorHeight x = R.zero) => Logic.Or[_, _]::right (\fun (other: vectorHeight (flip.value.apply x) = R.zero) => vectorCannotBoth x zero other)}
+    {\fun (nonzero: Logic.Not (vectorHeight x = R.zero)) => Logic.Or[_, _]::left nonzero}
   };
+\definition eitherHeight: \forall (g: Next.O) -> Logic.Or[Logic.Not (height g = R.zero), Logic.Not (height (untranslate flip g) = R.zero)] :=
+  \fun (g: Next.O) => eitherVector (g.value.apply first);
 \definition choice: N.Nat^ -> Next.O := \induction (k: N.Nat^) \return Next.O \with {
   | zero: Group.one
   | succ: \fun (k: N.Nat^)(_: Next.O) => flip
