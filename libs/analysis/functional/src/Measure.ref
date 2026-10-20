@@ -1,0 +1,75 @@
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition Value: \Set := \Pow Real.Real;
+\definition below[v: Value] [r: Real.Real]: \Prop := \In[Real.Real] v r;
+\definition zero: Value := { r: Real.Real \where R.Lt r Real.zero };
+\definition add[v, w: Value]: Value := { r: Real.Real \where
+  \exists ( a: Real.Real \where Logic.And[below v a,
+    \exists ( b: Real.Real \where Logic.And[below w b, R.Lt r (Real.add a b)] )] ) };
+\definition scale[c: Real.Real] [v: Value]: Value := { r: Real.Real \where
+  \exists ( a: Real.Real \where Logic.And[below v a, R.Lt r (Real.mul c a)] ) };
+\definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> Value) -> Value :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> Value) -> Value \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> Value) => zero
+    | succ: \fun (n: N.Nat^) (previous: (Fin.Fin n -> Value) -> Value) (f: Fin.Fin (N.Nat^::succ n) -> Value) =>
+      add (f (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+  };
+\definition partialSum: (N.Nat^ -> Value) -> N.Nat^ -> Value :=
+  \fun (f: N.Nat^ -> Value) => \induction (n: N.Nat^) \return Value \with {
+    | zero: zero
+    | succ: \fun (n: N.Nat^) (previous: Value) => add previous (f n)
+  };
+\definition series[f: N.Nat^ -> Value]: Value := { r: Real.Real \where
+  \exists ( n: N.Nat^ \where below (partialSum f n) r ) };
+\definition union[f: N.Nat^ -> \Pow A]: \Pow A :=
+  { x: A \where \exists ( n: N.Nat^ \where Sets.Member (f n) x ) };
+\structure NonnegativeValue[v: Value]: \Prop := {
+  negative: \forall (r: Real.Real) -> R.Lt r Real.zero -> below v r,
+  downward: \forall (r, s: Real.Real) -> R.Lt r s -> below v s -> below v r,
+  rounded: \forall (r: Real.Real) -> below v r ->
+    \exists ( s: Real.Real \where Logic.And[R.Lt r s, below v s] ),
+};
+\structure SigmaAlgebraData: \Set := {
+  measurable: \Pow (\Pow A),
+};
+\definition Measurable[sigma: SigmaAlgebraData] [S: \Pow A]: \Prop := \In[\Pow A] (sigma.measurable) S;
+\structure SigmaAlgebraLaws[sigma: SigmaAlgebraData]: \Prop := {
+  empty: Measurable sigma Sets.Empty,
+  complement: \forall (S: \Pow A) -> Measurable sigma S -> Measurable sigma (Sets.Complement S),
+  countableUnion: \forall (f: N.Nat^ -> \Pow A) ->
+    (\forall (n: N.Nat^) -> Measurable sigma (f n)) -> Measurable sigma (union f),
+};
+\definition SigmaAlgebra: \Set := \Cast[SigmaAlgebraData] ({ sigma: SigmaAlgebraData \where SigmaAlgebraLaws[sigma] });
+\definition Disjoint[f: N.Nat^ -> \Pow A]: \Prop :=
+  \forall (m, n: N.Nat^) -> Logic.Not (m = n) -> Sets.Disjoint (f m) (f n);
+\structure MeasureData: \Set := {
+  sigma: SigmaAlgebra,
+  value: \Pow A -> Value,
+};
+\structure MeasureLaws[data: MeasureData]: \Prop := {
+  nonnegative: \forall (S: \Pow A) -> Measurable (data.sigma) S -> NonnegativeValue[data.value S],
+  empty: data.value Sets.Empty = zero,
+  countableAdditivity: \forall (f: N.Nat^ -> \Pow A) ->
+    (\forall (n: N.Nat^) -> Measurable (data.sigma) (f n)) -> Disjoint f ->
+    data.value (union f) = series (\fun (n: N.Nat^) => data.value (f n)),
+};
+\definition Measure: \Set := \Cast[MeasureData] ({ data: MeasureData \where MeasureLaws[data] });
+\definition IsMeasurable[mu: Measure] [f: A -> Real.Real]: \Prop :=
+  \forall (r: Real.Real) -> Measurable (mu.sigma) ({ x: A \where R.Lt r (f x) });
+\structure NullCover[mu: Measure, S, N: \Pow A]: \Prop := {
+  measurable: Measurable (mu.sigma) N,
+  measure: mu.value N = zero,
+  included: Sets.Subset S N,
+};
+\definition Null[mu: Measure] [S: \Pow A]: \Prop :=
+  \exists ( N: \Pow A \where NullCover[mu, S, N] );
+\definition AlmostEqual[mu: Measure] [f, g: A -> Real.Real]: \Prop :=
+  Null mu ({ x: A \where Logic.Not (f x = g x) });
+\module Integral(mu: Measure);
+\module Lp(mu: Measure);

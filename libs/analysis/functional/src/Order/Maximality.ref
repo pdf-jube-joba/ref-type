@@ -1,0 +1,137 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Rel[] \as Relations;
+\use Logic.either;
+\use Equality.sym;
+\definition Member[C: \Pow A] [x: A]: \Prop := \In[A] C x;
+\definition Included[C, D: \Pow A]: \Prop := \forall (x: A) -> Member C x -> Member D x;
+\definition Chain[C: \Pow A]: \Prop :=
+  \forall (x, y: A) -> Member C x -> Member C y -> Logic.Or[le x y, le y x];
+\definition UpperBound[C: \Pow A] [a: A]: \Prop := \forall (x: A) -> Member C x -> le x a;
+\definition Maximal[a: A]: \Prop := \forall (b: A) -> le a b -> a = b;
+\structure Augment[C: \Pow A, a: A]: \Prop := {
+  outside: Logic.Not (Member C a),
+  comparable: \forall (x: A) -> Member C x -> Logic.Or[le x a, le a x],
+};
+\definition Insert[a: A] [C: \Pow A]: \Pow A := { x: A \where Logic.Or[x = a, Member C x] };
+\definition insertedChain: Relations.Ordering[A, le] -> \forall (C: \Pow A) (a: A) ->
+  Chain C -> Augment[C, a] -> Chain (Insert a C) :=
+  \fun (order: Relations.Ordering[A, le]) (C: \Pow A) (a: A) (chain: Chain C) (augment: Augment[C, a])
+    (x, y: A) (inX: Member (Insert a C) x) (inY: Member (Insert a C) y) =>
+    either!{inX {Logic.Or[le x y, le y x]}
+      {\fun (sameX: x = a) => \idelim a = x \with z: A => Logic.Or[le z y, le y z] \by {
+        base: either!{inY {Logic.Or[le a y, le y a]}
+          {\fun (sameY: y = a) => Logic.Or[le a y, le y a]::left
+            (\idelim a = y \with z: A => le a z \by { base: order.refl a, equality: sym!{A} y a sameY })}
+          {\fun (member: Member C y) => either!{{(augment.comparable y member)} {Logic.Or[le a y, le y a]}
+            {\fun (ya: le y a) => Logic.Or[le a y, le y a]::right ya}
+            {\fun (ay: le a y) => Logic.Or[le a y, le y a]::left ay}
+          }}
+        }, equality: sym!{A} x a sameX }}
+      {\fun (memberX: Member C x) => either!{inY {Logic.Or[le x y, le y x]}
+        {\fun (sameY: y = a) => \idelim a = y \with z: A => Logic.Or[le x z, le z x]
+          \by { base: augment.comparable x memberX, equality: sym!{A} y a sameY }}
+        {chain x y memberX}
+      }}
+    };
+\structure Extension[C, D: \Pow A]: \Prop := {
+  included: Included C D,
+  chain: Chain C -> Chain D,
+  strict: (\exists ( a: A \where Augment[C, a] )) -> Logic.Not (C = D),
+};
+\definition Extensions[C: \Pow A]: \Set := \Cast[\Pow A] ({ D: \Pow A \where Extension[C, D] });
+\definition extensionExists: Relations.Ordering[A, le] -> \forall (C: \Pow A) -> \exists Extensions C :=
+  \fun (order: Relations.Ordering[A, le]) (C: \Pow A) =>
+    either!{{(Classical.excludedMiddle (\exists ( a: A \where Augment[C, a] )))} {\exists Extensions C}
+      {\block {
+        \fun (exists: \exists ( a: A \where Augment[C, a] )) \then
+        \takefrom a: \Cast[A] ({ a: A \where Augment[C, a] }) \by exists \then
+        \let data: Augment[C, a] := \bysub(A, { a: A \where Augment[C, a] }, a) \then
+        \return \exact(\into[\Pow A](Insert a C, { D: \Pow A \where Extension[C, D] }) \by {
+          Extension[C, Insert a C] {
+            included := \fun (x: A) (member: Member C x) => Logic.Or[x = a, Member C x]::right member,
+            chain := \fun (chain: Chain C) => insertedChain order C a chain data,
+            strict := \fun (exists: _) (same: C = Insert a C) => data.outside
+              (\idelim Insert a C = C \with D: \Pow A => Member D a
+                \by { base: Logic.Or[a = a, Member C a]::left (\refl(a)), equality: sym!{\Pow A} C (Insert a C) same }),
+          }
+        }, Extensions C)
+      }}
+      {\fun (none: Logic.Not (\exists ( a: A \where Augment[C, a] ))) =>
+        \exact(\into[\Pow A](C, { D: \Pow A \where Extension[C, D] }) \by {
+          Extension[C, C] {
+            included := \fun (x: A) (member: Member C x) => member,
+            chain := \fun (chain: Chain C) => chain,
+            strict := \fun (exists: _) (same: C = C) => none exists,
+          }
+        }, Extensions C)}
+    };
+\module Chosen(advance: \Pow A -> \Pow A) {
+  \import \parent.\parent.Towers[A := A, advance := advance] \as Towers;
+  \definition largest: \Pow A := Towers.largest;
+  \definition Laws: \Prop := \forall (C: \Pow A) -> Extension[C, advance C];
+  \definition inflationary: Laws -> Towers.Inflationary := \fun (laws: Laws) (C: \Pow A) => (laws C).included;
+  \definition unionChain: \forall (F: \Pow (\Pow A)) -> Towers.Chain F ->
+    (\forall (C: \Pow A) -> \In[\Pow A] F C -> Chain C) -> Chain (Towers.Union F) :=
+    \fun (F: \Pow (\Pow A)) (chain: Towers.Chain F) (members: \forall (C: \Pow A) -> \In[\Pow A] F C -> Chain C)
+      (x, y: A) (inX: Member (Towers.Union F) x) (inY: Member (Towers.Union F) y) =>
+      Towers.unionElim F x (Logic.Or[le x y, le y x])
+        (\fun (C: \Pow A) (inC: \In[\Pow A] F C) (cx: Member C x) =>
+          Towers.unionElim F y (Logic.Or[le x y, le y x])
+            (\fun (D: \Pow A) (inD: \In[\Pow A] F D) (dy: Member D y) =>
+              either!{{(chain C D inC inD)} {Logic.Or[le x y, le y x]}
+                {\fun (cd: Included C D) => members D inD x y (cd x cx) dy}
+                {\fun (dc: Included D C) => members C inC x y cx (dc y dy)}
+              }) inY) inX;
+  \definition generatedChain: Laws -> \forall (C: \Pow A) -> \In[\Pow A] Towers.Generated C -> Chain C :=
+    \fun (laws: Laws) => Towers.induction Chain
+      (\fun (x, y: A) (empty: Member Towers.Empty x) (member: _) => Logic.falseElim (Logic.Or[le x y, le y x]) empty)
+      (\fun (C: \Pow A) (generated: _) (chain: Chain C) => (laws C).chain chain)
+      (\fun (F: \Pow (\Pow A)) (chain: Towers.Chain F)
+        (members: \forall (C: \Pow A) -> \In[\Pow A] F C -> Logic.And[\In[\Pow A] Towers.Generated C, Chain C]) =>
+        unionChain F chain (\fun (C: \Pow A) (member: \In[\Pow A] F C) => (members C member).right));
+  \definition maximalChain: Laws -> Logic.And[Chain Towers.largest,
+    Logic.Not (\exists ( a: A \where Augment[Towers.largest, a] ))] :=
+    \fun (laws: Laws) => Logic.And[_, _]::#
+      (generatedChain laws Towers.largest (Towers.largestGenerated (inflationary laws)))
+      (\fun (exists: _) => (laws Towers.largest).strict exists (sym!{\Pow A} _ _ (Towers.fixed (inflationary laws))));
+}
+\definition maximalChainExists: Relations.Ordering[A, le] ->
+  \exists ( C: \Pow A \where Logic.And[Chain C, Logic.Not (\exists ( a: A \where Augment[C, a] ))] ) := \block {
+  \fun (order: Relations.Ordering[A, le]) \then
+  \takefrom choose: \forall (C: \Pow A) -> Extensions C
+    \by \axiom:classicalIndefiniteChoice(\Pow A, (\fun (C: \Pow A) => Extensions C), extensionExists order) \then
+  \let advance: \Pow A -> \Pow A := \fun (C: \Pow A) => choose C \then
+  \return Logic.existsIntro[\Pow A, { C: \Pow A \where Logic.And[Chain C, Logic.Not (\exists ( a: A \where Augment[C, a] ))] }]
+    (Chosen[advance := advance].largest)
+    (Chosen[advance := advance].maximalChain
+      (\fun (C: \Pow A) => \bysub(\Pow A, { D: \Pow A \where Extension[C, D] }, choose C)))
+};
+
+\definition boundMaximal: Relations.Ordering[A, le] -> \forall (C: \Pow A) -> Chain C ->
+  Logic.Not (\exists ( a: A \where Augment[C, a] )) -> \forall (a: A) -> UpperBound C a -> Maximal a := \block {
+  \fun (order: Relations.Ordering[A, le]) (C: \Pow A) (chain: Chain C)
+    (maximal: Logic.Not (\exists ( a: A \where Augment[C, a] ))) (a: A) (upper: UpperBound C a) (b: A) (ab: le a b) \then
+  \let member: Member C b := Logic.orElim _ _ _ (Classical.excludedMiddle (Member C b))
+    (\fun (member: Member C b) => member)
+    (\fun (outside: Logic.Not (Member C b)) => Logic.falseElim (Member C b)
+      (maximal (Logic.existsIntro[A, { c: A \where Augment[C, c] }] b (Augment[C, b] {
+        outside := outside,
+        comparable := \fun (x: A) (inC: Member C x) => Logic.Or[le x b, le b x]::left (order.trans x a b (upper x inC) ab),
+      })))) \then
+  \return order.antisym a b ab (upper b member)
+};
+\definition zorn: Relations.Ordering[A, le] ->
+  (\forall (C: \Pow A) -> Chain C -> \exists ( a: A \where UpperBound C a )) ->
+  \exists ( a: A \where Maximal a ) := \block {
+  \fun (order: Relations.Ordering[A, le])
+    (bounded: \forall (C: \Pow A) -> Chain C -> \exists ( a: A \where UpperBound C a )) \then
+  \takefrom C: \Cast[\Pow A] ({ C: \Pow A \where Logic.And[Chain C, Logic.Not (\exists ( a: A \where Augment[C, a] ))] })
+    \by maximalChainExists order \then
+  \let data: Logic.And[Chain C, Logic.Not (\exists ( a: A \where Augment[C, a] ))] :=
+    \bysub(\Pow A, { C: \Pow A \where Logic.And[Chain C, Logic.Not (\exists ( a: A \where Augment[C, a] ))] }, C) \then
+  \takefrom a: \Cast[A] ({ a: A \where UpperBound C a }) \by bounded C (data.left) \then
+  \return Logic.existsIntro[A, { a: A \where Maximal a }] a
+    (boundMaximal order C (data.left) (data.right) a (\bysub(A, { a: A \where UpperBound C a }, a)))
+};

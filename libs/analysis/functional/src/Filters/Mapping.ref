@@ -1,0 +1,20 @@
+\import \root.Filters[A := B] \as Target;
+\import topology.Topology[Carrier := B] \as Space;
+\definition preimage[S: \Pow B]: \Pow A := { x: A \where Space.Member S (map x) };
+\definition family[F: Filter]: Target.Family := { S: \Pow B \where Member F (preimage S) };
+\definition push[F: Filter]: Target.Filter := \into[Target.Family](family F, { G: Target.Family \where Target.FilterLaws[G] }) \by {
+  Target.FilterLaws[family F] {
+    whole := (laws F).upward T.Whole (preimage Space.Whole) (laws F).whole (\fun (x: A) (member: x = x) => \refl(map x)),
+    intersection := \fun (S, U: \Pow B) (ms: Member F (preimage S)) (mu: Member F (preimage U)) => (laws F).intersection (preimage S) (preimage U) ms mu,
+    upward := \fun (S, U: \Pow B) (member: Member F (preimage S)) (subset: Space.Subset S U) => (laws F).upward (preimage S) (preimage U) member
+      (\fun (x: A) (mx: T.Member (preimage S) x) => subset (map x) mx),
+    proper := \block {
+      \fun (S: \Pow B) (member: Member F (preimage S)) \then
+      \takefrom x: \Cast[A] (preimage S) \by (laws F).proper (preimage S) member \then
+      \return Logic.existsIntro[B, S] (map x) (\bysub(A, preimage S, x))
+    },
+  }
+};
+\definition ultrafilter[F: Ultrafilter]: Target.Ultrafilter := \into[Target.Filter](push F, { G: Target.Filter \where Target.Disjunction G }) \by {
+  \fun (S: \Pow B) => dichotomy F (preimage S)
+};

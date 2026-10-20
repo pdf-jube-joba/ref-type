@@ -1,0 +1,43 @@
+\structure Witness[U, V: \Pow A]: \Prop := {
+  member: Member F U,
+  included: T.Subset (T.Intersection U S) V,
+};
+\definition Generated: Family := { V: \Pow A \where \exists ( U: \Pow A \where Witness[U, V] ) };
+\definition generated[U, V: \Pow A]: Member F U -> T.Subset (T.Intersection U S) V -> Member Generated V :=
+  \fun (member: Member F U) (subset: T.Subset (T.Intersection U S) V) => Logic.existsIntro[\Pow A, { U: \Pow A \where Witness[U, V] }] U
+    (Witness[U, V] { member := member, included := subset });
+\definition extends: Included F Generated := \fun (U: \Pow A) (member: Member F U) => generated U U member
+  (\fun (x: A) (both: T.Member (T.Intersection U S) x) => both.left);
+\definition contains: Member Generated S := generated T.Whole S ((extension F).filter.whole)
+  (\fun (x: A) (both: T.Member (T.Intersection T.Whole S) x) => both.right);
+\definition filter: Logic.Not (Member F (T.Complement S)) -> FilterLaws[Generated] :=
+  \fun (absent: Logic.Not (Member F (T.Complement S))) => FilterLaws[Generated] {
+    whole := extends T.Whole ((extension F).filter.whole),
+    intersection := \block {
+      \fun (V, W: \Pow A) (mv: Member Generated V) (mw: Member Generated W) \then
+      \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Witness[U, V] }) \by mv \then
+      \takefrom Z: \Cast[\Pow A] ({ Z: \Pow A \where Witness[Z, W] }) \by mw \then
+      \let v: Witness[U, V] := \bysub(\Pow A, { U: \Pow A \where Witness[U, V] }, U) \then
+      \let w: Witness[Z, W] := \bysub(\Pow A, { Z: \Pow A \where Witness[Z, W] }, Z) \then
+      \return generated (T.Intersection U Z) (T.Intersection V W) ((extension F).filter.intersection U Z (v.member) (w.member))
+        (\fun (x: A) (both: T.Member (T.Intersection (T.Intersection U Z) S) x) =>
+          Logic.And[_, _]::# (v.included x (Logic.And[_, _]::# (both.left.left) (both.right)))
+            (w.included x (Logic.And[_, _]::# (both.left.right) (both.right))))
+    },
+    upward := \block {
+      \fun (V, W: \Pow A) (member: Member Generated V) (subset: T.Subset V W) \then
+      \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Witness[U, V] }) \by member \then
+      \let witness: Witness[U, V] := \bysub(\Pow A, { U: \Pow A \where Witness[U, V] }, U) \then
+      \return generated U W (witness.member) (T.subsetTrans _ V W (witness.included) subset)
+    },
+    proper := \block {
+      \fun (V: \Pow A) (member: Member Generated V) \then
+      \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Witness[U, V] }) \by member \then
+      \let witness: Witness[U, V] := \bysub(\Pow A, { U: \Pow A \where Witness[U, V] }, U) \then
+      \enough _ \by { byContradiction (\exists \Cast[A] V) } \then
+      \fun (empty: Logic.Not (\exists \Cast[A] V)) \then
+      \return absent ((extension F).filter.upward U (T.Complement S) (witness.member)
+        (\fun (x: A) (inU: T.Member U x) (inS: T.Member S x) => empty
+          (Logic.existsIntro[A, V] x (witness.included x (Logic.And[_, _]::# inU inS)))))
+    },
+  };

@@ -1,0 +1,34 @@
+\import linear_algebra.Real[].InnerProduct[V := V, space := space] \as Inner;
+\structure Hilbert[inner: Inner.InnerProduct]: \Prop := {
+  normSquared: \forall (x: V) -> inner.inner x x = Real.mul (norm.norm x) (norm.norm x),
+  complete: IsBanach norm,
+};
+\definition Represents[inner: Inner.InnerProduct] [f: V -> Real.Real] [y: V]: \Prop :=
+  \forall (x: V) -> f x = inner.inner y x;
+\definition innerNegativeLeft: \forall (inner: Inner.InnerProduct) (x, y: V) ->
+  inner.inner (space.neg x) y = Real.neg (inner.inner x y) :=
+  \fun (inner: Inner.InnerProduct) (x, y: V) => eq_reason!{
+    {inner.inner (space.neg x) y}
+    "=" {inner.inner (space.smul (Real.neg Real.one) x) y} "by" {
+      congr!{V Real.Real} (\fun (v: V) => inner.inner v y) _ _ (sym!{V} _ _ (Vectors.minusOneScale x))}
+    "=" {Real.mul (Real.neg Real.one) (inner.inner x y)} "by" {Inner.scaleLeft inner (Real.neg Real.one) x y}
+    "=" {Real.neg (Real.mul Real.one (inner.inner x y))} "by" {Laws.fieldMulNegLeft Real.one (inner.inner x y)}
+    "=" {Real.neg (inner.inner x y)} "by" {congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (inner.inner x y))}
+  };
+\definition representingVectorUnique: \forall (inner: Inner.InnerProduct) (f: V -> Real.Real) (y, z: V) ->
+  Represents inner f y -> Represents inner f z -> y = z := \block {
+  \fun (inner: Inner.InnerProduct) (f: V -> Real.Real) (y, z: V)
+    (repY: Represents inner f y) (repZ: Represents inner f z) \then
+  \let equal: \forall (x: V) -> inner.inner y x = inner.inner z x :=
+    \fun (x: V) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (repY x)) (repZ x) \then
+  \let vanishes: inner.inner (sub y z) (sub y z) = Real.zero := eq_reason!{
+    {inner.inner (sub y z) (sub y z)}
+    "=" {Real.add (inner.inner y (sub y z)) (inner.inner (space.neg z) (sub y z))} "by" {(Inner.asBilinear inner).addLeft y (space.neg z) (sub y z)}
+    "=" {Real.add (inner.inner z (sub y z)) (Real.neg (inner.inner z (sub y z)))} "by" {
+      congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (equal (sub y z)) (innerNegativeLeft inner z (sub y z))}
+    "=" {Real.zero} "by" {Laws.addNegRight (inner.inner z (sub y z))}
+  } \then
+  \return subZero y z (inner.definite (sub y z) vanishes)
+};
+\module Quadratic(inner: Inner.InnerProduct);
+\module Riesz(inner: Inner.InnerProduct);

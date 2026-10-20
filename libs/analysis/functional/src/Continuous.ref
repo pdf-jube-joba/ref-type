@@ -1,0 +1,74 @@
+\import metric_spaces.RealFunctions[A := A] \as Functions;
+\import topology.Topology[Carrier := A] \as Source;
+\import \root.Support[A := A] \as Support;
+\import real.Analysis[] \as Real;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as E;
+\import Real.Estimates[].Product[] \as Product;
+\import Real.Sequence[] \as Sequence;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition Function: \Set := \Cast[A -> Real.Real] ({ f: A -> Real.Real \where Functions.Continuous topology f });
+\definition continuous[f: Function]: Functions.Continuous topology f :=
+  \bysub(A -> Real.Real, { f: A -> Real.Real \where Functions.Continuous topology f }, f);
+\structure CompactSupportLaws[f: A -> Real.Real]: \Prop := {
+  continuous: Functions.Continuous topology f,
+  support: Support.HasCompactSupport topology f,
+};
+\definition CompactSupport: \Set := \Cast[A -> Real.Real] ({ f: A -> Real.Real \where CompactSupportLaws[f] });
+\definition UniformControl[s: N.Nat^ -> (A -> Real.Real)] [f: A -> Real.Real] [epsilon: Real.Real] [k: N.Nat^]: \Prop :=
+  \forall (n: N.Nat^) -> Nat.Le k n -> \forall (x: A) -> R.Lt (Real.distance (s n x) (f x)) epsilon;
+\definition UniformConverges[s: N.Nat^ -> (A -> Real.Real)] [f: A -> Real.Real]: \Prop :=
+  \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( k: N.Nat^ \where UniformControl s f epsilon k );
+\definition PointwiseBounded[F: \Pow Function]: \Prop := \forall (x: A) ->
+  \exists ( bound: Real.Real \where \forall (f: Function) -> \In[Function] F f -> R.Le (Product.abs (f x)) bound );
+\structure EquicontinuousNeighborhood[F: \Pow Function, x: A, epsilon: Real.Real, U: \Pow A]: \Prop := {
+  open: Source.IsOpenIn topology U,
+  contains: Source.Member U x,
+  estimate: \forall (f: Function) -> \In[Function] F f -> \forall (y: A) -> Source.Member U y ->
+    R.Lt (Real.distance (f x) (f y)) epsilon,
+};
+\definition Equicontinuous[F: \Pow Function]: \Prop := \forall (x: A) (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \exists ( U: \Pow A \where EquicontinuousNeighborhood[F, x, epsilon, U] );
+\definition uniformPointwise: \forall (s: N.Nat^ -> (A -> Real.Real)) (f: A -> Real.Real) -> UniformConverges s f ->
+  \forall (x: A) -> Sequence.Converges (\fun (n: N.Nat^) => s n x) (f x) := \block {
+  \fun (s: N.Nat^ -> (A -> Real.Real)) (f: A -> Real.Real) (uniform: UniformConverges s f) (x: A) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where UniformControl s f epsilon k }) \by uniform epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => s n x) (f x) epsilon k }] k
+    (\fun (n: N.Nat^) (later: Nat.Le k n) => (\bysub(N.Nat^, { k: N.Nat^ \where UniformControl s f epsilon k }, k)) n later x)
+};
+\definition uniformLimitUnique: \forall (s: N.Nat^ -> (A -> Real.Real)) (f, g: A -> Real.Real) ->
+  UniformConverges s f -> UniformConverges s g -> f = g :=
+  \fun (s: N.Nat^ -> (A -> Real.Real)) (f, g: A -> Real.Real) (sf: UniformConverges s f) (sg: UniformConverges s g) =>
+    \axiom:funext(f, g, \fun (x: A) => Sequence.limitUnique (\fun (n: N.Nat^) => s n x) (f x) (g x) (uniformPointwise s f sf x) (uniformPointwise s g sg x));
+\definition uniformLimitContinuous: \forall (s: N.Nat^ -> (A -> Real.Real)) (f: A -> Real.Real) ->
+  (\forall (n: N.Nat^) -> Functions.Continuous topology (s n)) -> UniformConverges s f -> Functions.Continuous topology f :=
+  \fun (s: N.Nat^ -> (A -> Real.Real)) (f: A -> Real.Real) (sc: \forall (n: N.Nat^) -> Functions.Continuous topology (s n)) (uniform: UniformConverges s f) =>
+    Functions.continuousOfLocal topology f (\block {
+      \fun (x: A) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+      \let delta: Real.Real := Real.mul Real.half (Real.mul Real.half epsilon) \then
+      \let dp: R.Lt Real.zero delta := E.halfOfPositive (Real.mul Real.half epsilon) (E.halfOfPositive epsilon positive) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where UniformControl s f delta k }) \by uniform delta dp \then
+      \let control: UniformControl s f delta k := \bysub(N.Nat^, { k: N.Nat^ \where UniformControl s f delta k }, k) \then
+      \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[topology, x, Functions.Small (s k) x delta, U] })
+        \by Functions.localOfContinuous topology (s k) (sc k) x delta dp \then
+      \let neighborhood: Source.OpenNeighborhood[topology, x, Functions.Small (s k) x delta, U] :=
+        \bysub(\Pow A, { U: \Pow A \where Source.OpenNeighborhood[topology, x, Functions.Small (s k) x delta, U] }, U) \then
+      \return Logic.existsIntro[\Pow A, { U: \Pow A \where Source.OpenNeighborhood[topology, x, Functions.Small f x epsilon, U] }] U
+        (Source.OpenNeighborhood[topology, x, Functions.Small f x epsilon, U] {
+          open := neighborhood.open, contains := neighborhood.contains,
+          within := \fun (y: A) (member: Source.Member U y) => R.leLtTrans _ _ epsilon (E.distanceBridge (f x) (s k x) (s k y) (f y))
+            (R.ltLeTrans _ (Real.add delta (Real.add delta delta)) epsilon
+              (E.addLt _ _ delta (Real.add delta delta)
+                (R.ltReplaceLeft _ _ delta (Distance.distanceSymmetric (s k x) (f x)) (control k (Nat.leRefl k) x))
+                (E.addLt _ _ delta delta (neighborhood.within y member) (control k (Nat.leRefl k) y)))
+              (E.threeQuarterLe epsilon (Order.leOfLt _ _ positive))),
+        })
+    });
+\module Uniform;
+\module ArzelaAscoli;
