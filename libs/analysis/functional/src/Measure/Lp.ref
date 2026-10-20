@@ -1,0 +1,29 @@
+\import \parent.Integral[mu := mu] \as Integral;
+\import \root.Powers[] \as Powers;
+\structure Moment[f: A -> Real.Real, p: Powers.Exponent, g: A -> Real.Real]: \Prop := {
+  power: \forall (x: A) -> Powers.PositivePower[Product.abs (f x), p, g x],
+  integrable: Integral.Finite g,
+};
+\structure HasFiniteMoment[f: A -> Real.Real, p: Powers.Exponent]: \Prop := {
+  measurable: IsMeasurable mu f,
+  moment: \exists ( g: A -> Real.Real \where Moment[f, p, g] ),
+};
+\definition Representatives[p: Powers.Exponent]: \Set :=
+  \Cast[A -> Real.Real] ({ f: A -> Real.Real \where HasFiniteMoment[f, p] });
+\module Finite(p: Powers.Exponent) {
+  \import std.Set[].Quotient[A := Representatives p, Equivalent := \fun (f, g: Representatives p) => AlmostEqual mu f g] \as Quotient;
+  \definition Space: \Set := Quotient.Carrier;
+  \definition ofFunction[f: Representatives p]: Space := Quotient.class f;
+}
+\structure EssentialBound[f: A -> Real.Real, b: Real.Real]: \Prop := {
+  nonnegative: R.Le Real.zero b,
+  exception: Null mu ({ x: A \where R.Lt b (Product.abs (f x)) }),
+};
+\structure EssentiallyBounded[f: A -> Real.Real]: \Prop := {
+  measurable: IsMeasurable mu f,
+  bound: \exists ( b: Real.Real \where EssentialBound[f, b] ),
+};
+\definition BoundedRepresentatives: \Set :=
+  \Cast[A -> Real.Real] ({ f: A -> Real.Real \where EssentiallyBounded[f] });
+\import std.Set[].Quotient[A := BoundedRepresentatives, Equivalent := \fun (f, g: BoundedRepresentatives) => AlmostEqual mu f g] \as InfinityQuotient;
+\definition LInfinity: \Set := InfinityQuotient.Carrier;

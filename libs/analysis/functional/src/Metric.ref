@@ -1,0 +1,76 @@
+\import metric_spaces.MetricSpace[Carrier := Carrier] \as M;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[] \as E;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as Bounds;
+
+\definition LimitControl[d: M.Metric] [s: N.Nat^ -> Carrier] [x: Carrier] [epsilon: Real.Real] [k: N.Nat^]: \Prop :=
+  \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (d.distance (s n) x) epsilon;
+\definition Converges[d: M.Metric] [s: N.Nat^ -> Carrier] [x: Carrier]: \Prop :=
+  \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+    \exists ( k: N.Nat^ \where LimitControl d s x epsilon k );
+\definition CauchyControl[d: M.Metric] [s: N.Nat^ -> Carrier] [epsilon: Real.Real] [k: N.Nat^]: \Prop :=
+  \forall (m, n: N.Nat^) -> Nat.Le k m -> Nat.Le k n -> R.Lt (d.distance (s m) (s n)) epsilon;
+\definition Cauchy[d: M.Metric] [s: N.Nat^ -> Carrier]: \Prop :=
+  \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+    \exists ( k: N.Nat^ \where CauchyControl d s epsilon k );
+\definition Complete[d: M.Metric]: \Prop :=
+  \forall (s: N.Nat^ -> Carrier) -> Cauchy d s -> \exists ( x: Carrier \where Converges d s x );
+\definition SequentiallyCompact[d: M.Metric] [S: \Pow Carrier]: \Prop :=
+  \forall (s: N.Nat^ -> Carrier) -> (\forall (n: N.Nat^) -> \In[Carrier] S (s n)) ->
+    \exists ( indices: N.Nat^ -> N.Nat^ \where
+      Logic.And[\forall (m, n: N.Nat^) -> Nat.Lt m n -> Nat.Lt (indices m) (indices n),
+        \exists ( x: Carrier \where Logic.And[\In[Carrier] S x, Converges d (\fun (n: N.Nat^) => s (indices n)) x] )] );
+
+\definition constantConverges: \forall (d: M.Metric) (x: Carrier) -> Converges d (\fun (_: N.Nat^) => x) x :=
+  \fun (d: _) (x: _) (epsilon: _) (positive: _) =>
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where LimitControl d (\fun (_: N.Nat^) => x) x epsilon k }] N.Nat^::zero
+      (\fun (n: _) (later: _) => R.ltReplaceLeft Real.zero (d.distance x x) epsilon
+        (sym!{R.Real} _ _ (d.self x)) positive);
+
+\import R.Order[] \as Order;
+\definition separatedBySmall: \forall (d: M.Metric) (x, y: Carrier) ->
+  (\forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> R.Le (d.distance x y) epsilon) -> x = y :=
+  \fun (d: _) (x, y: _) (small: _) => d.separated x y
+    (R.leAntisym _ _
+      (Order.leOfNotLtReverse _ _ (\fun (positive: R.Lt Real.zero (d.distance x y)) =>
+        R.ltNotLeReverse _ _ (E.halfStrict (d.distance x y) positive)
+          (small (Real.mul Real.half (d.distance x y)) (E.halfOfPositive (d.distance x y) positive))))
+      (d.nonnegative x y));
+\definition limitUnique: \forall (d: M.Metric) (s: N.Nat^ -> Carrier) (x, y: Carrier) ->
+  Converges d s x -> Converges d s y -> x = y := \block {
+  \fun (d: _) (s: _) (x, y: _) (sx: _) (sy: _) \then
+  \enough _ \by { separatedBySmall d x y } \then
+  \fun (epsilon: _) (positive: _) \then
+  \let h: Real.Real := Real.mul Real.half epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl d s x h k })
+    \by sx h (E.halfOfPositive epsilon positive) \then
+  \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where LimitControl d s y h l })
+    \by sy h (E.halfOfPositive epsilon positive) \then
+  \let n: N.Nat^ := Bounds.commonBound k l \then
+  \return R.leReplaceRight _ (Real.add h h) epsilon (E.halfTwice epsilon)
+    (R.leTrans _ _ _ (d.triangle x (s n) y)
+      (E.addLe _ _ _ _
+        (Order.leOfLt _ _ (R.ltReplaceLeft _ _ _ (d.symmetric (s n) x)
+          ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl d s x h k }, k)) n (Bounds.leftLeCommonBound k l))))
+        (Order.leOfLt _ _ ((\bysub(N.Nat^, { l: N.Nat^ \where LimitControl d s y h l }, l))
+          n (Bounds.rightLeCommonBound k l)))))
+};
+\definition convergentCauchy: \forall (d: M.Metric) (s: N.Nat^ -> Carrier) (x: Carrier) ->
+  Converges d s x -> Cauchy d s := \block {
+  \fun (d: _) (s: _) (x: _) (converges: _) (epsilon: _) (positive: _) \then
+  \let h: Real.Real := Real.mul Real.half epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl d s x h k })
+    \by converges h (E.halfOfPositive epsilon positive) \then
+  \let control: LimitControl d s x h k := \bysub(N.Nat^, { k: N.Nat^ \where LimitControl d s x h k }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where CauchyControl d s epsilon k }] k
+    (\fun (m, n: _) (km: _) (kn: _) => R.leLtTrans _ _ _ (d.triangle (s m) x (s n))
+      (R.ltReplaceRight _ (Real.add h h) epsilon (E.halfTwice epsilon)
+        (E.addLt _ _ h h (control m km)
+          (R.ltReplaceLeft _ _ _ (d.symmetric (s n) x) (control n kn)))))
+};

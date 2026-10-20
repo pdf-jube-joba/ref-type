@@ -1,0 +1,86 @@
+\import \root.Normed[V := W, space := target] \as Target;
+\import Linear.Linear[V := V, W := W, source := space, target := target] \as Maps;
+\import Linear.Laws[V := W, space := target] \as TargetVectors;
+\import \root.Metric[Carrier := W] \as TargetSequences;
+\structure Bound[f: Maps.Map, C: Real.Real]: \Prop := {
+  nonnegative: R.Le Real.zero C,
+  estimate: \forall (x: V) -> R.Le (targetNorm.norm (f.apply x)) (Real.mul C (norm.norm x)),
+};
+\definition Bounded[f: Maps.Map]: \Prop := \exists ( C: Real.Real \where Bound[f, C] );
+\definition Map: \Set := \Cast[Maps.Map] ({ f: Maps.Map \where Bounded f });
+\definition bounded[f: Map]: Bounded f := \bysub(Maps.Map, { f: Maps.Map \where Bounded f }, f);
+\definition preservesNegative: \forall (f: Maps.Map) (x: V) -> f.apply (space.neg x) = target.neg (f.apply x) :=
+  \fun (f: Maps.Map) (x: V) => eq_reason!{
+    {f.apply (space.neg x)} "=" {f.apply (space.smul (Real.neg Real.one) x)} "by" {
+      congr!{V W} (f.apply) _ _ (sym!{V} _ _ (Vectors.minusOneScale x))}
+    "=" {target.smul (Real.neg Real.one) (f.apply x)} "by" {f.preservesScale (Real.neg Real.one) x}
+    "=" {target.neg (f.apply x)} "by" {TargetVectors.minusOneScale (f.apply x)}
+  };
+\definition preservesSub: \forall (f: Maps.Map) (x, y: V) ->
+  f.apply (sub x y) = Target.sub (f.apply x) (f.apply y) :=
+  \fun (f: Maps.Map) (x, y: V) => trans!{W} _ _ _ (f.preservesAdd x (space.neg y))
+    (congr!{W W} (target.add (f.apply x)) _ _ (preservesNegative f y));
+\definition distanceBound: \forall (f: Maps.Map) (C: Real.Real) -> Bound[f, C] -> \forall (x, y: V) ->
+  R.Le ((Target.metric targetNorm).distance (f.apply x) (f.apply y))
+    (Real.mul C ((metric norm).distance x y)) :=
+  \fun (f: Maps.Map) (C: Real.Real) (bound: Bound[f, C]) (x, y: V) =>
+    R.leReplaceLeft (targetNorm.norm (f.apply (sub x y))) (targetNorm.norm (Target.sub (f.apply x) (f.apply y))) _
+      (congr!{W Real.Real} (targetNorm.norm) _ _ (preservesSub f x y)) (bound.estimate (sub x y));
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import Real.SquareRoot[] \as Root;
+\definition mapsCauchy: \forall (f: Map) (s: N.Nat^ -> V) -> Sequences.Cauchy (metric norm) s ->
+  TargetSequences.Cauchy (Target.metric targetNorm) (\fun (n: N.Nat^) => f.apply (s n)) := \block {
+  \fun (f: Map) (s: N.Nat^ -> V) (cauchy: Sequences.Cauchy (metric norm) s) \then
+  \takefrom C: \Cast[Real.Real] ({ C: Real.Real \where Bound[f, C] }) \by bounded f \then
+  \let bound: Bound[f, C] := \bysub(Real.Real, { C: Real.Real \where Bound[f, C] }, C) \then
+  \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \let coefficient: Real.Real := Real.add C Real.one \then
+  \let coefficientPositive: R.Lt Real.zero coefficient := R.ltLeTrans Real.zero Real.one coefficient Product.onePositive
+    (Distance.leAddRightOfNonnegative C Real.one (bound.nonnegative)) \then
+  \let delta: Real.Real := Product.radius coefficient epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequences.CauchyControl (metric norm) s delta k })
+    \by cauchy delta (Product.radiusPositive coefficient epsilon coefficientPositive positive) \then
+  \let control: Sequences.CauchyControl (metric norm) s delta k :=
+    \bysub(N.Nat^, { k: N.Nat^ \where Sequences.CauchyControl (metric norm) s delta k }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where TargetSequences.CauchyControl (Target.metric targetNorm) (\fun (n: N.Nat^) => f.apply (s n)) epsilon k }] k
+    (\block {
+      \fun (m, n: N.Nat^) (km: Nat.Le k m) (kn: Nat.Le k n) \then
+      \let d: Real.Real := (metric norm).distance (s m) (s n) \then
+      \let larger: R.Le (Real.mul C d) (Real.mul coefficient d) :=
+        R.leReplaceLeft (Real.mul d C) (Real.mul C d) (Real.mul coefficient d) (Laws.fieldMulComm d C)
+          (R.leReplaceRight (Real.mul d C) (Real.mul d coefficient) (Real.mul coefficient d) (Laws.fieldMulComm d coefficient)
+            (Estimates.mulMonotone d C coefficient ((metric norm).nonnegative (s m) (s n))
+              (Algebra.leAddRight C Real.one Laws.oneNonnegative))) \then
+      \return R.leLtTrans _ (Real.mul C d) epsilon (distanceBound f C bound (s m) (s n))
+        (R.leLtTrans _ (Real.mul coefficient d) epsilon larger
+          (Order.ltTrans _ (Real.mul coefficient delta) epsilon
+            (Root.mulStrict coefficient d delta coefficientPositive (control m n km kn))
+            (Product.radiusSmall coefficient epsilon coefficientPositive positive)))
+    })
+};
+
+\definition mapsConvergent: \forall (f: Map) (s: N.Nat^ -> V) (x: V) -> Sequences.Converges (metric norm) s x ->
+  TargetSequences.Converges (Target.metric targetNorm) (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) := \block {
+  \fun (f: Map) (s: N.Nat^ -> V) (x: V) (converges: Sequences.Converges (metric norm) s x) \then
+  \takefrom C: \Cast[Real.Real] ({ C: Real.Real \where Bound[f, C] }) \by bounded f \then
+  \let bound: Bound[f, C] := \bysub(Real.Real, { C: Real.Real \where Bound[f, C] }, C) \then
+  \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \let c: Real.Real := Real.add C Real.one \then
+  \let cp: R.Lt Real.zero c := R.ltLeTrans Real.zero Real.one c Product.onePositive
+    (Distance.leAddRightOfNonnegative C Real.one (bound.nonnegative)) \then
+  \let delta: Real.Real := Product.radius c epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequences.LimitControl (metric norm) s x delta k })
+    \by converges delta (Product.radiusPositive c epsilon cp positive) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where TargetSequences.LimitControl (Target.metric targetNorm) (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) epsilon k }] k (\block {
+    \fun (n: N.Nat^) (later: Nat.Le k n) \then
+    \let d: Real.Real := (metric norm).distance (s n) x \then
+    \let larger: R.Le (Real.mul C d) (Real.mul c d) := R.leReplace _ _ _ _
+      (Laws.fieldMulComm d C) (Laws.fieldMulComm d c)
+      (Estimates.mulMonotone d C c ((metric norm).nonnegative (s n) x) (Algebra.leAddRight C Real.one Laws.oneNonnegative)) \then
+    \let near: R.Lt d delta := (\bysub(N.Nat^, { k: N.Nat^ \where Sequences.LimitControl (metric norm) s x delta k }, k)) n later \then
+    \return R.leLtTrans _ (Real.mul C d) epsilon (distanceBound f C bound (s n) x)
+      (R.leLtTrans _ (Real.mul c d) epsilon larger
+        (Order.ltTrans _ (Real.mul c delta) epsilon (Product.mulStrict c d delta cp near) (Product.radiusSmall c epsilon cp positive)))
+  })
+};

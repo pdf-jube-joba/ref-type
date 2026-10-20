@@ -1,0 +1,93 @@
+\import real.Analysis[] \as Real;
+\import Real.Sequence[] \as S;
+\import Real.Estimates[] \as E;
+\import Real.Estimates[].Product[] \as Product;
+\import Real.Distance[] \as Distance;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.eq_reason;
+\definition productConverges: \forall (s, t: N.Nat^ -> Real.Real) (a, b: Real.Real) ->
+  S.Converges s a -> S.Converges t b -> S.Converges (\fun (n: N.Nat^) => Real.mul (s n) (t n)) (Real.mul a b) := \block {
+  \fun (s, t: N.Nat^ -> Real.Real) (a, b: Real.Real) (sa: S.Converges s a) (tb: S.Converges t b)
+    (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \let c: Real.Real := Product.coefficient a b \then
+  \let delta: Real.Real := Product.radius c epsilon \then
+  \let dp: R.Lt Real.zero delta := Product.radiusPositive c epsilon (Product.coefficientPositive a b) positive \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where S.LimitControl s a delta k }) \by sa delta dp \then
+  \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where S.LimitControl t b delta l }) \by tb delta dp \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where S.LimitControl (\fun (n: N.Nat^) => Real.mul (s n) (t n)) (Real.mul a b) epsilon n }] (Bounds.commonBound k l)
+    (\block {
+      \fun (n: N.Nat^) (later: Nat.Le (Bounds.commonBound k l) n) \then
+      \let nearA: R.Lt (Real.distance a (s n)) delta := R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric (s n) a)
+        ((\bysub(N.Nat^, { k: N.Nat^ \where S.LimitControl s a delta k }, k)) n (Nat.leTrans _ _ _ (Bounds.leftLeCommonBound k l) later)) \then
+      \let nearB: R.Lt (Real.distance b (t n)) delta := R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric (t n) b)
+        ((\bysub(N.Nat^, { l: N.Nat^ \where S.LimitControl t b delta l }, l)) n (Nat.leTrans _ _ _ (Bounds.rightLeCommonBound k l) later)) \then
+      \return R.leLtTrans _ (Real.mul c delta) epsilon
+        (R.leReplaceLeft (Real.distance (Real.mul a b) (Real.mul (s n) (t n))) (Real.distance (Real.mul (s n) (t n)) (Real.mul a b)) _
+          (Distance.distanceSymmetric (Real.mul a b) (Real.mul (s n) (t n)))
+          (Product.localProductDistance a b (s n) (t n) delta (Order.leOfLt _ _ dp) (Product.radiusBelowOne c epsilon) nearA nearB))
+        (Product.radiusSmall c epsilon (Product.coefficientPositive a b) positive)
+    })
+};
+\definition lowerClosed: \forall (s: N.Nat^ -> Real.Real) (value, lower: Real.Real) -> S.Converges s value ->
+  (\forall (n: N.Nat^) -> R.Le lower (s n)) -> R.Le lower value := \block {
+  \fun (s: N.Nat^ -> Real.Real) (value, lower: Real.Real) (converges: S.Converges s value)
+    (bounded: \forall (n: N.Nat^) -> R.Le lower (s n)) \then
+  \enough _ \by { Order.leOfNotLtReverse lower value } \then
+  \fun (less: R.Lt value lower) \then
+  \let gap: Real.Real := Real.sub lower value \then
+  \let gp: R.Lt Real.zero gap := R.ltReplaceLeft (Real.sub value value) Real.zero gap (Laws.subSelf value)
+    (Laws.ltAddRight value lower (Real.neg value) less) \then
+  \let epsilon: Real.Real := Real.mul Real.half gap \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where S.LimitControl s value epsilon k }) \by converges epsilon (E.halfOfPositive gap gp) \then
+  \let near: R.Lt (Real.distance value (s k)) epsilon := R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric (s k) value)
+    ((\bysub(N.Nat^, { k: N.Nat^ \where S.LimitControl s value epsilon k }, k)) k (Nat.leRefl k)) \then
+  \let below: R.Lt (Real.add value epsilon) lower := R.ltReplaceRight _ (Real.add value gap) lower (E.addSubCancel lower value)
+    (Laws.ltAddLeft value epsilon gap (E.halfStrict gap gp)) \then
+  \return R.ltNotLeReverse (s k) lower
+    (Order.ltTrans _ (Real.add value epsilon) lower (Distance.distanceLtUpper value (s k) epsilon near) below) (bounded k)
+};
+
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import N.Induction[] \as Induction;
+\definition dyadicPositive: \forall (n: N.Nat^) -> R.Lt Real.zero (Dyadic.value n) :=
+  \induction (n: N.Nat^) \return R.Lt Real.zero (Dyadic.value n) \with {
+    | zero: Product.onePositive
+    | succ: \fun (n: N.Nat^) (previous: R.Lt Real.zero (Dyadic.value n)) =>
+      Product.mulPositive Real.half (Dyadic.value n) (R.ltReplaceRight Real.zero (Real.mul Real.half Real.one) Real.half (Real.Algebra[].mulOneRight Real.half) (E.halfOfPositive Real.one Product.onePositive)) previous
+  };
+
+\definition dyadicDecreasing: \forall (n, m: N.Nat^) -> Nat.Le m n -> R.Le (Dyadic.value n) (Dyadic.value m) :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Le m n -> R.Le (Dyadic.value n) (Dyadic.value m) \with {
+    | zero: \fun (m: N.Nat^) (bound: Nat.Le m N.Nat^::zero) =>
+      \idelim N.Nat^::zero = m \with k: N.Nat^ => R.Le (Dyadic.value N.Nat^::zero) (Dyadic.value k)
+        \by { base: R.leRefl (Dyadic.value N.Nat^::zero), equality: sym!{N.Nat^} _ _ (Nat.leZeroEq m bound) }
+    | succ: \fun (n: N.Nat^) (previous: _) (m: N.Nat^) (bound: _) =>
+      Logic.orElim _ _ _ (Induction.leCases m (N.Nat^::succ n) bound)
+        (\fun (less: Nat.Lt m (N.Nat^::succ n)) => R.leTrans _ (Dyadic.value n) _
+          (E.halfBelow (Dyadic.value n) (Order.leOfLt _ _ (dyadicPositive n)))
+          (previous m (Induction.belowSuccessor m n less)))
+        (\fun (same: m = N.Nat^::succ n) =>
+          \idelim N.Nat^::succ n = m \with k: N.Nat^ => R.Le (Dyadic.value (N.Nat^::succ n)) (Dyadic.value k)
+            \by { base: R.leRefl (Dyadic.value (N.Nat^::succ n)), equality: sym!{N.Nat^} _ _ same })
+  };
+\definition dyadicSmall: \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \exists ( k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon ) := \block {
+  \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+  \let halfBelowOne: R.Lt Real.half Real.one := R.ltReplaceLeft (Real.mul Real.half Real.one) Real.half Real.one
+    (Real.Algebra[].mulOneRight Real.half) (E.halfStrict Real.one Product.onePositive) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (Dyadic.value k) epsilon })
+    \by Dyadic.eventual E.halfNonnegative halfBelowOne epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Dyadic.value n) epsilon }] k
+    (\fun (n: N.Nat^) (later: Nat.Le k n) => R.leLtTrans _ (Dyadic.value k) epsilon (dyadicDecreasing n k later)
+      (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt (Dyadic.value k) epsilon }, k)))
+};

@@ -1,0 +1,35 @@
+\structure Simple[n: N.Nat^]: \Set := {
+  cells: Fin.Fin n -> \Pow A,
+  coefficients: Fin.Fin n -> Real.Real,
+  measurable: \forall (i: Fin.Fin n) -> Measurable (mu.sigma) (cells i),
+  nonnegative: \forall (i: Fin.Fin n) -> R.Le Real.zero (coefficients i),
+  disjoint: \forall (i, j: Fin.Fin n) -> Logic.Not (i = j) -> Sets.Disjoint (cells i) (cells j),
+};
+\definition simpleIntegral[n: N.Nat^] [s: Simple[n]]: Value :=
+  sum n (\fun (i: Fin.Fin n) => scale (s.coefficients i) (mu.value (s.cells i)));
+\definition Dominated[n: N.Nat^] [s: Simple[n]] [f: A -> Real.Real]: \Prop :=
+  \forall (i: Fin.Fin n) (x: A) -> Sets.Member (s.cells i) x -> R.Le (s.coefficients i) (f x);
+\definition lowerIntegral[f: A -> Real.Real]: Value := { r: Real.Real \where
+  \exists ( n: N.Nat^ \where \exists ( s: Simple[n] \where Logic.And[Dominated n s f, below (simpleIntegral n s) r] ) ) };
+\structure IntegralBound[f: A -> Real.Real, b: Real.Real]: \Prop := {
+  nonnegative: R.Le Real.zero b,
+  bound: \forall (r: Real.Real) -> below (lowerIntegral f) r -> R.Le r b,
+};
+\definition Finite[f: A -> Real.Real]: \Prop :=
+  Logic.And[\forall (x: A) -> R.Le Real.zero (f x), \exists ( b: Real.Real \where IntegralBound[f, b] )];
+\definition Integrable[f: A -> Real.Real]: \Prop :=
+  Logic.And[IsMeasurable mu f, Finite (\fun (x: A) => Product.abs (f x))];
+\definition positivePart[f: A -> Real.Real]: A -> Real.Real :=
+  \fun (x: A) => Real.Distance[].max Real.zero (f x);
+\definition negativePart[f: A -> Real.Real]: A -> Real.Real :=
+  \fun (x: A) => Real.Distance[].max Real.zero (Real.neg (f x));
+\import dedekind_reals.DedekindReal[].Completeness[] \as Complete;
+\structure Parts[f: A -> Real.Real, value, positive, negative: Real.Real]: \Prop := {
+  positiveLaw: Complete.LeastUpperBound[lowerIntegral (positivePart f), positive],
+  negativeLaw: Complete.LeastUpperBound[lowerIntegral (negativePart f), negative],
+  difference: value = Real.sub positive negative,
+};
+\structure HasIntegral[f: A -> Real.Real, value: Real.Real]: \Prop := {
+  integrable: Integrable f,
+  parts: \exists ( positive: Real.Real \where \exists ( negative: Real.Real \where Parts[f, value, positive, negative] ) ),
+};
