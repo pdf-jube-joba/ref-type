@@ -1,0 +1,21 @@
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Functions;
+\import E.PinPlots[d := dimension] \as Plots;
+\import \root.CliffordPlots[d := dimension] \as Calculus;
+\import manifolds.ParametrizedAtlas[n := dimension, A := E.Pin] \as Parameters;
+\definition U: Open.OpenSet := (data.family.patch k).image;
+\definition point[x: Open.Carrier U]: E.Pin := Parameters.value (data.family.patch k) x;
+\definition regular: Plots.Plot U point := data.parametrizations k;
+\definition gradingPlot: Plots.Plot U (\fun (x: Open.Carrier U) => grading (point x)) :=
+  (Calculus.operations n U).grading (Plots.values U point) regular;
+\definition negativePlot: Plots.Plot U (\fun (x: Open.Carrier U) => negative (point x)) := Plots.multiplication U
+  (\fun (x: Open.Carrier U) => Pin.sign) point (Plots.constant U Pin.sign) regular;
+\definition differenceSmooth: Smooth.SmoothOn U (\fun (x: Open.Carrier U) => difference i (point x)) := Functions.subSmooth U
+  (\fun (x: Open.Carrier U) => Coordinates.coefficient i (grading (point x)))
+  (\fun (x: Open.Carrier U) => Coordinates.coefficient i (negative (point x))) (gradingPlot i) (negativePlot i);
+\definition differenceData: Smooth.SmoothFunction U := \into[Open.ScalarFunction U]((\fun (x: Open.Carrier U) => difference i (point x)), Smooth.SmoothFunction U) \by { differenceSmooth };
+\import Smooth.Nonvanishing[U := U, f := differenceData] \as Region;
+\import topology.Topology[Carrier := Open.Carrier U] \as Local;
+\import Open.Topology[] \as Topology;
+\definition open: Local.IsOpenIn (Topology.Of[U := U].topology) ({ x: Open.Carrier U \where Logic.Not (difference i (point x) = R.zero) }) := Region.preimageOpen;

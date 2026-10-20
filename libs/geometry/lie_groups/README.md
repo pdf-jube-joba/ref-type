@@ -25,6 +25,7 @@
 | `Euclidean.PinPlots` | Pin の積・逆元と直交群への写像の係数による滑らかさ |
 | `CoefficientAtlas` | 点を分離する係数関数と局所座標から多様体・リー群を構成する一般のインターフェース |
 | `PinFrame[n]` | Pin の再帰的な局所積表示と、座標・逆座標の滑らかさ |
+| `SpinGroup[n]` | 次数自己同型の固定部分としての Spin(n) の多様体とリー群 |
 | `PinAtlas.Dimension[n]` | Pin(n) の多様体 `manifold` とリー群 `lieGroup` |
 | `PinSurjectivity` | 任意の直交変換の Pin への持ち上げ |
 | `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |
@@ -75,7 +76,10 @@ SO(n) は次数 \(n\) の全交代形式を保つ条件を用いる。
 `PinFrame[n]` は Pin の元を球面方向の局所断面と低次元の Pin の元の積に分解し、分解の存在・一意性と両方向の滑らかさを証明する。
 `PinAtlas.atlasData` は零次元の二点のアトラスから帰納的に全次元のアトラスを構成し、`PinAtlas.Dimension[n].lieGroup` が実際のリー群構造を与える。
 
-\(\mathfrak{so}(n)\) と単位元の接空間との同定、Spin の開部分群構造、複素拡張の多様体構造は引き続き構成中である。
+`SpinGroup[n]` は Pin の偶数部分が開部分群であることを証明し、制限した多様体構造で Spin をリー群にする。
+開性の証明では、次数自己同型が元を固定する場合と符号を変える場合を係数関数で分離する。
+
+\(\mathfrak{so}(n)\) と単位元の接空間との同定と、複素拡張の多様体構造は引き続き構成中である。
 
 ```sh
 cargo run -p cli -- libs/geometry/lie_groups --module lie_groups

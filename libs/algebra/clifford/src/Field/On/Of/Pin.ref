@@ -51,22 +51,32 @@
 \definition evenGenerators: \Pow Units.Unit := { x: Units.Unit \where EvenGenerator x };
 \definition evenPredicate: \Pow Units.Unit := Ambient.Generated evenGenerators;
 \definition evenClosed: Ambient.Closed[evenPredicate] := Ambient.generatedClosed evenGenerators;
-\import Ambient.Subgroup[S := evenPredicate, closed := evenClosed] \as EvenSubgroup;
-\definition Spin: \Set := EvenSubgroup.Carrier;
-\definition spinGroup: std.Alg[].Alg[].Group[Spin] := EvenSubgroup.group;
 \definition evenGeneratorInPin: \forall (x: Units.Unit) -> EvenGenerator x -> \In[Units.Unit] predicate x :=
   \induction (x: Units.Unit)(hx: EvenGenerator x) \return \In[Units.Unit] predicate x \with {
     | sign: generatorInPin Units.minusOne Generator::sign
     | pair: \fun (x, y: Units.Unit)(hx: VectorGenerator x)(hy: VectorGenerator y) =>
       closed.mul x y (vectorInPin x hx) (vectorInPin y hy)
   };
+\definition evenInPin[g: Units.Unit][even: \In[Units.Unit] evenPredicate g]: \In[Units.Unit] predicate g :=
+  even predicate closed evenGeneratorInPin;
+\import algebra.Groups[].On[G := Pin, group := group] \as PinOperations;
+\definition evenSubset: \Pow Pin := { g: Pin \where \In[Units.Unit] evenPredicate g };
+\definition evenSubsetClosed: PinOperations.Closed[evenSubset] := PinOperations.Closed[evenSubset] {
+  one := evenClosed.one,
+  mul := \fun (g, h: Pin)(left: \In[Units.Unit] evenPredicate g)(right: \In[Units.Unit] evenPredicate h) => evenClosed.mul g h left right,
+  inv := \fun (g: Pin)(even: \In[Units.Unit] evenPredicate g) => evenClosed.inv g even,
+};
+\import PinOperations.Subgroup[S := evenSubset, closed := evenSubsetClosed] \as EvenSubgroup;
+\definition Spin: \Set := EvenSubgroup.Carrier;
+\definition spinGroup: std.Alg[].Alg[].Group[Spin] := EvenSubgroup.group;
+\definition evenMembership[g: Spin]: \In[Units.Unit] evenPredicate g := \bysub(Pin, evenSubset, g);
+\definition spinOfEven[g: Units.Unit][even: \In[Units.Unit] evenPredicate g]: Spin :=
+  \into[Pin](\into[Units.Unit](g, predicate) \by { evenInPin g even }, evenSubset) \by { even };
 \definition spinInPin: \forall (x: Spin) -> \In[Units.Unit] predicate x :=
-  \fun (x: Spin) => (\bysub(Units.Unit, evenPredicate, x)) predicate closed evenGeneratorInPin;
+  \fun (x: Spin) => evenInPin x (evenMembership x);
 \definition inclusion[x: Spin]: Pin := \into[Units.Unit](x, predicate) \by { spinInPin x };
 \definition sign: Pin := \into[Units.Unit](Units.minusOne, predicate) \by { generatorInPin Units.minusOne Generator::sign };
-\definition spinSign: Spin := \into[Units.Unit](Units.minusOne, evenPredicate) \by {
-  Ambient.generatorIncluded evenGenerators Units.minusOne EvenGenerator::sign
-};
+\definition spinSign: Spin := spinOfEven Units.minusOne (Ambient.generatorIncluded evenGenerators Units.minusOne EvenGenerator::sign);
 \definition centralSign: \forall (x: Units.Unit) -> Units.product Units.minusOne x = Units.product x Units.minusOne :=
   \fun (x: Units.Unit) => Units.ext _ _ (eq_reason!{
     {mul (neg one) x.value}
@@ -75,7 +85,7 @@
     "=" {neg (mul x.value one)} "by" {congr!{Carrier Carrier} neg _ _ (sym!{Carrier} _ _ (Presented.oneRight x.value))}
     "=" {mul x.value (neg one)} "by" {sym!{Carrier} _ _ (Units.mulNeg x.value one)}
   });
-\import algebra.Groups[].On[G := Pin, group := group] \as PinOperations;
+
 \import algebra.Groups[].On[G := Spin, group := spinGroup] \as SpinOperations;
 \definition pinInvolution: PinOperations.CentralInvolution := PinOperations.CentralInvolution {
   element := sign,
