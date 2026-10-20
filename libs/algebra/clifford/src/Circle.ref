@@ -1,0 +1,50 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as P;
+\import C.Algebra[] \as Algebra;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Scalars;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition predicate: \Pow C.Complex := { z: C.Complex \where D.normSq z = R.one };
+\definition Circle: \Set := \Cast[C.Complex] predicate;
+\definition normOne: D.normSq D.one = R.one := trans!{R.Real} _ _ _
+  (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (Scalars.fieldMulOneLeft R.one) (Scalars.fieldMulZeroLeft R.zero))
+  (Scalars.addZeroRight R.one);
+\definition one: Circle := \into[C.Complex](D.one, predicate) \by { normOne };
+\definition product[z, w: Circle]: Circle := \into[C.Complex](D.mul z w, predicate) \by {
+  trans!{R.Real} _ _ _ (P.normSqMul z w)
+    (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ (\bysub(C.Complex, predicate, z)) (\bysub(C.Complex, predicate, w)))
+      (Scalars.fieldMulOneLeft R.one))
+};
+\definition inverse[z: Circle]: Circle := \into[C.Complex](D.conj z, predicate) \by {
+  trans!{R.Real} _ _ _ (P.normSqConj z) (\bysub(C.Complex, predicate, z))
+};
+\definition group: Alg.Group[Circle] := Alg.Group[Circle] {
+  unit := one, op := product, inv := inverse,
+  monoid := Monoid.MonoidLaws[Circle, Monoid.MonoidData[Circle]::# one product] {
+    leftIdentity := \fun (z: Circle) => P.mulOneLeft z,
+    rightIdentity := \fun (z: Circle) => P.mulOneRight z,
+    associative := \fun (z, w, u: Circle) => P.mulAssoc z w u,
+  },
+  leftInverse := \fun (z: Circle) => trans!{C.Complex} _ _ _ (P.conjMulSelf z)
+    (congr!{R.Real C.Complex} D.ofReal _ _ (\bysub(C.Complex, predicate, z))),
+  rightInverse := \fun (z: Circle) => trans!{C.Complex} _ _ _ (P.mulConjSelf z)
+    (congr!{R.Real C.Complex} D.ofReal _ _ (\bysub(C.Complex, predicate, z))),
+};
+\definition normNeg: \forall (z: C.Complex) -> D.normSq (D.neg z) = D.normSq z :=
+  \fun (z: C.Complex) => congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+    (Scalars.fieldMulNegBoth (C.re z) (C.re z)) (Scalars.fieldMulNegBoth (C.im z) (C.im z));
+\definition minusOne: Circle := \into[C.Complex](D.neg D.one, predicate) \by { trans!{R.Real} _ _ _ (normNeg D.one) normOne };
+\import algebra.Groups[].On[G := Circle, group := group] \as Operations;
+\import algebra.Groups[].Units[A := C.Complex, ring := std.Alg[].Ring[].commutativeRingAsRing C.Complex Algebra.commutativeRing] \as Units;
+\definition sign: Operations.CentralInvolution := Operations.CentralInvolution {
+  element := minusOne,
+  central := \fun (z: Circle) => P.mulComm minusOne z,
+  square := trans!{C.Complex} _ _ _ (Units.negNegMul D.one D.one) (P.mulOneLeft D.one),
+};

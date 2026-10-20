@@ -13,6 +13,9 @@
 | `GroupCompletion.Semiring` | 半環の群完成の環構造、半環準同型の環準同型への一意な延長、積の可換性の保存。 |
 | `Exact` | 核・像・完全性、完全性から合成が零になること、可換群準同型の核・像の群構造。 |
 | `FreeCommutativeRing.Over.Presentation` | 係数環と変数・関係から作る可換環の表示と普遍性。 |
+| `FreeAssociativeRing.Over.Presentation` | 中心的な係数を持つ非可換な結合環の表示、結合代数構造と普遍性。 |
+| `Groups.On` | 一般の群の逆元・共役、部分群、生成部分群、直積、中心的な符号元による商。 |
+| `Groups.Units` | 環の可逆元群、逆元の一意性と可逆元の外延性。 |
 | `Polynomial.Over` | 一変数多項式環、係数写像と変数の値で定まる評価準同型とその一意性。 |
 | `LaurentPolynomial.Over` | Laurent 多項式環、可逆元への評価準同型とその一意性。 |
 

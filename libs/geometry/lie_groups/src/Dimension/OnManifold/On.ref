@@ -1,0 +1,33 @@
+\definition manifold: Model.Manifold := M;
+\definition Point: \Set := manifold.Point;
+\definition group: Alg.Group[Point] := G;
+\import algebra.Groups[].On[G := Point, group := group] \as Operations;
+\definition one: Point := Operations.one;
+\definition mul: Point -> Point -> Point := Operations.mul;
+\definition inv: Point -> Point := Operations.inv;
+\import \root.Smooth[n := n, m := n].Between[M := manifold, N := manifold] \as Regularity;
+\import manifolds.SmoothMap[n := n, m := n].Between[M := manifold, N := manifold] \as Maps;
+\import manifolds.SelfMap[n := n].Identity[M := manifold] \as Identity;
+\definition identitySmooth: Regularity.IsSmooth (\fun (x: Point) => x) := Regularity.ofMap Identity.map;
+\definition productSmooth: \forall (f, g: Point -> Point) -> Regularity.IsSmooth f -> Regularity.IsSmooth g ->
+  Regularity.IsSmooth (\fun (x: Point) => mul (f x) (g x)) := G.multiplication n M.Point M.space M.atlas M.hausdorff M.secondCountable;
+\definition conjugate: Point -> Point -> Point := Operations.conjugate;
+\definition conjugationSmooth: \forall (g: Point) -> Regularity.IsSmooth (conjugate g) :=
+  \fun (g: Point) => productSmooth (\fun (x: Point) => mul g x) (\fun (x: Point) => inv g)
+    (productSmooth (\fun (x: Point) => g) (\fun (x: Point) => x) (Regularity.Constant[c := g].smooth) identitySmooth)
+    (Regularity.Constant[c := inv g].smooth);
+\definition conjugation[g: Point]: Maps.Map := Regularity.map (conjugate g) (conjugationSmooth g);
+\definition conjugationFixesOne: \forall (g: Point) -> Maps.apply (conjugation g) one = one :=
+  \fun (g: Point) => trans!{Point} _ _ _
+    (congr!{{Point -> Point} Point} (\fun (f: Point -> Point) => f one) _ _ (Regularity.applyChosen (conjugate g) (conjugationSmooth g)))
+    (Operations.conjugateOne g);
+\import manifolds.Tangent[n := n].On[M := manifold] \as Tangent;
+\definition TangentAtOne: \Set := Tangent.Vector one;
+\import real.Analysis[] \as Reals;
+\import real.Analysis[].Algebra[] \as Scalars;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := Scalars.field] \as Spaces;
+\definition tangentSpace: Spaces.VectorSpace TangentAtOne := Tangent.space one;
+\import Spaces.Linear[V := TangentAtOne, W := TangentAtOne, source := tangentSpace, target := tangentSpace] \as End;
+\module Adjoint(g: Point);
+\definition Ad[g: Point]: End.Map := Adjoint[g := g].value;
+\module OneParameter;

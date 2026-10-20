@@ -1,0 +1,56 @@
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import R.FiniteSums[] \as Sums;
+\import linear_algebra.Field[].Space[K := R.Real, field := Scalars.field] \as Spaces;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin n] \as Coordinates;
+\import Spaces.Form[V := Coordinates.Vector, space := Coordinates.space] \as Forms;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].FinSet[] \as Fin;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition Vector: \Set := Coordinates.Vector;
+\definition space: Spaces.VectorSpace Vector := Coordinates.space;
+\definition dot[x, y: Vector]: R.Real := Sums.sum n (\fun (i: Fin.Fin n) => R.mul (x i) (y i));
+\definition symmetric: \forall (x, y: Vector) -> dot x y = dot y x :=
+  \fun (x, y: Vector) => Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulComm (x i) (y i));
+\definition form: Forms.Bilinear := Forms.Bilinear {
+  form := dot,
+  zeroLeft := \fun (x: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulZeroLeft (x i))) (Sums.zeroSum n),
+  zeroRight := \fun (x: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulZeroRight (x i))) (Sums.zeroSum n),
+  addLeft := \fun (x, y, z: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.addMul (x i) (y i) (z i))) (Sums.addition n _ _),
+  addRight := \fun (x, y, z: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulAdd (x i) (y i) (z i))) (Sums.addition n _ _),
+  scaleLeft := \fun (a: R.Real)(x, y: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulAssoc a (x i) (y i))) (Sums.scalar n a _),
+  scaleRight := \fun (a: R.Real)(x, y: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _
+      (sym!{R.Real} _ _ (Spaces.mulAssoc (x i) a (y i)))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (b: R.Real) => R.mul b (y i)) _ _ (Spaces.mulComm (x i) a))
+        (Spaces.mulAssoc a (x i) (y i))))) (Sums.scalar n a _),
+};
+\import \root.Classical[].On[V := Vector, space := space].Orthogonal[form := form] \as Orthogonal;
+\import Orthogonal.Special[n := n] \as Special;
+\definition O: \Set := Orthogonal.O;
+\definition orthogonalGroup: std.Alg[].Alg[].Group[O] := Orthogonal.group;
+\definition SO: \Set := Special.SO;
+\definition specialOrthogonalGroup: std.Alg[].Alg[].Group[SO] := Special.group;
+\import Orthogonal.LieAlgebra[] \as Skew;
+\definition so: \Set := Skew.Carrier;
+\definition soSpace: Spaces.VectorSpace so := Skew.vectorSpace;
+\definition soLieAlgebra: lie_algebras.Field[K := R.Real, field := Scalars.field].LieAlgebra so soSpace := Skew.lie;
+\import clifford.Field[K := R.Real, field := Scalars.field].On[V := Vector, space := space].Of[form := form] \as Clifford;
+\import Clifford.Pin[] \as CoveringGroups;
+\definition CliffordAlgebra: \Set := Clifford.Carrier;
+\definition Pin: \Set := CoveringGroups.Pin;
+\definition Spin: \Set := CoveringGroups.Spin;
+\definition PinC: \Set := CoveringGroups.PinC;
+\definition SpinC: \Set := CoveringGroups.SpinC;
+\definition pinGroup: std.Alg[].Alg[].Group[Pin] := CoveringGroups.group;
+\definition spinGroup: std.Alg[].Alg[].Group[Spin] := CoveringGroups.spinGroup;
+\definition pinCGroup: std.Alg[].Alg[].Group[PinC] := CoveringGroups.pinCGroup;
+\definition spinCGroup: std.Alg[].Alg[].Group[SpinC] := CoveringGroups.spinCGroup;

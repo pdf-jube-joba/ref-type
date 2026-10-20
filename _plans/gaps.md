@@ -271,3 +271,12 @@ module 引数は検査時に確定した捕捉引数を明示した式で保持�
 
 [17-02-imports-first.ref](gaps/17-02-imports-first.ref) は、共通の module と型を先に具体化してから、証明の中で比較写像を使う回避例である。
 `cohomology_examples.Circle.Geometry.UniversalCoefficient` は、両方の短完全列の型と import を揃えた後に、比較写像を取り出して存在証明を構成する。
+
+<a id="g18"></a>
+
+## G18: 別名で与えた命題の field に宣言構造を渡す
+
+構造を量化する命題を別名にして field の型に使い、その field に構造を一つの引数として渡したい。
+[18-01-aliased-field-signature.ref](gaps/18-01-aliased-field-signature.ref) は `Item 'M' was not found` になる。
+[18-02-explicit-field-arguments.ref](gaps/18-02-explicit-field-arguments.ref) は構造の各 field を明示する回避例である。
+`lie_groups.Dimension.OnManifold.On.productSmooth` はこの形で、多様体の台集合・位相・アトラス・分離性・第二可算性を渡す。

@@ -1,0 +1,95 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import algebra.Group[].Of[Carrier := Carrier, group := Ring.additiveGroup Carrier ring] \as Sum;
+\import algebra.Groups[].Units[A := Carrier, ring := ring] \as Units;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as Ambient;
+\definition scalarNeg: \forall (a: K) -> scalar (Linear.neg a) = neg (scalar a) :=
+  \fun (a: K) => trans!{Carrier} _ _ _
+    (Quotient.classRelated Presented.equivalence _ _ (Presented.rules.constantNeg a))
+    (sym!{Carrier} _ _ (Presented.negClass (Free.Expression::constant a)));
+\definition Positive: \Set := \Cast[V] ({ v: V \where quadratic v = Linear.one });
+\definition Negative: \Set := \Cast[V] ({ v: V \where quadratic v = Linear.neg Linear.one });
+\definition positive[v: Positive]: Units.Unit := Units.Unit {
+  value := iota v, inverse := iota v,
+  left := trans!{Carrier} _ _ _ (cliffordRelation v)
+    (congr!{K Carrier} scalar _ _ (\bysub(V, { v: V \where quadratic v = Linear.one }, v))),
+  right := trans!{Carrier} _ _ _ (cliffordRelation v)
+    (congr!{K Carrier} scalar _ _ (\bysub(V, { v: V \where quadratic v = Linear.one }, v))),
+};
+\definition negativeSquare: \forall (v: Negative) -> neg (mul (iota v) (iota v)) = one :=
+  \fun (v: Negative) => eq_reason!{
+    {neg (mul (iota v) (iota v))}
+    "=" {neg (scalar (quadratic v))} "by" {congr!{Carrier Carrier} neg _ _ (cliffordRelation v)}
+    "=" {neg (scalar (Linear.neg Linear.one))} "by" {
+      congr!{K Carrier} (\fun (a: K) => neg (scalar a)) _ _ (\bysub(V, { v: V \where quadratic v = Linear.neg Linear.one }, v))}
+    "=" {neg (neg one)} "by" {congr!{Carrier Carrier} neg _ _ (scalarNeg Linear.one)}
+    "=" one "by" {Sum.negNeg one}
+  };
+\definition negative[v: Negative]: Units.Unit := Units.Unit {
+  value := iota v, inverse := neg (iota v),
+  left := trans!{Carrier} _ _ _ (Units.negMul (iota v) (iota v)) (negativeSquare v),
+  right := trans!{Carrier} _ _ _ (Units.mulNeg (iota v) (iota v)) (negativeSquare v),
+};
+\inductive VectorGenerator: \forall (x: Units.Unit) -> \Prop :=
+  | positive: \forall (v: Positive) -> VectorGenerator (positive v)
+  | negative: \forall (v: Negative) -> VectorGenerator (negative v);
+\inductive Generator: \forall (x: Units.Unit) -> \Prop :=
+  | sign: Generator Units.minusOne
+  | vector: \forall (x: Units.Unit) -> VectorGenerator x -> Generator x;
+\definition generators: \Pow Units.Unit := { x: Units.Unit \where Generator x };
+\definition predicate: \Pow Units.Unit := Ambient.Generated generators;
+\definition closed: Ambient.Closed[predicate] := Ambient.generatedClosed generators;
+\import Ambient.Subgroup[S := predicate, closed := closed] \as Subgroup;
+\definition Pin: \Set := Subgroup.Carrier;
+\definition group: std.Alg[].Alg[].Group[Pin] := Subgroup.group;
+\definition generatorInPin: \forall (x: Units.Unit) -> Generator x -> \In[Units.Unit] predicate x :=
+  Ambient.generatorIncluded generators;
+\definition vectorInPin: \forall (x: Units.Unit) -> VectorGenerator x -> \In[Units.Unit] predicate x :=
+  \fun (x: Units.Unit)(hx: VectorGenerator x) => generatorInPin x (Generator::vector x hx);
+\inductive EvenGenerator: \forall (x: Units.Unit) -> \Prop :=
+  | sign: EvenGenerator Units.minusOne
+  | pair: \forall (x, y: Units.Unit) -> VectorGenerator x -> VectorGenerator y -> EvenGenerator (Units.product x y);
+\definition evenGenerators: \Pow Units.Unit := { x: Units.Unit \where EvenGenerator x };
+\definition evenPredicate: \Pow Units.Unit := Ambient.Generated evenGenerators;
+\definition evenClosed: Ambient.Closed[evenPredicate] := Ambient.generatedClosed evenGenerators;
+\import Ambient.Subgroup[S := evenPredicate, closed := evenClosed] \as EvenSubgroup;
+\definition Spin: \Set := EvenSubgroup.Carrier;
+\definition spinGroup: std.Alg[].Alg[].Group[Spin] := EvenSubgroup.group;
+\definition evenGeneratorInPin: \forall (x: Units.Unit) -> EvenGenerator x -> \In[Units.Unit] predicate x :=
+  \induction (x: Units.Unit)(hx: EvenGenerator x) \return \In[Units.Unit] predicate x \with {
+    | sign: generatorInPin Units.minusOne Generator::sign
+    | pair: \fun (x, y: Units.Unit)(hx: VectorGenerator x)(hy: VectorGenerator y) =>
+      closed.mul x y (vectorInPin x hx) (vectorInPin y hy)
+  };
+\definition spinInPin: \forall (x: Spin) -> \In[Units.Unit] predicate x :=
+  \fun (x: Spin) => (\bysub(Units.Unit, evenPredicate, x)) predicate closed evenGeneratorInPin;
+\definition inclusion[x: Spin]: Pin := \into[Units.Unit](x, predicate) \by { spinInPin x };
+\definition sign: Pin := \into[Units.Unit](Units.minusOne, predicate) \by { generatorInPin Units.minusOne Generator::sign };
+\definition spinSign: Spin := \into[Units.Unit](Units.minusOne, evenPredicate) \by {
+  Ambient.generatorIncluded evenGenerators Units.minusOne EvenGenerator::sign
+};
+\definition centralSign: \forall (x: Units.Unit) -> Units.product Units.minusOne x = Units.product x Units.minusOne :=
+  \fun (x: Units.Unit) => Units.ext _ _ (eq_reason!{
+    {mul (neg one) x.value}
+    "=" {neg (mul one x.value)} "by" {Units.negMul one x.value}
+    "=" {neg x.value} "by" {congr!{Carrier Carrier} neg _ _ (Presented.oneLeft x.value)}
+    "=" {neg (mul x.value one)} "by" {congr!{Carrier Carrier} neg _ _ (sym!{Carrier} _ _ (Presented.oneRight x.value))}
+    "=" {mul x.value (neg one)} "by" {sym!{Carrier} _ _ (Units.mulNeg x.value one)}
+  });
+\import algebra.Groups[].On[G := Pin, group := group] \as PinOperations;
+\import algebra.Groups[].On[G := Spin, group := spinGroup] \as SpinOperations;
+\definition pinInvolution: PinOperations.CentralInvolution := PinOperations.CentralInvolution {
+  element := sign,
+  central := \fun (x: Pin) => centralSign x,
+  square := Units.ext _ _ Units.minusOne.left,
+};
+\definition spinInvolution: SpinOperations.CentralInvolution := SpinOperations.CentralInvolution {
+  element := spinSign,
+  central := \fun (x: Spin) => centralSign x,
+  square := Units.ext _ _ Units.minusOne.left,
+};
+\import \root.ComplexExtension[G := Pin, group := group].By[sign := pinInvolution] \as ComplexPin;
+\import \root.ComplexExtension[G := Spin, group := spinGroup].By[sign := spinInvolution] \as ComplexSpin;
+\definition PinC: \Set := ComplexPin.Carrier;
+\definition SpinC: \Set := ComplexSpin.Carrier;
+\definition pinCGroup: std.Alg[].Alg[].Group[PinC] := ComplexPin.group;
+\definition spinCGroup: std.Alg[].Alg[].Group[SpinC] := ComplexSpin.group;

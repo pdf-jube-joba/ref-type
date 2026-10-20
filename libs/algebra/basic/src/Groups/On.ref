@@ -1,0 +1,57 @@
+\definition one: G := group.unit;
+\definition mul: G -> G -> G := group.op;
+\definition inv: G -> G := group.inv;
+\definition oneLeft: \forall (x: G) -> mul one x = x := group.monoid.leftIdentity;
+\definition oneRight: \forall (x: G) -> mul x one = x := group.monoid.rightIdentity;
+\definition assoc: \forall (x, y, z: G) -> mul (mul x y) z = mul x (mul y z) := group.monoid.associative;
+\definition invLeft: \forall (x: G) -> mul (inv x) x = one := group.leftInverse;
+\definition invRight: \forall (x: G) -> mul x (inv x) = one := group.rightInverse;
+\definition cancelLeft: \forall (a, x, y: G) -> mul a x = mul a y -> x = y :=
+  \fun (a, x, y: G)(same: _) => eq_reason!{
+    x "=" {mul one x} "by" {sym!{G} _ _ (oneLeft x)}
+    "=" {mul (mul (inv a) a) x} "by" {congr!{G G} (\fun (v: G) => mul v x) _ _ (sym!{G} _ _ (invLeft a))}
+    "=" {mul (inv a) (mul a x)} "by" {assoc (inv a) a x}
+    "=" {mul (inv a) (mul a y)} "by" {congr!{G G} (mul (inv a)) _ _ same}
+    "=" {mul (mul (inv a) a) y} "by" {sym!{G} _ _ (assoc (inv a) a y)}
+    "=" {mul one y} "by" {congr!{G G} (\fun (v: G) => mul v y) _ _ (invLeft a)}
+    "=" y "by" {oneLeft y}
+  };
+\definition inverseUnique: \forall (x, y: G) -> mul x y = one -> y = inv x :=
+  \fun (x, y: G)(law: _) => cancelLeft x y (inv x) (trans!{G} _ _ _ law (sym!{G} _ _ (invRight x)));
+\definition invOne: inv one = one := sym!{G} _ _ (inverseUnique one one (oneLeft one));
+\definition invInv: \forall (x: G) -> inv (inv x) = x := \fun (x: G) => sym!{G} _ _ (inverseUnique (inv x) x (invLeft x));
+\definition invMul: \forall (x, y: G) -> inv (mul x y) = mul (inv y) (inv x) :=
+  \fun (x, y: G) => sym!{G} _ _ (inverseUnique (mul x y) (mul (inv y) (inv x)) (eq_reason!{
+    {mul (mul x y) (mul (inv y) (inv x))}
+    "=" {mul x (mul y (mul (inv y) (inv x)))} "by" {assoc x y _}
+    "=" {mul x (mul (mul y (inv y)) (inv x))} "by" {congr!{G G} (mul x) _ _ (sym!{G} _ _ (assoc y (inv y) (inv x)))}
+    "=" {mul x (mul one (inv x))} "by" {congr!{G G} (\fun (v: G) => mul x (mul v (inv x))) _ _ (invRight y)}
+    "=" {mul x (inv x)} "by" {congr!{G G} (mul x) _ _ (oneLeft (inv x))}
+    "=" one "by" {invRight x}
+  }));
+\structure Closed[S: \Pow G]: \Prop := {
+  one: \In[G] S one,
+  mul: \forall (x, y: G) -> \In[G] S x -> \In[G] S y -> \In[G] S (mul x y),
+  inv: \forall (x: G) -> \In[G] S x -> \In[G] S (inv x),
+};
+\module Subgroup(S: \Pow G, closed: Closed[S]);
+\definition Generated[generators: \Pow G]: \Pow G := { x: G \where
+  \forall (S: \Pow G) -> Closed[S] -> (\forall (g: G) -> \In[G] generators g -> \In[G] S g) -> \In[G] S x };
+\definition generatedClosed[generators: \Pow G]: Closed[Generated generators] := Closed[Generated generators] {
+  one := \fun (S: \Pow G)(closed: Closed[S]) (_: _) => closed.one,
+  mul := \fun (x, y: G)(hx: \In[G] (Generated generators) x)(hy: \In[G] (Generated generators) y)
+    (S: \Pow G)(closed: Closed[S])(contains: _) => closed.mul x y (hx S closed contains) (hy S closed contains),
+  inv := \fun (x: G)(hx: \In[G] (Generated generators) x)(S: \Pow G)(closed: Closed[S])(contains: _) => closed.inv x (hx S closed contains),
+};
+\definition generatorIncluded: \forall (generators: \Pow G)(x: G) -> \In[G] generators x -> \In[G] (Generated generators) x :=
+  \fun (generators: \Pow G)(x: G)(hx: _)(S: \Pow G)(closed: Closed[S])(contains: _) => contains x hx;
+\definition conjugate[g, x: G]: G := mul (mul g x) (inv g);
+\definition conjugateOne: \forall (g: G) -> conjugate g one = one :=
+  \fun (g: G) => trans!{G} _ _ _ (congr!{G G} (\fun (v: G) => mul v (inv g)) _ _ (oneRight g)) (invRight g);
+\module Product(H: \Set, other: Alg.Group[H]);
+\structure CentralInvolution: \Set := {
+  element: G,
+  central: \forall (x: G) -> mul element x = mul x element,
+  square: mul element element = one,
+};
+\module Diagonal(sign: CentralInvolution);

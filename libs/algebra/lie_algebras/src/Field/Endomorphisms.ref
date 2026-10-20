@@ -1,0 +1,79 @@
+\import std.Alg[].Ring[] \as Ring;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\import Linear.Linear[V := V, W := V, source := space, target := space] \as End;
+\import End.Operations[] \as Operations;
+\import Linear.Laws[V := V, space := space] \as Vectors;
+\definition Carrier: \Set := End.Map;
+\definition ext: \forall (f, g: Carrier) -> (\forall (x: V) -> f.apply x = g.apply x) -> f = g :=
+  \fun (f, g: Carrier)(same: _) => End.ext f g (\axiom:funext(f.apply, g.apply, same));
+\definition zero: Carrier := Operations.zeroMap;
+\definition add: Carrier -> Carrier -> Carrier := Operations.plus;
+\definition neg: Carrier -> Carrier := Operations.negative;
+\definition scale: K -> Carrier -> Carrier := Operations.scale;
+\definition one: Carrier := End.Map {
+  apply := \fun (x: V) => x,
+  preservesAdd := \fun (x, y: V) => \refl(space.add x y),
+  preservesScale := \fun (a: K)(x: V) => \refl(space.smul a x),
+};
+\definition mul[f, g: Carrier]: Carrier := End.Composition[U := V, domain := space].compose f g;
+\definition zeroLeft: \forall (f: Carrier) -> add zero f = f :=
+  \fun (f: Carrier) => ext (add zero f) f (\fun (x: V) => Vectors.zeroLeft (f.apply x));
+\definition zeroRight: \forall (f: Carrier) -> add f zero = f :=
+  \fun (f: Carrier) => ext (add f zero) f (\fun (x: V) => Vectors.zeroRight (f.apply x));
+\definition addAssoc: \forall (f, g, h: Carrier) -> add (add f g) h = add f (add g h) :=
+  \fun (f, g, h: Carrier) => ext (add (add f g) h) (add f (add g h)) (\fun (x: V) => Vectors.assoc (f.apply x) (g.apply x) (h.apply x));
+\definition inverseLeft: \forall (f: Carrier) -> add (neg f) f = zero :=
+  \fun (f: Carrier) => ext (add (neg f) f) zero (\fun (x: V) => trans!{V} _ _ _
+    (congr!{V V} (\fun (v: V) => space.add v (f.apply x)) _ _ (Vectors.minusOneScale (f.apply x))) (Vectors.inverseLeft (f.apply x)));
+\definition addComm: \forall (f, g: Carrier) -> add f g = add g f :=
+  \fun (f, g: Carrier) => ext (add f g) (add g f) (\fun (x: V) => Vectors.comm (f.apply x) (g.apply x));
+\definition inverseRight: \forall (f: Carrier) -> add f (neg f) = zero :=
+  \fun (f: Carrier) => trans!{Carrier} _ _ _ (addComm f (neg f)) (inverseLeft f);
+\definition additive: Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# zero add neg)] :=
+  Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# zero add neg)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# zero add neg] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# zero add] {
+        leftIdentity := zeroLeft, rightIdentity := zeroRight, associative := addAssoc,
+      },
+      leftInverse := inverseLeft, rightInverse := inverseRight,
+    },
+    commutative := addComm,
+  };
+\definition moduleLaws: Ring.RingModuleLaws[K, Carrier, Linear.ring, Ring.RingModuleData[K, Carrier, Linear.ring]::# zero add neg scale] :=
+  Ring.RingModuleLaws[K, Carrier, Linear.ring, Ring.RingModuleData[K, Carrier, Linear.ring]::# zero add neg scale] {
+    additive := additive,
+    scalarOne := \fun (f: Carrier) => ext (scale Linear.one f) f (\fun (x: V) => space.scalarOne (f.apply x)),
+    scalarAssoc := \fun (a, b: K)(f: Carrier) => ext (scale (Linear.mul a b) f) (scale a (scale b f)) (\fun (x: V) => space.scalarAssoc a b (f.apply x)),
+    scalarAdd := \fun (a, b: K)(f: Carrier) => ext (scale (Linear.add a b) f) (add (scale a f) (scale b f)) (\fun (x: V) => space.scalarAdd a b (f.apply x)),
+    vectorAdd := \fun (a: K)(f, g: Carrier) => ext (scale a (add f g)) (add (scale a f) (scale a g)) (\fun (x: V) => space.vectorAdd a (f.apply x) (g.apply x)),
+  };
+\definition vectorSpace: Linear.VectorSpace Carrier := \into[Ring.RingModuleData[K, Carrier, Linear.ring]]
+  (Ring.RingModuleData[K, Carrier, Linear.ring]::# zero add neg scale, Linear.VectorSpace Carrier) \by { moduleLaws };
+\definition ring: Ring.Ring[Carrier] := Ring.Ring[Carrier] {
+  zero := zero, one := one, add := add, neg := neg, mul := mul,
+  semiring := Alg.SemiringLaws[Carrier, Alg.SemiringData[Carrier]::# zero one add mul] {
+    additive := Monoid.CommutativeMonoidLaws[Carrier, Monoid.CommutativeMonoidData[Carrier]::# (Monoid.MonoidData[Carrier]::# zero add)] {
+      monoid := additive.group.monoid, commutative := additive.commutative,
+    },
+    multiplicative := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# one mul] {
+      leftIdentity := \fun (f: Carrier) => ext (mul one f) f (\fun (x: V) => \refl(f.apply x)),
+      rightIdentity := \fun (f: Carrier) => ext (mul f one) f (\fun (x: V) => \refl(f.apply x)),
+      associative := \fun (f, g, h: Carrier) => ext (mul (mul f g) h) (mul f (mul g h)) (\fun (x: V) => \refl(f.apply (g.apply (h.apply x)))),
+    },
+    leftDistributive := \fun (f, g, h: Carrier) => ext (mul f (add g h)) (add (mul f g) (mul f h)) (\fun (x: V) => f.preservesAdd (g.apply x) (h.apply x)),
+    rightDistributive := \fun (f, g, h: Carrier) => ext (mul (add f g) h) (add (mul f h) (mul g h)) (\fun (x: V) => \refl(space.add (f.apply (h.apply x)) (g.apply (h.apply x)))),
+    zeroAbsorbsLeft := \fun (f: Carrier) => ext (mul zero f) zero (\fun (x: V) => \refl(space.zero)),
+    zeroAbsorbsRight := \fun (f: Carrier) => ext (mul f zero) zero (\fun (x: V) => f.preservesZero),
+  },
+  additiveInverse := additive.group.leftInverse,
+};
+\definition algebra: Ring.RingAlgebra[K, Carrier, coefficients] := Ring.RingAlgebra[K, Carrier, coefficients] {
+  zero := zero, one := one, add := add, neg := neg, mul := mul, smul := scale,
+  ring := \bysub(Ring.RingData[Carrier], { data: Ring.RingData[Carrier] \where Ring.RingLaws[Carrier, data] }, ring),
+  module := moduleLaws,
+  scalarMulLeft := \fun (a: K)(f, g: Carrier) => ext (scale a (mul f g)) (mul (scale a f) g) (\fun (x: V) => \refl(space.smul a (f.apply (g.apply x)))),
+  scalarMulRight := \fun (a: K)(f, g: Carrier) => ext (scale a (mul f g)) (mul f (scale a g)) (\fun (x: V) => sym!{V} _ _ (f.preservesScale a (g.apply x))),
+};
+\import \parent.Associative[A := Carrier, algebra := algebra] \as Commutator;
+\definition lie: LieAlgebra Carrier vectorSpace := Commutator.lie;
