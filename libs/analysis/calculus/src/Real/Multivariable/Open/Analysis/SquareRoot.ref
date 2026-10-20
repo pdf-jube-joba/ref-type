@@ -1,0 +1,22 @@
+\import real.Analysis[] \as RealAnalysis;
+\import RealAnalysis.SquareRoot[] \as Root;
+\import RealAnalysis.Inverse[] \as Inverse;
+\import RealAnalysis.Estimates[].Product[] \as Product;
+\import \parent.Operations[] \as Operations;
+\definition value[x: Carrier U]: Real := Root.sqrt (f x);
+\definition factor[x: Carrier U]: Real := mul (mul RealAnalysis.half (value x)) (inv (f x));
+\definition differential[df: ScalarFunction U][x: Carrier U]: Real := mul (factor x) (df x);
+\definition continuous: ContinuousOn U f -> ContinuousOn U value := \block {
+  \fun (continuousF: _)(a: Carrier U)(epsilon: Real)(ep: _) \then
+  \takefrom delta: \Cast[Real] ({ delta: Real \where ContinuityControl[U, f, a, mul epsilon epsilon, delta] })
+    \by continuousF a (mul epsilon epsilon) (Product.mulPositive epsilon epsilon ep ep) \then
+  \let control: ContinuityControl[U, f, a, mul epsilon epsilon, delta] := \bysub(Real, { delta: Real \where ContinuityControl[U, f, a, mul epsilon epsilon, delta] }, delta) \then
+  \return Logic.existsIntro[Real, { delta: Real \where ContinuityControl[U, value, a, epsilon, delta] }] delta
+    (ContinuityControl[U, value, a, epsilon, delta] {
+      positive := control.positive,
+      estimate := \fun (x: Carrier U)(near: _) => Root.rootsNear (f x) (f a) epsilon ep (control.estimate x near),
+    })
+};
+\module At(a: Carrier U, i: Coordinate);
+\definition partial: \forall (i: Coordinate)(df: ScalarFunction U) -> HasPartialDerivative U f i df -> HasPartialDerivative U value i (differential df) :=
+  \fun (i: Coordinate)(df: _)(law: _)(a: Carrier U) => At[a := a, i := i].partial (df a) (law a);

@@ -28,3 +28,7 @@ Dedekind 実数上の極限と微分を扱う。
 `HasDirectionalDerivativeAt` は同じ始点と接ベクトルを持つすべての曲線について量化し、接ベクトルはパラメータに対する速さを含む。
 
 利用例は[Calculus.ref](../../geometry/coordinate_calculus/src/Calculus.ref)と[非線形な微分同相](../../geometry/coordinate_calculus/src/Shear.ref)を参照。
+
+`Real.Derivative.SquareRoot` は正の値をとる微分可能な関数の平方根を微分する。
+`Real.Multivariable.Open.Analysis.SquareRoot` はこれを偏微分へ移し、`Open.Smooth.SquareRoot` は正の滑らかな関数の平方根が滑らかであることを証明する。
+高階の滑らかさは、平方根を \(r=\sqrt f\) として \(\partial_i r=\frac12 r f^{-1}\partial_i f\) を用いて帰納的に示す。
