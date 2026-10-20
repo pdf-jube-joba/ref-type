@@ -1,0 +1,39 @@
+/* The twisted adjoint kernel is exactly the two scalar signs. */
+\use Equality.eq_reason;
+\use Logic.either;
+\import clifford.EuclideanCenter[] \as Centers;
+\import Centers.Dimension[n := n] \as Center;
+\import clifford.Euclidean[n := n].PinNorm[] \as Norm;
+\import Clifford.Reversion[] \as Reverse;
+\definition twistedCentral: \forall (g: Pin) -> map g = OrthogonalOperations.one -> Center.Twisted g.value := \block {
+  \fun (g: Pin)(kernel: map g = OrthogonalOperations.one)(v: Vector) \then
+  \let x: CliffordAlgebra := Clifford.mul (Grade.map g.value) (Clifford.iota v) \then
+  \let action: Clifford.mul x g.inverse = Clifford.iota v := trans!{CliffordAlgebra} _ _ _ (onVector g v)
+    (congr!{O CliffordAlgebra} (\fun (h: O) => Clifford.iota (Orthogonal.action h v)) _ _ kernel) \then
+  \return eq_reason!{
+    x "=" {Clifford.mul x Clifford.one} "by" {sym!{CliffordAlgebra} _ _ (Clifford.ring.semiring.multiplicative.rightIdentity x)}
+    "=" {Clifford.mul x (Clifford.mul g.inverse g.value)} "by" {congr!{CliffordAlgebra CliffordAlgebra} (Clifford.mul x) _ _ (sym!{CliffordAlgebra} _ _ g.left)}
+    "=" {Clifford.mul (Clifford.mul x g.inverse) g.value} "by" {sym!{CliffordAlgebra} _ _ (Clifford.ring.semiring.multiplicative.associative x g.inverse g.value)}
+    "=" {Clifford.mul (Clifford.iota v) g.value} "by" {congr!{CliffordAlgebra CliffordAlgebra} (\fun (a: CliffordAlgebra) => Clifford.mul a g.value) _ _ action}
+  }
+};
+\definition signs: \forall (g: Pin) -> map g = OrthogonalOperations.one -> Logic.Or[g = PinOperations.one, g = CoveringGroups.sign] := \block {
+  \fun (g: Pin)(kernel: map g = OrthogonalOperations.one) \then
+  \takefrom a: Center.Scalar g.value \by Centers.law n g.value (twistedCentral g kernel) \then
+  \let scalar: Clifford.scalar a = g.value := \bysub(R.Real, { a: R.Real \where Clifford.scalar a = g.value }, a) \then
+  \return either!{{(Norm.scalarSign g a scalar)} {Logic.Or[g = PinOperations.one, g = CoveringGroups.sign]}
+    {\fun (positive: a = R.one) => Logic.Or[_, _]::left (Units.ext g PinOperations.one
+      (trans!{CliffordAlgebra} _ _ _ (sym!{CliffordAlgebra} _ _ scalar) (congr!{R.Real CliffordAlgebra} Clifford.scalar _ _ positive)))}
+    {\fun (negative: a = R.neg R.one) => Logic.Or[_, _]::right (Units.ext g CoveringGroups.sign
+      (trans!{CliffordAlgebra} _ _ _ (sym!{CliffordAlgebra} _ _ scalar)
+        (trans!{CliffordAlgebra} _ _ _ (congr!{R.Real CliffordAlgebra} Clifford.scalar _ _ negative) (Relations.scalarNeg R.one))))}
+  }
+};
+\definition iff: \forall (g: Pin) -> Logic.PropEquiv[map g = OrthogonalOperations.one, Logic.Or[g = PinOperations.one, g = CoveringGroups.sign]] :=
+  \fun (g: Pin) => Logic.PropEquiv[_, _] {
+    ltr := signs g,
+    rtl := \fun (sign: Logic.Or[g = PinOperations.one, g = CoveringGroups.sign]) => either!{sign {map g = OrthogonalOperations.one}
+      {\fun (positive: g = PinOperations.one) => trans!{O} _ _ _ (congr!{Pin O} map _ _ positive) atOne}
+      {\fun (negative: g = CoveringGroups.sign) => trans!{O} _ _ _ (congr!{Pin O} map _ _ negative) atSign}
+    },
+  };
