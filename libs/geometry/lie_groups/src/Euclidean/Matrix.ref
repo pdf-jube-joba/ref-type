@@ -1,0 +1,35 @@
+/* Matrix coefficients of orthogonal maps and their inverses. */
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import std.Data[].Bool[] \as Bool;
+\import Sums.Linear[] \as Linear;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\definition eqbSymmetric: \forall (a, b: N.Nat^) -> Nat.eqb a b = Nat.eqb b a :=
+  \induction (a: N.Nat^) \return \forall (b: N.Nat^) -> Nat.eqb a b = Nat.eqb b a \with {
+    | zero: \induction (b: N.Nat^) \return Nat.eqb N.Nat^::zero b = Nat.eqb b N.Nat^::zero \with {
+      | zero: \refl(Bool.Bool^::true)
+      | succ: \fun (b: N.Nat^)(_: _) => \refl(Bool.Bool^::false)
+    }
+    | succ: \fun (a: N.Nat^)(previous: _) => \induction (b: N.Nat^) \return Nat.eqb (N.Nat^::succ a) b = Nat.eqb b (N.Nat^::succ a) \with {
+      | zero: \refl(Bool.Bool^::false)
+      | succ: \fun (b: N.Nat^)(_: _) => previous b
+    }
+  };
+\definition basis[i: Fin.Fin n]: Vector := Linear.basis n i;
+\definition basisSymmetric: \forall (i, j: Fin.Fin n) -> basis i j = basis j i := \fun (i, j: Fin.Fin n) =>
+  congr!{Bool.Bool^ R.Real} (\fun (b: Bool.Bool^) => Bool.ite R.Real b R.one R.zero) _ _ (eqbSymmetric j i);
+\definition coordinate[i: Fin.Fin n]: Linear.Map n := Linear.Data[n] {
+  apply := \fun (v: Vector) => v i,
+  additive := \fun (x, y: Vector) => \refl(R.add (x i) (y i)),
+  homogeneous := \fun (a: R.Real)(x: Vector) => \refl(R.mul a (x i)),
+};
+\definition dotBasis: \forall (i: Fin.Fin n)(v: Vector) -> dot (basis i) v = v i := \fun (i: Fin.Fin n)(v: Vector) =>
+  trans!{R.Real} _ _ _ (Sums.congruent n _ _ (\fun (j: Fin.Fin n) => trans!{R.Real} _ _ _
+    (Arithmetic.fieldMulComm (basis i j) (v j)) (congr!{R.Real R.Real} (R.mul (v j)) _ _ (basisSymmetric i j))))
+    (sym!{R.Real} _ _ (Linear.expansion n (coordinate i) v));
+\definition inverseCoefficient: \forall (g: O)(v: Vector)(i: Fin.Fin n) ->
+  g.inverse.apply v i = dot (g.value.apply (basis i)) v := \fun (g: O)(v: Vector)(i: Fin.Fin n) =>
+  trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (dotBasis i (g.inverse.apply v)))
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Orthogonal.preserves g (basis i) (g.inverse.apply v)))
+      (congr!{Vector R.Real} (dot (g.value.apply (basis i))) _ _ (Orthogonal.rightInverse g v)));

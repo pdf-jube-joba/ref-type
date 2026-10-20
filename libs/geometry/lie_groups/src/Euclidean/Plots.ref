@@ -1,0 +1,53 @@
+/* Smooth orthogonal-valued families detected by their matrix coefficients. */
+\import calculus.Real[].Multivariable[n := d].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Functions;
+\import Smooth.Sums[] \as FiniteSums;
+\import calculus.Vector[n := n, m := n] \as Vectors;
+\import calculus.Real[].Multivariable[n := n].Space[].Linear[] \as Linear;
+\import \parent.Matrix[] \as Matrix;
+\import algebra.Groups[].On[G := O, group := orthogonalGroup] \as Group;
+\definition Values[U: Open.OpenSet][v: Open.Carrier U -> Vector]: \Prop :=
+  \forall (i: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => v x i);
+\definition Plot[U: Open.OpenSet][f: Open.Carrier U -> O]: \Prop :=
+  \forall (v: Vector)(i: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (f x).value.apply v i);
+\definition constantValues: \forall (U: Open.OpenSet)(v: Vector) -> Values U (\fun (x: Open.Carrier U) => v) :=
+  \fun (U: _)(v: _)(i: _) => Functions.constantSmooth U (v i);
+\definition constant: \forall (U: Open.OpenSet)(g: O) -> Plot U (\fun (x: Open.Carrier U) => g) :=
+  \fun (U: _)(g: _)(v: _)(i: _) => Functions.constantSmooth U (g.value.apply v i);
+\definition dotSmooth: \forall (U: Open.OpenSet)(v, w: Open.Carrier U -> Vector) -> Values U v -> Values U w ->
+  Smooth.SmoothOn U (\fun (x: Open.Carrier U) => dot (v x) (w x)) :=
+  \fun (U: _)(v, w: _)(sv: _)(sw: _) => FiniteSums.smooth U n
+    (\fun (i: Fin.Fin n)(x: Open.Carrier U) => R.mul (v x i) (w x i))
+    (\fun (i: Fin.Fin n) => Functions.mulSmooth U (\fun (x: Open.Carrier U) => v x i) (\fun (x: Open.Carrier U) => w x i) (sv i) (sw i));
+\definition evaluation: \forall (U: Open.OpenSet)(f: Open.Carrier U -> O)(v: Open.Carrier U -> Vector) -> Plot U f -> Values U v ->
+  Values U (\fun (x: Open.Carrier U) => (f x).value.apply (v x)) := \fun (U: _)(f: _)(v: _)(regular: _)(smoothV: _)(i: _) => \idelim
+    (\fun (x: Open.Carrier U) => Sums.sum n (\fun (j: Fin.Fin n) => R.mul ((f x).value.apply (Matrix.basis j) i) (v x j))) =
+    (\fun (x: Open.Carrier U) => (f x).value.apply (v x) i)
+    \with h: Open.ScalarFunction U => Smooth.SmoothOn U h \by {
+      base: FiniteSums.smooth U n (\fun (j: Fin.Fin n)(x: Open.Carrier U) => R.mul ((f x).value.apply (Matrix.basis j) i) (v x j))
+        (\fun (j: Fin.Fin n) => Functions.mulSmooth U (\fun (x: Open.Carrier U) => (f x).value.apply (Matrix.basis j) i)
+          (\fun (x: Open.Carrier U) => v x j) (regular (Matrix.basis j) i) (smoothV j)),
+      equality: \axiom:funext(
+        (\fun (x: Open.Carrier U) => Sums.sum n (\fun (j: Fin.Fin n) => R.mul ((f x).value.apply (Matrix.basis j) i) (v x j))),
+        (\fun (x: Open.Carrier U) => (f x).value.apply (v x) i),
+        \fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Linear.representation (Vectors.row (f x).value i) (v x)))
+    };
+\definition multiplication: \forall (U: Open.OpenSet)(f, g: Open.Carrier U -> O) -> Plot U f -> Plot U g ->
+  Plot U (\fun (x: Open.Carrier U) => Group.mul (f x) (g x)) :=
+  \fun (U: _)(f, g: _)(left: _)(right: _)(v: Vector) => evaluation U f (\fun (x: Open.Carrier U) => (g x).value.apply v) left (right v);
+\definition inverse: \forall (U: Open.OpenSet)(f: Open.Carrier U -> O) -> Plot U f -> Plot U (\fun (x: Open.Carrier U) => Group.inv (f x)) :=
+  \fun (U: _)(f: _)(regular: _)(v: Vector)(i: Fin.Fin n) => \idelim
+    (\fun (x: Open.Carrier U) => dot ((f x).value.apply (Matrix.basis i)) v) =
+    (\fun (x: Open.Carrier U) => (f x).inverse.apply v i)
+    \with h: Open.ScalarFunction U => Smooth.SmoothOn U h \by {
+      base: FiniteSums.smooth U n (\fun (j: Fin.Fin n)(x: Open.Carrier U) => R.mul ((f x).value.apply (Matrix.basis i) j) (v j))
+        (\fun (j: Fin.Fin n) => Functions.mulSmooth U (\fun (x: Open.Carrier U) => (f x).value.apply (Matrix.basis i) j)
+          (\fun (x: Open.Carrier U) => v j) (regular (Matrix.basis i) j) (Functions.constantSmooth U (v j))),
+      equality: \axiom:funext((\fun (x: Open.Carrier U) => dot ((f x).value.apply (Matrix.basis i)) v),
+        (\fun (x: Open.Carrier U) => (f x).inverse.apply v i),
+        \fun (x: Open.Carrier U) => sym!{R.Real} _ _ (Matrix.inverseCoefficient (f x) v i))
+    };
+\import \parent.InnerProduct[] \as InnerProduct;
+\module Reflection(U: Open.OpenSet, v: Open.Carrier U -> InnerProduct.Nonzero,
+  regular: Values U (\fun (x: Open.Carrier U) => v x));
