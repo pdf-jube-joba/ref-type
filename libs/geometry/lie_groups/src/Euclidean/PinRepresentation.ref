@@ -1,0 +1,92 @@
+\import Clifford.Grading[] \as Grade;
+\import algebra.Groups[].Units[A := CliffordAlgebra, ring := Clifford.ring] \as Units;
+\import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Vector, space := space] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Isometries;
+\import Clifford.Relations[] \as Relations;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as Ambient;
+\import algebra.Groups[].On[G := O, group := orthogonalGroup] \as OrthogonalOperations;
+\import algebra.Groups[].On[G := Pin, group := pinGroup] \as PinOperations;
+\import std.Logic[].Proposition[] \as Logic;
+\import dedekind_reals.DedekindReal[] \as Order;
+\definition Lifts[g: Units.Unit]: \Set := \Cast[O] ({ f: O \where \forall (v: Vector) ->
+  Grade.action g (Clifford.iota v) = Clifford.iota (Orthogonal.action f v) });
+\definition agrees[g: Units.Unit][f: Lifts g]: \forall (v: Vector) ->
+  Grade.action g (Clifford.iota v) = Clifford.iota (Orthogonal.action f v) := \bysub(O, Lifts g, f);
+\definition unique: \forall (g: Units.Unit)(f, h: Lifts g) -> f = h := \fun (g: Units.Unit)(f, h: Lifts g) => Isometries.ext f h
+  (End.ext f.value h.value (\fun (v: Vector) => cliffordVectorInjective (Orthogonal.action f v) (Orthogonal.action h v)
+    (trans!{CliffordAlgebra} _ _ _ (sym!{CliffordAlgebra} _ _ (agrees g f v)) (agrees g h v))));
+\definition identity: Lifts Units.unit := \into[O](OrthogonalOperations.one, Lifts Units.unit) \by { \fun (v: Vector) => Grade.actionOne (Clifford.iota v) };
+\definition product[g, h: Units.Unit][f: Lifts g][k: Lifts h]: Lifts (Units.product g h) :=
+  \into[O](OrthogonalOperations.mul f k, Lifts (Units.product g h)) \by {
+    \fun (v: Vector) => trans!{CliffordAlgebra} _ _ _ (Grade.actionProduct g h (Clifford.iota v))
+      (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} (Grade.action g) _ _ (agrees h k v))
+        (agrees g f (Orthogonal.action k v)))
+  };
+\module Inverse(g: Units.Unit, f: Lifts g);
+\definition inverse[g: Units.Unit][f: Lifts g]: Lifts (Units.inverse g) := Inverse[g := g, f := f].value;
+\definition predicate: \Pow Units.Unit := { g: Units.Unit \where \exists Lifts g };
+\definition closed: Ambient.Closed[predicate] := Ambient.Closed[predicate] {
+  one := \exact(identity, Lifts Units.unit),
+  mul := \fun (g, h: Units.Unit)(left: \exists Lifts g)(right: \exists Lifts h) => \block {
+    \takefrom f: Lifts g \by left \then
+    \takefrom k: Lifts h \by right \then
+    \return \exact(product g h f k, Lifts (Units.product g h))
+  },
+  inv := \fun (g: Units.Unit)(member: \exists Lifts g) => \block {
+    \takefrom f: Lifts g \by member \then
+    \return \exact(inverse g f, Lifts (Units.inverse g))
+  },
+};
+\definition negativeImpossible[v: CoveringGroups.Negative]: Logic.False := \block {
+  \let nonnegative: Order.Le R.zero (Clifford.quadratic v) := Sums.nonnegative n (\fun (i: Fin.Fin n) => R.mul (v i) (v i))
+    (\fun (i: Fin.Fin n) => Scalars.squareNonnegative (v i)) \then
+  \let impossible: Order.Le R.zero (R.neg R.one) := Order.leReplaceRight _ _ _
+    (\bysub(Vector, { v: Vector \where Clifford.quadratic v = R.neg R.one }, v)) nonnegative \then
+  \return Order.ltNotLeReverse (R.neg R.one) R.zero (Arithmetic.negativeNegOfPositive R.one Estimates.Product[].onePositive) impossible
+};
+\module Sign;
+\module Positive(v: CoveringGroups.Positive);
+\definition onVectorGenerator: \forall (g: Units.Unit) -> CoveringGroups.VectorGenerator g -> \exists Lifts g :=
+  \induction (g: Units.Unit)(generator: CoveringGroups.VectorGenerator g) \return \exists Lifts g \with {
+    | positive: \fun (v: CoveringGroups.Positive) => Positive[v := v].existsLift
+    | negative: \fun (v: CoveringGroups.Negative) => Logic.falseElim (\exists Lifts (CoveringGroups.negative v)) (negativeImpossible v)
+  };
+\definition onGenerator: \forall (g: Units.Unit) -> CoveringGroups.Generator g -> \exists Lifts g :=
+  \induction (g: Units.Unit)(generator: CoveringGroups.Generator g) \return \exists Lifts g \with {
+    | sign: \exact(Sign[].value, Lifts Units.minusOne)
+    | vector: onVectorGenerator
+  };
+\definition existence: \forall (g: Pin) -> \exists Lifts g := \fun (g: Pin) =>
+  (\bysub(Units.Unit, CoveringGroups.predicate, g)) predicate closed onGenerator;
+\definition chosen[g: Pin]: Lifts g := \choice Lifts g \by { existence: existence g, uniqueness: unique g };
+\definition map[g: Pin]: O := chosen g;
+\definition onVector: \forall (g: Pin)(v: Vector) -> Grade.action g (Clifford.iota v) = Clifford.iota (Orthogonal.action (map g) v) :=
+  \fun (g: Pin)(v: Vector) => agrees g (chosen g) v;
+\definition atOne: map PinOperations.one = OrthogonalOperations.one := unique Units.unit (chosen PinOperations.one) identity;
+\definition multiplication: \forall (g, h: Pin) -> map (PinOperations.mul g h) = OrthogonalOperations.mul (map g) (map h) :=
+  \fun (g, h: Pin) => unique (Units.product g h) (chosen (PinOperations.mul g h)) (product g h (chosen g) (chosen h));
+\definition atSign: map CoveringGroups.sign = OrthogonalOperations.one := unique Units.minusOne (chosen CoveringGroups.sign) Sign[].value;
+\import algebra.Hom[A := Pin, B := O] \as Hom;
+\definition homomorphism: Hom.GroupMap pinGroup orthogonalGroup := \into[Pin -> O](map, Hom.GroupMap pinGroup orthogonalGroup) \by {
+  Hom.MonoidLaws[_, _, map] { unit := atOne, operation := multiplication }
+};
+\definition spinMap[g: Spin]: O := map (CoveringGroups.inclusion g);
+\import algebra.Hom[A := Spin, B := O] \as SpinHom;
+\import algebra.Groups[].On[G := Spin, group := spinGroup] \as SpinOperations;
+\definition spinHomomorphism: SpinHom.GroupMap spinGroup orthogonalGroup := \into[Spin -> O](spinMap, SpinHom.GroupMap spinGroup orthogonalGroup) \by {
+  SpinHom.MonoidLaws[_, _, spinMap] {
+    unit := atOne,
+    operation := \fun (g, h: Spin) => multiplication (CoveringGroups.inclusion g) (CoveringGroups.inclusion h),
+  }
+};
+\import CoveringGroups.Grading[] \as PinGrading;
+\definition spinOnVector: \forall (g: Spin)(v: Vector) -> Clifford.mul (Clifford.mul g.value (Clifford.iota v)) g.inverse =
+  Clifford.iota (Orthogonal.action (spinMap g) v) := \block {
+  \fun (g: Spin)(v: Vector) \then
+  \let even: Grade.map g.value = g.value := congr!{{Units.Unit} CliffordAlgebra} (\fun (h: Units.Unit) => h.value) _ _ (PinGrading.spinFixed g) \then
+  \return trans!{CliffordAlgebra} _ _ _
+    (congr!{CliffordAlgebra CliffordAlgebra} (\fun (x: CliffordAlgebra) => Clifford.mul (Clifford.mul x (Clifford.iota v)) g.inverse) _ _ (sym!{CliffordAlgebra} _ _ even))
+    (onVector (CoveringGroups.inclusion g) v)
+};
