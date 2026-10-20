@@ -1,0 +1,23 @@
+/* The opposite of a possibly noncommutative ring. */
+\import std.Alg[].Ring[] \as Ring;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition product[x, y: A]: A := ring.mul y x;
+\definition value: Ring.Ring[A] := Ring.Ring[A] {
+  zero := ring.zero, one := ring.one, add := ring.add, neg := ring.neg, mul := product,
+  semiring := Alg.SemiringLaws[A, Alg.SemiringData[A]::# ring.zero ring.one ring.add product] {
+    additive := ring.semiring.additive,
+    multiplicative := Monoid.MonoidLaws[A, Monoid.MonoidData[A]::# ring.one product] {
+      leftIdentity := ring.semiring.multiplicative.rightIdentity,
+      rightIdentity := ring.semiring.multiplicative.leftIdentity,
+      associative := \fun (x, y, z: A) => sym!{A} _ _ (ring.semiring.multiplicative.associative z y x),
+    },
+    leftDistributive := \fun (x, y, z: A) => ring.semiring.rightDistributive y z x,
+    rightDistributive := \fun (x, y, z: A) => ring.semiring.leftDistributive z x y,
+    zeroAbsorbsLeft := ring.semiring.zeroAbsorbsRight,
+    zeroAbsorbsRight := ring.semiring.zeroAbsorbsLeft,
+  },
+  additiveInverse := ring.additiveInverse,
+};

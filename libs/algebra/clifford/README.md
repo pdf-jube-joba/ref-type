@@ -24,6 +24,11 @@
 標準内積の場合には `EuclideanFaithfulness.faithful n` がスカラーと生成ベクトルの単射性を与える。
 証明は零次元で実数への普遍写像を使い、次元を増やすごとにブロック作用素の定数ベクトルへの作用から係数と生成ベクトルの先頭・残りの座標を復元する。
 普遍性は商の構成から証明する。
+`Of.Induction` はスカラー・生成ベクトルと代数演算による構造帰納法、`Of.HomExt` は生成元上の一致による準同型の一意性を与える。
+`Euclidean.Successor.NormalForm` は \(j(a)+j(b)e_0\) の存在と一意性を証明し、`Spanning.recover` がその再構成を与える。
+`EuclideanCenter.law` は生成ベクトルの twisted centralizer がスカラーに限られることを示す。
+`Of.Reversion` はスカラーとベクトルを固定して積の順序を逆にする写像である。
+`Euclidean.PinNorm.norm` は Pin 上で reversion が逆元に一致すること、`scalarSign` はスカラー元が \(\pm1\) に限られることを示す。
 `Relations.anticommutator` は、標数に関する追加条件を使わずに
 \[\iota(u)\iota(v)+\iota(v)\iota(u)=\bigl(\operatorname{form}(u,v)+\operatorname{form}(v,u)\bigr)1\]
 を導く。
