@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition T: \VType := \U(I.Int -> I.Int -> I.Int);
 \definition program: T := \thunk (\cfun (a: I.Int) => \return(\thunk (\cfun (b: I.Int) => \program {
   \bind na: \U(I.Int -> N.Nat) <- (\force Unsigned.program) a \then
@@ -13,10 +14,10 @@
 \definition multiplied[a, b: I.Int^]: I.Int^ := Arithmetic.mul (Sign.program^ a) (Arithmetic.mul (Sign.program^ b) (natural (Unsigned.program^ a b)));
 \definition signed[a, b: I.Int^]: I.Int^ := Arithmetic.mul (sign a) (Arithmetic.mul (sign b) (natural (Unsigned.program^ a b)));
 \definition matches: \forall (a, b: I.Int^) -> program^ a b = quotient a b :=
-  \fun (a, b: I.Int^) => trans!{I.Int^} (program^ a b) (multiplied a b) (quotient a b)
-    (congr!{I.Mul.T^ I.Int^} (\fun (f: I.Mul.T^) => f (Sign.program^ a) (f (Sign.program^ b) (natural (Unsigned.program^ a b)))) I.Mul.program^ I.Mul.specification I.Mul.coherence)
-    (trans!{I.Int^} (multiplied a b) (signed a b) (quotient a b)
-      (congr!{Sign.T^ I.Int^} (\fun (f: Sign.T^) => Arithmetic.mul (f a) (Arithmetic.mul (f b) (natural (Unsigned.program^ a b)))) Sign.program^ Sign.specification Sign.coherence)
-      (congr!{Unsigned.T^ I.Int^} (\fun (f: Unsigned.T^) => Arithmetic.mul (sign a) (Arithmetic.mul (sign b) (natural (f a b)))) Unsigned.program^ Unsigned.specification Unsigned.coherence));
+  \fun (a, b: I.Int^) => eq_reason_in!{I.Int^ { program^ a b }
+    "=" { multiplied a b } "by" { congr!{I.Mul.T^ I.Int^} (\fun (f: I.Mul.T^) => f (Sign.program^ a) (f (Sign.program^ b) (natural (Unsigned.program^ a b)))) I.Mul.program^ I.Mul.specification I.Mul.coherence }
+    "=" { signed a b } "by" { congr!{Sign.T^ I.Int^} (\fun (f: Sign.T^) => Arithmetic.mul (f a) (Arithmetic.mul (f b) (natural (Unsigned.program^ a b)))) Sign.program^ Sign.specification Sign.coherence }
+    "=" { quotient a b } "by" { congr!{Unsigned.T^ I.Int^} (\fun (f: Unsigned.T^) => Arithmetic.mul (sign a) (Arithmetic.mul (sign b) (natural (f a b)))) Unsigned.program^ Unsigned.specification Unsigned.coherence }
+  };
 \definition coherence: program^ = quotient := \axiom:funext(program^, quotient,
   \fun (a: I.Int^) => \axiom:funext(program^ a, quotient a, \fun (b: I.Int^) => matches a b));

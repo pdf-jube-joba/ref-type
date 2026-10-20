@@ -23,26 +23,49 @@
   (\fun (P: $A -> \Prop) => \fun (a, b: $A) => \fun (e: a = b) => \fun (p: P a) =>
     \idelim a = b \with x: $A => P x \by { base: p, equality: e });
 
-\macro congr($A, $B) :=
-  (\fun (law: \forall (f: $A -> $B) -> \forall (a, b: $A) -> a = b -> f a = f b) => law)
-  (\fun (f: $A -> $B) => \fun (a, b: $A) => \fun (e: a = b) =>
-      \idelim a = b \with x: $A => f a = f x \by { base: \refl(f a), equality: e });
+/* Congruence folds equality of applications; function extensionality is not needed. */
+\macro congr_apply($A, $f, $g, $p, $a, $b, $q) :=
+  \idelim $a = $b \with x: $A => $f $a = $g x \by {
+    base: \idelim $f = $g \with h: _ => $f $a = h $a
+      \by { base: \refl($f $a), equality: $p },
+    equality: $q
+  };
 
-\macro congr2($A, $B, $C) :=
-  (\fun (law: \forall (f: $A -> $B -> $C) -> \forall (a, b: $A) -> \forall (c, d: $B) -> a = b -> c = d -> f a c = f b d) => law)
-  (\fun (f: $A -> $B -> $C) => \fun (a, b: $A) => \fun (c, d: $B) => \fun (ab: a = b) => \fun (cd: c = d) =>
-      \idelim c = d \with y: $B => f a c = f b y
-      \by { base: \idelim a = b \with x: $A => f a c = f x c
-        \by { base: \refl(f a c), equality: ab }, equality: cd });
+\macro congr_steps($f, $g, $p, ..args) := \tmatch args {
+  | () => $p
+  | ("and", ..rest) => congr_steps!{$f $g $p ..rest}
+  | ($a, "=", $b, "in", $A, "by", $q, ..rest) =>
+      congr_steps!{{ $f $a } { $g $b } { congr_apply!{$A $f $g $p $a $b $q} } ..rest}
+  | ($a, "=", $b, "by", $q, ..rest) =>
+      congr_steps!{{ $f $a } { $g $b } { congr_apply!{_ $f $g $p $a $b $q} } ..rest}
+};
 
-\macro congr3($A, $B, $C, $D) :=
-  (\fun (law: \forall (f: $A -> $B -> $C -> $D) -> \forall (a, b: $A) -> \forall (c, d: $B) -> \forall (e, g: $C) -> a = b -> c = d -> e = g -> f a c e = f b d g) => law)
-  (\fun (f: $A -> $B -> $C -> $D) => \fun (a, b: $A) => \fun (c, d: $B) => \fun (e, g: $C) =>
-      \fun (ab: a = b) => \fun (cd: c = d) => \fun (eg: e = g) =>
-        \idelim e = g \with z: $C => f a c e = f b d z
-        \by { base: \idelim c = d \with y: $B => f a c e = f b y e
-          \by { base: \idelim a = b \with x: $A => f a c e = f x c e
-            \by { base: \refl(f a c e), equality: ab }, equality: cd }, equality: eg });
+\macro congr_type($A, ..types) := \tmatch types {
+  | () => $A
+  | ($B, ..rest) => $A -> congr_type!{$B ..rest}
+};
+
+\macro congr_arguments($f, (..pairs), $A, ..types) := \tmatch types {
+  | () => congr_proofs!{$f (..pairs) ()}
+  | ($B, ..rest) => \fun (a, b: $A) =>
+      congr_arguments!{$f (..pairs ($A a b)) $B ..rest}
+};
+
+\macro congr_proofs($f, (..pairs), (..steps)) := \tmatch pairs {
+  | () => congr_steps!{$f $f {\refl($f)} ..steps}
+  | (($A, $a, $b), ..rest) => \fun (e: $a = $b) =>
+      congr_proofs!{$f (..rest) (..steps $a "=" $b "in" $A "by" e)}
+};
+
+\macro congr($head, ..args) := \tmatch args {
+  | () => \refl($head)
+  | ($a, "=", $b, "in", $A, "by", $p, ..rest) =>
+      congr_steps!{$head $head {\refl($head)} $a "=" $b "in" $A "by" $p ..rest}
+  | ($a, "=", $b, "by", $p, ..rest) =>
+      congr_steps!{$head $head {\refl($head)} $a "=" $b "by" $p ..rest}
+  | ($B, ..types) => \fun (f: congr_type!{$head $B ..types}) =>
+      congr_arguments!{f () $head $B ..types}
+};
 
 /* A checked, named API is also available for a fixed carrier. */
 \module Prop(A: \Set);
@@ -52,6 +75,5 @@
 \macro eq_reason_in($A, $a, ..steps) := \tmatch steps {
   | () => \refl($a)
   | ("=", $b, "by", $h, ..rest) =>
-      \idelim $b = _ \with x: $A => $a = x
-      \by { base: $h, equality: eq_reason_in!{$A $b ..rest} }
+      trans!{$A} $a $b _ $h (eq_reason_in!{$A $b ..rest})
 };

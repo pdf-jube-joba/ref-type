@@ -23,16 +23,26 @@ carrier をマクロ引数に指定して使う。
 \import std.Logic[].Equality[] \as E;
 \use E.trans;
 \use E.congr;
-\use E.congr2;
 \use E.eq_reason;
+\use E.eq_reason_in;
 
 trans!{A} a b c ab bc
 congr!{A B} f a b ab
-congr2!{A B C} f a b c d ab cd
+congr!{A B C} f a b c d ab cd
+congr!{A B C D} f a b c d e g ab cd eg
+
+congr!{f a "=" b "in" A "by" ab "and" c "=" d "in" B "by" cd}
+congr!{f a "=" b "by" ab c "=" d "by" cd}
 
 eq_reason!{a "=" b "by" ab "=" c "by" bc}
 eq_reason!{{ f a } "=" { f b } "by" { congr!{A B} f a b ab }}
+eq_reason_in!{A a "=" b "by" ab "=" c "by" bc}
 ```
+
+`congr!` は非依存な関数の引数を順に置き換える。
+型の列で合同則を取り出す形式と、各引数の等式を直接列挙する形式があり、引数の数によるマクロの使い分けは不要である。
+直接列挙する形式の `"in"` は、型を推論できる場合に省略できる。
+`eq_reason_in!` は中間項が部分集合型を持つ場合にも、等式の台集合を指定して連鎖する。
 
 固定した carrier の名前付き API は `E.Prop[A := X]` にある。
 
@@ -42,6 +52,31 @@ eq_reason!{{ f a } "=" { f b } "by" { congr!{A B} f a b ab }}
 Laws.congr[B] f a b ab
 Laws.congr2[B, C] f a b c d ab cd
 Laws.congr3[B, C, D] f a b c d e g ab cd eg
+```
+
+同値関係の連鎖は、関係と三法則を具体化して使う。
+
+```text
+\import std.Logic[].Equivalence[A := A, R := R,
+  refl := reflexive, sym := symmetric, trans := transitive] \as ER;
+\use ER.equiv_reason;
+\use ER.equiv_reason_terms;
+
+equiv_reason!{"by" ab "by" bc}
+equiv_reason_terms!{a "~" b "by" ab "~" c "by_sym" cb}
+equiv_reason_terms!{a}
+```
+
+`"by_sym"` は逆向きの関係の証明を使い、空の連鎖は反射性を使う。
+推移性だけを使う非空の連鎖は `Transitive` のマクロに推移性の証明を渡す。
+
+```text
+\import std.Logic[].Transitive[] \as TR;
+\use TR.trans_reason;
+\use TR.trans_reason_terms;
+
+trans_reason!{transitive "by" ab "by" bc}
+trans_reason_terms!{transitive a "~" b "by" ab "~" c "by" bc}
 ```
 
 集合値の族の移送は `E.Transport[A := A]` の `cast F a b same value` を使う。

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].FinSet[] \as Fin;
 \import Fin.Tuples[A := A] \as Tuples;
 \import N.Pair[].Def[] \as Pair;
@@ -6,7 +7,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \definition sequence[scalar: Enumerator]: \forall (n: N.Nat^) -> N.Nat^ -> Fin.Fin n -> A :=
   \induction (n: N.Nat^) \return N.Nat^ -> Fin.Fin n -> A \with {
     | zero: \fun (k: N.Nat^)(i: Fin.Fin N.Nat^::zero) => scalar.sequence N.Nat^::zero
@@ -31,13 +31,13 @@
       \let codeLaw: Pairs.enumerate code = Pair.natPair head rest := \bysub(N.Nat^,
         { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair head rest }, code) \then
       \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where sequence scalar (N.Nat^::succ n) k = f }] code
-        (trans!{{Fin.Fin (N.Nat^::succ n) -> A}} _ _ _
-          (congr!{Pair.NatPair {Fin.Fin (N.Nat^::succ n) -> A}}
+        (eq_reason_in!{{Fin.Fin (N.Nat^::succ n) -> A} _
+          "=" _ "by" { congr!{Pair.NatPair {Fin.Fin (N.Nat^::succ n) -> A}}
             (\fun (p: Pair.NatPair) => Tuples.extend n (scalar.sequence (Pair.natPairFirst p)) (sequence scalar n (Pair.natPairSecond p)))
-            (Pairs.enumerate code) (Pair.natPair head rest) codeLaw)
-          (trans!{{Fin.Fin (N.Nat^::succ n) -> A}} _ _ _
-            (congr2!{A {Fin.Fin n -> A} {Fin.Fin (N.Nat^::succ n) -> A}} (Tuples.extend n)
-              (scalar.sequence head) (f (Fin.zero n)) (sequence scalar n rest) tail headLaw tailLaw)
-            (Tuples.recover n f)))
+            (Pairs.enumerate code) (Pair.natPair head rest) codeLaw }
+          "=" _ "by" { congr!{A {Fin.Fin n -> A} {Fin.Fin (N.Nat^::succ n) -> A}} (Tuples.extend n)
+              (scalar.sequence head) (f (Fin.zero n)) (sequence scalar n rest) tail headLaw tailLaw }
+          "=" _ "by" { Tuples.recover n f }
+        })
     }
   };

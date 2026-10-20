@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import N.Division[].Def[] \as NaturalDivision;
 \import N.Division[].Prop[] \as NaturalLaws;
 \import N.Basic[].Prop[] \as Bounds;
@@ -21,17 +22,18 @@
 \definition productLaw: \forall (a, b: I.Int^) -> Arithmetic.mul (quotient a b) b = Arithmetic.mul (sign a) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))) :=
   \fun (a, b: I.Int^) => trans!{I.Int^} _ _ _ (Product.mulAssoc (sign a) (Arithmetic.mul (sign b) (natural (unsigned a b))) b)
     (congr!{I.Int^ I.Int^} (Arithmetic.mul (sign a)) _ _
-      (trans!{I.Int^} _ _ _
-        (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x b) _ _ (IntegerLaws.mulComm (sign b) (natural (unsigned a b))))
-        (trans!{I.Int^} _ _ _ (Product.mulAssoc (natural (unsigned a b)) (sign b) b)
-          (congr!{I.Int^ I.Int^} (Arithmetic.mul (natural (unsigned a b))) _ _ (signTimesValue b)))));
+      (eq_reason_in!{I.Int^ _
+        "=" _ "by" { congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x b) _ _ (IntegerLaws.mulComm (sign b) (natural (unsigned a b))) }
+        "=" _ "by" { Product.mulAssoc (natural (unsigned a b)) (sign b) b }
+        "=" _ "by" { congr!{I.Int^ I.Int^} (Arithmetic.mul (natural (unsigned a b))) _ _ (signTimesValue b) }
+      }));
 \definition unsignedRemainder: \forall (a, b: N.Nat^) -> Arithmetic.difference (natural a) (Arithmetic.mul (natural (NaturalDivision.div a b)) (natural b)) = natural (NaturalDivision.mod a b) := \parent.\parent.\parent.ExtendedEuclid[].remainder;
 \definition remainderLaw: \forall (a, b: I.Int^) -> remainder a b = Arithmetic.mul (sign a) (natural (NaturalDivision.mod (absolute a) (absolute b))) :=
   \fun (a, b: I.Int^) => eq_reason!{{remainder a b}
     "=" {Arithmetic.difference (Arithmetic.mul (sign a) (natural (absolute a))) (Arithmetic.mul (sign a) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))))}
-    "by" {congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.difference _ _ _ _ (sym!{I.Int^} _ _ (signTimesAbsolute a)) (productLaw a b)}
+    "by" {congr!{I.Int^ I.Int^ I.Int^} Arithmetic.difference _ _ _ _ (sym!{I.Int^} _ _ (signTimesAbsolute a)) (productLaw a b)}
     "=" {Arithmetic.difference (Arithmetic.mul (natural (absolute a)) (sign a)) (Arithmetic.mul (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))) (sign a))}
-    "by" {congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.difference _ _ _ _
+    "by" {congr!{I.Int^ I.Int^ I.Int^} Arithmetic.difference _ _ _ _
       (IntegerLaws.mulComm (sign a) (natural (absolute a)))
       (IntegerLaws.mulComm (sign a) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))))}
     "=" {Arithmetic.mul (Arithmetic.difference (natural (absolute a)) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b)))) (sign a)}
@@ -81,9 +83,9 @@
   \fun (a, b: I.Int^)(zero: remainder a b = Arithmetic.zero) => Logic.existsIntro[I.Int^, { q: I.Int^ \where a = Arithmetic.mul b q }] (quotient a b)
     (trans!{I.Int^} a (Arithmetic.mul (quotient a b) b) (Arithmetic.mul b (quotient a b))
         (sym!{I.Int^} (Arithmetic.mul (quotient a b) b) a
-          (trans!{I.Int^} (Arithmetic.mul (quotient a b) b) (Arithmetic.add (Arithmetic.mul (quotient a b) b) (remainder a b)) a
-            (trans!{I.Int^} (Arithmetic.mul (quotient a b) b) (Arithmetic.add (Arithmetic.mul (quotient a b) b) Arithmetic.zero) (Arithmetic.add (Arithmetic.mul (quotient a b) b) (remainder a b))
-              (sym!{I.Int^} (Arithmetic.add (Arithmetic.mul (quotient a b) b) Arithmetic.zero) (Arithmetic.mul (quotient a b) b) (IntegerLaws.addZeroRight (Arithmetic.mul (quotient a b) b)))
-              (congr!{I.Int^ I.Int^} (Arithmetic.add (Arithmetic.mul (quotient a b) b)) Arithmetic.zero (remainder a b) (sym!{I.Int^} (remainder a b) Arithmetic.zero zero)))
-            (reconstructs a b)))
+          (eq_reason_in!{I.Int^ { Arithmetic.mul (quotient a b) b }
+            "=" { Arithmetic.add (Arithmetic.mul (quotient a b) b) Arithmetic.zero } "by" { sym!{I.Int^} (Arithmetic.add (Arithmetic.mul (quotient a b) b) Arithmetic.zero) (Arithmetic.mul (quotient a b) b) (IntegerLaws.addZeroRight (Arithmetic.mul (quotient a b) b)) }
+            "=" { Arithmetic.add (Arithmetic.mul (quotient a b) b) (remainder a b) } "by" { congr!{I.Int^ I.Int^} (Arithmetic.add (Arithmetic.mul (quotient a b) b)) Arithmetic.zero (remainder a b) (sym!{I.Int^} (remainder a b) Arithmetic.zero zero) }
+            "=" a "by" { reconstructs a b }
+          }))
         (IntegerLaws.mulComm (quotient a b) b));
