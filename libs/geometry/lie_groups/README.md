@@ -19,6 +19,8 @@
 | `Euclidean.InnerProduct` | 内積の正定値性、非零ベクトルの正規化、反射の有理式による表示 |
 | `Euclidean.SuccessorGeometry` | 次元を一つ増やした空間の直交補空間、最初の基底ベクトルを固定する変換の低次元への制限 |
 | `OrthogonalAtlas.Dimension[n]` | O(n) の滑らかな多様体 `manifold` とリー群 `lieGroup` |
+| `OrthogonalOrientation` | 行列式の滑らかさと、直交変換の行列式が \(\pm1\) になること |
+| `SpecialOrthogonal[n]` | SO(n) の開部分群としての多様体 `manifold` とリー群 `lieGroup` |
 | `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |
 
 `Ad g` は共役写像 \(x\mapsto gxg^{-1}\) の単位元での微分である。
@@ -59,7 +61,11 @@ SO(n) は次数 \(n\) の全交代形式を保つ条件を用いる。
 `Euclidean.Atlas.On.FromPlots` は多様体から O(n) への写像の滑らかさを行列係数で判定し、`Lie` は積・逆元の滑らかさを示す。
 `OrthogonalAtlas.Dimension[n].lieGroup` が、標準内積の直交群に対するその値である。
 
-SO(n) のアトラス、\(\mathfrak{so}(n)\) と単位元の接空間との同定、Pin・Spin の被覆に沿う多様体構造、有限中心商の多様体構造は引き続き構成中である。
+`OrthogonalOrientation.determinantSign` は、反射の行列式と次元についての帰納法から、任意の直交変換の行列式が \(\pm1\) になることを証明する。
+行列式は多重線形形式の滑らかな評価として扱い、`SpecialOrthogonal[n]` はその正の部分を開部分群として構成する。
+`SpecialOrthogonal[n].lieGroup` が SO(n) のリー群構造である。
+
+\(\mathfrak{so}(n)\) と単位元の接空間との同定、Pin・Spin の被覆に沿う多様体構造、有限中心商の多様体構造は引き続き構成中である。
 
 ```sh
 cargo run -p cli -- libs/geometry/lie_groups --module lie_groups

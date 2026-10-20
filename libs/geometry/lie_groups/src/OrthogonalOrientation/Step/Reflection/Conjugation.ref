@@ -1,0 +1,22 @@
+\import \root.Classical[].On[V := Next.Vector, space := Next.space].Orthogonal[form := Next.form] \as Orthogonal;
+\import Spaces.Linear[V := Next.Vector, W := Next.Vector, source := Next.space, target := Next.space].Operations[] \as Linear;
+\import lie_algebras.Field[K := R.Real, field := R.Algebra[].field].Endomorphisms[V := Next.Vector, space := Next.space] \as End;
+\import algebra.Groups[].Units[A := End.Carrier, ring := End.ring] \as Units;
+\definition first: h.value.apply Geometry.first = v := \bysub(Next.O, { g: Next.O \where g.value.apply Geometry.first = v }, h);
+\definition polar[w: Next.Vector]: R.Real := R.add (Next.dot v w) (Next.dot w v);
+\definition pairing: \forall (w: Next.Vector) -> Flip.polar (h.inverse.apply w) = polar w := \fun (w: Next.Vector) =>
+  trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+    (sym!{R.Real} _ _ (Orthogonal.preserves h Geometry.first (h.inverse.apply w)))
+    (sym!{R.Real} _ _ (Orthogonal.preserves h (h.inverse.apply w) Geometry.first)))
+    (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+      (congr2!{Next.Vector Next.Vector R.Real} Next.dot _ _ _ _ first (Orthogonal.rightInverse h w))
+      (congr2!{Next.Vector Next.Vector R.Real} Next.dot _ _ _ _ (Orthogonal.rightInverse h w) first));
+\definition pointwise: \forall (w: Next.Vector) -> (Group.conjugate h Flip.flip).value.apply w = Representation.value w := \fun (w: Next.Vector) =>
+  trans!{Next.Vector} _ _ _ (h.value.preservesAdd (h.inverse.apply w) (Next.space.neg (Next.space.smul (Flip.polar (h.inverse.apply w)) Geometry.first)))
+    (congr2!{Next.Vector Next.Vector Next.Vector} Next.space.add _ _ _ _ (Orthogonal.rightInverse h w)
+      (trans!{Next.Vector} _ _ _ (Linear.preservesNeg h.value (Next.space.smul (Flip.polar (h.inverse.apply w)) Geometry.first))
+        (congr!{Next.Vector Next.Vector} Next.space.neg _ _ (trans!{Next.Vector} _ _ _
+          (h.value.preservesScale (Flip.polar (h.inverse.apply w)) Geometry.first)
+          (congr2!{R.Real Next.Vector Next.Vector} Next.space.smul _ _ _ _ (pairing w) first)))));
+\definition equal: Group.conjugate h Flip.flip = Representation.orthogonal := Units.ext _ _
+  (End.ext (Group.conjugate h Flip.flip).value Representation.orthogonal.value pointwise);
