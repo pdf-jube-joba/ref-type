@@ -34,5 +34,25 @@
 \module LocalProduct(chart: AtOne.Chart);
 \module PlotPowers(d: std.Data[].Nat[].Nat^);
 \module OneParameter;
+\import .OneParameter[] \as OneParameters;
 \module Integration(v: TangentAtOne);
-\definition integralExists: \forall (v: TangentAtOne) -> \exists OneParameter[].WithGenerator v := \fun (v: TangentAtOne) => Integration[v := v].exists;
+\definition integralExists: \forall (v: TangentAtOne) -> \exists OneParameters.WithGenerator v := \fun (v: TangentAtOne) => Integration[v := v].exists;
+\module UniqueIntegral(v: TangentAtOne, f, g: OneParameters.WithGenerator v);
+\definition integralUnique: \forall (v: TangentAtOne)(f, g: OneParameters.WithGenerator v) -> f = g :=
+  \fun (v: TangentAtOne)(f, g: OneParameters.WithGenerator v) => UniqueIntegral[v := v, f := f, g := g].equal;
+\definition integral[v: TangentAtOne]: OneParameters.WithGenerator v := \choice OneParameters.WithGenerator v \by {
+  existence: integralExists v, uniqueness: integralUnique v
+};
+\definition integration: OneParameters.Integration := OneParameters.Integration {
+  flow := \fun (v: TangentAtOne) => integral v,
+  generates := \fun (v: TangentAtOne) => \bysub(OneParameters.OneParameter,
+    { f: OneParameters.OneParameter \where OneParameters.generator f = v }, integral v),
+};
+\definition exp[v: TangentAtOne]: Point := OneParameters.exp integration v;
+\import manifolds.SmoothMap[n := OneParameters.lineDimension, m := n].Between[M := OneParameters.line, N := manifold] \as IntegralMaps;
+\definition flow[v: TangentAtOne][t: Reals.Real]: Point := IntegralMaps.apply (integral v).map (OneParameters.time t);
+\definition flowZero: \forall (v: TangentAtOne) -> flow v Reals.zero = one := \fun (v: TangentAtOne) => (integral v).atZero;
+\definition flowAddition: \forall (v: TangentAtOne)(s, t: Reals.Real) -> flow v (Reals.add s t) = mul (flow v s) (flow v t) :=
+  \fun (v: TangentAtOne) => (integral v).addition;
+\definition flowGenerates: \forall (v: TangentAtOne) -> OneParameters.generator (integral v) = v := integration.generates;
+\definition expIsTimeOne: \forall (v: TangentAtOne) -> exp v = flow v Reals.one := \fun (v: TangentAtOne) => \refl(exp v);

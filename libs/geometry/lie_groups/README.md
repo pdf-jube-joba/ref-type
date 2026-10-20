@@ -6,10 +6,11 @@
 | module | 内容 |
 | --- | --- |
 | `Smooth.Between` | 関数の滑らかさ、同じ関数を表す滑らかな写像の一意性、定数写像 |
-| `Dimension.OnManifold.On` | 単位元の接空間、滑らかな共役写像、随伴線形写像 `Ad` |
+| `Dimension.OnManifold.On` | 単位元の接空間、随伴線形写像 `Ad`、指数写像 `exp` と一径数部分群 `flow` |
 | `Dimension.OnManifold.On.LocalProduct` | 単位元付近の積の滑らかな座標表示と、その微分から得る局所ベクトル場 |
 | `Dimension.OnManifold.On.OneParameter` | 滑らかな一径数部分群、零での速度、積分データから得る `exp` |
 | `Dimension.OnManifold.On.Integration` | 各接ベクトルを零での速度とする滑らかな一径数部分群の存在 |
+| `Dimension.OnManifold.On.UniqueIntegral` | 同じ零での速度を持つ一径数部分群の一意性 |
 | `Classical.On.Orthogonal` | 双線形形式を保つ可逆線形写像の群 |
 | `Classical.On.Orthogonal.Special` | 指定次数の全交代形式を保つ部分群 |
 | `Classical.On.Orthogonal.LieAlgebra` | 反対称な線形自己写像の部分リー代数 |
@@ -34,9 +35,12 @@
 `At.independent` は許される分割次数によらないことを、`Addition.law` は大域加法則を証明する。
 `Uniqueness.equal` は局所準同型と一致する大域準同型の一意性を示す。
 
-`OneParameter.Integration` は、各接ベクトルをその零での速度に持つ一径数部分群の族である。
-`OneParameter.exp integration v` は、その一径数部分群の時刻 \(1\) の値を返す。
-任意のリー群に対する `Integration` の存在・一意性と、指数写像の滑らかさの証明は含まれていない。
+`On.integralExists` と `On.integralUnique` により、各接ベクトル \(v\) を零での速度とする一径数部分群が一意に定まる。
+`On.integral v` がその滑らかな写像を持つ一径数部分群、`On.flow v t` が時刻 \(t\) の値、`On.exp v` が時刻 \(1\) の値である。
+`flowZero`、`flowAddition`、`flowGenerates` は、単位元・時間の加法・零での速度の法則を示す。
+`OneParameter.Of.Coordinates.Field` は任意の一径数部分群を、その生成ベクトルの局所ベクトル場の解にする。
+これに Picard 解の一意性を適用し、局所での一致を二進分割で実数全体に延長して一意性を得る。
+`OneParameter.Integration` は一径数部分群の族を扱う構造で、`On.integration` がその標準の値である。
 
 `Euclidean[n].orthogonalGroup` と `specialOrthogonalGroup` は、線形写像を台に持つ群構造である。
 SO(n) は次数 \(n\) の全交代形式を保つ条件を用いる。

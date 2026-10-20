@@ -1,0 +1,22 @@
+\import Left.Field[v := v, neighborhood := neighborhood, same := leftGenerator] \as LeftField;
+\import Right.Field[v := v, neighborhood := neighborhood, same := rightGenerator] \as RightField;
+\import Product.VectorField[v := v, neighborhood := neighborhood] \as VectorField;
+\import differential_equations.Euclidean[n := n] \as Equations;
+\import Equations.Smooth[U := VectorField.domain, field := VectorField.field, a := VectorField.initial] \as ODE;
+\structure Data: \Set := {
+  leftRadius: LeftField.Radius,
+  rightRadius: RightField.Radius,
+  agreement: Equations.LocalAgreement[Left.value, Right.value],
+};
+\definition dataExists: \exists Data := \block {
+  \takefrom leftRadius: LeftField.Radius \by LeftField.radiusExists \then
+  \takefrom rightRadius: RightField.Radius \by RightField.radiusExists \then
+  \takefrom agreement: Equations.LocalAgreement[Left.value, Right.value] \by ODE.localUniqueness
+    (LeftField.On[radius := leftRadius].solution) (RightField.On[radius := rightRadius].solution) \then
+  \return \exact(Data { leftRadius := leftRadius, rightRadius := rightRadius, agreement := agreement }, Data)
+};
+\module Of(data: Data);
+\definition equal: f = g := \block {
+  \takefrom data: Data \by dataExists \then
+  \return Of[data := data].equal
+};
