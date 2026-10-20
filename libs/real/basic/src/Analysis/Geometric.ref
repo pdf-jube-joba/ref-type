@@ -13,6 +13,25 @@
     | zero: Laws.oneNonnegative
     | succ: \fun (n: N.Nat^)(previous: R.Le zero (value n)) => Laws.fieldMulNonnegative q (value n) positive previous
   };
+\definition bounded: R.Le zero q -> R.Le q one -> \forall (n: N.Nat^) -> R.Le (value n) one :=
+  \fun (nonnegativeQ: _)(below: _) => \induction (n: N.Nat^) \return R.Le (value n) one \with {
+    | zero: R.leRefl one
+    | succ: \fun (n: N.Nat^)(previous: _) => R.leTrans _ q one
+      (R.leReplaceRight _ (mul q one) q (Algebra.mulOneRight q) (Estimates.mulMonotone q (value n) one nonnegativeQ previous)) below
+  };
+\import std.Data[].Bool[].Prop[] \as Bool;
+\definition antitone: R.Le zero q -> R.Le q one -> \forall (m, n: N.Nat^) -> Nat.Le n m -> R.Le (value m) (value n) :=
+  \fun (nonnegativeQ: _)(below: _) => \induction (m: N.Nat^) \return \forall (n: N.Nat^) -> Nat.Le n m -> R.Le (value m) (value n) \with {
+    | zero: \fun (n: N.Nat^)(ordered: _) => \idelim N.Nat^::zero = n \with k: N.Nat^ => R.Le one (value k) \by {
+      base: R.leRefl one, equality: sym!{N.Nat^} _ _ (Nat.leZeroEq n ordered)
+    }
+    | succ: \fun (m: N.Nat^)(previous: \forall (n: N.Nat^) -> Nat.Le n m -> R.Le (value m) (value n)) =>
+      \induction (n: N.Nat^) \return Nat.Le n (N.Nat^::succ m) -> R.Le (value (N.Nat^::succ m)) (value n) \with {
+        | zero: \fun (ordered: _) => bounded nonnegativeQ below (N.Nat^::succ m)
+        | succ: \fun (n: N.Nat^)(unused: _)(ordered: _) => Estimates.mulMonotone q (value m) (value n) nonnegativeQ
+          (previous n (Nat.leOfSuccSucc n m ordered))
+      }
+  };
 \definition Values: \Pow Real := { x: Real \where \exists ( n: N.Nat^ \where value n = x ) };
 \definition member[n: N.Nat^]: \In[Real] Values (value n) := Logic.existsIntro[N.Nat^, { k: N.Nat^ \where value k = value n }] n (\refl(value n));
 \definition nonempty: Complete.Nonempty Values := Logic.existsIntro[Real, Values] one (member N.Nat^::zero);
@@ -53,3 +72,22 @@
         (R.ltReplaceLeft zero (mul q one) epsilon (sym!{Real} _ _ (trans!{Real} _ _ _ (Algebra.mulOneRight q) same)) radius)}
       {\fun (different: Logic.Not (q = zero)) => eventualPositive (Order.ltOfLeNotEq zero q positive (\fun (same: zero = q) => different (sym!{Real} _ _ same))) below epsilon radius}
     };
+\definition scaledEventual: R.Le zero q -> R.Lt q one -> \forall (c, epsilon: Real) -> R.Le zero c -> R.Lt zero epsilon ->
+  \exists ( n: N.Nat^ \where R.Lt (mul c (value n)) epsilon ) := \block {
+  \fun (nonnegativeQ: R.Le zero q)(below: R.Lt q one)(c, epsilon: Real)(nonnegativeC: R.Le zero c)(positive: R.Lt zero epsilon) \then
+  \let coefficient: Real := Product.coefficient c zero \then
+  \let coefficientPositive: R.Lt zero coefficient := Product.coefficientPositive c zero \then
+  \let cBound: R.Le c coefficient := R.leReplaceLeft (Product.abs c) c coefficient (Product.absOfNonnegative c nonnegativeC) (Product.coefficientFirst c zero) \then
+  \let radius: Real := Product.radius coefficient epsilon \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt (value n) radius }) \by eventual nonnegativeQ below radius
+    (Product.radiusPositive coefficient epsilon coefficientPositive positive) \then
+  \let small: R.Lt (value n) radius := \bysub(N.Nat^, { n: N.Nat^ \where R.Lt (value n) radius }, n) \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where R.Lt (mul c (value n)) epsilon }] n
+    (R.leLtTrans _ _ _
+      (R.leTrans _ _ _
+        (R.leReplace (mul (value n) c) (mul c (value n)) (mul (value n) coefficient) (mul coefficient (value n))
+          (Laws.fieldMulComm (value n) c) (Laws.fieldMulComm (value n) coefficient)
+          (Estimates.mulMonotone (value n) c coefficient (nonnegative nonnegativeQ n) cBound))
+        (Estimates.mulMonotone coefficient (value n) radius (Order.leOfLt _ _ coefficientPositive) (Order.leOfLt _ _ small)))
+      (Product.radiusSmall coefficient epsilon coefficientPositive positive))
+};
