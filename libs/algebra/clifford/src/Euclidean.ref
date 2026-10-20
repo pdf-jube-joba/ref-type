@@ -1,0 +1,46 @@
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import R.FiniteSums[] \as Sums;
+\import linear_algebra.Field[].Space[K := R.Real, field := Scalars.field] \as Spaces;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin n] \as Coordinates;
+\import Spaces.Form[V := Coordinates.Vector, space := Coordinates.space] \as Forms;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].FinSet[] \as Fin;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition Vector: \Set := Coordinates.Vector;
+\definition space: Spaces.VectorSpace Vector := Coordinates.space;
+\definition dot[x, y: Vector]: R.Real := Sums.sum n (\fun (i: Fin.Fin n) => R.mul (x i) (y i));
+\definition symmetric: \forall (x, y: Vector) -> dot x y = dot y x :=
+  \fun (x, y: Vector) => Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulComm (x i) (y i));
+\definition form: Forms.Bilinear := Forms.Bilinear {
+  form := dot,
+  zeroLeft := \fun (x: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulZeroLeft (x i))) (Sums.zeroSum n),
+  zeroRight := \fun (x: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulZeroRight (x i))) (Sums.zeroSum n),
+  addLeft := \fun (x, y, z: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.addMul (x i) (y i) (z i))) (Sums.addition n _ _),
+  addRight := \fun (x, y, z: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulAdd (x i) (y i) (z i))) (Sums.addition n _ _),
+  scaleLeft := \fun (a: R.Real)(x, y: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulAssoc a (x i) (y i))) (Sums.scalar n a _),
+  scaleRight := \fun (a: R.Real)(x, y: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _
+      (sym!{R.Real} _ _ (Spaces.mulAssoc (x i) a (y i)))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (b: R.Real) => R.mul b (y i)) _ _ (Spaces.mulComm (x i) a))
+        (Spaces.mulAssoc a (x i) (y i))))) (Sums.scalar n a _),
+};
+\import \root.Field[K := R.Real, field := Scalars.field].On[V := Vector, space := space].Of[form := form] \as Clifford;
+\definition Carrier: \Set := Clifford.Carrier;
+\definition ring: std.Alg[].Ring[].Ring[Carrier] := Clifford.ring;
+\definition algebra: std.Alg[].Ring[].RingAlgebra[R.Real, Carrier, std.Alg[].Field[].fieldAsCommutativeRing R.Real Scalars.field] := Clifford.algebra;
+\definition scalar: R.Real -> Carrier := Clifford.scalar;
+\definition iota: Vector -> Carrier := Clifford.iota;
+\structure Faithful: \Prop := {
+  scalarInjective: \forall (a, b: R.Real) -> scalar a = scalar b -> a = b,
+  vectorInjective: \forall (v, w: Vector) -> iota v = iota w -> v = w,
+};
+\module Successor;

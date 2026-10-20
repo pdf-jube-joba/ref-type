@@ -13,6 +13,8 @@ Jacobi 恒等式は \([x,[y,z]]=[[x,y],z]+[y,[x,z]]\) の形を使う。
 | `Field.Associative` | 結合代数の交換子 \([x,y]=xy-yx\)、導分則と Jacobi 恒等式の証明 |
 | `Field.Endomorphisms` | 線形自己写像の結合代数と交換子リー代数 |
 
+`Field.Endomorphisms.scalarMap` はスカラー倍の恒等写像による係数環の準同型で、`scalarCentral` はその像が中心に入ることを示す。
+
 交代性から反対称性を導くため、標数 \(2\) も含めて定義を使える。
 `geometry/lie_groups` の `Classical.On.Orthogonal.LieAlgebra` は、反対称な自己写像が交換子で閉じることを証明し、\(\mathfrak{so}(n)\) を具体化する。
 

@@ -16,8 +16,13 @@
 | `Of.Pin.Grading` / `Of.Pin.Reflection` | 対合による Pin の保存と Spin の固定、正負の単位ベクトルの twisted adjoint の反射公式 |
 | `Circle` | \(z\overline z=1\) を満たす複素数の群 \(U(1)\) |
 | `ComplexExtension.By` | 中心的な位数 \(2\) の元を使う \((G\times U(1))/\langle(-1,-1)\rangle\) |
+| `Field.Block` | 係数代数上の Clifford ブロック作用素、その線形性と二乗公式 |
+| `Euclidean[n]` / `Euclidean.Successor` | 標準内積の Clifford 代数と、直前の代数の二つのコピーへの作用 |
+| `EuclideanFaithfulness.faithful` | 全次元におけるスカラーと生成ベクトルの標準写像の単射性 |
 
-`Of.injection` は標準写像の線形写像としての名前で、単射性の証明は公開していない。
+`Of.injection` は標準写像の線形写像としての名前である。
+標準内積の場合には `EuclideanFaithfulness.faithful n` がスカラーと生成ベクトルの単射性を与える。
+証明は零次元で実数への普遍写像を使い、次元を増やすごとにブロック作用素の定数ベクトルへの作用から係数と生成ベクトルの先頭・残りの座標を復元する。
 普遍性は商の構成から証明する。
 `Relations.anticommutator` は、標数に関する追加条件を使わずに
 \[\iota(u)\iota(v)+\iota(v)\iota(u)=\bigl(\operatorname{form}(u,v)+\operatorname{form}(v,u)\bigr)1\]

@@ -1,0 +1,38 @@
+/* The next Clifford algebra acts on two copies of the current one. */
+\import std.Data[].Nat[] \as N;
+\import \root.Euclidean[n := N.Nat^::succ n] \as Next;
+\import \root.Field[K := R.Real, field := Scalars.field].On[V := Next.Vector, space := Next.space].Of[form := Next.form] \as NextAlgebra;
+\import \root.Field[K := R.Real, field := Scalars.field].Block[A := Carrier, algebra := algebra] \as Block;
+\import Block.Linearity[] \as Linearity;
+\import NextAlgebra.Universal[A := Block.Operator, target := Block.operatorRing] \as Universal;
+\import \root.Field[K := R.Real, field := Scalars.field].On[V := Next.Vector, space := Next.space].Of[form := Next.form].Universal[A := Block.Operator, target := Block.operatorRing] \as Output;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\definition tail[v: Next.Vector]: Vector := \fun (i: Fin.Fin n) => v (Fin.succ n i);
+\definition head[v: Next.Vector]: R.Real := v (Fin.zero n);
+\definition vectors[v: Next.Vector]: Block.Operator := Block.map (iota (tail v)) (head v);
+\module Square(v: Next.Vector);
+\import algebra.Hom[A := R.Real, B := Block.Operator] \as Coefficients;
+\definition coefficientMap: \Cast[Coefficients.RingMap Spaces.ring Block.operatorRing]
+  ({ f: Coefficients.RingMap Spaces.ring Block.operatorRing \where \forall (a: R.Real)(x: Block.Operator) ->
+    Block.operatorRing.mul (f a) x = Block.operatorRing.mul x (f a) }) :=
+  \into[Coefficients.RingMap Spaces.ring Block.operatorRing](Block.scalarMap,
+    { f: Coefficients.RingMap Spaces.ring Block.operatorRing \where \forall (a: R.Real)(x: Block.Operator) ->
+      Block.operatorRing.mul (f a) x = Block.operatorRing.mul x (f a) }) \by { Block.scalarCentral };
+\definition representation: Universal.Representation := Universal.Representation {
+  coefficients := coefficientMap, vectors := vectors,
+  zero := trans!{Block.Operator} _ _ _
+    (congr!{Carrier Block.Operator} (\fun (a: Carrier) => Block.map a R.zero) _ _ Clifford.injection.preservesZero) Linearity.atZero,
+  addition := \fun (u, v: Next.Vector) => trans!{Block.Operator} _ _ _
+    (congr!{Carrier Block.Operator} (\fun (a: Carrier) => Block.map a (R.add (head u) (head v))) _ _ (Clifford.injection.preservesAdd (tail u) (tail v)))
+    (Linearity.addition (iota (tail u)) (iota (tail v)) (head u) (head v)),
+  scalar := \fun (a: R.Real)(v: Next.Vector) => trans!{Block.Operator} _ _ _
+    (congr!{Carrier Block.Operator} (\fun (b: Carrier) => Block.map b (R.mul a (head v))) _ _ (Clifford.injection.preservesScale a (tail v)))
+    (Linearity.scalar a (iota (tail v)) (head v)),
+  square := \fun (v: Next.Vector) => Square[v := v].square,
+};
+\import algebra.Hom[A := Next.Carrier, B := Block.Operator] \as Hom;
+\definition extension: Hom.RingMap Next.ring Block.operatorRing := Universal.extension representation;
+\definition onVector: \forall (v: Next.Vector) -> extension (Next.iota v) = vectors v := Universal.onVector representation;
+\definition onScalar: \forall (a: R.Real) -> extension (Next.scalar a) = Block.scalarMap a := Universal.onScalar representation;
+\definition scalarUnit: \forall (a: R.Real) -> algebra.smul a algebra.one = scalar a := \fun (a: R.Real) => ring.semiring.multiplicative.rightIdentity (scalar a);
+\module Faithfulness(previous: Faithful);
