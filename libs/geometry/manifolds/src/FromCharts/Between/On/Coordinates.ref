@@ -1,0 +1,30 @@
+\import Maps.Coordinates[f := continuousMap, left := left, right := right] \as Direct;
+\import \root.Dimension[n := n].Examples[].Euclidean[].Subspace[U := left.image] \as Source;
+\import \root.SmoothMap[n := n, m := m].Between[M := parameterManifold left, N := N] \as LocalMaps;
+\import LocalMaps.Coordinates[f := maps left, left := Source.standard, right := right] \as Local;
+\import \root.Dimension[n := n].Chart[M := Source.Point, space := Source.smoothManifold.space] \as LocalCharts;
+\import \root.Dimension[n := n].Atlas[M := Source.Point, space := Source.smoothManifold.space] \as LocalAtlases;
+\definition included: Open.Included Direct.domain Local.domain := \fun (x: calculus.Real[].Multivariable[n := n].Point)(member: _) => \block {
+  \let a: Open.Carrier Direct.domain := \into[calculus.Real[].Multivariable[n := n].Point](x, Direct.domain.points) \by { member } \then
+  \return Local.intro (Direct.leftCoordinate a) (\idelim f (SourceCharts.point left (Direct.leftCoordinate a)) = LocalMaps.apply (maps left) (Direct.leftCoordinate a)
+    \with y: N.Point => TargetCharts.Contains right y \by {
+      base: Direct.inRightDomain a, equality: sym!{{N.Point}} _ _ (agrees left (Direct.leftCoordinate a))
+    })
+};
+\definition pointwise: \forall (a: Open.Carrier Direct.domain) -> Direct.apply a = Local.apply (Open.inclusion Direct.domain Local.domain included a) := \block {
+  \fun (a: Open.Carrier Direct.domain) \then
+  \let same: Direct.point a = Local.point (Open.inclusion Direct.domain Local.domain included a) := sym!{{N.Point}} _ _ (agrees left (Direct.leftCoordinate a)) \then
+  \return congr!{{TargetCharts.LocalPoint right} {calculus.Real[].Multivariable[n := m].Open[].Carrier right.image}} (TargetCharts.coordinate right) _ _ same
+};
+\definition localSmooth: Local.Smooth := (\bysub(LocalMaps.ContinuousMap, { h: LocalMaps.ContinuousMap \where LocalMaps.Chartwise h }, maps left))
+  Source.standard right (LocalAtlases.includedInSaturation Source.atlas Source.standard (\refl(Source.standard)))
+  (\bysub(TargetCharts.Chart, targetAtlas.charts, right));
+\definition smooth: Direct.Smooth := \fun (i: std.Data[].FinSet[].Fin m) => \idelim
+  (\fun (a: Open.Carrier Direct.domain) => Local.apply (Open.inclusion Direct.domain Local.domain included a) i) =
+  (\fun (a: Open.Carrier Direct.domain) => Direct.apply a i)
+  \with h: Open.ScalarFunction Direct.domain => Smooth.SmoothOn Direct.domain h \by {
+    base: Restriction.localSmooth Direct.domain Local.domain included (\fun (a: Open.Carrier Local.domain) => Local.apply a i) (localSmooth i),
+    equality: \axiom:funext((\fun (a: Open.Carrier Direct.domain) => Local.apply (Open.inclusion Direct.domain Local.domain included a) i),
+      (\fun (a: Open.Carrier Direct.domain) => Direct.apply a i), \fun (a: Open.Carrier Direct.domain) =>
+        sym!{real.Analysis[].Real} _ _ (congr!{{calculus.Real[].Multivariable[n := m].Open[].Carrier right.image} {real.Analysis[].Real}} (\fun (x: calculus.Real[].Multivariable[n := m].Open[].Carrier right.image) => x i) _ _ (pointwise a)))
+  };
