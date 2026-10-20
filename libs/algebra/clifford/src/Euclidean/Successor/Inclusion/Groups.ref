@@ -1,0 +1,79 @@
+/* Pin and Spin functoriality for the orthogonal coordinate inclusion. */
+\import Clifford.Pin[] \as Lower;
+\import NextAlgebra.Pin[] \as Higher;
+\import \root.Euclidean[n := n].PinNorm[] \as Norm;
+\import algebra.Groups[].Units[A := Carrier, ring := ring] \as Units;
+\import algebra.Groups[].Units[A := Next.Carrier, ring := Next.ring] \as HigherUnits;
+\import Units.Mapping[B := Next.Carrier, target := Next.ring, f := map] \as Mapping;
+\import algebra.Groups[].On[G := Units.Unit, group := Units.group] \as Operations;
+\import algebra.Groups[].On[G := HigherUnits.Unit, group := HigherUnits.group] \as HigherOperations;
+\import std.Logic[].Proposition[] \as Logic;
+\definition preimage[S: \Pow HigherUnits.Unit]: \Pow Units.Unit := { g: Units.Unit \where \In[HigherUnits.Unit] S (Mapping.apply g) };
+\definition preimageClosed[S: \Pow HigherUnits.Unit][closed: HigherOperations.Closed[S]]: Operations.Closed[preimage S] := Operations.Closed[preimage S] {
+  one := \idelim HigherUnits.unit = Mapping.apply Units.unit \with g: HigherUnits.Unit => \In[HigherUnits.Unit] S g \by {
+    base: closed.one, equality: sym!{{HigherUnits.Unit}} _ _ Mapping.atOne
+  },
+  mul := \fun (g, h: Units.Unit)(left: _)(right: _) =>
+    \idelim HigherUnits.product (Mapping.apply g) (Mapping.apply h) = Mapping.apply (Units.product g h)
+      \with k: HigherUnits.Unit => \In[HigherUnits.Unit] S k \by {
+        base: closed.mul (Mapping.apply g) (Mapping.apply h) left right,
+        equality: sym!{{HigherUnits.Unit}} _ _ (Mapping.preservesProduct g h)
+      },
+  inv := \fun (g: Units.Unit)(member: _) =>
+    \idelim HigherUnits.inverse (Mapping.apply g) = Mapping.apply (Units.inverse g)
+      \with k: HigherUnits.Unit => \In[HigherUnits.Unit] S k \by {
+        base: closed.inv (Mapping.apply g) member,
+        equality: sym!{{HigherUnits.Unit}} _ _ (Mapping.preservesInverse g)
+      },
+};
+\definition positiveVector[v: Lower.Positive]: Higher.Positive := \into[Next.Vector](Coordinates.embed v, Higher.Positive) \by {
+  trans!{R.Real} _ _ _ (Coordinates.embeddedDot v v) (\bysub(Vector, { v: Vector \where Clifford.quadratic v = R.one }, v))
+};
+\definition positiveEquality: \forall (v: Lower.Positive) -> Mapping.apply (Lower.positive v) = Higher.positive (positiveVector v) :=
+  \fun (v: Lower.Positive) => HigherUnits.ext _ _ (onVector v);
+\definition signEquality: Mapping.apply Units.minusOne = HigherUnits.minusOne := HigherUnits.ext _ _
+  (trans!{Next.Carrier} _ _ _ (onNegative Clifford.one) (congr!{Next.Carrier Next.Carrier} NextAlgebra.neg _ _ laws.one));
+\definition vectorGenerator: \forall (g: Units.Unit) -> Lower.VectorGenerator g -> Higher.VectorGenerator (Mapping.apply g) :=
+  \induction (g: Units.Unit)(generator: Lower.VectorGenerator g) \return Higher.VectorGenerator (Mapping.apply g) \with {
+    | positive: \fun (v: Lower.Positive) => \idelim Higher.positive (positiveVector v) = Mapping.apply (Lower.positive v)
+      \with h: HigherUnits.Unit => Higher.VectorGenerator h \by {
+        base: Higher.VectorGenerator::positive (positiveVector v), equality: sym!{{HigherUnits.Unit}} _ _ (positiveEquality v)
+      }
+    | negative: \fun (v: Lower.Negative) => Logic.falseElim (Higher.VectorGenerator (Mapping.apply (Lower.negative v))) (Norm.negativeImpossible v)
+  };
+\definition onGenerator: \forall (g: Units.Unit) -> Lower.Generator g -> \In[Units.Unit] (preimage Higher.predicate) g :=
+  \induction (g: Units.Unit)(generator: Lower.Generator g) \return \In[Units.Unit] (preimage Higher.predicate) g \with {
+    | sign: \idelim HigherUnits.minusOne = Mapping.apply Units.minusOne
+      \with h: HigherUnits.Unit => \In[HigherUnits.Unit] Higher.predicate h \by {
+        base: Higher.generatorInPin HigherUnits.minusOne Higher.Generator::sign, equality: sym!{{HigherUnits.Unit}} _ _ signEquality
+      }
+    | vector: \fun (g: Units.Unit)(generator: Lower.VectorGenerator g) => Higher.vectorInPin (Mapping.apply g) (vectorGenerator g generator)
+  };
+\definition pin[g: Lower.Pin]: Higher.Pin := \into[HigherUnits.Unit](Mapping.apply g, Higher.predicate) \by {
+  (\bysub(Units.Unit, Lower.predicate, g)) (preimage Higher.predicate) (preimageClosed Higher.predicate Higher.closed) onGenerator
+};
+\definition onEvenGenerator: \forall (g: Units.Unit) -> Lower.EvenGenerator g -> \In[Units.Unit] (preimage Higher.evenPredicate) g :=
+  \induction (g: Units.Unit)(generator: Lower.EvenGenerator g) \return \In[Units.Unit] (preimage Higher.evenPredicate) g \with {
+    | sign: \idelim HigherUnits.minusOne = Mapping.apply Units.minusOne
+      \with h: HigherUnits.Unit => \In[HigherUnits.Unit] Higher.evenPredicate h \by {
+        base: HigherOperations.generatorIncluded Higher.evenGenerators HigherUnits.minusOne Higher.EvenGenerator::sign,
+        equality: sym!{{HigherUnits.Unit}} _ _ signEquality
+      }
+    | pair: \fun (g, h: Units.Unit)(left: Lower.VectorGenerator g)(right: Lower.VectorGenerator h) =>
+      \idelim HigherUnits.product (Mapping.apply g) (Mapping.apply h) = Mapping.apply (Units.product g h)
+        \with k: HigherUnits.Unit => \In[HigherUnits.Unit] Higher.evenPredicate k \by {
+          base: HigherOperations.generatorIncluded Higher.evenGenerators _ (Higher.EvenGenerator::pair (Mapping.apply g) (Mapping.apply h) (vectorGenerator g left) (vectorGenerator h right)),
+          equality: sym!{{HigherUnits.Unit}} _ _ (Mapping.preservesProduct g h)
+        }
+  };
+\definition spin[g: Lower.Spin]: Higher.Spin := \into[HigherUnits.Unit](Mapping.apply g, Higher.evenPredicate) \by {
+  (\bysub(Units.Unit, Lower.evenPredicate, g)) (preimage Higher.evenPredicate) (preimageClosed Higher.evenPredicate Higher.evenClosed) onEvenGenerator
+};
+\import algebra.Hom[A := Lower.Pin, B := Higher.Pin] \as PinMaps;
+\definition pinHomomorphism: PinMaps.GroupMap Lower.group Higher.group := \into[Lower.Pin -> Higher.Pin](pin, PinMaps.GroupMap Lower.group Higher.group) \by {
+  PinMaps.MonoidLaws[_, _, pin] { unit := Mapping.atOne, operation := \fun (g, h: Lower.Pin) => Mapping.preservesProduct g h }
+};
+\import algebra.Hom[A := Lower.Spin, B := Higher.Spin] \as SpinMaps;
+\definition spinHomomorphism: SpinMaps.GroupMap Lower.spinGroup Higher.spinGroup := \into[Lower.Spin -> Higher.Spin](spin, SpinMaps.GroupMap Lower.spinGroup Higher.spinGroup) \by {
+  SpinMaps.MonoidLaws[_, _, spin] { unit := Mapping.atOne, operation := \fun (g, h: Lower.Spin) => Mapping.preservesProduct g h }
+};
