@@ -1,0 +1,22 @@
+\import BasicCharts.Smooth[changes := AtlasConstruction.smoothChanges] \as SmallAtlas;
+\import manifolds.SmallAtlasSmoothMap[n := dimension, m := m].Between[M := manifold, N := N] \as Small;
+\import manifolds.Dimension[n := dimension].Atlas[M := Point, space := topology] \as TotalAtlases;
+\import manifolds.Dimension[n := dimension].Chart[M := Point, space := topology] \as TotalCharts;
+\definition small: Small.SourceAtlas := \into[TotalAtlases.Atlas](SmallAtlas.atlas, Small.SourceAtlas) \by {
+  \fun (c: TotalCharts.Chart)(member: _) => TotalAtlases.includedInSaturation SmallAtlas.atlas c member
+};
+\import manifolds.FromCharts[n := dimension, m := m].Between[M := manifold, N := N].Using[source := small] \as FromSmall;
+\definition chart[c: Chart]: FromSmall.SourceChart := \into[TotalCharts.Chart](BasicCharts.chart c, small.charts) \by {
+  Logic.existsIntro[Chart, { d: Chart \where BasicCharts.chart c = BasicCharts.chart d }] c (\refl(BasicCharts.chart c))
+};
+\definition exhaustive: \forall (c: FromSmall.SourceChart) -> \exists ( i: Chart \where chart i = c ) := \block {
+  \fun (c: FromSmall.SourceChart) \then
+  \takefrom i: \Cast[Chart] ({ i: Chart \where c = BasicCharts.chart i }) \by \bysub(TotalCharts.Chart, small.charts, c) \then
+  \return Logic.existsIntro[Chart, { i: Chart \where chart i = c }] i
+    (sym!{{TotalCharts.Chart}} _ _ (\bysub(Chart, { i: Chart \where c = BasicCharts.chart i }, i)))
+};
+\import FromSmall.Indexed[I := Chart, chart := chart, exhaustive := exhaustive] \as Indexed;
+\definition LocalMap[c: Chart]: \Set := FromSmall.LocalMap (chart c);
+\definition Family: \Set := \forall (c: Chart) -> LocalMap c;
+\definition Agreement[f: Point -> N.Point][maps: Family]: \Prop := Indexed.IndexedAgreement f maps;
+\module Of(f: Point -> N.Point, maps: Family, agrees: Agreement f maps);

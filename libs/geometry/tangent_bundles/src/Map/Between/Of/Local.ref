@@ -1,0 +1,22 @@
+\import SourceBlocks.On[U := c.image, V := BaseOpen.whole] \as Product;
+\import Source.InChart[chart := c] \as SourceCoordinate;
+\module InTarget(d: Target.Chart);
+\definition domains[d: Target.Chart]: Open.OpenSet := InTarget[d := d].domain;
+\import manifolds.SmoothCover[n := Source.dimension, m := Target.dimension].On[U := Product.domain, N := Target.manifold, I := Target.Chart, domains := domains] \as Cover;
+\definition localMaps[d: Target.Chart]: Cover.LocalMap d := InTarget[d := d].map;
+\definition included: Cover.Inclusions := \fun (d: Target.Chart) => InTarget[d := d].included;
+\definition agrees: Cover.Agreement (\fun (z: Open.Carrier Product.domain) => apply f (SourceCoordinate.point z)) localMaps included :=
+  \fun (d: Target.Chart)(z: Open.Carrier (domains d)) => sym!{{Target.Point}} _ _ (InTarget[d := d].At[z := z].agrees);
+\definition covers: Cover.Covers := \block {
+  \fun (z: Open.Carrier Product.domain) \then
+  \takefrom d: \Cast[TargetCharts.Chart] ({ d: TargetCharts.Chart \where Logic.And[\In[TargetCharts.Chart] N.atlas.charts d,
+    TargetCharts.Contains d (Maps.apply f (SourceCoordinate.point z).base)] }) \by N.atlas.covers (Maps.apply f (SourceCoordinate.point z).base) \then
+  \let law: Logic.And[\In[TargetCharts.Chart] N.atlas.charts d, TargetCharts.Contains d (Maps.apply f (SourceCoordinate.point z).base)] :=
+    \bysub(TargetCharts.Chart, { d: TargetCharts.Chart \where Logic.And[\In[TargetCharts.Chart] N.atlas.charts d,
+      TargetCharts.Contains d (Maps.apply f (SourceCoordinate.point z).base)] }, d) \then
+  \let active: Target.Chart := \into[TargetCharts.Chart](d, N.atlas.charts) \by { law.left } \then
+  \return Logic.existsIntro[Target.Chart, { d: Target.Chart \where \In[Source.TotalVector] (domains d).points z }] active
+    (InTarget[d := active].contains z law.right)
+};
+\import Cover.Of[f := \fun (z: Open.Carrier Product.domain) => apply f (SourceCoordinate.point z), maps := localMaps, included := included, agrees := agrees, covers := covers] \as Glue;
+\definition map: Plots.LocalMap c := Glue.value;

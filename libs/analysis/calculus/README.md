@@ -32,3 +32,13 @@ Dedekind 実数上の極限と微分を扱う。
 `Real.Derivative.SquareRoot` は正の値をとる微分可能な関数の平方根を微分する。
 `Real.Multivariable.Open.Analysis.SquareRoot` はこれを偏微分へ移し、`Open.Smooth.SquareRoot` は正の滑らかな関数の平方根が滑らかであることを証明する。
 高階の滑らかさは、平方根を \(r=\sqrt f\) として \(\partial_i r=\frac12 r f^{-1}\partial_i f\) を用いて帰納的に示す。
+
+## 行列族と局所正規直交枠
+
+`LinearFamily` と `MatrixFamily` は滑らかな係数行列の作用 \((u,v)\mapsto A(u)v\) を有限和から構成する。
+`Maps.Tangent` は \((u,v)\mapsto(f(u),Df_u v)\)、`Maps.FixedDifferential` は固定ベクトルへの微分の作用を滑らかな写像として公開する。
+`SmoothCoordinates` は有限内積と座標の結合を扱う。
+`GramSchmidt.On.Rank` は滑らかな単射行列族を滑らかな正規直交枠と可逆な係数行列に分解する。
+その `Projections` は接方向・法方向の滑らかな直交射影と像上の逆写像を与える。
+`ProjectionFrames` は一定階数の滑らかな直交射影から、正値ノルムの開近傍上で正規直交枠を構成する。
+`InverseFamily` は滑らかな可逆行列族の点ごとの逆の滑らかさを導き、`LinearMap` は線形写像の滑らかさと微分の公式を共有する。

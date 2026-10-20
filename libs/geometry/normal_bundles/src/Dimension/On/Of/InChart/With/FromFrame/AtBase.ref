@@ -1,0 +1,24 @@
+\definition parameter: Open.Carrier neighborhood := Charts.coordinate baseChart x;
+\definition u: Open.Carrier domain := input parameter;
+\definition point: M.Point := Charts.point chart u;
+\definition pointEquality: point = x := Charts.Of[chart := baseChart].pointCoordinate x;
+\import E.Gram[k := n].Of[A := matrix u, factor := factors.value u] \as Algebra;
+\import E.OnProjection[P := Projections.normal u].Rank[k := k] \as Projector;
+\import \parent.\parent.\parent.At[u := u] \as Original;
+\definition isometry: \forall (v, w: NormalVectors.Vector) -> E.dot ((decode parameter).apply v) ((decode parameter).apply w) = NormalVectors.dot v w :=
+  Projector.isometry (normal.frame.value parameter);
+\definition image: \forall (v: NormalVectors.Vector)(t: Tangent.Vector x) -> E.dot ((decode parameter).apply v) (\parent.\parent.\parent.\parent.At[x := x].differential.apply t) = R.zero :=
+  \fun (v: NormalVectors.Vector) => \idelim point = x \with z: M.Point =>
+    \forall (t: Tangent.Vector z) -> E.dot ((decode parameter).apply v) (\parent.\parent.\parent.\parent.At[x := z].differential.apply t) = R.zero \by {
+      base: Original.coordinatesToNormal ((decode parameter).apply v)
+        (Algebra.fixedOrthogonal ((decode parameter).apply v) (Projector.fixed (normal.frame.value parameter) v)),
+      equality: pointEquality
+    };
+\definition normalAtPoint: \forall (w: Fiber x) -> \forall (t: Tangent.Vector point) -> E.dot w (\parent.\parent.\parent.\parent.At[x := point].differential.apply t) = R.zero :=
+  \fun (w: Fiber x) => \idelim x = point \with z: M.Point =>
+    \forall (t: Tangent.Vector z) -> E.dot w (\parent.\parent.\parent.\parent.At[x := z].differential.apply t) = R.zero \by {
+      base: \bysub(E.Vector, (\parent.\parent.\parent.\parent.At[x := x].subspace).carrier, w), equality: sym!{{M.Point}} _ _ pointEquality
+    };
+\definition reconstruction: \forall (w: Fiber x) -> (decode parameter).apply ((encode parameter).apply w) = w :=
+  \fun (w: Fiber x) => trans!{{E.Vector}} _ _ _ ((normal.frame.value parameter).reconstruction w)
+    (Algebra.orthogonalFixed w (Original.normalToCoordinates w (normalAtPoint w)));

@@ -112,3 +112,20 @@
             (R.leReplaceRight _ _ _ (Laws.addComm (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j))) (f (Fin.zero n)))
               (Algebra.leAddRight (sum n (\fun (j: Fin.Fin n) => f (Fin.succ n j))) (f (Fin.zero n)) (positive (Fin.zero n)))))
     };
+/* Split a finite sum into its two consecutive coordinate blocks. */
+\definition blocks: \forall (n, m: N.Nat^)(f: Fin.Fin (Fin.Sum[m := n, n := m].total) -> Real) ->
+  sum (Fin.Sum[m := n, n := m].total) f = add (sum n (\fun (i: Fin.Fin n) => f (Fin.Sum[m := n, n := m].left i)))
+    (sum m (\fun (j: Fin.Fin m) => f (Fin.Sum[m := n, n := m].right j))) :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^)(f: Fin.Fin (Fin.Sum[m := n, n := m].total) -> Real) ->
+    sum (Fin.Sum[m := n, n := m].total) f = add (sum n (\fun (i: Fin.Fin n) => f (Fin.Sum[m := n, n := m].left i)))
+      (sum m (\fun (j: Fin.Fin m) => f (Fin.Sum[m := n, n := m].right j))) \with {
+    | zero: \fun (m: N.Nat^)(f: _) => trans!{Real} (sum m f) (sum m (\fun (j: Fin.Fin m) => f j)) (add zero (sum m (\fun (j: Fin.Fin m) => f j)))
+      (congruent m f (\fun (j: Fin.Fin m) => f j) (\fun (j: Fin.Fin m) => \refl(f j)))
+      (sym!{Real} (add zero (sum m (\fun (j: Fin.Fin m) => f j))) (sum m (\fun (j: Fin.Fin m) => f j)) (Laws.addZeroLeft (sum m (\fun (j: Fin.Fin m) => f j))))
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(f: _) => trans!{Real} _ _ _
+      (congr!{Real Real} (add (f (Fin.zero (Fin.Sum[m := n, n := m].total)))) _ _
+        (previous m (\fun (i: Fin.Fin (Fin.Sum[m := n, n := m].total)) => f (Fin.succ (Fin.Sum[m := n, n := m].total) i))))
+      (sym!{Real} _ _ (Laws.addAssoc (f (Fin.zero (Fin.Sum[m := n, n := m].total)))
+        (sum n (\fun (i: Fin.Fin n) => f (Fin.Sum[m := N.Nat^::succ n, n := m].left (Fin.succ n i))))
+        (sum m (\fun (j: Fin.Fin m) => f (Fin.Sum[m := N.Nat^::succ n, n := m].right j)))))
+  };

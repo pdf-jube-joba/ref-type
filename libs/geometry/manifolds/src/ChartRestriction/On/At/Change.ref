@@ -1,0 +1,22 @@
+\import Charts.Transition[left := value, right := other] \as NewForward;
+\import Charts.Transition[left := c, right := other] \as OldForward;
+\import Charts.Transition[left := other, right := value] \as NewBackward;
+\import Charts.Transition[left := other, right := c] \as OldBackward;
+\definition forwardIncluded: Open.Included NewForward.domain OldForward.domain := \block {
+  \fun (u: Coordinates.Point)(member: _) \then
+  \let x: Open.Carrier NewForward.domain := \into[Coordinates.Point](u, NewForward.domain.points) \by { member } \then
+  \let y: Open.Carrier U := NewForward.leftCoordinate x \then
+  \return OldForward.intro (originalCoordinate y) (NewForward.inRightDomain x)
+};
+\definition backwardIncluded: Open.Included NewBackward.domain OldBackward.domain := \block {
+  \fun (u: Coordinates.Point)(member: _) \then
+  \let x: Open.Carrier NewBackward.domain := \into[Coordinates.Point](u, NewBackward.domain.points) \by { member } \then
+  \return OldBackward.intro (NewBackward.leftCoordinate x)
+    (OpenDomain.imageIncluded preimage (Charts.point other (NewBackward.leftCoordinate x)) (NewBackward.inRightDomain x))
+};
+\definition forward: Atlas.Compatible value other := \fun (i: std.Data[].FinSet[].Fin n) => Open.Restriction[].localSmooth
+  NewForward.domain OldForward.domain forwardIncluded (\fun (x: Open.Carrier OldForward.domain) => OldForward.vector x i)
+  (M.atlas.compatible c other (\bysub(Charts.Chart, M.atlas.charts, c)) (\bysub(Charts.Chart, M.atlas.charts, other)) i);
+\definition backward: Atlas.Compatible other value := \fun (i: std.Data[].FinSet[].Fin n) => Open.Restriction[].localSmooth
+  NewBackward.domain OldBackward.domain backwardIncluded (\fun (x: Open.Carrier OldBackward.domain) => OldBackward.vector x i)
+  (M.atlas.compatible other c (\bysub(Charts.Chart, M.atlas.charts, other)) (\bysub(Charts.Chart, M.atlas.charts, c)) i);

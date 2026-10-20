@@ -1,0 +1,24 @@
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as SourceCharts;
+\definition active: \Cast[SourceCharts.Chart] M.atlas.charts := \into[SourceCharts.Chart](c, M.atlas.charts) \by { Intrinsic.member c };
+\import \parent.\parent.\parent.InChart[c := active] \as Coordinate;
+\import Maps.Coordinates[f := i, left := active, right := EuclideanManifold.standard] \as Coordinates;
+\definition parameter: Open.Carrier Coordinate.domain := \into[BaseCoordinates.Point](Intrinsic.coordinate c, Coordinate.domain.points) \by {
+  Coordinates.intro (Intrinsic.coordinate c) (\refl(Maps.apply i (SourceCharts.point c (Intrinsic.coordinate c))))
+};
+\import Intrinsic.ChartIsomorphism[chart := c] \as Source;
+\import Intrinsic.Coordinate[chart := c] \as Encoding;
+\import Differential.At[f := i, x := x] \as Derivative;
+\definition comparison: \forall (v: Tangent.Vector x) -> differential.apply v = (Coordinate.matrix parameter).apply (Source.forward.apply v) :=
+  Derivative.coordinates c chart;
+\definition backwardComparison: \forall (v: SourceVectors.Vector) -> differential.apply (Source.backward.apply v) = (Coordinate.matrix parameter).apply v :=
+  \fun (v: SourceVectors.Vector) => trans!{{E.Vector}} _ _ _ (comparison (Source.backward.apply v))
+    (congr!{{SourceVectors.Vector} {E.Vector}} (Coordinate.matrix parameter).apply _ _ (Encoding.decodeEncode v));
+\import E.Gram[k := n] \as Gram;
+\module With(factor: Gram.Factorization[Coordinate.matrix parameter]);
+\import calculus.GramSchmidt[d := n, q := ambientDimension].On[U := Coordinate.domain] \as GramSchmidt;
+\import GramSchmidt.Rank[p := n] \as Rank;
+\definition exists: \forall (w: E.Vector) -> \exists ( p: Sum.Carrier \where forward.apply p = w ) := \block {
+  \fun (w: E.Vector) \then
+  \takefrom factors: Rank.Factors[Coordinate.matrix] \by GramSchmidt.exists n Coordinate.matrix Coordinate.matrixRegular Coordinate.injective \then
+  \return With[factor := factors.value parameter].exists w
+};

@@ -1,0 +1,48 @@
+\import topology.Topology[Carrier := ProductPoint].Subspace[S := domains i] \as Domain;
+\definition source: topology.Structures[].Topology[Domain.CarrierSet] := Domain.topology productTopology;
+\definition point[p: Domain.CarrierSet]: Charts.LocalPoint (chart i) := \into[M.Point](Pair.first M.Point E.Vector p, (chart i).domain) \by {
+  \bysub(ProductPoint, domains i, p)
+};
+\import topology.Continuity[A := ProductPoint, B := M.Point].Restriction[S := domains i] \as RestrictBase;
+\import topology.Continuity[A := Domain.CarrierSet, B := M.Point].Corestriction[S := (chart i).domain] \as IntoBase;
+\definition baseContinuous: topology.Continuity[A := Domain.CarrierSet, B := Charts.LocalPoint (chart i)].Continuous source (Charts.domainTopology (chart i).domain) point :=
+  IntoBase.corestrictContinuous source M.space point
+    (RestrictBase.restrictContinuous productTopology M.space (Pair.first M.Point E.Vector) (ProductMaps.firstContinuous M.space EuclideanTopology.topology));
+\definition coordinate[p: Domain.CarrierSet]: BaseOpen.Carrier (chart i).image := Charts.coordinate (chart i) (point p);
+\import topology.Homeomorphism[A := Charts.LocalPoint (chart i), B := BaseOpen.Carrier (chart i).image] \as Original;
+\import topology.Composition[A := Domain.CarrierSet, B := Charts.LocalPoint (chart i), C := BaseOpen.Carrier (chart i).image] \as CoordinateComposition;
+\definition coordinateContinuous: topology.Continuity[A := Domain.CarrierSet, B := BaseOpen.Carrier (chart i).image].Continuous source (Charts.imageTopology (chart i).image) coordinate :=
+  CoordinateComposition.composeContinuous source (Charts.domainTopology (chart i).domain) (Charts.imageTopology (chart i).image) point (Charts.coordinate (chart i)) baseContinuous
+    (Original.laws (Charts.domainTopology (chart i).domain) (Charts.imageTopology (chart i).image) (chart i).coordinates).forwardContinuous;
+\import topology.Continuity[A := BaseOpen.Carrier (chart i).image, B := calculus.Real[].Multivariable[n := n].Point].Corestriction[S := (chart i).image.points] \as BaseInclusion;
+\import topology.Composition[A := Domain.CarrierSet, B := BaseOpen.Carrier (chart i).image, C := calculus.Real[].Multivariable[n := n].Point] \as AmbientComposition;
+\definition baseAmbient: topology.Continuity[A := Domain.CarrierSet, B := calculus.Real[].Multivariable[n := n].Point].Continuous source BaseTopology.topology (\fun (p: Domain.CarrierSet) => coordinate p) :=
+  AmbientComposition.composeContinuous source (Charts.imageTopology (chart i).image) BaseTopology.topology coordinate (\fun (u: BaseOpen.Carrier (chart i).image) => u)
+    coordinateContinuous (BaseInclusion.inclusionContinuous BaseTopology.topology);
+\import topology.Continuity[A := ProductPoint, B := E.Vector].Restriction[S := domains i] \as RestrictFiber;
+\definition fiberContinuous: topology.Continuity[A := Domain.CarrierSet, B := E.Vector].Continuous source EuclideanTopology.topology (\fun (p: Domain.CarrierSet) => Pair.second M.Point E.Vector p) :=
+  RestrictFiber.restrictContinuous productTopology EuclideanTopology.topology (Pair.second M.Point E.Vector) (ProductMaps.secondContinuous M.space EuclideanTopology.topology);
+\import Blocks.On[U := (chart i).image, V := FiberOpen.whole] \as Parameters;
+\definition parameter[p: Domain.CarrierSet]: Open.Carrier Parameters.domain := Parameters.joinPoint (coordinate p)
+  (\into[E.Vector](Pair.second M.Point E.Vector p, FiberOpen.whole.points) \by { \refl(Pair.second M.Point E.Vector p) });
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as TotalTopology;
+\import topology.Continuity[A := Domain.CarrierSet, B := calculus.Real[].Multivariable[n := dimension].Point].Corestriction[S := Parameters.domain.points] \as IntoParameters;
+\definition parameterContinuous: topology.Continuity[A := Domain.CarrierSet, B := Open.Carrier Parameters.domain].Continuous source (Open.Topology[].Of[U := Parameters.domain].topology) parameter :=
+  IntoParameters.corestrictContinuous source TotalTopology.topology parameter
+    (topological_algebra.Euclidean[].Blocks[n := n, m := r].Joining[X := Domain.CarrierSet].continuous source
+      (\fun (p: Domain.CarrierSet) => coordinate p) (\fun (p: Domain.CarrierSet) => Pair.second M.Point E.Vector p) baseAmbient fiberContinuous);
+\import manifolds.ChartMap[n := dimension].On[M := manifold].At[chart := Construct.chart i] \as Parametrization;
+\import manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Parametrization.source, N := manifold] \as LocalMaps;
+\import topology.Composition[A := Domain.CarrierSet, B := Open.Carrier Parameters.domain, C := Point] \as TargetComposition;
+\definition local[p: Domain.CarrierSet]: Point := LocalMaps.apply Parametrization.map (parameter p);
+\definition localContinuous: topology.Continuity[A := Domain.CarrierSet, B := Point].Continuous source manifold.space local :=
+  TargetComposition.composeContinuous source (Open.Topology[].Of[U := Parameters.domain].topology) manifold.space parameter (LocalMaps.apply Parametrization.map) parameterContinuous
+    (\bysub(LocalMaps.Data, { f: LocalMaps.Data \where LocalMaps.Continuous f }, Parametrization.map));
+\definition equality: local = (\fun (p: Domain.CarrierSet) => backward p) := \axiom:funext(local, (\fun (p: Domain.CarrierSet) => backward p),
+  \fun (p: Domain.CarrierSet) => trans!{Point} _ _ _ (Atlas.InChart[i := i].pointJoined (coordinate p)
+    (\into[E.Vector](Pair.second M.Point E.Vector p, FiberOpen.whole.points) \by { \refl(Pair.second M.Point E.Vector p) }))
+    (congr!{{M.Point} Point} (\fun (x: M.Point) => include x (Pair.second M.Point E.Vector p)) _ _ (Charts.Of[chart := chart i].pointCoordinate (point p))));
+\definition continuous: topology.Continuity[A := Domain.CarrierSet, B := Point].Continuous source manifold.space (\fun (p: Domain.CarrierSet) => backward p) :=
+  \idelim local = (\fun (p: Domain.CarrierSet) => backward p) \with f: (Domain.CarrierSet -> Point) => topology.Continuity[A := Domain.CarrierSet, B := Point].Continuous source manifold.space f \by {
+    base: localContinuous, equality: equality
+  };

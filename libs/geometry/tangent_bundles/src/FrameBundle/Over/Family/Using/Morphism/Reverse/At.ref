@@ -1,0 +1,18 @@
+\import \parent.\parent.At[i := i, x := x] \as Frames;
+\import Spaces.Linear[V := G x, W := F x, source := otherSpace x, target := space x].Composition[U := Output.Vector, domain := Output.space] \as Before;
+\import Spaces.Linear[V := F x, W := Vectors.Vector, source := space x, target := Vectors.space].Composition[U := Output.Vector, domain := Output.space] \as After;
+\definition matrix: Linear.Map := After.compose Frames.source.forward (Before.compose (backward x) Frames.target.backward);
+\import Spaces.Isomorphism[V := F x, W := Vectors.Vector, source := space x, target := Vectors.space] \as SourceIso;
+\import Spaces.Isomorphism[V := G x, W := Output.Vector, source := otherSpace x, target := Output.space] \as TargetIso;
+\definition left: Left -> \forall (v: Vectors.Vector) -> matrix.apply (Frames.matrix.apply v) = v :=
+  \fun (law: Left)(v: Vectors.Vector) => trans!{{Vectors.Vector}} _ _ _
+    (congr!{{F x} {Vectors.Vector}} Frames.source.forward.apply _ _
+      (trans!{{F x}} _ _ _ (congr!{{G x} {F x}} (backward x).apply _ _
+        ((TargetIso.laws Frames.target).leftInverse ((field x).apply (Frames.source.backward.apply v)))) (law x (Frames.source.backward.apply v))))
+    ((SourceIso.laws Frames.source).rightInverse v);
+\definition right: Right -> \forall (v: Output.Vector) -> Frames.matrix.apply (matrix.apply v) = v :=
+  \fun (law: Right)(v: Output.Vector) => trans!{{Output.Vector}} _ _ _
+    (congr!{{G x} {Output.Vector}} Frames.target.forward.apply _ _
+      (trans!{{G x}} _ _ _ (congr!{{F x} {G x}} (field x).apply _ _
+        ((SourceIso.laws Frames.source).leftInverse ((backward x).apply (Frames.target.backward.apply v)))) (law x (Frames.target.backward.apply v))))
+    ((TargetIso.laws Frames.target).rightInverse v);

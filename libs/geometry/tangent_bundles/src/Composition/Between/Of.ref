@@ -1,0 +1,19 @@
+\import \root.Dimension[n := n].On[M := M] \as Source;
+\import \root.Dimension[n := m].On[M := N] \as Middle;
+\import \root.Dimension[n := l].On[M := P] \as Target;
+\import \root.Map[n := n, m := m].Between[M := M, N := N] \as First;
+\import \root.Map[n := m, m := l].Between[M := N, N := P] \as Second;
+\import \root.Map[n := n, m := l].Between[M := M, N := P] \as Composite;
+\import manifolds.Composition[n := n, m := m, l := l].Between[M := M, N := N, P := P] \as Compose;
+\import manifolds.DifferentialComposition[n := n, m := m, l := l].Between[M := M, N := N, P := P].Of[f := f, g := g] \as Differential;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition pointwise: \forall (p: Source.Point) -> Composite.apply (Compose.compose f g) p = Second.apply g (First.apply f p) :=
+  \fun (p: Source.Point) => congr!{{manifolds.Tangent[n := l].On[M := P].Vector (SecondMaps.apply g (FirstMaps.apply f p.base))} {Target.Point}}
+    (Target.include (SecondMaps.apply g (FirstMaps.apply f p.base))) _ _ (Differential.At[x := p.base].pointwise p.vector);
+\definition law: Composite.apply (Compose.compose f g) = (\fun (p: Source.Point) => Second.apply g (First.apply f p)) :=
+  \axiom:funext((Composite.apply (Compose.compose f g)), (\fun (p: Source.Point) => Second.apply g (First.apply f p)), pointwise);
+\import manifolds.SmoothMap[n := Source.dimension, m := Target.dimension].Between[M := Source.manifold, N := Target.manifold] \as TotalMaps;
+\import manifolds.Composition[n := Source.dimension, m := Middle.dimension, l := Target.dimension].Between[M := Source.manifold, N := Middle.manifold, P := Target.manifold] \as TotalCompose;
+\definition smoothLaw: Composite.Of[f := Compose.compose f g].map = TotalCompose.compose (First.Of[f := f].map) (Second.Of[f := g].map) :=
+  TotalMaps.ext (Composite.Of[f := Compose.compose f g].map) (TotalCompose.compose (First.Of[f := f].map) (Second.Of[f := g].map)) law;

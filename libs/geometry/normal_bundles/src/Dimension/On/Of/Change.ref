@@ -1,0 +1,18 @@
+\import Charts.Transition[left := first.chart, right := second.chart] \as Base;
+\import manifolds.Dimension[n := n].Atlas[M := M.Point, space := M.space].Pair[left := first.chart, right := second.chart] \as BaseAtlas;
+\import calculus.Maps[n := n, m := n] \as Calculus;
+\definition baseMap: Calculus.Map Base.domain second.chart.image := BaseAtlas.smoothMap
+  (M.atlas.compatible first.chart second.chart (\bysub(Charts.Chart, M.atlas.charts, first.chart)) (\bysub(Charts.Chart, M.atlas.charts, second.chart)));
+\import Calculus.Composition[U := Base.domain, V := second.chart.image, f := baseMap] \as Along;
+\import Atlas.Change[i := first, j := second] \as Transition;
+\definition sourceIncluded: Open.Included Base.domain first.chart.image := \fun (u: BaseCoordinates.Point)(member: _) =>
+  Base.inLeftImage (\into[BaseCoordinates.Point](u, Base.domain.points) \by { member });
+\definition source[u: Open.Carrier Base.domain]: Decoders.Map := first.decode (Charts.point first.chart (Base.leftCoordinate u));
+\definition sourceRegular: DecodeMatrix.Regular Base.domain source := DecodeMatrix.restrict Base.domain first.chart.image sourceIncluded
+  (\fun (u: Open.Carrier first.chart.image) => first.decode (Charts.point first.chart u)) first.decodeSmooth;
+\definition target[u: Open.Carrier Base.domain]: Encoders.Map := second.encode (Base.overlapPoint u);
+\module Coefficient(a: Fin.Fin k, b: Fin.Fin ambientDimension);
+\definition targetRegular: EncodeMatrix.Regular Base.domain target := \fun (a: Fin.Fin k)(b: Fin.Fin ambientDimension) => Coefficient[a := a, b := b].smooth;
+\definition smooth: \forall (a, b: Fin.Fin k) -> Transition.CoefficientSmooth a b := \fun (a, b: Fin.Fin k) =>
+  EncodeMatrix.action Base.domain target targetRegular (\fun (u: Open.Carrier Base.domain) => (source u).apply (NormalVectors.basis b))
+    (DecodeMatrix.evaluate Base.domain source sourceRegular (NormalVectors.basis b)) a;

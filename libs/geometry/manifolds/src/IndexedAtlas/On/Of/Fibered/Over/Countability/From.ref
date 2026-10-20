@@ -1,0 +1,25 @@
+\use Logic.either;
+\definition laws: Logic.And[
+  \forall (j: N.Nat^) -> Logic.Or[BaseTopology.FamilyMember domainFamily (selected j), selected j = BaseTopology.Empty],
+  BaseTopology.Subset BaseTopology.Whole (Lindelof.IndexedUnion selected)] := \bysub(N.Nat^ -> \Pow B,
+  { selected: N.Nat^ -> \Pow B \where Logic.And[
+    \forall (j: N.Nat^) -> Logic.Or[BaseTopology.FamilyMember domainFamily (selected j), selected j = BaseTopology.Empty],
+    BaseTopology.Subset BaseTopology.Whole (Lindelof.IndexedUnion selected)] }, selected);
+\definition Choice[j: N.Nat^]: \Set := \Cast[Options.Option[I]]
+  ({ o: Options.Option[I] \where optionalDomain o = selected j });
+\definition choiceExists: \forall (j: N.Nat^) -> \exists Choice j := \fun (j: N.Nat^) =>
+  either!{{(laws.left j)} {\exists Choice j}
+    {\fun (member: BaseTopology.FamilyMember domainFamily (selected j)) => \block {
+      \takefrom c: \Cast[I] ({ c: I \where selected j = domains c }) \by member \then
+      \return Logic.existsIntro[Options.Option[I], { o: Options.Option[I] \where optionalDomain o = selected j }]
+        (Options.Option[I]::some c) (sym!{\Pow B} _ _ (\bysub(I, { c: I \where selected j = domains c }, c)))
+    }}
+    {\fun (empty: selected j = BaseTopology.Empty) =>
+      Logic.existsIntro[Options.Option[I], { o: Options.Option[I] \where optionalDomain o = selected j }]
+        Options.Option[I]::none (sym!{\Pow B} _ _ empty)}
+  };
+\module With(choices: \forall (j: N.Nat^) -> Choice j);
+\definition secondCountable: Space.IsSecondCountable topology := \block {
+  \takefrom choices: (\forall (j: N.Nat^) -> Choice j) \by \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (j: N.Nat^) => Choice j), choiceExists) \then
+  \return TotalCoordinates.secondCountable With[choices := choices].cover
+};

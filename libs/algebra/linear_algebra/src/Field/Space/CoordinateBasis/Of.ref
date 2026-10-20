@@ -1,0 +1,26 @@
+\definition data: Finite.BasisData := Finite.BasisData {
+  indices := Fin.elements n, vectors := \fun (i: Fin.Fin n) => iso.backward.apply (Canonical.vectors i), coordinates := iso.forward,
+};
+\module Synthesis(x: Coordinates.Vector);
+\definition synthesize: \forall (x: Coordinates.Vector) -> Finite.synthesize data x = iso.backward.apply x :=
+  \fun (x: Coordinates.Vector) => trans!{V} _ _ _ (Synthesis[x := x].sum (Fin.elements n))
+    (congr!{{Coordinates.Vector} V} iso.backward.apply _ _ (Canonical.reconstruction x));
+\definition dual: \forall (x: Coordinates.Vector)(i: Fin.Fin n) ->
+  \parent.\parent.Sums[I := Fin.Fin n].sum (Fin.elements n) (\fun (j: Fin.Fin n) => mul (x j) (Finite.coordinates data (data.vectors i) j)) = x i :=
+  \fun (x: Coordinates.Vector)(i: Fin.Fin n) => trans!{K} _ _ _
+    (Sums.congruent (Fin.elements n)
+      (\fun (j: Fin.Fin n) => mul (x j) (Finite.coordinates data (data.vectors i) j))
+      (\fun (j: Fin.Fin n) => mul (x j) (Canonical.vectors i j))
+      (\fun (j: Fin.Fin n) => congr!{K K} (mul (x j)) (Finite.coordinates data (data.vectors i) j) (Canonical.vectors i j)
+        (congr!{{Coordinates.Vector} K} (\fun (v: Coordinates.Vector) => v j)
+          (iso.forward.apply (iso.backward.apply (Canonical.vectors i))) (Canonical.vectors i) ((Isomorphisms.laws iso).rightInverse (Canonical.vectors i)))))
+    (Canonical.dualReconstruction x i);
+\definition basis: Finite.Basis := \into[Finite.BasisData](data, { b: Finite.BasisData \where Finite.BasisLaws[b] }) \by {
+  Finite.BasisLaws[data] {
+    distinct := Canonical.basis.distinct, dualReconstruction := dual,
+    reconstruction := \fun (v: V) => trans!{V} _ _ _ (synthesize (iso.forward.apply v)) ((Isomorphisms.laws iso).leftInverse v),
+    coordinateReconstruction := \fun (x: Coordinates.Vector) => trans!{{Coordinates.Vector}} _ _ _
+      (congr!{V {Coordinates.Vector}} iso.forward.apply _ _ (synthesize x)) ((Isomorphisms.laws iso).rightInverse x),
+  }
+};
+\definition dimension: Finite.dimension basis = n := Fin.elementsLength n;

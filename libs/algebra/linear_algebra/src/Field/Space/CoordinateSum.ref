@@ -1,0 +1,33 @@
+/* Block coordinates for a direct sum of two framed vector spaces. */
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := K] \as Tuples;
+\definition dimension: std.Data[].Nat[].Nat^ := Indices.total;
+\import \parent.Coordinates[I := Fin.Fin n] \as Left;
+\import \parent.Coordinates[I := Fin.Fin m] \as Right;
+\import \parent.Coordinates[I := Fin.Fin dimension] \as Total;
+\definition left[x: Total.Vector][i: Fin.Fin n]: K := x (Indices.left i);
+\definition right[x: Total.Vector][i: Fin.Fin m]: K := x (Indices.right i);
+\definition join: Left.Vector -> Right.Vector -> Total.Vector := Tuples.join;
+\definition leftJoin: \forall (x: Left.Vector)(y: Right.Vector) -> left (join x y) = x :=
+  \fun (x: Left.Vector)(y: Right.Vector) => \axiom:funext(left (join x y), x, Tuples.atLeft x y);
+\definition rightJoin: \forall (x: Left.Vector)(y: Right.Vector) -> right (join x y) = y :=
+  \fun (x: Left.Vector)(y: Right.Vector) => \axiom:funext(right (join x y), y, Tuples.atRight x y);
+\definition recover: \forall (x: Total.Vector) -> join (left x) (right x) = x := Tuples.recover;
+\definition addition: \forall (x, u: Left.Vector)(y, v: Right.Vector) -> join (Left.plus x u) (Right.plus y v) = Total.plus (join x y) (join u v) :=
+  \fun (x, u: Left.Vector)(y, v: Right.Vector) => \axiom:funext(join (Left.plus x u) (Right.plus y v), Total.plus (join x y) (join u v),
+    \fun (k: Fin.Fin dimension) => (\induction (s: Indices.Index) \return
+      Tuples.evaluate (Left.plus x u) (Right.plus y v) s = add (Tuples.evaluate x y s) (Tuples.evaluate u v s) \with {
+      | inl: \fun (i: Fin.Fin n) => \refl(add (x i) (u i))
+      | inr: \fun (i: Fin.Fin m) => \refl(add (y i) (v i))
+    }) (Indices.split k));
+\definition scalar: \forall (a: K)(x: Left.Vector)(y: Right.Vector) -> join (Left.scale a x) (Right.scale a y) = Total.scale a (join x y) :=
+  \fun (a: K)(x: Left.Vector)(y: Right.Vector) => \axiom:funext(join (Left.scale a x) (Right.scale a y), Total.scale a (join x y),
+    \fun (k: Fin.Fin dimension) => (\induction (s: Indices.Index) \return
+      Tuples.evaluate (Left.scale a x) (Right.scale a y) s = mul a (Tuples.evaluate x y s) \with {
+      | inl: \fun (i: Fin.Fin n) => \refl(mul a (x i))
+      | inr: \fun (i: Fin.Fin m) => \refl(mul a (y i))
+    }) (Indices.split k));
+\definition LeftIso[V: \Set][space: VectorSpace V]: \Set := \parent.Isomorphism[V := V, W := Left.Vector, source := space, target := Left.space].Isomorphism;
+\definition RightIso[W: \Set][space: VectorSpace W]: \Set := \parent.Isomorphism[V := W, W := Right.Vector, source := space, target := Right.space].Isomorphism;
+\module Of(V, W: \Set, firstSpace: VectorSpace V, secondSpace: VectorSpace W, first: LeftIso V firstSpace, second: RightIso W secondSpace);

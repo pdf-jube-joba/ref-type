@@ -30,3 +30,13 @@
 複素内積は第1引数が共役線形、第2引数が線形で、`selfAdjointEigenvalueReal` は有限次元性を要求しない。
 外積の次数移送はリスト上の共通表現で比較する。
 [SmallSpaces.ref](src/SmallSpaces.ref) に利用例がある。
+
+## 滑らかな局所枠のための有限次元構成
+
+`Euclidean` は有限和による標準内積、正定値性、正規化、随伴と直交射影を持つ。
+`Euclidean.Matrix.OfIsometry` は正規直交列の像と直交補空間への射影を作る。
+`Euclidean.Gram.Factorization` と `Step` は単射な列行列を正規直交枠と三角同型に分解し、`Gram.Of` は像上の逆写像と直交分解を与える。
+`Euclidean.OnProjection.Resolution` はトレースで指定した階数の直交射影の枠を帰納的に作る。
+`Euclidean.Blocks` と `Space.CoordinateSum` は連続する座標ブロックと直和を同一視する。
+`Space.CoordinateBasis` は座標同型から実際の有限基底とその次元を復元する。
+`Space.Pullback` は明示的な全単射を通してベクトル空間を移し、`Isomorphism.OfBijective` は全単射な線形写像の逆を構成する。

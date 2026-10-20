@@ -1,0 +1,48 @@
+\import N.Pair[].Def[] \as Pair;
+\import N.Pair[].Enumeration[] \as Pairs;
+\definition localLaws[i: I]: topology.Topology[Carrier := Parameter i].IsCountableBasis[parameterTopology i, bases i] :=
+  \bysub(N.Nat^ -> \Pow (Parameter i),
+    { b: N.Nat^ -> \Pow (Parameter i) \where topology.Topology[Carrier := Parameter i].IsCountableBasis[parameterTopology i, b] }, bases i);
+\definition rectangle: Options.Option[I] -> N.Nat^ -> \Pow A :=
+  \induction (index: Options.Option[I]) \return N.Nat^ -> \Pow A \with {
+    | none: \fun (j: N.Nat^) => Space.Empty
+    | some: \fun (i: I)(j: N.Nat^) => Image i (bases i j)
+  };
+\definition rectangleOpen: \forall (index: Options.Option[I])(j: N.Nat^) -> Space.IsOpenIn topology (rectangle index j) :=
+  \induction (index: Options.Option[I]) \return \forall (j: N.Nat^) -> Space.IsOpenIn topology (rectangle index j) \with {
+    | none: \fun (j: N.Nat^) => (Space.topologyLaws topology).emptyOpen
+    | some: \fun (i: I)(j: N.Nat^) => openEmbeddings i (bases i j) ((localLaws i).open j)
+  };
+\module At(i: I, U: \Pow A, openU: Space.IsOpenIn topology U, x: A, inside: \In[A] U x, inDomain: \In[A] (patch i).domain x);
+\definition localRefines: \forall (index: Options.Option[I])(U: \Pow A) -> Space.IsOpenIn topology U -> \forall (x: A) ->
+  \In[A] U x -> \In[A] (optionalDomain index) x ->
+  \exists ( j: N.Nat^ \where Logic.And[\In[A] (rectangle index j) x, Space.Subset (rectangle index j) U] ) :=
+  \induction (index: Options.Option[I]) \return \forall (U: \Pow A) -> Space.IsOpenIn topology U -> \forall (x: A) ->
+    \In[A] U x -> \In[A] (optionalDomain index) x ->
+    \exists ( j: N.Nat^ \where Logic.And[\In[A] (rectangle index j) x, Space.Subset (rectangle index j) U] ) \with {
+    | none: \fun (U: \Pow A)(openU: _)(x: A)(inside: _)(impossible: Logic.False) => Logic.falseElim _ impossible
+    | some: \fun (i: I)(U: \Pow A)(openU: _)(x: A)(inside: _)(inDomain: _) =>
+      At[i := i, U := U, openU := openU, x := x, inside := inside, inDomain := inDomain].refines
+  };
+\definition rectanglePair[p: Pair.NatPair]: \Pow A := rectangle (cover.index (Pair.natPairFirst p)) (Pair.natPairSecond p);
+\definition basis[k: N.Nat^]: \Pow A := rectanglePair (Pairs.enumerate k);
+\definition open: \forall (k: N.Nat^) -> Space.IsOpenIn topology (basis k) :=
+  \fun (k: N.Nat^) => rectangleOpen (cover.index (Pair.natPairFirst (Pairs.enumerate k))) (Pair.natPairSecond (Pairs.enumerate k));
+\definition refines: \forall (U: \Pow A) -> Space.IsOpenIn topology U -> \forall (x: A) -> \In[A] U x ->
+  \exists ( k: N.Nat^ \where Logic.And[\In[A] (basis k) x, Space.Subset (basis k) U] ) := \block {
+  \fun (U: _)(openU: _)(x: _)(inside: _) \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where \In[A] (optionalDomain (cover.index i)) x }) \by cover.covers x \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Logic.And[\In[A] (rectangle (cover.index i) j) x, Space.Subset (rectangle (cover.index i) j) U] })
+    \by localRefines (cover.index i) U openU x inside (\bysub(N.Nat^, { i: N.Nat^ \where \In[A] (optionalDomain (cover.index i)) x }, i)) \then
+  \let law: Logic.And[\In[A] (rectangle (cover.index i) j) x, Space.Subset (rectangle (cover.index i) j) U] :=
+    \bysub(N.Nat^, { j: N.Nat^ \where Logic.And[\In[A] (rectangle (cover.index i) j) x, Space.Subset (rectangle (cover.index i) j) U] }, j) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair i j }) \by Pairs.exhaustive i j \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Logic.And[\In[A] (basis k) x, Space.Subset (basis k) U] }] k
+    (\idelim rectangle (cover.index i) j = basis k \with W: \Pow A => Logic.And[\In[A] W x, Space.Subset W U] \by {
+      base: law,
+      equality: sym!{\Pow A} _ _ (congr!{Pair.NatPair {\Pow A}} rectanglePair _ _ (\bysub(N.Nat^, { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair i j }, k)))
+    })
+};
+\definition secondCountable: Space.IsSecondCountable topology := Logic.existsIntro[N.Nat^ -> \Pow A,
+  { b: N.Nat^ -> \Pow A \where Space.IsCountableBasis[topology, b] }] basis
+    (Space.IsCountableBasis[topology, basis] { open := open, refines := refines });

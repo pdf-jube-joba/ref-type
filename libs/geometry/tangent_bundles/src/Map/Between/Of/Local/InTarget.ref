@@ -1,0 +1,18 @@
+\import Maps.Coordinates[f := f, left := c, right := d] \as Coordinates;
+\definition regular: Coordinates.Smooth := (\bysub(Maps.ContinuousMap, { g: Maps.ContinuousMap \where Maps.Chartwise g }, f))
+  c d (\bysub(SourceCharts.Chart, M.atlas.charts, c)) (\bysub(TargetCharts.Chart, N.atlas.charts, d));
+\import calculus.Maps[n := n, m := m] \as Calculus;
+\definition coordinateMap: Calculus.Map Coordinates.domain d.image := Coordinates.map regular;
+\import Calculus.Tangent[U := Coordinates.domain, V := d.image, f := coordinateMap] \as Lift;
+\import SourceBlocks.On[U := Coordinates.domain, V := BaseOpen.whole] \as Overlap;
+\definition domain: Open.OpenSet := Overlap.domain;
+\definition included: Open.Included domain Product.domain := \fun (z: Source.TotalVector)(inside: _) => Logic.And[_, _]::#
+  (Coordinates.inLeftImage (\into[Source.Vector](SourceBlocks.left z, Coordinates.domain.points) \by { inside.left })) (\refl(SourceBlocks.right z));
+\definition contains[z: Open.Carrier Product.domain][inside: TargetCharts.Contains d (Maps.apply f (SourceCoordinate.point z).base)]:
+  \In[Source.TotalVector] domain.points z := Logic.And[_, _]::# (Coordinates.intro (Product.leftPoint z) inside) (\refl(SourceBlocks.right z));
+\definition source[z: Open.Carrier domain]: Open.Carrier Product.domain := Open.inclusion domain Product.domain included z;
+\import manifolds.EuclideanMap[n := Source.dimension, m := Target.dimension].Between[U := domain, V := Target.InChart[chart := d].image] \as CoordinateMaps;
+\import manifolds.ChartMap[n := Target.dimension].On[M := Target.manifold].At[chart := Target.chart d] \as TargetParametrization;
+\import manifolds.Composition[n := Source.dimension, m := Target.dimension, l := Target.dimension].Between[M := CoordinateMaps.source, N := CoordinateMaps.target, P := Target.manifold] \as Compose;
+\definition map: manifolds.SmoothMap[n := Source.dimension, m := Target.dimension].Between[M := CoordinateMaps.source, N := Target.manifold].Map := Compose.compose (CoordinateMaps.map Lift.map) TargetParametrization.map;
+\module At(z: Open.Carrier domain);

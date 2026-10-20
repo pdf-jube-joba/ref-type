@@ -1,0 +1,40 @@
+\import \root.Dimension[n := n].On[M := M] \as Source;
+\import \root.Dimension[n := m].On[M := N] \as Target;
+\import \root.Map[n := n, m := m].Between[M := M, N := N] \as Forward;
+\import \root.Map[n := m, m := n].Between[M := N, N := M] \as Backward;
+\import \root.Map[n := n, m := n].Between[M := M, N := M] \as SourceSelf;
+\import \root.Map[n := m, m := m].Between[M := N, N := N] \as TargetSelf;
+\import manifolds.SmoothMap[n := n, m := n].Between[M := M, N := M] \as SourceMaps;
+\import manifolds.SmoothMap[n := m, m := m].Between[M := N, N := N] \as TargetMaps;
+\import manifolds.Composition[n := n, m := m, l := n].Between[M := M, N := N, P := M] \as SourceCompose;
+\import manifolds.Composition[n := m, m := n, l := m].Between[M := N, N := M, P := N] \as TargetCompose;
+\import manifolds.SelfMap[n := n].Identity[M := M] \as SourceIdentity;
+\import manifolds.SelfMap[n := m].Identity[M := N] \as TargetIdentity;
+\import \root.Identity[n := n].On[M := M] \as SourceTangentIdentity;
+\import \root.Identity[n := m].On[M := N] \as TargetTangentIdentity;
+\import \root.Composition[n := n, m := m, l := n].Between[M := M, N := N, P := M].Of[f := d.forward, g := d.backward] \as SourceComposition;
+\import \root.Composition[n := m, m := n, l := m].Between[M := N, N := M, P := N].Of[f := d.backward, g := d.forward] \as TargetComposition;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition sourceIdentity: SourceCompose.compose d.forward d.backward = SourceIdentity.map :=
+  SourceMaps.ext (SourceCompose.compose d.forward d.backward) SourceIdentity.map
+    (\axiom:funext((SourceMaps.apply (SourceCompose.compose d.forward d.backward)), (SourceMaps.apply SourceIdentity.map), (Base.laws d).leftInverse));
+\definition targetIdentity: TargetCompose.compose d.backward d.forward = TargetIdentity.map :=
+  TargetMaps.ext (TargetCompose.compose d.backward d.forward) TargetIdentity.map
+    (\axiom:funext((TargetMaps.apply (TargetCompose.compose d.backward d.forward)), (TargetMaps.apply TargetIdentity.map), (Base.laws d).rightInverse));
+\definition leftInverse: \forall (p: Source.Point) -> Backward.apply d.backward (Forward.apply d.forward p) = p :=
+  \fun (p: Source.Point) => trans!{{Source.Point}} _ _ _ (sym!{{Source.Point}} _ _ (SourceComposition.pointwise p))
+    (trans!{{Source.Point}} _ _ _ (congr!{{SourceMaps.Map} {Source.Point}} (\fun (f: SourceMaps.Map) => SourceSelf.apply f p) _ _ sourceIdentity) (SourceTangentIdentity.pointwise p));
+\definition rightInverse: \forall (p: Target.Point) -> Forward.apply d.forward (Backward.apply d.backward p) = p :=
+  \fun (p: Target.Point) => trans!{{Target.Point}} _ _ _ (sym!{{Target.Point}} _ _ (TargetComposition.pointwise p))
+    (trans!{{Target.Point}} _ _ _ (congr!{{TargetMaps.Map} {Target.Point}} (\fun (f: TargetMaps.Map) => TargetSelf.apply f p) _ _ targetIdentity) (TargetTangentIdentity.pointwise p));
+\import manifolds.Diffeomorphism[n := Source.dimension, m := Target.dimension].Between[M := Source.manifold, N := Target.manifold] \as Total;
+\definition map: Total.Diffeomorphism := Total.Diffeomorphism {
+  forward := Forward.Of[f := d.forward].map, backward := Backward.Of[f := d.backward].map,
+  leftInverse := leftInverse, rightInverse := rightInverse,
+};
+\import manifolds.SmoothMap[n := Target.dimension, m := Source.dimension].Between[M := Target.manifold, N := Source.manifold] \as InverseMaps;
+\definition inverseFormula: map.backward = Backward.Of[f := manifolds.Diffeomorphism[n := n, m := m].Between[M := M, N := N].Of[d := d].inverse.forward].map :=
+  \refl(Backward.Of[f := d.backward].map);

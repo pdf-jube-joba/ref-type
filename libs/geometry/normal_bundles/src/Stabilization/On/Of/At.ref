@@ -1,0 +1,53 @@
+\import Old.At[x := x] \as OldFiber;
+\import Source.At[x := x] \as NewFiber;
+\import manifolds.Differential[n := n, m := oldDimension].Between[M := M, N := OldDimension.ambient].At[f := i, x := x] \as OldD;
+\import manifolds.DifferentialComposition[n := n, m := oldDimension, l := newDimension].Between[M := M, N := OldDimension.ambient, P := NewDimension.ambient].Of[f := i, g := Inclusion.map].At[x := x] \as Chain;
+\import manifolds.SmoothMap[n := n, m := oldDimension].Between[M := M, N := OldDimension.ambient] \as OldMaps;
+\import Inclusion.At[x := OldMaps.apply i x] \as LinearFormula;
+\import manifolds.Tangent[n := newDimension].On[M := NewDimension.ambient].At[x := Maps.apply map x].ChartIsomorphism[chart := NewFiber.chart] \as NewCoordinate;
+\definition differential: \forall (v: Tangent.Vector x) -> NewFiber.differential.apply v = embedding.apply (OldFiber.differential.apply v) :=
+  \fun (v: Tangent.Vector x) => trans!{{NewE.Vector}} _ _ _
+    (congr!{{manifolds.Tangent[n := newDimension].On[M := NewDimension.ambient].Vector (Maps.apply map x)} {NewE.Vector}} NewCoordinate.forward.apply _ _ (Chain.pointwise v))
+    (LinearFormula.coordinates (OldD.value.apply v));
+\definition oldNormal[w: Source.Fiber x]: Old.Fiber x := \into[OldE.Vector](first.apply w, OldFiber.subspace.carrier) \by {
+  \fun (v: Tangent.Vector x) => trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (orthogonality w (OldFiber.differential.apply v)))
+    (trans!{{R.Real}} _ _ _ (congr!{{NewE.Vector} {R.Real}} (NewE.dot w) _ _ (sym!{{NewE.Vector}} _ _ (differential v))) ((\bysub(NewE.Vector, NewFiber.subspace.carrier, w)) v))
+};
+\definition newNormal[w: Old.Fiber x][a: R.Real]: Source.Fiber x := \into[NewE.Vector](join w a, NewFiber.subspace.carrier) \by {
+  \fun (v: Tangent.Vector x) => trans!{{R.Real}} _ _ _ (congr!{{NewE.Vector} {R.Real}} (NewE.dot (join w a)) _ _ (differential v))
+    (trans!{{R.Real}} _ _ _ (orthogonality (join w a) (OldFiber.differential.apply v))
+      (trans!{{R.Real}} _ _ _ (congr!{{OldE.Vector} {R.Real}} (\fun (u: OldE.Vector) => OldE.dot u (OldFiber.differential.apply v)) _ _ (firstJoin w a))
+        ((\bysub(OldE.Vector, OldFiber.subspace.carrier, w)) v)))
+};
+\definition splittingCompatibility: \forall (t: Tangent.Vector x)(w: Old.Fiber x)(a: R.Real) -> NewE.space.add (NewFiber.differential.apply t) (join w a) = join (OldE.space.add (OldFiber.differential.apply t) w) a :=
+  \fun (t: Tangent.Vector x)(w: Old.Fiber x)(a: R.Real) => trans!{{NewE.Vector}} _ _ _
+    (congr!{{NewE.Vector} {NewE.Vector}} (\fun (v: NewE.Vector) => NewE.space.add v (join w a)) _ _ (differential t))
+    (trans!{{NewE.Vector}} _ _ _ (sym!{{NewE.Vector}} _ _ (joinAddition (OldFiber.differential.apply t) w R.zero a))
+      (congr!{{R.Real} {NewE.Vector}} (join (OldE.space.add (OldFiber.differential.apply t) w)) _ _ (Spaces.addZeroLeft a)));
+\import Spaces.DirectSum[V := Old.Fiber x, W := R.Real, left := Old.fiberSpace x, right := Spaces.scalarSpace] \as Sum;
+\import std.Data[].Pair[].Prop[A := Old.Fiber x, B := R.Real] \as Pairs;
+\import Spaces.Linear[V := Source.Fiber x, W := Sum.Carrier, source := Source.fiberSpace x, target := Sum.space] \as ToSum;
+\import Spaces.Linear[V := Sum.Carrier, W := Source.Fiber x, source := Sum.space, target := Source.fiberSpace x] \as FromSum;
+\definition forward: ToSum.Map := ToSum.Map {
+  apply := \fun (w: Source.Fiber x) => Sum.make (oldNormal w) (lastScalar.apply w),
+  preservesAdd := \fun (v, w: Source.Fiber x) => Pairs.pairCong
+    (oldNormal ((Source.fiberSpace x).add v w)) ((Old.fiberSpace x).add (oldNormal v) (oldNormal w))
+    (lastScalar.apply ((Source.fiberSpace x).add v w)) (R.add (lastScalar.apply v) (lastScalar.apply w))
+    (first.preservesAdd v w) (lastScalar.preservesAdd v w),
+  preservesScale := \fun (a: R.Real)(w: Source.Fiber x) => Pairs.pairCong
+    (oldNormal ((Source.fiberSpace x).smul a w)) ((Old.fiberSpace x).smul a (oldNormal w))
+    (lastScalar.apply ((Source.fiberSpace x).smul a w)) (R.mul a (lastScalar.apply w))
+    (first.preservesScale a w) (lastScalar.preservesScale a w),
+};
+\definition backward: FromSum.Map := FromSum.Map {
+  apply := \fun (p: Sum.Carrier) => newNormal (Sum.first p) (Sum.second p),
+  preservesAdd := \fun (p, q: Sum.Carrier) => joinAddition (Sum.first p) (Sum.first q) (Sum.second p) (Sum.second q),
+  preservesScale := \fun (a: R.Real)(p: Sum.Carrier) => joinScale a (Sum.first p) (Sum.second p),
+};
+\import Spaces.Isomorphism[V := Source.Fiber x, W := Sum.Carrier, source := Source.fiberSpace x, target := Sum.space] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (w: Source.Fiber x) => recover w,
+  rightInverse := \fun (p: Sum.Carrier) => Pairs.ext (forward.apply (backward.apply p)) p
+    (firstJoin (Sum.first p) (Sum.second p)) (lastJoin (Sum.first p) (Sum.second p)),
+};

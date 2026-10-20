@@ -1,0 +1,23 @@
+\import Source.Matrix[m := q] \as Algebra;
+\import \root.MatrixFamily[d := d, p := q, q := p] \as Backward;
+\import \root.MatrixFamily[d := d, p := q, q := q] \as Ambient;
+\import \root.SmoothCoordinates[d := d, q := q].On[U := U] \as Vectors;
+\module At(x: Open.Carrier U);
+\definition coordinates[x: Open.Carrier U]: Spaces.Linear[V := Target.Vector, W := Source.Vector, source := Target.space, target := Source.space].Map := Algebra.transpose (factors.value x).frame;
+\definition coordinatesRegular: Backward.Regular U coordinates := \fun (i: Fin.Fin p)(j: Fin.Fin q) =>
+  Vectors.dot (\fun (x: Open.Carrier U) => (factors.value x).frame.apply (Source.basis i)) (\fun (x: Open.Carrier U) => Target.basis j)
+    (Matrix.evaluate U (\fun (x: Open.Carrier U) => (factors.value x).frame) factors.frame (Source.basis i)) (Vectors.constant (Target.basis j));
+\definition normal[x: Open.Carrier U]: Target.Projection := At[x := x].normal;
+\definition tangent[x: Open.Carrier U]: Target.Projection := At[x := x].tangent;
+\definition tangentRegular: Ambient.Regular U (\fun (x: Open.Carrier U) => (tangent x).map) := \fun (i, j: Fin.Fin q) =>
+  Matrix.action U (\fun (x: Open.Carrier U) => (factors.value x).frame) factors.frame
+    (\fun (x: Open.Carrier U) => (coordinates x).apply (Target.basis j))
+    (Backward.evaluate U coordinates coordinatesRegular (Target.basis j)) i;
+\definition normalRegular: Ambient.Regular U (\fun (x: Open.Carrier U) => (normal x).map) := \fun (i, j: Fin.Fin q) =>
+  Operations.subSmooth U (\fun (x: Open.Carrier U) => Target.basis j i) (\fun (x: Open.Carrier U) => (tangent x).map.apply (Target.basis j) i)
+    (Operations.constantSmooth U (Target.basis j i)) (tangentRegular i j);
+\definition inverse[x: Open.Carrier U]: Spaces.Linear[V := Target.Vector, W := Source.Vector, source := Target.space, target := Source.space].Map := At[x := x].inverse;
+\definition inverseRegular: Backward.Regular U inverse := \fun (i: Fin.Fin p)(j: Fin.Fin q) =>
+  Square.action U (\fun (x: Open.Carrier U) => (factors.value x).change.backward) factors.inverse
+    (\fun (x: Open.Carrier U) => (coordinates x).apply (Target.basis j))
+    (Backward.evaluate U coordinates coordinatesRegular (Target.basis j)) i;

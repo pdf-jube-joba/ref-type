@@ -1,0 +1,19 @@
+\import \root.Blocks[n := d, m := p] \as SourceBlocks;
+\import \root.Blocks[n := d, m := q] \as TargetBlocks;
+\import \root.Real[].Multivariable[n := p].Open[] \as Input;
+\import \root.Real[].Multivariable[n := q].Open[] \as Output;
+\import SourceBlocks.On[U := U, V := Input.whole] \as SourceProduct;
+\import TargetBlocks.On[U := U, V := Output.whole] \as TargetProduct;
+\import \root.Identity[n := d] \as Identity;
+\definition coefficient[i: Fin.Fin q][j: Fin.Fin p]: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](
+  (\fun (x: Open.Carrier U) => (A x).apply (Source.basis j) i), Smooth.SmoothFunction U) \by { regular i j };
+\import \root.LinearFamily[n := d, m := d, p := p, q := q].On[U := U, V := U, f := Identity.map U, matrix := coefficient] \as Action;
+\definition sourceDimension: N.Nat^ := SourceBlocks.dimension;
+\definition targetDimension: N.Nat^ := TargetBlocks.dimension;
+\import \root.Maps[n := sourceDimension, m := targetDimension] \as Result;
+\definition map: Result.Map SourceProduct.domain TargetProduct.domain := Action.map;
+\module At(z: \root.Real[].Multivariable[n := sourceDimension].Open[].Carrier SourceProduct.domain);
+\definition formula: \forall (z: \root.Real[].Multivariable[n := sourceDimension].Open[].Carrier SourceProduct.domain) ->
+  Result.apply SourceProduct.domain TargetProduct.domain map z = TargetProduct.joinPoint (SourceProduct.leftPoint z)
+    (\into[Target.Vector]((A (SourceProduct.leftPoint z)).apply (SourceBlocks.right z), Output.whole.points) \by { \refl((A (SourceProduct.leftPoint z)).apply (SourceBlocks.right z)) }) :=
+  \fun (z: \root.Real[].Multivariable[n := sourceDimension].Open[].Carrier SourceProduct.domain) => At[z := z].formula;

@@ -1,0 +1,27 @@
+\import First.Coordinates[f := f, left := c, right := chart i] \as FirstCoordinates;
+\import Second.Coordinates[f := g, left := c, right := Euclidean.standard] \as SecondCoordinates;
+\definition domain: SourceOpen.OpenSet := FirstCoordinates.domain;
+\definition included: SourceOpen.Included domain c.image := \fun (u: calculus.Real[].Multivariable[n := p].Point)(member: _) =>
+  FirstCoordinates.inLeftImage (\into[calculus.Real[].Multivariable[n := p].Point](u, domain.points) \by { member });
+\definition contains[u: SourceOpen.Carrier c.image]: Charts.Contains (chart i) (First.apply f (SourceCharts.point c u)) -> \In[calculus.Real[].Multivariable[n := p].Point] domain.points u := FirstCoordinates.intro u;
+\import calculus.Maps[n := p, m := n] \as FirstCalculus;
+\import calculus.Maps[n := p, m := r] \as SecondCalculus;
+\definition first: FirstCalculus.Map domain (chart i).image := FirstCoordinates.map
+  ((\bysub(First.ContinuousMap, { f: First.ContinuousMap \where First.Chartwise f }, f)) c (chart i)
+    (\bysub(SourceCharts.Chart, X.atlas.charts, c)) (\bysub(Charts.Chart, M.atlas.charts, chart i)));
+\definition secondOriginal: SecondCalculus.Map SecondCoordinates.domain FiberOpen.whole := SecondCoordinates.map
+  ((\bysub(Second.ContinuousMap, { f: Second.ContinuousMap \where Second.Chartwise f }, g)) c Euclidean.standard
+    (\bysub(SourceCharts.Chart, X.atlas.charts, c)) (FiberAtlas.includedInSaturation Euclidean.atlas Euclidean.standard (\refl(Euclidean.standard))));
+\definition secondIncluded: SourceOpen.Included domain SecondCoordinates.domain := \fun (u: calculus.Real[].Multivariable[n := p].Point)(member: _) =>
+  SecondCoordinates.intro (\into[calculus.Real[].Multivariable[n := p].Point](u, c.image.points) \by { included u member })
+    (\refl(Second.apply g (SourceCharts.point c (\into[calculus.Real[].Multivariable[n := p].Point](u, c.image.points) \by { included u member }))));
+\definition second: SecondCalculus.Map domain FiberOpen.whole := SecondCalculus.Restriction[U := domain, V := SecondCoordinates.domain, W := FiberOpen.whole].input secondIncluded secondOriginal;
+\import Blocks.Pair[d := p].On[U := domain, V := (chart i).image, W := FiberOpen.whole, f := first, g := second] \as Pair;
+\import Blocks.On[U := (chart i).image, V := FiberOpen.whole] \as Product;
+\import manifolds.EuclideanMap[n := p, m := dimension].Between[U := domain, V := Product.domain] \as Coordinates;
+\import manifolds.ChartMap[n := dimension].On[M := manifold].At[chart := Construct.chart i] \as Parametrization;
+\import manifolds.Composition[n := p, m := dimension, l := dimension].Between[M := Coordinates.source, N := Coordinates.target, P := manifold] \as Compose;
+\definition map: manifolds.SmoothMap[n := p, m := dimension].Between[M := Coordinates.source, N := manifold].Map := Compose.compose (Coordinates.map Pair.map) Parametrization.map;
+\module At(u: SourceOpen.Carrier domain);
+\definition agrees: \forall (u: SourceOpen.Carrier domain) -> manifolds.SmoothMap[n := p, m := dimension].Between[M := Coordinates.source, N := manifold].apply map u = apply (SourceCharts.point c (FirstCoordinates.leftCoordinate u)) :=
+  \fun (u: SourceOpen.Carrier domain) => At[u := u].agrees;

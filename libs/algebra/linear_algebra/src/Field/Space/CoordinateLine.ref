@@ -1,0 +1,24 @@
+/* The scalar field and its one-coordinate vector space. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import \parent.Coordinates[I := Fin.Fin one] \as Line;
+\import \parent.Linear[V := K, W := Line.Vector, source := scalarSpace, target := Line.space] \as Forward;
+\import \parent.Linear[V := Line.Vector, W := K, source := Line.space, target := scalarSpace] \as Backward;
+\import \parent.Isomorphism[V := K, W := Line.Vector, source := scalarSpace, target := Line.space] \as Isomorphisms;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (a: K)(i: Fin.Fin one) => a,
+  preservesAdd := \fun (a, b: K) => \refl(\fun (i: Fin.Fin one) => add a b),
+  preservesScale := \fun (a, b: K) => \refl(\fun (i: Fin.Fin one) => mul a b),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (v: Line.Vector) => v (Fin.zero N.Nat^::zero),
+  preservesAdd := \fun (u, v: Line.Vector) => \refl(add (u (Fin.zero N.Nat^::zero)) (v (Fin.zero N.Nat^::zero))),
+  preservesScale := \fun (a: K)(v: Line.Vector) => \refl(mul a (v (Fin.zero N.Nat^::zero))),
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (a: K) => \refl(a),
+  rightInverse := \fun (v: Line.Vector) => \axiom:funext((forward.apply (backward.apply v)), v,
+    \fun (i: Fin.Fin one) => congr!{{Fin.Fin one} K} v _ _ (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i))),
+};

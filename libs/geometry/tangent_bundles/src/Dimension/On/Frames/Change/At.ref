@@ -1,0 +1,16 @@
+\definition x: Charts.LocalPoint c := Charts.point c (Base.leftCoordinate t);
+\import Tangent.At[x := x] \as Fiber;
+\import \parent.\parent.\parent.InChart[chart := c].At[x := x] \as Source;
+\import \parent.\parent.\parent.InChart[chart := d].At[x := Base.overlapPoint t] \as Target;
+\import Fiber.Pair[left := Source.tangentChart, right := Target.tangentChart] \as Jacobian;
+\import Fiber.ChartIsomorphism[chart := Source.tangentChart].Change[other := Target.tangentChart] \as Change;
+\definition input: Jacobian.point = t := Charts.Of[chart := c].coordinatePoint (Base.leftCoordinate t);
+\definition derivative: calculus.Vector[n := n, m := n].LinearMap := Calculus.Differential[U := Base.domain, V := d.image, f := baseMap, a := t].value;
+\definition jacobian: Jacobian.jacobian = derivative := congr!{{Open.Carrier Base.domain} {calculus.Vector[n := n, m := n].LinearMap}}
+  (\fun (u: Open.Carrier Base.domain) => Calculus.Differential[U := Base.domain, V := d.image, f := baseMap, a := u].value) Jacobian.point t input;
+\definition coordinates: \forall (v: Vector) -> (Matrix.linear t).apply v = derivative.apply v := \fun (v: Vector) =>
+  trans!{Vector} _ _ _ (Change.coordinates (Source.encode v))
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} Jacobian.jacobian.apply _ _ (Source.decodeEncode v))
+      (congr!{{calculus.Vector[n := n, m := n].LinearMap} Vector} (\fun (L: calculus.Vector[n := n, m := n].LinearMap) => L.apply v) _ _ jacobian));
+\definition coefficient[a, b: std.Data[].FinSet[].Fin n]: Matrix.coefficient a b t = derivative.apply (Finite.basis n b) a :=
+  congr!{Vector {Real.Real}} (\fun (v: Vector) => v a) _ _ (coordinates (Finite.basis n b));

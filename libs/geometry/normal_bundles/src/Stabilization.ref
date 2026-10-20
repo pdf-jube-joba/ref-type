@@ -1,0 +1,64 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import real.Analysis[] \as R;
+\import linear_algebra.Field[].Space[K := R.Real, field := R.Algebra[].field] \as Spaces;
+\import Spaces.CoordinateLine[] \as Line;
+\import \root.Dimension[n := n, k := k] \as OldDimension;
+\import \root.Dimension[n := n, k := N.Nat^::succ k] \as NewDimension;
+\definition oldDimension: N.Nat^ := OldDimension.ambientDimension;
+\definition newDimension: N.Nat^ := NewDimension.ambientDimension;
+\import linear_algebra.Euclidean[n := oldDimension] \as OldE;
+\import linear_algebra.Euclidean[n := newDimension] \as NewE;
+\import OldE.Blocks[m := Line.one] \as Append;
+\definition sumDimension: N.Nat^ := Append.dimension;
+\import linear_algebra.Euclidean[n := sumDimension] \as Joined;
+\import linear_algebra.Euclidean[n := Line.one] \as Scalar;
+\definition dimensionEquality: sumDimension = newDimension := trans!{N.Nat^} _ (N.Nat^::succ oldDimension) _
+  (trans!{N.Nat^} _ _ _ (NatLaws.addSuccLeft N.Nat^::zero oldDimension) (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (NatLaws.addZeroLeft oldDimension)))
+  (sym!{N.Nat^} _ _ (NatLaws.addSuccLeft k n));
+\import Joined.Reindex[m := newDimension, same := dimensionEquality] \as Reindex;
+\import Spaces.Linear[V := Joined.Vector, W := NewE.Vector, source := Joined.space, target := NewE.space].Composition[U := OldE.Vector, domain := OldE.space] \as EmbeddingComposition;
+\definition embedding: Spaces.Linear[V := OldE.Vector, W := NewE.Vector, source := OldE.space, target := NewE.space].Map := EmbeddingComposition.compose Reindex.isomorphism.forward Append.inclusion;
+\import Spaces.Linear[V := Joined.Vector, W := OldE.Vector, source := Joined.space, target := OldE.space].Composition[U := NewE.Vector, domain := NewE.space] \as FirstComposition;
+\import Spaces.Linear[V := Joined.Vector, W := Scalar.Vector, source := Joined.space, target := Scalar.space].Composition[U := NewE.Vector, domain := NewE.space] \as LastComposition;
+\definition first: Spaces.Linear[V := NewE.Vector, W := OldE.Vector, source := NewE.space, target := OldE.space].Map := FirstComposition.compose Append.leftMap Reindex.isomorphism.backward;
+\definition last: Spaces.Linear[V := NewE.Vector, W := Scalar.Vector, source := NewE.space, target := Scalar.space].Map := LastComposition.compose Append.rightMap Reindex.isomorphism.backward;
+\import Spaces.Linear[V := Scalar.Vector, W := R.Real, source := Scalar.space, target := Spaces.scalarSpace].Composition[U := NewE.Vector, domain := NewE.space] \as ScalarComposition;
+\definition lastScalar: Spaces.Linear[V := NewE.Vector, W := R.Real, source := NewE.space, target := Spaces.scalarSpace].Map := ScalarComposition.compose Line.backward last;
+\definition join[v: OldE.Vector][a: R.Real]: NewE.Vector := Reindex.isomorphism.forward.apply (Append.join v (Line.forward.apply a));
+\import Spaces.Isomorphism[V := Joined.Vector, W := NewE.Vector, source := Joined.space, target := NewE.space] \as ReindexIsomorphisms;
+\definition firstJoin: \forall (v: OldE.Vector)(a: R.Real) -> first.apply (join v a) = v := \fun (v: OldE.Vector)(a: R.Real) => trans!{{OldE.Vector}} _ _ _
+  (congr!{{Joined.Vector} {OldE.Vector}} Append.left _ _ ((ReindexIsomorphisms.laws Reindex.isomorphism).leftInverse (Append.join v (Line.forward.apply a)))) (Append.leftJoin v (Line.forward.apply a));
+\definition lastJoin: \forall (v: OldE.Vector)(a: R.Real) -> Line.backward.apply (last.apply (join v a)) = a := \fun (v: OldE.Vector)(a: R.Real) => trans!{{R.Real}} _ _ _
+  (congr!{{Scalar.Vector} {R.Real}} Line.backward.apply _ _ (trans!{{Scalar.Vector}} _ _ _
+    (congr!{{Joined.Vector} {Scalar.Vector}} Append.right _ _ ((ReindexIsomorphisms.laws Reindex.isomorphism).leftInverse (Append.join v (Line.forward.apply a)))) (Append.rightJoin v (Line.forward.apply a))))
+  ((Spaces.Isomorphism[V := R.Real, W := Scalar.Vector, source := Spaces.scalarSpace, target := Scalar.space].laws Line.isomorphism).leftInverse a);
+\definition recover: \forall (v: NewE.Vector) -> join (first.apply v) (Line.backward.apply (last.apply v)) = v := \fun (v: NewE.Vector) => trans!{{NewE.Vector}} _ _ _
+  (congr!{{Joined.Vector} {NewE.Vector}} Reindex.isomorphism.forward.apply _ _ (trans!{{Joined.Vector}} _ _ _
+    (congr!{{Scalar.Vector} {Joined.Vector}} (Append.join (first.apply v)) _ _
+      ((Spaces.Isomorphism[V := R.Real, W := Scalar.Vector, source := Spaces.scalarSpace, target := Scalar.space].laws Line.isomorphism).rightInverse (last.apply v)))
+    (Append.recover (Reindex.isomorphism.backward.apply v)))) ((ReindexIsomorphisms.laws Reindex.isomorphism).rightInverse v);
+\definition embeddingInjective: \forall (v, w: OldE.Vector) -> embedding.apply v = embedding.apply w -> v = w := \fun (v, w: OldE.Vector)(same: _) => trans!{{OldE.Vector}} _ _ _
+  (sym!{{OldE.Vector}} _ _ (firstJoin v R.zero)) (trans!{{OldE.Vector}} _ _ _ (congr!{{NewE.Vector} {OldE.Vector}} first.apply _ _ same) (firstJoin w R.zero));
+\definition orthogonality: \forall (w: NewE.Vector)(v: OldE.Vector) -> NewE.dot w (embedding.apply v) = OldE.dot (first.apply w) v :=
+  \fun (w: NewE.Vector)(v: OldE.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{{NewE.Vector} {R.Real}} (\fun (u: NewE.Vector) => NewE.dot u (embedding.apply v)) _ _ (sym!{{NewE.Vector}} _ _ ((ReindexIsomorphisms.laws Reindex.isomorphism).rightInverse w)))
+    (trans!{{R.Real}} _ _ _ (Reindex.isometry (Reindex.isomorphism.backward.apply w) (Append.inclusion.apply v)) (Append.dotIncluded (Reindex.isomorphism.backward.apply w) v));
+\definition joinAddition: \forall (v, w: OldE.Vector)(a, b: R.Real) -> join (OldE.space.add v w) (R.add a b) = NewE.space.add (join v a) (join w b) :=
+  \fun (v, w: OldE.Vector)(a, b: R.Real) => trans!{{NewE.Vector}} _ _ _
+    (congr!{{Joined.Vector} {NewE.Vector}} Reindex.isomorphism.forward.apply _ _ (trans!{{Joined.Vector}} _ _ _
+      (congr!{{Scalar.Vector} {Joined.Vector}} (Append.join (OldE.space.add v w)) _ _ (Line.forward.preservesAdd a b)) (Append.addition v w (Line.forward.apply a) (Line.forward.apply b))))
+    (Reindex.isomorphism.forward.preservesAdd (Append.join v (Line.forward.apply a)) (Append.join w (Line.forward.apply b)));
+\definition joinScale: \forall (a: R.Real)(v: OldE.Vector)(b: R.Real) -> join (OldE.space.smul a v) (R.mul a b) = NewE.space.smul a (join v b) :=
+  \fun (a: R.Real)(v: OldE.Vector)(b: R.Real) => trans!{{NewE.Vector}} _ _ _
+    (congr!{{Joined.Vector} {NewE.Vector}} Reindex.isomorphism.forward.apply _ _ (trans!{{Joined.Vector}} _ _ _
+      (congr!{{Scalar.Vector} {Joined.Vector}} (Append.join (OldE.space.smul a v)) _ _ (Line.forward.preservesScale a b)) (Append.scalar a v (Line.forward.apply b))))
+    (Reindex.isomorphism.forward.preservesScale a (Append.join v (Line.forward.apply b)));
+\import manifolds.Dimension[n := n].Smooth[] \as Models;
+\module On(M: Models.Manifold);
