@@ -1,0 +1,61 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Order[].Prop[] \as Order;
+\import \root.Data[].Sum[] \as Sums;
+\import std.Logic[].Classical[] \as Classical;
+\definition total: N.Nat^ := Nat.add n m;
+\definition left[i: Fin m]: Fin total := \into[N.Nat^](i, { k: N.Nat^ \where NL.Lt k total }) \by {
+  NL.ltLeTrans i m total (bound m i) (NL.leAddLeft n m)
+};
+\definition right[j: Fin n]: Fin total := \into[N.Nat^](Nat.add j m, { k: N.Nat^ \where NL.Lt k total }) \by {
+  Order.ltAddRight j n m (bound n j)
+};
+\definition rightAbove[j: Fin n]: NL.Le m (right j) := NL.leAddLeft j m;
+\definition leftInjective[i, j: Fin m]: left i = left j -> i = j := \fun (same: _) => same;
+\definition rightInjective[i, j: Fin n]: right i = right j -> i = j :=
+  \fun (same: _) => NL.addCancelRight m i j same;
+\definition different[i: Fin m][j: Fin n]: Logic.Not (left i = right j) := \fun (same: _) => NL.ltIrrefl i
+  (NL.ltLeTrans i m i (bound m i) (\idelim right j = i \with k: N.Nat^ => NL.Le m k \by {
+    base: rightAbove j, equality: sym!{N.Nat^} _ _ same
+  }));
+\definition Index: \Set := Sums.Sum[Fin m, Fin n];
+\definition inflate: Index -> Fin total := \induction (i: Index) \return Fin total \with {
+  | inl: left
+  | inr: right
+};
+\definition Values[i: Fin total]: \Set := \Cast[Index] ({ x: Index \where inflate x = i });
+\definition existsValue[i: Fin total]: \exists Values i := either!{{(Classical.excludedMiddle (NL.Lt i m))} {\exists Values i}
+  {\fun (inside: NL.Lt i m) => \exact(\into[Index](Sums.Sum[Fin m, Fin n]::inl (\into[N.Nat^](i, { j: N.Nat^ \where NL.Lt j m }) \by { inside }),
+    { x: Index \where inflate x = i }) \by { \refl(i) }, Values i)}
+  {\fun (outside: Logic.Not (NL.Lt i m)) => \block {
+    \let lower: NL.Le m i := (\induction (comparison: B.Bool^) \return Nat.ltb i m = comparison -> NL.Le m i \with {
+      | true: \fun (same: _) => Logic.falseElim _ (outside same)
+      | false: \fun (same: _) => NL.leOfLtbFalse i m same
+    } (Nat.ltb i m) (\refl(Nat.ltb i m))) \then
+    \let bound: NL.Lt (Nat.sub i m) n := \idelim Nat.sub total m = n \with upper: N.Nat^ => NL.Lt (Nat.sub i m) upper \by {
+      base: NL.subLtOfLe m i total lower (bound total i), equality: NL.subAddCancel m n
+    } \then
+    \let j: Fin n := \into[N.Nat^](Nat.sub i m, { j: N.Nat^ \where NL.Lt j n }) \by { bound } \then
+    \return \exact(\into[Index](Sums.Sum[Fin m, Fin n]::inr j, { x: Index \where inflate x = i }) \by {
+      trans!{N.Nat^} _ _ _ (NL.addComm (Nat.sub i m) m) (NL.addSubOfLe m i lower)
+    }, Values i)
+  }}
+};
+\definition injective: \forall (x, y: Index) -> inflate x = inflate y -> x = y :=
+  \induction (x: Index) \return \forall (y: Index) -> inflate x = inflate y -> x = y \with {
+    | inl: \fun (i: Fin m) => \induction (y: Index) \return inflate (Sums.Sum[Fin m, Fin n]::inl i) = inflate y -> Sums.Sum[Fin m, Fin n]::inl i = y \with {
+      | inl: \fun (j: Fin m)(same: _) => congr!{{Fin m} Index} (Sums.Sum[Fin m, Fin n]::inl) _ _ (leftInjective i j same)
+      | inr: \fun (j: Fin n)(same: _) => Logic.falseElim _ (different i j same)
+    }
+    | inr: \fun (i: Fin n) => \induction (y: Index) \return inflate (Sums.Sum[Fin m, Fin n]::inr i) = inflate y -> Sums.Sum[Fin m, Fin n]::inr i = y \with {
+      | inl: \fun (j: Fin m)(same: _) => Logic.falseElim _ (different j i (sym!{{Fin total}} _ _ same))
+      | inr: \fun (j: Fin n)(same: _) => congr!{{Fin n} Index} (Sums.Sum[Fin m, Fin n]::inr) _ _ (rightInjective i j same)
+    }
+  };
+\definition uniqueValue[i: Fin total][x, y: Values i]: x = y := injective x y (trans!{{Fin total}} _ _ _
+  (\bysub(Index, { x: Index \where inflate x = i }, x)) (sym!{{Fin total}} _ _ (\bysub(Index, { x: Index \where inflate x = i }, y))));
+\definition split[i: Fin total]: Index := \choice Values i \by { existence: existsValue i, uniqueness: uniqueValue i };
+\definition inflateSplit[i: Fin total]: inflate (split i) = i := \bysub(Index, { x: Index \where inflate x = i }, (\choice Values i \by { existence: existsValue i, uniqueness: uniqueValue i }));
+\definition splitInflate[x: Index]: split (inflate x) = x := sym!{Index} _ _
+  (\choiceeq \into[Index](x, { y: Index \where inflate y = inflate x }) \by { \refl(inflate x) }
+    \of Values (inflate x) \by { existence: existsValue (inflate x), uniqueness: uniqueValue (inflate x) });
+\module Tuples(A: \Set);

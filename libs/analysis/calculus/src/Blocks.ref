@@ -1,0 +1,133 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import real.Analysis[] \as Scalars;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition dimension: N.Nat^ := Indices.total;
+\import topological_algebra.Euclidean[].Dimension[n := dimension] \as Source;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Left;
+\import topological_algebra.Euclidean[].Dimension[n := m] \as Right;
+\import Source.Norm[] \as SourceNorm;
+\import Source.Def[] \as SourceCoordinates;
+\import Left.Norm[] \as LeftNorm;
+\import Right.Norm[] \as RightNorm;
+\import Left.Def[] \as LeftCoordinates;
+\import Right.Def[] \as RightCoordinates;
+\import Indices.Tuples[A := Scalars.Real] \as Tuples;
+\definition left[x: Source.Point][i: Fin.Fin n]: Scalars.Real := x (Indices.left i);
+\definition right[x: Source.Point][i: Fin.Fin m]: Scalars.Real := x (Indices.right i);
+\definition join[x: Left.Point][y: Right.Point]: Source.Point := Tuples.join x y;
+\definition leftJoin[x: Left.Point][y: Right.Point]: left (join x y) = x := \axiom:funext(left (join x y), x, Tuples.atLeft x y);
+\definition rightJoin[x: Left.Point][y: Right.Point]: right (join x y) = y := \axiom:funext(right (join x y), y, Tuples.atRight x y);
+\definition recover[x: Source.Point]: join (left x) (right x) = x := Tuples.recover x;
+\import Scalars.Estimates[] \as Estimates;
+\definition leftDistance[x, y: Source.Point]: R.Le (LeftNorm.metric.distance (left x) (left y)) (SourceNorm.metric.distance x y) :=
+  LeftNorm.finiteUpper n (LeftCoordinates.subPoint (left x) (left y)) (SourceNorm.metric.distance x y) (SourceNorm.metric.nonnegative x y)
+    (\fun (i: Fin.Fin n) => R.leReplaceLeft (Scalars.distance (x (Indices.left i)) (y (Indices.left i)))
+      (Scalars.distance (Scalars.sub (left x i) (left y i)) Scalars.zero) (SourceNorm.metric.distance x y)
+      (sym!{Scalars.Real} _ _ (Estimates.distanceDifference (left x i) (left y i))) (SourceNorm.coordinateDistance x y (Indices.left i)));
+\definition rightDistance[x, y: Source.Point]: R.Le (RightNorm.metric.distance (right x) (right y)) (SourceNorm.metric.distance x y) :=
+  RightNorm.finiteUpper m (RightCoordinates.subPoint (right x) (right y)) (SourceNorm.metric.distance x y) (SourceNorm.metric.nonnegative x y)
+    (\fun (i: Fin.Fin m) => R.leReplaceLeft (Scalars.distance (x (Indices.right i)) (y (Indices.right i)))
+      (Scalars.distance (Scalars.sub (right x i) (right y i)) Scalars.zero) (SourceNorm.metric.distance x y)
+      (sym!{Scalars.Real} _ _ (Estimates.distanceDifference (right x i) (right y i))) (SourceNorm.coordinateDistance x y (Indices.right i)));
+\import \root.Real[].Multivariable[n := dimension].Open[] \as SourceOpen;
+\import \root.Real[].Multivariable[n := n].Open[] \as LeftOpen;
+\import \root.Real[].Multivariable[n := m].Open[] \as RightOpen;
+\import Scalars.Distance[] \as Distance;
+\import Estimates.Product[] \as Product;
+\definition product[U: LeftOpen.OpenSet][V: RightOpen.OpenSet]: SourceOpen.OpenSet := SourceOpen.OpenSet {
+  points := { x: Source.Point \where Logic.And[\In[Left.Point] U.points (left x), \In[Right.Point] V.points (right x)] },
+  open := \fun (a: Source.Point)(inside: Logic.And[\In[Left.Point] U.points (left a), \In[Right.Point] V.points (right a)]) => \block {
+    \takefrom dl: \Cast[Scalars.Real] ({ dl: Scalars.Real \where LeftOpen.BallInside[U.points, left a, dl] }) \by U.open (left a) inside.left \then
+    \takefrom dr: \Cast[Scalars.Real] ({ dr: Scalars.Real \where RightOpen.BallInside[V.points, right a, dr] }) \by V.open (right a) inside.right \then
+    \let l: LeftOpen.BallInside[U.points, left a, dl] := \bysub(Scalars.Real, { dl: Scalars.Real \where LeftOpen.BallInside[U.points, left a, dl] }, dl) \then
+    \let r: RightOpen.BallInside[V.points, right a, dr] := \bysub(Scalars.Real, { dr: Scalars.Real \where RightOpen.BallInside[V.points, right a, dr] }, dr) \then
+    \return Logic.existsIntro[Scalars.Real, { radius: Scalars.Real \where SourceOpen.BallInside[
+      { x: Source.Point \where Logic.And[\In[Left.Point] U.points (left x), \In[Right.Point] V.points (right x)] }, a, radius] }] (Distance.min dl dr)
+      (SourceOpen.BallInside[{ x: Source.Point \where Logic.And[\In[Left.Point] U.points (left x), \In[Right.Point] V.points (right x)] }, a, Distance.min dl dr] {
+        positive := Product.minPositive dl dr l.positive r.positive,
+        included := \fun (x: Source.Point)(near: _) => Logic.And[_, _]::#
+          (l.included (left x) (R.leLtTrans _ _ _ (leftDistance x a) (R.ltLeTrans _ (Distance.min dl dr) dl near (Distance.minLeft dl dr))))
+          (r.included (right x) (R.leLtTrans _ _ _ (rightDistance x a) (R.ltLeTrans _ (Distance.min dl dr) dr near (Distance.minRight dl dr)))),
+      })
+  },
+};
+\module On(U: LeftOpen.OpenSet, V: RightOpen.OpenSet);
+\module FixedRight(U: LeftOpen.OpenSet, V: SourceOpen.OpenSet, c: Right.Point);
+\import \root.Vector[n := m, m := dimension] \as RightVectors;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition rightLinear: RightVectors.LinearMap := RightVectors.LinearMap {
+  apply := join LeftCoordinates.origin,
+  preservesAdd := \fun (x, y: Right.Point) => \axiom:funext(join LeftCoordinates.origin (RightCoordinates.addPoint x y),
+    SourceCoordinates.addPoint (join LeftCoordinates.origin x) (join LeftCoordinates.origin y), \fun (k: Fin.Fin dimension) =>
+      (\induction (s: Indices.Index) \return Tuples.evaluate LeftCoordinates.origin (RightCoordinates.addPoint x y) s = Scalars.add
+        (Tuples.evaluate LeftCoordinates.origin x s) (Tuples.evaluate LeftCoordinates.origin y s) \with {
+        | inl: \fun (i: Fin.Fin n) => sym!{Scalars.Real} _ _ (Laws.addZeroLeft Scalars.zero)
+        | inr: \fun (i: Fin.Fin m) => \refl(Scalars.add (x i) (y i))
+      }) (Indices.split k)),
+  preservesScale := \fun (c: Scalars.Real)(x: Right.Point) => \axiom:funext(join LeftCoordinates.origin (RightCoordinates.scale c x),
+    SourceCoordinates.scale c (join LeftCoordinates.origin x), \fun (k: Fin.Fin dimension) =>
+      (\induction (s: Indices.Index) \return Tuples.evaluate LeftCoordinates.origin (RightCoordinates.scale c x) s = Scalars.mul c (Tuples.evaluate LeftCoordinates.origin x s) \with {
+        | inl: \fun (i: Fin.Fin n) => sym!{Scalars.Real} _ _ (Laws.fieldMulZeroRight c)
+        | inr: \fun (i: Fin.Fin m) => \refl(Scalars.mul c (x i))
+      }) (Indices.split k)),
+};
+\definition fixedLeftAffine[c: Left.Point][x: Right.Point]: join c x = SourceCoordinates.addPoint (join c RightCoordinates.origin) (rightLinear.apply x) :=
+  \axiom:funext(join c x, SourceCoordinates.addPoint (join c RightCoordinates.origin) (rightLinear.apply x), \fun (k: Fin.Fin dimension) =>
+    (\induction (s: Indices.Index) \return Tuples.evaluate c x s = Scalars.add (Tuples.evaluate c RightCoordinates.origin s) (Tuples.evaluate LeftCoordinates.origin x s) \with {
+      | inl: \fun (i: Fin.Fin n) => sym!{Scalars.Real} _ _ (Laws.addZeroRight (c i))
+      | inr: \fun (i: Fin.Fin m) => sym!{Scalars.Real} _ _ (Laws.addZeroLeft (x i))
+    }) (Indices.split k));
+\definition fixedRightDistance[x, y: Left.Point][c: Right.Point]: R.Le (SourceNorm.metric.distance (join x c) (join y c)) (LeftNorm.metric.distance x y) := \block {
+  \let bound: Scalars.Real := LeftNorm.metric.distance x y \then
+  \let coordinate: \forall (s: Indices.Index) -> R.Le (Scalars.distance (join x c (Indices.inflate s)) (join y c (Indices.inflate s))) bound :=
+    \induction (s: Indices.Index) \return R.Le (Scalars.distance (join x c (Indices.inflate s)) (join y c (Indices.inflate s))) bound \with {
+      | inl: \fun (i: Fin.Fin n) => R.leReplaceLeft (Scalars.distance (x i) (y i)) (Scalars.distance (join x c (Indices.left i)) (join y c (Indices.left i))) bound
+        (congr2!{Scalars.Real Scalars.Real Scalars.Real} Scalars.distance _ _ _ _ (sym!{Scalars.Real} _ _ (Tuples.atLeft x c i)) (sym!{Scalars.Real} _ _ (Tuples.atLeft y c i)))
+        (LeftNorm.coordinateDistance x y i)
+      | inr: \fun (i: Fin.Fin m) => R.leReplaceLeft Scalars.zero (Scalars.distance (join x c (Indices.right i)) (join y c (Indices.right i))) bound
+        (sym!{Scalars.Real} _ _ (trans!{Scalars.Real} _ _ _
+          (congr2!{Scalars.Real Scalars.Real Scalars.Real} Scalars.distance _ _ _ _ (Tuples.atRight x c i) (Tuples.atRight y c i)) (Distance.distanceSelf (c i))))
+        (LeftNorm.metric.nonnegative x y)
+    } \then
+  \return SourceNorm.finiteUpper dimension (SourceCoordinates.subPoint (join x c) (join y c)) bound (LeftNorm.metric.nonnegative x y)
+    (\fun (k: Fin.Fin dimension) => R.leReplaceLeft
+      (Scalars.distance (join x c (Indices.inflate (Indices.split k))) (join y c (Indices.inflate (Indices.split k))))
+      (Scalars.distance (Scalars.sub (join x c k) (join y c k)) Scalars.zero) bound
+      (trans!{Scalars.Real} _ _ _ (congr2!{Scalars.Real Scalars.Real Scalars.Real} Scalars.distance _ _ _ _
+        (congr!{{Fin.Fin dimension} Scalars.Real} (join x c) _ _ (Indices.inflateSplit k))
+        (congr!{{Fin.Fin dimension} Scalars.Real} (join y c) _ _ (Indices.inflateSplit k)))
+        (sym!{Scalars.Real} _ _ (Estimates.distanceDifference (join x c k) (join y c k)))) (coordinate (Indices.split k)))
+};
+
+\module FixedLeft(U: RightOpen.OpenSet, V: SourceOpen.OpenSet, c: Left.Point);
+\definition fixedLeftDistance[x, y: Right.Point][c: Left.Point]: R.Le (SourceNorm.metric.distance (join c x) (join c y)) (RightNorm.metric.distance x y) := \block {
+  \let bound: Scalars.Real := RightNorm.metric.distance x y \then
+  \let coordinate: \forall (s: Indices.Index) -> R.Le (Scalars.distance (join c x (Indices.inflate s)) (join c y (Indices.inflate s))) bound :=
+    \induction (s: Indices.Index) \return R.Le (Scalars.distance (join c x (Indices.inflate s)) (join c y (Indices.inflate s))) bound \with {
+      | inl: \fun (i: Fin.Fin n) => R.leReplaceLeft Scalars.zero (Scalars.distance (join c x (Indices.left i)) (join c y (Indices.left i))) bound
+        (sym!{Scalars.Real} _ _ (trans!{Scalars.Real} _ _ _
+          (congr2!{Scalars.Real Scalars.Real Scalars.Real} Scalars.distance _ _ _ _ (Tuples.atLeft c x i) (Tuples.atLeft c y i)) (Distance.distanceSelf (c i))))
+        (RightNorm.metric.nonnegative x y)
+      | inr: \fun (i: Fin.Fin m) => R.leReplaceLeft (Scalars.distance (x i) (y i)) (Scalars.distance (join c x (Indices.right i)) (join c y (Indices.right i))) bound
+        (congr2!{Scalars.Real Scalars.Real Scalars.Real} Scalars.distance _ _ _ _ (sym!{Scalars.Real} _ _ (Tuples.atRight c x i)) (sym!{Scalars.Real} _ _ (Tuples.atRight c y i)))
+        (RightNorm.coordinateDistance x y i)
+    } \then
+  \return SourceNorm.finiteUpper dimension (SourceCoordinates.subPoint (join c x) (join c y)) bound (RightNorm.metric.nonnegative x y)
+    (\fun (k: Fin.Fin dimension) => R.leReplaceLeft
+      (Scalars.distance (join c x (Indices.inflate (Indices.split k))) (join c y (Indices.inflate (Indices.split k))))
+      (Scalars.distance (Scalars.sub (join c x k) (join c y k)) Scalars.zero) bound
+      (trans!{Scalars.Real} _ _ _ (congr2!{Scalars.Real Scalars.Real Scalars.Real} Scalars.distance _ _ _ _
+        (congr!{{Fin.Fin dimension} Scalars.Real} (join c x) _ _ (Indices.inflateSplit k))
+        (congr!{{Fin.Fin dimension} Scalars.Real} (join c y) _ _ (Indices.inflateSplit k)))
+        (sym!{Scalars.Real} _ _ (Estimates.distanceDifference (join c x k) (join c y k)))) (coordinate (Indices.split k)))
+};
+\module LeftSection(V: SourceOpen.OpenSet, c: Left.Point);

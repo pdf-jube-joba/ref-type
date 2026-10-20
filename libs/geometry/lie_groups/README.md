@@ -7,6 +7,7 @@
 | --- | --- |
 | `Smooth.Between` | 関数の滑らかさ、同じ関数を表す滑らかな写像の一意性、定数写像 |
 | `Dimension.OnManifold.On` | 単位元の接空間、滑らかな共役写像、随伴線形写像 `Ad` |
+| `Dimension.OnManifold.On.LocalProduct` | 単位元付近の積の滑らかな座標表示と、その微分から得る局所ベクトル場 |
 | `Dimension.OnManifold.On.OneParameter` | 滑らかな一径数部分群、零での速度、積分データから得る `exp` |
 | `Classical.On.Orthogonal` | 双線形形式を保つ可逆線形写像の群 |
 | `Classical.On.Orthogonal.Special` | 指定次数の全交代形式を保つ部分群 |
@@ -15,6 +16,10 @@
 
 `Ad g` は共役写像 \(x\mapsto gxg^{-1}\) の単位元での微分である。
 微分の値域となる接空間を、共役写像が単位元を固定する等式で単位元の接空間に移している。
+
+`LocalProduct.VectorField` は、指定した接ベクトルと積のヤコビアンから座標ベクトル場を構成する。
+`Initial.atInitial` は、その単位元での値が指定した接ベクトルの座標に一致することを示す。
+`LocalCurve` は局所微分方程式の解から、単位元を通る滑らかな群上の曲線を構成する。
 
 `OneParameter.Integration` は、各接ベクトルをその零での速度に持つ一径数部分群の族である。
 `OneParameter.exp integration v` は、その一径数部分群の時刻 \(1\) の値を返す。

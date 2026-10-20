@@ -1,0 +1,38 @@
+/* Local coordinate expressions of left translations. */
+\import Blocks.LeftSection[V := Joint.domain, c := g] \as Section;
+\definition domain: Open.OpenSet := Section.domain;
+\definition point[x: Open.Carrier domain]: JointOpen.Carrier Joint.domain := Section.apply x;
+\import calculus.Maps[n := n, m := dimension].Composition[U := domain, V := Joint.domain, f := Section.map].After[l := n, W := chart.image, g := joint] \as Composition;
+\import calculus.Maps[n := n, m := n] \as CoordinateMaps;
+\definition map: CoordinateMaps.Map domain chart.image := Composition.compose;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Vectors;
+\definition inImage: Open.Included domain chart.image := \fun (x: Vectors.Point)(member: _) => \block {
+  \let value: Open.Carrier domain := \into[Vectors.Point](x, domain.points) \by { member } \then
+  \let image: Open.Carrier chart.image := Product.rightPoint (Joint.leftCoordinate (point value)) \then
+  \return \idelim image = x \with p: Vectors.Point => \In[Vectors.Point] chart.image.points p \by {
+    base: \bysub(Vectors.Point, chart.image.points, image), equality: Blocks.rightJoin g x
+  }
+};
+\definition input[x: Open.Carrier domain]: Open.Carrier chart.image := Open.inclusion domain chart.image inImage x;
+\definition formula: \forall (x: Open.Carrier domain) -> Charts.point chart (CoordinateMaps.apply domain chart.image map x) =
+  mul (Charts.point chart g) (Charts.point chart (input x)) := \block {
+  \fun (x: Open.Carrier domain) \then
+  \let leftCoordinate: Product.leftPoint (Joint.leftCoordinate (point x)) = g := Blocks.leftJoin g x \then
+  \let rightCoordinate: Product.rightPoint (Joint.leftCoordinate (point x)) = input x := Blocks.rightJoin g x \then
+  \return trans!{Point} _ _ _ (productPoint (point x)) (congr2!{Point Point Point} mul _ _ _ _
+    (congr!{{Open.Carrier chart.image} Point} (\fun (p: Open.Carrier chart.image) => Charts.point chart p) _ _ leftCoordinate)
+    (congr!{{Open.Carrier chart.image} Point} (\fun (p: Open.Carrier chart.image) => Charts.point chart p) _ _ rightCoordinate))
+};
+\definition contains[h: Open.Carrier chart.image]: Charts.Contains chart (mul (Charts.point chart g) (Charts.point chart h)) ->
+  \In[Vectors.Point] domain.points h := \fun (inside: _) => Section.intro h (intro g h inside);
+\definition containsOrigin: \In[Vectors.Point] domain.points origin := contains origin (\idelim Charts.point chart g = mul (Charts.point chart g) (Charts.point chart origin)
+  \with p: Point => Charts.Contains chart p \by {
+    base: \bysub(Point, chart.domain, Charts.point chart g),
+    equality: sym!{Point} _ _ (trans!{Point} _ _ _
+      (congr!{Point Point} (mul (Charts.point chart g)) _ _ (ChartLaws.pointCoordinate (AtOne.localPoint chart))) (Operations.oneRight (Charts.point chart g)))
+  });
+\definition initial: Open.Carrier domain := \into[Vectors.Point](origin, domain.points) \by { containsOrigin };
+\definition atOrigin: CoordinateMaps.apply domain chart.image map initial = g := ChartLaws.pointInjective
+  (CoordinateMaps.apply domain chart.image map initial) g (trans!{Point} _ _ _ (formula initial)
+    (trans!{Point} _ _ _ (congr!{Point Point} (mul (Charts.point chart g)) _ _ (ChartLaws.pointCoordinate (AtOne.localPoint chart))) (Operations.oneRight (Charts.point chart g))));
+\module At(a: Open.Carrier domain);

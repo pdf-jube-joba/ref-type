@@ -1,0 +1,26 @@
+\import ODE.Regularity[solution := solution] \as Curve;
+\import calculus.Real[].OneDimension[] \as One;
+\import One.Interval[left := Reals.neg solution.radius, right := solution.radius] \as Time;
+\import calculus.Maps[n := n, m := n].Restriction[U := domain, V := chart.image, W := chart.image] \as Inclusion;
+\import calculus.Identity[n := n] \as Identity;
+\definition inclusion: Fields.Map domain chart.image := Inclusion.input inChart (Identity.map chart.image);
+\import calculus.Maps[n := One.dimension, m := n].Composition[U := Time.domain, V := domain, f := Curve.map].After[l := n, W := chart.image, g := inclusion] \as Coordinates;
+\definition coordinates: calculus.Maps[n := One.dimension, m := n].Map Time.domain chart.image := Coordinates.compose;
+\import manifolds.EuclideanMap[n := One.dimension, m := n].Between[U := Time.domain, V := chart.image] \as Euclidean;
+\import manifolds.Dimension[n := One.dimension].Smooth[] \as TimeModel;
+\definition timeManifold: TimeModel.Manifold := Euclidean.source;
+\import manifolds.Composition[n := One.dimension, m := n, l := n].Between[M := timeManifold, N := Parametrization.source, P := manifold] \as Composition;
+\import manifolds.SmoothMap[n := One.dimension, m := n].Between[M := timeManifold, N := manifold] \as Maps;
+\definition map: Maps.Map := Composition.compose (Euclidean.map coordinates) Parametrization.map;
+\import topological_algebra.Euclidean[].Dimension[n := One.dimension] \as TimeVectors;
+\definition positive: R.Lt Reals.zero solution.radius := \bysub(Reals.Real, { r: Reals.Real \where R.Lt Reals.zero r }, solution.radius);
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as ArithmeticLaws;
+\definition zero: timeManifold.Point := \into[TimeVectors.Point]((\fun (i: One.Index) => Reals.zero), Time.domain.points) \by {
+  Logic.And[_, _]::# (ArithmeticLaws.negativeNegOfPositive solution.radius positive) positive
+};
+\definition atZero: Maps.apply map zero = one := \block {
+  \let point: Open.Carrier chart.image := calculus.Maps[n := One.dimension, m := n].apply Time.domain chart.image coordinates zero \then
+  \let same: point = origin := solution.initialValue \then
+  \return trans!{Point} _ _ _ (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ same)
+    (ChartLaws.pointCoordinate (AtOne.localPoint chart))
+};

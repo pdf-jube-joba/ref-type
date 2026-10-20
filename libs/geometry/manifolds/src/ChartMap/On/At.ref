@@ -1,0 +1,31 @@
+\import \root.Dimension[n := n].Examples[].Euclidean[].Subspace[U := chart.image] \as Source;
+\definition source: Model.Manifold := Source.smoothManifold;
+\import \root.SmoothMap[n := n, m := n].Between[M := source, N := M] \as Maps;
+\import \root.SmallAtlasSmoothMap[n := n, m := n].Between[M := source, N := M] \as Small;
+\import \root.Dimension[n := n].Atlas[M := source.Point, space := source.space] \as SourceAtlases;
+\import \root.Dimension[n := n].Chart[M := source.Point, space := source.space] \as SourceCharts;
+\import topology.Topology[Carrier := M.Point] \as Topology;
+\import Topology.Subspace[S := chart.domain] \as Domain;
+\import topology.Homeomorphism[A := Charts.LocalPoint chart, B := source.Point] \as Homeomorphisms;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition sourceAtlas: Small.SourceAtlas := \into[SourceAtlases.Atlas](Source.atlas, Small.SourceAtlas) \by {
+  \fun (c: SourceCharts.Chart)(member: _) => SourceAtlases.includedInSaturation Source.atlas c member
+};
+\definition targetAtlas: Small.TargetAtlas := \into[Atlases.Atlas](M.atlas, Small.TargetAtlas) \by {
+  \fun (c: Charts.Chart)(member: \In[Charts.Chart] M.atlas.charts c) => member
+};
+\import Small.On[source := sourceAtlas, target := targetAtlas] \as SmallAtlas;
+\definition data: Maps.Data := Maps.Data { apply := \fun (x: source.Point) => Charts.point chart x };
+\definition continuous: Maps.ContinuousMap := \into[Maps.Data](data, { data: Maps.Data \where Maps.Continuous data }) \by {
+  \fun (W: \Pow M.Point)(open: _) => (Homeomorphisms.laws (Charts.domainTopology chart.domain) (Charts.imageTopology chart.image) chart.coordinates).backwardContinuous
+    (Domain.Trace W) (Domain.traceOpen M.space W open)
+};
+\module Coordinates(right: Charts.Chart);
+\import SmallAtlas.Of[f := continuous] \as Check;
+\definition small: Check.InSmallAtlas := \fun (left: SmallAtlas.SourceChart)(right: SmallAtlas.TargetChart) =>
+  \idelim Source.standard = left \with l: SourceCharts.Chart => Maps.Coordinates[f := continuous, left := l, right := right].Smooth \by {
+    base: Coordinates[right := right].smooth (\bysub(Charts.Chart, M.atlas.charts, right)),
+    equality: sym!{SourceCharts.Chart} _ _ (\bysub(SourceCharts.Chart, sourceAtlas.charts, left))
+  };
+\definition map: Maps.Map := Check.value small;

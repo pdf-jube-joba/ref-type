@@ -14,5 +14,6 @@
 | `OpenSubmanifold.On.In` | 開部分多様体、包含とその微分 |
 | `SmallAtlasSmoothMap` / `Presentation` | アトラスによる滑らかさ判定、表示間の恒等微分同相 |
 | `Dimension.Examples` | Euclid 空間、開部分集合、一点・空多様体 |
+| `EuclideanMap.Between` / `ChartMap.On.At` | 開集合間の写像の多様体上の写像への変換、チャートによる滑らかなパラメータ表示 |
 
 [Geometry.ref](../coordinate_calculus/src/Geometry.ref) に利用例がある。

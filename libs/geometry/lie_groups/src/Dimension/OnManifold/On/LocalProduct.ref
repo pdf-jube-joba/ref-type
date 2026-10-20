@@ -1,0 +1,71 @@
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import manifolds.Dimension[n := n].Chart[M := manifold.Point, space := manifold.space] \as Charts;
+\import manifolds.ChartMap[n := n].On[M := manifold] \as Parametrizations;
+\definition active: Parametrizations.ActiveChart := \into[Charts.Chart](chart, manifold.atlas.charts) \by { AtOne.member chart };
+\import Parametrizations.At[chart := active] \as Parametrization;
+\import calculus.Blocks[n := n, m := n] \as Blocks;
+\import Blocks.On[U := chart.image, V := chart.image] \as Product;
+\definition dimension: N.Nat^ := Blocks.dimension;
+\import manifolds.Dimension[n := dimension].Smooth[] \as ProductModel;
+\import manifolds.Dimension[n := dimension].Examples[].Euclidean[].Subspace[U := Product.domain] \as Source;
+\definition source: ProductModel.Manifold := Source.smoothManifold;
+\import manifolds.EuclideanMap[n := dimension, m := n].Between[U := Product.domain, V := chart.image] \as Euclidean;
+\import manifolds.Composition[n := dimension, m := n, l := n].Between[M := source, N := Parametrization.source, P := manifold] \as Compose;
+\import manifolds.SmoothMap[n := dimension, m := n].Between[M := source, N := manifold] \as Maps;
+\definition left: Maps.Map := Compose.compose (Euclidean.map Product.leftMap) Parametrization.map;
+\definition right: Maps.Map := Compose.compose (Euclidean.map Product.rightMap) Parametrization.map;
+\import \root.Smooth[n := dimension, m := n].Between[M := source, N := manifold] \as Products;
+\definition product[x: source.Point]: Point := mul (Maps.apply left x) (Maps.apply right x);
+\definition smooth: Products.IsSmooth product := G.multiplication dimension source.Point source.space source.atlas source.hausdorff source.secondCountable
+  (Maps.apply left) (Maps.apply right) (Products.ofMap left) (Products.ofMap right);
+\definition map: Maps.Map := Products.map product smooth;
+\definition apply[x: source.Point]: Maps.apply map x = product x := congr!{{source.Point -> Point} Point} (\fun (f: source.Point -> Point) => f x) _ _ (Products.applyChosen product smooth);
+\import manifolds.Dimension[n := dimension].Atlas[M := source.Point, space := source.space] \as SourceAtlases;
+\import Maps.Coordinates[f := map, left := Source.standard, right := chart] \as Joint;
+\definition jointSmooth: Joint.Smooth := (\bysub(Maps.ContinuousMap, { f: Maps.ContinuousMap \where Maps.Chartwise f }, map)) Source.standard chart
+  (SourceAtlases.includedInSaturation Source.atlas Source.standard (\refl(Source.standard))) (AtOne.member chart);
+\import calculus.Maps[n := dimension, m := n] \as Calculus;
+\definition joint: Calculus.Map Joint.domain chart.image := Joint.map jointSmooth;
+\definition origin: Open.Carrier chart.image := AtOne.coordinate chart;
+\definition base: source.Point := Product.joinPoint origin origin;
+\import Charts.Of[chart := chart] \as ChartLaws;
+\definition leftAtBase: Maps.apply left base = one := \block {
+  \let coordinate: Product.leftPoint base = origin := Blocks.leftJoin origin origin \then
+  \return trans!{Point} _ _ _ (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ coordinate)
+    (ChartLaws.pointCoordinate (AtOne.localPoint chart))
+};
+\definition rightAtBase: Maps.apply right base = one := \block {
+  \let coordinate: Product.rightPoint base = origin := Blocks.rightJoin origin origin \then
+  \return trans!{Point} _ _ _ (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ coordinate)
+    (ChartLaws.pointCoordinate (AtOne.localPoint chart))
+};
+\use Equality.congr2;
+\definition productAtBase: Maps.apply map base = one := trans!{Point} _ _ _ (apply base)
+  (trans!{Point} _ _ _ (congr2!{Point Point Point} mul _ _ _ _ leftAtBase rightAtBase) (Operations.oneLeft one));
+\definition containsBase: Charts.Contains chart (Maps.apply map base) := \idelim one = Maps.apply map base \with p: Point => Charts.Contains chart p \by {
+  base: AtOne.contains chart, equality: sym!{Point} _ _ productAtBase
+};
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as JointOpen;
+\definition baseInDomain: \In[topological_algebra.Euclidean[].Dimension[n := dimension].Point] Joint.domain.points base := Joint.intro base containsBase;
+\definition basePoint: JointOpen.Carrier Joint.domain := \into[topological_algebra.Euclidean[].Dimension[n := dimension].Point](base, Joint.domain.points) \by { baseInDomain };
+\definition Neighborhood: \Set := \Cast[Reals.Real] ({ radius: Reals.Real \where JointOpen.BallInside[Joint.domain.points, basePoint, radius] });
+\definition neighborhoodExists: \exists Neighborhood := Joint.domain.open basePoint baseInDomain;
+\definition factors[g, h: Open.Carrier chart.image]: Maps.apply map (Product.joinPoint g h) = mul (Charts.point chart g) (Charts.point chart h) := \block {
+  \let p: source.Point := Product.joinPoint g h \then
+  \let leftCoordinate: Product.leftPoint p = g := Blocks.leftJoin g h \then
+  \let rightCoordinate: Product.rightPoint p = h := Blocks.rightJoin g h \then
+  \return trans!{Point} _ _ _ (apply p) (congr2!{Point Point Point} mul _ _ _ _
+    (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ leftCoordinate)
+    (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ rightCoordinate))
+};
+\definition intro[g, h: Open.Carrier chart.image]: Charts.Contains chart (mul (Charts.point chart g) (Charts.point chart h)) ->
+  \In[topological_algebra.Euclidean[].Dimension[n := dimension].Point] Joint.domain.points (Blocks.join g h) :=
+  \fun (inside: _) => Joint.intro (Product.joinPoint g h)
+    (\idelim mul (Charts.point chart g) (Charts.point chart h) = Maps.apply map (Product.joinPoint g h) \with x: Point => Charts.Contains chart x \by {
+      base: inside, equality: sym!{Point} _ _ (factors g h)
+    });
+\definition productPoint[p: JointOpen.Carrier Joint.domain]: Charts.point chart (Joint.apply p) =
+  mul (Charts.point chart (Product.leftPoint (Joint.leftCoordinate p))) (Charts.point chart (Product.rightPoint (Joint.leftCoordinate p))) :=
+  trans!{Point} _ _ _ (Joint.returnsPoint p) (apply (Joint.leftCoordinate p));
+\module Translation(g: Open.Carrier chart.image);
+\module VectorField(v: TangentAtOne, neighborhood: Neighborhood);
