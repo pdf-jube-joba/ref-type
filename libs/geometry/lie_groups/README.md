@@ -18,6 +18,7 @@
 | `Euclidean.PinRepresentation` | twisted adjoint による Pin から O(n) への準同型と、Spin への制限 |
 | `Euclidean.InnerProduct` | 内積の正定値性、非零ベクトルの正規化、反射の有理式による表示 |
 | `Euclidean.SuccessorGeometry` | 次元を一つ増やした空間の直交補空間、最初の基底ベクトルを固定する変換の低次元への制限 |
+| `OrthogonalAtlas.Dimension[n]` | O(n) の滑らかな多様体 `manifold` とリー群 `lieGroup` |
 | `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |
 
 `Ad g` は共役写像 \(x\mapsto gxg^{-1}\) の単位元での微分である。
@@ -53,8 +54,12 @@ SO(n) は次数 \(n\) の全交代形式を保つ条件を用いる。
 正の単位ベクトルには反射を、符号には恒等変換を対応させ、積・逆元による閉性から Pin 全体へ延長する。
 `homomorphism` は群準同型、`spinHomomorphism` は Spin に制限した準同型で、`spinOnVector` はその通常の共役作用による表示である。
 
-O(n)・SO(n) のアトラスと積・逆元の滑らかさ、\(\mathfrak{so}(n)\) と単位元の接空間との同定、Pin・Spin の被覆に沿う多様体構造、有限中心商の多様体構造は構成していない。
-したがって、これら六つの具体的な群に対する `LieGroup` の値はまだ公開していない。
+`OrthogonalAtlas.atlasData` は、球面の立体射影と直交補空間への制限を使い、次元についての帰納法で O(n) の座標を構成する。
+各段階で、局所表示とその逆、チャート族の被覆性、滑らかな行列の族に沿う座標の滑らかさを証明する。
+`Euclidean.Atlas.On.FromPlots` は多様体から O(n) への写像の滑らかさを行列係数で判定し、`Lie` は積・逆元の滑らかさを示す。
+`OrthogonalAtlas.Dimension[n].lieGroup` が、標準内積の直交群に対するその値である。
+
+SO(n) のアトラス、\(\mathfrak{so}(n)\) と単位元の接空間との同定、Pin・Spin の被覆に沿う多様体構造、有限中心商の多様体構造は引き続き構成中である。
 
 ```sh
 cargo run -p cli -- libs/geometry/lie_groups --module lie_groups
