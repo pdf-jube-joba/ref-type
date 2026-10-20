@@ -1,0 +1,68 @@
+\import algebraic_topology.Homotopy[A := Interval.Carrier, B := B] \as H;
+\import algebraic_topology.SquareGluing[A := B, target := base] \as BaseGlue;
+\import algebraic_topology.Cylinder[A := Interval.Carrier] \as Square;
+\import Lifting.Squares[] \as Squares;
+\import topology.Composition[A := Interval.Carrier, B := Square.Carrier, C := E] \as Slices;
+\import topology.Maps[A := Interval.Carrier, B := Interval.Carrier] \as ParameterConstants;
+\import ParameterConstants.Identity[] \as Identity;
+\import topological_constructions.Product[A := Interval.Carrier, B := Interval.Carrier].Universal[X := Interval.Carrier] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\definition pointSlice[u, t: Interval.Carrier]: Square.Carrier := Square.at t u;
+\definition pointSliceContinuous: \forall (u: Interval.Carrier) -> topology.Continuity[A := Interval.Carrier, B := Square.Carrier].Continuous
+  Interval.topology (Square.topology Interval.topology) (pointSlice u) :=
+  \fun (u: Interval.Carrier) => Pair.pairContinuous Interval.topology Interval.topology Interval.topology (\fun (t: Interval.Carrier) => t) (\fun (_: Interval.Carrier) => u)
+    (Identity.continuous Interval.topology) (ParameterConstants.constantContinuous Interval.topology Interval.topology u);
+\definition invariant: \forall (covering: Covering)(x, y: B)(p, q: Paths.Path x y)
+  (h: H.RelativeHomotopy[Interval.topology, base, Paths.Boundary, p, q])(e: Fiber x) -> along covering x y p e = along covering x y q e := \block {
+  \fun (covering: Covering)(x, y: B)(p, q: _)(h: _)(e: _) \then
+  \let family: Square.Carrier -> B := BaseGlue.flipped h \then
+  \let initial: Interval.Carrier -> E := \fun (_: Interval.Carrier) => e \then
+  \takefrom lifted: Squares.Lift family initial \by Squares.existsLift covering family
+    (BaseGlue.flipContinuous h ((H.relativeLaws Interval.topology base Paths.Boundary p q h).homotopy).continuous) initial
+    (Constants.constantContinuous Interval.topology total e)
+    (\fun (s: Interval.Carrier) => trans!{B} _ _ _ (projectsTo x e)
+      (sym!{B} _ _ (trans!{B} _ _ _
+        ((H.relativeLaws Interval.topology base Paths.Boundary p q h).fixed s Interval.start (Logic.Or[_, _]::left (\refl(Interval.start))))
+        (Paths.laws x y p).start))) \then
+  \let first: Lifting.PathLift x y p e := \into[Interval.Carrier -> E](\fun (t: Interval.Carrier) => lifted (Square.at t Interval.start), Lifting.PathLift x y p e) \by {
+    Lifting.PathLiftLaws[x, y, p, e, \fun (t: Interval.Carrier) => lifted (Square.at t Interval.start)] {
+      continuous := Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (pointSlice Interval.start) lifted
+        (pointSliceContinuous Interval.start) (Squares.laws family initial lifted).continuous,
+      projects := \fun (t: Interval.Carrier) => trans!{B} _ _ _ ((Squares.laws family initial lifted).projects (Square.at t Interval.start))
+        (((H.relativeLaws Interval.topology base Paths.Boundary p q h).homotopy).start t),
+      starts := (Squares.laws family initial lifted).starts Interval.start,
+    }
+  } \then
+  \let second: Lifting.PathLift x y q e := \into[Interval.Carrier -> E](\fun (t: Interval.Carrier) => lifted (Square.at t Interval.end), Lifting.PathLift x y q e) \by {
+    Lifting.PathLiftLaws[x, y, q, e, \fun (t: Interval.Carrier) => lifted (Square.at t Interval.end)] {
+      continuous := Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (pointSlice Interval.end) lifted
+        (pointSliceContinuous Interval.end) (Squares.laws family initial lifted).continuous,
+      projects := \fun (t: Interval.Carrier) => trans!{B} _ _ _ ((Squares.laws family initial lifted).projects (Square.at t Interval.end))
+        (((H.relativeLaws Interval.topology base Paths.Boundary p q h).homotopy).end t),
+      starts := (Squares.laws family initial lifted).starts Interval.end,
+    }
+  } \then
+  \let endFamily: Interval.Carrier -> E := \fun (s: Interval.Carrier) => lifted (Square.at Interval.end s) \then
+  \let endContinuous: topology.Continuity[A := Interval.Carrier, B := E].Continuous Interval.topology total endFamily :=
+    Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (\fun (s: Interval.Carrier) => Square.at Interval.end s) lifted
+      (Square.atContinuous Interval.topology Interval.end) (Squares.laws family initial lifted).continuous \then
+  \let endProjects: \forall (s: Interval.Carrier) -> projection (endFamily s) = y :=
+    \fun (s: Interval.Carrier) => trans!{B} _ _ _ ((Squares.laws family initial lifted).projects (Square.at Interval.end s))
+      (trans!{B} _ _ _ ((H.relativeLaws Interval.topology base Paths.Boundary p q h).fixed s Interval.end (Logic.Or[_, _]::right (\refl(Interval.end))))
+        (Paths.laws x y p).end) \then
+  \let sameEnd: endFamily Interval.end = endFamily Interval.start :=
+    Uniqueness.endpoints covering y y (Paths.constant y) endFamily (\fun (_: Interval.Carrier) => endFamily Interval.start) endContinuous
+      (Constants.constantContinuous Interval.topology total (endFamily Interval.start)) endProjects (\fun (_: Interval.Carrier) => endProjects Interval.start) (\refl(endFamily Interval.start)) \then
+  \return trans!{E} _ _ _
+    (congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
+      (Uniqueness.pathLiftUnique covering x y p e (lift covering x y p e) first))
+    (trans!{E} _ _ _ (sym!{E} _ _ sameEnd)
+      (congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
+        (Uniqueness.pathLiftUnique covering x y q e second (lift covering x y q e))))
+};
+\definition respects: \forall (covering: Covering)(x, y: B)(p, q: Paths.Path x y) -> Paths.Homotopic x y p q ->
+  \forall (e: Fiber x) -> along covering x y p e = along covering x y q e := \block {
+  \fun (covering: Covering)(x, y: B)(p, q: _)(related: _)(e: _) \then
+  \takefrom h: H.RelativeHomotopy[Interval.topology, base, Paths.Boundary, p, q] \by related \then
+  \return invariant covering x y p q h e
+};

@@ -1,0 +1,69 @@
+\import \parent.Halves[] \as Halves;
+\import std.Data[].Nat[] \as N;
+\import Real.Geometric[q := Real.half] \as Power;
+\import Real.Estimates[].Product[] \as EstimatesProduct;
+\import topology.Composition[A := Carrier, B := Carrier, C := Carrier] \as Compose;
+\import topology.Maps[A := Carrier, B := Carrier].Identity[] \as Identity;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import metric_spaces.MetricSpace[Carrier := Real.Real].Subspace[S := Line.ClosedInterval Real.zero Real.one] \as Restricted;
+\import metric_spaces.MetricSpace[Carrier := Carrier] \as Metrics;
+\import Metrics.Topology[] \as MetricTopology;
+\import Metrics.Compactness[] \as Compactness;
+\use Equality.congr2;
+\definition Function: \Set := Carrier -> Carrier;
+\definition left[f: Function][t: Carrier]: Carrier := f (Halves.lower t);
+\definition right[f: Function][t: Carrier]: Carrier := f (Halves.upper t);
+\definition leftContinuous: \forall (f: Function) -> Maps.Continuous topology topology f -> Maps.Continuous topology topology (left f) :=
+  \fun (f: Function)(continuous: _) => Compose.composeContinuous topology topology topology Halves.lower f Halves.lowerContinuous continuous;
+\definition rightContinuous: \forall (f: Function) -> Maps.Continuous topology topology f -> Maps.Continuous topology topology (right f) :=
+  \fun (f: Function)(continuous: _) => Compose.composeContinuous topology topology topology Halves.upper f Halves.upperContinuous continuous;
+\definition Lipschitz[f: Function][r: Real.Real]: \Prop :=
+  \forall (s, t: Carrier) -> R.Le (Real.distance (f s) (f t)) (Real.mul r (Real.distance s t));
+\definition coefficient[r: Real.Real]: Real.Real := Real.mul r Real.half;
+\definition positiveCoefficient: \forall (r: Real.Real) -> R.Le Real.zero r -> R.Le Real.zero (coefficient r) :=
+  \fun (r: Real.Real)(positive: _) => Laws.fieldMulNonnegative r Real.half positive Estimates.halfNonnegative;
+\definition lowerDistance: \forall (s, t: Carrier) -> R.Le (Real.distance (Halves.lower s) (Halves.lower t)) (Real.mul Real.half (Real.distance s t)) :=
+  \fun (s, t: Carrier) => Estimates.distanceMul Real.half s t Estimates.halfNonnegative;
+\definition upperDistance: \forall (s, t: Carrier) -> R.Le (Real.distance (Halves.upper s) (Halves.upper t)) (Real.mul Real.half (Real.distance s t)) :=
+  \fun (s, t: Carrier) => R.leTrans _ (Real.distance (Halves.lower s) (Halves.lower t)) _
+    (R.leReplaceRight _ (Real.add (Real.distance Real.half Real.half) (Real.distance (Halves.lower s) (Halves.lower t)))
+      (Real.distance (Halves.lower s) (Halves.lower t))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.distance (Halves.lower s) (Halves.lower t))) _ _ (Distance.distanceSelf Real.half))
+        (Laws.addZeroLeft (Real.distance (Halves.lower s) (Halves.lower t))))
+      (Estimates.distanceAdd Real.half (Halves.lower s) Real.half (Halves.lower t))) (lowerDistance s t);
+\definition leftLipschitz: \forall (f: Function)(r: Real.Real) -> R.Le Real.zero r -> Lipschitz f r -> Lipschitz (left f) (coefficient r) :=
+  \fun (f: Function)(r: Real.Real)(positive: _)(lipschitz: _)(s, t: Carrier) => R.leReplaceRight _ _ _
+    (sym!{Real.Real} _ _ (Laws.fieldMulAssoc r Real.half (Real.distance s t)))
+    (R.leTrans _ _ _ (lipschitz (Halves.lower s) (Halves.lower t))
+      (Estimates.mulMonotone r _ _ positive (lowerDistance s t)));
+\definition rightLipschitz: \forall (f: Function)(r: Real.Real) -> R.Le Real.zero r -> Lipschitz f r -> Lipschitz (right f) (coefficient r) :=
+  \fun (f: Function)(r: Real.Real)(positive: _)(lipschitz: _)(s, t: Carrier) => R.leReplaceRight _ _ _
+    (sym!{Real.Real} _ _ (Laws.fieldMulAssoc r Real.half (Real.distance s t)))
+    (R.leTrans _ _ _ (lipschitz (Halves.upper s) (Halves.upper t))
+      (Estimates.mulMonotone r _ _ positive (upperDistance s t)));
+\definition initialDistance: \forall (f: Function)(r: Real.Real) -> R.Le Real.zero r -> Lipschitz f r ->
+  \forall (t: Carrier) -> R.Le (Real.distance (f start) (f t)) r :=
+  \fun (f: Function)(r: Real.Real)(positive: _)(lipschitz: _)(t: Carrier) => R.leTrans _ _ _ (lipschitz start t)
+    (R.leReplaceRight _ (Real.mul r Real.one) r (Algebra.mulOneRight r)
+      (Estimates.mulMonotone r _ _ positive
+        (R.leReplaceLeft t (Real.distance start t) Real.one (sym!{Real.Real} _ _ (EstimatesProduct.absOfNonnegative t (bounds t).left)) (bounds t).right)));
+\definition metric: Metrics.Metric := Restricted.restrict RealMetric.metric;
+\definition metricTopology: MetricTopology.topology metric = topology := Restricted.topology RealMetric.metric;
+\definition metricCompact: Space.IsCompact (MetricTopology.topology metric) :=
+  \idelim topology = MetricTopology.topology metric \with t: Space.Topology => Space.IsCompact t \by {
+    base: compact, equality: sym!{Space.Topology} _ _ metricTopology
+  };
+\definition Subdivided[P: Function -> \Prop]: N.Nat^ -> Function -> \Prop :=
+  \induction (n: N.Nat^) \return (Function -> \Prop) \with {
+    | zero: P
+    | succ: \fun (n: N.Nat^)(previous: Function -> \Prop)(f: Function) => Logic.And[previous (left f), previous (right f)]
+  };
+\definition recover: \forall (P: Function -> \Prop) ->
+  (\forall (f: Function) -> P (left f) -> P (right f) -> P f) ->
+  \forall (n: N.Nat^)(f: Function) -> Subdivided P n f -> P f :=
+  \fun (P: Function -> \Prop)(combine: _) => \induction (n: N.Nat^) \return (\forall (f: Function) -> Subdivided P n f -> P f) \with {
+    | zero: \fun (f: Function)(proof: P f) => proof
+    | succ: \fun (n: N.Nat^)(previous: \forall (f: Function) -> Subdivided P n f -> P f)(f: Function)(proof: Subdivided P (N.Nat^::succ n) f) =>
+      combine f (previous (left f) proof.left) (previous (right f) proof.right)
+  };
+\module Cover(family: \Pow (\Pow Carrier));

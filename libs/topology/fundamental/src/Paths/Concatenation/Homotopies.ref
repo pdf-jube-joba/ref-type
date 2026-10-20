@@ -1,0 +1,125 @@
+\import algebraic_topology.Homotopy[A := Interval.Carrier, B := A] \as H;
+\import algebraic_topology.Homotopy[A := Interval.Carrier, B := A].Concatenation[] \as FamilyJoin;
+\import algebraic_topology.TimeSubdivision[A := Interval.Carrier] \as SquareSubdivision;
+\import topological_constructions.Product[A := Interval.Carrier, B := Interval.Carrier].Universal[X := Square.Carrier] \as Pair;
+\import topology.Composition[A := Square.Carrier, B := Square.Carrier, C := A] \as Compose;
+\import topological_constructions.Gluing[A := Square.Carrier, B := A].Pasting[F := SquareSubdivision.LeftSet, G := SquareSubdivision.RightSet] \as SquarePasting;
+\definition swap[p: Square.Carrier]: Square.Carrier := Square.at (Square.point p) (Square.time p);
+\definition swapContinuous: topology.Continuity[A := Square.Carrier, B := Square.Carrier].Continuous
+  (Square.topology Interval.topology) (Square.topology Interval.topology) swap :=
+  Pair.pairContinuous (Square.topology Interval.topology) Interval.topology Interval.topology Square.point Square.time
+    (Square.pointContinuous Interval.topology) (Square.timeContinuous Interval.topology);
+\definition constantFunction[x: A]: Function := \fun (_: Interval.Carrier) => x;
+\definition sideways[x, y: A][p, q: Path x y]
+  [h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, q]]:
+  H.Homotopy[Interval.topology, source, constantFunction x, constantFunction y] :=
+  \into[H.Family](\fun (r: Square.Carrier) => h (swap r),
+    H.Homotopy[Interval.topology, source, constantFunction x, constantFunction y]) \by {
+    H.Laws[Interval.topology, source, constantFunction x, constantFunction y, \fun (r: Square.Carrier) => h (swap r)] {
+      continuous := Compose.composeContinuous (Square.topology Interval.topology) (Square.topology Interval.topology) source swap h
+        swapContinuous ((H.relativeLaws Interval.topology source Boundary p q h).homotopy).continuous,
+      start := \fun (s: Interval.Carrier) => trans!{A} _ _ _
+        ((H.relativeLaws Interval.topology source Boundary p q h).fixed s Interval.start (Logic.Or[_, _]::left (\refl(Interval.start))))
+        (laws x y p).start,
+      end := \fun (s: Interval.Carrier) => trans!{A} _ _ _
+        ((H.relativeLaws Interval.topology source Boundary p q h).fixed s Interval.end (Logic.Or[_, _]::right (\refl(Interval.end))))
+        (laws x y p).end,
+    }
+  };
+\definition joined[x, y, z: A][p, p2: Path x y][q, q2: Path y z]
+  [h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2]]
+  [j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2]]:
+  H.Homotopy[Interval.topology, source, constantFunction x, constantFunction z] :=
+  FamilyJoin.concatenate Interval.topology source (constantFunction x) (constantFunction y) (constantFunction z)
+    (sideways x y p p2 h) (sideways y z q q2 j);
+\definition combined[x, y, z: A][p, p2: Path x y][q, q2: Path y z]
+  [h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2]]
+  [j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2]]: H.Family :=
+  \fun (r: Square.Carrier) => joined x y z p p2 q q2 h j (swap r);
+\definition left: \forall (x, y, z: A)(p, p2: Path x y)(q, q2: Path y z)
+  (h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2])
+  (j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2])
+  (s, t: Interval.Carrier)(member: Left t) ->
+  combined x y z p p2 q q2 h j (Square.at s t) = h (Square.at s (leftTime t member)) :=
+  \fun (x, y, z: A)(p, p2: _)(q, q2: _)(h: _)(j: _)(s, t: _)(member: _) => SquarePasting.onLeft
+    (\fun (r: SquareSubdivision.Left) => sideways x y p p2 h (SquareSubdivision.leftMap r))
+    (\fun (r: SquareSubdivision.Right) => sideways y z q q2 j (SquareSubdivision.rightMap r)) SquareSubdivision.covered
+    (FamilyJoin.compatible Interval.topology source (constantFunction x) (constantFunction y) (constantFunction z)
+      (sideways x y p p2 h) (sideways y z q q2 j))
+    (\into[Square.Carrier](Square.at t s, SquareSubdivision.LeftSet) \by { member });
+\definition right: \forall (x, y, z: A)(p, p2: Path x y)(q, q2: Path y z)
+  (h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2])
+  (j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2])
+  (s, t: Interval.Carrier)(member: Right t) ->
+  combined x y z p p2 q q2 h j (Square.at s t) = j (Square.at s (rightTime t member)) :=
+  \fun (x, y, z: A)(p, p2: _)(q, q2: _)(h: _)(j: _)(s, t: _)(member: _) => SquarePasting.onRight
+    (\fun (r: SquareSubdivision.Left) => sideways x y p p2 h (SquareSubdivision.leftMap r))
+    (\fun (r: SquareSubdivision.Right) => sideways y z q q2 j (SquareSubdivision.rightMap r)) SquareSubdivision.covered
+    (FamilyJoin.compatible Interval.topology source (constantFunction x) (constantFunction y) (constantFunction z)
+      (sideways x y p p2 h) (sideways y z q q2 j))
+    (\into[Square.Carrier](Square.at t s, SquareSubdivision.RightSet) \by { member });
+\definition initial: \forall (x, y, z: A)(p, p2: Path x y)(q, q2: Path y z)
+  (h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2])
+  (j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2])(t: Interval.Carrier) ->
+  combined x y z p p2 q q2 h j (Square.at Interval.start t) = concatenate x y z p q t :=
+  \fun (x, y, z: A)(p, p2: _)(q, q2: _)(h: _)(j: _)(t: _) => either!{{(covered t)} {_}
+    {\fun (member: _) => trans!{A} _ _ _ (left x y z p p2 q q2 h j Interval.start t member)
+      (trans!{A} _ _ _ (((H.relativeLaws Interval.topology source Boundary p p2 h).homotopy).start (leftTime t member))
+        (sym!{A} _ _ (onLeft x y z p q t member)))}
+    {\fun (member: _) => trans!{A} _ _ _ (right x y z p p2 q q2 h j Interval.start t member)
+      (trans!{A} _ _ _ (((H.relativeLaws Interval.topology source Boundary q q2 j).homotopy).start (rightTime t member))
+        (sym!{A} _ _ (onRight x y z p q t member)))}};
+\definition final: \forall (x, y, z: A)(p, p2: Path x y)(q, q2: Path y z)
+  (h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2])
+  (j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2])(t: Interval.Carrier) ->
+  combined x y z p p2 q q2 h j (Square.at Interval.end t) = concatenate x y z p2 q2 t :=
+  \fun (x, y, z: A)(p, p2: _)(q, q2: _)(h: _)(j: _)(t: _) => either!{{(covered t)} {_}
+    {\fun (member: _) => trans!{A} _ _ _ (left x y z p p2 q q2 h j Interval.end t member)
+      (trans!{A} _ _ _ (((H.relativeLaws Interval.topology source Boundary p p2 h).homotopy).end (leftTime t member))
+        (sym!{A} _ _ (onLeft x y z p2 q2 t member)))}
+    {\fun (member: _) => trans!{A} _ _ _ (right x y z p p2 q q2 h j Interval.end t member)
+      (trans!{A} _ _ _ (((H.relativeLaws Interval.topology source Boundary q q2 j).homotopy).end (rightTime t member))
+        (sym!{A} _ _ (onRight x y z p2 q2 t member)))}};
+\definition fixed: \forall (x, y, z: A)(p, p2: Path x y)(q, q2: Path y z)
+  (h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2])
+  (j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2])(s, t: Interval.Carrier) ->
+  \In[Interval.Carrier] Boundary t -> combined x y z p p2 q q2 h j (Square.at s t) = concatenate x y z p q t :=
+  \fun (x, y, z: A)(p, p2: _)(q, q2: _)(h: _)(j: _)(s, t: _)(boundary: _) => either!{{boundary} {_}
+    {\fun (atStart: _) => eq_reason!{{combined x y z p p2 q q2 h j (Square.at s t)}
+      "=" {combined x y z p p2 q q2 h j (Square.at s Interval.start)} "by" {
+        congr!{Interval.Carrier A} (\fun (u: Interval.Carrier) => combined x y z p p2 q q2 h j (Square.at s u)) _ _ atStart}
+      "=" x "by" {(H.laws Interval.topology source (constantFunction x) (constantFunction z) (joined x y z p p2 q q2 h j)).start s}
+      "=" {concatenate x y z p q Interval.start} "by" {sym!{A} _ _ (laws x z (concatenate x y z p q)).start}
+      "=" {concatenate x y z p q t} "by" {congr!{Interval.Carrier A} (concatenate x y z p q) _ _ (sym!{Interval.Carrier} _ _ atStart)}}}
+    {\fun (atEnd: _) => eq_reason!{{combined x y z p p2 q q2 h j (Square.at s t)}
+      "=" {combined x y z p p2 q q2 h j (Square.at s Interval.end)} "by" {
+        congr!{Interval.Carrier A} (\fun (u: Interval.Carrier) => combined x y z p p2 q q2 h j (Square.at s u)) _ _ atEnd}
+      "=" z "by" {(H.laws Interval.topology source (constantFunction x) (constantFunction z) (joined x y z p p2 q q2 h j)).end s}
+      "=" {concatenate x y z p q Interval.end} "by" {sym!{A} _ _ (laws x z (concatenate x y z p q)).end}
+      "=" {concatenate x y z p q t} "by" {congr!{Interval.Carrier A} (concatenate x y z p q) _ _ (sym!{Interval.Carrier} _ _ atEnd)}}}};
+\definition homotopy[x, y, z: A][p, p2: Path x y][q, q2: Path y z]
+  [h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2]]
+  [j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2]]:
+  H.RelativeHomotopy[Interval.topology, source, Boundary, concatenate x y z p q, concatenate x y z p2 q2] :=
+  \into[H.Family](combined x y z p p2 q q2 h j,
+    H.RelativeHomotopy[Interval.topology, source, Boundary, concatenate x y z p q, concatenate x y z p2 q2]) \by {
+    H.RelativeLaws[Interval.topology, source, Boundary, concatenate x y z p q, concatenate x y z p2 q2, combined x y z p p2 q q2 h j] {
+      homotopy := H.Laws[Interval.topology, source, concatenate x y z p q, concatenate x y z p2 q2, combined x y z p p2 q q2 h j] {
+        continuous := Compose.composeContinuous (Square.topology Interval.topology) (Square.topology Interval.topology) source swap
+          (joined x y z p p2 q q2 h j) swapContinuous
+          (H.laws Interval.topology source (constantFunction x) (constantFunction z) (joined x y z p p2 q q2 h j)).continuous,
+        start := initial x y z p p2 q q2 h j,
+        end := final x y z p p2 q q2 h j,
+      },
+      fixed := fixed x y z p p2 q q2 h j,
+    }
+  };
+\definition respects: \forall (x, y, z: A)(p, p2: Path x y)(q, q2: Path y z) ->
+  Homotopic x y p p2 -> Homotopic y z q q2 ->
+  Homotopic x z (concatenate x y z p q) (concatenate x y z p2 q2) := \block {
+  \fun (x, y, z: A)(p, p2: _)(q, q2: _)(first: _)(second: _) \then
+  \takefrom h: H.RelativeHomotopy[Interval.topology, source, Boundary, p, p2] \by first \then
+  \takefrom j: H.RelativeHomotopy[Interval.topology, source, Boundary, q, q2] \by second \then
+  \return \exact(homotopy x y z p p2 q q2 h j,
+    H.RelativeHomotopy[Interval.topology, source, Boundary, concatenate x y z p q, concatenate x y z p2 q2])
+};

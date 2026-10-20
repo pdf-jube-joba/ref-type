@@ -1,0 +1,132 @@
+\import \root.Cylinder[A := Carrier] \as Square;
+\import \parent.Subdivision[] \as Subdivision;
+\import \parent.Halves[] \as Halves;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := Carrier, B := Carrier] \as PairLaws;
+\import metric_spaces.MetricSpace[Carrier := Square.Carrier] \as Metrics;
+\import Metrics.Topology[] \as MetricTopology;
+\import Metrics.Compactness[] \as Compactness;
+\import topology.Topology[Carrier := Square.Carrier] \as SquareSpace;
+\import SquareSpace.Ext[] \as Ext;
+\import topological_constructions.Product[A := Carrier, B := Carrier] \as Product;
+\import Product.Compactness[] \as Rectangles;
+\import Product.Universal[X := Square.Carrier] \as Pairing;
+\import metric_spaces.MetricSpace[Carrier := Carrier] \as IntervalMetrics;
+\import IntervalMetrics.Topology[] \as IntervalMetricTopology;
+\import Real.Geometric[q := Real.half] \as Power;
+\use Equality.congr2;
+\use Logic.either;
+\definition distance[x, y: Square.Carrier]: Real.Real :=
+  Distance.max (Real.distance (Square.time x) (Square.time y)) (Real.distance (Square.point x) (Square.point y));
+\definition metric: Metrics.Metric := Metrics.Metric {
+  distance := distance,
+  nonnegative := \fun (x, y: Square.Carrier) => R.leTrans _ _ _ (Distance.distanceNonnegative (Square.time x) (Square.time y))
+    (Distance.maxLeft (Real.distance (Square.time x) (Square.time y)) (Real.distance (Square.point x) (Square.point y))),
+  self := \fun (x: Square.Carrier) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Distance.max _ _ _ _ (Distance.distanceSelf (Square.time x)) (Distance.distanceSelf (Square.point x))) (Distance.maxSame Real.zero),
+  separated := \fun (x, y: Square.Carrier)(zero: _) => PairLaws.ext x y
+    (Distance.distanceSeparated (Square.time x) (Square.time y) (R.leAntisym _ Real.zero
+      (R.leReplaceRight _ _ _ zero (Distance.maxLeft (Real.distance (Square.time x) (Square.time y)) (Real.distance (Square.point x) (Square.point y))))
+      (Distance.distanceNonnegative (Square.time x) (Square.time y))))
+    (Distance.distanceSeparated (Square.point x) (Square.point y) (R.leAntisym _ Real.zero
+      (R.leReplaceRight _ _ _ zero (Distance.maxRight (Real.distance (Square.time x) (Square.time y)) (Real.distance (Square.point x) (Square.point y))))
+      (Distance.distanceNonnegative (Square.point x) (Square.point y)))),
+  symmetric := \fun (x, y: Square.Carrier) => congr2!{Real.Real Real.Real Real.Real} Distance.max _ _ _ _
+    (Distance.distanceSymmetric (Square.time x) (Square.time y)) (Distance.distanceSymmetric (Square.point x) (Square.point y)),
+  triangle := \fun (x, y, z: Square.Carrier) => R.leTrans _ _ _
+    (Distance.maxMonotone _ _ _ _ (Distance.distanceTriangle (Square.time x) (Square.time y) (Square.time z))
+      (Distance.distanceTriangle (Square.point x) (Square.point y) (Square.point z)))
+    (Distance.maxAdd (Real.distance (Square.time x) (Square.time y)) (Real.distance (Square.point x) (Square.point y))
+      (Real.distance (Square.time y) (Square.time z)) (Real.distance (Square.point y) (Square.point z))),
+};
+\definition intervalBallOpen: \forall (x: Carrier)(r: Real.Real) -> Space.IsOpenIn topology (IntervalMetrics.Ball Subdivision.metric x r) :=
+  \fun (x: Carrier)(r: Real.Real) => \idelim IntervalMetricTopology.topology Subdivision.metric = topology
+    \with t: Space.Topology => Space.IsOpenIn t (IntervalMetrics.Ball Subdivision.metric x r)
+    \by { base: IntervalMetricTopology.ballOpenIn Subdivision.metric x r, equality: Subdivision.metricTopology };
+\definition ballProduct: \forall (x: Square.Carrier)(r: Real.Real) -> Metrics.Ball metric x r =
+  Product.Rectangle (IntervalMetrics.Ball Subdivision.metric (Square.time x) r) (IntervalMetrics.Ball Subdivision.metric (Square.point x) r) :=
+  \fun (x: Square.Carrier)(r: Real.Real) => \axiom:setext(Metrics.Ball metric x r,
+    Product.Rectangle (IntervalMetrics.Ball Subdivision.metric (Square.time x) r) (IntervalMetrics.Ball Subdivision.metric (Square.point x) r),
+    \fun (y: Square.Carrier)(near: _) => Logic.And[_, _]::#
+      (R.leLtTrans _ _ _ (Distance.maxLeft (Real.distance (Square.time x) (Square.time y)) (Real.distance (Square.point x) (Square.point y))) near)
+      (R.leLtTrans _ _ _ (Distance.maxRight (Real.distance (Square.time x) (Square.time y)) (Real.distance (Square.point x) (Square.point y))) near),
+    \fun (y: Square.Carrier)(inside: Logic.And[R.Lt (Real.distance (Square.time x) (Square.time y)) r, R.Lt (Real.distance (Square.point x) (Square.point y)) r]) => Distance.maxLt _ _ r inside.left inside.right);
+\definition ballOpen: \forall (x: Square.Carrier)(r: Real.Real) -> SquareSpace.IsOpenIn (Square.topology topology) (Metrics.Ball metric x r) :=
+  \fun (x: Square.Carrier)(r: Real.Real) => \idelim
+    Product.Rectangle (IntervalMetrics.Ball Subdivision.metric (Square.time x) r) (IntervalMetrics.Ball Subdivision.metric (Square.point x) r) = Metrics.Ball metric x r
+    \with U: \Pow Square.Carrier => SquareSpace.IsOpenIn (Square.topology topology) U \by {
+      base: SquareSpace.generatedBasisOpen (Product.Basis topology topology) _
+        (Pairing.rectangleBasisMember topology topology _ _ (intervalBallOpen (Square.time x) r) (intervalBallOpen (Square.point x) r)),
+      equality: sym!{\Pow Square.Carrier} _ _ (ballProduct x r)
+    };
+\definition metricOpen: \forall (U: \Pow Square.Carrier) -> Metrics.IsOpen metric U -> SquareSpace.IsOpenIn (Square.topology topology) U :=
+  \fun (U: _)(open: _) => SquareSpace.openOfNeighborhoods (Square.topology topology) U (\block {
+    \fun (x: Square.Carrier)(inside: _) \then
+    \takefrom r: \Cast[Real.Real] (Metrics.NeighborhoodRadius metric U x) \by open x inside \then
+    \let data: Logic.And[R.Lt Real.zero r, SquareSpace.Subset (Metrics.Ball metric x r) U] := \bysub(Real.Real, Metrics.NeighborhoodRadius metric U x, r) \then
+    \return Logic.existsIntro[\Pow Square.Carrier, { V: \Pow Square.Carrier \where SquareSpace.OpenNeighborhood[Square.topology topology, x, U, V] }] (Metrics.Ball metric x r)
+      (SquareSpace.OpenNeighborhood[Square.topology topology, x, U, Metrics.Ball metric x r] {
+        open := ballOpen x r, contains := Metrics.ballCenter metric x r data.left, within := data.right,
+      })
+  });
+\definition intervalOpen: \forall (U: \Pow Carrier) -> Space.IsOpenIn topology U -> IntervalMetrics.IsOpen Subdivision.metric U :=
+  \fun (U: _)(open: _) => \idelim topology = IntervalMetricTopology.topology Subdivision.metric
+    \with t: Space.Topology => Space.IsOpenIn t U \by { base: open, equality: sym!{Space.Topology} _ _ Subdivision.metricTopology };
+\definition radiusInRectangle: \forall (x: Square.Carrier)(U, V: \Pow Carrier)(r, s: Real.Real) ->
+  \In[Real.Real] (IntervalMetrics.NeighborhoodRadius Subdivision.metric U (Square.time x)) r ->
+  \In[Real.Real] (IntervalMetrics.NeighborhoodRadius Subdivision.metric V (Square.point x)) s -> R.Le r s ->
+  \exists \Cast[Real.Real] (Metrics.NeighborhoodRadius metric (Product.Rectangle U V) x) :=
+  \fun (x: _)(U, V: _)(r, s: _)(rd: _)(sd: _)(rs: _) => MetricTopology.openOfRadius metric (Product.Rectangle U V) x r rd.left
+    (\fun (y: Square.Carrier)(near: _) => Logic.And[_, _]::#
+      (rd.right (Square.time y) (R.leLtTrans _ _ _ (Distance.maxLeft _ _) near))
+      (sd.right (Square.point y) (R.ltLeTrans _ r s (R.leLtTrans _ _ _ (Distance.maxRight _ _) near) rs)));
+\definition productOpen: \forall (U: \Pow Square.Carrier) -> SquareSpace.IsOpenIn (Square.topology topology) U -> Metrics.IsOpen metric U := \block {
+  \fun (U: _)(open: _)(x: Square.Carrier)(inside: _) \then
+  \takefrom n: Rectangles.Neighborhood[topology, topology, x, U] \by Rectangles.rectangleNeighborhoods topology topology U open x inside \then
+  \takefrom r: \Cast[Real.Real] (IntervalMetrics.NeighborhoodRadius Subdivision.metric n.leftSet (Square.time x)) \by intervalOpen n.leftSet n.leftOpen (Square.time x) n.leftContains \then
+  \takefrom s: \Cast[Real.Real] (IntervalMetrics.NeighborhoodRadius Subdivision.metric n.rightSet (Square.point x)) \by intervalOpen n.rightSet n.rightOpen (Square.point x) n.rightContains \then
+  \let rd: Logic.And[R.Lt Real.zero r, Space.Subset (IntervalMetrics.Ball Subdivision.metric (Square.time x) r) n.leftSet] :=
+    \bysub(Real.Real, IntervalMetrics.NeighborhoodRadius Subdivision.metric n.leftSet (Square.time x), r) \then
+  \let sd: Logic.And[R.Lt Real.zero s, Space.Subset (IntervalMetrics.Ball Subdivision.metric (Square.point x) s) n.rightSet] :=
+    \bysub(Real.Real, IntervalMetrics.NeighborhoodRadius Subdivision.metric n.rightSet (Square.point x), s) \then
+  \return either!{{(R.Order[].leTotal r s)} {_}
+    {\fun (rs: _) => MetricTopology.openOfRadius metric U x r rd.left
+      (\fun (y: Square.Carrier)(near: _) => n.within y (Logic.And[_, _]::#
+        (rd.right (Square.time y) (R.leLtTrans _ _ _ (Distance.maxLeft _ _) near))
+        (sd.right (Square.point y) (R.ltLeTrans _ r s (R.leLtTrans _ _ _ (Distance.maxRight _ _) near) rs))))}
+    {\fun (sr: _) => MetricTopology.openOfRadius metric U x s sd.left
+      (\fun (y: Square.Carrier)(near: _) => n.within y (Logic.And[_, _]::#
+        (rd.right (Square.time y) (R.ltLeTrans _ s r (R.leLtTrans _ _ _ (Distance.maxLeft _ _) near) sr))
+        (sd.right (Square.point y) (R.leLtTrans _ _ _ (Distance.maxRight _ _) near))))}}
+};
+\definition metricTopology: MetricTopology.topology metric = Square.topology topology := Ext.law _ _
+  (\fun (U: \Pow Square.Carrier) => Logic.PropEquiv[_, _] { ltr := metricOpen U, rtl := productOpen U });
+\definition metricCompact: SquareSpace.IsCompact (MetricTopology.topology metric) :=
+  \idelim Square.topology topology = MetricTopology.topology metric \with t: SquareSpace.Topology => SquareSpace.IsCompact t \by {
+    base: Rectangles.productCompact topology topology compact compact,
+    equality: sym!{SquareSpace.Topology} _ _ metricTopology
+  };
+\definition Function: \Set := Carrier -> Carrier;
+\definition Subdivided[P: Function -> Function -> \Prop]: N.Nat^ -> Function -> Function -> \Prop :=
+  \induction (n: N.Nat^) \return (Function -> Function -> \Prop) \with {
+    | zero: P
+    | succ: \fun (n: N.Nat^)(previous: Function -> Function -> \Prop)(f, g: Function) =>
+      Logic.And[Logic.And[previous (Subdivision.left f) (Subdivision.left g), previous (Subdivision.left f) (Subdivision.right g)],
+        Logic.And[previous (Subdivision.right f) (Subdivision.left g), previous (Subdivision.right f) (Subdivision.right g)]]
+  };
+\definition recover: \forall (P: Function -> Function -> \Prop) ->
+  (\forall (f, g: Function) -> P (Subdivision.left f) g -> P (Subdivision.right f) g -> P f g) ->
+  (\forall (f, g: Function) -> P f (Subdivision.left g) -> P f (Subdivision.right g) -> P f g) ->
+  \forall (n: N.Nat^)(f, g: Function) -> Subdivided P n f g -> P f g :=
+  \fun (P: Function -> Function -> \Prop)(horizontal: _)(vertical: _) => \induction (n: N.Nat^) \return
+    (\forall (f, g: Function) -> Subdivided P n f g -> P f g) \with {
+    | zero: \fun (f, g: Function)(proof: P f g) => proof
+    | succ: \fun (n: N.Nat^)(previous: \forall (f, g: Function) -> Subdivided P n f g -> P f g)(f, g: Function)(proof: Subdivided P (N.Nat^::succ n) f g) =>
+      horizontal f g
+        (vertical (Subdivision.left f) g (previous (Subdivision.left f) (Subdivision.left g) (proof.left).left)
+          (previous (Subdivision.left f) (Subdivision.right g) (proof.left).right))
+        (vertical (Subdivision.right f) g (previous (Subdivision.right f) (Subdivision.left g) (proof.right).left)
+          (previous (Subdivision.right f) (Subdivision.right g) (proof.right).right))
+  };
+\module Cover(family: \Pow (\Pow Square.Carrier));

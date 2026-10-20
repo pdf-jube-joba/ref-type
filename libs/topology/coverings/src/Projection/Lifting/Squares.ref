@@ -1,0 +1,23 @@
+\import topology.Continuity[A := Square.Carrier, B := E] \as ContinuousSquares;
+\import topology.Continuity[A := Square.Carrier, B := B] \as BaseContinuousSquares;
+\import \parent.Existence[] \as Existence;
+\import \parent.Uniqueness[] \as Uniqueness;
+\structure Laws[family: Square.Carrier -> B, initial: Interval.Carrier -> E, lift: Square.Carrier -> E]: \Prop := {
+  continuous: ContinuousSquares.Continuous (Square.topology Interval.topology) total lift,
+  projects: \forall (r: Square.Carrier) -> projection (lift r) = family r,
+  starts: \forall (s: Interval.Carrier) -> lift (Square.at Interval.start s) = initial s,
+};
+\definition Lift[family: Square.Carrier -> B][initial: Interval.Carrier -> E]: \Set :=
+  \Cast[Square.Carrier -> E] ({ lift: Square.Carrier -> E \where Laws[family, initial, lift] });
+\definition laws[family: Square.Carrier -> B][initial: Interval.Carrier -> E][lift: Lift family initial]: Laws[family, initial, lift] :=
+  \bysub(Square.Carrier -> E, Lift family initial, lift);
+\module Along(covering: Covering, family: Square.Carrier -> B,
+  continuous: BaseContinuousSquares.Continuous (Square.topology Interval.topology) base family, charts: Existence.ChartFamily);
+\definition existsLift: Covering -> \forall (family: Square.Carrier -> B) ->
+  BaseContinuousSquares.Continuous (Square.topology Interval.topology) base family ->
+  \forall (initial: Interval.Carrier -> E) -> Continuous.Continuous Interval.topology total initial ->
+  (\forall (s: Interval.Carrier) -> projection (initial s) = family (Square.at Interval.start s)) -> \exists Lift family initial := \block {
+  \fun (covering: Covering)(family: _)(continuous: _)(initial: _)(ic: _)(ip: _) \then
+  \takefrom charts: Existence.ChartFamily \by Existence.chartFamilyExists covering \then
+  \return Along[covering := covering, family := family, continuous := continuous, charts := charts].existsLift initial ic ip
+};

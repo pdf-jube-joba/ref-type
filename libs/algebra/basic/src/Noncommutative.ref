@@ -1,0 +1,60 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition one: G := group.unit;
+\definition mul: G -> G -> G := group.op;
+\definition inv: G -> G := group.inv;
+\definition leftIdentity: \forall (a: G) -> mul one a = a := group.monoid.leftIdentity;
+\definition rightIdentity: \forall (a: G) -> mul a one = a := group.monoid.rightIdentity;
+\definition associative: \forall (a, b, c: G) -> mul (mul a b) c = mul a (mul b c) := group.monoid.associative;
+\definition leftInverse: \forall (a: G) -> mul (inv a) a = one := group.leftInverse;
+\definition rightInverse: \forall (a: G) -> mul a (inv a) = one := group.rightInverse;
+\definition cancelLeft: \forall (a, b, c: G) -> mul a b = mul a c -> b = c :=
+  \fun (a, b, c: G)(same: _) => eq_reason!{b
+    "=" {mul one b} "by" {sym!{G} _ _ (leftIdentity b)}
+    "=" {mul (mul (inv a) a) b} "by" {congr!{G G} (\fun (x: G) => mul x b) _ _ (sym!{G} _ _ (leftInverse a))}
+    "=" {mul (inv a) (mul a b)} "by" {associative (inv a) a b}
+    "=" {mul (inv a) (mul a c)} "by" {congr!{G G} (mul (inv a)) _ _ same}
+    "=" {mul (mul (inv a) a) c} "by" {sym!{G} _ _ (associative (inv a) a c)}
+    "=" {mul one c} "by" {congr!{G G} (\fun (x: G) => mul x c) _ _ (leftInverse a)}
+    "=" c "by" {leftIdentity c}};
+\definition cancelRight: \forall (a, b, c: G) -> mul b a = mul c a -> b = c :=
+  \fun (a, b, c: G)(same: _) => eq_reason!{b
+    "=" {mul b one} "by" {sym!{G} _ _ (rightIdentity b)}
+    "=" {mul b (mul a (inv a))} "by" {congr!{G G} (mul b) _ _ (sym!{G} _ _ (rightInverse a))}
+    "=" {mul (mul b a) (inv a)} "by" {sym!{G} _ _ (associative b a (inv a))}
+    "=" {mul (mul c a) (inv a)} "by" {congr!{G G} (\fun (x: G) => mul x (inv a)) _ _ same}
+    "=" {mul c (mul a (inv a))} "by" {associative c a (inv a)}
+    "=" {mul c one} "by" {congr!{G G} (mul c) _ _ (rightInverse a)}
+    "=" c "by" {rightIdentity c}};
+\definition inverseUnique: \forall (a, b: G) -> mul b a = one -> b = inv a :=
+  \fun (a, b: G)(same: _) => cancelRight a b (inv a) (trans!{G} _ _ _ same (sym!{G} _ _ (leftInverse a)));
+\definition inverseTwice: \forall (a: G) -> inv (inv a) = a :=
+  \fun (a: G) => sym!{G} _ _ (inverseUnique (inv a) a (rightInverse a));
+\structure SubgroupLaws[H: \Pow G]: \Prop := {
+  one: \In[G] H one,
+  multiply: \forall (a, b: G) -> \In[G] H a -> \In[G] H b -> \In[G] H (mul a b),
+  inverse: \forall (a: G) -> \In[G] H a -> \In[G] H (inv a),
+};
+\definition Subgroup: \Set := \Cast[\Pow G] ({ H: \Pow G \where SubgroupLaws[H] });
+\definition subgroupLaws[H: Subgroup]: SubgroupLaws[H] := \bysub(\Pow G, Subgroup, H);
+\module Actions(S: \Set);
+\module Cosets(H: Subgroup);
+\definition horizontalRectangle: \forall (a, b, c, d, l, m, r: G) -> mul a m = mul l c -> mul b r = mul m d -> mul (mul a b) r = mul l (mul c d) :=
+  \fun (a, b, c, d, l, m, r: G)(left: _)(right: _) => eq_reason!{{mul (mul a b) r}
+    "=" {mul a (mul b r)} "by" {associative a b r}
+    "=" {mul a (mul m d)} "by" {congr!{G G} (mul a) _ _ right}
+    "=" {mul (mul a m) d} "by" {sym!{G} _ _ (associative a m d)}
+    "=" {mul (mul l c) d} "by" {congr!{G G} (\fun (x: G) => mul x d) _ _ left}
+    "=" {mul l (mul c d)} "by" {associative l c d}};
+\definition verticalRectangle: \forall (b, r1, r2, l1, l2, t, m: G) -> mul b r1 = mul l1 m -> mul m r2 = mul l2 t -> mul b (mul r1 r2) = mul (mul l1 l2) t :=
+  \fun (b, r1, r2, l1, l2, t, m: G)(lower: _)(upper: _) => eq_reason!{{mul b (mul r1 r2)}
+    "=" {mul (mul b r1) r2} "by" {sym!{G} _ _ (associative b r1 r2)}
+    "=" {mul (mul l1 m) r2} "by" {congr!{G G} (\fun (x: G) => mul x r2) _ _ lower}
+    "=" {mul l1 (mul m r2)} "by" {associative l1 m r2}
+    "=" {mul l1 (mul l2 t)} "by" {congr!{G G} (mul l1) _ _ upper}
+    "=" {mul (mul l1 l2) t} "by" {sym!{G} _ _ (associative l1 l2 t)}};

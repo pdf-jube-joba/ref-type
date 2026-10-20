@@ -1,0 +1,88 @@
+\import \parent.Squares[] \as Squares;
+\import \parent.Uniqueness[] \as Uniqueness;
+\import TotalPaths.Maps[B := B, target := base] \as Mapping;
+\import algebraic_topology.Homotopy[A := Interval.Carrier, B := B] \as BaseHomotopy;
+\import algebraic_topology.Homotopy[A := Interval.Carrier, B := E] \as TotalHomotopy;
+\import algebraic_topology.SquareGluing[A := B, target := base] \as BaseGlue;
+\import algebraic_topology.SquareGluing[A := E, target := total] \as TotalGlue;
+\import topology.Maps[A := Interval.Carrier, B := E] \as Constants;
+\import topology.Maps[A := Interval.Carrier, B := Interval.Carrier] \as Parameters;
+\import Parameters.Identity[] \as Identity;
+\import topological_constructions.Product[A := Interval.Carrier, B := Interval.Carrier].Universal[X := Interval.Carrier] \as Pair;
+\import topology.Composition[A := Interval.Carrier, B := Square.Carrier, C := E] \as Slices;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition pointSlice[u, t: Interval.Carrier]: Square.Carrier := Square.at t u;
+\definition pointSliceContinuous: \forall (u: Interval.Carrier) -> topology.Continuity[A := Interval.Carrier, B := Square.Carrier].Continuous
+  Interval.topology (Square.topology Interval.topology) (pointSlice u) :=
+  \fun (u: Interval.Carrier) => Pair.pairContinuous Interval.topology Interval.topology Interval.topology (\fun (t: Interval.Carrier) => t) (\fun (_: Interval.Carrier) => u)
+    (Identity.continuous Interval.topology) (Parameters.constantContinuous Interval.topology Interval.topology u);
+\definition reflect: \forall (covering: Covering)(x, y: E)(f, g: TotalPaths.Path x y)
+  (h: BaseHomotopy.RelativeHomotopy[Interval.topology, base, BasePaths.Boundary,
+    Mapping.apply projection covering.continuous x y f, Mapping.apply projection covering.continuous x y g]) ->
+  TotalPaths.Homotopic x y f g := \block {
+  \fun (covering: Covering)(x, y: E)(f, g: _)(h: _) \then
+  \let p: BasePaths.Path (projection x) (projection y) := Mapping.apply projection covering.continuous x y f \then
+  \let q: BasePaths.Path (projection x) (projection y) := Mapping.apply projection covering.continuous x y g \then
+  \let family: Square.Carrier -> B := BaseGlue.flipped h \then
+  \let initial: Interval.Carrier -> E := \fun (_: Interval.Carrier) => x \then
+  \takefrom lifted: Squares.Lift family initial \by Squares.existsLift covering family
+    (BaseGlue.flipContinuous h ((BaseHomotopy.relativeLaws Interval.topology base BasePaths.Boundary p q h).homotopy).continuous)
+    initial (Constants.constantContinuous Interval.topology total x)
+    (\fun (s: Interval.Carrier) => sym!{B} _ _ (trans!{B} _ _ _
+      ((BaseHomotopy.relativeLaws Interval.topology base BasePaths.Boundary p q h).fixed s Interval.start (Logic.Or[_, _]::left (\refl(Interval.start))))
+      (BasePaths.laws (projection x) (projection y) p).start)) \then
+  \let first: Interval.Carrier -> E := \fun (t: Interval.Carrier) => lifted (Square.at t Interval.start) \then
+  \let second: Interval.Carrier -> E := \fun (t: Interval.Carrier) => lifted (Square.at t Interval.end) \then
+  \let firstEquals: first = f := Uniqueness.functionsUnique covering _ _ p first f
+    (Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (pointSlice Interval.start) lifted (pointSliceContinuous Interval.start) (Squares.laws family initial lifted).continuous)
+    (TotalPaths.laws x y f).continuous
+    (\fun (t: Interval.Carrier) => trans!{B} _ _ _ ((Squares.laws family initial lifted).projects (Square.at t Interval.start))
+      (((BaseHomotopy.relativeLaws Interval.topology base BasePaths.Boundary p q h).homotopy).start t))
+    (\fun (t: Interval.Carrier) => \refl(projection (f t)))
+    (trans!{E} _ _ _ ((Squares.laws family initial lifted).starts Interval.start) (sym!{E} _ _ (TotalPaths.laws x y f).start)) \then
+  \let secondEquals: second = g := Uniqueness.functionsUnique covering _ _ q second g
+    (Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (pointSlice Interval.end) lifted (pointSliceContinuous Interval.end) (Squares.laws family initial lifted).continuous)
+    (TotalPaths.laws x y g).continuous
+    (\fun (t: Interval.Carrier) => trans!{B} _ _ _ ((Squares.laws family initial lifted).projects (Square.at t Interval.end))
+      (((BaseHomotopy.relativeLaws Interval.topology base BasePaths.Boundary p q h).homotopy).end t))
+    (\fun (t: Interval.Carrier) => \refl(projection (g t)))
+    (trans!{E} _ _ _ ((Squares.laws family initial lifted).starts Interval.end) (sym!{E} _ _ (TotalPaths.laws x y g).start)) \then
+  \let endFamily: Interval.Carrier -> E := \fun (s: Interval.Carrier) => lifted (Square.at Interval.end s) \then
+  \let endEquals: endFamily = (\fun (_: Interval.Carrier) => y) := Uniqueness.functionsUnique covering (projection y) (projection y) (BasePaths.constant (projection y))
+    endFamily (\fun (_: Interval.Carrier) => y)
+    (Slices.composeContinuous Interval.topology (Square.topology Interval.topology) total (\fun (s: Interval.Carrier) => Square.at Interval.end s) lifted
+      (Square.atContinuous Interval.topology Interval.end) (Squares.laws family initial lifted).continuous)
+    (Constants.constantContinuous Interval.topology total y)
+    (\fun (s: Interval.Carrier) => trans!{B} _ _ _ ((Squares.laws family initial lifted).projects (Square.at Interval.end s))
+      (trans!{B} _ _ _ ((BaseHomotopy.relativeLaws Interval.topology base BasePaths.Boundary p q h).fixed s Interval.end (Logic.Or[_, _]::right (\refl(Interval.end))))
+        (BasePaths.laws (projection x) (projection y) p).end))
+    (\fun (_: Interval.Carrier) => \refl(projection y))
+    (trans!{E} _ _ _ (congr!{{Interval.Carrier -> E} E} (\fun (k: Interval.Carrier -> E) => k Interval.end) first f firstEquals) (TotalPaths.laws x y f).end) \then
+  \let result: TotalHomotopy.RelativeHomotopy[Interval.topology, total, TotalPaths.Boundary, f, g] :=
+    \into[TotalHomotopy.Family](TotalGlue.flipped lifted, TotalHomotopy.RelativeHomotopy[Interval.topology, total, TotalPaths.Boundary, f, g]) \by {
+      TotalHomotopy.RelativeLaws[Interval.topology, total, TotalPaths.Boundary, f, g, TotalGlue.flipped lifted] {
+        homotopy := TotalHomotopy.Laws[Interval.topology, total, f, g, TotalGlue.flipped lifted] {
+          continuous := TotalGlue.flipContinuous lifted (Squares.laws family initial lifted).continuous,
+          start := \fun (t: Interval.Carrier) => congr!{{Interval.Carrier -> E} E} (\fun (k: Interval.Carrier -> E) => k t) first f firstEquals,
+          end := \fun (t: Interval.Carrier) => congr!{{Interval.Carrier -> E} E} (\fun (k: Interval.Carrier -> E) => k t) second g secondEquals,
+        },
+        fixed := \fun (s, t: Interval.Carrier)(boundary: _) => either!{{boundary} {_}
+          {\fun (atStart: _) => trans!{E} _ _ _ (congr!{Interval.Carrier E} (\fun (u: Interval.Carrier) => lifted (Square.at u s)) _ _ atStart)
+            (trans!{E} _ _ _ ((Squares.laws family initial lifted).starts s)
+              (sym!{E} _ _ (trans!{E} _ _ _ (congr!{Interval.Carrier E} f _ _ atStart) (TotalPaths.laws x y f).start)))}
+          {\fun (atEnd: _) => trans!{E} _ _ _ (congr!{Interval.Carrier E} (\fun (u: Interval.Carrier) => lifted (Square.at u s)) _ _ atEnd)
+            (trans!{E} _ _ _ (congr!{{Interval.Carrier -> E} E} (\fun (k: Interval.Carrier -> E) => k s) endFamily (\fun (_: Interval.Carrier) => y) endEquals)
+              (sym!{E} _ _ (trans!{E} _ _ _ (congr!{Interval.Carrier E} f _ _ atEnd) (TotalPaths.laws x y f).end)))}}
+      }
+    } \then
+  \return \exact(result, TotalHomotopy.RelativeHomotopy[Interval.topology, total, TotalPaths.Boundary, f, g])
+};
+\definition reflects: \forall (covering: Covering)(x, y: E)(f, g: TotalPaths.Path x y) ->
+  BasePaths.Homotopic (projection x) (projection y) (Mapping.apply projection covering.continuous x y f) (Mapping.apply projection covering.continuous x y g) ->
+  TotalPaths.Homotopic x y f g := \block {
+  \fun (covering: Covering)(x, y: E)(f, g: _)(related: _) \then
+  \takefrom h: BaseHomotopy.RelativeHomotopy[Interval.topology, base, BasePaths.Boundary,
+    Mapping.apply projection covering.continuous x y f, Mapping.apply projection covering.continuous x y g] \by related \then
+  \return reflect covering x y f g h
+};

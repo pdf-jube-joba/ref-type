@@ -1,0 +1,37 @@
+\definition Within[p: Paths.Carrier][U: \Pow A]: \Prop := \forall (t: I.Carrier) -> \In[A] U (p t);
+\definition Small[p: Paths.Carrier]: \Prop := \exists ( U: \Pow A \where Logic.And[\In[\Pow A] family U, Within p U] );
+\definition firstSmall: \forall (p: Paths.Carrier) -> Small p -> Small (Paths.first p) := \block {
+  \fun (p: Paths.Carrier)(small: Small p) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Logic.And[\In[\Pow A] family U, Within p U] }) \by small \then
+  \let data: Logic.And[\In[\Pow A] family U, Within p U] := \bysub(\Pow A, { U: \Pow A \where Logic.And[\In[\Pow A] family U, Within p U] }, U) \then
+  \return Logic.existsIntro[\Pow A, { U: \Pow A \where Logic.And[\In[\Pow A] family U, Within (Paths.first p) U] }] U
+    (Logic.And[_, _]::# data.left (\fun (t: I.Carrier) => data.right (I.Halves[].lower t)))
+};
+\definition secondSmall: \forall (p: Paths.Carrier) -> Small p -> Small (Paths.second p) := \block {
+  \fun (p: Paths.Carrier)(small: Small p) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Logic.And[\In[\Pow A] family U, Within p U] }) \by small \then
+  \let data: Logic.And[\In[\Pow A] family U, Within p U] := \bysub(\Pow A, { U: \Pow A \where Logic.And[\In[\Pow A] family U, Within p U] }, U) \then
+  \return Logic.existsIntro[\Pow A, { U: \Pow A \where Logic.And[\In[\Pow A] family U, Within (Paths.second p) U] }] U
+    (Logic.And[_, _]::# data.left (\fun (t: I.Carrier) => data.right (I.Halves[].upper t)))
+};
+\definition Fine: Tree -> Paths.Carrier -> \Prop := \induction (tree: Tree) \return (Paths.Carrier -> \Prop) \with {
+  | leaf: Small
+  | branch: \fun (l: Tree)(left: Paths.Carrier -> \Prop)(r: Tree)(right: Paths.Carrier -> \Prop)(p: Paths.Carrier) => Logic.And[left (Paths.first p), right (Paths.second p)]
+};
+\definition Partition[p: Paths.Carrier]: \Set := \Cast[Tree] ({ tree: Tree \where Fine tree p });
+\module Partitions(p: Paths.Carrier);
+\definition SmallPath: \Set := \Cast[Paths.Carrier] ({ p: Paths.Carrier \where Small p });
+\definition asSmall[p: Paths.Carrier][small: Small p]: SmallPath := \into[Paths.Carrier](p, SmallPath) \by { small };
+\definition firstSmallPath[p: SmallPath]: SmallPath := asSmall (Paths.first p) (firstSmall p (\bysub(Paths.Carrier, SmallPath, p)));
+\definition secondSmallPath[p: SmallPath]: SmallPath := asSmall (Paths.second p) (secondSmall p (\bysub(Paths.Carrier, SmallPath, p)));
+\structure LocalData: \Set := {
+  value: SmallPath -> G,
+  split: \forall (p: SmallPath) -> value p = Group.mul (value (firstSmallPath p)) (value (secondSmallPath p)),
+};
+\module Integral(data: LocalData);
+\structure LocalFunctor: \Set := {
+  data: LocalData,
+  constant: Integral[data := data].ConstantLaw,
+  square: Integral[data := data].Squares[].LocalLaw,
+};
+\module Descent(local: LocalFunctor);

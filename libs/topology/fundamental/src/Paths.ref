@@ -1,0 +1,70 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := Interval.Carrier] \as Square;
+\import algebraic_topology.Homotopy[A := Interval.Carrier, B := A] \as Homotopy;
+\import Homotopy.RelativeRelation[] \as Relation;
+\import topology.Continuity[A := Interval.Carrier, B := A] \as Maps;
+\import topology.Maps[A := Interval.Carrier, B := A] \as Constants;
+\import topology.Composition[A := Interval.Carrier, B := Interval.Carrier, C := A] \as Composition;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\use Logic.either;
+
+\definition Function: \Set := Interval.Carrier -> A;
+\structure Laws[x, y: A, f: Function]: \Prop := {
+  continuous: Maps.Continuous Interval.topology source f,
+  start: f Interval.start = x,
+  end: f Interval.end = y,
+};
+\definition Path[x, y: A]: \Set := \Cast[Function] ({ f: Function \where Laws[x, y, f] });
+\definition laws[x, y: A][f: Path x y]: Laws[x, y, f] := \bysub(Function, Path x y, f);
+\definition constant[x: A]: Path x x := \into[Function](\fun (_: Interval.Carrier) => x, Path x x) \by {
+  Laws[x, x, \fun (_: Interval.Carrier) => x] {
+    continuous := Constants.constantContinuous Interval.topology source x,
+    start := \refl(x), end := \refl(x),
+  }
+};
+\definition reverse[x, y: A][f: Path x y]: Path y x :=
+  \into[Function](\fun (t: Interval.Carrier) => f (Interval.reverse t), Path y x) \by {
+    Laws[y, x, \fun (t: Interval.Carrier) => f (Interval.reverse t)] {
+      continuous := Composition.composeContinuous Interval.topology Interval.topology source Interval.reverse f
+        Interval.reverseContinuous (laws x y f).continuous,
+      start := trans!{A} _ _ _ (congr!{Interval.Carrier A} f _ _ Interval.reverseStart) (laws x y f).end,
+      end := trans!{A} _ _ _ (congr!{Interval.Carrier A} f _ _ Interval.reverseEnd) (laws x y f).start,
+    }
+  };
+\definition reverseTwice: \forall (x, y: A)(f: Path x y) -> reverse y x (reverse x y f) = f :=
+  \fun (x, y: A)(f: Path x y) => \axiom:funext(reverse y x (reverse x y f), f,
+    \fun (t: Interval.Carrier) => congr!{Interval.Carrier A} f _ _ (Interval.reverseInvolutive t));
+\definition Boundary: \Pow Interval.Carrier :=
+  { t: Interval.Carrier \where Logic.Or[t = Interval.start, t = Interval.end] };
+\definition Homotopic[x, y: A][f, g: Path x y]: \Prop :=
+  Homotopy.RelativeHomotopic Interval.topology source Boundary f g;
+\definition reflexive: \forall (x, y: A)(f: Path x y) -> Homotopic x y f f :=
+  \fun (x, y: A)(f: Path x y) => Relation.reflexive Interval.topology source Boundary f (laws x y f).continuous;
+\definition symmetric: \forall (x, y: A)(f, g: Path x y) -> Homotopic x y f g -> Homotopic x y g f :=
+  \fun (x, y: A)(f, g: Path x y) => Relation.symmetric Interval.topology source Boundary f g;
+\definition transitive: \forall (x, y: A)(f, g, h: Path x y) -> Homotopic x y f g -> Homotopic x y g h -> Homotopic x y f h :=
+  \fun (x, y: A)(f, g, h: Path x y) => Relation.transitive Interval.topology source Boundary f g h;
+\definition homotopicOfEqual: \forall (x, y: A)(f, g: Path x y) -> f = g -> Homotopic x y f g :=
+  \fun (x, y: A)(f, g: Path x y)(equal: f = g) =>
+    \idelim f = g \with h: Path x y => Homotopic x y f h \by { base: reflexive x y f, equality: equal };
+\definition PathConnected: \Prop := \forall (x, y: A) -> \exists Path x y;
+\module Between(x, y: A);
+\module Concatenation;
+\module Maps(B: \Set, target: topology.Topology[Carrier := B].Topology);
+\module ReverseHomotopy;
+\definition homotopyCongruent: \forall (f, g, u, v: Function) -> f = u -> g = v ->
+  Homotopy.RelativeHomotopic Interval.topology source Boundary f g ->
+  Homotopy.RelativeHomotopic Interval.topology source Boundary u v :=
+  \fun (f, g, u, v: Function)(left: f = u)(right: g = v)(h: _) =>
+    \idelim g = v \with b: Function => Homotopy.RelativeHomotopic Interval.topology source Boundary u b \by {
+      base: \idelim f = u \with a: Function => Homotopy.RelativeHomotopic Interval.topology source Boundary a g
+        \by { base: h, equality: left },
+      equality: right
+    };
+\module Reparametrization;
+\module GroupoidLaws;

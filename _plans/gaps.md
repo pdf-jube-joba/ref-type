@@ -280,3 +280,12 @@ module 引数は検査時に確定した捕捉引数を明示した式で保持�
 [18-01-module-function-value.ref](gaps/18-01-module-function-value.ref) は `apply Family[j := j].value` を使うが、捕捉した `j` が `Set` として扱われ、`inferred: Set, expected: Point` になる。
 [18-02-module-function-eta.ref](gaps/18-02-module-function-eta.ref) は `apply (\fun (i: Point) => Family[j := j].value i)` と明示的に eta 展開して型検査を通す。
 `quintic.Generic.Field.Over.Distinctness.independentImpliesDistinct` は、多項式の評価に渡す指示関数を局所 lambda で定義している。
+
+<a id="g19"></a>
+
+## G19: 条件付きの値を structure の関数 field にする
+
+[19-01-partial-field.ref](gaps/19-01-partial-field.ref) のように、条件を満たす引数で値を返す field を書きたい。
+現在は `no product rule for domain Prop and body Set(0)` になる。
+[19-02-refined-field.ref](gaps/19-02-refined-field.ref) は、定義域を条件付き部分集合にする回避例である。
+`fundamental_groups.VanKampen.Cover.LocalData` は `SmallPath`、有限細分の評価は `Integral.Part` を使う。

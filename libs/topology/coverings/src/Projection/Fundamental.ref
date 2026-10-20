@@ -1,0 +1,18 @@
+\import fundamental_groups.FundamentalGroup[A := E, source := total, basepoint := e] \as Source;
+\import fundamental_groups.FundamentalGroup[A := B, source := base, basepoint := projection e] \as Target;
+\import fundamental_groups.Groupoid[A := E, source := total].Maps[B := B, target := base] \as Native;
+\import fundamental_groups.Paths[A := E, source := total] \as Paths;
+\import Paths.Maps[B := B, target := base] \as Mapping;
+\import Paths.Between[x := e, y := e] \as Classes;
+\import fundamental_groups.Paths[A := B, source := base].Between[x := projection e, y := projection e] \as TargetClasses;
+\import \parent.Lifting[].Homotopy[] \as Homotopy;
+\import Source.Maps[B := B, target := base] \as Maps;
+\definition induced[covering: Covering]: Source.Carrier -> Target.Carrier := Maps.Along[f := projection, continuous := covering.continuous].apply;
+\definition injective: \forall (covering: Covering)(a, b: Source.Carrier) -> induced covering a = induced covering b -> a = b :=
+  \fun (covering: Covering) => Classes.induction (\fun (a: Source.Carrier) => \forall (b: Source.Carrier) -> induced covering a = induced covering b -> a = b)
+    (\fun (f: Paths.Path e e) => Classes.induction (\fun (b: Source.Carrier) => induced covering (Source.class f) = induced covering b -> Source.class f = b)
+      (\fun (g: Paths.Path e e)(same: _) => Classes.sameClass f g (Homotopy.reflects covering e e f g
+        (TargetClasses.homotopicOfSameClass (Mapping.apply projection covering.continuous e e f) (Mapping.apply projection covering.continuous e e g)
+          (trans!{Target.Carrier} _ _ _ (sym!{Target.Carrier} _ _ (Native.onClass projection covering.continuous e e f))
+            (trans!{Target.Carrier} _ _ _ same (Native.onClass projection covering.continuous e e g)))))));
+\module Monodromy(covering: Covering);

@@ -1,0 +1,36 @@
+\import topology.Maps[A := I.Carrier, B := A] \as Maps;
+\import topology.Continuity[A := I.Carrier, B := A].Covers[] \as Covers;
+\import topology.Continuity[A := I.Carrier, B := I.Carrier] \as Parameters;
+\import I.Subdivision[] \as Subdivision;
+\import Subdivision.Cover[family := Maps.PullbackFamily p family] \as FineCover;
+\definition Property[f: I.Carrier -> I.Carrier]: \Prop :=
+  \forall (fc: Parameters.Continuous I.topology I.topology f) -> \exists Partition (Paths.reparam p f fc);
+\definition combine: \forall (f: I.Carrier -> I.Carrier) -> Property (Subdivision.left f) -> Property (Subdivision.right f) -> Property f := \block {
+  \fun (f: _)(left: _)(right: _)(fc: _) \then
+  \takefrom l: Partition (Paths.reparam p (Subdivision.left f) (Subdivision.leftContinuous f fc)) \by left (Subdivision.leftContinuous f fc) \then
+  \takefrom r: Partition (Paths.reparam p (Subdivision.right f) (Subdivision.rightContinuous f fc)) \by right (Subdivision.rightContinuous f fc) \then
+  \return \exact(\into[Tree](Tree::branch l r, Partition (Paths.reparam p f fc)) \by {
+    Logic.And[_, _]::#
+      (\bysub(Tree, Partition (Paths.reparam p (Subdivision.left f) (Subdivision.leftContinuous f fc)), l))
+      (\bysub(Tree, Partition (Paths.reparam p (Subdivision.right f) (Subdivision.rightContinuous f fc)), r))
+  }, Partition (Paths.reparam p f fc))
+};
+\definition local: \forall (f: I.Carrier -> I.Carrier) -> Parameters.Continuous I.topology I.topology f ->
+  \forall (V: \Pow I.Carrier) -> \In[\Pow I.Carrier] (Maps.PullbackFamily p family) V -> FineCover.Within f V -> Property f :=
+  \fun (f: _)(fc: _)(V: _)(member: _)(within: _)(continuous: _) => Maps.pullbackElim p family V
+    (\exists Partition (Paths.reparam p f continuous))
+    (\fun (U: \Pow A)(inFamily: _)(same: _) => \exact(\into[Tree](Tree::leaf, Partition (Paths.reparam p f continuous)) \by {
+      Logic.existsIntro[\Pow A, { U: \Pow A \where Logic.And[\In[\Pow A] family U, Within (Paths.reparam p f continuous) U] }] U
+        (Logic.And[_, _]::# inFamily (\fun (t: I.Carrier) => \idelim V = Maps.Preimage p U
+          \with W: \Pow I.Carrier => \In[I.Carrier] W (f t) \by { base: within t, equality: same }))
+    }, Partition (Paths.reparam p f continuous))) member;
+\import topology.Maps[A := I.Carrier, B := I.Carrier].Identity[] \as Identity;
+\definition existsPartition: Space.IsOpenCover[source, family, Space.Whole] -> \exists Partition p := \block {
+  \fun (cover: _) \then
+  \takefrom tree: Partition (Paths.reparam p (\fun (t: I.Carrier) => t) (Identity.continuous I.topology)) \by
+    FineCover.localToGlobal (Covers.pullback I.topology source p (Paths.continuous p) family cover) Property combine local (Identity.continuous I.topology) \then
+  \return \idelim Paths.reparam p (\fun (t: I.Carrier) => t) (Identity.continuous I.topology) = p \with q: Paths.Carrier => \exists Partition q \by {
+    base: \exact(tree, Partition (Paths.reparam p (\fun (t: I.Carrier) => t) (Identity.continuous I.topology))),
+    equality: \axiom:funext(Paths.reparam p (\fun (t: I.Carrier) => t) (Identity.continuous I.topology), p, \fun (t: I.Carrier) => \refl(p t))
+  }
+};

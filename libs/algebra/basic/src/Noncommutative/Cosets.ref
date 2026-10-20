@@ -1,0 +1,39 @@
+\import std.Logic[].Relation[] \as Relations;
+\definition Related[a, b: G]: \Prop := \exists ( h: \Cast[G] H \where mul h a = b );
+\definition reflexive: \forall (a: G) -> Related a a :=
+  \fun (a: G) => Logic.existsIntro[\Cast[G] H, { h: \Cast[G] H \where mul h a = a }]
+    (\into[G](one, H) \by { (subgroupLaws H).one }) (leftIdentity a);
+\definition symmetric: \forall (a, b: G) -> Related a b -> Related b a := \block {
+  \fun (a, b: G)(related: _) \then
+  \takefrom h: \Cast[\Cast[G] H] ({ h: \Cast[G] H \where mul h a = b }) \by related \then
+  \let same: mul h a = b := \bysub(\Cast[G] H, { h: \Cast[G] H \where mul h a = b }, h) \then
+  \let inverseH: \Cast[G] H := \into[G](inv h, H) \by { (subgroupLaws H).inverse h (\bysub(G, H, h)) } \then
+  \return Logic.existsIntro[\Cast[G] H, { u: \Cast[G] H \where mul u b = a }] inverseH
+    (trans!{G} _ _ _ (congr!{G G} (mul (inv h)) _ _ (sym!{G} _ _ same))
+      (trans!{G} _ _ _ (sym!{G} _ _ (associative (inv h) h a))
+        (trans!{G} _ _ _ (congr!{G G} (\fun (v: G) => mul v a) _ _ (leftInverse h)) (leftIdentity a))))
+};
+\definition transitive: \forall (a, b, c: G) -> Related a b -> Related b c -> Related a c := \block {
+  \fun (a, b, c: G)(first: _)(second: _) \then
+  \takefrom h: \Cast[\Cast[G] H] ({ h: \Cast[G] H \where mul h a = b }) \by first \then
+  \takefrom k: \Cast[\Cast[G] H] ({ k: \Cast[G] H \where mul k b = c }) \by second \then
+  \let ha: mul h a = b := \bysub(\Cast[G] H, { h: \Cast[G] H \where mul h a = b }, h) \then
+  \let kb: mul k b = c := \bysub(\Cast[G] H, { k: \Cast[G] H \where mul k b = c }, k) \then
+  \let kh: \Cast[G] H := \into[G](mul k h, H) \by { (subgroupLaws H).multiply k h (\bysub(G, H, k)) (\bysub(G, H, h)) } \then
+  \return Logic.existsIntro[\Cast[G] H, { u: \Cast[G] H \where mul u a = c }] kh
+    (trans!{G} _ _ _ (associative k h a) (trans!{G} _ _ _ (congr!{G G} (mul k) _ _ ha) kb))
+};
+\definition equivalence: Relations.Equivalence[G, Related] := Relations.Equivalence[G, Related] { refl := reflexive, sym := symmetric, trans := transitive };
+\import std.Set[].Quotient[A := G, Equivalent := Related] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition class: G -> Carrier := Quotient.class;
+\definition sameClass: \forall (a, b: G) -> Related a b -> class a = class b := Quotient.classOfEq equivalence;
+\definition induction[P: Carrier -> \Prop]: (\forall (a: G) -> P (class a)) -> \forall (q: Carrier) -> P q := Quotient.induction P;
+\module Mapping(S: \Set) {
+  \import Quotient.Maps[B := S] \as Native;
+  \definition Respects[f: G -> S]: \Prop := Native.Respects f;
+  \definition descend[f: G -> S][respects: Respects f]: Carrier -> S := Native.value equivalence f respects;
+  \definition onClass: \forall (f: G -> S)(respects: Respects f)(a: G) -> descend f respects (class a) = f a := Native.onClass equivalence;
+}
+\definition relatedOfSameClass: \forall (a, b: G) -> class a = class b -> Related a b := Quotient.equivalentOfClassEq equivalence;
+\module Action;

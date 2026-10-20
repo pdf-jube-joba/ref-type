@@ -1,0 +1,69 @@
+\import algebraic_topology.PathComponent[A := A, source := source] \as Components;
+\import Components.IntervalPaths[] \as Evaluation;
+\import algebraic_topology.Homotopy[A := Components.Point, B := A].Concatenation[] \as Join;
+\import topology.Topology[Carrier := Components.Point] \as PointTopology;
+\definition asComponent[x, y: A][f: Path x y]: Components.Path x y :=
+  Evaluation.ofFunction x y f (laws x y f).continuous (laws x y f).start (laws x y f).end;
+\definition concatenate[x, y, z: A][f: Path x y][g: Path y z]: Path x z := \block {
+  \let h: Components.Path x z := Join.concatenate PointTopology.Discrete source
+    (Components.constant x) (Components.constant y) (Components.constant z) (asComponent x y f) (asComponent y z g) \then
+  \return \into[Function](Evaluation.evaluate x z h, Path x z) \by {
+    Laws[x, z, Evaluation.evaluate x z h] {
+      continuous := Evaluation.continuous x z h,
+      start := Evaluation.start x z h, end := Evaluation.end x z h,
+    }
+  }
+};
+\import algebraic_topology.TimeSubdivision[A := Components.Point] \as Subdivision;
+\import algebraic_topology.Cylinder[A := Components.Point] \as PointCylinder;
+\import topological_constructions.Gluing[A := PointCylinder.Carrier, B := A].Pasting[F := Subdivision.LeftSet, G := Subdivision.RightSet] \as Pasting;
+\definition Left[t: Interval.Carrier]: \Prop := \In[PointCylinder.Carrier] Subdivision.LeftSet (PointCylinder.at t Components.Point::point);
+\definition Right[t: Interval.Carrier]: \Prop := \In[PointCylinder.Carrier] Subdivision.RightSet (PointCylinder.at t Components.Point::point);
+\definition covered: \forall (t: Interval.Carrier) -> Logic.Or[Left t, Right t] :=
+  \fun (t: Interval.Carrier) => Subdivision.covered (PointCylinder.at t Components.Point::point);
+\definition leftPoint[t: Interval.Carrier][member: Left t]: Subdivision.Left :=
+  \into[PointCylinder.Carrier](PointCylinder.at t Components.Point::point, Subdivision.LeftSet) \by { member };
+\definition rightPoint[t: Interval.Carrier][member: Right t]: Subdivision.Right :=
+  \into[PointCylinder.Carrier](PointCylinder.at t Components.Point::point, Subdivision.RightSet) \by { member };
+\definition leftTime[t: Interval.Carrier][member: Left t]: Interval.Carrier := Subdivision.leftTime (leftPoint t member);
+\definition rightTime[t: Interval.Carrier][member: Right t]: Interval.Carrier := Subdivision.rightTime (rightPoint t member);
+\definition onLeft: \forall (x, y, z: A)(f: Path x y)(g: Path y z)(t: Interval.Carrier)(member: Left t) ->
+  concatenate x y z f g t = f (leftTime t member) :=
+  \fun (x, y, z: A)(f: Path x y)(g: Path y z)(t: _)(member: _) => Pasting.onLeft
+    (\fun (p: Subdivision.Left) => asComponent x y f (Subdivision.leftMap p))
+    (\fun (p: Subdivision.Right) => asComponent y z g (Subdivision.rightMap p))
+    Subdivision.covered (Join.compatible PointTopology.Discrete source (Components.constant x) (Components.constant y)
+      (Components.constant z) (asComponent x y f) (asComponent y z g)) (leftPoint t member);
+\definition onRight: \forall (x, y, z: A)(f: Path x y)(g: Path y z)(t: Interval.Carrier)(member: Right t) ->
+  concatenate x y z f g t = g (rightTime t member) :=
+  \fun (x, y, z: A)(f: Path x y)(g: Path y z)(t: _)(member: _) => Pasting.onRight
+    (\fun (p: Subdivision.Left) => asComponent x y f (Subdivision.leftMap p))
+    (\fun (p: Subdivision.Right) => asComponent y z g (Subdivision.rightMap p))
+    Subdivision.covered (Join.compatible PointTopology.Discrete source (Components.constant x) (Components.constant y)
+      (Components.constant z) (asComponent x y f) (asComponent y z g)) (rightPoint t member);
+\definition extensional: \forall (x, y, z: A)(f: Path x y)(g: Path y z)(h: Function) ->
+  (\forall (t: Interval.Carrier)(member: Left t) -> h t = f (leftTime t member)) ->
+  (\forall (t: Interval.Carrier)(member: Right t) -> h t = g (rightTime t member)) ->
+  h = concatenate x y z f g :=
+  \fun (x, y, z: A)(f: Path x y)(g: Path y z)(h: Function)(left: _)(right: _) =>
+    \axiom:funext(h, concatenate x y z f g, \fun (t: Interval.Carrier) => either!{{(covered t)} {h t = concatenate x y z f g t}
+      {\fun (member: _) => trans!{A} _ _ _ (left t member) (sym!{A} _ _ (onLeft x y z f g t member))}
+      {\fun (member: _) => trans!{A} _ _ _ (right t member) (sym!{A} _ _ (onRight x y z f g t member))}});
+\module Homotopies;
+\module Classes(x, y, z: A);
+\import Interval.Halves[] \as Halves;
+\definition onLower: \forall (x, y, z: A)(f: Path x y)(g: Path y z)(t: Interval.Carrier) ->
+  concatenate x y z f g (Halves.lower t) = f t :=
+  \fun (x, y, z: A)(f: _)(g: _)(t: _) => trans!{A} _ _ _
+    (onLeft x y z f g (Halves.lower t) (Halves.lowerBound t))
+    (congr!{Interval.Carrier A} f (leftTime (Halves.lower t) (Halves.lowerBound t)) t (Halves.lowerDouble t));
+\definition onUpper: \forall (x, y, z: A)(f: Path x y)(g: Path y z)(t: Interval.Carrier) ->
+  concatenate x y z f g (Halves.upper t) = g t :=
+  \fun (x, y, z: A)(f: _)(g: _)(t: _) => trans!{A} _ _ _
+    (onRight x y z f g (Halves.upper t) (Halves.upperBound t))
+    (congr!{Interval.Carrier A} g (rightTime (Halves.upper t) (Halves.upperBound t)) t (Halves.upperDouble t));
+\definition undoLeft: \forall (t: Interval.Carrier)(member: Left t) -> Halves.lower (leftTime t member) = t :=
+  \fun (t: Interval.Carrier)(member: _) => Halves.undoDouble t (leftTime t member) (\refl(leftTime t member));
+\definition undoRight: \forall (t: Interval.Carrier)(member: Right t) -> Halves.upper (rightTime t member) = t :=
+  \fun (t: Interval.Carrier)(member: _) => Halves.undoDoubleMinusOne t (rightTime t member) (\refl(rightTime t member));
+\module Splitting;

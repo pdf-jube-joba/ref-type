@@ -1,0 +1,58 @@
+\definition Within[f: Function][U: \Pow Carrier]: \Prop := \forall (t: Carrier) -> \In[Carrier] U (f t);
+\definition small: \forall (delta: Real.Real) -> Compactness.LebesgueRadius[metric, family, delta] ->
+  \forall (f: Function)(r: Real.Real) -> R.Le Real.zero r -> Lipschitz f r -> R.Lt r delta ->
+  \exists ( U: \Pow Carrier \where Logic.And[\In[\Pow Carrier] family U, Within f U] ) := \block {
+  \fun (delta: Real.Real)(lebesgue: _)(f: Function)(r: Real.Real)(positive: _)(lipschitz: _)(small: _) \then
+  \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Logic.And[\In[\Pow Carrier] family U, Space.Subset (Metrics.Ball metric (f start) delta) U] })
+    \by lebesgue.smallBalls (f start) \then
+  \let data: Logic.And[\In[\Pow Carrier] family U, Space.Subset (Metrics.Ball metric (f start) delta) U] :=
+    \bysub(\Pow Carrier, { U: \Pow Carrier \where Logic.And[\In[\Pow Carrier] family U, Space.Subset (Metrics.Ball metric (f start) delta) U] }, U) \then
+  \return Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where Logic.And[\In[\Pow Carrier] family U, Within f U] }] U
+    (Logic.And[_, _]::# data.left (\fun (t: Carrier) => data.right (f t) (R.leLtTrans _ r delta (initialDistance f r positive lipschitz t) small)))
+};
+\definition allSmall: \forall (P: Function -> \Prop)(delta: Real.Real) -> Compactness.LebesgueRadius[metric, family, delta] ->
+  (\forall (f: Function) -> Maps.Continuous topology topology f -> \forall (U: \Pow Carrier) -> \In[\Pow Carrier] family U -> Within f U -> P f) ->
+  \forall (n: N.Nat^)(f: Function)(r: Real.Real) -> Maps.Continuous topology topology f -> R.Le Real.zero r -> Lipschitz f r ->
+  R.Lt (Real.mul r (Power.value n)) delta -> Subdivided P n f :=
+  \fun (P: Function -> \Prop)(delta: Real.Real)(lebesgue: _)(local: _) => \induction (n: N.Nat^) \return
+    (\forall (f: Function)(r: Real.Real) -> Maps.Continuous topology topology f -> R.Le Real.zero r -> Lipschitz f r ->
+      R.Lt (Real.mul r (Power.value n)) delta -> Subdivided P n f) \with {
+    | zero: \block {
+      \fun (f: Function)(r: Real.Real)(continuous: _)(positive: _)(lipschitz: _)(bound: _) \then
+      \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Logic.And[\In[\Pow Carrier] family U, Within f U] })
+        \by small delta lebesgue f r positive lipschitz (R.ltReplaceLeft _ r delta (Algebra.mulOneRight r) bound) \then
+      \let data: Logic.And[\In[\Pow Carrier] family U, Within f U] :=
+        \bysub(\Pow Carrier, { U: \Pow Carrier \where Logic.And[\In[\Pow Carrier] family U, Within f U] }, U) \then
+      \return local f continuous U data.left data.right
+    }
+    | succ: \fun (n: N.Nat^)(previous: \forall (f: Function)(r: Real.Real) -> Maps.Continuous topology topology f -> R.Le Real.zero r -> Lipschitz f r ->
+        R.Lt (Real.mul r (Power.value n)) delta -> Subdivided P n f)
+      (f: Function)(r: Real.Real)(continuous: _)(positive: _)(lipschitz: _)(bound: _) => Logic.And[_, _]::#
+        (previous (left f) (coefficient r) (leftContinuous f continuous) (positiveCoefficient r positive) (leftLipschitz f r positive lipschitz)
+          (R.ltReplaceLeft _ _ delta (sym!{Real.Real} _ _ (Laws.fieldMulAssoc r Real.half (Power.value n))) bound))
+        (previous (right f) (coefficient r) (rightContinuous f continuous) (positiveCoefficient r positive) (rightLipschitz f r positive lipschitz)
+          (R.ltReplaceLeft _ _ delta (sym!{Real.Real} _ _ (Laws.fieldMulAssoc r Real.half (Power.value n))) bound))
+  };
+\definition localToGlobal: Space.IsOpenCover[topology, family, Space.Whole] ->
+  \forall (P: Function -> \Prop) ->
+  (\forall (f: Function) -> P (left f) -> P (right f) -> P f) ->
+  (\forall (f: Function) -> Maps.Continuous topology topology f -> \forall (U: \Pow Carrier) -> \In[\Pow Carrier] family U -> Within f U -> P f) ->
+  P (\fun (t: Carrier) => t) := \block {
+  \fun (cover: _)(P: Function -> \Prop)(combine: _)(local: _) \then
+  \let metricCover: Space.IsOpenCover[MetricTopology.topology metric, family, Space.Whole] :=
+    \idelim topology = MetricTopology.topology metric \with t: Space.Topology => Space.IsOpenCover[t, family, Space.Whole]
+      \by { base: cover, equality: sym!{Space.Topology} _ _ metricTopology } \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Compactness.LebesgueRadius[metric, family, delta] })
+    \by Compactness.lebesgue metric metricCompact family metricCover \then
+  \let lebesgue: Compactness.LebesgueRadius[metric, family, delta] :=
+    \bysub(Real.Real, { delta: Real.Real \where Compactness.LebesgueRadius[metric, family, delta] }, delta) \then
+  \let halfBelowOne: R.Lt Real.half Real.one :=
+    R.ltReplaceLeft _ Real.half Real.one (Algebra.mulOneRight Real.half) (Estimates.halfStrict Real.one (R.Order[].ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne)) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt (Power.value n) delta })
+    \by Power.eventual Estimates.halfNonnegative halfBelowOne delta lebesgue.positive \then
+  \return recover P combine n (\fun (t: Carrier) => t)
+    (allSmall P delta lebesgue local n (\fun (t: Carrier) => t) Real.one (Identity.continuous topology) Laws.oneNonnegative
+      (\fun (s, t: Carrier) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft (Real.distance s t))) (R.leRefl (Real.distance s t)))
+      (R.ltReplaceLeft _ _ delta (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft (Power.value n)))
+        (\bysub(N.Nat^, { n: N.Nat^ \where R.Lt (Power.value n) delta }, n))))
+};

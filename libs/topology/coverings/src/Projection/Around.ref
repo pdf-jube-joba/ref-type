@@ -1,0 +1,67 @@
+\import Total.Subspace[S := Maps.Preimage projection U] \as Over;
+\import Base.Subspace[S := U] \as Under;
+\import topology.Topology[Carrier := Fiber b] \as FiberSpace;
+\import topological_constructions.Product[A := Under.CarrierSet, B := Fiber b] \as Product;
+\import topology.Homeomorphism[A := Over.CarrierSet, B := Product.CarrierSet] \as Homeomorphism;
+\import std.Data[].Pair[] \as Pair;
+\definition FiberProduct: \Set := Product.CarrierSet;
+\definition productTopology: topology.Topology[Carrier := FiberProduct].Topology :=
+  Product.topology (Under.topology base) FiberSpace.Discrete;
+\structure ChartLaws[data: Homeomorphism.Data]: \Prop := {
+  homeomorphism: Homeomorphism.Laws[Over.topology total, productTopology, data],
+  overBase: \forall (e: Over.CarrierSet) -> Pair.first Under.CarrierSet (Fiber b) (data.forward e) = projection e,
+};
+\definition Chart: \Set := \Cast[Homeomorphism.Data] ({ data: Homeomorphism.Data \where ChartLaws[data] });
+\definition laws[chart: Chart]: ChartLaws[chart] := \bysub(Homeomorphism.Data, Chart, chart);
+\definition asHomeomorphism[chart: Chart]: Homeomorphism.Homeomorphism[Over.topology total, productTopology] :=
+  \into[Homeomorphism.Data](chart, Homeomorphism.Homeomorphism[Over.topology total, productTopology]) \by { (laws chart).homeomorphism };
+\definition section[chart: Chart][sheet: Fiber b][u: Under.CarrierSet]: E :=
+  chart.backward (Pair.pair Under.CarrierSet (Fiber b) u sheet);
+\definition index[chart: Chart][e: Over.CarrierSet]: Fiber b := Pair.second Under.CarrierSet (Fiber b) (chart.forward e);
+\definition sectionProjects: \forall (chart: Chart)(sheet: Fiber b)(u: Under.CarrierSet) -> projection (section chart sheet u) = u :=
+  \fun (chart: Chart)(sheet: Fiber b)(u: Under.CarrierSet) => trans!{B} _ _ _
+    (sym!{B} _ _ ((laws chart).overBase (chart.backward (Pair.pair Under.CarrierSet (Fiber b) u sheet))))
+    (congr!{FiberProduct {Under.CarrierSet}} (Pair.first Under.CarrierSet (Fiber b)) _ _
+      (((laws chart).homeomorphism).rightInverse (Pair.pair Under.CarrierSet (Fiber b) u sheet)));
+\import Product.Universal[X := Under.CarrierSet] \as ConstantSheet;
+\import topology.Maps[A := Under.CarrierSet, B := Under.CarrierSet].Identity[] \as Identity;
+\import topology.Maps[A := Under.CarrierSet, B := Fiber b] \as Constants;
+\import topology.Composition[A := Under.CarrierSet, B := FiberProduct, C := Over.CarrierSet] \as Sections;
+\import topology.Composition[A := Under.CarrierSet, B := Over.CarrierSet, C := E] \as Inclusion;
+\import topology.Continuity[A := E, B := E].Corestriction[S := Maps.Preimage projection U] \as IntoTotal;
+\definition sectionContinuous: \forall (chart: Chart)(sheet: Fiber b) ->
+  topology.Continuity[A := Under.CarrierSet, B := E].Continuous (Under.topology base) total (section chart sheet) :=
+  \fun (chart: Chart)(sheet: Fiber b) => Inclusion.composeContinuous (Under.topology base) (Over.topology total) total
+    (\fun (u: Under.CarrierSet) => chart.backward (Pair.pair Under.CarrierSet (Fiber b) u sheet))
+    (\fun (e: Over.CarrierSet) => e)
+    (Sections.composeContinuous (Under.topology base) productTopology (Over.topology total)
+      (\fun (u: Under.CarrierSet) => Pair.pair Under.CarrierSet (Fiber b) u sheet) chart.backward
+      (ConstantSheet.pairContinuous (Under.topology base) (Under.topology base) FiberSpace.Discrete
+        (\fun (u: Under.CarrierSet) => u) (\fun (_: Under.CarrierSet) => sheet)
+        (Identity.continuous (Under.topology base)) (Constants.constantContinuous (Under.topology base) FiberSpace.Discrete sheet))
+      ((laws chart).homeomorphism).backwardContinuous)
+    (IntoTotal.inclusionContinuous total);
+\import Pair.Prop[A := Under.CarrierSet, B := Fiber b] \as PairLaws;
+\definition reconstruct: \forall (chart: Chart)(e: Over.CarrierSet)(u: Under.CarrierSet) -> projection e = u -> section chart (index chart e) u = e :=
+  \fun (chart: Chart)(e: Over.CarrierSet)(u: Under.CarrierSet)(same: _) => trans!{E} _ _ _
+    (congr!{FiberProduct {Over.CarrierSet}} chart.backward _ _
+      (trans!{FiberProduct} _ _ _
+        (congr!{{Under.CarrierSet} FiberProduct} (\fun (v: Under.CarrierSet) => Pair.pair Under.CarrierSet (Fiber b) v (index chart e)) _ _
+          (sym!{B} _ _ (trans!{B} _ _ _ ((laws chart).overBase e) same)))
+        (PairLaws.eta (chart.forward e))))
+    (((laws chart).homeomorphism).leftInverse e);
+\import Product.Maps[] \as Projections;
+\import topology.Composition[A := Over.CarrierSet, B := FiberProduct, C := Fiber b] \as Indices;
+\definition indexContinuous: \forall (chart: Chart) ->
+  topology.Continuity[A := Over.CarrierSet, B := Fiber b].Continuous (Over.topology total) FiberSpace.Discrete (index chart) :=
+  \fun (chart: Chart) => Indices.composeContinuous (Over.topology total) productTopology FiberSpace.Discrete chart.forward
+    (Pair.second Under.CarrierSet (Fiber b)) ((laws chart).homeomorphism).forwardContinuous
+    (Projections.secondContinuous (Under.topology base) FiberSpace.Discrete);
+\definition separate: \forall (chart: Chart)(e, f: Over.CarrierSet) -> projection e = projection f -> index chart e = index chart f -> e = f :=
+  \fun (chart: Chart)(e, f: Over.CarrierSet)(sameBase: _)(sameSheet: _) => trans!{E} _ _ _
+    (sym!{E} _ _ (((laws chart).homeomorphism).leftInverse e))
+    (trans!{E} _ _ _ (congr!{FiberProduct {Over.CarrierSet}} chart.backward _ _
+      (PairLaws.ext (chart.forward e) (chart.forward f)
+        (trans!{B} _ _ _ ((laws chart).overBase e) (trans!{B} _ _ _ sameBase (sym!{B} _ _ ((laws chart).overBase f)))) sameSheet))
+      (((laws chart).homeomorphism).leftInverse f));
+\module DiscretePaths;

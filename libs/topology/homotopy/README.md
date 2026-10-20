@@ -5,6 +5,9 @@
 | module | 内容 |
 | --- | --- |
 | `Interval` / `Arithmetic` / `IntervalFunctions` | 単位区間、反転・積・収縮用の時刻演算と連続性 |
+| `Interval.Convex` / `Initial` / `Halves` | 凸補間、初期部分区間、左右の半区間への連続な再パラメータ化 |
+| `Interval.Subdivision` / `SquareSubdivision` | Lebesgue 数と半区間の反復細分による区間・正方形の局所から大域への原理 |
+| `Interval.DiscreteMaps` / `SquareGluing` | 離散空間への道の定値性と正方形の貼り合わせ |
 | `Cylinder` / `Homotopy` | cylinder、端点条件、定数・反転・相対ホモトピー |
 | `Homotopy.Composition` / `Concatenation` / `RelativeConcatenation` / `RelativeRelation` | 前後合成、閉半区間の貼り合わせによる連結、相対ホモトピーの同値関係 |
 | `HomotopyEquivalence` / `Composition` / `Inverse` | ホモトピー同値、同相からの構成、合成と逆 |

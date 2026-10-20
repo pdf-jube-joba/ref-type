@@ -1,0 +1,20 @@
+\import topology.Topology[Carrier := A] \as Domain;
+\import topology.Continuity[A := A, B := Carrier] \as Continuous;
+\import topology.Composition[A := A, B := Carrier, C := Real.Real] \as Include;
+\import topology.Continuity[A := A, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one] \as IntoInterval;
+\import metric_spaces.RealFunctions[A := A] \as RealFunctions;
+\import RealFunctions.Product[] \as Product;
+\definition scalarContinuous[source: Domain.Topology][f: A -> Carrier][continuous: Continuous.Continuous source topology f]:
+  RealFunctions.Continuous source (\fun (x: A) => f x) :=
+  Include.composeContinuous source topology Line.topology f (\fun (t: Carrier) => t) continuous inclusionContinuous;
+\definition continuous: \forall (source: Domain.Topology)(s, t, u: A -> Carrier) ->
+  Continuous.Continuous source topology s -> Continuous.Continuous source topology t -> Continuous.Continuous source topology u ->
+  Continuous.Continuous source topology (\fun (x: A) => blend (s x) (t x) (u x)) :=
+  \fun (source: _)(s, t, u: _)(sc: _)(tc: _)(uc: _) => IntoInterval.corestrictContinuous source Line.topology
+    (\fun (x: A) => blend (s x) (t x) (u x))
+    (RealFunctions.sumContinuous source _ _
+      (Product.continuous source (\fun (x: A) => reverse (s x)) (\fun (x: A) => t x)
+        (RealFunctions.subContinuous source (\fun (_: A) => Real.one) (\fun (x: A) => s x)
+          (RealFunctions.constantContinuous source Real.one) (scalarContinuous source s sc)) (scalarContinuous source t tc))
+      (Product.continuous source (\fun (x: A) => s x) (\fun (x: A) => u x)
+        (scalarContinuous source s sc) (scalarContinuous source u uc)));

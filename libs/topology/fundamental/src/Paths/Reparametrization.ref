@@ -1,0 +1,21 @@
+\import \root.Paths[A := Interval.Carrier, source := Interval.topology] \as Parameters;
+\import Parameters.Maps[B := A, target := source] \as Mapping;
+\import \root.IntervalPaths[] \as IntervalPaths;
+\definition apply[x, y: A][p: Path x y][a: Parameters.Path Interval.start Interval.end]: Path x y :=
+  \into[Function](\fun (t: Interval.Carrier) => p (a t), Path x y) \by {
+    Laws[x, y, \fun (t: Interval.Carrier) => p (a t)] {
+      continuous := Composition.composeContinuous Interval.topology Interval.topology source a p
+        (Parameters.laws Interval.start Interval.end a).continuous (laws x y p).continuous,
+      start := trans!{A} _ _ _ (congr!{Interval.Carrier A} p _ _ (Parameters.laws Interval.start Interval.end a).start) (laws x y p).start,
+      end := trans!{A} _ _ _ (congr!{Interval.Carrier A} p _ _ (Parameters.laws Interval.start Interval.end a).end) (laws x y p).end,
+    }
+  };
+\definition homotopic: \forall (x, y: A)(p: Path x y)(a, b: Parameters.Path Interval.start Interval.end) ->
+  Homotopic x y (apply x y p a) (apply x y p b) :=
+  \fun (x, y: A)(p: _)(a, b: _) => Mapping.respects p (laws x y p).continuous Interval.start Interval.end a b
+    (IntervalPaths.homotopic Interval.start Interval.end a b);
+\definition identity: \forall (x, y: A)(p: Path x y) -> apply x y p IntervalPaths.identity = p :=
+  \fun (x, y: A)(p: _) => \axiom:funext(apply x y p IntervalPaths.identity, p, \fun (t: Interval.Carrier) => \refl(p t));
+\definition invariant: \forall (x, y: A)(p: Path x y)(a: Parameters.Path Interval.start Interval.end) -> Homotopic x y (apply x y p a) p :=
+  \fun (x, y: A)(p: _)(a: _) => homotopyCongruent (apply x y p a) (apply x y p IntervalPaths.identity) (apply x y p a) p
+    (\refl(apply x y p a)) (identity x y p) (homotopic x y p a IntervalPaths.identity);

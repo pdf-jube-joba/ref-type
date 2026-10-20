@@ -1,0 +1,31 @@
+\import \parent.Squares[] \as Squares;
+\import algebraic_topology.Homotopy[A := I.Carrier, B := A] \as H;
+\import Paths.Squares[] \as Edges;
+\definition invariant: \forall (cover: Space.IsOpenCover[source, family, Space.Whole]) -> ConstantLaw -> Squares.LocalLaw ->
+  \forall (x, y: A)(p, q: Based.Path x y)(h: H.RelativeHomotopy[I.topology, source, Based.Boundary, p, q]) ->
+  value cover (Paths.forget x y p) = value cover (Paths.forget x y q) := \block {
+  \fun (cover: _)(unit: _)(local: _)(x, y: A)(p, q: _)(h: _) \then
+  \let F: Edges.Family := \into[Square.Carrier -> A](h, Edges.Family) \by { ((H.relativeLaws I.topology source Based.Boundary p q h).homotopy).continuous } \then
+  \let left: Edges.left F = Paths.forget x y p := \axiom:funext(Edges.left F, Paths.forget x y p, ((H.relativeLaws I.topology source Based.Boundary p q h).homotopy).start) \then
+  \let right: Edges.right F = Paths.forget x y q := \axiom:funext(Edges.right F, Paths.forget x y q, ((H.relativeLaws I.topology source Based.Boundary p q h).homotopy).end) \then
+  \let bottom: Edges.bottom F = Paths.forget x x (Based.constant x) := \axiom:funext(Edges.bottom F, Paths.forget x x (Based.constant x),
+    \fun (t: I.Carrier) => trans!{A} _ _ _ ((H.relativeLaws I.topology source Based.Boundary p q h).fixed t I.start (Logic.Or[_, _]::left (\refl(I.start)))) (Based.laws x y p).start) \then
+  \let top: Edges.top F = Paths.forget y y (Based.constant y) := \axiom:funext(Edges.top F, Paths.forget y y (Based.constant y),
+    \fun (t: I.Carrier) => trans!{A} _ _ _ ((H.relativeLaws I.topology source Based.Boundary p q h).fixed t I.end (Logic.Or[_, _]::right (\refl(I.end)))) (Based.laws x y p).end) \then
+  \let bottomValue: value cover (Edges.bottom F) = Group.one := trans!{G} _ _ _
+    (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ bottom) (constantValue cover unit x) \then
+  \let topValue: value cover (Edges.top F) = Group.one := trans!{G} _ _ _
+    (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ top) (constantValue cover unit y) \then
+  \return sym!{G} _ _ (trans!{G} _ _ _ (sym!{G} _ _ (Group.leftIdentity (value cover (Paths.forget x y q))))
+    (trans!{G} _ _ _
+      (sym!{G} _ _ (congr2!{G G G} Group.mul _ _ _ _ bottomValue (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ right)))
+      (trans!{G} _ _ _ (Squares.commutes cover local F)
+        (trans!{G} _ _ _ (congr2!{G G G} Group.mul _ _ _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ left) topValue)
+          (Group.rightIdentity (value cover (Paths.forget x y p)))))))
+};
+\definition respects: \forall (cover: Space.IsOpenCover[source, family, Space.Whole]) -> ConstantLaw -> Squares.LocalLaw ->
+  \forall (x, y: A)(p, q: Based.Path x y) -> Based.Homotopic x y p q -> value cover (Paths.forget x y p) = value cover (Paths.forget x y q) := \block {
+  \fun (cover: _)(unit: _)(local: _)(x, y: A)(p, q: _)(related: _) \then
+  \takefrom h: H.RelativeHomotopy[I.topology, source, Based.Boundary, p, q] \by related \then
+  \return invariant cover unit local x y p q h
+};

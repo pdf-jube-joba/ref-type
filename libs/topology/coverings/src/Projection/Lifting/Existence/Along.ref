@@ -1,0 +1,105 @@
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Lifting[] \as Lifting;
+\import algebraic_topology.Interval[].Subdivision[] \as Subdivision;
+\import algebraic_topology.Interval[].Halves[] \as Halves;
+\import topology.Topology[Carrier := Interval.Carrier] \as Domain;
+\import topology.Continuity[A := Interval.Carrier, B := Interval.Carrier] \as ParameterMaps;
+\import topology.Composition[A := Interval.Carrier, B := Interval.Carrier, C := B] \as Compose;
+\import BasePaths.Concatenation[] \as BaseJoin;
+\import TotalPaths.Concatenation[] \as TotalJoin;
+\use Logic.either;
+\definition Preimage[b: B]: \Pow Interval.Carrier := { t: Interval.Carrier \where \In[B] (charts b).neighborhood (path t) };
+\definition family: \Pow (\Pow Interval.Carrier) :=
+  { V: \Pow Interval.Carrier \where \exists ( b: B \where V = Preimage b ) };
+\definition cover: Domain.IsOpenCover[Interval.topology, family, Domain.Whole] := Domain.IsOpenCover[Interval.topology, family, Domain.Whole] {
+  open := \block {
+    \fun (V: \Pow Interval.Carrier)(member: \In[\Pow Interval.Carrier] family V) \then
+    \takefrom b: \Cast[B] ({ b: B \where V = Preimage b }) \by member \then
+    \return \idelim Preimage b = V \with W: \Pow Interval.Carrier => Domain.IsOpenIn Interval.topology W \by {
+      base: (BasePaths.laws x y path).continuous (charts b).neighborhood (charts b).open,
+      equality: sym!{\Pow Interval.Carrier} _ _ (\bysub(B, { b: B \where V = Preimage b }, b))
+    }
+  },
+  covers := \fun (t: Interval.Carrier)(_ : t = t) => Domain.unionMemberOf family (Preimage (path t)) t
+    (Logic.existsIntro[B, { b: B \where Preimage (path t) = Preimage b }] (path t) (\refl(Preimage (path t))))
+    (charts (path t)).contains,
+};
+\import Subdivision.Cover[family := family] \as Fine;
+\definition trace[f: Interval.Carrier -> Interval.Carrier][continuous: ParameterMaps.Continuous Interval.topology Interval.topology f]:
+  BasePaths.Path (path (f Interval.start)) (path (f Interval.end)) :=
+  \into[BasePaths.Function](\fun (t: Interval.Carrier) => path (f t), BasePaths.Path (path (f Interval.start)) (path (f Interval.end))) \by {
+    BasePaths.Laws[path (f Interval.start), path (f Interval.end), \fun (t: Interval.Carrier) => path (f t)] {
+      continuous := Compose.composeContinuous Interval.topology Interval.topology base f path continuous (BasePaths.laws x y path).continuous,
+      start := \refl(path (f Interval.start)), end := \refl(path (f Interval.end)),
+    }
+  };
+\definition Property[f: Interval.Carrier -> Interval.Carrier]: \Prop :=
+  \forall (continuous: ParameterMaps.Continuous Interval.topology Interval.topology f)(start: Fiber (path (f Interval.start))) ->
+    \exists PathLift (path (f Interval.start)) (path (f Interval.end)) (trace f continuous) start;
+\definition combine: \forall (f: Interval.Carrier -> Interval.Carrier) -> Property (Subdivision.left f) -> Property (Subdivision.right f) -> Property f := \block {
+  \fun (f: _)(left: _)(right: _)(continuous: _)(start: _) \then
+  \let lc: ParameterMaps.Continuous Interval.topology Interval.topology (Subdivision.left f) := Subdivision.leftContinuous f continuous \then
+  \let rc: ParameterMaps.Continuous Interval.topology Interval.topology (Subdivision.right f) := Subdivision.rightContinuous f continuous \then
+  \let lp: BasePaths.Path (path (f (Halves.lower Interval.start))) (path (f (Halves.lower Interval.end))) := trace (Subdivision.left f) lc \then
+  \let rp: BasePaths.Path (path (f (Halves.upper Interval.start))) (path (f (Halves.upper Interval.end))) := trace (Subdivision.right f) rc \then
+  \let ls: Fiber (path (f (Halves.lower Interval.start))) := \into[E](start, Fiber (path (f (Halves.lower Interval.start)))) \by {
+    trans!{B} _ _ _ (projectsTo (path (f Interval.start)) start)
+      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => path (f t)) _ _ (sym!{Interval.Carrier} _ _ Halves.lowerStart))
+  } \then
+  \takefrom l: PathLift (path (f (Halves.lower Interval.start))) (path (f (Halves.lower Interval.end))) lp ls \by left lc ls \then
+  \let rs: Fiber (path (f (Halves.upper Interval.start))) := \into[E](l Interval.end, Fiber (path (f (Halves.upper Interval.start)))) \by {
+    trans!{B} _ _ _ ((pathLaws _ _ lp ls l).projects Interval.end)
+      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => path (f t)) _ _
+        (trans!{Interval.Carrier} _ _ _ Halves.lowerEnd (sym!{Interval.Carrier} _ _ Halves.upperStart)))
+  } \then
+  \takefrom r: PathLift (path (f (Halves.upper Interval.start))) (path (f (Halves.upper Interval.end))) rp rs \by right rc rs \then
+  \let first: TotalPaths.Path start (l Interval.end) := asPath _ _ lp ls l \then
+  \let second: TotalPaths.Path (l Interval.end) (r Interval.end) := asPath _ _ rp rs r \then
+  \let joined: TotalPaths.Path start (r Interval.end) := TotalJoin.concatenate start (l Interval.end) (r Interval.end) first second \then
+  \let lifted: PathLift (path (f Interval.start)) (path (f Interval.end)) (trace f continuous) start :=
+    \into[Interval.Carrier -> E](joined, PathLift (path (f Interval.start)) (path (f Interval.end)) (trace f continuous) start) \by {
+      PathLiftLaws[path (f Interval.start), path (f Interval.end), trace f continuous, start, joined] {
+        continuous := (TotalPaths.laws start (r Interval.end) joined).continuous,
+        starts := (TotalPaths.laws start (r Interval.end) joined).start,
+        projects := \fun (t: Interval.Carrier) => either!{{(BaseJoin.covered t)} {projection (joined t) = path (f t)}
+          {\fun (member: _) => trans!{B} _ _ _
+            (congr!{E B} projection _ _ (TotalJoin.onLeft start (l Interval.end) (r Interval.end) first second t member))
+            (trans!{B} _ _ _ ((pathLaws _ _ lp ls l).projects (BaseJoin.leftTime t member))
+              (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => path (f s)) _ _ (BaseJoin.undoLeft t member)))}
+          {\fun (member: _) => trans!{B} _ _ _
+            (congr!{E B} projection _ _ (TotalJoin.onRight start (l Interval.end) (r Interval.end) first second t member))
+            (trans!{B} _ _ _ ((pathLaws _ _ rp rs r).projects (BaseJoin.rightTime t member))
+              (congr!{Interval.Carrier B} (\fun (s: Interval.Carrier) => path (f s)) _ _ (BaseJoin.undoRight t member)))}}
+      }
+    } \then
+  \return \exact(lifted, PathLift (path (f Interval.start)) (path (f Interval.end)) (trace f continuous) start)
+};
+\definition local: \forall (f: Interval.Carrier -> Interval.Carrier) -> ParameterMaps.Continuous Interval.topology Interval.topology f ->
+  \forall (V: \Pow Interval.Carrier) -> \In[\Pow Interval.Carrier] family V -> Fine.Within f V -> Property f := \block {
+  \fun (f: _)(fc: _)(V: _)(member: _)(within: _)(continuous: _)(start: _) \then
+  \takefrom b: \Cast[B] ({ b: B \where V = Preimage b }) \by member \then
+  \let equality: V = Preimage b := \bysub(B, { b: B \where V = Preimage b }, b) \then
+  \let contained: \forall (t: Interval.Carrier) -> \In[B] (charts b).neighborhood (path (f t)) :=
+    \fun (t: Interval.Carrier) => \idelim V = Preimage b \with W: \Pow Interval.Carrier => \In[Interval.Carrier] W (f t)
+      \by { base: within t, equality: equality } \then
+  \let lift: PathLift _ _ (trace f continuous) start :=
+    Lifting.Local[b := b, U := (charts b).neighborhood].lift _ _ (trace f continuous) contained start (charts b).chart \then
+  \return \exact(lift, PathLift _ _ (trace f continuous) start)
+};
+\definition global: Property (\fun (t: Interval.Carrier) => t) := Fine.localToGlobal cover Property combine local;
+\import topology.Maps[A := Interval.Carrier, B := Interval.Carrier].Identity[] \as Identity;
+\definition existsLift: \forall (start: Fiber x) -> \exists PathLift x y path start := \block {
+  \fun (start: Fiber x) \then
+  \let first: Fiber (path Interval.start) := \into[E](start, Fiber (path Interval.start)) \by {
+    trans!{B} _ _ _ (projectsTo x start) (sym!{B} _ _ (BasePaths.laws x y path).start)
+  } \then
+  \takefrom lifted: PathLift (path Interval.start) (path Interval.end) (trace (\fun (t: Interval.Carrier) => t) (Identity.continuous Interval.topology)) first
+    \by global (Identity.continuous Interval.topology) first \then
+  \let result: PathLift x y path start := \into[Interval.Carrier -> E](lifted, PathLift x y path start) \by {
+    PathLiftLaws[x, y, path, start, lifted] {
+      continuous := (pathLaws _ _ (trace (\fun (t: Interval.Carrier) => t) (Identity.continuous Interval.topology)) first lifted).continuous,
+      starts := (pathLaws _ _ (trace (\fun (t: Interval.Carrier) => t) (Identity.continuous Interval.topology)) first lifted).starts,
+      projects := (pathLaws _ _ (trace (\fun (t: Interval.Carrier) => t) (Identity.continuous Interval.topology)) first lifted).projects,
+    }
+  } \then
+  \return \exact(result, PathLift x y path start)
+};

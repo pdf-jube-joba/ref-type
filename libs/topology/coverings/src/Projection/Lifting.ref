@@ -1,0 +1,32 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := Interval.Carrier] \as Square;
+\import fundamental_groups.Paths[A := B, source := base] \as BasePaths;
+\import fundamental_groups.Paths[A := E, source := total] \as TotalPaths;
+\import topology.Continuity[A := Interval.Carrier, B := E] \as Continuous;
+\structure PathLiftLaws[x, y: B, path: BasePaths.Path x y, start: Fiber x, lift: Interval.Carrier -> E]: \Prop := {
+  continuous: Continuous.Continuous Interval.topology total lift,
+  projects: \forall (t: Interval.Carrier) -> projection (lift t) = path t,
+  starts: lift Interval.start = start,
+};
+\definition PathLift[x, y: B][path: BasePaths.Path x y][start: Fiber x]: \Set :=
+  \Cast[Interval.Carrier -> E] ({ lift: Interval.Carrier -> E \where PathLiftLaws[x, y, path, start, lift] });
+\definition pathLaws[x, y: B][path: BasePaths.Path x y][start: Fiber x][lift: PathLift x y path start]:
+  PathLiftLaws[x, y, path, start, lift] := \bysub(Interval.Carrier -> E, PathLift x y path start, lift);
+\definition endpoint[x, y: B][path: BasePaths.Path x y][start: Fiber x][lift: PathLift x y path start]: Fiber y :=
+  \into[E](lift Interval.end, Fiber y) \by {
+    trans!{B} _ _ _ ((pathLaws x y path start lift).projects Interval.end) (BasePaths.laws x y path).end
+  };
+\definition asPath[x, y: B][path: BasePaths.Path x y][start: Fiber x][lift: PathLift x y path start]:
+  TotalPaths.Path start (endpoint x y path start lift) :=
+  \into[TotalPaths.Function](lift, TotalPaths.Path start (endpoint x y path start lift)) \by {
+    TotalPaths.Laws[start, endpoint x y path start lift, lift] {
+      continuous := (pathLaws x y path start lift).continuous,
+      start := (pathLaws x y path start lift).starts, end := \refl(lift Interval.end),
+    }
+  };
+\module Local(b: B, U: \Pow B);
+\module Concatenation;
+\module Existence;
+\module Uniqueness;
+\module Squares;
+\module Homotopy;

@@ -1,0 +1,77 @@
+\import topology.Maps[A := Square.Carrier, B := A] \as Maps;
+\import topology.Continuity[A := Square.Carrier, B := A].Covers[] \as Covers;
+\import I.SquareSubdivision[] \as Subdivision;
+\import I.Subdivision[] \as Intervals;
+\import I.Halves[] \as Halves;
+\import topology.Continuity[A := I.Carrier, B := I.Carrier] \as Parameters;
+\import Subdivision.Cover[family := Maps.PullbackFamily F family] \as FineCover;
+\definition Property[f, g: I.Carrier -> I.Carrier]: \Prop := \forall (fc: Parameters.Continuous I.topology I.topology f)(gc: Parameters.Continuous I.topology I.topology g) ->
+  Group.mul (value cover (Edges.bottom (Edges.reparam F f g fc gc))) (value cover (Edges.right (Edges.reparam F f g fc gc))) =
+  Group.mul (value cover (Edges.left (Edges.reparam F f g fc gc))) (value cover (Edges.top (Edges.reparam F f g fc gc)));
+\definition horizontal: \forall (f, g: I.Carrier -> I.Carrier) -> Property (Intervals.left f) g -> Property (Intervals.right f) g -> Property f g := \block {
+  \fun (f, g: _)(left: _)(right: _)(fc: _)(gc: _) \then
+  \let whole: Edges.Family := Edges.reparam F f g fc gc \then
+  \let l: Edges.Family := Edges.reparam F (Intervals.left f) g (Intervals.leftContinuous f fc) gc \then
+  \let r: Edges.Family := Edges.reparam F (Intervals.right f) g (Intervals.rightContinuous f fc) gc \then
+  \let sameLeft: Edges.left whole = Edges.left l := \axiom:funext(Edges.left whole, Edges.left l, \fun (t: I.Carrier) =>
+    congr!{I.Carrier A} (\fun (s: I.Carrier) => F (Square.at (f s) (g t))) _ _ (sym!{I.Carrier} _ _ Halves.lowerStart)) \then
+  \let sameRight: Edges.right whole = Edges.right r := \axiom:funext(Edges.right whole, Edges.right r, \fun (t: I.Carrier) =>
+    congr!{I.Carrier A} (\fun (s: I.Carrier) => F (Square.at (f s) (g t))) _ _ (sym!{I.Carrier} _ _ Halves.upperEnd)) \then
+  \let middle: Edges.right l = Edges.left r := \axiom:funext(Edges.right l, Edges.left r, \fun (t: I.Carrier) =>
+    congr!{I.Carrier A} (\fun (s: I.Carrier) => F (Square.at (f s) (g t))) _ _ (trans!{I.Carrier} _ _ _ Halves.lowerEnd (sym!{I.Carrier} _ _ Halves.upperStart))) \then
+  \let rightEquation: Group.mul (value cover (Edges.bottom r)) (value cover (Edges.right r)) = Group.mul (value cover (Edges.right l)) (value cover (Edges.top r)) :=
+    trans!{G} _ _ _ (right (Intervals.rightContinuous f fc) gc)
+      (congr!{G G} (\fun (m: G) => Group.mul m (value cover (Edges.top r))) _ _ (sym!{G} _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ middle))) \then
+  \return trans!{G} _ _ _
+    (congr2!{G G G} Group.mul _ _ _ _ (split cover (Edges.bottom whole)) (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameRight))
+    (trans!{G} _ _ _
+      (Group.horizontalRectangle (value cover (Edges.bottom l)) (value cover (Edges.bottom r)) (value cover (Edges.top l)) (value cover (Edges.top r))
+        (value cover (Edges.left l)) (value cover (Edges.right l)) (value cover (Edges.right r)) (left (Intervals.leftContinuous f fc) gc) rightEquation)
+      (congr2!{G G G} Group.mul _ _ _ _
+        (sym!{G} _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameLeft))
+        (sym!{G} _ _ (split cover (Edges.top whole)))))
+};
+\definition vertical: \forall (f, g: I.Carrier -> I.Carrier) -> Property f (Intervals.left g) -> Property f (Intervals.right g) -> Property f g := \block {
+  \fun (f, g: _)(lower: _)(upper: _)(fc: _)(gc: _) \then
+  \let whole: Edges.Family := Edges.reparam F f g fc gc \then
+  \let l: Edges.Family := Edges.reparam F f (Intervals.left g) fc (Intervals.leftContinuous g gc) \then
+  \let r: Edges.Family := Edges.reparam F f (Intervals.right g) fc (Intervals.rightContinuous g gc) \then
+  \let sameBottom: Edges.bottom whole = Edges.bottom l := \axiom:funext(Edges.bottom whole, Edges.bottom l, \fun (t: I.Carrier) =>
+    congr!{I.Carrier A} (\fun (s: I.Carrier) => F (Square.at (f t) (g s))) _ _ (sym!{I.Carrier} _ _ Halves.lowerStart)) \then
+  \let sameTop: Edges.top whole = Edges.top r := \axiom:funext(Edges.top whole, Edges.top r, \fun (t: I.Carrier) =>
+    congr!{I.Carrier A} (\fun (s: I.Carrier) => F (Square.at (f t) (g s))) _ _ (sym!{I.Carrier} _ _ Halves.upperEnd)) \then
+  \let middle: Edges.top l = Edges.bottom r := \axiom:funext(Edges.top l, Edges.bottom r, \fun (t: I.Carrier) =>
+    congr!{I.Carrier A} (\fun (s: I.Carrier) => F (Square.at (f t) (g s))) _ _ (trans!{I.Carrier} _ _ _ Halves.lowerEnd (sym!{I.Carrier} _ _ Halves.upperStart))) \then
+  \let upperEquation: Group.mul (value cover (Edges.top l)) (value cover (Edges.right r)) = Group.mul (value cover (Edges.left r)) (value cover (Edges.top r)) :=
+    trans!{G} _ _ _
+      (congr!{G G} (\fun (m: G) => Group.mul m (value cover (Edges.right r))) _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ middle))
+      (upper fc (Intervals.rightContinuous g gc)) \then
+  \return trans!{G} _ _ _
+    (congr2!{G G G} Group.mul _ _ _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameBottom) (split cover (Edges.right whole)))
+    (trans!{G} _ _ _
+      (Group.verticalRectangle (value cover (Edges.bottom l)) (value cover (Edges.right l)) (value cover (Edges.right r)) (value cover (Edges.left l)) (value cover (Edges.left r))
+        (value cover (Edges.top r)) (value cover (Edges.top l)) (lower fc (Intervals.leftContinuous g gc)) upperEquation)
+      (congr2!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (split cover (Edges.left whole)))
+        (sym!{G} _ _ (congr!{{Paths.Carrier} G} (\fun (p: Paths.Carrier) => value cover p) _ _ sameTop))))
+};
+\definition localProperty: \forall (f, g: I.Carrier -> I.Carrier) -> Parameters.Continuous I.topology I.topology f -> Parameters.Continuous I.topology I.topology g ->
+  \forall (V: \Pow Square.Carrier) -> \In[\Pow Square.Carrier] (Maps.PullbackFamily F family) V -> FineCover.Within f g V -> Property f g :=
+  \fun (f, g: _)(fc: _)(gc: _)(V: _)(member: _)(within: _)(fc2: _)(gc2: _) => Maps.pullbackElim F family V
+    (Group.mul (value cover (Edges.bottom (Edges.reparam F f g fc2 gc2))) (value cover (Edges.right (Edges.reparam F f g fc2 gc2))) =
+      Group.mul (value cover (Edges.left (Edges.reparam F f g fc2 gc2))) (value cover (Edges.top (Edges.reparam F f g fc2 gc2))))
+    (\block {
+      \fun (U: \Pow A)(inFamily: _)(same: _) \then
+      \let trace: Edges.Family := Edges.reparam F f g fc2 gc2 \then
+      \let contained: WithinSquare trace U := \fun (q: Square.Carrier) => \idelim V = Maps.Preimage F U
+        \with W: \Pow Square.Carrier => \In[Square.Carrier] W (Edges.parameter f g q)
+        \by { base: within (Square.time q) (Square.point q), equality: same } \then
+      \return trans!{G} _ _ _
+        (congr2!{G G G} Group.mul _ _ _ _ (onLocal cover (Edges.bottom trace) (bottomSmall trace U inFamily contained)) (onLocal cover (Edges.right trace) (rightSmall trace U inFamily contained)))
+        (trans!{G} _ _ _ (local trace U inFamily contained)
+          (congr2!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (onLocal cover (Edges.left trace) (leftSmall trace U inFamily contained)))
+            (sym!{G} _ _ (onLocal cover (Edges.top trace) (topSmall trace U inFamily contained)))))
+    }) member;
+\import topology.Maps[A := I.Carrier, B := I.Carrier].Identity[] \as Identity;
+\definition commutes: Group.mul (value cover (Edges.bottom F)) (value cover (Edges.right F)) = Group.mul (value cover (Edges.left F)) (value cover (Edges.top F)) :=
+  FineCover.localToGlobal (Covers.pullback (Square.topology I.topology) source F (Edges.continuous F) family cover) Property horizontal vertical localProperty
+    (Identity.continuous I.topology) (Identity.continuous I.topology);

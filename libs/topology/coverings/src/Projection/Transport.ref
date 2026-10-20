@@ -1,0 +1,61 @@
+\import \parent.Lifting[] \as Lifting;
+\import Lifting.Existence[] \as Existence;
+\import Lifting.Uniqueness[] \as Uniqueness;
+\import fundamental_groups.Paths[A := B, source := base] \as Paths;
+\import algebraic_topology.Interval[] \as Interval;
+\import topology.Maps[A := Interval.Carrier, B := E] \as Constants;
+\import topology.Composition[A := Interval.Carrier, B := Interval.Carrier, C := E] \as Compose;
+\definition lift[covering: Covering][x, y: B][p: Paths.Path x y][e: Fiber x]: Lifting.PathLift x y p e :=
+  \choice Lifting.PathLift x y p e \by {
+    existence: Existence.pathLiftExists covering x y p e,
+    uniqueness: Uniqueness.pathLiftUnique covering x y p e
+  };
+\definition along[covering: Covering][x, y: B][p: Paths.Path x y][e: Fiber x]: Fiber y := Lifting.endpoint x y p e (lift covering x y p e);
+\definition constantLift[x: B][e: Fiber x]: Lifting.PathLift x x (Paths.constant x) e :=
+  \into[Interval.Carrier -> E](\fun (_: Interval.Carrier) => e, Lifting.PathLift x x (Paths.constant x) e) \by {
+    Lifting.PathLiftLaws[x, x, Paths.constant x, e, \fun (_: Interval.Carrier) => e] {
+      continuous := Constants.constantContinuous Interval.topology total e,
+      projects := \fun (_: Interval.Carrier) => projectsTo x e,
+      starts := \refl(e),
+    }
+  };
+\definition constant: \forall (covering: Covering)(x: B)(e: Fiber x) -> along covering x x (Paths.constant x) e = e :=
+  \fun (covering: Covering)(x: B)(e: Fiber x) => congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
+    (Uniqueness.pathLiftUnique covering x x (Paths.constant x) e (lift covering x x (Paths.constant x) e) (constantLift x e));
+\import Paths.Concatenation[] \as Join;
+\import Lifting.Concatenation[] \as LiftJoin;
+\import fundamental_groups.Paths[A := E, source := total] \as TotalPaths;
+\import TotalPaths.Concatenation[] \as TotalJoin;
+\definition composition: \forall (covering: Covering)(x, y, z: B)(p: Paths.Path x y)(q: Paths.Path y z)(e: Fiber x) ->
+  along covering x z (Join.concatenate x y z p q) e = along covering y z q (along covering x y p e) :=
+  \fun (covering: Covering)(x, y, z: B)(p: _)(q: _)(e: _) => trans!{E} _ _ _
+    (congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
+      (Uniqueness.pathLiftUnique covering x z (Join.concatenate x y z p q) e (lift covering x z (Join.concatenate x y z p q) e)
+        (LiftJoin.lift x y z p q e (lift covering x y p e) (lift covering y z q (along covering x y p e)))))
+    (TotalPaths.laws e (along covering y z q (along covering x y p e))
+      (TotalJoin.concatenate e (along covering x y p e) (along covering y z q (along covering x y p e))
+        (Lifting.asPath x y p e (lift covering x y p e))
+        (Lifting.asPath y z q (along covering x y p e) (lift covering y z q (along covering x y p e))))).end;
+\definition reverseLift[covering: Covering][x, y: B][p: Paths.Path x y][e: Fiber x]:
+  Lifting.PathLift y x (Paths.reverse x y p) (along covering x y p e) :=
+  \into[Interval.Carrier -> E](\fun (t: Interval.Carrier) => lift covering x y p e (Interval.reverse t),
+    Lifting.PathLift y x (Paths.reverse x y p) (along covering x y p e)) \by {
+    Lifting.PathLiftLaws[y, x, Paths.reverse x y p, along covering x y p e, \fun (t: Interval.Carrier) => lift covering x y p e (Interval.reverse t)] {
+      continuous := Compose.composeContinuous Interval.topology Interval.topology total Interval.reverse (lift covering x y p e)
+        Interval.reverseContinuous (Lifting.pathLaws x y p e (lift covering x y p e)).continuous,
+      projects := \fun (t: Interval.Carrier) => (Lifting.pathLaws x y p e (lift covering x y p e)).projects (Interval.reverse t),
+      starts := congr!{Interval.Carrier E} (lift covering x y p e) _ _ Interval.reverseStart,
+    }
+  };
+\definition inverse: \forall (covering: Covering)(x, y: B)(p: Paths.Path x y)(e: Fiber x) ->
+  along covering y x (Paths.reverse x y p) (along covering x y p e) = e :=
+  \fun (covering: Covering)(x, y: B)(p: _)(e: _) => trans!{E} _ _ _
+    (congr!{{Interval.Carrier -> E} E} (\fun (f: Interval.Carrier -> E) => f Interval.end) _ _
+      (Uniqueness.pathLiftUnique covering y x (Paths.reverse x y p) (along covering x y p e)
+        (lift covering y x (Paths.reverse x y p) (along covering x y p e)) (reverseLift covering x y p e)))
+    (trans!{E} _ _ _ (congr!{Interval.Carrier E} (lift covering x y p e) _ _ Interval.reverseEnd)
+      (Lifting.pathLaws x y p e (lift covering x y p e)).starts);
+\module Homotopy;
+\module Classes(covering: Covering, x, y: B, e: Fiber x);
+\module Groupoid(covering: Covering);
+\module Action(covering: Covering, b: B);
