@@ -1,0 +1,31 @@
+\import algebra.Groups[].On[G := G, group := group] \as Operations;
+\import algebra.Hom[A := G, B := Pins.Pin] \as Maps;
+\import \root.ComplexExtension[G := G, group := group].By[sign := sign] \as Extension;
+\definition value[g: G]: E.Carrier := (embedding g).value;
+\definition embeddingOne: embedding Operations.one = PinOperations.one :=
+  (\bysub(G -> Pins.Pin, Maps.GroupMap group Pins.group, embedding)).unit;
+\definition embeddingProduct: \forall (g, h: G) -> embedding (Operations.mul g h) = PinOperations.mul (embedding g) (embedding h) :=
+  (\bysub(G -> Pins.Pin, Maps.GroupMap group Pins.group, embedding)).operation;
+\definition embeddingInverse: \forall (g: G) -> embedding (Operations.inv g) = PinOperations.inv (embedding g) :=
+  \fun (g: G) => PinOperations.inverseUnique (embedding g) (embedding (Operations.inv g))
+    (trans!{{Pins.Pin}} _ _ _ (sym!{{Pins.Pin}} _ _ (embeddingProduct g (Operations.inv g)))
+      (trans!{{Pins.Pin}} _ _ _ (congr!{G {Pins.Pin}} embedding _ _ (Operations.invRight g)) embeddingOne));
+\definition signedValue: \forall (g: G) -> value (Operations.mul sign.element g) = Clifford.neg (value g) :=
+  \fun (g: G) => trans!{E.Carrier} _ _ _ (congr!{{Pins.Pin} E.Carrier} (\fun (h: Pins.Pin) => h.value) _ _ (embeddingProduct sign.element g))
+    (trans!{E.Carrier} _ _ _ (congr!{{Pins.Pin} E.Carrier} (\fun (h: Pins.Pin) => (PinOperations.mul h (embedding g)).value) _ _ compatible)
+      (PinGrading.minusValue (embedding g)));
+\definition raw[g: G][z: Circle.Circle]: CarrierPair := pair (Clifford.scale (C.re z) (value g)) (Clifford.scale (C.im z) (value g));
+\definition invariant: \forall (g: G)(z: Circle.Circle) -> raw (Operations.mul sign.element g) (Circle.product Circle.minusOne z) = raw g z :=
+  \fun (g: G)(z: Circle.Circle) => Pairs.ext _ _
+    (trans!{E.Carrier} _ _ _ (congr2!{R.Real E.Carrier E.Carrier} Clifford.scale _ _ _ _
+      (congr!{C.Complex R.Real} C.re _ _ (Circle.minusProduct z)) (signedValue g)) (bothNegative (C.re z) (value g)))
+    (trans!{E.Carrier} _ _ _ (congr2!{R.Real E.Carrier E.Carrier} Clifford.scale _ _ _ _
+      (congr!{C.Complex R.Real} C.im _ _ (Circle.minusProduct z)) (signedValue g)) (bothNegative (C.im z) (value g)));
+\import Extension.Lift[B := CarrierPair, values := raw, invariant := invariant] \as Lift;
+\definition image: Extension.Carrier -> CarrierPair := Lift.map;
+\definition onClass: \forall (g: G)(z: Circle.Circle) -> image (Extension.class g z) = raw g z := Lift.onClass;
+\module Faithful;
+\module Algebra;
+\module Phase;
+\module BaseCoordinates;
+\module Coefficients;

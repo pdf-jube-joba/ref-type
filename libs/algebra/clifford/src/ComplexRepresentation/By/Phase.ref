@@ -1,0 +1,57 @@
+/* The squared circle phase is intrinsic and polynomial in the components. */
+\import \parent.Algebra[] \as Algebra;
+\import Clifford.Reversion[] \as Reverse;
+\import \root.Euclidean[n := n].PinNorm[] \as Norm;
+\definition squareValues[g: G][z: Circle.Circle]: Circle.Circle := Circle.square z;
+\definition squareInvariant: \forall (g: G)(z: Circle.Circle) -> squareValues (Operations.mul sign.element g) (Circle.product Circle.minusOne z) = squareValues g z :=
+  \fun (g: G)(z: Circle.Circle) => Circle.squareMinus z;
+\import Extension.Lift[B := Circle.Circle, values := squareValues, invariant := squareInvariant] \as SquareLift;
+\definition base: Extension.Carrier -> Circle.Circle := SquareLift.map;
+\definition onSquareClass: \forall (g: G)(z: Circle.Circle) -> base (Extension.class g z) = Circle.square z := SquareLift.onClass;
+\definition baseOne: base Extension.group.unit = Circle.one := trans!{{Circle.Circle}} _ _ _ (onSquareClass Operations.one Circle.one) Circle.squareOne;
+\definition baseProduct: \forall (x, y: Extension.Carrier) -> base (Extension.group.op x y) = Circle.product (base x) (base y) := Extension.induction2
+  (\fun (x, y: Extension.Carrier) => base (Extension.group.op x y) = Circle.product (base x) (base y))
+  (\fun (g: G)(z: Circle.Circle)(h: G)(w: Circle.Circle) => trans!{{Circle.Circle}} _ _ _
+    (congr!{{Extension.Carrier} {Circle.Circle}} base _ _ (Extension.multiplication g h z w))
+    (trans!{{Circle.Circle}} _ _ _ (onSquareClass (Operations.mul g h) (Circle.product z w))
+      (trans!{{Circle.Circle}} _ _ _ (Circle.squareProduct z w)
+        (congr2!{{Circle.Circle} {Circle.Circle} {Circle.Circle}} Circle.product _ _ _ _
+          (sym!{{Circle.Circle}} _ _ (onSquareClass g z)) (sym!{{Circle.Circle}} _ _ (onSquareClass h w))))));
+\definition baseInverse: \forall (x: Extension.Carrier) -> base (Extension.group.inv x) = Circle.inverse (base x) := Extension.induction
+  (\fun (x: Extension.Carrier) => base (Extension.group.inv x) = Circle.inverse (base x))
+  (\fun (g: G)(z: Circle.Circle) => trans!{{Circle.Circle}} _ _ _ (congr!{{Extension.Carrier} {Circle.Circle}} base _ _ (Extension.inversion g z))
+    (trans!{{Circle.Circle}} _ _ _ (onSquareClass (Operations.inv g) (Circle.inverse z))
+      (trans!{{Circle.Circle}} _ _ _ (Circle.squareInverse z) (congr!{{Circle.Circle} {Circle.Circle}} Circle.inverse _ _ (sym!{{Circle.Circle}} _ _ (onSquareClass g z))))));
+\definition normMixed: \forall (a, b: R.Real)(g: G) -> Clifford.mul (Reverse.map (Clifford.scale a (value g))) (Clifford.scale b (value g)) = Clifford.scalar (R.mul a b) :=
+  \fun (a, b: R.Real)(g: G) => trans!{E.Carrier} _ _ _
+    (congr!{E.Carrier E.Carrier} (\fun (x: E.Carrier) => Clifford.mul x (Clifford.scale b (value g))) _ _ (Reverse.onScale a (value g)))
+    (trans!{E.Carrier} _ _ _ (Algebra.scaleProduct a b (Reverse.map (value g)) (value g))
+      (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (\fun (x: E.Carrier) => Clifford.scale (R.mul a b) (Clifford.mul x (value g))) _ _ (Norm.norm (embedding g)))
+        (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (Clifford.scale (R.mul a b)) _ _ (embedding g).left)
+          (E.ring.semiring.multiplicative.rightIdentity (Clifford.scalar (R.mul a b))))));
+\definition realQuadratic[p: CarrierPair]: E.Carrier := Clifford.add
+  (Clifford.mul (Reverse.map (first p)) (first p)) (Clifford.neg (Clifford.mul (Reverse.map (second p)) (second p)));
+\definition imaginaryQuadratic[p: CarrierPair]: E.Carrier := Clifford.add
+  (Clifford.mul (Reverse.map (first p)) (second p)) (Clifford.mul (Reverse.map (second p)) (first p));
+\definition scalarDifference: \forall (a, b: R.Real) -> Clifford.add (Clifford.scalar a) (Clifford.neg (Clifford.scalar b)) = Clifford.scalar (R.sub a b) :=
+  \fun (a, b: R.Real) => trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (Clifford.add (Clifford.scalar a)) _ _ (sym!{E.Carrier} _ _ (Relations.scalarNeg b)))
+    (sym!{E.Carrier} _ _ (Relations.scalarAdd a (R.neg b)));
+\definition realRaw: \forall (g: G)(z: Circle.Circle) -> Coordinates.ScalarPart[].read n (realQuadratic (raw g z)) = C.re (Circle.square z) :=
+  \fun (g: G)(z: Circle.Circle) => trans!{R.Real} _ _ _ (congr!{E.Carrier R.Real} (Coordinates.ScalarPart[].read n) _ _
+    (trans!{E.Carrier} _ _ _ (congr2!{E.Carrier E.Carrier E.Carrier} Clifford.add _ _ _ _ (normMixed (C.re z) (C.re z) g)
+      (congr!{E.Carrier E.Carrier} Clifford.neg _ _ (normMixed (C.im z) (C.im z) g)))
+      (scalarDifference (R.mul (C.re z) (C.re z)) (R.mul (C.im z) (C.im z)))))
+    (Coordinates.ScalarPart[].onScalar n (R.sub (R.mul (C.re z) (C.re z)) (R.mul (C.im z) (C.im z))));
+\definition imaginaryRaw: \forall (g: G)(z: Circle.Circle) -> Coordinates.ScalarPart[].read n (imaginaryQuadratic (raw g z)) = C.im (Circle.square z) :=
+  \fun (g: G)(z: Circle.Circle) => trans!{R.Real} _ _ _ (congr!{E.Carrier R.Real} (Coordinates.ScalarPart[].read n) _ _
+    (trans!{E.Carrier} _ _ _ (congr2!{E.Carrier E.Carrier E.Carrier} Clifford.add _ _ _ _ (normMixed (C.re z) (C.im z) g) (normMixed (C.im z) (C.re z) g))
+      (sym!{E.Carrier} _ _ (Relations.scalarAdd (R.mul (C.re z) (C.im z)) (R.mul (C.im z) (C.re z))))))
+    (Coordinates.ScalarPart[].onScalar n (R.add (R.mul (C.re z) (C.im z)) (R.mul (C.im z) (C.re z))));
+\definition realFormula: \forall (x: Extension.Carrier) -> Coordinates.ScalarPart[].read n (realQuadratic (image x)) = C.re (base x) := Extension.induction
+  (\fun (x: Extension.Carrier) => Coordinates.ScalarPart[].read n (realQuadratic (image x)) = C.re (base x))
+  (\fun (g: G)(z: Circle.Circle) => trans!{R.Real} _ _ _ (congr!{CarrierPair R.Real} (\fun (p: CarrierPair) => Coordinates.ScalarPart[].read n (realQuadratic p)) _ _ (onClass g z))
+    (trans!{R.Real} _ _ _ (realRaw g z) (congr!{{Circle.Circle} R.Real} (\fun (z: Circle.Circle) => C.re z) _ _ (sym!{{Circle.Circle}} _ _ (onSquareClass g z)))));
+\definition imaginaryFormula: \forall (x: Extension.Carrier) -> Coordinates.ScalarPart[].read n (imaginaryQuadratic (image x)) = C.im (base x) := Extension.induction
+  (\fun (x: Extension.Carrier) => Coordinates.ScalarPart[].read n (imaginaryQuadratic (image x)) = C.im (base x))
+  (\fun (g: G)(z: Circle.Circle) => trans!{R.Real} _ _ _ (congr!{CarrierPair R.Real} (\fun (p: CarrierPair) => Coordinates.ScalarPart[].read n (imaginaryQuadratic p)) _ _ (onClass g z))
+    (trans!{R.Real} _ _ _ (imaginaryRaw g z) (congr!{{Circle.Circle} R.Real} (\fun (z: Circle.Circle) => C.im z) _ _ (sym!{{Circle.Circle}} _ _ (onSquareClass g z)))));
