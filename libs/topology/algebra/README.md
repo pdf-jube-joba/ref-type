@@ -7,6 +7,7 @@
 | `Topology` / `Topology.Functions` | 位相的可換群・環と連続関数の演算 |
 | `Coordinates` / `Universal` / `Update` | 任意の添字集合の積位相、普遍性、一成分の置換 |
 | `FinitePower` | コンパクト空間の有限積のコンパクト性 |
+| `Euclidean.Dimension.Completeness` | 最大値距離に関する有限座標空間の完備性、成分ごとの極限 |
 | `Real` / `Complex` / `Complex.Functions` / `Complex.Ring` | 実数・複素数の位相と演算の連続性 |
 | `Matrix` / `Universal` / `Operations` / `Operations.Composition` | 二重座標による行列位相、成分判定、和・転置・有限行列積 |
 | `FiniteDimensional.Over.Functions` | 位相的スカラー環に値を持つ関数の有限和 |

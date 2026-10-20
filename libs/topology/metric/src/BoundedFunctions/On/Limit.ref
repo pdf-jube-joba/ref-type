@@ -1,0 +1,33 @@
+\definition pointwiseCauchy: \forall (i: I) -> BaseSequences.Cauchy (\fun (n: N.Nat^) => s n i) := \block {
+  \fun (i: I)(epsilon: R.Real)(positive: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where UniformSequences.Control s epsilon k })
+    \by (\bysub(N.Nat^ -> Carrier, { s: N.Nat^ -> Carrier \where UniformSequences.Cauchy s }, s)) epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where BaseSequences.Control (\fun (n: N.Nat^) => s n i) epsilon k }] k
+    (\fun (m, n: N.Nat^)(hm: Nat.Le k m)(hn: Nat.Le k n) => Real.leLtTrans _ _ _ (pointwiseLe (s m) (s n) i)
+      ((\bysub(N.Nat^, { k: N.Nat^ \where UniformSequences.Control s epsilon k }, k)) m n hm hn))
+};
+\definition componentSequence[i: I]: CompleteBase.CauchySequence := \into[N.Nat^ -> A]((\fun (n: N.Nat^) => s n i),
+  { s: N.Nat^ -> A \where BaseSequences.Cauchy s }) \by { pointwiseCauchy i };
+\definition candidate[i: I]: A := CompleteBase.limit (componentSequence i);
+\definition candidateConverges: \forall (i: I) -> BaseSequences.Converges (\fun (n: N.Nat^) => s n i) (candidate i) :=
+  \fun (i: I) => CompleteBase.limitLaw (componentSequence i);
+\definition candidateWithin: Within candidate := \fun (i: I) => Real.leReplaceLeft
+  (base.distance (candidate i) (center i)) (base.distance (center i) (candidate i)) radius (base.symmetric (candidate i) (center i))
+  (BaseSequences.eventuallyBoundedLimit (\fun (n: N.Nat^) => s n i) (candidate i) (center i) radius N.Nat^::zero (candidateConverges i)
+    (\fun (n: N.Nat^)(later: _) => Real.leReplaceLeft (base.distance (center i) (s n i)) (base.distance (s n i) (center i)) radius
+      (base.symmetric (center i) (s n i)) ((\bysub(I -> A, { f: I -> A \where Within f }, s n)) i)));
+\definition value: Carrier := \into[I -> A](candidate, { f: I -> A \where Within f }) \by { candidateWithin };
+\definition converges: UniformSequences.Converges s value := \block {
+  \fun (epsilon: R.Real)(positive: _) \then
+  \let r: R.Real := R.mul R.half epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where UniformSequences.Control s r k })
+    \by (\bysub(N.Nat^ -> Carrier, { s: N.Nat^ -> Carrier \where UniformSequences.Cauchy s }, s)) r (Estimates.halfOfPositive epsilon positive) \then
+  \let control: UniformSequences.Control s r k := \bysub(N.Nat^, { k: N.Nat^ \where UniformSequences.Control s r k }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where UniformSequences.Near s value epsilon k }] k
+    (\fun (n: N.Nat^)(later: Nat.Le k n) => Real.leLtTrans _ _ _
+      (distanceLe (s n) value r (\fun (i: I) => Real.leReplaceLeft (base.distance (candidate i) (s n i)) (base.distance (s n i) (candidate i)) r
+        (base.symmetric (candidate i) (s n i))
+        (BaseSequences.eventuallyBoundedLimit (\fun (m: N.Nat^) => s m i) (candidate i) (s n i) r k (candidateConverges i)
+          (\fun (m: N.Nat^)(hm: Nat.Le k m) => Order.leOfLt _ _ (Real.leLtTrans _ _ _ (pointwiseLe (s m) (s n) i) (control m n hm later))))))
+      (Estimates.halfStrict epsilon positive))
+};

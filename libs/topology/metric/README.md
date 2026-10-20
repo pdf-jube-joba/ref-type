@@ -6,6 +6,9 @@
 | --- | --- |
 | `metric_spaces.MetricSpace.Compactness` / `Uniform` | コンパクト距離空間の開被覆の Lebesgue 数、連続写像の一様連続性。 |
 | `metric_spaces.MetricSpace.Subspace` | 部分集合への距離の制限と、距離位相と部分空間位相の一致。 |
+| `metric_spaces.MetricSpace.Sequences` / `Complete` | Cauchy 列、極限・有界性の保存、完備距離空間、収縮率 \(1/2\) の不動点定理、逐次閉部分集合の完備性。 |
+| `metric_spaces.BoundedFunctions.On` | 中心から一様に有界な関数の上限距離と完備性。 |
+| `metric_spaces.BoundedFunctions.On.Continuous` | 一様極限の連続性、有界連続関数の完備距離。 |
 | `metric_spaces.RealLine.CompactIntervals` | 実数の距離位相における閉区間のコンパクト性。 |
 | `metric_spaces.RealFunctions.Product` / `Lattice` / `SquareRoot` / `Reciprocal` | 一般の実数値関数の積、最大・最小・絶対値、平方根、非零逆数の連続性。 |
 | `metric_spaces.RealFunctions` | 実数値関数の局所連続性判定、和・差、\([0,1]\) に値を持つ関数の積、Urysohn 関数の連続性。 |

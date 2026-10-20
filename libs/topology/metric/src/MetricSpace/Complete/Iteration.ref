@@ -1,0 +1,82 @@
+\import std.Data[].Bool[].Prop[] \as Bool;
+\import Analysis.Geometric[q := Analysis.half] \as Geometric;
+\definition orbit: N.Nat^ -> Carrier := \induction (n: N.Nat^) \return Carrier \with {
+  | zero: seed
+  | succ: \fun (n: N.Nat^)(x: Carrier) => f.apply x
+};
+\definition initialDistance: R.Real := metric.distance seed (f.apply seed);
+\definition radius: R.Real := Analysis.add initialDistance initialDistance;
+\definition radiusNonnegative: R.Le Analysis.zero radius := RealLaws.addNonnegative initialDistance initialDistance
+  (metric.nonnegative seed (f.apply seed)) (metric.nonnegative seed (f.apply seed));
+\definition halfRadius: Analysis.mul Analysis.half radius = initialDistance := trans!{R.Real} _ _ _
+  (RealLaws.fieldMulAdd Analysis.half initialDistance initialDistance) (Estimates.halfTwice initialDistance);
+\definition orbitBound: \forall (n: N.Nat^) -> R.Le (metric.distance seed (orbit n)) radius :=
+  \induction (n: N.Nat^) \return R.Le (metric.distance seed (orbit n)) radius \with {
+    | zero: R.leReplaceLeft Analysis.zero (metric.distance seed seed) radius (sym!{R.Real} _ _ (metric.self seed)) radiusNonnegative
+    | succ: \fun (n: N.Nat^)(previous: R.Le (metric.distance seed (orbit n)) radius) => R.leTrans _ _ _ (metric.triangle seed (f.apply seed) (f.apply (orbit n)))
+      (R.leReplaceRight _ (Analysis.add initialDistance (Analysis.mul Analysis.half radius)) radius
+        (congr!{R.Real R.Real} (Analysis.add initialDistance) _ _ halfRadius)
+        (Estimates.addLe _ _ _ _ (R.leRefl initialDistance)
+          (R.leTrans _ _ _ (f.bound seed (orbit n))
+            (Estimates.mulMonotone Analysis.half _ radius Estimates.halfNonnegative previous))))
+  };
+\definition diameter: R.Real := Analysis.add radius radius;
+\definition diameterNonnegative: R.Le Analysis.zero diameter := RealLaws.addNonnegative radius radius radiusNonnegative radiusNonnegative;
+\definition diameterBound: \forall (m, n: N.Nat^) -> R.Le (metric.distance (orbit m) (orbit n)) diameter :=
+  \fun (m, n: N.Nat^) => R.leTrans _ _ _ (metric.triangle (orbit m) seed (orbit n))
+    (Estimates.addLe _ _ _ _
+      (R.leReplaceLeft (metric.distance seed (orbit m)) (metric.distance (orbit m) seed) radius (metric.symmetric seed (orbit m)) (orbitBound m))
+      (orbitBound n));
+\definition successorBound: \forall (m, n, k: N.Nat^) -> R.Le (metric.distance (orbit m) (orbit n)) (Analysis.mul diameter (Geometric.value k)) ->
+  R.Le (metric.distance (orbit (N.Nat^::succ m)) (orbit (N.Nat^::succ n))) (Analysis.mul diameter (Geometric.value (N.Nat^::succ k))) :=
+  \fun (m, n, k: N.Nat^)(bound: _) => R.leTrans _ _ _ (f.bound (orbit m) (orbit n))
+    (R.leReplaceRight _ (Analysis.mul Analysis.half (Analysis.mul diameter (Geometric.value k)))
+      (Analysis.mul diameter (Geometric.value (N.Nat^::succ k)))
+      (Algebra.mulSwap Analysis.half diameter (Geometric.value k))
+      (Estimates.mulMonotone Analysis.half _ _ Estimates.halfNonnegative bound));
+\definition tailBound: \forall (k, m, n: N.Nat^) -> Nat.Le k m -> Nat.Le k n ->
+  R.Le (metric.distance (orbit m) (orbit n)) (Analysis.mul diameter (Geometric.value k)) :=
+  \induction (k: N.Nat^) \return \forall (m, n: N.Nat^) -> Nat.Le k m -> Nat.Le k n ->
+    R.Le (metric.distance (orbit m) (orbit n)) (Analysis.mul diameter (Geometric.value k)) \with {
+    | zero: \fun (m, n: N.Nat^)(hm: _)(hn: _) => R.leReplaceRight _ diameter (Analysis.mul diameter Analysis.one)
+      (sym!{R.Real} _ _ (Algebra.mulOneRight diameter)) (diameterBound m n)
+    | succ: \fun (k: N.Nat^)(previous: \forall (m, n: N.Nat^) -> Nat.Le k m -> Nat.Le k n ->
+        R.Le (metric.distance (orbit m) (orbit n)) (Analysis.mul diameter (Geometric.value k))) =>
+      \induction (m: N.Nat^) \return \forall (n: N.Nat^) -> Nat.Le (N.Nat^::succ k) m -> Nat.Le (N.Nat^::succ k) n ->
+        R.Le (metric.distance (orbit m) (orbit n)) (Analysis.mul diameter (Geometric.value (N.Nat^::succ k))) \with {
+        | zero: \fun (n: N.Nat^)(impossible: Nat.Le (N.Nat^::succ k) N.Nat^::zero)(hn: _) => Logic.falseElim _ (Bool.falseNeTrue impossible)
+        | succ: \fun (m: N.Nat^)(unused: _) => \induction (n: N.Nat^) \return Nat.Le (N.Nat^::succ k) (N.Nat^::succ m) -> Nat.Le (N.Nat^::succ k) n ->
+            R.Le (metric.distance (orbit (N.Nat^::succ m)) (orbit n)) (Analysis.mul diameter (Geometric.value (N.Nat^::succ k))) \with {
+            | zero: \fun (hm: _)(impossible: Nat.Le (N.Nat^::succ k) N.Nat^::zero) => Logic.falseElim _ (Bool.falseNeTrue impossible)
+            | succ: \fun (n: N.Nat^)(unused: _)(hm: _)(hn: _) => successorBound m n k (previous m n hm hn)
+          }
+      }
+  };
+\definition coefficient: R.Real := Product.coefficient diameter Analysis.zero;
+\definition coefficientPositive: R.Lt Analysis.zero coefficient := Product.coefficientPositive diameter Analysis.zero;
+\definition coefficientBound: R.Le diameter coefficient := R.leReplaceLeft (Product.abs diameter) diameter coefficient
+  (Product.absOfNonnegative diameter diameterNonnegative) (Product.coefficientFirst diameter Analysis.zero);
+\definition halfBelowOne: R.Lt Analysis.half Analysis.one := R.ltReplaceLeft (Analysis.mul Analysis.half Analysis.one) Analysis.half Analysis.one
+  (Algebra.mulOneRight Analysis.half) (Estimates.halfStrict Analysis.one Product.onePositive);
+\definition cauchy: Sequences.Cauchy orbit := \block {
+  \fun (epsilon: R.Real)(positive: R.Lt Analysis.zero epsilon) \then
+  \let r: R.Real := Product.radius coefficient epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (Geometric.value k) r }) \by Geometric.eventual Estimates.halfNonnegative halfBelowOne r
+    (Product.radiusPositive coefficient epsilon coefficientPositive positive) \then
+  \let small: R.Lt (Geometric.value k) r := \bysub(N.Nat^, { k: N.Nat^ \where R.Lt (Geometric.value k) r }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequences.Control orbit epsilon k }] k
+    (\fun (m, n: N.Nat^)(hm: Nat.Le k m)(hn: Nat.Le k n) => R.leLtTrans _ _ _
+      (R.leTrans _ _ _ (tailBound k m n hm hn)
+        (R.leTrans _ _ _
+          (R.leReplace (Analysis.mul (Geometric.value k) diameter) (Analysis.mul diameter (Geometric.value k))
+            (Analysis.mul (Geometric.value k) coefficient) (Analysis.mul coefficient (Geometric.value k))
+            (RealLaws.fieldMulComm (Geometric.value k) diameter) (RealLaws.fieldMulComm (Geometric.value k) coefficient)
+            (Estimates.mulMonotone (Geometric.value k) diameter coefficient (Geometric.nonnegative Estimates.halfNonnegative k) coefficientBound))
+          (Estimates.mulMonotone coefficient (Geometric.value k) r (Order.leOfLt _ _ coefficientPositive) (Order.leOfLt _ _ small))))
+      (Product.radiusSmall coefficient epsilon coefficientPositive positive))
+};
+\definition sequence: CauchySequence := \into[N.Nat^ -> Carrier](orbit, { s: N.Nat^ -> Carrier \where Sequences.Cauchy s }) \by { cauchy };
+\definition value: Carrier := limit sequence;
+\definition fixedLaw: f.apply value = value := Sequences.limitUnique (\fun (n: N.Nat^) => f.apply (orbit n)) (f.apply value) value
+  (contractionConverges f orbit value (limitLaw sequence)) (Sequences.convergesShift orbit value (limitLaw sequence));
+\definition fixed: Fixed f := \into[Carrier](value, { x: Carrier \where f.apply x = x }) \by { fixedLaw };

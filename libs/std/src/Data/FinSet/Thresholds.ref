@@ -1,0 +1,23 @@
+\import N.Order[].Prop[] \as Order;
+\definition Eventual[P: N.Nat^ -> \Prop]: \Prop := \exists ( k: N.Nat^ \where \forall (m: N.Nat^) -> NL.Le k m -> P m );
+\definition Uniform[n: N.Nat^][P: Fin n -> N.Nat^ -> \Prop][k: N.Nat^]: \Prop :=
+  \forall (i: Fin n)(m: N.Nat^) -> NL.Le k m -> P i m;
+\definition finite: \forall (n: N.Nat^)(P: Fin n -> N.Nat^ -> \Prop) -> (\forall (i: Fin n) -> Eventual (P i)) ->
+  \exists ( k: N.Nat^ \where Uniform n P k ) :=
+  \induction (n: N.Nat^) \return \forall (P: Fin n -> N.Nat^ -> \Prop) -> (\forall (i: Fin n) -> Eventual (P i)) ->
+    \exists ( k: N.Nat^ \where Uniform n P k ) \with {
+    | zero: \fun (P: Fin N.Nat^::zero -> N.Nat^ -> \Prop)(all: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Uniform N.Nat^::zero P k }] N.Nat^::zero
+      (\fun (i: Fin N.Nat^::zero)(m: N.Nat^)(later: _) => Logic.falseElim _ (zeroImpossible i (bound N.Nat^::zero i)))
+    | succ: \block {
+      \fun (n: N.Nat^)(previous: \forall (P: Fin n -> N.Nat^ -> \Prop) -> (\forall (i: Fin n) -> Eventual (P i)) -> \exists ( k: N.Nat^ \where Uniform n P k ))(P: Fin (N.Nat^::succ n) -> N.Nat^ -> \Prop)(all: \forall (i: Fin (N.Nat^::succ n)) -> Eventual (P i)) \then
+      \takefrom h: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (m: N.Nat^) -> NL.Le k m -> P (zero n) m }) \by all (zero n) \then
+      \takefrom t: \Cast[N.Nat^] ({ k: N.Nat^ \where Uniform n (\fun (i: Fin n) => P (succ n i)) k })
+        \by previous (\fun (i: Fin n) => P (succ n i)) (\fun (i: Fin n) => all (succ n i)) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Uniform (N.Nat^::succ n) P k }] (Order.commonBound h t)
+        (cases n (\fun (i: Fin (N.Nat^::succ n)) => \forall (m: N.Nat^) -> NL.Le (Order.commonBound h t) m -> P i m)
+          (\fun (m: N.Nat^)(later: _) => (\bysub(N.Nat^, { k: N.Nat^ \where \forall (m: N.Nat^) -> NL.Le k m -> P (zero n) m }, h))
+            m (NL.leTrans h (Order.commonBound h t) m (Order.leftLeCommonBound h t) later))
+          (\fun (i: Fin n)(m: N.Nat^)(later: _) => (\bysub(N.Nat^, { k: N.Nat^ \where Uniform n (\fun (i: Fin n) => P (succ n i)) k }, t))
+            i m (NL.leTrans t (Order.commonBound h t) m (Order.rightLeCommonBound h t) later)))
+    }
+  };
