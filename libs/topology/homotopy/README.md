@@ -16,7 +16,7 @@
 | `Simplex.Faces` / `Identities` | 面の連続性と合成恒等式 |
 | `Simplex.Vertices` / `Affine` / `AffineIdentity` / `AffineFaces` | 全頂点、アフィン写像の連続性・合成則、面との整合性 |
 | `Simplex.Reindex` / `ReindexIdentity` / `ReindexFace` | 頂点の写像からのアフィン写像、合成・恒等写像・面の表示。 |
-| `Simplex.Degeneracy` / `Sections` | 隣接頂点の重複による退化写像の連続性、隣接する二つの面が右逆になる恒等式。 |
+| `Simplex.Degeneracy` / `Sections` / `Composition` / `Mixed` | 隣接頂点の重複による退化写像の連続性、面との二つの右逆、退化同士の合成恒等式、面と退化の混合恒等式。 |
 | `Simplex.Boundary` / `BoundaryFace.Cover` | 座標の零点で表す境界の閉性・コンパクト性、各面の連続な包含と全境界の被覆。 |
 | `Simplex.Interval` | 一次元単体と単位区間の連続な相互逆、端点と面 |
 | `Simplex.Compactness` / `Barycentre` / `Metric` | 閉性・コンパクト性、等重みの重心、最大座標距離と Lebesgue 数 |

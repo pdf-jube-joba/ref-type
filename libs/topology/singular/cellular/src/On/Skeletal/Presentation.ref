@@ -33,17 +33,26 @@
 \import singular_cellular_algebra.Algebra[].CycleEquality[C := Cellular.integerComplex, z := degree] \as CyclesEqual;
 \definition boundaryProjected: \forall (q: CellExtension.Carrier (Degrees.next degree)) ->
   ((Cycles.isomorphism).forward).apply ((Above.connecting).apply q) = boundaryCycle q :=
-  \fun (q: CellExtension.Carrier (Degrees.next degree)) => CyclesEqual.law _ _ (sym!{{CellExtension.Carrier degree}} _ _ (prior q));
+  \fun (q: CellExtension.Carrier (Degrees.next degree)) => CyclesEqual.law
+    (((Cycles.isomorphism).forward).apply ((Above.connecting).apply q)) (boundaryCycle q)
+    (sym!{{CellExtension.Carrier degree}} _ _ (prior q));
 \definition boundaryZero: \forall (q: CellExtension.Carrier (Degrees.next degree)) -> (map).apply (boundaryCycle q) = Next.zeroClass :=
   \fun (q: CellExtension.Carrier (Degrees.next degree)) => trans!{Next.Homology} _ _ _
     (congr!{Cell.Cycle Next.Homology} ((map).apply) _ _ (sym!{Cell.Cycle} _ _ (boundaryProjected q)))
     (trans!{Next.Homology} _ _ _ (onProjected ((Above.connecting).apply q)) (Above.connectingInclusionZero q));
-\definition vanishes: \forall (x: Cell.Cycle) -> Submodules.Member Cell.boundaries x -> (map).apply x = Next.zeroClass :=
-  \fun (x: Cell.Cycle)(member: _) => Images.eliminate Cell.prior x ((map).apply x = Next.zeroClass)
-    (\fun (q: CellExtension.Carrier (Degrees.next degree))(equal: _) =>
-      trans!{Next.Homology} _ _ _
-        (congr!{Cell.Cycle Next.Homology} ((map).apply) x (boundaryCycle q) (CyclesEqual.law _ _ (sym!{{CellExtension.Carrier degree}} _ _ equal)))
-        (boundaryZero q)) member;
+\definition vanishes: \forall (x: Cell.Cycle) -> Submodules.Member Cell.boundaries x -> (map).apply x = Next.zeroClass := \block {
+  \fun (x: Cell.Cycle)(member: Submodules.Member Cell.boundaries x) \then
+  \takefrom q: \Cast[CellExtension.Carrier (Degrees.next degree)]
+    ({ q: CellExtension.Carrier (Degrees.next degree) \where (Cell.prior).apply q = Cell.forget x }) \by member \then
+  \let equal: (Cell.prior).apply q = Cell.forget x :=
+    \bysub(CellExtension.Carrier (Degrees.next degree),
+      { q: CellExtension.Carrier (Degrees.next degree) \where (Cell.prior).apply q = Cell.forget x }, q) \then
+  \return trans!{Next.Homology} ((map).apply x) ((map).apply (boundaryCycle q)) Next.zeroClass
+    (congr!{Cell.Cycle Next.Homology} ((map).apply) x (boundaryCycle q)
+      (CyclesEqual.law x (boundaryCycle q)
+        (sym!{{CellExtension.Carrier degree}} ((Cell.prior).apply q) (Cell.forget x) equal)))
+    (boundaryZero q)
+};
 \definition unequal: Logic.Not (N.Nat^::succ n = n) :=
   \fun (same: _) => Nat.ltNe n (N.Nat^::succ n) (Nat.ltOfSuccLe (N.Nat^::succ n) n (Nat.leRefl (N.Nat^::succ n))) (sym!{N.Nat^} _ _ same);
 \definition onto: \forall (q: Next.Homology) -> \exists ( x: Cell.Cycle \where (map).apply x = q ) := \block {

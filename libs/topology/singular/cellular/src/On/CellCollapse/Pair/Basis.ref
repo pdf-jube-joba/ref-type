@@ -5,11 +5,7 @@
 \definition self: CellsAt.Index := \into[Cells.CellData](cell, CellsAt.Selected) \by {
   Logic.And[_, _]::# member (\refl(dimension))
 };
-\definition scalars: Modules.Family[CellsAt.Index] := Modules.Family[CellsAt.Index] {
-  Carrier := \fun (_: CellsAt.Index) => I.Int^,
-  space := \fun (_: CellsAt.Index) => Modules.scalarModule,
-};
-\import Modules.DirectSum[Index := CellsAt.Index, family := scalars] \as Free;
+\import Modules.DirectSum[Index := CellsAt.Index, family := Basis.scalars] \as Free;
 \import \root.Disks[].At[n := dimension] \as Disk;
 \definition sourceOrientation: Modules.Isomorphism[V := I.Int^, W := Disk.Homology[z := degree].Carrier,
   source := Modules.scalarModule, target := Disk.Homology[z := degree].space].Isomorphism := \root.Disks[].orientation dimension;
@@ -26,13 +22,43 @@
     .Composition[U := Layer.Homology[z := degree].Carrier, domain := Layer.Homology[z := degree].space]
     .compose (orientation).backward ActionH.fromLayer;
 \import Basis.Characteristic[cell := self].Oriented[] \as Selected;
-\definition selected[a: I.Int^]: (ActionH.fromLayer).apply (((Basis.isomorphism).forward).apply ((Free.Injection[i := self].map).apply a)) = ((orientation).forward).apply a :=
-  trans!{{Target.Homology[z := degree].Carrier}} _ _ _
-    (congr!{{Layer.Homology[z := degree].Carrier} {Target.Homology[z := degree].Carrier}} ((ActionH.fromLayer).apply) _ _ (Selected.onScalar a))
-    (trans!{{Target.Homology[z := degree].Carrier}} _ _ _
-      (congr!{{Source.Homology[z := degree].Carrier} {Target.Homology[z := degree].Carrier}} ((ActionH.relative).apply) _ _
-        ((Layer.Relative[].Homology[z := degree].isomorphism).rightInverse ((Characteristics.On[f := characteristic].Integer[].At[z := degree].induced).apply (((sourceOrientation).forward).apply a))))
-      (ActionH.onCharacteristic (((sourceOrientation).forward).apply a)));
+\import Basis.Cell[cell := self] \as BasisOrientation;
+\definition orientationEquation: BasisOrientation.orientedDisk = sourceOrientation :=
+  \transporteq dimension \with k: N.Nat^ =>
+    Modules.Isomorphism[V := I.Int^, W := Disk.Homology[z := I.Int^::ofNat k].Carrier,
+      source := Modules.scalarModule, target := Disk.Homology[z := I.Int^::ofNat k].space].Isomorphism
+  \by { base: sourceOrientation };
+\import Layer.Relative[].Homology[z := degree] \as RelativeComparison;
+\import Characteristics.On[f := characteristic].Integer[].At[z := degree] \as CharacteristicHomology;
+\definition selected[a: I.Int^]: (ActionH.fromLayer).apply (((Basis.isomorphism).forward).apply ((Free.Injection[i := self].map).apply a)) = ((orientation).forward).apply a := \block {
+  \let input: Disk.Homology[z := degree].Carrier := ((sourceOrientation).forward).apply a \then
+  \let characteristicClass: Source.Homology[z := degree].Carrier := (CharacteristicHomology.induced).apply input \then
+  \let representative: Layer.Homology[z := degree].Carrier := ((RelativeComparison.isomorphism).backward).apply characteristicClass \then
+  \let basisValue: Layer.Homology[z := degree].Carrier := ((Basis.isomorphism).forward).apply ((Free.Injection[i := self].map).apply a) \then
+  \let orientedInput: Disk.Homology[z := degree].Carrier := ((BasisOrientation.orientedDisk).forward).apply a \then
+  \let aligned: orientedInput = input :=
+    congr!{{Modules.Isomorphism[V := I.Int^, W := Disk.Homology[z := degree].Carrier,
+      source := Modules.scalarModule, target := Disk.Homology[z := degree].space].Isomorphism} {Disk.Homology[z := degree].Carrier}}
+      (\fun (e: Modules.Isomorphism[V := I.Int^, W := Disk.Homology[z := degree].Carrier,
+        source := Modules.scalarModule, target := Disk.Homology[z := degree].space].Isomorphism) => ((e).forward).apply a)
+      BasisOrientation.orientedDisk sourceOrientation orientationEquation \then
+  \let chosen: basisValue = representative :=
+    trans!{{Layer.Homology[z := degree].Carrier}} basisValue (Selected.image orientedInput) representative
+      (Selected.onScalar a)
+      (congr!{{Disk.Homology[z := degree].Carrier} {Layer.Homology[z := degree].Carrier}}
+        Selected.image orientedInput input aligned) \then
+  \let quotient: ((RelativeComparison.isomorphism).forward).apply representative = characteristicClass :=
+    (RelativeComparison.isomorphism).rightInverse characteristicClass \then
+  \return trans!{{Target.Homology[z := degree].Carrier}}
+    ((ActionH.fromLayer).apply basisValue) ((ActionH.fromLayer).apply representative) (((orientation).forward).apply a)
+    (congr!{{Layer.Homology[z := degree].Carrier} {Target.Homology[z := degree].Carrier}}
+      ((ActionH.fromLayer).apply) basisValue representative chosen)
+    (trans!{{Target.Homology[z := degree].Carrier}}
+      ((ActionH.fromLayer).apply representative) ((ActionH.relative).apply characteristicClass) (((orientation).forward).apply a)
+      (congr!{{Source.Homology[z := degree].Carrier} {Target.Homology[z := degree].Carrier}}
+        ((ActionH.relative).apply) (((RelativeComparison.isomorphism).forward).apply representative) characteristicClass quotient)
+      (ActionH.onCharacteristic input))
+};
 \definition onSelf[a: I.Int^]: (coordinate).apply (((Basis.isomorphism).forward).apply ((Free.Injection[i := self].map).apply a)) = a :=
   trans!{I.Int^} _ _ _
     (congr!{{Target.Homology[z := degree].Carrier} I.Int^} (((orientation).backward).apply) _ _ (selected a)) ((orientation).leftInverse a);

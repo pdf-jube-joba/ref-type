@@ -65,7 +65,8 @@ target/debug/cli libs/topology/examples/cohomology --module cohomology_models --
 ```
 
 workspace 共通の `libs/refcache/` を利用する。
-整数次数の複体の別名の再公開については [G15](../../../../_plans/gaps.md#g15) に、単独で検査できる再現例と直接 import する回避例がある。
+複体を別名で再公開した場合も、module の具体化は捕捉した型引数を保持する。
+単独の検査例は [G15](../../../../_plans/gaps.md#g15) にある。
 
 `OverRing.With.integerCoefficients` は係数加群の加法群に標準の整数作用を入れる。
 環上の余鎖・コホモロジーの台集合は、その整数係数加群を使った通常の理論と共有する。
