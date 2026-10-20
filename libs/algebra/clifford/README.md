@@ -9,13 +9,21 @@
 | `Of.iota` / `Of.injection` | 生成ベクトルの標準写像とその線形性 |
 | `Of.cliffordRelation` | \(\iota(v)^2=q(v)1\) |
 | `Of.Universal` | 中心的な係数写像と線形な生成元の像から得る一意な準同型 |
+| `Of.Relations` | 偏極から得る反交換関係、生成ベクトルの三重積 |
+| `Of.Grading` | 生成ベクトルを反転する対合的代数自己同型、可逆元への作用、twisted adjoint |
 | `Of.commutatorLieAlgebra` | 交換子リー代数 |
 | `Of.Pin` | Pin・Spin と複素拡張、その群構造 |
+| `Of.Pin.Grading` / `Of.Pin.Reflection` | 対合による Pin の保存と Spin の固定、正負の単位ベクトルの twisted adjoint の反射公式 |
 | `Circle` | \(z\overline z=1\) を満たす複素数の群 \(U(1)\) |
 | `ComplexExtension.By` | 中心的な位数 \(2\) の元を使う \((G\times U(1))/\langle(-1,-1)\rangle\) |
 
 `Of.injection` は標準写像の線形写像としての名前で、単射性の証明は公開していない。
 普遍性は商の構成から証明する。
+`Relations.anticommutator` は、標数に関する追加条件を使わずに
+\[\iota(u)\iota(v)+\iota(v)\iota(u)=\bigl(\operatorname{form}(u,v)+\operatorname{form}(v,u)\bigr)1\]
+を導く。
+`Grading.map` は係数を固定し、生成ベクトルを \(-\iota(v)\) に送る自己同型で、`involutive` はその二乗が恒等写像になることを示す。
+`Grading.action g x` は \(\alpha(g)xg^{-1}\) であり、群の積と作用の合成が一致する。
 
 Pin は \(q(v)=1\) または \(q(v)=-1\) のベクトルに対応する可逆元と、スカラー \(-1\) から生成する。
 Spin は単位ベクトルの偶数個の積と \(-1\) から生成する。
