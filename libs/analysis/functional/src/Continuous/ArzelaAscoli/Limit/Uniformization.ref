@@ -1,0 +1,85 @@
+\definition delta: Real.Real := Real.mul Real.half (Real.mul Real.half epsilon);
+\structure Patch[x: A, U: \Pow A]: \Prop := {
+  open: Source.IsOpenIn topology U,
+  contains: Source.Member U x,
+  equicontinuous: \forall (g: Function) -> Space.Member family g -> \forall (y: A) -> Source.Member U y -> R.Lt (Real.distance (g x) (g y)) delta,
+  limit: \forall (y: A) -> Source.Member U y -> R.Lt (Real.distance (f x) (f y)) delta,
+};
+\definition Patches: \Pow (\Pow A) := { U: \Pow A \where \exists ( x: A \where Patch[x, U] ) };
+\definition cover: R.Lt Real.zero epsilon -> Equicontinuous family -> Functions.Continuous topology f -> Source.IsOpenCover[topology, Patches, Source.Whole] := \block {
+  \fun (positive: R.Lt Real.zero epsilon) (equicontinuous: Equicontinuous family) (fc: Functions.Continuous topology f) \then
+  \let dp: R.Lt Real.zero delta := E.halfOfPositive _ (E.halfOfPositive epsilon positive) \then
+  \return Source.IsOpenCover[topology, Patches, Source.Whole] {
+    open := \block {
+      \fun (U: \Pow A) (member: Source.FamilyMember Patches U) \then
+      \takefrom x: \Cast[A] ({ x: A \where Patch[x, U] }) \by member \then
+      \return (\bysub(A, { x: A \where Patch[x, U] }, x)).open
+    },
+    covers := \block {
+      \fun (x: A) (member: x = x) \then
+      \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where EquicontinuousNeighborhood[family, x, delta, U] }) \by equicontinuous x delta dp \then
+      \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Source.OpenNeighborhood[topology, x, Functions.Small f x delta, V] }) \by Functions.localOfContinuous topology f fc x delta dp \then
+      \let u: EquicontinuousNeighborhood[family, x, delta, U] := \bysub(\Pow A, { U: \Pow A \where EquicontinuousNeighborhood[family, x, delta, U] }, U) \then
+      \let v: Source.OpenNeighborhood[topology, x, Functions.Small f x delta, V] := \bysub(\Pow A, { V: \Pow A \where Source.OpenNeighborhood[topology, x, Functions.Small f x delta, V] }, V) \then
+      \let W: \Pow A := Source.Intersection U V \then
+      \let patch: Patch[x, W] := Patch[x, W] {
+        open := (Source.topologyLaws topology).intersectionOpen U V (u.open) (v.open),
+        contains := Logic.And[_, _]::# (u.contains) (v.contains),
+        equicontinuous := \fun (g: Function) (inFamily: Space.Member family g) (y: A) (inW: Source.Member W y) => u.estimate g inFamily y (inW.left),
+        limit := \fun (y: A) (inW: Source.Member W y) => v.within y (inW.right),
+      } \then
+      \return Source.unionMemberOf Patches W x (Logic.existsIntro[A, { x: A \where Patch[x, W] }] x patch) (patch.contains)
+    },
+  }
+};
+\structure Control[patches: \Pow (\Pow A), G: \Pow Function]: \Prop := {
+  member: Filters.Member F G,
+  included: Space.Subset G family,
+  estimate: \forall (g: Function) -> Space.Member G g -> \forall (U: \Pow A) -> Source.FamilyMember patches U ->
+    \forall (y: A) -> Source.Member U y -> R.Lt (Real.distance (f y) (g y)) epsilon,
+};
+\definition finiteControl: R.Lt Real.zero epsilon -> Filters.Member F family -> Pointwise[F, f] -> \forall (finite: Finite.FiniteSubset) ->
+  (\forall (U: \Pow A) -> Finite.Member finite U -> Source.FamilyMember Patches U) -> \exists ( G: \Pow Function \where Control[finite, G] ) :=
+  \fun (positive: R.Lt Real.zero epsilon) (member: Filters.Member F family) (pointwise: Pointwise[F, f]) => Finite.induction
+    ({ patches: \Pow (\Pow A) \where (\forall (U: \Pow A) -> Source.FamilyMember patches U -> Source.FamilyMember Patches U) -> \exists ( G: \Pow Function \where Control[patches, G] ) })
+    (\fun (included: _) => Logic.existsIntro[\Pow Function, { G: \Pow Function \where Control[Finite.Empty, G] }] family
+      (Control[Finite.Empty, family] { member := member, included := \fun (g: Function) (inFamily: Space.Member family g) => inFamily,
+        estimate := \fun (g: Function) (inFamily: Space.Member family g) (U: \Pow A) (empty: Logic.False) (y: A) (inU: Source.Member U y) => Logic.falseElim _ empty }))
+    (\block {
+      \fun (patches: \Pow (\Pow A)) (ih: _) (U: \Pow A) (included: _) \then
+      \takefrom G: \Cast[\Pow Function] ({ G: \Pow Function \where Control[patches, G] }) \by ih (\fun (V: \Pow A) (member: Source.FamilyMember patches V) => included V (Finite.inInsertOld U patches V member)) \then
+      \let previous: Control[patches, G] := \bysub(\Pow Function, { G: \Pow Function \where Control[patches, G] }, G) \then
+      \takefrom x: \Cast[A] ({ x: A \where Patch[x, U] }) \by included U (Finite.inInsertNew U patches) \then
+      \let patch: Patch[x, U] := \bysub(A, { x: A \where Patch[x, U] }, x) \then
+      \let H: \Pow Function := Space.Intersection G (At x (f x) delta) \then
+      \return Logic.existsIntro[\Pow Function, { H: \Pow Function \where Control[Finite.Insert U patches, H] }] H
+        (Control[Finite.Insert U patches, H] {
+          member := (Filters.laws F).intersection G (At x (f x) delta) (previous.member)
+            (pointwise x delta (E.halfOfPositive _ (E.halfOfPositive epsilon positive))),
+          included := \fun (g: Function) (inH: Space.Member H g) => previous.included g (inH.left),
+          estimate := \fun (g: Function) (inH: Space.Member H g) (V: \Pow A) (inV: Source.FamilyMember (Finite.Insert U patches) V) (y: A) (inY: Source.Member V y) =>
+            Logic.orElim _ _ _ inV
+              (\fun (same: V = U) => R.leLtTrans _ _ epsilon (E.distanceBridge (f y) (f x) (g x) (g y))
+                (R.ltLeTrans _ (Real.add delta (Real.add delta delta)) epsilon
+                  (E.addLt _ _ delta (Real.add delta delta)
+                    (R.ltReplaceLeft _ _ delta (Distance.distanceSymmetric (f x) (f y))
+                      (patch.limit y (\idelim V = U \with W: \Pow A => Source.Member W y \by { base: inY, equality: same })))
+                    (E.addLt _ _ delta delta (inH.right)
+                      (patch.equicontinuous g (previous.included g (inH.left)) y (\idelim V = U \with W: \Pow A => Source.Member W y \by { base: inY, equality: same }))))
+                  (E.threeQuarterLe epsilon (Order.leOfLt _ _ positive))))
+              (\fun (old: Source.FamilyMember patches V) => previous.estimate g (inH.left) V old y inY),
+        })
+    });
+\definition uniform: Source.IsCompact topology -> R.Lt Real.zero epsilon -> Equicontinuous family -> Filters.Member F family -> Pointwise[F, f] ->
+  Functions.Continuous topology f -> Filters.Member F ({ g: Function \where \forall (x: A) -> R.Lt (Real.distance (f x) (g x)) epsilon }) := \block {
+  \fun (compact: Source.IsCompact topology) (positive: R.Lt Real.zero epsilon) (equicontinuous: Equicontinuous family) (member: Filters.Member F family)
+    (pointwise: Pointwise[F, f]) (fc: Functions.Continuous topology f) \then
+  \takefrom finite: \Cast[Finite.FiniteSubset] ({ finite: Finite.FiniteSubset \where Source.FiniteSubcover[Patches, Source.Whole, finite] }) \by compact Patches (cover positive equicontinuous fc) \then
+  \let subcover: Source.FiniteSubcover[Patches, Source.Whole, finite] := \bysub(Finite.FiniteSubset, { finite: Finite.FiniteSubset \where Source.FiniteSubcover[Patches, Source.Whole, finite] }, finite) \then
+  \takefrom G: \Cast[\Pow Function] ({ G: \Pow Function \where Control[finite, G] }) \by finiteControl positive member pointwise finite (subcover.included) \then
+  \let control: Control[finite, G] := \bysub(\Pow Function, { G: \Pow Function \where Control[finite, G] }, G) \then
+  \return (Filters.laws F).upward G ({ g: Function \where \forall (x: A) -> R.Lt (Real.distance (f x) (g x)) epsilon }) (control.member)
+    (\fun (g: Function) (inG: Space.Member G g) (x: A) => Source.unionMemberElim finite x (R.Lt (Real.distance (f x) (g x)) epsilon)
+      (\fun (U: \Pow A) (inFinite: Finite.Member finite U) (inU: Source.Member U x) => control.estimate g inG U inFinite x inU)
+      (subcover.covers x (\refl(x))))
+};

@@ -1,0 +1,126 @@
+\import topology.Topology[Carrier := W] \as T;
+\import metric_spaces.MetricSpace[Carrier := W] \as TargetMetrics;
+\import TargetMetrics.Topology[] \as TargetTopology;
+\import TargetSequences.Geometry[d := Target.metric targetNorm] \as Geometry;
+\import Geometry.Baire[] \as Baire;
+\import Sequences.Geometry[d := metric norm] \as SourceGeometry;
+\import \root.ScalarLimits[] \as Limits;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import N.Order[].Prop[] \as Bounds;
+\definition distance: W -> W -> Real.Real := (Target.metric targetNorm).distance;
+\definition sourceDistance: V -> V -> Real.Real := (metric norm).distance;
+\structure Approximation[r: Real.Real, y: W, epsilon: Real.Real, x: V]: \Prop := {
+  bound: R.Le (norm.norm x) r,
+  error: R.Lt (distance (f.apply x) y) epsilon,
+};
+\definition Approximate[r: Real.Real]: \Pow W := { y: W \where \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \exists ( x: V \where Approximation[r, y, epsilon, x] ) };
+\definition approximateMember: \forall (r: Real.Real) (x: V) -> R.Le (norm.norm x) r -> T.Member (Approximate r) (f.apply x) :=
+  \fun (r: Real.Real) (x: V) (bound: R.Le (norm.norm x) r) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) =>
+    Logic.existsIntro[V, { u: V \where Approximation[r, f.apply x, epsilon, u] }] x
+      (Approximation[r, f.apply x, epsilon, x] { bound := bound,
+        error := R.ltReplaceLeft Real.zero (distance (f.apply x) (f.apply x)) epsilon (sym!{Real.Real} _ _ ((Target.metric targetNorm).self (f.apply x))) positive });
+\definition approximateClosed: \forall (r: Real.Real) -> T.IsClosedIn (Geometry.topology) (Approximate r) := \block {
+  \fun (r: Real.Real) \then
+  \return (TargetTopology.openIff (Target.metric targetNorm) (T.Complement (Approximate r))).rtl (\block {
+    \fun (y: W) (outside: Logic.Not (T.Member (Approximate r) y)) \then
+    \enough _ \by { Order.byContradiction (\exists \Cast[Real.Real] (TargetMetrics.NeighborhoodRadius (Target.metric targetNorm) (T.Complement (Approximate r)) y)) } \then
+    \fun (none: Logic.Not (\exists \Cast[Real.Real] (TargetMetrics.NeighborhoodRadius (Target.metric targetNorm) (T.Complement (Approximate r)) y))) \then
+    \return outside (\block {
+      \fun (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) \then
+      \let delta: Real.Real := Real.mul Real.half epsilon \then
+      \let dp: R.Lt Real.zero delta := Estimates.halfOfPositive epsilon positive \then
+      \takefrom z: \Cast[W] ({ z: W \where Logic.And[T.Member (Approximate r) z, R.Lt (distance y z) delta] }) \by
+        Order.byContradiction (\exists ( z: W \where Logic.And[T.Member (Approximate r) z, R.Lt (distance y z) delta] ))
+          (\fun (absent: Logic.Not (\exists ( z: W \where Logic.And[T.Member (Approximate r) z, R.Lt (distance y z) delta] ))) =>
+            none (Logic.existsIntro[Real.Real, TargetMetrics.NeighborhoodRadius (Target.metric targetNorm) (T.Complement (Approximate r)) y] delta
+              (Logic.And[_, _]::# dp (\fun (z: W) (near: R.Lt (distance y z) delta) (member: T.Member (Approximate r) z) =>
+                absent (Logic.existsIntro[W, { z: W \where Logic.And[T.Member (Approximate r) z, R.Lt (distance y z) delta] }] z (Logic.And[_, _]::# member near)))))) \then
+      \let data: Logic.And[T.Member (Approximate r) z, R.Lt (distance y z) delta] :=
+        \bysub(W, { z: W \where Logic.And[T.Member (Approximate r) z, R.Lt (distance y z) delta] }, z) \then
+      \takefrom x: \Cast[V] ({ x: V \where Approximation[r, z, delta, x] }) \by data.left delta dp \then
+      \let a: Approximation[r, z, delta, x] := \bysub(V, { x: V \where Approximation[r, z, delta, x] }, x) \then
+      \return Logic.existsIntro[V, { x: V \where Approximation[r, y, epsilon, x] }] x
+        (Approximation[r, y, epsilon, x] { bound := a.bound,
+          error := R.leLtTrans _ (Real.add (distance (f.apply x) z) (distance z y)) epsilon ((Target.metric targetNorm).triangle (f.apply x) z y)
+            (R.ltReplaceRight _ (Real.add delta delta) epsilon (Estimates.halfTwice epsilon)
+              (Estimates.addLt _ _ delta delta (a.error) (R.ltReplaceLeft _ _ delta ((Target.metric targetNorm).symmetric y z) (data.right)))) })
+    })
+  })
+};
+\definition Surjective: \Prop := \forall (y: W) -> \exists ( x: V \where f.apply x = y );
+\module ApproximateAlgebra;
+
+\module Lifting(delta: Real.Real, y: W);
+\import \parent.OpenMapping[f := f].ApproximateAlgebra[] \as Approx;
+\structure Inverse[x: V, y: W]: \Prop := {
+  bound: R.Lt (norm.norm x) Real.one,
+  equation: f.apply x = y,
+};
+\structure UnitLifting[epsilon: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero epsilon,
+  inverse: \forall (y: W) -> R.Lt (targetNorm.norm y) epsilon -> \exists ( x: V \where Inverse[x, y] ),
+};
+\definition unitLifting: IsBanach norm -> Target.IsBanach targetNorm -> Surjective ->
+  \exists ( epsilon: Real.Real \where UnitLifting[epsilon] ) := \block {
+  \fun (sourceComplete: IsBanach norm) (targetComplete: Target.IsBanach targetNorm) (surjective: Surjective) \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Approx.Neighborhood[Real.one, delta] }) \by Approx.unitNeighborhood targetComplete surjective \then
+  \let neighborhood: Approx.Neighborhood[Real.one, delta] := \bysub(Real.Real, { delta: Real.Real \where Approx.Neighborhood[Real.one, delta] }, delta) \then
+  \let epsilon: Real.Real := Real.mul (Dyadic.value (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) delta \then
+  \return Logic.existsIntro[Real.Real, { epsilon: Real.Real \where UnitLifting[epsilon] }] epsilon (UnitLifting[epsilon] {
+    positive := Product.mulPositive _ delta (Limits.dyadicPositive (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))) (neighborhood.positiveDelta),
+    inverse := \block {
+      \fun (y: W) (small: R.Lt (targetNorm.norm y) epsilon) \then
+      \takefrom x: \Cast[V] ({ x: V \where Lifting[delta := delta, y := y].Solution[x] })
+        \by Lifting[delta := delta, y := y].lift sourceComplete neighborhood small \then
+      \let solution: Lifting[delta := delta, y := y].Solution[x] := \bysub(V, { x: V \where Lifting[delta := delta, y := y].Solution[x] }, x) \then
+      \return Logic.existsIntro[V, { x: V \where Inverse[x, y] }] x
+        (Inverse[x, y] { bound := solution.bound, equation := solution.equation })
+    },
+  })
+};
+\import topology.Topology[Carrier := V] \as SourceTopology;
+\import Metrics.Topology[] \as SourceMetricTopology;
+\definition Image[U: \Pow V]: \Pow W := { y: W \where \exists ( x: V \where Logic.And[SourceTopology.Member U x, f.apply x = y] ) };
+\definition openMapping: IsBanach norm -> Target.IsBanach targetNorm -> Surjective ->
+  \forall (U: \Pow V) -> SourceTopology.IsOpenIn (SourceGeometry.topology) U -> T.IsOpenIn (Geometry.topology) (Image U) := \block {
+  \fun (sourceComplete: IsBanach norm) (targetComplete: Target.IsBanach targetNorm) (surjective: Surjective) (U: \Pow V)
+    (open: SourceTopology.IsOpenIn (SourceGeometry.topology) U) \then
+  \takefrom epsilon: \Cast[Real.Real] ({ epsilon: Real.Real \where UnitLifting[epsilon] }) \by unitLifting sourceComplete targetComplete surjective \then
+  \let lifting: UnitLifting[epsilon] := \bysub(Real.Real, { epsilon: Real.Real \where UnitLifting[epsilon] }, epsilon) \then
+  \return (TargetTopology.openIff (Target.metric targetNorm) (Image U)).rtl (\block {
+    \fun (y: W) (inImage: T.Member (Image U) y) \then
+    \takefrom x: \Cast[V] ({ x: V \where Logic.And[SourceTopology.Member U x, f.apply x = y] }) \by inImage \then
+    \let member: Logic.And[SourceTopology.Member U x, f.apply x = y] := \bysub(V, { x: V \where Logic.And[SourceTopology.Member U x, f.apply x = y] }, x) \then
+    \takefrom r: \Cast[Real.Real] (Metrics.NeighborhoodRadius (metric norm) U x) \by (SourceMetricTopology.openIff (metric norm) U).ltr open x (member.left) \then
+    \let ball: Logic.And[R.Lt Real.zero r, SourceTopology.Subset (Metrics.Ball (metric norm) x r) U] := \bysub(Real.Real, Metrics.NeighborhoodRadius (metric norm) U x, r) \then
+    \let a: Real.Real := Real.mul Real.half r \then
+    \let ap: R.Lt Real.zero a := Estimates.halfOfPositive r (ball.left) \then
+    \let delta: Real.Real := Real.mul a epsilon \then
+    \return TargetTopology.openOfRadius (Target.metric targetNorm) (Image U) y delta (Product.mulPositive a epsilon ap (lifting.positive)) (\block {
+      \fun (z: W) (near: R.Lt (distance y z) delta) \then
+      \let residual: W := Target.sub z y \then
+      \let residualSmall: R.Lt (targetNorm.norm residual) delta := R.ltReplaceLeft _ _ delta ((Target.metric targetNorm).symmetric y z) near \then
+      \let scaledSmall: R.Lt (targetNorm.norm (target.smul (Laws.fieldInv a) residual)) epsilon :=
+        ltReplace _ _ _ _ (sym!{Real.Real} _ _ (Target.scaleNorm targetNorm (Laws.fieldInv a) residual (Order.leOfLt _ _ (Product.invPositive a ap))))
+          (Approx.inverseCancel a epsilon ap) (Product.mulStrict (Laws.fieldInv a) (targetNorm.norm residual) delta (Product.invPositive a ap) residualSmall) \then
+      \takefrom h: \Cast[V] ({ h: V \where Inverse[h, target.smul (Laws.fieldInv a) residual] }) \by lifting.inverse (target.smul (Laws.fieldInv a) residual) scaledSmall \then
+      \let inverse: Inverse[h, target.smul (Laws.fieldInv a) residual] := \bysub(V, { h: V \where Inverse[h, target.smul (Laws.fieldInv a) residual] }, h) \then
+      \let v: V := space.add x (space.smul a h) \then
+      \let inside: SourceTopology.Member U v := ball.right v
+        (R.ltReplaceLeft _ _ r (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (addDistance norm x (space.smul a h)) (scaleNorm norm a h (Order.leOfLt _ _ ap))))
+          (Order.ltTrans _ a r (R.ltReplaceRight _ (Real.mul a Real.one) a (Algebra.mulOneRight a) (Product.mulStrict a (norm.norm h) Real.one ap (inverse.bound)))
+            (Estimates.halfStrict r (ball.left)))) \then
+      \let equation: f.apply v = z := eq_reason!{
+        {f.apply v} "=" {target.add (f.apply x) (target.smul a (f.apply h))} "by" {
+          trans!{W} _ _ _ (f.preservesAdd x (space.smul a h)) (congr!{W W} (target.add (f.apply x)) _ _ (f.preservesScale a h))}
+        "=" {target.add y (target.smul a (target.smul (Laws.fieldInv a) residual))} "by" {
+          congr2!{W W W} (target.add) _ _ _ _ (member.right) (congr!{W W} (target.smul a) _ _ (inverse.equation))}
+        "=" {target.add y residual} "by" {congr!{W W} (target.add y) _ _ (Target.scaleInverse a residual ap)}
+        "=" {target.add residual y} "by" {TargetVectors.comm y residual}
+        "=" z "by" {Target.subAddCancel z y}
+      } \then
+      \return Logic.existsIntro[V, { x: V \where Logic.And[SourceTopology.Member U x, f.apply x = z] }] v (Logic.And[_, _]::# inside equation)
+    })
+  })
+};

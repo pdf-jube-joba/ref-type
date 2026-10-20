@@ -48,7 +48,7 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [analysis/calculus](analysis/calculus/README.md) | `calculus` | 極限、平均値定理、多変数微分、滑らかな写像 |
-| [analysis/functional](analysis/functional/README.md) | `functional_analysis` | 実ノルム空間・Hilbert 空間、Hahn–Banach・Riesz 表現、コンパクト台、\(L^p\)・弱微分・Sobolev 空間の定義 |
+| [analysis/functional](analysis/functional/README.md) | `functional_analysis` | 実ノルム空間・Hilbert 空間、Arzelà–Ascoli・Riesz 表現・Hahn–Banach・開写像定理、コンパクト台、\(L^p\)・弱微分・Sobolev 空間の定義 |
 | [analysis/integration](analysis/integration/README.md) | `integration` | リーマン積分、L¹ 完備化によるルベーグ積分 |
 
 ## 幾何

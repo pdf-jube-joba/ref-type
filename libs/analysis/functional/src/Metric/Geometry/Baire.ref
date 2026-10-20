@@ -1,0 +1,133 @@
+\definition Dense[U: \Pow Carrier]: \Prop := \forall (x: Carrier) (r: Real.Real) -> R.Lt Real.zero r ->
+  \exists ( y: Carrier \where Logic.And[T.Member U y, R.Lt (d.distance x y) r] );
+\structure Ball: \Set := {
+  center: Carrier,
+  radius: Real.Real,
+  positive: R.Lt Real.zero radius,
+};
+\definition closedBall[b: Ball]: \Pow Carrier := ClosedBall (b.center) (b.radius);
+\definition centerMember[b: Ball]: T.Member (closedBall b) (b.center) :=
+  R.leReplaceLeft Real.zero (d.distance (b.center) (b.center)) (b.radius) (sym!{Real.Real} _ _ (d.self (b.center))) (Order.leOfLt _ _ (b.positive));
+\structure Refinement[U: \Pow Carrier, epsilon: Real.Real, previous, next: Ball]: \Prop := {
+  within: T.Subset (closedBall next) (M.Ball d (previous.center) (previous.radius)),
+  target: T.Subset (closedBall next) U,
+  small: R.Le (next.radius) epsilon,
+};
+\definition refine: \forall (U: \Pow Carrier) -> T.IsOpenIn topology U -> Dense U ->
+  \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \forall (previous: Ball) ->
+  \exists ( next: Ball \where Refinement[U, epsilon, previous, next] ) := \block {
+  \fun (U: \Pow Carrier) (open: T.IsOpenIn topology U) (dense: Dense U) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) (previous: Ball) \then
+  \takefrom y: \Cast[Carrier] ({ y: Carrier \where Logic.And[T.Member U y, R.Lt (d.distance (previous.center) y) (previous.radius)] })
+    \by dense (previous.center) (previous.radius) (previous.positive) \then
+  \let data: Logic.And[T.Member U y, R.Lt (d.distance (previous.center) y) (previous.radius)] :=
+    \bysub(Carrier, { y: Carrier \where Logic.And[T.Member U y, R.Lt (d.distance (previous.center) y) (previous.radius)] }, y) \then
+  \let intersection: \Pow Carrier := T.Intersection U (M.Ball d (previous.center) (previous.radius)) \then
+  \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where SmallBall[intersection, y, epsilon, r] })
+    \by shrink intersection ((T.topologyLaws topology).intersectionOpen U (M.Ball d (previous.center) (previous.radius)) open
+      (Topology.ballOpenIn d (previous.center) (previous.radius))) y data epsilon positive \then
+  \let small: SmallBall[intersection, y, epsilon, r] := \bysub(Real.Real, { r: Real.Real \where SmallBall[intersection, y, epsilon, r] }, r) \then
+  \let next: Ball := Ball { center := y, radius := r, positive := small.positive } \then
+  \return Logic.existsIntro[Ball, { next: Ball \where Refinement[U, epsilon, previous, next] }] next (Refinement[U, epsilon, previous, next] {
+    within := \fun (z: Carrier) (member: T.Member (closedBall next) z) => (small.included z member).right,
+    target := \fun (z: Carrier) (member: T.Member (closedBall next) z) => (small.included z member).left,
+    small := small.small,
+  })
+};
+\structure Input: \Set := {
+  index: N.Nat^,
+  previous: Ball,
+};
+\definition Radius[n: N.Nat^]: Real.Real := Real.mul Real.half (Dyadic.value n);
+\definition radiusPositive[n: N.Nat^]: R.Lt Real.zero (Radius n) := E.halfOfPositive (Dyadic.value n) (Limits.dyadicPositive n);
+\module Selection(opens: N.Nat^ -> \Pow Carrier) {
+  \definition Next[i: Input]: \Set := \Cast[Ball] ({ next: Ball \where Refinement[opens (i.index), Radius (i.index), i.previous, next] });
+  \module Sequence(initial: Ball, select: \forall (i: Input) -> Next i) {
+    \definition sequence: N.Nat^ -> Ball := \induction (n: N.Nat^) \return Ball \with {
+      | zero: select (Input::# N.Nat^::zero initial)
+      | succ: \fun (n: N.Nat^) (previous: Ball) => select (Input::# (N.Nat^::succ n) previous)
+    };
+    \definition selected[i: Input]: Refinement[opens (i.index), Radius (i.index), i.previous, select i] :=
+      \bysub(Ball, { next: Ball \where Refinement[opens (i.index), Radius (i.index), i.previous, next] }, select i);
+    \definition sets[n: N.Nat^]: \Pow Carrier := closedBall (sequence n);
+    \definition small: \forall (n: N.Nat^) -> R.Le (sequence n).radius (Radius n) :=
+      \induction (n: N.Nat^) \return R.Le (sequence n).radius (Radius n) \with {
+        | zero: (selected (Input::# N.Nat^::zero initial)).small
+        | succ: \fun (n: N.Nat^) (previous: _) => (selected (Input::# (N.Nat^::succ n) (sequence n))).small
+      };
+    \definition targets: \forall (n: N.Nat^) -> T.Subset (sets n) (opens n) :=
+      \induction (n: N.Nat^) \return T.Subset (sets n) (opens n) \with {
+        | zero: (selected (Input::# N.Nat^::zero initial)).target
+        | succ: \fun (n: N.Nat^) (previous: _) => (selected (Input::# (N.Nat^::succ n) (sequence n))).target
+      };
+    \definition step: \forall (n: N.Nat^) -> T.Subset (sets (N.Nat^::succ n)) (sets n) :=
+      \fun (n: N.Nat^) (x: Carrier) (member: T.Member (sets (N.Nat^::succ n)) x) => Order.leOfLt _ _
+        ((selected (Input::# (N.Nat^::succ n) (sequence n))).within x member);
+    \definition nested: Nested[sets] := Nested[sets] {
+      inhabited := \fun (n: N.Nat^) => Logic.existsIntro[Carrier, sets n] (sequence n).center (centerMember (sequence n)),
+      closed := \fun (n: N.Nat^) => closedBallClosed (sequence n).center (sequence n).radius,
+      descending := \fun (m, n: N.Nat^) (bound: Nat.Le m n) => descendingOfStep sets step n m bound,
+      diameter := \fun (n: N.Nat^) (x, y: Carrier) (inX: T.Member (sets n) x) (inY: T.Member (sets n) y) =>
+        R.leReplaceRight _ (Real.add (Radius n) (Radius n)) (Dyadic.value n) (E.halfTwice (Dyadic.value n))
+          (R.leTrans _ (Real.add (d.distance x (sequence n).center) (d.distance (sequence n).center y)) _ (d.triangle x (sequence n).center y)
+            (E.addLe _ _ _ _ (R.leTrans _ (sequence n).radius _
+              (R.leReplaceLeft _ _ _ (d.symmetric (sequence n).center x) inX) (small n))
+              (R.leTrans _ (sequence n).radius _ inY (small n)))),
+    };
+    \definition initialBall: T.Subset (sets N.Nat^::zero) (M.Ball d (initial.center) (initial.radius)) :=
+      (selected (Input::# N.Nat^::zero initial)).within;
+  }
+}
+\definition baire: Complete d -> \forall (opens: N.Nat^ -> \Pow Carrier) ->
+  (\forall (n: N.Nat^) -> T.IsOpenIn topology (opens n)) -> (\forall (n: N.Nat^) -> Dense (opens n)) ->
+  \forall (x: Carrier) (r: Real.Real) -> R.Lt Real.zero r ->
+  \exists ( y: Carrier \where Logic.And[R.Lt (d.distance x y) r, \forall (n: N.Nat^) -> T.Member (opens n) y] ) := \block {
+  \fun (complete: Complete d) (opens: N.Nat^ -> \Pow Carrier)
+    (open: \forall (n: N.Nat^) -> T.IsOpenIn topology (opens n)) (dense: \forall (n: N.Nat^) -> Dense (opens n))
+    (x: Carrier) (r: Real.Real) (positive: R.Lt Real.zero r) \then
+  \takefrom select: \forall (i: Input) -> Selection[opens := opens].Next i
+    \by \axiom:classicalIndefiniteChoice(Input, (\fun (i: Input) => Selection[opens := opens].Next i),
+      \fun (i: Input) => refine (opens (i.index)) (open (i.index)) (dense (i.index)) (Radius (i.index)) (radiusPositive (i.index)) (i.previous)) \then
+  \let initial: Ball := Ball { center := x, radius := r, positive := positive } \then
+  \takefrom y: \Cast[Carrier] ({ y: Carrier \where \forall (n: N.Nat^) -> T.Member (Selection[opens := opens].Sequence[initial := initial, select := select].sets n) y })
+    \by cantor complete (\fun (n: N.Nat^) => Selection[opens := opens].Sequence[initial := initial, select := select].sets n)
+      (Selection[opens := opens].Sequence[initial := initial, select := select].nested) \then
+  \let member: \forall (n: N.Nat^) -> T.Member (Selection[opens := opens].Sequence[initial := initial, select := select].sets n) y :=
+    \bysub(Carrier, { y: Carrier \where \forall (n: N.Nat^) -> T.Member (Selection[opens := opens].Sequence[initial := initial, select := select].sets n) y }, y) \then
+  \return Logic.existsIntro[Carrier, { y: Carrier \where Logic.And[R.Lt (d.distance x y) r, \forall (n: N.Nat^) -> T.Member (opens n) y] }] y
+    (Logic.And[_, _]::# (Selection[opens := opens].Sequence[initial := initial, select := select].initialBall y (member N.Nat^::zero))
+      (\fun (n: N.Nat^) => Selection[opens := opens].Sequence[initial := initial, select := select].targets n y (member n)))
+};
+\structure Interior[S: \Pow Carrier, x: Carrier, r: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero r,
+  included: T.Subset (M.Ball d x r) S,
+};
+\definition HasInterior[S: \Pow Carrier]: \Prop := \exists ( x: Carrier \where \exists ( r: Real.Real \where Interior[S, x, r] ) );
+\definition closedCover: Complete d -> \forall (point: Carrier) (sets: N.Nat^ -> \Pow Carrier) ->
+  (\forall (n: N.Nat^) -> T.IsClosedIn topology (sets n)) -> (\forall (x: Carrier) -> \exists ( n: N.Nat^ \where T.Member (sets n) x )) ->
+  \exists ( n: N.Nat^ \where HasInterior (sets n) ) := \block {
+  \fun (complete: Complete d) (point: Carrier) (sets: N.Nat^ -> \Pow Carrier)
+    (closed: \forall (n: N.Nat^) -> T.IsClosedIn topology (sets n)) (covers: \forall (x: Carrier) -> \exists ( n: N.Nat^ \where T.Member (sets n) x )) \then
+  \enough _ \by { Order.byContradiction (\exists ( n: N.Nat^ \where HasInterior (sets n) )) } \then
+  \fun (none: Logic.Not (\exists ( n: N.Nat^ \where HasInterior (sets n) ))) \then
+  \let opens: N.Nat^ -> \Pow Carrier := \fun (n: N.Nat^) => T.Complement (sets n) \then
+  \let dense: \forall (n: N.Nat^) -> Dense (opens n) := \block {
+    \fun (n: N.Nat^) (x: Carrier) (r: Real.Real) (positive: R.Lt Real.zero r) \then
+    \enough _ \by { Order.byContradiction (\exists ( y: Carrier \where Logic.And[T.Member (opens n) y, R.Lt (d.distance x y) r] )) } \then
+    \fun (empty: Logic.Not (\exists ( y: Carrier \where Logic.And[T.Member (opens n) y, R.Lt (d.distance x y) r] ))) \then
+    \let interior: Interior[sets n, x, r] := Interior[sets n, x, r] {
+      positive := positive,
+      included := \fun (y: Carrier) (near: R.Lt (d.distance x y) r) => Order.byContradiction (T.Member (sets n) y)
+        (\fun (outside: Logic.Not (T.Member (sets n) y)) => empty
+          (Logic.existsIntro[Carrier, { y: Carrier \where Logic.And[T.Member (opens n) y, R.Lt (d.distance x y) r] }] y (Logic.And[_, _]::# outside near))),
+    } \then
+    \return none (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where HasInterior (sets n) }] n
+      (Logic.existsIntro[Carrier, { x: Carrier \where \exists ( r: Real.Real \where Interior[sets n, x, r] ) }] x
+        (Logic.existsIntro[Real.Real, { r: Real.Real \where Interior[sets n, x, r] }] r interior)))
+  } \then
+  \takefrom y: \Cast[Carrier] ({ y: Carrier \where Logic.And[R.Lt (d.distance point y) Real.one, \forall (n: N.Nat^) -> T.Member (opens n) y] })
+    \by baire complete opens closed dense point Real.one Product.onePositive \then
+  \let outside: \forall (n: N.Nat^) -> T.Member (opens n) y :=
+    (\bysub(Carrier, { y: Carrier \where Logic.And[R.Lt (d.distance point y) Real.one, \forall (n: N.Nat^) -> T.Member (opens n) y] }, y)).right \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where T.Member (sets n) y }) \by covers y \then
+  \return outside n (\bysub(N.Nat^, { n: N.Nat^ \where T.Member (sets n) y }, n))
+};

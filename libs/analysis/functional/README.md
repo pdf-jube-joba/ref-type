@@ -5,9 +5,9 @@ Dedekind 実数上のノルム空間、Hilbert 空間、線形汎関数を扱う
 
 | module | 内容 |
 | --- | --- |
-| `Metric[Carrier]` | 収束・Cauchy 列・完備性、極限の一意性、収束列の Cauchy 性 |
+| `Metric[Carrier]` / `Metric.Geometry[d]` | 収束・Cauchy 列・完備性、入れ子閉集合の共通部分、Baire の定理 |
 | `Normed[V, space]` | ノルム、誘導距離、Banach 空間、ノルムの連続性 |
-| `Normed.Operators` | 有界線形写像、距離評価、Cauchy 列・収束列の像 |
+| `Normed.Operators` / `Operators.OpenMapping[f]` | 有界線形写像、距離評価、収束列の像、Banach 空間間の開写像定理 |
 | `Normed.Hilbert[norm]` | 内積とノルムの整合性、完備性、表現ベクトルの一意性 |
 | `Normed.Hilbert.Quadratic` | 平行四辺形恒等式、中点の二次形式、二次形式の連続性 |
 | `Normed.Hilbert.Quadratic.Minimization` | 非空な閉中点凸集合でのノルムの最小点の存在 |
@@ -16,12 +16,14 @@ Dedekind 実数上のノルム空間、Hilbert 空間、線形汎関数を扱う
 | `Normed.HahnBanach` | 劣線形関数に支配された部分線形汎関数の全空間への延長 |
 | `Normed.HahnBanach.OnSubspace` | 部分空間上の線形写像を引数に取る延長定理 |
 | `Support[A]` | 台、コンパクト台、台の外での消滅、閉集合・コンパクト集合による台の評価 |
-| `Continuous[A, topology]` | 連続関数、コンパクト台付き連続関数、同程度連続性、各点有界性、一様収束と極限の連続性 |
+| `Continuous[A, topology]` / `Continuous.Uniform` | 連続関数、コンパクト台付き連続関数、同程度連続性、各点有界性、一様収束、一様位相 |
+| `Continuous.ArzelaAscoli` | 閉関数族のコンパクト性と一般の関数族の相対コンパクト性を与える Arzelà–Ascoli の定理 |
+| `Filters[A]` / `Filters.Compactness` | 超フィルターへの延長、写像による像、超フィルターの極限によるコンパクト性の特徴づけ |
 | `Measure[A]` / `Measure.Integral` | σ 加法族、非負拡張実数値測度、零集合、単関数による非負積分、符号付き積分の条件 |
 | `Powers` / `Measure.Lp` | 実数指数の正冪の関係、有限指数の \(L^p\)、\(L^\infty\) の同値類 |
 | `Sobolev[n].On[U].WithMeasure` | 試験関数、弱微分、\(W^{k,p}\) の同値類 |
 | `ScalarLimits` | 実数列の積の極限、閉半直線、二進幾何列の評価 |
-| `Examples` | 実数直線の Hilbert 空間、恒等汎関数の Riesz ベクトル、具体的な Hahn–Banach の利用 |
+| `Examples` / `Examples.Ascoli` | 実数直線の Hilbert 空間、恒等汎関数の Riesz ベクトル、Hahn–Banach、恒等写像の開性、有界な定数関数族の相対コンパクト性 |
 
 ## Hahn–Banach
 
@@ -48,6 +50,28 @@ f(x)=\langle y,x\rangle\qquad(x\in V)
 平行四辺形恒等式から最小化列が Cauchy 列になることを示し、完備性で極限を取り、最小点の核への直交性から表現を得る。
 零汎関数は別に扱う。
 `Examples.identityVector` は実数直線の恒等汎関数の表現ベクトルが \(1\) であることを検査する。
+
+## 開写像定理
+
+`Operators.OpenMapping[f].openMapping` は実 Banach 空間の間の有界全射線形写像が開写像であることを証明する。
+引数は定義域と値域の完備性、全射性、定義域の開集合であり、その像が値域で開集合になる。
+`unitLifting` は原点のある近傍に属するベクトルが、定義域の開単位球内に逆像を持つという量的な形を与える。
+
+証明では像を近似できる集合が閉じていることを示し、値域の Baire の定理から原点の近傍を得る。
+近似の誤差を二進的に縮め、定義域の入れ子閉球の共通部分から正確な逆像を構成する。
+`Metric.Geometry.Baire` には開稠密集合の可算共通部分の稠密性と、可算閉被覆の少なくとも一つが内点を持つ形を用意する。
+
+## Arzelà–Ascoli
+
+`Continuous.Uniform.topology` は実数値連続関数の一様位相である。
+定義域は任意のコンパクト位相空間でよく、空間が空の場合も含む。
+`Continuous.ArzelaAscoli.arzelaAscoliClosure` は、同程度連続で各点有界な関数族の閉包が一様位相でコンパクトになることを証明する。
+`arzelaAscoli` はさらに関数族が閉集合である場合、その関数族自体がコンパクトになる形である。
+
+証明は超フィルターを使う。
+各点の値をコンパクトな実閉区間に入れて極限を取り、同程度連続性から極限の連続性を示す。
+定義域の有限部分被覆によって各点での収束を一様収束へ移し、超フィルターによるコンパクト性の特徴づけを適用する。
+`Examples.Ascoli` は、絶対値が \(1\) 以下の定数関数族について前提を検証し、この定理を適用する。
 
 ## 測度、\(L^p\)、Sobolev 空間
 
