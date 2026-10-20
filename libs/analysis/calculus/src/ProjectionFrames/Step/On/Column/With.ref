@@ -1,0 +1,25 @@
+\definition inputLocal[x: Open.Carrier prior.neighborhood.domain]: Open.Carrier Region.domain := Open.inclusion prior.neighborhood.domain Region.domain prior.neighborhood.included x;
+\definition original[x: Open.Carrier prior.neighborhood.domain]: Open.Carrier U := input (inputLocal x);
+\import linear_algebra.Euclidean[n := k] \as Lower;
+\import linear_algebra.Euclidean[n := N.Nat^::succ k] \as Higher;
+\import \root.MatrixFamily[d := d, p := k, q := q] \as LowerMatrix;
+\import \root.SmoothCoordinates[d := d, q := q].On[U := prior.neighborhood.domain] \as FinalVectors;
+\module At(x: Open.Carrier prior.neighborhood.domain);
+\definition value[x: Open.Carrier prior.neighborhood.domain]: FrameAt (N.Nat^::succ k) (P (original x)) := At[x := x].frame;
+\definition localUnit: FinalVectors.Regular (\fun (x: Open.Carrier prior.neighborhood.domain) => unit (inputLocal x)) := \fun (i: Fin.Fin q) =>
+  Open.Restriction[].localSmooth prior.neighborhood.domain Region.domain prior.neighborhood.included (\fun (x: Open.Carrier Region.domain) => unit x i) (unitRegular i);
+\definition lowerRegular: LowerMatrix.Regular prior.neighborhood.domain (\fun (x: Open.Carrier prior.neighborhood.domain) => (prior.frame.value x).value) := prior.frame.regular;
+\import Spaces.CoordinateSum[n := N.Nat^::succ N.Nat^::zero, m := k] \as Blocks;
+\definition frame: \root.ProjectionFrames[d := d, q := q].Frames[k := N.Nat^::succ k, U := prior.neighborhood.domain, P := \fun (x: Open.Carrier prior.neighborhood.domain) => P (original x)].Frames :=
+  \root.ProjectionFrames[d := d, q := q].Frames[k := N.Nat^::succ k, U := prior.neighborhood.domain, P := \fun (x: Open.Carrier prior.neighborhood.domain) => P (original x)].Frames {
+    value := value,
+    regular := \fun (i: Fin.Fin q)(j: Fin.Fin (N.Nat^::succ k)) => Operations.addSmooth prior.neighborhood.domain
+      (\fun (x: Open.Carrier prior.neighborhood.domain) => R.mul (Blocks.left (Higher.basis j) (Fin.zero N.Nat^::zero)) (unit (inputLocal x) i))
+      (\fun (x: Open.Carrier prior.neighborhood.domain) => (prior.frame.value x).value.apply (Blocks.right (Higher.basis j)) i)
+      (Operations.scaleSmooth prior.neighborhood.domain (Blocks.left (Higher.basis j) (Fin.zero N.Nat^::zero)) (\fun (x: Open.Carrier prior.neighborhood.domain) => unit (inputLocal x) i) (localUnit i))
+      (LowerMatrix.evaluate prior.neighborhood.domain (\fun (x: Open.Carrier prior.neighborhood.domain) => (prior.frame.value x).value) lowerRegular (Blocks.right (Higher.basis j)) i),
+  };
+\definition local: Local[N.Nat^::succ k, U, P, a] := Local[N.Nat^::succ k, U, P, a] {
+  neighborhood := Neighborhood[U] { domain := prior.neighborhood.domain, included := \fun (x: Coordinates.Point)(inside: _) => Region.included x (prior.neighborhood.included x inside) },
+  contains := prior.contains, frame := frame,
+};

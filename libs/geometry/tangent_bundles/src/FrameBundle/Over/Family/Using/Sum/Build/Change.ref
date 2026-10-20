@@ -1,0 +1,36 @@
+\import Charts.Transition[left := chart i, right := chart j] \as Base;
+\import \parent.\parent.\parent.Change[i := i, j := j].Smooth[regular := \fun (a, b: Fin.Fin r) => firstChanges i j a b] \as First;
+\import Other.Change[i := i, j := j].Smooth[regular := \fun (a, b: Fin.Fin s) => secondChanges i j a b] \as Second;
+\import Sum.Change[i := i, j := j] \as Combined;
+\import std.Data[].FinSet[].Sum[m := r, n := s] \as Indices;
+\import Indices.Tuples[A := Real.Real] \as Tuples;
+\import Real.FiniteSums[].Linear[] \as Finite;
+\definition smoothIndex: \forall (index: Indices.Index)(b: Fin.Fin rank) -> Combined.CoefficientSmooth (Indices.inflate index) b :=
+  \induction (index: Indices.Index) \return \forall (b: Fin.Fin rank) -> Combined.CoefficientSmooth (Indices.inflate index) b \with {
+    | inl: \fun (a: Fin.Fin r)(b: Fin.Fin rank) => \idelim
+        (\fun (t: BaseOpen.Carrier Base.domain) => First.Evaluate[v := Coordinates.left (Finite.basis rank b), k := a].value t) =
+        Combined.coefficient (Indices.left a) b
+        \with f: BaseOpen.ScalarFunction Base.domain => BaseOpen.Smooth[].SmoothOn Base.domain f \by {
+          base: First.Evaluate[v := Coordinates.left (Finite.basis rank b), k := a].smooth,
+          equality: \axiom:funext((\fun (t: BaseOpen.Carrier Base.domain) => First.Evaluate[v := Coordinates.left (Finite.basis rank b), k := a].value t),
+            (Combined.coefficient (Indices.left a) b), \fun (t: BaseOpen.Carrier Base.domain) => sym!{{Real.Real}} _ _
+              (Tuples.atLeft
+                ((\parent.\parent.\parent.Change[i := i, j := j].linear t).apply (Coordinates.left (Finite.basis rank b)))
+                ((Other.Change[i := i, j := j].linear t).apply (Coordinates.right (Finite.basis rank b))) a))
+        }
+    | inr: \fun (a: Fin.Fin s)(b: Fin.Fin rank) => \idelim
+        (\fun (t: BaseOpen.Carrier Base.domain) => Second.Evaluate[v := Coordinates.right (Finite.basis rank b), k := a].value t) =
+        Combined.coefficient (Indices.right a) b
+        \with f: BaseOpen.ScalarFunction Base.domain => BaseOpen.Smooth[].SmoothOn Base.domain f \by {
+          base: Second.Evaluate[v := Coordinates.right (Finite.basis rank b), k := a].smooth,
+          equality: \axiom:funext((\fun (t: BaseOpen.Carrier Base.domain) => Second.Evaluate[v := Coordinates.right (Finite.basis rank b), k := a].value t),
+            (Combined.coefficient (Indices.right a) b), \fun (t: BaseOpen.Carrier Base.domain) => sym!{{Real.Real}} _ _
+              (Tuples.atRight
+                ((\parent.\parent.\parent.Change[i := i, j := j].linear t).apply (Coordinates.left (Finite.basis rank b)))
+                ((Other.Change[i := i, j := j].linear t).apply (Coordinates.right (Finite.basis rank b))) a))
+        }
+  };
+\definition smooth: \forall (a, b: Fin.Fin rank) -> Combined.CoefficientSmooth a b := \fun (a, b: Fin.Fin rank) =>
+  \idelim Indices.inflate (Indices.split a) = a \with k: Fin.Fin rank => Combined.CoefficientSmooth k b \by {
+    base: smoothIndex (Indices.split a) b, equality: Indices.inflateSplit a
+  };

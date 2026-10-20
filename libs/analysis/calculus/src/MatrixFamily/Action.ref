@@ -1,0 +1,16 @@
+\definition row[x: Open.Carrier U][i: Fin.Fin q]: Finite.Map p := Finite.Data[p] {
+  apply := \fun (v: Source.Vector) => (A x).apply v i,
+  additive := \fun (v, w: Source.Vector) => congr!{{Target.Vector} {R.Real}} (\fun (z: Target.Vector) => z i) _ _ ((A x).preservesAdd v w),
+  homogeneous := \fun (a: R.Real)(v: Source.Vector) => congr!{{Target.Vector} {R.Real}} (\fun (z: Target.Vector) => z i) _ _ ((A x).preservesScale a v),
+};
+\definition term[i: Fin.Fin q][j: Fin.Fin p][x: Open.Carrier U]: R.Real := R.mul (v x j) ((A x).apply (Source.basis j) i);
+\definition formula: \forall (i: Fin.Fin q) -> (\fun (x: Open.Carrier U) => (A x).apply (v x) i) = Sums.sum U p (term i) :=
+  \fun (i: Fin.Fin q) => \axiom:funext((\fun (x: Open.Carrier U) => (A x).apply (v x) i), Sums.sum U p (term i),
+    \fun (x: Open.Carrier U) => Finite.expansion p (row x i) (v x));
+\definition smooth: VectorSmooth U (\fun (x: Open.Carrier U) => (A x).apply (v x)) :=
+  \fun (i: Fin.Fin q) => \idelim Sums.sum U p (term i) = (\fun (x: Open.Carrier U) => (A x).apply (v x) i)
+    \with f: Open.ScalarFunction U => Smooth.SmoothOn U f \by {
+      base: Sums.smooth U p (term i) (\fun (j: Fin.Fin p) => Operations.mulSmooth U
+        (\fun (x: Open.Carrier U) => v x j) (\fun (x: Open.Carrier U) => (A x).apply (Source.basis j) i) (smooth j) (regular i j)),
+      equality: sym!{{Open.ScalarFunction U}} _ _ (formula i)
+    };

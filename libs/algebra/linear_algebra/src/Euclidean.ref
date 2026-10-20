@@ -1,0 +1,139 @@
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import R.FiniteSums[] \as Sums;
+\import \root.Field[].Space[K := R.Real, field := Scalars.field] \as Spaces;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin n] \as Coordinates;
+\import Spaces.Form[V := Coordinates.Vector, space := Coordinates.space] \as Forms;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].FinSet[] \as Fin;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition Vector: \Set := Coordinates.Vector;
+\definition space: Spaces.VectorSpace Vector := Coordinates.space;
+\definition dot[x, y: Vector]: R.Real := Sums.sum n (\fun (i: Fin.Fin n) => R.mul (x i) (y i));
+\definition symmetric: \forall (x, y: Vector) -> dot x y = dot y x :=
+  \fun (x, y: Vector) => Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulComm (x i) (y i));
+\definition form: Forms.Bilinear := Forms.Bilinear {
+  form := dot,
+  zeroLeft := \fun (x: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulZeroLeft (x i))) (Sums.zeroSum n),
+  zeroRight := \fun (x: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulZeroRight (x i))) (Sums.zeroSum n),
+  addLeft := \fun (x, y, z: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.addMul (x i) (y i) (z i))) (Sums.addition n _ _),
+  addRight := \fun (x, y, z: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulAdd (x i) (y i) (z i))) (Sums.addition n _ _),
+  scaleLeft := \fun (a: R.Real)(x, y: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Spaces.mulAssoc a (x i) (y i))) (Sums.scalar n a _),
+  scaleRight := \fun (a: R.Real)(x, y: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => trans!{R.Real} _ _ _
+      (sym!{R.Real} _ _ (Spaces.mulAssoc (x i) a (y i)))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (b: R.Real) => R.mul b (y i)) _ _ (Spaces.mulComm (x i) a))
+        (Spaces.mulAssoc a (x i) (y i))))) (Sums.scalar n a _),
+};
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Arithmetic;
+\definition squared[v: Vector]: R.Real := dot v v;
+\definition nonnegative: \forall (v: Vector) -> Order.Le R.zero (squared v) := \fun (v: Vector) =>
+  Sums.nonnegative n (\fun (i: Fin.Fin n) => R.mul (v i) (v i)) (\fun (i: Fin.Fin n) => Scalars.squareNonnegative (v i));
+\definition separated: \forall (v: Vector) -> squared v = R.zero -> v = space.zero := \fun (v: Vector)(same: _) => \axiom:funext(v, space.zero,
+  \fun (i: Fin.Fin n) => Scalars.squareZero (v i) (Order.leAntisym _ _
+    (Order.leReplaceRight _ (squared v) R.zero same (Sums.coordinateUpper n (\fun (j: Fin.Fin n) => R.mul (v j) (v j))
+      (\fun (j: Fin.Fin n) => Scalars.squareNonnegative (v j)) i)) (Scalars.squareNonnegative (v i))));
+\definition positive: \forall (v: Vector) -> Logic.Not (v = space.zero) -> Order.Lt R.zero (squared v) :=
+  \fun (v: Vector)(nonzero: _) => Order.Order[].ltOfLeNotEq R.zero (squared v) (nonnegative v)
+    (\fun (same: R.zero = squared v) => nonzero (separated v (sym!{R.Real} _ _ same)));
+\module Normalization(v: \Cast[Vector] ({ v: Vector \where Order.Lt R.zero (squared v) }));
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].Bool[] \as Bool;
+\import Sums.Linear[] \as Finite;
+\definition eqbSymmetric: \forall (a, b: N.Nat^) -> Nat.eqb a b = Nat.eqb b a :=
+  \induction (a: N.Nat^) \return \forall (b: N.Nat^) -> Nat.eqb a b = Nat.eqb b a \with {
+    | zero: \induction (b: N.Nat^) \return Nat.eqb N.Nat^::zero b = Nat.eqb b N.Nat^::zero \with {
+      | zero: \refl(Bool.Bool^::true)
+      | succ: \fun (b: N.Nat^)(_: _) => \refl(Bool.Bool^::false)
+    }
+    | succ: \fun (a: N.Nat^)(previous: _) => \induction (b: N.Nat^) \return Nat.eqb (N.Nat^::succ a) b = Nat.eqb b (N.Nat^::succ a) \with {
+      | zero: \refl(Bool.Bool^::false)
+      | succ: \fun (b: N.Nat^)(_: _) => previous b
+    }
+  };
+\definition basis[i: Fin.Fin n]: Vector := Finite.basis n i;
+\definition basisSymmetric: \forall (i, j: Fin.Fin n) -> basis i j = basis j i := \fun (i, j: Fin.Fin n) =>
+  congr!{Bool.Bool^ R.Real} (\fun (b: Bool.Bool^) => Bool.ite R.Real b R.one R.zero) _ _ (eqbSymmetric j i);
+\definition coordinate[i: Fin.Fin n]: Finite.Map n := Finite.Data[n] {
+  apply := \fun (v: Vector) => v i,
+  additive := \fun (x, y: Vector) => \refl(R.add (x i) (y i)),
+  homogeneous := \fun (a: R.Real)(x: Vector) => \refl(R.mul a (x i)),
+};
+\definition dotBasis: \forall (i: Fin.Fin n)(v: Vector) -> dot (basis i) v = v i := \fun (i: Fin.Fin n)(v: Vector) =>
+  trans!{R.Real} _ _ _ (Sums.congruent n _ _ (\fun (j: Fin.Fin n) => trans!{R.Real} _ _ _
+    (Arithmetic.fieldMulComm (basis i j) (v j)) (congr!{R.Real R.Real} (R.mul (v j)) _ _ (basisSymmetric i j))))
+    (sym!{R.Real} _ _ (Finite.expansion n (coordinate i) v));
+\import Spaces.Linear[V := Vector, W := Vector, source := space, target := space] \as End;
+\import End.Operations[] \as EndOperations;
+\import Spaces.Laws[V := Vector, space := space] \as Laws;
+\structure Projection: \Set := {
+  map: End.Map,
+  symmetric: \forall (x, y: Vector) -> dot (map.apply x) y = dot x (map.apply y),
+  idempotent: \forall (x: Vector) -> map.apply (map.apply x) = map.apply x,
+};
+\definition trace[P: Projection]: R.Real := Sums.sum n (\fun (i: Fin.Fin n) => P.map.apply (basis i) i);
+\import N.Basic[].Prop[] \as NatLaws;
+\definition basisDiagonal: \forall (i: Fin.Fin n) -> basis i i = R.one := \fun (i: Fin.Fin n) =>
+  congr!{Bool.Bool^ {R.Real}} (\fun (b: Bool.Bool^) => Bool.ite R.Real b R.one R.zero) _ _ (NatLaws.eqbRefl i);
+\definition basisNorm: \forall (i: Fin.Fin n) -> squared (basis i) = R.one :=
+  \fun (i: Fin.Fin n) => trans!{{R.Real}} _ _ _ (dotBasis i (basis i)) (basisDiagonal i);
+\definition difference[x, y: Vector]: Vector := \fun (i: Fin.Fin n) => R.sub (x i) (y i);
+\definition differenceSelf: \forall (v: Vector) -> difference v v = space.zero :=
+  \fun (v: Vector) => \axiom:funext(difference v v, space.zero, \fun (i: Fin.Fin n) => Arithmetic.subSelf (v i));
+\definition differenceZero: \forall (v: Vector) -> difference v space.zero = v :=
+  \fun (v: Vector) => \axiom:funext(difference v space.zero, v, \fun (i: Fin.Fin n) => Arithmetic.subZeroRight (v i));
+\definition dotDifferenceLeft: \forall (x, y, z: Vector) -> dot (difference x y) z = R.sub (dot x z) (dot y z) :=
+  \fun (x, y, z: Vector) => trans!{{R.Real}} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Scalars.subMul (x i) (y i) (z i))) (Sums.difference n _ _);
+\definition dotDifferenceRight: \forall (x, y, z: Vector) -> dot x (difference y z) = R.sub (dot x y) (dot x z) :=
+  \fun (x, y, z: Vector) => trans!{{R.Real}} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Scalars.mulSub (x i) (y i) (z i))) (Sums.difference n _ _);
+\definition linearDifference: \forall (f: End.Map)(x, y: Vector) -> f.apply (difference x y) = difference (f.apply x) (f.apply y) :=
+  \fun (f: End.Map)(x, y: Vector) => trans!{Vector} _ _ _ (f.preservesAdd x (space.neg y))
+    (congr!{Vector Vector} (space.add (f.apply x)) _ _ (EndOperations.preservesNeg f y));
+\structure Subprojection[P, Q: Projection]: \Prop := {
+  left: \forall (v: Vector) -> P.map.apply (Q.map.apply v) = Q.map.apply v,
+  right: \forall (v: Vector) -> Q.map.apply (P.map.apply v) = Q.map.apply v,
+};
+\module ProjectionDifference(P, Q: Projection, included: Subprojection[P, Q]);
+\import Spaces.Eigen[V := Vector, space := space] \as Eigen;
+\definition identityProjection: Projection := Projection { map := Eigen.identity,
+  symmetric := \fun (x, y: Vector) => \refl(dot x y), idempotent := \fun (v: Vector) => \refl(v) };
+\definition identityContains: \forall (P: Projection) -> Subprojection[identityProjection, P] := \fun (P: Projection) => Subprojection[identityProjection, P] {
+  left := \fun (v: Vector) => \refl(P.map.apply v), right := \fun (v: Vector) => \refl(P.map.apply v),
+};
+\definition complement[P: Projection]: Projection := ProjectionDifference[P := identityProjection, Q := P, included := identityContains P].projection;
+\module Matrix(m: N.Nat^);
+\definition naturalCount: N.Nat^ -> R.Real := \root.Real[].Dimension[].naturalScalar;
+\definition sumOnes: \forall (k: N.Nat^) -> Sums.sum k (\fun (i: Fin.Fin k) => R.one) = naturalCount k :=
+  \induction (k: N.Nat^) \return Sums.sum k (\fun (i: Fin.Fin k) => R.one) = naturalCount k \with {
+    | zero: \refl(R.zero)
+    | succ: \fun (k: N.Nat^)(previous: _) => congr!{{R.Real} {R.Real}} (R.add R.one) _ _ previous
+  };
+\definition identityTrace: trace identityProjection = naturalCount n := trans!{{R.Real}} _ _ _
+  (Sums.congruent n _ (\fun (i: Fin.Fin n) => R.one) basisDiagonal) (sumOnes n);
+\definition complementTrace: \forall (P: Projection) -> trace (complement P) = R.sub (naturalCount n) (trace P) :=
+  \fun (P: Projection) => trans!{{R.Real}} _ _ _
+    (ProjectionDifference[P := identityProjection, Q := P, included := identityContains P].traceFormula)
+    (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.sub a (trace P)) _ _ identityTrace);
+\module OnProjection(P: Projection);
+\module Resolution;
+\module Successor;
+\module Gram(k: N.Nat^);
+\structure OrthogonalIsomorphism[m: N.Nat^]: \Set := {
+  linear: Spaces.Isomorphism[V := Vector, W := \root.Euclidean[n := m].Vector, source := space, target := \root.Euclidean[n := m].space].Isomorphism,
+  isometry: \forall (v, w: Vector) -> \root.Euclidean[n := m].dot (linear.forward.apply v) (linear.forward.apply w) = dot v w,
+};
+\module Reindex(m: N.Nat^, same: n = m);
+\module Blocks(m: N.Nat^);

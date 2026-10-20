@@ -1,0 +1,21 @@
+\definition vector: HigherSource.Vector := HigherSource.basis j;
+\definition tailVector: Source.Vector := Split.tail vector;
+\definition rowValue[x: Open.Carrier U]: R.Real := Target.dot (unit x) ((tail x).apply tailVector);
+\definition rowSmooth: Smooth.SmoothOn U rowValue := Vectors.dot unit (\fun (x: Open.Carrier U) => (tail x).apply tailVector)
+  unitRegular (LowerMatrix.evaluate U tail tailRegular tailVector);
+\definition lowerForward[x: Open.Carrier U]: Source.Vector := (prior.value x).change.forward.apply tailVector;
+\definition lowerBackward[x: Open.Carrier U]: Source.Vector := (prior.value x).change.backward.apply tailVector;
+\definition lowerForwardSmooth: SourceVectors.Regular lowerForward := Square.evaluate U (\fun (x: Open.Carrier U) => (prior.value x).change.forward) prior.change tailVector;
+\definition lowerBackwardSmooth: SourceVectors.Regular lowerBackward := Square.evaluate U (\fun (x: Open.Carrier U) => (prior.value x).change.backward) prior.inverse tailVector;
+\definition forwardSmooth: \forall (i: Fin.Fin (N.Nat^::succ p)) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (value x).change.forward.apply vector i) :=
+  SourceVectors.join (\fun (x: Open.Carrier U) => R.add (R.mul (Root.value x) (Split.head vector)) (rowValue x)) lowerForward
+    (Operations.addSmooth U (\fun (x: Open.Carrier U) => R.mul (Root.value x) (Split.head vector)) rowValue
+      (Operations.mulSmooth U Root.value (\fun (x: Open.Carrier U) => Split.head vector) Root.smooth (Operations.constantSmooth U (Split.head vector))) rowSmooth) lowerForwardSmooth;
+\definition movingRow[x: Open.Carrier U]: R.Real := Target.dot (unit x) ((tail x).apply (lowerBackward x));
+\definition movingRowSmooth: Smooth.SmoothOn U movingRow := Vectors.dot unit (\fun (x: Open.Carrier U) => (tail x).apply (lowerBackward x))
+  unitRegular (LowerMatrix.action U tail tailRegular lowerBackward lowerBackwardSmooth);
+\definition backwardSmooth: \forall (i: Fin.Fin (N.Nat^::succ p)) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => (value x).change.backward.apply vector i) :=
+  SourceVectors.join (\fun (x: Open.Carrier U) => R.mul (Inverse.value x) (R.add (Split.head vector) (R.mul (R.neg R.one) (movingRow x)))) lowerBackward
+    (Operations.mulSmooth U Inverse.value (\fun (x: Open.Carrier U) => R.add (Split.head vector) (R.mul (R.neg R.one) (movingRow x))) Inverse.smooth
+      (Operations.addSmooth U (\fun (x: Open.Carrier U) => Split.head vector) (\fun (x: Open.Carrier U) => R.mul (R.neg R.one) (movingRow x))
+        (Operations.constantSmooth U (Split.head vector)) (Operations.scaleSmooth U (R.neg R.one) movingRow movingRowSmooth))) lowerBackwardSmooth;

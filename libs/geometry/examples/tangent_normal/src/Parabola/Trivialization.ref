@@ -1,0 +1,53 @@
+\import tangent_bundles.Trivial[n := one, r := one].On[M := M] \as Family;
+\import Family.Covered[I := Base.Chart, chart := \fun (c: Base.Chart) => c, covers := Tangent.data.covers] \as Trivial;
+\import Trivial.Vector[] \as FiberVector;
+\import tangent_bundles.FrameBundle[n := one, r := one].Over[M := M].Family[F := \fun (x: M.Point) => E.Vector, space := \fun (x: M.Point) => E.space].Using[I := Base.Chart, data := Trivial.data].Build[changes := Trivial.changes].Projection[] \as Projection;
+\module Polynomial;
+\import manifolds.EuclideanPair[n := one, m := one].From[p := two].On[X := Trivial.manifold].Of[f := Projection.map, g := FiberVector.map] \as Pair;
+\import manifolds.Composition[n := two, m := two, l := two].Between[M := Trivial.manifold, N := ambient, P := ambient] \as AmbientComposition;
+\definition ambientMap: manifolds.SmoothMap[n := two, m := two].Between[M := Trivial.manifold, N := ambient].Map := AmbientComposition.compose Pair.map Polynomial[].map;
+\import Normal.FromAmbient[p := two].From[X := Trivial.manifold] \as Construction;
+\import manifolds.SmoothMap[n := two, m := two].Between[M := Trivial.manifold, N := ambient] \as AmbientMaps;
+\definition evaluate[x, a: E.Vector]: A.Vector := Blocks.join (Line.forward.apply (R.mul (a z) (R.neg (twice (x z))))) a;
+\definition ambientFormula: \forall (p: Family.Point) -> AmbientMaps.apply ambientMap p = scaled p.base (p.vector z) :=
+  \fun (p: Family.Point) => trans!{{A.Vector}} _ _ _
+    (congr2!{{E.Vector} {E.Vector} {A.Vector}} evaluate _ _ _ _ (Blocks.leftJoin p.base p.vector) (Blocks.rightJoin p.base p.vector))
+    (trans!{{A.Vector}} _ _ _
+      (congr!{{E.Vector} {A.Vector}} (Blocks.join (Line.forward.apply (R.mul (p.vector z) (R.neg (twice (p.base z)))))) p.vector (Line.forward.apply (p.vector z))
+        (sym!{{E.Vector}} _ _ ((Spaces.Isomorphism[V := R.Real, W := E.Vector, source := Spaces.scalarSpace, target := E.space].laws Line.isomorphism).rightInverse p.vector)))
+      (sym!{{A.Vector}} _ _ (\parent.At[x := p.base].scaledFormula (p.vector z))));
+\definition normal: Construction.Normal Projection.map ambientMap := \fun (p: Family.Point)(v: manifolds.Tangent[n := one].On[M := M].Vector p.base) => trans!{{R.Real}} _ _ _
+  (congr!{{A.Vector} {R.Real}} (\fun (w: A.Vector) => A.dot w (Normal.At[x := p.base].differential.apply v)) (AmbientMaps.apply ambientMap p) (scaled p.base (p.vector z)) (ambientFormula p))
+  (\parent.At[x := p.base].scaledNormal (p.vector z) v);
+\import Construction.Of[f := Projection.map, g := ambientMap, normal := normal] \as Raw;
+\definition forward[p: Family.Point]: Normal.Point := Normal.include p.base
+  (\into[A.Vector](scaled p.base (p.vector z), (Normal.At[x := p.base].subspace).carrier) \by { \parent.At[x := p.base].scaledNormal (p.vector z) });
+\import manifolds.SmoothMap[n := two, m := two].Between[M := Trivial.manifold, N := Normal.manifold] \as ForwardMaps;
+\definition forwardEquality: ForwardMaps.apply Raw.map = forward := \axiom:funext((ForwardMaps.apply Raw.map), forward,
+  \fun (p: Family.Point) => Normal.SubspaceTopology[].ext (Raw.apply p) (forward p) (\refl(p.base)) (ambientFormula p));
+\import ForwardMaps.Named[f := Raw.map, function := forward, same := forwardEquality] \as Named;
+\definition forwardMap: ForwardMaps.Map := Named.map;
+\import Normal.Projection[] \as NormalProjection;
+\import Normal.Vector[] \as NormalVector;
+\import manifolds.EuclideanLinear[n := two, m := one].Of[L := Blocks.rightMap] \as Right;
+\import manifolds.Composition[n := two, m := two, l := one].Between[M := Normal.manifold, N := ambient, P := M] \as CoefficientComposition;
+\definition coefficient: manifolds.SmoothMap[n := two, m := one].Between[M := Normal.manifold, N := M].Map := CoefficientComposition.compose NormalVector.map Right.map;
+\import Trivial.Universal[p := two].From[X := Normal.manifold].Of[f := NormalProjection.map, g := coefficient] \as Backward;
+\import manifolds.Diffeomorphism[n := two, m := two].Between[M := Trivial.manifold, N := Normal.manifold] \as Diffeomorphisms;
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := Diffeomorphisms.Diffeomorphism {
+  forward := forwardMap, backward := Backward.map,
+  leftInverse := \fun (p: Family.Point) => trans!{{Family.Point}} _ _ _
+    (congr!{{E.Vector} {Family.Point}} (Family.include p.base) _ _ (trans!{{E.Vector}} _ _ _ (\parent.At[x := p.base].rightScaled (p.vector z))
+      ((Spaces.Isomorphism[V := R.Real, W := E.Vector, source := Spaces.scalarSpace, target := E.space].laws Line.isomorphism).rightInverse p.vector)))
+    (tangent_bundles.FrameBundle[n := one, r := one].Over[M := M].Family[F := \fun (x: M.Point) => E.Vector, space := \fun (x: M.Point) => E.space].eta p),
+  rightInverse := \fun (p: Normal.Point) => Normal.SubspaceTopology[].ext (forward (Backward.apply p)) p (\refl(p.base)) (\parent.At[x := p.base].reconstruction p.vector),
+};
+\definition make[x: M.Point][a: R.Real]: Normal.Point := forward (Family.include x (Line.forward.apply a));
+\definition formula: \forall (x: M.Point)(a: R.Real) -> Normal.ambientVector (make x a) = A.space.smul a (direction x) :=
+  \fun (x: M.Point)(a: R.Real) => \refl(A.space.smul a (direction x));
+\definition addition: \forall (x: M.Point)(a, b: R.Real) -> Normal.Addition[].apply (Normal.Addition[].make x (make x a).vector (make x b).vector) = make x (R.add a b) :=
+  \fun (x: M.Point)(a, b: R.Real) => Normal.SubspaceTopology[].ext (Normal.Addition[].apply (Normal.Addition[].make x (make x a).vector (make x b).vector)) (make x (R.add a b))
+    (\refl(x)) (sym!{{A.Vector}} _ _ (A.space.scalarAdd a b (direction x)));
+\definition scaling: \forall (x: M.Point)(a, b: R.Real) -> Normal.Scaling[].apply (Normal.Scaling[].make a x (make x b).vector) = make x (R.mul a b) :=
+  \fun (x: M.Point)(a, b: R.Real) => Normal.SubspaceTopology[].ext (Normal.Scaling[].apply (Normal.Scaling[].make a x (make x b).vector)) (make x (R.mul a b))
+    (\refl(x)) (sym!{{A.Vector}} _ _ (A.space.scalarAssoc a b (direction x)));

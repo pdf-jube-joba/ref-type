@@ -1,0 +1,30 @@
+\import AmbientTangent.At[x := Maps.apply i x] \as Target;
+\definition chart: Target.Chart := \into[AmbientCharts.Chart](EuclideanManifold.standard, Target.Chart) \by {
+  Target.ChartLaws[EuclideanManifold.standard] {
+    member := AmbientAtlases.includedInSaturation EuclideanManifold.atlas EuclideanManifold.standard (\refl(EuclideanManifold.standard)),
+    contains := \refl(Maps.apply i x),
+  }
+};
+\import Target.ChartIsomorphism[chart := chart] \as Coordinates;
+\import Spaces.Linear[V := Tangent.Vector x, W := E.Vector, source := Tangent.space x, target := E.space] \as Linear;
+\import Spaces.Linear[V := Target.Vector, W := E.Vector, source := Target.space, target := E.space].Composition[U := Tangent.Vector x, domain := Tangent.space x] \as Compose;
+\definition differential: Linear.Map := Compose.compose Coordinates.isomorphism.forward Differential.At[f := i, x := x].value;
+\definition injective: \forall (v, w: Tangent.Vector x) -> differential.apply v = differential.apply w -> v = w :=
+  \fun (v, w: Tangent.Vector x)(same: _) =>
+    (ImmersionMaps.immersionLaws i) x v w
+      (Spaces.Isomorphism[V := Target.Vector, W := E.Vector, source := Target.space, target := E.space].injective Coordinates.isomorphism _ _ same);
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { w: E.Vector \where \forall (v: Tangent.Vector x) -> E.dot w (differential.apply v) = R.zero },
+  containsZero := \fun (v: Tangent.Vector x) => E.form.zeroLeft (differential.apply v),
+  closedAdd := \fun (u, w: E.Vector)(left: _)(right: _)(v: Tangent.Vector x) => trans!{{R.Real}} _ _ _
+    (E.form.addLeft u w (differential.apply v)) (trans!{{R.Real}} _ _ _
+      (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (left v) (right v)) (Spaces.addZeroLeft R.zero)),
+  closedScale := \fun (a: R.Real)(w: E.Vector)(member: _)(v: Tangent.Vector x) => trans!{{R.Real}} _ _ _
+    (E.form.scaleLeft a w (differential.apply v)) (trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (R.mul a) _ _ (member v)) (Spaces.mulZeroRight a)),
+};
+\import Subspaces.Of[subspace := subspace] \as Subspace;
+\definition Fiber: \Set := Subspace.Carrier;
+\definition space: Spaces.VectorSpace Fiber := Subspace.induced;
+\module Splitting;
+\module Quotient;

@@ -1,0 +1,36 @@
+\definition c: Chart := (data.local i).chart;
+\import Doubles.InChart[i := i] \as Source;
+\import \parent.\parent.InChart[i := i] \as Target;
+\import calculus.Blocks[n := n, m := Double.rank] \as Outer;
+\import Outer.On[U := c.image, V := calculus.Real[].Multivariable[n := Double.rank].Open[].whole] \as Product;
+\import calculus.Real[].Multivariable[n := sourceDimension].Open[] \as SourceOpen;
+\import SourceOpen.Smooth[] \as Smooth;
+\import SourceOpen.Smooth[].Operations[] \as Operations;
+\import SourceOpen.Examples[] \as Examples;
+\import std.Data[].FinSet[].Sum[m := n, n := Double.rank] \as OuterIndices;
+\import std.Data[].FinSet[].Sum[m := r, n := r] \as FiberIndices;
+\import Spaces.CoordinateSum[n := r, m := r] \as Coordinates;
+\definition sum[u: SourceOpen.Carrier Product.domain]: Vectors.Vector := Vectors.plus (Coordinates.left (Outer.right u)) (Coordinates.right (Outer.right u));
+\definition second[u: SourceOpen.Carrier Product.domain]: FiberOpen.Carrier FiberOpen.whole := \into[Vectors.Vector](sum u, FiberOpen.whole.points) \by { \refl(sum u) };
+\import calculus.Maps[n := sourceDimension, m := r] \as Fibers;
+\definition secondData: Fibers.Data[Product.domain, FiberOpen.whole] := Fibers.Data[Product.domain, FiberOpen.whole] { apply := second };
+\definition secondMap: Fibers.Map Product.domain FiberOpen.whole := \into[Fibers.Data[Product.domain, FiberOpen.whole]](secondData,
+  { h: Fibers.Data[Product.domain, FiberOpen.whole] \where Fibers.Laws[Product.domain, FiberOpen.whole, h] }) \by {
+  Fibers.Laws[Product.domain, FiberOpen.whole, secondData] {
+    smooth := \fun (k: Fin.Fin r) => Operations.addSmooth Product.domain
+      (\fun (u: SourceOpen.Carrier Product.domain) => Coordinates.left (Outer.right u) k)
+      (\fun (u: SourceOpen.Carrier Product.domain) => Coordinates.right (Outer.right u) k)
+      (Examples.projectionSmooth Product.domain (OuterIndices.right (FiberIndices.left k)))
+      (Examples.projectionSmooth Product.domain (OuterIndices.right (FiberIndices.right k))),
+  }
+};
+\import Blocks.Pair[d := sourceDimension].On[U := Product.domain, V := c.image, W := FiberOpen.whole, f := Product.leftMap, g := secondMap] \as Pair;
+\import manifolds.EuclideanMap[n := sourceDimension, m := dimension].Between[U := Product.domain, V := Target.image] \as CoordinateMaps;
+\import manifolds.ChartMap[n := dimension].On[M := manifold].At[chart := BaseConstruction.chart i] \as Parametrization;
+\import manifolds.Composition[n := sourceDimension, m := dimension, l := dimension].Between[M := CoordinateMaps.source, N := CoordinateMaps.target, P := manifold] \as Compose;
+\definition map: Plot.LocalMap i := Compose.compose (CoordinateMaps.map Pair.map) Parametrization.map;
+\definition agrees: \forall (u: SourceOpen.Carrier Product.domain) ->
+  manifolds.SmoothMap[n := sourceDimension, m := dimension].Between[M := CoordinateMaps.source, N := manifold].apply map u = apply (Source.point u) :=
+  \fun (u: SourceOpen.Carrier Product.domain) => trans!{Point} _ _ _ (Target.pointJoined (Product.leftPoint u) (second u))
+    (congr!{{F (Charts.point c (Product.leftPoint u))} Point} (include (Charts.point c (Product.leftPoint u))) _ _
+      ((Target.frame (Charts.point c (Product.leftPoint u))).backward.preservesAdd (Coordinates.left (Outer.right u)) (Coordinates.right (Outer.right u))));

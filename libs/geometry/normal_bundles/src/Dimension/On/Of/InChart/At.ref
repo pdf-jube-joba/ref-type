@@ -1,0 +1,32 @@
+\definition point: Charts.LocalPoint chart := Charts.point chart u;
+\import Tangent.At[x := point] \as Intrinsic;
+\definition sourceChart: Intrinsic.Chart := \into[Charts.Chart](c, Intrinsic.Chart) \by {
+  Intrinsic.ChartLaws[c] { member := \bysub(Charts.Chart, M.atlas.charts, c), contains := \bysub(M.Point, c.domain, Charts.point c (Coordinates.leftCoordinate u)) }
+};
+\import Intrinsic.ChartIsomorphism[chart := sourceChart] \as Source;
+\import Intrinsic.Coordinate[chart := sourceChart] \as Encoding;
+\import \parent.\parent.At[x := point] \as Original;
+\import Differential.At[f := i, x := point] \as Derivative;
+\import Derivative.InCharts[left := sourceChart, right := Original.chart] \as Formula;
+\definition parameter: Formula.point = u := Charts.Of[chart := c].coordinatePoint (Coordinates.leftCoordinate u);
+\definition jacobian: Formula.jacobian = matrix u := congr!{{Open.Carrier domain} {Matrices.Map}} matrix _ _ parameter;
+\definition comparison: \forall (v: Tangent.Vector point) -> Original.differential.apply v = (matrix u).apply (Source.forward.apply v) :=
+  \fun (v: Tangent.Vector point) => trans!{{E.Vector}} _ _ _ (Derivative.coordinates sourceChart Original.chart v)
+    (congr!{{Matrices.Map} {E.Vector}} (\fun (A: Matrices.Map) => A.apply (Source.forward.apply v)) _ _ jacobian);
+\definition backwardComparison: \forall (v: SourceVectors.Vector) -> (matrix u).apply v = Original.differential.apply (Source.backward.apply v) :=
+  \fun (v: SourceVectors.Vector) => sym!{{E.Vector}} _ _ (trans!{{E.Vector}} _ _ _ (comparison (Source.backward.apply v))
+    (congr!{{SourceVectors.Vector} {E.Vector}} (matrix u).apply _ _ (Encoding.decodeEncode v)));
+\definition injective: \forall (v, w: SourceVectors.Vector) -> (matrix u).apply v = (matrix u).apply w -> v = w :=
+  \fun (v, w: SourceVectors.Vector)(same: _) => trans!{{SourceVectors.Vector}} _ _ _ (sym!{{SourceVectors.Vector}} _ _ (Encoding.decodeEncode v))
+    (trans!{{SourceVectors.Vector}} _ _ _ (congr!{{Tangent.Vector point} {SourceVectors.Vector}} Source.forward.apply _ _
+      (Original.injective (Source.backward.apply v) (Source.backward.apply w)
+        (trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (backwardComparison v)) (trans!{{E.Vector}} _ _ _ same (backwardComparison w))))) (Encoding.decodeEncode w));
+\definition normalToCoordinates: \forall (w: E.Vector) ->
+  (\forall (t: Tangent.Vector point) -> E.dot w (Original.differential.apply t) = R.zero) ->
+  \forall (v: SourceVectors.Vector) -> E.dot w ((matrix u).apply v) = R.zero :=
+  \fun (w: E.Vector)(normal: _)(v: SourceVectors.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{{E.Vector} {R.Real}} (E.dot w) _ _ (backwardComparison v)) (normal (Source.backward.apply v));
+\definition coordinatesToNormal: \forall (w: E.Vector) -> (\forall (v: SourceVectors.Vector) -> E.dot w ((matrix u).apply v) = R.zero) ->
+  \forall (t: Tangent.Vector point) -> E.dot w (Original.differential.apply t) = R.zero :=
+  \fun (w: E.Vector)(normal: _)(t: Tangent.Vector point) => trans!{{R.Real}} _ _ _
+    (congr!{{E.Vector} {R.Real}} (E.dot w) _ _ (comparison t)) (normal (Source.forward.apply t));

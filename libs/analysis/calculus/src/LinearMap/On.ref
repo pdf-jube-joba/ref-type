@@ -1,0 +1,22 @@
+\definition data: Maps.Data[U, Output.whole] := Maps.Data[U, Output.whole] {
+  apply := \fun (x: Open.Carrier U) => \into[Target.Vector](L.apply x, Output.whole.points) \by { \refl(L.apply x) },
+};
+\definition regular: Matrix.Regular U (\fun (x: Open.Carrier U) => L) := \fun (i: Fin.Fin m)(j: Fin.Fin n) =>
+  Open.Smooth[].Operations[].constantSmooth U (L.apply (Source.basis j) i);
+\definition map: Maps.Map U Output.whole := \into[Maps.Data[U, Output.whole]](data,
+  { f: Maps.Data[U, Output.whole] \where Maps.Laws[U, Output.whole, f] }) \by {
+    Maps.Laws[U, Output.whole, data] { smooth := Matrix.action U (\fun (x: Open.Carrier U) => L) regular (\fun (x: Open.Carrier U) => x)
+      (\fun (j: Fin.Fin n) => Open.Examples[].projectionSmooth U j) }
+  };
+\import Vector.Affine[U := U, c := Target.space.zero, d := L] \as Affine;
+\definition vectorLaw: \forall (a: Open.Carrier U) -> Vector.HasDifferentialAt U (\fun (x: Open.Carrier U) => Maps.apply U Output.whole map x) a L :=
+  \fun (a: Open.Carrier U)(j: Fin.Fin m) => \idelim
+    (\fun (x: Open.Carrier U) => R.add R.zero (L.apply x j)) = (\fun (x: Open.Carrier U) => L.apply x j)
+    \with f: Open.ScalarFunction U => Open.Analysis[].HasDifferentialAt U f a (Vector.row L j) \by {
+      base: Affine.law a j, equality: \axiom:funext((\fun (x: Open.Carrier U) => R.add R.zero (L.apply x j)), (\fun (x: Open.Carrier U) => L.apply x j),
+        \fun (x: Open.Carrier U) => Spaces.addZeroLeft (L.apply x j))
+    };
+\definition differential: \forall (a: Open.Carrier U) -> Maps.Differential[U := U, V := Output.whole, f := map, a := a].value = L :=
+  \fun (a: Open.Carrier U) => Vector.Differential[U := U, f := \fun (x: Open.Carrier U) => Maps.apply U Output.whole map x, a := a,
+    d := Maps.Differential[U := U, V := Output.whole, f := map, a := a].value].uniqueness L
+      (Maps.Differential[U := U, V := Output.whole, f := map, a := a].vectorLaw) (vectorLaw a);

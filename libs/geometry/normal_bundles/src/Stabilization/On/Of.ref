@@ -1,0 +1,68 @@
+\import manifolds.EuclideanLinear[n := oldDimension, m := newDimension].Of[L := embedding] \as Inclusion;
+\import manifolds.Composition[n := n, m := oldDimension, l := newDimension].Between[M := M, N := OldDimension.ambient, P := NewDimension.ambient] \as Compose;
+\import manifolds.SmoothMap[n := n, m := newDimension].Between[M := M, N := NewDimension.ambient] \as Maps;
+\import manifolds.Immersion[n := n, m := newDimension].Between[M := M, N := NewDimension.ambient] \as NewImmersions;
+\definition map: Maps.Map := Compose.compose i Inclusion.map;
+\definition immersion: NewImmersions.Immersion := \into[Maps.Map](map, NewImmersions.Immersion) \by {
+  manifolds.ImmersionComposition[n := n, m := oldDimension, l := newDimension].Between[M := M, N := OldDimension.ambient, P := NewDimension.ambient].immersion i Inclusion.map
+    (Immersions.immersionLaws i) (manifolds.Immersion[n := oldDimension, m := newDimension].Between[M := OldDimension.ambient, N := NewDimension.ambient].immersionLaws (Inclusion.immersion embeddingInjective))
+};
+\import OldDimension.On[M := M].Of[i := i] \as Old;
+\import NewDimension.On[M := M].Of[i := immersion] \as Source;
+\import manifolds.Tangent[n := n].On[M := M] \as Tangent;
+\import tangent_bundles.ScalarProduct[n := oldDimension].On[M := Old.manifold] \as ScalarSum;
+\import ScalarSum.Covered[I := Old.Local, chart := Old.totalChart, covers := Old.chartCover] \as Target;
+\module At(x: M.Point);
+\import Source.Vector[] \as AmbientVector;
+\import Source.Projection[] \as Projection;
+\import manifolds.EuclideanLinear[n := newDimension, m := oldDimension].Of[L := first] \as FirstMap;
+\import manifolds.EuclideanLinear[n := newDimension, m := Line.one].Of[L := last] \as LastMap;
+\import manifolds.Composition[n := newDimension, m := newDimension, l := oldDimension].Between[M := Source.manifold, N := NewDimension.ambient, P := OldDimension.ambient] \as FirstCompose;
+\import manifolds.Dimension[n := Line.one].Examples[].Euclidean[] \as ScalarEuclidean;
+\import manifolds.Composition[n := newDimension, m := newDimension, l := Line.one].Between[M := Source.manifold, N := NewDimension.ambient, P := ScalarEuclidean.smoothManifold] \as LastCompose;
+\definition firstMap: manifolds.SmoothMap[n := newDimension, m := oldDimension].Between[M := Source.manifold, N := OldDimension.ambient].Map := FirstCompose.compose AmbientVector.map FirstMap.map;
+\definition lastMap: manifolds.SmoothMap[n := newDimension, m := Line.one].Between[M := Source.manifold, N := ScalarEuclidean.smoothManifold].Map := LastCompose.compose AmbientVector.map LastMap.map;
+\import Old.FromAmbient[p := newDimension].From[X := Source.manifold] \as OldConstruction;
+\definition oldNormal: OldConstruction.Normal Projection.map firstMap := \fun (p: Source.Point) =>
+  \bysub(OldE.Vector, (Old.At[x := p.base].subspace).carrier, At[x := p.base].oldNormal p.vector);
+\import OldConstruction.Of[f := Projection.map, g := firstMap, normal := oldNormal] \as NormalPart;
+\import Target.Pairing[p := newDimension].From[X := Source.manifold].Of[f := NormalPart.map, g := lastMap] \as Forward;
+\import Target.Projection[] \as OldProjection;
+\import Target.Vector[] \as ScalarVector;
+\import Old.Projection[] \as BaseProjection;
+\import Old.Vector[] \as OldVector;
+\import manifolds.Composition[n := sumDimension, m := oldDimension, l := n].Between[M := Target.manifold, N := Old.manifold, P := M] \as BaseCompose;
+\import manifolds.Composition[n := sumDimension, m := oldDimension, l := oldDimension].Between[M := Target.manifold, N := Old.manifold, P := OldDimension.ambient] \as VectorCompose;
+\definition base: manifolds.SmoothMap[n := sumDimension, m := n].Between[M := Target.manifold, N := M].Map := BaseCompose.compose OldProjection.map BaseProjection.map;
+\definition oldVector: manifolds.SmoothMap[n := sumDimension, m := oldDimension].Between[M := Target.manifold, N := OldDimension.ambient].Map := VectorCompose.compose OldProjection.map OldVector.map;
+\import manifolds.EuclideanPair[n := oldDimension, m := Line.one].From[p := sumDimension].On[X := Target.manifold].Of[f := oldVector, g := ScalarVector.map] \as Pair;
+\import manifolds.EuclideanLinear[n := sumDimension, m := newDimension].Of[L := Reindex.isomorphism.forward] \as ReindexMap;
+\import manifolds.Dimension[n := sumDimension].Examples[].Euclidean[] \as JoinedEuclidean;
+\import manifolds.Composition[n := sumDimension, m := sumDimension, l := newDimension].Between[M := Target.manifold, N := JoinedEuclidean.smoothManifold, P := NewDimension.ambient] \as JoinCompose;
+\definition joined: manifolds.SmoothMap[n := sumDimension, m := newDimension].Between[M := Target.manifold, N := NewDimension.ambient].Map := JoinCompose.compose Pair.map ReindexMap.map;
+\import Source.FromAmbient[p := sumDimension].From[X := Target.manifold] \as NewConstruction;
+\definition newNormal: NewConstruction.Normal base joined := \fun (p: ScalarSum.Point) =>
+  \bysub(NewE.Vector, (Source.At[x := p.base.base].subspace).carrier, At[x := p.base.base].newNormal p.base.vector p.vector);
+\import NewConstruction.Of[f := base, g := joined, normal := newNormal] \as Backward;
+\definition forward: manifolds.SmoothMap[n := newDimension, m := sumDimension].Between[M := Source.manifold, N := Target.manifold].Map := Forward.map;
+\definition backward: manifolds.SmoothMap[n := sumDimension, m := newDimension].Between[M := Target.manifold, N := Source.manifold].Map := Backward.map;
+\definition diffeomorphism: manifolds.Diffeomorphism[n := newDimension, m := sumDimension].Between[M := Source.manifold, N := Target.manifold].Diffeomorphism :=
+  manifolds.Diffeomorphism[n := newDimension, m := sumDimension].Between[M := Source.manifold, N := Target.manifold].Diffeomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (p: Source.Point) => Source.SubspaceTopology[].ext (Backward.apply (manifolds.SmoothMap[n := newDimension, m := sumDimension].Between[M := Source.manifold, N := Target.manifold].apply Forward.map p)) p
+      (\refl(p.base)) (recover p.vector),
+    rightInverse := \fun (p: ScalarSum.Point) => ScalarSum.ext
+      (manifolds.SmoothMap[n := newDimension, m := sumDimension].Between[M := Source.manifold, N := Target.manifold].apply Forward.map (Backward.apply p)) p
+      (Old.SubspaceTopology[].ext (NormalPart.apply (Backward.apply p)) p.base (\refl(p.base.base)) (firstJoin p.base.vector p.vector)) (lastJoin p.base.vector p.vector),
+  };
+\definition make[x: M.Point][w: Old.Fiber x][a: R.Real]: ScalarSum.Point := ScalarSum.include (Old.include x w) a;
+\import Old.Splitting[] \as OldSplitting;
+\import Source.Splitting[] \as NewSplitting;
+\import tangent_bundles.Trivial[n := n, r := newDimension].On[M := M] \as NewProduct;
+\definition stabilizeProduct[p: OldSplitting.ProductPoint][a: R.Real]: NewSplitting.ProductPoint := NewProduct.include p.base (join p.vector a);
+\definition splittingCompatibility: \forall (x: M.Point)(t: Tangent.Vector x)(w: Old.Fiber x)(a: R.Real) ->
+  NewSplitting.forward (NewSplitting.include x t (At[x := x].newNormal w a)) = stabilizeProduct (OldSplitting.forward (OldSplitting.include x t w)) a :=
+  \fun (x: M.Point)(t: Tangent.Vector x)(w: Old.Fiber x)(a: R.Real) => congr!{{NewE.Vector} {NewSplitting.ProductPoint}} (NewProduct.include x) _ _ (At[x := x].splittingCompatibility t w a);
+\definition inclusionFormula: \forall (x: M.Point) -> Maps.apply map x = join (manifolds.SmoothMap[n := n, m := oldDimension].Between[M := M, N := OldDimension.ambient].apply i x) R.zero :=
+  \fun (x: M.Point) => \refl(Maps.apply map x);
+\definition projection[p: ScalarSum.Point]: M.Point := p.base.base;

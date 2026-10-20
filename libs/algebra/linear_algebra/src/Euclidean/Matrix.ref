@@ -1,0 +1,30 @@
+\import \root.Euclidean[n := m] \as Target;
+\import Spaces.Linear[V := Vector, W := Target.Vector, source := space, target := Target.space] \as Maps;
+\import Spaces.Linear[V := Target.Vector, W := Vector, source := Target.space, target := space] \as Reverse;
+\definition transpose[f: Maps.Map]: Reverse.Map := Reverse.Map {
+  apply := \fun (w: Target.Vector)(i: Fin.Fin n) => Target.dot (f.apply (basis i)) w,
+  preservesAdd := \fun (u, v: Target.Vector) => \axiom:funext(
+    (\fun (i: Fin.Fin n) => Target.dot (f.apply (basis i)) (Target.space.add u v)),
+    (\fun (i: Fin.Fin n) => R.add (Target.dot (f.apply (basis i)) u) (Target.dot (f.apply (basis i)) v)),
+    \fun (i: Fin.Fin n) => Target.form.addRight (f.apply (basis i)) u v),
+  preservesScale := \fun (a: R.Real)(v: Target.Vector) => \axiom:funext(
+    (\fun (i: Fin.Fin n) => Target.dot (f.apply (basis i)) (Target.space.smul a v)),
+    (\fun (i: Fin.Fin n) => R.mul a (Target.dot (f.apply (basis i)) v)),
+    \fun (i: Fin.Fin n) => Target.form.scaleRight a (f.apply (basis i)) v),
+};
+\module Adjoint(f: Maps.Map, v: Vector, w: Target.Vector) {
+  \definition row: Finite.Map n := Finite.Data[n] {
+    apply := \fun (x: Vector) => Target.dot (f.apply x) w,
+    additive := \fun (x, y: Vector) => trans!{{R.Real}} _ _ _
+      (congr!{{Target.Vector} {R.Real}} (\fun (v: Target.Vector) => Target.dot v w) _ _ (f.preservesAdd x y)) (Target.form.addLeft (f.apply x) (f.apply y) w),
+    homogeneous := \fun (a: R.Real)(x: Vector) => trans!{{R.Real}} _ _ _
+      (congr!{{Target.Vector} {R.Real}} (\fun (v: Target.Vector) => Target.dot v w) _ _ (f.preservesScale a x)) (Target.form.scaleLeft a (f.apply x) w),
+  };
+  \definition law: Target.dot (f.apply v) w = dot v ((transpose f).apply w) := Finite.expansion n row v;
+}
+\definition adjoint: \forall (f: Maps.Map)(v: Vector)(w: Target.Vector) -> Target.dot (f.apply v) w = dot v ((transpose f).apply w) :=
+  \fun (f: Maps.Map)(v: Vector)(w: Target.Vector) => Adjoint[f := f, v := v, w := w].law;
+\definition IsIsometry[f: Maps.Map]: \Prop := \forall (u, v: Vector) -> Target.dot (f.apply u) (f.apply v) = dot u v;
+\definition Isometry: \Set := \Cast[Maps.Map] ({ f: Maps.Map \where IsIsometry f });
+\definition isometryLaws[f: Isometry]: IsIsometry f := \bysub(Maps.Map, { f: Maps.Map \where IsIsometry f }, f);
+\module OfIsometry(f: Isometry);

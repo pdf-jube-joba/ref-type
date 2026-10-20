@@ -1,0 +1,69 @@
+\definition domain: \Pow Point := { p: Point \where Charts.Contains chart p.base };
+\definition LocalPoint: \Set := \Cast[Point] domain;
+\import Blocks.On[U := chart.image, V := Open.whole] \as Product;
+\definition image: TotalOpen.OpenSet := Product.domain;
+\module At(x: Charts.LocalPoint chart) {
+  \import Tangent.At[x := x] \as Fiber;
+  \definition tangentChart: Fiber.Chart := \into[Charts.Chart](chart, Fiber.Chart) \by {
+    Fiber.ChartLaws[chart] { member := \bysub(Charts.Chart, M.atlas.charts, chart), contains := \bysub(M.Point, chart.domain, x) }
+  };
+  \import Fiber.Coordinate[chart := tangentChart] \as Coordinate;
+  \definition encode[w: calculus.Real[].Multivariable[n := n].Point]: Fiber.Vector := Coordinate.encode w;
+  \definition decode[v: Fiber.Vector]: calculus.Real[].Multivariable[n := n].Point := Coordinate.decode v;
+  \definition decodeEncode: \forall (w: calculus.Real[].Multivariable[n := n].Point) -> decode (encode w) = w := Coordinate.decodeEncode;
+  \import Fiber.CoordinateOperations[chart := tangentChart] \as Operations;
+  \definition zero: encode (\fun (i: std.Data[].FinSet[].Fin n) => Real.zero) = Fiber.space.zero :=
+    Coordinate.injective _ _ (trans!{Vector} _ _ _ (Coordinate.decodeEncode (\fun (i: std.Data[].FinSet[].Fin n) => Real.zero)) (sym!{Vector} _ _ Operations.origin));
+  \definition encodeDecode: \forall (v: Fiber.Vector) -> encode (decode v) = v := Coordinate.encodeDecode;
+}
+\definition base[p: LocalPoint]: Charts.LocalPoint chart := \into[M.Point](p.base, chart.domain) \by { \bysub(Point, domain, p) };
+\definition coordinate[p: LocalPoint]: TotalOpen.Carrier image := Product.joinPoint (Charts.coordinate chart (base p))
+  (\into[calculus.Real[].Multivariable[n := n].Point](At[x := base p].decode p.vector, Open.whole.points) \by { \refl(At[x := base p].decode p.vector) });
+\definition assemble[x: Open.Carrier chart.image][w: calculus.Real[].Multivariable[n := n].Point]: Point :=
+  include (Charts.point chart x) (At[x := Charts.point chart x].encode w);
+\definition point[u: TotalOpen.Carrier image]: LocalPoint := \into[Point](
+  assemble (Product.leftPoint u) (Product.rightPoint u), domain) \by {
+    \bysub(M.Point, chart.domain, Charts.point chart (Product.leftPoint u))
+  };
+\definition pointJoined: \forall (x: Open.Carrier chart.image)(w: Open.Carrier Open.whole) ->
+  point (Product.joinPoint x w) = assemble x w :=
+  \fun (x: Open.Carrier chart.image)(w: Open.Carrier Open.whole) =>
+    congr2!{{Open.Carrier chart.image} {Vector} Point} assemble
+      (Product.leftPoint (Product.joinPoint x w)) x (Product.rightPoint (Product.joinPoint x w)) w
+      (Blocks.leftJoin x w) (Blocks.rightJoin x w);
+\import Charts.Of[chart := chart] \as Geometry;
+\definition coordinatePoint: \forall (u: TotalOpen.Carrier image) -> coordinate (point u) = u :=
+  \fun (u: TotalOpen.Carrier image) => trans!{{TotalVector}} _ _ _
+    (congr2!{{Vector} {Vector} {TotalVector}} Blocks.join _ _ _ _
+      (Geometry.coordinatePoint (Product.leftPoint u))
+      (At[x := Charts.point chart (Product.leftPoint u)].decodeEncode (Product.rightPoint u)))
+    (Blocks.recover u);
+\module Recover(p: LocalPoint) {
+  \definition x: Charts.LocalPoint chart := base p;
+  \definition y: Charts.LocalPoint chart := Charts.point chart (Charts.coordinate chart x);
+  \definition same: x = y := sym!{{Charts.LocalPoint chart}} _ _ (Geometry.pointCoordinate x);
+  \definition v: Tangent.Vector y := Transport.cast Tangent.Vector x y same p.vector;
+  \import Tangent.Transport[x := x, y := y, same := same] \as Move;
+  \definition chartSame: Move.chart \parent.At[x := x].tangentChart = \parent.At[x := y].tangentChart := Move.underlying \parent.At[x := x].tangentChart;
+  \definition coordinates: \parent.At[x := y].decode v = \parent.At[x := x].decode p.vector :=
+    trans!{{Vector}} _ _ _
+      (congr!{{Move.ChartFamily y} {Vector}}
+        (\fun (c: Move.ChartFamily y) => Move.decode y c v) _ _ (sym!{{Move.ChartFamily y}} _ _ chartSame))
+      (Move.coordinates \parent.At[x := x].tangentChart p.vector);
+  \definition vector: \parent.At[x := y].encode (\parent.At[x := x].decode p.vector) = v :=
+    trans!{{Tangent.Vector y}} _ _ _
+      (congr!{{Vector} {Tangent.Vector y}} \parent.At[x := y].encode _ _ (sym!{{Vector}} _ _ coordinates))
+      (\parent.At[x := y].encodeDecode v);
+}
+\definition pointCoordinate: \forall (p: LocalPoint) -> point (coordinate p) = p :=
+  \fun (p: LocalPoint) => trans!{Point} _ _ _
+    (pointJoined (Charts.coordinate chart (base p))
+      (\into[Vector](At[x := base p].decode p.vector, Open.whole.points) \by { \refl(At[x := base p].decode p.vector) }))
+    (trans!{Point} _ _ _
+      (congr!{{Tangent.Vector (Recover[p := p].y)} Point} (include (Recover[p := p].y)) _ _ (Recover[p := p].vector))
+      (trans!{Point} _ _ _ (includeTransport (Recover[p := p].x) (Recover[p := p].y) (Recover[p := p].same) p.vector) (eta p)));
+\import manifolds.IndexedAtlas[n := dimension, A := Point, I := Chart] \as Parametrizations;
+\definition patch: Parametrizations.Patch := Parametrizations.Patch {
+  domain := domain, image := image, point := point, coordinate := coordinate,
+  pointCoordinate := pointCoordinate, coordinatePoint := coordinatePoint,
+};

@@ -1,0 +1,27 @@
+\import \root.Immersion[n := n, m := m].Between[M := M, N := N] \as Immersions;
+\import \root.SmoothMap[n := n, m := m].Between[M := M, N := N] \as Forward;
+\import \root.SmoothMap[n := m, m := n].Between[M := N, N := M] \as Backward;
+\import \root.Tangent[n := n].On[M := M] \as Source;
+\import \root.Diffeomorphism[n := n, m := m].Between[M := M, N := N].Of[d := d] \as Diffeomorphism;
+\import topology.Topology[Carrier := M.Point] \as SourceTopology;
+\import topology.Topology[Carrier := N.Point] \as TargetTopology;
+\import topology.Continuity[A := M.Point, B := N.Point] \as F;
+\import topology.Continuity[A := N.Point, B := M.Point] \as G;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.sym;
+\module At(x: M.Point);
+\definition immersion: Immersions.IsImmersion d.forward := \fun (x: M.Point) => At[x := x].injective;
+\definition laws: Immersions.EmbeddingLaws[d.forward] := Immersions.EmbeddingLaws[d.forward] {
+  immersion := immersion, injective := Diffeomorphism.injective,
+  openLift := \fun (S: \Pow M.Point)(openS: _) => Logic.existsIntro[\Pow N.Point,
+    { U: \Pow N.Point \where Logic.And[TargetTopology.IsOpenIn N.space U, F.Preimage (Forward.apply d.forward) U = S] }]
+    (G.Preimage (Backward.apply d.backward) S) (Logic.And[_, _]::#
+      ((\bysub(Backward.Data, { g: Backward.Data \where Backward.Continuous g }, d.backward)) S openS)
+      (\axiom:setext(F.Preimage (Forward.apply d.forward) (G.Preimage (Backward.apply d.backward) S), S,
+        \fun (x: M.Point)(inside: _) => \idelim Backward.apply d.backward (Forward.apply d.forward x) = x
+          \with y: M.Point => \In[M.Point] S y \by { base: inside, equality: (Diffeomorphisms.laws d).leftInverse x },
+        \fun (x: M.Point)(inside: _) => \idelim x = Backward.apply d.backward (Forward.apply d.forward x)
+          \with y: M.Point => \In[M.Point] S y \by { base: inside, equality: sym!{{M.Point}} _ _ ((Diffeomorphisms.laws d).leftInverse x) }))),
+};
+\definition embedding: Immersions.Embedding := \into[Forward.Map](d.forward, Immersions.Embedding) \by { laws };

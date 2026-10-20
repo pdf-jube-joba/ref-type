@@ -289,3 +289,12 @@ module 引数は検査時に確定した捕捉引数を明示した式で保持�
 [19-01-aliased-field-signature.ref](gaps/19-01-aliased-field-signature.ref) は `Item 'M' was not found` になる。
 [19-02-explicit-field-arguments.ref](gaps/19-02-explicit-field-arguments.ref) は構造の各 field を明示する回避例である。
 `lie_groups.Dimension.OnManifold.On.productSmooth` はこの形で、多様体の台集合・位相・アトラス・分離性・第二可算性を渡す。
+
+<a id="g20"></a>
+
+## G20: 構造の証明 field を後続のデータ field の型で使う
+
+近傍の包含証明を使って、制限した依存族の枠を同じ構造に保持したい。
+[20-01-proof-dependent-data.ref](gaps/20-01-proof-dependent-data.ref) は `included` を後続のデータ field の型へ渡すが、`Item 'included' was not found` になる。
+[20-02-nested-neighborhood.ref](gaps/20-02-nested-neighborhood.ref) は、開集合と包含証明を `Neighborhood` にまとめ、後続の型からその field を射影する回避例である。
+`calculus.ProjectionFrames.Local` はこの形で、元の射影の制限に対する正規直交枠を保持する。

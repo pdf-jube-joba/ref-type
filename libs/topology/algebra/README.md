@@ -18,3 +18,6 @@
 `Over` の parameter は体の構造で、連続性は定理の仮定として量化する。
 
 利用例は[行列](../examples/cells/src/Matrix.ref)と[有限次元空間](../examples/cells/src/Finite.ref)を参照。
+
+
+`Euclidean.Blocks.Joining` は任意の位相空間からの二つの連続な座標族を、一つの連続な有限座標族に結合する。

@@ -1,0 +1,39 @@
+/* Local smooth orthonormal frames of a smooth orthogonal projection. */
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import linear_algebra.Euclidean[n := q] \as E;
+\import linear_algebra.Field[].Space[K := R.Real, field := R.Algebra[].field] \as Spaces;
+\import \root.Real[].Multivariable[n := d] \as Coordinates;
+\import Coordinates.Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Operations;
+\import \root.MatrixFamily[d := d, p := q, q := q] \as Matrix;
+\definition Family[U: Open.OpenSet]: \Set := Open.Carrier U -> E.Projection;
+\definition Regular[U: Open.OpenSet][P: Family U]: \Prop := Matrix.Regular U (\fun (x: Open.Carrier U) => (P x).map);
+\definition FrameAt[k: N.Nat^][P: E.Projection]: \Set := E.OnProjection[P := P].Rank[k := k].Frame;
+\module Frames(k: N.Nat^, U: Open.OpenSet, P: Family U);
+\structure Neighborhood[U: Open.OpenSet]: \Set := {
+  domain: Open.OpenSet,
+  included: Open.Included domain U,
+};
+\structure Local[k: N.Nat^, U: Open.OpenSet, P: Family U, a: Open.Carrier U]: \Set := {
+  neighborhood: Neighborhood[U],
+  contains: \In[Coordinates.Point] neighborhood.domain.points a,
+  frame: Frames[k := k, U := neighborhood.domain, P := \fun (x: Open.Carrier neighborhood.domain) => P (Open.inclusion neighborhood.domain U neighborhood.included x)].Frames,
+};
+\definition Previous[k: N.Nat^]: \Prop := \forall (U: Open.OpenSet)(P: Family U) -> Regular U P ->
+  (\forall (x: Open.Carrier U) -> E.trace (P x) = E.naturalCount k) -> \forall (a: Open.Carrier U) -> \exists Local[k, U, P, a];
+\module Zero;
+\module Step(k: N.Nat^, previous: Previous k);
+\definition exists: \forall (k: N.Nat^) -> Previous k := \induction (k: N.Nat^) \return Previous k \with {
+  | zero: Zero[].exists
+  | succ: \fun (k: N.Nat^)(previous: Previous k) => Step[k := k, previous := previous].exists
+};

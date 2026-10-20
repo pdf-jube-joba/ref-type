@@ -1,0 +1,47 @@
+\import \root.Dimension[n := n].Examples[].Euclidean[].Subspace[U := chart.image] \as Target;
+\definition target: Model.Manifold := Target.smoothManifold;
+\import \root.SmoothMap[n := n, m := n].Between[M := M, N := target] \as Maps;
+\import \root.SmallAtlasSmoothMap[n := n, m := n].Between[M := M, N := target] \as Small;
+\import \root.Dimension[n := n].Chart[M := target.Point, space := target.space] \as TargetCharts;
+\import \root.Dimension[n := n].Atlas[M := target.Point, space := target.space] \as TargetAtlases;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition local[x: M.Point]: Charts.LocalPoint chart := \into[M.Point](x, chart.domain) \by { contains x };
+\definition coordinate[x: M.Point]: target.Point := Charts.coordinate chart (local x);
+\import topology.Maps[A := M.Point, B := M.Point].Identity[] \as Identity;
+\import topology.Continuity[A := M.Point, B := M.Point].Corestriction[S := chart.domain] \as Into;
+\import topology.Homeomorphism[A := Charts.LocalPoint chart, B := target.Point] \as Homeomorphisms;
+\import topology.Composition[A := M.Point, B := Charts.LocalPoint chart, C := target.Point] \as ContinuousComposition;
+\definition data: Maps.Data := Maps.Data { apply := coordinate };
+\definition continuous: Maps.ContinuousMap := \into[Maps.Data](data, { f: Maps.Data \where Maps.Continuous f }) \by {
+  ContinuousComposition.composeContinuous M.space (Charts.domainTopology chart.domain) target.space local (Charts.coordinate chart)
+    (Into.corestrictContinuous M.space M.space local (Identity.continuous M.space))
+    (Homeomorphisms.laws (Charts.domainTopology chart.domain) target.space chart.coordinates).forwardContinuous
+};
+\definition sourceAtlas: Small.SourceAtlas := \into[Atlases.Atlas](M.atlas, Small.SourceAtlas) \by {
+  \fun (c: Charts.Chart)(member: _) => member
+};
+\definition targetAtlas: Small.TargetAtlas := \into[TargetAtlases.Atlas](Target.atlas, Small.TargetAtlas) \by {
+  \fun (c: TargetCharts.Chart)(member: _) => TargetAtlases.includedInSaturation Target.atlas c member
+};
+\import Small.On[source := sourceAtlas, target := targetAtlas] \as SmallAtlas;
+\module InChart(left: SmallAtlas.SourceChart);
+\import SmallAtlas.Of[f := continuous] \as Check;
+\definition small: Check.InSmallAtlas := \fun (left: SmallAtlas.SourceChart)(right: SmallAtlas.TargetChart) =>
+  \idelim Target.standard = right \with r: TargetCharts.Chart => Maps.Coordinates[f := continuous, left := left, right := r].Smooth \by {
+    base: InChart[left := left].smooth,
+    equality: sym!{TargetCharts.Chart} _ _ (\bysub(TargetCharts.Chart, targetAtlas.charts, right))
+  };
+\definition forward: Maps.Map := Check.value small;
+\import \root.ChartMap[n := n].On[M := M].At[chart := chart] \as Back;
+\definition backward: \root.SmoothMap[n := n, m := n].Between[M := target, N := M].Map := Back.map;
+\import \root.Diffeomorphism[n := n, m := n].Between[M := M, N := target] \as Diffeomorphisms;
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := \into[Diffeomorphisms.Data](Diffeomorphisms.Data {
+  forward := forward, backward := backward
+}, Diffeomorphisms.Diffeomorphism) \by {
+  Diffeomorphisms.Laws[Diffeomorphisms.Data { forward := forward, backward := backward }] {
+    leftInverse := \fun (x: M.Point) => Charts.Of[chart := chart].pointCoordinate (local x),
+    rightInverse := Charts.Of[chart := chart].coordinatePoint,
+  }
+};

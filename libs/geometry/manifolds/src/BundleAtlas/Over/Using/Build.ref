@@ -1,0 +1,25 @@
+\import CoordinateTopology.Refined[transitions := transitions] \as AtlasConstruction;
+\import CoordinateTopology.Of[openEmbeddings := AtlasConstruction.openEmbeddings] \as BasicCharts;
+\module LocalProjection(i: I);
+\import topology.Continuity[A := A, B := M.Point] \as ProjectionContinuity;
+\definition projectionContinuous: ProjectionContinuity.Continuous topology M.space projection :=
+  \fun (W: \Pow M.Point)(openW: _)(i: I) => LocalProjection[i := i].continuous W openW;
+\import BasicCharts.Fibered[B := M.Point, baseSpace := M.space, projection := projection,
+  domains := \fun (i: I) => (data.local i).baseChart.domain] \as Fibered;
+\definition fiberedLaws: Fibered.Laws := Fibered.Laws {
+  open := \fun (i: I) => (data.local i).baseChart.open,
+  covers := data.covers,
+  fiber := \fun (i: I)(x: A)(inside: _) => inside,
+};
+\import Fibered.Over[laws := fiberedLaws] \as Properties;
+\definition secondCountable: topology.Topology[Carrier := A].IsSecondCountable topology := Properties.secondCountable M.secondCountable;
+\definition hausdorff: topology.Topology[Carrier := A].IsT2 topology := Properties.hausdorff M.hausdorff projectionContinuous;
+\definition manifold: TotalModel.Manifold := AtlasConstruction.manifold hausdorff secondCountable;
+\import \root.Dimension[n := dimension].Chart[M := A, space := topology] \as Charts;
+\import \root.Dimension[n := dimension].Atlas[M := A, space := topology] \as Atlases;
+\import BasicCharts.Smooth[changes := AtlasConstruction.smoothChanges] \as SmallAtlas;
+\definition chart[i: I]: \Cast[Charts.Chart] manifold.atlas.charts := \into[Charts.Chart](BasicCharts.chart i, manifold.atlas.charts) \by {
+  Atlases.includedInSaturation SmallAtlas.atlas (BasicCharts.chart i)
+    (Logic.existsIntro[I, { j: I \where BasicCharts.chart i = BasicCharts.chart j }] i (\refl(BasicCharts.chart i)))
+};
+\module Plots(m: N.Nat^);

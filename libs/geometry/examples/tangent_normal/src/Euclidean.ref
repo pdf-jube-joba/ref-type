@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import manifolds.Dimension[n := n].Examples[].Euclidean[] \as Euclidean;
+\import manifolds.Dimension[n := n].Smooth[] \as Model;
+\definition M: Model.Manifold := Euclidean.smoothManifold;
+\import tangent_bundles.Dimension[n := n].On[M := M] \as Tangent;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import manifolds.Dimension[n := n].Atlas[M := M.Point, space := M.space] \as Atlases;
+\definition Chart: \Set := \Cast[Charts.Chart] M.atlas.charts;
+\definition standard: Chart := \into[Charts.Chart](Euclidean.standard, M.atlas.charts) \by {
+  Atlases.includedInSaturation Euclidean.atlas Euclidean.standard (\refl(Euclidean.standard))
+};
+\import tangent_bundles.Trivial[n := n, r := n].On[M := M] \as Product;
+\import Product.Covered[I := Chart, chart := \fun (c: Chart) => c, covers := Tangent.data.covers] \as Trivial;
+\import manifolds.GlobalChart[n := Tangent.dimension].On[M := Tangent.manifold].At[chart := Tangent.chart standard,
+  contains := \fun (p: Tangent.Point) => \refl(p.base)] \as TangentCoordinates;
+\import manifolds.GlobalChart[n := Tangent.dimension].On[M := Trivial.manifold].At[chart := Trivial.totalChart standard,
+  contains := \fun (p: Product.Point) => \refl(p.base)] \as ProductCoordinates;
+\import manifolds.Composition[n := Tangent.dimension, m := Tangent.dimension, l := Tangent.dimension].Between[
+  M := Tangent.manifold, N := TangentCoordinates.target, P := Trivial.manifold] \as Forward;
+\import manifolds.Composition[n := Tangent.dimension, m := Tangent.dimension, l := Tangent.dimension].Between[
+  M := Trivial.manifold, N := TangentCoordinates.target, P := Tangent.manifold] \as Backward;
+\import manifolds.Diffeomorphism[n := Tangent.dimension, m := Tangent.dimension].Between[M := Tangent.manifold, N := Trivial.manifold] \as Diffeomorphisms;
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := Diffeomorphisms.Diffeomorphism {
+  forward := Forward.compose TangentCoordinates.forward ProductCoordinates.backward,
+  backward := Backward.compose ProductCoordinates.forward TangentCoordinates.backward,
+  leftInverse := \fun (p: Tangent.Point) => trans!{{Tangent.Point}} _ _ _
+    (congr!{{TangentCoordinates.target.Point} {Tangent.Point}} (\fun (u: TangentCoordinates.target.Point) => manifolds.SmoothMap[n := Tangent.dimension, m := Tangent.dimension].Between[M := TangentCoordinates.target, N := Tangent.manifold].apply TangentCoordinates.backward u)
+      _ _ ((manifolds.Diffeomorphism[n := Tangent.dimension, m := Tangent.dimension].Between[M := Trivial.manifold, N := ProductCoordinates.target].laws ProductCoordinates.diffeomorphism).rightInverse (TangentCoordinates.coordinate p)))
+    ((manifolds.Diffeomorphism[n := Tangent.dimension, m := Tangent.dimension].Between[M := Tangent.manifold, N := TangentCoordinates.target].laws TangentCoordinates.diffeomorphism).leftInverse p),
+  rightInverse := \fun (p: Product.Point) => trans!{{Product.Point}} _ _ _
+    (congr!{{TangentCoordinates.target.Point} {Product.Point}} (\fun (u: TangentCoordinates.target.Point) => manifolds.SmoothMap[n := Tangent.dimension, m := Tangent.dimension].Between[M := ProductCoordinates.target, N := Trivial.manifold].apply ProductCoordinates.backward u)
+      _ _ ((manifolds.Diffeomorphism[n := Tangent.dimension, m := Tangent.dimension].Between[M := Tangent.manifold, N := TangentCoordinates.target].laws TangentCoordinates.diffeomorphism).rightInverse (ProductCoordinates.coordinate p)))
+    ((manifolds.Diffeomorphism[n := Tangent.dimension, m := Tangent.dimension].Between[M := Trivial.manifold, N := ProductCoordinates.target].laws ProductCoordinates.diffeomorphism).leftInverse p),
+};
+\import manifolds.SmoothMap[n := Tangent.dimension, m := Tangent.dimension].Between[M := Tangent.manifold, N := Trivial.manifold] \as Maps;
+\definition formula: \forall (p: Tangent.Point) -> Maps.apply diffeomorphism.forward p =
+  Product.include p.base (Tangent.InChart[chart := standard].At[x := \into[M.Point](p.base, standard.domain) \by { \refl(p.base) }].decode p.vector) :=
+  \fun (p: Tangent.Point) => (manifolds.Diffeomorphism[n := Tangent.dimension, m := Tangent.dimension].Between[M := Trivial.manifold, N := ProductCoordinates.target].laws ProductCoordinates.diffeomorphism).leftInverse
+    (Product.include p.base (Tangent.InChart[chart := standard].At[x := \into[M.Point](p.base, standard.domain) \by { \refl(p.base) }].decode p.vector));
+\definition identityLaw: tangent_bundles.Map[n := n, m := n].Between[M := M, N := M].apply manifolds.SelfMap[n := n].Identity[M := M].map = (\fun (p: Tangent.Point) => p) :=
+  tangent_bundles.Identity[n := n].On[M := M].law;

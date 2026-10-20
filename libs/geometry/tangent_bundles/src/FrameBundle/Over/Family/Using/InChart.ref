@@ -1,0 +1,37 @@
+\definition c: Chart := chart i;
+\definition domain: \Pow Point := { p: Point \where Charts.Contains c p.base };
+\definition LocalPoint: \Set := \Cast[Point] domain;
+\import Blocks.On[U := c.image, V := FiberOpen.whole] \as Product;
+\definition image: Open.OpenSet := Product.domain;
+\definition frame[x: Charts.LocalPoint c]: FrameAt x := (data.local i).frame x;
+\definition decode[x: Charts.LocalPoint c][v: F x]: Vectors.Vector := (frame x).forward.apply v;
+\definition encode[x: Charts.LocalPoint c][w: Vectors.Vector]: F x := (frame x).backward.apply w;
+\module At(x: Charts.LocalPoint c) {
+  \import Spaces.Isomorphism[V := F x, W := Vectors.Vector, source := space x, target := Vectors.space] \as Isomorphisms;
+  \definition decodeEncode: \forall (w: Vectors.Vector) -> decode x (encode x w) = w := (Isomorphisms.laws (frame x)).rightInverse;
+  \definition encodeDecode: \forall (v: F x) -> encode x (decode x v) = v := (Isomorphisms.laws (frame x)).leftInverse;
+}
+\module Move(x, y: Charts.LocalPoint c, same: x = y) {
+  \definition coordinates: \forall (v: F x) -> decode y (Transport.cast F x y same v) = decode x v :=
+    (\idelim x = y \with z: Charts.LocalPoint c => \forall (equal: x = z)(v: F x) -> decode z (Transport.cast F x z equal v) = decode x v \by {
+      base: \fun (equal: x = x)(v: F x) => congr!{{F x} {Vectors.Vector}} (decode x) _ _ (Transport.castRefl F x v), equality: same
+    }) same;
+}
+\definition base[p: LocalPoint]: Charts.LocalPoint c := \into[M.Point](p.base, c.domain) \by { \bysub(Point, domain, p) };
+\definition coordinate[p: LocalPoint]: Open.Carrier image := Product.joinPoint (Charts.coordinate c (base p))
+  (\into[Vectors.Vector](decode (base p) p.vector, FiberOpen.whole.points) \by { \refl(decode (base p) p.vector) });
+\definition assemble[x: BaseOpen.Carrier c.image][w: Vectors.Vector]: Point := include (Charts.point c x) (encode (Charts.point c x) w);
+\definition point[u: Open.Carrier image]: LocalPoint := \into[Point](assemble (Product.leftPoint u) (Blocks.right u), domain) \by {
+  \bysub(M.Point, c.domain, Charts.point c (Product.leftPoint u))
+};
+\definition pointJoined: \forall (x: BaseOpen.Carrier c.image)(w: FiberOpen.Carrier FiberOpen.whole) -> point (Product.joinPoint x w) = assemble x w :=
+  \fun (x: BaseOpen.Carrier c.image)(w: FiberOpen.Carrier FiberOpen.whole) =>
+    congr2!{{BaseOpen.Carrier c.image} {Vectors.Vector} Point} assemble
+      (Product.leftPoint (Product.joinPoint x w)) x (Blocks.right (Product.joinPoint x w)) w (Blocks.leftJoin x w) (Blocks.rightJoin x w);
+\import Charts.Of[chart := c] \as Geometry;
+\definition coordinatePoint: \forall (u: Open.Carrier image) -> coordinate (point u) = u :=
+  \fun (u: Open.Carrier image) => trans!{{calculus.Real[].Multivariable[n := dimension].Point}} _ _ _
+    (congr2!{{calculus.Real[].Multivariable[n := n].Point} {Vectors.Vector} {calculus.Real[].Multivariable[n := dimension].Point}} Blocks.join _ _ _ _
+      (Geometry.coordinatePoint (Product.leftPoint u)) (At[x := Charts.point c (Product.leftPoint u)].decodeEncode (Blocks.right u))) (Blocks.recover u);
+\module Recover(p: LocalPoint);
+\definition pointCoordinate: \forall (p: LocalPoint) -> point (coordinate p) = p := \fun (p: LocalPoint) => Recover[p := p].law;

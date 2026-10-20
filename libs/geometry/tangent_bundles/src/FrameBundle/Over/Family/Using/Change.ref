@@ -1,0 +1,22 @@
+\import \parent.InChart[i := i] \as Source;
+\import \parent.InChart[i := j] \as Target;
+\import Charts.Transition[left := chart i, right := chart j] \as Base;
+\import BaseOpen.Smooth[] \as Smooth;
+\import BaseOpen.Smooth[].Derivative[] \as Partials;
+\definition x[t: BaseOpen.Carrier Base.domain]: Charts.LocalPoint (chart i) := Charts.point (chart i) (Base.leftCoordinate t);
+\definition y[t: BaseOpen.Carrier Base.domain]: Charts.LocalPoint (chart j) := Base.overlapPoint t;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Linear;
+\definition linear[t: BaseOpen.Carrier Base.domain]: Linear.Map := Linear.Map {
+  apply := \fun (w: Vectors.Vector) => Target.decode (y t) (Source.encode (x t) w),
+  preservesAdd := \fun (u, v: Vectors.Vector) => trans!{{Vectors.Vector}} _ _ _
+    (congr!{{F (x t)} {Vectors.Vector}} (Target.decode (y t)) _ _ ((Source.frame (x t)).backward.preservesAdd u v))
+    ((Target.frame (y t)).forward.preservesAdd (Source.encode (x t) u) (Source.encode (x t) v)),
+  preservesScale := \fun (a: Real.Real)(v: Vectors.Vector) => trans!{{Vectors.Vector}} _ _ _
+    (congr!{{F (x t)} {Vectors.Vector}} (Target.decode (y t)) _ _ ((Source.frame (x t)).backward.preservesScale a v))
+    ((Target.frame (y t)).forward.preservesScale a (Source.encode (x t) v)),
+};
+\import Real.FiniteSums[].Linear[] \as Finite;
+\definition coefficient[a, b: Fin.Fin r][t: BaseOpen.Carrier Base.domain]: Real.Real := (linear t).apply (Finite.basis r b) a;
+\definition CoefficientSmooth[a, b: Fin.Fin r]: \Prop := Smooth.SmoothOn Base.domain (coefficient a b);
+\definition Regular: \Prop := \forall (a, b: Fin.Fin r) -> CoefficientSmooth a b;
+\module Smooth(regular: Regular);

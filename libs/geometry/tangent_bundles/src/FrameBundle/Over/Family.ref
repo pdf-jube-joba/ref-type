@@ -1,0 +1,21 @@
+\structure Point: \Set := { base: M.Point, vector: F base };
+\definition include[x: M.Point][v: F x]: Point := Point { base := x, vector := v };
+\definition projection[p: Point]: M.Point := p.base;
+\definition eta: \forall (p: Point) -> include p.base p.vector = p :=
+  \induction (p: Point) \return include p.base p.vector = p \with { | # : \fun (x: M.Point)(v: F x) => \refl(include x v) };
+\import std.Logic[].Equality[].Transport[A := M.Point] \as Transport;
+\definition includeTransport: \forall (x, y: M.Point)(same: x = y)(v: F x) -> include y (Transport.cast F x y same v) = include x v :=
+  \fun (x, y: M.Point)(same: x = y) =>
+    (\idelim x = y \with z: M.Point => \forall (equal: x = z)(v: F x) -> include z (Transport.cast F x z equal v) = include x v \by {
+      base: \fun (equal: x = x)(v: F x) => congr!{{F x} Point} (include x) _ _ (Transport.castRefl F x v), equality: same
+    }) same;
+\definition FrameAt[x: M.Point]: \Set := Spaces.Isomorphism[V := F x, W := Vectors.Vector, source := space x, target := Vectors.space].Isomorphism;
+\structure Local: \Set := { chart: Chart, frame: \forall (x: Charts.LocalPoint chart) -> FrameAt x };
+\structure Data[I: \Set]: \Set := {
+  local: I -> Local,
+  covers: \forall (x: M.Point) -> \exists ( i: I \where Charts.Contains (local i).chart x ),
+};
+\definition ExtraFrameAt[s: N.Nat^][G: M.Point -> \Set][otherSpace: \forall (x: M.Point) -> Spaces.VectorSpace (G x)][x: M.Point]: \Set :=
+  Spaces.Isomorphism[V := G x, W := Fin.Fin s -> Real.Real, source := otherSpace x, target := Spaces.Coordinates[I := Fin.Fin s].space].Isomorphism;
+\module Using(I: \Set, data: Data[I]);
+\module Fiber(x: M.Point);

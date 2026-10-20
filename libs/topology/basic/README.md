@@ -18,3 +18,8 @@
 | `Topology.OpenCovers` | 開被覆の族と被覆条件を保持する台集合。 |
 | `Homeomorphism` | 同相写像、逆写像、合成。 |
 | `LocallyCompact` | コンパクト近傍、局所コンパクト性、コンパクト空間の局所コンパクト性。 |
+
+
+`Maps.Separate` は Hausdorff 空間への連続写像で像が異なる点を分離する。
+`Continuity.Covered` は開被覆上の制限の連続性から全体の連続性を導く。
+`Retract.On.With` は連続な包含と左逆写像から、像の部分空間との明示的な同相を作る。

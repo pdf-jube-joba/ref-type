@@ -1,0 +1,58 @@
+\import \parent.\parent.Laws[V := W, space := target] \as Laws;
+\definition scalarPlus[a, c: K]: K := add a c;
+\definition origin: V := bijection.backward target.zero;
+\definition plus[x, y: V]: V := bijection.backward (target.add (bijection.forward x) (bijection.forward y));
+\definition negative[x: V]: V := bijection.backward (target.neg (bijection.forward x));
+\definition scale[a: K][x: V]: V := bijection.backward (target.smul a (bijection.forward x));
+\definition injective: \forall (x, y: V) -> bijection.forward x = bijection.forward y -> x = y := \fun (x, y: V)(same: _) =>
+  trans!{V} _ _ _ (sym!{V} _ _ (bijection.leftInverse x)) (trans!{V} _ _ _ (congr!{W V} bijection.backward _ _ same) (bijection.leftInverse y));
+\definition zero: bijection.forward origin = target.zero := bijection.rightInverse target.zero;
+\definition add: \forall (x, y: V) -> bijection.forward (plus x y) = target.add (bijection.forward x) (bijection.forward y) :=
+  \fun (x, y: V) => bijection.rightInverse (target.add (bijection.forward x) (bijection.forward y));
+\definition neg: \forall (x: V) -> bijection.forward (negative x) = target.neg (bijection.forward x) := \fun (x: V) => bijection.rightInverse (target.neg (bijection.forward x));
+\definition smul: \forall (a: K)(x: V) -> bijection.forward (scale a x) = target.smul a (bijection.forward x) := \fun (a: K)(x: V) => bijection.rightInverse (target.smul a (bijection.forward x));
+\definition leftIdentity: \forall (x: V) -> plus origin x = x := \fun (x: V) => injective (plus origin x) x
+  (trans!{W} _ _ _ (add origin x) (trans!{W} _ _ _ (congr!{W W} (\fun (w: W) => target.add w (bijection.forward x)) _ _ zero) (Laws.zeroLeft (bijection.forward x))));
+\definition rightIdentity: \forall (x: V) -> plus x origin = x := \fun (x: V) => injective (plus x origin) x
+  (trans!{W} _ _ _ (add x origin) (trans!{W} _ _ _ (congr!{W W} (target.add (bijection.forward x)) _ _ zero) (Laws.zeroRight (bijection.forward x))));
+\definition associative: \forall (x, y, z: V) -> plus (plus x y) z = plus x (plus y z) := \fun (x, y, z: V) => injective (plus (plus x y) z) (plus x (plus y z)) (eq_reason!{
+  {bijection.forward (plus (plus x y) z)} "=" {target.add (bijection.forward (plus x y)) (bijection.forward z)} "by" {add (plus x y) z}
+  "=" {target.add (target.add (bijection.forward x) (bijection.forward y)) (bijection.forward z)} "by" {congr!{W W} (\fun (w: W) => target.add w (bijection.forward z)) _ _ (add x y)}
+  "=" {target.add (bijection.forward x) (target.add (bijection.forward y) (bijection.forward z))} "by" {Laws.assoc (bijection.forward x) (bijection.forward y) (bijection.forward z)}
+  "=" {target.add (bijection.forward x) (bijection.forward (plus y z))} "by" {congr!{W W} (target.add (bijection.forward x)) _ _ (sym!{W} _ _ (add y z))}
+  "=" {bijection.forward (plus x (plus y z))} "by" {sym!{W} _ _ (add x (plus y z))}
+});
+\definition inverseLeft: \forall (x: V) -> plus (negative x) x = origin := \fun (x: V) => injective (plus (negative x) x) origin
+  (trans!{W} _ _ _ (add (negative x) x) (trans!{W} _ _ _ (congr!{W W} (\fun (w: W) => target.add w (bijection.forward x)) _ _ (neg x))
+    (trans!{W} _ _ _ (Laws.inverseLeft (bijection.forward x)) (sym!{W} _ _ zero))));
+\definition commutative: \forall (x, y: V) -> plus x y = plus y x := \fun (x, y: V) => injective (plus x y) (plus y x)
+  (trans!{W} _ _ _ (add x y) (trans!{W} _ _ _ (Laws.comm (bijection.forward x) (bijection.forward y)) (sym!{W} _ _ (add y x))));
+\definition inverseRight: \forall (x: V) -> plus x (negative x) = origin := \fun (x: V) => trans!{V} _ _ _ (commutative x (negative x)) (inverseLeft x);
+\definition scalarOne: \forall (x: V) -> scale one x = x := \fun (x: V) => injective (scale one x) x (trans!{W} _ _ _ (smul one x) (target.scalarOne (bijection.forward x)));
+\definition scalarAssoc: \forall (a, c: K)(x: V) -> scale (mul a c) x = scale a (scale c x) := \fun (a, c: K)(x: V) => injective (scale (mul a c) x) (scale a (scale c x))
+  (trans!{W} _ _ _ (smul (mul a c) x) (trans!{W} _ _ _ (target.scalarAssoc a c (bijection.forward x))
+    (trans!{W} _ _ _ (congr!{W W} (target.smul a) _ _ (sym!{W} _ _ (smul c x))) (sym!{W} _ _ (smul a (scale c x))))));
+\definition vectorAdd: \forall (a: K)(x, y: V) -> scale a (plus x y) = plus (scale a x) (scale a y) := \fun (a: K)(x, y: V) => injective (scale a (plus x y)) (plus (scale a x) (scale a y))
+  (trans!{W} _ _ _ (smul a (plus x y)) (trans!{W} _ _ _ (congr!{W W} (target.smul a) _ _ (add x y))
+    (trans!{W} _ _ _ (target.vectorAdd a (bijection.forward x) (bijection.forward y)) (trans!{W} _ _ _
+      (congr2!{W W W} target.add _ _ _ _ (sym!{W} _ _ (smul a x)) (sym!{W} _ _ (smul a y))) (sym!{W} _ _ (add (scale a x) (scale a y)))))));
+\definition scalarAdd: \forall (a, c: K)(x: V) -> scale (scalarPlus a c) x = plus (scale a x) (scale c x) := \fun (a, c: K)(x: V) => injective (scale (scalarPlus a c) x) (plus (scale a x) (scale c x))
+  (trans!{W} _ _ _ (smul (scalarPlus a c) x) (trans!{W} _ _ _ (target.scalarAdd a c (bijection.forward x)) (trans!{W} _ _ _
+    (congr2!{W W W} target.add _ _ _ _ (sym!{W} _ _ (smul a x)) (sym!{W} _ _ (smul c x))) (sym!{W} _ _ (add (scale a x) (scale c x))))));
+\definition space: VectorSpace V := Ring.RingModule[K, V, ring] {
+  zero := origin, add := plus, neg := negative, smul := scale,
+  additive := Alg.CommutativeGroupLaws[V, Alg.CommutativeGroupData[V]::# (Alg.GroupData[V]::# origin plus negative)] {
+    group := Alg.GroupLaws[V, Alg.GroupData[V]::# origin plus negative] {
+      monoid := Monoid.MonoidLaws[V, Monoid.MonoidData[V]::# origin plus] { leftIdentity := leftIdentity, rightIdentity := rightIdentity, associative := associative },
+      leftInverse := inverseLeft, rightInverse := inverseRight,
+    }, commutative := commutative,
+  }, scalarOne := scalarOne, scalarAssoc := scalarAssoc, scalarAdd := scalarAdd, vectorAdd := vectorAdd,
+};
+\import \parent.\parent.Linear[V := V, W := W, source := space, target := target] \as Linear;
+\definition forward: Linear.Map := Linear.Map { apply := bijection.forward, preservesAdd := add, preservesScale := smul };
+\import \parent.\parent.Isomorphism[V := V, W := W, source := space, target := target] \as Isomorphisms;
+\import Isomorphisms.OfBijective[f := forward] \as Inverse;
+\definition onto: Inverse.Onto := \fun (w: W) => Logic.existsIntro[V, { v: V \where forward.apply v = w }] (bijection.backward w) (bijection.rightInverse w);
+\definition isomorphism: Isomorphisms.Isomorphism := Inverse.isomorphism injective onto;
+\definition backwardFormula: \forall (w: W) -> isomorphism.backward.apply w = bijection.backward w := \fun (w: W) => injective _ _
+  (trans!{W} _ _ _ ((Isomorphisms.laws isomorphism).rightInverse w) (sym!{W} _ _ (bijection.rightInverse w)));

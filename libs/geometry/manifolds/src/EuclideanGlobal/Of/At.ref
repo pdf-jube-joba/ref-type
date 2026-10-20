@@ -1,0 +1,26 @@
+\import \root.Tangent[n := n].On[M := source].At[x := x] \as Domain;
+\import \root.Tangent[n := m].On[M := target].At[x := apply x] \as Codomain;
+\definition sourceChart: Domain.Chart := \into[SourceCharts.Chart](Source.standard, Domain.Chart) \by {
+  Domain.ChartLaws[Source.standard] { member := SourceAtlases.includedInSaturation Source.atlas Source.standard (\refl(Source.standard)), contains := \refl(x) }
+};
+\definition targetChart: Codomain.Chart := \into[TargetCharts.Chart](Target.standard, Codomain.Chart) \by {
+  Codomain.ChartLaws[Target.standard] { member := TargetAtlases.includedInSaturation Target.atlas Target.standard (\refl(Target.standard)), contains := \refl(apply x) }
+};
+\import Domain.ChartIsomorphism[chart := sourceChart] \as SourceCoordinate;
+\import Codomain.ChartIsomorphism[chart := targetChart] \as TargetCoordinate;
+\import \root.Differential[n := n, m := m].Between[M := source, N := target].At[f := map, x := x] \as Derivative;
+\import Derivative.InCharts[left := sourceChart, right := targetChart] \as Formula;
+\import Calculus.Restriction[U := Coordinates.domain, V := SourceOpen.whole, W := TargetOpen.whole] \as Restriction;
+\definition coordinateMap: Calculus.Map Coordinates.domain TargetOpen.whole := Coordinates.map standardSmooth;
+\definition mapEquality: coordinateMap = Restriction.input included f := Calculus.ext Coordinates.domain TargetOpen.whole coordinateMap (Restriction.input included f)
+  (\axiom:funext((Calculus.apply Coordinates.domain TargetOpen.whole coordinateMap), (Calculus.apply Coordinates.domain TargetOpen.whole (Restriction.input included f)),
+    \fun (u: SourceOpen.Carrier Coordinates.domain) => \refl(Calculus.apply Coordinates.domain TargetOpen.whole coordinateMap u)));
+\definition jacobian: Formula.jacobian = Calculus.Differential[U := SourceOpen.whole, V := TargetOpen.whole, f := f, a := input x].value :=
+  trans!{{calculus.Vector[n := n, m := m].LinearMap}} _ _ _
+    (congr!{{Calculus.Map Coordinates.domain TargetOpen.whole} {calculus.Vector[n := n, m := m].LinearMap}}
+      (\fun (g: Calculus.Map Coordinates.domain TargetOpen.whole) => Calculus.Differential[U := Coordinates.domain, V := TargetOpen.whole, f := g, a := Formula.point].value) _ _ mapEquality)
+    (Restriction.differential included f Formula.point);
+\definition coordinates: \forall (v: Domain.Vector) -> TargetCoordinate.forward.apply (Derivative.value.apply v) =
+  Calculus.Differential[U := SourceOpen.whole, V := TargetOpen.whole, f := f, a := input x].value.apply (SourceCoordinate.forward.apply v) :=
+  \fun (v: Domain.Vector) => trans!{{target.Point}} _ _ _ (Derivative.coordinates sourceChart targetChart v)
+    (congr!{{calculus.Vector[n := n, m := m].LinearMap} {target.Point}} (\fun (L: calculus.Vector[n := n, m := m].LinearMap) => L.apply (SourceCoordinate.forward.apply v)) _ _ jacobian);

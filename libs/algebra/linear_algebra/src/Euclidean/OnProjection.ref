@@ -1,0 +1,32 @@
+\definition energy: \forall (v: Vector) -> squared (P.map.apply v) = dot v (P.map.apply v) := \fun (v: Vector) =>
+  trans!{{R.Real}} _ _ _ (P.symmetric v (P.map.apply v)) (congr!{Vector {R.Real}} (dot v) _ _ (P.idempotent v));
+\definition diagonalEnergy: \forall (i: Fin.Fin n) -> squared (P.map.apply (basis i)) = P.map.apply (basis i) i :=
+  \fun (i: Fin.Fin n) => trans!{{R.Real}} _ _ _ (energy (basis i)) (dotBasis i (P.map.apply (basis i)));
+\definition diagonalNonnegative: \forall (i: Fin.Fin n) -> Order.Le R.zero (P.map.apply (basis i) i) :=
+  \fun (i: Fin.Fin n) => Order.leReplaceRight R.zero _ _ (diagonalEnergy i) (nonnegative (P.map.apply (basis i)));
+\module Zero(same: trace P = R.zero);
+\definition zeroTrace: trace P = R.zero -> \forall (v: Vector) -> P.map.apply v = space.zero :=
+  \fun (same: trace P = R.zero) => Zero[same := same].zero;
+\structure NonzeroColumn: \Set := { index: Fin.Fin n, nonzero: Logic.Not (P.map.apply (basis index) = space.zero) };
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition nonzeroColumn: Order.Lt R.zero (trace P) -> \exists NonzeroColumn :=
+  \fun (positive: _) => either!{{(Classical.excludedMiddle (\exists NonzeroColumn))} {\exists NonzeroColumn}
+    {\fun (exists: _) => exists}
+    {\fun (none: _) => Logic.falseElim (\exists NonzeroColumn)
+      (Order.Order[].ltNotEq R.zero (trace P) positive (sym!{{R.Real}} _ _
+        (trans!{{R.Real}} _ _ _ (Sums.congruent n _ (\fun (i: Fin.Fin n) => R.zero)
+          (\fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (P.map.apply (basis i) = space.zero))} {P.map.apply (basis i) i = R.zero}
+            {\fun (zero: _) => congr!{Vector {R.Real}} (\fun (v: Vector) => v i) _ _ zero}
+            {\fun (different: _) => Logic.falseElim (P.map.apply (basis i) i = R.zero)
+              (none (\exact(NonzeroColumn { index := i, nonzero := different }, NonzeroColumn)))}
+          })) (Sums.zeroSum n))))}
+  };
+
+\structure UnitIn: \Set := {
+  vector: Vector,
+  norm: squared vector = R.one,
+  fixed: P.map.apply vector = vector,
+};
+\module Unit(u: UnitIn);
+\module Rank(k: N.Nat^);
