@@ -1,0 +1,28 @@
+\import \parent.Picard[y := y] \as Left;
+\import \parent.Picard[y := z] \as Right;
+\import Integrals.Comparison[f := Left.asFunction, g := Right.asFunction] \as IntegralsComparison;
+\definition separation: Real := Ball.metric.distance y z;
+\definition separationNonnegative: R.Le Scalars.zero separation := Ball.metric.nonnegative y z;
+\definition fieldSeparation: Real := Scalars.mul field.coefficient separation;
+\definition fieldSeparationNonnegative: R.Le Scalars.zero fieldSeparation := Laws.fieldMulNonnegative field.coefficient separation coefficientNonnegative separationNonnegative;
+\definition integrandsBound: \forall (t: Real) -> R.Le (Norm.metric.distance (Left.integrand t) (Right.integrand t)) fieldSeparation :=
+  \fun (t: Real) => R.leTrans _ _ _ (field.lipschitz (extend y t) (extend z t))
+    (Estimates.mulMonotone field.coefficient (Norm.metric.distance (extend y t) (extend z t)) separation coefficientNonnegative (Ball.pointwiseLe y z (cutTime t)));
+\definition pointwiseBound: \forall (t: Time) ->
+  R.Le (Norm.metric.distance (Left.curve t) (Right.curve t)) (Scalars.mul Scalars.half separation) := \fun (t: Time) => R.leTrans _ _ _
+  (R.leReplaceLeft (Norm.metric.distance (Left.primitive t) (Right.primitive t)) (Norm.metric.distance (Left.curve t) (Right.curve t))
+    (Scalars.mul (Prefix.weight t Scalars.zero time) fieldSeparation)
+    (sym!{Real} _ _ (Norm.translated initial (Left.primitive t) (Right.primitive t)))
+    (IntegralsComparison.primitiveBound t fieldSeparation fieldSeparationNonnegative (\fun (s: Real)(left: _)(right: _) => integrandsBound s)))
+  (R.leTrans _ (Scalars.mul time fieldSeparation) (Scalars.mul Scalars.half separation)
+    (R.leReplace (Scalars.mul fieldSeparation (Prefix.weight t Scalars.zero time)) (Scalars.mul (Prefix.weight t Scalars.zero time) fieldSeparation)
+      (Scalars.mul fieldSeparation time) (Scalars.mul time fieldSeparation)
+      (Laws.fieldMulComm fieldSeparation (Prefix.weight t Scalars.zero time)) (Laws.fieldMulComm fieldSeparation time)
+      (Estimates.mulMonotone fieldSeparation (Prefix.weight t Scalars.zero time) time fieldSeparationNonnegative (cutBound t)))
+    (R.leReplace (Scalars.mul separation (Scalars.mul time field.coefficient)) (Scalars.mul time fieldSeparation)
+      (Scalars.mul separation Scalars.half) (Scalars.mul Scalars.half separation)
+      (trans!{Real} _ _ _ (Laws.fieldMulComm separation (Scalars.mul time field.coefficient)) (Laws.fieldMulAssoc time field.coefficient separation))
+      (Laws.fieldMulComm separation Scalars.half)
+      (Estimates.mulMonotone separation (Scalars.mul time field.coefficient) Scalars.half separationNonnegative contractionBound)));
+\definition bound: R.Le (Ball.metric.distance Left.curve Right.curve) (Scalars.mul Scalars.half separation) :=
+  Ball.distanceLe Left.curve Right.curve (Scalars.mul Scalars.half separation) pointwiseBound;

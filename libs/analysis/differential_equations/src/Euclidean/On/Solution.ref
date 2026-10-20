@@ -1,0 +1,29 @@
+\import \parent.Picard[y := curve] \as Picard;
+\definition value: Real -> Vector := Picard.value;
+\definition agrees: \forall (t: Time) -> value t = curve t := \fun (t: Time) => congr!{Curve Vector} (\fun (y: Curve) => y t) _ _ fixedLaw;
+\import Integrals.Of[f := Picard.asFunction] \as Integral;
+\definition initialValue: value Scalars.zero = initial := trans!{Vector} _ _ _
+  (congr!{Vector Vector} (Coordinates.addPoint initial) _ _ (Integral.primitiveLeft)) Picard.initialPlusZero;
+\definition continuous: Integrals.IsContinuous value := Picard.continuous;
+\definition within: \forall (t: Time) -> R.Le (Norm.metric.distance initial (value t)) Scalars.one := Picard.within;
+\definition fieldValue[t: Real]: R.Le Scalars.zero t -> R.Le t time -> Picard.integrand t = field.apply (value t) :=
+  \fun (left: _)(right: _) => \block {
+    \let point: Time := \into[Real](t, metric_spaces.RealLine[].ClosedInterval Scalars.zero time) \by { Logic.And[_, _]::# left right } \then
+    \return congr!{Vector Vector} field.apply _ _ (trans!{Vector} _ _ _ (extendIdentity curve point) (sym!{Vector} _ _ (agrees point)))
+  };
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\import calculus.Real[].Derivative[].Prop[] \as Basic;
+\import calculus.Real[].Derivative[].Operations[] \as Operations;
+\definition derivative: \forall (t: Real) -> R.Lt Scalars.zero t -> R.Lt t time -> \forall (i: Euclidean.Coordinate) ->
+  Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t (field.apply (value t) i) :=
+  \fun (t: Real)(left: _)(right: _)(i: Euclidean.Coordinate) =>
+    \idelim Scalars.add Scalars.zero (Picard.integrand t i) = field.apply (value t) i \with d: Real =>
+      Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) t d \by {
+        base: Operations.addDerivative (\fun (s: Real) => initial i) (\fun (s: Real) => Integral.primitive s i) t Scalars.zero (Picard.integrand t i)
+          (Basic.constantDerivative (initial i) t) (Integral.fundamentalTheorem t left right i),
+        equality: trans!{Real} _ _ _ (Laws.addZeroLeft (Picard.integrand t i))
+          (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (fieldValue t (Order.leOfLt _ _ left) (Order.leOfLt _ _ right)))
+      };
+\definition integralEquationUnique: \forall (y: Curve) -> picard y = y -> y = curve :=
+  \fun (y: Curve)(equation: _) => Contractions.fixedUnique contraction
+    (\into[Curve](y, { x: Curve \where contraction.apply x = x }) \by { equation }) fixed;

@@ -13,6 +13,7 @@ Dedekind 実数の有界閉区間上で、リーマン積分とその \(L^1\) �
 | `Real.Riemann[interval].Uniform.Of` | 一様連続な有界関数の積分と原始関数の構成 |
 | `Real.Riemann[interval].Continuous.Of` | 閉区間上の連続関数の可積分性、微分の基本定理 |
 | `Real.Lebesgue[interval].Def` / `Prop` | \(L^1\) Cauchy 列の商、積分の構成、代表列によらないこと |
+| `Vector[n, interval].Of` / `Comparison` | 有限次元ベクトル値の積分、原始関数、座標ごとの微分、ノルム評価 |
 
 ## リーマン積分
 
@@ -30,6 +31,8 @@ S_n(f;\xi)=\sum_{k=0}^{2^n-1}(x_{n,k+1}-x_{n,k})f(\xi_k)
 `primitive` は分割和を任意の終点で切った和の極限で、左端で零、右端で積分値に一致する。
 `fundamentalTheorem` は \(a<x<b\) で \(F'(x)=f(x)\) を証明する。
 この証明では細分化の一様評価と、小区間の傾きを用いる増分評価を使う。
+`Uniform.Comparison.primitiveBound` は入力関数の一様な差から原始関数の差を評価する。
+ベクトル値の場合も同じ評価を最大値ノルムについて証明し、次元零を含めて扱う。
 
 ## ルベーグ積分
 

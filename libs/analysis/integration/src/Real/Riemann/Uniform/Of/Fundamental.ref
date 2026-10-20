@@ -47,6 +47,33 @@
         (congr!{Real Real} (\fun (w: Real) => mul w c) _ _ (Algebra.negSub s t)))))
     (Product.distanceNeg (sub v u) (mul (sub s t) c));
 \use Logic.either;
+\definition globalError[s, t, c, bound: Real]: R.Le a s -> R.Le s b -> R.Le a t -> R.Le t b -> R.Le zero bound ->
+  (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Le (distance (f.function z) c) bound) ->
+  R.Le (distance (sub (primitive t) (primitive s)) (mul (sub t s) c)) (mul (distance t s) bound) :=
+  \fun (as: _)(sb: _)(at: _)(tb: _)(nonnegative: _)(pointwise: _) =>
+    either!{{(Order.leTotal s t)} {R.Le (distance (sub (primitive t) (primitive s)) (mul (sub t s) c)) (mul (distance t s) bound)}
+      {\fun (st: _) => R.leReplaceRight _ (mul (sub t s) bound) (mul (distance t s) bound)
+        (congr!{Real Real} (\fun (w: Real) => mul w bound) _ _ (sym!{Real} _ _ (orderedDistance s t st)))
+        (limitEstimate s t c bound N.Nat^::zero as st tb nonnegative
+          (\fun (n: N.Nat^)(unused: _) => Increment.globalSlopes f.function (D.leftTags n a b) s t a b c bound interval.ordered
+            (D.leftTagsValid n a b interval.ordered) pointwise))}
+      {\fun (ts: _) => R.leReplace
+        (distance (sub (primitive s) (primitive t)) (mul (sub s t) c)) (distance (sub (primitive t) (primitive s)) (mul (sub t s) c))
+        (mul (sub s t) bound) (mul (distance t s) bound)
+        (errorSymmetric (primitive s) (primitive t) t s c)
+        (congr!{Real Real} (\fun (w: Real) => mul w bound) _ _
+          (trans!{Real} _ _ _ (sym!{Real} _ _ (orderedDistance t s ts)) (Metric.distanceSymmetric s t)))
+        (limitEstimate t s c bound N.Nat^::zero at ts sb nonnegative
+          (\fun (n: N.Nat^)(unused: _) => Increment.globalSlopes f.function (D.leftTags n a b) t s a b c bound interval.ordered
+            (D.leftTagsValid n a b interval.ordered) pointwise))}
+    };
+\definition lipschitz[s, t, bound: Real]: R.Le a s -> R.Le s b -> R.Le a t -> R.Le t b -> R.Le zero bound ->
+  (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Le (distance (f.function z) zero) bound) ->
+  R.Le (distance (primitive t) (primitive s)) (mul (distance t s) bound) :=
+  \fun (as: _)(sb: _)(at: _)(tb: _)(nonnegative: _)(pointwise: _) => R.leReplaceLeft
+    (distance (sub (primitive t) (primitive s)) (mul (sub t s) zero)) (distance (primitive t) (primitive s)) (mul (distance t s) bound)
+    (trans!{Real} _ _ _ (congr!{Real Real} (distance (sub (primitive t) (primitive s))) _ _ (Laws.fieldMulZeroRight (sub t s)))
+      (E.distanceDifference (primitive t) (primitive s))) (globalError s t zero bound as sb at tb nonnegative pointwise);
 \definition estimate: \forall (x, s, t, radius, bound: Real) -> R.Le a s -> R.Le s b -> R.Le a t -> R.Le t b -> R.Lt zero radius -> R.Le zero bound ->
   R.Lt (distance s x) radius -> R.Lt (distance t x) radius ->
   (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Lt (distance z x) (add radius radius) -> R.Le (distance (f.function z) (f.function x)) bound) ->

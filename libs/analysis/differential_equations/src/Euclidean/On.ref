@@ -1,0 +1,79 @@
+\definition boundNonnegative: R.Le Scalars.zero field.bound := \bysub(Real, { x: Real \where R.Le Scalars.zero x }, field.bound);
+\definition coefficientNonnegative: R.Le Scalars.zero field.coefficient := \bysub(Real, { x: Real \where R.Le Scalars.zero x }, field.coefficient);
+\definition total: Real := Scalars.add field.bound field.coefficient;
+\definition totalNonnegative: R.Le Scalars.zero total := Laws.addNonnegative field.bound field.coefficient boundNonnegative coefficientNonnegative;
+\definition coefficient: Real := Product.coefficient total Scalars.zero;
+\definition coefficientPositive: R.Lt Scalars.zero coefficient := Product.coefficientPositive total Scalars.zero;
+\definition totalBound: R.Le total coefficient := R.leReplaceLeft (Product.abs total) total coefficient
+  (Product.absOfNonnegative total totalNonnegative) (Product.coefficientFirst total Scalars.zero);
+\definition boundBelow: R.Le field.bound coefficient := R.leTrans _ total coefficient (Distance.leAddOfNonnegative field.bound field.coefficient coefficientNonnegative) totalBound;
+\definition lipschitzBelow: R.Le field.coefficient coefficient := R.leTrans _ total coefficient
+  (R.leReplaceRight _ (Scalars.add field.coefficient field.bound) total (Laws.addComm field.coefficient field.bound)
+    (Distance.leAddOfNonnegative field.coefficient field.bound boundNonnegative)) totalBound;
+\definition time: Real := Product.radius coefficient Scalars.half;
+\definition halfPositive: R.Lt Scalars.zero Scalars.half := R.ltReplaceRight Scalars.zero (Scalars.mul Scalars.half Scalars.one) Scalars.half
+  (Algebra.mulOneRight Scalars.half) (Estimates.halfOfPositive Scalars.one Product.onePositive);
+\definition timePositive: R.Lt Scalars.zero time := Product.radiusPositive coefficient Scalars.half coefficientPositive
+  halfPositive;
+\definition small: R.Lt (Scalars.mul time coefficient) Scalars.half := R.ltReplaceLeft (Scalars.mul coefficient time) (Scalars.mul time coefficient) Scalars.half
+  (Laws.fieldMulComm coefficient time) (Product.radiusSmall coefficient Scalars.half coefficientPositive halfPositive);
+\definition contractionBound: R.Le (Scalars.mul time field.coefficient) Scalars.half := Order.leOfLt _ _
+  (R.leLtTrans _ _ _ (Estimates.mulMonotone time field.coefficient coefficient (Order.leOfLt _ _ timePositive) lipschitzBelow) small);
+\definition ballBound: R.Le (Scalars.mul time field.bound) Scalars.one := R.leTrans _ Scalars.half Scalars.one
+  (Order.leOfLt _ _ (R.leLtTrans _ _ _ (Estimates.mulMonotone time field.bound coefficient (Order.leOfLt _ _ timePositive) boundBelow) small))
+  (R.leReplaceLeft (Scalars.mul Scalars.half Scalars.one) Scalars.half Scalars.one (Algebra.mulOneRight Scalars.half) (Estimates.halfBelow Scalars.one Laws.oneNonnegative));
+\import integration.Real[] \as Integration;
+\definition interval: Integration.Interval := Integration.Interval {
+  left := Scalars.zero, right := time, ordered := Order.leOfLt _ _ timePositive,
+};
+\import Integration.Riemann[interval := interval].Continuous[] \as Times;
+\import integration.Vector[n := n, interval := interval] \as Integrals;
+\definition Time: \Set := Times.Point;
+\definition zeroTime: Time := \into[Real](Scalars.zero, metric_spaces.RealLine[].ClosedInterval Scalars.zero time) \by {
+  Logic.And[_, _]::# (R.leRefl Scalars.zero) (Order.leOfLt _ _ timePositive)
+};
+\import Integration.Division[].Prefix[] \as Prefix;
+\definition cut[t: Real]: Real := Prefix.weight t Scalars.zero time;
+\definition cutNonnegative[t: Real]: R.Le Scalars.zero (cut t) := Prefix.weightNonnegative t Scalars.zero time interval.ordered;
+\definition cutBound[t: Real]: R.Le (cut t) time := R.leReplaceRight (cut t) (Scalars.sub time Scalars.zero) time (Laws.subZeroRight time)
+  (Prefix.weightBound t Scalars.zero time interval.ordered);
+\definition cutTime[t: Real]: Time := \into[Real](cut t, metric_spaces.RealLine[].ClosedInterval Scalars.zero time) \by {
+  Logic.And[_, _]::# (cutNonnegative t) (cutBound t)
+};
+\definition cutIdentity: \forall (t: Time) -> cutTime t = t := \fun (t: Time) => \block {
+  \let bounds: Logic.And[R.Le Scalars.zero t, R.Le t time] := \bysub(Real, metric_spaces.RealLine[].ClosedInterval Scalars.zero time, t) \then
+  \return trans!{Real} _ _ _ (Prefix.weightInside t Scalars.zero time bounds.left bounds.right) (Laws.subZeroRight t)
+};
+\import metric_spaces.BoundedFunctions[A := Vector, I := Time] \as Bounded;
+\definition radius: Bounded.Radius := \into[Real](Scalars.one, { x: Real \where R.Le Scalars.zero x }) \by { Laws.oneNonnegative };
+\import Bounded.On[base := Completeness.metric, anchor := zeroTime, center := (\fun (t: Time) => initial), radius := radius] \as Ball;
+\import Ball.Continuous[source := Times.topology] \as Curves;
+\definition Curve: \Set := Curves.Function;
+\definition seed: Curve := \into[Ball.Carrier](Ball.origin, Curves.predicate) \by {
+  \bysub(Real -> Vector, { f: Real -> Vector \where Integrals.IsContinuous f }, Integrals.constant initial)
+};
+\definition extend[y: Curve][t: Real]: Vector := y (cutTime t);
+\definition extendIdentity[y: Curve][t: Time]: extend y t = y t := congr!{Time Vector} y _ _ (cutIdentity t);
+\import metric_spaces.MetricSpace[Carrier := Vector] \as VectorMetric;
+\import VectorMetric.Lipschitz[B := Vector].Between[metric := Norm.metric, other := Norm.metric] \as Lipschitz;
+\definition fieldContinuous: topology.Continuity[A := Vector, B := Vector].Continuous EuclideanTopology.topology EuclideanTopology.topology field.apply :=
+  Lipschitz.continuous field.apply field.coefficient field.lipschitz;
+\import topology.Continuity[A := Time, B := Vector] \as Maps;
+\definition extendedContinuous[y: Curve]: Maps.Continuous Times.topology EuclideanTopology.topology (\fun (t: Time) => extend y t) :=
+  \idelim (\fun (t: Time) => y t) = (\fun (t: Time) => extend y t) \with f: (Time -> Vector) => Maps.Continuous Times.topology EuclideanTopology.topology f \by {
+    base: \bysub(Ball.Carrier, Curves.predicate, y),
+    equality: \axiom:funext((\fun (t: Time) => y t), (\fun (t: Time) => extend y t), \fun (t: Time) => sym!{Vector} _ _ (extendIdentity y t))
+  };
+\module Picard(y: Curve);
+\definition picard[y: Curve]: Curve := Picard[y := y].curve;
+\module Comparison(y, z: Curve);
+\import metric_spaces.MetricSpace[Carrier := Curve] \as CurveMetric;
+\import CurveMetric.Complete[metric := Curves.complete] \as Contractions;
+\definition contraction: Contractions.Contraction := Contractions.Contraction {
+  apply := picard,
+  bound := \fun (y, z: Curve) => Comparison[y := y, z := z].bound,
+};
+\definition fixed: Contractions.Fixed contraction := Contractions.fixedPoint contraction seed;
+\definition curve: Curve := fixed;
+\definition fixedLaw: picard curve = curve := \bysub(Curve, { x: Curve \where contraction.apply x = x }, fixed);
+\module Solution;

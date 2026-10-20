@@ -42,3 +42,20 @@
 \import Constructed.Fundamental[] \as Fundamental;
 \import calculus.Real[].Derivative[].Def[] \as Derivatives;
 \definition fundamentalTheorem: \forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivatives.HasDerivativeAt primitive x (f x) := Fundamental.derivative;
+\import Metrics.Lipschitz[B := Real].Between[metric := metric, other := NumericMetric.metric] \as Lipschitz;
+\definition primitiveContinuous: IsContinuous primitive := \block {
+  \takefrom bound: \Cast[Real] ({ bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f x) zero) bound }) \by bounded \then
+  \let pointwise: \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f x) zero) bound :=
+    \bysub(Real, { bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance (f x) zero) bound }, bound) \then
+  \let nonnegative: R.Le zero bound := R.leTrans zero (distance (f a) zero) bound (Metric.distanceNonnegative (f a) zero) (pointwise a (R.leRefl a) interval.ordered) \then
+  \let continuous: Maps.Continuous (MetricTopology.topology metric) Line.topology (restrict primitive) :=
+    Lipschitz.continuous (restrict primitive) bound (\fun (x, y: Point) => \block {
+      \let hx: Logic.And[R.Le a x, R.Le x b] := \bysub(Real, Line.ClosedInterval a b, x) \then
+      \let hy: Logic.And[R.Le a y, R.Le y b] := \bysub(Real, Line.ClosedInterval a b, y) \then
+      \return R.leReplaceRight _ (mul (distance x y) bound) (mul bound (distance x y)) (Laws.fieldMulComm (distance x y) bound)
+        (Fundamental.lipschitz y x bound hy.left hy.right hx.left hx.right nonnegative pointwise)
+    }) \then
+  \return \idelim MetricTopology.topology metric = topology \with source: Local.Topology => Maps.Continuous source Line.topology (restrict primitive) \by {
+    base: continuous, equality: Submetric.topology NumericMetric.metric
+  }
+};

@@ -89,6 +89,19 @@
       (sym!{Real} _ _ (Laws.fieldMulZeroLeft bound)) (R.leRefl zero),
     equality: sym!{Real} _ _ isZero
   };
+\definition globalSlopes[f: Real -> Real]: \forall (tags: Tags)(s, t, a, b, c, bound: Real) -> R.Le a b -> Valid tags a b ->
+  (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Le (distance (f z) c) bound) -> Slopes f c bound tags s t a b :=
+  \induction (tags: Tags) \return \forall (s, t, a, b, c, bound: Real) -> R.Le a b -> Valid tags a b ->
+    (\forall (z: Real) -> R.Le a z -> R.Le z b -> R.Le (distance (f z) c) bound) -> Slopes f c bound tags s t a b \with {
+    | tag: \fun (z, s, t, a, b, c, bound: Real)(ordered: _)(valid: Logic.And[R.Le a z, R.Le z b])(pointwise: _)(unusedLeft: _)(unusedRight: _) =>
+      pointwise z valid.left valid.right
+    | split: \fun (left: Tags)(hl: _)(right: Tags)(hr: _)(s, t, a, b, c, bound: Real)(ordered: _)
+        (valid: Logic.And[Valid left a (midpoint a b), Valid right (midpoint a b) b])(pointwise: _) => Logic.And[_, _]::#
+      (hl s t a (midpoint a b) c bound (E.midpointLeft a b ordered) valid.left
+        (\fun (z: Real)(az: _)(zm: _) => pointwise z az (R.leTrans z (midpoint a b) b zm (E.midpointRight a b ordered))))
+      (hr s t (midpoint a b) b c bound (E.midpointRight a b ordered) valid.right
+        (\fun (z: Real)(mz: _)(zb: _) => pointwise z (R.leTrans a (midpoint a b) z (E.midpointLeft a b ordered) mz) zb))
+  };
 \definition estimate[f: Real -> Real]: \forall (tags: Tags)(s, t, a, b, c, bound: Real) -> R.Le a b -> R.Le s t -> R.Le zero bound -> Slopes f c bound tags s t a b ->
   R.Le (distance (sum f tags s t a b) (mul (delta s t a b) c)) (mul (delta s t a b) bound) :=
   \induction (tags: Tags) \return \forall (s, t, a, b, c, bound: Real) -> R.Le a b -> R.Le s t -> R.Le zero bound -> Slopes f c bound tags s t a b ->
