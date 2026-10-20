@@ -21,6 +21,8 @@
 | `OrthogonalAtlas.Dimension[n]` | O(n) の滑らかな多様体 `manifold` とリー群 `lieGroup` |
 | `OrthogonalOrientation` | 行列式の滑らかさと、直交変換の行列式が \(\pm1\) になること |
 | `SpecialOrthogonal[n]` | SO(n) の開部分群としての多様体 `manifold` とリー群 `lieGroup` |
+| `CoefficientAtlas` | 点を分離する係数関数と局所座標から多様体・リー群を構成する一般のインターフェース |
+| `PinSurjectivity` | 任意の直交変換の Pin への持ち上げ |
 | `LocalHom` | 実数上の局所準同型、その一意な二進分割による大域延長 |
 
 `Ad g` は共役写像 \(x\mapsto gxg^{-1}\) の単位元での微分である。
@@ -54,6 +56,7 @@ SO(n) は次数 \(n\) の全交代形式を保つ条件を用いる。
 `cliffordScalarInjective` と `cliffordVectorInjective` は標準内積のクリフォード代数の標準写像の単射性を示す。
 `PinRepresentation.map` は、生成ベクトル上の twisted adjoint と一致する直交変換を一意に選ぶ。
 正の単位ベクトルには反射を、符号には恒等変換を対応させ、積・逆元による閉性から Pin 全体へ延長する。
+`Kernel.iff` は核が正確に \(\{\pm1\}\) であることを示し、`PinSurjectivity.surjective n` は全射性を与える。
 `homomorphism` は群準同型、`spinHomomorphism` は Spin に制限した準同型で、`spinOnVector` はその通常の共役作用による表示である。
 
 `OrthogonalAtlas.atlasData` は、球面の立体射影と直交補空間への制限を使い、次元についての帰納法で O(n) の座標を構成する。

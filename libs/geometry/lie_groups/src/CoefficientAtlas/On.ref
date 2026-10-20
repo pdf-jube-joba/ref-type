@@ -1,0 +1,56 @@
+\import Coordinates.On[family := data.family] \as Parameters;
+\import topology.Topology[Carrier := G] \as Space;
+\import topology.Topology[Carrier := R.Real] \as Reals;
+\import topology.Continuity[A := G, B := R.Real] \as Continuous;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.MetricSpace[Carrier := R.Real].Topology[].Hausdorff[] \as RealSeparation;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import calculus.Real[].Multivariable[n := dimension].Open[].Topology[] \as OpenTopology;
+\import calculus.Real[].Multivariable[n := dimension].Open[].Smooth[].Properties[] \as SmoothProperties;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition transitions: Parameters.Transitions := \fun (i, j: N.Nat^)(a: Parameters.Parameter j)(inside: _) =>
+  data.readings dimension (data.family.patch j).image (Parameters.point j) (data.parametrizations j) i a inside;
+\import Parameters.Refined[transitions := transitions] \as Construction;
+\definition topology: Space.Topology := Parameters.topology;
+\definition coefficientContinuous: \forall (i: I) -> Continuous.Continuous topology Line.topology (coefficient i) :=
+  \fun (i: I)(W: \Pow R.Real)(open: _)(j: N.Nat^) =>
+    OpenTopology.Of[U := (data.family.patch j).image].Continuity[].topological
+      (\fun (x: Parameters.Parameter j) => coefficient i (Parameters.point j x))
+      (SmoothProperties.continuous (data.family.patch j).image (\fun (x: Parameters.Parameter j) => coefficient i (Parameters.point j x))
+        (data.parametrizations j i)) W open;
+\structure Separates[g, h: G]: \Set := {
+  index: I,
+  different: Logic.Not (coefficient index g = coefficient index h),
+};
+\definition separates: \forall (g, h: G) -> Logic.Not (g = h) -> \exists Separates[g, h] :=
+  \fun (g, h: G)(different: _) => either!{{(Classical.excludedMiddle (\exists Separates[g, h]))} {\exists Separates[g, h]}
+    {\fun (exists: _) => exists}
+    {\fun (none: _) => Logic.falseElim (\exists Separates[g, h]) (different (ext g h
+      (\fun (i: I) => either!{{(Classical.excludedMiddle (coefficient i g = coefficient i h))} {coefficient i g = coefficient i h}
+        {\fun (same: _) => same}
+        {\fun (unequal: _) => Logic.falseElim (coefficient i g = coefficient i h)
+          (none (\exact(Separates[g, h] { index := i, different := unequal }, Separates[g, h])))}
+      })))}
+  };
+\module Separate(g, h: G, witness: Separates[g, h]);
+\definition hausdorff: Space.IsT2 topology := \block {
+  \fun (g, h: G)(different: _) \then
+  \takefrom witness: Separates[g, h] \by separates g h different \then
+  \return Separate[g := g, h := h, witness := witness].neighborhood
+};
+\import manifolds.Dimension[n := dimension].Smooth[] \as Model;
+\definition manifold: Model.Manifold := Construction.manifold hausdorff;
+\import manifolds.ChartMap[n := dimension].On[M := manifold] \as ChartMaps;
+\import manifolds.Dimension[n := dimension].Chart[M := G, space := topology] \as Charts;
+\import manifolds.Dimension[n := dimension].Atlas[M := G, space := topology] \as Atlases;
+\import Parameters.Of[openEmbeddings := Construction.openEmbeddings] \as BasicCharts;
+\import BasicCharts.Smooth[changes := Construction.smoothChanges] \as SmallAtlas;
+\definition chart[i: N.Nat^]: ChartMaps.ActiveChart := \into[Charts.Chart](BasicCharts.chart i, manifold.atlas.charts) \by {
+  Atlases.includedInSaturation SmallAtlas.atlas (BasicCharts.chart i)
+    (Logic.existsIntro[N.Nat^, { j: N.Nat^ \where BasicCharts.chart i = BasicCharts.chart j }] i (\refl(BasicCharts.chart i)))
+};
+\module Plot(d: N.Nat^);
+\module SmoothMaps(d: N.Nat^);
+\module FromPlots(d: N.Nat^);
+\module Lie(group: std.Alg[].Alg[].Group[G], regular: Operations[group]);

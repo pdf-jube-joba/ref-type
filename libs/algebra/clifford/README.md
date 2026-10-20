@@ -26,6 +26,8 @@
 普遍性は商の構成から証明する。
 `Of.Induction` はスカラー・生成ベクトルと代数演算による構造帰納法、`Of.HomExt` は生成元上の一致による準同型の一意性を与える。
 `Euclidean.Successor.NormalForm` は \(j(a)+j(b)e_0\) の存在と一意性を証明し、`Spanning.recover` がその再構成を与える。
+`EuclideanCoordinates.coordinates` は標準形から実数の係数座標を再帰的に構成し、`injective` はその単射性を証明する。
+`NormalForm.Grading` と `NormalForm.Reversion` は二成分による次数自己同型と反自己同型の表示を与える。
 `EuclideanCenter.law` は生成ベクトルの twisted centralizer がスカラーに限られることを示す。
 `Of.Reversion` はスカラーとベクトルを固定して積の順序を逆にする写像である。
 `Euclidean.PinNorm.norm` は Pin 上で reversion が逆元に一致すること、`scalarSign` はスカラー元が \(\pm1\) に限られることを示す。

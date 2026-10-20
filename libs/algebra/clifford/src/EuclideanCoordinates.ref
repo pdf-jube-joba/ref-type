@@ -1,0 +1,31 @@
+/* Faithful scalar coordinates obtained from recursive Clifford normal forms. */
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Natural;
+\import std.Data[].FinSet[] \as Fin;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Scalars;
+\import linear_algebra.Field[].Space[K := R.Real, field := Scalars.field] \as Spaces;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition dimension: N.Nat^ -> N.Nat^ := \induction (n: N.Nat^) \return N.Nat^ \with {
+  | zero: N.Nat^::succ N.Nat^::zero
+  | succ: \fun (n: N.Nat^)(previous: N.Nat^) => Natural.add previous previous
+};
+\definition Index[n: N.Nat^]: \Set := Fin.Fin (dimension n);
+\structure Data[n: N.Nat^]: \Set := { read: \root.Euclidean[n := n].Carrier -> Index n -> R.Real };
+\module Zero;
+\module Step(n: N.Nat^);
+\definition coordinates: \forall (n: N.Nat^) -> Data[n] := \induction (n: N.Nat^) \return Data[n] \with {
+  | zero: Zero[].coordinates
+  | succ: \fun (n: N.Nat^)(previous: Data[n]) => Step[n := n].On[previous := previous].coordinates
+};
+\definition Injective[n: N.Nat^][f: Data[n]]: \Prop := \forall (x, y: \root.Euclidean[n := n].Carrier) -> f.read x = f.read y -> x = y;
+\definition injective: \forall (n: N.Nat^) -> Injective n (coordinates n) :=
+  \induction (n: N.Nat^) \return Injective n (coordinates n) \with {
+    | zero: Zero[].injective
+    | succ: \fun (n: N.Nat^)(previous: Injective n (coordinates n)) => Step[n := n].On[previous := coordinates n].injective previous
+  };

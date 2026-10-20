@@ -1,0 +1,20 @@
+\import manifolds.FromCharts[n := d, m := dimension].Between[M := S, N := manifold] \as FromCharts;
+\import manifolds.Dimension[n := d].Chart[M := S.Point, space := S.space] \as SourceCharts;
+\import manifolds.SmoothMap[n := d, m := dimension].Between[M := S, N := manifold] \as Maps;
+\import \root.Smooth[n := d, m := dimension].Between[M := S, N := manifold] \as Regularity;
+\import \parent.\parent.SmoothMaps[d := d].From[S := S] \as SmoothMaps;
+\definition SourceChart: \Set := FromCharts.SourceChart;
+\definition Function: \Set := S.Point -> G;
+\definition chartValue[f: Function][c: SourceChart][x: Open.Carrier c.image]: G := f (SourceCharts.point c x);
+\definition Condition[f: Function]: \Prop := \forall (c: SourceChart) -> MatrixPlots.Plot c.image (chartValue f c);
+\module On(f: Function, plots: Condition f);
+\definition ofMap: \forall (f: Maps.Map) -> Condition (Maps.apply f) := \fun (f: Maps.Map)(c: SourceChart) => SmoothMaps.Of[f := f].Chart[c := c].plot;
+\definition ofSmooth: \forall (f: Function) -> Regularity.IsSmooth f -> Condition f :=
+  \fun (f: Function)(smooth: _) => \idelim Maps.apply (Regularity.map f smooth) = f \with h: Function => Condition h \by {
+    base: ofMap (Regularity.map f smooth), equality: Regularity.applyChosen f smooth
+  };
+\definition smooth: \forall (f: Function) -> Condition f -> Regularity.IsSmooth f := \block {
+  \fun (f: Function)(plots: Condition f) \then
+  \let result: Maps.Map := On[f := f, plots := plots].map \then
+  \return \exact(\into[Maps.Map](result, Regularity.WithFunction f) \by { On[f := f, plots := plots].apply }, Regularity.WithFunction f)
+};
