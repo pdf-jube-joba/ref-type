@@ -1,0 +1,30 @@
+\import Over.Open[] \as OverOpen;
+\import topology.Topology[Carrier := Over.CarrierSet] \as OverSpace;
+\import topology.Continuity[A := Over.CarrierSet, B := Fiber b] \as Indices;
+\import std.Logic[].Proposition[] \as Logic;
+\definition LocalSheet[s: Fiber b]: \Pow Over.CarrierSet := { f: Over.CarrierSet \where index chart f = s };
+\definition Sheet[s: Fiber b]: \Pow E := OverOpen.image (LocalSheet s);
+\definition open: \forall (covering: Covering) -> Base.IsOpenIn base U -> \forall (s: Fiber b) -> Total.IsOpenIn total (Sheet s) :=
+  \fun (covering: _)(uo: _)(s: _) => OverOpen.imageOpen total (covering.continuous U uo) (LocalSheet s)
+    (indexContinuous chart (FiberSpace.Singleton s) (FiberSpace.discreteOpen (FiberSpace.Singleton s)));
+\definition member: \forall (s: Fiber b)(f: Over.CarrierSet) -> index chart f = s -> Total.Member (Sheet s) f :=
+  \fun (s: _)(f: _)(same: _) => OverOpen.imageMember (LocalSheet s) f same;
+\definition projectionWithin: \forall (s: Fiber b)(f: E) -> Total.Member (Sheet s) f -> Base.Member U (projection f) :=
+  \fun (s: _)(f: _)(member: _) => OverOpen.imageIncluded (LocalSheet s) f member;
+\definition sheetIndex: \forall (s: Fiber b)(f: Over.CarrierSet) -> Total.Member (Sheet s) f -> index chart f = s :=
+  \fun (s: _)(f: _)(member: _) => OverOpen.imageElim (LocalSheet s) f (index chart f = s)
+    (\fun (h: Over.CarrierSet)(same: index chart h = s)(equal: h = f) => trans!{E} _ _ _
+      (sym!{E} _ _ (congr!{{Over.CarrierSet} E} (index chart) h f equal)) same) member;
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Transport[] \as Transport;
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Lifting[] \as Lifting;
+\import Lifting.Local[b := b, U := U] \as Local;
+\import Lifting.Uniqueness[] \as Unique;
+\import fundamental_groups.Paths[A := B, source := base] \as Paths;
+\import algebraic_topology.Interval[] \as I;
+\definition along: \forall (covering: Covering)(x, y: B)(p: Paths.Path x y)(within: Local.Contained x y p)(e: Fiber x)(v: Under.CarrierSet) ->
+  y = v -> Transport.along covering x y p e = section chart (index chart (Local.overStart x y p within e)) v :=
+  \fun (covering: Covering)(x, y: B)(p: Paths.Path x y)(within: Local.Contained x y p)(e: Fiber x)(v: Under.CarrierSet)(same: y = v) => trans!{E} _ _ _
+    (congr!{{I.Carrier -> E} E} (\fun (f: I.Carrier -> E) => f I.end) _ _
+      (Unique.pathLiftUnique covering x y p e (Transport.lift covering x y p e) (Local.lift x y p within e chart)))
+    (congr!{{Under.CarrierSet} E} (section chart (index chart (Local.overStart x y p within e))) (Local.inNeighborhood x y p within I.end) v
+      (trans!{B} _ _ _ (Paths.laws x y p).end same));

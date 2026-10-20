@@ -1,0 +1,70 @@
+\definition b: B := projection point;
+\definition sourcePoint: Source.Fiber b := \into[E](point, Source.Fiber b) \by { \refl(b) };
+\import fundamental_groups.FundamentalGroup[A := B, source := base, basepoint := b] \as Fundamental;
+\import fundamental_groups.Bridges[A := B, source := base, basepoint := b] \as Bridges;
+\import SourceTransport.Action[covering := c, b := b] \as SourceFiber;
+\import TargetTransport.Action[covering := d, b := b] \as TargetFiber;
+\import algebra.Noncommutative[G := Fundamental.Carrier, group := Fundamental.group] \as Group;
+\import Group.Actions[S := Source.Fiber b] \as SourceActions;
+\import Group.Actions[S := Target.Fiber b] \as TargetActions;
+\import SourceActions.PointedMaps[act := SourceFiber.action, point := sourcePoint, T := Target.Fiber b, target := TargetFiber.action, targetPoint := targetPoint] \as PointedMaps;
+\import TargetActions.PointedMaps[act := TargetFiber.action, point := targetPoint, T := Source.Fiber b, target := SourceFiber.action, targetPoint := sourcePoint] \as BackMaps;
+\definition Compatible: \Prop := PointedMaps.Compatible;
+\definition SameSubgroup: \Prop := \forall (g: Fundamental.Carrier) -> Logic.PropEquiv[
+  SourceFiber.move g sourcePoint = sourcePoint, TargetFiber.move g targetPoint = targetPoint];
+\structure Map: \Set := {
+  map: OverMap,
+  continuous: Maps.Continuous total other map.apply,
+  pointed: map.apply point = targetPoint,
+};
+\import topology.Homeomorphism[A := E, B := F] \as Homeomorphism;
+\structure Isomorphism: \Set := {
+  data: Homeomorphism.Data,
+  laws: Homeomorphism.Laws[total, other, data],
+  over: \forall (e: E) -> otherProjection (data.forward e) = projection e,
+  pointed: data.forward point = targetPoint,
+};
+\module Built(basis: Neighborhoods.GoodBasis, bridges: Bridges.Family, connected: TotalPaths.PathConnected, compatible: Compatible);
+\module IsoBuilt(basis: Neighborhoods.GoodBasis, bridges: Bridges.Family, connected: TotalPaths.PathConnected,
+  otherConnected: fundamental_groups.Paths[A := F, source := other].PathConnected, same: SameSubgroup);
+\definition existsMap: Neighborhoods.GoodBasis -> Paths.PathConnected -> TotalPaths.PathConnected -> Compatible -> \exists Map := \block {
+  \fun (basis: _)(baseConnected: _)(connected: _)(compatible: _) \then
+  \takefrom bridges: Bridges.Family \by Bridges.existsFamily baseConnected \then
+  \return \exact(Built[basis := basis, bridges := bridges, connected := connected, compatible := compatible].map, Map)
+};
+\definition compatibleOfMap: \forall (map: Map) -> Compatible := \block {
+  \fun (map: Map)(g: Fundamental.Carrier)(fixed: _) \then
+  \let equivariant: Equivariant[c, d, map.map] := equivariantOfContinuous map.map map.continuous \then
+  \return eq_reason_in!{F {TargetFiber.move g targetPoint}
+    "=" {TargetFiber.move g (fiber map.map b sourcePoint)} "by" {
+      congr!{{Target.Fiber b} F} (TargetFiber.move g) targetPoint (fiber map.map b sourcePoint) (sym!{F} _ _ map.pointed)}
+    "=" {map.map.apply (SourceFiber.move g sourcePoint)} "by" {sym!{F} _ _ (equivariant.commutes b b g sourcePoint)}
+    "=" {map.map.apply sourcePoint} "by" {congr!{E F} map.map.apply _ _ fixed}
+    "=" {targetPoint} "by" {map.pointed}}
+};
+\definition sameOfIsomorphism: \forall (iso: Isomorphism) -> SameSubgroup := \block {
+  \fun (iso: Isomorphism) \then
+  \let map: Map := Map { map := OverMap { apply := iso.data.forward, over := iso.over }, continuous := iso.laws.forwardContinuous, pointed := iso.pointed } \then
+  \let equivariant: Equivariant[c, d, map.map] := equivariantOfContinuous map.map map.continuous \then
+  \return \fun (g: Fundamental.Carrier) => Logic.PropEquiv[_, _] {
+    ltr := compatibleOfMap map g,
+    rtl := \fun (fixed: _) => trans!{E} _ _ _ (sym!{E} _ _ (iso.laws.leftInverse (SourceFiber.move g sourcePoint)))
+      (trans!{E} _ _ _
+        (congr!{F E} iso.data.backward _ _ (trans!{F} _ _ _ (equivariant.commutes b b g sourcePoint)
+          (trans!{F} _ _ _
+            (congr!{{Target.Fiber b} F} (TargetFiber.move g) (fiber map.map b sourcePoint) targetPoint iso.pointed)
+            (trans!{F} _ _ _ fixed (sym!{F} _ _ iso.pointed))))) (iso.laws.leftInverse sourcePoint)),
+  }
+};
+\definition existsIsomorphism: Neighborhoods.GoodBasis -> Paths.PathConnected -> TotalPaths.PathConnected ->
+  fundamental_groups.Paths[A := F, source := other].PathConnected -> SameSubgroup -> \exists Isomorphism := \block {
+  \fun (basis: _)(baseConnected: _)(connected: _)(otherConnected: _)(same: _) \then
+  \takefrom bridges: Bridges.Family \by Bridges.existsFamily baseConnected \then
+  \return \exact(IsoBuilt[basis := basis, bridges := bridges, connected := connected, otherConnected := otherConnected, same := same].isomorphism, Isomorphism)
+};
+\definition classification: Neighborhoods.GoodBasis -> Paths.PathConnected -> TotalPaths.PathConnected ->
+  fundamental_groups.Paths[A := F, source := other].PathConnected -> Logic.PropEquiv[\exists Isomorphism, SameSubgroup] :=
+  \fun (basis: _)(baseConnected: _)(connected: _)(otherConnected: _) => Logic.PropEquiv[_, _] {
+    ltr := \block { \fun (exists: _) \then \takefrom iso: Isomorphism \by exists \then \return sameOfIsomorphism iso },
+    rtl := existsIsomorphism basis baseConnected connected otherConnected,
+  };

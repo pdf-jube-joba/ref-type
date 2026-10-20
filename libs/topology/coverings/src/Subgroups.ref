@@ -1,0 +1,37 @@
+\import fundamental_groups.FundamentalGroup[A := B, source := base, basepoint := b] \as Fundamental;
+\import fundamental_groups.Groupoid[A := B, source := base] \as G;
+\import fundamental_groups.Paths[A := B, source := base] \as Paths;
+\import fundamental_groups.Bridges[A := B, source := base, basepoint := b] \as Bridges;
+\import fundamental_groups.Neighborhoods[A := B, source := base] \as Neighborhoods;
+\import algebra.Noncommutative[G := Fundamental.Carrier, group := Fundamental.group] \as Group;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\definition Carrier[H: Group.Subgroup]: \Set := Pair.Times^[B, Group.Cosets[H := H].Carrier];
+\definition projection[H: Group.Subgroup]: Carrier H -> B := Pair.first B (Group.Cosets[H := H].Carrier);
+\definition point[H: Group.Subgroup]: Carrier H := Pair.pair B (Group.Cosets[H := H].Carrier) b (Group.Cosets[H := H].class Group.one);
+\structure Realization[H: Group.Subgroup]: \Set := {
+  topology: topology.Topology[Carrier := Carrier H].Topology,
+  covering: \root.Projection[E := Carrier H, B := B, total := topology, base := base, projection := projection H].Covering,
+  connected: fundamental_groups.Paths[A := Carrier H, source := topology].PathConnected,
+  image: \root.Projection[E := Carrier H, B := B, total := topology, base := base, projection := projection H]
+    .Fundamental[e := point H].Monodromy[covering := covering].image = H,
+};
+\module With(H: Group.Subgroup, bridges: Bridges.Family);
+\definition existsRealization: Neighborhoods.GoodBasis -> Paths.PathConnected -> \forall (H: Group.Subgroup) -> \exists Realization[H] := \block {
+  \fun (basis: _)(connected: _)(H: Group.Subgroup) \then
+  \takefrom bridges: Bridges.Family \by Bridges.existsFamily connected \then
+  \return \exact(Realization[H] {
+    topology := With[H := H, bridges := bridges].Realized[basis := basis].topology,
+    covering := With[H := H, bridges := bridges].Realized[basis := basis].covering,
+    connected := With[H := H, bridges := bridges].Realized[basis := basis].connected,
+    image := With[H := H, bridges := bridges].Realized[basis := basis].subgroup,
+  }, Realization[H])
+};
+\definition existsStandardRealization: Neighborhoods.LocallyPathConnected -> Neighborhoods.SemilocallySimplyConnected -> Paths.PathConnected ->
+  \forall (H: Group.Subgroup) -> \exists Realization[H] :=
+  \fun (lpc: _)(semi: _) => existsRealization (Neighborhoods.goodBasis lpc semi);

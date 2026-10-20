@@ -1,0 +1,31 @@
+\definition onGroup[a: G]: T := target a targetPoint;
+\definition respects: Descent.Respects onGroup := \block {
+  \fun (a, b: G)(related: Cosets.Related a b) \then
+  \takefrom h: \Cast[\Cast[G] Source.subgroup] ({ h: \Cast[G] Source.subgroup \where mul h a = b }) \by related \then
+  \let same: mul h a = b := \bysub(\Cast[G] Source.subgroup, { h: \Cast[G] Source.subgroup \where mul h a = b }, h) \then
+  \return sym!{T} _ _ (trans!{T} _ _ _ (congr!{G T} onGroup _ _ (sym!{G} _ _ same))
+    (trans!{T} _ _ _ ((Target.laws target).compose h a targetPoint)
+      (congr!{T T} (target a) _ _ (compatible h (\bysub(G, Source.subgroup, h))))))
+};
+\definition orbit: Cosets.Carrier -> T := Descent.descend onGroup respects;
+\definition apply[s: S]: T := orbit (Source.backward transitive s);
+\definition backwardOnGroup: \forall (a: G) -> Source.backward transitive (act a point) = Cosets.class a :=
+  \fun (a: G) => Source.injective _ _ (trans!{S} _ _ _ (Source.orbitRightInverse transitive (act a point)) (sym!{S} _ _ (Source.onClass a)));
+\definition onOrbit: \forall (a: G) -> apply (act a point) = target a targetPoint :=
+  \fun (a: G) => trans!{T} _ _ _ (congr!{Cosets.Carrier T} orbit _ _ (backwardOnGroup a)) (Descent.onClass onGroup respects a);
+\definition commutes: \forall (a: G)(s: S) -> apply (act a s) = target a (apply s) := \block {
+  \fun (a: G)(s: S) \then
+  \takefrom g: \Cast[G] ({ g: G \where act g point = s }) \by transitive point s \then
+  \let same: act g point = s := \bysub(G, { g: G \where act g point = s }, g) \then
+  \return eq_reason!{{apply (act a s)}
+    "=" {apply (act a (act g point))} "by" {congr!{S T} (\fun (t: S) => apply (act a t)) _ _ (sym!{S} _ _ same)}
+    "=" {apply (act (mul g a) point)} "by" {congr!{S T} apply _ _ (sym!{S} _ _ ((laws act).compose g a point))}
+    "=" {target (mul g a) targetPoint} "by" {onOrbit (mul g a)}
+    "=" {target a (target g targetPoint)} "by" {(Target.laws target).compose g a targetPoint}
+    "=" {target a (apply (act g point))} "by" {congr!{T T} (target a) _ _ (sym!{T} _ _ (onOrbit g))}
+    "=" {target a (apply s)} "by" {congr!{S T} (\fun (t: S) => target a (apply t)) _ _ same}}
+};
+\definition pointed: apply point = targetPoint := trans!{T} _ _ _
+  (congr!{S T} apply _ _ (sym!{S} _ _ ((laws act).identity point)))
+  (trans!{T} _ _ _ (onOrbit one) ((Target.laws target).identity targetPoint));
+\definition map: Map := Map { apply := apply, commutes := commutes, pointed := pointed };

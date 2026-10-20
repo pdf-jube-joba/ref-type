@@ -1,0 +1,55 @@
+\definition b: B := projection point;
+\definition sourcePoint: Source.Fiber b := \into[E](point, Source.Fiber b) \by { \refl(b) };
+\import fundamental_groups.FundamentalGroup[A := B, source := base, basepoint := b] \as Fundamental;
+\import SourceTransport.Action[covering := c, b := b] \as SourceFiber;
+\import TargetTransport.Action[covering := d, b := b] \as TargetFiber;
+\import algebra.Noncommutative[G := Fundamental.Carrier, group := Fundamental.group] \as Group;
+\import Group.Actions[S := Target.Fiber b] \as TargetActions;
+\import \root.Comparison[E := E, F := F, B := B, total := total, other := other, base := base, projection := projection, otherProjection := otherProjection].With[c := c, d := d] \as Comparison;
+\definition Conjugates[a: Fundamental.Carrier]: \Prop := \forall (g: Fundamental.Carrier) -> Logic.PropEquiv[
+  SourceFiber.move g sourcePoint = sourcePoint,
+  TargetFiber.move (Group.mul (Group.mul a g) (Group.inv a)) targetPoint = targetPoint];
+\definition Conjugate: \Prop := \exists ( a: Fundamental.Carrier \where Conjugates a );
+\definition sameAtMovedPoint: \forall (a: Fundamental.Carrier) -> Conjugates a ->
+  Comparison.Pointed[point := point, targetPoint := TargetFiber.move a targetPoint].SameSubgroup :=
+  \fun (a: _)(conjugates: _)(g: _) => Logic.PropEquiv[_, _] {
+    ltr := \fun (fixed: _) => (TargetActions.conjugateStabilizer TargetFiber.action a g targetPoint).rtl ((conjugates g).ltr fixed),
+    rtl := \fun (fixed: _) => (conjugates g).rtl ((TargetActions.conjugateStabilizer TargetFiber.action a g targetPoint).ltr fixed),
+  };
+\definition conjugateOfIsomorphism: fundamental_groups.Paths[A := F, source := other].PathConnected -> Isomorphism -> Conjugate := \block {
+  \fun (connected: _)(iso: Isomorphism) \then
+  \let image: Target.Fiber b := \into[F](iso.data.forward point, Target.Fiber b) \by { iso.over point } \then
+  \let pointed: Comparison.Pointed[point := point, targetPoint := image].Isomorphism :=
+    Comparison.Pointed[point := point, targetPoint := image].Isomorphism {
+      data := iso.data, laws := iso.laws, over := iso.over, pointed := \refl(iso.data.forward point),
+    } \then
+  \let same: Comparison.Pointed[point := point, targetPoint := image].SameSubgroup :=
+    Comparison.Pointed[point := point, targetPoint := image].sameOfIsomorphism pointed \then
+  \takefrom a: \Cast[Fundamental.Carrier] ({ a: Fundamental.Carrier \where TargetFiber.move a targetPoint = image }) \by
+    TargetFiber.connectedTransitive connected targetPoint image \then
+  \let equal: TargetFiber.move a targetPoint = image := \bysub(Fundamental.Carrier, { a: Fundamental.Carrier \where TargetFiber.move a targetPoint = image }, a) \then
+  \return Logic.existsIntro[Fundamental.Carrier, { a: Fundamental.Carrier \where Conjugates a }] a
+    (\fun (g: Fundamental.Carrier) => Logic.PropEquiv[_, _] {
+      ltr := \fun (fixed: _) => (TargetActions.conjugateStabilizer TargetFiber.action a g targetPoint).ltr
+        (\idelim image = TargetFiber.move a targetPoint \with f: Target.Fiber b => TargetFiber.move g f = f
+          \by { base: (same g).ltr fixed, equality: sym!{F} _ _ equal }),
+      rtl := \fun (fixed: _) => (same g).rtl
+        (\idelim TargetFiber.move a targetPoint = image \with f: Target.Fiber b => TargetFiber.move g f = f
+          \by { base: (TargetActions.conjugateStabilizer TargetFiber.action a g targetPoint).rtl fixed, equality: equal }),
+    })
+};
+\definition existsIsomorphism: Neighborhoods.GoodBasis -> Paths.PathConnected -> TotalPaths.PathConnected ->
+  fundamental_groups.Paths[A := F, source := other].PathConnected -> Conjugate -> \exists Isomorphism := \block {
+  \fun (basis: _)(baseConnected: _)(connected: _)(otherConnected: _)(conjugate: _) \then
+  \takefrom a: \Cast[Fundamental.Carrier] ({ a: Fundamental.Carrier \where Conjugates a }) \by conjugate \then
+  \takefrom iso: Comparison.Pointed[point := point, targetPoint := TargetFiber.move a targetPoint].Isomorphism \by
+    Comparison.Pointed[point := point, targetPoint := TargetFiber.move a targetPoint].existsIsomorphism basis baseConnected connected otherConnected
+      (sameAtMovedPoint a (\bysub(Fundamental.Carrier, { a: Fundamental.Carrier \where Conjugates a }, a))) \then
+  \return \exact(Isomorphism { data := iso.data, laws := iso.laws, over := iso.over }, Isomorphism)
+};
+\definition classification: Neighborhoods.GoodBasis -> Paths.PathConnected -> TotalPaths.PathConnected ->
+  fundamental_groups.Paths[A := F, source := other].PathConnected -> Logic.PropEquiv[\exists Isomorphism, Conjugate] :=
+  \fun (basis: _)(baseConnected: _)(connected: _)(otherConnected: _) => Logic.PropEquiv[_, _] {
+    ltr := \block { \fun (exists: _) \then \takefrom iso: Isomorphism \by exists \then \return conjugateOfIsomorphism otherConnected iso },
+    rtl := existsIsomorphism basis baseConnected connected otherConnected,
+  };

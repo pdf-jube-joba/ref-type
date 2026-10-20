@@ -1,0 +1,48 @@
+\import Group.Cosets[H := H] \as Cosets;
+\import Cosets.Action[] \as CosetAction;
+\import Bridges.Along[bridges := bridges] \as Bridge;
+\definition Carrier: \Set := Pair.Times^[B, Cosets.Carrier];
+\import Pair.Prop[A := B, B := Cosets.Carrier] \as Pairs;
+\definition projection: Carrier -> B := Pair.first B Cosets.Carrier;
+\import \root.PathAction[E := Carrier, B := B, base := base, projection := projection] \as Transport;
+\definition coordinate: Carrier -> Cosets.Carrier := Pair.second B Cosets.Carrier;
+\definition move[x, y: B][p: G.Arrow x y][e: Transport.Fiber x]: Transport.Fiber y :=
+  \into[Carrier](Pair.pair B Cosets.Carrier y (CosetAction.apply (Bridge.loop x y p) (coordinate e)), Transport.Fiber y) \by { \refl(y) };
+\definition action: Transport.Action := Transport.Action {
+  move := move,
+  identity := \fun (x: B)(e: Transport.Fiber x) => Pairs.ext _ _ (sym!{B} _ _ (Transport.projectsTo x e))
+    (trans!{Cosets.Carrier} _ _ _
+      (congr!{Fundamental.Carrier Cosets.Carrier} (\fun (g: Fundamental.Carrier) => CosetAction.apply g (coordinate e)) _ _ (Bridge.identity x))
+      (CosetAction.identity (coordinate e))),
+  compose := \fun (x, y, z: B)(p: G.Arrow x y)(q: G.Arrow y z)(e: Transport.Fiber x) => Pairs.ext _ _ (\refl(z))
+    (trans!{Cosets.Carrier} _ _ _
+      (congr!{Fundamental.Carrier Cosets.Carrier} (\fun (g: Fundamental.Carrier) => CosetAction.apply g (coordinate e)) _ _ (Bridge.compose x y z p q))
+      (CosetAction.compose (Bridge.loop x y p) (Bridge.loop y z q) (coordinate e))),
+};
+\definition inhabited: \forall (x: B) -> \exists Transport.Fiber x :=
+  \fun (x: B) => \exact(\into[Carrier](Pair.pair B Cosets.Carrier x (Cosets.class Group.one), Transport.Fiber x) \by { \refl(x) }, Transport.Fiber x);
+\definition transitive: Transport.Transitive action := \block {
+  \fun (x, y: B)(e: Transport.Fiber x)(f: Transport.Fiber y) \then
+  \takefrom g: \Cast[Fundamental.Carrier] ({ g: Fundamental.Carrier \where CosetAction.apply g (coordinate e) = coordinate f })
+    \by CosetAction.transitive (coordinate e) (coordinate f) \then
+  \return Logic.existsIntro[G.Arrow x y, { p: G.Arrow x y \where move x y p e = f }] (Bridge.unloop x y g)
+    (Pairs.ext _ _ (sym!{B} _ _ (Transport.projectsTo y f))
+      (trans!{Cosets.Carrier} _ _ _
+        (congr!{Fundamental.Carrier Cosets.Carrier} (\fun (h: Fundamental.Carrier) => CosetAction.apply h (coordinate e)) _ _ (Bridge.loopUnloop x y g))
+        (\bysub(Fundamental.Carrier, { g: Fundamental.Carrier \where CosetAction.apply g (coordinate e) = coordinate f }, g))))
+};
+\import Transport.Realization[action := action] \as Construction;
+\definition point: Carrier := Pair.pair B Cosets.Carrier b (Cosets.class Group.one);
+\definition pointed: Transport.Fiber b := \into[Carrier](point, Transport.Fiber b) \by { \refl(b) };
+\definition fixes: \forall (g: Fundamental.Carrier) -> Logic.PropEquiv[move b b g pointed = pointed, \In[Fundamental.Carrier] H g] :=
+  \fun (g: Fundamental.Carrier) => Logic.PropEquiv[_, _] {
+    ltr := \fun (same: move b b g pointed = pointed) => CosetAction.memberOfFixes g
+      (trans!{Cosets.Carrier} _ _ _
+        (sym!{Cosets.Carrier} _ _ (congr!{Fundamental.Carrier Cosets.Carrier} (\fun (h: Fundamental.Carrier) => CosetAction.apply h (Cosets.class Group.one)) (Bridge.loop b b g) g (Bridge.atBasepoint g)))
+        (congr!{Carrier Cosets.Carrier} coordinate (move b b g pointed) pointed same)),
+    rtl := \fun (member: _) => Pairs.ext _ _ (\refl(b))
+      (trans!{Cosets.Carrier} _ _ _
+        (congr!{Fundamental.Carrier Cosets.Carrier} (\fun (h: Fundamental.Carrier) => CosetAction.apply h (Cosets.class Group.one)) (Bridge.loop b b g) g (Bridge.atBasepoint g))
+        (CosetAction.fixesOfMember g member)),
+  };
+\module Realized(basis: Neighborhoods.GoodBasis);

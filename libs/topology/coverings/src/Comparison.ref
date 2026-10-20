@@ -1,0 +1,55 @@
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection] \as Source;
+\import \root.Projection[E := F, B := B, total := other, base := base, projection := otherProjection] \as Target;
+\import Source.Transport[] \as SourceTransport;
+\import Target.Transport[] \as TargetTransport;
+\import fundamental_groups.Groupoid[A := B, source := base] \as G;
+\import fundamental_groups.Paths[A := B, source := base] \as Paths;
+\import fundamental_groups.Neighborhoods[A := B, source := base] \as Neighborhoods;
+\import topology.Topology[Carrier := E] \as Total;
+\import topology.Topology[Carrier := F] \as Other;
+\import topology.Topology[Carrier := B] \as Base;
+\import topology.Continuity[A := E, B := F] \as Maps;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\use Equality.eq_reason_in;
+\structure OverMap: \Set := {
+  apply: E -> F,
+  over: \forall (e: E) -> otherProjection (apply e) = projection e,
+};
+\definition fiber[m: OverMap][x: B][e: Source.Fiber x]: Target.Fiber x :=
+  \into[F](m.apply e, Target.Fiber x) \by { trans!{B} _ _ _ (m.over e) (Source.projectsTo x e) };
+\structure Equivariant[c: Source.Covering, d: Target.Covering, m: OverMap]: \Prop := {
+  commutes: \forall (x, y: B)(p: G.Arrow x y)(e: Source.Fiber x) ->
+    m.apply (SourceTransport.Groupoid[covering := c].move x y p e) = TargetTransport.Groupoid[covering := d].move x y p (fiber m x e),
+};
+\import topology.Homeomorphism[A := E, B := F] \as Homeomorphism;
+\structure Isomorphism: \Set := {
+  data: Homeomorphism.Data,
+  laws: Homeomorphism.Laws[total, other, data],
+  over: \forall (e: E) -> otherProjection (data.forward e) = projection e,
+};
+\module With(c: Source.Covering, d: Target.Covering);
+\definition continuousOfEquivariant: \forall (c: Source.Covering)(d: Target.Covering) -> Neighborhoods.GoodBasis ->
+  \forall (m: OverMap) -> Equivariant[c, d, m] -> Maps.Continuous total other m.apply :=
+  \fun (c: _)(d: _)(basis: _)(m: _)(equivariant: _) => With[c := c, d := d].Along[m := m, equivariant := equivariant, basis := basis].continuous;
+\definition pointedClassification: \forall (c: Source.Covering)(d: Target.Covering)(point: E)(targetPoint: Target.Fiber (projection point)) ->
+  Neighborhoods.LocallyPathConnected -> Neighborhoods.SemilocallySimplyConnected -> Paths.PathConnected ->
+  fundamental_groups.Paths[A := E, source := total].PathConnected -> fundamental_groups.Paths[A := F, source := other].PathConnected ->
+  Logic.PropEquiv[\exists With[c := c, d := d].Pointed[point := point, targetPoint := targetPoint].Isomorphism,
+    With[c := c, d := d].Pointed[point := point, targetPoint := targetPoint].SameSubgroup] :=
+  \fun (c: _)(d: _)(point: _)(targetPoint: _)(lpc: _)(semi: _) =>
+    With[c := c, d := d].Pointed[point := point, targetPoint := targetPoint].classification (Neighborhoods.goodBasis lpc semi);
+\definition unpointedClassification: \forall (c: Source.Covering)(d: Target.Covering)(point: E)(targetPoint: Target.Fiber (projection point)) ->
+  Neighborhoods.LocallyPathConnected -> Neighborhoods.SemilocallySimplyConnected -> Paths.PathConnected ->
+  fundamental_groups.Paths[A := E, source := total].PathConnected -> fundamental_groups.Paths[A := F, source := other].PathConnected ->
+  Logic.PropEquiv[\exists Isomorphism, With[c := c, d := d].Unpointed[point := point, targetPoint := targetPoint].Conjugate] :=
+  \fun (c: _)(d: _)(point: _)(targetPoint: _)(lpc: _)(semi: _) =>
+    With[c := c, d := d].Unpointed[point := point, targetPoint := targetPoint].classification (Neighborhoods.goodBasis lpc semi);
+\definition uniquePointedMap: \forall (c: Source.Covering)(d: Target.Covering) -> fundamental_groups.Paths[A := E, source := total].PathConnected ->
+  \forall (m, n: OverMap) -> Maps.Continuous total other m.apply -> Maps.Continuous total other n.apply -> \forall (point: E) ->
+  m.apply point = n.apply point -> \forall (e: E) -> m.apply e = n.apply e :=
+  \fun (c: _)(d: _) => With[c := c, d := d].unique;

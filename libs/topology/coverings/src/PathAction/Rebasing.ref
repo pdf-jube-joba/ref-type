@@ -1,0 +1,33 @@
+\import fundamental_groups.Bridges[A := B, source := base, basepoint := b].Along[bridges := bridges] \as Bridge;
+\import fundamental_groups.FundamentalGroup[A := B, source := base, basepoint := b] \as Fundamental;
+\import algebra.Noncommutative[G := Fundamental.Carrier, group := Fundamental.group] \as Group;
+\import Group.Actions[S := Fiber b] \as Actions;
+\definition baseAction: Actions.Action := \into[Fundamental.Carrier -> Fiber b -> Fiber b](action.move b b, Actions.Action) \by {
+  Actions.Laws[action.move b b] { identity := action.identity b, compose := action.compose b b b }
+};
+\definition toBase[x: B][e: Fiber x]: Fiber b := action.move x b (G.inverse b x (Bridge.arrow x)) e;
+\definition fromBase[x: B][e: Fiber b]: Fiber x := action.move b x (Bridge.arrow x) e;
+\definition leftInverse: \forall (x: B)(e: Fiber x) -> fromBase x (toBase x e) = e :=
+  \fun (x: _)(e: _) => trans!{E} _ _ _
+    (sym!{E} _ _ (action.compose x b x (G.inverse b x (Bridge.arrow x)) (Bridge.arrow x) e))
+    (trans!{E} _ _ _ (congr!{{G.Arrow x x} E} (\fun (p: G.Arrow x x) => action.move x x p e) _ _ (G.leftInverse b x (Bridge.arrow x))) (action.identity x e));
+\definition rightInverse: \forall (x: B)(e: Fiber b) -> toBase x (fromBase x e) = e :=
+  \fun (x: _)(e: _) => trans!{E} _ _ _
+    (sym!{E} _ _ (action.compose b x b (Bridge.arrow x) (G.inverse b x (Bridge.arrow x)) e))
+    (trans!{E} _ _ _ (congr!{{G.Arrow b b} E} (\fun (p: G.Arrow b b) => action.move b b p e) _ _ (G.rightInverse b x (Bridge.arrow x))) (action.identity b e));
+\definition injective: \forall (x: B)(e, f: Fiber x) -> toBase x e = toBase x f -> e = f :=
+  \fun (x: _)(e, f: _)(same: _) => trans!{E} _ _ _ (sym!{E} _ _ (leftInverse x e))
+    (trans!{E} _ _ _ (congr!{{Fiber b} E} (fromBase x) _ _ same) (leftInverse x f));
+\definition naturality: \forall (x, y: B)(p: G.Arrow x y)(e: Fiber x) ->
+  toBase y (action.move x y p e) = action.move b b (Bridge.loop x y p) (toBase x e) :=
+  \fun (x, y: _)(p: _)(e: _) => trans!{E} _ _ _
+    (sym!{E} _ _ (action.compose x y b p (G.inverse b y (Bridge.arrow y)) e))
+    (trans!{E} _ _ _
+      (congr!{{G.Arrow x b} E} (\fun (r: G.Arrow x b) => action.move x b r e) _ _ (sym!{{G.Arrow x b}} _ _ (Bridge.slide x y p)))
+      (action.compose x b b (G.inverse b x (Bridge.arrow x)) (Bridge.loop x y p) e));
+\definition baseFrom: \forall (e: Fiber b) -> fromBase b e = e :=
+  \fun (e: _) => trans!{E} _ _ _ (congr!{{G.Arrow b b} E} (\fun (p: G.Arrow b b) => action.move b b p e) _ _ Bridge.normalized) (action.identity b e);
+\definition baseTo: \forall (e: Fiber b) -> toBase b e = e :=
+  \fun (e: _) => trans!{E} _ _ _
+    (congr!{{G.Arrow b b} E} (\fun (p: G.Arrow b b) => action.move b b p e) _ _
+      (trans!{{G.Arrow b b}} _ _ _ (congr!{{G.Arrow b b} {G.Arrow b b}} (G.inverse b b) _ _ Bridge.normalized) (G.inverseIdentity b))) (action.identity b e);
