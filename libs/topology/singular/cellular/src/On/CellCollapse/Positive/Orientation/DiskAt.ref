@@ -17,15 +17,20 @@
 \definition pointInBoundary[p: Disk.Sphere]: DiskPair.SubspaceCarrier := \into[Disk.Disk]
   ((\into[Disk.Coordinate](p, Disk.ClosedBall) \by { Reals.leReplaceLeft Real.one (Disk.normSquared p) Real.one
     (sym!{Real.Real} _ _ (\bysub(Disk.Coordinate, Disk.Boundary, p))) (Reals.leRefl Real.one) }), boundary) \by { \bysub(Disk.Coordinate, Disk.Boundary, p) };
-\definition Projected[p: Disk.Sphere][f: FromRelative]: \Prop :=
-  \forall (q: RelativeDisk.Homology[z := I.Int^::ofNat d].Carrier) ->
-    (Complexes.Map[C := Extension.complex,
-      D := singular_cohomology.Relative[A := Quotient.Carrier, source := Quotient.topology Disk.diskTopology, subset := topology.Topology[Carrier := Quotient.Carrier].Singleton (point p)].complex]
-      .At[k := I.Int^::ofNat d].induced
-      singular_cohomology.Relative[A := Quotient.Carrier, source := Quotient.topology Disk.diskTopology, subset := topology.Topology[Carrier := Quotient.Carrier].Singleton (point p)].sequence.projection).apply
-      ((f).apply q) =
-    ((singular_excision.GoodPair[A := Disk.Disk, source := Disk.diskTopology, subset := boundary]
-      .On[pair := \root.DiskLocal[n := d].GoodPair[point := pointInBoundary p].pair].Homology[z := I.Int^::ofNat d].relativeIsomorphism).forward).apply q;
+\module AtPoint(p: Disk.Sphere) {
+  \import topology.Topology[Carrier := Quotient.Carrier] \as Space;
+  \import singular_cohomology.Relative[A := Quotient.Carrier, source := Quotient.topology Disk.diskTopology,
+    subset := Space.Singleton (point p)] \as Target;
+  \import Complexes.Map[C := Extension.complex, D := Target.complex].At[k := I.Int^::ofNat d] \as Projection;
+  \import \root.DiskLocal[n := d].GoodPair[point := pointInBoundary p] \as Local;
+  \import singular_excision.GoodPair[A := Disk.Disk, source := Disk.diskTopology, subset := boundary]
+    .On[pair := Local.pair].Homology[z := I.Int^::ofNat d] \as Comparison;
+  \definition Projected[f: FromRelative]: \Prop :=
+    \forall (q: RelativeDisk.Homology[z := I.Int^::ofNat d].Carrier) ->
+      (Projection.induced Target.sequence.projection).apply ((f).apply q) =
+        ((Comparison.relativeIsomorphism).forward).apply q;
+}
+\definition Projected[p: Disk.Sphere][f: FromRelative]: \Prop := AtPoint[p := p].Projected f;
 
 \structure Represented[p: Disk.Sphere]: \Set := {
   orientation: Orientation,

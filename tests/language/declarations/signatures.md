@@ -309,3 +309,51 @@ expect = "accept"
 }
 ```
 
+## 再公開した複体の異なる台集合
+
+構造の別名を経由しても、変換前後の写像は始域と終域の型引数をそれぞれ保持する。
+
+```toml case
+id = "signature_reexport_distinct_carriers"
+scope = "module"
+expect = "accept"
+```
+
+```ref
+\module Complexes {
+  \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
+  \structure Family := { Carrier: Nat -> \Set };
+  \structure Complex := { family: Family };
+  \module Extend(C: Complex) {
+    \definition family: Family := Family { Carrier := C.family.Carrier };
+    \definition complex: Complex := Complex { family := family };
+  }
+  \module Maps(C, D: Complex) {
+    \definition Map: \Set := \forall (n: Nat) -> C.family.Carrier n -> D.family.Carrier n;
+    \module Child(f: Map) {
+      \import \parent.\parent.Extend[C := C] \as Source;
+      \import \parent.\parent.Extend[C := D] \as Target;
+      \import \parent.\parent.Maps[C := Source.complex, D := Target.complex] \as Result;
+      \definition copy: Result.Map := f;
+    }
+  }
+}
+\module Make(A: \Set) {
+  \import \parent.Complexes[] \as Types;
+  \module At(n: Types.Nat) { \definition Carrier: \Set := A; }
+  \definition Carrier[n: Types.Nat]: \Set := At[n := n].Carrier;
+  \definition family: Types.Family := Types.Family { Carrier := Carrier };
+  \definition complex: Types.Complex := Types.Complex { family := family };
+  \import Types.Extend[C := complex] \as Extended;
+  \definition extended: Types.Complex := Extended.complex;
+}
+\module Use(A, B: \Set) {
+  \import \parent.Complexes[] \as Types;
+  \import \parent.Make[A := A] \as Source;
+  \import \parent.Make[A := B] \as Target;
+  \import Types.Maps[C := Source.complex, D := Target.complex] \as Maps;
+  \import Types.Maps[C := Source.extended, D := Target.extended] \as Result;
+  \definition direct[f: A -> B]: Maps.Map := \fun (n: Types.Nat) => f;
+  \definition copied[f: A -> B]: Result.Map := Maps.Child[f := direct f].copy;
+}
+```

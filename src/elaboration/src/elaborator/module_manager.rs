@@ -577,7 +577,20 @@ impl ModuleManager {
                     module: child,
                     position: position as u32,
                 };
-                let reflected = match argument {
+                // Keep the captures checked above explicit in the stored
+                // telescope. A reference to a declaration in a parameterized
+                // parent otherwise hides those parameters from a later outer
+                // substitution (for example when re-exporting a signature).
+                let argument = match *argument {
+                    ModuleArgument::Pts(exp) => ModuleArgument::Pts(crate::kernel_bridge::logical(
+                        env,
+                        context,
+                        &[exp],
+                        |_, _, terms| Ok(Exp(terms[0])),
+                    )?),
+                    argument => argument,
+                };
+                let reflected = match &argument {
                     ModuleArgument::Pts(exp) => *exp,
                     ModuleArgument::ProgramType(ty) => {
                         crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
@@ -595,7 +608,7 @@ impl ModuleManager {
                             .context(crate::error::Context::CannotReflectProgramValueModuleArgument)
                     })?,
                 };
-                substitutions.push((parameter_id, *argument));
+                substitutions.push((parameter_id, argument));
                 reflected_substitutions.push((parameter_id, reflected));
             }
             source = child;
@@ -756,6 +769,17 @@ impl ModuleManager {
                 },
             )
             .collect::<Vec<_>>();
+        if std::env::var_os("REF_TYPE_DEBUG_HIR_IMPORTS").is_some() {
+            for ((source, item, path), stable) in
+                materialization_sources.iter().zip(&unchanged_sources)
+            {
+                eprintln!(
+                    "hir namespace {source:?}/{item:?} path={path} stable={stable} arguments={:?} substitution={substitutions:?}",
+                    env.namespace_binding_id(*item)
+                        .map(|b| &env.binding(b).arguments)
+                );
+            }
+        }
         let shared_program_context = Arc::new(program_context.clone());
         let mut allocated = env
             .add_modules_in_scope(
@@ -1331,6 +1355,13 @@ impl ModuleManager {
                 .get(&source)
                 .copied()
                 .unwrap_or(source);
+            if std::env::var_os("REF_TYPE_DEBUG_HIR_IMPORTS").is_some() {
+                eprintln!(
+                    "hir import {}: {instance:?} <- {source:?} => {target:?}; arguments={:?}",
+                    name.as_str(),
+                    typed.arguments
+                );
+            }
             self.hir_modules.insert(instance, target);
         }
         self.hir_modules.insert(import.target, typed.materialized);

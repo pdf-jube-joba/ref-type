@@ -21,17 +21,20 @@
       }
     | negSucc: \fun (n: N.Nat^)(x: _) => \refl((Extension.space (I.Int^::negSucc (N.Nat^::succ n))).zero)
   };
-\definition backwardCommutes: \forall (z: I.Int^)(x: Extension.Carrier z) ->
-  Bounded.apply model z (((degreeIsomorphism z).backward).apply x) = ((degreeIsomorphism (Bounded.previous z)).backward).apply (Extension.apply z x) :=
-  \induction (z: I.Int^) \return \forall (x: Extension.Carrier z) ->
-    Bounded.apply model z (((degreeIsomorphism z).backward).apply x) = ((degreeIsomorphism (Bounded.previous z)).backward).apply (Extension.apply z x) \with {
-    | ofNat: \induction (n: N.Nat^) \return \forall (x: Extension.Carrier (I.Int^::ofNat n)) ->
-        Bounded.apply model (I.Int^::ofNat n) (((degreeIsomorphism (I.Int^::ofNat n)).backward).apply x) =
-          ((degreeIsomorphism (Bounded.previous (I.Int^::ofNat n))).backward).apply (Extension.apply (I.Int^::ofNat n) x) \with {
-        | zero: \fun (x: _) => emptyEqual _ _
-        | succ: \fun (n: N.Nat^)(previous: _)(x: _) => \parent.Positive[n := n].law x
+\definition BackwardEquation[z: I.Int^]: \Prop := \forall (x: Extension.Carrier z) ->
+  Bounded.apply model z (((degreeIsomorphism z).backward).apply x) = ((degreeIsomorphism (Bounded.previous z)).backward).apply (Extension.apply z x);
+\definition backwardCommutes: \forall (z: I.Int^) -> BackwardEquation z :=
+  \induction (z: I.Int^) \return BackwardEquation z \with {
+    | ofNat: \induction (n: N.Nat^) \return BackwardEquation (I.Int^::ofNat n) \with {
+        | zero: \fun (x: Extension.Carrier (I.Int^::ofNat N.Nat^::zero)) => emptyEqual
+            (Bounded.apply model (I.Int^::ofNat N.Nat^::zero) (((degreeIsomorphism (I.Int^::ofNat N.Nat^::zero)).backward).apply x))
+            (((degreeIsomorphism (Bounded.previous (I.Int^::ofNat N.Nat^::zero))).backward).apply (Extension.apply (I.Int^::ofNat N.Nat^::zero) x))
+        | succ: \fun (n: N.Nat^)(previous: BackwardEquation (I.Int^::ofNat n))
+            (x: Extension.Carrier (I.Int^::ofNat (N.Nat^::succ n))) => \parent.Positive[n := n].law x
       }
-    | negSucc: \fun (n: N.Nat^)(x: _) => emptyEqual _ _
+    | negSucc: \fun (n: N.Nat^)(x: Extension.Carrier (I.Int^::negSucc n)) => emptyEqual
+        (Bounded.apply model (I.Int^::negSucc n) (((degreeIsomorphism (I.Int^::negSucc n)).backward).apply x))
+        (((degreeIsomorphism (Bounded.previous (I.Int^::negSucc n))).backward).apply (Extension.apply (I.Int^::negSucc n) x))
   };
 \import Complexes.Map[C := Model.chain, D := Extension.complex] \as Forward;
 \import Complexes.Map[C := Extension.complex, D := Model.chain] \as Backward;

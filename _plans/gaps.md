@@ -10,7 +10,7 @@ target/debug/cli _plans/gaps/05-01-record-eta.ref --no-cache --diagnostics compa
 
 ## 依存ライブラリを使う再現例
 
-G10・G12 のサンプルは外部 package を import する module の本文である。
+G10・G12・G17 のサンプルは外部 package を import する module の本文である。
 一時パッケージに配置し、共有キャッシュを使って実行する。
 
 ```sh
@@ -26,11 +26,14 @@ std = { path = "$PWD/libs/std" }
 module_theory = { path = "$PWD/libs/algebra/module_theory" }
 double_complexes = { path = "$PWD/libs/algebra/homological/double_complexes" }
 resolutions = { path = "$PWD/libs/algebra/homological/resolutions" }
+homological_algebra = { path = "$PWD/libs/algebra/homological/computations" }
+cohomology_examples = { path = "$PWD/libs/topology/examples/finite_models" }
+singular_finite_algebra = { path = "$PWD/libs/topology/singular/finite_algebra" }
 EOF
 target/debug/cli "$sample_dir" --module docgaps.Repro --cache-dir "$PWD/libs/refcache" --diagnostics compact
 ```
 
-`cp` の入力を各サンプルに替えると、G10・G12 の四つの結果を比較できる。
+`cp` の入力を各サンプルに替えると、G10・G12・G17 の各例を比較できる。
 
 <a id="g01"></a>
 
@@ -239,16 +242,15 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 [13-03-function-module-value.ref](gaps/13-03-function-module-value.ref) は引数から作った値を直接渡し、同じ診断になる。
 [13-04-function-reader.ref](gaps/13-04-function-reader.ref) は処理を `Read` の本文へ移す回避例である。
 整数 Künneth の `Theorem.SequenceAt` は次数ごとの短完全列の型を本文で組み立て、`Sequences(n)` はその公開型だけを読む。
+`singular_cellular.On.CellCollapse.Positive.Orientation.DiskAt.AtPoint` も、基点に依存する相対群と良い対の比較を本文で import し、`Projected` からその命題を参照する。
 
 <a id="g15"></a>
 
 ## G15: 複体を変換した結果を別名で再公開する
 
-同じ複体の構成を異なる台集合で具体化し、変換した複体を通常の定義から再公開して写像の型に使いたい。
-[15-01-complex-alias.ref](gaps/15-01-complex-alias.ref) は、異なる台集合 `A`・`B` の二つの複体を変換すると、戻り値の型の標的まで `A` に特殊化されて `types are not convertible` になる。
-
-[15-02-complex-direct.ref](gaps/15-02-complex-direct.ref) は、利用側で変換 module を二回直接 import すると型検査を通る。
-`singular_cohomology.Maps` は零拡張を `SourceExtension`・`TargetExtension` として直接具体化し、整数次数の鎖写像の型を構成する。
+解消済み。
+module 引数は検査時に確定した捕捉引数を明示した式で保持し、外側の module を具体化するときも各台集合を独立に置換する。
+[15-01-complex-alias.ref](gaps/15-01-complex-alias.ref) と、直接 import する [15-02-complex-direct.ref](gaps/15-02-complex-direct.ref) はともに受理される。
 
 <a id="g16"></a>
 
@@ -259,3 +261,13 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 
 [16-02-imported-signature.ref](gaps/16-02-imported-signature.ref) は、本文で `Types` を import し、parameter を `On(X: Types.Object)` に移す回避例である。
 `singular_cohomology.SimplicialChains.On` はこの方法で面写像を持つ単体の族を受け取る。
+
+<a id="g17"></a>
+
+## G17: ローカルな比較写像の具体化と共通の係数項
+
+証明で取り出した比較写像を具体化した後でも、係数群だけで決まる Tor 項を module の本文から参照したい。
+[17-01-local-comparison.ref](gaps/17-01-local-comparison.ref) は、`checked` の後で `Derived.torBundle` を読むと `definition local context is outside reference scope` になる。
+
+[17-02-imports-first.ref](gaps/17-02-imports-first.ref) は、共通の module と型を先に具体化してから、証明の中で比較写像を使う回避例である。
+`cohomology_examples.Circle.Geometry.UniversalCoefficient` は、両方の短完全列の型と import を揃えた後に、比較写像を取り出して存在証明を構成する。

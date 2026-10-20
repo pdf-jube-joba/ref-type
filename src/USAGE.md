@@ -131,6 +131,7 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 | `REF_TYPE_PROFILE_MODULES=1` | module の読み込み・具体化・復旧 |
 | `REF_TYPE_PROFILE_PROGRESS=1` | 処理段階、module の開始・完了、完了数と経過秒数を随時出力 |
 | `REF_TYPE_PROFILE_NAMESPACES=1` | import の名前空間と ID 対応表の件数 |
+| `REF_TYPE_DEBUG_HIR_IMPORTS=1` | import 前後の module ID、引数と具体化の対応 |
 | `REF_TYPE_PROFILE_DIAGNOSTICS=1` | 診断生成・表示の時間と RSS |
 | `REF_TYPE_PROFILE_ENVIRONMENTS=1` | checkpoint のキー・復元位置・保存サイズ |
 | `REF_TYPE_PROFILE_COSTS=1` | 入れ子の処理ごとの inclusive / exclusive 時間とキャッシュ統計 |
