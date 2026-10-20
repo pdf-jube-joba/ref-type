@@ -1,0 +1,87 @@
+\import fundamental_groups.FundamentalGroup[A := B, source := base, basepoint := projection point] \as Fundamental;
+\import fundamental_groups.Paths[A := E, source := total] \as Paths;
+\import fundamental_groups.Paths[A := B, source := base] \as BasePaths;
+\import fundamental_groups.Neighborhoods[A := B, source := base] \as Neighborhoods;
+\import \root.Projection[E := E, B := B, total := total, base := base, projection := projection].Transport[] \as Transport;
+\import Transport.Action[covering := covering, b := projection point] \as Action;
+\import algebra.Noncommutative[G := Fundamental.Carrier, group := Fundamental.group] \as Group;
+\import Group.Actions[S := Fiber (projection point)] \as Actions;
+\import \root.Comparison[E := E, F := E, B := B, total := total, other := total, base := base, projection := projection, otherProjection := projection] \as Comparison;
+\import Comparison.With[c := covering, d := covering] \as Compare;
+\import topology.Homeomorphism[A := E, B := E] \as Homeomorphism;
+\definition sourcePoint: Fiber (projection point) := \into[E](point, Fiber (projection point)) \by { \refl(projection point) };
+\definition image[f: Carrier]: Fiber (projection point) := \into[E](f point, Fiber (projection point)) \by { (laws f).over point };
+\definition map[f: Carrier]: Comparison.OverMap := Comparison.OverMap { apply := f, over := (laws f).over };
+\definition isomorphism[f: Carrier]: Comparison.Isomorphism := Comparison.Isomorphism {
+  data := Homeomorphism.Data { forward := f, backward := backward f },
+  laws := Homeomorphism.Laws[total, total, Homeomorphism.Data { forward := f, backward := backward f }] {
+    leftInverse := (inverseLaws f).left, rightInverse := (inverseLaws f).right,
+    forwardContinuous := (laws f).continuous, backwardContinuous := (inverseLaws f).continuous },
+  over := (laws f).over,
+};
+\definition ofIsomorphism[iso: Comparison.Isomorphism]: Carrier := \into[Function](iso.data.forward, Carrier) \by {
+  Laws[iso.data.forward] { continuous := iso.laws.forwardContinuous, over := iso.over,
+    inverse := \exact(\into[Function](iso.data.backward, Inverse iso.data.forward) \by {
+      InverseLaws[iso.data.forward, iso.data.backward] {
+        continuous := iso.laws.backwardContinuous,
+        over := \fun (e: E) => trans!{B} _ _ _ (sym!{B} _ _ (iso.over (iso.data.backward e)))
+          (congr!{E B} projection _ _ (iso.laws.rightInverse e)),
+        left := iso.laws.leftInverse, right := iso.laws.rightInverse,
+      }
+    }, Inverse iso.data.forward) }
+};
+\definition SameStabilizer[s: Fiber (projection point)]: \Prop := Compare.Pointed[point := point, targetPoint := s].SameSubgroup;
+\definition sameStabilizer: \forall (f: Carrier) -> SameStabilizer (image f) :=
+  \fun (f: Carrier) => Compare.Pointed[point := point, targetPoint := image f].sameOfIsomorphism
+    (Compare.Pointed[point := point, targetPoint := image f].Isomorphism {
+      data := (isomorphism f).data, laws := (isomorphism f).laws, over := (isomorphism f).over, pointed := \refl(f point) });
+\definition imageInjective: Paths.PathConnected -> \forall (f, g: Carrier) -> image f = image g -> f = g :=
+  \fun (connected: _)(f, g: Carrier)(same: _) => \axiom:funext(f, g,
+    Compare.unique connected (map f) (map g) (laws f).continuous (laws g).continuous point same);
+\import Actions.At[act := Action.action, point := sourcePoint] \as Orbit;
+\import Group.Cosets[H := Orbit.subgroup] \as Cosets;
+\definition NormalCosets: \Set := \Cast[Cosets.Carrier] ({ q: Cosets.Carrier \where SameStabilizer (Orbit.orbit q) });
+\definition Normalizer[a: Fundamental.Carrier]: \Prop := \forall (g: Fundamental.Carrier) -> Logic.PropEquiv[
+  Action.move g sourcePoint = sourcePoint,
+  Action.move (Group.mul (Group.mul a g) (Group.inv a)) sourcePoint = sourcePoint];
+\definition normalizerToClass: \forall (a: Fundamental.Carrier) -> Normalizer a -> SameStabilizer (Orbit.orbit (Cosets.class a)) :=
+  \fun (a: _)(normalizes: _)(g: _) => Logic.PropEquiv[_, _] {
+    ltr := \fun (fixed: _) => \idelim Action.move a sourcePoint = Orbit.orbit (Cosets.class a)
+      \with s: Fiber (projection point) => Action.move g s = s \by {
+        base: (Actions.conjugateStabilizer Action.action a g sourcePoint).rtl ((normalizes g).ltr fixed),
+        equality: sym!{E} _ _ (Orbit.onClass a) },
+    rtl := \fun (fixed: _) => (normalizes g).rtl ((Actions.conjugateStabilizer Action.action a g sourcePoint).ltr
+      (\idelim Orbit.orbit (Cosets.class a) = Action.move a sourcePoint \with s: Fiber (projection point) => Action.move g s = s
+        \by { base: fixed, equality: Orbit.onClass a })),
+  };
+\definition classToNormalizer: \forall (a: Fundamental.Carrier) -> SameStabilizer (Orbit.orbit (Cosets.class a)) -> Normalizer a :=
+  \fun (a: _)(same: _)(g: _) => Logic.PropEquiv[_, _] {
+    ltr := \fun (fixed: _) => (Actions.conjugateStabilizer Action.action a g sourcePoint).ltr
+      (\idelim Orbit.orbit (Cosets.class a) = Action.move a sourcePoint \with s: Fiber (projection point) => Action.move g s = s
+        \by { base: (same g).ltr fixed, equality: Orbit.onClass a }),
+    rtl := \fun (fixed: _) => (same g).rtl
+      (\idelim Action.move a sourcePoint = Orbit.orbit (Cosets.class a) \with s: Fiber (projection point) => Action.move g s = s \by {
+        base: (Actions.conjugateStabilizer Action.action a g sourcePoint).rtl fixed, equality: sym!{E} _ _ (Orbit.onClass a) }),
+  };
+\definition class[a: Fundamental.Carrier][normalizes: Normalizer a]: NormalCosets :=
+  \into[Cosets.Carrier](Cosets.class a, NormalCosets) \by { normalizerToClass a normalizes };
+\definition toQuotient[connected: Paths.PathConnected][f: Carrier]: NormalCosets := \block {
+  \let q: Cosets.Carrier := Orbit.backward (Action.connectedTransitive connected) (image f) \then
+  \return \into[Cosets.Carrier](q, NormalCosets) \by {
+    \idelim image f = Orbit.orbit q \with s: Fiber (projection point) => SameStabilizer s
+      \by { base: sameStabilizer f, equality: sym!{E} _ _ (Orbit.orbitRightInverse (Action.connectedTransitive connected) (image f)) }
+  }
+};
+\definition representative[q: NormalCosets]: Cosets.Carrier := q;
+\definition Normal: \Prop := \forall (a: Fundamental.Carrier) -> Normalizer a;
+\definition FiberTransitive: \Prop := \forall (s: Fiber (projection point)) -> \exists ( f: Carrier \where image f = s );
+\structure QuotientIsomorphism: \Set := {
+  quotient: Alg.Group[NormalCosets],
+  forward: algebra.Hom[A := Carrier, B := NormalCosets].GroupMap group quotient,
+  backward: NormalCosets -> Carrier,
+  leftInverse: \forall (f: Carrier) -> backward (forward f) = f,
+  rightInverse: \forall (q: NormalCosets) -> forward (backward q) = q,
+  product: \forall (a, b: Fundamental.Carrier)(na: Normalizer a)(nb: Normalizer b) ->
+    representative (quotient.op (class a na) (class b nb)) = Cosets.class (Group.mul a b),
+};
+\module With(basis: Neighborhoods.GoodBasis, baseConnected: BasePaths.PathConnected, connected: Paths.PathConnected);

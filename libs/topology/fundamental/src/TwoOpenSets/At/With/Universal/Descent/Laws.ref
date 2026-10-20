@@ -1,0 +1,45 @@
+\import Cover.Integral[data := data] \as Integral;
+\import Integral.Squares[] \as IntegralSquares;
+\import algebraic_topology.Cylinder[A := I.Carrier] \as Square;
+\definition constant: Integral.ConstantLaw := \block {
+  \fun (x: A)(small: _) \then
+  \let p: Cover.SmallPath := Cover.asSmall (Raw.forget x x (Paths.constant x)) small \then
+  \return either!{{(cases p)} {value p = Group.one}
+    {\fun (within: LeftPaths.Within p) => trans!{G} _ _ _ (sym!{G} _ _ ((agrees p).left within))
+      (LeftHolonomy.constant (\into[A](x, U) \by { within I.start }))}
+    {\fun (within: RightPaths.Within p) => trans!{G} _ _ _ (sym!{G} _ _ ((agrees p).right within))
+      (RightHolonomy.constant (\into[A](x, V) \by { within I.start }))}}
+};
+\definition Equation[F: Squares.Family][bottom: Cover.Small (Squares.bottom F)][right: Cover.Small (Squares.right F)]
+  [left: Cover.Small (Squares.left F)][top: Cover.Small (Squares.top F)]: \Prop :=
+  Group.mul (value (Cover.asSmall (Squares.bottom F) bottom)) (value (Cover.asSmall (Squares.right F) right)) =
+  Group.mul (value (Cover.asSmall (Squares.left F) left)) (value (Cover.asSmall (Squares.top F) top));
+\definition leftSquare: \forall (F: Squares.Family)(within: \forall (q: Square.Carrier) -> Space.Member U (F q))
+  (bottom: Cover.Small (Squares.bottom F))(right: Cover.Small (Squares.right F))(left: Cover.Small (Squares.left F))(top: Cover.Small (Squares.top F)) ->
+  Equation F bottom right left top :=
+  \fun (F: _)(within: _)(bottom: _)(right: _)(left: _)(top: _) => trans!{G} _ _ _
+    (congr2!{G G G} Group.mul _ _ _ _
+      (sym!{G} _ _ ((agrees (Cover.asSmall (Squares.bottom F) bottom)).left (\fun (t: I.Carrier) => within (Square.at t I.start))))
+      (sym!{G} _ _ ((agrees (Cover.asSmall (Squares.right F) right)).left (\fun (t: I.Carrier) => within (Square.at I.end t)))))
+    (trans!{G} _ _ _ (LeftHolonomy.Squares[].commutes (LeftPaths.square F within))
+      (congr2!{G G G} Group.mul _ _ _ _
+        ((agrees (Cover.asSmall (Squares.left F) left)).left (\fun (t: I.Carrier) => within (Square.at I.start t)))
+        ((agrees (Cover.asSmall (Squares.top F) top)).left (\fun (t: I.Carrier) => within (Square.at t I.end)))));
+\definition rightSquare: \forall (F: Squares.Family)(within: \forall (q: Square.Carrier) -> Space.Member V (F q))
+  (bottom: Cover.Small (Squares.bottom F))(right: Cover.Small (Squares.right F))(left: Cover.Small (Squares.left F))(top: Cover.Small (Squares.top F)) ->
+  Equation F bottom right left top :=
+  \fun (F: _)(within: _)(bottom: _)(right: _)(left: _)(top: _) => trans!{G} _ _ _
+    (congr2!{G G G} Group.mul _ _ _ _
+      (sym!{G} _ _ ((agrees (Cover.asSmall (Squares.bottom F) bottom)).right (\fun (t: I.Carrier) => within (Square.at t I.start))))
+      (sym!{G} _ _ ((agrees (Cover.asSmall (Squares.right F) right)).right (\fun (t: I.Carrier) => within (Square.at I.end t)))))
+    (trans!{G} _ _ _ (RightHolonomy.Squares[].commutes (RightPaths.square F within))
+      (congr2!{G G G} Group.mul _ _ _ _
+        ((agrees (Cover.asSmall (Squares.left F) left)).right (\fun (t: I.Carrier) => within (Square.at I.start t)))
+        ((agrees (Cover.asSmall (Squares.top F) top)).right (\fun (t: I.Carrier) => within (Square.at t I.end)))));
+\definition square: IntegralSquares.LocalLaw :=
+  \fun (F: _)(S: _)(member: Logic.Or[S = U, S = V])(within: _) => either!{{member}
+    {Equation F (IntegralSquares.bottomSmall F S member within) (IntegralSquares.rightSmall F S member within)
+      (IntegralSquares.leftSmall F S member within) (IntegralSquares.topSmall F S member within)}
+    {\fun (same: S = U) => leftSquare F (\idelim S = U \with T: \Pow A => IntegralSquares.WithinSquare F T \by { base: within, equality: same }) _ _ _ _}
+    {\fun (same: S = V) => rightSquare F (\idelim S = V \with T: \Pow A => IntegralSquares.WithinSquare F T \by { base: within, equality: same }) _ _ _ _}};
+\definition local: Cover.LocalFunctor := Cover.LocalFunctor { data := data, constant := constant, square := square };

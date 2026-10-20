@@ -1,0 +1,89 @@
+\import topology.Continuity[A := E, B := E] \as Maps;
+\import topology.Composition[A := E, B := E, C := E] \as Compose;
+\import topology.Maps[A := E, B := E].Identity[] \as Identity;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\use Equality.eq_reason_in;
+\definition Function: \Set := E -> E;
+\structure InverseLaws[f, g: Function]: \Prop := {
+  continuous: Maps.Continuous total total g,
+  over: \forall (e: E) -> projection (g e) = projection e,
+  left: \forall (e: E) -> g (f e) = e,
+  right: \forall (e: E) -> f (g e) = e,
+};
+\definition Inverse[f: Function]: \Set := \Cast[Function] ({ g: Function \where InverseLaws[f, g] });
+\structure Laws[f: Function]: \Prop := {
+  continuous: Maps.Continuous total total f,
+  over: \forall (e: E) -> projection (f e) = projection e,
+  inverse: \exists Inverse f,
+};
+\definition Carrier: \Set := \Cast[Function] ({ f: Function \where Laws[f] });
+\definition laws[f: Carrier]: Laws[f] := \bysub(Function, Carrier, f);
+\definition inverseUnique: \forall (f: Carrier)(g, h: Inverse f) -> g = h :=
+  \fun (f: Carrier)(g, h: Inverse f) => \axiom:funext(g, h, \fun (e: E) => trans!{E} _ _ _
+    (congr!{E E} g _ _ (sym!{E} _ _ ((\bysub(Function, Inverse f, h)).right e))) ((\bysub(Function, Inverse f, g)).left (h e)));
+\definition backward[f: Carrier]: Inverse f := \choice Inverse f \by { existence: (laws f).inverse, uniqueness: inverseUnique f };
+\definition inverseLaws[f: Carrier]: InverseLaws[f, backward f] := \bysub(Function, Inverse f, backward f);
+\definition unit: Carrier := \into[Function](\fun (e: E) => e, Carrier) \by {
+  Laws[\fun (e: E) => e] { continuous := Identity.continuous total, over := \fun (e: E) => \refl(projection e),
+    inverse := \exact(\into[Function](\fun (e: E) => e, Inverse (\fun (e: E) => e)) \by {
+      InverseLaws[\fun (e: E) => e, \fun (e: E) => e] { continuous := Identity.continuous total,
+        over := \fun (e: E) => \refl(projection e), left := \fun (e: E) => \refl(e), right := \fun (e: E) => \refl(e) }
+    }, Inverse (\fun (e: E) => e)) }
+};
+\definition multiply[f, g: Carrier]: Carrier := \into[Function](\fun (e: E) => f (g e), Carrier) \by {
+  Laws[\fun (e: E) => f (g e)] {
+    continuous := Compose.composeContinuous total total total g f (laws g).continuous (laws f).continuous,
+    over := \fun (e: E) => trans!{B} _ _ _ ((laws f).over (g e)) ((laws g).over e),
+    inverse := \exact(\into[Function](\fun (e: E) => backward g (backward f e), Inverse (\fun (e: E) => f (g e))) \by {
+      InverseLaws[\fun (e: E) => f (g e), \fun (e: E) => backward g (backward f e)] {
+        continuous := Compose.composeContinuous total total total (backward f) (backward g) (inverseLaws f).continuous (inverseLaws g).continuous,
+        over := \fun (e: E) => trans!{B} _ _ _ ((inverseLaws g).over (backward f e)) ((inverseLaws f).over e),
+        left := \fun (e: E) => trans!{E} _ _ _ (congr!{E E} (backward g) _ _ ((inverseLaws f).left (g e))) ((inverseLaws g).left e),
+        right := \fun (e: E) => trans!{E} _ _ _ (congr!{E E} f _ _ ((inverseLaws g).right (backward f e))) ((inverseLaws f).right e),
+      }
+    }, Inverse (\fun (e: E) => f (g e))),
+  }
+};
+\definition inverse[f: Carrier]: Carrier := \into[Function](backward f, Carrier) \by {
+  Laws[backward f] { continuous := (inverseLaws f).continuous, over := (inverseLaws f).over,
+    inverse := \exact(\into[Function](f, Inverse (backward f)) \by {
+      InverseLaws[backward f, f] { continuous := (laws f).continuous, over := (laws f).over,
+        left := (inverseLaws f).right, right := (inverseLaws f).left }
+    }, Inverse (backward f)) }
+};
+\definition group: Alg.Group[Carrier] := \into[Alg.GroupData[Carrier]](Alg.GroupData[Carrier]::# unit multiply inverse, Alg.Group[Carrier]) \by {
+  Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# unit multiply inverse] {
+    monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# unit multiply] {
+      leftIdentity := \fun (f: Carrier) => \axiom:funext(multiply unit f, f, \fun (e: E) => \refl(f e)),
+      rightIdentity := \fun (f: Carrier) => \axiom:funext(multiply f unit, f, \fun (e: E) => \refl(f e)),
+      associative := \fun (f, g, h: Carrier) => \refl(multiply (multiply f g) h),
+    },
+    leftInverse := \fun (f: Carrier) => \axiom:funext(multiply (inverse f) f, unit, (inverseLaws f).left),
+    rightInverse := \fun (f: Carrier) => \axiom:funext(multiply f (inverse f), unit, (inverseLaws f).right),
+  }
+};
+\module Classification(covering: Covering);
+\definition normalizerQuotient: \forall (covering: Covering) ->
+  fundamental_groups.Neighborhoods[A := B, source := base].LocallyPathConnected ->
+  fundamental_groups.Neighborhoods[A := B, source := base].SemilocallySimplyConnected ->
+  fundamental_groups.Paths[A := B, source := base].PathConnected -> fundamental_groups.Paths[A := E, source := total].PathConnected ->
+  \exists Classification[covering := covering].QuotientIsomorphism :=
+  \fun (covering: _)(lpc: _)(semi: _)(baseConnected: _)(connected: _) =>
+    \exact(Classification[covering := covering].With[basis := fundamental_groups.Neighborhoods[A := B, source := base].goodBasis lpc semi,
+      baseConnected := baseConnected, connected := connected].isomorphism, Classification[covering := covering].QuotientIsomorphism);
+\definition normalCoverCriterion: \forall (covering: Covering) ->
+  fundamental_groups.Neighborhoods[A := B, source := base].LocallyPathConnected ->
+  fundamental_groups.Neighborhoods[A := B, source := base].SemilocallySimplyConnected ->
+  fundamental_groups.Paths[A := B, source := base].PathConnected -> fundamental_groups.Paths[A := E, source := total].PathConnected ->
+  Logic.PropEquiv[Classification[covering := covering].Normal, Classification[covering := covering].FiberTransitive] :=
+  \fun (covering: _)(lpc: _)(semi: _)(baseConnected: _)(connected: _) =>
+    Classification[covering := covering].With[basis := fundamental_groups.Neighborhoods[A := B, source := base].goodBasis lpc semi,
+      baseConnected := baseConnected, connected := connected].normalCoverCriterion;

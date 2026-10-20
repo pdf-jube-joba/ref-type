@@ -1,0 +1,63 @@
+\import \parent.LocalBridges[] \as Chosen;
+\import \root.UnbasedPaths[A := A, source := source] \as Raw;
+\import Raw.Squares[] \as Squares;
+\import \root.UnbasedPaths[A := Left.CarrierSet, source := Left.topology source] \as LeftRaw;
+\import \root.UnbasedPaths[A := Right.CarrierSet, source := Right.topology source] \as RightRaw;
+\import \root.UnbasedPaths[A := Overlap.CarrierSet, source := Overlap.topology source] \as OverlapRaw;
+\import \root.Holonomy[A := Left.CarrierSet, source := Left.topology source, b := leftBase, G := G, group := group, bridges := Chosen.left, hom := left] \as LeftHolonomy;
+\import \root.Holonomy[A := Right.CarrierSet, source := Right.topology source, b := rightBase, G := G, group := group, bridges := Chosen.right, hom := right] \as RightHolonomy;
+\import algebra.Noncommutative[G := G, group := group] \as Group;
+\import algebra.Hom[A := Fundamental.Carrier, B := G] \as Hom;
+\import algebra.Hom[A := OverlapGroup.Carrier, B := LeftGroup.Carrier].Composition[C := G] \as Compose;
+\definition overlapHom: algebra.Hom[A := OverlapGroup.Carrier, B := G].GroupMap OverlapGroup.group group :=
+  Compose.groupMap OverlapGroup.group LeftGroup.group group OverlapLeftGroup.induced left;
+\import \root.Holonomy[A := Overlap.CarrierSet, source := Overlap.topology source, b := overlapBase, G := G, group := group, bridges := Chosen.overlap, hom := overlapHom] \as OverlapHolonomy;
+\import OverlapHolonomy.Naturality[B := Left.CarrierSet, target := Left.topology source, f := OverlapLeft.inclusion, continuous := OverlapLeft.continuous,
+  targetBridges := Chosen.left, targetHom := left] \as LeftNaturality;
+\import OverlapHolonomy.Naturality[B := Right.CarrierSet, target := Right.topology source, f := OverlapRight.inclusion, continuous := OverlapRight.continuous,
+  targetBridges := Chosen.right, targetHom := right] \as RightNaturality;
+\definition Compatible: \Prop := \forall (a: OverlapGroup.Carrier) -> left (OverlapLeftGroup.induced a) = right (OverlapRightGroup.induced a);
+\definition leftValue[p: Raw.Carrier][within: LeftPaths.Within p]: G := LeftHolonomy.value (LeftPaths.raw p within);
+\definition rightValue[p: Raw.Carrier][within: RightPaths.Within p]: G := RightHolonomy.value (RightPaths.raw p within);
+\definition onOverlap: Compatible -> \forall (p: Raw.Carrier)(inU: LeftPaths.Within p)(inV: RightPaths.Within p) -> leftValue p inU = rightValue p inV := \block {
+  \fun (compatible: _)(p: Raw.Carrier)(inU: _)(inV: _) \then
+  \let both: OverlapPaths.Within p := \fun (t: I.Carrier) => Logic.And[_, _]::# (inU t) (inV t) \then
+  \let q: OverlapRaw.Carrier := OverlapPaths.raw p both \then
+  \return eq_reason!{{leftValue p inU}
+    "=" {LeftHolonomy.value (LeftNaturality.raw q)} "by" {
+      congr!{LeftRaw.Carrier G} LeftHolonomy.value _ _ (\axiom:funext(LeftPaths.raw p inU, LeftNaturality.raw q, \fun (t: I.Carrier) => \refl(p t)))}
+    "=" {OverlapHolonomy.value q} "by" {LeftNaturality.value (\fun (x: Overlap.CarrierSet)(t: I.Carrier) => \refl(bridges x t)) (\fun (a: OverlapGroup.Carrier) => \refl(overlapHom a)) q}
+    "=" {RightHolonomy.value (RightNaturality.raw q)} "by" {
+      sym!{G} _ _ (RightNaturality.value (\fun (x: Overlap.CarrierSet)(t: I.Carrier) => \refl(bridges x t)) compatible q)}
+    "=" {rightValue p inV} "by" {
+      congr!{RightRaw.Carrier G} RightHolonomy.value _ _ (\axiom:funext(RightNaturality.raw q, RightPaths.raw p inV, \fun (t: I.Carrier) => \refl(p t)))}}
+};
+\definition family: \Pow (\Pow A) := { S: \Pow A \where Logic.Or[S = U, S = V] };
+\definition cover: Space.IsOpenCover[source, family, Space.Whole] := Space.IsOpenCover[source, family, Space.Whole] {
+  open := \fun (S: \Pow A)(member: _) => either!{{member} {Space.IsOpenIn source S}
+    {\fun (same: S = U) => \idelim U = S \with T: \Pow A => Space.IsOpenIn source T \by { base: hypotheses.openU, equality: sym!{\Pow A} _ _ same }}
+    {\fun (same: S = V) => \idelim V = S \with T: \Pow A => Space.IsOpenIn source T \by { base: hypotheses.openV, equality: sym!{\Pow A} _ _ same }}},
+  covers := \fun (x: A)(_: _) => either!{{(hypotheses.covers x)} {Space.Member (Space.Union family) x}
+    {\fun (inU: _) => Space.unionMemberOf family U x (Logic.Or[U = U, U = V]::left (\refl(U))) inU}
+    {\fun (inV: _) => Space.unionMemberOf family V x (Logic.Or[V = U, V = V]::right (\refl(V))) inV}},
+};
+\import \root.VanKampen[A := A, source := source, G := G, group := group].Cover[family := family] \as Cover;
+\definition cases: \forall (p: Cover.SmallPath) -> Logic.Or[LeftPaths.Within p, RightPaths.Within p] := \block {
+  \fun (p: Cover.SmallPath) \then
+  \takefrom S: \Cast[\Pow A] ({ S: \Pow A \where Logic.And[\In[\Pow A] family S, Cover.Within p S] }) \by \bysub(Raw.Carrier, Cover.SmallPath, p) \then
+  \let data: Logic.And[\In[\Pow A] family S, Cover.Within p S] := \bysub(\Pow A, { S: \Pow A \where Logic.And[\In[\Pow A] family S, Cover.Within p S] }, S) \then
+  \return either!{{(data.left)} {Logic.Or[LeftPaths.Within p, RightPaths.Within p]}
+    {\fun (same: S = U) => Logic.Or[_, _]::left (\idelim S = U \with T: \Pow A => Cover.Within p T \by { base: data.right, equality: same })}
+    {\fun (same: S = V) => Logic.Or[_, _]::right (\idelim S = V \with T: \Pow A => Cover.Within p T \by { base: data.right, equality: same })}}
+};
+\structure ExtensionLaws[k: Hom.GroupMap Fundamental.group group]: \Prop := {
+  left: \forall (a: LeftGroup.Carrier) -> k (leftInduced a) = left a,
+  right: \forall (a: RightGroup.Carrier) -> k (rightInduced a) = right a,
+};
+\definition Extension: \Set := \Cast[Hom.GroupMap Fundamental.group group]
+  ({ k: Hom.GroupMap Fundamental.group group \where ExtensionLaws[k] });
+\module Descent(compatible: Compatible);
+\definition existsExtension: Compatible -> \exists Extension := \fun (compatible: _) => \exact(Descent[compatible := compatible].extension, Extension);
+\definition uniqueExtension: Compatible -> \forall (f, g: Extension) -> f = g :=
+  \fun (compatible: _)(f, g: Extension) => trans!{{Hom.GroupMap Fundamental.group group}} _ _ _
+    (Descent[compatible := compatible].Uniqueness[].unique f) (sym!{{Hom.GroupMap Fundamental.group group}} _ _ (Descent[compatible := compatible].Uniqueness[].unique g));

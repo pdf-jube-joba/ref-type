@@ -1,15 +1,26 @@
 # 基本群と被覆の分類
 
-`fundamental_groups` は端点固定ホモトピーの商による基本群と、開被覆上の局所 holonomy の降下を提供する。
-`covering_spaces` は局所自明性から道・正方形の持ち上げを構成し、誘導基本群の単射性と像・安定化部分群の一致を証明する。
+実装・検査完了。
+基本群は実区間上の道の端点固定ホモトピー類から構成し、被覆は連続な全射の局所自明化として定義する。
 
-完成までの残りは次の通りである。
+- [x] `fundamental_groups.TwoOpenSets.vanKampen` は、二つの開集合と共通部分の基本群について融合積の普遍性を証明する。
+- [x] `covering_spaces.Subgroups.existsStandardRealization` は、局所道連結・半局所単連結な道連結空間の任意の部分群から基点付き連結被覆を構成する。
+- [x] `Comparison.pointedClassification` と `uniquePointedMap` は、同じ部分群に対応する基点付き被覆の同型と写像の一意性を証明する。
+- [x] `Comparison.unpointedClassification` は、基点なしの連結被覆を部分群の共役で分類する。
+- [x] `Subgroups.existsUniversalCover` と `Comparison.universalLifting` は、単連結な普遍被覆とその普遍性を与える。
+- [x] `Projection.Deck.normalizerQuotient` と `normalCoverCriterion` は、deck 変換群と \(N(H)/H\) の群としての対応、正規被覆の判定を与える。
 
-1. 二つの開集合の基本群の融合積と、通常の van Kampen の普遍性を局所 holonomy の降下から導く。
-2. 局所道連結・半局所単連結な底空間について、各部分群から基点付き連結被覆を構成する。
-3. 同じ部分群に対する基点付き被覆の同型とその一意性を証明する。
-4. 基点変更による共役、基点なしの連結被覆と部分群の共役類の対応を証明する。
-5. 普遍被覆、正規被覆、deck 変換と正規化群の商を公開する。
+`Neighborhoods.goodBasis` は標準的な局所道連結性と半局所単連結性から必要な近傍基底を導く。
+`PathAction.Realization` は基本亜群の作用からシートの位相と局所自明化を構成し、構成した被覆の輸送が元の作用と一致することを証明する。
 
-部分群からの構成には、各点の近傍でその中の同じ端点を持つ道が底空間内でホモトピックになる開集合の基底を用いる。
-道のホモトピー類による輸送の作用からシートの基底を作り、局所自明性と既存のモノドロミー作用との一致を示す。
+融合積は `algebra.AmalgamatedProduct.Universal` の普遍性で表す。
+`TwoOpenSets` は標準的な包含による誘導準同型がこの普遍性を満たすことを証明する。
+`AmalgamatedProduct.Other.canonicalIsomorphism` は同じ普遍性を満たす別の群との標準同型を構成する。
+
+検査は共有キャッシュを用いる次の範囲で成功した。
+
+```sh
+target/debug/cli libs/topology/fundamental --module fundamental_groups
+target/debug/cli libs/topology/coverings --module covering_spaces
+target/debug/cli libs/algebra/basic --module algebra.AmalgamatedProduct
+```

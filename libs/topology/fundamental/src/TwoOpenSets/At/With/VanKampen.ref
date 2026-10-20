@@ -1,0 +1,40 @@
+\import \parent.\parent.Data[hypotheses := hypotheses] \as Data;
+\import algebra.AmalgamatedProduct[C := OverlapGroup.Carrier, A := LeftGroup.Carrier, B := RightGroup.Carrier, P := Fundamental.Carrier,
+  c := OverlapGroup.group, a := LeftGroup.group, b := RightGroup.group, p := Fundamental.group,
+  intoLeft := OverlapLeftGroup.induced, intoRight := OverlapRightGroup.induced, fromLeft := leftInduced, fromRight := rightInduced] \as Amalgam;
+\import \root.TwoOpenSets[A := A, source := source, U := U, V := V].At[b := b].With[hypotheses := hypotheses, bridges := bridges] \as Construction;
+\definition universal: Amalgam.Universal := Amalgam.Universal {
+  commutes := Construction.Commutation[].commutes,
+  exists := \block {
+    \fun (G: \Set)(group: std.Alg[].Alg[].Group[G])(left: algebra.Hom[A := LeftGroup.Carrier, B := G].GroupMap LeftGroup.group group)
+      (right: algebra.Hom[A := RightGroup.Carrier, B := G].GroupMap RightGroup.group group)(compatible: _) \then
+    \takefrom k: Construction.Universal[G := G, group := group, left := left, right := right].Extension \by
+      Construction.Universal[G := G, group := group, left := left, right := right].existsExtension compatible \then
+    \let laws: Construction.Universal[G := G, group := group, left := left, right := right].ExtensionLaws[k] :=
+      \bysub(algebra.Hom[A := Fundamental.Carrier, B := G].GroupMap Fundamental.group group,
+        Construction.Universal[G := G, group := group, left := left, right := right].Extension, k) \then
+    \return \exact(\into[algebra.Hom[A := Fundamental.Carrier, B := G].GroupMap Fundamental.group group]
+      (k, Amalgam.To[T := G, target := group, left := left, right := right].Extension) \by {
+        Amalgam.To[T := G, target := group, left := left, right := right].Extends[k] { left := laws.left, right := laws.right }
+      }, Amalgam.To[T := G, target := group, left := left, right := right].Extension)
+  },
+  unique := \block {
+    \fun (G: \Set)(group: std.Alg[].Alg[].Group[G])(left: algebra.Hom[A := LeftGroup.Carrier, B := G].GroupMap LeftGroup.group group)
+      (right: algebra.Hom[A := RightGroup.Carrier, B := G].GroupMap RightGroup.group group)
+      (f, g: Amalgam.To[T := G, target := group, left := left, right := right].Extension) \then
+    \let fl: Amalgam.To[T := G, target := group, left := left, right := right].Extends[f] :=
+      \bysub(algebra.Hom[A := Fundamental.Carrier, B := G].GroupMap Fundamental.group group, Amalgam.To[T := G, target := group, left := left, right := right].Extension, f) \then
+    \let gl: Amalgam.To[T := G, target := group, left := left, right := right].Extends[g] :=
+      \bysub(algebra.Hom[A := Fundamental.Carrier, B := G].GroupMap Fundamental.group group, Amalgam.To[T := G, target := group, left := left, right := right].Extension, g) \then
+    \let compatible: Construction.Universal[G := G, group := group, left := left, right := right].Compatible := \fun (a: OverlapGroup.Carrier) =>
+      trans!{G} _ _ _ (sym!{G} _ _ (fl.left (OverlapLeftGroup.induced a)))
+        (trans!{G} _ _ _ (congr!{Fundamental.Carrier G} f _ _ (Construction.Commutation[].commutes a)) (fl.right (OverlapRightGroup.induced a))) \then
+    \return Construction.Universal[G := G, group := group, left := left, right := right].uniqueExtension compatible
+      (\into[algebra.Hom[A := Fundamental.Carrier, B := G].GroupMap Fundamental.group group]
+        (f, Construction.Universal[G := G, group := group, left := left, right := right].Extension) \by {
+          Construction.Universal[G := G, group := group, left := left, right := right].ExtensionLaws[f] { left := fl.left, right := fl.right } })
+      (\into[algebra.Hom[A := Fundamental.Carrier, B := G].GroupMap Fundamental.group group]
+        (g, Construction.Universal[G := G, group := group, left := left, right := right].Extension) \by {
+          Construction.Universal[G := G, group := group, left := left, right := right].ExtensionLaws[g] { left := gl.left, right := gl.right } })
+  },
+};

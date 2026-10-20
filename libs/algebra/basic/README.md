@@ -32,3 +32,7 @@
 
 `Noncommutative` は一般の群、部分群、右作用、安定化部分群、左剰余類の右作用を扱う。
 `Actions.At` は、推移的な右作用と選んだ点の安定化部分群の剰余類作用の間の同変全単射を構成する。
+
+`AmalgamatedProduct` は群の融合積の普遍性と、普遍性を満たす二つの群の標準同型を提供する。
+`Noncommutative.Actions.PointedMaps` は推移的な群作用間の基点付き同変写像を安定化部分群の包含から構成する。
+`GroupTransport` は相互逆な全単射で群構造を移す。

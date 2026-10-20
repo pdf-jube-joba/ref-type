@@ -1,0 +1,52 @@
+\definition ofIntersection[h: Hypotheses[b]][x: A][different: Logic.Not (x = b)][p: Neighborhoods.Path Intersection b x]: Bridge x :=
+  \into[Paths.Path b x](p, Bridge x) \by {
+    BridgeLaws[x, p] {
+      normalized := \fun (t: I.Carrier)(same: _) => Logic.falseElim (p t = b) (different same),
+      withinU := \fun (_: _)(t: I.Carrier) => (Neighborhoods.within Intersection b x p t).left,
+      withinV := \fun (_: _)(t: I.Carrier) => (Neighborhoods.within Intersection b x p t).right,
+    }
+  };
+\definition ofLeft[h: Hypotheses[b]][x: A][different: Logic.Not (x = b)][outside: Logic.Not (Space.Member V x)][p: Neighborhoods.Path U b x]: Bridge x :=
+  \into[Paths.Path b x](p, Bridge x) \by {
+    BridgeLaws[x, p] {
+      normalized := \fun (t: I.Carrier)(same: _) => Logic.falseElim (p t = b) (different same),
+      withinU := \fun (_: _) => Neighborhoods.within U b x p,
+      withinV := \fun (member: _)(t: I.Carrier) => Logic.falseElim (Space.Member V (p t)) (outside member),
+    }
+  };
+\definition ofRight[h: Hypotheses[b]][x: A][different: Logic.Not (x = b)][outside: Logic.Not (Space.Member U x)][p: Neighborhoods.Path V b x]: Bridge x :=
+  \into[Paths.Path b x](p, Bridge x) \by {
+    BridgeLaws[x, p] {
+      normalized := \fun (t: I.Carrier)(same: _) => Logic.falseElim (p t = b) (different same),
+      withinU := \fun (member: _)(t: I.Carrier) => Logic.falseElim (Space.Member U (p t)) (outside member),
+      withinV := \fun (_: _) => Neighborhoods.within V b x p,
+    }
+  };
+\definition existsBridge: Hypotheses[b] -> \forall (x: A) -> \exists Bridge x :=
+  \fun (h: _)(x: A) => either!{{(Classical.excludedMiddle (x = b))} {\exists Bridge x}
+    {\fun (same: x = b) => \idelim b = x \with y: A => \exists Bridge y \by {
+      base: \exact(\into[Paths.Path b b](Paths.constant b, Bridge b) \by {
+        BridgeLaws[b, Paths.constant b] { normalized := \fun (t: I.Carrier)(_: _) => \refl(b),
+          withinU := \fun (_: _)(t: I.Carrier) => h.baseU, withinV := \fun (_: _)(t: I.Carrier) => h.baseV }
+      }, Bridge b), equality: sym!{A} _ _ same }}
+    {\fun (different: Logic.Not (x = b)) => either!{{(Classical.excludedMiddle (Space.Member U x))} {\exists Bridge x}
+      {\fun (inU: _) => either!{{(Classical.excludedMiddle (Space.Member V x))} {\exists Bridge x}
+        {\block {
+          \fun (inV: _) \then
+          \takefrom p: Neighborhoods.Path Intersection b x \by h.connectedIntersection b x (Logic.And[_, _]::# h.baseU h.baseV) (Logic.And[_, _]::# inU inV) \then
+          \return \exact(ofIntersection h x different p, Bridge x)
+        }}
+        {\block {
+          \fun (outside: _) \then
+          \takefrom p: Neighborhoods.Path U b x \by h.connectedU b x h.baseU inU \then
+          \return \exact(ofLeft h x different outside p, Bridge x)
+        }}}}
+      {\fun (outside: Logic.Not (Space.Member U x)) => either!{{(h.covers x)} {\exists Bridge x}
+        {\fun (inU: _) => Logic.falseElim (\exists Bridge x) (outside inU)}
+        {\block {
+          \fun (inV: _) \then
+          \takefrom p: Neighborhoods.Path V b x \by h.connectedV b x h.baseV inV \then
+          \return \exact(ofRight h x different outside p, Bridge x)
+        }}}}}}};
+\definition existsFamily: Hypotheses[b] -> \exists Family :=
+  \fun (h: _) => \axiom:classicalIndefiniteChoice(A, (\fun (x: A) => Bridge x), existsBridge h);

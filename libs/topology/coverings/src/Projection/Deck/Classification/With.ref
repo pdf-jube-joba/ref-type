@@ -1,0 +1,58 @@
+\definition Value[q: NormalCosets]: \Set := \Cast[Carrier] ({ f: Carrier \where image f = Orbit.orbit q });
+\definition existsValue: \forall (q: NormalCosets) -> \exists Value q := \block {
+  \fun (q: NormalCosets) \then
+  \takefrom iso: Compare.Pointed[point := point, targetPoint := Orbit.orbit q].Isomorphism \by
+    Compare.Pointed[point := point, targetPoint := Orbit.orbit q].existsIsomorphism basis baseConnected connected connected
+      (\bysub(Cosets.Carrier, NormalCosets, q)) \then
+  \let unpointed: Comparison.Isomorphism := Comparison.Isomorphism { data := iso.data, laws := iso.laws, over := iso.over } \then
+  \return \exact(\into[Carrier](ofIsomorphism unpointed, Value q) \by { iso.pointed }, Value q)
+};
+\definition uniqueValue: \forall (q: NormalCosets)(f, g: Value q) -> f = g :=
+  \fun (q: _)(f, g: Value q) => imageInjective connected f g
+    (trans!{E} _ _ _ (\bysub(Carrier, Value q, f)) (sym!{E} _ _ (\bysub(Carrier, Value q, g))));
+\definition backward[q: NormalCosets]: Value q := \choice Value q \by { existence: existsValue q, uniqueness: uniqueValue q };
+\definition leftInverse: \forall (f: Carrier) -> backward (toQuotient connected f) = f :=
+  \fun (f: Carrier) => imageInjective connected (backward (toQuotient connected f)) f
+    (trans!{E} _ _ _ (\bysub(Carrier, Value (toQuotient connected f), backward (toQuotient connected f)))
+      (Orbit.orbitRightInverse (Action.connectedTransitive connected) (image f)));
+\definition rightInverse: \forall (q: NormalCosets) -> toQuotient connected (backward q) = q :=
+  \fun (q: NormalCosets) => Orbit.injective (toQuotient connected (backward q)) q
+    (trans!{E} _ _ _ (Orbit.orbitRightInverse (Action.connectedTransitive connected) (image (backward q)))
+      (\bysub(Carrier, Value q, backward q)));
+\import algebra.GroupTransport[A := Carrier, B := NormalCosets, group := group, forward := \fun (f: Carrier) => toQuotient connected f, backward := \fun (q: NormalCosets) => backward q] \as Transfer;
+\definition inverses: Transfer.Inverses := Transfer.Inverses { left := leftInverse, right := rightInverse };
+\definition quotientGroup: Alg.Group[NormalCosets] := Transfer.transported inverses;
+\definition quotientMultiply[q, r: NormalCosets]: NormalCosets := Transfer.multiply q r;
+\definition preservesComposition: \forall (f, g: Carrier) -> toQuotient connected (multiply f g) = quotientMultiply (toQuotient connected f) (toQuotient connected g) :=
+  \fun (f, g: Carrier) => sym!{NormalCosets} _ _
+    (congr2!{Carrier Carrier NormalCosets} (\fun (a, b: Carrier) => toQuotient connected (multiply a b)) _ _ _ _ (leftInverse f) (leftInverse g));
+\module Representatives;
+\import algebra.Hom[A := Carrier, B := NormalCosets] \as Hom;
+\definition sourceMonoid: Monoid.Monoid[Carrier] := \into[Monoid.MonoidData[Carrier]](Alg.groupMonoid Carrier group, Monoid.Monoid[Carrier]) \by { group.monoid };
+\definition targetMonoid: Monoid.Monoid[NormalCosets] := \into[Monoid.MonoidData[NormalCosets]](Alg.groupMonoid NormalCosets quotientGroup, Monoid.Monoid[NormalCosets]) \by { quotientGroup.monoid };
+\definition homomorphism: Hom.GroupMap group quotientGroup := \into[Carrier -> NormalCosets](\fun (f: Carrier) => toQuotient connected f, Hom.GroupMap group quotientGroup) \by {
+  Hom.MonoidLaws[sourceMonoid, targetMonoid, \fun (f: Carrier) => toQuotient connected f] {
+    unit := \refl(toQuotient connected unit), operation := preservesComposition }
+};
+\definition isomorphism: QuotientIsomorphism := QuotientIsomorphism {
+  quotient := quotientGroup, forward := homomorphism, backward := \fun (q: NormalCosets) => backward q,
+  leftInverse := leftInverse, rightInverse := rightInverse, product := Representatives[].multiplication,
+};
+\definition normalImpliesTransitive: Normal -> FiberTransitive := \block {
+  \fun (normal: Normal)(s: Fiber (projection point)) \then
+  \let q: Cosets.Carrier := Orbit.backward (Action.connectedTransitive connected) s \then
+  \let all: \forall (r: Cosets.Carrier) -> SameStabilizer (Orbit.orbit r) := Cosets.induction
+    (\fun (r: Cosets.Carrier) => SameStabilizer (Orbit.orbit r)) (\fun (a: Fundamental.Carrier) => normalizerToClass a (normal a)) \then
+  \let refined: NormalCosets := \into[Cosets.Carrier](q, NormalCosets) \by { all q } \then
+  \return Logic.existsIntro[Carrier, { f: Carrier \where image f = s }] (backward refined)
+    (trans!{E} _ _ _ (\bysub(Carrier, Value refined, backward refined)) (Orbit.orbitRightInverse (Action.connectedTransitive connected) s))
+};
+\definition transitiveImpliesNormal: FiberTransitive -> Normal := \block {
+  \fun (transitive: FiberTransitive)(a: Fundamental.Carrier) \then
+  \takefrom f: \Cast[Carrier] ({ f: Carrier \where image f = Action.move a sourcePoint }) \by transitive (Action.move a sourcePoint) \then
+  \let same: image f = Orbit.orbit (Cosets.class a) := trans!{E} _ _ _
+    (\bysub(Carrier, { f: Carrier \where image f = Action.move a sourcePoint }, f)) (sym!{E} _ _ (Orbit.onClass a)) \then
+  \return classToNormalizer a (\idelim image f = Orbit.orbit (Cosets.class a) \with s: Fiber (projection point) => SameStabilizer s
+    \by { base: sameStabilizer f, equality: same })
+};
+\definition normalCoverCriterion: Logic.PropEquiv[Normal, FiberTransitive] := Logic.PropEquiv[_, _] { ltr := normalImpliesTransitive, rtl := transitiveImpliesNormal };

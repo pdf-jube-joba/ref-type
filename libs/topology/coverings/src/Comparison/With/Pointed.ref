@@ -68,3 +68,23 @@
     ltr := \block { \fun (exists: _) \then \takefrom iso: Isomorphism \by exists \then \return sameOfIsomorphism iso },
     rtl := existsIsomorphism basis baseConnected connected otherConnected,
   };
+\import Source.Fundamental[e := point] \as Induced;
+\import Induced.Monodromy[covering := c] \as Image;
+\import fundamental_groups.FundamentalGroup[A := E, source := total, basepoint := point] \as SourceGroup;
+\import fundamental_groups.SimpleConnectivity[A := E, source := total, b := point] \as Simple;
+\import fundamental_groups.Groupoid[A := E, source := total].Maps[B := B, target := base] \as ProjectionMap;
+\definition simplyConnectedCompatible: TotalPaths.SimplyConnected -> Compatible := \block {
+  \fun (simple: TotalPaths.SimplyConnected)(g: Fundamental.Carrier)(fixed: _) \then
+  \takefrom a: \Cast[SourceGroup.Carrier] ({ a: SourceGroup.Carrier \where Induced.induced c a = g }) \by Image.fixedInImage g fixed \then
+  \let same: g = Fundamental.unit := trans!{Fundamental.Carrier} _ _ _
+    (sym!{Fundamental.Carrier} _ _ (\bysub(SourceGroup.Carrier, { a: SourceGroup.Carrier \where Induced.induced c a = g }, a)))
+    (trans!{Fundamental.Carrier} _ _ _ (congr!{SourceGroup.Carrier Fundamental.Carrier} (Induced.induced c) a SourceGroup.unit (Simple.trivial simple a))
+      (ProjectionMap.preservesIdentity projection c.continuous point)) \then
+  \return trans!{F} _ _ _ (congr!{Fundamental.Carrier F} (\fun (a: Fundamental.Carrier) => TargetFiber.move a targetPoint) g Fundamental.unit same)
+    (TargetAction.identityLaw b targetPoint)
+};
+\definition liftingCriterion: Neighborhoods.GoodBasis -> Paths.PathConnected -> TotalPaths.PathConnected -> Logic.PropEquiv[\exists Map, Compatible] :=
+  \fun (basis: _)(baseConnected: _)(connected: _) => Logic.PropEquiv[_, _] {
+    ltr := \block { \fun (exists: _) \then \takefrom map: Map \by exists \then \return compatibleOfMap map },
+    rtl := existsMap basis baseConnected connected,
+  };
