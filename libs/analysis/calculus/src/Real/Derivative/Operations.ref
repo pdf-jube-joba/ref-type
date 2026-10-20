@@ -5,6 +5,25 @@
 \import Analysis.Algebra[] \as Algebra;
 \import std.Logic[].Classical[] \as Classical;
 \use Logic.either;
+\use Equality.congr2;
+\import Analysis.Estimates[].Product[] \as Product;
+\definition localDerivative: \forall (f, g: Real -> Real)(a, d, radius: Real) -> R.Lt zero radius ->
+  (\forall (x: Real) -> R.Lt (distance x a) radius -> f x = g x) -> Def.HasDerivativeAt f a d -> Def.HasDerivativeAt g a d := \block {
+  \fun (f, g: Real -> Real)(a, d, radius: Real)(positiveRadius: _)(same: _)(derivative: _)(epsilon: Real)(positive: _) \then
+  \let sameAtA: f a = g a := same a (R.ltReplaceLeft zero (distance a a) radius (sym!{Real} _ _ (Metric.distanceSelf a)) positiveRadius) \then
+  \takefrom delta: \Cast[Real] ({ delta: Real \where Limit.Control[Def.slope f a, a, d, epsilon, delta] }) \by derivative epsilon positive \then
+  \let control: Limit.Control[Def.slope f a, a, d, epsilon, delta] := \bysub(Real, { delta: Real \where Limit.Control[Def.slope f a, a, d, epsilon, delta] }, delta) \then
+  \let small: Real := Metric.min radius delta \then
+  \return Logic.existsIntro[Real, { small: Real \where Limit.Control[Def.slope g a, a, d, epsilon, small] }] small
+    (Limit.Control[Def.slope g a, a, d, epsilon, small] {
+      positive := Product.minPositive radius delta positiveRadius control.positive,
+      estimate := \fun (x: Real)(different: _)(near: _) => R.ltReplaceLeft (distance (Def.slope f a x) d) (distance (Def.slope g a x) d) epsilon
+        (congr!{Real Real} (\fun (s: Real) => distance s d) _ _
+          (congr!{Real Real} (\fun (s: Real) => mul s (inv (sub x a))) _ _
+            (congr2!{Real Real Real} sub _ _ _ _ (same x (R.ltLeTrans _ small radius near (Metric.minLeft radius delta))) sameAtA)))
+        (control.estimate x different (R.ltLeTrans _ small delta near (Metric.minRight radius delta))),
+    })
+};
 
 \definition unique: \forall (f: Real -> Real)(a, d, e: Real) ->
   Def.HasDerivativeAt f a d -> Def.HasDerivativeAt f a e -> d = e :=

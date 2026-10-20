@@ -1,0 +1,53 @@
+\import \parent.On[field := field, initial := initial] \as Choice;
+\definition leftPositive: R.Lt Scalars.zero left.radius := \bysub(Real, { r: Real \where R.Lt Scalars.zero r }, left.radius);
+\definition rightPositive: R.Lt Scalars.zero right.radius := \bysub(Real, { r: Real \where R.Lt Scalars.zero r }, right.radius);
+\definition time: Real := Distance.min Choice.time (Distance.min left.radius right.radius);
+\definition positive: R.Lt Scalars.zero time := Product.minPositive Choice.time (Distance.min left.radius right.radius) Choice.timePositive
+  (Product.minPositive left.radius right.radius leftPositive rightPositive);
+\definition timeBound: R.Le time Choice.time := Distance.minLeft Choice.time (Distance.min left.radius right.radius);
+\definition leftTimeBound: R.Le time left.radius := R.leTrans time (Distance.min left.radius right.radius) left.radius
+  (Distance.minRight Choice.time (Distance.min left.radius right.radius)) (Distance.minLeft left.radius right.radius);
+\definition rightTimeBound: R.Le time right.radius := R.leTrans time (Distance.min left.radius right.radius) right.radius
+  (Distance.minRight Choice.time (Distance.min left.radius right.radius)) (Distance.minRight left.radius right.radius);
+\definition step: Step[field] := Step[field] {
+  time := \into[Real](time, { t: Real \where R.Lt Scalars.zero t }) \by { positive },
+  contractionBound := R.leTrans _ (Scalars.mul Choice.time field.coefficient) Scalars.half
+    (R.leReplace (Scalars.mul field.coefficient time) (Scalars.mul time field.coefficient) (Scalars.mul field.coefficient Choice.time) (Scalars.mul Choice.time field.coefficient)
+      (Laws.fieldMulComm field.coefficient time) (Laws.fieldMulComm field.coefficient Choice.time)
+      (Estimates.mulMonotone field.coefficient time Choice.time Choice.coefficientNonnegative timeBound)) Choice.contractionBound,
+  ballBound := R.leTrans _ (Scalars.mul Choice.time field.bound) Scalars.one
+    (R.leReplace (Scalars.mul field.bound time) (Scalars.mul time field.bound) (Scalars.mul field.bound Choice.time) (Scalars.mul Choice.time field.bound)
+      (Laws.fieldMulComm field.bound time) (Laws.fieldMulComm field.bound Choice.time)
+      (Estimates.mulMonotone field.bound time Choice.time Choice.boundNonnegative timeBound)) Choice.ballBound,
+};
+\import Choice.Step[step := step] \as ODE;
+\definition edgeBelow: R.Lt ODE.edge time := R.leLtTrans _ (Scalars.mul Scalars.half time) time
+  (Estimates.halfBelow (Scalars.mul Scalars.half time) (Order.leOfLt _ _ (Estimates.halfOfPositive time positive))) (Estimates.halfStrict time positive);
+\definition leftEdge: R.Lt ODE.edge left.radius := R.ltLeTrans _ time left.radius edgeBelow leftTimeBound;
+\definition rightEdge: R.Lt ODE.edge right.radius := R.ltLeTrans _ time right.radius edgeBelow rightTimeBound;
+\import metric_spaces.RealLine[] \as Line;
+\definition leftLower[t: ODE.Time]: R.Lt (Scalars.neg left.radius) t := R.ltLeTrans _ ODE.left t
+  (Laws.negStrictAntitone ODE.edge left.radius leftEdge) (\bysub(Real, Line.ClosedInterval ODE.left ODE.right, t)).left;
+\definition leftUpper[t: ODE.Time]: R.Lt t left.radius := R.leLtTrans t ODE.right left.radius
+  (\bysub(Real, Line.ClosedInterval ODE.left ODE.right, t)).right leftEdge;
+\definition rightLower[t: ODE.Time]: R.Lt (Scalars.neg right.radius) t := R.ltLeTrans _ ODE.left t
+  (Laws.negStrictAntitone ODE.edge right.radius rightEdge) (\bysub(Real, Line.ClosedInterval ODE.left ODE.right, t)).left;
+\definition rightUpper[t: ODE.Time]: R.Lt t right.radius := R.leLtTrans t ODE.right right.radius
+  (\bysub(Real, Line.ClosedInterval ODE.left ODE.right, t)).right rightEdge;
+\definition leftCandidate: ODE.Candidate := ODE.Candidate {
+  value := left.value, initialValue := left.initialValue,
+  derivative := \fun (t: ODE.Time)(i: Euclidean.Coordinate) => left.derivative t (leftLower t) (leftUpper t) i,
+};
+\definition rightCandidate: ODE.Candidate := ODE.Candidate {
+  value := right.value, initialValue := right.initialValue,
+  derivative := \fun (t: ODE.Time)(i: Euclidean.Coordinate) => right.derivative t (rightLower t) (rightUpper t) i,
+};
+\definition agreement: LocalAgreement[left.value, right.value] := LocalAgreement[left.value, right.value] {
+  radius := \into[Real](ODE.edge, { r: Real \where R.Lt Scalars.zero r }) \by { ODE.edgePositive },
+  agrees := \fun (t: Real)(lower: _)(upper: _) => \block {
+    \let point: ODE.Time := \into[Real](t, Line.ClosedInterval ODE.left ODE.right) \by {
+      Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper)
+    } \then
+    \return trans!{Vector} _ _ _ (ODE.candidateUnique leftCandidate point) (sym!{Vector} _ _ (ODE.candidateUnique rightCandidate point))
+  },
+};

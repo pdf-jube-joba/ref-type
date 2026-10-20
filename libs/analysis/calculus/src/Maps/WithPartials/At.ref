@@ -1,0 +1,25 @@
+\import real.Analysis[].Algebra[] \as RealAlgebra;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := RealAlgebra.field] \as VectorSpaces;
+\import VectorSpaces.Coordinates[I := Fin.Fin n] \as Domain;
+\import VectorSpaces.Coordinates[I := Fin.Fin m] \as Codomain;
+\import VectorSpaces.Linear[V := Domain.Vector, W := Codomain.Vector, source := Domain.space, target := Codomain.space] \as Linear;
+\import Reals.Multivariable[n := n].Differential[].Def[] \as ScalarMaps;
+\import Reals.Multivariable[n := n].Space[].Linear[] \as SourceLinear;
+\import \parent.\parent.\parent.Vector[n := n, m := m] \as Vector;
+\definition row[j: Fin.Fin m]: ScalarMaps.LinearMap := C1.At[U := U, f := component j, g := p j, a := a].differential;
+\definition value: Linear.Map := Linear.Map {
+  apply := \fun (v: Domain.Vector)(j: Fin.Fin m) => (row j).apply v,
+  preservesAdd := \fun (v, w: Domain.Vector) => \axiom:funext((\fun (j: Fin.Fin m) => (row j).apply (Domain.plus v w)),
+    (\fun (j: Fin.Fin m) => Reals.add ((row j).apply v) ((row j).apply w)), \fun (j: Fin.Fin m) => (row j).additive v w),
+  preservesScale := \fun (c: Reals.Real)(v: Domain.Vector) => \axiom:funext((\fun (j: Fin.Fin m) => (row j).apply (Domain.scale c v)),
+    (\fun (j: Fin.Fin m) => Reals.mul c ((row j).apply v)), \fun (j: Fin.Fin m) => (row j).homogeneous c v),
+};
+\definition rowLaw[j: Fin.Fin m]: PartialLaws -> ContinuousPartials -> Analysis.HasDifferentialAt U (component j) a (row j) :=
+  \fun (partials: _)(continuous: _) => C1.At[U := U, f := component j, g := p j, a := a].differentiable (partials j) (\fun (i: Fin.Fin n) => continuous j i a);
+\definition vectorLaw: PartialLaws -> ContinuousPartials -> Vector.HasDifferentialAt U (\fun (x: Source.Carrier U) => f x) a value :=
+  \fun (partials: _)(continuous: _)(j: Fin.Fin m) => \idelim row j = Vector.row value j \with d: ScalarMaps.LinearMap =>
+    Analysis.HasDifferentialAt U (component j) a d \by {
+      base: rowLaw j partials continuous,
+      equality: SourceLinear.ext (row j) (Vector.row value j) (\axiom:funext((row j).apply, (Vector.row value j).apply, \fun (v: Domain.Vector) => \refl((row j).apply v)))
+    };
+\module Composition(h: TargetPartials.Function V);

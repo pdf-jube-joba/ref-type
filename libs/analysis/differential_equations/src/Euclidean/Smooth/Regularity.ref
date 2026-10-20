@@ -1,0 +1,58 @@
+\import calculus.Real[].OneDimension[] \as One;
+\import One.Interval[left := Scalars.neg solution.radius, right := solution.radius] \as Time;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Source;
+\import One.On[U := Time.domain] \as RealFunctions;
+\import Source.Analysis[] \as SourceAnalysis;
+\import Source.Smooth[] \as SourceSmooth;
+\import SourceSmooth.Properties[] \as SourceProperties;
+\import calculus.Real[].Derivative[].Operations[] \as DerivativeOperations;
+\import calculus.Maps[n := One.dimension, m := n] \as Maps;
+\definition curve[x: Source.Carrier Time.domain]: Open.Carrier U := \into[Vector](solution.value (x One.index), U.points) \by {
+  solution.inside (x One.index) (Time.bounds x).left (Time.bounds x).right
+};
+\definition velocity[j: Euclidean.Coordinate][i: One.Index][x: Source.Carrier Time.domain]: Real := function (curve x) j;
+\definition realDerivative[x: Source.Carrier Time.domain][j: Euclidean.Coordinate]:
+  Derivatives.HasDerivativeAt (\fun (t: Real) => solution.value t j) (x One.index) (function (curve x) j) :=
+  \idelim extended (solution.value (x One.index)) j = function (curve x) j \with d: Real =>
+    Derivatives.HasDerivativeAt (\fun (t: Real) => solution.value t j) (x One.index) d \by {
+      base: solution.derivative (x One.index) (Time.bounds x).left (Time.bounds x).right j,
+      equality: congr!{Vector Real} (\fun (v: Vector) => v j) _ _ (DomainExtension.inside function Coordinates.origin (curve x))
+    };
+\import Maps.WithPartials[U := Time.domain, V := U, f := curve, p := velocity] \as Chain;
+\definition partialLaws: Chain.PartialLaws := \fun (j: Euclidean.Coordinate)(i: One.Index)(x: Source.Carrier Time.domain) =>
+  RealFunctions.partialAt (\fun (t: Real) => solution.value t j) x (function (curve x) j) (realDerivative x j) i;
+\definition coordinateContinuous[j: Euclidean.Coordinate]: SourceAnalysis.ContinuousOn Time.domain (\fun (x: Source.Carrier Time.domain) => curve x j) :=
+  \fun (x: Source.Carrier Time.domain) => RealFunctions.continuousAt (\fun (t: Real) => solution.value t j) x
+    (DerivativeOperations.continuousOfDerivative (\fun (t: Real) => solution.value t j) (x One.index) (function (curve x) j) (realDerivative x j));
+\import Source.Topology[].Of[U := Time.domain] \as SourceTopology;
+\import SourceTopology.Continuity[] \as SourceContinuity;
+\import Open.Topology[].Of[U := U] \as TargetTopology;
+\import topological_algebra.Coordinates[K := Real, I := Euclidean.Coordinate] \as ProductTopology;
+\import ProductTopology.Universal[A := Source.Carrier Time.domain] \as Components;
+\import topology.Continuity[A := Source.Carrier Time.domain, B := Vector] \as Ambient;
+\import Ambient.Corestriction[S := U.points] \as RestrictRange;
+\import metric_spaces.RealLine[] \as Line;
+\definition continuous: Chain.Continuous := \block {
+  \let coordinates: Ambient.Continuous SourceTopology.topology EuclideanTopology.coordinateTopology (\fun (x: Source.Carrier Time.domain) => curve x) :=
+    Components.continuous SourceTopology.topology Line.topology (\fun (x: Source.Carrier Time.domain) => curve x)
+      (\fun (j: Euclidean.Coordinate) => SourceContinuity.topological (\fun (x: Source.Carrier Time.domain) => curve x j) (coordinateContinuous j)) \then
+  \let ambient: Ambient.Continuous SourceTopology.topology EuclideanTopology.topology (\fun (x: Source.Carrier Time.domain) => curve x) :=
+    \fun (W: \Pow Vector)(open: _) => coordinates W (EuclideanTopology.metricOpen W open) \then
+  \return RestrictRange.corestrictContinuous SourceTopology.topology EuclideanTopology.topology curve ambient
+};
+\definition partialsContinuous: Chain.ContinuousPartials := \fun (j: Euclidean.Coordinate)(i: One.Index) => Chain.continuous (component j) continuous;
+\definition contDiff: \forall (k: std.Data[].Nat[].Nat^)(h: Partials.Function U) -> SourceSmooth.ContDiffOn Time.domain k (Chain.scalar h) :=
+  \induction (k: std.Data[].Nat[].Nat^) \return \forall (h: Partials.Function U) -> SourceSmooth.ContDiffOn Time.domain k (Chain.scalar h) \with {
+    | zero: \fun (h: Partials.Function U) => SourceProperties.zeroOfContinuous Time.domain (Chain.scalar h) (Chain.continuous h continuous)
+    | succ: \fun (k: std.Data[].Nat[].Nat^)(previous: \forall (h: Partials.Function U) -> SourceSmooth.ContDiffOn Time.domain k (Chain.scalar h))(h: Partials.Function U) =>
+      Chain.contDiffStep k h continuous partialLaws partialsContinuous previous (\fun (j: Euclidean.Coordinate)(i: One.Index) => previous (component j))
+  };
+\import Open.Examples[] \as Examples;
+\definition projection[j: Euclidean.Coordinate]: Partials.Function U := \into[Open.ScalarFunction U]((\fun (x: Open.Carrier U) => x j),
+  { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }) \by { Examples.projectionSmooth U j };
+\definition map: Maps.Map Time.domain U := \into[Maps.Data[Time.domain, U]](Maps.Data[Time.domain, U] { apply := curve },
+  { data: Maps.Data[Time.domain, U] \where Maps.Laws[Time.domain, U, data] }) \by {
+    Maps.Laws[Time.domain, U, Maps.Data[Time.domain, U]::# curve] {
+      smooth := \fun (j: Euclidean.Coordinate)(k: std.Data[].Nat[].Nat^) => contDiff k (projection j),
+    }
+  };

@@ -21,6 +21,11 @@
 \definition Vector: \Set := Euclidean.Point;
 \definition Real: \Set := Scalars.Real;
 \definition Nonnegative: \Set := \Cast[Real] ({ x: Real \where R.Le Scalars.zero x });
+\definition insideDistance[t, radius: Real]: R.Lt (Scalars.neg radius) t -> R.Lt t radius -> R.Lt (Scalars.distance t Scalars.zero) radius :=
+  \fun (lower: _)(upper: _) => R.ltReplaceLeft (Scalars.distance Scalars.zero t) (Scalars.distance t Scalars.zero) radius (Distance.distanceSymmetric Scalars.zero t)
+    (Distance.distanceLtOfInterval Scalars.zero t radius
+      (R.ltReplaceLeft (Scalars.neg radius) (Scalars.sub Scalars.zero radius) t (sym!{Real} _ _ (Laws.addZeroLeft (Scalars.neg radius))) lower)
+      (R.ltReplaceRight t radius (Scalars.add Scalars.zero radius) (sym!{Real} _ _ (Laws.addZeroLeft radius)) upper));
 \structure BoundedLipschitzField: \Set := {
   apply: Vector -> Vector,
   bound: Nonnegative,
@@ -29,6 +34,11 @@
   lipschitz: \forall (x, y: Vector) -> R.Le (Norm.metric.distance (apply x) (apply y)) (Scalars.mul coefficient (Norm.metric.distance x y)),
 };
 \definition Positive: \Set := \Cast[Real] ({ x: Real \where R.Lt Scalars.zero x });
+\structure Step[field: BoundedLipschitzField]: \Set := {
+  time: Positive,
+  contractionBound: R.Le (Scalars.mul time field.coefficient) Scalars.half,
+  ballBound: R.Le (Scalars.mul time field.bound) Scalars.one,
+};
 \import calculus.Real[].Derivative[].Def[] \as Derivatives;
 \structure LocalSolution[field: BoundedLipschitzField, initial: Vector]: \Set := {
   radius: Positive,
@@ -40,6 +50,14 @@
 \module On(field: BoundedLipschitzField, initial: Vector);
 \definition localExistence: \forall (field: BoundedLipschitzField)(initial: Vector) -> \exists LocalSolution[field, initial] :=
   \fun (field: BoundedLipschitzField)(initial: Vector) => \exact(On[field := field, initial := initial].localSolution, LocalSolution[field, initial]);
+\structure LocalAgreement[left, right: Real -> Vector]: \Set := {
+  radius: Positive,
+  agrees: \forall (t: Real) -> R.Lt (Scalars.neg radius) t -> R.Lt t radius -> left t = right t,
+};
+\module LocalUniqueness(field: BoundedLipschitzField, initial: Vector, left, right: LocalSolution[field, initial]);
+\definition localUniqueness: \forall (field: BoundedLipschitzField)(initial: Vector)(left, right: LocalSolution[field, initial]) -> \exists LocalAgreement[left.value, right.value] :=
+  \fun (field: BoundedLipschitzField)(initial: Vector)(left, right: LocalSolution[field, initial]) =>
+    \exact(LocalUniqueness[field := field, initial := initial, left := left, right := right].agreement, LocalAgreement[left.value, right.value]);
 \import calculus.Real[].Multivariable[n := n].Open[] \as Open;
 \import calculus.Maps[n := n, m := n] \as SmoothMaps;
 \module Smooth(U: Open.OpenSet, field: SmoothMaps.Map U Open.whole, a: Open.Carrier U);
