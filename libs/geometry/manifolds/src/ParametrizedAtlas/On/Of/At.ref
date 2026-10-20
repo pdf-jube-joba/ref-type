@@ -1,0 +1,69 @@
+\definition current: Patch := patch i;
+\definition Parameters: \Set := Parameter i;
+\definition Points: \Set := Domain current.domain;
+\import topology.Topology[Carrier := Parameters] \as ParametersTopology;
+\import Space.Subspace[S := current.domain] \as Subspace;
+\import topology.Topology[Carrier := Points] \as PointsTopology;
+\import topology.Continuity[A := Parameters, B := A] \as IntoAmbient;
+\import IntoAmbient.Corestriction[S := current.domain] \as IntoDomain;
+\import topology.Continuity[A := Points, B := Parameters] \as CoordinateContinuity;
+\import topology.Homeomorphism[A := Points, B := Parameters] \as Homeomorphisms;
+\definition imageMember: \forall (W: \Pow Parameters)(x: Parameters) -> \In[Parameters] W x -> \In[A] (Image i W) (point i x) :=
+  \fun (W: _)(x: _)(member: _) => Logic.existsIntro[Parameters,
+    { y: Parameters \where Logic.And[\In[Parameters] W y, point i y = point i x] }] x (Logic.And[_, _]::# member (\refl(point i x)));
+\definition imageElim[W: \Pow Parameters][a: A][P: \Prop]:
+  (\forall (x: Parameters) -> \In[Parameters] W x -> point i x = a -> P) -> \In[A] (Image i W) a -> P := \block {
+  \fun (step: _)(member: _) \then
+  \takefrom x: \Cast[Parameters] ({ x: Parameters \where Logic.And[\In[Parameters] W x, point i x = a] }) \by member \then
+  \let evidence: Logic.And[\In[Parameters] W x, point i x = a] := \bysub(Parameters,
+    { x: Parameters \where Logic.And[\In[Parameters] W x, point i x = a] }, x) \then
+  \return step x evidence.left evidence.right
+};
+\definition wholeImage: Image i ParametersTopology.Whole = current.domain := \axiom:setext(Image i ParametersTopology.Whole, current.domain,
+  \fun (a: A)(member: _) => imageElim ParametersTopology.Whole a (\In[A] current.domain a)
+    (\fun (x: Parameters)(_: _)(same: _) => \idelim point i x = a \with y: A => \In[A] current.domain y \by {
+      base: \bysub(A, current.domain, current.point x), equality: same
+    }) member,
+  \fun (a: A)(member: _) => \block {
+    \let x: Points := \into[A](a, current.domain) \by { member } \then
+    \return Logic.existsIntro[Parameters, { y: Parameters \where Logic.And[y = y, point i y = a] }]
+      (current.coordinate x) (Logic.And[_, _]::# (\refl(current.coordinate x)) (current.pointCoordinate x))
+  });
+\definition domainOpen: Space.IsOpenIn topology current.domain := \idelim Image i ParametersTopology.Whole = current.domain
+  \with S: \Pow A => Space.IsOpenIn topology S \by {
+    base: openEmbeddings i ParametersTopology.Whole (ParametersTopology.topologyLaws (parameterTopology i)).wholeOpen,
+    equality: wholeImage
+  };
+\definition pointContinuous: IntoAmbient.Continuous (parameterTopology i) topology (point i) := \fun (W: _)(open: _) => open i;
+\definition coordinatePreimage[W: \Pow Parameters]: \Pow Points := { x: Points \where \In[Parameters] W (current.coordinate x) };
+\definition preimageEquality: \forall (W: \Pow Parameters) -> coordinatePreimage W = Subspace.Trace (Image i W) :=
+  \fun (W: _) => \axiom:setext(coordinatePreimage W, Subspace.Trace (Image i W),
+    \fun (x: Points)(member: _) => Logic.existsIntro[Parameters,
+      { y: Parameters \where Logic.And[\In[Parameters] W y, point i y = x] }] (current.coordinate x)
+      (Logic.And[_, _]::# member (current.pointCoordinate x)),
+    \fun (x: Points)(member: _) => imageElim W x (\In[Parameters] W (current.coordinate x))
+      (\fun (y: Parameters)(inW: _)(same: point i y = x) => \block {
+        \let localSame: current.point y = x := same \then
+        \return \idelim y = current.coordinate x \with z: Parameters => \In[Parameters] W z \by {
+          base: inW,
+          equality: trans!{Parameters} _ _ _ (sym!{Parameters} _ _ (current.coordinatePoint y))
+            (congr!{Points Parameters} current.coordinate _ _ localSame)
+        }
+      }) member);
+\definition coordinateContinuous: CoordinateContinuity.Continuous (Subspace.topology topology) (parameterTopology i) current.coordinate :=
+  \fun (W: _)(open: _) => \idelim Subspace.Trace (Image i W) = coordinatePreimage W
+    \with V: \Pow Points => PointsTopology.IsOpenIn (Subspace.topology topology) V \by {
+      base: Subspace.traceOpen topology (Image i W) (openEmbeddings i W open),
+      equality: sym!{\Pow Points} _ _ (preimageEquality W)
+    };
+\definition chart: Charts.Chart := Charts.Chart {
+  domain := current.domain,
+  image := current.image,
+  coordinates := Homeomorphisms.Homeomorphism[Subspace.topology topology, parameterTopology i] {
+    forward := current.coordinate, backward := current.point,
+    leftInverse := current.pointCoordinate, rightInverse := current.coordinatePoint,
+    forwardContinuous := coordinateContinuous,
+    backwardContinuous := IntoDomain.corestrictContinuous (parameterTopology i) topology current.point pointContinuous,
+  },
+  open := domainOpen,
+};
