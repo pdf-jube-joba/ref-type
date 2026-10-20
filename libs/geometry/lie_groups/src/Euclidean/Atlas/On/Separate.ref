@@ -1,0 +1,22 @@
+\definition evaluate: O -> R.Real := coefficient witness.vector witness.index;
+\definition continuous: Continuous.Continuous topology Line.topology evaluate := coefficientContinuous witness.vector witness.index;
+\definition neighborhood: \exists ( U: \Pow O \where Space.RegularChoice[topology, Space.Singleton h, g, U] ) := \block {
+  \takefrom U: \Cast[\Pow R.Real] ({ U: \Pow R.Real \where Reals.RegularChoice[Line.topology, Reals.Singleton (evaluate h), evaluate g, U] })
+    \by RealSeparation.topologyT2 RealMetric.metric (evaluate g) (evaluate h) witness.different \then
+  \let left: Reals.RegularChoice[Line.topology, Reals.Singleton (evaluate h), evaluate g, U] := \bysub(\Pow R.Real,
+    { U: \Pow R.Real \where Reals.RegularChoice[Line.topology, Reals.Singleton (evaluate h), evaluate g, U] }, U) \then
+  \takefrom V: \Cast[\Pow R.Real] ({ V: \Pow R.Real \where Reals.NormalPartner[Line.topology, Reals.Singleton (evaluate h), U, V] }) \by left.partner \then
+  \let right: Reals.NormalPartner[Line.topology, Reals.Singleton (evaluate h), U, V] := \bysub(\Pow R.Real,
+    { V: \Pow R.Real \where Reals.NormalPartner[Line.topology, Reals.Singleton (evaluate h), U, V] }, V) \then
+  \return Logic.existsIntro[\Pow O, { W: \Pow O \where Space.RegularChoice[topology, Space.Singleton h, g, W] }] (Continuous.Preimage evaluate U)
+    (Space.RegularChoice[topology, Space.Singleton h, g, Continuous.Preimage evaluate U] {
+      open := continuous U left.open,
+      contains := left.contains,
+      partner := Logic.existsIntro[\Pow O, { W: \Pow O \where Space.NormalPartner[topology, Space.Singleton h, Continuous.Preimage evaluate U, W] }]
+        (Continuous.Preimage evaluate V) (Space.NormalPartner[topology, Space.Singleton h, Continuous.Preimage evaluate U, Continuous.Preimage evaluate V] {
+          open := continuous V right.open,
+          covers := \fun (x: O)(same: x = h) => right.covers (evaluate x) (congr!{O R.Real} evaluate _ _ same),
+          disjoint := \fun (x: O)(inU: _)(inV: _) => right.disjoint (evaluate x) inU inV,
+        }),
+    })
+};
