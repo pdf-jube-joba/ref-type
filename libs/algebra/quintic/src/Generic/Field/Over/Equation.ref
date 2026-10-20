@@ -1,0 +1,108 @@
+\import algebra.Polynomial[].Over[R := K, coefficients := Fields.fieldAsCommutativeRing K field] \as Abstract;
+\import F.Polynomial[] \as Polynomials;
+\import Polynomials.RootProduct[] \as RootProduct;
+\import Polynomials.Equality[] \as PolynomialEquality;
+\import Polynomials.AbstractEvaluation[] \as Evaluation;
+\import Polynomials.Splitting[] \as Splitting;
+\import F.Automorphism[] \as Automorphisms;
+\import F.Arithmetic[] \as Arithmetic;
+\import F.Correspondence[] \as Correspondence;
+\import Polynomials.Raw[] \as Raw;
+\import algebra.Monoid[].Of[Carrier := Abstract.Carrier, monoid := Raw.multiplicative] \as Product;
+\import Lists.Membership[A := K] \as Membership;
+\import Lists.Mapping[A := K, B := K].Prop[] \as Mapping;
+\definition ordered[r: Quintic.Five -> K]: Polynomials.Coefficients :=
+  Lists.List[K]::cons (r Quintic.Five::a) (Lists.List[K]::cons (r Quintic.Five::b)
+    (Lists.List[K]::cons (r Quintic.Five::c) (Lists.List[K]::cons (r Quintic.Five::d)
+      (Lists.List[K]::cons (r Quintic.Five::e) Lists.List[K]::nil))));
+\definition coefficients: Polynomials.Coefficients := RootProduct.coefficients (ordered roots);
+\definition five: N.Nat^ := N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ N.Nat^::zero))));
+\definition degree: Polynomials.degree coefficients = five := RootProduct.degreeLaw (ordered roots);
+\definition factorization: Polynomials.asPolynomial coefficients = Polynomials.factors (ordered roots) := RootProduct.factorization (ordered roots);
+\definition CoefficientSeed[x: K]: \Prop := Logic.Or[Subfields.Member constants x, Membership.Occurs x coefficients];
+\definition coefficientField: Subfields.Subfield := Subfields.generated CoefficientSeed;
+\definition containsConstant: \forall (x: K) -> Subfields.Member constants x -> Subfields.Member coefficientField x :=
+  \fun (x: K)(member: _) => Subfields.contains CoefficientSeed x (Logic.Or[_, _]::left member);
+\definition containsCoefficient: \forall (x: K) -> Membership.Occurs x coefficients -> Subfields.Member coefficientField x :=
+  \fun (x: K)(member: _) => Subfields.contains CoefficientSeed x (Logic.Or[_, _]::right member);
+\definition mappedOrdered: \forall (f: K -> K)(r: Quintic.Five -> K) -> Lists.map K K f (ordered r) = ordered (\fun (i: Quintic.Five) => f (r i)) :=
+  \fun (f: K -> K)(r: Quintic.Five -> K) => \refl(Lists.map K K f (ordered r));
+\definition orderedEqual: \forall (r, s: Quintic.Five -> K) -> (\forall (i: Quintic.Five) -> r i = s i) -> ordered r = ordered s :=
+  \fun (r, s: Quintic.Five -> K)(same: _) => congr2!{K Polynomials.Coefficients Polynomials.Coefficients} Lists.List[K]::cons _ _ _ _ (same Quintic.Five::a)
+    (congr2!{K Polynomials.Coefficients Polynomials.Coefficients} Lists.List[K]::cons _ _ _ _ (same Quintic.Five::b)
+      (congr2!{K Polynomials.Coefficients Polynomials.Coefficients} Lists.List[K]::cons _ _ _ _ (same Quintic.Five::c)
+        (congr2!{K Polynomials.Coefficients Polynomials.Coefficients} Lists.List[K]::cons _ _ _ _ (same Quintic.Five::d)
+          (congr2!{K Polynomials.Coefficients Polynomials.Coefficients} Lists.List[K]::cons _ _ _ _ (same Quintic.Five::e) (\refl(Lists.List[K]::nil))))));
+\definition permuted[p: Permutations.Permutation][i: Quintic.Five]: K := roots (p.apply i);
+\definition Symmetric[p: Permutations.Permutation]: \Prop := Polynomials.factors (ordered (permuted p)) = Polynomials.factors (ordered roots);
+\definition fixedCoefficients: Polynomials.AlgebraicallyClosed (\fun (x: K) => Logic.True) ->
+  \forall (f: Automorphisms.Automorphism)(p: Permutations.Permutation) ->
+  (\forall (i: Quintic.Five) -> f.map.apply (roots i) = roots (p.apply i)) -> Symmetric p ->
+  Lists.map K K f.map.apply coefficients = coefficients :=
+  \fun (closed: _)(f: Automorphisms.Automorphism)(p: Permutations.Permutation)(action: _)(symmetric: _) =>
+    PolynomialEquality.coefficientsEqual closed (Lists.map K K f.map.apply coefficients) coefficients (Mapping.lengthMap f.map.apply coefficients)
+      (eq_reason!{{Polynomials.asPolynomial (Lists.map K K f.map.apply coefficients)}
+        "=" {Polynomials.asPolynomial (RootProduct.coefficients (Lists.map K K f.map.apply (ordered roots)))}
+        "by" {congr!{Polynomials.Coefficients Abstract.Carrier} Polynomials.asPolynomial _ _ (RootProduct.natural f (ordered roots))}
+        "=" {Polynomials.asPolynomial (RootProduct.coefficients (ordered (permuted p)))}
+        "by" {congr!{Polynomials.Coefficients Abstract.Carrier} (\fun (xs: Polynomials.Coefficients) => Polynomials.asPolynomial (RootProduct.coefficients xs)) _ _
+          (trans!{Polynomials.Coefficients} _ _ _ (mappedOrdered f.map.apply roots)
+            (orderedEqual (\fun (i: Quintic.Five) => f.map.apply (roots i)) (permuted p) action))}
+        "=" {Polynomials.factors (ordered (permuted p))} "by" {RootProduct.factorization (ordered (permuted p))}
+        "=" {Polynomials.factors (ordered roots)} "by" symmetric
+        "=" {Polynomials.asPolynomial coefficients} "by" {sym!{Abstract.Carrier} _ _ factorization}});
+\module Symmetry;
+\definition first[xs: Polynomials.Coefficients]: K := \match xs \in Lists.List \return (\fun (xs: Polynomials.Coefficients) => K) \with {
+  | nil: F.zero
+  | cons head tail: head
+};
+\definition rest[xs: Polynomials.Coefficients]: Polynomials.Coefficients := \match xs \in Lists.List \return (\fun (xs: Polynomials.Coefficients) => Polynomials.Coefficients) \with {
+  | nil: Lists.List[K]::nil
+  | cons head tail: tail
+};
+\definition fixedElements: \forall (f: K -> K)(xs: Polynomials.Coefficients) -> Lists.map K K f xs = xs ->
+  \forall (x: K) -> Membership.Occurs x xs -> f x = x :=
+  \fun (f: K -> K) => \induction (xs: Polynomials.Coefficients) \return Lists.map K K f xs = xs ->
+    \forall (x: K) -> Membership.Occurs x xs -> f x = x \with {
+    | nil: \fun (same: _)(x: K)(impossible: Logic.False) => Logic.falseElim (f x = x) impossible
+    | cons: \fun (head: K)(tail: Polynomials.Coefficients)(previous: _)(same: _)(x: K)(member: _) =>
+      Logic.orElim (x = head) (Membership.Occurs x tail) (f x = x) member
+        (\fun (equal: _) => eq_reason!{{f x}
+          "=" {f head} "by" {congr!{K K} f _ _ equal}
+          "=" head "by" {congr!{Polynomials.Coefficients K} first _ _ same}
+          "=" x "by" {sym!{K} _ _ equal}})
+        (previous (congr!{Polynomials.Coefficients Polynomials.Coefficients} rest _ _ same) x)
+  };
+\definition fixesField: Polynomials.AlgebraicallyClosed (\fun (x: K) => Logic.True) ->
+  \forall (f: Automorphisms.Automorphism)(p: Permutations.Permutation) ->
+  Automorphisms.Fixes (Subfields.Member constants) f ->
+  (\forall (i: Quintic.Five) -> f.map.apply (roots i) = roots (p.apply i)) -> Symmetric p ->
+  Automorphisms.Fixes (Subfields.Member coefficientField) f :=
+  \fun (closed: _)(f: Automorphisms.Automorphism)(p: Permutations.Permutation)(fixes: _)(action: _)(symmetric: _) =>
+    (Correspondence.generatedFixed CoefficientSeed f).rtl
+      (\fun (x: K)(member: CoefficientSeed x) => Logic.orElim _ _ _ member (fixes x)
+        (fixedElements f.map.apply coefficients (fixedCoefficients closed f p action symmetric) x));
+\definition overFromMembers: \forall (S: K -> \Prop)(xs: Polynomials.Coefficients) ->
+  (\forall (x: K) -> Membership.Occurs x xs -> S x) -> Polynomials.Over S xs :=
+  \fun (S: K -> \Prop) => \induction (xs: Polynomials.Coefficients) \return
+    (\forall (x: K) -> Membership.Occurs x xs -> S x) -> Polynomials.Over S xs \with {
+    | nil: \fun (members: _) => Logic.True::intro
+    | cons: \fun (head: K)(tail: Polynomials.Coefficients)(previous: _)(members: _) => Logic.And[_, _]::#
+      (members head (Logic.Or[_, _]::left (\refl(head))))
+      (previous (\fun (x: K)(member: _) => members x (Logic.Or[_, _]::right member)))
+  };
+\definition over: Polynomials.Over (Subfields.Member coefficientField) coefficients := overFromMembers (Subfields.Member coefficientField) coefficients containsCoefficient;
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K Arithmetic.underlyingRing] \as Sum;
+\definition firstRoot: Polynomials.monicEvaluate coefficients (roots Quintic.Five::a) = F.zero :=
+  eq_reason!{{Polynomials.monicEvaluate coefficients (roots Quintic.Five::a)}
+    "=" {Evaluation.apply (roots Quintic.Five::a) (Polynomials.asPolynomial coefficients)}
+    "by" {sym!{K} _ _ (Evaluation.agrees coefficients (roots Quintic.Five::a))}
+    "=" {Evaluation.apply (roots Quintic.Five::a) (Polynomials.factors (ordered roots))}
+    "by" {congr!{Abstract.Carrier K} (Evaluation.apply (roots Quintic.Five::a)) _ _ factorization}
+    "=" {F.mul (Evaluation.apply (roots Quintic.Five::a) (Polynomials.linearFactor (roots Quintic.Five::a)))
+      (Evaluation.apply (roots Quintic.Five::a) (Polynomials.factors (rest (ordered roots))))}
+    "by" {(Evaluation.homomorphism (roots Quintic.Five::a)).mul (Polynomials.linearFactor (roots Quintic.Five::a)) (Polynomials.factors (rest (ordered roots)))}
+    "=" {F.mul F.zero (Evaluation.apply (roots Quintic.Five::a) (Polynomials.factors (rest (ordered roots))))}
+    "by" {congr!{K K} (\fun (a: K) => F.mul a (Evaluation.apply (roots Quintic.Five::a) (Polynomials.factors (rest (ordered roots))))) _ _
+      (trans!{K} _ _ _ (Splitting.linearValue (roots Quintic.Five::a) (roots Quintic.Five::a)) (Sum.inverseRight (roots Quintic.Five::a)))}
+    "=" {F.zero} "by" {field.ring.ring.semiring.zeroAbsorbsLeft (Evaluation.apply (roots Quintic.Five::a) (Polynomials.factors (rest (ordered roots))))}};

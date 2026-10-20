@@ -1,0 +1,20 @@
+/* A conjugacy class reproducing one nonidentity element by a commutator
+ * survives every term of the derived series. */
+\definition persists: \forall (c, s, t: Permutation) ->
+  Equal (commutator (conjugate s c) (conjugate t c)) c ->
+  \forall (n: N.Nat^) -> Derived n c :=
+  \fun (c, s, t: Permutation)(equation: _) =>
+    \induction (n: N.Nat^) \return Derived n c \with {
+      | zero: Logic.True::intro
+      | succ: \fun (n: N.Nat^)(previous: _) => (derivedNormal (N.Nat^::succ n)).subgroup.extensional _ c equation
+        (commutatorInDerived n (conjugate s c) (conjugate t c)
+          ((derivedNormal n).conjugate s c previous)
+          ((derivedNormal n).conjugate t c previous))
+    };
+\definition notSolvable: \forall (c, s, t: Permutation) ->
+  Equal (commutator (conjugate s c) (conjugate t c)) c ->
+  Logic.Not (Equal c identity) -> Logic.Not Solvable := \block {
+    \fun (c, s, t: Permutation)(equation: _)(nontrivial: _)(solvable: Solvable) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Terminates n }) \by solvable \then
+    \return nontrivial ((\bysub(N.Nat^, { n: N.Nat^ \where Terminates n }, n)) c (persists c s t equation n))
+  };

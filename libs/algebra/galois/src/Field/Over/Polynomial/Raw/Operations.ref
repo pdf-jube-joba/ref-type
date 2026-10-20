@@ -1,0 +1,95 @@
+\import std.Data[].Nat[].Basic[].Def[] \as NatOp;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import Lists.Mapping[A := K, B := K].Prop[] \as Mapping;
+\definition scaleLength: \forall (a: K)(p: Coefficients) -> Lists.length K (scale a p) = Lists.length K p :=
+  \fun (a: K) => Mapping.lengthMap (mul a);
+\definition scaleOver: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> \forall (a: K) -> S a ->
+  \forall (p: Coefficients) -> Over S p -> Over S (scale a p) :=
+  \fun (S: _)(closed: Subfields.Closed[S])(a: K)(ha: _) =>
+    \induction (p: Coefficients) \return Over S p -> Over S (scale a p) \with {
+      | nil: \fun (over: _) => Logic.True::intro
+      | cons: \fun (b: K)(tail: Coefficients)(previous: _)(over: Logic.And[S b, Over S tail]) =>
+        Logic.And[_, _]::# (closed.mul a b ha over.left) (previous over.right)
+    };
+\definition plusOver: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> \forall (p, q: Coefficients) ->
+  Over S p -> Over S q -> Over S (plus p q) :=
+  \fun (S: _)(closed: Subfields.Closed[S]) =>
+    \induction (p: Coefficients) \return \forall (q: Coefficients) -> Over S p -> Over S q -> Over S (plus p q) \with {
+      | nil: \fun (q: Coefficients)(hp: _)(hq: _) => hq
+      | cons: \fun (a: K)(tail: Coefficients)(previous: _) =>
+        \induction (q: Coefficients) \return Over S (Lists.List[K]::cons a tail) -> Over S q -> Over S (plus (Lists.List[K]::cons a tail) q) \with {
+          | nil: \fun (hp: _)(hq: _) => hp
+          | cons: \fun (b: K)(other: Coefficients)(unused: _)(hp: Logic.And[S a, Over S tail])(hq: Logic.And[S b, Over S other]) =>
+            Logic.And[_, _]::# (closed.add a b hp.left hq.left) (previous other hp.right hq.right)
+        }
+    };
+\definition monicOver: \forall (S: K -> \Prop) -> S one -> \forall (p: Coefficients) -> Over S p -> Over S (monic p) :=
+  \fun (S: _)(ho: _) => \induction (p: Coefficients) \return Over S p -> Over S (monic p) \with {
+    | nil: \fun (over: _) => Logic.And[_, _]::# ho Logic.True::intro
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _)(over: Logic.And[S a, Over S tail]) =>
+      Logic.And[_, _]::# over.left (previous over.right)
+  };
+\definition monicLength: \forall (p: Coefficients) -> Lists.length K (monic p) = N.Nat^::succ (degree p) :=
+  \induction (p: Coefficients) \return Lists.length K (monic p) = N.Nat^::succ (degree p) \with {
+    | nil: \refl(N.Nat^::succ N.Nat^::zero)
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _) => congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ previous
+  };
+\definition shiftMonic[n: N.Nat^][p: Coefficients]: Coefficients :=
+  \induction (n: N.Nat^) \return Coefficients \with {
+    | zero: p
+    | succ: \fun (n: N.Nat^)(previous: Coefficients) => Lists.List[K]::cons zero previous
+  } n;
+\definition variablePower: N.Nat^ -> Abstract.Carrier :=
+  \induction (n: N.Nat^) \return Abstract.Carrier \with {
+    | zero: Abstract.one
+    | succ: \fun (n: N.Nat^)(previous: Abstract.Carrier) => Abstract.mul Abstract.X previous
+  };
+\definition shiftMonicLaw: \forall (n: N.Nat^)(p: Coefficients) ->
+  Monic.asPolynomial (shiftMonic n p) = Abstract.mul (variablePower n) (Monic.asPolynomial p) :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) ->
+    Monic.asPolynomial (shiftMonic n p) = Abstract.mul (variablePower n) (Monic.asPolynomial p) \with {
+    | zero: \fun (p: Coefficients) => sym!{Abstract.Carrier} _ _ (Product.zeroLeft (Monic.asPolynomial p))
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients) => eq_reason!{{Monic.asPolynomial (shiftMonic (N.Nat^::succ n) p)}
+      "=" {Abstract.mul Abstract.X (Monic.asPolynomial (shiftMonic n p))} "by" {Sum.zeroLeft _}
+      "=" {Abstract.mul Abstract.X (Abstract.mul (variablePower n) (Monic.asPolynomial p))}
+      "by" {congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul Abstract.X) _ _ (previous p)}
+      "=" {Abstract.mul (variablePower (N.Nat^::succ n)) (Monic.asPolynomial p)}
+      "by" {sym!{Abstract.Carrier} _ _ (Product.assoc Abstract.X (variablePower n) (Monic.asPolynomial p))}}
+  };
+\definition shiftMonicDegree: \forall (n: N.Nat^)(p: Coefficients) -> degree (shiftMonic n p) = NatOp.add (degree p) n :=
+  \induction (n: N.Nat^) \return \forall (p: Coefficients) -> degree (shiftMonic n p) = NatOp.add (degree p) n \with {
+    | zero: \fun (p: Coefficients) => \refl(degree p)
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients) => congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (previous p)
+  };
+\definition shiftMonicOver: \forall (S: K -> \Prop) -> S zero -> \forall (n: N.Nat^)(p: Coefficients) ->
+  Over S p -> Over S (shiftMonic n p) :=
+  \fun (S: _)(hz: _) => \induction (n: N.Nat^) \return \forall (p: Coefficients) -> Over S p -> Over S (shiftMonic n p) \with {
+    | zero: \fun (p: Coefficients)(over: _) => over
+    | succ: \fun (n: N.Nat^)(previous: _)(p: Coefficients)(over: _) => Logic.And[_, _]::# hz (previous p over)
+  };
+\definition powerCoefficients[n: N.Nat^]: Coefficients := monic (shiftMonic n Lists.List[K]::nil);
+\definition powerLaw: \forall (n: N.Nat^) -> asPolynomial (powerCoefficients n) = variablePower n :=
+  \fun (n: N.Nat^) => trans!{Abstract.Carrier} _ _ _ (monicLaw (shiftMonic n Lists.List[K]::nil))
+    (trans!{Abstract.Carrier} _ _ _ (shiftMonicLaw n Lists.List[K]::nil) (Product.zeroRight (variablePower n)));
+\definition powerOver: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> \forall (n: N.Nat^) -> Over S (powerCoefficients n) :=
+  \fun (S: _)(closed: Subfields.Closed[S])(n: N.Nat^) => monicOver S closed.one _
+    (shiftMonicOver S closed.zero n Lists.List[K]::nil Logic.True::intro);
+\definition powerLength: \forall (n: N.Nat^) -> Lists.length K (powerCoefficients n) = N.Nat^::succ n :=
+  \fun (n: N.Nat^) => trans!{N.Nat^} _ _ _ (monicLength (shiftMonic n Lists.List[K]::nil))
+    (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _
+      (trans!{N.Nat^} _ _ _ (shiftMonicDegree n Lists.List[K]::nil) (Nat.addZeroLeft n)));
+\definition plusLengthLeft: \forall (p, q: Coefficients) -> Nat.Le (Lists.length K q) (Lists.length K p) -> Lists.length K (plus p q) = Lists.length K p :=
+  \induction (p: Coefficients) \return \forall (q: Coefficients) -> Nat.Le (Lists.length K q) (Lists.length K p) -> Lists.length K (plus p q) = Lists.length K p \with {
+    | nil: \induction (q: Coefficients) \return Nat.Le (Lists.length K q) N.Nat^::zero -> Lists.length K (plus Lists.List[K]::nil q) = N.Nat^::zero \with {
+      | nil: \fun (bound: _) => \refl(N.Nat^::zero)
+      | cons: \fun (b: K)(tail: Coefficients)(unused: _)(bound: _) => Logic.falseElim _
+        (Nat.succNeZero (Lists.length K tail) (Nat.leZeroEq _ bound))
+    }
+    | cons: \fun (a: K)(tail: Coefficients)(previous: _) =>
+      \induction (q: Coefficients) \return Nat.Le (Lists.length K q) (N.Nat^::succ (Lists.length K tail)) ->
+        Lists.length K (plus (Lists.List[K]::cons a tail) q) = N.Nat^::succ (Lists.length K tail) \with {
+        | nil: \fun (bound: _) => \refl(N.Nat^::succ (Lists.length K tail))
+        | cons: \fun (b: K)(other: Coefficients)(unused: _)(bound: _) =>
+          congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (previous other bound)
+      }
+  };

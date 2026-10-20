@@ -1,0 +1,69 @@
+\definition Included[S, T: K -> \Prop]: \Prop := \forall (x: K) -> S x -> T x;
+\structure Closed[S: K -> \Prop]: \Prop := {
+  zero: S zero,
+  one: S one,
+  add: \forall (x, y: K) -> S x -> S y -> S (add x y),
+  neg: \forall (x: K) -> S x -> S (neg x),
+  mul: \forall (x, y: K) -> S x -> S y -> S (mul x y),
+  inv: \forall (x: K) -> S x -> S (inv x),
+};
+\definition Member[S: \Pow K][x: K]: \Prop := \In[K] S x;
+\definition Subfield: \Set := \Cast[\Pow K] ({ S: \Pow K \where Closed[Member S] });
+\definition laws[S: Subfield]: Closed[Member S] := \bysub(\Pow K, Subfield, S);
+\definition whole: Subfield :=
+  \into[\Pow K]({ x: K \where Logic.True }, Subfield) \by {
+    Closed[\fun (x: K) => Logic.True] {
+      zero := Logic.True::intro, one := Logic.True::intro,
+      add := \fun (x, y: K)(hx, hy: Logic.True) => Logic.True::intro,
+      neg := \fun (x: K)(hx: Logic.True) => Logic.True::intro,
+      mul := \fun (x, y: K)(hx, hy: Logic.True) => Logic.True::intro,
+      inv := \fun (x: K)(hx: Logic.True) => Logic.True::intro,
+    }
+  };
+\definition intersection[S, T: Subfield]: Subfield :=
+  \into[\Pow K]({ x: K \where Logic.And[Member S x, Member T x] }, Subfield) \by {
+    Closed[\fun (x: K) => Logic.And[(Member S) x, (Member T) x]] {
+      zero := Logic.And[_, _]::# (laws S).zero (laws T).zero,
+      one := Logic.And[_, _]::# (laws S).one (laws T).one,
+      add := \fun (x, y: K)(hx: _)(hy: _) => Logic.And[_, _]::#
+        ((laws S).add x y hx.left hy.left) ((laws T).add x y hx.right hy.right),
+      neg := \fun (x: K)(hx: _) => Logic.And[_, _]::# ((laws S).neg x hx.left) ((laws T).neg x hx.right),
+      mul := \fun (x, y: K)(hx: _)(hy: _) => Logic.And[_, _]::#
+        ((laws S).mul x y hx.left hy.left) ((laws T).mul x y hx.right hy.right),
+      inv := \fun (x: K)(hx: _) => Logic.And[_, _]::# ((laws S).inv x hx.left) ((laws T).inv x hx.right),
+    }
+  };
+\definition Generated[S: K -> \Prop][x: K]: \Prop :=
+  \forall (T: K -> \Prop) -> Closed[T] -> Included S T -> T x;
+\definition contains: \forall (S: K -> \Prop)(x: K) -> S x -> Generated S x :=
+  \fun (S: _)(x: K)(hx: _)(T: _)(closed: _)(included: _) => included x hx;
+\definition generated[S: K -> \Prop]: Subfield :=
+  \into[\Pow K]({ x: K \where Generated S x }, Subfield) \by {
+    Closed[Generated S] {
+      zero := \fun (T: _)(closed: _)(included: _) => closed.zero,
+      one := \fun (T: _)(closed: _)(included: _) => closed.one,
+      add := \fun (x, y: K)(hx: _)(hy: _)(T: _)(closed: _)(included: _) =>
+        closed.add x y (hx T closed included) (hy T closed included),
+      neg := \fun (x: K)(hx: _)(T: _)(closed: _)(included: _) => closed.neg x (hx T closed included),
+      mul := \fun (x, y: K)(hx: _)(hy: _)(T: _)(closed: _)(included: _) =>
+        closed.mul x y (hx T closed included) (hy T closed included),
+      inv := \fun (x: K)(hx: _)(T: _)(closed: _)(included: _) => closed.inv x (hx T closed included),
+    }
+  };
+\definition least: \forall (S: K -> \Prop)(T: Subfield) -> Included S (Member T) -> Included (Generated S) (Member T) :=
+  \fun (S: _)(T: Subfield)(included: _)(x: K)(hx: _) => hx (Member T) (laws T) included;
+\definition monotone: \forall (S, T: K -> \Prop) -> Included S T -> Included (Generated S) (Generated T) :=
+  \fun (S, T: _)(included: _) => least S (generated T)
+    (\fun (x: K)(hx: _) => contains T x (included x hx));
+\definition idempotent: \forall (S: K -> \Prop)(x: K) -> Logic.PropEquiv[Generated (Generated S) x, Generated S x] :=
+  \fun (S: _)(x: K) => Logic.PropEquiv[_, _] {
+    ltr := least (Generated S) (generated S) (\fun (x: K)(hx: _) => hx) x,
+    rtl := contains (Generated S) x,
+  };
+\definition adjoin[S: Subfield][a: K]: Subfield :=
+  generated (\fun (x: K) => Logic.Or[(Member S) x, x = a]);
+\definition adjoinBase: \forall (S: Subfield)(a, x: K) -> (Member S) x -> Member (adjoin S a) x :=
+  \fun (S: Subfield)(a, x: K)(hx: _) => contains _ x (Logic.Or[_, _]::left hx);
+\definition adjoinElement: \forall (S: Subfield)(a: K) -> Member (adjoin S a) a :=
+  \fun (S: Subfield)(a: K) => contains _ a (Logic.Or[_, _]::right (\refl(a)));
+\module Of(S: Subfield);

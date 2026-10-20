@@ -1,0 +1,92 @@
+\import \parent.Laws[] \as Laws;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\definition quotient[a: K]: Coefficients -> Abstract.Carrier :=
+  \induction (p: Coefficients) \return Abstract.Carrier \with {
+    | nil: Abstract.zero
+    | cons: \fun (b: K)(tail: Coefficients)(previous: Abstract.Carrier) =>
+      Abstract.add (Abstract.mul Abstract.X previous) (Abstract.constant (monicEvaluate tail a))
+  };
+\definition remainderIdentity: \forall (a: K)(p: Coefficients) -> Monic.asPolynomial p =
+  Abstract.add (Abstract.mul (linearFactor a) (quotient a p)) (Abstract.constant (monicEvaluate p a)) :=
+  \fun (a: K) => \induction (p: Coefficients) \return Monic.asPolynomial p =
+    Abstract.add (Abstract.mul (linearFactor a) (quotient a p)) (Abstract.constant (monicEvaluate p a)) \with {
+    | nil: sym!{Abstract.Carrier} _ _ (trans!{Abstract.Carrier} _ _ _
+      (congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add u Abstract.one) _ _ (ring.semiring.zeroAbsorbsRight (linearFactor a)))
+      (Sum.zeroLeft Abstract.one))
+    | cons: \fun (b: K)(tail: Coefficients)(previous: _) => trans!{Abstract.Carrier} _ _ _
+      (congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add (Abstract.constant b) (Abstract.mul Abstract.X u)) _ _ previous)
+      (Laws.deflationStep a b (monicEvaluate tail a) (quotient a tail))
+  };
+\definition synthetic[a: K]: Coefficients -> Coefficients :=
+  \induction (p: Coefficients) \return Coefficients \with {
+    | nil: Lists.List[K]::nil
+    | cons: \fun (b: K)(tail: Coefficients)(previous: Coefficients) =>
+      \match tail \in Lists.List \return (\fun (tail: Coefficients) => Coefficients) \with {
+        | nil: Lists.List[K]::nil
+        | cons c rest: Lists.List[K]::cons (monicEvaluate tail a) previous
+      }
+  };
+\definition quotientMonic: \forall (a: K)(p: Coefficients) -> Positive p -> quotient a p = Monic.asPolynomial (synthetic a p) :=
+  \fun (a: K) => \induction (p: Coefficients) \return Positive p -> quotient a p = Monic.asPolynomial (synthetic a p) \with {
+    | nil: \fun (positive: _) => Logic.falseElim _ (positive (\refl(N.Nat^::zero)))
+    | cons: \fun (b: K)(tail: Coefficients)(previous: _) =>
+      (\induction (tail: Coefficients) \return
+        (Positive tail -> quotient a tail = Monic.asPolynomial (synthetic a tail)) ->
+        Positive (Lists.List[K]::cons b tail) -> quotient a (Lists.List[K]::cons b tail) = Monic.asPolynomial (synthetic a (Lists.List[K]::cons b tail)) \with {
+        | nil: \fun (previous: _)(positive: _) => trans!{Abstract.Carrier} _ _ _
+          (congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add u Abstract.one) _ _ (ring.semiring.zeroAbsorbsRight Abstract.X))
+          (Sum.zeroLeft Abstract.one)
+        | cons: \fun (c: K)(rest: Coefficients)(unused: _)(previous: _)(positive: _) => trans!{Abstract.Carrier} _ _ _
+          (congr!{Abstract.Carrier Abstract.Carrier} (\fun (u: Abstract.Carrier) => Abstract.add (Abstract.mul Abstract.X u) (Abstract.constant (monicEvaluate (Lists.List[K]::cons c rest) a))) _ _
+            (previous (Nat.succNeZero (degree rest))))
+          (Sum.comm (Abstract.mul Abstract.X (Monic.asPolynomial (synthetic a (Lists.List[K]::cons c rest)))) (Abstract.constant (monicEvaluate (Lists.List[K]::cons c rest) a)))
+      }) tail previous
+  };
+\import std.Data[].Nat[].Order[].Prop[] \as Order;
+\definition syntheticLength: \forall (a: K)(p: Coefficients) -> Positive p -> N.Nat^::succ (degree (synthetic a p)) = degree p :=
+  \fun (a: K) => \induction (p: Coefficients) \return Positive p -> N.Nat^::succ (degree (synthetic a p)) = degree p \with {
+    | nil: \fun (positive: _) => Logic.falseElim _ (positive (\refl(N.Nat^::zero)))
+    | cons: \fun (b: K)(tail: Coefficients)(previous: _) =>
+      (\induction (tail: Coefficients) \return
+        (Positive tail -> N.Nat^::succ (degree (synthetic a tail)) = degree tail) ->
+        Positive (Lists.List[K]::cons b tail) -> N.Nat^::succ (degree (synthetic a (Lists.List[K]::cons b tail))) = degree (Lists.List[K]::cons b tail) \with {
+        | nil: \fun (previous: _)(positive: _) => \refl(N.Nat^::succ N.Nat^::zero)
+        | cons: \fun (c: K)(rest: Coefficients)(unused: _)(previous: _)(positive: _) =>
+          congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (previous (Nat.succNeZero (degree rest)))
+      }) tail previous
+  };
+\definition smaller: \forall (a: K)(p: Coefficients) -> Positive p -> Nat.Lt (degree (synthetic a p)) (degree p) :=
+  \fun (a: K)(p: Coefficients)(positive: _) =>
+    \idelim N.Nat^::succ (degree (synthetic a p)) = degree p \with n: N.Nat^ => Nat.Lt (degree (synthetic a p)) n
+      \by { base: Order.ltSelfSucc (degree (synthetic a p)), equality: syntheticLength a p positive };
+\definition valueInSubfield: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> \forall (a: K) -> S a ->
+  \forall (p: Coefficients) -> Over S p -> S (monicEvaluate p a) :=
+  \fun (S: _)(closed: Subfields.Closed[S])(a: K)(ha: _) =>
+    \induction (p: Coefficients) \return Over S p -> S (monicEvaluate p a) \with {
+      | nil: \fun (over: _) => closed.one
+      | cons: \fun (b: K)(tail: Coefficients)(previous: _)(over: Logic.And[S b, Over S tail]) =>
+        closed.add b (mul a (monicEvaluate tail a)) over.left (closed.mul a (monicEvaluate tail a) ha (previous over.right))
+    };
+\definition syntheticOver: \forall (S: K -> \Prop) -> Subfields.Closed[S] -> \forall (a: K) -> S a ->
+  \forall (p: Coefficients) -> Over S p -> Over S (synthetic a p) :=
+  \fun (S: _)(closed: Subfields.Closed[S])(a: K)(ha: _) =>
+    \induction (p: Coefficients) \return Over S p -> Over S (synthetic a p) \with {
+      | nil: \fun (over: _) => Logic.True::intro
+      | cons: \fun (b: K)(tail: Coefficients)(previous: _) =>
+        (\induction (tail: Coefficients) \return (Over S tail -> Over S (synthetic a tail)) ->
+          Over S (Lists.List[K]::cons b tail) -> Over S (synthetic a (Lists.List[K]::cons b tail)) \with {
+          | nil: \fun (previous: _)(over: _) => Logic.True::intro
+          | cons: \fun (c: K)(rest: Coefficients)(unused: _)(previous: _)(over: Logic.And[S b, Over S (Lists.List[K]::cons c rest)]) =>
+            Logic.And[_, _]::# (valueInSubfield S closed a ha (Lists.List[K]::cons c rest) over.right) (previous over.right)
+        }) tail previous
+    };
+\definition factorAtRoot: \forall (a: K)(p: Coefficients) -> Positive p -> monicEvaluate p a = zero ->
+  Monic.asPolynomial p = Abstract.mul (linearFactor a) (Monic.asPolynomial (synthetic a p)) :=
+  \fun (a: K)(p: Coefficients)(positive: _)(root: _) => eq_reason!{{Monic.asPolynomial p}
+    "=" {Abstract.add (Abstract.mul (linearFactor a) (quotient a p)) (Abstract.constant (monicEvaluate p a))} "by" {remainderIdentity a p}
+    "=" {Abstract.add (Abstract.mul (linearFactor a) (Monic.asPolynomial (synthetic a p))) Abstract.zero}
+    "by" {congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _
+      (congr!{Abstract.Carrier Abstract.Carrier} (Abstract.mul (linearFactor a)) _ _ (quotientMonic a p positive))
+      (congr!{K Abstract.Carrier} Abstract.constant _ _ root)}
+    "=" {Abstract.mul (linearFactor a) (Monic.asPolynomial (synthetic a p))}
+    "by" {Sum.zeroRight (Abstract.mul (linearFactor a) (Monic.asPolynomial (synthetic a p)))}};

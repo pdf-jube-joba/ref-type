@@ -1,0 +1,53 @@
+\definition rename: Free.Expression -> Free.Expression :=
+  \induction (e: Free.Expression) \return Free.Expression \with {
+    | constant: Free.Expression::constant
+    | variable: \fun (i: Quintic.Five) => Free.Expression::variable (p.apply i)
+    | sum: \fun (a: Free.Expression)(aImage: Free.Expression)(b: Free.Expression)(bImage: Free.Expression) => Free.Expression::sum aImage bImage
+    | negative: \fun (a: Free.Expression)(aImage: Free.Expression) => Free.Expression::negative aImage
+    | product: \fun (a: Free.Expression)(aImage: Free.Expression)(b: Free.Expression)(bImage: Free.Expression) => Free.Expression::product aImage bImage
+  };
+\definition permuted[i: Quintic.Five]: K := roots (p.apply i);
+\definition agrees: \forall (e: Free.Expression) -> evaluate roots (rename e) = evaluate permuted e :=
+  \induction (e: Free.Expression) \return evaluate roots (rename e) = evaluate permuted e \with {
+    | constant: \fun (a: Base.Carrier) => \refl(a)
+    | variable: \fun (i: Quintic.Five) => \refl(roots (p.apply i))
+    | sum: \fun (a: Free.Expression)(left: _)(b: Free.Expression)(right: _) => congr2!{K K K} F.add _ _ _ _ left right
+    | negative: \fun (a: Free.Expression)(previous: _) => congr!{K K} F.neg _ _ previous
+    | product: \fun (a: Free.Expression)(left: _)(b: Free.Expression)(right: _) => congr2!{K K K} F.mul _ _ _ _ left right
+  };
+\definition Relation[a, b: Free.Expression]: \Prop := Polynomial.Equivalent (rename a) (rename b);
+\import std.Logic[].Relation[] \as Relations;
+\definition rules: Free.Rules[Relation] := Free.Rules[Relation] {
+  equivalence := Relations.Equivalence[Free.Expression, Relation] {
+    refl := \fun (a: Free.Expression) => Polynomial.equivalence.refl (rename a),
+    sym := \fun (a, b: Free.Expression) => Polynomial.equivalence.sym (rename a) (rename b),
+    trans := \fun (a, b, c: Free.Expression) => Polynomial.equivalence.trans (rename a) (rename b) (rename c),
+  },
+  addCong := \fun (a, b, c, d: Free.Expression) => Polynomial.rules.addCong (rename a) (rename b) (rename c) (rename d),
+  negCong := \fun (a, b: Free.Expression) => Polynomial.rules.negCong (rename a) (rename b),
+  mulCong := \fun (a, b, c, d: Free.Expression) => Polynomial.rules.mulCong (rename a) (rename b) (rename c) (rename d),
+  zeroLeft := \fun (a: Free.Expression) => Polynomial.rules.zeroLeft (rename a),
+  addAssoc := \fun (a, b, c: Free.Expression) => Polynomial.rules.addAssoc (rename a) (rename b) (rename c),
+  addComm := \fun (a, b: Free.Expression) => Polynomial.rules.addComm (rename a) (rename b),
+  inverse := \fun (a: Free.Expression) => Polynomial.rules.inverse (rename a),
+  oneLeft := \fun (a: Free.Expression) => Polynomial.rules.oneLeft (rename a),
+  mulAssoc := \fun (a, b, c: Free.Expression) => Polynomial.rules.mulAssoc (rename a) (rename b) (rename c),
+  mulComm := \fun (a, b: Free.Expression) => Polynomial.rules.mulComm (rename a) (rename b),
+  distributive := \fun (a, b, c: Free.Expression) => Polynomial.rules.distributive (rename a) (rename b) (rename c),
+  absorbs := \fun (a: Free.Expression) => Polynomial.rules.absorbs (rename a),
+  constantAdd := Polynomial.rules.constantAdd, constantMul := Polynomial.rules.constantMul, constantNeg := Polynomial.rules.constantNeg,
+};
+\definition preserves: \forall (a, b: Free.Expression) -> Polynomial.Equivalent a b -> Relation a b :=
+  \fun (a, b: Free.Expression)(same: _) => same Relation rules
+    (\fun (c, d: Free.Expression)(impossible: Logic.False) => Logic.falseElim (Relation c d) impossible);
+\module Inverse;
+\definition EquivalentKernels: \Prop := \forall (e: Free.Expression) -> Logic.PropEquiv[evaluate roots e = F.zero, evaluate permuted e = F.zero];
+\definition kernels: Independent -> EquivalentKernels :=
+  \fun (independent: Independent)(e: Free.Expression) => Logic.PropEquiv[evaluate roots e = F.zero, evaluate permuted e = F.zero] {
+    ltr := \fun (zero: evaluate roots e = F.zero) => trans!{K} _ _ _ (evaluateEquivalent permuted e Free.zeroExpr (independent e zero)) (zeroValue permuted),
+    rtl := \fun (zero: evaluate permuted e = F.zero) => trans!{K} _ _ _
+      (evaluateEquivalent roots e Free.zeroExpr
+        (Inverse[].reflects e (independent (rename e) (trans!{K} _ _ _ (agrees e) zero)))) (zeroValue roots),
+  };
+\module Fractions;
+\module Isomorphism;

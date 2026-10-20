@@ -1,0 +1,73 @@
+\import \parent.\parent.Polynomial[] \as Polynomials;
+\import std.Set[].Infinite[A := K] \as Indices;
+\import \parent.\parent.Automorphism[] \as Automorphisms;
+\structure Conditions: \Prop := {
+  closed: Polynomials.AlgebraicallyClosed (\fun (x: K) => Logic.True),
+  injective: Indices.Injective index,
+  domainIndex: \forall (n: N.Nat^) -> Subfields.Member initial.domain (index n),
+  rangeIndex: \forall (n: N.Nat^) -> Subfields.Member initial.range (index n),
+  domainAlgebraic: \forall (x: K) -> Polynomials.Algebraic (Subfields.Member initial.domain) x,
+  rangeAlgebraic: \forall (x: K) -> Polynomials.Algebraic (Subfields.Member initial.range) x,
+};
+\structure State: \Set := {
+  isomorphism: Isomorphism,
+  extends: Extends[initial, isomorphism],
+};
+\definition start: State := State { isomorphism := initial, extends := extendsRefl initial };
+\module At(state: State);
+\structure StepOutput[n: N.Nat^, state: State]: \Set := {
+  next: State,
+  extends: Extends[state.isomorphism, next.isomorphism],
+  domain: Subfields.Member next.isomorphism.domain (enumeration.sequence n),
+  range: Subfields.Member next.isomorphism.range (enumeration.sequence n),
+};
+\definition stepExists: Conditions -> \forall (n: N.Nat^)(state: State) -> \exists StepOutput[n, state] := \block {
+  \fun (conditions: Conditions)(n: N.Nat^)(state: State) \then
+  \takefrom source: \parent.Over[p := state.isomorphism].At[a := enumeration.sequence n].Enlargement
+    \by \parent.Over[p := state.isomorphism].At[a := enumeration.sequence n].exists conditions.closed (At[state := state].sourceInfinite conditions)
+      (At[state := state].sourceAlgebraic conditions (enumeration.sequence n)) \then
+  \let middle: State := State { isomorphism := source.isomorphism, extends := extendsTrans _ _ _ state.extends source.extends } \then
+  \takefrom range: \parent.Over[p := inverse middle.isomorphism].At[a := enumeration.sequence n].Enlargement
+    \by \parent.Over[p := inverse middle.isomorphism].At[a := enumeration.sequence n].exists conditions.closed (At[state := middle].rangeInfinite conditions)
+      (At[state := middle].rangeAlgebraic conditions (enumeration.sequence n)) \then
+  \let extension: Extends[middle.isomorphism, inverse range.isomorphism] := restoreExtends middle.isomorphism range.isomorphism range.extends \then
+  \let next: State := State {
+    isomorphism := inverse range.isomorphism,
+    extends := extendsTrans _ _ _ middle.extends extension,
+  } \then
+  \return \exact(StepOutput[n, state] {
+    next := next,
+    extends := extendsTrans _ _ _ source.extends extension,
+    domain := extension.domain (enumeration.sequence n) source.contains,
+    range := range.contains,
+  }, StepOutput[n, state])
+};
+\structure Step[n: N.Nat^]: \Set := {
+  apply: State -> State,
+  extends: \forall (state: State) -> Extends[state.isomorphism, (apply state).isomorphism],
+  domain: \forall (state: State) -> Subfields.Member (apply state).isomorphism.domain (enumeration.sequence n),
+  range: \forall (state: State) -> Subfields.Member (apply state).isomorphism.range (enumeration.sequence n),
+};
+\definition stepFunctionExists: Conditions -> \forall (n: N.Nat^) -> \exists Step[n] := \block {
+  \fun (conditions: Conditions)(n: N.Nat^) \then
+  \takefrom next: (\forall (state: State) -> StepOutput[n, state]) \by
+    \axiom:classicalIndefiniteChoice(State, (\fun (state: State) => StepOutput[n, state]), stepExists conditions n) \then
+  \return \exact(Step[n] {
+    apply := \fun (state: State) => (next state).next,
+    extends := \fun (state: State) => (next state).extends,
+    domain := \fun (state: State) => (next state).domain,
+    range := \fun (state: State) => (next state).range,
+  }, Step[n])
+};
+\structure Extension: \Set := {
+  automorphism: Automorphisms.Automorphism,
+  forward: \forall (x: K) -> Subfields.Member initial.domain x -> automorphism.map.apply x = initial.forward x,
+  backward: \forall (y: K) -> Subfields.Member initial.range y -> automorphism.backward y = initial.backward y,
+};
+\module Chosen(steps: \forall (n: N.Nat^) -> Step[n]);
+\definition exists: Conditions -> \exists Extension := \block {
+  \fun (conditions: Conditions) \then
+  \takefrom steps: (\forall (n: N.Nat^) -> Step[n]) \by
+    \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (n: N.Nat^) => Step[n]), stepFunctionExists conditions) \then
+  \return Chosen[steps := steps].exists
+};

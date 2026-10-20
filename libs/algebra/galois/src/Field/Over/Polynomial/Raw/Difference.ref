@@ -1,0 +1,64 @@
+\import \parent.Normalization[] \as Normalization;
+\import std.Data[].Nat[].Basic[].Prop[] \as Nat;
+\import galois.Field[].Over[K := K, field := field].Arithmetic[] \as Arithmetic;
+\import algebra.Group[].Of[Carrier := K, group := Rings.additiveGroup K Arithmetic.underlyingRing] \as FieldSum;
+\structure Result[S: K -> \Prop, p, q: Coefficients] := {
+  coefficients: Coefficients,
+  over: Over S coefficients,
+  length: Lists.length K coefficients = degree p,
+  equalWhenZero: Normalization.AllZero coefficients -> p = q,
+  equation: Monic.asPolynomial p = Abstract.add (Monic.asPolynomial q) (asPolynomial coefficients),
+};
+\definition constantDifference: \forall (a, b: K) ->
+  Abstract.add (Abstract.constant b) (Abstract.constant (add a (neg b))) = Abstract.constant a :=
+  \fun (a, b: K) => trans!{Abstract.Carrier} _ _ _
+    (sym!{Abstract.Carrier} _ _ (coefficientLaws.add b (add a (neg b))))
+    (congr!{K Abstract.Carrier} Abstract.constant _ _
+      (trans!{K} _ _ _ (FieldSum.comm b (add a (neg b))) (FieldSum.addDifference a b)));
+\definition exists: \forall (S: K -> \Prop) -> Subfields.Closed[S] ->
+  \forall (p, q: Coefficients) -> Over S p -> Over S q -> degree p = degree q -> \exists Result[S, p, q] :=
+  \fun (S: _)(closed: Subfields.Closed[S]) =>
+    \induction (p: Coefficients) \return \forall (q: Coefficients) -> Over S p -> Over S q -> degree p = degree q -> \exists Result[S, p, q] \with {
+      | nil: \induction (q: Coefficients) \return Over S Lists.List[K]::nil -> Over S q -> degree Lists.List[K]::nil = degree q -> \exists Result[S, Lists.List[K]::nil, q] \with {
+        | nil: \fun (hp: _)(hq: _)(same: _) => \exact(Result[S, Lists.List[K]::nil, Lists.List[K]::nil] {
+          coefficients := Lists.List[K]::nil, over := Logic.True::intro, length := \refl(N.Nat^::zero),
+          equalWhenZero := \fun (all: _) => \refl(Lists.List[K]::nil),
+          equation := sym!{Abstract.Carrier} _ _ (Sum.zeroRight Abstract.one),
+        }, Result[S, Lists.List[K]::nil, Lists.List[K]::nil])
+        | cons: \fun (b: K)(tail: Coefficients)(unused: _)(hp: _)(hq: _)(same: _) =>
+          Logic.falseElim (\exists Result[S, Lists.List[K]::nil, Lists.List[K]::cons b tail])
+            (Nat.succNeZero (degree tail) (sym!{N.Nat^} _ _ same))
+      }
+      | cons: \fun (a: K)(tail: Coefficients)(previous: _) =>
+        \induction (q: Coefficients) \return Over S (Lists.List[K]::cons a tail) -> Over S q ->
+          degree (Lists.List[K]::cons a tail) = degree q -> \exists Result[S, Lists.List[K]::cons a tail, q] \with {
+          | nil: \fun (hp: _)(hq: _)(same: _) =>
+            Logic.falseElim (\exists Result[S, Lists.List[K]::cons a tail, Lists.List[K]::nil]) (Nat.succNeZero (degree tail) same)
+          | cons: \block {
+            \fun (b: K)(other: Coefficients)(unused: _)(hp: Logic.And[S a, Over S tail])(hq: Logic.And[S b, Over S other])(same: _) \then
+            \takefrom difference: Result[S, tail, other] \by previous other hp.right hq.right (Nat.succInjective _ _ same) \then
+            \return \exact(Result[S, Lists.List[K]::cons a tail, Lists.List[K]::cons b other] {
+              coefficients := Lists.List[K]::cons (add a (neg b)) difference.coefficients,
+              over := Logic.And[_, _]::# (closed.add a (neg b) hp.left (closed.neg b hq.left)) difference.over,
+              length := congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ difference.length,
+              equalWhenZero := \fun (all: Logic.And[add a (neg b) = zero, Normalization.AllZero difference.coefficients]) =>
+                congr2!{K Coefficients Coefficients} Lists.List[K]::cons _ _ _ _ (Arithmetic.differenceZero a b all.left) (difference.equalWhenZero all.right),
+              equation := sym!{Abstract.Carrier} _ _ (eq_reason!{
+                {Abstract.add (Monic.asPolynomial (Lists.List[K]::cons b other))
+                  (asPolynomial (Lists.List[K]::cons (add a (neg b)) difference.coefficients))}
+                "=" {Abstract.add (Abstract.add (Abstract.constant b) (Abstract.constant (add a (neg b))))
+                  (Abstract.add (Abstract.mul Abstract.X (Monic.asPolynomial other)) (Abstract.mul Abstract.X (asPolynomial difference.coefficients)))}
+                "by" {Sum.four (Abstract.constant b) (Abstract.mul Abstract.X (Monic.asPolynomial other))
+                  (Abstract.constant (add a (neg b))) (Abstract.mul Abstract.X (asPolynomial difference.coefficients))}
+                "=" {Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X
+                  (Abstract.add (Monic.asPolynomial other) (asPolynomial difference.coefficients)))}
+                "by" {congr2!{Abstract.Carrier Abstract.Carrier Abstract.Carrier} Abstract.add _ _ _ _ (constantDifference a b)
+                  (sym!{Abstract.Carrier} _ _ (ring.semiring.leftDistributive Abstract.X (Monic.asPolynomial other) (asPolynomial difference.coefficients)))}
+                "=" {Monic.asPolynomial (Lists.List[K]::cons a tail)}
+                "by" {congr!{Abstract.Carrier Abstract.Carrier}
+                  (\fun (u: Abstract.Carrier) => Abstract.add (Abstract.constant a) (Abstract.mul Abstract.X u)) _ _
+                  (sym!{Abstract.Carrier} _ _ difference.equation)}}),
+            }, Result[S, Lists.List[K]::cons a tail, Lists.List[K]::cons b other])
+          }
+        }
+    };

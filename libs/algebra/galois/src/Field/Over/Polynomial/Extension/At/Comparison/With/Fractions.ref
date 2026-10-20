@@ -1,0 +1,176 @@
+\import galois.Field[].Over[K := M, field := output].Arithmetic[] \as OutputArithmetic;
+\import algebra.Monoid[].Of[Carrier := M, monoid := OutputArithmetic.multiplicative] \as OutputProduct;
+\import algebra.Group[].Of[Carrier := M, group := Rings.additiveGroup M OutputArithmetic.underlyingRing] \as OutputSum;
+\structure Witness[z: L, w: M]: \Set := {
+  numerator: Coefficients,
+  denominator: Coefficients,
+  nonzero: Logic.Not (value denominator = Target.zero),
+  source: Target.mul z (value denominator) = value numerator,
+  target: Output.mul w (Other.value denominator) = Other.value numerator,
+};
+\definition Related[z: L][w: M]: \Prop := \exists Witness[z, w];
+\definition denominatorNonzero: EquivalentKernels -> \forall (z: L)(w: M)(witness: Witness[z, w]) -> Logic.Not (Other.value witness.denominator = Output.zero) :=
+  \fun (kernels: EquivalentKernels)(z: L)(w: M)(witness: Witness[z, w])(impossible: _) =>
+    witness.nonzero ((kernels witness.denominator).rtl impossible);
+\definition crossCoefficients[a, b, c, d: Coefficients]: Coefficients :=
+  Raw.plus (Raw.times a d) (Raw.scale (neg one) (Raw.times c b));
+\definition crossValue: \forall (a, b, c, d: Coefficients) -> value (crossCoefficients a b c d) =
+  Target.add (Target.mul (value a) (value d)) (Target.neg (Target.mul (value c) (value b))) :=
+  \fun (a, b, c, d: Coefficients) => trans!{L} _ _ _ (plusValue (Raw.times a d) (Raw.scale (neg one) (Raw.times c b)))
+    (congr2!{L L L} Target.add _ _ _ _ (timesValue a d)
+      (trans!{L} _ _ _ (negativeValue (Raw.times c b)) (congr!{L L} Target.neg _ _ (timesValue c b))));
+\definition otherCrossValue: \forall (a, b, c, d: Coefficients) -> Other.value (crossCoefficients a b c d) =
+  Output.add (Output.mul (Other.value a) (Other.value d)) (Output.neg (Output.mul (Other.value c) (Other.value b))) :=
+  \fun (a, b, c, d: Coefficients) => trans!{M} _ _ _ (Other.plusValue (Raw.times a d) (Raw.scale (neg one) (Raw.times c b)))
+    (congr2!{M M M} Output.add _ _ _ _ (Other.timesValue a d)
+      (trans!{M} _ _ _ (Other.negativeValue (Raw.times c b)) (congr!{M M} Output.neg _ _ (Other.timesValue c b))));
+\definition targetUnique: EquivalentKernels -> \forall (z: L)(w, v: M) -> Related z w -> Related z v -> w = v := \block {
+  \fun (kernels: EquivalentKernels)(z: L)(w, v: M)(left: _)(right: _) \then
+  \takefrom first: Witness[z, w] \by left \then
+  \takefrom second: Witness[z, v] \by right \then
+  \let cross: Target.mul (value first.numerator) (value second.denominator) = Target.mul (value second.numerator) (value first.denominator) :=
+    TargetArithmetic.crossProducts z _ _ _ _ first.source second.source \then
+  \let polynomial: Coefficients := crossCoefficients first.numerator first.denominator second.numerator second.denominator \then
+  \let vanished: value polynomial = Target.zero := trans!{L} _ _ _
+    (crossValue first.numerator first.denominator second.numerator second.denominator)
+    (trans!{L} _ _ _ (congr!{L L} (\fun (a: L) => Target.add a (Target.neg (Target.mul (value second.numerator) (value first.denominator)))) _ _ cross)
+      (TargetSum.inverseRight _)) \then
+  \let transferred: Output.add (Output.mul (Other.value first.numerator) (Other.value second.denominator))
+    (Output.neg (Output.mul (Other.value second.numerator) (Other.value first.denominator))) = Output.zero :=
+    trans!{M} _ _ _ (sym!{M} _ _ (otherCrossValue first.numerator first.denominator second.numerator second.denominator)) ((kernels polynomial).ltr vanished) \then
+  \return OutputArithmetic.crossCancel w v _ _ _ _ (denominatorNonzero kernels z w first) (denominatorNonzero kernels z v second) first.target second.target
+    (OutputArithmetic.differenceZero _ _ transferred)
+};
+\definition sourceUnique: EquivalentKernels -> \forall (z, v: L)(w: M) -> Related z w -> Related v w -> z = v := \block {
+  \fun (kernels: EquivalentKernels)(z, v: L)(w: M)(left: _)(right: _) \then
+  \takefrom first: Witness[z, w] \by left \then
+  \takefrom second: Witness[v, w] \by right \then
+  \let cross: Output.mul (Other.value first.numerator) (Other.value second.denominator) = Output.mul (Other.value second.numerator) (Other.value first.denominator) :=
+    OutputArithmetic.crossProducts w _ _ _ _ first.target second.target \then
+  \let polynomial: Coefficients := crossCoefficients first.numerator first.denominator second.numerator second.denominator \then
+  \let vanished: Other.value polynomial = Output.zero := trans!{M} _ _ _
+    (otherCrossValue first.numerator first.denominator second.numerator second.denominator)
+    (trans!{M} _ _ _ (congr!{M M} (\fun (a: M) => Output.add a (Output.neg (Output.mul (Other.value second.numerator) (Other.value first.denominator)))) _ _ cross)
+      (OutputSum.inverseRight _)) \then
+  \let transferred: Target.add (Target.mul (value first.numerator) (value second.denominator))
+    (Target.neg (Target.mul (value second.numerator) (value first.denominator))) = Target.zero :=
+    trans!{L} _ _ _ (sym!{L} _ _ (crossValue first.numerator first.denominator second.numerator second.denominator)) ((kernels polynomial).rtl vanished) \then
+  \return TargetArithmetic.crossCancel z v _ _ _ _ (first.nonzero) (second.nonzero) first.source second.source
+    (TargetArithmetic.differenceZero _ _ transferred)
+};
+\definition constantRelated: \forall (a: K) -> Related (embedding.apply a) (otherEmbedding.apply a) :=
+  \fun (a: K) => \exact(Witness[embedding.apply a, otherEmbedding.apply a] {
+    numerator := constantCoefficients a, denominator := constantCoefficients one,
+    nonzero := \fun (same: _) => TargetArithmetic.oneNonzero
+      (trans!{L} _ _ _ (sym!{L} _ _ (trans!{L} _ _ _ (constantValue one) embedding.preservesOne)) same),
+    source := trans!{L} _ _ _
+      (congr!{L L} (Target.mul (embedding.apply a)) _ _ (trans!{L} _ _ _ (constantValue one) embedding.preservesOne))
+      (trans!{L} _ _ _ (TargetProduct.zeroRight _) (sym!{L} _ _ (constantValue a))),
+    target := trans!{M} _ _ _
+      (congr!{M M} (Output.mul (otherEmbedding.apply a)) _ _ (trans!{M} _ _ _ (Other.constantValue one) otherEmbedding.preservesOne))
+      (trans!{M} _ _ _ (OutputProduct.zeroRight _) (sym!{M} _ _ (Other.constantValue a))),
+  }, Witness[embedding.apply a, otherEmbedding.apply a]);
+\definition zeroRelated: Related Target.zero Output.zero :=
+  \idelim embedding.apply zero = Target.zero \with z: L => Related z Output.zero \by {
+    base: \idelim otherEmbedding.apply zero = Output.zero \with w: M => Related (embedding.apply zero) w
+      \by { base: constantRelated zero, equality: otherEmbedding.preservesZero },
+    equality: embedding.preservesZero
+  };
+\definition oneRelated: Related Target.one Output.one :=
+  \idelim embedding.apply one = Target.one \with z: L => Related z Output.one \by {
+    base: \idelim otherEmbedding.apply one = Output.one \with w: M => Related (embedding.apply one) w
+      \by { base: constantRelated one, equality: otherEmbedding.preservesOne },
+    equality: embedding.preservesOne
+  };
+\definition variableRelated: Related x y := \exact(Witness[x, y] {
+  numerator := variableCoefficients, denominator := constantCoefficients one,
+  nonzero := \fun (same: _) => TargetArithmetic.oneNonzero
+    (trans!{L} _ _ _ (sym!{L} _ _ (trans!{L} _ _ _ (constantValue one) embedding.preservesOne)) same),
+  source := trans!{L} _ _ _
+    (congr!{L L} (Target.mul x) _ _ (trans!{L} _ _ _ (constantValue one) embedding.preservesOne))
+    (trans!{L} _ _ _ (TargetProduct.zeroRight x) (sym!{L} _ _ variableValue)),
+  target := trans!{M} _ _ _
+    (congr!{M M} (Output.mul y) _ _ (trans!{M} _ _ _ (Other.constantValue one) otherEmbedding.preservesOne))
+    (trans!{M} _ _ _ (OutputProduct.zeroRight y) (sym!{M} _ _ Other.variableValue)),
+}, Witness[x, y]);
+\definition addRelated: \forall (z, v: L)(w, t: M) -> Related z w -> Related v t -> Related (Target.add z v) (Output.add w t) := \block {
+  \fun (z, v: L)(w, t: M)(left: _)(right: _) \then
+  \takefrom first: Witness[z, w] \by left \then
+  \takefrom second: Witness[v, t] \by right \then
+  \return \exact(Witness[Target.add z v, Output.add w t] {
+    numerator := Raw.plus (Raw.times first.numerator second.denominator) (Raw.times second.numerator first.denominator),
+    denominator := Raw.times first.denominator second.denominator,
+    nonzero := \fun (same: _) => TargetArithmetic.nonzeroProduct _ _ first.nonzero second.nonzero
+      (trans!{L} _ _ _ (sym!{L} _ _ (timesValue first.denominator second.denominator)) same),
+    source := trans!{L} _ _ _
+      (congr!{L L} (Target.mul (Target.add z v)) _ _ (timesValue first.denominator second.denominator))
+      (trans!{L} _ _ _ (TargetArithmetic.sumCross z v _ _ _ _ first.source second.source)
+        (sym!{L} _ _ (trans!{L} _ _ _ (plusValue (Raw.times first.numerator second.denominator) (Raw.times second.numerator first.denominator))
+          (congr2!{L L L} Target.add _ _ _ _ (timesValue first.numerator second.denominator) (timesValue second.numerator first.denominator))))),
+    target := trans!{M} _ _ _
+      (congr!{M M} (Output.mul (Output.add w t)) _ _ (Other.timesValue first.denominator second.denominator))
+      (trans!{M} _ _ _ (OutputArithmetic.sumCross w t _ _ _ _ first.target second.target)
+        (sym!{M} _ _ (trans!{M} _ _ _ (Other.plusValue (Raw.times first.numerator second.denominator) (Raw.times second.numerator first.denominator))
+          (congr2!{M M M} Output.add _ _ _ _ (Other.timesValue first.numerator second.denominator) (Other.timesValue second.numerator first.denominator))))),
+  }, Witness[Target.add z v, Output.add w t])
+};
+\definition mulRelated: \forall (z, v: L)(w, t: M) -> Related z w -> Related v t -> Related (Target.mul z v) (Output.mul w t) := \block {
+  \fun (z, v: L)(w, t: M)(left: _)(right: _) \then
+  \takefrom first: Witness[z, w] \by left \then
+  \takefrom second: Witness[v, t] \by right \then
+  \return \exact(Witness[Target.mul z v, Output.mul w t] {
+    numerator := Raw.times first.numerator second.numerator,
+    denominator := Raw.times first.denominator second.denominator,
+    nonzero := \fun (same: _) => TargetArithmetic.nonzeroProduct _ _ first.nonzero second.nonzero
+      (trans!{L} _ _ _ (sym!{L} _ _ (timesValue first.denominator second.denominator)) same),
+    source := trans!{L} _ _ _
+      (congr!{L L} (Target.mul (Target.mul z v)) _ _ (timesValue first.denominator second.denominator))
+      (trans!{L} _ _ _ (TargetArithmetic.productCross z v _ _ _ _ first.source second.source)
+        (sym!{L} _ _ (timesValue first.numerator second.numerator))),
+    target := trans!{M} _ _ _
+      (congr!{M M} (Output.mul (Output.mul w t)) _ _ (Other.timesValue first.denominator second.denominator))
+      (trans!{M} _ _ _ (OutputArithmetic.productCross w t _ _ _ _ first.target second.target)
+        (sym!{M} _ _ (Other.timesValue first.numerator second.numerator))),
+  }, Witness[Target.mul z v, Output.mul w t])
+};
+\definition negRelated: \forall (z: L)(w: M) -> Related z w -> Related (Target.neg z) (Output.neg w) := \block {
+  \fun (z: L)(w: M)(related: _) \then
+  \takefrom first: Witness[z, w] \by related \then
+  \return \exact(Witness[Target.neg z, Output.neg w] {
+    numerator := Raw.scale (neg one) first.numerator, denominator := first.denominator, nonzero := first.nonzero,
+    source := trans!{L} _ _ _ (TargetArithmetic.mulNegLeft z (value first.denominator))
+      (trans!{L} _ _ _ (congr!{L L} Target.neg _ _ first.source) (sym!{L} _ _ (negativeValue first.numerator))),
+    target := trans!{M} _ _ _ (OutputArithmetic.mulNegLeft w (Other.value first.denominator))
+      (trans!{M} _ _ _ (congr!{M M} Output.neg _ _ first.target) (sym!{M} _ _ (Other.negativeValue first.numerator))),
+  }, Witness[Target.neg z, Output.neg w])
+};
+\definition zeroEquivalence: EquivalentKernels -> \forall (z: L)(w: M) -> Related z w -> Logic.PropEquiv[z = Target.zero, w = Output.zero] :=
+  \fun (kernels: EquivalentKernels)(z: L)(w: M)(related: _) => Logic.PropEquiv[_, _] {
+    ltr := \fun (same: z = Target.zero) => targetUnique kernels Target.zero w Output.zero
+      (\idelim z = Target.zero \with a: L => Related a w \by { base: related, equality: same }) zeroRelated,
+    rtl := \fun (same: w = Output.zero) => sourceUnique kernels z Target.zero Output.zero
+      (\idelim w = Output.zero \with a: M => Related z a \by { base: related, equality: same }) zeroRelated,
+  };
+\import std.Logic[].Classical[] \as Classical;
+\definition invRelated: EquivalentKernels -> \forall (z: L)(w: M) -> Related z w -> Related (Target.inv z) (Output.inv w) :=
+  \fun (kernels: EquivalentKernels)(z: L)(w: M)(related: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (z = Target.zero))
+    (\fun (sourceZero: _) =>
+      \idelim Target.zero = Target.inv z \with a: L => Related a (Output.inv w) \by {
+        base: \idelim Output.zero = Output.inv w \with b: M => Related Target.zero b \by {
+          base: zeroRelated,
+          equality: sym!{M} _ _ (trans!{M} _ _ _ (congr!{M M} Output.inv _ _ ((zeroEquivalence kernels z w related).ltr sourceZero)) Output.invZero)
+        },
+        equality: sym!{L} _ _ (trans!{L} _ _ _ (congr!{L L} Target.inv _ _ sourceZero) Target.invZero)
+      })
+    (\block {
+      \fun (nonzero: Logic.Not (z = Target.zero)) \then
+      \takefrom first: Witness[z, w] \by related \then
+      \let targetNonzero: Logic.Not (w = Output.zero) := \fun (same: _) => nonzero ((zeroEquivalence kernels z w related).rtl same) \then
+      \return \exact(Witness[Target.inv z, Output.inv w] {
+        numerator := first.denominator, denominator := first.numerator,
+        nonzero := \fun (same: _) => TargetArithmetic.nonzeroProduct z (value first.denominator) nonzero first.nonzero
+          (trans!{L} _ _ _ first.source same),
+        source := TargetArithmetic.inverseCross z (value first.numerator) (value first.denominator) nonzero first.source,
+        target := OutputArithmetic.inverseCross w (Other.value first.numerator) (Other.value first.denominator) targetNonzero first.target,
+      }, Witness[Target.inv z, Output.inv w])
+    });

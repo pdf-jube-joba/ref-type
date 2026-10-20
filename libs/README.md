@@ -28,6 +28,8 @@
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
 | [algebra/basic](algebra/basic/README.md) | `algebra` | 準同型、群完成、商、多項式環 |
+| [algebra/galois](algebra/galois/README.md) | `galois` | 体拡大、最小多項式、自己同型の延長、ガロア接続、根号・作図可能性、有理数の代数閉包の定義 |
+| [algebra/quintic](algebra/quintic/README.md) | `quintic` | 一般5次方程式の根号非可解性と作図不可能性 |
 | [algebra/module_theory](algebra/module_theory/README.md) | `module_theory` | 環上の加群、自由加群、直和、テンソル積、完全列 |
 | [algebra/commutative_algebra](algebra/commutative_algebra/README.md) | `commutative_algebra` | Hom とテンソル積、射影性、有限自由加群の行列 |
 | [algebra/integer_matrices](algebra/integer_matrices/README.md) | `integer_matrices` | 整数行列の演算、Smith 標準形と変換行列 |

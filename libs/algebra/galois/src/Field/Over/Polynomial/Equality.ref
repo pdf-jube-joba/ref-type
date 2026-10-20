@@ -1,0 +1,17 @@
+\import \parent.Raw[] \as Raw;
+\import Raw.Difference[] \as Difference;
+\import Raw.Normalization[] \as Normalization;
+\import \parent.Nonzero[] \as Nonzero;
+\import algebra.Group[].Of[Carrier := Abstract.Carrier, group := Rings.additiveGroup Abstract.Carrier Raw.ring] \as Sum;
+\definition coefficientsEqual: AlgebraicallyClosed (\fun (x: K) => Logic.True) -> \forall (p, q: Coefficients) ->
+  degree p = degree q -> asPolynomial p = asPolynomial q -> p = q := \block {
+  \fun (closed: AlgebraicallyClosed (\fun (x: K) => Logic.True))(p, q: Coefficients)(sameDegree: _)(same: _) \then
+  \takefrom difference: Difference.Result[\fun (x: K) => Logic.True, p, q] \by
+    Difference.exists (\fun (x: K) => Logic.True) (Subfields.laws Subfields.whole) p q (Nonzero.allCoefficients p) (Nonzero.allCoefficients q) sameDegree \then
+  \let zero: Raw.asPolynomial difference.coefficients = Abstract.zero := Sum.cancelLeft (asPolynomial q) _ _
+    (eq_reason!{{Abstract.add (asPolynomial q) (Raw.asPolynomial difference.coefficients)}
+      "=" {asPolynomial p} "by" {sym!{Abstract.Carrier} _ _ difference.equation}
+      "=" {asPolynomial q} "by" same
+      "=" {Abstract.add (asPolynomial q) Abstract.zero} "by" {sym!{Abstract.Carrier} _ _ (Sum.zeroRight _)}}) \then
+  \return difference.equalWhenZero (Normalization.zeroCoefficients closed difference.coefficients zero)
+};

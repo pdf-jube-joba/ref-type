@@ -1,0 +1,41 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\import std.Data[].List[] \as Lists;
+\import std.Data[].Nat[] \as N;
+\import Subfields.Of[S := constants] \as Base;
+\import galois.Field[].Over[K := Base.Carrier, field := Base.subfield] \as BaseField;
+\import BaseField.Morphism[L := K, target := field] \as Into;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.FreeCommutativeRing[].Over[R := Base.Carrier, coefficients := Fields.fieldAsCommutativeRing Base.Carrier Base.subfield, Variables := Quintic.Five] \as Free;
+\import Free.Presentation[relations := \fun (p, q: Free.Expression) => Logic.False] \as Polynomial;
+\import Polynomial.Universal[K := K, target := Fields.fieldAsCommutativeRing K field] \as Evaluation;
+\definition coefficientMap: Evaluation.CoefficientMap := Into.ringMap Base.inclusion;
+\definition evaluate[r: Quintic.Five -> K]: Free.Expression -> K := Evaluation.evaluate coefficientMap r;
+\definition zeroValue: \forall (r: Quintic.Five -> K) -> evaluate r Free.zeroExpr = F.zero := \fun (r: Quintic.Five -> K) => Base.inclusion.preservesZero;
+\definition oneValue: \forall (r: Quintic.Five -> K) -> evaluate r Free.oneExpr = F.one := \fun (r: Quintic.Five -> K) => Base.inclusion.preservesOne;
+\definition Independent: \Prop := \forall (p: Free.Expression) -> evaluate roots p = F.zero -> Polynomial.Equivalent p Free.zeroExpr;
+\definition Distinct: \Prop := \forall (i, j: Quintic.Five) -> roots i = roots j -> i = j;
+\definition Seed[x: K]: \Prop := Logic.Or[Subfields.Member constants x, \exists ( i: Quintic.Five \where roots i = x )];
+\definition splittingField: Subfields.Subfield := Subfields.generated Seed;
+\definition containsConstant: \forall (x: K) -> Subfields.Member constants x -> Subfields.Member splittingField x :=
+  \fun (x: K)(member: _) => Subfields.contains Seed x (Logic.Or[_, _]::left member);
+\definition containsRoot: \forall (i: Quintic.Five) -> Subfields.Member splittingField (roots i) :=
+  \fun (i: Quintic.Five) => Subfields.contains Seed (roots i)
+    (Logic.Or[_, _]::right (Logic.existsIntro[Quintic.Five, { j: Quintic.Five \where roots j = roots i }] i (\refl(roots i))));
+\import galois.Permutation[X := Quintic.Five] \as Permutations;
+\definition evaluateEquivalent: \forall (r: Quintic.Five -> K)(a, b: Free.Expression) ->
+  Polynomial.Equivalent a b -> evaluate r a = evaluate r b :=
+  \fun (r: Quintic.Five -> K)(a, b: Free.Expression)(same: _) =>
+    same (Evaluation.EvaluationRelation coefficientMap r) (Evaluation.evaluationRules coefficientMap r)
+      (\fun (c, d: Free.Expression)(impossible: Logic.False) => Logic.falseElim (evaluate r c = evaluate r d) impossible);
+\module Renaming(p: Permutations.Permutation);
+\import std.Set[].Countability[A := K] \as Countability;
+\module Closure(enumeration: Countability.Enumerator, index: N.Nat^ -> K);
+\module Equation;
+\module Distinctness;
+\module AbelRuffini(enumeration: Countability.Enumerator, index: N.Nat^ -> K);

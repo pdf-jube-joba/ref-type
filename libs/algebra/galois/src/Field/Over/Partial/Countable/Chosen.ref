@@ -1,0 +1,29 @@
+\definition state: N.Nat^ -> State := \induction (n: N.Nat^) \return State \with {
+  | zero: start
+  | succ: \fun (n: N.Nat^)(previous: State) => (steps n).apply previous
+};
+\definition sequence[n: N.Nat^]: Isomorphism := (state n).isomorphism;
+\import \parent.\parent.Union[sequence := sequence] \as Union;
+\definition chain: Union.Chain := \fun (n: N.Nat^) => (steps n).extends (state n);
+\definition domain: Union.DomainTotal := \block {
+  \fun (x: K) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where enumeration.sequence n = x }) \by enumeration.exhaustive x \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Subfields.Member (sequence k).domain x }] (N.Nat^::succ n)
+    (\idelim enumeration.sequence n = x \with y: K => Subfields.Member (sequence (N.Nat^::succ n)).domain y
+      \by { base: (steps n).domain (state n), equality: \bysub(N.Nat^, { n: N.Nat^ \where enumeration.sequence n = x }, n) })
+};
+\definition range: Union.RangeTotal := \block {
+  \fun (x: K) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where enumeration.sequence n = x }) \by enumeration.exhaustive x \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Subfields.Member (sequence k).range x }] (N.Nat^::succ n)
+    (\idelim enumeration.sequence n = x \with y: K => Subfields.Member (sequence (N.Nat^::succ n)).range y
+      \by { base: (steps n).range (state n), equality: \bysub(N.Nat^, { n: N.Nat^ \where enumeration.sequence n = x }, n) })
+};
+\definition exists: \exists Extension := \block {
+  \takefrom limit: Union.Result \by Union.exists chain domain range \then
+  \return \exact(Extension {
+    automorphism := limit.automorphism,
+    forward := limit.forward N.Nat^::zero,
+    backward := limit.backward N.Nat^::zero,
+  }, Extension)
+};

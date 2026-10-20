@@ -1,0 +1,24 @@
+\import Partial.Countable[initial := initial.isomorphism, enumeration := enumeration, index := index] \as Extension;
+\definition domain: Subfields.Included (Subfields.Member splittingField) (Subfields.Member initial.isomorphism.domain) :=
+  \fun (x: K)(member: _) => \idelim splittingField = initial.isomorphism.domain \with S: Subfields.Subfield => Subfields.Member S x
+    \by { base: member, equality: sym!{Subfields.Subfield} _ _ initial.domain };
+\definition range: Subfields.Included (Subfields.Member splittingField) (Subfields.Member initial.isomorphism.range) :=
+  \fun (x: K)(member: _) => \idelim splittingField = initial.isomorphism.range \with S: Subfields.Subfield => Subfields.Member S x
+    \by { base: member, equality: sym!{Subfields.Subfield} _ _ initial.range };
+\definition extensionConditions: Conditions -> Extension.Conditions :=
+  \fun (conditions: Conditions) => Extension.Conditions {
+    closed := conditions.closed, injective := conditions.injective,
+    domainIndex := \fun (n: N.Nat^) => domain (index n) (containsConstant (index n) (conditions.constants n)),
+    rangeIndex := \fun (n: N.Nat^) => range (index n) (containsConstant (index n) (conditions.constants n)),
+    domainAlgebraic := \fun (x: K) => Polynomials.algebraicMonotone (Subfields.Member splittingField) (Subfields.Member initial.isomorphism.domain) domain x (conditions.algebraic x),
+    rangeAlgebraic := \fun (x: K) => Polynomials.algebraicMonotone (Subfields.Member splittingField) (Subfields.Member initial.isomorphism.range) range x (conditions.algebraic x),
+  };
+\definition exists: Conditions -> \exists Lift[p] := \block {
+  \fun (conditions: Conditions) \then
+  \takefrom extension: Extension.Extension \by Extension.exists (extensionConditions conditions) \then
+  \return \exact(Lift[p] {
+    automorphism := extension.automorphism,
+    constants := \fun (x: K)(member: _) => trans!{K} _ _ _ (extension.forward x (domain x (containsConstant x member))) (initial.constants x member),
+    roots := \fun (i: Quintic.Five) => trans!{K} _ _ _ (extension.forward (roots i) (domain (roots i) (containsRoot i))) (initial.roots i),
+  }, Lift[p])
+};
