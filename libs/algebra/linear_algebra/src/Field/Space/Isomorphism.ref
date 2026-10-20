@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Linear[V := V, W := W, source := source, target := target] \as Forward;
 \import \parent.Linear[V := W, W := V, source := target, target := source] \as Backward;
 \structure Data: \Set := {
@@ -11,8 +12,11 @@
 \definition Isomorphism: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
 \definition laws[iso: Isomorphism]: Laws[iso] := \bysub(Data, Isomorphism, iso);
 \definition injective: \forall (iso: Isomorphism) (x, y: V) -> iso.forward.apply x = iso.forward.apply y -> x = y :=
-  \fun (iso: _) (x, y: _) (same: _) => trans!{V} _ _ _ (sym!{V} _ _ ((laws iso).leftInverse x))
-    (trans!{V} _ _ _ (congr!{W V} (iso.backward.apply) _ _ same) ((laws iso).leftInverse y));
+  \fun (iso: _) (x, y: _) (same: _) => eq_reason_in!{V _
+    "=" _ "by" { sym!{V} _ _ ((laws iso).leftInverse x) }
+    "=" _ "by" { congr!{W V} (iso.backward.apply) _ _ same }
+    "=" _ "by" { (laws iso).leftInverse y }
+  };
 \definition surjective: \forall (iso: Isomorphism) (y: W) -> \exists ( x: V \where iso.forward.apply x = y ) :=
   \fun (iso: _) (y: W) => Logic.existsIntro[V, { x: V \where iso.forward.apply x = y }] (iso.backward.apply y)
     ((laws iso).rightInverse y);

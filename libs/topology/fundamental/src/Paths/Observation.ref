@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.UnbasedPaths[A := A, source := source] \as Raw;
 \definition changeStart: \forall (x, u, y: A)(p: Path x y)(q: Path u y) -> x = u ->
   (\forall (t: Interval.Carrier) -> p t = q t) -> value x y p = value u y q :=
@@ -12,8 +13,16 @@
 \definition samePath: \forall (x, y, u, v: A)(p: Path x y)(q: Path u v) ->
   (\forall (t: Interval.Carrier) -> p t = q t) -> value x y p = value u v q := \block {
   \fun (x, y, u, v: A)(p: _)(q: _)(equal: _) \then
-  \let starts: x = u := trans!{A} _ _ _ (sym!{A} _ _ (laws x y p).start) (trans!{A} _ _ _ (equal Interval.start) (laws u v q).start) \then
-  \let ends: y = v := trans!{A} _ _ _ (sym!{A} _ _ (laws x y p).end) (trans!{A} _ _ _ (equal Interval.end) (laws u v q).end) \then
+  \let starts: x = u := eq_reason_in!{A _
+    "=" _ "by" { sym!{A} _ _ (laws x y p).start }
+    "=" _ "by" { equal Interval.start }
+    "=" _ "by" { (laws u v q).start }
+  } \then
+  \let ends: y = v := eq_reason_in!{A _
+    "=" _ "by" { sym!{A} _ _ (laws x y p).end }
+    "=" _ "by" { equal Interval.end }
+    "=" _ "by" { (laws u v q).end }
+  } \then
   \let r: Path u y := \into[Function](p, Path u y) \by {
     Laws[u, y, p] { continuous := (laws x y p).continuous, start := trans!{A} _ _ _ (laws x y p).start starts, end := (laws x y p).end }
   } \then

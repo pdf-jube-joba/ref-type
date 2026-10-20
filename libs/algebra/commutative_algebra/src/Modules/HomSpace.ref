@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Hom[V := V, W := W, source := source, target := target] \as Maps;
 \import Modules.Laws[V := W, space := target] \as Target;
 \import algebra.Group[].Of[Carrier := W, group := Target.additive] \as Group;
@@ -10,11 +11,12 @@
   apply := \fun (x: V) => target.smul a (f.apply x),
   addition := \fun (x, y: V) => trans!{W} _ _ _
     (congr!{W W} (target.smul a) _ _ (f.addition x y)) (target.vectorAdd a (f.apply x) (f.apply y)),
-  scalar := \fun (b: R)(x: V) => trans!{W} _ _ _
-    (congr!{W W} (target.smul a) _ _ (f.scalar b x))
-    (trans!{W} _ _ _ (sym!{W} _ _ (target.scalarAssoc a b (f.apply x)))
-      (trans!{W} _ _ _ (congr!{R W} (\fun (r: R) => target.smul r (f.apply x)) _ _ (ring.mulCommutative a b))
-        (target.scalarAssoc b a (f.apply x)))),
+  scalar := \fun (b: R)(x: V) => eq_reason_in!{W _
+    "=" _ "by" { congr!{W W} (target.smul a) _ _ (f.scalar b x) }
+    "=" _ "by" { sym!{W} _ _ (target.scalarAssoc a b (f.apply x)) }
+    "=" _ "by" { congr!{R W} (\fun (r: R) => target.smul r (f.apply x)) _ _ (ring.mulCommutative a b) }
+    "=" _ "by" { target.scalarAssoc b a (f.apply x) }
+  },
 };
 \definition space: Modules.Space Carrier := Ring.RingModule[R, Carrier, ordinaryRing] {
   zero := zero, add := add, neg := neg, smul := scale,

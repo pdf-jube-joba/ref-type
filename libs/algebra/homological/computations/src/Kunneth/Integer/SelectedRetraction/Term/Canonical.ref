@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition q: Degree := complement n p;
 \definition index: Grading.Index n := \into[Grading.Pair](Grading.Pair { first := p, second := q },
   { i: Grading.Pair \where Grading.add i.first i.second = n }) \by { Grading.complementSum n p };
@@ -10,13 +11,13 @@
 \definition onCycles: \forall (x: LeftHomology.Cycle)(y: RightHomology.Cycle) ->
   map.apply ((Source.Component[i := index].injection).apply (Tensor.tensor x y)) =
     (TargetSum.Injection[i := p].map).apply (Result.Component[p := p].tensor (LeftHomology.classOf x) (RightHomology.classOf y)) :=
-  \fun (x: LeftHomology.Cycle)(y: RightHomology.Cycle) => trans!{TargetSum.Carrier} _ _ _
-    (onInjection index (Tensor.tensor x y))
-    (trans!{TargetSum.Carrier} _ _ _ (ProjectionTerm.onTensor x y)
-      (trans!{TargetSum.Carrier} _ _ _
-        (congr!{HomologyTensor.Carrier TargetSum.Carrier} (ProjectionTerm.tail.apply) _ _
-          (congr2!{{LeftHomology.Homology} {RightHomology.Homology} HomologyTensor.Carrier} HomologyTensor.tensor _ _ _ _
-            (LeftProjection.Term[z := p].onCycle x) (RightProjection.Term[z := q].onCycle y)))
-        (congr!{{Result.Component[p := p].tensorCarrier} TargetSum.Carrier} ((TargetSum.Injection[i := p].map).apply) _ _
+  \fun (x: LeftHomology.Cycle)(y: RightHomology.Cycle) => eq_reason_in!{TargetSum.Carrier _
+    "=" _ "by" { onInjection index (Tensor.tensor x y) }
+    "=" _ "by" { ProjectionTerm.onTensor x y }
+    "=" _ "by" { congr!{HomologyTensor.Carrier TargetSum.Carrier} (ProjectionTerm.tail.apply) _ _
+          (congr!{{LeftHomology.Homology} {RightHomology.Homology} HomologyTensor.Carrier} HomologyTensor.tensor _ _ _ _
+            (LeftProjection.Term[z := p].onCycle x) (RightProjection.Term[z := q].onCycle y)) }
+    "=" _ "by" { congr!{{Result.Component[p := p].tensorCarrier} TargetSum.Carrier} ((TargetSum.Injection[i := p].map).apply) _ _
           (Reindex.canonical (Grading.complementUnique n p q (Grading.degree n index))
-            (HomologyTensor.tensor (LeftHomology.classOf x) (RightHomology.classOf y))))));
+            (HomologyTensor.tensor (LeftHomology.classOf x) (RightHomology.classOf y))) }
+  };

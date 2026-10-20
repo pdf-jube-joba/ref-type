@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 
 \definition zero: N.Nat^ := N.Nat^::zero;
 \definition one: N.Nat^ := N.Nat^::succ zero;
@@ -8,21 +9,21 @@
 \import Simplicial.Faces[] \as SimplicialFaces;
 \import Fin.Tuples[A := Vertex].Omission[] \as Omission;
 \definition firstValue[e: E]: SimplicialFaces.apply zero EdgeSimplices.head (EdgeSimplices.simplex e) (Fin.zero zero) = label (last e) :=
-  trans!{{Vertex}} _ _ _
-    (congr!{{Simplicial.Tuple zero} {Vertex}} (\fun (s: Simplicial.Tuple zero) => s (Fin.zero zero)) _ _
-      (SimplicialFaces.At[n := zero].omission EdgeSimplices.head (EdgeSimplices.simplex e)))
-    (trans!{{Vertex}} _ _ _
-      (congr!{{Simplicial.Tuple zero} {Vertex}} (\fun (s: Simplicial.Tuple zero) => s (Fin.zero zero)) _ _ (Omission.first zero (EdgeSimplices.simplex e)))
-      (EdgeSimplices.lastValue e));
+  eq_reason_in!{{Vertex} _
+    "=" _ "by" { congr!{{Simplicial.Tuple zero} {Vertex}} (\fun (s: Simplicial.Tuple zero) => s (Fin.zero zero)) _ _
+      (SimplicialFaces.At[n := zero].omission EdgeSimplices.head (EdgeSimplices.simplex e)) }
+    "=" _ "by" { congr!{{Simplicial.Tuple zero} {Vertex}} (\fun (s: Simplicial.Tuple zero) => s (Fin.zero zero)) _ _ (Omission.first zero (EdgeSimplices.simplex e)) }
+    "=" _ "by" { EdgeSimplices.lastValue e }
+  };
 \definition lastValue[e: E]: SimplicialFaces.apply zero EdgeSimplices.tail (EdgeSimplices.simplex e) (Fin.zero zero) = label (first e) :=
-  trans!{{Vertex}} _ _ _
-    (congr!{{Simplicial.Tuple zero} {Vertex}} (\fun (s: Simplicial.Tuple zero) => s (Fin.zero zero)) _ _
-      (SimplicialFaces.At[n := zero].omission EdgeSimplices.tail (EdgeSimplices.simplex e)))
-    (trans!{{Vertex}} _ _ _
-      (congr!{{Simplicial.Tuple zero} {Vertex}} (\fun (s: Simplicial.Tuple zero) => s (Fin.zero zero)) _ _
-        (Omission.successor zero (Fin.zero zero) (EdgeSimplices.simplex e)))
-      (trans!{{Vertex}} _ _ _ (Tuples.atZero zero (EdgeSimplices.simplex e EdgeSimplices.head) _)
-        (EdgeSimplices.firstValue e)));
+  eq_reason_in!{{Vertex} _
+    "=" _ "by" { congr!{{Simplicial.Tuple zero} {Vertex}} (\fun (s: Simplicial.Tuple zero) => s (Fin.zero zero)) _ _
+      (SimplicialFaces.At[n := zero].omission EdgeSimplices.tail (EdgeSimplices.simplex e)) }
+    "=" _ "by" { congr!{{Simplicial.Tuple zero} {Vertex}} (\fun (s: Simplicial.Tuple zero) => s (Fin.zero zero)) _ _
+        (Omission.successor zero (Fin.zero zero) (EdgeSimplices.simplex e)) }
+    "=" _ "by" { Tuples.atZero zero (EdgeSimplices.simplex e EdgeSimplices.head) _ }
+    "=" _ "by" { EdgeSimplices.firstValue e }
+  };
 \definition firstFace[e: E]: SimplicialFaces.apply zero EdgeSimplices.head (EdgeSimplices.simplex e) = VertexSimplices.simplex (last e) :=
   sym!{{Simplicial.Tuple zero}} _ _ (VertexSimplices.equal (last e) (SimplicialFaces.apply zero EdgeSimplices.head (EdgeSimplices.simplex e)) (sym!{{Vertex}} _ _ (firstValue e)));
 \definition lastFace[e: E]: SimplicialFaces.apply zero EdgeSimplices.tail (EdgeSimplices.simplex e) = VertexSimplices.simplex (first e) :=
@@ -34,25 +35,27 @@
   trans!{{Native.Carrier zero}} _ _ _ (congr!{{Native.Carrier zero} {Native.Carrier zero}} (Values.add y) _ _ Group.negZero) (Group.zeroRight y);
 \definition onSimplex[e: E]: (Native.boundary zero).apply (Native.generator one (EdgeSimplices.simplex e)) =
   Group.difference (Native.generator zero (VertexSimplices.simplex (last e))) (Native.generator zero (VertexSimplices.simplex (first e))) :=
-  trans!{{Native.Carrier zero}} _ _ _ (Formula.onGenerator (EdgeSimplices.simplex e))
-    (trans!{{Native.Carrier zero}} _ _ _
-      (congr!{{Native.Carrier zero} {Native.Carrier zero}}
+  eq_reason_in!{{Native.Carrier zero} _
+    "=" _ "by" { Formula.onGenerator (EdgeSimplices.simplex e) }
+    "=" _ "by" { congr!{{Native.Carrier zero} {Native.Carrier zero}}
         (Group.difference (Native.generator zero (SimplicialFaces.apply zero EdgeSimplices.head (EdgeSimplices.simplex e)))) _ _
-        (differenceZero (Native.generator zero (SimplicialFaces.apply zero EdgeSimplices.tail (EdgeSimplices.simplex e)))))
-      (congr2!{{Native.Carrier zero} {Native.Carrier zero} {Native.Carrier zero}} Group.difference _ _ _ _
+        (differenceZero (Native.generator zero (SimplicialFaces.apply zero EdgeSimplices.tail (EdgeSimplices.simplex e)))) }
+    "=" _ "by" { congr!{{Native.Carrier zero} {Native.Carrier zero} {Native.Carrier zero}} Group.difference _ _ _ _
         (congr!{{Simplicial.Simplex zero} {Native.Carrier zero}} (Native.generator zero) _ _ (firstFace e))
-        (congr!{{Simplicial.Simplex zero} {Native.Carrier zero}} (Native.generator zero) _ _ (lastFace e))));
+        (congr!{{Simplicial.Simplex zero} {Native.Carrier zero}} (Native.generator zero) _ _ (lastFace e)) }
+  };
 \import Modules.Hom[V := vertexCarrier, W := Native.Carrier zero, source := vertexSpace, target := Native.space zero] \as VertexMaps;
 \definition vertexValue[e: E]: (Zero.forward).apply (incidenceValues e) =
   Group.difference (Native.generator zero (VertexSimplices.simplex (last e))) (Native.generator zero (VertexSimplices.simplex (first e))) :=
   trans!{{Native.Carrier zero}} _ _ _ (VertexMaps.differencePreserved Zero.forward (vertexGenerator (last e)) (vertexGenerator (first e)))
-    (congr2!{{Native.Carrier zero} {Native.Carrier zero} {Native.Carrier zero}} Group.difference _ _ _ _ (Zero.onGenerator (last e)) (Zero.onGenerator (first e)));
+    (congr!{{Native.Carrier zero} {Native.Carrier zero} {Native.Carrier zero}} Group.difference _ _ _ _ (Zero.onGenerator (last e)) (Zero.onGenerator (first e)));
 \definition onGenerator[e: E]: (Native.boundary zero).apply ((One.forward).apply (edgeGenerator e)) = (Zero.forward).apply ((incidence).apply (edgeGenerator e)) :=
-  trans!{{Native.Carrier zero}} _ _ _
-    (congr!{{Native.Carrier one} {Native.Carrier zero}} ((Native.boundary zero).apply) _ _ (One.onGenerator e))
-    (trans!{{Native.Carrier zero}} _ _ _ (onSimplex e)
-      (trans!{{Native.Carrier zero}} _ _ _ (sym!{{Native.Carrier zero}} _ _ (vertexValue e))
-        (congr!{{vertexCarrier} {Native.Carrier zero}} ((Zero.forward).apply) _ _ (sym!{{vertexCarrier}} _ _ (incidenceOnGenerator e)))));
+  eq_reason_in!{{Native.Carrier zero} _
+    "=" _ "by" { congr!{{Native.Carrier one} {Native.Carrier zero}} ((Native.boundary zero).apply) _ _ (One.onGenerator e) }
+    "=" _ "by" { onSimplex e }
+    "=" _ "by" { sym!{{Native.Carrier zero}} _ _ (vertexValue e) }
+    "=" _ "by" { congr!{{vertexCarrier} {Native.Carrier zero}} ((Zero.forward).apply) _ _ (sym!{{vertexCarrier}} _ _ (incidenceOnGenerator e)) }
+  };
 \import Modules.Hom[V := Native.Carrier one, W := Native.Carrier zero, source := Native.space one, target := Native.space zero]
   .Composition[U := edgeCarrier, domain := edgeSpace] \as First;
 \import VertexMaps.Composition[U := edgeCarrier, domain := edgeSpace] \as Second;

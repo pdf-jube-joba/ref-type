@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.DirectSum[Index := Index, family := sourceFamily] \as Source;
 \import Modules.DirectSum[Index := Index, family := targetFamily] \as Target;
 \import Source.FiniteSupport[] \as SourceCoordinates;
@@ -13,17 +14,19 @@
 \definition left: \forall (x: Source.Carrier) -> (Backward.map).apply ((Forward.map).apply x) = x :=
   \fun (x: Source.Carrier) => SourceCoordinates.injective _ _
     (\axiom:funext(SourceCoordinates.coordinates ((Backward.map).apply ((Forward.map).apply x)), SourceCoordinates.coordinates x,
-      \fun (i: Index) => trans!{{sourceFamily.Carrier i}} _ _ _ (Backward.coordinatesNatural ((Forward.map).apply x) i)
-        (trans!{{sourceFamily.Carrier i}} _ _ _
-          (congr!{{targetFamily.Carrier i} {sourceFamily.Carrier i}} (((isomorphisms i).backward).apply) _ _ (Forward.coordinatesNatural x i))
-          ((isomorphisms i).leftInverse (SourceCoordinates.coordinates x i)))));
+      \fun (i: Index) => eq_reason_in!{{sourceFamily.Carrier i} _
+        "=" _ "by" { Backward.coordinatesNatural ((Forward.map).apply x) i }
+        "=" _ "by" { congr!{{targetFamily.Carrier i} {sourceFamily.Carrier i}} (((isomorphisms i).backward).apply) _ _ (Forward.coordinatesNatural x i) }
+        "=" _ "by" { (isomorphisms i).leftInverse (SourceCoordinates.coordinates x i) }
+      }));
 \definition right: \forall (x: Target.Carrier) -> (Forward.map).apply ((Backward.map).apply x) = x :=
   \fun (x: Target.Carrier) => TargetCoordinates.injective _ _
     (\axiom:funext(TargetCoordinates.coordinates ((Forward.map).apply ((Backward.map).apply x)), TargetCoordinates.coordinates x,
-      \fun (i: Index) => trans!{{targetFamily.Carrier i}} _ _ _ (Forward.coordinatesNatural ((Backward.map).apply x) i)
-        (trans!{{targetFamily.Carrier i}} _ _ _
-          (congr!{{sourceFamily.Carrier i} {targetFamily.Carrier i}} (((isomorphisms i).forward).apply) _ _ (Backward.coordinatesNatural x i))
-          ((isomorphisms i).rightInverse (TargetCoordinates.coordinates x i)))));
+      \fun (i: Index) => eq_reason_in!{{targetFamily.Carrier i} _
+        "=" _ "by" { Forward.coordinatesNatural ((Backward.map).apply x) i }
+        "=" _ "by" { congr!{{sourceFamily.Carrier i} {targetFamily.Carrier i}} (((isomorphisms i).forward).apply) _ _ (Backward.coordinatesNatural x i) }
+        "=" _ "by" { (isomorphisms i).rightInverse (TargetCoordinates.coordinates x i) }
+      }));
 \definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism :=
   Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism {
     forward := Forward.map, backward := Backward.map, leftInverse := left, rightInverse := right,

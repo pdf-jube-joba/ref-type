@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Proposition[] \as Logic;
 \import algebraic_topology.Euclidean[].Dimension[n := one] \as Model;
 \import algebraic_topology.Euclidean[].Dimension[n := two].Geometry[] \as PlaneGeometry;
@@ -11,7 +12,7 @@
 \definition bound: \forall (x: Simplex.Carrier one) -> R.Le (Model.normSquared (coordinates x)) Real.one :=
   \fun (x: Simplex.Carrier one) => R.leReplaceLeft (Real.mul (position x) (position x)) (Model.normSquared (coordinates x)) Real.one (sym!{Real.Real} _ _ (norm x))
     (R.leReplaceLeft (Real.mul (upper x Coordinates.first) (upper x Coordinates.first)) (Real.mul (position x) (position x)) Real.one
-      (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (upperFirst x) (upperFirst x))
+      (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (upperFirst x) (upperFirst x))
       (R.leReplaceRight (Real.mul (upper x Coordinates.first) (upper x Coordinates.first))
         (algebraic_topology.Euclidean[].Dimension[n := two].normSquared (upper x)) Real.one
         (\bysub(algebraic_topology.Euclidean[].Dimension[n := two].Coordinate, algebraic_topology.Euclidean[].Dimension[n := two].Boundary, upper x))
@@ -31,19 +32,22 @@
 \definition south: Pair.SubspaceCarrier := (Relative.homeomorphism).forward ZeroSphere.south;
 \definition startV: \forall (x: Simplex.Carrier zero) -> v (Simplex.face zero last x) = Real.zero := Segment.faceLastStart;
 \definition startU: \forall (x: Simplex.Carrier zero) -> u (Simplex.face zero last x) = Real.one :=
-  \fun (x: Simplex.Carrier zero) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroRight (u (Simplex.face zero last x))))
-    (trans!{Real.Real} _ _ _
-      (congr!{Real.Real Real.Real} (Real.add (u (Simplex.face zero last x))) _ _ (sym!{Real.Real} _ _ (startV x)))
-      (Segment.total (Simplex.face zero last x)));
+  \fun (x: Simplex.Carrier zero) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.addZeroRight (u (Simplex.face zero last x))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (u (Simplex.face zero last x))) _ _ (sym!{Real.Real} _ _ (startV x)) }
+    "=" _ "by" { Segment.total (Simplex.face zero last x) }
+  };
 \definition endU: \forall (x: Simplex.Carrier zero) -> u (Simplex.face zero first x) = Real.zero := Simplex.faceFirstZero zero;
 \definition endV: \forall (x: Simplex.Carrier zero) -> v (Simplex.face zero first x) = Real.one := Segment.faceFirstEnd;
 \definition start: \forall (x: Simplex.Carrier zero) -> line (Simplex.face zero last x) = south :=
   \fun (x: Simplex.Carrier zero) => \axiom:funext(line (Simplex.face zero last x), south, \fun (_: Model.Index) => trans!{Real.Real} _ _ _
-    (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (startV x) (startU x)) (Laws.addZeroLeft (Real.neg Real.one)));
+    (congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (startV x) (startU x)) (Laws.addZeroLeft (Real.neg Real.one)));
 \definition end: \forall (x: Simplex.Carrier zero) -> line (Simplex.face zero first x) = north :=
-  \fun (x: Simplex.Carrier zero) => \axiom:funext(line (Simplex.face zero first x), north, \fun (_: Model.Index) => trans!{Real.Real} _ _ _
-    (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (endV x) (endU x))
-    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ Laws.negZero) (Laws.addZeroRight Real.one)));
+  \fun (x: Simplex.Carrier zero) => \axiom:funext(line (Simplex.face zero first x), north, \fun (_: Model.Index) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (endV x) (endU x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add Real.one) _ _ Laws.negZero }
+    "=" _ "by" { Laws.addZeroRight Real.one }
+  });
 \definition firstFace: Simplices.face zero first simplex = Simplices.At[n := zero].constant north := Simplices.ext zero _ _ end;
 \definition lastFace: Simplices.face zero last simplex = Simplices.At[n := zero].constant south := Simplices.ext zero _ _ start;
 \import Modules.Laws[V := Chains.Carrier zero, space := Chains.space zero] \as Values;
@@ -53,12 +57,13 @@
 \definition edge: Chains.Carrier one := Chains.generator one simplex;
 \definition boundary: (Chains.boundary zero).apply edge = Group.difference
   (Chains.generator zero (Simplices.At[n := zero].constant north)) (Chains.generator zero (Simplices.At[n := zero].constant south)) :=
-  trans!{{Chains.Carrier zero}} _ _ _ (Chains.Boundary[n := zero].onGenerator simplex)
-    (trans!{{Chains.Carrier zero}} _ _ _
-      (congr!{{Chains.Carrier zero} {Chains.Carrier zero}}
-        (Group.difference (Chains.generator zero (Simplices.face zero first simplex))) _ _ (minusZero (Chains.generator zero (Simplices.face zero last simplex))))
-      (congr2!{{Chains.Carrier zero} {Chains.Carrier zero} {Chains.Carrier zero}} Group.difference _ _ _ _
+  eq_reason_in!{{Chains.Carrier zero} _
+    "=" _ "by" { Chains.Boundary[n := zero].onGenerator simplex }
+    "=" _ "by" { congr!{{Chains.Carrier zero} {Chains.Carrier zero}}
+        (Group.difference (Chains.generator zero (Simplices.face zero first simplex))) _ _ (minusZero (Chains.generator zero (Simplices.face zero last simplex))) }
+    "=" _ "by" { congr!{{Chains.Carrier zero} {Chains.Carrier zero} {Chains.Carrier zero}} Group.difference _ _ _ _
         (congr!{{Simplices.Carrier zero} {Chains.Carrier zero}} (Chains.generator zero) _ _ firstFace)
-        (congr!{{Simplices.Carrier zero} {Chains.Carrier zero}} (Chains.generator zero) _ _ lastFace)));
+        (congr!{{Simplices.Carrier zero} {Chains.Carrier zero}} (Chains.generator zero) _ _ lastFace) }
+  };
 \module RelativeCycle;
 \module Quotient;

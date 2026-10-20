@@ -1,11 +1,14 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition onGroup[a: G]: T := target a targetPoint;
 \definition respects: Descent.Respects onGroup := \block {
   \fun (a, b: G)(related: Cosets.Related a b) \then
   \takefrom h: \Cast[\Cast[G] Source.subgroup] ({ h: \Cast[G] Source.subgroup \where mul h a = b }) \by related \then
   \let same: mul h a = b := \bysub(\Cast[G] Source.subgroup, { h: \Cast[G] Source.subgroup \where mul h a = b }, h) \then
-  \return sym!{T} _ _ (trans!{T} _ _ _ (congr!{G T} onGroup _ _ (sym!{G} _ _ same))
-    (trans!{T} _ _ _ ((Target.laws target).compose h a targetPoint)
-      (congr!{T T} (target a) _ _ (compatible h (\bysub(G, Source.subgroup, h))))))
+  \return sym!{T} _ _ (eq_reason_in!{T _
+    "=" _ "by" { congr!{G T} onGroup _ _ (sym!{G} _ _ same) }
+    "=" _ "by" { (Target.laws target).compose h a targetPoint }
+    "=" _ "by" { congr!{T T} (target a) _ _ (compatible h (\bysub(G, Source.subgroup, h))) }
+  })
 };
 \definition orbit: Cosets.Carrier -> T := Descent.descend onGroup respects;
 \definition apply[s: S]: T := orbit (Source.backward transitive s);
@@ -25,7 +28,9 @@
     "=" {target a (apply (act g point))} "by" {congr!{T T} (target a) _ _ (sym!{T} _ _ (onOrbit g))}
     "=" {target a (apply s)} "by" {congr!{S T} (\fun (t: S) => target a (apply t)) _ _ same}}
 };
-\definition pointed: apply point = targetPoint := trans!{T} _ _ _
-  (congr!{S T} apply _ _ (sym!{S} _ _ ((laws act).identity point)))
-  (trans!{T} _ _ _ (onOrbit one) ((Target.laws target).identity targetPoint));
+\definition pointed: apply point = targetPoint := eq_reason_in!{T _
+  "=" _ "by" { congr!{S T} apply _ _ (sym!{S} _ _ ((laws act).identity point)) }
+  "=" _ "by" { onOrbit one }
+  "=" _ "by" { (Target.laws target).identity targetPoint }
+};
 \definition map: Map := Map { apply := apply, commutes := commutes, pointed := pointed };

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 
 \import Modules.FiniteCoordinates[n := m] \as SourceLower;
 \import Modules.FiniteCoordinates[n := n] \as SourceMiddle;
@@ -34,14 +35,13 @@
 };
 \definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
 \definition closed: \forall (f: Map)(x: Source.Cycle) -> targetOutgoing.apply ((middle f).apply x) = TargetLower.space.zero :=
-  \fun (f: Map)(x: Source.Cycle) => trans!{{TargetLower.Carrier}}
-    (targetOutgoing.apply ((middle f).apply x)) ((lower f).apply (sourceOutgoing.apply x)) TargetLower.space.zero
-    ((\bysub(Data, { data: Data \where Laws[data] }, f)).outgoing x)
-    (trans!{{TargetLower.Carrier}} _ _ _
-      (congr!{{SourceLower.Carrier} {TargetLower.Carrier}} ((lower f).apply)
+  \fun (f: Map)(x: Source.Cycle) => eq_reason_in!{{TargetLower.Carrier} { targetOutgoing.apply ((middle f).apply x) }
+    "=" { (lower f).apply (sourceOutgoing.apply x) } "by" { (\bysub(Data, { data: Data \where Laws[data] }, f)).outgoing x }
+    "=" _ "by" { congr!{{SourceLower.Carrier} {TargetLower.Carrier}} ((lower f).apply)
         (sourceOutgoing.apply x) SourceLower.space.zero
-        (\bysub(SourceMiddle.Carrier, Source.originalKernel.carrier, x)))
-      (LowerMaps.zeroPreserved (lower f)));
+        (\bysub(SourceMiddle.Carrier, Source.originalKernel.carrier, x)) }
+    "=" _ "by" { LowerMaps.zeroPreserved (lower f) }
+  };
 \import Modules.Hom[V := Source.Cycle, W := Target.Cycle, source := Source.cycleSpace, target := Target.cycleSpace] \as Cycles;
 \definition cycles[f: Map]: Cycles.Map := Cycles.Map {
   apply := \fun (x: Source.Cycle) => \into[TargetMiddle.Carrier]((middle f).apply x, Target.originalKernel.carrier) \by { closed f x },

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import manifolds.SmoothMap[n := Types.lineDimension, m := n].Between[M := Types.line, N := manifold] \as Curves;
 \import manifolds.Dimension[n := n].Chart[M := manifold.Point, space := manifold.space] \as Charts;
 \import calculus.Maps[n := Types.lineDimension, m := n] \as Maps;
@@ -14,11 +15,16 @@
     (R.leLtTrans _ _ _ (Arithmetic.negAntitone radius data.agreement.radius agreementBound) (lower t small))
     (R.ltLeTrans _ _ _ (upper t small) agreementBound) \then
   \let same: Maps.apply Left.domain chart.image Left.map leftPoint = Maps.apply Right.domain chart.image Right.map rightPoint :=
-    trans!{Vectors.Point} _ _ _ (sym!{Vectors.Point} _ _ (Left.valueAt leftPoint))
-      (trans!{Vectors.Point} _ _ _ localEquality (Right.valueAt rightPoint)) \then
-  \return trans!{Point} _ _ _ (sym!{Point} _ _ (Left.returnsPoint leftPoint))
-    (trans!{Point} _ _ _ (congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ same)
-      (Right.returnsPoint rightPoint))
+    eq_reason_in!{Vectors.Point _
+      "=" _ "by" { sym!{Vectors.Point} _ _ (Left.valueAt leftPoint) }
+      "=" _ "by" localEquality
+      "=" _ "by" { Right.valueAt rightPoint }
+    } \then
+  \return eq_reason_in!{Point _
+    "=" _ "by" { sym!{Point} _ _ (Left.returnsPoint leftPoint) }
+    "=" _ "by" { congr!{{Open.Carrier chart.image} Point} (\fun (x: Open.Carrier chart.image) => Charts.point chart x) _ _ same }
+    "=" _ "by" { Right.returnsPoint rightPoint }
+  }
 };
 \import \root.LocalHom[G := Point, group := group] \as Local;
 \definition local: Local.LocalHom := Local.LocalHom {
@@ -33,7 +39,9 @@
 \import Extended.Uniqueness[h := right, addition := g.addition, localAgreement := rightAgreement] \as RightExtension;
 \definition realEquality: left = right := trans!{{Reals.Real -> Point}} _ _ _ LeftExtension.equal (sym!{{Reals.Real -> Point}} _ _ RightExtension.equal);
 \definition pointwise: \forall (x: Types.line.Point) -> Curves.apply f.map x = Curves.apply g.map x := \fun (x: Types.line.Point) =>
-  trans!{Point} _ _ _ (congr!{{Types.line.Point} Point} (Curves.apply f.map) _ _ (sym!{{Types.line.Point}} _ _ (Types.timeCoordinates x)))
-    (trans!{Point} _ _ _ (congr!{{Reals.Real -> Point} Point} (\fun (h: Reals.Real -> Point) => h (x (std.Data[].FinSet[].zero std.Data[].Nat[].Nat^::zero))) _ _ realEquality)
-      (congr!{{Types.line.Point} Point} (Curves.apply g.map) _ _ (Types.timeCoordinates x)));
+  eq_reason_in!{Point _
+    "=" _ "by" { congr!{{Types.line.Point} Point} (Curves.apply f.map) _ _ (sym!{{Types.line.Point}} _ _ (Types.timeCoordinates x)) }
+    "=" _ "by" { congr!{{Reals.Real -> Point} Point} (\fun (h: Reals.Real -> Point) => h (x (std.Data[].FinSet[].zero std.Data[].Nat[].Nat^::zero))) _ _ realEquality }
+    "=" _ "by" { congr!{{Types.line.Point} Point} (Curves.apply g.map) _ _ (Types.timeCoordinates x) }
+  };
 \definition equal: f = g := Types.ext f g (Curves.ext f.map g.map (\axiom:funext(Curves.apply f.map, Curves.apply g.map, pointwise)));

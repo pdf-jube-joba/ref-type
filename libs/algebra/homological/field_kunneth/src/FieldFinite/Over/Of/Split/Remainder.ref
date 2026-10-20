@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.At[n := n] \as Term;
 \import \parent.\parent.At[n := n].Decomposition[].Selected[d := d n] \as Selected;
 \import Cochains.At[C := complex, k := n] \as H;
@@ -10,11 +11,11 @@
 \import Modules.Laws[V := H.Cohomology, space := H.cohomologySpace] \as ClassVector;
 \import algebra.Group[].Of[Carrier := H.Cohomology, group := ClassVector.additive] \as ClassGroup;
 \definition classZero: \forall (x: H.CycleCarrier) -> H.classOf (residue.apply x) = H.zeroClass :=
-  \fun (x: H.CycleCarrier) => trans!{H.Cohomology} _ _ _
-    (Classes.differencePreserved H.classLinear x (((d n).section).apply (H.classOf x)))
-    (trans!{H.Cohomology} _ _ _
-      (congr!{H.Cohomology H.Cohomology} (ClassGroup.difference (H.classOf x)) _ _ ((d n).represents (H.classOf x)))
-      (ClassGroup.inverseRight (H.classOf x)));
+  \fun (x: H.CycleCarrier) => eq_reason_in!{H.Cohomology _
+    "=" _ "by" { Classes.differencePreserved H.classLinear x (((d n).section).apply (H.classOf x)) }
+    "=" _ "by" { congr!{H.Cohomology H.Cohomology} (ClassGroup.difference (H.classOf x)) _ _ ((d n).represents (H.classOf x)) }
+    "=" _ "by" { ClassGroup.inverseRight (H.classOf x) }
+  };
 \import Modules.Hom[V := H.CycleCarrier, W := Term.boundaryBundle.Carrier, source := H.cycleSpace, target := Term.boundaryBundle.space] \as BoundaryMaps;
 \definition onCycles: BoundaryMaps.Map := BoundaryMaps.Map {
   apply := \fun (x: H.CycleCarrier) => \into[H.CycleCarrier](residue.apply x, H.boundariesInside.carrier) \by {
@@ -35,15 +36,14 @@
 \import Modules.Laws[V := H.CycleCarrier, space := H.cycleSpace] \as CycleVector;
 \import algebra.Group[].Of[Carrier := H.CycleCarrier, group := CycleVector.additive] \as CycleGroup;
 \definition onBoundary: \forall (x: Term.boundaryBundle.Carrier) -> map.apply x = x :=
-  \fun (x: Term.boundaryBundle.Carrier) => trans!{H.CycleCarrier} _ _ _
-    (congr!{H.CycleCarrier H.CycleCarrier} (residue.apply) _ _ (Selected.onCycle x))
-    (trans!{H.CycleCarrier} _ _ _
-      (congr!{H.Cohomology H.CycleCarrier}
+  \fun (x: Term.boundaryBundle.Carrier) => eq_reason_in!{H.CycleCarrier _
+    "=" _ "by" { congr!{H.CycleCarrier H.CycleCarrier} (residue.apply) _ _ (Selected.onCycle x) }
+    "=" _ "by" { congr!{H.Cohomology H.CycleCarrier}
         (\fun (z: H.Cohomology) => CycleGroup.difference x (((d n).section).apply z)) _ _
-        (H.boundaryClassZero x (\bysub(H.CycleCarrier, H.boundariesInside.carrier, x))))
-      (trans!{H.CycleCarrier} _ _ _
-        (congr!{H.CycleCarrier H.CycleCarrier} (CycleGroup.difference x) _ _ (Sections.zeroPreserved (d n).section))
-        (trans!{H.CycleCarrier} _ _ _
-          (congr!{H.CycleCarrier H.CycleCarrier} (CycleGroup.add x) _ _ CycleGroup.negZero) (CycleGroup.zeroRight x))));
+        (H.boundaryClassZero x (\bysub(H.CycleCarrier, H.boundariesInside.carrier, x))) }
+    "=" _ "by" { congr!{H.CycleCarrier H.CycleCarrier} (CycleGroup.difference x) _ _ (Sections.zeroPreserved (d n).section) }
+    "=" _ "by" { congr!{H.CycleCarrier H.CycleCarrier} (CycleGroup.add x) _ _ CycleGroup.negZero }
+    "=" _ "by" { CycleGroup.zeroRight x }
+  };
 \definition onAmbientBoundary: \forall (x: Term.ambientBoundaryBundle.Carrier) -> ambient.apply x = x :=
   \fun (x: Term.ambientBoundaryBundle.Carrier) => onBoundary (Term.into.apply x);

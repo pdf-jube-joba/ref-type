@@ -1,8 +1,9 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.Derivative[].Prop[] \as DerivativeLaws;
 \import \parent.\parent.\parent.Limit[].Def[] \as Limits;
 \import \parent.\parent.\parent.Limit[].Operations[] \as LimitLaws;
 \import Analysis.Algebra[] \as Algebra;
-\use Equality.congr2;
+\use Equality.congr;
 \definition continuousAt: \forall (f, d: Real -> Real)(x: Local.Carrier) -> Derivative.HasDerivativeAt f x (d x) -> Local.ContinuousAt f x := \block {
   \fun (f, d: _)(x: Local.Carrier)(derivative: _)(epsilon: Real)(positive: _) \then
   \let continuous: Limits.ContinuousAt f x := Derivatives.continuousOfDerivative f x (d x) derivative \then
@@ -34,11 +35,13 @@
   \let remainder: sub (sub (f b) (f a)) (mul c (sub b a)) = mul (sub (d x) c) (sub b a) := trans!{Real} _ _ _
     (congr!{Real Real} (\fun (s: Real) => sub s (mul c (sub b a))) _ _ increment) (sym!{Real} _ _ (Algebra.subMul (d x) c (sub b a))) \then
   \let magnitude: distance (mul (sub (d x) c) (sub b a)) zero = mul (distance (d x) c) (distance b a) :=
-    trans!{Real} _ _ _ (Metric.distanceSymmetric (mul (sub (d x) c) (sub b a)) zero)
-      (trans!{Real} _ _ _ (Product.absProduct (sub (d x) c) (sub b a))
-        (congr2!{Real Real Real} mul _ _ _ _
+    eq_reason_in!{Real _
+      "=" _ "by" { Metric.distanceSymmetric (mul (sub (d x) c) (sub b a)) zero }
+      "=" _ "by" { Product.absProduct (sub (d x) c) (sub b a) }
+      "=" _ "by" { congr!{Real Real Real} mul _ _ _ _
           (trans!{Real} _ _ _ (Metric.distanceSymmetric zero (sub (d x) c)) (Estimates.distanceDifference (d x) c))
-          (trans!{Real} _ _ _ (Metric.distanceSymmetric zero (sub b a)) (Estimates.distanceDifference b a)))) \then
+          (trans!{Real} _ _ _ (Metric.distanceSymmetric zero (sub b a)) (Estimates.distanceDifference b a)) }
+    } \then
   \return R.leReplaceLeft (mul (distance (d x) c) (distance b a)) (distance (sub (sub (f b) (f a)) (mul c (sub b a))) zero) (mul theta (distance b a))
     (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => distance s zero) _ _ remainder) magnitude))
     (R.leReplace _ _ _ _ (Laws.fieldMulComm (distance b a) (distance (d x) c)) (Laws.fieldMulComm (distance b a) theta)

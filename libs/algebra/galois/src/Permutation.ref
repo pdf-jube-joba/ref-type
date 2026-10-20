@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
@@ -39,9 +40,11 @@
 \definition multiplyCongruent[p, q, r, s: Permutation]: Equal p r -> Equal q s -> Equal (multiply p q) (multiply r s) :=
   \fun (first: _)(second: _)(x: X) => trans!{X} _ _ _ (first (q.apply x)) (congr!{X X} r.apply _ _ (second x));
 \definition inverseCongruent[p, q: Permutation]: Equal p q -> Equal (inverse p) (inverse q) :=
-  \fun (same: _)(x: X) => trans!{X} _ _ _
-    (congr!{X X} p.backward _ _ (sym!{X} _ _ (q.rightInverse x)))
-    (trans!{X} _ _ _ (congr!{X X} p.backward _ _ (sym!{X} _ _ (same (q.backward x)))) (p.leftInverse (q.backward x)));
+  \fun (same: _)(x: X) => eq_reason_in!{X _
+    "=" _ "by" { congr!{X X} p.backward _ _ (sym!{X} _ _ (q.rightInverse x)) }
+    "=" _ "by" { congr!{X X} p.backward _ _ (sym!{X} _ _ (same (q.backward x))) }
+    "=" _ "by" { p.leftInverse (q.backward x) }
+  };
 \definition commutatorCongruent[p, q, r, s: Permutation]: Equal p r -> Equal q s -> Equal (commutator p q) (commutator r s) :=
   \fun (first: _)(second: _) => multiplyCongruent _ _ _ _
     (multiplyCongruent _ _ _ _ (multiplyCongruent _ _ _ _ first second) (inverseCongruent p r first))

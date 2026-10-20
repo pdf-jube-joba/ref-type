@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import commutative_algebra.Modules[R := I.Int^, ring := IntegerRing.commutativeRing].Elementary[n := m] \as Elementary;
 \import Elementary.Swap[i := r, j := s] \as Exchange;
 \import Elementary.Shear[i := r, j := s] \as Shear;
@@ -26,13 +27,12 @@
     (\refl(f i)) (\refl(f r)) (\refl(f s)) (\refl(f s)) (Nat.eqb i r) (Nat.eqb i s);
 \definition swapped[a: Runtime^]: Matrix := Left.product Exchange.matrix (reflect a);
 \definition swapEntry: \forall (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n) -> swapped a i j = swap a r s i j :=
-  \fun (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n) => trans!{I.Int^}
-    (swapped a i j) (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j) (Permutation.apply i)) (swap a r s i j)
-    (congr!{Matrix I.Int^} (\fun (a: Matrix) => a i j) _ _
-      (productOfMap Exchange.map (reflect a)))
-    (trans!{I.Int^}
-      (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j) (Permutation.apply i)) (a (Permutation.apply i) j) (swap a r s i j)
-      (Representation.onBasis (reflect a) (Permutation.apply i) j) (permutationValue (\fun (k: N.Nat^) => a k j) i));
+  \fun (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n) => eq_reason_in!{I.Int^ { swapped a i j }
+    "=" { Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j) (Permutation.apply i) } "by" { congr!{Matrix I.Int^} (\fun (a: Matrix) => a i j) _ _
+      (productOfMap Exchange.map (reflect a)) }
+    "=" { a (Permutation.apply i) j } "by" { Representation.onBasis (reflect a) (Permutation.apply i) j }
+    "=" { swap a r s i j } "by" { permutationValue (\fun (k: N.Nat^) => a k j) i }
+  };
 \definition swapLaw: \forall (a: Runtime^) -> swapped a = reflect (Swap.program^ a r s) :=
   \fun (a: Runtime^) => \axiom:funext(swapped a, reflect (Swap.program^ a r s),
     \fun (i: Finite.Fin m) => \axiom:funext(swapped a i, reflect (Swap.program^ a r s) i,
@@ -68,16 +68,14 @@
     (Left.product (Square.entries f) a) (Base.entries (Compose.compose f (Base.linear a))) (productOfMap f a);
 \definition added[a: Runtime^][c: I.Int^]: Matrix := Left.product (Shear.matrix c) (reflect a);
 \definition addEntry: \forall (a: Runtime^)(c: I.Int^)(i: Finite.Fin m)(j: Finite.Fin n) -> added a c i j = add a r s c i j :=
-  \fun (a: Runtime^)(c: I.Int^)(i: Finite.Fin m)(j: Finite.Fin n) => trans!{I.Int^}
-    (added a c i j) ((Shear.map c).apply (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j)) i) (add a r s c i j)
-    (productEntry (Shear.map c) (reflect a) i j)
-    (trans!{I.Int^}
-      _ _ _
-      (congr2!{I.Int^ I.Int^ I.Int^}
+  \fun (a: Runtime^)(c: I.Int^)(i: Finite.Fin m)(j: Finite.Fin n) => eq_reason_in!{I.Int^ { added a c i j }
+    "=" { (Shear.map c).apply (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j)) i } "by" { productEntry (Shear.map c) (reflect a) i j }
+    "=" _ "by" { congr!{I.Int^ I.Int^ I.Int^}
         (\fun (x, y: I.Int^) => Arithmetic.add x (Arithmetic.mul c (Arithmetic.mul y (Kronecker.delta i r))))
         _ _ _ _
-        (Representation.onBasis (reflect a) i j) (Representation.onBasis (reflect a) s j))
-      (shearValue (a i j) (a s j) c i));
+        (Representation.onBasis (reflect a) i j) (Representation.onBasis (reflect a) s j) }
+    "=" _ "by" { shearValue (a i j) (a s j) c i }
+  };
 \definition addLaw: \forall (a: Runtime^)(c: I.Int^) -> added a c = reflect (Add.program^ a r s c) :=
   \fun (a: Runtime^)(c: I.Int^) => \axiom:funext(added a c, reflect (Add.program^ a r s c),
     \fun (i: Finite.Fin m) => \axiom:funext(added a c i, reflect (Add.program^ a r s c) i,

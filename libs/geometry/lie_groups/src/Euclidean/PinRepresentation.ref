@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Clifford.Grading[] \as Grade;
 \import algebra.Groups[].Units[A := CliffordAlgebra, ring := Clifford.ring] \as Units;
 \import lie_algebras.Field[K := R.Real, field := Scalars.field].Endomorphisms[V := Vector, space := space] \as End;
@@ -20,9 +21,11 @@
 \definition identity: Lifts Units.unit := \into[O](OrthogonalOperations.one, Lifts Units.unit) \by { \fun (v: Vector) => Grade.actionOne (Clifford.iota v) };
 \definition product[g, h: Units.Unit][f: Lifts g][k: Lifts h]: Lifts (Units.product g h) :=
   \into[O](OrthogonalOperations.mul f k, Lifts (Units.product g h)) \by {
-    \fun (v: Vector) => trans!{CliffordAlgebra} _ _ _ (Grade.actionProduct g h (Clifford.iota v))
-      (trans!{CliffordAlgebra} _ _ _ (congr!{CliffordAlgebra CliffordAlgebra} (Grade.action g) _ _ (agrees h k v))
-        (agrees g f (Orthogonal.action k v)))
+    \fun (v: Vector) => eq_reason_in!{CliffordAlgebra _
+      "=" _ "by" { Grade.actionProduct g h (Clifford.iota v) }
+      "=" _ "by" { congr!{CliffordAlgebra CliffordAlgebra} (Grade.action g) _ _ (agrees h k v) }
+      "=" _ "by" { agrees g f (Orthogonal.action k v) }
+    }
   };
 \module Inverse(g: Units.Unit, f: Lifts g);
 \definition inverse[g: Units.Unit][f: Lifts g]: Lifts (Units.inverse g) := Inverse[g := g, f := f].value;
@@ -92,7 +95,10 @@
 };
 \definition inverseImage: \forall (g: Pin) -> map (PinOperations.inv g) = OrthogonalOperations.inv (map g) :=
   \fun (g: Pin) => OrthogonalOperations.inverseUnique (map g) (map (PinOperations.inv g))
-    (trans!{O} _ _ _ (sym!{O} _ _ (multiplication g (PinOperations.inv g)))
-      (trans!{O} _ _ _ (congr!{Pin O} map _ _ (PinOperations.invRight g)) atOne));
+    (eq_reason_in!{O _
+      "=" _ "by" { sym!{O} _ _ (multiplication g (PinOperations.inv g)) }
+      "=" _ "by" { congr!{Pin O} map _ _ (PinOperations.invRight g) }
+      "=" _ "by" atOne
+    });
 \module Kernel;
 \module PositiveLift(v: CoveringGroups.Positive);

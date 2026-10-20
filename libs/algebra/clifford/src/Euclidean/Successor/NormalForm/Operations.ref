@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* The algebra operations in the two normal-form components. */
 \definition lowerProduct[a, b: Carrier]: NextAlgebra.mul (Inclusion.map a) (Inclusion.map b) = Inclusion.map (Clifford.mul a b) :=
   sym!{Next.Carrier} _ _ (Inclusion.laws.mul a b);
@@ -7,28 +8,35 @@
     (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (lowerProduct a b));
 \definition mixedRight[a, b: Carrier]: NextAlgebra.mul (NextAlgebra.mul (Inclusion.map a) gamma) (Inclusion.map b) =
   NextAlgebra.mul (Inclusion.map (Clifford.mul a (Grade.map b))) gamma :=
-  trans!{Next.Carrier} _ _ _ (Next.ring.semiring.multiplicative.associative (Inclusion.map a) gamma (Inclusion.map b))
-    (trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul (Inclusion.map a)) _ _ (\parent.Commutation[].all b))
-      (mixedLeft a (Grade.map b)));
+  eq_reason_in!{Next.Carrier _
+    "=" _ "by" { Next.ring.semiring.multiplicative.associative (Inclusion.map a) gamma (Inclusion.map b) }
+    "=" _ "by" { congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul (Inclusion.map a)) _ _ (\parent.Commutation[].all b) }
+    "=" _ "by" { mixedLeft a (Grade.map b) }
+  };
 \definition gammaCancel[x: Next.Carrier]: NextAlgebra.mul (NextAlgebra.mul x gamma) gamma = x :=
-  trans!{Next.Carrier} _ _ _ (Next.ring.semiring.multiplicative.associative x gamma gamma)
-    (trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul x) _ _ gammaSquare)
-      (Next.ring.semiring.multiplicative.rightIdentity x));
+  eq_reason_in!{Next.Carrier _
+    "=" _ "by" { Next.ring.semiring.multiplicative.associative x gamma gamma }
+    "=" _ "by" { congr!{Next.Carrier Next.Carrier} (NextAlgebra.mul x) _ _ gammaSquare }
+    "=" _ "by" { Next.ring.semiring.multiplicative.rightIdentity x }
+  };
 \definition rightGamma: \forall (a, b: Carrier) -> NextAlgebra.mul (value a b) gamma = value b a :=
-  \fun (a, b: Carrier) => trans!{Next.Carrier} _ _ _
-    (Next.ring.semiring.rightDistributive (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma) gamma)
-    (trans!{Next.Carrier} _ _ _
-      (congr!{Next.Carrier Next.Carrier} (NextAlgebra.add (NextAlgebra.mul (Inclusion.map a) gamma)) _ _ (gammaCancel (Inclusion.map b)))
-      (Sum.comm (NextAlgebra.mul (Inclusion.map a) gamma) (Inclusion.map b)));
+  \fun (a, b: Carrier) => eq_reason_in!{Next.Carrier _
+    "=" _ "by" { Next.ring.semiring.rightDistributive (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma) gamma }
+    "=" _ "by" { congr!{Next.Carrier Next.Carrier} (NextAlgebra.add (NextAlgebra.mul (Inclusion.map a) gamma)) _ _ (gammaCancel (Inclusion.map b)) }
+    "=" _ "by" { Sum.comm (NextAlgebra.mul (Inclusion.map a) gamma) (Inclusion.map b) }
+  };
 \definition leftGamma: \forall (a, b: Carrier) -> NextAlgebra.mul gamma (value a b) = value (Grade.map b) (Grade.map a) :=
-  \fun (a, b: Carrier) => trans!{Next.Carrier} _ _ _
-    (Next.ring.semiring.leftDistributive gamma (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma))
-    (trans!{Next.Carrier} _ _ _ (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
+  \fun (a, b: Carrier) => eq_reason_in!{Next.Carrier _
+    "=" _ "by" { Next.ring.semiring.leftDistributive gamma (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma) }
+    "=" _ "by" { congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
       (\parent.Commutation[].all a)
-      (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Next.ring.semiring.multiplicative.associative gamma (Inclusion.map b) gamma))
-        (trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (\parent.Commutation[].all b))
-          (gammaCancel (Inclusion.map (Grade.map b))))))
-      (Sum.comm (NextAlgebra.mul (Inclusion.map (Grade.map a)) gamma) (Inclusion.map (Grade.map b))));
+      (eq_reason_in!{Next.Carrier _
+        "=" _ "by" { sym!{Next.Carrier} _ _ (Next.ring.semiring.multiplicative.associative gamma (Inclusion.map b) gamma) }
+        "=" _ "by" { congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (\parent.Commutation[].all b) }
+        "=" _ "by" { gammaCancel (Inclusion.map (Grade.map b)) }
+      }) }
+    "=" _ "by" { Sum.comm (NextAlgebra.mul (Inclusion.map (Grade.map a)) gamma) (Inclusion.map (Grade.map b)) }
+  };
 \definition lower: \forall (a: Carrier) -> value a Clifford.zero = Inclusion.map a :=
   \fun (a: Carrier) => trans!{Next.Carrier} _ _ _
     (congr!{Next.Carrier Next.Carrier} (NextAlgebra.add (Inclusion.map a)) _ _
@@ -36,19 +44,21 @@
         (Next.ring.semiring.zeroAbsorbsLeft gamma))) (Vectors.zeroRight (Inclusion.map a));
 \definition lastProduct[a, b: Carrier]: NextAlgebra.mul (NextAlgebra.mul (Inclusion.map a) gamma) (NextAlgebra.mul (Inclusion.map b) gamma) =
   Inclusion.map (Clifford.mul a (Grade.map b)) :=
-  trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Next.ring.semiring.multiplicative.associative (NextAlgebra.mul (Inclusion.map a) gamma) (Inclusion.map b) gamma))
-    (trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (mixedRight a b))
-      (gammaCancel (Inclusion.map (Clifford.mul a (Grade.map b)))));
+  eq_reason_in!{Next.Carrier _
+    "=" _ "by" { sym!{Next.Carrier} _ _ (Next.ring.semiring.multiplicative.associative (NextAlgebra.mul (Inclusion.map a) gamma) (Inclusion.map b) gamma) }
+    "=" _ "by" { congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (mixedRight a b) }
+    "=" _ "by" { gammaCancel (Inclusion.map (Clifford.mul a (Grade.map b))) }
+  };
 \definition addition: \forall (a, b, c, d: Carrier) -> NextAlgebra.add (value a b) (value c d) = value (Clifford.add a c) (Clifford.add b d) :=
   \fun (a, b, c, d: Carrier) => trans!{Next.Carrier} _ _ _
     (Sum.four (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma) (Inclusion.map c) (NextAlgebra.mul (Inclusion.map d) gamma))
-    (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
+    (congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
       (sym!{Next.Carrier} _ _ (Inclusion.laws.add a c))
       (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Next.ring.semiring.rightDistributive (Inclusion.map b) (Inclusion.map d) gamma))
         (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (sym!{Next.Carrier} _ _ (Inclusion.laws.add b d)))));
 \definition negative: \forall (a, b: Carrier) -> NextAlgebra.neg (value a b) = value (Clifford.neg a) (Clifford.neg b) :=
   \fun (a, b: Carrier) => trans!{Next.Carrier} _ _ _ (Sum.negAdd (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma))
-    (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
+    (congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
       (sym!{Next.Carrier} _ _ (Inclusion.onNegative a))
       (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Units.negMul (Inclusion.map b) gamma))
         (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (sym!{Next.Carrier} _ _ (Inclusion.onNegative b)))));
@@ -64,29 +74,33 @@
   \let bd: Next.Carrier := Inclusion.map (Clifford.mul b (Grade.map d)) \then
   \let expanded: NextAlgebra.mul (value a b) (value c d) = NextAlgebra.add (NextAlgebra.add ac ad) (NextAlgebra.add bc bd) :=
     trans!{Next.Carrier} _ _ _ (Next.ring.semiring.rightDistributive (Inclusion.map a) (NextAlgebra.mul (Inclusion.map b) gamma) (value c d))
-      (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
+      (congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
         (trans!{Next.Carrier} _ _ _ (Next.ring.semiring.leftDistributive (Inclusion.map a) (Inclusion.map c) (NextAlgebra.mul (Inclusion.map d) gamma))
-          (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _ (lowerProduct a c) (mixedLeft a d)))
+          (congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _ (lowerProduct a c) (mixedLeft a d)))
         (trans!{Next.Carrier} _ _ _ (Next.ring.semiring.leftDistributive (NextAlgebra.mul (Inclusion.map b) gamma) (Inclusion.map c) (NextAlgebra.mul (Inclusion.map d) gamma))
-          (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _ (mixedRight b c) (lastProduct b d)))) \then
-  \return trans!{Next.Carrier} _ _ _ expanded (trans!{Next.Carrier} _ _ _ (regroup ac ad bc bd)
-    (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
+          (congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _ (mixedRight b c) (lastProduct b d)))) \then
+  \return eq_reason_in!{Next.Carrier _
+    "=" _ "by" expanded
+    "=" _ "by" { regroup ac ad bc bd }
+    "=" _ "by" { congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
       (sym!{Next.Carrier} _ _ (Inclusion.laws.add (Clifford.mul a c) (Clifford.mul b (Grade.map d))))
       (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Next.ring.semiring.rightDistributive (Inclusion.map (Clifford.mul a d)) (Inclusion.map (Clifford.mul b (Grade.map c))) gamma))
         (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _
-          (sym!{Next.Carrier} _ _ (Inclusion.laws.add (Clifford.mul a d) (Clifford.mul b (Grade.map c))))))))
+          (sym!{Next.Carrier} _ _ (Inclusion.laws.add (Clifford.mul a d) (Clifford.mul b (Grade.map c)))))) }
+  }
 };
 \definition scalar: \forall (a: R.Real) -> value (Clifford.scalar a) Clifford.zero = Next.scalar a :=
-  \fun (a: R.Real) => trans!{Next.Carrier} _ _ _ (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
+  \fun (a: R.Real) => trans!{Next.Carrier} _ _ _ (congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
     (Inclusion.onScalar a) (trans!{Next.Carrier} _ _ _
       (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ Inclusion.laws.zero)
       (Next.ring.semiring.zeroAbsorbsLeft gamma))) (Vectors.zeroRight (Next.scalar a));
 \definition vector: \forall (v: Next.Vector) -> value (Clifford.iota (tail v)) (Clifford.scalar (head v)) = Next.iota v :=
-  \fun (v: Next.Vector) => trans!{Next.Carrier} _ _ _ (congr2!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
+  \fun (v: Next.Vector) => eq_reason_in!{Next.Carrier _
+    "=" _ "by" { congr!{Next.Carrier Next.Carrier Next.Carrier} NextAlgebra.add _ _ _ _
     (Inclusion.onVector (tail v))
-    (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (Inclusion.onScalar (head v))))
-    (trans!{Next.Carrier} _ _ _
-      (congr!{Next.Carrier Next.Carrier} (NextAlgebra.add (Next.iota (Coordinates.embed (tail v)))) _ _
-        (sym!{Next.Carrier} _ _ (NextAlgebra.injection.preservesScale (head v) Coordinates.first)))
-      (trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (NextAlgebra.injection.preservesAdd (Coordinates.embed (tail v)) (Next.space.smul (head v) Coordinates.first)))
-        (congr!{Next.Vector Next.Carrier} Next.iota _ _ (Coordinates.decompose v))));
+    (congr!{Next.Carrier Next.Carrier} (\fun (x: Next.Carrier) => NextAlgebra.mul x gamma) _ _ (Inclusion.onScalar (head v))) }
+    "=" _ "by" { congr!{Next.Carrier Next.Carrier} (NextAlgebra.add (Next.iota (Coordinates.embed (tail v)))) _ _
+        (sym!{Next.Carrier} _ _ (NextAlgebra.injection.preservesScale (head v) Coordinates.first)) }
+    "=" _ "by" { sym!{Next.Carrier} _ _ (NextAlgebra.injection.preservesAdd (Coordinates.embed (tail v)) (Next.space.smul (head v) Coordinates.first)) }
+    "=" _ "by" { congr!{Next.Vector Next.Carrier} Next.iota _ _ (Coordinates.decompose v) }
+  };

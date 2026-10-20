@@ -1,14 +1,16 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Hom[V := Left.Carrier, W := Middle.Carrier, source := Left.space, target := Middle.space] \as InclusionMaps;
 \import \parent.\parent.Hom[V := Middle.Carrier, W := Right.Carrier, source := Middle.space, target := Right.space] \as ProjectionMaps;
 \definition inclusion: InclusionMaps.Map := Inclusion.map sequence.inclusion Coefficients.identity;
 \definition projection: ProjectionMaps.Map := Projection.map sequence.projection Coefficients.identity;
 \definition compositeZero: Composition.compose projection inclusion = Composite.zeroMap :=
   Equality.ext (Composition.compose projection inclusion) Composite.zeroMap
-    (\fun (a: A.Carrier)(y: N.Carrier) => trans!{Right.Carrier} _ _ _
-      (congr!{Middle.Carrier Right.Carrier} (projection.apply) _ _ (Inclusion.onTensor sequence.inclusion Coefficients.identity a y))
-      (trans!{Right.Carrier} _ _ _ (Projection.onTensor sequence.projection Coefficients.identity (sequence.inclusion.apply a) y)
-        (trans!{Right.Carrier} _ _ _ (congr!{C.Carrier Right.Carrier} (\fun (c: C.Carrier) => Right.tensor c y) _ _ (sequence.zero a))
-          (Right.tensorZeroLeft y))));
+    (\fun (a: A.Carrier)(y: N.Carrier) => eq_reason_in!{Right.Carrier _
+      "=" _ "by" { congr!{Middle.Carrier Right.Carrier} (projection.apply) _ _ (Inclusion.onTensor sequence.inclusion Coefficients.identity a y) }
+      "=" _ "by" { Projection.onTensor sequence.projection Coefficients.identity (sequence.inclusion.apply a) y }
+      "=" _ "by" { congr!{C.Carrier Right.Carrier} (\fun (c: C.Carrier) => Right.tensor c y) _ _ (sequence.zero a) }
+      "=" _ "by" { Right.tensorZeroLeft y }
+    });
 \definition zero: \forall (x: Left.Carrier) -> projection.apply (inclusion.apply x) = Right.space.zero :=
   \fun (x: Left.Carrier) => congr!{Composite.Map Right.Carrier} (\fun (f: Composite.Map) => f.apply x) _ _ compositeZero;
 \definition coefficientOnto: \forall (y: N.Carrier) -> \exists ( x: N.Carrier \where Coefficients.identity.apply x = y ) :=
@@ -37,10 +39,11 @@
 \definition kernelImage: \forall (z: Middle.Carrier) -> projection.apply z = Right.space.zero ->
   \exists ( x: Left.Carrier \where inclusion.apply x = z ) :=
   \fun (z: Middle.Carrier)(closed: projection.apply z = Right.space.zero) => Quotient.zeroClassMember z
-    (trans!{Quotient.Carrier} _ _ _
-      (sym!{Quotient.Carrier} _ _ (congr!{QuotientMaps.Map Quotient.Carrier} (\fun (f: QuotientMaps.Map) => f.apply z) _ _ (DescentOn.factor sequence.onto kills)))
-      (trans!{Quotient.Carrier} _ _ _ (congr!{Right.Carrier Quotient.Carrier} ((DescentOn.map sequence.onto kills).apply) _ _ closed)
-        (FactorMaps.zeroPreserved (DescentOn.map sequence.onto kills))));
+    (eq_reason_in!{Quotient.Carrier _
+      "=" _ "by" { sym!{Quotient.Carrier} _ _ (congr!{QuotientMaps.Map Quotient.Carrier} (\fun (f: QuotientMaps.Map) => f.apply z) _ _ (DescentOn.factor sequence.onto kills)) }
+      "=" _ "by" { congr!{Right.Carrier Quotient.Carrier} ((DescentOn.map sequence.onto kills).apply) _ _ closed }
+      "=" _ "by" { FactorMaps.zeroPreserved (DescentOn.map sequence.onto kills) }
+    });
 \definition sequence: Result.Sequence := Result.Sequence {
   inclusion := inclusion, projection := projection, onto := onto, zero := zero, kernelImage := kernelImage,
 };

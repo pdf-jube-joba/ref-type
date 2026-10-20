@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* A two-by-two Clifford operator over an arbitrary coefficient algebra. */
 \import lie_algebras.Field[K := K, field := field].Associative[A := A, algebra := algebra] \as Source;
 \import Linear.DirectSum[V := A, W := A, left := Source.space, right := Source.space] \as Pair;
@@ -38,10 +39,13 @@
 \definition anchor: Pair.Carrier := Pair.make algebra.one algebra.zero;
 \definition onAnchor: \forall (a: A)(c: K) -> (map a c).apply anchor = Pair.make a (algebra.smul c algebra.one) :=
   \fun (a: A)(c: K) => Pairs.ext _ _
-    (trans!{A} _ _ _ (congr2!{A A A} algebra.add _ _ _ _ (sourceRing.semiring.multiplicative.rightIdentity a) (Vectors.scaleZero c)) (Vectors.zeroRight a))
-    (trans!{A} _ _ _ (secondApply a c anchor)
-      (trans!{A} _ _ _ (congr!{A A} (algebra.add (algebra.smul c algebra.one)) _ _
-        (trans!{A} _ _ _ (congr!{A A} algebra.neg _ _ (sourceRing.semiring.zeroAbsorbsRight a)) Sum.negZero)) (Vectors.zeroRight (algebra.smul c algebra.one))));
+    (trans!{A} _ _ _ (congr!{A A A} algebra.add _ _ _ _ (sourceRing.semiring.multiplicative.rightIdentity a) (Vectors.scaleZero c)) (Vectors.zeroRight a))
+    (eq_reason_in!{A _
+      "=" _ "by" { secondApply a c anchor }
+      "=" _ "by" { congr!{A A} (algebra.add (algebra.smul c algebra.one)) _ _
+        (trans!{A} _ _ _ (congr!{A A} algebra.neg _ _ (sourceRing.semiring.zeroAbsorbsRight a)) Sum.negZero) }
+      "=" _ "by" { Vectors.zeroRight (algebra.smul c algebra.one) }
+    });
 \definition firstAnchor: \forall (a: A)(c: K) -> first.apply ((map a c).apply anchor) = a :=
   \fun (a: A)(c: K) => congr!{Pair.Carrier A} Pair.first _ _ (onAnchor a c);
 \definition secondAnchor: \forall (a: A)(c: K) -> second.apply ((map a c).apply anchor) = algebra.smul c algebra.one :=

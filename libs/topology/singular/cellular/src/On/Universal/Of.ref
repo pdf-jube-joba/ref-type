@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \structure Witness[x: A, value: B]: \Set := {
   cell: Cells.CellData,
   member: Cells.CellMember cells cell,
@@ -29,10 +30,12 @@
   \fun (x: A)(left, right: Value x) \then
   \takefrom l: Witness[x, left] \by \bysub(B, Values x, left) \then
   \takefrom r: Witness[x, right] \by \bysub(B, Values x, right) \then
-  \return trans!{B} _ _ _ (sym!{B} _ _ ((l).result))
-    (trans!{B} _ _ _
-      (compatible ((l).cell) ((r).cell) ((l).member) ((r).member) ((l).point) ((r).point)
-        (trans!{A} _ _ _ ((l).image) (sym!{A} _ _ ((r).image)))) ((r).result))
+  \return eq_reason_in!{B _
+    "=" _ "by" { sym!{B} _ _ ((l).result) }
+    "=" _ "by" { compatible ((l).cell) ((r).cell) ((l).member) ((r).member) ((l).point) ((r).point)
+        (trans!{A} _ _ _ ((l).image) (sym!{A} _ _ ((r).image))) }
+    "=" _ "by" { (r).result }
+  }
 };
 \definition value[x: A]: B := \choice Value x \by { existence: existence x, uniqueness: uniqueness x };
 \definition onCharacteristic: \forall (cell: Cells.CellData)(member: Cells.CellMember cells cell)(p: Euclidean.Disk ((cell).dimension)) ->
@@ -52,9 +55,11 @@
   \return \axiom:funext(f, value, \block {
     \fun (x: A) \then
     \takefrom w: Witness[x, value x] \by \bysub(B, Values x, \choice Value x \by { existence: existence x, uniqueness: uniqueness x }) \then
-    \return trans!{B} _ _ _
-      (congr!{A B} f _ _ (sym!{A} _ _ ((w).image)))
-      (trans!{B} _ _ _ (local ((w).cell) ((w).member) ((w).point)) ((w).result))
+    \return eq_reason_in!{B _
+      "=" _ "by" { congr!{A B} f _ _ (sym!{A} _ _ ((w).image)) }
+      "=" _ "by" { local ((w).cell) ((w).member) ((w).point) }
+      "=" _ "by" { (w).result }
+    }
   })
 };
 \import topology.Topology[Carrier := B] \as Target;

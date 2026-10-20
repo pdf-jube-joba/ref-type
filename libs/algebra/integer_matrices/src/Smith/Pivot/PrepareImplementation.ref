@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition T: \VType := \U(N.Nat -> N.Nat -> N.Nat -> Runtime -> History -> Selection);
 \definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (history: History) => \program {
   \bind columns: \U(N.Nat -> N.Nat -> Runtime -> Grid.Position) <- (\force searchProgram) rows \then
@@ -22,13 +23,12 @@
 \definition stage2[rows, cols, k: N.Nat^][a: Runtime^][history: History^]: Selection^ := withOperations (fromPosition) (Search.search) (I.IsZero.program^) (chooseProgram^) rows cols k a history;
 \definition stage3[rows, cols, k: N.Nat^][a: Runtime^][history: History^]: Selection^ := withOperations (fromPosition) (Search.search) (I.IsZero.specification) (chooseProgram^) rows cols k a history;
 \definition matches: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> program^ rows cols k a history = prepare rows cols k a history :=
-  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => trans!{Selection^} (program^ rows cols k a history) (stage1 rows cols k a history) (prepare rows cols k a history)
-    (congr!{Position.T^ Selection^} (\fun (f: Position.T^) => withOperations (f) (searchProgram^) (I.IsZero.program^) (chooseProgram^) rows cols k a history) Position.program^ (fromPosition) Position.coherence)
-    (trans!{Selection^} (stage1 rows cols k a history) (stage2 rows cols k a history) (prepare rows cols k a history)
-    (congr!{Search.Search.T^ Selection^} (\fun (f: Search.Search.T^) => withOperations (fromPosition) (f) (I.IsZero.program^) (chooseProgram^) rows cols k a history) searchProgram^ (Search.search) Search.Search.coherence)
-    (trans!{Selection^} (stage2 rows cols k a history) (stage3 rows cols k a history) (prepare rows cols k a history)
-    (congr!{I.IsZero.T^ Selection^} (\fun (f: I.IsZero.T^) => withOperations (fromPosition) (Search.search) (f) (chooseProgram^) rows cols k a history) I.IsZero.program^ (I.IsZero.specification) I.IsZero.coherence)
-    ((congr!{Choice.T^ Selection^} (\fun (f: Choice.T^) => withOperations (fromPosition) (Search.search) (I.IsZero.specification) (f) rows cols k a history) chooseProgram^ (B.ite Selection^) Choice.coherence))));
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => eq_reason_in!{Selection^ { program^ rows cols k a history }
+    "=" { stage1 rows cols k a history } "by" { congr!{Position.T^ Selection^} (\fun (f: Position.T^) => withOperations (f) (searchProgram^) (I.IsZero.program^) (chooseProgram^) rows cols k a history) Position.program^ (fromPosition) Position.coherence }
+    "=" { stage2 rows cols k a history } "by" { congr!{Search.Search.T^ Selection^} (\fun (f: Search.Search.T^) => withOperations (fromPosition) (f) (I.IsZero.program^) (chooseProgram^) rows cols k a history) searchProgram^ (Search.search) Search.Search.coherence }
+    "=" { stage3 rows cols k a history } "by" { congr!{I.IsZero.T^ Selection^} (\fun (f: I.IsZero.T^) => withOperations (fromPosition) (Search.search) (f) (chooseProgram^) rows cols k a history) I.IsZero.program^ (I.IsZero.specification) I.IsZero.coherence }
+    "=" { prepare rows cols k a history } "by" { (congr!{Choice.T^ Selection^} (\fun (f: Choice.T^) => withOperations (fromPosition) (Search.search) (I.IsZero.specification) (f) rows cols k a history) chooseProgram^ (B.ite Selection^) Choice.coherence) }
+  };
 \definition coherence: program^ = prepare := \axiom:funext(program^, prepare,
   \fun (rows: N.Nat^) => \axiom:funext(program^ rows, prepare rows,
     \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, prepare rows cols,

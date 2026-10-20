@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Clipped lengths telescope, including across the cell containing the endpoint. */
 \import real.Analysis[].Algebra[] \as Algebra;
 \use Logic.either;
@@ -18,20 +19,22 @@
     (positiveMonotone (sub t b) (sub t a) (Laws.addMonotoneLeft (neg b) (neg a) t (Laws.negAntitone a b ordered)));
 \definition weightBefore[t, a, b: Real]: R.Le t a -> R.Le a b -> weight t a b = zero :=
   \fun (before: _)(ordered: _) => trans!{Real} _ _ _
-    (congr2!{Real Real Real} sub _ _ _ _
+    (congr!{Real Real Real} sub _ _ _ _
       (positiveOfNonpositive (sub t a) (differenceNonpositive t a before))
       (positiveOfNonpositive (sub t b) (differenceNonpositive t b (R.leTrans t a b before ordered))))
     (Laws.addNegRight zero);
 \definition weightInside[t, a, b: Real]: R.Le a t -> R.Le t b -> weight t a b = sub t a :=
-  \fun (left: _)(right: _) => trans!{Real} _ _ _
-    (congr2!{Real Real Real} sub _ _ _ _
+  \fun (left: _)(right: _) => eq_reason_in!{Real _
+    "=" _ "by" { congr!{Real Real Real} sub _ _ _ _
       (positiveOfNonnegative (sub t a) (Metric.subNonnegative t a left))
-      (positiveOfNonpositive (sub t b) (differenceNonpositive t b right)))
-    (trans!{Real} _ _ _ (congr!{Real Real} (add (sub t a)) _ _ (Laws.negZero)) (Laws.addZeroRight (sub t a)));
+      (positiveOfNonpositive (sub t b) (differenceNonpositive t b right)) }
+    "=" _ "by" { congr!{Real Real} (add (sub t a)) _ _ (Laws.negZero) }
+    "=" _ "by" { Laws.addZeroRight (sub t a) }
+  };
 \definition weightAfter[t, a, b: Real]: R.Le a b -> R.Le b t -> weight t a b = sub b a :=
   \fun (ordered: _)(after: _) => eq_reason!{
     {weight t a b} "=" {sub (sub t a) (sub t b)} "by" {
-      congr2!{Real Real Real} sub _ _ _ _
+      congr!{Real Real Real} sub _ _ _ _
         (positiveOfNonnegative (sub t a) (Metric.subNonnegative t a (R.leTrans a b t ordered after)))
         (positiveOfNonnegative (sub t b) (Metric.subNonnegative t b after))}
     "=" {add (sub t a) (sub b t)} "by" {congr!{Real Real} (add (sub t a)) _ _ (Algebra.negSub t b)}
@@ -71,17 +74,18 @@
 \definition constant[c: Real]: \forall (tags: Tags)(t, a, b: Real) -> value (\fun (x: Real) => c) tags t a b = mul (weight t a b) c :=
   \induction (tags: Tags) \return \forall (t, a, b: Real) -> value (\fun (x: Real) => c) tags t a b = mul (weight t a b) c \with {
     | tag: \fun (x, t, a, b: Real) => \refl(mul (weight t a b) c)
-    | split: \fun (left: Tags)(hl: _)(right: Tags)(hr: _)(t, a, b: Real) => trans!{Real} _ _ _
-      (congr2!{Real Real Real} add _ _ _ _ (hl t a (midpoint a b)) (hr t (midpoint a b) b))
-      (trans!{Real} _ _ _ (sym!{Real} _ _ (Algebra.mulAddRight (weight t a (midpoint a b)) (weight t (midpoint a b) b) c))
-        (congr!{Real Real} (\fun (w: Real) => mul w c) _ _ (weightSplit t a (midpoint a b) b)))
+    | split: \fun (left: Tags)(hl: _)(right: Tags)(hr: _)(t, a, b: Real) => eq_reason_in!{Real _
+      "=" _ "by" { congr!{Real Real Real} add _ _ _ _ (hl t a (midpoint a b)) (hr t (midpoint a b) b) }
+      "=" _ "by" { sym!{Real} _ _ (Algebra.mulAddRight (weight t a (midpoint a b)) (weight t (midpoint a b) b) c) }
+      "=" _ "by" { congr!{Real Real} (\fun (w: Real) => mul w c) _ _ (weightSplit t a (midpoint a b) b) }
+    }
   };
 \definition congruent[f, g: Real -> Real]:
   (\forall (x: Real) -> f x = g x) -> \forall (tags: Tags) -> \forall (t, a, b: Real) -> value f tags t a b = value g tags t a b :=
   \fun (same: _) => \induction (tags: Tags) \return \forall (t, a, b: Real) -> value f tags t a b = value g tags t a b \with {
     | tag: \fun (x, t, a, b: _) => congr!{Real Real} (mul (weight t a b)) _ _ (same x)
     | split: \fun (left: _) (ihLeft: _) (right: _) (ihRight: _) (t, a, b: _) =>
-      congr2!{Real Real Real} add _ _ _ _ (ihLeft t a (midpoint a b)) (ihRight t (midpoint a b) b)
+      congr!{Real Real Real} add _ _ _ _ (ihLeft t a (midpoint a b)) (ihRight t (midpoint a b) b)
   };
 
 \definition addition[f, g: Real -> Real]: \forall (tags: Tags) -> \forall (t, a, b: Real) ->
@@ -91,7 +95,7 @@
     | tag: \fun (x, t, a, b: _) => Laws.fieldMulAdd (weight t a b) (f x) (g x)
     | split: \fun (left: _) (ihLeft: _) (right: _) (ihRight: _) (t, a, b: _) =>
       trans!{Real} _ _ _
-        (congr2!{Real Real Real} add _ _ _ _ (ihLeft t a (midpoint a b)) (ihRight t (midpoint a b) b))
+        (congr!{Real Real Real} add _ _ _ _ (ihLeft t a (midpoint a b)) (ihRight t (midpoint a b) b))
         (E.addShuffle (value f left t a (midpoint a b)) (value g left t a (midpoint a b))
           (value f right t (midpoint a b) b) (value g right t (midpoint a b) b))
   };
@@ -101,7 +105,7 @@
     | tag: \fun (x, t, a, b: Real)(ordered: _)(early: _) => trans!{Real} _ _ _
       (congr!{Real Real} (\fun (w: Real) => mul w (f x)) _ _ (weightBefore t a b early ordered)) (Laws.fieldMulZeroLeft (f x))
     | split: \fun (left: Tags)(hl: _)(right: Tags)(hr: _)(t, a, b: Real)(ordered: _)(early: _) => trans!{Real} _ _ _
-      (congr2!{Real Real Real} add _ _ _ _ (hl t a (midpoint a b) (E.midpointLeft a b ordered) early)
+      (congr!{Real Real Real} add _ _ _ _ (hl t a (midpoint a b) (E.midpointLeft a b ordered) early)
         (hr t (midpoint a b) b (E.midpointRight a b ordered) (R.leTrans t a (midpoint a b) early (E.midpointLeft a b ordered))))
       (Laws.addZeroLeft zero)
   };
@@ -109,7 +113,7 @@
   \induction (tags: Tags) \return \forall (t, a, b: Real) -> R.Le a b -> R.Le b t -> value f tags t a b = sum f tags a b \with {
     | tag: \fun (x, t, a, b: Real)(ordered: _)(late: _) => congr!{Real Real} (\fun (w: Real) => mul w (f x)) _ _ (weightAfter t a b ordered late)
     | split: \fun (left: Tags)(hl: _)(right: Tags)(hr: _)(t, a, b: Real)(ordered: _)(late: _) =>
-      congr2!{Real Real Real} add _ _ _ _
+      congr!{Real Real Real} add _ _ _ _
         (hl t a (midpoint a b) (E.midpointLeft a b ordered) (R.leTrans (midpoint a b) b t (E.midpointRight a b ordered) late))
         (hr t (midpoint a b) b (E.midpointRight a b ordered) late)
   };

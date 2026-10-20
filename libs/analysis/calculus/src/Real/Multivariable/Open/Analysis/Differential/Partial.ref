@@ -1,4 +1,5 @@
-\use Equality.congr2;
+\use std.Logic[].Equality[].eq_reason_in;
+\use Equality.congr;
 \definition difference: \forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t ->
   d.apply (Coordinates.subPoint x a) = mul (sub t (a i)) (apply i) := \block {
   \fun (t: Real)(x: Carrier U)(replaced: _) \then
@@ -7,11 +8,13 @@
   \return trans!{Real} _ _ _ (congr!{Point Real} (d.apply) _ _ vector) (d.homogeneous (sub t (a i)) (Coordinates.basis i))
 };
 \definition cancellation: \forall (h: Real) -> Logic.Not (h = zero) -> mul (mul h (apply i)) (inv h) = apply i :=
-  \fun (h: Real)(nonzero: _) => trans!{Real} _ _ _
-    (congr!{Real Real} (\fun (r: Real) => mul r (inv h)) _ _ (Laws.fieldMulComm h (apply i)))
-    (trans!{Real} _ _ _ (Laws.fieldMulAssoc (apply i) h (inv h))
-      (trans!{Real} _ _ _ (congr!{Real Real} (mul (apply i)) _ _
-        (trans!{Real} _ _ _ (Laws.fieldMulComm h (inv h)) (Laws.fieldInverseNonzero h nonzero))) (Algebra.mulOneRight (apply i))));
+  \fun (h: Real)(nonzero: _) => eq_reason_in!{Real _
+    "=" _ "by" { congr!{Real Real} (\fun (r: Real) => mul r (inv h)) _ _ (Laws.fieldMulComm h (apply i)) }
+    "=" _ "by" { Laws.fieldMulAssoc (apply i) h (inv h) }
+    "=" _ "by" { congr!{Real Real} (mul (apply i)) _ _
+        (trans!{Real} _ _ _ (Laws.fieldMulComm h (inv h)) (Laws.fieldInverseNonzero h nonzero)) }
+    "=" _ "by" { Algebra.mulOneRight (apply i) }
+  };
 \definition slopeDifference: \forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t -> Logic.Not (t = a i) ->
   sub (mul (sub (f x) (f a)) (inv (sub t (a i)))) (apply i) = mul (remainder U f a d x) (inv (sub t (a i))) := \block {
   \fun (t: Real)(x: Carrier U)(replaced: _)(different: _) \then
@@ -19,10 +22,11 @@
   \let nonzero: Logic.Not (h = zero) := \fun (equal: h = zero) => different (Metric.subZeroEq t (a i) equal) \then
   \let factor: remainder U f a d x = sub (sub (f x) (f a)) (mul h (apply i)) :=
     congr!{Real Real} (sub (sub (f x) (f a))) _ _ (difference t x replaced) \then
-  \let product: mul (remainder U f a d x) (inv h) = sub (mul (sub (f x) (f a)) (inv h)) (apply i) := trans!{Real} _ _ _
-    (congr!{Real Real} (\fun (r: Real) => mul r (inv h)) _ _ factor)
-    (trans!{Real} _ _ _ (Algebra.subMul (sub (f x) (f a)) (mul h (apply i)) (inv h))
-      (congr!{Real Real} (sub (mul (sub (f x) (f a)) (inv h))) _ _ (cancellation h nonzero))) \then
+  \let product: mul (remainder U f a d x) (inv h) = sub (mul (sub (f x) (f a)) (inv h)) (apply i) := eq_reason_in!{Real _
+    "=" _ "by" { congr!{Real Real} (\fun (r: Real) => mul r (inv h)) _ _ factor }
+    "=" _ "by" { Algebra.subMul (sub (f x) (f a)) (mul h (apply i)) (inv h) }
+    "=" _ "by" { congr!{Real Real} (sub (mul (sub (f x) (f a)) (inv h))) _ _ (cancellation h nonzero) }
+  } \then
   \return sym!{Real} _ _ product
 };
 \definition magnitude: \forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t -> Logic.Not (t = a i) ->

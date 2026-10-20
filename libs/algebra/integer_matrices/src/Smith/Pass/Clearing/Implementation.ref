@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition T: \VType := \U(N.Nat -> N.Nat -> N.Nat -> Runtime -> History -> Attempt);
 \import \parent.\parent.RowImplementation[] \as Row;
 \import \parent.\parent.ColumnImplementation[] \as Column;
@@ -26,17 +27,14 @@
 \definition stage4[rows, cols, k: N.Nat^][a: Runtime^][history: History^]: Attempt^ := withOperations (row) (column) (attemptMatrix) (attemptHistory) (changedProgram^) (chooseProgram^) rows cols k a history;
 \definition stage5[rows, cols, k: N.Nat^][a: Runtime^][history: History^]: Attempt^ := withOperations (row) (column) (attemptMatrix) (attemptHistory) (attemptReduced) (chooseProgram^) rows cols k a history;
 \definition matches: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> program^ rows cols k a history = clear rows cols k a history :=
-  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => trans!{Attempt^} (program^ rows cols k a history) (stage1 rows cols k a history) (clear rows cols k a history)
-    (congr!{Row.T^ Attempt^} (\fun (f: Row.T^) => withOperations (f) (Column.program^) (matrixProgram^) (historyProgram^) (changedProgram^) (chooseProgram^) rows cols k a history) Row.program^ (row) Row.coherence)
-    (trans!{Attempt^} (stage1 rows cols k a history) (stage2 rows cols k a history) (clear rows cols k a history)
-    (congr!{Column.T^ Attempt^} (\fun (f: Column.T^) => withOperations (row) (f) (matrixProgram^) (historyProgram^) (changedProgram^) (chooseProgram^) rows cols k a history) Column.program^ (column) Column.coherence)
-    (trans!{Attempt^} (stage2 rows cols k a history) (stage3 rows cols k a history) (clear rows cols k a history)
-    (congr!{Readers.ReadMatrix.T^ Attempt^} (\fun (f: Readers.ReadMatrix.T^) => withOperations (row) (column) (f) (historyProgram^) (changedProgram^) (chooseProgram^) rows cols k a history) matrixProgram^ (attemptMatrix) Readers.ReadMatrix.coherence)
-    (trans!{Attempt^} (stage3 rows cols k a history) (stage4 rows cols k a history) (clear rows cols k a history)
-    (congr!{Readers.ReadHistory.T^ Attempt^} (\fun (f: Readers.ReadHistory.T^) => withOperations (row) (column) (attemptMatrix) (f) (changedProgram^) (chooseProgram^) rows cols k a history) historyProgram^ (attemptHistory) Readers.ReadHistory.coherence)
-    (trans!{Attempt^} (stage4 rows cols k a history) (stage5 rows cols k a history) (clear rows cols k a history)
-    (congr!{Readers.ReadChanged.T^ Attempt^} (\fun (f: Readers.ReadChanged.T^) => withOperations (row) (column) (attemptMatrix) (attemptHistory) (f) (chooseProgram^) rows cols k a history) changedProgram^ (attemptReduced) Readers.ReadChanged.coherence)
-    ((congr!{Choice.T^ Attempt^} (\fun (f: Choice.T^) => withOperations (row) (column) (attemptMatrix) (attemptHistory) (attemptReduced) (f) rows cols k a history) chooseProgram^ (B.ite Attempt^) Choice.coherence))))));
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => eq_reason_in!{Attempt^ { program^ rows cols k a history }
+    "=" { stage1 rows cols k a history } "by" { congr!{Row.T^ Attempt^} (\fun (f: Row.T^) => withOperations (f) (Column.program^) (matrixProgram^) (historyProgram^) (changedProgram^) (chooseProgram^) rows cols k a history) Row.program^ (row) Row.coherence }
+    "=" { stage2 rows cols k a history } "by" { congr!{Column.T^ Attempt^} (\fun (f: Column.T^) => withOperations (row) (f) (matrixProgram^) (historyProgram^) (changedProgram^) (chooseProgram^) rows cols k a history) Column.program^ (column) Column.coherence }
+    "=" { stage3 rows cols k a history } "by" { congr!{Readers.ReadMatrix.T^ Attempt^} (\fun (f: Readers.ReadMatrix.T^) => withOperations (row) (column) (f) (historyProgram^) (changedProgram^) (chooseProgram^) rows cols k a history) matrixProgram^ (attemptMatrix) Readers.ReadMatrix.coherence }
+    "=" { stage4 rows cols k a history } "by" { congr!{Readers.ReadHistory.T^ Attempt^} (\fun (f: Readers.ReadHistory.T^) => withOperations (row) (column) (attemptMatrix) (f) (changedProgram^) (chooseProgram^) rows cols k a history) historyProgram^ (attemptHistory) Readers.ReadHistory.coherence }
+    "=" { stage5 rows cols k a history } "by" { congr!{Readers.ReadChanged.T^ Attempt^} (\fun (f: Readers.ReadChanged.T^) => withOperations (row) (column) (attemptMatrix) (attemptHistory) (f) (chooseProgram^) rows cols k a history) changedProgram^ (attemptReduced) Readers.ReadChanged.coherence }
+    "=" { clear rows cols k a history } "by" { (congr!{Choice.T^ Attempt^} (\fun (f: Choice.T^) => withOperations (row) (column) (attemptMatrix) (attemptHistory) (attemptReduced) (f) rows cols k a history) chooseProgram^ (B.ite Attempt^) Choice.coherence) }
+  };
 \definition coherence: program^ = clear := \axiom:funext(program^, clear,
   \fun (rows: N.Nat^) => \axiom:funext(program^ rows, clear rows,
     \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, clear rows cols,

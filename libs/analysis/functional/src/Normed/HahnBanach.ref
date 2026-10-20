@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Rel[] \as Relations;
 \import std.Logic[].Classical[] \as Classical;
 \structure Sublinear: \Prop := {
@@ -41,14 +42,18 @@
     (R.leReplace (Real.add a b) (Real.add (Real.sub a c) (Real.add c b))
       (Real.add c d) (Real.add (Real.sub d b) (Real.add c b))
       (sym!{Real.Real} _ _ (crossCancel a b c d))
-      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
-        (congr!{Real.Real Real.Real} (Real.add (Real.sub d b)) _ _ (Laws.addComm c b))
-        (trans!{Real.Real} _ _ _ (crossCancel d c b a) (Laws.addComm d c)))) bound);
+      (sym!{Real.Real} _ _ (eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.sub d b)) _ _ (Laws.addComm c b) }
+        "=" _ "by" { crossCancel d c b a }
+        "=" _ "by" { Laws.addComm d c }
+      })) bound);
 \definition vectorCross[x, y, z: V]:
   space.add (sub x z) (space.add y z) = space.add x y :=
-  trans!{V} _ _ _ (Vectors.shuffle x (space.neg z) y z)
-    (trans!{V} _ _ _ (congr!{V V} (space.add (space.add x y)) _ _ (Vectors.inverseLeft z))
-      (Vectors.zeroRight (space.add x y)));
+  eq_reason_in!{V _
+    "=" _ "by" { Vectors.shuffle x (space.neg z) y z }
+    "=" _ "by" { congr!{V V} (space.add (space.add x y)) _ _ (Vectors.inverseLeft z) }
+    "=" _ "by" { Vectors.zeroRight (space.add x y) }
+  };
 \structure Interval[G: Graph, x: V, c: Real.Real]: \Prop := {
   upper: \forall (t: Point) -> Member G t -> R.Le (Real.add (t.value) c) (p (space.add (t.vector) x)),
   lower: \forall (t: Point) -> Member G t -> R.Le (Real.sub (t.value) c) (p (sub (t.vector) x)),
@@ -117,8 +122,11 @@
     (Laws.fieldInverseNonzero a (Inverse.positiveNonzero a positive));
 \definition cancelVector: \forall (a: Real.Real) (v: V) -> R.Lt Real.zero a ->
   space.smul a (space.smul (Laws.fieldInv a) v) = v :=
-  \fun (a: Real.Real) (v: V) (positive: _) => trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAssoc a (Laws.fieldInv a) v))
-    (trans!{V} _ _ _ (congr!{Real.Real V} (\fun (r: Real.Real) => space.smul r v) _ _ (inverseProduct a positive)) (space.scalarOne v));
+  \fun (a: Real.Real) (v: V) (positive: _) => eq_reason_in!{V _
+    "=" _ "by" { sym!{V} _ _ (space.scalarAssoc a (Laws.fieldInv a) v) }
+    "=" _ "by" { congr!{Real.Real V} (\fun (r: Real.Real) => space.smul r v) _ _ (inverseProduct a positive) }
+    "=" _ "by" { space.scalarOne v }
+  };
 \definition rescaleVector: \forall (a: Real.Real) (v, z: V) -> R.Lt Real.zero a ->
   space.smul a (space.add (space.smul (Laws.fieldInv a) v) z) = space.add v (space.smul a z) :=
   \fun (a: Real.Real) (v, z: V) (positive: _) => trans!{V} _ _ _ (space.vectorAdd a (space.smul (Laws.fieldInv a) v) z)
@@ -165,12 +173,16 @@
     Logic.orElim _ _ _ (Laws.nonnegativeOrNegativeReal a)
       (\fun (nonnegative: R.Le Real.zero a) => Logic.orElim _ _ _ (Classical.excludedMiddle (Real.zero = a))
         (\fun (same: Real.zero = a) => R.leReplace _ _ _ _
-          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
-            (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add (t.value) (Real.mul r c)) _ _ (sym!{Real.Real} _ _ same))
-            (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (t.value)) _ _ (Laws.fieldMulZeroLeft c)) (Laws.addZeroRight (t.value)))))
-          (sym!{Real.Real} _ _ (congr!{V Real.Real} p _ _ (trans!{V} _ _ _
-            (congr!{Real.Real V} (\fun (r: Real.Real) => space.add (t.vector) (space.smul r x)) _ _ (sym!{Real.Real} _ _ same))
-            (trans!{V} _ _ _ (congr!{V V} (space.add (t.vector)) _ _ (Vectors.zeroScale x)) (Vectors.zeroRight (t.vector))))))
+          (sym!{Real.Real} _ _ (eq_reason_in!{Real.Real _
+            "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add (t.value) (Real.mul r c)) _ _ (sym!{Real.Real} _ _ same) }
+            "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (t.value)) _ _ (Laws.fieldMulZeroLeft c) }
+            "=" _ "by" { Laws.addZeroRight (t.value) }
+          }))
+          (sym!{Real.Real} _ _ (congr!{V Real.Real} p _ _ (eq_reason_in!{V _
+            "=" _ "by" { congr!{Real.Real V} (\fun (r: Real.Real) => space.add (t.vector) (space.smul r x)) _ _ (sym!{Real.Real} _ _ same) }
+            "=" _ "by" { congr!{V V} (space.add (t.vector)) _ _ (Vectors.zeroScale x) }
+            "=" _ "by" { Vectors.zeroRight (t.vector) }
+          })))
           ((laws G).dominated t member))
         (\fun (unequal: Logic.Not (Real.zero = a)) => positiveBound sublinear G x c (interval.upper) t a member (Order.ltOfLeNotEq Real.zero a nonnegative unequal)))
       (\block {

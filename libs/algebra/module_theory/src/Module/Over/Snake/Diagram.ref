@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.ShortExactComparison[A := A, B := B, C := C, A1 := A1, B1 := B1, C1 := C1].Diagram[s := s, t := t, a := f, b := g, c := h] \as Square;
 \definition Commutative: \Prop := Square.Commutative;
 \import \parent.\parent.Of[V := C.Carrier, space := C.space].Submodule[] \as SourceSubmodules;
@@ -32,8 +33,11 @@
   \fun (diagram: Commutative)(x: KernelCarrier) \then
   \takefrom lift: \Cast[B.Carrier] ({ b: B.Carrier \where s.projection.apply b = x }) \by s.onto x \then
   \let lifted: s.projection.apply lift = x := \bysub(B.Carrier, { b: B.Carrier \where s.projection.apply b = x }, lift) \then
-  \let closed: t.projection.apply (g.apply lift) = C1.space.zero := trans!{C1.Carrier} _ _ _ (diagram.right lift)
-    (trans!{C1.Carrier} _ _ _ (congr!{C.Carrier C1.Carrier} (h.apply) _ _ lifted) (\bysub(C.Carrier, kernel.carrier, x))) \then
+  \let closed: t.projection.apply (g.apply lift) = C1.space.zero := eq_reason_in!{C1.Carrier _
+    "=" _ "by" { diagram.right lift }
+    "=" _ "by" { congr!{C.Carrier C1.Carrier} (h.apply) _ _ lifted }
+    "=" _ "by" { \bysub(C.Carrier, kernel.carrier, x) }
+  } \then
   \takefrom lower: \Cast[A1.Carrier] ({ a: A1.Carrier \where t.inclusion.apply a = g.apply lift }) \by t.kernelImage (g.apply lift) closed \then
   \return \exact(witness x lift lower lifted (\bysub(A1.Carrier, { a: A1.Carrier \where t.inclusion.apply a = g.apply lift }, lower)), Value x)
 };
@@ -54,17 +58,23 @@
   Cokernel.class v.lower = Cokernel.class w.lower := \block {
   \fun (diagram: Commutative)(x: KernelCarrier)(v, w: Witness)(vLifted: _)(wLifted: _)(vDifferential: _)(wDifferential: _) \then
   \let closed: s.projection.apply (MiddleGroup.difference v.lift w.lift) = Right.zero :=
-    trans!{C.Carrier} _ _ _ (Projection.differencePreserved s.projection v.lift w.lift)
-      (trans!{C.Carrier} _ _ _ (congr2!{C.Carrier C.Carrier C.Carrier} RightGroup.difference _ _ _ _ vLifted wLifted) (RightGroup.inverseRight x)) \then
+    eq_reason_in!{C.Carrier _
+      "=" _ "by" { Projection.differencePreserved s.projection v.lift w.lift }
+      "=" _ "by" { congr!{C.Carrier C.Carrier C.Carrier} RightGroup.difference _ _ _ _ vLifted wLifted }
+      "=" _ "by" { RightGroup.inverseRight x }
+    } \then
   \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where s.inclusion.apply a = MiddleGroup.difference v.lift w.lift })
     \by s.kernelImage (MiddleGroup.difference v.lift w.lift) closed \then
   \let representation: s.inclusion.apply a = MiddleGroup.difference v.lift w.lift :=
     \bysub(A.Carrier, { a: A.Carrier \where s.inclusion.apply a = MiddleGroup.difference v.lift w.lift }, a) \then
   \let difference: LeftGroup1.difference v.lower w.lower = f.apply a := t.injective _ _
-    (trans!{B1.Carrier} _ _ _ (Inclusion1.differencePreserved t.inclusion v.lower w.lower)
-      (trans!{B1.Carrier} _ _ _ (congr2!{B1.Carrier B1.Carrier B1.Carrier} MiddleGroup1.difference _ _ _ _ vDifferential wDifferential)
-        (trans!{B1.Carrier} _ _ _ (sym!{B1.Carrier} _ _ (MiddleMaps.differencePreserved g v.lift w.lift))
-          (trans!{B1.Carrier} _ _ _ (congr!{B.Carrier B1.Carrier} (g.apply) _ _ (sym!{B.Carrier} _ _ representation)) (diagram.left a))))) \then
+    (eq_reason_in!{B1.Carrier _
+      "=" _ "by" { Inclusion1.differencePreserved t.inclusion v.lower w.lower }
+      "=" _ "by" { congr!{B1.Carrier B1.Carrier B1.Carrier} MiddleGroup1.difference _ _ _ _ vDifferential wDifferential }
+      "=" _ "by" { sym!{B1.Carrier} _ _ (MiddleMaps.differencePreserved g v.lift w.lift) }
+      "=" _ "by" { congr!{B.Carrier B1.Carrier} (g.apply) _ _ (sym!{B.Carrier} _ _ representation) }
+      "=" _ "by" { diagram.left a }
+    }) \then
   \return Cokernel.classRelated v.lower w.lower
     (Logic.existsIntro[A.Carrier, { a: A.Carrier \where f.apply a = LeftGroup1.difference v.lower w.lower }] a
       (sym!{A1.Carrier} _ _ difference))
@@ -75,8 +85,11 @@
   \takefrom u: \Cast[Witness] ({ u: Witness \where WitnessLaws[x, w, u] }) \by \bysub(CokernelCarrier, Values x, w) \then
   \let rLaws: WitnessLaws[x, v, r] := \bysub(Witness, { r: Witness \where WitnessLaws[x, v, r] }, r) \then
   \let uLaws: WitnessLaws[x, w, u] := \bysub(Witness, { u: Witness \where WitnessLaws[x, w, u] }, u) \then
-  \return trans!{CokernelCarrier} _ _ _ (sym!{CokernelCarrier} _ _ (rLaws.classValue))
-    (trans!{CokernelCarrier} _ _ _ (sameClass diagram x r u (rLaws.lifted) (uLaws.lifted) (rLaws.differential) (uLaws.differential)) (uLaws.classValue))
+  \return eq_reason_in!{CokernelCarrier _
+    "=" _ "by" { sym!{CokernelCarrier} _ _ (rLaws.classValue) }
+    "=" _ "by" { sameClass diagram x r u (rLaws.lifted) (uLaws.lifted) (rLaws.differential) (uLaws.differential) }
+    "=" _ "by" uLaws.classValue
+  }
 };
 \definition delta[diagram: Commutative][x: KernelCarrier]: Value x := \choice Value x \by { existence: existence diagram x, uniqueness: uniqueness diagram x };
 \definition onLift: \forall (diagram: Commutative)(x: KernelCarrier)(lift: B.Carrier)(lower: A1.Carrier) ->
@@ -91,13 +104,17 @@
   \let rLaws: WitnessLaws[x, delta diagram x, r] := \bysub(Witness, { r: Witness \where WitnessLaws[x, delta diagram x, r] }, r) \then
   \let uLaws: WitnessLaws[y, delta diagram y, u] := \bysub(Witness, { u: Witness \where WitnessLaws[y, delta diagram y, u] }, u) \then
   \let lifted: s.projection.apply (Middle.add r.lift u.lift) = kernelSpace.add x y := trans!{C.Carrier} _ _ _ (s.projection.addition r.lift u.lift)
-    (congr2!{C.Carrier C.Carrier C.Carrier} Right.add _ _ _ _ (rLaws.lifted) (uLaws.lifted)) \then
-  \let differential: t.inclusion.apply (Left1.add r.lower u.lower) = g.apply (Middle.add r.lift u.lift) := trans!{B1.Carrier} _ _ _ (t.inclusion.addition r.lower u.lower)
-    (trans!{B1.Carrier} _ _ _ (congr2!{B1.Carrier B1.Carrier B1.Carrier} Middle1.add _ _ _ _ (rLaws.differential) (uLaws.differential))
-      (sym!{B1.Carrier} _ _ (g.addition r.lift u.lift))) \then
-  \return trans!{CokernelCarrier} _ _ _ (onLift diagram (kernelSpace.add x y) (Middle.add r.lift u.lift) (Left1.add r.lower u.lower) lifted differential)
-    (trans!{CokernelCarrier} _ _ _ (Cokernel.projection.addition r.lower u.lower)
-      (congr2!{CokernelCarrier CokernelCarrier CokernelCarrier} (cokernelSpace.add) _ _ _ _ (rLaws.classValue) (uLaws.classValue)))
+    (congr!{C.Carrier C.Carrier C.Carrier} Right.add _ _ _ _ (rLaws.lifted) (uLaws.lifted)) \then
+  \let differential: t.inclusion.apply (Left1.add r.lower u.lower) = g.apply (Middle.add r.lift u.lift) := eq_reason_in!{B1.Carrier _
+    "=" _ "by" { t.inclusion.addition r.lower u.lower }
+    "=" _ "by" { congr!{B1.Carrier B1.Carrier B1.Carrier} Middle1.add _ _ _ _ (rLaws.differential) (uLaws.differential) }
+    "=" _ "by" { sym!{B1.Carrier} _ _ (g.addition r.lift u.lift) }
+  } \then
+  \return eq_reason_in!{CokernelCarrier _
+    "=" _ "by" { onLift diagram (kernelSpace.add x y) (Middle.add r.lift u.lift) (Left1.add r.lower u.lower) lifted differential }
+    "=" _ "by" { Cokernel.projection.addition r.lower u.lower }
+    "=" _ "by" { congr!{CokernelCarrier CokernelCarrier CokernelCarrier} (cokernelSpace.add) _ _ _ _ (rLaws.classValue) (uLaws.classValue) }
+  }
 };
 \definition scalar: \forall (diagram: Commutative)(a: R)(x: KernelCarrier) ->
   delta diagram (kernelSpace.smul a x) = cokernelSpace.smul a (delta diagram x) := \block {
@@ -106,10 +123,16 @@
   \let rLaws: WitnessLaws[x, delta diagram x, r] := \bysub(Witness, { r: Witness \where WitnessLaws[x, delta diagram x, r] }, r) \then
   \let lifted: s.projection.apply (Middle.scale a r.lift) = kernelSpace.smul a x := trans!{C.Carrier} _ _ _ (s.projection.scalar a r.lift)
     (congr!{C.Carrier C.Carrier} (Right.scale a) _ _ (rLaws.lifted)) \then
-  \let differential: t.inclusion.apply (Left1.scale a r.lower) = g.apply (Middle.scale a r.lift) := trans!{B1.Carrier} _ _ _ (t.inclusion.scalar a r.lower)
-    (trans!{B1.Carrier} _ _ _ (congr!{B1.Carrier B1.Carrier} (Middle1.scale a) _ _ (rLaws.differential)) (sym!{B1.Carrier} _ _ (g.scalar a r.lift))) \then
-  \return trans!{CokernelCarrier} _ _ _ (onLift diagram (kernelSpace.smul a x) (Middle.scale a r.lift) (Left1.scale a r.lower) lifted differential)
-    (trans!{CokernelCarrier} _ _ _ (Cokernel.projection.scalar a r.lower) (congr!{CokernelCarrier CokernelCarrier} (cokernelSpace.smul a) _ _ (rLaws.classValue)))
+  \let differential: t.inclusion.apply (Left1.scale a r.lower) = g.apply (Middle.scale a r.lift) := eq_reason_in!{B1.Carrier _
+    "=" _ "by" { t.inclusion.scalar a r.lower }
+    "=" _ "by" { congr!{B1.Carrier B1.Carrier} (Middle1.scale a) _ _ (rLaws.differential) }
+    "=" _ "by" { sym!{B1.Carrier} _ _ (g.scalar a r.lift) }
+  } \then
+  \return eq_reason_in!{CokernelCarrier _
+    "=" _ "by" { onLift diagram (kernelSpace.smul a x) (Middle.scale a r.lift) (Left1.scale a r.lower) lifted differential }
+    "=" _ "by" { Cokernel.projection.scalar a r.lower }
+    "=" _ "by" { congr!{CokernelCarrier CokernelCarrier} (cokernelSpace.smul a) _ _ (rLaws.classValue) }
+  }
 };
 \import \parent.\parent.Hom[V := KernelCarrier, W := CokernelCarrier, source := kernelSpace, target := cokernelSpace] \as Connecting;
 \definition connecting[diagram: Commutative]: Connecting.Map := Connecting.Map { apply := delta diagram, addition := addition diagram, scalar := scalar diagram };

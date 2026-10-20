@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].FinSet[] \as Fin;
 \definition degree: I.Int^ := I.Int^::ofNat zero;
 \import SignedChains.At[C := chain, z := degree] \as Source;
@@ -20,12 +21,14 @@
     (congr!{I.Int^ Source.Homology} (((integerCoordinates).backward).apply) _ _ (sym!{I.Int^} _ _ coordinateOne))
     ((integerCoordinates).leftInverse finiteClass);
 \definition onFiniteClass: (Actual.induced comparison).apply finiteClass = pointClass :=
-  trans!{Target.Homology} _ _ _ (Actual.onClass comparison finiteCycle)
-    (trans!{Target.Homology} _ _ _
-      (Target.cycleClassExt ((Actual.cyclesMap comparison).apply finiteCycle) pointCycle
+  eq_reason_in!{Target.Homology _
+    "=" _ "by" { Actual.onClass comparison finiteCycle }
+    "=" _ "by" { Target.cycleClassExt ((Actual.cyclesMap comparison).apply finiteCycle) pointCycle
         (trans!{{ExtendedSingular.complex.family.Carrier degree}} _ _ _
           (congr!{{Vector degree} {ExtendedSingular.complex.family.Carrier degree}} ((DegreeMap.map).apply) _ _ Unit.oneAsBasis)
-          (DegreeMap.onBasis (Fin.zero zero)))) represents);
+          (DegreeMap.onBasis (Fin.zero zero))) }
+    "=" _ "by" represents
+  };
 \import Modules.Hom[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace]
   .Composition[U := I.Int^, domain := Modules.scalarModule] \as FromInteger;
 \definition actualInteger: Modules.Hom[V := I.Int^, W := Target.Homology, source := Modules.scalarModule, target := Target.homologySpace].Map :=
@@ -46,11 +49,16 @@
       (\fun (f: Modules.Hom[V := I.Int^, W := Target.Homology, source := Modules.scalarModule, target := Target.homologySpace].Map) => (f).apply (((integerCoordinates).forward).apply h)) _ _ integerEquality);
 \definition bijective: Actual.Bijective[comparison] := Actual.Bijective[comparison] {
   injective := \fun (h, k: Source.Homology)(equal: (Actual.induced comparison).apply h = (Actual.induced comparison).apply k) =>
-    trans!{Source.Homology} _ _ _ (sym!{Source.Homology} _ _ ((isomorphism).leftInverse h))
-      (trans!{Source.Homology} _ _ _
-        (congr!{Target.Homology Source.Homology} (((isomorphism).backward).apply) _ _
-          (trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (law h)) (trans!{Target.Homology} _ _ _ equal (law k))))
-        ((isomorphism).leftInverse k)),
+    eq_reason_in!{Source.Homology _
+      "=" _ "by" { sym!{Source.Homology} _ _ ((isomorphism).leftInverse h) }
+      "=" _ "by" { congr!{Target.Homology Source.Homology} (((isomorphism).backward).apply) _ _
+          (eq_reason_in!{Target.Homology _
+            "=" _ "by" { sym!{Target.Homology} _ _ (law h) }
+            "=" _ "by" equal
+            "=" _ "by" { law k }
+          }) }
+      "=" _ "by" { (isomorphism).leftInverse k }
+    },
   onto := \fun (h: Target.Homology) => Logic.existsIntro[Source.Homology, { k: Source.Homology \where (Actual.induced comparison).apply k = h }]
     (((isomorphism).backward).apply h)
     (trans!{Target.Homology} _ _ _ (law (((isomorphism).backward).apply h)) ((isomorphism).rightInverse h)),

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.FundamentalGroup[A := A, source := source, basepoint := point] \as Fundamental;
 \import Based.Between[x := point, y := point] \as Quotient;
 \import Quotient.Functions[B := G] \as Descent;
@@ -12,10 +13,12 @@
 \definition operationLaw: \forall (a, b: Fundamental.Carrier) -> apply (Fundamental.multiply a b) = group.op (apply a) (apply b) :=
   Quotient.induction (\fun (a: Fundamental.Carrier) => \forall (b: Fundamental.Carrier) -> apply (Fundamental.multiply a b) = group.op (apply a) (apply b))
     (\fun (p: Based.Path point point) => Quotient.induction (\fun (b: Fundamental.Carrier) => apply (Fundamental.multiply (Fundamental.class p) b) = group.op (apply (Fundamental.class p)) (apply b))
-      (\fun (q: Based.Path point point) => trans!{G} _ _ _ (congr!{{Fundamental.Carrier} G} apply _ _ (Product.onClass p q))
-        (trans!{G} _ _ _ (onClass (Join.concatenate point point point p q))
-          (trans!{G} _ _ _ ((laws (extend cover)).composition point point point p q)
-            (congr2!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (onClass p)) (sym!{G} _ _ (onClass q)))))));
+      (\fun (q: Based.Path point point) => eq_reason_in!{G _
+        "=" _ "by" { congr!{{Fundamental.Carrier} G} apply _ _ (Product.onClass p q) }
+        "=" _ "by" { onClass (Join.concatenate point point point p q) }
+        "=" _ "by" { (laws (extend cover)).composition point point point p q }
+        "=" _ "by" { congr!{G G G} Group.mul _ _ _ _ (sym!{G} _ _ (onClass p)) (sym!{G} _ _ (onClass q)) }
+      }));
 \definition targetMonoid: Monoid.Monoid[G] := \into[Monoid.MonoidData[G]](Monoid.MonoidData[G]::# group.unit group.op, Monoid.Monoid[G]) \by { group.monoid };
 \definition homomorphism: Hom.GroupMap Fundamental.group group := \into[Fundamental.Carrier -> G](apply, Hom.GroupMap Fundamental.group group) \by {
   Hom.MonoidLaws[Fundamental.monoid, targetMonoid, apply] { unit := identityLaw, operation := operationLaw }

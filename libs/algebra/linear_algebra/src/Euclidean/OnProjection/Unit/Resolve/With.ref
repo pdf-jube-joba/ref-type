@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Euclidean[n := k] \as Domain;
 \import \root.Euclidean[n := N.Nat^::succ k] \as Higher;
 \import Spaces.Linear[V := Higher.Vector, W := Vector, source := Higher.space, target := space] \as Forward;
@@ -7,24 +8,28 @@
   \fun (w: Domain.Vector) => trans!{{R.Real}} _ _ _
     (congr!{Vector {R.Real}} (dot v) _ _ (sym!{Vector} _ _ (Lower.fixed previous w))) (orthogonal (previous.value.apply w));
 \definition previousCoordinateUnit: previous.coordinate.apply v = Domain.space.zero := Lower.injective previous _ _
-  (trans!{Vector} _ _ _ (previous.reconstruction v) (trans!{Vector} _ _ _ annihilates (sym!{Vector} _ _ previous.value.preservesZero)));
+  (eq_reason_in!{Vector _
+    "=" _ "by" { previous.reconstruction v }
+    "=" _ "by" annihilates
+    "=" _ "by" { sym!{Vector} _ _ previous.value.preservesZero }
+  });
 \definition value: Forward.Map := Forward.Map {
   apply := \fun (w: Higher.Vector) => space.add (space.smul (head w) v) (previous.value.apply (tail w)),
   preservesAdd := \fun (x, y: Higher.Vector) => trans!{Vector} _ _ _
-    (congr2!{Vector Vector Vector} space.add _ _ _ _ (space.scalarAdd (head x) (head y) v) (previous.value.preservesAdd (tail x) (tail y)))
+    (congr!{Vector Vector Vector} space.add _ _ _ _ (space.scalarAdd (head x) (head y) v) (previous.value.preservesAdd (tail x) (tail y)))
     (Laws.shuffle (space.smul (head x) v) (space.smul (head y) v) (previous.value.apply (tail x)) (previous.value.apply (tail y))),
   preservesScale := \fun (a: R.Real)(w: Higher.Vector) => trans!{Vector} _ _ _
-    (congr2!{Vector Vector Vector} space.add _ _ _ _ (space.scalarAssoc a (head w) v) (previous.value.preservesScale a (tail w)))
+    (congr!{Vector Vector Vector} space.add _ _ _ _ (space.scalarAssoc a (head w) v) (previous.value.preservesScale a (tail w)))
     (sym!{Vector} _ _ (space.vectorAdd a (space.smul (head w) v) (previous.value.apply (tail w)))),
 };
 \definition coordinate: Backward.Map := Backward.Map {
   apply := \fun (w: Vector) => Coordinates.join (Line.forward.apply (dot v w)) (previous.coordinate.apply w),
   preservesAdd := \fun (x, y: Vector) => trans!{{Higher.Vector}} _ _ _
-    (congr2!{{Fin.Fin Line.one -> R.Real} {Domain.Vector} {Higher.Vector}} Coordinates.join _ _ _ _
+    (congr!{{Fin.Fin Line.one -> R.Real} {Domain.Vector} {Higher.Vector}} Coordinates.join _ _ _ _
       (congr!{{R.Real} {Fin.Fin Line.one -> R.Real}} Line.forward.apply _ _ (form.addRight v x y)) (previous.coordinate.preservesAdd x y))
     (Coordinates.addition (Line.forward.apply (dot v x)) (Line.forward.apply (dot v y)) (previous.coordinate.apply x) (previous.coordinate.apply y)),
   preservesScale := \fun (a: R.Real)(w: Vector) => trans!{{Higher.Vector}} _ _ _
-    (congr2!{{Fin.Fin Line.one -> R.Real} {Domain.Vector} {Higher.Vector}} Coordinates.join _ _ _ _
+    (congr!{{Fin.Fin Line.one -> R.Real} {Domain.Vector} {Higher.Vector}} Coordinates.join _ _ _ _
       (congr!{{R.Real} {Fin.Fin Line.one -> R.Real}} Line.forward.apply _ _ (form.scaleRight a v w)) (previous.coordinate.preservesScale a w))
     (Coordinates.scalar a (Line.forward.apply (dot v w)) (previous.coordinate.apply w)),
 };
@@ -34,20 +39,33 @@
 \definition coordinateTail: \forall (w: Vector) -> tail (coordinate.apply w) = previous.coordinate.apply w :=
   \fun (w: Vector) => Coordinates.rightJoin (Line.forward.apply (dot v w)) (previous.coordinate.apply w);
 \definition unitCoordinate: \forall (w: Higher.Vector) -> dot v (value.apply w) = head w := \fun (w: Higher.Vector) =>
-  trans!{{R.Real}} _ _ _ (form.addRight v (space.smul (head w) v) (previous.value.apply (tail w)))
-    (trans!{{R.Real}} _ _ _ (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
-      (trans!{{R.Real}} _ _ _ (form.scaleRight (head w) v v) (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul (head w)) _ _ u.norm) (Spaces.mulOneRight (head w))))
-      (previousOrthogonal (tail w))) (Arithmetic.addZeroRight (head w)));
+  eq_reason_in!{{R.Real} _
+    "=" _ "by" { form.addRight v (space.smul (head w) v) (previous.value.apply (tail w)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (eq_reason_in!{R.Real _
+        "=" _ "by" { form.scaleRight (head w) v v }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (head w)) _ _ u.norm }
+        "=" _ "by" { Spaces.mulOneRight (head w) }
+      })
+      (previousOrthogonal (tail w)) }
+    "=" _ "by" { Arithmetic.addZeroRight (head w) }
+  };
 \definition lowerCoordinate: \forall (w: Higher.Vector) -> previous.coordinate.apply (value.apply w) = tail w :=
-  \fun (w: Higher.Vector) => trans!{{Domain.Vector}} _ _ _ (previous.coordinate.preservesAdd (space.smul (head w) v) (previous.value.apply (tail w)))
-    (trans!{{Domain.Vector}} _ _ _ (congr2!{{Domain.Vector} {Domain.Vector} {Domain.Vector}} Domain.space.add _ _ _ _
-      (trans!{{Domain.Vector}} _ _ _ (previous.coordinate.preservesScale (head w) v)
-        (trans!{{Domain.Vector}} _ _ _ (congr!{{Domain.Vector} {Domain.Vector}} (Domain.space.smul (head w)) _ _ previousCoordinateUnit) (DomainLaws.scaleZero (head w))))
-      (previous.leftInverse (tail w))) (DomainLaws.zeroLeft (tail w)));
+  \fun (w: Higher.Vector) => eq_reason_in!{{Domain.Vector} _
+    "=" _ "by" { previous.coordinate.preservesAdd (space.smul (head w) v) (previous.value.apply (tail w)) }
+    "=" _ "by" { congr!{{Domain.Vector} {Domain.Vector} {Domain.Vector}} Domain.space.add _ _ _ _
+      (eq_reason_in!{Domain.Vector _
+        "=" _ "by" { previous.coordinate.preservesScale (head w) v }
+        "=" _ "by" { congr!{{Domain.Vector} {Domain.Vector}} (Domain.space.smul (head w)) _ _ previousCoordinateUnit }
+        "=" _ "by" { DomainLaws.scaleZero (head w) }
+      })
+      (previous.leftInverse (tail w)) }
+    "=" _ "by" { DomainLaws.zeroLeft (tail w) }
+  };
 \module At(w: Higher.Vector);
 \definition leftInverse: \forall (w: Higher.Vector) -> coordinate.apply (value.apply w) = w := \fun (w: Higher.Vector) => At[w := w].leftInverse;
 \definition reconstruction: \forall (w: Vector) -> value.apply (coordinate.apply w) = P.map.apply w :=
-  \fun (w: Vector) => trans!{Vector} _ _ _ (congr2!{Vector Vector Vector} space.add _ _ _ _
+  \fun (w: Vector) => trans!{Vector} _ _ _ (congr!{Vector Vector Vector} space.add _ _ _ _
     (congr!{{R.Real} Vector} (\fun (a: R.Real) => space.smul a v) _ _ (coordinateHead w))
     (trans!{Vector} _ _ _ (congr!{{Domain.Vector} Vector} previous.value.apply _ _ (coordinateTail w)) (previous.reconstruction w)))
     (\axiom:funext(space.add (rankOne.apply w) (difference (P.map.apply w) (rankOne.apply w)), P.map.apply w,
@@ -55,11 +73,13 @@
         (R.Distance[].subAddCancel (P.map.apply w i) (rankOne.apply w i))));
 \definition coordinateDot: \forall (x: Higher.Vector)(w: Vector) -> Higher.dot x (coordinate.apply w) =
   R.add (R.mul (head x) (dot v w)) (Domain.dot (tail x) (previous.coordinate.apply w)) :=
-  \fun (x: Higher.Vector)(w: Vector) => congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+  \fun (x: Higher.Vector)(w: Vector) => congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
     (congr!{{R.Real} {R.Real}} (R.mul (head x)) _ _ (coordinateHead w))
     (congr!{{Domain.Vector} {R.Real}} (Domain.dot (tail x)) _ _ (coordinateTail w));
 \definition adjoint: \forall (x: Higher.Vector)(w: Vector) -> dot (value.apply x) w = Higher.dot x (coordinate.apply w) :=
-  \fun (x: Higher.Vector)(w: Vector) => trans!{{R.Real}} _ _ _ (form.addLeft (space.smul (head x) v) (previous.value.apply (tail x)) w)
-    (trans!{{R.Real}} _ _ _ (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (form.scaleLeft (head x) v w) (previous.adjoint (tail x) w))
-      (sym!{{R.Real}} _ _ (coordinateDot x w)));
+  \fun (x: Higher.Vector)(w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { form.addLeft (space.smul (head x) v) (previous.value.apply (tail x)) w }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (form.scaleLeft (head x) v w) (previous.adjoint (tail x) w) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (coordinateDot x w) }
+  };
 \definition frame: Upper.Frame := Upper.Frame { value := value, coordinate := coordinate, leftInverse := leftInverse, reconstruction := reconstruction, adjoint := adjoint };

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Recursive local product coordinates for Euclidean Pin groups. */
 \import std.Data[].Nat[] \as N;
 \import real.Analysis[] \as R;
@@ -7,7 +8,6 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \use Logic.either;
 \import \root.Euclidean[n := n] \as E;
 \import \root.Euclidean[n := N.Nat^::succ n] \as Next;
@@ -37,19 +37,28 @@
 \definition assemble[s: E.Vector][h: E.Pin]: Next.Pin := Group.mul (section s) (Inclusion.pin h);
 \definition assemblyImage[s: E.Vector][h: E.Pin]: HigherRepresentation.map (assemble s h) = Orthogonal.assemble s (Representation.map h) :=
   trans!{{Next.O}} _ _ _ (HigherRepresentation.multiplication (section s) (Inclusion.pin h))
-    (congr2!{{Next.O} {Next.O} {Next.O}} Isometries.mul _ _ _ _ (sectionImage s) (Geometry.PinExtension[g := h].law));
+    (congr!{{Next.O} {Next.O} {Next.O}} Isometries.mul _ _ _ _ (sectionImage s) (Geometry.PinExtension[g := h].law));
 \definition translate[q, g: Next.Pin]: Next.Pin := Group.mul q g;
 \definition untranslate[q, g: Next.Pin]: Next.Pin := Group.mul (Group.inv q) g;
 \definition undoTranslation: \forall (q, g: Next.Pin) -> untranslate q (translate q g) = g := \fun (q, g: Next.Pin) =>
-  trans!{{Next.Pin}} _ _ _ (sym!{{Next.Pin}} _ _ (Group.assoc (Group.inv q) q g))
-    (trans!{{Next.Pin}} _ _ _ (congr!{{Next.Pin} {Next.Pin}} (\fun (x: Next.Pin) => Group.mul x g) _ _ (Group.invLeft q)) (Group.oneLeft g));
+  eq_reason_in!{{Next.Pin} _
+    "=" _ "by" { sym!{{Next.Pin}} _ _ (Group.assoc (Group.inv q) q g) }
+    "=" _ "by" { congr!{{Next.Pin} {Next.Pin}} (\fun (x: Next.Pin) => Group.mul x g) _ _ (Group.invLeft q) }
+    "=" _ "by" { Group.oneLeft g }
+  };
 \definition translationUndo: \forall (q, g: Next.Pin) -> translate q (untranslate q g) = g := \fun (q, g: Next.Pin) =>
-  trans!{{Next.Pin}} _ _ _ (sym!{{Next.Pin}} _ _ (Group.assoc q (Group.inv q) g))
-    (trans!{{Next.Pin}} _ _ _ (congr!{{Next.Pin} {Next.Pin}} (\fun (x: Next.Pin) => Group.mul x g) _ _ (Group.invRight q)) (Group.oneLeft g));
+  eq_reason_in!{{Next.Pin} _
+    "=" _ "by" { sym!{{Next.Pin}} _ _ (Group.assoc q (Group.inv q) g) }
+    "=" _ "by" { congr!{{Next.Pin} {Next.Pin}} (\fun (x: Next.Pin) => Group.mul x g) _ _ (Group.invRight q) }
+    "=" _ "by" { Group.oneLeft g }
+  };
 \definition inclusionInjective: \forall (g, h: E.Pin) -> Inclusion.pin g = Inclusion.pin h -> g = h :=
-  \fun (g, h: E.Pin)(same: _) => LowerUnits.ext g h (trans!{E.CliffordAlgebra} _ _ _ (sym!{E.CliffordAlgebra} _ _ (Recovery.firstLower g.value))
-    (trans!{E.CliffordAlgebra} _ _ _ (congr!{Next.CliffordAlgebra E.CliffordAlgebra} Recovery.left _ _
-      (congr!{{Next.Pin} Next.CliffordAlgebra} (\fun (p: Next.Pin) => p.value) _ _ same)) (Recovery.firstLower h.value)));
+  \fun (g, h: E.Pin)(same: _) => LowerUnits.ext g h (eq_reason_in!{E.CliffordAlgebra _
+    "=" _ "by" { sym!{E.CliffordAlgebra} _ _ (Recovery.firstLower g.value) }
+    "=" _ "by" { congr!{Next.CliffordAlgebra E.CliffordAlgebra} Recovery.left _ _
+      (congr!{{Next.Pin} Next.CliffordAlgebra} (\fun (p: Next.Pin) => p.value) _ _ same) }
+    "=" _ "by" { Recovery.firstLower h.value }
+  });
 \module On(g: Parts);
 \definition parameter[g: Parts]: E.Vector := On[g := g].parameter;
 \definition fiber[g: Parts]: E.Pin := On[g := g].fiber;

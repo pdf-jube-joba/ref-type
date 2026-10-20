@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.At[n := m] \as Source;
 \import \parent.At[n := n] \as Target;
 \use Equality.eq_reason;
@@ -12,13 +13,15 @@
     (\fun (i: Fin.Fin (N.Nat^::succ m)) => Laws.fieldMulNonnegative (x i) (vertices i j)
       ((barycentric m x).nonnegative i) ((barycentric n (vertices i)).nonnegative j));
 \definition total: \forall (vertices: Vertices)(x: Carrier m) -> Sums.sum (N.Nat^::succ n) (coordinates vertices x) = Real.one :=
-  \fun (vertices: Vertices)(x: Carrier m) => trans!{Real.Real} _ _ _
-    (Sums.exchange (N.Nat^::succ n) (N.Nat^::succ m) (\fun (j: Fin.Fin (N.Nat^::succ n))(i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) (vertices i j)))
-    (trans!{Real.Real} _ _ _
-      (Sums.congruent (N.Nat^::succ m) _ x (\fun (i: Fin.Fin (N.Nat^::succ m)) => trans!{Real.Real} _ _ _
-        (Sums.scalar (N.Nat^::succ n) (x i) (vertices i))
-        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (x i)) _ _ ((barycentric n (vertices i)).total)) (Algebra.mulOneRight (x i)))))
-      ((barycentric m x).total));
+  \fun (vertices: Vertices)(x: Carrier m) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Sums.exchange (N.Nat^::succ n) (N.Nat^::succ m) (\fun (j: Fin.Fin (N.Nat^::succ n))(i: Fin.Fin (N.Nat^::succ m)) => Real.mul (x i) (vertices i j)) }
+    "=" _ "by" { Sums.congruent (N.Nat^::succ m) _ x (\fun (i: Fin.Fin (N.Nat^::succ m)) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Sums.scalar (N.Nat^::succ n) (x i) (vertices i) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (x i)) _ _ ((barycentric n (vertices i)).total) }
+      "=" _ "by" { Algebra.mulOneRight (x i) }
+    }) }
+    "=" _ "by" { (barycentric m x).total }
+  };
 \definition apply[vertices: Vertices][x: Carrier m]: Carrier n :=
   \into[Coordinate (N.Nat^::succ n)](coordinates vertices x, Points n) \by {
     Barycentric[N.Nat^::succ n, coordinates vertices x] { nonnegative := positive vertices x, total := total vertices x }

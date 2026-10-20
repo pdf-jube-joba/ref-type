@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Coordinates[I := Finite.Fin n].Kronecker[] \as Kronecker;
 \import Sums.Single[] \as Single;
 \definition onBasis: \forall (a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) -> apply a (Domain.basis j) i = a i j :=
@@ -17,22 +18,25 @@
 \definition mapRoundtrip: \forall (f: Maps.Map) -> linear (entries f) = f :=
   \fun (f: Maps.Map) => Maps.ext (linear (entries f)) f (\fun (v: Domain.Carrier) =>
     \axiom:funext(apply (entries f) v, f.apply v, \fun (i: Finite.Fin m) =>
-      sym!{R} _ _ (trans!{R} _ _ _
-        (congr!{Codomain.Carrier R} (\fun (w: Codomain.Carrier) => w i) _ _
+      sym!{R} _ _ (eq_reason_in!{R _
+        "=" _ "by" { congr!{Codomain.Carrier R} (\fun (w: Codomain.Carrier) => w i) _ _
           (trans!{Codomain.Carrier} _ _ _
             (congr!{Domain.Carrier Codomain.Carrier} (f.apply) _ _ (sym!{Domain.Carrier} _ _ (Domain.decomposition v)))
-            (Mapping.law f (Finite.elements n) (\fun (j: Finite.Fin n) => Domain.space.smul (v j) (Domain.basis j)))))
-        (trans!{R} _ _ _
-          (Evaluation.law (Codomain.evaluation i) (Finite.elements n) (\fun (j: Finite.Fin n) => f.apply (Domain.space.smul (v j) (Domain.basis j))))
-          (SumLaws.congruent (Finite.elements n)
+            (Mapping.law f (Finite.elements n) (\fun (j: Finite.Fin n) => Domain.space.smul (v j) (Domain.basis j)))) }
+        "=" _ "by" { Evaluation.law (Codomain.evaluation i) (Finite.elements n) (\fun (j: Finite.Fin n) => f.apply (Domain.space.smul (v j) (Domain.basis j))) }
+        "=" _ "by" { SumLaws.congruent (Finite.elements n)
             (\fun (j: Finite.Fin n) => f.apply (Domain.space.smul (v j) (Domain.basis j)) i)
             (\fun (j: Finite.Fin n) => ordinaryRing.mul (f.apply (Domain.basis j) i) (v j))
             (\fun (j: Finite.Fin n) => trans!{R} _ _ _
               (congr!{Codomain.Carrier R} (\fun (w: Codomain.Carrier) => w i) _ _ (f.scalar (v j) (Domain.basis j)))
-              (ring.mulCommutative (v j) (f.apply (Domain.basis j) i))))))));
+              (ring.mulCommutative (v j) (f.apply (Domain.basis j) i))) }
+      })));
 \definition injective: \forall (a, b: Matrix) -> linear a = linear b -> a = b :=
-  \fun (a, b: Matrix)(same: _) => trans!{Matrix} _ _ _ (sym!{Matrix} _ _ (matrixRoundtrip a))
-    (trans!{Matrix} _ _ _ (congr!{Maps.Map Matrix} entries _ _ same) (matrixRoundtrip b));
+  \fun (a, b: Matrix)(same: _) => eq_reason_in!{Matrix _
+    "=" _ "by" { sym!{Matrix} _ _ (matrixRoundtrip a) }
+    "=" _ "by" { congr!{Maps.Map Matrix} entries _ _ same }
+    "=" _ "by" { matrixRoundtrip b }
+  };
 \structure Correspondence: \Prop := {
   matrixToMap: \forall (a: Matrix) -> entries (linear a) = a,
   mapToMatrix: \forall (f: Maps.Map) -> linear (entries f) = f,

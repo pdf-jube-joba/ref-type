@@ -1,18 +1,23 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition generator: V := ((orientation).forward).apply I.One.specification;
 \definition coordinate[x: V]: I.Int^ := ((orientation).backward).apply x;
 \definition basis: \forall (x: V) -> (space).smul (coordinate x) generator = x :=
-  \fun (x: V) => trans!{V} _ _ _ (sym!{V} _ _ (((orientation).forward).scalar (coordinate x) I.One.specification))
-    (trans!{V} _ _ _
-      (congr!{I.Int^ V} (((orientation).forward).apply) _ _ ((((Integers.ring).semiring).multiplicative).rightIdentity (coordinate x)))
-      ((orientation).rightInverse x));
+  \fun (x: V) => eq_reason_in!{V _
+    "=" _ "by" { sym!{V} _ _ (((orientation).forward).scalar (coordinate x) I.One.specification) }
+    "=" _ "by" { congr!{I.Int^ V} (((orientation).forward).apply) _ _ ((((Integers.ring).semiring).multiplicative).rightIdentity (coordinate x)) }
+    "=" _ "by" { (orientation).rightInverse x }
+  };
 \definition value: \forall (x: V) -> (functional).apply x = (Integers.ring).mul (coordinate x) ((functional).apply generator) :=
   \fun (x: V) => trans!{I.Int^} _ _ _
     (sym!{I.Int^} _ _ (congr!{V I.Int^} ((functional).apply) _ _ (basis x)))
     ((functional).scalar (coordinate x) generator);
 \definition unit: (functional).apply point = I.One.specification ->
   (Integers.ring).mul ((functional).apply generator) (coordinate point) = I.One.specification :=
-  \fun (normalized: _) => trans!{I.Int^} _ _ _ ((Integers.commutativeRing).mulCommutative ((functional).apply generator) (coordinate point))
-    (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (value point)) normalized);
+  \fun (normalized: _) => eq_reason_in!{I.Int^ _
+    "=" _ "by" { (Integers.commutativeRing).mulCommutative ((functional).apply generator) (coordinate point) }
+    "=" _ "by" { sym!{I.Int^} _ _ (value point) }
+    "=" _ "by" normalized
+  };
 \import Modules.Hom[V := I.Int^, W := V, source := Modules.scalarModule, target := space] \as Forward;
 \definition forward: Forward.Map := Forward.Map {
   apply := \fun (a: I.Int^) => (space).smul a point,
@@ -20,21 +25,24 @@
   scalar := \fun (a, b: I.Int^) => (space).scalarAssoc a b point,
 };
 \definition leftInverse: (functional).apply point = I.One.specification -> \forall (a: I.Int^) -> (functional).apply ((forward).apply a) = a :=
-  \fun (normalized: _)(a: I.Int^) => trans!{I.Int^} _ _ _ ((functional).scalar a point)
-    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} ((Integers.ring).mul a) _ _ normalized)
-      ((((Integers.ring).semiring).multiplicative).rightIdentity a));
+  \fun (normalized: _)(a: I.Int^) => eq_reason_in!{I.Int^ _
+    "=" _ "by" { (functional).scalar a point }
+    "=" _ "by" { congr!{I.Int^ I.Int^} ((Integers.ring).mul a) _ _ normalized }
+    "=" _ "by" { (((Integers.ring).semiring).multiplicative).rightIdentity a }
+  };
 \definition rightInverse: (functional).apply point = I.One.specification -> \forall (x: V) -> (forward).apply ((functional).apply x) = x :=
-  \fun (normalized: _)(x: V) => trans!{V} _ _ _
-    (congr!{V V} ((space).smul ((functional).apply x)) _ _ (sym!{V} _ _ (basis point)))
-    (trans!{V} _ _ _ (sym!{V} _ _ ((space).scalarAssoc ((functional).apply x) (coordinate point) generator))
-      (trans!{V} _ _ _
-        (congr!{I.Int^ V} (\fun (a: I.Int^) => (space).smul a generator) _ _
-          (trans!{I.Int^} _ _ _
-            (congr!{I.Int^ I.Int^} (\fun (a: I.Int^) => (Integers.ring).mul a (coordinate point)) _ _ (value x))
-            (trans!{I.Int^} _ _ _ ((((Integers.ring).semiring).multiplicative).associative (coordinate x) ((functional).apply generator) (coordinate point))
-              (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} ((Integers.ring).mul (coordinate x)) _ _ (unit normalized))
-                ((((Integers.ring).semiring).multiplicative).rightIdentity (coordinate x))))))
-        (basis x)));
+  \fun (normalized: _)(x: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} ((space).smul ((functional).apply x)) _ _ (sym!{V} _ _ (basis point)) }
+    "=" _ "by" { sym!{V} _ _ ((space).scalarAssoc ((functional).apply x) (coordinate point) generator) }
+    "=" _ "by" { congr!{I.Int^ V} (\fun (a: I.Int^) => (space).smul a generator) _ _
+          (eq_reason_in!{I.Int^ _
+            "=" _ "by" { congr!{I.Int^ I.Int^} (\fun (a: I.Int^) => (Integers.ring).mul a (coordinate point)) _ _ (value x) }
+            "=" _ "by" { (((Integers.ring).semiring).multiplicative).associative (coordinate x) ((functional).apply generator) (coordinate point) }
+            "=" _ "by" { congr!{I.Int^ I.Int^} ((Integers.ring).mul (coordinate x)) _ _ (unit normalized) }
+            "=" _ "by" { (((Integers.ring).semiring).multiplicative).rightIdentity (coordinate x) }
+          }) }
+    "=" _ "by" { basis x }
+  };
 \import Modules.Isomorphism[V := I.Int^, W := V, source := Modules.scalarModule, target := space] \as Isomorphism;
 \definition isomorphism[normalized: (functional).apply point = I.One.specification]: Isomorphism.Isomorphism := Isomorphism.Isomorphism {
   forward := forward, backward := functional,

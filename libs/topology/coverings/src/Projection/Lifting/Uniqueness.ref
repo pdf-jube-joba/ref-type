@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Existence[] \as Existence;
 \import topology.Composition[A := Interval.Carrier, B := Interval.Carrier, C := E] \as Compose;
 \import topology.Composition[A := Interval.Carrier, B := Interval.Carrier, C := B] \as BaseCompose;
@@ -29,16 +30,21 @@
     \let rc: Continuous.Continuous Interval.topology total (\fun (s: Interval.Carrier) => r (Initial.curve t s)) :=
       Compose.composeContinuous Interval.topology Interval.topology total (Initial.curve t) r (Initial.continuous t) (pathLaws x y path start r).continuous \then
     \let sameStart: l (Initial.curve t Interval.start) = r (Initial.curve t Interval.start) :=
-      trans!{E} _ _ _ (congr!{Interval.Carrier E} l _ _ (Initial.atStart t))
-        (trans!{E} _ _ _ (pathLaws x y path start l).starts
-          (trans!{E} _ _ _ (sym!{E} _ _ (pathLaws x y path start r).starts)
-            (congr!{Interval.Carrier E} r _ _ (sym!{Interval.Carrier} _ _ (Initial.atStart t))))) \then
+      eq_reason_in!{E _
+        "=" _ "by" { congr!{Interval.Carrier E} l _ _ (Initial.atStart t) }
+        "=" _ "by" { (pathLaws x y path start l).starts }
+        "=" _ "by" { sym!{E} _ _ (pathLaws x y path start r).starts }
+        "=" _ "by" { congr!{Interval.Carrier E} r _ _ (sym!{Interval.Carrier} _ _ (Initial.atStart t)) }
+      } \then
     \let sameEnd: l (Initial.curve t Interval.end) = r (Initial.curve t Interval.end) :=
       endpoints covering x (path t) (prefix x y path t) (\fun (s: Interval.Carrier) => l (Initial.curve t s)) (\fun (s: Interval.Carrier) => r (Initial.curve t s)) lc rc
         (\fun (s: Interval.Carrier) => (pathLaws x y path start l).projects (Initial.curve t s))
         (\fun (s: Interval.Carrier) => (pathLaws x y path start r).projects (Initial.curve t s)) sameStart \then
-    \return trans!{E} _ _ _ (congr!{Interval.Carrier E} l _ _ (sym!{Interval.Carrier} _ _ (Initial.atEnd t)))
-      (trans!{E} _ _ _ sameEnd (congr!{Interval.Carrier E} r _ _ (Initial.atEnd t)))
+    \return eq_reason_in!{E _
+      "=" _ "by" { congr!{Interval.Carrier E} l _ _ (sym!{Interval.Carrier} _ _ (Initial.atEnd t)) }
+      "=" _ "by" sameEnd
+      "=" _ "by" { congr!{Interval.Carrier E} r _ _ (Initial.atEnd t) }
+    }
   });
 \definition functionsUnique: Covering -> \forall (x, y: B)(path: BasePaths.Path x y)(l, r: Interval.Carrier -> E) ->
   Continuous.Continuous Interval.topology total l -> Continuous.Continuous Interval.topology total r ->

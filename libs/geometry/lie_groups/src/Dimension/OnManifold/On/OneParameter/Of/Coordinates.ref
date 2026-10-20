@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Coordinate curve and the velocity of an arbitrary one-parameter subgroup. */
 \import manifolds.Dimension[n := n].Chart[M := manifold.Point, space := manifold.space] \as TargetCharts;
 \import Tangent.At[x := Curves.apply f.map (time Reals.zero)] \as Target;
@@ -22,7 +23,11 @@
 \import AtOne.Coordinate[chart := chart] \as TangentCoordinates;
 \import Target.Coordinate[chart := targetChart] \as TargetCoordinates;
 \definition atZero: Maps.apply domain chart.image map zero = AtOne.coordinate chart := ChartLaws.pointInjective _ _
-  (trans!{Point} _ _ _ (Local.returnsPoint zero) (trans!{Point} _ _ _ f.atZero (sym!{Point} _ _ (ChartLaws.pointCoordinate (AtOne.localPoint chart)))));
+  (eq_reason_in!{Point _
+    "=" _ "by" { Local.returnsPoint zero }
+    "=" _ "by" f.atZero
+    "=" _ "by" { sym!{Point} _ _ (ChartLaws.pointCoordinate (AtOne.localPoint chart)) }
+  });
 \definition returnsPoint: \forall (x: LineOpen.Carrier domain) -> TargetCharts.point chart (Maps.apply domain chart.image map x) = Curves.apply f.map (time (x (Fin.zero N.Nat^::zero))) :=
   \fun (x: LineOpen.Carrier domain) => trans!{Point} _ _ _ (Local.returnsPoint x)
     (congr!{{line.Point} Point} (Curves.apply f.map) _ _ (sym!{{line.Point}} _ _ (timeCoordinates (Whole.point x))));
@@ -33,11 +38,13 @@
   \let transported: AtOne.Coordinate[chart := Transport.chart targetChart].decode (Transport.vector actual) = TangentCoordinates.decode velocity :=
     congr!{{AtOne.Chart} {topological_algebra.Euclidean[].Dimension[n := n].Point}}
       (\fun (c: AtOne.Chart) => AtOne.Coordinate[chart := c].decode (Transport.vector actual)) _ _ chartEquality \then
-  \return trans!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ _ (sym!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ transported)
-    (trans!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ _ (Transport.coordinates targetChart actual)
-      (trans!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ _ (Differential.coordinates sourceChart targetChart unitVelocity)
-        (congr!{{topological_algebra.Euclidean[].Dimension[n := lineDimension].Point} {topological_algebra.Euclidean[].Dimension[n := n].Point}}
-          InCharts.jacobian.apply _ _ unitCoordinates)))
+  \return eq_reason_in!{{topological_algebra.Euclidean[].Dimension[n := n].Point} _
+    "=" _ "by" { sym!{{topological_algebra.Euclidean[].Dimension[n := n].Point}} _ _ transported }
+    "=" _ "by" { Transport.coordinates targetChart actual }
+    "=" _ "by" { Differential.coordinates sourceChart targetChart unitVelocity }
+    "=" _ "by" { congr!{{topological_algebra.Euclidean[].Dimension[n := lineDimension].Point} {topological_algebra.Euclidean[].Dimension[n := n].Point}}
+          InCharts.jacobian.apply _ _ unitCoordinates }
+  }
 };
 \module Translation(a: LineOpen.Carrier domain);
 \import \root.Dimension[n := n].OnManifold[M := manifold].On[G := G].LocalProduct[chart := chart] \as Product;

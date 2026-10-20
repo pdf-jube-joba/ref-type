@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition t: Open.Carrier Base.domain := Overlap.leftPoint z;
 \definition w: Vector := Blocks.right z;
 \definition x: Open.Carrier right.image := Base.leftCoordinate t;
@@ -23,10 +24,11 @@
     TangentChange.point t pairPoint;
 \definition v: Fiber.Vector := SourceFiber.encode w;
 \definition coordinates: Decode.decode v = (Maps.Differential[U := Base.domain, V := left.image, f := baseMap, a := t].value).apply w :=
-  trans!{Vector} _ _ _ (Coordinates.coordinates v)
-    (trans!{Vector} _ _ _
-      (congr!{Vector Vector} TangentChange.jacobian.apply _ _ (SourceFiber.decodeEncode w))
-      (congr!{{calculus.Vector[n := n, m := n].LinearMap} Vector} (\fun (L: calculus.Vector[n := n, m := n].LinearMap) => L.apply w) _ _ jacobian));
+  eq_reason_in!{Vector _
+    "=" _ "by" { Coordinates.coordinates v }
+    "=" _ "by" { congr!{Vector Vector} TangentChange.jacobian.apply _ _ (SourceFiber.decodeEncode w) }
+    "=" _ "by" { congr!{{calculus.Vector[n := n, m := n].LinearMap} Vector} (\fun (L: calculus.Vector[n := n, m := n].LinearMap) => L.apply w) _ _ jacobian }
+  };
 \import Tangent.Transport[x := a, y := b, same := same] \as Move;
 \definition moved: Tangent.Vector b := Move.vector v;
 \definition chartSame: Move.chart c = TargetFiber.tangentChart := Move.underlying c;
@@ -34,11 +36,14 @@
   (congr!{{Move.ChartFamily b} Vector} (\fun (e: Move.ChartFamily b) => Move.decode b e moved)
     TargetFiber.tangentChart (Move.chart c) (sym!{{Move.ChartFamily b}} _ _ chartSame))
   (Move.coordinates c v);
-\definition decoded: TargetFiber.decode moved = Blocks.right (target z) := trans!{Vector} _ _ _ movedCoordinates
-  (trans!{Vector} _ _ _ coordinates (sym!{Vector} _ _
+\definition decoded: TargetFiber.decode moved = Blocks.right (target z) := eq_reason_in!{Vector _
+  "=" _ "by" movedCoordinates
+  "=" _ "by" coordinates
+  "=" _ "by" { sym!{Vector} _ _
     (trans!{Vector} _ _ _ (congr!{TotalVector Vector} Blocks.right _ _ (Lift.formula z))
       (Blocks.rightJoin (Maps.apply Base.domain left.image baseMap t)
-        ((Maps.Differential[U := Base.domain, V := left.image, f := baseMap, a := t].value).apply w)))));
+        ((Maps.Differential[U := Base.domain, V := left.image, f := baseMap, a := t].value).apply w))) }
+};
 \definition differential: calculus.Vector[n := n, m := n].LinearMap := Maps.Differential[U := Base.domain, V := left.image, f := baseMap, a := t].value;
 \definition tangentCoordinate: TargetFiber.decode moved = differential.apply w := trans!{Vector} _ _ _ movedCoordinates coordinates;
 \definition vectorEquality: TargetFiber.encode (differential.apply w) = moved := trans!{{Tangent.Vector b}} _ _ _
@@ -51,8 +56,11 @@
   (Blocks.rightJoin (Maps.apply Base.domain left.image baseMap t) (differential.apply w));
 \import Blocks.On[U := left.image, V := Open.whole] \as TargetProduct;
 \definition expansion: \parent.\parent.InChart[chart := left].point (target z) = include b (TargetFiber.encode (differential.apply w)) :=
-  congr2!{{Open.Carrier left.image} Vector Point} (\parent.\parent.InChart[chart := left].assemble)
+  congr!{{Open.Carrier left.image} Vector Point} (\parent.\parent.InChart[chart := left].assemble)
     (TargetProduct.leftPoint (target z)) (Base.apply t) (Blocks.right (target z)) (differential.apply w) targetLeft targetRight;
 \definition agrees: \parent.\parent.InChart[chart := left].point (target z) = \parent.\parent.InChart[chart := right].point (source z) :=
-  trans!{Point} _ _ _ expansion (trans!{Point} _ _ _
-    (congr!{{Tangent.Vector b} Point} (include b) _ _ vectorEquality) (includeTransport a b same v));
+  eq_reason_in!{Point _
+    "=" _ "by" expansion
+    "=" _ "by" { congr!{{Tangent.Vector b} Point} (include b) _ _ vectorEquality }
+    "=" _ "by" { includeTransport a b same v }
+  };

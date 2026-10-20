@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition degree: I.Int^ := I.Int^::ofNat n;
 \definition upper: I.Int^ := I.Int^::ofNat (N.Nat^::succ n);
 \import \parent.At[z := degree] \as LowerAction;
@@ -42,13 +43,13 @@
 \import Modules.Hom[V := IntersectionH.Closed, W := IntersectionH.Cohomology, source := IntersectionH.cycleSpace, target := IntersectionH.cohomologySpace] \as IntersectionClasses;
 \definition signedOnClass: \forall (h: IntersectionH.Closed) ->
   (IntersectionPull.induced SignedPull.map).apply (IntersectionH.classOf h) = (IntersectionH.cohomologySpace).neg ((IntersectionPull.induced reflectionPull).apply (IntersectionH.classOf h)) :=
-  \fun (h: IntersectionH.Closed) => trans!{IntersectionH.Cohomology} _ _ _ (IntersectionPull.onClass SignedPull.map h)
-    (trans!{IntersectionH.Cohomology} _ _ _
-      (congr!{IntersectionH.Closed IntersectionH.Cohomology} IntersectionH.classOf _ _ (signedCycle h))
-      (trans!{IntersectionH.Cohomology} _ _ _
-        (IntersectionClasses.negativePreserved IntersectionH.classLinear ((IntersectionPull.cyclesMap reflectionPull).apply h))
-        (congr!{IntersectionH.Cohomology IntersectionH.Cohomology} ((IntersectionH.cohomologySpace).neg) _ _
-          (sym!{IntersectionH.Cohomology} _ _ (IntersectionPull.onClass reflectionPull h)))));
+  \fun (h: IntersectionH.Closed) => eq_reason_in!{IntersectionH.Cohomology _
+    "=" _ "by" { IntersectionPull.onClass SignedPull.map h }
+    "=" _ "by" { congr!{IntersectionH.Closed IntersectionH.Cohomology} IntersectionH.classOf _ _ (signedCycle h) }
+    "=" _ "by" { IntersectionClasses.negativePreserved IntersectionH.classLinear ((IntersectionPull.cyclesMap reflectionPull).apply h) }
+    "=" _ "by" { congr!{IntersectionH.Cohomology IntersectionH.Cohomology} ((IntersectionH.cohomologySpace).neg) _ _
+          (sym!{IntersectionH.Cohomology} _ _ (IntersectionPull.onClass reflectionPull h)) }
+  };
 \definition signedAction: \forall (q: IntersectionH.Cohomology) -> (IntersectionPull.induced SignedPull.map).apply q = (IntersectionH.cohomologySpace).neg q :=
   IntersectionH.classInduction (\fun (q: IntersectionH.Cohomology) => (IntersectionPull.induced SignedPull.map).apply q = (IntersectionH.cohomologySpace).neg q)
     (\fun (h: IntersectionH.Closed) => trans!{IntersectionH.Cohomology} _ _ _ (signedOnClass h)
@@ -59,11 +60,11 @@
 \import Modules.Hom[V := IntersectionH.Cohomology, W := SmallH.Cohomology, source := IntersectionH.cohomologySpace, target := SmallH.cohomologySpace] \as ConnectingLinear;
 \definition onConnecting: \forall (q: IntersectionH.Cohomology) ->
   (SmallAction.induced SmallPull.map).apply ((Connecting.connecting).apply q) = (SmallH.cohomologySpace).neg ((Connecting.connecting).apply q) :=
-  \fun (q: IntersectionH.Cohomology) => trans!{SmallH.Cohomology} _ _ _
-    (sym!{SmallH.Cohomology} _ _ (Sequence.At[z := degree].connectingNaturality q))
-    (trans!{SmallH.Cohomology} _ _ _
-      (congr!{IntersectionH.Cohomology SmallH.Cohomology} ((Connecting.connecting).apply) _ _ (signedAction q))
-      (ConnectingLinear.negativePreserved Connecting.connecting q));
+  \fun (q: IntersectionH.Cohomology) => eq_reason_in!{SmallH.Cohomology _
+    "=" _ "by" { sym!{SmallH.Cohomology} _ _ (Sequence.At[z := degree].connectingNaturality q) }
+    "=" _ "by" { congr!{IntersectionH.Cohomology SmallH.Cohomology} ((Connecting.connecting).apply) _ _ (signedAction q) }
+    "=" _ "by" { ConnectingLinear.negativePreserved Connecting.connecting q }
+  };
 \import \root.Hemispheres[n := n].With[coefficients := coefficients].Vanishing[] \as Vanishing;
 \import std.Logic[].Proposition[] \as Logic;
 \definition connectingOnto: \forall (q: SmallH.Cohomology) -> \exists ( p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q ) :=
@@ -73,9 +74,10 @@
   \fun (q: SmallH.Cohomology) \then
   \takefrom p: \Cast[IntersectionH.Cohomology] ({ p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q }) \by connectingOnto q \then
   \let equal: (Connecting.connecting).apply p = q := \bysub(IntersectionH.Cohomology, { p: IntersectionH.Cohomology \where (Connecting.connecting).apply p = q }, p) \then
-  \return trans!{SmallH.Cohomology} _ _ _
-    (sym!{SmallH.Cohomology} _ _ (congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallAction.induced SmallPull.map).apply) _ _ equal))
-    (trans!{SmallH.Cohomology} _ _ _ (onConnecting p)
-      (congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallH.cohomologySpace).neg) _ _ equal))
+  \return eq_reason_in!{SmallH.Cohomology _
+    "=" _ "by" { sym!{SmallH.Cohomology} _ _ (congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallAction.induced SmallPull.map).apply) _ _ equal) }
+    "=" _ "by" { onConnecting p }
+    "=" _ "by" { congr!{SmallH.Cohomology SmallH.Cohomology} ((SmallH.cohomologySpace).neg) _ _ equal }
+  }
 };
 \module Whole;

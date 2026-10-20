@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.DegreeZero[] \as DegreeZero;
 \import \parent.DegreeOne[] \as DegreeOne;
 \import \parent.DegreeTwo[] \as DegreeTwo;
@@ -8,20 +9,26 @@
 \definition differenceZero[a: A.Carrier]: Group.difference a Values.zero = a :=
   trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Values.add a) _ _ Group.negZero) (Group.zeroRight a);
 \definition triangleSum[a, b, c: A.Carrier]: Group.difference a (Group.difference b (Group.difference c Values.zero)) = Values.add (Group.difference a b) c :=
-  trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference a (Group.difference b x)) _ _ (differenceZero c))
-    (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (Values.add a) _ _ (Group.negAdd b (Values.neg c)))
-      (trans!{A.Carrier} _ _ _ (congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Values.add a (Values.add (Values.neg b) x)) _ _ (Group.negNeg c))
-        (sym!{A.Carrier} _ _ (Group.assoc a (Values.neg b) c))));
+  eq_reason_in!{A.Carrier _
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Group.difference a (Group.difference b x)) _ _ (differenceZero c) }
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (Values.add a) _ _ (Group.negAdd b (Values.neg c)) }
+    "=" _ "by" { congr!{A.Carrier A.Carrier} (\fun (x: A.Carrier) => Values.add a (Values.add (Values.neg b) x)) _ _ (Group.negNeg c) }
+    "=" _ "by" { sym!{A.Carrier} _ _ (Group.assoc a (Values.neg b) c) }
+  };
 \definition zeroth[phi: Native.Carrier N.Nat^::zero]: DegreeOne.evaluate (Native.apply N.Nat^::zero phi) = Matrix.deltaZero (DegreeZero.evaluate phi) :=
   \axiom:funext(DegreeOne.evaluate (Native.apply N.Nat^::zero phi), Matrix.deltaZero (DegreeZero.evaluate phi), \fun (e: E) =>
-    trans!{A.Carrier} _ _ _ (congr!{{Chains.Carrier N.Nat^::zero} A.Carrier} ((phi).apply) _ _ (Chains.Boundary[n := N.Nat^::zero].onGenerator (edge e)))
-      (trans!{A.Carrier} _ _ _ (ZeroSum.law phi two (\fun (i: Fin.Fin two) => Chains.generator N.Nat^::zero (face N.Nat^::zero i (edge e))))
-        (congr!{A.Carrier A.Carrier} (Group.difference (DegreeZero.evaluate phi (surface.target e))) _ _ (differenceZero (DegreeZero.evaluate phi (surface.source e))))));
+    eq_reason_in!{A.Carrier _
+      "=" _ "by" { congr!{{Chains.Carrier N.Nat^::zero} A.Carrier} ((phi).apply) _ _ (Chains.Boundary[n := N.Nat^::zero].onGenerator (edge e)) }
+      "=" _ "by" { ZeroSum.law phi two (\fun (i: Fin.Fin two) => Chains.generator N.Nat^::zero (face N.Nat^::zero i (edge e))) }
+      "=" _ "by" { congr!{A.Carrier A.Carrier} (Group.difference (DegreeZero.evaluate phi (surface.target e))) _ _ (differenceZero (DegreeZero.evaluate phi (surface.source e))) }
+    });
 \definition first[phi: Native.Carrier one]: DegreeTwo.evaluate (Native.apply one phi) = Matrix.deltaOne (DegreeOne.evaluate phi) :=
   \axiom:funext(DegreeTwo.evaluate (Native.apply one phi), Matrix.deltaOne (DegreeOne.evaluate phi), \fun (t: T) =>
-    trans!{A.Carrier} _ _ _ (congr!{{Chains.Carrier one} A.Carrier} ((phi).apply) _ _ (Chains.Boundary[n := one].onGenerator (triangle t)))
-      (trans!{A.Carrier} _ _ _ (OneSum.law phi (N.Nat^::succ two) (\fun (i: Fin.Fin (N.Nat^::succ two)) => Chains.generator one (face one i (triangle t))))
-        (triangleSum (DegreeOne.evaluate phi (surface.back t)) (DegreeOne.evaluate phi (surface.diagonal t)) (DegreeOne.evaluate phi (surface.front t)))));
+    eq_reason_in!{A.Carrier _
+      "=" _ "by" { congr!{{Chains.Carrier one} A.Carrier} ((phi).apply) _ _ (Chains.Boundary[n := one].onGenerator (triangle t)) }
+      "=" _ "by" { OneSum.law phi (N.Nat^::succ two) (\fun (i: Fin.Fin (N.Nat^::succ two)) => Chains.generator one (face one i (triangle t))) }
+      "=" _ "by" { triangleSum (DegreeOne.evaluate phi (surface.back t)) (DegreeOne.evaluate phi (surface.diagonal t)) (DegreeOne.evaluate phi (surface.front t)) }
+    });
 \definition inverseZeroth[f: DegreeZero.FunctionCarrier]: Native.apply N.Nat^::zero (DegreeZero.extend f) = DegreeOne.extend (Matrix.deltaZero f) :=
   trans!{{Native.Carrier one}} _ _ _ (sym!{{Native.Carrier one}} _ _ (DegreeOne.leftInverse (Native.apply N.Nat^::zero (DegreeZero.extend f))))
     (congr!{DegreeOne.FunctionCarrier {Native.Carrier one}} DegreeOne.extend _ _

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import std.Data[].FinSet[] \as Fin;
 \import std.Data[].List[] \as Lists;
@@ -48,16 +49,25 @@
       (\fun (j: Fin.Fin (N.Nat^::succ (Lists.length A tail))) => FromList.tuple (Lists.List[A]::cons head tail) (Fin.zero (Lists.length A tail)) = FromList.tuple (Lists.List[A]::cons head tail) j -> Fin.zero (Lists.length A tail) = j)
       (\fun (same: _) => \refl(Fin.zero (Lists.length A tail)))
       (\fun (j: Fin.Fin (Lists.length A tail))(same: _) => Logic.falseElim _ (freshValue head tail fresh j
-        (trans!{A} _ _ _ (sym!{A} _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)))
-          (trans!{A} _ _ _ same (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) j))))))
+        (eq_reason_in!{A _
+          "=" _ "by" { sym!{A} _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)) }
+          "=" _ "by" same
+          "=" _ "by" { Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) j }
+        }))))
     (\fun (i: Fin.Fin (Lists.length A tail)) => Fin.cases (Lists.length A tail)
       (\fun (j: Fin.Fin (N.Nat^::succ (Lists.length A tail))) => FromList.tuple (Lists.List[A]::cons head tail) (Fin.succ (Lists.length A tail) i) = FromList.tuple (Lists.List[A]::cons head tail) j -> Fin.succ (Lists.length A tail) i = j)
       (\fun (same: _) => Logic.falseElim _ (freshValue head tail fresh i
-        (trans!{A} _ _ _ (sym!{A} _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)))
-          (trans!{A} _ _ _ (sym!{A} _ _ same) (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) i)))))
+        (eq_reason_in!{A _
+          "=" _ "by" { sym!{A} _ _ (Tuples.atZero (Lists.length A tail) head (FromList.tuple tail)) }
+          "=" _ "by" { sym!{A} _ _ same }
+          "=" _ "by" { Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) i }
+        })))
       (\fun (j: Fin.Fin (Lists.length A tail))(same: _) => congr!{{Fin.Fin (Lists.length A tail)} {Fin.Fin (N.Nat^::succ (Lists.length A tail))}} (Fin.succ (Lists.length A tail)) _ _
-        (previous i j (trans!{A} _ _ _ (sym!{A} _ _ (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) i))
-          (trans!{A} _ _ _ same (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) j))))));
+        (previous i j (eq_reason_in!{A _
+          "=" _ "by" { sym!{A} _ _ (Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) i) }
+          "=" _ "by" same
+          "=" _ "by" { Tuples.atSuccessor (Lists.length A tail) head (FromList.tuple tail) j }
+        }))));
 \definition injective: \forall (xs: Lists.List[A]) -> Distinct.Distinct xs -> Injective xs :=
   \fun (xs: Lists.List[A])(distinct: Distinct.Distinct xs) => distinct Injective
     (\fun (i, j: Fin.Fin N.Nat^::zero)(same: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))) consInjective;

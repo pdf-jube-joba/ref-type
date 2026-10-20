@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.FinitelySupported[Index := Index, family := family] \as Supported;
 \import \parent.\parent.Product[Index := Index, family := family] \as Product;
 \import \parent.To[W := Supported.Carrier, target := Supported.space] \as Universal;
@@ -164,40 +165,39 @@
   };
 \definition normalAddition: \forall (e, f: Expressions.Expression) -> Normal e -> Normal f -> Normal (Expressions.Expression::sum e f) :=
   \fun (e, f: Expressions.Expression)(left: Normal e)(right: Normal f)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
-    trans!{Carrier}
-      _ _ _
-      (congr!{Product.Carrier Carrier} (combination xs) _ _
+    eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{Product.Carrier Carrier} (combination xs) _ _
         (trans!{Product.Carrier} _ _ _
           (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.addClass e f)))
-          (coordinatesAddition (Presented.class e) (Presented.class f))))
-      (trans!{Carrier} _ _ _ (combinationAddition xs (coordinates (Presented.class e)) (coordinates (Presented.class f)))
-        (trans!{Carrier} _ _ _
-          (congr2!{Carrier Carrier Carrier} (space.add) _ _ _ _
+          (coordinatesAddition (Presented.class e) (Presented.class f))) }
+      "=" _ "by" { combinationAddition xs (coordinates (Presented.class e)) (coordinates (Presented.class f)) }
+      "=" _ "by" { congr!{Carrier Carrier Carrier} (space.add) _ _ _ _
             (left xs distinct (\fun (i: Index)(member: _) => included i (Membership.left (labels e) (labels f) i member)))
-            (right xs distinct (\fun (i: Index)(member: _) => included i (Membership.right (labels e) (labels f) i member))))
-          (Presented.addClass e f)));
+            (right xs distinct (\fun (i: Index)(member: _) => included i (Membership.right (labels e) (labels f) i member))) }
+      "=" _ "by" { Presented.addClass e f }
+    };
 \definition normalNegative: \forall (e: Expressions.Expression) -> Normal e -> Normal (Expressions.Expression::negative e) :=
   \fun (e: Expressions.Expression)(before: Normal e)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
-    trans!{Carrier}
-      _ _ _
-      (congr!{Product.Carrier Carrier} (combination xs) _ _
+    eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{Product.Carrier Carrier} (combination xs) _ _
         (trans!{Product.Carrier} _ _ _
           (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.negClass e)))
-          (coordinatesNegative (Presented.class e))))
-      (trans!{Carrier} _ _ _ (combinationNegative xs (coordinates (Presented.class e)))
-        (trans!{Carrier} _ _ _
-          (congr!{Carrier Carrier} (space.neg) _ _ (before xs distinct included)) (Presented.negClass e)));
+          (coordinatesNegative (Presented.class e))) }
+      "=" _ "by" { combinationNegative xs (coordinates (Presented.class e)) }
+      "=" _ "by" { congr!{Carrier Carrier} (space.neg) _ _ (before xs distinct included) }
+      "=" _ "by" { Presented.negClass e }
+    };
 \definition normalScalar: \forall (a: R)(e: Expressions.Expression) -> Normal e -> Normal (Expressions.Expression::scale a e) :=
   \fun (a: R)(e: Expressions.Expression)(before: Normal e)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
-    trans!{Carrier}
-      _ _ _
-      (congr!{Product.Carrier Carrier} (combination xs) _ _
+    eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{Product.Carrier Carrier} (combination xs) _ _
         (trans!{Product.Carrier} _ _ _
           (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.scaleClass a e)))
-          (coordinatesScalar a (Presented.class e))))
-      (trans!{Carrier} _ _ _ (combinationScalar xs a (coordinates (Presented.class e)))
-        (trans!{Carrier} _ _ _
-          (congr!{Carrier Carrier} (space.smul a) _ _ (before xs distinct included)) (Presented.scaleClass a e)));
+          (coordinatesScalar a (Presented.class e))) }
+      "=" _ "by" { combinationScalar xs a (coordinates (Presented.class e)) }
+      "=" _ "by" { congr!{Carrier Carrier} (space.smul a) _ _ (before xs distinct included) }
+      "=" _ "by" { Presented.scaleClass a e }
+    };
 \definition normal: \forall (e: Expressions.Expression) -> Normal e :=
   \induction (e: Expressions.Expression) \return Normal e \with {
     | zero: normalZero
@@ -216,11 +216,11 @@
       \let law: Covers.Laws[original, xs] := \bysub(Lists.List[Index], { ys: Lists.List[Index] \where Covers.Laws[original, ys] }, xs) \then
       \let left: Included (labels e) xs := \fun (i: Index)(member: _) => law.toSelected i (Membership.left (labels e) (labels f) i member) \then
       \let right: Included (labels f) xs := \fun (i: Index)(member: _) => law.toSelected i (Membership.right (labels e) (labels f) i member) \then
-      \return trans!{Carrier} (Presented.class e) (combination xs (coordinates (Presented.class e))) (Presented.class f)
-        (sym!{Carrier} (combination xs (coordinates (Presented.class e))) (Presented.class e) (normal e xs law.distinct left))
-        (trans!{Carrier} _ _ _
-          (congr!{Product.Carrier Carrier} (combination xs) (coordinates (Presented.class e)) (coordinates (Presented.class f)) same)
-          (normal f xs law.distinct right))
+      \return eq_reason_in!{Carrier { Presented.class e }
+        "=" { combination xs (coordinates (Presented.class e)) } "by" { sym!{Carrier} (combination xs (coordinates (Presented.class e))) (Presented.class e) (normal e xs law.distinct left) }
+        "=" _ "by" { congr!{Product.Carrier Carrier} (combination xs) (coordinates (Presented.class e)) (coordinates (Presented.class f)) same }
+        "=" _ "by" { normal f xs law.distinct right }
+      }
     });
 \import \parent.\parent.Isomorphism[V := Carrier, W := Supported.Carrier, source := space, target := Supported.space].OfBijective[f := forward] \as Inverse;
 \definition isomorphism: \parent.\parent.Isomorphism[V := Carrier, W := Supported.Carrier, source := space, target := Supported.space].Isomorphism :=

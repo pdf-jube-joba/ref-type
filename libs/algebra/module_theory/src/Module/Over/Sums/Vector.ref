@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Laws[V := V, space := space] \as Values;
 \definition sum[xs: Lists.List[I]][f: I -> V]: V :=
   Lists.foldr I V (\fun (i: I)(tail: V) => Values.add (f i) tail) Values.zero xs;
@@ -5,7 +6,7 @@
   \induction (xs: Lists.List[I]) \return \forall (f, g: I -> V) -> (\forall (i: I) -> f i = g i) -> sum xs f = sum xs g \with {
     | nil: \fun (f, g: I -> V)(same: \forall (i: I) -> f i = g i) => \refl(Values.zero)
     | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (f, g: I -> V) -> (\forall (i: I) -> f i = g i) -> sum tail f = sum tail g)
-      (f, g: I -> V)(same: \forall (i: I) -> f i = g i) => congr2!{V V V} Values.add (f head) (g head) (sum tail f) (sum tail g) (same head) (previous f g same)
+      (f, g: I -> V)(same: \forall (i: I) -> f i = g i) => congr!{V V V} Values.add (f head) (g head) (sum tail f) (sum tail g) (same head) (previous f g same)
   };
 \definition zero: \forall (xs: Lists.List[I]) -> sum xs (\fun (i: I) => Values.zero) = Values.zero :=
   \induction (xs: Lists.List[I]) \return sum xs (\fun (i: I) => Values.zero) = Values.zero \with {
@@ -52,10 +53,12 @@
     };
 }
 \definition negative: \forall (xs: Lists.List[I])(f: I -> V) -> sum xs (\fun (i: I) => Values.neg (f i)) = Values.neg (sum xs f) :=
-  \fun (xs: Lists.List[I])(f: I -> V) => trans!{V} _ _ _
-    (congruent xs (\fun (i: I) => Values.neg (f i)) (\fun (i: I) => Values.scale (neg one) (f i))
-      (\fun (i: I) => sym!{V} _ _ (Values.negativeOne (f i))))
-    (trans!{V} _ _ _ (scalar xs (neg one) f) (Values.negativeOne (sum xs f)));
+  \fun (xs: Lists.List[I])(f: I -> V) => eq_reason_in!{V _
+    "=" _ "by" { congruent xs (\fun (i: I) => Values.neg (f i)) (\fun (i: I) => Values.scale (neg one) (f i))
+      (\fun (i: I) => sym!{V} _ _ (Values.negativeOne (f i))) }
+    "=" _ "by" { scalar xs (neg one) f }
+    "=" _ "by" { Values.negativeOne (sum xs f) }
+  };
 \definition pairCancellation: \forall (xs: Lists.List[I])(f: I -> I -> V) ->
   (\forall (i: I) -> f i i = Values.zero) -> (\forall (i, j: I) -> f i j = Values.neg (f j i)) ->
   sum xs (\fun (i: I) => sum xs (f i)) = Values.zero :=
@@ -74,10 +77,10 @@
         \return eq_reason!{
           {Values.add (Values.add (f head head) row) (sum tail (\fun (i: I) => Values.add (f i head) (sum tail (f i))))}
           "=" {Values.add (Values.add Values.zero row) (Values.add column grid)} "by" {
-            congr2!{V V V} Values.add _ _ _ _
+            congr!{V V V} Values.add _ _ _ _
               (congr!{V V} (\fun (v: V) => Values.add v row) _ _ (diagonal head))
               (addition tail (\fun (i: I) => f i head) (\fun (i: I) => sum tail (f i)))}
-          "=" {Values.add row column} "by" {congr2!{V V V} Values.add _ _ _ _ (Values.zeroLeft row)
+          "=" {Values.add row column} "by" {congr!{V V V} Values.add _ _ _ _ (Values.zeroLeft row)
             (trans!{V} _ _ _ (congr!{V V} (Values.add column) grid Values.zero (previous f diagonal opposite)) (Values.zeroRight column))}
           "=" {Values.add (Values.neg column) column} "by" {congr!{V V} (\fun (v: V) => Values.add v column) row (Values.neg column) rowNegative}
           "=" {Values.zero} "by" {Values.inverseLeft column}

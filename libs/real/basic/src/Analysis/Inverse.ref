@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Algebra[] \as Algebra;
 \import \parent.Estimates[] \as Estimates;
 \import Estimates.Product[] \as Bounds;
@@ -13,8 +14,11 @@
     "=" {Laws.fieldInv x} "by" {Laws.fieldMulOneLeft (Laws.fieldInv x)}
   };
 \definition negNonzero: \forall (x: Real) -> Logic.Not (x = zero) -> Logic.Not (neg x = zero) :=
-  \fun (x: _) (nonzero: _) (equal: _) => nonzero (trans!{Real} _ _ _ (sym!{Real} _ _ (Laws.negInvolutive x))
-    (trans!{Real} _ _ _ (congr!{Real Real} neg _ _ equal) Laws.negZero));
+  \fun (x: _) (nonzero: _) (equal: _) => nonzero (eq_reason_in!{Real _
+    "=" _ "by" { sym!{Real} _ _ (Laws.negInvolutive x) }
+    "=" _ "by" { congr!{Real Real} neg _ _ equal }
+    "=" _ "by" Laws.negZero
+  });
 \definition inverseNeg: \forall (x: Real) -> Logic.Not (x = zero) -> Laws.fieldInv (neg x) = neg (Laws.fieldInv x) :=
   \fun (x: _) (nonzero: _) => sym!{Real} _ _ (inverseUnique (neg x) (neg (Laws.fieldInv x)) (negNonzero x nonzero)
     (trans!{Real} _ _ _ (Laws.fieldMulNegBoth (Laws.fieldInv x) x) (Laws.fieldInverseNonzero x nonzero)));
@@ -32,8 +36,11 @@
         (Estimates.mulMonotone (Laws.fieldInv b) a b (Order.leOfLt _ _ (Bounds.invPositive b bp)) ab)));
 \definition inverseProduct: \forall (x, y: Real) -> Logic.Not (y = zero) ->
   mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) y = Laws.fieldInv x :=
-  \fun (x, y: _) (nonzero: _) => trans!{Real} _ _ _ (Laws.fieldMulAssoc (Laws.fieldInv x) (Laws.fieldInv y) y)
-    (trans!{Real} _ _ _ (congr!{Real Real} (mul (Laws.fieldInv x)) _ _ (Laws.fieldInverseNonzero y nonzero)) (Algebra.mulOneRight (Laws.fieldInv x)));
+  \fun (x, y: _) (nonzero: _) => eq_reason_in!{Real _
+    "=" _ "by" { Laws.fieldMulAssoc (Laws.fieldInv x) (Laws.fieldInv y) y }
+    "=" _ "by" { congr!{Real Real} (mul (Laws.fieldInv x)) _ _ (Laws.fieldInverseNonzero y nonzero) }
+    "=" _ "by" { Algebra.mulOneRight (Laws.fieldInv x) }
+  };
 \definition distanceInversePositive: \forall (x, y: Real) -> R.Lt zero x -> R.Lt zero y ->
   R.Le (distance (Laws.fieldInv x) (Laws.fieldInv y)) (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (distance x y)) :=
   \fun (x, y: _) (xp: _) (yp: _) => R.leReplace
@@ -41,7 +48,7 @@
     (distance (Laws.fieldInv x) (Laws.fieldInv y))
     (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (distance y x))
     (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (distance x y))
-    (congr2!{Real Real Real} distance _ _ _ _ (inverseProduct x y (positiveNonzero y yp))
+    (congr!{Real Real Real} distance _ _ _ _ (inverseProduct x y (positiveNonzero y yp))
       (trans!{Real} _ _ _ (congr!{Real Real} (\fun (t: Real) => mul t x) _ _ (Laws.fieldMulComm (Laws.fieldInv x) (Laws.fieldInv y)))
         (inverseProduct y x (positiveNonzero x xp))))
     (congr!{Real Real} (mul (mul (Laws.fieldInv x) (Laws.fieldInv y))) _ _ (Metric.distanceSymmetric y x))
@@ -90,7 +97,7 @@
   R.Lt zero r -> R.Lt (distance x y) (radius (neg x) r) -> R.Lt (distance (Laws.fieldInv x) (Laws.fieldInv y)) r :=
   \fun (x, y, r: _) (negative: _) (xn: _) (yn: _) (rp: _) (near: _) =>
     R.ltReplaceLeft (distance (Laws.fieldInv (neg x)) (Laws.fieldInv (neg y))) (distance (Laws.fieldInv x) (Laws.fieldInv y)) r
-      (trans!{Real} _ _ _ (congr2!{Real Real Real} distance _ _ _ _ (inverseNeg x xn) (inverseNeg y yn))
+      (trans!{Real} _ _ _ (congr!{Real Real Real} distance _ _ _ _ (inverseNeg x xn) (inverseNeg y yn))
         (Bounds.distanceNeg (Laws.fieldInv x) (Laws.fieldInv y)))
       (inverseNear (neg x) (neg y) r
         (Order.ltOfLeNotEq zero (neg x) (Laws.nonnegativeNegOfNegative x negative)
@@ -100,7 +107,7 @@
   sub (Laws.fieldInv x) (Laws.fieldInv y) = mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (sub y x) :=
   \fun (x, y: Real)(xn: _)(yn: _) => sym!{Real} _ _ (trans!{Real} _ _ _
     (Algebra.mulSub (mul (Laws.fieldInv x) (Laws.fieldInv y)) y x)
-    (congr2!{Real Real Real} sub _ _ _ _ (inverseProduct x y yn)
+    (congr!{Real Real Real} sub _ _ _ _ (inverseProduct x y yn)
       (trans!{Real} _ _ _ (congr!{Real Real} (\fun (c: Real) => mul c x) _ _ (Laws.fieldMulComm (Laws.fieldInv x) (Laws.fieldInv y)))
         (inverseProduct y x xn))));
 \structure ContinuityRadius[x, epsilon, radius: Real]: \Prop := {

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Pairing[p := p, q := q] \as Pairing;
 \import Tensor.At[p := p, q := q] \as Differential;
 \import IntegerModules.Hom[V := Term.Carrier, W := R, source := Term.space, target := integerCoefficients.space] \as Linear;
@@ -9,18 +10,17 @@
 \import IntegerModules.Hom[V := R, W := R, source := integerCoefficients.space, target := integerCoefficients.space] \as CoefficientLinear;
 \import Coordinates.Degree[n := N.Nat^::succ n] \as NextCoordinates;
 \definition law[alpha: Carrier p][beta: Carrier q][leftClosed: Theory.coboundary p alpha = (space (N.Nat^::succ p)).zero][rightClosed: Theory.coboundary q beta = (space (N.Nat^::succ q)).zero][x: Total.Carrier (N.Nat^::succ n)]: (total alpha beta).apply ((Total.differential).apply n x) = (integerCoefficients.space).zero :=
-  trans!{R} _ _ _
-    (congr!{Term.Carrier R} ((map alpha beta).apply) _ _ (Position.differential x))
-    (trans!{R} _ _ _
-      ((map alpha beta).addition
+  eq_reason_in!{R _
+    "=" _ "by" { congr!{Term.Carrier R} ((map alpha beta).apply) _ _ (Position.differential x) }
+    "=" _ "by" { (map alpha beta).addition
         ((Differential.horizontal).apply (NextCoordinates.coordinate Position.horizontalIndex x))
-        ((Double.Sign[V := Term.Carrier, space := Term.space].map p).apply ((Differential.vertical).apply (NextCoordinates.coordinate Position.verticalIndex x))))
-      (trans!{R} _ _ _
-        (congr2!{R R R} ((integerCoefficients.space).add) _ _ _ _
+        ((Double.Sign[V := Term.Carrier, space := Term.space].map p).apply ((Differential.vertical).apply (NextCoordinates.coordinate Position.verticalIndex x))) }
+    "=" _ "by" { congr!{R R R} ((integerCoefficients.space).add) _ _ _ _
           (Horizontal[alpha := alpha, beta := beta].law leftClosed (NextCoordinates.coordinate Position.horizontalIndex x))
-          (trans!{R} _ _ _
-            (SignMapping.naturality (map alpha beta) p ((Differential.vertical).apply (NextCoordinates.coordinate Position.verticalIndex x)))
-            (trans!{R} _ _ _
-              (congr!{R R} ((Sign.map p).apply) _ _ (Vertical[alpha := alpha, beta := beta].law rightClosed (NextCoordinates.coordinate Position.verticalIndex x)))
-              (CoefficientLinear.zeroPreserved (Sign.map p)))))
-        (Scalars.zeroLeft (integerCoefficients.space).zero)));
+          (eq_reason_in!{R _
+            "=" _ "by" { SignMapping.naturality (map alpha beta) p ((Differential.vertical).apply (NextCoordinates.coordinate Position.verticalIndex x)) }
+            "=" _ "by" { congr!{R R} ((Sign.map p).apply) _ _ (Vertical[alpha := alpha, beta := beta].law rightClosed (NextCoordinates.coordinate Position.verticalIndex x)) }
+            "=" _ "by" { CoefficientLinear.zeroPreserved (Sign.map p) }
+          }) }
+    "=" _ "by" { Scalars.zeroLeft (integerCoefficients.space).zero }
+  };

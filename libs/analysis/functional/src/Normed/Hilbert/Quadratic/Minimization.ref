@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import R.Completeness[] \as Complete;
 \import std.Data[].Nat[].Basic[].Prop[] \as Nat;
 \import \root.ScalarLimits[] \as Limits;
@@ -40,11 +41,11 @@
   \fun (a, b: Real.Real) (ab: R.Le a b) => Estimates.addLe _ _ _ _ (Estimates.addLe _ _ _ _ ab ab) (Estimates.addLe _ _ _ _ ab ab);
 \definition quadrupleAdd: \forall (a, b: Real.Real) -> quadruple (Real.add a b) = Real.add (quadruple a) (quadruple b) :=
   \fun (a, b: Real.Real) => trans!{Real.Real} _ _ _
-    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.addFour a b a b) (Algebra.addFour a b a b))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.addFour a b a b) (Algebra.addFour a b a b))
     (Algebra.addFour (Real.add a a) (Real.add b b) (Real.add a a) (Real.add b b));
 \definition quadrupleQuarter: \forall (a: Real.Real) -> quadruple (Real.mul Real.half (Real.mul Real.half a)) = a :=
   \fun (a: Real.Real) => trans!{Real.Real} _ _ _
-    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Estimates.halfTwice (Real.mul Real.half a)) (Estimates.halfTwice (Real.mul Real.half a)))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Estimates.halfTwice (Real.mul Real.half a)) (Estimates.halfTwice (Real.mul Real.half a)))
     (Estimates.halfTwice a);
 \structure Minimum[S: \Pow V, x: V]: \Prop := {
   member: \In[V] S x,
@@ -82,9 +83,11 @@
             (Laws.addMonotoneLeft (quadruple m) (energy (space.add x y)) (energy (sub x y)) midpointBound))
           (ltReplace _ _ _ _
             (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.addComm (energy (sub x y)) (energy (space.add x y))) (parallelogram x y)))
-            (trans!{Real.Real} _ _ _ (quadrupleAdd m delta)
-              (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (quadruple m)) _ _ (quadrupleQuarter squared))
-                (Laws.addComm (quadruple m) squared)))
+            (eq_reason_in!{Real.Real _
+              "=" _ "by" { quadrupleAdd m delta }
+              "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (quadruple m)) _ _ (quadrupleQuarter squared) }
+              "=" _ "by" { Laws.addComm (quadruple m) squared }
+            })
             (Estimates.addLt _ _ _ _ (Estimates.addLt _ _ _ _ ei ej) (Estimates.addLt _ _ _ _ ei ej))) \then
       \let squareSmall: R.Lt (Real.mul d d) squared := Laws.ltAddCancelRight _ _ (quadruple m) pairUpper \then
       \return Order.byContradiction (R.Lt d epsilon) (\fun (notSmall: Logic.Not (R.Lt d epsilon)) =>

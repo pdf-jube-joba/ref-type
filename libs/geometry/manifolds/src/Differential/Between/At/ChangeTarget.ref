@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.InCharts[left := left, right := before] \as Before;
 \import \parent.InCharts[left := left, right := after] \as After;
 \import \root.SelfMap[n := m].Identity[M := N] \as Identity;
@@ -34,16 +35,15 @@
 \import Codomain.ChartIsomorphism[chart := before].Change[other := after] \as Changes;
 \definition coordinateEquality: \forall (v: Domain.Vector) ->
   Coordinates.decode (After.value.apply v) = Coordinates.decode (Before.value.apply v) :=
-    \fun (v: Domain.Vector) => trans!{{TargetVectors.Vector}}
-      _ _ _
-      (trans!{{TargetVectors.Vector}} _ _ _
-        (After.coordinateLaw v)
-        (congr!{{Jacobians.Map} {TargetVectors.Vector}}
-          (\fun (d: Jacobians.Map) => d.apply (Domain.Coordinate[chart := left].decode v)) _ _ jacobian))
-      (sym!{{TargetVectors.Vector}} _ _
+    \fun (v: Domain.Vector) => eq_reason_in!{{TargetVectors.Vector} _
+      "=" _ "by" { After.coordinateLaw v }
+      "=" _ "by" { congr!{{Jacobians.Map} {TargetVectors.Vector}}
+          (\fun (d: Jacobians.Map) => d.apply (Domain.Coordinate[chart := left].decode v)) _ _ jacobian }
+      "=" _ "by" { sym!{{TargetVectors.Vector}} _ _
         (trans!{{TargetVectors.Vector}} _ _ _
           (Changes.coordinates (Before.value.apply v))
-          (congr!{{TargetVectors.Vector} {TargetVectors.Vector}} (Codomain.transform before after) _ _ (Before.coordinateLaw v))));
+          (congr!{{TargetVectors.Vector} {TargetVectors.Vector}} (Codomain.transform before after) _ _ (Before.coordinateLaw v))) }
+    };
 \definition law: After.value = Before.value := Linear.ext After.value Before.value
   (\axiom:funext((After.value.apply), (Before.value.apply),
     \fun (v: Domain.Vector) => Coordinates.injective (After.value.apply v) (Before.value.apply v) (coordinateEquality v)));

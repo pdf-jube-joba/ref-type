@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import singular_cohomology.Chains[A := A, source := source] \as Chains;
 \import singular_cohomology.Simplices[A := A, source := source] \as Simplices;
 \import singular_cohomology.Zero[A := A, source := source] \as Zero;
@@ -25,17 +26,18 @@
   (Chains.differential).apply N.Nat^::zero (Chains.generator one (pathSimplex x)) =
     Group.difference (Chains.generator N.Nat^::zero (Coefficients.constant x)) pointChain :=
   \fun (x: A) => trans!{ZeroChain} _ _ _ (Edges.coboundary ZeroEnd.identity (pathSimplex x))
-    (congr2!{ZeroChain ZeroChain ZeroChain} Group.difference _ _ _ _
+    (congr!{ZeroChain ZeroChain ZeroChain} Group.difference _ _ _ _
       (congr!{A ZeroChain} (\fun (y: A) => Chains.generator N.Nat^::zero (Coefficients.constant y)) _ _ (Zero.simplexEnd point x (paths x)))
       (congr!{A ZeroChain} (\fun (y: A) => Chains.generator N.Nat^::zero (Coefficients.constant y)) _ _ (Zero.simplexStart point x (paths x))));
 \definition boundaryOnGenerator: \forall (sigma: Simplices.Carrier N.Nat^::zero) ->
   (Chains.differential).apply N.Nat^::zero ((section).apply (Chains.generator N.Nat^::zero sigma)) =
     Group.difference (Chains.generator N.Nat^::zero sigma) pointChain :=
-  \fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{ZeroChain} _ _ _
-    (congr!{OneChain ZeroChain} ((Chains.differential).apply N.Nat^::zero) _ _ (onGenerator sigma))
-    (trans!{ZeroChain} _ _ _ (boundaryOnPath (sigma Simplex.zeroPoint))
-      (congr!{ZeroChain ZeroChain} (\fun (x: ZeroChain) => Group.difference x pointChain) _ _
-        (sym!{ZeroChain} _ _ (congr!{{Simplices.Carrier N.Nat^::zero} ZeroChain} (Chains.generator N.Nat^::zero) _ _ (Coefficients.simplexConstant sigma)))));
+  \fun (sigma: Simplices.Carrier N.Nat^::zero) => eq_reason_in!{ZeroChain _
+    "=" _ "by" { congr!{OneChain ZeroChain} ((Chains.differential).apply N.Nat^::zero) _ _ (onGenerator sigma) }
+    "=" _ "by" { boundaryOnPath (sigma Simplex.zeroPoint) }
+    "=" _ "by" { congr!{ZeroChain ZeroChain} (\fun (x: ZeroChain) => Group.difference x pointChain) _ _
+        (sym!{ZeroChain} _ _ (congr!{{Simplices.Carrier N.Nat^::zero} ZeroChain} (Chains.generator N.Nat^::zero) _ _ (Coefficients.simplexConstant sigma))) }
+  };
 \import Native.Homotopy[C := Chains.complex, D := Chains.complex] \as Homotopies;
 \module Degree(n: N.Nat^) {
   \import Modules.Hom[V := Chains.Carrier (N.Nat^::succ n), W := Chains.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := Chains.space (N.Nat^::succ n), target := Chains.space (N.Nat^::succ (N.Nat^::succ n))] \as Maps;
@@ -86,10 +88,11 @@
   \fun (x: ZeroChain) => congr!{{Modules.Hom[V := ZeroChain, W := ZeroChain, source := zeroSpace, target := zeroSpace].Map} ZeroChain}
     (\fun (f: Modules.Hom[V := ZeroChain, W := ZeroChain, source := zeroSpace, target := zeroSpace].Map) => (f).apply x) _ _ zeroEquation;
 \definition oneClosed: \forall (x: OneChain) -> (Chains.differential).apply N.Nat^::zero ((map).apply one x) = (zeroSpace).zero :=
-  \fun (x: OneChain) => trans!{ZeroChain} _ _ _ ((map).commutes N.Nat^::zero x)
-    (trans!{ZeroChain} _ _ _ (zeroValue ((Chains.differential).apply N.Nat^::zero x))
-      (trans!{ZeroChain} _ _ _
-        (congr!{I.Int^ ZeroChain} (\fun (a: I.Int^) => (zeroSpace).smul a pointChain) _ _ (Augmentation.killsBoundary x))
-        (ZeroLaws.zeroScale pointChain)));
+  \fun (x: OneChain) => eq_reason_in!{ZeroChain _
+    "=" _ "by" { (map).commutes N.Nat^::zero x }
+    "=" _ "by" { zeroValue ((Chains.differential).apply N.Nat^::zero x) }
+    "=" _ "by" { congr!{I.Int^ ZeroChain} (\fun (a: I.Int^) => (zeroSpace).smul a pointChain) _ _ (Augmentation.killsBoundary x) }
+    "=" _ "by" { ZeroLaws.zeroScale pointChain }
+  };
 \import Native.Homotopy[C := Chains.complex, D := Chains.complex].Reverse[] \as Reverse;
 \definition reverseHomotopy: Homotopies.Homotopy map End.identity := Reverse.homotopy End.identity map homotopy;

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition U: \Set := targetFamily.Carrier i;
 \definition targetSpace: Space U := targetFamily.space i;
 \import \parent.\parent.\parent.\parent.Hom[V := Source.Carrier, W := U, source := Source.space, target := targetSpace] \as Maps;
@@ -8,17 +9,19 @@
 \definition rhs: Maps.Map := AfterCoordinate.compose (f i) SourceCoordinates.At[i := i].evaluate;
 \definition Property[j: Index]: \Prop := \forall (x: family.Carrier j) ->
   (lhs).apply ((Source.Injection[i := j].map).apply x) = (rhs).apply ((Source.Injection[i := j].map).apply x);
-\definition own: Property i := \fun (x: family.Carrier i) => trans!{U} _ _ _
-  (congr!{Target.Carrier U} (targetCoordinate i) _ _ (onInjection f i x))
-  (trans!{U} _ _ _ (TargetCoordinates.atOwn i ((f i).apply x))
-    (sym!{U} _ _ (congr!{{family.Carrier i} U} ((f i).apply) _ _ (SourceCoordinates.atOwn i x))));
+\definition own: Property i := \fun (x: family.Carrier i) => eq_reason_in!{U _
+  "=" _ "by" { congr!{Target.Carrier U} (targetCoordinate i) _ _ (onInjection f i x) }
+  "=" _ "by" { TargetCoordinates.atOwn i ((f i).apply x) }
+  "=" _ "by" { sym!{U} _ _ (congr!{{family.Carrier i} U} ((f i).apply) _ _ (SourceCoordinates.atOwn i x)) }
+};
 \definition other: \forall (j: Index) -> Logic.Not (j = i) -> Property j :=
-  \fun (j: Index)(different: Logic.Not (j = i))(x: family.Carrier j) => trans!{U} _ _ _
-    (trans!{U} _ _ _ (congr!{Target.Carrier U} (targetCoordinate i) _ _ (onInjection f j x))
-      (TargetCoordinates.atOther j i ((f j).apply x) different))
-    (sym!{U} _ _ (trans!{U} _ _ _
+  \fun (j: Index)(different: Logic.Not (j = i))(x: family.Carrier j) => eq_reason_in!{U _
+    "=" _ "by" { congr!{Target.Carrier U} (targetCoordinate i) _ _ (onInjection f j x) }
+    "=" _ "by" { TargetCoordinates.atOther j i ((f j).apply x) different }
+    "=" _ "by" { sym!{U} _ _ (trans!{U} _ _ _
       (congr!{{family.Carrier i} U} ((f i).apply) _ _ (SourceCoordinates.atOther j i x different))
-      (ComponentMaps.zeroPreserved (f i))));
+      (ComponentMaps.zeroPreserved (f i))) }
+  };
 \definition onGenerators: \forall (j: Index) -> Property j := \fun (j: Index) => Logic.orElim (j = i) (Logic.Not (j = i)) (Property j) (Classical.excludedMiddle (j = i))
   (\fun (same: j = i) => \idelim i = j \with k: Index => Property k \by { base: own, equality: sym!{{Index}} _ _ same })
   (other j);

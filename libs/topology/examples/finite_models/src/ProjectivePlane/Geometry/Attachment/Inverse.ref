@@ -1,15 +1,22 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import real.Analysis[] \as Real;
 \definition oppositeBoundary[x, y: Disk.Disk][boundaryX: Disk.normSquared x = Real.one][opposite: x = Boundary.negative y]:
-  Disk.normSquared y = Real.one := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Boundary.negativeNorm y))
-    (trans!{Real.Real} _ _ _ (congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (sym!{Disk.Disk} _ _ opposite)) boundaryX);
+  Disk.normSquared y = Real.one := eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Boundary.negativeNorm y) }
+    "=" _ "by" { congr!{Disk.Coordinate Real.Real} Disk.normSquared _ _ (sym!{Disk.Disk} _ _ opposite) }
+    "=" _ "by" boundaryX
+  };
 \definition identified[x, y: Disk.Disk][boundaryX: Disk.normSquared x = Real.one][opposite: x = Boundary.negative y]:
   Attached.characteristic x = Attached.characteristic y := \block {
     \let a: Circle.Sphere := \into[Disk.Coordinate](x, Disk.Boundary) \by { boundaryX } \then
     \let b: Circle.Sphere := \into[Disk.Coordinate](y, Disk.Boundary) \by { oppositeBoundary x y boundaryX opposite } \then
     \let sameCircle: Circle.class a = Circle.class b := topological_constructions.RelationQuotient[A := Circle.Sphere, relation := Circle.Equivalent].relatedEqual Circle.laws a b
       (Logic.Or[a = b, a = CircleAntipodal.apply b]::right opposite) \then
-    \return trans!{Point} _ _ _ (sym!{Point} _ _ (Attached.attached a))
-      (trans!{Point} _ _ _ (congr!{Circle.Carrier Point} Attached.inclusion _ _ sameCircle) (Attached.attached b))
+    \return eq_reason_in!{Point _
+      "=" _ "by" { sym!{Point} _ _ (Attached.attached a) }
+      "=" _ "by" { congr!{Circle.Carrier Point} Attached.inclusion _ _ sameCircle }
+      "=" _ "by" { Attached.attached b }
+    }
 };
 \definition respects[x, y: Disk.Disk][related: DiskQuotient.Equivalent x y]: Attached.characteristic x = Attached.characteristic y :=
   Logic.orElim (x = y) (Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y]) (Attached.characteristic x = Attached.characteristic y)
@@ -27,10 +34,12 @@
 \import topological_constructions.RelationQuotient[A := Circle.Sphere, relation := Circle.Equivalent] \as CircleClasses;
 \definition onLeft: \forall (q: Circle.Carrier) -> backward (forward (Attached.inclusion q)) = Attached.inclusion q := CircleClasses.induction
   (\fun (q: Circle.Carrier) => backward (forward (Attached.inclusion q)) = Attached.inclusion q)
-  (\fun (x: Circle.Sphere) => trans!{Point} _ _ _
-    (congr!{DiskQuotient.Point Point} backward _ _
-      (trans!{DiskQuotient.Point} _ _ _ (forwardOnLeft (Circle.class x)) (onCircleClass x)))
-    (trans!{Point} _ _ _ (onDiskClass (boundary x)) (sym!{Point} _ _ (Attached.attached x))));
+  (\fun (x: Circle.Sphere) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{DiskQuotient.Point Point} backward _ _
+      (trans!{DiskQuotient.Point} _ _ _ (forwardOnLeft (Circle.class x)) (onCircleClass x)) }
+    "=" _ "by" { onDiskClass (boundary x) }
+    "=" _ "by" { sym!{Point} _ _ (Attached.attached x) }
+  });
 \definition onRight[x: Disk.Disk]: backward (forward (Attached.characteristic x)) = Attached.characteristic x :=
   trans!{Point} _ _ _ (congr!{DiskQuotient.Point Point} backward _ _ (forwardOnRight x)) (onDiskClass x);
 \import topological_constructions.Coproduct[A := Circle.Carrier, B := Disk.Disk] \as Sum;

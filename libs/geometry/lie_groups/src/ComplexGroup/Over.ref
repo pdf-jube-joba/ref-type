@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 
 \import Representation.By[G := G, group := group, embedding := embedding, injective := injective, sign := sign, compatible := compatible] \as Rep;
 \import Rep.Faithful[] \as Faithful;
@@ -18,10 +19,16 @@
 \definition rootSquare[q: Parts]: Circle.square (root q) = Squared.base q := Phase.halfSquare (Squared.base q) (nonzero q);
 \definition fixedPhaseInjective: \forall (g, h: G)(z: Circle.Circle) -> Extension.class g z = Extension.class h z -> g = h := \block {
   \fun (g, h: G)(z: Circle.Circle)(same: _) \then
-  \let imageSame: Rep.raw g z = Rep.raw h z := trans!{Representation.CarrierPair} _ _ _ (sym!{Representation.CarrierPair} _ _ (Rep.onClass g z))
-    (trans!{Representation.CarrierPair} _ _ _ (congr!{Carrier Representation.CarrierPair} Rep.image _ _ same) (Rep.onClass h z)) \then
-  \return injective g h (Units.ext (embedding g) (embedding h) (trans!{E.Carrier} _ _ _ (sym!{E.Carrier} _ _ (Faithful.recover g z))
-    (trans!{E.Carrier} _ _ _ (congr!{Representation.CarrierPair E.Carrier} (Faithful.projection z) _ _ imageSame) (Faithful.recover h z))))
+  \let imageSame: Rep.raw g z = Rep.raw h z := eq_reason_in!{Representation.CarrierPair _
+    "=" _ "by" { sym!{Representation.CarrierPair} _ _ (Rep.onClass g z) }
+    "=" _ "by" { congr!{Carrier Representation.CarrierPair} Rep.image _ _ same }
+    "=" _ "by" { Rep.onClass h z }
+  } \then
+  \return injective g h (Units.ext (embedding g) (embedding h) (eq_reason_in!{E.Carrier _
+    "=" _ "by" { sym!{E.Carrier} _ _ (Faithful.recover g z) }
+    "=" _ "by" { congr!{Representation.CarrierPair E.Carrier} (Faithful.projection z) _ _ imageSame }
+    "=" _ "by" { Faithful.recover h z }
+  }))
 };
 \module Fiber(q: Parts);
 \definition fiber[q: Parts]: G := Fiber[q := q].value;
@@ -35,11 +42,17 @@
 \definition translate[q, g: Carrier]: Carrier := Group.mul q g;
 \definition untranslate[q, g: Carrier]: Carrier := Group.mul (Group.inv q) g;
 \definition undoTranslation: \forall (q, g: Carrier) -> untranslate q (translate q g) = g :=
-  \fun (q, g: Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Group.assoc (Group.inv q) q g))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (h: Carrier) => Group.mul h g) _ _ (Group.invLeft q)) (Group.oneLeft g));
+  \fun (q, g: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (Group.assoc (Group.inv q) q g) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (h: Carrier) => Group.mul h g) _ _ (Group.invLeft q) }
+    "=" _ "by" { Group.oneLeft g }
+  };
 \definition translationUndo: \forall (q, g: Carrier) -> translate q (untranslate q g) = g :=
-  \fun (q, g: Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Group.assoc q (Group.inv q) g))
-    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (h: Carrier) => Group.mul h g) _ _ (Group.invRight q)) (Group.oneLeft g));
+  \fun (q, g: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ (Group.assoc q (Group.inv q) g) }
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (h: Carrier) => Group.mul h g) _ _ (Group.invRight q) }
+    "=" _ "by" { Group.oneLeft g }
+  };
 \module Plots(d: N.Nat^);
 \module Shifts;
 \module Cover(g: Carrier);

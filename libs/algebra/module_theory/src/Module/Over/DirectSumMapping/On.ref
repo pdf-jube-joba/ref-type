@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Source.To[W := Target.Carrier, target := Target.space] \as Universal;
 \module At(i: Index) {
   \import \parent.\parent.\parent.Hom[V := targetFamily.Carrier i, W := Target.Carrier, source := targetFamily.space i, target := Target.space].Composition[U := sourceFamily.Carrier i, domain := sourceFamily.space i] \as Compose;
@@ -47,19 +48,21 @@
 \module Injection(i: Index, x: sourceFamily.Carrier i) {
   \definition same: TargetCoordinates.coordinates (map.apply ((Source.Injection[i := i].map).apply x)) i =
     (f i).apply (SourceCoordinates.coordinates ((Source.Injection[i := i].map).apply x) i) :=
-    trans!{{targetFamily.Carrier i}} _ _ _
-      (congr!{Target.Carrier {targetFamily.Carrier i}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q i) _ _ (onInjection i x))
-      (trans!{{targetFamily.Carrier i}} _ _ _ (TargetCoordinates.atOwn i ((f i).apply x))
-        (sym!{{targetFamily.Carrier i}} _ _ (congr!{{sourceFamily.Carrier i} {targetFamily.Carrier i}} ((f i).apply) _ _ (SourceCoordinates.atOwn i x))));
+    eq_reason_in!{{targetFamily.Carrier i} _
+      "=" _ "by" { congr!{Target.Carrier {targetFamily.Carrier i}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q i) _ _ (onInjection i x) }
+      "=" _ "by" { TargetCoordinates.atOwn i ((f i).apply x) }
+      "=" _ "by" { sym!{{targetFamily.Carrier i}} _ _ (congr!{{sourceFamily.Carrier i} {targetFamily.Carrier i}} ((f i).apply) _ _ (SourceCoordinates.atOwn i x)) }
+    };
   \definition different: \forall (j: Index) -> Logic.Not (i = j) ->
     TargetCoordinates.coordinates (map.apply ((Source.Injection[i := i].map).apply x)) j =
       (f j).apply (SourceCoordinates.coordinates ((Source.Injection[i := i].map).apply x) j) :=
-    \fun (j: Index)(ne: Logic.Not (i = j)) => trans!{{targetFamily.Carrier j}} _ _ _
-      (congr!{Target.Carrier {targetFamily.Carrier j}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q j) _ _ (onInjection i x))
-      (trans!{{targetFamily.Carrier j}} _ _ _ (TargetCoordinates.atOther i j ((f i).apply x) ne)
-        (sym!{{targetFamily.Carrier j}} _ _ (trans!{{targetFamily.Carrier j}} _ _ _
+    \fun (j: Index)(ne: Logic.Not (i = j)) => eq_reason_in!{{targetFamily.Carrier j} _
+      "=" _ "by" { congr!{Target.Carrier {targetFamily.Carrier j}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q j) _ _ (onInjection i x) }
+      "=" _ "by" { TargetCoordinates.atOther i j ((f i).apply x) ne }
+      "=" _ "by" { sym!{{targetFamily.Carrier j}} _ _ (trans!{{targetFamily.Carrier j}} _ _ _
           (congr!{{sourceFamily.Carrier j} {targetFamily.Carrier j}} ((f j).apply) _ _ (SourceCoordinates.atOther i j x ne))
-          (\parent.\parent.Component[i := j].zero (f j)))));
+          (\parent.\parent.Component[i := j].zero (f j))) }
+    };
   \import std.Logic[].Classical[] \as Classical;
   \use Logic.either;
   \definition point: \forall (j: Index) -> TargetCoordinates.coordinates (map.apply ((Source.Injection[i := i].map).apply x)) j =
@@ -95,7 +98,8 @@
   \fun (componentsInjective: \forall (i: Index)(x, y: sourceFamily.Carrier i) -> (f i).apply x = (f i).apply y -> x = y)(x, y: Source.Carrier)(equal: map.apply x = map.apply y) =>
     SourceCoordinates.injective x y (\axiom:funext(SourceCoordinates.coordinates x, SourceCoordinates.coordinates y,
       \fun (i: Index) => componentsInjective i (SourceCoordinates.coordinates x i) (SourceCoordinates.coordinates y i)
-        (trans!{{targetFamily.Carrier i}} _ _ _ (sym!{{targetFamily.Carrier i}} _ _ (coordinatesNatural x i))
-          (trans!{{targetFamily.Carrier i}} _ _ _
-            (congr!{Target.Carrier {targetFamily.Carrier i}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q i) _ _ equal)
-            (coordinatesNatural y i)))));
+        (eq_reason_in!{{targetFamily.Carrier i} _
+          "=" _ "by" { sym!{{targetFamily.Carrier i}} _ _ (coordinatesNatural x i) }
+          "=" _ "by" { congr!{Target.Carrier {targetFamily.Carrier i}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q i) _ _ equal }
+          "=" _ "by" { coordinatesNatural y i }
+        })));

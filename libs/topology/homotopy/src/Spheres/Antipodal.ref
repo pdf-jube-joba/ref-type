@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Euclidean.Dimension[n := N.Nat^::succ n] \as Ambient;
 \import Ambient.Contraction[] \as Scaling;
 \import real.Analysis[] \as Real;
@@ -7,21 +8,22 @@
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.congr;
-\use Equality.congr2;
 \definition minusOneSquared: Real.mul (Real.neg Real.one) (Real.neg Real.one) = Real.one :=
   trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth Real.one Real.one) (Laws.fieldMulOneLeft Real.one);
 \definition apply[x: Carrier n]: Carrier n :=
   \into[Ambient.Coordinate](Scaling.scale (Real.neg Real.one) x, Ambient.Boundary) \by {
-    trans!{Real.Real} _ _ _ (Scaling.normScale (Real.neg Real.one) x)
-      (trans!{Real.Real} _ _ _
-        (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ minusOneSquared (\bysub(Ambient.Coordinate, Ambient.Boundary, x)))
-        (Laws.fieldMulOneLeft Real.one))
+    eq_reason_in!{Real.Real _
+      "=" _ "by" { Scaling.normScale (Real.neg Real.one) x }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ minusOneSquared (\bysub(Ambient.Coordinate, Ambient.Boundary, x)) }
+      "=" _ "by" { Laws.fieldMulOneLeft Real.one }
+    }
   };
 \definition involution: \forall (x: Carrier n) -> apply (apply x) = x :=
-  \fun (x: Carrier n) => \axiom:funext(apply (apply x), x, \fun (i: Ambient.Index) => trans!{Real.Real} _ _ _
-    (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Real.neg Real.one) (Real.neg Real.one) (x i)))
-    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (x i)) _ _ minusOneSquared)
-      (Laws.fieldMulOneLeft (x i))));
+  \fun (x: Carrier n) => \axiom:funext(apply (apply x), x, \fun (i: Ambient.Index) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Real.neg Real.one) (Real.neg Real.one) (x i)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (x i)) _ _ minusOneSquared }
+    "=" _ "by" { Laws.fieldMulOneLeft (x i) }
+  });
 \import metric_spaces.RealLine[] \as Line;
 \import topological_algebra.Coordinates[K := Real.Real, I := Ambient.Index] \as Coordinates;
 \import Coordinates.Universal[A := Carrier n] \as Universal;

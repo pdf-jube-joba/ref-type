@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import singular_cohomology.Maps[A := Pair.SubspaceCarrier, B := Model.Disk,
   source := Boundary.topology Model.diskTopology, target := Model.diskTopology] \as Inclusion;
 \import Modules.Hom[V := BoundaryExtension.Carrier degree, W := WholeExtension.Carrier degree,
@@ -11,25 +12,26 @@
 \import algebra.Group[].Of[Carrier := Whole.Carrier zero, group := WholeValues.additive] \as WholeGroup;
 \definition boundary: (Pair.inclusionMap).apply degree lowerCycle =
   (WholeExtension.complex.differential).apply upperDegree (WholeExtension.Positive[n := one].intro ((edgeData).edge)) :=
-  trans!{{WholeExtension.Carrier degree}} _ _ _
-    (Included.differencePreserved inclusion
+  eq_reason_in!{{WholeExtension.Carrier degree} _
+    "=" _ "by" { Included.differencePreserved inclusion
       (BoundaryExtension.Positive[n := zero].intro (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant north)))
-      (BoundaryExtension.Positive[n := zero].intro (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant south))))
-    (trans!{{WholeExtension.Carrier degree}} _ _ _
-      (congr!{{Whole.Carrier zero} {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := zero].intro) _ _
-        (congr2!{{Whole.Carrier zero} {Whole.Carrier zero} {Whole.Carrier zero}} WholeGroup.difference _ _ _ _
+      (BoundaryExtension.Positive[n := zero].intro (BoundaryChains.generator zero (BoundarySimplices.At[n := zero].constant south))) }
+    "=" _ "by" { congr!{{Whole.Carrier zero} {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := zero].intro) _ _
+        (congr!{{Whole.Carrier zero} {Whole.Carrier zero} {Whole.Carrier zero}} WholeGroup.difference _ _ _ _
           (Inclusion.At[n := zero].onGenerator Pair.inclusion Pair.inclusionContinuous (BoundarySimplices.At[n := zero].constant north))
-          (Inclusion.At[n := zero].onGenerator Pair.inclusion Pair.inclusionContinuous (BoundarySimplices.At[n := zero].constant south))))
-      (congr!{{Whole.Carrier zero} {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := zero].intro) _ _ (sym!{{Whole.Carrier zero}} _ _ ((edgeData).boundary))));
+          (Inclusion.At[n := zero].onGenerator Pair.inclusion Pair.inclusionContinuous (BoundarySimplices.At[n := zero].constant south))) }
+    "=" _ "by" { congr!{{Whole.Carrier zero} {WholeExtension.Carrier degree}} (WholeExtension.Positive[n := zero].intro) _ _ (sym!{{Whole.Carrier zero}} _ _ ((edgeData).boundary)) }
+  };
 \import Complexes.ShortExact[A := BoundaryExtension.complex, B := WholeExtension.complex, C := Pair.complex]
   .At[s := Pair.sequence, k := upperDegree] \as Exact;
 \definition diskBoundary: (Pair.LongExact[z := upperDegree].connecting).apply (Attaching.diskGenerator) = boundaryClass :=
-  trans!{BoundaryH.Homology} _ _ _
-    (congr!{{Pair.Homology[z := upperDegree].Carrier} BoundaryH.Homology} ((Pair.LongExact[z := upperDegree].connecting).apply) _ _
-      (sym!{{Pair.Homology[z := upperDegree].Carrier}} _ _ ((edgeData).fundamental (SourceCells.dimension sourceCell))))
-    (trans!{BoundaryH.Homology} _ _ _ (Exact.onClass ((edgeData).cycle))
-      (Exact.onLift ((edgeData).cycle) (WholeExtension.Positive[n := one].intro ((edgeData).edge)) lowerCycle
-        (sym!{{Pair.Carrier upperDegree}} _ _ ((edgeData).lifted)) boundary (\bysub(BoundaryExtension.Carrier degree, (BoundaryH.cycles).carrier, lowerCycle))));
+  eq_reason_in!{BoundaryH.Homology _
+    "=" _ "by" { congr!{{Pair.Homology[z := upperDegree].Carrier} BoundaryH.Homology} ((Pair.LongExact[z := upperDegree].connecting).apply) _ _
+      (sym!{{Pair.Homology[z := upperDegree].Carrier}} _ _ ((edgeData).fundamental (SourceCells.dimension sourceCell))) }
+    "=" _ "by" { Exact.onClass ((edgeData).cycle) }
+    "=" _ "by" { Exact.onLift ((edgeData).cycle) (WholeExtension.Positive[n := one].intro ((edgeData).edge)) lowerCycle
+        (sym!{{Pair.Carrier upperDegree}} _ _ ((edgeData).lifted)) boundary (\bysub(BoundaryExtension.Carrier degree, (BoundaryH.cycles).carrier, lowerCycle)) }
+  };
 \import singular_cellular_algebra.Algebra[].PointClass[A := Pair.SubspaceCarrier, source := Boundary.topology Model.diskTopology] \as BoundaryPoints;
 \import Modules.Laws[V := BoundaryH.Cycle, space := BoundaryH.cycleSpace] \as CycleValues;
 \import algebra.Group[].Of[Carrier := BoundaryH.Cycle, group := CycleValues.additive] \as CycleGroup;
@@ -45,11 +47,10 @@
 \import Modules.Hom[V := BoundaryH.Homology, W := Points.Carrier, source := BoundaryH.homologySpace, target := Points.space] \as Action;
 \definition law: (SourceLayer.Homology[z := upperDegree].connecting).apply (SourceBasis.generator sourceCell) =
   PointGroup.difference (Points.class northImage) (Points.class southImage) :=
-  trans!{Points.Carrier} _ _ _ Attaching.law
-    (trans!{Points.Carrier} _ _ _
-      (congr!{BoundaryH.Homology Points.Carrier} ((Attaching.attachingAction).apply) _ _ diskBoundary)
-      (trans!{Points.Carrier} _ _ _
-        (congr!{BoundaryH.Homology Points.Carrier} ((Attaching.attachingAction).apply) _ _ difference)
-        (trans!{Points.Carrier} _ _ _
-          (Action.differencePreserved Attaching.attachingAction (BoundaryPoints.class north) (BoundaryPoints.class south))
-          (congr2!{Points.Carrier Points.Carrier Points.Carrier} PointGroup.difference _ _ _ _ (PointMapping.law north) (PointMapping.law south)))));
+  eq_reason_in!{Points.Carrier _
+    "=" _ "by" Attaching.law
+    "=" _ "by" { congr!{BoundaryH.Homology Points.Carrier} ((Attaching.attachingAction).apply) _ _ diskBoundary }
+    "=" _ "by" { congr!{BoundaryH.Homology Points.Carrier} ((Attaching.attachingAction).apply) _ _ difference }
+    "=" _ "by" { Action.differencePreserved Attaching.attachingAction (BoundaryPoints.class north) (BoundaryPoints.class south) }
+    "=" _ "by" { congr!{Points.Carrier Points.Carrier Points.Carrier} PointGroup.difference _ _ _ _ (PointMapping.law north) (PointMapping.law south) }
+  };

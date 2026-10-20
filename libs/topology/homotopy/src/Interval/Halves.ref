@@ -1,4 +1,5 @@
-\use Equality.congr2;
+\use std.Logic[].Equality[].eq_reason_in;
+\use Equality.congr;
 \definition lowerBound[t: Carrier]: R.Le (Real.mul Real.half t) Real.half :=
   R.leReplaceRight _ (Real.mul Real.half Real.one) Real.half (Algebra.mulOneRight Real.half)
     (Estimates.mulMonotone Real.half t Real.one Estimates.halfNonnegative (bounds t).right);
@@ -21,12 +22,13 @@
   (congr!{Real.Real Real.Real} (Real.add Real.half) _ _ lowerEnd) Estimates.halfDouble;
 \definition lowerDouble: \forall (t: Carrier) -> Real.add (lower t) (lower t) = t := \fun (t: Carrier) => Estimates.halfTwice t;
 \definition upperDouble: \forall (t: Carrier) -> Real.sub (Real.add (upper t) (upper t)) Real.one = t :=
-  \fun (t: Carrier) => trans!{Real.Real} _ _ _
-    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r Real.one) _ _
+  \fun (t: Carrier) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r Real.one) _ _
       (trans!{Real.Real} _ _ _ (Algebra.addFour Real.half (lower t) Real.half (lower t))
-        (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ Estimates.halfDouble (lowerDouble t))))
-    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r Real.one) _ _ (Laws.addComm Real.one t))
-      (Laws.addNegCancelRight Real.one t));
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ Estimates.halfDouble (lowerDouble t))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r Real.one) _ _ (Laws.addComm Real.one t) }
+    "=" _ "by" { Laws.addNegCancelRight Real.one t }
+  };
 \import Functions.Product[] \as Product;
 \definition lowerScalarContinuous: Functions.Continuous topology (\fun (t: Carrier) => lower t) :=
   Product.continuous topology (\fun (_: Carrier) => Real.half) (\fun (t: Carrier) => t)
@@ -36,16 +38,18 @@
   (Functions.sumContinuous topology (\fun (_: Carrier) => Real.half) (\fun (t: Carrier) => lower t)
     (Functions.constantContinuous topology Real.half) lowerScalarContinuous);
 \definition undoDouble: \forall (t, d: Carrier) -> d = Real.add t t -> lower d = t :=
-  \fun (t, d: Carrier)(same: _) => trans!{Real.Real} _ _ _
-    (congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ same)
-    (trans!{Real.Real} _ _ _ (Laws.fieldMulAdd Real.half t t) (Estimates.halfTwice t));
+  \fun (t, d: Carrier)(same: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ same }
+    "=" _ "by" { Laws.fieldMulAdd Real.half t t }
+    "=" _ "by" { Estimates.halfTwice t }
+  };
 \definition undoDoubleMinusOne: \forall (t, d: Carrier) -> d = Real.sub (Real.add t t) Real.one -> upper d = t :=
-  \fun (t, d: Carrier)(same: _) => trans!{Real.Real} _ _ _
-    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add Real.half (Real.mul Real.half r)) _ _ same)
-    (trans!{Real.Real} _ _ _
-      (congr!{Real.Real Real.Real} (Real.add Real.half) _ _
+  \fun (t, d: Carrier)(same: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add Real.half (Real.mul Real.half r)) _ _ same }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add Real.half) _ _
         (trans!{Real.Real} _ _ _ (Algebra.mulSub Real.half (Real.add t t) Real.one)
-          (congr2!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+          (congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
             (trans!{Real.Real} _ _ _ (Laws.fieldMulAdd Real.half t t) (Estimates.halfTwice t))
-            (Algebra.mulOneRight Real.half))))
-      (Estimates.addSubCancel t Real.half));
+            (Algebra.mulOneRight Real.half))) }
+    "=" _ "by" { Estimates.addSubCancel t Real.half }
+  };

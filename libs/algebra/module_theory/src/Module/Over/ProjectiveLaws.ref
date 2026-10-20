@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \module Scalar {
   \definition bundle: Bundle := Bundle { Carrier := R, space := scalarModule };
   \module Lift(A, B: Bundle, q: MapBetween A B, f: MapBetween bundle B) {
@@ -16,10 +17,11 @@
       \fun (onto: Surjective A B q) \then
       \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where q.apply a = f.apply (ring.one) }) \by onto (f.apply (ring.one)) \then
       \return Logic.existsIntro[MapBetween bundle A, { g: MapBetween bundle A \where \forall (r: R) -> q.apply (g.apply r) = f.apply r }] (map a)
-        (\fun (r: R) => trans!{B.Carrier} _ _ _ (q.scalar r a)
-          (trans!{B.Carrier} _ _ _
-            (congr!{B.Carrier B.Carrier} (B.space.smul r) _ _ (\bysub(A.Carrier, { a: A.Carrier \where q.apply a = f.apply (ring.one) }, a)))
-            (sym!{B.Carrier} _ _ (valueAtOne r))))
+        (\fun (r: R) => eq_reason_in!{B.Carrier _
+          "=" _ "by" { q.scalar r a }
+          "=" _ "by" { congr!{B.Carrier B.Carrier} (B.space.smul r) _ _ (\bysub(A.Carrier, { a: A.Carrier \where q.apply a = f.apply (ring.one) }, a)) }
+          "=" _ "by" { sym!{B.Carrier} _ _ (valueAtOne r) }
+        })
     };
   }
   \definition projective: Projective bundle := \fun (A, B: Bundle)(q: MapBetween A B)(onto: Surjective A B q)(f: MapBetween bundle B) => Lift[A := A, B := B, q := q, f := f].existence onto;
@@ -65,14 +67,14 @@
       \takefrom r: \Cast[MapBetween Q A] ({ r: MapBetween Q A \where \forall (x: Q.Carrier) -> q.apply (r.apply x) = f.apply (Sum.secondInjection.apply x) })
         \by right A.Carrier A.space B.Carrier B.space q onto (RightGiven.compose f Sum.secondInjection) \then
       \let law: \forall (x: Sum.Carrier) -> q.apply ((Copair.copair l r).apply x) = f.apply x :=
-        \fun (x: Sum.Carrier) => trans!{B.Carrier} _ _ _
-          (q.addition (l.apply (Sum.first x)) (r.apply (Sum.second x)))
-          (trans!{B.Carrier} _ _ _
-            (congr2!{B.Carrier B.Carrier B.Carrier} (B.space.add) _ _ _ _
+        \fun (x: Sum.Carrier) => eq_reason_in!{B.Carrier _
+          "=" _ "by" { q.addition (l.apply (Sum.first x)) (r.apply (Sum.second x)) }
+          "=" _ "by" { congr!{B.Carrier B.Carrier B.Carrier} (B.space.add) _ _ _ _
               ((\bysub(MapBetween P A, { l: MapBetween P A \where \forall (x: P.Carrier) -> q.apply (l.apply x) = f.apply (Sum.firstInjection.apply x) }, l)) (Sum.first x))
-              ((\bysub(MapBetween Q A, { r: MapBetween Q A \where \forall (x: Q.Carrier) -> q.apply (r.apply x) = f.apply (Sum.secondInjection.apply x) }, r)) (Sum.second x)))
-            (trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ (f.addition (Sum.firstInjection.apply (Sum.first x)) (Sum.secondInjection.apply (Sum.second x))))
-              (congr!{Sum.Carrier B.Carrier} (f.apply) _ _ (Sum.reconstruction x)))) \then
+              ((\bysub(MapBetween Q A, { r: MapBetween Q A \where \forall (x: Q.Carrier) -> q.apply (r.apply x) = f.apply (Sum.secondInjection.apply x) }, r)) (Sum.second x)) }
+          "=" _ "by" { sym!{B.Carrier} _ _ (f.addition (Sum.firstInjection.apply (Sum.first x)) (Sum.secondInjection.apply (Sum.second x))) }
+          "=" _ "by" { congr!{Sum.Carrier B.Carrier} (f.apply) _ _ (Sum.reconstruction x) }
+        } \then
       \return Logic.existsIntro[MapBetween bundle A, { g: MapBetween bundle A \where \forall (x: Sum.Carrier) -> q.apply (g.apply x) = f.apply x }] (Copair.copair l r)
         law
     };

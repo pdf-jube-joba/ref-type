@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition sourceChart: SourceChart := \into[SourceCharts.Chart](left, M.atlas.charts) \by { Source.member left };
 \definition targetChart: TargetChart := \into[TargetCharts.Chart](right, N.atlas.charts) \by { Target.member right };
 \import \parent.\parent.Local[left := sourceChart, right := targetChart] \as Local;
@@ -35,9 +36,9 @@
     (SourceCoordinates.encodeDecode v);
 \definition rightInverse: \forall (w: Target.Vector) -> Differential.value.apply (inverse.apply w) = w :=
   \fun (w: Target.Vector) => TargetCoordinates.injective _ w
-    (trans!{{TargetVectors.Vector}} _ (Derivatives.forward.apply (SourceCoordinates.decode (inverse.apply w))) (TargetCoordinates.decode w)
-      (forwardCoordinates (inverse.apply w))
-      (trans!{{TargetVectors.Vector}} _ (Derivatives.forward.apply (Derivatives.backward.apply (TargetCoordinates.decode w))) _
-        (congr!{{SourceVectors.Vector} {TargetVectors.Vector}} (Derivatives.forward.apply) _ _
-          (SourceCoordinates.decodeEncode (Derivatives.backward.apply (TargetCoordinates.decode w))))
-        (Derivatives.rightInverseLaw (TargetCoordinates.decode w))));
+    (eq_reason_in!{{TargetVectors.Vector} _
+      "=" { Derivatives.forward.apply (SourceCoordinates.decode (inverse.apply w)) } "by" { forwardCoordinates (inverse.apply w) }
+      "=" { Derivatives.forward.apply (Derivatives.backward.apply (TargetCoordinates.decode w)) } "by" { congr!{{SourceVectors.Vector} {TargetVectors.Vector}} (Derivatives.forward.apply) _ _
+          (SourceCoordinates.decodeEncode (Derivatives.backward.apply (TargetCoordinates.decode w))) }
+      "=" _ "by" { Derivatives.rightInverseLaw (TargetCoordinates.decode w) }
+    });

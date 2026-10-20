@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition domain: \Pow Point := { p: Point \where Charts.Contains chart p.base };
 \definition LocalPoint: \Set := \Cast[Point] domain;
 \import Blocks.On[U := chart.image, V := Open.whole] \as Product;
@@ -28,13 +29,13 @@
 \definition pointJoined: \forall (x: Open.Carrier chart.image)(w: Open.Carrier Open.whole) ->
   point (Product.joinPoint x w) = assemble x w :=
   \fun (x: Open.Carrier chart.image)(w: Open.Carrier Open.whole) =>
-    congr2!{{Open.Carrier chart.image} {Vector} Point} assemble
+    congr!{{Open.Carrier chart.image} {Vector} Point} assemble
       (Product.leftPoint (Product.joinPoint x w)) x (Product.rightPoint (Product.joinPoint x w)) w
       (Blocks.leftJoin x w) (Blocks.rightJoin x w);
 \import Charts.Of[chart := chart] \as Geometry;
 \definition coordinatePoint: \forall (u: TotalOpen.Carrier image) -> coordinate (point u) = u :=
   \fun (u: TotalOpen.Carrier image) => trans!{{TotalVector}} _ _ _
-    (congr2!{{Vector} {Vector} {TotalVector}} Blocks.join _ _ _ _
+    (congr!{{Vector} {Vector} {TotalVector}} Blocks.join _ _ _ _
       (Geometry.coordinatePoint (Product.leftPoint u))
       (At[x := Charts.point chart (Product.leftPoint u)].decodeEncode (Product.rightPoint u)))
     (Blocks.recover u);
@@ -56,12 +57,13 @@
       (\parent.At[x := y].encodeDecode v);
 }
 \definition pointCoordinate: \forall (p: LocalPoint) -> point (coordinate p) = p :=
-  \fun (p: LocalPoint) => trans!{Point} _ _ _
-    (pointJoined (Charts.coordinate chart (base p))
-      (\into[Vector](At[x := base p].decode p.vector, Open.whole.points) \by { \refl(At[x := base p].decode p.vector) }))
-    (trans!{Point} _ _ _
-      (congr!{{Tangent.Vector (Recover[p := p].y)} Point} (include (Recover[p := p].y)) _ _ (Recover[p := p].vector))
-      (trans!{Point} _ _ _ (includeTransport (Recover[p := p].x) (Recover[p := p].y) (Recover[p := p].same) p.vector) (eta p)));
+  \fun (p: LocalPoint) => eq_reason_in!{Point _
+    "=" _ "by" { pointJoined (Charts.coordinate chart (base p))
+      (\into[Vector](At[x := base p].decode p.vector, Open.whole.points) \by { \refl(At[x := base p].decode p.vector) }) }
+    "=" _ "by" { congr!{{Tangent.Vector (Recover[p := p].y)} Point} (include (Recover[p := p].y)) _ _ (Recover[p := p].vector) }
+    "=" _ "by" { includeTransport (Recover[p := p].x) (Recover[p := p].y) (Recover[p := p].same) p.vector }
+    "=" _ "by" { eta p }
+  };
 \import manifolds.IndexedAtlas[n := dimension, A := Point, I := Chart] \as Parametrizations;
 \definition patch: Parametrizations.Patch := Parametrizations.Patch {
   domain := domain, image := image, point := point, coordinate := coordinate,

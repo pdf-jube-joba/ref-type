@@ -1,6 +1,7 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Operations[] \as Operations;
 \import \parent.Groups[] \as Groups;
-\use Equality.congr2;
+\use Equality.congr;
 \structure Congruence[ring: Ring.CommutativeRing[A]]: \Prop := {
   equivalence: Q.EquivalenceLaws,
   addition: Q.BinaryRespects ((ring.base).add),
@@ -48,10 +49,12 @@
         },
         multiplicative := multiplication,
         leftDistributive := leftDistributive,
-        rightDistributive := \fun (x, y, z: Carrier) => trans!{Carrier} _ _ _ (mulComm ring congruence (add ring congruence x y) z)
-          (trans!{Carrier} _ _ _ (leftDistributive z x y)
-            (congr2!{Carrier Carrier Carrier} (add ring congruence) _ _ _ _
-              (mulComm ring congruence z x) (mulComm ring congruence z y))),
+        rightDistributive := \fun (x, y, z: Carrier) => eq_reason_in!{Carrier _
+          "=" _ "by" { mulComm ring congruence (add ring congruence x y) z }
+          "=" _ "by" { leftDistributive z x y }
+          "=" _ "by" { congr!{Carrier Carrier Carrier} (add ring congruence) _ _ _ _
+              (mulComm ring congruence z x) (mulComm ring congruence z y) }
+        },
         zeroAbsorbsLeft := Operations.absorbsLeft laws ((ring.base).mul) (congruence.multiplication) ((ring.base).zero)
           (\fun (x: A) => Groups.related laws _ _ (((ring.ring).semiring).zeroAbsorbsLeft x)),
         zeroAbsorbsRight := \fun (x: Carrier) => trans!{Carrier} _ _ _ (mulComm ring congruence x (class ((ring.base).zero)))

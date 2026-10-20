@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.\parent.At[s := s, k := k] \as Source;
 \import \parent.\parent.\parent.\parent.ShortExact[A := A1, B := B1, C := C1].At[s := t, k := k] \as TargetConnecting;
 \import \parent.\parent.\parent.\parent.At[C := C, z := k] \as HC;
@@ -16,14 +17,17 @@
   \let lower: HA1.Cycle := (Left.cyclesMap a).apply ((w).lower) \then
   \let lifted: (t.projection).apply k lift = (c).apply k x := trans!{{C1.family.Carrier k}} _ _ _ ((diagram).right k ((w).lift))
     (congr!{{C.family.Carrier k} {C1.family.Carrier k}} ((c).apply k) _ _ ((laws).lifted)) \then
-  \let differential: (t.inclusion).apply (previous k) lower = (B1.differential).apply k lift := trans!{{B1.family.Carrier (previous k)}} _ _ _
-    (sym!{{B1.family.Carrier (previous k)}} _ _ ((diagram).left (previous k) ((w).lower)))
-    (trans!{{B1.family.Carrier (previous k)}} _ _ _ (congr!{{B.family.Carrier (previous k)} {B1.family.Carrier (previous k)}} ((b).apply (previous k)) _ _ ((laws).differential))
-      (sym!{{B1.family.Carrier (previous k)}} _ _ ((b).commutes k ((w).lift)))) \then
-  \return trans!{HA1.Homology} _ _ _ (TargetConnecting.onLift ((Right.cyclesMap c).apply x) lift lower lifted differential
-    (\bysub(A1.family.Carrier (previous k), (HA1.cycles).carrier, lower)))
-    (trans!{HA1.Homology} _ _ _ (sym!{HA1.Homology} _ _ (Left.onClass a ((w).lower)))
-      (congr!{HA.Homology HA1.Homology} ((Left.induced a).apply) _ _ ((laws).classValue)))
+  \let differential: (t.inclusion).apply (previous k) lower = (B1.differential).apply k lift := eq_reason_in!{{B1.family.Carrier (previous k)} _
+    "=" _ "by" { sym!{{B1.family.Carrier (previous k)}} _ _ ((diagram).left (previous k) ((w).lower)) }
+    "=" _ "by" { congr!{{B.family.Carrier (previous k)} {B1.family.Carrier (previous k)}} ((b).apply (previous k)) _ _ ((laws).differential) }
+    "=" _ "by" { sym!{{B1.family.Carrier (previous k)}} _ _ ((b).commutes k ((w).lift)) }
+  } \then
+  \return eq_reason_in!{HA1.Homology _
+    "=" _ "by" { TargetConnecting.onLift ((Right.cyclesMap c).apply x) lift lower lifted differential
+    (\bysub(A1.family.Carrier (previous k), (HA1.cycles).carrier, lower)) }
+    "=" _ "by" { sym!{HA1.Homology} _ _ (Left.onClass a ((w).lower)) }
+    "=" _ "by" { congr!{HA.Homology HA1.Homology} ((Left.induced a).apply) _ _ ((laws).classValue) }
+  }
 };
 \definition onClasses: Commutative -> \forall (x: HC.Cycle) ->
   (TargetConnecting.connecting).apply ((Right.induced c).apply (HC.classOf x)) = (Left.induced a).apply ((Source.connecting).apply (HC.classOf x)) := \block {
@@ -39,7 +43,11 @@
   \let sourceClass: (Left.induced a).apply (Source.delta x) = (Left.induced a).apply ((Source.connecting).apply (HC.classOf x)) :=
     congr!{HA.Homology HA1.Homology} ((Left.induced a).apply) (Source.delta x) ((Source.connecting).apply (HC.classOf x))
       (sym!{HA.Homology} _ _ (Source.onClass x)) \then
-  \return trans!{HA1.Homology} _ _ _ rightClass (trans!{HA1.Homology} _ _ _ targetClass sourceClass)
+  \return eq_reason_in!{HA1.Homology _
+    "=" _ "by" rightClass
+    "=" _ "by" targetClass
+    "=" _ "by" sourceClass
+  }
 };
 \definition naturality: Commutative -> \forall (q: HC.Homology) ->
   (TargetConnecting.connecting).apply ((Right.induced c).apply q) = (Left.induced a).apply ((Source.connecting).apply q) :=
@@ -58,15 +66,14 @@
   \let l: HC1.Cycle := (TargetProjection.cyclesMap t.projection).apply ((MiddleMap.cyclesMap b).apply x) \then
   \let r: HC1.Cycle := (Right.cyclesMap c).apply ((SourceProjection.cyclesMap s.projection).apply x) \then
   \let equal: l = r := (diagram).right k x \then
-  \return trans!{HC1.Homology} _ _ _
-    (congr!{TargetMiddle.Homology HC1.Homology} ((TargetProjection.induced t.projection).apply) _ _ (MiddleMap.onClass b x))
-    (trans!{HC1.Homology} _ _ _
-      (TargetProjection.onClass t.projection ((MiddleMap.cyclesMap b).apply x))
-      (trans!{HC1.Homology} _ _ _
-        (congr!{HC1.Cycle HC1.Homology} HC1.classOf l r equal)
-        (sym!{HC1.Homology} _ _ (trans!{HC1.Homology} _ _ _
+  \return eq_reason_in!{HC1.Homology _
+    "=" _ "by" { congr!{TargetMiddle.Homology HC1.Homology} ((TargetProjection.induced t.projection).apply) _ _ (MiddleMap.onClass b x) }
+    "=" _ "by" { TargetProjection.onClass t.projection ((MiddleMap.cyclesMap b).apply x) }
+    "=" _ "by" { congr!{HC1.Cycle HC1.Homology} HC1.classOf l r equal }
+    "=" _ "by" { sym!{HC1.Homology} _ _ (trans!{HC1.Homology} _ _ _
           (congr!{HC.Homology HC1.Homology} ((Right.induced c).apply) _ _ (SourceProjection.onClass s.projection x))
-          (Right.onClass c ((SourceProjection.cyclesMap s.projection).apply x))))))
+          (Right.onClass c ((SourceProjection.cyclesMap s.projection).apply x))) }
+  }
 };
 \definition projectionNaturality: Commutative -> \forall (x: SourceMiddle.Homology) ->
   (TargetProjection.induced t.projection).apply ((MiddleMap.induced b).apply x) =

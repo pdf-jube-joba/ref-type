@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Sums.Linear[] \as Linear;
 \import std.Data[].Bool[] \as Bool;
 \import N.Basic[].Def[] \as Natural;
@@ -8,20 +9,24 @@
       | true: Laws.oneNonnegative
     }) (Natural.eqb j i);
 \definition headTotal: \forall (n: N.Nat^) -> Sums.sum (N.Nat^::succ n) (Linear.basis (N.Nat^::succ n) (Fin.zero n)) = Real.one :=
-  \fun (n: N.Nat^) => trans!{Real.Real} _ _ _
-    (congr!{{Coordinate (N.Nat^::succ n)} Real.Real} (Sums.sum (N.Nat^::succ n)) _ _ (Linear.Step[n := n].headBasis))
-    (trans!{Real.Real} _ _ _ (extendSum n Real.one (\fun (_: Fin.Fin n) => Real.zero))
-      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ (Sums.zeroSum n)) (Laws.addZeroRight Real.one)));
+  \fun (n: N.Nat^) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{{Coordinate (N.Nat^::succ n)} Real.Real} (Sums.sum (N.Nat^::succ n)) _ _ (Linear.Step[n := n].headBasis) }
+    "=" _ "by" { extendSum n Real.one (\fun (_: Fin.Fin n) => Real.zero) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add Real.one) _ _ (Sums.zeroSum n) }
+    "=" _ "by" { Laws.addZeroRight Real.one }
+  };
 \definition basisTotal: \forall (n: N.Nat^)(i: Fin.Fin n) -> Sums.sum n (Linear.basis n i) = Real.one :=
   \induction (n: N.Nat^) \return \forall (i: Fin.Fin n) -> Sums.sum n (Linear.basis n i) = Real.one \with {
     | zero: \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
     | succ: \fun (n: N.Nat^)(previous: _) => Fin.cases n
         (\fun (i: Fin.Fin (N.Nat^::succ n)) => Sums.sum (N.Nat^::succ n) (Linear.basis (N.Nat^::succ n) i) = Real.one)
         (headTotal n)
-        (\fun (i: Fin.Fin n) => trans!{Real.Real} _ _ _
-          (congr!{{Coordinate (N.Nat^::succ n)} Real.Real} (Sums.sum (N.Nat^::succ n)) _ _ (Linear.Step[n := n].tailBasis i))
-          (trans!{Real.Real} _ _ _ (extendSum n Real.zero (Linear.basis n i))
-            (trans!{Real.Real} _ _ _ (Laws.addZeroLeft (Sums.sum n (Linear.basis n i))) (previous i))))
+        (\fun (i: Fin.Fin n) => eq_reason_in!{Real.Real _
+          "=" _ "by" { congr!{{Coordinate (N.Nat^::succ n)} Real.Real} (Sums.sum (N.Nat^::succ n)) _ _ (Linear.Step[n := n].tailBasis i) }
+          "=" _ "by" { extendSum n Real.zero (Linear.basis n i) }
+          "=" _ "by" { Laws.addZeroLeft (Sums.sum n (Linear.basis n i)) }
+          "=" _ "by" { previous i }
+        })
   };
 \definition vertex[n: N.Nat^][i: Fin.Fin (N.Nat^::succ n)]: Carrier n :=
   \into[Coordinate (N.Nat^::succ n)](Linear.basis (N.Nat^::succ n) i, Points n) \by {

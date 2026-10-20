@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \module Left(p: Degree) {
   \definition q: Degree := Grading.complement n p;
   \import \parent.\parent.Injection[p := p] \as I;
@@ -9,13 +10,13 @@
     left := Original.chain.family.space q, right := Z.space p].Symmetry[] \as Swap;
   \definition point: \forall (x: Tensor.Carrier q) ->
     backward.apply (forward.apply ((Source.Component[i := p].injection).apply x)) = (Source.Component[i := p].injection).apply x :=
-    \fun (x: Tensor.Carrier q) => trans!{Source.Carrier} _ _ _
-      (congr!{Target.Carrier Source.Carrier} (backward.apply) _ _ (forwardOnInjection p x))
-      (trans!{Source.Carrier} _ _ _ (backwardOnInjection index (Swap.forward.apply x))
-        (trans!{Source.Carrier} _ _ _
-          (congr!{{Tensor.Carrier q} Source.Carrier} ((Source.Component[i := p].injection).apply) _ _
-            (Transport.castRefl Tensor.Carrier q (Swap.backward.apply (Swap.forward.apply x))))
-          (congr!{{Tensor.Carrier q} Source.Carrier} ((Source.Component[i := p].injection).apply) _ _ (Swap.leftInverse x))));
+    \fun (x: Tensor.Carrier q) => eq_reason_in!{Source.Carrier _
+      "=" _ "by" { congr!{Target.Carrier Source.Carrier} (backward.apply) _ _ (forwardOnInjection p x) }
+      "=" _ "by" { backwardOnInjection index (Swap.forward.apply x) }
+      "=" _ "by" { congr!{{Tensor.Carrier q} Source.Carrier} ((Source.Component[i := p].injection).apply) _ _
+            (Transport.castRefl Tensor.Carrier q (Swap.backward.apply (Swap.forward.apply x))) }
+      "=" _ "by" { congr!{{Tensor.Carrier q} Source.Carrier} ((Source.Component[i := p].injection).apply) _ _ (Swap.leftInverse x) }
+    };
 }
 \import Modules.Hom[V := Target.Carrier, W := Source.Carrier, source := Target.space, target := Source.space].Composition[
   U := Source.Carrier, domain := Source.space] \as LeftComposition;
@@ -36,13 +37,13 @@
     left := Original.chain.family.space q, right := Z.space p].Symmetry[] \as Swap;
   \definition point: \forall (x: tensorCarrier p q) ->
     forward.apply (backward.apply ((Target.Component[i := index].injection).apply x)) = (Target.Component[i := index].injection).apply x :=
-    \fun (x: tensorCarrier p q) => trans!{Target.Carrier} _ _ _
-      (congr!{Source.Carrier Target.Carrier} (forward.apply) _ _ (backwardOnInjection index x))
-      (trans!{Target.Carrier} _ _ _ (forwardOnInjection p
-        (Transport.cast Tensor.Carrier q (Grading.complement n p) B.same (Swap.backward.apply x)))
-        (trans!{Target.Carrier} _ _ _
-          (I.natural q (Grading.complement n p) closed B.same (Swap.backward.apply x))
-          (congr!{{tensorCarrier p q} Target.Carrier} ((Target.Component[i := index].injection).apply) _ _ (Swap.rightInverse x))));
+    \fun (x: tensorCarrier p q) => eq_reason_in!{Target.Carrier _
+      "=" _ "by" { congr!{Source.Carrier Target.Carrier} (forward.apply) _ _ (backwardOnInjection index x) }
+      "=" _ "by" { forwardOnInjection p
+        (Transport.cast Tensor.Carrier q (Grading.complement n p) B.same (Swap.backward.apply x)) }
+      "=" _ "by" { I.natural q (Grading.complement n p) closed B.same (Swap.backward.apply x) }
+      "=" _ "by" { congr!{{tensorCarrier p q} Target.Carrier} ((Target.Component[i := index].injection).apply) _ _ (Swap.rightInverse x) }
+    };
 }
 \definition onPair: \forall (j: Grading.Pair)(closed: Grading.add j.first j.second = n)(x: tensorCarrier j.first j.second) ->
   forward.apply (backward.apply ((Target.Component[i := \into[Grading.Pair](j, { i: Grading.Pair \where Grading.add i.first i.second = n }) \by { closed }].injection).apply x)) =

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.At[t := s] \as Left;
 \import \parent.At[t := t] \as Right;
 \import \parent.At[t := Reals.add s t] \as Sum;
@@ -21,13 +22,17 @@
     (congr!{Reals.Real Reals.Real} Bounds.abs _ _ (scaleAddition s t n)) eligibleSum \then
   \let swappedInside: R.Lt (Bounds.abs (Reals.add b a)) f.radius := R.ltReplaceLeft (Bounds.abs (Reals.add a b)) _ f.radius
     (congr!{Reals.Real Reals.Real} Bounds.abs _ _ (Laws.addComm a b)) sumInside \then
-  \let commutes: Operations.mul (f.value a) (f.value b) = Operations.mul (f.value b) (f.value a) := trans!{G} _ _ _
-    (sym!{G} _ _ (f.addition a b eligibleLeft eligibleRight sumInside))
-    (trans!{G} _ _ _ (congr!{Reals.Real G} f.value _ _ (Laws.addComm a b)) (f.addition b a eligibleRight eligibleLeft swappedInside)) \then
+  \let commutes: Operations.mul (f.value a) (f.value b) = Operations.mul (f.value b) (f.value a) := eq_reason_in!{G _
+    "=" _ "by" { sym!{G} _ _ (f.addition a b eligibleLeft eligibleRight sumInside) }
+    "=" _ "by" { congr!{Reals.Real G} f.value _ _ (Laws.addComm a b) }
+    "=" _ "by" { f.addition b a eligibleRight eligibleLeft swappedInside }
+  } \then
   \let localProduct: f.value (scale (Reals.add s t) n) = Operations.mul (f.value a) (f.value b) := trans!{G} _ _ _
     (congr!{Reals.Real G} f.value _ _ (scaleAddition s t n)) (f.addition a b eligibleLeft eligibleRight sumInside) \then
-  \return trans!{G} _ _ _ (Sum.computes n eligibleSum)
-    (trans!{G} _ _ _ (congr!{G G} (Powers.value n) _ _ localProduct)
-      (trans!{G} _ _ _ (Powers.multiplicative n (f.value a) (f.value b) commutes)
-        (congr2!{G G G} Operations.mul _ _ _ _ (sym!{G} _ _ (Left.computes n eligibleLeft)) (sym!{G} _ _ (Right.computes n eligibleRight)))))
+  \return eq_reason_in!{G _
+    "=" _ "by" { Sum.computes n eligibleSum }
+    "=" _ "by" { congr!{G G} (Powers.value n) _ _ localProduct }
+    "=" _ "by" { Powers.multiplicative n (f.value a) (f.value b) commutes }
+    "=" _ "by" { congr!{G G G} Operations.mul _ _ _ _ (sym!{G} _ _ (Left.computes n eligibleLeft)) (sym!{G} _ _ (Right.computes n eligibleRight)) }
+  }
 };

@@ -1,9 +1,10 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Interval[] \as Interval;
 \import Real.Algebra[] \as Algebra;
 \import Real.Estimates[] \as Estimates;
 \import Real.Distance[] \as Distance;
 \import Real.SquareRoot[] \as Root;
-\use Equality.congr2;
+\use Equality.congr;
 \definition advance[t: Interval.Carrier][h: Real.Real]: Real.Real := Real.sub Real.one (Real.mul (Interval.reverse t) (Real.sub Real.one h));
 \definition complement: \forall (t: Interval.Carrier)(h: Real.Real) ->
   Real.sub Real.one (advance t h) = Real.mul (Interval.reverse t) (Real.sub Real.one h) :=
@@ -25,9 +26,11 @@
     (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r (Real.mul h h)) _ _ (Laws.fieldMulOneLeft Real.one));
 \definition tailSquared: \forall (x: Sphere) -> Lower.normSquared (Split.tail x) = Real.sub Real.one (Real.mul (height x) (height x)) :=
   \fun (x: Sphere) => Laws.addCancelLeft (Real.mul (height x) (height x)) (Lower.normSquared (Split.tail x)) (Real.sub Real.one (Real.mul (height x) (height x)))
-    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Split.normSplit x))
-      (trans!{Real.Real} _ _ _ (\bysub(Ambient.Coordinate, Ambient.Boundary, x))
-        (sym!{Real.Real} _ _ (Estimates.addSubCancel Real.one (Real.mul (height x) (height x))))));
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { sym!{Real.Real} _ _ (Split.normSplit x) }
+      "=" _ "by" { \bysub(Ambient.Coordinate, Ambient.Boundary, x) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Estimates.addSubCancel Real.one (Real.mul (height x) (height x))) }
+    });
 \definition tailFactor: \forall (x: Sphere) -> Lower.normSquared (Split.tail x) = Real.mul (Real.sub Real.one (height x)) (Real.add Real.one (height x)) :=
   \fun (x: Sphere) => trans!{Real.Real} _ _ _ (tailSquared x) (sym!{Real.Real} _ _ (squareComplement (height x)));
 \definition productBound: \forall (t: Interval.Carrier)(h: Real.Real) -> R.Le h Real.one ->
@@ -71,18 +74,21 @@
   \fun (t: Interval.Carrier)(h: Real.Real)(lower: _)(upper: _) => Root.squareOfNonnegative (factor t h) (factorNonnegative t h lower upper);
 \definition cancelFactor: \forall (a, b, c: Real.Real) -> Logic.Not (b = Real.zero) ->
   Real.mul (Real.mul a (Laws.fieldInv b)) (Real.mul c b) = Real.mul a c :=
-  \fun (a, b, c: Real.Real)(nonzero: _) => trans!{Real.Real} _ _ _ (Algebra.mulFour a (Laws.fieldInv b) c b)
-    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Real.mul a c)) _ _ (Laws.fieldInverseNonzero b nonzero))
-      (Algebra.mulOneRight (Real.mul a c)));
+  \fun (a, b, c: Real.Real)(nonzero: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Algebra.mulFour a (Laws.fieldInv b) c b }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.mul a c)) _ _ (Laws.fieldInverseNonzero b nonzero) }
+    "=" _ "by" { Algebra.mulOneRight (Real.mul a c) }
+  };
 \definition factorAtStart: \forall (h: Real.Real) -> R.Lt (Real.neg Real.one) h -> factor Interval.start h = Real.one :=
-  \fun (h: Real.Real)(lower: _) => trans!{Real.Real} _ _ _
-    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Laws.fieldInv (Real.add Real.one h))) _ _
+  \fun (h: Real.Real)(lower: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Laws.fieldInv (Real.add Real.one h))) _ _
       (trans!{Real.Real} _ _ _
-        (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ Interval.reverseStart
+        (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ Interval.reverseStart
           (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ (atStart h)))
-        (Laws.fieldMulOneLeft (Real.add Real.one h))))
-    (trans!{Real.Real} _ _ _ (Laws.fieldMulComm (Real.add Real.one h) (Laws.fieldInv (Real.add Real.one h)))
-      (Laws.fieldInverseNonzero (Real.add Real.one h) (Inverse.positiveNonzero _ (onePlusPositive h lower))));
+        (Laws.fieldMulOneLeft (Real.add Real.one h))) }
+    "=" _ "by" { Laws.fieldMulComm (Real.add Real.one h) (Laws.fieldInv (Real.add Real.one h)) }
+    "=" _ "by" { Laws.fieldInverseNonzero (Real.add Real.one h) (Inverse.positiveNonzero _ (onePlusPositive h lower)) }
+  };
 \definition factorAtEnd: \forall (h: Real.Real) -> factor Interval.end h = Real.zero :=
   \fun (h: Real.Real) => trans!{Real.Real} _ _ _
     (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Laws.fieldInv (Real.add Real.one h))) _ _
@@ -95,31 +101,35 @@
 \definition multiplierAtEnd: \forall (h: Real.Real) -> multiplier Interval.end h = Real.zero :=
   \fun (h: Real.Real) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ (factorAtEnd h)) Root.sqrtZero;
 \definition reorder: \forall (a, b, c: Real.Real) -> Real.mul (Real.mul a b) c = Real.mul (Real.mul a c) b :=
-  \fun (a, b, c: Real.Real) => trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc a b c)
-    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _ (Laws.fieldMulComm b c))
-      (sym!{Real.Real} _ _ (Laws.fieldMulAssoc a c b)));
+  \fun (a, b, c: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Laws.fieldMulAssoc a b c }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul a) _ _ (Laws.fieldMulComm b c) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc a c b) }
+  };
 \definition factoredComplement: \forall (t: Interval.Carrier)(h: Real.Real) ->
   Real.mul (Real.mul (Interval.reverse t) (Real.add Real.one (advance t h))) (Real.sub Real.one h) = Real.sub Real.one (Real.mul (advance t h) (advance t h)) :=
-  \fun (t: Interval.Carrier)(h: Real.Real) => trans!{Real.Real} _ _ _ (reorder (Interval.reverse t) (Real.add Real.one (advance t h)) (Real.sub Real.one h))
-    (trans!{Real.Real} _ _ _
-      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Real.add Real.one (advance t h))) _ _ (sym!{Real.Real} _ _ (complement t h)))
-      (squareComplement (advance t h)));
+  \fun (t: Interval.Carrier)(h: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { reorder (Interval.reverse t) (Real.add Real.one (advance t h)) (Real.sub Real.one h) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Real.add Real.one (advance t h))) _ _ (sym!{Real.Real} _ _ (complement t h)) }
+    "=" _ "by" { squareComplement (advance t h) }
+  };
 \definition tailCalculation: \forall (t: Interval.Carrier)(x: Left) ->
   Real.mul (Real.mul (multiplier t (height x)) (multiplier t (height x))) (Lower.normSquared (Split.tail x)) =
     Real.sub Real.one (Real.mul (advance t (height x)) (advance t (height x))) :=
-  \fun (t: Interval.Carrier)(x: Left) => trans!{Real.Real} _ _ _
-    (congr2!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
-      (multiplierSquared t (height x) (\bysub(Sphere, left, x)) ((heightBounds x).right)) (tailFactor x))
-    (trans!{Real.Real} _ _ _
-      (cancelFactor (Real.mul (Interval.reverse t) (Real.add Real.one (advance t (height x)))) (Real.add Real.one (height x)) (Real.sub Real.one (height x))
-        (Inverse.positiveNonzero _ (onePlusPositive (height x) (\bysub(Sphere, left, x)))))
-      (factoredComplement t (height x)));
+  \fun (t: Interval.Carrier)(x: Left) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+      (multiplierSquared t (height x) (\bysub(Sphere, left, x)) ((heightBounds x).right)) (tailFactor x) }
+    "=" _ "by" { cancelFactor (Real.mul (Interval.reverse t) (Real.add Real.one (advance t (height x)))) (Real.add Real.one (height x)) (Real.sub Real.one (height x))
+        (Inverse.positiveNonzero _ (onePlusPositive (height x) (\bysub(Sphere, left, x)))) }
+    "=" _ "by" { factoredComplement t (height x) }
+  };
 \import Lower.Contraction[] \as Scaling;
 \definition adjusted[t: Interval.Carrier][x: Left]: Sphere :=
   \into[Ambient.Coordinate](Split.join (advance t (height x)) (Scaling.scale (multiplier t (height x)) (Split.tail x)), Ambient.Boundary) \by {
-    trans!{Real.Real} _ _ _ (Split.normJoin (advance t (height x)) (Scaling.scale (multiplier t (height x)) (Split.tail x)))
-      (trans!{Real.Real} _ _ _
-        (congr!{Real.Real Real.Real} (Real.add (Real.mul (advance t (height x)) (advance t (height x)))) _ _
-          (trans!{Real.Real} _ _ _ (Scaling.normScale (multiplier t (height x)) (Split.tail x)) (tailCalculation t x)))
-        (Estimates.addSubCancel Real.one (Real.mul (advance t (height x)) (advance t (height x)))))
+    eq_reason_in!{Real.Real _
+      "=" _ "by" { Split.normJoin (advance t (height x)) (Scaling.scale (multiplier t (height x)) (Split.tail x)) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.mul (advance t (height x)) (advance t (height x)))) _ _
+          (trans!{Real.Real} _ _ _ (Scaling.normScale (multiplier t (height x)) (Split.tail x)) (tailCalculation t x)) }
+      "=" _ "by" { Estimates.addSubCancel Real.one (Real.mul (advance t (height x)) (advance t (height x))) }
+    }
   };

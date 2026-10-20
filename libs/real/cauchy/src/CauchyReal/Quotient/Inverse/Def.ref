@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition InverseSpec[x, y: Real]: \Prop :=
   Logic.And[
     x = ArithmeticDef.zero -> y = ArithmeticDef.zero,
@@ -67,25 +68,16 @@
   u = v :=
   \fun (nonzero: Logic.Not (x = ArithmeticDef.zero)) (uLaw: ArithmeticDef.mul u x = ArithmeticDef.one)
     (vLaw: ArithmeticDef.mul v x = ArithmeticDef.one) =>
-    trans!{Real} u (ArithmeticDef.mul u ArithmeticDef.one) v
-      (sym!{Real} _ _ (ArithmeticProp.mulOneRight u))
-      (trans!{Real}
-        (ArithmeticDef.mul u ArithmeticDef.one) (ArithmeticDef.mul u (ArithmeticDef.mul v x)) v
-        (congr!{Real Real} (ArithmeticDef.mul u) _ _ (sym!{Real} _ _ vLaw))
-        (trans!{Real}
-          (ArithmeticDef.mul u (ArithmeticDef.mul v x)) (ArithmeticDef.mul (ArithmeticDef.mul u v) x) v
-          (sym!{Real} _ _ (ArithmeticProp.mulAssoc u v x))
-          (trans!{Real}
-            (ArithmeticDef.mul (ArithmeticDef.mul u v) x) (ArithmeticDef.mul (ArithmeticDef.mul v u) x) v
-            (congr!{Real Real} (\fun (z: Real) => ArithmeticDef.mul z x)
-              _ _ (ArithmeticProp.mulComm u v))
-            (trans!{Real}
-              (ArithmeticDef.mul (ArithmeticDef.mul v u) x) (ArithmeticDef.mul v (ArithmeticDef.mul u x)) v
-              (ArithmeticProp.mulAssoc v u x)
-              (trans!{Real}
-                (ArithmeticDef.mul v (ArithmeticDef.mul u x)) (ArithmeticDef.mul v ArithmeticDef.one) v
-                (congr!{Real Real} (ArithmeticDef.mul v) _ _ uLaw)
-                (ArithmeticProp.mulOneRight v))))));
+    eq_reason_in!{Real u
+      "=" { ArithmeticDef.mul u ArithmeticDef.one } "by" { sym!{Real} _ _ (ArithmeticProp.mulOneRight u) }
+      "=" { ArithmeticDef.mul u (ArithmeticDef.mul v x) } "by" { congr!{Real Real} (ArithmeticDef.mul u) _ _ (sym!{Real} _ _ vLaw) }
+      "=" { ArithmeticDef.mul (ArithmeticDef.mul u v) x } "by" { sym!{Real} _ _ (ArithmeticProp.mulAssoc u v x) }
+      "=" { ArithmeticDef.mul (ArithmeticDef.mul v u) x } "by" { congr!{Real Real} (\fun (z: Real) => ArithmeticDef.mul z x)
+              _ _ (ArithmeticProp.mulComm u v) }
+      "=" { ArithmeticDef.mul v (ArithmeticDef.mul u x) } "by" { ArithmeticProp.mulAssoc v u x }
+      "=" { ArithmeticDef.mul v ArithmeticDef.one } "by" { congr!{Real Real} (ArithmeticDef.mul v) _ _ uLaw }
+      "=" v "by" { ArithmeticProp.mulOneRight v }
+    };
 
 \definition inverseSpecUnique[x: Real]:
   \forall (u, v: \Cast[Real] ({ y : Real \where InverseSpec x y })) ->

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import singular_cohomology.Cochains[A := Sphere, source := topology].With[coefficients := coefficients] \as Theory;
 \import singular_cohomology.Zero[A := Sphere, source := topology].With[coefficients := coefficients] \as Zero;
 \import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
@@ -13,11 +14,11 @@
 \definition action: Modules.Hom[V := Carrier, W := Carrier, source := space, target := space].Map := Pull.At[n := N.Nat^::zero].induced Antipodal.apply Antipodal.continuous Coefficient.identity;
 \import Complexes.Map[C := Theory.complex, D := Theory.complex].At[k := N.Nat^::zero] \as Action;
 \definition valueOnClass: \forall (h: H.CycleCarrier)(a: Sphere) -> evaluate ((action).apply (H.classOf h)) a = Zero.value h (Antipodal.apply a) :=
-  \fun (h: H.CycleCarrier)(a: Sphere) => trans!{coefficients.Carrier} _ _ _
-    (congr!{Carrier coefficients.Carrier} (\fun (q: Carrier) => evaluate q a) _ _ (Action.onClass (Pull.map Antipodal.apply Antipodal.continuous Coefficient.identity) h))
-    (trans!{coefficients.Carrier} _ _ _
-      (onClass ((Action.cyclesMap (Pull.map Antipodal.apply Antipodal.continuous Coefficient.identity)).apply h) a)
-      (Pull.At[n := N.Nat^::zero].onCochain Antipodal.apply Antipodal.continuous Coefficient.identity h (Zero.constant a)));
+  \fun (h: H.CycleCarrier)(a: Sphere) => eq_reason_in!{coefficients.Carrier _
+    "=" _ "by" { congr!{Carrier coefficients.Carrier} (\fun (q: Carrier) => evaluate q a) _ _ (Action.onClass (Pull.map Antipodal.apply Antipodal.continuous Coefficient.identity) h) }
+    "=" _ "by" { onClass ((Action.cyclesMap (Pull.map Antipodal.apply Antipodal.continuous Coefficient.identity)).apply h) a }
+    "=" _ "by" { Pull.At[n := N.Nat^::zero].onCochain Antipodal.apply Antipodal.continuous Coefficient.identity h (Zero.constant a) }
+  };
 \definition value: \forall (q: Carrier)(a: Sphere) -> evaluate ((action).apply q) a = evaluate q (Antipodal.apply a) :=
   H.classInduction (\fun (q: Carrier) => \forall (a: Sphere) -> evaluate ((action).apply q) a = evaluate q (Antipodal.apply a))
     (\fun (h: H.CycleCarrier)(a: Sphere) => trans!{coefficients.Carrier} _ _ _ (valueOnClass h a) (sym!{coefficients.Carrier} _ _ (onClass h (Antipodal.apply a))));
@@ -30,27 +31,40 @@
 \definition orientedValue[q: Carrier]: coefficients.Carrier := Group.difference (evaluate q Model.north) (evaluate q Model.south);
 \definition reverseDifference: \forall (a, b: coefficients.Carrier) -> Group.difference b a = Group.neg (Group.difference a b) :=
   \fun (a, b: coefficients.Carrier) => sym!{coefficients.Carrier} _ _
-    (trans!{coefficients.Carrier} _ _ _ (Group.negAdd a (Group.neg b))
-      (trans!{coefficients.Carrier} _ _ _ (congr!{coefficients.Carrier coefficients.Carrier} (Group.add (Group.neg a)) _ _ (Group.negNeg b)) (Group.comm (Group.neg a) b)));
+    (eq_reason_in!{coefficients.Carrier _
+      "=" _ "by" { Group.negAdd a (Group.neg b) }
+      "=" _ "by" { congr!{coefficients.Carrier coefficients.Carrier} (Group.add (Group.neg a)) _ _ (Group.negNeg b) }
+      "=" _ "by" { Group.comm (Group.neg a) b }
+    });
 \definition orientedAction: \forall (q: Carrier) -> orientedValue ((action).apply q) = Group.neg (orientedValue q) :=
   \fun (q: Carrier) => trans!{coefficients.Carrier} _ _ _
-    (congr2!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.difference _ _ _ _ (atNorth q) (atSouth q))
+    (congr!{coefficients.Carrier coefficients.Carrier coefficients.Carrier} Group.difference _ _ _ _ (atNorth q) (atSouth q))
     (reverseDifference (evaluate q Model.north) (evaluate q Model.south));
 \import singular_cohomology.Simplices[A := Sphere, source := topology] \as Simplices;
 \import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := coefficients.Carrier, target := coefficients.space] \as Free;
 \definition sameValues: \forall (h, g: H.CycleCarrier) -> Zero.value h Model.north = Zero.value g Model.north -> Zero.value h Model.south = Zero.value g Model.south ->
   \forall (a: Sphere) -> Zero.value h a = Zero.value g a :=
-  \fun (h, g: H.CycleCarrier)(north: _)(south: _)(a: Sphere) => (Logic.orElim _ _ (Zero.value h a = Zero.value g a) ((Model.cases a)) (\fun (equal: a = Model.north) => trans!{coefficients.Carrier} _ _ _ (congr!{Sphere coefficients.Carrier} (Zero.value h) _ _ equal)
-      (trans!{coefficients.Carrier} _ _ _ north (sym!{coefficients.Carrier} _ _ (congr!{Sphere coefficients.Carrier} (Zero.value g) _ _ equal)))) (\fun (equal: a = Model.south) => trans!{coefficients.Carrier} _ _ _ (congr!{Sphere coefficients.Carrier} (Zero.value h) _ _ equal)
-      (trans!{coefficients.Carrier} _ _ _ south (sym!{coefficients.Carrier} _ _ (congr!{Sphere coefficients.Carrier} (Zero.value g) _ _ equal)))));
+  \fun (h, g: H.CycleCarrier)(north: _)(south: _)(a: Sphere) => (Logic.orElim _ _ (Zero.value h a = Zero.value g a) ((Model.cases a)) (\fun (equal: a = Model.north) => eq_reason_in!{coefficients.Carrier _
+    "=" _ "by" { congr!{Sphere coefficients.Carrier} (Zero.value h) _ _ equal }
+    "=" _ "by" north
+    "=" _ "by" { sym!{coefficients.Carrier} _ _ (congr!{Sphere coefficients.Carrier} (Zero.value g) _ _ equal) }
+  }) (\fun (equal: a = Model.south) => eq_reason_in!{coefficients.Carrier _
+        "=" _ "by" { congr!{Sphere coefficients.Carrier} (Zero.value h) _ _ equal }
+        "=" _ "by" south
+        "=" _ "by" { sym!{coefficients.Carrier} _ _ (congr!{Sphere coefficients.Carrier} (Zero.value g) _ _ equal) }
+      }));
 \definition cochainsEqual: \forall (h, g: H.CycleCarrier) -> Zero.value h Model.north = Zero.value g Model.north -> Zero.value h Model.south = Zero.value g Model.south -> H.ambient h = H.ambient g :=
   \fun (h, g: H.CycleCarrier)(north: _)(south: _) => Free.ext h g
-    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{coefficients.Carrier} _ _ _ (Zero.valueOnSimplex h sigma)
-      (trans!{coefficients.Carrier} _ _ _ (sameValues h g north south (Zero.point sigma)) (sym!{coefficients.Carrier} _ _ (Zero.valueOnSimplex g sigma))));
+    (\fun (sigma: Simplices.Carrier N.Nat^::zero) => eq_reason_in!{coefficients.Carrier _
+      "=" _ "by" { Zero.valueOnSimplex h sigma }
+      "=" _ "by" { sameValues h g north south (Zero.point sigma) }
+      "=" _ "by" { sym!{coefficients.Carrier} _ _ (Zero.valueOnSimplex g sigma) }
+    });
 \definition detectsEqual: \forall (q, r: Carrier) -> evaluate q Model.north = evaluate r Model.north -> evaluate q Model.south = evaluate r Model.south -> q = r :=
-  \fun (q, r: Carrier)(north: _)(south: _) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ ((Cycles.kernelIso).rightInverse q))
-    (trans!{Carrier} _ _ _
-      (H.equalClass (((Cycles.kernelIso).backward).apply q) (((Cycles.kernelIso).backward).apply r)
-        (cochainsEqual (((Cycles.kernelIso).backward).apply q) (((Cycles.kernelIso).backward).apply r) north south))
-      ((Cycles.kernelIso).rightInverse r));
+  \fun (q, r: Carrier)(north: _)(south: _) => eq_reason_in!{Carrier _
+    "=" _ "by" { sym!{Carrier} _ _ ((Cycles.kernelIso).rightInverse q) }
+    "=" _ "by" { H.equalClass (((Cycles.kernelIso).backward).apply q) (((Cycles.kernelIso).backward).apply r)
+        (cochainsEqual (((Cycles.kernelIso).backward).apply q) (((Cycles.kernelIso).backward).apply r) north south) }
+    "=" _ "by" { (Cycles.kernelIso).rightInverse r }
+  };
 \module Reduced;

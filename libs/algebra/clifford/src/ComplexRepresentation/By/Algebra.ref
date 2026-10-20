@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Polynomial multiplication and conjugate reversion on complex components. */
 \import Clifford.Reversion[] \as Reverse;
 \import \root.Euclidean[n := n].PinNorm[] \as Norm;
@@ -7,10 +8,11 @@
 \definition inverse[p: CarrierPair]: CarrierPair := pair (Reverse.map (first p)) (Clifford.neg (Reverse.map (second p)));
 \definition scaleProduct: \forall (a, b: R.Real)(x, y: E.Carrier) ->
   Clifford.mul (Clifford.scale a x) (Clifford.scale b y) = Clifford.scale (R.mul a b) (Clifford.mul x y) :=
-  \fun (a, b: R.Real)(x, y: E.Carrier) => trans!{E.Carrier} _ _ _
-    (sym!{E.Carrier} _ _ (Clifford.algebra.scalarMulLeft a x (Clifford.scale b y)))
-    (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (Clifford.scale a) _ _ (sym!{E.Carrier} _ _ (Clifford.algebra.scalarMulRight b x y)))
-      (sym!{E.Carrier} _ _ (Clifford.vectorSpace.scalarAssoc a b (Clifford.mul x y))));
+  \fun (a, b: R.Real)(x, y: E.Carrier) => eq_reason_in!{E.Carrier _
+    "=" _ "by" { sym!{E.Carrier} _ _ (Clifford.algebra.scalarMulLeft a x (Clifford.scale b y)) }
+    "=" _ "by" { congr!{E.Carrier E.Carrier} (Clifford.scale a) _ _ (sym!{E.Carrier} _ _ (Clifford.algebra.scalarMulRight b x y)) }
+    "=" _ "by" { sym!{E.Carrier} _ _ (Clifford.vectorSpace.scalarAssoc a b (Clifford.mul x y)) }
+  };
 \definition scaleDifference: \forall (a, b: R.Real)(x: E.Carrier) -> Clifford.scale (R.sub a b) x = Clifford.add (Clifford.scale a x) (Clifford.neg (Clifford.scale b x)) :=
   \fun (a, b: R.Real)(x: E.Carrier) => trans!{E.Carrier} _ _ _ (Clifford.vectorSpace.scalarAdd a (R.neg b) x)
     (congr!{E.Carrier E.Carrier} (Clifford.add (Clifford.scale a x)) _ _ (negativeScalar b x));
@@ -18,33 +20,43 @@
   \fun (g, h: G) => congr!{{Pins.Pin} E.Carrier} (\fun (k: Pins.Pin) => k.value) _ _ (embeddingProduct g h);
 \definition rawProduct: \forall (g, h: G)(z, w: Circle.Circle) -> raw (Operations.mul g h) (Circle.product z w) = product (raw g z) (raw h w) :=
   \fun (g, h: G)(z, w: Circle.Circle) => Pairs.ext _ _
-    (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (Clifford.scale (C.re (Circle.product z w))) _ _ (valueProduct g h))
-      (trans!{E.Carrier} _ _ _ (scaleDifference (R.mul (C.re z) (C.re w)) (R.mul (C.im z) (C.im w)) (Clifford.mul (value g) (value h)))
-        (congr2!{E.Carrier E.Carrier E.Carrier} Clifford.add _ _ _ _
+    (eq_reason_in!{E.Carrier _
+      "=" _ "by" { congr!{E.Carrier E.Carrier} (Clifford.scale (C.re (Circle.product z w))) _ _ (valueProduct g h) }
+      "=" _ "by" { scaleDifference (R.mul (C.re z) (C.re w)) (R.mul (C.im z) (C.im w)) (Clifford.mul (value g) (value h)) }
+      "=" _ "by" { congr!{E.Carrier E.Carrier E.Carrier} Clifford.add _ _ _ _
           (sym!{E.Carrier} _ _ (scaleProduct (C.re z) (C.re w) (value g) (value h)))
-          (congr!{E.Carrier E.Carrier} Clifford.neg _ _ (sym!{E.Carrier} _ _ (scaleProduct (C.im z) (C.im w) (value g) (value h)))))))
-    (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (Clifford.scale (C.im (Circle.product z w))) _ _ (valueProduct g h))
-      (trans!{E.Carrier} _ _ _ (Clifford.vectorSpace.scalarAdd (R.mul (C.re z) (C.im w)) (R.mul (C.im z) (C.re w)) (Clifford.mul (value g) (value h)))
-        (congr2!{E.Carrier E.Carrier E.Carrier} Clifford.add _ _ _ _
+          (congr!{E.Carrier E.Carrier} Clifford.neg _ _ (sym!{E.Carrier} _ _ (scaleProduct (C.im z) (C.im w) (value g) (value h)))) }
+    })
+    (eq_reason_in!{E.Carrier _
+      "=" _ "by" { congr!{E.Carrier E.Carrier} (Clifford.scale (C.im (Circle.product z w))) _ _ (valueProduct g h) }
+      "=" _ "by" { Clifford.vectorSpace.scalarAdd (R.mul (C.re z) (C.im w)) (R.mul (C.im z) (C.re w)) (Clifford.mul (value g) (value h)) }
+      "=" _ "by" { congr!{E.Carrier E.Carrier E.Carrier} Clifford.add _ _ _ _
           (sym!{E.Carrier} _ _ (scaleProduct (C.re z) (C.im w) (value g) (value h)))
-          (sym!{E.Carrier} _ _ (scaleProduct (C.im z) (C.re w) (value g) (value h))))));
+          (sym!{E.Carrier} _ _ (scaleProduct (C.im z) (C.re w) (value g) (value h))) }
+    });
 \definition multiplication: \forall (x, y: Extension.Carrier) -> image (Extension.group.op x y) = product (image x) (image y) := Extension.induction2
   (\fun (x, y: Extension.Carrier) => image (Extension.group.op x y) = product (image x) (image y))
-  (\fun (g: G)(z: Circle.Circle)(h: G)(w: Circle.Circle) => trans!{CarrierPair} _ _ _
-    (congr!{{Extension.Carrier} CarrierPair} image _ _ (Extension.multiplication g h z w))
-    (trans!{CarrierPair} _ _ _ (onClass (Operations.mul g h) (Circle.product z w))
-      (trans!{CarrierPair} _ _ _ (rawProduct g h z w)
-        (congr2!{CarrierPair CarrierPair CarrierPair} product _ _ _ _ (sym!{CarrierPair} _ _ (onClass g z)) (sym!{CarrierPair} _ _ (onClass h w))))));
+  (\fun (g: G)(z: Circle.Circle)(h: G)(w: Circle.Circle) => eq_reason_in!{CarrierPair _
+    "=" _ "by" { congr!{{Extension.Carrier} CarrierPair} image _ _ (Extension.multiplication g h z w) }
+    "=" _ "by" { onClass (Operations.mul g h) (Circle.product z w) }
+    "=" _ "by" { rawProduct g h z w }
+    "=" _ "by" { congr!{CarrierPair CarrierPair CarrierPair} product _ _ _ _ (sym!{CarrierPair} _ _ (onClass g z)) (sym!{CarrierPair} _ _ (onClass h w)) }
+  });
 \definition inverseValue: \forall (g: G) -> value (Operations.inv g) = Reverse.map (value g) := \fun (g: G) => trans!{E.Carrier} _ _ _
   (congr!{{Pins.Pin} E.Carrier} (\fun (h: Pins.Pin) => h.value) _ _ (embeddingInverse g)) (sym!{E.Carrier} _ _ (Norm.norm (embedding g)));
 \definition rawInverse: \forall (g: G)(z: Circle.Circle) -> raw (Operations.inv g) (Circle.inverse z) = inverse (raw g z) :=
   \fun (g: G)(z: Circle.Circle) => Pairs.ext _ _
     (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (Clifford.scale (C.re z)) _ _ (inverseValue g)) (sym!{E.Carrier} _ _ (Reverse.onScale (C.re z) (value g))))
-    (trans!{E.Carrier} _ _ _ (congr!{E.Carrier E.Carrier} (Clifford.scale (R.neg (C.im z))) _ _ (inverseValue g))
-      (trans!{E.Carrier} _ _ _ (negativeScalar (C.im z) (Reverse.map (value g)))
-        (congr!{E.Carrier E.Carrier} Clifford.neg _ _ (sym!{E.Carrier} _ _ (Reverse.onScale (C.im z) (value g))))));
+    (eq_reason_in!{E.Carrier _
+      "=" _ "by" { congr!{E.Carrier E.Carrier} (Clifford.scale (R.neg (C.im z))) _ _ (inverseValue g) }
+      "=" _ "by" { negativeScalar (C.im z) (Reverse.map (value g)) }
+      "=" _ "by" { congr!{E.Carrier E.Carrier} Clifford.neg _ _ (sym!{E.Carrier} _ _ (Reverse.onScale (C.im z) (value g))) }
+    });
 \definition inversion: \forall (x: Extension.Carrier) -> image (Extension.group.inv x) = inverse (image x) := Extension.induction
   (\fun (x: Extension.Carrier) => image (Extension.group.inv x) = inverse (image x))
-  (\fun (g: G)(z: Circle.Circle) => trans!{CarrierPair} _ _ _ (congr!{{Extension.Carrier} CarrierPair} image _ _ (Extension.inversion g z))
-    (trans!{CarrierPair} _ _ _ (onClass (Operations.inv g) (Circle.inverse z))
-      (trans!{CarrierPair} _ _ _ (rawInverse g z) (congr!{CarrierPair CarrierPair} inverse _ _ (sym!{CarrierPair} _ _ (onClass g z))))));
+  (\fun (g: G)(z: Circle.Circle) => eq_reason_in!{CarrierPair _
+    "=" _ "by" { congr!{{Extension.Carrier} CarrierPair} image _ _ (Extension.inversion g z) }
+    "=" _ "by" { onClass (Operations.inv g) (Circle.inverse z) }
+    "=" _ "by" { rawInverse g z }
+    "=" _ "by" { congr!{CarrierPair CarrierPair} inverse _ _ (sym!{CarrierPair} _ _ (onClass g z)) }
+  });

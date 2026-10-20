@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.DirectSum[Index := Index, family := source] \as Source;
 \import Modules.DirectSum[Index := Index, family := target] \as Target;
 \import Modules.DirectSumMapping[Index := Index, sourceFamily := source, targetFamily := target].On[f := maps] \as Action;
@@ -22,11 +23,12 @@
 \definition closed: \forall (x: Sum.Carrier) -> Action.map.apply (Inclusion.map.apply x) = Target.space.zero :=
   \fun (x: Sum.Carrier) => TargetCoordinates.injective (Action.map.apply (Inclusion.map.apply x)) Target.space.zero
     (\axiom:funext(TargetCoordinates.coordinates (Action.map.apply (Inclusion.map.apply x)), TargetCoordinates.coordinates Target.space.zero,
-      \fun (i: Index) => trans!{{target.Carrier i}} _ _ _ (Action.coordinatesNatural (Inclusion.map.apply x) i)
-        (trans!{{target.Carrier i}} _ _ _
-          (congr!{{source.Carrier i} {target.Carrier i}} ((maps i).apply) _ _ (Inclusion.coordinatesNatural x i))
-          (trans!{{target.Carrier i}} _ _ _ (Component[i := i].closed (Coordinates.coordinates x i))
-            (sym!{{target.Carrier i}} _ _ (congr!{TargetProduct.Carrier {target.Carrier i}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero))))));
+      \fun (i: Index) => eq_reason_in!{{target.Carrier i} _
+        "=" _ "by" { Action.coordinatesNatural (Inclusion.map.apply x) i }
+        "=" _ "by" { congr!{{source.Carrier i} {target.Carrier i}} ((maps i).apply) _ _ (Inclusion.coordinatesNatural x i) }
+        "=" _ "by" { Component[i := i].closed (Coordinates.coordinates x i) }
+        "=" _ "by" { sym!{{target.Carrier i}} _ _ (congr!{TargetProduct.Carrier {target.Carrier i}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero) }
+      }));
 \import Modules.Hom[V := Sum.Carrier, W := Kernel.Carrier, source := Sum.space, target := Kernel.moduleSpace] \as Forward;
 \definition forward: Forward.Map := Forward.Map {
   apply := \fun (x: Sum.Carrier) => \into[Source.Carrier](Inclusion.map.apply x, kernel.carrier) \by { closed x },
@@ -34,12 +36,12 @@
 };
 \definition coordinateClosed: \forall (x: Kernel.Carrier)(i: Index) ->
   (maps i).apply (SourceCoordinates.coordinates x i) = (target.space i).zero :=
-  \fun (x: Kernel.Carrier)(i: Index) => trans!{{target.Carrier i}} _ _ _
-    (sym!{{target.Carrier i}} _ _ (Action.coordinatesNatural x i))
-    (trans!{{target.Carrier i}} _ _ _
-      (congr!{Target.Carrier {target.Carrier i}} (\fun (v: Target.Carrier) => TargetCoordinates.coordinates v i) _ _
-        (\bysub(Source.Carrier, kernel.carrier, x)))
-      (congr!{TargetProduct.Carrier {target.Carrier i}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero));
+  \fun (x: Kernel.Carrier)(i: Index) => eq_reason_in!{{target.Carrier i} _
+    "=" _ "by" { sym!{{target.Carrier i}} _ _ (Action.coordinatesNatural x i) }
+    "=" _ "by" { congr!{Target.Carrier {target.Carrier i}} (\fun (v: Target.Carrier) => TargetCoordinates.coordinates v i) _ _
+        (\bysub(Source.Carrier, kernel.carrier, x)) }
+    "=" _ "by" { congr!{TargetProduct.Carrier {target.Carrier i}} (\fun (v: TargetProduct.Carrier) => v i) _ _ TargetCoordinates.coordinatesZero }
+  };
 \definition coordinates[x: Kernel.Carrier][i: Index]: Component[i := i].Carrier := Component[i := i].make (SourceCoordinates.coordinates x i) (coordinateClosed x i);
 \import Modules.Product[Index := Index, family := family] \as Product;
 \import Modules.Product[Index := Index, family := source] \as SourceProduct;

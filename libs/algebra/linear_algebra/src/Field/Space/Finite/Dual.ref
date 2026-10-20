@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Dual[V := V, source := space] \as Functionals;
 \import \parent.Dimension[] \as Dimension;
 \import \parent.\parent.Finite[V := Functionals.Carrier, I := I, space := Functionals.space] \as DualFinite;
@@ -29,35 +30,39 @@
     };
 \definition functionalExpansion: \forall (b: Basis) (f: Functionals.Carrier) (v: V) ->
   f v = Sums.sum b.indices (\fun (i: I) => mul (coordinates b v i) (f (b.vectors i))) :=
-  \fun (b: Basis) (f: Functionals.Carrier) (v: V) => trans!{K} _ _ _
-    (congr!{V K} f _ _ (sym!{V} _ _ (b.reconstruction v)))
-    (trans!{K} _ _ _ (evaluationSum b.indices (\fun (i: I) => space.smul (coordinates b v i) (b.vectors i)) f)
-      (SumLaws.congruent b.indices
+  \fun (b: Basis) (f: Functionals.Carrier) (v: V) => eq_reason_in!{K _
+    "=" _ "by" { congr!{V K} f _ _ (sym!{V} _ _ (b.reconstruction v)) }
+    "=" _ "by" { evaluationSum b.indices (\fun (i: I) => space.smul (coordinates b v i) (b.vectors i)) f }
+    "=" _ "by" { SumLaws.congruent b.indices
         (\fun (i: I) => f (space.smul (coordinates b v i) (b.vectors i)))
         (\fun (i: I) => mul (coordinates b v i) (f (b.vectors i)))
-        (\fun (i: I) => (Functionals.laws f).preservesScale (coordinates b v i) (b.vectors i))));
+        (\fun (i: I) => (Functionals.laws f).preservesScale (coordinates b v i) (b.vectors i)) }
+  };
 \definition reconstruction: \forall (b: Basis) (f: Functionals.Carrier) ->
   DualFinite.synthesize (raw b) (DualFinite.coordinates (raw b) f) = f :=
   \fun (b: Basis) (f: Functionals.Carrier) => Functionals.ext
-    (DualFinite.synthesize (raw b) (DualFinite.coordinates (raw b) f)) f (\fun (v: V) => trans!{K} _ _ _
-      (synthesisEvaluation b (DualFinite.coordinates (raw b) f) v)
-      (trans!{K} _ _ _ (SumLaws.congruent b.indices
+    (DualFinite.synthesize (raw b) (DualFinite.coordinates (raw b) f)) f (\fun (v: V) => eq_reason_in!{K _
+      "=" _ "by" { synthesisEvaluation b (DualFinite.coordinates (raw b) f) v }
+      "=" _ "by" { SumLaws.congruent b.indices
         (\fun (i: I) => mul (f (b.vectors i)) (coordinates b v i))
         (\fun (i: I) => mul (coordinates b v i) (f (b.vectors i)))
-        (\fun (i: I) => mulComm (f (b.vectors i)) (coordinates b v i)))
-        (sym!{K} _ _ (functionalExpansion b f v))));
+        (\fun (i: I) => mulComm (f (b.vectors i)) (coordinates b v i)) }
+      "=" _ "by" { sym!{K} _ _ (functionalExpansion b f v) }
+    });
 \definition coordinateReconstruction: \forall (b: Basis) (x: Coordinates.Vector) ->
   DualFinite.coordinates (raw b) (DualFinite.synthesize (raw b) x) = x :=
   \fun (b: Basis) (x: Coordinates.Vector) => \axiom:funext(
     DualFinite.coordinates (raw b) (DualFinite.synthesize (raw b) x), x,
-    (\fun (i: I) => trans!{K} _ _ _ (synthesisEvaluation b x (b.vectors i))
-      (trans!{K} _ _ _ (SumLaws.congruent b.indices
+    (\fun (i: I) => eq_reason_in!{K _
+      "=" _ "by" { synthesisEvaluation b x (b.vectors i) }
+      "=" _ "by" { SumLaws.congruent b.indices
         (\fun (j: I) => mul (x j) (coordinates b (b.vectors i) j))
         (\fun (j: I) => mul (Kronecker.delta i j) (x j))
         (\fun (j: I) => trans!{K} _ _ _ (mulComm (x j) (coordinates b (b.vectors i) j))
           (congr!{K K} (\fun (a: K) => mul a (x j)) _ _
-            (trans!{K} _ _ _ (Dimension.biorthogonal b i j) (Kronecker.symmetric j i)))))
-        (Single.extract b.indices b.distinct i (Dimension.indicesExhaustive b i) x))));
+            (trans!{K} _ _ _ (Dimension.biorthogonal b i j) (Kronecker.symmetric j i)))) }
+      "=" _ "by" { Single.extract b.indices b.distinct i (Dimension.indicesExhaustive b i) x }
+    }));
 \definition dualReconstruction: \forall (b: Basis) (x: Coordinates.Vector) (i: I) ->
   Sums.sum b.indices (\fun (j: I) => mul (x j) (DualFinite.coordinates (raw b) (vectors b i) j)) = x i :=
   \fun (b: Basis) (x: Coordinates.Vector) (i: I) => trans!{K} _ _ _ (SumLaws.congruent b.indices

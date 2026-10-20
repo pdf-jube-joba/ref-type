@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Grading[] \as Grading;
 \import \parent.Tensor[C := C, D := D] \as Product;
 \import \parent.Total[C := Product.complex] \as Total;
@@ -24,42 +25,39 @@
 \definition value[x: Left.Cycle][y: Right.Cycle]: Current.Carrier := Inclusion.injection.apply (Term.tensor x y);
 \definition horizontalClosed: \forall (x: Left.Cycle)(y: Right.Cycle) ->
   Step.horizontal.apply (value x y) = Next.space.zero :=
-  \fun (x: Left.Cycle)(y: Right.Cycle) => trans!{Next.Carrier}
-    _ _ _
-    (trans!{Next.Carrier} _ _ _ (Step.horizontalOnInjection index (Term.tensor x y))
-      (congr!{HTerm.Carrier Next.Carrier} (HInclusion.injection.apply) _ _ (Differential.horizontalOnTensor x y)))
-    (trans!{Next.Carrier} _ _ _
-      (congr!{HTerm.Carrier Next.Carrier} (HInclusion.injection.apply) _ _
+  \fun (x: Left.Cycle)(y: Right.Cycle) => eq_reason_in!{Next.Carrier _
+    "=" _ "by" { Step.horizontalOnInjection index (Term.tensor x y) }
+    "=" _ "by" { congr!{HTerm.Carrier Next.Carrier} (HInclusion.injection.apply) _ _ (Differential.horizontalOnTensor x y) }
+    "=" _ "by" { congr!{HTerm.Carrier Next.Carrier} (HInclusion.injection.apply) _ _
         (trans!{HTerm.Carrier} _ _ _
           (congr!{{C.family.Carrier (previous p)} HTerm.Carrier}
             (\fun (v: C.family.Carrier (previous p)) => HTerm.tensor v y) _ _
             (\bysub(C.family.Carrier p, Left.cycles.carrier, x)))
-          (HTerm.zeroLeft y)))
-      (HMaps.zeroPreserved HInclusion.injection));
+          (HTerm.zeroLeft y)) }
+    "=" _ "by" { HMaps.zeroPreserved HInclusion.injection }
+  };
 \definition verticalClosed: \forall (x: Left.Cycle)(y: Right.Cycle) ->
   Step.vertical.apply (value x y) = Next.space.zero :=
-  \fun (x: Left.Cycle)(y: Right.Cycle) => trans!{Next.Carrier}
-    _ _ _
-    (trans!{Next.Carrier} _ _ _ (Step.verticalOnInjection index (Term.tensor x y))
-      (congr!{VTerm.Carrier Next.Carrier} (\fun (v: VTerm.Carrier) => VInclusion.injection.apply ((Sign.map p).apply v)) _ _
-        (Differential.verticalOnTensor x y)))
-    (trans!{Next.Carrier} _ _ _
-      (congr!{VTerm.Carrier Next.Carrier} (\fun (v: VTerm.Carrier) => VInclusion.injection.apply ((Sign.map p).apply v)) _ _
+  \fun (x: Left.Cycle)(y: Right.Cycle) => eq_reason_in!{Next.Carrier _
+    "=" _ "by" { Step.verticalOnInjection index (Term.tensor x y) }
+    "=" _ "by" { congr!{VTerm.Carrier Next.Carrier} (\fun (v: VTerm.Carrier) => VInclusion.injection.apply ((Sign.map p).apply v)) _ _
+        (Differential.verticalOnTensor x y) }
+    "=" _ "by" { congr!{VTerm.Carrier Next.Carrier} (\fun (v: VTerm.Carrier) => VInclusion.injection.apply ((Sign.map p).apply v)) _ _
         (trans!{VTerm.Carrier} _ _ _
           (congr!{{D.family.Carrier (previous q)} VTerm.Carrier}
             (\fun (v: D.family.Carrier (previous q)) => VTerm.tensor x v) _ _
             (\bysub(D.family.Carrier q, Right.cycles.carrier, y)))
-          (VTerm.zeroRight x)))
-      (trans!{Next.Carrier} _ _ _
-        (congr!{VTerm.Carrier Next.Carrier} (VInclusion.injection.apply) _ _ (Signs.zeroPreserved (Sign.map p)))
-        (VMaps.zeroPreserved VInclusion.injection)));
+          (VTerm.zeroRight x)) }
+    "=" _ "by" { congr!{VTerm.Carrier Next.Carrier} (VInclusion.injection.apply) _ _ (Signs.zeroPreserved (Sign.map p)) }
+    "=" _ "by" { VMaps.zeroPreserved VInclusion.injection }
+  };
 \import Modules.Laws[V := Next.Carrier, space := Next.space] \as NextLaws;
 \import algebra.Group[].Of[Carrier := Next.Carrier, group := NextLaws.additive] \as NextGroup;
 \definition closed: \forall (x: Left.Cycle)(y: Right.Cycle) ->
   Total.differential.apply n (value x y) = Next.space.zero :=
   \fun (x: Left.Cycle)(y: Right.Cycle) => trans!{Next.Carrier}
     (Total.differential.apply n (value x y)) (Next.space.add Next.space.zero Next.space.zero) Next.space.zero
-    (congr2!{Next.Carrier Next.Carrier Next.Carrier} (Next.space.add)
+    (congr!{Next.Carrier Next.Carrier Next.Carrier} (Next.space.add)
       _ _ _ _ (horizontalClosed x y) (verticalClosed x y))
     (NextGroup.zeroLeft Next.space.zero);
 \definition cycle[x: Left.Cycle][y: Right.Cycle]: H.Cycle := H.cycle (value x y) (closed x y);

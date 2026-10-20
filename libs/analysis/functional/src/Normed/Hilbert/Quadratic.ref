@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition energy[x: V]: Real.Real := inner.inner x x;
 \definition quadruple[a: Real.Real]: Real.Real := Real.add (Real.add a a) (Real.add a a);
 \definition midpoint[x, y: V]: V := space.smul Real.half (space.add x y);
@@ -7,7 +8,7 @@
     {energy (space.add x y)}
     "=" {Real.add (inner.inner x (space.add x y)) (inner.inner y (space.add x y))} "by" {(Inner.asBilinear inner).addLeft x y (space.add x y)}
     "=" {Real.add (Real.add (energy x) (inner.inner x y)) (Real.add (inner.inner y x) (energy y))} "by" {
-      congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (inner.addRight x x y) (inner.addRight y x y)}
+      congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (inner.addRight x x y) (inner.addRight y x y)}
     "=" {Real.add (Real.add (energy x) (inner.inner x y)) (Real.add (energy y) (inner.inner x y))} "by" {
       congr!{Real.Real Real.Real} (Real.add (Real.add (energy x) (inner.inner x y))) _ _
         (trans!{Real.Real} _ _ _ (Laws.addComm (inner.inner y x) (energy y))
@@ -16,20 +17,26 @@
       Algebra.addFour (energy x) (inner.inner x y) (energy y) (inner.inner x y)}
   };
 \definition negativeRight: \forall (x, y: V) -> inner.inner x (space.neg y) = Real.neg (inner.inner x y) :=
-  \fun (x, y: V) => trans!{Real.Real} _ _ _ (inner.symmetric x (space.neg y))
-    (trans!{Real.Real} _ _ _ (innerNegativeLeft inner y x) (congr!{Real.Real Real.Real} Real.neg _ _ (inner.symmetric y x)));
+  \fun (x, y: V) => eq_reason_in!{Real.Real _
+    "=" _ "by" { inner.symmetric x (space.neg y) }
+    "=" _ "by" { innerNegativeLeft inner y x }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (inner.symmetric y x) }
+  };
 \definition negative: \forall (x: V) -> energy (space.neg x) = energy x :=
-  \fun (x: V) => trans!{Real.Real} _ _ _ (innerNegativeLeft inner x (space.neg x))
-    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (negativeRight x x)) (Laws.negInvolutive (energy x)));
+  \fun (x: V) => eq_reason_in!{Real.Real _
+    "=" _ "by" { innerNegativeLeft inner x (space.neg x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (negativeRight x x) }
+    "=" _ "by" { Laws.negInvolutive (energy x) }
+  };
 \definition difference: \forall (x, y: V) -> energy (sub x y) =
   Real.sub (Real.add (energy x) (energy y)) (Real.add (inner.inner x y) (inner.inner x y)) :=
   \fun (x, y: V) => eq_reason!{
     {energy (sub x y)}
     "=" {Real.add (Real.add (energy x) (energy (space.neg y))) (Real.add (inner.inner x (space.neg y)) (inner.inner x (space.neg y)))} "by" {sum x (space.neg y)}
     "=" {Real.add (Real.add (energy x) (energy y)) (Real.add (Real.neg (inner.inner x y)) (Real.neg (inner.inner x y)))} "by" {
-      congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
         (congr!{Real.Real Real.Real} (Real.add (energy x)) _ _ (negative y))
-        (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (negativeRight x y) (negativeRight x y))}
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (negativeRight x y) (negativeRight x y))}
     "=" {Real.sub (Real.add (energy x) (energy y)) (Real.add (inner.inner x y) (inner.inner x y))} "by" {
       congr!{Real.Real Real.Real} (Real.add (Real.add (energy x) (energy y))) _ _ (sym!{Real.Real} _ _ (Laws.negAdd (inner.inner x y) (inner.inner x y)))}
   };
@@ -40,7 +47,7 @@
     {Real.add (energy (space.add x y)) (energy (sub x y))}
     "=" {Real.add (Real.add (Real.add (energy x) (energy y)) (Real.add (inner.inner x y) (inner.inner x y)))
       (Real.sub (Real.add (energy x) (energy y)) (Real.add (inner.inner x y) (inner.inner x y)))} "by" {
-      congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sum x y) (difference x y)}
+      congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sum x y) (difference x y)}
     "=" {Real.add (Real.add (Real.add (energy x) (energy y)) (Real.add (energy x) (energy y)))
       (Real.add (Real.add (inner.inner x y) (inner.inner x y)) (Real.neg (Real.add (inner.inner x y) (inner.inner x y))))} "by" {
       Algebra.addFour (Real.add (energy x) (energy y)) (Real.add (inner.inner x y) (inner.inner x y))
@@ -52,9 +59,11 @@
       Laws.addZeroRight (Real.add (Real.add (energy x) (energy y)) (Real.add (energy x) (energy y)))}
   };
 \definition midpointDouble: \forall (x, y: V) -> space.add (midpoint x y) (midpoint x y) = space.add x y :=
-  \fun (x, y: V) => trans!{V} _ _ _ (sym!{V} _ _ (space.scalarAdd Real.half Real.half (space.add x y)))
-    (trans!{V} _ _ _ (congr!{Real.Real V} (\fun (a: Real.Real) => space.smul a (space.add x y)) _ _ Estimates.halfDouble)
-      (space.scalarOne (space.add x y)));
+  \fun (x, y: V) => eq_reason_in!{V _
+    "=" _ "by" { sym!{V} _ _ (space.scalarAdd Real.half Real.half (space.add x y)) }
+    "=" _ "by" { congr!{Real.Real V} (\fun (a: Real.Real) => space.smul a (space.add x y)) _ _ Estimates.halfDouble }
+    "=" _ "by" { space.scalarOne (space.add x y) }
+  };
 \definition midpointEnergy: \forall (x, y: V) -> energy (space.add x y) = quadruple (energy (midpoint x y)) :=
   \fun (x, y: V) => trans!{Real.Real} _ _ _ (congr!{V Real.Real} energy _ _ (sym!{V} _ _ (midpointDouble x y)))
     (sum (midpoint x y) (midpoint x y));

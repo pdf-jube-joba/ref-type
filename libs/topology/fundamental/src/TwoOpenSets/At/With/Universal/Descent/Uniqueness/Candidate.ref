@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Holonomy[A := A, source := source, b := b, G := G, group := group, bridges := Chosen.global, hom := k] \as Holonomy;
 \import LeftHolonomy.Naturality[B := A, target := source, f := leftInclusion, continuous := LeftInclusion.inclusionContinuous source,
   targetBridges := Chosen.global, targetHom := k] \as LeftNaturality;
@@ -7,24 +8,25 @@
   Global.GlobalLaws[Holonomy.value] { constant := Holonomy.constant, split := Holonomy.split, composition := Holonomy.composition, homotopy := Holonomy.homotopy }
 };
 \definition leftAgreement: \forall (p: Cover.SmallPath) -> LeftPaths.Within p -> candidate p = value p :=
-  \fun (p: Cover.SmallPath)(within: _) => trans!{G} _ _ _
-    (congr!{Raw.Carrier G} Holonomy.value p (LeftNaturality.raw (LeftPaths.raw p within))
-      (Raw.extensional p (LeftNaturality.raw (LeftPaths.raw p within)) (\fun (t: I.Carrier) => \refl(p t))))
-    (trans!{G} _ _ _
-      (LeftNaturality.value (\fun (x: Left.CarrierSet)(t: I.Carrier) => \refl(bridges x t)) (\fun (a: LeftGroup.Carrier) => sym!{G} _ _ (restrictions.left a)) (LeftPaths.raw p within))
-      ((agrees p).left within));
+  \fun (p: Cover.SmallPath)(within: _) => eq_reason_in!{G _
+    "=" _ "by" { congr!{Raw.Carrier G} Holonomy.value p (LeftNaturality.raw (LeftPaths.raw p within))
+      (Raw.extensional p (LeftNaturality.raw (LeftPaths.raw p within)) (\fun (t: I.Carrier) => \refl(p t))) }
+    "=" _ "by" { LeftNaturality.value (\fun (x: Left.CarrierSet)(t: I.Carrier) => \refl(bridges x t)) (\fun (a: LeftGroup.Carrier) => sym!{G} _ _ (restrictions.left a)) (LeftPaths.raw p within) }
+    "=" _ "by" { (agrees p).left within }
+  };
 \definition rightAgreement: \forall (p: Cover.SmallPath) -> RightPaths.Within p -> candidate p = value p :=
-  \fun (p: Cover.SmallPath)(within: _) => trans!{G} _ _ _
-    (congr!{Raw.Carrier G} Holonomy.value p (RightNaturality.raw (RightPaths.raw p within))
-      (Raw.extensional p (RightNaturality.raw (RightPaths.raw p within)) (\fun (t: I.Carrier) => \refl(p t))))
-    (trans!{G} _ _ _
-      (RightNaturality.value (\fun (x: Right.CarrierSet)(t: I.Carrier) => \refl(bridges x t)) (\fun (a: RightGroup.Carrier) => sym!{G} _ _ (restrictions.right a)) (RightPaths.raw p within))
-      ((agrees p).right within));
+  \fun (p: Cover.SmallPath)(within: _) => eq_reason_in!{G _
+    "=" _ "by" { congr!{Raw.Carrier G} Holonomy.value p (RightNaturality.raw (RightPaths.raw p within))
+      (Raw.extensional p (RightNaturality.raw (RightPaths.raw p within)) (\fun (t: I.Carrier) => \refl(p t))) }
+    "=" _ "by" { RightNaturality.value (\fun (x: Right.CarrierSet)(t: I.Carrier) => \refl(bridges x t)) (\fun (a: RightGroup.Carrier) => sym!{G} _ _ (restrictions.right a)) (RightPaths.raw p within) }
+    "=" _ "by" { (agrees p).right within }
+  };
 \definition equal: candidate = Global.extend cover := Global.unique cover candidate
   (\fun (p: Cover.SmallPath) => either!{{(cases p)} {candidate p = value p} {leftAgreement p} {rightAgreement p}});
 \definition unique: k = homomorphism := \axiom:funext(k, homomorphism,
   Paths.Between[x := b, y := b].induction (\fun (a: Fundamental.Carrier) => k a = homomorphism a)
-    (\fun (p: Paths.Path b b) => trans!{G} _ _ _ (sym!{G} _ _ (Holonomy.onLoop p))
-      (trans!{G} _ _ _
-        (congr!{{Raw.Carrier -> G} G} (\fun (f: Raw.Carrier -> G) => f (Raw.forget b b p)) candidate (Global.extend cover) equal)
-        (sym!{G} _ _ (Based.onClass p)))));
+    (\fun (p: Paths.Path b b) => eq_reason_in!{G _
+      "=" _ "by" { sym!{G} _ _ (Holonomy.onLoop p) }
+      "=" _ "by" { congr!{{Raw.Carrier -> G} G} (\fun (f: Raw.Carrier -> G) => f (Raw.forget b b p)) candidate (Global.extend cover) equal }
+      "=" _ "by" { sym!{G} _ _ (Based.onClass p) }
+    }));

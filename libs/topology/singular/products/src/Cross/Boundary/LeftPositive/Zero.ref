@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition q: N.Nat^ := N.Nat^::zero;
 \definition lower: N.Nat^ := degree r q;
 \import \parent.At[q := q] \as Data;
@@ -7,15 +8,17 @@
 \import algebra.Group[].Of[Carrier := Data.targetBundle.Carrier, group := Values.additive] \as Group;
 \import Modules.Alternating[V := Data.targetBundle.Carrier, space := Data.targetBundle.space].Concatenation[] \as Signs;
 \definition rhs[x: Left.Carrier p][y: Right.Carrier q]: (Current.rhs).apply x y = (Data.leftTerm).apply x y :=
-  trans!{Data.targetBundle.Carrier} _ _ _ (Current.expansion x y)
-    (trans!{Data.targetBundle.Carrier} _ _ _
-      (congr!{Data.targetBundle.Carrier Data.targetBundle.Carrier} (Values.add ((Data.leftTerm).apply x y)) _ _ (Signs.twistZero p))
-      (Group.zeroRight ((Data.leftTerm).apply x y)));
+  eq_reason_in!{Data.targetBundle.Carrier _
+    "=" _ "by" { Current.expansion x y }
+    "=" _ "by" { congr!{Data.targetBundle.Carrier Data.targetBundle.Carrier} (Values.add ((Data.leftTerm).apply x y)) _ _ (Signs.twistZero p) }
+    "=" _ "by" { Group.zeroRight ((Data.leftTerm).apply x y) }
+  };
 \definition onGenerators[sigma: LeftSimplices.Carrier p][tau: RightSimplices.Carrier q]:
   (Data.lhs).apply (Left.generator p sigma) (Right.generator q tau) = (Current.rhs).apply (Left.generator p sigma) (Right.generator q tau) :=
-  trans!{{Target.Carrier lower}} _ _ _
-    (congr!{{Target.Carrier (N.Nat^::succ lower)} {Target.Carrier lower}} ((Target.boundary lower).apply) _ _ (Full.onGenerators sigma tau))
-    (trans!{{Target.Carrier lower}} _ _ _ (\parent.\parent.\parent.AxisLeft[r := r, sigma := sigma, tau := tau].law)
-      (sym!{{Target.Carrier lower}} _ _ (rhs (Left.generator p sigma) (Right.generator q tau))));
+  eq_reason_in!{{Target.Carrier lower} _
+    "=" _ "by" { congr!{{Target.Carrier (N.Nat^::succ lower)} {Target.Carrier lower}} ((Target.boundary lower).apply) _ _ (Full.onGenerators sigma tau) }
+    "=" _ "by" { \parent.\parent.\parent.AxisLeft[r := r, sigma := sigma, tau := tau].law }
+    "=" _ "by" { sym!{{Target.Carrier lower}} _ _ (rhs (Left.generator p sigma) (Right.generator q tau)) }
+  };
 \import Commutative.FreeBilinear[X := LeftSimplices.Carrier p, Y := RightSimplices.Carrier q, C := Data.targetBundle] \as Extension;
 \definition equation: Statement q := Extension.ext Data.lhs Current.rhs onGenerators;

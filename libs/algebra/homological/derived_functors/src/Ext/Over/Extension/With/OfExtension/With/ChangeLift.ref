@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Chosen[lift := first] \as First;
 \import \parent.Chosen[lift := second] \as Second;
 \import Modules.Hom[V := L.Carrier, W := E.Carrier, source := L.space, target := E.space] \as LiftMaps;
@@ -12,9 +13,11 @@
   \bysub(Modules.MapBetween L E, { f: Modules.MapBetween L E \where \forall (x: L.Carrier) ->
     s.projection.apply (f.apply x) = resolution.augmentation.apply x }, second);
 \definition closed: \forall (x: L.Carrier) -> s.projection.apply (difference.apply x) = M.space.zero :=
-  \fun (x: L.Carrier) => trans!{M.Carrier} _ _ _ (ProjectionMaps.differencePreserved s.projection (first.apply x) (second.apply x))
-    (trans!{M.Carrier} _ _ _ (congr2!{M.Carrier M.Carrier M.Carrier} RightGroup.difference _ _ _ _ (firstAugmented x) (secondAugmented x))
-      (RightGroup.inverseRight (resolution.augmentation.apply x)));
+  \fun (x: L.Carrier) => eq_reason_in!{M.Carrier _
+    "=" _ "by" { ProjectionMaps.differencePreserved s.projection (first.apply x) (second.apply x) }
+    "=" _ "by" { congr!{M.Carrier M.Carrier M.Carrier} RightGroup.difference _ _ _ _ (firstAugmented x) (secondAugmented x) }
+    "=" _ "by" { RightGroup.inverseRight (resolution.augmentation.apply x) }
+  };
 \import Modules.Hom[V := L.Carrier, W := EKernel.Carrier, source := L.space, target := EKernel.space] \as KernelMaps;
 \definition mapIntoKernel: KernelMaps.Map := KernelMaps.Map {
   apply := \fun (x: L.Carrier) => \into[E.Carrier](difference.apply x, EKernel.kernel.carrier) \by { closed x },
@@ -30,11 +33,12 @@
 \definition restrictionEquality: precompose correction = RelationMaps.plus First.relation (RelationMaps.negative Second.relation) :=
   RelationMaps.ext (precompose correction) (RelationMaps.plus First.relation (RelationMaps.negative Second.relation))
     (\fun (x: K.Carrier) => s.injective (correction.apply x) ((RelationMaps.plus First.relation (RelationMaps.negative Second.relation)).apply x)
-      (trans!{E.Carrier} _ _ _ (onCorrection x)
-        (trans!{E.Carrier} _ _ _
-          (congr2!{E.Carrier E.Carrier E.Carrier} MiddleGroup.difference _ _ _ _
-            (sym!{E.Carrier} _ _ (First.onKernel x)) (sym!{E.Carrier} _ _ (Second.onKernel x)))
-          (sym!{E.Carrier} _ _ (Inclusions.differencePreserved s.inclusion (First.relation.apply x) (Second.relation.apply x))))));
+      (eq_reason_in!{E.Carrier _
+        "=" _ "by" { onCorrection x }
+        "=" _ "by" { congr!{E.Carrier E.Carrier E.Carrier} MiddleGroup.difference _ _ _ _
+            (sym!{E.Carrier} _ _ (First.onKernel x)) (sym!{E.Carrier} _ _ (Second.onKernel x)) }
+        "=" _ "by" { sym!{E.Carrier} _ _ (Inclusions.differencePreserved s.inclusion (First.relation.apply x) (Second.relation.apply x)) }
+      }));
 \definition relationDifference: RelationSubmodules.Member extensions (RelationMaps.plus First.relation (RelationMaps.negative Second.relation)) :=
   Images.introduce restriction (RelationMaps.plus First.relation (RelationMaps.negative Second.relation)) correction restrictionEquality;
 \definition classEquality: First.class = Second.class := Quotient.classRelated First.relation Second.relation relationDifference;

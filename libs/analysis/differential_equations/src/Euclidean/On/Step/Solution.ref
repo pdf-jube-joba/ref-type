@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Picard[y := curve] \as Picard;
 \definition value: Real -> Vector := Picard.value;
 \definition agrees: \forall (t: Time) -> value t = curve t := \fun (t: Time) => congr!{Curve Vector} (\fun (y: Curve) => y t) _ _ fixedLaw;
@@ -25,9 +26,11 @@
           (Basic.constantDerivative (initial i) t)
           (Operations.subDerivative (\fun (s: Real) => Integral.primitive s i) (\fun (s: Real) => Integral.primitive Scalars.zero i) t (Picard.integrand t i) Scalars.zero
             (Integral.fundamentalTheorem t lower upper i) (Basic.constantDerivative (Integral.primitive Scalars.zero i) t)),
-        equality: trans!{Real} _ _ _ (Laws.addZeroLeft (Scalars.sub (Picard.integrand t i) Scalars.zero))
-          (trans!{Real} _ _ _ (Laws.subZeroRight (Picard.integrand t i))
-            (congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (fieldValue t (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper))))
+        equality: eq_reason_in!{Real _
+          "=" _ "by" { Laws.addZeroLeft (Scalars.sub (Picard.integrand t i) Scalars.zero) }
+          "=" _ "by" { Laws.subZeroRight (Picard.integrand t i) }
+          "=" _ "by" { congr!{Vector Real} (\fun (v: Vector) => v i) _ _ (fieldValue t (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper)) }
+        }
       };
 \definition initialDerivative: \forall (i: Euclidean.Coordinate) -> Derivatives.HasDerivativeAt (\fun (s: Real) => value s i) Scalars.zero (field.apply initial i) :=
   \fun (i: Euclidean.Coordinate) => \idelim field.apply (value Scalars.zero) i = field.apply initial i \with d: Real =>

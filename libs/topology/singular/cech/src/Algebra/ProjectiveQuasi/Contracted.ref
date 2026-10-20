@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Kernels.Split[s := s, splits := splits] \as Split;
 \import Chains.End[C := C] \as End;
 \import Chains.Homotopy[C := C, D := C] \as Homotopies;
@@ -40,9 +41,11 @@
   \definition zeroDifference[x: C.family.Carrier n]: Group.difference x Group.zero = x :=
     trans!{{C.family.Carrier n}} _ _ _ (congr!{{C.family.Carrier n} {C.family.Carrier n}} (Group.add x) _ _ Group.negZero) (Group.zeroRight x);
   \definition differenceZero[x, y: C.family.Carrier n][killed: Group.difference x y = Group.zero]: x = y :=
-    trans!{{C.family.Carrier n}} _ _ _ (sym!{{C.family.Carrier n}} _ _ (Group.addDifference x y))
-      (trans!{{C.family.Carrier n}} _ _ _
-        (congr!{{C.family.Carrier n} {C.family.Carrier n}} (\fun (v: C.family.Carrier n) => Group.add v y) _ _ killed) (Group.zeroLeft y));
+    eq_reason_in!{{C.family.Carrier n} _
+      "=" _ "by" { sym!{{C.family.Carrier n}} _ _ (Group.addDifference x y) }
+      "=" _ "by" { congr!{{C.family.Carrier n} {C.family.Carrier n}} (\fun (v: C.family.Carrier n) => Group.add v y) _ _ killed }
+      "=" _ "by" { Group.zeroLeft y }
+    };
   \import Modules.Laws[V := D.family.Carrier n, space := D.family.space n] \as Target;
   \import algebra.Group[].Of[Carrier := D.family.Carrier n, group := Target.additive] \as TargetGroup;
   \definition targetZeroDifference[x: D.family.Carrier n]: TargetGroup.difference x TargetGroup.zero = x :=
@@ -51,21 +54,21 @@
 }
 \module Zero {
   \definition onKernel: \forall (x: Kernels.Carrier N.Nat^::zero) -> (Boundary.map).apply N.Nat^::zero x = x :=
-    \fun (x: Kernels.Carrier N.Nat^::zero) => trans!{{C.family.Carrier N.Nat^::zero}} _ _ _
-      (congr!{{C.family.Carrier (N.Nat^::succ N.Nat^::zero)} {C.family.Carrier N.Nat^::zero}} ((C.differential).apply N.Nat^::zero) _ _ (\parent.Degree[n := N.Nat^::zero].onKernel x))
-      (trans!{{C.family.Carrier N.Nat^::zero}} _ _ _
-        (sym!{{C.family.Carrier N.Nat^::zero}} _ _ ((h).zeroEquation x))
-        (\parent.Point[n := N.Nat^::zero].zeroDifference x));
+    \fun (x: Kernels.Carrier N.Nat^::zero) => eq_reason_in!{{C.family.Carrier N.Nat^::zero} _
+      "=" _ "by" { congr!{{C.family.Carrier (N.Nat^::succ N.Nat^::zero)} {C.family.Carrier N.Nat^::zero}} ((C.differential).apply N.Nat^::zero) _ _ (\parent.Degree[n := N.Nat^::zero].onKernel x) }
+      "=" _ "by" { sym!{{C.family.Carrier N.Nat^::zero}} _ _ ((h).zeroEquation x) }
+      "=" _ "by" { \parent.Point[n := N.Nat^::zero].zeroDifference x }
+    };
 }
 \module Positive(n: N.Nat^) {
   \definition onKernel: \forall (x: Kernels.Carrier (N.Nat^::succ n)) -> (Boundary.map).apply (N.Nat^::succ n) x = x :=
-    \fun (x: Kernels.Carrier (N.Nat^::succ n)) => trans!{{C.family.Carrier (N.Nat^::succ n)}} _ _ _
-      (congr2!{{C.family.Carrier (N.Nat^::succ n)} {C.family.Carrier (N.Nat^::succ n)} {C.family.Carrier (N.Nat^::succ n)}} ((C.family.space (N.Nat^::succ n)).add) _ _ _ _
+    \fun (x: Kernels.Carrier (N.Nat^::succ n)) => eq_reason_in!{{C.family.Carrier (N.Nat^::succ n)} _
+      "=" _ "by" { congr!{{C.family.Carrier (N.Nat^::succ n)} {C.family.Carrier (N.Nat^::succ n)} {C.family.Carrier (N.Nat^::succ n)}} ((C.family.space (N.Nat^::succ n)).add) _ _ _ _
         (congr!{{C.family.Carrier (N.Nat^::succ (N.Nat^::succ n))} {C.family.Carrier (N.Nat^::succ n)}} ((C.differential).apply (N.Nat^::succ n)) _ _ (\parent.Degree[n := N.Nat^::succ n].onKernel x))
-        (\parent.Degree[n := n].onKernel ((Kernels.differential).apply n x)))
-      (trans!{{C.family.Carrier (N.Nat^::succ n)}} _ _ _
-        (sym!{{C.family.Carrier (N.Nat^::succ n)}} _ _ ((h).successorEquation n x))
-        (\parent.Point[n := N.Nat^::succ n].zeroDifference x));
+        (\parent.Degree[n := n].onKernel ((Kernels.differential).apply n x)) }
+      "=" _ "by" { sym!{{C.family.Carrier (N.Nat^::succ n)}} _ _ ((h).successorEquation n x) }
+      "=" _ "by" { \parent.Point[n := N.Nat^::succ n].zeroDifference x }
+    };
 }
 \definition boundaryOnKernel: \forall (n: N.Nat^)(x: Kernels.Carrier n) -> (Boundary.map).apply n x = x :=
   \induction (n: N.Nat^) \return \forall (x: Kernels.Carrier n) -> (Boundary.map).apply n x = x \with {
@@ -82,25 +85,25 @@
     apply := (D.differential).apply n, addition := (D.laws).addition n, scalar := (D.laws).scalar n,
   };
   \definition horizontal: \forall (x: C.family.Carrier n) -> (f).apply n ((C.differential).apply n ((\parent.Degree[n := n].map).apply x)) = (D.family.space n).zero :=
-    \fun (x: C.family.Carrier n) => trans!{{D.family.Carrier n}} _ _ _
-      (sym!{{D.family.Carrier n}} _ _ ((f).commutes n ((\parent.Degree[n := n].map).apply x)))
-      (trans!{{D.family.Carrier n}} _ _ _
-        (congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier n}} ((D.differential).apply n) _ _ (\parent.Degree[n := n].killed x))
-        (Differentials.zeroPreserved differential));
+    \fun (x: C.family.Carrier n) => eq_reason_in!{{D.family.Carrier n} _
+      "=" _ "by" { sym!{{D.family.Carrier n}} _ _ ((f).commutes n ((\parent.Degree[n := n].map).apply x)) }
+      "=" _ "by" { congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier n}} ((D.differential).apply n) _ _ (\parent.Degree[n := n].killed x) }
+      "=" _ "by" { Differentials.zeroPreserved differential }
+    };
   \definition vertical: \forall (x: C.family.Carrier (N.Nat^::succ n)) ->
     (f).apply (N.Nat^::succ n) ((\parent.Degree[n := n].map).apply ((C.differential).apply n x)) = (D.family.space (N.Nat^::succ n)).zero :=
     \fun (x: C.family.Carrier (N.Nat^::succ n)) => \parent.Degree[n := n].killed ((C.differential).apply n x);
 }
 \module PositiveImage(n: N.Nat^) {
   \definition killed: \forall (x: C.family.Carrier (N.Nat^::succ n)) -> (f).apply (N.Nat^::succ n) ((Boundary.map).apply (N.Nat^::succ n) x) = (D.family.space (N.Nat^::succ n)).zero :=
-    \fun (x: C.family.Carrier (N.Nat^::succ n)) => trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _
-      ((f).addition (N.Nat^::succ n)
+    \fun (x: C.family.Carrier (N.Nat^::succ n)) => eq_reason_in!{{D.family.Carrier (N.Nat^::succ n)} _
+      "=" _ "by" { (f).addition (N.Nat^::succ n)
         ((C.differential).apply (N.Nat^::succ n) ((\parent.Degree[n := N.Nat^::succ n].map).apply x))
-        ((\parent.Degree[n := n].map).apply ((C.differential).apply n x)))
-      (trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _
-        (congr2!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)}} ((D.family.space (N.Nat^::succ n)).add) _ _ _ _
-          (\parent.Image[n := N.Nat^::succ n].horizontal x) (\parent.Image[n := n].vertical x))
-        (\parent.Point[n := N.Nat^::succ n].targetZeroAdd));
+        ((\parent.Degree[n := n].map).apply ((C.differential).apply n x)) }
+      "=" _ "by" { congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)}} ((D.family.space (N.Nat^::succ n)).add) _ _ _ _
+          (\parent.Image[n := N.Nat^::succ n].horizontal x) (\parent.Image[n := n].vertical x) }
+      "=" _ "by" { \parent.Point[n := N.Nat^::succ n].targetZeroAdd }
+    };
 }
 \definition boundaryKilled: \forall (n: N.Nat^)(x: C.family.Carrier n) -> (f).apply n ((Boundary.map).apply n x) = (D.family.space n).zero :=
   \induction (n: N.Nat^) \return \forall (x: C.family.Carrier n) -> (f).apply n ((Boundary.map).apply n x) = (D.family.space n).zero \with {
@@ -108,11 +111,11 @@
     | succ: \fun (n: N.Nat^)(previous: _) => PositiveImage[n := n].killed
   };
 \definition projectionImage: \forall (n: N.Nat^)(x: C.family.Carrier n) -> (f).apply n ((projection).apply n x) = (f).apply n x :=
-  \fun (n: N.Nat^)(x: C.family.Carrier n) => trans!{{D.family.Carrier n}} _ _ _
-    (Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier n, source := C.family.space n, target := D.family.space n].differencePreserved (Maps.At[n := n].linear f) x ((Boundary.map).apply n x))
-    (trans!{{D.family.Carrier n}} _ _ _
-      (congr!{{D.family.Carrier n} {D.family.Carrier n}} (\fun (v: D.family.Carrier n) => (D.family.space n).add ((f).apply n x) ((D.family.space n).neg v)) _ _ (boundaryKilled n x))
-      (Point[n := n].targetZeroDifference ((f).apply n x)));
+  \fun (n: N.Nat^)(x: C.family.Carrier n) => eq_reason_in!{{D.family.Carrier n} _
+    "=" _ "by" { Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier n, source := C.family.space n, target := D.family.space n].differencePreserved (Maps.At[n := n].linear f) x ((Boundary.map).apply n x) }
+    "=" _ "by" { congr!{{D.family.Carrier n} {D.family.Carrier n}} (\fun (v: D.family.Carrier n) => (D.family.space n).add ((f).apply n x) ((D.family.space n).neg v)) _ _ (boundaryKilled n x) }
+    "=" _ "by" { Point[n := n].targetZeroDifference ((f).apply n x) }
+  };
 \import Chains.Map[C := C, D := C] \as SelfMaps;
 \module BackwardDegree(n: N.Nat^) {
   \import Modules.Hom[V := C.family.Carrier n, W := C.family.Carrier n, source := C.family.space n, target := C.family.space n] \as Ambient;
@@ -132,15 +135,14 @@
 \definition commutes: \forall (n: N.Nat^)(x: D.family.Carrier (N.Nat^::succ n)) ->
   (C.differential).apply n ((BackwardDegree[n := N.Nat^::succ n].map).apply x) =
     (BackwardDegree[n := n].map).apply ((D.differential).apply n x) :=
-  \fun (n: N.Nat^)(x: D.family.Carrier (N.Nat^::succ n)) => trans!{{C.family.Carrier n}} _ _ _
-    ((projection).commutes n ((s (N.Nat^::succ n)).apply x))
-    (trans!{{C.family.Carrier n}} _ _ _
-      (sym!{{C.family.Carrier n}} _ _ (BackwardDegree[n := n].factor ((C.differential).apply n ((s (N.Nat^::succ n)).apply x))))
-      (trans!{{C.family.Carrier n}} _ _ _
-        (congr!{{D.family.Carrier n} {C.family.Carrier n}} ((BackwardDegree[n := n].map).apply) _ _
-          (sym!{{D.family.Carrier n}} _ _ ((f).commutes n ((s (N.Nat^::succ n)).apply x))))
-        (congr!{{D.family.Carrier n} {C.family.Carrier n}} ((BackwardDegree[n := n].map).apply) _ _
-          (congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier n}} ((D.differential).apply n) _ _ (splits (N.Nat^::succ n) x)))));
+  \fun (n: N.Nat^)(x: D.family.Carrier (N.Nat^::succ n)) => eq_reason_in!{{C.family.Carrier n} _
+    "=" _ "by" { (projection).commutes n ((s (N.Nat^::succ n)).apply x) }
+    "=" _ "by" { sym!{{C.family.Carrier n}} _ _ (BackwardDegree[n := n].factor ((C.differential).apply n ((s (N.Nat^::succ n)).apply x))) }
+    "=" _ "by" { congr!{{D.family.Carrier n} {C.family.Carrier n}} ((BackwardDegree[n := n].map).apply) _ _
+          (sym!{{D.family.Carrier n}} _ _ ((f).commutes n ((s (N.Nat^::succ n)).apply x))) }
+    "=" _ "by" { congr!{{D.family.Carrier n} {C.family.Carrier n}} ((BackwardDegree[n := n].map).apply) _ _
+          (congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier n}} ((D.differential).apply n) _ _ (splits (N.Nat^::succ n) x)) }
+  };
 \definition backward: BackwardMaps.Map := BackwardMaps.Map {
   apply := \fun (n: N.Nat^) => (BackwardDegree[n := n].map).apply,
   addition := \fun (n: N.Nat^) => (BackwardDegree[n := n].map).addition,

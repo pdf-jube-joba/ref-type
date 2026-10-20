@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Geometry.SphereSection[s := E.space.zero] \as Reference;
 \import Next.PinRepresentation[].Positive[v := Reference.firstUnit] \as Reflection;
 \import R.Algebra[] \as Algebra;
@@ -8,33 +9,37 @@
 \definition inverse: Group.inv flip = flip := \refl(flip);
 \definition polar[x: Next.Vector]: R.Real := R.add (Next.dot first x) (Next.dot x first);
 \definition polarValue: \forall (x: Next.Vector) -> polar x = R.add (Geometry.head x) (Geometry.head x) := \fun (x: Next.Vector) =>
-  congr2!{R.Real R.Real R.Real} R.add _ _ _ _ (Geometry.firstDot x)
+  congr!{R.Real R.Real R.Real} R.add _ _ _ _ (Geometry.firstDot x)
     (trans!{R.Real} _ _ _ (Next.symmetric x first) (Geometry.firstDot x));
 \definition head: \forall (x: Next.Vector) -> Geometry.head (flip.value.apply x) = R.neg (Geometry.head x) := \fun (x: Next.Vector) =>
-  trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.sub (Geometry.head x) (R.mul (polar x) c)) _ _ Geometry.firstHead)
-    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.sub (Geometry.head x)) _ _ (Algebra.mulOneRight (polar x)))
-      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.sub (Geometry.head x)) _ _ (polarValue x))
-        (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (Geometry.head x)) _ _ (Arithmetic.negAdd (Geometry.head x) (Geometry.head x)))
-          (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.addAssoc (Geometry.head x) (R.neg (Geometry.head x)) (R.neg (Geometry.head x))))
-            (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.add c (R.neg (Geometry.head x))) _ _ (Arithmetic.addNegRight (Geometry.head x)))
-              (Arithmetic.addZeroLeft (R.neg (Geometry.head x))))))));
+  eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (c: R.Real) => R.sub (Geometry.head x) (R.mul (polar x) c)) _ _ Geometry.firstHead }
+    "=" _ "by" { congr!{R.Real R.Real} (R.sub (Geometry.head x)) _ _ (Algebra.mulOneRight (polar x)) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.sub (Geometry.head x)) _ _ (polarValue x) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (Geometry.head x)) _ _ (Arithmetic.negAdd (Geometry.head x) (Geometry.head x)) }
+    "=" _ "by" { sym!{R.Real} _ _ (Arithmetic.addAssoc (Geometry.head x) (R.neg (Geometry.head x)) (R.neg (Geometry.head x))) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (c: R.Real) => R.add c (R.neg (Geometry.head x))) _ _ (Arithmetic.addNegRight (Geometry.head x)) }
+    "=" _ "by" { Arithmetic.addZeroLeft (R.neg (Geometry.head x)) }
+  };
 \definition vectorHeight[x: Next.Vector]: R.Real := R.add R.one (Geometry.head x);
 \definition vectorComplement: \forall (x: Next.Vector) -> R.add (vectorHeight x) (vectorHeight (flip.value.apply x)) = R.add R.one R.one := \fun (x: Next.Vector) =>
-  trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (vectorHeight x)) _ _ (congr!{R.Real R.Real} (R.add R.one) _ _ (head x)))
-    (trans!{R.Real} _ _ _ (Algebra.addFour R.one (Geometry.head x) R.one (R.neg (Geometry.head x)))
-      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.add R.one R.one)) _ _ (Arithmetic.addNegRight (Geometry.head x)))
-        (Arithmetic.addZeroRight (R.add R.one R.one))));
+  eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (vectorHeight x)) _ _ (congr!{R.Real R.Real} (R.add R.one) _ _ (head x)) }
+    "=" _ "by" { Algebra.addFour R.one (Geometry.head x) R.one (R.neg (Geometry.head x)) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (R.add R.one R.one)) _ _ (Arithmetic.addNegRight (Geometry.head x)) }
+    "=" _ "by" { Arithmetic.addZeroRight (R.add R.one R.one) }
+  };
 \definition complementary: \forall (g: Next.O) -> R.add (height g) (height (untranslate flip g)) = R.add R.one R.one :=
   \fun (g: Next.O) => vectorComplement (g.value.apply first);
 \definition twoPositive: Order.Lt R.zero (R.add R.one R.one) := Order.ltLeTrans R.zero R.one (R.add R.one R.one) R.Estimates[].Product[].onePositive
   (Algebra.leAddRight R.one R.one (Order.Order[].leOfLt _ _ R.Estimates[].Product[].onePositive));
 \definition twoNonzero: Logic.Not (R.add R.one R.one = R.zero) := R.Inverse[].positiveNonzero _ twoPositive;
 \definition vectorCannotBoth[x: Next.Vector][left: vectorHeight x = R.zero][right: vectorHeight (flip.value.apply x) = R.zero]: Logic.False :=
-  twoNonzero (trans!{R.Real} (R.add R.one R.one) (R.add (vectorHeight x) (vectorHeight (flip.value.apply x))) R.zero
-    (sym!{R.Real} _ _ (vectorComplement x))
-    (trans!{R.Real} _ (R.add R.zero R.zero) R.zero
-      (congr2!{R.Real R.Real R.Real} R.add (vectorHeight x) R.zero (vectorHeight (flip.value.apply x)) R.zero left right)
-      (Arithmetic.addZeroLeft R.zero)));
+  twoNonzero (eq_reason_in!{R.Real { R.add R.one R.one }
+    "=" { R.add (vectorHeight x) (vectorHeight (flip.value.apply x)) } "by" { sym!{R.Real} _ _ (vectorComplement x) }
+    "=" { R.add R.zero R.zero } "by" { congr!{R.Real R.Real R.Real} R.add (vectorHeight x) R.zero (vectorHeight (flip.value.apply x)) R.zero left right }
+    "=" R.zero "by" { Arithmetic.addZeroLeft R.zero }
+  });
 \definition eitherVector: \forall (x: Next.Vector) -> Logic.Or[Logic.Not (vectorHeight x = R.zero), Logic.Not (vectorHeight (flip.value.apply x) = R.zero)] :=
   \fun (x: Next.Vector) => either!{{(std.Logic[].Classical[].excludedMiddle (vectorHeight x = R.zero))}
     {Logic.Or[Logic.Not (vectorHeight x = R.zero), Logic.Not (vectorHeight (flip.value.apply x) = R.zero)]}

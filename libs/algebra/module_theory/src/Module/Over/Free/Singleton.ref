@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition Unique: \Prop := \forall (x: Generators) -> x = point;
 \import \parent.To[W := R, target := scalarModule] \as Augmentation;
 \import \parent.\parent.Hom[V := R, W := Carrier, source := scalarModule, target := space] \as Forward;
@@ -10,19 +11,22 @@
 \definition backward: Backward.Map := Augmentation.extension (\fun (x: Generators) => (ring).one);
 \definition onOne: (forward).apply (ring).one = generator point := (space).scalarOne (generator point);
 \definition leftInverse: \forall (a: R) -> (backward).apply ((forward).apply a) = a :=
-  \fun (a: R) => trans!{R} _ _ _ ((backward).scalar a (generator point))
-    (trans!{R} _ _ _
-      (congr!{R R} ((ring).mul a) _ _ (Augmentation.onGenerator (\fun (x: Generators) => (ring).one) point))
-      ((((ring).semiring).multiplicative).rightIdentity a));
+  \fun (a: R) => eq_reason_in!{R _
+    "=" _ "by" { (backward).scalar a (generator point) }
+    "=" _ "by" { congr!{R R} ((ring).mul a) _ _ (Augmentation.onGenerator (\fun (x: Generators) => (ring).one) point) }
+    "=" _ "by" { (((ring).semiring).multiplicative).rightIdentity a }
+  };
 \import Forward.Composition[U := Carrier, domain := space] \as Composition;
 \import \parent.\parent.End[V := Carrier, space := space] \as End;
 \import \parent.\parent.Hom[V := Carrier, W := Carrier, source := space, target := space] \as EndMaps;
 \import \parent.To[W := Carrier, target := space] \as Linear;
 \definition composite: Unique -> Composition.compose forward backward = End.identity :=
   \fun (unique: Unique) => Linear.ext (Composition.compose forward backward) End.identity
-    (\fun (x: Generators) => trans!{Carrier} _ _ _
-      (congr!{R Carrier} ((forward).apply) _ _ (Augmentation.onGenerator (\fun (x: Generators) => (ring).one) x))
-      (trans!{Carrier} _ _ _ onOne (congr!{Generators Carrier} generator _ _ (sym!{Generators} _ _ (unique x)))));
+    (\fun (x: Generators) => eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{R Carrier} ((forward).apply) _ _ (Augmentation.onGenerator (\fun (x: Generators) => (ring).one) x) }
+      "=" _ "by" onOne
+      "=" _ "by" { congr!{Generators Carrier} generator _ _ (sym!{Generators} _ _ (unique x)) }
+    });
 \definition rightInverse: Unique -> \forall (x: Carrier) -> (forward).apply ((backward).apply x) = x :=
   \fun (unique: Unique)(x: Carrier) => congr!{EndMaps.Map Carrier} (\fun (f: EndMaps.Map) => (f).apply x) _ _ (composite unique);
 \import \parent.\parent.Isomorphism[V := R, W := Carrier, source := scalarModule, target := space] \as Iso;

@@ -1,12 +1,16 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition leftInverse: \forall (v: Vector) -> (transpose f).apply (f.apply v) = v :=
   \fun (v: Vector) => \axiom:funext(((transpose f).apply (f.apply v)), v, \fun (i: Fin.Fin n) =>
     trans!{{R.Real}} _ _ _ (isometryLaws f (basis i) v) (dotBasis i v));
 \import Maps.Composition[U := Target.Vector, domain := Target.space] \as Compose;
 \definition projection: Target.Projection := Target.Projection {
   map := Compose.compose f (transpose f),
-  symmetric := \fun (u, v: Target.Vector) => trans!{{R.Real}} _ _ _ (adjoint f ((transpose f).apply u) v)
-    (trans!{{R.Real}} _ _ _ (symmetric ((transpose f).apply u) ((transpose f).apply v))
-      (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (adjoint f ((transpose f).apply v) u)) (Target.symmetric (f.apply ((transpose f).apply v)) u))),
+  symmetric := \fun (u, v: Target.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { adjoint f ((transpose f).apply u) v }
+    "=" _ "by" { symmetric ((transpose f).apply u) ((transpose f).apply v) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (adjoint f ((transpose f).apply v) u) }
+    "=" _ "by" { Target.symmetric (f.apply ((transpose f).apply v)) u }
+  },
   idempotent := \fun (v: Target.Vector) => congr!{Vector {Target.Vector}} f.apply _ _ (leftInverse ((transpose f).apply v)),
 };
 \definition normal: Target.Projection := Target.complement projection;
@@ -14,18 +18,22 @@
   \fun (i: Fin.Fin n)(j: Fin.Fin m) => trans!{{R.Real}} _ _ _ (Target.symmetric (f.apply (basis i)) (Target.basis j)) (Target.dotBasis j (f.apply (basis i)));
 \definition diagonal: \forall (j: Fin.Fin m) -> projection.map.apply (Target.basis j) j =
   Sums.sum n (\fun (i: Fin.Fin n) => R.mul (f.apply (basis i) j) (f.apply (basis i) j)) :=
-  \fun (j: Fin.Fin m) => trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Target.dotBasis j (projection.map.apply (Target.basis j))))
-    (trans!{{R.Real}} _ _ _ (Target.symmetric (Target.basis j) (projection.map.apply (Target.basis j)))
-      (trans!{{R.Real}} _ _ _ (adjoint f ((transpose f).apply (Target.basis j)) (Target.basis j))
-        (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => congr2!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ (coefficient i j) (coefficient i j)))));
+  \fun (j: Fin.Fin m) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (Target.dotBasis j (projection.map.apply (Target.basis j))) }
+    "=" _ "by" { Target.symmetric (Target.basis j) (projection.map.apply (Target.basis j)) }
+    "=" _ "by" { adjoint f ((transpose f).apply (Target.basis j)) (Target.basis j) }
+    "=" _ "by" { Sums.congruent n _ _ (\fun (i: Fin.Fin n) => congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ (coefficient i j) (coefficient i j)) }
+  };
 \definition naturalCount: N.Nat^ -> R.Real := \root.Real[].Dimension[].naturalScalar;
 \definition sumOnes: \forall (k: N.Nat^) -> Sums.sum k (\fun (i: Fin.Fin k) => R.one) = naturalCount k :=
   \induction (k: N.Nat^) \return Sums.sum k (\fun (i: Fin.Fin k) => R.one) = naturalCount k \with {
     | zero: \refl(R.zero)
     | succ: \fun (k: N.Nat^)(previous: _) => congr!{{R.Real} {R.Real}} (R.add R.one) _ _ previous
   };
-\definition traceFormula: Target.trace projection = naturalCount n := trans!{{R.Real}} _ _ _
-  (Sums.congruent m _ _ diagonal)
-  (trans!{{R.Real}} _ _ _ (Sums.exchange m n (\fun (j: Fin.Fin m)(i: Fin.Fin n) => R.mul (f.apply (basis i) j) (f.apply (basis i) j)))
-    (trans!{{R.Real}} _ _ _ (Sums.congruent n _ (\fun (i: Fin.Fin n) => R.one)
-      (\fun (i: Fin.Fin n) => trans!{{R.Real}} _ _ _ (isometryLaws f (basis i) (basis i)) (basisNorm i))) (sumOnes n)));
+\definition traceFormula: Target.trace projection = naturalCount n := eq_reason_in!{{R.Real} _
+  "=" _ "by" { Sums.congruent m _ _ diagonal }
+  "=" _ "by" { Sums.exchange m n (\fun (j: Fin.Fin m)(i: Fin.Fin n) => R.mul (f.apply (basis i) j) (f.apply (basis i) j)) }
+  "=" _ "by" { Sums.congruent n _ (\fun (i: Fin.Fin n) => R.one)
+      (\fun (i: Fin.Fin n) => trans!{{R.Real}} _ _ _ (isometryLaws f (basis i) (basis i)) (basisNorm i)) }
+  "=" _ "by" { sumOnes n }
+};

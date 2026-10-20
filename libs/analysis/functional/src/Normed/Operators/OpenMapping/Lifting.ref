@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import topology.Topology[Carrier := V] \as SourceTopology;
 \import \parent.ApproximateAlgebra[] \as Approx;
 \definition radius[n: N.Nat^]: Real.Real := Dyadic.value (N.Nat^::succ n);
@@ -31,7 +32,7 @@
   \let errorEquality: distance (f.apply x) y = distance (f.apply h) residual := eq_reason!{
     {distance (f.apply x) y}
     "=" {distance (target.add (f.apply h) (f.apply (i.point))) (target.add residual (f.apply (i.point)))} "by" {
-      congr2!{W W Real.Real} distance _ _ _ _
+      congr!{W W Real.Real} distance _ _ _ _
         (trans!{W} _ _ _ (f.preservesAdd (i.point) h) (TargetVectors.comm (f.apply (i.point)) (f.apply h)))
         (sym!{W} _ _ (Target.subAddCancel y (f.apply (i.point))))}
     "=" {distance (f.apply h) residual} "by" {Target.translateDistance targetNorm (f.apply h) residual (f.apply (i.point))}
@@ -102,10 +103,11 @@
 \definition lift: IsBanach norm -> Approx.Neighborhood[Real.one, delta] -> R.Lt (targetNorm.norm y) (tolerance N.Nat^::zero) ->
   \exists ( x: V \where Solution[x] ) := \block {
   \fun (complete: IsBanach norm) (neighborhood: Approx.Neighborhood[Real.one, delta]) (small: R.Lt (targetNorm.norm y) (tolerance N.Nat^::zero)) \then
-  \let zeroDistance: distance (f.apply (space.zero)) y = targetNorm.norm y := trans!{Real.Real} _ _ _
-    (congr!{W Real.Real} (\fun (z: W) => distance z y) _ _ (f.preservesZero))
-    (trans!{Real.Real} _ _ _ ((Target.metric targetNorm).symmetric (target.zero) y)
-      (congr!{W Real.Real} (targetNorm.norm) _ _ (Target.subZeroRight y))) \then
+  \let zeroDistance: distance (f.apply (space.zero)) y = targetNorm.norm y := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{W Real.Real} (\fun (z: W) => distance z y) _ _ (f.preservesZero) }
+    "=" _ "by" { (Target.metric targetNorm).symmetric (target.zero) y }
+    "=" _ "by" { congr!{W Real.Real} (targetNorm.norm) _ _ (Target.subZeroRight y) }
+  } \then
   \let initial: State N.Nat^::zero := \into[V](space.zero, { x: V \where R.Lt (distance (f.apply x) y) (tolerance N.Nat^::zero) }) \by {
     R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ zeroDistance) small
   } \then

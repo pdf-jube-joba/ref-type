@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition p: N.Nat^ := N.Nat^::zero;
 \definition q: N.Nat^ := N.Nat^::succ s;
 \definition k: N.Nat^ := s;
@@ -20,16 +21,18 @@
 \definition boundary[x: Left.Carrier p][y: Right.Carrier q]: (Target.boundary k).apply (Full.apply x y) = common x y :=
   congr!{Forms.Map {Target.Carrier k}} (\fun (h: Forms.Map) => (h).apply x y) _ _ Boundary.equation;
 \definition first[x: Left.Carrier p][y: Right.Carrier q]: (Data.first).apply (Tensor.Term[p := p, q := q].tensor x y) = common x y :=
-  trans!{{Target.Carrier k}} _ _ _ (Data.leftExpansion x y)
-    (trans!{{Target.Carrier k}} _ _ _
-      (congr2!{{Target.Carrier k} {Target.Carrier k} {Target.Carrier k}} ((Target.space k).add) _ _ _ _
+  eq_reason_in!{{Target.Carrier k} _
+    "=" _ "by" { Data.leftExpansion x y }
+    "=" _ "by" { congr!{{Target.Carrier k} {Target.Carrier k} {Target.Carrier k}} ((Target.space k).add) _ _ _ _
         (Maps.zeroPreserved Lower.map)
-        (trans!{{Target.Carrier k}} _ _ _ (Vertical.law x y) (Transport.castRefl Target.Carrier k (common x y))))
-      (Group.zeroLeft (common x y)));
+        (trans!{{Target.Carrier k}} _ _ _ (Vertical.law x y) (Transport.castRefl Target.Carrier k (common x y))) }
+    "=" _ "by" { Group.zeroLeft (common x y) }
+  };
 \definition second[x: Left.Carrier p][y: Right.Carrier q]: (Data.second).apply (Tensor.Term[p := p, q := q].tensor x y) = common x y :=
-  trans!{{Target.Carrier k}} _ _ _ (Data.rightExpansion x y)
-    (trans!{{Target.Carrier k}} _ _ _
-      (congr!{{Target.Carrier (N.Nat^::succ k)} {Target.Carrier k}} ((Target.boundary k).apply) _ _ (Transport.castRefl Target.Carrier (N.Nat^::succ k) (Full.apply x y)))
-      (boundary x y));
+  eq_reason_in!{{Target.Carrier k} _
+    "=" _ "by" { Data.rightExpansion x y }
+    "=" _ "by" { congr!{{Target.Carrier (N.Nat^::succ k)} {Target.Carrier k}} ((Target.boundary k).apply) _ _ (Transport.castRefl Target.Carrier (N.Nat^::succ k) (Full.apply x y)) }
+    "=" _ "by" { boundary x y }
+  };
 \definition onTensors: Data.OnTensors := \fun (x: Left.Carrier p)(y: Right.Carrier q) => trans!{{Target.Carrier k}} _ _ _ (first x y) (sym!{{Target.Carrier k}} _ _ (second x y));
 \definition law: Statement k index := Data.extend onTensors;

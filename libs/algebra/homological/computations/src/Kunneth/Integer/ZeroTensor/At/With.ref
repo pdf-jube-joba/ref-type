@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.DirectSumMapping[Index := Degree, sourceFamily := inputFamily, targetFamily := Rows.homologyFamily] \as ToRows;
 \definition forwardComponents: ToRows.Components := \fun (p: Degree) => (\parent.Component[p := p].isomorphism (projective p)).forward;
 \import ToRows.On[f := forwardComponents] \as ForwardSum;
@@ -13,15 +14,17 @@
 \import Input.To[W := Input.Carrier, target := Input.space] \as InputUniversal;
 \import Output.To[W := Output.Carrier, target := Output.space] \as OutputUniversal;
 \definition leftMap: LeftComposition.compose BackwardSum.map ForwardSum.map = InputEnd.identity := InputUniversal.ext _ _
-  (\fun (p: Degree)(x: \parent.Component[p := p].Carrier) => trans!{Input.Carrier} _ _ _
-    (congr!{Output.Carrier Input.Carrier} (BackwardSum.map.apply) _ _ (ForwardSum.onInjection p x))
-    (trans!{Input.Carrier} _ _ _ (BackwardSum.onInjection p (((\parent.Component[p := p].isomorphism (projective p)).forward).apply x))
-      (congr!{{\parent.Component[p := p].Carrier} Input.Carrier} ((Input.Injection[i := p].map).apply) _ _ ((\parent.Component[p := p].isomorphism (projective p)).leftInverse x))));
+  (\fun (p: Degree)(x: \parent.Component[p := p].Carrier) => eq_reason_in!{Input.Carrier _
+    "=" _ "by" { congr!{Output.Carrier Input.Carrier} (BackwardSum.map.apply) _ _ (ForwardSum.onInjection p x) }
+    "=" _ "by" { BackwardSum.onInjection p (((\parent.Component[p := p].isomorphism (projective p)).forward).apply x) }
+    "=" _ "by" { congr!{{\parent.Component[p := p].Carrier} Input.Carrier} ((Input.Injection[i := p].map).apply) _ _ ((\parent.Component[p := p].isomorphism (projective p)).leftInverse x) }
+  });
 \definition rightMap: RightComposition.compose ForwardSum.map BackwardSum.map = OutputEnd.identity := OutputUniversal.ext _ _
-  (\fun (p: Degree)(x: Rows.Component[i := p].Carrier) => trans!{Output.Carrier} _ _ _
-    (congr!{Input.Carrier Output.Carrier} (ForwardSum.map.apply) _ _ (BackwardSum.onInjection p x))
-    (trans!{Output.Carrier} _ _ _ (ForwardSum.onInjection p (((\parent.Component[p := p].isomorphism (projective p)).backward).apply x))
-      (congr!{{Rows.Component[i := p].Carrier} Output.Carrier} ((Output.Injection[i := p].map).apply) _ _ ((\parent.Component[p := p].isomorphism (projective p)).rightInverse x))));
+  (\fun (p: Degree)(x: Rows.Component[i := p].Carrier) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { congr!{Input.Carrier Output.Carrier} (ForwardSum.map.apply) _ _ (BackwardSum.onInjection p x) }
+    "=" _ "by" { ForwardSum.onInjection p (((\parent.Component[p := p].isomorphism (projective p)).backward).apply x) }
+    "=" _ "by" { congr!{{Rows.Component[i := p].Carrier} Output.Carrier} ((Output.Injection[i := p].map).apply) _ _ ((\parent.Component[p := p].isomorphism (projective p)).rightInverse x) }
+  });
 \definition diagonal: Modules.Isomorphism[V := Input.Carrier, W := Output.Carrier, source := Input.space, target := Output.space].Isomorphism :=
   Modules.Isomorphism[V := Input.Carrier, W := Output.Carrier, source := Input.space, target := Output.space].Isomorphism {
     forward := ForwardSum.map, backward := BackwardSum.map,

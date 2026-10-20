@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Reversion is inversion on the Euclidean Pin group. */
 \import Clifford.Pin[] \as Pin;
 \import Clifford.Reversion[] \as Reverse;
@@ -17,7 +18,7 @@
 \definition closed: Ambient.Closed[predicate] := Ambient.Closed[predicate] {
   one := Reverse.laws.one,
   mul := \fun (g, h: Units.Unit)(left: Reverse.map g.value = g.inverse)(right: Reverse.map h.value = h.inverse) =>
-    trans!{Carrier} _ _ _ (Reverse.laws.mul g.value h.value) (congr2!{Carrier Carrier Carrier} Clifford.mul _ _ _ _ right left),
+    trans!{Carrier} _ _ _ (Reverse.laws.mul g.value h.value) (congr!{Carrier Carrier Carrier} Clifford.mul _ _ _ _ right left),
   inv := \fun (g: Units.Unit)(member: Reverse.map g.value = g.inverse) => Units.inverseEqual (Reverse.unit g) (Units.inverse g) member,
 };
 \definition negativeImpossible[v: Pin.Negative]: Logic.False := \block {
@@ -41,10 +42,16 @@
   (\bysub(Units.Unit, Pin.predicate, g)) predicate closed onGenerator;
 \definition scalarSquare: \forall (g: Pin.Pin)(a: R.Real) -> scalar a = g.value -> R.mul a a = R.one :=
   \fun (g: Pin.Pin)(a: R.Real)(same: scalar a = g.value) => (Faithfulness.faithful n).scalarInjective (R.mul a a) R.one
-    (trans!{Carrier} _ _ _ (Relations.scalarMul a a)
-      (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Clifford.mul _ _ _ _
-        (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Reverse.onScalar a))
-          (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Reverse.map _ _ same) (norm g))) same) g.left));
+    (eq_reason_in!{Carrier _
+      "=" _ "by" { Relations.scalarMul a a }
+      "=" _ "by" { congr!{Carrier Carrier Carrier} Clifford.mul _ _ _ _
+        (eq_reason_in!{Carrier _
+          "=" _ "by" { sym!{Carrier} _ _ (Reverse.onScalar a) }
+          "=" _ "by" { congr!{Carrier Carrier} Reverse.map _ _ same }
+          "=" _ "by" { norm g }
+        }) same }
+      "=" _ "by" g.left
+    });
 \definition negativeNonnegative: \forall (a: R.Real) -> Order.Le a R.zero -> Order.Le R.zero (R.neg a) :=
   \fun (a: R.Real)(nonpositive: _) => Order.leReplaceLeft (R.neg R.zero) R.zero (R.neg a) Arithmetic.negZero
     (Arithmetic.negAntitone a R.zero nonpositive);
@@ -54,8 +61,11 @@
       (trans!{R.Real} _ _ _ square (sym!{R.Real} _ _ (Arithmetic.fieldMulOneLeft R.one))))}
     {\fun (nonpositive: _) => Logic.Or[_, _]::right (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.negInvolutive a))
       (congr!{R.Real R.Real} R.neg _ _ (Roots.squaresInjective (R.neg a) R.one (negativeNonnegative a nonpositive) Arithmetic.oneNonnegative
-        (trans!{R.Real} _ _ _ (Arithmetic.fieldMulNegBoth a a)
-          (trans!{R.Real} _ _ _ square (sym!{R.Real} _ _ (Arithmetic.fieldMulOneLeft R.one)))))))}
+        (eq_reason_in!{R.Real _
+          "=" _ "by" { Arithmetic.fieldMulNegBoth a a }
+          "=" _ "by" square
+          "=" _ "by" { sym!{R.Real} _ _ (Arithmetic.fieldMulOneLeft R.one) }
+        }))))}
   };
 \definition scalarSign: \forall (g: Pin.Pin)(a: R.Real) -> scalar a = g.value -> Logic.Or[a = R.one, a = R.neg R.one] :=
   \fun (g: Pin.Pin)(a: R.Real)(same: _) => squareOne a (scalarSquare g a same);

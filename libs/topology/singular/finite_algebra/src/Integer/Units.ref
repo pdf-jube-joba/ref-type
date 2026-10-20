@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].Nat[] \as N;
 \import N.Basic[].Def[] \as Natural;
 \import N.Basic[].Prop[] \as Bounds;
@@ -25,9 +26,11 @@
     (absoluteNegative (Arithmetic.mul a b));
 \definition negativeRight[a, b: I.Int^]:
   Signed.absolute (Arithmetic.mul a (Arithmetic.neg b)) = Signed.absolute (Arithmetic.mul a b) :=
-  trans!{N.Nat^} _ _ _ (congr!{I.Int^ N.Nat^} Signed.absolute _ _ (IntegerLaws.mulComm a (Arithmetic.neg b)))
-    (trans!{N.Nat^} _ _ _ (negativeLeft b a)
-      (congr!{I.Int^ N.Nat^} Signed.absolute _ _ (IntegerLaws.mulComm b a)));
+  eq_reason_in!{N.Nat^ _
+    "=" _ "by" { congr!{I.Int^ N.Nat^} Signed.absolute _ _ (IntegerLaws.mulComm a (Arithmetic.neg b)) }
+    "=" _ "by" { negativeLeft b a }
+    "=" _ "by" { congr!{I.Int^ N.Nat^} Signed.absolute _ _ (IntegerLaws.mulComm b a) }
+  };
 \definition naturalProduct[a, b: N.Nat^]:
   Signed.absolute (Arithmetic.mul (I.Int^::ofNat a) (I.Int^::ofNat b)) = Natural.mul a b :=
   congr!{I.Int^ N.Nat^} Signed.absolute _ _ (Euclid.naturalMul a b);
@@ -45,10 +48,11 @@
       Signed.absolute (Arithmetic.mul (I.Int^::negSucc a) b) = Natural.mul (N.Nat^::succ a) (Signed.absolute b) \with {
       | ofNat: \fun (b: N.Nat^) => trans!{N.Nat^} _ _ _
         (negativeLeft (I.Int^::ofNat (N.Nat^::succ a)) (I.Int^::ofNat b)) (naturalProduct (N.Nat^::succ a) b)
-      | negSucc: \fun (b: N.Nat^) => trans!{N.Nat^} _ _ _
-        (negativeLeft (I.Int^::ofNat (N.Nat^::succ a)) (I.Int^::negSucc b))
-        (trans!{N.Nat^} _ _ _ (negativeRight (I.Int^::ofNat (N.Nat^::succ a)) (I.Int^::ofNat (N.Nat^::succ b)))
-          (naturalProduct (N.Nat^::succ a) (N.Nat^::succ b)))
+      | negSucc: \fun (b: N.Nat^) => eq_reason_in!{N.Nat^ _
+        "=" _ "by" { negativeLeft (I.Int^::ofNat (N.Nat^::succ a)) (I.Int^::negSucc b) }
+        "=" _ "by" { negativeRight (I.Int^::ofNat (N.Nat^::succ a)) (I.Int^::ofNat (N.Nat^::succ b)) }
+        "=" _ "by" { naturalProduct (N.Nat^::succ a) (N.Nat^::succ b) }
+      }
     }
   };
 \definition absoluteOne: \forall (a: I.Int^) -> Signed.absolute a = one ->
@@ -80,7 +84,8 @@
   Logic.Or[((e).forward).apply I.One.specification = I.One.specification,
     ((e).forward).apply I.One.specification = Arithmetic.neg I.One.specification] :=
   classification (((e).forward).apply I.One.specification) (((e).backward).apply I.One.specification)
-    (trans!{I.Int^} _ _ _
-      (IntegerLaws.mulComm (((e).forward).apply I.One.specification) (((e).backward).apply I.One.specification))
-      (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (onScalar (e).forward (((e).backward).apply I.One.specification)))
-        ((e).rightInverse I.One.specification)));
+    (eq_reason_in!{I.Int^ _
+      "=" _ "by" { IntegerLaws.mulComm (((e).forward).apply I.One.specification) (((e).backward).apply I.One.specification) }
+      "=" _ "by" { sym!{I.Int^} _ _ (onScalar (e).forward (((e).backward).apply I.One.specification)) }
+      "=" _ "by" { (e).rightInverse I.One.specification }
+    });

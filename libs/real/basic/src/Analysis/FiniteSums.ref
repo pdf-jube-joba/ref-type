@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Data[].FinSet[] \as Fin;
 \import R.Order[] \as Order;
 \definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> Real) -> Real :=
@@ -9,7 +10,7 @@
 \definition congruent: \forall (n: N.Nat^)(f, g: Fin.Fin n -> Real) -> (\forall (i: Fin.Fin n) -> f i = g i) -> sum n f = sum n g :=
   \induction (n: N.Nat^) \return \forall (f, g: Fin.Fin n -> Real) -> (\forall (i: Fin.Fin n) -> f i = g i) -> sum n f = sum n g \with {
     | zero: \fun (f, g: _)(agrees: _) => \refl(zero)
-    | succ: \fun (n: N.Nat^)(previous: _)(f, g: _)(agrees: _) => congr2!{Real Real Real} add _ _ _ _ (agrees (Fin.zero n))
+    | succ: \fun (n: N.Nat^)(previous: _)(f, g: _)(agrees: _) => congr!{Real Real Real} add _ _ _ _ (agrees (Fin.zero n))
       (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) (\fun (j: Fin.Fin n) => g (Fin.succ n j)) (\fun (j: Fin.Fin n) => agrees (Fin.succ n j)))
   };
 \definition zeroSum: \forall (n: N.Nat^) -> sum n (\fun (i: Fin.Fin n) => zero) = zero :=
@@ -84,11 +85,14 @@
   };
 \definition cancelDifferences: \forall (a, b, c: Real) -> add (sub b a) (sub c b) = sub c a :=
   \fun (a, b, c: Real) => Laws.addCancelRight (add (sub b a) (sub c b)) (sub c a) a
-    (trans!{Real} _ _ _ (Laws.addAssoc (sub b a) (sub c b) a)
-      (trans!{Real} _ _ _ (congr!{Real Real} (add (sub b a)) _ _ (Laws.addComm (sub c b) a))
-        (trans!{Real} _ _ _ (sym!{Real} _ _ (Laws.addAssoc (sub b a) a (sub c b)))
-          (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => add s (sub c b)) _ _ (Metric.subAddCancel b a))
-            (trans!{Real} _ _ _ (Bounds.addSubCancel c b) (sym!{Real} _ _ (Metric.subAddCancel c a)))))));
+    (eq_reason_in!{Real _
+      "=" _ "by" { Laws.addAssoc (sub b a) (sub c b) a }
+      "=" _ "by" { congr!{Real Real} (add (sub b a)) _ _ (Laws.addComm (sub c b) a) }
+      "=" _ "by" { sym!{Real} _ _ (Laws.addAssoc (sub b a) a (sub c b)) }
+      "=" _ "by" { congr!{Real Real} (\fun (s: Real) => add s (sub c b)) _ _ (Metric.subAddCancel b a) }
+      "=" _ "by" { Bounds.addSubCancel c b }
+      "=" _ "by" { sym!{Real} _ _ (Metric.subAddCancel c a) }
+    });
 \definition telescoping: \forall (n: N.Nat^)(f: N.Nat^ -> Real) ->
   sum n (\fun (i: Fin.Fin n) => sub (f (N.Nat^::succ (Fin.value n i))) (f (Fin.value n i))) = sub (f n) (f N.Nat^::zero) :=
   \induction (n: N.Nat^) \return \forall (f: N.Nat^ -> Real) ->

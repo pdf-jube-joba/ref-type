@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Positive[C := C, n := n] \as Source;
 \import \parent.\parent.Positive[C := D, n := n] \as Target;
 \import Maps.Positive[n := n] \as Induced;
@@ -10,14 +11,15 @@
 \definition onCycle: \forall (f, g: Maps.Map)(h: Homotopy f g)(x: Source.Cycle) ->
   Group.difference (f.apply (N.Nat^::succ n) x) (g.apply (N.Nat^::succ n) x) =
     Target.prior.apply (h.apply (N.Nat^::succ n) x) :=
-  \fun (f, g: Maps.Map)(h: Homotopy f g)(x: Source.Cycle) => trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _ (h.successorEquation n x)
-    (trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _
-      (congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)}}
+  \fun (f, g: Maps.Map)(h: Homotopy f g)(x: Source.Cycle) => eq_reason_in!{{D.family.Carrier (N.Nat^::succ n)} _
+    "=" _ "by" { h.successorEquation n x }
+    "=" _ "by" { congr!{{D.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)}}
         (Group.add (Target.prior.apply (h.apply (N.Nat^::succ n) x))) _ _
         (trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _
           (congr!{{C.family.Carrier n} {D.family.Carrier (N.Nat^::succ n)}} (h.apply n) _ _
-            (\bysub(C.family.Carrier (N.Nat^::succ n), Source.cycles.carrier, x))) (ShiftMaps.zeroPreserved (linear f g h))))
-      (Group.zeroRight (Target.prior.apply (h.apply (N.Nat^::succ n) x))));
+            (\bysub(C.family.Carrier (N.Nat^::succ n), Source.cycles.carrier, x))) (ShiftMaps.zeroPreserved (linear f g h))) }
+    "=" _ "by" { Group.zeroRight (Target.prior.apply (h.apply (N.Nat^::succ n) x)) }
+  };
 \import Modules.Of[V := D.family.Carrier (N.Nat^::succ n), space := D.family.space (N.Nat^::succ n)].Submodule[] \as Submodules;
 \import Submodules.Image[U := D.family.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := D.family.space (N.Nat^::succ (N.Nat^::succ n))] \as Images;
 \definition differenceBoundary: \forall (f, g: Maps.Map)(h: Homotopy f g)(x: Source.Cycle) ->
@@ -29,7 +31,8 @@
   (Induced.induced f).apply q = (Induced.induced g).apply q :=
   \fun (f, g: Maps.Map)(h: Homotopy f g) => Source.classInduction
     (\fun (q: Source.Homology) => (Induced.induced f).apply q = (Induced.induced g).apply q)
-    (\fun (x: Source.Cycle) => trans!{Target.Homology} _ _ _ (Induced.onClass f x)
-      (trans!{Target.Homology} _ _ _
-        (Target.classEqual ((Induced.cyclesMap f).apply x) ((Induced.cyclesMap g).apply x) (differenceBoundary f g h x))
-        (sym!{Target.Homology} _ _ (Induced.onClass g x))));
+    (\fun (x: Source.Cycle) => eq_reason_in!{Target.Homology _
+      "=" _ "by" { Induced.onClass f x }
+      "=" _ "by" { Target.classEqual ((Induced.cyclesMap f).apply x) ((Induced.cyclesMap g).apply x) (differenceBoundary f g h x) }
+      "=" _ "by" { sym!{Target.Homology} _ _ (Induced.onClass g x) }
+    });

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].DegreeZero[C := Chains.complex] \as H;
 \import Modules.Free[Generators := Components.Carrier] \as FreeComponents;
 \definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := FreeComponents.Carrier, space := FreeComponents.space };
@@ -49,11 +50,13 @@
   .Composition[U := Chains.Carrier N.Nat^::zero, domain := Chains.space N.Nat^::zero] \as First;
 \import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := H.Homology, target := H.homologySpace] \as FreePoints;
 \definition firstEquation: First.compose backward assignment = H.classLinear :=
-  FreePoints.ext _ _ (\fun (sigma: Simplices.Carrier N.Nat^::zero) => trans!{H.Homology} _ _ _
-    (congr!{{FreeComponents.Carrier} H.Homology} ((backward).apply) _ _
-      (FCochains.At[n := N.Nat^::zero].onGenerator (\fun (s: Simplices.Carrier N.Nat^::zero) => FreeComponents.generator (Components.class (Assignments.point s))) sigma))
-    (trans!{H.Homology} _ _ _ (backwardOnGenerator (Components.class (Universal.point sigma)))
-      (trans!{H.Homology} _ _ _ (componentOnClass (Universal.point sigma)) (sym!{H.Homology} _ _ (pointOnSimplex sigma)))));
+  FreePoints.ext _ _ (\fun (sigma: Simplices.Carrier N.Nat^::zero) => eq_reason_in!{H.Homology _
+    "=" _ "by" { congr!{{FreeComponents.Carrier} H.Homology} ((backward).apply) _ _
+      (FCochains.At[n := N.Nat^::zero].onGenerator (\fun (s: Simplices.Carrier N.Nat^::zero) => FreeComponents.generator (Components.class (Assignments.point s))) sigma) }
+    "=" _ "by" { backwardOnGenerator (Components.class (Universal.point sigma)) }
+    "=" _ "by" { componentOnClass (Universal.point sigma) }
+    "=" _ "by" { sym!{H.Homology} _ _ (pointOnSimplex sigma) }
+  });
 \import Modules.Hom[V := Chains.Carrier N.Nat^::zero, W := H.Homology, source := Chains.space N.Nat^::zero, target := H.homologySpace] \as PointMaps;
 \definition leftInverse: \forall (q: H.Homology) -> (backward).apply ((forward).apply q) = q :=
   H.classInduction (\fun (q: H.Homology) => (backward).apply ((forward).apply q) = q)

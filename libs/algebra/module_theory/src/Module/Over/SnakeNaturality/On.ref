@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Snake[A := A, B := B, C := C, A1 := A1, B1 := B1, C1 := C1].Diagram[s := s, t := t, f := f, g := g, h := h] \as Source;
 \import \parent.\parent.Snake[A := A2, B := B2, C := C2, A1 := A3, B1 := B3, C1 := C3].Diagram[s := s1, t := t1, f := f1, g := g1, h := h1] \as Target;
 \import \parent.\parent.ShortExactComparison[A := A, B := B, C := C, A1 := A2, B1 := B2, C1 := C2].Diagram[s := s, t := s1, a := a, b := b, c := c] \as Top;
@@ -16,10 +17,11 @@
 \import \parent.\parent.Of[V := C2.Carrier, space := C2.space].Submodule[] \as TargetSub;
 \definition closed: Laws -> \forall (x: Source.KernelCarrier) ->
   h1.apply (c.apply x) = C3.space.zero :=
-  \fun (laws: Laws)(x: Source.KernelCarrier) => trans!{C3.Carrier} _ _ _ (laws.right x)
-    (trans!{C3.Carrier} _ _ _
-      (congr!{C1.Carrier C3.Carrier} (c1.apply) _ _ (\bysub(C.Carrier, Source.kernel.carrier, x)))
-      (RightMaps.zeroPreserved c1));
+  \fun (laws: Laws)(x: Source.KernelCarrier) => eq_reason_in!{C3.Carrier _
+    "=" _ "by" { laws.right x }
+    "=" _ "by" { congr!{C1.Carrier C3.Carrier} (c1.apply) _ _ (\bysub(C.Carrier, Source.kernel.carrier, x)) }
+    "=" _ "by" { RightMaps.zeroPreserved c1 }
+  };
 \import \parent.\parent.Hom[V := Source.KernelCarrier, W := Target.KernelCarrier, source := Source.kernelSpace, target := Target.kernelSpace] \as KernelMaps;
 \definition kernelMap[laws: Laws]: KernelMaps.Map := KernelMaps.Map {
   apply := \fun (x: Source.KernelCarrier) => \into[C2.Carrier](c.apply x, Target.kernel.carrier) \by { closed laws x },
@@ -52,12 +54,14 @@
     trans!{C2.Carrier} _ _ _ (laws.top.right w.lift)
       (congr!{C.Carrier C2.Carrier} (c.apply) _ _ witness.lifted) \then
   \let differential: t1.inclusion.apply (a1.apply w.lower) = g1.apply (b.apply w.lift) :=
-    trans!{B3.Carrier} _ _ _ (sym!{B3.Carrier} _ _ (laws.bottom.left w.lower))
-      (trans!{B3.Carrier} _ _ _
-        (congr!{B1.Carrier B3.Carrier} (b1.apply) _ _ witness.differential)
-        (sym!{B3.Carrier} _ _ (laws.middle w.lift))) \then
-  \return trans!{Target.CokernelCarrier} _ _ _
-    (Target.onLift laws.target ((kernelMap laws).apply x) (b.apply w.lift) (a1.apply w.lower) lifted differential)
-    (trans!{Target.CokernelCarrier} _ _ _ (sym!{Target.CokernelCarrier} _ _ (Cokernel.onClass (compatible laws) w.lower))
-      (congr!{Source.CokernelCarrier Target.CokernelCarrier} ((cokernelMap laws).apply) _ _ witness.classValue))
+    eq_reason_in!{B3.Carrier _
+      "=" _ "by" { sym!{B3.Carrier} _ _ (laws.bottom.left w.lower) }
+      "=" _ "by" { congr!{B1.Carrier B3.Carrier} (b1.apply) _ _ witness.differential }
+      "=" _ "by" { sym!{B3.Carrier} _ _ (laws.middle w.lift) }
+    } \then
+  \return eq_reason_in!{Target.CokernelCarrier _
+    "=" _ "by" { Target.onLift laws.target ((kernelMap laws).apply x) (b.apply w.lift) (a1.apply w.lower) lifted differential }
+    "=" _ "by" { sym!{Target.CokernelCarrier} _ _ (Cokernel.onClass (compatible laws) w.lower) }
+    "=" _ "by" { congr!{Source.CokernelCarrier Target.CokernelCarrier} ((cokernelMap laws).apply) _ _ witness.classValue }
+  }
 };

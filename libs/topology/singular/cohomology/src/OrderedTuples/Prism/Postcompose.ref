@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.OrderedTuples[V := U] \as Final;
 \import Codomain.Mapping[W := U] \as After;
 \import Domain.Prism[W := U] \as Other;
@@ -18,10 +19,11 @@
   \import Modules.Free[Generators := Domain.Tuple n].To[W := Final.Carrier (N.Nat^::succ n), target := Final.space (N.Nat^::succ n)] \as Free;
   \import Modules.Hom[V := Domain.Carrier n, W := Final.Carrier (N.Nat^::succ n), source := Domain.space n, target := Final.space (N.Nat^::succ n)] \as Maps;
   \definition equation: \forall (f, g: V -> W)(h: W -> U) -> Composition.compose (After.push (N.Nat^::succ n) h) (map n f g) = Other.map n (\fun (x: V) => h (f x)) (\fun (x: V) => h (g x)) :=
-    \fun (f, g: V -> W)(h: W -> U) => Free.ext _ _ (\fun (v: Domain.Tuple n) => trans!{{Final.Carrier (N.Nat^::succ n)}} _ _ _
-      (congr!{{Codomain.Carrier (N.Nat^::succ n)} {Final.Carrier (N.Nat^::succ n)}} ((After.push (N.Nat^::succ n) h).apply) _ _ (\parent.\parent.At[n := n].onGenerator f g v))
-      (trans!{{Final.Carrier (N.Nat^::succ n)}} _ _ _ (valueLaw n f g h v)
-        (sym!{{Final.Carrier (N.Nat^::succ n)}} _ _ (Other.At[n := n].onGenerator (\fun (x: V) => h (f x)) (\fun (x: V) => h (g x)) v))));
+    \fun (f, g: V -> W)(h: W -> U) => Free.ext _ _ (\fun (v: Domain.Tuple n) => eq_reason_in!{{Final.Carrier (N.Nat^::succ n)} _
+      "=" _ "by" { congr!{{Codomain.Carrier (N.Nat^::succ n)} {Final.Carrier (N.Nat^::succ n)}} ((After.push (N.Nat^::succ n) h).apply) _ _ (\parent.\parent.At[n := n].onGenerator f g v) }
+      "=" _ "by" { valueLaw n f g h v }
+      "=" _ "by" { sym!{{Final.Carrier (N.Nat^::succ n)}} _ _ (Other.At[n := n].onGenerator (\fun (x: V) => h (f x)) (\fun (x: V) => h (g x)) v) }
+    });
   \definition law: \forall (f, g: V -> W)(h: W -> U)(x: Domain.Carrier n) ->
     (After.push (N.Nat^::succ n) h).apply ((map n f g).apply x) = (Other.map n (\fun (x: V) => h (f x)) (\fun (x: V) => h (g x))).apply x :=
     \fun (f, g: V -> W)(h: W -> U)(x: Domain.Carrier n) => congr!{Maps.Map {Final.Carrier (N.Nat^::succ n)}} (\fun (k: Maps.Map) => (k).apply x) _ _ (equation f g h);

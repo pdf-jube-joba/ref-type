@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Free[Generators := Simplex total].To[W := R, target := Singular.integerCoefficients.space] \as Free;
 \definition ext: \forall (f, g: Carrier total) ->
   (\forall (sigma: Simplex total) -> (f).apply (Chains.generator total sigma) = (g).apply (Chains.generator total sigma)) -> f = g := Free.ext;
@@ -11,17 +12,19 @@
 \definition leftAdd: \forall (alpha, alphaPrime: Carrier p)(beta: Carrier q) ->
   apply ((space p).add alpha alphaPrime) beta = (space total).add (apply alpha beta) (apply alphaPrime beta) :=
   \fun (alpha, alphaPrime: Carrier p)(beta: Carrier q) => ext _ _ (\fun (sigma: Simplex total) =>
-    trans!{R} _ _ _ (onSimplex ((space p).add alpha alphaPrime) beta sigma)
-      (trans!{R} _ _ _
-        ((RingModules.scalarModule).scalarAdd ((alpha).apply (Chains.generator p (Cut.front sigma))) ((alphaPrime).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))))
-        (sym!{R} _ _ (congr2!{R R R} ((baseRing).add) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alphaPrime beta sigma)))));
+    eq_reason_in!{R _
+      "=" _ "by" { onSimplex ((space p).add alpha alphaPrime) beta sigma }
+      "=" _ "by" { (RingModules.scalarModule).scalarAdd ((alpha).apply (Chains.generator p (Cut.front sigma))) ((alphaPrime).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))) }
+      "=" _ "by" { sym!{R} _ _ (congr!{R R R} ((baseRing).add) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alphaPrime beta sigma)) }
+    });
 \definition rightAdd: \forall (alpha: Carrier p)(beta, betaPrime: Carrier q) ->
   apply alpha ((space q).add beta betaPrime) = (space total).add (apply alpha beta) (apply alpha betaPrime) :=
   \fun (alpha: Carrier p)(beta, betaPrime: Carrier q) => ext _ _ (\fun (sigma: Simplex total) =>
-    trans!{R} _ _ _ (onSimplex alpha ((space q).add beta betaPrime) sigma)
-      (trans!{R} _ _ _
-        ((RingModules.scalarModule).vectorAdd ((alpha).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))) ((betaPrime).apply (Chains.generator q (Cut.back sigma))))
-        (sym!{R} _ _ (congr2!{R R R} ((baseRing).add) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alpha betaPrime sigma)))));
+    eq_reason_in!{R _
+      "=" _ "by" { onSimplex alpha ((space q).add beta betaPrime) sigma }
+      "=" _ "by" { (RingModules.scalarModule).vectorAdd ((alpha).apply (Chains.generator p (Cut.front sigma))) ((beta).apply (Chains.generator q (Cut.back sigma))) ((betaPrime).apply (Chains.generator q (Cut.back sigma))) }
+      "=" _ "by" { sym!{R} _ _ (congr!{R R R} ((baseRing).add) _ _ _ _ (onSimplex alpha beta sigma) (onSimplex alpha betaPrime sigma)) }
+    });
 \import Modules.Laws[V := Carrier p, space := space p] \as LeftVectors;
 \import Modules.Laws[V := Carrier q, space := space q] \as RightVectors;
 \import Modules.Laws[V := Carrier total, space := space total] \as OutputVectors;
@@ -31,14 +34,16 @@
 \definition leftDifference: \forall (x, y: Carrier p)(z: Carrier q) ->
   apply (LeftGroup.difference x y) z = OutputGroup.difference (apply x z) (apply y z) :=
   \fun (x, y: Carrier p)(z: Carrier q) => OutputGroup.cancelRight (apply y z) _ _
-    (trans!{{Carrier total}} _ _ _ (sym!{{Carrier total}} _ _ (leftAdd (LeftGroup.difference x y) y z))
-      (trans!{{Carrier total}} _ _ _
-        (congr!{{Carrier p} {Carrier total}} (\fun (a: Carrier p) => apply a z) _ _ (LeftGroup.addDifference x y))
-        (sym!{{Carrier total}} _ _ (OutputGroup.addDifference (apply x z) (apply y z)))));
+    (eq_reason_in!{{Carrier total} _
+      "=" _ "by" { sym!{{Carrier total}} _ _ (leftAdd (LeftGroup.difference x y) y z) }
+      "=" _ "by" { congr!{{Carrier p} {Carrier total}} (\fun (a: Carrier p) => apply a z) _ _ (LeftGroup.addDifference x y) }
+      "=" _ "by" { sym!{{Carrier total}} _ _ (OutputGroup.addDifference (apply x z) (apply y z)) }
+    });
 \definition rightDifference: \forall (x: Carrier p)(y, z: Carrier q) ->
   apply x (RightGroup.difference y z) = OutputGroup.difference (apply x y) (apply x z) :=
   \fun (x: Carrier p)(y, z: Carrier q) => OutputGroup.cancelRight (apply x z) _ _
-    (trans!{{Carrier total}} _ _ _ (sym!{{Carrier total}} _ _ (rightAdd x (RightGroup.difference y z) z))
-      (trans!{{Carrier total}} _ _ _
-        (congr!{{Carrier q} {Carrier total}} (apply x) _ _ (RightGroup.addDifference y z))
-        (sym!{{Carrier total}} _ _ (OutputGroup.addDifference (apply x y) (apply x z)))));
+    (eq_reason_in!{{Carrier total} _
+      "=" _ "by" { sym!{{Carrier total}} _ _ (rightAdd x (RightGroup.difference y z) z) }
+      "=" _ "by" { congr!{{Carrier q} {Carrier total}} (apply x) _ _ (RightGroup.addDifference y z) }
+      "=" _ "by" { sym!{{Carrier total}} _ _ (OutputGroup.addDifference (apply x y) (apply x z)) }
+    });

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition family: Modules.Family[Index] := Modules.Family[Index] {
   Carrier := \fun (_: Index) => I.Int^, space := \fun (_: Index) => Modules.scalarModule,
 };
@@ -16,20 +17,22 @@
 \import Modules.End[V := Sum.Carrier, space := Sum.space] \as SumEnd;
 \import Free.To[W := Free.Carrier, target := Free.space] \as FreeUniversal;
 \definition leftEquation: Left.compose backward forward = FreeEnd.identity :=
-  FreeUniversal.ext _ _ (\fun (i: Index) => trans!{Free.Carrier} _ _ _
-    (congr!{Sum.Carrier Free.Carrier} ((backward).apply) _ _ (Forward.onGenerator values i))
-    (trans!{Free.Carrier} _ _ _ (Backward.onInjection components i I.One.specification) ((Free.space).scalarOne (Free.generator i))));
+  FreeUniversal.ext _ _ (\fun (i: Index) => eq_reason_in!{Free.Carrier _
+    "=" _ "by" { congr!{Sum.Carrier Free.Carrier} ((backward).apply) _ _ (Forward.onGenerator values i) }
+    "=" _ "by" { Backward.onInjection components i I.One.specification }
+    "=" _ "by" { (Free.space).scalarOne (Free.generator i) }
+  });
 \import Sum.To[W := Sum.Carrier, target := Sum.space] \as SumUniversal;
 \definition rightEquation: Right.compose forward backward = SumEnd.identity := SumUniversal.ext _ _
-  (\fun (i: Index)(a: I.Int^) => trans!{Sum.Carrier} _ _ _
-    (congr!{Free.Carrier Sum.Carrier} ((forward).apply) _ _ (Backward.onInjection components i a))
-    (trans!{Sum.Carrier} _ _ _ ((forward).scalar a (Free.generator i))
-      (trans!{Sum.Carrier} _ _ _
-        (congr!{Sum.Carrier Sum.Carrier} ((Sum.space).smul a) _ _ (Forward.onGenerator values i))
-        (sym!{Sum.Carrier} _ _
+  (\fun (i: Index)(a: I.Int^) => eq_reason_in!{Sum.Carrier _
+    "=" _ "by" { congr!{Free.Carrier Sum.Carrier} ((forward).apply) _ _ (Backward.onInjection components i a) }
+    "=" _ "by" { (forward).scalar a (Free.generator i) }
+    "=" _ "by" { congr!{Sum.Carrier Sum.Carrier} ((Sum.space).smul a) _ _ (Forward.onGenerator values i) }
+    "=" _ "by" { sym!{Sum.Carrier} _ _
           (trans!{Sum.Carrier} _ _ _
             (congr!{I.Int^ Sum.Carrier} ((Sum.Injection[i := i].map).apply) _ _ (sym!{I.Int^} _ _ ((((Integers.ring).semiring).multiplicative).rightIdentity a)))
-            ((Sum.Injection[i := i].map).scalar a I.One.specification))))));
+            ((Sum.Injection[i := i].map).scalar a I.One.specification)) }
+  });
 \import Modules.Hom[V := Free.Carrier, W := Free.Carrier, source := Free.space, target := Free.space] \as LeftMaps;
 \import Modules.Hom[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as RightMaps;
 \definition isomorphism: Modules.Isomorphism[V := Free.Carrier, W := Sum.Carrier, source := Free.space, target := Sum.space].Isomorphism :=

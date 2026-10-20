@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Source.Degree[n := n] \as SD;
 \import Source.Degree[n := Nat.Nat^::succ n] \as SP;
 \import Target.Degree[n := n] \as TD;
@@ -33,13 +34,13 @@
   \definition law: \forall (x: C.family.Carrier p (Nat.Nat^::succ q)) ->
     (TS.vertical (Nat.Nat^::succ q) p).apply ((f p (Nat.Nat^::succ q)).apply x) =
       Current.map.apply ((SS.vertical (Nat.Nat^::succ q) p).apply x) :=
-    \fun (x: C.family.Carrier p (Nat.Nat^::succ q)) => trans!{TD.Carrier} _ _ _
-      (congr!{{D.family.Carrier p q} TD.Carrier}
-        (\fun (v: D.family.Carrier p q) => (TD.Component[i := targetIndex].injection).apply ((TargetSign.map p).apply v)) _ _ ((laws f).vertical p q x))
-      (trans!{TD.Carrier} _ _ _
-        (congr!{{D.family.Carrier p q} TD.Carrier} ((TD.Component[i := targetIndex].injection).apply) _ _
-          (sym!{{D.family.Carrier p q}} _ _ (Naturality.naturality (f p q) p ((C.differential.vertical p q).apply x))))
-        (sym!{TD.Carrier} _ _ (Current.onInjection targetIndex ((Sign.map p).apply ((C.differential.vertical p q).apply x)))));
+    \fun (x: C.family.Carrier p (Nat.Nat^::succ q)) => eq_reason_in!{TD.Carrier _
+      "=" _ "by" { congr!{{D.family.Carrier p q} TD.Carrier}
+        (\fun (v: D.family.Carrier p q) => (TD.Component[i := targetIndex].injection).apply ((TargetSign.map p).apply v)) _ _ ((laws f).vertical p q x) }
+      "=" _ "by" { congr!{{D.family.Carrier p q} TD.Carrier} ((TD.Component[i := targetIndex].injection).apply) _ _
+          (sym!{{D.family.Carrier p q}} _ _ (Naturality.naturality (f p q) p ((C.differential.vertical p q).apply x))) }
+      "=" _ "by" { sym!{TD.Carrier} _ _ (Current.onInjection targetIndex ((Sign.map p).apply ((C.differential.vertical p q).apply x))) }
+    };
 }
 \definition vertical: \forall (q: Nat.Nat^) -> VerticalLaw q :=
   \induction (q: Nat.Nat^) \return VerticalLaw q \with {
@@ -49,15 +50,14 @@
 \definition onInjection: \forall (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) ->
   TS.differential.apply (Prior.map.apply ((SP.Component[i := i].injection).apply x)) =
     Current.map.apply (SS.differential.apply ((SP.Component[i := i].injection).apply x)) :=
-  \fun (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) => trans!{TD.Carrier} _ _ _
-    (congr!{TP.Carrier TD.Carrier} (TS.differential.apply) _ _ (Prior.onInjection i x))
-    (trans!{TD.Carrier} _ _ _ (TS.onComponent i ((f i.first i.second).apply x))
-      (trans!{TD.Carrier} _ _ _
-        (congr2!{TD.Carrier TD.Carrier TD.Carrier} (TD.space.add) _ _ _ _
-          (horizontal i.first (SS.Component[i := i].q) x) (vertical i.second (SS.Component[i := i].p) x))
-        (trans!{TD.Carrier} _ _ _
-          (sym!{TD.Carrier} _ _ (Current.map.addition ((SS.horizontal i.first (SS.Component[i := i].q)).apply x) ((SS.vertical i.second (SS.Component[i := i].p)).apply x)))
-          (congr!{SD.Carrier TD.Carrier} (Current.map.apply) _ _ (sym!{SD.Carrier} _ _ (SS.onComponent i x))))));
+  \fun (i: Index (Nat.Nat^::succ n))(x: C.family.Carrier i.first i.second) => eq_reason_in!{TD.Carrier _
+    "=" _ "by" { congr!{TP.Carrier TD.Carrier} (TS.differential.apply) _ _ (Prior.onInjection i x) }
+    "=" _ "by" { TS.onComponent i ((f i.first i.second).apply x) }
+    "=" _ "by" { congr!{TD.Carrier TD.Carrier TD.Carrier} (TD.space.add) _ _ _ _
+          (horizontal i.first (SS.Component[i := i].q) x) (vertical i.second (SS.Component[i := i].p) x) }
+    "=" _ "by" { sym!{TD.Carrier} _ _ (Current.map.addition ((SS.horizontal i.first (SS.Component[i := i].q)).apply x) ((SS.vertical i.second (SS.Component[i := i].p)).apply x)) }
+    "=" _ "by" { congr!{SD.Carrier TD.Carrier} (Current.map.apply) _ _ (sym!{SD.Carrier} _ _ (SS.onComponent i x)) }
+  };
 \import Modules.Hom[V := TP.Carrier, W := TD.Carrier, source := TP.space, target := TD.space].Composition[U := SP.Carrier, domain := SP.space] \as TargetComposition;
 \import Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Composition[U := SP.Carrier, domain := SP.space] \as SourceComposition;
 \import Modules.Hom[V := SP.Carrier, W := TD.Carrier, source := SP.space, target := TD.space] \as Maps;

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebraic_topology.Interval[] \as I;
 \import \root.Groupoid[A := B, source := target] \as TargetGroupoid;
 \import Gr.Maps[B := B, target := target] \as Map;
@@ -22,21 +23,20 @@
     "=" {TargetGroupoid.compose (f b) (f y) (f b)
       (TargetGroupoid.compose (f b) (f x) (f y) (Map.map f continuous b x (Bridge.arrow x)) (Map.map f continuous x y p))
       (TargetGroupoid.inverse (f b) (f y) (Map.map f continuous b y (Bridge.arrow y)))} "by" {
-      congr2!{{TargetGroupoid.Arrow (f b) (f y)} {TargetGroupoid.Arrow (f y) (f b)} {TargetGroupoid.Arrow (f b) (f b)}}
+      congr!{{TargetGroupoid.Arrow (f b) (f y)} {TargetGroupoid.Arrow (f y) (f b)} {TargetGroupoid.Arrow (f b) (f b)}}
         (TargetGroupoid.compose (f b) (f y) (f b)) _ _ _ _
         (Map.preservesComposition f continuous b x y (Bridge.arrow x) p) (Map.preservesInverse f continuous b y (Bridge.arrow y))}
     "=" {TargetBridge.loop (f x) (f y) (Map.map f continuous x y p)} "by" {
-      congr2!{{TargetGroupoid.Arrow (f b) (f x)} {TargetGroupoid.Arrow (f b) (f y)} {TargetGroupoid.Arrow (f b) (f b)}}
+      congr!{{TargetGroupoid.Arrow (f b) (f x)} {TargetGroupoid.Arrow (f b) (f y)} {TargetGroupoid.Arrow (f b) (f b)}}
         (\fun (a: TargetGroupoid.Arrow (f b) (f x))(beta: TargetGroupoid.Arrow (f b) (f y)) => TargetGroupoid.compose (f b) (f y) (f b)
           (TargetGroupoid.compose (f b) (f x) (f y) a (Map.map f continuous x y p)) (TargetGroupoid.inverse (f b) (f y) beta)) _ _ _ _
         (bridgeArrow agrees x) (bridgeArrow agrees y)}};
 \definition raw[p: Raw.Carrier]: TargetRaw.Carrier := TargetRaw.forget (f (p I.start)) (f (p I.end)) (PathMap.apply f continuous (p I.start) (p I.end) (Raw.asPath p));
 \definition value: BridgeCompatibility -> Compatible -> \forall (p: Raw.Carrier) -> TargetHolonomy.value (raw p) = value p :=
-  \fun (bridgesAgree: _)(homAgree: _)(p: Raw.Carrier) => trans!{G} _ _ _
-    (TargetHolonomy.valueOnPath (f (p I.start)) (f (p I.end)) (PathMap.apply f continuous (p I.start) (p I.end) (Raw.asPath p)))
-    (trans!{G} _ _ _
-      (congr!{{TargetGroupoid.Arrow (f (p I.start)) (f (p I.end))} G} (TargetHolonomy.onArrow (f (p I.start)) (f (p I.end))) _ _
-        (sym!{{TargetGroupoid.Arrow (f (p I.start)) (f (p I.end))}} _ _ (Map.onClass f continuous (p I.start) (p I.end) (Raw.asPath p))))
-      (trans!{G} _ _ _
-        (congr!{{TargetGroupoid.Arrow (f b) (f b)} G} targetHom _ _ (sym!{{TargetGroupoid.Arrow (f b) (f b)}} _ _ (loop bridgesAgree (p I.start) (p I.end) (Gr.class _ _ (Raw.asPath p)))))
-        (sym!{G} _ _ (homAgree (Bridge.loop (p I.start) (p I.end) (Gr.class _ _ (Raw.asPath p)))))));
+  \fun (bridgesAgree: _)(homAgree: _)(p: Raw.Carrier) => eq_reason_in!{G _
+    "=" _ "by" { TargetHolonomy.valueOnPath (f (p I.start)) (f (p I.end)) (PathMap.apply f continuous (p I.start) (p I.end) (Raw.asPath p)) }
+    "=" _ "by" { congr!{{TargetGroupoid.Arrow (f (p I.start)) (f (p I.end))} G} (TargetHolonomy.onArrow (f (p I.start)) (f (p I.end))) _ _
+        (sym!{{TargetGroupoid.Arrow (f (p I.start)) (f (p I.end))}} _ _ (Map.onClass f continuous (p I.start) (p I.end) (Raw.asPath p))) }
+    "=" _ "by" { congr!{{TargetGroupoid.Arrow (f b) (f b)} G} targetHom _ _ (sym!{{TargetGroupoid.Arrow (f b) (f b)}} _ _ (loop bridgesAgree (p I.start) (p I.end) (Gr.class _ _ (Raw.asPath p)))) }
+    "=" _ "by" { sym!{G} _ _ (homAgree (Bridge.loop (p I.start) (p I.end) (Gr.class _ _ (Raw.asPath p)))) }
+  };

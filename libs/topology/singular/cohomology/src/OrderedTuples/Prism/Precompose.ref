@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.OrderedTuples[V := U] \as Source;
 \import Source.Mapping[W := V] \as Before;
 \import Source.Prism[W := W] \as Other;
@@ -15,11 +16,12 @@
   \import Modules.Free[Generators := Source.Tuple n].To[W := Codomain.Carrier (N.Nat^::succ n), target := Codomain.space (N.Nat^::succ n)] \as Free;
   \import Modules.Hom[V := Source.Carrier n, W := Codomain.Carrier (N.Nat^::succ n), source := Source.space n, target := Codomain.space (N.Nat^::succ n)] \as Maps;
   \definition equation: \forall (f, g: V -> W)(k: U -> V) -> Composition.compose (map n f g) (Before.push n k) = Other.map n (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x)) :=
-    \fun (f, g: V -> W)(k: U -> V) => Free.ext _ _ (\fun (v: Source.Tuple n) => trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _
-      (congr!{{Domain.Carrier n} {Codomain.Carrier (N.Nat^::succ n)}} ((map n f g).apply) _ _ (Before.At[n := n].onGenerator k v))
-      (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (\parent.\parent.At[n := n].onGenerator f g (Before.onTuple n k v))
-        (trans!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ _ (valueLaw n f g k v)
-          (sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ (Other.At[n := n].onGenerator (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x)) v)))));
+    \fun (f, g: V -> W)(k: U -> V) => Free.ext _ _ (\fun (v: Source.Tuple n) => eq_reason_in!{{Codomain.Carrier (N.Nat^::succ n)} _
+      "=" _ "by" { congr!{{Domain.Carrier n} {Codomain.Carrier (N.Nat^::succ n)}} ((map n f g).apply) _ _ (Before.At[n := n].onGenerator k v) }
+      "=" _ "by" { \parent.\parent.At[n := n].onGenerator f g (Before.onTuple n k v) }
+      "=" _ "by" { valueLaw n f g k v }
+      "=" _ "by" { sym!{{Codomain.Carrier (N.Nat^::succ n)}} _ _ (Other.At[n := n].onGenerator (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x)) v) }
+    });
   \definition law: \forall (f, g: V -> W)(k: U -> V)(x: Source.Carrier n) ->
     (map n f g).apply ((Before.push n k).apply x) = (Other.map n (\fun (x: U) => f (k x)) (\fun (x: U) => g (k x))).apply x :=
     \fun (f, g: V -> W)(k: U -> V)(x: Source.Carrier n) => congr!{Maps.Map {Codomain.Carrier (N.Nat^::succ n)}} (\fun (h: Maps.Map) => (h).apply x) _ _ (equation f g k);

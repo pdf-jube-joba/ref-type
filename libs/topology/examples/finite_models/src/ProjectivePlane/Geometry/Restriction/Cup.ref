@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Alg[].Ring[] \as Rings;
 \import std.Data[].Nat[] \as Natural;
 \import std.Data[].FinSet[] \as Fin;
@@ -5,7 +6,6 @@
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 \definition zeroDegree: Natural.Nat^ := Natural.Nat^::zero;
 \definition oneDegree: Natural.Nat^ := Natural.Nat^::succ zeroDegree;
 \definition twoDegree: Natural.Nat^ := Natural.Nat^::succ oneDegree;
@@ -32,16 +32,16 @@
 \definition law[alpha, beta: Actual.Carrier oneDegree][t: Triangle]:
   Triangles.evaluate (Restriction.apply twoDegree (Product.apply alpha beta)) t =
     (baseRing).mul (Edges.evaluate (Restriction.apply oneDegree alpha) (front t)) (Edges.evaluate (Restriction.apply oneDegree beta) (back t)) :=
-  trans!{R} _ _ _ (Restriction.onGenerator twoDegree (Product.apply alpha beta) (Model.triangle t))
-    (trans!{R} _ _ _
-      (congr!{{Simplices.Carrier twoDegree} R} (\fun (sigma: Simplices.Carrier twoDegree) => (Product.apply alpha beta).apply (SingularChains.generator twoDegree sigma)) _ _ (Geometric.onTriangle t))
-      (trans!{R} _ _ _ (Product.onSimplex alpha beta (Geometric.triangles t))
-        (trans!{R} _ _ _
-          (congr2!{{Simplices.Carrier oneDegree} {Simplices.Carrier oneDegree} R}
+  eq_reason_in!{R _
+    "=" _ "by" { Restriction.onGenerator twoDegree (Product.apply alpha beta) (Model.triangle t) }
+    "=" _ "by" { congr!{{Simplices.Carrier twoDegree} R} (\fun (sigma: Simplices.Carrier twoDegree) => (Product.apply alpha beta).apply (SingularChains.generator twoDegree sigma)) _ _ (Geometric.onTriangle t) }
+    "=" _ "by" { Product.onSimplex alpha beta (Geometric.triangles t) }
+    "=" _ "by" { congr!{{Simplices.Carrier oneDegree} {Simplices.Carrier oneDegree} R}
             (\fun (sigma, tau: Simplices.Carrier oneDegree) => (baseRing).mul ((alpha).apply (SingularChains.generator oneDegree sigma)) ((beta).apply (SingularChains.generator oneDegree tau))) _ _ _ _
             (trans!{{Simplices.Carrier oneDegree}} _ _ _ (Faces[].front (Geometric.triangles t)) (Geometric.frontLaw t))
-            (trans!{{Simplices.Carrier oneDegree}} _ _ _ (Faces[].back (Geometric.triangles t)) (Geometric.backLaw t)))
-          (congr2!{R R R} ((baseRing).mul) _ _ _ _ (sym!{R} _ _ (edge alpha (front t))) (sym!{R} _ _ (edge beta (back t)))))));
+            (trans!{{Simplices.Carrier oneDegree}} _ _ _ (Faces[].back (Geometric.triangles t)) (Geometric.backLaw t)) }
+    "=" _ "by" { congr!{R R R} ((baseRing).mul) _ _ _ _ (sym!{R} _ _ (edge alpha (front t))) (sym!{R} _ _ (edge beta (back t))) }
+  };
 \definition equation[alpha, beta: Actual.Carrier oneDegree]:
   Restriction.apply twoDegree (Product.apply alpha beta) = finiteCup (Restriction.apply oneDegree alpha) (Restriction.apply oneDegree beta) :=
   Triangles.injective (Restriction.apply twoDegree (Product.apply alpha beta)) (finiteCup (Restriction.apply oneDegree alpha) (Restriction.apply oneDegree beta))

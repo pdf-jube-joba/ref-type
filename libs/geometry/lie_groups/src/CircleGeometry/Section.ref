@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Geometry.SphereSection[s := s] \as S;
 \import S.Column[] \as Column;
 \import Next.InnerProduct[].Normalization[v := S.nonzero] \as Normalized;
@@ -12,20 +13,26 @@
 \definition factorSquared: R.mul Normalized.factor Normalized.factor = Column.inverse := trans!{R.Real} _ _ _ Normalized.inverseSquare
   (congr!{R.Real R.Real} Arithmetic.fieldInv _ _ S.squaredDirection);
 \definition product: R.mul (C.re phase) (C.im phase) = R.mul Column.inverse (s (Fin.zero N.Nat^::zero)) :=
-  trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ real imaginary)
-    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Arithmetic.fieldMulAssoc Normalized.factor Normalized.factor (s (Fin.zero N.Nat^::zero))))
-      (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (s (Fin.zero N.Nat^::zero))) _ _ factorSquared));
-\definition realSquare: C.re (Circle.square phase) = C.re base := trans!{R.Real} _ _ _ (Circle.squaredReal phase)
-  (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add (R.neg R.one)) _ _
-    (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
-      (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ real real) factorSquared)
-      (trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.mul _ _ _ _ real real) factorSquared)))
-    (sym!{R.Real} _ _ Column.headValue));
+  eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ real imaginary }
+    "=" _ "by" { sym!{R.Real} _ _ (Arithmetic.fieldMulAssoc Normalized.factor Normalized.factor (s (Fin.zero N.Nat^::zero))) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (s (Fin.zero N.Nat^::zero))) _ _ factorSquared }
+  };
+\definition realSquare: C.re (Circle.square phase) = C.re base := eq_reason_in!{R.Real _
+  "=" _ "by" { Circle.squaredReal phase }
+  "=" _ "by" { congr!{R.Real R.Real} (R.add (R.neg R.one)) _ _
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ real real) factorSquared)
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ real real) factorSquared)) }
+  "=" _ "by" { sym!{R.Real} _ _ Column.headValue }
+};
 \definition imaginarySquare: C.im (Circle.square phase) = C.im base :=
-  trans!{R.Real} _ _ _ (congr2!{R.Real R.Real R.Real} R.add _ _ _ _ product
-    (trans!{R.Real} _ _ _ (Arithmetic.fieldMulComm (C.im phase) (C.re phase)) product))
-    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Scalars.mulAddRight Column.inverse Column.inverse (s (Fin.zero N.Nat^::zero))))
-      (sym!{R.Real} _ _ (congr!{E.Vector R.Real} (\fun (v: E.Vector) => v (Fin.zero N.Nat^::zero)) _ _ Column.tailValue)));
+  eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _ product
+    (trans!{R.Real} _ _ _ (Arithmetic.fieldMulComm (C.im phase) (C.re phase)) product) }
+    "=" _ "by" { sym!{R.Real} _ _ (Scalars.mulAddRight Column.inverse Column.inverse (s (Fin.zero N.Nat^::zero))) }
+    "=" _ "by" { sym!{R.Real} _ _ (congr!{E.Vector R.Real} (\fun (v: E.Vector) => v (Fin.zero N.Nat^::zero)) _ _ Column.tailValue) }
+  };
 \definition square: Circle.square phase = base := ComplexLaws.ext _ _ realSquare imaginarySquare;
 \definition nonzero: Logic.Not (height base = R.zero) := \fun (zero: _) => Column.coefficientNonzero
   (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ Column.height) zero);

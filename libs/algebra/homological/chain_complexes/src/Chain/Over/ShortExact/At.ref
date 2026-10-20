@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Hom[V := B.family.Carrier k, W := C.family.Carrier k, source := B.family.space k, target := C.family.space k] \as ProjectionLinear;
 \import \parent.\parent.At[C := C, z := k] \as HC;
 \import \parent.\parent.At[C := B, z := k] \as HB;
@@ -22,10 +23,12 @@
 \definition lowerClosed: \forall (lift: B.family.Carrier k)(lower: A.family.Carrier (previous k)) ->
   s.inclusion.apply (previous k) lower = B.differential.apply k lift -> A.differential.apply (previous k) lower = (A.family.space (previous (previous k))).zero :=
   \fun (lift: B.family.Carrier k)(lower: A.family.Carrier (previous k))(represented: _) => s.injective (previous (previous k)) _ _
-    (trans!{{B.family.Carrier (previous (previous k))}} _ _ _ (sym!{{B.family.Carrier (previous (previous k))}} _ _ (s.inclusion.commutes (previous k) lower))
-      (trans!{{B.family.Carrier (previous (previous k))}} _ _ _ (congr!{{B.family.Carrier (previous k)} {B.family.Carrier (previous (previous k))}} (B.differential.apply (previous k)) _ _ represented)
-        (trans!{{B.family.Carrier (previous (previous k))}} _ _ _ (B.laws.squareZero k lift)
-          (sym!{{B.family.Carrier (previous (previous k))}} _ _ (LowerInclusion.zeroPreserved s.inclusion)))));
+    (eq_reason_in!{{B.family.Carrier (previous (previous k))} _
+      "=" _ "by" { sym!{{B.family.Carrier (previous (previous k))}} _ _ (s.inclusion.commutes (previous k) lower) }
+      "=" _ "by" { congr!{{B.family.Carrier (previous k)} {B.family.Carrier (previous (previous k))}} (B.differential.apply (previous k)) _ _ represented }
+      "=" _ "by" { B.laws.squareZero k lift }
+      "=" _ "by" { sym!{{B.family.Carrier (previous (previous k))}} _ _ (LowerInclusion.zeroPreserved s.inclusion) }
+    });
 \structure Witness: \Set := { lift: B.family.Carrier k, lower: HA.Cycle };
 \structure WitnessLaws[x: HC.Cycle, q: HA.Homology, w: Witness]: \Prop := {
   lifted: s.projection.apply k w.lift = x,
@@ -46,10 +49,11 @@
   \fun (x: HC.Cycle) \then
   \takefrom lift: \Cast[B.family.Carrier k] ({ b: B.family.Carrier k \where s.projection.apply k b = x }) \by s.onto k x \then
   \let lifted: s.projection.apply k lift = x := \bysub(B.family.Carrier k, { b: B.family.Carrier k \where s.projection.apply k b = x }, lift) \then
-  \let killed: s.projection.apply (previous k) (B.differential.apply k lift) = (C.family.space (previous k)).zero := trans!{{C.family.Carrier (previous k)}} _ _ _
-    (sym!{{C.family.Carrier (previous k)}} _ _ (s.projection.commutes k lift))
-    (trans!{{C.family.Carrier (previous k)}} _ _ _ (congr!{{C.family.Carrier k} {C.family.Carrier (previous k)}} (C.differential.apply k) _ _ lifted)
-      (\bysub(C.family.Carrier k, HC.cycles.carrier, x))) \then
+  \let killed: s.projection.apply (previous k) (B.differential.apply k lift) = (C.family.space (previous k)).zero := eq_reason_in!{{C.family.Carrier (previous k)} _
+    "=" _ "by" { sym!{{C.family.Carrier (previous k)}} _ _ (s.projection.commutes k lift) }
+    "=" _ "by" { congr!{{C.family.Carrier k} {C.family.Carrier (previous k)}} (C.differential.apply k) _ _ lifted }
+    "=" _ "by" { \bysub(C.family.Carrier k, HC.cycles.carrier, x) }
+  } \then
   \takefrom lower: \Cast[A.family.Carrier (previous k)] ({ a: A.family.Carrier (previous k) \where s.inclusion.apply (previous k) a = B.differential.apply k lift })
     \by s.kernelImage (previous k) (B.differential.apply k lift) killed \then
   \return \exact(witness x lift lower lifted (\bysub(A.family.Carrier (previous k), { a: A.family.Carrier (previous k) \where s.inclusion.apply (previous k) a = B.differential.apply k lift }, lower)), Value x)
@@ -70,18 +74,23 @@
   s.inclusion.apply (previous k) w.lower = B.differential.apply k w.lift -> HA.classOf v.lower = HA.classOf w.lower := \block {
   \fun (x: HC.Cycle)(v, w: Witness)(vLift: _)(wLift: _)(vDiff: _)(wDiff: _) \then
   \let killed: s.projection.apply k (MiddleGroup.difference v.lift w.lift) = Right.zero :=
-    trans!{{C.family.Carrier k}} _ _ _ (ProjectionLinear.differencePreserved (ProjectionAt.linear s.projection) v.lift w.lift)
-      (trans!{{C.family.Carrier k}} _ _ _ (congr2!{{C.family.Carrier k} {C.family.Carrier k} {C.family.Carrier k}} RightGroup.difference _ _ _ _ vLift wLift) (RightGroup.inverseRight x)) \then
+    eq_reason_in!{{C.family.Carrier k} _
+      "=" _ "by" { ProjectionLinear.differencePreserved (ProjectionAt.linear s.projection) v.lift w.lift }
+      "=" _ "by" { congr!{{C.family.Carrier k} {C.family.Carrier k} {C.family.Carrier k}} RightGroup.difference _ _ _ _ vLift wLift }
+      "=" _ "by" { RightGroup.inverseRight x }
+    } \then
   \takefrom a: \Cast[A.family.Carrier k] ({ a: A.family.Carrier k \where s.inclusion.apply k a = MiddleGroup.difference v.lift w.lift })
     \by s.kernelImage k (MiddleGroup.difference v.lift w.lift) killed \then
   \let represented: s.inclusion.apply k a = MiddleGroup.difference v.lift w.lift :=
     \bysub(A.family.Carrier k, { a: A.family.Carrier k \where s.inclusion.apply k a = MiddleGroup.difference v.lift w.lift }, a) \then
   \let difference: LeftGroup.difference v.lower w.lower = A.differential.apply k a := s.injective (previous k) _ _
-    (trans!{{B.family.Carrier (previous k)}} _ _ _ (InclusionLinear.differencePreserved (InclusionAt.linear s.inclusion) v.lower w.lower)
-      (trans!{{B.family.Carrier (previous k)}} _ _ _ (congr2!{{B.family.Carrier (previous k)} {B.family.Carrier (previous k)} {B.family.Carrier (previous k)}} MiddleLowerGroup.difference _ _ _ _ vDiff wDiff)
-        (trans!{{B.family.Carrier (previous k)}} _ _ _ (sym!{{B.family.Carrier (previous k)}} _ _ (DifferentialB.differencePreserved differentialB v.lift w.lift))
-          (trans!{{B.family.Carrier (previous k)}} _ _ _ (congr!{{B.family.Carrier k} {B.family.Carrier (previous k)}} (B.differential.apply k) _ _ (sym!{{B.family.Carrier k}} _ _ represented))
-            (s.inclusion.commutes k a))))) \then
+    (eq_reason_in!{{B.family.Carrier (previous k)} _
+      "=" _ "by" { InclusionLinear.differencePreserved (InclusionAt.linear s.inclusion) v.lower w.lower }
+      "=" _ "by" { congr!{{B.family.Carrier (previous k)} {B.family.Carrier (previous k)} {B.family.Carrier (previous k)}} MiddleLowerGroup.difference _ _ _ _ vDiff wDiff }
+      "=" _ "by" { sym!{{B.family.Carrier (previous k)}} _ _ (DifferentialB.differencePreserved differentialB v.lift w.lift) }
+      "=" _ "by" { congr!{{B.family.Carrier k} {B.family.Carrier (previous k)}} (B.differential.apply k) _ _ (sym!{{B.family.Carrier k}} _ _ represented) }
+      "=" _ "by" { s.inclusion.commutes k a }
+    }) \then
   \return HA.classEqual v.lower w.lower (\idelim A.differential.apply k a = LeftGroup.difference v.lower w.lower
     \with y: A.family.Carrier (previous k) => SubA.Member HA.boundaries y \by {
       base: boundaryDifferential a, equality: sym!{{A.family.Carrier (previous k)}} _ _ difference
@@ -93,8 +102,11 @@
   \takefrom u: \Cast[Witness] ({ u: Witness \where WitnessLaws[x, w, u] }) \by \bysub(HA.Homology, Values x, w) \then
   \let rLaws: WitnessLaws[x, v, r] := \bysub(Witness, { r: Witness \where WitnessLaws[x, v, r] }, r) \then
   \let uLaws: WitnessLaws[x, w, u] := \bysub(Witness, { u: Witness \where WitnessLaws[x, w, u] }, u) \then
-  \return trans!{HA.Homology} _ _ _ (sym!{HA.Homology} _ _ (rLaws.classValue))
-    (trans!{HA.Homology} _ _ _ (sameClass x r u (rLaws.lifted) (uLaws.lifted) (rLaws.differential) (uLaws.differential)) (uLaws.classValue))
+  \return eq_reason_in!{HA.Homology _
+    "=" _ "by" { sym!{HA.Homology} _ _ (rLaws.classValue) }
+    "=" _ "by" { sameClass x r u (rLaws.lifted) (uLaws.lifted) (rLaws.differential) (uLaws.differential) }
+    "=" _ "by" uLaws.classValue
+  }
 };
 \definition delta[x: HC.Cycle]: Value x := \choice Value x \by { existence: existence x, uniqueness: uniqueness x };
 \definition onLift: \forall (x: HC.Cycle)(lift: B.family.Carrier k)(lower: A.family.Carrier (previous k)) ->
@@ -110,16 +122,20 @@
   \let rLaws: WitnessLaws[x, delta x, r] := \bysub(Witness, { r: Witness \where WitnessLaws[x, delta x, r] }, r) \then
   \let uLaws: WitnessLaws[y, delta y, u] := \bysub(Witness, { u: Witness \where WitnessLaws[y, delta y, u] }, u) \then
   \let lifted: s.projection.apply k (Middle.add (r.lift) (u.lift)) = HC.cycleSpace.add x y := trans!{{C.family.Carrier k}} _ _ _ (s.projection.addition k (r.lift) (u.lift))
-    (congr2!{{C.family.Carrier k} {C.family.Carrier k} {C.family.Carrier k}} Right.add _ _ _ _ (rLaws.lifted) (uLaws.lifted)) \then
+    (congr!{{C.family.Carrier k} {C.family.Carrier k} {C.family.Carrier k}} Right.add _ _ _ _ (rLaws.lifted) (uLaws.lifted)) \then
   \let differential: s.inclusion.apply (previous k) (Left.add (r.lower) (u.lower)) = B.differential.apply k (Middle.add (r.lift) (u.lift)) :=
-    trans!{{B.family.Carrier (previous k)}} _ _ _ (s.inclusion.addition (previous k) (r.lower) (u.lower))
-      (trans!{{B.family.Carrier (previous k)}} _ _ _ (congr2!{{B.family.Carrier (previous k)} {B.family.Carrier (previous k)} {B.family.Carrier (previous k)}} MiddleLower.add _ _ _ _ (rLaws.differential) (uLaws.differential))
-        (sym!{{B.family.Carrier (previous k)}} _ _ (B.laws.addition k (r.lift) (u.lift)))) \then
+    eq_reason_in!{{B.family.Carrier (previous k)} _
+      "=" _ "by" { s.inclusion.addition (previous k) (r.lower) (u.lower) }
+      "=" _ "by" { congr!{{B.family.Carrier (previous k)} {B.family.Carrier (previous k)} {B.family.Carrier (previous k)}} MiddleLower.add _ _ _ _ (rLaws.differential) (uLaws.differential) }
+      "=" _ "by" { sym!{{B.family.Carrier (previous k)}} _ _ (B.laws.addition k (r.lift) (u.lift)) }
+    } \then
   \let lower: HA.Cycle := HA.cycleSpace.add (r.lower) (u.lower) \then
-  \return trans!{HA.Homology} _ _ _ (onLift (HC.cycleSpace.add x y) (Middle.add (r.lift) (u.lift)) lower lifted differential
-    (\bysub(A.family.Carrier (previous k), HA.cycles.carrier, lower)))
-    (trans!{HA.Homology} _ _ _ (HA.classLinear.addition (r.lower) (u.lower))
-      (congr2!{HA.Homology HA.Homology HA.Homology} (HA.homologySpace.add) _ _ _ _ (rLaws.classValue) (uLaws.classValue)))
+  \return eq_reason_in!{HA.Homology _
+    "=" _ "by" { onLift (HC.cycleSpace.add x y) (Middle.add (r.lift) (u.lift)) lower lifted differential
+    (\bysub(A.family.Carrier (previous k), HA.cycles.carrier, lower)) }
+    "=" _ "by" { HA.classLinear.addition (r.lower) (u.lower) }
+    "=" _ "by" { congr!{HA.Homology HA.Homology HA.Homology} (HA.homologySpace.add) _ _ _ _ (rLaws.classValue) (uLaws.classValue) }
+  }
 };
 \definition scalar: \forall (a: R)(x: HC.Cycle) ->
   delta (HC.cycleSpace.smul a x) = HA.homologySpace.smul a (delta x) := \block {
@@ -129,14 +145,18 @@
   \let lifted: s.projection.apply k (Middle.scale a (r.lift)) = HC.cycleSpace.smul a x := trans!{{C.family.Carrier k}} _ _ _ (s.projection.scalar k a (r.lift))
     (congr!{{C.family.Carrier k} {C.family.Carrier k}} (Right.scale a) _ _ (laws.lifted)) \then
   \let differential: s.inclusion.apply (previous k) (Left.scale a (r.lower)) = B.differential.apply k (Middle.scale a (r.lift)) :=
-    trans!{{B.family.Carrier (previous k)}} _ _ _ (s.inclusion.scalar (previous k) a (r.lower))
-      (trans!{{B.family.Carrier (previous k)}} _ _ _ (congr!{{B.family.Carrier (previous k)} {B.family.Carrier (previous k)}} (MiddleLower.scale a) _ _ (laws.differential))
-        (sym!{{B.family.Carrier (previous k)}} _ _ (B.laws.scalar k a (r.lift)))) \then
+    eq_reason_in!{{B.family.Carrier (previous k)} _
+      "=" _ "by" { s.inclusion.scalar (previous k) a (r.lower) }
+      "=" _ "by" { congr!{{B.family.Carrier (previous k)} {B.family.Carrier (previous k)}} (MiddleLower.scale a) _ _ (laws.differential) }
+      "=" _ "by" { sym!{{B.family.Carrier (previous k)}} _ _ (B.laws.scalar k a (r.lift)) }
+    } \then
   \let lower: HA.Cycle := HA.cycleSpace.smul a (r.lower) \then
-  \return trans!{HA.Homology} _ _ _ (onLift (HC.cycleSpace.smul a x) (Middle.scale a (r.lift)) lower lifted differential
-    (\bysub(A.family.Carrier (previous k), HA.cycles.carrier, lower)))
-    (trans!{HA.Homology} _ _ _ (HA.classLinear.scalar a (r.lower))
-      (congr!{HA.Homology HA.Homology} (HA.homologySpace.smul a) _ _ (laws.classValue)))
+  \return eq_reason_in!{HA.Homology _
+    "=" _ "by" { onLift (HC.cycleSpace.smul a x) (Middle.scale a (r.lift)) lower lifted differential
+    (\bysub(A.family.Carrier (previous k), HA.cycles.carrier, lower)) }
+    "=" _ "by" { HA.classLinear.scalar a (r.lower) }
+    "=" _ "by" { congr!{HA.Homology HA.Homology} (HA.homologySpace.smul a) _ _ (laws.classValue) }
+  }
 };
 \import Modules.Hom[V := HC.Cycle, W := HA.Homology, source := HC.cycleSpace, target := HA.homologySpace] \as Raw;
 \definition onCycles: Raw.Map := Raw.Map { apply := delta, addition := addition, scalar := scalar };
@@ -147,11 +167,12 @@
   \fun (x: HC.Cycle)(boundary: _) \then
   \takefrom y: \Cast[C.family.Carrier (next k)] ({ y: C.family.Carrier (next k) \where HC.prior.apply y = x }) \by boundary \then
   \takefrom lift: \Cast[B.family.Carrier (next k)] ({ b: B.family.Carrier (next k) \where s.projection.apply (next k) b = y }) \by s.onto (next k) y \then
-  \let represented: s.projection.apply k (BPrior.value k lift) = x := trans!{{C.family.Carrier k}} _ _ _
-    (sym!{{C.family.Carrier k}} _ _ (Projection.priorCommutes k s.projection lift))
-    (trans!{{C.family.Carrier k}} _ _ _ (congr!{{C.family.Carrier (next k)} {C.family.Carrier k}} (HC.prior.apply) _ _
-      (\bysub(B.family.Carrier (next k), { b: B.family.Carrier (next k) \where s.projection.apply (next k) b = y }, lift)))
-      (\bysub(C.family.Carrier (next k), { y: C.family.Carrier (next k) \where HC.prior.apply y = x }, y))) \then
+  \let represented: s.projection.apply k (BPrior.value k lift) = x := eq_reason_in!{{C.family.Carrier k} _
+    "=" _ "by" { sym!{{C.family.Carrier k}} _ _ (Projection.priorCommutes k s.projection lift) }
+    "=" _ "by" { congr!{{C.family.Carrier (next k)} {C.family.Carrier k}} (HC.prior.apply) _ _
+      (\bysub(B.family.Carrier (next k), { b: B.family.Carrier (next k) \where s.projection.apply (next k) b = y }, lift)) }
+    "=" _ "by" { \bysub(C.family.Carrier (next k), { y: C.family.Carrier (next k) \where HC.prior.apply y = x }, y) }
+  } \then
   \return onLift x (BPrior.value k lift) Left.zero represented
     (trans!{{B.family.Carrier (previous k)}} _ _ _ (InclusionAt.zeroPreserved s.inclusion) (sym!{{B.family.Carrier (previous k)}} _ _ (BPrior.squareZero k lift)))
     (\bysub(A.family.Carrier (previous k), HA.cycles.carrier, HA.cycleSpace.zero))

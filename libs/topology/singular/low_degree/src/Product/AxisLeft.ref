@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import algebraic_topology.Simplex[] \as Simplex;
 \import Simplex.Vertices[] \as Vertices;
 \import Simplex.Affine[m := one, n := one] \as IdentityAffine;
@@ -19,11 +20,12 @@
 \definition vertices: Tuples.Tuple two := \fun (i: Fin.Fin two) => vertex (Vertices.vertex one i);
 \import Raw.RightBase[].At[p := one, y := Vertices.vertex zero] \as Base;
 \definition fundamental: Model.fundamental = Tuples.generator two vertices :=
-  trans!{{Tuples.Carrier two}} _ _ _ (Raw.RightBase[].law one (Vertices.vertex one) (Vertices.vertex zero))
-    (trans!{{Tuples.Carrier two}} _ _ _
-      (Transport.castRefl Tuples.Carrier two ((Pointwise.push two vertex).apply
-        (singular_cohomology.OrderedTuples[V := Simplex.Carrier one].generator two (Vertices.vertex one))))
-      (Pointwise.At[n := two].onGenerator vertex (Vertices.vertex one)));
+  eq_reason_in!{{Tuples.Carrier two} _
+    "=" _ "by" { Raw.RightBase[].law one (Vertices.vertex one) (Vertices.vertex zero) }
+    "=" _ "by" { Transport.castRefl Tuples.Carrier two ((Pointwise.push two vertex).apply
+        (singular_cohomology.OrderedTuples[V := Simplex.Carrier one].generator two (Vertices.vertex one))) }
+    "=" _ "by" { Pointwise.At[n := two].onGenerator vertex (Vertices.vertex one) }
+  };
 \definition leftVertices: Affine.leftVertices vertices = Vertices.vertex one :=
   \axiom:funext(Affine.leftVertices vertices, Vertices.vertex one, \fun (i: Fin.Fin two) => \refl(Vertices.vertex one i));
 \definition leftIdentity[x: Simplex.Carrier one]: IdentityAffine.apply (Affine.leftVertices vertices) x = x :=
@@ -38,18 +40,18 @@
   ProductSimplices.ext one
     (Evaluate.postcompose one (Evaluation.function sigma constant) (Evaluation.continuous sigma constant) (Affine.onTuple vertices))
     (LeftAxis.postcompose one first firstContinuous sigma) (\fun (x: Simplex.Carrier one) =>
-    congr2!{A B Geometry.CarrierSet} (Pairs.pair A B)
+    congr!{A B Geometry.CarrierSet} (Pairs.pair A B)
       (sigma (IdentityAffine.apply (Affine.leftVertices vertices) x)) (sigma x) rightPoint rightPoint
       (congr!{{Simplex.Carrier one} A} sigma _ _ (leftIdentity x)) (\refl(rightPoint)));
 \definition onGenerators[sigma: LeftSimplices.Carrier one]: Cross.apply (Left.generator one sigma) pointChain =
   (LeftAxis.At[n := one].push first firstContinuous).apply (Left.generator one sigma) :=
-  trans!{{ProductChains.Carrier one}} _ _ _ (Cross.onGenerators sigma constant)
-    (trans!{{ProductChains.Carrier one}} _ _ _
-      (congr!{{Tuples.Carrier two} {ProductChains.Carrier one}} ((Evaluation.evaluation sigma constant).apply one) _ _ fundamental)
-      (trans!{{ProductChains.Carrier one}} _ _ _ (Evaluation.onGenerator one sigma constant vertices)
-        (trans!{{ProductChains.Carrier one}} _ _ _
-          (congr!{{ProductSimplices.Carrier one} {ProductChains.Carrier one}} (ProductChains.generator one) _ _ (same sigma))
-          (sym!{{ProductChains.Carrier one}} _ _ (LeftAxis.At[n := one].onGenerator first firstContinuous sigma)))));
+  eq_reason_in!{{ProductChains.Carrier one} _
+    "=" _ "by" { Cross.onGenerators sigma constant }
+    "=" _ "by" { congr!{{Tuples.Carrier two} {ProductChains.Carrier one}} ((Evaluation.evaluation sigma constant).apply one) _ _ fundamental }
+    "=" _ "by" { Evaluation.onGenerator one sigma constant vertices }
+    "=" _ "by" { congr!{{ProductSimplices.Carrier one} {ProductChains.Carrier one}} (ProductChains.generator one) _ _ (same sigma) }
+    "=" _ "by" { sym!{{ProductChains.Carrier one}} _ _ (LeftAxis.At[n := one].onGenerator first firstContinuous sigma) }
+  };
 \import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[
   A := Cross.leftBundle, B := Cross.rightBundle, C := Cross.targetBundle] \as Bilinear;
 \import Modules.Free[Generators := LeftSimplices.Carrier one].To[W := ProductChains.Carrier one, target := ProductChains.space one] \as Free;

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Values[] \as Values;
 \import Signs.Ordered[p := N.Nat^::succ p, q := N.Nat^::succ q] \as Cut;
 \import Signs.Reindex[] \as Reindex;
@@ -5,20 +6,26 @@
 \definition sameCount: Cut.total = count := congr!{N.Nat^ N.Nat^} (\fun (n: N.Nat^) => N.Nat^::succ n) Geometry.leftDegree higher Geometry.same;
 \definition image[i: Fin.Fin Cut.total]: Fin.Fin count := Reindex.indices Cut.total count sameCount i;
 \definition prefixImage: \forall (i: Fin.Fin (N.Nat^::succ p)) -> image (Cut.front i) = Geometry.prefix i :=
-  \fun (i: Fin.Fin (N.Nat^::succ p)) => trans!{N.Nat^} _ _ _ (Reindex.value Cut.total count sameCount (Cut.front i))
-    (trans!{N.Nat^} _ _ _ (Cut.frontValue i) (sym!{N.Nat^} _ _ (Geometry.prefixValue i)));
+  \fun (i: Fin.Fin (N.Nat^::succ p)) => eq_reason_in!{N.Nat^ _
+    "=" _ "by" { Reindex.value Cut.total count sameCount (Cut.front i) }
+    "=" _ "by" { Cut.frontValue i }
+    "=" _ "by" { sym!{N.Nat^} _ _ (Geometry.prefixValue i) }
+  };
 \definition suffixImage: \forall (j: Fin.Fin (N.Nat^::succ q)) -> image (Cut.back j) = Geometry.suffix j :=
-  \fun (j: Fin.Fin (N.Nat^::succ q)) => trans!{N.Nat^} _ _ _ (Reindex.value Cut.total count sameCount (Cut.back j))
-    (trans!{N.Nat^} _ _ _ (Cut.backValue j) (Bounds.addSuccLeft p j));
+  \fun (j: Fin.Fin (N.Nat^::succ q)) => eq_reason_in!{N.Nat^ _
+    "=" _ "by" { Reindex.value Cut.total count sameCount (Cut.back j) }
+    "=" _ "by" { Cut.backValue j }
+    "=" _ "by" { Bounds.addSuccLeft p j }
+  };
 \definition function[sigma: Simplices.Carrier higher][i: Fin.Fin Cut.total]: Current.Carrier := Values.natural sigma (image i);
 \definition law: \forall (sigma: Simplices.Carrier higher) ->
   Sum.sum count (Values.natural sigma) =
     (Current.space).add (Sum.sum (N.Nat^::succ p) (\fun (i: Fin.Fin (N.Nat^::succ p)) => Values.left sigma (Fin.widen (N.Nat^::succ p) i)))
       (Signs.twist (N.Nat^::succ p) (Sum.sum (N.Nat^::succ q) (\fun (j: Fin.Fin (N.Nat^::succ q)) => Values.right sigma (Fin.succ (N.Nat^::succ q) j)))) :=
-  \fun (sigma: Simplices.Carrier higher) => trans!{Current.Carrier} _ _ _
-    (sym!{Current.Carrier} _ _ (Reindex.law Cut.total count sameCount (Values.natural sigma)))
-    (trans!{Current.Carrier} _ _ _ (Cut.law (function sigma))
-      (congr2!{Current.Carrier Current.Carrier Current.Carrier} ((Current.space).add) _ _ _ _
+  \fun (sigma: Simplices.Carrier higher) => eq_reason_in!{Current.Carrier _
+    "=" _ "by" { sym!{Current.Carrier} _ _ (Reindex.law Cut.total count sameCount (Values.natural sigma)) }
+    "=" _ "by" { Cut.law (function sigma) }
+    "=" _ "by" { congr!{Current.Carrier Current.Carrier Current.Carrier} ((Current.space).add) _ _ _ _
         (Sum.congruent (N.Nat^::succ p) (\fun (i: Fin.Fin (N.Nat^::succ p)) => function sigma (Cut.front i))
           (\fun (i: Fin.Fin (N.Nat^::succ p)) => Values.left sigma (Fin.widen (N.Nat^::succ p) i))
           (\fun (i: Fin.Fin (N.Nat^::succ p)) => trans!{Current.Carrier} _ _ _
@@ -27,4 +34,5 @@
           (Sum.congruent (N.Nat^::succ q) (\fun (j: Fin.Fin (N.Nat^::succ q)) => function sigma (Cut.back j))
             (\fun (j: Fin.Fin (N.Nat^::succ q)) => Values.right sigma (Fin.succ (N.Nat^::succ q) j))
             (\fun (j: Fin.Fin (N.Nat^::succ q)) => trans!{Current.Carrier} _ _ _
-              (congr!{{Fin.Fin count} Current.Carrier} (Values.natural sigma) _ _ (suffixImage j)) (Values.suffix sigma j))))));
+              (congr!{{Fin.Fin count} Current.Carrier} (Values.natural sigma) _ _ (suffixImage j)) (Values.suffix sigma j)))) }
+  };

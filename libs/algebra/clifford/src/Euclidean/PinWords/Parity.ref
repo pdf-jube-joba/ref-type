@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Every word is even, or a positive vector times an even word. */
 \use Logic.either;
 \import Clifford.Grading[] \as Grade;
@@ -16,10 +17,12 @@
 \definition signOdd[g: Units.Unit][w: Odd[g]]: Odd[Units.product Units.minusOne g] := Odd[Units.product Units.minusOne g] {
   vector := w.vector,
   tail := Pin.spinGroup.op Pin.spinSign w.tail,
-  same := trans!{{Units.Unit}} _ _ _ (congr!{{Units.Unit} {Units.Unit}} (Units.product Units.minusOne) _ _ w.same)
-    (trans!{{Units.Unit}} _ _ _ (sym!{{Units.Unit}} _ _ (Operations.assoc Units.minusOne (Pin.positive w.vector) w.tail))
-      (trans!{{Units.Unit}} _ _ _ (congr!{{Units.Unit} {Units.Unit}} (\fun (g: Units.Unit) => Units.product g w.tail) _ _ (Pin.centralSign (Pin.positive w.vector)))
-        (Operations.assoc (Pin.positive w.vector) Units.minusOne w.tail))),
+  same := eq_reason_in!{{Units.Unit} _
+    "=" _ "by" { congr!{{Units.Unit} {Units.Unit}} (Units.product Units.minusOne) _ _ w.same }
+    "=" _ "by" { sym!{{Units.Unit}} _ _ (Operations.assoc Units.minusOne (Pin.positive w.vector) w.tail) }
+    "=" _ "by" { congr!{{Units.Unit} {Units.Unit}} (\fun (g: Units.Unit) => Units.product g w.tail) _ _ (Pin.centralSign (Pin.positive w.vector)) }
+    "=" _ "by" { Operations.assoc (Pin.positive w.vector) Units.minusOne w.tail }
+  },
 };
 \definition vectorEven[v: Pin.Positive][g: Units.Unit][even: Even g]: Odd[Units.product (Pin.positive v) g] := Odd[Units.product (Pin.positive v) g] {
   vector := v, tail := Pin.spinOfEven g even, same := \refl(Units.product (Pin.positive v) g)
@@ -61,16 +64,21 @@
   \let same: g.value = Clifford.mul (Clifford.iota w.vector) w.tail.value :=
     congr!{{Units.Unit} Carrier} (\fun (g: Units.Unit) => g.value) _ _ w.same \then
   \let even: Grade.map w.tail.value = w.tail.value := congr!{{Units.Unit} Carrier} (\fun (h: Units.Unit) => h.value) _ _ (Grading.spinFixed w.tail) \then
-  \return trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Grade.map _ _ same)
-    (trans!{Carrier} _ _ _ (Grade.laws.mul (Clifford.iota w.vector) w.tail.value)
-      (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Clifford.mul _ _ _ _ (Grade.onVector w.vector) even)
-        (trans!{Carrier} _ _ _ (Units.negMul (Clifford.iota w.vector) w.tail.value)
-          (congr!{Carrier Carrier} Clifford.neg _ _ (sym!{Carrier} _ _ same)))))
+  \return eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} Grade.map _ _ same }
+    "=" _ "by" { Grade.laws.mul (Clifford.iota w.vector) w.tail.value }
+    "=" _ "by" { congr!{Carrier Carrier Carrier} Clifford.mul _ _ _ _ (Grade.onVector w.vector) even }
+    "=" _ "by" { Units.negMul (Clifford.iota w.vector) w.tail.value }
+    "=" _ "by" { congr!{Carrier Carrier} Clifford.neg _ _ (sym!{Carrier} _ _ same) }
+  }
 };
 \definition unitNonzero: \forall (g: Units.Unit) -> Logic.Not (g.value = Clifford.zero) := \fun (g: Units.Unit)(zero: _) => Arithmetic.zeroNeOne
   (sym!{R.Real} _ _ ((Faithfulness.faithful n).scalarInjective R.one R.zero
-    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ g.left)
-      (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Clifford.mul g.inverse) _ _ zero) (ring.semiring.zeroAbsorbsRight g.inverse)))));
+    (eq_reason_in!{Carrier _
+      "=" _ "by" { sym!{Carrier} _ _ g.left }
+      "=" _ "by" { congr!{Carrier Carrier} (Clifford.mul g.inverse) _ _ zero }
+      "=" _ "by" { ring.semiring.zeroAbsorbsRight g.inverse }
+    })));
 \definition evenWhenFixed: \forall (g: Pin.Pin) -> Grade.onUnit g = g -> Even g := \fun (g: Pin.Pin)(fixed: _) =>
   either!{{(parity g (all g))} {Even g}
     {\fun (even: Even g) => even}

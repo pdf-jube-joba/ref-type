@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Of[V := B.Carrier, space := B.space].Submodule[] \as Submodules;
 \import Submodules.Image[U := A.Carrier, source := A.space] \as Images;
 \definition image: Submodules.Submodule := Images.image sequence.inclusion;
@@ -20,15 +21,21 @@
 \definition representatives: \forall (x, y: B.Carrier) -> sequence.projection.apply x = sequence.projection.apply y -> Quotient.class x = Quotient.class y :=
   \fun (x, y: B.Carrier)(same: sequence.projection.apply x = sequence.projection.apply y) => Quotient.classRelated x y
     (sequence.kernelImage (Source.add x (Source.neg y))
-      (trans!{C.Carrier} _ _ _ (ProjectionMaps.differencePreserved sequence.projection x y)
-        (trans!{C.Carrier} _ _ _ (congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => Group.difference c (sequence.projection.apply y)) _ _ same)
-          (Group.inverseRight (sequence.projection.apply y)))));
+      (eq_reason_in!{C.Carrier _
+        "=" _ "by" { ProjectionMaps.differencePreserved sequence.projection x y }
+        "=" _ "by" { congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => Group.difference c (sequence.projection.apply y)) _ _ same }
+        "=" _ "by" { Group.inverseRight (sequence.projection.apply y) }
+      }));
 \definition injective: \forall (x, y: Quotient.Carrier) -> forward.apply x = forward.apply y -> x = y :=
   Quotient.induction (\fun (x: Quotient.Carrier) => \forall (y: Quotient.Carrier) -> forward.apply x = forward.apply y -> x = y)
     (\fun (x: B.Carrier) => Quotient.induction
       (\fun (y: Quotient.Carrier) => forward.apply (Quotient.class x) = forward.apply y -> Quotient.class x = y)
       (\fun (y: B.Carrier)(same: forward.apply (Quotient.class x) = forward.apply (Quotient.class y)) => representatives x y
-        (trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (onClass x)) (trans!{C.Carrier} _ _ _ same (onClass y)))));
+        (eq_reason_in!{C.Carrier _
+          "=" _ "by" { sym!{C.Carrier} _ _ (onClass x) }
+          "=" _ "by" same
+          "=" _ "by" { onClass y }
+        })));
 \definition onto: \forall (c: C.Carrier) -> \exists ( x: Quotient.Carrier \where forward.apply x = c ) := \block {
   \fun (c: C.Carrier) \then
   \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where sequence.projection.apply b = c }) \by sequence.onto c \then

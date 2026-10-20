@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Spaces.CoordinateSum[n := n, m := m] \as Coordinates;
 \import \root.Euclidean[n := m] \as Right;
 \import \root.Euclidean[n := Coordinates.dimension] \as Total;
@@ -28,20 +29,23 @@
     (congr!{{Right.Vector} {Total.Vector}} (join (space.smul a v)) _ _ (sym!{{Right.Vector}} _ _ (RightLaws.scaleZero a))) (Coordinates.scalar a v Right.space.zero),
 };
 \definition dotIncluded: \forall (w: Total.Vector)(v: Vector) -> Total.dot w (inclusion.apply v) = dot (left w) v :=
-  \fun (w: Total.Vector)(v: Vector) => trans!{{R.Real}} _ _ _ (dotSplit w (inclusion.apply v))
-    (trans!{{R.Real}} _ _ _ (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+  \fun (w: Total.Vector)(v: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { dotSplit w (inclusion.apply v) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
       (congr!{Vector {R.Real}} (dot (left w)) _ _ (leftJoin v Right.space.zero))
-      (trans!{{R.Real}} _ _ _ (congr!{{Right.Vector} {R.Real}} (Right.dot (right w)) _ _ (rightJoin v Right.space.zero)) (Right.form.zeroRight (right w)))) (Arithmetic.addZeroRight (dot (left w) v)));
+      (trans!{{R.Real}} _ _ _ (congr!{{Right.Vector} {R.Real}} (Right.dot (right w)) _ _ (rightJoin v Right.space.zero)) (Right.form.zeroRight (right w))) }
+    "=" _ "by" { Arithmetic.addZeroRight (dot (left w) v) }
+  };
 \definition addition: \forall (v, w: Vector)(a, b: Right.Vector) -> join (space.add v w) (Right.space.add a b) = Total.space.add (join v a) (join w b) := Coordinates.addition;
 \definition scalar: \forall (a: R.Real)(v: Vector)(w: Right.Vector) -> join (space.smul a v) (Right.space.smul a w) = Total.space.smul a (join v w) := Coordinates.scalar;
 
 \definition dotWithJoined: \forall (w: Total.Vector)(u: Vector)(v: Right.Vector) -> Total.dot w (join u v) = R.add (dot (left w) u) (Right.dot (right w) v) :=
   \fun (w: Total.Vector)(u: Vector)(v: Right.Vector) => trans!{R.Real} _ _ _ (dotSplit w (join u v))
-    (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _
       (congr!{Vector R.Real} (dot (left w)) _ _ (leftJoin u v))
       (congr!{{Right.Vector} R.Real} (Right.dot (right w)) _ _ (rightJoin u v)));
 \definition dotJoined: \forall (u, v: Vector)(a, b: Right.Vector) -> Total.dot (join u a) (join v b) = R.add (dot u v) (Right.dot a b) :=
   \fun (u, v: Vector)(a, b: Right.Vector) => trans!{R.Real} _ _ _ (dotWithJoined (join u a) v b)
-    (congr2!{R.Real R.Real R.Real} R.add _ _ _ _
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _
       (congr!{Vector R.Real} (\fun (w: Vector) => dot w v) _ _ (leftJoin u a))
       (congr!{{Right.Vector} R.Real} (\fun (w: Right.Vector) => Right.dot w b) _ _ (rightJoin u a)));

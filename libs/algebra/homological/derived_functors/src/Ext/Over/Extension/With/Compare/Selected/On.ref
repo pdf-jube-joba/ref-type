@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Comparison.Selected[t := correction] \as ComparisonIso;
 \import derived_functors.Ext[].Over[R := R, ring := ring].Extension[M := M, N := N, P := P].With[resolution := resolution].Represent[f := First.relation] \as FirstMiddle;
 \import derived_functors.Ext[].Over[R := R, ring := ring].Extension[M := M, N := N, P := P].With[resolution := resolution].Represent[f := Second.relation] \as SecondMiddle;
@@ -14,18 +15,21 @@
     (congr!{E.Carrier FirstMiddle.Carrier} (FirstRepresentative.isomorphism.backward.apply) _ _ (sym!{E.Carrier} _ _ (FirstRepresentative.onLeft n)))
     (FirstRepresentative.isomorphism.leftInverse (FirstMiddle.sequence.inclusion.apply n));
 \definition onLeft: \forall (n: N.Carrier) -> isomorphism.forward.apply (s.inclusion.apply n) = t.inclusion.apply n :=
-  \fun (n: N.Carrier) => trans!{F.Carrier} _ _ _
-    (congr!{FirstMiddle.Carrier F.Carrier} (\fun (x: FirstMiddle.Carrier) => SecondRepresentative.map.apply (ComparisonIso.map.apply x)) _ _ (inverseOnLeft n))
-    (trans!{F.Carrier} _ _ _
-      (congr!{SecondMiddle.Carrier F.Carrier} (SecondRepresentative.map.apply) _ _ (ComparisonIso.onLeft n)) (SecondRepresentative.onLeft n));
+  \fun (n: N.Carrier) => eq_reason_in!{F.Carrier _
+    "=" _ "by" { congr!{FirstMiddle.Carrier F.Carrier} (\fun (x: FirstMiddle.Carrier) => SecondRepresentative.map.apply (ComparisonIso.map.apply x)) _ _ (inverseOnLeft n) }
+    "=" _ "by" { congr!{SecondMiddle.Carrier F.Carrier} (SecondRepresentative.map.apply) _ _ (ComparisonIso.onLeft n) }
+    "=" _ "by" { SecondRepresentative.onLeft n }
+  };
 \definition inverseOnProjection: \forall (x: E.Carrier) -> FirstMiddle.sequence.projection.apply (FirstRepresentative.isomorphism.backward.apply x) = s.projection.apply x :=
   \fun (x: E.Carrier) => trans!{M.Carrier} _ _ _
     (sym!{M.Carrier} _ _ (FirstRepresentative.onProjection (FirstRepresentative.isomorphism.backward.apply x)))
     (congr!{E.Carrier M.Carrier} (s.projection.apply) _ _ (FirstRepresentative.isomorphism.rightInverse x));
 \definition onProjection: \forall (x: E.Carrier) -> t.projection.apply (isomorphism.forward.apply x) = s.projection.apply x :=
-  \fun (x: E.Carrier) => trans!{M.Carrier} _ _ _
-    (SecondRepresentative.onProjection (ComparisonIso.map.apply (FirstRepresentative.isomorphism.backward.apply x)))
-    (trans!{M.Carrier} _ _ _ (ComparisonIso.onProjection (FirstRepresentative.isomorphism.backward.apply x)) (inverseOnProjection x));
+  \fun (x: E.Carrier) => eq_reason_in!{M.Carrier _
+    "=" _ "by" { SecondRepresentative.onProjection (ComparisonIso.map.apply (FirstRepresentative.isomorphism.backward.apply x)) }
+    "=" _ "by" { ComparisonIso.onProjection (FirstRepresentative.isomorphism.backward.apply x) }
+    "=" _ "by" { inverseOnProjection x }
+  };
 \definition equivalence: Equivalence := \into[Iso.Isomorphism](isomorphism, { e: Iso.Isomorphism \where Laws[e] }) \by {
   Laws[isomorphism] { left := onLeft, right := onProjection }
 };

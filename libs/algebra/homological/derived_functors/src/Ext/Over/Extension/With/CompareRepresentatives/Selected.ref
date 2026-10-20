@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import Modules.Hom[V := N.Carrier, W := Target.Carrier, source := N.space, target := Target.space] \as Inclusions;
 \import Inclusions.Composition[U := L.Carrier, domain := L.space] \as ComposeCorrection;
 \import Modules.Hom[V := L.Carrier, W := Target.Carrier, source := L.space, target := Target.space] \as LiftMaps;
@@ -8,15 +9,17 @@
   \fun (x: K.Carrier) => congr!{Relations.Carrier N.Carrier} (\fun (a: Relations.Carrier) => a.apply x)
     (precompose t) relationDifference (\bysub(Generators.Carrier, { t: Generators.Carrier \where precompose t = relationDifference }, t));
 \definition recover: \forall (x: K.Carrier) -> f.apply x = N.space.add (g.apply x) (t.apply x) :=
-  \fun (x: K.Carrier) => trans!{N.Carrier} _ _ _
-    (sym!{N.Carrier} _ _ (LeftGroup.addDifference (f.apply x) (g.apply x)))
-    (trans!{N.Carrier} _ _ _ (LeftGroup.comm (LeftGroup.difference (f.apply x) (g.apply x)) (g.apply x))
-      (congr!{N.Carrier N.Carrier} (N.space.add (g.apply x)) _ _ (sym!{N.Carrier} _ _ (correction x))));
+  \fun (x: K.Carrier) => eq_reason_in!{N.Carrier _
+    "=" _ "by" { sym!{N.Carrier} _ _ (LeftGroup.addDifference (f.apply x) (g.apply x)) }
+    "=" _ "by" { LeftGroup.comm (LeftGroup.difference (f.apply x) (g.apply x)) (g.apply x) }
+    "=" _ "by" { congr!{N.Carrier N.Carrier} (N.space.add (g.apply x)) _ _ (sym!{N.Carrier} _ _ (correction x)) }
+  };
 \import SourcePushout.Universal[U := Target.bundle, b := Target.sequence.inclusion, c := corrected] \as Universal;
-\definition compatible: Universal.Compatible := \fun (x: K.Carrier) => trans!{Target.Carrier} _ _ _
-  (congr!{N.Carrier Target.Carrier} (Target.sequence.inclusion.apply) _ _ (recover x))
-  (trans!{Target.Carrier} _ _ _ (Target.sequence.inclusion.addition (g.apply x) (t.apply x))
-    (congr!{Target.Carrier Target.Carrier} (\fun (a: Target.Carrier) => Target.space.add a (Target.sequence.inclusion.apply (t.apply x))) _ _ (TargetPushout.square x)));
+\definition compatible: Universal.Compatible := \fun (x: K.Carrier) => eq_reason_in!{Target.Carrier _
+  "=" _ "by" { congr!{N.Carrier Target.Carrier} (Target.sequence.inclusion.apply) _ _ (recover x) }
+  "=" _ "by" { Target.sequence.inclusion.addition (g.apply x) (t.apply x) }
+  "=" _ "by" { congr!{Target.Carrier Target.Carrier} (\fun (a: Target.Carrier) => Target.space.add a (Target.sequence.inclusion.apply (t.apply x))) _ _ (TargetPushout.square x) }
+};
 \definition map: Modules.MapBetween Source.bundle Target.bundle := Universal.map compatible;
 \definition onLeft: \forall (n: N.Carrier) -> map.apply (Source.sequence.inclusion.apply n) = Target.sequence.inclusion.apply n := Universal.onLeft compatible;
 \definition onRight: \forall (x: L.Carrier) -> map.apply (SourcePushout.right.apply x) = corrected.apply x := Universal.onRight compatible;
@@ -28,11 +31,11 @@
 \import Modules.Laws[V := M.Carrier, space := M.space] \as Right;
 \import algebra.Group[].Of[Carrier := M.Carrier, group := Right.additive] \as RightGroup;
 \definition correctedAugmented: \forall (x: L.Carrier) -> Target.sequence.projection.apply (corrected.apply x) = resolution.augmentation.apply x :=
-  \fun (x: L.Carrier) => trans!{M.Carrier} _ _ _
-    (Target.sequence.projection.addition (TargetPushout.right.apply x) (Target.sequence.inclusion.apply (t.apply x)))
-    (trans!{M.Carrier} _ _ _
-      (congr2!{M.Carrier M.Carrier M.Carrier} (M.space.add) _ _ _ _ (TargetProjection.onRight targetCompatible x) (Target.sequence.zero (t.apply x)))
-      (RightGroup.zeroRight (resolution.augmentation.apply x)));
+  \fun (x: L.Carrier) => eq_reason_in!{M.Carrier _
+    "=" _ "by" { Target.sequence.projection.addition (TargetPushout.right.apply x) (Target.sequence.inclusion.apply (t.apply x)) }
+    "=" _ "by" { congr!{M.Carrier M.Carrier M.Carrier} (M.space.add) _ _ _ _ (TargetProjection.onRight targetCompatible x) (Target.sequence.zero (t.apply x)) }
+    "=" _ "by" { RightGroup.zeroRight (resolution.augmentation.apply x) }
+  };
 \import Modules.Hom[V := Target.Carrier, W := M.Carrier, source := Target.space, target := M.space].Composition[U := Source.Carrier, domain := Source.space] \as ComposeProjection;
 \definition composed: Modules.MapBetween Source.bundle M := ComposeProjection.compose Target.sequence.projection map;
 \definition projectionEquality: composed = Source.sequence.projection := Projection.unique projectionCompatible composed

@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Fibers[] \as Fibers;
 \import \parent.Inverse[] \as Inverse;
 \import singular_cellular.DiskCollar[n := two] \as Collar;
@@ -18,8 +19,11 @@
   \fun (p: Point) \then
   \takefrom x: \Cast[Disk.Disk] ({ x: Disk.Disk \where DiskQuotient.projection x = forward p }) \by DiskClasses.surjective (forward p) \then
   \return Logic.existsIntro[Disk.Disk, { y: Disk.Disk \where Attached.characteristic y = p }] x
-    (trans!{Point} _ _ _ (sym!{Point} _ _ (Inverse.onDiskClass x))
-      (trans!{Point} _ _ _ (congr!{DiskQuotient.Point Point} Inverse.backward _ _ (\bysub(Disk.Disk, { x: Disk.Disk \where DiskQuotient.projection x = forward p }, x))) (Inverse.leftInverse p)))
+    (eq_reason_in!{Point _
+      "=" _ "by" { sym!{Point} _ _ (Inverse.onDiskClass x) }
+      "=" _ "by" { congr!{DiskQuotient.Point Point} Inverse.backward _ _ (\bysub(Disk.Disk, { x: Disk.Disk \where DiskQuotient.projection x = forward p }, x)) }
+      "=" _ "by" { Inverse.leftInverse p }
+    })
 };
 \definition diskPreimage[U: \Pow Point]:
   { x: Disk.Disk \where \In[Point] U (Inverse.backward (DiskQuotient.projection x)) } = Characteristic.Preimage Attached.characteristic U :=
@@ -83,9 +87,12 @@
     (project (Collar.value t x) = project (Collar.value t y)) ((Fibers.characteristic x y).ltr same)
     (congr!{Collar.Carrier Region} (\fun (p: Collar.Carrier) => project (Collar.value t p)) x y)
     (\fun (opposite: Logic.And[Disk.normSquared x = Real.one, x = Boundary.negative y]) =>
-      trans!{Region} _ _ _ (congr!{Collar.Carrier Region} project _ _ (Endpoints.fixesBoundary t x ((opposite).left)))
-        (trans!{Region} _ _ _ same (sym!{Region} _ _ (congr!{Collar.Carrier Region} project _ _
-          (Endpoints.fixesBoundary t y (Inverse.oppositeBoundary x y ((opposite).left) ((opposite).right)))))));
+      eq_reason_in!{Region _
+        "=" _ "by" { congr!{Collar.Carrier Region} project _ _ (Endpoints.fixesBoundary t x ((opposite).left)) }
+        "=" _ "by" same
+        "=" _ "by" { sym!{Region} _ _ (congr!{Collar.Carrier Region} project _ _
+          (Endpoints.fixesBoundary t y (Inverse.oppositeBoundary x y ((opposite).left) ((opposite).right)))) }
+      });
 \module Flow;
 \module Continuity;
 \module Retract;

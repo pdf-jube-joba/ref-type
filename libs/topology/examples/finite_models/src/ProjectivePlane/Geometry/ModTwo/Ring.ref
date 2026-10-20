@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.Two[] \as Binary;
 \import \root.ProjectivePlane[].ModTwo[] \as FiniteBinary;
 \import \root.ProjectivePlane[].Bockstein[].Finite[] \as FiniteBockstein;
@@ -30,23 +31,24 @@
 \use Equality.trans;
 \use Equality.sym;
 \use Equality.congr;
-\use Equality.congr2;
 \definition total[phi: MatrixOne.CycleCarrier]: Binary.Carrier := Matrix.total (FiniteBinary.cup phi phi);
 \definition cancel[x: Binary.Carrier]: Binary.add x (Binary.add Binary.one x) = Binary.one :=
-  trans!{Binary.Carrier} _ _ _ (congr!{Binary.Carrier Binary.Carrier} (Binary.add x) _ _ (Binary.addCommutative Binary.one x))
-    (trans!{Binary.Carrier} _ _ _ (sym!{Binary.Carrier} _ _ (Binary.addAssociative x x Binary.one))
-      (trans!{Binary.Carrier} _ _ _ (congr!{Binary.Carrier Binary.Carrier} (\fun (a: Binary.Carrier) => Binary.add a Binary.one) _ _ (Binary.addSelf x))
-        (Binary.addZeroLeft Binary.one)));
+  eq_reason_in!{Binary.Carrier _
+    "=" _ "by" { congr!{Binary.Carrier Binary.Carrier} (Binary.add x) _ _ (Binary.addCommutative Binary.one x) }
+    "=" _ "by" { sym!{Binary.Carrier} _ _ (Binary.addAssociative x x Binary.one) }
+    "=" _ "by" { congr!{Binary.Carrier Binary.Carrier} (\fun (a: Binary.Carrier) => Binary.add a Binary.one) _ _ (Binary.addSelf x) }
+    "=" _ "by" { Binary.addZeroLeft Binary.one }
+  };
 \definition squareTotal[phi: MatrixOne.CycleCarrier][loop: phi Edge::loop = Binary.one]: total phi = Binary.one :=
-  trans!{Binary.Carrier} _ _ _
-    (congr2!{Binary.Carrier Binary.Carrier Binary.Carrier} Binary.add _ _ _ _
+  eq_reason_in!{Binary.Carrier _
+    "=" _ "by" { congr!{Binary.Carrier Binary.Carrier Binary.Carrier} Binary.add _ _ _ _
       (trans!{Binary.Carrier} _ _ _ (congr!{Binary.Carrier Binary.Carrier} (Binary.mul (phi Edge::first)) _ _ loop) (Binary.mulOneRight (phi Edge::first)))
-      (trans!{Binary.Carrier} _ _ _ (congr!{Binary.Carrier Binary.Carrier} (Binary.mul (phi Edge::second)) _ _ loop) (Binary.mulOneRight (phi Edge::second))))
-    (trans!{Binary.Carrier} _ _ _
-      (congr!{Binary.Carrier Binary.Carrier} (Binary.add (phi Edge::first)) _ _
+      (trans!{Binary.Carrier} _ _ _ (congr!{Binary.Carrier Binary.Carrier} (Binary.mul (phi Edge::second)) _ _ loop) (Binary.mulOneRight (phi Edge::second))) }
+    "=" _ "by" { congr!{Binary.Carrier Binary.Carrier} (Binary.add (phi Edge::first)) _ _
         (trans!{Binary.Carrier} _ _ _ (Matrix.closedSecond phi (Matrix.closedCoordinates phi (\bysub(Matrix.Edges, (MatrixOne.cycles).carrier, phi))))
-          (congr!{Binary.Carrier Binary.Carrier} (\fun (a: Binary.Carrier) => Binary.add a (phi Edge::first)) _ _ loop)))
-      (cancel (phi Edge::first)));
+          (congr!{Binary.Carrier Binary.Carrier} (\fun (a: Binary.Carrier) => Binary.add a (phi Edge::first)) _ _ loop)) }
+    "=" _ "by" { cancel (phi Edge::first) }
+  };
 \module At(alpha: ActualOne.CycleCarrier);
 \definition squareNonzero: Cup.apply u u = (Theory.cohomologySpace two).zero -> Logic.False :=
   ActualOne.classInduction
@@ -67,9 +69,10 @@
 \import ProductRing.Cup[p := one, q := N.Nat^::zero] \as RightProduct;
 \import commutative_algebra.Modules[R := Binary.Carrier, ring := Binary.commutativeRing].Bilinear[A := ProductRing.bundle one, B := ProductRing.bundle N.Nat^::zero, C := ProductRing.bundle one].Properties[] \as UnitLaws;
 \definition unitNonzero[equal: unit = (Theory.cohomologySpace N.Nat^::zero).zero]: Logic.False :=
-  uNonzero (trans!{{Theory.cohomology one}} _ _ _ (sym!{{Theory.cohomology one}} _ _ unitRightU)
-    (trans!{{Theory.cohomology one}} _ _ _
-      (congr!{{Theory.cohomology N.Nat^::zero} {Theory.cohomology one}} (RightProduct.apply u) _ _ equal)
-      (UnitLaws.rightZero RightProduct.bilinear u)));
+  uNonzero (eq_reason_in!{{Theory.cohomology one} _
+    "=" _ "by" { sym!{{Theory.cohomology one}} _ _ unitRightU }
+    "=" _ "by" { congr!{{Theory.cohomology N.Nat^::zero} {Theory.cohomology one}} (RightProduct.apply u) _ _ equal }
+    "=" _ "by" { UnitLaws.rightZero RightProduct.bilinear u }
+  });
 \import Geometry.BinaryClassification[V := Theory.cohomology N.Nat^::zero, space := Theory.cohomologySpace N.Nat^::zero] \as ConstantClassification;
 \definition unitCoordinate: ((degreeZero).forward).apply unit = Binary.one := ConstantClassification.coordinateOne degreeZero unit unitNonzero;

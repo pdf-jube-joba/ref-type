@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.Partitions[] \as Partitions;
 \import Lists.All[A := Split] \as All;
 \import std.Logic[].Classical[] \as Classical;
@@ -23,7 +24,7 @@
       {\fun (left: Lists.length I split.left = p) => rightZero f g split (hg split.right
         (\fun (right: Lists.length I split.right = q) => wrong (trans!{{N.Nat^}} _ _ _
           (sym!{{N.Nat^}} _ _ length)
-          (congr2!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.add (Lists.length I split.left) p (Lists.length I split.right) q left right))))}
+          (congr!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.add (Lists.length I split.left) p (Lists.length I split.right) q left right))))}
       {\fun (left: Logic.Not (Lists.length I split.left = p)) => leftZero f g split (hf split.left left)}
     };
 \definition homogeneous: \forall (f, g: Function) -> Homogeneous p f -> Homogeneous q g -> Homogeneous (Nat.add p q) (product f g) :=
@@ -63,7 +64,7 @@
         {\fun (right: Lists.length I split.right = q) =>
           congr!{K K} (\fun (s: K) => mul s t) a b
             (congr!{{N.Nat^} K} Sign.value (Nat.mul (Lists.length I split.left) (Lists.length I split.right)) (Nat.mul p q)
-              (congr2!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.mul (Lists.length I split.left) p (Lists.length I split.right) q left right))}
+              (congr!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.mul (Lists.length I split.left) p (Lists.length I split.right) q left right))}
         {\fun (right: Logic.Not (Lists.length I split.right = q)) => zeroCoefficient a b t (rightZero f g split (hg split.right right))}
       }}
     {\fun (left: Logic.Not (Lists.length I split.left = p)) => zeroCoefficient a b t (leftZero f g split (hf split.left left))}
@@ -74,10 +75,10 @@
   \fun (f, g: Function)(hf: Homogeneous p f)(hg: Homogeneous q g)(xs: Lists.List[I]) \then
   \let a: Split -> K := \fun (split: Split) => term g f (swap split) \then
   \let b: Split -> K := \fun (split: Split) => mul (Sign.value (Nat.mul p q)) (term f g split) \then
-  \return trans!{K} (product g f xs) (Sums.sum (partitions xs) a) (mul (Sign.value (Nat.mul p q)) (product f g xs))
-    (sym!{K} (Sums.sum (partitions xs) a) (product g f xs) (Partitions.swapping xs (term g f)))
-    (trans!{K} (Sums.sum (partitions xs) a) (Sums.sum (partitions xs) b) (mul (Sign.value (Nat.mul p q)) (product f g xs))
-      (SumLaws.congruent (partitions xs) a b (\fun (split: Split) => trans!{K} _ _ _
-          (swappedTerm f g split) (termCoefficient f g hf hg split)))
-      (SumLaws.multiplyLeft (partitions xs) (Sign.value (Nat.mul p q)) (term f g)))
+  \return eq_reason_in!{K { product g f xs }
+    "=" { Sums.sum (partitions xs) a } "by" { sym!{K} (Sums.sum (partitions xs) a) (product g f xs) (Partitions.swapping xs (term g f)) }
+    "=" { Sums.sum (partitions xs) b } "by" { SumLaws.congruent (partitions xs) a b (\fun (split: Split) => trans!{K} _ _ _
+          (swappedTerm f g split) (termCoefficient f g hf hg split)) }
+    "=" { mul (Sign.value (Nat.mul p q)) (product f g xs) } "by" { SumLaws.multiplyLeft (partitions xs) (Sign.value (Nat.mul p q)) (term f g) }
+  }
 };

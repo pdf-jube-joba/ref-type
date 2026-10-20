@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 /* Algebra of the finite signed shuffle sums. */
 \import \parent.Partitions[] \as Partitions;
 \import Lists.All[A := Split] \as All;
@@ -7,7 +8,7 @@
   \fun (f, f2, g, g2: Function)(left: \forall (xs: Lists.List[I]) -> f xs = f2 xs)(right: \forall (xs: Lists.List[I]) -> g xs = g2 xs)(xs: Lists.List[I]) =>
     SumLaws.congruent (partitions xs) (term f g) (term f2 g2) (\fun (split: Split) => congr!{K K} (mul split.weight)
       (mul (f split.left) (g split.right)) (mul (f2 split.left) (g2 split.right))
-      (congr2!{K K K} mul (f split.left) (f2 split.left) (g split.right) (g2 split.right) (left split.left) (right split.right)));
+      (congr!{K K K} mul (f split.left) (f2 split.left) (g split.right) (g2 split.right) (left split.left) (right split.right)));
 \definition additiveLeft: \forall (f, f2, g: Function)(xs: Lists.List[I]) ->
   product (plus f f2) g xs = add (product f g xs) (product f2 g xs) :=
   \fun (f, f2, g: Function)(xs: Lists.List[I]) => trans!{K} _ _ _
@@ -52,11 +53,11 @@
       (sym!{K} (Sign.value (Nat.add (Lists.length I split.left) (Lists.length I split.right))) (mul a b)
         (Sign.addition (Lists.length I split.left) (Lists.length I split.right)))
       (congr!{{N.Nat^} K} Sign.value (Nat.add (Lists.length I split.left) (Lists.length I split.right)) k length) \then
-  \return trans!{K} (term (twist f) (twist g) split) (mul weight (mul (mul a b) (mul left right))) (mul (Sign.value k) (term f g split))
-    (congr!{K K} (mul weight) (mul (mul a left) (mul b right)) (mul (mul a b) (mul left right)) (Sign.productShuffle a left b right))
-    (trans!{K} (mul weight (mul (mul a b) (mul left right))) (mul (mul a b) (mul weight (mul left right))) (mul (Sign.value k) (term f g split))
-      (Scalars.scaleComm weight (mul a b) (mul left right))
-      (congr!{K K} (\fun (s: K) => mul s (term f g split)) (mul a b) (Sign.value k) sign))
+  \return eq_reason_in!{K { term (twist f) (twist g) split }
+    "=" { mul weight (mul (mul a b) (mul left right)) } "by" { congr!{K K} (mul weight) (mul (mul a left) (mul b right)) (mul (mul a b) (mul left right)) (Sign.productShuffle a left b right) }
+    "=" { mul (mul a b) (mul weight (mul left right)) } "by" { Scalars.scaleComm weight (mul a b) (mul left right) }
+    "=" { mul (Sign.value k) (term f g split) } "by" { congr!{K K} (\fun (s: K) => mul s (term f g split)) (mul a b) (Sign.value k) sign }
+  }
 };
 \definition twistProduct: \forall (f, g: Function)(xs: Lists.List[I]) -> product (twist f) (twist g) xs = twist (product f g) xs :=
   \fun (f, g: Function)(xs: Lists.List[I]) => trans!{K} _ _ _
@@ -77,15 +78,14 @@
   \let x: K := f Lists.List[I]::nil \then
   \let y: K := g Lists.List[I]::nil \then
   \let z: K := h Lists.List[I]::nil \then
-  \return trans!{K} (product (product f g) h Lists.List[I]::nil) (mul (product f g Lists.List[I]::nil) z) (product f (product g h) Lists.List[I]::nil)
-    (atEmpty (product f g) h)
-    (trans!{K} (mul (product f g Lists.List[I]::nil) z) (mul (mul x y) z) (product f (product g h) Lists.List[I]::nil)
-      (congr!{K K} (\fun (a: K) => mul a z) (product f g Lists.List[I]::nil) (mul x y) (atEmpty f g))
-      (trans!{K} (mul (mul x y) z) (mul x (mul y z)) (product f (product g h) Lists.List[I]::nil) (mulAssoc x y z)
-        (trans!{K} (mul x (mul y z)) (mul x (product g h Lists.List[I]::nil)) (product f (product g h) Lists.List[I]::nil)
-          (congr!{K K} (mul x) (mul y z) (product g h Lists.List[I]::nil)
-            (sym!{K} (product g h Lists.List[I]::nil) (mul y z) (atEmpty g h)))
-          (sym!{K} (product f (product g h) Lists.List[I]::nil) (mul x (product g h Lists.List[I]::nil)) (atEmpty f (product g h))))))
+  \return eq_reason_in!{K { product (product f g) h Lists.List[I]::nil }
+    "=" { mul (product f g Lists.List[I]::nil) z } "by" { atEmpty (product f g) h }
+    "=" { mul (mul x y) z } "by" { congr!{K K} (\fun (a: K) => mul a z) (product f g Lists.List[I]::nil) (mul x y) (atEmpty f g) }
+    "=" { mul x (mul y z) } "by" { mulAssoc x y z }
+    "=" { mul x (product g h Lists.List[I]::nil) } "by" { congr!{K K} (mul x) (mul y z) (product g h Lists.List[I]::nil)
+            (sym!{K} (product g h Lists.List[I]::nil) (mul y z) (atEmpty g h)) }
+    "=" { product f (product g h) Lists.List[I]::nil } "by" { sym!{K} (product f (product g h) Lists.List[I]::nil) (mul x (product g h Lists.List[I]::nil)) (atEmpty f (product g h)) }
+  }
 };
 \definition associative: \forall (xs: Lists.List[I])(f, g, h: Function) -> product (product f g) h xs = product f (product g h) xs :=
   \induction (xs: Lists.List[I]) \return \forall (f, g, h: Function) -> product (product f g) h xs = product f (product g h) xs \with {

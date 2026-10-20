@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Hom[V := family.Carrier i, W := Product.Carrier, source := family.space i, target := Product.space] \as Maps;
 \import \parent.\parent.Laws[V := family.Carrier i, space := family.space i] \as SourceLaws;
 \module Target(j: Index) {
@@ -14,17 +15,17 @@
     Product.add (\fun (j: Index) => point i x j) (\fun (j: Index) => point i y j),
     \fun (j: Index) =>
       either!{{(Classical.excludedMiddle (i = j))} {point i ((family.space i).add x y) j = (family.space j).add (point i x j) (point i y j)}
-        {\fun (same: i = j) => trans!{{family.Carrier j}} _ _ _
-          (onEqual i j ((family.space i).add x y) same)
-          (trans!{{family.Carrier j}} _ _ _
-            (Transport.binaryNatural family.Carrier family.Carrier family.Carrier (\fun (k: Index) => (family.space k).add) i j same x y)
-            (congr2!{{family.Carrier j} {family.Carrier j} {family.Carrier j}} ((family.space j).add) _ _ _ _
-              (sym!{{family.Carrier j}} _ _ (onEqual i j x same)) (sym!{{family.Carrier j}} _ _ (onEqual i j y same))))}
+        {\fun (same: i = j) => eq_reason_in!{{family.Carrier j} _
+          "=" _ "by" { onEqual i j ((family.space i).add x y) same }
+          "=" _ "by" { Transport.binaryNatural family.Carrier family.Carrier family.Carrier (\fun (k: Index) => (family.space k).add) i j same x y }
+          "=" _ "by" { congr!{{family.Carrier j} {family.Carrier j} {family.Carrier j}} ((family.space j).add) _ _ _ _
+              (sym!{{family.Carrier j}} _ _ (onEqual i j x same)) (sym!{{family.Carrier j}} _ _ (onEqual i j y same)) }
+        }}
         {\fun (ne: Logic.Not (i = j)) => trans!{{family.Carrier j}} _ (family.space j).zero _
           (onDifferent i j ((family.space i).add x y) ne)
           (sym!{{family.Carrier j}} _ (family.space j).zero
             (trans!{{family.Carrier j}} _ _ _
-              (congr2!{{family.Carrier j} {family.Carrier j} {family.Carrier j}} ((family.space j).add) _ _ _ _
+              (congr!{{family.Carrier j} {family.Carrier j} {family.Carrier j}} ((family.space j).add) _ _ _ _
                 (onDifferent i j x ne) (onDifferent i j y ne))
               (Target[j := j].zeroAdd)))}
       });
@@ -34,12 +35,12 @@
     (\fun (j: Index) => point i ((family.space i).smul a x) j), Product.scale a (\fun (j: Index) => point i x j),
     \fun (j: Index) =>
       either!{{(Classical.excludedMiddle (i = j))} {point i ((family.space i).smul a x) j = (family.space j).smul a (point i x j)}
-        {\fun (same: i = j) => trans!{{family.Carrier j}} _ _ _
-          (onEqual i j ((family.space i).smul a x) same)
-          (trans!{{family.Carrier j}} _ _ _
-            (Transport.natural family.Carrier family.Carrier (\fun (k: Index) => (family.space k).smul a) i j same x)
-            (congr!{{family.Carrier j} {family.Carrier j}} ((family.space j).smul a) _ _
-              (sym!{{family.Carrier j}} _ _ (onEqual i j x same))))}
+        {\fun (same: i = j) => eq_reason_in!{{family.Carrier j} _
+          "=" _ "by" { onEqual i j ((family.space i).smul a x) same }
+          "=" _ "by" { Transport.natural family.Carrier family.Carrier (\fun (k: Index) => (family.space k).smul a) i j same x }
+          "=" _ "by" { congr!{{family.Carrier j} {family.Carrier j}} ((family.space j).smul a) _ _
+              (sym!{{family.Carrier j}} _ _ (onEqual i j x same)) }
+        }}
         {\fun (ne: Logic.Not (i = j)) => trans!{{family.Carrier j}} _ (family.space j).zero _
           (onDifferent i j ((family.space i).smul a x) ne)
           (sym!{{family.Carrier j}} _ (family.space j).zero
@@ -52,8 +53,8 @@
   addition := addition, scalar := scalar,
 };
 \definition injective: \forall (x, y: family.Carrier i) -> map.apply x = map.apply y -> x = y :=
-  \fun (x, y: family.Carrier i)(equal: map.apply x = map.apply y) => trans!{{family.Carrier i}} x (point i x i) y
-    (sym!{{family.Carrier i}} (point i x i) x (onSame i x))
-    (trans!{{family.Carrier i}} (point i x i) (point i y i) y
-      (congr!{Product.Carrier {family.Carrier i}} (\fun (v: Product.Carrier) => v i) (map.apply x) (map.apply y) equal)
-      (onSame i y));
+  \fun (x, y: family.Carrier i)(equal: map.apply x = map.apply y) => eq_reason_in!{{family.Carrier i} x
+    "=" { point i x i } "by" { sym!{{family.Carrier i}} (point i x i) x (onSame i x) }
+    "=" { point i y i } "by" { congr!{Product.Carrier {family.Carrier i}} (\fun (v: Product.Carrier) => v i) (map.apply x) (map.apply y) equal }
+    "=" y "by" { onSame i y }
+  };

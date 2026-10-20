@@ -1,21 +1,23 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition restrictionLaw[alpha: Left.Carrier][beta: Right.Carrier][i: Frame.Index]: restriction i ((Pairing.forward).apply (Source.tensor alpha beta)) = (Right.space).smul ((alpha).apply (Basis.basis i)) beta :=
   RightMaps.ext (restriction i ((Pairing.forward).apply (Source.tensor alpha beta))) ((Right.space).smul ((alpha).apply (Basis.basis i)) beta)
     (\fun (y: W.Carrier) => Pairing.onPure alpha beta (Basis.basis i) y);
 \definition piece[alpha: Left.Carrier][beta: Right.Carrier][i: Frame.Index]: (\parent.At[i := i].piece).apply ((Pairing.forward).apply (Source.tensor alpha beta)) = Source.tensor ((Left.space).smul ((alpha).apply (Basis.basis i)) (Basis.coordinate i)) beta :=
-  trans!{Source.Carrier} _ _ _
-    (congr!{Right.Carrier Source.Carrier} (Source.tensor (Basis.coordinate i)) _ _ (restrictionLaw alpha beta i))
-    (trans!{Source.Carrier} _ _ _ ((Source.bilinear).scaleRight ((alpha).apply (Basis.basis i)) (Basis.coordinate i) beta)
-      (sym!{Source.Carrier} _ _ ((Source.bilinear).scaleLeft ((alpha).apply (Basis.basis i)) (Basis.coordinate i) beta)));
+  eq_reason_in!{Source.Carrier _
+    "=" _ "by" { congr!{Right.Carrier Source.Carrier} (Source.tensor (Basis.coordinate i)) _ _ (restrictionLaw alpha beta i) }
+    "=" _ "by" { (Source.bilinear).scaleRight ((alpha).apply (Basis.basis i)) (Basis.coordinate i) beta }
+    "=" _ "by" { sym!{Source.Carrier} _ _ ((Source.bilinear).scaleLeft ((alpha).apply (Basis.basis i)) (Basis.coordinate i) beta) }
+  };
 \import DualSum.Mapping[W := Source.Carrier, target := Source.space] \as TensorSum;
 \definition onTensor[alpha: Left.Carrier][beta: Right.Carrier]: (backward).apply ((Pairing.forward).apply (Source.tensor alpha beta)) = Source.tensor alpha beta :=
-  trans!{Source.Carrier} _ _ _
-    (SourceSum.congruent Frame.indices
+  eq_reason_in!{Source.Carrier _
+    "=" _ "by" { SourceSum.congruent Frame.indices
       (\fun (i: Frame.Index) => (\parent.At[i := i].piece).apply ((Pairing.forward).apply (Source.tensor alpha beta)))
       (\fun (i: Frame.Index) => Source.tensor ((Left.space).smul ((alpha).apply (Basis.basis i)) (Basis.coordinate i)) beta)
-      (piece alpha beta))
-    (trans!{Source.Carrier} _ _ _
-      (sym!{Source.Carrier} _ _ (TensorSum.law (Source.leftLinear beta) Frame.indices (\fun (i: Frame.Index) => (Left.space).smul ((alpha).apply (Basis.basis i)) (Basis.coordinate i))))
-      (congr!{Left.Carrier Source.Carrier} (\fun (f: Left.Carrier) => Source.tensor f beta) _ _ (\parent.Expansion[].dual alpha)));
+      (piece alpha beta) }
+    "=" _ "by" { sym!{Source.Carrier} _ _ (TensorSum.law (Source.leftLinear beta) Frame.indices (\fun (i: Frame.Index) => (Left.space).smul ((alpha).apply (Basis.basis i)) (Basis.coordinate i))) }
+    "=" _ "by" { congr!{Left.Carrier Source.Carrier} (\fun (f: Left.Carrier) => Source.tensor f beta) _ _ (\parent.Expansion[].dual alpha) }
+  };
 \import Backward.Composition[U := Source.Carrier, domain := Source.space] \as Composition;
 \import Modules.End[V := Source.Carrier, space := Source.space] \as End;
 \import Source.Universal[U := Source.Carrier, target := Source.space] \as Equality;

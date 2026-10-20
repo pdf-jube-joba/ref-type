@@ -1,18 +1,28 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Logic[].Relation[] \as Relations;
 \definition z: G := sign.element;
 \definition twist[x: G]: G := mul z x;
 \definition twice: \forall (x: G) -> twist (twist x) = x :=
-  \fun (x: G) => trans!{G} _ _ _ (sym!{G} _ _ (assoc z z x))
-    (trans!{G} _ _ _ (congr!{G G} (\fun (a: G) => mul a x) _ _ sign.square) (oneLeft x));
+  \fun (x: G) => eq_reason_in!{G _
+    "=" _ "by" { sym!{G} _ _ (assoc z z x) }
+    "=" _ "by" { congr!{G G} (\fun (a: G) => mul a x) _ _ sign.square }
+    "=" _ "by" { oneLeft x }
+  };
 \definition twistProductLeft: \forall (x, y: G) -> twist (mul x y) = mul (twist x) y :=
   \fun (x, y: G) => sym!{G} _ _ (assoc z x y);
 \definition twistProductRight: \forall (x, y: G) -> twist (mul x y) = mul x (twist y) :=
-  \fun (x, y: G) => trans!{G} _ _ _ (twistProductLeft x y)
-    (trans!{G} _ _ _ (congr!{G G} (\fun (a: G) => mul a y) _ _ (sign.central x)) (assoc x z y));
+  \fun (x, y: G) => eq_reason_in!{G _
+    "=" _ "by" { twistProductLeft x y }
+    "=" _ "by" { congr!{G G} (\fun (a: G) => mul a y) _ _ (sign.central x) }
+    "=" _ "by" { assoc x z y }
+  };
 \definition inverseZ: inv z = z := sym!{G} _ _ (inverseUnique z z sign.square);
 \definition inverseTwist: \forall (x: G) -> inv (twist x) = twist (inv x) :=
-  \fun (x: G) => trans!{G} _ _ _ (invMul z x)
-    (trans!{G} _ _ _ (congr!{G G} (mul (inv x)) _ _ inverseZ) (sym!{G} _ _ (sign.central (inv x))));
+  \fun (x: G) => eq_reason_in!{G _
+    "=" _ "by" { invMul z x }
+    "=" _ "by" { congr!{G G} (mul (inv x)) _ _ inverseZ }
+    "=" _ "by" { sym!{G} _ _ (sign.central (inv x)) }
+  };
 \definition Equivalent[x, y: G]: \Prop := Logic.Or[x = y, twist x = y];
 \definition reflexive: \forall (x: G) -> Equivalent x x := \fun (x: G) => Logic.Or[_, _]::left (\refl(x));
 \definition symmetric: \forall (x, y: G) -> Equivalent x y -> Equivalent y x :=
@@ -25,8 +35,11 @@
     (\fun (same: x = y) => \idelim y = x \with a: G => Equivalent a w \by { base: yw, equality: sym!{G} _ _ same })
     (\fun (same: twist x = y) => Logic.orElim _ _ (Equivalent x w) yw
       (\fun (equal: y = w) => Logic.Or[_, _]::right (trans!{G} _ _ _ same equal))
-      (\fun (equal: twist y = w) => Logic.Or[_, _]::left (trans!{G} _ _ _ (sym!{G} _ _ (twice x))
-        (trans!{G} _ _ _ (congr!{G G} twist _ _ same) equal))));
+      (\fun (equal: twist y = w) => Logic.Or[_, _]::left (eq_reason_in!{G _
+        "=" _ "by" { sym!{G} _ _ (twice x) }
+        "=" _ "by" { congr!{G G} twist _ _ same }
+        "=" _ "by" equal
+      })));
 \definition equivalence: Relations.Equivalence[G, Equivalent] := Relations.Equivalence[G, Equivalent] {
   refl := reflexive, sym := symmetric, trans := transitive,
 };
@@ -70,9 +83,11 @@
   leftInverse := Operations.inverseLeft equivalence mul mulCong inv invCong one
     (\fun (x: G) => Logic.Or[_, _]::left (invLeft x)),
   rightInverse := Q.induction (\fun (x: Carrier) => product x (inverse x) = unit)
-    (\fun (x: G) => trans!{Carrier} _ _ _
-      (congr!{Carrier Carrier} (product (class x)) _ _ (classInv x))
-      (trans!{Carrier} _ _ _ (classMul x (inv x)) (congr!{G Carrier} class _ _ (invRight x)))),
+    (\fun (x: G) => eq_reason_in!{Carrier _
+      "=" _ "by" { congr!{Carrier Carrier} (product (class x)) _ _ (classInv x) }
+      "=" _ "by" { classMul x (inv x) }
+      "=" _ "by" { congr!{G Carrier} class _ _ (invRight x) }
+    }),
 };
 \definition identifySign: \forall (x: G) -> class (twist x) = class x :=
   \fun (x: G) => Quotient.classRelated equivalence _ _ (Logic.Or[_, _]::right (twice x));

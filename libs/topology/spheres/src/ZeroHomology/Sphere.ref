@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \root.ZeroHomology[] \as PointCochain;
 \import algebraic_topology.Spheres[] \as Spheres;
 \definition Sphere: \Set := Spheres.Carrier zero;
@@ -36,15 +37,15 @@
   (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south));
 \import Modules.Hom[V := Chains.Carrier zero, W := I.Int^, source := Chains.space zero, target := Modules.scalarModule] \as Functionals;
 \definition augmented: (Reduced.differential).apply (I.Int^::ofNat zero) difference = I.Zero.specification :=
-  trans!{I.Int^} _ _ _
-    (Functionals.differencePreserved Chains.Augmentation[].map
+  eq_reason_in!{I.Int^ _
+    "=" _ "by" { Functionals.differencePreserved Chains.Augmentation[].map
       (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.north))
-      (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south)))
-    (trans!{I.Int^} _ _ _
-      (congr2!{I.Int^ I.Int^ I.Int^} Group.difference _ _ _ _
+      (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south)) }
+    "=" _ "by" { congr!{I.Int^ I.Int^ I.Int^} Group.difference _ _ _ _
         (Chains.Augmentation[].onGenerator (Simplices.At[n := zero].constant ZeroSphere.north))
-        (Chains.Augmentation[].onGenerator (Simplices.At[n := zero].constant ZeroSphere.south)))
-      (Group.inverseRight I.One.specification));
+        (Chains.Augmentation[].onGenerator (Simplices.At[n := zero].constant ZeroSphere.south)) }
+    "=" _ "by" { Group.inverseRight I.One.specification }
+  };
 \definition cycle: H.Cycle := H.cycle difference augmented;
 \definition generator: H.Homology := H.classOf cycle;
 \import \root.ZeroHomology[].Algebra[].Functional[C := Reduced.complex, z := I.Int^::ofNat zero, functional := cochain] \as Functional;
@@ -53,13 +54,15 @@
   (congr!{{Chains.Carrier zero} I.Int^} ((cochain).apply) _ _ (Transport.castRefl Reduced.Carrier (I.Int^::ofNat zero) ((Chains.boundary zero).apply x)))
   (closed x);
 \definition functional: Modules.Hom[V := H.Homology, W := I.Int^, source := H.homologySpace, target := Modules.scalarModule].Map := Functional.map kills;
-\definition normalized: (functional).apply generator = I.One.specification := trans!{I.Int^} _ _ _ (Functional.onClass kills cycle)
-  (trans!{I.Int^} _ _ _
-    (Functionals.differencePreserved cochain
+\definition normalized: (functional).apply generator = I.One.specification := eq_reason_in!{I.Int^ _
+  "=" _ "by" { Functional.onClass kills cycle }
+  "=" _ "by" { Functionals.differencePreserved cochain
       (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.north))
-      (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south)))
-    (trans!{I.Int^} _ _ _ (congr2!{I.Int^ I.Int^ I.Int^} Group.difference _ _ _ _ north south)
-      (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (Group.add I.One.specification) _ _ Group.negZero) (Group.zeroRight I.One.specification))));
+      (Chains.generator zero (Simplices.At[n := zero].constant ZeroSphere.south)) }
+  "=" _ "by" { congr!{I.Int^ I.Int^ I.Int^} Group.difference _ _ _ _ north south }
+  "=" _ "by" { congr!{I.Int^ I.Int^} (Group.add I.One.specification) _ _ Group.negZero }
+  "=" _ "by" { Group.zeroRight I.One.specification }
+};
 \import cohomology_models.ZeroSphere[].Reduced[].Homology[].Zero[] \as Orientation;
 \import \root.ZeroHomology[].Algebra[].Cyclic[V := H.Homology, space := H.homologySpace, orientation := Orientation.isomorphism, point := generator, functional := functional] \as Primitive;
 \definition isomorphism: Modules.Isomorphism[V := I.Int^, W := H.Homology, source := Modules.scalarModule, target := H.homologySpace].Isomorphism := Primitive.isomorphism normalized;

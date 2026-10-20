@@ -1,19 +1,24 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition localPoint: manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space].LocalPoint Base.standard :=
   \into[M.Point](x, Base.standard.domain) \by { \refl(x) };
 \import Tangent.InChart[chart := Base.standard].At[x := localPoint] \as Coordinate;
 \definition differential: \forall (v: manifolds.Tangent[n := n].On[M := M].Vector x) -> Normal.At[x := x].differential.apply v = Blocks.inclusion.apply (Coordinate.decode v) :=
   Inclusion.At[x := x].coordinates;
 \definition normal: \forall (a: F.Vector)(v: manifolds.Tangent[n := n].On[M := M].Vector x) -> A.dot (normalInclusion.apply a) (Normal.At[x := x].differential.apply v) = R.zero :=
-  \fun (a: F.Vector)(v: manifolds.Tangent[n := n].On[M := M].Vector x) => trans!{{R.Real}} _ _ _
-    (congr!{{A.Vector} {R.Real}} (A.dot (normalInclusion.apply a)) _ _ (differential v))
-    (trans!{{R.Real}} _ _ _ (Blocks.dotIncluded (normalInclusion.apply a) (Coordinate.decode v))
-      (trans!{{R.Real}} _ _ _ (congr!{{E.Vector} {R.Real}} (\fun (z: E.Vector) => E.dot z (Coordinate.decode v)) _ _ (Blocks.leftJoin E.space.zero a)) (E.form.zeroLeft (Coordinate.decode v))));
+  \fun (a: F.Vector)(v: manifolds.Tangent[n := n].On[M := M].Vector x) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{A.Vector} {R.Real}} (A.dot (normalInclusion.apply a)) _ _ (differential v) }
+    "=" _ "by" { Blocks.dotIncluded (normalInclusion.apply a) (Coordinate.decode v) }
+    "=" _ "by" { congr!{{E.Vector} {R.Real}} (\fun (z: E.Vector) => E.dot z (Coordinate.decode v)) _ _ (Blocks.leftJoin E.space.zero a) }
+    "=" _ "by" { E.form.zeroLeft (Coordinate.decode v) }
+  };
 \definition leftZero: \forall (w: Normal.Fiber x) -> Blocks.left w = E.space.zero := \fun (w: Normal.Fiber x) => E.separated (Blocks.left w)
-  (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Blocks.dotIncluded w (Blocks.left w)))
-    (trans!{{R.Real}} _ _ _ (congr!{{A.Vector} {R.Real}} (A.dot w) (Blocks.inclusion.apply (Blocks.left w)) (Normal.At[x := x].differential.apply (Coordinate.encode (Blocks.left w)))
+  (eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (Blocks.dotIncluded w (Blocks.left w)) }
+    "=" _ "by" { congr!{{A.Vector} {R.Real}} (A.dot w) (Blocks.inclusion.apply (Blocks.left w)) (Normal.At[x := x].differential.apply (Coordinate.encode (Blocks.left w)))
       (sym!{{A.Vector}} _ _ (trans!{{A.Vector}} _ _ _ (differential (Coordinate.encode (Blocks.left w)))
-        (congr!{{E.Vector} {A.Vector}} Blocks.inclusion.apply _ _ (Coordinate.decodeEncode (Blocks.left w))))))
-      (Normal.orthogonal (Normal.include x w) (Coordinate.encode (Blocks.left w)))));
+        (congr!{{E.Vector} {A.Vector}} Blocks.inclusion.apply _ _ (Coordinate.decodeEncode (Blocks.left w))))) }
+    "=" _ "by" { Normal.orthogonal (Normal.include x w) (Coordinate.encode (Blocks.left w)) }
+  });
 \definition reconstruction: \forall (w: Normal.Fiber x) -> normalInclusion.apply (Blocks.right w) = w :=
   \fun (w: Normal.Fiber x) => trans!{{A.Vector}} _ _ _
     (congr!{{E.Vector} {A.Vector}} (\fun (z: E.Vector) => Blocks.join z (Blocks.right w)) E.space.zero (Blocks.left w) (sym!{{E.Vector}} _ _ (leftZero w)))

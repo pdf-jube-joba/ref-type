@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \definition point: Charts.LocalPoint chart := Charts.point chart u;
 \import Tangent.At[x := point] \as Intrinsic;
 \definition sourceChart: Intrinsic.Chart := \into[Charts.Chart](c, Intrinsic.Chart) \by {
@@ -17,10 +18,17 @@
   \fun (v: SourceVectors.Vector) => sym!{{E.Vector}} _ _ (trans!{{E.Vector}} _ _ _ (comparison (Source.backward.apply v))
     (congr!{{SourceVectors.Vector} {E.Vector}} (matrix u).apply _ _ (Encoding.decodeEncode v)));
 \definition injective: \forall (v, w: SourceVectors.Vector) -> (matrix u).apply v = (matrix u).apply w -> v = w :=
-  \fun (v, w: SourceVectors.Vector)(same: _) => trans!{{SourceVectors.Vector}} _ _ _ (sym!{{SourceVectors.Vector}} _ _ (Encoding.decodeEncode v))
-    (trans!{{SourceVectors.Vector}} _ _ _ (congr!{{Tangent.Vector point} {SourceVectors.Vector}} Source.forward.apply _ _
+  \fun (v, w: SourceVectors.Vector)(same: _) => eq_reason_in!{{SourceVectors.Vector} _
+    "=" _ "by" { sym!{{SourceVectors.Vector}} _ _ (Encoding.decodeEncode v) }
+    "=" _ "by" { congr!{{Tangent.Vector point} {SourceVectors.Vector}} Source.forward.apply _ _
       (Original.injective (Source.backward.apply v) (Source.backward.apply w)
-        (trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (backwardComparison v)) (trans!{{E.Vector}} _ _ _ same (backwardComparison w))))) (Encoding.decodeEncode w));
+        (eq_reason_in!{E.Vector _
+          "=" _ "by" { sym!{{E.Vector}} _ _ (backwardComparison v) }
+          "=" _ "by" same
+          "=" _ "by" { backwardComparison w }
+        })) }
+    "=" _ "by" { Encoding.decodeEncode w }
+  };
 \definition normalToCoordinates: \forall (w: E.Vector) ->
   (\forall (t: Tangent.Vector point) -> E.dot w (Original.differential.apply t) = R.zero) ->
   \forall (v: SourceVectors.Vector) -> E.dot w ((matrix u).apply v) = R.zero :=

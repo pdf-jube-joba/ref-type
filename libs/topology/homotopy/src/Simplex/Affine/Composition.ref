@@ -1,10 +1,13 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import \parent.\parent.Affine[m := n, n := k] \as Next;
 \import \parent.\parent.Affine[m := m, n := k] \as Composite;
 \definition scalarRight: \forall (s: N.Nat^)(f: Fin.Fin s -> Real.Real)(c: Real.Real) ->
   Real.mul (Sums.sum s f) c = Sums.sum s (\fun (i: Fin.Fin s) => Real.mul (f i) c) :=
-  \fun (s: N.Nat^)(f: _)(c: Real.Real) => trans!{Real.Real} _ _ _ (Laws.fieldMulComm (Sums.sum s f) c)
-    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Sums.scalar s c f))
-      (Sums.congruent s _ _ (\fun (i: Fin.Fin s) => Laws.fieldMulComm c (f i))));
+  \fun (s: N.Nat^)(f: _)(c: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Laws.fieldMulComm (Sums.sum s f) c }
+    "=" _ "by" { sym!{Real.Real} _ _ (Sums.scalar s c f) }
+    "=" _ "by" { Sums.congruent s _ _ (\fun (i: Fin.Fin s) => Laws.fieldMulComm c (f i)) }
+  };
 \definition law: \forall (v: Vertices)(w: Next.Vertices)(x: Carrier m) ->
   Next.apply w (apply v x) = Composite.apply (\fun (i: Fin.Fin (N.Nat^::succ m)) => Next.apply w (v i)) x :=
   \fun (v: Vertices)(w: Next.Vertices)(x: Carrier m) =>
@@ -31,5 +34,9 @@
                 (\fun (b: Fin.Fin (N.Nat^::succ n)) => Real.mul (x a) (Real.mul (v a b) (w b j)))
                 (\fun (b: Fin.Fin (N.Nat^::succ n)) => Laws.fieldMulAssoc (x a) (v a b) (w b j)))
               (Sums.scalar (N.Nat^::succ n) (x a) (\fun (b: Fin.Fin (N.Nat^::succ n)) => Real.mul (v a b) (w b j)))) \then
-        \return trans!{Real.Real} _ _ _ first (trans!{Real.Real} _ _ _ swap last)
+        \return eq_reason_in!{Real.Real _
+          "=" _ "by" first
+          "=" _ "by" swap
+          "=" _ "by" last
+        }
       });

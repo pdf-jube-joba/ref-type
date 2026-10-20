@@ -1,4 +1,5 @@
-\use Equality.congr2;
+\use std.Logic[].Equality[].eq_reason_in;
+\use Equality.congr;
 \import N.Basic[].Prop[] \as NaturalBounds;
 \import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
 \import Signed.Division[] \as Division;
@@ -15,15 +16,17 @@
     (Reduction.rowAdditionSelf a k i Arithmetic.one j)
     (congr!{I.Int^ I.Int^} (Arithmetic.add (a k j)) (Arithmetic.mul Arithmetic.one (a i j)) (a i j) (Product.mulOneLeft (a i j)));
 \definition injectedPivot: \forall (k, i: N.Nat^)(a: Runtime^) -> a i k = Arithmetic.zero -> inject k i a k k = a k k :=
-  \fun (k, i: N.Nat^)(a: Runtime^)(zero: _) => trans!{I.Int^} (inject k i a k k) (Arithmetic.add (a k k) (a i k)) (a k k)
-    (injectedValue k i k a)
-    (trans!{I.Int^} (Arithmetic.add (a k k) (a i k)) (Arithmetic.add (a k k) Arithmetic.zero) (a k k)
-      (congr!{I.Int^ I.Int^} (Arithmetic.add (a k k)) (a i k) Arithmetic.zero zero) (IntegerLaws.addZeroRight (a k k)));
+  \fun (k, i: N.Nat^)(a: Runtime^)(zero: _) => eq_reason_in!{I.Int^ { inject k i a k k }
+    "=" { Arithmetic.add (a k k) (a i k) } "by" { injectedValue k i k a }
+    "=" { Arithmetic.add (a k k) Arithmetic.zero } "by" { congr!{I.Int^ I.Int^} (Arithmetic.add (a k k)) (a i k) Arithmetic.zero zero }
+    "=" { a k k } "by" { IntegerLaws.addZeroRight (a k k) }
+  };
 \definition injectedEntry: \forall (k, i, j: N.Nat^)(a: Runtime^) -> a k j = Arithmetic.zero -> inject k i a k j = a i j :=
-  \fun (k, i, j: N.Nat^)(a: Runtime^)(zero: _) => trans!{I.Int^} (inject k i a k j) (Arithmetic.add (a k j) (a i j)) (a i j)
-    (injectedValue k i j a)
-    (trans!{I.Int^} (Arithmetic.add (a k j) (a i j)) (Arithmetic.add Arithmetic.zero (a i j)) (a i j)
-      (congr!{I.Int^ I.Int^} (\fun (value: I.Int^) => Arithmetic.add value (a i j)) (a k j) Arithmetic.zero zero) (IntegerLaws.addZeroLeft (a i j)));
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(zero: _) => eq_reason_in!{I.Int^ { inject k i a k j }
+    "=" { Arithmetic.add (a k j) (a i j) } "by" { injectedValue k i j a }
+    "=" { Arithmetic.add Arithmetic.zero (a i j) } "by" { congr!{I.Int^ I.Int^} (\fun (value: I.Int^) => Arithmetic.add value (a i j)) (a k j) Arithmetic.zero zero }
+    "=" { a i j } "by" { IntegerLaws.addZeroLeft (a i j) }
+  };
 \definition smaller: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> a i k = Arithmetic.zero -> Logic.Not (a k k = Arithmetic.zero) -> Reduction.Smaller k a (correct k i j a history) := \block {
   \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(cleared: _)(nonzero: _) \then
   \let equal: inject k i a k k = a k k := injectedPivot k i a cleared \then
@@ -46,7 +49,7 @@
 
 \structure Cleared[k, i, j: N.Nat^, a: Runtime^]: \Prop := { column: a i k = Arithmetic.zero, row: a k j = Arithmetic.zero };
 \definition remainderAtInjected: \forall (k, i, j: N.Nat^)(a: Runtime^) -> Cleared[k, i, j, a] -> Division.remainder (inject k i a k j) (inject k i a k k) = Division.remainder (a i j) (a k k) :=
-  \fun (k, i, j: N.Nat^)(a: Runtime^)(cleared: _) => congr2!{I.Int^ I.Int^ I.Int^} Division.remainder
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(cleared: _) => congr!{I.Int^ I.Int^ I.Int^} Division.remainder
     (inject k i a k j) (a i j) (inject k i a k k) (a k k) (injectedEntry k i j a cleared.row) (injectedPivot k i a cleared.column);
 \definition changed: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> Cleared[k, i, j, a] -> Logic.Not (Division.remainder (a i j) (a k k) = Arithmetic.zero) -> attemptReduced (correct k i j a history) = B.Bool^::true :=
   \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(cleared: _)(nonzero: _) => Reduction.columnIsChanged k j (inject k i a) (injectHistory k i history)

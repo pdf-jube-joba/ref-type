@@ -1,3 +1,4 @@
+\use std.Logic[].Equality[].eq_reason_in;
 \import std.Arithmetic[].Int[] \as Integers;
 \import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
 \import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
@@ -13,12 +14,17 @@
     }
   };
 \definition nextRight: \forall (p, q: Degree) -> add p (next q) = next (add p q) :=
-  \fun (p, q: Degree) => trans!{Degree} _ _ _
-    (congr!{Degree Degree} (add p) _ _ (sym!{Degree} _ _ (successor q)))
-    (trans!{Degree} _ _ _ (sym!{Degree} _ _ (Laws.addAssoc p q Arithmetic.one)) (successor (add p q)));
+  \fun (p, q: Degree) => eq_reason_in!{Degree _
+    "=" _ "by" { congr!{Degree Degree} (add p) _ _ (sym!{Degree} _ _ (successor q)) }
+    "=" _ "by" { sym!{Degree} _ _ (Laws.addAssoc p q Arithmetic.one) }
+    "=" _ "by" { successor (add p q) }
+  };
 \definition nextLeft: \forall (p, q: Degree) -> add (next p) q = next (add p q) :=
-  \fun (p, q: Degree) => trans!{Degree} _ _ _ (Laws.addComm (next p) q)
-    (trans!{Degree} _ _ _ (nextRight q p) (congr!{Degree Degree} next _ _ (Laws.addComm q p)));
+  \fun (p, q: Degree) => eq_reason_in!{Degree _
+    "=" _ "by" { Laws.addComm (next p) q }
+    "=" _ "by" { nextRight q p }
+    "=" _ "by" { congr!{Degree Degree} next _ _ (Laws.addComm q p) }
+  };
 \definition previousLeft: \forall (p, q: Degree) -> add (previous p) q = previous (add p q) :=
   \fun (p, q: Degree) => trans!{Degree} _ _ _
     (sym!{Degree} _ _ (Degrees.previousNext (add (previous p) q)))
@@ -26,8 +32,11 @@
       (trans!{Degree} _ _ _ (sym!{Degree} _ _ (nextLeft (previous p) q))
         (congr!{Degree Degree} (\fun (k: Degree) => add k q) _ _ (Degrees.nextPrevious p))));
 \definition previousRight: \forall (p, q: Degree) -> add p (previous q) = previous (add p q) :=
-  \fun (p, q: Degree) => trans!{Degree} _ _ _ (Laws.addComm p (previous q))
-    (trans!{Degree} _ _ _ (previousLeft q p) (congr!{Degree Degree} previous _ _ (Laws.addComm q p)));
+  \fun (p, q: Degree) => eq_reason_in!{Degree _
+    "=" _ "by" { Laws.addComm p (previous q) }
+    "=" _ "by" { previousLeft q p }
+    "=" _ "by" { congr!{Degree Degree} previous _ _ (Laws.addComm q p) }
+  };
 \structure Pair: \Set := { first: Degree, second: Degree };
 \definition Index[n: Degree]: \Set := \Cast[Pair] ({ i: Pair \where add i.first i.second = n });
 \definition degree[n: Degree][i: Index n]: add i.first i.second = n :=
