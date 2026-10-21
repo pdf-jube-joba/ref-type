@@ -16,3 +16,5 @@ records/
 レポート全体の `complete` と各回の `completed` を確認し、同じ条件の結果を比べる。
 詳細計測は通常の繰り返しと分け、profile の環境変数も揃える。
 ログや一時データは `runs/` に置き、説明には比較に必要な観測を記述する。
+
+[大規模検査の宣言共有と継続実行](large-scale-checking/README.md) は、原形とview、式のページ化、長寿命worker、保存と復旧の比較記録である。

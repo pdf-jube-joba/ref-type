@@ -480,7 +480,7 @@ impl Lowerer<'_> {
         program: bool,
         parameters: &[s::Expression],
     ) -> Result<s::Expression, crate::error::Error> {
-        if let Some(origin) = self.raw.generic_definition_specialization(id).cloned() {
+        if let Some(origin) = self.raw.generic_definition_specialization(id) {
             self.definition(origin.source)?;
             let captures = self.captures(Declaration::Definition(origin.source));
             let ambient = self.raw.definition_context(id.module).len();

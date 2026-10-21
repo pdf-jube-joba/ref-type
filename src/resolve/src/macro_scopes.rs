@@ -105,7 +105,8 @@ impl Resolver {
         let scope = &mut self.scopes[module.0 as usize];
         Arc::make_mut(&mut scope.names).extend(delta.names.iter().map(|(n, &id)| (n.clone(), id)));
         scope.imports.extend(delta.imports.clone());
-        scope.import_ids.extend(delta.import_ids.clone());
+        Arc::make_mut(&mut scope.import_ids)
+            .extend(delta.import_ids.iter().map(|(n, &id)| (n.clone(), id)));
     }
 
     pub(super) fn resolve_macro_item(
@@ -199,12 +200,14 @@ impl Resolver {
                 .filter(|(n, id)| before.imports.get(*n) != Some(*id))
                 .map(|(n, &id)| (n.clone(), id))
                 .collect(),
-            import_ids: scope
-                .import_ids
-                .iter()
-                .filter(|(n, id)| before.import_ids.get(*n) != Some(*id))
-                .map(|(n, &id)| (n.clone(), id))
-                .collect(),
+            import_ids: Arc::new(
+                scope
+                    .import_ids
+                    .iter()
+                    .filter(|(n, id)| before.import_ids.get(*n) != Some(*id))
+                    .map(|(n, &id)| (n.clone(), id))
+                    .collect(),
+            ),
         };
         let work = self.work.get_mut(&module).unwrap();
         work.output_spans
@@ -441,15 +444,15 @@ impl Resolver {
             if !self.reference_occurrences.borrow_mut().insert(key) {
                 continue;
             }
-            self.references.borrow_mut().push(Reference {
-                module: self.path(self.current),
+            self.references.borrow_mut().push(Arc::new(ReferenceData {
+                module: self.reference_path(self.current),
                 location: SourceLocation {
                     source: location.source.clone(),
                     span: SourceSpan { start, end },
                 },
-                target_module: self.path(definition.definition_scope),
+                target_module: self.reference_path(definition.definition_scope),
                 target_name: definition.definition_name.clone(),
-            });
+            }));
         }
     }
 }

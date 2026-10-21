@@ -29,8 +29,10 @@ struct PackageRun<'a, 'g> {
     keys: &'a [Fingerprint],
     progress: &'a mut crate::progress::Reporter,
     native_active: Option<(PackageChecker, native::Metadata)>,
+    failed: Option<Arc<SemanticResult>>,
     inputs: &'a [crate::package_inputs::PackageInput],
     packages: &'a [project::package_loader::PackageInfo],
+    local_packages: &'a BTreeSet<String>,
 }
 
 impl Database {
@@ -211,6 +213,10 @@ impl Database {
         // The module checkpoint path handles edits within a single package,
         // retaining its unaffected module results and checking-order prefixes.
         if packages.len() == 1
+            && self
+                .session
+                .as_ref()
+                .is_none_or(|(_, metadata)| !metadata.matches_inputs(&inputs, packages))
             && !options.force
             && !options.force_local
             && states.iter().any(|state| state.results.is_none())
@@ -226,6 +232,20 @@ impl Database {
             return None;
         }
         progress.skip_cached();
+        let forced_paths: BTreeSet<_> = states
+            .iter()
+            .filter(|state| state.force)
+            .flat_map(|state| {
+                state
+                    .indices
+                    .iter()
+                    .map(|&index| graph.units[index].path.clone())
+            })
+            .collect();
+        let native_active = self
+            .session
+            .take()
+            .filter(|(_, metadata)| metadata.permits(&forced_paths));
         let mut run = PackageRun {
             database: self,
             snapshot,
@@ -233,9 +253,11 @@ impl Database {
             graph,
             keys: module_keys,
             progress,
-            native_active: None,
+            native_active,
+            failed: None,
             inputs: &inputs,
             packages,
+            local_packages,
         };
         let closures: Vec<_> = states
             .iter()
@@ -252,6 +274,9 @@ impl Database {
                 continue;
             }
             if states[index].results.is_none() && run.ensure_native(index, &mut states).is_none() {
+                if let Some(result) = run.failed.take() {
+                    return Some(result);
+                }
                 if std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some() {
                     eprintln!(
                         "package checking unavailable: {}",
@@ -261,6 +286,7 @@ impl Database {
                 return None;
             }
         }
+        run.database.session = run.native_active.take();
         let mut results = BTreeMap::new();
         for state in states {
             for mut result in state.results? {

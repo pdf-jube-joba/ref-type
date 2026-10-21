@@ -24,6 +24,16 @@ pub struct MetaId {
     pub(crate) index: u32,
 }
 
+impl MetaId {
+    /// Allocate a rigid frontend atom without creating a solver entry or node.
+    pub fn fresh_atom() -> Self {
+        Self {
+            session: crate::ids::fresh_identity(),
+            index: 0,
+        }
+    }
+}
+
 impl artifact::Relocate for MetaId {
     fn relocate(&mut self, r: &mut artifact::Relocation) -> artifact::Result<()> {
         (self.session, self.index) = r.pair("meta", (self.session, self.index))?;
@@ -577,17 +587,22 @@ impl Node {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 struct Properties {
     // Separate presence/meta bits avoid the padding of (Option<usize>, bool)
     // for every arena slot, including retired scratch expressions.
-    bounds: Vec<usize>,
+    bounds: Vec<u32>,
     flags: Vec<u8>,
+    wide_bounds: FxHashMap<usize, usize>,
 }
 
 impl Properties {
     fn push(&mut self, (bound, meta, parameter): (Option<usize>, bool, bool)) {
-        self.bounds.push(bound.unwrap_or(0));
+        let bound_value = bound.unwrap_or(0);
+        if bound_value > u32::MAX as usize {
+            self.wide_bounds.insert(self.bounds.len(), bound_value);
+        }
+        self.bounds.push(bound_value.min(u32::MAX as usize) as u32);
         self.flags
             .push(u8::from(bound.is_some()) | (u8::from(meta) << 1) | (u8::from(parameter) << 2));
     }
@@ -595,21 +610,89 @@ impl Properties {
     fn get(&self, index: usize) -> (Option<usize>, bool, bool) {
         let flags = self.flags[index];
         (
-            (flags & 1 != 0).then_some(self.bounds[index]),
+            (flags & 1 != 0).then(|| {
+                if self.bounds[index] == u32::MAX {
+                    self.wide_bounds
+                        .get(&index)
+                        .copied()
+                        .unwrap_or(u32::MAX as usize)
+                } else {
+                    self.bounds[index] as usize
+                }
+            }),
             flags & 2 != 0,
             flags & 4 != 0,
         )
     }
 }
 
+// Hashes select candidate chains; complete nodes establish identity. A compact
+// fingerprint and handle keep each intern bucket's payload at eight bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct NodeHash(u32);
+impl std::hash::Hash for NodeHash {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u32(self.0);
+    }
+}
+
 #[derive(Debug, Default)]
 struct Storage {
-    nodes: Vec<Option<Rc<Node>>>,
-    interned: FxHashMap<Rc<Node>, Expression>,
+    nodes: crate::node_store::NodeStore,
+    interned: FxHashMap<NodeHash, Expression>,
+    hot: crate::sharing::Cache<NodeHash, (Node, Expression), { 1 << 16 }>,
+    collisions: FxHashMap<Expression, Expression>,
+    live: usize,
     properties: Properties,
 }
 
 impl Storage {
+    fn hash(node: &Node) -> NodeHash {
+        use std::hash::{Hash, Hasher};
+        let mut hash = rustc_hash::FxHasher::default();
+        node.hash(&mut hash);
+        let hash = hash.finish();
+        NodeHash((hash ^ (hash >> 32)) as u32)
+    }
+
+    fn intern(&mut self, index: usize, node: &Node) {
+        let hash = Self::hash(node);
+        let previous = self.interned.insert(hash, Expression(index as u32));
+        if let Some(previous) = previous {
+            self.collisions.insert(Expression(index as u32), previous);
+        }
+        self.live += 1;
+    }
+
+    fn discard(&mut self, index: usize) {
+        if let Some(node) = self.nodes.take(index).expect("retire expression") {
+            let hash = Self::hash(&node);
+            let mut current = self.interned.get(&hash).copied();
+            let mut previous: Option<Expression> = None;
+            while let Some(e) = current {
+                let next = self.collisions.get(&e).copied();
+                if e.index() == index {
+                    if let Some(previous) = previous {
+                        if let Some(next) = next {
+                            self.collisions.insert(previous, next);
+                        } else {
+                            self.collisions.remove(&previous);
+                        }
+                    } else if let Some(next) = next {
+                        self.interned.insert(hash, next);
+                    } else {
+                        self.interned.remove(&hash);
+                    }
+                    self.collisions.remove(&e);
+                    self.live -= 1;
+                    return;
+                }
+                previous = Some(e);
+                current = next;
+            }
+            panic!("live expression missing from intern index");
+        }
+    }
     fn node_properties(&self, node: &Node) -> (Option<usize>, bool, bool) {
         let mut properties = (
             if let Node::Bound(i) = node {
@@ -641,76 +724,105 @@ impl Arena {
     }
     pub fn alloc(&self, node: Node) -> Expression {
         let mut storage = self.0.borrow_mut();
-        if let Some(&e) = storage.interned.get(&node) {
-            return e;
+        if crate::resources::collection_requested() {
+            storage.nodes.set_budget(64 * 1024 * 1024);
         }
-        // Children already belong to this immutable DAG. Compute their summary
-        // once, so the hot inference/substitution paths only index a vector.
+        let hash = Storage::hash(&node);
+        if let Some((previous, expression)) = storage.hot.get(&hash)
+            && previous == &node
+            && storage.nodes.is_live(expression.index())
+        {
+            return *expression;
+        }
+        let mut candidate = storage.interned.get(&hash).copied();
+        while let Some(e) = candidate {
+            if storage
+                .nodes
+                .get(e.index())
+                .expect("read interned expression")
+                .as_deref()
+                == Some(&node)
+            {
+                storage.hot.insert(hash, (node, e));
+                return e;
+            }
+            candidate = storage.collisions.get(&e).copied();
+        }
         let properties = storage.node_properties(&node);
-        let e = Expression(u32::try_from(storage.nodes.len()).expect("expression arena exhausted"));
+        let index = storage.nodes.len();
+        let e = Expression(u32::try_from(index).expect("expression arena exhausted"));
         storage.properties.push(properties);
-        let node = Rc::new(node);
-        storage.nodes.push(Some(node.clone()));
-        storage.interned.insert(node, e);
+        storage.intern(index, &node);
+        storage.hot.insert(hash, (node.clone(), e));
+        storage
+            .nodes
+            .push(Some(node))
+            .expect("append expression page");
         e
     }
     pub fn read(&self, e: Expression) -> Rc<Node> {
-        self.0.borrow().nodes[e.index()]
-            .as_ref()
+        self.0
+            .borrow_mut()
+            .nodes
+            .get(e.index())
+            .expect("load expression page")
             .expect("discarded scratch expression")
-            .clone()
     }
     pub fn get(&self, e: Expression) -> Node {
-        self.0.borrow().nodes[e.index()]
-            .as_ref()
-            .expect("discarded scratch expression")
-            .as_ref()
-            .clone()
+        self.read(e).as_ref().clone()
     }
     pub fn len(&self) -> usize {
-        self.0.borrow().interned.len()
+        self.0.borrow().live
+    }
+    pub fn store_stats(&self) -> crate::StoreStats {
+        let storage = self.0.borrow();
+        let mut stats = storage.nodes.stats();
+        stats.live_nodes = storage.live;
+        stats.hash_collisions = storage.collisions.len();
+        stats.index_capacity_bytes += storage.interned.capacity()
+            * std::mem::size_of::<(NodeHash, Expression)>()
+            + storage.collisions.capacity() * std::mem::size_of::<(Expression, Expression)>()
+            + storage.properties.bounds.capacity() * std::mem::size_of::<u32>()
+            + storage.properties.flags.capacity()
+            + storage.properties.wide_bounds.capacity() * std::mem::size_of::<(usize, usize)>();
+        stats
+    }
+    pub fn set_resident_budget(&self, bytes: usize) {
+        self.0.borrow_mut().nodes.set_budget(bytes);
+    }
+    pub fn trim(&self) -> std::io::Result<()> {
+        self.0.borrow_mut().nodes.trim(None)
     }
     pub(crate) fn scratch_mark(&self) -> usize {
         self.0.borrow().nodes.len()
     }
-    /// Undo allocations made by an unpublished graph import.
     pub(crate) fn rollback_import(&self, mark: usize) {
         let mut storage = self.0.borrow_mut();
-        while storage.nodes.len() > mark {
-            if let Some(node) = storage.nodes.pop().unwrap() {
-                storage.interned.remove(&node);
-            }
+        storage.hot.clear();
+        for index in mark..storage.nodes.len() {
+            storage.discard(index);
         }
+        storage
+            .nodes
+            .truncate(mark)
+            .expect("roll back expression import");
+        storage
+            .properties
+            .wide_bounds
+            .retain(|&index, _| index < mark);
         storage.properties.bounds.truncate(mark);
         storage.properties.flags.truncate(mark);
     }
     pub(crate) fn is_live(&self, e: Expression) -> bool {
-        self.0
-            .borrow()
-            .nodes
-            .get(e.index())
-            .is_some_and(Option::is_some)
+        self.0.borrow().nodes.is_live(e.index())
     }
     pub(crate) fn finish_scratch(
         &self,
         mark: usize,
         roots: impl IntoIterator<Item = Expression>,
     ) -> usize {
-        let mut pending = roots.into_iter().collect::<Vec<_>>();
-        // A retained read snapshot also keeps its children alive.
-        pending.extend(
-            self.0
-                .borrow()
-                .nodes
-                .iter()
-                .enumerate()
-                .skip(mark)
-                .filter_map(|(i, n)| {
-                    n.as_ref()
-                        .filter(|n| Rc::strong_count(n) > 2)
-                        .map(|_| Expression(i as u32))
-                }),
-        );
+        let mut pending: Vec<_> = roots.into_iter().collect();
+        pending.extend(self.0.borrow_mut().nodes.pinned(mark));
         let mut live = rustc_hash::FxHashSet::default();
         while let Some(e) = pending.pop() {
             if e.index() >= mark && live.insert(e) {
@@ -718,17 +830,13 @@ impl Arena {
             }
         }
         let mut storage = self.0.borrow_mut();
-        let mut removed = 0;
-        for i in mark..storage.nodes.len() {
-            let e = Expression(i as u32);
-            if !live.contains(&e)
-                && let Some(node) = storage.nodes[i].take()
-            {
-                storage.interned.remove(&node);
-                removed += 1;
+        let before = storage.live;
+        for index in mark..storage.nodes.len() {
+            if !live.contains(&Expression(index as u32)) {
+                storage.discard(index);
             }
         }
-        removed
+        before - storage.live
     }
     pub fn contains_meta(&self, e: Expression) -> bool {
         self.properties(e).1
@@ -809,41 +917,173 @@ pub struct Binding {
 pub type Context = Vec<Binding>;
 
 // Node indices remain stable across snapshots; interning tables are reconstructed.
+struct InlineArena<'a>(&'a Arena);
+impl serde::Serialize for InlineArena<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeSeq;
+        let mut storage = self.0.0.borrow_mut();
+        let mut seq = serializer.serialize_seq(Some(storage.nodes.len()))?;
+        for index in 0..storage.nodes.len() {
+            let node = storage
+                .nodes
+                .get(index)
+                .map_err(serde::ser::Error::custom)?;
+            seq.serialize_element(&node)?;
+        }
+        seq.end()
+    }
+}
+struct InlineOwned(Arena);
+impl<'de> serde::Deserialize<'de> for InlineOwned {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Nodes;
+        impl<'de> serde::de::Visitor<'de> for Nodes {
+            type Value = Arena;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("expression graph")
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<Arena, A::Error> {
+                let mut storage = Storage::default();
+                while let Some(node) = seq.next_element::<Option<Node>>()? {
+                    let index = storage.nodes.len();
+                    u32::try_from(index).map_err(serde::de::Error::custom)?;
+                    if let Some(node) = &node {
+                        node.try_for_each_child(|child, _| {
+                            if child.index() >= index || !storage.nodes.is_live(child.index()) {
+                                return Err(serde::de::Error::custom("invalid arena reference"));
+                            }
+                            Ok(())
+                        })?;
+                        storage.intern(index, node);
+                    }
+                    let properties = node
+                        .as_ref()
+                        .map_or((None, false, false), |node| storage.node_properties(node));
+                    storage.properties.push(properties);
+                    storage.nodes.push(node).map_err(serde::de::Error::custom)?;
+                }
+                Ok(Arena(Rc::new(RefCell::new(storage))))
+            }
+        }
+        deserializer.deserialize_seq(Nodes).map(InlineOwned)
+    }
+}
+
+#[derive(serde::Serialize)]
+struct StoredArena<'a> {
+    identity_boundary: u64,
+    nodes: crate::node_store::StoredNodes,
+    properties: &'a Properties,
+    interned: &'a FxHashMap<NodeHash, Expression>,
+    collisions: &'a FxHashMap<Expression, Expression>,
+}
+#[derive(serde::Deserialize)]
+struct RestoredArena {
+    identity_boundary: u64,
+    nodes: crate::node_store::StoredNodes,
+    properties: Properties,
+    interned: FxHashMap<NodeHash, Expression>,
+    collisions: FxHashMap<Expression, Expression>,
+}
 impl serde::Serialize for Arena {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.0.borrow().nodes.serialize(serializer)
+        use serde::ser::SerializeTuple;
+        let mut tuple = serializer.serialize_tuple(2)?;
+        if let Some(store) = crate::graph_store::current() {
+            let mut storage = self.0.borrow_mut();
+            let nodes = storage
+                .nodes
+                .snapshot(store)
+                .map_err(serde::ser::Error::custom)?;
+            tuple.serialize_element(&1u8)?;
+            tuple.serialize_element(&StoredArena {
+                identity_boundary: crate::ids::identity_boundary(),
+                nodes,
+                properties: &storage.properties,
+                interned: &storage.interned,
+                collisions: &storage.collisions,
+            })?;
+        } else {
+            tuple.serialize_element(&0u8)?;
+            tuple.serialize_element(&InlineArena(self))?;
+        }
+        tuple.end()
     }
 }
 impl<'de> serde::Deserialize<'de> for Arena {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let nodes = Vec::<Option<Rc<Node>>>::deserialize(deserializer)?;
-        let mut storage = Storage {
-            nodes,
-            ..Storage::default()
-        };
-        for (index, node) in storage.nodes.iter().enumerate() {
-            if let Some(node) = node {
-                let expression =
-                    Expression(u32::try_from(index).map_err(serde::de::Error::custom)?);
-                node.try_for_each_child(|child, _| {
-                    if child.index() >= index
-                        || !storage
-                            .nodes
-                            .get(child.index())
-                            .is_some_and(Option::is_some)
-                    {
-                        return Err(serde::de::Error::custom("invalid arena reference"));
-                    }
-                    Ok(())
-                })?;
-                storage.interned.insert(node.clone(), expression);
+        struct Graph;
+        impl<'de> serde::de::Visitor<'de> for Graph {
+            type Value = Arena;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("stored expression graph")
             }
-            storage.properties.push(
-                node.as_ref()
-                    .map_or((None, false, false), |node| storage.node_properties(node)),
-            );
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<Arena, A::Error> {
+                use serde::de::Error;
+                match seq.next_element::<u8>()? {
+                    Some(0) => seq
+                        .next_element::<InlineOwned>()?
+                        .map(|arena| arena.0)
+                        .ok_or_else(|| A::Error::custom("missing inline graph")),
+                    Some(1) => {
+                        let saved: RestoredArena = seq
+                            .next_element()?
+                            .ok_or_else(|| A::Error::custom("missing stored graph"))?;
+                        crate::ids::reserve_identities(saved.identity_boundary);
+                        let store = crate::graph_store::current()
+                            .ok_or_else(|| A::Error::custom("graph store unavailable"))?;
+                        let nodes = crate::node_store::NodeStore::restore(saved.nodes, store)
+                            .map_err(A::Error::custom)?;
+                        let len = nodes.len();
+                        if len > u32::MAX as usize
+                            || saved.properties.bounds.len() != len
+                            || saved.properties.flags.len() != len
+                        {
+                            return Err(A::Error::custom("invalid graph indices"));
+                        }
+                        let mut seen = vec![false; len];
+                        let mut live = 0;
+                        for &head in saved.interned.values() {
+                            let mut current = Some(head);
+                            while let Some(node) = current {
+                                if !nodes.is_live(node.index())
+                                    || std::mem::replace(&mut seen[node.index()], true)
+                                {
+                                    return Err(A::Error::custom("invalid intern index"));
+                                }
+                                live += 1;
+                                current = saved.collisions.get(&node).copied();
+                            }
+                        }
+                        if (0..len).any(|index| seen[index] != nodes.is_live(index))
+                            || saved
+                                .collisions
+                                .keys()
+                                .any(|node| !nodes.is_live(node.index()))
+                        {
+                            return Err(A::Error::custom("incomplete intern index"));
+                        }
+                        let storage = Storage {
+                            nodes,
+                            properties: saved.properties,
+                            interned: saved.interned,
+                            collisions: saved.collisions,
+                            live,
+                            ..Storage::default()
+                        };
+                        Ok(Arena(Rc::new(RefCell::new(storage))))
+                    }
+                    _ => Err(A::Error::custom("unknown graph storage format")),
+                }
+            }
         }
-        Ok(Self(Rc::new(RefCell::new(storage))))
+        deserializer.deserialize_tuple(2, Graph)
     }
 }
 
@@ -911,5 +1151,35 @@ impl Node {
             Self::RunCase { .. } => "RunCase",
             Self::ReturnType { .. } => "ReturnType",
         }
+    }
+}
+
+#[cfg(test)]
+mod intern_tests {
+    use super::*;
+
+    #[test]
+    fn hash_collisions_preserve_handles_through_snapshot_and_rollback() {
+        let mut hashes = FxHashMap::default();
+        let (left, right) = (0..1_000_000)
+            .find_map(|index| {
+                hashes
+                    .insert(Storage::hash(&Node::Bound(index)), index)
+                    .map(|previous| (Node::Bound(previous), Node::Bound(index)))
+            })
+            .expect("collision in compact candidate keys");
+        let arena = Arena::default();
+        let first = arena.alloc(left.clone());
+        let mark = arena.scratch_mark();
+        let second = arena.alloc(right.clone());
+        assert_ne!(first, second);
+        assert_eq!(arena.alloc(left.clone()), first);
+        assert_eq!(arena.alloc(right.clone()), second);
+        let bytes = postcard::to_stdvec(&arena).unwrap();
+        arena.rollback_import(mark);
+        assert_eq!(arena.alloc(left.clone()), first);
+        let restored: Arena = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(restored.alloc(left), first);
+        assert_eq!(restored.alloc(right), second);
     }
 }

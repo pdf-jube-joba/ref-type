@@ -32,16 +32,34 @@ python3 benchmarks/bench.py cache --binary target/release/cli --depth 8
 python3 benchmarks/bench.py run benchmarks/inputs/shared-bodies.ref --runs 3
 python3 benchmarks/bench.py libraries libs/category --binary target/release/cli
 python3 benchmarks/scaling.py --binary target/release/cli --depths 8 16 32 64
+python3 benchmarks/large_scale.py --binary target/release/cli --sizes 16 32 64 --runs 3
 ```
 
 `libraries` の入力を省略すると、`libs/ref.toml` の package とその依存先を列挙する。
 同じ package に複数の経路から依存していても一度だけ計測する。
 
 `cache` は無変更検査、別の利用側、入口編集、推移依存編集、依存順変更、独立した依存の追加を順に計測する。
-`--checkpoint` は CLI が checkpoint の保存を報告した時点で中断し、同じ保存先からの再開と再検査を追加する。
+checkpointの保存先を使用不能にした場合の診断と、保存先を修復した後の検査も確認する。
+`--checkpoint` は保存報告後の中断・再開・無変更検査と、worker の強制終了からの自動復旧を追加する。
 
 `scaling.py` は各 package の宣言数を固定し、依存チェーンの深さだけを変えて空のキャッシュから計測する。
 `--width` は各 package の宣言数、`--force` は `--full-check` を指定する。
+
+`large_scale.py` は依存チェーン、共通依存の利用側、namespace の幅、import 数、局所文脈での import、独立した宣言群を個別に増やす。
+`--axes` で対象を選び、`--resident-mib` で式ページの常駐予算を指定する。
+
+`large_scale_suite.py` は個別選択の3回計測、3072 / 8192 MiBでの全体検査、再利用、規模変更、復旧を順番に実行する。
+`--baseline` を指定すると同じ個別選択と、600秒を上限にした旧方式の全体検査を追加する。
+ビルド済みのバイナリを指定し、実行する項目は `--stages`、全体検査と再利用の入力は `--packages` で選べる。
+
+```sh
+python3 benchmarks/large_scale_suite.py --binary target/debug/cli --baseline benchmarks/runs/baseline-cli
+```
+
+`resolve-bench PATH --retention` はpackageごとに名前解決し、検査済み入力の解放を模擬してresolverの保持量を測る。
+ソース構文木を保持した状態と解放した状態を分け、LinuxではRSSと仮想メモリを出力する。
+system allocatorを使い、GNU環境では未使用ページを返してから観測する。
+このモードは型検査を行わず、CLIの完走計測とは分けて使う。
 
 ## 出力とキャッシュ
 
@@ -69,7 +87,7 @@ wall time、user time、system time、最大 RSS、終了状態、ソースの d
 | `--memory-mib` | 3072 MiB。各プロセスの仮想メモリ上限 |
 | `--cache-mib` | 省略時は無制限。CLI のキャッシュ容量設定 |
 | `--output-mib` | 8 MiB。各実行のログ容量上限 |
-| `--batch-seconds` | CLI が検査範囲を分割するまでの秒数 |
+| `--batch-seconds` | 比較用の旧 CLI に渡す、検査範囲を分割するまでの秒数 |
 | `--progress-seconds` | 30秒。実行中の経過時間を表示する間隔 |
 
 中断や上限到達では supervisor に終了を通知し、子プロセスの回収を待ってから必要なら強制終了する。

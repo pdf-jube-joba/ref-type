@@ -14,7 +14,7 @@ pub enum PackageProgress {
         selected: BTreeSet<usize>,
     },
     Step(CheckStepProgress),
-    Saving,
+    Saving(Box<SessionStatistics>),
     Checkpoint {
         steps: usize,
         bytes: postcard::Result<Vec<u8>>,
@@ -23,6 +23,17 @@ pub enum PackageProgress {
         steps: usize,
         artifact: artifact::Result<PackageArtifact>,
     },
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SessionStatistics {
+    pub completed_steps: usize,
+    pub namespace_entries: usize,
+    pub materialized_definitions: usize,
+    pub materialized_inductives: usize,
+    pub materialized_datatypes: usize,
+    pub retained_tables: std::collections::BTreeMap<String, usize>,
+    pub graph: kernel::StoreStats,
 }
 
 pub const MAX_PACKAGE_BYTES: usize = 512 * 1024 * 1024;
@@ -73,15 +84,65 @@ fn serialize_workspace<S: serde::Serializer>(
 }
 
 impl PackageChecker {
+    /// Position immediately after the last completed step in this snapshot.
+    pub fn checkpoint_position(&self) -> usize {
+        self.completed.last().map_or(0, |position| position + 1)
+    }
+
+    pub fn statistics(&self) -> crate::Statistics {
+        crate::Statistics::from_workspace(&self.workspace)
+    }
+
+    pub fn session_statistics(&self) -> SessionStatistics {
+        Self::statistics_for(&self.resolution, &self.workspace, self.completed.len())
+    }
+
+    fn statistics_for(
+        resolution: &resolve::Session,
+        workspace: &GlobalEnvironment,
+        completed_steps: usize,
+    ) -> SessionStatistics {
+        let env = &workspace.crate_env;
+        let materialized = env.materialization_stats();
+        SessionStatistics {
+            completed_steps,
+            namespace_entries: env.namespace_entry_count(),
+            materialized_definitions: materialized.definitions,
+            materialized_inductives: materialized.inductives,
+            materialized_datatypes: materialized.datatypes,
+            retained_tables: env
+                .storage_counts()
+                .into_iter()
+                .chain(resolution.storage_counts())
+                .map(|(name, count)| (name.to_owned(), count))
+                .collect(),
+            graph: env.arena().core.store_stats(),
+        }
+    }
     pub fn has_resolution(&self, name: &str) -> bool {
         self.resolution.contains_package(name)
     }
 
     /// Resolve declarations without marking any type-checking step complete.
     pub fn append_resolution(&mut self, module: &Module) -> Result<(), crate::Diagnostic> {
+        self.workspace.release_resolution_tables();
         let project = self
             .resolution
             .append(module)
+            .map_err(crate::Diagnostic::resolution)?;
+        self.steps = project.order.len();
+        Ok(())
+    }
+
+    pub fn append_resolution_selected(
+        &mut self,
+        module: &Module,
+        selected: &BTreeSet<Vec<String>>,
+    ) -> Result<(), crate::Diagnostic> {
+        self.workspace.release_resolution_tables();
+        let project = self
+            .resolution
+            .append_selected(module, Some(selected))
             .map_err(crate::Diagnostic::resolution)?;
         self.steps = project.order.len();
         Ok(())
@@ -99,7 +160,7 @@ impl PackageChecker {
 
     pub fn prepare_export(&mut self) {
         if self.artifact_entry_count() > 500_000 {
-            self.workspace.crate_env.clear_caches();
+            self.workspace.crate_env.clear_judgements();
         }
     }
 
@@ -123,7 +184,7 @@ impl PackageChecker {
         interval: Option<Duration>,
         progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
-        self.append_selection(module, None, interval, None, progress)
+        self.append_selection(module, false, None, interval, None, progress)
     }
 
     pub fn append_selected_with_checkpoints(
@@ -133,7 +194,14 @@ impl PackageChecker {
         interval: Option<Duration>,
         progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
-        self.append_selection(module, Some(selected_paths), interval, None, progress)
+        self.append_selection(
+            module,
+            false,
+            Some(selected_paths),
+            interval,
+            None,
+            progress,
+        )
     }
 
     /// Emit owned package checkpoints directly from the live checking boundary.
@@ -150,6 +218,7 @@ impl PackageChecker {
     ) -> Result<(), crate::Diagnostic> {
         self.append_selection(
             module,
+            false,
             Some(selected_paths),
             interval,
             Some(ArtifactCheckpoint {
@@ -162,21 +231,37 @@ impl PackageChecker {
         )
     }
 
+    pub fn append_session_selected(
+        &mut self,
+        module: &Module,
+        selected_paths: &BTreeSet<Vec<String>>,
+        interval: Option<Duration>,
+        progress: impl FnMut(PackageProgress),
+    ) -> Result<(), crate::Diagnostic> {
+        self.append_selection(module, true, Some(selected_paths), interval, None, progress)
+    }
+
     fn append_selection(
         &mut self,
         module: &Module,
+        resolve_selected: bool,
         selected_paths: Option<&BTreeSet<Vec<String>>>,
         mut interval: Option<Duration>,
         mut artifact_checkpoint: Option<ArtifactCheckpoint<'_>>,
         mut progress: impl FnMut(PackageProgress),
     ) -> Result<(), crate::Diagnostic> {
-        let project = if self.pending || self.resolution.contains_package(module.name.as_str()) {
-            self.resolution.project()
-        } else {
-            self.resolution
-                .append(module)
-                .map_err(crate::Diagnostic::resolution)?
-        };
+        self.workspace.release_resolution_tables();
+        let project = self
+            .resolution
+            .append_selected(
+                module,
+                if resolve_selected {
+                    selected_paths
+                } else {
+                    None
+                },
+            )
+            .map_err(crate::Diagnostic::resolution)?;
         self.pending = true;
         let end = project.order.len();
         fn collect(
@@ -193,7 +278,7 @@ impl PackageChecker {
             }
             paths.insert(module.id, prefix.clone());
             if let resolve::hir::ModuleBody::Inline(items) = &module.body {
-                for item in items {
+                for item in items.iter() {
                     if let resolve::hir::ModuleItem::ChildModule { module } = item {
                         collect(module, prefix, paths, seen);
                     }
@@ -259,6 +344,8 @@ impl PackageChecker {
         };
         let progress = std::cell::RefCell::new(&mut progress);
         let mut saved_at = Instant::now();
+        let mut minimum_save_spacing = Duration::ZERO;
+        let mut observed_at = Instant::now();
         let result = checker
             .workspace
             .add_project_range(
@@ -268,14 +355,63 @@ impl PackageChecker {
                 &selected,
                 &mut |steps, workspace| {
                     completed.insert(steps - 1);
+                    let pressure = kernel::resources::take_collection_request();
+                    let caches: usize = workspace
+                        .crate_env
+                        .cache_counts()
+                        .iter()
+                        .map(|(_, count)| count)
+                        .sum::<usize>()
+                        + workspace
+                            .crate_env
+                            .kernel
+                            .borrow()
+                            .cache_counts()
+                            .iter()
+                            .map(|(_, count)| count)
+                            .sum::<usize>();
+                    if pressure || caches > 262_144 {
+                        workspace.crate_env.clear_judgements();
+                        let _ = workspace.crate_env.arena().core.trim();
+                        timing::costs::count("session.collections", || 1);
+                        if pressure {
+                            kernel::resources::collect_allocator();
+                        }
+                    }
+                    if observed_at.elapsed() >= Duration::from_secs(10)
+                        && std::env::var_os("REF_TYPE_PROFILE_STORAGE").is_some()
+                    {
+                        eprintln!(
+                            "session steps={} namespaces={} expressions={} caches={} pages={:?}",
+                            completed.len(),
+                            workspace.crate_env.namespace_entry_count(),
+                            workspace.crate_env.arena().core.len(),
+                            caches,
+                            workspace.crate_env.arena().core.store_stats()
+                        );
+                        eprintln!("storage {:?}", workspace.crate_env.storage_counts());
+                        observed_at = Instant::now();
+                    }
                     if steps == end
                         || !boundaries.contains(&steps)
-                        || interval.is_none_or(|period| saved_at.elapsed() < period)
+                        || interval.is_none()
+                        || interval.is_none_or(|period| {
+                            let spacing = if pressure {
+                                minimum_save_spacing
+                            } else {
+                                period
+                            };
+                            saved_at.elapsed() < spacing
+                        })
                     {
                         return;
                     }
                     let _time = timing::Scope::shared();
-                    progress.borrow_mut()(PackageProgress::Saving);
+                    progress.borrow_mut()(PackageProgress::Saving(Box::new(Self::statistics_for(
+                        &self.resolution,
+                        workspace,
+                        completed.len(),
+                    ))));
                     let started = Instant::now();
                     if workspace.crate_env.arena().core.len()
                         + workspace.crate_env.namespace_entry_count()
@@ -318,6 +454,14 @@ impl PackageChecker {
                         failed
                     };
                     let cost = started.elapsed();
+                    // Persistent pressure also arrives while serializing. Keep
+                    // collection immediate, but do not let these signals cause
+                    // another expensive save at the very next boundary.
+                    minimum_save_spacing = if interval.is_some_and(|period| period.is_zero()) {
+                        Duration::ZERO
+                    } else {
+                        cost.saturating_mul(10)
+                    };
                     // A growing environment will not fit again after hitting the budget.
                     // Successful writes adapt the cadence to keep checkpoint I/O bounded.
                     interval = if failed {
@@ -327,7 +471,7 @@ impl PackageChecker {
                             if period.is_zero() {
                                 period
                             } else {
-                                period.max(cost.saturating_mul(10))
+                                period.max(minimum_save_spacing)
                             }
                         })
                     };
@@ -341,6 +485,7 @@ impl PackageChecker {
         if result.is_ok() {
             self.steps = end;
             self.pending = false;
+            self.resolution.retire_checked_bodies(&selected);
         }
         result
     }
@@ -362,12 +507,9 @@ impl PackageChecker {
         if bytes.len() > MAX_PACKAGE_BYTES {
             return None;
         }
-        let inflate = crate::profiling::Phase::start("package.inflate");
-        let decoded = crate::checkpoint::decompress::<MAX_PACKAGE_BYTES>(bytes)?;
-        drop(inflate);
         let deserialize = crate::profiling::Phase::start("package.deserialize");
-        let mut saved: Self = postcard::from_bytes(&decoded).ok()?;
-        drop(decoded);
+        let mut saved: Self =
+            crate::checkpoint::deserialize_bounded::<Self, MAX_PACKAGE_BYTES>(bytes)?;
         drop(deserialize);
         let _reconnect = crate::profiling::Phase::start("package.reconnect");
         saved.resolution.restore_sources(sources)?;

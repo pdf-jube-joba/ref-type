@@ -40,12 +40,14 @@ pub struct Declaration {
     pub ty: Option<String>,
 }
 
+pub type Reference = Arc<ReferenceData>;
+
 /// A source occurrence whose lexical target is known before type inference.
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
-pub struct Reference {
-    pub module: Vec<String>,
+pub struct ReferenceData {
+    pub module: Arc<Vec<String>>,
     pub location: SourceLocation,
-    pub target_module: Vec<String>,
+    pub target_module: Arc<Vec<String>>,
     pub target_name: String,
 }
 
@@ -82,9 +84,9 @@ pub struct Project {
     pub declarations: Vec<Declaration>,
     pub modules: Vec<Module>,
     pub references: Vec<Reference>,
-    pub bindings: HashMap<BindingId, Binding>,
+    pub bindings: Arc<HashMap<BindingId, Binding>>,
     pub order: Vec<CheckStep>,
-    pub imports: HashMap<BindingId, Import>,
+    pub imports: Arc<HashMap<BindingId, Import>>,
 }
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Clone, Default)]
@@ -92,14 +94,14 @@ struct Scope {
     compiled: bool,
     closed: bool,
     parent: Option<ModuleId>,
-    children: FxHashMap<String, ModuleId>,
+    children: Arc<FxHashMap<String, ModuleId>>,
     names: Arc<FxHashMap<String, BindingId>>,
     imports: FxHashMap<String, ModuleId>,
-    import_ids: FxHashMap<String, BindingId>,
+    import_ids: Arc<FxHashMap<String, BindingId>>,
     macros: Vec<MacroBinding>,
     used: Vec<MacroBinding>,
     remapping: ModuleMap,
-    substitutions: Arc<HashMap<BindingId, Arc<SExp>>>,
+    substitutions: Arc<Arguments>,
 }
 
 // A child needs the term environment at its declaration position until it is
@@ -108,7 +110,7 @@ struct Scope {
 struct TermScope {
     names: Arc<FxHashMap<String, BindingId>>,
     imports: FxHashMap<String, ModuleId>,
-    import_ids: FxHashMap<String, BindingId>,
+    import_ids: Arc<FxHashMap<String, BindingId>>,
 }
 
 impl Scope {
@@ -146,6 +148,31 @@ use macro_scopes::{MacroWork, work_macro_names};
 #[path = "structures.rs"]
 mod structures;
 
+#[path = "scope_checkpoint.rs"]
+mod scope_checkpoint;
+
+#[path = "argument_environment.rs"]
+mod argument_environment;
+use argument_environment::Arguments;
+
+#[path = "selection.rs"]
+mod selection;
+use selection::Selection;
+
+#[path = "reference_checkpoint.rs"]
+mod reference_checkpoint;
+
+#[path = "argument_debug.rs"]
+mod argument_debug;
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct DeferredSyntax(syntax::syntax::Module);
+impl artifact::Relocate for DeferredSyntax {
+    fn relocate(&mut self, _: &mut artifact::Relocation) -> artifact::Result<()> {
+        Ok(())
+    }
+}
+
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Default)]
 struct Resolver {
     declarations: Vec<Declaration>,
@@ -159,28 +186,37 @@ struct Resolver {
     last_parameter_checks: Vec<(SExp, SExp)>,
     module_inputs: FxHashMap<ModuleId, Vec<structures::Input>>,
     module_parameters: FxHashMap<ModuleId, Vec<RightBind>>,
+    #[serde(with = "scope_checkpoint")]
     scopes: Vec<Scope>,
     input: FxHashMap<ModuleId, Module>,
+    deferred: FxHashMap<ModuleId, DeferredSyntax>,
     output: FxHashMap<ModuleId, Module>,
+    #[serde(skip)]
+    changed_roots: FxHashSet<ModuleId>,
     origins: FxHashMap<ModuleId, ModuleId>,
     paths: FxHashMap<ModuleId, Vec<String>>,
     occurrences: FxHashMap<(ModuleId, String), usize>,
     states: FxHashMap<ModuleId, u8>,
-    imports: HashMap<BindingId, Import>,
-    module_selections: FxHashMap<ModuleId, ModuleInstantiatePath>,
+    #[serde(with = "crate::import_checkpoint")]
+    imports: Arc<HashMap<BindingId, Import>>,
+    #[serde(with = "selection")]
+    module_selections: FxHashMap<ModuleId, Arc<Selection>>,
     next_binding: u64,
     next_expression: u64,
     next_macro: u64,
     next_hygiene: Cell<u64>,
     location: Option<SourceLocation>,
     current: ModuleId,
+    #[serde(with = "reference_checkpoint")]
     references: RefCell<Vec<Reference>>,
+    #[serde(skip)]
+    reference_paths: RefCell<FxHashMap<ModuleId, Arc<Vec<String>>>>,
     // Source files stay alive throughout resolution; their Arc addresses identify
     // repeated probes of the same occurrence without copying paths or names.
     #[serde(skip)]
     reference_occurrences: RefCell<FxHashSet<(usize, ModuleId, usize, usize, BindingId)>>,
     reference_probes: Cell<u64>,
-    global_bindings: HashMap<BindingId, Binding>,
+    global_bindings: Arc<HashMap<BindingId, Binding>>,
     order: Vec<CheckStep>,
     work: FxHashMap<ModuleId, MacroWork>,
     dependency_stack: Vec<(ModuleId, usize)>,
@@ -209,7 +245,7 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
         let _cost = timing::costs::Scope::enter("resolve.assemble");
         *module = outputs.remove(&module.id).expect("resolved module");
         if let ModuleBody::Inline(items) = &mut module.body {
-            for item in items {
+            for item in std::sync::Arc::make_mut(items) {
                 if let ModuleItem::ChildModule { module } = item {
                     assemble(module, outputs);
                 }
@@ -248,38 +284,247 @@ pub struct Session {
 }
 
 impl Session {
+    /// Persistent identities and shared resolver environments, independent of
+    /// the kernel's resident expression-page budget.
+    pub fn storage_counts(&self) -> Vec<(&'static str, usize)> {
+        let resolver = &self.resolver;
+        let mut environments = FxHashSet::default();
+        let mut expressions = FxHashSet::default();
+        let mut argument_entries = 0;
+        let mut pending: Vec<_> = resolver.scopes.iter().map(|s| &s.substitutions).collect();
+        while let Some(arguments) = pending.pop() {
+            if !environments.insert(Arc::as_ptr(arguments)) {
+                continue;
+            }
+            let values = match arguments.as_ref() {
+                Arguments::Values(values) => Some(values),
+                Arguments::Overlay(base, values) => {
+                    pending.push(base);
+                    Some(values)
+                }
+                Arguments::Apply(base, arguments, _) => {
+                    pending.extend([base, arguments]);
+                    None
+                }
+            };
+            if let Some(values) = values {
+                argument_entries += values.len();
+                expressions.extend(values.values().map(Arc::as_ptr));
+            }
+        }
+        let mut selections = FxHashSet::default();
+        let mut pending: Vec<_> = resolver.module_selections.values().collect();
+        while let Some(selection) = pending.pop() {
+            if selections.insert(Arc::as_ptr(selection)) {
+                match selection.as_ref() {
+                    Selection::Path(_) => {}
+                    Selection::Append(base, _) | Selection::Apply(base, ..) => pending.push(base),
+                }
+            }
+        }
+        vec![
+            ("resolver source modules", resolver.input.len()),
+            (
+                "resolver scope capacity bytes",
+                resolver.scopes.capacity() * std::mem::size_of::<Scope>(),
+            ),
+            ("resolver instance scopes", resolver.origins.len()),
+            ("resolver argument environments", environments.len()),
+            ("resolver argument entries", argument_entries),
+            ("resolver argument expressions", expressions.len()),
+            ("resolver selection nodes", selections.len()),
+            (
+                "resolver source references",
+                resolver.references.borrow().len(),
+            ),
+        ]
+    }
+
     pub fn append(&mut self, module: &syntax::syntax::Module) -> Result<Project, Diagnostic> {
+        self.append_selected(module, None)
+    }
+
+    /// Reserve source identities once, then extend the resolved request set.
+    /// Unselected bodies stay in `input`, with their lexical term scope captured
+    /// when the parent is resolved. Their errors do not affect another request.
+    pub fn append_selected(
+        &mut self,
+        module: &syntax::syntax::Module,
+        selected: Option<&std::collections::BTreeSet<Vec<String>>>,
+    ) -> Result<Project, Diagnostic> {
         let _cost = timing::costs::Scope::enter("resolve.package");
+        let exists = self.contains_package(module.name.as_str());
         let resolver = &mut self.resolver;
         if resolver.scopes.is_empty() {
             resolver.scopes.push(Scope::default());
         }
-        let mut root = lower::module(module.clone());
-        let first = resolver.scopes.len() as u32;
-        resolver.reserve(ModuleId(0), &mut root);
+        if !exists {
+            fn headers(module: &syntax::syntax::Module) -> syntax::syntax::Module {
+                let mut result = module.clone();
+                if let syntax::syntax::ModuleBody::Inline(items) = &module.body {
+                    result.body = syntax::syntax::ModuleBody::Inline(
+                        items
+                            .iter()
+                            .filter_map(|item| {
+                                if let syntax::syntax::ModuleItem::ChildModule { module } = item {
+                                    Some(syntax::syntax::ModuleItem::ChildModule {
+                                        module: Box::new(headers(module)),
+                                    })
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .into(),
+                    );
+                }
+                result
+            }
+            fn defer(resolver: &mut Resolver, id: ModuleId, module: &syntax::syntax::Module) {
+                let children: Vec<_> = match &resolver.input[&id].body {
+                    ModuleBody::Inline(items) => items
+                        .iter()
+                        .filter_map(|item| {
+                            if let ModuleItem::ChildModule { module } = item {
+                                Some(module.id)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
+                    ModuleBody::External => Vec::new(),
+                };
+                if let syntax::syntax::ModuleBody::Inline(items) = &module.body {
+                    for (id, child) in children.into_iter().zip(items.iter().filter_map(|item| {
+                        if let syntax::syntax::ModuleItem::ChildModule { module } = item {
+                            Some(module.as_ref())
+                        } else {
+                            None
+                        }
+                    })) {
+                        defer(resolver, id, child);
+                    }
+                }
+                resolver.deferred.insert(id, DeferredSyntax(module.clone()));
+            }
+            let mut root = lower::module(headers(module));
+            resolver.reserve(ModuleId(0), &mut root);
+            defer(resolver, root.id, module);
+            resolver.changed_roots.insert(root.id);
+            self.roots.push(root);
+        }
         let mut ids: Vec<_> = resolver
             .input
             .keys()
             .copied()
-            .filter(|id| id.0 >= first)
+            .filter(|id| {
+                let path = &resolver.paths[id];
+                path.first()
+                    .is_some_and(|name| name == module.name.as_str())
+                    && selected.is_none_or(|selected| {
+                        selected.iter().any(|request| request.starts_with(path))
+                    })
+            })
             .collect();
         ids.sort_by_key(|id| id.0);
         for id in ids {
             resolver.module(id)?;
         }
-        fn assemble(module: &mut Module, outputs: &mut FxHashMap<ModuleId, Module>) {
-            *module = outputs.remove(&module.id).expect("resolved package module");
+        fn assemble(module: &mut Module, resolver: &Resolver) {
+            *module = resolver
+                .output
+                .get(&module.id)
+                .or_else(|| resolver.input.get(&module.id))
+                .expect("reserved package module")
+                .clone();
+            let resolved = resolver.states.get(&module.id) == Some(&2);
             if let ModuleBody::Inline(items) = &mut module.body {
+                if resolved
+                    && !items
+                        .iter()
+                        .any(|item| matches!(item, ModuleItem::ChildModule { .. }))
+                {
+                    return;
+                }
+                let items = Arc::make_mut(items);
+                if !resolved {
+                    items.retain(|item| matches!(item, ModuleItem::ChildModule { .. }));
+                }
                 for item in items {
                     if let ModuleItem::ChildModule { module } = item {
-                        assemble(module, outputs);
+                        assemble(module, resolver);
                     }
                 }
             }
         }
-        assemble(&mut root, &mut resolver.output);
-        self.roots.push(root);
+        for root in &mut self.roots {
+            if resolver.changed_roots.remove(&root.id) {
+                assemble(root, resolver);
+            }
+        }
         Ok(self.project())
+    }
+
+    /// Elaboration owns the checked types and bodies. Retain source headers and
+    /// frontend expansion templates, but release completed checking inputs.
+    /// These steps must remain in the caller's completion ledger.
+    pub fn retire_checked_bodies(&mut self, positions: &std::collections::BTreeSet<usize>) {
+        let mut modules: FxHashSet<_> = positions
+            .iter()
+            .map(|&position| match self.resolver.order[position] {
+                CheckStep::Parameters(module) | CheckStep::Declaration { module, .. } => module,
+            })
+            .collect();
+        for (position, step) in self.resolver.order.iter().enumerate() {
+            if !positions.contains(&position) {
+                let module = match step {
+                    CheckStep::Parameters(module) | CheckStep::Declaration { module, .. } => module,
+                };
+                modules.remove(module);
+            }
+        }
+        let roots: FxHashSet<_> = modules
+            .iter()
+            .filter_map(|id| {
+                self.resolver
+                    .paths
+                    .get(id)
+                    .and_then(|path| path.first())
+                    .cloned()
+            })
+            .collect();
+        fn retire(module: &mut Module, modules: &FxHashSet<ModuleId>) {
+            let ModuleBody::Inline(items) = &module.body else {
+                return;
+            };
+            let finished = modules.contains(&module.id);
+            let items = items
+                .iter()
+                .filter_map(|item| match item {
+                    ModuleItem::ChildModule { module } => {
+                        let mut module = module.clone();
+                        retire(&mut module, modules);
+                        Some(ModuleItem::ChildModule { module })
+                    }
+                    _ if finished => None,
+                    _ => Some(item.clone()),
+                })
+                .collect::<Vec<_>>();
+            module.body = ModuleBody::Inline(items.into());
+            if finished {
+                module.parameter_checks.clear();
+            }
+        }
+        for id in &modules {
+            if let Some(module) = self.resolver.output.get_mut(id) {
+                retire(module, &modules);
+            }
+        }
+        for root in &mut self.roots {
+            if roots.contains(&root.name.0) {
+                retire(root, &modules);
+            }
+        }
     }
 
     /// Rebuild the resolved project when resuming a partially checked package.
@@ -311,7 +556,7 @@ impl Session {
                 *file = source(&file.id)?;
             }
             if let ModuleBody::Inline(items) = &mut value.body {
-                for item in items {
+                for item in std::sync::Arc::make_mut(items) {
                     if let ModuleItem::ChildModule { module: child } = item {
                         module(child, source)?;
                     }
@@ -334,11 +579,27 @@ impl Session {
         {
             module(value, &source)?;
         }
+        fn surface(
+            module: &mut syntax::syntax::Module,
+            source: &impl Fn(&SourceId) -> Option<Arc<SourceFile>>,
+        ) -> Option<()> {
+            for file in [&mut module.source, &mut module.header_source]
+                .into_iter()
+                .flatten()
+            {
+                *file = source(&file.id)?;
+            }
+            // Descendant bodies have their own deferred entry; lowering only uses headers here.
+            Some(())
+        }
+        for deferred in resolver.deferred.values_mut() {
+            surface(&mut deferred.0, &source)?;
+        }
         for declaration in &mut resolver.declarations {
             location(&mut declaration.location)?;
         }
         for reference in resolver.references.get_mut() {
-            location(&mut reference.location)?;
+            location(&mut Arc::make_mut(reference).location)?;
         }
         if let Some(value) = &mut resolver.location {
             location(value)?;
@@ -397,12 +658,11 @@ impl Resolver {
             parent: Some(parent),
             ..Scope::default()
         });
-        self.scopes[parent.0 as usize]
-            .children
+        Arc::make_mut(&mut self.scopes[parent.0 as usize].children)
             .entry(module.name.0.clone())
             .or_insert(module.id);
         if let ModuleBody::Inline(items) = &mut module.body {
-            for item in items {
+            for item in std::sync::Arc::make_mut(items) {
                 if let ModuleItem::ChildModule { module: child } = item {
                     self.reserve(module.id, child);
                 }
@@ -549,6 +809,15 @@ impl Resolver {
         }
     }
 
+    fn reference_path(&self, module: ModuleId) -> Arc<Vec<String>> {
+        let source = self.origins.get(&module).copied().unwrap_or(module);
+        self.reference_paths
+            .borrow_mut()
+            .entry(source)
+            .or_insert_with(|| Arc::new(self.path(source)))
+            .clone()
+    }
+
     fn record_reference(&self, module: ModuleId, id: BindingId, name: &str, span: SourceSpan) {
         let Some(location) = &self.location else {
             return;
@@ -567,15 +836,15 @@ impl Resolver {
         if !self.reference_occurrences.borrow_mut().insert(key) {
             return;
         }
-        self.references.borrow_mut().push(Reference {
-            module: self.path(self.current),
+        self.references.borrow_mut().push(Arc::new(ReferenceData {
+            module: self.reference_path(self.current),
             location: SourceLocation {
                 source: location.source.clone(),
                 span,
             },
-            target_module: self.path(module),
+            target_module: self.reference_path(module),
             target_name: name.trim_end_matches('^').to_owned(),
-        });
+        }));
     }
 
     fn access(&self, from: ModuleId, access: &mut LocalAccess) -> Result<(), Diagnostic> {
@@ -650,7 +919,7 @@ impl Resolver {
         let spelling = name.0.clone();
         let id = self.binding(name);
         Arc::make_mut(&mut self.scopes[self.current.0 as usize].names).insert(spelling, id);
-        self.global_bindings.insert(
+        Arc::make_mut(&mut self.global_bindings).insert(
             id,
             Binding {
                 module: self.current,
@@ -718,6 +987,36 @@ impl Resolver {
         let previous = self.current;
         let location = self.location.clone();
         self.current = id;
+        if let Some(DeferredSyntax(mut syntax)) = self.deferred.remove(&id) {
+            if let syntax::syntax::ModuleBody::Inline(items) = &mut syntax.body {
+                for item in Arc::make_mut(items) {
+                    if let syntax::syntax::ModuleItem::ChildModule { module } = item {
+                        module.body = syntax::syntax::ModuleBody::Inline(Arc::new(Vec::new()));
+                    }
+                }
+            }
+            let mut lowered = lower::module(syntax);
+            let reserved = &self.input[&id];
+            lowered.id = id;
+            lowered.name = reserved.name.clone();
+            if let (ModuleBody::Inline(old), ModuleBody::Inline(new)) =
+                (&reserved.body, &mut lowered.body)
+            {
+                let mut children = old.iter().filter_map(|item| {
+                    if let ModuleItem::ChildModule { module } = item {
+                        Some(module)
+                    } else {
+                        None
+                    }
+                });
+                for item in Arc::make_mut(new) {
+                    if let ModuleItem::ChildModule { module } = item {
+                        *module = children.next().expect("reserved child header").clone();
+                    }
+                }
+            }
+            self.input.insert(id, lowered);
+        }
         let input = self.input.get_mut(&id).expect("reserved module");
         let body = std::mem::replace(&mut input.body, ModuleBody::External);
         let mut module = Module {
@@ -748,9 +1047,17 @@ impl Resolver {
         }
         self.record_macro_template_references(id);
         let work = self.work.remove(&id).expect("module work");
-        *items = work.output;
+        *items = work.output.into();
         module.declaration_spans = work.output_spans;
         self.output.insert(id, module);
+        let mut root = id;
+        while let Some(parent) = self.scopes[root.0 as usize].parent {
+            if parent == ModuleId(0) {
+                break;
+            }
+            root = parent;
+        }
+        self.changed_roots.insert(root);
         self.states.insert(id, 2);
         self.current = previous;
         self.location = location;
@@ -1281,11 +1588,9 @@ impl Resolver {
         };
         let selection_source = target;
         let mut remapping = self.scopes[target.0 as usize].remapping.fork();
-        let mut substitutions: HashMap<_, _> = self.scopes[target.0 as usize]
-            .substitutions
-            .iter()
-            .map(|(&id, value)| (id, (**value).clone()))
-            .collect();
+        let inherited = self.scopes[target.0 as usize].substitutions.clone();
+        let original = inherited.materialize();
+        let mut substitutions = original.clone();
         let mut route = Vec::new();
         for (child, arguments) in calls.iter_mut() {
             for (_, argument) in arguments.iter_mut() {
@@ -1340,7 +1645,7 @@ impl Resolver {
             let mut argument_substitutions = substitutions.clone();
             for (name, argument) in arguments.iter() {
                 if let Some(id) = self.scopes[target.0 as usize].names.get(name.as_str()) {
-                    argument_substitutions.insert(*id, argument.clone());
+                    argument_substitutions.insert(*id, Arc::new(argument.clone()));
                 }
             }
             let mut expanded = Vec::new();
@@ -1390,7 +1695,7 @@ impl Resolver {
             for (name, argument) in arguments {
                 if let Some(id) = self.scopes[target.0 as usize].names.get(name.as_str()) {
                     name.1 = Some(*id);
-                    substitutions.insert(*id, argument.clone());
+                    substitutions.insert(*id, Arc::new(argument.clone()));
                 }
             }
             route.push(target);
@@ -1407,6 +1712,13 @@ impl Resolver {
             }
         }
         let destination = route.last().copied();
+        self.debug_module_arguments(name, calls);
+        let new_arguments = substitutions
+            .iter()
+            .filter(|(id, value)| original.get(id).is_none_or(|old| !Arc::ptr_eq(old, value)))
+            .map(|(&id, value)| (id, value.clone()))
+            .collect();
+        let shared_arguments = Arguments::overlay(inherited, new_arguments);
         for source in route {
             // Parameterless ancestors contribute no argument environment.
             if Some(source) != destination
@@ -1417,33 +1729,24 @@ impl Resolver {
             {
                 continue;
             }
-            target = self.instantiate(source, &mut remapping, &substitutions);
+            target = self.instantiate(source, &mut remapping, &substitutions, &shared_arguments);
         }
-        let mut selection = self
+        let base = self
             .module_selections
             .get(&selection_source)
             .cloned()
             .unwrap_or_else(|| {
-                if selection_source == ModuleId(0) {
+                Arc::new(Selection::Path(if selection_source == ModuleId(0) {
                     ModuleInstantiatePath::FromRoot { calls: Vec::new() }
                 } else {
                     ModuleInstantiatePath::FromModule {
                         module: selection_source,
                         calls: Vec::new(),
                     }
-                }
+                }))
             });
-        let selected_calls = match &mut selection {
-            ModuleInstantiatePath::FromModule { calls, .. }
-            | ModuleInstantiatePath::FromCurrent { calls, .. }
-            | ModuleInstantiatePath::FromRoot { calls }
-            | ModuleInstantiatePath::FromImport { calls, .. } => calls,
-        };
-        selected_calls.extend(calls.clone());
-        if selected_calls
-            .iter()
-            .any(|(_, arguments)| !arguments.is_empty())
-        {
+        let selection = Arc::new(Selection::Append(base, calls.clone()));
+        if selection.has_arguments() {
             self.module_selections.insert(target, selection);
         }
         let spelling = name.0.clone();
@@ -1451,10 +1754,8 @@ impl Resolver {
         self.scopes[self.current.0 as usize]
             .imports
             .insert(spelling.clone(), target);
-        self.scopes[self.current.0 as usize]
-            .import_ids
-            .insert(spelling, id);
-        self.imports.insert(
+        Arc::make_mut(&mut self.scopes[self.current.0 as usize].import_ids).insert(spelling, id);
+        Arc::make_mut(&mut self.imports).insert(
             id,
             Import {
                 owner: self.current,
@@ -1469,7 +1770,8 @@ impl Resolver {
         &mut self,
         source: ModuleId,
         remapping: &mut ModuleMap,
-        substitutions: &HashMap<BindingId, SExp>,
+        substitutions: &HashMap<BindingId, Arc<SExp>>,
+        shared_arguments: &Arc<Arguments>,
     ) -> ModuleId {
         let _cost = timing::costs::Scope::enter("resolve.instantiate");
         if substitutions.is_empty() && remapping.is_empty() && self.states.get(&source) == Some(&2)
@@ -1558,12 +1860,7 @@ impl Resolver {
         // Every scope in this graph has the same completed correspondence.
         // Sharing immutable maps avoids copying the whole graph per scope.
         let shared_remapping = remapping.clone();
-        let shared_arguments: HashMap<_, _> = substitutions
-            .iter()
-            .map(|(&id, value)| (id, Arc::new(value.clone())))
-            .collect();
-        let mut merged_substitutions: HashMap<usize, Arc<HashMap<BindingId, Arc<SExp>>>> =
-            HashMap::new();
+        let mut specialized_macros = FxHashMap::default();
         for (source, id) in pairs {
             let mut scope = self.scopes[source.0 as usize].specialization();
             scope.parent = scope
@@ -1577,18 +1874,26 @@ impl Resolver {
                     .get(&definition.instance)
                     .copied()
                     .unwrap_or(definition.instance);
-                definition.definition_scope = remapping
+                let key = Arc::as_ptr(&definition.definition) as usize;
+                if let Some(shared) = specialized_macros.get(&key) {
+                    definition.definition = Arc::clone(shared);
+                    continue;
+                }
+                let definition_scope = remapping
                     .get(&definition.definition_scope)
                     .copied()
                     .unwrap_or(definition.definition_scope);
-                macros::walk_sexp_control(&mut definition.template, &mut |node| {
+                let mut changed = definition_scope != definition.definition_scope;
+                let mut template = definition.template.clone();
+                macros::walk_sexp_control(&mut template, &mut |node| {
                     if let SExp::ProgramValueReference {
                         access:
                             LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
                     } = node
                         && let Some(argument) = access.1.and_then(|id| substitutions.get(&id))
                     {
-                        *node = argument.clone();
+                        changed = true;
+                        *node = (**argument).clone();
                         return false;
                     }
                     if let SExp::AccessPath {
@@ -1599,26 +1904,33 @@ impl Resolver {
                         && parameters.is_empty()
                         && let Some(argument) = access.1.and_then(|id| substitutions.get(&id))
                     {
+                        changed = true;
                         *node = if access.as_str().ends_with('^') {
                             SExp::Reflect {
                                 parameter: access.1.unwrap(),
-                                expression: Box::new(argument.clone()),
+                                expression: Box::new((**argument).clone()),
                             }
                         } else {
-                            argument.clone()
+                            (**argument).clone()
                         };
                         return false;
                     }
                     true
                 });
-                macros::walk_sexp_mut(&mut definition.template, &mut |node| match node {
+                macros::walk_sexp_mut(&mut template, &mut |node| match node {
                     SExp::ModuleInstance { path, import_name } => {
                         if let ModuleInstantiatePath::FromModule { module, .. } = path.as_mut() {
-                            *module = remapping.get(module).copied().unwrap_or(*module);
+                            let target = remapping.get(module).copied().unwrap_or(*module);
+                            changed |= target != *module;
+                            *module = target;
                         }
                         if let Some(mut import) =
                             import_name.1.and_then(|id| self.imports.get(&id)).cloned()
+                            && std::iter::once(&import.target)
+                                .chain(import.remapping.iter().map(|(_, target)| target))
+                                .any(|id| remapping.get(id).is_some_and(|target| target != id))
                         {
+                            changed = true;
                             import.target = remapping
                                 .get(&import.target)
                                 .copied()
@@ -1628,7 +1940,7 @@ impl Resolver {
                             }
                             import_name.1 = None;
                             let binding = self.binding(import_name);
-                            self.imports.insert(binding, import);
+                            Arc::make_mut(&mut self.imports).insert(binding, import);
                         }
                     }
                     SExp::AccessPath {
@@ -1649,7 +1961,11 @@ impl Resolver {
                     | SExp::ProgramCase {
                         path: LocalAccess::Resolved { module, .. },
                         ..
-                    } => *module = remapping.get(module).copied().unwrap_or(*module),
+                    } => {
+                        let target = remapping.get(module).copied().unwrap_or(*module);
+                        changed |= target != *module;
+                        *module = target;
+                    }
                     SExp::MathMacro {
                         scope: Some(module),
                         ..
@@ -1657,46 +1973,34 @@ impl Resolver {
                     | SExp::NamedMacro {
                         scope: Some(module),
                         ..
-                    } => *module = remapping.get(module).copied().unwrap_or(*module),
+                    } => {
+                        let target = remapping.get(module).copied().unwrap_or(*module);
+                        changed |= target != *module;
+                        *module = target;
+                    }
                     _ => {}
                 });
+                if changed {
+                    definition.definition_scope = definition_scope;
+                    definition.template = template;
+                }
+                specialized_macros.insert(key, definition.definition.clone());
             }
-            scope.remapping = shared_remapping.clone();
-            let key = if scope.substitutions.is_empty() {
-                0
-            } else {
-                Arc::as_ptr(&scope.substitutions) as usize
-            };
-            let merged = merged_substitutions.entry(key).or_insert_with(|| {
-                // Imported expressions can already contain arguments from an
-                // enclosing specialization. Compose that environment before
-                // adding the new arguments; insertion alone leaves those
-                // expressions referring to the original enclosing parameters.
-                let mut merged: HashMap<_, _> = scope
-                    .substitutions
-                    .iter()
-                    .map(|(id, expression)| {
-                        (
-                            *id,
-                            structures::substitute_shared(expression, substitutions),
-                        )
-                    })
-                    .collect();
-                merged.extend(shared_arguments.clone());
-                Arc::new(merged)
-            });
-            scope.substitutions = merged.clone();
+            scope.remapping = shared_remapping.after(&scope.remapping);
+            scope.substitutions = Arguments::apply(
+                scope.substitutions,
+                shared_arguments.clone(),
+                shared_remapping.clone(),
+            );
             if let Some(path) = self.module_selections.get(&source) {
-                let expression = SExp::ModuleInstance {
-                    path: Box::new(path.clone()),
-                    import_name: Identifier("<selection>".into()),
-                };
-                let mut expression = structures::substitute(&expression, substitutions);
-                structures::remap_modules(&mut expression, remapping);
-                let SExp::ModuleInstance { path, .. } = expression else {
-                    unreachable!()
-                };
-                self.module_selections.insert(id, *path);
+                self.module_selections.insert(
+                    id,
+                    Arc::new(Selection::Apply(
+                        path.clone(),
+                        shared_arguments.clone(),
+                        shared_remapping.clone(),
+                    )),
+                );
             }
             self.scopes[id.0 as usize] = scope;
         }

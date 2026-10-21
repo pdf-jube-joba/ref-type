@@ -260,3 +260,19 @@ impl diagnostics::DiagnosticError for Error {
         }
     }
 }
+
+impl Error {
+    pub(crate) fn diagnostic_data_in(&self, env: &CrateEnv) -> diagnostics::DiagnosticData {
+        use diagnostics::DiagnosticError;
+        match self {
+            Self::Kernel(error) => crate::lowering::diagnostics::diagnostic_data(env, error),
+            Self::Elaboration(error) => error.diagnostic_data_in(env),
+            Self::Context { source, .. } => {
+                let mut data = self.diagnostic_data();
+                data.causes = vec![source.diagnostic_data_in(env)];
+                data
+            }
+            _ => self.diagnostic_data(),
+        }
+    }
+}

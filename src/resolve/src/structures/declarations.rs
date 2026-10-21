@@ -95,7 +95,7 @@ impl Resolver {
             parameters: binders,
             parameter_checks: Vec::new(),
             declaration_spans: Vec::new(),
-            body: ModuleBody::Inline(Vec::new()),
+            body: ModuleBody::Inline(Vec::new().into()),
             span,
             source: location.as_ref().map(|l| l.source.clone()),
             header_source: location.as_ref().map(|l| l.source.clone()),
@@ -124,7 +124,7 @@ impl Resolver {
             self.process_declaration(item, &mut items)?;
             let checked = self.output.get_mut(&module.id).unwrap();
             checked.declaration_spans = vec![span; items.len()];
-            checked.body = ModuleBody::Inline(items);
+            checked.body = ModuleBody::Inline(items.into());
             let parameters = checked.parameters.clone();
             if !matches!(ty, SExp::ValueType) {
                 // The generated module already checks and owns this body.
@@ -273,7 +273,7 @@ impl Resolver {
         }
         let checked = self.output.get_mut(&module.id).unwrap();
         checked.declaration_spans = vec![span; checked_items.len()];
-        checked.body = ModuleBody::Inline(checked_items);
+        checked.body = ModuleBody::Inline(checked_items.into());
         value.parameters = checked.parameters.clone();
         value.inputs = self.module_inputs[&module.id].clone();
         value.checks.clear();
@@ -353,7 +353,7 @@ impl Resolver {
             parameter_checks: Vec::new(),
             parameter_sources,
             declaration_spans: Vec::new(),
-            body: ModuleBody::Inline(Vec::new()),
+            body: ModuleBody::Inline(Vec::new().into()),
             span,
             source: location.as_ref().map(|l| l.source.clone()),
             header_source: location.as_ref().map(|l| l.source.clone()),
@@ -464,7 +464,7 @@ impl Resolver {
                     parameter_checks: Vec::new(),
                     parameter_sources: module.parameter_sources.clone(),
                     declaration_spans: vec![span],
-                    body: ModuleBody::Inline(vec![item]),
+                    body: ModuleBody::Inline(vec![item].into()),
                     span,
                     source: module.source.clone(),
                     header_source: module.header_source.clone(),
@@ -529,7 +529,7 @@ impl Resolver {
                 fields: checked_fields,
             },
         );
-        self.global_bindings
+        Arc::make_mut(&mut self.global_bindings)
             .get_mut(&name.1.unwrap())
             .unwrap()
             .is_structure_signature = true;

@@ -29,6 +29,18 @@ leaf!(
     usize,
     String
 );
+impl<T: ModulePaths + Clone> ModulePaths for Arc<Vec<T>> {
+    fn visit_module_paths(&mut self, visitor: &mut impl FnMut(&mut ModuleInstantiatePath)) {
+        Arc::make_mut(self).visit_module_paths(visitor);
+    }
+    fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
+        self.as_ref().inspect_module_paths(action);
+    }
+}
+impl ModulePaths for Arc<SourceFile> {
+    fn visit_module_paths(&mut self, _: &mut impl FnMut(&mut ModuleInstantiatePath)) {}
+    fn inspect_module_paths(&self, _: &mut impl FnMut(&ModuleInstantiatePath)) {}
+}
 impl<T: ModulePaths> ModulePaths for Vec<T> {
     fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath)) {
         for item in self {
@@ -60,10 +72,6 @@ impl<T: ModulePaths> ModulePaths for Box<T> {
     fn inspect_module_paths(&self, action: &mut impl FnMut(&ModuleInstantiatePath)) {
         self.as_ref().inspect_module_paths(action);
     }
-}
-impl ModulePaths for Arc<SourceFile> {
-    fn visit_module_paths(&mut self, _: &mut impl FnMut(&mut ModuleInstantiatePath)) {}
-    fn inspect_module_paths(&self, _: &mut impl FnMut(&ModuleInstantiatePath)) {}
 }
 macro_rules! tuple {
     ($($ty:ident : $value:ident),+) => {

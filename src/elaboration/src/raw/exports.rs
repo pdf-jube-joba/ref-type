@@ -673,15 +673,9 @@ fn same<T: serde::Serialize>(left: &T, right: &T) -> Result<()> {
     }
     Ok(())
 }
-fn merge_cells<T: serde::Serialize>(
-    existing: &mut Vec<OnceCell<T>>,
-    incoming: Vec<OnceCell<T>>,
-) -> Result<()> {
-    for (index, cell) in incoming.into_iter().enumerate() {
-        if index == existing.len() {
-            existing.push(cell);
-            continue;
-        }
+fn merge_cells<T: serde::Serialize>(existing: &mut Slots<T>, incoming: Slots<T>) -> Result<()> {
+    existing.resize_with(existing.len().max(incoming.len()), OnceCell::new);
+    for (index, cell) in incoming.into_entries() {
         if let Some(value) = cell.into_inner() {
             if let Some(previous) = existing[index].get() {
                 same(previous, &value)?;
@@ -702,6 +696,16 @@ fn merge_module(existing: &mut ModuleEnv, incoming: ModuleEnv) -> Result<()> {
         existing.parameters = incoming.parameters;
     } else if !incoming.parameters.is_empty() {
         same(&existing.parameters, &incoming.parameters)?;
+    }
+    if existing.view.is_none() {
+        existing.view = incoming.view;
+    } else if let (Some(left), Some(right)) = (&existing.view, &incoming.view) {
+        // Construction remappings may have grown through different selections.
+        // The source and semantic telescope identify the immutable view.
+        same(
+            &(left.source, left.identity, &left.arguments),
+            &(right.source, right.identity, &right.arguments),
+        )?;
     }
     merge_cells(&mut existing.definitions, incoming.definitions)?;
     merge_cells(&mut existing.inductives, incoming.inductives)?;

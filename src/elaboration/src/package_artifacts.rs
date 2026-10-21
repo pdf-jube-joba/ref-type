@@ -519,6 +519,9 @@ impl PackageChecker {
             end
         };
         self.pending = resume;
+        // Overlapping partial artifacts share one resolver. Its retained bodies
+        // must follow the union of verified coverage, regardless of import order.
+        self.resolution.retire_checked_bodies(&self.completed);
         let dependencies = resolver
             .references
             .iter()
@@ -776,9 +779,10 @@ impl State<'_> {
                 if catalog.agrees(reference, runtime) == Some(false)
                     || previous.is_some_and(|old| old != runtime)
                 {
-                    return Err(Error(
-                        "package identity registered with conflicting runtime ID".into(),
-                    ));
+                    return Err(Error(format!(
+                        "package identity registered with conflicting runtime ID: {reference:?}, {runtime:?}, previous={previous:?}, stored={:?}",
+                        catalog.lookup(reference)
+                    )));
                 }
             }
             drop(additions);
@@ -898,7 +902,7 @@ mod tests {
             module.source = Some(source.clone());
             module.header_source = Some(source.clone());
             if let syntax::syntax::ModuleBody::Inline(items) = &mut module.body {
-                for item in items {
+                for item in std::sync::Arc::make_mut(items) {
                     if let syntax::syntax::ModuleItem::ChildModule { module } = item {
                         attach(module, source);
                     }

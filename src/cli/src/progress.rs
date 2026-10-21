@@ -113,7 +113,12 @@ impl State {
                 }
             }
             ProgressEvent::Finished { success } => self.success = Some(*success),
-            ProgressEvent::CheckpointSaved { .. } | ProgressEvent::EnvironmentReused { .. } => {}
+            ProgressEvent::StorageFailed { .. }
+            | ProgressEvent::CheckpointSaved { .. }
+            | ProgressEvent::StorageStats(_)
+            | ProgressEvent::SessionStatistics(_)
+            | ProgressEvent::EnvironmentReused { .. }
+            | ProgressEvent::DeclarationFinished { .. } => {}
         }
         None
     }
@@ -193,8 +198,26 @@ impl State {
                 elapsed.as_secs_f64(),
             ),
             ProgressEvent::Finished { success } => format!("event=finished success={success}"),
+            ProgressEvent::StorageFailed { message } => {
+                format!("event=storage-failed message={message}")
+            }
+            ProgressEvent::StorageStats(stats) => format!(
+                "event=storage read_bytes={} write_bytes={}",
+                stats.result_read_bytes + stats.environment_read_bytes,
+                stats.result_write_bytes + stats.environment_write_bytes,
+            ),
+            ProgressEvent::SessionStatistics(stats) => format!(
+                "event=session steps={} namespaces={} slots={} resident_bytes={}",
+                stats.completed_steps,
+                stats.namespace_entries,
+                stats.graph.allocated_slots,
+                stats.graph.resident_bytes,
+            ),
             ProgressEvent::CheckpointSaved { steps } => {
                 format!("event=checkpoint-saved steps={steps}")
+            }
+            ProgressEvent::DeclarationFinished { position, success } => {
+                format!("event=declaration-finished position={position} success={success}")
             }
             ProgressEvent::EnvironmentReused { extra_modules } => {
                 format!("event=environment-reused extra_modules={extra_modules}")
@@ -229,6 +252,9 @@ pub fn receive(event: &ProgressEvent) {
 }
 
 pub fn receive_timed(event: &ProgressEvent, elapsed: Duration) {
+    if let ProgressEvent::StorageFailed { message } = event {
+        eprintln!("検査結果の保存に失敗しました: {message}");
+    }
     ACTIVE.with_borrow(|active| {
         if let Some(active) = active {
             let mut state = active.state.lock().unwrap();

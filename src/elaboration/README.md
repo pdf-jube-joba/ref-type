@@ -19,11 +19,13 @@ module parameter は名前付き ID で保持し、kernel へ渡す際に参照�
 具体化は元の module と引数列を索引にし、変更のない宣言と同値と確認できた引数列を共有する。
 新しい具体化の作成時に過去の全引数列を比較する探索を省き、必要な変換可能性の判定は kernel に委譲する。
 比較キャッシュは上限を持ち、探索中の変換失敗は環境が進むと再試行する。
+名前空間は原形の不変なメンバー索引と共有引数を持つ view とし、検索したメンバーだけを具体化する。
+宣言 ID の予約には疎な表を使い、未参照メンバーの宣言セルは確保しない。
+view の同一性には原形の世代、引数、局所文脈、Program 文脈を含め、nominal identity を本文の具体化から独立させる。
 引数列は共有配列、本文は遅延生成する。
 元の module の引数列も共有し、parameter の追加と成果物の統合時にその索引を作り直す。
 局所文脈を持たない論理的な定義は元の本文を一度 kernel に登録し、特殊化した参照から module 引数を明示して呼び出す。
-論理宣言だけから成る閉じた namespace では、本文の局所変数を伴う匿名 import を元の宣言の登録で処理し、利用側の namespace 展開から省く。
-名前付き import と Program の具体化は、それぞれの宣言と検査文脈の対応を保持する。
+名前付き import、局所変数を持つ import、Program の具体化は、それぞれの宣言と検査文脈の対応を view に保持する。
 参照先の本文と引数の依存先は kernel 環境を借用する前に具体化する。
 置換 map の合成は DAG として共有し、探索中の同じ map とキーの組合せは失敗も含めて一度だけ調べる。
 具体化を確定するときも局所表だけを圧縮し、親の置換表の共有を維持する。
@@ -41,6 +43,7 @@ module parameter は名前付き ID で保持し、kernel へ渡す際に参照�
 [declaration_checkpoint.rs](src/raw/declaration_checkpoint.rs) は引数列と置換を共有表として保存し、宣言の行をストリームで符号化する。
 [module_checkpoint.rs](src/raw/module_checkpoint.rs) は namespace の不変な名前表とラベルの共有を復元する。
 `PackageChecker::checkpoint` は resolver・検査環境・完了したステップを保持し、`restore` は現在のソースと名前参照を再接続する。
+native のセッション保存では式ページと分割した索引を不変 object に保存し、本文を必要なページから読み込む。
 照合と永続化は [sema](../sema/README.md#再利用) が担当する。
 
 ## package 成果物

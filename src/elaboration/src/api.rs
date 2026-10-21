@@ -31,6 +31,7 @@ pub struct Goal {
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
     pub error: Box<ElaborationError>,
+    pub data: Box<diagnostics::DiagnosticData>,
     pub message: String,
     pub location: Option<SourceLocation>,
     pub goals: Vec<Goal>,
@@ -48,12 +49,14 @@ impl std::error::Error for Diagnostic {
 }
 impl diagnostics::DiagnosticError for Diagnostic {
     fn diagnostic_data(&self) -> diagnostics::DiagnosticData {
-        self.error.diagnostic_data()
+        self.data.as_ref().clone()
     }
 }
 impl Diagnostic {
     pub fn resolution(error: resolve::Diagnostic) -> Self {
+        use diagnostics::DiagnosticError;
         Self {
+            data: Box::new(error.diagnostic_data()),
             message: format!("Resolution Error: {error}"),
             location: error.location.clone(),
             error: Box::new(crate::error::Error::from(error).into()),
@@ -115,18 +118,7 @@ impl Checker {
     }
 
     pub fn statistics(&self) -> Statistics {
-        let workspace = &self.workspace;
-        let materializations = workspace.crate_env().materialization_stats();
-        Statistics {
-            raw_nodes: workspace.arena().node_counts().to_vec(),
-            raw_caches: workspace.crate_env().cache_counts().to_vec(),
-            kernel_nodes: workspace.kernel_env().arena().node_counts(),
-            kernel_caches: workspace.kernel_env().cache_counts().to_vec(),
-            kernel_declaration_nodes: workspace.kernel_env().declaration_node_count(),
-            materialized_definitions: materializations.definitions,
-            materialized_inductives: materializations.inductives,
-            materialized_datatypes: materializations.datatypes,
-        }
+        Statistics::from_workspace(&self.workspace)
     }
 
     pub(crate) fn diagnostic(&self, error: &ElaborationError) -> Diagnostic {
@@ -168,6 +160,7 @@ impl Checker {
             })
             .collect();
         Diagnostic {
+            data: Box::new(error.diagnostic_data_in(env)),
             error: Box::new(error.clone()),
             message: crate::diagnostics::bounded(
                 format!(
@@ -243,5 +236,21 @@ impl Checker {
                 &mut progress,
             )
             .map_err(|error| self.diagnostic(&error))
+    }
+}
+
+impl Statistics {
+    pub(crate) fn from_workspace(workspace: &GlobalEnvironment) -> Statistics {
+        let materializations = workspace.crate_env().materialization_stats();
+        Statistics {
+            raw_nodes: workspace.arena().node_counts().to_vec(),
+            raw_caches: workspace.crate_env().cache_counts().to_vec(),
+            kernel_nodes: workspace.kernel_env().arena().node_counts(),
+            kernel_caches: workspace.kernel_env().cache_counts().to_vec(),
+            kernel_declaration_nodes: workspace.kernel_env().declaration_node_count(),
+            materialized_definitions: materializations.definitions,
+            materialized_inductives: materializations.inductives,
+            materialized_datatypes: materializations.datatypes,
+        }
     }
 }

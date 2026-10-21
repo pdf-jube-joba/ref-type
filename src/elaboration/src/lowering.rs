@@ -301,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn reserved_inductive_keeps_source_identity_before_canonicalization() {
+    fn namespace_view_keeps_source_inductive_identity_after_materialization() {
         use raw::environment::{
             DeclarationRemapping, ModuleArgument, ModuleParameter, ModuleParameterKind,
         };
@@ -339,10 +339,21 @@ mod tests {
         });
         let reflected = vec![(source_parameter, adapter)];
         let substitutions = vec![(source_parameter, ModuleArgument::Pts(adapter))];
-        let reserved_module = raw.add_module();
-        let reserved = raw.reserve_lazy_inductive(reserved_module, source, reflected.clone());
-        let remapping = DeclarationRemapping::default();
-        raw.preview_lazy_inductive(reserved, &substitutions, &reflected, &remapping);
+        let (reserved_module, _) = raw
+            .bind_namespace_views(
+                caller,
+                &[source_module],
+                &vec![],
+                &vec![],
+                &substitutions,
+                &reflected,
+                DeclarationRemapping::default(),
+            )
+            .unwrap();
+        let reserved = raw::ids::InductiveId {
+            module: reserved_module,
+            index: source.index,
+        };
         let expression = raw.arena().alloc(ExpNode::IndType {
             indspec: reserved,
             parameters: vec![],
@@ -367,7 +378,7 @@ mod tests {
             s::Node::Product { .. }
         ));
         assert!(kernel.inductive(reserved.into()).is_none());
-        raw.reuse_lazy_inductive(reserved, &substitutions, &reflected, &remapping);
+        let _ = raw.inductive(reserved);
         let after = Lowerer::new(&raw, &mut kernel)
             .in_scope(vec![caller_parameter], 0, 0, |lower| {
                 lower.set(expression, &mut vec![], caller)

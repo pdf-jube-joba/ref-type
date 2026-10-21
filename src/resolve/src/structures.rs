@@ -105,22 +105,26 @@ pub(in crate::resolver) fn substitute<T: Borrow<SExp>>(
     expression
 }
 
-pub(in crate::resolver) fn substitute_shared(
+pub(in crate::resolver) fn specialize_shared<T: Borrow<SExp>>(
     expression: &Arc<SExp>,
-    values: &HashMap<BindingId, SExp>,
+    values: &HashMap<BindingId, T>,
+    remapping: &ModuleMap,
 ) -> Arc<SExp> {
-    if values.is_empty() {
+    if values.is_empty() && remapping.is_empty() {
         return expression.clone();
     }
     let mut result = (**expression).clone();
-    if substitute_in_place(&mut result, values) {
+    // Existing arguments can refer to another namespace in the same imported
+    // graph. Remap those references before inserting the caller's arguments.
+    let remapped = remap_modules(&mut result, remapping);
+    if substitute_in_place(&mut result, values) || remapped {
         Arc::new(result)
     } else {
         expression.clone()
     }
 }
 
-fn substitute_in_place<T: Borrow<SExp>>(
+pub(in crate::resolver) fn substitute_in_place<T: Borrow<SExp>>(
     expression: &mut SExp,
     values: &HashMap<BindingId, T>,
 ) -> bool {
@@ -129,113 +133,128 @@ fn substitute_in_place<T: Borrow<SExp>>(
     }
     let mut changed = false;
     macros::walk_sexp_control(expression, &mut |node| {
-        if let SExp::AccessPath {
-            access:
-                LocalAccess::Named {
-                    access,
-                    child,
-                    span,
-                },
-            parameters,
-        } = node
-            && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
-        {
-            *node = SExp::MemberAccess {
-                base: Box::new(value.clone()),
-                field: child.clone(),
-                parameters: parameters.clone(),
-                span: *span,
-            };
-            changed = true;
-            return false;
-        }
-        if let SExp::ProgramValueReference {
-            access: LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
-        } = node
-            && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
-        {
-            *node = value.clone();
-            changed = true;
-            return false;
-        }
-        if let SExp::AccessPath {
-            access: LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
-            parameters,
-        } = node
-            && parameters.is_empty()
-            && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
-        {
-            *node = if access.as_str().ends_with('^') {
-                SExp::ReflectTerm {
-                    expression: Box::new(value.clone()),
-                }
-            } else {
-                value.clone()
-            };
-            changed = true;
-            return false;
-        }
-        true
+        let replaced = substitute_node(node, values);
+        changed |= replaced;
+        !replaced
     });
     changed
 }
 
-pub(in crate::resolver) fn remap_modules(expression: &mut SExp, remapping: &ModuleMap) {
+fn substitute_node<T: Borrow<SExp>>(node: &mut SExp, values: &HashMap<BindingId, T>) -> bool {
+    if let SExp::AccessPath {
+        access:
+            LocalAccess::Named {
+                access,
+                child,
+                span,
+            },
+        parameters,
+    } = node
+        && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
+    {
+        *node = SExp::MemberAccess {
+            base: Box::new(value.clone()),
+            field: child.clone(),
+            parameters: parameters.clone(),
+            span: *span,
+        };
+        return true;
+    }
+    if let SExp::ProgramValueReference {
+        access: LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
+    } = node
+        && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
+    {
+        *node = value.clone();
+        return true;
+    }
+    if let SExp::AccessPath {
+        access: LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
+        parameters,
+    } = node
+        && parameters.is_empty()
+        && let Some(value) = access.1.and_then(|id| values.get(&id)).map(Borrow::borrow)
+    {
+        *node = if access.as_str().ends_with('^') {
+            SExp::ReflectTerm {
+                expression: Box::new(value.clone()),
+            }
+        } else {
+            value.clone()
+        };
+        return true;
+    }
+    false
+}
+
+pub(in crate::resolver) fn remap_modules(expression: &mut SExp, remapping: &ModuleMap) -> bool {
+    let mut changed = false;
     macros::walk_sexp_mut(expression, &mut |node| {
-        let path = match node {
-            SExp::ModuleInstance { path, .. } => Some(path),
-            SExp::AccessPath {
-                access: LocalAccess::Instantiated { path, .. },
-                ..
-            }
-            | SExp::ProgramValueReference {
-                access: LocalAccess::Instantiated { path, .. },
-            }
-            | SExp::RecordTypeCtor {
-                access: LocalAccess::Instantiated { path, .. },
-                ..
-            }
-            | SExp::IndCase {
-                path: LocalAccess::Instantiated { path, .. },
-                ..
-            }
-            | SExp::ProgramCase {
-                path: LocalAccess::Instantiated { path, .. },
-                ..
-            } => Some(path),
-            _ => None,
-        };
-        if let Some(path) = path
-            && let ModuleInstantiatePath::FromModule { module, .. } = path.as_mut()
-        {
-            *module = remapping.get(module).copied().unwrap_or(*module);
-        }
-        let module = match node {
-            SExp::ProgramValueReference {
-                access: LocalAccess::Resolved { module, .. },
-            }
-            | SExp::AccessPath {
-                access: LocalAccess::Resolved { module, .. },
-                ..
-            }
-            | SExp::RecordTypeCtor {
-                access: LocalAccess::Resolved { module, .. },
-                ..
-            }
-            | SExp::IndCase {
-                path: LocalAccess::Resolved { module, .. },
-                ..
-            }
-            | SExp::ProgramCase {
-                path: LocalAccess::Resolved { module, .. },
-                ..
-            } => Some(module),
-            _ => None,
-        };
-        if let Some(module) = module {
-            *module = remapping.get(module).copied().unwrap_or(*module);
-        }
+        changed |= remap_module_node(node, remapping);
     });
+    changed
+}
+
+fn remap_module_node(node: &mut SExp, remapping: &ModuleMap) -> bool {
+    let mut changed = false;
+    let path = match node {
+        SExp::ModuleInstance { path, .. } => Some(path),
+        SExp::AccessPath {
+            access: LocalAccess::Instantiated { path, .. },
+            ..
+        }
+        | SExp::ProgramValueReference {
+            access: LocalAccess::Instantiated { path, .. },
+        }
+        | SExp::RecordTypeCtor {
+            access: LocalAccess::Instantiated { path, .. },
+            ..
+        }
+        | SExp::IndCase {
+            path: LocalAccess::Instantiated { path, .. },
+            ..
+        }
+        | SExp::ProgramCase {
+            path: LocalAccess::Instantiated { path, .. },
+            ..
+        } => Some(path),
+        _ => None,
+    };
+    if let Some(path) = path
+        && let ModuleInstantiatePath::FromModule { module, .. } = path.as_mut()
+    {
+        let target = remapping.get(module).copied().unwrap_or(*module);
+        changed |= *module != target;
+        *module = target;
+    }
+    let module = match node {
+        SExp::ProgramValueReference {
+            access: LocalAccess::Resolved { module, .. },
+        }
+        | SExp::AccessPath {
+            access: LocalAccess::Resolved { module, .. },
+            ..
+        }
+        | SExp::RecordTypeCtor {
+            access: LocalAccess::Resolved { module, .. },
+            ..
+        }
+        | SExp::IndCase {
+            path: LocalAccess::Resolved { module, .. },
+            ..
+        }
+        | SExp::ProgramCase {
+            path: LocalAccess::Resolved { module, .. },
+            ..
+        } => Some(module),
+        _ => None,
+    };
+    if let Some(module) = module {
+        let target = remapping.get(module).copied().unwrap_or(*module);
+        changed |= *module != target;
+        *module = target;
+    }
+    changed
 }
 
 fn abstract_parameters(parameters: &[RightBind], mut expression: SExp) -> SExp {
@@ -313,7 +332,7 @@ impl Resolver {
         }
         let scope = &self.scopes[module.0 as usize];
         let mut changed = false;
-        for argument in scope.substitutions.values() {
+        for argument in scope.substitutions.materialize().values() {
             let mut argument = (**argument).clone();
             macros::walk_sexp_mut(&mut argument, &mut |node| {
                 if let SExp::AccessPath {
@@ -354,12 +373,13 @@ impl Resolver {
                 for name in &parameter.vars {
                     // Imported aliases may record only their own arguments.
                     // Recover omitted parent arguments from the new environment.
-                    let argument = scope
-                        .substitutions
-                        .get(&name.1?)
-                        .map(AsRef::as_ref)
-                        .or_else(|| substitutions.get(&name.1?).map(Borrow::borrow))?;
-                    arguments.push((name.clone(), substitute(argument, substitutions)));
+                    let argument = if let Some(argument) = scope.substitutions.get(&name.1?) {
+                        substitute(&argument, substitutions)
+                    } else {
+                        // This value already belongs to the caller environment.
+                        substitutions.get(&name.1?)?.borrow().clone()
+                    };
+                    arguments.push((name.clone(), argument));
                 }
             }
             calls.push((declaration.name.clone(), arguments));
@@ -378,11 +398,14 @@ impl Resolver {
         expression: &SExp,
         substitutions: &HashMap<BindingId, SExp>,
     ) -> SExp {
-        let mut expression = substitute(expression, substitutions);
+        let mut expression = expression.clone();
         if substitutions.is_empty() {
             return expression;
         }
         macros::walk_sexp_postorder(&mut expression, &mut |node| {
+            if substitute_node(node, substitutions) {
+                return;
+            }
             if let SExp::AccessPath { access, .. }
             | SExp::RecordTypeCtor { access, .. }
             | SExp::ProgramValueReference { access }
@@ -442,60 +465,87 @@ impl Resolver {
             self.current
         };
         let scope = &self.scopes[module.0 as usize];
-        let substitutions = scope.substitutions.clone();
+        let substitutions = scope.substitutions.materialize();
         let remapping = scope.remapping.clone();
-        let mut expression = substitute(expression, &substitutions);
-        if remapping.is_empty() {
-            return expression;
+        let mut expression = expression.clone();
+        if std::env::var("REF_TYPE_DEBUG_FRONT_INSTANTIATION")
+            .is_ok_and(|filter| self.path(self.current).join(".").contains(&filter))
+        {
+            macros::walk_sexp_mut(&mut expression, &mut |node| {
+                if let SExp::AccessPath {
+                    access: LocalAccess::Instantiated { path, child, .. },
+                    ..
+                } = node
+                    && let ModuleInstantiatePath::FromModule {
+                        module: base,
+                        calls,
+                    } = path.as_ref()
+                {
+                    eprintln!(
+                        "front {} via {resolved:?}: {} {:?}.{} -> {:?}; keys={:?}",
+                        self.path(self.current).join("."),
+                        self.path(*base).join("."),
+                        calls.iter().map(|(n, _)| &n.0).collect::<Vec<_>>(),
+                        child.0,
+                        remapping
+                            .get(base)
+                            .map(|id| (id.0, self.path(*id).join("."))),
+                        substitutions.keys().collect::<Vec<_>>()
+                    );
+                }
+            });
         }
+        // Rewrite the original children first. Caller arguments introduced by
+        // substitution or respecialization must not be visited again.
         macros::walk_sexp_postorder(&mut expression, &mut |node| {
-            if let SExp::ModuleInstance { path, .. } = node
-                && let ModuleInstantiatePath::FromImport { import_name, calls } = path.as_mut()
-                && let Some(import) = import_name.1.and_then(|id| self.imports.get(&id))
-                && let Some(&module) = remapping.get(&import.target)
-            {
-                // A declaration's internal import belongs to its original
-                // scope. Select the specialized namespace before checking
-                // arguments of children referenced by the declaration.
-                **path = ModuleInstantiatePath::FromModule {
-                    module,
-                    calls: std::mem::take(calls),
-                };
+            if substitute_node(node, &substitutions) {
+                return;
             }
             if let SExp::AccessPath { access, .. }
             | SExp::RecordTypeCtor { access, .. }
             | SExp::ProgramValueReference { access }
             | SExp::IndCase { path: access, .. }
             | SExp::ProgramCase { path: access, .. } = node
-                && let LocalAccess::Resolved { .. } = access
                 && let Some(specialized) = self.respecialize_front_access(access, &substitutions)
             {
                 *access = specialized;
+                return;
             }
-        });
-        remap_modules(&mut expression, &remapping);
-        // The guard and its selected references must use the same namespace IDs.
-        macros::walk_sexp_mut(&mut expression, &mut |node| {
-            if let SExp::ModuleInstance { import_name, .. } = node
+            if let SExp::ModuleInstance { path, import_name } = node
                 && let Some(mut import) =
                     import_name.1.and_then(|id| self.imports.get(&id)).cloned()
             {
-                if !std::iter::once(&import.target)
+                if let ModuleInstantiatePath::FromImport { calls, import_name } = path.as_mut()
+                    && let Some(base) = import_name.1.and_then(|id| self.imports.get(&id))
+                    && let Some(&module) = remapping.get(&base.target)
+                {
+                    **path = ModuleInstantiatePath::FromModule {
+                        module,
+                        calls: std::mem::take(calls),
+                    };
+                } else {
+                    remap_module_node(node, &remapping);
+                }
+                if std::iter::once(&import.target)
                     .chain(import.remapping.iter().map(|(_, target)| target))
                     .any(|id| remapping.get(id).is_some_and(|target| target != id))
                 {
-                    return;
+                    import.target = remapping
+                        .get(&import.target)
+                        .copied()
+                        .unwrap_or(import.target);
+                    for target in import.remapping.values_mut() {
+                        *target = remapping.get(target).copied().unwrap_or(*target);
+                    }
+                    let SExp::ModuleInstance { import_name, .. } = node else {
+                        unreachable!()
+                    };
+                    import_name.1 = None;
+                    let binding = self.binding(import_name);
+                    Arc::make_mut(&mut self.imports).insert(binding, import);
                 }
-                import.target = remapping
-                    .get(&import.target)
-                    .copied()
-                    .unwrap_or(import.target);
-                for target in import.remapping.values_mut() {
-                    *target = remapping.get(target).copied().unwrap_or(*target);
-                }
-                import_name.1 = None;
-                let binding = self.binding(import_name);
-                self.imports.insert(binding, import);
+            } else {
+                remap_module_node(node, &remapping);
             }
         });
         expression
@@ -552,7 +602,7 @@ impl Resolver {
                 && let Some(path) = self.module_selections.get(module)
             {
                 let mut selection = SExp::ModuleInstance {
-                    path: Box::new(path.clone()),
+                    path: Box::new(path.path()),
                     import_name: Identifier("<selection>".into()),
                 };
                 let mut depends = false;
@@ -569,9 +619,12 @@ impl Resolver {
                 if !depends {
                     return true;
                 }
+                let SExp::ModuleInstance { path, .. } = selection else {
+                    unreachable!()
+                };
                 *access = LocalAccess::Instantiated {
                     span: *span,
-                    path: Box::new(path.clone()),
+                    path,
                     child: name.clone(),
                 };
             }

@@ -21,3 +21,15 @@
 出力サイズと構造の深さに上限を設ける。
 集合には `canonical::serialize_set` を使い、意味上順序を持つ配列はその順序を保つ。
 共有する配列や namespace の合成表は elaboration 側の専用テーブル形式と組み合わせる。
+
+検査セッションの永続化は [sema の artifact store](../sema/src/artifact_store.rs) が担う。
+manifest の `graph` は kernel の不変ページとセッション情報の分割 object を列挙し、完了台帳と resolver・raw の索引を保持する checkpoint と結び付ける。
+同じストアへ保存済みのページは再符号化せず、次の manifest から参照する。
+ページの checksum と入力を復元前に照合し、読込後も kernel の identity を同じセッション内で保持する。
+これらの参照は既存の lease・store lock・GC に含まれ、利用中のページと checkpoint を保護する。
+
+セッション情報の区切りは内容から決め、前方に情報を追加した場合も後続の共通部分を共有する。
+公開先への転送は object の digest ごとに一度行い、同じ filesystem では不変 object を hard link で共有する。
+別の filesystem では圧縮済みの内容を一時ファイルへコピーして原子的に公開する。
+転送前に長さと digest を照合し、manifest の公開と object の pin は共通の store lock で調停する。
+作成中の object は lease の追記式 journal に登録し、manifest の公開前も GC から保護する。

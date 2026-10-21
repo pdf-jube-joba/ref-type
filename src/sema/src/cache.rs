@@ -37,14 +37,18 @@ pub(crate) fn snapshot_key(
 
 /// Locally trusted semantic artifacts. Obsolete formats and damaged objects miss.
 pub(crate) struct DiskCache {
-    store: crate::artifact_store::ArtifactStore,
+    store: std::sync::Arc<crate::artifact_store::ArtifactStore>,
 }
 impl DiskCache {
     pub fn new(directory: PathBuf) -> Self {
         Self {
-            store: crate::artifact_store::ArtifactStore::new(directory),
+            store: std::sync::Arc::new(crate::artifact_store::ArtifactStore::new(directory)),
         }
     }
+    pub fn shared_store(&self) -> std::sync::Arc<crate::artifact_store::ArtifactStore> {
+        self.store.clone()
+    }
+
     pub fn store(&self) -> &crate::artifact_store::ArtifactStore {
         &self.store
     }

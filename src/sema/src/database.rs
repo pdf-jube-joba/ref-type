@@ -22,8 +22,6 @@ pub struct CheckOptions {
     /// One-shot checking can rebuild independent prefixes after errors instead
     /// of serializing recovery environments during every successful check.
     pub skip_environment_cache: bool,
-    /// Rebuild precisely the requested environment after a broader prefix exceeded resources.
-    pub narrow_environment: bool,
     /// Recheck entry packages (including workspace members), reusing dependency checkpoints.
     pub force_local: bool,
     /// Select only the named module and its dependencies, excluding unrelated children.
@@ -57,6 +55,7 @@ pub struct Database {
     package_environments: EnvironmentCache,
     package_results: crate::memory::GenerationCache<Fingerprint, packages::MemoryPackage>,
     prefixes: crate::memory::GenerationCache<Fingerprint, packages::native::Metadata>,
+    session: Option<(elaboration::PackageChecker, packages::native::Metadata)>,
     disk: Option<DiskCache>,
     stats: QueryStats,
     verification_statistics: Vec<String>,
@@ -119,6 +118,7 @@ impl Database {
         self.package_environments.clear();
         self.package_results.clear();
         self.prefixes.clear();
+        self.session = None;
     }
 
     pub fn parse(
@@ -481,10 +481,7 @@ impl Database {
             return result.clone();
         }
         if package_input
-            && !(options.force && self.disk.is_none())
-            && (package_info.len() > 1 || requested.len() == graph.units.len())
             && diagnostics.is_empty()
-            && !options.collect_statistics
             && let Some(result) = self.check_packages(
                 snapshot,
                 options,
@@ -839,7 +836,7 @@ fn collect_analysis(
             .get(&declaration.module)
             .and_then(|index| results.get_mut(index))
         {
-            result.declarations.push(Declaration {
+            Arc::make_mut(&mut result.declarations).push(Declaration {
                 id: DeclarationId {
                     module: declaration.module.clone(),
                     name: declaration.name.clone(),
@@ -851,28 +848,26 @@ fn collect_analysis(
         }
     }
     for reference in &analysis.references {
-        let _time = timing::Scope::module(|| reference.module.clone());
+        let _time = timing::Scope::module(|| (*reference.module).clone());
         if let Some(result) = graph
             .indices
-            .get(&reference.module)
+            .get(reference.module.as_ref())
             .and_then(|index| results.get_mut(index))
         {
             let reference = Reference {
                 location: (&reference.location).into(),
                 target: DeclarationId {
-                    module: reference.target_module.clone(),
+                    module: (*reference.target_module).clone(),
                     name: reference.target_name.clone(),
                 },
             };
-            result.references.push(reference);
+            Arc::make_mut(&mut result.references).push(reference);
         }
     }
     for result in results.values_mut() {
         let _time = timing::Scope::module(|| result.path.clone());
         let mut seen = HashSet::new();
-        result
-            .references
-            .retain(|reference| seen.insert(reference.clone()));
+        Arc::make_mut(&mut result.references).retain(|reference| seen.insert(reference.clone()));
     }
     for output in &analysis.outputs {
         let _time = timing::Scope::module(|| output.module.clone());
@@ -881,7 +876,7 @@ fn collect_analysis(
             .get(&output.module)
             .and_then(|index| results.get_mut(index))
         {
-            result.outputs.push(QueryOutput {
+            Arc::make_mut(&mut result.outputs).push(QueryOutput {
                 location: (&output.location).into(),
                 text: output.text.clone(),
             });

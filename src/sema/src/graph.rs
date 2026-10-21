@@ -183,7 +183,7 @@ impl<'a> ModuleGraph<'a> {
             local_key: fingerprint(&[]),
         });
         if let ModuleBody::Inline(items) = &module.body {
-            for item in items {
+            for item in items.iter() {
                 if let ModuleItem::ChildModule { module } = item {
                     self.collect(module, &path);
                 }
@@ -271,7 +271,7 @@ impl<'a> ModuleGraph<'a> {
                             .unwrap_or(module.span),
                     );
                 }
-                result.body = ModuleBody::Inline(filtered);
+                result.body = ModuleBody::Inline(filtered.into());
                 result.declaration_spans = spans;
             }
             Some(result)

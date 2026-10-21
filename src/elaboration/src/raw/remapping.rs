@@ -30,20 +30,16 @@ impl Rewrite for Remapping<'_> {
                 match &mut node {
                     ExpNode::DefinedConstant(id)
                     | ExpNode::DefinitionInstance { definition: id, .. } => {
-                        *id = self.definitions.get(id).copied().unwrap_or(*id);
+                        *id = self.definitions.resolve(id).unwrap_or(*id);
                     }
                     ExpNode::IndType { indspec, .. }
                     | ExpNode::IndCtor { indspec, .. }
                     | ExpNode::IndElim { indspec, .. }
                     | ExpNode::IndCase { indspec, .. } => {
-                        *indspec = self.inductives.get(indspec).copied().unwrap_or(*indspec);
+                        *indspec = self.inductives.resolve(indspec).unwrap_or(*indspec);
                     }
                     ExpNode::ReflectedProgramCase { indspec, .. } => {
-                        *indspec = self
-                            .program_inductives
-                            .get(indspec)
-                            .copied()
-                            .unwrap_or(*indspec);
+                        *indspec = self.program_inductives.resolve(indspec).unwrap_or(*indspec);
                     }
                     _ => return result,
                 }
@@ -57,33 +53,23 @@ impl Rewrite for Remapping<'_> {
                 else {
                     return result;
                 };
-                Term::ValueType(
-                    arena.reuse_value_type(
-                        t,
-                        ValueTypeNode::Inductive {
-                            indspec: self
-                                .program_inductives
-                                .get(&indspec)
-                                .copied()
-                                .unwrap_or(indspec),
-                            parameters,
-                        },
-                    ),
-                )
+                Term::ValueType(arena.reuse_value_type(
+                    t,
+                    ValueTypeNode::Inductive {
+                        indspec: self.program_inductives.resolve(&indspec).unwrap_or(indspec),
+                        parameters,
+                    },
+                ))
             }
             Term::Value(v) => {
                 let mut node = arena.get(v);
                 match &mut node {
                     ValueTermNode::DefinedConstant(id)
                     | ValueTermNode::DefinitionInstance { definition: id, .. } => {
-                        *id = self.definitions.get(id).copied().unwrap_or(*id);
+                        *id = self.definitions.resolve(id).unwrap_or(*id);
                     }
                     ValueTermNode::InductiveConstructor { indspec, .. } => {
-                        *indspec = self
-                            .program_inductives
-                            .get(indspec)
-                            .copied()
-                            .unwrap_or(*indspec);
+                        *indspec = self.program_inductives.resolve(indspec).unwrap_or(*indspec);
                     }
                     _ => return result,
                 }
@@ -94,14 +80,10 @@ impl Rewrite for Remapping<'_> {
                 match &mut node {
                     ComputationTermNode::DefinedConstant(id)
                     | ComputationTermNode::DefinitionInstance { definition: id, .. } => {
-                        *id = self.definitions.get(id).copied().unwrap_or(*id);
+                        *id = self.definitions.resolve(id).unwrap_or(*id);
                     }
                     ComputationTermNode::Case { indspec, .. } => {
-                        *indspec = self
-                            .program_inductives
-                            .get(indspec)
-                            .copied()
-                            .unwrap_or(*indspec);
+                        *indspec = self.program_inductives.resolve(indspec).unwrap_or(*indspec);
                     }
                     _ => return result,
                 }

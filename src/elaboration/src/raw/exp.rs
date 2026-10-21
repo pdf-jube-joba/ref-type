@@ -320,8 +320,6 @@ pub(crate) enum Atom {
 struct Atoms {
     ids: FxHashMap<Atom, kernel::syntax::MetaId>,
     keys: FxHashMap<kernel::syntax::MetaId, Atom>,
-    #[serde(skip)]
-    allocator: kernel::metavariables::MetaContext,
 }
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct DefinitionView {
@@ -351,6 +349,19 @@ pub struct Arena {
     definitions: RefCell<FxHashMap<kernel::ids::DefinitionId, DefinitionView>>,
 }
 impl Arena {
+    pub(crate) fn storage_counts(&self) -> [(&'static str, usize); 3] {
+        [
+            ("frontend atoms", self.atoms.borrow().keys.len()),
+            (
+                "lowered expressions",
+                self.lowered_definitions.borrow().len(),
+            ),
+            (
+                "nominal expression cache",
+                self.nominal_logical.borrow().len(),
+            ),
+        ]
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -504,10 +515,7 @@ impl Arena {
         let id = if let Some(&id) = atoms.ids.get(&key) {
             id
         } else {
-            let e = atoms.allocator.fresh(&self.core, vec![], None);
-            let kernel::syntax::Node::Meta { id, .. } = self.core.get(e) else {
-                unreachable!()
-            };
+            let id = kernel::syntax::MetaId::fresh_atom();
             atoms.ids.insert(key.clone(), id);
             atoms.keys.insert(id, key);
             id

@@ -842,7 +842,7 @@ impl<'a> Parser<'a> {
             let (declarations, spans) = self.parse_module_items_with_spans()?;
             declaration_spans = spans;
             self.expect_token(Token::RBrace)?; // expect '}'
-            ModuleBody::Inline(declarations)
+            ModuleBody::Inline(declarations.into())
         };
 
         Ok(Module {

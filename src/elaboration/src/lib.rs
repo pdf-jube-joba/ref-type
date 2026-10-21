@@ -44,5 +44,9 @@ pub mod profiling;
 mod package;
 pub use package::{
     ArtifactBoundary, ArtifactCatalog, ArtifactOwner, MAX_PACKAGE_BYTES, PackageArtifact,
-    PackageChecker, PackageProgress,
+    PackageChecker, PackageProgress, SessionStatistics,
 };
+
+pub use kernel::graph_store::{GraphStore, with_graph_store};
+
+pub use kernel::resources::{request_collection, set_allocator_collection};

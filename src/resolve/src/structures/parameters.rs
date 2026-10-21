@@ -230,7 +230,7 @@ impl Resolver {
                         let mut scalar = Identifier(format!("{}.{}", name.0, path));
                         if module {
                             self.publish(&mut scalar);
-                            self.global_bindings
+                            Arc::make_mut(&mut self.global_bindings)
                                 .get_mut(&scalar.1.unwrap())
                                 .unwrap()
                                 .parameter = Some(position);
@@ -331,7 +331,7 @@ impl Resolver {
                             if module {
                                 for bind in &nested {
                                     for name in &bind.vars {
-                                        self.global_bindings
+                                        Arc::make_mut(&mut self.global_bindings)
                                             .get_mut(&name.1.unwrap())
                                             .unwrap()
                                             .parameter = Some(position);
@@ -379,7 +379,7 @@ impl Resolver {
                         let mut scalar = Identifier(format!("{}.{}", name.0, field.0));
                         if module {
                             self.publish(&mut scalar);
-                            self.global_bindings
+                            Arc::make_mut(&mut self.global_bindings)
                                 .get_mut(&scalar.1.unwrap())
                                 .unwrap()
                                 .parameter = Some(position);
@@ -436,7 +436,7 @@ impl Resolver {
                 for name in &mut bind.vars {
                     if module {
                         self.publish(name);
-                        self.global_bindings
+                        Arc::make_mut(&mut self.global_bindings)
                             .get_mut(&name.1.unwrap())
                             .unwrap()
                             .parameter = Some(position);

@@ -163,7 +163,7 @@ impl Loader {
                 sources.insert(source.id.0.clone());
             }
             if let ModuleBody::Inline(items) = &module.body {
-                for item in items {
+                for item in items.iter() {
                     if let ModuleItem::ChildModule { module } = item {
                         source_ids(module, sources);
                     }
@@ -179,7 +179,8 @@ impl Loader {
             .map(|module| ModuleItem::ChildModule {
                 module: Box::new(module),
             })
-            .collect();
+            .collect::<Vec<_>>()
+            .into();
         self.modules.push(Module {
             name: Identifier(package.name.clone()),
             parameters: Vec::new(),

@@ -39,6 +39,16 @@ impl<T: Extend> Extend for Vec<T> {
         self.into_iter().map(extend).collect()
     }
 }
+impl<T: Extend + Clone> Extend for Arc<Vec<T>> {
+    type Output = Arc<Vec<T::Output>>;
+    fn extend(self) -> Self::Output {
+        Arc::unwrap_or_clone(self)
+            .into_iter()
+            .map(extend)
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
 impl<T: Extend> Extend for Option<T> {
     type Output = Option<T::Output>;
     fn extend(self) -> Self::Output {

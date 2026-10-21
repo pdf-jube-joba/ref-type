@@ -872,19 +872,19 @@ impl Resolver {
                             && span.end > span.start
                             && let Some(binding) = self.global_bindings.get(&value.signature)
                         {
-                            self.references.borrow_mut().push(Reference {
-                                module: self.path(self.current),
+                            self.references.borrow_mut().push(Arc::new(ReferenceData {
+                                module: self.reference_path(self.current),
                                 location: SourceLocation {
                                     source: location.source.clone(),
                                     span,
                                 },
-                                target_module: self.path(binding.module),
+                                target_module: self.reference_path(binding.module),
                                 target_name: format!(
                                     "{}::{}",
                                     binding.name,
                                     field.as_str().trim_end_matches('^')
                                 ),
-                            });
+                            }));
                         }
                         if !value.parameters.is_empty() {
                             error = Some(

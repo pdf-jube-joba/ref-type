@@ -168,8 +168,7 @@ impl ProgramInductiveTypeSpecs {
                 })
                 .collect(),
             reflected: inductives
-                .get(&self.reflected)
-                .copied()
+                .resolve(&self.reflected)
                 .unwrap_or(self.reflected),
         }
     }

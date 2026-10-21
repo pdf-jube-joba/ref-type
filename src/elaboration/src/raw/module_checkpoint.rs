@@ -5,35 +5,42 @@ use serde::{
     de::{SeqAccess, Visitor},
 };
 
-struct Maps<K, V>(FxHashMap<u64, Vec<Arc<HashMap<K, V>>>>);
-impl<K, V> Default for Maps<K, V> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-impl<K: Eq + Hash, V: Eq + Hash> Maps<K, V> {
-    fn share(&mut self, value: &mut Arc<HashMap<K, V>>) {
-        // Hash table iteration order varies; equality still verifies collisions.
-        let hash = value.iter().fold(0_u64, |sum, pair| {
-            let mut hash = rustc_hash::FxHasher::default();
-            pair.hash(&mut hash);
-            sum.wrapping_add(hash.finish())
-        });
-        let candidates = self.0.entry(hash).or_default();
-        if let Some(shared) = candidates.iter().find(|candidate| *candidate == value) {
-            *value = shared.clone();
-        } else {
-            candidates.push(value.clone());
+/// Serialize shared immutable member indices once. References point backwards,
+/// so restoring the tables uses bounded temporary memory and preserves sharing.
+#[allow(clippy::vec_box)]
+pub(super) fn serialize<S: serde::Serializer>(
+    modules: &[Box<ModuleEnv>],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let mut sequence = serializer.serialize_seq(Some(modules.len()))?;
+    let mut tables = [
+        HashMap::new(),
+        HashMap::new(),
+        HashMap::new(),
+        HashMap::new(),
+    ];
+    for (index, module) in modules.iter().enumerate() {
+        let mut module = module.as_ref().clone();
+        let mut references = [None; 4];
+        macro_rules! table {
+            ($slot:expr, $field:ident) => {
+                let pointer = Arc::as_ptr(&module.$field) as usize;
+                if let Some(&previous) = tables[$slot].get(&pointer) {
+                    references[$slot] = Some(previous);
+                    module.$field = Default::default();
+                } else {
+                    tables[$slot].insert(pointer, index);
+                }
+            };
         }
+        table!(0, items);
+        table!(1, names);
+        table!(2, hir_names);
+        table!(3, hir_items);
+        sequence.serialize_element(&(module, references))?;
     }
-}
-
-fn share<T: Eq + Hash>(values: &mut HashSet<Arc<T>>, value: &mut Arc<T>) {
-    if let Some(shared) = values.get(value) {
-        *value = shared.clone();
-    } else {
-        values.insert(value.clone());
-    }
+    sequence.end()
 }
 
 #[allow(clippy::vec_box)]
@@ -47,43 +54,24 @@ pub(super) fn deserialize<'de, D: Deserializer<'de>>(
             f.write_str("namespace modules")
         }
         fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-            let mut names = Maps::default();
-            let mut hir_names = Maps::default();
-            let mut hir_items = Maps::default();
-            let mut labels = HashSet::new();
-            let mut constructors = HashSet::new();
-            let mut modules = Vec::new();
-            while let Some(mut module) = seq.next_element::<Box<ModuleEnv>>()? {
-                names.share(&mut module.names);
-                hir_names.share(&mut module.hir_names);
-                hir_items.share(&mut module.hir_items);
-                for item in &mut module.items {
-                    match item {
-                        ModuleItem::Definition { name, .. } | ModuleItem::Record { name, .. } => {
-                            share(&mut labels, name);
+            let mut modules: Vec<Box<ModuleEnv>> = Vec::new();
+            while let Some((mut module, references)) =
+                seq.next_element::<(Box<ModuleEnv>, [Option<usize>; 4])>()?
+            {
+                macro_rules! table {
+                    ($slot:expr, $field:ident) => {
+                        if let Some(index) = references[$slot] {
+                            let source = modules.get(index).ok_or_else(|| {
+                                serde::de::Error::custom("invalid namespace table reference")
+                            })?;
+                            module.$field = source.$field.clone();
                         }
-                        ModuleItem::Inductive {
-                            name,
-                            constructor_names,
-                            ..
-                        }
-                        | ModuleItem::ProgramInductive {
-                            name,
-                            constructor_names,
-                            ..
-                        } => {
-                            share(&mut labels, name);
-                            share(&mut constructors, constructor_names);
-                        }
-                    }
-                    if let ModuleItem::ProgramInductive {
-                        record_fields: Some(fields),
-                        ..
-                    } = item
-                    {
-                        share(&mut constructors, fields);
-                    }
+                    };
                 }
+                table!(0, items);
+                table!(1, names);
+                table!(2, hir_names);
+                table!(3, hir_items);
                 modules.push(module);
             }
             Ok(modules)

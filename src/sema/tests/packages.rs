@@ -64,7 +64,6 @@ fn project(name: &str) -> SourceSnapshot {
 }
 
 fn clean(snapshot: &SourceSnapshot) -> std::sync::Arc<sema::SemanticResult> {
-    // Statistics uses the original whole-project resolver/checker path.
     Database::new().check_with_options(
         snapshot,
         &CheckOptions {
@@ -124,11 +123,8 @@ fn workspace_checks_and_forces_all_members_while_reusing_external_dependencies()
         r"\module Main { \definition bad: \Prop := \Set; }",
     );
     assert!(!Database::with_cache(&cache.0).check(&broken).is_success());
-    assert!(
-        Database::new()
-            .module(&broken, &["app".into()])
-            .is_success()
-    );
+    let selected = Database::new().module(&broken, &["app".into()]);
+    assert!(selected.is_success(), "{selected:?}");
 }
 
 thread_local! {
@@ -477,4 +473,31 @@ fn result_only_package_records_skip_complete_queries_and_fall_back_for_continuat
     assert_eq!(changed.check(&edited), clean(&edited));
     assert_eq!(changed.stats().package_hits, 1);
     assert!(changed.stats().checked_modules > 2);
+}
+
+#[test]
+fn expanding_a_request_keeps_completed_declarations() {
+    let mut snapshot = SourceSnapshot::new("/virtual/expand");
+    snapshot.insert("/virtual/expand/ref.toml", "[package]\nname = 'expand'\n");
+    snapshot.insert(
+        "/virtual/expand/src/root.ref",
+        r"\module Core { \definition P: \Prop := \forall (P: \Prop) -> P -> P;
+        \module First { \definition p: \Prop := P; }
+        \module Second { \definition p: \Prop := P; } }",
+    );
+    let mut session = Database::new();
+    let initial = session.module_with_options(
+        &snapshot,
+        &["expand".into(), "Core".into(), "First".into()],
+        &Default::default(),
+    );
+    assert!(initial.is_success(), "{initial:?}");
+    let first = session.stats().checked_steps;
+    assert!(first > 0);
+    let expanded = session.check(&snapshot);
+    assert!(expanded.is_success(), "{expanded:?}");
+    let additional = session.stats().checked_steps;
+    let mut fresh = Database::new();
+    assert_eq!(expanded, fresh.check(&snapshot));
+    assert_eq!(first + additional, fresh.stats().checked_steps);
 }

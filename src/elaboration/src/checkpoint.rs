@@ -11,7 +11,24 @@ mod compression;
 #[path = "checkpoint/zstd.rs"]
 mod compression;
 use compression::Buffer;
+mod segments;
 pub(crate) use compression::decompress;
+
+pub(crate) fn deserialize_bounded<T: serde::de::DeserializeOwned, const LIMIT: usize>(
+    bytes: &[u8],
+) -> Option<T> {
+    if bytes.starts_with(segments::MAGIC) {
+        return segments::deserialize(bytes, kernel::graph_store::current()?);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        compression::deserialize::<T, LIMIT>(bytes)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        postcard::from_bytes(&decompress::<LIMIT>(bytes)?).ok()
+    }
+}
 
 pub(crate) fn serialize(value: &impl Serialize) -> Result<Vec<u8>> {
     serialize_bounded::<MAX_ENVIRONMENT_BYTES>(value)
@@ -21,6 +38,11 @@ pub(crate) fn serialize_bounded<const LIMIT: usize>(value: &impl Serialize) -> R
     // Feed serialization straight into the compressor. The live environment
     // coexists only with a fixed input chunk and the compressed checkpoint.
     let _phase = crate::profiling::Phase::start("environment.serialize-compress");
+    if LIMIT == crate::package::MAX_PACKAGE_BYTES
+        && let Some(store) = kernel::graph_store::current()
+    {
+        return postcard::serialize_with_flavor(value, segments::Buffer::new(store));
+    }
     postcard::serialize_with_flavor(value, Buffer::<LIMIT>::new()?)
 }
 

@@ -12,7 +12,7 @@ impl Lowerer<'_> {
         let origin = if self.raw.is_program_mirror(id) {
             None
         } else {
-            self.raw.inductive_specialization(id).cloned()
+            self.raw.inductive_specialization(id)
         };
         let Some(origin) = origin else {
             let captures = self.captures(Declaration::Inductive(id));

@@ -176,6 +176,12 @@ impl Session {
                 .filter(|(id, _)| own_module(id))
                 .map(|(&id, value)| (id, value.clone()))
                 .collect(),
+            deferred: r
+                .deferred
+                .iter()
+                .filter(|(id, _)| own_module(id))
+                .map(|(&id, value)| (id, value.clone()))
+                .collect(),
             input: r
                 .input
                 .iter()
@@ -253,13 +259,15 @@ impl Session {
                 .iter()
                 .filter(|(id, _)| own_binding(id))
                 .map(|(&id, value)| (id, value.clone()))
-                .collect(),
+                .collect::<HashMap<_, _>>()
+                .into(),
             global_bindings: r
                 .global_bindings
                 .iter()
                 .filter(|(id, _)| own_binding(id))
                 .map(|(&id, value)| (id, value.clone()))
-                .collect(),
+                .collect::<HashMap<_, _>>()
+                .into(),
             computation_bindings: r
                 .computation_bindings
                 .iter()
@@ -272,7 +280,7 @@ impl Session {
             .scopes
             .first()
             .into_iter()
-            .flat_map(|scope| &scope.children)
+            .flat_map(|scope| scope.children.iter())
             .filter(|(_, id)| own_module(id))
             .map(|(name, &id)| (name.clone(), id))
             .collect();
@@ -558,7 +566,7 @@ impl Session {
         if r.scopes.is_empty() {
             r.scopes.push(Scope::default());
         }
-        r.scopes[0].children.extend(package.root_children);
+        Arc::make_mut(&mut r.scopes[0].children).extend(package.root_children);
         r.scopes
             .extend(package.scopes.into_iter().map(|(_, scope)| scope));
         let data = package.data;
@@ -573,14 +581,15 @@ impl Session {
         r.paths.extend(data.paths);
         r.states.extend(data.states);
         r.module_selections.extend(data.module_selections);
+        r.deferred.extend(data.deferred);
         r.declaration_counts.extend(data.declaration_counts);
         r.child_term_scopes.extend(data.child_term_scopes);
         r.structures.extend(data.structures);
         r.parameter_signatures.extend(data.parameter_signatures);
         r.front_definitions.extend(data.front_definitions);
         r.structure_values.extend(data.structure_values);
-        r.imports.extend(data.imports);
-        r.global_bindings.extend(data.global_bindings);
+        Arc::make_mut(&mut r.imports).extend(Arc::unwrap_or_clone(data.imports));
+        Arc::make_mut(&mut r.global_bindings).extend(Arc::unwrap_or_clone(data.global_bindings));
         r.computation_bindings.extend(data.computation_bindings);
         r.occurrences.extend(data.occurrences);
         r.next_binding = ends[1];

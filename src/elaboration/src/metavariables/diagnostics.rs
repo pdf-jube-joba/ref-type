@@ -517,3 +517,35 @@ impl DeferredDetails {
         }
     }
 }
+
+impl ElaborationError {
+    pub(crate) fn diagnostic_data_in(
+        &self,
+        env: &crate::raw::environment::CrateEnv,
+    ) -> diagnostics::DiagnosticData {
+        use diagnostics::DiagnosticError;
+        match self {
+            Self::Failure(error) => error.diagnostic_data_in(env),
+            Self::ConstraintFailure { cause, .. } => {
+                let mut data = self.diagnostic_data();
+                data.causes = vec![cause.diagnostic_data_in(env)];
+                data
+            }
+            Self::Located { location, error } => error
+                .diagnostic_data_in(env)
+                .with("file", location.source.id.0.to_string_lossy().into_owned())
+                .with("start", location.span.start)
+                .with("end", location.span.end),
+            Self::Deferred { summary, .. } => summary.diagnostic_data_in(env),
+            Self::Alternatives(errors) => {
+                let mut data = self.diagnostic_data();
+                data.causes = errors
+                    .iter()
+                    .map(|error| error.diagnostic_data_in(env))
+                    .collect();
+                data
+            }
+            _ => self.diagnostic_data(),
+        }
+    }
+}

@@ -8,8 +8,19 @@ use anyhow::Context;
 use clap::Parser;
 use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
 
+#[cfg(not(any(
+    feature = "system-allocator",
+    feature = "large-allocation-profile",
+    feature = "small-allocation-profile"
+)))]
 #[global_allocator]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+#[cfg(any(
+    feature = "large-allocation-profile",
+    feature = "small-allocation-profile"
+))]
+mod allocation_profile;
 
 thread_local! {
     static PROGRESS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
@@ -31,20 +42,14 @@ struct Args {
     /// 検査プロセスの仮想メモリ上限 MiB（Linux の既定3072、0は既存の上限を維持）
     #[arg(long)]
     memory_mib: Option<u64>,
-    /// 大きな検査範囲を分割するまでの秒数（末端の検査には適用しない）
-    #[arg(long, default_value_t = 180, value_parser = clap::value_parser!(u64).range(1..))]
-    batch_seconds: u64,
+    /// 検査全体の時間上限（秒、省略時は制限なし）
+    #[arg(long, value_parser = clap::value_parser!(u64).range(1..))]
+    time_limit_seconds: Option<u64>,
     #[arg(long, hide = true)]
     worker: Option<PathBuf>,
     #[arg(skip)]
     #[serde(default)]
-    cache_probe: bool,
-    #[arg(skip)]
-    #[serde(default)]
     worker_progress: bool,
-    #[arg(skip)]
-    #[serde(default)]
-    narrow_environment: bool,
     /// 指定した module・子 module と、その参照先だけを検証する（例: std.Data.Nat）
     #[arg(long, conflicts_with = "parse_only")]
     module: Option<String>,
@@ -108,6 +113,7 @@ enum DiagnosticMode {
 }
 
 fn main() -> anyhow::Result<()> {
+    sema::set_allocator_collection(resources::collect_allocator);
     let timing = sema::timing::Session::start(true);
     let args = Args::parse();
     #[cfg(target_os = "linux")]
@@ -199,22 +205,28 @@ fn main() -> anyhow::Result<()> {
         }
     }
     drop(cost_session);
-    #[cfg(target_os = "linux")]
-    if supervised && supervisor::interrupted() {
-        std::process::exit(130);
-    }
-    let summary = result
+    let mut summary = result
         .as_ref()
         .cloned()
         .unwrap_or_else(|_| report::Report::internal_error());
+    #[cfg(target_os = "linux")]
+    if supervised && supervisor::interrupted() {
+        summary.outcome = report::Outcome::Interrupted;
+    }
     if let Some(path) = &args.report_json {
         summary.write(path)?;
+    }
+    if summary.outcome == report::Outcome::Interrupted {
+        std::process::exit(130);
     }
     match result {
         Ok(report) if report.outcome == report::Outcome::Accepted => {}
         Ok(report) => std::process::exit(match report.outcome {
             report::Outcome::Rejected => 1,
-            report::Outcome::InternalError => 2,
+            report::Outcome::InternalError
+            | report::Outcome::TimeLimit
+            | report::Outcome::MemoryLimit => 2,
+            report::Outcome::Interrupted => 130,
             report::Outcome::Accepted => unreachable!(),
         }),
         Err(error) => {
@@ -356,7 +368,6 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
         let options = sema::CheckOptions {
             force: args.trace || args.no_cache || args.full_check,
             skip_environment_cache: args.no_cache,
-            narrow_environment: args.narrow_environment,
             force_local: args.full_check_local,
             progress: (!args.no_progress).then_some(show_progress),
             progress_events: display.enabled().then_some(progress::receive),
@@ -373,13 +384,7 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
         #[cfg(target_os = "linux")]
         let options = if args.worker.is_some() {
             sema::CheckOptions {
-                progress_events: if args.cache_probe {
-                    Some(supervisor::send_cache_probe_event)
-                } else if args.worker_progress {
-                    Some(supervisor::send_event)
-                } else {
-                    Some(supervisor::send_environment_event)
-                },
+                progress_events: Some(supervisor::send_event),
                 ..options
             }
         } else {
@@ -438,7 +443,10 @@ fn run_path(args: &Args, display: &mut progress::Display) -> anyhow::Result<repo
         && !args.trace
         && (stats.disk_hits > 0 || stats.restored_modules > 0)
         && (stats.reused_modules > 0 || stats.restored_modules > 0);
-    Ok(report::Report::checked(error.is_none(), reused))
+    let mut report = report::Report::checked(error.is_none(), reused);
+    report.checking = stats.clone();
+    report.storage = database.cache_store_stats();
+    Ok(report)
 }
 
 fn show_progress(progress: &sema::ModuleProgress) {

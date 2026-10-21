@@ -2,7 +2,7 @@
 //!
 //! Namespace aliases do not confer identity. Only the original declaration and
 //! its arguments do; conversion in the kernel still compares ordinary type IDs.
-use super::{environment::*, exp::Exp, ids::*, program::*};
+use super::{environment::*, exp::Exp, ids::*, program::*, shared_map::IdLookup};
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub(crate) struct Specialization<I> {
@@ -109,6 +109,16 @@ pub(crate) struct ArgumentCache {
 }
 
 impl ArgumentCache {
+    pub(crate) fn storage_counts(&self) -> [(&'static str, usize); 3] {
+        [
+            ("argument environments", self.arguments.len()),
+            (
+                "argument entries",
+                self.arguments.iter().map(|a| a.len()).sum(),
+            ),
+            ("instance scopes", self.scopes.len()),
+        ]
+    }
     pub(crate) fn scope(
         &mut self,
         owner: ModuleId,
@@ -146,6 +156,7 @@ impl ArgumentCache {
                 .is_some_and(|(&left, &right)| self.root(left) == self.root(right))
     }
 
+    #[cfg(test)]
     pub(crate) fn equivalents(&self, id: usize) -> &[usize] {
         &self.classes[self.root(id)]
     }
@@ -649,8 +660,8 @@ impl CrateEnv {
                             crate::raw::remapping::remap_value_type_global_ids(
                                 self.arena(),
                                 t,
-                                &remapping.definition_ids,
-                                &remapping.program_inductive_ids,
+                                &remapping.definitions(self),
+                                &remapping.datatypes(self),
                             ),
                             substitutions,
                         ),
@@ -661,9 +672,9 @@ impl CrateEnv {
                             crate::raw::remapping::remap_value_global_ids(
                                 self.arena(),
                                 v,
-                                &remapping.definition_ids,
-                                &remapping.program_inductive_ids,
-                                &remapping.inductive_ids,
+                                &remapping.definitions(self),
+                                &remapping.datatypes(self),
+                                &remapping.inductives(self),
                             ),
                             substitutions,
                             reflected,
@@ -775,17 +786,13 @@ impl CrateEnv {
             .iter()
             .map(|reference| match *reference {
                 Reference::Definition(id) => {
-                    Reference::Definition(remapping.definition_ids.get(&id).copied().unwrap_or(id))
+                    Reference::Definition(remapping.definitions(self).resolve(&id).unwrap_or(id))
                 }
                 Reference::Inductive(id) => {
-                    Reference::Inductive(remapping.inductive_ids.get(&id).copied().unwrap_or(id))
+                    Reference::Inductive(remapping.inductives(self).resolve(&id).unwrap_or(id))
                 }
                 Reference::ProgramInductive(id) => Reference::ProgramInductive(
-                    remapping
-                        .program_inductive_ids
-                        .get(&id)
-                        .copied()
-                        .unwrap_or(id),
+                    remapping.datatypes(self).resolve(&id).unwrap_or(id),
                 ),
             })
             .collect();
@@ -802,9 +809,9 @@ impl CrateEnv {
         let remapped = crate::raw::remapping::remap_all_global_ids(
             self.arena(),
             expression,
-            &remapping.definition_ids,
-            &remapping.inductive_ids,
-            &remapping.program_inductive_ids,
+            &remapping.definitions(self),
+            &remapping.inductives(self),
+            &remapping.datatypes(self),
         );
         let Term::Logical(result) =
             Term::Logical(remapped).substitute(self.arena(), &substitutions, &reflected)
@@ -1013,133 +1020,6 @@ impl CrateEnv {
                 }
                 self.namespace_term_is_rigid(l) && self.namespace_term_is_rigid(r)
             })
-    }
-}
-
-/// Determine identity before reserving another copy of an imported graph.
-/// Following declaration provenance is essential: an argument can refer to a
-/// definition whose own telescope contains a substituted parameter.
-pub(crate) struct NamespaceStability<'a> {
-    env: &'a CrateEnv,
-    reflected: &'a [(ModuleParamId, Exp)],
-    argument_sets: rustc_hash::FxHashMap<Vec<(ModuleParamId, ModuleArgument)>, bool>,
-    definitions: rustc_hash::FxHashMap<DefId, bool>,
-    inductives: rustc_hash::FxHashMap<InductiveId, bool>,
-    datatypes: rustc_hash::FxHashMap<ProgramInductiveId, bool>,
-}
-
-impl<'a> NamespaceStability<'a> {
-    pub(crate) fn new(env: &'a CrateEnv, reflected: &'a [(ModuleParamId, Exp)]) -> Self {
-        Self {
-            env,
-            reflected,
-            argument_sets: Default::default(),
-            definitions: Default::default(),
-            inductives: Default::default(),
-            datatypes: Default::default(),
-        }
-    }
-
-    fn definition(&mut self, id: DefId) -> bool {
-        if let Some(&stable) = self.definitions.get(&id) {
-            return stable;
-        }
-        self.definitions.insert(id, false);
-        let stable = self.arguments(&self.env.definition_specialization_arguments(id));
-        self.definitions.insert(id, stable);
-        stable
-    }
-
-    fn inductive(&mut self, id: InductiveId) -> bool {
-        if let Some(&stable) = self.inductives.get(&id) {
-            return stable;
-        }
-        self.inductives.insert(id, false);
-        let stable = self.arguments(&self.env.inductive_specialization_arguments(id));
-        self.inductives.insert(id, stable);
-        stable
-    }
-
-    fn datatype(&mut self, id: ProgramInductiveId) -> bool {
-        if let Some(&stable) = self.datatypes.get(&id) {
-            return stable;
-        }
-        self.datatypes.insert(id, false);
-        let stable = self.arguments(&self.env.datatype_specialization_arguments(id));
-        self.datatypes.insert(id, stable);
-        stable
-    }
-
-    pub(crate) fn arguments(&mut self, arguments: &[(ModuleParamId, ModuleArgument)]) -> bool {
-        use super::traversal::{Memoized, Term};
-        if let Some(&stable) = self.argument_sets.get(arguments) {
-            return stable;
-        }
-        if !self.env.namespace_arguments_shareable(arguments) {
-            return false;
-        }
-        self.argument_sets.insert(arguments.to_vec(), false);
-        let stable = arguments.iter().all(|(_, argument)| {
-            // Program imports retain the existing materialization path.
-            let ModuleArgument::Pts(expression) = *argument else {
-                return false;
-            };
-            let arena = self.env.arena();
-            let mut stable = true;
-            let mut visitor = Memoized::new(|term: Term, _: usize| {
-                if let Term::Logical(expression) = term {
-                    use super::exp::ExpNode;
-                    stable &= match arena.get(expression) {
-                        ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => self
-                            .reflected
-                            .iter()
-                            .find(|(p, _)| *p == id)
-                            .is_none_or(|(_, value)| *value == expression),
-                        ExpNode::DefinedConstant(id)
-                        | ExpNode::DefinitionInstance { definition: id, .. } => self.definition(id),
-                        ExpNode::IndType { indspec, .. }
-                        | ExpNode::IndCtor { indspec, .. }
-                        | ExpNode::IndElim { indspec, .. }
-                        | ExpNode::IndCase { indspec, .. } => self.inductive(indspec),
-                        ExpNode::ReflectedProgramCase { indspec, .. } => self.datatype(indspec),
-                        ExpNode::Meta { .. }
-                        | ExpNode::BoxType { .. }
-                        | ExpNode::BoxProgram { .. }
-                        | ExpNode::ForceBox { .. } => false,
-                        _ => true,
-                    };
-                } else {
-                    stable = false;
-                }
-                None
-            });
-            Term::Logical(expression).walk(arena, 0, &mut visitor);
-            stable
-        });
-        self.argument_sets.insert(arguments.to_vec(), stable);
-        stable
-    }
-
-    pub(crate) fn item(&mut self, item: &ModuleItem) -> bool {
-        match item {
-            ModuleItem::Definition { definition, .. } => self.definition(*definition),
-            ModuleItem::Inductive {
-                inductive,
-                associated_definitions,
-                ..
-            }
-            | ModuleItem::Record {
-                inductive,
-                associated_definitions,
-                ..
-            } => {
-                self.inductive(*inductive)
-                    && associated_definitions
-                        .iter()
-                        .all(|(_, id)| self.definition(*id))
-            }
-            ModuleItem::ProgramInductive { .. } => false,
-        }
     }
 }
 

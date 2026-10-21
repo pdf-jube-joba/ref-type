@@ -128,7 +128,7 @@ impl ModuleLoader<'_> {
 
             let source = self.provider.read(&source_path)?;
             let (declarations, spans) = self.provider.items(&source_path)?;
-            module.body = ModuleBody::Inline(declarations);
+            module.body = ModuleBody::Inline(declarations.into());
             module.declaration_spans = spans;
             attach_source(module, &source);
         }
@@ -136,7 +136,7 @@ impl ModuleLoader<'_> {
         let ModuleBody::Inline(declarations) = &mut module.body else {
             unreachable!("external module body was resolved above")
         };
-        for declaration in declarations {
+        for declaration in std::sync::Arc::make_mut(declarations) {
             if let ModuleItem::ChildModule { module: child } = declaration {
                 self.resolve_module(child, &module_path, &timing_path)?;
             }
@@ -166,7 +166,7 @@ fn attach_source(module: &mut Module, source: &Arc<SourceFile>) {
         .header_source
         .get_or_insert_with(|| Arc::clone(source));
     if let ModuleBody::Inline(items) = &mut module.body {
-        for item in items {
+        for item in std::sync::Arc::make_mut(items) {
             if let ModuleItem::ChildModule { module } = item {
                 attach_source(module, source);
             }

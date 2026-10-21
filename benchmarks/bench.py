@@ -181,6 +181,7 @@ def measure(command, log, *, seconds, memory_mib, environment=None,
     started = time.monotonic()
     next_progress = started + progress_seconds
     reason = None
+    recovery_injected = False
     with log.open("wb") as output:
         child = subprocess.Popen(command, cwd=ROOT, env=environment, stdout=output, stderr=output,
                                  stdin=subprocess.DEVNULL, start_new_session=True, preexec_fn=limits)
@@ -192,7 +193,18 @@ def measure(command, log, *, seconds, memory_mib, environment=None,
                 elif log.stat().st_size > output_mib * 2**20:
                     reason = "output_limit"
                 elif checkpoint and "event=checkpoint-saved" in tail(log):
-                    reason = "checkpoint"
+                    if checkpoint == "worker":
+                        if not recovery_injected:
+                            children = Path(f"/proc/{child.pid}/task/{child.pid}/children")
+                            for worker in children.read_text().split():
+                                try:
+                                    os.kill(int(worker), signal.SIGKILL)
+                                    recovery_injected = True
+                                    break
+                                except ProcessLookupError:
+                                    pass
+                    else:
+                        reason = "checkpoint"
                 if reason:
                     usage = stop()
                     break
@@ -212,7 +224,7 @@ def measure(command, log, *, seconds, memory_mib, environment=None,
     return dict(command=command, exit=child.returncode, seconds=round(time.monotonic() - started, 3),
                 user_seconds=round(usage.ru_utime, 3), system_seconds=round(usage.ru_stime, 3),
                 peak_rss_kib=usage.ru_maxrss, stopped_by=reason, log=str(log),
-                profile=cost_profile(log))
+                profile=cost_profile(log), recovery_injected=recovery_injected)
 
 
 class Measurements:
@@ -375,6 +387,22 @@ def run_cache(args):
         package(root, "independent", [], r"\module Core { \definition P: \Prop := \forall (P: \Prop) -> P -> P; }")
         package(root, "diamond", ["independent", "right", "left"], body)
         measurements.run("unrelated-dependency", entry, cache)
+        failed_cache = root / "failed-checkpoint-cache"
+        failed_cache.mkdir()
+        # A file at the manifest-directory path deterministically prevents
+        # checkpoint publication while leaving result/object writes available.
+        blocked = failed_cache / "checkpoints"
+        blocked.write_text("blocked checkpoint directory", encoding="utf-8")
+        row = measurements.run("checkpoint-save-failure", entry, failed_cache,
+                               ["--checkpoint-seconds", "0"])
+        storage = (row.get("checker") or {}).get("storage", {})
+        if not storage.get("save_failures") or not storage.get("last_save_error"):
+            raise ValueError("checkpoint publication failure was not reported")
+        if "保存に失敗しました" not in Path(row["log"]).read_text(encoding="utf-8"):
+            raise ValueError("checkpoint publication failure was hidden by --no-progress")
+        blocked.unlink()
+        measurements.run("checkpoint-save-repaired", entry, failed_cache,
+                         ["--full-check", "--checkpoint-seconds", "0"])
         if args.checkpoint:
             interrupted = package(root, "interrupted", [previous], "\n".join(
                 rf"\module M{index} {{ \import {previous}.Core[] \as D; \definition P: \Prop := D.P; }}"
@@ -385,6 +413,13 @@ def run_cache(args):
                 raise ValueError("checker did not report a checkpoint before completion or its resource limit")
             measurements.run("resume", interrupted, cache, ["--checkpoint-seconds", "0"])
             measurements.run("resume-warm", interrupted, cache)
+            row = measurements.run("worker-recovery", interrupted, root / "recovery-cache",
+                                   ["--full-check", "--checkpoint-seconds", "0"], checkpoint="worker")
+            execution = (row.get("checker") or {}).get("execution", {})
+            if not row["recovery_injected"] or execution.get("recoveries", 0) < 1:
+                raise ValueError("worker termination did not exercise checkpoint recovery")
+            if execution.get("replayed_source_steps", 0) > execution.get("lost_steps", 0):
+                raise ValueError("recovery repeated declarations preceding its published checkpoint")
     return measurements.finish()
 
 

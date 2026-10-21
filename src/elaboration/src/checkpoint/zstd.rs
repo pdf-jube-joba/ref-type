@@ -120,3 +120,21 @@ pub(crate) fn decompress<const LIMIT: usize>(bytes: &[u8]) -> Option<Vec<u8>> {
     io::copy(&mut decoder, &mut output).ok()?;
     Some(output.0)
 }
+
+pub(super) fn deserialize<T: serde::de::DeserializeOwned, const LIMIT: usize>(
+    bytes: &[u8],
+) -> Option<T> {
+    use std::io::Read;
+    if bytes.is_empty() || bytes.len() > LIMIT {
+        return None;
+    }
+    let mut decoder = zstd::stream::read::Decoder::new(bytes).ok()?;
+    decoder.window_log_max(23).ok()?;
+    let mut buffer = vec![0; CHUNK_BYTES * 2];
+    let (value, (mut reader, _)) =
+        postcard::from_io::<T, _>((decoder.take(LIMIT as u64 + 1), &mut buffer)).ok()?;
+    if reader.limit() == 0 || reader.read(&mut [0]).ok()? != 0 {
+        return None;
+    }
+    Some(value)
+}

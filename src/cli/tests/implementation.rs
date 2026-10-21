@@ -179,30 +179,13 @@ fn uncached_check_preserves_non_utf8_source_identities() {
 
 #[cfg(target_os = "linux")]
 #[test]
-fn native_batches_recheck_with_a_fresh_cache_and_preserve_parent_errors() {
-    use sha2::{Digest, Sha256};
+fn native_session_rechecks_with_a_fresh_cache_and_preserves_parent_errors() {
     let fixture = FixtureDirectory::new();
     fixture.write("ref.toml", "[package]\nname = \"batch\"\n");
     let source = "\\module Root { \\definition root: \\Prop := \\forall (P: \\Prop) -> P -> P;\n\\module A { \\definition a: \\Prop := \\forall (P: \\Prop) -> P -> P; }\n\\module B { \\definition b: \\Prop := \\forall (P: \\Prop) -> P -> P; } }\n";
     let root = fixture.write("src/root.ref", source);
     let cache = fixture.0.join("refcache");
     fs::create_dir_all(&cache).unwrap();
-    let key: String = Sha256::digest(
-        fixture
-            .0
-            .canonicalize()
-            .unwrap()
-            .as_os_str()
-            .as_encoded_bytes(),
-    )
-    .iter()
-    .map(|byte| format!("{byte:02x}"))
-    .collect();
-    fs::write(
-        cache.join(format!("{key}.batches.json")),
-        r#"{"memory_mib":3072,"batch_seconds":180,"splits":["","batch","batch.Root"]}"#,
-    )
-    .unwrap();
     for args in [vec![], vec![], vec!["--full-check"]] {
         let output = run_ref_file_with_args(&fixture.0, &fixture.0, &args).unwrap();
         assert!(output.status.success(), "{}", output_details(&output));
@@ -215,7 +198,7 @@ fn native_batches_recheck_with_a_fresh_cache_and_preserve_parent_errors() {
         }));
     }
     let retuned =
-        run_ref_file_with_args(&fixture.0, &fixture.0, &["--batch-seconds", "1"]).unwrap();
+        run_ref_file_with_args(&fixture.0, &fixture.0, &["--time-limit-seconds", "60"]).unwrap();
     assert!(retuned.status.success(), "{}", output_details(&retuned));
     fs::write(
         root,
@@ -280,6 +263,8 @@ fn cancelling_native_check_reaps_the_worker_and_removes_its_workspace() {
     let mut parent = Command::new(env!("CARGO_BIN_EXE_cli"))
         .arg(&fixture.0)
         .args(["--full-check", "--no-progress"])
+        .arg("--report-json")
+        .arg(fixture.0.join("report.json"))
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
@@ -315,6 +300,10 @@ fn cancelling_native_check_reaps_the_worker_and_removes_its_workspace() {
         !Path::new(&format!("/proc/{worker}")).exists(),
         "worker was not reaped"
     );
+    let report: serde_json::Value =
+        serde_json::from_slice(&fs::read(fixture.0.join("report.json")).unwrap()).unwrap();
+    assert_eq!(report["outcome"], "interrupted");
+    assert_eq!(report["execution"]["workers"], 1);
     assert!(
         fs::read_dir(fixture.0.join("refcache"))
             .unwrap()

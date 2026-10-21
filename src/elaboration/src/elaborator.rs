@@ -820,12 +820,17 @@ impl GlobalEnvironment {
         module: &Module,
         names: &SourceNames<'_>,
     ) -> Result<(), ElaborationError> {
-        let child = self
-            .crate_env
-            .reserve_child_module(parent, module.name.0.clone());
-        self.crate_env.record_source_module(child, module);
+        let child = if let Some(&id) = self.module_manager.hir_modules.get(&module.id) {
+            id
+        } else {
+            let id = self
+                .crate_env
+                .reserve_child_module(parent, module.name.0.clone());
+            self.crate_env.record_source_module(id, module);
+            self.crate_env.publish_child_module(id)?;
+            id
+        };
         let _time = timing::Scope::module(|| analysis::module_path(&self.crate_env, child));
-        self.crate_env.publish_child_module(child)?;
         self.predeclared_modules.insert(module, child);
         self.module_manager.hir_modules.insert(module.id, child);
         if let Some(id) = module.name.1 {
@@ -840,7 +845,7 @@ impl GlobalEnvironment {
             }
             .into());
         };
-        for item in items {
+        for item in items.iter() {
             if let ModuleItem::ChildModule { module } = item {
                 self.predeclare_module_tree(child, module, names)?;
             }
@@ -882,6 +887,11 @@ impl GlobalEnvironment {
         )
     }
 
+    pub(crate) fn release_resolution_tables(&mut self) {
+        self.module_manager.hir_imports = Default::default();
+        self.module_manager.hir_bindings = Default::default();
+    }
+
     pub(crate) fn add_project_range(
         &mut self,
         project: &resolve::Project,
@@ -896,7 +906,11 @@ impl GlobalEnvironment {
             .analysis
             .declarations
             .split_off(self.resolved_declarations);
-        self.analysis.declarations = project.declarations.clone();
+        self.analysis.declarations.extend(
+            project.declarations[self.resolved_declarations..]
+                .iter()
+                .cloned(),
+        );
         self.resolved_declarations = self.analysis.declarations.len();
         self.analysis.declarations.extend(checked);
         self.module_manager.hir_imports = project.imports.clone();
@@ -916,7 +930,7 @@ impl GlobalEnvironment {
         self.diagnostic_location = None;
         let modules = &project.modules;
         let mut names = SourceNames::new();
-        for (&id, binding) in &project.bindings {
+        for (&id, binding) in project.bindings.iter() {
             if binding.parameter.is_none() {
                 names
                     .entry(binding.module)
@@ -930,7 +944,7 @@ impl GlobalEnvironment {
         ) {
             scheduled.insert(module.id, module);
             if let ModuleBody::Inline(items) = &module.body {
-                for item in items {
+                for item in items.iter() {
                     if let ModuleItem::ChildModule { module } = item {
                         collect(module, scheduled);
                     }
@@ -967,7 +981,7 @@ impl GlobalEnvironment {
                 restore(&mut output.location)?;
             }
             for reference in self.module_manager.references.get_mut() {
-                restore(&mut reference.location)?;
+                restore(&mut std::sync::Arc::make_mut(reference).location)?;
             }
         }
         self.predeclared_modules.clear();
@@ -978,9 +992,7 @@ impl GlobalEnvironment {
         } else {
             // Package sessions append roots after restoring the dependency environment.
             for module in modules {
-                if !self.module_manager.hir_modules.contains_key(&module.id) {
-                    self.predeclare_module_tree(self.crate_env.root_module(), module, &names)?;
-                }
+                self.predeclare_module_tree(self.crate_env.root_module(), module, &names)?;
             }
             self.module_manager.hir_module_bindings.clear();
             for (&id, module) in &scheduled {

@@ -78,7 +78,7 @@ pub struct ParameterSource {
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ModuleBody {
-    Inline(Vec<ModuleItem>), // sensitive to order
+    Inline(std::sync::Arc<Vec<ModuleItem>>), // sensitive to order
     External,
 }
 

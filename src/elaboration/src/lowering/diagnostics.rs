@@ -48,6 +48,50 @@ pub(super) fn format_error(raw: &CrateEnv, error: &CheckError) -> String {
     )
 }
 
+pub(crate) fn diagnostic_data(raw: &CrateEnv, error: &CheckError) -> ::diagnostics::DiagnosticData {
+    use ::diagnostics::{DiagnosticData as Data, DiagnosticError, Value};
+    match error {
+        CheckError::TypeMismatch(error) => {
+            let render = |expression| format_expression(raw, &error.context, expression);
+            Data::new("kernel.TypeMismatch")
+                .with("term", render(error.term))
+                .with("inferred", render(error.inferred))
+                .with("expected", render(error.expected))
+                .with(
+                    "context",
+                    Value::List(
+                        error
+                            .context
+                            .iter()
+                            .map(|binding| {
+                                Data::new("kernel.Binding")
+                                    .with("name", raw.symbol(binding.var).to_owned())
+                                    .with("type", render(binding.ty))
+                                    .into()
+                            })
+                            .collect(),
+                    ),
+                )
+                .with(
+                    "frames",
+                    Value::List(
+                        error
+                            .frames
+                            .iter()
+                            .map(|frame| frame.diagnostic_data().into())
+                            .collect(),
+                    ),
+                )
+        }
+        CheckError::Context { source, .. } => {
+            let mut data = error.diagnostic_data();
+            data.causes = vec![diagnostic_data(raw, source)];
+            data
+        }
+        _ => error.diagnostic_data(),
+    }
+}
+
 pub(crate) fn format_expression(
     raw: &CrateEnv,
     context: &Context,

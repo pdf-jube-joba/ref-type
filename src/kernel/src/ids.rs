@@ -58,3 +58,10 @@ pub(crate) fn deserialize_identity<'de, D: serde::Deserializer<'de>>(
     NEXT_IDENTITY.fetch_max(next, std::sync::atomic::Ordering::Relaxed);
     Ok(identity)
 }
+
+pub(crate) fn identity_boundary() -> u64 {
+    NEXT_IDENTITY.load(std::sync::atomic::Ordering::Relaxed)
+}
+pub(crate) fn reserve_identities(boundary: u64) {
+    NEXT_IDENTITY.fetch_max(boundary, std::sync::atomic::Ordering::Relaxed);
+}

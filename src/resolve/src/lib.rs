@@ -2,6 +2,7 @@
 mod bindings;
 pub mod error;
 pub mod hir;
+mod import_checkpoint;
 mod lower;
 mod macros;
 mod module_map;
@@ -10,7 +11,7 @@ pub use module_map::ModuleMap;
 mod program;
 mod resolver;
 pub use resolver::{
-    Binding, CheckStep, Declaration, Diagnostic, Import, Project, Reference, resolve,
+    Binding, CheckStep, Declaration, Diagnostic, Import, Project, Reference, ReferenceData, resolve,
 };
 
 /// Structural traversal shared by downstream HIR consumers.

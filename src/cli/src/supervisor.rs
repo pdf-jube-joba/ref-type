@@ -100,27 +100,15 @@ pub fn send_event(event: &ProgressEvent) {
     };
     send(Message::Event(event.clone(), elapsed));
 }
-pub fn send_environment_event(event: &ProgressEvent) {
-    if matches!(event, ProgressEvent::EnvironmentReused { .. }) {
-        send_event(event);
-    }
-}
-
-const CACHE_MISS: i32 = 75;
-
-/// A saved partition describes checking cost, not the cost of reading results.
-/// Stop a cache probe before its first actual checking step and use that partition.
-pub fn send_cache_probe_event(event: &ProgressEvent) {
-    if matches!(event, ProgressEvent::ModuleStarted { .. }) {
-        std::process::exit(CACHE_MISS);
-    }
-    send_event(event);
-}
 pub fn send_timing(timing: ModuleProgress) {
     send(Message::Timing(timing));
 }
 pub fn send_output(output: sema::QueryOutput) {
     send(Message::Output(output));
+}
+
+extern "C" fn collect(_: libc::c_int) {
+    sema::request_collection();
 }
 
 pub fn worker_arguments(args: Args) -> anyhow::Result<Args> {
@@ -142,6 +130,12 @@ pub fn worker_arguments(args: Args) -> anyhow::Result<Args> {
     unsafe {
         libc::setrlimit(libc::RLIMIT_CORE, &limit);
         libc::nice(5);
+        let mut action: libc::sigaction = std::mem::zeroed();
+        action.sa_sigaction = collect as *const () as usize;
+        libc::sigemptyset(&mut action.sa_mask);
+        if libc::sigaction(libc::SIGUSR1, &action, std::ptr::null_mut()) != 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
     }
     Ok(args)
 }
@@ -176,80 +170,24 @@ impl Workspace {
     fn path(&self, name: &str) -> PathBuf {
         self.directory.join(name)
     }
-    fn publish(&self, destination: &Path, budget: u64) -> anyhow::Result<()> {
+    fn publish(
+        &self,
+        destination: &Path,
+        budget: u64,
+    ) -> anyhow::Result<sema::artifact_store::CacheStoreStats> {
         let directory = self.path("cache");
         if !directory.exists() {
-            return Ok(());
+            return Ok(Default::default());
         }
         let store = sema::artifact_store::ArtifactStore::new(destination);
         store.set_budget(budget);
         store.publish_from(directory)?;
-        Ok(())
+        Ok(store.stats())
     }
 }
 impl Drop for Workspace {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.directory);
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct Batch {
-    module: Option<Vec<String>>,
-    exact: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Layout {
-    memory_mib: u64,
-    batch_seconds: u64,
-    splits: BTreeSet<String>,
-    #[serde(default)]
-    narrow: BTreeSet<String>,
-}
-impl Batch {
-    fn label(&self) -> String {
-        format!(
-            "{}{}",
-            self.module
-                .as_ref()
-                .map_or_else(|| "project".into(), |p| p.join(".")),
-            if self.exact { " (declarations)" } else { "" }
-        )
-    }
-    fn children(&self, paths: &[Vec<String>]) -> Vec<Self> {
-        if self.exact {
-            return Vec::new();
-        }
-        paths
-            .iter()
-            .filter(|p| match &self.module {
-                Some(parent) => p.len() == parent.len() + 1 && p.starts_with(parent),
-                None => p.len() == 1,
-            })
-            .map(|p| Self {
-                module: Some(p.clone()),
-                exact: false,
-            })
-            .collect()
-    }
-    fn split(&self, paths: &[Vec<String>]) -> Vec<Self> {
-        let mut children = self.children(paths);
-        if !children.is_empty() && self.module.is_some() {
-            children.insert(
-                0,
-                Self {
-                    exact: true,
-                    ..self.clone()
-                },
-            );
-        }
-        children
-    }
-    fn key(&self) -> String {
-        self.module
-            .as_ref()
-            .map_or_else(String::new, |p| p.join("."))
     }
 }
 
@@ -259,7 +197,7 @@ struct Worker {
     reaped: bool,
 }
 impl Worker {
-    fn kill(&mut self) {
+    fn signal_kill(&mut self) {
         if self.reaped {
             return;
         }
@@ -268,6 +206,12 @@ impl Worker {
             libc::kill(-(self.child.id() as i32), libc::SIGKILL);
         }
         let _ = self.child.kill();
+    }
+    fn kill(&mut self) {
+        if self.reaped {
+            return;
+        }
+        self.signal_kill();
         let _ = self.child.wait();
         self.reaped = true;
     }
@@ -283,7 +227,12 @@ struct Events {
     pending: Vec<u8>,
     timings: Vec<ModuleProgress>,
     outputs: Vec<sema::QueryOutput>,
-    broad_environment: bool,
+    checkpoint: Option<usize>,
+    completed: BTreeSet<usize>,
+    repeated: u64,
+    storage: sema::artifact_store::CacheStoreStats,
+    session: sema::SessionStatistics,
+    last_module: Option<Vec<String>>,
 }
 impl Events {
     fn new(path: &Path) -> anyhow::Result<Self> {
@@ -293,14 +242,16 @@ impl Events {
             pending: Vec::new(),
             timings: Vec::new(),
             outputs: Vec::new(),
-            broad_environment: false,
+            checkpoint: None,
+            completed: BTreeSet::new(),
+            repeated: 0,
+            storage: Default::default(),
+            session: Default::default(),
+            last_module: None,
         })
     }
     fn poll(&mut self, plan: &mut ProgressPlan) -> anyhow::Result<()> {
         loop {
-            if interrupted() {
-                bail!("検査を中断しました");
-            }
             let size = self.reader.read_until(b'\n', &mut self.pending)?;
             if size == 0 {
                 break;
@@ -328,8 +279,22 @@ impl Events {
                     progress::receive(&ProgressEvent::Planned(plan.clone()));
                 }
                 Message::Event(ProgressEvent::Finished { .. }, _) => {}
-                Message::Event(event @ ProgressEvent::EnvironmentReused { .. }, elapsed) => {
-                    self.broad_environment = true;
+                Message::Event(ProgressEvent::DeclarationFinished { position, success }, _) => {
+                    if success && !self.completed.insert(position) {
+                        self.repeated += 1;
+                    }
+                }
+                Message::Event(event @ ProgressEvent::CheckpointSaved { steps }, elapsed) => {
+                    self.checkpoint = Some(steps);
+                    progress::receive_timed(&event, elapsed);
+                }
+                Message::Event(ProgressEvent::StorageStats(stats), _) => self.storage = *stats,
+                Message::Event(ProgressEvent::SessionStatistics(stats), _) => self.session = *stats,
+                Message::Event(event @ ProgressEvent::ModuleStarted(_), elapsed) => {
+                    let ProgressEvent::ModuleStarted(path) = &event else {
+                        unreachable!()
+                    };
+                    self.last_module = Some(path.clone());
                     progress::receive_timed(&event, elapsed);
                 }
                 Message::Event(event, elapsed) => progress::receive_timed(&event, elapsed),
@@ -345,7 +310,10 @@ struct Outcome {
     status: ExitStatus,
     limited: bool,
     memory_limited: bool,
+    timeout_hit: bool,
+    cancelled: bool,
     events: Events,
+    resources: report::Execution,
 }
 fn execute(
     mut command: Command,
@@ -354,8 +322,17 @@ fn execute(
     plan: &mut ProgressPlan,
     display: &progress::Display,
     quiet: bool,
+    memory_mib: u64,
 ) -> anyhow::Result<Outcome> {
     let mut events = Events::new(&workspace.path("events.jsonl"))?;
+    // The allocator's 1 GiB default reservation is substantial under RLIMIT_AS.
+    // Smaller arenas leave virtual address space for live graphs and I/O buffers.
+    if memory_mib != 0 && std::env::var_os("MIMALLOC_ARENA_RESERVE").is_none() {
+        command.env("MIMALLOC_ARENA_RESERVE", "128M");
+    }
+    if std::env::var_os("REF_TYPE_GRAPH_SPILL_DIR").is_none() {
+        command.env("REF_TYPE_GRAPH_SPILL_DIR", &workspace.directory);
+    }
     command
         .stdout(Stdio::from(File::create(workspace.path("stdout"))?))
         .stderr(Stdio::from(File::create(workspace.path("stderr"))?))
@@ -395,18 +372,67 @@ fn execute(
     });
     let started = Instant::now();
     let mut heartbeat = Instant::now();
-    let (status, timeout_hit) = loop {
+    let mut last_pressure = started
+        .checked_sub(Duration::from_secs(5))
+        .unwrap_or(started);
+    let mut resources = report::Execution::default();
+    let mut cancelled = false;
+    let mut timeout_hit = false;
+    let status = loop {
         events.poll(plan)?;
-        if interrupted() {
-            bail!("検査を中断しました");
+        if interrupted() && !cancelled {
+            cancelled = true;
+            worker.signal_kill();
         }
-        if let Some(status) = worker.child.try_wait()? {
+        // wait4 also returns the final peak RSS and CPU usage of this worker.
+        let mut status = 0;
+        let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
+        // SAFETY: status and usage are live writable records; this worker owns PID.
+        let reaped = unsafe {
+            libc::wait4(
+                worker.child.id() as i32,
+                &mut status,
+                libc::WNOHANG,
+                &mut usage,
+            )
+        };
+        if reaped > 0 {
             worker.reaped = true;
-            break (status, false);
+            resources.peak_rss_kib = resources.peak_rss_kib.max(usage.ru_maxrss as u64);
+            resources.cpu_micros = (usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) as u64
+                * 1_000_000
+                + (usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) as u64;
+            break ExitStatus::from_raw(status);
         }
-        if timeout.is_some_and(|limit| started.elapsed() >= limit) {
-            worker.kill();
-            break (worker.child.wait()?, true);
+        if reaped < 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        if let Ok(status) = fs::read_to_string(format!("/proc/{}/status", worker.child.id())) {
+            let kib = |label: &str| {
+                status
+                    .lines()
+                    .find_map(|line| line.strip_prefix(label))
+                    .and_then(|value| value.split_whitespace().next()?.parse::<u64>().ok())
+                    .unwrap_or(0)
+            };
+            let virtual_kib = kib("VmSize:");
+            resources.peak_virtual_kib = resources.peak_virtual_kib.max(kib("VmPeak:"));
+            resources.peak_rss_kib = resources.peak_rss_kib.max(kib("VmHWM:"));
+            if memory_mib != 0
+                && virtual_kib > memory_mib.saturating_mul(1024) * 4 / 5
+                && last_pressure.elapsed() >= Duration::from_secs(5)
+            {
+                // SAFETY: signal only the live child; its handler sets an atomic.
+                unsafe {
+                    libc::kill(worker.child.id() as i32, libc::SIGUSR1);
+                }
+                last_pressure = Instant::now();
+                resources.collection_requests += 1;
+            }
+        }
+        if !timeout_hit && timeout.is_some_and(|limit| started.elapsed() >= limit) {
+            timeout_hit = true;
+            worker.signal_kill();
         }
         if !quiet && !display.enabled() && heartbeat.elapsed() >= Duration::from_secs(30) {
             display.message(&format!(
@@ -428,12 +454,17 @@ fn execute(
         }
     };
     events.poll(plan)?;
+    resources.last_module = events.last_module.clone();
+    resources.last_checkpoint = events.checkpoint.unwrap_or(0);
     let mut stderr = File::open(workspace.path("stderr"))?;
     let size = stderr.metadata()?.len();
     stderr.seek(SeekFrom::Start(size.saturating_sub(8192)))?;
-    let mut tail = String::new();
-    stderr.read_to_string(&mut tail)?;
+    let mut tail = Vec::new();
+    stderr.read_to_end(&mut tail)?;
+    // The bounded suffix can start inside a UTF-8 diagnostic character.
+    let tail = String::from_utf8_lossy(&tail);
     let memory_limited = !timeout_hit
+        && !cancelled
         && (status.signal() == Some(libc::SIGKILL)
             || (status.signal() == Some(libc::SIGABRT) && tail.contains("memory allocation of")));
     let limited = timeout_hit || memory_limited;
@@ -441,7 +472,10 @@ fn execute(
         status,
         limited,
         memory_limited,
+        timeout_hit,
+        cancelled,
         events,
+        resources,
     })
 }
 
@@ -484,30 +518,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
     };
     crate::save_input_snapshot(args, &snapshot)?;
     let workspace = Workspace::new(&cache)?;
-    let layout_key: String = Sha256::digest(
-        snapshot
-            .identity(snapshot.entry())
-            .as_os_str()
-            .as_encoded_bytes(),
-    )
-    .iter()
-    .map(|byte| format!("{byte:02x}"))
-    .collect();
-    let layout = if args.no_cache {
-        workspace.path("batches.json")
-    } else {
-        cache.join(format!("{layout_key}.batches.json"))
-    };
-    let memory_mib = args.memory_mib.unwrap_or(3072);
-    let (mut splits, mut narrow) = fs::read(&layout)
-        .ok()
-        .and_then(|s| serde_json::from_slice::<Layout>(&s).ok())
-        .filter(|saved| saved.memory_mib == memory_mib && saved.batch_seconds == args.batch_seconds)
-        .map(|saved| (saved.splits, saved.narrow))
-        .unwrap_or_default();
-    // The worker already parses the full snapshot. Only enumerate scopes here
-    // when selection or a saved resource-limit split needs them in advance.
-    let mut paths = if args.module.is_some() || !splits.is_empty() {
+    let paths = if args.module.is_some() {
         match database.module_paths(&snapshot) {
             Ok(paths) => paths,
             Err(diagnostics) => {
@@ -571,42 +582,32 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         session_store.set_budget(budget.saturating_mul(1024 * 1024));
     }
     let session_token = session_store.session_token()?;
-    let mut pending = vec![Batch {
-        module,
-        exact: args.module_only,
-    }];
+    let label = module
+        .as_ref()
+        .map_or_else(|| "project".to_owned(), |path| path.join("."));
+    let started = Instant::now();
+    let mut last_checkpoint = 0;
+    let mut workers = 0u64;
+    let mut resources = report::Execution::default();
     let mut timings: BTreeMap<Vec<String>, ModuleProgress> = BTreeMap::new();
     let mut outputs = BTreeSet::new();
     let mut success = true;
     let mut internal_error = false;
+    let mut incomplete = None;
     let mut verification_reused = false;
-    // A successful uncached batch needs no portable artifacts. If it exceeds
-    // a resource limit, enable the session's temporary cache for the smaller
-    // retries so they can share checked dependency prefixes.
-    let mut cache_batches = !args.no_cache;
-    while let Some(batch) = pending.pop() {
+    let mut checking = sema::QueryStats::default();
+    let mut storage = sema::artifact_store::CacheStoreStats::default();
+    let mut completed = BTreeSet::new();
+    loop {
         if interrupted() {
             bail!("検査を中断しました");
         }
-        let mut smaller = batch.split(&paths);
-        let partitioned = !smaller.is_empty() && splits.contains(&batch.key());
-        let cache_probe = partitioned && !fresh && !args.full_check_local && !args.stats;
-        if partitioned && !cache_probe {
-            pending.extend(smaller.into_iter().rev());
-            continue;
-        }
+        workers += 1;
         let mut request = args.clone();
         request.worker = Some(workspace.directory.clone());
-        request.cache_probe = cache_probe;
         request.worker_progress = display.enabled();
-        // A full check rebuilds dependencies in this session. Start with the
-        // requested closure instead of first importing a broader prefix and
-        // discovering its memory cost through a failed worker.
-        request.narrow_environment = args.full_check || narrow.contains(&batch.key());
-        request.module = batch.module.as_ref().map(|m| m.join("."));
-        request.module_only = batch.exact;
         request.full_check = false;
-        request.no_cache = !cache_batches;
+        request.no_cache = args.no_cache;
         request.clear_cache = false;
         request.progress_tty = false;
         request.cache_dir = Some(worker_cache.clone());
@@ -626,88 +627,72 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             .env_remove("REF_TYPE_PROFILE_PROGRESS")
             .env("REF_TYPE_CACHE_SESSION", &session_token);
         if !args.no_progress {
-            display.message(&format!("checking {}", batch.label()));
+            display.message(&format!("checking {label}"));
         }
         let outcome = execute(
             command,
             &workspace,
-            (batch.module.is_none() || !smaller.is_empty())
-                .then(|| Duration::from_secs(args.batch_seconds)),
+            args.time_limit_seconds
+                .map(|limit| Duration::from_secs(limit).saturating_sub(started.elapsed())),
             &mut plan,
             display,
             args.no_progress,
-        )?;
-        if cache_probe && outcome.status.code() == Some(CACHE_MISS) {
-            pending.extend(smaller.into_iter().rev());
-            continue;
+            args.memory_mib.unwrap_or(3072),
+        );
+        let outcome = match outcome {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                if fresh
+                    && !args.no_cache
+                    && let Err(save) = workspace.publish(
+                        &cache,
+                        args.cache_budget_mib
+                            .map_or(u64::MAX, |budget| budget.saturating_mul(1024 * 1024)),
+                    )
+                {
+                    eprintln!("中断前の checkpoint の公開に失敗しました: {save:#}");
+                }
+                return Err(error);
+            }
+        };
+        resources.merge(&outcome.resources);
+        resources.duplicate_source_steps += outcome.events.repeated;
+        resources.replayed_source_steps +=
+            outcome.events.completed.intersection(&completed).count() as u64;
+        completed.extend(&outcome.events.completed);
+        resources.source_steps = completed.len() as u64;
+        if outcome.events.session.completed_steps > 0 {
+            checking.session = outcome.events.session.clone();
         }
-        if outcome.memory_limited && outcome.events.broad_environment && !request.narrow_environment
+        if !outcome.status.success()
+            && !outcome.cancelled
+            && !outcome.timeout_hit
+            && !args
+                .time_limit_seconds
+                .is_some_and(|limit| started.elapsed() >= Duration::from_secs(limit))
+            && (outcome.memory_limited || outcome.status.signal().is_some())
+            && let Some(checkpoint) = outcome.events.checkpoint
+            && checkpoint > last_checkpoint
         {
-            narrow.insert(batch.key());
-            fs::write(
-                workspace.path("layout.json"),
-                serde_json::to_vec(&Layout {
-                    memory_mib,
-                    batch_seconds: args.batch_seconds,
-                    splits: splits.clone(),
-                    narrow: narrow.clone(),
-                })?,
-            )?;
-            fs::rename(workspace.path("layout.json"), &layout)?;
-            pending.push(batch);
-            continue;
-        }
-        if outcome.limited && paths.is_empty() {
-            let snapshot = read_snapshot(&workspace.directory)?;
-            paths = match sema::Database::new().module_paths(&snapshot) {
-                Ok(paths) => paths,
-                Err(diagnostics) => {
-                    display.finish(false);
-                    for diagnostic in diagnostics {
-                        eprintln!("{}", diagnostic.render(&snapshot));
-                    }
-                    return Ok(report::Report::checked(false, false));
-                }
-            };
-            smaller = batch.split(&paths);
-        }
-        if outcome.limited && !smaller.is_empty() {
-            cache_batches = true;
-            splits.insert(batch.key());
-            // Avoid repeating almost the same oversized work through unary wrappers.
-            let mut descendants = batch.children(&paths);
-            while descendants.len() == 1 {
-                let child = descendants.remove(0);
-                descendants = child.children(&paths);
-                if !descendants.is_empty() {
-                    splits.insert(child.key());
-                }
-            }
-            fs::write(
-                workspace.path("layout.json"),
-                serde_json::to_vec(&Layout {
-                    memory_mib,
-                    batch_seconds: args.batch_seconds,
-                    splits: splits.clone(),
-                    narrow: narrow.clone(),
-                })?,
-            )?;
-            fs::rename(workspace.path("layout.json"), &layout)?;
-            if !args.no_progress {
-                display.message(&format!(
-                    "splitting {} into {} batches",
-                    batch.label(),
-                    smaller.len()
-                ));
-            }
-            pending.extend(smaller.into_iter().rev());
+            resources.lost_steps += outcome.events.completed.range(checkpoint..).count() as u64;
+            storage.merge(&outcome.events.storage);
+            last_checkpoint = checkpoint;
+            display.message(&format!("検査を checkpoint {checkpoint} から再開します。"));
             continue;
         }
         if !outcome.status.success() {
             success = false;
-            display.message(&format!("検査失敗: {} ({})", batch.label(), outcome.status));
-            if outcome.limited {
+            if outcome.cancelled {
+                incomplete = Some(report::Outcome::Interrupted);
+                display.message("検査を中断しました。");
+            } else if outcome.timeout_hit {
+                incomplete = Some(report::Outcome::TimeLimit);
+                display.message("指定された総時間制限に達しました。検査は未完了です。");
+            } else if outcome.limited {
+                incomplete = Some(report::Outcome::MemoryLimit);
                 display.message("この module と参照先がメモリ上限を超えました。検査は未完了です。");
+            } else {
+                display.message(&format!("検査失敗: {} ({})", label, outcome.status));
             }
         }
         std::io::copy(
@@ -723,7 +708,13 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             Err(_) if !outcome.status.success() => {
                 // An aborted worker cannot write its final report. Still publish
                 // the verified prefixes below so a retry can use completed work.
-                internal_error = true;
+                internal_error = incomplete.is_none();
+                resources.lost_steps += outcome
+                    .events
+                    .completed
+                    .range(outcome.events.checkpoint.unwrap_or(0)..)
+                    .count() as u64;
+                storage.merge(&outcome.events.storage);
                 break;
             }
             Err(error) => return Err(error).context("worker did not finish its report"),
@@ -735,6 +726,8 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             bail!("verification worker status disagrees with its report");
         }
         verification_reused |= !fresh && summary.cache.verification_reused;
+        checking = summary.checking;
+        storage.merge(&summary.storage);
         for output in outcome.events.outputs {
             if outputs.insert((
                 output.location.file,
@@ -757,9 +750,11 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
                 entry.action = timing.action;
             }
         }
+        break;
     }
-    let current = crate::input_snapshot(args, &mut sema::Database::new())?;
-    if snapshot_key(&current) != initial_key {
+    if !interrupted()
+        && snapshot_key(&crate::input_snapshot(args, &mut sema::Database::new())?) != initial_key
+    {
         if args.source_snapshot.is_some() {
             bail!(
                 "検査中に入力 snapshot が変更されました。再実行して現在の snapshot を検査してください。"
@@ -767,15 +762,19 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
         }
         bail!("検査中にソースが変更されました。再実行して現在のソースを検査してください。");
     }
-    if fresh
-        && !args.no_cache
-        && let Err(error) = workspace.publish(
+    if fresh && !args.no_cache {
+        match workspace.publish(
             &cache,
             args.cache_budget_mib
                 .map_or(u64::MAX, |budget| budget.saturating_mul(1024 * 1024)),
-        )
-    {
-        eprintln!("キャッシュの公開を省略しました: {error:#}");
+        ) {
+            Ok(published) => storage.merge(&published),
+            Err(error) => {
+                storage.save_failures += 1;
+                storage.last_save_error = Some(error.to_string());
+                eprintln!("キャッシュの公開を省略しました: {error:#}");
+            }
+        }
     }
     progress::receive(&ProgressEvent::Finished { success });
     crate::PROGRESS.with_borrow_mut(|events| events.extend(timings.into_values()));
@@ -786,11 +785,21 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             "検査が完了していない範囲があります。"
         });
     }
-    Ok(if internal_error {
+    let mut report = if internal_error {
         report::Report::internal_error()
     } else {
         report::Report::checked(success, verification_reused)
-    })
+    };
+    if let Some(outcome) = incomplete {
+        report.outcome = outcome;
+    }
+    report.checking = checking;
+    report.storage = storage;
+    report.execution = resources;
+    report.execution.elapsed_micros = started.elapsed().as_micros() as u64;
+    report.execution.workers = workers;
+    report.execution.recoveries = workers.saturating_sub(1);
+    Ok(report)
 }
 
 #[cfg(test)]
@@ -867,29 +876,6 @@ mod tests {
     }
 
     #[test]
-    fn splitting_covers_parent_declarations_and_each_descendant_once() {
-        let paths: Vec<Vec<String>> = ["a", "a.B", "a.B.C", "a.D", "b"]
-            .into_iter()
-            .map(|s| s.split('.').map(str::to_owned).collect())
-            .collect();
-        let mut pending = vec![Batch {
-            module: None,
-            exact: false,
-        }];
-        let mut covered = Vec::new();
-        while let Some(batch) = pending.pop() {
-            let smaller = batch.split(&paths);
-            if smaller.is_empty() {
-                covered.push(batch.module.unwrap());
-            } else {
-                pending.extend(smaller);
-            }
-        }
-        covered.sort();
-        assert_eq!(covered, paths);
-    }
-
-    #[test]
     fn worker_limits_are_distinct_from_type_errors_and_timeouts_reap_children() {
         let workspace = Workspace::new(&std::env::temp_dir()).unwrap();
         let display = progress::Display::new(false, Box::new(std::io::sink()));
@@ -921,6 +907,7 @@ mod tests {
                 },
                 &display,
                 true,
+                0,
             )
             .unwrap();
             assert!(!outcome.status.success());

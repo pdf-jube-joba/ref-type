@@ -41,7 +41,7 @@ workspace 外は入力ディレクトリ、単独ファイルは親ディレク�
 | `--module-only` | `--module` で指定した module 自身と参照先を検証 |
 | `--list-modules` | ソース module の検査用パスを一行ずつ表示 |
 | `--memory-mib N` | Linux で仮想メモリを制限。既定3072 MiB、0は起動時の上限を維持 |
-| `--batch-seconds N` | Linux のパッケージ検査で大きな範囲を分割するまでの秒数。既定180、末端の検査には適用しない |
+| `--time-limit-seconds N` | Linux のパッケージ検査全体の時間上限。省略時は制限なし |
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
 | `--save-source-snapshot PATH` | 読み込んだソースと元のファイル識別子を JSON に保存 |
 | `--source-snapshot PATH` | 保存した JSON のソースを検査 |
@@ -54,11 +54,15 @@ workspace 外は入力ディレクトリ、単独ファイルは親ディレク�
 | `--cache-budget-mib N` | ディスクの保持上限 MiB。省略時は無制限、利用中の成果物は保護 |
 | `--clear-cache` | 保存先の中身を削除してから処理 |
 | `--cache-stats` | 解析・検査・再利用・保存の件数を表示 |
-| `--report-json PATH` | 合否と永続的な検証結果の再利用を JSON で保存 |
+| `--report-json PATH` | 合否、検査・保存の統計、worker 数、復旧数、CPU時間、最大RSS・仮想メモリを JSON で保存 |
 | `--checkpoint-seconds N` | package途中のcheckpoint保存間隔。既定30秒、0は毎module完了時 |
 | `--stats` | raw / kernel のノード数などを表示 |
 | `--trace` | 実際の検証を行い、型検査・登録・簡約のログを表示 |
 | `--diagnostics compact` / `detailed` | 診断の詳しさを指定 |
+
+JSON の `execution` はソース検査の重複を `duplicate_source_steps`、復旧による再実行を `replayed_source_steps`、未保存の作業を `lost_steps` に分ける。
+中断・時間上限・メモリ上限はそれぞれ `interrupted`・`time-limit`・`memory-limit` として記録する。
+`last_module` と `last_checkpoint` は異常終了時の到達位置を示す。
 
 `--module` を省略すると入口と読み込んだ全依存の全 module を検査する。
 指定すると、その module・子 module と参照先に絞る。
@@ -66,14 +70,24 @@ workspace 外は入力ディレクトリ、単独ファイルは親ディレク�
 `--full-check-local` は検査範囲を変えず、入口 package または workspace member の再検査を強制する。
 依存の現在の内容は通常検査でも確認する。
 
-Linux の package 検査は、親 supervisor が一つずつ worker を起動する。
-広い保存環境の再利用でメモリ上限に達した場合は、必要な範囲に絞った環境で同じ検査を再試行する。
-大きな範囲が時間・メモリ上限に達すると、親自身の宣言と各子 module に分割する。
-分割と環境の選択は、同じ資源上限での次回検査のヒントとして保存する。
-通常検査では、保存済みの分割構成を適用する前にキャッシュだけで回答できるかを確認する。
-未検査のステップがあれば、保存済みの構成に沿って検査する。
-末端は時間で打ち切らず、メモリ制限と Ctrl+C を維持する。
-全 worker は固定した source snapshot と実行内の成果物を共有し、ソースが変わると再実行を求める。
+Linux の package 検査は、一つの worker が検査セッションを保持し、supervisor が資源使用量と進捗を監視する。
+worker は依存先の検査済み宣言と名前空間を共有し、式グラフをページ単位で保存・退避する。
+資源上限のある worker は allocator の arena 予約単位を128 MiBにし、既定1 GiBの仮想アドレス予約による圧迫を抑える。
+`MIMALLOC_ARENA_RESERVE` が指定されていれば、その設定を使う。
+仮想メモリの使用量が指定上限の80%に達すると、supervisor がキャッシュの回収と checkpoint の保存を要求する。
+異常終了時は新しく公開された checkpoint があれば、同じ要求を再開する。
+中断時も公開済み checkpoint は通常の保存先へ引き継ぐ。
+指定した総時間制限と利用者の中断は自動再開の対象に含めない。
+source snapshot は実行中に固定され、ソースが変わると再実行を求める。
+report の `source_steps` は完了したソース検査ステップ数、`duplicate_source_steps` は実行内の再検査数、`lost_steps` は復旧時に checkpoint より後へ進んでいたステップ数を表す。
+`checking.session.graph` の索引容量・常駐ページ量・退避量は、OS の RSS・仮想メモリ量とは別に記録する。
+
+`finite_models` の依存を含む全体検査は8192 MiBで完走を確認しており、3072 MiBでは索引とfrontendの保持量が上限に達する。
+保存・復元のピークと他のライブラリの条件は [大規模検査の計測記録](../benchmarks/records/large-scale-checking/README.md) を参照。
+
+```sh
+target/debug/cli libs/topology/examples/finite_models --full-check --memory-mib 8192
+```
 
 編集を続けながら保存時点のソースを検査する場合は、snapshot を明示して実行する。
 保存時のファイル識別子と内容を使うため、別ディレクトリへソースをコピーせずに検査を固定し、変更していない依存のキャッシュを再利用できる。
@@ -90,8 +104,9 @@ cargo run -p cli -- libs/std --source-snapshot work/std.json --module std.Data.N
 キャッシュは処理系・設定・ソース・manifest・依存入力・検査範囲を照合する。
 無変更なら結果を再利用し、後続 package の検査には依存環境を復元する。
 module 完了境界の checkpoint から途中再開でき、保存コストの約10倍以上を空けて次を保存する。
-`--full-check` と入口の `--full-check-local` は再開を省いて再検査する。
-`--full-check` は検査範囲に合う依存環境から開始し、同じ要求内の検査済み範囲を引き継いで再構築を減らす。
+`--full-check` と入口の `--full-check-local` は、強制検査範囲について過去の検証世代の結果を引き継がずに再検査する。
+同じ実行の障害復旧では、その世代で保存した checkpoint を使う。
+`--full-check` は保存済みの検証結果を再利用しない新しい世代で開始し、その実行内で完了した宣言を後続の要求と共有する。
 budget 超過時は利用中の成果物と依存を保護し、未使用の成果物を回収する。
 保存形式と API は [sema](sema/README.md#再利用) を参照。
 
@@ -128,6 +143,8 @@ REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std --no-
 | `REF_TYPE_PROFILE_LOCAL_DEFINITIONS` | 局所定義の検査時間 |
 | `REF_TYPE_PROFILE_LOWERING` | kernel 定義への変換・登録時間 |
 | `REF_TYPE_PROFILE_PHASES=1` | 各処理段階の時間と RSS |
+| `REF_TYPE_PROFILE_STORAGE=1` | 検査ステップ、宣言セル、置換表、式ページの保持量と I/O |
+| `REF_TYPE_GRAPH_RESIDENT_MIB=N` | 式ページの常駐予算。native の既定128 MiB、最小1 MiB |
 | `REF_TYPE_PROFILE_MODULES=1` | module の読み込み・具体化・復旧 |
 | `REF_TYPE_PROFILE_PROGRESS=1` | 処理段階、module の開始・完了、完了数と経過秒数を随時出力 |
 | `REF_TYPE_PROFILE_NAMESPACES=1` | import の名前空間と ID 対応表の件数 |

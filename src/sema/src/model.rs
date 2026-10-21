@@ -1,5 +1,6 @@
 use crate::SourceSnapshot;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::{
     ops::Range,
     path::{Path, PathBuf},
@@ -109,9 +110,9 @@ pub struct ModuleResult {
     pub path: Vec<String>,
     pub dependencies: Vec<Vec<String>>,
     pub status: ModuleStatus,
-    pub declarations: Vec<Declaration>,
-    pub references: Vec<Reference>,
-    pub outputs: Vec<QueryOutput>,
+    pub declarations: Arc<Vec<Declaration>>,
+    pub references: Arc<Vec<Reference>>,
+    pub outputs: Arc<Vec<QueryOutput>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,7 +129,9 @@ impl SemanticResult {
                 .all(|module| module.status == ModuleStatus::Verified)
     }
     pub fn declarations(&self) -> impl Iterator<Item = &Declaration> {
-        self.modules.iter().flat_map(|module| &module.declarations)
+        self.modules
+            .iter()
+            .flat_map(|module| module.declarations.iter())
     }
     pub fn declaration(&self, id: &DeclarationId) -> Option<&Declaration> {
         self.declarations()
@@ -139,7 +142,7 @@ impl SemanticResult {
         let reference = self
             .modules
             .iter()
-            .flat_map(|module| &module.references)
+            .flat_map(|module| module.references.iter())
             .filter(|reference| reference.location.contains(&file, offset))
             .min_by_key(|reference| reference.location.range.len())?;
         self.declaration(&reference.target)
@@ -161,7 +164,7 @@ impl SemanticResult {
     ) -> impl Iterator<Item = &'a Reference> {
         self.modules
             .iter()
-            .flat_map(|module| &module.references)
+            .flat_map(|module| module.references.iter())
             .filter(move |reference| &reference.target == id)
     }
     pub fn goals(&self) -> impl Iterator<Item = &Goal> {
@@ -172,12 +175,14 @@ impl SemanticResult {
         self.diagnostics.iter()
     }
     pub fn outputs(&self) -> impl Iterator<Item = &QueryOutput> {
-        self.modules.iter().flat_map(|module| &module.outputs)
+        self.modules.iter().flat_map(|module| module.outputs.iter())
     }
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryStats {
+    pub session: elaboration::SessionStatistics,
+    pub checked_steps: usize,
     pub parsed_files: usize,
     pub reused_parses: usize,
     pub checked_modules: usize,

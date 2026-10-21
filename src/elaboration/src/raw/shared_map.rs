@@ -6,12 +6,15 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeMap}
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
-pub trait IdLookup<K> {
+pub trait IdLookup<K: Copy> {
+    fn resolve(&self, key: &K) -> Option<K> {
+        self.get(key).copied()
+    }
     fn get(&self, key: &K) -> Option<&K>;
     fn is_empty(&self) -> bool;
 }
 
-impl<K: Eq + Hash> IdLookup<K> for HashMap<K, K> {
+impl<K: Copy + Eq + Hash> IdLookup<K> for HashMap<K, K> {
     fn get(&self, key: &K) -> Option<&K> {
         HashMap::get(self, key)
     }
@@ -260,12 +263,26 @@ impl<K: Copy + Eq + Hash> SharedMap<K> {
     pub(crate) fn capacity(&self) -> usize {
         self.entries.capacity()
     }
-    fn make_mut(&mut self) -> &mut FxHashMap<K, K> {
-        if self.base.is_some() {
-            self.entries = Arc::new(self.iter().map(|(&k, &v)| (k, v)).collect());
-            self.base = None;
+    pub(crate) fn retained_capacity<'a>(roots: impl Iterator<Item = &'a Self>) -> usize
+    where
+        K: 'a,
+    {
+        let mut pending: Vec<_> = roots.collect();
+        let mut maps = rustc_hash::FxHashSet::default();
+        let mut tables = rustc_hash::FxHashSet::default();
+        let mut capacity = 0;
+        while let Some(map) = pending.pop() {
+            if !maps.insert(map as *const Self) {
+                continue;
+            }
+            if tables.insert(Arc::as_ptr(&map.entries)) {
+                capacity += map.entries.capacity();
+            }
+            if let Some((next, previous)) = &map.base {
+                pending.extend([next.as_ref(), previous.as_ref()]);
+            }
         }
-        Arc::make_mut(&mut self.entries)
+        capacity
     }
     pub(crate) fn insert(&mut self, key: K, value: K) -> Option<K> {
         let previous = self.get(&key).copied();
@@ -275,9 +292,6 @@ impl<K: Copy + Eq + Hash> SharedMap<K> {
     #[cfg(test)]
     pub(crate) fn clear(&mut self) {
         *self = Self::default();
-    }
-    pub(crate) fn values_mut(&mut self) -> impl Iterator<Item = &mut K> {
-        self.make_mut().values_mut()
     }
     /// Compact the local table without flattening the inherited composition.
     /// An explicit identity can override an inherited redirect, so only a

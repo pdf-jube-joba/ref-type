@@ -1,5 +1,8 @@
 //! Reuse an entire checked prefix without relocating overlapping environments.
 use super::*;
+#[path = "graph_store.rs"]
+mod graph_store;
+use graph_store::GraphPages;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
@@ -11,39 +14,71 @@ pub(crate) struct Metadata {
     syntax: BTreeSet<Vec<String>>,
     coverage: BTreeSet<Vec<String>>,
     history: Vec<Fingerprint>,
+    generation: Option<String>,
     bytes: usize,
+    graph: Vec<artifact_store::ObjectRef>,
+}
+
+impl Metadata {
+    fn continuing(&self) -> bool {
+        std::env::var("REF_TYPE_CACHE_SESSION")
+            .ok()
+            .is_some_and(|generation| self.generation.as_ref() == Some(&generation))
+    }
+
+    pub(super) fn matches_inputs(
+        &self,
+        inputs: &[crate::package_inputs::PackageInput],
+        packages: &[project::package_loader::PackageInfo],
+    ) -> bool {
+        self.inputs.iter().all(|(name, input)| {
+            packages
+                .iter()
+                .position(|p| &p.name == name)
+                .is_some_and(|i| inputs[i].key == *input)
+        })
+    }
+
+    pub(super) fn permits(&self, forced: &BTreeSet<Vec<String>>) -> bool {
+        self.coverage.is_disjoint(forced)
+    }
 }
 
 impl PackageRun<'_, '_> {
     fn resume_prefix(
         &mut self,
-        state: &PackageState<'_>,
+        request: Fingerprint,
         forced: &BTreeSet<usize>,
         wanted: &BTreeSet<usize>,
     ) -> Option<(PackageChecker, Metadata)> {
-        if state.force {
-            return None;
-        }
         let store = self.database.disk.as_ref()?.store();
-        let manifest = store.read_checkpoint(&state.key).ok()?;
-        if manifest.input != state.input || manifest.resolver.is_some() {
+        let manifest = store.read_checkpoint(&request).ok()?;
+        if manifest.input != request || manifest.resolver.is_some() {
             return None;
         }
         let bytes = store.read_object(manifest.environment.as_ref()?).ok()?;
         let (magic, metadata, bytes): ([u8; 8], Metadata, Vec<u8>) =
             artifact_store::deserialize(&bytes).ok()?;
-        if magic != *b"REFPFX01"
+        let continuing = metadata.continuing();
+        if magic != *b"REFSES02"
             || !self.valid_prefix(&metadata)
-            || metadata.coverage.iter().any(|path| {
-                self.graph.indices.get(path).is_none_or(|index| {
-                    forced.contains(index)
-                        || (self.options.narrow_environment && !wanted.contains(index))
-                })
+            || metadata.syntax.iter().any(|path| {
+                self.graph
+                    .indices
+                    .get(path)
+                    .is_none_or(|index| !continuing && forced.contains(index))
             })
         {
             return None;
         }
-        let checker = PackageChecker::restore(&bytes, |id| self.snapshot.source(&id.0).cloned())?;
+        if metadata.graph != manifest.graph {
+            return None;
+        }
+        let pages = GraphPages::new(self.database.disk.as_ref()?.shared_store());
+        pages.validate(&metadata.graph)?;
+        let checker = elaboration::with_graph_store(pages, || {
+            PackageChecker::restore(&bytes, |id| self.snapshot.source(&id.0).cloned())
+        })?;
         self.database.stats.checkpoint_hits += 1;
         self.progress.environment_reused(
             metadata
@@ -68,26 +103,41 @@ impl PackageRun<'_, '_> {
         metadata: &Metadata,
         steps: usize,
         bytes: postcard::Result<Vec<u8>>,
+        graph: Vec<artifact_store::ObjectRef>,
     ) {
-        let saved = (|| {
-            let store = self.database.disk.as_ref()?.store();
-            let bytes = artifact_store::serialize(&(*b"REFPFX01", metadata, bytes.ok()?)).ok()?;
-            let environment = store.write_object(ObjectKind::Checkpoint, &bytes).ok()?;
-            store
-                .publish_checkpoint(&StoreManifest {
-                    key,
-                    input,
-                    coverage: coverage.iter().cloned().collect(),
-                    environment: Some(environment),
-                    ..Default::default()
-                })
-                .ok()
+        let saved: Result<(), crate::error::CacheError> = (|| {
+            let store = self
+                .database
+                .disk
+                .as_ref()
+                .expect("checkpoint store")
+                .store();
+            let mut metadata = metadata.clone();
+            metadata.graph = graph.clone();
+            let state =
+                bytes.map_err(|error| crate::error::CacheError::Codec(error.to_string()))?;
+            let bytes = artifact_store::serialize(&(*b"REFSES02", &metadata, state))?;
+            let environment = store.write_object(ObjectKind::Checkpoint, &bytes)?;
+            store.publish_checkpoint(&StoreManifest {
+                key,
+                input,
+                coverage: coverage.iter().cloned().collect(),
+                environment: Some(environment),
+                graph,
+                ..Default::default()
+            })
         })();
-        if saved.is_some() {
-            self.database.stats.checkpoint_writes += 1;
-            self.progress.checkpoint_saved(steps);
-        } else {
-            self.database.stats.checkpoint_skips += 1;
+        match saved {
+            Ok(()) => {
+                self.database.stats.checkpoint_writes += 1;
+                self.progress
+                    .storage_stats(self.database.cache_store_stats());
+                self.progress.checkpoint_saved(steps);
+            }
+            Err(error) => {
+                self.database.stats.checkpoint_skips += 1;
+                self.progress.storage_failed(error.to_string());
+            }
         }
         self.progress.phase(ProgressPhase::Checking);
     }
@@ -97,7 +147,6 @@ impl PackageRun<'_, '_> {
         coverage: impl Iterator<Item = impl AsRef<[String]>>,
         wanted: &BTreeSet<usize>,
         forced: &BTreeSet<usize>,
-        small: bool,
     ) -> Option<(usize, std::cmp::Reverse<usize>)> {
         let mut shared = 0;
         let mut extra = 0;
@@ -112,8 +161,7 @@ impl PackageRun<'_, '_> {
                 extra += 1;
             }
         }
-        (shared > 0 && (extra == 0 || (small && !self.options.narrow_environment)))
-            .then_some((shared, std::cmp::Reverse(extra)))
+        (shared > 0).then_some((shared, std::cmp::Reverse(extra)))
     }
 
     fn valid_prefix(&self, metadata: &Metadata) -> bool {
@@ -125,47 +173,42 @@ impl PackageRun<'_, '_> {
         })
     }
 
-    fn has_syntax(&self, metadata: &Metadata, wanted: &BTreeSet<usize>) -> bool {
-        wanted.iter().all(|&index| {
-            let path = &self.graph.units[index].path;
-            !metadata.inputs.contains_key(&path[0]) || metadata.syntax.contains(path)
-        })
-    }
-
     fn restore_prefix(
         &mut self,
         wanted: &BTreeSet<usize>,
         forced: &BTreeSet<usize>,
     ) -> (PackageChecker, Metadata) {
-        let active = self.native_active.take().filter(|(_, metadata)| {
-            self.valid_prefix(metadata)
-                && self.has_syntax(metadata, wanted)
-                && self
-                    .prefix_score(
-                        metadata.coverage.iter(),
-                        wanted,
-                        forced,
-                        metadata.bytes > 0 && metadata.bytes <= 8 * 1024 * 1024,
-                    )
-                    .is_some()
-        });
-        let active_score = active.as_ref().and_then(|(_, m)| {
-            self.prefix_score(
-                m.coverage.iter(),
-                wanted,
-                forced,
-                m.bytes > 0 && m.bytes <= 8 * 1024 * 1024,
-            )
-        });
+        // Completed work in this session belongs to the current verification
+        // generation. Forced input ranges apply when entering the session, not
+        // when another package requests a dependency checked by this worker.
+        if let Some((checker, metadata)) = self.native_active.take()
+            && self.valid_prefix(&metadata)
+        {
+            let extra = metadata
+                .coverage
+                .iter()
+                .filter(|path| {
+                    self.graph
+                        .indices
+                        .get(*path)
+                        .is_some_and(|i| !wanted.contains(i))
+                })
+                .count();
+            self.progress.environment_reused(extra);
+            return (checker, metadata);
+        }
         let mut candidates = BTreeMap::new();
+        let unforced = BTreeSet::new();
         for metadata in self.database.prefixes.values() {
             if self.valid_prefix(metadata)
-                && self.has_syntax(metadata, wanted)
                 && let Some(score) = self.prefix_score(
                     metadata.coverage.iter(),
                     wanted,
-                    forced,
-                    metadata.bytes > 0 && metadata.bytes <= 8 * 1024 * 1024,
+                    if metadata.continuing() {
+                        &unforced
+                    } else {
+                        forced
+                    },
                 )
             {
                 candidates.insert(metadata.key, (score, Some(metadata.clone()), None));
@@ -183,15 +226,12 @@ impl PackageRun<'_, '_> {
                     {
                         continue;
                     }
-                    if let Some(score) = self.prefix_score(
-                        manifest.coverage.iter(),
-                        wanted,
-                        forced,
-                        manifest
-                            .environment
-                            .as_ref()
-                            .is_some_and(|o| o.decoded_bytes <= 8 * 1024 * 1024),
-                    ) {
+                    // A recovered full-check-local invocation can reuse work
+                    // completed in its own generation. Validate that generation
+                    // in the envelope before loading any graph pages below.
+                    if let Some(score) =
+                        self.prefix_score(manifest.coverage.iter(), wanted, &unforced)
+                    {
                         candidates
                             .entry(manifest.key)
                             .and_modify(|entry| entry.2 = Some(manifest.clone()))
@@ -203,9 +243,6 @@ impl PackageRun<'_, '_> {
         let mut candidates: Vec<_> = candidates.into_values().collect();
         candidates.sort_by_key(|entry| std::cmp::Reverse(entry.0));
         for (score, memory, manifest) in candidates {
-            if active_score.is_some_and(|active| active >= score) {
-                break;
-            }
             let loaded = (|| {
                 if let Some(metadata) = memory
                     && let Some(bytes) = self.database.package_environments.get(&metadata.key)
@@ -222,18 +259,30 @@ impl PackageRun<'_, '_> {
                     .ok()?;
                 let (magic, metadata, state): ([u8; 8], Metadata, Vec<u8>) =
                     artifact_store::deserialize(&bytes).ok()?;
-                (magic == *b"REFPFX01" && metadata.key == manifest.key).then_some((metadata, state))
+                (magic == *b"REFSES02" && metadata.key == manifest.key).then_some((metadata, state))
             })();
             let Some((metadata, bytes)) = loaded else {
                 continue;
             };
-            if !self.valid_prefix(&metadata) || !self.has_syntax(&metadata, wanted) {
+            if !self.valid_prefix(&metadata)
+                || (!metadata.continuing()
+                    && self
+                        .prefix_score(metadata.coverage.iter(), wanted, forced)
+                        .is_none())
+            {
                 continue;
             }
             let started = Instant::now();
-            if let Some(checker) =
+            let Some(disk) = &self.database.disk else {
+                continue;
+            };
+            let pages = GraphPages::new(disk.shared_store());
+            if pages.validate(&metadata.graph).is_none() {
+                continue;
+            }
+            if let Some(checker) = elaboration::with_graph_store(pages, || {
                 PackageChecker::restore(&bytes, |id| self.snapshot.source(&id.0).cloned())
-            {
+            }) {
                 self.database.stats.environment_hits += 1;
                 if let Some(disk) = &self.database.disk {
                     disk.store().record_relocation(started.elapsed());
@@ -248,15 +297,18 @@ impl PackageRun<'_, '_> {
                 return (checker, metadata);
             }
         }
-        let active = active.unwrap_or_default();
-        if let Some(score) = active_score {
-            self.progress.environment_reused(score.1.0);
-        }
-        active
+        Default::default()
     }
 
-    fn save_prefix(&mut self, checker: &mut PackageChecker, metadata: &mut Metadata) {
-        if metadata.coverage.is_empty() || checker.is_pending() {
+    fn save_prefix(
+        &mut self,
+        checker: &mut PackageChecker,
+        metadata: &mut Metadata,
+        request: Fingerprint,
+    ) {
+        self.progress
+            .session_statistics(checker.session_statistics());
+        if self.database.disk.is_none() || metadata.coverage.is_empty() || checker.is_pending() {
             return;
         }
         let Some(owner) = self.packages.iter().rposition(|p| {
@@ -290,24 +342,42 @@ impl PackageRun<'_, '_> {
                 checker.expression_count()
             );
         }
-        let Ok(state) = checker.checkpoint() else {
-            return;
+        let pages = GraphPages::new(self.database.disk.as_ref().unwrap().shared_store());
+        let state = match elaboration::with_graph_store(pages.clone(), || checker.checkpoint()) {
+            Ok(state) => state,
+            Err(error) => {
+                self.database.stats.cache_write_failures += 1;
+                self.progress.storage_failed(error.to_string());
+                return;
+            }
         };
         metadata.bytes = state.len();
+        metadata.graph = pages.references();
         if let Some(disk) = &self.database.disk {
             let saved = (|| {
-                let bytes = artifact_store::serialize(&(*b"REFPFX01", &*metadata, &state))?;
+                let bytes = artifact_store::serialize(&(*b"REFSES02", &*metadata, &state))?;
                 let object = disk.store().write_object(ObjectKind::Checkpoint, &bytes)?;
-                disk.store().publish(&StoreManifest {
+                let manifest = StoreManifest {
                     key: metadata.key,
                     input: metadata.input,
                     coverage: metadata.coverage.iter().cloned().collect(),
                     environment: Some(object),
+                    graph: metadata.graph.clone(),
                     ..Default::default()
+                };
+                disk.store().publish(&manifest)?;
+                // Advance the recovery pointer too: an older in-flight
+                // checkpoint must never hide this newer completed prefix.
+                disk.store().publish_checkpoint(&StoreManifest {
+                    key: request,
+                    input: request,
+                    ..manifest
                 })
             })();
-            if saved.is_err() {
+            if let Err(error) = saved {
                 self.database.stats.cache_write_failures += 1;
+                self.progress.storage_failed(error.to_string());
+                return;
             }
         }
         self.database
@@ -316,6 +386,10 @@ impl PackageRun<'_, '_> {
         self.database
             .prefixes
             .insert(metadata.key, metadata.clone());
+        self.progress
+            .storage_stats(self.database.cache_store_stats());
+        self.progress
+            .checkpoint_saved(checker.checkpoint_position());
     }
 
     fn prefix_header(
@@ -327,7 +401,12 @@ impl PackageRun<'_, '_> {
         metadata: &mut Metadata,
     ) -> Option<()> {
         let name = &self.packages[package].name;
-        if checker.has_resolution(name) {
+        if checker.has_resolution(name)
+            && wanted.iter().all(|&index| {
+                let path = &self.graph.units[index].path;
+                path.first() != Some(name) || metadata.syntax.contains(path)
+            })
+        {
             return Some(());
         }
         let Some(module) = roots.iter().find(|module| &module.name.0 == name) else {
@@ -336,7 +415,14 @@ impl PackageRun<'_, '_> {
         for dependency in &self.inputs[package].dependencies {
             self.prefix_header(dependency.index, roots, wanted, checker, metadata)?;
         }
-        checker.append_resolution(module).ok()?;
+        let paths = wanted
+            .iter()
+            .filter_map(|&i| {
+                let path = &self.graph.units[i].path;
+                (path.first() == Some(name)).then(|| path.clone())
+            })
+            .collect();
+        checker.append_resolution_selected(module, &paths).ok()?;
         metadata
             .inputs
             .insert(name.clone(), self.inputs[package].key);
@@ -352,20 +438,29 @@ impl PackageRun<'_, '_> {
         index: usize,
         states: &mut [PackageState<'_>],
     ) -> Option<()> {
-        let mut wanted = self.graph.closure(states[index].indices.iter().copied());
-        if let Some((_, metadata)) = &self.native_active {
-            // Keep the already checked part of this request in the live
-            // environment. Rebuilding a narrower dependency selection loses
-            // shared declarations between independently selected packages.
-            // Coverage outside the request still follows the prefix size and
-            // narrow-environment limits below.
-            wanted.extend(
-                states
-                    .iter()
-                    .flat_map(|state| state.indices.iter().copied())
-                    .filter(|&i| metadata.coverage.contains(&self.graph.units[i].path)),
-            );
-        }
+        // Package result hits can change which state enters this function. Key
+        // recovery by the exact whole request, independently of those hits and
+        // of broader artifacts selected to satisfy individual packages.
+        let request_parts: BTreeSet<_> = states
+            .iter()
+            .map(|state| {
+                crate::package_inputs::artifact_key(
+                    &state.input,
+                    state
+                        .indices
+                        .iter()
+                        .map(|&i| self.graph.units[i].path.clone()),
+                )
+            })
+            .collect();
+        let request = crate::cache::fingerprint(
+            &artifact_store::serialize(&(b"session-request", request_parts)).ok()?,
+        );
+        let wanted = self.graph.closure(
+            states
+                .iter()
+                .flat_map(|state| state.indices.iter().copied()),
+        );
         let forced = states
             .iter()
             .filter(|state| state.force && state.results.is_none())
@@ -373,10 +468,12 @@ impl PackageRun<'_, '_> {
             .collect();
         self.progress.phase(ProgressPhase::Restoring);
         let (mut checker, mut metadata) = self
-            .resume_prefix(&states[index], &forced, &wanted)
+            .resume_prefix(request, &forced, &wanted)
             .unwrap_or_else(|| self.restore_prefix(&wanted, &forced));
-        let own_name = states[index].module.name.0.clone();
-        let roots = self.graph.selected(&wanted);
+        metadata.generation = std::env::var("REF_TYPE_CACHE_SESSION").ok();
+        let roots = self.graph.roots.to_vec();
+        let mut saved_position = checker.checkpoint_position();
+        let mut entered_local = false;
         for root in &roots {
             let selected: BTreeSet<_> = wanted
                 .iter()
@@ -397,9 +494,12 @@ impl PackageRun<'_, '_> {
                 continue;
             }
             let package = self.packages.iter().position(|p| p.name == root.name.0)?;
-            if root.name.0 == own_name {
-                self.save_covered_results(&checker, &metadata, states);
-                self.save_prefix(&mut checker, &mut metadata);
+            if !entered_local && self.local_packages.contains(&root.name.0) {
+                // Keep a reusable dependency boundary for local edits and
+                // forced local checks, independently of checkpoint spacing.
+                self.save_prefix(&mut checker, &mut metadata, request);
+                saved_position = checker.checkpoint_position();
+                entered_local = true;
             }
             for dependency in &self.inputs[package].dependencies {
                 self.prefix_header(
@@ -415,6 +515,8 @@ impl PackageRun<'_, '_> {
                 .map(|&i| self.graph.units[i].path.clone())
                 .collect();
             let mut did = BTreeSet::new();
+            let mut step_modules = Vec::new();
+            let mut remaining = BTreeMap::<usize, usize>::new();
             metadata
                 .inputs
                 .insert(root.name.0.clone(), self.inputs[package].key);
@@ -425,11 +527,13 @@ impl PackageRun<'_, '_> {
                     .unwrap_or(Duration::from_secs(30))
             });
             self.progress.phase(ProgressPhase::Checking);
-            let checked = checker.append_selected_with_checkpoints(
-                root,
-                &paths,
-                interval,
-                |event| match event {
+            let pages = self
+                .database
+                .disk
+                .as_ref()
+                .map(|disk| GraphPages::new(disk.shared_store()));
+            let mut check = || {
+                checker.append_session_selected(root, &paths, interval, |event| match event {
                     PackageProgress::Prepared {
                         paths,
                         start,
@@ -446,6 +550,15 @@ impl PackageRun<'_, '_> {
                             })
                             .collect();
                         did.extend(steps.iter().map(|&position| order[position]));
+                        for &index in &order {
+                            if selected.contains(&index) {
+                                remaining.entry(index).or_default();
+                            }
+                        }
+                        for &position in &steps {
+                            *remaining.entry(order[position]).or_default() += 1;
+                        }
+                        step_modules = order.clone();
                         self.progress
                             .begin_batch(&order, start, order.len(), &steps);
                     }
@@ -456,24 +569,88 @@ impl PackageRun<'_, '_> {
                         position,
                         elapsed,
                         success,
-                    }) => self.progress.step(position, elapsed, success),
-                    PackageProgress::Saving => self.progress.phase(ProgressPhase::Saving),
+                    }) => {
+                        self.database.stats.checked_steps += 1;
+                        if success {
+                            *remaining
+                                .get_mut(&step_modules[position])
+                                .expect("scheduled declaration") -= 1;
+                        }
+                        self.progress.step(position, elapsed, success);
+                    }
+                    PackageProgress::Saving(stats) => {
+                        self.database.stats.session = *stats;
+                        self.progress
+                            .session_statistics(self.database.stats.session.clone());
+                        if let Some(pages) = &pages {
+                            pages.clear();
+                        }
+                        self.progress.phase(ProgressPhase::Saving);
+                    }
+                    // The active request owns recovery even while a dependency
+                    // is being checked. resume_prefix looks up this same key.
                     PackageProgress::Checkpoint { steps, bytes } => self.save_pending(
-                        states[index].key,
-                        states[index].input,
+                        request,
+                        request,
                         &paths,
                         &metadata,
                         steps,
                         bytes,
+                        pages
+                            .as_ref()
+                            .map_or_else(Vec::new, |pages| pages.references()),
                     ),
                     _ => {}
-                },
-            );
+                })
+            };
+            let checked = if let Some(pages) = &pages {
+                elaboration::with_graph_store(pages.clone(), check)
+            } else {
+                check()
+            };
             self.progress.finish_batch();
             if let Err(error) = checked {
                 if std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some() {
                     eprintln!("prefix checking failed for {}: {error}", root.name.0);
                 }
+                let completed: BTreeSet<_> = remaining
+                    .iter()
+                    .filter_map(|(&i, &left)| (left == 0).then_some(i))
+                    .collect();
+                metadata
+                    .coverage
+                    .extend(completed.iter().map(|&i| self.graph.units[i].path.clone()));
+                self.progress.verified(&completed);
+                self.database.stats.checked_modules += did.len();
+                self.database.stats.session = checker.session_statistics();
+                let mut results: BTreeMap<_, _> = wanted
+                    .iter()
+                    .map(|&i| {
+                        let path = self.graph.units[i].path.clone();
+                        (
+                            i,
+                            ModuleResult {
+                                status: if metadata.coverage.contains(&path) {
+                                    ModuleStatus::Verified
+                                } else {
+                                    ModuleStatus::Incomplete
+                                },
+                                path,
+                                dependencies: self.graph.units[i]
+                                    .dependencies
+                                    .iter()
+                                    .map(|&d| self.graph.units[d].path.clone())
+                                    .collect(),
+                                ..Default::default()
+                            },
+                        )
+                    })
+                    .collect();
+                collect_analysis(checker.analysis(), self.graph, &mut results);
+                self.failed = Some(Arc::new(SemanticResult {
+                    modules: results.into_values().collect(),
+                    diagnostics: vec![diagnostic(&error)],
+                }));
                 return None;
             }
             self.database.stats.checked_modules += did.len();
@@ -492,10 +669,30 @@ impl PackageRun<'_, '_> {
                 &self.inputs[package].key,
                 selected.iter().map(|&i| self.graph.units[i].path.clone()),
             ));
+            self.save_covered_results(&checker, &metadata, states);
+            self.progress
+                .session_statistics(checker.session_statistics());
+            // Geometric metadata snapshots bound cumulative prefix encoding by
+            // the added work. Immutable graph pages are still appended once;
+            // timed in-flight checkpoints provide independent recovery points.
+            let position = checker.checkpoint_position();
+            if position >= saved_position.max(1).saturating_mul(2) {
+                self.save_prefix(&mut checker, &mut metadata, request);
+                saved_position = position;
+            }
         }
         self.save_covered_results(&checker, &metadata, states);
         self.progress.phase(ProgressPhase::Saving);
-        self.save_prefix(&mut checker, &mut metadata);
+        self.save_prefix(&mut checker, &mut metadata, request);
+        if let Some(disk) = &self.database.disk {
+            let _ = disk.store().discard_checkpoint(&request);
+        }
+        self.database.stats.session = checker.session_statistics();
+        if self.options.collect_statistics {
+            self.database
+                .verification_statistics
+                .extend(checker.statistics().lines());
+        }
         self.native_active = Some((checker, metadata));
         Some(())
     }

@@ -471,7 +471,7 @@ impl diagnostics::DiagnosticError for Error {
 }
 
 impl Frame {
-    fn diagnostic_data(&self) -> diagnostics::DiagnosticData {
+    pub fn diagnostic_data(&self) -> diagnostics::DiagnosticData {
         match self {
             Self::Rule(rule) => diagnostics::DiagnosticData::new("kernel.Rule").with("rule", *rule),
             Self::Check(operation) => {

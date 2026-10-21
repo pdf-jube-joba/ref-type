@@ -54,6 +54,10 @@ pub enum ProgressEvent {
         path: Vec<String>,
         action: ProgressAction,
     },
+    DeclarationFinished {
+        position: usize,
+        success: bool,
+    },
     Finished {
         success: bool,
     },
@@ -64,6 +68,11 @@ pub enum ProgressEvent {
     EnvironmentReused {
         extra_modules: usize,
     },
+    StorageFailed {
+        message: String,
+    },
+    StorageStats(Box<crate::artifact_store::CacheStoreStats>),
+    SessionStatistics(Box<elaboration::SessionStatistics>),
 }
 
 pub(crate) fn reused_result(
@@ -265,6 +274,24 @@ impl Reporter {
         }
     }
 
+    pub fn storage_failed(&self, message: String) {
+        if let Some(receive) = self.events {
+            receive(&ProgressEvent::StorageFailed { message });
+        }
+    }
+
+    pub fn storage_stats(&self, stats: crate::artifact_store::CacheStoreStats) {
+        if let Some(receive) = self.events {
+            receive(&ProgressEvent::StorageStats(Box::new(stats)));
+        }
+    }
+
+    pub fn session_statistics(&self, stats: elaboration::SessionStatistics) {
+        if let Some(receive) = self.events {
+            receive(&ProgressEvent::SessionStatistics(Box::new(stats)));
+        }
+    }
+
     pub fn environment_reused(&self, extra_modules: usize) {
         if extra_modules > 0
             && let Some(receive) = self.events
@@ -288,6 +315,9 @@ impl Reporter {
     }
 
     pub fn step(&mut self, position: usize, _: Duration, success: bool) {
+        if let Some(receive) = self.events {
+            receive(&ProgressEvent::DeclarationFinished { position, success });
+        }
         let Some(&index) = self.steps.get(&position) else {
             return;
         };

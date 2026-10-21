@@ -154,7 +154,6 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), crate::error::E
             && definitions.insert(id)
             && !env.kernel_definitions.borrow().contains_key(&id)
         {
-            let definition = env.resolve_definition(id)?;
             if let Some(origin) = env.generic_definition_specialization(id) {
                 pending.push(Term::Logical(
                     env.arena().alloc(ExpNode::DefinedConstant(origin.source)),
@@ -167,6 +166,7 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), crate::error::E
                 }));
                 continue;
             }
+            let definition = env.resolve_definition(id)?;
             match definition.clone() {
                 DefinedConstant::Contextual {
                     parameters,

@@ -124,7 +124,7 @@ fn local_definition_shadowing_does_not_escape_its_expression() {
     let ast::ModuleItem::Definition {
         body: ast::SExp::App { func, .. },
         ..
-    } = &mut items[0]
+    } = &mut std::sync::Arc::make_mut(items)[0]
     else {
         panic!()
     };

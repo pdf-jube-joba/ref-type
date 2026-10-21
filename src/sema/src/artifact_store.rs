@@ -48,6 +48,8 @@ pub struct StoreManifest {
     pub resolver: Option<ObjectRef>,
     pub environment: Option<ObjectRef>,
     pub checkpoint: Option<ObjectRef>,
+    #[serde(default)]
+    pub graph: Vec<ObjectRef>,
 }
 impl StoreManifest {
     fn objects(&self) -> impl Iterator<Item = &ObjectRef> {
@@ -57,6 +59,7 @@ impl StoreManifest {
             .chain(self.resolver.iter())
             .chain(self.environment.iter())
             .chain(self.checkpoint.iter())
+            .chain(self.graph.iter())
     }
 }
 /// Reference counts preserve the oldest currently eligible eviction order without
@@ -136,7 +139,7 @@ pub enum MissReason {
     SizeLimit,
     InputMismatch,
 }
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CacheStoreStats {
     pub result_read_bytes: u64,
     pub result_write_bytes: u64,
@@ -161,6 +164,43 @@ pub struct CacheStoreStats {
     pub retained_bytes_is_upper_bound: bool,
     pub budget_excess_bytes: u64,
 }
+impl CacheStoreStats {
+    /// Accumulate I/O across workers and publication; retention describes the
+    /// most recently observed store, rather than adding repeated snapshots.
+    pub fn merge(&mut self, other: &Self) {
+        macro_rules! add {
+            ($($field:ident),* $(,)?) => {$(self.$field += other.$field;)*};
+        }
+        add!(
+            result_read_bytes,
+            result_write_bytes,
+            environment_read_bytes,
+            environment_write_bytes,
+            result_hits,
+            environment_imports,
+            checkpoint_resumes,
+            missing,
+            format_misses,
+            corrupt,
+            size_limits,
+            save_failures,
+            input_mismatches,
+            relocation_time,
+            shared_objects,
+            collected_bytes,
+            compression_time,
+            decompression_time,
+        );
+        if other.last_save_error.is_some() {
+            self.last_save_error.clone_from(&other.last_save_error);
+        }
+        if other.retained_bytes != 0 {
+            self.retained_bytes = other.retained_bytes;
+            self.retained_bytes_is_upper_bound = other.retained_bytes_is_upper_bound;
+            self.budget_excess_bytes = other.budget_excess_bytes;
+        }
+    }
+}
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 struct Pins {
     artifacts: BTreeSet<Fingerprint>,
@@ -180,6 +220,7 @@ impl Drop for Lease {
     fn drop(&mut self) {
         if self.owner {
             let _ = fs::remove_file(self.path.with_extension("pins"));
+            let _ = fs::remove_file(self.path.with_extension("objects"));
             let _ = fs::remove_file(&self.path);
         }
     }
@@ -251,6 +292,10 @@ impl ArtifactStore {
             stats: Mutex::new(CacheStoreStats::default()),
         }
     }
+    pub fn directory(&self) -> &Path {
+        &self.root
+    }
+
     pub fn set_budget(&self, bytes: u64) {
         self.budget.store(bytes, Ordering::Relaxed);
     }
@@ -340,7 +385,17 @@ impl ArtifactStore {
         self.pin(|pins| {
             *pins = Pins::default();
             true
-        })
+        })?;
+        remove(
+            &self
+                .lease
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .path
+                .with_extension("objects"),
+        )
     }
     fn lock(&self) -> Result<File, CacheError> {
         fs::create_dir_all(&self.root)
@@ -474,6 +529,21 @@ impl ArtifactStore {
         Ok(())
     }
 
+    // Written pages are append-only lease roots. Updating a fixed-size journal
+    // avoids rewriting the entire growing pin set for every graph page.
+    // Callers hold the store lock until the pin is durable in the filesystem.
+    fn pin_written_object(&self, digest: &Fingerprint) -> Result<(), CacheError> {
+        self.pin(|_| false)?;
+        let lease = self.lease.lock().unwrap();
+        let path = lease.as_ref().unwrap().path.with_extension("objects");
+        OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .and_then(|mut file| file.write_all(digest))
+            .map_err(|error| io_error(CacheOperation::WriteRecord, &path, error))
+    }
+
     fn failure<T>(&self, result: Result<T, CacheError>, writing: bool) -> Result<T, CacheError> {
         if let Err(error) = &result {
             let mut stats = self.stats.lock().unwrap();
@@ -562,7 +632,7 @@ impl ArtifactStore {
                 };
                 {
                     let _lock = self.lock()?;
-                    self.pin(|pins| pins.objects.insert(object.digest))?;
+                    self.pin_written_object(&object.digest)?;
                 }
                 let path = self.object_path(&object.digest);
                 let reused = read_bounded(&path, MAX_OBJECT + HEADER as u64)
@@ -603,7 +673,7 @@ impl ArtifactStore {
             .collect()
     }
 
-    fn pin_objects(&self, objects: &[&ObjectRef]) -> Result<(), CacheError> {
+    pub(crate) fn pin_objects(&self, objects: &[&ObjectRef]) -> Result<(), CacheError> {
         self.failure(
             (|| {
                 let _lock = self.lock()?;
@@ -618,7 +688,7 @@ impl ArtifactStore {
         )
     }
 
-    fn read_pinned_object(&self, object: &ObjectRef) -> Result<Vec<u8>, CacheError> {
+    pub(crate) fn read_pinned_object(&self, object: &ObjectRef) -> Result<Vec<u8>, CacheError> {
         self.failure(
             (|| {
                 let bytes = read_bounded(
@@ -855,7 +925,10 @@ impl ArtifactStore {
         let budget = self.budget.load(Ordering::Relaxed);
         let mut pinned = Pins::default();
         for path in files(&self.root.join("leases"))? {
-            if path.extension().is_some_and(|ext| ext == "pins") {
+            if path
+                .extension()
+                .is_some_and(|ext| ext == "pins" || ext == "objects")
+            {
                 if !path.with_extension("").exists() {
                     remove(&path)?;
                 }
@@ -873,6 +946,7 @@ impl ArtifactStore {
             match file.try_lock() {
                 Ok(()) => {
                     remove(&path.with_extension("pins"))?;
+                    remove(&path.with_extension("objects"))?;
                     remove(&path)?;
                 }
                 Err(std::fs::TryLockError::WouldBlock) => {
@@ -887,6 +961,33 @@ impl ArtifactStore {
                     pinned.checkpoints.extend(pins.checkpoints);
                     pinned.objects.extend(pins.objects);
                     pinned.objects.extend(pins.read_objects);
+                    let journal = path.with_extension("objects");
+                    if journal.exists() {
+                        let file = File::open(&journal)
+                            .map_err(|e| io_error(CacheOperation::ReadRecord, &journal, e))?;
+                        if file
+                            .metadata()
+                            .map_err(|e| io_error(CacheOperation::ReadRecord, &journal, e))?
+                            .len()
+                            % 32
+                            != 0
+                        {
+                            return Ok(self.stats());
+                        }
+                        let mut reader = std::io::BufReader::with_capacity(64 * 1024, file);
+                        loop {
+                            let mut digest = [0; 32];
+                            match reader.read_exact(&mut digest) {
+                                Ok(()) => {
+                                    pinned.objects.insert(digest);
+                                }
+                                Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                                Err(e) => {
+                                    return Err(io_error(CacheOperation::ReadRecord, &journal, e));
+                                }
+                            }
+                        }
+                    }
                 }
                 Err(std::fs::TryLockError::Error(e)) => {
                     return Err(io_error(CacheOperation::Collect, &path, e));
@@ -1038,17 +1139,35 @@ impl ArtifactStore {
     pub fn publish_from(&self, source_directory: impl Into<PathBuf>) -> Result<(), CacheError> {
         let source = Self::new(source_directory);
         let mut records = Vec::new();
-        for checkpoint in [false, true] {
-            for path in files(&source.root.join(if checkpoint {
-                "checkpoints"
-            } else {
-                "artifacts"
-            }))? {
-                let Some(key) = path_key(&path) else { continue };
-                if let Ok(manifest) = source.read_record(&key, checkpoint) {
-                    records.push((manifest, checkpoint));
+        {
+            // Hold the source lock until the entire batch is pinned. Updating
+            // an ever-growing object lease once per manifest makes publication
+            // quadratic, even though each immutable object is copied once.
+            let _lock = source.lock()?;
+            for checkpoint in [false, true] {
+                for path in files(&source.root.join(if checkpoint {
+                    "checkpoints"
+                } else {
+                    "artifacts"
+                }))? {
+                    let Some(key) = path_key(&path) else { continue };
+                    if let Ok(manifest) = source.load_manifest(&key, checkpoint) {
+                        records.push((manifest, checkpoint));
+                    }
                 }
             }
+            source.pin(|pins| {
+                for (manifest, checkpoint) in &records {
+                    if *checkpoint {
+                        pins.checkpoints.insert(manifest.key);
+                    } else {
+                        pins.artifacts.insert(manifest.key);
+                    }
+                    pins.read_objects
+                        .extend(manifest.objects().map(|object| object.digest));
+                }
+                !records.is_empty()
+            })?;
         }
         // Complete dependency records must become visible before their consumers.
         // Pin dependencies already in the destination while the source is copied.
@@ -1081,14 +1200,63 @@ impl ArtifactStore {
             records.push((manifest, key.1));
         }
         // Pin all copied objects before any publication can trigger collection.
-        for (manifest, _) in &records {
-            for object in manifest.objects() {
-                let payload = source.read_object(object)?;
-                let written = self.write_object(object.kind, &payload)?;
-                if &written != object {
-                    return Err(invalid(MissReason::Format));
+        let objects: BTreeMap<_, _> = records
+            .iter()
+            .flat_map(|(manifest, _)| manifest.objects())
+            .map(|object| (object.digest, object))
+            .collect();
+        source.pin_objects(&objects.values().copied().collect::<Vec<_>>())?;
+        let mut linked_directories = BTreeSet::new();
+        for object in objects.into_values() {
+            let source_path = source.object_path(&object.digest);
+            let bytes = read_bounded(&source_path, MAX_OBJECT + HEADER as u64)?;
+            if bytes.len() as u64 != object.stored_bytes || fingerprint(&bytes) != object.digest {
+                return Err(invalid(MissReason::Corrupt));
+            }
+            {
+                let _lock = self.lock()?;
+                self.pin_written_object(&object.digest)?;
+            }
+            let path = self.object_path(&object.digest);
+            if read_bounded(&path, MAX_OBJECT + HEADER as u64)
+                .is_ok_and(|existing| fingerprint(&existing) == object.digest)
+            {
+                self.stats.lock().unwrap().shared_objects += 1;
+            } else {
+                let parent = path.parent().unwrap();
+                fs::create_dir_all(parent)
+                    .map_err(|error| io_error(CacheOperation::CreateDirectory, parent, error))?;
+                // Both stores own immutable objects. On the same filesystem a
+                // link shares their durable data, and syncing each directory
+                // once makes every link durable before publishing manifests.
+                let linked = fs::hard_link(&source_path, &path).is_ok();
+                if linked {
+                    linked_directories.insert(parent.to_path_buf());
+                } else {
+                    self.atomic_write(&path, &bytes)?;
+                }
+                self.pending_bytes
+                    .fetch_add(bytes.len() as u64, Ordering::Relaxed);
+                let mut stats = self.stats.lock().unwrap();
+                if linked {
+                    stats.shared_objects += 1;
+                } else if object.kind == ObjectKind::Result {
+                    stats.result_write_bytes += bytes.len() as u64;
+                } else {
+                    stats.environment_write_bytes += bytes.len() as u64;
                 }
             }
+            let mut stats = self.stats.lock().unwrap();
+            if object.kind == ObjectKind::Result {
+                stats.result_read_bytes += bytes.len() as u64;
+            } else {
+                stats.environment_read_bytes += bytes.len() as u64;
+            }
+        }
+        for directory in linked_directories {
+            File::open(&directory)
+                .and_then(|file| file.sync_all())
+                .map_err(|error| io_error(CacheOperation::WriteRecord, &directory, error))?;
         }
         for (manifest, checkpoint) in records {
             self.publish_record(&manifest, checkpoint)?;

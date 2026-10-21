@@ -13,6 +13,8 @@ sort・型・項・証明を共通の `kernel::syntax` の `Expression` と `Nod
 | [metavariables](src/metavariables.rs) | 単一化と保留制約 |
 | [environment](src/environment.rs) | 宣言登録と検証済み環境 |
 | [exports](src/exports.rs) | package が所有する宣言と共有式の再配置 |
+| [node_store](src/node_store.rs) | 安定した式 handle と常駐ページの管理 |
+| [graph_store](src/graph_store.rs) | セッションの不変 object ストアへの接続 |
 
 `Context` は `Binding { var, ty }` を外側から並べた telescope で、各型は先行する文脈で解釈する。
 `Bound(0)` は最も内側の変数、`SymbolId` は表示名であり、alpha 等価性は名前に依存しない。
@@ -85,6 +87,20 @@ occurs check は候補・期待型・宣言文脈を通じた循環も検出す�
 `Environment::import_export` は参照・反映表を検証し、部分成果物の重複は宣言と式の一致を確認して共有する。
 未解決メタ変数は export 時に検出し、raw の宣言参照にも使う `Meta` の identity は frontend の対応表と `reserve_metas` で再配置する。
 失敗時には追加した式と ID 対応を戻し、既存の宣言表を保持する。
+
+式は2,048スロットのページに保持し、参照と intern の索引は本文の常駐状態から独立させる。
+intern の索引は32 bitの候補キーと32 bitの式参照を持ち、衝突した候補ではノード全体を比較して同一性を確認する。
+`Arena::read` の `Rc<Node>` は読込時の snapshot を pin し、ページの退避後も使える。
+宣言登録中の一時式を整理するときは、公開した snapshot から到達する式も保持し、破棄した handle を通常の割当で再利用しない。
+ページの常駐予算は native の既定128 MiBで、`Arena::set_resident_budget` または `REF_TYPE_GRAPH_RESIDENT_MIB` から変更できる。
+`Arena::store_stats` は保持量・保存読込量・退避回数を返す。
+
+セッション保存では `with_graph_store` が供給する `GraphStore` に確定したページを追加し、既存のページは参照を再利用する。
+checkpoint はページ参照、live bitmap、式の性質と intern の索引を保持し、本文は使用時に読み込む。
+一時退避ではセッション専用のファイルを使い、読込・保存バッファを64 KiBに制限する。
+CLI は cache と同じ filesystem に退避ファイルを置き、checkpoint の全ページを不変 object に保存したら一時コピーを解放する。
+`REF_TYPE_GRAPH_SPILL_DIR` で退避先を指定でき、CLI 以外の既定は OS の一時ディレクトリである。
+WebAssembly はファイルへの退避を使わず、メモリ内で保持する。
 
 束縛を含む構造走査は `Arena::map_children` に集約する。
 環境は推論・弱頭簡約・conversion・文脈・型の shift・同時代入を共有し、`cache_counts` で件数を取得できる。

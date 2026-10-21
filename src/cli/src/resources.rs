@@ -36,3 +36,18 @@ pub fn limit_memory(requested: Option<u64>) -> std::io::Result<()> {
     }
     Ok(())
 }
+
+/// Called at a declaration boundary after releasing reconstructed caches.
+pub fn collect_allocator() {
+    #[cfg(not(feature = "system-allocator"))]
+    {
+        unsafe extern "C" {
+            fn mi_collect(force: bool);
+        }
+        // SAFETY: mimalloc's process allocator is linked by MiMalloc. Collection
+        // only releases unused pages and does not invalidate live allocations.
+        unsafe {
+            mi_collect(true);
+        }
+    }
+}

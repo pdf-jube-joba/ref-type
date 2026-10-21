@@ -99,7 +99,7 @@ fn checking_uses_binding_ids_and_keeps_a_reusable_hir() {
     let ModuleBody::Inline(items) = &mut project.modules[0].body else {
         panic!()
     };
-    for item in items {
+    for item in std::sync::Arc::make_mut(items) {
         if let ModuleItem::Definition {
             body: SExp::AccessPath { access, .. },
             ..
@@ -144,7 +144,7 @@ fn resolved_module_routes_are_independent_of_display_names() {
         let ModuleBody::Inline(items) = &mut module.body else {
             panic!()
         };
-        for item in items {
+        for item in std::sync::Arc::make_mut(items) {
             if let ModuleItem::Import { path, .. } = item {
                 let calls = match path {
                     ModuleInstantiatePath::FromRoot { calls }
@@ -163,5 +163,50 @@ fn resolved_module_routes_are_independent_of_display_names() {
             }
         }
     }
+    Checker::default().check(&project).unwrap();
+}
+
+#[test]
+fn nested_imports_preserve_structure_field_argument_environments() {
+    let project = resolve(
+        r"\module Base {
+  \inductive Index: \Set := | zero: Index;
+  \structure Family := { Carrier: Index -> \Set, space: \forall (n: Index) -> Carrier n -> Carrier n };
+  \structure Complex := { family: Family };
+  \module Check(A: \Set, f: \forall (n: Index) -> \Pow (\Pow A) -> \Pow (\Pow A)) {}
+  \module Identity(A: \Set) {
+    \definition family: Family := Family {
+      Carrier := \fun (n: Index) => A,
+      space := \fun (n: Index) (x: A) => x,
+    };
+    \definition complex: Complex := Complex { family := family };
+  }
+  \module Transform(B: Complex) {
+    \definition family: Family := Family {
+      Carrier := \fun (n: Index) => \Pow (B.family.Carrier n),
+      space := \fun (n: Index) (x: \Pow (B.family.Carrier n)) => x,
+    };
+    \definition complex: Complex := Complex { family := family };
+  }
+}
+\module Sequence(C: \Set) {
+  \import \root.Base[] \as B;
+  \import B.Identity[A := C] \as I;
+  \import B.Transform[B := I.complex] \as M;
+  \import B.Transform[B := M.complex] \as T;
+  \definition middle: B.Complex := T.complex;
+  \module Mapping(D: \Set) {
+    \import \root.Sequence[C := C] \as S;
+    \import B.Check[A := C, f := S.middle.family.space] \as Check;
+  }
+}
+\module Consumer(D: \Set) {
+  \import \root.Base[] \as B;
+  \import \root.Sequence[C := D] \as S;
+  \import B.Check[A := D, f := S.middle.family.space] \as C;
+}
+
+",
+    );
     Checker::default().check(&project).unwrap();
 }

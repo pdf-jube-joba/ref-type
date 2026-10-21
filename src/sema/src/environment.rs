@@ -37,7 +37,7 @@ impl EnvironmentPlan {
             }
             modules.push((module, path.clone()));
             if let ModuleBody::Inline(items) = &module.body {
-                for item in items {
+                for item in items.iter() {
                     if let ModuleItem::ChildModule { module } = item {
                         collect(module, &path, modules, paths);
                     }
@@ -78,14 +78,14 @@ impl EnvironmentPlan {
             };
         };
         let mut bindings_by_module: HashMap<_, Vec<_>> = HashMap::new();
-        for (id, binding) in &project.bindings {
+        for (id, binding) in project.bindings.iter() {
             bindings_by_module
                 .entry(binding.module)
                 .or_default()
                 .push((id, binding));
         }
         let mut imports_by_module: HashMap<_, Vec<_>> = HashMap::new();
-        for (id, import) in &project.imports {
+        for (id, import) in project.imports.iter() {
             imports_by_module
                 .entry(import.owner)
                 .or_default()
@@ -108,7 +108,7 @@ impl EnvironmentPlan {
             bytes
                 .extend(format!("{:?}{:?}", module.parameters, module.parameter_checks).as_bytes());
             if let ModuleBody::Inline(items) = &module.body {
-                for item in items {
+                for item in items.iter() {
                     if let ModuleItem::ChildModule { module } = item {
                         bytes.extend(format!("child {:?}", module.id).as_bytes());
                     } else {
